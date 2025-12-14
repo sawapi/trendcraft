@@ -48,6 +48,10 @@ export {
   // Momentum
   rsi,
   macd,
+  stochastics,
+  fastStochastics,
+  slowStochastics,
+  dmi,
   // Volatility
   bollingerBands,
   atr,
@@ -61,7 +65,14 @@ export {
   cumulativeReturns,
 } from "./indicators";
 
-export type { VolumeMaOptions, HighestLowestValue } from "./indicators";
+export type {
+  VolumeMaOptions,
+  HighestLowestValue,
+  StochasticsValue,
+  StochasticsOptions,
+  DmiValue,
+  DmiOptions,
+} from "./indicators";
 
 // Fluent API
 export { TrendCraft } from "./core/trendcraft";

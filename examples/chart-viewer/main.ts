@@ -13,6 +13,8 @@ let currentCandles: NormalizedCandle[] = [];
 let mainChart: echarts.ECharts | null = null;
 let rsiChart: echarts.ECharts | null = null;
 let macdChart: echarts.ECharts | null = null;
+let stochChart: echarts.ECharts | null = null;
+let dmiChart: echarts.ECharts | null = null;
 let currentZoomRange: { start: number; end: number } = { start: 0, end: 100 };
 
 // DOM Elements
@@ -24,6 +26,8 @@ const chartWrapper = document.getElementById('chartWrapper') as HTMLDivElement;
 const timeframeSelect = document.getElementById('timeframe') as HTMLSelectElement;
 const rsiChartEl = document.getElementById('rsi-chart') as HTMLDivElement;
 const macdChartEl = document.getElementById('macd-chart') as HTMLDivElement;
+const stochChartEl = document.getElementById('stoch-chart') as HTMLDivElement;
+const dmiChartEl = document.getElementById('dmi-chart') as HTMLDivElement;
 
 // Initialize
 function init(): void {
@@ -71,12 +75,16 @@ function initCharts(): void {
   mainChart = echarts.init(document.getElementById('main-chart'), 'dark');
   rsiChart = echarts.init(rsiChartEl, 'dark');
   macdChart = echarts.init(macdChartEl, 'dark');
+  stochChart = echarts.init(stochChartEl, 'dark');
+  dmiChart = echarts.init(dmiChartEl, 'dark');
 
   // Resize handler
   window.addEventListener('resize', () => {
     mainChart?.resize();
     rsiChart?.resize();
     macdChart?.resize();
+    stochChart?.resize();
+    dmiChart?.resize();
   });
 }
 
@@ -309,12 +317,12 @@ function updateChart(): void {
       { left: 60, right: 60, top: '72%', height: '18%' },
     ],
     xAxis: [
-      { type: 'category', data: dates, boundaryGap: true, axisLine: { lineStyle: { color: '#333' } } },
-      { type: 'category', data: dates, gridIndex: 1, boundaryGap: true, axisLine: { lineStyle: { color: '#333' } }, axisLabel: { show: false } },
+      { type: 'category', data: dates, boundaryGap: true, axisLine: { lineStyle: { color: '#666' } }, axisLabel: { color: '#888' } },
+      { type: 'category', data: dates, gridIndex: 1, boundaryGap: true, axisLine: { lineStyle: { color: '#666' } }, axisLabel: { show: false } },
     ],
     yAxis: [
-      { scale: true, splitLine: { lineStyle: { color: '#222' } }, axisLine: { lineStyle: { color: '#333' } } },
-      { scale: true, gridIndex: 1, splitNumber: 2, axisLabel: { show: false }, splitLine: { lineStyle: { color: '#222' } } },
+      { scale: true, splitLine: { lineStyle: { color: '#333' } }, axisLine: { lineStyle: { color: '#666' } }, axisLabel: { color: '#888' } },
+      { scale: true, gridIndex: 1, splitNumber: 2, axisLabel: { show: false }, splitLine: { lineStyle: { color: '#333' } } },
     ],
     dataZoom: [
       { type: 'inside', xAxisIndex: [0, 1], start: Math.max(0, 100 - (150 / currentCandles.length) * 100), end: 100 },
@@ -347,6 +355,24 @@ function updateChart(): void {
     macdChartEl.classList.remove('visible');
   }
 
+  // Stochastics Chart
+  if (indicators.stoch) {
+    stochChartEl.classList.add('visible');
+    const stochData = TrendCraft.slowStochastics(currentCandles, { kPeriod: 14, dPeriod: 3 });
+    updateStochChart(dates, stochData, zoomStart);
+  } else {
+    stochChartEl.classList.remove('visible');
+  }
+
+  // DMI/ADX Chart
+  if (indicators.dmi) {
+    dmiChartEl.classList.add('visible');
+    const dmiData = TrendCraft.dmi(currentCandles, { period: 14, adxPeriod: 14 });
+    updateDmiChart(dates, dmiData, zoomStart);
+  } else {
+    dmiChartEl.classList.remove('visible');
+  }
+
   // Sync dataZoom across all charts (remove old listener first to avoid duplicates)
   mainChart.off('datazoom', syncDataZoom);
   mainChart.on('datazoom', syncDataZoom);
@@ -356,6 +382,8 @@ function updateChart(): void {
     mainChart?.resize();
     rsiChart?.resize();
     macdChart?.resize();
+    stochChart?.resize();
+    dmiChart?.resize();
   });
 }
 
@@ -371,6 +399,8 @@ function syncDataZoom(): void {
 
   rsiChart?.setOption({ dataZoom: [{ start, end }] });
   macdChart?.setOption({ dataZoom: [{ start, end }] });
+  stochChart?.setOption({ dataZoom: [{ start, end }] });
+  dmiChart?.setOption({ dataZoom: [{ start, end }] });
 
   // Update GC/DC list if visible
   const indicators = getSelectedIndicators();
@@ -397,19 +427,26 @@ function updateRsiChart(dates: string[], rsiData: TrendCraft.Series<number | nul
         return `${p.name}<br/>RSI: ${value !== null ? value.toFixed(2) : '-'}`;
       },
     },
-    grid: { left: 60, right: 60, top: 20, bottom: 30 },
+    title: {
+      text: 'RSI (14)',
+      left: 10,
+      top: 0,
+      textStyle: { color: '#888', fontSize: 12, fontWeight: 'normal' },
+    },
+    grid: { left: 60, right: 60, top: 25, bottom: 30 },
     xAxis: {
       type: 'category',
       data: dates,
-      axisLine: { lineStyle: { color: '#333' } },
-      axisLabel: { color: '#666', fontSize: 10 },
+      axisLine: { lineStyle: { color: '#666' } },
+      axisLabel: { color: '#888', fontSize: 10 },
     },
     yAxis: {
       min: 0,
       max: 100,
       splitNumber: 4,
-      axisLine: { lineStyle: { color: '#333' } },
-      splitLine: { lineStyle: { color: '#222' } },
+      axisLine: { lineStyle: { color: '#666' } },
+      splitLine: { lineStyle: { color: '#333' } },
+      axisLabel: { color: '#888' },
     },
     series: [
       {
@@ -422,8 +459,12 @@ function updateRsiChart(dates: string[], rsiData: TrendCraft.Series<number | nul
         markLine: {
           silent: true,
           symbol: 'none',
-          lineStyle: { color: '#666', type: 'dashed' },
-          data: [{ yAxis: 30 }, { yAxis: 70 }],
+          lineStyle: { color: '#ef5350', type: 'dashed', width: 1 },
+          label: { show: true, position: 'end', color: '#ef5350', fontSize: 10 },
+          data: [
+            { yAxis: 30, label: { formatter: '30' } },
+            { yAxis: 70, label: { formatter: '70' } },
+          ],
         },
       },
     ],
@@ -458,17 +499,24 @@ function updateMacdChart(dates: string[], macdData: TrendCraft.Series<TrendCraft
         return `${date}<br/>MACD: ${format(macd?.value as number)}<br/>Signal: ${format(signal?.value as number)}<br/>Histogram: ${format(hist?.value as number)}`;
       },
     },
-    grid: { left: 60, right: 60, top: 20, bottom: 30 },
+    title: {
+      text: 'MACD (12, 26, 9)',
+      left: 10,
+      top: 0,
+      textStyle: { color: '#888', fontSize: 12, fontWeight: 'normal' },
+    },
+    grid: { left: 60, right: 60, top: 25, bottom: 30 },
     xAxis: {
       type: 'category',
       data: dates,
-      axisLine: { lineStyle: { color: '#333' } },
-      axisLabel: { color: '#666', fontSize: 10 },
+      axisLine: { lineStyle: { color: '#666' } },
+      axisLabel: { color: '#888', fontSize: 10 },
     },
     yAxis: {
       scale: true,
-      axisLine: { lineStyle: { color: '#333' } },
-      splitLine: { lineStyle: { color: '#222' } },
+      axisLine: { lineStyle: { color: '#666' } },
+      splitLine: { lineStyle: { color: '#333' } },
+      axisLabel: { color: '#888' },
     },
     series: [
       {
@@ -499,6 +547,171 @@ function updateMacdChart(dates: string[], macdData: TrendCraft.Series<TrendCraft
     dataZoom: [{ type: 'inside', start: zoomStart, end: 100 }],
   };
   macdChart.setOption(option, true);
+}
+
+// Update Stochastics chart
+function updateStochChart(dates: string[], stochData: TrendCraft.Series<TrendCraft.StochasticsValue>, zoomStart: number): void {
+  if (!stochChart) return;
+
+  const kLine = stochData.map(d => d.value.k);
+  const dLine = stochData.map(d => d.value.d);
+
+  const option: echarts.EChartsOption = {
+    backgroundColor: 'transparent',
+    animation: false,
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: 'rgba(0,0,0,0.8)',
+      borderColor: '#333',
+      textStyle: { color: '#fff' },
+      formatter: (params) => {
+        if (!Array.isArray(params)) return '';
+        const date = params[0]?.name || '';
+        const k = params.find(p => p.seriesName === '%K');
+        const d = params.find(p => p.seriesName === '%D');
+        const format = (v: number | null | undefined) => v !== null && v !== undefined ? v.toFixed(2) : '-';
+        return `${date}<br/>%K: ${format(k?.value as number)}<br/>%D: ${format(d?.value as number)}`;
+      },
+    },
+    title: {
+      text: 'Stochastics (14, 3, 3)',
+      left: 10,
+      top: 0,
+      textStyle: { color: '#888', fontSize: 12, fontWeight: 'normal' },
+    },
+    grid: { left: 60, right: 60, top: 25, bottom: 30 },
+    xAxis: {
+      type: 'category',
+      data: dates,
+      axisLine: { lineStyle: { color: '#666' } },
+      axisLabel: { color: '#888', fontSize: 10 },
+    },
+    yAxis: {
+      min: 0,
+      max: 100,
+      splitNumber: 4,
+      axisLine: { lineStyle: { color: '#666' } },
+      splitLine: { lineStyle: { color: '#333' } },
+      axisLabel: { color: '#888' },
+    },
+    series: [
+      {
+        name: '%K',
+        type: 'line',
+        data: kLine,
+        smooth: false,
+        showSymbol: false,
+        lineStyle: { width: 1.5, color: '#00d9ff' },
+        markLine: {
+          silent: true,
+          symbol: 'none',
+          lineStyle: { color: '#ef5350', type: 'dashed', width: 1 },
+          label: { show: true, position: 'end', color: '#ef5350', fontSize: 10 },
+          data: [
+            { yAxis: 20, label: { formatter: '20' } },
+            { yAxis: 80, label: { formatter: '80' } },
+          ],
+        },
+      },
+      {
+        name: '%D',
+        type: 'line',
+        data: dLine,
+        smooth: false,
+        showSymbol: false,
+        lineStyle: { width: 1.5, color: '#ff6b9d' },
+      },
+    ],
+    dataZoom: [{ type: 'inside', start: zoomStart, end: 100 }],
+  };
+  stochChart.setOption(option, true);
+}
+
+// Update DMI/ADX chart
+function updateDmiChart(dates: string[], dmiData: TrendCraft.Series<TrendCraft.DmiValue>, zoomStart: number): void {
+  if (!dmiChart) return;
+
+  const plusDi = dmiData.map(d => d.value.plusDi);
+  const minusDi = dmiData.map(d => d.value.minusDi);
+  const adx = dmiData.map(d => d.value.adx);
+
+  const option: echarts.EChartsOption = {
+    backgroundColor: 'transparent',
+    animation: false,
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: 'rgba(0,0,0,0.8)',
+      borderColor: '#333',
+      textStyle: { color: '#fff' },
+      formatter: (params) => {
+        if (!Array.isArray(params)) return '';
+        const date = params[0]?.name || '';
+        const pdi = params.find(p => p.seriesName === '+DI');
+        const mdi = params.find(p => p.seriesName === '-DI');
+        const adxVal = params.find(p => p.seriesName === 'ADX');
+        const format = (v: number | null | undefined) => v !== null && v !== undefined ? v.toFixed(2) : '-';
+        return `${date}<br/>+DI: ${format(pdi?.value as number)}<br/>-DI: ${format(mdi?.value as number)}<br/>ADX: ${format(adxVal?.value as number)}`;
+      },
+    },
+    title: {
+      text: 'DMI/ADX (14)',
+      left: 10,
+      top: 0,
+      textStyle: { color: '#888', fontSize: 12, fontWeight: 'normal' },
+    },
+    grid: { left: 60, right: 60, top: 25, bottom: 30 },
+    xAxis: {
+      type: 'category',
+      data: dates,
+      axisLine: { lineStyle: { color: '#666' } },
+      axisLabel: { color: '#888', fontSize: 10 },
+    },
+    yAxis: {
+      min: 0,
+      max: 100,
+      splitNumber: 4,
+      axisLine: { lineStyle: { color: '#666' } },
+      splitLine: { lineStyle: { color: '#333' } },
+      axisLabel: { color: '#888' },
+    },
+    series: [
+      {
+        name: '+DI',
+        type: 'line',
+        data: plusDi,
+        smooth: false,
+        showSymbol: false,
+        lineStyle: { width: 1.5, color: '#26a69a' },
+        markLine: {
+          silent: true,
+          symbol: 'none',
+          lineStyle: { color: '#ffd93d', type: 'dashed', width: 1 },
+          label: { show: true, position: 'end', color: '#ffd93d', fontSize: 10 },
+          data: [
+            { yAxis: 25, label: { formatter: '25' } },
+          ],
+        },
+      },
+      {
+        name: '-DI',
+        type: 'line',
+        data: minusDi,
+        smooth: false,
+        showSymbol: false,
+        lineStyle: { width: 1.5, color: '#ef5350' },
+      },
+      {
+        name: 'ADX',
+        type: 'line',
+        data: adx,
+        smooth: false,
+        showSymbol: false,
+        lineStyle: { width: 2, color: '#a29bfe' },
+      },
+    ],
+    dataZoom: [{ type: 'inside', start: zoomStart, end: 100 }],
+  };
+  dmiChart.setOption(option, true);
 }
 
 // Format date for display

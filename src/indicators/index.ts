@@ -2,7 +2,8 @@
 export { sma, ema } from "./moving-average";
 
 // Momentum
-export { rsi, macd } from "./momentum";
+export { rsi, macd, stochastics, fastStochastics, slowStochastics, dmi } from "./momentum";
+export type { StochasticsValue, StochasticsOptions, DmiValue, DmiOptions } from "./momentum";
 
 // Volatility
 export { bollingerBands, atr } from "./volatility";
