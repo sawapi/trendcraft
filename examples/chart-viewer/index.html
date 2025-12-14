@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TrendCraft Chart Viewer</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1a1a2e;
+      color: #eee;
+      min-height: 100vh;
+    }
+    .container {
+      max-width: 1600px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    h1 {
+      font-size: 1.5rem;
+      margin-bottom: 20px;
+      color: #4ecdc4;
+    }
+
+    /* Drop Zone */
+    .drop-zone {
+      border: 2px dashed #4ecdc4;
+      border-radius: 12px;
+      padding: 40px;
+      text-align: center;
+      margin-bottom: 20px;
+      transition: all 0.3s;
+      cursor: pointer;
+    }
+    .drop-zone:hover,
+    .drop-zone.dragover {
+      background: rgba(78, 205, 196, 0.1);
+      border-color: #ff6b6b;
+    }
+    .drop-zone p {
+      color: #888;
+      font-size: 1.1rem;
+    }
+    .drop-zone.has-data {
+      border-color: #4ecdc4;
+      background: rgba(78, 205, 196, 0.05);
+    }
+    .drop-zone.has-data p {
+      color: #4ecdc4;
+    }
+
+    /* Controls */
+    .controls {
+      display: none;
+      flex-wrap: wrap;
+      gap: 20px;
+      margin-bottom: 20px;
+      padding: 20px;
+      background: #16213e;
+      border-radius: 12px;
+    }
+    .controls.visible {
+      display: flex;
+    }
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .control-group label {
+      font-size: 0.85rem;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .control-group select {
+      padding: 8px 12px;
+      border: 1px solid #333;
+      border-radius: 6px;
+      background: #1a1a2e;
+      color: #eee;
+      font-size: 0.95rem;
+    }
+
+    /* Indicator Checkboxes */
+    .indicators {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .indicator-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: #1a1a2e;
+      border: 1px solid #333;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .indicator-item:hover {
+      border-color: #4ecdc4;
+    }
+    .indicator-item input {
+      accent-color: #4ecdc4;
+    }
+    .indicator-item.sma { border-left: 3px solid #ff6b6b; }
+    .indicator-item.ema { border-left: 3px solid #ffd93d; }
+    .indicator-item.bb { border-left: 3px solid #6bcb77; }
+    .indicator-item.rsi { border-left: 3px solid #4d96ff; }
+    .indicator-item.macd { border-left: 3px solid #ff9f43; }
+    .indicator-item.cross { border-left: 3px solid #f368e0; }
+
+    /* Chart Container */
+    .chart-wrapper {
+      display: none;
+      background: #16213e;
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .chart-wrapper.visible {
+      display: block;
+    }
+    #main-chart {
+      width: 100%;
+      height: 500px;
+    }
+    #rsi-chart {
+      width: 100%;
+      height: 150px;
+      margin-top: 10px;
+    }
+    #macd-chart {
+      width: 100%;
+      height: 150px;
+      margin-top: 10px;
+    }
+    .sub-chart {
+      display: none;
+    }
+    .sub-chart.visible {
+      display: block;
+    }
+
+    /* Cross Events List */
+    .cross-events {
+      display: none;
+      margin-top: 20px;
+      padding: 15px;
+      background: #1a1a2e;
+      border-radius: 8px;
+    }
+    .cross-events.visible {
+      display: block;
+    }
+    .cross-events h3 {
+      font-size: 0.9rem;
+      color: #888;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .cross-events-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .cross-event {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 500;
+    }
+    .cross-event.gc {
+      background: rgba(38, 166, 154, 0.2);
+      color: #26a69a;
+      border: 1px solid #26a69a;
+    }
+    .cross-event.dc {
+      background: rgba(239, 83, 80, 0.2);
+      color: #ef5350;
+      border: 1px solid #ef5350;
+    }
+    .cross-event.fake {
+      opacity: 0.6;
+      text-decoration: line-through;
+    }
+
+    /* Info */
+    .file-info {
+      font-size: 0.85rem;
+      color: #4ecdc4;
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>TrendCraft Chart Viewer</h1>
+
+    <!-- Drop Zone -->
+    <div class="drop-zone" id="dropZone">
+      <p>Drag & drop CSV file or click to select</p>
+      <p class="file-info" id="fileInfo"></p>
+      <input type="file" id="fileInput" accept=".csv" style="display: none;">
+    </div>
+
+    <!-- Controls -->
+    <div class="controls" id="controls">
+      <div class="control-group">
+        <label>Timeframe</label>
+        <select id="timeframe">
+          <option value="daily">Daily</option>
+          <option value="weekly">Weekly</option>
+          <option value="monthly">Monthly</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <label>Indicators</label>
+        <div class="indicators">
+          <label class="indicator-item sma">
+            <input type="checkbox" data-indicator="sma5"> SMA 5
+          </label>
+          <label class="indicator-item sma">
+            <input type="checkbox" data-indicator="sma25"> SMA 25
+          </label>
+          <label class="indicator-item sma">
+            <input type="checkbox" data-indicator="sma75"> SMA 75
+          </label>
+          <label class="indicator-item ema">
+            <input type="checkbox" data-indicator="ema12"> EMA 12
+          </label>
+          <label class="indicator-item ema">
+            <input type="checkbox" data-indicator="ema26"> EMA 26
+          </label>
+          <label class="indicator-item bb">
+            <input type="checkbox" data-indicator="bb"> Bollinger Bands
+          </label>
+          <label class="indicator-item rsi">
+            <input type="checkbox" data-indicator="rsi"> RSI 14
+          </label>
+          <label class="indicator-item macd">
+            <input type="checkbox" data-indicator="macd"> MACD
+          </label>
+          <label class="indicator-item cross">
+            <input type="checkbox" data-indicator="cross"> GC/DC
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="chart-wrapper" id="chartWrapper">
+      <div id="main-chart"></div>
+      <div id="rsi-chart" class="sub-chart"></div>
+      <div id="macd-chart" class="sub-chart"></div>
+      <div id="cross-events" class="cross-events">
+        <h3>GC/DC Events (SMA 5×25)</h3>
+        <div id="cross-events-list" class="cross-events-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./main.ts"></script>
+</body>
+</html>
