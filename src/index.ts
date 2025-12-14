@@ -33,6 +33,14 @@ export type {
   HighestLowestOptions,
   ReturnsOptions,
   CrossOptions,
+  // Backtest types
+  Condition,
+  ConditionFn,
+  PresetCondition,
+  CombinedCondition,
+  Trade,
+  BacktestOptions,
+  BacktestResult,
 } from "./types";
 
 // Core utilities
@@ -84,8 +92,34 @@ export type {
 } from "./indicators";
 
 // Fluent API
-export { TrendCraft } from "./core/trendcraft";
+export { TrendCraft, StrategyBuilder } from "./core/trendcraft";
 export type { AnalysisResult } from "./core/trendcraft";
+
+// Backtest conditions
+export {
+  // Combinators
+  and,
+  or,
+  not,
+  // Preset conditions
+  goldenCross as goldenCrossCondition,
+  deadCross as deadCrossCondition,
+  rsiBelow,
+  rsiAbove,
+  macdCrossUp,
+  macdCrossDown,
+  bollingerBreakout,
+  bollingerTouch,
+  priceAboveSma,
+  priceBelowSma,
+  // Validated conditions (with damashi detection)
+  validatedGoldenCross,
+  validatedDeadCross,
+  // Engine
+  runBacktest,
+} from "./backtest";
+
+export type { ValidatedCrossOptions } from "./backtest";
 
 // Signals
 export { crossOver, crossUnder, goldenCross, deadCross, validateCrossSignals, obvDivergence, rsiDivergence, macdDivergence, detectDivergence, bollingerSqueeze } from "./signals";

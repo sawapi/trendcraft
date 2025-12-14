@@ -209,3 +209,98 @@ export type CrossOptions = {
   /** Long-term period (default: 25, Japanese stock standard) */
   long?: number;
 };
+
+// ============================================
+// Backtest Types
+// ============================================
+
+/**
+ * Condition function signature for custom entry/exit logic
+ */
+export type ConditionFn = (
+  indicators: Record<string, unknown>,
+  candle: NormalizedCandle,
+  index: number,
+  candles: NormalizedCandle[]
+) => boolean;
+
+/**
+ * Preset condition type
+ */
+export type PresetCondition = {
+  type: "preset";
+  name: string;
+  evaluate: ConditionFn;
+};
+
+/**
+ * Combined condition type (and/or/not)
+ */
+export type CombinedCondition = {
+  type: "and" | "or" | "not";
+  conditions: Condition[];
+};
+
+/**
+ * Condition can be preset, combined, or custom function
+ */
+export type Condition = PresetCondition | CombinedCondition | ConditionFn;
+
+/**
+ * Single trade record
+ */
+export type Trade = {
+  entryTime: number;
+  entryPrice: number;
+  exitTime: number;
+  exitPrice: number;
+  return: number;
+  returnPercent: number;
+  holdingDays: number;
+};
+
+/**
+ * Backtest options
+ */
+export type BacktestOptions = {
+  /** Initial capital */
+  capital: number;
+  /** Commission per trade in currency (default: 0) */
+  commission?: number;
+  /** Commission rate in percent per trade (default: 0, e.g., 0.1 = 0.1%) */
+  commissionRate?: number;
+  /** Slippage in percent (default: 0) */
+  slippage?: number;
+  /** Stop loss in percent (e.g., 5 = exit when -5% loss) */
+  stopLoss?: number;
+  /** Take profit in percent (e.g., 10 = exit when +10% gain) */
+  takeProfit?: number;
+  /** Trailing stop in percent (e.g., 5 = exit if price drops 5% from peak) */
+  trailingStop?: number;
+  /** Tax rate on profits in percent (default: 0, e.g., 20.315 for Japan) */
+  taxRate?: number;
+};
+
+/**
+ * Backtest result
+ */
+export type BacktestResult = {
+  /** Total return amount */
+  totalReturn: number;
+  /** Total return percentage */
+  totalReturnPercent: number;
+  /** Number of trades */
+  tradeCount: number;
+  /** Win rate percentage */
+  winRate: number;
+  /** Maximum drawdown percentage */
+  maxDrawdown: number;
+  /** Sharpe ratio (annualized) */
+  sharpeRatio: number;
+  /** Profit factor */
+  profitFactor: number;
+  /** Average holding days */
+  avgHoldingDays: number;
+  /** Individual trade records */
+  trades: Trade[];
+};

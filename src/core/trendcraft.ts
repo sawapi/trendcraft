@@ -12,6 +12,9 @@ import type {
   Series,
   Timeframe,
   TimeframeShorthand,
+  Condition,
+  BacktestOptions,
+  BacktestResult,
 } from "../types";
 import { sma } from "../indicators/moving-average/sma";
 import { ema } from "../indicators/moving-average/ema";
@@ -24,6 +27,7 @@ import { highest, lowest } from "../indicators/price/highest-lowest";
 import { returns } from "../indicators/price/returns";
 import { normalizeCandles } from "./normalize";
 import { resample } from "./resample";
+import { runBacktest } from "../backtest/engine";
 
 /**
  * Indicator specification for lazy evaluation
@@ -276,6 +280,84 @@ export class TrendCraft {
    */
   get length(): number {
     return this._candles.length;
+  }
+
+  /**
+   * Create a strategy builder for backtesting
+   *
+   * @example
+   * ```ts
+   * // Simple preset conditions
+   * const result = TrendCraft.from(candles)
+   *   .strategy()
+   *   .entry(goldenCross())
+   *   .exit(deadCross())
+   *   .backtest({ capital: 1000000 });
+   *
+   * // Combined conditions
+   * const result = TrendCraft.from(candles)
+   *   .strategy()
+   *   .entry(and(goldenCross(), rsiBelow(30)))
+   *   .exit(or(deadCross(), rsiAbove(70)))
+   *   .backtest({ capital: 1000000 });
+   *
+   * // Custom function
+   * const result = TrendCraft.from(candles)
+   *   .strategy()
+   *   .entry((indicators, candle, i) => {
+   *     return indicators.goldenCross && indicators.rsi < 30;
+   *   })
+   *   .exit((indicators, candle, i) => {
+   *     return indicators.deadCross || indicators.rsi > 70;
+   *   })
+   *   .backtest({ capital: 1000000 });
+   * ```
+   */
+  strategy(): StrategyBuilder {
+    return new StrategyBuilder(this._candles);
+  }
+}
+
+/**
+ * Strategy Builder for backtesting
+ */
+export class StrategyBuilder {
+  private _candles: NormalizedCandle[];
+  private _entryCondition: Condition | null = null;
+  private _exitCondition: Condition | null = null;
+
+  constructor(candles: NormalizedCandle[]) {
+    this._candles = candles;
+  }
+
+  /**
+   * Set entry condition
+   */
+  entry(condition: Condition): this {
+    this._entryCondition = condition;
+    return this;
+  }
+
+  /**
+   * Set exit condition
+   */
+  exit(condition: Condition): this {
+    this._exitCondition = condition;
+    return this;
+  }
+
+  /**
+   * Run backtest with the configured strategy
+   */
+  backtest(options: BacktestOptions): BacktestResult {
+    if (!this._entryCondition) {
+      throw new Error("Entry condition is required. Use .entry() to set it.");
+    }
+    if (!this._exitCondition) {
+      throw new Error("Exit condition is required. Use .exit() to set it.");
+    }
+
+    return runBacktest(this._candles, this._entryCondition, this._exitCondition, options);
   }
 }
 
