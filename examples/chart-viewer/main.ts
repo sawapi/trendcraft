@@ -5,7 +5,7 @@
 
 import * as echarts from 'echarts';
 import * as TrendCraft from 'trendcraft';
-import type { NormalizedCandle, Timeframe, CrossSignalQuality } from 'trendcraft';
+import type { NormalizedCandle, Timeframe, CrossSignalQuality, DivergenceSignal } from 'trendcraft';
 
 // State
 let rawCandles: NormalizedCandle[] = [];
@@ -15,6 +15,9 @@ let rsiChart: echarts.ECharts | null = null;
 let macdChart: echarts.ECharts | null = null;
 let stochChart: echarts.ECharts | null = null;
 let dmiChart: echarts.ECharts | null = null;
+let stochRsiChart: echarts.ECharts | null = null;
+let mfiChart: echarts.ECharts | null = null;
+let obvChart: echarts.ECharts | null = null;
 let currentZoomRange: { start: number; end: number } = { start: 0, end: 100 };
 
 // DOM Elements
@@ -28,6 +31,9 @@ const rsiChartEl = document.getElementById('rsi-chart') as HTMLDivElement;
 const macdChartEl = document.getElementById('macd-chart') as HTMLDivElement;
 const stochChartEl = document.getElementById('stoch-chart') as HTMLDivElement;
 const dmiChartEl = document.getElementById('dmi-chart') as HTMLDivElement;
+const stochRsiChartEl = document.getElementById('stochrsi-chart') as HTMLDivElement;
+const mfiChartEl = document.getElementById('mfi-chart') as HTMLDivElement;
+const obvChartEl = document.getElementById('obv-chart') as HTMLDivElement;
 
 // Initialize
 function init(): void {
@@ -77,6 +83,9 @@ function initCharts(): void {
   macdChart = echarts.init(macdChartEl, 'dark');
   stochChart = echarts.init(stochChartEl, 'dark');
   dmiChart = echarts.init(dmiChartEl, 'dark');
+  stochRsiChart = echarts.init(stochRsiChartEl, 'dark');
+  mfiChart = echarts.init(mfiChartEl, 'dark');
+  obvChart = echarts.init(obvChartEl, 'dark');
 
   // Resize handler
   window.addEventListener('resize', () => {
@@ -85,6 +94,9 @@ function initCharts(): void {
     macdChart?.resize();
     stochChart?.resize();
     dmiChart?.resize();
+    stochRsiChart?.resize();
+    mfiChart?.resize();
+    obvChart?.resize();
   });
 }
 
@@ -292,6 +304,12 @@ function updateChart(): void {
     series.push(createLineSeries('BB Middle', bbData.map(d => ({ time: d.time, value: d.value.middle })), '#6bcb77'));
     series.push(createLineSeries('BB Lower', bbData.map(d => ({ time: d.time, value: d.value.lower })), '#6bcb77', 'dashed'));
   }
+  if (indicators.donchian) {
+    const donchianData = TrendCraft.donchianChannel(currentCandles, { period: 20 });
+    series.push(createLineSeries('Donchian Upper', donchianData.map(d => ({ time: d.time, value: d.value.upper })), '#1abc9c', 'dashed'));
+    series.push(createLineSeries('Donchian Middle', donchianData.map(d => ({ time: d.time, value: d.value.middle })), '#1abc9c'));
+    series.push(createLineSeries('Donchian Lower', donchianData.map(d => ({ time: d.time, value: d.value.lower })), '#1abc9c', 'dashed'));
+  }
 
   // Golden Cross / Dead Cross list
   updateCrossEventsList(indicators.cross);
@@ -341,7 +359,8 @@ function updateChart(): void {
   if (indicators.rsi) {
     rsiChartEl.classList.add('visible');
     const rsiData = TrendCraft.rsi(currentCandles, { period: 14 });
-    updateRsiChart(dates, rsiData, zoomStart);
+    const rsiDivergenceSignals = TrendCraft.rsiDivergence(currentCandles);
+    updateRsiChart(dates, rsiData, rsiDivergenceSignals, zoomStart);
   } else {
     rsiChartEl.classList.remove('visible');
   }
@@ -350,7 +369,8 @@ function updateChart(): void {
   if (indicators.macd) {
     macdChartEl.classList.add('visible');
     const macdData = TrendCraft.macd(currentCandles);
-    updateMacdChart(dates, macdData, zoomStart);
+    const macdDivergenceSignals = TrendCraft.macdDivergence(currentCandles);
+    updateMacdChart(dates, macdData, macdDivergenceSignals, zoomStart);
   } else {
     macdChartEl.classList.remove('visible');
   }
@@ -373,9 +393,42 @@ function updateChart(): void {
     dmiChartEl.classList.remove('visible');
   }
 
-  // Sync dataZoom across all charts (remove old listener first to avoid duplicates)
-  mainChart.off('datazoom', syncDataZoom);
-  mainChart.on('datazoom', syncDataZoom);
+  // Stoch RSI Chart
+  if (indicators.stochrsi) {
+    stochRsiChartEl.classList.add('visible');
+    const stochRsiData = TrendCraft.stochRsi(currentCandles, { rsiPeriod: 14, stochPeriod: 14, kPeriod: 3, dPeriod: 3 });
+    updateStochRsiChart(dates, stochRsiData, zoomStart);
+  } else {
+    stochRsiChartEl.classList.remove('visible');
+  }
+
+  // MFI Chart
+  if (indicators.mfi) {
+    mfiChartEl.classList.add('visible');
+    const mfiData = TrendCraft.mfi(currentCandles, { period: 14 });
+    updateMfiChart(dates, mfiData, zoomStart);
+  } else {
+    mfiChartEl.classList.remove('visible');
+  }
+
+  // OBV Chart
+  if (indicators.obv) {
+    obvChartEl.classList.add('visible');
+    const obvData = TrendCraft.obv(currentCandles);
+    const divergenceSignals = TrendCraft.obvDivergence(currentCandles);
+    updateObvChart(dates, obvData, divergenceSignals, zoomStart);
+  } else {
+    obvChartEl.classList.remove('visible');
+  }
+
+  // Sync dataZoom across all charts (remove old listeners first to avoid duplicates)
+  const allCharts = [mainChart, rsiChart, macdChart, stochChart, dmiChart, stochRsiChart, mfiChart, obvChart];
+  allCharts.forEach(chart => {
+    if (chart) {
+      chart.off('datazoom');
+      chart.on('datazoom', (params) => syncDataZoom(chart, params));
+    }
+  });
 
   // Force resize after DOM updates
   requestAnimationFrame(() => {
@@ -384,23 +437,44 @@ function updateChart(): void {
     macdChart?.resize();
     stochChart?.resize();
     dmiChart?.resize();
+    stochRsiChart?.resize();
+    mfiChart?.resize();
+    obvChart?.resize();
   });
 }
 
 // Sync dataZoom across charts
-function syncDataZoom(): void {
-  if (!mainChart) return;
-  const option = mainChart.getOption() as { dataZoom?: { start?: number; end?: number }[] };
-  const zoom = option.dataZoom?.[0];
-  if (!zoom) return;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function syncDataZoom(sourceChart: echarts.ECharts, params: any): void {
+  // Get zoom range from event params or source chart
+  let start: number | undefined;
+  let end: number | undefined;
 
-  const { start, end } = zoom;
+  if (params.batch) {
+    start = params.batch[0]?.start;
+    end = params.batch[0]?.end;
+  } else {
+    start = params.start;
+    end = params.end;
+  }
+
+  if (start === undefined || end === undefined) {
+    const option = sourceChart.getOption() as { dataZoom?: { start?: number; end?: number }[] };
+    const zoom = option.dataZoom?.[0];
+    if (!zoom) return;
+    start = zoom.start;
+    end = zoom.end;
+  }
+
   currentZoomRange = { start: start ?? 0, end: end ?? 100 };
 
-  rsiChart?.setOption({ dataZoom: [{ start, end }] });
-  macdChart?.setOption({ dataZoom: [{ start, end }] });
-  stochChart?.setOption({ dataZoom: [{ start, end }] });
-  dmiChart?.setOption({ dataZoom: [{ start, end }] });
+  // Sync to all other charts (excluding source to avoid loops)
+  const allCharts = [mainChart, rsiChart, macdChart, stochChart, dmiChart, stochRsiChart, mfiChart, obvChart];
+  allCharts.forEach(chart => {
+    if (chart && chart !== sourceChart) {
+      chart.setOption({ dataZoom: [{ start, end }] }, { lazyUpdate: true });
+    }
+  });
 
   // Update GC/DC list if visible
   const indicators = getSelectedIndicators();
@@ -410,8 +484,49 @@ function syncDataZoom(): void {
 }
 
 // Update RSI chart
-function updateRsiChart(dates: string[], rsiData: TrendCraft.Series<number | null>, zoomStart: number): void {
+function updateRsiChart(
+  dates: string[],
+  rsiData: TrendCraft.Series<number | null>,
+  divergenceSignals: DivergenceSignal[],
+  zoomStart: number
+): void {
   if (!rsiChart) return;
+
+  // Create markPoint data for divergence signals
+  const markPointData: Array<{
+    name: string;
+    coord: [string, number];
+    symbol: string;
+    symbolSize: number;
+    itemStyle: { color: string };
+    label: { show: boolean; formatter: string; color: string; fontSize: number; position: 'inside' };
+  }> = [];
+
+  const timeToIdx = new Map<number, number>();
+  currentCandles.forEach((c, i) => timeToIdx.set(c.time, i));
+
+  divergenceSignals.forEach((signal) => {
+    const idx = timeToIdx.get(signal.time);
+    if (idx === undefined) return;
+    const rsiValue = rsiData[idx]?.value;
+    if (rsiValue === undefined || rsiValue === null) return;
+
+    const isBullish = signal.type === 'bullish';
+    markPointData.push({
+      name: isBullish ? 'Bullish Div' : 'Bearish Div',
+      coord: [dates[idx], rsiValue],
+      symbol: 'circle',
+      symbolSize: 10,
+      itemStyle: { color: isBullish ? '#26a69a' : '#ef5350' },
+      label: {
+        show: true,
+        formatter: isBullish ? 'B' : 'S',
+        color: '#fff',
+        fontSize: 8,
+        position: 'inside',
+      },
+    });
+  });
 
   const option: echarts.EChartsOption = {
     backgroundColor: 'transparent',
@@ -466,6 +581,9 @@ function updateRsiChart(dates: string[], rsiData: TrendCraft.Series<number | nul
             { yAxis: 70, label: { formatter: '70' } },
           ],
         },
+        markPoint: {
+          data: markPointData,
+        },
       },
     ],
     dataZoom: [{ type: 'inside', start: zoomStart, end: 100 }],
@@ -474,12 +592,53 @@ function updateRsiChart(dates: string[], rsiData: TrendCraft.Series<number | nul
 }
 
 // Update MACD chart
-function updateMacdChart(dates: string[], macdData: TrendCraft.Series<TrendCraft.MacdValue>, zoomStart: number): void {
+function updateMacdChart(
+  dates: string[],
+  macdData: TrendCraft.Series<TrendCraft.MacdValue>,
+  divergenceSignals: DivergenceSignal[],
+  zoomStart: number
+): void {
   if (!macdChart) return;
 
   const macdLine = macdData.map(d => d.value.macd);
   const signalLine = macdData.map(d => d.value.signal);
   const histogram = macdData.map(d => d.value.histogram);
+
+  // Create markPoint data for divergence signals
+  const markPointData: Array<{
+    name: string;
+    coord: [string, number];
+    symbol: string;
+    symbolSize: number;
+    itemStyle: { color: string };
+    label: { show: boolean; formatter: string; color: string; fontSize: number; position: 'inside' };
+  }> = [];
+
+  const timeToIdx = new Map<number, number>();
+  currentCandles.forEach((c, i) => timeToIdx.set(c.time, i));
+
+  divergenceSignals.forEach((signal) => {
+    const idx = timeToIdx.get(signal.time);
+    if (idx === undefined) return;
+    const macdValue = macdData[idx]?.value.macd;
+    if (macdValue === undefined || macdValue === null) return;
+
+    const isBullish = signal.type === 'bullish';
+    markPointData.push({
+      name: isBullish ? 'Bullish Div' : 'Bearish Div',
+      coord: [dates[idx], macdValue],
+      symbol: 'circle',
+      symbolSize: 10,
+      itemStyle: { color: isBullish ? '#26a69a' : '#ef5350' },
+      label: {
+        show: true,
+        formatter: isBullish ? 'B' : 'S',
+        color: '#fff',
+        fontSize: 8,
+        position: 'inside',
+      },
+    });
+  });
 
   const option: echarts.EChartsOption = {
     backgroundColor: 'transparent',
@@ -534,6 +693,9 @@ function updateMacdChart(dates: string[], macdData: TrendCraft.Series<TrendCraft
         smooth: false,
         showSymbol: false,
         lineStyle: { width: 1.5, color: '#ff9f43' },
+        markPoint: {
+          data: markPointData,
+        },
       },
       {
         name: 'Signal',
@@ -712,6 +874,263 @@ function updateDmiChart(dates: string[], dmiData: TrendCraft.Series<TrendCraft.D
     dataZoom: [{ type: 'inside', start: zoomStart, end: 100 }],
   };
   dmiChart.setOption(option, true);
+}
+
+// Update Stoch RSI chart
+function updateStochRsiChart(dates: string[], stochRsiData: TrendCraft.Series<TrendCraft.StochRsiValue>, zoomStart: number): void {
+  if (!stochRsiChart) return;
+
+  const kLine = stochRsiData.map(d => d.value.k);
+  const dLine = stochRsiData.map(d => d.value.d);
+
+  const option: echarts.EChartsOption = {
+    backgroundColor: 'transparent',
+    animation: false,
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: 'rgba(0,0,0,0.8)',
+      borderColor: '#333',
+      textStyle: { color: '#fff' },
+      formatter: (params) => {
+        if (!Array.isArray(params)) return '';
+        const date = params[0]?.name || '';
+        const k = params.find(p => p.seriesName === '%K');
+        const d = params.find(p => p.seriesName === '%D');
+        const format = (v: number | null | undefined) => v !== null && v !== undefined ? v.toFixed(2) : '-';
+        return `${date}<br/>%K: ${format(k?.value as number)}<br/>%D: ${format(d?.value as number)}`;
+      },
+    },
+    title: {
+      text: 'Stoch RSI (14, 14, 3, 3)',
+      left: 10,
+      top: 0,
+      textStyle: { color: '#888', fontSize: 12, fontWeight: 'normal' },
+    },
+    grid: { left: 60, right: 60, top: 25, bottom: 30 },
+    xAxis: {
+      type: 'category',
+      data: dates,
+      axisLine: { lineStyle: { color: '#666' } },
+      axisLabel: { color: '#888', fontSize: 10 },
+    },
+    yAxis: {
+      min: 0,
+      max: 100,
+      splitNumber: 4,
+      axisLine: { lineStyle: { color: '#666' } },
+      splitLine: { lineStyle: { color: '#333' } },
+      axisLabel: { color: '#888' },
+    },
+    series: [
+      {
+        name: '%K',
+        type: 'line',
+        data: kLine,
+        smooth: false,
+        showSymbol: false,
+        lineStyle: { width: 1.5, color: '#ff6b9d' },
+        markLine: {
+          silent: true,
+          symbol: 'none',
+          lineStyle: { color: '#ef5350', type: 'dashed', width: 1 },
+          label: { show: true, position: 'end', color: '#ef5350', fontSize: 10 },
+          data: [
+            { yAxis: 20, label: { formatter: '20' } },
+            { yAxis: 80, label: { formatter: '80' } },
+          ],
+        },
+      },
+      {
+        name: '%D',
+        type: 'line',
+        data: dLine,
+        smooth: false,
+        showSymbol: false,
+        lineStyle: { width: 1.5, color: '#a855f7' },
+      },
+    ],
+    dataZoom: [{ type: 'inside', start: zoomStart, end: 100 }],
+  };
+  stochRsiChart.setOption(option, true);
+}
+
+// Update MFI chart
+function updateMfiChart(dates: string[], mfiData: TrendCraft.Series<number | null>, zoomStart: number): void {
+  if (!mfiChart) return;
+
+  const option: echarts.EChartsOption = {
+    backgroundColor: 'transparent',
+    animation: false,
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: 'rgba(0,0,0,0.8)',
+      borderColor: '#333',
+      textStyle: { color: '#fff' },
+      formatter: (params) => {
+        const p = Array.isArray(params) ? params[0] : params;
+        const value = p.value as number | null;
+        return `${p.name}<br/>MFI: ${value !== null ? value.toFixed(2) : '-'}`;
+      },
+    },
+    title: {
+      text: 'MFI (14)',
+      left: 10,
+      top: 0,
+      textStyle: { color: '#888', fontSize: 12, fontWeight: 'normal' },
+    },
+    grid: { left: 60, right: 60, top: 25, bottom: 30 },
+    xAxis: {
+      type: 'category',
+      data: dates,
+      axisLine: { lineStyle: { color: '#666' } },
+      axisLabel: { color: '#888', fontSize: 10 },
+    },
+    yAxis: {
+      min: 0,
+      max: 100,
+      splitNumber: 4,
+      axisLine: { lineStyle: { color: '#666' } },
+      splitLine: { lineStyle: { color: '#333' } },
+      axisLabel: { color: '#888' },
+    },
+    series: [
+      {
+        name: 'MFI',
+        type: 'line',
+        data: mfiData.map(d => d.value),
+        smooth: false,
+        showSymbol: false,
+        lineStyle: { width: 1.5, color: '#f39c12' },
+        markLine: {
+          silent: true,
+          symbol: 'none',
+          lineStyle: { color: '#ef5350', type: 'dashed', width: 1 },
+          label: { show: true, position: 'end', color: '#ef5350', fontSize: 10 },
+          data: [
+            { yAxis: 20, label: { formatter: '20' } },
+            { yAxis: 80, label: { formatter: '80' } },
+          ],
+        },
+      },
+    ],
+    dataZoom: [{ type: 'inside', start: zoomStart, end: 100 }],
+  };
+  mfiChart.setOption(option, true);
+}
+
+// Update OBV chart
+function updateObvChart(
+  dates: string[],
+  obvData: TrendCraft.Series<number>,
+  divergenceSignals: DivergenceSignal[],
+  zoomStart: number
+): void {
+  if (!obvChart) return;
+
+  // Create markPoint data for divergence signals
+  const markPointData: Array<{
+    name: string;
+    coord: [string, number];
+    symbol: string;
+    symbolSize: number;
+    itemStyle: { color: string };
+    label: { show: boolean; formatter: string; color: string; fontSize: number; position: 'inside' };
+  }> = [];
+
+  // Map time to index for quick lookup
+  const timeToIdx = new Map<number, number>();
+  currentCandles.forEach((c, i) => timeToIdx.set(c.time, i));
+
+  divergenceSignals.forEach((signal) => {
+    const idx = timeToIdx.get(signal.time);
+    if (idx === undefined) return;
+
+    const obvValue = obvData[idx]?.value;
+    if (obvValue === undefined) return;
+
+    const isBullish = signal.type === 'bullish';
+    markPointData.push({
+      name: isBullish ? 'Bullish Div' : 'Bearish Div',
+      coord: [dates[idx], obvValue],
+      symbol: 'circle',
+      symbolSize: 10,
+      itemStyle: {
+        color: isBullish ? '#26a69a' : '#ef5350',
+      },
+      label: {
+        show: true,
+        formatter: isBullish ? 'B' : 'S',
+        color: '#fff',
+        fontSize: 8,
+        position: 'inside',
+      },
+    });
+  });
+
+  const option: echarts.EChartsOption = {
+    backgroundColor: 'transparent',
+    animation: false,
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: 'rgba(0,0,0,0.8)',
+      borderColor: '#333',
+      textStyle: { color: '#fff' },
+      formatter: (params) => {
+        const p = Array.isArray(params) ? params[0] : params;
+        const value = p.value as number;
+        return `${p.name}<br/>OBV: ${value.toLocaleString()}`;
+      },
+    },
+    title: {
+      text: 'OBV',
+      left: 10,
+      top: 0,
+      textStyle: { color: '#888', fontSize: 12, fontWeight: 'normal' },
+    },
+    grid: { left: 80, right: 60, top: 25, bottom: 30 },
+    xAxis: {
+      type: 'category',
+      data: dates,
+      axisLine: { lineStyle: { color: '#666' } },
+      axisLabel: { color: '#888', fontSize: 10 },
+    },
+    yAxis: {
+      scale: true,
+      axisLine: { lineStyle: { color: '#666' } },
+      splitLine: { lineStyle: { color: '#333' } },
+      axisLabel: {
+        color: '#888',
+        formatter: (value: number) => {
+          const abs = Math.abs(value);
+          if (abs >= 1e9) return (value / 1e9).toFixed(1) + 'B';
+          if (abs >= 1e6) return (value / 1e6).toFixed(0) + 'M';
+          if (abs >= 1e3) return (value / 1e3).toFixed(0) + 'K';
+          return value.toString();
+        },
+      },
+    },
+    series: [
+      {
+        name: 'OBV',
+        type: 'line',
+        data: obvData.map(d => d.value),
+        smooth: false,
+        showSymbol: false,
+        lineStyle: { width: 1.5, color: '#9b59b6' },
+        areaStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: 'rgba(155, 89, 182, 0.3)' },
+            { offset: 1, color: 'rgba(155, 89, 182, 0.05)' },
+          ]),
+        },
+        markPoint: {
+          data: markPointData,
+        },
+      },
+    ],
+    dataZoom: [{ type: 'inside', start: zoomStart, end: 100 }],
+  };
+  obvChart.setOption(option, true);
 }
 
 // Format date for display

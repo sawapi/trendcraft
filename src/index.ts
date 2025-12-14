@@ -52,11 +52,15 @@ export {
   fastStochastics,
   slowStochastics,
   dmi,
+  stochRsi,
   // Volatility
   bollingerBands,
   atr,
+  donchianChannel,
   // Volume
   volumeMa,
+  obv,
+  mfi,
   // Price
   highestLowest,
   highest,
@@ -72,6 +76,11 @@ export type {
   StochasticsOptions,
   DmiValue,
   DmiOptions,
+  StochRsiValue,
+  StochRsiOptions,
+  DonchianValue,
+  DonchianOptions,
+  MfiOptions,
 } from "./indicators";
 
 // Fluent API
@@ -79,5 +88,5 @@ export { TrendCraft } from "./core/trendcraft";
 export type { AnalysisResult } from "./core/trendcraft";
 
 // Signals
-export { crossOver, crossUnder, goldenCross, deadCross, validateCrossSignals } from "./signals";
-export type { CrossValidationOptions, CrossSignalQuality } from "./signals";
+export { crossOver, crossUnder, goldenCross, deadCross, validateCrossSignals, obvDivergence, rsiDivergence, macdDivergence, detectDivergence } from "./signals";
+export type { CrossValidationOptions, CrossSignalQuality, DivergenceSignal, DivergenceOptions } from "./signals";

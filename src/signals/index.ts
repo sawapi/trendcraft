@@ -12,3 +12,12 @@ export {
   type CrossValidationOptions,
   type CrossSignalQuality,
 } from "./cross";
+
+export {
+  obvDivergence,
+  rsiDivergence,
+  macdDivergence,
+  detectDivergence,
+  type DivergenceSignal,
+  type DivergenceOptions,
+} from "./divergence";

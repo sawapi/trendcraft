@@ -118,6 +118,10 @@
     .indicator-item.cross { border-left: 3px solid #f368e0; }
     .indicator-item.stoch { border-left: 3px solid #00d9ff; }
     .indicator-item.dmi { border-left: 3px solid #a29bfe; }
+    .indicator-item.stochrsi { border-left: 3px solid #ff6b9d; }
+    .indicator-item.mfi { border-left: 3px solid #f39c12; }
+    .indicator-item.obv { border-left: 3px solid #9b59b6; }
+    .indicator-item.donchian { border-left: 3px solid #1abc9c; }
 
     /* Chart Container */
     .chart-wrapper {
@@ -149,6 +153,21 @@
       margin-top: 10px;
     }
     #dmi-chart {
+      width: 100%;
+      height: 150px;
+      margin-top: 10px;
+    }
+    #stochrsi-chart {
+      width: 100%;
+      height: 150px;
+      margin-top: 10px;
+    }
+    #mfi-chart {
+      width: 100%;
+      height: 150px;
+      margin-top: 10px;
+    }
+    #obv-chart {
       width: 100%;
       height: 150px;
       margin-top: 10px;
@@ -270,6 +289,18 @@
           <label class="indicator-item dmi">
             <input type="checkbox" data-indicator="dmi"> DMI/ADX
           </label>
+          <label class="indicator-item stochrsi">
+            <input type="checkbox" data-indicator="stochrsi"> Stoch RSI
+          </label>
+          <label class="indicator-item mfi">
+            <input type="checkbox" data-indicator="mfi"> MFI
+          </label>
+          <label class="indicator-item obv">
+            <input type="checkbox" data-indicator="obv"> OBV
+          </label>
+          <label class="indicator-item donchian">
+            <input type="checkbox" data-indicator="donchian"> Donchian
+          </label>
           <label class="indicator-item cross">
             <input type="checkbox" data-indicator="cross"> GC/DC
           </label>
@@ -284,6 +315,9 @@
       <div id="macd-chart" class="sub-chart"></div>
       <div id="stoch-chart" class="sub-chart"></div>
       <div id="dmi-chart" class="sub-chart"></div>
+      <div id="stochrsi-chart" class="sub-chart"></div>
+      <div id="mfi-chart" class="sub-chart"></div>
+      <div id="obv-chart" class="sub-chart"></div>
       <div id="cross-events" class="cross-events">
         <h3>GC/DC Events (SMA 5×25)</h3>
         <div id="cross-events-list" class="cross-events-list"></div>
