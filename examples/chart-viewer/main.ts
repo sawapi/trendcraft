@@ -5,7 +5,7 @@
 
 import * as echarts from 'echarts';
 import * as TrendCraft from 'trendcraft';
-import type { NormalizedCandle, Timeframe, CrossSignalQuality, DivergenceSignal } from 'trendcraft';
+import type { NormalizedCandle, Timeframe, CrossSignalQuality, DivergenceSignal, SqueezeSignal } from 'trendcraft';
 
 // State
 let rawCandles: NormalizedCandle[] = [];
@@ -300,8 +300,16 @@ function updateChart(): void {
   }
   if (indicators.bb) {
     const bbData = TrendCraft.bollingerBands(currentCandles, { period: 20, stdDev: 2 });
+
+    // Detect squeeze signals
+    const squeezeSignals = TrendCraft.bollingerSqueeze(currentCandles, { threshold: 10 });
+    const squeezeMarkPoints = createSqueezeMarkPoints(squeezeSignals, dates);
+
     series.push(createLineSeries('BB Upper', bbData.map(d => ({ time: d.time, value: d.value.upper })), '#6bcb77', 'dashed'));
-    series.push(createLineSeries('BB Middle', bbData.map(d => ({ time: d.time, value: d.value.middle })), '#6bcb77'));
+    series.push({
+      ...createLineSeries('BB Middle', bbData.map(d => ({ time: d.time, value: d.value.middle })), '#6bcb77'),
+      markPoint: squeezeMarkPoints.length > 0 ? { data: squeezeMarkPoints } : undefined,
+    });
     series.push(createLineSeries('BB Lower', bbData.map(d => ({ time: d.time, value: d.value.lower })), '#6bcb77', 'dashed'));
   }
   if (indicators.donchian) {
@@ -1131,6 +1139,56 @@ function updateObvChart(
     dataZoom: [{ type: 'inside', start: zoomStart, end: 100 }],
   };
   obvChart.setOption(option, true);
+}
+
+// Create markPoint data for squeeze signals
+function createSqueezeMarkPoints(
+  squeezeSignals: SqueezeSignal[],
+  dates: string[]
+): Array<{
+  name: string;
+  coord: [string, number];
+  symbol: string;
+  symbolSize: number;
+  itemStyle: { color: string };
+  label: { show: boolean; formatter: string; color: string; fontSize: number; position: 'inside' };
+}> {
+  const markPoints: Array<{
+    name: string;
+    coord: [string, number];
+    symbol: string;
+    symbolSize: number;
+    itemStyle: { color: string };
+    label: { show: boolean; formatter: string; color: string; fontSize: number; position: 'inside' };
+  }> = [];
+
+  const timeToIdx = new Map<number, number>();
+  currentCandles.forEach((c, i) => timeToIdx.set(c.time, i));
+
+  squeezeSignals.forEach((signal) => {
+    const idx = timeToIdx.get(signal.time);
+    if (idx === undefined) return;
+
+    // Place marker at the low of the candle
+    const price = currentCandles[idx].low;
+
+    markPoints.push({
+      name: 'Squeeze',
+      coord: [dates[idx], price],
+      symbol: 'triangle',
+      symbolSize: 12,
+      itemStyle: { color: '#ffd93d' },
+      label: {
+        show: true,
+        formatter: 'SQ',
+        color: '#000',
+        fontSize: 7,
+        position: 'inside',
+      },
+    });
+  });
+
+  return markPoints;
 }
 
 // Format date for display

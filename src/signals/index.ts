@@ -21,3 +21,9 @@ export {
   type DivergenceSignal,
   type DivergenceOptions,
 } from "./divergence";
+
+export {
+  bollingerSqueeze,
+  type SqueezeSignal,
+  type SqueezeOptions,
+} from "./bollinger-squeeze";

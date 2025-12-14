@@ -88,5 +88,5 @@ export { TrendCraft } from "./core/trendcraft";
 export type { AnalysisResult } from "./core/trendcraft";
 
 // Signals
-export { crossOver, crossUnder, goldenCross, deadCross, validateCrossSignals, obvDivergence, rsiDivergence, macdDivergence, detectDivergence } from "./signals";
-export type { CrossValidationOptions, CrossSignalQuality, DivergenceSignal, DivergenceOptions } from "./signals";
+export { crossOver, crossUnder, goldenCross, deadCross, validateCrossSignals, obvDivergence, rsiDivergence, macdDivergence, detectDivergence, bollingerSqueeze } from "./signals";
+export type { CrossValidationOptions, CrossSignalQuality, DivergenceSignal, DivergenceOptions, SqueezeSignal, SqueezeOptions } from "./signals";
