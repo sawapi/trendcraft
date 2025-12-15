@@ -11,6 +11,11 @@ import {
   macdCrossDown,
   bollingerBreakout,
   evaluateCondition,
+  perfectOrderBullish,
+  perfectOrderBearish,
+  perfectOrderCollapsed,
+  perfectOrderActiveBullish,
+  perfectOrderActiveBearish,
 } from "../conditions";
 import type { NormalizedCandle } from "../../types";
 
@@ -265,5 +270,222 @@ describe("Custom function condition", () => {
       const result = evaluateCondition(customCondition, indicators, candles[highPriceIndex], highPriceIndex, candles);
       expect(result).toBe(true);
     }
+  });
+});
+
+// ============================================
+// Perfect Order Conditions
+// ============================================
+
+describe("perfectOrderBullish()", () => {
+  // Generate strong uptrend to create bullish perfect order
+  function generateStrongUptrend(count: number): NormalizedCandle[] {
+    const candles: NormalizedCandle[] = [];
+    const baseTime = Date.now() - count * 24 * 60 * 60 * 1000;
+
+    for (let i = 0; i < count; i++) {
+      // Flat first, then strong uptrend
+      const price = i < 30 ? 100 : 100 + (i - 30) * 3;
+      candles.push({
+        time: baseTime + i * 24 * 60 * 60 * 1000,
+        open: price - 0.5,
+        high: price + 1,
+        low: price - 1,
+        close: price,
+        volume: 1000000,
+      });
+    }
+    return candles;
+  }
+
+  it("should create a valid preset condition", () => {
+    const condition = perfectOrderBullish();
+    expect(condition.type).toBe("preset");
+    expect(condition.name).toContain("perfectOrderBullish");
+  });
+
+  it("should detect bullish perfect order formation", () => {
+    const candles = generateStrongUptrend(150);
+    const condition = perfectOrderBullish({ periods: [5, 10, 20] });
+    const indicators: Record<string, unknown> = {};
+
+    // Find if there's a formation
+    let foundFormation = false;
+    for (let i = 30; i < candles.length; i++) {
+      if (evaluateCondition(condition, indicators, candles[i], i, candles)) {
+        foundFormation = true;
+        break;
+      }
+    }
+
+    expect(foundFormation).toBe(true);
+  });
+
+  it("should respect minStrength option", () => {
+    const candles = generateStrongUptrend(150);
+    const weakCondition = perfectOrderBullish({ periods: [5, 10, 20], minStrength: 0 });
+    const strongCondition = perfectOrderBullish({ periods: [5, 10, 20], minStrength: 80 });
+    const indicators: Record<string, unknown> = {};
+
+    let weakFormations = 0;
+    let strongFormations = 0;
+
+    for (let i = 30; i < candles.length; i++) {
+      if (evaluateCondition(weakCondition, {}, candles[i], i, candles)) {
+        weakFormations++;
+      }
+      if (evaluateCondition(strongCondition, indicators, candles[i], i, candles)) {
+        strongFormations++;
+      }
+    }
+
+    // Strong formations should be less than or equal to weak ones
+    expect(strongFormations).toBeLessThanOrEqual(weakFormations);
+  });
+});
+
+describe("perfectOrderBearish()", () => {
+  // Generate strong downtrend to create bearish perfect order
+  function generateStrongDowntrend(count: number): NormalizedCandle[] {
+    const candles: NormalizedCandle[] = [];
+    const baseTime = Date.now() - count * 24 * 60 * 60 * 1000;
+
+    for (let i = 0; i < count; i++) {
+      // Flat first, then strong downtrend
+      const price = i < 30 ? 200 : 200 - (i - 30) * 3;
+      candles.push({
+        time: baseTime + i * 24 * 60 * 60 * 1000,
+        open: price + 0.5,
+        high: price + 1,
+        low: price - 1,
+        close: price,
+        volume: 1000000,
+      });
+    }
+    return candles;
+  }
+
+  it("should create a valid preset condition", () => {
+    const condition = perfectOrderBearish();
+    expect(condition.type).toBe("preset");
+    expect(condition.name).toContain("perfectOrderBearish");
+  });
+
+  it("should detect bearish perfect order formation", () => {
+    const candles = generateStrongDowntrend(150);
+    const condition = perfectOrderBearish({ periods: [5, 10, 20] });
+    const indicators: Record<string, unknown> = {};
+
+    // Find if there's a formation
+    let foundFormation = false;
+    for (let i = 30; i < candles.length; i++) {
+      if (evaluateCondition(condition, indicators, candles[i], i, candles)) {
+        foundFormation = true;
+        break;
+      }
+    }
+
+    expect(foundFormation).toBe(true);
+  });
+});
+
+describe("perfectOrderCollapsed()", () => {
+  // Generate uptrend followed by reversal
+  function generateTrendReversal(count: number): NormalizedCandle[] {
+    const candles: NormalizedCandle[] = [];
+    const baseTime = Date.now() - count * 24 * 60 * 60 * 1000;
+
+    for (let i = 0; i < count; i++) {
+      let price: number;
+      if (i < 80) {
+        price = 100 + i * 2; // Long strong uptrend to establish perfect order
+      } else {
+        price = 260 - (i - 80) * 2; // Reversal
+      }
+      candles.push({
+        time: baseTime + i * 24 * 60 * 60 * 1000,
+        open: price,
+        high: price + 1,
+        low: price - 1,
+        close: price,
+        volume: 1000000,
+      });
+    }
+    return candles;
+  }
+
+  it("should create a valid preset condition", () => {
+    const condition = perfectOrderCollapsed();
+    expect(condition.type).toBe("preset");
+    expect(condition.name).toContain("perfectOrderCollapsed");
+  });
+
+  it("should detect perfect order collapse after reversal", () => {
+    const candles = generateTrendReversal(200);
+    const condition = perfectOrderCollapsed({ periods: [5, 10, 20] });
+    const indicators: Record<string, unknown> = {};
+
+    // Find if there's a collapse in the reversal period (collapse happens shortly after reversal starts)
+    let foundCollapse = false;
+    for (let i = 80; i < candles.length; i++) {
+      if (evaluateCondition(condition, indicators, candles[i], i, candles)) {
+        foundCollapse = true;
+        break;
+      }
+    }
+
+    expect(foundCollapse).toBe(true);
+  });
+});
+
+describe("perfectOrderActiveBullish()", () => {
+  // Generate sustained uptrend
+  function generateSustainedUptrend(count: number): NormalizedCandle[] {
+    const candles: NormalizedCandle[] = [];
+    const baseTime = Date.now() - count * 24 * 60 * 60 * 1000;
+
+    for (let i = 0; i < count; i++) {
+      const price = 100 + i * 1.5;
+      candles.push({
+        time: baseTime + i * 24 * 60 * 60 * 1000,
+        open: price - 0.5,
+        high: price + 1,
+        low: price - 1,
+        close: price,
+        volume: 1000000,
+      });
+    }
+    return candles;
+  }
+
+  it("should create a valid preset condition", () => {
+    const condition = perfectOrderActiveBullish();
+    expect(condition.type).toBe("preset");
+    expect(condition.name).toContain("perfectOrderActiveBullish");
+  });
+
+  it("should return true while bullish perfect order is active", () => {
+    const candles = generateSustainedUptrend(100);
+    const condition = perfectOrderActiveBullish({ periods: [5, 10, 20] });
+    const indicators: Record<string, unknown> = {};
+
+    // After MA convergence, should stay true
+    let activeCount = 0;
+    for (let i = 30; i < candles.length; i++) {
+      if (evaluateCondition(condition, indicators, candles[i], i, candles)) {
+        activeCount++;
+      }
+    }
+
+    // Most of the later candles should have active bullish PO
+    expect(activeCount).toBeGreaterThan(30);
+  });
+});
+
+describe("perfectOrderActiveBearish()", () => {
+  it("should create a valid preset condition", () => {
+    const condition = perfectOrderActiveBearish();
+    expect(condition.type).toBe("preset");
+    expect(condition.name).toContain("perfectOrderActiveBearish");
   });
 });

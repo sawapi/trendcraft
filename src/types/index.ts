@@ -257,6 +257,20 @@ export type Trade = {
   return: number;
   returnPercent: number;
   holdingDays: number;
+  /** Whether this is a partial exit (true) or full exit (false/undefined) */
+  isPartial?: boolean;
+  /** Percentage of original position sold in this trade */
+  exitPercent?: number;
+};
+
+/**
+ * Partial take profit configuration
+ */
+export type PartialTakeProfitConfig = {
+  /** Profit threshold in percent to trigger partial exit (e.g., 5 = +5%) */
+  threshold: number;
+  /** Percentage of position to sell (e.g., 50 = sell 50% of position) */
+  sellPercent: number;
 };
 
 /**
@@ -277,6 +291,8 @@ export type BacktestOptions = {
   takeProfit?: number;
   /** Trailing stop in percent (e.g., 5 = exit if price drops 5% from peak) */
   trailingStop?: number;
+  /** Partial take profit config (sell portion of position at threshold) */
+  partialTakeProfit?: PartialTakeProfitConfig;
   /** Tax rate on profits in percent (default: 0, e.g., 20.315 for Japan) */
   taxRate?: number;
 };

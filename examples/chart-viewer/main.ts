@@ -5,7 +5,7 @@
 
 import * as echarts from 'echarts';
 import * as TrendCraft from 'trendcraft';
-import type { NormalizedCandle, Timeframe, DivergenceSignal, SqueezeSignal } from 'trendcraft';
+import type { NormalizedCandle, Timeframe, DivergenceSignal, SqueezeSignal, PerfectOrderValue } from 'trendcraft';
 
 // State
 let rawCandles: NormalizedCandle[] = [];
@@ -360,6 +360,24 @@ function updateChart(): void {
   // Golden Cross / Dead Cross list
   updateCrossEventsList(indicators.cross);
 
+  // Perfect Order detection and events list
+  if (indicators.perfectorder) {
+    const poData = TrendCraft.perfectOrder(currentCandles, { periods: [5, 25, 75] });
+    const poMarkPoints = createPerfectOrderMarkPoints(poData, dates);
+
+    // Add mark points to the candlestick series
+    if (poMarkPoints.length > 0) {
+      const candlestickSeries = series.find(s => s.name === 'Candlestick');
+      if (candlestickSeries) {
+        (candlestickSeries as echarts.CandlestickSeriesOption).markPoint = { data: poMarkPoints };
+      }
+    }
+
+    updatePerfectOrderEventsList(true, poData);
+  } else {
+    updatePerfectOrderEventsList(false, []);
+  }
+
   // Main chart option
   const mainOption: echarts.EChartsOption = {
     backgroundColor: 'transparent',
@@ -556,6 +574,12 @@ function syncDataZoom(sourceChart: echarts.ECharts, params: any): void {
   const indicators = getSelectedIndicators();
   if (indicators.cross) {
     updateCrossEventsList(true);
+  }
+
+  // Update Perfect Order list if visible
+  if (indicators.perfectorder) {
+    const poData = TrendCraft.perfectOrder(currentCandles, { periods: [5, 25, 75] });
+    updatePerfectOrderEventsList(true, poData);
   }
 }
 
@@ -1523,6 +1547,125 @@ function updateRocChart(dates: string[], rocData: TrendCraft.Series<number | nul
     dataZoom: [{ type: 'inside', start: zoomStart, end: 100 }],
   };
   rocChart.setOption(option, true);
+}
+
+// Create markPoint data for perfect order signals
+function createPerfectOrderMarkPoints(
+  poData: TrendCraft.Series<PerfectOrderValue>,
+  dates: string[]
+): Array<{
+  name: string;
+  coord: [string, number];
+  symbol: string;
+  symbolSize: number;
+  itemStyle: { color: string };
+  label: { show: boolean; formatter: string; color: string; fontSize: number; position: 'inside' | 'top' | 'bottom' };
+}> {
+  const markPoints: Array<{
+    name: string;
+    coord: [string, number];
+    symbol: string;
+    symbolSize: number;
+    itemStyle: { color: string };
+    label: { show: boolean; formatter: string; color: string; fontSize: number; position: 'inside' | 'top' | 'bottom' };
+  }> = [];
+
+  const timeToIdx = new Map<number, number>();
+  currentCandles.forEach((c, i) => timeToIdx.set(c.time, i));
+
+  poData.forEach((po, idx) => {
+    if (po.value.formed) {
+      const price = currentCandles[idx].low * 0.995; // Below the candle
+      const isBullish = po.value.type === 'bullish';
+      markPoints.push({
+        name: isBullish ? 'PO Bullish' : 'PO Bearish',
+        coord: [dates[idx], price],
+        symbol: 'diamond',
+        symbolSize: 14,
+        itemStyle: { color: isBullish ? '#26a69a' : '#ef5350' },
+        label: {
+          show: true,
+          formatter: 'PO',
+          color: '#fff',
+          fontSize: 8,
+          position: 'inside',
+        },
+      });
+    }
+
+    if (po.value.collapsed) {
+      const price = currentCandles[idx].high * 1.005; // Above the candle
+      markPoints.push({
+        name: 'PO Collapsed',
+        coord: [dates[idx], price],
+        symbol: 'diamond',
+        symbolSize: 12,
+        itemStyle: { color: '#888' },
+        label: {
+          show: true,
+          formatter: 'X',
+          color: '#fff',
+          fontSize: 8,
+          position: 'inside',
+        },
+      });
+    }
+  });
+
+  return markPoints;
+}
+
+// Update Perfect Order events list
+function updatePerfectOrderEventsList(show: boolean, poData: TrendCraft.Series<PerfectOrderValue>): void {
+  const container = document.getElementById('perfect-order-events') as HTMLDivElement;
+  const listEl = document.getElementById('perfect-order-events-list') as HTMLDivElement;
+
+  if (!show || currentCandles.length === 0) {
+    container.classList.remove('visible');
+    return;
+  }
+
+  // Get visible date range
+  const { startDate, endDate } = getVisibleDateRange();
+
+  // Filter events (formations and collapses) within visible range
+  const events: Array<{ time: number; type: 'bullish' | 'bearish' | 'collapsed'; strength: number }> = [];
+
+  poData.forEach((po) => {
+    if (po.time < startDate || po.time > endDate) return;
+
+    if (po.value.formed) {
+      events.push({
+        time: po.time,
+        type: po.value.type as 'bullish' | 'bearish',
+        strength: po.value.strength,
+      });
+    }
+    if (po.value.collapsed) {
+      events.push({
+        time: po.time,
+        type: 'collapsed',
+        strength: 0,
+      });
+    }
+  });
+
+  // Sort by date descending (newest first)
+  events.sort((a, b) => b.time - a.time);
+
+  if (events.length === 0) {
+    listEl.innerHTML = '<span style="color: #666;">No events in visible range</span>';
+  } else {
+    listEl.innerHTML = events.map(e => {
+      if (e.type === 'collapsed') {
+        return `<span class="po-event collapsed">Collapsed ${formatDate(e.time)}</span>`;
+      }
+      const label = e.type === 'bullish' ? '↑ Bullish' : '↓ Bearish';
+      return `<span class="po-event ${e.type}" title="Strength: ${e.strength}">${label} ${formatDate(e.time)} [${e.strength}]</span>`;
+    }).join('');
+  }
+
+  container.classList.add('visible');
 }
 
 // Start

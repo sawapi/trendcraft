@@ -41,6 +41,7 @@ export type {
   Trade,
   BacktestOptions,
   BacktestResult,
+  PartialTakeProfitConfig,
 } from "./types";
 
 // Core utilities
@@ -136,12 +137,18 @@ export {
   // Validated conditions (with damashi detection)
   validatedGoldenCross,
   validatedDeadCross,
+  // Perfect Order conditions
+  perfectOrderBullish,
+  perfectOrderBearish,
+  perfectOrderCollapsed,
+  perfectOrderActiveBullish,
+  perfectOrderActiveBearish,
   // Engine
   runBacktest,
 } from "./backtest";
 
-export type { ValidatedCrossOptions } from "./backtest";
+export type { ValidatedCrossOptions, PerfectOrderConditionOptions } from "./backtest";
 
 // Signals
-export { crossOver, crossUnder, goldenCross, deadCross, validateCrossSignals, obvDivergence, rsiDivergence, macdDivergence, detectDivergence, bollingerSqueeze } from "./signals";
-export type { CrossValidationOptions, CrossSignalQuality, DivergenceSignal, DivergenceOptions, SqueezeSignal, SqueezeOptions } from "./signals";
+export { crossOver, crossUnder, goldenCross, deadCross, validateCrossSignals, obvDivergence, rsiDivergence, macdDivergence, detectDivergence, bollingerSqueeze, perfectOrder } from "./signals";
+export type { CrossValidationOptions, CrossSignalQuality, DivergenceSignal, DivergenceOptions, SqueezeSignal, SqueezeOptions, PerfectOrderType, PerfectOrderValue, PerfectOrderOptions } from "./signals";

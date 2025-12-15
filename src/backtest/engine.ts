@@ -25,6 +25,7 @@ export function runBacktest(
     stopLoss,
     takeProfit,
     trailingStop,
+    partialTakeProfit,
     taxRate = 0,
   } = options;
 
@@ -35,7 +36,14 @@ export function runBacktest(
   const trades: Trade[] = [];
   const indicators: Record<string, unknown> = {};
 
-  let position: { entryTime: number; entryPrice: number; peakPrice: number; shares: number } | null = null;
+  let position: {
+    entryTime: number;
+    entryPrice: number;
+    peakPrice: number;
+    shares: number;
+    originalShares: number;
+    partialTaken: boolean;
+  } | null = null;
   let currentCapital = capital;
   let peakCapital = capital;
   let maxDrawdown = 0;
@@ -61,7 +69,12 @@ export function runBacktest(
           entryPrice,
           peakPrice: entryPrice,
           shares,
+          originalShares: shares,
+          partialTaken: false,
         };
+
+        // Capital is now invested in position
+        currentCapital = 0;
       }
     } else {
       // Update peak price for trailing stop
@@ -87,6 +100,60 @@ export function runBacktest(
         if (candle.high >= takeProfitPrice) {
           shouldExit = true;
           exitPrice = takeProfitPrice;
+        }
+      }
+
+      // Partial take profit check (sell portion of position at threshold)
+      if (!shouldExit && partialTakeProfit && !position.partialTaken) {
+        const partialThresholdPrice = position.entryPrice * (1 + partialTakeProfit.threshold / 100);
+        if (candle.high >= partialThresholdPrice) {
+          // Execute partial exit
+          const partialExitPrice = applySlippage(partialThresholdPrice, slippage, "sell");
+          const sharesToSell = position.shares * (partialTakeProfit.sellPercent / 100);
+          const sharesRemaining = position.shares - sharesToSell;
+
+          // Calculate partial exit return
+          const grossReturn = (partialExitPrice - position.entryPrice) * sharesToSell;
+          const exitValue = partialExitPrice * sharesToSell;
+          const exitCommission = commission + exitValue * (commissionRate / 100);
+
+          let tax = 0;
+          if (grossReturn > 0 && taxRate > 0) {
+            tax = grossReturn * (taxRate / 100);
+          }
+
+          const netReturn = grossReturn - exitCommission - tax;
+          const returnPercent = (netReturn / (position.entryPrice * sharesToSell)) * 100;
+          const holdingDays = Math.round((candle.time - position.entryTime) / MS_PER_DAY);
+
+          trades.push({
+            entryTime: position.entryTime,
+            entryPrice: position.entryPrice,
+            exitTime: candle.time,
+            exitPrice: partialExitPrice,
+            return: netReturn,
+            returnPercent,
+            holdingDays,
+            isPartial: true,
+            exitPercent: partialTakeProfit.sellPercent,
+          });
+
+          // Update capital and position
+          currentCapital += exitValue - exitCommission - tax;
+          returns.push(returnPercent / 100);
+
+          // Track drawdown
+          if (currentCapital > peakCapital) {
+            peakCapital = currentCapital;
+          }
+          const drawdown = ((peakCapital - currentCapital) / peakCapital) * 100;
+          if (drawdown > maxDrawdown) {
+            maxDrawdown = drawdown;
+          }
+
+          // Update position (keep remaining shares)
+          position.shares = sharesRemaining;
+          position.partialTaken = true;
         }
       }
 
@@ -136,8 +203,8 @@ export function runBacktest(
           holdingDays,
         });
 
-        // Update capital
-        currentCapital = exitValue - exitCommission - tax;
+        // Update capital (add to existing capital from partial takes)
+        currentCapital += exitValue - exitCommission - tax;
         returns.push(returnPercent / 100);
 
         // Track drawdown
@@ -187,7 +254,8 @@ export function runBacktest(
       holdingDays,
     });
 
-    currentCapital = exitValue - exitCommission - tax;
+    // Add to existing capital from partial takes
+    currentCapital += exitValue - exitCommission - tax;
     returns.push(returnPercent / 100);
   }
 

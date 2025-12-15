@@ -31,10 +31,16 @@ import {
   atr,
   sma,
   bollingerBands,
+  perfectOrder,
+  perfectOrderBullish,
+  perfectOrderCollapsed,
+  perfectOrderActiveBullish,
 } from "../src/index.js";
 import type { Candle, BacktestResult } from "../src/index.js";
 
 // Load CSV data
+// Supports Japanese CSV format: 日付,始値,高値,安値,終値,出来高,調整後終値
+// Uses Adj Close for close price to account for splits/dividends
 function loadCSV(filePath: string): Candle[] {
   const content = readFileSync(filePath, "utf-8");
   const lines = content.split("\n").slice(1); // Skip header
@@ -45,20 +51,26 @@ function loadCSV(filePath: string): Candle[] {
     if (!line.trim()) continue;
 
     const parts = line.split(",");
-    if (parts.length < 6) continue;
+    if (parts.length < 7) continue; // 7 columns: Date,Open,High,Low,Close,Volume,AdjClose
 
-    const [dateStr, open, high, low, close, volume] = parts;
+    const [dateStr, open, high, low, close, volume, adjClose] = parts;
 
-    // Parse date (YYYY/MM/DD format)
-    const [year, month, day] = dateStr.split("/").map(Number);
+    // Parse date (YYYY-MM-DD or YYYY/MM/DD format)
+    const dateParts = dateStr.includes("-") ? dateStr.split("-") : dateStr.split("/");
+    const [year, month, day] = dateParts.map(Number);
     const time = new Date(year, month - 1, day).getTime();
+
+    // Calculate adjustment ratio to apply to OHLC
+    const closeNum = parseFloat(close);
+    const adjCloseNum = parseFloat(adjClose);
+    const adjRatio = adjCloseNum / closeNum;
 
     candles.push({
       time,
-      open: parseFloat(open),
-      high: parseFloat(high),
-      low: parseFloat(low),
-      close: parseFloat(close),
+      open: parseFloat(open) * adjRatio,
+      high: parseFloat(high) * adjRatio,
+      low: parseFloat(low) * adjRatio,
+      close: adjCloseNum, // Use adjusted close
       volume: parseFloat(volume),
     });
   }
@@ -497,6 +509,497 @@ const result18 = TrendCraft.from(candles)
 formatResult("戦略18: RSI+MACDコンボ", result18);
 
 // ============================================
+// Strategy 19: Perfect Order (5/25/75) - Formation to Collapse
+// ============================================
+const result19 = TrendCraft.from(candles)
+  .strategy()
+  .entry(perfectOrderBullish({ periods: [5, 25, 75] }))
+  .exit(perfectOrderCollapsed({ periods: [5, 25, 75] }))
+  .backtest({ capital, stopLoss, commissionRate, taxRate });
+
+formatResult("戦略19: パーフェクトオーダー (形成→崩壊)", result19);
+
+// ============================================
+// Strategy 20: Perfect Order with Strength Filter
+// ============================================
+const result20 = TrendCraft.from(candles)
+  .strategy()
+  .entry(perfectOrderBullish({ periods: [5, 25, 75], minStrength: 30 }))
+  .exit(perfectOrderCollapsed({ periods: [5, 25, 75] }))
+  .backtest({ capital, stopLoss, commissionRate, taxRate });
+
+formatResult("戦略20: パーフェクトオーダー (強度30以上)", result20);
+
+// ============================================
+// Strategy 21: Perfect Order + RSI Filter
+// ============================================
+const result21 = TrendCraft.from(candles)
+  .strategy()
+  .entry(and(perfectOrderBullish({ periods: [5, 25, 75] }), rsiBelow(60)))
+  .exit(or(perfectOrderCollapsed({ periods: [5, 25, 75] }), rsiAbove(80)))
+  .backtest({ capital, stopLoss, commissionRate, taxRate });
+
+formatResult("戦略21: パーフェクトオーダー + RSIフィルター", result21);
+
+// ============================================
+// Strategy 22: Perfect Order (EMA)
+// ============================================
+const result22 = TrendCraft.from(candles)
+  .strategy()
+  .entry(perfectOrderBullish({ periods: [5, 25, 75], maType: "ema" }))
+  .exit(perfectOrderCollapsed({ periods: [5, 25, 75], maType: "ema" }))
+  .backtest({ capital, stopLoss, commissionRate, taxRate });
+
+formatResult("戦略22: パーフェクトオーダー (EMA)", result22);
+
+// ============================================
+// Strategy 23: Perfect Order (10/20/50/200) - 4MA
+// ============================================
+const result23 = TrendCraft.from(candles)
+  .strategy()
+  .entry(perfectOrderBullish({ periods: [10, 20, 50, 200] }))
+  .exit(perfectOrderCollapsed({ periods: [10, 20, 50, 200] }))
+  .backtest({ capital, stopLoss, commissionRate, taxRate });
+
+formatResult("戦略23: パーフェクトオーダー 4本MA (10/20/50/200)", result23);
+
+// ============================================
+// Strategy 24: Perfect Order + GC Entry
+// ============================================
+const result24 = TrendCraft.from(candles)
+  .strategy()
+  .entry(and(perfectOrderActiveBullish({ periods: [5, 25, 75] }), goldenCrossCondition(5, 25)))
+  .exit(perfectOrderCollapsed({ periods: [5, 25, 75] }))
+  .backtest({ capital, stopLoss, commissionRate, taxRate });
+
+formatResult("戦略24: パーフェクトオーダー中のGCエントリー", result24);
+
+// ============================================
+// Strategy 25: Perfect Order + DMI/ADX Confirmation
+// パーフェクトオーダー形成時 + ADX > 25 でトレンド確認
+// ============================================
+const result25 = TrendCraft.from(candles)
+  .strategy()
+  .entry((_indicators, _candle, i) => {
+    // PO形成チェック
+    let poData = _indicators["po_5_25_75_sma"] as { time: number; value: { formed: boolean; type: string; strength: number } }[] | undefined;
+    if (!poData) {
+      poData = perfectOrder(candles, { periods: [5, 25, 75] }) as { time: number; value: { formed: boolean; type: string; strength: number } }[];
+      _indicators["po_5_25_75_sma"] = poData;
+    }
+    const po = poData[i]?.value;
+    if (!po || !po.formed || po.type !== "bullish") return false;
+
+    // ADX確認
+    const curr = dmiData[i]?.value;
+    if (!curr || curr.adx === null || curr.plusDi === null || curr.minusDi === null) return false;
+    return curr.adx > 25 && curr.plusDi > curr.minusDi;
+  })
+  .exit(perfectOrderCollapsed({ periods: [5, 25, 75] }))
+  .backtest({ capital, stopLoss, commissionRate, taxRate });
+
+formatResult("戦略25: パーフェクトオーダー + ADXトレンド確認", result25);
+
+// ============================================
+// Strategy 26: Perfect Order + Volume Spike
+// パーフェクトオーダー形成時 + 出来高が平均の1.5倍
+// ============================================
+const result26 = TrendCraft.from(candles)
+  .strategy()
+  .entry((_indicators, candle, i) => {
+    if (i < 20) return false;
+
+    // PO形成チェック
+    let poData = _indicators["po_5_25_75_sma"] as { time: number; value: { formed: boolean; type: string } }[] | undefined;
+    if (!poData) {
+      poData = perfectOrder(candles, { periods: [5, 25, 75] }) as { time: number; value: { formed: boolean; type: string } }[];
+      _indicators["po_5_25_75_sma"] = poData;
+    }
+    const po = poData[i]?.value;
+    if (!po || !po.formed || po.type !== "bullish") return false;
+
+    // 出来高チェック
+    let sumVolume = 0;
+    for (let j = i - 20; j < i; j++) {
+      sumVolume += candles[j].volume;
+    }
+    const avgVolume = sumVolume / 20;
+    return candle.volume > avgVolume * 1.5;
+  })
+  .exit(perfectOrderCollapsed({ periods: [5, 25, 75] }))
+  .backtest({ capital, stopLoss, commissionRate, taxRate });
+
+formatResult("戦略26: パーフェクトオーダー + 出来高急増", result26);
+
+// ============================================
+// Strategy 27: Perfect Order + MFI Filter
+// パーフェクトオーダー形成 + MFI < 70（過熱感なし）
+// ============================================
+const result27 = TrendCraft.from(candles)
+  .strategy()
+  .entry((_indicators, _candle, i) => {
+    // PO形成チェック
+    let poData = _indicators["po_5_25_75_sma"] as { time: number; value: { formed: boolean; type: string } }[] | undefined;
+    if (!poData) {
+      poData = perfectOrder(candles, { periods: [5, 25, 75] }) as { time: number; value: { formed: boolean; type: string } }[];
+      _indicators["po_5_25_75_sma"] = poData;
+    }
+    const po = poData[i]?.value;
+    if (!po || !po.formed || po.type !== "bullish") return false;
+
+    // MFI確認（過熱感なし）
+    const currMfi = mfiData[i]?.value;
+    if (currMfi === null) return false;
+    return currMfi < 70;
+  })
+  .exit(or(perfectOrderCollapsed({ periods: [5, 25, 75] }), (_indicators, _candle, i) => {
+    const currMfi = mfiData[i]?.value;
+    return currMfi !== null && currMfi > 80;
+  }))
+  .backtest({ capital, stopLoss, commissionRate, taxRate });
+
+formatResult("戦略27: パーフェクトオーダー + MFIフィルター", result27);
+
+// ============================================
+// Strategy 28: Perfect Order + BB Squeeze Breakout
+// パーフェクトオーダー形成 + ボリンジャーバンドが狭まっている（ブレイクアウト前兆）
+// ============================================
+const result28 = TrendCraft.from(candles)
+  .strategy()
+  .entry((_indicators, _candle, i) => {
+    // PO形成チェック
+    let poData = _indicators["po_5_25_75_sma"] as { time: number; value: { formed: boolean; type: string } }[] | undefined;
+    if (!poData) {
+      poData = perfectOrder(candles, { periods: [5, 25, 75] }) as { time: number; value: { formed: boolean; type: string } }[];
+      _indicators["po_5_25_75_sma"] = poData;
+    }
+    const po = poData[i]?.value;
+    if (!po || !po.formed || po.type !== "bullish") return false;
+
+    // BB幅チェック（狭いスクイーズ状態）
+    const curr = bbData[i]?.value;
+    if (!curr || curr.upper === null || curr.lower === null || curr.middle === null) return false;
+    const bandwidth = (curr.upper - curr.lower) / curr.middle * 100;
+    return bandwidth < 10; // 10%未満の狭い状態
+  })
+  .exit(perfectOrderCollapsed({ periods: [5, 25, 75] }))
+  .backtest({ capital, stopLoss, commissionRate, taxRate });
+
+formatResult("戦略28: パーフェクトオーダー + BBスクイーズ", result28);
+
+// ============================================
+// Strategy 29: Perfect Order Active + Stochastics Oversold Recovery
+// パーフェクトオーダー継続中 + ストキャスティクス売られすぎからの回復
+// ============================================
+const result29 = TrendCraft.from(candles)
+  .strategy()
+  .entry((_indicators, _candle, i) => {
+    if (i < 1) return false;
+
+    // PO継続チェック
+    let poData = _indicators["po_5_25_75_sma"] as { time: number; value: { type: string } }[] | undefined;
+    if (!poData) {
+      poData = perfectOrder(candles, { periods: [5, 25, 75] }) as { time: number; value: { type: string } }[];
+      _indicators["po_5_25_75_sma"] = poData;
+    }
+    const po = poData[i]?.value;
+    if (!po || po.type !== "bullish") return false;
+
+    // ストキャス売られすぎからの回復
+    const curr = stochData[i]?.value;
+    const prev = stochData[i - 1]?.value;
+    if (!curr || !prev || curr.k === null || prev.k === null) return false;
+    return prev.k < 20 && curr.k >= 20;
+  })
+  .exit(perfectOrderCollapsed({ periods: [5, 25, 75] }))
+  .backtest({ capital, stopLoss, commissionRate, taxRate });
+
+formatResult("戦略29: パーフェクトオーダー中 + ストキャス回復", result29);
+
+// ============================================
+// Strategy 30: Perfect Order + ATR Trailing Stop
+// パーフェクトオーダー形成でエントリー、ATRベースのトレイリングストップ
+// ============================================
+const result30 = TrendCraft.from(candles)
+  .strategy()
+  .entry(perfectOrderBullish({ periods: [5, 25, 75] }))
+  .exit((_indicators, candle, i) => {
+    // PO崩壊チェック
+    let poData = _indicators["po_5_25_75_sma"] as { time: number; value: { collapsed: boolean } }[] | undefined;
+    if (!poData) {
+      poData = perfectOrder(candles, { periods: [5, 25, 75] }) as { time: number; value: { collapsed: boolean } }[];
+      _indicators["po_5_25_75_sma"] = poData;
+    }
+    const po = poData[i]?.value;
+    if (po?.collapsed) return true;
+
+    // ATRベースのトレイリングストップ（最高値から2ATR下）
+    const currAtr = atrData[i]?.value;
+    if (currAtr === null || i < 5) return false;
+
+    // 直近5日の最高値
+    let recentHigh = 0;
+    for (let j = Math.max(0, i - 5); j <= i; j++) {
+      if (candles[j].high > recentHigh) recentHigh = candles[j].high;
+    }
+    return candle.close < recentHigh - currAtr * 2;
+  })
+  .backtest({ capital, stopLoss, commissionRate, taxRate });
+
+formatResult("戦略30: パーフェクトオーダー + ATRトレイリング", result30);
+
+// ============================================
+// Strategy 31: Perfect Order Entry + Fixed Days Exit
+// パーフェクトオーダー形成でエントリー、N日後に機械的にイグジット
+// ============================================
+const result31 = TrendCraft.from(candles)
+  .strategy()
+  .entry(perfectOrderBullish({ periods: [5, 25, 75] }))
+  .exit((_indicators, _candle, i) => {
+    // 固定20日でイグジット（エントリーからの経過はbacktestエンジンが管理）
+    // ここでは単純にPO崩壊か20日経過でイグジット
+    let poData = _indicators["po_5_25_75_sma"] as { time: number; value: { collapsed: boolean; type: string } }[] | undefined;
+    if (!poData) {
+      poData = perfectOrder(candles, { periods: [5, 25, 75] }) as { time: number; value: { collapsed: boolean; type: string } }[];
+      _indicators["po_5_25_75_sma"] = poData;
+    }
+    const po = poData[i]?.value;
+    // PO崩壊またはベアリッシュに転換で即座にイグジット
+    return po?.collapsed || po?.type === "bearish";
+  })
+  .backtest({ capital, stopLoss: 3, commissionRate, taxRate }); // タイトな損切り3%
+
+formatResult("戦略31: パーフェクトオーダー + 損切り3%", result31);
+
+// ============================================
+// Strategy 32: Perfect Order + Profit Target
+// パーフェクトオーダー形成でエントリー、利確ターゲット到達でイグジット
+// ============================================
+let entryPrice32 = 0;
+const result32 = TrendCraft.from(candles)
+  .strategy()
+  .entry((_indicators, candle, i) => {
+    let poData = _indicators["po_5_25_75_sma"] as { time: number; value: { formed: boolean; type: string } }[] | undefined;
+    if (!poData) {
+      poData = perfectOrder(candles, { periods: [5, 25, 75] }) as { time: number; value: { formed: boolean; type: string } }[];
+      _indicators["po_5_25_75_sma"] = poData;
+    }
+    const po = poData[i]?.value;
+    if (po?.formed && po?.type === "bullish") {
+      entryPrice32 = candle.close;
+      return true;
+    }
+    return false;
+  })
+  .exit((_indicators, candle, i) => {
+    // 5%利確 or PO崩壊
+    if (entryPrice32 > 0 && candle.close >= entryPrice32 * 1.05) {
+      entryPrice32 = 0;
+      return true;
+    }
+    let poData = _indicators["po_5_25_75_sma"] as { time: number; value: { collapsed: boolean } }[] | undefined;
+    if (!poData) {
+      poData = perfectOrder(candles, { periods: [5, 25, 75] }) as { time: number; value: { collapsed: boolean } }[];
+      _indicators["po_5_25_75_sma"] = poData;
+    }
+    if (poData[i]?.value?.collapsed) {
+      entryPrice32 = 0;
+      return true;
+    }
+    return false;
+  })
+  .backtest({ capital, stopLoss, commissionRate, taxRate });
+
+formatResult("戦略32: パーフェクトオーダー + 5%利確", result32);
+
+// ============================================
+// Strategy 33: Perfect Order + Partial Exit (段階的イグジット風)
+// 短期MAが中期MAを下回ったら警戒→イグジット
+// ============================================
+const result33 = TrendCraft.from(candles)
+  .strategy()
+  .entry(perfectOrderBullish({ periods: [5, 25, 75] }))
+  .exit((_indicators, _candle, i) => {
+    if (i < 1) return false;
+    // 5MAが25MAを下回ったらイグジット（PO崩壊の前兆）
+    const curr5 = sma5Data[i]?.value;
+    const curr25 = sma25Data[i]?.value;
+    if (curr5 === null || curr25 === null) return false;
+    return curr5 < curr25;
+  })
+  .backtest({ capital, stopLoss, commissionRate, taxRate });
+
+formatResult("戦略33: パーフェクトオーダー + 5MA<25MAでイグジット", result33);
+
+// ============================================
+// Strategy 34: Perfect Order中の押し目買い（再エントリー）
+// パーフェクトオーダー継続中 + 価格が25MAにタッチしたらエントリー
+// ============================================
+const result34 = TrendCraft.from(candles)
+  .strategy()
+  .entry((_indicators, candle, i) => {
+    // PO継続チェック
+    let poData = _indicators["po_5_25_75_sma"] as { time: number; value: { type: string } }[] | undefined;
+    if (!poData) {
+      poData = perfectOrder(candles, { periods: [5, 25, 75] }) as { time: number; value: { type: string } }[];
+      _indicators["po_5_25_75_sma"] = poData;
+    }
+    const po = poData[i]?.value;
+    if (!po || po.type !== "bullish") return false;
+
+    // 25MAへのタッチ（押し目）
+    const ma25 = sma25Data[i]?.value;
+    if (ma25 === null) return false;
+    // 安値が25MAに近い（±2%以内）
+    const tolerance = ma25 * 0.02;
+    return candle.low <= ma25 + tolerance && candle.close > ma25;
+  })
+  .exit((_indicators, _candle, i) => {
+    // 5MAが25MAを下回ったらイグジット
+    const curr5 = sma5Data[i]?.value;
+    const curr25 = sma25Data[i]?.value;
+    if (curr5 === null || curr25 === null) return false;
+    return curr5 < curr25;
+  })
+  .backtest({ capital, stopLoss, commissionRate, taxRate });
+
+formatResult("戦略34: パーフェクトオーダー中の押し目買い", result34);
+
+// ============================================
+// Strategy 35: Perfect Order + RSI Exit
+// パーフェクトオーダー形成でエントリー、RSI 70超えでイグジット
+// ============================================
+const result35 = TrendCraft.from(candles)
+  .strategy()
+  .entry(perfectOrderBullish({ periods: [5, 25, 75] }))
+  .exit((_indicators, _candle, i) => {
+    // RSI 70超えで利確
+    const currRsi = rsiData[i]?.value;
+    if (currRsi !== null && currRsi > 70) return true;
+
+    // PO崩壊でイグジット
+    let poData = _indicators["po_5_25_75_sma"] as { time: number; value: { collapsed: boolean } }[] | undefined;
+    if (!poData) {
+      poData = perfectOrder(candles, { periods: [5, 25, 75] }) as { time: number; value: { collapsed: boolean } }[];
+      _indicators["po_5_25_75_sma"] = poData;
+    }
+    return poData[i]?.value?.collapsed ?? false;
+  })
+  .backtest({ capital, stopLoss, commissionRate, taxRate });
+
+formatResult("戦略35: パーフェクトオーダー + RSI70で利確", result35);
+
+// ============================================
+// Strategy 36: Perfect Order + Partial Take Profit (部分利確)
+// パーフェクトオーダー形成でエントリー、5%利益で50%利確、残りはPO崩壊まで保持
+// ============================================
+const result36 = TrendCraft.from(candles)
+  .strategy()
+  .entry(perfectOrderBullish({ periods: [5, 25, 75] }))
+  .exit(perfectOrderCollapsed({ periods: [5, 25, 75] }))
+  .backtest({
+    capital,
+    stopLoss,
+    commissionRate,
+    taxRate,
+    partialTakeProfit: { threshold: 5, sellPercent: 50 },
+  });
+
+formatResult("戦略36: パーフェクトオーダー + 5%で50%利確", result36);
+
+// ============================================
+// Strategy 37: Perfect Order + Partial Take Profit (3%で70%利確)
+// より早めに利益確保するパターン
+// ============================================
+const result37 = TrendCraft.from(candles)
+  .strategy()
+  .entry(perfectOrderBullish({ periods: [5, 25, 75] }))
+  .exit(perfectOrderCollapsed({ periods: [5, 25, 75] }))
+  .backtest({
+    capital,
+    stopLoss,
+    commissionRate,
+    taxRate,
+    partialTakeProfit: { threshold: 3, sellPercent: 70 },
+  });
+
+formatResult("戦略37: パーフェクトオーダー + 3%で70%利確", result37);
+
+// ============================================
+// Strategy 38: Perfect Order + Partial + Trailing
+// 部分利確 + トレイリングストップの組み合わせ
+// ============================================
+const result38 = TrendCraft.from(candles)
+  .strategy()
+  .entry(perfectOrderBullish({ periods: [5, 25, 75] }))
+  .exit(perfectOrderCollapsed({ periods: [5, 25, 75] }))
+  .backtest({
+    capital,
+    stopLoss,
+    commissionRate,
+    taxRate,
+    partialTakeProfit: { threshold: 5, sellPercent: 50 },
+    trailingStop: 8,
+  });
+
+formatResult("戦略38: パーフェクトオーダー + 5%部分利確 + トレイリング8%", result38);
+
+// ============================================
+// Strategy 39: GC/DC + Partial Take Profit
+// シンプルなGC/DCに部分利確を追加
+// ============================================
+const result39 = TrendCraft.from(candles)
+  .strategy()
+  .entry(goldenCrossCondition(5, 25))
+  .exit(deadCrossCondition(5, 25))
+  .backtest({
+    capital,
+    stopLoss,
+    commissionRate,
+    taxRate,
+    partialTakeProfit: { threshold: 5, sellPercent: 50 },
+  });
+
+formatResult("戦略39: GC/DC + 5%で50%利確", result39);
+
+// ============================================
+// Strategy 40: PO + Volume + Partial Take Profit
+// 出来高確認 + 部分利確
+// ============================================
+const result40 = TrendCraft.from(candles)
+  .strategy()
+  .entry((_indicators, candle, i) => {
+    if (i < 20) return false;
+
+    // PO形成チェック
+    let poData = _indicators["po_5_25_75_sma"] as { time: number; value: { formed: boolean; type: string } }[] | undefined;
+    if (!poData) {
+      poData = perfectOrder(candles, { periods: [5, 25, 75] }) as { time: number; value: { formed: boolean; type: string } }[];
+      _indicators["po_5_25_75_sma"] = poData;
+    }
+    const po = poData[i]?.value;
+    if (!po || !po.formed || po.type !== "bullish") return false;
+
+    // 出来高チェック
+    let sumVolume = 0;
+    for (let j = i - 20; j < i; j++) {
+      sumVolume += candles[j].volume;
+    }
+    const avgVolume = sumVolume / 20;
+    return candle.volume > avgVolume * 1.5;
+  })
+  .exit(perfectOrderCollapsed({ periods: [5, 25, 75] }))
+  .backtest({
+    capital,
+    stopLoss,
+    commissionRate,
+    taxRate,
+    partialTakeProfit: { threshold: 5, sellPercent: 50 },
+  });
+
+formatResult("戦略40: パーフェクトオーダー + 出来高 + 5%部分利確", result40);
+
+// ============================================
 // Summary
 // ============================================
 console.log(`\n${"=".repeat(60)}`);
@@ -522,6 +1025,28 @@ const strategies = [
   { name: "BB平均回帰", result: result16 },
   { name: "トリプルMA", result: result17 },
   { name: "RSI+MACD", result: result18 },
+  { name: "PO基本", result: result19 },
+  { name: "PO強度30", result: result20 },
+  { name: "PO+RSI", result: result21 },
+  { name: "PO(EMA)", result: result22 },
+  { name: "PO4本MA", result: result23 },
+  { name: "PO中GC", result: result24 },
+  { name: "PO+ADX", result: result25 },
+  { name: "PO+出来高", result: result26 },
+  { name: "PO+MFI", result: result27 },
+  { name: "PO+BBスク", result: result28 },
+  { name: "PO+ストキャ", result: result29 },
+  { name: "PO+ATR", result: result30 },
+  { name: "PO損切3%", result: result31 },
+  { name: "PO+5%利確", result: result32 },
+  { name: "PO+DC", result: result33 },
+  { name: "PO押し目", result: result34 },
+  { name: "PO+RSI利確", result: result35 },
+  { name: "PO+5%部利", result: result36 },
+  { name: "PO+3%部利", result: result37 },
+  { name: "PO部利+トレ", result: result38 },
+  { name: "GC+部分利確", result: result39 },
+  { name: "PO出来高部利", result: result40 },
 ];
 
 console.log("\n戦略          | リターン | 勝率  | 取引数 | DD   | シャープ");

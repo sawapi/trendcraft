@@ -128,6 +128,7 @@
     .indicator-item.cci { border-left: 3px solid #00bcd4; }
     .indicator-item.willr { border-left: 3px solid #8bc34a; }
     .indicator-item.roc { border-left: 3px solid #ff5722; }
+    .indicator-item.perfectorder { border-left: 3px solid #ffc107; }
 
     /* Chart Container */
     .chart-wrapper {
@@ -247,6 +248,54 @@
       text-decoration: line-through;
     }
 
+    /* Perfect Order Events */
+    .perfect-order-events {
+      display: none;
+      margin-top: 20px;
+      padding: 15px;
+      background: #1a1a2e;
+      border-radius: 8px;
+    }
+    .perfect-order-events.visible {
+      display: block;
+    }
+    .perfect-order-events h3 {
+      font-size: 0.9rem;
+      color: #888;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .perfect-order-events-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .po-event {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 500;
+    }
+    .po-event.bullish {
+      background: rgba(38, 166, 154, 0.2);
+      color: #26a69a;
+      border: 1px solid #26a69a;
+    }
+    .po-event.bearish {
+      background: rgba(239, 83, 80, 0.2);
+      color: #ef5350;
+      border: 1px solid #ef5350;
+    }
+    .po-event.collapsed {
+      background: rgba(136, 136, 136, 0.2);
+      color: #888;
+      border: 1px solid #888;
+    }
+
     /* Info */
     .file-info {
       font-size: 0.85rem;
@@ -343,6 +392,9 @@
           <label class="indicator-item cross">
             <input type="checkbox" data-indicator="cross"> GC/DC
           </label>
+          <label class="indicator-item perfectorder">
+            <input type="checkbox" data-indicator="perfectorder"> Perfect Order
+          </label>
         </div>
       </div>
     </div>
@@ -363,6 +415,10 @@
       <div id="cross-events" class="cross-events">
         <h3>GC/DC Events (SMA 5×25)</h3>
         <div id="cross-events-list" class="cross-events-list"></div>
+      </div>
+      <div id="perfect-order-events" class="perfect-order-events">
+        <h3>Perfect Order Events (SMA 5×25×75)</h3>
+        <div id="perfect-order-events-list" class="perfect-order-events-list"></div>
       </div>
     </div>
   </div>

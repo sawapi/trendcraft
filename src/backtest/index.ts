@@ -21,10 +21,16 @@ export {
   // Validated conditions (with damashi detection)
   validatedGoldenCross,
   validatedDeadCross,
+  // Perfect Order conditions
+  perfectOrderBullish,
+  perfectOrderBearish,
+  perfectOrderCollapsed,
+  perfectOrderActiveBullish,
+  perfectOrderActiveBearish,
   // Evaluation helper
   evaluateCondition,
 } from "./conditions";
 
-export type { ValidatedCrossOptions } from "./conditions";
+export type { ValidatedCrossOptions, PerfectOrderConditionOptions } from "./conditions";
 
 export { runBacktest } from "./engine";
