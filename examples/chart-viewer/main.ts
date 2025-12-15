@@ -5,7 +5,7 @@
 
 import * as echarts from 'echarts';
 import * as TrendCraft from 'trendcraft';
-import type { NormalizedCandle, Timeframe, CrossSignalQuality, DivergenceSignal, SqueezeSignal } from 'trendcraft';
+import type { NormalizedCandle, Timeframe, DivergenceSignal, SqueezeSignal } from 'trendcraft';
 
 // State
 let rawCandles: NormalizedCandle[] = [];
@@ -18,6 +18,9 @@ let dmiChart: echarts.ECharts | null = null;
 let stochRsiChart: echarts.ECharts | null = null;
 let mfiChart: echarts.ECharts | null = null;
 let obvChart: echarts.ECharts | null = null;
+let cciChart: echarts.ECharts | null = null;
+let willrChart: echarts.ECharts | null = null;
+let rocChart: echarts.ECharts | null = null;
 let currentZoomRange: { start: number; end: number } = { start: 0, end: 100 };
 
 // DOM Elements
@@ -34,6 +37,9 @@ const dmiChartEl = document.getElementById('dmi-chart') as HTMLDivElement;
 const stochRsiChartEl = document.getElementById('stochrsi-chart') as HTMLDivElement;
 const mfiChartEl = document.getElementById('mfi-chart') as HTMLDivElement;
 const obvChartEl = document.getElementById('obv-chart') as HTMLDivElement;
+const cciChartEl = document.getElementById('cci-chart') as HTMLDivElement;
+const willrChartEl = document.getElementById('willr-chart') as HTMLDivElement;
+const rocChartEl = document.getElementById('roc-chart') as HTMLDivElement;
 
 // Initialize
 function init(): void {
@@ -86,6 +92,9 @@ function initCharts(): void {
   stochRsiChart = echarts.init(stochRsiChartEl, 'dark');
   mfiChart = echarts.init(mfiChartEl, 'dark');
   obvChart = echarts.init(obvChartEl, 'dark');
+  cciChart = echarts.init(cciChartEl, 'dark');
+  willrChart = echarts.init(willrChartEl, 'dark');
+  rocChart = echarts.init(rocChartEl, 'dark');
 
   // Resize handler
   window.addEventListener('resize', () => {
@@ -97,6 +106,9 @@ function initCharts(): void {
     stochRsiChart?.resize();
     mfiChart?.resize();
     obvChart?.resize();
+    cciChart?.resize();
+    willrChart?.resize();
+    rocChart?.resize();
   });
 }
 
@@ -318,6 +330,32 @@ function updateChart(): void {
     series.push(createLineSeries('Donchian Middle', donchianData.map(d => ({ time: d.time, value: d.value.middle })), '#1abc9c'));
     series.push(createLineSeries('Donchian Lower', donchianData.map(d => ({ time: d.time, value: d.value.lower })), '#1abc9c', 'dashed'));
   }
+  if (indicators.wma20) {
+    const data = TrendCraft.wma(currentCandles, { period: 20 });
+    series.push(createLineSeries('WMA 20', data, '#e74c3c'));
+  }
+  if (indicators.ichimoku) {
+    const ichimokuData = TrendCraft.ichimoku(currentCandles);
+    series.push(createLineSeries('Tenkan', ichimokuData.map(d => ({ time: d.time, value: d.value.tenkan })), '#e74c3c'));
+    series.push(createLineSeries('Kijun', ichimokuData.map(d => ({ time: d.time, value: d.value.kijun })), '#3498db'));
+    series.push(createLineSeries('Senkou A', ichimokuData.map(d => ({ time: d.time, value: d.value.senkouA })), '#2ecc71', 'dashed'));
+    series.push(createLineSeries('Senkou B', ichimokuData.map(d => ({ time: d.time, value: d.value.senkouB })), '#e67e22', 'dashed'));
+    series.push(createLineSeries('Chikou', ichimokuData.map(d => ({ time: d.time, value: d.value.chikou })), '#9b59b6', 'dotted'));
+  }
+  if (indicators.supertrend) {
+    const supertrendData = TrendCraft.supertrend(currentCandles, { period: 10, multiplier: 3 });
+    // Create two series for bullish and bearish
+    const bullishData = supertrendData.map(d => ({
+      time: d.time,
+      value: d.value.direction === 1 ? d.value.supertrend : null,
+    }));
+    const bearishData = supertrendData.map(d => ({
+      time: d.time,
+      value: d.value.direction === -1 ? d.value.supertrend : null,
+    }));
+    series.push(createLineSeries('Supertrend ↑', bullishData, '#26a69a'));
+    series.push(createLineSeries('Supertrend ↓', bearishData, '#ef5350'));
+  }
 
   // Golden Cross / Dead Cross list
   updateCrossEventsList(indicators.cross);
@@ -429,8 +467,35 @@ function updateChart(): void {
     obvChartEl.classList.remove('visible');
   }
 
+  // CCI Chart
+  if (indicators.cci) {
+    cciChartEl.classList.add('visible');
+    const cciData = TrendCraft.cci(currentCandles, { period: 20 });
+    updateCciChart(dates, cciData, zoomStart);
+  } else {
+    cciChartEl.classList.remove('visible');
+  }
+
+  // Williams %R Chart
+  if (indicators.willr) {
+    willrChartEl.classList.add('visible');
+    const willrData = TrendCraft.williamsR(currentCandles, { period: 14 });
+    updateWillrChart(dates, willrData, zoomStart);
+  } else {
+    willrChartEl.classList.remove('visible');
+  }
+
+  // ROC Chart
+  if (indicators.roc) {
+    rocChartEl.classList.add('visible');
+    const rocData = TrendCraft.roc(currentCandles, { period: 12 });
+    updateRocChart(dates, rocData, zoomStart);
+  } else {
+    rocChartEl.classList.remove('visible');
+  }
+
   // Sync dataZoom across all charts (remove old listeners first to avoid duplicates)
-  const allCharts = [mainChart, rsiChart, macdChart, stochChart, dmiChart, stochRsiChart, mfiChart, obvChart];
+  const allCharts = [mainChart, rsiChart, macdChart, stochChart, dmiChart, stochRsiChart, mfiChart, obvChart, cciChart, willrChart, rocChart];
   allCharts.forEach(chart => {
     if (chart) {
       chart.off('datazoom');
@@ -448,6 +513,9 @@ function updateChart(): void {
     stochRsiChart?.resize();
     mfiChart?.resize();
     obvChart?.resize();
+    cciChart?.resize();
+    willrChart?.resize();
+    rocChart?.resize();
   });
 }
 
@@ -477,7 +545,7 @@ function syncDataZoom(sourceChart: echarts.ECharts, params: any): void {
   currentZoomRange = { start: start ?? 0, end: end ?? 100 };
 
   // Sync to all other charts (excluding source to avoid loops)
-  const allCharts = [mainChart, rsiChart, macdChart, stochChart, dmiChart, stochRsiChart, mfiChart, obvChart];
+  const allCharts = [mainChart, rsiChart, macdChart, stochChart, dmiChart, stochRsiChart, mfiChart, obvChart, cciChart, willrChart, rocChart];
   allCharts.forEach(chart => {
     if (chart && chart !== sourceChart) {
       chart.setOption({ dataZoom: [{ start, end }] }, { lazyUpdate: true });
@@ -1268,6 +1336,193 @@ function updateCrossEventsList(show: boolean): void {
   }
 
   container.classList.add('visible');
+}
+
+// Update CCI chart
+function updateCciChart(dates: string[], cciData: TrendCraft.Series<number | null>, zoomStart: number): void {
+  if (!cciChart) return;
+
+  const option: echarts.EChartsOption = {
+    backgroundColor: 'transparent',
+    animation: false,
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: 'rgba(0,0,0,0.8)',
+      borderColor: '#333',
+      textStyle: { color: '#fff' },
+      formatter: (params) => {
+        const p = Array.isArray(params) ? params[0] : params;
+        const value = p.value as number | null;
+        return `${p.name}<br/>CCI: ${value !== null ? value.toFixed(2) : '-'}`;
+      },
+    },
+    title: {
+      text: 'CCI (20)',
+      left: 10,
+      top: 0,
+      textStyle: { color: '#888', fontSize: 12, fontWeight: 'normal' },
+    },
+    grid: { left: 60, right: 60, top: 25, bottom: 30 },
+    xAxis: {
+      type: 'category',
+      data: dates,
+      axisLine: { lineStyle: { color: '#666' } },
+      axisLabel: { color: '#888', fontSize: 10 },
+    },
+    yAxis: {
+      scale: true,
+      axisLine: { lineStyle: { color: '#666' } },
+      splitLine: { lineStyle: { color: '#333' } },
+      axisLabel: { color: '#888' },
+    },
+    series: [
+      {
+        name: 'CCI',
+        type: 'line',
+        data: cciData.map(d => d.value),
+        smooth: false,
+        showSymbol: false,
+        lineStyle: { width: 1.5, color: '#00bcd4' },
+        markLine: {
+          silent: true,
+          symbol: 'none',
+          lineStyle: { color: '#ef5350', type: 'dashed', width: 1 },
+          label: { show: true, position: 'end', color: '#ef5350', fontSize: 10 },
+          data: [
+            { yAxis: -100, label: { formatter: '-100' } },
+            { yAxis: 100, label: { formatter: '100' } },
+          ],
+        },
+      },
+    ],
+    dataZoom: [{ type: 'inside', start: zoomStart, end: 100 }],
+  };
+  cciChart.setOption(option, true);
+}
+
+// Update Williams %R chart
+function updateWillrChart(dates: string[], willrData: TrendCraft.Series<number | null>, zoomStart: number): void {
+  if (!willrChart) return;
+
+  const option: echarts.EChartsOption = {
+    backgroundColor: 'transparent',
+    animation: false,
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: 'rgba(0,0,0,0.8)',
+      borderColor: '#333',
+      textStyle: { color: '#fff' },
+      formatter: (params) => {
+        const p = Array.isArray(params) ? params[0] : params;
+        const value = p.value as number | null;
+        return `${p.name}<br/>Williams %R: ${value !== null ? value.toFixed(2) : '-'}`;
+      },
+    },
+    title: {
+      text: 'Williams %R (14)',
+      left: 10,
+      top: 0,
+      textStyle: { color: '#888', fontSize: 12, fontWeight: 'normal' },
+    },
+    grid: { left: 60, right: 60, top: 25, bottom: 30 },
+    xAxis: {
+      type: 'category',
+      data: dates,
+      axisLine: { lineStyle: { color: '#666' } },
+      axisLabel: { color: '#888', fontSize: 10 },
+    },
+    yAxis: {
+      min: -100,
+      max: 0,
+      splitNumber: 4,
+      axisLine: { lineStyle: { color: '#666' } },
+      splitLine: { lineStyle: { color: '#333' } },
+      axisLabel: { color: '#888' },
+    },
+    series: [
+      {
+        name: 'Williams %R',
+        type: 'line',
+        data: willrData.map(d => d.value),
+        smooth: false,
+        showSymbol: false,
+        lineStyle: { width: 1.5, color: '#8bc34a' },
+        markLine: {
+          silent: true,
+          symbol: 'none',
+          lineStyle: { color: '#ef5350', type: 'dashed', width: 1 },
+          label: { show: true, position: 'end', color: '#ef5350', fontSize: 10 },
+          data: [
+            { yAxis: -20, label: { formatter: '-20' } },
+            { yAxis: -80, label: { formatter: '-80' } },
+          ],
+        },
+      },
+    ],
+    dataZoom: [{ type: 'inside', start: zoomStart, end: 100 }],
+  };
+  willrChart.setOption(option, true);
+}
+
+// Update ROC chart
+function updateRocChart(dates: string[], rocData: TrendCraft.Series<number | null>, zoomStart: number): void {
+  if (!rocChart) return;
+
+  const option: echarts.EChartsOption = {
+    backgroundColor: 'transparent',
+    animation: false,
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: 'rgba(0,0,0,0.8)',
+      borderColor: '#333',
+      textStyle: { color: '#fff' },
+      formatter: (params) => {
+        const p = Array.isArray(params) ? params[0] : params;
+        const value = p.value as number | null;
+        return `${p.name}<br/>ROC: ${value !== null ? value.toFixed(2) + '%' : '-'}`;
+      },
+    },
+    title: {
+      text: 'ROC (12)',
+      left: 10,
+      top: 0,
+      textStyle: { color: '#888', fontSize: 12, fontWeight: 'normal' },
+    },
+    grid: { left: 60, right: 60, top: 25, bottom: 30 },
+    xAxis: {
+      type: 'category',
+      data: dates,
+      axisLine: { lineStyle: { color: '#666' } },
+      axisLabel: { color: '#888', fontSize: 10 },
+    },
+    yAxis: {
+      scale: true,
+      axisLine: { lineStyle: { color: '#666' } },
+      splitLine: { lineStyle: { color: '#333' } },
+      axisLabel: { color: '#888' },
+    },
+    series: [
+      {
+        name: 'ROC',
+        type: 'line',
+        data: rocData.map(d => d.value),
+        smooth: false,
+        showSymbol: false,
+        lineStyle: { width: 1.5, color: '#ff5722' },
+        markLine: {
+          silent: true,
+          symbol: 'none',
+          lineStyle: { color: '#888', type: 'dashed', width: 1 },
+          label: { show: true, position: 'end', color: '#888', fontSize: 10 },
+          data: [
+            { yAxis: 0, label: { formatter: '0' } },
+          ],
+        },
+      },
+    ],
+    dataZoom: [{ type: 'inside', start: zoomStart, end: 100 }],
+  };
+  rocChart.setOption(option, true);
 }
 
 // Start

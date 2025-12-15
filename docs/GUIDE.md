@@ -10,7 +10,15 @@ A practical guide to understanding technical indicators and trading signals.
 - [Stochastics](#stochastics)
 - [Bollinger Bands](#bollinger-bands)
 - [DMI/ADX](#dmiadx)
+- [Ichimoku Cloud](#ichimoku-cloud)
+- [Supertrend](#supertrend)
+- [CCI (Commodity Channel Index)](#cci-commodity-channel-index)
+- [Williams %R](#williams-r)
+- [ROC (Rate of Change)](#roc-rate-of-change)
+- [Pivot Points](#pivot-points)
+- [VWAP](#vwap)
 - [Volume Indicators](#volume-indicators)
+- [Backtesting](#backtesting)
 - [Signal Interpretation](#signal-interpretation)
 
 ---
@@ -27,6 +35,7 @@ A moving average smooths out price data by calculating the average price over a 
 |------|-------------|-----------------|
 | **SMA** (Simple) | Equal weight to all prices | Smoother, slower to react |
 | **EMA** (Exponential) | More weight to recent prices | More responsive to new data |
+| **WMA** (Weighted) | Linear weight increase to recent prices | Between SMA and EMA sensitivity |
 
 ### How to Read
 
@@ -334,6 +343,276 @@ ADX > 50  → Very strong trend
 
 ---
 
+## Ichimoku Cloud
+
+### What is it?
+
+Ichimoku Kinko Hyo is a comprehensive Japanese technical indicator that shows trend direction, support/resistance, and momentum at a glance.
+
+### Components
+
+```
+Tenkan-sen (Conversion Line) = 9-period (highest high + lowest low) / 2 → Short-term trend
+Kijun-sen (Base Line)        = 26-period (highest high + lowest low) / 2 → Medium-term trend
+Senkou Span A                = (Tenkan + Kijun) / 2, plotted 26 periods ahead
+Senkou Span B                = 52-period (highest high + lowest low) / 2, plotted 26 periods ahead
+Chikou Span (Lagging Span)   = Close price plotted 26 periods back
+```
+
+### The Cloud (Kumo)
+
+The area between Senkou Span A and B forms the "cloud":
+
+```
+Price above cloud → Uptrend (bullish)
+Price below cloud → Downtrend (bearish)
+Price inside cloud → Trend unclear, ranging market
+Thick cloud → Strong support/resistance
+Thin cloud → Weak support/resistance
+```
+
+### Key Signals
+
+| Signal | Condition | Meaning |
+|--------|-----------|---------|
+| Strong Buy | Price breaks above cloud + Tenkan > Kijun | Uptrend starting |
+| Strong Sell | Price breaks below cloud + Tenkan < Kijun | Downtrend starting |
+| Kumo Twist | Senkou A and B cross | Potential trend change |
+
+### Tips
+
+- Standard settings: 9, 26, 52 (developed for Japanese markets)
+- The cloud shows future support/resistance (26 periods ahead)
+- More confirming elements = higher reliability
+
+---
+
+## Supertrend
+
+### What is it?
+
+Supertrend uses ATR (Average True Range) to calculate dynamic support/resistance levels and trend direction. It can also be used as a trailing stop.
+
+### Components
+
+```
+Upper Band = HL2 + (Multiplier × ATR)
+Lower Band = HL2 - (Multiplier × ATR)
+
+Price closes above Upper Band → Bullish trend, Lower Band becomes support
+Price closes below Lower Band → Bearish trend, Upper Band becomes resistance
+```
+
+### How to Read
+
+```
+direction = 1  → Bullish trend (green), Supertrend = support
+direction = -1 → Bearish trend (red), Supertrend = resistance
+```
+
+### Key Signals
+
+| Signal | Condition | Meaning |
+|--------|-----------|---------|
+| Buy | direction changes from -1 to 1 | Trend turns bullish |
+| Sell | direction changes from 1 to -1 | Trend turns bearish |
+
+### Tips
+
+- Adjust sensitivity with period and multiplier (default: 10, 3)
+- Smaller multiplier = more sensitive (more false signals)
+- Excellent as a trailing stop
+
+---
+
+## CCI (Commodity Channel Index)
+
+### What is it?
+
+CCI measures how far the price has deviated from its average. Originally for commodities, now widely used for stocks.
+
+### Calculation
+
+```
+CCI = (Typical Price - SMA of Typical Price) / (0.015 × Mean Deviation)
+Typical Price = (High + Low + Close) / 3
+```
+
+### How to Read
+
+```
+CCI > +100 → Overbought (strong bullish momentum)
+CCI < -100 → Oversold (strong bearish momentum)
+CCI crosses above 0 → Bullish turn
+CCI crosses below 0 → Bearish turn
+```
+
+### Key Signals
+
+| Signal | Condition | Meaning |
+|--------|-----------|---------|
+| Buy | CCI crosses above -100 | Reversal from oversold |
+| Sell | CCI crosses below +100 | Reversal from overbought |
+
+### Tips
+
+- Unlike RSI, CCI can exceed ±100 (in strong trends)
+- Divergence works well with CCI
+- Most reliable in ranging markets
+
+---
+
+## Williams %R
+
+### What is it?
+
+Williams %R is the inverse of Fast Stochastics, ranging from -100 to 0. It identifies overbought/oversold conditions.
+
+### Calculation
+
+```
+%R = (Highest High - Close) / (Highest High - Lowest Low) × -100
+```
+
+### How to Read
+
+```
+%R > -20 → Overbought zone
+%R < -80 → Oversold zone
+%R = -50 → Neutral
+```
+
+### Key Signals
+
+| Signal | Condition | Meaning |
+|--------|-----------|---------|
+| Buy | %R crosses above -80 | Reversal from oversold |
+| Sell | %R crosses below -20 | Reversal from overbought |
+
+### Tips
+
+- Same interpretation as Stochastics
+- Good for short-term trading (default 14 periods)
+- Extreme values can persist in strong trends
+
+---
+
+## ROC (Rate of Change)
+
+### What is it?
+
+ROC measures the percentage change between the current price and the price n periods ago. The simplest momentum indicator.
+
+### Calculation
+
+```
+ROC = ((Current Price - Price n periods ago) / Price n periods ago) × 100
+```
+
+### How to Read
+
+```
+ROC > 0 → Price rising (bullish momentum)
+ROC < 0 → Price falling (bearish momentum)
+ROC crosses above 0 → Bullish turn
+ROC crosses below 0 → Bearish turn
+```
+
+### Key Signals
+
+| Signal | Condition | Meaning |
+|--------|-----------|---------|
+| Buy | ROC crosses above zero line | Rising momentum starting |
+| Sell | ROC crosses below zero line | Falling momentum starting |
+
+### Tips
+
+- Shorter period = more sensitive (default 12)
+- Divergence works well
+- Best used with other indicators
+
+---
+
+## Pivot Points
+
+### What is it?
+
+Pivot Points calculate support and resistance levels from the previous day's high, low, and close. Popular among day traders.
+
+### Calculation Methods
+
+| Method | Characteristics |
+|--------|-----------------|
+| **Standard** | Most common, (H+L+C)/3 |
+| **Fibonacci** | Uses Fibonacci ratios |
+| **Woodie** | Emphasizes current day's open |
+| **Camarilla** | Close-based, tighter ranges |
+| **DeMark** | Changes formula based on price position |
+
+### How to Read
+
+```
+Pivot (P) = (Previous High + Previous Low + Previous Close) / 3
+
+Support levels: S1, S2, S3 (stronger going down)
+Resistance levels: R1, R2, R3 (stronger going up)
+```
+
+### Key Signals
+
+| Condition | Interpretation |
+|-----------|----------------|
+| Price > Pivot | Bullish bias |
+| Price < Pivot | Bearish bias |
+| Bounce at S1/R1 | Level acting as support/resistance |
+| Break through S1/R1 | Targets next level (S2/R2) |
+
+### Tips
+
+- Most effective for day trading
+- Typically calculated from daily data
+- Combine with other indicators for confirmation
+
+---
+
+## VWAP
+
+### What is it?
+
+VWAP (Volume Weighted Average Price) is the average price weighted by volume. Institutional traders use it to benchmark execution quality.
+
+### Calculation
+
+```
+VWAP = Cumulative(Typical Price × Volume) / Cumulative(Volume)
+Typical Price = (High + Low + Close) / 3
+```
+
+### How to Read
+
+```
+Price > VWAP → Bullish (buyers in control)
+Price < VWAP → Bearish (sellers in control)
+Price approaches VWAP → Regression to mean
+```
+
+### Key Signals
+
+| Signal | Condition | Meaning |
+|--------|-----------|---------|
+| Buy | Price crosses above VWAP | Bullish turn |
+| Sell | Price crosses below VWAP | Bearish turn |
+| Buy | Price bounces off VWAP (in uptrend) | VWAP acting as support |
+| Sell | Price rejected at VWAP (in downtrend) | VWAP acting as resistance |
+
+### Tips
+
+- Session VWAP (daily reset) is most common
+- Important benchmark for institutional traders
+- Works well with standard deviation bands
+
+---
+
 ## Volume Indicators
 
 ### OBV (On-Balance Volume)
@@ -387,6 +666,94 @@ MFI gives more weight to high-volume moves, making it useful for confirming sign
 - Divergence between price and volume indicators often precedes reversals
 - Low volume rallies are suspicious
 - High volume selloffs may indicate capitulation (potential bottom)
+
+---
+
+## Backtesting
+
+### What is it?
+
+Backtesting simulates a trading strategy's performance using historical data. TrendCraft provides a backtesting engine with preset conditions.
+
+### Basic Usage
+
+```typescript
+import { runBacktest, goldenCross, deadCross } from 'trendcraft';
+
+const result = runBacktest(
+  candles,
+  goldenCross(5, 25),  // Entry condition
+  deadCross(5, 25),    // Exit condition
+  {
+    capital: 1000000,    // Initial capital
+    stopLoss: 5,         // 5% stop loss
+    takeProfit: 10,      // 10% take profit
+  }
+);
+```
+
+### Preset Conditions
+
+| Condition | Description |
+|-----------|-------------|
+| `goldenCross(short, long)` | Short MA crosses above Long MA |
+| `deadCross(short, long)` | Short MA crosses below Long MA |
+| `rsiBelow(threshold)` | RSI below threshold |
+| `rsiAbove(threshold)` | RSI above threshold |
+| `macdCrossUp()` | MACD crosses above signal |
+| `macdCrossDown()` | MACD crosses below signal |
+| `bollingerBreakout('upper'/'lower')` | BB breakout |
+| `validatedGoldenCross()` | Golden cross with fake signal detection |
+| `validatedDeadCross()` | Dead cross with fake signal detection |
+
+### Combining Conditions
+
+```typescript
+import { and, or, not } from 'trendcraft';
+
+// Golden Cross AND RSI < 30
+const entry = and(goldenCross(), rsiBelow(30));
+
+// Dead Cross OR RSI > 70
+const exit = or(deadCross(), rsiAbove(70));
+
+// NOT overbought
+const notOverbought = not(rsiAbove(70));
+```
+
+### Understanding Results
+
+| Metric | Meaning | Target |
+|--------|---------|--------|
+| `totalReturnPercent` | Total return percentage | Positive = profit |
+| `winRate` | Win rate | 50%+ preferred |
+| `maxDrawdown` | Maximum drawdown | Below 20% is safe |
+| `sharpeRatio` | Sharpe ratio | Above 1 is good |
+| `profitFactor` | Profit/loss ratio | 1.5+ preferred |
+| `avgHoldingDays` | Average holding period | Depends on strategy |
+
+### Realistic Simulation
+
+```typescript
+const result = runBacktest(candles, entry, exit, {
+  capital: 1000000,
+  commission: 0,          // Fixed commission
+  commissionRate: 0.1,    // Commission rate 0.1%
+  slippage: 0.05,         // Slippage 0.05%
+  stopLoss: 5,            // Stop loss 5%
+  takeProfit: 15,         // Take profit 15%
+  trailingStop: 3,        // Trailing stop 3%
+  taxRate: 20.315,        // Japan tax rate
+});
+```
+
+### Tips
+
+- Past performance doesn't guarantee future results
+- Test over sufficient periods (multiple years)
+- Always account for commissions and slippage
+- Ensure you can tolerate the max drawdown
+- Use validated conditions (`validatedGoldenCross`) for better accuracy
 
 ---
 
@@ -450,14 +817,17 @@ Indicators behave differently in different market conditions:
 
 | Want to Know | Use This |
 |--------------|----------|
-| Overall trend direction | MA (50, 200) |
-| Short-term trend | MA (5, 20), MACD |
+| Overall trend direction | MA (50, 200), Ichimoku Cloud |
+| Short-term trend | MA (5, 20), MACD, Supertrend |
 | Trend strength | ADX |
-| Overbought/Oversold | RSI, Stochastics, MFI |
+| Overbought/Oversold | RSI, Stochastics, MFI, CCI, Williams %R |
 | Volatility | Bollinger Bands, ATR |
-| Volume confirmation | OBV, MFI |
+| Volume confirmation | OBV, MFI, VWAP |
 | Potential reversals | Divergence (RSI, MACD, OBV) |
 | Breakout setup | Bollinger Squeeze |
+| Support/Resistance | Pivot Points, Ichimoku (Cloud) |
+| Momentum change | ROC, MACD |
+| Strategy validation | Backtesting |
 
 ---
 
@@ -465,10 +835,12 @@ Indicators behave differently in different market conditions:
 
 Technical analysis is not about predicting the future—it's about understanding probabilities and managing risk. Use TrendCraft's indicators to:
 
-1. **Identify trends** (MA, MACD, ADX)
-2. **Find entry/exit points** (RSI, Stochastics, crossovers)
-3. **Confirm with volume** (OBV, MFI)
+1. **Identify trends** (MA, MACD, ADX, Ichimoku, Supertrend)
+2. **Find entry/exit points** (RSI, Stochastics, CCI, Williams %R, crossovers)
+3. **Confirm with volume** (OBV, MFI, VWAP)
 4. **Assess volatility** (Bollinger Bands, ATR)
-5. **Detect potential reversals** (divergence, squeeze)
+5. **Detect potential reversals** (divergence, squeeze, ROC)
+6. **Find support/resistance** (Pivot Points, Ichimoku Cloud)
+7. **Validate strategies** (Backtesting with preset conditions)
 
 Remember: No indicator is perfect. Combine multiple tools, always manage risk, and never invest more than you can afford to lose.

@@ -122,6 +122,12 @@
     .indicator-item.mfi { border-left: 3px solid #f39c12; }
     .indicator-item.obv { border-left: 3px solid #9b59b6; }
     .indicator-item.donchian { border-left: 3px solid #1abc9c; }
+    .indicator-item.wma { border-left: 3px solid #e74c3c; }
+    .indicator-item.ichimoku { border-left: 3px solid #3498db; }
+    .indicator-item.supertrend { border-left: 3px solid #e91e63; }
+    .indicator-item.cci { border-left: 3px solid #00bcd4; }
+    .indicator-item.willr { border-left: 3px solid #8bc34a; }
+    .indicator-item.roc { border-left: 3px solid #ff5722; }
 
     /* Chart Container */
     .chart-wrapper {
@@ -168,6 +174,21 @@
       margin-top: 10px;
     }
     #obv-chart {
+      width: 100%;
+      height: 150px;
+      margin-top: 10px;
+    }
+    #cci-chart {
+      width: 100%;
+      height: 150px;
+      margin-top: 10px;
+    }
+    #willr-chart {
+      width: 100%;
+      height: 150px;
+      margin-top: 10px;
+    }
+    #roc-chart {
       width: 100%;
       height: 150px;
       margin-top: 10px;
@@ -301,6 +322,24 @@
           <label class="indicator-item donchian">
             <input type="checkbox" data-indicator="donchian"> Donchian
           </label>
+          <label class="indicator-item wma">
+            <input type="checkbox" data-indicator="wma20"> WMA 20
+          </label>
+          <label class="indicator-item ichimoku">
+            <input type="checkbox" data-indicator="ichimoku"> Ichimoku
+          </label>
+          <label class="indicator-item supertrend">
+            <input type="checkbox" data-indicator="supertrend"> Supertrend
+          </label>
+          <label class="indicator-item cci">
+            <input type="checkbox" data-indicator="cci"> CCI
+          </label>
+          <label class="indicator-item willr">
+            <input type="checkbox" data-indicator="willr"> Williams %R
+          </label>
+          <label class="indicator-item roc">
+            <input type="checkbox" data-indicator="roc"> ROC
+          </label>
           <label class="indicator-item cross">
             <input type="checkbox" data-indicator="cross"> GC/DC
           </label>
@@ -318,6 +357,9 @@
       <div id="stochrsi-chart" class="sub-chart"></div>
       <div id="mfi-chart" class="sub-chart"></div>
       <div id="obv-chart" class="sub-chart"></div>
+      <div id="cci-chart" class="sub-chart"></div>
+      <div id="willr-chart" class="sub-chart"></div>
+      <div id="roc-chart" class="sub-chart"></div>
       <div id="cross-events" class="cross-events">
         <h3>GC/DC Events (SMA 5×25)</h3>
         <div id="cross-events-list" class="cross-events-list"></div>

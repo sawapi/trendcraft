@@ -7,20 +7,29 @@
 ## 機能
 
 ### インジケーター
-- **移動平均**: SMA, EMA
-- **モメンタム**: RSI, MACD, ストキャスティクス (Fast/Slow), DMI/ADX, Stoch RSI
+- **移動平均**: SMA, EMA, WMA
+- **トレンド**: 一目均衡表, Supertrend
+- **モメンタム**: RSI, MACD, ストキャスティクス (Fast/Slow), DMI/ADX, Stoch RSI, CCI, Williams %R, ROC
 - **ボラティリティ**: ボリンジャーバンド, ATR, ドンチャンチャネル
-- **出来高**: OBV, MFI, 出来高移動平均
-- **価格**: 最高値/最安値, リターン
+- **出来高**: OBV, MFI, VWAP, 出来高移動平均
+- **価格**: 最高値/最安値, リターン, ピボットポイント
 
 ### シグナル検出
 - **クロス検出**: ゴールデンクロス、デッドクロス、カスタムクロスオーバー
+- **騙し検出**: 出来高・トレンド確認によるクロスシグナル検証
 - **ダイバージェンス**: OBV、RSI、MACDのダイバージェンス検出
 - **スクイーズ**: ボリンジャーバンドのスクイーズ検出
+
+### バックテスト
+- プリセット条件を使ったシンプルな戦略検証
+- ストップロス、テイクプロフィット、トレーリングストップ対応
+- 手数料・スリッページのシミュレーション
+- パフォーマンス指標（シャープレシオ、最大ドローダウン、勝率）
 
 ### ユーティリティ
 - データ正規化（様々な日付形式をタイムスタンプに変換）
 - タイムフレーム変換（日足から週足/月足へ）
+- Fluent API（メソッドチェーン）
 
 ## インストール
 
@@ -159,6 +168,37 @@ const result = TrendCraft.from(candles)
 console.log(result.sma);
 console.log(result.ema);
 console.log(result.rsi);
+```
+
+### バックテスト
+
+```typescript
+import { TrendCraft, goldenCross, deadCross, and, rsiBelow } from 'trendcraft';
+
+// プリセット条件でシンプルなバックテスト
+const result = TrendCraft.from(candles)
+  .strategy()
+    .entry(goldenCross())        // ゴールデンクロスでエントリー
+    .exit(deadCross())           // デッドクロスでイグジット
+  .backtest({ capital: 1000000 });
+
+console.log(result.totalReturnPercent);  // トータルリターン %
+console.log(result.winRate);             // 勝率 %
+console.log(result.maxDrawdown);         // 最大ドローダウン %
+console.log(result.sharpeRatio);         // シャープレシオ
+
+// AND/ORで条件を組み合わせ
+const advancedResult = TrendCraft.from(candles)
+  .strategy()
+    .entry(and(goldenCross(), rsiBelow(30)))  // GC + RSI売られすぎ
+    .exit(deadCross())
+  .backtest({
+    capital: 1000000,
+    stopLoss: 5,       // 5%ストップロス
+    takeProfit: 15,    // 15%利確
+    commission: 0,
+    commissionRate: 0.1,  // 0.1%手数料
+  });
 ```
 
 ## APIリファレンス

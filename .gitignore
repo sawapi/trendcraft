@@ -26,4 +26,4 @@ coverage/
 *.tsbuildinfo
 
 .plans/
-4689.T.csv
+examples/data/

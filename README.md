@@ -7,20 +7,29 @@ A TypeScript library for technical analysis of financial data. Calculate indicat
 ## Features
 
 ### Indicators
-- **Moving Averages**: SMA, EMA
-- **Momentum**: RSI, MACD, Stochastics (Fast/Slow), DMI/ADX, Stoch RSI
+- **Moving Averages**: SMA, EMA, WMA
+- **Trend**: Ichimoku Cloud, Supertrend
+- **Momentum**: RSI, MACD, Stochastics (Fast/Slow), DMI/ADX, Stoch RSI, CCI, Williams %R, ROC
 - **Volatility**: Bollinger Bands, ATR, Donchian Channel
-- **Volume**: OBV, MFI, Volume MA
-- **Price**: Highest/Lowest, Returns
+- **Volume**: OBV, MFI, VWAP, Volume MA
+- **Price**: Highest/Lowest, Returns, Pivot Points
 
 ### Signal Detection
 - **Cross Detection**: Golden Cross, Dead Cross, custom crossovers
+- **Fake Signal Detection**: Validate cross signals with volume/trend confirmation
 - **Divergence**: OBV, RSI, MACD divergence detection
 - **Squeeze**: Bollinger Bands squeeze detection
+
+### Backtesting
+- Simple strategy backtesting with preset conditions
+- Stop loss, take profit, trailing stop support
+- Commission and slippage simulation
+- Performance metrics (Sharpe ratio, max drawdown, win rate)
 
 ### Utilities
 - Data normalization (various date formats to timestamps)
 - Timeframe resampling (daily to weekly/monthly)
+- Fluent API for chaining operations
 
 ## Installation
 
@@ -159,6 +168,37 @@ const result = TrendCraft.from(candles)
 console.log(result.sma);
 console.log(result.ema);
 console.log(result.rsi);
+```
+
+### Backtesting
+
+```typescript
+import { TrendCraft, goldenCross, deadCross, and, rsiBelow } from 'trendcraft';
+
+// Simple backtest with preset conditions
+const result = TrendCraft.from(candles)
+  .strategy()
+    .entry(goldenCross())        // Enter on golden cross
+    .exit(deadCross())           // Exit on dead cross
+  .backtest({ capital: 1000000 });
+
+console.log(result.totalReturnPercent);  // Total return %
+console.log(result.winRate);             // Win rate %
+console.log(result.maxDrawdown);         // Max drawdown %
+console.log(result.sharpeRatio);         // Sharpe ratio
+
+// Combine conditions with AND/OR
+const advancedResult = TrendCraft.from(candles)
+  .strategy()
+    .entry(and(goldenCross(), rsiBelow(30)))  // GC + RSI oversold
+    .exit(deadCross())
+  .backtest({
+    capital: 1000000,
+    stopLoss: 5,       // 5% stop loss
+    takeProfit: 15,    // 15% take profit
+    commission: 0,
+    commissionRate: 0.1,  // 0.1% commission
+  });
 ```
 
 ## API Reference

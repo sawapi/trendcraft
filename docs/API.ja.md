@@ -4,6 +4,7 @@
 
 - [インジケーター](#インジケーター)
   - [移動平均](#移動平均)
+  - [トレンド](#トレンド)
   - [モメンタム](#モメンタム)
   - [ボラティリティ](#ボラティリティ)
   - [出来高](#出来高)
@@ -12,6 +13,10 @@
   - [クロス検出](#クロス検出)
   - [ダイバージェンス検出](#ダイバージェンス検出)
   - [スクイーズ検出](#スクイーズ検出)
+- [バックテスト](#バックテスト)
+  - [バックテスト実行](#バックテスト実行)
+  - [プリセット条件](#プリセット条件)
+  - [条件の組み合わせ](#条件の組み合わせ)
 - [ユーティリティ](#ユーティリティ)
   - [データ正規化](#データ正規化)
   - [リサンプリング](#リサンプリング)
@@ -41,6 +46,24 @@ const result = sma(candles, { period: 20 });
 
 ---
 
+#### `wma(candles, options)`
+
+加重移動平均。
+
+```typescript
+const result = wma(candles, { period: 20 });
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|------------|------|---------|------|
+| `period` | `number` | 必須 | 期間 |
+| `source` | `PriceSource` | `'close'` | 価格ソース |
+
+**戻り値:** `Series<number | null>`
+
+---
+
 #### `ema(candles, options)`
 
 指数移動平均。
@@ -56,6 +79,67 @@ const result = ema(candles, { period: 12 });
 | `source` | `PriceSource` | `'close'` | 価格ソース |
 
 **戻り値:** `Series<number | null>`
+
+---
+
+### トレンド
+
+#### `ichimoku(candles, options)`
+
+一目均衡表。
+
+```typescript
+const result = ichimoku(candles);
+const custom = ichimoku(candles, { tenkanPeriod: 7, kijunPeriod: 22, senkouBPeriod: 44 });
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|------------|------|---------|------|
+| `tenkanPeriod` | `number` | `9` | 転換線期間 |
+| `kijunPeriod` | `number` | `26` | 基準線期間 |
+| `senkouBPeriod` | `number` | `52` | 先行スパンB期間 |
+| `displacement` | `number` | `26` | 雲と遅行スパンのずらし期間 |
+
+**戻り値:** `Series<IchimokuValue>`
+
+```typescript
+interface IchimokuValue {
+  tenkan: number | null;   // 転換線
+  kijun: number | null;    // 基準線
+  senkouA: number | null;  // 先行スパンA
+  senkouB: number | null;  // 先行スパンB
+  chikou: number | null;   // 遅行スパン
+}
+```
+
+---
+
+#### `supertrend(candles, options)`
+
+スーパートレンド（トレンドフォロー指標）。
+
+```typescript
+const result = supertrend(candles);
+const custom = supertrend(candles, { period: 7, multiplier: 2 });
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|------------|------|---------|------|
+| `period` | `number` | `10` | ATR期間 |
+| `multiplier` | `number` | `3` | ATR倍率 |
+
+**戻り値:** `Series<SupertrendValue>`
+
+```typescript
+interface SupertrendValue {
+  supertrend: number | null;  // スーパートレンド値（サポート/レジスタンス）
+  direction: 1 | -1 | 0;      // 1 = 強気, -1 = 弱気, 0 = 未定義
+  upperBand: number | null;   // 上バンド
+  lowerBand: number | null;   // 下バンド
+}
+```
 
 ---
 
@@ -198,6 +282,62 @@ interface StochRsiValue {
 
 ---
 
+#### `cci(candles, options)`
+
+コモディティチャネルインデックス。
+
+```typescript
+const result = cci(candles);
+const custom = cci(candles, { period: 14 });
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|------------|------|---------|------|
+| `period` | `number` | `20` | CCI期間 |
+| `constant` | `number` | `0.015` | 定数倍率 |
+
+**戻り値:** `Series<number | null>` (通常 -100 〜 +100、超過可能)
+
+---
+
+#### `williamsR(candles, options)`
+
+ウィリアムズ%R。
+
+```typescript
+const result = williamsR(candles);
+const custom = williamsR(candles, { period: 7 });
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|------------|------|---------|------|
+| `period` | `number` | `14` | Williams %R期間 |
+
+**戻り値:** `Series<number | null>` (-100 〜 0 スケール)
+
+---
+
+#### `roc(candles, options)`
+
+変化率。
+
+```typescript
+const result = roc(candles);
+const custom = roc(candles, { period: 9 });
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|------------|------|---------|------|
+| `period` | `number` | `12` | ROC期間 |
+| `source` | `PriceSource` | `'close'` | 価格ソース |
+
+**戻り値:** `Series<number | null>` (パーセント)
+
+---
+
 ### ボラティリティ
 
 #### `bollingerBands(candles, options)`
@@ -272,6 +412,36 @@ interface DonchianValue {
 ---
 
 ### 出来高
+
+#### `vwap(candles, options)`
+
+出来高加重平均価格。
+
+```typescript
+// セッションVWAP（日次リセット）
+const result = vwap(candles);
+
+// ローリングVWAP（20期間）
+const rolling = vwap(candles, { resetPeriod: 'rolling', period: 20 });
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|------------|------|---------|------|
+| `resetPeriod` | `'session' \| 'rolling' \| number` | `'session'` | リセット期間タイプ |
+| `period` | `number` | `20` | ローリングVWAP期間 |
+
+**戻り値:** `Series<VwapValue>`
+
+```typescript
+interface VwapValue {
+  vwap: number | null;   // VWAP値
+  upper: number | null;  // 上バンド（VWAP + 標準偏差）
+  lower: number | null;  // 下バンド（VWAP - 標準偏差）
+}
+```
+
+---
 
 #### `obv(candles)`
 
@@ -355,6 +525,36 @@ const logReturns = returns(candles, { period: 1, log: true });
 | `log` | `boolean` | `false` | 対数リターンを使用 |
 
 **戻り値:** `Series<number | null>`
+
+---
+
+#### `pivotPoints(candles, options)`
+
+ピボットポイント（サポート・レジスタンスレベル）。
+
+```typescript
+const result = pivotPoints(candles);
+const fib = pivotPoints(candles, { method: 'fibonacci' });
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|------------|------|---------|------|
+| `method` | `'standard' \| 'fibonacci' \| 'woodie' \| 'camarilla' \| 'demark'` | `'standard'` | 計算方式 |
+
+**戻り値:** `Series<PivotPointsValue>`
+
+```typescript
+interface PivotPointsValue {
+  pivot: number | null;  // ピボットポイント（中心レベル）
+  r1: number | null;     // レジスタンス1
+  r2: number | null;     // レジスタンス2
+  r3: number | null;     // レジスタンス3
+  s1: number | null;     // サポート1
+  s2: number | null;     // サポート2
+  s3: number | null;     // サポート3
+}
+```
 
 ---
 
@@ -513,6 +713,180 @@ interface SqueezeSignal {
   bandwidth: number;   // 検出時のバンド幅
   percentile: number;  // パーセンタイル順位
 }
+```
+
+---
+
+## バックテスト
+
+### バックテスト実行
+
+#### `runBacktest(candles, entryCondition, exitCondition, options)`
+
+過去データでバックテストを実行。
+
+```typescript
+import { runBacktest, goldenCross, deadCross } from 'trendcraft';
+
+const result = runBacktest(
+  candles,
+  goldenCross(5, 25),  // エントリー: ゴールデンクロス
+  deadCross(5, 25),    // イグジット: デッドクロス
+  {
+    capital: 1000000,
+    commission: 0,
+    commissionRate: 0.1,  // 0.1%
+    slippage: 0.05,       // 0.05%
+    stopLoss: 5,          // 5% ストップロス
+    takeProfit: 10,       // 10% 利確
+    trailingStop: 3,      // 3% トレーリングストップ
+    taxRate: 20.315,      // 日本の税率
+  }
+);
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|------------|------|---------|------|
+| `capital` | `number` | 必須 | 初期資金 |
+| `commission` | `number` | `0` | 固定手数料/取引 |
+| `commissionRate` | `number` | `0` | 手数料率 (%) |
+| `slippage` | `number` | `0` | スリッページ率 (%) |
+| `stopLoss` | `number` | - | ストップロス (%) |
+| `takeProfit` | `number` | - | 利確 (%) |
+| `trailingStop` | `number` | - | トレーリングストップ (%) |
+| `taxRate` | `number` | `0` | 利益に対する税率 (%) |
+
+**戻り値:** `BacktestResult`
+
+```typescript
+interface BacktestResult {
+  totalReturn: number;         // 総リターン額
+  totalReturnPercent: number;  // 総リターン率
+  tradeCount: number;          // 取引回数
+  winRate: number;             // 勝率 (%)
+  maxDrawdown: number;         // 最大ドローダウン (%)
+  sharpeRatio: number;         // シャープレシオ（年率化）
+  profitFactor: number;        // プロフィットファクター
+  avgHoldingDays: number;      // 平均保有日数
+  trades: Trade[];             // 取引詳細
+}
+
+interface Trade {
+  entryTime: number;
+  entryPrice: number;
+  exitTime: number;
+  exitPrice: number;
+  return: number;
+  returnPercent: number;
+  holdingDays: number;
+}
+```
+
+---
+
+### プリセット条件
+
+#### 移動平均クロス
+
+```typescript
+goldenCross(shortPeriod = 5, longPeriod = 25)  // 短期MAが長期MAを上抜け
+deadCross(shortPeriod = 5, longPeriod = 25)    // 短期MAが長期MAを下抜け
+```
+
+#### RSI条件
+
+```typescript
+rsiBelow(threshold = 30, period = 14)  // RSI < 閾値（売られすぎ）
+rsiAbove(threshold = 70, period = 14)  // RSI > 閾値（買われすぎ）
+```
+
+#### MACD条件
+
+```typescript
+macdCrossUp(fast = 12, slow = 26, signal = 9)   // MACDがシグナルを上抜け
+macdCrossDown(fast = 12, slow = 26, signal = 9) // MACDがシグナルを下抜け
+```
+
+#### ボリンジャーバンド条件
+
+```typescript
+bollingerBreakout('upper', period = 20, stdDev = 2)  // 上バンドをブレイク
+bollingerBreakout('lower', period = 20, stdDev = 2)  // 下バンドをブレイク
+bollingerTouch('upper', period = 20, stdDev = 2)     // 上バンドにタッチ
+bollingerTouch('lower', period = 20, stdDev = 2)     // 下バンドにタッチ
+```
+
+#### 価格 vs SMA
+
+```typescript
+priceAboveSma(period)  // 価格がSMAより上
+priceBelowSma(period)  // 価格がSMAより下
+```
+
+#### 検証付きクロス（だまし検出付き）
+
+```typescript
+validatedGoldenCross({
+  shortPeriod: 5,
+  longPeriod: 25,
+  volumeMaPeriod: 20,
+  trendPeriod: 5,
+  minScore: 50
+})
+
+validatedDeadCross({
+  shortPeriod: 5,
+  longPeriod: 25,
+  volumeMaPeriod: 20,
+  trendPeriod: 5,
+  minScore: 50
+})
+```
+
+---
+
+### 条件の組み合わせ
+
+論理演算子で複数条件を組み合わせ。
+
+```typescript
+import { and, or, not, goldenCross, rsiBelow, rsiAbove, deadCross } from 'trendcraft';
+
+// エントリー: ゴールデンクロス AND RSI < 30
+const entry = and(goldenCross(), rsiBelow(30));
+
+// イグジット: デッドクロス OR RSI > 70
+const exit = or(deadCross(), rsiAbove(70));
+
+// エントリー: 買われすぎではない
+const notOverbought = not(rsiAbove(70));
+
+// 複雑な条件
+const complexEntry = and(
+  goldenCross(),
+  rsiBelow(40),
+  not(rsiAbove(60))
+);
+
+const result = runBacktest(candles, entry, exit, { capital: 1000000 });
+```
+
+#### カスタム条件関数
+
+```typescript
+// カスタム条件関数
+const customCondition = (
+  indicators: Record<string, unknown>,
+  candle: NormalizedCandle,
+  index: number,
+  candles: NormalizedCandle[]
+) => {
+  // カスタムロジックをここに記述
+  return candle.volume > 1000000 && candle.close > candle.open;
+};
+
+const result = runBacktest(candles, customCondition, deadCross(), { capital: 1000000 });
 ```
 
 ---

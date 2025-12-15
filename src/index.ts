@@ -53,6 +53,7 @@ export {
   // Moving Averages
   sma,
   ema,
+  wma,
   // Momentum
   rsi,
   macd,
@@ -61,6 +62,9 @@ export {
   slowStochastics,
   dmi,
   stochRsi,
+  cci,
+  williamsR,
+  roc,
   // Volatility
   bollingerBands,
   atr,
@@ -69,12 +73,17 @@ export {
   volumeMa,
   obv,
   mfi,
+  vwap,
   // Price
   highestLowest,
   highest,
   lowest,
   returns,
   cumulativeReturns,
+  pivotPoints,
+  // Trend
+  ichimoku,
+  supertrend,
 } from "./indicators";
 
 export type {
@@ -89,6 +98,18 @@ export type {
   DonchianValue,
   DonchianOptions,
   MfiOptions,
+  WmaOptions,
+  VwapOptions,
+  VwapValue,
+  CciOptions,
+  WilliamsROptions,
+  RocOptions,
+  PivotPointsOptions,
+  PivotPointsValue,
+  IchimokuOptions,
+  IchimokuValue,
+  SupertrendOptions,
+  SupertrendValue,
 } from "./indicators";
 
 // Fluent API
