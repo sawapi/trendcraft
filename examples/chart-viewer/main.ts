@@ -269,10 +269,10 @@ function updateChart(): void {
       type: 'candlestick',
       data: ohlc,
       itemStyle: {
-        color: '#ef5350',
-        color0: '#26a69a',
-        borderColor: '#ef5350',
-        borderColor0: '#26a69a',
+        color: '#26a69a',
+        color0: '#ef5350',
+        borderColor: '#26a69a',
+        borderColor0: '#ef5350',
       },
     },
     {
