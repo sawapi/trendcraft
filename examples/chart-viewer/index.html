@@ -310,6 +310,11 @@
       color: #e67e22;
       border: 1px solid #e67e22;
     }
+    .po-event.pullback-buy {
+      background: rgba(0, 188, 212, 0.2);
+      color: #00bcd4;
+      border: 1px solid #00bcd4;
+    }
 
     /* Info */
     .file-info {
@@ -612,8 +617,11 @@
                 <option value="dmiBullishStrong">DMI + ADX強トレンド</option>
               </optgroup>
               <optgroup label="Perfect Order">
-                <option value="poBullish">Perfect Order Bullish</option>
-                <option value="poRsi">PO + RSI &lt; 60</option>
+                <option value="poBullish">PO Bullish (レガシー)</option>
+                <option value="poPlus">PO+ (確定シグナル)</option>
+                <option value="pb">PB (押し目買い)</option>
+                <option value="poPlusPb">PO+ or PB (統合)</option>
+                <option value="poRsi">PO+ + RSI &lt; 60</option>
               </optgroup>
               <optgroup label="Bollinger Bands">
                 <option value="bbLower">BB Lower Touch</option>
@@ -643,7 +651,8 @@
                 <option value="dmiBearish">DMI Bearish (-DI&gt;+DI)</option>
               </optgroup>
               <optgroup label="Perfect Order">
-                <option value="poCollapsed">Perfect Order Collapsed</option>
+                <option value="poCollapsed">PO Collapsed (レガシー)</option>
+                <option value="poBreakdown">PO BD (崩壊検出)</option>
               </optgroup>
               <optgroup label="Bollinger Bands">
                 <option value="bbUpper">BB Upper Touch</option>

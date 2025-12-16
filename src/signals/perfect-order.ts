@@ -67,12 +67,16 @@ export type PerfectOrderValueEnhanced = PerfectOrderValue & {
   persistCount: number;
   /** True when persistCount >= persistBars */
   isConfirmed: boolean;
-  /** True when state just became confirmed */
+  /** True when state just became confirmed (event flag - fires once) */
   confirmationFormed: boolean;
-  /** True when PO_BREAKDOWN just detected */
+  /** True when PO_BREAKDOWN just detected (event flag - fires once) */
   breakdownDetected: boolean;
-  /** True when COLLAPSED just detected */
+  /** True when COLLAPSED just detected (event flag - fires once) */
   collapseDetected: boolean;
+  /** True when PO has been confirmed since the last breakdown (continuous state flag) */
+  hasConfirmedSinceBreakdown: boolean;
+  /** True when pullback buy signal fires - only once per pullback cycle (event flag) */
+  pullbackBuySignal: boolean;
 };
 
 /** Default hysteresis margin (1%) */
@@ -650,6 +654,11 @@ export function perfectOrderEnhanced(
   // This prevents PO+ from firing multiple times without an intervening breakdown
   let hasConfirmedBullishSinceLastBreakdown = false;
   let hasConfirmedBearishSinceLastBreakdown = false;
+  // Track pullback buy signal state
+  // Once PB fires, it won't fire again until slope goes UP → DOWN (new pullback cycle)
+  let hasPullbackBuyFiredBullish = false;
+  let hasPullbackBuyFiredBearish = false;
+  let prevShortSlope: SlopeDirection = "FLAT";
 
   for (let i = 0; i < normalized.length; i++) {
     const time = normalized[i].time;
@@ -720,6 +729,63 @@ export function perfectOrderEnhanced(
     // Calculate strength (includes price deviation)
     const strength = type !== "none" ? calculateStrength(maValues, type, price) : 0;
 
+    // Current short MA slope
+    const currentShortSlope = slopes[0];
+
+    // Reset PB tracking when slope transitions from UP to DOWN (new pullback cycle starts)
+    if (prevShortSlope === "UP" && currentShortSlope === "DOWN") {
+      hasPullbackBuyFiredBullish = false;
+    }
+    // Similar for bearish (short selling pullback)
+    if (prevShortSlope === "DOWN" && currentShortSlope === "UP") {
+      hasPullbackBuyFiredBearish = false;
+    }
+
+    // Calculate gap between short MA and mid MA for pullback validation
+    const shortMa = maValues[0];
+    const midMa = maValues[1];
+    const gapPercent = shortMa !== null && midMa !== null && midMa !== 0
+      ? ((shortMa - midMa) / midMa) * 100
+      : 0;
+
+    // Pullback buy signal detection (bullish)
+    // Conditions:
+    // 1. PO+ has been confirmed since last breakdown
+    // 2. Short slope transitions from DOWN to UP (or FLAT in between)
+    // 3. Gap between short and mid MA is sufficient (not touching)
+    // 4. PB hasn't fired yet in this pullback cycle
+    let pullbackBuySignal = false;
+
+    // Check for DOWN → UP transition (allowing FLAT in between by looking back)
+    const hadRecentDownSlope = i > 0 && (
+      prevShortSlope === "DOWN" ||
+      (i > 1 && result[i - 2]?.value.slopes[0] === "DOWN") ||
+      (i > 2 && result[i - 3]?.value.slopes[0] === "DOWN") ||
+      (i > 3 && result[i - 4]?.value.slopes[0] === "DOWN") ||
+      (i > 4 && result[i - 5]?.value.slopes[0] === "DOWN")
+    );
+
+    if (
+      hasConfirmedBullishSinceLastBreakdown &&
+      !hasPullbackBuyFiredBullish &&
+      currentShortSlope === "UP" &&
+      hadRecentDownSlope &&
+      type === "bullish" &&
+      gapPercent >= 0.5  // Min 0.5% gap
+    ) {
+      pullbackBuySignal = true;
+      hasPullbackBuyFiredBullish = true;
+    }
+
+    // Reset PB tracking on breakdown
+    if (breakdownDetected) {
+      hasPullbackBuyFiredBullish = false;
+      hasPullbackBuyFiredBearish = false;
+    }
+
+    // Continuous state flag
+    const hasConfirmedSinceBreakdown = hasConfirmedBullishSinceLastBreakdown || hasConfirmedBearishSinceLastBreakdown;
+
     result.push({
       time,
       value: {
@@ -738,12 +804,16 @@ export function perfectOrderEnhanced(
         confirmationFormed,
         breakdownDetected,
         collapseDetected,
+        // New continuous state flags
+        hasConfirmedSinceBreakdown,
+        pullbackBuySignal,
       },
     });
 
     // Update tracking state for next iteration
     prevState = state;
     prevLegacyType = type;
+    prevShortSlope = currentShortSlope;
   }
 
   return result;

@@ -151,6 +151,10 @@ export {
   perfectOrderMaCollapsed,
   perfectOrderPreBullish,
   perfectOrderPreBearish,
+  // PO+ and PB entry conditions
+  poPlusEntry,
+  pbEntry,
+  poPlusPbEntry,
   // Stochastics conditions
   stochBelow,
   stochAbove,

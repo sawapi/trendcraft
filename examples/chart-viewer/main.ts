@@ -1553,25 +1553,21 @@ function updateRocChart(dates: string[], rocData: TrendCraft.Series<number | nul
 }
 
 // Create markPoint data for enhanced perfect order signals
-function createPerfectOrderMarkPointsEnhanced(
-  poData: TrendCraft.Series<PerfectOrderValueEnhanced>,
-  dates: string[]
-): Array<{
+type POMarkPoint = {
   name: string;
   coord: [string, number];
   symbol: string;
   symbolSize: number;
+  symbolRotate?: number;
   itemStyle: { color: string };
   label: { show: boolean; formatter: string; color: string; fontSize: number; position: 'inside' | 'top' | 'bottom' };
-}> {
-  const markPoints: Array<{
-    name: string;
-    coord: [string, number];
-    symbol: string;
-    symbolSize: number;
-    itemStyle: { color: string };
-    label: { show: boolean; formatter: string; color: string; fontSize: number; position: 'inside' | 'top' | 'bottom' };
-  }> = [];
+};
+
+function createPerfectOrderMarkPointsEnhanced(
+  poData: TrendCraft.Series<PerfectOrderValueEnhanced>,
+  dates: string[]
+): POMarkPoint[] {
+  const markPoints: POMarkPoint[] = [];
 
   // Track if we've ever seen a confirmed PO (to avoid showing PO? after PO+)
   let hasEverConfirmedBullish = false;
@@ -1704,6 +1700,29 @@ function createPerfectOrderMarkPointsEnhanced(
         },
       });
     }
+
+    // Pullback Buy Signal - cyan triangle up
+    // Now using the pre-computed pullbackBuySignal flag from perfectOrderEnhanced
+    if (po.value.pullbackBuySignal && po.value.type === 'bullish') {
+      const price = currentCandles[idx].low * 0.99;
+      markPoints.push({
+        name: 'Pullback Buy',
+        coord: [dates[idx], price],
+        symbol: 'triangle',
+        symbolSize: 14,
+        itemStyle: { color: '#00bcd4' },
+        label: {
+          show: true,
+          formatter: 'PB',
+          color: '#fff',
+          fontSize: 7,
+          position: 'inside',
+        },
+      });
+    }
+
+    // TODO: Pullback Sell Signal for bearish PO could be added similarly
+    // when we add pullbackSellSignal to the enhanced type
   });
 
   return markPoints;
@@ -1723,13 +1742,14 @@ function updatePerfectOrderEventsListEnhanced(show: boolean, poData: TrendCraft.
   const { startDate, endDate } = getVisibleDateRange();
 
   // Filter events within visible range
-  type EventType = 'bullish_confirmed' | 'bearish_confirmed' | 'pre_bullish' | 'pre_bearish' | 'breakdown' | 'collapsed';
+  type EventType = 'bullish_confirmed' | 'bearish_confirmed' | 'pre_bullish' | 'pre_bearish' | 'breakdown' | 'collapsed' | 'pullback_buy';
   const events: Array<{
     time: number;
     type: EventType;
     confidence: number;
     strength: number;
     persistCount: number;
+    gapPercent?: number;
   }> = [];
 
   // Track if we've ever seen a confirmed PO (to avoid showing Pre after Confirmed)
@@ -1810,6 +1830,28 @@ function updatePerfectOrderEventsListEnhanced(show: boolean, poData: TrendCraft.
     }
   });
 
+  // Detect pullback buy signals using the pre-computed pullbackBuySignal flag
+  poData.forEach((po) => {
+    if (po.time < startDate || po.time > endDate) return;
+
+    if (po.value.pullbackBuySignal && po.value.type === 'bullish') {
+      const shortMa = po.value.maValues[0];
+      const midMa = po.value.maValues[1];
+      const gapPercent = shortMa !== null && midMa !== null && midMa !== 0
+        ? ((shortMa - midMa) / midMa) * 100
+        : 0;
+
+      events.push({
+        time: po.time,
+        type: 'pullback_buy',
+        confidence: po.value.confidence,
+        strength: po.value.strength,
+        persistCount: 0,
+        gapPercent,
+      });
+    }
+  });
+
   // Sort by date descending (newest first)
   events.sort((a, b) => b.time - a.time);
 
@@ -1831,6 +1873,8 @@ function updatePerfectOrderEventsListEnhanced(show: boolean, poData: TrendCraft.
           return `<span class="po-event breakdown" title="Confidence: ${confPercent}%">▼ Breakdown ${formatDate(e.time)}</span>`;
         case 'collapsed':
           return `<span class="po-event collapsed" title="MA Convergence">■ Collapsed ${formatDate(e.time)}</span>`;
+        case 'pullback_buy':
+          return `<span class="po-event pullback-buy" title="Gap: ${e.gapPercent?.toFixed(1)}%">▲ Pullback Buy [${e.gapPercent?.toFixed(1)}%] ${formatDate(e.time)}</span>`;
         default:
           return '';
       }

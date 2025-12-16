@@ -35,6 +35,13 @@ export {
   perfectOrderMaCollapsed,
   perfectOrderPreBullish,
   perfectOrderPreBearish,
+  // Perfect Order Pullback conditions
+  perfectOrderPullbackEntry,
+  perfectOrderPullbackSellEntry,
+  // PO+ and PB entry conditions (using pre-computed flags)
+  poPlusEntry,
+  pbEntry,
+  poPlusPbEntry,
   // Stochastics conditions
   stochBelow,
   stochAbove,

@@ -37,9 +37,16 @@ const entryConditions: Record<string, () => Condition> = {
   rsi30: () => TrendCraft.rsiBelow(30),
   rsi40: () => TrendCraft.rsiBelow(40),
   macdUp: () => TrendCraft.macdCrossUp(),
+  // Legacy PO (fires immediately when MA order forms)
   poBullish: () => TrendCraft.perfectOrderBullish({ periods: [5, 25, 75] }),
+  // Enhanced PO+ (fires after 3-bar confirmation with all slopes UP)
+  poPlus: () => TrendCraft.poPlusEntry({ periods: [5, 25, 75] }),
+  // PB only (pullback buy during confirmed PO)
+  pb: () => TrendCraft.pbEntry({ periods: [5, 25, 75] }),
+  // PO+ or PB (combined: initial entry + pyramid entries)
+  poPlusPb: () => TrendCraft.poPlusPbEntry({ periods: [5, 25, 75] }),
   poRsi: () => TrendCraft.and(
-    TrendCraft.perfectOrderBullish({ periods: [5, 25, 75] }),
+    TrendCraft.poPlusEntry({ periods: [5, 25, 75] }),
     TrendCraft.rsiBelow(60)
   ),
   bbLower: () => TrendCraft.bollingerTouch('lower'),
@@ -76,7 +83,10 @@ const exitConditions: Record<string, () => Condition> = {
   rsi70: () => TrendCraft.rsiAbove(70),
   rsi60: () => TrendCraft.rsiAbove(60),
   macdDown: () => TrendCraft.macdCrossDown(),
+  // Legacy PO collapsed (type changes from bullish to none)
   poCollapsed: () => TrendCraft.perfectOrderCollapsed({ periods: [5, 25, 75] }),
+  // Enhanced PO breakdown (detects when PO structure starts degrading)
+  poBreakdown: () => TrendCraft.perfectOrderBreakdown({ periods: [5, 25, 75] }),
   bbUpper: () => TrendCraft.bollingerTouch('upper'),
   // Stochastics
   stoch80: () => TrendCraft.stochAbove(80),
