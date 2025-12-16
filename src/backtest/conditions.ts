@@ -7,6 +7,9 @@ import { sma } from "../indicators/moving-average/sma";
 import { rsi } from "../indicators/momentum/rsi";
 import { macd } from "../indicators/momentum/macd";
 import { bollingerBands } from "../indicators/volatility/bollinger-bands";
+import { slowStochastics } from "../indicators/momentum/stochastics";
+import { dmi } from "../indicators/momentum/dmi";
+import { volumeMa } from "../indicators/volume/volume-ma";
 
 // ============================================
 // Condition Evaluation Helper
@@ -772,6 +775,230 @@ export function perfectOrderActiveBearish(options: PerfectOrderConditionOptions 
       if (!po) return false;
 
       return po.type === "bearish" && po.strength >= minStrength;
+    },
+  };
+}
+
+// ============================================
+// Stochastics Conditions
+// ============================================
+
+/**
+ * Stochastics %K below threshold (oversold)
+ * @param threshold %K threshold (default: 20)
+ */
+export function stochBelow(threshold = 20, kPeriod = 14, dPeriod = 3): PresetCondition {
+  const cacheKey = `stoch_${kPeriod}_${dPeriod}`;
+
+  return {
+    type: "preset",
+    name: `stochBelow(${threshold})`,
+    evaluate: (indicators, candle, index, candles) => {
+      let stochData = indicators[cacheKey] as { time: number; value: { k: number | null; d: number | null } }[] | undefined;
+
+      if (!stochData) {
+        stochData = slowStochastics(candles, { kPeriod, dPeriod });
+        indicators[cacheKey] = stochData;
+      }
+
+      const stoch = stochData[index]?.value;
+      return stoch?.k !== null && stoch?.k !== undefined && stoch.k < threshold;
+    },
+  };
+}
+
+/**
+ * Stochastics %K above threshold (overbought)
+ * @param threshold %K threshold (default: 80)
+ */
+export function stochAbove(threshold = 80, kPeriod = 14, dPeriod = 3): PresetCondition {
+  const cacheKey = `stoch_${kPeriod}_${dPeriod}`;
+
+  return {
+    type: "preset",
+    name: `stochAbove(${threshold})`,
+    evaluate: (indicators, candle, index, candles) => {
+      let stochData = indicators[cacheKey] as { time: number; value: { k: number | null; d: number | null } }[] | undefined;
+
+      if (!stochData) {
+        stochData = slowStochastics(candles, { kPeriod, dPeriod });
+        indicators[cacheKey] = stochData;
+      }
+
+      const stoch = stochData[index]?.value;
+      return stoch?.k !== null && stoch?.k !== undefined && stoch.k > threshold;
+    },
+  };
+}
+
+/**
+ * Stochastics Golden Cross: %K crosses above %D
+ */
+export function stochCrossUp(kPeriod = 14, dPeriod = 3): PresetCondition {
+  const cacheKey = `stoch_${kPeriod}_${dPeriod}`;
+
+  return {
+    type: "preset",
+    name: `stochCrossUp()`,
+    evaluate: (indicators, candle, index, candles) => {
+      if (index < 1) return false;
+
+      let stochData = indicators[cacheKey] as { time: number; value: { k: number | null; d: number | null } }[] | undefined;
+
+      if (!stochData) {
+        stochData = slowStochastics(candles, { kPeriod, dPeriod });
+        indicators[cacheKey] = stochData;
+      }
+
+      const curr = stochData[index]?.value;
+      const prev = stochData[index - 1]?.value;
+
+      if (!curr || !prev || curr.k === null || curr.d === null || prev.k === null || prev.d === null) {
+        return false;
+      }
+
+      return prev.k <= prev.d && curr.k > curr.d;
+    },
+  };
+}
+
+/**
+ * Stochastics Dead Cross: %K crosses below %D
+ */
+export function stochCrossDown(kPeriod = 14, dPeriod = 3): PresetCondition {
+  const cacheKey = `stoch_${kPeriod}_${dPeriod}`;
+
+  return {
+    type: "preset",
+    name: `stochCrossDown()`,
+    evaluate: (indicators, candle, index, candles) => {
+      if (index < 1) return false;
+
+      let stochData = indicators[cacheKey] as { time: number; value: { k: number | null; d: number | null } }[] | undefined;
+
+      if (!stochData) {
+        stochData = slowStochastics(candles, { kPeriod, dPeriod });
+        indicators[cacheKey] = stochData;
+      }
+
+      const curr = stochData[index]?.value;
+      const prev = stochData[index - 1]?.value;
+
+      if (!curr || !prev || curr.k === null || curr.d === null || prev.k === null || prev.d === null) {
+        return false;
+      }
+
+      return prev.k >= prev.d && curr.k < curr.d;
+    },
+  };
+}
+
+// ============================================
+// DMI/ADX Conditions
+// ============================================
+
+/**
+ * DMI Bullish: +DI > -DI with optional ADX filter
+ * @param minAdx Minimum ADX for trend strength (default: 20)
+ */
+export function dmiBullish(minAdx = 20, period = 14): PresetCondition {
+  const cacheKey = `dmi_${period}`;
+
+  return {
+    type: "preset",
+    name: `dmiBullish(ADX>${minAdx})`,
+    evaluate: (indicators, candle, index, candles) => {
+      let dmiData = indicators[cacheKey] as { time: number; value: { plusDi: number | null; minusDi: number | null; adx: number | null } }[] | undefined;
+
+      if (!dmiData) {
+        dmiData = dmi(candles, { period });
+        indicators[cacheKey] = dmiData;
+      }
+
+      const d = dmiData[index]?.value;
+      if (!d || d.plusDi === null || d.minusDi === null || d.adx === null) return false;
+
+      return d.plusDi > d.minusDi && d.adx >= minAdx;
+    },
+  };
+}
+
+/**
+ * DMI Bearish: -DI > +DI with optional ADX filter
+ * @param minAdx Minimum ADX for trend strength (default: 20)
+ */
+export function dmiBearish(minAdx = 20, period = 14): PresetCondition {
+  const cacheKey = `dmi_${period}`;
+
+  return {
+    type: "preset",
+    name: `dmiBearish(ADX>${minAdx})`,
+    evaluate: (indicators, candle, index, candles) => {
+      let dmiData = indicators[cacheKey] as { time: number; value: { plusDi: number | null; minusDi: number | null; adx: number | null } }[] | undefined;
+
+      if (!dmiData) {
+        dmiData = dmi(candles, { period });
+        indicators[cacheKey] = dmiData;
+      }
+
+      const d = dmiData[index]?.value;
+      if (!d || d.plusDi === null || d.minusDi === null || d.adx === null) return false;
+
+      return d.minusDi > d.plusDi && d.adx >= minAdx;
+    },
+  };
+}
+
+/**
+ * ADX Strong Trend: ADX above threshold
+ * @param threshold ADX threshold (default: 25)
+ */
+export function adxStrong(threshold = 25, period = 14): PresetCondition {
+  const cacheKey = `dmi_${period}`;
+
+  return {
+    type: "preset",
+    name: `adxStrong(${threshold})`,
+    evaluate: (indicators, candle, index, candles) => {
+      let dmiData = indicators[cacheKey] as { time: number; value: { plusDi: number | null; minusDi: number | null; adx: number | null } }[] | undefined;
+
+      if (!dmiData) {
+        dmiData = dmi(candles, { period });
+        indicators[cacheKey] = dmiData;
+      }
+
+      const d = dmiData[index]?.value;
+      return d?.adx !== null && d?.adx !== undefined && d.adx >= threshold;
+    },
+  };
+}
+
+// ============================================
+// Volume Conditions
+// ============================================
+
+/**
+ * Volume above average (strong volume)
+ * @param multiplier How many times the average (default: 1.5)
+ */
+export function volumeAboveAvg(multiplier = 1.5, period = 20): PresetCondition {
+  const cacheKey = `volMa_${period}`;
+
+  return {
+    type: "preset",
+    name: `volumeAboveAvg(${multiplier}x)`,
+    evaluate: (indicators, candle, index, candles) => {
+      let volMaData = indicators[cacheKey] as { time: number; value: number | null }[] | undefined;
+
+      if (!volMaData) {
+        volMaData = volumeMa(candles, { period });
+        indicators[cacheKey] = volMaData;
+      }
+
+      const avgVol = volMaData[index]?.value;
+      if (avgVol === null || avgVol === undefined) return false;
+
+      return candle.volume > avgVol * multiplier;
     },
   };
 }

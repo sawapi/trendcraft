@@ -27,6 +27,17 @@ export {
   perfectOrderCollapsed,
   perfectOrderActiveBullish,
   perfectOrderActiveBearish,
+  // Stochastics conditions
+  stochBelow,
+  stochAbove,
+  stochCrossUp,
+  stochCrossDown,
+  // DMI/ADX conditions
+  dmiBullish,
+  dmiBearish,
+  adxStrong,
+  // Volume conditions
+  volumeAboveAvg,
   // Evaluation helper
   evaluateCondition,
 } from "./conditions";

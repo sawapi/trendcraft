@@ -6,6 +6,8 @@
 import * as echarts from 'echarts';
 import * as TrendCraft from 'trendcraft';
 import type { NormalizedCandle, Timeframe, DivergenceSignal, SqueezeSignal, PerfectOrderValue } from 'trendcraft';
+import { formatDate, createLineSeries } from './utils';
+import { setupBacktest, showBacktestPanel, runBacktest, resizeEquityChart, clearTradeMarkers, getRunButton } from './backtest';
 
 // State
 let rawCandles: NormalizedCandle[] = [];
@@ -45,6 +47,7 @@ const rocChartEl = document.getElementById('roc-chart') as HTMLDivElement;
 function init(): void {
   setupDropZone();
   setupControls();
+  setupBacktest();
   // Charts are initialized lazily after DOM is visible
 }
 
@@ -75,11 +78,27 @@ function setupControls(): void {
   timeframeSelect.addEventListener('change', () => {
     applyTimeframe();
     updateChart();
+    // Clear any backtest markers when timeframe changes
+    if (mainChart) {
+      clearTradeMarkers(mainChart);
+    }
   });
 
   document.querySelectorAll<HTMLInputElement>('[data-indicator]').forEach(checkbox => {
     checkbox.addEventListener('change', updateChart);
   });
+
+  // Backtest button handler (deferred until setupBacktest is called)
+  setTimeout(() => {
+    const runBtn = getRunButton();
+    if (runBtn) {
+      runBtn.addEventListener('click', () => {
+        if (mainChart && currentCandles.length > 0) {
+          runBacktest(currentCandles, mainChart);
+        }
+      });
+    }
+  }, 0);
 }
 
 // Initialize ECharts
@@ -109,6 +128,7 @@ function initCharts(): void {
     cciChart?.resize();
     willrChart?.resize();
     rocChart?.resize();
+    resizeEquityChart();
   });
 }
 
@@ -145,6 +165,7 @@ async function processFile(file: File): Promise<void> {
       }
       applyTimeframe();
       updateChart();
+      showBacktestPanel();
     });
   } catch (error) {
     console.error('Error processing file:', error);
@@ -229,26 +250,6 @@ function getSelectedIndicators(): Record<string, boolean> {
   return selected;
 }
 
-// Create line series for indicators
-function createLineSeries(
-  name: string,
-  data: TrendCraft.Series<number | null>,
-  color: string,
-  lineStyle: 'solid' | 'dashed' | 'dotted' = 'solid'
-): echarts.LineSeriesOption {
-  return {
-    name,
-    type: 'line',
-    data: data.map(d => d.value),
-    smooth: false,
-    showSymbol: false,
-    lineStyle: {
-      width: 1.5,
-      color,
-      type: lineStyle,
-    },
-  };
-}
 
 // Update all charts
 function updateChart(): void {
@@ -1283,14 +1284,6 @@ function createSqueezeMarkPoints(
   return markPoints;
 }
 
-// Format date for display
-function formatDate(timestamp: number): string {
-  const date = new Date(timestamp);
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  return `${y}/${m}/${d}`;
-}
 
 // Get visible date range based on current zoom
 function getVisibleDateRange(): { startDate: number; endDate: number } {

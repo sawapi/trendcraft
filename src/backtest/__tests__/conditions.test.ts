@@ -16,6 +16,17 @@ import {
   perfectOrderCollapsed,
   perfectOrderActiveBullish,
   perfectOrderActiveBearish,
+  // Stochastics
+  stochBelow,
+  stochAbove,
+  stochCrossUp,
+  stochCrossDown,
+  // DMI/ADX
+  dmiBullish,
+  dmiBearish,
+  adxStrong,
+  // Volume
+  volumeAboveAvg,
 } from "../conditions";
 import type { NormalizedCandle } from "../../types";
 
@@ -487,5 +498,314 @@ describe("perfectOrderActiveBearish()", () => {
     const condition = perfectOrderActiveBearish();
     expect(condition.type).toBe("preset");
     expect(condition.name).toContain("perfectOrderActiveBearish");
+  });
+});
+
+// ============================================
+// Stochastics Conditions
+// ============================================
+
+describe("stochBelow()", () => {
+  // Generate strong downtrend to get low stochastics
+  function generateDowntrend(count: number): NormalizedCandle[] {
+    const candles: NormalizedCandle[] = [];
+    const baseTime = Date.now() - count * 24 * 60 * 60 * 1000;
+
+    for (let i = 0; i < count; i++) {
+      const price = 100 - i * 1.5;
+      candles.push({
+        time: baseTime + i * 24 * 60 * 60 * 1000,
+        open: price + 0.5,
+        high: price + 1,
+        low: price - 1,
+        close: price,
+        volume: 1000000,
+      });
+    }
+    return candles;
+  }
+
+  it("should create a valid preset condition", () => {
+    const condition = stochBelow(20);
+    expect(condition.type).toBe("preset");
+    expect(condition.name).toContain("stochBelow");
+  });
+
+  it("should detect stochastics below threshold in downtrend", () => {
+    const candles = generateDowntrend(50);
+    const condition = stochBelow(20);
+    const indicators: Record<string, unknown> = {};
+
+    // After sufficient downtrend, stoch should be low
+    let found = false;
+    for (let i = 20; i < candles.length; i++) {
+      if (evaluateCondition(condition, indicators, candles[i], i, candles)) {
+        found = true;
+        break;
+      }
+    }
+
+    expect(found).toBe(true);
+  });
+});
+
+describe("stochAbove()", () => {
+  // Generate strong uptrend to get high stochastics
+  function generateUptrend(count: number): NormalizedCandle[] {
+    const candles: NormalizedCandle[] = [];
+    const baseTime = Date.now() - count * 24 * 60 * 60 * 1000;
+
+    for (let i = 0; i < count; i++) {
+      const price = 100 + i * 1.5;
+      candles.push({
+        time: baseTime + i * 24 * 60 * 60 * 1000,
+        open: price - 0.5,
+        high: price + 1,
+        low: price - 1,
+        close: price,
+        volume: 1000000,
+      });
+    }
+    return candles;
+  }
+
+  it("should create a valid preset condition", () => {
+    const condition = stochAbove(80);
+    expect(condition.type).toBe("preset");
+    expect(condition.name).toContain("stochAbove");
+  });
+
+  it("should detect stochastics above threshold in uptrend", () => {
+    const candles = generateUptrend(50);
+    const condition = stochAbove(80);
+    const indicators: Record<string, unknown> = {};
+
+    // After sufficient uptrend, stoch should be high
+    let found = false;
+    for (let i = 20; i < candles.length; i++) {
+      if (evaluateCondition(condition, indicators, candles[i], i, candles)) {
+        found = true;
+        break;
+      }
+    }
+
+    expect(found).toBe(true);
+  });
+});
+
+describe("stochCrossUp()", () => {
+  it("should create a valid preset condition", () => {
+    const condition = stochCrossUp();
+    expect(condition.type).toBe("preset");
+    expect(condition.name).toBe("stochCrossUp()");
+  });
+
+  it("should not trigger on first candle", () => {
+    const candles = generateCandles(50);
+    const condition = stochCrossUp();
+    const indicators: Record<string, unknown> = {};
+
+    expect(evaluateCondition(condition, indicators, candles[0], 0, candles)).toBe(false);
+  });
+});
+
+describe("stochCrossDown()", () => {
+  it("should create a valid preset condition", () => {
+    const condition = stochCrossDown();
+    expect(condition.type).toBe("preset");
+    expect(condition.name).toBe("stochCrossDown()");
+  });
+});
+
+// ============================================
+// DMI/ADX Conditions
+// ============================================
+
+describe("dmiBullish()", () => {
+  // Generate strong uptrend for bullish DMI
+  function generateStrongUptrend(count: number): NormalizedCandle[] {
+    const candles: NormalizedCandle[] = [];
+    const baseTime = Date.now() - count * 24 * 60 * 60 * 1000;
+
+    for (let i = 0; i < count; i++) {
+      const price = 100 + i * 2;
+      candles.push({
+        time: baseTime + i * 24 * 60 * 60 * 1000,
+        open: price - 1,
+        high: price + 2,
+        low: price - 1,
+        close: price + 1,
+        volume: 1000000,
+      });
+    }
+    return candles;
+  }
+
+  it("should create a valid preset condition", () => {
+    const condition = dmiBullish(20);
+    expect(condition.type).toBe("preset");
+    expect(condition.name).toContain("dmiBullish");
+  });
+
+  it("should detect bullish DMI in strong uptrend", () => {
+    const candles = generateStrongUptrend(50);
+    const condition = dmiBullish(20);
+    const indicators: Record<string, unknown> = {};
+
+    // In strong uptrend, +DI should be > -DI
+    let found = false;
+    for (let i = 30; i < candles.length; i++) {
+      if (evaluateCondition(condition, indicators, candles[i], i, candles)) {
+        found = true;
+        break;
+      }
+    }
+
+    expect(found).toBe(true);
+  });
+});
+
+describe("dmiBearish()", () => {
+  // Generate strong downtrend for bearish DMI
+  function generateStrongDowntrend(count: number): NormalizedCandle[] {
+    const candles: NormalizedCandle[] = [];
+    const baseTime = Date.now() - count * 24 * 60 * 60 * 1000;
+
+    for (let i = 0; i < count; i++) {
+      const price = 200 - i * 2;
+      candles.push({
+        time: baseTime + i * 24 * 60 * 60 * 1000,
+        open: price + 1,
+        high: price + 1,
+        low: price - 2,
+        close: price - 1,
+        volume: 1000000,
+      });
+    }
+    return candles;
+  }
+
+  it("should create a valid preset condition", () => {
+    const condition = dmiBearish(20);
+    expect(condition.type).toBe("preset");
+    expect(condition.name).toContain("dmiBearish");
+  });
+
+  it("should detect bearish DMI in strong downtrend", () => {
+    const candles = generateStrongDowntrend(50);
+    const condition = dmiBearish(20);
+    const indicators: Record<string, unknown> = {};
+
+    // In strong downtrend, -DI should be > +DI
+    let found = false;
+    for (let i = 30; i < candles.length; i++) {
+      if (evaluateCondition(condition, indicators, candles[i], i, candles)) {
+        found = true;
+        break;
+      }
+    }
+
+    expect(found).toBe(true);
+  });
+});
+
+describe("adxStrong()", () => {
+  it("should create a valid preset condition", () => {
+    const condition = adxStrong(25);
+    expect(condition.type).toBe("preset");
+    expect(condition.name).toContain("adxStrong");
+  });
+
+  it("should detect strong ADX in trending market", () => {
+    // Generate strong trend
+    const candles: NormalizedCandle[] = [];
+    const baseTime = Date.now() - 100 * 24 * 60 * 60 * 1000;
+
+    for (let i = 0; i < 100; i++) {
+      const price = 100 + i * 3; // Very strong uptrend
+      candles.push({
+        time: baseTime + i * 24 * 60 * 60 * 1000,
+        open: price - 1,
+        high: price + 3,
+        low: price - 1,
+        close: price + 2,
+        volume: 1000000,
+      });
+    }
+
+    const condition = adxStrong(25);
+    const indicators: Record<string, unknown> = {};
+
+    // In strong trend, ADX should be high
+    let found = false;
+    for (let i = 40; i < candles.length; i++) {
+      if (evaluateCondition(condition, indicators, candles[i], i, candles)) {
+        found = true;
+        break;
+      }
+    }
+
+    expect(found).toBe(true);
+  });
+});
+
+// ============================================
+// Volume Conditions
+// ============================================
+
+describe("volumeAboveAvg()", () => {
+  it("should create a valid preset condition", () => {
+    const condition = volumeAboveAvg(1.5);
+    expect(condition.type).toBe("preset");
+    expect(condition.name).toContain("volumeAboveAvg");
+  });
+
+  it("should detect volume spike", () => {
+    // Generate candles with a volume spike
+    const candles: NormalizedCandle[] = [];
+    const baseTime = Date.now() - 50 * 24 * 60 * 60 * 1000;
+
+    for (let i = 0; i < 50; i++) {
+      const volume = i === 45 ? 3000000 : 1000000; // Spike at index 45
+      candles.push({
+        time: baseTime + i * 24 * 60 * 60 * 1000,
+        open: 100,
+        high: 101,
+        low: 99,
+        close: 100,
+        volume,
+      });
+    }
+
+    const condition = volumeAboveAvg(1.5); // 1.5x average
+    const indicators: Record<string, unknown> = {};
+
+    // The spike should trigger the condition
+    const result = evaluateCondition(condition, indicators, candles[45], 45, candles);
+    expect(result).toBe(true);
+  });
+
+  it("should not trigger on normal volume", () => {
+    // Generate candles with consistent volume
+    const candles: NormalizedCandle[] = [];
+    const baseTime = Date.now() - 50 * 24 * 60 * 60 * 1000;
+
+    for (let i = 0; i < 50; i++) {
+      candles.push({
+        time: baseTime + i * 24 * 60 * 60 * 1000,
+        open: 100,
+        high: 101,
+        low: 99,
+        close: 100,
+        volume: 1000000, // Consistent volume
+      });
+    }
+
+    const condition = volumeAboveAvg(1.5);
+    const indicators: Record<string, unknown> = {};
+
+    // Normal volume should not trigger
+    const result = evaluateCondition(condition, indicators, candles[40], 40, candles);
+    expect(result).toBe(false);
   });
 });
