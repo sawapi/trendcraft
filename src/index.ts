@@ -143,6 +143,14 @@ export {
   perfectOrderCollapsed,
   perfectOrderActiveBullish,
   perfectOrderActiveBearish,
+  // Enhanced Perfect Order conditions
+  perfectOrderBullishConfirmed,
+  perfectOrderBearishConfirmed,
+  perfectOrderConfirmationFormed,
+  perfectOrderBreakdown,
+  perfectOrderMaCollapsed,
+  perfectOrderPreBullish,
+  perfectOrderPreBearish,
   // Stochastics conditions
   stochBelow,
   stochAbove,
@@ -158,8 +166,8 @@ export {
   runBacktest,
 } from "./backtest";
 
-export type { ValidatedCrossOptions, PerfectOrderConditionOptions } from "./backtest";
+export type { ValidatedCrossOptions, PerfectOrderConditionOptions, PerfectOrderEnhancedConditionOptions } from "./backtest";
 
 // Signals
-export { crossOver, crossUnder, goldenCross, deadCross, validateCrossSignals, obvDivergence, rsiDivergence, macdDivergence, detectDivergence, bollingerSqueeze, perfectOrder } from "./signals";
-export type { CrossValidationOptions, CrossSignalQuality, DivergenceSignal, DivergenceOptions, SqueezeSignal, SqueezeOptions, PerfectOrderType, PerfectOrderValue, PerfectOrderOptions } from "./signals";
+export { crossOver, crossUnder, goldenCross, deadCross, validateCrossSignals, obvDivergence, rsiDivergence, macdDivergence, detectDivergence, bollingerSqueeze, perfectOrder, perfectOrderEnhanced } from "./signals";
+export type { CrossValidationOptions, CrossSignalQuality, DivergenceSignal, DivergenceOptions, SqueezeSignal, SqueezeOptions, PerfectOrderType, PerfectOrderValue, PerfectOrderOptions, SlopeDirection, PerfectOrderState, PerfectOrderValueEnhanced, PerfectOrderOptionsEnhanced } from "./signals";

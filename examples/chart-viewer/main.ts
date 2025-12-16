@@ -5,7 +5,7 @@
 
 import * as echarts from 'echarts';
 import * as TrendCraft from 'trendcraft';
-import type { NormalizedCandle, Timeframe, DivergenceSignal, SqueezeSignal, PerfectOrderValue } from 'trendcraft';
+import type { NormalizedCandle, Timeframe, DivergenceSignal, SqueezeSignal, PerfectOrderValueEnhanced } from 'trendcraft';
 import { formatDate, createLineSeries } from './utils';
 import { setupBacktest, showBacktestPanel, runBacktest, resizeEquityChart, clearTradeMarkers, getRunButton } from './backtest';
 
@@ -361,10 +361,15 @@ function updateChart(): void {
   // Golden Cross / Dead Cross list
   updateCrossEventsList(indicators.cross);
 
-  // Perfect Order detection and events list
+  // Perfect Order detection and events list (using enhanced mode)
   if (indicators.perfectorder) {
-    const poData = TrendCraft.perfectOrder(currentCandles, { periods: [5, 25, 75] });
-    const poMarkPoints = createPerfectOrderMarkPoints(poData, dates);
+    const poData = TrendCraft.perfectOrderEnhanced(currentCandles, {
+      enhanced: true,
+      periods: [5, 25, 75],
+      slopeLookback: 3,
+      persistBars: 3,
+    });
+    const poMarkPoints = createPerfectOrderMarkPointsEnhanced(poData, dates);
 
     // Add mark points to the candlestick series
     if (poMarkPoints.length > 0) {
@@ -374,9 +379,9 @@ function updateChart(): void {
       }
     }
 
-    updatePerfectOrderEventsList(true, poData);
+    updatePerfectOrderEventsListEnhanced(true, poData);
   } else {
-    updatePerfectOrderEventsList(false, []);
+    updatePerfectOrderEventsListEnhanced(false, []);
   }
 
   // Main chart option
@@ -579,8 +584,13 @@ function syncDataZoom(sourceChart: echarts.ECharts, params: any): void {
 
   // Update Perfect Order list if visible
   if (indicators.perfectorder) {
-    const poData = TrendCraft.perfectOrder(currentCandles, { periods: [5, 25, 75] });
-    updatePerfectOrderEventsList(true, poData);
+    const poData = TrendCraft.perfectOrderEnhanced(currentCandles, {
+      enhanced: true,
+      periods: [5, 25, 75],
+      slopeLookback: 3,
+      persistBars: 3,
+    });
+    updatePerfectOrderEventsListEnhanced(true, poData);
   }
 }
 
@@ -1542,9 +1552,9 @@ function updateRocChart(dates: string[], rocData: TrendCraft.Series<number | nul
   rocChart.setOption(option, true);
 }
 
-// Create markPoint data for perfect order signals
-function createPerfectOrderMarkPoints(
-  poData: TrendCraft.Series<PerfectOrderValue>,
+// Create markPoint data for enhanced perfect order signals
+function createPerfectOrderMarkPointsEnhanced(
+  poData: TrendCraft.Series<PerfectOrderValueEnhanced>,
   dates: string[]
 ): Array<{
   name: string;
@@ -1563,22 +1573,34 @@ function createPerfectOrderMarkPoints(
     label: { show: boolean; formatter: string; color: string; fontSize: number; position: 'inside' | 'top' | 'bottom' };
   }> = [];
 
-  const timeToIdx = new Map<number, number>();
-  currentCandles.forEach((c, i) => timeToIdx.set(c.time, i));
+  // Track if we've ever seen a confirmed PO (to avoid showing PO? after PO+)
+  let hasEverConfirmedBullish = false;
+  let hasEverConfirmedBearish = false;
 
   poData.forEach((po, idx) => {
-    if (po.value.formed) {
-      const price = currentCandles[idx].low * 0.995; // Below the candle
-      const isBullish = po.value.type === 'bullish';
+    const state = po.value.state;
+    const isConfirmed = po.value.isConfirmed;
+
+    // Track confirmed states
+    if (state === 'BULLISH_PO' && isConfirmed) {
+      hasEverConfirmedBullish = true;
+    }
+    if (state === 'BEARISH_PO' && isConfirmed) {
+      hasEverConfirmedBearish = true;
+    }
+
+    // Confirmed BULLISH_PO - bright green diamond
+    if (po.value.confirmationFormed && state === 'BULLISH_PO') {
+      const price = currentCandles[idx].low * 0.995;
       markPoints.push({
-        name: isBullish ? 'PO Bullish' : 'PO Bearish',
+        name: 'PO Bullish Confirmed',
         coord: [dates[idx], price],
         symbol: 'diamond',
-        symbolSize: 14,
-        itemStyle: { color: isBullish ? '#26a69a' : '#ef5350' },
+        symbolSize: 16,
+        itemStyle: { color: '#26a69a' },
         label: {
           show: true,
-          formatter: 'PO',
+          formatter: 'PO+',
           color: '#fff',
           fontSize: 8,
           position: 'inside',
@@ -1586,19 +1608,98 @@ function createPerfectOrderMarkPoints(
       });
     }
 
-    if (po.value.collapsed) {
-      const price = currentCandles[idx].high * 1.005; // Above the candle
+    // Confirmed BEARISH_PO - bright red diamond
+    if (po.value.confirmationFormed && state === 'BEARISH_PO') {
+      const price = currentCandles[idx].high * 1.005;
       markPoints.push({
-        name: 'PO Collapsed',
+        name: 'PO Bearish Confirmed',
         coord: [dates[idx], price],
         symbol: 'diamond',
+        symbolSize: 16,
+        itemStyle: { color: '#ef5350' },
+        label: {
+          show: true,
+          formatter: 'PO+',
+          color: '#fff',
+          fontSize: 8,
+          position: 'inside',
+        },
+      });
+    }
+
+    // PRE_BULLISH_PO (forming, not yet confirmed) - orange diamond
+    // Only show if we haven't already had a confirmed bullish PO
+    if (state === 'PRE_BULLISH_PO' && !isConfirmed && po.value.persistCount === 1 && !hasEverConfirmedBullish) {
+      const price = currentCandles[idx].low * 0.995;
+      markPoints.push({
+        name: 'PO Pre-Bullish',
+        coord: [dates[idx], price],
+        symbol: 'diamond',
+        symbolSize: 12,
+        itemStyle: { color: '#ff9f43' },
+        label: {
+          show: true,
+          formatter: 'PO?',
+          color: '#fff',
+          fontSize: 7,
+          position: 'inside',
+        },
+      });
+    }
+
+    // PRE_BEARISH_PO (forming, not yet confirmed) - orange diamond
+    // Only show if we haven't already had a confirmed bearish PO
+    if (state === 'PRE_BEARISH_PO' && !isConfirmed && po.value.persistCount === 1 && !hasEverConfirmedBearish) {
+      const price = currentCandles[idx].high * 1.005;
+      markPoints.push({
+        name: 'PO Pre-Bearish',
+        coord: [dates[idx], price],
+        symbol: 'diamond',
+        symbolSize: 12,
+        itemStyle: { color: '#ff9f43' },
+        label: {
+          show: true,
+          formatter: 'PO?',
+          color: '#fff',
+          fontSize: 7,
+          position: 'inside',
+        },
+      });
+    }
+
+    // COLLAPSED - gray square (MA convergence)
+    if (po.value.collapseDetected) {
+      const price = currentCandles[idx].low * 0.995;
+      markPoints.push({
+        name: 'MA Collapsed',
+        coord: [dates[idx], price],
+        symbol: 'rect',
         symbolSize: 12,
         itemStyle: { color: '#888' },
         label: {
           show: true,
-          formatter: 'X',
+          formatter: 'SQ',
           color: '#fff',
-          fontSize: 8,
+          fontSize: 7,
+          position: 'inside',
+        },
+      });
+    }
+
+    // PO_BREAKDOWN - orange triangle down
+    if (po.value.breakdownDetected) {
+      const price = currentCandles[idx].high * 1.005;
+      markPoints.push({
+        name: 'PO Breakdown',
+        coord: [dates[idx], price],
+        symbol: 'triangle',
+        symbolSize: 12,
+        itemStyle: { color: '#e67e22' },
+        label: {
+          show: true,
+          formatter: 'BD',
+          color: '#fff',
+          fontSize: 7,
           position: 'inside',
         },
       });
@@ -1608,8 +1709,8 @@ function createPerfectOrderMarkPoints(
   return markPoints;
 }
 
-// Update Perfect Order events list
-function updatePerfectOrderEventsList(show: boolean, poData: TrendCraft.Series<PerfectOrderValue>): void {
+// Update Perfect Order events list (enhanced version)
+function updatePerfectOrderEventsListEnhanced(show: boolean, poData: TrendCraft.Series<PerfectOrderValueEnhanced>): void {
   const container = document.getElementById('perfect-order-events') as HTMLDivElement;
   const listEl = document.getElementById('perfect-order-events-list') as HTMLDivElement;
 
@@ -1621,24 +1722,90 @@ function updatePerfectOrderEventsList(show: boolean, poData: TrendCraft.Series<P
   // Get visible date range
   const { startDate, endDate } = getVisibleDateRange();
 
-  // Filter events (formations and collapses) within visible range
-  const events: Array<{ time: number; type: 'bullish' | 'bearish' | 'collapsed'; strength: number }> = [];
+  // Filter events within visible range
+  type EventType = 'bullish_confirmed' | 'bearish_confirmed' | 'pre_bullish' | 'pre_bearish' | 'breakdown' | 'collapsed';
+  const events: Array<{
+    time: number;
+    type: EventType;
+    confidence: number;
+    strength: number;
+    persistCount: number;
+  }> = [];
+
+  // Track if we've ever seen a confirmed PO (to avoid showing Pre after Confirmed)
+  let hasEverConfirmedBullish = false;
+  let hasEverConfirmedBearish = false;
 
   poData.forEach((po) => {
+    // Track confirmed states (before filtering by date range)
+    if (po.value.state === 'BULLISH_PO' && po.value.isConfirmed) {
+      hasEverConfirmedBullish = true;
+    }
+    if (po.value.state === 'BEARISH_PO' && po.value.isConfirmed) {
+      hasEverConfirmedBearish = true;
+    }
+
     if (po.time < startDate || po.time > endDate) return;
 
-    if (po.value.formed) {
+    if (po.value.confirmationFormed && po.value.state === 'BULLISH_PO') {
       events.push({
         time: po.time,
-        type: po.value.type as 'bullish' | 'bearish',
+        type: 'bullish_confirmed',
+        confidence: po.value.confidence,
         strength: po.value.strength,
+        persistCount: po.value.persistCount,
       });
     }
-    if (po.value.collapsed) {
+
+    if (po.value.confirmationFormed && po.value.state === 'BEARISH_PO') {
+      events.push({
+        time: po.time,
+        type: 'bearish_confirmed',
+        confidence: po.value.confidence,
+        strength: po.value.strength,
+        persistCount: po.value.persistCount,
+      });
+    }
+
+    // Only show Pre-Bullish if we haven't already had a confirmed bullish PO
+    if (po.value.state === 'PRE_BULLISH_PO' && po.value.persistCount === 1 && !hasEverConfirmedBullish) {
+      events.push({
+        time: po.time,
+        type: 'pre_bullish',
+        confidence: po.value.confidence,
+        strength: po.value.strength,
+        persistCount: po.value.persistCount,
+      });
+    }
+
+    // Only show Pre-Bearish if we haven't already had a confirmed bearish PO
+    if (po.value.state === 'PRE_BEARISH_PO' && po.value.persistCount === 1 && !hasEverConfirmedBearish) {
+      events.push({
+        time: po.time,
+        type: 'pre_bearish',
+        confidence: po.value.confidence,
+        strength: po.value.strength,
+        persistCount: po.value.persistCount,
+      });
+    }
+
+    if (po.value.breakdownDetected) {
+      events.push({
+        time: po.time,
+        type: 'breakdown',
+        confidence: po.value.confidence,
+        strength: 0,
+        persistCount: 0,
+      });
+    }
+
+    if (po.value.collapseDetected) {
       events.push({
         time: po.time,
         type: 'collapsed',
+        confidence: po.value.confidence,
         strength: 0,
+        persistCount: 0,
       });
     }
   });
@@ -1650,11 +1817,23 @@ function updatePerfectOrderEventsList(show: boolean, poData: TrendCraft.Series<P
     listEl.innerHTML = '<span style="color: #666;">No events in visible range</span>';
   } else {
     listEl.innerHTML = events.map(e => {
-      if (e.type === 'collapsed') {
-        return `<span class="po-event collapsed">Collapsed ${formatDate(e.time)}</span>`;
+      const confPercent = Math.round(e.confidence * 100);
+      switch (e.type) {
+        case 'bullish_confirmed':
+          return `<span class="po-event bullish" title="Confidence: ${confPercent}%, Strength: ${e.strength}">↑ Bullish [${confPercent}%] ${formatDate(e.time)}</span>`;
+        case 'bearish_confirmed':
+          return `<span class="po-event bearish" title="Confidence: ${confPercent}%, Strength: ${e.strength}">↓ Bearish [${confPercent}%] ${formatDate(e.time)}</span>`;
+        case 'pre_bullish':
+          return `<span class="po-event pre-bullish" title="Confidence: ${confPercent}%">? Pre-Bull [${confPercent}%] ${formatDate(e.time)}</span>`;
+        case 'pre_bearish':
+          return `<span class="po-event pre-bearish" title="Confidence: ${confPercent}%">? Pre-Bear [${confPercent}%] ${formatDate(e.time)}</span>`;
+        case 'breakdown':
+          return `<span class="po-event breakdown" title="Confidence: ${confPercent}%">▼ Breakdown ${formatDate(e.time)}</span>`;
+        case 'collapsed':
+          return `<span class="po-event collapsed" title="MA Convergence">■ Collapsed ${formatDate(e.time)}</span>`;
+        default:
+          return '';
       }
-      const label = e.type === 'bullish' ? '↑ Bullish' : '↓ Bearish';
-      return `<span class="po-event ${e.type}" title="Strength: ${e.strength}">${label} ${formatDate(e.time)} [${e.strength}]</span>`;
     }).join('');
   }
 

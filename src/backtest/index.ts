@@ -27,6 +27,14 @@ export {
   perfectOrderCollapsed,
   perfectOrderActiveBullish,
   perfectOrderActiveBearish,
+  // Enhanced Perfect Order conditions
+  perfectOrderBullishConfirmed,
+  perfectOrderBearishConfirmed,
+  perfectOrderConfirmationFormed,
+  perfectOrderBreakdown,
+  perfectOrderMaCollapsed,
+  perfectOrderPreBullish,
+  perfectOrderPreBearish,
   // Stochastics conditions
   stochBelow,
   stochAbove,
@@ -42,6 +50,6 @@ export {
   evaluateCondition,
 } from "./conditions";
 
-export type { ValidatedCrossOptions, PerfectOrderConditionOptions } from "./conditions";
+export type { ValidatedCrossOptions, PerfectOrderConditionOptions, PerfectOrderEnhancedConditionOptions } from "./conditions";
 
 export { runBacktest } from "./engine";

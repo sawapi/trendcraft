@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { NormalizedCandle } from "../../types";
-import { perfectOrder } from "../perfect-order";
+import { perfectOrder, perfectOrderEnhanced } from "../perfect-order";
 
 // Helper to create simple candles with just close prices
 const makeCandles = (closes: number[]): NormalizedCandle[] =>
@@ -501,6 +501,552 @@ describe("perfectOrder", () => {
       // Should still detect bullish
       const bullishResults = result.filter((r) => r.value.type === "bullish");
       expect(bullishResults.length).toBeGreaterThan(0);
+    });
+  });
+});
+
+describe("perfectOrderEnhanced", () => {
+  // Helper to create simple candles with just close prices
+  const makeCandles = (closes: number[]): NormalizedCandle[] =>
+    closes.map((close, i) => ({
+      time: 1700000000000 + i * 86400000,
+      open: close,
+      high: close,
+      low: close,
+      close,
+      volume: 1000,
+    }));
+
+  describe("slope detection", () => {
+    it("should detect UP slope in strong uptrend", () => {
+      const prices = Array.from({ length: 50 }, (_, i) => 100 + i * 3);
+      const candles = makeCandles(prices);
+
+      const result = perfectOrderEnhanced(candles, {
+        enhanced: true,
+        periods: [5, 10, 20],
+        slopeLookback: 3,
+      });
+
+      // After enough data, slopes should all be UP
+      const lastResult = result[result.length - 1];
+      expect(lastResult.value.slopes).toBeDefined();
+      expect(lastResult.value.slopes.every((s) => s === "UP")).toBe(true);
+    });
+
+    it("should detect DOWN slope in strong downtrend", () => {
+      const prices = Array.from({ length: 50 }, (_, i) => 300 - i * 3);
+      const candles = makeCandles(prices);
+
+      const result = perfectOrderEnhanced(candles, {
+        enhanced: true,
+        periods: [5, 10, 20],
+        slopeLookback: 3,
+      });
+
+      const lastResult = result[result.length - 1];
+      expect(lastResult.value.slopes).toBeDefined();
+      expect(lastResult.value.slopes.every((s) => s === "DOWN")).toBe(true);
+    });
+
+    it("should detect FLAT slope in sideways market", () => {
+      const prices = Array.from({ length: 50 }, () => 100);
+      const candles = makeCandles(prices);
+
+      const result = perfectOrderEnhanced(candles, {
+        enhanced: true,
+        periods: [5, 10, 20],
+        slopeLookback: 3,
+        flatEps: 0.001,
+      });
+
+      const lastResult = result[result.length - 1];
+      expect(lastResult.value.slopes).toBeDefined();
+      // All slopes should be FLAT in flat market
+      expect(lastResult.value.slopes.every((s) => s === "FLAT")).toBe(true);
+    });
+
+    it("should require all slopes UP for BULLISH_PO state", () => {
+      const prices = Array.from({ length: 50 }, (_, i) => 100 + i * 3);
+      const candles = makeCandles(prices);
+
+      const result = perfectOrderEnhanced(candles, {
+        enhanced: true,
+        periods: [5, 10, 20],
+      });
+
+      const bullishPO = result.filter((r) => r.value.state === "BULLISH_PO");
+      for (const r of bullishPO) {
+        expect(r.value.slopes.every((s) => s === "UP")).toBe(true);
+      }
+    });
+  });
+
+  describe("persistence confirmation", () => {
+    it("should track persistCount correctly", () => {
+      const prices = Array.from({ length: 50 }, (_, i) => 100 + i * 3);
+      const candles = makeCandles(prices);
+
+      const result = perfectOrderEnhanced(candles, {
+        enhanced: true,
+        periods: [5, 10, 20],
+        persistBars: 3,
+      });
+
+      // persistCount should increment while state remains same
+      let prevState = result[0].value.state;
+      let expectedCount = 1;
+      for (let i = 1; i < result.length; i++) {
+        const r = result[i];
+        if (r.value.state === prevState) {
+          expectedCount++;
+        } else {
+          expectedCount = 1;
+        }
+        expect(r.value.persistCount).toBe(expectedCount);
+        prevState = r.value.state;
+      }
+    });
+
+    it("should set isConfirmed when persistCount >= persistBars", () => {
+      const prices = Array.from({ length: 50 }, (_, i) => 100 + i * 3);
+      const candles = makeCandles(prices);
+
+      const result = perfectOrderEnhanced(candles, {
+        enhanced: true,
+        periods: [5, 10, 20],
+        persistBars: 3,
+      });
+
+      for (const r of result) {
+        expect(r.value.isConfirmed).toBe(r.value.persistCount >= 3);
+      }
+    });
+
+    it("should fire confirmationFormed when transitioning to confirmed BULLISH_PO", () => {
+      const prices = Array.from({ length: 50 }, (_, i) => 100 + i * 3);
+      const candles = makeCandles(prices);
+
+      const result = perfectOrderEnhanced(candles, {
+        enhanced: true,
+        periods: [5, 10, 20],
+        persistBars: 3,
+      });
+
+      const confirmations = result.filter((r) => r.value.confirmationFormed);
+      // Should have confirmation when first reaching 3 consecutive BULLISH_PO
+      if (confirmations.length > 0) {
+        for (const c of confirmations) {
+          expect(c.value.state === "BULLISH_PO" || c.value.state === "BEARISH_PO").toBe(true);
+          expect(c.value.isConfirmed).toBe(true);
+        }
+      }
+    });
+
+    it("should reset persistCount on state change", () => {
+      // Create trend change scenario
+      const uptrend = Array.from({ length: 30 }, (_, i) => 100 + i * 3);
+      const downtrend = Array.from({ length: 30 }, (_, i) => 190 - i * 3);
+      const prices = [...uptrend, ...downtrend];
+      const candles = makeCandles(prices);
+
+      const result = perfectOrderEnhanced(candles, {
+        enhanced: true,
+        periods: [5, 10, 20],
+        persistBars: 3,
+      });
+
+      // Find state transitions
+      for (let i = 1; i < result.length; i++) {
+        if (result[i].value.state !== result[i - 1].value.state) {
+          expect(result[i].value.persistCount).toBe(1);
+        }
+      }
+    });
+  });
+
+  describe("collapse detection", () => {
+    it("should detect COLLAPSED when MAs converge", () => {
+      // Create scenario where all MAs converge
+      // Start diverged, then converge to similar values
+      const diverged = Array.from({ length: 30 }, (_, i) => 100 + i * 2);
+      // Then prices stabilize at a level
+      const converging = Array.from({ length: 50 }, () => 160);
+      const prices = [...diverged, ...converging];
+      const candles = makeCandles(prices);
+
+      const result = perfectOrderEnhanced(candles, {
+        enhanced: true,
+        periods: [5, 10, 20],
+        collapseEps: 0.003, // 0.3%
+      });
+
+      // Eventually should see COLLAPSED state
+      const collapsed = result.filter((r) => r.value.state === "COLLAPSED");
+      expect(collapsed.length).toBeGreaterThan(0);
+    });
+
+    it("should fire collapseDetected on first COLLAPSED", () => {
+      const diverged = Array.from({ length: 30 }, (_, i) => 100 + i * 2);
+      const converging = Array.from({ length: 50 }, () => 160);
+      const prices = [...diverged, ...converging];
+      const candles = makeCandles(prices);
+
+      const result = perfectOrderEnhanced(candles, {
+        enhanced: true,
+        periods: [5, 10, 20],
+        collapseEps: 0.003,
+      });
+
+      const collapseEvents = result.filter((r) => r.value.collapseDetected);
+      if (collapseEvents.length > 0) {
+        // Should only fire on first transition to COLLAPSED
+        for (const e of collapseEvents) {
+          const idx = result.indexOf(e);
+          if (idx > 0) {
+            expect(result[idx - 1].value.state).not.toBe("COLLAPSED");
+          }
+        }
+      }
+    });
+
+    it("should not trigger COLLAPSED when spread is above collapseEps", () => {
+      // Strong trend with wide MA spread
+      const prices = Array.from({ length: 50 }, (_, i) => 100 + i * 5);
+      const candles = makeCandles(prices);
+
+      const result = perfectOrderEnhanced(candles, {
+        enhanced: true,
+        periods: [5, 10, 20],
+        collapseEps: 0.003,
+      });
+
+      // With strong trend, MAs should be spread apart
+      const lastResult = result[result.length - 1];
+      expect(lastResult.value.state).not.toBe("COLLAPSED");
+    });
+  });
+
+  describe("breakdown detection", () => {
+    it("should detect PO_BREAKDOWN when bullish conditions degrade", () => {
+      // Strong uptrend then reversal
+      const uptrend = Array.from({ length: 30 }, (_, i) => 100 + i * 3);
+      const reversal = Array.from({ length: 20 }, (_, i) => 190 - i * 3);
+      const prices = [...uptrend, ...reversal];
+      const candles = makeCandles(prices);
+
+      const result = perfectOrderEnhanced(candles, {
+        enhanced: true,
+        periods: [5, 10, 20],
+      });
+
+      // Should transition through BREAKDOWN
+      const breakdowns = result.filter((r) => r.value.state === "PO_BREAKDOWN");
+      expect(breakdowns.length).toBeGreaterThan(0);
+    });
+
+    it("should fire breakdownDetected on transition to PO_BREAKDOWN", () => {
+      const uptrend = Array.from({ length: 30 }, (_, i) => 100 + i * 3);
+      const reversal = Array.from({ length: 20 }, (_, i) => 190 - i * 3);
+      const prices = [...uptrend, ...reversal];
+      const candles = makeCandles(prices);
+
+      const result = perfectOrderEnhanced(candles, {
+        enhanced: true,
+        periods: [5, 10, 20],
+      });
+
+      const breakdownEvents = result.filter((r) => r.value.breakdownDetected);
+      if (breakdownEvents.length > 0) {
+        for (const e of breakdownEvents) {
+          expect(e.value.state).toBe("PO_BREAKDOWN");
+        }
+      }
+    });
+  });
+
+  describe("state mapping", () => {
+    it("should map BULLISH_PO and PRE_BULLISH_PO to legacy type 'bullish'", () => {
+      const prices = Array.from({ length: 50 }, (_, i) => 100 + i * 3);
+      const candles = makeCandles(prices);
+
+      const result = perfectOrderEnhanced(candles, {
+        enhanced: true,
+        periods: [5, 10, 20],
+      });
+
+      for (const r of result) {
+        if (r.value.state === "BULLISH_PO" || r.value.state === "PRE_BULLISH_PO") {
+          expect(r.value.type).toBe("bullish");
+        }
+      }
+    });
+
+    it("should map BEARISH_PO and PRE_BEARISH_PO to legacy type 'bearish'", () => {
+      const prices = Array.from({ length: 50 }, (_, i) => 300 - i * 3);
+      const candles = makeCandles(prices);
+
+      const result = perfectOrderEnhanced(candles, {
+        enhanced: true,
+        periods: [5, 10, 20],
+      });
+
+      for (const r of result) {
+        if (r.value.state === "BEARISH_PO" || r.value.state === "PRE_BEARISH_PO") {
+          expect(r.value.type).toBe("bearish");
+        }
+      }
+    });
+
+    it("should map COLLAPSED, PO_BREAKDOWN, NEUTRAL_MIXED to legacy type 'none'", () => {
+      // Mix of conditions
+      const prices = [
+        ...Array.from({ length: 20 }, () => 100),
+        ...Array.from({ length: 20 }, (_, i) => 100 + i * 2),
+        ...Array.from({ length: 20 }, () => 140),
+      ];
+      const candles = makeCandles(prices);
+
+      const result = perfectOrderEnhanced(candles, {
+        enhanced: true,
+        periods: [5, 10, 20],
+      });
+
+      for (const r of result) {
+        if (
+          r.value.state === "COLLAPSED" ||
+          r.value.state === "PO_BREAKDOWN" ||
+          r.value.state === "NEUTRAL_MIXED"
+        ) {
+          expect(r.value.type).toBe("none");
+        }
+      }
+    });
+  });
+
+  describe("confidence scores", () => {
+    it("should return high confidence (0.95) for confirmed PO states", () => {
+      const prices = Array.from({ length: 50 }, (_, i) => 100 + i * 3);
+      const candles = makeCandles(prices);
+
+      const result = perfectOrderEnhanced(candles, {
+        enhanced: true,
+        periods: [5, 10, 20],
+      });
+
+      const bullishPO = result.filter((r) => r.value.state === "BULLISH_PO");
+      for (const r of bullishPO) {
+        expect(r.value.confidence).toBe(0.95);
+      }
+    });
+
+    it("should return lower confidence for PRE states", () => {
+      const prices = [
+        ...Array.from({ length: 20 }, () => 100),
+        ...Array.from({ length: 20 }, (_, i) => 100 + i * 2),
+      ];
+      const candles = makeCandles(prices);
+
+      const result = perfectOrderEnhanced(candles, {
+        enhanced: true,
+        periods: [5, 10, 20],
+      });
+
+      const preBullish = result.filter((r) => r.value.state === "PRE_BULLISH_PO");
+      for (const r of preBullish) {
+        expect(r.value.confidence).toBe(0.7);
+      }
+    });
+  });
+
+  describe("backwards compatibility", () => {
+    it("should include all legacy fields", () => {
+      const prices = Array.from({ length: 50 }, (_, i) => 100 + i * 2);
+      const candles = makeCandles(prices);
+
+      const result = perfectOrderEnhanced(candles, {
+        enhanced: true,
+        periods: [5, 10, 20],
+      });
+
+      for (const r of result) {
+        // Legacy fields
+        expect(r.value).toHaveProperty("type");
+        expect(r.value).toHaveProperty("formed");
+        expect(r.value).toHaveProperty("collapsed");
+        expect(r.value).toHaveProperty("strength");
+        expect(r.value).toHaveProperty("maValues");
+        // Enhanced fields
+        expect(r.value).toHaveProperty("state");
+        expect(r.value).toHaveProperty("confidence");
+        expect(r.value).toHaveProperty("slopes");
+        expect(r.value).toHaveProperty("persistCount");
+        expect(r.value).toHaveProperty("isConfirmed");
+      }
+    });
+
+    it("should fire legacy formed/collapsed flags correctly", () => {
+      const prices = [
+        ...Array.from({ length: 20 }, () => 100),
+        ...Array.from({ length: 30 }, (_, i) => 100 + i * 3),
+        ...Array.from({ length: 30 }, (_, i) => 190 - i * 3),
+      ];
+      const candles = makeCandles(prices);
+
+      const result = perfectOrderEnhanced(candles, {
+        enhanced: true,
+        periods: [5, 10, 20],
+      });
+
+      // Check formed events
+      const formed = result.filter((r) => r.value.formed);
+      for (const f of formed) {
+        const idx = result.indexOf(f);
+        if (idx > 0) {
+          expect(result[idx - 1].value.type).toBe("none");
+          expect(f.value.type).not.toBe("none");
+        }
+      }
+
+      // Check collapsed events
+      const collapsed = result.filter((r) => r.value.collapsed);
+      for (const c of collapsed) {
+        const idx = result.indexOf(c);
+        if (idx > 0) {
+          expect(result[idx - 1].value.type).not.toBe("none");
+          expect(c.value.type).toBe("none");
+        }
+      }
+    });
+  });
+
+  describe("options", () => {
+    it("should support custom slopeLookback", () => {
+      const prices = Array.from({ length: 50 }, (_, i) => 100 + i * 2);
+      const candles = makeCandles(prices);
+
+      const result3 = perfectOrderEnhanced(candles, {
+        enhanced: true,
+        periods: [5, 10, 20],
+        slopeLookback: 3,
+      });
+
+      const result5 = perfectOrderEnhanced(candles, {
+        enhanced: true,
+        periods: [5, 10, 20],
+        slopeLookback: 5,
+      });
+
+      // Different lookbacks may produce different results
+      expect(result3.length).toBe(result5.length);
+    });
+
+    it("should support custom persistBars", () => {
+      const prices = Array.from({ length: 50 }, (_, i) => 100 + i * 2);
+      const candles = makeCandles(prices);
+
+      const result3 = perfectOrderEnhanced(candles, {
+        enhanced: true,
+        periods: [5, 10, 20],
+        persistBars: 3,
+      });
+
+      const result5 = perfectOrderEnhanced(candles, {
+        enhanced: true,
+        periods: [5, 10, 20],
+        persistBars: 5,
+      });
+
+      // Different persistBars will affect isConfirmed timing
+      const confirmed3 = result3.findIndex((r) => r.value.isConfirmed && r.value.state === "BULLISH_PO");
+      const confirmed5 = result5.findIndex((r) => r.value.isConfirmed && r.value.state === "BULLISH_PO");
+
+      if (confirmed3 !== -1 && confirmed5 !== -1) {
+        expect(confirmed5).toBeGreaterThanOrEqual(confirmed3);
+      }
+    });
+
+    it("should support custom collapseEps", () => {
+      const diverged = Array.from({ length: 30 }, (_, i) => 100 + i * 2);
+      const converging = Array.from({ length: 50 }, () => 160);
+      const prices = [...diverged, ...converging];
+      const candles = makeCandles(prices);
+
+      const tight = perfectOrderEnhanced(candles, {
+        enhanced: true,
+        periods: [5, 10, 20],
+        collapseEps: 0.001, // Very tight
+      });
+
+      const loose = perfectOrderEnhanced(candles, {
+        enhanced: true,
+        periods: [5, 10, 20],
+        collapseEps: 0.01, // More loose
+      });
+
+      // Looser threshold should detect collapse earlier
+      const tightCollapseIdx = tight.findIndex((r) => r.value.state === "COLLAPSED");
+      const looseCollapseIdx = loose.findIndex((r) => r.value.state === "COLLAPSED");
+
+      if (looseCollapseIdx !== -1) {
+        if (tightCollapseIdx !== -1) {
+          expect(looseCollapseIdx).toBeLessThanOrEqual(tightCollapseIdx);
+        }
+      }
+    });
+
+    it("should support custom flatEps", () => {
+      const prices = Array.from({ length: 50 }, () => 100);
+      const candles = makeCandles(prices);
+
+      const tight = perfectOrderEnhanced(candles, {
+        enhanced: true,
+        periods: [5, 10, 20],
+        flatEps: 0.0001, // Very sensitive
+      });
+
+      const loose = perfectOrderEnhanced(candles, {
+        enhanced: true,
+        periods: [5, 10, 20],
+        flatEps: 0.01, // Less sensitive
+      });
+
+      // Both should detect flat slopes in flat market
+      const lastTight = tight[tight.length - 1];
+      const lastLoose = loose[loose.length - 1];
+
+      expect(lastTight.value.slopes.every((s) => s === "FLAT")).toBe(true);
+      expect(lastLoose.value.slopes.every((s) => s === "FLAT")).toBe(true);
+    });
+  });
+
+  describe("edge cases", () => {
+    it("should handle empty candles", () => {
+      const result = perfectOrderEnhanced([], { enhanced: true, periods: [5, 10, 20] });
+      expect(result).toEqual([]);
+    });
+
+    it("should handle single candle", () => {
+      const candles = makeCandles([100]);
+      const result = perfectOrderEnhanced(candles, { enhanced: true, periods: [3, 5] });
+
+      expect(result).toHaveLength(1);
+      expect(result[0].value.state).toBe("NEUTRAL_MIXED");
+      expect(result[0].value.slopes.every((s) => s === "FLAT")).toBe(true);
+    });
+
+    it("should throw for less than 2 periods", () => {
+      const candles = makeCandles([100, 101, 102]);
+      expect(() =>
+        perfectOrderEnhanced(candles, { enhanced: true, periods: [5] })
+      ).toThrow("At least 2 different periods are required");
+    });
+
+    it("should throw for non-positive periods", () => {
+      const candles = makeCandles([100, 101, 102]);
+      expect(() =>
+        perfectOrderEnhanced(candles, { enhanced: true, periods: [0, 5, 10] })
+      ).toThrow("All periods must be positive integers");
     });
   });
 });

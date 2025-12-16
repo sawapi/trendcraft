@@ -30,7 +30,13 @@ export {
 
 export {
   perfectOrder,
+  perfectOrderEnhanced,
   type PerfectOrderType,
   type PerfectOrderValue,
   type PerfectOrderOptions,
+  // Enhanced mode types
+  type SlopeDirection,
+  type PerfectOrderState,
+  type PerfectOrderValueEnhanced,
+  type PerfectOrderOptionsEnhanced,
 } from "./perfect-order";
