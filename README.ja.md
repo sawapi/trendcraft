@@ -19,6 +19,7 @@
 - **騙し検出**: 出来高・トレンド確認によるクロスシグナル検証
 - **ダイバージェンス**: OBV、RSI、MACDのダイバージェンス検出
 - **スクイーズ**: ボリンジャーバンドのスクイーズ検出
+- **レンジ相場検出**: ボックス相場の検出、ブレイクアウトリスク判定
 
 ### バックテスト
 - プリセット条件を使ったシンプルな戦略検証
@@ -139,6 +140,19 @@ divergences.forEach(signal => {
 // ボリンジャースクイーズ
 const squeezes = bollingerSqueeze(candles, { threshold: 10 });
 // ボラティリティが低い期間を検出（ブレイクアウトの可能性）
+
+// レンジ相場検出
+import { rangeBound } from 'trendcraft';
+
+const rb = rangeBound(candles);
+const latest = rb[rb.length - 1].value;
+
+if (latest.state === 'RANGE_CONFIRMED') {
+  console.log(`レンジ確定: ${latest.rangeLow} - ${latest.rangeHigh}`);
+}
+if (latest.state === 'BREAKOUT_RISK_UP') {
+  console.log('上方ブレイクアウトリスク！');
+}
 ```
 
 ### タイムフレーム変換

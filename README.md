@@ -19,6 +19,7 @@ A TypeScript library for technical analysis of financial data. Calculate indicat
 - **Fake Signal Detection**: Validate cross signals with volume/trend confirmation
 - **Divergence**: OBV, RSI, MACD divergence detection
 - **Squeeze**: Bollinger Bands squeeze detection
+- **Range-Bound**: Detect sideways markets and potential breakouts
 
 ### Backtesting
 - Simple strategy backtesting with preset conditions
@@ -139,6 +140,19 @@ divergences.forEach(signal => {
 // Bollinger Squeeze
 const squeezes = bollingerSqueeze(candles, { threshold: 10 });
 // Detects low volatility periods (potential breakout setup)
+
+// Range-Bound Detection
+import { rangeBound } from 'trendcraft';
+
+const rb = rangeBound(candles);
+const latest = rb[rb.length - 1].value;
+
+if (latest.state === 'RANGE_CONFIRMED') {
+  console.log(`Range: ${latest.rangeLow} - ${latest.rangeHigh}`);
+}
+if (latest.state === 'BREAKOUT_RISK_UP') {
+  console.log('Watch for upside breakout!');
+}
 ```
 
 ### Timeframe Resampling

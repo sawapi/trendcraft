@@ -13,6 +13,7 @@
   - [Cross Detection](#cross-detection)
   - [Divergence Detection](#divergence-detection)
   - [Squeeze Detection](#squeeze-detection)
+  - [Range-Bound Detection](#range-bound-detection)
 - [Backtesting](#backtesting)
   - [Running Backtest](#running-backtest)
   - [Preset Conditions](#preset-conditions)
@@ -717,6 +718,112 @@ interface SqueezeSignal {
 
 ---
 
+### Range-Bound Detection
+
+#### `rangeBound(candles, options?)`
+
+Detect range-bound (sideways) market conditions.
+
+```typescript
+const rb = rangeBound(candles, { persistBars: 3 });
+```
+
+**Options:**
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `dmiPeriod` | `number` | `14` | DMI/ADX period |
+| `bbPeriod` | `number` | `20` | Bollinger Bands period |
+| `donchianPeriod` | `number` | `20` | Donchian Channel period |
+| `atrPeriod` | `number` | `14` | ATR period |
+| `adxWeight` | `number` | `0.50` | ADX score weight |
+| `bandwidthWeight` | `number` | `0.20` | Bandwidth score weight |
+| `donchianWeight` | `number` | `0.20` | Donchian score weight |
+| `atrWeight` | `number` | `0.10` | ATR score weight |
+| `adxThreshold` | `number` | `20` | ADX below this = range |
+| `adxTrendThreshold` | `number` | `25` | ADX above this = trending |
+| `rangeScoreThreshold` | `number` | `70` | Score threshold for range detection |
+| `tightRangeThreshold` | `number` | `85` | Score threshold for tight range |
+| `breakoutRiskZone` | `number` | `0.1` | Zone near boundary for breakout risk (10%) |
+| `persistBars` | `number` | `3` | Bars required for confirmation |
+| `lookbackPeriod` | `number` | `100` | Lookback for percentile calculations |
+| `priceMovementPeriod` | `number` | `20` | Period for price movement calculation |
+| `priceMovementThreshold` | `number` | `0.05` | 5% price movement = trending |
+| `diDifferenceThreshold` | `number` | `10` | +DI/-DI difference for trend |
+| `slopeThreshold` | `number` | `0.15` | Regression slope threshold (ATR ratio) |
+| `consecutiveHHLLThreshold` | `number` | `3` | Consecutive HH/LL for trend |
+| `hhllLookback` | `number` | `10` | Lookback for HH/LL detection |
+
+**Returns:** `Series<RangeBoundValue>`
+
+**RangeBoundValue properties:**
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `state` | `RangeBoundState` | Current state |
+| `rangeScore` | `number` | Composite score (0-100) |
+| `confidence` | `number` | Confidence level (0-1) |
+| `persistCount` | `number` | Consecutive bars in current state |
+| `isConfirmed` | `boolean` | True if persistCount >= persistBars |
+| `rangeDetected` | `boolean` | Event: range conditions first detected |
+| `rangeConfirmed` | `boolean` | Event: range first confirmed |
+| `breakoutRiskDetected` | `boolean` | Event: breakout risk first detected |
+| `rangeBroken` | `boolean` | Event: transition from range to trend |
+| `adx` | `number \| null` | ADX value |
+| `rangeHigh` | `number \| null` | Upper range boundary |
+| `rangeLow` | `number \| null` | Lower range boundary |
+| `pricePosition` | `number \| null` | Position within range (0=low, 1=high) |
+| `trendReason` | `TrendReason` | Why market is trending (debug) |
+
+**RangeBoundState values:**
+
+| State | Description |
+|-------|-------------|
+| `NEUTRAL` | Insufficient data or mixed signals |
+| `RANGE_FORMING` | Range conditions starting |
+| `RANGE_CONFIRMED` | Range confirmed after persistBars |
+| `RANGE_TIGHT` | Very tight range |
+| `BREAKOUT_RISK_UP` | Price near upper boundary |
+| `BREAKOUT_RISK_DOWN` | Price near lower boundary |
+| `TRENDING` | Market is trending |
+
+**TrendReason values:**
+
+| Reason | Description |
+|--------|-------------|
+| `adx_high` | ADX >= adxTrendThreshold |
+| `price_movement` | Price moved >= threshold |
+| `di_diff` | +DI/-DI difference >= threshold |
+| `slope` | Regression slope >= threshold |
+| `hhll` | Consecutive HH or LL >= threshold |
+| `null` | Not trending |
+
+**Example:**
+
+```typescript
+import { rangeBound } from 'trendcraft';
+
+const rb = rangeBound(candles);
+const latest = rb[rb.length - 1].value;
+
+// Check current state
+console.log(`State: ${latest.state}`);
+console.log(`Score: ${latest.rangeScore}/100`);
+
+// Check range boundaries
+if (latest.rangeHigh && latest.rangeLow) {
+  console.log(`Range: ${latest.rangeLow} - ${latest.rangeHigh}`);
+  console.log(`Position: ${(latest.pricePosition * 100).toFixed(0)}%`);
+}
+
+// Debug trend detection
+if (latest.trendReason) {
+  console.log(`Trending due to: ${latest.trendReason}`);
+}
+```
+
+---
+
 ## Backtesting
 
 ### Running Backtest
@@ -842,6 +949,19 @@ validatedDeadCross({
   trendPeriod: 5,
   minScore: 50
 })
+```
+
+#### Range-Bound Conditions
+
+```typescript
+inRangeBound()       // Currently in any range state
+rangeForming()       // Range conditions starting
+rangeConfirmed()     // Range has been confirmed
+rangeBreakout()      // Transitioning from range to trend
+tightRange()         // In a very tight range
+breakoutRiskUp()     // Price near upper boundary
+breakoutRiskDown()   // Price near lower boundary
+rangeScoreAbove(70)  // Range score above threshold
 ```
 
 ---

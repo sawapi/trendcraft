@@ -1,12 +1,66 @@
 /**
  * Range-Bound (Box Range) Market Detection
- * Detects periods when the market is in a sideways consolidation phase
  *
- * Uses multiple indicators to confirm range-bound conditions:
- * 1. ADX (Average Directional Index) - Low ADX indicates weak trend
- * 2. Bollinger Bands Bandwidth - Narrow bandwidth indicates low volatility
- * 3. Donchian Channel Width - Narrow channel indicates tight price range
- * 4. ATR Ratio - Low ATR relative to history indicates low volatility
+ * Detects periods when the market is in a sideways consolidation phase,
+ * also known as "box range" or "trading range" markets. These are periods
+ * when price oscillates between support and resistance levels without
+ * establishing a clear trend.
+ *
+ * ## Detection Algorithm
+ *
+ * Uses multiple indicators combined into a weighted composite score:
+ *
+ * | Indicator | Weight | Purpose |
+ * |-----------|--------|---------|
+ * | ADX | 50% | Primary trend strength (low = range) |
+ * | Bollinger Bandwidth | 20% | Volatility measure (narrow = range) |
+ * | Donchian Width | 20% | Price range (narrow = range) |
+ * | ATR Ratio | 10% | Historical volatility comparison |
+ *
+ * ## Trend Detection
+ *
+ * In addition to ADX, the algorithm detects trends via:
+ * - **Price Movement**: 5%+ price change in 20 bars → TRENDING
+ * - **DI Difference**: +DI/-DI gap ≥ 10 → directional trend
+ * - **Regression Slope**: Price slope ≥ 0.15 ATR → TRENDING
+ * - **HH/LL Pattern**: 3+ consecutive higher highs or lower lows → TRENDING
+ *
+ * ## States
+ *
+ * - `NEUTRAL`: Insufficient data or mixed signals
+ * - `RANGE_FORMING`: Range conditions detected, awaiting confirmation
+ * - `RANGE_CONFIRMED`: Range persisted for `persistBars` (default: 3)
+ * - `RANGE_TIGHT`: Very tight range with high confidence
+ * - `BREAKOUT_RISK_UP`: Price near upper boundary
+ * - `BREAKOUT_RISK_DOWN`: Price near lower boundary
+ * - `TRENDING`: Market has clear directional movement
+ *
+ * ## Usage
+ *
+ * ```typescript
+ * import { rangeBound } from 'trendcraft';
+ *
+ * const rb = rangeBound(candles);
+ *
+ * // Find confirmed ranges
+ * const ranges = rb.filter(r =>
+ *   r.value.state === 'RANGE_CONFIRMED' ||
+ *   r.value.state === 'RANGE_TIGHT'
+ * );
+ *
+ * // Check current state
+ * const latest = rb[rb.length - 1];
+ * if (latest.value.state === 'BREAKOUT_RISK_UP') {
+ *   console.log('Watch for upside breakout!');
+ * }
+ *
+ * // Debug trend detection
+ * if (latest.value.trendReason === 'hhll') {
+ *   console.log('Detected via consecutive higher highs/lows');
+ * }
+ * ```
+ *
+ * @module signals/range-bound
  */
 
 import { normalizeCandles, getPrice } from "../core/normalize";
@@ -18,6 +72,23 @@ import type { Candle, NormalizedCandle, Series } from "../types";
 
 /**
  * Range-bound market state
+ *
+ * State machine transitions:
+ * ```
+ * NEUTRAL → RANGE_FORMING → RANGE_CONFIRMED ↔ RANGE_TIGHT
+ *                ↓                ↓               ↓
+ *          BREAKOUT_RISK_*  BREAKOUT_RISK_*  BREAKOUT_RISK_*
+ *                ↓                ↓               ↓
+ *             TRENDING ←──────────┴───────────────┘
+ * ```
+ *
+ * @example
+ * ```typescript
+ * const isInRange = (state: RangeBoundState) =>
+ *   state === 'RANGE_FORMING' ||
+ *   state === 'RANGE_CONFIRMED' ||
+ *   state === 'RANGE_TIGHT';
+ * ```
  */
 export type RangeBoundState =
   | "RANGE_FORMING" // Range conditions starting to appear
@@ -29,7 +100,30 @@ export type RangeBoundState =
   | "NEUTRAL"; // Insufficient data or mixed signals
 
 /**
- * Reason for TRENDING state (for debugging)
+ * Reason why the market is classified as TRENDING
+ *
+ * Used for debugging and understanding why range detection was rejected.
+ * Each reason corresponds to a specific detection method:
+ *
+ * | Reason | Detection Method | Default Threshold |
+ * |--------|-----------------|-------------------|
+ * | `adx_high` | ADX value | ≥ 25 |
+ * | `price_movement` | Price change over period | ≥ 5% in 20 bars |
+ * | `di_diff` | +DI/-DI difference | ≥ 10 |
+ * | `slope` | Linear regression slope | ≥ 0.15 × ATR |
+ * | `hhll` | Consecutive HH or LL | ≥ 3 bars |
+ * | `null` | Not trending | - |
+ *
+ * @example
+ * ```typescript
+ * const result = rangeBound(candles);
+ * const trending = result.filter(r => r.value.state === 'TRENDING');
+ *
+ * // Analyze why each was marked as trending
+ * for (const r of trending) {
+ *   console.log(`${r.time}: TRENDING due to ${r.value.trendReason}`);
+ * }
+ * ```
  */
 export type TrendReason =
   | "adx_high" // ADX >= adxTrendThreshold
@@ -41,6 +135,35 @@ export type TrendReason =
 
 /**
  * Range-bound detection result for each candle
+ *
+ * Contains the current state, scores, raw indicator values, and event flags.
+ * Event flags (`rangeDetected`, `rangeConfirmed`, etc.) fire only once when
+ * the condition first becomes true, making them ideal for triggering alerts.
+ *
+ * @example
+ * ```typescript
+ * const rb = rangeBound(candles);
+ * const latest = rb[rb.length - 1].value;
+ *
+ * // Check state
+ * console.log(`State: ${latest.state}`);
+ * console.log(`Score: ${latest.rangeScore}/100`);
+ * console.log(`Confidence: ${(latest.confidence * 100).toFixed(0)}%`);
+ *
+ * // Check range boundaries
+ * if (latest.rangeHigh && latest.rangeLow) {
+ *   console.log(`Range: ${latest.rangeLow} - ${latest.rangeHigh}`);
+ *   console.log(`Position: ${(latest.pricePosition! * 100).toFixed(0)}%`);
+ * }
+ *
+ * // React to events
+ * if (latest.rangeConfirmed) {
+ *   alert('New range confirmed!');
+ * }
+ * if (latest.rangeBroken) {
+ *   alert('Range broken - trend starting!');
+ * }
+ * ```
  */
 export type RangeBoundValue = {
   /** Current range-bound state */
@@ -99,6 +222,41 @@ export type RangeBoundValue = {
 
 /**
  * Options for range-bound detection
+ *
+ * All options have sensible defaults optimized for daily stock data.
+ * Customize based on your instrument and timeframe.
+ *
+ * ## Tuning Guide
+ *
+ * ### For more sensitive detection (catch more ranges):
+ * - Lower `rangeScoreThreshold` (e.g., 60)
+ * - Lower `adxThreshold` (e.g., 15)
+ * - Lower `persistBars` (e.g., 2)
+ *
+ * ### For stricter detection (fewer false positives):
+ * - Higher `rangeScoreThreshold` (e.g., 80)
+ * - Higher `adxTrendThreshold` (e.g., 30)
+ * - Higher `persistBars` (e.g., 5)
+ *
+ * ### For crypto/forex (higher volatility):
+ * - Higher `priceMovementThreshold` (e.g., 0.10)
+ * - Higher `slopeThreshold` (e.g., 0.25)
+ *
+ * @example
+ * ```typescript
+ * // Stricter settings for swing trading
+ * const rb = rangeBound(candles, {
+ *   rangeScoreThreshold: 80,
+ *   persistBars: 5,
+ *   adxTrendThreshold: 30,
+ * });
+ *
+ * // More sensitive for scalping
+ * const rbSensitive = rangeBound(candles, {
+ *   rangeScoreThreshold: 60,
+ *   persistBars: 2,
+ * });
+ * ```
  */
 export type RangeBoundOptions = {
   // === Indicator periods ===
@@ -612,26 +770,33 @@ function isNormalized(candles: Candle[] | NormalizedCandle[]): candles is Normal
 
 /**
  * Calculate linear regression slope of a series
- * Returns the slope normalized by ATR (slope per bar / ATR)
+ * Returns the slope (per bar)
  *
  * Uses least squares method: slope = (n*Σxy - Σx*Σy) / (n*Σx² - (Σx)²)
+ *
+ * Optimization: Uses index-based access instead of slice() to avoid array allocation.
+ * Pre-computes Σx and Σx² since they only depend on n:
+ *   Σx = n*(n-1)/2
+ *   Σx² = n*(n-1)*(2n-1)/6
  */
 function calculateRegressionSlope(values: number[], period: number): number | null {
-  if (values.length < period) return null;
+  const len = values.length;
+  if (len < period) return null;
 
-  const data = values.slice(-period);
-  const n = data.length;
+  const startIdx = len - period;
+  const n = period;
 
-  let sumX = 0;
+  // Pre-computed sums for x = 0, 1, 2, ..., n-1
+  const sumX = (n * (n - 1)) / 2;
+  const sumXX = (n * (n - 1) * (2 * n - 1)) / 6;
+
   let sumY = 0;
   let sumXY = 0;
-  let sumXX = 0;
 
   for (let i = 0; i < n; i++) {
-    sumX += i;
-    sumY += data[i];
-    sumXY += i * data[i];
-    sumXX += i * i;
+    const y = values[startIdx + i];
+    sumY += y;
+    sumXY += i * y;
   }
 
   const denominator = n * sumXX - sumX * sumX;

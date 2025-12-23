@@ -18,6 +18,7 @@ A practical guide to understanding technical indicators and trading signals.
 - [Pivot Points](#pivot-points)
 - [VWAP](#vwap)
 - [Volume Indicators](#volume-indicators)
+- [Range-Bound Detection](#range-bound-detection)
 - [Backtesting](#backtesting)
 - [Signal Interpretation](#signal-interpretation)
 
@@ -669,6 +670,145 @@ MFI gives more weight to high-volume moves, making it useful for confirming sign
 
 ---
 
+## Range-Bound Detection
+
+### What is it?
+
+Range-bound (or "box range") detection identifies periods when the market is moving sideways within a defined price range, rather than trending up or down. These consolidation phases often precede significant breakouts.
+
+### How It Works
+
+TrendCraft's `rangeBound()` function combines multiple indicators into a composite score:
+
+| Indicator | Weight | What It Measures |
+|-----------|--------|------------------|
+| **ADX** | 50% | Trend strength (low ADX = weak trend) |
+| **Bollinger Bandwidth** | 20% | Price volatility (narrow = low volatility) |
+| **Donchian Width** | 20% | Price range (narrow = tight range) |
+| **ATR Ratio** | 10% | Historical volatility comparison |
+
+### States
+
+The detector returns one of these states for each candle:
+
+| State | Meaning |
+|-------|---------|
+| `NEUTRAL` | Insufficient data or mixed signals |
+| `RANGE_FORMING` | Range conditions detected, awaiting confirmation |
+| `RANGE_CONFIRMED` | Range persisted for 3+ bars |
+| `RANGE_TIGHT` | Very tight range with high confidence |
+| `BREAKOUT_RISK_UP` | Price near upper boundary |
+| `BREAKOUT_RISK_DOWN` | Price near lower boundary |
+| `TRENDING` | Market has clear directional movement |
+
+### Trend Detection
+
+To avoid false positives, the algorithm detects trends via multiple methods:
+
+| Method | Default Threshold | Meaning |
+|--------|-------------------|---------|
+| ADX | ≥ 25 | Strong trend strength |
+| Price Movement | ≥ 5% in 20 bars | Significant price change |
+| DI Difference | ≥ 10 | Directional indicator divergence |
+| Regression Slope | ≥ 0.15 × ATR | Consistent price direction |
+| HH/LL Pattern | ≥ 3 consecutive | Higher highs or lower lows |
+
+### How to Read
+
+```
+rangeScore > 70        → Likely range-bound
+rangeScore > 85        → Very tight range (watch for breakout!)
+pricePosition near 0   → Price at bottom of range (potential bounce)
+pricePosition near 1   → Price at top of range (potential rejection)
+```
+
+### Key Signals
+
+| Event Flag | When It Fires | Trading Implication |
+|------------|---------------|---------------------|
+| `rangeDetected` | Range conditions first appear | Be cautious with trend strategies |
+| `rangeConfirmed` | Range persists 3+ bars | Consider range-bound strategies |
+| `breakoutRiskDetected` | Price near range boundary | Prepare for potential breakout |
+| `rangeBroken` | Transition from range to trend | Trend strategy opportunity |
+
+### Usage Example
+
+```typescript
+import { rangeBound } from 'trendcraft';
+
+const rb = rangeBound(candles);
+const latest = rb[rb.length - 1].value;
+
+// Check current state
+if (latest.state === 'RANGE_CONFIRMED') {
+  console.log('Market is range-bound');
+  console.log(`Range: ${latest.rangeLow} - ${latest.rangeHigh}`);
+  console.log(`Position: ${(latest.pricePosition * 100).toFixed(0)}%`);
+}
+
+// React to breakout risk
+if (latest.state === 'BREAKOUT_RISK_UP') {
+  console.log('Watch for upside breakout!');
+}
+
+// Debug why market is trending
+if (latest.trendReason === 'hhll') {
+  console.log('Trending due to consecutive higher highs/lows');
+}
+```
+
+### Trading Strategies
+
+#### Range Trading
+
+Buy near support (pricePosition ≈ 0), sell near resistance (pricePosition ≈ 1):
+
+```typescript
+import { rangeBound, inRangeBound } from 'trendcraft';
+
+// Entry when price at bottom of confirmed range
+const rb = rangeBound(candles);
+const isGoodEntry = rb[rb.length - 1].value.state === 'RANGE_CONFIRMED'
+  && rb[rb.length - 1].value.pricePosition < 0.2;
+```
+
+#### Breakout Trading
+
+Wait for range to form, then trade the breakout:
+
+```typescript
+import { rangeBreakout } from 'trendcraft';
+
+// Use as backtest entry condition
+const result = TrendCraft.from(candles)
+  .strategy()
+    .entry(rangeBreakout())  // Enter when range breaks
+    .exit(deadCross())
+  .backtest({ capital: 1000000 });
+```
+
+### Tips
+
+- **Wait for confirmation** - Don't trade the first sign of a range
+- **Check range width** - Very tight ranges often lead to explosive breakouts
+- **Watch the trendReason** - Helps understand why range detection was rejected
+- **Combine with volume** - Breakouts with high volume are more reliable
+- **Use persistBars wisely** - Higher values = fewer false positives, but slower signals
+
+### Backtest Conditions
+
+| Condition | Description |
+|-----------|-------------|
+| `inRangeBound()` | Currently in any range state |
+| `rangeForming()` | Range conditions starting |
+| `rangeConfirmed()` | Range has been confirmed |
+| `rangeBreakout()` | Transitioning from range to trend |
+| `tightRange()` | In a very tight range |
+| `breakoutRiskUp()` | Price near upper boundary |
+| `breakoutRiskDown()` | Price near lower boundary |
+
+---
+
 ## Backtesting
 
 ### What is it?
@@ -824,8 +964,9 @@ Indicators behave differently in different market conditions:
 | Volatility | Bollinger Bands, ATR |
 | Volume confirmation | OBV, MFI, VWAP |
 | Potential reversals | Divergence (RSI, MACD, OBV) |
-| Breakout setup | Bollinger Squeeze |
-| Support/Resistance | Pivot Points, Ichimoku (Cloud) |
+| Breakout setup | Bollinger Squeeze, Range-Bound |
+| Sideways market | Range-Bound Detection |
+| Support/Resistance | Pivot Points, Ichimoku (Cloud), Range Boundaries |
 | Momentum change | ROC, MACD |
 | Strategy validation | Backtesting |
 
@@ -836,11 +977,12 @@ Indicators behave differently in different market conditions:
 Technical analysis is not about predicting the future—it's about understanding probabilities and managing risk. Use TrendCraft's indicators to:
 
 1. **Identify trends** (MA, MACD, ADX, Ichimoku, Supertrend)
-2. **Find entry/exit points** (RSI, Stochastics, CCI, Williams %R, crossovers)
-3. **Confirm with volume** (OBV, MFI, VWAP)
-4. **Assess volatility** (Bollinger Bands, ATR)
-5. **Detect potential reversals** (divergence, squeeze, ROC)
-6. **Find support/resistance** (Pivot Points, Ichimoku Cloud)
-7. **Validate strategies** (Backtesting with preset conditions)
+2. **Detect sideways markets** (Range-Bound Detection)
+3. **Find entry/exit points** (RSI, Stochastics, CCI, Williams %R, crossovers)
+4. **Confirm with volume** (OBV, MFI, VWAP)
+5. **Assess volatility** (Bollinger Bands, ATR)
+6. **Detect potential reversals** (divergence, squeeze, ROC)
+7. **Find support/resistance** (Pivot Points, Ichimoku Cloud, Range Boundaries)
+8. **Validate strategies** (Backtesting with preset conditions)
 
 Remember: No indicator is perfect. Combine multiple tools, always manage risk, and never invest more than you can afford to lose.

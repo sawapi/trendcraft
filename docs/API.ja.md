@@ -13,6 +13,7 @@
   - [クロス検出](#クロス検出)
   - [ダイバージェンス検出](#ダイバージェンス検出)
   - [スクイーズ検出](#スクイーズ検出)
+  - [レンジ相場検出](#レンジ相場検出)
 - [バックテスト](#バックテスト)
   - [バックテスト実行](#バックテスト実行)
   - [プリセット条件](#プリセット条件)
@@ -713,6 +714,114 @@ interface SqueezeSignal {
   bandwidth: number;   // 検出時のバンド幅
   percentile: number;  // パーセンタイル順位
 }
+```
+
+---
+
+### レンジ相場検出
+
+#### `rangeBound(candles, options)`
+
+レンジ相場（ボックス相場）を検出。複数の指標を組み合わせて、トレンドのない横ばい期間を識別します。
+
+```typescript
+const result = rangeBound(candles);
+const custom = rangeBound(candles, {
+  adxPeriod: 14,
+  adxTrendThreshold: 25,
+  donchianPeriod: 20,
+  persistBars: 3,
+});
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|------------|------|---------|------|
+| `adxPeriod` | `number` | `14` | ADX計算期間 |
+| `adxTrendThreshold` | `number` | `25` | トレンド判定のADX閾値 |
+| `donchianPeriod` | `number` | `20` | ドンチャンチャネル期間 |
+| `atrPeriod` | `number` | `14` | ATR計算期間 |
+| `tightThreshold` | `number` | `80` | タイトレンジ判定のスコア閾値 |
+| `confirmedThreshold` | `number` | `60` | レンジ確定のスコア閾値 |
+| `formingThreshold` | `number` | `40` | レンジ形成中のスコア閾値 |
+| `breakoutProximity` | `number` | `0.02` | ブレイクアウト近接判定（2%） |
+| `persistBars` | `number` | `3` | 状態維持の最小バー数 |
+| `adxWeight` | `number` | `0.4` | ADXスコアの重み |
+| `channelWeight` | `number` | `0.35` | チャネル幅スコアの重み |
+| `volatilityWeight` | `number` | `0.25` | ボラティリティスコアの重み |
+| `diDifferenceThreshold` | `number` | `10` | +DI/-DI差分閾値 |
+| `slopeThreshold` | `number` | `0.15` | 線形回帰傾き閾値（ATR比） |
+| `consecutiveHHLLThreshold` | `number` | `3` | 連続HH/LL回数閾値 |
+| `slopePeriod` | `number` | `10` | 線形回帰期間 |
+| `hhllLookback` | `number` | `10` | HH/LL判定の参照期間 |
+| `priceMovementThreshold` | `number` | `0.05` | 価格変動閾値（5%） |
+| `priceMovementPeriod` | `number` | `20` | 価格変動判定期間 |
+
+**戻り値:** `Series<RangeBoundValue>`
+
+```typescript
+interface RangeBoundValue {
+  state: RangeBoundState;     // 現在の状態
+  rangeScore: number;         // レンジスコア (0-100)
+  rangeHigh: number | null;   // レンジ上限
+  rangeLow: number | null;    // レンジ下限
+  adx: number | null;         // ADX値
+  plusDi: number | null;      // +DI値
+  minusDi: number | null;     // -DI値
+  donchianUpper: number | null;  // ドンチャン上限
+  donchianLower: number | null;  // ドンチャン下限
+  atr: number | null;         // ATR値
+  adxScore: number;           // ADXスコア成分 (0-100)
+  channelScore: number;       // チャネルスコア成分 (0-100)
+  volatilityScore: number;    // ボラティリティスコア成分 (0-100)
+  rangeBroken: boolean;       // レンジブレイク検出
+  trendReason: TrendReason;   // トレンド判定理由
+}
+
+type RangeBoundState =
+  | 'NEUTRAL'           // 中立
+  | 'RANGE_FORMING'     // レンジ形成中
+  | 'RANGE_CONFIRMED'   // レンジ確定
+  | 'RANGE_TIGHT'       // タイトレンジ
+  | 'BREAKOUT_RISK_UP'  // 上方ブレイクアウトリスク
+  | 'BREAKOUT_RISK_DOWN'// 下方ブレイクアウトリスク
+  | 'TRENDING';         // トレンド中
+
+type TrendReason =
+  | 'adx_high'          // ADX >= 25
+  | 'price_movement'    // 20日で5%以上の価格変動
+  | 'di_diff'           // +DI/-DI差分 >= 10
+  | 'slope'             // 線形回帰傾き >= 0.15 ATR
+  | 'hhll'              // 連続HH/LL >= 3
+  | null;               // トレンドではない
+```
+
+#### レンジ相場条件（バックテスト用）
+
+```typescript
+// レンジブレイクアウトでエントリー
+rangeBreakout()
+
+// レンジ相場ではない時のみエントリー（フィルター）
+notInRange()
+
+// レンジ形成中にイグジット
+rangeForming()
+
+// レンジ確定中にのみエントリー
+inRangeBound()
+
+// 上方ブレイクアウトリスク
+breakoutRiskUp()
+
+// 下方ブレイクアウトリスク
+breakoutRiskDown()
+
+// タイトレンジ検出
+tightRange()
+
+// トレンド中
+isTrending()
 ```
 
 ---
