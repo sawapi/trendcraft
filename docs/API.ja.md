@@ -144,6 +144,35 @@ interface SupertrendValue {
 
 ---
 
+#### `parabolicSar(candles, options)`
+
+パラボリックSAR（Stop and Reverse）トレンドフォロー指標。
+
+```typescript
+const result = parabolicSar(candles);
+const custom = parabolicSar(candles, { step: 0.01, max: 0.1 });
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|------------|------|---------|------|
+| `step` | `number` | `0.02` | 加速係数（AF）の増分 |
+| `max` | `number` | `0.2` | 加速係数の最大値 |
+
+**戻り値:** `Series<ParabolicSarValue>`
+
+```typescript
+interface ParabolicSarValue {
+  sar: number | null;       // SAR値
+  direction: 1 | -1 | 0;    // 1 = 強気（SAR下）, -1 = 弱気（SAR上）, 0 = 未定義
+  isReversal: boolean;      // トレンド転換時にtrue
+  af: number | null;        // 現在の加速係数
+  ep: number | null;        // 極値（最高高値または最安値）
+}
+```
+
+---
+
 ### モメンタム
 
 #### `rsi(candles, options)`
@@ -412,6 +441,34 @@ interface DonchianValue {
 
 ---
 
+#### `keltnerChannel(candles, options)`
+
+ケルトナーチャネル（EMAとATRを使用したボラティリティエンベロープ）。
+
+```typescript
+const result = keltnerChannel(candles);
+const custom = keltnerChannel(candles, { emaPeriod: 20, atrPeriod: 10, multiplier: 2 });
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|------------|------|---------|------|
+| `emaPeriod` | `number` | `20` | 中心線のEMA期間 |
+| `atrPeriod` | `number` | `10` | バンド計算のATR期間 |
+| `multiplier` | `number` | `2` | バンド幅のATR倍率 |
+
+**戻り値:** `Series<KeltnerChannelValue>`
+
+```typescript
+interface KeltnerChannelValue {
+  upper: number | null;   // 上バンド（EMA + 倍率 × ATR）
+  middle: number | null;  // 中心線（EMA）
+  lower: number | null;   // 下バンド（EMA - 倍率 × ATR）
+}
+```
+
+---
+
 ### 出来高
 
 #### `vwap(candles, options)`
@@ -487,6 +544,30 @@ const result = volumeMa(candles, { period: 20 });
 | `period` | `number` | `20` | MA期間 |
 
 **戻り値:** `Series<number | null>`
+
+---
+
+#### `cmf(candles, options)`
+
+チャイキンマネーフロー - 一定期間の買い圧力と売り圧力を測定。
+
+```typescript
+const result = cmf(candles);
+const custom = cmf(candles, { period: 21 });
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|------------|------|---------|------|
+| `period` | `number` | `20` | CMF期間 |
+
+**戻り値:** `Series<number | null>` (-1 〜 +1 スケール)
+
+**解釈:**
+- 正の値: 買い圧力（アキュムレーション）
+- 負の値: 売り圧力（ディストリビューション）
+- +0.1以上: 強い買い圧力を示唆
+- -0.1以下: 強い売り圧力を示唆
 
 ---
 

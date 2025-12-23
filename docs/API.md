@@ -144,6 +144,35 @@ interface SupertrendValue {
 
 ---
 
+#### `parabolicSar(candles, options)`
+
+Parabolic SAR (Stop and Reverse) trend-following indicator.
+
+```typescript
+const result = parabolicSar(candles);
+const custom = parabolicSar(candles, { step: 0.01, max: 0.1 });
+```
+
+**Options:**
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `step` | `number` | `0.02` | Acceleration Factor increment |
+| `max` | `number` | `0.2` | Maximum Acceleration Factor |
+
+**Returns:** `Series<ParabolicSarValue>`
+
+```typescript
+interface ParabolicSarValue {
+  sar: number | null;       // SAR value
+  direction: 1 | -1 | 0;    // 1 = bullish (SAR below), -1 = bearish (SAR above), 0 = undefined
+  isReversal: boolean;      // True when trend reverses
+  af: number | null;        // Current Acceleration Factor
+  ep: number | null;        // Extreme Point (highest high or lowest low)
+}
+```
+
+---
+
 ### Momentum
 
 #### `rsi(candles, options)`
@@ -412,6 +441,34 @@ interface DonchianValue {
 
 ---
 
+#### `keltnerChannel(candles, options)`
+
+Keltner Channel volatility envelope using EMA and ATR.
+
+```typescript
+const result = keltnerChannel(candles);
+const custom = keltnerChannel(candles, { emaPeriod: 20, atrPeriod: 10, multiplier: 2 });
+```
+
+**Options:**
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `emaPeriod` | `number` | `20` | EMA period for the middle line |
+| `atrPeriod` | `number` | `10` | ATR period for band calculation |
+| `multiplier` | `number` | `2` | ATR multiplier for band width |
+
+**Returns:** `Series<KeltnerChannelValue>`
+
+```typescript
+interface KeltnerChannelValue {
+  upper: number | null;   // Upper band (EMA + multiplier * ATR)
+  middle: number | null;  // Middle line (EMA)
+  lower: number | null;   // Lower band (EMA - multiplier * ATR)
+}
+```
+
+---
+
 ### Volume
 
 #### `vwap(candles, options)`
@@ -487,6 +544,30 @@ const result = volumeMa(candles, { period: 20 });
 | `period` | `number` | `20` | MA period |
 
 **Returns:** `Series<number | null>`
+
+---
+
+#### `cmf(candles, options)`
+
+Chaikin Money Flow - measures buying and selling pressure over a period.
+
+```typescript
+const result = cmf(candles);
+const custom = cmf(candles, { period: 21 });
+```
+
+**Options:**
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `period` | `number` | `20` | CMF period |
+
+**Returns:** `Series<number | null>` (-1 to +1 scale)
+
+**Interpretation:**
+- Positive values indicate buying pressure (accumulation)
+- Negative values indicate selling pressure (distribution)
+- Values above +0.1 suggest strong buying pressure
+- Values below -0.1 suggest strong selling pressure
 
 ---
 

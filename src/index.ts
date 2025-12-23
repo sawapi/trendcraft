@@ -70,11 +70,13 @@ export {
   bollingerBands,
   atr,
   donchianChannel,
+  keltnerChannel,
   // Volume
   volumeMa,
   obv,
   mfi,
   vwap,
+  cmf,
   // Price
   highestLowest,
   highest,
@@ -85,6 +87,7 @@ export {
   // Trend
   ichimoku,
   supertrend,
+  parabolicSar,
 } from "./indicators";
 
 export type {
@@ -98,7 +101,10 @@ export type {
   StochRsiOptions,
   DonchianValue,
   DonchianOptions,
+  KeltnerChannelOptions,
+  KeltnerChannelValue,
   MfiOptions,
+  CmfOptions,
   WmaOptions,
   VwapOptions,
   VwapValue,
@@ -111,6 +117,8 @@ export type {
   IchimokuValue,
   SupertrendOptions,
   SupertrendValue,
+  ParabolicSarOptions,
+  ParabolicSarValue,
 } from "./indicators";
 
 // Fluent API

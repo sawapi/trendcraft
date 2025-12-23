@@ -22,12 +22,17 @@ import { rsi } from "../indicators/momentum/rsi";
 import { macd } from "../indicators/momentum/macd";
 import { bollingerBands } from "../indicators/volatility/bollinger-bands";
 import { atr } from "../indicators/volatility/atr";
+import { keltnerChannel } from "../indicators/volatility/keltner-channel";
 import { volumeMa } from "../indicators/volume/volume-ma";
+import { cmf } from "../indicators/volume/cmf";
 import { highest, lowest } from "../indicators/price/highest-lowest";
 import { returns } from "../indicators/price/returns";
+import { parabolicSar } from "../indicators/trend/parabolic-sar";
 import { normalizeCandles } from "./normalize";
 import { resample } from "./resample";
 import { runBacktest } from "../backtest/engine";
+import type { ParabolicSarValue } from "../indicators/trend/parabolic-sar";
+import type { KeltnerChannelValue } from "../indicators/volatility/keltner-channel";
 
 /**
  * Indicator specification for lazy evaluation
@@ -42,7 +47,10 @@ type IndicatorSpec =
   | { type: "volumeMa"; period: number; maType: "sma" | "ema"; key: string }
   | { type: "highest"; period: number; key: string }
   | { type: "lowest"; period: number; key: string }
-  | { type: "returns"; period: number; returnType: "simple" | "log"; key: string };
+  | { type: "returns"; period: number; returnType: "simple" | "log"; key: string }
+  | { type: "parabolicSar"; step: number; max: number; key: string }
+  | { type: "keltnerChannel"; emaPeriod: number; atrPeriod: number; multiplier: number; key: string }
+  | { type: "cmf"; period: number; key: string };
 
 /**
  * Analysis result containing computed indicators
@@ -197,6 +205,33 @@ export class TrendCraft {
   }
 
   /**
+   * Add Parabolic SAR to computation pipeline
+   */
+  parabolicSar(step = 0.02, max = 0.2): this {
+    const key = `psar_${step}_${max}`;
+    this._pipeline.push({ type: "parabolicSar", step, max, key });
+    return this;
+  }
+
+  /**
+   * Add Keltner Channel to computation pipeline
+   */
+  keltnerChannel(emaPeriod = 20, atrPeriod = 10, multiplier = 2): this {
+    const key = `kc_${emaPeriod}_${atrPeriod}_${multiplier}`;
+    this._pipeline.push({ type: "keltnerChannel", emaPeriod, atrPeriod, multiplier, key });
+    return this;
+  }
+
+  /**
+   * Add Chaikin Money Flow to computation pipeline
+   */
+  cmf(period = 20): this {
+    const key = `cmf${period}`;
+    this._pipeline.push({ type: "cmf", period, key });
+    return this;
+  }
+
+  /**
    * Execute all pending computations and return results
    */
   compute(): AnalysisResult {
@@ -262,6 +297,19 @@ export class TrendCraft {
         return lowest(this._candles, spec.period);
       case "returns":
         return returns(this._candles, { period: spec.period, type: spec.returnType });
+      case "parabolicSar":
+        return parabolicSar(this._candles, {
+          step: spec.step,
+          max: spec.max,
+        }) as Series<ParabolicSarValue>;
+      case "keltnerChannel":
+        return keltnerChannel(this._candles, {
+          emaPeriod: spec.emaPeriod,
+          atrPeriod: spec.atrPeriod,
+          multiplier: spec.multiplier,
+        }) as Series<KeltnerChannelValue>;
+      case "cmf":
+        return cmf(this._candles, { period: spec.period });
       default:
         throw new Error(`Unknown indicator type: ${(spec as IndicatorSpec).type}`);
     }

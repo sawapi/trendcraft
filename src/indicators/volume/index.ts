@@ -5,3 +5,5 @@ export { mfi } from "./mfi";
 export type { MfiOptions } from "./mfi";
 export { vwap } from "./vwap";
 export type { VwapOptions, VwapValue } from "./vwap";
+export { cmf } from "./cmf";
+export type { CmfOptions } from "./cmf";

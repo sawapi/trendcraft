@@ -130,6 +130,9 @@
     .indicator-item.roc { border-left: 3px solid #ff5722; }
     .indicator-item.perfectorder { border-left: 3px solid #ffc107; }
     .indicator-item.rangebound { border-left: 3px solid #9c27b0; }
+    .indicator-item.psar { border-left: 3px solid #ff4081; }
+    .indicator-item.keltner { border-left: 3px solid #7c4dff; }
+    .indicator-item.cmf { border-left: 3px solid #64ffda; }
 
     /* Chart Container */
     .chart-wrapper {
@@ -191,6 +194,11 @@
       margin-top: 10px;
     }
     #roc-chart {
+      width: 100%;
+      height: 150px;
+      margin-top: 10px;
+    }
+    #cmf-chart {
       width: 100%;
       height: 150px;
       margin-top: 10px;
@@ -637,6 +645,15 @@
           <label class="indicator-item rangebound">
             <input type="checkbox" data-indicator="rangebound"> Range-Bound
           </label>
+          <label class="indicator-item psar">
+            <input type="checkbox" data-indicator="psar"> Parabolic SAR
+          </label>
+          <label class="indicator-item keltner">
+            <input type="checkbox" data-indicator="keltner"> Keltner Channel
+          </label>
+          <label class="indicator-item cmf">
+            <input type="checkbox" data-indicator="cmf"> CMF
+          </label>
         </div>
       </div>
     </div>
@@ -802,6 +819,7 @@
       <div id="willr-chart" class="sub-chart"></div>
       <div id="roc-chart" class="sub-chart"></div>
       <div id="rb-chart" class="sub-chart"></div>
+      <div id="cmf-chart" class="sub-chart"></div>
       <div id="cross-events" class="cross-events">
         <h3>GC/DC Events (SMA 5×25)</h3>
         <div id="cross-events-list" class="cross-events-list"></div>
