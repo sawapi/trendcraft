@@ -15,6 +15,9 @@ import type {
   Condition,
   BacktestOptions,
   BacktestResult,
+  VolumeAnomalyValue,
+  VolumeProfileValue,
+  VolumeTrendValue,
 } from "../types";
 import { sma } from "../indicators/moving-average/sma";
 import { ema } from "../indicators/moving-average/ema";
@@ -25,12 +28,17 @@ import { atr } from "../indicators/volatility/atr";
 import { keltnerChannel } from "../indicators/volatility/keltner-channel";
 import { volumeMa } from "../indicators/volume/volume-ma";
 import { cmf } from "../indicators/volume/cmf";
+import { volumeAnomaly } from "../indicators/volume/volume-anomaly";
+import { volumeProfile, volumeProfileSeries } from "../indicators/volume/volume-profile";
+import { volumeTrend } from "../indicators/volume/volume-trend";
 import { highest, lowest } from "../indicators/price/highest-lowest";
 import { returns } from "../indicators/price/returns";
 import { parabolicSar } from "../indicators/trend/parabolic-sar";
 import { normalizeCandles } from "./normalize";
 import { resample } from "./resample";
 import { runBacktest } from "../backtest/engine";
+import type { MtfBacktestOptions } from "../backtest/engine";
+import type { ExtendedCondition } from "../backtest/conditions/core";
 import type { ParabolicSarValue } from "../indicators/trend/parabolic-sar";
 import type { KeltnerChannelValue } from "../indicators/volatility/keltner-channel";
 
@@ -50,7 +58,10 @@ type IndicatorSpec =
   | { type: "returns"; period: number; returnType: "simple" | "log"; key: string }
   | { type: "parabolicSar"; step: number; max: number; key: string }
   | { type: "keltnerChannel"; emaPeriod: number; atrPeriod: number; multiplier: number; key: string }
-  | { type: "cmf"; period: number; key: string };
+  | { type: "cmf"; period: number; key: string }
+  | { type: "volumeAnomaly"; period: number; highThreshold: number; key: string }
+  | { type: "volumeProfileSeries"; period: number; key: string }
+  | { type: "volumeTrend"; pricePeriod: number; volumePeriod: number; key: string };
 
 /**
  * Analysis result containing computed indicators
@@ -82,11 +93,11 @@ export interface AnalysisResult {
  * ```
  */
 export class TrendCraft {
-  private _candles: NormalizedCandle[];
-  private _pipeline: IndicatorSpec[] = [];
-  private _cache: Map<string, Series<unknown>> = new Map();
+  protected _candles: NormalizedCandle[];
+  protected _pipeline: IndicatorSpec[] = [];
+  protected _cache: Map<string, Series<unknown>> = new Map();
 
-  private constructor(candles: NormalizedCandle[]) {
+  protected constructor(candles: NormalizedCandle[]) {
     this._candles = candles;
   }
 
@@ -96,6 +107,26 @@ export class TrendCraft {
   static from(candles: Candle[] | NormalizedCandle[]): TrendCraft {
     const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
     return new TrendCraft(normalized);
+  }
+
+  /**
+   * Enable multi-timeframe analysis
+   * Returns a new instance with MTF support for backtesting
+   *
+   * @param timeframes - Higher timeframes to include (e.g., ["weekly", "monthly"])
+   *
+   * @example
+   * ```ts
+   * const result = TrendCraft.from(dailyCandles)
+   *   .withMtf(["weekly"])
+   *   .strategy()
+   *   .entry(and(weeklyRsiAbove(50), goldenCross()))
+   *   .exit(deadCross())
+   *   .backtest({ capital: 1000000 });
+   * ```
+   */
+  withMtf(timeframes: TimeframeShorthand[]): TrendCraftMtf {
+    return new TrendCraftMtf(this._candles, timeframes, this._pipeline, this._cache);
   }
 
   /**
@@ -232,6 +263,51 @@ export class TrendCraft {
   }
 
   /**
+   * Add Volume Anomaly detection to computation pipeline
+   *
+   * @param period - Lookback period for average (default: 20)
+   * @param highThreshold - Threshold for high volume detection (default: 2.0)
+   */
+  volumeAnomalyIndicator(period = 20, highThreshold = 2.0): this {
+    const key = `volAnomaly${period}`;
+    this._pipeline.push({ type: "volumeAnomaly", period, highThreshold, key });
+    return this;
+  }
+
+  /**
+   * Add rolling Volume Profile to computation pipeline
+   *
+   * @param period - Number of candles for profile calculation (default: 20)
+   */
+  volumeProfileIndicator(period = 20): this {
+    const key = `volProfile${period}`;
+    this._pipeline.push({ type: "volumeProfileSeries", period, key });
+    return this;
+  }
+
+  /**
+   * Add Volume Trend confirmation to computation pipeline
+   *
+   * @param pricePeriod - Period for price trend detection (default: 10)
+   * @param volumePeriod - Period for volume trend detection (default: 10)
+   */
+  volumeTrendIndicator(pricePeriod = 10, volumePeriod = 10): this {
+    const key = `volTrend${pricePeriod}_${volumePeriod}`;
+    this._pipeline.push({ type: "volumeTrend", pricePeriod, volumePeriod, key });
+    return this;
+  }
+
+  /**
+   * Calculate Volume Profile for the entire dataset (not rolling)
+   * Returns immediately without adding to pipeline
+   *
+   * @param period - Number of candles from the end (default: all)
+   */
+  getVolumeProfile(period?: number): VolumeProfileValue {
+    return volumeProfile(this._candles, { period });
+  }
+
+  /**
    * Execute all pending computations and return results
    */
   compute(): AnalysisResult {
@@ -310,6 +386,20 @@ export class TrendCraft {
         }) as Series<KeltnerChannelValue>;
       case "cmf":
         return cmf(this._candles, { period: spec.period });
+      case "volumeAnomaly":
+        return volumeAnomaly(this._candles, {
+          period: spec.period,
+          highThreshold: spec.highThreshold,
+        }) as Series<VolumeAnomalyValue>;
+      case "volumeProfileSeries":
+        return volumeProfileSeries(this._candles, {
+          period: spec.period,
+        }) as Series<VolumeProfileValue | null>;
+      case "volumeTrend":
+        return volumeTrend(this._candles, {
+          pricePeriod: spec.pricePeriod,
+          volumePeriod: spec.volumePeriod,
+        }) as Series<VolumeTrendValue>;
       default:
         throw new Error(`Unknown indicator type: ${(spec as IndicatorSpec).type}`);
     }
@@ -370,9 +460,9 @@ export class TrendCraft {
  * Strategy Builder for backtesting
  */
 export class StrategyBuilder {
-  private _candles: NormalizedCandle[];
-  private _entryCondition: Condition | null = null;
-  private _exitCondition: Condition | null = null;
+  protected _candles: NormalizedCandle[];
+  protected _entryCondition: Condition | ExtendedCondition | null = null;
+  protected _exitCondition: Condition | ExtendedCondition | null = null;
 
   constructor(candles: NormalizedCandle[]) {
     this._candles = candles;
@@ -381,7 +471,7 @@ export class StrategyBuilder {
   /**
    * Set entry condition
    */
-  entry(condition: Condition): this {
+  entry(condition: Condition | ExtendedCondition): this {
     this._entryCondition = condition;
     return this;
   }
@@ -389,7 +479,7 @@ export class StrategyBuilder {
   /**
    * Set exit condition
    */
-  exit(condition: Condition): this {
+  exit(condition: Condition | ExtendedCondition): this {
     this._exitCondition = condition;
     return this;
   }
@@ -406,6 +496,63 @@ export class StrategyBuilder {
     }
 
     return runBacktest(this._candles, this._entryCondition, this._exitCondition, options);
+  }
+}
+
+/**
+ * MTF-enabled Strategy Builder for backtesting with multi-timeframe conditions
+ */
+export class MtfStrategyBuilder extends StrategyBuilder {
+  private _mtfTimeframes: TimeframeShorthand[];
+
+  constructor(candles: NormalizedCandle[], mtfTimeframes: TimeframeShorthand[]) {
+    super(candles);
+    this._mtfTimeframes = mtfTimeframes;
+  }
+
+  /**
+   * Run backtest with MTF support
+   */
+  backtest(options: BacktestOptions): BacktestResult {
+    if (!this._entryCondition) {
+      throw new Error("Entry condition is required. Use .entry() to set it.");
+    }
+    if (!this._exitCondition) {
+      throw new Error("Exit condition is required. Use .exit() to set it.");
+    }
+
+    const mtfOptions: MtfBacktestOptions = {
+      ...options,
+      mtfTimeframes: this._mtfTimeframes,
+    };
+
+    return runBacktest(this._candles, this._entryCondition, this._exitCondition, mtfOptions);
+  }
+}
+
+/**
+ * TrendCraft with MTF (Multi-Timeframe) support
+ */
+export class TrendCraftMtf extends TrendCraft {
+  private _mtfTimeframes: TimeframeShorthand[];
+
+  constructor(
+    candles: NormalizedCandle[],
+    mtfTimeframes: TimeframeShorthand[],
+    pipeline: IndicatorSpec[] = [],
+    cache: Map<string, Series<unknown>> = new Map()
+  ) {
+    super(candles);
+    this._pipeline = pipeline;
+    this._cache = cache;
+    this._mtfTimeframes = mtfTimeframes;
+  }
+
+  /**
+   * Create MTF-enabled strategy builder
+   */
+  strategy(): MtfStrategyBuilder {
+    return new MtfStrategyBuilder(this.candles, this._mtfTimeframes);
   }
 }
 

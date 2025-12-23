@@ -42,12 +42,35 @@ export type {
   BacktestOptions,
   BacktestResult,
   PartialTakeProfitConfig,
+  // MTF types
+  MtfContext,
+  MtfDataset,
+  MtfConditionFn,
+  MtfPresetCondition,
+  // Volume analysis types
+  VolumeAnomalyValue,
+  VolumeProfileValue,
+  VolumePriceLevel,
+  VolumeTrendValue,
 } from "./types";
 
 // Core utilities
 export { normalizeTime, normalizeCandle, normalizeCandles, getPrice, getPriceSeries } from "./core/normalize";
 
 export { resample, parseTimeframe } from "./core/resample";
+
+// MTF context utilities
+export {
+  createMtfContext,
+  buildMtfIndexMap,
+  updateMtfIndices,
+  getMtfCandle,
+  getMtfIndicator,
+  setMtfIndicator,
+  getCurrentMtfIndicatorValue,
+  hasMtfTimeframe,
+  getMtfTimeframes,
+} from "./core/mtf-context";
 
 // Indicators
 export {
@@ -77,6 +100,10 @@ export {
   mfi,
   vwap,
   cmf,
+  volumeAnomaly,
+  volumeProfile,
+  volumeProfileSeries,
+  volumeTrend,
   // Price
   highestLowest,
   highest,
@@ -122,7 +149,7 @@ export type {
 } from "./indicators";
 
 // Fluent API
-export { TrendCraft, StrategyBuilder } from "./core/trendcraft";
+export { TrendCraft, StrategyBuilder, MtfStrategyBuilder, TrendCraftMtf } from "./core/trendcraft";
 export type { AnalysisResult } from "./core/trendcraft";
 
 // Backtest conditions
@@ -197,3 +224,47 @@ export {
 } from "./backtest";
 
 export type { RangeBoundConditionOptions } from "./backtest";
+
+// Advanced Volume conditions
+export {
+  volumeAnomalyCondition,
+  volumeExtreme,
+  volumeRatioAbove,
+  nearPoc,
+  inValueArea,
+  breakoutVah,
+  breakdownVal,
+  priceAbovePoc,
+  priceBelowPoc,
+  volumeConfirmsTrend,
+  volumeDivergence,
+  bullishVolumeDivergence,
+  bearishVolumeDivergence,
+  volumeTrendConfidence,
+} from "./backtest";
+
+// Multi-Timeframe (MTF) conditions
+export {
+  weeklyRsiAbove,
+  weeklyRsiBelow,
+  monthlyRsiAbove,
+  monthlyRsiBelow,
+  mtfRsiAbove,
+  mtfRsiBelow,
+  weeklyPriceAboveSma,
+  weeklyPriceBelowSma,
+  monthlyPriceAboveSma,
+  monthlyPriceBelowSma,
+  mtfPriceAboveSma,
+  mtfPriceBelowSma,
+  weeklyPriceAboveEma,
+  mtfPriceAboveEma,
+  weeklyTrendStrong,
+  monthlyTrendStrong,
+  mtfTrendStrong,
+  weeklyUptrend,
+  weeklyDowntrend,
+  mtfUptrend,
+  mtfDowntrend,
+  mtfCondition,
+} from "./backtest";

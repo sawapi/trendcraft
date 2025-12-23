@@ -571,6 +571,124 @@ const custom = cmf(candles, { period: 21 });
 
 ---
 
+#### `volumeAnomaly(candles, options)`
+
+統計的手法で異常な出来高スパイクを検出。
+
+```typescript
+const result = volumeAnomaly(candles);
+const custom = volumeAnomaly(candles, { period: 20, highThreshold: 2.0, extremeThreshold: 3.0 });
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|------------|------|---------|------|
+| `period` | `number` | `20` | 平均出来高計算期間 |
+| `highThreshold` | `number` | `2.0` | 「高」出来高の比率閾値 |
+| `extremeThreshold` | `number` | `3.0` | 「極端」出来高の比率閾値 |
+
+**戻り値:** `Series<VolumeAnomalyValue>`
+
+```typescript
+interface VolumeAnomalyValue {
+  volume: number;           // 現在の出来高
+  avgVolume: number;        // 期間平均出来高
+  ratio: number;            // 現在/平均 比率
+  isAnomaly: boolean;       // 閾値超過でtrue
+  level: 'normal' | 'high' | 'extreme' | null;  // 異常レベル
+  zScore: number | null;    // 統計的有意性のZスコア
+}
+```
+
+---
+
+#### `volumeProfile(candles, options)`
+
+Volume Profile（POC、Value Area）を計算。
+
+```typescript
+const result = volumeProfile(candles);
+const custom = volumeProfile(candles, { period: 20, numLevels: 24, valueAreaPercent: 70 });
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|------------|------|---------|------|
+| `period` | `number` | `20` | 参照期間 |
+| `numLevels` | `number` | `24` | 価格レベル数 |
+| `valueAreaPercent` | `number` | `70` | Value Area計算の割合 |
+
+**戻り値:** `VolumeProfileValue`
+
+```typescript
+interface VolumeProfileValue {
+  levels: VolumePriceLevel[];  // 各価格レベルの出来高
+  poc: number;                 // Point of Control（最大出来高価格）
+  vah: number;                 // Value Area High
+  val: number;                 // Value Area Low
+  periodHigh: number;          // 期間高値
+  periodLow: number;           // 期間安値
+}
+
+interface VolumePriceLevel {
+  priceMin: number;
+  priceMax: number;
+  volume: number;
+  percentage: number;  // 総出来高に対する割合
+}
+```
+
+---
+
+#### `volumeProfileSeries(candles, options)`
+
+Volume Profileを時系列で計算（ローリングウィンドウ）。
+
+```typescript
+const result = volumeProfileSeries(candles, { period: 20 });
+```
+
+**戻り値:** `Series<VolumeProfileValue | null>`
+
+---
+
+#### `volumeTrend(candles, options)`
+
+出来高が価格トレンドを確認/乖離しているかを分析。
+
+```typescript
+const result = volumeTrend(candles);
+const custom = volumeTrend(candles, { pricePeriod: 10, volumePeriod: 10, maPeriod: 20 });
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|------------|------|---------|------|
+| `pricePeriod` | `number` | `10` | 価格トレンド検出期間 |
+| `volumePeriod` | `number` | `10` | 出来高トレンド検出期間 |
+| `maPeriod` | `number` | `20` | 出来高MA基準期間 |
+| `minPriceChange` | `number` | `2.0` | トレンド判定の最小価格変動率 |
+
+**戻り値:** `Series<VolumeTrendValue>`
+
+```typescript
+interface VolumeTrendValue {
+  priceTrend: 'up' | 'down' | 'neutral';    // 価格の方向
+  volumeTrend: 'up' | 'down' | 'neutral';   // 出来高の方向
+  isConfirmed: boolean;                      // 出来高がトレンドを確認
+  hasDivergence: boolean;                    // 出来高が価格と乖離
+  confidence: number;                        // 信頼度スコア（0-100）
+}
+```
+
+**解釈:**
+- **確認済み上昇トレンド**: 価格上昇 + 出来高増加
+- **確認済み下降トレンド**: 価格下落 + 出来高増加（強い売り）
+- **強気ダイバージェンス**: 価格下落 + 出来高減少（売り枯れ）
+- **弱気ダイバージェンス**: 価格上昇 + 出来高減少（弱い上昇）
+
+---
+
 ### 価格
 
 #### `highest(candles, options)` / `lowest(candles, options)`
@@ -1032,6 +1150,107 @@ validatedDeadCross({
   trendPeriod: 5,
   minScore: 50
 })
+```
+
+#### レンジ相場条件
+
+```typescript
+inRangeBound()       // 任意のレンジ状態
+rangeForming()       // レンジ形成中
+rangeConfirmed()     // レンジ確定
+rangeBreakout()      // レンジからトレンドへの転換
+tightRange()         // 非常にタイトなレンジ
+breakoutRiskUp()     // 価格が上限付近
+breakoutRiskDown()   // 価格が下限付近
+rangeScoreAbove(70)  // レンジスコアが閾値以上
+```
+
+#### 高度な出来高条件
+
+```typescript
+// 出来高異常条件
+volumeAnomalyCondition(threshold = 2.0)  // 出来高異常検出
+volumeExtreme()                           // 極端な出来高スパイク
+volumeRatioAbove(ratio)                   // 出来高比率が閾値以上
+
+// Volume Profile条件
+nearPoc(tolerance = 0.02)     // 価格がPOC付近（デフォルト2%）
+inValueArea()                 // 価格がValue Area内（VAL-VAH）
+breakoutVah()                 // 価格がVAHを上抜け
+breakdownVal()                // 価格がVALを下抜け
+priceAbovePoc()               // 価格がPOCより上
+priceBelowPoc()               // 価格がPOCより下
+
+// 出来高トレンド条件
+volumeConfirmsTrend()                    // 出来高が価格トレンドを確認
+volumeDivergence()                       // 出来高が価格と乖離
+bullishVolumeDivergence()                // 強気の出来高ダイバージェンス
+bearishVolumeDivergence()                // 弱気の出来高ダイバージェンス
+volumeTrendConfidence(minConfidence)     // 信頼度が閾値以上
+```
+
+#### マルチタイムフレーム（MTF）条件
+
+MTF条件により、上位足の指標でトレードをフィルターできます。
+
+```typescript
+// 週足RSI条件
+weeklyRsiAbove(threshold, period = 14)   // 週足RSI > 閾値
+weeklyRsiBelow(threshold, period = 14)   // 週足RSI < 閾値
+
+// 月足RSI条件
+monthlyRsiAbove(threshold, period = 14)  // 月足RSI > 閾値
+monthlyRsiBelow(threshold, period = 14)  // 月足RSI < 閾値
+
+// 汎用MTF RSI
+mtfRsiAbove(timeframe, threshold, period = 14)  // MTF RSI > 閾値
+mtfRsiBelow(timeframe, threshold, period = 14)  // MTF RSI < 閾値
+
+// 週足SMA条件
+weeklyPriceAboveSma(period)   // 価格 > 週足SMA
+weeklyPriceBelowSma(period)   // 価格 < 週足SMA
+
+// 月足SMA条件
+monthlyPriceAboveSma(period)  // 価格 > 月足SMA
+monthlyPriceBelowSma(period)  // 価格 < 月足SMA
+
+// 汎用MTF SMA
+mtfPriceAboveSma(timeframe, period)  // 価格 > MTF SMA
+mtfPriceBelowSma(timeframe, period)  // 価格 < MTF SMA
+
+// 週足EMA条件
+weeklyPriceAboveEma(period)   // 価格 > 週足EMA
+mtfPriceAboveEma(timeframe, period)  // 価格 > MTF EMA
+
+// トレンド条件
+weeklyUptrend(smaPeriod = 20)    // 週足価格 > 週足SMA
+weeklyDowntrend(smaPeriod = 20)  // 週足価格 < 週足SMA
+mtfUptrend(timeframe, smaPeriod = 20)    // MTF上昇トレンド
+mtfDowntrend(timeframe, smaPeriod = 20)  // MTF下降トレンド
+
+// 強いトレンド（ADXベース）
+weeklyTrendStrong(adxThreshold = 25)   // 週足ADX > 閾値
+monthlyTrendStrong(adxThreshold = 25)  // 月足ADX > 閾値
+mtfTrendStrong(timeframe, adxThreshold = 25)  // MTF ADX > 閾値
+
+// カスタムMTF条件
+mtfCondition(timeframe, conditionFn)  // MTFデータでのカスタム条件
+```
+
+**Fluent APIでの使用:**
+
+```typescript
+import { TrendCraft, weeklyRsiAbove, goldenCrossCondition, and } from 'trendcraft';
+
+const result = TrendCraft.from(dailyCandles)
+  .withMtf(['weekly'])  // 週足タイムフレームを有効化
+  .strategy()
+    .entry(and(
+      weeklyRsiAbove(50),        // 週足RSI > 50
+      goldenCrossCondition()     // 日足ゴールデンクロス
+    ))
+    .exit(deadCrossCondition())
+  .backtest({ capital: 1000000 });
 ```
 
 ---

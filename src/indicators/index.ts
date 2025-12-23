@@ -11,8 +11,8 @@ export { bollingerBands, atr, donchianChannel, keltnerChannel } from "./volatili
 export type { DonchianValue, DonchianOptions, KeltnerChannelOptions, KeltnerChannelValue } from "./volatility";
 
 // Volume
-export { volumeMa, obv, mfi, vwap, cmf } from "./volume";
-export type { VolumeMaOptions, MfiOptions, VwapOptions, VwapValue, CmfOptions } from "./volume";
+export { volumeMa, obv, mfi, vwap, cmf, volumeAnomaly, volumeProfile, volumeProfileSeries, volumeTrend } from "./volume";
+export type { VolumeMaOptions, MfiOptions, VwapOptions, VwapValue, CmfOptions, VolumeAnomalyOptions, VolumeProfileOptions, VolumeTrendOptions } from "./volume";
 
 // Price
 export { highestLowest, highest, lowest, returns, cumulativeReturns, pivotPoints } from "./price";

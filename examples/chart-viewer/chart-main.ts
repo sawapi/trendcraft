@@ -4,18 +4,16 @@
 
 import * as echarts from 'echarts';
 import * as TrendCraft from 'trendcraft';
-import type { SqueezeSignal, PerfectOrderValueEnhanced, RangeBoundValue } from 'trendcraft';
 import { formatDate, createLineSeries } from './utils';
 import {
   mainChart, currentCandles, currentZoomRange, setCurrentZoomRange,
-  rsiChart, macdChart, stochChart, dmiChart, stochRsiChart,
-  mfiChart, obvChart, cciChart, willrChart, rocChart, rangeBoundChart, cmfChart,
   getAllCharts, getSubCharts,
 } from './state';
 import {
   updateRsiChart, updateMacdChart, updateStochChart, updateDmiChart,
   updateStochRsiChart, updateMfiChart, updateObvChart, updateCciChart,
   updateWillrChart, updateRocChart, updateRangeBoundChart, updateCmfChart,
+  updateVolumeAnomalyChart, updateVolumeProfileChart, updateVolumeTrendChart,
 } from './chart-indicators';
 import {
   createPerfectOrderMarkPointsEnhanced, updatePerfectOrderEventsListEnhanced,
@@ -36,6 +34,9 @@ const willrChartEl = document.getElementById('willr-chart') as HTMLDivElement;
 const rocChartEl = document.getElementById('roc-chart') as HTMLDivElement;
 const rbChartEl = document.getElementById('rb-chart') as HTMLDivElement;
 const cmfChartEl = document.getElementById('cmf-chart') as HTMLDivElement;
+const volumeAnomalyChartEl = document.getElementById('volume-anomaly-chart') as HTMLDivElement;
+const volumeProfileChartEl = document.getElementById('volume-profile-chart') as HTMLDivElement;
+const volumeTrendChartEl = document.getElementById('volume-trend-chart') as HTMLDivElement;
 
 /**
  * Get selected indicators from checkboxes
@@ -396,6 +397,30 @@ export function updateChart(): void {
     updateCmfChart(dates, cmfData, zoomStart);
   } else {
     cmfChartEl.classList.remove('visible');
+  }
+
+  if (indicators.volumeAnomaly) {
+    volumeAnomalyChartEl.classList.add('visible');
+    const anomalyData = TrendCraft.volumeAnomaly(currentCandles, { period: 20 });
+    updateVolumeAnomalyChart(dates, anomalyData, zoomStart);
+  } else {
+    volumeAnomalyChartEl.classList.remove('visible');
+  }
+
+  if (indicators.volumeProfile) {
+    volumeProfileChartEl.classList.add('visible');
+    const profileData = TrendCraft.volumeProfileSeries(currentCandles, { period: 20 });
+    updateVolumeProfileChart(dates, profileData, zoomStart);
+  } else {
+    volumeProfileChartEl.classList.remove('visible');
+  }
+
+  if (indicators.volumeTrend) {
+    volumeTrendChartEl.classList.add('visible');
+    const trendData = TrendCraft.volumeTrend(currentCandles);
+    updateVolumeTrendChart(dates, trendData, zoomStart);
+  } else {
+    volumeTrendChartEl.classList.remove('visible');
   }
 
   // Sync dataZoom across all charts

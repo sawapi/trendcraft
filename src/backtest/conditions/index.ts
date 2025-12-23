@@ -5,7 +5,8 @@
  */
 
 // Core functions
-export { evaluateCondition, and, or, not } from "./core";
+export { evaluateCondition, and, or, not, requiresMtf, getRequiredTimeframes } from "./core";
+export type { ExtendedCondition } from "./core";
 
 // Moving Average Cross conditions
 export {
@@ -72,3 +73,47 @@ export {
   rangeScoreAbove,
   type RangeBoundConditionOptions,
 } from "./range-bound";
+
+// Advanced Volume conditions
+export {
+  volumeAnomalyCondition,
+  volumeExtreme,
+  volumeRatioAbove,
+  nearPoc,
+  inValueArea,
+  breakoutVah,
+  breakdownVal,
+  priceAbovePoc,
+  priceBelowPoc,
+  volumeConfirmsTrend,
+  volumeDivergence,
+  bullishVolumeDivergence,
+  bearishVolumeDivergence,
+  volumeTrendConfidence,
+} from "./volume-advanced";
+
+// Multi-Timeframe (MTF) conditions
+export {
+  weeklyRsiAbove,
+  weeklyRsiBelow,
+  monthlyRsiAbove,
+  monthlyRsiBelow,
+  mtfRsiAbove,
+  mtfRsiBelow,
+  weeklyPriceAboveSma,
+  weeklyPriceBelowSma,
+  monthlyPriceAboveSma,
+  monthlyPriceBelowSma,
+  mtfPriceAboveSma,
+  mtfPriceBelowSma,
+  weeklyPriceAboveEma,
+  mtfPriceAboveEma,
+  weeklyTrendStrong,
+  monthlyTrendStrong,
+  mtfTrendStrong,
+  weeklyUptrend,
+  weeklyDowntrend,
+  mtfUptrend,
+  mtfDowntrend,
+  mtfCondition,
+} from "./mtf";

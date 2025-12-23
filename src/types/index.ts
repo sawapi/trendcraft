@@ -242,9 +242,9 @@ export type CombinedCondition = {
 };
 
 /**
- * Condition can be preset, combined, or custom function
+ * Condition can be preset, combined, MTF preset, or custom function
  */
-export type Condition = PresetCondition | CombinedCondition | ConditionFn;
+export type Condition = PresetCondition | CombinedCondition | MtfPresetCondition | ConditionFn;
 
 /**
  * Single trade record
@@ -319,4 +319,127 @@ export type BacktestResult = {
   avgHoldingDays: number;
   /** Individual trade records */
   trades: Trade[];
+};
+
+// ============================================
+// Multi-Timeframe (MTF) Types
+// ============================================
+
+/**
+ * Dataset for a single timeframe
+ */
+export type MtfDataset = {
+  /** Timeframe identifier */
+  timeframe: TimeframeShorthand;
+  /** Candle data for this timeframe */
+  candles: NormalizedCandle[];
+  /** Cached indicators for this timeframe */
+  indicators: Record<string, unknown>;
+};
+
+/**
+ * MTF context for condition evaluation
+ * Provides access to multiple timeframe data during backtest
+ */
+export type MtfContext = {
+  /** Available timeframe datasets */
+  datasets: Map<TimeframeShorthand, MtfDataset>;
+  /** Current index for each timeframe (maps base timeframe index to higher TF index) */
+  indices: Map<TimeframeShorthand, number>;
+  /** Current timestamp (from base timeframe) */
+  currentTime: number;
+};
+
+/**
+ * MTF condition function signature
+ */
+export type MtfConditionFn = (
+  mtf: MtfContext,
+  indicators: Record<string, unknown>,
+  candle: NormalizedCandle,
+  index: number,
+  candles: NormalizedCandle[]
+) => boolean;
+
+/**
+ * MTF preset condition type
+ */
+export type MtfPresetCondition = {
+  type: "mtf-preset";
+  name: string;
+  /** Required timeframes for this condition */
+  requiredTimeframes: TimeframeShorthand[];
+  evaluate: MtfConditionFn;
+};
+
+// ============================================
+// Volume Analysis Types
+// ============================================
+
+/**
+ * Volume anomaly detection result
+ */
+export type VolumeAnomalyValue = {
+  /** Current volume */
+  volume: number;
+  /** Average volume over period */
+  avgVolume: number;
+  /** Volume ratio (volume / avgVolume) */
+  ratio: number;
+  /** Whether this is considered anomalous */
+  isAnomaly: boolean;
+  /** Anomaly level */
+  level: "normal" | "high" | "extreme" | null;
+  /** Z-score (standard deviations from mean) */
+  zScore: number | null;
+};
+
+/**
+ * Single price level in Volume Profile
+ */
+export type VolumePriceLevel = {
+  /** Price level lower bound */
+  priceLow: number;
+  /** Price level upper bound */
+  priceHigh: number;
+  /** Price level midpoint */
+  priceMid: number;
+  /** Total volume at this price level */
+  volume: number;
+  /** Percentage of total volume */
+  volumePercent: number;
+};
+
+/**
+ * Volume Profile result
+ */
+export type VolumeProfileValue = {
+  /** Volume distribution by price level */
+  levels: VolumePriceLevel[];
+  /** Point of Control - price level with highest volume */
+  poc: number;
+  /** Value Area High - upper bound of 70% volume concentration */
+  vah: number;
+  /** Value Area Low - lower bound of 70% volume concentration */
+  val: number;
+  /** Highest price in the profile period */
+  periodHigh: number;
+  /** Lowest price in the profile period */
+  periodLow: number;
+};
+
+/**
+ * Volume trend confirmation result
+ */
+export type VolumeTrendValue = {
+  /** Price trend direction */
+  priceTrend: "up" | "down" | "neutral";
+  /** Volume trend direction */
+  volumeTrend: "up" | "down" | "neutral";
+  /** True if volume confirms price trend (up+up or down+down) */
+  isConfirmed: boolean;
+  /** True if volume diverges from price (potential reversal signal) */
+  hasDivergence: boolean;
+  /** Confidence score (0-100) */
+  confidence: number;
 };

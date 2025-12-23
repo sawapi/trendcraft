@@ -35,6 +35,9 @@ const willrChartEl = document.getElementById('willr-chart') as HTMLDivElement;
 const rocChartEl = document.getElementById('roc-chart') as HTMLDivElement;
 const rbChartEl = document.getElementById('rb-chart') as HTMLDivElement;
 const cmfChartEl = document.getElementById('cmf-chart') as HTMLDivElement;
+const volumeAnomalyChartEl = document.getElementById('volume-anomaly-chart') as HTMLDivElement;
+const volumeProfileChartEl = document.getElementById('volume-profile-chart') as HTMLDivElement;
+const volumeTrendChartEl = document.getElementById('volume-trend-chart') as HTMLDivElement;
 
 /**
  * Initialize ECharts instances
@@ -54,6 +57,9 @@ function initCharts(): void {
     roc: echarts.init(rocChartEl, 'dark'),
     rangeBound: echarts.init(rbChartEl, 'dark'),
     cmf: echarts.init(cmfChartEl, 'dark'),
+    volumeAnomaly: echarts.init(volumeAnomalyChartEl, 'dark'),
+    volumeProfile: echarts.init(volumeProfileChartEl, 'dark'),
+    volumeTrend: echarts.init(volumeTrendChartEl, 'dark'),
   });
 
   // Resize handler

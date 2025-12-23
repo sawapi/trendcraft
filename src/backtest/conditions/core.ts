@@ -2,25 +2,58 @@
  * Core condition evaluation and combination functions
  */
 
-import type { Condition, ConditionFn, PresetCondition, CombinedCondition, NormalizedCandle } from "../../types";
+import type {
+  Condition,
+  ConditionFn,
+  PresetCondition,
+  CombinedCondition,
+  NormalizedCandle,
+  MtfContext,
+  MtfPresetCondition,
+} from "../../types";
+
+/**
+ * Extended condition type that includes MTF conditions
+ */
+export type ExtendedCondition = Condition | MtfPresetCondition;
 
 // ============================================
 // Condition Evaluation Helper
 // ============================================
 
 /**
- * Evaluate a condition (preset, combined, or custom function)
+ * Evaluate a condition (preset, combined, MTF, or custom function)
+ *
+ * @param condition - Condition to evaluate
+ * @param indicators - Cached indicators
+ * @param candle - Current candle
+ * @param index - Current candle index
+ * @param candles - All candles
+ * @param mtfContext - Optional MTF context for multi-timeframe conditions
  */
 export function evaluateCondition(
-  condition: Condition,
+  condition: ExtendedCondition,
   indicators: Record<string, unknown>,
   candle: NormalizedCandle,
   index: number,
-  candles: NormalizedCandle[]
+  candles: NormalizedCandle[],
+  mtfContext?: MtfContext
 ): boolean {
   // Custom function
   if (typeof condition === "function") {
     return condition(indicators, candle, index, candles);
+  }
+
+  // MTF preset condition
+  if (condition.type === "mtf-preset") {
+    if (!mtfContext) {
+      // MTF condition without context - cannot evaluate
+      console.warn(
+        `MTF condition "${condition.name}" requires MTF context. Use withMtf() to enable.`
+      );
+      return false;
+    }
+    return condition.evaluate(mtfContext, indicators, candle, index, candles);
   }
 
   // Preset condition
@@ -28,18 +61,83 @@ export function evaluateCondition(
     return condition.evaluate(indicators, candle, index, candles);
   }
 
-  // Combined conditions
+  // Combined conditions (and/or/not)
   const combined = condition as CombinedCondition;
   switch (combined.type) {
     case "and":
-      return combined.conditions.every((c) => evaluateCondition(c, indicators, candle, index, candles));
+      return combined.conditions.every((c) =>
+        evaluateCondition(c as ExtendedCondition, indicators, candle, index, candles, mtfContext)
+      );
     case "or":
-      return combined.conditions.some((c) => evaluateCondition(c, indicators, candle, index, candles));
+      return combined.conditions.some((c) =>
+        evaluateCondition(c as ExtendedCondition, indicators, candle, index, candles, mtfContext)
+      );
     case "not":
-      return !evaluateCondition(combined.conditions[0], indicators, candle, index, candles);
+      return !evaluateCondition(
+        combined.conditions[0] as ExtendedCondition,
+        indicators,
+        candle,
+        index,
+        candles,
+        mtfContext
+      );
     default:
       return false;
   }
+}
+
+/**
+ * Check if a condition or any of its nested conditions require MTF context
+ */
+export function requiresMtf(condition: ExtendedCondition): boolean {
+  if (typeof condition === "function") {
+    return false;
+  }
+
+  if (condition.type === "mtf-preset") {
+    return true;
+  }
+
+  if (condition.type === "preset") {
+    return false;
+  }
+
+  // Check combined conditions recursively
+  const combined = condition as CombinedCondition;
+  return combined.conditions.some((c) => requiresMtf(c as ExtendedCondition));
+}
+
+/**
+ * Get all required timeframes from a condition
+ */
+export function getRequiredTimeframes(condition: ExtendedCondition): Set<string> {
+  const timeframes = new Set<string>();
+
+  if (typeof condition === "function") {
+    return timeframes;
+  }
+
+  if (condition.type === "mtf-preset") {
+    for (const tf of condition.requiredTimeframes) {
+      timeframes.add(tf);
+    }
+    return timeframes;
+  }
+
+  if (condition.type === "preset") {
+    return timeframes;
+  }
+
+  // Check combined conditions recursively
+  const combined = condition as CombinedCondition;
+  for (const c of combined.conditions) {
+    const nested = getRequiredTimeframes(c as ExtendedCondition);
+    for (const tf of nested) {
+      timeframes.add(tf);
+    }
+  }
+
+  return timeframes;
 }
 
 // ============================================

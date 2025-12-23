@@ -8,10 +8,10 @@ A TypeScript library for technical analysis of financial data. Calculate indicat
 
 ### Indicators
 - **Moving Averages**: SMA, EMA, WMA
-- **Trend**: Ichimoku Cloud, Supertrend
+- **Trend**: Ichimoku Cloud, Supertrend, Parabolic SAR
 - **Momentum**: RSI, MACD, Stochastics (Fast/Slow), DMI/ADX, Stoch RSI, CCI, Williams %R, ROC
-- **Volatility**: Bollinger Bands, ATR, Donchian Channel
-- **Volume**: OBV, MFI, VWAP, Volume MA
+- **Volatility**: Bollinger Bands, ATR, Donchian Channel, Keltner Channel
+- **Volume**: OBV, MFI, VWAP, Volume MA, CMF, Volume Anomaly, Volume Profile, Volume Trend
 - **Price**: Highest/Lowest, Returns, Pivot Points
 
 ### Signal Detection
@@ -26,6 +26,8 @@ A TypeScript library for technical analysis of financial data. Calculate indicat
 - Stop loss, take profit, trailing stop support
 - Commission and slippage simulation
 - Performance metrics (Sharpe ratio, max drawdown, win rate)
+- Multi-timeframe (MTF) conditions (weekly/monthly RSI, SMA, trend)
+- Advanced volume conditions (anomaly detection, volume profile)
 
 ### Utilities
 - Data normalization (various date formats to timestamps)
@@ -213,6 +215,54 @@ const advancedResult = TrendCraft.from(candles)
     commission: 0,
     commissionRate: 0.1,  // 0.1% commission
   });
+```
+
+### Volume Analysis
+
+```typescript
+import { volumeAnomaly, volumeProfile, volumeTrend } from 'trendcraft';
+
+// Detect unusual volume spikes
+const anomalies = volumeAnomaly(candles, { period: 20, highThreshold: 2.0 });
+anomalies.forEach(({ time, value }) => {
+  if (value.isAnomaly) {
+    console.log(`${time}: ${value.level} volume (${value.ratio.toFixed(1)}x avg)`);
+  }
+});
+
+// Volume Profile with POC, VAH, VAL
+const profile = volumeProfile(candles, { period: 20 });
+console.log(`POC: ${profile.poc}`);      // Point of Control (highest volume price)
+console.log(`VAH: ${profile.vah}`);      // Value Area High
+console.log(`VAL: ${profile.val}`);      // Value Area Low
+
+// Volume Trend Confirmation
+const trends = volumeTrend(candles);
+trends.forEach(({ time, value }) => {
+  if (value.isConfirmed) {
+    console.log(`${time}: Trend confirmed (${value.confidence}%)`);
+  }
+  if (value.hasDivergence) {
+    console.log(`${time}: Volume divergence detected`);
+  }
+});
+```
+
+### Multi-Timeframe (MTF) Conditions
+
+```typescript
+import { weeklyRsiAbove, weeklyPriceAboveSma, and, goldenCrossCondition } from 'trendcraft';
+
+// Backtest with weekly RSI filter
+const result = TrendCraft.from(dailyCandles)
+  .withMtf(['weekly'])  // Enable MTF with weekly data
+  .strategy()
+    .entry(and(
+      weeklyRsiAbove(50),        // Weekly RSI > 50 (bullish bias)
+      goldenCrossCondition()     // Daily golden cross
+    ))
+    .exit(deadCrossCondition())
+  .backtest({ capital: 1000000 });
 ```
 
 ## API Reference

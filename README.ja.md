@@ -8,10 +8,10 @@
 
 ### インジケーター
 - **移動平均**: SMA, EMA, WMA
-- **トレンド**: 一目均衡表, Supertrend
+- **トレンド**: 一目均衡表, Supertrend, パラボリックSAR
 - **モメンタム**: RSI, MACD, ストキャスティクス (Fast/Slow), DMI/ADX, Stoch RSI, CCI, Williams %R, ROC
-- **ボラティリティ**: ボリンジャーバンド, ATR, ドンチャンチャネル
-- **出来高**: OBV, MFI, VWAP, 出来高移動平均
+- **ボラティリティ**: ボリンジャーバンド, ATR, ドンチャンチャネル, ケルトナーチャネル
+- **出来高**: OBV, MFI, VWAP, 出来高移動平均, CMF, 出来高異常検出, Volume Profile, 出来高トレンド確認
 - **価格**: 最高値/最安値, リターン, ピボットポイント
 
 ### シグナル検出
@@ -26,6 +26,8 @@
 - ストップロス、テイクプロフィット、トレーリングストップ対応
 - 手数料・スリッページのシミュレーション
 - パフォーマンス指標（シャープレシオ、最大ドローダウン、勝率）
+- マルチタイムフレーム(MTF)条件（週足/月足RSI、SMA、トレンド）
+- 高度な出来高条件（異常検出、Volume Profile）
 
 ### ユーティリティ
 - データ正規化（様々な日付形式をタイムスタンプに変換）
@@ -213,6 +215,54 @@ const advancedResult = TrendCraft.from(candles)
     commission: 0,
     commissionRate: 0.1,  // 0.1%手数料
   });
+```
+
+### 出来高分析
+
+```typescript
+import { volumeAnomaly, volumeProfile, volumeTrend } from 'trendcraft';
+
+// 異常出来高を検出
+const anomalies = volumeAnomaly(candles, { period: 20, highThreshold: 2.0 });
+anomalies.forEach(({ time, value }) => {
+  if (value.isAnomaly) {
+    console.log(`${time}: ${value.level}出来高 (平均の${value.ratio.toFixed(1)}倍)`);
+  }
+});
+
+// Volume Profile（POC、VAH、VAL）
+const profile = volumeProfile(candles, { period: 20 });
+console.log(`POC: ${profile.poc}`);      // Point of Control（最大出来高価格）
+console.log(`VAH: ${profile.vah}`);      // Value Area High
+console.log(`VAL: ${profile.val}`);      // Value Area Low
+
+// 出来高トレンド確認
+const trends = volumeTrend(candles);
+trends.forEach(({ time, value }) => {
+  if (value.isConfirmed) {
+    console.log(`${time}: トレンド確認済み (信頼度${value.confidence}%)`);
+  }
+  if (value.hasDivergence) {
+    console.log(`${time}: 出来高ダイバージェンス検出`);
+  }
+});
+```
+
+### マルチタイムフレーム（MTF）条件
+
+```typescript
+import { weeklyRsiAbove, weeklyPriceAboveSma, and, goldenCrossCondition } from 'trendcraft';
+
+// 週足RSIフィルター付きバックテスト
+const result = TrendCraft.from(dailyCandles)
+  .withMtf(['weekly'])  // MTFを有効化（週足データ）
+  .strategy()
+    .entry(and(
+      weeklyRsiAbove(50),        // 週足RSI > 50（強気バイアス）
+      goldenCrossCondition()     // 日足ゴールデンクロス
+    ))
+    .exit(deadCrossCondition())
+  .backtest({ capital: 1000000 });
 ```
 
 ## APIリファレンス

@@ -571,6 +571,124 @@ const custom = cmf(candles, { period: 21 });
 
 ---
 
+#### `volumeAnomaly(candles, options)`
+
+Detect unusual volume spikes using statistical methods.
+
+```typescript
+const result = volumeAnomaly(candles);
+const custom = volumeAnomaly(candles, { period: 20, highThreshold: 2.0, extremeThreshold: 3.0 });
+```
+
+**Options:**
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `period` | `number` | `20` | Period for average volume calculation |
+| `highThreshold` | `number` | `2.0` | Ratio threshold for "high" volume |
+| `extremeThreshold` | `number` | `3.0` | Ratio threshold for "extreme" volume |
+
+**Returns:** `Series<VolumeAnomalyValue>`
+
+```typescript
+interface VolumeAnomalyValue {
+  volume: number;           // Current volume
+  avgVolume: number;        // Average volume over period
+  ratio: number;            // Current / Average ratio
+  isAnomaly: boolean;       // True if ratio exceeds threshold
+  level: 'normal' | 'high' | 'extreme' | null;  // Anomaly level
+  zScore: number | null;    // Z-score for statistical significance
+}
+```
+
+---
+
+#### `volumeProfile(candles, options)`
+
+Calculate Volume Profile with Point of Control (POC) and Value Area.
+
+```typescript
+const result = volumeProfile(candles);
+const custom = volumeProfile(candles, { period: 20, numLevels: 24, valueAreaPercent: 70 });
+```
+
+**Options:**
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `period` | `number` | `20` | Lookback period |
+| `numLevels` | `number` | `24` | Number of price levels |
+| `valueAreaPercent` | `number` | `70` | Percentage for Value Area calculation |
+
+**Returns:** `VolumeProfileValue`
+
+```typescript
+interface VolumeProfileValue {
+  levels: VolumePriceLevel[];  // Volume at each price level
+  poc: number;                 // Point of Control (highest volume price)
+  vah: number;                 // Value Area High
+  val: number;                 // Value Area Low
+  periodHigh: number;          // Period high price
+  periodLow: number;           // Period low price
+}
+
+interface VolumePriceLevel {
+  priceMin: number;
+  priceMax: number;
+  volume: number;
+  percentage: number;  // Percentage of total volume
+}
+```
+
+---
+
+#### `volumeProfileSeries(candles, options)`
+
+Calculate Volume Profile as a time series (rolling window).
+
+```typescript
+const result = volumeProfileSeries(candles, { period: 20 });
+```
+
+**Returns:** `Series<VolumeProfileValue | null>`
+
+---
+
+#### `volumeTrend(candles, options)`
+
+Analyze whether volume confirms or diverges from price trend.
+
+```typescript
+const result = volumeTrend(candles);
+const custom = volumeTrend(candles, { pricePeriod: 10, volumePeriod: 10, maPeriod: 20 });
+```
+
+**Options:**
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `pricePeriod` | `number` | `10` | Period for price trend detection |
+| `volumePeriod` | `number` | `10` | Period for volume trend detection |
+| `maPeriod` | `number` | `20` | Period for volume MA baseline |
+| `minPriceChange` | `number` | `2.0` | Minimum price change % for trend |
+
+**Returns:** `Series<VolumeTrendValue>`
+
+```typescript
+interface VolumeTrendValue {
+  priceTrend: 'up' | 'down' | 'neutral';    // Price direction
+  volumeTrend: 'up' | 'down' | 'neutral';   // Volume direction
+  isConfirmed: boolean;                      // Volume confirms price trend
+  hasDivergence: boolean;                    // Volume diverges from price
+  confidence: number;                        // Confidence score (0-100)
+}
+```
+
+**Interpretation:**
+- **Confirmed uptrend**: Price rising + volume increasing
+- **Confirmed downtrend**: Price falling + volume increasing (strong selling)
+- **Bullish divergence**: Price falling + volume decreasing (selling exhaustion)
+- **Bearish divergence**: Price rising + volume decreasing (weak rally)
+
+---
+
 ### Price
 
 #### `highest(candles, options)` / `lowest(candles, options)`
@@ -1043,6 +1161,94 @@ tightRange()         // In a very tight range
 breakoutRiskUp()     // Price near upper boundary
 breakoutRiskDown()   // Price near lower boundary
 rangeScoreAbove(70)  // Range score above threshold
+```
+
+#### Advanced Volume Conditions
+
+```typescript
+// Volume Anomaly conditions
+volumeAnomalyCondition(threshold = 2.0)  // Volume anomaly detected
+volumeExtreme()                           // Extreme volume spike
+volumeRatioAbove(ratio)                   // Volume ratio above threshold
+
+// Volume Profile conditions
+nearPoc(tolerance = 0.02)     // Price near Point of Control (2% default)
+inValueArea()                 // Price within Value Area (VAL-VAH)
+breakoutVah()                 // Price breaks above Value Area High
+breakdownVal()                // Price breaks below Value Area Low
+priceAbovePoc()               // Price above POC
+priceBelowPoc()               // Price below POC
+
+// Volume Trend conditions
+volumeConfirmsTrend()                    // Volume confirms price trend
+volumeDivergence()                       // Volume diverges from price
+bullishVolumeDivergence()                // Bullish volume divergence
+bearishVolumeDivergence()                // Bearish volume divergence
+volumeTrendConfidence(minConfidence)     // Confidence above threshold
+```
+
+#### Multi-Timeframe (MTF) Conditions
+
+MTF conditions allow you to filter trades based on higher timeframe indicators.
+
+```typescript
+// Weekly RSI conditions
+weeklyRsiAbove(threshold, period = 14)   // Weekly RSI > threshold
+weeklyRsiBelow(threshold, period = 14)   // Weekly RSI < threshold
+
+// Monthly RSI conditions
+monthlyRsiAbove(threshold, period = 14)  // Monthly RSI > threshold
+monthlyRsiBelow(threshold, period = 14)  // Monthly RSI < threshold
+
+// Generic MTF RSI
+mtfRsiAbove(timeframe, threshold, period = 14)  // MTF RSI > threshold
+mtfRsiBelow(timeframe, threshold, period = 14)  // MTF RSI < threshold
+
+// Weekly SMA conditions
+weeklyPriceAboveSma(period)   // Price > weekly SMA
+weeklyPriceBelowSma(period)   // Price < weekly SMA
+
+// Monthly SMA conditions
+monthlyPriceAboveSma(period)  // Price > monthly SMA
+monthlyPriceBelowSma(period)  // Price < monthly SMA
+
+// Generic MTF SMA
+mtfPriceAboveSma(timeframe, period)  // Price > MTF SMA
+mtfPriceBelowSma(timeframe, period)  // Price < MTF SMA
+
+// Weekly EMA conditions
+weeklyPriceAboveEma(period)   // Price > weekly EMA
+mtfPriceAboveEma(timeframe, period)  // Price > MTF EMA
+
+// Trend conditions
+weeklyUptrend(smaPeriod = 20)    // Weekly price > weekly SMA
+weeklyDowntrend(smaPeriod = 20)  // Weekly price < weekly SMA
+mtfUptrend(timeframe, smaPeriod = 20)    // MTF uptrend
+mtfDowntrend(timeframe, smaPeriod = 20)  // MTF downtrend
+
+// Strong trend (ADX-based)
+weeklyTrendStrong(adxThreshold = 25)   // Weekly ADX > threshold
+monthlyTrendStrong(adxThreshold = 25)  // Monthly ADX > threshold
+mtfTrendStrong(timeframe, adxThreshold = 25)  // MTF ADX > threshold
+
+// Custom MTF condition
+mtfCondition(timeframe, conditionFn)  // Custom condition on MTF data
+```
+
+**Usage with Fluent API:**
+
+```typescript
+import { TrendCraft, weeklyRsiAbove, goldenCrossCondition, and } from 'trendcraft';
+
+const result = TrendCraft.from(dailyCandles)
+  .withMtf(['weekly'])  // Enable weekly timeframe
+  .strategy()
+    .entry(and(
+      weeklyRsiAbove(50),        // Weekly RSI > 50
+      goldenCrossCondition()     // Daily golden cross
+    ))
+    .exit(deadCrossCondition())
+  .backtest({ capital: 1000000 });
 ```
 
 ---

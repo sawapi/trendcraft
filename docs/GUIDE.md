@@ -18,6 +18,8 @@ A practical guide to understanding technical indicators and trading signals.
 - [Pivot Points](#pivot-points)
 - [VWAP](#vwap)
 - [Volume Indicators](#volume-indicators)
+- [Advanced Volume Analysis](#advanced-volume-analysis)
+- [Multi-Timeframe (MTF) Analysis](#multi-timeframe-mtf-analysis)
 - [Range-Bound Detection](#range-bound-detection)
 - [Backtesting](#backtesting)
 - [Signal Interpretation](#signal-interpretation)
@@ -670,6 +672,181 @@ MFI gives more weight to high-volume moves, making it useful for confirming sign
 
 ---
 
+## Advanced Volume Analysis
+
+TrendCraft provides advanced volume analysis tools beyond basic OBV and MFI.
+
+### Volume Anomaly Detection
+
+#### What is it?
+
+Volume anomaly detection identifies unusual volume spikes that may signal significant market events like institutional activity, news reactions, or trend reversals.
+
+#### How to Read
+
+```
+ratio > 2.0  → High volume (2x average)
+ratio > 3.0  → Extreme volume (3x average)
+zScore > 2   → Statistically significant spike
+```
+
+#### Key Signals
+
+| Condition | Meaning |
+|-----------|---------|
+| High volume + price breakout | Confirmed breakout |
+| Extreme volume at support | Potential capitulation/bottom |
+| Extreme volume at resistance | Potential distribution/top |
+| Volume spike + no price change | Accumulation/distribution |
+
+### Volume Profile
+
+#### What is it?
+
+Volume Profile shows the distribution of trading volume at different price levels over a period. It reveals where most trading occurred (support/resistance levels).
+
+#### Key Components
+
+```
+POC (Point of Control) = Price level with highest volume (strongest S/R)
+VAH (Value Area High)  = Upper bound of 70% volume
+VAL (Value Area Low)   = Lower bound of 70% volume
+Value Area             = Price range with 70% of total volume
+```
+
+#### How to Read
+
+```
+Price near POC    → Strong support/resistance zone
+Price in Value Area → Fair value zone
+Price above VAH   → Potentially overextended
+Price below VAL   → Potentially undervalued
+```
+
+#### Trading Strategies
+
+| Strategy | Entry | Target |
+|----------|-------|--------|
+| Mean reversion | Price touches VAH/VAL | Return to POC |
+| Breakout | Price breaks VAH with volume | Next resistance |
+| Support trade | Price bounces off POC | Previous high |
+
+### Volume Trend Confirmation
+
+#### What is it?
+
+Volume trend confirmation analyzes whether volume supports the current price trend. Healthy trends should have confirming volume.
+
+#### How to Read
+
+```
+isConfirmed = true   → Volume confirms price direction
+hasDivergence = true → Volume diverges from price (warning)
+confidence > 70      → High confidence in signal
+```
+
+#### Key Patterns
+
+| Pattern | Meaning | Implication |
+|---------|---------|-------------|
+| Price up + Volume up | Confirmed uptrend | Trend likely continues |
+| Price down + Volume up | Confirmed downtrend | Strong selling |
+| Price up + Volume down | Bearish divergence | Rally weakening |
+| Price down + Volume down | Bullish divergence | Selling exhaustion |
+
+#### Usage Example
+
+```typescript
+import { volumeAnomaly, volumeProfile, volumeTrend } from 'trendcraft';
+
+// Detect volume spikes
+const anomalies = volumeAnomaly(candles, { period: 20 });
+anomalies.filter(d => d.value.isAnomaly).forEach(d => {
+  console.log(`${d.time}: ${d.value.level} volume (${d.value.ratio.toFixed(1)}x)`);
+});
+
+// Analyze volume profile
+const profile = volumeProfile(candles, { period: 20 });
+console.log(`POC: ${profile.poc}, Value Area: ${profile.val} - ${profile.vah}`);
+
+// Check trend confirmation
+const trends = volumeTrend(candles);
+const latest = trends[trends.length - 1].value;
+if (latest.hasDivergence) {
+  console.log('Warning: Volume divergence detected');
+}
+```
+
+---
+
+## Multi-Timeframe (MTF) Analysis
+
+### What is it?
+
+Multi-timeframe analysis uses higher timeframe indicators to filter trades on lower timeframes. This helps align trades with the bigger picture trend.
+
+### Why Use MTF?
+
+```
+Higher timeframe trend = Context (the "forest")
+Lower timeframe signal = Entry (the "trees")
+
+Trading WITH the higher timeframe trend improves win rate.
+```
+
+### Common MTF Strategies
+
+| Strategy | Higher TF Check | Lower TF Entry |
+|----------|-----------------|----------------|
+| Trend alignment | Weekly RSI > 50 | Daily Golden Cross |
+| Pullback | Weekly uptrend | Daily RSI < 30 |
+| Breakout filter | Monthly ADX > 25 | Daily breakout |
+
+### Available MTF Conditions
+
+```typescript
+// RSI filters
+weeklyRsiAbove(50)    // Weekly RSI bullish
+weeklyRsiBelow(50)    // Weekly RSI bearish
+
+// Trend filters
+weeklyUptrend()       // Price > Weekly SMA
+weeklyDowntrend()     // Price < Weekly SMA
+weeklyTrendStrong()   // Weekly ADX > 25
+
+// Price vs MA
+weeklyPriceAboveSma(20)  // Price > Weekly 20 SMA
+monthlyPriceAboveSma(50) // Price > Monthly 50 SMA
+```
+
+### Usage Example
+
+```typescript
+import { TrendCraft, weeklyRsiAbove, goldenCrossCondition, and } from 'trendcraft';
+
+// Only take golden cross signals when weekly RSI is bullish
+const result = TrendCraft.from(dailyCandles)
+  .withMtf(['weekly'])  // Enable weekly timeframe
+  .strategy()
+    .entry(and(
+      weeklyRsiAbove(50),        // Weekly RSI > 50 (bullish)
+      goldenCrossCondition()     // Daily golden cross
+    ))
+    .exit(deadCrossCondition())
+  .backtest({ capital: 1000000 });
+
+console.log(`Win rate: ${result.winRate}%`);
+```
+
+### Tips
+
+- Always trade in the direction of the higher timeframe trend
+- Weekly RSI > 50 = bullish bias, < 50 = bearish bias
+- Monthly trend defines the primary direction
+- MTF analysis reduces overtrading by filtering weak signals
+
+---
+
 ## Range-Bound Detection
 
 ### What is it?
@@ -962,12 +1139,15 @@ Indicators behave differently in different market conditions:
 | Trend strength | ADX |
 | Overbought/Oversold | RSI, Stochastics, MFI, CCI, Williams %R |
 | Volatility | Bollinger Bands, ATR |
-| Volume confirmation | OBV, MFI, VWAP |
-| Potential reversals | Divergence (RSI, MACD, OBV) |
+| Volume confirmation | OBV, MFI, VWAP, Volume Trend |
+| Volume anomalies | Volume Anomaly Detection |
+| Key price levels | Volume Profile (POC, VAH, VAL) |
+| Potential reversals | Divergence (RSI, MACD, OBV, Volume) |
 | Breakout setup | Bollinger Squeeze, Range-Bound |
 | Sideways market | Range-Bound Detection |
-| Support/Resistance | Pivot Points, Ichimoku (Cloud), Range Boundaries |
+| Support/Resistance | Pivot Points, Ichimoku (Cloud), Range Boundaries, Volume Profile |
 | Momentum change | ROC, MACD |
+| Higher timeframe context | MTF conditions (Weekly RSI, SMA, ADX) |
 | Strategy validation | Backtesting |
 
 ---
@@ -980,9 +1160,11 @@ Technical analysis is not about predicting the future—it's about understanding
 2. **Detect sideways markets** (Range-Bound Detection)
 3. **Find entry/exit points** (RSI, Stochastics, CCI, Williams %R, crossovers)
 4. **Confirm with volume** (OBV, MFI, VWAP)
-5. **Assess volatility** (Bollinger Bands, ATR)
-6. **Detect potential reversals** (divergence, squeeze, ROC)
-7. **Find support/resistance** (Pivot Points, Ichimoku Cloud, Range Boundaries)
-8. **Validate strategies** (Backtesting with preset conditions)
+5. **Advanced volume analysis** (Volume Anomaly, Volume Profile, Volume Trend)
+6. **Assess volatility** (Bollinger Bands, ATR)
+7. **Detect potential reversals** (divergence, squeeze, ROC)
+8. **Find support/resistance** (Pivot Points, Ichimoku Cloud, Range Boundaries, Volume Profile POC)
+9. **Multi-timeframe analysis** (Weekly/Monthly RSI, SMA, trend filters)
+10. **Validate strategies** (Backtesting with preset conditions)
 
 Remember: No indicator is perfect. Combine multiple tools, always manage risk, and never invest more than you can afford to lose.

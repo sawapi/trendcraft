@@ -4,10 +4,11 @@
 
 import * as echarts from 'echarts';
 import * as TrendCraft from 'trendcraft';
-import type { DivergenceSignal } from 'trendcraft';
+import type { DivergenceSignal, VolumeAnomalyValue, VolumeProfileValue, VolumeTrendValue } from 'trendcraft';
 import {
   rsiChart, macdChart, stochChart, dmiChart, stochRsiChart,
   mfiChart, obvChart, cciChart, willrChart, rocChart, rangeBoundChart, cmfChart,
+  volumeAnomalyChart, volumeProfileChart, volumeTrendChart,
   currentCandles,
 } from './state';
 
@@ -591,4 +592,226 @@ export function updateCmfChart(dates: string[], cmfData: TrendCraft.Series<numbe
     dataZoom: [{ type: 'inside', start: zoomStart, end: 100 }],
   };
   cmfChart.setOption(option, true);
+}
+
+/**
+ * Update Volume Anomaly chart
+ */
+export function updateVolumeAnomalyChart(
+  dates: string[],
+  anomalyData: TrendCraft.Series<VolumeAnomalyValue>,
+  zoomStart: number
+): void {
+  if (!volumeAnomalyChart) return;
+
+  const ratios = anomalyData.map(d => d.value.ratio);
+  const zScores = anomalyData.map(d => d.value.zScore);
+
+  // Create mark points for anomalies
+  const markPointData: Array<{
+    name: string;
+    coord: [string, number];
+    symbol: string;
+    symbolSize: number;
+    itemStyle: { color: string };
+    label: { show: boolean; formatter: string; color: string; fontSize: number; position: 'top' };
+  }> = [];
+
+  anomalyData.forEach((d, idx) => {
+    if (d.value.isAnomaly) {
+      const isExtreme = d.value.level === 'extreme';
+      markPointData.push({
+        name: isExtreme ? 'Extreme' : 'High',
+        coord: [dates[idx], d.value.ratio],
+        symbol: 'triangle',
+        symbolSize: isExtreme ? 14 : 10,
+        itemStyle: { color: isExtreme ? '#ef5350' : '#ff9800' },
+        label: { show: true, formatter: isExtreme ? 'E' : 'H', color: '#fff', fontSize: 7, position: 'top' },
+      });
+    }
+  });
+
+  const option: echarts.EChartsOption = {
+    backgroundColor: 'transparent',
+    animation: false,
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: 'rgba(0,0,0,0.8)',
+      borderColor: '#333',
+      textStyle: { color: '#fff' },
+      formatter: (params) => {
+        if (!Array.isArray(params)) return '';
+        const date = params[0]?.name || '';
+        const ratio = params.find(p => p.seriesName === 'Ratio');
+        const zScore = params.find(p => p.seriesName === 'Z-Score');
+        const idx = params[0]?.dataIndex;
+        const anomalyInfo = idx !== undefined ? anomalyData[idx]?.value : null;
+        const format = (v: number | null | undefined) => v !== null && v !== undefined ? v.toFixed(2) : '-';
+        let result = `${date}<br/>Ratio: ${format(ratio?.value as number)}x<br/>Z-Score: ${format(zScore?.value as number)}`;
+        if (anomalyInfo?.isAnomaly) {
+          result += `<br/><span style="color: ${anomalyInfo.level === 'extreme' ? '#ef5350' : '#ff9800'}">⚠️ ${anomalyInfo.level?.toUpperCase()} Volume</span>`;
+        }
+        return result;
+      },
+    },
+    title: { text: 'Volume Anomaly', left: 10, top: 0, textStyle: { color: '#888', fontSize: 12, fontWeight: 'normal' } },
+    legend: { data: ['Ratio', 'Z-Score'], top: 0, right: 60, textStyle: { color: '#888', fontSize: 10 } },
+    grid: { left: 60, right: 60, top: 25, bottom: 30 },
+    xAxis: { type: 'category', data: dates, axisLine: { lineStyle: { color: '#666' } }, axisLabel: { color: '#888', fontSize: 10 } },
+    yAxis: [
+      { type: 'value', name: 'Ratio', position: 'left', axisLine: { lineStyle: { color: '#666' } }, splitLine: { lineStyle: { color: '#333' } }, axisLabel: { color: '#888' } },
+      { type: 'value', name: 'Z-Score', position: 'right', axisLine: { lineStyle: { color: '#666' } }, splitLine: { show: false }, axisLabel: { color: '#888' } },
+    ],
+    series: [
+      {
+        name: 'Ratio', type: 'line', data: ratios, smooth: false, showSymbol: false, lineStyle: { width: 1.5, color: '#2196f3' },
+        markLine: { silent: true, symbol: 'none', lineStyle: { type: 'dashed', width: 1 }, label: { show: true, position: 'end', fontSize: 10 },
+          data: [
+            { yAxis: 2.0, lineStyle: { color: '#ff9800' }, label: { formatter: '2.0x High', color: '#ff9800' } },
+            { yAxis: 3.0, lineStyle: { color: '#ef5350' }, label: { formatter: '3.0x Extreme', color: '#ef5350' } },
+          ],
+        },
+        markPoint: { data: markPointData },
+      },
+      {
+        name: 'Z-Score', type: 'line', yAxisIndex: 1, data: zScores, smooth: false, showSymbol: false, lineStyle: { width: 1, color: '#9c27b0', type: 'dashed' },
+      },
+    ],
+    dataZoom: [{ type: 'inside', start: zoomStart, end: 100 }],
+  };
+  volumeAnomalyChart.setOption(option, true);
+}
+
+/**
+ * Update Volume Profile chart (showing POC, VAH, VAL as lines)
+ */
+export function updateVolumeProfileChart(
+  dates: string[],
+  profileData: TrendCraft.Series<VolumeProfileValue | null>,
+  zoomStart: number
+): void {
+  if (!volumeProfileChart) return;
+
+  const poc = profileData.map(d => d.value?.poc ?? null);
+  const vah = profileData.map(d => d.value?.vah ?? null);
+  const val = profileData.map(d => d.value?.val ?? null);
+
+  const option: echarts.EChartsOption = {
+    backgroundColor: 'transparent',
+    animation: false,
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: 'rgba(0,0,0,0.8)',
+      borderColor: '#333',
+      textStyle: { color: '#fff' },
+      formatter: (params) => {
+        if (!Array.isArray(params)) return '';
+        const date = params[0]?.name || '';
+        const pocVal = params.find(p => p.seriesName === 'POC');
+        const vahVal = params.find(p => p.seriesName === 'VAH');
+        const valVal = params.find(p => p.seriesName === 'VAL');
+        const format = (v: number | null | undefined) => v !== null && v !== undefined ? v.toFixed(0) : '-';
+        return `${date}<br/>POC: ${format(pocVal?.value as number)}<br/>VAH: ${format(vahVal?.value as number)}<br/>VAL: ${format(valVal?.value as number)}`;
+      },
+    },
+    title: { text: 'Volume Profile (20)', left: 10, top: 0, textStyle: { color: '#888', fontSize: 12, fontWeight: 'normal' } },
+    legend: { data: ['POC', 'VAH', 'VAL'], top: 0, right: 60, textStyle: { color: '#888', fontSize: 10 } },
+    grid: { left: 60, right: 60, top: 25, bottom: 30 },
+    xAxis: { type: 'category', data: dates, axisLine: { lineStyle: { color: '#666' } }, axisLabel: { color: '#888', fontSize: 10 } },
+    yAxis: { type: 'value', scale: true, axisLine: { lineStyle: { color: '#666' } }, splitLine: { lineStyle: { color: '#333' } }, axisLabel: { color: '#888' } },
+    series: [
+      { name: 'POC', type: 'line', data: poc, smooth: false, showSymbol: false, lineStyle: { width: 2, color: '#ff5722' } },
+      { name: 'VAH', type: 'line', data: vah, smooth: false, showSymbol: false, lineStyle: { width: 1.5, color: '#4caf50', type: 'dashed' } },
+      { name: 'VAL', type: 'line', data: val, smooth: false, showSymbol: false, lineStyle: { width: 1.5, color: '#f44336', type: 'dashed' } },
+    ],
+    dataZoom: [{ type: 'inside', start: zoomStart, end: 100 }],
+  };
+  volumeProfileChart.setOption(option, true);
+}
+
+/**
+ * Update Volume Trend chart
+ */
+export function updateVolumeTrendChart(
+  dates: string[],
+  trendData: TrendCraft.Series<VolumeTrendValue>,
+  zoomStart: number
+): void {
+  if (!volumeTrendChart) return;
+
+  // Create color array for trend state
+  const trendColors = trendData.map(d => {
+    if (d.value.hasDivergence) return '#ff9800'; // Orange for divergence
+    if (d.value.isConfirmed && d.value.priceTrend === 'up') return '#26a69a'; // Green for confirmed bullish
+    if (d.value.isConfirmed && d.value.priceTrend === 'down') return '#ef5350'; // Red for confirmed bearish
+    return '#888'; // Gray for neutral
+  });
+
+  // Mark points for divergences
+  const divergenceMarks: Array<{
+    name: string;
+    coord: [string, number];
+    symbol: string;
+    symbolSize: number;
+    itemStyle: { color: string };
+    label: { show: boolean; formatter: string; color: string; fontSize: number; position: 'top' };
+  }> = [];
+
+  trendData.forEach((d, idx) => {
+    if (d.value.hasDivergence) {
+      const isBearishDiv = d.value.priceTrend === 'up' && d.value.volumeTrend === 'down';
+      divergenceMarks.push({
+        name: isBearishDiv ? 'Bearish Div' : 'Bullish Div',
+        coord: [dates[idx], d.value.confidence],
+        symbol: 'diamond',
+        symbolSize: 10,
+        itemStyle: { color: isBearishDiv ? '#ef5350' : '#26a69a' },
+        label: { show: true, formatter: isBearishDiv ? 'BD' : 'BuD', color: '#fff', fontSize: 7, position: 'top' },
+      });
+    }
+  });
+
+  // Create data with per-point colors (more efficient than visualMap with thousands of pieces)
+  const dataWithColors = trendData.map((d, idx) => ({
+    value: d.value.confidence,
+    itemStyle: { color: trendColors[idx] },
+  }));
+
+  const option: echarts.EChartsOption = {
+    backgroundColor: 'transparent',
+    animation: false,
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: 'rgba(0,0,0,0.8)',
+      borderColor: '#333',
+      textStyle: { color: '#fff' },
+      formatter: (params) => {
+        const p = Array.isArray(params) ? params[0] : params;
+        const idx = p.dataIndex;
+        const data = trendData[idx]?.value;
+        if (!data) return '';
+        const pTrend = data.priceTrend === 'up' ? '↑' : data.priceTrend === 'down' ? '↓' : '→';
+        const vTrend = data.volumeTrend === 'up' ? '↑' : data.volumeTrend === 'down' ? '↓' : '→';
+        let status = 'Neutral';
+        if (data.isConfirmed) status = data.priceTrend === 'up' ? 'Confirmed Bullish' : 'Confirmed Bearish';
+        if (data.hasDivergence) status = data.priceTrend === 'up' ? 'Bearish Divergence' : 'Bullish Divergence';
+        return `${p.name}<br/>Price: ${pTrend}<br/>Volume: ${vTrend}<br/>Confidence: ${data.confidence.toFixed(0)}%<br/>Status: ${status}`;
+      },
+    },
+    title: { text: 'Volume Trend Confirmation', left: 10, top: 0, textStyle: { color: '#888', fontSize: 12, fontWeight: 'normal' } },
+    grid: { left: 60, right: 60, top: 25, bottom: 30 },
+    xAxis: { type: 'category', data: dates, axisLine: { lineStyle: { color: '#666' } }, axisLabel: { color: '#888', fontSize: 10 } },
+    yAxis: { type: 'value', min: 0, max: 100, axisLine: { lineStyle: { color: '#666' } }, splitLine: { lineStyle: { color: '#333' } }, axisLabel: { color: '#888' } },
+    series: [{
+      name: 'Confidence', type: 'bar', data: dataWithColors,
+      markPoint: { data: divergenceMarks },
+      markLine: { silent: true, symbol: 'none', lineStyle: { type: 'dashed', width: 1 }, label: { show: true, position: 'end', fontSize: 10 },
+        data: [
+          { yAxis: 50, lineStyle: { color: '#888' }, label: { formatter: '50%', color: '#888' } },
+        ],
+      },
+    }],
+    dataZoom: [{ type: 'inside', start: zoomStart, end: 100 }],
+  };
+  volumeTrendChart.setOption(option, true);
 }

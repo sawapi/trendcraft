@@ -3,19 +3,41 @@
  * Simulates trading strategy on historical data
  */
 
-import type { NormalizedCandle, Condition, BacktestOptions, BacktestResult, Trade } from "../types";
+import type {
+  NormalizedCandle,
+  Condition,
+  BacktestOptions,
+  BacktestResult,
+  Trade,
+  TimeframeShorthand,
+  MtfContext,
+} from "../types";
 import { evaluateCondition } from "./conditions";
+import type { ExtendedCondition } from "./conditions";
+import {
+  createMtfContext,
+  buildMtfIndexMap,
+  updateMtfIndices,
+} from "../core/mtf-context";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+/**
+ * Extended backtest options with MTF support
+ */
+export type MtfBacktestOptions = BacktestOptions & {
+  /** Timeframes to include for MTF conditions */
+  mtfTimeframes?: TimeframeShorthand[];
+};
 
 /**
  * Run backtest on historical candle data
  */
 export function runBacktest(
   candles: NormalizedCandle[],
-  entryCondition: Condition,
-  exitCondition: Condition,
-  options: BacktestOptions
+  entryCondition: Condition | ExtendedCondition,
+  exitCondition: Condition | ExtendedCondition,
+  options: BacktestOptions | MtfBacktestOptions
 ): BacktestResult {
   const {
     capital,
@@ -29,12 +51,24 @@ export function runBacktest(
     taxRate = 0,
   } = options;
 
+  // Extract MTF timeframes if provided
+  const mtfTimeframes = (options as MtfBacktestOptions).mtfTimeframes;
+
   if (candles.length < 2) {
     return emptyResult();
   }
 
   const trades: Trade[] = [];
   const indicators: Record<string, unknown> = {};
+
+  // Setup MTF context if timeframes are specified
+  let mtfContext: MtfContext | undefined;
+  let mtfIndexMap: Map<TimeframeShorthand, number[]> | undefined;
+
+  if (mtfTimeframes && mtfTimeframes.length > 0) {
+    mtfContext = createMtfContext(candles, mtfTimeframes);
+    mtfIndexMap = buildMtfIndexMap(candles, mtfContext);
+  }
 
   let position: {
     entryTime: number;
@@ -52,9 +86,14 @@ export function runBacktest(
   for (let i = 1; i < candles.length; i++) {
     const candle = candles[i];
 
+    // Update MTF indices for this candle
+    if (mtfContext && mtfIndexMap) {
+      updateMtfIndices(mtfContext, mtfIndexMap, i, candle.time);
+    }
+
     if (position === null) {
       // Check entry condition
-      if (evaluateCondition(entryCondition, indicators, candle, i, candles)) {
+      if (evaluateCondition(entryCondition as ExtendedCondition, indicators, candle, i, candles, mtfContext)) {
         const entryPrice = applySlippage(candle.close, slippage, "buy");
 
         // Calculate commission (fixed + rate-based)
@@ -167,7 +206,7 @@ export function runBacktest(
       }
 
       // Signal-based exit condition
-      if (!shouldExit && evaluateCondition(exitCondition, indicators, candle, i, candles)) {
+      if (!shouldExit && evaluateCondition(exitCondition as ExtendedCondition, indicators, candle, i, candles, mtfContext)) {
         shouldExit = true;
         exitPrice = candle.close;
       }
