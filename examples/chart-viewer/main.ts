@@ -5,7 +5,7 @@
 
 import * as echarts from 'echarts';
 import * as TrendCraft from 'trendcraft';
-import type { NormalizedCandle, Timeframe, DivergenceSignal, SqueezeSignal, PerfectOrderValueEnhanced } from 'trendcraft';
+import type { NormalizedCandle, Timeframe, DivergenceSignal, SqueezeSignal, PerfectOrderValueEnhanced, RangeBoundValue, TrendReason } from 'trendcraft';
 import { formatDate, createLineSeries } from './utils';
 import { setupBacktest, showBacktestPanel, runBacktest, resizeEquityChart, clearTradeMarkers, getRunButton } from './backtest';
 
@@ -23,6 +23,7 @@ let obvChart: echarts.ECharts | null = null;
 let cciChart: echarts.ECharts | null = null;
 let willrChart: echarts.ECharts | null = null;
 let rocChart: echarts.ECharts | null = null;
+let rangeBoundChart: echarts.ECharts | null = null;
 let currentZoomRange: { start: number; end: number } = { start: 0, end: 100 };
 
 // DOM Elements
@@ -42,6 +43,7 @@ const obvChartEl = document.getElementById('obv-chart') as HTMLDivElement;
 const cciChartEl = document.getElementById('cci-chart') as HTMLDivElement;
 const willrChartEl = document.getElementById('willr-chart') as HTMLDivElement;
 const rocChartEl = document.getElementById('roc-chart') as HTMLDivElement;
+const rbChartEl = document.getElementById('rb-chart') as HTMLDivElement;
 
 // Initialize
 function init(): void {
@@ -114,6 +116,7 @@ function initCharts(): void {
   cciChart = echarts.init(cciChartEl, 'dark');
   willrChart = echarts.init(willrChartEl, 'dark');
   rocChart = echarts.init(rocChartEl, 'dark');
+  rangeBoundChart = echarts.init(rbChartEl, 'dark');
 
   // Resize handler
   window.addEventListener('resize', () => {
@@ -128,6 +131,7 @@ function initCharts(): void {
     cciChart?.resize();
     willrChart?.resize();
     rocChart?.resize();
+    rangeBoundChart?.resize();
     resizeEquityChart();
   });
 }
@@ -384,6 +388,30 @@ function updateChart(): void {
     updatePerfectOrderEventsListEnhanced(false, []);
   }
 
+  // Range-Bound: Add mark areas (boxes) and support/resistance lines
+  // Must be done BEFORE setOption
+  if (indicators.rangebound) {
+    const rbData = TrendCraft.rangeBound(currentCandles, { persistBars: 3 });
+    const rbMarkAreas = createRangeBoundMarkAreas(rbData, dates);
+    const srLines = createSupportResistanceLines(rbData, dates);
+    const candlestickSeries = series.find(s => s.name === 'Candlestick');
+    if (candlestickSeries) {
+      if (rbMarkAreas.length > 0) {
+        (candlestickSeries as echarts.CandlestickSeriesOption).markArea = {
+          silent: true,
+          data: rbMarkAreas,
+        };
+      }
+      if (srLines.length > 0) {
+        (candlestickSeries as echarts.CandlestickSeriesOption).markLine = {
+          silent: true,
+          symbol: 'none',
+          data: srLines,
+        };
+      }
+    }
+  }
+
   // Main chart option
   const mainOption: echarts.EChartsOption = {
     backgroundColor: 'transparent',
@@ -518,8 +546,19 @@ function updateChart(): void {
     rocChartEl.classList.remove('visible');
   }
 
+  // Range-Bound Chart (markArea is already added before setOption)
+  if (indicators.rangebound) {
+    rbChartEl.classList.add('visible');
+    const rbData = TrendCraft.rangeBound(currentCandles, { persistBars: 3 });
+    updateRangeBoundChart(dates, rbData, zoomStart);
+    updateRangeBoundEventsList(true, rbData);
+  } else {
+    rbChartEl.classList.remove('visible');
+    updateRangeBoundEventsList(false, []);
+  }
+
   // Sync dataZoom across all charts (remove old listeners first to avoid duplicates)
-  const allCharts = [mainChart, rsiChart, macdChart, stochChart, dmiChart, stochRsiChart, mfiChart, obvChart, cciChart, willrChart, rocChart];
+  const allCharts = [mainChart, rsiChart, macdChart, stochChart, dmiChart, stochRsiChart, mfiChart, obvChart, cciChart, willrChart, rocChart, rangeBoundChart];
   allCharts.forEach(chart => {
     if (chart) {
       chart.off('datazoom');
@@ -569,7 +608,7 @@ function syncDataZoom(sourceChart: echarts.ECharts, params: any): void {
   currentZoomRange = { start: start ?? 0, end: end ?? 100 };
 
   // Sync to all other charts (excluding source to avoid loops)
-  const allCharts = [mainChart, rsiChart, macdChart, stochChart, dmiChart, stochRsiChart, mfiChart, obvChart, cciChart, willrChart, rocChart];
+  const allCharts = [mainChart, rsiChart, macdChart, stochChart, dmiChart, stochRsiChart, mfiChart, obvChart, cciChart, willrChart, rocChart, rangeBoundChart];
   allCharts.forEach(chart => {
     if (chart && chart !== sourceChart) {
       chart.setOption({ dataZoom: [{ start, end }] }, { lazyUpdate: true });
@@ -591,6 +630,12 @@ function syncDataZoom(sourceChart: echarts.ECharts, params: any): void {
       persistBars: 3,
     });
     updatePerfectOrderEventsListEnhanced(true, poData);
+  }
+
+  // Update Range-Bound list if visible
+  if (indicators.rangebound) {
+    const rbData = TrendCraft.rangeBound(currentCandles, { persistBars: 3 });
+    updateRangeBoundEventsList(true, rbData);
   }
 }
 
@@ -1875,6 +1920,517 @@ function updatePerfectOrderEventsListEnhanced(show: boolean, poData: TrendCraft.
           return `<span class="po-event collapsed" title="MA Convergence">■ Collapsed ${formatDate(e.time)}</span>`;
         case 'pullback_buy':
           return `<span class="po-event pullback-buy" title="Gap: ${e.gapPercent?.toFixed(1)}%">▲ Pullback Buy [${e.gapPercent?.toFixed(1)}%] ${formatDate(e.time)}</span>`;
+        default:
+          return '';
+      }
+    }).join('');
+  }
+
+  container.classList.add('visible');
+}
+
+// Update Range-Bound chart
+function updateRangeBoundChart(
+  dates: string[],
+  rbData: TrendCraft.Series<RangeBoundValue>,
+  zoomStart: number
+): void {
+  if (!rangeBoundChart) return;
+
+  const rangeScores = rbData.map(d => d.value.rangeScore);
+  const adxValues = rbData.map(d => d.value.adx);
+
+  const option: echarts.EChartsOption = {
+    backgroundColor: 'transparent',
+    animation: false,
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: 'rgba(0,0,0,0.8)',
+      borderColor: '#333',
+      textStyle: { color: '#fff' },
+      formatter: (params) => {
+        if (!Array.isArray(params)) return '';
+        const date = params[0]?.name || '';
+        const score = params.find(p => p.seriesName === 'Range Score');
+        const adx = params.find(p => p.seriesName === 'ADX');
+        const format = (v: number | null | undefined) => v !== null && v !== undefined ? v.toFixed(1) : '-';
+        return `${date}<br/>Range Score: ${format(score?.value as number)}<br/>ADX: ${format(adx?.value as number)}`;
+      },
+    },
+    title: {
+      text: 'Range-Bound Detection',
+      left: 10,
+      top: 0,
+      textStyle: { color: '#888', fontSize: 12, fontWeight: 'normal' },
+    },
+    grid: { left: 60, right: 60, top: 25, bottom: 30 },
+    xAxis: {
+      type: 'category',
+      data: dates,
+      axisLine: { lineStyle: { color: '#666' } },
+      axisLabel: { color: '#888', fontSize: 10 },
+    },
+    yAxis: {
+      min: 0,
+      max: 100,
+      splitNumber: 4,
+      axisLine: { lineStyle: { color: '#666' } },
+      splitLine: { lineStyle: { color: '#333' } },
+      axisLabel: { color: '#888' },
+    },
+    series: [
+      {
+        name: 'Range Score',
+        type: 'line',
+        data: rangeScores,
+        smooth: false,
+        showSymbol: false,
+        lineStyle: { width: 2, color: '#9c27b0' },
+        areaStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: 'rgba(156, 39, 176, 0.3)' },
+            { offset: 1, color: 'rgba(156, 39, 176, 0.05)' },
+          ]),
+        },
+        markLine: {
+          silent: true,
+          symbol: 'none',
+          lineStyle: { type: 'dashed', width: 1 },
+          label: { show: true, position: 'end', fontSize: 10 },
+          data: [
+            { yAxis: 70, lineStyle: { color: '#ffd93d' }, label: { formatter: '70 Range', color: '#ffd93d' } },
+            { yAxis: 85, lineStyle: { color: '#ef5350' }, label: { formatter: '85 Tight', color: '#ef5350' } },
+          ],
+        },
+      },
+      {
+        name: 'ADX',
+        type: 'line',
+        data: adxValues,
+        smooth: false,
+        showSymbol: false,
+        lineStyle: { width: 1.5, color: '#00bcd4', type: 'dashed' },
+        markLine: {
+          silent: true,
+          symbol: 'none',
+          lineStyle: { type: 'dotted', width: 1 },
+          label: { show: true, position: 'start', fontSize: 9 },
+          data: [
+            { yAxis: 20, lineStyle: { color: '#4caf50' }, label: { formatter: 'ADX 20', color: '#4caf50' } },
+            { yAxis: 25, lineStyle: { color: '#ff9800' }, label: { formatter: 'ADX 25', color: '#ff9800' } },
+          ],
+        },
+      },
+    ],
+    dataZoom: [{ type: 'inside', start: zoomStart, end: 100 }],
+  };
+  rangeBoundChart.setOption(option, true);
+}
+
+// Type for range box markArea with Y-axis bounds
+type RangeBoxMarkArea = [
+  {
+    xAxis: string;
+    yAxis: number;
+    itemStyle: { color: string; borderColor: string; borderWidth: number };
+    label?: { show: boolean; position: 'insideTop'; color: string; fontSize: number; formatter: string };
+  },
+  {
+    xAxis: string;
+    yAxis: number;
+  }
+];
+
+// Internal type for collecting ranges before merging
+type RangeInfo = {
+  startIdx: number;
+  endIdx: number;
+  high: number;
+  low: number;
+  isTight: boolean;
+};
+
+// Check if two ranges should be merged (close in time and overlapping in price)
+function shouldMergeRanges(r1: RangeInfo, r2: RangeInfo): boolean {
+  const MAX_GAP = 5; // Max bars between ranges to merge
+  const MIN_OVERLAP_RATIO = 0.3; // Min price overlap ratio
+
+  // Check time gap
+  const gap = r2.startIdx - r1.endIdx;
+  if (gap > MAX_GAP) return false;
+
+  // Check price overlap
+  const overlap = Math.min(r1.high, r2.high) - Math.max(r1.low, r2.low);
+  const r1Range = r1.high - r1.low;
+  const r2Range = r2.high - r2.low;
+  const minRange = Math.min(r1Range, r2Range);
+
+  if (minRange === 0) return false;
+  const overlapRatio = overlap / minRange;
+
+  return overlapRatio >= MIN_OVERLAP_RATIO;
+}
+
+// Merge two ranges into one
+function mergeRanges(r1: RangeInfo, r2: RangeInfo): RangeInfo {
+  return {
+    startIdx: r1.startIdx,
+    endIdx: r2.endIdx,
+    high: Math.max(r1.high, r2.high),
+    low: Math.min(r1.low, r2.low),
+    isTight: r1.isTight && r2.isTight, // Only tight if both were tight
+  };
+}
+
+// Create markArea data for Range-Bound periods (box with price bounds)
+function createRangeBoundMarkAreas(
+  rbData: TrendCraft.Series<RangeBoundValue>,
+  dates: string[]
+): RangeBoxMarkArea[] {
+  // Step 1: Collect all ranges
+  const ranges: RangeInfo[] = [];
+
+  let rangeStart: number | null = null;
+  let rangeHigh: number | null = null;
+  let rangeLow: number | null = null;
+  let currentRangeType: 'range' | 'tight' | null = null;
+
+  const closeRange = (endIdx: number) => {
+    if (rangeStart === null || rangeHigh === null || rangeLow === null) return;
+
+    ranges.push({
+      startIdx: rangeStart,
+      endIdx,
+      high: rangeHigh,
+      low: rangeLow,
+      isTight: currentRangeType === 'tight',
+    });
+
+    rangeStart = null;
+    rangeHigh = null;
+    rangeLow = null;
+    currentRangeType = null;
+  };
+
+  rbData.forEach((rb, idx) => {
+    const isInRange = rb.value.state === 'RANGE_CONFIRMED' || rb.value.state === 'RANGE_TIGHT' ||
+                      rb.value.state === 'BREAKOUT_RISK_UP' || rb.value.state === 'BREAKOUT_RISK_DOWN';
+    const isTight = rb.value.state === 'RANGE_TIGHT';
+    const high = rb.value.rangeHigh;
+    const low = rb.value.rangeLow;
+
+    if (isInRange && high !== null && low !== null) {
+      if (rangeStart === null) {
+        rangeStart = idx;
+        rangeHigh = high;
+        rangeLow = low;
+        currentRangeType = isTight ? 'tight' : 'range';
+      } else {
+        if (high > (rangeHigh ?? high)) rangeHigh = high;
+        if (low < (rangeLow ?? low)) rangeLow = low;
+        // Don't split on type change anymore - we'll merge later
+        if (isTight) currentRangeType = 'tight';
+      }
+    } else {
+      if (rangeStart !== null) {
+        closeRange(idx - 1);
+      }
+    }
+  });
+
+  if (rangeStart !== null) {
+    closeRange(rbData.length - 1);
+  }
+
+  // Step 2: Merge adjacent ranges with overlapping price bands
+  const mergedRanges: RangeInfo[] = [];
+  for (const range of ranges) {
+    if (mergedRanges.length === 0) {
+      mergedRanges.push(range);
+    } else {
+      const lastRange = mergedRanges[mergedRanges.length - 1];
+      if (shouldMergeRanges(lastRange, range)) {
+        mergedRanges[mergedRanges.length - 1] = mergeRanges(lastRange, range);
+      } else {
+        mergedRanges.push(range);
+      }
+    }
+  }
+
+  // Step 3: Convert to markArea format
+  return mergedRanges.map(range => {
+    const color = range.isTight
+      ? 'rgba(233, 30, 99, 0.15)'   // Pink for tight
+      : 'rgba(156, 39, 176, 0.12)'; // Purple for normal range
+    const borderColor = range.isTight ? '#e91e63' : '#9c27b0';
+    const label = range.isTight ? 'Tight' : 'Range';
+
+    return [
+      {
+        xAxis: dates[range.startIdx],
+        yAxis: range.high,
+        itemStyle: { color, borderColor, borderWidth: 1 },
+        label: { show: true, position: 'insideTop' as const, color: borderColor, fontSize: 9, formatter: label },
+      },
+      {
+        xAxis: dates[range.endIdx],
+        yAxis: range.low,
+      },
+    ];
+  });
+}
+
+// Type for support/resistance line segment
+type SupportResistanceLine = {
+  type: 'resistance' | 'support';
+  price: number;
+  startIdx: number;
+  endIdx: number;
+  isTight: boolean;
+};
+
+// Create markLine data for support/resistance lines with extension
+type MarkLinePosition = 'start' | 'end' | 'middle' | 'insideStart' | 'insideStartTop' | 'insideStartBottom' | 'insideMiddle' | 'insideMiddleTop' | 'insideMiddleBottom' | 'insideEnd' | 'insideEndTop' | 'insideEndBottom';
+type LineType = 'solid' | 'dashed' | 'dotted';
+
+type SRMarkLine = [
+  { xAxis: string; yAxis: number; lineStyle: { color: string; width: number; type: LineType }; label: { show: boolean; position: MarkLinePosition; formatter: string; color: string; fontSize: number } },
+  { xAxis: string; yAxis: number }
+];
+
+function createSupportResistanceLines(
+  rbData: TrendCraft.Series<RangeBoundValue>,
+  dates: string[]
+): SRMarkLine[] {
+  const lines: SupportResistanceLine[] = [];
+  const dataLength = dates.length;
+
+  // Track range periods
+  let rangeStart: number | null = null;
+  let currentHigh: number | null = null;
+  let currentLow: number | null = null;
+  let isTight = false;
+
+  const closeLine = (endIdx: number) => {
+    if (rangeStart === null || currentHigh === null || currentLow === null) return;
+
+    // Add resistance line
+    lines.push({
+      type: 'resistance',
+      price: currentHigh,
+      startIdx: rangeStart,
+      endIdx,
+      isTight,
+    });
+
+    // Add support line
+    lines.push({
+      type: 'support',
+      price: currentLow,
+      startIdx: rangeStart,
+      endIdx,
+      isTight,
+    });
+
+    rangeStart = null;
+    currentHigh = null;
+    currentLow = null;
+  };
+
+  rbData.forEach((rb, idx) => {
+    const isInRange = rb.value.state === 'RANGE_CONFIRMED' || rb.value.state === 'RANGE_TIGHT' ||
+                      rb.value.state === 'BREAKOUT_RISK_UP' || rb.value.state === 'BREAKOUT_RISK_DOWN';
+    const high = rb.value.rangeHigh;
+    const low = rb.value.rangeLow;
+
+    if (isInRange && high !== null && low !== null) {
+      if (rangeStart === null) {
+        rangeStart = idx;
+        currentHigh = high;
+        currentLow = low;
+        isTight = rb.value.state === 'RANGE_TIGHT';
+      } else {
+        // Update bounds
+        if (high > (currentHigh ?? high)) currentHigh = high;
+        if (low < (currentLow ?? low)) currentLow = low;
+        isTight = rb.value.state === 'RANGE_TIGHT';
+      }
+    } else {
+      if (rangeStart !== null) {
+        closeLine(idx - 1);
+      }
+    }
+  });
+
+  // Close remaining
+  if (rangeStart !== null) {
+    closeLine(rbData.length - 1);
+  }
+
+  // Convert to markLine format with extensions
+  const result: SRMarkLine[] = [];
+
+  lines.forEach(line => {
+    const isResistance = line.type === 'resistance';
+    const color = isResistance
+      ? (line.isTight ? '#ff5252' : '#ef5350')  // Red for resistance
+      : (line.isTight ? '#69f0ae' : '#4caf50'); // Green for support
+    const position: MarkLinePosition = isResistance ? 'insideEndTop' : 'insideEndBottom';
+
+    // 1. Solid line for actual range period
+    result.push([
+      {
+        xAxis: dates[line.startIdx],
+        yAxis: line.price,
+        lineStyle: {
+          color,
+          width: line.isTight ? 2 : 1.5,
+          type: 'solid' as LineType,
+        },
+        label: {
+          show: true,
+          position,
+          formatter: `${isResistance ? 'R' : 'S'}: ${line.price.toFixed(0)}`,
+          color,
+          fontSize: 10,
+        },
+      },
+      {
+        xAxis: dates[line.endIdx],
+        yAxis: line.price,
+      },
+    ]);
+
+    // 2. Dashed line extension (if range ended before data end)
+    if (line.endIdx < dataLength - 1) {
+      result.push([
+        {
+          xAxis: dates[line.endIdx],
+          yAxis: line.price,
+          lineStyle: {
+            color: color + '80', // 50% opacity
+            width: 1,
+            type: 'dashed' as LineType,
+          },
+          label: {
+            show: false,
+            position,
+            formatter: '',
+            color,
+            fontSize: 10,
+          },
+        },
+        {
+          xAxis: dates[dataLength - 1],
+          yAxis: line.price,
+        },
+      ]);
+    }
+  });
+
+  return result;
+}
+
+// Update Range-Bound events list
+function updateRangeBoundEventsList(show: boolean, rbData: TrendCraft.Series<RangeBoundValue>): void {
+  const container = document.getElementById('range-bound-events') as HTMLDivElement;
+  const listEl = document.getElementById('range-bound-events-list') as HTMLDivElement;
+
+  if (!show || currentCandles.length === 0) {
+    container.classList.remove('visible');
+    return;
+  }
+
+  // Get visible date range
+  const { startDate, endDate } = getVisibleDateRange();
+
+  // Collect events
+  type RBEventType = 'range_confirmed' | 'tight_range' | 'breakout_risk_up' | 'breakout_risk_down' | 'range_broken' | 'trending';
+  const events: Array<{
+    time: number;
+    type: RBEventType;
+    rangeScore: number;
+    trendReason?: TrendReason;
+  }> = [];
+
+  rbData.forEach((rb) => {
+    if (rb.time < startDate || rb.time > endDate) return;
+
+    if (rb.value.rangeConfirmed && rb.value.state === 'RANGE_CONFIRMED') {
+      events.push({
+        time: rb.time,
+        type: 'range_confirmed',
+        rangeScore: rb.value.rangeScore,
+      });
+    }
+
+    if (rb.value.state === 'RANGE_TIGHT') {
+      events.push({
+        time: rb.time,
+        type: 'tight_range',
+        rangeScore: rb.value.rangeScore,
+      });
+    }
+
+    if (rb.value.breakoutRiskDetected && rb.value.state === 'BREAKOUT_RISK_UP') {
+      events.push({
+        time: rb.time,
+        type: 'breakout_risk_up',
+        rangeScore: rb.value.rangeScore,
+      });
+    }
+
+    if (rb.value.breakoutRiskDetected && rb.value.state === 'BREAKOUT_RISK_DOWN') {
+      events.push({
+        time: rb.time,
+        type: 'breakout_risk_down',
+        rangeScore: rb.value.rangeScore,
+      });
+    }
+
+    if (rb.value.rangeBroken) {
+      events.push({
+        time: rb.time,
+        type: 'range_broken',
+        rangeScore: rb.value.rangeScore,
+      });
+    }
+
+    if (rb.value.state === 'TRENDING' && rb.value.trendReason !== null) {
+      events.push({
+        time: rb.time,
+        type: 'trending',
+        rangeScore: rb.value.rangeScore,
+        trendReason: rb.value.trendReason,
+      });
+    }
+  });
+
+  // Sort by date descending (newest first)
+  events.sort((a, b) => b.time - a.time);
+
+  // Limit to avoid too many events
+  const limitedEvents = events.slice(0, 50);
+
+  if (limitedEvents.length === 0) {
+    listEl.innerHTML = '<span style="color: #666;">No events in visible range</span>';
+  } else {
+    listEl.innerHTML = limitedEvents.map(e => {
+      const scoreStr = e.rangeScore.toFixed(0);
+      switch (e.type) {
+        case 'range_confirmed':
+          return `<span class="rb-event range-confirmed" title="Range Score: ${scoreStr}">■ Range [${scoreStr}] ${formatDate(e.time)}</span>`;
+        case 'tight_range':
+          return `<span class="rb-event tight" title="Range Score: ${scoreStr}">■ Tight [${scoreStr}] ${formatDate(e.time)}</span>`;
+        case 'breakout_risk_up':
+          return `<span class="rb-event breakout-risk" title="Range Score: ${scoreStr}">▲ Risk↑ [${scoreStr}] ${formatDate(e.time)}</span>`;
+        case 'breakout_risk_down':
+          return `<span class="rb-event breakout-risk" title="Range Score: ${scoreStr}">▼ Risk↓ [${scoreStr}] ${formatDate(e.time)}</span>`;
+        case 'range_broken':
+          return `<span class="rb-event trending" title="Range Score: ${scoreStr}">◆ Broken ${formatDate(e.time)}</span>`;
+        case 'trending':
+          const reason = e.trendReason || 'unknown';
+          return `<span class="rb-event trending" title="Range Score: ${scoreStr}, Reason: ${reason}">→ ${reason} [${scoreStr}] ${formatDate(e.time)}</span>`;
         default:
           return '';
       }

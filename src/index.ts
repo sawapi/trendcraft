@@ -173,5 +173,19 @@ export {
 export type { ValidatedCrossOptions, PerfectOrderConditionOptions, PerfectOrderEnhancedConditionOptions } from "./backtest";
 
 // Signals
-export { crossOver, crossUnder, goldenCross, deadCross, validateCrossSignals, obvDivergence, rsiDivergence, macdDivergence, detectDivergence, bollingerSqueeze, perfectOrder, perfectOrderEnhanced } from "./signals";
-export type { CrossValidationOptions, CrossSignalQuality, DivergenceSignal, DivergenceOptions, SqueezeSignal, SqueezeOptions, PerfectOrderType, PerfectOrderValue, PerfectOrderOptions, SlopeDirection, PerfectOrderState, PerfectOrderValueEnhanced, PerfectOrderOptionsEnhanced } from "./signals";
+export { crossOver, crossUnder, goldenCross, deadCross, validateCrossSignals, obvDivergence, rsiDivergence, macdDivergence, detectDivergence, bollingerSqueeze, perfectOrder, perfectOrderEnhanced, rangeBound } from "./signals";
+export type { CrossValidationOptions, CrossSignalQuality, DivergenceSignal, DivergenceOptions, SqueezeSignal, SqueezeOptions, PerfectOrderType, PerfectOrderValue, PerfectOrderOptions, SlopeDirection, PerfectOrderState, PerfectOrderValueEnhanced, PerfectOrderOptionsEnhanced, TrendReason, RangeBoundState, RangeBoundValue, RangeBoundOptions } from "./signals";
+
+// Range-Bound backtest conditions
+export {
+  inRangeBound,
+  rangeForming,
+  rangeConfirmed,
+  breakoutRiskUp,
+  breakoutRiskDown,
+  rangeBreakout,
+  tightRange,
+  rangeScoreAbove,
+} from "./backtest";
+
+export type { RangeBoundConditionOptions } from "./backtest";

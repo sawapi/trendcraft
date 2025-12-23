@@ -53,10 +53,24 @@ export {
   adxStrong,
   // Volume conditions
   volumeAboveAvg,
+  // Range-Bound (Box Range) conditions
+  inRangeBound,
+  rangeForming,
+  rangeConfirmed,
+  breakoutRiskUp,
+  breakoutRiskDown,
+  rangeBreakout,
+  tightRange,
+  rangeScoreAbove,
   // Evaluation helper
   evaluateCondition,
 } from "./conditions";
 
-export type { ValidatedCrossOptions, PerfectOrderConditionOptions, PerfectOrderEnhancedConditionOptions } from "./conditions";
+export type {
+  ValidatedCrossOptions,
+  PerfectOrderConditionOptions,
+  PerfectOrderEnhancedConditionOptions,
+  RangeBoundConditionOptions,
+} from "./conditions";
 
 export { runBacktest } from "./engine";

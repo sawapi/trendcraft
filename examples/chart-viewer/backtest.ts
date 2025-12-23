@@ -72,6 +72,9 @@ const entryConditions: Record<string, () => Condition> = {
     TrendCraft.macdCrossUp(),
     TrendCraft.rsiBelow(50)
   ),
+  // Range-Bound conditions
+  rbBreakout: () => TrendCraft.rangeBreakout(),
+  notInRange: () => TrendCraft.not(TrendCraft.inRangeBound()),
 };
 
 /**
@@ -97,6 +100,9 @@ const exitConditions: Record<string, () => Condition> = {
   ),
   // DMI/ADX
   dmiBearish: () => TrendCraft.dmiBearish(20),
+  // Range-Bound conditions
+  rbForming: () => TrendCraft.rangeForming(),
+  inRange: () => TrendCraft.inRangeBound(),
 };
 
 /**

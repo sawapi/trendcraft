@@ -40,3 +40,11 @@ export {
   type PerfectOrderValueEnhanced,
   type PerfectOrderOptionsEnhanced,
 } from "./perfect-order";
+
+export {
+  rangeBound,
+  type TrendReason,
+  type RangeBoundState,
+  type RangeBoundValue,
+  type RangeBoundOptions,
+} from "./range-bound";

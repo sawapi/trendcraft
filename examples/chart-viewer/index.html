@@ -129,6 +129,7 @@
     .indicator-item.willr { border-left: 3px solid #8bc34a; }
     .indicator-item.roc { border-left: 3px solid #ff5722; }
     .indicator-item.perfectorder { border-left: 3px solid #ffc107; }
+    .indicator-item.rangebound { border-left: 3px solid #9c27b0; }
 
     /* Chart Container */
     .chart-wrapper {
@@ -314,6 +315,59 @@
       background: rgba(0, 188, 212, 0.2);
       color: #00bcd4;
       border: 1px solid #00bcd4;
+    }
+
+    /* Range-Bound Events */
+    .range-bound-events {
+      display: none;
+      margin-top: 20px;
+      padding: 15px;
+      background: #1a1a2e;
+      border-radius: 8px;
+    }
+    .range-bound-events.visible {
+      display: block;
+    }
+    .range-bound-events h3 {
+      font-size: 0.9rem;
+      color: #888;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .range-bound-events-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .rb-event {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 500;
+    }
+    .rb-event.range-confirmed {
+      background: rgba(156, 39, 176, 0.2);
+      color: #9c27b0;
+      border: 1px solid #9c27b0;
+    }
+    .rb-event.tight {
+      background: rgba(233, 30, 99, 0.2);
+      color: #e91e63;
+      border: 1px solid #e91e63;
+    }
+    .rb-event.breakout-risk {
+      background: rgba(255, 152, 0, 0.2);
+      color: #ff9800;
+      border: 1px solid #ff9800;
+    }
+    .rb-event.trending {
+      background: rgba(76, 175, 80, 0.2);
+      color: #4caf50;
+      border: 1px solid #4caf50;
     }
 
     /* Info */
@@ -580,6 +634,9 @@
           <label class="indicator-item perfectorder">
             <input type="checkbox" data-indicator="perfectorder"> Perfect Order
           </label>
+          <label class="indicator-item rangebound">
+            <input type="checkbox" data-indicator="rangebound"> Range-Bound
+          </label>
         </div>
       </div>
     </div>
@@ -626,6 +683,10 @@
               <optgroup label="Bollinger Bands">
                 <option value="bbLower">BB Lower Touch</option>
               </optgroup>
+              <optgroup label="Range-Bound">
+                <option value="rbBreakout">Range Breakout</option>
+                <option value="notInRange">Not In Range (Filter)</option>
+              </optgroup>
             </select>
           </div>
           <div class="condition-group">
@@ -656,6 +717,10 @@
               </optgroup>
               <optgroup label="Bollinger Bands">
                 <option value="bbUpper">BB Upper Touch</option>
+              </optgroup>
+              <optgroup label="Range-Bound">
+                <option value="rbForming">Range Forming</option>
+                <option value="inRange">In Range (Exit Trend)</option>
               </optgroup>
             </select>
           </div>
@@ -736,6 +801,7 @@
       <div id="cci-chart" class="sub-chart"></div>
       <div id="willr-chart" class="sub-chart"></div>
       <div id="roc-chart" class="sub-chart"></div>
+      <div id="rb-chart" class="sub-chart"></div>
       <div id="cross-events" class="cross-events">
         <h3>GC/DC Events (SMA 5×25)</h3>
         <div id="cross-events-list" class="cross-events-list"></div>
@@ -743,6 +809,10 @@
       <div id="perfect-order-events" class="perfect-order-events">
         <h3>Perfect Order Events (SMA 5×25×75)</h3>
         <div id="perfect-order-events-list" class="perfect-order-events-list"></div>
+      </div>
+      <div id="range-bound-events" class="range-bound-events">
+        <h3>Range-Bound Events (ADX/BB/Donchian)</h3>
+        <div id="range-bound-events-list" class="range-bound-events-list"></div>
       </div>
 
       <!-- Equity Curve Chart -->
