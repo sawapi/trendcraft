@@ -11,3 +11,4 @@ export {
   calculateAtrTakeProfit,
   calculateAtrTrailingStop,
 } from "./atr-stops";
+export { volatilityRegime } from "./regime";

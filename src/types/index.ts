@@ -723,3 +723,81 @@ export type ScoringConfig = {
  * Preset strategy names
  */
 export type ScoringPreset = "momentum" | "meanReversion" | "trendFollowing" | "balanced";
+
+// ============================================================================
+// Volatility Regime Types
+// ============================================================================
+
+/**
+ * Volatility regime classification
+ */
+export type VolatilityRegime = "low" | "normal" | "high" | "extreme";
+
+/**
+ * Options for volatility regime calculation
+ */
+export type VolatilityRegimeOptions = {
+  /** ATR period (default: 14) */
+  atrPeriod?: number;
+  /** Bollinger Bands period (default: 20) */
+  bbPeriod?: number;
+  /** Lookback period for percentile calculation (default: 100) */
+  lookbackPeriod?: number;
+  /** Thresholds for regime classification (percentiles) */
+  thresholds?: {
+    /** Low volatility threshold (default: 25) */
+    low?: number;
+    /** High volatility threshold (default: 75) */
+    high?: number;
+    /** Extreme volatility threshold (default: 95) */
+    extreme?: number;
+  };
+};
+
+/**
+ * Volatility regime calculation result
+ */
+export type VolatilityRegimeValue = {
+  /** Current volatility regime */
+  regime: VolatilityRegime;
+  /** ATR percentile (0-100) relative to lookback period */
+  atrPercentile: number | null;
+  /** Bollinger bandwidth percentile (0-100) relative to lookback period */
+  bandwidthPercentile: number | null;
+  /** Historical volatility (annualized standard deviation of returns) */
+  historicalVol: number | null;
+  /** Current ATR value */
+  atr: number | null;
+  /** Current Bollinger bandwidth */
+  bandwidth: number | null;
+  /** Regime confidence score (0-1) based on indicator agreement */
+  confidence: number;
+};
+
+// ============================================================================
+// Scaled Entry Types
+// ============================================================================
+
+/**
+ * Scaled entry strategy type
+ */
+export type ScaledEntryStrategy = "equal" | "pyramid" | "reverse-pyramid";
+
+/**
+ * Scaled entry interval type
+ */
+export type ScaledEntryIntervalType = "signal" | "price";
+
+/**
+ * Configuration for scaled/split entry
+ */
+export type ScaledEntryConfig = {
+  /** Number of entry tranches (default: 3) */
+  tranches: number;
+  /** Entry allocation strategy */
+  strategy: ScaledEntryStrategy;
+  /** Entry interval type */
+  intervalType: ScaledEntryIntervalType;
+  /** Price interval in percent (for 'price' type, e.g., -2 = buy 2% lower each time) */
+  priceInterval?: number;
+};

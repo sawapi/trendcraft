@@ -105,6 +105,16 @@ export {
   getRequiredTimeframes,
   // Evaluation helper
   evaluateCondition,
+  // Volatility Regime conditions
+  regimeIs,
+  regimeNot,
+  volatilityAbove,
+  volatilityBelow,
+  atrPercentileAbove,
+  atrPercentileBelow,
+  regimeConfidenceAbove,
+  volatilityExpanding,
+  volatilityContracting,
 } from "./conditions";
 
 export type {
@@ -116,3 +126,5 @@ export type {
 } from "./conditions";
 
 export { runBacktest } from "./engine";
+export { runBacktestScaled } from "./scaled-entry";
+export type { ScaledBacktestOptions } from "./scaled-entry";

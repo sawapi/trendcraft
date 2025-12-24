@@ -125,3 +125,16 @@ export {
   mtfDowntrend,
   mtfCondition,
 } from "./mtf";
+
+// Volatility Regime conditions
+export {
+  regimeIs,
+  regimeNot,
+  volatilityAbove,
+  volatilityBelow,
+  atrPercentileAbove,
+  atrPercentileBelow,
+  regimeConfidenceAbove,
+  volatilityExpanding,
+  volatilityContracting,
+} from "./volatility";

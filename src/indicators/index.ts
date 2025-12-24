@@ -38,6 +38,7 @@ export {
   calculateAtrStop,
   calculateAtrTakeProfit,
   calculateAtrTrailingStop,
+  volatilityRegime,
 } from "./volatility";
 export type {
   DonchianValue,

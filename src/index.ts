@@ -58,6 +58,14 @@ export type {
   ChandelierExitValue,
   AtrStopsOptions,
   AtrStopsValue,
+  // Volatility regime types
+  VolatilityRegime,
+  VolatilityRegimeOptions,
+  VolatilityRegimeValue,
+  // Scaled entry types
+  ScaledEntryStrategy,
+  ScaledEntryIntervalType,
+  ScaledEntryConfig,
 } from "./types";
 
 // Core utilities
@@ -220,12 +228,14 @@ export {
   volumeAboveAvg,
   // Engine
   runBacktest,
+  runBacktestScaled,
 } from "./backtest";
 
 export type {
   ValidatedCrossOptions,
   PerfectOrderConditionOptions,
   PerfectOrderEnhancedConditionOptions,
+  ScaledBacktestOptions,
 } from "./backtest";
 
 // Signals
@@ -321,6 +331,22 @@ export {
   mtfDowntrend,
   mtfCondition,
 } from "./backtest";
+
+// Volatility Regime conditions
+export {
+  regimeIs,
+  regimeNot,
+  volatilityAbove,
+  volatilityBelow,
+  atrPercentileAbove,
+  atrPercentileBelow,
+  regimeConfidenceAbove,
+  volatilityExpanding,
+  volatilityContracting,
+} from "./backtest";
+
+// Volatility Regime indicator
+export { volatilityRegime } from "./indicators";
 
 // Position Sizing
 export {
