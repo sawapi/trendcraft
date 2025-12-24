@@ -34,13 +34,13 @@ describe("dmi", () => {
         high: 100 + i * 2,
         low: 90 + i * 2,
         close: 95 + i * 2,
-      }))
+      })),
     );
 
     const result = dmi(candles, { period: 5, adxPeriod: 5 });
 
     // After period, should have values
-    const validResult = result.filter(r => r.value.plusDi !== null);
+    const validResult = result.filter((r) => r.value.plusDi !== null);
     expect(validResult.length).toBeGreaterThan(0);
 
     // DI values should be between 0 and 100
@@ -63,7 +63,7 @@ describe("dmi", () => {
         high: 100 + i * 3,
         low: 95 + i * 3,
         close: 98 + i * 3,
-      }))
+      })),
     );
 
     const result = dmi(candles, { period: 7, adxPeriod: 7 });
@@ -82,7 +82,7 @@ describe("dmi", () => {
         high: 200 - i * 3,
         low: 195 - i * 3,
         close: 197 - i * 3,
-      }))
+      })),
     );
 
     const result = dmi(candles, { period: 7, adxPeriod: 7 });
@@ -101,13 +101,13 @@ describe("dmi", () => {
         high: 100 + i * 2,
         low: 95 + i * 2,
         close: 97 + i * 2,
-      }))
+      })),
     );
 
     const result = dmi(candles, { period: 10, adxPeriod: 10 });
 
     // ADX should eventually have values
-    const validAdx = result.filter(r => r.value.adx !== null);
+    const validAdx = result.filter((r) => r.value.adx !== null);
     expect(validAdx.length).toBeGreaterThan(0);
 
     // ADX should be between 0 and 100
@@ -124,7 +124,7 @@ describe("dmi", () => {
         high: 100 + i * 5,
         low: 98 + i * 5,
         close: 99 + i * 5,
-      }))
+      })),
     );
 
     const result = dmi(candles, { period: 14, adxPeriod: 14 });
@@ -159,7 +159,7 @@ describe("dmi", () => {
         high: 100 + i,
         low: 95 + i,
         close: 97 + i,
-      }))
+      })),
     );
 
     // Should not throw with defaults

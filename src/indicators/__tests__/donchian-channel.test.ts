@@ -42,7 +42,7 @@ describe("donchianChannel", () => {
 
   it("should calculate correct lower (lowest low)", () => {
     const candles = makeCandles([
-      { high: 100, low: 90 },  // Lowest low = 90
+      { high: 100, low: 90 }, // Lowest low = 90
       { high: 110, low: 95 },
       { high: 105, low: 92 },
       { high: 115, low: 100 },
@@ -72,7 +72,7 @@ describe("donchianChannel", () => {
       { high: 100, low: 90 },
       { high: 110, low: 80 },
       { high: 105, low: 85 },
-      { high: 115, low: 95 },  // Period 3: upper=115, lower=80
+      { high: 115, low: 95 }, // Period 3: upper=115, lower=80
       { high: 120, low: 100 }, // Period 3: upper=120, lower=85 (80 dropped)
     ]);
 
@@ -88,9 +88,7 @@ describe("donchianChannel", () => {
   });
 
   it("should handle flat market (same high/low)", () => {
-    const candles = makeCandles(
-      Array.from({ length: 10 }, () => ({ high: 100, low: 90 }))
-    );
+    const candles = makeCandles(Array.from({ length: 10 }, () => ({ high: 100, low: 90 })));
 
     const result = donchianChannel(candles, { period: 5 });
     const lastValue = result[result.length - 1].value;
@@ -114,7 +112,7 @@ describe("donchianChannel", () => {
       Array.from({ length: 25 }, (_, i) => ({
         high: 100 + i,
         low: 90 + i,
-      }))
+      })),
     );
 
     const result = donchianChannel(candles);

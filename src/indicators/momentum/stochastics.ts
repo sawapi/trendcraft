@@ -3,7 +3,7 @@
  * Compares closing price to price range over a period
  */
 
-import { normalizeCandles } from "../../core/normalize";
+import { isNormalized, normalizeCandles } from "../../core/normalize";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 
 /**
@@ -57,7 +57,7 @@ export type StochasticsOptions = {
  */
 export function stochastics(
   candles: Candle[] | NormalizedCandle[],
-  options: StochasticsOptions = {}
+  options: StochasticsOptions = {},
 ): Series<StochasticsValue> {
   const { kPeriod = 14, dPeriod = 3, slowing = 3 } = options;
 
@@ -79,8 +79,8 @@ export function stochastics(
       continue;
     }
 
-    let highestHigh = -Infinity;
-    let lowestLow = Infinity;
+    let highestHigh = Number.NEGATIVE_INFINITY;
+    let lowestLow = Number.POSITIVE_INFINITY;
 
     for (let j = 0; j < kPeriod; j++) {
       const candle = normalized[i - j];
@@ -92,7 +92,7 @@ export function stochastics(
     if (range === 0) {
       rawK.push(50); // If no range, return middle value
     } else {
-      rawK.push(100 * (normalized[i].close - lowestLow) / range);
+      rawK.push((100 * (normalized[i].close - lowestLow)) / range);
     }
   }
 
@@ -122,7 +122,7 @@ export function stochastics(
  */
 export function fastStochastics(
   candles: Candle[] | NormalizedCandle[],
-  options: Omit<StochasticsOptions, "slowing"> = {}
+  options: Omit<StochasticsOptions, "slowing"> = {},
 ): Series<StochasticsValue> {
   return stochastics(candles, { ...options, slowing: 1 });
 }
@@ -132,7 +132,7 @@ export function fastStochastics(
  */
 export function slowStochastics(
   candles: Candle[] | NormalizedCandle[],
-  options: Omit<StochasticsOptions, "slowing"> = {}
+  options: Omit<StochasticsOptions, "slowing"> = {},
 ): Series<StochasticsValue> {
   return stochastics(candles, { ...options, slowing: 3 });
 }
@@ -164,12 +164,4 @@ function applySma(values: (number | null)[], period: number): (number | null)[] 
   }
 
   return result;
-}
-
-/**
- * Check if candles are already normalized
- */
-function isNormalized(candles: Candle[] | NormalizedCandle[]): candles is NormalizedCandle[] {
-  if (candles.length === 0) return true;
-  return typeof candles[0].time === "number";
 }

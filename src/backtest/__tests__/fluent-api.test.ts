@@ -1,7 +1,7 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { TrendCraft } from "../../core/trendcraft";
-import { goldenCross, deadCross, and, or, rsiBelow, rsiAbove } from "../conditions";
 import type { NormalizedCandle } from "../../types";
+import { and, deadCross, goldenCross, or, rsiAbove, rsiBelow } from "../conditions";
 
 // Generate trending candles for testing
 function generateTrendingCandles(count: number): NormalizedCandle[] {
@@ -45,10 +45,7 @@ describe("TrendCraft Fluent API - Strategy Builder", () => {
     });
 
     it("should chain entry and exit conditions", () => {
-      const builder = TrendCraft.from(candles)
-        .strategy()
-        .entry(goldenCross())
-        .exit(deadCross());
+      const builder = TrendCraft.from(candles).strategy().entry(goldenCross()).exit(deadCross());
 
       expect(builder).toBeDefined();
     });
@@ -57,19 +54,13 @@ describe("TrendCraft Fluent API - Strategy Builder", () => {
   describe("backtest()", () => {
     it("should throw error if entry condition is missing", () => {
       expect(() => {
-        TrendCraft.from(candles)
-          .strategy()
-          .exit(deadCross())
-          .backtest({ capital: 1000000 });
+        TrendCraft.from(candles).strategy().exit(deadCross()).backtest({ capital: 1000000 });
       }).toThrow("Entry condition is required");
     });
 
     it("should throw error if exit condition is missing", () => {
       expect(() => {
-        TrendCraft.from(candles)
-          .strategy()
-          .entry(goldenCross())
-          .backtest({ capital: 1000000 });
+        TrendCraft.from(candles).strategy().entry(goldenCross()).backtest({ capital: 1000000 });
       }).toThrow("Exit condition is required");
     });
 
@@ -133,7 +124,7 @@ describe("TrendCraft Fluent API - Strategy Builder", () => {
 
       for (let i = 0; i < 500; i++) {
         const cycle = Math.floor(i / 50);
-        const price = 100 + (cycle % 2 === 0 ? (i % 50) : 50 - (i % 50));
+        const price = 100 + (cycle % 2 === 0 ? i % 50 : 50 - (i % 50));
 
         manyCandles.push({
           time: baseTime + i * 24 * 60 * 60 * 1000,

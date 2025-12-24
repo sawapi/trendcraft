@@ -2,9 +2,9 @@
  * Volume Anomaly Tests
  */
 
-import { describe, it, expect } from "vitest";
-import { volumeAnomaly } from "../volume-anomaly";
+import { describe, expect, it } from "vitest";
 import type { NormalizedCandle } from "../../../types";
+import { volumeAnomaly } from "../volume-anomaly";
 
 // Helper to create test candles
 function createCandles(volumes: number[]): NormalizedCandle[] {

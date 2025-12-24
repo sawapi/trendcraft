@@ -5,8 +5,8 @@
  * support/resistance, trend direction, momentum, and trading signals.
  */
 
+import { isNormalized, normalizeCandles } from "../../core/normalize";
 import type { Candle, NormalizedCandle, Series } from "../../types";
-import { normalizeCandles } from "../../core/normalize";
 
 /**
  * Ichimoku options
@@ -73,14 +73,9 @@ export type IchimokuValue = {
  */
 export function ichimoku(
   candles: Candle[] | NormalizedCandle[],
-  options: IchimokuOptions = {}
+  options: IchimokuOptions = {},
 ): Series<IchimokuValue> {
-  const {
-    tenkanPeriod = 9,
-    kijunPeriod = 26,
-    senkouBPeriod = 52,
-    displacement = 26,
-  } = options;
+  const { tenkanPeriod = 9, kijunPeriod = 26, senkouBPeriod = 52, displacement = 26 } = options;
 
   // Validate options
   if (tenkanPeriod < 1 || kijunPeriod < 1 || senkouBPeriod < 1 || displacement < 1) {
@@ -162,15 +157,15 @@ export function ichimoku(
 function calculateMidPrice(
   candles: NormalizedCandle[],
   endIndex: number,
-  period: number
+  period: number,
 ): number | null {
   const startIndex = endIndex - period + 1;
   if (startIndex < 0) {
     return null;
   }
 
-  let highestHigh = -Infinity;
-  let lowestLow = Infinity;
+  let highestHigh = Number.NEGATIVE_INFINITY;
+  let lowestLow = Number.POSITIVE_INFINITY;
 
   for (let i = startIndex; i <= endIndex; i++) {
     if (candles[i].high > highestHigh) {
@@ -182,12 +177,4 @@ function calculateMidPrice(
   }
 
   return (highestHigh + lowestLow) / 2;
-}
-
-/**
- * Check if candles are already normalized
- */
-function isNormalized(candles: Candle[] | NormalizedCandle[]): candles is NormalizedCandle[] {
-  if (candles.length === 0) return true;
-  return typeof candles[0].time === "number";
 }

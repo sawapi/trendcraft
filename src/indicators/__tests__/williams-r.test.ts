@@ -4,7 +4,9 @@ import { williamsR } from "../momentum/williams-r";
 
 describe("williamsR", () => {
   // Helper to create candles with OHLC data
-  const makeCandles = (data: Array<{ high: number; low: number; close: number }>): NormalizedCandle[] =>
+  const makeCandles = (
+    data: Array<{ high: number; low: number; close: number }>,
+  ): NormalizedCandle[] =>
     data.map((d, i) => ({
       time: 1700000000000 + i * 86400000,
       open: d.close,
@@ -16,7 +18,9 @@ describe("williamsR", () => {
 
   it("should throw if period is less than 1", () => {
     const candles = makeCandles([{ high: 110, low: 90, close: 100 }]);
-    expect(() => williamsR(candles, { period: 0 })).toThrow("Williams %R period must be at least 1");
+    expect(() => williamsR(candles, { period: 0 })).toThrow(
+      "Williams %R period must be at least 1",
+    );
   });
 
   it("should return null for insufficient data", () => {
@@ -51,16 +55,16 @@ describe("williamsR", () => {
 
   it("should be in range -100 to 0", () => {
     const candles = makeCandles([
-      { high: 110, low: 90, close: 90 },  // Close at low = -100
+      { high: 110, low: 90, close: 90 }, // Close at low = -100
       { high: 120, low: 100, close: 120 }, // Close at high = 0
       { high: 130, low: 110, close: 120 }, // Close in middle
     ]);
 
     const result = williamsR(candles, { period: 1 });
 
-    expect(result[0].value).toBe(-100);  // Close at low
-    expect(result[1].value).toBeCloseTo(0, 5);  // Close at high (-0 is equal to 0 mathematically)
-    expect(result[2].value).toBe(-50);   // Close in middle
+    expect(result[0].value).toBe(-100); // Close at low
+    expect(result[1].value).toBeCloseTo(0, 5); // Close at high (-0 is equal to 0 mathematically)
+    expect(result[2].value).toBe(-50); // Close in middle
   });
 
   it("should identify overbought conditions (%R > -20)", () => {

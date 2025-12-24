@@ -221,7 +221,7 @@ export type ConditionFn = (
   indicators: Record<string, unknown>,
   candle: NormalizedCandle,
   index: number,
-  candles: NormalizedCandle[]
+  candles: NormalizedCandle[],
 ) => boolean;
 
 /**
@@ -358,7 +358,7 @@ export type MtfConditionFn = (
   indicators: Record<string, unknown>,
   candle: NormalizedCandle,
   index: number,
-  candles: NormalizedCandle[]
+  candles: NormalizedCandle[],
 ) => boolean;
 
 /**
@@ -443,3 +443,283 @@ export type VolumeTrendValue = {
   /** Confidence score (0-100) */
   confidence: number;
 };
+
+// ============================================
+// ATR Risk Management Types
+// ============================================
+
+/**
+ * ATR-based risk management options for backtesting
+ */
+export type AtrRiskOptions = {
+  /** ATR period for calculations (default: 14) */
+  atrPeriod?: number;
+  /** ATR multiplier for stop loss (e.g., 2.5 = 2.5 * ATR below entry) */
+  atrStopMultiplier?: number;
+  /** ATR multiplier for take profit (e.g., 3.0 = 3.0 * ATR above entry) */
+  atrTakeProfitMultiplier?: number;
+  /** ATR multiplier for trailing stop (e.g., 2.0 = 2.0 * ATR from peak) */
+  atrTrailingMultiplier?: number;
+  /** Use ATR from entry time (true) or recalculate each bar (false, default) */
+  useEntryAtr?: boolean;
+};
+
+/**
+ * Chandelier Exit indicator options
+ */
+export type ChandelierExitOptions = {
+  /** ATR period (default: 22, classic Chandelier uses 22) */
+  period?: number;
+  /** ATR multiplier (default: 3.0) */
+  multiplier?: number;
+  /** Lookback period for highest high / lowest low (default: same as ATR period) */
+  lookback?: number;
+};
+
+/**
+ * Chandelier Exit indicator result
+ */
+export type ChandelierExitValue = {
+  /** Long exit level (for long positions) - highest high minus ATR * multiplier */
+  longExit: number | null;
+  /** Short exit level (for short positions) - lowest low plus ATR * multiplier */
+  shortExit: number | null;
+  /** Current trend direction: 1 = bullish, -1 = bearish, 0 = undefined */
+  direction: 1 | -1 | 0;
+  /** Whether price crossed the exit level (potential exit signal) */
+  isCrossover: boolean;
+  /** Highest high over lookback period */
+  highestHigh: number | null;
+  /** Lowest low over lookback period */
+  lowestLow: number | null;
+  /** Current ATR value */
+  atr: number | null;
+};
+
+/**
+ * ATR Stop Levels indicator options
+ */
+export type AtrStopsOptions = {
+  /** ATR period (default: 14) */
+  period?: number;
+  /** Stop loss multiplier (default: 2.0) */
+  stopMultiplier?: number;
+  /** Take profit multiplier (default: 3.0) */
+  takeProfitMultiplier?: number;
+};
+
+/**
+ * ATR Stop Levels indicator result
+ * Provides ATR-based price levels for risk management
+ */
+export type AtrStopsValue = {
+  /** Stop loss level for long position (current close - ATR * multiplier) */
+  longStopLevel: number | null;
+  /** Stop loss level for short position (current close + ATR * multiplier) */
+  shortStopLevel: number | null;
+  /** Take profit level for long position (current close + ATR * multiplier) */
+  longTakeProfitLevel: number | null;
+  /** Take profit level for short position (current close - ATR * multiplier) */
+  shortTakeProfitLevel: number | null;
+  /** Current ATR value */
+  atr: number | null;
+  /** Stop distance in price units */
+  stopDistance: number | null;
+  /** Take profit distance in price units */
+  takeProfitDistance: number | null;
+};
+
+// ============================================
+// Position Sizing Types
+// ============================================
+
+/**
+ * Position size calculation result
+ */
+export type PositionSizeResult = {
+  /** Number of shares/units to trade */
+  shares: number;
+  /** Dollar amount to invest */
+  positionValue: number;
+  /** Risk amount in dollars */
+  riskAmount: number;
+  /** Percentage of capital being risked */
+  riskPercent: number;
+  /** Stop loss price (if applicable) */
+  stopPrice: number | null;
+  /** Calculation method used */
+  method: PositionSizingMethod;
+};
+
+/**
+ * Position sizing method type
+ */
+export type PositionSizingMethod = "risk-based" | "atr-based" | "kelly" | "fixed-fractional";
+
+/**
+ * Base options for all position sizing methods
+ */
+export type PositionSizingBaseOptions = {
+  /** Account/portfolio size */
+  accountSize: number;
+  /** Entry price of the security */
+  entryPrice: number;
+  /** Minimum share size (e.g., 1 for stocks, 0.001 for crypto) */
+  minShares?: number;
+  /** Maximum position as percentage of account (default: 100) */
+  maxPositionPercent?: number;
+  /** Round shares to nearest integer (default: true) */
+  roundShares?: boolean;
+};
+
+/**
+ * Options for risk-based position sizing
+ */
+export type RiskBasedSizingOptions = PositionSizingBaseOptions & {
+  /** Risk percentage per trade (e.g., 1 = 1% of account) */
+  riskPercent: number;
+  /** Stop loss price */
+  stopLossPrice: number;
+  /** Position direction: long (stop below entry) or short (stop above entry) */
+  direction?: "long" | "short";
+};
+
+/**
+ * Options for ATR-based position sizing
+ */
+export type AtrBasedSizingOptions = PositionSizingBaseOptions & {
+  /** Risk percentage per trade (e.g., 1 = 1% of account) */
+  riskPercent: number;
+  /** Current ATR value */
+  atrValue: number;
+  /** ATR multiplier for stop distance (default: 2) */
+  atrMultiplier?: number;
+  /** Position direction: long (stop below entry) or short (stop above entry) */
+  direction?: "long" | "short";
+};
+
+/**
+ * Options for Kelly Criterion position sizing
+ */
+export type KellySizingOptions = PositionSizingBaseOptions & {
+  /** Historical win rate (0-1) */
+  winRate: number;
+  /** Average win/loss ratio (avgWin / avgLoss) */
+  winLossRatio: number;
+  /** Kelly fraction to use (default: 0.5 = half-Kelly) */
+  kellyFraction?: number;
+  /** Maximum Kelly percentage allowed (default: 25) */
+  maxKellyPercent?: number;
+};
+
+/**
+ * Options for fixed fractional position sizing
+ */
+export type FixedFractionalOptions = PositionSizingBaseOptions & {
+  /** Fixed percentage of account per trade */
+  fractionPercent: number;
+};
+
+/**
+ * Combined position sizing options (union type)
+ */
+export type PositionSizingOptions =
+  | ({ method: "risk-based" } & RiskBasedSizingOptions)
+  | ({ method: "atr-based" } & AtrBasedSizingOptions)
+  | ({ method: "kelly" } & KellySizingOptions)
+  | ({ method: "fixed-fractional" } & FixedFractionalOptions);
+
+// ============================================================================
+// Signal Scoring Types
+// ============================================================================
+
+/**
+ * Individual signal evaluator function
+ * Returns a score between 0 and 1 indicating signal strength
+ */
+export type SignalEvaluator = (
+  candles: NormalizedCandle[],
+  index: number,
+  context?: MtfContext,
+) => number;
+
+/**
+ * Signal definition with name and weight
+ */
+export type SignalDefinition = {
+  /** Unique identifier for the signal */
+  name: string;
+  /** Display name for reporting */
+  displayName: string;
+  /** Weight for scoring (higher = more important) */
+  weight: number;
+  /** Signal evaluator function */
+  evaluate: SignalEvaluator;
+  /** Optional category for grouping */
+  category?: "momentum" | "trend" | "volume" | "volatility" | "mtf";
+};
+
+/**
+ * Result of scoring all signals
+ */
+export type ScoreResult = {
+  /** Raw weighted sum of all signals */
+  rawScore: number;
+  /** Normalized score (0-100) */
+  normalizedScore: number;
+  /** Maximum possible score */
+  maxScore: number;
+  /** Signal strength classification */
+  strength: "strong" | "moderate" | "weak" | "none";
+  /** Number of active signals */
+  activeSignals: number;
+  /** Total number of signals */
+  totalSignals: number;
+};
+
+/**
+ * Detailed breakdown of individual signal contributions
+ */
+export type SignalContribution = {
+  /** Signal name */
+  name: string;
+  /** Display name */
+  displayName: string;
+  /** Raw score from evaluator (0-1) */
+  rawValue: number;
+  /** Weighted score contribution */
+  score: number;
+  /** Weight used */
+  weight: number;
+  /** Whether signal is active (rawValue > 0) */
+  isActive: boolean;
+  /** Category of the signal */
+  category?: string;
+};
+
+/**
+ * Full score breakdown with all signal contributions
+ */
+export type ScoreBreakdown = ScoreResult & {
+  /** Individual signal contributions */
+  contributions: SignalContribution[];
+};
+
+/**
+ * Configuration for the scoring system
+ */
+export type ScoringConfig = {
+  /** Array of signal definitions */
+  signals: SignalDefinition[];
+  /** Threshold for "strong" strength (default: 70) */
+  strongThreshold?: number;
+  /** Threshold for "moderate" strength (default: 50) */
+  moderateThreshold?: number;
+  /** Threshold for "weak" strength (default: 30) */
+  weakThreshold?: number;
+};
+
+/**
+ * Preset strategy names
+ */
+export type ScoringPreset = "momentum" | "meanReversion" | "trendFollowing" | "balanced";

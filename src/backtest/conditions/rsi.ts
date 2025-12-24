@@ -2,8 +2,8 @@
  * RSI conditions
  */
 
-import type { PresetCondition } from "../../types";
 import { rsi } from "../../indicators/momentum/rsi";
+import type { PresetCondition } from "../../types";
 
 // ============================================
 // RSI Conditions
@@ -19,7 +19,9 @@ export function rsiBelow(threshold = 30, period = 14): PresetCondition {
     type: "preset",
     name: `rsiBelow(${threshold})`,
     evaluate: (indicators, candle, index, candles) => {
-      let rsiData = indicators[`rsi${period}`] as { time: number; value: number | null }[] | undefined;
+      let rsiData = indicators[`rsi${period}`] as
+        | { time: number; value: number | null }[]
+        | undefined;
 
       if (!rsiData) {
         rsiData = rsi(candles, { period });
@@ -42,7 +44,9 @@ export function rsiAbove(threshold = 70, period = 14): PresetCondition {
     type: "preset",
     name: `rsiAbove(${threshold})`,
     evaluate: (indicators, candle, index, candles) => {
-      let rsiData = indicators[`rsi${period}`] as { time: number; value: number | null }[] | undefined;
+      let rsiData = indicators[`rsi${period}`] as
+        | { time: number; value: number | null }[]
+        | undefined;
 
       if (!rsiData) {
         rsiData = rsi(candles, { period });

@@ -50,7 +50,7 @@ export function countConsecutiveHHLL(
   highs: number[],
   lows: number[],
   idx: number,
-  lookback: number
+  lookback: number,
 ): { consecutiveHH: number; consecutiveLL: number } {
   let consecutiveHH = 0;
   let consecutiveLL = 0;
@@ -100,7 +100,7 @@ export function hasDirectionalTrend(
     diDifferenceThreshold: number;
     slopeThreshold: number;
     consecutiveHHLLThreshold: number;
-  }
+  },
 ): TrendReason {
   // Condition 1: DI difference is significant
   if (plusDI !== null && minusDI !== null) {

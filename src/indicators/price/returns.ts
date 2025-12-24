@@ -2,7 +2,7 @@
  * Returns calculation indicator
  */
 
-import { normalizeCandles } from "../../core/normalize";
+import { isNormalized, normalizeCandles } from "../../core/normalize";
 import type { Candle, NormalizedCandle, ReturnsOptions, Series } from "../../types";
 
 /**
@@ -24,7 +24,7 @@ import type { Candle, NormalizedCandle, ReturnsOptions, Series } from "../../typ
  */
 export function returns(
   candles: Candle[] | NormalizedCandle[],
-  options: ReturnsOptions = {}
+  options: ReturnsOptions = {},
 ): Series<number | null> {
   const { period = 1, type = "simple" } = options;
 
@@ -71,7 +71,7 @@ export function returns(
  */
 export function cumulativeReturns(
   candles: Candle[] | NormalizedCandle[],
-  type: "simple" | "log" = "simple"
+  type: "simple" | "log" = "simple",
 ): Series<number | null> {
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
 
@@ -99,12 +99,4 @@ export function cumulativeReturns(
   }
 
   return result;
-}
-
-/**
- * Check if candles are already normalized
- */
-function isNormalized(candles: Candle[] | NormalizedCandle[]): candles is NormalizedCandle[] {
-  if (candles.length === 0) return true;
-  return typeof candles[0].time === "number";
 }

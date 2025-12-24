@@ -2,19 +2,19 @@
  * MTF Context Tests
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
+import type { MtfContext, NormalizedCandle } from "../../types";
 import {
-  createMtfContext,
   buildMtfIndexMap,
-  updateMtfIndices,
+  createMtfContext,
+  getCurrentMtfIndicatorValue,
   getMtfCandle,
   getMtfIndicator,
-  setMtfIndicator,
-  getCurrentMtfIndicatorValue,
-  hasMtfTimeframe,
   getMtfTimeframes,
+  hasMtfTimeframe,
+  setMtfIndicator,
+  updateMtfIndices,
 } from "../mtf-context";
-import type { NormalizedCandle, MtfContext } from "../../types";
 
 // Helper to create daily candles
 function createDailyCandles(days: number, startTime = 0): NormalizedCandle[] {
@@ -32,10 +32,7 @@ function createDailyCandles(days: number, startTime = 0): NormalizedCandle[] {
 }
 
 // Create candles starting from a specific date
-function createDailyCandlesFromDate(
-  startDate: Date,
-  days: number
-): NormalizedCandle[] {
+function createDailyCandlesFromDate(startDate: Date, days: number): NormalizedCandle[] {
   const MS_PER_DAY = 86400000;
   const startTime = startDate.getTime();
   return Array(days)
@@ -259,7 +256,7 @@ describe("getMtfIndicator / setMtfIndicator", () => {
     const result = getMtfIndicator<Array<{ time: number; value: number }>>(
       context,
       "weekly",
-      "rsi_14"
+      "rsi_14",
     );
     expect(result![0].value).toBe(60);
   });

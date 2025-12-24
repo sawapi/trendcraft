@@ -3,19 +3,43 @@
  */
 
 import type {
+  CombinedCondition,
   Condition,
   ConditionFn,
-  PresetCondition,
-  CombinedCondition,
-  NormalizedCandle,
   MtfContext,
   MtfPresetCondition,
+  NormalizedCandle,
+  PresetCondition,
 } from "../../types";
 
 /**
  * Extended condition type that includes MTF conditions
  */
 export type ExtendedCondition = Condition | MtfPresetCondition;
+
+/**
+ * Options for condition evaluation
+ */
+export type EvaluateConditionOptions = {
+  /**
+   * When true, throws an error if MTF condition is evaluated without MTF context.
+   * When false (default), returns false and logs a warning.
+   */
+  strictMtf?: boolean;
+};
+
+/**
+ * Error thrown when MTF context is required but not provided
+ */
+export class MtfContextRequiredError extends Error {
+  constructor(conditionName: string) {
+    super(
+      `MTF condition "${conditionName}" requires MTF context. ` +
+        `Use withMtf() to enable multi-timeframe support, or set strictMtf: false to silently skip.`,
+    );
+    this.name = "MtfContextRequiredError";
+  }
+}
 
 // ============================================
 // Condition Evaluation Helper
@@ -30,6 +54,7 @@ export type ExtendedCondition = Condition | MtfPresetCondition;
  * @param index - Current candle index
  * @param candles - All candles
  * @param mtfContext - Optional MTF context for multi-timeframe conditions
+ * @param options - Evaluation options (e.g., strictMtf)
  */
 export function evaluateCondition(
   condition: ExtendedCondition,
@@ -37,8 +62,11 @@ export function evaluateCondition(
   candle: NormalizedCandle,
   index: number,
   candles: NormalizedCandle[],
-  mtfContext?: MtfContext
+  mtfContext?: MtfContext,
+  options: EvaluateConditionOptions = {},
 ): boolean {
+  const { strictMtf = false } = options;
+
   // Custom function
   if (typeof condition === "function") {
     return condition(indicators, candle, index, candles);
@@ -48,8 +76,11 @@ export function evaluateCondition(
   if (condition.type === "mtf-preset") {
     if (!mtfContext) {
       // MTF condition without context - cannot evaluate
+      if (strictMtf) {
+        throw new MtfContextRequiredError(condition.name);
+      }
       console.warn(
-        `MTF condition "${condition.name}" requires MTF context. Use withMtf() to enable.`
+        `MTF condition "${condition.name}" requires MTF context. Use withMtf() to enable.`,
       );
       return false;
     }
@@ -66,11 +97,27 @@ export function evaluateCondition(
   switch (combined.type) {
     case "and":
       return combined.conditions.every((c) =>
-        evaluateCondition(c as ExtendedCondition, indicators, candle, index, candles, mtfContext)
+        evaluateCondition(
+          c as ExtendedCondition,
+          indicators,
+          candle,
+          index,
+          candles,
+          mtfContext,
+          options,
+        ),
       );
     case "or":
       return combined.conditions.some((c) =>
-        evaluateCondition(c as ExtendedCondition, indicators, candle, index, candles, mtfContext)
+        evaluateCondition(
+          c as ExtendedCondition,
+          indicators,
+          candle,
+          index,
+          candles,
+          mtfContext,
+          options,
+        ),
       );
     case "not":
       return !evaluateCondition(
@@ -79,7 +126,8 @@ export function evaluateCondition(
         candle,
         index,
         candles,
-        mtfContext
+        mtfContext,
+        options,
       );
     default:
       return false;

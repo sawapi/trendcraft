@@ -2,8 +2,8 @@
  * MACD conditions
  */
 
-import type { PresetCondition } from "../../types";
 import { macd } from "../../indicators/momentum/macd";
+import type { PresetCondition } from "../../types";
 
 // ============================================
 // MACD Conditions
@@ -21,7 +21,9 @@ export function macdCrossUp(fast = 12, slow = 26, signal = 9): PresetCondition {
     evaluate: (indicators, candle, index, candles) => {
       if (index < 1) return false;
 
-      let macdData = indicators[key] as { time: number; value: { macd: number | null; signal: number | null } }[] | undefined;
+      let macdData = indicators[key] as
+        | { time: number; value: { macd: number | null; signal: number | null } }[]
+        | undefined;
 
       if (!macdData) {
         macdData = macd(candles, { fastPeriod: fast, slowPeriod: slow, signalPeriod: signal });
@@ -31,7 +33,14 @@ export function macdCrossUp(fast = 12, slow = 26, signal = 9): PresetCondition {
       const curr = macdData[index]?.value;
       const prev = macdData[index - 1]?.value;
 
-      if (!curr || !prev || curr.macd === null || curr.signal === null || prev.macd === null || prev.signal === null) {
+      if (
+        !curr ||
+        !prev ||
+        curr.macd === null ||
+        curr.signal === null ||
+        prev.macd === null ||
+        prev.signal === null
+      ) {
         return false;
       }
 
@@ -52,7 +61,9 @@ export function macdCrossDown(fast = 12, slow = 26, signal = 9): PresetCondition
     evaluate: (indicators, candle, index, candles) => {
       if (index < 1) return false;
 
-      let macdData = indicators[key] as { time: number; value: { macd: number | null; signal: number | null } }[] | undefined;
+      let macdData = indicators[key] as
+        | { time: number; value: { macd: number | null; signal: number | null } }[]
+        | undefined;
 
       if (!macdData) {
         macdData = macd(candles, { fastPeriod: fast, slowPeriod: slow, signalPeriod: signal });
@@ -62,7 +73,14 @@ export function macdCrossDown(fast = 12, slow = 26, signal = 9): PresetCondition
       const curr = macdData[index]?.value;
       const prev = macdData[index - 1]?.value;
 
-      if (!curr || !prev || curr.macd === null || curr.signal === null || prev.macd === null || prev.signal === null) {
+      if (
+        !curr ||
+        !prev ||
+        curr.macd === null ||
+        curr.signal === null ||
+        prev.macd === null ||
+        prev.signal === null
+      ) {
         return false;
       }
 

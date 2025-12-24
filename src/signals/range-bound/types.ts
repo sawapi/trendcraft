@@ -252,10 +252,10 @@ export const DEFAULTS = {
   atrPeriod: 14,
   // ADX is the primary indicator for trend detection
   // Increased weight to prioritize ADX-based decisions
-  adxWeight: 0.50,
-  bandwidthWeight: 0.20,
-  donchianWeight: 0.20,
-  atrWeight: 0.10,
+  adxWeight: 0.5,
+  bandwidthWeight: 0.2,
+  donchianWeight: 0.2,
+  atrWeight: 0.1,
   // ADX < 20 = weak/no trend (range-bound likely)
   // Based on industry standard: ADX < 20-25 = sideways market
   adxThreshold: 20,

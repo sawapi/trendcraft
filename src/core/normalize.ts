@@ -6,13 +6,23 @@ import type { Candle, NormalizedCandle, PriceSource } from "../types";
 
 /**
  * Convert time value to epoch milliseconds
+ *
+ * Heuristic for numeric timestamps:
+ * - Values < 1e10 are treated as Unix seconds (covers up to ~2286)
+ * - Values >= 1e10 and < 1e13 are treated as Unix milliseconds
+ * - Values >= 1e13 are treated as microseconds and converted to ms
  */
 export function normalizeTime(time: number | string): number {
   if (typeof time === "number") {
-    // If the number is too small, assume it's seconds and convert to ms
-    if (time < 1e12) {
+    // Unix seconds: < 1e10 (covers dates up to ~2286-11-20)
+    if (time < 1e10) {
       return time * 1000;
     }
+    // Microseconds: >= 1e13 (e.g., 1703500800000000)
+    if (time >= 1e13) {
+      return Math.floor(time / 1000);
+    }
+    // Milliseconds: 1e10 <= time < 1e13
     return time;
   }
 
@@ -76,4 +86,24 @@ export function getPrice(candle: NormalizedCandle, source: PriceSource): number 
  */
 export function getPriceSeries(candles: NormalizedCandle[], source: PriceSource): number[] {
   return candles.map((c) => getPrice(c, source));
+}
+
+/**
+ * Check if candles are already normalized (time is a number)
+ *
+ * Use this to avoid redundant normalization when candles may have already been normalized.
+ *
+ * @param candles - Array of candles to check
+ * @returns true if candles are normalized (time is a number), false otherwise
+ *
+ * @example
+ * ```ts
+ * const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+ * ```
+ */
+export function isNormalized(
+  candles: Candle[] | NormalizedCandle[],
+): candles is NormalizedCandle[] {
+  if (candles.length === 0) return true;
+  return typeof candles[0].time === "number";
 }

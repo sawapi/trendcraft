@@ -2,13 +2,13 @@
  * Volume Profile Tests
  */
 
-import { describe, it, expect } from "vitest";
-import { volumeProfile, volumeProfileSeries } from "../volume-profile";
+import { describe, expect, it } from "vitest";
 import type { NormalizedCandle } from "../../../types";
+import { volumeProfile, volumeProfileSeries } from "../volume-profile";
 
 // Helper to create test candles
 function createCandles(
-  data: Array<{ high: number; low: number; close: number; volume: number }>
+  data: Array<{ high: number; low: number; close: number; volume: number }>,
 ): NormalizedCandle[] {
   return data.map((d, i) => ({
     time: 1000000 + i * 86400000,

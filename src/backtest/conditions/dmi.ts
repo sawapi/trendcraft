@@ -2,8 +2,8 @@
  * DMI/ADX conditions
  */
 
-import type { PresetCondition } from "../../types";
 import { dmi } from "../../indicators/momentum/dmi";
+import type { PresetCondition } from "../../types";
 
 // ============================================
 // DMI/ADX Conditions
@@ -20,7 +20,12 @@ export function dmiBullish(minAdx = 20, period = 14): PresetCondition {
     type: "preset",
     name: `dmiBullish(ADX>${minAdx})`,
     evaluate: (indicators, candle, index, candles) => {
-      let dmiData = indicators[cacheKey] as { time: number; value: { plusDi: number | null; minusDi: number | null; adx: number | null } }[] | undefined;
+      let dmiData = indicators[cacheKey] as
+        | {
+            time: number;
+            value: { plusDi: number | null; minusDi: number | null; adx: number | null };
+          }[]
+        | undefined;
 
       if (!dmiData) {
         dmiData = dmi(candles, { period });
@@ -46,7 +51,12 @@ export function dmiBearish(minAdx = 20, period = 14): PresetCondition {
     type: "preset",
     name: `dmiBearish(ADX>${minAdx})`,
     evaluate: (indicators, candle, index, candles) => {
-      let dmiData = indicators[cacheKey] as { time: number; value: { plusDi: number | null; minusDi: number | null; adx: number | null } }[] | undefined;
+      let dmiData = indicators[cacheKey] as
+        | {
+            time: number;
+            value: { plusDi: number | null; minusDi: number | null; adx: number | null };
+          }[]
+        | undefined;
 
       if (!dmiData) {
         dmiData = dmi(candles, { period });
@@ -72,7 +82,12 @@ export function adxStrong(threshold = 25, period = 14): PresetCondition {
     type: "preset",
     name: `adxStrong(${threshold})`,
     evaluate: (indicators, candle, index, candles) => {
-      let dmiData = indicators[cacheKey] as { time: number; value: { plusDi: number | null; minusDi: number | null; adx: number | null } }[] | undefined;
+      let dmiData = indicators[cacheKey] as
+        | {
+            time: number;
+            value: { plusDi: number | null; minusDi: number | null; adx: number | null };
+          }[]
+        | undefined;
 
       if (!dmiData) {
         dmiData = dmi(candles, { period });

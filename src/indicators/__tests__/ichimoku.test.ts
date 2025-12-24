@@ -4,7 +4,9 @@ import { ichimoku } from "../trend/ichimoku";
 
 describe("ichimoku", () => {
   // Helper to create candles with OHLC data
-  const makeCandles = (data: Array<{ high: number; low: number; close: number }>): NormalizedCandle[] =>
+  const makeCandles = (
+    data: Array<{ high: number; low: number; close: number }>,
+  ): NormalizedCandle[] =>
     data.map((d, i) => ({
       time: 1700000000000 + i * 86400000,
       open: d.close,
@@ -16,8 +18,12 @@ describe("ichimoku", () => {
 
   it("should throw if period is less than 1", () => {
     const candles = makeCandles([{ high: 110, low: 90, close: 100 }]);
-    expect(() => ichimoku(candles, { tenkanPeriod: 0 })).toThrow("Ichimoku periods must be at least 1");
-    expect(() => ichimoku(candles, { kijunPeriod: 0 })).toThrow("Ichimoku periods must be at least 1");
+    expect(() => ichimoku(candles, { tenkanPeriod: 0 })).toThrow(
+      "Ichimoku periods must be at least 1",
+    );
+    expect(() => ichimoku(candles, { kijunPeriod: 0 })).toThrow(
+      "Ichimoku periods must be at least 1",
+    );
   });
 
   it("should return null for insufficient data", () => {

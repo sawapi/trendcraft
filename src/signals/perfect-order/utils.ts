@@ -1,15 +1,20 @@
-import { sma } from "../../indicators/moving-average/sma";
 import { ema } from "../../indicators/moving-average/ema";
+import { sma } from "../../indicators/moving-average/sma";
 import { wma } from "../../indicators/moving-average/wma";
-import type { NormalizedCandle, PriceSource, Series, Candle } from "../../types";
+import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 import type { PerfectOrderType, SlopeDirection } from "./types";
+
+export { isNormalized } from "../../core/normalize";
 
 /**
  * Get the appropriate MA function based on type
  */
 export function getMaFunction(
-  maType: "sma" | "ema" | "wma"
-): (candles: NormalizedCandle[], options: { period: number; source: PriceSource }) => Series<number | null> {
+  maType: "sma" | "ema" | "wma",
+): (
+  candles: NormalizedCandle[],
+  options: { period: number; source: PriceSource },
+) => Series<number | null> {
   switch (maType) {
     case "ema":
       return ema;
@@ -64,7 +69,7 @@ export function determinePerfectOrderTypeWithHysteresis(
   maValues: (number | null)[],
   price: number,
   prevType: PerfectOrderType,
-  margin: number
+  margin: number,
 ): PerfectOrderType {
   // Check for null values
   if (maValues.some((v) => v === null)) {
@@ -136,7 +141,11 @@ export function determinePerfectOrderTypeWithHysteresis(
  * For bearish: price < shortMA gives bonus points
  * If price is on wrong side, deviation score is 0 (weaker signal)
  */
-export function calculateStrength(maValues: (number | null)[], type: PerfectOrderType, price: number): number {
+export function calculateStrength(
+  maValues: (number | null)[],
+  type: PerfectOrderType,
+  price: number,
+): number {
   const values = maValues as number[];
 
   if (values.length < 2) {
@@ -158,7 +167,8 @@ export function calculateStrength(maValues: (number | null)[], type: PerfectOrde
   // Calculate uniformity: how evenly spaced are the MAs?
   // Perfect uniformity = 1.0, poor uniformity approaches 0
   const avgSpread = spreads.reduce((a, b) => a + b, 0) / spreads.length;
-  const spreadVariance = spreads.reduce((sum, s) => sum + Math.pow(s - avgSpread, 2), 0) / spreads.length;
+  const spreadVariance =
+    spreads.reduce((sum, s) => sum + Math.pow(s - avgSpread, 2), 0) / spreads.length;
   const spreadStdDev = Math.sqrt(spreadVariance);
   const uniformityScore = avgSpread > 0 ? Math.max(0, 1 - spreadStdDev / avgSpread) : 0;
 
@@ -189,14 +199,6 @@ export function calculateStrength(maValues: (number | null)[], type: PerfectOrde
 }
 
 /**
- * Check if candles are already normalized
- */
-export function isNormalized(candles: Candle[] | NormalizedCandle[]): candles is NormalizedCandle[] {
-  if (candles.length === 0) return true;
-  return typeof candles[0].time === "number";
-}
-
-/**
  * Calculate slope direction of a series at a given index
  *
  * @param series - Array of values (may contain nulls)
@@ -209,7 +211,7 @@ export function slopeSign(
   series: (number | null)[],
   t: number,
   lookback: number,
-  flatEps: number
+  flatEps: number,
 ): SlopeDirection {
   if (t < lookback) return "FLAT";
 
@@ -233,10 +235,7 @@ export function slopeSign(
  * @param collapseEps - Convergence threshold as ratio
  * @returns True if all MAs are within collapseEps of each other
  */
-export function isCollapsed(
-  maValues: (number | null)[],
-  collapseEps: number
-): boolean {
+export function isCollapsed(maValues: (number | null)[], collapseEps: number): boolean {
   const values = maValues.filter((v): v is number => v !== null);
   if (values.length < 2) return false;
 

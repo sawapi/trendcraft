@@ -2,8 +2,12 @@
  * Range-Bound (Box Range) conditions
  */
 
-import type { PresetCondition, NormalizedCandle } from "../../types";
-import { rangeBound, type RangeBoundValue, type RangeBoundOptions } from "../../signals/range-bound";
+import {
+  type RangeBoundOptions,
+  type RangeBoundValue,
+  rangeBound,
+} from "../../signals/range-bound";
+import type { NormalizedCandle, PresetCondition } from "../../types";
 
 // ============================================
 // Range-Bound (Box Range) Conditions
@@ -15,14 +19,28 @@ import { rangeBound, type RangeBoundValue, type RangeBoundOptions } from "../../
 export type RangeBoundConditionOptions = RangeBoundOptions;
 
 /**
+ * Generate a stable cache key from options object
+ * Sorts keys to ensure consistent ordering regardless of property order
+ */
+function generateCacheKey(prefix: string, options: Record<string, unknown>): string {
+  const sortedKeys = Object.keys(options).sort();
+  const parts = sortedKeys.map((k) => `${k}:${options[k]}`);
+  return `${prefix}_${parts.join("_")}`;
+}
+
+/**
  * Get cached range-bound data
  */
 function getRangeBoundData(
   indicators: Record<string, unknown>,
   candles: NormalizedCandle[],
-  options: RangeBoundConditionOptions
+  options: RangeBoundConditionOptions,
 ): { time: number; value: RangeBoundValue }[] {
-  const cacheKey = `rangeBound_${JSON.stringify(options)}`;
+  // Use stable cache key generation instead of JSON.stringify
+  const cacheKey =
+    Object.keys(options).length === 0
+      ? "rangeBound_default"
+      : generateCacheKey("rangeBound", options as Record<string, unknown>);
   let rbData = indicators[cacheKey] as { time: number; value: RangeBoundValue }[] | undefined;
 
   if (!rbData) {
@@ -141,7 +159,7 @@ export function tightRange(options: RangeBoundConditionOptions = {}): PresetCond
  */
 export function rangeScoreAbove(
   threshold = 60,
-  options: RangeBoundConditionOptions = {}
+  options: RangeBoundConditionOptions = {},
 ): PresetCondition {
   return {
     type: "preset",

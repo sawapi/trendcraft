@@ -5,7 +5,7 @@
  * or significant market events.
  */
 
-import { normalizeCandles } from "../../core/normalize";
+import { isNormalized, normalizeCandles } from "../../core/normalize";
 import type { Candle, NormalizedCandle, Series, VolumeAnomalyValue } from "../../types";
 
 /**
@@ -56,7 +56,7 @@ export type VolumeAnomalyOptions = {
  */
 export function volumeAnomaly(
   candles: Candle[] | NormalizedCandle[],
-  options: VolumeAnomalyOptions = {}
+  options: VolumeAnomalyOptions = {},
 ): Series<VolumeAnomalyValue> {
   const {
     period = 20,
@@ -153,12 +153,4 @@ export function volumeAnomaly(
   }
 
   return result;
-}
-
-/**
- * Check if candles are already normalized
- */
-function isNormalized(candles: Candle[] | NormalizedCandle[]): candles is NormalizedCandle[] {
-  if (candles.length === 0) return true;
-  return typeof candles[0].time === "number";
 }

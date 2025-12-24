@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest";
-import { bollingerBreakout, evaluateCondition } from "../../conditions";
+import { describe, expect, it } from "vitest";
 import type { NormalizedCandle } from "../../../types";
+import { bollingerBreakout, evaluateCondition } from "../../conditions";
 
 describe("bollingerBreakout()", () => {
   it("should detect upper band breakout", () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { bollingerSqueeze } from "../bollinger-squeeze";
 import type { NormalizedCandle } from "../../types";
+import { bollingerSqueeze } from "../bollinger-squeeze";
 
 // Helper to create test candles
 function createCandle(day: number, close: number): NormalizedCandle {
@@ -19,7 +19,7 @@ function createVolatilityCandles(
   startDay: number,
   count: number,
   basePrice: number,
-  volatility: number
+  volatility: number,
 ): NormalizedCandle[] {
   const candles: NormalizedCandle[] = [];
   for (let i = 0; i < count; i++) {

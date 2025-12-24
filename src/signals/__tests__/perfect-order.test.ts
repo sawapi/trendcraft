@@ -15,7 +15,7 @@ const makeCandles = (closes: number[]): NormalizedCandle[] =>
 
 // Helper to create candles with specific OHLC values for price position testing
 const makeCandlesWithOHLC = (
-  data: { open: number; high: number; low: number; close: number }[]
+  data: { open: number; high: number; low: number; close: number }[],
 ): NormalizedCandle[] =>
   data.map((d, i) => ({
     time: 1700000000000 + i * 86400000,
@@ -223,15 +223,23 @@ describe("perfectOrder", () => {
     it("should throw error if less than 2 unique periods", () => {
       const candles = makeCandles([100, 101, 102]);
 
-      expect(() => perfectOrder(candles, { periods: [5] })).toThrow("At least 2 different periods are required");
-      expect(() => perfectOrder(candles, { periods: [5, 5, 5] })).toThrow("At least 2 different periods are required");
+      expect(() => perfectOrder(candles, { periods: [5] })).toThrow(
+        "At least 2 different periods are required",
+      );
+      expect(() => perfectOrder(candles, { periods: [5, 5, 5] })).toThrow(
+        "At least 2 different periods are required",
+      );
     });
 
     it("should throw error for non-positive periods", () => {
       const candles = makeCandles([100, 101, 102]);
 
-      expect(() => perfectOrder(candles, { periods: [0, 5, 10] })).toThrow("All periods must be positive integers");
-      expect(() => perfectOrder(candles, { periods: [-1, 5, 10] })).toThrow("All periods must be positive integers");
+      expect(() => perfectOrder(candles, { periods: [0, 5, 10] })).toThrow(
+        "All periods must be positive integers",
+      );
+      expect(() => perfectOrder(candles, { periods: [-1, 5, 10] })).toThrow(
+        "All periods must be positive integers",
+      );
     });
 
     it("should work with 4+ MAs", () => {
@@ -958,8 +966,12 @@ describe("perfectOrderEnhanced", () => {
       });
 
       // Different persistBars will affect isConfirmed timing
-      const confirmed3 = result3.findIndex((r) => r.value.isConfirmed && r.value.state === "BULLISH_PO");
-      const confirmed5 = result5.findIndex((r) => r.value.isConfirmed && r.value.state === "BULLISH_PO");
+      const confirmed3 = result3.findIndex(
+        (r) => r.value.isConfirmed && r.value.state === "BULLISH_PO",
+      );
+      const confirmed5 = result5.findIndex(
+        (r) => r.value.isConfirmed && r.value.state === "BULLISH_PO",
+      );
 
       if (confirmed3 !== -1 && confirmed5 !== -1) {
         expect(confirmed5).toBeGreaterThanOrEqual(confirmed3);
@@ -1037,16 +1049,16 @@ describe("perfectOrderEnhanced", () => {
 
     it("should throw for less than 2 periods", () => {
       const candles = makeCandles([100, 101, 102]);
-      expect(() =>
-        perfectOrderEnhanced(candles, { enhanced: true, periods: [5] })
-      ).toThrow("At least 2 different periods are required");
+      expect(() => perfectOrderEnhanced(candles, { enhanced: true, periods: [5] })).toThrow(
+        "At least 2 different periods are required",
+      );
     });
 
     it("should throw for non-positive periods", () => {
       const candles = makeCandles([100, 101, 102]);
-      expect(() =>
-        perfectOrderEnhanced(candles, { enhanced: true, periods: [0, 5, 10] })
-      ).toThrow("All periods must be positive integers");
+      expect(() => perfectOrderEnhanced(candles, { enhanced: true, periods: [0, 5, 10] })).toThrow(
+        "All periods must be positive integers",
+      );
     });
   });
 });

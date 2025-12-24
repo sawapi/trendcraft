@@ -3,7 +3,7 @@
  * Detects periods of low volatility (squeeze) that often precede large price movements
  */
 
-import { normalizeCandles } from "../core/normalize";
+import { isNormalized, normalizeCandles } from "../core/normalize";
 import { bollingerBands } from "../indicators/volatility/bollinger-bands";
 import type { Candle, NormalizedCandle } from "../types";
 
@@ -54,14 +54,9 @@ export type SqueezeOptions = {
  */
 export function bollingerSqueeze(
   candles: Candle[] | NormalizedCandle[],
-  options: SqueezeOptions = {}
+  options: SqueezeOptions = {},
 ): SqueezeSignal[] {
-  const {
-    period = 20,
-    stdDev = 2,
-    lookback = 120,
-    threshold = 5,
-  } = options;
+  const { period = 20, stdDev = 2, lookback = 120, threshold = 5 } = options;
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
 
@@ -105,9 +100,7 @@ export function bollingerSqueeze(
     if (percentile <= threshold) {
       // Avoid consecutive signals - only signal on first detection
       const prevSignal = results[results.length - 1];
-      const prevIdx = prevSignal
-        ? normalized.findIndex((c) => c.time === prevSignal.time)
-        : -10;
+      const prevIdx = prevSignal ? normalized.findIndex((c) => c.time === prevSignal.time) : -10;
 
       // Only add if at least 5 bars since last squeeze signal
       if (i - prevIdx >= 5) {
@@ -122,12 +115,4 @@ export function bollingerSqueeze(
   }
 
   return results;
-}
-
-/**
- * Check if candles are already normalized
- */
-function isNormalized(candles: Candle[] | NormalizedCandle[]): candles is NormalizedCandle[] {
-  if (candles.length === 0) return true;
-  return typeof candles[0].time === "number";
 }

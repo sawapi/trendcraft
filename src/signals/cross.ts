@@ -3,7 +3,7 @@
  * Detects when one series crosses over/under another
  */
 
-import { normalizeCandles } from "../core/normalize";
+import { isNormalized, normalizeCandles } from "../core/normalize";
 import { sma } from "../indicators/moving-average/sma";
 import type { Candle, NormalizedCandle, Series } from "../types";
 
@@ -35,7 +35,7 @@ export type CrossOptions = {
  */
 export function crossOver(
   seriesA: Series<number | null>,
-  seriesB: Series<number | null>
+  seriesB: Series<number | null>,
 ): Series<boolean> {
   if (seriesA.length !== seriesB.length) {
     throw new Error("Series must have the same length");
@@ -87,7 +87,7 @@ export function crossOver(
  */
 export function crossUnder(
   seriesA: Series<number | null>,
-  seriesB: Series<number | null>
+  seriesB: Series<number | null>,
 ): Series<boolean> {
   if (seriesA.length !== seriesB.length) {
     throw new Error("Series must have the same length");
@@ -140,7 +140,7 @@ export function crossUnder(
  */
 export function goldenCross(
   candles: Candle[] | NormalizedCandle[],
-  options: CrossOptions = {}
+  options: CrossOptions = {},
 ): Series<boolean> {
   const { short: shortPeriod = 5, long: longPeriod = 25 } = options;
 
@@ -177,7 +177,7 @@ export function goldenCross(
  */
 export function deadCross(
   candles: Candle[] | NormalizedCandle[],
-  options: CrossOptions = {}
+  options: CrossOptions = {},
 ): Series<boolean> {
   const { short: shortPeriod = 5, long: longPeriod = 25 } = options;
 
@@ -193,14 +193,6 @@ export function deadCross(
   const longSma = sma(normalized, { period: longPeriod });
 
   return crossUnder(shortSma, longSma);
-}
-
-/**
- * Check if candles are already normalized
- */
-function isNormalized(candles: Candle[] | NormalizedCandle[]): candles is NormalizedCandle[] {
-  if (candles.length === 0) return true;
-  return typeof candles[0].time === "number";
 }
 
 /**
@@ -268,7 +260,7 @@ export type CrossValidationOptions = {
  */
 export function validateCrossSignals(
   candles: Candle[] | NormalizedCandle[],
-  options: CrossValidationOptions = {}
+  options: CrossValidationOptions = {},
 ): CrossSignalQuality[] {
   const {
     short: shortPeriod = 5,
@@ -376,7 +368,7 @@ function checkHoldingDays(
   longSma: Series<number | null>,
   crossIdx: number,
   holdingDays: number,
-  crossType: "golden" | "dead"
+  crossType: "golden" | "dead",
 ): boolean | null {
   const endIdx = crossIdx + holdingDays;
 
@@ -438,7 +430,7 @@ function checkTrendDirection(
   longSma: Series<number | null>,
   currentIdx: number,
   lookback: number,
-  crossType: "golden" | "dead"
+  crossType: "golden" | "dead",
 ): boolean {
   if (currentIdx < lookback) return false;
 
@@ -466,7 +458,7 @@ function checkTrendDirection(
 function findDaysUntilReverse(
   crossIndices: { idx: number; type: "golden" | "dead" }[],
   currentIdx: number,
-  crossType: "golden" | "dead"
+  crossType: "golden" | "dead",
 ): number | null {
   const reverseType = crossType === "golden" ? "dead" : "golden";
 

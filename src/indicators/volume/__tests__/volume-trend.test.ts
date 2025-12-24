@@ -2,14 +2,12 @@
  * Volume Trend Confirmation Tests
  */
 
-import { describe, it, expect } from "vitest";
-import { volumeTrend } from "../volume-trend";
+import { describe, expect, it } from "vitest";
 import type { NormalizedCandle } from "../../../types";
+import { volumeTrend } from "../volume-trend";
 
 // Helper to create test candles with specific price and volume patterns
-function createCandles(
-  data: Array<{ close: number; volume: number }>
-): NormalizedCandle[] {
+function createCandles(data: Array<{ close: number; volume: number }>): NormalizedCandle[] {
   return data.map((d, i) => ({
     time: 1000000 + i * 86400000,
     open: d.close * 0.99,
@@ -26,7 +24,7 @@ function createTrendingCandles(
   startPrice: number,
   priceChange: number,
   startVolume: number,
-  volumeChange: number
+  volumeChange: number,
 ): NormalizedCandle[] {
   return Array(count)
     .fill(null)
@@ -127,7 +125,7 @@ describe("volumeTrend", () => {
           .map((_, i) => ({
             close: 100 + (i % 2 === 0 ? 0.1 : -0.1), // Small oscillation
             volume: 1000 + i * 10,
-          }))
+          })),
       );
 
       const result = volumeTrend(candles, { minPriceChange: 5 }); // High threshold
@@ -142,7 +140,7 @@ describe("volumeTrend", () => {
           .map((_, i) => ({
             close: 100 + (i % 2 === 0 ? 0.1 : -0.1),
             volume: 1000 + i * 10,
-          }))
+          })),
       );
 
       const result = volumeTrend(candles, { minPriceChange: 5 });
@@ -248,7 +246,7 @@ describe("volumeTrend", () => {
       const candles = createCandles(
         Array(20)
           .fill(null)
-          .map(() => ({ close: 100, volume: 0 }))
+          .map(() => ({ close: 100, volume: 0 })),
       );
       const result = volumeTrend(candles);
       expect(result).toHaveLength(20);
@@ -267,7 +265,7 @@ describe("volumeTrend", () => {
           .map((_, i) => ({
             close: 100 + i,
             volume: i % 2 === 0 ? 2000 : 500,
-          }))
+          })),
       );
       const result = volumeTrend(candles);
       expect(result).toHaveLength(30);

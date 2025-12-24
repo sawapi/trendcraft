@@ -63,18 +63,26 @@
  * @module signals/range-bound
  */
 
-import { normalizeCandles } from "../../core/normalize";
+import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { dmi } from "../../indicators/momentum/dmi";
+import { atr } from "../../indicators/volatility/atr";
 import { bollingerBands } from "../../indicators/volatility/bollinger-bands";
 import { donchianChannel } from "../../indicators/volatility/donchian-channel";
-import { atr } from "../../indicators/volatility/atr";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 
-import type { RangeBoundState, RangeBoundValue, RangeBoundOptions } from "./types";
-import { DEFAULTS } from "./types";
-import { calculateAdxScore, calculatePercentileScore, calculateRangeScore } from "./score-calculator";
-import { calculateRegressionSlope, countConsecutiveHHLL, hasDirectionalTrend } from "./trend-detector";
+import {
+  calculateAdxScore,
+  calculatePercentileScore,
+  calculateRangeScore,
+} from "./score-calculator";
 import { determineState } from "./state-machine";
+import {
+  calculateRegressionSlope,
+  countConsecutiveHHLL,
+  hasDirectionalTrend,
+} from "./trend-detector";
+import type { RangeBoundOptions, RangeBoundState, RangeBoundValue } from "./types";
+import { DEFAULTS } from "./types";
 
 // Re-export types for backward compatibility
 export type { RangeBoundState, TrendReason, RangeBoundValue, RangeBoundOptions } from "./types";
@@ -105,7 +113,7 @@ export type { RangeBoundState, TrendReason, RangeBoundValue, RangeBoundOptions }
  */
 export function rangeBound(
   candles: Candle[] | NormalizedCandle[],
-  options: RangeBoundOptions = {}
+  options: RangeBoundOptions = {},
 ): Series<RangeBoundValue> {
   const opts = { ...DEFAULTS, ...options };
 
@@ -196,18 +204,20 @@ export function rangeBound(
 
     // Calculate individual scores
     const adxScore = calculateAdxScore(adx, opts.adxThreshold, opts.adxTrendThreshold);
-    const bandwidthScore = calculatePercentileScore(bandwidth, bandwidthHistory, opts.lookbackPeriod);
-    const donchianScore = calculatePercentileScore(donchianWidth, donchianWidthHistory, opts.lookbackPeriod);
+    const bandwidthScore = calculatePercentileScore(
+      bandwidth,
+      bandwidthHistory,
+      opts.lookbackPeriod,
+    );
+    const donchianScore = calculatePercentileScore(
+      donchianWidth,
+      donchianWidthHistory,
+      opts.lookbackPeriod,
+    );
     const atrScore = calculatePercentileScore(atrRatio, atrRatioHistory, opts.lookbackPeriod);
 
     // Calculate composite range score
-    const rangeScore = calculateRangeScore(
-      adxScore,
-      bandwidthScore,
-      donchianScore,
-      atrScore,
-      opts
-    );
+    const rangeScore = calculateRangeScore(adxScore, bandwidthScore, donchianScore, atrScore, opts);
 
     // Calculate price position within range
     const pricePosition =
@@ -226,7 +236,12 @@ export function rangeBound(
 
     // Calculate trend directionality indicators
     const regressionSlope = calculateRegressionSlope(closes, opts.priceMovementPeriod);
-    const { consecutiveHH, consecutiveLL } = countConsecutiveHHLL(highs, lows, i, opts.hhllLookback);
+    const { consecutiveHH, consecutiveLL } = countConsecutiveHHLL(
+      highs,
+      lows,
+      i,
+      opts.hhllLookback,
+    );
 
     // Check for directional trend (even with low ADX)
     const isDirectionalTrend = hasDirectionalTrend(
@@ -240,7 +255,7 @@ export function rangeBound(
         diDifferenceThreshold: opts.diDifferenceThreshold,
         slopeThreshold: opts.slopeThreshold,
         consecutiveHHLLThreshold: opts.consecutiveHHLLThreshold,
-      }
+      },
     );
 
     // Determine state
@@ -251,7 +266,7 @@ export function rangeBound(
       priceMovement,
       isDirectionalTrend,
       prevState,
-      opts
+      opts,
     );
 
     // Track persistence
@@ -265,25 +280,18 @@ export function rangeBound(
 
     // Detect events
     const isInRangeState =
-      state === "RANGE_FORMING" ||
-      state === "RANGE_CONFIRMED" ||
-      state === "RANGE_TIGHT";
+      state === "RANGE_FORMING" || state === "RANGE_CONFIRMED" || state === "RANGE_TIGHT";
 
-    const isBreakoutRiskState =
-      state === "BREAKOUT_RISK_UP" || state === "BREAKOUT_RISK_DOWN";
+    const isBreakoutRiskState = state === "BREAKOUT_RISK_UP" || state === "BREAKOUT_RISK_DOWN";
 
     const rangeDetected = isInRangeState && !wasInRange;
 
     const rangeConfirmed =
-      (state === "RANGE_CONFIRMED" || state === "RANGE_TIGHT") &&
-      isConfirmed &&
-      !prevWasConfirmed;
+      (state === "RANGE_CONFIRMED" || state === "RANGE_TIGHT") && isConfirmed && !prevWasConfirmed;
 
     const breakoutRiskDetected = isBreakoutRiskState && !wasBreakoutRisk;
 
-    const rangeBroken =
-      state === "TRENDING" &&
-      (wasInRange || wasBreakoutRisk);
+    const rangeBroken = state === "TRENDING" && (wasInRange || wasBreakoutRisk);
 
     // Push result
     result.push({
@@ -321,12 +329,4 @@ export function rangeBound(
   }
 
   return result;
-}
-
-/**
- * Check if candles are already normalized
- */
-function isNormalized(candles: Candle[] | NormalizedCandle[]): candles is NormalizedCandle[] {
-  if (candles.length === 0) return true;
-  return typeof candles[0].time === "number";
 }

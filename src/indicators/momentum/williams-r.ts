@@ -5,8 +5,8 @@
  * It's the inverse of the Fast Stochastic Oscillator.
  */
 
+import { isNormalized, normalizeCandles } from "../../core/normalize";
 import type { Candle, NormalizedCandle, Series } from "../../types";
-import { normalizeCandles } from "../../core/normalize";
 
 /**
  * Williams %R options
@@ -41,7 +41,7 @@ export type WilliamsROptions = {
  */
 export function williamsR(
   candles: Candle[] | NormalizedCandle[],
-  options: WilliamsROptions = {}
+  options: WilliamsROptions = {},
 ): Series<number | null> {
   const { period = 14 } = options;
 
@@ -61,8 +61,8 @@ export function williamsR(
     }
 
     // Find highest high and lowest low over the period
-    let highestHigh = -Infinity;
-    let lowestLow = Infinity;
+    let highestHigh = Number.NEGATIVE_INFINITY;
+    let lowestLow = Number.POSITIVE_INFINITY;
 
     for (let j = i - period + 1; j <= i; j++) {
       if (normalized[j].high > highestHigh) {
@@ -86,12 +86,4 @@ export function williamsR(
   }
 
   return result;
-}
-
-/**
- * Check if candles are already normalized
- */
-function isNormalized(candles: Candle[] | NormalizedCandle[]): candles is NormalizedCandle[] {
-  if (candles.length === 0) return true;
-  return typeof candles[0].time === "number";
 }

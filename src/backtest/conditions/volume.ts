@@ -2,8 +2,8 @@
  * Volume conditions
  */
 
-import type { PresetCondition } from "../../types";
 import { volumeMa } from "../../indicators/volume/volume-ma";
+import type { PresetCondition } from "../../types";
 
 // ============================================
 // Volume Conditions

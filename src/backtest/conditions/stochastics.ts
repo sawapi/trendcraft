@@ -2,8 +2,8 @@
  * Stochastics conditions
  */
 
-import type { PresetCondition } from "../../types";
 import { slowStochastics } from "../../indicators/momentum/stochastics";
+import type { PresetCondition } from "../../types";
 
 // ============================================
 // Stochastics Conditions
@@ -20,7 +20,9 @@ export function stochBelow(threshold = 20, kPeriod = 14, dPeriod = 3): PresetCon
     type: "preset",
     name: `stochBelow(${threshold})`,
     evaluate: (indicators, candle, index, candles) => {
-      let stochData = indicators[cacheKey] as { time: number; value: { k: number | null; d: number | null } }[] | undefined;
+      let stochData = indicators[cacheKey] as
+        | { time: number; value: { k: number | null; d: number | null } }[]
+        | undefined;
 
       if (!stochData) {
         stochData = slowStochastics(candles, { kPeriod, dPeriod });
@@ -44,7 +46,9 @@ export function stochAbove(threshold = 80, kPeriod = 14, dPeriod = 3): PresetCon
     type: "preset",
     name: `stochAbove(${threshold})`,
     evaluate: (indicators, candle, index, candles) => {
-      let stochData = indicators[cacheKey] as { time: number; value: { k: number | null; d: number | null } }[] | undefined;
+      let stochData = indicators[cacheKey] as
+        | { time: number; value: { k: number | null; d: number | null } }[]
+        | undefined;
 
       if (!stochData) {
         stochData = slowStochastics(candles, { kPeriod, dPeriod });
@@ -69,7 +73,9 @@ export function stochCrossUp(kPeriod = 14, dPeriod = 3): PresetCondition {
     evaluate: (indicators, candle, index, candles) => {
       if (index < 1) return false;
 
-      let stochData = indicators[cacheKey] as { time: number; value: { k: number | null; d: number | null } }[] | undefined;
+      let stochData = indicators[cacheKey] as
+        | { time: number; value: { k: number | null; d: number | null } }[]
+        | undefined;
 
       if (!stochData) {
         stochData = slowStochastics(candles, { kPeriod, dPeriod });
@@ -79,7 +85,14 @@ export function stochCrossUp(kPeriod = 14, dPeriod = 3): PresetCondition {
       const curr = stochData[index]?.value;
       const prev = stochData[index - 1]?.value;
 
-      if (!curr || !prev || curr.k === null || curr.d === null || prev.k === null || prev.d === null) {
+      if (
+        !curr ||
+        !prev ||
+        curr.k === null ||
+        curr.d === null ||
+        prev.k === null ||
+        prev.d === null
+      ) {
         return false;
       }
 
@@ -100,7 +113,9 @@ export function stochCrossDown(kPeriod = 14, dPeriod = 3): PresetCondition {
     evaluate: (indicators, candle, index, candles) => {
       if (index < 1) return false;
 
-      let stochData = indicators[cacheKey] as { time: number; value: { k: number | null; d: number | null } }[] | undefined;
+      let stochData = indicators[cacheKey] as
+        | { time: number; value: { k: number | null; d: number | null } }[]
+        | undefined;
 
       if (!stochData) {
         stochData = slowStochastics(candles, { kPeriod, dPeriod });
@@ -110,7 +125,14 @@ export function stochCrossDown(kPeriod = 14, dPeriod = 3): PresetCondition {
       const curr = stochData[index]?.value;
       const prev = stochData[index - 1]?.value;
 
-      if (!curr || !prev || curr.k === null || curr.d === null || prev.k === null || prev.d === null) {
+      if (
+        !curr ||
+        !prev ||
+        curr.k === null ||
+        curr.d === null ||
+        prev.k === null ||
+        prev.d === null
+      ) {
         return false;
       }
 

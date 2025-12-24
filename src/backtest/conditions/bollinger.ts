@@ -2,8 +2,8 @@
  * Bollinger Bands conditions
  */
 
-import type { PresetCondition } from "../../types";
 import { bollingerBands } from "../../indicators/volatility/bollinger-bands";
+import type { PresetCondition } from "../../types";
 
 // ============================================
 // Bollinger Bands Conditions
@@ -13,14 +13,20 @@ import { bollingerBands } from "../../indicators/volatility/bollinger-bands";
  * Price breaks out of Bollinger Band
  * @param band 'upper' or 'lower'
  */
-export function bollingerBreakout(band: "upper" | "lower", period = 20, stdDev = 2): PresetCondition {
+export function bollingerBreakout(
+  band: "upper" | "lower",
+  period = 20,
+  stdDev = 2,
+): PresetCondition {
   const key = `bb${period}`;
 
   return {
     type: "preset",
     name: `bollingerBreakout('${band}')`,
     evaluate: (indicators, candle, index, candles) => {
-      let bbData = indicators[key] as { time: number; value: { upper: number | null; lower: number | null } }[] | undefined;
+      let bbData = indicators[key] as
+        | { time: number; value: { upper: number | null; lower: number | null } }[]
+        | undefined;
 
       if (!bbData) {
         bbData = bollingerBands(candles, { period, stdDev });
@@ -50,7 +56,12 @@ export function bollingerTouch(band: "upper" | "lower", period = 20, stdDev = 2)
     type: "preset",
     name: `bollingerTouch('${band}')`,
     evaluate: (indicators, candle, index, candles) => {
-      let bbData = indicators[key] as { time: number; value: { upper: number | null; lower: number | null; middle: number | null } }[] | undefined;
+      let bbData = indicators[key] as
+        | {
+            time: number;
+            value: { upper: number | null; lower: number | null; middle: number | null };
+          }[]
+        | undefined;
 
       if (!bbData) {
         bbData = bollingerBands(candles, { period, stdDev });

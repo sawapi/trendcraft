@@ -21,6 +21,19 @@
 - [Utilities](#utilities)
   - [Data Normalization](#data-normalization)
   - [Resampling](#resampling)
+- [Signal Scoring](#signal-scoring)
+  - [ScoreBuilder](#scorebuilder)
+  - [Calculating Scores](#calculating-scores)
+  - [Presets](#presets)
+  - [Backtest Conditions](#scoring-backtest-conditions)
+- [Position Sizing](#position-sizing)
+  - [Risk-Based Sizing](#risk-based-sizing)
+  - [ATR-Based Sizing](#atr-based-sizing)
+  - [Kelly Criterion](#kelly-criterion)
+  - [Fixed Fractional](#fixed-fractional)
+- [ATR Risk Management](#atr-risk-management)
+  - [Chandelier Exit](#chandelier-exit)
+  - [ATR Stops](#atr-stops)
 - [Types](#types)
 
 ---
@@ -1331,6 +1344,372 @@ const monthly = resample(dailyCandles, 'monthly');
 **Supported timeframes:**
 - `'weekly'` or `'1w'`
 - `'monthly'` or `'1M'`
+
+---
+
+## Signal Scoring
+
+Signal Scoring combines multiple technical signals with weighted importance to produce a composite score (0-100).
+
+### ScoreBuilder
+
+Fluent API for building scoring configurations.
+
+```typescript
+import { ScoreBuilder, calculateScore } from 'trendcraft';
+
+const config = ScoreBuilder.create()
+  .addPOConfirmation(3.0)      // weight: 3.0
+  .addRsiOversold(30, 2.0)     // threshold: 30, weight: 2.0
+  .addVolumeSpike(1.5, 1.5)    // threshold: 1.5x, weight: 1.5
+  .addMacdBullish(1.5)
+  .setThresholds(70, 50, 30)   // strong, moderate, weak
+  .build();
+```
+
+**Builder Methods:**
+
+| Category | Method | Parameters | Description |
+|----------|--------|------------|-------------|
+| **Momentum** | `addRsiOversold` | threshold?, weight?, period? | RSI below threshold |
+| | `addRsiOverbought` | threshold?, weight?, period? | RSI above threshold |
+| | `addMacdBullish` | weight? | MACD bullish crossover |
+| | `addMacdBearish` | weight? | MACD bearish crossover |
+| | `addStochOversold` | threshold?, weight? | Stochastics oversold |
+| | `addStochBullishCross` | threshold?, weight? | Stoch %K crosses %D |
+| **Trend** | `addPerfectOrderBullish` | weight? | Perfect Order bullish |
+| | `addPOConfirmation` | weight? | PO+ confirmation signal |
+| | `addPullbackEntry` | maPeriod?, weight? | Pullback to MA |
+| | `addGoldenCross` | short?, long?, weight? | Golden cross signal |
+| | `addPriceAboveEma` | period?, weight? | Price above EMA |
+| **Volume** | `addVolumeSpike` | threshold?, weight? | Volume spike |
+| | `addVolumeAnomaly` | zThreshold?, weight? | Statistical anomaly |
+| | `addBullishVolumeTrend` | weight? | Volume confirms trend |
+| | `addCmfPositive` | threshold?, weight? | CMF positive |
+| **Config** | `setThresholds` | strong, moderate, weak | Score thresholds |
+| | `addSignal` | SignalDefinition | Custom signal |
+| | `addSignals` | SignalDefinition[] | Multiple signals |
+
+---
+
+### Calculating Scores
+
+#### `calculateScore(candles, index, config, context?)`
+
+Calculate composite score at a specific index.
+
+```typescript
+const result = calculateScore(candles, candles.length - 1, config);
+
+console.log(result.normalizedScore);  // 0-100
+console.log(result.strength);         // 'strong' | 'moderate' | 'weak' | 'none'
+console.log(result.activeSignals);    // Number of active signals
+```
+
+**Returns:** `ScoreResult`
+
+```typescript
+interface ScoreResult {
+  rawScore: number;         // Sum of weighted scores
+  normalizedScore: number;  // 0-100 normalized score
+  maxScore: number;         // Maximum possible score
+  strength: 'strong' | 'moderate' | 'weak' | 'none';
+  activeSignals: number;    // Count of signals > 0
+  totalSignals: number;     // Total signal count
+}
+```
+
+---
+
+#### `calculateScoreBreakdown(candles, index, config, context?)`
+
+Get detailed breakdown of each signal's contribution.
+
+```typescript
+const breakdown = calculateScoreBreakdown(candles, index, config);
+
+for (const c of breakdown.contributions) {
+  if (c.isActive) {
+    console.log(`${c.displayName}: +${c.score.toFixed(1)}`);
+  }
+}
+```
+
+**Returns:** `ScoreBreakdown`
+
+```typescript
+interface ScoreBreakdown extends ScoreResult {
+  contributions: SignalContribution[];
+}
+
+interface SignalContribution {
+  name: string;
+  displayName: string;
+  rawValue: number;     // 0-1
+  score: number;        // rawValue * weight
+  weight: number;
+  isActive: boolean;
+  category?: string;
+}
+```
+
+---
+
+#### `calculateScoreSeries(candles, config, startIndex?, context?)`
+
+Calculate scores for all candles (useful for charting).
+
+```typescript
+const series = calculateScoreSeries(candles, config);
+// [{ time: 1234567890, score: ScoreResult }, ...]
+```
+
+---
+
+### Presets
+
+Pre-configured scoring strategies for common trading styles.
+
+```typescript
+import { getPreset, listPresets } from 'trendcraft';
+
+const config = getPreset('trendFollowing');
+const available = listPresets();  // ['momentum', 'meanReversion', 'trendFollowing', 'balanced']
+```
+
+| Preset | Focus | Thresholds (S/M/W) | Description |
+|--------|-------|-------------------|-------------|
+| `momentum` | RSI, MACD, Stoch | 70/50/30 | Momentum-based entries |
+| `meanReversion` | Oversold signals | 75/55/35 | Buy dips strategy |
+| `trendFollowing` | PO, Volume | 70/50/30 | Trend continuation |
+| `balanced` | Mixed | 70/50/30 | Balanced approach |
+
+**Factory functions:**
+
+```typescript
+import {
+  createMomentumPreset,
+  createMeanReversionPreset,
+  createTrendFollowingPreset,
+  createBalancedPreset,
+  createAggressivePreset,      // Lower thresholds: 60/40/25
+  createConservativePreset,    // Higher thresholds: 80/60/40
+} from 'trendcraft';
+```
+
+---
+
+### Scoring Backtest Conditions
+
+Use scores as entry/exit conditions in backtests.
+
+```typescript
+import { scoreAbove, scoreBelow, runBacktest } from 'trendcraft';
+
+const entry = scoreAbove(70, config);  // or preset name: scoreAbove(70, 'trendFollowing')
+const exit = scoreBelow(30, config);
+
+const result = runBacktest(candles, entry, exit, { capital: 1000000 });
+```
+
+**Condition Functions:**
+
+| Function | Parameters | Description |
+|----------|------------|-------------|
+| `scoreAbove` | threshold, config | Score >= threshold |
+| `scoreBelow` | threshold, config | Score <= threshold |
+| `scoreStrength` | 'strong'\|'moderate'\|'weak', config | Strength match |
+| `minActiveSignals` | count, config | Minimum active signals |
+| `scoreWithMinSignals` | threshold, minActive, config | Both conditions |
+| `scoreIncreasing` | minIncrease, config | Score increased from previous bar |
+
+---
+
+## Position Sizing
+
+Calculate optimal position sizes based on risk management rules.
+
+### Risk-Based Sizing
+
+Calculate position size from risk amount and stop distance.
+
+```typescript
+import { riskBasedSize } from 'trendcraft';
+
+const result = riskBasedSize({
+  accountSize: 100000,
+  entryPrice: 50,
+  stopLossPrice: 48,
+  riskPercent: 1,           // Risk 1% of account
+  maxPositionPercent: 25,   // Max 25% of account
+  minShares: 1,
+  roundShares: true,
+  direction: 'long',        // 'long' | 'short'
+});
+
+// Result:
+// {
+//   shares: 500,
+//   positionValue: 25000,
+//   riskAmount: 1000,
+//   riskPercent: 1,
+//   stopPrice: 48,
+//   method: 'risk-based'
+// }
+```
+
+**Formula:** `shares = riskAmount / stopDistance`
+
+---
+
+### ATR-Based Sizing
+
+Use ATR to dynamically set stop distance.
+
+```typescript
+import { atrBasedSize } from 'trendcraft';
+
+const result = atrBasedSize({
+  accountSize: 100000,
+  entryPrice: 50,
+  atrValue: 2.5,
+  atrMultiplier: 2,     // Stop at 2x ATR
+  riskPercent: 1,
+  direction: 'long',
+});
+
+// stopPrice: 45 (50 - 2.5 * 2)
+// shares: 200 (1000 / 5)
+```
+
+**Utility functions:**
+
+```typescript
+import { calculateAtrStopDistance, recommendedAtrMultiplier } from 'trendcraft';
+
+const stopDistance = calculateAtrStopDistance(2.5, 2);  // 5
+const multiplier = recommendedAtrMultiplier('conservative');  // 2.5-3.0
+```
+
+---
+
+### Kelly Criterion
+
+Optimal bet sizing based on win rate and payoff ratio.
+
+```typescript
+import { kellySize, calculateKellyPercent } from 'trendcraft';
+
+// Calculate optimal Kelly percentage
+const kellyPct = calculateKellyPercent(0.6, 1.5);  // 60% win rate, 1.5 win/loss ratio
+// 33.3% (Kelly = winRate - (1 - winRate) / winLossRatio)
+
+const result = kellySize({
+  accountSize: 100000,
+  entryPrice: 50,
+  winRate: 0.6,
+  winLossRatio: 1.5,
+  kellyFraction: 0.5,     // Half-Kelly (safer)
+  maxKellyPercent: 25,    // Cap at 25%
+});
+```
+
+---
+
+### Fixed Fractional
+
+Simple fixed percentage allocation.
+
+```typescript
+import { fixedFractionalSize, maxPositions, fractionForPositionCount } from 'trendcraft';
+
+const result = fixedFractionalSize({
+  accountSize: 100000,
+  entryPrice: 50,
+  fractionPercent: 10,      // 10% per position
+  maxPositionPercent: 20,   // Cap
+});
+
+// Utility functions
+const positions = maxPositions(100000, 10);  // 10 positions at 10%
+const fraction = fractionForPositionCount(5);  // 20% for 5 positions
+```
+
+---
+
+## ATR Risk Management
+
+Dynamic stop-loss and take-profit levels based on ATR.
+
+### Chandelier Exit
+
+Trailing stop indicator based on highest high minus ATR.
+
+```typescript
+import { chandelierExit } from 'trendcraft';
+
+const result = chandelierExit(candles, {
+  period: 22,
+  multiplier: 3.0,
+});
+
+const latest = result[result.length - 1].value;
+// {
+//   longExit: 95.5,       // Stop for long positions
+//   shortExit: 105.2,     // Stop for short positions
+//   direction: 1,         // 1 = bullish, -1 = bearish
+//   isCrossover: false,   // True on direction change
+// }
+```
+
+**Options:**
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `period` | `number` | `22` | ATR and highest/lowest period |
+| `multiplier` | `number` | `3.0` | ATR multiplier for stop distance |
+
+---
+
+### ATR Stops
+
+Calculate stop and take-profit levels from ATR.
+
+```typescript
+import { calculateAtrStops } from 'trendcraft';
+
+const stops = calculateAtrStops(candles, {
+  atrPeriod: 14,
+  stopMultiplier: 2.5,
+  takeProfitMultiplier: 4.0,
+});
+
+const latest = stops[stops.length - 1].value;
+// {
+//   atr: 2.5,
+//   stopDistance: 6.25,      // 2.5 * 2.5
+//   takeProfitDistance: 10,  // 2.5 * 4.0
+//   longStop: 93.75,         // close - stopDistance
+//   longTakeProfit: 110,     // close + takeProfitDistance
+//   shortStop: 106.25,       // close + stopDistance
+//   shortTakeProfit: 90,     // close - takeProfitDistance
+// }
+```
+
+**Backtest integration:**
+
+```typescript
+const result = runBacktest(candles, entry, exit, {
+  capital: 1000000,
+  atrRisk: {
+    atrPeriod: 14,
+    atrStopMultiplier: 2.5,
+    atrTakeProfitMultiplier: 4.0,
+    atrTrailingMultiplier: 2.0,
+    useEntryAtr: true,  // Use ATR at entry vs dynamic
+  },
+});
+```
 
 ---
 

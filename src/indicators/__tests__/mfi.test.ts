@@ -4,7 +4,9 @@ import { mfi } from "../volume/mfi";
 
 describe("mfi", () => {
   // Helper to create candles
-  const makeCandles = (data: { high: number; low: number; close: number; volume: number }[]): NormalizedCandle[] =>
+  const makeCandles = (
+    data: { high: number; low: number; close: number; volume: number }[],
+  ): NormalizedCandle[] =>
     data.map((d, i) => ({
       time: 1700000000000 + i * 86400000,
       open: d.close,
@@ -35,13 +37,13 @@ describe("mfi", () => {
         low: 100 + i * 2 - 5,
         close: 100 + i * 2,
         volume: 1000 + i * 100,
-      }))
+      })),
     );
 
     const result = mfi(candles, { period: 5 });
 
     // After period, should have values
-    const validResult = result.filter(r => r.value !== null);
+    const validResult = result.filter((r) => r.value !== null);
     expect(validResult.length).toBeGreaterThan(0);
 
     // MFI should be between 0 and 100
@@ -59,7 +61,7 @@ describe("mfi", () => {
         low: 100 + i * 10 - 5,
         close: 100 + i * 10, // Typical price always increasing
         volume: 1000,
-      }))
+      })),
     );
 
     const result = mfi(candles, { period: 5 });
@@ -77,7 +79,7 @@ describe("mfi", () => {
         low: 200 - i * 10 - 5,
         close: 200 - i * 10, // Typical price always decreasing
         volume: 1000,
-      }))
+      })),
     );
 
     const result = mfi(candles, { period: 5 });
@@ -92,9 +94,9 @@ describe("mfi", () => {
     const candles = makeCandles([
       { high: 105, low: 95, close: 100, volume: 1000 },
       { high: 115, low: 105, close: 110, volume: 1000 }, // Up
-      { high: 105, low: 95, close: 100, volume: 1000 },  // Down
+      { high: 105, low: 95, close: 100, volume: 1000 }, // Down
       { high: 115, low: 105, close: 110, volume: 1000 }, // Up
-      { high: 105, low: 95, close: 100, volume: 1000 },  // Down
+      { high: 105, low: 95, close: 100, volume: 1000 }, // Down
       { high: 115, low: 105, close: 110, volume: 1000 }, // Up
     ]);
 
@@ -122,7 +124,7 @@ describe("mfi", () => {
         low: 100 + i - 5,
         close: 100 + i,
         volume: 1000,
-      }))
+      })),
     );
 
     const result = mfi(candles);

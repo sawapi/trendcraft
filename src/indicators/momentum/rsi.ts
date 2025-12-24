@@ -3,7 +3,7 @@
  * Uses Wilder's smoothing method
  */
 
-import { normalizeCandles } from "../../core/normalize";
+import { isNormalized, normalizeCandles } from "../../core/normalize";
 import type { Candle, NormalizedCandle, RsiOptions, Series } from "../../types";
 
 /**
@@ -28,7 +28,7 @@ import type { Candle, NormalizedCandle, RsiOptions, Series } from "../../types";
  */
 export function rsi(
   candles: Candle[] | NormalizedCandle[],
-  options: RsiOptions = {}
+  options: RsiOptions = {},
 ): Series<number | null> {
   const { period = 14 } = options;
 
@@ -101,12 +101,4 @@ function calculateRsi(avgGain: number, avgLoss: number): number {
   }
   const rs = avgGain / avgLoss;
   return 100 - 100 / (1 + rs);
-}
-
-/**
- * Check if candles are already normalized
- */
-function isNormalized(candles: Candle[] | NormalizedCandle[]): candles is NormalizedCandle[] {
-  if (candles.length === 0) return true;
-  return typeof candles[0].time === "number";
 }

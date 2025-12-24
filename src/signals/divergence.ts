@@ -3,10 +3,10 @@
  * Detects divergence between price and indicators (OBV, RSI, MACD, etc.)
  */
 
-import { normalizeCandles } from "../core/normalize";
-import { obv } from "../indicators/volume/obv";
-import { rsi } from "../indicators/momentum/rsi";
+import { isNormalized, normalizeCandles } from "../core/normalize";
 import { macd } from "../indicators/momentum/macd";
+import { rsi } from "../indicators/momentum/rsi";
+import { obv } from "../indicators/volume/obv";
 import type { Candle, NormalizedCandle } from "../types";
 
 /**
@@ -61,7 +61,7 @@ export type DivergenceOptions = {
  */
 export function obvDivergence(
   candles: Candle[] | NormalizedCandle[],
-  options: DivergenceOptions = {}
+  options: DivergenceOptions = {},
 ): DivergenceSignal[] {
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
 
@@ -96,7 +96,7 @@ export function obvDivergence(
  */
 export function rsiDivergence(
   candles: Candle[] | NormalizedCandle[],
-  options: DivergenceOptions = {}
+  options: DivergenceOptions = {},
 ): DivergenceSignal[] {
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
 
@@ -131,7 +131,7 @@ export function rsiDivergence(
  */
 export function macdDivergence(
   candles: Candle[] | NormalizedCandle[],
-  options: DivergenceOptions = {}
+  options: DivergenceOptions = {},
 ): DivergenceSignal[] {
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
 
@@ -157,7 +157,7 @@ export function detectDivergence(
   candles: NormalizedCandle[],
   prices: number[],
   indicator: number[],
-  options: DivergenceOptions = {}
+  options: DivergenceOptions = {},
 ): DivergenceSignal[] {
   const { swingLookback = 5, minSwingDistance = 5, maxSwingDistance = 60 } = options;
 
@@ -303,10 +303,10 @@ function findSwingLows(data: number[], lookback: number): SwingPoint[] {
 function findNearestSwing(
   swings: SwingPoint[],
   targetIdx: number,
-  tolerance: number
+  tolerance: number,
 ): SwingPoint | null {
   let nearest: SwingPoint | null = null;
-  let minDistance = Infinity;
+  let minDistance = Number.POSITIVE_INFINITY;
 
   for (const swing of swings) {
     const distance = Math.abs(swing.idx - targetIdx);
@@ -317,12 +317,4 @@ function findNearestSwing(
   }
 
   return nearest;
-}
-
-/**
- * Check if candles are already normalized
- */
-function isNormalized(candles: Candle[] | NormalizedCandle[]): candles is NormalizedCandle[] {
-  if (candles.length === 0) return true;
-  return typeof candles[0].time === "number";
 }

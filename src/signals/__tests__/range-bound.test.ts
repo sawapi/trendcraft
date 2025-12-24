@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { rangeBound } from "../range-bound";
 import type { NormalizedCandle } from "../../types";
+import { rangeBound } from "../range-bound";
 
 // Helper to create test candles
 function createCandle(
   day: number,
   close: number,
-  options: { high?: number; low?: number; volume?: number } = {}
+  options: { high?: number; low?: number; volume?: number } = {},
 ): NormalizedCandle {
   const { high = close + 1, low = close - 1, volume = 1000000 } = options;
   return {
@@ -24,7 +24,7 @@ function createSidewaysCandles(
   startDay: number,
   count: number,
   basePrice: number,
-  range: number
+  range: number,
 ): NormalizedCandle[] {
   const candles: NormalizedCandle[] = [];
   for (let i = 0; i < count; i++) {
@@ -48,7 +48,7 @@ function createTrendingCandles(
   startDay: number,
   count: number,
   startPrice: number,
-  endPrice: number
+  endPrice: number,
 ): NormalizedCandle[] {
   const candles: NormalizedCandle[] = [];
   const priceStep = (endPrice - startPrice) / count;
@@ -106,7 +106,7 @@ describe("rangeBound", () => {
         (r) =>
           r.value.state === "RANGE_FORMING" ||
           r.value.state === "RANGE_CONFIRMED" ||
-          r.value.state === "RANGE_TIGHT"
+          r.value.state === "RANGE_TIGHT",
       );
 
       expect(rangeStates.length).toBeGreaterThan(0);
@@ -138,7 +138,7 @@ describe("rangeBound", () => {
       if (formingIdx >= 0) {
         // Check if RANGE_CONFIRMED appears after persistBars
         const confirmedIdx = result.findIndex(
-          (r, idx) => idx > formingIdx && r.value.state === "RANGE_CONFIRMED"
+          (r, idx) => idx > formingIdx && r.value.state === "RANGE_CONFIRMED",
         );
 
         if (confirmedIdx >= 0) {
@@ -169,8 +169,7 @@ describe("rangeBound", () => {
 
       // Should have some breakout risk detection
       const breakoutRisks = result.filter(
-        (r) =>
-          r.value.state === "BREAKOUT_RISK_UP" || r.value.state === "BREAKOUT_RISK_DOWN"
+        (r) => r.value.state === "BREAKOUT_RISK_UP" || r.value.state === "BREAKOUT_RISK_DOWN",
       );
 
       // May or may not detect depending on market conditions
@@ -368,14 +367,14 @@ describe("rangeBound", () => {
         (r) =>
           r.value.state === "RANGE_FORMING" ||
           r.value.state === "RANGE_CONFIRMED" ||
-          r.value.state === "RANGE_TIGHT"
+          r.value.state === "RANGE_TIGHT",
       ).length;
 
       const looseRanges = resultLoose.filter(
         (r) =>
           r.value.state === "RANGE_FORMING" ||
           r.value.state === "RANGE_CONFIRMED" ||
-          r.value.state === "RANGE_TIGHT"
+          r.value.state === "RANGE_TIGHT",
       ).length;
 
       expect(looseRanges).toBeGreaterThanOrEqual(strictRanges);
@@ -596,7 +595,7 @@ describe("rangeBound", () => {
 
       // Should have TRENDING states with trendReason
       const trendingWithReason = result.filter(
-        (r) => r.value.state === "TRENDING" && r.value.trendReason !== null
+        (r) => r.value.state === "TRENDING" && r.value.trendReason !== null,
       );
       expect(trendingWithReason.length).toBeGreaterThan(0);
     });
@@ -614,7 +613,7 @@ describe("rangeBound", () => {
         (r) =>
           r.value.state === "RANGE_FORMING" ||
           r.value.state === "RANGE_CONFIRMED" ||
-          r.value.state === "NEUTRAL"
+          r.value.state === "NEUTRAL",
       );
 
       for (const r of rangeStates) {
@@ -723,15 +722,15 @@ describe("rangeBound", () => {
       const result = rangeBound(candles, { lookbackPeriod: 30 });
 
       // Should transition from TRENDING to RANGE_*
-      const trendingInFirst50 = result
-        .slice(0, 50)
-        .some((r) => r.value.state === "TRENDING");
-      const rangeInLast50 = result.slice(-50).some(
-        (r) =>
-          r.value.state === "RANGE_FORMING" ||
-          r.value.state === "RANGE_CONFIRMED" ||
-          r.value.state === "RANGE_TIGHT"
-      );
+      const trendingInFirst50 = result.slice(0, 50).some((r) => r.value.state === "TRENDING");
+      const rangeInLast50 = result
+        .slice(-50)
+        .some(
+          (r) =>
+            r.value.state === "RANGE_FORMING" ||
+            r.value.state === "RANGE_CONFIRMED" ||
+            r.value.state === "RANGE_TIGHT",
+        );
 
       // At least one of these patterns should appear
       expect(trendingInFirst50 || rangeInLast50).toBe(true);

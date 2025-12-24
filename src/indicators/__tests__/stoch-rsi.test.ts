@@ -34,7 +34,7 @@ describe("stochRsi", () => {
     const result = stochRsi(candles, { rsiPeriod: 7, stochPeriod: 7, kPeriod: 3, dPeriod: 3 });
 
     // Check valid values are in range
-    const validResults = result.filter(r => r.value.stochRsi !== null);
+    const validResults = result.filter((r) => r.value.stochRsi !== null);
     expect(validResults.length).toBeGreaterThan(0);
 
     for (const r of validResults) {
@@ -65,37 +65,33 @@ describe("stochRsi", () => {
     const result = stochRsi(candles, { rsiPeriod: 7, stochPeriod: 7, kPeriod: 3, dPeriod: 3 });
 
     // Should have both high and low StochRSI values (not all 50)
-    const validResults = result.filter(r => r.value.stochRsi !== null);
-    const values = validResults.map(r => r.value.stochRsi!);
-    const hasVariedValues = values.some(v => v > 60) || values.some(v => v < 40);
+    const validResults = result.filter((r) => r.value.stochRsi !== null);
+    const values = validResults.map((r) => r.value.stochRsi!);
+    const hasVariedValues = values.some((v) => v > 60) || values.some((v) => v < 40);
 
     expect(hasVariedValues).toBe(true);
   });
 
   it("should produce 50 when RSI is constant (no range)", () => {
     // Strong consistent trend causes constant RSI, which gives stochRSI of 50
-    const candles = makeCandles(
-      Array.from({ length: 50 }, (_, i) => 100 + i * 3)
-    );
+    const candles = makeCandles(Array.from({ length: 50 }, (_, i) => 100 + i * 3));
 
     const result = stochRsi(candles, { rsiPeriod: 5, stochPeriod: 5, kPeriod: 1, dPeriod: 1 });
 
     // When RSI is constant (no range), stochRSI returns 50
-    const lastValid = result.filter(r => r.value.stochRsi !== null).slice(-5);
+    const lastValid = result.filter((r) => r.value.stochRsi !== null).slice(-5);
     const avgValue = lastValid.reduce((sum, r) => sum + r.value.stochRsi!, 0) / lastValid.length;
     expect(avgValue).toBe(50);
   });
 
   it("should return 50 when RSI has no range", () => {
     // Flat market with no price change
-    const candles = makeCandles(
-      Array.from({ length: 30 }, () => 100)
-    );
+    const candles = makeCandles(Array.from({ length: 30 }, () => 100));
 
     const result = stochRsi(candles, { rsiPeriod: 5, stochPeriod: 5, kPeriod: 1, dPeriod: 1 });
 
     // When RSI range is 0, should return 50
-    const validResults = result.filter(r => r.value.stochRsi !== null);
+    const validResults = result.filter((r) => r.value.stochRsi !== null);
     for (const r of validResults) {
       expect(r.value.stochRsi).toBe(50);
     }
@@ -111,8 +107,8 @@ describe("stochRsi", () => {
     const result = stochRsi(candles, { rsiPeriod: 7, stochPeriod: 7, kPeriod: 3, dPeriod: 3 });
 
     // %K should appear after stochRsi + kPeriod - 1 valid values
-    const firstK = result.findIndex(r => r.value.k !== null);
-    const firstStochRsi = result.findIndex(r => r.value.stochRsi !== null);
+    const firstK = result.findIndex((r) => r.value.k !== null);
+    const firstStochRsi = result.findIndex((r) => r.value.stochRsi !== null);
 
     // %K should appear after stochRsi (it's a smoothed version)
     expect(firstK).toBeGreaterThanOrEqual(firstStochRsi);
@@ -128,8 +124,8 @@ describe("stochRsi", () => {
     const result = stochRsi(candles, { rsiPeriod: 7, stochPeriod: 7, kPeriod: 3, dPeriod: 3 });
 
     // %D should appear after %K
-    const firstD = result.findIndex(r => r.value.d !== null);
-    const firstK = result.findIndex(r => r.value.k !== null);
+    const firstD = result.findIndex((r) => r.value.d !== null);
+    const firstK = result.findIndex((r) => r.value.k !== null);
 
     expect(firstD).toBeGreaterThanOrEqual(firstK);
   });
@@ -147,9 +143,7 @@ describe("stochRsi", () => {
   });
 
   it("should use default periods when not specified", () => {
-    const candles = makeCandles(
-      Array.from({ length: 50 }, (_, i) => 100 + Math.sin(i * 0.3) * 10)
-    );
+    const candles = makeCandles(Array.from({ length: 50 }, (_, i) => 100 + Math.sin(i * 0.3) * 10));
 
     // Should not throw with defaults
     const result = stochRsi(candles);

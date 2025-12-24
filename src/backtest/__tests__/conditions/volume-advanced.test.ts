@@ -2,29 +2,29 @@
  * Advanced Volume Conditions Tests
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
+import type { NormalizedCandle } from "../../../types";
+import { evaluateCondition } from "../../conditions/core";
 import {
-  volumeAnomalyCondition,
-  volumeExtreme,
-  volumeRatioAbove,
-  nearPoc,
-  inValueArea,
-  breakoutVah,
+  bearishVolumeDivergence,
   breakdownVal,
+  breakoutVah,
+  bullishVolumeDivergence,
+  inValueArea,
+  nearPoc,
   priceAbovePoc,
   priceBelowPoc,
+  volumeAnomalyCondition,
   volumeConfirmsTrend,
   volumeDivergence,
-  bullishVolumeDivergence,
-  bearishVolumeDivergence,
+  volumeExtreme,
+  volumeRatioAbove,
   volumeTrendConfidence,
 } from "../../conditions/volume-advanced";
-import { evaluateCondition } from "../../conditions/core";
-import type { NormalizedCandle } from "../../../types";
 
 // Helper to create test candles
 function createCandles(
-  data: Array<{ high: number; low: number; close: number; volume: number }>
+  data: Array<{ high: number; low: number; close: number; volume: number }>,
 ): NormalizedCandle[] {
   return data.map((d, i) => ({
     time: 1000000 + i * 86400000,
@@ -40,7 +40,7 @@ function createCandles(
 function createVolumeSpike(
   normalVolume: number,
   spikeVolume: number,
-  count = 25
+  count = 25,
 ): NormalizedCandle[] {
   const candles: NormalizedCandle[] = [];
   for (let i = 0; i < count; i++) {
@@ -61,7 +61,7 @@ function createVolumeSpike(
 function createPriceRangeCandles(
   count: number,
   priceRange: { low: number; high: number },
-  volume = 100
+  volume = 100,
 ): NormalizedCandle[] {
   return Array(count)
     .fill(null)
@@ -93,7 +93,7 @@ describe("Volume Anomaly Conditions", () => {
         indicators,
         candles[candles.length - 1],
         candles.length - 1,
-        candles
+        candles,
       );
 
       expect(result).toBe(true);
@@ -122,7 +122,7 @@ describe("Volume Anomaly Conditions", () => {
         indicators,
         candles[candles.length - 1],
         candles.length - 1,
-        candles
+        candles,
       );
 
       expect(result).toBe(false);
@@ -151,8 +151,8 @@ describe("Volume Anomaly Conditions", () => {
           {},
           candles[candles.length - 1],
           candles.length - 1,
-          candles
-        )
+          candles,
+        ),
       ).toBe(true);
 
       // With threshold 2.0, the ratio alone won't trigger, but z-score might
@@ -163,7 +163,7 @@ describe("Volume Anomaly Conditions", () => {
         {},
         candles[candles.length - 1],
         candles.length - 1,
-        candles
+        candles,
       );
       expect(typeof result).toBe("boolean");
     });
@@ -180,7 +180,7 @@ describe("Volume Anomaly Conditions", () => {
         indicators,
         candles[candles.length - 1],
         candles.length - 1,
-        candles
+        candles,
       );
 
       expect(result).toBe(true);
@@ -209,7 +209,7 @@ describe("Volume Anomaly Conditions", () => {
         indicators,
         candles[candles.length - 1],
         candles.length - 1,
-        candles
+        candles,
       );
 
       // With varied data and 200 spike (not 3x the ~125 avg), should not be extreme
@@ -228,7 +228,7 @@ describe("Volume Anomaly Conditions", () => {
         indicators,
         candles[candles.length - 1],
         candles.length - 1,
-        candles
+        candles,
       );
 
       expect(result).toBe(true);
@@ -244,7 +244,7 @@ describe("Volume Anomaly Conditions", () => {
         indicators,
         candles[candles.length - 1],
         candles.length - 1,
-        candles
+        candles,
       );
 
       expect(result).toBe(false);
@@ -272,7 +272,7 @@ describe("Volume Profile Conditions", () => {
         indicators,
         candles[candles.length - 1],
         candles.length - 1,
-        candles
+        candles,
       );
 
       // Close is at 100, POC should be around 100, so should be near
@@ -298,7 +298,7 @@ describe("Volume Profile Conditions", () => {
         indicators,
         candles[candles.length - 1],
         candles.length - 1,
-        candles
+        candles,
       );
 
       // Close is at 100, which should be within VAL-VAH
@@ -329,7 +329,7 @@ describe("Volume Profile Conditions", () => {
         indicators,
         candles[candles.length - 1],
         candles.length - 1,
-        candles
+        candles,
       );
 
       expect(result).toBe(true);
@@ -359,7 +359,7 @@ describe("Volume Profile Conditions", () => {
         indicators,
         candles[candles.length - 1],
         candles.length - 1,
-        candles
+        candles,
       );
 
       expect(result).toBe(true);
@@ -388,7 +388,7 @@ describe("Volume Profile Conditions", () => {
         indicators,
         candles[candles.length - 1],
         candles.length - 1,
-        candles
+        candles,
       );
 
       expect(result).toBe(true);
@@ -417,7 +417,7 @@ describe("Volume Profile Conditions", () => {
         indicators,
         candles[candles.length - 1],
         candles.length - 1,
-        candles
+        candles,
       );
 
       expect(result).toBe(true);
@@ -430,7 +430,7 @@ describe("Volume Trend Conditions", () => {
   function createTrendingCandles(
     count: number,
     priceDir: "up" | "down",
-    volumeDir: "up" | "down"
+    volumeDir: "up" | "down",
   ): NormalizedCandle[] {
     return Array(count)
       .fill(null)
@@ -465,7 +465,7 @@ describe("Volume Trend Conditions", () => {
         indicators,
         candles[candles.length - 1],
         candles.length - 1,
-        candles
+        candles,
       );
 
       expect(result).toBe(true);
@@ -481,7 +481,7 @@ describe("Volume Trend Conditions", () => {
         indicators,
         candles[candles.length - 1],
         candles.length - 1,
-        candles
+        candles,
       );
 
       expect(result).toBe(true);
@@ -499,7 +499,7 @@ describe("Volume Trend Conditions", () => {
         indicators,
         candles[candles.length - 1],
         candles.length - 1,
-        candles
+        candles,
       );
 
       expect(result).toBe(true);
@@ -515,7 +515,7 @@ describe("Volume Trend Conditions", () => {
         indicators,
         candles[candles.length - 1],
         candles.length - 1,
-        candles
+        candles,
       );
 
       expect(result).toBe(true);
@@ -533,7 +533,7 @@ describe("Volume Trend Conditions", () => {
         indicators,
         candles[candles.length - 1],
         candles.length - 1,
-        candles
+        candles,
       );
 
       expect(result).toBe(true);
@@ -549,7 +549,7 @@ describe("Volume Trend Conditions", () => {
         indicators,
         candles[candles.length - 1],
         candles.length - 1,
-        candles
+        candles,
       );
 
       expect(result).toBe(false);
@@ -567,7 +567,7 @@ describe("Volume Trend Conditions", () => {
         indicators,
         candles[candles.length - 1],
         candles.length - 1,
-        candles
+        candles,
       );
 
       expect(result).toBe(true);
@@ -583,7 +583,7 @@ describe("Volume Trend Conditions", () => {
         indicators,
         candles[candles.length - 1],
         candles.length - 1,
-        candles
+        candles,
       );
 
       expect(result).toBe(false);
@@ -608,7 +608,7 @@ describe("Volume Trend Conditions", () => {
         indicators,
         candles[candles.length - 1],
         candles.length - 1,
-        candles
+        candles,
       );
 
       expect(result).toBe(true);
@@ -628,7 +628,7 @@ describe("Condition caching", () => {
       indicators,
       candles[candles.length - 1],
       candles.length - 1,
-      candles
+      candles,
     );
 
     // Cache key should be populated
@@ -640,7 +640,7 @@ describe("Condition caching", () => {
       indicators,
       candles[candles.length - 1],
       candles.length - 1,
-      candles
+      candles,
     );
 
     // Cache should still have same number of keys (not duplicated)

@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest";
-import { volumeAboveAvg, evaluateCondition } from "../../conditions";
+import { describe, expect, it } from "vitest";
 import type { NormalizedCandle } from "../../../types";
+import { evaluateCondition, volumeAboveAvg } from "../../conditions";
 
 describe("volumeAboveAvg()", () => {
   it("should create a valid preset condition", () => {

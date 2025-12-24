@@ -5,7 +5,7 @@
  * Developed by Marc Chaikin.
  */
 
-import { normalizeCandles } from "../../core/normalize";
+import { isNormalized, normalizeCandles } from "../../core/normalize";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 
 /**
@@ -52,7 +52,7 @@ export type CmfOptions = {
  */
 export function cmf(
   candles: Candle[] | NormalizedCandle[],
-  options: CmfOptions = {}
+  options: CmfOptions = {},
 ): Series<number | null> {
   const { period = 20 } = options;
 
@@ -108,12 +108,4 @@ export function cmf(
   }
 
   return result;
-}
-
-/**
- * Check if candles are already normalized
- */
-function isNormalized(candles: Candle[] | NormalizedCandle[]): candles is NormalizedCandle[] {
-  if (candles.length === 0) return true;
-  return typeof candles[0].time === "number";
 }

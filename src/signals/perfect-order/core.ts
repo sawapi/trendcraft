@@ -8,16 +8,11 @@
  * - Collapse when: price < shortMA × (1 - margin) OR MA order broken
  */
 
-import { normalizeCandles, getPrice } from "../../core/normalize";
+import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import type { Candle, NormalizedCandle, Series } from "../../types";
-import type { PerfectOrderType, PerfectOrderValue, PerfectOrderOptions } from "./types";
+import type { PerfectOrderOptions, PerfectOrderType, PerfectOrderValue } from "./types";
 import { DEFAULT_HYSTERESIS_MARGIN } from "./types";
-import {
-  getMaFunction,
-  isNormalized,
-  determinePerfectOrderTypeWithHysteresis,
-  calculateStrength,
-} from "./utils";
+import { calculateStrength, determinePerfectOrderTypeWithHysteresis, getMaFunction } from "./utils";
 
 /**
  * Detect Perfect Order alignment of multiple moving averages
@@ -57,7 +52,7 @@ import {
  */
 export function perfectOrder(
   candles: Candle[] | NormalizedCandle[],
-  options: PerfectOrderOptions = {}
+  options: PerfectOrderOptions = {},
 ): Series<PerfectOrderValue> {
   const {
     periods = [5, 25, 75],
@@ -104,7 +99,7 @@ export function perfectOrder(
       maValues,
       price,
       prevType,
-      hysteresisMargin
+      hysteresisMargin,
     );
 
     // Detect formation and collapse

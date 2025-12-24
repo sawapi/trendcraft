@@ -5,16 +5,16 @@
  * Useful for trend-following strategies that confirm direction on weekly/monthly.
  */
 
+import { getMtfIndicator, setMtfIndicator } from "../../core/mtf-context";
+import { type DmiValue, dmi } from "../../indicators/momentum/dmi";
+import { rsi } from "../../indicators/momentum/rsi";
+import { ema, sma } from "../../indicators/moving-average";
 import type {
   MtfContext,
   MtfPresetCondition,
   NormalizedCandle,
   TimeframeShorthand,
 } from "../../types";
-import { rsi } from "../../indicators/momentum/rsi";
-import { sma, ema } from "../../indicators/moving-average";
-import { dmi, type DmiValue } from "../../indicators/momentum/dmi";
-import { getMtfIndicator, setMtfIndicator } from "../../core/mtf-context";
 
 // ============================================
 // RSI Conditions
@@ -63,7 +63,7 @@ export function monthlyRsiBelow(threshold = 50, period = 14): MtfPresetCondition
 export function mtfRsiAbove(
   timeframe: TimeframeShorthand,
   threshold = 50,
-  period = 14
+  period = 14,
 ): MtfPresetCondition {
   const cacheKey = `rsi_${period}`;
 
@@ -81,7 +81,7 @@ export function mtfRsiAbove(
       let rsiData = getMtfIndicator<Array<{ time: number; value: number | null }>>(
         mtf,
         timeframe,
-        cacheKey
+        cacheKey,
       );
 
       if (!rsiData) {
@@ -101,7 +101,7 @@ export function mtfRsiAbove(
 export function mtfRsiBelow(
   timeframe: TimeframeShorthand,
   threshold = 50,
-  period = 14
+  period = 14,
 ): MtfPresetCondition {
   const cacheKey = `rsi_${period}`;
 
@@ -118,7 +118,7 @@ export function mtfRsiBelow(
       let rsiData = getMtfIndicator<Array<{ time: number; value: number | null }>>(
         mtf,
         timeframe,
-        cacheKey
+        cacheKey,
       );
 
       if (!rsiData) {
@@ -169,10 +169,7 @@ export function monthlyPriceBelowSma(period = 20): MtfPresetCondition {
 /**
  * Generic MTF price above SMA condition
  */
-export function mtfPriceAboveSma(
-  timeframe: TimeframeShorthand,
-  period = 20
-): MtfPresetCondition {
+export function mtfPriceAboveSma(timeframe: TimeframeShorthand, period = 20): MtfPresetCondition {
   const cacheKey = `sma_${period}`;
 
   return {
@@ -188,7 +185,7 @@ export function mtfPriceAboveSma(
       let smaData = getMtfIndicator<Array<{ time: number; value: number | null }>>(
         mtf,
         timeframe,
-        cacheKey
+        cacheKey,
       );
 
       if (!smaData) {
@@ -207,10 +204,7 @@ export function mtfPriceAboveSma(
 /**
  * Generic MTF price below SMA condition
  */
-export function mtfPriceBelowSma(
-  timeframe: TimeframeShorthand,
-  period = 20
-): MtfPresetCondition {
+export function mtfPriceBelowSma(timeframe: TimeframeShorthand, period = 20): MtfPresetCondition {
   const cacheKey = `sma_${period}`;
 
   return {
@@ -226,7 +220,7 @@ export function mtfPriceBelowSma(
       let smaData = getMtfIndicator<Array<{ time: number; value: number | null }>>(
         mtf,
         timeframe,
-        cacheKey
+        cacheKey,
       );
 
       if (!smaData) {
@@ -252,10 +246,7 @@ export function weeklyPriceAboveEma(period = 20): MtfPresetCondition {
 /**
  * Generic MTF price above EMA condition
  */
-export function mtfPriceAboveEma(
-  timeframe: TimeframeShorthand,
-  period = 20
-): MtfPresetCondition {
+export function mtfPriceAboveEma(timeframe: TimeframeShorthand, period = 20): MtfPresetCondition {
   const cacheKey = `ema_${period}`;
 
   return {
@@ -271,7 +262,7 @@ export function mtfPriceAboveEma(
       let emaData = getMtfIndicator<Array<{ time: number; value: number | null }>>(
         mtf,
         timeframe,
-        cacheKey
+        cacheKey,
       );
 
       if (!emaData) {
@@ -312,7 +303,7 @@ export function monthlyTrendStrong(adxThreshold = 25): MtfPresetCondition {
  */
 export function mtfTrendStrong(
   timeframe: TimeframeShorthand,
-  adxThreshold = 25
+  adxThreshold = 25,
 ): MtfPresetCondition {
   const cacheKey = "dmi_14";
 
@@ -329,7 +320,7 @@ export function mtfTrendStrong(
       let dmiData = getMtfIndicator<Array<{ time: number; value: DmiValue }>>(
         mtf,
         timeframe,
-        cacheKey
+        cacheKey,
       );
 
       if (!dmiData) {
@@ -360,10 +351,7 @@ export function weeklyDowntrend(adxThreshold = 20): MtfPresetCondition {
 /**
  * Generic MTF uptrend condition
  */
-export function mtfUptrend(
-  timeframe: TimeframeShorthand,
-  adxThreshold = 20
-): MtfPresetCondition {
+export function mtfUptrend(timeframe: TimeframeShorthand, adxThreshold = 20): MtfPresetCondition {
   const cacheKey = "dmi_14";
 
   return {
@@ -379,7 +367,7 @@ export function mtfUptrend(
       let dmiData = getMtfIndicator<Array<{ time: number; value: DmiValue }>>(
         mtf,
         timeframe,
-        cacheKey
+        cacheKey,
       );
 
       if (!dmiData) {
@@ -405,10 +393,7 @@ export function mtfUptrend(
 /**
  * Generic MTF downtrend condition
  */
-export function mtfDowntrend(
-  timeframe: TimeframeShorthand,
-  adxThreshold = 20
-): MtfPresetCondition {
+export function mtfDowntrend(timeframe: TimeframeShorthand, adxThreshold = 20): MtfPresetCondition {
   const cacheKey = "dmi_14";
 
   return {
@@ -424,7 +409,7 @@ export function mtfDowntrend(
       let dmiData = getMtfIndicator<Array<{ time: number; value: DmiValue }>>(
         mtf,
         timeframe,
-        cacheKey
+        cacheKey,
       );
 
       if (!dmiData) {
@@ -482,8 +467,8 @@ export function mtfCondition(
     indicators: Record<string, unknown>,
     candle: NormalizedCandle,
     index: number,
-    candles: NormalizedCandle[]
-  ) => boolean
+    candles: NormalizedCandle[],
+  ) => boolean,
 ): MtfPresetCondition {
   return {
     type: "mtf-preset",

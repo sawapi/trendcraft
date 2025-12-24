@@ -1,22 +1,21 @@
-import { normalizeCandles, getPrice } from "../../core/normalize";
+import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import type {
+  PerfectOrderOptionsEnhanced,
   PerfectOrderState,
   PerfectOrderType,
   PerfectOrderValueEnhanced,
-  PerfectOrderOptionsEnhanced,
   SlopeDirection,
 } from "./types";
-import { ENHANCED_DEFAULTS, DEFAULT_HYSTERESIS_MARGIN } from "./types";
+import { DEFAULT_HYSTERESIS_MARGIN, ENHANCED_DEFAULTS } from "./types";
 import {
+  calculateStrength,
   getMaFunction,
-  isNormalized,
-  isMaOrderBullish,
-  isMaOrderBearish,
   isCollapsed,
+  isMaOrderBearish,
+  isMaOrderBullish,
   slopeSign,
   stateToLegacyType,
-  calculateStrength,
 } from "./utils";
 
 /**
@@ -30,7 +29,7 @@ function determineEnhancedState(
   options: {
     collapseEps: number;
     hysteresisMargin: number;
-  }
+  },
 ): { state: PerfectOrderState; confidence: number } {
   // 1. Check for null values
   if (maValues.some((v) => v === null)) {
@@ -69,7 +68,8 @@ function determineEnhancedState(
 
   // Pre-bullish: order OK but slopes not all up OR price not strictly above
   if (bullishOrder) {
-    const hasGoodSlopes = !anySlopeFlat && slopes.filter((s) => s === "UP").length >= slopes.length / 2;
+    const hasGoodSlopes =
+      !anySlopeFlat && slopes.filter((s) => s === "UP").length >= slopes.length / 2;
     if (hasGoodSlopes || priceWithinBullishMargin) {
       return { state: "PRE_BULLISH_PO", confidence: 0.7 };
     }
@@ -82,7 +82,8 @@ function determineEnhancedState(
 
   // Pre-bearish: order OK but slopes not all down OR price not strictly below
   if (bearishOrder) {
-    const hasGoodSlopes = !anySlopeFlat && slopes.filter((s) => s === "DOWN").length >= slopes.length / 2;
+    const hasGoodSlopes =
+      !anySlopeFlat && slopes.filter((s) => s === "DOWN").length >= slopes.length / 2;
     if (hasGoodSlopes || priceWithinBearishMargin) {
       return { state: "PRE_BEARISH_PO", confidence: 0.7 };
     }
@@ -128,7 +129,7 @@ function determineEnhancedState(
  */
 export function perfectOrderEnhanced(
   candles: Candle[] | NormalizedCandle[],
-  options: PerfectOrderOptionsEnhanced
+  options: PerfectOrderOptionsEnhanced,
 ): Series<PerfectOrderValueEnhanced> {
   const {
     periods = [5, 25, 75],
@@ -188,17 +189,14 @@ export function perfectOrderEnhanced(
 
     // Calculate slopes for each MA
     const slopes: SlopeDirection[] = maValueArrays.map((arr) =>
-      slopeSign(arr, i, slopeLookback, flatEps)
+      slopeSign(arr, i, slopeLookback, flatEps),
     );
 
     // Determine enhanced state
-    const { state, confidence } = determineEnhancedState(
-      maValues,
-      price,
-      prevState,
-      slopes,
-      { collapseEps, hysteresisMargin }
-    );
+    const { state, confidence } = determineEnhancedState(maValues, price, prevState, slopes, {
+      collapseEps,
+      hysteresisMargin,
+    });
 
     // Track persistence
     if (state === prevState) {
@@ -216,7 +214,9 @@ export function perfectOrderEnhanced(
 
     // Detect breakdown first (before updating confirmation tracking)
     // breakdownDetected: fires when transitioning TO breakdown AND we had a confirmed PO
-    const breakdownDetected = state === "PO_BREAKDOWN" && (hasConfirmedBullishSinceLastBreakdown || hasConfirmedBearishSinceLastBreakdown);
+    const breakdownDetected =
+      state === "PO_BREAKDOWN" &&
+      (hasConfirmedBullishSinceLastBreakdown || hasConfirmedBearishSinceLastBreakdown);
 
     // Reset confirmation tracking on breakdown
     if (breakdownDetected) {
@@ -265,9 +265,8 @@ export function perfectOrderEnhanced(
     // Calculate gap between short MA and mid MA for pullback validation
     const shortMa = maValues[0];
     const midMa = maValues[1];
-    const gapPercent = shortMa !== null && midMa !== null && midMa !== 0
-      ? ((shortMa - midMa) / midMa) * 100
-      : 0;
+    const gapPercent =
+      shortMa !== null && midMa !== null && midMa !== 0 ? ((shortMa - midMa) / midMa) * 100 : 0;
 
     // Pullback buy signal detection (bullish)
     // Conditions:
@@ -278,13 +277,13 @@ export function perfectOrderEnhanced(
     let pullbackBuySignal = false;
 
     // Check for DOWN → UP transition (allowing FLAT in between by looking back)
-    const hadRecentDownSlope = i > 0 && (
-      prevShortSlope === "DOWN" ||
-      (i > 1 && result[i - 2]?.value.slopes[0] === "DOWN") ||
-      (i > 2 && result[i - 3]?.value.slopes[0] === "DOWN") ||
-      (i > 3 && result[i - 4]?.value.slopes[0] === "DOWN") ||
-      (i > 4 && result[i - 5]?.value.slopes[0] === "DOWN")
-    );
+    const hadRecentDownSlope =
+      i > 0 &&
+      (prevShortSlope === "DOWN" ||
+        (i > 1 && result[i - 2]?.value.slopes[0] === "DOWN") ||
+        (i > 2 && result[i - 3]?.value.slopes[0] === "DOWN") ||
+        (i > 3 && result[i - 4]?.value.slopes[0] === "DOWN") ||
+        (i > 4 && result[i - 5]?.value.slopes[0] === "DOWN"));
 
     if (
       hasConfirmedBullishSinceLastBreakdown &&
@@ -292,7 +291,7 @@ export function perfectOrderEnhanced(
       currentShortSlope === "UP" &&
       hadRecentDownSlope &&
       type === "bullish" &&
-      gapPercent >= 0.5  // Min 0.5% gap
+      gapPercent >= 0.5 // Min 0.5% gap
     ) {
       pullbackBuySignal = true;
       hasPullbackBuyFiredBullish = true;
@@ -305,7 +304,8 @@ export function perfectOrderEnhanced(
     }
 
     // Continuous state flag
-    const hasConfirmedSinceBreakdown = hasConfirmedBullishSinceLastBreakdown || hasConfirmedBearishSinceLastBreakdown;
+    const hasConfirmedSinceBreakdown =
+      hasConfirmedBullishSinceLastBreakdown || hasConfirmedBearishSinceLastBreakdown;
 
     result.push({
       time,

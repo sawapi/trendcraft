@@ -5,7 +5,7 @@
  * Originally developed by Chester Keltner, modernized by Linda Bradford Raschke.
  */
 
-import { normalizeCandles } from "../../core/normalize";
+import { isNormalized, normalizeCandles } from "../../core/normalize";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { ema } from "../moving-average/ema";
 import { atr } from "./atr";
@@ -65,7 +65,7 @@ export type KeltnerChannelValue = {
  */
 export function keltnerChannel(
   candles: Candle[] | NormalizedCandle[],
-  options: KeltnerChannelOptions = {}
+  options: KeltnerChannelOptions = {},
 ): Series<KeltnerChannelValue> {
   const { emaPeriod = 20, atrPeriod = 10, multiplier = 2 } = options;
 
@@ -120,12 +120,4 @@ export function keltnerChannel(
   }
 
   return result;
-}
-
-/**
- * Check if candles are already normalized
- */
-function isNormalized(candles: Candle[] | NormalizedCandle[]): candles is NormalizedCandle[] {
-  if (candles.length === 0) return true;
-  return typeof candles[0].time === "number";
 }

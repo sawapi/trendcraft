@@ -1,17 +1,17 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
-  perfectOrderBullish,
-  perfectOrderBearish,
-  perfectOrderCollapsed,
-  perfectOrderActiveBullish,
-  perfectOrderActiveBearish,
   evaluateCondition,
+  perfectOrderActiveBearish,
+  perfectOrderActiveBullish,
+  perfectOrderBearish,
+  perfectOrderBullish,
+  perfectOrderCollapsed,
 } from "../../conditions";
 import {
-  generateStrongUptrend,
   generateStrongDowntrend,
-  generateTrendReversal,
+  generateStrongUptrend,
   generateSustainedUptrend,
+  generateTrendReversal,
 } from "./test-helpers";
 
 describe("perfectOrderBullish()", () => {

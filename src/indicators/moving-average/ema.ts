@@ -2,7 +2,7 @@
  * Exponential Moving Average (EMA) indicator
  */
 
-import { getPrice, normalizeCandles } from "../../core/normalize";
+import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import type { Candle, EmaOptions, NormalizedCandle, Series } from "../../types";
 
 /**
@@ -24,7 +24,7 @@ import type { Candle, EmaOptions, NormalizedCandle, Series } from "../../types";
  */
 export function ema(
   candles: Candle[] | NormalizedCandle[],
-  options: EmaOptions
+  options: EmaOptions,
 ): Series<number | null> {
   const { period, source = "close" } = options;
 
@@ -62,12 +62,4 @@ export function ema(
   }
 
   return result;
-}
-
-/**
- * Check if candles are already normalized
- */
-function isNormalized(candles: Candle[] | NormalizedCandle[]): candles is NormalizedCandle[] {
-  if (candles.length === 0) return true;
-  return typeof candles[0].time === "number";
 }

@@ -3,31 +3,31 @@
  * Simulates trading strategy on historical data
  */
 
+import { buildMtfIndexMap, createMtfContext, updateMtfIndices } from "../core/mtf-context";
+import { atr } from "../indicators/volatility/atr";
 import type {
-  NormalizedCandle,
-  Condition,
+  AtrRiskOptions,
   BacktestOptions,
   BacktestResult,
-  Trade,
-  TimeframeShorthand,
+  Condition,
   MtfContext,
+  NormalizedCandle,
+  TimeframeShorthand,
+  Trade,
 } from "../types";
 import { evaluateCondition } from "./conditions";
 import type { ExtendedCondition } from "./conditions";
-import {
-  createMtfContext,
-  buildMtfIndexMap,
-  updateMtfIndices,
-} from "../core/mtf-context";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 /**
- * Extended backtest options with MTF support
+ * Extended backtest options with MTF and ATR risk support
  */
 export type MtfBacktestOptions = BacktestOptions & {
   /** Timeframes to include for MTF conditions */
   mtfTimeframes?: TimeframeShorthand[];
+  /** ATR-based risk management options */
+  atrRisk?: AtrRiskOptions;
 };
 
 /**
@@ -37,7 +37,7 @@ export function runBacktest(
   candles: NormalizedCandle[],
   entryCondition: Condition | ExtendedCondition,
   exitCondition: Condition | ExtendedCondition,
-  options: BacktestOptions | MtfBacktestOptions
+  options: BacktestOptions | MtfBacktestOptions,
 ): BacktestResult {
   const {
     capital,
@@ -51,8 +51,9 @@ export function runBacktest(
     taxRate = 0,
   } = options;
 
-  // Extract MTF timeframes if provided
+  // Extract MTF timeframes and ATR risk options if provided
   const mtfTimeframes = (options as MtfBacktestOptions).mtfTimeframes;
+  const atrRisk = (options as MtfBacktestOptions).atrRisk;
 
   if (candles.length < 2) {
     return emptyResult();
@@ -70,6 +71,13 @@ export function runBacktest(
     mtfIndexMap = buildMtfIndexMap(candles, mtfContext);
   }
 
+  // Pre-calculate ATR if ATR risk management is enabled
+  let atrSeries: { time: number; value: number | null }[] | null = null;
+  if (atrRisk) {
+    const atrPeriod = atrRisk.atrPeriod ?? 14;
+    atrSeries = atr(candles, { period: atrPeriod });
+  }
+
   let position: {
     entryTime: number;
     entryPrice: number;
@@ -77,6 +85,7 @@ export function runBacktest(
     shares: number;
     originalShares: number;
     partialTaken: boolean;
+    entryAtr: number | null; // ATR at entry time (for useEntryAtr mode)
   } | null = null;
   let currentCapital = capital;
   let peakCapital = capital;
@@ -93,7 +102,16 @@ export function runBacktest(
 
     if (position === null) {
       // Check entry condition
-      if (evaluateCondition(entryCondition as ExtendedCondition, indicators, candle, i, candles, mtfContext)) {
+      if (
+        evaluateCondition(
+          entryCondition as ExtendedCondition,
+          indicators,
+          candle,
+          i,
+          candles,
+          mtfContext,
+        )
+      ) {
         const entryPrice = applySlippage(candle.close, slippage, "buy");
 
         // Calculate commission (fixed + rate-based)
@@ -103,6 +121,9 @@ export function runBacktest(
         // Calculate shares after commission
         const shares = (currentCapital - entryCommission) / entryPrice;
 
+        // Store entry ATR for useEntryAtr mode
+        const entryAtr = atrSeries ? atrSeries[i].value : null;
+
         position = {
           entryTime: candle.time,
           entryPrice,
@@ -110,6 +131,7 @@ export function runBacktest(
           shares,
           originalShares: shares,
           partialTaken: false,
+          entryAtr,
         };
 
         // Capital is now invested in position
@@ -124,12 +146,35 @@ export function runBacktest(
       let shouldExit = false;
       let exitPrice = candle.close;
 
+      // Get current ATR value for ATR-based risk management
+      let currentAtr: number | null = null;
+      if (atrRisk && atrSeries) {
+        if (atrRisk.useEntryAtr && position.entryAtr !== null) {
+          // Use ATR from entry time (fixed stop distance)
+          currentAtr = position.entryAtr;
+        } else {
+          // Use current ATR (dynamic stop distance)
+          currentAtr = atrSeries[i].value;
+        }
+      }
+
       // Stop loss check (intraday using low price)
+      // Fixed percentage stop loss (if no ATR stop is set, or as a backup max loss)
       if (stopLoss !== undefined) {
         const stopLossPrice = position.entryPrice * (1 - stopLoss / 100);
         if (candle.low <= stopLossPrice) {
           shouldExit = true;
           exitPrice = stopLossPrice;
+        }
+      }
+
+      // ATR-based stop loss (takes priority if both are triggered)
+      if (!shouldExit && currentAtr !== null && atrRisk?.atrStopMultiplier !== undefined) {
+        const atrStopDistance = currentAtr * atrRisk.atrStopMultiplier;
+        const atrStopPrice = position.entryPrice - atrStopDistance;
+        if (candle.low <= atrStopPrice) {
+          shouldExit = true;
+          exitPrice = atrStopPrice;
         }
       }
 
@@ -139,6 +184,16 @@ export function runBacktest(
         if (candle.high >= takeProfitPrice) {
           shouldExit = true;
           exitPrice = takeProfitPrice;
+        }
+      }
+
+      // ATR-based take profit
+      if (!shouldExit && currentAtr !== null && atrRisk?.atrTakeProfitMultiplier !== undefined) {
+        const atrTpDistance = currentAtr * atrRisk.atrTakeProfitMultiplier;
+        const atrTpPrice = position.entryPrice + atrTpDistance;
+        if (candle.high >= atrTpPrice) {
+          shouldExit = true;
+          exitPrice = atrTpPrice;
         }
       }
 
@@ -196,7 +251,7 @@ export function runBacktest(
         }
       }
 
-      // Trailing stop check
+      // Trailing stop check (fixed percentage)
       if (!shouldExit && trailingStop !== undefined) {
         const trailingStopPrice = position.peakPrice * (1 - trailingStop / 100);
         if (candle.low <= trailingStopPrice) {
@@ -205,8 +260,28 @@ export function runBacktest(
         }
       }
 
+      // ATR-based trailing stop
+      if (!shouldExit && currentAtr !== null && atrRisk?.atrTrailingMultiplier !== undefined) {
+        const atrTrailDistance = currentAtr * atrRisk.atrTrailingMultiplier;
+        const atrTrailPrice = position.peakPrice - atrTrailDistance;
+        if (candle.low <= atrTrailPrice) {
+          shouldExit = true;
+          exitPrice = atrTrailPrice;
+        }
+      }
+
       // Signal-based exit condition
-      if (!shouldExit && evaluateCondition(exitCondition as ExtendedCondition, indicators, candle, i, candles, mtfContext)) {
+      if (
+        !shouldExit &&
+        evaluateCondition(
+          exitCondition as ExtendedCondition,
+          indicators,
+          candle,
+          i,
+          candles,
+          mtfContext,
+        )
+      ) {
         shouldExit = true;
         exitPrice = candle.close;
       }
@@ -321,7 +396,7 @@ function calculateStats(
   returns: number[],
   initialCapital: number,
   finalCapital: number,
-  maxDrawdown: number
+  maxDrawdown: number,
 ): BacktestResult {
   if (trades.length === 0) {
     return emptyResult();
@@ -336,16 +411,18 @@ function calculateStats(
 
   const totalProfit = winningTrades.reduce((sum, t) => sum + t.return, 0);
   const totalLoss = Math.abs(losingTrades.reduce((sum, t) => sum + t.return, 0));
-  const profitFactor = totalLoss > 0 ? totalProfit / totalLoss : totalProfit > 0 ? Infinity : 0;
+  // Cap profit factor at 999.99 to avoid Infinity (causes JSON serialization issues)
+  const profitFactor = totalLoss > 0 ? totalProfit / totalLoss : totalProfit > 0 ? 999.99 : 0;
 
   const avgHoldingDays = trades.reduce((sum, t) => sum + t.holdingDays, 0) / trades.length;
 
   // Calculate Sharpe Ratio (annualized, assuming 252 trading days)
   const avgReturn = returns.reduce((sum, r) => sum + r, 0) / returns.length;
   const stdReturn = Math.sqrt(
-    returns.reduce((sum, r) => sum + Math.pow(r - avgReturn, 2), 0) / returns.length
+    returns.reduce((sum, r) => sum + Math.pow(r - avgReturn, 2), 0) / returns.length,
   );
-  const sharpeRatio = stdReturn > 0 ? (avgReturn / stdReturn) * Math.sqrt(252 / avgHoldingDays) : 0;
+  // Annualize using sqrt(252) - standard annualization factor for daily returns
+  const sharpeRatio = stdReturn > 0 ? (avgReturn / stdReturn) * Math.sqrt(252) : 0;
 
   return {
     totalReturn: Math.round(totalReturn * 100) / 100,

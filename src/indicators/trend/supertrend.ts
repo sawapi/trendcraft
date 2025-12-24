@@ -5,8 +5,8 @@
  * dynamic support/resistance levels.
  */
 
+import { isNormalized, normalizeCandles } from "../../core/normalize";
 import type { Candle, NormalizedCandle, Series } from "../../types";
-import { normalizeCandles } from "../../core/normalize";
 import { atr } from "../volatility/atr";
 
 /**
@@ -67,7 +67,7 @@ export type SupertrendValue = {
  */
 export function supertrend(
   candles: Candle[] | NormalizedCandle[],
-  options: SupertrendOptions = {}
+  options: SupertrendOptions = {},
 ): Series<SupertrendValue> {
   const { period = 10, multiplier = 3 } = options;
 
@@ -121,11 +121,7 @@ export function supertrend(
     const prevFinalUpper = finalUpperBand[i - 1];
     const prevClose = i > 0 ? normalized[i - 1].close : 0;
 
-    if (
-      prevFinalUpper === null ||
-      basicUpperBand < prevFinalUpper ||
-      prevClose > prevFinalUpper
-    ) {
+    if (prevFinalUpper === null || basicUpperBand < prevFinalUpper || prevClose > prevFinalUpper) {
       finalUpper = basicUpperBand;
     } else {
       finalUpper = prevFinalUpper;
@@ -135,11 +131,7 @@ export function supertrend(
     let finalLower: number;
     const prevFinalLower = finalLowerBand[i - 1];
 
-    if (
-      prevFinalLower === null ||
-      basicLowerBand > prevFinalLower ||
-      prevClose < prevFinalLower
-    ) {
+    if (prevFinalLower === null || basicLowerBand > prevFinalLower || prevClose < prevFinalLower) {
       finalLower = basicLowerBand;
     } else {
       finalLower = prevFinalLower;
@@ -187,12 +179,4 @@ export function supertrend(
   }
 
   return result;
-}
-
-/**
- * Check if candles are already normalized
- */
-function isNormalized(candles: Candle[] | NormalizedCandle[]): candles is NormalizedCandle[] {
-  if (candles.length === 0) return true;
-  return typeof candles[0].time === "number";
 }

@@ -2,9 +2,9 @@
  * Simple Moving Average (SMA) indicator
  */
 
-import { getPrice } from "../../core/normalize";
-import type { Candle, NormalizedCandle, Series, SmaOptions } from "../../types";
+import { getPrice, isNormalized } from "../../core/normalize";
 import { normalizeCandles } from "../../core/normalize";
+import type { Candle, NormalizedCandle, Series, SmaOptions } from "../../types";
 
 /**
  * Calculate Simple Moving Average
@@ -21,7 +21,7 @@ import { normalizeCandles } from "../../core/normalize";
  */
 export function sma(
   candles: Candle[] | NormalizedCandle[],
-  options: SmaOptions
+  options: SmaOptions,
 ): Series<number | null> {
   const { period, source = "close" } = options;
 
@@ -49,12 +49,4 @@ export function sma(
   }
 
   return result;
-}
-
-/**
- * Check if candles are already normalized
- */
-function isNormalized(candles: Candle[] | NormalizedCandle[]): candles is NormalizedCandle[] {
-  if (candles.length === 0) return true;
-  return typeof candles[0].time === "number";
 }

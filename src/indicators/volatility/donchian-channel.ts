@@ -4,7 +4,7 @@
  * Used for breakout strategies (Turtle Trading)
  */
 
-import { normalizeCandles } from "../../core/normalize";
+import { isNormalized, normalizeCandles } from "../../core/normalize";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 
 /**
@@ -59,7 +59,7 @@ export type DonchianOptions = {
  */
 export function donchianChannel(
   candles: Candle[] | NormalizedCandle[],
-  options: DonchianOptions = {}
+  options: DonchianOptions = {},
 ): Series<DonchianValue> {
   const { period = 20 } = options;
 
@@ -86,8 +86,8 @@ export function donchianChannel(
     }
 
     // Find highest high and lowest low over the period
-    let highestHigh = -Infinity;
-    let lowestLow = Infinity;
+    let highestHigh = Number.NEGATIVE_INFINITY;
+    let lowestLow = Number.POSITIVE_INFINITY;
 
     for (let j = i - period + 1; j <= i; j++) {
       if (normalized[j].high > highestHigh) {
@@ -111,12 +111,4 @@ export function donchianChannel(
   }
 
   return result;
-}
-
-/**
- * Check if candles are already normalized
- */
-function isNormalized(candles: Candle[] | NormalizedCandle[]): candles is NormalizedCandle[] {
-  if (candles.length === 0) return true;
-  return typeof candles[0].time === "number";
 }

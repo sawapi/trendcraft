@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { macdCrossUp, macdCrossDown } from "../../conditions";
+import { describe, expect, it } from "vitest";
+import { macdCrossDown, macdCrossUp } from "../../conditions";
 
 describe("macdCrossUp()", () => {
   it("should create a valid preset condition", () => {

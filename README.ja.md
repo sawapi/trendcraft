@@ -29,6 +29,23 @@
 - マルチタイムフレーム(MTF)条件（週足/月足RSI、SMA、トレンド）
 - 高度な出来高条件（異常検出、Volume Profile）
 
+### シグナルスコアリング
+- 複数シグナルを重み付けで統合
+- プリセット戦略: momentum, meanReversion, trendFollowing, balanced
+- Fluent API (ScoreBuilder) でカスタムスコアリング
+- スコアベースのバックテスト条件
+
+### ポジションサイジング
+- **リスクベース**: リスク額とストップ幅からサイズ計算
+- **ATRベース**: ATRで動的なストップ幅を設定
+- **ケリー基準**: 勝率とペイオフレシオから最適サイズ算出
+- **固定比率**: シンプルな割合ベースの配分
+
+### ATRリスク管理
+- シャンデリアイグジット（トレーリングストップ）
+- ATRベースの動的ストップ/利確レベル
+- バックテストエンジンとの統合
+
 ### ユーティリティ
 - データ正規化（様々な日付形式をタイムスタンプに変換）
 - タイムフレーム変換（日足から週足/月足へ）
@@ -263,6 +280,114 @@ const result = TrendCraft.from(dailyCandles)
     ))
     .exit(deadCrossCondition())
   .backtest({ capital: 1000000 });
+```
+
+### シグナルスコアリング
+
+```typescript
+import { ScoreBuilder, calculateScore, scoreAbove } from 'trendcraft';
+
+// カスタムスコアリング戦略を構築
+const config = ScoreBuilder.create()
+  .addPOConfirmation(3.0)      // パーフェクトオーダー確認 (重み: 3.0)
+  .addRsiOversold(30, 2.0)     // RSI < 30 (重み: 2.0)
+  .addVolumeSpike(1.5, 1.5)    // 出来高 > 平均の1.5倍 (重み: 1.5)
+  .addMacdBullish(1.5)         // MACDブリッシュクロスオーバー
+  .setThresholds(70, 50, 30)   // strong, moderate, weak
+  .build();
+
+// 特定のインデックスでスコアを計算
+const result = calculateScore(candles, candles.length - 1, config);
+console.log(result.normalizedScore);  // 0-100のスコア
+console.log(result.strength);         // "strong" | "moderate" | "weak" | "none"
+
+// バックテストで使用
+import { TrendCraft, deadCross } from 'trendcraft';
+
+const backtestResult = TrendCraft.from(candles)
+  .strategy()
+    .entry(scoreAbove(70, "trendFollowing"))  // スコア > 70 でエントリー
+    .exit(deadCross())
+  .backtest({ capital: 1000000 });
+```
+
+### ポジションサイジング
+
+```typescript
+import { riskBasedSize, atrBasedSize, kellySize, fixedFractionalSize } from 'trendcraft';
+
+// リスクベース: リスク額とストップ幅からサイズを計算
+const riskResult = riskBasedSize({
+  accountSize: 100000,
+  entryPrice: 50,
+  stopLossPrice: 48,
+  riskPercent: 1,           // 口座の1%をリスク
+  maxPositionPercent: 25,   // 最大25%のポジション
+});
+// { shares: 500, positionValue: 25000, riskAmount: 1000, ... }
+
+// ATRベース: ATRで動的にストップを計算
+const atrResult = atrBasedSize({
+  accountSize: 100000,
+  entryPrice: 50,
+  atrValue: 2.5,
+  atrMultiplier: 2,         // 2x ATR でストップ幅
+  riskPercent: 1,
+});
+// { shares: 200, stopPrice: 45, ... }
+
+// ケリー基準: 過去の勝率に基づく最適サイジング
+const kellyResult = kellySize({
+  accountSize: 100000,
+  entryPrice: 50,
+  winRate: 0.6,
+  winLossRatio: 1.5,
+  kellyFraction: 0.5,       // ハーフケリー（より安全）
+});
+
+// 固定比率: シンプルな割合ベース
+const fixedResult = fixedFractionalSize({
+  accountSize: 100000,
+  entryPrice: 50,
+  fractionPercent: 10,      // 口座の10%
+});
+```
+
+### ATRリスク管理
+
+```typescript
+import { chandelierExit, calculateAtrStops, TrendCraft, goldenCross, deadCross } from 'trendcraft';
+
+// シャンデリアイグジット（トレーリングストップ）
+const chandelier = chandelierExit(candles, { period: 22, multiplier: 3 });
+chandelier.forEach(({ time, value }) => {
+  console.log(`ロングストップ: ${value.longStop}, ショートストップ: ${value.shortStop}`);
+});
+
+// ATRベースのストップ・利確レベルを計算
+const stops = calculateAtrStops({
+  entryPrice: 100,
+  atrValue: 2.5,
+  stopMultiplier: 2,        // 2x ATR でストップ
+  takeProfitMultiplier: 3,  // 3x ATR で利確
+  direction: 'long',
+});
+// { stopPrice: 95, takeProfitPrice: 107.5, riskRewardRatio: 1.5 }
+
+// ATRベースのストップでバックテスト
+const result = TrendCraft.from(candles)
+  .strategy()
+    .entry(goldenCross())
+    .exit(deadCross())
+  .backtest({
+    capital: 1000000,
+    atrRisk: {
+      enabled: true,
+      period: 14,
+      stopMultiplier: 2,
+      takeProfitMultiplier: 3,
+    },
+  });
 ```
 
 ## APIリファレンス

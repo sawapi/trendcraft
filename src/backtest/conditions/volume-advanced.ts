@@ -7,10 +7,15 @@
  * - Volume trend confirmation
  */
 
-import type { PresetCondition, VolumeAnomalyValue, VolumeProfileValue, VolumeTrendValue } from "../../types";
 import { volumeAnomaly as calcVolumeAnomaly } from "../../indicators/volume/volume-anomaly";
 import { volumeProfileSeries } from "../../indicators/volume/volume-profile";
 import { volumeTrend as calcVolumeTrend } from "../../indicators/volume/volume-trend";
+import type {
+  PresetCondition,
+  VolumeAnomalyValue,
+  VolumeProfileValue,
+  VolumeTrendValue,
+} from "../../types";
 
 // ============================================
 // Volume Anomaly Conditions

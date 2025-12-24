@@ -47,16 +47,16 @@ describe("roc", () => {
     const candles = makeCandles([100, 110, 120]);
     const result = roc(candles, { period: 1 });
 
-    expect(result[1].value).toBe(10);  // (110-100)/100 × 100
-    expect(result[2].value).toBeCloseTo(9.09, 1);  // (120-110)/110 × 100
+    expect(result[1].value).toBe(10); // (110-100)/100 × 100
+    expect(result[2].value).toBeCloseTo(9.09, 1); // (120-110)/110 × 100
   });
 
   it("should show negative ROC for falling prices", () => {
     const candles = makeCandles([120, 110, 100]);
     const result = roc(candles, { period: 1 });
 
-    expect(result[1].value).toBeCloseTo(-8.33, 1);  // (110-120)/120 × 100
-    expect(result[2].value).toBeCloseTo(-9.09, 1);  // (100-110)/110 × 100
+    expect(result[1].value).toBeCloseTo(-8.33, 1); // (110-120)/120 × 100
+    expect(result[2].value).toBeCloseTo(-9.09, 1); // (100-110)/110 × 100
   });
 
   it("should return zero for unchanged prices", () => {
@@ -76,8 +76,8 @@ describe("roc", () => {
     const rocClose = roc(candles, { period: 1, source: "close" });
     const rocHigh = roc(candles, { period: 1, source: "high" });
 
-    expect(rocClose[1].value).toBe(10);  // (110-100)/100 × 100
-    expect(rocHigh[1].value).toBeCloseTo(8.33, 1);  // (130-120)/120 × 100
+    expect(rocClose[1].value).toBe(10); // (110-100)/100 × 100
+    expect(rocHigh[1].value).toBeCloseTo(8.33, 1); // (130-120)/120 × 100
   });
 
   it("should handle zero past price", () => {

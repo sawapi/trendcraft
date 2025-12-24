@@ -2,7 +2,7 @@
  * Moving Average Convergence Divergence (MACD) indicator
  */
 
-import { normalizeCandles } from "../../core/normalize";
+import { isNormalized, normalizeCandles } from "../../core/normalize";
 import type { Candle, MacdOptions, MacdValue, NormalizedCandle, Series } from "../../types";
 import { ema } from "../moving-average/ema";
 
@@ -25,7 +25,7 @@ import { ema } from "../moving-average/ema";
  */
 export function macd(
   candles: Candle[] | NormalizedCandle[],
-  options: MacdOptions = {}
+  options: MacdOptions = {},
 ): Series<MacdValue> {
   const { fastPeriod = 12, slowPeriod = 26, signalPeriod = 9 } = options;
 
@@ -68,8 +68,7 @@ export function macd(
   for (let i = 0; i < normalized.length; i++) {
     const macdValue = macdLine[i];
     const signalValue = signalLine[i];
-    const histogram =
-      macdValue !== null && signalValue !== null ? macdValue - signalValue : null;
+    const histogram = macdValue !== null && signalValue !== null ? macdValue - signalValue : null;
 
     result.push({
       time: normalized[i].time,
@@ -140,12 +139,4 @@ function calculateSignalLine(macdLine: (number | null)[], period: number): (numb
   }
 
   return result;
-}
-
-/**
- * Check if candles are already normalized
- */
-function isNormalized(candles: Candle[] | NormalizedCandle[]): candles is NormalizedCandle[] {
-  if (candles.length === 0) return true;
-  return typeof candles[0].time === "number";
 }

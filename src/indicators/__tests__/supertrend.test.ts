@@ -4,7 +4,9 @@ import { supertrend } from "../trend/supertrend";
 
 describe("supertrend", () => {
   // Helper to create candles with OHLC data
-  const makeCandles = (data: Array<{ high: number; low: number; close: number }>): NormalizedCandle[] =>
+  const makeCandles = (
+    data: Array<{ high: number; low: number; close: number }>,
+  ): NormalizedCandle[] =>
     data.map((d, i) => ({
       time: 1700000000000 + i * 86400000,
       open: d.close,
@@ -16,13 +18,19 @@ describe("supertrend", () => {
 
   it("should throw if period is less than 1", () => {
     const candles = makeCandles([{ high: 110, low: 90, close: 100 }]);
-    expect(() => supertrend(candles, { period: 0 })).toThrow("Supertrend period must be at least 1");
+    expect(() => supertrend(candles, { period: 0 })).toThrow(
+      "Supertrend period must be at least 1",
+    );
   });
 
   it("should throw if multiplier is not positive", () => {
     const candles = makeCandles([{ high: 110, low: 90, close: 100 }]);
-    expect(() => supertrend(candles, { multiplier: 0 })).toThrow("Supertrend multiplier must be positive");
-    expect(() => supertrend(candles, { multiplier: -1 })).toThrow("Supertrend multiplier must be positive");
+    expect(() => supertrend(candles, { multiplier: 0 })).toThrow(
+      "Supertrend multiplier must be positive",
+    );
+    expect(() => supertrend(candles, { multiplier: -1 })).toThrow(
+      "Supertrend multiplier must be positive",
+    );
   });
 
   it("should return null for insufficient data (ATR warmup period)", () => {
@@ -142,7 +150,7 @@ describe("supertrend", () => {
     const result = supertrend(candles, { period: 10, multiplier: 2 });
 
     // After warmup, direction should be determined
-    const validResults = result.filter(r => r.value.direction !== 0);
+    const validResults = result.filter((r) => r.value.direction !== 0);
     expect(validResults.length).toBeGreaterThan(0);
 
     // Each valid result should have consistent direction with its supertrend value

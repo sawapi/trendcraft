@@ -2,8 +2,8 @@
  * Price conditions
  */
 
-import type { PresetCondition } from "../../types";
 import { sma } from "../../indicators/moving-average/sma";
+import type { PresetCondition } from "../../types";
 
 // ============================================
 // Price Conditions
@@ -17,7 +17,9 @@ export function priceAboveSma(period: number): PresetCondition {
     type: "preset",
     name: `priceAboveSma(${period})`,
     evaluate: (indicators, candle, index, candles) => {
-      let smaData = indicators[`sma${period}`] as { time: number; value: number | null }[] | undefined;
+      let smaData = indicators[`sma${period}`] as
+        | { time: number; value: number | null }[]
+        | undefined;
 
       if (!smaData) {
         smaData = sma(candles, { period });
@@ -38,7 +40,9 @@ export function priceBelowSma(period: number): PresetCondition {
     type: "preset",
     name: `priceBelowSma(${period})`,
     evaluate: (indicators, candle, index, candles) => {
-      let smaData = indicators[`sma${period}`] as { time: number; value: number | null }[] | undefined;
+      let smaData = indicators[`sma${period}`] as
+        | { time: number; value: number | null }[]
+        | undefined;
 
       if (!smaData) {
         smaData = sma(candles, { period });

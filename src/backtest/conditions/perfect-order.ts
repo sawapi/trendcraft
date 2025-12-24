@@ -2,8 +2,13 @@
  * Perfect Order conditions
  */
 
+import {
+  type PerfectOrderValue,
+  type PerfectOrderValueEnhanced,
+  perfectOrder,
+  perfectOrderEnhanced,
+} from "../../signals/perfect-order";
 import type { PresetCondition } from "../../types";
-import { perfectOrder, perfectOrderEnhanced, type PerfectOrderValue, type PerfectOrderValueEnhanced } from "../../signals/perfect-order";
 
 // ============================================
 // Perfect Order Conditions
@@ -138,7 +143,9 @@ export function perfectOrderCollapsed(options: PerfectOrderConditionOptions = {}
  * const holdCondition = perfectOrderActiveBullish();
  * ```
  */
-export function perfectOrderActiveBullish(options: PerfectOrderConditionOptions = {}): PresetCondition {
+export function perfectOrderActiveBullish(
+  options: PerfectOrderConditionOptions = {},
+): PresetCondition {
   const { periods = [5, 25, 75], maType = "sma", minStrength = 0 } = options;
   const cacheKey = `po_${periods.join("_")}_${maType}`;
 
@@ -165,7 +172,9 @@ export function perfectOrderActiveBullish(options: PerfectOrderConditionOptions 
  * Perfect Order active (bearish)
  * Returns true while bearish perfect order is active
  */
-export function perfectOrderActiveBearish(options: PerfectOrderConditionOptions = {}): PresetCondition {
+export function perfectOrderActiveBearish(
+  options: PerfectOrderConditionOptions = {},
+): PresetCondition {
   const { periods = [5, 25, 75], maType = "sma", minStrength = 0 } = options;
   const cacheKey = `po_${periods.join("_")}_${maType}`;
 
@@ -219,7 +228,9 @@ export type PerfectOrderEnhancedConditionOptions = PerfectOrderConditionOptions 
  * const highConfEntry = perfectOrderBullishConfirmed({ minConfidence: 0.9 });
  * ```
  */
-export function perfectOrderBullishConfirmed(options: PerfectOrderEnhancedConditionOptions = {}): PresetCondition {
+export function perfectOrderBullishConfirmed(
+  options: PerfectOrderEnhancedConditionOptions = {},
+): PresetCondition {
   const {
     periods = [5, 25, 75],
     maType = "sma",
@@ -235,7 +246,9 @@ export function perfectOrderBullishConfirmed(options: PerfectOrderEnhancedCondit
     type: "preset",
     name: `perfectOrderBullishConfirmed(${periods.join(",")})`,
     evaluate: (indicators, candle, index, candles) => {
-      let poData = indicators[cacheKey] as { time: number; value: PerfectOrderValueEnhanced }[] | undefined;
+      let poData = indicators[cacheKey] as
+        | { time: number; value: PerfectOrderValueEnhanced }[]
+        | undefined;
 
       if (!poData) {
         poData = perfectOrderEnhanced(candles, {
@@ -266,7 +279,9 @@ export function perfectOrderBullishConfirmed(options: PerfectOrderEnhancedCondit
  * Enhanced Perfect Order confirmed (bearish)
  * Triggers when bearish perfect order is confirmed (all slopes DOWN + persistence)
  */
-export function perfectOrderBearishConfirmed(options: PerfectOrderEnhancedConditionOptions = {}): PresetCondition {
+export function perfectOrderBearishConfirmed(
+  options: PerfectOrderEnhancedConditionOptions = {},
+): PresetCondition {
   const {
     periods = [5, 25, 75],
     maType = "sma",
@@ -282,7 +297,9 @@ export function perfectOrderBearishConfirmed(options: PerfectOrderEnhancedCondit
     type: "preset",
     name: `perfectOrderBearishConfirmed(${periods.join(",")})`,
     evaluate: (indicators, candle, index, candles) => {
-      let poData = indicators[cacheKey] as { time: number; value: PerfectOrderValueEnhanced }[] | undefined;
+      let poData = indicators[cacheKey] as
+        | { time: number; value: PerfectOrderValueEnhanced }[]
+        | undefined;
 
       if (!poData) {
         poData = perfectOrderEnhanced(candles, {
@@ -315,7 +332,9 @@ export function perfectOrderBearishConfirmed(options: PerfectOrderEnhancedCondit
  *
  * This is useful as an entry signal - fires exactly once when PO becomes confirmed
  */
-export function perfectOrderConfirmationFormed(options: PerfectOrderEnhancedConditionOptions = {}): PresetCondition {
+export function perfectOrderConfirmationFormed(
+  options: PerfectOrderEnhancedConditionOptions = {},
+): PresetCondition {
   const {
     periods = [5, 25, 75],
     maType = "sma",
@@ -329,7 +348,9 @@ export function perfectOrderConfirmationFormed(options: PerfectOrderEnhancedCond
     type: "preset",
     name: `perfectOrderConfirmationFormed(${periods.join(",")})`,
     evaluate: (indicators, candle, index, candles) => {
-      let poData = indicators[cacheKey] as { time: number; value: PerfectOrderValueEnhanced }[] | undefined;
+      let poData = indicators[cacheKey] as
+        | { time: number; value: PerfectOrderValueEnhanced }[]
+        | undefined;
 
       if (!poData) {
         poData = perfectOrderEnhanced(candles, {
@@ -357,7 +378,9 @@ export function perfectOrderConfirmationFormed(options: PerfectOrderEnhancedCond
  *
  * This is useful as an early exit signal - fires when PO structure degrades
  */
-export function perfectOrderBreakdown(options: PerfectOrderEnhancedConditionOptions = {}): PresetCondition {
+export function perfectOrderBreakdown(
+  options: PerfectOrderEnhancedConditionOptions = {},
+): PresetCondition {
   const {
     periods = [5, 25, 75],
     maType = "sma",
@@ -371,7 +394,9 @@ export function perfectOrderBreakdown(options: PerfectOrderEnhancedConditionOpti
     type: "preset",
     name: `perfectOrderBreakdown(${periods.join(",")})`,
     evaluate: (indicators, candle, index, candles) => {
-      let poData = indicators[cacheKey] as { time: number; value: PerfectOrderValueEnhanced }[] | undefined;
+      let poData = indicators[cacheKey] as
+        | { time: number; value: PerfectOrderValueEnhanced }[]
+        | undefined;
 
       if (!poData) {
         poData = perfectOrderEnhanced(candles, {
@@ -399,7 +424,9 @@ export function perfectOrderBreakdown(options: PerfectOrderEnhancedConditionOpti
  *
  * This indicates energy accumulation before next move - useful for anticipating breakouts
  */
-export function perfectOrderMaCollapsed(options: PerfectOrderEnhancedConditionOptions = {}): PresetCondition {
+export function perfectOrderMaCollapsed(
+  options: PerfectOrderEnhancedConditionOptions = {},
+): PresetCondition {
   const {
     periods = [5, 25, 75],
     maType = "sma",
@@ -413,7 +440,9 @@ export function perfectOrderMaCollapsed(options: PerfectOrderEnhancedConditionOp
     type: "preset",
     name: `perfectOrderMaCollapsed(${periods.join(",")})`,
     evaluate: (indicators, candle, index, candles) => {
-      let poData = indicators[cacheKey] as { time: number; value: PerfectOrderValueEnhanced }[] | undefined;
+      let poData = indicators[cacheKey] as
+        | { time: number; value: PerfectOrderValueEnhanced }[]
+        | undefined;
 
       if (!poData) {
         poData = perfectOrderEnhanced(candles, {
@@ -441,7 +470,9 @@ export function perfectOrderMaCollapsed(options: PerfectOrderEnhancedConditionOp
  *
  * Useful for early entries with tighter stops
  */
-export function perfectOrderPreBullish(options: PerfectOrderEnhancedConditionOptions = {}): PresetCondition {
+export function perfectOrderPreBullish(
+  options: PerfectOrderEnhancedConditionOptions = {},
+): PresetCondition {
   const {
     periods = [5, 25, 75],
     maType = "sma",
@@ -455,7 +486,9 @@ export function perfectOrderPreBullish(options: PerfectOrderEnhancedConditionOpt
     type: "preset",
     name: `perfectOrderPreBullish(${periods.join(",")})`,
     evaluate: (indicators, candle, index, candles) => {
-      let poData = indicators[cacheKey] as { time: number; value: PerfectOrderValueEnhanced }[] | undefined;
+      let poData = indicators[cacheKey] as
+        | { time: number; value: PerfectOrderValueEnhanced }[]
+        | undefined;
 
       if (!poData) {
         poData = perfectOrderEnhanced(candles, {
@@ -481,7 +514,9 @@ export function perfectOrderPreBullish(options: PerfectOrderEnhancedConditionOpt
  * Enhanced Perfect Order in pre-bearish state
  * Triggers when conditions are forming for bearish PO (not yet confirmed)
  */
-export function perfectOrderPreBearish(options: PerfectOrderEnhancedConditionOptions = {}): PresetCondition {
+export function perfectOrderPreBearish(
+  options: PerfectOrderEnhancedConditionOptions = {},
+): PresetCondition {
   const {
     periods = [5, 25, 75],
     maType = "sma",
@@ -495,7 +530,9 @@ export function perfectOrderPreBearish(options: PerfectOrderEnhancedConditionOpt
     type: "preset",
     name: `perfectOrderPreBearish(${periods.join(",")})`,
     evaluate: (indicators, candle, index, candles) => {
-      let poData = indicators[cacheKey] as { time: number; value: PerfectOrderValueEnhanced }[] | undefined;
+      let poData = indicators[cacheKey] as
+        | { time: number; value: PerfectOrderValueEnhanced }[]
+        | undefined;
 
       if (!poData) {
         poData = perfectOrderEnhanced(candles, {
@@ -541,7 +578,7 @@ export function perfectOrderPullbackEntry(
     minGapPercent?: number;
     /** Maximum bars to look back for DOWN slope (default: 5) */
     lookbackBars?: number;
-  } = {}
+  } = {},
 ): PresetCondition {
   const {
     periods = [5, 25, 75],
@@ -562,7 +599,9 @@ export function perfectOrderPullbackEntry(
       // Need at least 2 bars to detect slope change
       if (index < 1) return false;
 
-      let poData = indicators[cacheKey] as { time: number; value: PerfectOrderValueEnhanced }[] | undefined;
+      let poData = indicators[cacheKey] as
+        | { time: number; value: PerfectOrderValueEnhanced }[]
+        | undefined;
 
       if (!poData) {
         poData = perfectOrderEnhanced(candles, {
@@ -577,7 +616,9 @@ export function perfectOrderPullbackEntry(
       }
 
       // Track state: has PO+ been confirmed since last breakdown?
-      let state = indicators[stateKey] as { hasConfirmedSinceBreakdown: boolean; lastProcessedIndex: number } | undefined;
+      let state = indicators[stateKey] as
+        | { hasConfirmedSinceBreakdown: boolean; lastProcessedIndex: number }
+        | undefined;
       if (!state) {
         state = { hasConfirmedSinceBreakdown: false, lastProcessedIndex: -1 };
         indicators[stateKey] = state;
@@ -640,7 +681,8 @@ export function perfectOrderPullbackEntry(
       // 5. Short MA must not have touched mid MA (maintain gap)
       const shortMa = current.maValues[0];
       const midMa = current.maValues[1];
-      if (shortMa === null || midMa === null) return false;
+      // Guard against null and zero values to prevent division by zero
+      if (shortMa === null || midMa === null || midMa === 0) return false;
 
       const gapPercent = ((shortMa - midMa) / midMa) * 100;
       if (gapPercent < minGapPercent) return false;
@@ -660,7 +702,7 @@ export function perfectOrderPullbackSellEntry(
     minGapPercent?: number;
     /** Maximum bars to look back for UP slope (default: 5) */
     lookbackBars?: number;
-  } = {}
+  } = {},
 ): PresetCondition {
   const {
     periods = [5, 25, 75],
@@ -680,7 +722,9 @@ export function perfectOrderPullbackSellEntry(
     evaluate: (indicators, candle, index, candles) => {
       if (index < 1) return false;
 
-      let poData = indicators[cacheKey] as { time: number; value: PerfectOrderValueEnhanced }[] | undefined;
+      let poData = indicators[cacheKey] as
+        | { time: number; value: PerfectOrderValueEnhanced }[]
+        | undefined;
 
       if (!poData) {
         poData = perfectOrderEnhanced(candles, {
@@ -695,7 +739,9 @@ export function perfectOrderPullbackSellEntry(
       }
 
       // Track state: has PO+ (bearish) been confirmed since last breakdown?
-      let state = indicators[stateKey] as { hasConfirmedSinceBreakdown: boolean; lastProcessedIndex: number } | undefined;
+      let state = indicators[stateKey] as
+        | { hasConfirmedSinceBreakdown: boolean; lastProcessedIndex: number }
+        | undefined;
       if (!state) {
         state = { hasConfirmedSinceBreakdown: false, lastProcessedIndex: -1 };
         indicators[stateKey] = state;
@@ -758,7 +804,8 @@ export function perfectOrderPullbackSellEntry(
       // 5. Short MA must not have touched mid MA (maintain gap below)
       const shortMa = current.maValues[0];
       const midMa = current.maValues[1];
-      if (shortMa === null || midMa === null) return false;
+      // Guard against null and zero values to prevent division by zero
+      if (shortMa === null || midMa === null || midMa === 0) return false;
 
       const gapPercent = ((midMa - shortMa) / midMa) * 100;
       if (gapPercent < minGapPercent) return false;
@@ -799,7 +846,9 @@ export function poPlusEntry(options: PerfectOrderEnhancedConditionOptions = {}):
     type: "preset",
     name: `poPlusEntry(${periods.join(",")})`,
     evaluate: (indicators, candle, index, candles) => {
-      let poData = indicators[cacheKey] as { time: number; value: PerfectOrderValueEnhanced }[] | undefined;
+      let poData = indicators[cacheKey] as
+        | { time: number; value: PerfectOrderValueEnhanced }[]
+        | undefined;
 
       if (!poData) {
         poData = perfectOrderEnhanced(candles, {
@@ -852,7 +901,9 @@ export function pbEntry(options: PerfectOrderEnhancedConditionOptions = {}): Pre
     type: "preset",
     name: `pbEntry(${periods.join(",")})`,
     evaluate: (indicators, candle, index, candles) => {
-      let poData = indicators[cacheKey] as { time: number; value: PerfectOrderValueEnhanced }[] | undefined;
+      let poData = indicators[cacheKey] as
+        | { time: number; value: PerfectOrderValueEnhanced }[]
+        | undefined;
 
       if (!poData) {
         poData = perfectOrderEnhanced(candles, {
@@ -899,7 +950,9 @@ export function poPlusPbEntry(options: PerfectOrderEnhancedConditionOptions = {}
     type: "preset",
     name: `poPlusPbEntry(${periods.join(",")})`,
     evaluate: (indicators, candle, index, candles) => {
-      let poData = indicators[cacheKey] as { time: number; value: PerfectOrderValueEnhanced }[] | undefined;
+      let poData = indicators[cacheKey] as
+        | { time: number; value: PerfectOrderValueEnhanced }[]
+        | undefined;
 
       if (!poData) {
         poData = perfectOrderEnhanced(candles, {

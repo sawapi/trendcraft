@@ -5,9 +5,8 @@
  * and the price n periods ago.
  */
 
-import { getPrice } from "../../core/normalize";
-import type { Candle, NormalizedCandle, Series, PriceSource } from "../../types";
-import { normalizeCandles } from "../../core/normalize";
+import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
+import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 
 /**
  * ROC options
@@ -45,7 +44,7 @@ export type RocOptions = {
  */
 export function roc(
   candles: Candle[] | NormalizedCandle[],
-  options: RocOptions = {}
+  options: RocOptions = {},
 ): Series<number | null> {
   const { period = 12, source = "close" } = options;
 
@@ -78,12 +77,4 @@ export function roc(
   }
 
   return result;
-}
-
-/**
- * Check if candles are already normalized
- */
-function isNormalized(candles: Candle[] | NormalizedCandle[]): candles is NormalizedCandle[] {
-  if (candles.length === 0) return true;
-  return typeof candles[0].time === "number";
 }

@@ -4,7 +4,9 @@ import { pivotPoints } from "../price/pivot-points";
 
 describe("pivotPoints", () => {
   // Helper to create candles with OHLC data
-  const makeCandles = (data: Array<{ open: number; high: number; low: number; close: number }>): NormalizedCandle[] =>
+  const makeCandles = (
+    data: Array<{ open: number; high: number; low: number; close: number }>,
+  ): NormalizedCandle[] =>
     data.map((d, i) => ({
       time: 1700000000000 + i * 86400000,
       open: d.open,
@@ -15,9 +17,7 @@ describe("pivotPoints", () => {
     }));
 
   it("should return null for first candle (no previous data)", () => {
-    const candles = makeCandles([
-      { open: 100, high: 110, low: 90, close: 105 },
-    ]);
+    const candles = makeCandles([{ open: 100, high: 110, low: 90, close: 105 }]);
 
     const result = pivotPoints(candles);
     expect(result[0].value.pivot).toBeNull();
@@ -96,8 +96,8 @@ describe("pivotPoints", () => {
     // Camarilla uses close-based calculations
     // Range = 40
     expect(result[1].value.r1).toBeCloseTo(100 + 40 * (1.1 / 12), 2); // 103.67
-    expect(result[1].value.r2).toBeCloseTo(100 + 40 * (1.1 / 6), 2);  // 107.33
-    expect(result[1].value.r3).toBeCloseTo(100 + 40 * (1.1 / 4), 2);  // 111
+    expect(result[1].value.r2).toBeCloseTo(100 + 40 * (1.1 / 6), 2); // 107.33
+    expect(result[1].value.r3).toBeCloseTo(100 + 40 * (1.1 / 4), 2); // 111
     expect(result[1].value.s1).toBeCloseTo(100 - 40 * (1.1 / 12), 2); // 96.33
   });
 
@@ -118,7 +118,7 @@ describe("pivotPoints", () => {
     // Close > Open (of current day): X = 2 × High + Low + Close
     const candles2 = makeCandles([
       { open: 100, high: 120, low: 80, close: 100 }, // Previous day
-      { open: 90, high: 125, low: 85, close: 110 },  // Current day, close(100) > open(90)
+      { open: 90, high: 125, low: 85, close: 110 }, // Current day, close(100) > open(90)
     ]);
 
     const result2 = pivotPoints(candles2, { method: "demark" });

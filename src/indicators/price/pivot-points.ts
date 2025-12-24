@@ -5,8 +5,8 @@
  * They are calculated based on the high, low, and close of the previous period.
  */
 
+import { isNormalized, normalizeCandles } from "../../core/normalize";
 import type { Candle, NormalizedCandle, Series } from "../../types";
-import { normalizeCandles } from "../../core/normalize";
 
 /**
  * Pivot Points options
@@ -63,7 +63,7 @@ export type PivotPointsValue = {
  */
 export function pivotPoints(
   candles: Candle[] | NormalizedCandle[],
-  options: PivotPointsOptions = {}
+  options: PivotPointsOptions = {},
 ): Series<PivotPointsValue> {
   const { method = "standard" } = options;
 
@@ -200,12 +200,7 @@ function calculateCamarilla(high: number, low: number, close: number): PivotPoin
 /**
  * DeMark Pivot Points calculation
  */
-function calculateDemark(
-  high: number,
-  low: number,
-  close: number,
-  open: number
-): PivotPointsValue {
+function calculateDemark(high: number, low: number, close: number, open: number): PivotPointsValue {
   let x: number;
 
   if (close < open) {
@@ -227,12 +222,4 @@ function calculateDemark(
     s2: null,
     s3: null,
   };
-}
-
-/**
- * Check if candles are already normalized
- */
-function isNormalized(candles: Candle[] | NormalizedCandle[]): candles is NormalizedCandle[] {
-  if (candles.length === 0) return true;
-  return typeof candles[0].time === "number";
 }

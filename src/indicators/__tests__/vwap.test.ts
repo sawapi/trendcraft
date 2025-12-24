@@ -4,7 +4,9 @@ import { vwap } from "../volume/vwap";
 
 describe("vwap", () => {
   // Helper to create candles with OHLCV data
-  const makeCandles = (data: Array<{ high: number; low: number; close: number; volume: number }>): NormalizedCandle[] =>
+  const makeCandles = (
+    data: Array<{ high: number; low: number; close: number; volume: number }>,
+  ): NormalizedCandle[] =>
     data.map((d, i) => ({
       time: 1700000000000 + i * 86400000,
       open: d.close,
@@ -85,10 +87,38 @@ describe("vwap", () => {
   it("should reset on session change", () => {
     // Create candles across two days
     const candles: NormalizedCandle[] = [
-      { time: new Date("2024-01-01T10:00:00Z").getTime(), open: 100, high: 110, low: 90, close: 100, volume: 1000 },
-      { time: new Date("2024-01-01T11:00:00Z").getTime(), open: 100, high: 120, low: 100, close: 110, volume: 2000 },
-      { time: new Date("2024-01-02T10:00:00Z").getTime(), open: 110, high: 130, low: 110, close: 120, volume: 1500 },
-      { time: new Date("2024-01-02T11:00:00Z").getTime(), open: 120, high: 140, low: 120, close: 130, volume: 1000 },
+      {
+        time: new Date("2024-01-01T10:00:00Z").getTime(),
+        open: 100,
+        high: 110,
+        low: 90,
+        close: 100,
+        volume: 1000,
+      },
+      {
+        time: new Date("2024-01-01T11:00:00Z").getTime(),
+        open: 100,
+        high: 120,
+        low: 100,
+        close: 110,
+        volume: 2000,
+      },
+      {
+        time: new Date("2024-01-02T10:00:00Z").getTime(),
+        open: 110,
+        high: 130,
+        low: 110,
+        close: 120,
+        volume: 1500,
+      },
+      {
+        time: new Date("2024-01-02T11:00:00Z").getTime(),
+        open: 120,
+        high: 140,
+        low: 120,
+        close: 130,
+        volume: 1000,
+      },
     ];
 
     const result = vwap(candles, { resetPeriod: "session" });
@@ -103,9 +133,7 @@ describe("vwap", () => {
   });
 
   it("should handle zero volume", () => {
-    const candles = makeCandles([
-      { high: 110, low: 90, close: 100, volume: 0 },
-    ]);
+    const candles = makeCandles([{ high: 110, low: 90, close: 100, volume: 0 }]);
 
     const result = vwap(candles);
     expect(result[0].value.vwap).toBeNull();

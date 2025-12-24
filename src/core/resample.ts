@@ -128,7 +128,7 @@ function aggregateCandles(candles: NormalizedCandle[]): NormalizedCandle {
  */
 export function resample(
   candles: NormalizedCandle[],
-  timeframe: TimeframeShorthand | Timeframe
+  timeframe: TimeframeShorthand | Timeframe,
 ): NormalizedCandle[] {
   if (candles.length === 0) {
     return [];

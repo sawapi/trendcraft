@@ -3,7 +3,7 @@
  * Measures trend strength and direction
  */
 
-import { normalizeCandles } from "../../core/normalize";
+import { isNormalized, normalizeCandles } from "../../core/normalize";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 
 /**
@@ -57,7 +57,7 @@ export type DmiOptions = {
  */
 export function dmi(
   candles: Candle[] | NormalizedCandle[],
-  options: DmiOptions = {}
+  options: DmiOptions = {},
 ): Series<DmiValue> {
   const { period = 14, adxPeriod = 14 } = options;
 
@@ -133,8 +133,8 @@ export function dmi(
       continue;
     }
 
-    const pDi = 100 * pDm / atr;
-    const mDi = 100 * mDm / atr;
+    const pDi = (100 * pDm) / atr;
+    const mDi = (100 * mDm) / atr;
     plusDi.push(pDi);
     minusDi.push(mDi);
 
@@ -143,7 +143,7 @@ export function dmi(
     if (diSum === 0) {
       dx.push(0);
     } else {
-      dx.push(100 * Math.abs(pDi - mDi) / diSum);
+      dx.push((100 * Math.abs(pDi - mDi)) / diSum);
     }
   }
 
@@ -245,12 +245,4 @@ function wilderSmoothNullable(values: (number | null)[], period: number): (numbe
   }
 
   return result;
-}
-
-/**
- * Check if candles are already normalized
- */
-function isNormalized(candles: Candle[] | NormalizedCandle[]): candles is NormalizedCandle[] {
-  if (candles.length === 0) return true;
-  return typeof candles[0].time === "number";
 }

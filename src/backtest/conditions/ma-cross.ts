@@ -2,8 +2,8 @@
  * Moving Average Cross conditions
  */
 
-import type { PresetCondition, NormalizedCandle } from "../../types";
 import { sma } from "../../indicators/moving-average/sma";
+import type { NormalizedCandle, PresetCondition } from "../../types";
 
 // ============================================
 // Moving Average Cross Conditions
@@ -24,8 +24,12 @@ export function goldenCross(shortPeriod = 5, longPeriod = 25): PresetCondition {
       if (index < 1) return false;
 
       // Use cached or compute SMAs
-      let shortSma = indicators[`sma${shortPeriod}`] as { time: number; value: number | null }[] | undefined;
-      let longSma = indicators[`sma${longPeriod}`] as { time: number; value: number | null }[] | undefined;
+      let shortSma = indicators[`sma${shortPeriod}`] as
+        | { time: number; value: number | null }[]
+        | undefined;
+      let longSma = indicators[`sma${longPeriod}`] as
+        | { time: number; value: number | null }[]
+        | undefined;
 
       if (!shortSma) {
         shortSma = sma(candles, { period: shortPeriod });
@@ -63,8 +67,12 @@ export function deadCross(shortPeriod = 5, longPeriod = 25): PresetCondition {
     evaluate: (indicators, candle, index, candles) => {
       if (index < 1) return false;
 
-      let shortSma = indicators[`sma${shortPeriod}`] as { time: number; value: number | null }[] | undefined;
-      let longSma = indicators[`sma${longPeriod}`] as { time: number; value: number | null }[] | undefined;
+      let shortSma = indicators[`sma${shortPeriod}`] as
+        | { time: number; value: number | null }[]
+        | undefined;
+      let longSma = indicators[`sma${longPeriod}`] as
+        | { time: number; value: number | null }[]
+        | undefined;
 
       if (!shortSma) {
         shortSma = sma(candles, { period: shortPeriod });
@@ -159,8 +167,12 @@ export function validatedGoldenCross(options: ValidatedCrossOptions = {}): Prese
       if (index < Math.max(longPeriod, volumeMaPeriod, trendPeriod) + 1) return false;
 
       // Get/compute SMAs
-      let shortSma = indicators[`sma${shortPeriod}`] as { time: number; value: number | null }[] | undefined;
-      let longSma = indicators[`sma${longPeriod}`] as { time: number; value: number | null }[] | undefined;
+      let shortSma = indicators[`sma${shortPeriod}`] as
+        | { time: number; value: number | null }[]
+        | undefined;
+      let longSma = indicators[`sma${longPeriod}`] as
+        | { time: number; value: number | null }[]
+        | undefined;
 
       if (!shortSma) {
         shortSma = sma(candles, { period: shortPeriod });
@@ -241,8 +253,12 @@ export function validatedDeadCross(options: ValidatedCrossOptions = {}): PresetC
       if (index < Math.max(longPeriod, volumeMaPeriod, trendPeriod) + 1) return false;
 
       // Get/compute SMAs
-      let shortSma = indicators[`sma${shortPeriod}`] as { time: number; value: number | null }[] | undefined;
-      let longSma = indicators[`sma${longPeriod}`] as { time: number; value: number | null }[] | undefined;
+      let shortSma = indicators[`sma${shortPeriod}`] as
+        | { time: number; value: number | null }[]
+        | undefined;
+      let longSma = indicators[`sma${longPeriod}`] as
+        | { time: number; value: number | null }[]
+        | undefined;
 
       if (!shortSma) {
         shortSma = sma(candles, { period: shortPeriod });

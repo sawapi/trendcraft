@@ -2,7 +2,7 @@
  * Bollinger Bands indicator
  */
 
-import { getPrice, normalizeCandles } from "../../core/normalize";
+import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import type {
   BollingerBandsOptions,
   BollingerBandsValue,
@@ -32,7 +32,7 @@ import type {
  */
 export function bollingerBands(
   candles: Candle[] | NormalizedCandle[],
-  options: BollingerBandsOptions = {}
+  options: BollingerBandsOptions = {},
 ): Series<BollingerBandsValue> {
   const { period = 20, stdDev = 2, source = "close" } = options;
 
@@ -108,12 +108,4 @@ export function bollingerBands(
   }
 
   return result;
-}
-
-/**
- * Check if candles are already normalized
- */
-function isNormalized(candles: Candle[] | NormalizedCandle[]): candles is NormalizedCandle[] {
-  if (candles.length === 0) return true;
-  return typeof candles[0].time === "number";
 }

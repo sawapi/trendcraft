@@ -37,7 +37,10 @@ describe("parseTimeframe", () => {
 
 describe("resample", () => {
   // Helper to create candle at specific date
-  const makeCandle = (dateStr: string, ohlcv: [number, number, number, number, number]): NormalizedCandle => ({
+  const makeCandle = (
+    dateStr: string,
+    ohlcv: [number, number, number, number, number],
+  ): NormalizedCandle => ({
     time: Date.parse(dateStr),
     open: ohlcv[0],
     high: ohlcv[1],

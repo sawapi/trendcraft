@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest";
-import { and, or, not, evaluateCondition } from "../../conditions";
+import { describe, expect, it } from "vitest";
 import type { NormalizedCandle } from "../../../types";
+import { and, evaluateCondition, not, or } from "../../conditions";
 import { generateCandles } from "./test-helpers";
 
 describe("Condition combinators", () => {
@@ -59,7 +59,13 @@ describe("Custom function condition", () => {
     // Find a candle with close > 100
     const highPriceIndex = candles.findIndex((c) => c.close > 100);
     if (highPriceIndex >= 0) {
-      const result = evaluateCondition(customCondition, indicators, candles[highPriceIndex], highPriceIndex, candles);
+      const result = evaluateCondition(
+        customCondition,
+        indicators,
+        candles[highPriceIndex],
+        highPriceIndex,
+        candles,
+      );
       expect(result).toBe(true);
     }
   });

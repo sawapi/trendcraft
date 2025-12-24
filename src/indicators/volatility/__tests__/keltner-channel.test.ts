@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest";
-import { keltnerChannel } from "../keltner-channel";
+import { describe, expect, it } from "vitest";
 import type { NormalizedCandle } from "../../../types";
+import { keltnerChannel } from "../keltner-channel";
 
 describe("keltnerChannel", () => {
   // Sample data for testing (need enough for default EMA period of 20)
@@ -92,28 +92,28 @@ describe("keltnerChannel", () => {
 
   it("should throw error for invalid EMA period", () => {
     expect(() => keltnerChannel(sampleCandles, { emaPeriod: 0 })).toThrow(
-      "Keltner Channel EMA period must be at least 1"
+      "Keltner Channel EMA period must be at least 1",
     );
     expect(() => keltnerChannel(sampleCandles, { emaPeriod: -5 })).toThrow(
-      "Keltner Channel EMA period must be at least 1"
+      "Keltner Channel EMA period must be at least 1",
     );
   });
 
   it("should throw error for invalid ATR period", () => {
     expect(() => keltnerChannel(sampleCandles, { atrPeriod: 0 })).toThrow(
-      "Keltner Channel ATR period must be at least 1"
+      "Keltner Channel ATR period must be at least 1",
     );
     expect(() => keltnerChannel(sampleCandles, { atrPeriod: -5 })).toThrow(
-      "Keltner Channel ATR period must be at least 1"
+      "Keltner Channel ATR period must be at least 1",
     );
   });
 
   it("should throw error for invalid multiplier", () => {
     expect(() => keltnerChannel(sampleCandles, { multiplier: 0 })).toThrow(
-      "Keltner Channel multiplier must be positive"
+      "Keltner Channel multiplier must be positive",
     );
     expect(() => keltnerChannel(sampleCandles, { multiplier: -1 })).toThrow(
-      "Keltner Channel multiplier must be positive"
+      "Keltner Channel multiplier must be positive",
     );
   });
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { NormalizedCandle } from "../../types";
-import { stochastics, fastStochastics, slowStochastics } from "../momentum/stochastics";
+import { fastStochastics, slowStochastics, stochastics } from "../momentum/stochastics";
 
 describe("stochastics", () => {
   // Helper to create candles
@@ -33,13 +33,13 @@ describe("stochastics", () => {
         high: 100 + i * 2,
         low: 90 + i * 2,
         close: 95 + i * 2,
-      }))
+      })),
     );
 
     const result = stochastics(candles, { kPeriod: 5, dPeriod: 3, slowing: 1 });
 
     // After kPeriod, %K should have values
-    const validK = result.filter(r => r.value.k !== null);
+    const validK = result.filter((r) => r.value.k !== null);
     expect(validK.length).toBeGreaterThan(0);
 
     // %K should be between 0 and 100
@@ -89,7 +89,7 @@ describe("stochastics", () => {
         high: 100 + Math.sin(i * 0.5) * 10 + 10,
         low: 100 + Math.sin(i * 0.5) * 10 - 10,
         close: 100 + Math.sin(i * 0.5) * 10,
-      }))
+      })),
     );
 
     const fast = fastStochastics(candles, { kPeriod: 14, dPeriod: 3 });
@@ -114,13 +114,13 @@ describe("stochastics", () => {
         high: 100 + i,
         low: 90 + i,
         close: 95 + i,
-      }))
+      })),
     );
 
     const result = stochastics(candles, { kPeriod: 5, dPeriod: 3, slowing: 1 });
 
     // %D should lag behind %K
-    const validBoth = result.filter(r => r.value.k !== null && r.value.d !== null);
+    const validBoth = result.filter((r) => r.value.k !== null && r.value.d !== null);
     expect(validBoth.length).toBeGreaterThan(0);
 
     // All %D values should be between 0 and 100
@@ -149,11 +149,11 @@ describe("stochastics", () => {
         high: 100,
         low: 100,
         close: 100,
-      }))
+      })),
     );
 
     const result = stochastics(candles, { kPeriod: 5, dPeriod: 3, slowing: 1 });
-    const validK = result.filter(r => r.value.k !== null);
+    const validK = result.filter((r) => r.value.k !== null);
 
     // When range is 0, should return 50
     for (const r of validK) {

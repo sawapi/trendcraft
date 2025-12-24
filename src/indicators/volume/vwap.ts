@@ -5,8 +5,8 @@
  * It is commonly used by institutional investors as a benchmark.
  */
 
+import { isNormalized, normalizeCandles } from "../../core/normalize";
 import type { Candle, NormalizedCandle, Series } from "../../types";
-import { normalizeCandles } from "../../core/normalize";
 
 /**
  * VWAP options
@@ -56,7 +56,7 @@ export type VwapValue = {
  */
 export function vwap(
   candles: Candle[] | NormalizedCandle[],
-  options: VwapOptions = {}
+  options: VwapOptions = {},
 ): Series<VwapValue> {
   const { resetPeriod = "session", period = 20 } = options;
 
@@ -116,18 +116,23 @@ export function vwap(
     let cumulativeTpv = 0;
     let cumulativeVolume = 0;
     let sessionStart = 0;
-    let lastDay = -1;
+    let lastDayIndex = -1;
     const tpvHistory: { tp: number; volume: number }[] = [];
+
+    // Use integer day calculation to avoid Date object creation overhead
+    // This also correctly handles month/year boundaries unlike getDate()
+    const MS_PER_DAY = 86400000;
 
     for (let i = 0; i < normalized.length; i++) {
       const candle = normalized[i];
-      const currentDay = new Date(candle.time).getDate();
+      // Calculate day index (days since epoch) - faster than creating Date objects
+      const currentDayIndex = Math.floor(candle.time / MS_PER_DAY);
 
       // Check if we need to reset
       let shouldReset = false;
-      if (resetPeriod === "session" && currentDay !== lastDay && lastDay !== -1) {
+      if (resetPeriod === "session" && currentDayIndex !== lastDayIndex && lastDayIndex !== -1) {
         shouldReset = true;
-      } else if (typeof resetPeriod === "number" && (i - sessionStart) >= resetPeriod) {
+      } else if (typeof resetPeriod === "number" && i - sessionStart >= resetPeriod) {
         shouldReset = true;
       }
 
@@ -138,7 +143,7 @@ export function vwap(
         tpvHistory.length = 0;
       }
 
-      lastDay = currentDay;
+      lastDayIndex = currentDayIndex;
 
       const tp = (candle.high + candle.low + candle.close) / 3;
       cumulativeTpv += tp * candle.volume;
@@ -171,12 +176,4 @@ export function vwap(
   }
 
   return result;
-}
-
-/**
- * Check if candles are already normalized
- */
-function isNormalized(candles: Candle[] | NormalizedCandle[]): candles is NormalizedCandle[] {
-  if (candles.length === 0) return true;
-  return typeof candles[0].time === "number";
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { NormalizedCandle, Series } from "../../types";
-import { crossOver, crossUnder, goldenCross, deadCross, validateCrossSignals } from "../cross";
+import { crossOver, crossUnder, deadCross, goldenCross, validateCrossSignals } from "../cross";
 
 describe("crossOver", () => {
   it("should detect when series A crosses over series B", () => {
@@ -188,8 +188,17 @@ describe("goldenCross", () => {
   it("should detect golden cross with custom periods", () => {
     // Simpler test with shorter periods
     const prices = [
-      100, 99, 98, 97, 96, 95, // Declining - SMA3 below SMA5
-      94, 100, 110, 120, 130, // Rising - SMA3 should cross above SMA5
+      100,
+      99,
+      98,
+      97,
+      96,
+      95, // Declining - SMA3 below SMA5
+      94,
+      100,
+      110,
+      120,
+      130, // Rising - SMA3 should cross above SMA5
     ];
 
     const candles = makeCandles(prices);
@@ -204,10 +213,10 @@ describe("goldenCross", () => {
   it("should throw if short period >= long period", () => {
     const candles = makeCandles([100, 101, 102, 103, 104]);
     expect(() => goldenCross(candles, { short: 5, long: 5 })).toThrow(
-      "Short period must be less than long period"
+      "Short period must be less than long period",
     );
     expect(() => goldenCross(candles, { short: 10, long: 5 })).toThrow(
-      "Short period must be less than long period"
+      "Short period must be less than long period",
     );
   });
 
@@ -259,8 +268,17 @@ describe("deadCross", () => {
   it("should detect dead cross with custom periods", () => {
     // Simpler test with shorter periods
     const prices = [
-      100, 101, 102, 103, 104, 105, // Rising - SMA3 above SMA5
-      100, 90, 80, 70, 60, // Declining - SMA3 should cross below SMA5
+      100,
+      101,
+      102,
+      103,
+      104,
+      105, // Rising - SMA3 above SMA5
+      100,
+      90,
+      80,
+      70,
+      60, // Declining - SMA3 should cross below SMA5
     ];
 
     const candles = makeCandles(prices);
@@ -275,7 +293,7 @@ describe("deadCross", () => {
   it("should throw if short period >= long period", () => {
     const candles = makeCandles([100, 101, 102, 103, 104]);
     expect(() => deadCross(candles, { short: 5, long: 5 })).toThrow(
-      "Short period must be less than long period"
+      "Short period must be less than long period",
     );
   });
 

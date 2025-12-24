@@ -21,6 +21,19 @@
 - [ユーティリティ](#ユーティリティ)
   - [データ正規化](#データ正規化)
   - [リサンプリング](#リサンプリング)
+- [シグナルスコアリング](#シグナルスコアリング)
+  - [ScoreBuilder](#scorebuilder)
+  - [スコア計算](#スコア計算)
+  - [プリセット](#スコアリングプリセット)
+  - [バックテスト条件](#スコアリングバックテスト条件)
+- [ポジションサイジング](#ポジションサイジング)
+  - [リスクベース](#リスクベースサイジング)
+  - [ATRベース](#atrベースサイジング)
+  - [Kelly基準](#kelly基準)
+  - [固定比率](#固定比率)
+- [ATRリスク管理](#atrリスク管理)
+  - [シャンデリアエグジット](#シャンデリアエグジット)
+  - [ATRストップ](#atrストップ)
 - [型定義](#型定義)
 
 ---
@@ -1333,6 +1346,272 @@ const monthly = resample(dailyCandles, 'monthly');
 **サポートされるタイムフレーム:**
 - `'weekly'` または `'1w'`
 - `'monthly'` または `'1M'`
+
+---
+
+## シグナルスコアリング
+
+複数のテクニカルシグナルを重み付けして統合し、0-100の複合スコアを算出します。
+
+### ScoreBuilder
+
+スコアリング設定を構築するFluent API。
+
+```typescript
+import { ScoreBuilder, calculateScore } from 'trendcraft';
+
+const config = ScoreBuilder.create()
+  .addPOConfirmation(3.0)      // 重み: 3.0
+  .addRsiOversold(30, 2.0)     // 閾値: 30, 重み: 2.0
+  .addVolumeSpike(1.5, 1.5)    // 閾値: 1.5倍, 重み: 1.5
+  .addMacdBullish(1.5)
+  .setThresholds(70, 50, 30)   // strong, moderate, weak
+  .build();
+```
+
+**ビルダーメソッド:**
+
+| カテゴリ | メソッド | パラメータ | 説明 |
+|----------|----------|------------|------|
+| **モメンタム** | `addRsiOversold` | threshold?, weight?, period? | RSI売られすぎ |
+| | `addRsiOverbought` | threshold?, weight?, period? | RSI買われすぎ |
+| | `addMacdBullish` | weight? | MACD強気クロス |
+| | `addMacdBearish` | weight? | MACD弱気クロス |
+| | `addStochOversold` | threshold?, weight? | ストキャス売られすぎ |
+| | `addStochBullishCross` | threshold?, weight? | ストキャス%Kが%Dをクロス |
+| **トレンド** | `addPerfectOrderBullish` | weight? | パーフェクトオーダー強気 |
+| | `addPOConfirmation` | weight? | PO+確認シグナル |
+| | `addPullbackEntry` | maPeriod?, weight? | MAへの押し目 |
+| | `addGoldenCross` | short?, long?, weight? | ゴールデンクロス |
+| | `addPriceAboveEma` | period?, weight? | 価格がEMA上 |
+| **出来高** | `addVolumeSpike` | threshold?, weight? | 出来高急増 |
+| | `addVolumeAnomaly` | zThreshold?, weight? | 統計的異常値 |
+| | `addBullishVolumeTrend` | weight? | 出来高がトレンド確認 |
+| | `addCmfPositive` | threshold?, weight? | CMFプラス |
+| **設定** | `setThresholds` | strong, moderate, weak | スコア閾値 |
+| | `addSignal` | SignalDefinition | カスタムシグナル |
+| | `addSignals` | SignalDefinition[] | 複数シグナル |
+
+---
+
+### スコア計算
+
+#### `calculateScore(candles, index, config, context?)`
+
+特定のインデックスで複合スコアを計算。
+
+```typescript
+const result = calculateScore(candles, candles.length - 1, config);
+
+console.log(result.normalizedScore);  // 0-100
+console.log(result.strength);         // 'strong' | 'moderate' | 'weak' | 'none'
+console.log(result.activeSignals);    // アクティブなシグナル数
+```
+
+**戻り値:** `ScoreResult`
+
+```typescript
+interface ScoreResult {
+  rawScore: number;         // 重み付けスコアの合計
+  normalizedScore: number;  // 0-100正規化スコア
+  maxScore: number;         // 最大可能スコア
+  strength: 'strong' | 'moderate' | 'weak' | 'none';
+  activeSignals: number;    // 0より大きいシグナル数
+  totalSignals: number;     // 全シグナル数
+}
+```
+
+---
+
+#### `calculateScoreBreakdown(candles, index, config, context?)`
+
+各シグナルの貢献度の詳細を取得。
+
+```typescript
+const breakdown = calculateScoreBreakdown(candles, index, config);
+
+for (const c of breakdown.contributions) {
+  if (c.isActive) {
+    console.log(`${c.displayName}: +${c.score.toFixed(1)}`);
+  }
+}
+```
+
+---
+
+### スコアリングプリセット
+
+一般的なトレーディングスタイル向けの事前設定済みスコアリング戦略。
+
+```typescript
+import { getPreset, listPresets } from 'trendcraft';
+
+const config = getPreset('trendFollowing');
+const available = listPresets();  // ['momentum', 'meanReversion', 'trendFollowing', 'balanced']
+```
+
+| プリセット | フォーカス | 閾値 (S/M/W) | 説明 |
+|------------|------------|--------------|------|
+| `momentum` | RSI, MACD, Stoch | 70/50/30 | モメンタム重視 |
+| `meanReversion` | 売られすぎシグナル | 75/55/35 | 押し目買い戦略 |
+| `trendFollowing` | PO, 出来高 | 70/50/30 | トレンドフォロー |
+| `balanced` | 混合 | 70/50/30 | バランス型 |
+
+---
+
+### スコアリングバックテスト条件
+
+バックテストでスコアをエントリー/イグジット条件として使用。
+
+```typescript
+import { scoreAbove, scoreBelow, runBacktest } from 'trendcraft';
+
+const entry = scoreAbove(70, config);  // またはプリセット名: scoreAbove(70, 'trendFollowing')
+const exit = scoreBelow(30, config);
+
+const result = runBacktest(candles, entry, exit, { capital: 1000000 });
+```
+
+**条件関数:**
+
+| 関数 | パラメータ | 説明 |
+|------|------------|------|
+| `scoreAbove` | threshold, config | スコア >= 閾値 |
+| `scoreBelow` | threshold, config | スコア <= 閾値 |
+| `scoreStrength` | 'strong'\|'moderate'\|'weak', config | 強度マッチ |
+| `minActiveSignals` | count, config | 最小アクティブシグナル数 |
+
+---
+
+## ポジションサイジング
+
+リスク管理ルールに基づいて最適なポジションサイズを計算。
+
+### リスクベースサイジング
+
+リスク額とストップ距離からポジションサイズを計算。
+
+```typescript
+import { riskBasedSize } from 'trendcraft';
+
+const result = riskBasedSize({
+  accountSize: 100000,
+  entryPrice: 50,
+  stopLossPrice: 48,
+  riskPercent: 1,           // 口座の1%をリスク
+  maxPositionPercent: 25,   // 最大25%
+});
+
+// 結果: { shares: 500, positionValue: 25000, riskAmount: 1000, ... }
+```
+
+**計算式:** `株数 = リスク額 / ストップ幅`
+
+---
+
+### ATRベースサイジング
+
+ATRを使ってストップ距離を動的に設定。
+
+```typescript
+import { atrBasedSize } from 'trendcraft';
+
+const result = atrBasedSize({
+  accountSize: 100000,
+  entryPrice: 50,
+  atrValue: 2.5,
+  atrMultiplier: 2,     // 2倍ATRでストップ
+  riskPercent: 1,
+});
+// stopPrice: 45, shares: 200
+```
+
+---
+
+### Kelly基準
+
+勝率とペイオフ比率に基づく最適なベットサイジング。
+
+```typescript
+import { kellySize, calculateKellyPercent } from 'trendcraft';
+
+const kellyPct = calculateKellyPercent(0.6, 1.5);  // 33.3%
+
+const result = kellySize({
+  accountSize: 100000,
+  entryPrice: 50,
+  winRate: 0.6,
+  winLossRatio: 1.5,
+  kellyFraction: 0.5,     // ハーフKelly
+});
+```
+
+---
+
+### 固定比率
+
+シンプルな固定比率配分。
+
+```typescript
+import { fixedFractionalSize } from 'trendcraft';
+
+const result = fixedFractionalSize({
+  accountSize: 100000,
+  entryPrice: 50,
+  fractionPercent: 10,      // 1ポジションあたり10%
+});
+```
+
+---
+
+## ATRリスク管理
+
+ATRに基づく動的なストップロスと利確レベル。
+
+### シャンデリアエグジット
+
+高値からATRを引いたトレーリングストップ指標。
+
+```typescript
+import { chandelierExit } from 'trendcraft';
+
+const result = chandelierExit(candles, {
+  period: 22,
+  multiplier: 3.0,
+});
+
+const latest = result[result.length - 1].value;
+// { longExit: 95.5, shortExit: 105.2, direction: 1, isCrossover: false }
+```
+
+---
+
+### ATRストップ
+
+ATRからストップと利確レベルを計算。
+
+```typescript
+import { calculateAtrStops } from 'trendcraft';
+
+const stops = calculateAtrStops(candles, {
+  atrPeriod: 14,
+  stopMultiplier: 2.5,
+  takeProfitMultiplier: 4.0,
+});
+```
+
+**バックテスト連携:**
+
+```typescript
+const result = runBacktest(candles, entry, exit, {
+  capital: 1000000,
+  atrRisk: {
+    atrPeriod: 14,
+    atrStopMultiplier: 2.5,
+    atrTakeProfitMultiplier: 4.0,
+  },
+});
+```
 
 ---
 

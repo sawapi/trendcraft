@@ -2,7 +2,7 @@
  * Volume Moving Average indicator
  */
 
-import { normalizeCandles } from "../../core/normalize";
+import { isNormalized, normalizeCandles } from "../../core/normalize";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 
 /**
@@ -28,7 +28,7 @@ export type VolumeMaOptions = {
  */
 export function volumeMa(
   candles: Candle[] | NormalizedCandle[],
-  options: VolumeMaOptions
+  options: VolumeMaOptions,
 ): Series<number | null> {
   const { period, type = "sma" } = options;
 
@@ -100,12 +100,4 @@ function calculateVolumeEma(candles: NormalizedCandle[], period: number): Series
   }
 
   return result;
-}
-
-/**
- * Check if candles are already normalized
- */
-function isNormalized(candles: Candle[] | NormalizedCandle[]): candles is NormalizedCandle[] {
-  if (candles.length === 0) return true;
-  return typeof candles[0].time === "number";
 }

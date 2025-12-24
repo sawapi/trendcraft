@@ -22,6 +22,9 @@ A practical guide to understanding technical indicators and trading signals.
 - [Multi-Timeframe (MTF) Analysis](#multi-timeframe-mtf-analysis)
 - [Range-Bound Detection](#range-bound-detection)
 - [Backtesting](#backtesting)
+- [Signal Scoring](#signal-scoring)
+- [Position Sizing](#position-sizing)
+- [ATR Risk Management](#atr-risk-management)
 - [Signal Interpretation](#signal-interpretation)
 
 ---
@@ -1071,6 +1074,353 @@ const result = runBacktest(candles, entry, exit, {
 - Always account for commissions and slippage
 - Ensure you can tolerate the max drawdown
 - Use validated conditions (`validatedGoldenCross`) for better accuracy
+
+---
+
+## Signal Scoring
+
+### What is it?
+
+Signal scoring combines multiple technical indicators into a single composite score. Instead of relying on a single indicator, you can weight and combine various signals to get a more robust entry/exit decision.
+
+### Why Use Signal Scoring?
+
+```
+Single indicator = High false positive rate
+Multiple indicators = Confirmation, higher accuracy
+
+Score = Weighted sum of active signals
+High score = Multiple signals align = Higher confidence
+```
+
+### ScoreBuilder
+
+TrendCraft provides a fluent API to build custom scoring strategies:
+
+```typescript
+import { ScoreBuilder, calculateScore } from 'trendcraft';
+
+const config = ScoreBuilder.create()
+  .addPOConfirmation(3.0)      // Perfect Order (weight: 3.0)
+  .addRsiOversold(30, 2.0)     // RSI < 30 (weight: 2.0)
+  .addVolumeSpike(1.5, 1.5)    // Volume spike (weight: 1.5)
+  .addMacdBullish(1.5)         // MACD bullish
+  .setThresholds(70, 50, 30)   // strong, moderate, weak
+  .build();
+
+const result = calculateScore(candles, candles.length - 1, config);
+```
+
+### Available Signals
+
+| Category | Signal | Description |
+|----------|--------|-------------|
+| **Momentum** | `addRsiOversold(threshold, weight)` | RSI below threshold |
+| | `addRsiOverbought(threshold, weight)` | RSI above threshold |
+| | `addMacdBullish(weight)` | MACD bullish crossover |
+| | `addMacdBearish(weight)` | MACD bearish crossover |
+| | `addStochOversold(threshold, weight)` | Stochastics oversold |
+| | `addStochBullishCross(threshold, weight)` | Stoch bullish cross |
+| **Trend** | `addPerfectOrderBullish(weight)` | MA Perfect Order |
+| | `addPOConfirmation(weight)` | PO+ confirmation |
+| | `addPullbackEntry(period, weight)` | Pullback to MA |
+| | `addGoldenCross(short, long, weight)` | Golden cross |
+| | `addPriceAboveEma(period, weight)` | Price above EMA |
+| **Volume** | `addVolumeSpike(threshold, weight)` | Volume > threshold × avg |
+| | `addVolumeAnomaly(zThreshold, weight)` | Statistical anomaly |
+| | `addBullishVolumeTrend(weight)` | Volume confirms trend |
+| | `addCmfPositive(threshold, weight)` | CMF positive |
+
+### Score Interpretation
+
+```
+Score >= 70 → Strong signal (high confidence)
+Score >= 50 → Moderate signal (consider with caution)
+Score >= 30 → Weak signal (wait for more confirmation)
+Score < 30  → No signal (no action recommended)
+```
+
+### Presets
+
+TrendCraft provides pre-built scoring strategies:
+
+| Preset | Focus | Best For |
+|--------|-------|----------|
+| `momentum` | RSI, MACD, Stochastics | Swing trading |
+| `meanReversion` | Oversold conditions | Buying dips |
+| `trendFollowing` | Perfect Order, Volume | Following trends |
+| `balanced` | Mixed signals | General purpose |
+
+```typescript
+import { getPreset, scoreAbove } from 'trendcraft';
+
+// Use preset in backtest
+const result = TrendCraft.from(candles)
+  .strategy()
+    .entry(scoreAbove(70, "trendFollowing"))
+    .exit(deadCross())
+  .backtest({ capital: 1000000 });
+```
+
+### Tips
+
+- Start with presets, then customize based on your trading style
+- Higher weights = more important signals
+- Don't use too many signals (5-7 is usually enough)
+- Backtest your scoring strategy before using it live
+
+---
+
+## Position Sizing
+
+### What is it?
+
+Position sizing determines how much capital to allocate to each trade. Proper position sizing is crucial for risk management and long-term survival.
+
+### Why It Matters
+
+```
+Too large position = High risk, potential account blowup
+Too small position = Missed opportunities
+Optimal position = Risk control + Growth potential
+```
+
+### Methods
+
+TrendCraft provides four position sizing methods:
+
+#### 1. Risk-Based Sizing
+
+Calculate position size from your risk tolerance and stop distance:
+
+```typescript
+import { riskBasedSize } from 'trendcraft';
+
+const result = riskBasedSize({
+  accountSize: 100000,     // $100,000 account
+  entryPrice: 50,          // Entry at $50
+  stopLossPrice: 48,       // Stop at $48 (4% below entry)
+  riskPercent: 1,          // Risk 1% of account ($1,000)
+});
+
+// Result: 500 shares ($25,000 position)
+// If stopped out: lose $1,000 (1% of account)
+```
+
+**When to use:** Most common method. Good for any strategy with defined stop loss.
+
+#### 2. ATR-Based Sizing
+
+Use ATR (Average True Range) to set dynamic stop distance:
+
+```typescript
+import { atrBasedSize } from 'trendcraft';
+
+const result = atrBasedSize({
+  accountSize: 100000,
+  entryPrice: 50,
+  atrValue: 2.5,           // Current ATR = $2.50
+  atrMultiplier: 2,        // Stop = 2 × ATR = $5
+  riskPercent: 1,
+});
+
+// Stop at $45 (2 × ATR below entry)
+// Position size adjusts to volatility
+```
+
+**When to use:** When you want stop distance to adapt to market volatility.
+
+#### 3. Kelly Criterion
+
+Calculate optimal position size based on historical win rate:
+
+```typescript
+import { kellySize, calculateKellyPercent } from 'trendcraft';
+
+// Calculate optimal Kelly percentage
+const kellyPct = calculateKellyPercent(0.6, 1.5);
+// 60% win rate, 1.5 win/loss ratio → 33% Kelly
+
+const result = kellySize({
+  accountSize: 100000,
+  entryPrice: 50,
+  winRate: 0.6,
+  winLossRatio: 1.5,
+  kellyFraction: 0.5,      // Half Kelly (safer)
+});
+```
+
+**When to use:** When you have reliable historical statistics. Always use half or quarter Kelly for safety.
+
+#### 4. Fixed Fractional
+
+Simple percentage-based allocation:
+
+```typescript
+import { fixedFractionalSize } from 'trendcraft';
+
+const result = fixedFractionalSize({
+  accountSize: 100000,
+  entryPrice: 50,
+  fractionPercent: 10,     // 10% of account per trade
+});
+
+// Position: $10,000 = 200 shares
+```
+
+**When to use:** Simple diversification. Good for portfolio allocation.
+
+### Position Sizing Comparison
+
+| Method | Pros | Cons |
+|--------|------|------|
+| **Risk-Based** | Controlled risk per trade | Requires defined stop |
+| **ATR-Based** | Adapts to volatility | Needs ATR calculation |
+| **Kelly** | Mathematically optimal | Requires accurate stats |
+| **Fixed Fractional** | Simple, predictable | Doesn't consider risk |
+
+### Tips
+
+- **Never risk more than 1-2% per trade** for long-term survival
+- **Use maxPositionPercent** to cap position size
+- **ATR-based** is excellent for volatile markets
+- **Half Kelly** is safer than full Kelly (less drawdown)
+- **Fixed Fractional** works well for diversification across many positions
+
+---
+
+## ATR Risk Management
+
+### What is it?
+
+ATR (Average True Range) measures market volatility. ATR-based risk management uses this volatility measure to set dynamic stop losses and take profits that adapt to market conditions.
+
+### Why Use ATR for Risk Management?
+
+```
+Fixed % stop = Same distance regardless of volatility
+ATR-based stop = Adapts to current market volatility
+
+Volatile market → Wider stops (avoid noise)
+Calm market → Tighter stops (lock in profits)
+```
+
+### Chandelier Exit
+
+A trailing stop that follows price using ATR:
+
+```typescript
+import { chandelierExit } from 'trendcraft';
+
+const chandelier = chandelierExit(candles, {
+  period: 22,      // ATR period
+  multiplier: 3,   // 3x ATR from high/low
+});
+
+chandelier.forEach(({ time, value }) => {
+  console.log(`Long stop: ${value.longStop}`);
+  console.log(`Short stop: ${value.shortStop}`);
+});
+```
+
+**How it works:**
+- Long stop = Highest high - (multiplier × ATR)
+- Short stop = Lowest low + (multiplier × ATR)
+- Trails price, never moves against you
+
+### ATR-Based Stop Levels
+
+Calculate entry, stop, and take-profit levels:
+
+```typescript
+import { calculateAtrStops } from 'trendcraft';
+
+const levels = calculateAtrStops({
+  entryPrice: 100,
+  atrValue: 2.5,
+  stopMultiplier: 2,        // 2x ATR for stop
+  takeProfitMultiplier: 3,  // 3x ATR for take-profit
+  direction: 'long',
+});
+
+// Result:
+// stopPrice: 95 (100 - 2 × 2.5)
+// takeProfitPrice: 107.5 (100 + 3 × 2.5)
+// riskRewardRatio: 1.5
+```
+
+### Using ATR in Backtesting
+
+```typescript
+import { TrendCraft, goldenCross, deadCross } from 'trendcraft';
+
+const result = TrendCraft.from(candles)
+  .strategy()
+    .entry(goldenCross())
+    .exit(deadCross())
+  .backtest({
+    capital: 1000000,
+    atrRisk: {
+      enabled: true,
+      period: 14,            // ATR period
+      stopMultiplier: 2,     // 2x ATR stop
+      takeProfitMultiplier: 3, // 3x ATR take-profit
+    },
+  });
+```
+
+### ATR Multiplier Guidelines
+
+| Multiplier | Use Case | Stop Width |
+|------------|----------|------------|
+| 1.0-1.5 | Aggressive (tight stops) | Narrow |
+| 2.0-2.5 | Moderate (standard) | Medium |
+| 3.0+ | Conservative (wide stops) | Wide |
+
+### Tips
+
+- **2x ATR** is a common starting point for stops
+- **Higher multipliers** = fewer stop-outs but larger losses when hit
+- **Risk:Reward ratio** should be at least 1:1.5 or 1:2
+- **Chandelier Exit** works great as a trailing stop in trends
+- **Combine with position sizing** for complete risk management
+
+### Complete Risk Management Example
+
+```typescript
+import {
+  atrBasedSize,
+  calculateAtrStops,
+  atr
+} from 'trendcraft';
+
+// Calculate ATR
+const atrValues = atr(candles, { period: 14 });
+const currentAtr = atrValues[atrValues.length - 1].value;
+
+// Calculate position size
+const position = atrBasedSize({
+  accountSize: 100000,
+  entryPrice: 50,
+  atrValue: currentAtr,
+  atrMultiplier: 2,
+  riskPercent: 1,           // Risk 1% of account
+});
+
+// Calculate stop and take-profit
+const levels = calculateAtrStops({
+  entryPrice: 50,
+  atrValue: currentAtr,
+  stopMultiplier: 2,
+  takeProfitMultiplier: 3,
+  direction: 'long',
+});
+
+console.log(`Buy ${position.shares} shares at $50`);
+console.log(`Stop: ${levels.stopPrice}`);
+console.log(`Target: ${levels.takeProfitPrice}`);
+console.log(`Risk/Reward: 1:${levels.riskRewardRatio.toFixed(1)}`);
+```
 
 ---
 

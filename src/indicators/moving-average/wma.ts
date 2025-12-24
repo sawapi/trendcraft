@@ -5,9 +5,9 @@
  * to price changes than SMA.
  */
 
-import { getPrice } from "../../core/normalize";
-import type { Candle, NormalizedCandle, Series, PriceSource } from "../../types";
+import { getPrice, isNormalized } from "../../core/normalize";
 import { normalizeCandles } from "../../core/normalize";
+import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 
 /**
  * WMA options
@@ -41,7 +41,7 @@ export type WmaOptions = {
  */
 export function wma(
   candles: Candle[] | NormalizedCandle[],
-  options: WmaOptions
+  options: WmaOptions,
 ): Series<number | null> {
   const { period, source = "close" } = options;
 
@@ -73,12 +73,4 @@ export function wma(
   }
 
   return result;
-}
-
-/**
- * Check if candles are already normalized
- */
-function isNormalized(candles: Candle[] | NormalizedCandle[]): candles is NormalizedCandle[] {
-  if (candles.length === 0) return true;
-  return typeof candles[0].time === "number";
 }

@@ -3,44 +3,45 @@
  * Provides a chainable interface for technical analysis
  */
 
+import type { ExtendedCondition } from "../backtest/conditions/core";
+import { runBacktest } from "../backtest/engine";
+import type { MtfBacktestOptions } from "../backtest/engine";
+import { macd } from "../indicators/momentum/macd";
+import { rsi } from "../indicators/momentum/rsi";
+import { ema } from "../indicators/moving-average/ema";
+import { sma } from "../indicators/moving-average/sma";
+import { highest, lowest } from "../indicators/price/highest-lowest";
+import { returns } from "../indicators/price/returns";
+import { parabolicSar } from "../indicators/trend/parabolic-sar";
+import type { ParabolicSarValue } from "../indicators/trend/parabolic-sar";
+import { atr } from "../indicators/volatility/atr";
+import { bollingerBands } from "../indicators/volatility/bollinger-bands";
+import { keltnerChannel } from "../indicators/volatility/keltner-channel";
+import type { KeltnerChannelValue } from "../indicators/volatility/keltner-channel";
+import { cmf } from "../indicators/volume/cmf";
+import { volumeAnomaly } from "../indicators/volume/volume-anomaly";
+import { volumeMa } from "../indicators/volume/volume-ma";
+import { volumeProfile, volumeProfileSeries } from "../indicators/volume/volume-profile";
+import { volumeTrend } from "../indicators/volume/volume-trend";
 import type {
+  BacktestOptions,
+  BacktestResult,
   BollingerBandsValue,
   Candle,
+  Condition,
   MacdValue,
   NormalizedCandle,
   PriceSource,
   Series,
   Timeframe,
   TimeframeShorthand,
-  Condition,
-  BacktestOptions,
-  BacktestResult,
   VolumeAnomalyValue,
   VolumeProfileValue,
   VolumeTrendValue,
 } from "../types";
-import { sma } from "../indicators/moving-average/sma";
-import { ema } from "../indicators/moving-average/ema";
-import { rsi } from "../indicators/momentum/rsi";
-import { macd } from "../indicators/momentum/macd";
-import { bollingerBands } from "../indicators/volatility/bollinger-bands";
-import { atr } from "../indicators/volatility/atr";
-import { keltnerChannel } from "../indicators/volatility/keltner-channel";
-import { volumeMa } from "../indicators/volume/volume-ma";
-import { cmf } from "../indicators/volume/cmf";
-import { volumeAnomaly } from "../indicators/volume/volume-anomaly";
-import { volumeProfile, volumeProfileSeries } from "../indicators/volume/volume-profile";
-import { volumeTrend } from "../indicators/volume/volume-trend";
-import { highest, lowest } from "../indicators/price/highest-lowest";
-import { returns } from "../indicators/price/returns";
-import { parabolicSar } from "../indicators/trend/parabolic-sar";
+import { isNormalized } from "./normalize";
 import { normalizeCandles } from "./normalize";
 import { resample } from "./resample";
-import { runBacktest } from "../backtest/engine";
-import type { MtfBacktestOptions } from "../backtest/engine";
-import type { ExtendedCondition } from "../backtest/conditions/core";
-import type { ParabolicSarValue } from "../indicators/trend/parabolic-sar";
-import type { KeltnerChannelValue } from "../indicators/volatility/keltner-channel";
 
 /**
  * Indicator specification for lazy evaluation
@@ -57,7 +58,13 @@ type IndicatorSpec =
   | { type: "lowest"; period: number; key: string }
   | { type: "returns"; period: number; returnType: "simple" | "log"; key: string }
   | { type: "parabolicSar"; step: number; max: number; key: string }
-  | { type: "keltnerChannel"; emaPeriod: number; atrPeriod: number; multiplier: number; key: string }
+  | {
+      type: "keltnerChannel";
+      emaPeriod: number;
+      atrPeriod: number;
+      multiplier: number;
+      key: string;
+    }
   | { type: "cmf"; period: number; key: string }
   | { type: "volumeAnomaly"; period: number; highThreshold: number; key: string }
   | { type: "volumeProfileSeries"; period: number; key: string }
@@ -540,7 +547,7 @@ export class TrendCraftMtf extends TrendCraft {
     candles: NormalizedCandle[],
     mtfTimeframes: TimeframeShorthand[],
     pipeline: IndicatorSpec[] = [],
-    cache: Map<string, Series<unknown>> = new Map()
+    cache: Map<string, Series<unknown>> = new Map(),
   ) {
     super(candles);
     this._pipeline = pipeline;
@@ -554,12 +561,4 @@ export class TrendCraftMtf extends TrendCraft {
   strategy(): MtfStrategyBuilder {
     return new MtfStrategyBuilder(this.candles, this._mtfTimeframes);
   }
-}
-
-/**
- * Check if candles are already normalized
- */
-function isNormalized(candles: Candle[] | NormalizedCandle[]): candles is NormalizedCandle[] {
-  if (candles.length === 0) return true;
-  return typeof candles[0].time === "number";
 }

@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest";
-import { rsiBelow, rsiAbove, evaluateCondition } from "../../conditions";
+import { describe, expect, it } from "vitest";
 import type { NormalizedCandle } from "../../../types";
+import { evaluateCondition, rsiAbove, rsiBelow } from "../../conditions";
 
 describe("rsiBelow()", () => {
   it("should detect RSI below threshold", () => {

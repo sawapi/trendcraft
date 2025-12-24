@@ -7,7 +7,7 @@ import type { RangeBoundOptions } from "./types";
 export function calculateAdxScore(
   adx: number | null,
   adxThreshold: number,
-  adxTrendThreshold: number
+  adxTrendThreshold: number,
 ): number {
   if (adx === null) return 50; // Neutral when no data
 
@@ -15,7 +15,7 @@ export function calculateAdxScore(
   if (adx >= adxTrendThreshold) return 0;
 
   // Linear interpolation between thresholds
-  return Math.round(100 * (adxTrendThreshold - adx) / (adxTrendThreshold - adxThreshold));
+  return Math.round((100 * (adxTrendThreshold - adx)) / (adxTrendThreshold - adxThreshold));
 }
 
 /**
@@ -25,7 +25,7 @@ export function calculateAdxScore(
 export function calculatePercentileScore(
   currentValue: number | null,
   history: number[],
-  lookback: number
+  lookback: number,
 ): number {
   if (currentValue === null) return 50; // Neutral when no data
 
@@ -50,7 +50,7 @@ export function calculateRangeScore(
   bandwidthScore: number,
   donchianScore: number,
   atrScore: number,
-  opts: Required<RangeBoundOptions>
+  opts: Required<RangeBoundOptions>,
 ): number {
   const totalWeight = opts.adxWeight + opts.bandwidthWeight + opts.donchianWeight + opts.atrWeight;
 

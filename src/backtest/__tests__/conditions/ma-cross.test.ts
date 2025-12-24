@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { goldenCross, deadCross, evaluateCondition } from "../../conditions";
+import { describe, expect, it } from "vitest";
+import { deadCross, evaluateCondition, goldenCross } from "../../conditions";
 import { generateCandles, generateUptrendCandles } from "./test-helpers";
 
 describe("goldenCross()", () => {

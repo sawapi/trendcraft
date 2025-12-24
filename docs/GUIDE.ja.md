@@ -22,6 +22,9 @@
 - [マルチタイムフレーム（MTF）分析](#マルチタイムフレームmtf分析)
 - [レンジ相場検出](#レンジ相場検出)
 - [バックテスト](#バックテスト)
+- [シグナルスコアリング](#シグナルスコアリング)
+- [ポジションサイジング](#ポジションサイジング)
+- [ATRリスク管理](#atrリスク管理)
 - [シグナルの解釈](#シグナルの解釈)
 
 ---
@@ -1067,6 +1070,353 @@ const result = runBacktest(candles, entry, exit, {
 - 手数料とスリッページを必ず考慮
 - 最大ドローダウンに耐えられるか確認
 - だまし検出（`validatedGoldenCross`等）で精度を上げる
+
+---
+
+## シグナルスコアリング
+
+### シグナルスコアリングとは？
+
+シグナルスコアリングは、複数のテクニカル指標を単一のスコアに統合する手法です。単一の指標に頼るのではなく、様々なシグナルに重みを付けて組み合わせることで、より信頼性の高いエントリー/エグジット判断ができます。
+
+### なぜスコアリングを使うのか？
+
+```
+単一指標 = だましが多い
+複数指標 = 確認が取れる、精度向上
+
+スコア = アクティブなシグナルの重み付け合計
+高スコア = 複数のシグナルが一致 = 高い信頼度
+```
+
+### ScoreBuilder
+
+TrendCraftはカスタムスコアリング戦略を構築するFluent APIを提供しています：
+
+```typescript
+import { ScoreBuilder, calculateScore } from 'trendcraft';
+
+const config = ScoreBuilder.create()
+  .addPOConfirmation(3.0)      // パーフェクトオーダー (重み: 3.0)
+  .addRsiOversold(30, 2.0)     // RSI < 30 (重み: 2.0)
+  .addVolumeSpike(1.5, 1.5)    // 出来高スパイク (重み: 1.5)
+  .addMacdBullish(1.5)         // MACDブリッシュ
+  .setThresholds(70, 50, 30)   // strong, moderate, weak
+  .build();
+
+const result = calculateScore(candles, candles.length - 1, config);
+```
+
+### 利用可能なシグナル
+
+| カテゴリ | シグナル | 説明 |
+|---------|---------|------|
+| **モメンタム** | `addRsiOversold(閾値, 重み)` | RSIが閾値未満 |
+| | `addRsiOverbought(閾値, 重み)` | RSIが閾値超え |
+| | `addMacdBullish(重み)` | MACDブリッシュクロス |
+| | `addMacdBearish(重み)` | MACDベアリッシュクロス |
+| | `addStochOversold(閾値, 重み)` | ストキャスティクス売られすぎ |
+| | `addStochBullishCross(閾値, 重み)` | ストキャスブリッシュクロス |
+| **トレンド** | `addPerfectOrderBullish(重み)` | MAパーフェクトオーダー |
+| | `addPOConfirmation(重み)` | PO+確認 |
+| | `addPullbackEntry(期間, 重み)` | MAへの押し目 |
+| | `addGoldenCross(短期, 長期, 重み)` | ゴールデンクロス |
+| | `addPriceAboveEma(期間, 重み)` | 価格がEMAより上 |
+| **出来高** | `addVolumeSpike(閾値, 重み)` | 出来高 > 閾値×平均 |
+| | `addVolumeAnomaly(z閾値, 重み)` | 統計的異常 |
+| | `addBullishVolumeTrend(重み)` | 出来高がトレンド確認 |
+| | `addCmfPositive(閾値, 重み)` | CMFがプラス |
+
+### スコアの解釈
+
+```
+スコア >= 70 → 強いシグナル（高い信頼度）
+スコア >= 50 → 中程度のシグナル（慎重に検討）
+スコア >= 30 → 弱いシグナル（追加確認を待つ）
+スコア < 30  → シグナルなし（アクション推奨なし）
+```
+
+### プリセット
+
+TrendCraftは事前構築されたスコアリング戦略を提供しています：
+
+| プリセット | フォーカス | 最適な用途 |
+|-----------|-----------|-----------|
+| `momentum` | RSI、MACD、ストキャス | スイングトレード |
+| `meanReversion` | 売られすぎ条件 | 押し目買い |
+| `trendFollowing` | パーフェクトオーダー、出来高 | トレンドフォロー |
+| `balanced` | 混合シグナル | 汎用 |
+
+```typescript
+import { getPreset, scoreAbove } from 'trendcraft';
+
+// プリセットをバックテストで使用
+const result = TrendCraft.from(candles)
+  .strategy()
+    .entry(scoreAbove(70, "trendFollowing"))
+    .exit(deadCross())
+  .backtest({ capital: 1000000 });
+```
+
+### ポイント
+
+- プリセットから始めて、トレードスタイルに合わせてカスタマイズ
+- 重みが高い = より重要なシグナル
+- シグナルを多くしすぎない（5〜7個が目安）
+- ライブで使用する前にバックテストで検証
+
+---
+
+## ポジションサイジング
+
+### ポジションサイジングとは？
+
+ポジションサイジングは、各トレードにどれだけの資金を配分するかを決定します。適切なポジションサイジングはリスク管理と長期的な生存に不可欠です。
+
+### なぜ重要か？
+
+```
+大きすぎるポジション = 高リスク、口座破綻の可能性
+小さすぎるポジション = 機会損失
+最適なポジション = リスクコントロール + 成長ポテンシャル
+```
+
+### 4つの手法
+
+TrendCraftは4つのポジションサイジング手法を提供しています：
+
+#### 1. リスクベース
+
+リスク許容度とストップ距離からポジションサイズを計算：
+
+```typescript
+import { riskBasedSize } from 'trendcraft';
+
+const result = riskBasedSize({
+  accountSize: 100000,     // 口座資金100万円
+  entryPrice: 50,          // エントリー価格50円
+  stopLossPrice: 48,       // ストップ48円（4%下）
+  riskPercent: 1,          // 口座の1%をリスク（1000円）
+});
+
+// 結果: 500株（25,000円ポジション）
+// ストップアウト時: 1,000円の損失（口座の1%）
+```
+
+**使い時:** 最も一般的な手法。ストップロスが定義されている戦略に適している。
+
+#### 2. ATRベース
+
+ATR（真の値幅）を使って動的にストップ距離を設定：
+
+```typescript
+import { atrBasedSize } from 'trendcraft';
+
+const result = atrBasedSize({
+  accountSize: 100000,
+  entryPrice: 50,
+  atrValue: 2.5,           // 現在のATR = 2.5円
+  atrMultiplier: 2,        // ストップ = 2 × ATR = 5円
+  riskPercent: 1,
+});
+
+// ストップ45円（エントリーから2×ATR下）
+// ポジションサイズがボラティリティに適応
+```
+
+**使い時:** ストップ距離を市場のボラティリティに適応させたい場合。
+
+#### 3. ケリー基準
+
+過去の勝率に基づいて最適なポジションサイズを計算：
+
+```typescript
+import { kellySize, calculateKellyPercent } from 'trendcraft';
+
+// 最適ケリー比率を計算
+const kellyPct = calculateKellyPercent(0.6, 1.5);
+// 勝率60%、ペイオフレシオ1.5 → ケリー33%
+
+const result = kellySize({
+  accountSize: 100000,
+  entryPrice: 50,
+  winRate: 0.6,
+  winLossRatio: 1.5,
+  kellyFraction: 0.5,      // ハーフケリー（より安全）
+});
+```
+
+**使い時:** 信頼できる過去の統計がある場合。安全のため常にハーフまたはクォーターケリーを使用。
+
+#### 4. 固定比率
+
+シンプルな割合ベースの配分：
+
+```typescript
+import { fixedFractionalSize } from 'trendcraft';
+
+const result = fixedFractionalSize({
+  accountSize: 100000,
+  entryPrice: 50,
+  fractionPercent: 10,     // 口座の10%
+});
+
+// ポジション: 10,000円 = 200株
+```
+
+**使い時:** シンプルな分散投資。ポートフォリオ配分に適している。
+
+### ポジションサイジング比較
+
+| 手法 | メリット | デメリット |
+|------|---------|-----------|
+| **リスクベース** | トレードごとのリスクをコントロール | ストップ定義が必要 |
+| **ATRベース** | ボラティリティに適応 | ATR計算が必要 |
+| **ケリー** | 数学的に最適 | 正確な統計が必要 |
+| **固定比率** | シンプルで予測可能 | リスクを考慮しない |
+
+### ポイント
+
+- **1トレードあたり1〜2%以上のリスクは取らない**（長期生存のため）
+- **maxPositionPercent**でポジションサイズに上限を設定
+- **ATRベース**はボラティリティの高い市場で優れている
+- **ハーフケリー**はフルケリーより安全（ドローダウンが少ない）
+- **固定比率**は多数のポジションに分散する場合に有効
+
+---
+
+## ATRリスク管理
+
+### ATRリスク管理とは？
+
+ATR（真の値幅）は市場のボラティリティを測定します。ATRベースのリスク管理は、このボラティリティ指標を使って市場状況に適応する動的なストップロスと利確レベルを設定します。
+
+### なぜATRを使うのか？
+
+```
+固定%ストップ = ボラティリティに関係なく同じ距離
+ATRベースストップ = 現在の市場ボラティリティに適応
+
+ボラティリティが高い市場 → 広いストップ（ノイズを回避）
+穏やかな市場 → タイトなストップ（利益を確保）
+```
+
+### シャンデリアイグジット
+
+ATRを使った価格追従型トレーリングストップ：
+
+```typescript
+import { chandelierExit } from 'trendcraft';
+
+const chandelier = chandelierExit(candles, {
+  period: 22,      // ATR期間
+  multiplier: 3,   // 高値/安値から3×ATR
+});
+
+chandelier.forEach(({ time, value }) => {
+  console.log(`ロングストップ: ${value.longStop}`);
+  console.log(`ショートストップ: ${value.shortStop}`);
+});
+```
+
+**仕組み:**
+- ロングストップ = 最高値 - (倍率 × ATR)
+- ショートストップ = 最安値 + (倍率 × ATR)
+- 価格を追従し、逆方向には動かない
+
+### ATRベースのストップレベル
+
+エントリー、ストップ、利確レベルを計算：
+
+```typescript
+import { calculateAtrStops } from 'trendcraft';
+
+const levels = calculateAtrStops({
+  entryPrice: 100,
+  atrValue: 2.5,
+  stopMultiplier: 2,        // 2×ATRでストップ
+  takeProfitMultiplier: 3,  // 3×ATRで利確
+  direction: 'long',
+});
+
+// 結果:
+// stopPrice: 95 (100 - 2 × 2.5)
+// takeProfitPrice: 107.5 (100 + 3 × 2.5)
+// riskRewardRatio: 1.5
+```
+
+### バックテストでATRを使用
+
+```typescript
+import { TrendCraft, goldenCross, deadCross } from 'trendcraft';
+
+const result = TrendCraft.from(candles)
+  .strategy()
+    .entry(goldenCross())
+    .exit(deadCross())
+  .backtest({
+    capital: 1000000,
+    atrRisk: {
+      enabled: true,
+      period: 14,            // ATR期間
+      stopMultiplier: 2,     // 2×ATRストップ
+      takeProfitMultiplier: 3, // 3×ATR利確
+    },
+  });
+```
+
+### ATR倍率ガイドライン
+
+| 倍率 | 用途 | ストップ幅 |
+|------|------|----------|
+| 1.0-1.5 | アグレッシブ（タイトストップ） | 狭い |
+| 2.0-2.5 | 適度（標準） | 中程度 |
+| 3.0+ | 保守的（ワイドストップ） | 広い |
+
+### ポイント
+
+- **2×ATR**がストップの一般的な出発点
+- **高い倍率** = ストップアウトは少ないが、ヒット時の損失は大きい
+- **リスク:リワード比**は最低1:1.5または1:2を目指す
+- **シャンデリアイグジット**はトレンドでのトレーリングストップとして優秀
+- **ポジションサイジングと組み合わせ**て完全なリスク管理を実現
+
+### 完全なリスク管理の例
+
+```typescript
+import {
+  atrBasedSize,
+  calculateAtrStops,
+  atr
+} from 'trendcraft';
+
+// ATRを計算
+const atrValues = atr(candles, { period: 14 });
+const currentAtr = atrValues[atrValues.length - 1].value;
+
+// ポジションサイズを計算
+const position = atrBasedSize({
+  accountSize: 100000,
+  entryPrice: 50,
+  atrValue: currentAtr,
+  atrMultiplier: 2,
+  riskPercent: 1,           // 口座の1%をリスク
+});
+
+// ストップと利確を計算
+const levels = calculateAtrStops({
+  entryPrice: 50,
+  atrValue: currentAtr,
+  stopMultiplier: 2,
+  takeProfitMultiplier: 3,
+  direction: 'long',
+});
+
+console.log(`${position.shares}株を50円で購入`);
+console.log(`ストップ: ${levels.stopPrice}`);
+console.log(`ターゲット: ${levels.takeProfitPrice}`);
+console.log(`リスク/リワード: 1:${levels.riskRewardRatio.toFixed(1)}`);
+```
 
 ---
 

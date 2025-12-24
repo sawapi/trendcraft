@@ -5,8 +5,8 @@
  * over a given period. Used to identify overbought/oversold conditions.
  */
 
+import { isNormalized, normalizeCandles } from "../../core/normalize";
 import type { Candle, NormalizedCandle, Series } from "../../types";
-import { normalizeCandles } from "../../core/normalize";
 
 /**
  * CCI options
@@ -45,7 +45,7 @@ export type CciOptions = {
  */
 export function cci(
   candles: Candle[] | NormalizedCandle[],
-  options: CciOptions = {}
+  options: CciOptions = {},
 ): Series<number | null> {
   const { period = 20, constant = 0.015 } = options;
 
@@ -59,9 +59,7 @@ export function cci(
   const result: Series<number | null> = [];
 
   // Calculate typical prices
-  const typicalPrices: number[] = normalized.map(
-    (c) => (c.high + c.low + c.close) / 3
-  );
+  const typicalPrices: number[] = normalized.map((c) => (c.high + c.low + c.close) / 3);
 
   for (let i = 0; i < normalized.length; i++) {
     if (i < period - 1) {
@@ -95,12 +93,4 @@ export function cci(
   }
 
   return result;
-}
-
-/**
- * Check if candles are already normalized
- */
-function isNormalized(candles: Candle[] | NormalizedCandle[]): candles is NormalizedCandle[] {
-  if (candles.length === 0) return true;
-  return typeof candles[0].time === "number";
 }

@@ -2,7 +2,7 @@
  * Highest/Lowest price indicators
  */
 
-import { normalizeCandles } from "../../core/normalize";
+import { isNormalized, normalizeCandles } from "../../core/normalize";
 import type { Candle, HighestLowestOptions, NormalizedCandle, Series } from "../../types";
 
 /**
@@ -29,7 +29,7 @@ export type HighestLowestValue = {
  */
 export function highestLowest(
   candles: Candle[] | NormalizedCandle[],
-  options: HighestLowestOptions
+  options: HighestLowestOptions,
 ): Series<HighestLowestValue> {
   const { period } = options;
 
@@ -49,8 +49,8 @@ export function highestLowest(
         value: { highest: null, lowest: null },
       });
     } else {
-      let highest = -Infinity;
-      let lowest = Infinity;
+      let highest = Number.NEGATIVE_INFINITY;
+      let lowest = Number.POSITIVE_INFINITY;
 
       for (let j = 0; j < period; j++) {
         const candle = normalized[i - j];
@@ -77,7 +77,7 @@ export function highestLowest(
  */
 export function highest(
   candles: Candle[] | NormalizedCandle[],
-  period: number
+  period: number,
 ): Series<number | null> {
   if (period < 1) {
     throw new Error("Period must be at least 1");
@@ -90,7 +90,7 @@ export function highest(
     if (i < period - 1) {
       result.push({ time: normalized[i].time, value: null });
     } else {
-      let max = -Infinity;
+      let max = Number.NEGATIVE_INFINITY;
       for (let j = 0; j < period; j++) {
         if (normalized[i - j].high > max) {
           max = normalized[i - j].high;
@@ -112,7 +112,7 @@ export function highest(
  */
 export function lowest(
   candles: Candle[] | NormalizedCandle[],
-  period: number
+  period: number,
 ): Series<number | null> {
   if (period < 1) {
     throw new Error("Period must be at least 1");
@@ -125,7 +125,7 @@ export function lowest(
     if (i < period - 1) {
       result.push({ time: normalized[i].time, value: null });
     } else {
-      let min = Infinity;
+      let min = Number.POSITIVE_INFINITY;
       for (let j = 0; j < period; j++) {
         if (normalized[i - j].low < min) {
           min = normalized[i - j].low;
@@ -136,12 +136,4 @@ export function lowest(
   }
 
   return result;
-}
-
-/**
- * Check if candles are already normalized
- */
-function isNormalized(candles: Candle[] | NormalizedCandle[]): candles is NormalizedCandle[] {
-  if (candles.length === 0) return true;
-  return typeof candles[0].time === "number";
 }

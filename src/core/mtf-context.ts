@@ -5,13 +5,8 @@
  * Enables conditions that evaluate indicators across different timeframes.
  */
 
-import type {
-  MtfContext,
-  MtfDataset,
-  NormalizedCandle,
-  TimeframeShorthand,
-} from "../types";
-import { resample, parseTimeframe } from "./resample";
+import type { MtfContext, MtfDataset, NormalizedCandle, TimeframeShorthand } from "../types";
+import { parseTimeframe, resample } from "./resample";
 
 /**
  * Create an MTF context from base timeframe candles
@@ -33,7 +28,7 @@ import { resample, parseTimeframe } from "./resample";
  */
 export function createMtfContext(
   baseCandles: NormalizedCandle[],
-  timeframes: TimeframeShorthand[]
+  timeframes: TimeframeShorthand[],
 ): MtfContext {
   const datasets = new Map<TimeframeShorthand, MtfDataset>();
   const indices = new Map<TimeframeShorthand, number>();
@@ -68,7 +63,7 @@ export function createMtfContext(
  */
 export function buildMtfIndexMap(
   baseCandles: NormalizedCandle[],
-  mtfContext: MtfContext
+  mtfContext: MtfContext,
 ): Map<TimeframeShorthand, number[]> {
   const indexMap = new Map<TimeframeShorthand, number[]>();
 
@@ -113,7 +108,7 @@ export function updateMtfIndices(
   mtfContext: MtfContext,
   indexMap: Map<TimeframeShorthand, number[]>,
   baseIndex: number,
-  baseTime: number
+  baseTime: number,
 ): void {
   mtfContext.currentTime = baseTime;
 
@@ -133,7 +128,7 @@ export function updateMtfIndices(
  */
 export function getMtfCandle(
   mtfContext: MtfContext,
-  timeframe: TimeframeShorthand
+  timeframe: TimeframeShorthand,
 ): NormalizedCandle | null {
   const dataset = mtfContext.datasets.get(timeframe);
   const index = mtfContext.indices.get(timeframe);
@@ -156,7 +151,7 @@ export function getMtfCandle(
 export function getMtfIndicator<T>(
   mtfContext: MtfContext,
   timeframe: TimeframeShorthand,
-  indicatorKey: string
+  indicatorKey: string,
 ): T | undefined {
   const dataset = mtfContext.datasets.get(timeframe);
   if (!dataset) return undefined;
@@ -176,7 +171,7 @@ export function setMtfIndicator<T>(
   mtfContext: MtfContext,
   timeframe: TimeframeShorthand,
   indicatorKey: string,
-  value: T
+  value: T,
 ): void {
   const dataset = mtfContext.datasets.get(timeframe);
   if (dataset) {
@@ -195,7 +190,7 @@ export function setMtfIndicator<T>(
 export function getCurrentMtfIndicatorValue<T>(
   mtfContext: MtfContext,
   timeframe: TimeframeShorthand,
-  indicatorKey: string
+  indicatorKey: string,
 ): T | null {
   const dataset = mtfContext.datasets.get(timeframe);
   const index = mtfContext.indices.get(timeframe);
@@ -215,10 +210,7 @@ export function getCurrentMtfIndicatorValue<T>(
 /**
  * Check if MTF context has a specific timeframe
  */
-export function hasMtfTimeframe(
-  mtfContext: MtfContext,
-  timeframe: TimeframeShorthand
-): boolean {
+export function hasMtfTimeframe(mtfContext: MtfContext, timeframe: TimeframeShorthand): boolean {
   return mtfContext.datasets.has(timeframe);
 }
 
@@ -246,10 +238,7 @@ export function normalizeTimeframe(tf: TimeframeShorthand): TimeframeShorthand {
  * Check if timeframe A is higher than timeframe B
  * (e.g., weekly is higher than daily)
  */
-export function isHigherTimeframe(
-  tfA: TimeframeShorthand,
-  tfB: TimeframeShorthand
-): boolean {
+export function isHigherTimeframe(tfA: TimeframeShorthand, tfB: TimeframeShorthand): boolean {
   const order: Record<string, number> = {
     "1m": 1,
     "5m": 5,

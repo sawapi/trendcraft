@@ -14,13 +14,13 @@ export type SlopeDirection = "UP" | "DOWN" | "FLAT";
  * Enhanced perfect order state (7 states)
  */
 export type PerfectOrderState =
-  | "BULLISH_PO"      // Confirmed bullish perfect order
-  | "BEARISH_PO"      // Confirmed bearish perfect order
-  | "COLLAPSED"       // MA convergence (energy accumulation)
-  | "PRE_BULLISH_PO"  // Forming bullish (not yet confirmed)
-  | "PRE_BEARISH_PO"  // Forming bearish (not yet confirmed)
-  | "PO_BREAKDOWN"    // Perfect order breaking down
-  | "NEUTRAL_MIXED";  // No clear pattern
+  | "BULLISH_PO" // Confirmed bullish perfect order
+  | "BEARISH_PO" // Confirmed bearish perfect order
+  | "COLLAPSED" // MA convergence (energy accumulation)
+  | "PRE_BULLISH_PO" // Forming bullish (not yet confirmed)
+  | "PRE_BEARISH_PO" // Forming bearish (not yet confirmed)
+  | "PO_BREAKDOWN" // Perfect order breaking down
+  | "NEUTRAL_MIXED"; // No clear pattern
 
 /**
  * Perfect order result for each candle
@@ -101,6 +101,6 @@ export const DEFAULT_HYSTERESIS_MARGIN = 0.01;
 export const ENHANCED_DEFAULTS = {
   slopeLookback: 3,
   persistBars: 3,
-  collapseEps: 0.003,  // 0.3%
-  flatEps: 0.001,      // 0.1% per bar
+  collapseEps: 0.003, // 0.3%
+  flatEps: 0.001, // 0.1% per bar
 };

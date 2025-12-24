@@ -5,7 +5,7 @@
  * Key principle: Healthy trends should be supported by increasing volume.
  */
 
-import { normalizeCandles } from "../../core/normalize";
+import { isNormalized, normalizeCandles } from "../../core/normalize";
 import type { Candle, NormalizedCandle, Series, VolumeTrendValue } from "../../types";
 
 /**
@@ -50,7 +50,7 @@ export type VolumeTrendOptions = {
  */
 export function volumeTrend(
   candles: Candle[] | NormalizedCandle[],
-  options: VolumeTrendOptions = {}
+  options: VolumeTrendOptions = {},
 ): Series<VolumeTrendValue> {
   const { pricePeriod = 10, volumePeriod = 10, maPeriod = 20, minPriceChange = 2.0 } = options;
 
@@ -112,13 +112,13 @@ export function volumeTrend(
       i - volumePeriod + 1,
       i + 1,
       volumeMAs[i],
-      normalized[i].volume
+      normalized[i].volume,
     );
 
     // Determine confirmation and divergence
     const { isConfirmed, hasDivergence, confidence } = evaluateConfirmation(
       priceTrendInfo,
-      volumeTrendInfo
+      volumeTrendInfo,
     );
 
     result.push({
@@ -210,7 +210,7 @@ function analyzeVolumeTrendFast(
   start: number,
   end: number,
   currentMA: number | null,
-  currentVolume: number
+  currentVolume: number,
 ): TrendInfo {
   const n = end - start;
   if (n < 2) {
@@ -271,7 +271,7 @@ function analyzeVolumeTrendFast(
  */
 function evaluateConfirmation(
   priceTrend: TrendInfo,
-  volumeTrend: TrendInfo
+  volumeTrend: TrendInfo,
 ): { isConfirmed: boolean; hasDivergence: boolean; confidence: number } {
   // Neutral price trend = no confirmation or divergence possible
   if (priceTrend.direction === "neutral") {
@@ -302,12 +302,4 @@ function evaluateConfirmation(
     hasDivergence,
     confidence: Math.round(confidence),
   };
-}
-
-/**
- * Check if candles are already normalized
- */
-function isNormalized(candles: Candle[] | NormalizedCandle[]): candles is NormalizedCandle[] {
-  if (candles.length === 0) return true;
-  return typeof candles[0].time === "number";
 }

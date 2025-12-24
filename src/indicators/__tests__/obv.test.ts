@@ -15,9 +15,7 @@ describe("obv", () => {
     }));
 
   it("should start OBV at 0", () => {
-    const candles = makeCandles([
-      { close: 100, volume: 1000 },
-    ]);
+    const candles = makeCandles([{ close: 100, volume: 1000 }]);
 
     const result = obv(candles);
     expect(result[0].value).toBe(0);
@@ -61,7 +59,7 @@ describe("obv", () => {
       { close: 100, volume: 1000 },
       { close: 110, volume: 1000 }, // +1000
       { close: 120, volume: 2000 }, // +2000 = 3000
-      { close: 115, volume: 500 },  // -500 = 2500
+      { close: 115, volume: 500 }, // -500 = 2500
       { close: 125, volume: 1500 }, // +1500 = 4000
     ]);
 

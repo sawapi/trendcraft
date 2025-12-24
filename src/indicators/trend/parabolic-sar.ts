@@ -5,7 +5,7 @@
  * Developed by J. Welles Wilder Jr.
  */
 
-import { normalizeCandles } from "../../core/normalize";
+import { isNormalized, normalizeCandles } from "../../core/normalize";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 
 /**
@@ -68,7 +68,7 @@ export type ParabolicSarValue = {
  */
 export function parabolicSar(
   candles: Candle[] | NormalizedCandle[],
-  options: ParabolicSarOptions = {}
+  options: ParabolicSarOptions = {},
 ): Series<ParabolicSarValue> {
   const { step = 0.02, max = 0.2 } = options;
 
@@ -202,12 +202,4 @@ export function parabolicSar(
   }
 
   return result;
-}
-
-/**
- * Check if candles are already normalized
- */
-function isNormalized(candles: Candle[] | NormalizedCandle[]): candles is NormalizedCandle[] {
-  if (candles.length === 0) return true;
-  return typeof candles[0].time === "number";
 }

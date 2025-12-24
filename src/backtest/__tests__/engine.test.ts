@@ -1,7 +1,7 @@
-import { describe, it, expect } from "vitest";
-import { runBacktest } from "../engine";
-import { goldenCross, deadCross, and, rsiBelow, rsiAbove } from "../conditions";
+import { describe, expect, it } from "vitest";
 import type { NormalizedCandle } from "../../types";
+import { and, deadCross, goldenCross, rsiAbove, rsiBelow } from "../conditions";
+import { runBacktest } from "../engine";
 
 // Generate trending candles for backtest
 function generateTrendingCandles(count: number): NormalizedCandle[] {

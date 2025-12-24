@@ -52,10 +52,22 @@ export type {
   VolumeProfileValue,
   VolumePriceLevel,
   VolumeTrendValue,
+  // ATR risk management types
+  AtrRiskOptions,
+  ChandelierExitOptions,
+  ChandelierExitValue,
+  AtrStopsOptions,
+  AtrStopsValue,
 } from "./types";
 
 // Core utilities
-export { normalizeTime, normalizeCandle, normalizeCandles, getPrice, getPriceSeries } from "./core/normalize";
+export {
+  normalizeTime,
+  normalizeCandle,
+  normalizeCandles,
+  getPrice,
+  getPriceSeries,
+} from "./core/normalize";
 
 export { resample, parseTimeframe } from "./core/resample";
 
@@ -94,6 +106,11 @@ export {
   atr,
   donchianChannel,
   keltnerChannel,
+  chandelierExit,
+  atrStops,
+  calculateAtrStop,
+  calculateAtrTakeProfit,
+  calculateAtrTrailingStop,
   // Volume
   volumeMa,
   obv,
@@ -205,11 +222,47 @@ export {
   runBacktest,
 } from "./backtest";
 
-export type { ValidatedCrossOptions, PerfectOrderConditionOptions, PerfectOrderEnhancedConditionOptions } from "./backtest";
+export type {
+  ValidatedCrossOptions,
+  PerfectOrderConditionOptions,
+  PerfectOrderEnhancedConditionOptions,
+} from "./backtest";
 
 // Signals
-export { crossOver, crossUnder, goldenCross, deadCross, validateCrossSignals, obvDivergence, rsiDivergence, macdDivergence, detectDivergence, bollingerSqueeze, perfectOrder, perfectOrderEnhanced, rangeBound } from "./signals";
-export type { CrossValidationOptions, CrossSignalQuality, DivergenceSignal, DivergenceOptions, SqueezeSignal, SqueezeOptions, PerfectOrderType, PerfectOrderValue, PerfectOrderOptions, SlopeDirection, PerfectOrderState, PerfectOrderValueEnhanced, PerfectOrderOptionsEnhanced, TrendReason, RangeBoundState, RangeBoundValue, RangeBoundOptions } from "./signals";
+export {
+  crossOver,
+  crossUnder,
+  goldenCross,
+  deadCross,
+  validateCrossSignals,
+  obvDivergence,
+  rsiDivergence,
+  macdDivergence,
+  detectDivergence,
+  bollingerSqueeze,
+  perfectOrder,
+  perfectOrderEnhanced,
+  rangeBound,
+} from "./signals";
+export type {
+  CrossValidationOptions,
+  CrossSignalQuality,
+  DivergenceSignal,
+  DivergenceOptions,
+  SqueezeSignal,
+  SqueezeOptions,
+  PerfectOrderType,
+  PerfectOrderValue,
+  PerfectOrderOptions,
+  SlopeDirection,
+  PerfectOrderState,
+  PerfectOrderValueEnhanced,
+  PerfectOrderOptionsEnhanced,
+  TrendReason,
+  RangeBoundState,
+  RangeBoundValue,
+  RangeBoundOptions,
+} from "./signals";
 
 // Range-Bound backtest conditions
 export {
@@ -268,3 +321,89 @@ export {
   mtfDowntrend,
   mtfCondition,
 } from "./backtest";
+
+// Position Sizing
+export {
+  // Risk-based sizing
+  riskBasedSize,
+  calculateStopDistance,
+  riskPerShare,
+  // ATR-based sizing
+  atrBasedSize,
+  calculateAtrStopDistance,
+  recommendedAtrMultiplier,
+  // Kelly criterion
+  kellySize,
+  calculateKellyPercent,
+  // Fixed fractional
+  fixedFractionalSize,
+  maxPositions,
+  fractionForPositionCount,
+} from "./position-sizing";
+
+export type {
+  PositionSizeResult,
+  PositionSizingMethod,
+  PositionSizingBaseOptions,
+  RiskBasedSizingOptions,
+  AtrBasedSizingOptions,
+  KellySizingOptions,
+  FixedFractionalOptions,
+  PositionSizingOptions,
+  // Scoring types
+  SignalEvaluator,
+  SignalDefinition,
+  ScoreResult,
+  SignalContribution,
+  ScoreBreakdown,
+  ScoringConfig,
+  ScoringPreset,
+} from "./types";
+
+// Signal Scoring
+export {
+  // Calculator
+  calculateScore,
+  calculateScoreBreakdown,
+  calculateScoreSeries,
+  isScoreAbove,
+  isScoreBelow,
+  // Builder
+  ScoreBuilder,
+  // Presets
+  getPreset,
+  listPresets,
+  createMomentumPreset,
+  createMeanReversionPreset,
+  createTrendFollowingPreset,
+  createBalancedPreset,
+  createAggressivePreset,
+  createConservativePreset,
+  // Backtest conditions
+  scoreAbove,
+  scoreBelow,
+  scoreStrength,
+  minActiveSignals,
+  scoreWithMinSignals,
+  scoreIncreasing,
+  // Signal evaluators
+  createRsiOversoldEvaluator,
+  createRsiOverboughtEvaluator,
+  createMacdBullishEvaluator,
+  createMacdBearishEvaluator,
+  createPerfectOrderBullishEvaluator,
+  createPOConfirmationEvaluator,
+  createPullbackEntryEvaluator,
+  createVolumeSpikeEvaluator,
+  createVolumeAnomalyEvaluator,
+  // Pre-built signals
+  rsiOversold30,
+  rsiOverbought70,
+  macdBullish,
+  macdBearish,
+  perfectOrderBullish as poBullishSignal,
+  perfectOrderBearish as poBearishSignal,
+  poConfirmation,
+  volumeSpike,
+  volumeAnomaly2z,
+} from "./scoring";

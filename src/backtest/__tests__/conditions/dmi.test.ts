@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest";
-import { dmiBullish, dmiBearish, adxStrong, evaluateCondition } from "../../conditions";
+import { describe, expect, it } from "vitest";
 import type { NormalizedCandle } from "../../../types";
+import { adxStrong, dmiBearish, dmiBullish, evaluateCondition } from "../../conditions";
 
 describe("dmiBullish()", () => {
   // Generate strong uptrend for bullish DMI

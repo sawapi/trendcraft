@@ -5,13 +5,13 @@
  * significant support/resistance zones and the Point of Control (POC).
  */
 
-import { normalizeCandles } from "../../core/normalize";
+import { isNormalized, normalizeCandles } from "../../core/normalize";
 import type {
   Candle,
   NormalizedCandle,
   Series,
-  VolumeProfileValue,
   VolumePriceLevel,
+  VolumeProfileValue,
 } from "../../types";
 
 /**
@@ -55,7 +55,7 @@ export type VolumeProfileOptions = {
  */
 export function volumeProfile(
   candles: Candle[] | NormalizedCandle[],
-  options: VolumeProfileOptions = {}
+  options: VolumeProfileOptions = {},
 ): VolumeProfileValue {
   const { levels = 24, valueAreaPercent = 0.7, period } = options;
 
@@ -78,8 +78,8 @@ export function volumeProfile(
   }
 
   // Find price range
-  let periodHigh = -Infinity;
-  let periodLow = Infinity;
+  let periodHigh = Number.NEGATIVE_INFINITY;
+  let periodLow = Number.POSITIVE_INFINITY;
 
   for (const candle of periodCandles) {
     if (candle.high > periodHigh) periodHigh = candle.high;
@@ -200,7 +200,7 @@ export function volumeProfile(
  */
 export function volumeProfileSeries(
   candles: Candle[] | NormalizedCandle[],
-  options: VolumeProfileOptions = {}
+  options: VolumeProfileOptions = {},
 ): Series<VolumeProfileValue | null> {
   const { period = 20 } = options;
 
@@ -234,7 +234,7 @@ export function volumeProfileSeries(
 function calculateValueArea(
   levels: VolumePriceLevel[],
   valueAreaPercent: number,
-  totalVolume: number
+  totalVolume: number,
 ): { vah: number; val: number } {
   if (levels.length === 0 || totalVolume === 0) {
     return { vah: 0, val: 0 };
@@ -292,12 +292,4 @@ function createEmptyProfile(): VolumeProfileValue {
     periodHigh: 0,
     periodLow: 0,
   };
-}
-
-/**
- * Check if candles are already normalized
- */
-function isNormalized(candles: Candle[] | NormalizedCandle[]): candles is NormalizedCandle[] {
-  if (candles.length === 0) return true;
-  return typeof candles[0].time === "number";
 }

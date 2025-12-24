@@ -4,7 +4,9 @@ import { cci } from "../momentum/cci";
 
 describe("cci", () => {
   // Helper to create candles with OHLC data
-  const makeCandles = (data: Array<{ high: number; low: number; close: number }>): NormalizedCandle[] =>
+  const makeCandles = (
+    data: Array<{ high: number; low: number; close: number }>,
+  ): NormalizedCandle[] =>
     data.map((d, i) => ({
       time: 1700000000000 + i * 86400000,
       open: d.close,

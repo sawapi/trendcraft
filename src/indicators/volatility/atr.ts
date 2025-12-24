@@ -3,7 +3,7 @@
  * Uses Wilder's smoothing method
  */
 
-import { normalizeCandles } from "../../core/normalize";
+import { isNormalized, normalizeCandles } from "../../core/normalize";
 import type { AtrOptions, Candle, NormalizedCandle, Series } from "../../types";
 
 /**
@@ -29,7 +29,7 @@ import type { AtrOptions, Candle, NormalizedCandle, Series } from "../../types";
  */
 export function atr(
   candles: Candle[] | NormalizedCandle[],
-  options: AtrOptions = {}
+  options: AtrOptions = {},
 ): Series<number | null> {
   const { period = 14 } = options;
 
@@ -60,7 +60,7 @@ export function atr(
       const tr = Math.max(
         current.high - current.low,
         Math.abs(current.high - prevClose),
-        Math.abs(current.low - prevClose)
+        Math.abs(current.low - prevClose),
       );
       trueRanges.push(tr);
     }
@@ -83,18 +83,12 @@ export function atr(
       result.push({ time: normalized[i].time, value: prevAtr });
     } else {
       // Wilder's smoothing: ATR = ((Previous ATR * (period - 1)) + Current TR) / period
-      prevAtr = (prevAtr! * (period - 1) + trueRanges[i]) / period;
+      // prevAtr is guaranteed to be non-null here since we set it in the i === period - 1 branch
+      prevAtr = (prevAtr as number) * (period - 1) + trueRanges[i];
+      prevAtr = prevAtr / period;
       result.push({ time: normalized[i].time, value: prevAtr });
     }
   }
 
   return result;
-}
-
-/**
- * Check if candles are already normalized
- */
-function isNormalized(candles: Candle[] | NormalizedCandle[]): candles is NormalizedCandle[] {
-  if (candles.length === 0) return true;
-  return typeof candles[0].time === "number";
 }

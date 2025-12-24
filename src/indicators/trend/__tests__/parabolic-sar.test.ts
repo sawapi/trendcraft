@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest";
-import { parabolicSar } from "../parabolic-sar";
+import { describe, expect, it } from "vitest";
 import type { NormalizedCandle } from "../../../types";
+import { parabolicSar } from "../parabolic-sar";
 
 describe("parabolicSar", () => {
   // Sample data for testing
@@ -75,25 +75,25 @@ describe("parabolicSar", () => {
 
   it("should throw error for invalid step", () => {
     expect(() => parabolicSar(sampleCandles, { step: 0 })).toThrow(
-      "Parabolic SAR step must be positive"
+      "Parabolic SAR step must be positive",
     );
     expect(() => parabolicSar(sampleCandles, { step: -0.02 })).toThrow(
-      "Parabolic SAR step must be positive"
+      "Parabolic SAR step must be positive",
     );
   });
 
   it("should throw error for invalid max", () => {
     expect(() => parabolicSar(sampleCandles, { max: 0 })).toThrow(
-      "Parabolic SAR max must be positive"
+      "Parabolic SAR max must be positive",
     );
     expect(() => parabolicSar(sampleCandles, { max: -0.2 })).toThrow(
-      "Parabolic SAR max must be positive"
+      "Parabolic SAR max must be positive",
     );
   });
 
   it("should throw error when step > max", () => {
     expect(() => parabolicSar(sampleCandles, { step: 0.3, max: 0.2 })).toThrow(
-      "Parabolic SAR step must be less than or equal to max"
+      "Parabolic SAR step must be less than or equal to max",
     );
   });
 

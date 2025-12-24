@@ -1,4 +1,4 @@
-import type { RangeBoundState, RangeBoundOptions, TrendReason } from "./types";
+import type { RangeBoundOptions, RangeBoundState, TrendReason } from "./types";
 
 /**
  * Determine range-bound state based on score and indicators
@@ -17,7 +17,7 @@ export function determineState(
   priceMovement: number | null,
   directionalTrendReason: TrendReason,
   prevState: RangeBoundState,
-  opts: Required<RangeBoundOptions>
+  opts: Required<RangeBoundOptions>,
 ): { state: RangeBoundState; confidence: number; trendReason: TrendReason } {
   // 1. Check for insufficient data
   if (adx === null) {
@@ -28,7 +28,11 @@ export function determineState(
   // If ADX is clearly above trend threshold, market is TRENDING - period.
   // This prevents false range detection during strong trends with temporarily low volatility.
   if (adx >= opts.adxTrendThreshold) {
-    return { state: "TRENDING", confidence: Math.min(0.95, 0.7 + (adx - opts.adxTrendThreshold) * 0.01), trendReason: "adx_high" };
+    return {
+      state: "TRENDING",
+      confidence: Math.min(0.95, 0.7 + (adx - opts.adxTrendThreshold) * 0.01),
+      trendReason: "adx_high",
+    };
   }
 
   // 3. PRICE MOVEMENT CHECK: Detect "creeping" trends with low ADX
@@ -40,14 +44,14 @@ export function determineState(
   // 4. DIRECTIONAL TREND CHECK: Detect trends via DI difference, slope, or HH/LL patterns
   // This catches gradual trends that have low ADX and low price movement but clear directionality
   if (directionalTrendReason !== null) {
-    return { state: "TRENDING", confidence: 0.70, trendReason: directionalTrendReason };
+    return { state: "TRENDING", confidence: 0.7, trendReason: directionalTrendReason };
   }
 
   // 5. SECONDARY CHECK: ADX in transition zone (between adxThreshold and adxTrendThreshold)
   // Be more cautious - require higher composite score
   const isAdxInTransitionZone = adx > opts.adxThreshold && adx < opts.adxTrendThreshold;
   const effectiveRangeThreshold = isAdxInTransitionZone
-    ? opts.rangeScoreThreshold + 10  // Require higher score when ADX is borderline
+    ? opts.rangeScoreThreshold + 10 // Require higher score when ADX is borderline
     : opts.rangeScoreThreshold;
 
   // 6. Check for range conditions (ADX is low enough to consider range)
@@ -77,8 +81,7 @@ export function determineState(
     }
 
     // 6c. Normal range state
-    const isAlreadyConfirmed =
-      prevState === "RANGE_CONFIRMED" || prevState === "RANGE_TIGHT";
+    const isAlreadyConfirmed = prevState === "RANGE_CONFIRMED" || prevState === "RANGE_TIGHT";
 
     if (isAlreadyConfirmed) {
       return { state: "RANGE_CONFIRMED", confidence: 0.85, trendReason: null };

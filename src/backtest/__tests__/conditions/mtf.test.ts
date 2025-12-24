@@ -2,28 +2,28 @@
  * Multi-Timeframe (MTF) Conditions Tests
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
+import { buildMtfIndexMap, createMtfContext, updateMtfIndices } from "../../../core/mtf-context";
+import type { MtfContext, NormalizedCandle, TimeframeShorthand } from "../../../types";
+import { evaluateCondition, getRequiredTimeframes, requiresMtf } from "../../conditions/core";
 import {
-  weeklyRsiAbove,
-  weeklyRsiBelow,
   monthlyRsiAbove,
   monthlyRsiBelow,
+  mtfCondition,
+  mtfDowntrend,
+  mtfPriceAboveSma,
   mtfRsiAbove,
   mtfRsiBelow,
+  mtfTrendStrong,
+  mtfUptrend,
+  weeklyDowntrend,
   weeklyPriceAboveSma,
   weeklyPriceBelowSma,
-  mtfPriceAboveSma,
+  weeklyRsiAbove,
+  weeklyRsiBelow,
   weeklyTrendStrong,
-  mtfTrendStrong,
   weeklyUptrend,
-  weeklyDowntrend,
-  mtfUptrend,
-  mtfDowntrend,
-  mtfCondition,
 } from "../../conditions/mtf";
-import { evaluateCondition, requiresMtf, getRequiredTimeframes } from "../../conditions/core";
-import { createMtfContext, buildMtfIndexMap, updateMtfIndices } from "../../../core/mtf-context";
-import type { NormalizedCandle, MtfContext, TimeframeShorthand } from "../../../types";
 
 // Helper to create daily candles with specific characteristics
 function createDailyCandlesFromDate(
@@ -33,7 +33,7 @@ function createDailyCandlesFromDate(
     startPrice?: number;
     priceChange?: number;
     volume?: number;
-  } = {}
+  } = {},
 ): NormalizedCandle[] {
   const { startPrice = 100, priceChange = 0.5, volume = 1000 } = options;
   const MS_PER_DAY = 86400000;
@@ -58,7 +58,7 @@ function createDailyCandlesFromDate(
 function createTrendingCandles(
   startDate: Date,
   days: number,
-  direction: "up" | "down"
+  direction: "up" | "down",
 ): NormalizedCandle[] {
   const MS_PER_DAY = 86400000;
   const startTime = startDate.getTime();
@@ -82,7 +82,7 @@ function createTrendingCandles(
 // Setup MTF context for testing
 function setupMtfContext(
   candles: NormalizedCandle[],
-  timeframes: TimeframeShorthand[]
+  timeframes: TimeframeShorthand[],
 ): { context: MtfContext; indexMap: Map<TimeframeShorthand, number[]> } {
   const context = createMtfContext(candles, timeframes);
   const indexMap = buildMtfIndexMap(candles, context);
@@ -123,7 +123,7 @@ describe("MTF RSI Conditions", () => {
         candles[testIndex],
         testIndex,
         candles,
-        context
+        context,
       );
 
       // Uptrend should have RSI above 30
@@ -143,7 +143,7 @@ describe("MTF RSI Conditions", () => {
         indicators,
         candles[55],
         55,
-        candles
+        candles,
         // mtfContext omitted
       );
 
@@ -171,7 +171,7 @@ describe("MTF RSI Conditions", () => {
         candles[testIndex],
         testIndex,
         candles,
-        context
+        context,
       );
 
       // Downtrend should generally have lower RSI
@@ -221,7 +221,7 @@ describe("MTF Moving Average Conditions", () => {
         candles[testIndex],
         testIndex,
         candles,
-        context
+        context,
       );
 
       // Price should be above SMA in uptrend
@@ -247,7 +247,7 @@ describe("MTF Moving Average Conditions", () => {
         candles[testIndex],
         testIndex,
         candles,
-        context
+        context,
       );
 
       expect(result).toBe(true);
@@ -281,7 +281,7 @@ describe("MTF Trend Strength Conditions", () => {
         candles[testIndex],
         testIndex,
         candles,
-        context
+        context,
       );
 
       // Strong trend should have high ADX
@@ -307,7 +307,7 @@ describe("MTF Trend Strength Conditions", () => {
         candles[testIndex],
         testIndex,
         candles,
-        context
+        context,
       );
 
       expect(typeof result).toBe("boolean");
@@ -332,7 +332,7 @@ describe("MTF Trend Strength Conditions", () => {
         candles[testIndex],
         testIndex,
         candles,
-        context
+        context,
       );
 
       expect(typeof result).toBe("boolean");
@@ -343,14 +343,10 @@ describe("MTF Trend Strength Conditions", () => {
 describe("Custom MTF Condition", () => {
   describe("mtfCondition", () => {
     it("should create custom MTF condition", () => {
-      const condition = mtfCondition(
-        ["weekly"],
-        "customCondition",
-        (mtf, indicators, candle) => {
-          const weeklyIdx = mtf.indices.get("weekly");
-          return weeklyIdx !== undefined && weeklyIdx > 0;
-        }
-      );
+      const condition = mtfCondition(["weekly"], "customCondition", (mtf, indicators, candle) => {
+        const weeklyIdx = mtf.indices.get("weekly");
+        return weeklyIdx !== undefined && weeklyIdx > 0;
+      });
 
       expect(condition.type).toBe("mtf-preset");
       expect(condition.name).toBe("customCondition");
@@ -364,14 +360,10 @@ describe("Custom MTF Condition", () => {
       const { context, indexMap } = setupMtfContext(candles, ["weekly"]);
 
       // Custom condition: weekly index > 2
-      const condition = mtfCondition(
-        ["weekly"],
-        "weeklyIndexAbove2",
-        (mtf) => {
-          const idx = mtf.indices.get("weekly");
-          return idx !== undefined && idx >= 2;
-        }
-      );
+      const condition = mtfCondition(["weekly"], "weeklyIndexAbove2", (mtf) => {
+        const idx = mtf.indices.get("weekly");
+        return idx !== undefined && idx >= 2;
+      });
 
       // Test at end of data (should have weekly index >= 2 after 3+ weeks)
       const testIndex = 25;
@@ -383,22 +375,18 @@ describe("Custom MTF Condition", () => {
         candles[testIndex],
         testIndex,
         candles,
-        context
+        context,
       );
 
       expect(result).toBe(true);
     });
 
     it("should support multiple timeframes", () => {
-      const condition = mtfCondition(
-        ["weekly", "monthly"],
-        "multiTfCondition",
-        (mtf) => {
-          const weeklyIdx = mtf.indices.get("weekly");
-          const monthlyIdx = mtf.indices.get("monthly");
-          return weeklyIdx !== undefined && monthlyIdx !== undefined;
-        }
-      );
+      const condition = mtfCondition(["weekly", "monthly"], "multiTfCondition", (mtf) => {
+        const weeklyIdx = mtf.indices.get("weekly");
+        const monthlyIdx = mtf.indices.get("monthly");
+        return weeklyIdx !== undefined && monthlyIdx !== undefined;
+      });
 
       expect(condition.requiredTimeframes).toContain("weekly");
       expect(condition.requiredTimeframes).toContain("monthly");
@@ -486,7 +474,7 @@ describe("Edge cases", () => {
       { time: 0, open: 100, high: 101, low: 99, close: 100, volume: 1000 },
       0,
       [],
-      context
+      context,
     );
 
     expect(result).toBe(false);
@@ -510,7 +498,7 @@ describe("Edge cases", () => {
       candles[testIndex],
       testIndex,
       candles,
-      context
+      context,
     );
 
     expect(result).toBe(false);
@@ -533,7 +521,7 @@ describe("Edge cases", () => {
       candles[testIndex],
       testIndex,
       candles,
-      context
+      context,
     );
 
     // Should return false or handle gracefully (not throw)
@@ -563,14 +551,7 @@ describe("Integration with combined conditions", () => {
     const testIndex = 70;
     updateMtfIndices(context, indexMap, testIndex, candles[testIndex].time);
 
-    const result = evaluateCondition(
-      combined,
-      {},
-      candles[testIndex],
-      testIndex,
-      candles,
-      context
-    );
+    const result = evaluateCondition(combined, {}, candles[testIndex], testIndex, candles, context);
 
     expect(typeof result).toBe("boolean");
   });

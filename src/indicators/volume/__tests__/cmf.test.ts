@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest";
-import { cmf } from "../cmf";
+import { describe, expect, it } from "vitest";
 import type { NormalizedCandle } from "../../../types";
+import { cmf } from "../cmf";
 
 describe("cmf", () => {
   // Sample data for testing

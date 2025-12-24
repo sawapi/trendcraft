@@ -5,8 +5,16 @@
  */
 
 // Core functions
-export { evaluateCondition, and, or, not, requiresMtf, getRequiredTimeframes } from "./core";
-export type { ExtendedCondition } from "./core";
+export {
+  evaluateCondition,
+  and,
+  or,
+  not,
+  requiresMtf,
+  getRequiredTimeframes,
+  MtfContextRequiredError,
+} from "./core";
+export type { ExtendedCondition, EvaluateConditionOptions } from "./core";
 
 // Moving Average Cross conditions
 export {

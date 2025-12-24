@@ -1,13 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { obvDivergence, rsiDivergence, macdDivergence, detectDivergence } from "../divergence";
 import type { NormalizedCandle } from "../../types";
+import { detectDivergence, macdDivergence, obvDivergence, rsiDivergence } from "../divergence";
 
 // Helper to create test candles
-function createCandle(
-  day: number,
-  close: number,
-  volume: number = 1000000
-): NormalizedCandle {
+function createCandle(day: number, close: number, volume = 1000000): NormalizedCandle {
   return {
     time: new Date(2024, 0, day).getTime(),
     open: close,
@@ -167,7 +163,8 @@ describe("detectDivergence", () => {
       if (i < 10) indicator.push(50);
       else if (i < 15) indicator.push(50 + (i - 10) * 3);
       else if (i < 20) indicator.push(65 - (i - 15) * 2);
-      else if (i < 25) indicator.push(55 + (i - 20) * 1); // Lower high
+      else if (i < 25)
+        indicator.push(55 + (i - 20) * 1); // Lower high
       else indicator.push(60 - (i - 25));
     }
 

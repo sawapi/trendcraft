@@ -3,7 +3,7 @@
  * Volume-weighted RSI that measures buying and selling pressure
  */
 
-import { normalizeCandles } from "../../core/normalize";
+import { isNormalized, normalizeCandles } from "../../core/normalize";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 
 /**
@@ -47,7 +47,7 @@ export type MfiOptions = {
  */
 export function mfi(
   candles: Candle[] | NormalizedCandle[],
-  options: MfiOptions = {}
+  options: MfiOptions = {},
 ): Series<number | null> {
   const { period = 14 } = options;
 
@@ -62,14 +62,10 @@ export function mfi(
   }
 
   // Calculate Typical Price for each candle
-  const typicalPrices: number[] = normalized.map(
-    (c) => (c.high + c.low + c.close) / 3
-  );
+  const typicalPrices: number[] = normalized.map((c) => (c.high + c.low + c.close) / 3);
 
   // Calculate Raw Money Flow for each candle
-  const rawMoneyFlow: number[] = normalized.map(
-    (c, i) => typicalPrices[i] * c.volume
-  );
+  const rawMoneyFlow: number[] = normalized.map((c, i) => typicalPrices[i] * c.volume);
 
   const result: Series<number | null> = [];
 
@@ -111,12 +107,4 @@ export function mfi(
   }
 
   return result;
-}
-
-/**
- * Check if candles are already normalized
- */
-function isNormalized(candles: Candle[] | NormalizedCandle[]): candles is NormalizedCandle[] {
-  if (candles.length === 0) return true;
-  return typeof candles[0].time === "number";
 }

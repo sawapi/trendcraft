@@ -29,6 +29,23 @@ A TypeScript library for technical analysis of financial data. Calculate indicat
 - Multi-timeframe (MTF) conditions (weekly/monthly RSI, SMA, trend)
 - Advanced volume conditions (anomaly detection, volume profile)
 
+### Signal Scoring
+- Combine multiple signals with weighted importance
+- Pre-built presets: momentum, meanReversion, trendFollowing, balanced
+- Fluent API (ScoreBuilder) for custom scoring strategies
+- Backtest conditions based on composite scores
+
+### Position Sizing
+- **Risk-Based**: Calculate size from risk amount and stop distance
+- **ATR-Based**: Dynamic stop distance using ATR
+- **Kelly Criterion**: Optimal sizing based on win rate and payoff ratio
+- **Fixed Fractional**: Simple percentage-based allocation
+
+### ATR Risk Management
+- Chandelier Exit trailing stops
+- Dynamic ATR-based stop and take-profit levels
+- Integrated with backtesting engine
+
 ### Utilities
 - Data normalization (various date formats to timestamps)
 - Timeframe resampling (daily to weekly/monthly)
@@ -263,6 +280,114 @@ const result = TrendCraft.from(dailyCandles)
     ))
     .exit(deadCrossCondition())
   .backtest({ capital: 1000000 });
+```
+
+### Signal Scoring
+
+```typescript
+import { ScoreBuilder, calculateScore, scoreAbove } from 'trendcraft';
+
+// Build custom scoring strategy
+const config = ScoreBuilder.create()
+  .addPOConfirmation(3.0)      // Perfect Order confirmation (weight: 3.0)
+  .addRsiOversold(30, 2.0)     // RSI < 30 (weight: 2.0)
+  .addVolumeSpike(1.5, 1.5)    // Volume > 1.5x average (weight: 1.5)
+  .addMacdBullish(1.5)         // MACD bullish crossover
+  .setThresholds(70, 50, 30)   // strong, moderate, weak
+  .build();
+
+// Calculate score at specific index
+const result = calculateScore(candles, candles.length - 1, config);
+console.log(result.normalizedScore);  // 0-100 score
+console.log(result.strength);         // "strong" | "moderate" | "weak" | "none"
+
+// Use in backtest
+import { TrendCraft, deadCross } from 'trendcraft';
+
+const backtestResult = TrendCraft.from(candles)
+  .strategy()
+    .entry(scoreAbove(70, "trendFollowing"))  // Enter when score > 70
+    .exit(deadCross())
+  .backtest({ capital: 1000000 });
+```
+
+### Position Sizing
+
+```typescript
+import { riskBasedSize, atrBasedSize, kellySize, fixedFractionalSize } from 'trendcraft';
+
+// Risk-based: Calculate size from risk amount and stop distance
+const riskResult = riskBasedSize({
+  accountSize: 100000,
+  entryPrice: 50,
+  stopLossPrice: 48,
+  riskPercent: 1,           // Risk 1% of account
+  maxPositionPercent: 25,   // Max 25% position size
+});
+// { shares: 500, positionValue: 25000, riskAmount: 1000, ... }
+
+// ATR-based: Dynamic stop using ATR
+const atrResult = atrBasedSize({
+  accountSize: 100000,
+  entryPrice: 50,
+  atrValue: 2.5,
+  atrMultiplier: 2,         // 2x ATR for stop distance
+  riskPercent: 1,
+});
+// { shares: 200, stopPrice: 45, ... }
+
+// Kelly Criterion: Optimal sizing based on historical win rate
+const kellyResult = kellySize({
+  accountSize: 100000,
+  entryPrice: 50,
+  winRate: 0.6,
+  winLossRatio: 1.5,
+  kellyFraction: 0.5,       // Half Kelly (safer)
+});
+
+// Fixed Fractional: Simple percentage allocation
+const fixedResult = fixedFractionalSize({
+  accountSize: 100000,
+  entryPrice: 50,
+  fractionPercent: 10,      // 10% of account
+});
+```
+
+### ATR Risk Management
+
+```typescript
+import { chandelierExit, calculateAtrStops, TrendCraft, goldenCross, deadCross } from 'trendcraft';
+
+// Chandelier Exit trailing stop
+const chandelier = chandelierExit(candles, { period: 22, multiplier: 3 });
+chandelier.forEach(({ time, value }) => {
+  console.log(`Long stop: ${value.longStop}, Short stop: ${value.shortStop}`);
+});
+
+// Calculate ATR-based stop and take-profit levels
+const stops = calculateAtrStops({
+  entryPrice: 100,
+  atrValue: 2.5,
+  stopMultiplier: 2,        // 2x ATR for stop
+  takeProfitMultiplier: 3,  // 3x ATR for take-profit
+  direction: 'long',
+});
+// { stopPrice: 95, takeProfitPrice: 107.5, riskRewardRatio: 1.5 }
+
+// Use in backtest with ATR-based stops
+const result = TrendCraft.from(candles)
+  .strategy()
+    .entry(goldenCross())
+    .exit(deadCross())
+  .backtest({
+    capital: 1000000,
+    atrRisk: {
+      enabled: true,
+      period: 14,
+      stopMultiplier: 2,
+      takeProfitMultiplier: 3,
+    },
+  });
 ```
 
 ## API Reference

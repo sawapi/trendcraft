@@ -1,6 +1,12 @@
-import { describe, it, expect } from "vitest";
-import { stochBelow, stochAbove, stochCrossUp, stochCrossDown, evaluateCondition } from "../../conditions";
+import { describe, expect, it } from "vitest";
 import type { NormalizedCandle } from "../../../types";
+import {
+  evaluateCondition,
+  stochAbove,
+  stochBelow,
+  stochCrossDown,
+  stochCrossUp,
+} from "../../conditions";
 import { generateCandles } from "./test-helpers";
 
 describe("stochBelow()", () => {

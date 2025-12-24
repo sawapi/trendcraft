@@ -4,7 +4,7 @@
  * More sensitive than regular RSI
  */
 
-import { normalizeCandles } from "../../core/normalize";
+import { isNormalized, normalizeCandles } from "../../core/normalize";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { rsi } from "./rsi";
 
@@ -69,7 +69,7 @@ export type StochRsiOptions = {
  */
 export function stochRsi(
   candles: Candle[] | NormalizedCandle[],
-  options: StochRsiOptions = {}
+  options: StochRsiOptions = {},
 ): Series<StochRsiValue> {
   const { rsiPeriod = 14, stochPeriod = 14, kPeriod = 3, dPeriod = 3 } = options;
 
@@ -101,8 +101,8 @@ export function stochRsi(
     }
 
     // Find min and max RSI over stochPeriod
-    let minRsi = Infinity;
-    let maxRsi = -Infinity;
+    let minRsi = Number.POSITIVE_INFINITY;
+    let maxRsi = Number.NEGATIVE_INFINITY;
     let hasAllValues = true;
 
     for (let j = i - stochPeriod + 1; j <= i; j++) {
@@ -184,12 +184,4 @@ function calculateSma(values: (number | null)[], period: number): (number | null
   }
 
   return result;
-}
-
-/**
- * Check if candles are already normalized
- */
-function isNormalized(candles: Candle[] | NormalizedCandle[]): candles is NormalizedCandle[] {
-  if (candles.length === 0) return true;
-  return typeof candles[0].time === "number";
 }
