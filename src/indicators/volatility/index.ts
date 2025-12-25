@@ -12,3 +12,11 @@ export {
   calculateAtrTrailingStop,
 } from "./atr-stops";
 export { volatilityRegime } from "./regime";
+export {
+  calculateAtrPercent,
+  atrPercentSeries,
+  passesAtrFilter,
+  filterStocksByAtr,
+  DEFAULT_ATR_THRESHOLD,
+} from "./atr-filter";
+export type { AtrFilterOptions, AtrFilterResult } from "./atr-filter";

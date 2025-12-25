@@ -18,6 +18,7 @@ export {
   bollingerTouch,
   priceAboveSma,
   priceBelowSma,
+  priceDroppedAtr,
   // Validated conditions (with damashi detection)
   validatedGoldenCross,
   validatedDeadCross,
@@ -115,6 +116,9 @@ export {
   regimeConfidenceAbove,
   volatilityExpanding,
   volatilityContracting,
+  // ATR% Filter conditions
+  atrPercentAbove,
+  atrPercentBelow,
 } from "./conditions";
 
 export type {

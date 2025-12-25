@@ -168,6 +168,24 @@
                 <option value="rbBreakout">Range Breakout</option>
                 <option value="notInRange">Not In Range (Filter)</option>
               </optgroup>
+              <optgroup label="Combined Strategies (推奨)">
+                <option value="rbVolAnomaly">RangeBreak + VolAnomaly</option>
+                <option value="rbVolTrend">RangeBreak + VolTrend ★</option>
+                <option value="rbPoVol">RangeBreak + PO + Volume</option>
+              </optgroup>
+              <optgroup label="Volume Only">
+                <option value="volAnomaly">Volume Anomaly</option>
+                <option value="volTrend">Volume Trend</option>
+                <option value="volAbove15">Volume &gt; 1.5x Avg</option>
+              </optgroup>
+              <optgroup label="Best Strategy (最適化済み)">
+                <option value="gcVolAnomaly">GC + VolAnomaly ★★</option>
+                <option value="stochVolAbove15">Stoch↑ + Vol&gt;1.5x ★</option>
+              </optgroup>
+              <optgroup label="ATR% Filter (高ボラ銘柄のみ)">
+                <option value="atrGcVolAnomaly">ATR&gt;2.3% + GC + VolAnomaly ★★★</option>
+                <option value="atrGc">ATR&gt;2.3% + GC</option>
+              </optgroup>
             </select>
           </div>
           <div class="condition-group">
@@ -203,6 +221,22 @@
                 <option value="rbForming">Range Forming</option>
                 <option value="inRange">In Range (Exit Trend)</option>
               </optgroup>
+              <optgroup label="Combined Exit (推奨)">
+                <option value="rbExitCombo">InRange or Confirmed ★</option>
+                <option value="poCollapseOrRange">PO Collapse or InRange</option>
+              </optgroup>
+              <optgroup label="ATR Stop">
+                <option value="atrStop15">ATR Stop 1.5x</option>
+                <option value="atrStop20">ATR Stop 2.0x</option>
+                <option value="atrStop25">ATR Stop 2.5x</option>
+                <option value="atrStop30">ATR Stop 3.0x</option>
+              </optgroup>
+              <optgroup label="Combined + ATR (推奨)">
+                <option value="rbExitAtr">InRange/Confirmed + ATR 2x ★</option>
+              </optgroup>
+              <optgroup label="Best Strategy (最適化済み)">
+                <option value="macdVolDiv">MACD↓ + VolDiv ★★</option>
+              </optgroup>
             </select>
           </div>
         </div>
@@ -224,6 +258,18 @@
           <div class="param-group">
             <label>Trailing Stop (%)</label>
             <input type="number" id="trailingStop" value="" placeholder="None">
+          </div>
+        </div>
+
+        <!-- ATR Trailing Stop -->
+        <div class="param-row">
+          <div class="param-group">
+            <label>ATR Trail (×ATR)</label>
+            <input type="number" id="atrTrailMultiplier" value="" placeholder="None" step="0.5">
+          </div>
+          <div class="param-group">
+            <label>ATR Period</label>
+            <input type="number" id="atrTrailPeriod" value="14">
           </div>
         </div>
 

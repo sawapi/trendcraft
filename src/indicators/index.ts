@@ -39,12 +39,20 @@ export {
   calculateAtrTakeProfit,
   calculateAtrTrailingStop,
   volatilityRegime,
+  // ATR Filter (stock screening)
+  calculateAtrPercent,
+  atrPercentSeries,
+  passesAtrFilter,
+  filterStocksByAtr,
+  DEFAULT_ATR_THRESHOLD,
 } from "./volatility";
 export type {
   DonchianValue,
   DonchianOptions,
   KeltnerChannelOptions,
   KeltnerChannelValue,
+  AtrFilterOptions,
+  AtrFilterResult,
 } from "./volatility";
 
 // Volume

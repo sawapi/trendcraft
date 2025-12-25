@@ -6,6 +6,11 @@
  */
 
 import { volatilityRegime } from "../../indicators/volatility/regime";
+import {
+  atrPercentSeries,
+  DEFAULT_ATR_THRESHOLD,
+  type AtrFilterOptions,
+} from "../../indicators/volatility/atr-filter";
 import type {
   PresetCondition,
   VolatilityRegime,
@@ -338,6 +343,102 @@ export function volatilityContracting(
 
       const avgPercentile = sum / count;
       return avgPercentile - current.atrPercentile >= threshold;
+    },
+  };
+}
+
+// Cache for ATR% series
+const atrPercentCache = new WeakMap<
+  object,
+  ReturnType<typeof atrPercentSeries>
+>();
+
+/**
+ * Get or calculate ATR% series (cached)
+ */
+function getAtrPercentSeries(
+  candles: Parameters<typeof atrPercentSeries>[0],
+  atrPeriod?: number,
+) {
+  const cacheKey = candles as object;
+  let cached = atrPercentCache.get(cacheKey);
+  if (!cached) {
+    cached = atrPercentSeries(candles, atrPeriod);
+    atrPercentCache.set(cacheKey, cached);
+  }
+  return cached;
+}
+
+/**
+ * Create a condition that triggers when ATR% is above threshold
+ *
+ * ATR% measures volatility as a percentage of price.
+ * Higher values indicate more volatile stocks suitable for trend-following.
+ *
+ * @param threshold - Minimum ATR% threshold (default: 2.3)
+ * @param options - ATR filter options
+ *
+ * @example
+ * ```ts
+ * // Only trade stocks with ATR% >= 2.3% (default threshold)
+ * const entry = and(
+ *   atrPercentAbove(),
+ *   goldenCrossCondition(5, 25)
+ * );
+ *
+ * // More volatile stocks only (ATR% >= 3%)
+ * const entry = and(
+ *   atrPercentAbove(3.0),
+ *   macdCrossUp()
+ * );
+ * ```
+ */
+export function atrPercentAbove(
+  threshold: number = DEFAULT_ATR_THRESHOLD,
+  options?: Pick<AtrFilterOptions, "atrPeriod">,
+): PresetCondition {
+  return {
+    type: "preset",
+    name: `atrPercentAbove:${threshold}`,
+    evaluate: (_indicators, _candle, index, candles) => {
+      const series = getAtrPercentSeries(candles, options?.atrPeriod);
+      const current = series[index]?.value;
+      if (current === null || current === undefined) return false;
+      return current >= threshold;
+    },
+  };
+}
+
+/**
+ * Create a condition that triggers when ATR% is below threshold
+ *
+ * Lower values indicate less volatile stocks, which may be suitable for
+ * mean-reversion strategies but poor for trend-following.
+ *
+ * @param threshold - Maximum ATR% threshold
+ * @param options - ATR filter options
+ *
+ * @example
+ * ```ts
+ * // Low volatility stocks for mean-reversion
+ * const entry = and(
+ *   atrPercentBelow(1.5),
+ *   bollingerTouch('lower')
+ * );
+ * ```
+ */
+export function atrPercentBelow(
+  threshold: number,
+  options?: Pick<AtrFilterOptions, "atrPeriod">,
+): PresetCondition {
+  return {
+    type: "preset",
+    name: `atrPercentBelow:${threshold}`,
+    evaluate: (_indicators, _candle, index, candles) => {
+      const series = getAtrPercentSeries(candles, options?.atrPeriod);
+      const current = series[index]?.value;
+      if (current === null || current === undefined) return false;
+      return current <= threshold;
     },
   };
 }

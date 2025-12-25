@@ -24,8 +24,8 @@ import {
   validatedDeadCross,
   and,
   or,
-} from "../src/index.js";
-import type { Candle, BacktestResult } from "../src/index.js";
+} from "../../src/index.js";
+import type { Candle, BacktestResult } from "../../src/index.js";
 
 // Load CSV data
 function loadCSV(filePath: string): Candle[] {
@@ -188,7 +188,7 @@ const strategies: StrategyDef[] = [
 ];
 
 // Main
-const dataDir = resolve(__dirname, "data");
+const dataDir = resolve(__dirname, "..", "data");
 const csvFiles = readdirSync(dataDir)
   .filter((f) => f.endsWith(".csv"))
   .sort();

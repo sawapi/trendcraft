@@ -47,6 +47,7 @@ export function runBacktest(
     stopLoss,
     takeProfit,
     trailingStop,
+    atrTrailingStop,
     partialTakeProfit,
     taxRate = 0,
   } = options;
@@ -71,10 +72,13 @@ export function runBacktest(
     mtfIndexMap = buildMtfIndexMap(candles, mtfContext);
   }
 
-  // Pre-calculate ATR if ATR risk management is enabled
+  // Pre-calculate ATR if ATR risk management or ATR trailing stop is enabled
   let atrSeries: { time: number; value: number | null }[] | null = null;
   if (atrRisk) {
     const atrPeriod = atrRisk.atrPeriod ?? 14;
+    atrSeries = atr(candles, { period: atrPeriod });
+  } else if (atrTrailingStop) {
+    const atrPeriod = atrTrailingStop.period ?? 14;
     atrSeries = atr(candles, { period: atrPeriod });
   }
 
@@ -260,13 +264,26 @@ export function runBacktest(
         }
       }
 
-      // ATR-based trailing stop
+      // ATR-based trailing stop (via atrRisk option)
       if (!shouldExit && currentAtr !== null && atrRisk?.atrTrailingMultiplier !== undefined) {
         const atrTrailDistance = currentAtr * atrRisk.atrTrailingMultiplier;
         const atrTrailPrice = position.peakPrice - atrTrailDistance;
         if (candle.low <= atrTrailPrice) {
           shouldExit = true;
           exitPrice = atrTrailPrice;
+        }
+      }
+
+      // Simple ATR trailing stop (via atrTrailingStop option)
+      if (!shouldExit && atrTrailingStop && atrSeries) {
+        const atrValue = atrSeries[i]?.value;
+        if (atrValue !== null && atrValue !== undefined) {
+          const atrTrailDistance = atrValue * atrTrailingStop.multiplier;
+          const atrTrailPrice = position.peakPrice - atrTrailDistance;
+          if (candle.low <= atrTrailPrice) {
+            shouldExit = true;
+            exitPrice = atrTrailPrice;
+          }
         }
       }
 

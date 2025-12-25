@@ -27,3 +27,5 @@ coverage/
 
 .plans/
 examples/data/
+examples/scratch/
+docs/analysis/

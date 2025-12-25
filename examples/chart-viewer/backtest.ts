@@ -19,6 +19,8 @@ let capitalInput: HTMLInputElement;
 let stopLossInput: HTMLInputElement;
 let takeProfitInput: HTMLInputElement;
 let trailingStopInput: HTMLInputElement;
+let atrTrailMultiplierInput: HTMLInputElement;
+let atrTrailPeriodInput: HTMLInputElement;
 let partialThresholdInput: HTMLInputElement;
 let partialSellPercentInput: HTMLInputElement;
 let startDateInput: HTMLInputElement;
@@ -75,6 +77,43 @@ const entryConditions: Record<string, () => Condition> = {
   // Range-Bound conditions
   rbBreakout: () => TrendCraft.rangeBreakout(),
   notInRange: () => TrendCraft.not(TrendCraft.inRangeBound()),
+  // Combined strategies (Volume + Range + PO)
+  rbVolAnomaly: () => TrendCraft.and(
+    TrendCraft.rangeBreakout(),
+    TrendCraft.volumeAnomalyCondition(2.0, 20)
+  ),
+  rbVolTrend: () => TrendCraft.and(
+    TrendCraft.rangeBreakout(),
+    TrendCraft.volumeConfirmsTrend()
+  ),
+  rbPoVol: () => TrendCraft.and(
+    TrendCraft.rangeBreakout(),
+    TrendCraft.perfectOrderActiveBullish({ periods: [5, 25, 75] }),
+    TrendCraft.volumeRatioAbove(1.5, 20)
+  ),
+  // Volume-only conditions
+  volAnomaly: () => TrendCraft.volumeAnomalyCondition(2.0, 20),
+  volTrend: () => TrendCraft.volumeConfirmsTrend(),
+  volAbove15: () => TrendCraft.volumeRatioAbove(1.5, 20),
+  // Best strategy entry combinations (from optimization)
+  gcVolAnomaly: () => TrendCraft.and(
+    TrendCraft.goldenCrossCondition(5, 25),
+    TrendCraft.volumeAnomalyCondition(2.0, 20)
+  ),
+  stochVolAbove15: () => TrendCraft.and(
+    TrendCraft.stochCrossUp(),
+    TrendCraft.volumeRatioAbove(1.5, 20)
+  ),
+  // ATR% Filter + Best strategy (high volatility stocks only)
+  atrGcVolAnomaly: () => TrendCraft.and(
+    TrendCraft.atrPercentAbove(2.3),
+    TrendCraft.goldenCrossCondition(5, 25),
+    TrendCraft.volumeAnomalyCondition(2.0, 20)
+  ),
+  atrGc: () => TrendCraft.and(
+    TrendCraft.atrPercentAbove(2.3),
+    TrendCraft.goldenCrossCondition(5, 25)
+  ),
 };
 
 /**
@@ -103,6 +142,31 @@ const exitConditions: Record<string, () => Condition> = {
   // Range-Bound conditions
   rbForming: () => TrendCraft.rangeForming(),
   inRange: () => TrendCraft.inRangeBound(),
+  // Combined exit conditions for Range strategies
+  rbExitCombo: () => TrendCraft.or(
+    TrendCraft.inRangeBound(),
+    TrendCraft.rangeConfirmed()
+  ),
+  poCollapseOrRange: () => TrendCraft.or(
+    TrendCraft.perfectOrderCollapsed({ periods: [5, 25, 75] }),
+    TrendCraft.inRangeBound()
+  ),
+  // ATR-based exits
+  atrStop15: () => TrendCraft.priceDroppedAtr(1.5, 10, 14),
+  atrStop20: () => TrendCraft.priceDroppedAtr(2.0, 10, 14),
+  atrStop25: () => TrendCraft.priceDroppedAtr(2.5, 10, 14),
+  atrStop30: () => TrendCraft.priceDroppedAtr(3.0, 10, 14),
+  // Combined: Range + ATR
+  rbExitAtr: () => TrendCraft.or(
+    TrendCraft.inRangeBound(),
+    TrendCraft.rangeConfirmed(),
+    TrendCraft.priceDroppedAtr(2.0, 10, 14)
+  ),
+  // Best strategy exit combinations (from optimization)
+  macdVolDiv: () => TrendCraft.and(
+    TrendCraft.macdCrossDown(),
+    TrendCraft.volumeDivergence()
+  ),
 };
 
 /**
@@ -116,6 +180,8 @@ export function setupBacktest(): void {
   stopLossInput = document.getElementById('stopLoss') as HTMLInputElement;
   takeProfitInput = document.getElementById('takeProfit') as HTMLInputElement;
   trailingStopInput = document.getElementById('trailingStop') as HTMLInputElement;
+  atrTrailMultiplierInput = document.getElementById('atrTrailMultiplier') as HTMLInputElement;
+  atrTrailPeriodInput = document.getElementById('atrTrailPeriod') as HTMLInputElement;
   partialThresholdInput = document.getElementById('partialThreshold') as HTMLInputElement;
   partialSellPercentInput = document.getElementById('partialSellPercent') as HTMLInputElement;
   startDateInput = document.getElementById('startDate') as HTMLInputElement;
@@ -188,6 +254,10 @@ export function runBacktest(
   const takeProfit = parseFloat(takeProfitInput.value) || undefined;
   const trailingStop = parseFloat(trailingStopInput.value) || undefined;
 
+  // ATR trailing stop
+  const atrTrailMultiplier = parseFloat(atrTrailMultiplierInput.value) || undefined;
+  const atrTrailPeriod = parseInt(atrTrailPeriodInput.value) || 14;
+
   const partialThreshold = parseFloat(partialThresholdInput.value) || undefined;
   const partialSellPercent = parseFloat(partialSellPercentInput.value) || 50;
 
@@ -217,6 +287,13 @@ export function runBacktest(
     commissionRate,
     taxRate,
   };
+
+  if (atrTrailMultiplier !== undefined) {
+    options.atrTrailingStop = {
+      multiplier: atrTrailMultiplier,
+      period: atrTrailPeriod,
+    };
+  }
 
   if (partialThreshold !== undefined) {
     options.partialTakeProfit = {

@@ -42,6 +42,7 @@ export type {
   BacktestOptions,
   BacktestResult,
   PartialTakeProfitConfig,
+  AtrTrailingStopConfig,
   // MTF types
   MtfContext,
   MtfDataset,
@@ -140,6 +141,12 @@ export {
   ichimoku,
   supertrend,
   parabolicSar,
+  // ATR Filter (stock screening)
+  calculateAtrPercent,
+  atrPercentSeries,
+  passesAtrFilter,
+  filterStocksByAtr,
+  DEFAULT_ATR_THRESHOLD,
 } from "./indicators";
 
 export type {
@@ -171,6 +178,8 @@ export type {
   SupertrendValue,
   ParabolicSarOptions,
   ParabolicSarValue,
+  AtrFilterOptions,
+  AtrFilterResult,
 } from "./indicators";
 
 // Fluent API
@@ -194,6 +203,7 @@ export {
   bollingerTouch,
   priceAboveSma,
   priceBelowSma,
+  priceDroppedAtr,
   // Validated conditions (with damashi detection)
   validatedGoldenCross,
   validatedDeadCross,
@@ -343,6 +353,9 @@ export {
   regimeConfidenceAbove,
   volatilityExpanding,
   volatilityContracting,
+  // ATR% Filter conditions
+  atrPercentAbove,
+  atrPercentBelow,
 } from "./backtest";
 
 // Volatility Regime indicator
@@ -433,3 +446,55 @@ export {
   volumeSpike,
   volumeAnomaly2z,
 } from "./scoring";
+
+// Optimization
+export {
+  // Metrics
+  calculateSharpeRatio,
+  calculateCalmarRatio,
+  calculateRecoveryFactor,
+  annualizeReturn,
+  calculateAllMetrics,
+  // Grid Search
+  gridSearch,
+  generateParameterCombinations,
+  countCombinations,
+  param,
+  constraint,
+  getTopResults,
+  summarizeGridSearch,
+  // Walk-Forward Analysis
+  walkForwardAnalysis,
+  calculatePeriodCount,
+  generatePeriodBoundaries,
+  summarizeWalkForward,
+  getOutOfSampleEquityCurve,
+  // Combination Search
+  combinationSearch,
+  generateCombinations,
+  countTotalCombinations,
+  getTopCombinations,
+  formatCombinationResult,
+  summarizeCombinationSearch,
+  createEntryConditionPool,
+  createExitConditionPool,
+} from "./optimization";
+
+export type {
+  // Optimization types
+  ParameterRange,
+  OptimizationMetric,
+  OptimizationConstraint,
+  OptimizationResultEntry,
+  GridSearchResult,
+  GridSearchOptions,
+  WalkForwardPeriod,
+  WalkForwardResult,
+  WalkForwardOptions,
+  StrategyFactory,
+  // Combination Search types
+  ConditionDefinition,
+  CombinationResultEntry,
+  CombinationSearchResult,
+  CombinationSearchOptions,
+} from "./optimization";

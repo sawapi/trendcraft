@@ -35,8 +35,8 @@ import {
   perfectOrderBullish,
   perfectOrderCollapsed,
   perfectOrderActiveBullish,
-} from "../src/index.js";
-import type { Candle, BacktestResult } from "../src/index.js";
+} from "../../src/index.js";
+import type { Candle, BacktestResult } from "../../src/index.js";
 
 // Load CSV data
 // Supports Japanese CSV format: 日付,始値,高値,安値,終値,出来高,調整後終値

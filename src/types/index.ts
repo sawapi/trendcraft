@@ -274,6 +274,19 @@ export type PartialTakeProfitConfig = {
 };
 
 /**
+ * ATR-based trailing stop configuration
+ *
+ * Tracks the highest price since entry and exits when price drops
+ * by (ATR × multiplier) from that high.
+ */
+export type AtrTrailingStopConfig = {
+  /** ATR multiplier (e.g., 2.0 = exit when price drops 2×ATR from high) */
+  multiplier: number;
+  /** ATR calculation period (default: 14) */
+  period?: number;
+};
+
+/**
  * Backtest options
  */
 export type BacktestOptions = {
@@ -291,6 +304,8 @@ export type BacktestOptions = {
   takeProfit?: number;
   /** Trailing stop in percent (e.g., 5 = exit if price drops 5% from peak) */
   trailingStop?: number;
+  /** ATR-based trailing stop (exits when price drops ATR×multiplier from high since entry) */
+  atrTrailingStop?: AtrTrailingStopConfig;
   /** Partial take profit config (sell portion of position at threshold) */
   partialTakeProfit?: PartialTakeProfitConfig;
   /** Tax rate on profits in percent (default: 0, e.g., 20.315 for Japan) */
@@ -801,3 +816,19 @@ export type ScaledEntryConfig = {
   /** Price interval in percent (for 'price' type, e.g., -2 = buy 2% lower each time) */
   priceInterval?: number;
 };
+
+// ============================================================================
+// Optimization Types (re-export from optimization.ts)
+// ============================================================================
+
+export type {
+  ParameterRange,
+  OptimizationMetric,
+  OptimizationConstraint,
+  OptimizationResultEntry,
+  GridSearchResult,
+  GridSearchOptions,
+  WalkForwardPeriod,
+  WalkForwardResult,
+  WalkForwardOptions,
+} from "./optimization";

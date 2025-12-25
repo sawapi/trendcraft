@@ -35,7 +35,7 @@ export { macdCrossUp, macdCrossDown } from "./macd";
 export { bollingerBreakout, bollingerTouch } from "./bollinger";
 
 // Price conditions
-export { priceAboveSma, priceBelowSma } from "./price";
+export { priceAboveSma, priceBelowSma, priceDroppedAtr } from "./price";
 
 // Perfect Order conditions
 export {
@@ -137,4 +137,7 @@ export {
   regimeConfidenceAbove,
   volatilityExpanding,
   volatilityContracting,
+  // ATR% Filter conditions
+  atrPercentAbove,
+  atrPercentBelow,
 } from "./volatility";
