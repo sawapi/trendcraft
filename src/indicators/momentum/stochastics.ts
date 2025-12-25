@@ -71,28 +71,50 @@ export function stochastics(
     return [];
   }
 
-  // Step 1: Calculate Raw %K
+  // Step 1: Calculate Raw %K using optimized O(n) monotonic deques
   const rawK: (number | null)[] = [];
+
+  // Monotonic decreasing deque for max (front = index of max in window)
+  const maxDeque: number[] = [];
+  // Monotonic increasing deque for min (front = index of min in window)
+  const minDeque: number[] = [];
+
   for (let i = 0; i < normalized.length; i++) {
+    const high = normalized[i].high;
+    const low = normalized[i].low;
+
+    // Remove elements outside the window from front
+    while (maxDeque.length > 0 && maxDeque[0] <= i - kPeriod) {
+      maxDeque.shift();
+    }
+    while (minDeque.length > 0 && minDeque[0] <= i - kPeriod) {
+      minDeque.shift();
+    }
+
+    // For max deque: remove smaller elements from back
+    while (maxDeque.length > 0 && normalized[maxDeque[maxDeque.length - 1]].high <= high) {
+      maxDeque.pop();
+    }
+    maxDeque.push(i);
+
+    // For min deque: remove larger elements from back
+    while (minDeque.length > 0 && normalized[minDeque[minDeque.length - 1]].low >= low) {
+      minDeque.pop();
+    }
+    minDeque.push(i);
+
     if (i < kPeriod - 1) {
       rawK.push(null);
-      continue;
-    }
-
-    let highestHigh = Number.NEGATIVE_INFINITY;
-    let lowestLow = Number.POSITIVE_INFINITY;
-
-    for (let j = 0; j < kPeriod; j++) {
-      const candle = normalized[i - j];
-      if (candle.high > highestHigh) highestHigh = candle.high;
-      if (candle.low < lowestLow) lowestLow = candle.low;
-    }
-
-    const range = highestHigh - lowestLow;
-    if (range === 0) {
-      rawK.push(50); // If no range, return middle value
     } else {
-      rawK.push((100 * (normalized[i].close - lowestLow)) / range);
+      const highestHigh = normalized[maxDeque[0]].high;
+      const lowestLow = normalized[minDeque[0]].low;
+
+      const range = highestHigh - lowestLow;
+      if (range === 0) {
+        rawK.push(50); // If no range, return middle value
+      } else {
+        rawK.push((100 * (normalized[i].close - lowestLow)) / range);
+      }
     }
   }
 
@@ -138,25 +160,44 @@ export function slowStochastics(
 }
 
 /**
- * Apply Simple Moving Average to a series
+ * Apply Simple Moving Average to a series (optimized O(n) sliding window)
  */
 function applySma(values: (number | null)[], period: number): (number | null)[] {
   const result: (number | null)[] = [];
 
-  for (let i = 0; i < values.length; i++) {
-    // Count valid values in window
-    let sum = 0;
-    let count = 0;
+  // Find the first index where we have `period` consecutive non-null values
+  let sum = 0;
+  let validCount = 0;
+  let windowStart = 0;
 
-    for (let j = 0; j < period && i - j >= 0; j++) {
-      const val = values[i - j];
-      if (val !== null) {
-        sum += val;
-        count++;
-      }
+  for (let i = 0; i < values.length; i++) {
+    const val = values[i];
+
+    if (val === null) {
+      // Reset window when encountering null
+      sum = 0;
+      validCount = 0;
+      windowStart = i + 1;
+      result.push(null);
+      continue;
     }
 
-    if (count === period) {
+    // Add current value to sum
+    sum += val;
+    validCount++;
+
+    // If window is too large, remove oldest value
+    if (validCount > period) {
+      const oldVal = values[windowStart];
+      if (oldVal !== null) {
+        sum -= oldVal;
+      }
+      windowStart++;
+      validCount--;
+    }
+
+    // Check if we have a complete window
+    if (validCount === period) {
       result.push(sum / period);
     } else {
       result.push(null);

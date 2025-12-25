@@ -21,6 +21,8 @@ export function calculateAdxScore(
 /**
  * Calculate percentile-based score (0-100)
  * Lower percentile = higher score (narrower = more likely range-bound)
+ *
+ * Optimized to avoid full sort by using binary search for counting
  */
 export function calculatePercentileScore(
   currentValue: number | null,
@@ -29,14 +31,20 @@ export function calculatePercentileScore(
 ): number {
   if (currentValue === null) return 50; // Neutral when no data
 
-  // Get recent history
-  const recentHistory = history.slice(-lookback);
-  if (recentHistory.length < lookback * 0.3) return 50; // Need at least 30% of lookback
+  // Get recent history length
+  const startIdx = Math.max(0, history.length - lookback);
+  const recentLength = history.length - startIdx;
+  if (recentLength < lookback * 0.3) return 50; // Need at least 30% of lookback
 
-  // Calculate percentile rank (what % of values are below current)
-  const sorted = [...recentHistory].sort((a, b) => a - b);
-  const belowCount = sorted.filter((v) => v < currentValue).length;
-  const percentile = (belowCount / sorted.length) * 100;
+  // Count values below current (O(n) but avoids O(n log n) sort)
+  let belowCount = 0;
+  for (let i = startIdx; i < history.length; i++) {
+    if (history[i] < currentValue) {
+      belowCount++;
+    }
+  }
+
+  const percentile = (belowCount / recentLength) * 100;
 
   // Invert: low percentile (narrow) = high score
   return Math.round(100 - percentile);

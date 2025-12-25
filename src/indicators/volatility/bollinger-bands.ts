@@ -49,62 +49,72 @@ export function bollingerBands(
 
   const result: Series<BollingerBandsValue> = [];
 
-  for (let i = 0; i < normalized.length; i++) {
-    if (i < period - 1) {
-      // Not enough data
-      result.push({
-        time: normalized[i].time,
-        value: {
-          upper: null,
-          middle: null,
-          lower: null,
-          percentB: null,
-          bandwidth: null,
-        },
-      });
-    } else {
-      // Calculate SMA and Standard Deviation
-      let sum = 0;
-      const values: number[] = [];
+  // Optimized O(n) algorithm using sliding window for mean and variance
+  // Uses online algorithm for computing variance with O(1) updates
 
-      for (let j = 0; j < period; j++) {
-        const price = getPrice(normalized[i - j], source);
-        sum += price;
-        values.push(price);
-      }
+  // Handle initial null values (not enough data)
+  for (let i = 0; i < period - 1 && i < normalized.length; i++) {
+    result.push({
+      time: normalized[i].time,
+      value: {
+        upper: null,
+        middle: null,
+        lower: null,
+        percentB: null,
+        bandwidth: null,
+      },
+    });
+  }
 
-      const middle = sum / period;
+  if (normalized.length < period) {
+    return result;
+  }
 
-      // Calculate standard deviation
-      let squaredDiffSum = 0;
-      for (const value of values) {
-        squaredDiffSum += (value - middle) ** 2;
-      }
-      const standardDeviation = Math.sqrt(squaredDiffSum / period);
+  // Calculate initial window statistics
+  let sum = 0;
+  let sumSquares = 0;
+  for (let i = 0; i < period; i++) {
+    const price = getPrice(normalized[i], source);
+    sum += price;
+    sumSquares += price * price;
+  }
 
-      const upper = middle + stdDev * standardDeviation;
-      const lower = middle - stdDev * standardDeviation;
+  // Helper to compute result for current window
+  const computeResult = (index: number, windowSum: number, windowSumSquares: number) => {
+    const middle = windowSum / period;
+    // Variance = E[X²] - E[X]² = (sumSquares/n) - (sum/n)²
+    const variance = windowSumSquares / period - middle * middle;
+    // Handle numerical precision issues (variance should never be negative)
+    const standardDeviation = Math.sqrt(Math.max(0, variance));
 
-      const currentPrice = getPrice(normalized[i], source);
-      const bandWidth = upper - lower;
+    const upper = middle + stdDev * standardDeviation;
+    const lower = middle - stdDev * standardDeviation;
 
-      // %B: position within bands (0 = lower, 1 = upper)
-      const percentB = bandWidth !== 0 ? (currentPrice - lower) / bandWidth : 0.5;
+    const currentPrice = getPrice(normalized[index], source);
+    const bandWidth = upper - lower;
 
-      // Bandwidth: volatility measure
-      const bandwidth = middle !== 0 ? bandWidth / middle : 0;
+    const percentB = bandWidth !== 0 ? (currentPrice - lower) / bandWidth : 0.5;
+    const bandwidth = middle !== 0 ? bandWidth / middle : 0;
 
-      result.push({
-        time: normalized[i].time,
-        value: {
-          upper,
-          middle,
-          lower,
-          percentB,
-          bandwidth,
-        },
-      });
-    }
+    return {
+      time: normalized[index].time,
+      value: { upper, middle, lower, percentB, bandwidth },
+    };
+  };
+
+  // First valid result
+  result.push(computeResult(period - 1, sum, sumSquares));
+
+  // Slide the window - O(1) per iteration
+  for (let i = period; i < normalized.length; i++) {
+    const newPrice = getPrice(normalized[i], source);
+    const oldPrice = getPrice(normalized[i - period], source);
+
+    // Update running sums
+    sum += newPrice - oldPrice;
+    sumSquares += newPrice * newPrice - oldPrice * oldPrice;
+
+    result.push(computeResult(i, sum, sumSquares));
   }
 
   return result;

@@ -57,19 +57,47 @@ export function wma(
   // Denominator: n * (n + 1) / 2
   const weightSum = (period * (period + 1)) / 2;
 
-  for (let i = 0; i < normalized.length; i++) {
-    if (i < period - 1) {
-      // Not enough data yet
-      result.push({ time: normalized[i].time, value: null });
-    } else {
-      // Calculate weighted average
-      let sum = 0;
-      for (let j = 0; j < period; j++) {
-        const weight = period - j; // Most recent has highest weight
-        sum += getPrice(normalized[i - j], source) * weight;
-      }
-      result.push({ time: normalized[i].time, value: sum / weightSum });
-    }
+  // Optimized O(n) sliding window algorithm for WMA
+  // WMA = (P0*n + P1*(n-1) + ... + P(n-1)*1) / weightSum
+  // For sliding: WMA_new = (WMA_old * weightSum - simpleSum + P_new * n) / weightSum
+  // where simpleSum = P0 + P1 + ... + P(n-1) (sum of prices in window)
+
+  // Handle initial null values (not enough data)
+  for (let i = 0; i < period - 1 && i < normalized.length; i++) {
+    result.push({ time: normalized[i].time, value: null });
+  }
+
+  if (normalized.length < period) {
+    return result;
+  }
+
+  // Calculate initial weighted sum and simple sum
+  let weightedSum = 0;
+  let simpleSum = 0;
+  for (let i = 0; i < period; i++) {
+    const price = getPrice(normalized[i], source);
+    const weight = i + 1; // Weight increases from 1 to period
+    weightedSum += price * weight;
+    simpleSum += price;
+  }
+  result.push({ time: normalized[period - 1].time, value: weightedSum / weightSum });
+
+  // Slide the window - O(1) per iteration
+  // When window slides: old weights shift down, new element gets weight=period
+  // weightedSum_new = weightedSum - simpleSum + newPrice * period
+  // simpleSum_new = simpleSum - oldestPrice + newPrice
+  for (let i = period; i < normalized.length; i++) {
+    const newPrice = getPrice(normalized[i], source);
+    const oldPrice = getPrice(normalized[i - period], source);
+
+    // Remove contribution of all old weights shifting down (= simpleSum)
+    // and add new price with highest weight
+    weightedSum = weightedSum - simpleSum + newPrice * period;
+
+    // Update simple sum for next iteration
+    simpleSum = simpleSum - oldPrice + newPrice;
+
+    result.push({ time: normalized[i].time, value: weightedSum / weightSum });
   }
 
   return result;

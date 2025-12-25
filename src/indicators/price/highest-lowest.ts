@@ -42,25 +42,51 @@ export function highestLowest(
 
   const result: Series<HighestLowestValue> = [];
 
+  // Optimized O(n) algorithm using monotonic deques
+  // Deques store indices of potential max/min candidates
+
+  // Monotonic decreasing deque for max (front = index of max in window)
+  const maxDeque: number[] = [];
+  // Monotonic increasing deque for min (front = index of min in window)
+  const minDeque: number[] = [];
+
   for (let i = 0; i < normalized.length; i++) {
+    const high = normalized[i].high;
+    const low = normalized[i].low;
+
+    // Remove elements outside the window from front
+    while (maxDeque.length > 0 && maxDeque[0] <= i - period) {
+      maxDeque.shift();
+    }
+    while (minDeque.length > 0 && minDeque[0] <= i - period) {
+      minDeque.shift();
+    }
+
+    // For max deque: remove smaller elements from back (they can't be max)
+    while (maxDeque.length > 0 && normalized[maxDeque[maxDeque.length - 1]].high <= high) {
+      maxDeque.pop();
+    }
+    maxDeque.push(i);
+
+    // For min deque: remove larger elements from back (they can't be min)
+    while (minDeque.length > 0 && normalized[minDeque[minDeque.length - 1]].low >= low) {
+      minDeque.pop();
+    }
+    minDeque.push(i);
+
     if (i < period - 1) {
       result.push({
         time: normalized[i].time,
         value: { highest: null, lowest: null },
       });
     } else {
-      let highest = Number.NEGATIVE_INFINITY;
-      let lowest = Number.POSITIVE_INFINITY;
-
-      for (let j = 0; j < period; j++) {
-        const candle = normalized[i - j];
-        if (candle.high > highest) highest = candle.high;
-        if (candle.low < lowest) lowest = candle.low;
-      }
-
+      // Front of deques contain indices of max/min in current window
       result.push({
         time: normalized[i].time,
-        value: { highest, lowest },
+        value: {
+          highest: normalized[maxDeque[0]].high,
+          lowest: normalized[minDeque[0]].low,
+        },
       });
     }
   }
@@ -86,17 +112,27 @@ export function highest(
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
   const result: Series<number | null> = [];
 
+  // Optimized O(n) using monotonic decreasing deque
+  const maxDeque: number[] = [];
+
   for (let i = 0; i < normalized.length; i++) {
+    const high = normalized[i].high;
+
+    // Remove elements outside the window
+    while (maxDeque.length > 0 && maxDeque[0] <= i - period) {
+      maxDeque.shift();
+    }
+
+    // Remove smaller elements from back
+    while (maxDeque.length > 0 && normalized[maxDeque[maxDeque.length - 1]].high <= high) {
+      maxDeque.pop();
+    }
+    maxDeque.push(i);
+
     if (i < period - 1) {
       result.push({ time: normalized[i].time, value: null });
     } else {
-      let max = Number.NEGATIVE_INFINITY;
-      for (let j = 0; j < period; j++) {
-        if (normalized[i - j].high > max) {
-          max = normalized[i - j].high;
-        }
-      }
-      result.push({ time: normalized[i].time, value: max });
+      result.push({ time: normalized[i].time, value: normalized[maxDeque[0]].high });
     }
   }
 
@@ -121,17 +157,27 @@ export function lowest(
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
   const result: Series<number | null> = [];
 
+  // Optimized O(n) using monotonic increasing deque
+  const minDeque: number[] = [];
+
   for (let i = 0; i < normalized.length; i++) {
+    const low = normalized[i].low;
+
+    // Remove elements outside the window
+    while (minDeque.length > 0 && minDeque[0] <= i - period) {
+      minDeque.shift();
+    }
+
+    // Remove larger elements from back
+    while (minDeque.length > 0 && normalized[minDeque[minDeque.length - 1]].low >= low) {
+      minDeque.pop();
+    }
+    minDeque.push(i);
+
     if (i < period - 1) {
       result.push({ time: normalized[i].time, value: null });
     } else {
-      let min = Number.POSITIVE_INFINITY;
-      for (let j = 0; j < period; j++) {
-        if (normalized[i - j].low < min) {
-          min = normalized[i - j].low;
-        }
-      }
-      result.push({ time: normalized[i].time, value: min });
+      result.push({ time: normalized[i].time, value: normalized[minDeque[0]].low });
     }
   }
 

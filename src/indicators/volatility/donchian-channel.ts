@@ -75,39 +75,59 @@ export function donchianChannel(
 
   const result: Series<DonchianValue> = [];
 
+  // Optimized O(n) algorithm using monotonic deques
+  // Deques store indices of potential max/min candidates
+
+  // Monotonic decreasing deque for max (front = index of max in window)
+  const maxDeque: number[] = [];
+  // Monotonic increasing deque for min (front = index of min in window)
+  const minDeque: number[] = [];
+
   for (let i = 0; i < normalized.length; i++) {
+    const high = normalized[i].high;
+    const low = normalized[i].low;
+
+    // Remove elements outside the window from front
+    while (maxDeque.length > 0 && maxDeque[0] <= i - period) {
+      maxDeque.shift();
+    }
+    while (minDeque.length > 0 && minDeque[0] <= i - period) {
+      minDeque.shift();
+    }
+
+    // For max deque: remove smaller elements from back (they can't be max)
+    while (maxDeque.length > 0 && normalized[maxDeque[maxDeque.length - 1]].high <= high) {
+      maxDeque.pop();
+    }
+    maxDeque.push(i);
+
+    // For min deque: remove larger elements from back (they can't be min)
+    while (minDeque.length > 0 && normalized[minDeque[minDeque.length - 1]].low >= low) {
+      minDeque.pop();
+    }
+    minDeque.push(i);
+
     if (i < period - 1) {
       // Not enough data yet
       result.push({
         time: normalized[i].time,
         value: { upper: null, middle: null, lower: null },
       });
-      continue;
+    } else {
+      // Front of deques contain indices of max/min in current window
+      const highestHigh = normalized[maxDeque[0]].high;
+      const lowestLow = normalized[minDeque[0]].low;
+      const middle = (highestHigh + lowestLow) / 2;
+
+      result.push({
+        time: normalized[i].time,
+        value: {
+          upper: highestHigh,
+          middle,
+          lower: lowestLow,
+        },
+      });
     }
-
-    // Find highest high and lowest low over the period
-    let highestHigh = Number.NEGATIVE_INFINITY;
-    let lowestLow = Number.POSITIVE_INFINITY;
-
-    for (let j = i - period + 1; j <= i; j++) {
-      if (normalized[j].high > highestHigh) {
-        highestHigh = normalized[j].high;
-      }
-      if (normalized[j].low < lowestLow) {
-        lowestLow = normalized[j].low;
-      }
-    }
-
-    const middle = (highestHigh + lowestLow) / 2;
-
-    result.push({
-      time: normalized[i].time,
-      value: {
-        upper: highestHigh,
-        middle,
-        lower: lowestLow,
-      },
-    });
   }
 
   return result;

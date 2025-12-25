@@ -54,35 +54,54 @@ export function williamsR(
 
   const result: Series<number | null> = [];
 
+  // Optimized O(n) algorithm using monotonic deques
+  // Monotonic decreasing deque for max (front = index of max in window)
+  const maxDeque: number[] = [];
+  // Monotonic increasing deque for min (front = index of min in window)
+  const minDeque: number[] = [];
+
   for (let i = 0; i < normalized.length; i++) {
+    const high = normalized[i].high;
+    const low = normalized[i].low;
+
+    // Remove elements outside the window from front
+    while (maxDeque.length > 0 && maxDeque[0] <= i - period) {
+      maxDeque.shift();
+    }
+    while (minDeque.length > 0 && minDeque[0] <= i - period) {
+      minDeque.shift();
+    }
+
+    // For max deque: remove smaller elements from back
+    while (maxDeque.length > 0 && normalized[maxDeque[maxDeque.length - 1]].high <= high) {
+      maxDeque.pop();
+    }
+    maxDeque.push(i);
+
+    // For min deque: remove larger elements from back
+    while (minDeque.length > 0 && normalized[minDeque[minDeque.length - 1]].low >= low) {
+      minDeque.pop();
+    }
+    minDeque.push(i);
+
     if (i < period - 1) {
       result.push({ time: normalized[i].time, value: null });
-      continue;
-    }
-
-    // Find highest high and lowest low over the period
-    let highestHigh = Number.NEGATIVE_INFINITY;
-    let lowestLow = Number.POSITIVE_INFINITY;
-
-    for (let j = i - period + 1; j <= i; j++) {
-      if (normalized[j].high > highestHigh) {
-        highestHigh = normalized[j].high;
-      }
-      if (normalized[j].low < lowestLow) {
-        lowestLow = normalized[j].low;
-      }
-    }
-
-    // Calculate Williams %R
-    let willR: number | null = null;
-    const range = highestHigh - lowestLow;
-    if (range !== 0) {
-      willR = ((highestHigh - normalized[i].close) / range) * -100;
     } else {
-      willR = -50; // Neutral when no range
-    }
+      // Get highest high and lowest low from deque fronts
+      const highestHigh = normalized[maxDeque[0]].high;
+      const lowestLow = normalized[minDeque[0]].low;
 
-    result.push({ time: normalized[i].time, value: willR });
+      // Calculate Williams %R
+      let willR: number | null = null;
+      const range = highestHigh - lowestLow;
+      if (range !== 0) {
+        willR = ((highestHigh - normalized[i].close) / range) * -100;
+      } else {
+        willR = -50; // Neutral when no range
+      }
+
+      result.push({ time: normalized[i].time, value: willR });
+    }
   }
 
   return result;

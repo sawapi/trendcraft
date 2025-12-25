@@ -34,18 +34,30 @@ export function sma(
 
   const result: Series<number | null> = [];
 
-  for (let i = 0; i < normalized.length; i++) {
-    if (i < period - 1) {
-      // Not enough data yet
-      result.push({ time: normalized[i].time, value: null });
-    } else {
-      // Calculate average of last `period` values
-      let sum = 0;
-      for (let j = 0; j < period; j++) {
-        sum += getPrice(normalized[i - j], source);
-      }
-      result.push({ time: normalized[i].time, value: sum / period });
-    }
+  // Optimized O(n) sliding window algorithm
+  // Instead of recalculating sum for each position, we add new value and remove old value
+
+  // Handle initial null values (not enough data)
+  for (let i = 0; i < period - 1 && i < normalized.length; i++) {
+    result.push({ time: normalized[i].time, value: null });
+  }
+
+  if (normalized.length < period) {
+    return result;
+  }
+
+  // Calculate initial window sum
+  let sum = 0;
+  for (let i = 0; i < period; i++) {
+    sum += getPrice(normalized[i], source);
+  }
+  result.push({ time: normalized[period - 1].time, value: sum / period });
+
+  // Slide the window: add new value, remove old value - O(1) per iteration
+  for (let i = period; i < normalized.length; i++) {
+    sum += getPrice(normalized[i], source);
+    sum -= getPrice(normalized[i - period], source);
+    result.push({ time: normalized[i].time, value: sum / period });
   }
 
   return result;
