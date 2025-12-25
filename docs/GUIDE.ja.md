@@ -26,6 +26,9 @@
 - [ポジションサイジング](#ポジションサイジング)
 - [ATRリスク管理](#atrリスク管理)
 - [シグナルの解釈](#シグナルの解釈)
+- [ボラティリティレジーム](#ボラティリティレジーム)
+- [戦略最適化](#戦略最適化)
+- [分割エントリー戦略](#分割エントリー戦略)
 
 ---
 
@@ -1495,6 +1498,226 @@ console.log(`リスク/リワード: 1:${levels.riskRewardRatio.toFixed(1)}`);
 | モメンタム変化 | ROC、MACD |
 | 上位足のコンテキスト | MTF条件（週足RSI、SMA、ADX） |
 | 戦略の検証 | バックテスト |
+
+---
+
+## ボラティリティレジーム
+
+### どんな指標？
+
+ボラティリティレジーム分類は、現在の市場のボラティリティ環境を特定し、それに応じてトレード戦略を調整するのに役立ちます。ATRパーセンタイルとボリンジャーバンド幅パーセンタイルを組み合わせて、市場を4つのレジームに分類します。
+
+### レジームの種類
+
+| レジーム | パーセンタイル | 特徴 |
+|--------|------------|-----------------|
+| `low` | ≤ 25 | 静かな相場、狭いレンジ、平均回帰戦略向き |
+| `normal` | 25-75 | 平均的なボラティリティ、ほとんどの戦略が機能 |
+| `high` | 75-95 | 高ボラティリティ、ストップを広げる |
+| `extreme` | ≥ 95 | 非常に高いボラティリティ、ポジションサイズを縮小 |
+
+### 読み方
+
+```
+regime = 'low'      → レンジ相場または平均回帰戦略を検討
+regime = 'normal'   → 通常の戦略パラメータ
+regime = 'high'     → ストップを広げ、ポジションサイズを縮小
+regime = 'extreme'  → 非常に慎重に、様子見も検討
+```
+
+### トレードへの応用
+
+```typescript
+import { regimeIs, regimeNot, atrPercentAbove, and, goldenCross, bollingerTouch } from 'trendcraft';
+
+// 低ボラティリティでのレンジ相場戦略
+const rangeEntry = and(
+  regimeIs('low'),
+  bollingerTouch('lower')
+);
+
+// トレンド戦略で高ボラティリティを避ける
+const trendEntry = and(
+  regimeNot('extreme'),
+  goldenCross()
+);
+
+// トレンドフォロー用にATR%でフィルタ（ボラタイルな銘柄のみ）
+const volatileStocks = and(
+  atrPercentAbove(2.3),  // ボラタイルな銘柄のみ
+  perfectOrderBullish()
+);
+```
+
+### ATR%フィルタリング
+
+ATR%（価格に対するATRの割合）は、ボラティリティレベルで銘柄をスクリーニングするのに便利です：
+
+```
+ATR% < 1.5%   → 低ボラティリティ（債券、公益株など）
+ATR% 1.5-2.3% → 中程度のボラティリティ
+ATR% > 2.3%   → 高ボラティリティ（トレンドフォロー向き）
+ATR% > 3%     → 非常にボラタイル（テック株、グロース株など）
+```
+
+### ヒント
+
+- **低ボラティリティ**: レンジ相場または平均回帰戦略を検討
+- **高/極端なボラティリティ**: ストップを広げ、ポジションを小さく
+- **ATR%**: ボラティリティレベルで銘柄をフィルタ（トレンドフォローには通常2.3%以上が良い）
+- **レジーム変化**: ボラティリティの拡大/縮小はブレイクアウトシグナルの可能性
+
+---
+
+## 戦略最適化
+
+### どんな機能？
+
+戦略最適化は、体系的なテストを通じてトレード戦略の最適なパラメータと条件を見つけるのに役立ちます。TrendCraftは3つの最適化方法を提供しています。
+
+### グリッドサーチ
+
+グリッドサーチは、パラメータ値のすべての組み合わせをテストして最適な設定を見つけます。
+
+```typescript
+import { gridSearch, param, constraint, goldenCross, deadCross } from 'trendcraft';
+
+const result = gridSearch(
+  candles,
+  (params) => ({
+    entry: goldenCross(params.short, params.long),
+    exit: deadCross(params.short, params.long),
+  }),
+  [
+    param('short', [5, 10, 15, 20]),
+    param('long', [25, 50, 75, 100]),
+  ],
+  {
+    metric: 'sharpeRatio',
+    constraints: [
+      constraint('winRate', '>=', 40),
+      constraint('maxDrawdown', '<=', 30),
+    ],
+    topN: 5
+  }
+);
+
+console.log('最適パラメータ:', result.results[0].parameters);
+console.log('シャープレシオ:', result.results[0].metrics.sharpeRatio);
+```
+
+### ウォークフォワード分析
+
+ウォークフォワード分析は、最適化されたパラメータがアウトオブサンプルデータでも機能するかを検証します。これはオーバーフィッティングを避けるのに役立ちます。
+
+**仕組み:**
+1. データをイン・サンプル（訓練）とアウト・オブ・サンプル（テスト）期間に分割
+2. イン・サンプルデータでパラメータを最適化
+3. アウト・オブ・サンプルデータでテスト
+4. 複数の期間で繰り返し
+
+```typescript
+import { walkForwardAnalysis, param } from 'trendcraft';
+
+const result = walkForwardAnalysis(
+  candles,
+  strategyFactory,
+  paramRanges,
+  {
+    inSampleRatio: 0.7,    // 70%イン・サンプル、30%アウト・オブ・サンプル
+    periods: 5,            // 5つのウォークフォワード期間
+    metric: 'sharpeRatio',
+  }
+);
+```
+
+### 組み合わせ探索
+
+条件プールからベストなエントリー/イグジット条件の組み合わせを見つけます。
+
+```typescript
+import { combinationSearch, createEntryConditionPool, createExitConditionPool } from 'trendcraft';
+
+const result = combinationSearch(
+  candles,
+  createEntryConditionPool(),
+  createExitConditionPool(),
+  { metric: 'sharpeRatio', topN: 20 }
+);
+```
+
+### ヒント
+
+- **シンプルに始める**: 一度に2-3パラメータのみ最適化、すべてを同時にやらない
+- **制約を使う**: 非現実的な結果をフィルタ（例: 最大ドローダウン > 50%）
+- **検証する**: オーバーフィッティングをチェックするためにウォークフォワード分析を必ず使う
+- **懐疑的に**: 過去のパフォーマンスは将来を保証しない
+
+---
+
+## 分割エントリー戦略
+
+### どんな機能？
+
+分割エントリー（スケールドエントリー）は、一度に全ポジションを建てる代わりに、資金を複数のトランシェに分割します。これにより平均エントリー価格を改善し、タイミングリスクを軽減できます。
+
+### 戦略
+
+| 戦略 | 説明 | 例（3トランシェ） |
+|----------|-------------|---------------------|
+| `equal` | 各トランシェ均等配分 | 33%, 33%, 33% |
+| `pyramid` | 早いトランシェに大きい配分 | 50%, 33%, 17% |
+| `reverse-pyramid` | 後のトランシェに大きい配分 | 17%, 33%, 50% |
+
+### インターバルタイプ
+
+| タイプ | 説明 |
+|------|-------------|
+| `signal` | 各エントリーシグナルでトランシェ追加 |
+| `price` | priceInterval % の価格下落でトランシェ追加 |
+
+### 使用例
+
+```typescript
+import { runBacktestScaled, goldenCross, deadCross } from 'trendcraft';
+
+// 3トランシェでエントリー、2%下落で追加
+const result = runBacktestScaled(candles, goldenCross(), deadCross(), {
+  capital: 1000000,
+  scaledEntry: {
+    tranches: 3,
+    strategy: 'pyramid',      // 50%, 33%, 17%
+    intervalType: 'price',
+    priceInterval: -2,        // 2%下落でトランシェ追加
+  },
+});
+
+// シグナルベース: 各ゴールデンクロスで追加
+const result2 = runBacktestScaled(candles, goldenCross(), deadCross(), {
+  capital: 1000000,
+  scaledEntry: {
+    tranches: 3,
+    strategy: 'equal',
+    intervalType: 'signal',
+  },
+});
+```
+
+### 戦略の選び方
+
+| 戦略 | 適した状況 |
+|----------|----------|
+| **Pyramid** | 最初のシグナルに自信がある、早めに大きいエクスポージャーが欲しい |
+| **Equal** | 中立的アプローチ、バランスの取れたリスク |
+| **Reverse-pyramid** | タイミングに自信がない、ナンピン買いしたい |
+
+### ヒント
+
+- **Pyramid**は最初のシグナルに自信があるときに良い
+- **Reverse-pyramid**はナンピン買いに良い
+- **価格ベースのインターバル**はボラタイルな相場で効果的
+- **シグナルベースのインターバル**はトレンドフォロー戦略で効果的
+- ポジションが構築されるにつれて利益を確保するために部分利確を検討
 
 ---
 

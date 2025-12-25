@@ -46,6 +46,21 @@ A TypeScript library for technical analysis of financial data. Calculate indicat
 - Dynamic ATR-based stop and take-profit levels
 - Integrated with backtesting engine
 
+### Strategy Optimization
+- **Grid Search**: Parameter tuning with constraints
+- **Walk-Forward Analysis**: Out-of-sample validation
+- **Combination Search**: Find optimal entry/exit condition combinations
+
+### Scaled Entry
+- Split entry strategies (equal, pyramid, reverse-pyramid)
+- Signal-based or price-based intervals
+- Partial take-profit support
+
+### Volatility Regime Detection
+- Classify market volatility (low, normal, high, extreme)
+- Filter trades by volatility environment
+- ATR% filtering for stock screening
+
 ### CLI Tools
 - **Screening CLI**: Screen multiple stocks against entry/exit conditions
 - **Backtest CLI**: Run backtests on single files or compare across multiple files
@@ -421,6 +436,9 @@ npx trendcraft-screen ./data --all
 
 # List available conditions
 npx trendcraft-screen --list
+
+# Specify minimum data points required
+npx trendcraft-screen ./data --entry "goldenCross" --min-data 200
 ```
 
 **Output Example (table):**
@@ -470,6 +488,16 @@ npx trendcraft-backtest ./data --output json > results.json
 
 # List available conditions
 npx trendcraft-backtest --list
+
+# Custom capital and commission
+npx trendcraft-backtest ./data/6758.T.csv \
+  --entry "goldenCross" --exit "deadCross" \
+  --capital 500000 --commission 500
+
+# With trailing stop
+npx trendcraft-backtest ./data/6758.T.csv \
+  --entry "goldenCross" --exit "deadCross" \
+  --trailing-stop 3
 ```
 
 **Single File Output:**
@@ -516,13 +544,14 @@ Both CLI tools support these preset conditions:
 | Moving Average | `goldenCross`, `deadCross`, `goldenCross25_75`, `deadCross25_75` |
 | RSI | `rsiBelow30`, `rsiBelow40`, `rsiAbove60`, `rsiAbove70` |
 | MACD | `macdCrossUp`, `macdCrossDown` |
-| Perfect Order | `perfectOrderBullish`, `perfectOrderBearish`, `perfectOrderCollapsed`, `perfectOrderActiveBullish` |
+| Perfect Order | `perfectOrderBullish`, `perfectOrderBearish`, `perfectOrderCollapsed`, `perfectOrderActiveBullish`, `perfectOrderPullbackEntry`, `perfectOrderBullishConfirmed`, `perfectOrderPreBullish` |
 | Volume | `volumeAnomaly`, `volumeAbove1_5x`, `volumeAbove2x`, `volumeConfirmsTrend` |
 | Bollinger | `bollingerBreakoutUp`, `bollingerBreakoutDown` |
 | Stochastics | `stochBelow20`, `stochAbove80`, `stochCrossUp`, `stochCrossDown` |
 | DMI/ADX | `dmiBullish`, `dmiBearish`, `adxStrong` |
-| Range | `rangeBreakout`, `rangeConfirmed`, `inRangeBound` |
+| Range | `rangeBreakout`, `rangeConfirmed`, `inRangeBound`, `tightRange` |
 | Volatility | `atrPercentAbove2_3`, `atrPercentAbove3` |
+| Volatility Regime | `regimeIs('low')`, `regimeNot('high')`, `volatilityAbove(70)`, `volatilityBelow(30)` |
 
 ## API Reference
 

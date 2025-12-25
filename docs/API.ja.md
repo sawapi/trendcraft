@@ -1615,6 +1615,274 @@ const result = runBacktest(candles, entry, exit, {
 
 ---
 
+## ボラティリティレジーム
+
+#### `volatilityRegime(candles, options)`
+
+ATRパーセンタイルとボリンジャーバンド幅パーセンタイルを使用して、市場のボラティリティをレジームに分類します。
+
+```typescript
+const regimes = volatilityRegime(candles);
+const currentRegime = regimes[regimes.length - 1].value.regime;
+
+if (currentRegime === 'low') {
+  // レンジ相場戦略を検討
+} else if (currentRegime === 'high' || currentRegime === 'extreme') {
+  // ストップ幅を広げ、ポジションサイズを縮小
+}
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|--------|------|---------|-------------|
+| `atrPeriod` | `number` | `14` | ATR期間 |
+| `bbPeriod` | `number` | `20` | ボリンジャーバンド期間 |
+| `lookbackPeriod` | `number` | `100` | パーセンタイル計算のルックバック期間 |
+| `thresholds.low` | `number` | `25` | 低ボラティリティ閾値（パーセンタイル） |
+| `thresholds.high` | `number` | `75` | 高ボラティリティ閾値（パーセンタイル） |
+| `thresholds.extreme` | `number` | `95` | 極端なボラティリティ閾値（パーセンタイル） |
+
+**戻り値:** `Series<VolatilityRegimeValue>`
+
+```typescript
+type VolatilityRegime = 'low' | 'normal' | 'high' | 'extreme';
+
+interface VolatilityRegimeValue {
+  regime: VolatilityRegime;           // 現在のレジーム分類
+  atrPercentile: number | null;       // ATRパーセンタイル (0-100)
+  bandwidthPercentile: number | null; // ボリンジャーバンド幅パーセンタイル (0-100)
+  historicalVol: number | null;       // 年率換算ヒストリカルボラティリティ (%)
+  atr: number | null;                 // 現在のATR値
+  bandwidth: number | null;           // 現在のボリンジャーバンド幅
+  confidence: number;                 // 信頼度 (0-1)
+}
+```
+
+---
+
+### ボラティリティレジーム条件
+
+市場のボラティリティ環境でトレードをフィルタリングするための条件です。
+
+| 条件 | 説明 |
+|-----------|-------------|
+| `regimeIs(regime)` | 現在のレジームが指定したレジームと一致 |
+| `regimeNot(regime)` | 現在のレジームが指定したレジームと一致しない |
+| `volatilityAbove(percentile)` | 平均パーセンタイル >= 閾値 |
+| `volatilityBelow(percentile)` | 平均パーセンタイル <= 閾値 |
+| `atrPercentileAbove(percentile)` | ATRパーセンタイル >= 閾値 |
+| `atrPercentileBelow(percentile)` | ATRパーセンタイル <= 閾値 |
+| `regimeConfidenceAbove(confidence)` | レジーム分類の信頼度 >= 閾値 |
+| `volatilityExpanding(threshold, lookback)` | ボラティリティが直近から拡大中 |
+| `volatilityContracting(threshold, lookback)` | ボラティリティが直近から縮小中 |
+| `atrPercentAbove(threshold)` | ATR% >= 閾値（デフォルト: 2.3） |
+| `atrPercentBelow(threshold)` | ATR% <= 閾値 |
+
+**使用例:**
+
+```typescript
+import { regimeIs, regimeNot, atrPercentAbove, and, goldenCross } from 'trendcraft';
+
+// 低ボラティリティ環境でのみエントリー
+const entry = and(
+  regimeIs('low'),
+  rsiBelow(30)
+);
+
+// 極端なボラティリティを避ける
+const entry = and(
+  regimeNot('extreme'),
+  goldenCross()
+);
+
+// トレンドフォロー用にATR%でフィルタ（ボラタイルな銘柄のみ）
+const entry = and(
+  atrPercentAbove(2.3),
+  perfectOrderBullish()
+);
+```
+
+---
+
+## 最適化
+
+### `gridSearch(candles, strategyFactory, paramRanges, options)`
+
+最適な戦略パラメータのグリッドサーチ。
+
+```typescript
+import { gridSearch, param, constraint, goldenCross, deadCross } from 'trendcraft';
+
+const result = gridSearch(
+  candles,
+  (params) => ({
+    entry: goldenCross(params.short, params.long),
+    exit: deadCross(params.short, params.long),
+  }),
+  [
+    param('short', [5, 10, 15, 20]),
+    param('long', [25, 50, 75]),
+  ],
+  {
+    metric: 'sharpeRatio',
+    constraints: [
+      constraint('winRate', '>=', 40),
+      constraint('maxDrawdown', '<=', 30),
+    ],
+    topN: 10,
+  }
+);
+
+console.log('最適パラメータ:', result.results[0].parameters);
+console.log('シャープレシオ:', result.results[0].metrics.sharpeRatio);
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|--------|------|---------|-------------|
+| `metric` | `OptimizationMetric` | `'sharpeRatio'` | 最適化対象の指標 |
+| `constraints` | `OptimizationConstraint[]` | `[]` | 結果をフィルタする制約条件 |
+| `topN` | `number` | `10` | 返す上位結果の数 |
+| `capital` | `number` | `1000000` | バックテスト用の初期資金 |
+
+**指標:** `'sharpeRatio' | 'calmarRatio' | 'recoveryFactor' | 'totalReturn' | 'winRate' | 'profitFactor'`
+
+**戻り値:** `GridSearchResult`
+
+```typescript
+interface GridSearchResult {
+  results: OptimizationResultEntry[];
+  totalCombinations: number;
+  passedConstraints: number;
+  bestParameters: Record<string, number>;
+  bestMetrics: Record<string, number>;
+}
+```
+
+---
+
+### `walkForwardAnalysis(candles, strategyFactory, paramRanges, options)`
+
+アウトオブサンプル検証のためのウォークフォワード分析。
+
+```typescript
+import { walkForwardAnalysis, param } from 'trendcraft';
+
+const result = walkForwardAnalysis(
+  candles,
+  strategyFactory,
+  paramRanges,
+  {
+    inSampleRatio: 0.7,    // 70%をイン・サンプル、30%をアウト・オブ・サンプル
+    periods: 5,            // 5つのウォークフォワード期間
+    metric: 'sharpeRatio',
+  }
+);
+
+console.log('アウトオブサンプル結果:', result.outOfSampleResults);
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|--------|------|---------|-------------|
+| `inSampleRatio` | `number` | `0.7` | イン・サンプル最適化に使用するデータの割合 |
+| `periods` | `number` | `5` | ウォークフォワード期間の数 |
+| `metric` | `OptimizationMetric` | `'sharpeRatio'` | 最適化する指標 |
+
+---
+
+### `combinationSearch(candles, entryPool, exitPool, options)`
+
+最適なエントリー/イグジット条件の組み合わせを探索。
+
+```typescript
+import {
+  combinationSearch,
+  createEntryConditionPool,
+  createExitConditionPool
+} from 'trendcraft';
+
+const entryPool = createEntryConditionPool();  // デフォルトのエントリー条件
+const exitPool = createExitConditionPool();    // デフォルトのイグジット条件
+
+const result = combinationSearch(candles, entryPool, exitPool, {
+  metric: 'sharpeRatio',
+  topN: 20,
+});
+
+result.results.forEach((r) => {
+  console.log(`エントリー: ${r.entryName}, イグジット: ${r.exitName}`);
+  console.log(`シャープ: ${r.metrics.sharpeRatio}`);
+});
+```
+
+---
+
+### 最適化メトリクス
+
+```typescript
+import {
+  calculateSharpeRatio,
+  calculateCalmarRatio,
+  calculateRecoveryFactor,
+  annualizeReturn,
+  calculateAllMetrics
+} from 'trendcraft';
+
+// 個別メトリクスを計算
+const sharpe = calculateSharpeRatio(returns, riskFreeRate);
+const calmar = calculateCalmarRatio(totalReturn, maxDrawdown, years);
+const recovery = calculateRecoveryFactor(totalReturn, maxDrawdown);
+
+// 全メトリクスを一度に計算
+const metrics = calculateAllMetrics(backtestResult);
+```
+
+---
+
+## 分割エントリー
+
+### `runBacktestScaled(candles, entry, exit, options)`
+
+分割エントリー戦略でのバックテスト。一度に全ポジションを建てる代わりに、資金を複数のトランシェに分割します。
+
+```typescript
+import { runBacktestScaled, goldenCross, deadCross } from 'trendcraft';
+
+const result = runBacktestScaled(candles, goldenCross(), deadCross(), {
+  capital: 1000000,
+  scaledEntry: {
+    tranches: 3,
+    strategy: 'pyramid',      // 50%, 33%, 17%
+    intervalType: 'price',
+    priceInterval: -2,        // 2%下落でトランシェ追加
+  },
+});
+```
+
+**ScaledEntryConfig:**
+| オプション | 型 | デフォルト | 説明 |
+|--------|------|---------|-------------|
+| `tranches` | `number` | 必須 | エントリートランシェ数 (2-10) |
+| `strategy` | `'equal' \| 'pyramid' \| 'reverse-pyramid'` | `'equal'` | 配分戦略 |
+| `intervalType` | `'signal' \| 'price'` | `'signal'` | 追加エントリーのトリガー方法 |
+| `priceInterval` | `number` | `-2` | 次のトランシェの価格変動 %（負の値 = 下落） |
+
+**戦略:**
+| 戦略 | 説明 | 例（3トランシェ） |
+|----------|-------------|---------------------|
+| `equal` | 各トランシェ均等配分 | 33%, 33%, 33% |
+| `pyramid` | 早いトランシェに大きい配分 | 50%, 33%, 17% |
+| `reverse-pyramid` | 後のトランシェに大きい配分 | 17%, 33%, 50% |
+
+**インターバルタイプ:**
+| タイプ | トリガー |
+|------|---------|
+| `signal` | 各エントリーシグナルでトランシェ追加 |
+| `price` | 最初のエントリーから `priceInterval` % 価格変動でトランシェ追加 |
+
+---
+
 ## 型定義
 
 ### ローソク足型

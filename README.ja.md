@@ -46,6 +46,21 @@
 - ATRベースの動的ストップ/利確レベル
 - バックテストエンジンとの統合
 
+### 戦略最適化
+- **グリッドサーチ**: 制約付きパラメータチューニング
+- **ウォークフォワード分析**: アウトオブサンプル検証
+- **組み合わせ探索**: 最適なエントリー/イグジット条件の組み合わせを発見
+
+### 分割エントリー
+- 分割エントリー戦略（equal, pyramid, reverse-pyramid）
+- シグナルベースまたは価格ベースの間隔
+- 部分利確サポート
+
+### ボラティリティレジーム検出
+- 市場ボラティリティを分類（low, normal, high, extreme）
+- ボラティリティ環境によるトレードフィルタリング
+- スクリーニング用ATR%フィルタ
+
 ### CLIツール
 - **スクリーニングCLI**: 複数銘柄をエントリー/イグジット条件でスクリーニング
 - **バックテストCLI**: 単一ファイルまたは複数ファイルの比較バックテスト
@@ -421,6 +436,9 @@ npx trendcraft-screen ./data --all
 
 # 使用可能な条件一覧
 npx trendcraft-screen --list
+
+# 最小データポイント数を指定
+npx trendcraft-screen ./data --entry "goldenCross" --min-data 200
 ```
 
 **出力例（table形式）:**
@@ -470,6 +488,16 @@ npx trendcraft-backtest ./data --output json > results.json
 
 # 使用可能な条件一覧
 npx trendcraft-backtest --list
+
+# カスタム資金と手数料
+npx trendcraft-backtest ./data/6758.T.csv \
+  --entry "goldenCross" --exit "deadCross" \
+  --capital 500000 --commission 500
+
+# トレーリングストップ付き
+npx trendcraft-backtest ./data/6758.T.csv \
+  --entry "goldenCross" --exit "deadCross" \
+  --trailing-stop 3
 ```
 
 **単一ファイル出力:**
@@ -516,13 +544,14 @@ Summary:
 | 移動平均 | `goldenCross`, `deadCross`, `goldenCross25_75`, `deadCross25_75` |
 | RSI | `rsiBelow30`, `rsiBelow40`, `rsiAbove60`, `rsiAbove70` |
 | MACD | `macdCrossUp`, `macdCrossDown` |
-| パーフェクトオーダー | `perfectOrderBullish`, `perfectOrderBearish`, `perfectOrderCollapsed`, `perfectOrderActiveBullish` |
+| パーフェクトオーダー | `perfectOrderBullish`, `perfectOrderBearish`, `perfectOrderCollapsed`, `perfectOrderActiveBullish`, `perfectOrderPullbackEntry`, `perfectOrderBullishConfirmed`, `perfectOrderPreBullish` |
 | 出来高 | `volumeAnomaly`, `volumeAbove1_5x`, `volumeAbove2x`, `volumeConfirmsTrend` |
 | ボリンジャー | `bollingerBreakoutUp`, `bollingerBreakoutDown` |
 | ストキャスティクス | `stochBelow20`, `stochAbove80`, `stochCrossUp`, `stochCrossDown` |
 | DMI/ADX | `dmiBullish`, `dmiBearish`, `adxStrong` |
-| レンジ | `rangeBreakout`, `rangeConfirmed`, `inRangeBound` |
+| レンジ | `rangeBreakout`, `rangeConfirmed`, `inRangeBound`, `tightRange` |
 | ボラティリティ | `atrPercentAbove2_3`, `atrPercentAbove3` |
+| ボラティリティレジーム | `regimeIs('low')`, `regimeNot('high')`, `volatilityAbove(70)`, `volatilityBelow(30)` |
 
 ## APIリファレンス
 

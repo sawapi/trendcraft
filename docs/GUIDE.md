@@ -26,6 +26,9 @@ A practical guide to understanding technical indicators and trading signals.
 - [Position Sizing](#position-sizing)
 - [ATR Risk Management](#atr-risk-management)
 - [Signal Interpretation](#signal-interpretation)
+- [Volatility Regime](#volatility-regime)
+- [Strategy Optimization](#strategy-optimization)
+- [Scaled Entry Strategies](#scaled-entry-strategies)
 
 ---
 
@@ -1499,6 +1502,226 @@ Indicators behave differently in different market conditions:
 | Momentum change | ROC, MACD |
 | Higher timeframe context | MTF conditions (Weekly RSI, SMA, ADX) |
 | Strategy validation | Backtesting |
+
+---
+
+## Volatility Regime
+
+### What is it?
+
+Volatility regime classification identifies the current market volatility environment to help you adjust your trading strategy accordingly. It combines ATR percentile and Bollinger Bandwidth percentile to classify markets into four regimes.
+
+### Regimes
+
+| Regime | Percentile | Characteristics |
+|--------|------------|-----------------|
+| `low` | ≤ 25 | Quiet market, tight ranges, good for mean-reversion |
+| `normal` | 25-75 | Average volatility, most strategies work |
+| `high` | 75-95 | Elevated volatility, use wider stops |
+| `extreme` | ≥ 95 | Very high volatility, reduce position size |
+
+### How to Read
+
+```
+regime = 'low'      → Consider range-bound or mean-reversion strategies
+regime = 'normal'   → Standard strategy parameters
+regime = 'high'     → Widen stops, reduce position size
+regime = 'extreme'  → Very cautious, consider sitting out
+```
+
+### Trading Applications
+
+```typescript
+import { regimeIs, regimeNot, atrPercentAbove, and, goldenCross, bollingerTouch } from 'trendcraft';
+
+// Range-bound strategies in low volatility
+const rangeEntry = and(
+  regimeIs('low'),
+  bollingerTouch('lower')
+);
+
+// Avoid high volatility for trend strategies
+const trendEntry = and(
+  regimeNot('extreme'),
+  goldenCross()
+);
+
+// Filter by ATR% for trend-following (volatile stocks only)
+const volatileStocks = and(
+  atrPercentAbove(2.3),  // Only volatile stocks
+  perfectOrderBullish()
+);
+```
+
+### ATR% Filtering
+
+ATR% (ATR as percentage of price) is useful for screening stocks by volatility level:
+
+```
+ATR% < 1.5%  → Low volatility (bonds, utilities)
+ATR% 1.5-2.3% → Moderate volatility
+ATR% > 2.3%  → High volatility (good for trend-following)
+ATR% > 3%    → Very volatile (tech, growth stocks)
+```
+
+### Tips
+
+- **Low volatility**: Consider range-bound or mean-reversion strategies
+- **High/Extreme volatility**: Use wider stops, smaller positions
+- **ATR%**: Filter stocks by volatility level (2.3%+ is typically good for trend-following)
+- **Regime changes**: Watch for volatility expansion/contraction as potential breakout signals
+
+---
+
+## Strategy Optimization
+
+### What is it?
+
+Strategy optimization helps you find the best parameters and conditions for your trading strategy through systematic testing. TrendCraft provides three optimization methods.
+
+### Grid Search
+
+Grid search tests all combinations of parameter values to find optimal settings.
+
+```typescript
+import { gridSearch, param, constraint, goldenCross, deadCross } from 'trendcraft';
+
+const result = gridSearch(
+  candles,
+  (params) => ({
+    entry: goldenCross(params.short, params.long),
+    exit: deadCross(params.short, params.long),
+  }),
+  [
+    param('short', [5, 10, 15, 20]),
+    param('long', [25, 50, 75, 100]),
+  ],
+  {
+    metric: 'sharpeRatio',
+    constraints: [
+      constraint('winRate', '>=', 40),
+      constraint('maxDrawdown', '<=', 30),
+    ],
+    topN: 5
+  }
+);
+
+console.log('Best parameters:', result.results[0].parameters);
+console.log('Sharpe ratio:', result.results[0].metrics.sharpeRatio);
+```
+
+### Walk-Forward Analysis
+
+Walk-forward analysis validates that optimized parameters work on out-of-sample data. This helps avoid overfitting.
+
+**How it works:**
+1. Divide data into in-sample (training) and out-of-sample (testing) periods
+2. Optimize parameters on in-sample data
+3. Test on out-of-sample data
+4. Repeat for multiple periods
+
+```typescript
+import { walkForwardAnalysis, param } from 'trendcraft';
+
+const result = walkForwardAnalysis(
+  candles,
+  strategyFactory,
+  paramRanges,
+  {
+    inSampleRatio: 0.7,    // 70% in-sample, 30% out-of-sample
+    periods: 5,            // 5 walk-forward periods
+    metric: 'sharpeRatio',
+  }
+);
+```
+
+### Combination Search
+
+Find the best entry/exit condition combinations from pools of conditions.
+
+```typescript
+import { combinationSearch, createEntryConditionPool, createExitConditionPool } from 'trendcraft';
+
+const result = combinationSearch(
+  candles,
+  createEntryConditionPool(),
+  createExitConditionPool(),
+  { metric: 'sharpeRatio', topN: 20 }
+);
+```
+
+### Tips
+
+- **Start simple**: Optimize 2-3 parameters at a time, not everything
+- **Use constraints**: Filter out unrealistic results (e.g., max drawdown > 50%)
+- **Validate**: Always use walk-forward analysis to check for overfitting
+- **Be skeptical**: Past performance doesn't guarantee future results
+
+---
+
+## Scaled Entry Strategies
+
+### What is it?
+
+Scaled entry (or split entry) divides your capital into multiple tranches instead of entering all at once. This can improve average entry price and reduce timing risk.
+
+### Strategies
+
+| Strategy | Description | Example (3 tranches) |
+|----------|-------------|---------------------|
+| `equal` | Equal weight per tranche | 33%, 33%, 33% |
+| `pyramid` | Larger early tranches | 50%, 33%, 17% |
+| `reverse-pyramid` | Larger later tranches | 17%, 33%, 50% |
+
+### Interval Types
+
+| Type | Description |
+|------|-------------|
+| `signal` | Add tranche on each entry signal |
+| `price` | Add tranche when price drops by priceInterval % |
+
+### Usage Example
+
+```typescript
+import { runBacktestScaled, goldenCross, deadCross } from 'trendcraft';
+
+// Enter in 3 tranches, adding on 2% dips
+const result = runBacktestScaled(candles, goldenCross(), deadCross(), {
+  capital: 1000000,
+  scaledEntry: {
+    tranches: 3,
+    strategy: 'pyramid',      // 50%, 33%, 17%
+    intervalType: 'price',
+    priceInterval: -2,        // Add on 2% dips
+  },
+});
+
+// Signal-based: add on each golden cross
+const result2 = runBacktestScaled(candles, goldenCross(), deadCross(), {
+  capital: 1000000,
+  scaledEntry: {
+    tranches: 3,
+    strategy: 'equal',
+    intervalType: 'signal',
+  },
+});
+```
+
+### When to Use Each Strategy
+
+| Strategy | Best For |
+|----------|----------|
+| **Pyramid** | High confidence in initial signal, want larger early exposure |
+| **Equal** | Neutral approach, balanced risk |
+| **Reverse-pyramid** | Uncertain about timing, want to average down |
+
+### Tips
+
+- **Pyramid** is good when you're confident in the initial signal
+- **Reverse-pyramid** is good for averaging down on dips
+- **Price-based intervals** work well in volatile markets
+- **Signal-based intervals** work well for trend-following strategies
+- Consider partial take-profit to lock in gains as position builds
 
 ---
 

@@ -1713,6 +1713,274 @@ const result = runBacktest(candles, entry, exit, {
 
 ---
 
+## Volatility Regime
+
+#### `volatilityRegime(candles, options)`
+
+Classify market volatility into regimes using ATR and Bollinger Bandwidth percentiles.
+
+```typescript
+const regimes = volatilityRegime(candles);
+const currentRegime = regimes[regimes.length - 1].value.regime;
+
+if (currentRegime === 'low') {
+  // Consider range-bound strategies
+} else if (currentRegime === 'high' || currentRegime === 'extreme') {
+  // Consider wider stops, smaller position sizes
+}
+```
+
+**Options:**
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `atrPeriod` | `number` | `14` | ATR period |
+| `bbPeriod` | `number` | `20` | Bollinger Bands period |
+| `lookbackPeriod` | `number` | `100` | Lookback for percentile calculation |
+| `thresholds.low` | `number` | `25` | Low volatility threshold (percentile) |
+| `thresholds.high` | `number` | `75` | High volatility threshold (percentile) |
+| `thresholds.extreme` | `number` | `95` | Extreme volatility threshold (percentile) |
+
+**Returns:** `Series<VolatilityRegimeValue>`
+
+```typescript
+type VolatilityRegime = 'low' | 'normal' | 'high' | 'extreme';
+
+interface VolatilityRegimeValue {
+  regime: VolatilityRegime;           // Current regime classification
+  atrPercentile: number | null;       // ATR percentile (0-100)
+  bandwidthPercentile: number | null; // Bollinger Bandwidth percentile (0-100)
+  historicalVol: number | null;       // Annualized historical volatility (%)
+  atr: number | null;                 // Current ATR value
+  bandwidth: number | null;           // Current Bollinger Bandwidth
+  confidence: number;                 // Confidence level (0-1)
+}
+```
+
+---
+
+### Volatility Regime Conditions
+
+Use these conditions to filter trades by market volatility environment.
+
+| Condition | Description |
+|-----------|-------------|
+| `regimeIs(regime)` | Current regime matches the specified regime |
+| `regimeNot(regime)` | Current regime does NOT match the specified regime |
+| `volatilityAbove(percentile)` | Average percentile >= threshold |
+| `volatilityBelow(percentile)` | Average percentile <= threshold |
+| `atrPercentileAbove(percentile)` | ATR percentile >= threshold |
+| `atrPercentileBelow(percentile)` | ATR percentile <= threshold |
+| `regimeConfidenceAbove(confidence)` | Regime classification confidence >= threshold |
+| `volatilityExpanding(threshold, lookback)` | Volatility increasing from recent past |
+| `volatilityContracting(threshold, lookback)` | Volatility decreasing from recent past |
+| `atrPercentAbove(threshold)` | ATR% >= threshold (default: 2.3) |
+| `atrPercentBelow(threshold)` | ATR% <= threshold |
+
+**Example:**
+
+```typescript
+import { regimeIs, regimeNot, atrPercentAbove, and, goldenCross } from 'trendcraft';
+
+// Only enter trades in low volatility environment
+const entry = and(
+  regimeIs('low'),
+  rsiBelow(30)
+);
+
+// Avoid extreme volatility
+const entry = and(
+  regimeNot('extreme'),
+  goldenCross()
+);
+
+// Filter by ATR% for trend-following (volatile stocks only)
+const entry = and(
+  atrPercentAbove(2.3),
+  perfectOrderBullish()
+);
+```
+
+---
+
+## Optimization
+
+### `gridSearch(candles, strategyFactory, paramRanges, options)`
+
+Grid search for optimal strategy parameters.
+
+```typescript
+import { gridSearch, param, constraint, goldenCross, deadCross } from 'trendcraft';
+
+const result = gridSearch(
+  candles,
+  (params) => ({
+    entry: goldenCross(params.short, params.long),
+    exit: deadCross(params.short, params.long),
+  }),
+  [
+    param('short', [5, 10, 15, 20]),
+    param('long', [25, 50, 75]),
+  ],
+  {
+    metric: 'sharpeRatio',
+    constraints: [
+      constraint('winRate', '>=', 40),
+      constraint('maxDrawdown', '<=', 30),
+    ],
+    topN: 10,
+  }
+);
+
+console.log('Best parameters:', result.results[0].parameters);
+console.log('Sharpe ratio:', result.results[0].metrics.sharpeRatio);
+```
+
+**Options:**
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `metric` | `OptimizationMetric` | `'sharpeRatio'` | Target metric to optimize |
+| `constraints` | `OptimizationConstraint[]` | `[]` | Constraints to filter results |
+| `topN` | `number` | `10` | Number of top results to return |
+| `capital` | `number` | `1000000` | Initial capital for backtests |
+
+**Metrics:** `'sharpeRatio' | 'calmarRatio' | 'recoveryFactor' | 'totalReturn' | 'winRate' | 'profitFactor'`
+
+**Returns:** `GridSearchResult`
+
+```typescript
+interface GridSearchResult {
+  results: OptimizationResultEntry[];
+  totalCombinations: number;
+  passedConstraints: number;
+  bestParameters: Record<string, number>;
+  bestMetrics: Record<string, number>;
+}
+```
+
+---
+
+### `walkForwardAnalysis(candles, strategyFactory, paramRanges, options)`
+
+Walk-forward analysis for out-of-sample validation.
+
+```typescript
+import { walkForwardAnalysis, param } from 'trendcraft';
+
+const result = walkForwardAnalysis(
+  candles,
+  strategyFactory,
+  paramRanges,
+  {
+    inSampleRatio: 0.7,    // 70% in-sample, 30% out-of-sample
+    periods: 5,            // 5 walk-forward periods
+    metric: 'sharpeRatio',
+  }
+);
+
+console.log('Out-of-sample results:', result.outOfSampleResults);
+```
+
+**Options:**
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `inSampleRatio` | `number` | `0.7` | Ratio of data for in-sample optimization |
+| `periods` | `number` | `5` | Number of walk-forward periods |
+| `metric` | `OptimizationMetric` | `'sharpeRatio'` | Metric to optimize |
+
+---
+
+### `combinationSearch(candles, entryPool, exitPool, options)`
+
+Search for optimal entry/exit condition combinations.
+
+```typescript
+import {
+  combinationSearch,
+  createEntryConditionPool,
+  createExitConditionPool
+} from 'trendcraft';
+
+const entryPool = createEntryConditionPool();  // Default entry conditions
+const exitPool = createExitConditionPool();    // Default exit conditions
+
+const result = combinationSearch(candles, entryPool, exitPool, {
+  metric: 'sharpeRatio',
+  topN: 20,
+});
+
+result.results.forEach((r) => {
+  console.log(`Entry: ${r.entryName}, Exit: ${r.exitName}`);
+  console.log(`Sharpe: ${r.metrics.sharpeRatio}`);
+});
+```
+
+---
+
+### Optimization Metrics
+
+```typescript
+import {
+  calculateSharpeRatio,
+  calculateCalmarRatio,
+  calculateRecoveryFactor,
+  annualizeReturn,
+  calculateAllMetrics
+} from 'trendcraft';
+
+// Calculate individual metrics
+const sharpe = calculateSharpeRatio(returns, riskFreeRate);
+const calmar = calculateCalmarRatio(totalReturn, maxDrawdown, years);
+const recovery = calculateRecoveryFactor(totalReturn, maxDrawdown);
+
+// Calculate all metrics at once
+const metrics = calculateAllMetrics(backtestResult);
+```
+
+---
+
+## Scaled Entry
+
+### `runBacktestScaled(candles, entry, exit, options)`
+
+Backtest with split/scaled entry strategies. Instead of entering a full position at once, capital is divided into multiple tranches.
+
+```typescript
+import { runBacktestScaled, goldenCross, deadCross } from 'trendcraft';
+
+const result = runBacktestScaled(candles, goldenCross(), deadCross(), {
+  capital: 1000000,
+  scaledEntry: {
+    tranches: 3,
+    strategy: 'pyramid',      // 50%, 33%, 17%
+    intervalType: 'price',
+    priceInterval: -2,        // Add on 2% dips
+  },
+});
+```
+
+**ScaledEntryConfig:**
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `tranches` | `number` | required | Number of entry tranches (2-10) |
+| `strategy` | `'equal' \| 'pyramid' \| 'reverse-pyramid'` | `'equal'` | Weight distribution strategy |
+| `intervalType` | `'signal' \| 'price'` | `'signal'` | How to trigger additional entries |
+| `priceInterval` | `number` | `-2` | Price change % for next tranche (negative = dip) |
+
+**Strategies:**
+| Strategy | Description | Example (3 tranches) |
+|----------|-------------|---------------------|
+| `equal` | Equal weight per tranche | 33%, 33%, 33% |
+| `pyramid` | Larger weight for earlier tranches | 50%, 33%, 17% |
+| `reverse-pyramid` | Larger weight for later tranches | 17%, 33%, 50% |
+
+**Interval Types:**
+| Type | Trigger |
+|------|---------|
+| `signal` | Add tranche on each entry signal |
+| `price` | Add tranche when price drops by `priceInterval` % from first entry |
+
+---
+
 ## Types
 
 ### Candle Types
