@@ -14,23 +14,23 @@
  *   npx tsx examples/stock-failure-analysis.ts
  */
 
-import { readFileSync, readdirSync, existsSync } from "node:fs";
-import { join, dirname } from "node:path";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  normalizeCandles,
-  runBacktest,
-  and,
-  calculateAllMetrics,
-  sma,
-  atr,
-  // Conditions
-  goldenCrossCondition as goldenCross,
-  volumeAnomalyCondition,
-  volumeDivergence,
-  macdCrossDown,
   // Types
   type NormalizedCandle,
+  and,
+  atr,
+  calculateAllMetrics,
+  // Conditions
+  goldenCrossCondition as goldenCross,
+  macdCrossDown,
+  normalizeCandles,
+  runBacktest,
+  sma,
+  volumeAnomalyCondition,
+  volumeDivergence,
 } from "../../src";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -56,11 +56,11 @@ function loadCsv(filename: string): NormalizedCandle[] {
     const isoDate = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
     return {
       time: isoDate,
-      open: parseFloat(open),
-      high: parseFloat(high),
-      low: parseFloat(low),
-      close: parseFloat(close),
-      volume: parseFloat(volume),
+      open: Number.parseFloat(open),
+      high: Number.parseFloat(high),
+      low: Number.parseFloat(low),
+      close: Number.parseFloat(close),
+      volume: Number.parseFloat(volume),
     };
   });
 
@@ -137,7 +137,7 @@ function calculateCAGR(startPrice: number, endPrice: number, years: number): num
   return (Math.pow(endPrice / startPrice, 1 / years) - 1) * 100;
 }
 
-function calculateHighUpdateRate(candles: NormalizedCandle[], lookback: number = 252): number {
+function calculateHighUpdateRate(candles: NormalizedCandle[], lookback = 252): number {
   if (candles.length < lookback) return 0;
 
   const recentCandles = candles.slice(-lookback);
@@ -153,7 +153,7 @@ function calculateHighUpdateRate(candles: NormalizedCandle[], lookback: number =
   return (highUpdates / (lookback - 1)) * 100;
 }
 
-function calculatePriceAboveSma(candles: NormalizedCandle[], period: number = 200): number {
+function calculatePriceAboveSma(candles: NormalizedCandle[], period = 200): number {
   if (candles.length < period) return 0;
 
   const smaValues = sma(candles, period);
@@ -176,7 +176,7 @@ function calculatePriceAboveSma(candles: NormalizedCandle[], period: number = 20
   return totalCount > 0 ? (aboveCount / totalCount) * 100 : 0;
 }
 
-function calculateATRPercent(candles: NormalizedCandle[], period: number = 14): number {
+function calculateATRPercent(candles: NormalizedCandle[], period = 14): number {
   if (candles.length < period + 1) return 0;
 
   const atrValues = atr(candles, period);
@@ -392,7 +392,7 @@ function analyzeFailurePatterns(results: StockCharacteristics[]): void {
     console.log("| 特性 | 成功銘柄平均 | 失敗銘柄平均 | 差分 | 判別力 |");
     console.log("|------|-------------|-------------|------|--------|");
 
-    const compare = (name: string, sVal: number, fVal: number, unit: string = "") => {
+    const compare = (name: string, sVal: number, fVal: number, unit = "") => {
       const diff = sVal - fVal;
       const ratio = fVal !== 0 ? Math.abs(diff / fVal) : 0;
       let power = "";
@@ -495,7 +495,9 @@ function analyzeFailurePatterns(results: StockCharacteristics[]): void {
   console.log(
     "| 銘柄 | 3yCAGR | 5yCAGR | 高値更新 | SMA200上 | ATR% | 日次Vol | 戦略Sharpe | 戦略Return |",
   );
-  console.log("|------|--------|--------|----------|----------|------|---------|------------|------------|");
+  console.log(
+    "|------|--------|--------|----------|----------|------|---------|------------|------------|",
+  );
 
   // Sharpe順でソート
   const sorted = [...results].sort((a, b) => b.strategySharpe - a.strategySharpe);

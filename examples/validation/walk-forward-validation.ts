@@ -10,31 +10,31 @@
  *   npx tsx examples/walk-forward-validation.ts --strategy best --periods 5
  */
 
-import { readFileSync, existsSync, writeFileSync } from "node:fs";
-import { join, dirname } from "node:path";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  normalizeCandles,
-  runBacktest,
+  type BacktestResult,
+  type Condition,
+  // Types
+  type NormalizedCandle,
   and,
   calculateAllMetrics,
   // Conditions
   goldenCrossCondition as goldenCross,
-  validatedGoldenCross,
-  perfectOrderCollapsed,
-  volumeAnomalyCondition,
-  volumeConfirmsTrend,
-  volumeRatioAbove,
-  volumeDivergence,
   macdCrossDown,
-  stochCrossUp,
-  stochAbove,
+  normalizeCandles,
+  perfectOrderCollapsed,
   priceAboveSma,
   rangeBreakout,
-  // Types
-  type NormalizedCandle,
-  type BacktestResult,
-  type Condition,
+  runBacktest,
+  stochAbove,
+  stochCrossUp,
+  validatedGoldenCross,
+  volumeAnomalyCondition,
+  volumeConfirmsTrend,
+  volumeDivergence,
+  volumeRatioAbove,
 } from "../../src";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -120,7 +120,7 @@ function parseArgs(): {
         break;
       case "--periods":
       case "-p":
-        result.periods = parseInt(args[++i], 10);
+        result.periods = Number.parseInt(args[++i], 10);
         break;
       case "--markdown":
       case "-md":
@@ -175,11 +175,11 @@ function loadCsv(filename: string): NormalizedCandle[] {
     const isoDate = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
     return {
       time: isoDate,
-      open: parseFloat(open),
-      high: parseFloat(high),
-      low: parseFloat(low),
-      close: parseFloat(close),
-      volume: parseFloat(volume),
+      open: Number.parseFloat(open),
+      high: Number.parseFloat(high),
+      low: Number.parseFloat(low),
+      close: Number.parseFloat(close),
+      volume: Number.parseFloat(volume),
     };
   });
 
@@ -354,8 +354,12 @@ function formatConsoleOutput(
   const avgDD = results.reduce((sum, r) => sum + r.metrics.maxDrawdown, 0) / results.length;
 
   console.log("期間別集計:");
-  console.log(`  Sharpe > 0: ${positiveSharpe}/${results.length} (${((positiveSharpe / results.length) * 100).toFixed(0)}%)`);
-  console.log(`  Return > 0: ${positiveReturn}/${results.length} (${((positiveReturn / results.length) * 100).toFixed(0)}%)`);
+  console.log(
+    `  Sharpe > 0: ${positiveSharpe}/${results.length} (${((positiveSharpe / results.length) * 100).toFixed(0)}%)`,
+  );
+  console.log(
+    `  Return > 0: ${positiveReturn}/${results.length} (${((positiveReturn / results.length) * 100).toFixed(0)}%)`,
+  );
   console.log();
   console.log("期間平均メトリクス:");
   console.log(`  Sharpe: ${avgSharpe.toFixed(2)}`);
@@ -366,14 +370,15 @@ function formatConsoleOutput(
   console.log();
 
   // Stability assessment
-  const stabilityRatio = fullPeriodResult.metrics.sharpe > 0
-    ? avgSharpe / fullPeriodResult.metrics.sharpe
-    : 0;
+  const stabilityRatio =
+    fullPeriodResult.metrics.sharpe > 0 ? avgSharpe / fullPeriodResult.metrics.sharpe : 0;
 
   const consistency = positiveSharpe / results.length;
 
   console.log("過学習リスク評価:");
-  console.log(`  安定性比率: ${(stabilityRatio * 100).toFixed(1)}% (期間平均Sharpe / 全期間Sharpe)`);
+  console.log(
+    `  安定性比率: ${(stabilityRatio * 100).toFixed(1)}% (期間平均Sharpe / 全期間Sharpe)`,
+  );
   console.log(`  一貫性: ${(consistency * 100).toFixed(0)}% (Sharpe > 0 の期間比率)`);
   console.log();
 
@@ -397,8 +402,12 @@ function formatConsoleOutput(
   const best = sortedByReturn[0];
   const worst = sortedByReturn[sortedByReturn.length - 1];
 
-  console.log(`  最高期間: #${best.periodNum} (${best.startDate}~) Return: ${best.metrics.returns.toFixed(0)}%`);
-  console.log(`  最低期間: #${worst.periodNum} (${worst.startDate}~) Return: ${worst.metrics.returns.toFixed(0)}%`);
+  console.log(
+    `  最高期間: #${best.periodNum} (${best.startDate}~) Return: ${best.metrics.returns.toFixed(0)}%`,
+  );
+  console.log(
+    `  最低期間: #${worst.periodNum} (${worst.startDate}~) Return: ${worst.metrics.returns.toFixed(0)}%`,
+  );
 
   // Check for trend (is recent performance better or worse?)
   const firstHalf = results.slice(0, Math.floor(results.length / 2));
@@ -407,11 +416,17 @@ function formatConsoleOutput(
   const secondHalfAvg = secondHalf.reduce((s, r) => s + r.metrics.returns, 0) / secondHalf.length;
 
   if (secondHalfAvg > firstHalfAvg * 1.2) {
-    console.log(`  トレンド: 📈 直近の成績が改善傾向 (前半平均: ${firstHalfAvg.toFixed(0)}%, 後半平均: ${secondHalfAvg.toFixed(0)}%)`);
+    console.log(
+      `  トレンド: 📈 直近の成績が改善傾向 (前半平均: ${firstHalfAvg.toFixed(0)}%, 後半平均: ${secondHalfAvg.toFixed(0)}%)`,
+    );
   } else if (firstHalfAvg > secondHalfAvg * 1.2) {
-    console.log(`  トレンド: 📉 直近の成績が悪化傾向 (前半平均: ${firstHalfAvg.toFixed(0)}%, 後半平均: ${secondHalfAvg.toFixed(0)}%)`);
+    console.log(
+      `  トレンド: 📉 直近の成績が悪化傾向 (前半平均: ${firstHalfAvg.toFixed(0)}%, 後半平均: ${secondHalfAvg.toFixed(0)}%)`,
+    );
   } else {
-    console.log(`  トレンド: ➡️ 安定 (前半平均: ${firstHalfAvg.toFixed(0)}%, 後半平均: ${secondHalfAvg.toFixed(0)}%)`);
+    console.log(
+      `  トレンド: ➡️ 安定 (前半平均: ${firstHalfAvg.toFixed(0)}%, 後半平均: ${secondHalfAvg.toFixed(0)}%)`,
+    );
   }
   console.log();
 }
@@ -471,9 +486,8 @@ function generateMarkdownReport(
     if (r.metrics.returns > 0) positiveReturn++;
   }
 
-  const stabilityRatio = fullPeriodResult.metrics.sharpe > 0
-    ? avgSharpe / fullPeriodResult.metrics.sharpe
-    : 0;
+  const stabilityRatio =
+    fullPeriodResult.metrics.sharpe > 0 ? avgSharpe / fullPeriodResult.metrics.sharpe : 0;
   const consistency = positiveSharpe / results.length;
 
   md += `## 過学習リスク評価
@@ -532,14 +546,18 @@ async function main() {
     process.stdout.write(`  期間 #${i + 1}/${periods.length} ... `);
     const result = runPeriodBacktest(i + 1, periods[i], strategy);
     results.push(result);
-    console.log(`OK (${result.metrics.tradeCount}取引, Sharpe ${result.metrics.sharpe.toFixed(2)})`);
+    console.log(
+      `OK (${result.metrics.tradeCount}取引, Sharpe ${result.metrics.sharpe.toFixed(2)})`,
+    );
   }
 
   // Run full period backtest
   console.log();
   process.stdout.write(`  全期間 ... `);
   const fullPeriodResult = runPeriodBacktest(0, candles, strategy);
-  console.log(`OK (${fullPeriodResult.metrics.tradeCount}取引, Sharpe ${fullPeriodResult.metrics.sharpe.toFixed(2)})`);
+  console.log(
+    `OK (${fullPeriodResult.metrics.tradeCount}取引, Sharpe ${fullPeriodResult.metrics.sharpe.toFixed(2)})`,
+  );
 
   console.log();
 

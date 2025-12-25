@@ -270,7 +270,8 @@ export function runBacktestScaled(
         } else {
           // Price-based: add when price drops by priceInterval %
           const currentTrancheIndex = position.tranches.length;
-          const targetPrice = position.firstEntryPrice * (1 + (priceInterval / 100) * currentTrancheIndex);
+          const targetPrice =
+            position.firstEntryPrice * (1 + (priceInterval / 100) * currentTrancheIndex);
           shouldAddTranche = candle.close <= targetPrice;
         }
 
@@ -363,9 +364,7 @@ export function runBacktestScaled(
 
           const netReturn = grossReturn - exitCommission - tax;
           const returnPercent = (netReturn / (position.avgEntryPrice * sharesToSell)) * 100;
-          const holdingDays = Math.round(
-            (candle.time - position.tranches[0].time) / MS_PER_DAY,
-          );
+          const holdingDays = Math.round((candle.time - position.tranches[0].time) / MS_PER_DAY);
 
           trades.push({
             entryTime: position.tranches[0].time,
@@ -444,9 +443,7 @@ export function runBacktestScaled(
 
         const netReturn = grossReturn - exitCommission - tax;
         const returnPercent = (netReturn / (position.avgEntryPrice * position.totalShares)) * 100;
-        const holdingDays = Math.round(
-          (candle.time - position.tranches[0].time) / MS_PER_DAY,
-        );
+        const holdingDays = Math.round((candle.time - position.tranches[0].time) / MS_PER_DAY);
 
         trades.push({
           entryTime: position.tranches[0].time,
@@ -491,9 +488,7 @@ export function runBacktestScaled(
 
     const netReturn = grossReturn - exitCommission - tax;
     const returnPercent = (netReturn / (position.avgEntryPrice * position.totalShares)) * 100;
-    const holdingDays = Math.round(
-      (lastCandle.time - position.tranches[0].time) / MS_PER_DAY,
-    );
+    const holdingDays = Math.round((lastCandle.time - position.tranches[0].time) / MS_PER_DAY);
 
     trades.push({
       entryTime: position.tranches[0].time,
@@ -547,7 +542,7 @@ function calculateStats(
   maxDrawdown: number,
 ): BacktestResult {
   if (trades.length === 0) {
-    return emptyResult();
+    return emptyResult(initialCapital);
   }
 
   const totalReturn = finalCapital - initialCapital;
@@ -571,6 +566,8 @@ function calculateStats(
   const sharpeRatio = stdReturn > 0 ? (avgReturn / stdReturn) * Math.sqrt(252) : 0;
 
   return {
+    initialCapital,
+    finalCapital: Math.round(finalCapital * 100) / 100,
     totalReturn: Math.round(totalReturn * 100) / 100,
     totalReturnPercent: Math.round(totalReturnPercent * 100) / 100,
     tradeCount: trades.length,
@@ -586,8 +583,10 @@ function calculateStats(
 /**
  * Return empty result for edge cases
  */
-function emptyResult(): BacktestResult {
+function emptyResult(capital = 0): BacktestResult {
   return {
+    initialCapital: capital,
+    finalCapital: capital,
     totalReturn: 0,
     totalReturnPercent: 0,
     tradeCount: 0,

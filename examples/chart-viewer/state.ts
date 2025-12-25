@@ -3,8 +3,8 @@
  * Centralized state for chart instances and data
  */
 
-import type * as echarts from 'echarts';
-import type { NormalizedCandle } from 'trendcraft';
+import type * as echarts from "echarts";
+import type { NormalizedCandle } from "trendcraft";
 
 // Data state
 export let rawCandles: NormalizedCandle[] = [];
@@ -84,17 +84,42 @@ export function setCurrentZoomRange(range: { start: number; end: number }): void
 // Get all chart instances
 export function getAllCharts(): (echarts.ECharts | null)[] {
   return [
-    mainChart, rsiChart, macdChart, stochChart, dmiChart, stochRsiChart,
-    mfiChart, obvChart, cciChart, willrChart, rocChart, rangeBoundChart, cmfChart,
-    volumeAnomalyChart, volumeProfileChart, volumeTrendChart
+    mainChart,
+    rsiChart,
+    macdChart,
+    stochChart,
+    dmiChart,
+    stochRsiChart,
+    mfiChart,
+    obvChart,
+    cciChart,
+    willrChart,
+    rocChart,
+    rangeBoundChart,
+    cmfChart,
+    volumeAnomalyChart,
+    volumeProfileChart,
+    volumeTrendChart,
   ];
 }
 
 // Get sub charts only (excluding main)
 export function getSubCharts(): (echarts.ECharts | null)[] {
   return [
-    rsiChart, macdChart, stochChart, dmiChart, stochRsiChart,
-    mfiChart, obvChart, cciChart, willrChart, rocChart, rangeBoundChart, cmfChart,
-    volumeAnomalyChart, volumeProfileChart, volumeTrendChart
+    rsiChart,
+    macdChart,
+    stochChart,
+    dmiChart,
+    stochRsiChart,
+    mfiChart,
+    obvChart,
+    cciChart,
+    willrChart,
+    rocChart,
+    rangeBoundChart,
+    cmfChart,
+    volumeAnomalyChart,
+    volumeProfileChart,
+    volumeTrendChart,
   ];
 }

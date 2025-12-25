@@ -10,33 +10,33 @@
  *   npx tsx examples/cross-stock-validation.ts --strategy top1   # ソニー#1戦略
  */
 
-import { readFileSync, readdirSync, existsSync, writeFileSync } from "node:fs";
-import { join, dirname } from "node:path";
+import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  normalizeCandles,
-  runBacktest,
-  and,
-  calculateAllMetrics,
-  // Conditions
-  goldenCrossCondition as goldenCross,
-  deadCrossCondition as deadCross,
-  validatedGoldenCross,
-  perfectOrderBreakdown,
-  perfectOrderCollapsed,
-  volumeAnomalyCondition,
-  volumeConfirmsTrend,
-  volumeRatioAbove,
-  volumeDivergence,
-  macdCrossDown,
-  stochCrossUp,
-  stochAbove,
-  priceAboveSma,
-  rangeBreakout,
-  // Types
-  type NormalizedCandle,
   type BacktestResult,
   type Condition,
+  // Types
+  type NormalizedCandle,
+  and,
+  calculateAllMetrics,
+  deadCrossCondition as deadCross,
+  // Conditions
+  goldenCrossCondition as goldenCross,
+  macdCrossDown,
+  normalizeCandles,
+  perfectOrderBreakdown,
+  perfectOrderCollapsed,
+  priceAboveSma,
+  rangeBreakout,
+  runBacktest,
+  stochAbove,
+  stochCrossUp,
+  validatedGoldenCross,
+  volumeAnomalyCondition,
+  volumeConfirmsTrend,
+  volumeDivergence,
+  volumeRatioAbove,
 } from "../../src";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -184,11 +184,11 @@ function loadCsv(filename: string): NormalizedCandle[] {
     const isoDate = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
     return {
       time: isoDate,
-      open: parseFloat(open),
-      high: parseFloat(high),
-      low: parseFloat(low),
-      close: parseFloat(close),
-      volume: parseFloat(volume),
+      open: Number.parseFloat(open),
+      high: Number.parseFloat(high),
+      low: Number.parseFloat(low),
+      close: Number.parseFloat(close),
+      volume: Number.parseFloat(volume),
     };
   });
 
@@ -353,8 +353,12 @@ function formatConsoleOutput(
   console.log("集計結果:");
   console.log(`  銘柄数: ${results.length}`);
   console.log(`  合計取引数: ${totalTrades}`);
-  console.log(`  Sharpe > 0: ${positiveSharpe}/${results.length} (${((positiveSharpe / results.length) * 100).toFixed(0)}%)`);
-  console.log(`  Return > 0: ${positiveReturn}/${results.length} (${((positiveReturn / results.length) * 100).toFixed(0)}%)`);
+  console.log(
+    `  Sharpe > 0: ${positiveSharpe}/${results.length} (${((positiveSharpe / results.length) * 100).toFixed(0)}%)`,
+  );
+  console.log(
+    `  Return > 0: ${positiveReturn}/${results.length} (${((positiveReturn / results.length) * 100).toFixed(0)}%)`,
+  );
   console.log();
   console.log("平均メトリクス:");
   console.log(`  Sharpe: ${avgSharpe.toFixed(2)}`);
@@ -446,11 +450,14 @@ function generateMarkdownReport(
   if (robustness >= 0.8) {
     md += "**★★★ 高い汎用性** - 多くの銘柄で有効な戦略です。\n";
   } else if (robustness >= 0.6) {
-    md += "**★★ 中程度の汎用性** - 一部の銘柄で有効です。銘柄の特性を考慮した運用が推奨されます。\n";
+    md +=
+      "**★★ 中程度の汎用性** - 一部の銘柄で有効です。銘柄の特性を考慮した運用が推奨されます。\n";
   } else if (robustness >= 0.4) {
-    md += "**★ 限定的な汎用性** - 銘柄選定が重要です。特定のセクターや特性を持つ銘柄に限定することを推奨します。\n";
+    md +=
+      "**★ 限定的な汎用性** - 銘柄選定が重要です。特定のセクターや特性を持つ銘柄に限定することを推奨します。\n";
   } else {
-    md += "**✗ 低い汎用性** - 過学習の可能性があります。戦略の見直しまたはWalk-Forward分析による検証を推奨します。\n";
+    md +=
+      "**✗ 低い汎用性** - 過学習の可能性があります。戦略の見直しまたはWalk-Forward分析による検証を推奨します。\n";
   }
 
   md += `
@@ -514,7 +521,9 @@ async function main() {
       const candles = loadCsv(`${ticker}.csv`);
       const result = validateStrategy(ticker, candles, strategy);
       results.push(result);
-      console.log(`OK (${result.metrics.tradeCount}取引, Sharpe ${result.metrics.sharpe.toFixed(2)})`);
+      console.log(
+        `OK (${result.metrics.tradeCount}取引, Sharpe ${result.metrics.sharpe.toFixed(2)})`,
+      );
     } catch (error) {
       console.log(`ERROR: ${error}`);
     }

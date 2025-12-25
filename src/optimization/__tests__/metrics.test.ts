@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { BacktestResult, NormalizedCandle } from "../../types";
 import {
-  calculateSharpeRatio,
-  calculateCalmarRatio,
-  calculateRecoveryFactor,
   annualizeReturn,
   calculateAllMetrics,
+  calculateCalmarRatio,
+  calculateRecoveryFactor,
+  calculateSharpeRatio,
   checkConstraint,
 } from "../metrics";
 
@@ -39,6 +39,8 @@ function generateTestCandles(count: number, startPrice = 100): NormalizedCandle[
  */
 function createMockBacktestResult(overrides: Partial<BacktestResult> = {}): BacktestResult {
   return {
+    initialCapital: 100000,
+    finalCapital: 110000,
     totalReturn: 10000,
     totalReturnPercent: 10,
     tradeCount: 10,
@@ -94,7 +96,7 @@ describe("Optimization Metrics", () => {
 
   describe("calculateCalmarRatio", () => {
     it("should return Infinity when drawdown is 0 and return is positive", () => {
-      expect(calculateCalmarRatio(10, 0)).toBe(Infinity);
+      expect(calculateCalmarRatio(10, 0)).toBe(Number.POSITIVE_INFINITY);
     });
 
     it("should return 0 when drawdown is 0 and return is non-positive", () => {
@@ -115,7 +117,7 @@ describe("Optimization Metrics", () => {
 
   describe("calculateRecoveryFactor", () => {
     it("should return Infinity when drawdown is 0 and profit is positive", () => {
-      expect(calculateRecoveryFactor(1000, 0)).toBe(Infinity);
+      expect(calculateRecoveryFactor(1000, 0)).toBe(Number.POSITIVE_INFINITY);
     });
 
     it("should return 0 when drawdown is 0 and profit is non-positive", () => {
@@ -264,8 +266,8 @@ describe("Optimization Metrics", () => {
       const result = createMockBacktestResult({ maxDrawdown: 0 });
 
       const metrics = calculateAllMetrics(result, candles);
-      expect(metrics.calmar).toBe(Infinity);
-      expect(metrics.recoveryFactor).toBe(Infinity);
+      expect(metrics.calmar).toBe(Number.POSITIVE_INFINITY);
+      expect(metrics.recoveryFactor).toBe(Number.POSITIVE_INFINITY);
     });
   });
 });

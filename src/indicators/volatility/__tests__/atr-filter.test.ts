@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { NormalizedCandle } from "../../../types";
 import {
-  calculateAtrPercent,
-  atrPercentSeries,
-  passesAtrFilter,
-  filterStocksByAtr,
   DEFAULT_ATR_THRESHOLD,
+  atrPercentSeries,
+  calculateAtrPercent,
+  filterStocksByAtr,
+  passesAtrFilter,
 } from "../atr-filter";
 
 // Helper to create test candles with varying volatility
@@ -37,7 +37,11 @@ function createCandles(
 }
 
 // Create predictable candles for exact calculation tests
-function createPredictableCandles(count: number, atrPct: number, basePrice: number = 1000): NormalizedCandle[] {
+function createPredictableCandles(
+  count: number,
+  atrPct: number,
+  basePrice = 1000,
+): NormalizedCandle[] {
   const candles: NormalizedCandle[] = [];
   const range = basePrice * (atrPct / 100);
 
@@ -230,7 +234,9 @@ describe("atr-filter", () => {
 
       // Should be sorted by ATR% descending
       for (let i = 1; i < result.passing.length; i++) {
-        expect(result.passing[i - 1].atrPercent).toBeGreaterThanOrEqual(result.passing[i].atrPercent);
+        expect(result.passing[i - 1].atrPercent).toBeGreaterThanOrEqual(
+          result.passing[i].atrPercent,
+        );
       }
     });
 
@@ -258,7 +264,9 @@ describe("atr-filter", () => {
       };
 
       const result = filterStocksByAtr(stocks);
-      const stock = result.passing.find((s) => s.ticker === "TEST.T") || result.failing.find((s) => s.ticker === "TEST.T");
+      const stock =
+        result.passing.find((s) => s.ticker === "TEST.T") ||
+        result.failing.find((s) => s.ticker === "TEST.T");
 
       expect(stock).toBeDefined();
       expect(stock!.atrPercent).toBeGreaterThan(0);

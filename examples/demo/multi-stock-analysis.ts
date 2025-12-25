@@ -5,27 +5,27 @@
  */
 
 import { readFileSync, readdirSync } from "fs";
-import { resolve, basename, dirname } from "path";
+import { basename, dirname, resolve } from "path";
 import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 import {
   TrendCraft,
-  goldenCrossCondition,
+  and,
   deadCrossCondition,
-  rsiBelow,
-  rsiAbove,
-  macdCrossUp,
+  goldenCrossCondition,
   macdCrossDown,
+  macdCrossUp,
+  or,
   perfectOrderBullish,
   perfectOrderCollapsed,
-  validatedGoldenCross,
+  rsiAbove,
+  rsiBelow,
   validatedDeadCross,
-  and,
-  or,
+  validatedGoldenCross,
 } from "../../src/index.js";
-import type { Candle, BacktestResult } from "../../src/index.js";
+import type { BacktestResult, Candle } from "../../src/index.js";
 
 // Load CSV data
 function loadCSV(filePath: string): Candle[] {
@@ -46,17 +46,17 @@ function loadCSV(filePath: string): Candle[] {
     const [year, month, day] = dateParts.map(Number);
     const time = new Date(year, month - 1, day).getTime();
 
-    const closeNum = parseFloat(close);
-    const adjCloseNum = parseFloat(adjClose);
+    const closeNum = Number.parseFloat(close);
+    const adjCloseNum = Number.parseFloat(adjClose);
     const adjRatio = adjCloseNum / closeNum;
 
     candles.push({
       time,
-      open: parseFloat(open) * adjRatio,
-      high: parseFloat(high) * adjRatio,
-      low: parseFloat(low) * adjRatio,
+      open: Number.parseFloat(open) * adjRatio,
+      high: Number.parseFloat(high) * adjRatio,
+      low: Number.parseFloat(low) * adjRatio,
       close: adjCloseNum,
-      volume: parseFloat(volume),
+      volume: Number.parseFloat(volume),
     });
   }
 
@@ -263,7 +263,7 @@ for (const stock of allResults) {
     const pf = result.profitFactor.toFixed(2).padStart(5);
     const sharpe = result.sharpeRatio.toFixed(2).padStart(6);
     console.log(
-      `${strategy.shortName.padEnd(14)}| ${ret}% | ${win}% | ${trades}   | ${dd}% | ${pf} | ${sharpe}`
+      `${strategy.shortName.padEnd(14)}| ${ret}% | ${win}% | ${trades}   | ${dd}% | ${pf} | ${sharpe}`,
     );
   }
 }
@@ -299,9 +299,9 @@ for (const strategy of strategies) {
   let winCount = 0;
   let loseCount = 0;
   let bestStock = "";
-  let bestReturn = -Infinity;
+  let bestReturn = Number.NEGATIVE_INFINITY;
   let worstStock = "";
-  let worstReturn = Infinity;
+  let worstReturn = Number.POSITIVE_INFINITY;
 
   for (const stock of allResults) {
     const result = stock.results.get(strategy.shortName);
@@ -310,7 +310,7 @@ for (const strategy of strategies) {
     returns.push(result.totalReturnPercent);
     winRates.push(result.winRate);
     drawdowns.push(result.maxDrawdown);
-    pfs.push(result.profitFactor === Infinity ? 10 : result.profitFactor);
+    pfs.push(result.profitFactor === Number.POSITIVE_INFINITY ? 10 : result.profitFactor);
     sharpes.push(result.sharpeRatio);
 
     if (result.totalReturnPercent > 0) winCount++;
@@ -355,7 +355,7 @@ for (const stats of strategyStats) {
   const avgSR = stats.avgSharpe.toFixed(2).padStart(6);
   const winLose = `${stats.winCount}勝${stats.loseCount}敗`;
   console.log(
-    `${stats.name.padEnd(14)}| ${avgRet}% | ${avgWin}% | ${avgDD}% | ${avgPF} | ${avgSR} | ${winLose}`
+    `${stats.name.padEnd(14)}| ${avgRet}% | ${avgWin}% | ${avgDD}% | ${avgPF} | ${avgSR} | ${winLose}`,
   );
 }
 
@@ -366,7 +366,7 @@ console.log("=".repeat(80));
 
 for (const stats of strategyStats) {
   console.log(
-    `${stats.name}: ベスト ${stats.bestStock} (+${stats.bestReturn.toFixed(1)}%) / ワースト ${stats.worstStock} (${stats.worstReturn.toFixed(1)}%)`
+    `${stats.name}: ベスト ${stats.bestStock} (+${stats.bestReturn.toFixed(1)}%) / ワースト ${stats.worstStock} (${stats.worstReturn.toFixed(1)}%)`,
   );
 }
 
@@ -378,7 +378,9 @@ console.log("=".repeat(80));
 const sortedByReturn = [...strategyStats].sort((a, b) => b.avgReturn - a.avgReturn);
 sortedByReturn.forEach((s, i) => {
   const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`;
-  console.log(`${medal} ${s.name}: 平均 ${s.avgReturn.toFixed(1)}% (${s.winCount}勝${s.loseCount}敗)`);
+  console.log(
+    `${medal} ${s.name}: 平均 ${s.avgReturn.toFixed(1)}% (${s.winCount}勝${s.loseCount}敗)`,
+  );
 });
 
 console.log(`\n${"=".repeat(80)}`);
@@ -388,7 +390,9 @@ console.log("=".repeat(80));
 const sortedBySharpe = [...strategyStats].sort((a, b) => b.avgSharpe - a.avgSharpe);
 sortedBySharpe.forEach((s, i) => {
   const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`;
-  console.log(`${medal} ${s.name}: SR ${s.avgSharpe.toFixed(2)} (平均DD ${s.avgDrawdown.toFixed(1)}%)`);
+  console.log(
+    `${medal} ${s.name}: SR ${s.avgSharpe.toFixed(2)} (平均DD ${s.avgDrawdown.toFixed(1)}%)`,
+  );
 });
 
 // Stock ranking

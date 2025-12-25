@@ -10,8 +10,8 @@
  * - Threshold 2.3% achieves 100% precision in filtering out low-volatility failures
  */
 
-import type { Candle, NormalizedCandle, Series } from "../../types";
 import { isNormalized, normalizeCandles } from "../../core/normalize";
+import type { Candle, NormalizedCandle, Series } from "../../types";
 import { atr } from "./atr";
 
 /**
@@ -113,7 +113,7 @@ export function calculateAtrPercent(
  */
 export function atrPercentSeries(
   candles: Candle[] | NormalizedCandle[],
-  atrPeriod: number = 14,
+  atrPeriod = 14,
 ): Series<number | null> {
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
 

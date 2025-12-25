@@ -5,6 +5,8 @@
  * Tests all possible AND combinations of entry/exit conditions.
  */
 
+import { runBacktest } from "../backtest";
+import { and, or } from "../backtest/conditions";
 import type { BacktestOptions, Condition, NormalizedCandle } from "../types";
 import type {
   GridSearchOptions,
@@ -12,8 +14,6 @@ import type {
   OptimizationMetric,
   OptimizationResultEntry,
 } from "../types/optimization";
-import { and, or } from "../backtest/conditions";
-import { runBacktest } from "../backtest";
 import { calculateAllMetrics, checkConstraint, getMetricValue } from "./metrics";
 
 /**
@@ -107,11 +107,7 @@ export type CombinationSearchOptions = {
 /**
  * Generate all combinations of items with size between min and max
  */
-export function generateCombinations<T>(
-  items: T[],
-  minSize: number,
-  maxSize: number,
-): T[][] {
+export function generateCombinations<T>(items: T[], minSize: number, maxSize: number): T[][] {
   const result: T[][] = [];
 
   function combine(start: number, current: T[]): void {
@@ -192,12 +188,8 @@ export function combinationSearch(
   } = options;
 
   // Find required conditions in the pools
-  const requiredEntryDefs = entryConditions.filter((c) =>
-    requiredEntryConditions.includes(c.name),
-  );
-  const requiredExitDefs = exitConditions.filter((c) =>
-    requiredExitConditions.includes(c.name),
-  );
+  const requiredEntryDefs = entryConditions.filter((c) => requiredEntryConditions.includes(c.name));
+  const requiredExitDefs = exitConditions.filter((c) => requiredExitConditions.includes(c.name));
 
   // Remove required conditions from the search pool (they'll be added to every combo)
   const searchableEntryConditions = entryConditions.filter(
@@ -252,7 +244,7 @@ export function combinationSearch(
   }
 
   const results: CombinationResultEntry[] = [];
-  let bestScore = -Infinity;
+  let bestScore = Number.NEGATIVE_INFINITY;
   let bestEntry: string[] = [];
   let bestExit: string[] = [];
   let validCombinations = 0;
@@ -285,22 +277,13 @@ export function combinationSearch(
         const allExitConditions = fullExitCombo.map((c) => c.create());
 
         const entryCondition =
-          allEntryConditions.length === 1
-            ? allEntryConditions[0]
-            : and(...allEntryConditions);
+          allEntryConditions.length === 1 ? allEntryConditions[0] : and(...allEntryConditions);
 
         const exitCondition =
-          allExitConditions.length === 1
-            ? allExitConditions[0]
-            : and(...allExitConditions);
+          allExitConditions.length === 1 ? allExitConditions[0] : and(...allExitConditions);
 
         // Run backtest
-        const backtest = runBacktest(
-          candles,
-          entryCondition,
-          exitCondition,
-          backtestOptions,
-        );
+        const backtest = runBacktest(candles, entryCondition, exitCondition, backtestOptions);
 
         // Skip if no trades
         if (backtest.tradeCount === 0) continue;
@@ -356,7 +339,7 @@ export function combinationSearch(
   return {
     bestEntry,
     bestExit,
-    bestScore: bestScore === -Infinity ? 0 : bestScore,
+    bestScore: bestScore === Number.NEGATIVE_INFINITY ? 0 : bestScore,
     metric,
     totalCombinations,
     validCombinations,
@@ -370,11 +353,9 @@ export function combinationSearch(
 export function getTopCombinations(
   result: CombinationSearchResult,
   n: number,
-  onlyValid: boolean = true,
+  onlyValid = true,
 ): CombinationResultEntry[] {
-  const filtered = onlyValid
-    ? result.results.filter((r) => r.passedConstraints)
-    : result.results;
+  const filtered = onlyValid ? result.results.filter((r) => r.passedConstraints) : result.results;
 
   return filtered.slice(0, n);
 }

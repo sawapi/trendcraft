@@ -6,17 +6,24 @@
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "bin": {
+    "trendcraft-screen": "./dist/bin/trendcraft-screen.js",
+    "trendcraft-backtest": "./dist/bin/trendcraft-backtest.js"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
+    },
+    "./screening": {
+      "types": "./dist/screening/index.d.ts",
+      "import": "./dist/screening/index.js",
+      "require": "./dist/screening/index.cjs"
     }
   },
   "sideEffects": false,
-  "files": [
-    "dist"
-  ],
+  "files": ["dist"],
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -36,6 +43,7 @@
     "macd",
     "bollinger-bands",
     "backtesting",
+    "screening",
     "finance"
   ],
   "author": "",

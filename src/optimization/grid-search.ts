@@ -4,6 +4,7 @@
  * Exhaustive parameter search for finding optimal backtest configurations.
  */
 
+import { runBacktest } from "../backtest";
 import type { BacktestOptions, Condition, NormalizedCandle } from "../types";
 import type {
   GridSearchOptions,
@@ -13,7 +14,6 @@ import type {
   OptimizationResultEntry,
   ParameterRange,
 } from "../types/optimization";
-import { runBacktest } from "../backtest";
 import { calculateAllMetrics, checkConstraint, getMetricValue } from "./metrics";
 
 /**
@@ -30,9 +30,7 @@ export type StrategyFactory = (params: Record<string, number>) => {
  * @param ranges Parameter ranges to combine
  * @returns Array of all parameter combinations
  */
-export function generateParameterCombinations(
-  ranges: ParameterRange[],
-): Record<string, number>[] {
+export function generateParameterCombinations(ranges: ParameterRange[]): Record<string, number>[] {
   if (ranges.length === 0) return [{}];
 
   const combinations: Record<string, number>[] = [];
@@ -131,7 +129,7 @@ export function gridSearch(
 
   // Run backtests and collect results
   const results: OptimizationResultEntry[] = [];
-  let bestScore = -Infinity;
+  let bestScore = Number.NEGATIVE_INFINITY;
   let bestParams: Record<string, number> = {};
   let validCombinations = 0;
 
@@ -198,7 +196,7 @@ export function gridSearch(
 
   return {
     bestParams,
-    bestScore: bestScore === -Infinity ? 0 : bestScore,
+    bestScore: bestScore === Number.NEGATIVE_INFINITY ? 0 : bestScore,
     metric,
     totalCombinations,
     validCombinations,
@@ -214,12 +212,7 @@ export function gridSearch(
  * @param step Step size
  * @returns ParameterRange object
  */
-export function param(
-  name: string,
-  min: number,
-  max: number,
-  step: number,
-): ParameterRange {
+export function param(name: string, min: number, max: number, step: number): ParameterRange {
   return { name, min, max, step };
 }
 
@@ -248,11 +241,9 @@ export function constraint(
 export function getTopResults(
   result: GridSearchResult,
   n: number,
-  onlyValid: boolean = true,
+  onlyValid = true,
 ): OptimizationResultEntry[] {
-  const filtered = onlyValid
-    ? result.results.filter((r) => r.passedConstraints)
-    : result.results;
+  const filtered = onlyValid ? result.results.filter((r) => r.passedConstraints) : result.results;
 
   return filtered.slice(0, n);
 }

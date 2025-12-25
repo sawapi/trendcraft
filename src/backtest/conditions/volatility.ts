@@ -5,23 +5,16 @@
  * Use these to filter trades by market volatility environment.
  */
 
-import { volatilityRegime } from "../../indicators/volatility/regime";
 import {
-  atrPercentSeries,
-  DEFAULT_ATR_THRESHOLD,
   type AtrFilterOptions,
+  DEFAULT_ATR_THRESHOLD,
+  atrPercentSeries,
 } from "../../indicators/volatility/atr-filter";
-import type {
-  PresetCondition,
-  VolatilityRegime,
-  VolatilityRegimeOptions,
-} from "../../types";
+import { volatilityRegime } from "../../indicators/volatility/regime";
+import type { PresetCondition, VolatilityRegime, VolatilityRegimeOptions } from "../../types";
 
 // Cache for volatility regime series
-const regimeCache = new WeakMap<
-  object,
-  ReturnType<typeof volatilityRegime>
->();
+const regimeCache = new WeakMap<object, ReturnType<typeof volatilityRegime>>();
 
 /**
  * Get or calculate volatility regime series (cached)
@@ -272,8 +265,8 @@ export function regimeConfidenceAbove(
  * @param options - Volatility regime calculation options
  */
 export function volatilityExpanding(
-  threshold: number = 20,
-  lookback: number = 5,
+  threshold = 20,
+  lookback = 5,
   options?: VolatilityRegimeOptions,
 ): PresetCondition {
   return {
@@ -314,8 +307,8 @@ export function volatilityExpanding(
  * @param options - Volatility regime calculation options
  */
 export function volatilityContracting(
-  threshold: number = 20,
-  lookback: number = 5,
+  threshold = 20,
+  lookback = 5,
   options?: VolatilityRegimeOptions,
 ): PresetCondition {
   return {
@@ -348,18 +341,12 @@ export function volatilityContracting(
 }
 
 // Cache for ATR% series
-const atrPercentCache = new WeakMap<
-  object,
-  ReturnType<typeof atrPercentSeries>
->();
+const atrPercentCache = new WeakMap<object, ReturnType<typeof atrPercentSeries>>();
 
 /**
  * Get or calculate ATR% series (cached)
  */
-function getAtrPercentSeries(
-  candles: Parameters<typeof atrPercentSeries>[0],
-  atrPeriod?: number,
-) {
+function getAtrPercentSeries(candles: Parameters<typeof atrPercentSeries>[0], atrPeriod?: number) {
   const cacheKey = candles as object;
   let cached = atrPercentCache.get(cacheKey);
   if (!cached) {

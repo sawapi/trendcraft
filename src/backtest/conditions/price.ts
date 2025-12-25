@@ -79,11 +79,7 @@ export function priceBelowSma(period: number): PresetCondition {
  * );
  * ```
  */
-export function priceDroppedAtr(
-  multiplier: number = 2.0,
-  lookback: number = 10,
-  atrPeriod: number = 14,
-): PresetCondition {
+export function priceDroppedAtr(multiplier = 2.0, lookback = 10, atrPeriod = 14): PresetCondition {
   return {
     type: "preset",
     name: `priceDroppedAtr(${multiplier}, ${lookback}, ${atrPeriod})`,

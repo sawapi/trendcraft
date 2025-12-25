@@ -7,36 +7,36 @@
  * CSV format: date,open,high,low,close,volume (date: YYYY/MM/DD)
  */
 
-import { readFileSync, existsSync } from "fs";
-import { resolve, basename } from "path";
+import { existsSync, readFileSync } from "fs";
+import { basename, resolve } from "path";
 import {
   TrendCraft,
-  goldenCrossCondition,
-  deadCrossCondition,
   and,
-  or,
-  rsiBelow,
-  rsiAbove,
-  macdCrossUp,
-  macdCrossDown,
+  atr,
+  bollingerBands,
   bollingerBreakout,
-  validatedGoldenCross,
-  validatedDeadCross,
-  rsiDivergence,
-  rsi,
-  stochastics,
+  deadCrossCondition,
   dmi,
   donchianChannel,
+  goldenCrossCondition,
+  macdCrossDown,
+  macdCrossUp,
   mfi,
-  atr,
-  sma,
-  bollingerBands,
+  or,
   perfectOrder,
+  perfectOrderActiveBullish,
   perfectOrderBullish,
   perfectOrderCollapsed,
-  perfectOrderActiveBullish,
+  rsi,
+  rsiAbove,
+  rsiBelow,
+  rsiDivergence,
+  sma,
+  stochastics,
+  validatedDeadCross,
+  validatedGoldenCross,
 } from "../../src/index.js";
-import type { Candle, BacktestResult } from "../../src/index.js";
+import type { BacktestResult, Candle } from "../../src/index.js";
 
 // Load CSV data
 // Supports Japanese CSV format: 日付,始値,高値,安値,終値,出来高,調整後終値
@@ -61,17 +61,17 @@ function loadCSV(filePath: string): Candle[] {
     const time = new Date(year, month - 1, day).getTime();
 
     // Calculate adjustment ratio to apply to OHLC
-    const closeNum = parseFloat(close);
-    const adjCloseNum = parseFloat(adjClose);
+    const closeNum = Number.parseFloat(close);
+    const adjCloseNum = Number.parseFloat(adjClose);
     const adjRatio = adjCloseNum / closeNum;
 
     candles.push({
       time,
-      open: parseFloat(open) * adjRatio,
-      high: parseFloat(high) * adjRatio,
-      low: parseFloat(low) * adjRatio,
+      open: Number.parseFloat(open) * adjRatio,
+      high: Number.parseFloat(high) * adjRatio,
+      low: Number.parseFloat(low) * adjRatio,
       close: adjCloseNum, // Use adjusted close
-      volume: parseFloat(volume),
+      volume: Number.parseFloat(volume),
     });
   }
 
@@ -98,7 +98,10 @@ function formatResult(name: string, result: BacktestResult): void {
     for (const trade of recentTrades) {
       const entryDate = new Date(trade.entryTime).toLocaleDateString("ja-JP");
       const exitDate = new Date(trade.exitTime).toLocaleDateString("ja-JP");
-      const returnStr = trade.returnPercent >= 0 ? `+${trade.returnPercent.toFixed(2)}%` : `${trade.returnPercent.toFixed(2)}%`;
+      const returnStr =
+        trade.returnPercent >= 0
+          ? `+${trade.returnPercent.toFixed(2)}%`
+          : `${trade.returnPercent.toFixed(2)}%`;
       console.log(`  ${entryDate} → ${exitDate}: ${returnStr}`);
     }
   }
@@ -131,12 +134,14 @@ const allCandles = loadCSV(csvPath);
 
 // Filter: 2015年以降のみ
 const startDate = new Date(2015, 0, 1).getTime();
-const candles = allCandles.filter(c => (c.time as number) >= startDate);
+const candles = allCandles.filter((c) => (c.time as number) >= startDate);
 
 console.log(`\n📈 ${symbolName} バックテスト`);
 console.log(`データ期間: ${candles.length}日分 (2015年以降)`);
 console.log(`開始日: ${new Date(candles[0].time as number).toLocaleDateString("ja-JP")}`);
-console.log(`終了日: ${new Date(candles[candles.length - 1].time as number).toLocaleDateString("ja-JP")}`);
+console.log(
+  `終了日: ${new Date(candles[candles.length - 1].time as number).toLocaleDateString("ja-JP")}`,
+);
 
 const capital = 1000000; // 100万円
 
@@ -268,8 +273,12 @@ formatResult("戦略8: 騙し検出GC + 通常DC", result8);
 // Strategy 9: RSI Divergence
 // ============================================
 const rsiDivSignals = rsiDivergence(candles);
-const bullishDivTimes = new Set(rsiDivSignals.filter(s => s.type === "bullish").map(s => s.time));
-const bearishDivTimes = new Set(rsiDivSignals.filter(s => s.type === "bearish").map(s => s.time));
+const bullishDivTimes = new Set(
+  rsiDivSignals.filter((s) => s.type === "bullish").map((s) => s.time),
+);
+const bearishDivTimes = new Set(
+  rsiDivSignals.filter((s) => s.type === "bearish").map((s) => s.time),
+);
 
 const result9 = TrendCraft.from(candles)
   .strategy()
@@ -582,9 +591,14 @@ const result25 = TrendCraft.from(candles)
   .strategy()
   .entry((_indicators, _candle, i) => {
     // PO形成チェック
-    let poData = _indicators["po_5_25_75_sma"] as { time: number; value: { formed: boolean; type: string; strength: number } }[] | undefined;
+    let poData = _indicators["po_5_25_75_sma"] as
+      | { time: number; value: { formed: boolean; type: string; strength: number } }[]
+      | undefined;
     if (!poData) {
-      poData = perfectOrder(candles, { periods: [5, 25, 75] }) as { time: number; value: { formed: boolean; type: string; strength: number } }[];
+      poData = perfectOrder(candles, { periods: [5, 25, 75] }) as {
+        time: number;
+        value: { formed: boolean; type: string; strength: number };
+      }[];
       _indicators["po_5_25_75_sma"] = poData;
     }
     const po = poData[i]?.value;
@@ -610,9 +624,14 @@ const result26 = TrendCraft.from(candles)
     if (i < 20) return false;
 
     // PO形成チェック
-    let poData = _indicators["po_5_25_75_sma"] as { time: number; value: { formed: boolean; type: string } }[] | undefined;
+    let poData = _indicators["po_5_25_75_sma"] as
+      | { time: number; value: { formed: boolean; type: string } }[]
+      | undefined;
     if (!poData) {
-      poData = perfectOrder(candles, { periods: [5, 25, 75] }) as { time: number; value: { formed: boolean; type: string } }[];
+      poData = perfectOrder(candles, { periods: [5, 25, 75] }) as {
+        time: number;
+        value: { formed: boolean; type: string };
+      }[];
       _indicators["po_5_25_75_sma"] = poData;
     }
     const po = poData[i]?.value;
@@ -639,9 +658,14 @@ const result27 = TrendCraft.from(candles)
   .strategy()
   .entry((_indicators, _candle, i) => {
     // PO形成チェック
-    let poData = _indicators["po_5_25_75_sma"] as { time: number; value: { formed: boolean; type: string } }[] | undefined;
+    let poData = _indicators["po_5_25_75_sma"] as
+      | { time: number; value: { formed: boolean; type: string } }[]
+      | undefined;
     if (!poData) {
-      poData = perfectOrder(candles, { periods: [5, 25, 75] }) as { time: number; value: { formed: boolean; type: string } }[];
+      poData = perfectOrder(candles, { periods: [5, 25, 75] }) as {
+        time: number;
+        value: { formed: boolean; type: string };
+      }[];
       _indicators["po_5_25_75_sma"] = poData;
     }
     const po = poData[i]?.value;
@@ -652,10 +676,12 @@ const result27 = TrendCraft.from(candles)
     if (currMfi === null) return false;
     return currMfi < 70;
   })
-  .exit(or(perfectOrderCollapsed({ periods: [5, 25, 75] }), (_indicators, _candle, i) => {
-    const currMfi = mfiData[i]?.value;
-    return currMfi !== null && currMfi > 80;
-  }))
+  .exit(
+    or(perfectOrderCollapsed({ periods: [5, 25, 75] }), (_indicators, _candle, i) => {
+      const currMfi = mfiData[i]?.value;
+      return currMfi !== null && currMfi > 80;
+    }),
+  )
   .backtest({ capital, stopLoss, commissionRate, taxRate });
 
 formatResult("戦略27: パーフェクトオーダー + MFIフィルター", result27);
@@ -668,9 +694,14 @@ const result28 = TrendCraft.from(candles)
   .strategy()
   .entry((_indicators, _candle, i) => {
     // PO形成チェック
-    let poData = _indicators["po_5_25_75_sma"] as { time: number; value: { formed: boolean; type: string } }[] | undefined;
+    let poData = _indicators["po_5_25_75_sma"] as
+      | { time: number; value: { formed: boolean; type: string } }[]
+      | undefined;
     if (!poData) {
-      poData = perfectOrder(candles, { periods: [5, 25, 75] }) as { time: number; value: { formed: boolean; type: string } }[];
+      poData = perfectOrder(candles, { periods: [5, 25, 75] }) as {
+        time: number;
+        value: { formed: boolean; type: string };
+      }[];
       _indicators["po_5_25_75_sma"] = poData;
     }
     const po = poData[i]?.value;
@@ -679,7 +710,7 @@ const result28 = TrendCraft.from(candles)
     // BB幅チェック（狭いスクイーズ状態）
     const curr = bbData[i]?.value;
     if (!curr || curr.upper === null || curr.lower === null || curr.middle === null) return false;
-    const bandwidth = (curr.upper - curr.lower) / curr.middle * 100;
+    const bandwidth = ((curr.upper - curr.lower) / curr.middle) * 100;
     return bandwidth < 10; // 10%未満の狭い状態
   })
   .exit(perfectOrderCollapsed({ periods: [5, 25, 75] }))
@@ -697,9 +728,14 @@ const result29 = TrendCraft.from(candles)
     if (i < 1) return false;
 
     // PO継続チェック
-    let poData = _indicators["po_5_25_75_sma"] as { time: number; value: { type: string } }[] | undefined;
+    let poData = _indicators["po_5_25_75_sma"] as
+      | { time: number; value: { type: string } }[]
+      | undefined;
     if (!poData) {
-      poData = perfectOrder(candles, { periods: [5, 25, 75] }) as { time: number; value: { type: string } }[];
+      poData = perfectOrder(candles, { periods: [5, 25, 75] }) as {
+        time: number;
+        value: { type: string };
+      }[];
       _indicators["po_5_25_75_sma"] = poData;
     }
     const po = poData[i]?.value;
@@ -725,9 +761,14 @@ const result30 = TrendCraft.from(candles)
   .entry(perfectOrderBullish({ periods: [5, 25, 75] }))
   .exit((_indicators, candle, i) => {
     // PO崩壊チェック
-    let poData = _indicators["po_5_25_75_sma"] as { time: number; value: { collapsed: boolean } }[] | undefined;
+    let poData = _indicators["po_5_25_75_sma"] as
+      | { time: number; value: { collapsed: boolean } }[]
+      | undefined;
     if (!poData) {
-      poData = perfectOrder(candles, { periods: [5, 25, 75] }) as { time: number; value: { collapsed: boolean } }[];
+      poData = perfectOrder(candles, { periods: [5, 25, 75] }) as {
+        time: number;
+        value: { collapsed: boolean };
+      }[];
       _indicators["po_5_25_75_sma"] = poData;
     }
     const po = poData[i]?.value;
@@ -758,9 +799,14 @@ const result31 = TrendCraft.from(candles)
   .exit((_indicators, _candle, i) => {
     // 固定20日でイグジット（エントリーからの経過はbacktestエンジンが管理）
     // ここでは単純にPO崩壊か20日経過でイグジット
-    let poData = _indicators["po_5_25_75_sma"] as { time: number; value: { collapsed: boolean; type: string } }[] | undefined;
+    let poData = _indicators["po_5_25_75_sma"] as
+      | { time: number; value: { collapsed: boolean; type: string } }[]
+      | undefined;
     if (!poData) {
-      poData = perfectOrder(candles, { periods: [5, 25, 75] }) as { time: number; value: { collapsed: boolean; type: string } }[];
+      poData = perfectOrder(candles, { periods: [5, 25, 75] }) as {
+        time: number;
+        value: { collapsed: boolean; type: string };
+      }[];
       _indicators["po_5_25_75_sma"] = poData;
     }
     const po = poData[i]?.value;
@@ -779,9 +825,14 @@ let entryPrice32 = 0;
 const result32 = TrendCraft.from(candles)
   .strategy()
   .entry((_indicators, candle, i) => {
-    let poData = _indicators["po_5_25_75_sma"] as { time: number; value: { formed: boolean; type: string } }[] | undefined;
+    let poData = _indicators["po_5_25_75_sma"] as
+      | { time: number; value: { formed: boolean; type: string } }[]
+      | undefined;
     if (!poData) {
-      poData = perfectOrder(candles, { periods: [5, 25, 75] }) as { time: number; value: { formed: boolean; type: string } }[];
+      poData = perfectOrder(candles, { periods: [5, 25, 75] }) as {
+        time: number;
+        value: { formed: boolean; type: string };
+      }[];
       _indicators["po_5_25_75_sma"] = poData;
     }
     const po = poData[i]?.value;
@@ -797,9 +848,14 @@ const result32 = TrendCraft.from(candles)
       entryPrice32 = 0;
       return true;
     }
-    let poData = _indicators["po_5_25_75_sma"] as { time: number; value: { collapsed: boolean } }[] | undefined;
+    let poData = _indicators["po_5_25_75_sma"] as
+      | { time: number; value: { collapsed: boolean } }[]
+      | undefined;
     if (!poData) {
-      poData = perfectOrder(candles, { periods: [5, 25, 75] }) as { time: number; value: { collapsed: boolean } }[];
+      poData = perfectOrder(candles, { periods: [5, 25, 75] }) as {
+        time: number;
+        value: { collapsed: boolean };
+      }[];
       _indicators["po_5_25_75_sma"] = poData;
     }
     if (poData[i]?.value?.collapsed) {
@@ -839,9 +895,14 @@ const result34 = TrendCraft.from(candles)
   .strategy()
   .entry((_indicators, candle, i) => {
     // PO継続チェック
-    let poData = _indicators["po_5_25_75_sma"] as { time: number; value: { type: string } }[] | undefined;
+    let poData = _indicators["po_5_25_75_sma"] as
+      | { time: number; value: { type: string } }[]
+      | undefined;
     if (!poData) {
-      poData = perfectOrder(candles, { periods: [5, 25, 75] }) as { time: number; value: { type: string } }[];
+      poData = perfectOrder(candles, { periods: [5, 25, 75] }) as {
+        time: number;
+        value: { type: string };
+      }[];
       _indicators["po_5_25_75_sma"] = poData;
     }
     const po = poData[i]?.value;
@@ -878,9 +939,14 @@ const result35 = TrendCraft.from(candles)
     if (currRsi !== null && currRsi > 70) return true;
 
     // PO崩壊でイグジット
-    let poData = _indicators["po_5_25_75_sma"] as { time: number; value: { collapsed: boolean } }[] | undefined;
+    let poData = _indicators["po_5_25_75_sma"] as
+      | { time: number; value: { collapsed: boolean } }[]
+      | undefined;
     if (!poData) {
-      poData = perfectOrder(candles, { periods: [5, 25, 75] }) as { time: number; value: { collapsed: boolean } }[];
+      poData = perfectOrder(candles, { periods: [5, 25, 75] }) as {
+        time: number;
+        value: { collapsed: boolean };
+      }[];
       _indicators["po_5_25_75_sma"] = poData;
     }
     return poData[i]?.value?.collapsed ?? false;
@@ -972,9 +1038,14 @@ const result40 = TrendCraft.from(candles)
     if (i < 20) return false;
 
     // PO形成チェック
-    let poData = _indicators["po_5_25_75_sma"] as { time: number; value: { formed: boolean; type: string } }[] | undefined;
+    let poData = _indicators["po_5_25_75_sma"] as
+      | { time: number; value: { formed: boolean; type: string } }[]
+      | undefined;
     if (!poData) {
-      poData = perfectOrder(candles, { periods: [5, 25, 75] }) as { time: number; value: { formed: boolean; type: string } }[];
+      poData = perfectOrder(candles, { periods: [5, 25, 75] }) as {
+        time: number;
+        value: { formed: boolean; type: string };
+      }[];
       _indicators["po_5_25_75_sma"] = poData;
     }
     const po = poData[i]?.value;
@@ -1063,6 +1134,6 @@ for (const s of strategies) {
 
 console.log("\n✅ おすすめ戦略:");
 const best = strategies.reduce((a, b) =>
-  a.result.totalReturnPercent > b.result.totalReturnPercent ? a : b
+  a.result.totalReturnPercent > b.result.totalReturnPercent ? a : b,
 );
 console.log(`   ${best.name} (リターン: ${best.result.totalReturnPercent.toFixed(2)}%)`);

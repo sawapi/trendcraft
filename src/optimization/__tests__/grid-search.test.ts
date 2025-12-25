@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
-import type { NormalizedCandle, PresetCondition, BacktestOptions } from "../../types";
+import type { BacktestOptions, NormalizedCandle, PresetCondition } from "../../types";
 import {
-  gridSearch,
-  generateParameterCombinations,
-  countCombinations,
-  param,
   constraint,
+  countCombinations,
+  generateParameterCombinations,
   getTopResults,
+  gridSearch,
+  param,
   summarizeGridSearch,
 } from "../grid-search";
 
@@ -142,11 +142,10 @@ describe("Grid Search Optimization", () => {
         options: { capital: 100000 } as BacktestOptions,
       });
 
-      const result = gridSearch(
-        candles,
-        createStrategy,
-        [param("enterAt", 5, 10, 5), param("holdBars", 10, 15, 5)],
-      );
+      const result = gridSearch(candles, createStrategy, [
+        param("enterAt", 5, 10, 5),
+        param("holdBars", 10, 15, 5),
+      ]);
 
       expect(result.totalCombinations).toBe(4);
       expect(result.bestParams).toBeDefined();
@@ -243,12 +242,9 @@ describe("Grid Search Optimization", () => {
         options: { capital: 100000 } as BacktestOptions,
       });
 
-      const result = gridSearch(
-        candles,
-        createStrategy,
-        [param("enterAt", 5, 20, 5)],
-        { keepAllResults: true },
-      );
+      const result = gridSearch(candles, createStrategy, [param("enterAt", 5, 20, 5)], {
+        keepAllResults: true,
+      });
 
       for (let i = 1; i < result.results.length; i++) {
         expect(result.results[i - 1].score).toBeGreaterThanOrEqual(result.results[i].score);
@@ -264,19 +260,13 @@ describe("Grid Search Optimization", () => {
         options: { capital: 100000 } as BacktestOptions,
       });
 
-      const sharpeResult = gridSearch(
-        candles,
-        createStrategy,
-        [param("enterAt", 5, 15, 5)],
-        { metric: "sharpe" },
-      );
+      const sharpeResult = gridSearch(candles, createStrategy, [param("enterAt", 5, 15, 5)], {
+        metric: "sharpe",
+      });
 
-      const returnsResult = gridSearch(
-        candles,
-        createStrategy,
-        [param("enterAt", 5, 15, 5)],
-        { metric: "returns" },
-      );
+      const returnsResult = gridSearch(candles, createStrategy, [param("enterAt", 5, 15, 5)], {
+        metric: "returns",
+      });
 
       expect(sharpeResult.metric).toBe("sharpe");
       expect(returnsResult.metric).toBe("returns");
@@ -293,12 +283,9 @@ describe("Grid Search Optimization", () => {
         options: { capital: 100000 } as BacktestOptions,
       });
 
-      const result = gridSearch(
-        candles,
-        createStrategy,
-        [param("enterAt", 5, 25, 5)],
-        { keepAllResults: true },
-      );
+      const result = gridSearch(candles, createStrategy, [param("enterAt", 5, 25, 5)], {
+        keepAllResults: true,
+      });
 
       const top2 = getTopResults(result, 2);
       expect(top2.length).toBeLessThanOrEqual(2);
@@ -315,11 +302,7 @@ describe("Grid Search Optimization", () => {
         options: { capital: 100000 } as BacktestOptions,
       });
 
-      const result = gridSearch(
-        candles,
-        createStrategy,
-        [param("enterAt", 5, 15, 5)],
-      );
+      const result = gridSearch(candles, createStrategy, [param("enterAt", 5, 15, 5)]);
 
       const summary = summarizeGridSearch(result);
 

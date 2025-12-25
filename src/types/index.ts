@@ -316,6 +316,10 @@ export type BacktestOptions = {
  * Backtest result
  */
 export type BacktestResult = {
+  /** Initial capital */
+  initialCapital: number;
+  /** Final capital */
+  finalCapital: number;
   /** Total return amount */
   totalReturn: number;
   /** Total return percentage */

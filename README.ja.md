@@ -46,6 +46,11 @@
 - ATRベースの動的ストップ/利確レベル
 - バックテストエンジンとの統合
 
+### CLIツール
+- **スクリーニングCLI**: 複数銘柄をエントリー/イグジット条件でスクリーニング
+- **バックテストCLI**: 単一ファイルまたは複数ファイルの比較バックテスト
+- 出力形式: table, JSON, CSV
+
 ### ユーティリティ
 - データ正規化（様々な日付形式をタイムスタンプに変換）
 - タイムフレーム変換（日足から週足/月足へ）
@@ -389,6 +394,135 @@ const result = TrendCraft.from(candles)
     },
   });
 ```
+
+## CLIツール
+
+TrendCraftはスクリーニングとバックテストの2つのCLIツールを提供しています。
+
+### スクリーニングCLI
+
+複数銘柄をエントリー/イグジット条件でスクリーニングします。
+
+```bash
+# 基本的な使い方
+npx trendcraft-screen ./data --entry "goldenCross"
+
+# エントリーとイグジット条件を指定
+npx trendcraft-screen ./data --entry "goldenCross,volumeAnomaly" --exit "deadCross"
+
+# ATR%（ボラティリティ）でフィルタ
+npx trendcraft-screen ./data --entry "perfectOrderBullish" --min-atr 2.3
+
+# JSON出力
+npx trendcraft-screen ./data --output json > results.json
+
+# 全銘柄表示（シグナルなしも含む）
+npx trendcraft-screen ./data --all
+
+# 使用可能な条件一覧
+npx trendcraft-screen --list
+```
+
+**出力例（table形式）:**
+```
+====================================================================
+Stock Screening Results - 2025-12-25
+====================================================================
+
+Criteria: goldenCross + volumeAnomaly
+
+Summary:
+  Total Files: 19
+  Entry Signals: 3
+  Exit Signals: 1
+
+--------------------------------------------------------------------
+| Ticker       | Signal |     Price |    ATR% |   RSI | Vol Ratio |
+--------------------------------------------------------------------
+| 6920.T       | ENTRY  |     32500 |   4.52% |    38 |      2.31 |
+| 4755.T       | ENTRY  |       850 |   3.21% |    42 |      1.87 |
+| 6758.T       | EXIT   |     13200 |   2.34% |    68 |      1.12 |
+--------------------------------------------------------------------
+```
+
+### バックテストCLI
+
+単一ファイルまたは複数ファイルでバックテストを実行します。
+
+```bash
+# 単一ファイル（詳細出力）
+npx trendcraft-backtest ./data/6758.T.csv --entry "goldenCross" --exit "deadCross"
+
+# 複数ファイル（比較テーブル）
+npx trendcraft-backtest ./data --entry "perfectOrderActiveBullish" --exit "perfectOrderCollapsed"
+
+# リスク管理オプション付き
+npx trendcraft-backtest ./data/6758.T.csv \
+  --entry "goldenCross,volumeAnomaly" \
+  --exit "deadCross" \
+  --stop-loss 5 --take-profit 10
+
+# 個別トレード表示
+npx trendcraft-backtest ./data/6758.T.csv --trades
+
+# JSON出力
+npx trendcraft-backtest ./data --output json > results.json
+
+# 使用可能な条件一覧
+npx trendcraft-backtest --list
+```
+
+**単一ファイル出力:**
+```
+======================================================================
+Backtest Result: 6758.T
+======================================================================
+
+Performance Summary:
+  Total Return:     34.48%
+  Trade Count:      311
+  Win Rate:         34.4%
+  Profit Factor:    1.01
+  Max Drawdown:     86.88%
+  Sharpe Ratio:     1.130
+
+Capital:
+  Initial:          1,000,000
+  Final:            1,344,761
+```
+
+**複数ファイル出力:**
+```
+Summary:
+  Total Stocks:     19
+  Profitable:       7 (37%)
+  Average Return:   417.90%
+
+--------------------------------------------------------------------------------------------------------------
+| Ticker       | Trades |  WinRate |     Return |    MaxDD |     PF |  Sharpe |
+--------------------------------------------------------------------------------------------------------------
+| 9984.T       |    166 |    41.0% |   7162.68% |   68.78% |   1.42 |   3.090 |
+| 6920.T       |     83 |    37.4% |    818.02% |   73.30% |   1.74 |   3.410 |
+| 6758.T       |    311 |    34.4% |     34.48% |   86.88% |   1.01 |   1.130 |
+--------------------------------------------------------------------------------------------------------------
+```
+
+### 使用可能な条件プリセット
+
+両方のCLIツールで以下のプリセット条件が使用できます：
+
+| カテゴリ | 条件名 |
+|----------|--------|
+| 移動平均 | `goldenCross`, `deadCross`, `goldenCross25_75`, `deadCross25_75` |
+| RSI | `rsiBelow30`, `rsiBelow40`, `rsiAbove60`, `rsiAbove70` |
+| MACD | `macdCrossUp`, `macdCrossDown` |
+| パーフェクトオーダー | `perfectOrderBullish`, `perfectOrderBearish`, `perfectOrderCollapsed`, `perfectOrderActiveBullish` |
+| 出来高 | `volumeAnomaly`, `volumeAbove1_5x`, `volumeAbove2x`, `volumeConfirmsTrend` |
+| ボリンジャー | `bollingerBreakoutUp`, `bollingerBreakoutDown` |
+| ストキャスティクス | `stochBelow20`, `stochAbove80`, `stochCrossUp`, `stochCrossDown` |
+| DMI/ADX | `dmiBullish`, `dmiBearish`, `adxStrong` |
+| レンジ | `rangeBreakout`, `rangeConfirmed`, `inRangeBound` |
+| ボラティリティ | `atrPercentAbove2_3`, `atrPercentAbove3` |
 
 ## APIリファレンス
 

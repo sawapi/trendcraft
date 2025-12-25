@@ -46,6 +46,11 @@ A TypeScript library for technical analysis of financial data. Calculate indicat
 - Dynamic ATR-based stop and take-profit levels
 - Integrated with backtesting engine
 
+### CLI Tools
+- **Screening CLI**: Screen multiple stocks against entry/exit conditions
+- **Backtest CLI**: Run backtests on single files or compare across multiple files
+- Output formats: table, JSON, CSV
+
 ### Utilities
 - Data normalization (various date formats to timestamps)
 - Timeframe resampling (daily to weekly/monthly)
@@ -389,6 +394,135 @@ const result = TrendCraft.from(candles)
     },
   });
 ```
+
+## CLI Tools
+
+TrendCraft provides two CLI tools for screening and backtesting.
+
+### Screening CLI
+
+Screen multiple stocks against entry/exit conditions.
+
+```bash
+# Basic usage
+npx trendcraft-screen ./data --entry "goldenCross"
+
+# With entry and exit conditions
+npx trendcraft-screen ./data --entry "goldenCross,volumeAnomaly" --exit "deadCross"
+
+# Filter by ATR% (volatility)
+npx trendcraft-screen ./data --entry "perfectOrderBullish" --min-atr 2.3
+
+# JSON output
+npx trendcraft-screen ./data --output json > results.json
+
+# Show all stocks (not just signals)
+npx trendcraft-screen ./data --all
+
+# List available conditions
+npx trendcraft-screen --list
+```
+
+**Output Example (table):**
+```
+====================================================================
+Stock Screening Results - 2025-12-25
+====================================================================
+
+Criteria: goldenCross + volumeAnomaly
+
+Summary:
+  Total Files: 19
+  Entry Signals: 3
+  Exit Signals: 1
+
+--------------------------------------------------------------------
+| Ticker       | Signal |     Price |    ATR% |   RSI | Vol Ratio |
+--------------------------------------------------------------------
+| 6920.T       | ENTRY  |     32500 |   4.52% |    38 |      2.31 |
+| 4755.T       | ENTRY  |       850 |   3.21% |    42 |      1.87 |
+| 6758.T       | EXIT   |     13200 |   2.34% |    68 |      1.12 |
+--------------------------------------------------------------------
+```
+
+### Backtest CLI
+
+Run backtests on single files or compare across multiple files.
+
+```bash
+# Single file (detailed output)
+npx trendcraft-backtest ./data/6758.T.csv --entry "goldenCross" --exit "deadCross"
+
+# Multiple files (comparison table)
+npx trendcraft-backtest ./data --entry "perfectOrderActiveBullish" --exit "perfectOrderCollapsed"
+
+# With risk management
+npx trendcraft-backtest ./data/6758.T.csv \
+  --entry "goldenCross,volumeAnomaly" \
+  --exit "deadCross" \
+  --stop-loss 5 --take-profit 10
+
+# Show individual trades
+npx trendcraft-backtest ./data/6758.T.csv --trades
+
+# JSON output
+npx trendcraft-backtest ./data --output json > results.json
+
+# List available conditions
+npx trendcraft-backtest --list
+```
+
+**Single File Output:**
+```
+======================================================================
+Backtest Result: 6758.T
+======================================================================
+
+Performance Summary:
+  Total Return:     34.48%
+  Trade Count:      311
+  Win Rate:         34.4%
+  Profit Factor:    1.01
+  Max Drawdown:     86.88%
+  Sharpe Ratio:     1.130
+
+Capital:
+  Initial:          1,000,000
+  Final:            1,344,761
+```
+
+**Multiple Files Output:**
+```
+Summary:
+  Total Stocks:     19
+  Profitable:       7 (37%)
+  Average Return:   417.90%
+
+--------------------------------------------------------------------------------------------------------------
+| Ticker       | Trades |  WinRate |     Return |    MaxDD |     PF |  Sharpe |
+--------------------------------------------------------------------------------------------------------------
+| 9984.T       |    166 |    41.0% |   7162.68% |   68.78% |   1.42 |   3.090 |
+| 6920.T       |     83 |    37.4% |    818.02% |   73.30% |   1.74 |   3.410 |
+| 6758.T       |    311 |    34.4% |     34.48% |   86.88% |   1.01 |   1.130 |
+--------------------------------------------------------------------------------------------------------------
+```
+
+### Available Condition Presets
+
+Both CLI tools support these preset conditions:
+
+| Category | Conditions |
+|----------|-----------|
+| Moving Average | `goldenCross`, `deadCross`, `goldenCross25_75`, `deadCross25_75` |
+| RSI | `rsiBelow30`, `rsiBelow40`, `rsiAbove60`, `rsiAbove70` |
+| MACD | `macdCrossUp`, `macdCrossDown` |
+| Perfect Order | `perfectOrderBullish`, `perfectOrderBearish`, `perfectOrderCollapsed`, `perfectOrderActiveBullish` |
+| Volume | `volumeAnomaly`, `volumeAbove1_5x`, `volumeAbove2x`, `volumeConfirmsTrend` |
+| Bollinger | `bollingerBreakoutUp`, `bollingerBreakoutDown` |
+| Stochastics | `stochBelow20`, `stochAbove80`, `stochCrossUp`, `stochCrossDown` |
+| DMI/ADX | `dmiBullish`, `dmiBearish`, `adxStrong` |
+| Range | `rangeBreakout`, `rangeConfirmed`, `inRangeBound` |
+| Volatility | `atrPercentAbove2_3`, `atrPercentAbove3` |
 
 ## API Reference
 

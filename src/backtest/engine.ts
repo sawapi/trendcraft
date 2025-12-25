@@ -57,7 +57,7 @@ export function runBacktest(
   const atrRisk = (options as MtfBacktestOptions).atrRisk;
 
   if (candles.length < 2) {
-    return emptyResult();
+    return emptyResult(capital);
   }
 
   const trades: Trade[] = [];
@@ -416,7 +416,7 @@ function calculateStats(
   maxDrawdown: number,
 ): BacktestResult {
   if (trades.length === 0) {
-    return emptyResult();
+    return emptyResult(initialCapital);
   }
 
   const totalReturn = finalCapital - initialCapital;
@@ -442,6 +442,8 @@ function calculateStats(
   const sharpeRatio = stdReturn > 0 ? (avgReturn / stdReturn) * Math.sqrt(252) : 0;
 
   return {
+    initialCapital,
+    finalCapital: Math.round(finalCapital * 100) / 100,
     totalReturn: Math.round(totalReturn * 100) / 100,
     totalReturnPercent: Math.round(totalReturnPercent * 100) / 100,
     tradeCount: trades.length,
@@ -457,8 +459,10 @@ function calculateStats(
 /**
  * Return empty result for edge cases
  */
-function emptyResult(): BacktestResult {
+function emptyResult(capital = 0): BacktestResult {
   return {
+    initialCapital: capital,
+    finalCapital: capital,
     totalReturn: 0,
     totalReturnPercent: 0,
     tradeCount: 0,

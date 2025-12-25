@@ -16,8 +16,8 @@ import type { OptimizationMetric } from "../types/optimization";
  */
 export function calculateSharpeRatio(
   returns: number[],
-  riskFreeRate: number = 0,
-  periodsPerYear: number = 252,
+  riskFreeRate = 0,
+  periodsPerYear = 252,
 ): number {
   if (returns.length === 0) return 0;
 
@@ -50,7 +50,7 @@ export function calculateCalmarRatio(
   maxDrawdownPercent: number,
 ): number {
   if (maxDrawdownPercent === 0) {
-    return annualizedReturnPercent > 0 ? Infinity : 0;
+    return annualizedReturnPercent > 0 ? Number.POSITIVE_INFINITY : 0;
   }
   return annualizedReturnPercent / maxDrawdownPercent;
 }
@@ -63,7 +63,7 @@ export function calculateCalmarRatio(
  */
 export function calculateRecoveryFactor(netProfit: number, maxDrawdown: number): number {
   if (maxDrawdown === 0) {
-    return netProfit > 0 ? Infinity : 0;
+    return netProfit > 0 ? Number.POSITIVE_INFINITY : 0;
   }
   return netProfit / maxDrawdown;
 }
@@ -81,10 +81,10 @@ export function calculateMAR(
   totalReturnPercent: number,
   tradingDays: number,
   maxDrawdownPercent: number,
-  tradingDaysPerMonth: number = 21,
+  tradingDaysPerMonth = 21,
 ): number {
   if (maxDrawdownPercent === 0) {
-    return totalReturnPercent > 0 ? Infinity : 0;
+    return totalReturnPercent > 0 ? Number.POSITIVE_INFINITY : 0;
   }
   if (tradingDays <= 0) return 0;
 
@@ -105,7 +105,7 @@ export function calculateMAR(
 export function annualizeReturn(
   totalReturnPercent: number,
   tradingDays: number,
-  tradingDaysPerYear: number = 252,
+  tradingDaysPerYear = 252,
 ): number {
   if (tradingDays <= 0) return 0;
 

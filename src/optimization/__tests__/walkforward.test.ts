@@ -1,13 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
-import type { NormalizedCandle, PresetCondition, BacktestOptions } from "../../types";
+import type { BacktestOptions, NormalizedCandle, PresetCondition } from "../../types";
+import { param } from "../grid-search";
 import {
-  walkForwardAnalysis,
   calculatePeriodCount,
   generatePeriodBoundaries,
-  summarizeWalkForward,
   getOutOfSampleEquityCurve,
+  summarizeWalkForward,
+  walkForwardAnalysis,
 } from "../walkforward";
-import { param } from "../grid-search";
 
 /**
  * Generate test candles with upward trend
@@ -122,16 +122,11 @@ describe("Walk-Forward Analysis", () => {
         options: { capital: 100000 } as BacktestOptions,
       });
 
-      const result = walkForwardAnalysis(
-        candles,
-        createStrategy,
-        [param("enterAfter", 5, 15, 5)],
-        {
-          windowSize: 100,
-          stepSize: 50,
-          testSize: 50,
-        },
-      );
+      const result = walkForwardAnalysis(candles, createStrategy, [param("enterAfter", 5, 15, 5)], {
+        windowSize: 100,
+        stepSize: 50,
+        testSize: 50,
+      });
 
       expect(result.periods.length).toBeGreaterThan(0);
       expect(result.aggregateMetrics).toBeDefined();
@@ -165,17 +160,12 @@ describe("Walk-Forward Analysis", () => {
         options: { capital: 100000 } as BacktestOptions,
       });
 
-      const result = walkForwardAnalysis(
-        candles,
-        createStrategy,
-        [param("enterAfter", 5, 10, 5)],
-        {
-          windowSize: 100,
-          stepSize: 50,
-          testSize: 50,
-          progressCallback: progressFn,
-        },
-      );
+      const result = walkForwardAnalysis(candles, createStrategy, [param("enterAfter", 5, 10, 5)], {
+        windowSize: 100,
+        stepSize: 50,
+        testSize: 50,
+        progressCallback: progressFn,
+      });
 
       expect(progressFn).toHaveBeenCalledTimes(result.periods.length);
     });
@@ -189,16 +179,11 @@ describe("Walk-Forward Analysis", () => {
         options: { capital: 100000 } as BacktestOptions,
       });
 
-      const result = walkForwardAnalysis(
-        candles,
-        createStrategy,
-        [param("enterAfter", 5, 10, 5)],
-        {
-          windowSize: 100,
-          stepSize: 50,
-          testSize: 50,
-        },
-      );
+      const result = walkForwardAnalysis(candles, createStrategy, [param("enterAfter", 5, 10, 5)], {
+        windowSize: 100,
+        stepSize: 50,
+        testSize: 50,
+      });
 
       expect(result.aggregateMetrics.avgInSample).toHaveProperty("sharpe");
       expect(result.aggregateMetrics.avgInSample).toHaveProperty("returns");
@@ -216,16 +201,11 @@ describe("Walk-Forward Analysis", () => {
         options: { capital: 100000 } as BacktestOptions,
       });
 
-      const result = walkForwardAnalysis(
-        candles,
-        createStrategy,
-        [param("enterAfter", 5, 15, 5)],
-        {
-          windowSize: 100,
-          stepSize: 50,
-          testSize: 50,
-        },
-      );
+      const result = walkForwardAnalysis(candles, createStrategy, [param("enterAfter", 5, 15, 5)], {
+        windowSize: 100,
+        stepSize: 50,
+        testSize: 50,
+      });
 
       expect(result.recommendation.useOptimizedParams).toBeDefined();
       expect(typeof result.recommendation.reason).toBe("string");
@@ -240,16 +220,11 @@ describe("Walk-Forward Analysis", () => {
         options: { capital: 100000 } as BacktestOptions,
       });
 
-      const result = walkForwardAnalysis(
-        candles,
-        createStrategy,
-        [param("enterAfter", 5, 15, 5)],
-        {
-          windowSize: 100,
-          stepSize: 50,
-          testSize: 50,
-        },
-      );
+      const result = walkForwardAnalysis(candles, createStrategy, [param("enterAfter", 5, 15, 5)], {
+        windowSize: 100,
+        stepSize: 50,
+        testSize: 50,
+      });
 
       for (const period of result.periods) {
         expect(period.bestParams).toHaveProperty("enterAfter");
@@ -269,16 +244,11 @@ describe("Walk-Forward Analysis", () => {
         options: { capital: 100000 } as BacktestOptions,
       });
 
-      const result = walkForwardAnalysis(
-        candles,
-        createStrategy,
-        [param("enterAfter", 5, 10, 5)],
-        {
-          windowSize: 100,
-          stepSize: 50,
-          testSize: 50,
-        },
-      );
+      const result = walkForwardAnalysis(candles, createStrategy, [param("enterAfter", 5, 10, 5)], {
+        windowSize: 100,
+        stepSize: 50,
+        testSize: 50,
+      });
 
       const summary = summarizeWalkForward(result);
 
@@ -301,16 +271,11 @@ describe("Walk-Forward Analysis", () => {
         options: { capital: 100000 } as BacktestOptions,
       });
 
-      const result = walkForwardAnalysis(
-        candles,
-        createStrategy,
-        [param("enterAfter", 5, 10, 5)],
-        {
-          windowSize: 100,
-          stepSize: 50,
-          testSize: 50,
-        },
-      );
+      const result = walkForwardAnalysis(candles, createStrategy, [param("enterAfter", 5, 10, 5)], {
+        windowSize: 100,
+        stepSize: 50,
+        testSize: 50,
+      });
 
       const curve = getOutOfSampleEquityCurve(result);
 
@@ -331,16 +296,11 @@ describe("Walk-Forward Analysis", () => {
         options: { capital: 100000 } as BacktestOptions,
       });
 
-      const result = walkForwardAnalysis(
-        candles,
-        createStrategy,
-        [param("enterAfter", 5, 10, 5)],
-        {
-          windowSize: 100,
-          stepSize: 50,
-          testSize: 50,
-        },
-      );
+      const result = walkForwardAnalysis(candles, createStrategy, [param("enterAfter", 5, 10, 5)], {
+        windowSize: 100,
+        stepSize: 50,
+        testSize: 50,
+      });
 
       const curve100k = getOutOfSampleEquityCurve(result, 100000);
       const curve200k = getOutOfSampleEquityCurve(result, 200000);
@@ -364,16 +324,11 @@ describe("Walk-Forward Analysis", () => {
         options: { capital: 100000 } as BacktestOptions,
       });
 
-      const result = walkForwardAnalysis(
-        candles,
-        createStrategy,
-        [param("enterAfter", 5, 10, 5)],
-        {
-          windowSize: 100,
-          stepSize: 100, // Large step = fewer periods
-          testSize: 50,
-        },
-      );
+      const result = walkForwardAnalysis(candles, createStrategy, [param("enterAfter", 5, 10, 5)], {
+        windowSize: 100,
+        stepSize: 100, // Large step = fewer periods
+        testSize: 50,
+      });
 
       expect(result.periods.length).toBeGreaterThanOrEqual(1);
     });

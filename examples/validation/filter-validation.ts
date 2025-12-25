@@ -11,23 +11,23 @@
  *   npx tsx examples/filter-validation.ts
  */
 
-import { readFileSync, readdirSync, existsSync } from "node:fs";
-import { join, dirname } from "node:path";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  normalizeCandles,
-  runBacktest,
-  and,
-  calculateAllMetrics,
-  atr,
-  // Conditions
-  goldenCrossCondition as goldenCross,
-  volumeAnomalyCondition,
-  volumeDivergence,
-  macdCrossDown,
+  type BacktestResult,
   // Types
   type NormalizedCandle,
-  type BacktestResult,
+  and,
+  atr,
+  calculateAllMetrics,
+  // Conditions
+  goldenCrossCondition as goldenCross,
+  macdCrossDown,
+  normalizeCandles,
+  runBacktest,
+  volumeAnomalyCondition,
+  volumeDivergence,
 } from "../../src";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -53,11 +53,11 @@ function loadCsv(filename: string): NormalizedCandle[] {
     const isoDate = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
     return {
       time: isoDate,
-      open: parseFloat(open),
-      high: parseFloat(high),
-      low: parseFloat(low),
-      close: parseFloat(close),
-      volume: parseFloat(volume),
+      open: Number.parseFloat(open),
+      high: Number.parseFloat(high),
+      low: Number.parseFloat(low),
+      close: Number.parseFloat(close),
+      volume: Number.parseFloat(volume),
     };
   });
 
@@ -100,7 +100,7 @@ const TICKER_NAMES: Record<string, string> = {
 // ATR Filter
 // ============================================
 
-function calculateATRPercent(candles: NormalizedCandle[], period: number = 14): number {
+function calculateATRPercent(candles: NormalizedCandle[], period = 14): number {
   if (candles.length < period + 1) return 0;
 
   const atrValues = atr(candles, period);
@@ -134,8 +134,8 @@ type DynamicStopResult = {
 
 function runBacktestWithDynamicStop(
   candles: NormalizedCandle[],
-  minTradesForCheck: number = 20,
-  minWinRateThreshold: number = 25,
+  minTradesForCheck = 20,
+  minWinRateThreshold = 25,
 ): DynamicStopResult {
   const entry = and(goldenCross(5, 25), volumeAnomalyCondition(2.0, 20));
   const exit = and(macdCrossDown(), volumeDivergence());
@@ -223,13 +223,17 @@ function validateStock(ticker: string, candles: NormalizedCandle[]): ValidationR
 
   // 動的停止付きバックテスト
   const dynamicResult = runBacktestWithDynamicStop(candles, 20, 25);
-  const metrics = calculateAllMetrics(dynamicResult.originalResult, candles, { initialCapital: 1000000 });
+  const metrics = calculateAllMetrics(dynamicResult.originalResult, candles, {
+    initialCapital: 1000000,
+  });
 
   let dynamicStopSharpe: number | null = null;
   let dynamicStopReturn: number | null = null;
 
   if (dynamicResult.stoppedResult) {
-    const stoppedMetrics = calculateAllMetrics(dynamicResult.stoppedResult, candles, { initialCapital: 1000000 });
+    const stoppedMetrics = calculateAllMetrics(dynamicResult.stoppedResult, candles, {
+      initialCapital: 1000000,
+    });
     dynamicStopSharpe = stoppedMetrics.sharpe;
     dynamicStopReturn = stoppedMetrics.returns;
   }
@@ -321,7 +325,10 @@ async function main() {
     }
     return { ...r, effectiveReturn: r.noFilterReturn };
   });
-  const s4AvgReturn = s4Results.length > 0 ? s4Results.reduce((s, r) => s + r.effectiveReturn, 0) / s4Results.length : 0;
+  const s4AvgReturn =
+    s4Results.length > 0
+      ? s4Results.reduce((s, r) => s + r.effectiveReturn, 0) / s4Results.length
+      : 0;
   const s4Success = s4Results.filter((r) => r.effectiveReturn > 0);
 
   console.log("| シナリオ | 対象銘柄数 | 成功率 | 平均リターン |");
@@ -332,9 +339,7 @@ async function main() {
   console.log(
     `| ATRフィルタ (>=2.3%) | ${scenario2.length} | ${((s2Success.length / scenario2.length) * 100).toFixed(0)}% | ${s2AvgReturn.toFixed(0)}% |`,
   );
-  console.log(
-    `| 動的停止 (WR<25%@20T) | ${scenario1.length} | - | ${s3AvgReturn.toFixed(0)}% |`,
-  );
+  console.log(`| 動的停止 (WR<25%@20T) | ${scenario1.length} | - | ${s3AvgReturn.toFixed(0)}% |`);
   console.log(
     `| ATR + 動的停止 | ${s4Results.length} | ${s4Results.length > 0 ? ((s4Success.length / s4Results.length) * 100).toFixed(0) : 0}% | ${s4AvgReturn.toFixed(0)}% |`,
   );
@@ -355,7 +360,9 @@ async function main() {
 
   for (const r of s2Excluded) {
     const judgment = r.noFilterReturn < 0 ? "正解 (損失回避)" : "誤り (利益逃す)";
-    console.log(`| ${r.ticker} (${r.name}) | ${r.atrPercent.toFixed(2)}% | ${r.noFilterReturn.toFixed(0)}% | ${judgment} |`);
+    console.log(
+      `| ${r.ticker} (${r.name}) | ${r.atrPercent.toFixed(2)}% | ${r.noFilterReturn.toFixed(0)}% | ${judgment} |`,
+    );
   }
 
   console.log();
@@ -403,7 +410,8 @@ async function main() {
   for (const r of sortedResults) {
     const atrStatus = r.passATRFilter ? "PASS" : "FAIL";
     const stopStatus = r.dynamicStopApplied ? `STOP(${r.dynamicStopReason})` : "-";
-    const finalReturn = r.dynamicStopApplied && r.dynamicStopReturn !== null ? r.dynamicStopReturn : r.noFilterReturn;
+    const finalReturn =
+      r.dynamicStopApplied && r.dynamicStopReturn !== null ? r.dynamicStopReturn : r.noFilterReturn;
 
     console.log(
       `| ${r.ticker.padEnd(8)} | ${r.atrPercent.toFixed(2).padStart(5)}% | ${atrStatus.padEnd(4)} | ${stopStatus.padEnd(20)} | ${finalReturn.toFixed(0).padStart(9)}% | ${r.noFilterReturn.toFixed(0).padStart(7)}% |`,

@@ -5,13 +5,27 @@ import dts from "vite-plugin-dts";
 export default defineConfig({
   build: {
     lib: {
-      entry: resolve(__dirname, "src/index.ts"),
-      name: "TrendCraft",
+      entry: {
+        index: resolve(__dirname, "src/index.ts"),
+        "screening/index": resolve(__dirname, "src/screening/index.ts"),
+        "bin/trendcraft-screen": resolve(__dirname, "bin/trendcraft-screen.ts"),
+        "bin/trendcraft-backtest": resolve(__dirname, "bin/trendcraft-backtest.ts"),
+      },
       formats: ["es", "cjs"],
-      fileName: (format) => `index.${format === "es" ? "js" : "cjs"}`,
+      fileName: (format, entryName) => {
+        const ext = format === "es" ? "js" : "cjs";
+        return `${entryName}.${ext}`;
+      },
     },
     sourcemap: true,
     minify: false,
+    rollupOptions: {
+      external: [
+        "node:fs",
+        "node:path",
+        "node:url",
+      ],
+    },
   },
   plugins: [
     dts({

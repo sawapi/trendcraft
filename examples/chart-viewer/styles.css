@@ -10,7 +10,7 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   background: #1a1a2e;
   color: #eee;
   min-height: 100vh;
@@ -130,29 +130,75 @@ h1 {
 }
 
 /* Indicator color coding */
-.indicator-item.sma { border-left: 3px solid #ff6b6b; }
-.indicator-item.ema { border-left: 3px solid #ffd93d; }
-.indicator-item.bb { border-left: 3px solid #6bcb77; }
-.indicator-item.rsi { border-left: 3px solid #4d96ff; }
-.indicator-item.macd { border-left: 3px solid #ff9f43; }
-.indicator-item.cross { border-left: 3px solid #f368e0; }
-.indicator-item.stoch { border-left: 3px solid #00d9ff; }
-.indicator-item.dmi { border-left: 3px solid #a29bfe; }
-.indicator-item.stochrsi { border-left: 3px solid #ff6b9d; }
-.indicator-item.mfi { border-left: 3px solid #f39c12; }
-.indicator-item.obv { border-left: 3px solid #9b59b6; }
-.indicator-item.donchian { border-left: 3px solid #1abc9c; }
-.indicator-item.wma { border-left: 3px solid #e74c3c; }
-.indicator-item.ichimoku { border-left: 3px solid #3498db; }
-.indicator-item.supertrend { border-left: 3px solid #e91e63; }
-.indicator-item.cci { border-left: 3px solid #00bcd4; }
-.indicator-item.willr { border-left: 3px solid #8bc34a; }
-.indicator-item.roc { border-left: 3px solid #ff5722; }
-.indicator-item.perfectorder { border-left: 3px solid #ffc107; }
-.indicator-item.rangebound { border-left: 3px solid #9c27b0; }
-.indicator-item.psar { border-left: 3px solid #ff4081; }
-.indicator-item.keltner { border-left: 3px solid #7c4dff; }
-.indicator-item.cmf { border-left: 3px solid #64ffda; }
+.indicator-item.sma {
+  border-left: 3px solid #ff6b6b;
+}
+.indicator-item.ema {
+  border-left: 3px solid #ffd93d;
+}
+.indicator-item.bb {
+  border-left: 3px solid #6bcb77;
+}
+.indicator-item.rsi {
+  border-left: 3px solid #4d96ff;
+}
+.indicator-item.macd {
+  border-left: 3px solid #ff9f43;
+}
+.indicator-item.cross {
+  border-left: 3px solid #f368e0;
+}
+.indicator-item.stoch {
+  border-left: 3px solid #00d9ff;
+}
+.indicator-item.dmi {
+  border-left: 3px solid #a29bfe;
+}
+.indicator-item.stochrsi {
+  border-left: 3px solid #ff6b9d;
+}
+.indicator-item.mfi {
+  border-left: 3px solid #f39c12;
+}
+.indicator-item.obv {
+  border-left: 3px solid #9b59b6;
+}
+.indicator-item.donchian {
+  border-left: 3px solid #1abc9c;
+}
+.indicator-item.wma {
+  border-left: 3px solid #e74c3c;
+}
+.indicator-item.ichimoku {
+  border-left: 3px solid #3498db;
+}
+.indicator-item.supertrend {
+  border-left: 3px solid #e91e63;
+}
+.indicator-item.cci {
+  border-left: 3px solid #00bcd4;
+}
+.indicator-item.willr {
+  border-left: 3px solid #8bc34a;
+}
+.indicator-item.roc {
+  border-left: 3px solid #ff5722;
+}
+.indicator-item.perfectorder {
+  border-left: 3px solid #ffc107;
+}
+.indicator-item.rangebound {
+  border-left: 3px solid #9c27b0;
+}
+.indicator-item.psar {
+  border-left: 3px solid #ff4081;
+}
+.indicator-item.keltner {
+  border-left: 3px solid #7c4dff;
+}
+.indicator-item.cmf {
+  border-left: 3px solid #64ffda;
+}
 
 /* ============================================================================
    Chart Container

@@ -3,8 +3,8 @@
  * Shared utility functions for chart operations
  */
 
-import * as echarts from 'echarts';
-import type { Series } from 'trendcraft';
+import type * as echarts from "echarts";
+import type { Series } from "trendcraft";
 
 /**
  * Format timestamp to display date string
@@ -12,8 +12,8 @@ import type { Series } from 'trendcraft';
 export function formatDate(timestamp: number): string {
   const date = new Date(timestamp);
   const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
   return `${y}/${m}/${d}`;
 }
 
@@ -24,12 +24,12 @@ export function createLineSeries(
   name: string,
   data: Series<number | null>,
   color: string,
-  lineStyle: 'solid' | 'dashed' | 'dotted' = 'solid'
+  lineStyle: "solid" | "dashed" | "dotted" = "solid",
 ): echarts.LineSeriesOption {
   return {
     name,
-    type: 'line',
-    data: data.map(d => d.value),
+    type: "line",
+    data: data.map((d) => d.value),
     smooth: false,
     showSymbol: false,
     lineStyle: {

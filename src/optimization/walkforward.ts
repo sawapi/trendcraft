@@ -5,6 +5,7 @@
  * and prevent overfitting.
  */
 
+import { runBacktest } from "../backtest";
 import type { BacktestOptions, Condition, NormalizedCandle } from "../types";
 import type {
   OptimizationConstraint,
@@ -14,16 +15,13 @@ import type {
   WalkForwardPeriod,
   WalkForwardResult,
 } from "../types/optimization";
-import { runBacktest } from "../backtest";
+import { type StrategyFactory, gridSearch } from "./grid-search";
 import { calculateAllMetrics, getMetricValue } from "./metrics";
-import { gridSearch, type StrategyFactory } from "./grid-search";
 
 /**
  * Default options for walk-forward analysis
  */
-const DEFAULT_OPTIONS: Required<
-  Omit<WalkForwardOptions, "constraints" | "progressCallback">
-> = {
+const DEFAULT_OPTIONS: Required<Omit<WalkForwardOptions, "constraints" | "progressCallback">> = {
   windowSize: 252, // ~1 year of daily data
   stepSize: 63, // ~1 quarter
   testSize: 63, // ~1 quarter
@@ -166,12 +164,10 @@ export function walkForwardAnalysis(
 
     // Run backtest on training data with best params
     const trainStrategy = createStrategy(bestParams);
-    const trainBacktest = runBacktest(
-      trainCandles,
-      trainStrategy.entry,
-      trainStrategy.exit,
-      { capital: 100000, ...trainStrategy.options },
-    );
+    const trainBacktest = runBacktest(trainCandles, trainStrategy.entry, trainStrategy.exit, {
+      capital: 100000,
+      ...trainStrategy.options,
+    });
     const inSampleMetrics = calculateAllMetrics(trainBacktest, trainCandles);
 
     // Run backtest on test data with same params
@@ -235,10 +231,7 @@ function calculateAggregateMetrics(
   ];
 
   // Calculate averages
-  const avgInSample: Record<OptimizationMetric, number> = {} as Record<
-    OptimizationMetric,
-    number
-  >;
+  const avgInSample: Record<OptimizationMetric, number> = {} as Record<OptimizationMetric, number>;
   const avgOutOfSample: Record<OptimizationMetric, number> = {} as Record<
     OptimizationMetric,
     number
@@ -360,9 +353,7 @@ export function summarizeWalkForward(result: WalkForwardResult): {
   profitablePeriods: number;
   recommendation: string;
 } {
-  const profitablePeriods = result.periods.filter(
-    (p) => p.outOfSampleMetrics.returns > 0,
-  ).length;
+  const profitablePeriods = result.periods.filter((p) => p.outOfSampleMetrics.returns > 0).length;
 
   return {
     periodCount: result.periods.length,
@@ -382,7 +373,7 @@ export function summarizeWalkForward(result: WalkForwardResult): {
  */
 export function getOutOfSampleEquityCurve(
   result: WalkForwardResult,
-  initialCapital: number = 100000,
+  initialCapital = 100000,
 ): Array<{ time: number; equity: number }> {
   const curve: Array<{ time: number; equity: number }> = [];
   let equity = initialCapital;
