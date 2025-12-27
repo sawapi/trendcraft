@@ -2,15 +2,16 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { and, goldenCross, rsiBelow } from "../../backtest/conditions";
 import type { NormalizedCandle } from "../../types";
-import { getCsvFiles, loadCsvDirectory, parseCsv } from "../csv-loader";
+import { getCsvFiles, loadCsvDirectory } from "../csv-loader";
+import { parseCsv } from "../csv-parser";
 import { formatCsv, formatJson, formatTable } from "../formatters";
 import {
   CONDITION_PRESETS,
   createCriteriaFromNames,
   getAvailableConditions,
-  runScreening,
   screenStock,
-} from "../screener";
+} from "../screen-stock";
+import { runScreening } from "../screener";
 
 // Generate mock candle data
 function generateMockCandles(

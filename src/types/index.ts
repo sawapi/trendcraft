@@ -287,6 +287,20 @@ export type AtrTrailingStopConfig = {
 };
 
 /**
+ * Fill mode for order execution timing
+ * - "same-bar-close": Execute at signal bar's close (default, legacy behavior - has look-ahead bias)
+ * - "next-bar-open": Execute at next bar's open (realistic, no look-ahead bias)
+ */
+export type FillMode = "same-bar-close" | "next-bar-open";
+
+/**
+ * Stop loss / Take profit evaluation mode
+ * - "intraday": Check against high/low within the bar (has look-ahead bias)
+ * - "close-only": Check only against close price (no look-ahead bias, default)
+ */
+export type SlTpMode = "intraday" | "close-only";
+
+/**
  * Backtest options
  */
 export type BacktestOptions = {
@@ -310,6 +324,40 @@ export type BacktestOptions = {
   partialTakeProfit?: PartialTakeProfitConfig;
   /** Tax rate on profits in percent (default: 0, e.g., 20.315 for Japan) */
   taxRate?: number;
+  /**
+   * Order fill timing mode (default: "next-bar-open")
+   * - "same-bar-close": Fill at signal bar's close (legacy, has look-ahead bias)
+   * - "next-bar-open": Fill at next bar's open (realistic, recommended)
+   */
+  fillMode?: FillMode;
+  /**
+   * Stop loss / Take profit evaluation mode (default: "close-only")
+   * - "intraday": Check high/low within bar (has look-ahead bias)
+   * - "close-only": Check only close price (conservative, recommended)
+   */
+  slTpMode?: SlTpMode;
+};
+
+/**
+ * Backtest settings snapshot for reproducibility
+ */
+export type BacktestSettings = {
+  /** Order fill timing mode */
+  fillMode: FillMode;
+  /** Stop loss / Take profit evaluation mode */
+  slTpMode: SlTpMode;
+  /** Stop loss in percent */
+  stopLoss?: number;
+  /** Take profit in percent */
+  takeProfit?: number;
+  /** Trailing stop in percent */
+  trailingStop?: number;
+  /** Slippage in percent */
+  slippage: number;
+  /** Fixed commission per trade */
+  commission: number;
+  /** Commission rate in percent */
+  commissionRate: number;
 };
 
 /**
@@ -338,6 +386,8 @@ export type BacktestResult = {
   avgHoldingDays: number;
   /** Individual trade records */
   trades: Trade[];
+  /** Settings used for this backtest (for reproducibility) */
+  settings: BacktestSettings;
 };
 
 // ============================================

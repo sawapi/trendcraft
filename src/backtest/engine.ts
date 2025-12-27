@@ -9,9 +9,12 @@ import type {
   AtrRiskOptions,
   BacktestOptions,
   BacktestResult,
+  BacktestSettings,
   Condition,
+  FillMode,
   MtfContext,
   NormalizedCandle,
+  SlTpMode,
   TimeframeShorthand,
   Trade,
 } from "../types";
@@ -50,14 +53,28 @@ export function runBacktest(
     atrTrailingStop,
     partialTakeProfit,
     taxRate = 0,
+    fillMode = "next-bar-open" as FillMode,
+    slTpMode = "close-only" as SlTpMode,
   } = options;
 
   // Extract MTF timeframes and ATR risk options if provided
   const mtfTimeframes = (options as MtfBacktestOptions).mtfTimeframes;
   const atrRisk = (options as MtfBacktestOptions).atrRisk;
 
+  // Build settings for reproducibility
+  const settings: BacktestSettings = {
+    fillMode,
+    slTpMode,
+    stopLoss,
+    takeProfit,
+    trailingStop,
+    slippage,
+    commission,
+    commissionRate,
+  };
+
   if (candles.length < 2) {
-    return emptyResult(capital);
+    return emptyResult(capital, settings);
   }
 
   const trades: Trade[] = [];
@@ -91,6 +108,21 @@ export function runBacktest(
     partialTaken: boolean;
     entryAtr: number | null; // ATR at entry time (for useEntryAtr mode)
   } | null = null;
+
+  // Pending entry for next-bar-open mode
+  let pendingEntry: {
+    signalTime: number;
+    signalIndex: number;
+    entryAtr: number | null;
+  } | null = null;
+
+  // Pending exit for next-bar-open mode
+  let pendingExit: {
+    signalTime: number;
+    exitPrice: number; // Target price (for SL/TP) or 0 for signal-based exit
+    isSignalBased: boolean;
+  } | null = null;
+
   let currentCapital = capital;
   let peakCapital = capital;
   let maxDrawdown = 0;
@@ -104,7 +136,84 @@ export function runBacktest(
       updateMtfIndices(mtfContext, mtfIndexMap, i, candle.time);
     }
 
-    if (position === null) {
+    // === Handle pending entry (next-bar-open mode) ===
+    if (pendingEntry !== null && position === null) {
+      const entryPrice = applySlippage(candle.open, slippage, "buy");
+
+      // Calculate commission (fixed + rate-based)
+      const tradeValue = currentCapital;
+      const entryCommission = commission + tradeValue * (commissionRate / 100);
+
+      // Calculate shares after commission
+      const shares = (currentCapital - entryCommission) / entryPrice;
+
+      position = {
+        entryTime: candle.time,
+        entryPrice,
+        peakPrice: candle.high, // Use current bar's high as initial peak
+        shares,
+        originalShares: shares,
+        partialTaken: false,
+        entryAtr: pendingEntry.entryAtr,
+      };
+
+      // Capital is now invested in position
+      currentCapital = 0;
+      pendingEntry = null;
+    }
+
+    // === Handle pending exit (next-bar-open mode) ===
+    if (pendingExit !== null && position !== null) {
+      // Execute exit at this bar's open
+      const exitPrice = applySlippage(candle.open, slippage, "sell");
+
+      // Calculate gross return
+      const grossReturn = (exitPrice - position.entryPrice) * position.shares;
+
+      // Calculate exit commission
+      const exitValue = exitPrice * position.shares;
+      const exitCommission = commission + exitValue * (commissionRate / 100);
+
+      // Apply tax on profits only
+      let tax = 0;
+      if (grossReturn > 0 && taxRate > 0) {
+        tax = grossReturn * (taxRate / 100);
+      }
+
+      // Net return after commission and tax
+      const netReturn = grossReturn - exitCommission - tax;
+      const returnPercent = (netReturn / (position.entryPrice * position.shares)) * 100;
+      const holdingDays = Math.round((candle.time - position.entryTime) / MS_PER_DAY);
+
+      trades.push({
+        entryTime: position.entryTime,
+        entryPrice: position.entryPrice,
+        exitTime: candle.time,
+        exitPrice,
+        return: netReturn,
+        returnPercent,
+        holdingDays,
+      });
+
+      // Update capital
+      currentCapital += exitValue - exitCommission - tax;
+      returns.push(returnPercent / 100);
+
+      // Track drawdown
+      if (currentCapital > peakCapital) {
+        peakCapital = currentCapital;
+      }
+      const drawdown = ((peakCapital - currentCapital) / peakCapital) * 100;
+      if (drawdown > maxDrawdown) {
+        maxDrawdown = drawdown;
+      }
+
+      position = null;
+      pendingExit = null;
+    }
+
+    // === Check for new entry ===
+    if (position === null && pendingEntry === null) {
       // Check entry condition
       if (
         evaluateCondition(
@@ -116,32 +225,44 @@ export function runBacktest(
           mtfContext,
         )
       ) {
-        const entryPrice = applySlippage(candle.close, slippage, "buy");
-
-        // Calculate commission (fixed + rate-based)
-        const tradeValue = currentCapital;
-        const entryCommission = commission + tradeValue * (commissionRate / 100);
-
-        // Calculate shares after commission
-        const shares = (currentCapital - entryCommission) / entryPrice;
-
         // Store entry ATR for useEntryAtr mode
         const entryAtr = atrSeries ? atrSeries[i].value : null;
 
-        position = {
-          entryTime: candle.time,
-          entryPrice,
-          peakPrice: entryPrice,
-          shares,
-          originalShares: shares,
-          partialTaken: false,
-          entryAtr,
-        };
+        if (fillMode === "same-bar-close") {
+          // Legacy mode: enter at this bar's close
+          const entryPrice = applySlippage(candle.close, slippage, "buy");
 
-        // Capital is now invested in position
-        currentCapital = 0;
+          // Calculate commission (fixed + rate-based)
+          const tradeValue = currentCapital;
+          const entryCommission = commission + tradeValue * (commissionRate / 100);
+
+          // Calculate shares after commission
+          const shares = (currentCapital - entryCommission) / entryPrice;
+
+          position = {
+            entryTime: candle.time,
+            entryPrice,
+            peakPrice: entryPrice,
+            shares,
+            originalShares: shares,
+            partialTaken: false,
+            entryAtr,
+          };
+
+          // Capital is now invested in position
+          currentCapital = 0;
+        } else {
+          // next-bar-open mode: queue entry for next bar
+          pendingEntry = {
+            signalTime: candle.time,
+            signalIndex: i,
+            entryAtr,
+          };
+        }
       }
-    } else {
+    } else if (position !== null && pendingExit === null) {
+      // === Position management ===
+
       // Update peak price for trailing stop
       if (candle.high > position.peakPrice) {
         position.peakPrice = candle.high;
@@ -162,32 +283,56 @@ export function runBacktest(
         }
       }
 
-      // Stop loss check (intraday using low price)
-      // Fixed percentage stop loss (if no ATR stop is set, or as a backup max loss)
+      // === Stop Loss Check ===
       if (stopLoss !== undefined) {
         const stopLossPrice = position.entryPrice * (1 - stopLoss / 100);
-        if (candle.low <= stopLossPrice) {
-          shouldExit = true;
-          exitPrice = stopLossPrice;
+        if (slTpMode === "intraday") {
+          // Legacy: check against low (has look-ahead bias)
+          if (candle.low <= stopLossPrice) {
+            shouldExit = true;
+            exitPrice = stopLossPrice;
+          }
+        } else {
+          // close-only: check against close (no look-ahead bias)
+          if (candle.close <= stopLossPrice) {
+            shouldExit = true;
+            exitPrice = candle.close;
+          }
         }
       }
 
-      // ATR-based stop loss (takes priority if both are triggered)
+      // ATR-based stop loss
       if (!shouldExit && currentAtr !== null && atrRisk?.atrStopMultiplier !== undefined) {
         const atrStopDistance = currentAtr * atrRisk.atrStopMultiplier;
         const atrStopPrice = position.entryPrice - atrStopDistance;
-        if (candle.low <= atrStopPrice) {
-          shouldExit = true;
-          exitPrice = atrStopPrice;
+        if (slTpMode === "intraday") {
+          if (candle.low <= atrStopPrice) {
+            shouldExit = true;
+            exitPrice = atrStopPrice;
+          }
+        } else {
+          if (candle.close <= atrStopPrice) {
+            shouldExit = true;
+            exitPrice = candle.close;
+          }
         }
       }
 
-      // Take profit check (intraday using high price)
+      // === Take Profit Check ===
       if (!shouldExit && takeProfit !== undefined) {
         const takeProfitPrice = position.entryPrice * (1 + takeProfit / 100);
-        if (candle.high >= takeProfitPrice) {
-          shouldExit = true;
-          exitPrice = takeProfitPrice;
+        if (slTpMode === "intraday") {
+          // Legacy: check against high (has look-ahead bias)
+          if (candle.high >= takeProfitPrice) {
+            shouldExit = true;
+            exitPrice = takeProfitPrice;
+          }
+        } else {
+          // close-only: check against close (no look-ahead bias)
+          if (candle.close >= takeProfitPrice) {
+            shouldExit = true;
+            exitPrice = candle.close;
+          }
         }
       }
 
@@ -195,18 +340,32 @@ export function runBacktest(
       if (!shouldExit && currentAtr !== null && atrRisk?.atrTakeProfitMultiplier !== undefined) {
         const atrTpDistance = currentAtr * atrRisk.atrTakeProfitMultiplier;
         const atrTpPrice = position.entryPrice + atrTpDistance;
-        if (candle.high >= atrTpPrice) {
-          shouldExit = true;
-          exitPrice = atrTpPrice;
+        if (slTpMode === "intraday") {
+          if (candle.high >= atrTpPrice) {
+            shouldExit = true;
+            exitPrice = atrTpPrice;
+          }
+        } else {
+          if (candle.close >= atrTpPrice) {
+            shouldExit = true;
+            exitPrice = candle.close;
+          }
         }
       }
 
       // Partial take profit check (sell portion of position at threshold)
       if (!shouldExit && partialTakeProfit && !position.partialTaken) {
         const partialThresholdPrice = position.entryPrice * (1 + partialTakeProfit.threshold / 100);
-        if (candle.high >= partialThresholdPrice) {
+        const partialTrigger =
+          slTpMode === "intraday"
+            ? candle.high >= partialThresholdPrice
+            : candle.close >= partialThresholdPrice;
+        if (partialTrigger) {
           // Execute partial exit
-          const partialExitPrice = applySlippage(partialThresholdPrice, slippage, "sell");
+          const partialExitPrice =
+            slTpMode === "intraday"
+              ? applySlippage(partialThresholdPrice, slippage, "sell")
+              : applySlippage(candle.close, slippage, "sell");
           const sharesToSell = position.shares * (partialTakeProfit.sellPercent / 100);
           const sharesRemaining = position.shares - sharesToSell;
 
@@ -258,9 +417,16 @@ export function runBacktest(
       // Trailing stop check (fixed percentage)
       if (!shouldExit && trailingStop !== undefined) {
         const trailingStopPrice = position.peakPrice * (1 - trailingStop / 100);
-        if (candle.low <= trailingStopPrice) {
-          shouldExit = true;
-          exitPrice = trailingStopPrice;
+        if (slTpMode === "intraday") {
+          if (candle.low <= trailingStopPrice) {
+            shouldExit = true;
+            exitPrice = trailingStopPrice;
+          }
+        } else {
+          if (candle.close <= trailingStopPrice) {
+            shouldExit = true;
+            exitPrice = candle.close;
+          }
         }
       }
 
@@ -268,9 +434,16 @@ export function runBacktest(
       if (!shouldExit && currentAtr !== null && atrRisk?.atrTrailingMultiplier !== undefined) {
         const atrTrailDistance = currentAtr * atrRisk.atrTrailingMultiplier;
         const atrTrailPrice = position.peakPrice - atrTrailDistance;
-        if (candle.low <= atrTrailPrice) {
-          shouldExit = true;
-          exitPrice = atrTrailPrice;
+        if (slTpMode === "intraday") {
+          if (candle.low <= atrTrailPrice) {
+            shouldExit = true;
+            exitPrice = atrTrailPrice;
+          }
+        } else {
+          if (candle.close <= atrTrailPrice) {
+            shouldExit = true;
+            exitPrice = candle.close;
+          }
         }
       }
 
@@ -280,9 +453,16 @@ export function runBacktest(
         if (atrValue !== null && atrValue !== undefined) {
           const atrTrailDistance = atrValue * atrTrailingStop.multiplier;
           const atrTrailPrice = position.peakPrice - atrTrailDistance;
-          if (candle.low <= atrTrailPrice) {
-            shouldExit = true;
-            exitPrice = atrTrailPrice;
+          if (slTpMode === "intraday") {
+            if (candle.low <= atrTrailPrice) {
+              shouldExit = true;
+              exitPrice = atrTrailPrice;
+            }
+          } else {
+            if (candle.close <= atrTrailPrice) {
+              shouldExit = true;
+              exitPrice = candle.close;
+            }
           }
         }
       }
@@ -303,51 +483,62 @@ export function runBacktest(
         exitPrice = candle.close;
       }
 
+      // Handle exit based on fillMode
       if (shouldExit) {
-        exitPrice = applySlippage(exitPrice, slippage, "sell");
+        if (fillMode === "same-bar-close") {
+          // Legacy mode: exit immediately at this bar
+          exitPrice = applySlippage(exitPrice, slippage, "sell");
 
-        // Calculate gross return
-        const grossReturn = (exitPrice - position.entryPrice) * position.shares;
+          // Calculate gross return
+          const grossReturn = (exitPrice - position.entryPrice) * position.shares;
 
-        // Calculate exit commission
-        const exitValue = exitPrice * position.shares;
-        const exitCommission = commission + exitValue * (commissionRate / 100);
+          // Calculate exit commission
+          const exitValue = exitPrice * position.shares;
+          const exitCommission = commission + exitValue * (commissionRate / 100);
 
-        // Apply tax on profits only
-        let tax = 0;
-        if (grossReturn > 0 && taxRate > 0) {
-          tax = grossReturn * (taxRate / 100);
+          // Apply tax on profits only
+          let tax = 0;
+          if (grossReturn > 0 && taxRate > 0) {
+            tax = grossReturn * (taxRate / 100);
+          }
+
+          // Net return after commission and tax
+          const netReturn = grossReturn - exitCommission - tax;
+          const returnPercent = (netReturn / (position.entryPrice * position.shares)) * 100;
+          const holdingDays = Math.round((candle.time - position.entryTime) / MS_PER_DAY);
+
+          trades.push({
+            entryTime: position.entryTime,
+            entryPrice: position.entryPrice,
+            exitTime: candle.time,
+            exitPrice,
+            return: netReturn,
+            returnPercent,
+            holdingDays,
+          });
+
+          // Update capital (add to existing capital from partial takes)
+          currentCapital += exitValue - exitCommission - tax;
+          returns.push(returnPercent / 100);
+
+          // Track drawdown
+          if (currentCapital > peakCapital) {
+            peakCapital = currentCapital;
+          }
+          const drawdown = ((peakCapital - currentCapital) / peakCapital) * 100;
+          if (drawdown > maxDrawdown) {
+            maxDrawdown = drawdown;
+          }
+
+          position = null;
+        } else {
+          // next-bar-open mode: queue exit for next bar
+          pendingExit = {
+            signalTime: candle.time,
+            exitPrice,
+            isSignalBased: true,
+          };
         }
-
-        // Net return after commission and tax
-        const netReturn = grossReturn - exitCommission - tax;
-        const returnPercent = (netReturn / (position.entryPrice * position.shares)) * 100;
-        const holdingDays = Math.round((candle.time - position.entryTime) / MS_PER_DAY);
-
-        trades.push({
-          entryTime: position.entryTime,
-          entryPrice: position.entryPrice,
-          exitTime: candle.time,
-          exitPrice,
-          return: netReturn,
-          returnPercent,
-          holdingDays,
-        });
-
-        // Update capital (add to existing capital from partial takes)
-        currentCapital += exitValue - exitCommission - tax;
-        returns.push(returnPercent / 100);
-
-        // Track drawdown
-        if (currentCapital > peakCapital) {
-          peakCapital = currentCapital;
-        }
-        const drawdown = ((peakCapital - currentCapital) / peakCapital) * 100;
-        if (drawdown > maxDrawdown) {
-          maxDrawdown = drawdown;
-        }
-
-        position = null;
       }
     }
   }
@@ -390,7 +581,7 @@ export function runBacktest(
     returns.push(returnPercent / 100);
   }
 
-  return calculateStats(trades, returns, capital, currentCapital, maxDrawdown);
+  return calculateStats(trades, returns, capital, currentCapital, maxDrawdown, settings);
 }
 
 /**
@@ -414,9 +605,10 @@ function calculateStats(
   initialCapital: number,
   finalCapital: number,
   maxDrawdown: number,
+  settings: BacktestSettings,
 ): BacktestResult {
   if (trades.length === 0) {
-    return emptyResult(initialCapital);
+    return emptyResult(initialCapital, settings);
   }
 
   const totalReturn = finalCapital - initialCapital;
@@ -453,13 +645,14 @@ function calculateStats(
     profitFactor: Math.round(profitFactor * 100) / 100,
     avgHoldingDays: Math.round(avgHoldingDays * 10) / 10,
     trades,
+    settings,
   };
 }
 
 /**
  * Return empty result for edge cases
  */
-function emptyResult(capital = 0): BacktestResult {
+function emptyResult(capital: number, settings: BacktestSettings): BacktestResult {
   return {
     initialCapital: capital,
     finalCapital: capital,
@@ -472,5 +665,6 @@ function emptyResult(capital = 0): BacktestResult {
     profitFactor: 0,
     avgHoldingDays: 0,
     trades: [],
+    settings,
   };
 }

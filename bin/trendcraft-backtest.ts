@@ -26,6 +26,8 @@ import {
   loadCsvFile,
 } from "../src/screening";
 
+import type { FillMode, SlTpMode } from "../src/types";
+
 // Parse command line arguments
 function parseArgs(args: string[]): {
   target?: string;
@@ -37,6 +39,8 @@ function parseArgs(args: string[]): {
   takeProfit?: number;
   trailingStop?: number;
   commission: number;
+  fillMode: FillMode;
+  slTpMode: SlTpMode;
   showTrades: boolean;
   help: boolean;
   list: boolean;
@@ -51,6 +55,8 @@ function parseArgs(args: string[]): {
     takeProfit: undefined as number | undefined,
     trailingStop: undefined as number | undefined,
     commission: 0,
+    fillMode: "next-bar-open" as FillMode,
+    slTpMode: "close-only" as SlTpMode,
     showTrades: false,
     help: false,
     list: false,
@@ -104,6 +110,16 @@ function parseArgs(args: string[]): {
       if (args[i]) {
         result.commission = Number.parseFloat(args[i]);
       }
+    } else if (arg === "--fill-mode") {
+      i++;
+      if (args[i] && ["next-bar-open", "same-bar-close"].includes(args[i])) {
+        result.fillMode = args[i] as FillMode;
+      }
+    } else if (arg === "--sl-tp-mode") {
+      i++;
+      if (args[i] && ["close-only", "intraday"].includes(args[i])) {
+        result.slTpMode = args[i] as SlTpMode;
+      }
     } else if (arg === "--trades" || arg === "-t") {
       result.showTrades = true;
     } else if (!arg.startsWith("-")) {
@@ -148,6 +164,10 @@ Options:
   --trailing-stop <percent> Trailing stop percentage
   --commission <amount>  Commission per trade
                          Default: 0
+  --fill-mode <mode>     Order fill timing: next-bar-open, same-bar-close
+                         Default: next-bar-open (no look-ahead bias)
+  --sl-tp-mode <mode>    SL/TP check mode: close-only, intraday
+                         Default: close-only (no look-ahead bias)
   -t, --trades           Show individual trades (single file only)
   -l, --list             List available condition names
   -h, --help             Show this help
@@ -170,6 +190,11 @@ Examples:
 
   # Show individual trades
   trendcraft-backtest ./data/6758.T.csv --entry "goldenCross" --trades
+
+  # With look-ahead bias settings (legacy mode)
+  trendcraft-backtest ./data/6758.T.csv \\
+    --fill-mode same-bar-close \\
+    --sl-tp-mode intraday
 `);
 }
 
@@ -403,6 +428,8 @@ function main(): void {
       stopLoss: options.stopLoss,
       takeProfit: options.takeProfit,
       trailingStop: options.trailingStop,
+      fillMode: options.fillMode,
+      slTpMode: options.slTpMode,
     };
 
     const stat = statSync(targetPath);

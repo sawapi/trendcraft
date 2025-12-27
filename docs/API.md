@@ -1075,11 +1075,53 @@ const result = runBacktest(
 | `takeProfit` | `number` | - | Take profit percentage |
 | `trailingStop` | `number` | - | Trailing stop percentage |
 | `taxRate` | `number` | `0` | Tax rate on profits (%) |
+| `fillMode` | `FillMode` | `'next-bar-open'` | Order fill timing (see below) |
+| `slTpMode` | `SlTpMode` | `'close-only'` | Stop loss/take profit evaluation mode (see below) |
+
+#### Look-Ahead Bias Prevention
+
+TrendCraft provides options to prevent look-ahead bias in backtests:
+
+**FillMode** - Controls when orders are executed:
+| Mode | Description | Look-Ahead Bias |
+|------|-------------|-----------------|
+| `'next-bar-open'` | Execute at next bar's open price (default, recommended) | No |
+| `'same-bar-close'` | Execute at signal bar's close price (legacy) | Yes |
+
+**SlTpMode** - Controls how stop loss/take profit are evaluated:
+| Mode | Description | Look-Ahead Bias |
+|------|-------------|-----------------|
+| `'close-only'` | Check only against close price (default, recommended) | No |
+| `'intraday'` | Check against high/low within the bar (legacy) | Yes |
+
+**Example with bias prevention settings:**
+
+```typescript
+const result = runBacktest(candles, entry, exit, {
+  capital: 1000000,
+  stopLoss: 5,
+  takeProfit: 10,
+  // Recommended settings (default)
+  fillMode: 'next-bar-open',
+  slTpMode: 'close-only',
+});
+
+// Legacy mode (for comparison with older strategies)
+const legacyResult = runBacktest(candles, entry, exit, {
+  capital: 1000000,
+  stopLoss: 5,
+  takeProfit: 10,
+  fillMode: 'same-bar-close',
+  slTpMode: 'intraday',
+});
+```
 
 **Returns:** `BacktestResult`
 
 ```typescript
 interface BacktestResult {
+  initialCapital: number;      // Initial capital
+  finalCapital: number;        // Final capital
   totalReturn: number;         // Total return amount
   totalReturnPercent: number;  // Total return percentage
   tradeCount: number;          // Number of trades
@@ -1089,6 +1131,18 @@ interface BacktestResult {
   profitFactor: number;        // Profit factor
   avgHoldingDays: number;      // Average holding days
   trades: Trade[];             // Trade details
+  settings: BacktestSettings;  // Settings used (for reproducibility)
+}
+
+interface BacktestSettings {
+  fillMode: FillMode;          // Order fill timing mode
+  slTpMode: SlTpMode;          // SL/TP evaluation mode
+  stopLoss?: number;           // Stop loss percentage
+  takeProfit?: number;         // Take profit percentage
+  trailingStop?: number;       // Trailing stop percentage
+  slippage: number;            // Slippage percentage
+  commission: number;          // Fixed commission per trade
+  commissionRate: number;      // Commission rate (%)
 }
 
 interface Trade {

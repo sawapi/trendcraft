@@ -41,8 +41,11 @@ export type {
   Trade,
   BacktestOptions,
   BacktestResult,
+  BacktestSettings,
   PartialTakeProfitConfig,
   AtrTrailingStopConfig,
+  FillMode,
+  SlTpMode,
   // MTF types
   MtfContext,
   MtfDataset,
@@ -499,21 +502,19 @@ export type {
   CombinationSearchOptions,
 } from "./optimization";
 
-// Screening
+// Screening (browser-compatible exports only - no fs dependency)
 export {
   screenStock,
-  runScreening,
   createCriteriaFromNames,
   getAvailableConditions,
   CONDITION_PRESETS,
-  parseCsv,
-  loadCsvFile,
-  getCsvFiles,
-  loadCsvDirectory,
-  formatTable,
-  formatJson,
-  formatCsv,
-} from "./screening";
+} from "./screening/screen-stock";
+
+export { parseCsv } from "./screening/csv-parser";
+
+export { formatTable, formatJson, formatCsv } from "./screening/formatters";
+// Note: runScreening, loadCsvFile, getCsvFiles, loadCsvDirectory are Node.js-only
+// Import from "trendcraft/screening" or "../src/screening" for CLI usage
 
 export type {
   ScreeningCriteria,

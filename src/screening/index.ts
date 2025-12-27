@@ -9,7 +9,7 @@
  * import { runScreening, screenStock } from "trendcraft/screening";
  * import { and, goldenCross, volumeAnomalyCondition } from "trendcraft";
  *
- * // Screen multiple stocks
+ * // Screen multiple stocks (Node.js only)
  * const results = runScreening({
  *   dataPath: "./data",
  *   criteria: {
@@ -20,7 +20,7 @@
  *   minAtrPercent: 2.3,
  * });
  *
- * // Screen single stock
+ * // Screen single stock (browser-compatible)
  * const result = screenStock("6758.T", candles, {
  *   entry: goldenCross(5, 25),
  * });
@@ -38,17 +38,22 @@ export type {
   CsvLoadError,
 } from "./types";
 
-// Core functions
+// Browser-compatible functions (no fs dependency)
 export {
   screenStock,
-  runScreening,
   createCriteriaFromNames,
   getAvailableConditions,
   CONDITION_PRESETS,
-} from "./screener";
+} from "./screen-stock";
+
+// Node.js-only functions (require fs)
+export { runScreening } from "./screener";
 
 // CSV utilities
-export { parseCsv, loadCsvFile, getCsvFiles, loadCsvDirectory } from "./csv-loader";
+// parseCsv is browser-safe (from csv-parser.ts)
+export { parseCsv } from "./csv-parser";
+// These require Node.js fs (from csv-loader.ts)
+export { loadCsvFile, getCsvFiles, loadCsvDirectory } from "./csv-loader";
 
-// Formatters
+// Formatters (browser-compatible)
 export { formatTable, formatJson, formatCsv } from "./formatters";

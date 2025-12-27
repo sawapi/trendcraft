@@ -79,8 +79,34 @@ export type {
 } from "./volume";
 
 // Price
-export { highestLowest, highest, lowest, returns, cumulativeReturns, pivotPoints } from "./price";
-export type { HighestLowestValue, PivotPointsOptions, PivotPointsValue } from "./price";
+export {
+  highestLowest,
+  highest,
+  lowest,
+  returns,
+  cumulativeReturns,
+  pivotPoints,
+  swingPoints,
+  getSwingHighs,
+  getSwingLows,
+  breakOfStructure,
+  changeOfCharacter,
+  fairValueGap,
+  getUnfilledFvgs,
+  getNearestFvg,
+} from "./price";
+export type {
+  HighestLowestValue,
+  PivotPointsOptions,
+  PivotPointsValue,
+  SwingPointValue,
+  SwingPointOptions,
+  BosValue,
+  BosOptions,
+  FvgValue,
+  FvgGap,
+  FvgOptions,
+} from "./price";
 
 // Trend
 export { ichimoku, supertrend, parabolicSar } from "./trend";

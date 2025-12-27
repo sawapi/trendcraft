@@ -12,10 +12,13 @@ import type {
   AtrRiskOptions,
   BacktestOptions,
   BacktestResult,
+  BacktestSettings,
   Condition,
+  FillMode,
   MtfContext,
   NormalizedCandle,
   ScaledEntryConfig,
+  SlTpMode,
   TimeframeShorthand,
   Trade,
 } from "../types";
@@ -146,7 +149,21 @@ export function runBacktestScaled(
     partialTakeProfit,
     taxRate = 0,
     scaledEntry,
+    fillMode = "next-bar-open" as FillMode,
+    slTpMode = "close-only" as SlTpMode,
   } = options;
+
+  // Build settings for reproducibility
+  const settings: BacktestSettings = {
+    fillMode,
+    slTpMode,
+    stopLoss,
+    takeProfit,
+    trailingStop,
+    slippage,
+    commission,
+    commissionRate,
+  };
 
   // If no scaled entry config, fall back to single entry behavior
   if (!scaledEntry || scaledEntry.tranches <= 1) {
@@ -161,7 +178,7 @@ export function runBacktestScaled(
   const atrRisk = options.atrRisk;
 
   if (candles.length < 2) {
-    return emptyResult();
+    return emptyResult(capital, settings);
   }
 
   const trades: Trade[] = [];
@@ -504,7 +521,7 @@ export function runBacktestScaled(
     returns.push(returnPercent / 100);
   }
 
-  return calculateStats(trades, returns, capital, currentCapital, maxDrawdown);
+  return calculateStats(trades, returns, capital, currentCapital, maxDrawdown, settings);
 }
 
 /**
@@ -540,9 +557,10 @@ function calculateStats(
   initialCapital: number,
   finalCapital: number,
   maxDrawdown: number,
+  settings: BacktestSettings,
 ): BacktestResult {
   if (trades.length === 0) {
-    return emptyResult(initialCapital);
+    return emptyResult(initialCapital, settings);
   }
 
   const totalReturn = finalCapital - initialCapital;
@@ -577,13 +595,14 @@ function calculateStats(
     profitFactor: Math.round(profitFactor * 100) / 100,
     avgHoldingDays: Math.round(avgHoldingDays * 10) / 10,
     trades,
+    settings,
   };
 }
 
 /**
  * Return empty result for edge cases
  */
-function emptyResult(capital = 0): BacktestResult {
+function emptyResult(capital: number, settings: BacktestSettings): BacktestResult {
   return {
     initialCapital: capital,
     finalCapital: capital,
@@ -596,5 +615,6 @@ function emptyResult(capital = 0): BacktestResult {
     profitFactor: 0,
     avgHoldingDays: 0,
     trades: [],
+    settings,
   };
 }

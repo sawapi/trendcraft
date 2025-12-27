@@ -1077,11 +1077,53 @@ const result = runBacktest(
 | `takeProfit` | `number` | - | 利確 (%) |
 | `trailingStop` | `number` | - | トレーリングストップ (%) |
 | `taxRate` | `number` | `0` | 利益に対する税率 (%) |
+| `fillMode` | `FillMode` | `'next-bar-open'` | 約定タイミング（下記参照） |
+| `slTpMode` | `SlTpMode` | `'close-only'` | SL/TP判定方法（下記参照） |
+
+#### 先読みバイアス対策
+
+TrendCraftはバックテストにおける先読みバイアスを防ぐオプションを提供します:
+
+**FillMode** - 約定タイミングの制御:
+| モード | 説明 | 先読みバイアス |
+|--------|------|----------------|
+| `'next-bar-open'` | 次の足の始値で約定（デフォルト、推奨） | なし |
+| `'same-bar-close'` | シグナル発生足の終値で約定（レガシー） | あり |
+
+**SlTpMode** - ストップロス/利確の判定方法:
+| モード | 説明 | 先読みバイアス |
+|--------|------|----------------|
+| `'close-only'` | 終値のみで判定（デフォルト、推奨） | なし |
+| `'intraday'` | 高値/安値で判定（レガシー） | あり |
+
+**先読みバイアス対策設定の例:**
+
+```typescript
+const result = runBacktest(candles, entry, exit, {
+  capital: 1000000,
+  stopLoss: 5,
+  takeProfit: 10,
+  // 推奨設定（デフォルト）
+  fillMode: 'next-bar-open',
+  slTpMode: 'close-only',
+});
+
+// レガシーモード（古い戦略との比較用）
+const legacyResult = runBacktest(candles, entry, exit, {
+  capital: 1000000,
+  stopLoss: 5,
+  takeProfit: 10,
+  fillMode: 'same-bar-close',
+  slTpMode: 'intraday',
+});
+```
 
 **戻り値:** `BacktestResult`
 
 ```typescript
 interface BacktestResult {
+  initialCapital: number;      // 初期資金
+  finalCapital: number;        // 最終資金
   totalReturn: number;         // 総リターン額
   totalReturnPercent: number;  // 総リターン率
   tradeCount: number;          // 取引回数
@@ -1091,6 +1133,18 @@ interface BacktestResult {
   profitFactor: number;        // プロフィットファクター
   avgHoldingDays: number;      // 平均保有日数
   trades: Trade[];             // 取引詳細
+  settings: BacktestSettings;  // 使用した設定（再現性のため）
+}
+
+interface BacktestSettings {
+  fillMode: FillMode;          // 約定タイミングモード
+  slTpMode: SlTpMode;          // SL/TP判定モード
+  stopLoss?: number;           // ストップロス (%)
+  takeProfit?: number;         // 利確 (%)
+  trailingStop?: number;       // トレーリングストップ (%)
+  slippage: number;            // スリッページ (%)
+  commission: number;          // 固定手数料/取引
+  commissionRate: number;      // 手数料率 (%)
 }
 
 interface Trade {

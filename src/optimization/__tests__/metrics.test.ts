@@ -50,6 +50,13 @@ function createMockBacktestResult(overrides: Partial<BacktestResult> = {}): Back
     profitFactor: 2.0,
     avgHoldingDays: 5,
     trades: [],
+    settings: {
+      fillMode: "next-bar-open",
+      slTpMode: "close-only",
+      slippage: 0,
+      commission: 0,
+      commissionRate: 0,
+    },
     ...overrides,
   };
 }
