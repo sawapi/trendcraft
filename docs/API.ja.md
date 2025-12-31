@@ -34,6 +34,14 @@
 - [ATRリスク管理](#atrリスク管理)
   - [シャンデリアエグジット](#シャンデリアエグジット)
   - [ATRストップ](#atrストップ)
+- [ボラティリティレジーム](#ボラティリティレジーム)
+- [最適化](#最適化)
+  - [グリッドサーチ](#gridsearchcandles-strategyfactory-paramranges-options)
+  - [ウォークフォワード分析](#walkforwardanalysiscandles-strategyfactory-paramranges-options)
+  - [組み合わせ検索](#combinationsearchcandles-entrypool-exitpool-options)
+  - [モンテカルロシミュレーション](#モンテカルロシミュレーション)
+  - [Anchored Walk-Forward分析](#anchored-walk-forward分析-awf)
+- [分割エントリー](#分割エントリー)
 - [型定義](#型定義)
 
 ---
@@ -1890,6 +1898,230 @@ const recovery = calculateRecoveryFactor(totalReturn, maxDrawdown);
 
 // 全メトリクスを一度に計算
 const metrics = calculateAllMetrics(backtestResult);
+```
+
+---
+
+### モンテカルロシミュレーション
+
+#### `runMonteCarloSimulation(result, options)`
+
+バックテスト結果の統計的有意性を検証。トレード順序をシャッフルして「運が良かっただけか」を判定します。
+
+```typescript
+import { runMonteCarloSimulation, formatMonteCarloResult } from 'trendcraft';
+
+const mcResult = runMonteCarloSimulation(backtestResult, {
+  simulations: 1000,
+  seed: 42,
+  confidenceLevel: 0.95,
+});
+
+console.log(formatMonteCarloResult(mcResult));
+// => p=0.023, 有意（元のSharpeはランダムより優れている）
+
+// 結果をチェック
+if (mcResult.assessment.isSignificant) {
+  console.log('戦略は統計的に有意です');
+} else {
+  console.log('結果は偶然の可能性があります:', mcResult.assessment.reason);
+}
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|--------|------|---------|-------------|
+| `simulations` | `number` | `1000` | シャッフルシミュレーション回数 |
+| `seed` | `number` | `undefined` | 再現性のためのシード値 |
+| `confidenceLevel` | `number` | `0.95` | 信頼区間レベル（0.90, 0.95, 0.99） |
+| `progressCallback` | `function` | `undefined` | 進捗コールバック |
+
+**戻り値:** `MonteCarloResult`
+
+```typescript
+interface MonteCarloResult {
+  originalResult: {
+    sharpe: number;
+    maxDrawdown: number;
+    totalReturnPercent: number;
+    profitFactor: number;
+  };
+  statistics: {
+    sharpe: MetricStatistics;
+    maxDrawdown: MetricStatistics;
+    totalReturnPercent: MetricStatistics;
+    profitFactor: MetricStatistics;
+  };
+  pValue: {
+    sharpe: number;    // Sharpeがランダムで達成される確率
+    returns: number;   // リターンがランダムで達成される確率
+  };
+  confidenceInterval: {
+    sharpe: { lower: number; upper: number };
+    returns: { lower: number; upper: number };
+    maxDrawdown: { lower: number; upper: number };
+  };
+  assessment: {
+    isSignificant: boolean;  // p < 0.05 なら true
+    reason: string;
+    confidenceLevel: number;
+  };
+  simulationCount: number;
+}
+
+interface MetricStatistics {
+  mean: number;
+  median: number;
+  stdDev: number;
+  percentile5: number;
+  percentile25: number;
+  percentile75: number;
+  percentile95: number;
+  min: number;
+  max: number;
+}
+```
+
+**ヘルパー関数:**
+
+```typescript
+// 結果のフォーマット
+const formatted = formatMonteCarloResult(mcResult);
+
+// サマリー取得
+const summary = summarizeMonteCarloResult(mcResult);
+// => { isSignificant, pValueSharpe, pValueReturns, expectedSharpe, sharpe95CI }
+
+// 統計値の計算（直接使用可能）
+const stats = calculateStatistics([1, 2, 3, 4, 5]);
+// => { mean: 3, median: 3, stdDev: 1.41, ... }
+```
+
+---
+
+### Anchored Walk-Forward分析 (AWF)
+
+#### `anchoredWalkForwardAnalysis(candles, entryConditions, exitConditions, options)`
+
+固定起点から訓練期間を拡張するウォークフォワード分析。長期的な戦略の堅牢性を検証します。
+
+```typescript
+import {
+  anchoredWalkForwardAnalysis,
+  formatAWFResult,
+  createEntryConditionPool,
+  createExitConditionPool
+} from 'trendcraft';
+
+const entryPool = createEntryConditionPool();
+const exitPool = createExitConditionPool();
+
+const awfResult = anchoredWalkForwardAnalysis(
+  candles,
+  entryPool,
+  exitPool,
+  {
+    anchorDate: new Date('2015-01-01').getTime(),
+    initialTrainSize: 500,   // 約2年
+    expansionStep: 252,      // 1年ずつ拡張
+    testSize: 252,           // 1年テスト
+    metric: 'sharpe',
+  }
+);
+
+console.log(formatAWFResult(awfResult));
+// => Stability: 72%, Recommended: GC + Stoch↑ / VolDiv
+```
+
+**期間分割の例:**
+```
+Period 1: Train 2015-01-01〜2017-12-31 → Test 2018
+Period 2: Train 2015-01-01〜2018-12-31 → Test 2019
+Period 3: Train 2015-01-01〜2019-12-31 → Test 2020
+...
+```
+
+**Rolling WFとの違い:**
+| 項目 | Rolling WF | Anchored WF |
+|------|------------|-------------|
+| 訓練開始 | スライド | **固定** |
+| 訓練終了 | スライド | **拡張** |
+| 用途 | 短期パターン | **長期トレンドの堅牢性** |
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|--------|------|---------|-------------|
+| `anchorDate` | `number` | 必須 | 固定起点（epoch ms） |
+| `initialTrainSize` | `number` | `252` | 初期訓練期間（バー数） |
+| `expansionStep` | `number` | `252` | 拡張ステップ（バー数） |
+| `testSize` | `number` | `252` | テスト期間（バー数） |
+| `metric` | `OptimizationMetric` | `'sharpe'` | 最適化する指標 |
+| `constraints` | `OptimizationConstraint[]` | `[]` | 制約条件 |
+
+**戻り値:** `AWFResult`
+
+```typescript
+interface AWFResult {
+  periods: AWFPeriod[];
+  aggregateMetrics: {
+    avgInSampleSharpe: number;
+    avgOutOfSampleSharpe: number;
+    avgInSampleReturn: number;
+    avgOutOfSampleReturn: number;
+    stabilityRatio: number;      // OOS / IS Sharpe 比率
+    consistency: number;         // プラスリターン期間の割合
+  };
+  stabilityAnalysis: {
+    entryConditionFrequency: Record<string, number>;
+    exitConditionFrequency: Record<string, number>;
+    stableEntryConditions: string[];  // 50%以上で選択
+    stableExitConditions: string[];
+    consistencyScore: number;         // 0-100
+  };
+  recommendation: {
+    useOptimized: boolean;
+    entryConditions: string[];
+    exitConditions: string[];
+    reason: string;
+  };
+}
+
+interface AWFPeriod {
+  periodNumber: number;
+  trainStart: number;
+  trainEnd: number;
+  testStart: number;
+  testEnd: number;
+  bestEntryConditions: string[];
+  bestExitConditions: string[];
+  inSampleMetrics: Record<OptimizationMetric, number>;
+  outOfSampleMetrics: Record<OptimizationMetric, number>;
+  testBacktest: BacktestResult;
+}
+```
+
+**ヘルパー関数:**
+
+```typescript
+// 結果のフォーマット
+const formatted = formatAWFResult(awfResult);
+
+// サマリー取得
+const summary = summarizeAWFResult(awfResult);
+
+// 期間数の事前計算
+const count = calculateAWFPeriodCount(candles, {
+  anchorDate: new Date('2015-01-01').getTime(),
+  initialTrainSize: 500,
+  expansionStep: 252,
+  testSize: 252,
+});
+
+// 期間境界の生成
+const boundaries = generateAWFBoundaries(candles, options);
+
+// エクイティカーブの取得
+const equity = getAWFEquityCurve(awfResult, 1000000);
 ```
 
 ---

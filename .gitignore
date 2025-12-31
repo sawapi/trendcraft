@@ -28,4 +28,6 @@ coverage/
 .plans/
 examples/data/
 examples/scratch/
+examples/reports/
 docs/analysis/
+output/

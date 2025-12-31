@@ -1,0 +1,690 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg-primary: #1a1a2e;
+  --bg-secondary: #16213e;
+  --bg-tertiary: #0f3460;
+  --text-primary: #eaeaea;
+  --text-secondary: #a0a0a0;
+  --accent: #e94560;
+  --accent-hover: #ff6b6b;
+  --success: #4ade80;
+  --danger: #ef4444;
+  --warning: #f59e0b;
+  --border: #333;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+.app {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+h1 {
+  font-size: 1.5rem;
+  margin-bottom: 20px;
+  color: var(--accent);
+}
+
+/* Drop Zone */
+.drop-zone {
+  border: 2px dashed var(--border);
+  border-radius: 12px;
+  padding: 60px 40px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--bg-secondary);
+}
+
+.drop-zone:hover,
+.drop-zone.dragging {
+  border-color: var(--accent);
+  background: var(--bg-tertiary);
+}
+
+.drop-zone p {
+  font-size: 1.2rem;
+}
+
+.drop-zone .sub {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin-top: 8px;
+}
+
+.drop-zone .error {
+  color: var(--danger);
+  margin-top: 16px;
+}
+
+/* Setup Panel */
+.setup-panel {
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  padding: 24px;
+}
+
+.file-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: center;
+  padding-bottom: 20px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.file-info .label {
+  color: var(--text-secondary);
+}
+
+.file-info .value {
+  font-weight: 500;
+}
+
+.setup-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-group label {
+  font-weight: 500;
+}
+
+.form-group input {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 1rem;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.form-group .hint {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+/* Indicator Selector */
+.indicator-selector {
+  margin-top: 10px;
+}
+
+.section-label {
+  display: block;
+  font-weight: 500;
+  margin-bottom: 12px;
+}
+
+.indicator-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--bg-primary);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.checkbox-label:hover {
+  background: var(--bg-tertiary);
+}
+
+.checkbox-label input {
+  accent-color: var(--accent);
+}
+
+/* Buttons */
+.btn-primary,
+.btn-secondary {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: white;
+}
+
+.btn-primary:hover {
+  background: var(--accent-hover);
+}
+
+.btn-secondary {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.btn-secondary:hover {
+  background: var(--border);
+}
+
+/* Simulator Layout */
+.simulator-layout {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 20px;
+  height: calc(100vh - 100px);
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+}
+
+.main-content {
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  padding: 16px;
+  min-height: 500px;
+}
+
+/* Control Panel */
+.control-panel {
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.control-panel h3 {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+}
+
+.playback-controls {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.playback-controls button {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  border-radius: 6px;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.playback-controls button .material-icons {
+  font-size: 24px;
+}
+
+.playback-controls button:hover {
+  background: var(--accent);
+}
+
+.playback-controls button.active {
+  background: var(--accent);
+}
+
+.playback-controls button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.speed-select {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.speed-select label {
+  color: var(--text-secondary);
+}
+
+.speed-select select {
+  flex: 1;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.progress-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+}
+
+.progress-info .date {
+  font-weight: 500;
+}
+
+.progress-info .count {
+  color: var(--text-secondary);
+}
+
+/* Position Panel */
+.position-panel {
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.position-panel h3 {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+}
+
+.position-status {
+  padding: 12px;
+  background: var(--bg-primary);
+  border-radius: 6px;
+}
+
+.position-status.long {
+  border-left: 3px solid var(--success);
+}
+
+.position-status .status-label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.position-status .status-value {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.position-status .pnl {
+  margin-top: 8px;
+}
+
+.position-status .pnl.positive {
+  color: var(--success);
+}
+
+.position-status .pnl.negative {
+  color: var(--danger);
+}
+
+.no-position {
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.total-pnl {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+}
+
+.total-pnl .label {
+  color: var(--text-secondary);
+}
+
+.total-pnl .value.positive {
+  color: var(--success);
+}
+
+.total-pnl .value.negative {
+  color: var(--danger);
+}
+
+/* Year High/Low */
+.year-high-low {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.year-high-low h3 {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.year-stat {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+  font-size: 0.9rem;
+}
+
+.year-stat .label {
+  color: var(--text-secondary);
+  min-width: 40px;
+}
+
+.year-stat .value {
+  font-weight: 600;
+}
+
+.year-stat .value.high {
+  color: var(--text-primary);
+}
+
+.year-stat .value.low {
+  color: var(--text-primary);
+}
+
+.year-stat .date {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+.year-stat.current {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border);
+}
+
+.year-position {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+  padding: 8px;
+  background: var(--bg-primary);
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.year-position .from-value.positive {
+  color: var(--success);
+}
+
+.year-position .from-value.negative {
+  color: var(--danger);
+}
+
+/* Trade Panel */
+.trade-panel {
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.trade-panel h3 {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+}
+
+/* Shares Input */
+.shares-input {
+  margin-bottom: 12px;
+}
+
+.shares-input label {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.shares-controls {
+  display: flex;
+  gap: 4px;
+}
+
+.shares-controls input {
+  flex: 1;
+  min-width: 0;
+  width: 60px;
+  text-align: center;
+  padding: 8px 4px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 600;
+  -moz-appearance: textfield;
+}
+
+.shares-controls input::-webkit-outer-spin-button,
+.shares-controls input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.shares-controls input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.shares-btn {
+  padding: 8px 12px;
+  border: none;
+  border-radius: 6px;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.shares-btn:hover:not(:disabled) {
+  background: var(--accent);
+}
+
+.shares-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Price Type Selector */
+.price-type-selector {
+  margin-bottom: 12px;
+}
+
+.price-type-selector > label {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.price-type-buttons {
+  display: flex;
+  gap: 4px;
+}
+
+.price-type-btn {
+  flex: 1;
+  padding: 8px 4px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.price-type-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.price-type-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+.price-type-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.price-estimate {
+  margin-top: 6px;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+}
+
+.price-estimate .capital-ratio {
+  margin-left: 6px;
+  color: var(--text-secondary);
+}
+
+.trade-buttons {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.trade-buttons button {
+  flex: 1;
+  padding: 12px;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.trade-buttons .buy-btn {
+  background: var(--success);
+  color: #000;
+}
+
+.trade-buttons .buy-btn:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+.trade-buttons .sell-btn {
+  background: var(--danger);
+  color: white;
+}
+
+.trade-buttons .sell-btn:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+.trade-buttons .skip-btn {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.trade-buttons .skip-btn:hover {
+  background: var(--border);
+}
+
+.trade-buttons button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.memo-input {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.memo-input label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.memo-input textarea {
+  width: 100%;
+  min-height: 80px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.9rem;
+  resize: vertical;
+}
+
+.memo-input textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* Report Button */
+.report-panel {
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.report-panel button {
+  width: 100%;
+}
+
+/* Chart */
+.chart-container {
+  height: 100%;
+  min-height: 500px;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}

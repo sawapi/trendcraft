@@ -1992,6 +1992,225 @@ const metrics = calculateAllMetrics(backtestResult);
 
 ---
 
+### `runMonteCarloSimulation(result, options)`
+
+Monte Carlo simulation to test if backtest results are statistically significant or just lucky.
+
+```typescript
+import { runMonteCarloSimulation, formatMonteCarloResult } from 'trendcraft';
+
+const mcResult = runMonteCarloSimulation(backtestResult, {
+  simulations: 1000,
+  seed: 42,              // Optional: for reproducibility
+  confidenceLevel: 0.95,
+});
+
+console.log(formatMonteCarloResult(mcResult));
+// => p=0.023, SIGNIFICANT - Strategy shows statistically significant edge
+```
+
+**How it works:**
+1. Shuffles the trade sequence 1000 times (configurable)
+2. Recalculates metrics (Sharpe, MaxDrawdown, etc.) for each shuffle
+3. Computes p-value: probability of achieving original result by chance
+4. If p < 0.05, the strategy is statistically significant
+
+**Options:**
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `simulations` | `number` | `1000` | Number of shuffle simulations |
+| `seed` | `number` | - | Random seed for reproducibility |
+| `confidenceLevel` | `number` | `0.95` | Confidence level for intervals |
+| `progressCallback` | `function` | - | Progress callback (current, total) |
+
+**Returns:** `MonteCarloResult`
+
+```typescript
+interface MonteCarloResult {
+  originalResult: {
+    sharpe: number;
+    maxDrawdown: number;
+    totalReturnPercent: number;
+    profitFactor: number;
+  };
+  statistics: {
+    sharpe: MetricStatistics;
+    maxDrawdown: MetricStatistics;
+    totalReturnPercent: MetricStatistics;
+    profitFactor: MetricStatistics;
+  };
+  simulationCount: number;
+  pValue: { sharpe: number; returns: number };
+  confidenceInterval: {
+    sharpe: { lower: number; upper: number };
+    returns: { lower: number; upper: number };
+    maxDrawdown: { lower: number; upper: number };
+  };
+  assessment: {
+    isSignificant: boolean;
+    reason: string;
+    confidenceLevel: number;
+  };
+}
+
+interface MetricStatistics {
+  mean: number;
+  median: number;
+  stdDev: number;
+  percentile5: number;
+  percentile25: number;
+  percentile75: number;
+  percentile95: number;
+  min: number;
+  max: number;
+}
+```
+
+**Helper functions:**
+
+```typescript
+import { summarizeMonteCarloResult, calculateStatistics } from 'trendcraft';
+
+// Get summary
+const summary = summarizeMonteCarloResult(mcResult);
+console.log(summary.isSignificant);    // true
+console.log(summary.pValueSharpe);     // 0.023
+
+// Calculate statistics for any array
+const stats = calculateStatistics([1, 2, 3, 4, 5]);
+console.log(stats.mean);    // 3
+console.log(stats.median);  // 3
+```
+
+---
+
+### `anchoredWalkForwardAnalysis(candles, entryPool, exitPool, options)`
+
+Anchored Walk-Forward (AWF) analysis for robust strategy validation. Unlike rolling walk-forward, AWF keeps the training start date fixed and progressively expands the training period.
+
+```typescript
+import { anchoredWalkForwardAnalysis, formatAWFResult } from 'trendcraft';
+
+const awfResult = anchoredWalkForwardAnalysis(
+  candles,
+  entryConditions,
+  exitConditions,
+  {
+    anchorDate: new Date('2015-01-01').getTime(),
+    initialTrainSize: 504,   // ~2 years
+    expansionStep: 252,      // Expand by 1 year
+    testSize: 252,           // Test on 1 year
+    metric: 'sharpe',
+  }
+);
+
+console.log(formatAWFResult(awfResult));
+```
+
+**How it works:**
+
+```
+Period 1: Train 2015-01-01 ~ 2017-12-31 → Test 2018
+Period 2: Train 2015-01-01 ~ 2018-12-31 → Test 2019
+Period 3: Train 2015-01-01 ~ 2019-12-31 → Test 2020
+...
+```
+
+Each period:
+1. Runs `combinationSearch` on training data to find best conditions
+2. Tests those conditions on out-of-sample data
+3. Tracks which conditions appear consistently
+
+**Options:**
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `anchorDate` | `number` | required | Fixed start date (epoch ms) |
+| `initialTrainSize` | `number` | `504` | Initial training period (~2 years) |
+| `expansionStep` | `number` | `252` | Training period expansion (~1 year) |
+| `testSize` | `number` | `252` | Test period size (~1 year) |
+| `metric` | `OptimizationMetric` | `'sharpe'` | Metric to optimize |
+| `constraints` | `OptimizationConstraint[]` | `[]` | Constraints for optimization |
+| `progressCallback` | `function` | - | Progress callback (period, total, phase) |
+
+**Returns:** `AWFResult`
+
+```typescript
+interface AWFResult {
+  periods: AWFPeriod[];
+  aggregateMetrics: {
+    avgInSample: Record<OptimizationMetric, number>;
+    avgOutOfSample: Record<OptimizationMetric, number>;
+    stabilityRatio: number;      // OOS / IS performance ratio
+    oosReturnStdDev: number;     // OOS return volatility
+  };
+  stabilityAnalysis: {
+    conditionFrequency: Record<string, number>;  // Condition appearance %
+    stableEntryConditions: string[];   // Appear in >50% of periods
+    stableExitConditions: string[];
+    consistencyScore: number;          // 0-100
+  };
+  recommendation: {
+    useOptimized: boolean;
+    entryConditions: string[];
+    exitConditions: string[];
+    reason: string;
+  };
+}
+
+interface AWFPeriod {
+  periodNumber: number;
+  trainStart: number;
+  trainEnd: number;
+  trainCandleCount: number;
+  testStart: number;
+  testEnd: number;
+  testCandleCount: number;
+  bestEntryConditions: string[];
+  bestExitConditions: string[];
+  inSampleMetrics: Record<OptimizationMetric, number>;
+  outOfSampleMetrics: Record<OptimizationMetric, number>;
+  testBacktest: BacktestResult;
+}
+```
+
+**Helper functions:**
+
+```typescript
+import {
+  generateAWFBoundaries,
+  calculateAWFPeriodCount,
+  summarizeAWFResult,
+  getAWFEquityCurve
+} from 'trendcraft';
+
+// Calculate how many periods will be generated
+const count = calculateAWFPeriodCount(candles.length, 0, 504, 252, 252);
+
+// Get boundaries without running full analysis
+const boundaries = generateAWFBoundaries(candles, options);
+
+// Get summary
+const summary = summarizeAWFResult(awfResult);
+console.log(summary.stabilityRatio);        // 0.72 (72% of IS performance)
+console.log(summary.profitablePeriods);     // 4 (out of 5)
+console.log(summary.recommendedEntry);      // ['gc', 'stochUp']
+
+// Get equity curve from OOS results
+const curve = getAWFEquityCurve(awfResult, 1000000);
+// [{ time: ..., equity: 1050000, periodNumber: 1 }, ...]
+```
+
+**Comparison with Rolling Walk-Forward:**
+
+| Aspect | Rolling WF | Anchored WF |
+|--------|------------|-------------|
+| Training start | Slides forward | **Fixed** |
+| Training end | Slides forward | **Expands** |
+| Old data usage | Discarded | **Accumulated** |
+| Best for | Short-term patterns | **Long-term robustness** |
+
+---
+
 ## Scaled Entry
 
 ### `runBacktestScaled(candles, entry, exit, options)`

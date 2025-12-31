@@ -481,6 +481,18 @@ export {
   summarizeCombinationSearch,
   createEntryConditionPool,
   createExitConditionPool,
+  // Monte Carlo Simulation
+  runMonteCarloSimulation,
+  calculateStatistics,
+  formatMonteCarloResult,
+  summarizeMonteCarloResult,
+  // Anchored Walk-Forward Analysis
+  anchoredWalkForwardAnalysis,
+  generateAWFBoundaries,
+  calculateAWFPeriodCount,
+  summarizeAWFResult,
+  formatAWFResult,
+  getAWFEquityCurve,
 } from "./optimization";
 
 export type {
@@ -500,6 +512,14 @@ export type {
   CombinationResultEntry,
   CombinationSearchResult,
   CombinationSearchOptions,
+  // Monte Carlo types
+  MonteCarloOptions,
+  MonteCarloResult,
+  MetricStatistics,
+  // Anchored Walk-Forward types
+  AnchoredWalkForwardOptions,
+  AWFPeriod,
+  AWFResult,
 } from "./optimization";
 
 // Screening (browser-compatible exports only - no fs dependency)

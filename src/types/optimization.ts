@@ -161,3 +161,183 @@ export type WalkForwardOptions = {
   /** Progress callback */
   progressCallback?: (period: number, total: number) => void;
 };
+
+// ============================================
+// Monte Carlo Simulation Types
+// ============================================
+
+/**
+ * Monte Carlo simulation options
+ */
+export type MonteCarloOptions = {
+  /** Number of simulations to run (default: 1000) */
+  simulations?: number;
+  /** Random seed for reproducibility (optional) */
+  seed?: number;
+  /** Confidence level for percentile calculations (default: 0.95) */
+  confidenceLevel?: number;
+  /** Progress callback */
+  progressCallback?: (current: number, total: number) => void;
+};
+
+/**
+ * Statistical summary for a metric
+ */
+export type MetricStatistics = {
+  /** Mean value */
+  mean: number;
+  /** Median value */
+  median: number;
+  /** Standard deviation */
+  stdDev: number;
+  /** 5th percentile */
+  percentile5: number;
+  /** 25th percentile (Q1) */
+  percentile25: number;
+  /** 75th percentile (Q3) */
+  percentile75: number;
+  /** 95th percentile */
+  percentile95: number;
+  /** Minimum value */
+  min: number;
+  /** Maximum value */
+  max: number;
+};
+
+/**
+ * Monte Carlo simulation result
+ */
+export type MonteCarloResult = {
+  /** Original backtest result for comparison */
+  originalResult: {
+    sharpe: number;
+    maxDrawdown: number;
+    totalReturnPercent: number;
+    profitFactor: number;
+  };
+  /** Statistics for each metric across simulations */
+  statistics: {
+    sharpe: MetricStatistics;
+    maxDrawdown: MetricStatistics;
+    totalReturnPercent: MetricStatistics;
+    profitFactor: MetricStatistics;
+  };
+  /** Number of simulations run */
+  simulationCount: number;
+  /** P-value: probability of achieving original result by chance */
+  pValue: {
+    sharpe: number;
+    returns: number;
+  };
+  /** Confidence interval for expected performance */
+  confidenceInterval: {
+    sharpe: { lower: number; upper: number };
+    returns: { lower: number; upper: number };
+    maxDrawdown: { lower: number; upper: number };
+  };
+  /** Assessment of whether strategy is statistically significant */
+  assessment: {
+    isSignificant: boolean;
+    reason: string;
+    confidenceLevel: number;
+  };
+};
+
+// ============================================
+// Anchored Walk-Forward Types
+// ============================================
+
+/**
+ * Anchored Walk-Forward options
+ */
+export type AnchoredWalkForwardOptions = {
+  /** Training start date (epoch ms) - fixed anchor point */
+  anchorDate: number;
+  /** Initial training period size in candles (default: 504 for ~2 years) */
+  initialTrainSize?: number;
+  /** Training period expansion step in candles (default: 252 for ~1 year) */
+  expansionStep?: number;
+  /** Test period size in candles (default: 252 for ~1 year) */
+  testSize?: number;
+  /** Metric to optimize (default: "sharpe") */
+  metric?: OptimizationMetric;
+  /** Constraints for optimization */
+  constraints?: OptimizationConstraint[];
+  /** Progress callback */
+  progressCallback?: (
+    period: number,
+    total: number,
+    phase: "train" | "test"
+  ) => void;
+};
+
+/**
+ * Anchored Walk-Forward period result
+ */
+export type AWFPeriod = {
+  /** Period number (1-indexed) */
+  periodNumber: number;
+  /** Training period start timestamp */
+  trainStart: number;
+  /** Training period end timestamp */
+  trainEnd: number;
+  /** Training candle count */
+  trainCandleCount: number;
+  /** Test period start timestamp */
+  testStart: number;
+  /** Test period end timestamp */
+  testEnd: number;
+  /** Test candle count */
+  testCandleCount: number;
+  /** Best entry conditions found */
+  bestEntryConditions: string[];
+  /** Best exit conditions found */
+  bestExitConditions: string[];
+  /** In-sample metrics */
+  inSampleMetrics: Record<OptimizationMetric, number>;
+  /** Out-of-sample metrics */
+  outOfSampleMetrics: Record<OptimizationMetric, number>;
+  /** Full backtest result from test period */
+  testBacktest: BacktestResult;
+};
+
+/**
+ * Anchored Walk-Forward analysis result
+ */
+export type AWFResult = {
+  /** Results for each AWF period */
+  periods: AWFPeriod[];
+  /** Aggregate performance metrics */
+  aggregateMetrics: {
+    /** Average in-sample metrics across all periods */
+    avgInSample: Record<OptimizationMetric, number>;
+    /** Average out-of-sample metrics across all periods */
+    avgOutOfSample: Record<OptimizationMetric, number>;
+    /** Stability ratio (OOS / IS performance) */
+    stabilityRatio: number;
+    /** Standard deviation of OOS returns */
+    oosReturnStdDev: number;
+  };
+  /** Stability analysis */
+  stabilityAnalysis: {
+    /** How often each condition appears in best results (percentage) */
+    conditionFrequency: Record<string, number>;
+    /** Most stable entry conditions (appear in >50% of periods) */
+    stableEntryConditions: string[];
+    /** Most stable exit conditions (appear in >50% of periods) */
+    stableExitConditions: string[];
+    /** Consistency score (0-100) */
+    consistencyScore: number;
+  };
+  /** Final recommendation */
+  recommendation: {
+    /** Whether to use optimized conditions */
+    useOptimized: boolean;
+    /** Recommended entry conditions */
+    entryConditions: string[];
+    /** Recommended exit conditions */
+    exitConditions: string[];
+    /** Reason for recommendation */
+    reason: string;
+  };
+};

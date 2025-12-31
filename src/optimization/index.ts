@@ -16,6 +16,14 @@ export type {
   WalkForwardPeriod,
   WalkForwardResult,
   WalkForwardOptions,
+  // Monte Carlo
+  MonteCarloOptions,
+  MonteCarloResult,
+  MetricStatistics,
+  // Anchored Walk-Forward
+  AnchoredWalkForwardOptions,
+  AWFPeriod,
+  AWFResult,
 } from "../types/optimization";
 
 // Metrics
@@ -70,3 +78,21 @@ export type {
   CombinationSearchResult,
   CombinationSearchOptions,
 } from "./combination-search";
+
+// Monte Carlo Simulation
+export {
+  runMonteCarloSimulation,
+  calculateStatistics,
+  formatMonteCarloResult,
+  summarizeMonteCarloResult,
+} from "./monte-carlo";
+
+// Anchored Walk-Forward Analysis
+export {
+  anchoredWalkForwardAnalysis,
+  generateAWFBoundaries,
+  calculateAWFPeriodCount,
+  summarizeAWFResult,
+  formatAWFResult,
+  getAWFEquityCurve,
+} from "./anchored-walkforward";
