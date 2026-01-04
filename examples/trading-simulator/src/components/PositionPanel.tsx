@@ -3,13 +3,15 @@ import { formatDate } from "../utils/fileParser";
 
 export function PositionPanel() {
   const {
-    position,
+    positions,
+    getPositionSummary,
     getUnrealizedPnl,
     getTotalPnl,
     tradeHistory,
     getYearHighLow,
   } = useSimulatorStore();
 
+  const positionSummary = getPositionSummary();
   const unrealizedPnl = getUnrealizedPnl();
   const totalPnl = getTotalPnl();
   const tradeCount = tradeHistory.filter((t) => t.type === "SELL").length;
@@ -19,21 +21,54 @@ export function PositionPanel() {
     <div className="position-panel">
       <h3>ポジション</h3>
 
-      {position ? (
+      {positions.length > 0 && positionSummary ? (
         <div className="position-status long">
-          <div className="status-label">ロング保有中</div>
-          <div className="status-value">
-            {position.entryPrice.toLocaleString()} @{" "}
-            {formatDate(position.entryDate)}
+          <div className="status-label">
+            ロング保有中 ({positions.length}回買付)
+          </div>
+          <div className="position-summary">
+            <div className="summary-row">
+              <span className="label">保有株数</span>
+              <span className="value">{positionSummary.totalShares}株</span>
+            </div>
+            <div className="summary-row">
+              <span className="label">平均取得単価</span>
+              <span className="value">
+                {positionSummary.avgEntryPrice.toLocaleString(undefined, {
+                  maximumFractionDigits: 0,
+                })}
+              </span>
+            </div>
+            <div className="summary-row">
+              <span className="label">取得総額</span>
+              <span className="value">
+                {positionSummary.totalCost.toLocaleString(undefined, {
+                  maximumFractionDigits: 0,
+                })}
+              </span>
+            </div>
           </div>
           {unrealizedPnl && (
             <div
               className={`pnl ${unrealizedPnl.pnl >= 0 ? "positive" : "negative"}`}
             >
               含み損益: {unrealizedPnl.pnl >= 0 ? "+" : ""}
-              {unrealizedPnl.pnl.toLocaleString()} (
+              {unrealizedPnl.pnl.toLocaleString(undefined, { maximumFractionDigits: 0 })} (
               {unrealizedPnl.pnlPercent >= 0 ? "+" : ""}
               {unrealizedPnl.pnlPercent.toFixed(2)}%)
+            </div>
+          )}
+
+          {positions.length > 1 && (
+            <div className="position-list">
+              <div className="list-header">買付履歴</div>
+              {positions.map((pos, idx) => (
+                <div key={pos.id} className="position-item">
+                  <span className="item-num">#{idx + 1}</span>
+                  <span className="item-shares">{pos.shares}株</span>
+                  <span className="item-price">@{pos.entryPrice.toLocaleString()}</span>
+                </div>
+              ))}
             </div>
           )}
         </div>

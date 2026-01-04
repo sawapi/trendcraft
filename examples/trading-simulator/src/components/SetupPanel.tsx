@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useSimulatorStore } from "../store/simulatorStore";
 import { IndicatorSelector } from "./IndicatorSelector";
 import { formatDate } from "../utils/fileParser";
+import { DEFAULT_INDICATOR_PARAMS, type IndicatorParams } from "../types";
 
 export function SetupPanel() {
   const { allCandles, fileName, startSimulation, reset } = useSimulatorStore();
@@ -35,6 +36,12 @@ export function SetupPanel() {
     "sma75",
     "volume",
   ]);
+  const [indicatorParams, setIndicatorParams] = useState<IndicatorParams>({
+    ...DEFAULT_INDICATOR_PARAMS,
+  });
+  const [commissionRate, setCommissionRate] = useState(0);
+  const [slippageBps, setSlippageBps] = useState(0);
+  const [stopLossPercent, setStopLossPercent] = useState(5);
 
   const handleStart = () => {
     const date = new Date(startDate).getTime();
@@ -43,6 +50,10 @@ export function SetupPanel() {
       initialCandleCount,
       initialCapital,
       enabledIndicators,
+      indicatorParams,
+      commissionRate,
+      slippageBps,
+      stopLossPercent,
     });
   };
 
@@ -103,9 +114,59 @@ export function SetupPanel() {
           />
         </div>
 
+        <div className="form-group cost-settings">
+          <label>コスト設定</label>
+          <div className="cost-inputs">
+            <div className="cost-input">
+              <label>手数料率 (%)</label>
+              <input
+                type="number"
+                value={commissionRate}
+                min={0}
+                max={1}
+                step={0.01}
+                onChange={(e) => setCommissionRate(Number(e.target.value))}
+              />
+              <p className="hint">例: 0.1% = 10万円取引で100円</p>
+            </div>
+            <div className="cost-input">
+              <label>スリッページ (bps)</label>
+              <input
+                type="number"
+                value={slippageBps}
+                min={0}
+                max={100}
+                step={1}
+                onChange={(e) => setSlippageBps(Number(e.target.value))}
+              />
+              <p className="hint">例: 10bps = 0.1%の価格変動</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="form-group chart-settings">
+          <label>チャート表示設定</label>
+          <div className="chart-setting-inputs">
+            <div className="chart-setting-input">
+              <label>損切りライン (%)</label>
+              <input
+                type="number"
+                value={stopLossPercent}
+                min={1}
+                max={50}
+                step={0.5}
+                onChange={(e) => setStopLossPercent(Number(e.target.value))}
+              />
+              <p className="hint">エントリー価格からN%下に損切りラインを表示</p>
+            </div>
+          </div>
+        </div>
+
         <IndicatorSelector
           selected={enabledIndicators}
           onChange={setEnabledIndicators}
+          params={indicatorParams}
+          onParamsChange={setIndicatorParams}
         />
 
         <button className="btn-primary" onClick={handleStart}>

@@ -1,14 +1,21 @@
 import { useSimulatorStore } from "./store/simulatorStore";
+import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { FileDropZone } from "./components/FileDropZone";
 import { SetupPanel } from "./components/SetupPanel";
 import { ControlPanel } from "./components/ControlPanel";
 import { PositionPanel } from "./components/PositionPanel";
 import { TradePanel } from "./components/TradePanel";
+import { TradeHistoryPanel } from "./components/TradeHistoryPanel";
 import { Chart } from "./components/Chart";
 import { ReportButton } from "./components/ReportButton";
+import { ShortcutsHelp } from "./components/ShortcutsHelp";
+import { ThemeToggle } from "./components/ThemeToggle";
 
 export default function App() {
   const { phase, allCandles } = useSimulatorStore();
+
+  // Enable keyboard shortcuts
+  useKeyboardShortcuts();
 
   if (allCandles.length === 0) {
     return (
@@ -30,12 +37,19 @@ export default function App() {
 
   return (
     <div className="app">
-      <h1>Trading Simulator</h1>
+      <div className="app-header">
+        <h1>Trading Simulator</h1>
+        <div className="header-controls">
+          <ThemeToggle />
+          <ShortcutsHelp />
+        </div>
+      </div>
       <div className="simulator-layout">
         <div className="sidebar">
           <ControlPanel />
           <PositionPanel />
           <TradePanel />
+          <TradeHistoryPanel />
           <ReportButton />
         </div>
         <div className="main-content">

@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import ReactECharts from "echarts-for-react";
 import { useSimulatorStore } from "../store/simulatorStore";
 import { calculateIndicators } from "../utils/indicators";
-import { buildChartOption } from "../utils/chartConfig";
+import { buildChartOption, type PositionLine } from "../utils/chartConfig";
 
 export function Chart() {
   const {
@@ -10,7 +10,10 @@ export function Chart() {
     startIndex,
     currentIndex,
     enabledIndicators,
+    indicatorParams,
     tradeHistory,
+    positions,
+    stopLossPercent,
   } = useSimulatorStore();
 
   const visibleCandles = useMemo(() => {
@@ -18,8 +21,8 @@ export function Chart() {
   }, [allCandles, startIndex, currentIndex]);
 
   const indicators = useMemo(() => {
-    return calculateIndicators(visibleCandles, enabledIndicators);
-  }, [visibleCandles, enabledIndicators]);
+    return calculateIndicators(visibleCandles, enabledIndicators, indicatorParams);
+  }, [visibleCandles, enabledIndicators, indicatorParams]);
 
   const tradeMarkers = useMemo(() => {
     return tradeHistory.map((t) => ({
@@ -29,14 +32,37 @@ export function Chart() {
     }));
   }, [tradeHistory]);
 
+  // ポジションがある場合、エントリーラインと損切りラインを計算
+  const positionLines: PositionLine | undefined = useMemo(() => {
+    if (positions.length === 0) return undefined;
+
+    // 最初のポジション（複数ある場合は平均取得単価を使う方が良いかも）
+    const firstPos = positions[0];
+    // startIndexからの相対インデックスを計算
+    const relativeEntryIndex = firstPos.entryIndex - startIndex;
+    if (relativeEntryIndex < 0) return undefined;
+
+    // 複数ポジションの場合は平均取得単価を使用
+    const totalShares = positions.reduce((sum, p) => sum + p.shares, 0);
+    const totalCost = positions.reduce((sum, p) => sum + p.entryPrice * p.shares, 0);
+    const avgEntryPrice = totalCost / totalShares;
+
+    return {
+      entryPrice: avgEntryPrice,
+      entryIndex: relativeEntryIndex,
+      stopLossPercent,
+    };
+  }, [positions, startIndex, stopLossPercent]);
+
   const option = useMemo(() => {
     return buildChartOption(
       visibleCandles,
       indicators,
       enabledIndicators,
-      tradeMarkers
+      tradeMarkers,
+      positionLines
     );
-  }, [visibleCandles, indicators, enabledIndicators, tradeMarkers]);
+  }, [visibleCandles, indicators, enabledIndicators, tradeMarkers, positionLines]);
 
   return (
     <div className="chart-container">

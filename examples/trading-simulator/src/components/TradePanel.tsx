@@ -1,16 +1,19 @@
 import { useState, useCallback, useMemo } from "react";
 import { useSimulatorStore } from "../store/simulatorStore";
-import type { PriceType } from "../types";
-import { PRICE_TYPE_LABELS } from "../types";
+import type { PriceType, ExitReason } from "../types";
+import { PRICE_TYPE_LABELS, EXIT_REASON_LABELS } from "../types";
 
 const PRICE_TYPES: PriceType[] = ["nextOpen", "high", "low", "close"];
+const EXIT_REASONS: ExitReason[] = ["TAKE_PROFIT", "STOP_LOSS", "SIGNAL_FLIP", "TIMEOUT", "MANUAL"];
 
 export function TradePanel() {
   const {
-    position,
+    positions,
+    getPositionSummary,
     isPlaying,
     executeBuy,
     executeSell,
+    executeSellAll,
     skip,
     pause,
     getCurrentCandle,
@@ -18,12 +21,15 @@ export function TradePanel() {
     initialCapital,
   } = useSimulatorStore();
 
-  const [shares, setShares] = useState(100);
+  const [buyShares, setBuyShares] = useState(100);
+  const [sellShares, setSellShares] = useState(100);
   const [memo, setMemo] = useState("");
   const [priceType, setPriceType] = useState<PriceType>("nextOpen");
+  const [exitReason, setExitReason] = useState<ExitReason>("MANUAL");
 
   const currentCandle = getCurrentCandle();
   const nextCandle = getNextCandle();
+  const positionSummary = getPositionSummary();
 
   // Calculate estimated price based on selected price type
   const estimatedPrice = useMemo(() => {
@@ -33,58 +39,99 @@ export function TradePanel() {
     return currentCandle?.[priceType] || 0;
   }, [priceType, currentCandle, nextCandle]);
 
-  const totalCost = estimatedPrice * shares;
+  const totalBuyCost = estimatedPrice * buyShares;
 
   const handleBuy = useCallback(() => {
     if (isPlaying) pause();
-    executeBuy(shares, memo, priceType);
+    executeBuy(buyShares, memo, priceType);
     setMemo("");
-  }, [isPlaying, pause, executeBuy, shares, memo, priceType]);
+  }, [isPlaying, pause, executeBuy, buyShares, memo, priceType]);
 
   const handleSell = useCallback(() => {
     if (isPlaying) pause();
-    executeSell(memo, priceType);
+    executeSell(sellShares, memo, priceType, exitReason);
     setMemo("");
-  }, [isPlaying, pause, executeSell, memo, priceType]);
+  }, [isPlaying, pause, executeSell, sellShares, memo, priceType, exitReason]);
+
+  const handleSellAll = useCallback(() => {
+    if (isPlaying) pause();
+    executeSellAll(memo, priceType, exitReason);
+    setMemo("");
+  }, [isPlaying, pause, executeSellAll, memo, priceType, exitReason]);
 
   const handleSkip = useCallback(() => {
     skip();
   }, [skip]);
 
-  const handleSharesChange = (value: number) => {
-    // Round to nearest 100
+  const handleBuySharesChange = (value: number) => {
     const rounded = Math.max(100, Math.round(value / 100) * 100);
-    setShares(rounded);
+    setBuyShares(rounded);
   };
 
-  const hasPosition = position !== null;
+  const handleSellSharesChange = (value: number) => {
+    const maxShares = positionSummary?.totalShares || 100;
+    const rounded = Math.max(100, Math.min(maxShares, Math.round(value / 100) * 100));
+    setSellShares(rounded);
+  };
+
+  const hasPosition = positions.length > 0;
   const canUseNextOpen = nextCandle !== null;
 
   return (
     <div className="trade-panel">
       <h3>売買アクション</h3>
 
-      {!hasPosition && (
+      {/* Buy Section */}
+      <div className="shares-input">
+        <label>買い株数</label>
+        <div className="shares-controls">
+          <button
+            className="shares-btn"
+            onClick={() => handleBuySharesChange(buyShares - 100)}
+            disabled={buyShares <= 100}
+          >
+            -100
+          </button>
+          <input
+            type="number"
+            value={buyShares}
+            onChange={(e) => handleBuySharesChange(Number(e.target.value))}
+            step={100}
+            min={100}
+          />
+          <button
+            className="shares-btn"
+            onClick={() => handleBuySharesChange(buyShares + 100)}
+          >
+            +100
+          </button>
+        </div>
+      </div>
+
+      {/* Sell Section - only show if has position */}
+      {hasPosition && positionSummary && (
         <div className="shares-input">
-          <label>株数</label>
+          <label>売り株数 (保有: {positionSummary.totalShares}株)</label>
           <div className="shares-controls">
             <button
               className="shares-btn"
-              onClick={() => handleSharesChange(shares - 100)}
-              disabled={shares <= 100}
+              onClick={() => handleSellSharesChange(sellShares - 100)}
+              disabled={sellShares <= 100}
             >
               -100
             </button>
             <input
               type="number"
-              value={shares}
-              onChange={(e) => handleSharesChange(Number(e.target.value))}
+              value={Math.min(sellShares, positionSummary.totalShares)}
+              onChange={(e) => handleSellSharesChange(Number(e.target.value))}
               step={100}
               min={100}
+              max={positionSummary.totalShares}
             />
             <button
               className="shares-btn"
-              onClick={() => handleSharesChange(shares + 100)}
+              onClick={() => handleSellSharesChange(sellShares + 100)}
+              disabled={sellShares >= positionSummary.totalShares}
             >
               +100
             </button>
@@ -114,30 +161,54 @@ export function TradePanel() {
         <div className="price-estimate">
           {priceType === "nextOpen" ? "翌日始値" : PRICE_TYPE_LABELS[priceType]}
           : {estimatedPrice.toLocaleString()}円
-          {!hasPosition && (
-            <span className="capital-ratio">
-              (概算: {totalCost.toLocaleString()}円 / {((totalCost / initialCapital) * 100).toFixed(1)}%)
-            </span>
-          )}
+          <span className="capital-ratio">
+            (買い概算: {totalBuyCost.toLocaleString()}円 / {((totalBuyCost / initialCapital) * 100).toFixed(1)}%)
+          </span>
         </div>
       </div>
+
+      {/* Exit Reason Selector - only show if has position */}
+      {hasPosition && (
+        <div className="exit-reason-selector">
+          <label>イグジット理由</label>
+          <div className="exit-reason-buttons">
+            {EXIT_REASONS.map((reason) => (
+              <button
+                key={reason}
+                className={`exit-reason-btn ${exitReason === reason ? "active" : ""}`}
+                onClick={() => setExitReason(reason)}
+              >
+                {EXIT_REASON_LABELS[reason]}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="trade-buttons">
         <button
           className="buy-btn"
           onClick={handleBuy}
-          disabled={hasPosition || (priceType === "nextOpen" && !canUseNextOpen)}
-          title={hasPosition ? "既にポジションを保有しています" : "買い"}
+          disabled={priceType === "nextOpen" && !canUseNextOpen}
+          title={hasPosition ? "追加買い" : "新規買い"}
         >
-          BUY
+          {hasPosition ? "追加買" : "BUY"}
         </button>
         <button
           className="sell-btn"
           onClick={handleSell}
           disabled={!hasPosition || (priceType === "nextOpen" && !canUseNextOpen)}
-          title={!hasPosition ? "ポジションがありません" : "売り"}
+          title={!hasPosition ? "ポジションがありません" : "部分売り"}
         >
-          SELL
+          部分売
+        </button>
+        <button
+          className="sell-btn sell-all"
+          onClick={handleSellAll}
+          disabled={!hasPosition || (priceType === "nextOpen" && !canUseNextOpen)}
+          title={!hasPosition ? "ポジションがありません" : "全売り"}
+        >
+          全売
         </button>
         <button className="skip-btn" onClick={handleSkip} title="次の日へ">
           SKIP

@@ -1,6 +1,13 @@
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { useSimulatorStore } from "../store/simulatorStore";
-import { generateMarkdownReport, downloadReport } from "../utils/reportGenerator";
+import {
+  generateMarkdownReport,
+  generateCSVReport,
+  generateJSONReport,
+  downloadReport,
+} from "../utils/reportGenerator";
+
+type ExportFormat = "markdown" | "csv" | "json";
 
 export function ReportButton() {
   const {
@@ -14,24 +21,31 @@ export function ReportButton() {
     tradeHistory,
     phase,
     reset,
+    commissionRate,
+    slippageBps,
   } = useSimulatorStore();
 
-  const handleExport = useCallback(() => {
-    const startDate = allCandles[startIndex + initialCandleCount]?.time || 0;
-    const endDate = allCandles[currentIndex]?.time || 0;
+  const [showFormats, setShowFormats] = useState(false);
 
-    const markdown = generateMarkdownReport({
+  const getReportData = useCallback(() => {
+    const simStartIndex = startIndex + initialCandleCount;
+    const startDate = allCandles[simStartIndex]?.time || 0;
+    const endDate = allCandles[currentIndex]?.time || 0;
+    // Buy&Hold比較用の価格
+    const startPrice = allCandles[simStartIndex]?.close || 0;
+    const endPrice = allCandles[currentIndex]?.close || 0;
+    return {
       fileName,
       startDate,
       endDate,
       initialCapital,
       enabledIndicators,
       tradeHistory,
-    });
-
-    const date = new Date().toISOString().split("T")[0];
-    const reportFileName = `simulation-report-${date}.md`;
-    downloadReport(markdown, reportFileName);
+      startPrice,
+      endPrice,
+      commissionRate,
+      slippageBps,
+    };
   }, [
     fileName,
     allCandles,
@@ -41,7 +55,36 @@ export function ReportButton() {
     initialCapital,
     enabledIndicators,
     tradeHistory,
+    commissionRate,
+    slippageBps,
   ]);
+
+  const handleExport = useCallback(
+    (format: ExportFormat) => {
+      const data = getReportData();
+      const date = new Date().toISOString().split("T")[0];
+
+      switch (format) {
+        case "markdown": {
+          const content = generateMarkdownReport(data);
+          downloadReport(content, `simulation-report-${date}.md`, "text/markdown;charset=utf-8");
+          break;
+        }
+        case "csv": {
+          const content = generateCSVReport(data);
+          downloadReport(content, `simulation-trades-${date}.csv`, "text/csv;charset=utf-8");
+          break;
+        }
+        case "json": {
+          const content = generateJSONReport(data);
+          downloadReport(content, `simulation-report-${date}.json`, "application/json;charset=utf-8");
+          break;
+        }
+      }
+      setShowFormats(false);
+    },
+    [getReportData]
+  );
 
   const handleReset = useCallback(() => {
     if (
@@ -55,13 +98,34 @@ export function ReportButton() {
 
   return (
     <div className="report-panel">
-      <button
-        className="btn-primary"
-        onClick={handleExport}
-        disabled={tradeHistory.length === 0}
-      >
-        レポート出力 (Markdown)
-      </button>
+      <div className="export-dropdown">
+        <button
+          className="btn-primary"
+          onClick={() => setShowFormats(!showFormats)}
+          disabled={tradeHistory.length === 0}
+        >
+          レポート出力
+          <span className="material-icons dropdown-icon">
+            {showFormats ? "expand_less" : "expand_more"}
+          </span>
+        </button>
+        {showFormats && tradeHistory.length > 0 && (
+          <div className="export-formats">
+            <button onClick={() => handleExport("markdown")}>
+              <span className="material-icons">description</span>
+              Markdown
+            </button>
+            <button onClick={() => handleExport("csv")}>
+              <span className="material-icons">table_chart</span>
+              CSV
+            </button>
+            <button onClick={() => handleExport("json")}>
+              <span className="material-icons">data_object</span>
+              JSON
+            </button>
+          </div>
+        )}
+      </div>
       <button className="btn-secondary" onClick={handleReset}>
         {phase === "finished" ? "新しいシミュレーション" : "リセット"}
       </button>
