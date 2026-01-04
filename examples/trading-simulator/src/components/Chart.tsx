@@ -14,6 +14,7 @@ export function Chart() {
     tradeHistory,
     positions,
     stopLossPercent,
+    takeProfitPercent,
   } = useSimulatorStore();
 
   const visibleCandles = useMemo(() => {
@@ -51,8 +52,9 @@ export function Chart() {
       entryPrice: avgEntryPrice,
       entryIndex: relativeEntryIndex,
       stopLossPercent,
+      takeProfitPercent,
     };
-  }, [positions, startIndex, stopLossPercent]);
+  }, [positions, startIndex, stopLossPercent, takeProfitPercent]);
 
   const option = useMemo(() => {
     return buildChartOption(

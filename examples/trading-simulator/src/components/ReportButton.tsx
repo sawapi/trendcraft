@@ -23,6 +23,7 @@ export function ReportButton() {
     reset,
     commissionRate,
     slippageBps,
+    taxRate,
   } = useSimulatorStore();
 
   const [showFormats, setShowFormats] = useState(false);
@@ -34,6 +35,8 @@ export function ReportButton() {
     // Buy&Hold比較用の価格
     const startPrice = allCandles[simStartIndex]?.close || 0;
     const endPrice = allCandles[currentIndex]?.close || 0;
+    // シミュレーション期間の営業日数（marketExposure計算用）
+    const totalTradingDays = currentIndex - simStartIndex + 1;
     return {
       fileName,
       startDate,
@@ -45,6 +48,8 @@ export function ReportButton() {
       endPrice,
       commissionRate,
       slippageBps,
+      taxRate,
+      totalTradingDays,
     };
   }, [
     fileName,
@@ -57,6 +62,7 @@ export function ReportButton() {
     tradeHistory,
     commissionRate,
     slippageBps,
+    taxRate,
   ]);
 
   const handleExport = useCallback(

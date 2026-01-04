@@ -10,6 +10,7 @@ import { Chart } from "./components/Chart";
 import { ReportButton } from "./components/ReportButton";
 import { ShortcutsHelp } from "./components/ShortcutsHelp";
 import { ThemeToggle } from "./components/ThemeToggle";
+import { AlertBanner } from "./components/AlertBanner";
 
 export default function App() {
   const { phase, allCandles } = useSimulatorStore();
@@ -37,6 +38,7 @@ export default function App() {
 
   return (
     <div className="app">
+      <AlertBanner />
       <div className="app-header">
         <h1>Trading Simulator</h1>
         <div className="header-controls">

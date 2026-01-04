@@ -13,6 +13,8 @@ import type {
   IndicatorSnapshot,
   MarketContext,
   ExitReason,
+  ExitTrigger,
+  Alert,
 } from "../types";
 import { DEFAULT_INDICATOR_PARAMS } from "../types";
 import { calculateIndicators, getIndicatorSnapshot, analyzeMarketContext, type IndicatorData } from "../utils/indicators";
@@ -30,7 +32,12 @@ interface SimulatorState {
   indicatorParams: IndicatorParams;
   commissionRate: number;   // 手数料率(%)
   slippageBps: number;      // スリッページ(bps)
+  taxRate: number;          // 譲渡益税率(%)
   stopLossPercent: number;  // 損切り%（チャート表示用）
+  takeProfitPercent: number; // 利確%（チャート表示用）
+
+  // Alerts
+  alerts: Alert[];
 
   // Playback
   currentIndex: number;
@@ -55,13 +62,15 @@ interface SimulatorState {
   stepForward: () => boolean;
   stepBackward: () => void;
   executeBuy: (shares: number, memo: string, priceType: PriceType) => void;
-  executeSell: (shares: number, memo: string, priceType: PriceType, exitReason: ExitReason) => void;
-  executeSellAll: (memo: string, priceType: PriceType, exitReason: ExitReason) => void;
+  executeSell: (shares: number, memo: string, priceType: PriceType, exitReason: ExitReason, exitTrigger?: ExitTrigger) => void;
+  executeSellAll: (memo: string, priceType: PriceType, exitReason: ExitReason, exitTrigger?: ExitTrigger) => void;
   updatePositionMFEMAE: () => void;
   getNextCandle: () => NormalizedCandle | null;
   skip: () => void;
   reset: () => void;
   finishSimulation: () => void;
+  jumpToIndex: (index: number) => void;
+  dismissAlert: (id: string) => void;
 
   // Computed
   getCurrentCandle: () => NormalizedCandle | null;
@@ -70,6 +79,7 @@ interface SimulatorState {
   getPositionSummary: () => PositionSummary | null;
   getTotalPnl: () => number;
   getYearHighLow: () => YearHighLow | null;
+  getHoldingDays: () => number | null;
 }
 
 export const useSimulatorStore = create<SimulatorState>((set, get) => ({
@@ -83,7 +93,10 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => ({
   indicatorParams: { ...DEFAULT_INDICATOR_PARAMS },
   commissionRate: 0,
   slippageBps: 0,
+  taxRate: 20.315,
   stopLossPercent: 5,
+  takeProfitPercent: 10,
+  alerts: [],
   currentIndex: 0,
   isPlaying: false,
   playbackSpeed: 1,
@@ -135,7 +148,10 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => ({
       indicatorParams: config.indicatorParams,
       commissionRate: config.commissionRate,
       slippageBps: config.slippageBps,
+      taxRate: config.taxRate,
       stopLossPercent: config.stopLossPercent,
+      takeProfitPercent: config.takeProfitPercent,
+      alerts: [],
       currentIndex: startIdx,
       isPlaying: false,
       positions: [],
@@ -150,7 +166,7 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => ({
   setSpeed: (speed) => set({ playbackSpeed: speed }),
 
   stepForward: () => {
-    const { currentIndex, allCandles } = get();
+    const { currentIndex, allCandles, positions, stopLossPercent, takeProfitPercent, alerts } = get();
     if (currentIndex >= allCandles.length - 1) {
       set({ isPlaying: false });
       return false;
@@ -159,6 +175,58 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => ({
     set({ currentIndex: newIndex });
     // MFE/MAE更新
     get().updatePositionMFEMAE();
+
+    // 損切り/利確アラートチェック
+    if (positions.length > 0) {
+      const summary = get().getPositionSummary();
+      const candle = allCandles[newIndex];
+      if (summary && candle) {
+        const avgEntry = summary.avgEntryPrice;
+        const stopLossPrice = avgEntry * (1 - stopLossPercent / 100);
+        const takeProfitPrice = avgEntry * (1 + takeProfitPercent / 100);
+
+        // 損切りアラート（安値がストップロス価格を下回った）
+        if (candle.low <= stopLossPrice) {
+          const existingAlert = alerts.find(
+            (a) => a.type === "STOP_LOSS_WARNING"
+          );
+          if (!existingAlert) {
+            set({
+              alerts: [
+                ...alerts,
+                {
+                  id: crypto.randomUUID(),
+                  type: "STOP_LOSS_WARNING",
+                  message: `損切りライン(${stopLossPrice.toLocaleString()}円, -${stopLossPercent}%)に接触しました`,
+                  timestamp: Date.now(),
+                },
+              ],
+            });
+          }
+        }
+
+        // 利確アラート（高値が利確価格を超えた）
+        if (candle.high >= takeProfitPrice) {
+          const existingAlert = alerts.find(
+            (a) => a.type === "TAKE_PROFIT_REACHED"
+          );
+          if (!existingAlert) {
+            set({
+              alerts: [
+                ...get().alerts,
+                {
+                  id: crypto.randomUUID(),
+                  type: "TAKE_PROFIT_REACHED",
+                  message: `利確ライン(${takeProfitPrice.toLocaleString()}円, +${takeProfitPercent}%)に到達しました`,
+                  timestamp: Date.now(),
+                },
+              ],
+            });
+          }
+        }
+      }
+    }
+
     return true;
   },
 
@@ -271,8 +339,8 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => ({
     });
   },
 
-  executeSell: (shares, memo, priceType, exitReason) => {
-    const { positions, currentIndex, allCandles, tradeHistory, indicatorData, commissionRate, slippageBps } = get();
+  executeSell: (shares, memo, priceType, exitReason, exitTrigger) => {
+    const { positions, currentIndex, allCandles, tradeHistory, indicatorData, commissionRate, slippageBps, taxRate } = get();
     if (positions.length === 0) return;
 
     // 平均取得単価を計算
@@ -353,6 +421,13 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => ({
     const netPnl = grossPnl - totalBuyCommission - sellCommission;
     const pnlPercent = ((effectivePrice - summary.avgEntryPrice) / summary.avgEntryPrice) * 100;
 
+    // 税金計算（利益がある場合のみ）
+    const tax = netPnl > 0 ? netPnl * (taxRate / 100) : 0;
+    const afterTaxPnl = netPnl - tax;
+
+    // MFE活用度計算（MFEの何%を獲得できたか）
+    const mfeUtilization = totalMfeValue > 0 ? (pnlPercent / totalMfeValue) * 100 : 0;
+
     const trade: Trade = {
       id: crypto.randomUUID(),
       type: "SELL",
@@ -361,7 +436,7 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => ({
       shares,
       memo,
       priceType,
-      pnl: netPnl,
+      pnl: afterTaxPnl,
       pnlPercent,
       indicators,
       marketContext,
@@ -369,14 +444,18 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => ({
       slippage,
       commission: sellCommission,
       exitReason,
+      exitTrigger,
       grossPnl,
       netPnl,
+      tax,
+      afterTaxPnl,
       mfe: totalMfeValue,
       mae: totalMaeValue,
       mfePrice,
       maePrice,
       mfeDate,
       maeDate,
+      mfeUtilization,
     };
 
     // FIFO方式でポジションを削減
@@ -399,17 +478,21 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => ({
       }
     }
 
+    // ポジションが空になったらアラートもクリア
+    const newAlerts = newPositions.length === 0 ? [] : get().alerts;
+
     set({
       positions: newPositions,
       tradeHistory: [...tradeHistory, trade],
       currentIndex: targetIndex,
+      alerts: newAlerts,
     });
   },
 
-  executeSellAll: (memo, priceType, exitReason) => {
+  executeSellAll: (memo, priceType, exitReason, exitTrigger) => {
     const summary = get().getPositionSummary();
     if (!summary) return;
-    get().executeSell(summary.totalShares, memo, priceType, exitReason);
+    get().executeSell(summary.totalShares, memo, priceType, exitReason, exitTrigger);
   },
 
   getNextCandle: () => {
@@ -437,6 +520,25 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => ({
       phase: "finished",
       isPlaying: false,
     });
+  },
+
+  jumpToIndex: (index: number) => {
+    const { startIndex, initialCandleCount, allCandles } = get();
+    const minIndex = startIndex + initialCandleCount;
+    const maxIndex = allCandles.length - 1;
+
+    if (index >= minIndex && index <= maxIndex) {
+      set({
+        currentIndex: index,
+        isPlaying: false,
+      });
+    }
+  },
+
+  dismissAlert: (id: string) => {
+    set((state) => ({
+      alerts: state.alerts.filter((a) => a.id !== id),
+    }));
   },
 
   // Computed values
@@ -531,5 +633,14 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => ({
       fromHigh,
       fromLow,
     };
+  },
+
+  getHoldingDays: () => {
+    const { positions, currentIndex } = get();
+    if (positions.length === 0) return null;
+
+    // 最初のエントリーインデックスを取得
+    const firstEntryIndex = Math.min(...positions.map((p) => p.entryIndex));
+    return currentIndex - firstEntryIndex;
   },
 }));

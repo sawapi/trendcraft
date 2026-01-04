@@ -9,6 +9,7 @@ export function PositionPanel() {
     getTotalPnl,
     tradeHistory,
     getYearHighLow,
+    getHoldingDays,
   } = useSimulatorStore();
 
   const positionSummary = getPositionSummary();
@@ -16,6 +17,7 @@ export function PositionPanel() {
   const totalPnl = getTotalPnl();
   const tradeCount = tradeHistory.filter((t) => t.type === "SELL").length;
   const yearHighLow = getYearHighLow();
+  const holdingDays = getHoldingDays();
 
   return (
     <div className="position-panel">
@@ -25,6 +27,9 @@ export function PositionPanel() {
         <div className="position-status long">
           <div className="status-label">
             ロング保有中 ({positions.length}回買付)
+            {holdingDays !== null && (
+              <span className="holding-days">保有{holdingDays}日目</span>
+            )}
           </div>
           <div className="position-summary">
             <div className="summary-row">

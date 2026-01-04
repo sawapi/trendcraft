@@ -41,7 +41,9 @@ export function SetupPanel() {
   });
   const [commissionRate, setCommissionRate] = useState(0);
   const [slippageBps, setSlippageBps] = useState(0);
+  const [taxRate, setTaxRate] = useState(20.315);
   const [stopLossPercent, setStopLossPercent] = useState(5);
+  const [takeProfitPercent, setTakeProfitPercent] = useState(10);
 
   const handleStart = () => {
     const date = new Date(startDate).getTime();
@@ -53,7 +55,9 @@ export function SetupPanel() {
       indicatorParams,
       commissionRate,
       slippageBps,
+      taxRate,
       stopLossPercent,
+      takeProfitPercent,
     });
   };
 
@@ -115,7 +119,7 @@ export function SetupPanel() {
         </div>
 
         <div className="form-group cost-settings">
-          <label>コスト設定</label>
+          <label>コスト・税金設定</label>
           <div className="cost-inputs">
             <div className="cost-input">
               <label>手数料率 (%)</label>
@@ -141,6 +145,18 @@ export function SetupPanel() {
               />
               <p className="hint">例: 10bps = 0.1%の価格変動</p>
             </div>
+            <div className="cost-input">
+              <label>譲渡益税率 (%)</label>
+              <input
+                type="number"
+                value={taxRate}
+                min={0}
+                max={50}
+                step={0.001}
+                onChange={(e) => setTaxRate(Number(e.target.value))}
+              />
+              <p className="hint">利益に対する税金（日本: 20.315%）</p>
+            </div>
           </div>
         </div>
 
@@ -158,6 +174,18 @@ export function SetupPanel() {
                 onChange={(e) => setStopLossPercent(Number(e.target.value))}
               />
               <p className="hint">エントリー価格からN%下に損切りラインを表示</p>
+            </div>
+            <div className="chart-setting-input">
+              <label>利確ライン (%)</label>
+              <input
+                type="number"
+                value={takeProfitPercent}
+                min={1}
+                max={100}
+                step={0.5}
+                onChange={(e) => setTakeProfitPercent(Number(e.target.value))}
+              />
+              <p className="hint">エントリー価格からN%上に利確ラインを表示</p>
             </div>
           </div>
         </div>

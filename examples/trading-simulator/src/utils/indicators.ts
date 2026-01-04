@@ -325,6 +325,9 @@ export function analyzeMarketContext(
     }
   }
 
+  // ADX（confidence計算用）
+  const adx = indicatorData.dmiAdx?.[index];
+
   // トレンド判定（SMA25の傾きで判定）
   let trend: "uptrend" | "downtrend" | "range" = "range";
   let trendStrength: "strong" | "moderate" | "weak" = "weak";
@@ -345,6 +348,21 @@ export function analyzeMarketContext(
         trendStrength = "weak";
       }
     }
+  }
+
+  // regime（機械可読用enum）
+  const regime: "TREND_UP" | "TREND_DOWN" | "RANGE" =
+    trend === "uptrend" ? "TREND_UP" : trend === "downtrend" ? "TREND_DOWN" : "RANGE";
+
+  // confidence（0-1、ADXベースまたはtrendStrengthから推定）
+  let confidence: number;
+  if (adx != null) {
+    // ADXを0-1にスケール（ADX 50以上は1.0）
+    confidence = Math.min(adx / 50, 1);
+  } else {
+    // ADXがない場合はtrendStrengthから推定
+    confidence =
+      trendStrength === "strong" ? 0.8 : trendStrength === "moderate" ? 0.5 : 0.3;
   }
 
   // RSIゾーン
@@ -426,6 +444,8 @@ export function analyzeMarketContext(
   return {
     trend,
     trendStrength,
+    regime,
+    confidence,
     priceVsSma25,
     priceVsSma75,
     sma25VsSma75,

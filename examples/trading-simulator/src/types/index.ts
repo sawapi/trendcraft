@@ -65,6 +65,10 @@ export interface MarketContext {
   trend: "uptrend" | "downtrend" | "range";
   trendStrength: "strong" | "moderate" | "weak";
 
+  // 機械可読用（LLM分析向け）
+  regime: "TREND_UP" | "TREND_DOWN" | "RANGE";
+  confidence: number; // 0-1 (ADXベース、なければtrendStrengthから推定)
+
   // MA関係
   priceVsSma25: "above" | "below" | "at";
   priceVsSma75: "above" | "below" | "at";
@@ -99,6 +103,28 @@ export const EXIT_REASON_LABELS: Record<ExitReason, string> = {
   MANUAL: "手動",
 };
 
+// イグジットトリガー（詳細理由）
+export type ExitTrigger =
+  | "TARGET_REACHED"    // 目標価格到達
+  | "RSI_OVERBOUGHT"    // RSI買われすぎ
+  | "RSI_OVERSOLD"      // RSI売られすぎ
+  | "MACD_CROSS"        // MACDクロス
+  | "MA_CROSS"          // MAクロス
+  | "TRAILING_STOP"     // トレーリングストップ
+  | "TIME_LIMIT"        // 時間制限
+  | "DISCRETIONARY";    // 裁量判断
+
+export const EXIT_TRIGGER_LABELS: Record<ExitTrigger, string> = {
+  TARGET_REACHED: "目標到達",
+  RSI_OVERBOUGHT: "RSI買われすぎ",
+  RSI_OVERSOLD: "RSI売られすぎ",
+  MACD_CROSS: "MACDクロス",
+  MA_CROSS: "MAクロス",
+  TRAILING_STOP: "トレーリングストップ",
+  TIME_LIMIT: "時間超過",
+  DISCRETIONARY: "裁量",
+};
+
 export interface Trade {
   id: string;
   type: "BUY" | "SELL";
@@ -118,8 +144,11 @@ export interface Trade {
   effectivePrice?: number;   // 実効価格（スリッページ込み）
   // SELL時のみ
   exitReason?: ExitReason;   // イグジット理由
+  exitTrigger?: ExitTrigger; // 詳細トリガー
   grossPnl?: number;         // 粗利益（コスト前）
   netPnl?: number;           // 純利益（コスト後）
+  tax?: number;              // 税金（利益がある場合のみ）
+  afterTaxPnl?: number;      // 税引後損益
   // MFE/MAE（SELL時のみ）
   mfe?: number;              // 最大含み益(%)
   mae?: number;              // 最大含み損(%)
@@ -127,6 +156,7 @@ export interface Trade {
   maePrice?: number;         // MAE時価格
   mfeDate?: number;          // MFE日
   maeDate?: number;          // MAE日
+  mfeUtilization?: number;   // MFE活用度(%) - pnlPercent/mfe*100
 }
 
 export interface SimulationConfig {
@@ -138,8 +168,21 @@ export interface SimulationConfig {
   // コスト設定
   commissionRate: number;   // 手数料率(%, デフォルト0)
   slippageBps: number;      // スリッページ(bps, デフォルト0)
+  // 税金設定
+  taxRate: number;          // 譲渡益税率(%, デフォルト20.315)
   // チャート表示設定
   stopLossPercent: number;  // 損切りライン%(デフォルト5)
+  takeProfitPercent: number; // 利確ライン%(デフォルト10)
+}
+
+// アラート型
+export type AlertType = "STOP_LOSS_WARNING" | "TAKE_PROFIT_REACHED";
+
+export interface Alert {
+  id: string;
+  type: AlertType;
+  message: string;
+  timestamp: number;
 }
 
 export interface SimulatorStats {

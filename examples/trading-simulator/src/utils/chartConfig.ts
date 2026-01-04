@@ -69,6 +69,7 @@ export interface PositionLine {
   entryPrice: number;
   entryIndex: number;
   stopLossPercent?: number; // 損切り%（例: 5 = 5%下）
+  takeProfitPercent?: number; // 利確%（例: 10 = 10%上）
 }
 
 export function buildChartOption(
@@ -772,7 +773,7 @@ function buildPositionLines(
 ): SeriesItem | undefined {
   if (!positionLines) return undefined;
 
-  const { entryPrice, stopLossPercent } = positionLines;
+  const { entryPrice, stopLossPercent, takeProfitPercent } = positionLines;
   const data: SeriesItem[] = [];
 
   // エントリーライン（実線、緑）- 水平線として描画
@@ -794,6 +795,29 @@ function buildPositionLines(
       padding: [2, 4],
     },
   });
+
+  // 利確ライン（破線、青/シアン）
+  if (takeProfitPercent && takeProfitPercent > 0) {
+    const takeProfitPrice = entryPrice * (1 + takeProfitPercent / 100);
+    data.push({
+      yAxis: takeProfitPrice,
+      symbol: "none",
+      lineStyle: {
+        color: "#22d3ee",
+        width: 1.5,
+        type: "dashed",
+      },
+      label: {
+        show: true,
+        position: "end",
+        formatter: `TP +${takeProfitPercent}%`,
+        color: "#22d3ee",
+        fontSize: 10,
+        backgroundColor: "#1a1a2e",
+        padding: [2, 4],
+      },
+    });
+  }
 
   // 損切りライン（破線、赤）
   if (stopLossPercent && stopLossPercent > 0) {

@@ -6,8 +6,6 @@ export function useKeyboardShortcuts() {
   const togglePlay = useSimulatorStore((state) => state.togglePlay);
   const stepForward = useSimulatorStore((state) => state.stepForward);
   const stepBackward = useSimulatorStore((state) => state.stepBackward);
-  const skip = useSimulatorStore((state) => state.skip);
-
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
       // ハンドラ内で最新の状態を取得
@@ -82,19 +80,11 @@ export function useKeyboardShortcuts() {
           }
           break;
 
-        case "n": // N - Skip (Next)
-        case "N":
-          if (!isAtEnd && !isPlaying) {
-            event.preventDefault();
-            skip();
-          }
-          break;
-
         default:
           break;
       }
     },
-    [togglePlay, stepForward, stepBackward, skip]
+    [togglePlay, stepForward, stepBackward]
   );
 
   useEffect(() => {

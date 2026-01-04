@@ -1,10 +1,20 @@
 import { useState, useCallback, useMemo } from "react";
 import { useSimulatorStore } from "../store/simulatorStore";
-import type { PriceType, ExitReason } from "../types";
-import { PRICE_TYPE_LABELS, EXIT_REASON_LABELS } from "../types";
+import type { PriceType, ExitReason, ExitTrigger } from "../types";
+import { PRICE_TYPE_LABELS, EXIT_REASON_LABELS, EXIT_TRIGGER_LABELS } from "../types";
 
 const PRICE_TYPES: PriceType[] = ["nextOpen", "high", "low", "close"];
 const EXIT_REASONS: ExitReason[] = ["TAKE_PROFIT", "STOP_LOSS", "SIGNAL_FLIP", "TIMEOUT", "MANUAL"];
+const EXIT_TRIGGERS: ExitTrigger[] = [
+  "DISCRETIONARY",
+  "TARGET_REACHED",
+  "RSI_OVERBOUGHT",
+  "RSI_OVERSOLD",
+  "MACD_CROSS",
+  "MA_CROSS",
+  "TRAILING_STOP",
+  "TIME_LIMIT",
+];
 
 export function TradePanel() {
   const {
@@ -14,7 +24,6 @@ export function TradePanel() {
     executeBuy,
     executeSell,
     executeSellAll,
-    skip,
     pause,
     getCurrentCandle,
     getNextCandle,
@@ -26,6 +35,7 @@ export function TradePanel() {
   const [memo, setMemo] = useState("");
   const [priceType, setPriceType] = useState<PriceType>("nextOpen");
   const [exitReason, setExitReason] = useState<ExitReason>("MANUAL");
+  const [exitTrigger, setExitTrigger] = useState<ExitTrigger | undefined>(undefined);
 
   const currentCandle = getCurrentCandle();
   const nextCandle = getNextCandle();
@@ -49,19 +59,17 @@ export function TradePanel() {
 
   const handleSell = useCallback(() => {
     if (isPlaying) pause();
-    executeSell(sellShares, memo, priceType, exitReason);
+    executeSell(sellShares, memo, priceType, exitReason, exitTrigger);
     setMemo("");
-  }, [isPlaying, pause, executeSell, sellShares, memo, priceType, exitReason]);
+    setExitTrigger(undefined);
+  }, [isPlaying, pause, executeSell, sellShares, memo, priceType, exitReason, exitTrigger]);
 
   const handleSellAll = useCallback(() => {
     if (isPlaying) pause();
-    executeSellAll(memo, priceType, exitReason);
+    executeSellAll(memo, priceType, exitReason, exitTrigger);
     setMemo("");
-  }, [isPlaying, pause, executeSellAll, memo, priceType, exitReason]);
-
-  const handleSkip = useCallback(() => {
-    skip();
-  }, [skip]);
+    setExitTrigger(undefined);
+  }, [isPlaying, pause, executeSellAll, memo, priceType, exitReason, exitTrigger]);
 
   const handleBuySharesChange = (value: number) => {
     const rounded = Math.max(100, Math.round(value / 100) * 100);
@@ -185,6 +193,24 @@ export function TradePanel() {
         </div>
       )}
 
+      {/* Exit Trigger Selector - only show if has position and exitReason is not MANUAL */}
+      {hasPosition && exitReason !== "MANUAL" && (
+        <div className="exit-trigger-selector">
+          <label>詳細トリガー（任意）</label>
+          <select
+            value={exitTrigger || ""}
+            onChange={(e) => setExitTrigger(e.target.value as ExitTrigger || undefined)}
+          >
+            <option value="">選択しない</option>
+            {EXIT_TRIGGERS.map((trigger) => (
+              <option key={trigger} value={trigger}>
+                {EXIT_TRIGGER_LABELS[trigger]}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
       <div className="trade-buttons">
         <button
           className="buy-btn"
@@ -209,9 +235,6 @@ export function TradePanel() {
           title={!hasPosition ? "ポジションがありません" : "全売り"}
         >
           全売
-        </button>
-        <button className="skip-btn" onClick={handleSkip} title="次の日へ">
-          SKIP
         </button>
       </div>
 

@@ -1,6 +1,6 @@
 import type { Trade, SimulatorStats, IndicatorSnapshot, MarketContext } from "../types";
 import { formatDate } from "./fileParser";
-import { AVAILABLE_INDICATORS, PRICE_TYPE_LABELS, EXIT_REASON_LABELS } from "../types";
+import { AVAILABLE_INDICATORS, PRICE_TYPE_LABELS, EXIT_REASON_LABELS, EXIT_TRIGGER_LABELS } from "../types";
 
 // インジケーター値をフォーマット
 function formatIndicatorValue(value: number | null | undefined, decimals: number = 2): string {
@@ -58,6 +58,8 @@ interface ReportData {
   endPrice?: number;      // Buy&Hold比較用
   commissionRate?: number;
   slippageBps?: number;
+  taxRate?: number;       // 譲渡益税率
+  totalTradingDays?: number; // シミュレーション期間の営業日数（marketExposure計算用）
 }
 
 // Extended stats interface for advanced metrics
@@ -68,12 +70,17 @@ interface ExtendedStats extends SimulatorStats {
   maxLoseStreak: number;
   avgMfe: number;
   avgMae: number;
+  avgMfeUtilization: number; // MFE活用度の平均
+  marketExposure: number;    // 市場滞在率(%)
+  totalPositionDays: number; // 合計ポジション保有日数
   totalCommission: number;
   totalSlippage: number;
+  totalTax: number;
+  grossPnl: number;
 }
 
 export function generateMarkdownReport(data: ReportData): string {
-  const stats = calculateExtendedStats(data.tradeHistory, data.initialCapital);
+  const stats = calculateExtendedStats(data.tradeHistory, data.initialCapital, data.totalTradingDays);
   const finalCapital = data.initialCapital + stats.totalPnl;
 
   const lines: string[] = [];
@@ -91,8 +98,12 @@ export function generateMarkdownReport(data: ReportData): string {
   );
   lines.push(`- **初期資金**: ${data.initialCapital.toLocaleString()}`);
   lines.push(`- **最終資金**: ${finalCapital.toLocaleString()}`);
-  if (data.commissionRate || data.slippageBps) {
-    lines.push(`- **コスト設定**: 手数料${data.commissionRate || 0}% / スリッページ${data.slippageBps || 0}bps`);
+  if (data.commissionRate || data.slippageBps || data.taxRate) {
+    const costParts = [];
+    if (data.commissionRate) costParts.push(`手数料${data.commissionRate}%`);
+    if (data.slippageBps) costParts.push(`スリッページ${data.slippageBps}bps`);
+    if (data.taxRate) costParts.push(`税率${data.taxRate}%`);
+    lines.push(`- **コスト設定**: ${costParts.join(" / ")}`);
   }
   lines.push("");
 
@@ -121,10 +132,28 @@ export function generateMarkdownReport(data: ReportData): string {
   if (stats.avgMfe !== 0 || stats.avgMae !== 0) {
     lines.push(`| 平均MFE | +${stats.avgMfe.toFixed(2)}% |`);
     lines.push(`| 平均MAE | ${stats.avgMae.toFixed(2)}% |`);
+    if (stats.avgMfeUtilization !== 0) {
+      lines.push(`| 平均MFE活用度 | ${stats.avgMfeUtilization.toFixed(1)}% |`);
+    }
   }
-  if (stats.totalCommission > 0 || stats.totalSlippage > 0) {
-    lines.push(`| 総手数料 | ${stats.totalCommission.toLocaleString()}円 |`);
-    lines.push(`| 総スリッページ | ${stats.totalSlippage.toLocaleString()}円 |`);
+  if (stats.marketExposure > 0) {
+    lines.push(`| 市場滞在率 | ${stats.marketExposure.toFixed(1)}% |`);
+    lines.push(`| 合計保有日数 | ${stats.totalPositionDays.toFixed(0)}日 |`);
+  }
+  if (stats.totalCommission > 0 || stats.totalSlippage > 0 || stats.totalTax > 0) {
+    if (stats.grossPnl !== stats.totalPnl) {
+      lines.push(`| 粗利益 | ${stats.grossPnl >= 0 ? "+" : ""}${stats.grossPnl.toLocaleString()}円 |`);
+    }
+    if (stats.totalCommission > 0) {
+      lines.push(`| 総手数料 | ${stats.totalCommission.toLocaleString()}円 |`);
+    }
+    if (stats.totalSlippage > 0) {
+      lines.push(`| 総スリッページ | ${stats.totalSlippage.toLocaleString()}円 |`);
+    }
+    if (stats.totalTax > 0) {
+      lines.push(`| 総税金 | ${stats.totalTax.toLocaleString()}円 |`);
+    }
+    lines.push(`| 税引後損益 | ${stats.totalPnl >= 0 ? "+" : ""}${stats.totalPnl.toLocaleString()}円 |`);
   }
   lines.push("");
 
@@ -178,18 +207,37 @@ export function generateMarkdownReport(data: ReportData): string {
       lines.push(`- 価格: ${sell.price.toLocaleString()} (${PRICE_TYPE_LABELS[sell.priceType]})`);
       lines.push(`- 株数: ${sell.shares}`);
 
-      // exitReason
+      // exitReason & exitTrigger
       if (sell.exitReason) {
-        lines.push(`- 理由: ${EXIT_REASON_LABELS[sell.exitReason]}`);
+        let reasonText = EXIT_REASON_LABELS[sell.exitReason];
+        if (sell.exitTrigger) {
+          reasonText += ` (${EXIT_TRIGGER_LABELS[sell.exitTrigger]})`;
+        }
+        lines.push(`- 理由: ${reasonText}`);
       }
 
-      lines.push(
-        `- 損益: ${sell.pnlPercent !== undefined && sell.pnlPercent >= 0 ? "+" : ""}${sell.pnlPercent?.toFixed(2)}% (${sell.pnl !== undefined && sell.pnl >= 0 ? "+" : ""}${sell.pnl?.toLocaleString()}円)`
-      );
+      // 税金がある場合は詳細表示
+      if (sell.tax !== undefined && sell.tax > 0) {
+        lines.push(
+          `- 粗利益: ${sell.grossPnl !== undefined && sell.grossPnl >= 0 ? "+" : ""}${sell.grossPnl?.toLocaleString()}円`
+        );
+        lines.push(`- 税金: ${sell.tax.toLocaleString()}円`);
+        lines.push(
+          `- 税引後損益: ${sell.afterTaxPnl !== undefined && sell.afterTaxPnl >= 0 ? "+" : ""}${sell.afterTaxPnl?.toLocaleString()}円 (${sell.pnlPercent !== undefined && sell.pnlPercent >= 0 ? "+" : ""}${sell.pnlPercent?.toFixed(2)}%)`
+        );
+      } else {
+        lines.push(
+          `- 損益: ${sell.pnlPercent !== undefined && sell.pnlPercent >= 0 ? "+" : ""}${sell.pnlPercent?.toFixed(2)}% (${sell.pnl !== undefined && sell.pnl >= 0 ? "+" : ""}${sell.pnl?.toLocaleString()}円)`
+        );
+      }
 
       // MFE/MAE
       if (sell.mfe !== undefined && sell.mae !== undefined) {
-        lines.push(`- MFE/MAE: +${sell.mfe.toFixed(2)}% / ${sell.mae.toFixed(2)}%`);
+        let mfeMaeText = `+${sell.mfe.toFixed(2)}% / ${sell.mae.toFixed(2)}%`;
+        if (sell.mfeUtilization !== undefined) {
+          mfeMaeText += ` (活用度: ${sell.mfeUtilization.toFixed(1)}%)`;
+        }
+        lines.push(`- MFE/MAE: ${mfeMaeText}`);
       }
 
       // コスト情報
@@ -242,7 +290,7 @@ export function generateMarkdownReport(data: ReportData): string {
   return lines.join("\n");
 }
 
-function calculateExtendedStats(trades: Trade[], initialCapital: number): ExtendedStats {
+function calculateExtendedStats(trades: Trade[], initialCapital: number, totalTradingDays?: number): ExtendedStats {
   const sellTrades = trades.filter(
     (t) => t.type === "SELL" && t.pnlPercent !== undefined
   );
@@ -265,8 +313,13 @@ function calculateExtendedStats(trades: Trade[], initialCapital: number): Extend
       maxLoseStreak: 0,
       avgMfe: 0,
       avgMae: 0,
+      avgMfeUtilization: 0,
+      marketExposure: 0,
+      totalPositionDays: 0,
       totalCommission: 0,
       totalSlippage: 0,
+      totalTax: 0,
+      grossPnl: 0,
     };
   }
 
@@ -362,9 +415,23 @@ function calculateExtendedStats(trades: Trade[], initialCapital: number): Extend
     ? tradesWithMfe.reduce((sum, t) => sum + (t.mae || 0), 0) / tradesWithMfe.length
     : 0;
 
+  // MFE活用度の平均を計算
+  const tradesWithMfeUtilization = sellTrades.filter((t) => t.mfeUtilization !== undefined);
+  const avgMfeUtilization = tradesWithMfeUtilization.length > 0
+    ? tradesWithMfeUtilization.reduce((sum, t) => sum + (t.mfeUtilization || 0), 0) / tradesWithMfeUtilization.length
+    : 0;
+
+  // 市場滞在率を計算（totalHoldingDays は既に計算済み）
+  const totalPositionDays = totalHoldingDays;
+  const marketExposure = totalTradingDays && totalTradingDays > 0
+    ? (totalPositionDays / totalTradingDays) * 100
+    : 0;
+
   // 総コストを計算
   const totalCommission = trades.reduce((sum, t) => sum + (t.commission || 0), 0);
   const totalSlippage = trades.reduce((sum, t) => sum + ((t.slippage || 0) * t.shares), 0);
+  const totalTax = sellTrades.reduce((sum, t) => sum + (t.tax || 0), 0);
+  const grossPnl = sellTrades.reduce((sum, t) => sum + (t.grossPnl || 0), 0);
 
   return {
     totalTrades: sellTrades.length,
@@ -383,8 +450,13 @@ function calculateExtendedStats(trades: Trade[], initialCapital: number): Extend
     maxLoseStreak,
     avgMfe,
     avgMae,
+    avgMfeUtilization,
+    marketExposure,
+    totalPositionDays,
     totalCommission,
     totalSlippage,
+    totalTax,
+    grossPnl,
   };
 }
 
@@ -453,7 +525,7 @@ export function generateCSVReport(data: ReportData): string {
 }
 
 export function generateJSONReport(data: ReportData): string {
-  const stats = calculateExtendedStats(data.tradeHistory, data.initialCapital);
+  const stats = calculateExtendedStats(data.tradeHistory, data.initialCapital, data.totalTradingDays);
   const finalCapital = data.initialCapital + stats.totalPnl;
 
   // Buy&Hold計算
@@ -474,6 +546,7 @@ export function generateJSONReport(data: ReportData): string {
       enabledIndicators: data.enabledIndicators,
       commissionRate: data.commissionRate,
       slippageBps: data.slippageBps,
+      taxRate: data.taxRate,
     },
     performance: {
       totalPnl: stats.totalPnl,
@@ -492,8 +565,13 @@ export function generateJSONReport(data: ReportData): string {
       maxLoseStreak: stats.maxLoseStreak,
       avgMfe: stats.avgMfe,
       avgMae: stats.avgMae,
+      avgMfeUtilization: stats.avgMfeUtilization,
+      marketExposure: stats.marketExposure,
+      totalPositionDays: stats.totalPositionDays,
       totalCommission: stats.totalCommission,
       totalSlippage: stats.totalSlippage,
+      totalTax: stats.totalTax,
+      grossPnl: stats.grossPnl,
     },
     benchmark: buyHoldReturn !== undefined ? {
       buyHoldReturn,
@@ -510,11 +588,15 @@ export function generateJSONReport(data: ReportData): string {
       pnlPercent: trade.pnlPercent,
       grossPnl: trade.grossPnl,
       netPnl: trade.netPnl,
+      tax: trade.tax,
+      afterTaxPnl: trade.afterTaxPnl,
       commission: trade.commission,
       slippage: trade.slippage,
       exitReason: trade.exitReason,
+      exitTrigger: trade.exitTrigger,
       mfe: trade.mfe,
       mae: trade.mae,
+      mfeUtilization: trade.mfeUtilization,
       memo: trade.memo,
       indicators: trade.indicators ? {
         sma25: trade.indicators.sma25,
@@ -527,6 +609,8 @@ export function generateJSONReport(data: ReportData): string {
       marketContext: trade.marketContext ? {
         trend: trade.marketContext.trend,
         trendStrength: trade.marketContext.trendStrength,
+        regime: trade.marketContext.regime,
+        confidence: trade.marketContext.confidence,
         rsiZone: trade.marketContext.rsiZone,
         macdSignal: trade.marketContext.macdSignal,
         description: trade.marketContext.description,
