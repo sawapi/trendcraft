@@ -28,6 +28,8 @@ export interface Position {
   lowestDate: number;
   // 買い時のコスト（手数料込み）
   commission: number;
+  // トレーリングストップ価格（ポジションごとに追跡）
+  trailingStopPrice?: number;
 }
 
 // 複数ポジションの集計情報
@@ -173,10 +175,13 @@ export interface SimulationConfig {
   // チャート表示設定
   stopLossPercent: number;  // 損切りライン%(デフォルト5)
   takeProfitPercent: number; // 利確ライン%(デフォルト10)
+  // トレーリングストップ設定
+  trailingStopEnabled: boolean;   // トレーリングストップ有効
+  trailingStopPercent: number;    // トレーリングストップ%(デフォルト5)
 }
 
 // アラート型
-export type AlertType = "STOP_LOSS_WARNING" | "TAKE_PROFIT_REACHED";
+export type AlertType = "STOP_LOSS_WARNING" | "TAKE_PROFIT_REACHED" | "TRAILING_STOP_HIT";
 
 export interface Alert {
   id: string;
@@ -206,6 +211,15 @@ export interface YearHighLow {
   currentPrice: number;
   fromHigh: number; // % from year high
   fromLow: number; // % from year low
+}
+
+// Equity Curve用データポイント
+export interface EquityPoint {
+  time: number;
+  equity: number;        // 現在資産
+  buyHoldEquity: number; // B&H比較用
+  drawdown: number;      // ピークからの下落%
+  tradeType?: "BUY" | "SELL"; // トレードマーカー用
 }
 
 // Legacy - 後方互換性のため維持

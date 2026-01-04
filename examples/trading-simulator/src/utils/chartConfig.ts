@@ -1,5 +1,5 @@
 import type { EChartsOption } from "echarts";
-import type { NormalizedCandle } from "../types";
+import type { NormalizedCandle, EquityPoint } from "../types";
 import type { IndicatorData } from "./indicators";
 import { formatDate } from "./fileParser";
 import { INDICATOR_DEFINITIONS } from "../types";
@@ -55,6 +55,10 @@ const COLORS = {
   volume: "#4b5563",
   obv: "#4b5563",
   mfi: "#06b6d4",
+  // Equity Curve
+  equity: "#4ade80",
+  buyHold: "#6b7280",
+  drawdown: "rgba(239, 68, 68, 0.3)",
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -70,6 +74,7 @@ export interface PositionLine {
   entryIndex: number;
   stopLossPercent?: number; // 損切り%（例: 5 = 5%下）
   takeProfitPercent?: number; // 利確%（例: 10 = 10%上）
+  trailingStopPrice?: number; // トレーリングストップ価格
 }
 
 export function buildChartOption(
@@ -77,7 +82,8 @@ export function buildChartOption(
   indicators: IndicatorData,
   enabledIndicators: string[],
   tradeMarkers: { date: number; type: "BUY" | "SELL"; price: number }[] = [],
-  positionLines?: PositionLine
+  positionLines?: PositionLine,
+  equityCurve?: EquityPoint[]
 ): EChartsOption {
   const dates = candles.map((c) => formatDate(c.time));
   const ohlc = candles.map((c) => [c.open, c.close, c.low, c.high]);
@@ -230,15 +236,32 @@ export function buildChartOption(
 
   // 有効なサブチャートインジケーターを特定
   const enabledSubcharts = enabledIndicators.filter((ind) => SUBCHART_INDICATORS.includes(ind));
-  const subChartCount = enabledSubcharts.length;
+  // Equity Curveがある場合は+1
+  const hasEquityCurve = equityCurve && equityCurve.length > 1;
+  const subChartCount = enabledSubcharts.length + (hasEquityCurve ? 1 : 0);
 
-  // グリッド高さの計算
-  const mainHeight = subChartCount === 0 ? 90 : Math.max(40, 75 - subChartCount * 7);
-  const subHeight = subChartCount > 0 ? Math.min(15, (90 - mainHeight) / subChartCount) : 0;
+  // グリッド高さの計算（サブチャート間にスペースを確保、ラベル用に2%追加）
+  const subChartGap = 5; // サブチャート間のギャップ(%) - ラベル用スペース含む
+  const labelHeight = 2; // ラベル用の高さ(%)
+  const mainHeight = subChartCount === 0 ? 90 : Math.max(30, 65 - subChartCount * 9);
+  const subHeight = subChartCount > 0 ? Math.min(10, (85 - mainHeight - subChartCount * subChartGap) / subChartCount) : 0;
 
   const grids: SeriesItem[] = [
     { left: 60, right: 40, top: 40, height: `${mainHeight}%` },
   ];
+
+  // タイトル配列（各サブチャートのラベル用）
+  const titles: SeriesItem[] = [];
+
+  // 大きな数値をK/M形式でフォーマット
+  const formatLargeNumber = (value: number): string => {
+    if (Math.abs(value) >= 1000000) {
+      return (value / 1000000).toFixed(1) + "M";
+    } else if (Math.abs(value) >= 1000) {
+      return (value / 1000).toFixed(0) + "K";
+    }
+    return value.toFixed(0);
+  };
 
   const xAxes: SeriesItem[] = [
     {
@@ -265,10 +288,16 @@ export function buildChartOption(
   // Volume
   if (enabledIndicators.includes("volume")) {
     const gridIndex = grids.length;
+    titles.push({
+      text: "Volume",
+      left: 5,
+      top: `${currentTop}%`,
+      textStyle: { color: "#a0a0a0", fontSize: 10, fontWeight: "normal" },
+    });
     grids.push({
       left: 60,
       right: 40,
-      top: `${currentTop}%`,
+      top: `${currentTop + labelHeight}%`,
       height: `${subHeight}%`,
     });
     xAxes.push({
@@ -290,16 +319,22 @@ export function buildChartOption(
       yAxisIndex: gridIndex,
       data: volumes,
     });
-    currentTop += subHeight + 1;
+    currentTop += subHeight + subChartGap;
   }
 
   // RSI
   if (enabledIndicators.includes("rsi") && indicators.rsi) {
     const gridIndex = grids.length;
+    titles.push({
+      text: "RSI",
+      left: 5,
+      top: `${currentTop}%`,
+      textStyle: { color: COLORS.rsi, fontSize: 10, fontWeight: "normal" },
+    });
     grids.push({
       left: 60,
       right: 40,
-      top: `${currentTop}%`,
+      top: `${currentTop + labelHeight}%`,
       height: `${subHeight}%`,
     });
     xAxes.push({
@@ -331,16 +366,22 @@ export function buildChartOption(
         data: [{ yAxis: 30 }, { yAxis: 70 }],
       },
     });
-    currentTop += subHeight + 1;
+    currentTop += subHeight + subChartGap;
   }
 
   // MACD
   if (enabledIndicators.includes("macd") && indicators.macdLine && indicators.macdSignal && indicators.macdHist) {
     const gridIndex = grids.length;
+    titles.push({
+      text: "MACD",
+      left: 5,
+      top: `${currentTop}%`,
+      textStyle: { color: COLORS.macdLine, fontSize: 10, fontWeight: "normal" },
+    });
     grids.push({
       left: 60,
       right: 40,
-      top: `${currentTop}%`,
+      top: `${currentTop + labelHeight}%`,
       height: `${subHeight}%`,
     });
     xAxes.push({
@@ -385,16 +426,22 @@ export function buildChartOption(
         },
       })),
     });
-    currentTop += subHeight + 1;
+    currentTop += subHeight + subChartGap;
   }
 
   // Stochastics
   if (enabledIndicators.includes("stochastics") && indicators.stochK && indicators.stochD) {
     const gridIndex = grids.length;
+    titles.push({
+      text: "Stoch",
+      left: 5,
+      top: `${currentTop}%`,
+      textStyle: { color: COLORS.stochK, fontSize: 10, fontWeight: "normal" },
+    });
     grids.push({
       left: 60,
       right: 40,
-      top: `${currentTop}%`,
+      top: `${currentTop + labelHeight}%`,
       height: `${subHeight}%`,
     });
     xAxes.push({
@@ -429,16 +476,22 @@ export function buildChartOption(
       symbol: "none",
       lineStyle: { color: COLORS.stochD, width: 1.5 },
     });
-    currentTop += subHeight + 1;
+    currentTop += subHeight + subChartGap;
   }
 
   // Stochastic RSI
   if (enabledIndicators.includes("stochRsi") && indicators.stochRsiK && indicators.stochRsiD) {
     const gridIndex = grids.length;
+    titles.push({
+      text: "StochRSI",
+      left: 5,
+      top: `${currentTop}%`,
+      textStyle: { color: COLORS.stochRsiK, fontSize: 10, fontWeight: "normal" },
+    });
     grids.push({
       left: 60,
       right: 40,
-      top: `${currentTop}%`,
+      top: `${currentTop + labelHeight}%`,
       height: `${subHeight}%`,
     });
     xAxes.push({
@@ -473,16 +526,22 @@ export function buildChartOption(
       symbol: "none",
       lineStyle: { color: COLORS.stochRsiD, width: 1.5 },
     });
-    currentTop += subHeight + 1;
+    currentTop += subHeight + subChartGap;
   }
 
   // DMI/ADX
   if (enabledIndicators.includes("dmi") && indicators.dmiPlusDi && indicators.dmiMinusDi && indicators.dmiAdx) {
     const gridIndex = grids.length;
+    titles.push({
+      text: "DMI",
+      left: 5,
+      top: `${currentTop}%`,
+      textStyle: { color: COLORS.dmiAdx, fontSize: 10, fontWeight: "normal" },
+    });
     grids.push({
       left: 60,
       right: 40,
-      top: `${currentTop}%`,
+      top: `${currentTop + labelHeight}%`,
       height: `${subHeight}%`,
     });
     xAxes.push({
@@ -526,16 +585,22 @@ export function buildChartOption(
       symbol: "none",
       lineStyle: { color: COLORS.dmiAdx, width: 2 },
     });
-    currentTop += subHeight + 1;
+    currentTop += subHeight + subChartGap;
   }
 
   // CCI
   if (enabledIndicators.includes("cci") && indicators.cci) {
     const gridIndex = grids.length;
+    titles.push({
+      text: "CCI",
+      left: 5,
+      top: `${currentTop}%`,
+      textStyle: { color: COLORS.cci, fontSize: 10, fontWeight: "normal" },
+    });
     grids.push({
       left: 60,
       right: 40,
-      top: `${currentTop}%`,
+      top: `${currentTop + labelHeight}%`,
       height: `${subHeight}%`,
     });
     xAxes.push({
@@ -565,16 +630,22 @@ export function buildChartOption(
         data: [{ yAxis: -100 }, { yAxis: 100 }],
       },
     });
-    currentTop += subHeight + 1;
+    currentTop += subHeight + subChartGap;
   }
 
   // ATR
   if (enabledIndicators.includes("atr") && indicators.atr) {
     const gridIndex = grids.length;
+    titles.push({
+      text: "ATR",
+      left: 5,
+      top: `${currentTop}%`,
+      textStyle: { color: COLORS.atr, fontSize: 10, fontWeight: "normal" },
+    });
     grids.push({
       left: 60,
       right: 40,
-      top: `${currentTop}%`,
+      top: `${currentTop + labelHeight}%`,
       height: `${subHeight}%`,
     });
     xAxes.push({
@@ -598,16 +669,22 @@ export function buildChartOption(
       symbol: "none",
       lineStyle: { color: COLORS.atr, width: 1.5 },
     });
-    currentTop += subHeight + 1;
+    currentTop += subHeight + subChartGap;
   }
 
   // OBV
   if (enabledIndicators.includes("obv") && indicators.obv) {
     const gridIndex = grids.length;
+    titles.push({
+      text: "OBV",
+      left: 5,
+      top: `${currentTop}%`,
+      textStyle: { color: "#a0a0a0", fontSize: 10, fontWeight: "normal" },
+    });
     grids.push({
       left: 60,
       right: 40,
-      top: `${currentTop}%`,
+      top: `${currentTop + labelHeight}%`,
       height: `${subHeight}%`,
     });
     xAxes.push({
@@ -620,7 +697,11 @@ export function buildChartOption(
       type: "value",
       gridIndex,
       splitLine: { lineStyle: { color: "#333" } },
-      axisLabel: { color: "#a0a0a0", fontSize: 10 },
+      axisLabel: {
+        color: "#a0a0a0",
+        fontSize: 9,
+        formatter: (value: number) => formatLargeNumber(value),
+      },
     });
     series.push({
       name: "OBV",
@@ -631,16 +712,22 @@ export function buildChartOption(
       symbol: "none",
       lineStyle: { color: COLORS.obv, width: 1.5 },
     });
-    currentTop += subHeight + 1;
+    currentTop += subHeight + subChartGap;
   }
 
   // MFI
   if (enabledIndicators.includes("mfi") && indicators.mfi) {
     const gridIndex = grids.length;
+    titles.push({
+      text: "MFI",
+      left: 5,
+      top: `${currentTop}%`,
+      textStyle: { color: COLORS.mfi, fontSize: 10, fontWeight: "normal" },
+    });
     grids.push({
       left: 60,
       right: 40,
-      top: `${currentTop}%`,
+      top: `${currentTop + labelHeight}%`,
       height: `${subHeight}%`,
     });
     xAxes.push({
@@ -672,12 +759,123 @@ export function buildChartOption(
         data: [{ yAxis: 20 }, { yAxis: 80 }],
       },
     });
-    currentTop += subHeight + 1;
+    currentTop += subHeight + subChartGap;
+  }
+
+  // Equity Curve
+  if (hasEquityCurve && equityCurve) {
+    const gridIndex = grids.length;
+    titles.push({
+      text: "Equity",
+      left: 5,
+      top: `${currentTop}%`,
+      textStyle: { color: COLORS.equity, fontSize: 10, fontWeight: "normal" },
+    });
+    grids.push({
+      left: 60,
+      right: 40,
+      top: `${currentTop + labelHeight}%`,
+      height: `${subHeight}%`,
+    });
+    xAxes.push({
+      type: "category",
+      gridIndex,
+      data: dates,
+      show: false,
+    });
+    yAxes.push({
+      type: "value",
+      gridIndex,
+      splitLine: { lineStyle: { color: "#333" } },
+      axisLabel: {
+        color: "#a0a0a0",
+        fontSize: 9,
+        formatter: (value: number) => formatLargeNumber(value),
+      },
+    });
+
+    // Equity Curveデータをローソク足の日付にマッピング
+    const equityByTime = new Map(equityCurve.map((p) => [p.time, p]));
+    const equityData = candles.map((c) => {
+      const point = equityByTime.get(c.time);
+      return point ? point.equity : null;
+    });
+    const buyHoldData = candles.map((c) => {
+      const point = equityByTime.get(c.time);
+      return point ? point.buyHoldEquity : null;
+    });
+
+    // Buy&Holdライン
+    series.push({
+      name: "Buy&Hold",
+      type: "line",
+      xAxisIndex: gridIndex,
+      yAxisIndex: gridIndex,
+      data: buyHoldData,
+      symbol: "none",
+      lineStyle: { color: COLORS.buyHold, width: 1, type: "dashed" },
+    });
+
+    // Equityライン
+    series.push({
+      name: "Equity",
+      type: "line",
+      xAxisIndex: gridIndex,
+      yAxisIndex: gridIndex,
+      data: equityData,
+      symbol: "none",
+      lineStyle: { color: COLORS.equity, width: 2 },
+      areaStyle: {
+        color: {
+          type: "linear",
+          x: 0,
+          y: 0,
+          x2: 0,
+          y2: 1,
+          colorStops: [
+            { offset: 0, color: "rgba(74, 222, 128, 0.3)" },
+            { offset: 1, color: "rgba(74, 222, 128, 0)" },
+          ],
+        },
+      },
+    });
+
+    // トレードマーカー
+    const tradePoints = equityCurve
+      .filter((p) => p.tradeType)
+      .map((p) => {
+        const idx = candles.findIndex((c) => c.time === p.time);
+        if (idx === -1) return null;
+        return {
+          coord: [idx, p.equity],
+          symbol: p.tradeType === "BUY" ? "triangle" : "pin",
+          symbolSize: 10,
+          symbolRotate: p.tradeType === "BUY" ? 0 : 180,
+          itemStyle: {
+            color: p.tradeType === "BUY" ? "#4ade80" : "#ef4444",
+          },
+        };
+      })
+      .filter(Boolean);
+
+    if (tradePoints.length > 0) {
+      series.push({
+        name: "Trade Markers",
+        type: "scatter",
+        xAxisIndex: gridIndex,
+        yAxisIndex: gridIndex,
+        data: [],
+        markPoint: { data: tradePoints },
+      });
+    }
+
+    currentTop += subHeight + subChartGap;
   }
 
   return {
     backgroundColor: "#1a1a2e",
     animation: false,
+    title: titles,
     grid: grids,
     xAxis: xAxes,
     yAxis: yAxes,
@@ -773,7 +971,7 @@ function buildPositionLines(
 ): SeriesItem | undefined {
   if (!positionLines) return undefined;
 
-  const { entryPrice, stopLossPercent, takeProfitPercent } = positionLines;
+  const { entryPrice, stopLossPercent, takeProfitPercent, trailingStopPrice } = positionLines;
   const data: SeriesItem[] = [];
 
   // エントリーライン（実線、緑）- 水平線として描画
@@ -835,6 +1033,29 @@ function buildPositionLines(
         position: "end",
         formatter: `SL -${stopLossPercent}%`,
         color: "#ef4444",
+        fontSize: 10,
+        backgroundColor: "#1a1a2e",
+        padding: [2, 4],
+      },
+    });
+  }
+
+  // トレーリングストップライン（点線、オレンジ）
+  if (trailingStopPrice && trailingStopPrice > 0) {
+    const trailingPct = ((entryPrice - trailingStopPrice) / entryPrice * 100).toFixed(1);
+    data.push({
+      yAxis: trailingStopPrice,
+      symbol: "none",
+      lineStyle: {
+        color: "#f59e0b",
+        width: 2,
+        type: "dotted",
+      },
+      label: {
+        show: true,
+        position: "end",
+        formatter: `TS ${trailingStopPrice.toLocaleString(undefined, { maximumFractionDigits: 0 })} (-${trailingPct}%)`,
+        color: "#f59e0b",
         fontSize: 10,
         backgroundColor: "#1a1a2e",
         padding: [2, 4],

@@ -15,6 +15,7 @@ import type {
   ExitReason,
   ExitTrigger,
   Alert,
+  EquityPoint,
 } from "../types";
 import { DEFAULT_INDICATOR_PARAMS } from "../types";
 import { calculateIndicators, getIndicatorSnapshot, analyzeMarketContext, type IndicatorData } from "../utils/indicators";
@@ -35,6 +36,8 @@ interface SimulatorState {
   taxRate: number;          // 譲渡益税率(%)
   stopLossPercent: number;  // 損切り%（チャート表示用）
   takeProfitPercent: number; // 利確%（チャート表示用）
+  trailingStopEnabled: boolean;   // トレーリングストップ有効
+  trailingStopPercent: number;    // トレーリングストップ%
 
   // Alerts
   alerts: Alert[];
@@ -51,6 +54,9 @@ interface SimulatorState {
   // Data
   allCandles: NormalizedCandle[];
   indicatorData: IndicatorData | null;
+
+  // Equity Curve
+  equityCurve: EquityPoint[];
 
   // Actions
   loadCandles: (candles: NormalizedCandle[], fileName: string) => void;
@@ -80,6 +86,8 @@ interface SimulatorState {
   getTotalPnl: () => number;
   getYearHighLow: () => YearHighLow | null;
   getHoldingDays: () => number | null;
+  getEquityCurve: () => EquityPoint[];
+  updateEquityCurve: () => void;
 }
 
 export const useSimulatorStore = create<SimulatorState>((set, get) => ({
@@ -96,6 +104,8 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => ({
   taxRate: 20.315,
   stopLossPercent: 5,
   takeProfitPercent: 10,
+  trailingStopEnabled: false,
+  trailingStopPercent: 5,
   alerts: [],
   currentIndex: 0,
   isPlaying: false,
@@ -104,6 +114,7 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => ({
   tradeHistory: [],
   allCandles: [],
   indicatorData: null,
+  equityCurve: [],
 
   // Actions
   loadCandles: (candles, fileName) => {
@@ -139,6 +150,15 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => ({
       config.indicatorParams
     );
 
+    // 初期Equity Curveを作成
+    const simStartCandle = allCandles[startIdx];
+    const initialEquityPoint: EquityPoint = {
+      time: simStartCandle?.time || 0,
+      equity: config.initialCapital,
+      buyHoldEquity: config.initialCapital,
+      drawdown: 0,
+    };
+
     set({
       phase: "running",
       startIndex: initialIdx,
@@ -151,12 +171,15 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => ({
       taxRate: config.taxRate,
       stopLossPercent: config.stopLossPercent,
       takeProfitPercent: config.takeProfitPercent,
+      trailingStopEnabled: config.trailingStopEnabled,
+      trailingStopPercent: config.trailingStopPercent,
       alerts: [],
       currentIndex: startIdx,
       isPlaying: false,
       positions: [],
       tradeHistory: [],
       indicatorData,
+      equityCurve: [initialEquityPoint],
     });
   },
 
@@ -166,7 +189,7 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => ({
   setSpeed: (speed) => set({ playbackSpeed: speed }),
 
   stepForward: () => {
-    const { currentIndex, allCandles, positions, stopLossPercent, takeProfitPercent, alerts } = get();
+    const { currentIndex, allCandles, positions, stopLossPercent, takeProfitPercent, trailingStopEnabled, alerts } = get();
     if (currentIndex >= allCandles.length - 1) {
       set({ isPlaying: false });
       return false;
@@ -175,6 +198,8 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => ({
     set({ currentIndex: newIndex });
     // MFE/MAE更新
     get().updatePositionMFEMAE();
+    // Equity Curve更新
+    get().updateEquityCurve();
 
     // 損切り/利確アラートチェック
     if (positions.length > 0) {
@@ -224,6 +249,37 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => ({
             });
           }
         }
+
+        // トレーリングストップアラート
+        if (trailingStopEnabled) {
+          // 全ポジションのトレーリングストップ価格のうち、最小のものを取得
+          const trailingStopPrices = get().positions
+            .filter((p) => p.trailingStopPrice !== undefined)
+            .map((p) => p.trailingStopPrice!);
+
+          if (trailingStopPrices.length > 0) {
+            const minTrailingStop = Math.min(...trailingStopPrices);
+            // 安値がトレーリングストップ価格を下回った
+            if (candle.low <= minTrailingStop) {
+              const existingAlert = get().alerts.find(
+                (a) => a.type === "TRAILING_STOP_HIT"
+              );
+              if (!existingAlert) {
+                set({
+                  alerts: [
+                    ...get().alerts,
+                    {
+                      id: crypto.randomUUID(),
+                      type: "TRAILING_STOP_HIT",
+                      message: `トレーリングストップ(${minTrailingStop.toLocaleString()}円)に到達しました`,
+                      timestamp: Date.now(),
+                    },
+                  ],
+                });
+              }
+            }
+          }
+        }
       }
     }
 
@@ -231,7 +287,7 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => ({
   },
 
   updatePositionMFEMAE: () => {
-    const { positions, allCandles, currentIndex } = get();
+    const { positions, allCandles, currentIndex, trailingStopEnabled, trailingStopPercent } = get();
     if (positions.length === 0) return;
 
     const candle = allCandles[currentIndex];
@@ -244,6 +300,15 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => ({
       if (candle.high > pos.highestPrice) {
         newPos = { ...newPos, highestPrice: candle.high, highestDate: candle.time };
         updated = true;
+
+        // トレーリングストップ価格を更新（新高値からN%下）
+        if (trailingStopEnabled) {
+          const newTrailingStop = candle.high * (1 - trailingStopPercent / 100);
+          // 既存のトレーリングストップより高い場合のみ更新（下げない）
+          if (!pos.trailingStopPrice || newTrailingStop > pos.trailingStopPrice) {
+            newPos = { ...newPos, trailingStopPrice: newTrailingStop };
+          }
+        }
       }
       if (candle.low < pos.lowestPrice) {
         newPos = { ...newPos, lowestPrice: candle.low, lowestDate: candle.time };
@@ -266,7 +331,7 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => ({
   },
 
   executeBuy: (shares, memo, priceType) => {
-    const { currentIndex, allCandles, tradeHistory, positions, indicatorData, commissionRate, slippageBps } = get();
+    const { currentIndex, allCandles, tradeHistory, positions, indicatorData, commissionRate, slippageBps, trailingStopEnabled, trailingStopPercent } = get();
 
     // Determine which candle and price to use
     let targetIndex = currentIndex;
@@ -304,6 +369,11 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => ({
 
     // 新しいポジションを追加（追加買い対応）
     // MFE/MAE追跡用にhighest/lowestを初期化
+    // トレーリングストップが有効な場合、初期価格を設定（高値からN%下）
+    const initialTrailingStop = trailingStopEnabled
+      ? targetCandle.high * (1 - trailingStopPercent / 100)
+      : undefined;
+
     const newPosition: Position = {
       id: crypto.randomUUID(),
       entryPrice: effectivePrice,
@@ -315,6 +385,7 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => ({
       highestDate: targetCandle.time,
       lowestDate: targetCandle.time,
       commission,
+      trailingStopPrice: initialTrailingStop,
     };
 
     const trade: Trade = {
@@ -642,5 +713,68 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => ({
     // 最初のエントリーインデックスを取得
     const firstEntryIndex = Math.min(...positions.map((p) => p.entryIndex));
     return currentIndex - firstEntryIndex;
+  },
+
+  getEquityCurve: () => {
+    return get().equityCurve;
+  },
+
+  updateEquityCurve: () => {
+    const {
+      allCandles,
+      currentIndex,
+      initialCapital,
+      tradeHistory,
+      positions,
+      startIndex,
+      initialCandleCount,
+      equityCurve
+    } = get();
+
+    const currentCandle = allCandles[currentIndex];
+    if (!currentCandle) return;
+
+    // 確定損益を計算
+    const realizedPnl = tradeHistory
+      .filter((t) => t.type === "SELL" && t.pnl !== undefined)
+      .reduce((sum, t) => sum + (t.pnl || 0), 0);
+
+    // 含み損益を計算
+    let unrealizedPnl = 0;
+    if (positions.length > 0) {
+      const totalShares = positions.reduce((sum, p) => sum + p.shares, 0);
+      const totalCost = positions.reduce((sum, p) => sum + p.entryPrice * p.shares, 0);
+      const avgEntryPrice = totalCost / totalShares;
+      unrealizedPnl = (currentCandle.close - avgEntryPrice) * totalShares;
+    }
+
+    // 現在の資産
+    const equity = initialCapital + realizedPnl + unrealizedPnl;
+
+    // Buy&Hold計算
+    const simStartIndex = startIndex + initialCandleCount;
+    const simStartPrice = allCandles[simStartIndex]?.close || currentCandle.close;
+    const buyHoldReturn = (currentCandle.close - simStartPrice) / simStartPrice;
+    const buyHoldEquity = initialCapital * (1 + buyHoldReturn);
+
+    // ドローダウン計算（ピークからの下落）
+    const peak = equityCurve.reduce((max, p) => Math.max(max, p.equity), initialCapital);
+    const drawdown = equity >= peak ? 0 : ((peak - equity) / peak) * 100;
+
+    // トレードマーカーがあるかチェック
+    const lastTrade = tradeHistory[tradeHistory.length - 1];
+    const tradeType = lastTrade && lastTrade.date === currentCandle.time
+      ? lastTrade.type
+      : undefined;
+
+    const newPoint: EquityPoint = {
+      time: currentCandle.time,
+      equity,
+      buyHoldEquity,
+      drawdown,
+      tradeType,
+    };
+
+    set({ equityCurve: [...equityCurve, newPoint] });
   },
 }));

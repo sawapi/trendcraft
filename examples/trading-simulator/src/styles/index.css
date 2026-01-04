@@ -172,6 +172,13 @@ h1 {
   margin-top: 16px;
 }
 
+.drop-zone .highlight {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--accent);
+  margin: 8px 0;
+}
+
 /* Setup Panel */
 .setup-panel {
   background: var(--bg-secondary);
@@ -507,6 +514,89 @@ h1 {
 
 .progress-info .count {
   color: var(--text-secondary);
+}
+
+/* Time Seek Bar */
+.seek-bar-container {
+  margin-top: 12px;
+  position: relative;
+}
+
+.seek-bar {
+  width: 100%;
+  height: 8px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.seek-bar::-webkit-slider-runnable-track {
+  height: 8px;
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+}
+
+.seek-bar::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  margin-top: -5px;
+  background: var(--accent);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+
+.seek-bar::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+.seek-bar::-moz-range-track {
+  height: 8px;
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+}
+
+.seek-bar::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  background: var(--accent);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.seek-bar:focus {
+  outline: none;
+}
+
+.seek-preview {
+  position: absolute;
+  top: -28px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 10px;
+  background: var(--accent);
+  color: white;
+  font-size: 0.8rem;
+  font-weight: 500;
+  border-radius: 4px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.seek-preview::after {
+  content: "";
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 5px solid var(--accent);
 }
 
 /* Position Panel */
@@ -1252,6 +1342,244 @@ h1 {
   margin-top: 4px;
 }
 
+/* Trailing Stop Settings */
+.trailing-stop-settings {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.trailing-stop-settings .checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.trailing-stop-settings .checkbox-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--warning);
+}
+
+.trailing-stop-input {
+  margin-top: 12px;
+  max-width: 200px;
+}
+
+.trailing-stop-input label {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.trailing-stop-input input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+}
+
+.trailing-stop-input input:focus {
+  outline: none;
+  border-color: var(--warning);
+}
+
+.trailing-stop-input .hint {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+/* Trailing Stop Info in Position Panel */
+.trailing-stop-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  margin-top: 8px;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid var(--warning);
+  border-radius: 6px;
+}
+
+.trailing-stop-info .label {
+  font-size: 0.85rem;
+  color: var(--warning);
+}
+
+.trailing-stop-info .value {
+  font-weight: 600;
+  color: var(--warning);
+}
+
+/* Position Sizing Calculator */
+.shares-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.sizing-calc-toggle {
+  padding: 4px 10px;
+  font-size: 0.8rem;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.sizing-calc-toggle:hover {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+.sizing-calculator {
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.sizing-method-selector {
+  margin-bottom: 12px;
+}
+
+.sizing-method-selector > label {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.sizing-method-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.sizing-method-btn {
+  flex: 1;
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.sizing-method-btn:hover:not(:disabled) {
+  background: var(--bg-tertiary);
+}
+
+.sizing-method-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+.sizing-method-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.sizing-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.sizing-input label {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.sizing-input input {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+}
+
+.sizing-input input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.sizing-hint {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.sizing-result {
+  padding: 10px;
+  background: rgba(74, 222, 128, 0.1);
+  border: 1px solid var(--success);
+  border-radius: 6px;
+}
+
+.sizing-result .result-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+}
+
+.sizing-result .result-label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.sizing-result .result-value {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--success);
+}
+
+.apply-sizing-btn {
+  width: 100%;
+  margin-top: 10px;
+  padding: 8px 16px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  background: var(--success);
+  border: none;
+  border-radius: 6px;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.apply-sizing-btn:hover {
+  background: #22c55e;
+}
+
+.sizing-error {
+  padding: 10px;
+  font-size: 0.85rem;
+  color: var(--warning);
+  text-align: center;
+}
+
 /* Exit Reason Selector */
 .exit-reason-selector {
   margin-bottom: 12px;
@@ -1413,4 +1741,366 @@ h1 {
 .trade-tax-info {
   font-size: 0.85em;
   opacity: 0.9;
+}
+
+/* Stats Panel */
+.stats-panel {
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.stats-panel h3 {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.stats-panel h3::before {
+  content: "";
+  display: inline-block;
+  width: 4px;
+  height: 14px;
+  background: var(--accent);
+  border-radius: 2px;
+}
+
+.stats-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.stats-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 10px 0;
+}
+
+.stats-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9rem;
+}
+
+.stats-row.highlight {
+  font-size: 1rem;
+  padding: 8px;
+  background: var(--bg-primary);
+  border-radius: 6px;
+  margin-bottom: 4px;
+}
+
+.stats-row.sub {
+  font-size: 0.85rem;
+  opacity: 0.9;
+  padding-left: 8px;
+}
+
+.stats-row .label {
+  color: var(--text-secondary);
+}
+
+.stats-row .value {
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.stats-row .value .percent {
+  font-weight: 400;
+  font-size: 0.85em;
+  opacity: 0.8;
+}
+
+.stats-row .value .sub-value {
+  font-weight: 400;
+  font-size: 0.85em;
+  color: var(--text-secondary);
+  margin-left: 4px;
+}
+
+.stats-row .value.positive {
+  color: var(--success);
+}
+
+.stats-row .value.negative {
+  color: var(--danger);
+}
+
+.stats-section.benchmark {
+  padding: 8px;
+  background: var(--bg-tertiary);
+  border-radius: 6px;
+}
+
+.stats-panel .no-stats {
+  color: var(--text-secondary);
+  font-style: italic;
+  font-size: 0.9rem;
+  text-align: center;
+  padding: 12px;
+}
+
+/* Session Manager */
+.session-manager-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.session-manager-modal {
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 400px;
+  width: 90%;
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+  from {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.session-manager-modal h3 {
+  color: var(--accent);
+  margin-bottom: 16px;
+  font-size: 1.1rem;
+}
+
+.session-info {
+  background: var(--bg-primary);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+
+.session-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  font-size: 0.9rem;
+}
+
+.session-row .label {
+  color: var(--text-secondary);
+}
+
+.session-row .value {
+  font-weight: 500;
+}
+
+.session-note {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
+
+.session-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.session-actions button {
+  flex: 1;
+}
+
+/* Trade Analysis */
+.trade-analysis {
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.analysis-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 16px;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.analysis-toggle:hover {
+  background: var(--bg-tertiary);
+}
+
+.analysis-toggle .material-icons {
+  font-size: 20px;
+  color: var(--accent);
+}
+
+.analysis-toggle .toggle-icon {
+  margin-left: auto;
+  color: var(--text-secondary);
+}
+
+.analysis-content {
+  padding: 0 16px 16px;
+}
+
+.analysis-section {
+  margin-bottom: 16px;
+}
+
+.analysis-section:last-child {
+  margin-bottom: 0;
+}
+
+.analysis-section h4 {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+  padding-left: 8px;
+  border-left: 2px solid var(--accent);
+}
+
+.analysis-table {
+  background: var(--bg-primary);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.analysis-row {
+  display: grid;
+  grid-template-columns: 1fr 50px 50px 60px;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 0.85rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.analysis-row:last-child {
+  border-bottom: none;
+}
+
+.analysis-row .label {
+  color: var(--text-primary);
+}
+
+.analysis-row .count {
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+.analysis-row .win-rate,
+.analysis-row .avg-pnl {
+  text-align: right;
+  font-weight: 600;
+}
+
+.analysis-row .positive {
+  color: var(--success);
+}
+
+.analysis-row .negative {
+  color: var(--danger);
+}
+
+/* Day of Week Analysis */
+.day-of-week .dow-header {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.day-of-week .dow-header .label {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.day-of-week .header-group {
+  display: flex;
+  gap: 24px;
+}
+
+.day-of-week .sub-header {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  min-width: 80px;
+  text-align: center;
+}
+
+.dow-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.dow-stats {
+  display: flex;
+  gap: 24px;
+}
+
+.dow-entry,
+.dow-exit {
+  display: flex;
+  gap: 8px;
+  min-width: 80px;
+  justify-content: flex-end;
+}
+
+.dow-entry .count,
+.dow-exit .count {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+/* Month Analysis */
+.month-table {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+}
+
+.month-table .analysis-row {
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 6px 8px;
+  background: var(--bg-primary);
+  border-radius: 4px;
+}
+
+.month-table .analysis-row .label {
+  font-weight: 500;
+  margin-bottom: 2px;
+}
+
+.month-table .analysis-row .count {
+  font-size: 0.75rem;
+}
+
+.analysis-table .no-data {
+  padding: 12px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-style: italic;
 }

@@ -44,6 +44,8 @@ export function SetupPanel() {
   const [taxRate, setTaxRate] = useState(20.315);
   const [stopLossPercent, setStopLossPercent] = useState(5);
   const [takeProfitPercent, setTakeProfitPercent] = useState(10);
+  const [trailingStopEnabled, setTrailingStopEnabled] = useState(false);
+  const [trailingStopPercent, setTrailingStopPercent] = useState(5);
 
   const handleStart = () => {
     const date = new Date(startDate).getTime();
@@ -58,6 +60,8 @@ export function SetupPanel() {
       taxRate,
       stopLossPercent,
       takeProfitPercent,
+      trailingStopEnabled,
+      trailingStopPercent,
     });
   };
 
@@ -187,6 +191,30 @@ export function SetupPanel() {
               />
               <p className="hint">エントリー価格からN%上に利確ラインを表示</p>
             </div>
+          </div>
+          <div className="trailing-stop-settings">
+            <label className="checkbox-label">
+              <input
+                type="checkbox"
+                checked={trailingStopEnabled}
+                onChange={(e) => setTrailingStopEnabled(e.target.checked)}
+              />
+              トレーリングストップを有効にする
+            </label>
+            {trailingStopEnabled && (
+              <div className="trailing-stop-input">
+                <label>トレーリングストップ幅 (%)</label>
+                <input
+                  type="number"
+                  value={trailingStopPercent}
+                  min={1}
+                  max={50}
+                  step={0.5}
+                  onChange={(e) => setTrailingStopPercent(Number(e.target.value))}
+                />
+                <p className="hint">高値からN%下落でストップ（価格上昇に追従）</p>
+              </div>
+            )}
           </div>
         </div>
 

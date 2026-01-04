@@ -16,6 +16,15 @@ const EXIT_TRIGGERS: ExitTrigger[] = [
   "TIME_LIMIT",
 ];
 
+// ポジションサイジング計算タイプ
+type SizingMethod = "fixed" | "risk" | "atr";
+
+interface SizingResult {
+  shares: number;
+  riskAmount: number;
+  riskPercent: number;
+}
+
 export function TradePanel() {
   const {
     positions,
@@ -28,6 +37,10 @@ export function TradePanel() {
     getCurrentCandle,
     getNextCandle,
     initialCapital,
+    stopLossPercent,
+    indicatorData,
+    currentIndex,
+    startIndex,
   } = useSimulatorStore();
 
   const [buyShares, setBuyShares] = useState(100);
@@ -36,6 +49,13 @@ export function TradePanel() {
   const [priceType, setPriceType] = useState<PriceType>("nextOpen");
   const [exitReason, setExitReason] = useState<ExitReason>("MANUAL");
   const [exitTrigger, setExitTrigger] = useState<ExitTrigger | undefined>(undefined);
+
+  // ポジションサイジング計算機の状態
+  const [showSizingCalc, setShowSizingCalc] = useState(false);
+  const [sizingMethod, setSizingMethod] = useState<SizingMethod>("risk");
+  const [riskPercent, setRiskPercent] = useState(2); // 資金に対するリスク%
+  const [customStopLoss, setCustomStopLoss] = useState(0); // カスタム損切り価格
+  const [atrMultiplier, setAtrMultiplier] = useState(2); // ATR倍率
 
   const currentCandle = getCurrentCandle();
   const nextCandle = getNextCandle();
@@ -50,6 +70,59 @@ export function TradePanel() {
   }, [priceType, currentCandle, nextCandle]);
 
   const totalBuyCost = estimatedPrice * buyShares;
+
+  // 現在のATR値を取得
+  const currentAtr = useMemo(() => {
+    if (!indicatorData?.atr) return null;
+    const visibleIndex = currentIndex - startIndex;
+    return indicatorData.atr[visibleIndex] ?? null;
+  }, [indicatorData, currentIndex, startIndex]);
+
+  // ポジションサイジング計算
+  const sizingResult: SizingResult | null = useMemo(() => {
+    if (estimatedPrice <= 0) return null;
+
+    let stopLossPrice: number;
+
+    switch (sizingMethod) {
+      case "risk":
+        // 固定リスク%方式: デフォルトの損切り%を使用
+        stopLossPrice = customStopLoss > 0
+          ? customStopLoss
+          : estimatedPrice * (1 - stopLossPercent / 100);
+        break;
+      case "atr":
+        // ATRベース方式
+        if (!currentAtr) return null;
+        stopLossPrice = estimatedPrice - (currentAtr * atrMultiplier);
+        break;
+      case "fixed":
+      default:
+        // 固定株数（計算不要）
+        return null;
+    }
+
+    const riskPerShare = estimatedPrice - stopLossPrice;
+    if (riskPerShare <= 0) return null;
+
+    const maxRiskAmount = initialCapital * (riskPercent / 100);
+    const calculatedShares = Math.floor(maxRiskAmount / riskPerShare / 100) * 100; // 100株単位
+    const shares = Math.max(100, calculatedShares);
+
+    return {
+      shares,
+      riskAmount: shares * riskPerShare,
+      riskPercent: (shares * riskPerShare / initialCapital) * 100,
+    };
+  }, [sizingMethod, estimatedPrice, stopLossPercent, riskPercent, customStopLoss, currentAtr, atrMultiplier, initialCapital]);
+
+  // 計算結果を買い株数に反映
+  const applySizingResult = useCallback(() => {
+    if (sizingResult) {
+      setBuyShares(sizingResult.shares);
+      setShowSizingCalc(false);
+    }
+  }, [sizingResult]);
 
   const handleBuy = useCallback(() => {
     if (isPlaying) pause();
@@ -91,7 +164,16 @@ export function TradePanel() {
 
       {/* Buy Section */}
       <div className="shares-input">
-        <label>買い株数</label>
+        <div className="shares-header">
+          <label>買い株数</label>
+          <button
+            className="sizing-calc-toggle"
+            onClick={() => setShowSizingCalc(!showSizingCalc)}
+            title="ポジションサイジング計算機"
+          >
+            {showSizingCalc ? "✕ 閉じる" : "📊 計算機"}
+          </button>
+        </div>
         <div className="shares-controls">
           <button
             className="shares-btn"
@@ -115,6 +197,100 @@ export function TradePanel() {
           </button>
         </div>
       </div>
+
+      {/* Position Sizing Calculator */}
+      {showSizingCalc && (
+        <div className="sizing-calculator">
+          <div className="sizing-method-selector">
+            <label>計算方式</label>
+            <div className="sizing-method-buttons">
+              <button
+                className={`sizing-method-btn ${sizingMethod === "risk" ? "active" : ""}`}
+                onClick={() => setSizingMethod("risk")}
+              >
+                リスク%
+              </button>
+              <button
+                className={`sizing-method-btn ${sizingMethod === "atr" ? "active" : ""}`}
+                onClick={() => setSizingMethod("atr")}
+                disabled={!currentAtr}
+                title={!currentAtr ? "ATRインジケーターを有効にしてください" : ""}
+              >
+                ATRベース
+              </button>
+            </div>
+          </div>
+
+          <div className="sizing-inputs">
+            <div className="sizing-input">
+              <label>リスク許容度 (%)</label>
+              <input
+                type="number"
+                value={riskPercent}
+                onChange={(e) => setRiskPercent(Number(e.target.value))}
+                min={0.5}
+                max={10}
+                step={0.5}
+              />
+              <span className="sizing-hint">資金{initialCapital.toLocaleString()}円 × {riskPercent}% = {(initialCapital * riskPercent / 100).toLocaleString()}円</span>
+            </div>
+
+            {sizingMethod === "risk" && (
+              <div className="sizing-input">
+                <label>損切り価格 (0=デフォルト{stopLossPercent}%)</label>
+                <input
+                  type="number"
+                  value={customStopLoss}
+                  onChange={(e) => setCustomStopLoss(Number(e.target.value))}
+                  min={0}
+                  step={1}
+                />
+              </div>
+            )}
+
+            {sizingMethod === "atr" && currentAtr && (
+              <div className="sizing-input">
+                <label>ATR倍率</label>
+                <input
+                  type="number"
+                  value={atrMultiplier}
+                  onChange={(e) => setAtrMultiplier(Number(e.target.value))}
+                  min={1}
+                  max={5}
+                  step={0.5}
+                />
+                <span className="sizing-hint">ATR: {currentAtr.toFixed(2)} × {atrMultiplier} = {(currentAtr * atrMultiplier).toFixed(2)}円</span>
+              </div>
+            )}
+          </div>
+
+          {sizingResult && (
+            <div className="sizing-result">
+              <div className="result-row">
+                <span className="result-label">推奨株数</span>
+                <span className="result-value">{sizingResult.shares.toLocaleString()}株</span>
+              </div>
+              <div className="result-row">
+                <span className="result-label">リスク金額</span>
+                <span className="result-value">{sizingResult.riskAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}円</span>
+              </div>
+              <div className="result-row">
+                <span className="result-label">リスク率</span>
+                <span className="result-value">{sizingResult.riskPercent.toFixed(2)}%</span>
+              </div>
+              <button className="apply-sizing-btn" onClick={applySizingResult}>
+                この株数を適用
+              </button>
+            </div>
+          )}
+
+          {!sizingResult && sizingMethod !== "fixed" && (
+            <div className="sizing-error">
+              計算できません。パラメータを確認してください。
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Sell Section - only show if has position */}
       {hasPosition && positionSummary && (

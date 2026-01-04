@@ -10,6 +10,7 @@ export function PositionPanel() {
     tradeHistory,
     getYearHighLow,
     getHoldingDays,
+    trailingStopEnabled,
   } = useSimulatorStore();
 
   const positionSummary = getPositionSummary();
@@ -61,6 +62,15 @@ export function PositionPanel() {
               {unrealizedPnl.pnl.toLocaleString(undefined, { maximumFractionDigits: 0 })} (
               {unrealizedPnl.pnlPercent >= 0 ? "+" : ""}
               {unrealizedPnl.pnlPercent.toFixed(2)}%)
+            </div>
+          )}
+
+          {trailingStopEnabled && positions.some((p) => p.trailingStopPrice) && (
+            <div className="trailing-stop-info">
+              <span className="label">トレーリングストップ</span>
+              <span className="value">
+                {Math.max(...positions.filter(p => p.trailingStopPrice).map(p => p.trailingStopPrice!)).toLocaleString(undefined, { maximumFractionDigits: 0 })}円
+              </span>
             </div>
           )}
 

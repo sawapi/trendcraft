@@ -15,6 +15,8 @@ export function Chart() {
     positions,
     stopLossPercent,
     takeProfitPercent,
+    trailingStopEnabled,
+    equityCurve,
   } = useSimulatorStore();
 
   const visibleCandles = useMemo(() => {
@@ -48,13 +50,19 @@ export function Chart() {
     const totalCost = positions.reduce((sum, p) => sum + p.entryPrice * p.shares, 0);
     const avgEntryPrice = totalCost / totalShares;
 
+    // トレーリングストップ価格（最大のものを使用）
+    const trailingStopPrice = trailingStopEnabled
+      ? Math.max(...positions.filter(p => p.trailingStopPrice).map(p => p.trailingStopPrice!), 0)
+      : undefined;
+
     return {
       entryPrice: avgEntryPrice,
       entryIndex: relativeEntryIndex,
       stopLossPercent,
       takeProfitPercent,
+      trailingStopPrice: trailingStopPrice && trailingStopPrice > 0 ? trailingStopPrice : undefined,
     };
-  }, [positions, startIndex, stopLossPercent, takeProfitPercent]);
+  }, [positions, startIndex, stopLossPercent, takeProfitPercent, trailingStopEnabled]);
 
   const option = useMemo(() => {
     return buildChartOption(
@@ -62,9 +70,10 @@ export function Chart() {
       indicators,
       enabledIndicators,
       tradeMarkers,
-      positionLines
+      positionLines,
+      equityCurve
     );
-  }, [visibleCandles, indicators, enabledIndicators, tradeMarkers, positionLines]);
+  }, [visibleCandles, indicators, enabledIndicators, tradeMarkers, positionLines, equityCurve]);
 
   return (
     <div className="chart-container">
