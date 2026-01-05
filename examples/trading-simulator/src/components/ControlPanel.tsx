@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useState, useMemo } from "react";
 import { useSimulatorStore } from "../store/simulatorStore";
 import { usePlayback } from "../hooks/usePlayback";
 import { formatDate } from "../utils/fileParser";
@@ -6,12 +6,13 @@ import type { PlaybackSpeed } from "../types";
 
 export function ControlPanel() {
   const {
+    symbols,
+    activeSymbolId,
+    commonDateRange,
+    currentDateIndex,
     isPlaying,
     playbackSpeed,
-    currentIndex,
-    startIndex,
     initialCandleCount,
-    allCandles,
     togglePlay,
     pause,
     setSpeed,
@@ -25,6 +26,23 @@ export function ControlPanel() {
 
   // シークバードラッグ中の仮の値
   const [seekValue, setSeekValue] = useState<number | null>(null);
+
+  // アクティブ銘柄を取得
+  const activeSymbol = useMemo(() => {
+    if (!activeSymbolId) return symbols[0] || null;
+    return symbols.find(s => s.id === activeSymbolId) || null;
+  }, [symbols, activeSymbolId]);
+
+  // 現在の日付からインデックスを計算
+  const currentIndex = useMemo(() => {
+    if (!activeSymbol || !commonDateRange || currentDateIndex < 0) return 0;
+    const targetDate = commonDateRange.dates[currentDateIndex];
+    if (!targetDate) return 0;
+    return activeSymbol.allCandles.findIndex(c => c.time === targetDate);
+  }, [activeSymbol, commonDateRange, currentDateIndex]);
+
+  const allCandles = activeSymbol?.allCandles || [];
+  const startIndex = activeSymbol?.startIndex || 0;
 
   const currentCandle = allCandles[currentIndex];
   const minIndex = startIndex + initialCandleCount;

@@ -1,17 +1,27 @@
+import { useMemo } from "react";
 import { useSimulatorStore } from "../store/simulatorStore";
 import { formatDate } from "../utils/fileParser";
 
 export function PositionPanel() {
   const {
-    positions,
+    symbols,
+    activeSymbolId,
     getPositionSummary,
     getUnrealizedPnl,
     getTotalPnl,
-    tradeHistory,
     getYearHighLow,
     getHoldingDays,
     trailingStopEnabled,
   } = useSimulatorStore();
+
+  // アクティブ銘柄を取得
+  const activeSymbol = useMemo(() => {
+    if (!activeSymbolId) return symbols[0] || null;
+    return symbols.find(s => s.id === activeSymbolId) || null;
+  }, [symbols, activeSymbolId]);
+
+  const positions = activeSymbol?.positions || [];
+  const tradeHistory = activeSymbol?.tradeHistory || [];
 
   const positionSummary = getPositionSummary();
   const unrealizedPnl = getUnrealizedPnl();

@@ -16,11 +16,15 @@ import { ThemeToggle } from "./components/ThemeToggle";
 import { AlertBanner } from "./components/AlertBanner";
 import { SessionManager } from "./components/SessionManager";
 import { TradeAnalysis } from "./components/TradeAnalysis";
+import { SymbolTabs } from "./components/SymbolTabs";
 
 export default function App() {
-  const { phase, allCandles } = useSimulatorStore();
+  const { phase, symbols } = useSimulatorStore();
   const [pendingSession, setPendingSession] = useState<SessionData | null>(() => loadSession());
   const [showSessionManager, setShowSessionManager] = useState(() => !!loadSession());
+
+  // 銘柄が読み込まれているかどうか
+  const hasData = symbols.length > 0 && symbols[0].allCandles.length > 0;
 
   // Enable keyboard shortcuts
   useKeyboardShortcuts();
@@ -40,7 +44,7 @@ export default function App() {
     setShowSessionManager(false);
   }, []);
 
-  if (allCandles.length === 0) {
+  if (!hasData) {
     return (
       <div className="app">
         <h1>Trading Simulator</h1>
@@ -58,8 +62,15 @@ export default function App() {
   if (phase === "setup") {
     return (
       <div className="app">
-        <h1>Trading Simulator</h1>
-        <SetupPanel />
+        <div className="app-header">
+          <h1>Trading Simulator</h1>
+        </div>
+        <div className="setup-layout">
+          <div className="setup-tabs-container">
+            <SymbolTabs />
+          </div>
+          <SetupPanel />
+        </div>
       </div>
     );
   }
@@ -85,6 +96,7 @@ export default function App() {
           <ReportButton />
         </div>
         <div className="main-content">
+          <SymbolTabs />
           <Chart />
         </div>
       </div>

@@ -1,9 +1,19 @@
+import { useMemo } from "react";
 import { useSimulatorStore } from "../store/simulatorStore";
 import { formatDate } from "../utils/fileParser";
 import { PRICE_TYPE_LABELS } from "../types";
 
 export function TradeHistoryPanel() {
-  const { tradeHistory, allCandles, jumpToIndex } = useSimulatorStore();
+  const { symbols, activeSymbolId, jumpToIndex } = useSimulatorStore();
+
+  // アクティブ銘柄を取得
+  const activeSymbol = useMemo(() => {
+    if (!activeSymbolId) return symbols[0] || null;
+    return symbols.find(s => s.id === activeSymbolId) || null;
+  }, [symbols, activeSymbolId]);
+
+  const tradeHistory = activeSymbol?.tradeHistory || [];
+  const allCandles = activeSymbol?.allCandles || [];
 
   const handleTradeClick = (tradeDate: number) => {
     // 取引日に対応するインデックスを見つける

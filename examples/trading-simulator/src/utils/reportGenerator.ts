@@ -621,3 +621,294 @@ export function generateJSONReport(data: ReportData): string {
 
   return JSON.stringify(report, null, 2);
 }
+
+// ===========================================
+// ポートフォリオレポート（複数銘柄対応）
+// ===========================================
+
+export interface SymbolReportData extends ReportData {
+  symbolId: string;
+}
+
+export interface PortfolioReportData {
+  symbols: SymbolReportData[];
+  initialCapital: number;
+  enabledIndicators: string[];
+  commissionRate?: number;
+  slippageBps?: number;
+  taxRate?: number;
+}
+
+interface SymbolSummary {
+  fileName: string;
+  totalTrades: number;
+  winRate: number;
+  totalPnl: number;
+  totalPnlPercent: number;
+  buyHoldReturn?: number;
+  alpha?: number;
+}
+
+export function generatePortfolioMarkdownReport(data: PortfolioReportData): string {
+  const lines: string[] = [];
+
+  // Header
+  lines.push("# ポートフォリオ売買シミュレーションレポート");
+  lines.push("");
+
+  // Session Info
+  lines.push("## セッション情報");
+  lines.push("");
+  lines.push(`- 銘柄数: ${data.symbols.length}`);
+  lines.push(`- 初期資金: ${data.initialCapital.toLocaleString()}円`);
+
+  // 期間（全銘柄の共通期間を表示）
+  const allStartDates = data.symbols.map(s => s.startDate).filter(d => d > 0);
+  const allEndDates = data.symbols.map(s => s.endDate).filter(d => d > 0);
+  if (allStartDates.length > 0 && allEndDates.length > 0) {
+    const startDate = Math.max(...allStartDates);
+    const endDate = Math.min(...allEndDates);
+    lines.push(`- 期間: ${formatDate(startDate)} - ${formatDate(endDate)}`);
+  }
+  lines.push("");
+
+  // ポートフォリオサマリー
+  lines.push("## ポートフォリオサマリー");
+  lines.push("");
+
+  // 各銘柄の統計を計算
+  const symbolSummaries: SymbolSummary[] = data.symbols.map(symbol => {
+    const stats = calculateExtendedStats(symbol.tradeHistory, data.initialCapital, symbol.totalTradingDays);
+    let buyHoldReturn: number | undefined;
+    let alpha: number | undefined;
+    if (symbol.startPrice && symbol.endPrice && symbol.startPrice > 0) {
+      buyHoldReturn = ((symbol.endPrice - symbol.startPrice) / symbol.startPrice) * 100;
+      alpha = stats.totalPnlPercent - buyHoldReturn;
+    }
+    return {
+      fileName: symbol.fileName,
+      totalTrades: stats.totalTrades,
+      winRate: stats.winRate,
+      totalPnl: stats.totalPnl,
+      totalPnlPercent: stats.totalPnlPercent,
+      buyHoldReturn,
+      alpha,
+    };
+  });
+
+  // ポートフォリオ全体の統計
+  const totalPnl = symbolSummaries.reduce((sum, s) => sum + s.totalPnl, 0);
+  const totalPnlPercent = (totalPnl / data.initialCapital) * 100;
+  const totalTrades = symbolSummaries.reduce((sum, s) => sum + s.totalTrades, 0);
+  const totalWins = data.symbols.reduce((sum, s) => {
+    return sum + s.tradeHistory.filter(t => t.type === "SELL" && (t.pnl || 0) > 0).length;
+  }, 0);
+  const overallWinRate = totalTrades > 0 ? (totalWins / totalTrades) * 100 : 0;
+
+  // Buy&Hold平均
+  const symbolsWithBuyHold = symbolSummaries.filter(s => s.buyHoldReturn !== undefined);
+  const avgBuyHoldReturn = symbolsWithBuyHold.length > 0
+    ? symbolsWithBuyHold.reduce((sum, s) => sum + (s.buyHoldReturn || 0), 0) / symbolsWithBuyHold.length
+    : undefined;
+  const avgAlpha = avgBuyHoldReturn !== undefined
+    ? totalPnlPercent - avgBuyHoldReturn
+    : undefined;
+
+  lines.push("### 全体パフォーマンス");
+  lines.push("");
+  lines.push("| 指標 | 値 |");
+  lines.push("|------|------|");
+  lines.push(`| 総損益 | ${totalPnl >= 0 ? "+" : ""}${totalPnl.toLocaleString()}円 (${totalPnlPercent >= 0 ? "+" : ""}${totalPnlPercent.toFixed(2)}%) |`);
+  lines.push(`| 最終資産 | ${(data.initialCapital + totalPnl).toLocaleString()}円 |`);
+  lines.push(`| 総取引回数 | ${totalTrades}回 |`);
+  lines.push(`| 全体勝率 | ${overallWinRate.toFixed(1)}% |`);
+  if (avgBuyHoldReturn !== undefined) {
+    lines.push(`| Buy&Hold平均 | ${avgBuyHoldReturn >= 0 ? "+" : ""}${avgBuyHoldReturn.toFixed(2)}% |`);
+    lines.push(`| 平均Alpha | ${avgAlpha !== undefined && avgAlpha >= 0 ? "+" : ""}${avgAlpha?.toFixed(2)}% |`);
+  }
+  lines.push("");
+
+  // 銘柄別サマリーテーブル
+  lines.push("### 銘柄別パフォーマンス");
+  lines.push("");
+  lines.push("| 銘柄 | 取引回数 | 勝率 | 損益 | 損益率 | B&H | Alpha |");
+  lines.push("|------|---------|------|------|--------|-----|-------|");
+
+  symbolSummaries.forEach(s => {
+    const pnlSign = s.totalPnl >= 0 ? "+" : "";
+    const pnlPctSign = s.totalPnlPercent >= 0 ? "+" : "";
+    const bhStr = s.buyHoldReturn !== undefined ? `${s.buyHoldReturn >= 0 ? "+" : ""}${s.buyHoldReturn.toFixed(1)}%` : "-";
+    const alphaStr = s.alpha !== undefined ? `${s.alpha >= 0 ? "+" : ""}${s.alpha.toFixed(1)}%` : "-";
+    lines.push(`| ${s.fileName} | ${s.totalTrades}回 | ${s.winRate.toFixed(1)}% | ${pnlSign}${s.totalPnl.toLocaleString()}円 | ${pnlPctSign}${s.totalPnlPercent.toFixed(2)}% | ${bhStr} | ${alphaStr} |`);
+  });
+  lines.push("");
+
+  // 各銘柄の詳細
+  lines.push("---");
+  lines.push("");
+  lines.push("## 銘柄別詳細");
+  lines.push("");
+
+  data.symbols.forEach((symbol, index) => {
+    lines.push(`### ${index + 1}. ${symbol.fileName}`);
+    lines.push("");
+
+    const stats = calculateExtendedStats(symbol.tradeHistory, data.initialCapital, symbol.totalTradingDays);
+
+    lines.push("| 指標 | 値 |");
+    lines.push("|------|------|");
+    lines.push(`| 取引回数 | ${stats.totalTrades}回 (${stats.winCount}勝${stats.lossCount}敗) |`);
+    lines.push(`| 勝率 | ${stats.winRate.toFixed(1)}% |`);
+    lines.push(`| 総損益 | ${stats.totalPnl >= 0 ? "+" : ""}${stats.totalPnl.toLocaleString()}円 (${stats.totalPnlPercent >= 0 ? "+" : ""}${stats.totalPnlPercent.toFixed(2)}%) |`);
+    lines.push(`| 平均勝ち | ${stats.avgWin >= 0 ? "+" : ""}${stats.avgWin.toFixed(2)}% |`);
+    lines.push(`| 平均負け | ${stats.avgLoss.toFixed(2)}% |`);
+    lines.push(`| PF | ${stats.profitFactor.toFixed(2)} |`);
+    lines.push(`| 最大DD | ${stats.maxDrawdown.toFixed(2)}% |`);
+    if (stats.avgMfe > 0 || stats.avgMae < 0) {
+      lines.push(`| 平均MFE/MAE | +${stats.avgMfe.toFixed(2)}% / ${stats.avgMae.toFixed(2)}% |`);
+    }
+    if (stats.avgMfeUtilization > 0) {
+      lines.push(`| MFE活用度 | ${stats.avgMfeUtilization.toFixed(1)}% |`);
+    }
+    lines.push("");
+
+    // 取引履歴（簡略版）
+    const pairs = groupTradesIntoPairs(symbol.tradeHistory);
+    if (pairs.length > 0) {
+      lines.push("**取引履歴:**");
+      lines.push("");
+      pairs.forEach(([buy, sell], pairIndex) => {
+        if (sell) {
+          const pnlStr = sell.pnlPercent !== undefined
+            ? `${sell.pnlPercent >= 0 ? "+" : ""}${sell.pnlPercent.toFixed(2)}%`
+            : "-";
+          lines.push(`${pairIndex + 1}. ${formatDate(buy.date)} → ${formatDate(sell.date)}: ${pnlStr}`);
+        } else {
+          lines.push(`${pairIndex + 1}. ${formatDate(buy.date)} → (保有中)`);
+        }
+      });
+      lines.push("");
+    }
+  });
+
+  // インジケーター
+  lines.push("## 使用インジケーター");
+  lines.push("");
+  const indicatorLabels = data.enabledIndicators.map((key) => {
+    const found = AVAILABLE_INDICATORS.find((i) => i.key === key);
+    return found ? found.label : key;
+  });
+  indicatorLabels.forEach((label) => {
+    lines.push(`- ${label}`);
+  });
+  lines.push("");
+
+  // Footer
+  lines.push("---");
+  lines.push("");
+  lines.push(`Generated: ${new Date().toLocaleString("ja-JP")}  `);
+  lines.push("TrendCraft Trading Simulator - Portfolio Report");
+
+  return lines.join("\n");
+}
+
+export function generatePortfolioCSVReport(data: PortfolioReportData): string {
+  const lines: string[] = [];
+
+  // Header
+  lines.push("銘柄,取引番号,種別,日付,価格,株数,約定方法,損益,損益率,メモ");
+
+  // Trade rows for all symbols
+  data.symbols.forEach(symbol => {
+    symbol.tradeHistory.forEach((trade, index) => {
+      const row = [
+        `"${symbol.fileName}"`,
+        index + 1,
+        trade.type,
+        formatDate(trade.date),
+        trade.price,
+        trade.shares,
+        PRICE_TYPE_LABELS[trade.priceType],
+        trade.pnl !== undefined ? trade.pnl : "",
+        trade.pnlPercent !== undefined ? `${trade.pnlPercent.toFixed(2)}%` : "",
+        `"${(trade.memo || "").replace(/"/g, '""')}"`,
+      ];
+      lines.push(row.join(","));
+    });
+  });
+
+  return lines.join("\n");
+}
+
+export function generatePortfolioJSONReport(data: PortfolioReportData): string {
+  const symbolReports = data.symbols.map(symbol => {
+    const stats = calculateExtendedStats(symbol.tradeHistory, data.initialCapital, symbol.totalTradingDays);
+    let buyHoldReturn: number | undefined;
+    let alpha: number | undefined;
+    if (symbol.startPrice && symbol.endPrice && symbol.startPrice > 0) {
+      buyHoldReturn = ((symbol.endPrice - symbol.startPrice) / symbol.startPrice) * 100;
+      alpha = stats.totalPnlPercent - buyHoldReturn;
+    }
+    return {
+      fileName: symbol.fileName,
+      period: {
+        startDate: formatDate(symbol.startDate),
+        endDate: formatDate(symbol.endDate),
+      },
+      performance: {
+        totalPnl: stats.totalPnl,
+        totalPnlPercent: stats.totalPnlPercent,
+        winRate: stats.winRate,
+        totalTrades: stats.totalTrades,
+        winCount: stats.winCount,
+        lossCount: stats.lossCount,
+        profitFactor: stats.profitFactor,
+        maxDrawdown: stats.maxDrawdown,
+        avgMfe: stats.avgMfe,
+        avgMae: stats.avgMae,
+        avgMfeUtilization: stats.avgMfeUtilization,
+      },
+      benchmark: buyHoldReturn !== undefined ? {
+        buyHoldReturn,
+        alpha,
+      } : undefined,
+      trades: symbol.tradeHistory.map(trade => ({
+        type: trade.type,
+        date: formatDate(trade.date),
+        price: trade.price,
+        shares: trade.shares,
+        pnl: trade.pnl,
+        pnlPercent: trade.pnlPercent,
+        memo: trade.memo,
+      })),
+    };
+  });
+
+  // Portfolio totals
+  const totalPnl = symbolReports.reduce((sum, s) => sum + s.performance.totalPnl, 0);
+  const totalPnlPercent = (totalPnl / data.initialCapital) * 100;
+  const totalTrades = symbolReports.reduce((sum, s) => sum + s.performance.totalTrades, 0);
+  const totalWins = symbolReports.reduce((sum, s) => sum + s.performance.winCount, 0);
+
+  const report = {
+    portfolio: {
+      symbolCount: data.symbols.length,
+      initialCapital: data.initialCapital,
+      finalCapital: data.initialCapital + totalPnl,
+      totalPnl,
+      totalPnlPercent,
+      totalTrades,
+      overallWinRate: totalTrades > 0 ? (totalWins / totalTrades) * 100 : 0,
+    },
+    symbols: symbolReports,
+    config: {
+      enabledIndicators: data.enabledIndicators,
+      commissionRate: data.commissionRate,
+      slippageBps: data.slippageBps,
+      taxRate: data.taxRate,
+    },
+    generatedAt: new Date().toISOString(),
+  };
+
+  return JSON.stringify(report, null, 2);
+}

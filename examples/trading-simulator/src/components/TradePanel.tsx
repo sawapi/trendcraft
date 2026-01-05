@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from "react";
 import { useSimulatorStore } from "../store/simulatorStore";
-import type { PriceType, ExitReason, ExitTrigger } from "../types";
+import type { PriceType, ExitReason, ExitTrigger, OrderType } from "../types";
 import { PRICE_TYPE_LABELS, EXIT_REASON_LABELS, EXIT_TRIGGER_LABELS } from "../types";
 
 const PRICE_TYPES: PriceType[] = ["nextOpen", "high", "low", "close"];
@@ -27,24 +27,48 @@ interface SizingResult {
 
 export function TradePanel() {
   const {
-    positions,
+    symbols,
+    activeSymbolId,
+    commonDateRange,
+    currentDateIndex,
     getPositionSummary,
     isPlaying,
     executeBuy,
     executeSell,
     executeSellAll,
+    placePendingOrder,
+    cancelPendingOrder,
+    pendingOrders,
     pause,
     getCurrentCandle,
     getNextCandle,
     initialCapital,
     stopLossPercent,
-    indicatorData,
-    currentIndex,
-    startIndex,
   } = useSimulatorStore();
+
+  // アクティブ銘柄を取得
+  const activeSymbol = useMemo(() => {
+    if (!activeSymbolId) return symbols[0] || null;
+    return symbols.find(s => s.id === activeSymbolId) || null;
+  }, [symbols, activeSymbolId]);
+
+  // 現在の日付からインデックスを計算
+  const currentIndex = useMemo(() => {
+    if (!activeSymbol || !commonDateRange || currentDateIndex < 0) return 0;
+    const targetDate = commonDateRange.dates[currentDateIndex];
+    if (!targetDate) return 0;
+    return activeSymbol.allCandles.findIndex(c => c.time === targetDate);
+  }, [activeSymbol, commonDateRange, currentDateIndex]);
+
+  const positions = activeSymbol?.positions || [];
+  const indicatorData = activeSymbol?.indicatorData || null;
+  const startIndex = activeSymbol?.startIndex || 0;
 
   const [buyShares, setBuyShares] = useState(100);
   const [sellShares, setSellShares] = useState(100);
+
+  // 株数調整のステップ値
+  const SHARE_STEPS = [-100, -10, -1, 1, 10, 100];
   const [memo, setMemo] = useState("");
   const [priceType, setPriceType] = useState<PriceType>("nextOpen");
   const [exitReason, setExitReason] = useState<ExitReason>("MANUAL");
@@ -106,8 +130,8 @@ export function TradePanel() {
     if (riskPerShare <= 0) return null;
 
     const maxRiskAmount = initialCapital * (riskPercent / 100);
-    const calculatedShares = Math.floor(maxRiskAmount / riskPerShare / 100) * 100; // 100株単位
-    const shares = Math.max(100, calculatedShares);
+    const calculatedShares = Math.floor(maxRiskAmount / riskPerShare);
+    const shares = Math.max(1, calculatedShares);
 
     return {
       shares,
@@ -126,37 +150,94 @@ export function TradePanel() {
 
   const handleBuy = useCallback(() => {
     if (isPlaying) pause();
-    executeBuy(buyShares, memo, priceType);
+
+    // 翌日始値の場合は予約注文として処理
+    if (priceType === "nextOpen" && activeSymbol) {
+      placePendingOrder({
+        symbolId: activeSymbol.id,
+        orderType: "BUY",
+        shares: buyShares,
+        memo,
+      });
+    } else {
+      executeBuy(buyShares, memo, priceType);
+    }
     setMemo("");
-  }, [isPlaying, pause, executeBuy, buyShares, memo, priceType]);
+  }, [isPlaying, pause, executeBuy, placePendingOrder, buyShares, memo, priceType, activeSymbol]);
 
   const handleSell = useCallback(() => {
     if (isPlaying) pause();
-    executeSell(sellShares, memo, priceType, exitReason, exitTrigger);
+
+    // 翌日始値の場合は予約注文として処理
+    if (priceType === "nextOpen" && activeSymbol) {
+      placePendingOrder({
+        symbolId: activeSymbol.id,
+        orderType: "SELL",
+        shares: sellShares,
+        memo,
+        exitReason,
+        exitTrigger,
+      });
+    } else {
+      executeSell(sellShares, memo, priceType, exitReason, exitTrigger);
+    }
     setMemo("");
     setExitTrigger(undefined);
-  }, [isPlaying, pause, executeSell, sellShares, memo, priceType, exitReason, exitTrigger]);
+  }, [isPlaying, pause, executeSell, placePendingOrder, sellShares, memo, priceType, exitReason, exitTrigger, activeSymbol]);
 
   const handleSellAll = useCallback(() => {
     if (isPlaying) pause();
-    executeSellAll(memo, priceType, exitReason, exitTrigger);
+
+    // 翌日始値の場合は予約注文として処理
+    if (priceType === "nextOpen" && activeSymbol) {
+      placePendingOrder({
+        symbolId: activeSymbol.id,
+        orderType: "SELL_ALL",
+        shares: 0, // SELL_ALLでは無視される
+        memo,
+        exitReason,
+        exitTrigger,
+      });
+    } else {
+      executeSellAll(memo, priceType, exitReason, exitTrigger);
+    }
     setMemo("");
     setExitTrigger(undefined);
-  }, [isPlaying, pause, executeSellAll, memo, priceType, exitReason, exitTrigger]);
+  }, [isPlaying, pause, executeSellAll, placePendingOrder, memo, priceType, exitReason, exitTrigger, activeSymbol]);
 
   const handleBuySharesChange = (value: number) => {
-    const rounded = Math.max(100, Math.round(value / 100) * 100);
-    setBuyShares(rounded);
+    setBuyShares(Math.max(1, value));
+  };
+
+  const handleBuySharesStep = (step: number) => {
+    setBuyShares((prev) => Math.max(1, prev + step));
   };
 
   const handleSellSharesChange = (value: number) => {
-    const maxShares = positionSummary?.totalShares || 100;
-    const rounded = Math.max(100, Math.min(maxShares, Math.round(value / 100) * 100));
-    setSellShares(rounded);
+    const maxShares = positionSummary?.totalShares || 1;
+    setSellShares(Math.max(1, Math.min(maxShares, value)));
+  };
+
+  const handleSellSharesStep = (step: number) => {
+    const maxShares = positionSummary?.totalShares || 1;
+    setSellShares((prev) => Math.max(1, Math.min(maxShares, prev + step)));
   };
 
   const hasPosition = positions.length > 0;
   const canUseNextOpen = nextCandle !== null;
+
+  // アクティブ銘柄の予約注文を取得
+  const symbolPendingOrders = useMemo(() => {
+    if (!activeSymbol) return [];
+    return pendingOrders.filter(o => o.symbolId === activeSymbol.id);
+  }, [pendingOrders, activeSymbol]);
+
+  // 注文タイプのラベル
+  const ORDER_TYPE_LABELS: Record<OrderType, string> = {
+    BUY: "買い",
+    SELL: "部分売り",
+    SELL_ALL: "全売り",
+  };
 
   return (
     <div className="trade-panel">
@@ -174,27 +255,24 @@ export function TradePanel() {
             {showSizingCalc ? "✕ 閉じる" : "📊 計算機"}
           </button>
         </div>
-        <div className="shares-controls">
-          <button
-            className="shares-btn"
-            onClick={() => handleBuySharesChange(buyShares - 100)}
-            disabled={buyShares <= 100}
-          >
-            -100
-          </button>
-          <input
-            type="number"
-            value={buyShares}
-            onChange={(e) => handleBuySharesChange(Number(e.target.value))}
-            step={100}
-            min={100}
-          />
-          <button
-            className="shares-btn"
-            onClick={() => handleBuySharesChange(buyShares + 100)}
-          >
-            +100
-          </button>
+        <input
+          type="number"
+          value={buyShares}
+          onChange={(e) => handleBuySharesChange(Number(e.target.value))}
+          min={1}
+          className="shares-input-field"
+        />
+        <div className="shares-step-buttons">
+          {SHARE_STEPS.map((step) => (
+            <button
+              key={step}
+              className={`shares-step-btn ${step > 0 ? "plus" : "minus"}`}
+              onClick={() => handleBuySharesStep(step)}
+              disabled={step < 0 && buyShares + step < 1}
+            >
+              {step > 0 ? `+${step}` : step}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -296,29 +374,28 @@ export function TradePanel() {
       {hasPosition && positionSummary && (
         <div className="shares-input">
           <label>売り株数 (保有: {positionSummary.totalShares}株)</label>
-          <div className="shares-controls">
-            <button
-              className="shares-btn"
-              onClick={() => handleSellSharesChange(sellShares - 100)}
-              disabled={sellShares <= 100}
-            >
-              -100
-            </button>
-            <input
-              type="number"
-              value={Math.min(sellShares, positionSummary.totalShares)}
-              onChange={(e) => handleSellSharesChange(Number(e.target.value))}
-              step={100}
-              min={100}
-              max={positionSummary.totalShares}
-            />
-            <button
-              className="shares-btn"
-              onClick={() => handleSellSharesChange(sellShares + 100)}
-              disabled={sellShares >= positionSummary.totalShares}
-            >
-              +100
-            </button>
+          <input
+            type="number"
+            value={Math.min(sellShares, positionSummary.totalShares)}
+            onChange={(e) => handleSellSharesChange(Number(e.target.value))}
+            min={1}
+            max={positionSummary.totalShares}
+            className="shares-input-field"
+          />
+          <div className="shares-step-buttons">
+            {SHARE_STEPS.map((step) => (
+              <button
+                key={step}
+                className={`shares-step-btn ${step > 0 ? "plus" : "minus"}`}
+                onClick={() => handleSellSharesStep(step)}
+                disabled={
+                  (step < 0 && sellShares + step < 1) ||
+                  (step > 0 && sellShares >= positionSummary.totalShares)
+                }
+              >
+                {step > 0 ? `+${step}` : step}
+              </button>
+            ))}
           </div>
         </div>
       )}
@@ -422,6 +499,39 @@ export function TradePanel() {
           placeholder="例: RSIが30を下回り、サポートラインに接触したため買いエントリー"
         />
       </div>
+
+      {/* 予約注文一覧 */}
+      {symbolPendingOrders.length > 0 && (
+        <div className="pending-orders">
+          <h4>予約注文（翌日始値で約定）</h4>
+          <ul className="pending-orders-list">
+            {symbolPendingOrders.map((order) => (
+              <li key={order.id} className={`pending-order ${order.orderType.toLowerCase()}`}>
+                <div className="pending-order-info">
+                  <span className={`order-type ${order.orderType === "BUY" ? "buy" : "sell"}`}>
+                    {ORDER_TYPE_LABELS[order.orderType]}
+                  </span>
+                  {order.orderType !== "SELL_ALL" && (
+                    <span className="order-shares">{order.shares}株</span>
+                  )}
+                  {order.memo && (
+                    <span className="order-memo" title={order.memo}>
+                      {order.memo.length > 20 ? `${order.memo.slice(0, 20)}...` : order.memo}
+                    </span>
+                  )}
+                </div>
+                <button
+                  className="cancel-order-btn"
+                  onClick={() => cancelPendingOrder(order.id)}
+                  title="注文をキャンセル"
+                >
+                  ×
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

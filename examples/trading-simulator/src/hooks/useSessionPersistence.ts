@@ -1,10 +1,41 @@
 import { useEffect, useCallback } from "react";
 import { useSimulatorStore } from "../store/simulatorStore";
-import type { Position, Trade, IndicatorParams, EquityPoint, SimulatorPhase, NormalizedCandle } from "../types";
+import type { Position, Trade, IndicatorParams, EquityPoint, SimulatorPhase, SymbolSession } from "../types";
 
 const STORAGE_KEY = "trading-simulator-session";
-const SESSION_VERSION = 1;
+const SESSION_VERSION = 2; // Version bumped for multi-symbol support
 
+// 複数銘柄対応のセッションデータ
+export interface MultiSymbolSessionData {
+  version: number;
+  savedAt: number;
+  activeSymbolId: string | null;
+  symbols: Array<{
+    id: string;
+    fileName: string;
+    positions: Position[];
+    tradeHistory: Trade[];
+    equityCurve: EquityPoint[];
+    startIndex: number;
+  }>;
+  config: {
+    initialCandleCount: number;
+    initialCapital: number;
+    enabledIndicators: string[];
+    indicatorParams: IndicatorParams;
+    commissionRate: number;
+    slippageBps: number;
+    taxRate: number;
+    stopLossPercent: number;
+    takeProfitPercent: number;
+    trailingStopEnabled: boolean;
+    trailingStopPercent: number;
+  };
+  phase: SimulatorPhase;
+  currentDateIndex: number;
+}
+
+// 後方互換性のための旧セッションデータ型
 export interface SessionData {
   version: number;
   savedAt: number;
@@ -34,21 +65,23 @@ export function saveSession(): void {
   const state = useSimulatorStore.getState();
 
   // セットアップ中やデータがない場合は保存しない
-  if (state.phase === "setup" || state.allCandles.length === 0) {
+  if (state.phase === "setup" || state.symbols.length === 0) {
     return;
   }
 
-  const sessionData: SessionData = {
+  const sessionData: MultiSymbolSessionData = {
     version: SESSION_VERSION,
     savedAt: Date.now(),
-    fileName: state.fileName,
-    phase: state.phase,
-    currentIndex: state.currentIndex,
-    positions: state.positions,
-    tradeHistory: state.tradeHistory,
-    equityCurve: state.equityCurve,
+    activeSymbolId: state.activeSymbolId,
+    symbols: state.symbols.map((symbol) => ({
+      id: symbol.id,
+      fileName: symbol.fileName,
+      positions: symbol.positions,
+      tradeHistory: symbol.tradeHistory,
+      equityCurve: symbol.equityCurve,
+      startIndex: symbol.startIndex,
+    })),
     config: {
-      startIndex: state.startIndex,
       initialCandleCount: state.initialCandleCount,
       initialCapital: state.initialCapital,
       enabledIndicators: state.enabledIndicators,
@@ -61,6 +94,8 @@ export function saveSession(): void {
       trailingStopEnabled: state.trailingStopEnabled,
       trailingStopPercent: state.trailingStopPercent,
     },
+    phase: state.phase,
+    currentDateIndex: state.currentDateIndex,
   };
 
   try {
@@ -75,18 +110,73 @@ export function loadSession(): SessionData | null {
     const data = localStorage.getItem(STORAGE_KEY);
     if (!data) return null;
 
-    const session = JSON.parse(data) as SessionData;
+    const session = JSON.parse(data);
 
-    // バージョンチェック
-    if (session.version !== SESSION_VERSION) {
-      console.warn("Session version mismatch, discarding");
-      clearSession();
-      return null;
+    // 旧バージョン（version 1）の場合
+    if (session.version === 1) {
+      return session as SessionData;
     }
 
-    return session;
+    // 新バージョン（version 2）の場合、旧形式に変換して返す
+    // （後方互換性のため、最初のシンボルのみ使用）
+    if (session.version === SESSION_VERSION) {
+      const multiSession = session as MultiSymbolSessionData;
+      if (multiSession.symbols.length === 0) {
+        clearSession();
+        return null;
+      }
+
+      const firstSymbol = multiSession.symbols[0];
+      return {
+        version: 1, // FileDropZoneの互換性のため
+        savedAt: multiSession.savedAt,
+        fileName: firstSymbol.fileName,
+        phase: multiSession.phase,
+        currentIndex: firstSymbol.startIndex + multiSession.config.initialCandleCount + multiSession.currentDateIndex,
+        positions: firstSymbol.positions,
+        tradeHistory: firstSymbol.tradeHistory,
+        equityCurve: firstSymbol.equityCurve,
+        config: {
+          startIndex: firstSymbol.startIndex,
+          initialCandleCount: multiSession.config.initialCandleCount,
+          initialCapital: multiSession.config.initialCapital,
+          enabledIndicators: multiSession.config.enabledIndicators,
+          indicatorParams: multiSession.config.indicatorParams,
+          commissionRate: multiSession.config.commissionRate,
+          slippageBps: multiSession.config.slippageBps,
+          taxRate: multiSession.config.taxRate,
+          stopLossPercent: multiSession.config.stopLossPercent,
+          takeProfitPercent: multiSession.config.takeProfitPercent,
+          trailingStopEnabled: multiSession.config.trailingStopEnabled,
+          trailingStopPercent: multiSession.config.trailingStopPercent,
+        },
+      };
+    }
+
+    // 不明なバージョン
+    console.warn("Session version mismatch, discarding");
+    clearSession();
+    return null;
   } catch (e) {
     console.warn("Failed to load session:", e);
+    return null;
+  }
+}
+
+export function loadMultiSymbolSession(): MultiSymbolSessionData | null {
+  try {
+    const data = localStorage.getItem(STORAGE_KEY);
+    if (!data) return null;
+
+    const session = JSON.parse(data);
+
+    if (session.version === SESSION_VERSION) {
+      return session as MultiSymbolSessionData;
+    }
+
+    return null;
+  } catch (e) {
+    console.warn("Failed to load multi-symbol session:", e);
     return null;
   }
 }
@@ -104,14 +194,16 @@ export function hasSession(): boolean {
 }
 
 export function useSessionPersistence(): void {
-  const { phase, tradeHistory } = useSimulatorStore();
+  const { phase, symbols } = useSimulatorStore();
 
-  // 取引発生時に自動保存
+  // 取引発生時に自動保存（tradeHistoryの合計長を監視）
+  const totalTrades = symbols.reduce((sum, s) => sum + s.tradeHistory.length, 0);
+
   useEffect(() => {
     if (phase === "running" || phase === "finished") {
       saveSession();
     }
-  }, [phase, tradeHistory.length]);
+  }, [phase, totalTrades]);
 
   // 1分ごとに自動保存
   useEffect(() => {
@@ -138,19 +230,14 @@ export function useSessionPersistence(): void {
 }
 
 export function useSessionRestore() {
-  const restoreSession = useCallback((session: SessionData, candles: NormalizedCandle[]) => {
+  const restoreSession = useCallback((session: SessionData, candles: SymbolSession["allCandles"]) => {
     const store = useSimulatorStore.getState();
-
-    // indicatorDataを再計算
-    // 注: calculateIndicatorsをimportする必要があるが、循環参照を避けるため
-    // storeのstartSimulation相当の処理をここで行う
 
     store.loadCandles(candles, session.fileName);
 
     // 状態を直接更新
     useSimulatorStore.setState({
       phase: session.phase,
-      startIndex: session.config.startIndex,
       initialCandleCount: session.config.initialCandleCount,
       initialCapital: session.config.initialCapital,
       enabledIndicators: session.config.enabledIndicators,
@@ -162,12 +249,26 @@ export function useSessionRestore() {
       takeProfitPercent: session.config.takeProfitPercent,
       trailingStopEnabled: session.config.trailingStopEnabled ?? false,
       trailingStopPercent: session.config.trailingStopPercent ?? 5,
-      currentIndex: session.currentIndex,
-      positions: session.positions,
-      tradeHistory: session.tradeHistory,
-      equityCurve: session.equityCurve,
       isPlaying: false,
     });
+
+    // アクティブシンボルの状態を更新
+    const activeSymbol = store.symbols.find((s) => s.id === store.activeSymbolId);
+    if (activeSymbol) {
+      useSimulatorStore.setState({
+        symbols: store.symbols.map((s) =>
+          s.id === store.activeSymbolId
+            ? {
+                ...s,
+                positions: session.positions,
+                tradeHistory: session.tradeHistory,
+                equityCurve: session.equityCurve,
+                startIndex: session.config.startIndex,
+              }
+            : s
+        ),
+      });
+    }
   }, []);
 
   return { restoreSession };

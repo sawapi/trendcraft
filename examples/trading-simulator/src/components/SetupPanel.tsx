@@ -5,30 +5,50 @@ import { formatDate } from "../utils/fileParser";
 import { DEFAULT_INDICATOR_PARAMS, type IndicatorParams } from "../types";
 
 export function SetupPanel() {
-  const { allCandles, fileName, startSimulation, reset } = useSimulatorStore();
+  const { symbols, activeSymbolId, startSimulation, reset } = useSimulatorStore();
 
-  const dateRange = useMemo(() => {
-    if (allCandles.length === 0) return { min: "", max: "", defaultStart: "" };
-    const min = new Date(allCandles[0].time).toISOString().split("T")[0];
-    const max = new Date(allCandles[allCandles.length - 1].time)
-      .toISOString()
-      .split("T")[0];
-    // Default start: 250 days before the end, or at least at min
-    const defaultStartIndex = Math.max(0, allCandles.length - 250);
-    const defaultStart = new Date(allCandles[defaultStartIndex].time)
-      .toISOString()
-      .split("T")[0];
+  // アクティブ銘柄のデータを取得
+  const activeSymbol = symbols.find(s => s.id === activeSymbolId);
+  const allCandles = activeSymbol?.allCandles || [];
+  const fileName = activeSymbol?.fileName || "";
+
+  // 全銘柄の共通日付範囲を計算
+  const commonDateRange = useMemo(() => {
+    if (symbols.length === 0) return { min: "", max: "", defaultStart: "" };
+
+    // 各銘柄の日付セットを作成
+    const allDateSets = symbols.map(s => new Set(s.allCandles.map(c => c.time)));
+
+    // 共通日付を抽出
+    let commonDates: number[];
+    if (symbols.length === 1) {
+      commonDates = symbols[0].allCandles.map(c => c.time);
+    } else {
+      const firstDates = [...allDateSets[0]];
+      commonDates = firstDates.filter(d => allDateSets.every(set => set.has(d)));
+    }
+
+    if (commonDates.length === 0) return { min: "", max: "", defaultStart: "" };
+
+    const sortedDates = commonDates.sort((a, b) => a - b);
+    const min = new Date(sortedDates[0]).toISOString().split("T")[0];
+    const max = new Date(sortedDates[sortedDates.length - 1]).toISOString().split("T")[0];
+
+    // Default start: 250 days before the end
+    const defaultStartIndex = Math.max(0, sortedDates.length - 250);
+    const defaultStart = new Date(sortedDates[defaultStartIndex]).toISOString().split("T")[0];
+
     return { min, max, defaultStart };
-  }, [allCandles]);
+  }, [symbols]);
 
   const [startDate, setStartDate] = useState("");
 
-  // Set default start date when dateRange is calculated
+  // Set default start date when commonDateRange is calculated
   useEffect(() => {
-    if (dateRange.defaultStart && !startDate) {
-      setStartDate(dateRange.defaultStart);
+    if (commonDateRange.defaultStart && !startDate) {
+      setStartDate(commonDateRange.defaultStart);
     }
-  }, [dateRange.defaultStart, startDate]);
+  }, [commonDateRange.defaultStart, startDate]);
   const [initialCandleCount, setInitialCandleCount] = useState(250);
   const [initialCapital, setInitialCapital] = useState(1000000);
   const [enabledIndicators, setEnabledIndicators] = useState<string[]>([
@@ -69,15 +89,26 @@ export function SetupPanel() {
     reset();
   };
 
+  // データがない場合は何も表示しない
+  if (symbols.length === 0) {
+    return (
+      <div className="setup-panel">
+        <p>銘柄データがありません。CSVファイルを読み込んでください。</p>
+      </div>
+    );
+  }
+
   return (
     <div className="setup-panel">
+      {/* アクティブ銘柄のファイル情報（タブ切り替えで変わる部分） */}
       <div className="file-info">
         <span className="label">ファイル:</span>
         <span className="value">{fileName}</span>
         <span className="label">期間:</span>
         <span className="value">
-          {formatDate(allCandles[0].time)} -{" "}
-          {formatDate(allCandles[allCandles.length - 1].time)}
+          {allCandles.length > 0
+            ? `${formatDate(allCandles[0].time)} - ${formatDate(allCandles[allCandles.length - 1].time)}`
+            : "-"}
         </span>
         <span className="label">データ数:</span>
         <span className="value">{allCandles.length}件</span>
@@ -86,14 +117,23 @@ export function SetupPanel() {
         </button>
       </div>
 
+      {/* 複数銘柄の場合、共通期間を表示 */}
+      {symbols.length > 1 && (
+        <div className="common-date-info">
+          <span className="label">共通期間:</span>
+          <span className="value">{commonDateRange.min} - {commonDateRange.max}</span>
+          <span className="hint">（{symbols.length}銘柄の共通日付範囲でシミュレーション）</span>
+        </div>
+      )}
+
       <div className="setup-form">
         <div className="form-group">
           <label>シミュレーション開始日</label>
           <input
             type="date"
             value={startDate}
-            min={dateRange.min}
-            max={dateRange.max}
+            min={commonDateRange.min}
+            max={commonDateRange.max}
             onChange={(e) => setStartDate(e.target.value)}
           />
           <p className="hint">この日付から1日ずつ進めていきます</p>

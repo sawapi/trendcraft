@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useSimulatorStore } from "../store/simulatorStore";
-import type { Trade } from "../types";
+import type { Trade, PortfolioStats } from "../types";
 
 interface RealtimeStats {
   totalPnl: number;
@@ -154,6 +154,8 @@ export function StatsPanel() {
     currentIndex,
     positions,
     getUnrealizedPnl,
+    symbols,
+    getPortfolioStats,
   } = useSimulatorStore();
 
   const stats = useMemo(() => {
@@ -171,6 +173,14 @@ export function StatsPanel() {
 
   const hasPosition = positions.length > 0;
   const hasTrades = stats.totalTrades > 0;
+
+  // ポートフォリオ統計（複数銘柄の場合のみ）
+  const portfolioStats: PortfolioStats | null = useMemo(() => {
+    if (symbols.length <= 1) return null;
+    return getPortfolioStats();
+  }, [symbols, getPortfolioStats]);
+
+  const hasMultipleSymbols = symbols.length > 1;
 
   return (
     <div className="stats-panel">
@@ -294,6 +304,60 @@ export function StatsPanel() {
         <div className="no-stats">
           取引がありません
         </div>
+      )}
+
+      {/* ポートフォリオ統計（複数銘柄の場合のみ） */}
+      {hasMultipleSymbols && portfolioStats && (
+        <>
+          <div className="stats-divider" />
+          <h3>ポートフォリオ</h3>
+
+          <div className="stats-section">
+            <div className="stats-row highlight">
+              <span className="label">全体損益</span>
+              <span className={`value ${portfolioStats.totalPnl >= 0 ? "positive" : "negative"}`}>
+                {portfolioStats.totalPnl >= 0 ? "+" : ""}
+                {Math.round(portfolioStats.totalPnl).toLocaleString()}円
+                <span className="percent">
+                  ({portfolioStats.totalPnlPercent >= 0 ? "+" : ""}
+                  {portfolioStats.totalPnlPercent.toFixed(2)}%)
+                </span>
+              </span>
+            </div>
+          </div>
+
+          <div className="stats-section">
+            <div className="portfolio-symbols">
+              {portfolioStats.symbolStats.map((symbolStat) => (
+                <div key={symbolStat.symbolId} className="stats-row sub">
+                  <span className="label">{symbolStat.fileName}</span>
+                  <span className={`value ${symbolStat.pnl >= 0 ? "positive" : "negative"}`}>
+                    {symbolStat.pnl >= 0 ? "+" : ""}
+                    {symbolStat.pnlPercent.toFixed(1)}%
+                    <span className="sub-value">
+                      ({symbolStat.allocation.toFixed(0)}%)
+                    </span>
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {portfolioStats.aggregatedStats.totalTradeCount > 0 && (
+            <div className="stats-section">
+              <div className="stats-row">
+                <span className="label">全体勝率</span>
+                <span className="value">
+                  {portfolioStats.aggregatedStats.overallWinRate.toFixed(1)}%
+                </span>
+              </div>
+              <div className="stats-row">
+                <span className="label">総取引</span>
+                <span className="value">{portfolioStats.aggregatedStats.totalTradeCount}回</span>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

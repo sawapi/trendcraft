@@ -1,10 +1,69 @@
 import type { NormalizedCandle } from "trendcraft";
+import type { IndicatorData } from "../utils/indicators";
 
 export type { NormalizedCandle };
 
 export type PlaybackSpeed = 0.5 | 1 | 2 | 4;
 
 export type SimulatorPhase = "setup" | "running" | "finished";
+
+// ===========================================
+// 複数銘柄対応
+// ===========================================
+
+/**
+ * 銘柄ごとのセッションデータ
+ * 各銘柄は独自のローソク足データ、ポジション、取引履歴を持つ
+ */
+export interface SymbolSession {
+  id: string;                        // UUID
+  fileName: string;
+  allCandles: NormalizedCandle[];
+  positions: Position[];
+  tradeHistory: Trade[];
+  indicatorData: IndicatorData | null;
+  equityCurve: EquityPoint[];
+  // 銘柄固有の開始インデックス（共通日付範囲内での位置）
+  startIndex: number;
+}
+
+/**
+ * 全銘柄で共通の日付範囲
+ * 複数銘柄のCSVをロードした場合、共通する日付のみでシミュレーション
+ */
+export interface CommonDateRange {
+  startDate: number;
+  endDate: number;
+  dates: number[];              // 共通日付の配列（ソート済み）
+}
+
+/**
+ * ポートフォリオ統計
+ * 複数銘柄運用時の全体パフォーマンス
+ */
+export interface PortfolioStats {
+  totalPnl: number;
+  totalPnlPercent: number;
+  symbolStats: SymbolStats[];
+  aggregatedStats: AggregatedStats;
+}
+
+export interface SymbolStats {
+  symbolId: string;
+  fileName: string;
+  pnl: number;
+  pnlPercent: number;
+  allocation: number;  // 配分比率 (%)
+  tradeCount: number;
+  winRate: number;
+}
+
+export interface AggregatedStats {
+  totalTradeCount: number;
+  overallWinRate: number;
+  maxDrawdown: number;
+  avgAlpha: number;  // vs B&H平均
+}
 
 export type PriceType = "nextOpen" | "high" | "low" | "close";
 
@@ -180,8 +239,26 @@ export interface SimulationConfig {
   trailingStopPercent: number;    // トレーリングストップ%(デフォルト5)
 }
 
+// ===========================================
+// 予約注文（翌日始値対応）
+// ===========================================
+
+export type OrderType = "BUY" | "SELL" | "SELL_ALL";
+
+export interface PendingOrder {
+  id: string;
+  symbolId: string;              // 対象銘柄
+  orderType: OrderType;
+  shares: number;
+  memo: string;
+  createdAt: number;             // 注文作成日（現在のチャート日付）
+  // SELL時のみ
+  exitReason?: ExitReason;
+  exitTrigger?: ExitTrigger;
+}
+
 // アラート型
-export type AlertType = "STOP_LOSS_WARNING" | "TAKE_PROFIT_REACHED" | "TRAILING_STOP_HIT";
+export type AlertType = "STOP_LOSS_WARNING" | "TAKE_PROFIT_REACHED" | "TRAILING_STOP_HIT" | "ORDER_EXECUTED";
 
 export interface Alert {
   id: string;

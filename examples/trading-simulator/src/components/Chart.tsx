@@ -6,18 +6,37 @@ import { buildChartOption, type PositionLine } from "../utils/chartConfig";
 
 export function Chart() {
   const {
-    allCandles,
-    startIndex,
-    currentIndex,
+    symbols,
+    activeSymbolId,
+    commonDateRange,
+    currentDateIndex,
     enabledIndicators,
     indicatorParams,
-    tradeHistory,
-    positions,
     stopLossPercent,
     takeProfitPercent,
     trailingStopEnabled,
-    equityCurve,
   } = useSimulatorStore();
+
+  // アクティブ銘柄を取得
+  const activeSymbol = useMemo(() => {
+    if (!activeSymbolId) return symbols[0] || null;
+    return symbols.find(s => s.id === activeSymbolId) || null;
+  }, [symbols, activeSymbolId]);
+
+  // 現在の日付からインデックスを計算
+  const currentIndex = useMemo(() => {
+    if (!activeSymbol || !commonDateRange || currentDateIndex < 0) return 0;
+    const targetDate = commonDateRange.dates[currentDateIndex];
+    if (!targetDate) return 0;
+    return activeSymbol.allCandles.findIndex(c => c.time === targetDate);
+  }, [activeSymbol, commonDateRange, currentDateIndex]);
+
+  // データを抽出
+  const allCandles = activeSymbol?.allCandles || [];
+  const startIndex = activeSymbol?.startIndex || 0;
+  const tradeHistory = activeSymbol?.tradeHistory || [];
+  const positions = activeSymbol?.positions || [];
+  const equityCurve = activeSymbol?.equityCurve || [];
 
   const visibleCandles = useMemo(() => {
     return allCandles.slice(startIndex, currentIndex + 1);
@@ -74,6 +93,17 @@ export function Chart() {
       equityCurve
     );
   }, [visibleCandles, indicators, enabledIndicators, tradeMarkers, positionLines, equityCurve]);
+
+  // データがない場合はチャートを表示しない（EChartsのクリーンアップエラーを回避）
+  if (visibleCandles.length === 0) {
+    return (
+      <div className="chart-container">
+        <div className="chart-placeholder">
+          チャートデータがありません
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="chart-container">
