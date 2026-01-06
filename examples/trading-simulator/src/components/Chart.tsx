@@ -15,6 +15,7 @@ export function Chart() {
     stopLossPercent,
     takeProfitPercent,
     trailingStopEnabled,
+    getDetectedVolumeSpikes,
   } = useSimulatorStore();
 
   // アクティブ銘柄を取得
@@ -83,6 +84,11 @@ export function Chart() {
     };
   }, [positions, startIndex, stopLossPercent, takeProfitPercent, trailingStopEnabled]);
 
+  // 出来高スパイクマーカーを取得
+  const volumeSpikeMarkers = useMemo(() => {
+    return getDetectedVolumeSpikes();
+  }, [getDetectedVolumeSpikes, currentDateIndex]);
+
   const option = useMemo(() => {
     return buildChartOption(
       visibleCandles,
@@ -90,9 +96,10 @@ export function Chart() {
       enabledIndicators,
       tradeMarkers,
       positionLines,
-      equityCurve
+      equityCurve,
+      volumeSpikeMarkers
     );
-  }, [visibleCandles, indicators, enabledIndicators, tradeMarkers, positionLines, equityCurve]);
+  }, [visibleCandles, indicators, enabledIndicators, tradeMarkers, positionLines, equityCurve, volumeSpikeMarkers]);
 
   // データがない場合はチャートを表示しない（EChartsのクリーンアップエラーを回避）
   if (visibleCandles.length === 0) {

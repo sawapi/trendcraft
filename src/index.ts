@@ -266,6 +266,9 @@ export {
   perfectOrder,
   perfectOrderEnhanced,
   rangeBound,
+  volumeBreakout,
+  volumeAccumulation,
+  volumeMaCross,
 } from "./signals";
 export type {
   CrossValidationOptions,
@@ -285,6 +288,12 @@ export type {
   RangeBoundState,
   RangeBoundValue,
   RangeBoundOptions,
+  VolumeBreakoutSignal,
+  VolumeBreakoutOptions,
+  VolumeAccumulationSignal,
+  VolumeAccumulationOptions,
+  VolumeMaCrossSignal,
+  VolumeMaCrossOptions,
 } from "./signals";
 
 // Range-Bound backtest conditions

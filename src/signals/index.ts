@@ -48,3 +48,21 @@ export {
   type RangeBoundValue,
   type RangeBoundOptions,
 } from "./range-bound";
+
+export {
+  volumeBreakout,
+  type VolumeBreakoutSignal,
+  type VolumeBreakoutOptions,
+} from "./volume-breakout";
+
+export {
+  volumeAccumulation,
+  type VolumeAccumulationSignal,
+  type VolumeAccumulationOptions,
+} from "./volume-accumulation";
+
+export {
+  volumeMaCross,
+  type VolumeMaCrossSignal,
+  type VolumeMaCrossOptions,
+} from "./volume-ma-cross";

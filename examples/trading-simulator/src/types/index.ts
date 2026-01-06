@@ -258,13 +258,73 @@ export interface PendingOrder {
 }
 
 // アラート型
-export type AlertType = "STOP_LOSS_WARNING" | "TAKE_PROFIT_REACHED" | "TRAILING_STOP_HIT" | "ORDER_EXECUTED";
+export type AlertType =
+  | "STOP_LOSS_WARNING"
+  | "TAKE_PROFIT_REACHED"
+  | "TRAILING_STOP_HIT"
+  | "ORDER_EXECUTED"
+  | "VOLUME_SPIKE_AVERAGE"       // 平均出来高のX倍超え
+  | "VOLUME_SPIKE_BREAKOUT"      // N日最高出来高更新
+  | "VOLUME_ACCUMULATION"        // 出来高蓄積フェーズ検知
+  | "VOLUME_MA_CROSS";           // 出来高MAクロス
 
 export interface Alert {
   id: string;
   type: AlertType;
   message: string;
   timestamp: number;
+}
+
+// ===========================================
+// 出来高スパイク設定
+// ===========================================
+
+export interface VolumeSpikeSettings {
+  // 平均出来高検知
+  averageVolumeEnabled: boolean;
+  averageVolumePeriod: number;       // N日平均 (default: 20)
+  averageVolumeMultiplier: number;   // X倍 (default: 2.0)
+  // ブレイクアウト検知
+  breakoutVolumeEnabled: boolean;
+  breakoutVolumePeriod: number;      // N日最高値 (default: 20)
+  // 蓄積フェーズ検知（出来高の右肩上がり）
+  accumulationEnabled: boolean;
+  accumulationPeriod: number;        // 傾き計算期間 (default: 10)
+  accumulationMinSlope: number;      // 最小傾き (default: 0.05 = 5%/日)
+  accumulationMinDays: number;       // 最小連続日数 (default: 3)
+  // MAクロス検知
+  maCrossEnabled: boolean;
+  maCrossShortPeriod: number;        // 短期MA期間 (default: 5)
+  maCrossLongPeriod: number;         // 長期MA期間 (default: 20)
+  // 表示設定
+  showRealtimeAlerts: boolean;       // リアルタイムアラート表示
+  showChartMarkers: boolean;         // チャートマーカー表示
+}
+
+export const DEFAULT_VOLUME_SPIKE_SETTINGS: VolumeSpikeSettings = {
+  averageVolumeEnabled: true,
+  averageVolumePeriod: 20,
+  averageVolumeMultiplier: 2.0,
+  breakoutVolumeEnabled: true,
+  breakoutVolumePeriod: 20,
+  accumulationEnabled: true,
+  accumulationPeriod: 10,
+  accumulationMinSlope: 0.05,
+  accumulationMinDays: 3,
+  maCrossEnabled: true,
+  maCrossShortPeriod: 5,
+  maCrossLongPeriod: 20,
+  showRealtimeAlerts: true,
+  showChartMarkers: true,
+};
+
+// 出来高スパイク検知結果
+export interface DetectedVolumeSpike {
+  time: number;
+  volume: number;
+  type: "average" | "breakout" | "accumulation" | "ma_cross";
+  ratio: number;   // 平均比 or 前回最高比 or 正規化傾き or MA比率
+  consecutiveDays?: number;  // 蓄積フェーズの連続日数
 }
 
 export interface SimulatorStats {

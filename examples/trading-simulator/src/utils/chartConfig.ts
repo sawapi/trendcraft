@@ -1,5 +1,5 @@
 import type { EChartsOption } from "echarts";
-import type { NormalizedCandle, EquityPoint } from "../types";
+import type { NormalizedCandle, EquityPoint, DetectedVolumeSpike } from "../types";
 import type { IndicatorData } from "./indicators";
 import { formatDate } from "./fileParser";
 import { INDICATOR_DEFINITIONS } from "../types";
@@ -59,6 +59,11 @@ const COLORS = {
   equity: "#4ade80",
   buyHold: "#6b7280",
   drawdown: "rgba(239, 68, 68, 0.3)",
+  // Volume Spike
+  volumeSpikeAvg: "#06b6d4",         // シアン
+  volumeSpikeBreakout: "#a855f7",    // パープル
+  volumeAccumulation: "#22c55e",     // グリーン
+  volumeMaCross: "#f59e0b",          // アンバー
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -83,7 +88,8 @@ export function buildChartOption(
   enabledIndicators: string[],
   tradeMarkers: { date: number; type: "BUY" | "SELL"; price: number }[] = [],
   positionLines?: PositionLine,
-  equityCurve?: EquityPoint[]
+  equityCurve?: EquityPoint[],
+  volumeSpikeMarkers: DetectedVolumeSpike[] = []
 ): EChartsOption {
   const dates = candles.map((c) => formatDate(c.time));
   const ohlc = candles.map((c) => [c.open, c.close, c.low, c.high]);
@@ -312,12 +318,77 @@ export function buildChartOption(
       splitLine: { show: false },
       axisLabel: { show: false },
     });
+    // 出来高スパイクマーカーを生成
+    const volumeSpikeMarkPointData = volumeSpikeMarkers.map((spike) => {
+      const idx = candles.findIndex((c) => c.time === spike.time);
+      if (idx === -1) return null;
+
+      // タイプ別の設定
+      let symbol = "triangle";
+      let symbolSize = 14;
+      let symbolRotate = 180;
+      let color = COLORS.volumeSpikeAvg;
+      let label = `${spike.ratio.toFixed(1)}x`;
+
+      switch (spike.type) {
+        case "breakout":
+          symbol = "pin";
+          symbolSize = 20;
+          symbolRotate = 0;
+          color = COLORS.volumeSpikeBreakout;
+          label = "NEW";
+          break;
+        case "accumulation":
+          symbol = "diamond";
+          symbolSize = 16;
+          symbolRotate = 0;
+          color = COLORS.volumeAccumulation;
+          label = spike.consecutiveDays ? `${spike.consecutiveDays}日` : "蓄積";
+          break;
+        case "ma_cross":
+          symbol = "arrow";
+          symbolSize = 16;
+          symbolRotate = 0;
+          color = COLORS.volumeMaCross;
+          label = "Cross";
+          break;
+        case "average":
+        default:
+          // デフォルト設定はそのまま
+          break;
+      }
+
+      return {
+        coord: [idx, spike.volume],
+        symbol,
+        symbolSize,
+        symbolRotate,
+        itemStyle: {
+          color,
+          borderColor: "#fff",
+          borderWidth: 1,
+        },
+        label: {
+          show: true,
+          position: "top",
+          formatter: label,
+          fontSize: 9,
+          color,
+          fontWeight: "bold",
+          distance: 5,
+        },
+      };
+    }).filter(Boolean);
+
     series.push({
       name: "Volume",
       type: "bar",
       xAxisIndex: gridIndex,
       yAxisIndex: gridIndex,
       data: volumes,
+      markPoint: volumeSpikeMarkPointData.length > 0 ? {
+        data: volumeSpikeMarkPointData,
+      } : undefined,
     });
     currentTop += subHeight + subChartGap;
   }

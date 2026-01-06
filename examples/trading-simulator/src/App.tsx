@@ -17,6 +17,7 @@ import { AlertBanner } from "./components/AlertBanner";
 import { SessionManager } from "./components/SessionManager";
 import { TradeAnalysis } from "./components/TradeAnalysis";
 import { SymbolTabs } from "./components/SymbolTabs";
+import { VolumeSpikeSettings } from "./components/VolumeSpikeSettings";
 
 export default function App() {
   const { phase, symbols } = useSimulatorStore();
@@ -88,6 +89,7 @@ export default function App() {
       <div className="simulator-layout">
         <div className="sidebar">
           <ControlPanel />
+          <VolumeSpikeSettings />
           <StatsPanel />
           <PositionPanel />
           <TradePanel />

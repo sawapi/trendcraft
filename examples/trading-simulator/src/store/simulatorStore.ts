@@ -21,8 +21,11 @@ import type {
   PortfolioStats,
   SymbolStats,
   PendingOrder,
+  VolumeSpikeSettings,
+  DetectedVolumeSpike,
 } from "../types";
-import { DEFAULT_INDICATOR_PARAMS } from "../types";
+import { DEFAULT_INDICATOR_PARAMS, DEFAULT_VOLUME_SPIKE_SETTINGS } from "../types";
+import { volumeAnomaly, volumeBreakout, volumeAccumulation, volumeMaCross } from "trendcraft";
 import { calculateIndicators, getIndicatorSnapshot, analyzeMarketContext, type IndicatorData } from "../utils/indicators";
 
 // =============================================
@@ -109,6 +112,11 @@ interface SimulatorState {
   trailingStopPercent: number;
 
   // =============================================
+  // 出来高スパイク設定
+  // =============================================
+  volumeSpikeSettings: VolumeSpikeSettings;
+
+  // =============================================
   // 再生状態
   // =============================================
   isPlaying: boolean;
@@ -174,6 +182,12 @@ interface SimulatorState {
   finishSimulation: () => void;
   jumpToIndex: (index: number) => void;
   dismissAlert: (id: string) => void;
+
+  // =============================================
+  // 出来高スパイク設定
+  // =============================================
+  setVolumeSpikeSettings: (settings: Partial<VolumeSpikeSettings>) => void;
+  getDetectedVolumeSpikes: () => DetectedVolumeSpike[];
 
   // =============================================
   // Computed
@@ -243,6 +257,7 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
     takeProfitPercent: 10,
     trailingStopEnabled: false,
     trailingStopPercent: 5,
+    volumeSpikeSettings: { ...DEFAULT_VOLUME_SPIKE_SETTINGS },
     isPlaying: false,
     playbackSpeed: 1,
     alerts: [],
@@ -557,6 +572,129 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
                   });
                 }
               }
+            }
+          }
+        }
+      }
+
+      // 出来高スパイク検知（最新ローソク足のみチェック - 最適化版）
+      const { volumeSpikeSettings: volSettings } = get();
+      if (volSettings.showRealtimeAlerts && activeSymbol) {
+        const currentIdx = getSymbolCurrentIndex(activeSymbol, newGlobalDate);
+        const allCandles = activeSymbol.allCandles;
+
+        // 平均出来高スパイク検知（最新N+1日のみ）
+        if (volSettings.averageVolumeEnabled && currentIdx >= volSettings.averageVolumePeriod) {
+          const lookback = volSettings.averageVolumePeriod + 1;
+          const recentCandles = allCandles.slice(Math.max(0, currentIdx - lookback + 1), currentIdx + 1);
+          const anomalies = volumeAnomaly(recentCandles, {
+            period: volSettings.averageVolumePeriod,
+            highThreshold: volSettings.averageVolumeMultiplier,
+          });
+          const currentAnomaly = anomalies[anomalies.length - 1];
+
+          if (currentAnomaly && currentAnomaly.value.isAnomaly) {
+            const existingAlert = get().alerts.find(a =>
+              a.type === "VOLUME_SPIKE_AVERAGE" &&
+              Date.now() - a.timestamp < 3000
+            );
+            if (!existingAlert) {
+              set({
+                alerts: [...get().alerts, {
+                  id: generateId(),
+                  type: "VOLUME_SPIKE_AVERAGE",
+                  message: `出来高急増: ${currentAnomaly.value.ratio.toFixed(1)}倍 (${volSettings.averageVolumePeriod}日平均比)`,
+                  timestamp: Date.now(),
+                }],
+              });
+            }
+          }
+        }
+
+        // ブレイクアウト検知（最新N+1日のみ）
+        if (volSettings.breakoutVolumeEnabled && currentIdx > volSettings.breakoutVolumePeriod) {
+          const lookback = volSettings.breakoutVolumePeriod + 1;
+          const recentCandles = allCandles.slice(Math.max(0, currentIdx - lookback + 1), currentIdx + 1);
+          const breakouts = volumeBreakout(recentCandles, {
+            period: volSettings.breakoutVolumePeriod,
+          });
+          // 最新のローソク足がブレイクアウトかチェック
+          const currentCandle = allCandles[currentIdx];
+          const currentBreakout = breakouts.find(b => b.time === currentCandle.time);
+
+          if (currentBreakout) {
+            const existingAlert = get().alerts.find(a =>
+              a.type === "VOLUME_SPIKE_BREAKOUT" &&
+              Date.now() - a.timestamp < 3000
+            );
+            if (!existingAlert) {
+              set({
+                alerts: [...get().alerts, {
+                  id: generateId(),
+                  type: "VOLUME_SPIKE_BREAKOUT",
+                  message: `出来高新高値: ${volSettings.breakoutVolumePeriod}日間の最高出来高を更新 (${currentBreakout.ratio.toFixed(1)}倍)`,
+                  timestamp: Date.now(),
+                }],
+              });
+            }
+          }
+        }
+
+        // 蓄積フェーズ検知（最新N日のみ計算）
+        if (volSettings.accumulationEnabled && currentIdx > volSettings.accumulationPeriod) {
+          const lookback = volSettings.accumulationPeriod + volSettings.accumulationMinDays + 5;
+          const recentCandles = allCandles.slice(Math.max(0, currentIdx - lookback + 1), currentIdx + 1);
+          const accumulations = volumeAccumulation(recentCandles, {
+            period: volSettings.accumulationPeriod,
+            minSlope: volSettings.accumulationMinSlope,
+            minConsecutiveDays: volSettings.accumulationMinDays,
+          });
+          const currentCandle = allCandles[currentIdx];
+          const currentAccum = accumulations.find(a => a.time === currentCandle.time);
+
+          if (currentAccum) {
+            const existingAlert = get().alerts.find(a =>
+              a.type === "VOLUME_ACCUMULATION" &&
+              Date.now() - a.timestamp < 3000
+            );
+            if (!existingAlert) {
+              set({
+                alerts: [...get().alerts, {
+                  id: generateId(),
+                  type: "VOLUME_ACCUMULATION",
+                  message: `蓄積フェーズ: 出来高上昇傾向 ${currentAccum.consecutiveDays}日継続`,
+                  timestamp: Date.now(),
+                }],
+              });
+            }
+          }
+        }
+
+        // MAクロス検知（最新N日のみ計算）
+        if (volSettings.maCrossEnabled && currentIdx > volSettings.maCrossLongPeriod) {
+          const lookback = volSettings.maCrossLongPeriod + 10;
+          const recentCandles = allCandles.slice(Math.max(0, currentIdx - lookback + 1), currentIdx + 1);
+          const crosses = volumeMaCross(recentCandles, {
+            shortPeriod: volSettings.maCrossShortPeriod,
+            longPeriod: volSettings.maCrossLongPeriod,
+          });
+          const currentCandle = allCandles[currentIdx];
+          const currentCross = crosses.find(c => c.time === currentCandle.time && c.daysSinceCross === 1);
+
+          if (currentCross) {
+            const existingAlert = get().alerts.find(a =>
+              a.type === "VOLUME_MA_CROSS" &&
+              Date.now() - a.timestamp < 3000
+            );
+            if (!existingAlert) {
+              set({
+                alerts: [...get().alerts, {
+                  id: generateId(),
+                  type: "VOLUME_MA_CROSS",
+                  message: `出来高MAクロス: 短期MA(${volSettings.maCrossShortPeriod})が長期MA(${volSettings.maCrossLongPeriod})を上抜け (${currentCross.ratio.toFixed(1)}倍)`,
+                  timestamp: Date.now(),
+                }],
+              });
             }
           }
         }
@@ -939,6 +1077,133 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
       set(state => ({
         alerts: state.alerts.filter(a => a.id !== id),
       }));
+    },
+
+    // =============================================
+    // 出来高スパイク設定アクション
+    // =============================================
+    setVolumeSpikeSettings: (settings) => {
+      set(state => ({
+        volumeSpikeSettings: { ...state.volumeSpikeSettings, ...settings },
+      }));
+    },
+
+    getDetectedVolumeSpikes: () => {
+      const symbol = getActiveSymbolInternal();
+      const { volumeSpikeSettings, globalDate } = get();
+
+      if (!symbol || !volumeSpikeSettings.showChartMarkers) return [];
+
+      const currentIdx = getSymbolCurrentIndex(symbol, globalDate);
+      const startIdx = symbol.startIndex;
+      if (currentIdx < startIdx) return [];
+
+      const visibleCandles = symbol.allCandles.slice(0, currentIdx + 1);
+      const spikes: DetectedVolumeSpike[] = [];
+
+      // 平均出来高検知
+      if (volumeSpikeSettings.averageVolumeEnabled) {
+        const anomalies = volumeAnomaly(visibleCandles, {
+          period: volumeSpikeSettings.averageVolumePeriod,
+          highThreshold: volumeSpikeSettings.averageVolumeMultiplier,
+        });
+
+        for (let i = startIdx; i <= currentIdx; i++) {
+          const anomaly = anomalies[i];
+          if (anomaly && anomaly.value.isAnomaly) {
+            spikes.push({
+              time: anomaly.time,
+              volume: anomaly.value.volume,
+              type: "average",
+              ratio: anomaly.value.ratio,
+            });
+          }
+        }
+      }
+
+      // ブレイクアウト検知
+      if (volumeSpikeSettings.breakoutVolumeEnabled) {
+        const breakouts = volumeBreakout(visibleCandles, {
+          period: volumeSpikeSettings.breakoutVolumePeriod,
+        });
+
+        for (const breakout of breakouts) {
+          // 可視範囲内のみ
+          const idx = visibleCandles.findIndex(c => c.time === breakout.time);
+          if (idx >= startIdx) {
+            // 重複を避ける（同じ時間の平均検知がある場合はbreakoutを優先）
+            const existingIdx = spikes.findIndex(s => s.time === breakout.time);
+            if (existingIdx >= 0) {
+              spikes[existingIdx] = {
+                time: breakout.time,
+                volume: breakout.volume,
+                type: "breakout",
+                ratio: breakout.ratio,
+              };
+            } else {
+              spikes.push({
+                time: breakout.time,
+                volume: breakout.volume,
+                type: "breakout",
+                ratio: breakout.ratio,
+              });
+            }
+          }
+        }
+      }
+
+      // 蓄積フェーズ検知
+      if (volumeSpikeSettings.accumulationEnabled) {
+        const accumulations = volumeAccumulation(visibleCandles, {
+          period: volumeSpikeSettings.accumulationPeriod,
+          minSlope: volumeSpikeSettings.accumulationMinSlope,
+          minConsecutiveDays: volumeSpikeSettings.accumulationMinDays,
+        });
+
+        for (const accum of accumulations) {
+          const idx = visibleCandles.findIndex(c => c.time === accum.time);
+          if (idx >= startIdx) {
+            // 重複がない場合のみ追加
+            const existingIdx = spikes.findIndex(s => s.time === accum.time);
+            if (existingIdx < 0) {
+              spikes.push({
+                time: accum.time,
+                volume: accum.volume,
+                type: "accumulation",
+                ratio: accum.normalizedSlope,
+                consecutiveDays: accum.consecutiveDays,
+              });
+            }
+          }
+        }
+      }
+
+      // MAクロス検知
+      if (volumeSpikeSettings.maCrossEnabled) {
+        const crosses = volumeMaCross(visibleCandles, {
+          shortPeriod: volumeSpikeSettings.maCrossShortPeriod,
+          longPeriod: volumeSpikeSettings.maCrossLongPeriod,
+        });
+
+        // クロスの開始日（daysSinceCross === 1）のみマーカー表示
+        for (const cross of crosses) {
+          if (cross.daysSinceCross !== 1) continue;
+          const idx = visibleCandles.findIndex(c => c.time === cross.time);
+          if (idx >= startIdx) {
+            const existingIdx = spikes.findIndex(s => s.time === cross.time);
+            if (existingIdx < 0) {
+              spikes.push({
+                time: cross.time,
+                volume: cross.volume,
+                type: "ma_cross",
+                ratio: cross.ratio,
+              });
+            }
+          }
+        }
+      }
+
+      return spikes;
     },
 
     // =============================================
