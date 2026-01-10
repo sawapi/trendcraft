@@ -8,12 +8,14 @@
   - [モメンタム](#モメンタム)
   - [ボラティリティ](#ボラティリティ)
   - [出来高](#出来高)
+  - [相対強度（RS）](#相対強度rs)
   - [価格](#価格)
 - [シグナル](#シグナル)
   - [クロス検出](#クロス検出)
   - [ダイバージェンス検出](#ダイバージェンス検出)
   - [スクイーズ検出](#スクイーズ検出)
   - [レンジ相場検出](#レンジ相場検出)
+  - [価格パターン](#価格パターン)
 - [バックテスト](#バックテスト)
   - [バックテスト実行](#バックテスト実行)
   - [プリセット条件](#プリセット条件)
@@ -710,6 +712,109 @@ interface VolumeTrendValue {
 
 ---
 
+### 相対強度（RS）
+
+#### `benchmarkRS(candles, benchmark, options)`
+
+株式のパフォーマンスをベンチマーク（S&P 500、日経225など）と比較する相対強度を計算します。
+
+```typescript
+import { benchmarkRS } from 'trendcraft';
+
+// 株式を市場指数と比較
+const rs = benchmarkRS(stockCandles, sp500Candles, { period: 52 });
+
+// アウトパフォームしている銘柄を探す
+const latest = rs[rs.length - 1];
+if (latest.value.rsRating > 80 && latest.value.trend === 'up') {
+  console.log('相対強度が強い！');
+}
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|-----------|-----|----------|------|
+| `period` | `number` | `52` | パフォーマンス計算期間 |
+| `smaPeriod` | `number` | `52` | Mansfield RS用SMA期間 |
+| `rankingLookback` | `number` | `252` | パーセンタイルランキング期間 |
+| `flatThreshold` | `number` | `0.01` | フラットトレンドの閾値 |
+
+**戻り値:** `Series<RSValue>`
+
+```typescript
+interface RSValue {
+  rs: number;                    // 生のRS比率（>1 = アウトパフォーム）
+  rsRating: number | null;       // パーセンタイルランク 0-100
+  trend: 'up' | 'down' | 'flat'; // RSトレンド方向
+  mansfieldRS: number | null;    // SMAからの乖離（%）
+  outperformance: number;        // ベンチマーク対比の超過リターン（%）
+}
+```
+
+**解釈:**
+- **RS > 1.0**: ベンチマークをアウトパフォーム
+- **RS Rating > 80**: 過去の比較で上位20%
+- **Mansfield RS > 0**: RSが移動平均を上回る（強まっている）
+
+---
+
+#### `calculateRSRating(candles, benchmark, period)`
+
+RS Ratingのみを簡単に計算。
+
+```typescript
+const rating = calculateRSRating(stockCandles, sp500Candles, 52);
+// 戻り値: 85（上位15%）
+```
+
+---
+
+#### `isOutperforming(candles, benchmark, period, minOutperformance)`
+
+ベンチマークをアウトパフォームしているかチェック。
+
+```typescript
+if (isOutperforming(stockCandles, sp500Candles, 52, 10)) {
+  console.log('ベンチマークを10%以上アウトパフォーム');
+}
+```
+
+---
+
+#### 複数銘柄RSランキング
+
+複数の株式間で相対強度を比較。
+
+```typescript
+import { rankByRS, topByRS, filterByRSPercentile } from 'trendcraft';
+
+// 全銘柄をRSでランキング
+const symbolsData = new Map([
+  ['トヨタ', toyotaCandles],
+  ['ソニー', sonyCandles],
+  ['任天堂', nintendoCandles],
+]);
+
+const rankings = rankByRS(symbolsData, { benchmarkSymbol: 'TOPIX' });
+// [{ symbol: 'トヨタ', rank: 1, rsRating: 92, ... }, ...]
+
+// 上位5銘柄を取得
+const top5 = topByRS(symbolsData, 5);
+
+// 上位20%の銘柄をフィルタ
+const leaders = filterByRSPercentile(symbolsData, 80);
+```
+
+| 関数 | 説明 |
+|------|------|
+| `rankByRS(symbolsData, options)` | 全銘柄をRSでランキング |
+| `topByRS(symbolsData, n, options)` | RS上位N銘柄を取得 |
+| `bottomByRS(symbolsData, n, options)` | RS下位N銘柄を取得 |
+| `filterByRSPercentile(symbolsData, minPercentile, options)` | RSパーセンタイルでフィルタ |
+| `compareRS(symbol1, symbol2, candles1, candles2, options)` | 2銘柄を直接比較 |
+
+---
+
 ### 価格
 
 #### `highest(candles, options)` / `lowest(candles, options)`
@@ -1176,6 +1281,126 @@ interface VolumeMaCrossSignal {
 
 ---
 
+### 価格パターン
+
+反転・継続シグナルのためのクラシックなチャートパターンを検出します。
+
+#### `doubleTop(candles, options)` / `doubleBottom(candles, options)`
+
+ダブルトップ（弱気反転）とダブルボトム（強気反転）パターンを検出。
+
+```typescript
+import { doubleTop, doubleBottom } from 'trendcraft';
+
+const bearishPatterns = doubleTop(candles, { tolerance: 0.02 });
+const bullishPatterns = doubleBottom(candles);
+
+bearishPatterns.forEach(p => {
+  if (p.confirmed) {
+    console.log(`ダブルトップ確認、目標価格: ${p.pattern.target}`);
+  }
+});
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|-----------|-----|----------|------|
+| `tolerance` | `number` | `0.02` | ピーク/ボトム間の最大価格差（2%） |
+| `minDistance` | `number` | `10` | ピーク/ボトム間の最小バー数 |
+| `maxDistance` | `number` | `60` | ピーク/ボトム間の最大バー数 |
+| `minMiddleDepth` | `number` | `0.1` | 中間トラフ/ピークの最小深さ（10%） |
+| `swingLookback` | `number` | `5` | スイングポイント検出ルックバック |
+
+---
+
+#### `headAndShoulders(candles, options)` / `inverseHeadAndShoulders(candles, options)`
+
+ヘッドアンドショルダー（弱気）と逆ヘッドアンドショルダー（強気）パターンを検出。
+
+```typescript
+import { headAndShoulders, inverseHeadAndShoulders } from 'trendcraft';
+
+const bearish = headAndShoulders(candles);
+const bullish = inverseHeadAndShoulders(candles);
+
+bearish.forEach(p => {
+  console.log(`H&S発生 ${new Date(p.time)}, ネックライン: ${p.pattern.neckline.currentPrice}`);
+});
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|-----------|-----|----------|------|
+| `shoulderTolerance` | `number` | `0.05` | 肩間の最大差（5%） |
+| `maxNecklineSlope` | `number` | `0.1` | ネックラインの最大傾き（10%） |
+| `minHeadHeight` | `number` | `0.03` | ヘッドの最小突出度（3%） |
+| `swingLookback` | `number` | `5` | スイングポイント検出ルックバック |
+
+---
+
+#### `cupWithHandle(candles, options)`
+
+カップ・ウィズ・ハンドル強気継続パターン（William O'Neil）を検出。
+
+```typescript
+import { cupWithHandle } from 'trendcraft';
+
+const patterns = cupWithHandle(candles, {
+  minCupDepth: 0.15,
+  maxCupDepth: 0.35
+});
+
+patterns.forEach(p => {
+  if (p.confirmed) {
+    console.log(`カップ・ウィズ・ハンドルブレイクアウト！目標: ${p.pattern.target}`);
+  }
+});
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|-----------|-----|----------|------|
+| `minCupDepth` | `number` | `0.12` | カップの最小深さ（12%） |
+| `maxCupDepth` | `number` | `0.35` | カップの最大深さ（35%） |
+| `minCupLength` | `number` | `30` | カップの最小バー数 |
+| `maxHandleDepth` | `number` | `0.12` | ハンドルの最大プルバック（12%） |
+| `minHandleLength` | `number` | `5` | ハンドルの最小バー数 |
+| `swingLookback` | `number` | `5` | スイングポイント検出ルックバック |
+
+---
+
+#### パターンシグナル構造
+
+すべてのパターン検出関数は `PatternSignal[]` を返します：
+
+```typescript
+interface PatternSignal {
+  time: number;              // パターン完成時刻
+  type: PatternType;         // 'double_top' | 'double_bottom' | 'head_shoulders' など
+  pattern: {
+    startTime: number;       // パターン開始
+    endTime: number;         // パターン終了
+    keyPoints: PatternKeyPoint[];  // キーポイント（ピーク、トラフ、ネックライン）
+    neckline?: PatternNeckline;    // H&Sパターン用
+    target?: number;         // 目標価格（メジャードムーブ）
+    stopLoss?: number;       // 推奨ストップロス
+    height: number;          // パターン高さ
+  };
+  confidence: number;        // 0-100 信頼度スコア
+  confirmed: boolean;        // ブレイクアウト発生時true
+}
+```
+
+| パターンタイプ | 方向 | 確認条件 |
+|--------------|------|---------|
+| `double_top` | 弱気 | 中間トラフを下抜け |
+| `double_bottom` | 強気 | 中間ピークを上抜け |
+| `head_shoulders` | 弱気 | ネックラインを下抜け |
+| `inverse_head_shoulders` | 強気 | ネックラインを上抜け |
+| `cup_handle` | 強気 | カップリムを上抜け |
+
+---
+
 ## バックテスト
 
 ### バックテスト実行
@@ -1512,6 +1737,83 @@ const result = TrendCraft.from(dailyCandles)
     .exit(deadCrossCondition())
   .backtest({ capital: 1000000 });
 ```
+
+---
+
+#### 相対強度（RS）条件
+
+RS条件は株式のパフォーマンスをベンチマークと比較します。ベンチマークデータの設定が必要です。
+
+```typescript
+import { rsAbove, rsRising, rsRatingAbove, setBenchmark, and } from 'trendcraft';
+
+// バックテスト前にベンチマークを設定
+const entry = and(
+  rsAbove(1.0),       // ベンチマークをアウトパフォーム
+  rsRising(),         // RS上昇トレンド
+  rsRatingAbove(80),  // 過去比較で上位20%
+);
+
+// バックテストでの使用
+runBacktest(candles, entry, exit, {
+  capital: 1000000,
+  setup: (indicators) => {
+    setBenchmark(indicators, sp500Candles);
+  }
+});
+```
+
+| 関数 | 説明 |
+|------|------|
+| `rsAbove(threshold, options)` | RS比率 > 閾値（>1.0 = アウトパフォーム） |
+| `rsBelow(threshold, options)` | RS比率 < 閾値 |
+| `rsRising(options)` | RS上昇トレンド |
+| `rsFalling(options)` | RS下降トレンド |
+| `rsNewHigh(lookback, options)` | RSがN期間高値 |
+| `rsNewLow(lookback, options)` | RSがN期間安値 |
+| `rsRatingAbove(rating, options)` | RS Ratingパーセンタイル > 閾値 |
+| `rsRatingBelow(rating, options)` | RS Ratingパーセンタイル < 閾値 |
+| `mansfieldRSAbove(threshold, options)` | Mansfield RS > 閾値 |
+| `mansfieldRSBelow(threshold, options)` | Mansfield RS < 閾値 |
+| `outperformanceAbove(percent, options)` | N%以上アウトパフォーム |
+| `outperformanceBelow(percent, options)` | N%以下アウトパフォーム |
+
+---
+
+#### 価格パターン条件
+
+チャートパターン検出をバックテスト条件として使用。
+
+```typescript
+import { patternDetected, anyBullishPattern, patternConfidenceAbove, and } from 'trendcraft';
+
+// ダブルトップでイグジット
+const exit = patternDetected('double_top');
+
+// 高信頼度の確認済み強気パターンでエントリー
+const entry = and(
+  anyBullishPattern({ confirmedOnly: true }),
+  patternConfidenceAbove('double_bottom', 70)
+);
+
+// 直近5バー以内のカップ・ウィズ・ハンドルでエントリー
+const cupEntry = patternWithinBars('cup_handle', 5, { confirmedOnly: true });
+```
+
+| 関数 | 説明 |
+|------|------|
+| `patternDetected(type, options)` | 現在のバーでパターン検出 |
+| `patternConfirmed(type, options)` | 確認済みパターン（ブレイクアウト発生） |
+| `anyBullishPattern(options)` | 任意の強気パターン（ダブルボトム、逆H&S、カップハンドル） |
+| `anyBearishPattern(options)` | 任意の弱気パターン（ダブルトップ、H&S） |
+| `patternConfidenceAbove(type, min, options)` | パターン信頼度 > 閾値 |
+| `anyPatternConfidenceAbove(min, options)` | 任意のパターンで信頼度 > 閾値 |
+| `patternWithinBars(type, lookback, options)` | 直近Nバー以内でパターン検出 |
+| `doubleTopDetected(options)` | ダブルトップパターン |
+| `doubleBottomDetected(options)` | ダブルボトムパターン |
+| `headShouldersDetected(options)` | ヘッドアンドショルダーパターン |
+| `inverseHeadShouldersDetected(options)` | 逆ヘッドアンドショルダーパターン |
+| `cupHandleDetected(options)` | カップ・ウィズ・ハンドルパターン |
 
 ---
 

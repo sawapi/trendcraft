@@ -19,6 +19,8 @@
 - [VWAP](#vwap)
 - [出来高指標](#出来高指標)
 - [高度な出来高分析](#高度な出来高分析)
+- [相対強度（RS）](#相対強度rs)
+- [価格パターン](#価格パターン)
 - [マルチタイムフレーム（MTF）分析](#マルチタイムフレームmtf分析)
 - [レンジ相場検出](#レンジ相場検出)
 - [バックテスト](#バックテスト)
@@ -926,6 +928,224 @@ signals.forEach(s => {
 |----------|------|-----------|
 | `volumeAccumulation` | 線形回帰の傾き | 加速する出来高（強まる傾向）の検出 |
 | `volumeAboveAverage` | 単純な比率比較 | 持続的な高出来高の検出 |
+
+---
+
+## 相対強度（RS）
+
+### RSとは？
+
+相対強度（RS）は、株式のパフォーマンスをベンチマーク指数（S&P 500や日経225など）と比較します。市場をアウトパフォームまたはアンダーパフォームしている銘柄を特定するのに役立ちます。
+
+### 基本概念
+
+```
+RS > 1.0  →  ベンチマークをアウトパフォーム
+RS < 1.0  →  ベンチマークをアンダーパフォーム
+RS = 1.0  →  ベンチマークと同等
+```
+
+### なぜRSを使うのか？
+
+| メリット | 説明 |
+|---------|------|
+| **市場リーダー** | 市場より強い銘柄を見つける |
+| **トレンド確認** | 強い銘柄は強いままになりやすい（モメンタム） |
+| **リスクフィルター** | 上昇トレンド時にラガードを避ける |
+| **セクターローテーション** | セクター/銘柄のリーダーシップ変化を特定 |
+
+### マンスフィールドRS
+
+マンスフィールドRSは、RSラインが移動平均からどれだけ離れているかを測定します：
+
+```
+Mansfield RS > 0  →  RS強まっている
+Mansfield RS < 0  →  RS弱まっている
+```
+
+### 基本的な使い方
+
+```typescript
+import { benchmarkRS, isOutperforming, rankByRS } from 'trendcraft';
+
+// ベンチマークに対するRS計算
+const rs = benchmarkRS(stockCandles, nikkei225Candles, { period: 52 });
+
+const latest = rs[rs.length - 1].value;
+console.log(`RS Rating: ${latest.rsRating}`);        // パーセンタイル（0-100）
+console.log(`超過リターン: ${latest.outperformance.toFixed(1)}%`);
+console.log(`Mansfield RS: ${latest.mansfieldRS?.toFixed(2)}`);
+
+// シンプルなアウトパフォームチェック
+if (isOutperforming(stockCandles, benchmarkCandles, 52, 10)) {
+  console.log('ベンチマークを10%以上アウトパフォーム');
+}
+
+// 複数銘柄のランキング
+const rankings = rankByRS(symbolsMap, { benchmarkSymbol: 'TOPIX' });
+rankings.slice(0, 5).forEach((r, i) => {
+  console.log(`#${i + 1}: ${r.symbol} (RS Rating: ${r.rsRating})`);
+});
+```
+
+### RSを使ったトレード戦略
+
+| 戦略 | RS条件 | その他の条件 |
+|------|--------|-------------|
+| **市場リーダー** | RS Rating > 80 | 価格が上昇トレンド |
+| **RSブレイクアウト** | RSが52週高値 | 出来高急増 |
+| **モメンタム** | RS上昇 + 50超 | ゴールデンクロス |
+| **ラガード回避** | RS Rating < 20 | -（これらの銘柄は避ける） |
+
+### バックテストでのRS
+
+```typescript
+import { rsAbove, rsRising, rsRatingAbove, setBenchmark, and } from 'trendcraft';
+
+// エントリー: 強いRS + トレンド確認
+const entry = and(
+  rsAbove(1.0),         // アウトパフォーム
+  rsRising(),           // RS改善中
+  rsRatingAbove(70),    // 上位30%
+  goldenCross()         // テクニカルエントリー
+);
+
+// ベンチマーク付きバックテスト実行
+runBacktest(candles, entry, exit, {
+  capital: 1000000,
+  setup: (indicators) => {
+    setBenchmark(indicators, nikkei225Candles);
+  }
+});
+```
+
+---
+
+## 価格パターン
+
+### 価格パターンとは？
+
+価格パターンは、反転や継続を示す認識可能なチャートフォーメーションです。市場参加者の集団心理から形成されます。
+
+### パターンの種類
+
+| タイプ | 方向 | シグナル |
+|--------|------|---------|
+| **ダブルトップ** | 弱気 | 上昇トレンド後の反転 |
+| **ダブルボトム** | 強気 | 下降トレンド後の反転 |
+| **ヘッドアンドショルダー** | 弱気 | 主要な反転パターン |
+| **逆ヘッドアンドショルダー** | 強気 | 主要な反転パターン |
+| **カップ・ウィズ・ハンドル** | 強気 | 継続パターン（William O'Neil） |
+
+### ダブルトップ / ダブルボトム
+
+```
+ダブルトップ（M型）:          ダブルボトム（W型）:
+
+  ピーク1   ピーク2              ボトム1   ボトム2
+    ___       ___              ▼          ▼
+   /   \     /   \            /          /
+  /     \___/     \          /    ___   /
+         ボトム    ▼ 下抜け      /   \/
+                              ピーク
+                              ▲ 上抜け
+```
+
+**確認条件**: 価格が中間のボトム/ピークを下抜け/上抜け。
+
+### ヘッドアンドショルダー
+
+```
+      ヘッド
+       /\
+      /  \
+     /    \
+    /      \___
+左肩           右肩
+    \          /
+     \        /
+      \      /
+   ----\----/----  ネックライン
+        ▼
+     下抜け
+```
+
+**ポイント**:
+- 左肩と右肩は同程度のレベル
+- ヘッドが最も高い（逆の場合は最も低い）
+- ネックラインがボトム（逆の場合はピーク）を結ぶ
+- 目標 = ネックラインからのパターン高さ
+
+### カップ・ウィズ・ハンドル
+
+```
+  リム        リム
+   │          │
+   │ カップ __/│
+   │/   \___/ │  ← ハンドル（小さなプルバック）
+   └──────────┴──▶ ブレイクアウト
+
+- カップ: U字型、V字型ではない
+- 深さ: 通常12-35%
+- ハンドル: リムからの小さなプルバック（< 12%）
+```
+
+### 基本的な使い方
+
+```typescript
+import { doubleTop, headAndShoulders, cupWithHandle } from 'trendcraft';
+
+// パターン検出
+const doubleTops = doubleTop(candles);
+const headShoulders = headAndShoulders(candles);
+const cups = cupWithHandle(candles);
+
+// 確認済みパターンをチェック
+doubleTops.filter(p => p.confirmed).forEach(p => {
+  console.log(`ダブルトップ確認 ${new Date(p.time)}`);
+  console.log(`目標: ${p.pattern.target}`);
+  console.log(`信頼度: ${p.confidence}%`);
+});
+
+// カップ・ウィズ・ハンドルのトレード
+cups.forEach(p => {
+  if (p.confirmed && p.confidence > 70) {
+    console.log('高信頼度のカップブレイクアウト！');
+    console.log(`エントリー: ${p.pattern.keyPoints[2].price}`);  // 右リム
+    console.log(`目標: ${p.pattern.target}`);
+    console.log(`ストップ: ${p.pattern.stopLoss}`);
+  }
+});
+```
+
+### パターン信頼度
+
+各パターンには以下に基づく信頼度スコア（0-100）があります：
+
+| 要素 | 高信頼度 |
+|------|---------|
+| ピーク/ボトムの揃い | 同じレベルに近い |
+| パターンの深さ | 最適な深さ範囲 |
+| ネックラインの傾き | フラット = より信頼できる |
+| 確認 | ブレイクアウト発生 |
+
+### バックテストでのパターン
+
+```typescript
+import { patternDetected, anyBullishPattern, cupHandleDetected, and } from 'trendcraft';
+
+// 弱気反転パターンでイグジット
+const exit = patternDetected('head_shoulders');
+
+// 出来高付き強気パターンでエントリー
+const entry = and(
+  anyBullishPattern({ confirmedOnly: true }),
+  volumeAboveAvg()
+);
+
+// カップ・ウィズ・ハンドルのみトレード
+const cupEntry = cupHandleDetected({ confirmedOnly: true });
+```
 
 ---
 

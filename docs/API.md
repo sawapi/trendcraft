@@ -8,12 +8,14 @@
   - [Momentum](#momentum)
   - [Volatility](#volatility)
   - [Volume](#volume)
+  - [Relative Strength](#relative-strength)
   - [Price](#price)
 - [Signals](#signals)
   - [Cross Detection](#cross-detection)
   - [Divergence Detection](#divergence-detection)
   - [Squeeze Detection](#squeeze-detection)
   - [Range-Bound Detection](#range-bound-detection)
+  - [Price Patterns](#price-patterns)
 - [Backtesting](#backtesting)
   - [Running Backtest](#running-backtest)
   - [Preset Conditions](#preset-conditions)
@@ -702,6 +704,109 @@ interface VolumeTrendValue {
 
 ---
 
+### Relative Strength
+
+#### `benchmarkRS(candles, benchmark, options)`
+
+Calculate Relative Strength comparing a stock against a benchmark (e.g., S&P 500, Nikkei 225).
+
+```typescript
+import { benchmarkRS } from 'trendcraft';
+
+// Compare stock against market index
+const rs = benchmarkRS(stockCandles, sp500Candles, { period: 52 });
+
+// Find outperforming stocks
+const latest = rs[rs.length - 1];
+if (latest.value.rsRating > 80 && latest.value.trend === 'up') {
+  console.log('Strong relative strength!');
+}
+```
+
+**Options:**
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `period` | `number` | `52` | Performance calculation period |
+| `smaPeriod` | `number` | `52` | SMA period for Mansfield RS |
+| `rankingLookback` | `number` | `252` | Lookback for percentile ranking |
+| `flatThreshold` | `number` | `0.01` | Threshold for flat trend detection |
+
+**Returns:** `Series<RSValue>`
+
+```typescript
+interface RSValue {
+  rs: number;                    // Raw RS ratio (>1 = outperforming)
+  rsRating: number | null;       // Percentile rank 0-100
+  trend: 'up' | 'down' | 'flat'; // RS trend direction
+  mansfieldRS: number | null;    // Deviation from SMA (%)
+  outperformance: number;        // % outperformance vs benchmark
+}
+```
+
+**Interpretation:**
+- **RS > 1.0**: Stock outperforming benchmark
+- **RS Rating > 80**: Stock in top 20% of historical comparisons
+- **Mansfield RS > 0**: RS above its moving average (strengthening)
+
+---
+
+#### `calculateRSRating(candles, benchmark, period)`
+
+Quick calculation of RS Rating only.
+
+```typescript
+const rating = calculateRSRating(stockCandles, sp500Candles, 52);
+// Returns: 85 (stock in top 15%)
+```
+
+---
+
+#### `isOutperforming(candles, benchmark, period, minOutperformance)`
+
+Check if stock is outperforming benchmark.
+
+```typescript
+if (isOutperforming(stockCandles, sp500Candles, 52, 10)) {
+  console.log('Stock beating benchmark by at least 10%');
+}
+```
+
+---
+
+#### Multi-Symbol RS Ranking
+
+Compare relative strength across multiple stocks.
+
+```typescript
+import { rankByRS, topByRS, filterByRSPercentile } from 'trendcraft';
+
+// Rank all stocks by RS
+const symbolsData = new Map([
+  ['AAPL', aaplCandles],
+  ['GOOGL', googlCandles],
+  ['MSFT', msftCandles],
+]);
+
+const rankings = rankByRS(symbolsData, { benchmarkSymbol: 'SPY' });
+// [{ symbol: 'AAPL', rank: 1, rsRating: 92, ... }, ...]
+
+// Get top 5 stocks
+const top5 = topByRS(symbolsData, 5);
+
+// Filter stocks in top 20%
+const leaders = filterByRSPercentile(symbolsData, 80);
+```
+
+| Function | Description |
+|----------|-------------|
+| `rankByRS(symbolsData, options)` | Rank all symbols by RS |
+| `topByRS(symbolsData, n, options)` | Get top N stocks by RS |
+| `bottomByRS(symbolsData, n, options)` | Get bottom N stocks by RS |
+| `filterByRSPercentile(symbolsData, minPercentile, options)` | Filter by RS percentile |
+| `compareRS(symbol1, symbol2, candles1, candles2, options)` | Compare two stocks directly |
+
+---
+
 ### Price
 
 #### `highest(candles, options)` / `lowest(candles, options)`
@@ -1166,6 +1271,126 @@ interface VolumeMaCrossSignal {
 
 ---
 
+### Price Patterns
+
+Detect classic chart patterns for reversal and continuation signals.
+
+#### `doubleTop(candles, options)` / `doubleBottom(candles, options)`
+
+Detect Double Top (bearish reversal) and Double Bottom (bullish reversal) patterns.
+
+```typescript
+import { doubleTop, doubleBottom } from 'trendcraft';
+
+const bearishPatterns = doubleTop(candles, { tolerance: 0.02 });
+const bullishPatterns = doubleBottom(candles);
+
+bearishPatterns.forEach(p => {
+  if (p.confirmed) {
+    console.log(`Double Top confirmed, target: ${p.pattern.target}`);
+  }
+});
+```
+
+**Options:**
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `tolerance` | `number` | `0.02` | Max price difference between peaks/troughs (2%) |
+| `minDistance` | `number` | `10` | Minimum bars between peaks/troughs |
+| `maxDistance` | `number` | `60` | Maximum bars between peaks/troughs |
+| `minMiddleDepth` | `number` | `0.1` | Minimum depth of middle trough/peak (10%) |
+| `swingLookback` | `number` | `5` | Swing point detection lookback |
+
+---
+
+#### `headAndShoulders(candles, options)` / `inverseHeadAndShoulders(candles, options)`
+
+Detect Head and Shoulders (bearish) and Inverse Head and Shoulders (bullish) patterns.
+
+```typescript
+import { headAndShoulders, inverseHeadAndShoulders } from 'trendcraft';
+
+const bearish = headAndShoulders(candles);
+const bullish = inverseHeadAndShoulders(candles);
+
+bearish.forEach(p => {
+  console.log(`H&S at ${new Date(p.time)}, neckline: ${p.pattern.neckline.currentPrice}`);
+});
+```
+
+**Options:**
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `shoulderTolerance` | `number` | `0.05` | Max difference between shoulders (5%) |
+| `maxNecklineSlope` | `number` | `0.1` | Maximum neckline slope (10%) |
+| `minHeadHeight` | `number` | `0.03` | Minimum head prominence (3%) |
+| `swingLookback` | `number` | `5` | Swing point detection lookback |
+
+---
+
+#### `cupWithHandle(candles, options)`
+
+Detect Cup with Handle bullish continuation pattern (William O'Neil).
+
+```typescript
+import { cupWithHandle } from 'trendcraft';
+
+const patterns = cupWithHandle(candles, {
+  minCupDepth: 0.15,
+  maxCupDepth: 0.35
+});
+
+patterns.forEach(p => {
+  if (p.confirmed) {
+    console.log(`Cup with Handle breakout! Target: ${p.pattern.target}`);
+  }
+});
+```
+
+**Options:**
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `minCupDepth` | `number` | `0.12` | Minimum cup depth (12%) |
+| `maxCupDepth` | `number` | `0.35` | Maximum cup depth (35%) |
+| `minCupLength` | `number` | `30` | Minimum cup length in bars |
+| `maxHandleDepth` | `number` | `0.12` | Maximum handle pullback (12%) |
+| `minHandleLength` | `number` | `5` | Minimum handle length in bars |
+| `swingLookback` | `number` | `5` | Swing point detection lookback |
+
+---
+
+#### Pattern Signal Structure
+
+All pattern detection functions return `PatternSignal[]`:
+
+```typescript
+interface PatternSignal {
+  time: number;              // Pattern completion time
+  type: PatternType;         // 'double_top' | 'double_bottom' | 'head_shoulders' | etc.
+  pattern: {
+    startTime: number;       // Pattern start
+    endTime: number;         // Pattern end
+    keyPoints: PatternKeyPoint[];  // Key points (peaks, troughs, neckline)
+    neckline?: PatternNeckline;    // For H&S patterns
+    target?: number;         // Price target (measured move)
+    stopLoss?: number;       // Suggested stop loss
+    height: number;          // Pattern height
+  };
+  confidence: number;        // 0-100 confidence score
+  confirmed: boolean;        // True if breakout occurred
+}
+```
+
+| Pattern Type | Direction | Confirmation |
+|--------------|-----------|--------------|
+| `double_top` | Bearish | Price breaks below middle trough |
+| `double_bottom` | Bullish | Price breaks above middle peak |
+| `head_shoulders` | Bearish | Price breaks below neckline |
+| `inverse_head_shoulders` | Bullish | Price breaks above neckline |
+| `cup_handle` | Bullish | Price breaks above cup rim |
+
+---
+
 ## Backtesting
 
 ### Running Backtest
@@ -1502,6 +1727,83 @@ const result = TrendCraft.from(dailyCandles)
     .exit(deadCrossCondition())
   .backtest({ capital: 1000000 });
 ```
+
+---
+
+#### Relative Strength (RS) Conditions
+
+RS conditions compare stock performance against a benchmark. Requires setting benchmark data.
+
+```typescript
+import { rsAbove, rsRising, rsRatingAbove, setBenchmark, and } from 'trendcraft';
+
+// Set benchmark before backtest
+const entry = and(
+  rsAbove(1.0),       // Outperforming benchmark
+  rsRising(),         // RS trending up
+  rsRatingAbove(80),  // In top 20% historically
+);
+
+// Usage with backtest setup
+runBacktest(candles, entry, exit, {
+  capital: 1000000,
+  setup: (indicators) => {
+    setBenchmark(indicators, sp500Candles);
+  }
+});
+```
+
+| Function | Description |
+|----------|-------------|
+| `rsAbove(threshold, options)` | RS ratio > threshold (>1.0 = outperforming) |
+| `rsBelow(threshold, options)` | RS ratio < threshold |
+| `rsRising(options)` | RS trending up |
+| `rsFalling(options)` | RS trending down |
+| `rsNewHigh(lookback, options)` | RS at N-period high |
+| `rsNewLow(lookback, options)` | RS at N-period low |
+| `rsRatingAbove(rating, options)` | RS Rating percentile > threshold |
+| `rsRatingBelow(rating, options)` | RS Rating percentile < threshold |
+| `mansfieldRSAbove(threshold, options)` | Mansfield RS > threshold |
+| `mansfieldRSBelow(threshold, options)` | Mansfield RS < threshold |
+| `outperformanceAbove(percent, options)` | Outperforming by > N% |
+| `outperformanceBelow(percent, options)` | Outperforming by < N% |
+
+---
+
+#### Price Pattern Conditions
+
+Use chart pattern detection as backtest conditions.
+
+```typescript
+import { patternDetected, anyBullishPattern, patternConfidenceAbove, and } from 'trendcraft';
+
+// Exit on double top
+const exit = patternDetected('double_top');
+
+// Enter on any confirmed bullish pattern with high confidence
+const entry = and(
+  anyBullishPattern({ confirmedOnly: true }),
+  patternConfidenceAbove('double_bottom', 70)
+);
+
+// Enter on cup with handle pattern within last 5 bars
+const cupEntry = patternWithinBars('cup_handle', 5, { confirmedOnly: true });
+```
+
+| Function | Description |
+|----------|-------------|
+| `patternDetected(type, options)` | Pattern detected at current bar |
+| `patternConfirmed(type, options)` | Confirmed pattern (breakout occurred) |
+| `anyBullishPattern(options)` | Any bullish pattern (double bottom, inverse H&S, cup handle) |
+| `anyBearishPattern(options)` | Any bearish pattern (double top, H&S) |
+| `patternConfidenceAbove(type, min, options)` | Pattern confidence > threshold |
+| `anyPatternConfidenceAbove(min, options)` | Any pattern with confidence > threshold |
+| `patternWithinBars(type, lookback, options)` | Pattern detected within last N bars |
+| `doubleTopDetected(options)` | Double Top pattern |
+| `doubleBottomDetected(options)` | Double Bottom pattern |
+| `headShouldersDetected(options)` | Head and Shoulders pattern |
+| `inverseHeadShouldersDetected(options)` | Inverse H&S pattern |
+| `cupHandleDetected(options)` | Cup with Handle pattern |
 
 ---
 

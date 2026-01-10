@@ -149,3 +149,40 @@ export {
   atrPercentAbove,
   atrPercentBelow,
 } from "./volatility";
+
+// Relative Strength (RS) conditions
+export {
+  rsAbove,
+  rsBelow,
+  rsRising,
+  rsFalling,
+  rsNewHigh,
+  rsNewLow,
+  rsRatingAbove,
+  rsRatingBelow,
+  mansfieldRSAbove,
+  mansfieldRSBelow,
+  outperformanceAbove,
+  outperformanceBelow,
+  setBenchmark,
+  BENCHMARK_CACHE_KEY,
+  type RSConditionOptions,
+} from "./relative-strength";
+
+// Price Pattern conditions
+export {
+  patternDetected,
+  patternConfirmed,
+  anyBullishPattern,
+  anyBearishPattern,
+  patternConfidenceAbove,
+  anyPatternConfidenceAbove,
+  patternWithinBars,
+  // Convenience conditions
+  doubleTopDetected,
+  doubleBottomDetected,
+  headShouldersDetected,
+  inverseHeadShouldersDetected,
+  cupHandleDetected,
+  type PatternConditionOptions,
+} from "./patterns";

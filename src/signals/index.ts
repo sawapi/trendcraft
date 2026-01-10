@@ -72,3 +72,19 @@ export {
   type VolumeAboveAverageSignal,
   type VolumeAboveAverageOptions,
 } from "./volume-above-average";
+
+// Price Pattern Recognition
+export {
+  doubleTop,
+  doubleBottom,
+  headAndShoulders,
+  inverseHeadAndShoulders,
+  cupWithHandle,
+  type PatternType,
+  type PatternKeyPoint,
+  type PatternNeckline,
+  type PatternSignal,
+  type DoublePatternOptions,
+  type HeadShouldersOptions,
+  type CupHandleOptions,
+} from "./patterns";

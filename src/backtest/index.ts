@@ -127,6 +127,34 @@ export {
   // ATR% Filter conditions
   atrPercentAbove,
   atrPercentBelow,
+  // Relative Strength (RS) conditions
+  rsAbove,
+  rsBelow,
+  rsRising,
+  rsFalling,
+  rsNewHigh,
+  rsNewLow,
+  rsRatingAbove,
+  rsRatingBelow,
+  mansfieldRSAbove,
+  mansfieldRSBelow,
+  outperformanceAbove,
+  outperformanceBelow,
+  setBenchmark,
+  BENCHMARK_CACHE_KEY,
+  // Price Pattern conditions
+  patternDetected,
+  patternConfirmed,
+  anyBullishPattern,
+  anyBearishPattern,
+  patternConfidenceAbove,
+  anyPatternConfidenceAbove,
+  patternWithinBars,
+  doubleTopDetected,
+  doubleBottomDetected,
+  headShouldersDetected,
+  inverseHeadShouldersDetected,
+  cupHandleDetected,
 } from "./conditions";
 
 export type {
@@ -135,6 +163,8 @@ export type {
   PerfectOrderEnhancedConditionOptions,
   RangeBoundConditionOptions,
   ExtendedCondition,
+  RSConditionOptions,
+  PatternConditionOptions,
 } from "./conditions";
 
 export { runBacktest } from "./engine";

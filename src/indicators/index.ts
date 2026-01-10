@@ -118,3 +118,21 @@ export type {
   ParabolicSarOptions,
   ParabolicSarValue,
 } from "./trend";
+
+// Relative Strength
+export {
+  benchmarkRS,
+  calculateRSRating,
+  isOutperforming,
+  rankByRS,
+  topByRS,
+  bottomByRS,
+  filterByRSPercentile,
+  compareRS,
+} from "./relative-strength";
+export type {
+  RSValue,
+  BenchmarkRSOptions,
+  SymbolRSRank,
+  MultiRSOptions,
+} from "./relative-strength";

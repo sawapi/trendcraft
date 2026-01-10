@@ -19,6 +19,8 @@ A practical guide to understanding technical indicators and trading signals.
 - [VWAP](#vwap)
 - [Volume Indicators](#volume-indicators)
 - [Advanced Volume Analysis](#advanced-volume-analysis)
+- [Relative Strength (RS)](#relative-strength-rs)
+- [Price Patterns](#price-patterns)
 - [Multi-Timeframe (MTF) Analysis](#multi-timeframe-mtf-analysis)
 - [Range-Bound Detection](#range-bound-detection)
 - [Backtesting](#backtesting)
@@ -925,6 +927,224 @@ signals.forEach(s => {
 |--------|--------|----------|
 | `volumeAccumulation` | Linear regression slope | Detecting accelerating volume (getting stronger) |
 | `volumeAboveAverage` | Simple ratio comparison | Detecting sustained high volume |
+
+---
+
+## Relative Strength (RS)
+
+### What is it?
+
+Relative Strength (RS) compares a stock's performance against a benchmark index (like S&P 500 or Nikkei 225). It helps identify stocks that are outperforming or underperforming the market.
+
+### Key Concepts
+
+```
+RS > 1.0  →  Outperforming benchmark
+RS < 1.0  →  Underperforming benchmark
+RS = 1.0  →  Matching benchmark
+```
+
+### Why Use RS?
+
+| Benefit | Description |
+|---------|-------------|
+| **Market leaders** | Find stocks stronger than the market |
+| **Trend confirmation** | Strong stocks tend to stay strong (momentum) |
+| **Risk filter** | Avoid laggards during uptrends |
+| **Sector rotation** | Identify sector/stock leadership changes |
+
+### Mansfield RS
+
+Mansfield RS measures how far the RS line is above or below its moving average:
+
+```
+Mansfield RS > 0  →  RS strengthening
+Mansfield RS < 0  →  RS weakening
+```
+
+### Basic Usage
+
+```typescript
+import { benchmarkRS, isOutperforming, rankByRS } from 'trendcraft';
+
+// Calculate RS against benchmark
+const rs = benchmarkRS(stockCandles, sp500Candles, { period: 52 });
+
+const latest = rs[rs.length - 1].value;
+console.log(`RS Rating: ${latest.rsRating}`);        // Percentile (0-100)
+console.log(`Outperformance: ${latest.outperformance.toFixed(1)}%`);
+console.log(`Mansfield RS: ${latest.mansfieldRS?.toFixed(2)}`);
+
+// Simple outperformance check
+if (isOutperforming(stockCandles, benchmarkCandles, 52, 10)) {
+  console.log('Stock beating benchmark by 10%+');
+}
+
+// Rank multiple stocks
+const rankings = rankByRS(symbolsMap, { benchmarkSymbol: 'SPY' });
+rankings.slice(0, 5).forEach((r, i) => {
+  console.log(`#${i + 1}: ${r.symbol} (RS Rating: ${r.rsRating})`);
+});
+```
+
+### Trading Strategies with RS
+
+| Strategy | RS Condition | Other Conditions |
+|----------|--------------|------------------|
+| **Market leaders** | RS Rating > 80 | Price in uptrend |
+| **RS breakout** | RS at 52-week high | Volume spike |
+| **Momentum** | RS rising + above 50 | Golden cross |
+| **Avoid laggards** | RS Rating < 20 | - (avoid these stocks) |
+
+### RS in Backtesting
+
+```typescript
+import { rsAbove, rsRising, rsRatingAbove, setBenchmark, and } from 'trendcraft';
+
+// Entry: Strong RS + trend confirmation
+const entry = and(
+  rsAbove(1.0),         // Outperforming
+  rsRising(),           // RS improving
+  rsRatingAbove(70),    // Top 30%
+  goldenCross()         // Technical entry
+);
+
+// Run backtest with benchmark
+runBacktest(candles, entry, exit, {
+  capital: 1000000,
+  setup: (indicators) => {
+    setBenchmark(indicators, sp500Candles);
+  }
+});
+```
+
+---
+
+## Price Patterns
+
+### What are they?
+
+Price patterns are recognizable chart formations that signal potential reversals or continuations. They form from the collective psychology of market participants.
+
+### Pattern Types
+
+| Type | Direction | Signal |
+|------|-----------|--------|
+| **Double Top** | Bearish | Reversal after uptrend |
+| **Double Bottom** | Bullish | Reversal after downtrend |
+| **Head & Shoulders** | Bearish | Major reversal pattern |
+| **Inverse H&S** | Bullish | Major reversal pattern |
+| **Cup with Handle** | Bullish | Continuation (William O'Neil) |
+
+### Double Top / Double Bottom
+
+```
+Double Top (M pattern):     Double Bottom (W pattern):
+
+  Peak1     Peak2              Trough1   Trough2
+    ___       ___              ▼          ▼
+   /   \     /   \            /          /
+  /     \___/     \          /    ___   /
+         Trough    ▼ Breakdown    /   \/
+                              Peak
+                              ▲ Breakout
+```
+
+**Confirmation**: Price breaks below/above the middle trough/peak.
+
+### Head and Shoulders
+
+```
+      Head
+       /\
+      /  \
+     /    \
+    /      \___
+L.Shoulder    R.Shoulder
+    \          /
+     \        /
+      \      /
+   ----\----/----  Neckline
+        ▼
+     Breakdown
+```
+
+**Key Points**:
+- Left shoulder and right shoulder at similar levels
+- Head is higher (lower for inverse)
+- Neckline connects the troughs (peaks for inverse)
+- Target = Pattern height measured from neckline
+
+### Cup with Handle
+
+```
+  Rim        Rim
+   │          │
+   │ Cup ____/│
+   │/   \___/ │  ← Handle (small pullback)
+   └──────────┴──▶ Breakout
+
+- Cup: U-shaped, not V-shaped
+- Depth: 12-35% typical
+- Handle: Small pullback from rim (< 12%)
+```
+
+### Basic Usage
+
+```typescript
+import { doubleTop, headAndShoulders, cupWithHandle } from 'trendcraft';
+
+// Detect patterns
+const doubleTops = doubleTop(candles);
+const headShoulders = headAndShoulders(candles);
+const cups = cupWithHandle(candles);
+
+// Check for confirmed patterns
+doubleTops.filter(p => p.confirmed).forEach(p => {
+  console.log(`Double Top confirmed at ${new Date(p.time)}`);
+  console.log(`Target: ${p.pattern.target}`);
+  console.log(`Confidence: ${p.confidence}%`);
+});
+
+// Cup with Handle trading
+cups.forEach(p => {
+  if (p.confirmed && p.confidence > 70) {
+    console.log('High-confidence cup breakout!');
+    console.log(`Entry: ${p.pattern.keyPoints[2].price}`);  // Right rim
+    console.log(`Target: ${p.pattern.target}`);
+    console.log(`Stop: ${p.pattern.stopLoss}`);
+  }
+});
+```
+
+### Pattern Confidence
+
+Each pattern has a confidence score (0-100) based on:
+
+| Factor | Higher Confidence |
+|--------|-------------------|
+| Peak/trough alignment | Closer to same level |
+| Pattern depth | Optimal depth range |
+| Neckline slope | Flatter = more reliable |
+| Confirmation | Breakout occurred |
+
+### Patterns in Backtesting
+
+```typescript
+import { patternDetected, anyBullishPattern, cupHandleDetected, and } from 'trendcraft';
+
+// Exit on bearish reversal pattern
+const exit = patternDetected('head_shoulders');
+
+// Enter on any bullish pattern with good volume
+const entry = and(
+  anyBullishPattern({ confirmedOnly: true }),
+  volumeAboveAvg()
+);
+
+// Trade only cup with handle
+const cupEntry = cupHandleDetected({ confirmedOnly: true });
+```
 
 ---
 

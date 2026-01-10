@@ -150,6 +150,15 @@ export {
   passesAtrFilter,
   filterStocksByAtr,
   DEFAULT_ATR_THRESHOLD,
+  // Relative Strength
+  benchmarkRS,
+  calculateRSRating,
+  isOutperforming,
+  rankByRS,
+  topByRS,
+  bottomByRS,
+  filterByRSPercentile,
+  compareRS,
 } from "./indicators";
 
 export type {
@@ -183,6 +192,10 @@ export type {
   ParabolicSarValue,
   AtrFilterOptions,
   AtrFilterResult,
+  RSValue,
+  BenchmarkRSOptions,
+  SymbolRSRank,
+  MultiRSOptions,
 } from "./indicators";
 
 // Fluent API
@@ -270,6 +283,12 @@ export {
   volumeAccumulation,
   volumeMaCross,
   volumeAboveAverage,
+  // Price Patterns
+  doubleTop,
+  doubleBottom,
+  headAndShoulders,
+  inverseHeadAndShoulders,
+  cupWithHandle,
 } from "./signals";
 export type {
   CrossValidationOptions,
@@ -297,6 +316,14 @@ export type {
   VolumeMaCrossOptions,
   VolumeAboveAverageSignal,
   VolumeAboveAverageOptions,
+  // Pattern types
+  PatternType,
+  PatternKeyPoint,
+  PatternNeckline,
+  PatternSignal,
+  DoublePatternOptions,
+  HeadShouldersOptions,
+  CupHandleOptions,
 } from "./signals";
 
 // Range-Bound backtest conditions
@@ -380,6 +407,44 @@ export {
   atrPercentAbove,
   atrPercentBelow,
 } from "./backtest";
+
+// Relative Strength (RS) conditions
+export {
+  rsAbove,
+  rsBelow,
+  rsRising,
+  rsFalling,
+  rsNewHigh,
+  rsNewLow,
+  rsRatingAbove,
+  rsRatingBelow,
+  mansfieldRSAbove,
+  mansfieldRSBelow,
+  outperformanceAbove,
+  outperformanceBelow,
+  setBenchmark,
+  BENCHMARK_CACHE_KEY,
+} from "./backtest";
+
+export type { RSConditionOptions } from "./backtest";
+
+// Price Pattern conditions
+export {
+  patternDetected,
+  patternConfirmed,
+  anyBullishPattern,
+  anyBearishPattern,
+  patternConfidenceAbove,
+  anyPatternConfidenceAbove,
+  patternWithinBars,
+  doubleTopDetected,
+  doubleBottomDetected,
+  headShouldersDetected,
+  inverseHeadShouldersDetected,
+  cupHandleDetected,
+} from "./backtest";
+
+export type { PatternConditionOptions } from "./backtest";
 
 // Volatility Regime indicator
 export { volatilityRegime } from "./indicators";
