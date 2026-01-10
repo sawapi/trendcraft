@@ -1036,6 +1036,136 @@ if (latest.trendReason) {
 
 ---
 
+### Volume Signals
+
+#### `volumeBreakout(candles, options)`
+
+Detect when volume breaks out above N-day high.
+
+```typescript
+const signals = volumeBreakout(candles, { period: 20 });
+```
+
+**Options:**
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `period` | `number` | `20` | Lookback period for highest volume |
+
+**Returns:** `VolumeBreakoutSignal[]`
+
+```typescript
+interface VolumeBreakoutSignal {
+  time: number;
+  type: 'volume_breakout';
+  volume: number;
+  previousHigh: number;
+  ratio: number;
+}
+```
+
+---
+
+#### `volumeAccumulation(candles, options)`
+
+Detect volume accumulation phases using linear regression slope.
+
+```typescript
+const signals = volumeAccumulation(candles, {
+  period: 10,
+  minSlope: 0.05,
+  minConsecutiveDays: 3,
+  minR2: 0.5
+});
+```
+
+**Options:**
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `period` | `number` | `10` | Period for regression calculation |
+| `minSlope` | `number` | `0.05` | Minimum normalized slope (5%/day) |
+| `minConsecutiveDays` | `number` | `3` | Minimum consecutive days |
+| `minR2` | `number` | `0.5` | Minimum R² for regression quality |
+
+**Returns:** `VolumeAccumulationSignal[]`
+
+```typescript
+interface VolumeAccumulationSignal {
+  time: number;
+  type: 'volume_accumulation';
+  slope: number;           // Normalized slope
+  r2: number;              // R² quality score
+  consecutiveDays: number; // Days of accumulation
+}
+```
+
+---
+
+#### `volumeAboveAverage(candles, options)`
+
+Detect sustained high volume periods where volume is above the N-day moving average for consecutive days.
+
+```typescript
+const signals = volumeAboveAverage(candles, {
+  period: 20,
+  minRatio: 1.2,
+  minConsecutiveDays: 3
+});
+```
+
+**Options:**
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `period` | `number` | `20` | Lookback period for average calculation |
+| `minRatio` | `number` | `1.0` | Minimum ratio of current to average volume |
+| `minConsecutiveDays` | `number` | `3` | Minimum consecutive days above average |
+
+**Returns:** `VolumeAboveAverageSignal[]`
+
+```typescript
+interface VolumeAboveAverageSignal {
+  time: number;
+  type: 'volume_above_average';
+  volume: number;           // Current volume
+  averageVolume: number;    // N-day average volume
+  ratio: number;            // Current / Average (e.g., 1.5 = 150%)
+  consecutiveDays: number;  // Days above average
+}
+```
+
+**Note:** `volumeAboveAverage` uses a simple ratio comparison, while `volumeAccumulation` uses linear regression to detect volume growth trends. Use `volumeAboveAverage` for sustained high activity detection, and `volumeAccumulation` for detecting accelerating volume patterns.
+
+---
+
+#### `volumeMaCross(candles, options)`
+
+Detect volume moving average crossovers.
+
+```typescript
+const signals = volumeMaCross(candles, {
+  shortPeriod: 5,
+  longPeriod: 20
+});
+```
+
+**Options:**
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `shortPeriod` | `number` | `5` | Short MA period |
+| `longPeriod` | `number` | `20` | Long MA period |
+
+**Returns:** `VolumeMaCrossSignal[]`
+
+```typescript
+interface VolumeMaCrossSignal {
+  time: number;
+  type: 'volume_ma_cross_up' | 'volume_ma_cross_down';
+  shortMa: number;
+  longMa: number;
+}
+```
+
+---
+
 ## Backtesting
 
 ### Running Backtest
@@ -1252,7 +1382,62 @@ volumeDivergence()                       // Volume diverges from price
 bullishVolumeDivergence()                // Bullish volume divergence
 bearishVolumeDivergence()                // Bearish volume divergence
 volumeTrendConfidence(minConfidence)     // Confidence above threshold
+
+// CMF (Chaikin Money Flow) conditions
+cmfAbove(threshold = 0, period = 20)     // CMF > threshold (buying pressure)
+cmfBelow(threshold = 0, period = 20)     // CMF < threshold (selling pressure)
+
+// OBV (On-Balance Volume) conditions
+obvRising(period = 10)                   // OBV rising over N periods
+obvFalling(period = 10)                  // OBV falling over N periods
+obvCrossUp(shortPeriod = 5, longPeriod = 20)   // OBV short MA crosses above long MA
+obvCrossDown(shortPeriod = 5, longPeriod = 20) // OBV short MA crosses below long MA
 ```
+
+**CMF (Chaikin Money Flow) Conditions:**
+
+CMF measures buying and selling pressure based on where price closes within the high-low range, weighted by volume. Values range from -1 to +1.
+
+| Function | Description | Trading Use |
+|----------|-------------|-------------|
+| `cmfAbove(threshold, period)` | CMF above threshold | Accumulation phase, buying pressure |
+| `cmfBelow(threshold, period)` | CMF below threshold | Distribution phase, selling pressure |
+
+```typescript
+// Detect accumulation phase
+const entry = and(
+  cmfAbove(0),           // Buying pressure dominant
+  priceAboveSma(50),     // Uptrend
+);
+
+// Strong buying pressure (CMF > 0.1)
+const strongBuy = cmfAbove(0.1, 20);
+```
+
+**OBV (On-Balance Volume) Conditions:**
+
+OBV accumulates volume on up/down closes. Rising OBV = buyers in control, falling OBV = sellers in control.
+
+| Function | Description | Trading Use |
+|----------|-------------|-------------|
+| `obvRising(period)` | OBV trending up over N periods | Accumulation signal |
+| `obvFalling(period)` | OBV trending down over N periods | Distribution signal |
+| `obvCrossUp(short, long)` | Short OBV MA crosses above long MA | Bullish momentum reversal |
+| `obvCrossDown(short, long)` | Short OBV MA crosses below long MA | Bearish momentum reversal |
+
+```typescript
+// Confirm accumulation with multiple volume indicators
+const entry = and(
+  cmfAbove(0),         // CMF positive
+  obvRising(10),       // OBV trending up
+  volumeRatioAbove(1.2), // Volume above average
+);
+
+// OBV momentum turning bullish
+const obvBullish = obvCrossUp(5, 20);
+```
+
+---
 
 #### Multi-Timeframe (MTF) Conditions
 

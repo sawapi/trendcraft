@@ -1046,6 +1046,136 @@ isTrending()
 
 ---
 
+### 出来高シグナル
+
+#### `volumeBreakout(candles, options)`
+
+N日間の最高出来高を突破した時を検知。
+
+```typescript
+const signals = volumeBreakout(candles, { period: 20 });
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|------------|------|---------|------|
+| `period` | `number` | `20` | 最高出来高のルックバック期間 |
+
+**戻り値:** `VolumeBreakoutSignal[]`
+
+```typescript
+interface VolumeBreakoutSignal {
+  time: number;
+  type: 'volume_breakout';
+  volume: number;
+  previousHigh: number;
+  ratio: number;
+}
+```
+
+---
+
+#### `volumeAccumulation(candles, options)`
+
+線形回帰の傾きを使用して出来高蓄積フェーズを検知。
+
+```typescript
+const signals = volumeAccumulation(candles, {
+  period: 10,
+  minSlope: 0.05,
+  minConsecutiveDays: 3,
+  minR2: 0.5
+});
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|------------|------|---------|------|
+| `period` | `number` | `10` | 回帰計算期間 |
+| `minSlope` | `number` | `0.05` | 最小正規化傾き（5%/日） |
+| `minConsecutiveDays` | `number` | `3` | 最小連続日数 |
+| `minR2` | `number` | `0.5` | 回帰品質の最小R² |
+
+**戻り値:** `VolumeAccumulationSignal[]`
+
+```typescript
+interface VolumeAccumulationSignal {
+  time: number;
+  type: 'volume_accumulation';
+  slope: number;           // 正規化傾き
+  r2: number;              // R²品質スコア
+  consecutiveDays: number; // 蓄積日数
+}
+```
+
+---
+
+#### `volumeAboveAverage(candles, options)`
+
+N日移動平均を超える出来高が連続する期間を検知。
+
+```typescript
+const signals = volumeAboveAverage(candles, {
+  period: 20,
+  minRatio: 1.2,
+  minConsecutiveDays: 3
+});
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|------------|------|---------|------|
+| `period` | `number` | `20` | 平均計算のルックバック期間 |
+| `minRatio` | `number` | `1.0` | 現在/平均の最小比率 |
+| `minConsecutiveDays` | `number` | `3` | 平均を超える最小連続日数 |
+
+**戻り値:** `VolumeAboveAverageSignal[]`
+
+```typescript
+interface VolumeAboveAverageSignal {
+  time: number;
+  type: 'volume_above_average';
+  volume: number;           // 現在の出来高
+  averageVolume: number;    // N日平均出来高
+  ratio: number;            // 現在/平均（例: 1.5 = 150%）
+  consecutiveDays: number;  // 平均を超えた日数
+}
+```
+
+**注意:** `volumeAboveAverage`は単純な比率比較を使用し、`volumeAccumulation`は線形回帰で出来高の増加トレンドを検出します。持続的な高活動の検出には`volumeAboveAverage`を、加速する出来高パターンの検出には`volumeAccumulation`を使用してください。
+
+---
+
+#### `volumeMaCross(candles, options)`
+
+出来高移動平均のクロスオーバーを検知。
+
+```typescript
+const signals = volumeMaCross(candles, {
+  shortPeriod: 5,
+  longPeriod: 20
+});
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|------------|------|---------|------|
+| `shortPeriod` | `number` | `5` | 短期MA期間 |
+| `longPeriod` | `number` | `20` | 長期MA期間 |
+
+**戻り値:** `VolumeMaCrossSignal[]`
+
+```typescript
+interface VolumeMaCrossSignal {
+  time: number;
+  type: 'volume_ma_cross_up' | 'volume_ma_cross_down';
+  shortMa: number;
+  longMa: number;
+}
+```
+
+---
+
 ## バックテスト
 
 ### バックテスト実行
@@ -1262,7 +1392,62 @@ volumeDivergence()                       // 出来高が価格と乖離
 bullishVolumeDivergence()                // 強気の出来高ダイバージェンス
 bearishVolumeDivergence()                // 弱気の出来高ダイバージェンス
 volumeTrendConfidence(minConfidence)     // 信頼度が閾値以上
+
+// CMF（チャイキンマネーフロー）条件
+cmfAbove(threshold = 0, period = 20)     // CMF > 閾値（買い圧力）
+cmfBelow(threshold = 0, period = 20)     // CMF < 閾値（売り圧力）
+
+// OBV（オンバランスボリューム）条件
+obvRising(period = 10)                   // N期間でOBV上昇
+obvFalling(period = 10)                  // N期間でOBV下降
+obvCrossUp(shortPeriod = 5, longPeriod = 20)   // OBV短期MAが長期MAを上抜け
+obvCrossDown(shortPeriod = 5, longPeriod = 20) // OBV短期MAが長期MAを下抜け
 ```
+
+**CMF（チャイキンマネーフロー）条件:**
+
+CMFは、高値-安値レンジ内での終値位置に基づき、出来高で重み付けした買い/売り圧力を測定します。値の範囲は-1〜+1です。
+
+| 関数 | 説明 | トレーディング用途 |
+|------|------|-------------------|
+| `cmfAbove(threshold, period)` | CMFが閾値以上 | 蓄積フェーズ、買い圧力 |
+| `cmfBelow(threshold, period)` | CMFが閾値以下 | 分配フェーズ、売り圧力 |
+
+```typescript
+// 蓄積フェーズの検出
+const entry = and(
+  cmfAbove(0),           // 買い圧力が優勢
+  priceAboveSma(50),     // 上昇トレンド
+);
+
+// 強い買い圧力（CMF > 0.1）
+const strongBuy = cmfAbove(0.1, 20);
+```
+
+**OBV（オンバランスボリューム）条件:**
+
+OBVは上昇/下降終値に応じて出来高を累積します。OBV上昇 = 買い手優勢、OBV下降 = 売り手優勢。
+
+| 関数 | 説明 | トレーディング用途 |
+|------|------|-------------------|
+| `obvRising(period)` | N期間でOBVが上昇トレンド | 蓄積シグナル |
+| `obvFalling(period)` | N期間でOBVが下降トレンド | 分配シグナル |
+| `obvCrossUp(short, long)` | OBV短期MAが長期MAを上抜け | 強気モメンタム転換 |
+| `obvCrossDown(short, long)` | OBV短期MAが長期MAを下抜け | 弱気モメンタム転換 |
+
+```typescript
+// 複数の出来高指標で蓄積を確認
+const entry = and(
+  cmfAbove(0),         // CMFがプラス
+  obvRising(10),       // OBVが上昇トレンド
+  volumeRatioAbove(1.2), // 出来高が平均以上
+);
+
+// OBVモメンタムが強気に転換
+const obvBullish = obvCrossUp(5, 20);
+```
+
+---
 
 #### マルチタイムフレーム（MTF）条件
 

@@ -783,6 +783,149 @@ if (latest.hasDivergence) {
 }
 ```
 
+### CMF (Chaikin Money Flow)
+
+#### What is it?
+
+CMF measures buying and selling pressure over a period by analyzing where price closes within the high-low range, weighted by volume. It ranges from -1 to +1.
+
+```
+CMF > 0  → Buying pressure (accumulation)
+CMF < 0  → Selling pressure (distribution)
+CMF > +0.1 → Strong buying pressure
+CMF < -0.1 → Strong selling pressure
+```
+
+#### How CMF Works
+
+```
+Close Location = (Close - Low) - (High - Close)
+                 ─────────────────────────────
+                        (High - Low)
+
+CMF = Sum(Close Location × Volume) over N periods
+      ────────────────────────────────────────
+            Sum(Volume) over N periods
+```
+
+- When price closes near the high: positive contribution
+- When price closes near the low: negative contribution
+- Volume amplifies the signal
+
+#### Key Signals
+
+| CMF Pattern | Price Action | Interpretation |
+|-------------|--------------|----------------|
+| CMF rising above 0 | Price in uptrend | Accumulation confirmed |
+| CMF falling below 0 | Price in downtrend | Distribution confirmed |
+| CMF positive | Price making new high | Strong uptrend |
+| CMF negative | Price making new low | Strong downtrend |
+| CMF diverging from price | Price up, CMF down | Warning: trend weakening |
+
+#### Usage Example
+
+```typescript
+import { cmfAbove, cmfBelow, and, priceAboveSma } from 'trendcraft';
+
+// Entry: Accumulation phase in uptrend
+const entry = and(
+  cmfAbove(0),           // Buying pressure
+  priceAboveSma(50),     // Above 50-day MA
+);
+
+// Exit: Distribution starts
+const exit = cmfBelow(-0.1);  // Strong selling pressure
+```
+
+### OBV (On-Balance Volume)
+
+#### What is it?
+
+OBV (On-Balance Volume) is a cumulative volume indicator that adds volume on up days and subtracts on down days. It shows the flow of volume in and out of an asset.
+
+```
+Up day (Close > Previous Close):   OBV = Previous OBV + Volume
+Down day (Close < Previous Close): OBV = Previous OBV - Volume
+Unchanged:                          OBV = Previous OBV
+```
+
+#### How to Read
+
+```
+OBV rising  → Buyers in control (accumulation)
+OBV falling → Sellers in control (distribution)
+OBV flat    → Neutral/consolidation
+```
+
+#### Key Signals
+
+| OBV Pattern | Price Pattern | Meaning |
+|-------------|---------------|---------|
+| OBV rising | Price rising | Confirmed uptrend |
+| OBV falling | Price falling | Confirmed downtrend |
+| OBV rising | Price flat | Hidden accumulation (bullish) |
+| OBV falling | Price flat | Hidden distribution (bearish) |
+| OBV flat | Price rising | Weak uptrend (caution) |
+
+#### OBV vs CMF: When to Use Each
+
+| Indicator | Best For | Characteristics |
+|-----------|----------|-----------------|
+| **CMF** | Current buying/selling pressure | Short-term, bounded (-1 to +1), clear thresholds |
+| **OBV** | Cumulative volume flow | Long-term trend, unbounded, good for divergences |
+
+**Use CMF when:**
+- You need clear buy/sell signals with thresholds
+- Analyzing short-term accumulation/distribution
+- Want to compare across different assets
+
+**Use OBV when:**
+- Looking for divergences from price
+- Analyzing long-term volume trends
+- Confirming breakouts with volume
+
+#### Usage Example
+
+```typescript
+import { obvRising, obvCrossUp, cmfAbove, and } from 'trendcraft';
+
+// Strong accumulation: multiple volume confirmations
+const strongEntry = and(
+  cmfAbove(0),         // Current buying pressure
+  obvRising(10),       // OBV trending up over 10 days
+);
+
+// OBV momentum turning bullish
+const obvBullish = obvCrossUp(5, 20);  // Short MA crosses above long MA
+```
+
+### Volume Signals
+
+#### volumeAboveAverage
+
+Detects when volume stays above average for consecutive days. Useful for identifying sustained high activity periods.
+
+```typescript
+import { volumeAboveAverage } from 'trendcraft';
+
+const signals = volumeAboveAverage(candles, {
+  period: 20,            // 20-day average
+  minRatio: 1.2,         // At least 120% of average
+  minConsecutiveDays: 3  // For 3+ consecutive days
+});
+
+signals.forEach(s => {
+  console.log(`High volume: ${s.consecutiveDays} days at ${(s.ratio * 100).toFixed(0)}% of avg`);
+});
+```
+
+#### volumeAccumulation vs volumeAboveAverage
+
+| Signal | Method | Best For |
+|--------|--------|----------|
+| `volumeAccumulation` | Linear regression slope | Detecting accelerating volume (getting stronger) |
+| `volumeAboveAverage` | Simple ratio comparison | Detecting sustained high volume |
+
 ---
 
 ## Multi-Timeframe (MTF) Analysis
