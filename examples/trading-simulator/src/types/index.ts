@@ -265,8 +265,13 @@ export type AlertType =
   | "ORDER_EXECUTED"
   | "VOLUME_SPIKE_AVERAGE"       // 平均出来高のX倍超え
   | "VOLUME_SPIKE_BREAKOUT"      // N日最高出来高更新
-  | "VOLUME_ACCUMULATION"        // 出来高蓄積フェーズ検知
-  | "VOLUME_MA_CROSS";           // 出来高MAクロス
+  | "VOLUME_ACCUMULATION"        // 出来高蓄積フェーズ検知（回帰ベース）
+  | "VOLUME_ABOVE_AVERAGE"       // 出来高高水準継続（平均比較）
+  | "VOLUME_MA_CROSS"            // 出来高MAクロス
+  | "CMF_ACCUMULATION"           // CMF蓄積フェーズ（CMF > 0）
+  | "CMF_DISTRIBUTION"           // CMF分配フェーズ（CMF < 0）
+  | "OBV_RISING"                 // OBV上昇トレンド
+  | "OBV_FALLING";               // OBV下降トレンド
 
 export interface Alert {
   id: string;
@@ -287,15 +292,27 @@ export interface VolumeSpikeSettings {
   // ブレイクアウト検知
   breakoutVolumeEnabled: boolean;
   breakoutVolumePeriod: number;      // N日最高値 (default: 20)
-  // 蓄積フェーズ検知（出来高の右肩上がり）
+  // 蓄積フェーズ検知（出来高の右肩上がり - 回帰ベース）
   accumulationEnabled: boolean;
   accumulationPeriod: number;        // 傾き計算期間 (default: 10)
   accumulationMinSlope: number;      // 最小傾き (default: 0.05 = 5%/日)
   accumulationMinDays: number;       // 最小連続日数 (default: 3)
+  // 高水準継続検知（平均比較ベース）
+  aboveAverageEnabled: boolean;
+  aboveAveragePeriod: number;        // 平均計算期間 (default: 20)
+  aboveAverageMinRatio: number;      // 最小比率 (default: 1.0 = 平均以上)
+  aboveAverageMinDays: number;       // 最小連続日数 (default: 3)
   // MAクロス検知
   maCrossEnabled: boolean;
   maCrossShortPeriod: number;        // 短期MA期間 (default: 5)
   maCrossLongPeriod: number;         // 長期MA期間 (default: 20)
+  // CMF蓄積/分配検知
+  cmfEnabled: boolean;
+  cmfPeriod: number;                 // CMF計算期間 (default: 20)
+  cmfThreshold: number;              // 閾値 (default: 0)
+  // OBVトレンド検知
+  obvEnabled: boolean;
+  obvPeriod: number;                 // OBV比較期間 (default: 10)
   // 表示設定
   showRealtimeAlerts: boolean;       // リアルタイムアラート表示
   showChartMarkers: boolean;         // チャートマーカー表示
@@ -311,9 +328,18 @@ export const DEFAULT_VOLUME_SPIKE_SETTINGS: VolumeSpikeSettings = {
   accumulationPeriod: 10,
   accumulationMinSlope: 0.05,
   accumulationMinDays: 3,
+  aboveAverageEnabled: false,
+  aboveAveragePeriod: 20,
+  aboveAverageMinRatio: 1.0,
+  aboveAverageMinDays: 3,
   maCrossEnabled: true,
   maCrossShortPeriod: 5,
   maCrossLongPeriod: 20,
+  cmfEnabled: true,
+  cmfPeriod: 20,
+  cmfThreshold: 0,
+  obvEnabled: true,
+  obvPeriod: 10,
   showRealtimeAlerts: true,
   showChartMarkers: true,
 };
@@ -322,9 +348,9 @@ export const DEFAULT_VOLUME_SPIKE_SETTINGS: VolumeSpikeSettings = {
 export interface DetectedVolumeSpike {
   time: number;
   volume: number;
-  type: "average" | "breakout" | "accumulation" | "ma_cross";
+  type: "average" | "breakout" | "accumulation" | "above_average" | "ma_cross";
   ratio: number;   // 平均比 or 前回最高比 or 正規化傾き or MA比率
-  consecutiveDays?: number;  // 蓄積フェーズの連続日数
+  consecutiveDays?: number;  // 蓄積フェーズ/高水準継続の連続日数
 }
 
 export interface SimulatorStats {

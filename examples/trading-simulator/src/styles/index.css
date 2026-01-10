@@ -2723,3 +2723,197 @@ h1 {
 .volume-spike-settings .display-options .checkbox-label {
   font-size: 0.8rem;
 }
+
+/* Indicator Settings Dialog */
+.indicator-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.indicator-dialog {
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  padding: 20px;
+  max-width: 500px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+.indicator-dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.indicator-dialog-header h3 {
+  font-size: 1.1rem;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.dialog-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.2s;
+  line-height: 1;
+}
+
+.dialog-close-btn:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.indicator-dialog-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.volume-spike-settings.in-dialog {
+  background: transparent;
+  padding: 0;
+}
+
+.volume-spike-settings.in-dialog .settings-content {
+  padding: 0;
+}
+
+/* Indicator Settings Button */
+.indicator-settings-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.indicator-settings-btn:hover {
+  background: var(--bg-tertiary);
+  border-color: var(--accent);
+}
+
+.indicator-settings-btn .settings-icon {
+  font-size: 1.1rem;
+  opacity: 0.8;
+}
+
+/* Dialog Tabs */
+.dialog-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.dialog-tab {
+  flex: 1;
+  padding: 8px 16px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.dialog-tab:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.dialog-tab.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+/* Indicator Selector in Dialog */
+.indicator-selector.in-dialog {
+  padding: 0;
+}
+
+.indicator-selector.in-dialog .indicator-category {
+  margin-bottom: 16px;
+}
+
+.indicator-selector.in-dialog .category-header {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.indicator-selector.in-dialog .indicator-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.indicator-selector.in-dialog .indicator-item {
+  padding: 4px 0;
+}
+
+.indicator-selector.in-dialog .checkbox-label {
+  font-size: 0.85rem;
+}
+
+.indicator-selector.in-dialog .param-panel {
+  margin-top: 8px;
+  margin-left: 24px;
+  padding: 8px;
+  background: var(--bg-primary);
+  border-radius: 4px;
+}
+
+.indicator-selector.in-dialog .param-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.indicator-selector.in-dialog .param-row:last-child {
+  margin-bottom: 0;
+}
+
+.indicator-selector.in-dialog .param-row label {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.indicator-selector.in-dialog .param-row input {
+  width: 70px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+}

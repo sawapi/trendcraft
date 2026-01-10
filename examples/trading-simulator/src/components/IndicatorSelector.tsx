@@ -13,6 +13,7 @@ interface Props {
   onChange: (indicators: string[]) => void;
   params: IndicatorParams;
   onParamsChange: (params: IndicatorParams) => void;
+  isInDialog?: boolean;
 }
 
 // カテゴリ順序
@@ -23,7 +24,7 @@ const CATEGORY_ORDER: IndicatorCategory[] = [
   "volume",
 ];
 
-export function IndicatorSelector({ selected, onChange, params, onParamsChange }: Props) {
+export function IndicatorSelector({ selected, onChange, params, onParamsChange, isInDialog = false }: Props) {
   const [expandedIndicator, setExpandedIndicator] = useState<string | null>(null);
 
   const handleToggle = (key: string) => {
@@ -58,8 +59,8 @@ export function IndicatorSelector({ selected, onChange, params, onParamsChange }
   }));
 
   return (
-    <div className="indicator-selector">
-      <label className="section-label">表示するインジケーター</label>
+    <div className={`indicator-selector ${isInDialog ? "in-dialog" : ""}`}>
+      {!isInDialog && <label className="section-label">表示するインジケーター</label>}
       {groupedIndicators.map(({ category, label, indicators }) => (
         <div key={category} className="indicator-category">
           <div className="category-header">{label}</div>

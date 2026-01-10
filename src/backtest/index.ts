@@ -78,6 +78,14 @@ export {
   bullishVolumeDivergence,
   bearishVolumeDivergence,
   volumeTrendConfidence,
+  // CMF conditions
+  cmfAbove,
+  cmfBelow,
+  // OBV conditions
+  obvRising,
+  obvFalling,
+  obvCrossUp,
+  obvCrossDown,
   // Multi-Timeframe (MTF) conditions
   weeklyRsiAbove,
   weeklyRsiBelow,

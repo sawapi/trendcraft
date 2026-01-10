@@ -17,12 +17,13 @@ import { AlertBanner } from "./components/AlertBanner";
 import { SessionManager } from "./components/SessionManager";
 import { TradeAnalysis } from "./components/TradeAnalysis";
 import { SymbolTabs } from "./components/SymbolTabs";
-import { VolumeSpikeSettings } from "./components/VolumeSpikeSettings";
+import { IndicatorSettingsDialog } from "./components/IndicatorSettingsDialog";
 
 export default function App() {
   const { phase, symbols } = useSimulatorStore();
   const [pendingSession, setPendingSession] = useState<SessionData | null>(() => loadSession());
   const [showSessionManager, setShowSessionManager] = useState(() => !!loadSession());
+  const [showIndicatorSettings, setShowIndicatorSettings] = useState(false);
 
   // 銘柄が読み込まれているかどうか
   const hasData = symbols.length > 0 && symbols[0].allCandles.length > 0;
@@ -79,6 +80,10 @@ export default function App() {
   return (
     <div className="app">
       <AlertBanner />
+      <IndicatorSettingsDialog
+        isOpen={showIndicatorSettings}
+        onClose={() => setShowIndicatorSettings(false)}
+      />
       <div className="app-header">
         <h1>Trading Simulator</h1>
         <div className="header-controls">
@@ -89,7 +94,13 @@ export default function App() {
       <div className="simulator-layout">
         <div className="sidebar">
           <ControlPanel />
-          <VolumeSpikeSettings />
+          <button
+            className="indicator-settings-btn"
+            onClick={() => setShowIndicatorSettings(true)}
+          >
+            <span className="settings-icon">&#9881;</span>
+            <span>インジケーター設定</span>
+          </button>
           <StatsPanel />
           <PositionPanel />
           <TradePanel />

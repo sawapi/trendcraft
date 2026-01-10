@@ -25,7 +25,7 @@ import type {
   DetectedVolumeSpike,
 } from "../types";
 import { DEFAULT_INDICATOR_PARAMS, DEFAULT_VOLUME_SPIKE_SETTINGS } from "../types";
-import { volumeAnomaly, volumeBreakout, volumeAccumulation, volumeMaCross } from "trendcraft";
+import { volumeAnomaly, volumeBreakout, volumeAccumulation, volumeAboveAverage, volumeMaCross, cmf, obv } from "trendcraft";
 import { calculateIndicators, getIndicatorSnapshot, analyzeMarketContext, type IndicatorData } from "../utils/indicators";
 
 // =============================================
@@ -182,6 +182,12 @@ interface SimulatorState {
   finishSimulation: () => void;
   jumpToIndex: (index: number) => void;
   dismissAlert: (id: string) => void;
+
+  // =============================================
+  // インジケーター設定
+  // =============================================
+  setEnabledIndicators: (indicators: string[]) => void;
+  setIndicatorParams: (params: IndicatorParams) => void;
 
   // =============================================
   // 出来高スパイク設定
@@ -670,6 +676,36 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
           }
         }
 
+        // 高水準継続検知（平均比較ベース）
+        if (volSettings.aboveAverageEnabled && currentIdx > volSettings.aboveAveragePeriod) {
+          const lookback = volSettings.aboveAveragePeriod + volSettings.aboveAverageMinDays + 5;
+          const recentCandles = allCandles.slice(Math.max(0, currentIdx - lookback + 1), currentIdx + 1);
+          const aboveAvgSignals = volumeAboveAverage(recentCandles, {
+            period: volSettings.aboveAveragePeriod,
+            minRatio: volSettings.aboveAverageMinRatio,
+            minConsecutiveDays: volSettings.aboveAverageMinDays,
+          });
+          const currentCandle = allCandles[currentIdx];
+          const currentAboveAvg = aboveAvgSignals.find(a => a.time === currentCandle.time);
+
+          if (currentAboveAvg) {
+            const existingAlert = get().alerts.find(a =>
+              a.type === "VOLUME_ABOVE_AVERAGE" &&
+              Date.now() - a.timestamp < 3000
+            );
+            if (!existingAlert) {
+              set({
+                alerts: [...get().alerts, {
+                  id: generateId(),
+                  type: "VOLUME_ABOVE_AVERAGE",
+                  message: `高水準継続: 平均の${(currentAboveAvg.ratio * 100).toFixed(0)}%で ${currentAboveAvg.consecutiveDays}日継続`,
+                  timestamp: Date.now(),
+                }],
+              });
+            }
+          }
+        }
+
         // MAクロス検知（最新N日のみ計算）
         if (volSettings.maCrossEnabled && currentIdx > volSettings.maCrossLongPeriod) {
           const lookback = volSettings.maCrossLongPeriod + 10;
@@ -695,6 +731,108 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
                   timestamp: Date.now(),
                 }],
               });
+            }
+          }
+        }
+
+        // CMF蓄積/分配検知（状態変化時のみ通知）
+        if (volSettings.cmfEnabled && currentIdx >= volSettings.cmfPeriod + 1) {
+          const lookback = volSettings.cmfPeriod + 5;
+          const recentCandles = allCandles.slice(Math.max(0, currentIdx - lookback + 1), currentIdx + 1);
+          const cmfData = cmf(recentCandles, { period: volSettings.cmfPeriod });
+          const currentCmf = cmfData[cmfData.length - 1];
+          const prevCmf = cmfData[cmfData.length - 2];
+
+          if (currentCmf && currentCmf.value !== null && prevCmf && prevCmf.value !== null) {
+            const threshold = volSettings.cmfThreshold;
+
+            // 現在と前日の状態を判定
+            const currentState = currentCmf.value > threshold ? "accumulation"
+              : currentCmf.value < -threshold ? "distribution" : "neutral";
+            const prevState = prevCmf.value > threshold ? "accumulation"
+              : prevCmf.value < -threshold ? "distribution" : "neutral";
+
+            // 状態が変化した場合のみ通知
+            if (currentState !== prevState) {
+              if (currentState === "accumulation") {
+                set({
+                  alerts: [...get().alerts, {
+                    id: generateId(),
+                    type: "CMF_ACCUMULATION",
+                    message: `CMF蓄積フェーズ開始: CMF=${currentCmf.value.toFixed(3)} (閾値>${threshold})`,
+                    timestamp: Date.now(),
+                  }],
+                });
+              } else if (currentState === "distribution") {
+                set({
+                  alerts: [...get().alerts, {
+                    id: generateId(),
+                    type: "CMF_DISTRIBUTION",
+                    message: `CMF分配フェーズ開始: CMF=${currentCmf.value.toFixed(3)} (閾値<${-threshold})`,
+                    timestamp: Date.now(),
+                  }],
+                });
+              }
+            }
+          }
+        }
+
+        // OBVトレンド検知（状態変化時のみ通知）
+        if (volSettings.obvEnabled && currentIdx >= volSettings.obvPeriod + 1) {
+          const lookback = volSettings.obvPeriod + 6;
+          const recentCandles = allCandles.slice(Math.max(0, currentIdx - lookback + 1), currentIdx + 1);
+          const obvData = obv(recentCandles);
+
+          if (obvData.length >= volSettings.obvPeriod + 1) {
+            // 現在のOBVトレンド（現在 vs N日前）
+            const currentObv = obvData[obvData.length - 1]?.value;
+            const pastObv = obvData[obvData.length - volSettings.obvPeriod]?.value;
+
+            // 前日のOBVトレンド（前日 vs N+1日前）
+            const prevObv = obvData[obvData.length - 2]?.value;
+            const prevPastObv = obvData[obvData.length - volSettings.obvPeriod - 1]?.value;
+
+            if (currentObv !== null && pastObv !== null && prevObv !== null && prevPastObv !== null) {
+              const currentChange = currentObv - pastObv;
+              const prevChange = prevObv - prevPastObv;
+
+              // 現在と前日の状態を判定
+              const currentState = currentChange > 0 ? "rising" : currentChange < 0 ? "falling" : "neutral";
+              const prevState = prevChange > 0 ? "rising" : prevChange < 0 ? "falling" : "neutral";
+
+              // 状態が変化した場合のみ通知
+              if (currentState !== prevState) {
+                // OBVの変化量をフォーマット（大きい数値はK/M表記）
+                const formatOBVChange = (change: number): string => {
+                  const absChange = Math.abs(change);
+                  if (absChange >= 1000000) {
+                    return `${(change / 1000000).toFixed(1)}M`;
+                  } else if (absChange >= 1000) {
+                    return `${(change / 1000).toFixed(0)}K`;
+                  }
+                  return change.toFixed(0);
+                };
+
+                if (currentState === "rising") {
+                  set({
+                    alerts: [...get().alerts, {
+                      id: generateId(),
+                      type: "OBV_RISING",
+                      message: `OBV上昇トレンド転換: ${volSettings.obvPeriod}日間で+${formatOBVChange(currentChange)}`,
+                      timestamp: Date.now(),
+                    }],
+                  });
+                } else if (currentState === "falling") {
+                  set({
+                    alerts: [...get().alerts, {
+                      id: generateId(),
+                      type: "OBV_FALLING",
+                      message: `OBV下降トレンド転換: ${volSettings.obvPeriod}日間で${formatOBVChange(currentChange)}`,
+                      timestamp: Date.now(),
+                    }],
+                  });
+                }
+              }
             }
           }
         }
@@ -1080,6 +1218,47 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
     },
 
     // =============================================
+    // インジケーター設定アクション
+    // =============================================
+    setEnabledIndicators: (indicators) => {
+      const symbol = getActiveSymbolInternal();
+      if (!symbol) return;
+
+      // インジケーターデータを再計算
+      const indicatorData = calculateIndicators(
+        symbol.allCandles,
+        indicators,
+        get().indicatorParams
+      );
+
+      set(state => ({
+        enabledIndicators: indicators,
+        symbols: state.symbols.map(s =>
+          s.id === symbol.id ? { ...s, indicatorData } : s
+        ),
+      }));
+    },
+
+    setIndicatorParams: (params) => {
+      const symbol = getActiveSymbolInternal();
+      if (!symbol) return;
+
+      // インジケーターデータを再計算
+      const indicatorData = calculateIndicators(
+        symbol.allCandles,
+        get().enabledIndicators,
+        params
+      );
+
+      set(state => ({
+        indicatorParams: params,
+        symbols: state.symbols.map(s =>
+          s.id === symbol.id ? { ...s, indicatorData } : s
+        ),
+      }));
+    },
+
+    // =============================================
     // 出来高スパイク設定アクション
     // =============================================
     setVolumeSpikeSettings: (settings) => {
@@ -1172,6 +1351,32 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
                 type: "accumulation",
                 ratio: accum.normalizedSlope,
                 consecutiveDays: accum.consecutiveDays,
+              });
+            }
+          }
+        }
+      }
+
+      // 高水準継続検知
+      if (volumeSpikeSettings.aboveAverageEnabled) {
+        const aboveAvgSignals = volumeAboveAverage(visibleCandles, {
+          period: volumeSpikeSettings.aboveAveragePeriod,
+          minRatio: volumeSpikeSettings.aboveAverageMinRatio,
+          minConsecutiveDays: volumeSpikeSettings.aboveAverageMinDays,
+        });
+
+        for (const aboveAvg of aboveAvgSignals) {
+          const idx = visibleCandles.findIndex(c => c.time === aboveAvg.time);
+          if (idx >= startIdx) {
+            // 重複がない場合のみ追加
+            const existingIdx = spikes.findIndex(s => s.time === aboveAvg.time);
+            if (existingIdx < 0) {
+              spikes.push({
+                time: aboveAvg.time,
+                volume: aboveAvg.volume,
+                type: "above_average",
+                ratio: aboveAvg.ratio,
+                consecutiveDays: aboveAvg.consecutiveDays,
               });
             }
           }

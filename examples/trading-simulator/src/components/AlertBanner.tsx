@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useSimulatorStore } from "../store/simulatorStore";
 import type { AlertType } from "../types";
 
@@ -28,20 +28,32 @@ function getAlertStyle(type: AlertType): { className: string; icon: string } {
 
 export function AlertBanner() {
   const { alerts, dismissAlert } = useSimulatorStore();
+  // 各アラートIDごとにタイマーを管理（既にタイマーがあるものは再設定しない）
+  const timerMapRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
 
-  // 各アラートを5秒後に自動消去
+  // 各アラートを5秒後に自動消去（個別管理）
   useEffect(() => {
-    if (alerts.length === 0) return;
+    const timerMap = timerMapRef.current;
 
-    const timers = alerts.map((alert) => {
-      return setTimeout(() => {
-        dismissAlert(alert.id);
-      }, AUTO_DISMISS_MS);
+    // 新しいアラートにだけタイマーを設定
+    alerts.forEach((alert) => {
+      if (!timerMap.has(alert.id)) {
+        const timer = setTimeout(() => {
+          dismissAlert(alert.id);
+          timerMap.delete(alert.id);
+        }, AUTO_DISMISS_MS);
+        timerMap.set(alert.id, timer);
+      }
     });
 
-    return () => {
-      timers.forEach((timer) => clearTimeout(timer));
-    };
+    // 削除されたアラートのタイマーをクリア
+    const currentAlertIds = new Set(alerts.map(a => a.id));
+    timerMap.forEach((timer, id) => {
+      if (!currentAlertIds.has(id)) {
+        clearTimeout(timer);
+        timerMap.delete(id);
+      }
+    });
   }, [alerts, dismissAlert]);
 
   if (alerts.length === 0) return null;

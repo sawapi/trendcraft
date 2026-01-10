@@ -66,3 +66,9 @@ export {
   type VolumeMaCrossSignal,
   type VolumeMaCrossOptions,
 } from "./volume-ma-cross";
+
+export {
+  volumeAboveAverage,
+  type VolumeAboveAverageSignal,
+  type VolumeAboveAverageOptions,
+} from "./volume-above-average";

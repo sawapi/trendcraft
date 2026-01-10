@@ -269,6 +269,7 @@ export {
   volumeBreakout,
   volumeAccumulation,
   volumeMaCross,
+  volumeAboveAverage,
 } from "./signals";
 export type {
   CrossValidationOptions,
@@ -294,6 +295,8 @@ export type {
   VolumeAccumulationOptions,
   VolumeMaCrossSignal,
   VolumeMaCrossOptions,
+  VolumeAboveAverageSignal,
+  VolumeAboveAverageOptions,
 } from "./signals";
 
 // Range-Bound backtest conditions
@@ -326,6 +329,14 @@ export {
   bullishVolumeDivergence,
   bearishVolumeDivergence,
   volumeTrendConfidence,
+  // CMF conditions
+  cmfAbove,
+  cmfBelow,
+  // OBV conditions
+  obvRising,
+  obvFalling,
+  obvCrossUp,
+  obvCrossDown,
 } from "./backtest";
 
 // Multi-Timeframe (MTF) conditions
