@@ -136,3 +136,21 @@ export type {
   SymbolRSRank,
   MultiRSOptions,
 } from "./relative-strength";
+
+// Smart Money Concepts (SMC)
+export {
+  orderBlock,
+  getActiveOrderBlocks,
+  getNearestOrderBlock,
+  liquiditySweep,
+  getRecoveredSweeps,
+  hasRecentSweepSignal,
+} from "./smc";
+export type {
+  OrderBlock,
+  OrderBlockValue,
+  OrderBlockOptions,
+  LiquiditySweep,
+  LiquiditySweepValue,
+  LiquiditySweepOptions,
+} from "./smc";

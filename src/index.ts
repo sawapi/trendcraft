@@ -39,6 +39,7 @@ export type {
   PresetCondition,
   CombinedCondition,
   Trade,
+  ExitReason,
   BacktestOptions,
   BacktestResult,
   BacktestSettings,
@@ -630,3 +631,24 @@ export type {
   CsvLoadResult,
   CsvLoadError,
 } from "./screening";
+
+// Trade Analysis
+export {
+  calculateTradeStats,
+  analyzeByExitReason,
+  analyzeByHoldingPeriod,
+  analyzeByTime,
+  analyzeMfeMae,
+  analyzeStreaks,
+  analyzeAllTrades,
+} from "./analysis";
+
+export type {
+  TradeStats,
+  ExitReasonAnalysis,
+  HoldingPeriodAnalysis,
+  TimeAnalysis,
+  MfeMaeAnalysis,
+  StreakAnalysis,
+  TradeAnalysis,
+} from "./analysis";

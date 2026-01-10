@@ -186,3 +186,21 @@ export {
   cupHandleDetected,
   type PatternConditionOptions,
 } from "./patterns";
+
+// Smart Money Concepts (SMC) conditions
+export {
+  // Order Block conditions
+  priceAtBullishOrderBlock,
+  priceAtBearishOrderBlock,
+  priceAtOrderBlock,
+  orderBlockCreated,
+  orderBlockMitigated,
+  hasActiveOrderBlocks,
+  // Liquidity Sweep conditions
+  liquiditySweepDetected,
+  liquiditySweepRecovered,
+  hasRecentSweeps,
+  sweepDepthAbove,
+  type OrderBlockConditionOptions,
+  type LiquiditySweepConditionOptions,
+} from "./smc";

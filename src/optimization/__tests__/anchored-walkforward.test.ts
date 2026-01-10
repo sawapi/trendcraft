@@ -52,7 +52,7 @@ function createSimpleEntryConditions(): ConditionDefinition[] {
     {
       name: "priceUp",
       displayName: "Price Up",
-      create: () => (candles, index) => {
+      create: () => (_indicators, _candle, index, candles) => {
         if (index < 1 || !candles[index] || !candles[index - 1]) return false;
         return candles[index].close > candles[index - 1].close;
       },
@@ -70,7 +70,7 @@ function createSimpleExitConditions(): ConditionDefinition[] {
     {
       name: "priceDown",
       displayName: "Price Down",
-      create: () => (candles, index) => {
+      create: () => (_indicators, _candle, index, candles) => {
         if (index < 1 || !candles[index] || !candles[index - 1]) return false;
         return candles[index].close < candles[index - 1].close;
       },

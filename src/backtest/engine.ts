@@ -11,6 +11,7 @@ import type {
   BacktestResult,
   BacktestSettings,
   Condition,
+  ExitReason,
   FillMode,
   MtfContext,
   NormalizedCandle,
@@ -34,6 +35,97 @@ export type MtfBacktestOptions = BacktestOptions & {
 };
 
 /**
+ * Position state for tracking open trades
+ */
+type Position = {
+  entryTime: number;
+  entryPrice: number;
+  peakPrice: number;
+  shares: number;
+  originalShares: number;
+  partialTaken: boolean;
+  breakevenActivated: boolean;
+  scaleOutLevelsTaken: boolean[];
+  entryAtr: number | null;
+  maxProfitPercent: number;
+  maxLossPercent: number;
+};
+
+/**
+ * Trade close context for calculating returns
+ */
+type TradeCloseContext = {
+  position: Position;
+  exitTime: number;
+  exitPrice: number;
+  exitReason: ExitReason;
+  sharesToClose: number;
+  /** Set for partial/scale-out exits: true if partial, false if final scale-out */
+  isPartial?: boolean;
+  exitPercent?: number;
+  commission: number;
+  commissionRate: number;
+  taxRate: number;
+  slippage: number;
+};
+
+/**
+ * Result of closing a trade
+ */
+type TradeCloseResult = {
+  trade: Trade;
+  netProceeds: number;
+  returnPercent: number;
+};
+
+/**
+ * Calculate trade result when closing a position (full or partial)
+ */
+function calculateTradeClose(ctx: TradeCloseContext): TradeCloseResult {
+  const exitPriceWithSlippage = applySlippage(ctx.exitPrice, ctx.slippage, "sell");
+  const grossReturn = (exitPriceWithSlippage - ctx.position.entryPrice) * ctx.sharesToClose;
+  const exitValue = exitPriceWithSlippage * ctx.sharesToClose;
+  const exitCommission = ctx.commission + exitValue * (ctx.commissionRate / 100);
+
+  let tax = 0;
+  if (grossReturn > 0 && ctx.taxRate > 0) {
+    tax = grossReturn * (ctx.taxRate / 100);
+  }
+
+  const netReturn = grossReturn - exitCommission - tax;
+  const returnPercent = (netReturn / (ctx.position.entryPrice * ctx.sharesToClose)) * 100;
+  const holdingDays = Math.round((ctx.exitTime - ctx.position.entryTime) / MS_PER_DAY);
+  const mfeUtilization = calculateMfeUtilization(returnPercent, ctx.position.maxProfitPercent);
+
+  const trade: Trade = {
+    entryTime: ctx.position.entryTime,
+    entryPrice: ctx.position.entryPrice,
+    exitTime: ctx.exitTime,
+    exitPrice: exitPriceWithSlippage,
+    return: netReturn,
+    returnPercent,
+    holdingDays,
+    exitReason: ctx.exitReason,
+    mfe: Math.round(ctx.position.maxProfitPercent * 100) / 100,
+    mae: Math.round(ctx.position.maxLossPercent * 100) / 100,
+    mfeUtilization: mfeUtilization !== null ? Math.round(mfeUtilization * 100) / 100 : undefined,
+  };
+
+  if (ctx.isPartial !== undefined) {
+    trade.isPartial = ctx.isPartial;
+    if (ctx.exitPercent !== undefined) {
+      trade.exitPercent = ctx.exitPercent;
+    }
+  }
+
+  return {
+    trade,
+    netProceeds: exitValue - exitCommission - tax,
+    returnPercent,
+  };
+}
+
+/**
  * Run backtest on historical candle data
  */
 export function runBacktest(
@@ -52,6 +144,9 @@ export function runBacktest(
     trailingStop,
     atrTrailingStop,
     partialTakeProfit,
+    breakevenStop,
+    scaleOut,
+    timeExit,
     taxRate = 0,
     fillMode = "next-bar-open" as FillMode,
     slTpMode = "close-only" as SlTpMode,
@@ -99,15 +194,7 @@ export function runBacktest(
     atrSeries = atr(candles, { period: atrPeriod });
   }
 
-  let position: {
-    entryTime: number;
-    entryPrice: number;
-    peakPrice: number;
-    shares: number;
-    originalShares: number;
-    partialTaken: boolean;
-    entryAtr: number | null; // ATR at entry time (for useEntryAtr mode)
-  } | null = null;
+  let position: Position | null = null;
 
   // Pending entry for next-bar-open mode
   let pendingEntry: {
@@ -121,6 +208,7 @@ export function runBacktest(
     signalTime: number;
     exitPrice: number; // Target price (for SL/TP) or 0 for signal-based exit
     isSignalBased: boolean;
+    exitReason: ExitReason;
   } | null = null;
 
   let currentCapital = capital;
@@ -154,7 +242,11 @@ export function runBacktest(
         shares,
         originalShares: shares,
         partialTaken: false,
+        breakevenActivated: false,
+        scaleOutLevelsTaken: scaleOut ? scaleOut.levels.map(() => false) : [],
         entryAtr: pendingEntry.entryAtr,
+        maxProfitPercent: 0,
+        maxLossPercent: 0,
       };
 
       // Capital is now invested in position
@@ -164,40 +256,21 @@ export function runBacktest(
 
     // === Handle pending exit (next-bar-open mode) ===
     if (pendingExit !== null && position !== null) {
-      // Execute exit at this bar's open
-      const exitPrice = applySlippage(candle.open, slippage, "sell");
-
-      // Calculate gross return
-      const grossReturn = (exitPrice - position.entryPrice) * position.shares;
-
-      // Calculate exit commission
-      const exitValue = exitPrice * position.shares;
-      const exitCommission = commission + exitValue * (commissionRate / 100);
-
-      // Apply tax on profits only
-      let tax = 0;
-      if (grossReturn > 0 && taxRate > 0) {
-        tax = grossReturn * (taxRate / 100);
-      }
-
-      // Net return after commission and tax
-      const netReturn = grossReturn - exitCommission - tax;
-      const returnPercent = (netReturn / (position.entryPrice * position.shares)) * 100;
-      const holdingDays = Math.round((candle.time - position.entryTime) / MS_PER_DAY);
-
-      trades.push({
-        entryTime: position.entryTime,
-        entryPrice: position.entryPrice,
+      const result = calculateTradeClose({
+        position,
         exitTime: candle.time,
-        exitPrice,
-        return: netReturn,
-        returnPercent,
-        holdingDays,
+        exitPrice: candle.open,
+        exitReason: pendingExit.exitReason,
+        sharesToClose: position.shares,
+        commission,
+        commissionRate,
+        taxRate,
+        slippage,
       });
 
-      // Update capital
-      currentCapital += exitValue - exitCommission - tax;
-      returns.push(returnPercent / 100);
+      trades.push(result.trade);
+      currentCapital += result.netProceeds;
+      returns.push(result.returnPercent / 100);
 
       // Track drawdown
       if (currentCapital > peakCapital) {
@@ -246,7 +319,11 @@ export function runBacktest(
             shares,
             originalShares: shares,
             partialTaken: false,
+            breakevenActivated: false,
+            scaleOutLevelsTaken: scaleOut ? scaleOut.levels.map(() => false) : [],
             entryAtr,
+            maxProfitPercent: 0,
+            maxLossPercent: 0,
           };
 
           // Capital is now invested in position
@@ -268,8 +345,24 @@ export function runBacktest(
         position.peakPrice = candle.high;
       }
 
+      // Track MFE/MAE (Maximum Favorable/Adverse Excursion)
+      // Use high for potential max profit, low for potential max loss
+      const highReturn = ((candle.high - position.entryPrice) / position.entryPrice) * 100;
+      const lowReturn = ((candle.low - position.entryPrice) / position.entryPrice) * 100;
+
+      // MFE: maximum unrealized profit (highest high return)
+      if (highReturn > position.maxProfitPercent) {
+        position.maxProfitPercent = highReturn;
+      }
+
+      // MAE: maximum unrealized loss (lowest low return, stored as positive)
+      if (lowReturn < 0 && Math.abs(lowReturn) > position.maxLossPercent) {
+        position.maxLossPercent = Math.abs(lowReturn);
+      }
+
       let shouldExit = false;
       let exitPrice = candle.close;
+      let exitReason: ExitReason = "signal"; // Default, will be overwritten
 
       // Get current ATR value for ATR-based risk management
       let currentAtr: number | null = null;
@@ -286,70 +379,44 @@ export function runBacktest(
       // === Stop Loss Check ===
       if (stopLoss !== undefined) {
         const stopLossPrice = position.entryPrice * (1 - stopLoss / 100);
-        if (slTpMode === "intraday") {
-          // Legacy: check against low (has look-ahead bias)
-          if (candle.low <= stopLossPrice) {
-            shouldExit = true;
-            exitPrice = stopLossPrice;
-          }
-        } else {
-          // close-only: check against close (no look-ahead bias)
-          if (candle.close <= stopLossPrice) {
-            shouldExit = true;
-            exitPrice = candle.close;
-          }
+        const triggered = checkStopTrigger(candle, stopLossPrice, slTpMode);
+        if (triggered) {
+          shouldExit = true;
+          exitPrice = triggered.price;
+          exitReason = "stopLoss";
         }
       }
 
       // ATR-based stop loss
       if (!shouldExit && currentAtr !== null && atrRisk?.atrStopMultiplier !== undefined) {
-        const atrStopDistance = currentAtr * atrRisk.atrStopMultiplier;
-        const atrStopPrice = position.entryPrice - atrStopDistance;
-        if (slTpMode === "intraday") {
-          if (candle.low <= atrStopPrice) {
-            shouldExit = true;
-            exitPrice = atrStopPrice;
-          }
-        } else {
-          if (candle.close <= atrStopPrice) {
-            shouldExit = true;
-            exitPrice = candle.close;
-          }
+        const atrStopPrice = position.entryPrice - currentAtr * atrRisk.atrStopMultiplier;
+        const triggered = checkStopTrigger(candle, atrStopPrice, slTpMode);
+        if (triggered) {
+          shouldExit = true;
+          exitPrice = triggered.price;
+          exitReason = "stopLoss";
         }
       }
 
       // === Take Profit Check ===
       if (!shouldExit && takeProfit !== undefined) {
         const takeProfitPrice = position.entryPrice * (1 + takeProfit / 100);
-        if (slTpMode === "intraday") {
-          // Legacy: check against high (has look-ahead bias)
-          if (candle.high >= takeProfitPrice) {
-            shouldExit = true;
-            exitPrice = takeProfitPrice;
-          }
-        } else {
-          // close-only: check against close (no look-ahead bias)
-          if (candle.close >= takeProfitPrice) {
-            shouldExit = true;
-            exitPrice = candle.close;
-          }
+        const triggered = checkProfitTrigger(candle, takeProfitPrice, slTpMode);
+        if (triggered) {
+          shouldExit = true;
+          exitPrice = triggered.price;
+          exitReason = "takeProfit";
         }
       }
 
       // ATR-based take profit
       if (!shouldExit && currentAtr !== null && atrRisk?.atrTakeProfitMultiplier !== undefined) {
-        const atrTpDistance = currentAtr * atrRisk.atrTakeProfitMultiplier;
-        const atrTpPrice = position.entryPrice + atrTpDistance;
-        if (slTpMode === "intraday") {
-          if (candle.high >= atrTpPrice) {
-            shouldExit = true;
-            exitPrice = atrTpPrice;
-          }
-        } else {
-          if (candle.close >= atrTpPrice) {
-            shouldExit = true;
-            exitPrice = candle.close;
-          }
+        const atrTpPrice = position.entryPrice + currentAtr * atrRisk.atrTakeProfitMultiplier;
+        const triggered = checkProfitTrigger(candle, atrTpPrice, slTpMode);
+        if (triggered) {
+          shouldExit = true;
+          exitPrice = triggered.price;
+          exitReason = "takeProfit";
         }
       }
 
@@ -361,43 +428,26 @@ export function runBacktest(
             ? candle.high >= partialThresholdPrice
             : candle.close >= partialThresholdPrice;
         if (partialTrigger) {
-          // Execute partial exit
-          const partialExitPrice =
-            slTpMode === "intraday"
-              ? applySlippage(partialThresholdPrice, slippage, "sell")
-              : applySlippage(candle.close, slippage, "sell");
+          const partialExitPrice = slTpMode === "intraday" ? partialThresholdPrice : candle.close;
           const sharesToSell = position.shares * (partialTakeProfit.sellPercent / 100);
-          const sharesRemaining = position.shares - sharesToSell;
 
-          // Calculate partial exit return
-          const grossReturn = (partialExitPrice - position.entryPrice) * sharesToSell;
-          const exitValue = partialExitPrice * sharesToSell;
-          const exitCommission = commission + exitValue * (commissionRate / 100);
-
-          let tax = 0;
-          if (grossReturn > 0 && taxRate > 0) {
-            tax = grossReturn * (taxRate / 100);
-          }
-
-          const netReturn = grossReturn - exitCommission - tax;
-          const returnPercent = (netReturn / (position.entryPrice * sharesToSell)) * 100;
-          const holdingDays = Math.round((candle.time - position.entryTime) / MS_PER_DAY);
-
-          trades.push({
-            entryTime: position.entryTime,
-            entryPrice: position.entryPrice,
+          const result = calculateTradeClose({
+            position,
             exitTime: candle.time,
             exitPrice: partialExitPrice,
-            return: netReturn,
-            returnPercent,
-            holdingDays,
+            exitReason: "partialTakeProfit",
+            sharesToClose: sharesToSell,
             isPartial: true,
             exitPercent: partialTakeProfit.sellPercent,
+            commission,
+            commissionRate,
+            taxRate,
+            slippage,
           });
 
-          // Update capital and position
-          currentCapital += exitValue - exitCommission - tax;
-          returns.push(returnPercent / 100);
+          trades.push(result.trade);
+          currentCapital += result.netProceeds;
+          returns.push(result.returnPercent / 100);
 
           // Track drawdown
           if (currentCapital > peakCapital) {
@@ -409,41 +459,115 @@ export function runBacktest(
           }
 
           // Update position (keep remaining shares)
-          position.shares = sharesRemaining;
+          position.shares -= sharesToSell;
           position.partialTaken = true;
+        }
+      }
+
+      // Scale-out check (sell portions at multiple profit levels)
+      if (!shouldExit && scaleOut && position.shares > 0) {
+        for (let levelIndex = 0; levelIndex < scaleOut.levels.length; levelIndex++) {
+          if (position.scaleOutLevelsTaken[levelIndex]) continue;
+
+          const level = scaleOut.levels[levelIndex];
+          const scaleOutThresholdPrice = position.entryPrice * (1 + level.threshold / 100);
+          const scaleOutTrigger =
+            slTpMode === "intraday"
+              ? candle.high >= scaleOutThresholdPrice
+              : candle.close >= scaleOutThresholdPrice;
+
+          if (scaleOutTrigger) {
+            const scaleOutExitPrice = slTpMode === "intraday" ? scaleOutThresholdPrice : candle.close;
+            const sharesToSell = position.shares * (level.sellPercent / 100);
+            const sharesRemaining = position.shares - sharesToSell;
+
+            const result = calculateTradeClose({
+              position,
+              exitTime: candle.time,
+              exitPrice: scaleOutExitPrice,
+              exitReason: "scaleOut",
+              sharesToClose: sharesToSell,
+              isPartial: sharesRemaining > 0,
+              exitPercent: level.sellPercent,
+              commission,
+              commissionRate,
+              taxRate,
+              slippage,
+            });
+
+            trades.push(result.trade);
+            currentCapital += result.netProceeds;
+            returns.push(result.returnPercent / 100);
+
+            // Track drawdown
+            if (currentCapital > peakCapital) {
+              peakCapital = currentCapital;
+            }
+            const drawdown = ((peakCapital - currentCapital) / peakCapital) * 100;
+            if (drawdown > maxDrawdown) {
+              maxDrawdown = drawdown;
+            }
+
+            position.shares = sharesRemaining;
+            position.scaleOutLevelsTaken[levelIndex] = true;
+
+            if (sharesRemaining <= 0) {
+              position = null;
+              break;
+            }
+          }
+        }
+      }
+
+      // Skip remaining checks if position was closed by scale-out
+      if (position === null) {
+        continue;
+      }
+
+      // Breakeven stop check (move stop to entry price after profit threshold)
+      if (!shouldExit && breakevenStop) {
+        const breakevenThresholdPrice = position.entryPrice * (1 + breakevenStop.threshold / 100);
+        const buffer = breakevenStop.buffer ?? 0;
+        const breakevenStopPrice = position.entryPrice * (1 + buffer / 100);
+
+        // Activate breakeven if threshold is reached
+        if (!position.breakevenActivated) {
+          const triggered = checkProfitTrigger(candle, breakevenThresholdPrice, slTpMode);
+          if (triggered) {
+            position.breakevenActivated = true;
+          }
+        }
+
+        // Check breakeven stop if activated
+        if (position.breakevenActivated) {
+          const triggered = checkStopTrigger(candle, breakevenStopPrice, slTpMode);
+          if (triggered) {
+            shouldExit = true;
+            exitPrice = triggered.price;
+            exitReason = "breakeven";
+          }
         }
       }
 
       // Trailing stop check (fixed percentage)
       if (!shouldExit && trailingStop !== undefined) {
         const trailingStopPrice = position.peakPrice * (1 - trailingStop / 100);
-        if (slTpMode === "intraday") {
-          if (candle.low <= trailingStopPrice) {
-            shouldExit = true;
-            exitPrice = trailingStopPrice;
-          }
-        } else {
-          if (candle.close <= trailingStopPrice) {
-            shouldExit = true;
-            exitPrice = candle.close;
-          }
+        const triggered = checkStopTrigger(candle, trailingStopPrice, slTpMode);
+        if (triggered) {
+          shouldExit = true;
+          exitPrice = triggered.price;
+          exitReason = "trailing";
         }
       }
 
       // ATR-based trailing stop (via atrRisk option)
       if (!shouldExit && currentAtr !== null && atrRisk?.atrTrailingMultiplier !== undefined) {
-        const atrTrailDistance = currentAtr * atrRisk.atrTrailingMultiplier;
-        const atrTrailPrice = position.peakPrice - atrTrailDistance;
-        if (slTpMode === "intraday") {
-          if (candle.low <= atrTrailPrice) {
-            shouldExit = true;
-            exitPrice = atrTrailPrice;
-          }
-        } else {
-          if (candle.close <= atrTrailPrice) {
-            shouldExit = true;
-            exitPrice = candle.close;
-          }
+        const atrTrailPrice = position.peakPrice - currentAtr * atrRisk.atrTrailingMultiplier;
+        const triggered = checkStopTrigger(candle, atrTrailPrice, slTpMode);
+        if (triggered) {
+          shouldExit = true;
+          exitPrice = triggered.price;
+          exitReason = "trailing";
         }
       }
 
@@ -451,18 +575,37 @@ export function runBacktest(
       if (!shouldExit && atrTrailingStop && atrSeries) {
         const atrValue = atrSeries[i]?.value;
         if (atrValue !== null && atrValue !== undefined) {
-          const atrTrailDistance = atrValue * atrTrailingStop.multiplier;
-          const atrTrailPrice = position.peakPrice - atrTrailDistance;
-          if (slTpMode === "intraday") {
-            if (candle.low <= atrTrailPrice) {
-              shouldExit = true;
-              exitPrice = atrTrailPrice;
-            }
-          } else {
-            if (candle.close <= atrTrailPrice) {
+          const atrTrailPrice = position.peakPrice - atrValue * atrTrailingStop.multiplier;
+          const triggered = checkStopTrigger(candle, atrTrailPrice, slTpMode);
+          if (triggered) {
+            shouldExit = true;
+            exitPrice = triggered.price;
+            exitReason = "trailing";
+          }
+        }
+      }
+
+      // Time-based exit (exit after maxHoldDays)
+      if (!shouldExit && timeExit) {
+        const holdingDays = Math.floor((candle.time - position.entryTime) / MS_PER_DAY);
+
+        if (holdingDays >= timeExit.maxHoldDays) {
+          // Check if we should only exit when position is flat
+          if (timeExit.onlyIfFlat) {
+            const currentReturn = ((candle.close - position.entryPrice) / position.entryPrice) * 100;
+            const threshold = timeExit.onlyIfFlat.threshold;
+
+            // Only exit if return is within ±threshold%
+            if (Math.abs(currentReturn) <= threshold) {
               shouldExit = true;
               exitPrice = candle.close;
+              exitReason = "timeExit";
             }
+          } else {
+            // No flat condition, just exit after time
+            shouldExit = true;
+            exitPrice = candle.close;
+            exitReason = "timeExit";
           }
         }
       }
@@ -481,45 +624,27 @@ export function runBacktest(
       ) {
         shouldExit = true;
         exitPrice = candle.close;
+        exitReason = "signal";
       }
 
       // Handle exit based on fillMode
       if (shouldExit) {
         if (fillMode === "same-bar-close") {
-          // Legacy mode: exit immediately at this bar
-          exitPrice = applySlippage(exitPrice, slippage, "sell");
-
-          // Calculate gross return
-          const grossReturn = (exitPrice - position.entryPrice) * position.shares;
-
-          // Calculate exit commission
-          const exitValue = exitPrice * position.shares;
-          const exitCommission = commission + exitValue * (commissionRate / 100);
-
-          // Apply tax on profits only
-          let tax = 0;
-          if (grossReturn > 0 && taxRate > 0) {
-            tax = grossReturn * (taxRate / 100);
-          }
-
-          // Net return after commission and tax
-          const netReturn = grossReturn - exitCommission - tax;
-          const returnPercent = (netReturn / (position.entryPrice * position.shares)) * 100;
-          const holdingDays = Math.round((candle.time - position.entryTime) / MS_PER_DAY);
-
-          trades.push({
-            entryTime: position.entryTime,
-            entryPrice: position.entryPrice,
+          const result = calculateTradeClose({
+            position,
             exitTime: candle.time,
             exitPrice,
-            return: netReturn,
-            returnPercent,
-            holdingDays,
+            exitReason,
+            sharesToClose: position.shares,
+            commission,
+            commissionRate,
+            taxRate,
+            slippage,
           });
 
-          // Update capital (add to existing capital from partial takes)
-          currentCapital += exitValue - exitCommission - tax;
-          returns.push(returnPercent / 100);
+          trades.push(result.trade);
+          currentCapital += result.netProceeds;
+          returns.push(result.returnPercent / 100);
 
           // Track drawdown
           if (currentCapital > peakCapital) {
@@ -536,7 +661,8 @@ export function runBacktest(
           pendingExit = {
             signalTime: candle.time,
             exitPrice,
-            isSignalBased: true,
+            isSignalBased: exitReason === "signal",
+            exitReason,
           };
         }
       }
@@ -546,39 +672,22 @@ export function runBacktest(
   // Close any open position at the end
   if (position !== null) {
     const lastCandle = candles[candles.length - 1];
-    const exitPrice = lastCandle.close;
 
-    // Calculate gross return
-    const grossReturn = (exitPrice - position.entryPrice) * position.shares;
-
-    // Calculate exit commission
-    const exitValue = exitPrice * position.shares;
-    const exitCommission = commission + exitValue * (commissionRate / 100);
-
-    // Apply tax on profits only
-    let tax = 0;
-    if (grossReturn > 0 && taxRate > 0) {
-      tax = grossReturn * (taxRate / 100);
-    }
-
-    // Net return
-    const netReturn = grossReturn - exitCommission - tax;
-    const returnPercent = (netReturn / (position.entryPrice * position.shares)) * 100;
-    const holdingDays = Math.round((lastCandle.time - position.entryTime) / MS_PER_DAY);
-
-    trades.push({
-      entryTime: position.entryTime,
-      entryPrice: position.entryPrice,
+    const result = calculateTradeClose({
+      position,
       exitTime: lastCandle.time,
-      exitPrice,
-      return: netReturn,
-      returnPercent,
-      holdingDays,
+      exitPrice: lastCandle.close,
+      exitReason: "endOfData",
+      sharesToClose: position.shares,
+      commission,
+      commissionRate,
+      taxRate,
+      slippage: 0, // No slippage for end-of-data close
     });
 
-    // Add to existing capital from partial takes
-    currentCapital += exitValue - exitCommission - tax;
-    returns.push(returnPercent / 100);
+    trades.push(result.trade);
+    currentCapital += result.netProceeds;
+    returns.push(result.returnPercent / 100);
   }
 
   return calculateStats(trades, returns, capital, currentCapital, maxDrawdown, settings);
@@ -589,11 +698,62 @@ export function runBacktest(
  */
 function applySlippage(price: number, slippage: number, direction: "buy" | "sell"): number {
   const slippageMultiplier = slippage / 100;
-  if (direction === "buy") {
-    return price * (1 + slippageMultiplier);
+  return direction === "buy" ? price * (1 + slippageMultiplier) : price * (1 - slippageMultiplier);
+}
+
+/**
+ * Check if stop loss is triggered (price dropped to stop level)
+ * Returns the exit price if triggered, null otherwise
+ */
+function checkStopTrigger(
+  candle: NormalizedCandle,
+  stopPrice: number,
+  slTpMode: SlTpMode,
+): { price: number } | null {
+  if (slTpMode === "intraday") {
+    if (candle.low <= stopPrice) {
+      return { price: stopPrice };
+    }
   } else {
-    return price * (1 - slippageMultiplier);
+    if (candle.close <= stopPrice) {
+      return { price: candle.close };
+    }
   }
+  return null;
+}
+
+/**
+ * Check if take profit is triggered (price rose to target level)
+ * Returns the exit price if triggered, null otherwise
+ */
+function checkProfitTrigger(
+  candle: NormalizedCandle,
+  targetPrice: number,
+  slTpMode: SlTpMode,
+): { price: number } | null {
+  if (slTpMode === "intraday") {
+    if (candle.high >= targetPrice) {
+      return { price: targetPrice };
+    }
+  } else {
+    if (candle.close >= targetPrice) {
+      return { price: candle.close };
+    }
+  }
+  return null;
+}
+
+/**
+ * Calculate MFE utilization
+ * Returns how much of the maximum favorable excursion was captured
+ * Returns null if MFE is 0 or negative (no unrealized profit during trade)
+ */
+function calculateMfeUtilization(returnPercent: number, mfe: number): number | null {
+  if (mfe <= 0) return null;
+  // If return is positive, utilization = return / mfe
+  // If return is negative, utilization = 0 (captured none of the potential profit)
+  if (returnPercent <= 0) return 0;
+  return Math.min(100, (returnPercent / mfe) * 100);
 }
 
 /**

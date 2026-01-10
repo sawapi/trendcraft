@@ -1,0 +1,24 @@
+/**
+ * Trade Analysis Module
+ *
+ * Provides comprehensive analysis functions for evaluating trading performance.
+ */
+
+export {
+  // Main analysis functions
+  calculateTradeStats,
+  analyzeByExitReason,
+  analyzeByHoldingPeriod,
+  analyzeByTime,
+  analyzeMfeMae,
+  analyzeStreaks,
+  analyzeAllTrades,
+  // Types
+  type TradeStats,
+  type ExitReasonAnalysis,
+  type HoldingPeriodAnalysis,
+  type TimeAnalysis,
+  type MfeMaeAnalysis,
+  type StreakAnalysis,
+  type TradeAnalysis,
+} from "./edge-analysis";
