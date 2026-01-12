@@ -160,6 +160,13 @@ export {
   bottomByRS,
   filterByRSPercentile,
   compareRS,
+  // SMC (Smart Money Concepts)
+  orderBlock,
+  getActiveOrderBlocks,
+  getNearestOrderBlock,
+  liquiditySweep,
+  getRecoveredSweeps,
+  hasRecentSweepSignal,
 } from "./indicators";
 
 export type {
@@ -197,6 +204,13 @@ export type {
   BenchmarkRSOptions,
   SymbolRSRank,
   MultiRSOptions,
+  // SMC types
+  OrderBlock,
+  OrderBlockValue,
+  OrderBlockOptions,
+  LiquiditySweep,
+  LiquiditySweepValue,
+  LiquiditySweepOptions,
 } from "./indicators";
 
 // Fluent API
