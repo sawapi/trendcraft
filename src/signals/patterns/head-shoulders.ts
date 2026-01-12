@@ -5,10 +5,15 @@
  * Inverse Head and Shoulders: Bullish reversal pattern (mirror of H&S)
  */
 
-import { getSwingHighs, getSwingLows } from "../../indicators/price/swing-points";
 import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { getSwingHighs, getSwingLows } from "../../indicators/price/swing-points";
 import type { Candle, NormalizedCandle } from "../../types";
-import type { PatternSignal, HeadShouldersOptions, PatternKeyPoint, PatternNeckline } from "./types";
+import type {
+  HeadShouldersOptions,
+  PatternKeyPoint,
+  PatternNeckline,
+  PatternSignal,
+} from "./types";
 
 /**
  * Detect Head and Shoulders patterns
@@ -106,7 +111,8 @@ export function headAndShoulders(
 
     // Check neckline slope
     const patternLength = rightShoulder.index - leftShoulder.index;
-    const totalPriceChange = Math.abs(neckline.endPrice - neckline.startPrice) / neckline.startPrice;
+    const totalPriceChange =
+      Math.abs(neckline.endPrice - neckline.startPrice) / neckline.startPrice;
     if (totalPriceChange > maxNecklineSlope) {
       continue;
     }
@@ -128,11 +134,31 @@ export function headAndShoulders(
     );
 
     const keyPoints: PatternKeyPoint[] = [
-      { time: normalized[leftShoulder.index].time, index: leftShoulder.index, price: leftShoulder.price, label: "Left Shoulder" },
-      { time: normalized[leftTrough.index].time, index: leftTrough.index, price: leftTrough.price, label: "Left Trough" },
+      {
+        time: normalized[leftShoulder.index].time,
+        index: leftShoulder.index,
+        price: leftShoulder.price,
+        label: "Left Shoulder",
+      },
+      {
+        time: normalized[leftTrough.index].time,
+        index: leftTrough.index,
+        price: leftTrough.price,
+        label: "Left Trough",
+      },
       { time: normalized[head.index].time, index: head.index, price: head.price, label: "Head" },
-      { time: normalized[rightTrough.index].time, index: rightTrough.index, price: rightTrough.price, label: "Right Trough" },
-      { time: normalized[rightShoulder.index].time, index: rightShoulder.index, price: rightShoulder.price, label: "Right Shoulder" },
+      {
+        time: normalized[rightTrough.index].time,
+        index: rightTrough.index,
+        price: rightTrough.price,
+        label: "Right Trough",
+      },
+      {
+        time: normalized[rightShoulder.index].time,
+        index: rightShoulder.index,
+        price: rightShoulder.price,
+        label: "Right Shoulder",
+      },
     ];
 
     patterns.push({
@@ -239,7 +265,8 @@ export function inverseHeadAndShoulders(
     );
 
     // Check neckline slope
-    const totalPriceChange = Math.abs(neckline.endPrice - neckline.startPrice) / neckline.startPrice;
+    const totalPriceChange =
+      Math.abs(neckline.endPrice - neckline.startPrice) / neckline.startPrice;
     if (totalPriceChange > maxNecklineSlope) {
       continue;
     }
@@ -261,11 +288,31 @@ export function inverseHeadAndShoulders(
     );
 
     const keyPoints: PatternKeyPoint[] = [
-      { time: normalized[leftShoulder.index].time, index: leftShoulder.index, price: leftShoulder.price, label: "Left Shoulder" },
-      { time: normalized[leftPeak.index].time, index: leftPeak.index, price: leftPeak.price, label: "Left Peak" },
+      {
+        time: normalized[leftShoulder.index].time,
+        index: leftShoulder.index,
+        price: leftShoulder.price,
+        label: "Left Shoulder",
+      },
+      {
+        time: normalized[leftPeak.index].time,
+        index: leftPeak.index,
+        price: leftPeak.price,
+        label: "Left Peak",
+      },
       { time: normalized[head.index].time, index: head.index, price: head.price, label: "Head" },
-      { time: normalized[rightPeak.index].time, index: rightPeak.index, price: rightPeak.price, label: "Right Peak" },
-      { time: normalized[rightShoulder.index].time, index: rightShoulder.index, price: rightShoulder.price, label: "Right Shoulder" },
+      {
+        time: normalized[rightPeak.index].time,
+        index: rightPeak.index,
+        price: rightPeak.price,
+        label: "Right Peak",
+      },
+      {
+        time: normalized[rightShoulder.index].time,
+        index: rightShoulder.index,
+        price: rightShoulder.price,
+        label: "Right Shoulder",
+      },
     ];
 
     patterns.push({
@@ -386,7 +433,7 @@ function calculateHSConfidence(
 
   // More prominent head
   if (headHeightRatio > 0.05) confidence += 10;
-  if (headHeightRatio > 0.10) confidence += 5;
+  if (headHeightRatio > 0.1) confidence += 5;
 
   // Flatter neckline is more reliable
   if (necklineSlope < 0.03) confidence += 10;

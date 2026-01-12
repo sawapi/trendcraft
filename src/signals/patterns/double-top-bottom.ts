@@ -5,10 +5,10 @@
  * Double Bottom: Bullish reversal pattern with two troughs at similar levels
  */
 
-import { getSwingHighs, getSwingLows } from "../../indicators/price/swing-points";
 import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { getSwingHighs, getSwingLows } from "../../indicators/price/swing-points";
 import type { Candle, NormalizedCandle } from "../../types";
-import type { PatternSignal, DoublePatternOptions, PatternKeyPoint } from "./types";
+import type { DoublePatternOptions, PatternKeyPoint, PatternSignal } from "./types";
 
 /**
  * Detect Double Top patterns
@@ -55,13 +55,21 @@ export function doubleTop(
   const swingLows = getSwingLows(normalized, swingOpts);
 
   const patterns: PatternSignal[] = [];
+  // Track used swing points to prevent overlapping patterns
+  const usedSwingIndexes = new Set<number>();
 
   // Look for pairs of swing highs at similar levels
   for (let i = 0; i < swingHighs.length - 1; i++) {
     const firstPeak = swingHighs[i];
 
+    // Skip if this swing point is already used in another pattern
+    if (usedSwingIndexes.has(firstPeak.index)) continue;
+
     for (let j = i + 1; j < swingHighs.length; j++) {
       const secondPeak = swingHighs[j];
+
+      // Skip if this swing point is already used
+      if (usedSwingIndexes.has(secondPeak.index)) continue;
 
       // Check distance constraints
       const distance = secondPeak.index - firstPeak.index;
@@ -70,6 +78,10 @@ export function doubleTop(
       // Check price similarity
       const priceDiff = Math.abs(firstPeak.price - secondPeak.price) / firstPeak.price;
       if (priceDiff > tolerance) continue;
+
+      // Double Top: second peak should not be significantly higher than first
+      // Allow only up to half of tolerance above first peak
+      if (secondPeak.price > firstPeak.price * (1 + tolerance * 0.5)) continue;
 
       // Find the middle trough between the two peaks
       const middleTrough = findMiddleTrough(swingLows, firstPeak.index, secondPeak.index);
@@ -85,8 +97,14 @@ export function doubleTop(
       const target = middleTrough.price - patternHeight; // Measured move
       const necklinePrice = middleTrough.price;
 
-      // Check if confirmed (price broke below neckline after second peak)
-      const confirmed = checkNecklineBreak(normalized, secondPeak.index, necklinePrice, "down");
+      // Find breakdown point (price broke below neckline after second peak)
+      const breakdownPoint = findNecklineBreakPoint(
+        normalized,
+        secondPeak.index,
+        necklinePrice,
+        "down",
+      );
+      const confirmed = breakdownPoint !== null;
 
       // Calculate confidence
       const confidence = calculateDoublePatternConfidence(
@@ -97,18 +115,63 @@ export function doubleTop(
         confirmed,
       );
 
-      const keyPoints: PatternKeyPoint[] = [
-        { time: normalized[firstPeak.index].time, index: firstPeak.index, price: firstPeak.price, label: "First Peak" },
-        { time: normalized[middleTrough.index].time, index: middleTrough.index, price: middleTrough.price, label: "Middle Trough" },
-        { time: normalized[secondPeak.index].time, index: secondPeak.index, price: secondPeak.price, label: "Second Peak" },
-      ];
+      // Find the preceding swing low before the first peak (start of the pattern)
+      const startLow = findPrecedingSwingLow(swingLows, firstPeak.index);
+
+      const keyPoints: PatternKeyPoint[] = [];
+      if (startLow) {
+        keyPoints.push({
+          time: normalized[startLow.index].time,
+          index: startLow.index,
+          price: startLow.price,
+          label: "Start Low",
+        });
+      }
+      keyPoints.push(
+        {
+          time: normalized[firstPeak.index].time,
+          index: firstPeak.index,
+          price: firstPeak.price,
+          label: "First Peak",
+        },
+        {
+          time: normalized[middleTrough.index].time,
+          index: middleTrough.index,
+          price: middleTrough.price,
+          label: "Middle Trough",
+        },
+        {
+          time: normalized[secondPeak.index].time,
+          index: secondPeak.index,
+          price: secondPeak.price,
+          label: "Second Peak",
+        },
+      );
+
+      // Add breakdown point as 5th keyPoint for M-shape polygon
+      if (breakdownPoint) {
+        keyPoints.push({
+          time: normalized[breakdownPoint.index].time,
+          index: breakdownPoint.index,
+          price: breakdownPoint.price,
+          label: "End Low",
+        });
+      }
+
+      // Use start low as pattern start if available, otherwise first peak
+      const patternStartTime = startLow
+        ? normalized[startLow.index].time
+        : normalized[firstPeak.index].time;
+      const patternEndTime = breakdownPoint
+        ? normalized[breakdownPoint.index].time
+        : normalized[secondPeak.index].time;
 
       patterns.push({
         time: normalized[secondPeak.index].time,
         type: "double_top",
         pattern: {
-          startTime: normalized[firstPeak.index].time,
-          endTime: normalized[secondPeak.index].time,
+          startTime: patternStartTime,
+          endTime: patternEndTime,
           keyPoints,
           neckline: {
             startPrice: necklinePrice,
@@ -124,7 +187,9 @@ export function doubleTop(
         confirmed,
       });
 
-      // Don't reuse second peak as first peak of another pattern
+      // Mark swing points as used to prevent overlapping patterns
+      usedSwingIndexes.add(firstPeak.index);
+      usedSwingIndexes.add(secondPeak.index);
       break;
     }
   }
@@ -169,13 +234,21 @@ export function doubleBottom(
   const swingLows = getSwingLows(normalized, swingOpts);
 
   const patterns: PatternSignal[] = [];
+  // Track used swing points to prevent overlapping patterns
+  const usedSwingIndexes = new Set<number>();
 
   // Look for pairs of swing lows at similar levels
   for (let i = 0; i < swingLows.length - 1; i++) {
     const firstTrough = swingLows[i];
 
+    // Skip if this swing point is already used in another pattern
+    if (usedSwingIndexes.has(firstTrough.index)) continue;
+
     for (let j = i + 1; j < swingLows.length; j++) {
       const secondTrough = swingLows[j];
+
+      // Skip if this swing point is already used
+      if (usedSwingIndexes.has(secondTrough.index)) continue;
 
       // Check distance constraints
       const distance = secondTrough.index - firstTrough.index;
@@ -184,6 +257,10 @@ export function doubleBottom(
       // Check price similarity
       const priceDiff = Math.abs(firstTrough.price - secondTrough.price) / firstTrough.price;
       if (priceDiff > tolerance) continue;
+
+      // Double Bottom: second trough should not be significantly higher than first
+      // Allow only up to half of tolerance above first trough
+      if (secondTrough.price > firstTrough.price * (1 + tolerance * 0.5)) continue;
 
       // Find the middle peak between the two troughs
       const middlePeak = findMiddlePeak(swingHighs, firstTrough.index, secondTrough.index);
@@ -199,8 +276,14 @@ export function doubleBottom(
       const target = middlePeak.price + patternHeight; // Measured move
       const necklinePrice = middlePeak.price;
 
-      // Check if confirmed (price broke above neckline after second trough)
-      const confirmed = checkNecklineBreak(normalized, secondTrough.index, necklinePrice, "up");
+      // Find breakout point (price broke above neckline after second trough)
+      const breakoutPoint = findNecklineBreakPoint(
+        normalized,
+        secondTrough.index,
+        necklinePrice,
+        "up",
+      );
+      const confirmed = breakoutPoint !== null;
 
       // Calculate confidence
       const confidence = calculateDoublePatternConfidence(
@@ -211,18 +294,63 @@ export function doubleBottom(
         confirmed,
       );
 
-      const keyPoints: PatternKeyPoint[] = [
-        { time: normalized[firstTrough.index].time, index: firstTrough.index, price: firstTrough.price, label: "First Trough" },
-        { time: normalized[middlePeak.index].time, index: middlePeak.index, price: middlePeak.price, label: "Middle Peak" },
-        { time: normalized[secondTrough.index].time, index: secondTrough.index, price: secondTrough.price, label: "Second Trough" },
-      ];
+      // Find the preceding swing high before the first trough (start of the pattern)
+      const startHigh = findPrecedingSwingHigh(swingHighs, firstTrough.index);
+
+      const keyPoints: PatternKeyPoint[] = [];
+      if (startHigh) {
+        keyPoints.push({
+          time: normalized[startHigh.index].time,
+          index: startHigh.index,
+          price: startHigh.price,
+          label: "Start High",
+        });
+      }
+      keyPoints.push(
+        {
+          time: normalized[firstTrough.index].time,
+          index: firstTrough.index,
+          price: firstTrough.price,
+          label: "First Trough",
+        },
+        {
+          time: normalized[middlePeak.index].time,
+          index: middlePeak.index,
+          price: middlePeak.price,
+          label: "Middle Peak",
+        },
+        {
+          time: normalized[secondTrough.index].time,
+          index: secondTrough.index,
+          price: secondTrough.price,
+          label: "Second Trough",
+        },
+      );
+
+      // Add breakout point as 5th keyPoint for W-shape polygon
+      if (breakoutPoint) {
+        keyPoints.push({
+          time: normalized[breakoutPoint.index].time,
+          index: breakoutPoint.index,
+          price: breakoutPoint.price,
+          label: "End High",
+        });
+      }
+
+      // Use start high as pattern start if available, otherwise first trough
+      const patternStartTime = startHigh
+        ? normalized[startHigh.index].time
+        : normalized[firstTrough.index].time;
+      const patternEndTime = breakoutPoint
+        ? normalized[breakoutPoint.index].time
+        : normalized[secondTrough.index].time;
 
       patterns.push({
         time: normalized[secondTrough.index].time,
         type: "double_bottom",
         pattern: {
-          startTime: normalized[firstTrough.index].time,
-          endTime: normalized[secondTrough.index].time,
+          startTime: patternStartTime,
+          endTime: patternEndTime,
           keyPoints,
           neckline: {
             startPrice: necklinePrice,
@@ -238,7 +366,9 @@ export function doubleBottom(
         confirmed,
       });
 
-      // Don't reuse second trough as first trough of another pattern
+      // Mark swing points as used to prevent overlapping patterns
+      usedSwingIndexes.add(firstTrough.index);
+      usedSwingIndexes.add(secondTrough.index);
       break;
     }
   }
@@ -295,23 +425,64 @@ function findMiddlePeak(
 }
 
 /**
- * Check if price broke through neckline
+ * Find the candle where price broke through neckline
+ * Returns the index and price of the breakout candle
  */
-function checkNecklineBreak(
+function findNecklineBreakPoint(
   candles: NormalizedCandle[],
   fromIndex: number,
   necklinePrice: number,
   direction: "up" | "down",
-): boolean {
+): { index: number; price: number } | null {
   for (let i = fromIndex + 1; i < candles.length; i++) {
     if (direction === "down" && candles[i].close < necklinePrice) {
-      return true;
+      return { index: i, price: candles[i].close };
     }
     if (direction === "up" && candles[i].close > necklinePrice) {
-      return true;
+      return { index: i, price: candles[i].close };
     }
   }
-  return false;
+  return null;
+}
+
+/**
+ * Find the closest swing high before the given index
+ */
+function findPrecedingSwingHigh(
+  swingHighs: { time: number; index: number; price: number }[],
+  beforeIndex: number,
+): SwingPoint | null {
+  let closest: SwingPoint | null = null;
+
+  for (const high of swingHighs) {
+    if (high.index < beforeIndex) {
+      if (!closest || high.index > closest.index) {
+        closest = { index: high.index, price: high.price };
+      }
+    }
+  }
+
+  return closest;
+}
+
+/**
+ * Find the closest swing low before the given index
+ */
+function findPrecedingSwingLow(
+  swingLows: { time: number; index: number; price: number }[],
+  beforeIndex: number,
+): SwingPoint | null {
+  let closest: SwingPoint | null = null;
+
+  for (const low of swingLows) {
+    if (low.index < beforeIndex) {
+      if (!closest || low.index > closest.index) {
+        closest = { index: low.index, price: low.price };
+      }
+    }
+  }
+
+  return closest;
 }
 
 /**
@@ -333,7 +504,7 @@ function calculateDoublePatternConfidence(
 
   // Deeper middle = more reliable pattern
   if (depth > 0.15) confidence += 10;
-  if (depth > 0.20) confidence += 10;
+  if (depth > 0.2) confidence += 10;
 
   // Confirmation is key
   if (confirmed) confidence += 15;

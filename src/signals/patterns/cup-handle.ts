@@ -5,10 +5,10 @@
  * Consists of a U-shaped cup followed by a smaller pullback (handle).
  */
 
-import { getSwingHighs, getSwingLows } from "../../indicators/price/swing-points";
 import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { getSwingHighs, getSwingLows } from "../../indicators/price/swing-points";
 import type { Candle, NormalizedCandle } from "../../types";
-import type { PatternSignal, CupHandleOptions, PatternKeyPoint } from "./types";
+import type { CupHandleOptions, PatternKeyPoint, PatternSignal } from "./types";
 
 /**
  * Detect Cup with Handle patterns
@@ -123,11 +123,36 @@ export function cupWithHandle(
       );
 
       const keyPoints: PatternKeyPoint[] = [
-        { time: normalized[leftRim.index].time, index: leftRim.index, price: leftRim.price, label: "Left Rim" },
-        { time: normalized[cupBottom.index].time, index: cupBottom.index, price: cupBottom.price, label: "Cup Bottom" },
-        { time: normalized[rightRim.index].time, index: rightRim.index, price: rightRim.price, label: "Right Rim" },
-        { time: normalized[handle.lowIndex].time, index: handle.lowIndex, price: handle.lowPrice, label: "Handle Low" },
-        { time: normalized[handle.endIndex].time, index: handle.endIndex, price: normalized[handle.endIndex].close, label: "Handle End" },
+        {
+          time: normalized[leftRim.index].time,
+          index: leftRim.index,
+          price: leftRim.price,
+          label: "Left Rim",
+        },
+        {
+          time: normalized[cupBottom.index].time,
+          index: cupBottom.index,
+          price: cupBottom.price,
+          label: "Cup Bottom",
+        },
+        {
+          time: normalized[rightRim.index].time,
+          index: rightRim.index,
+          price: rightRim.price,
+          label: "Right Rim",
+        },
+        {
+          time: normalized[handle.lowIndex].time,
+          index: handle.lowIndex,
+          price: handle.lowPrice,
+          label: "Handle Low",
+        },
+        {
+          time: normalized[handle.endIndex].time,
+          index: handle.endIndex,
+          price: normalized[handle.endIndex].close,
+          label: "Handle End",
+        },
       ];
 
       patterns.push({
@@ -243,7 +268,7 @@ function findHandle(
 
   if (!handleLow) {
     // No swing low found, look for any pullback
-    let lowestPrice = Infinity;
+    let lowestPrice = Number.POSITIVE_INFINITY;
     let lowestIndex = -1;
 
     for (let i = rimIndex + 1; i < Math.min(rimIndex + 30, candles.length); i++) {
@@ -314,7 +339,7 @@ function calculateCupConfidence(
   let confidence = 50;
 
   // Ideal cup depth (15-30%)
-  if (cupDepth >= 0.15 && cupDepth <= 0.30) {
+  if (cupDepth >= 0.15 && cupDepth <= 0.3) {
     confidence += 15;
   } else if (cupDepth >= 0.12 && cupDepth <= 0.35) {
     confidence += 10;
@@ -326,7 +351,7 @@ function calculateCupConfidence(
 
   // Shallow handle is better
   if (handleDepth < 0.08) confidence += 10;
-  else if (handleDepth < 0.10) confidence += 5;
+  else if (handleDepth < 0.1) confidence += 5;
 
   // Longer cup formations are more reliable
   if (cupLength > 50) confidence += 5;
