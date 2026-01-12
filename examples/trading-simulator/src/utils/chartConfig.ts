@@ -1,8 +1,8 @@
 import type { EChartsOption } from "echarts";
-import type { NormalizedCandle, EquityPoint, DetectedVolumeSpike } from "../types";
-import type { IndicatorData } from "./indicators";
-import { formatDate } from "./fileParser";
+import type { DetectedVolumeSpike, EquityPoint, NormalizedCandle } from "../types";
 import { INDICATOR_DEFINITIONS } from "../types";
+import { formatDate } from "./fileParser";
+import type { IndicatorData } from "./indicators";
 
 const COLORS = {
   up: "#4ade80",
@@ -60,19 +60,41 @@ const COLORS = {
   buyHold: "#6b7280",
   drawdown: "rgba(239, 68, 68, 0.3)",
   // Volume Spike
-  volumeSpikeAvg: "#06b6d4",         // シアン
-  volumeSpikeBreakout: "#a855f7",    // パープル
-  volumeAccumulation: "#22c55e",     // グリーン
-  volumeMaCross: "#f59e0b",          // アンバー
+  volumeSpikeAvg: "#06b6d4", // シアン
+  volumeSpikeBreakout: "#a855f7", // パープル
+  volumeAccumulation: "#22c55e", // グリーン
+  volumeMaCross: "#f59e0b", // アンバー
+  // SMC
+  orderBlockBullish: "rgba(34, 197, 94, 0.2)",
+  orderBlockBearish: "rgba(239, 68, 68, 0.2)",
+  orderBlockBullishBorder: "#22c55e",
+  orderBlockBearishBorder: "#ef4444",
+  liquiditySweepBullish: "#22d3d8",
+  liquiditySweepBearish: "#f472b6",
+  // Patterns - Bullish (Double Bottom) ティール系
+  patternLine: "#14b8a6",
+  patternFill: "rgba(20, 184, 166, 0.4)",
+  patternNeckline: "#14b8a6",
+  patternKeyPoint: "#14b8a6",
+  patternTarget: "#14b8a6",
+  patternLabel: "#14b8a6",
+  patternConfirmedBox: "rgba(20, 184, 166, 0.15)",
+  patternConfirmedBorder: "#14b8a6",
+  // Patterns - Bearish (Double Top) 赤系
+  patternBearishLine: "#ef4444",
+  patternBearishFill: "rgba(239, 68, 68, 0.4)",
+  patternBearishNeckline: "#ef4444",
+  patternBearishTarget: "#ef4444",
+  patternBearishLabel: "#ef4444",
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SeriesItem = any;
 
 // サブチャートを持つインジケーターのキー
-const SUBCHART_INDICATORS = INDICATOR_DEFINITIONS
-  .filter((ind) => ind.chartType === "subchart")
-  .map((ind) => ind.key);
+const SUBCHART_INDICATORS = INDICATOR_DEFINITIONS.filter((ind) => ind.chartType === "subchart").map(
+  (ind) => ind.key,
+);
 
 export interface PositionLine {
   entryPrice: number;
@@ -89,7 +111,7 @@ export function buildChartOption(
   tradeMarkers: { date: number; type: "BUY" | "SELL"; price: number }[] = [],
   positionLines?: PositionLine,
   equityCurve?: EquityPoint[],
-  volumeSpikeMarkers: DetectedVolumeSpike[] = []
+  volumeSpikeMarkers: DetectedVolumeSpike[] = [],
 ): EChartsOption {
   const dates = candles.map((c) => formatDate(c.time));
   const ohlc = candles.map((c) => [c.open, c.close, c.low, c.high]);
@@ -157,15 +179,23 @@ export function buildChartOption(
           origin: "auto",
         },
       });
-      series.push(createLineSeries("先行スパンB", indicators.ichimokuSenkouB, COLORS.ichimokuSenkouB));
+      series.push(
+        createLineSeries("先行スパンB", indicators.ichimokuSenkouB, COLORS.ichimokuSenkouB),
+      );
     }
     if (indicators.ichimokuChikou) {
-      series.push(createLineSeries("遅行スパン", indicators.ichimokuChikou, COLORS.ichimokuChikou, "dashed"));
+      series.push(
+        createLineSeries("遅行スパン", indicators.ichimokuChikou, COLORS.ichimokuChikou, "dashed"),
+      );
     }
   }
 
   // Supertrend
-  if (enabledIndicators.includes("supertrend") && indicators.supertrendLine && indicators.supertrendDirection) {
+  if (
+    enabledIndicators.includes("supertrend") &&
+    indicators.supertrendLine &&
+    indicators.supertrendDirection
+  ) {
     // 方向に応じて色を変える
     const supertrendData = indicators.supertrendLine.map((val, i) => {
       const dir = indicators.supertrendDirection?.[i];
@@ -215,26 +245,417 @@ export function buildChartOption(
   // ケルトナーチャネル
   if (enabledIndicators.includes("keltner")) {
     if (indicators.keltnerUpper) {
-      series.push(createLineSeries("Keltner Upper", indicators.keltnerUpper, COLORS.keltnerUpper, "dashed"));
+      series.push(
+        createLineSeries("Keltner Upper", indicators.keltnerUpper, COLORS.keltnerUpper, "dashed"),
+      );
     }
     if (indicators.keltnerMiddle) {
-      series.push(createLineSeries("Keltner Middle", indicators.keltnerMiddle, COLORS.keltnerMiddle));
+      series.push(
+        createLineSeries("Keltner Middle", indicators.keltnerMiddle, COLORS.keltnerMiddle),
+      );
     }
     if (indicators.keltnerLower) {
-      series.push(createLineSeries("Keltner Lower", indicators.keltnerLower, COLORS.keltnerLower, "dashed"));
+      series.push(
+        createLineSeries("Keltner Lower", indicators.keltnerLower, COLORS.keltnerLower, "dashed"),
+      );
     }
   }
 
   // ドンチャンチャネル
   if (enabledIndicators.includes("donchian")) {
     if (indicators.donchianUpper) {
-      series.push(createLineSeries("Donchian Upper", indicators.donchianUpper, COLORS.donchianUpper, "dashed"));
+      series.push(
+        createLineSeries(
+          "Donchian Upper",
+          indicators.donchianUpper,
+          COLORS.donchianUpper,
+          "dashed",
+        ),
+      );
     }
     if (indicators.donchianMiddle) {
-      series.push(createLineSeries("Donchian Middle", indicators.donchianMiddle, COLORS.donchianMiddle));
+      series.push(
+        createLineSeries("Donchian Middle", indicators.donchianMiddle, COLORS.donchianMiddle),
+      );
     }
     if (indicators.donchianLower) {
-      series.push(createLineSeries("Donchian Lower", indicators.donchianLower, COLORS.donchianLower, "dashed"));
+      series.push(
+        createLineSeries(
+          "Donchian Lower",
+          indicators.donchianLower,
+          COLORS.donchianLower,
+          "dashed",
+        ),
+      );
+    }
+  }
+
+  // ========== SMC系 ==========
+
+  // Order Blocks (矩形ゾーンで表示)
+  if (enabledIndicators.includes("orderBlock") && indicators.orderBlockData) {
+    const currentIndex = candles.length - 1;
+    const currentOBData = indicators.orderBlockData[currentIndex];
+
+    if (currentOBData?.activeOrderBlocks) {
+      // アクティブなオーダーブロックを矩形で表示
+      const markAreaData = currentOBData.activeOrderBlocks.map((ob) => {
+        const startIdx = candles.findIndex((c) => c.time === ob.startTime);
+        const isBullish = ob.type === "bullish";
+
+        return [
+          {
+            name: `${ob.type} OB`,
+            xAxis: startIdx >= 0 ? startIdx : 0,
+            yAxis: ob.high,
+            itemStyle: {
+              color: isBullish ? COLORS.orderBlockBullish : COLORS.orderBlockBearish,
+              borderColor: isBullish
+                ? COLORS.orderBlockBullishBorder
+                : COLORS.orderBlockBearishBorder,
+              borderWidth: 1,
+            },
+          },
+          {
+            xAxis: currentIndex,
+            yAxis: ob.low,
+          },
+        ];
+      });
+
+      if (markAreaData.length > 0) {
+        series.push({
+          name: "Order Blocks",
+          type: "line",
+          data: [],
+          markArea: {
+            silent: false,
+            data: markAreaData,
+          },
+        });
+      }
+    }
+
+    // 新しいオーダーブロック発生時のマーカー
+    const newOBMarkers = indicators.orderBlockData
+      .map((data, idx) => {
+        if (!data?.newOrderBlock) return null;
+        const ob = data.newOrderBlock;
+        return {
+          coord: [idx, ob.type === "bullish" ? ob.low : ob.high],
+          symbol: ob.type === "bullish" ? "triangle" : "pin",
+          symbolSize: 12,
+          symbolRotate: ob.type === "bullish" ? 0 : 180,
+          itemStyle: {
+            color:
+              ob.type === "bullish"
+                ? COLORS.orderBlockBullishBorder
+                : COLORS.orderBlockBearishBorder,
+          },
+          label: {
+            show: true,
+            formatter: "OB",
+            fontSize: 8,
+            color: "#fff",
+          },
+        };
+      })
+      .filter(Boolean);
+
+    if (newOBMarkers.length > 0) {
+      series.push({
+        name: "OB Markers",
+        type: "scatter",
+        data: [],
+        markPoint: { data: newOBMarkers },
+      });
+    }
+  }
+
+  // Liquidity Sweeps (矢印マーカーで表示)
+  if (enabledIndicators.includes("liquiditySweep") && indicators.liquiditySweepData) {
+    const sweepMarkers = indicators.liquiditySweepData
+      .map((data, idx) => {
+        if (!data?.sweep) return null;
+        const sweep = data.sweep;
+        const isBullish = sweep.type === "bullish";
+
+        return {
+          coord: [idx, sweep.sweepExtreme],
+          symbol: "arrow",
+          symbolSize: 14,
+          symbolRotate: isBullish ? 0 : 180,
+          itemStyle: {
+            color: isBullish ? COLORS.liquiditySweepBullish : COLORS.liquiditySweepBearish,
+            borderColor: "#fff",
+            borderWidth: 1,
+          },
+          label: {
+            show: true,
+            position: isBullish ? "bottom" : "top",
+            formatter: sweep.recovered ? "Sweep!" : "Sweep",
+            fontSize: 9,
+            color: isBullish ? COLORS.liquiditySweepBullish : COLORS.liquiditySweepBearish,
+          },
+        };
+      })
+      .filter(Boolean);
+
+    if (sweepMarkers.length > 0) {
+      series.push({
+        name: "Liquidity Sweeps",
+        type: "scatter",
+        data: [],
+        markPoint: { data: sweepMarkers },
+      });
+    }
+  }
+
+  // ========== パターン認識 ==========
+
+  if (indicators.detectedPatterns && indicators.detectedPatterns.length > 0) {
+    // 成立パターンのみをフィルタリングし、タイプごとに最新のパターンのみ表示
+    const confirmedPatterns = indicators.detectedPatterns.filter((p) => p.confirmed);
+    const latestByType = new Map<string, (typeof confirmedPatterns)[0]>();
+    for (const pattern of confirmedPatterns) {
+      const existing = latestByType.get(pattern.type);
+      if (!existing || pattern.pattern.endTime > existing.pattern.endTime) {
+        latestByType.set(pattern.type, pattern);
+      }
+    }
+    const patternsToRender = Array.from(latestByType.values());
+
+    // 各パターンを描画
+    for (const pattern of patternsToRender) {
+      const { keyPoints, neckline, target } = pattern.pattern;
+      const isDoubleBottom = pattern.type === "double_bottom";
+      const isDoubleTop = pattern.type === "double_top";
+
+      // キーポイントのインデックスを取得
+      const pointsWithIndex: { idx: number; price: number; label: string }[] = [];
+
+      for (const kp of keyPoints) {
+        const idx = candles.findIndex((c) => c.time === kp.time);
+        if (idx >= 0) {
+          pointsWithIndex.push({ idx, price: kp.price, label: kp.label });
+        }
+      }
+
+      if (pointsWithIndex.length >= 3) {
+        // IIFEでクロージャを確実にキャプチャ
+        const capturedPoints = JSON.parse(JSON.stringify(pointsWithIndex));
+        // パターンタイプに応じた色を選択（Double Top: 赤、Double Bottom: ティール）
+        const patternFillColor = isDoubleTop ? COLORS.patternBearishFill : COLORS.patternFill;
+        const patternLineColor = isDoubleTop ? COLORS.patternBearishLine : COLORS.patternLine;
+        const patternNecklineColor = isDoubleTop
+          ? COLORS.patternBearishNeckline
+          : COLORS.patternNeckline;
+        const patternTargetColor = isDoubleTop ? COLORS.patternBearishTarget : COLORS.patternTarget;
+        const patternLabelColor = isDoubleTop ? COLORS.patternBearishLabel : COLORS.patternLabel;
+
+        // ポリゴン（塗りつぶし）をカスタムシリーズで描画
+        series.push({
+          name: `Pattern Fill: ${pattern.type}`,
+          type: "custom",
+          coordinateSystem: "cartesian2d",
+          xAxisIndex: 0,
+          yAxisIndex: 0,
+          // データフォーマット: スカラーではなくオブジェクト
+          data: [{}],
+          // カテゴリ軸対応のためencodeを追加
+          encode: {
+            x: -1,
+            y: -1,
+          },
+          renderItem: ((points: typeof capturedPoints, fillColor: string, strokeColor: string) => {
+            return (params: SeriesItem, api: SeriesItem) => {
+              // dataIndexが0以外の場合は空のグループを返す（nullではなく）
+              if (params.dataIndex !== 0) {
+                return { type: "group", children: [] };
+              }
+
+              // ポリゴンの頂点をピクセル座標に変換
+              const polygonPoints: number[][] = [];
+              for (const p of points) {
+                const point = api.coord([p.idx, p.price]);
+                if (point) {
+                  polygonPoints.push(point);
+                }
+              }
+
+              // 有効な点が3点未満なら空グループ
+              if (polygonPoints.length < 3) {
+                return { type: "group", children: [] };
+              }
+
+              // groupでラップして返す（より安全）
+              return {
+                type: "group",
+                children: [
+                  {
+                    type: "polygon",
+                    shape: {
+                      points: polygonPoints,
+                    },
+                    style: {
+                      fill: fillColor,
+                      stroke: strokeColor,
+                      lineWidth: 2,
+                    },
+                    silent: true,
+                  },
+                ],
+              };
+            };
+          })(capturedPoints, patternFillColor, patternLineColor),
+          z: 10,
+          silent: true,
+        });
+
+        // キーポイントを接続する線（markLineで描画）
+        const lineMarkData = [];
+        for (let i = 0; i < capturedPoints.length - 1; i++) {
+          lineMarkData.push([
+            { coord: [capturedPoints[i].idx, capturedPoints[i].price] },
+            { coord: [capturedPoints[i + 1].idx, capturedPoints[i + 1].price] },
+          ]);
+        }
+
+        series.push({
+          name: `Pattern Lines: ${pattern.type}`,
+          type: "line",
+          data: [],
+          markLine: {
+            silent: true,
+            symbol: ["circle", "circle"],
+            symbolSize: 6,
+            data: lineMarkData,
+            lineStyle: {
+              color: patternLineColor,
+              width: 2,
+              type: "solid",
+            },
+            label: { show: false },
+          },
+          z: 2,
+        });
+
+        // ネックラインがある場合（点線で右に延長）
+        if (neckline) {
+          // ネックラインの開始位置を最初のキーポイントから
+          const firstPoint = capturedPoints[0];
+          const lastPoint = capturedPoints[capturedPoints.length - 1];
+          const necklineEndIdx = Math.min(lastPoint.idx + 30, candles.length - 1);
+
+          series.push({
+            name: "Neckline",
+            type: "line",
+            data: [],
+            markLine: {
+              silent: true,
+              symbol: "none",
+              data: [
+                [
+                  { coord: [firstPoint.idx, neckline.currentPrice] },
+                  { coord: [necklineEndIdx, neckline.currentPrice] },
+                ],
+              ],
+              lineStyle: {
+                color: patternNecklineColor,
+                width: 1.5,
+                type: "dotted",
+              },
+              label: { show: false },
+            },
+            z: 3,
+          });
+        }
+
+        // ターゲット価格（垂直点線で表示）
+        if (target && neckline) {
+          const lastPoint = capturedPoints[capturedPoints.length - 1];
+          const targetXIdx = Math.min(lastPoint.idx + 20, candles.length - 1);
+
+          series.push({
+            name: "Target",
+            type: "line",
+            data: [],
+            markLine: {
+              silent: true,
+              symbol: ["none", "arrow"],
+              symbolSize: 8,
+              data: [
+                [{ coord: [targetXIdx, neckline.currentPrice] }, { coord: [targetXIdx, target] }],
+              ],
+              lineStyle: {
+                color: patternTargetColor,
+                width: 1.5,
+                type: "dashed",
+              },
+              label: {
+                show: true,
+                formatter: "Target",
+                position: "end",
+                color: "#fff",
+                backgroundColor: patternTargetColor,
+                padding: [4, 8],
+                borderRadius: 4,
+              },
+            },
+            z: 4,
+          });
+        }
+
+        // Bottom 1, Bottom 2 等のラベル（markPointで描画）
+        let labelsToShow: string[] = [];
+        if (isDoubleBottom) {
+          labelsToShow = ["First Trough", "Second Trough"];
+        } else if (isDoubleTop) {
+          labelsToShow = ["First Peak", "Second Peak"];
+        }
+
+        const labelNames: Record<string, string> = {
+          "First Trough": "Bottom 1",
+          "Second Trough": "Bottom 2",
+          "First Peak": "Top 1",
+          "Second Peak": "Top 2",
+        };
+
+        const labelMarkPoints = labelsToShow
+          .map((labelKey) => {
+            const point = capturedPoints.find((p: { label: string }) => p.label === labelKey);
+            if (!point) return null;
+            return {
+              coord: [point.idx, point.price],
+              symbol: "roundRect",
+              symbolSize: [70, 22],
+              symbolOffset: [0, isDoubleBottom ? 25 : -25],
+              itemStyle: {
+                color: patternLabelColor,
+              },
+              label: {
+                show: true,
+                formatter: labelNames[labelKey] || labelKey,
+                color: "#fff",
+                fontSize: 11,
+                fontWeight: "bold",
+              },
+            };
+          })
+          .filter(Boolean);
+
+        if (labelMarkPoints.length > 0) {
+          series.push({
+            name: "Pattern Labels",
+            type: "line",
+            data: [],
+            markPoint: {
+              data: labelMarkPoints,
+            },
+            z: 5,
+          });
+        }
+      }
     }
   }
 
@@ -250,11 +671,12 @@ export function buildChartOption(
   const subChartGap = 5; // サブチャート間のギャップ(%) - ラベル用スペース含む
   const labelHeight = 2; // ラベル用の高さ(%)
   const mainHeight = subChartCount === 0 ? 90 : Math.max(30, 65 - subChartCount * 9);
-  const subHeight = subChartCount > 0 ? Math.min(10, (85 - mainHeight - subChartCount * subChartGap) / subChartCount) : 0;
+  const subHeight =
+    subChartCount > 0
+      ? Math.min(10, (85 - mainHeight - subChartCount * subChartGap) / subChartCount)
+      : 0;
 
-  const grids: SeriesItem[] = [
-    { left: 60, right: 40, top: 40, height: `${mainHeight}%` },
-  ];
+  const grids: SeriesItem[] = [{ left: 60, right: 40, top: 40, height: `${mainHeight}%` }];
 
   // タイトル配列（各サブチャートのラベル用）
   const titles: SeriesItem[] = [];
@@ -262,9 +684,10 @@ export function buildChartOption(
   // 大きな数値をK/M形式でフォーマット
   const formatLargeNumber = (value: number): string => {
     if (Math.abs(value) >= 1000000) {
-      return (value / 1000000).toFixed(1) + "M";
-    } else if (Math.abs(value) >= 1000) {
-      return (value / 1000).toFixed(0) + "K";
+      return `${(value / 1000000).toFixed(1)}M`;
+    }
+    if (Math.abs(value) >= 1000) {
+      return `${(value / 1000).toFixed(0)}K`;
     }
     return value.toFixed(0);
   };
@@ -319,66 +742,67 @@ export function buildChartOption(
       axisLabel: { show: false },
     });
     // 出来高スパイクマーカーを生成
-    const volumeSpikeMarkPointData = volumeSpikeMarkers.map((spike) => {
-      const idx = candles.findIndex((c) => c.time === spike.time);
-      if (idx === -1) return null;
+    const volumeSpikeMarkPointData = volumeSpikeMarkers
+      .map((spike) => {
+        const idx = candles.findIndex((c) => c.time === spike.time);
+        if (idx === -1) return null;
 
-      // タイプ別の設定
-      let symbol = "triangle";
-      let symbolSize = 14;
-      let symbolRotate = 180;
-      let color = COLORS.volumeSpikeAvg;
-      let label = `${spike.ratio.toFixed(1)}x`;
+        // タイプ別の設定
+        let symbol = "triangle";
+        let symbolSize = 14;
+        let symbolRotate = 180;
+        let color = COLORS.volumeSpikeAvg;
+        let label = `${spike.ratio.toFixed(1)}x`;
 
-      switch (spike.type) {
-        case "breakout":
-          symbol = "pin";
-          symbolSize = 20;
-          symbolRotate = 0;
-          color = COLORS.volumeSpikeBreakout;
-          label = "NEW";
-          break;
-        case "accumulation":
-          symbol = "diamond";
-          symbolSize = 16;
-          symbolRotate = 0;
-          color = COLORS.volumeAccumulation;
-          label = spike.consecutiveDays ? `${spike.consecutiveDays}日` : "蓄積";
-          break;
-        case "ma_cross":
-          symbol = "arrow";
-          symbolSize = 16;
-          symbolRotate = 0;
-          color = COLORS.volumeMaCross;
-          label = "Cross";
-          break;
-        case "average":
-        default:
-          // デフォルト設定はそのまま
-          break;
-      }
+        switch (spike.type) {
+          case "breakout":
+            symbol = "pin";
+            symbolSize = 20;
+            symbolRotate = 0;
+            color = COLORS.volumeSpikeBreakout;
+            label = "NEW";
+            break;
+          case "accumulation":
+            symbol = "diamond";
+            symbolSize = 16;
+            symbolRotate = 0;
+            color = COLORS.volumeAccumulation;
+            label = spike.consecutiveDays ? `${spike.consecutiveDays}日` : "蓄積";
+            break;
+          case "ma_cross":
+            symbol = "arrow";
+            symbolSize = 16;
+            symbolRotate = 0;
+            color = COLORS.volumeMaCross;
+            label = "Cross";
+            break;
+          default:
+            // デフォルト設定はそのまま
+            break;
+        }
 
-      return {
-        coord: [idx, spike.volume],
-        symbol,
-        symbolSize,
-        symbolRotate,
-        itemStyle: {
-          color,
-          borderColor: "#fff",
-          borderWidth: 1,
-        },
-        label: {
-          show: true,
-          position: "top",
-          formatter: label,
-          fontSize: 9,
-          color,
-          fontWeight: "bold",
-          distance: 5,
-        },
-      };
-    }).filter(Boolean);
+        return {
+          coord: [idx, spike.volume],
+          symbol,
+          symbolSize,
+          symbolRotate,
+          itemStyle: {
+            color,
+            borderColor: "#fff",
+            borderWidth: 1,
+          },
+          label: {
+            show: true,
+            position: "top",
+            formatter: label,
+            fontSize: 9,
+            color,
+            fontWeight: "bold",
+            distance: 5,
+          },
+        };
+      })
+      .filter(Boolean);
 
     series.push({
       name: "Volume",
@@ -386,9 +810,12 @@ export function buildChartOption(
       xAxisIndex: gridIndex,
       yAxisIndex: gridIndex,
       data: volumes,
-      markPoint: volumeSpikeMarkPointData.length > 0 ? {
-        data: volumeSpikeMarkPointData,
-      } : undefined,
+      markPoint:
+        volumeSpikeMarkPointData.length > 0
+          ? {
+              data: volumeSpikeMarkPointData,
+            }
+          : undefined,
     });
     currentTop += subHeight + subChartGap;
   }
@@ -441,7 +868,12 @@ export function buildChartOption(
   }
 
   // MACD
-  if (enabledIndicators.includes("macd") && indicators.macdLine && indicators.macdSignal && indicators.macdHist) {
+  if (
+    enabledIndicators.includes("macd") &&
+    indicators.macdLine &&
+    indicators.macdSignal &&
+    indicators.macdHist
+  ) {
     const gridIndex = grids.length;
     titles.push({
       text: "MACD",
@@ -601,7 +1033,12 @@ export function buildChartOption(
   }
 
   // DMI/ADX
-  if (enabledIndicators.includes("dmi") && indicators.dmiPlusDi && indicators.dmiMinusDi && indicators.dmiAdx) {
+  if (
+    enabledIndicators.includes("dmi") &&
+    indicators.dmiPlusDi &&
+    indicators.dmiMinusDi &&
+    indicators.dmiAdx
+  ) {
     const gridIndex = grids.length;
     titles.push({
       text: "DMI",
@@ -987,7 +1424,7 @@ function createLineSeries(
   name: string,
   data: (number | null)[],
   color: string,
-  lineType: "solid" | "dashed" = "solid"
+  lineType: "solid" | "dashed" = "solid",
 ): SeriesItem {
   return {
     name,
@@ -1004,7 +1441,7 @@ function createLineSeries(
 
 function buildTradeMarkers(
   candles: NormalizedCandle[],
-  trades: { date: number; type: "BUY" | "SELL"; price: number }[]
+  trades: { date: number; type: "BUY" | "SELL"; price: number }[],
 ): SeriesItem | undefined {
   if (trades.length === 0) return undefined;
 
@@ -1038,7 +1475,7 @@ function buildTradeMarkers(
 
 function buildPositionLines(
   positionLines: PositionLine | undefined,
-  _candleCount: number
+  _candleCount: number,
 ): SeriesItem | undefined {
   if (!positionLines) return undefined;
 
@@ -1113,7 +1550,7 @@ function buildPositionLines(
 
   // トレーリングストップライン（点線、オレンジ）
   if (trailingStopPrice && trailingStopPrice > 0) {
-    const trailingPct = ((entryPrice - trailingStopPrice) / entryPrice * 100).toFixed(1);
+    const trailingPct = (((entryPrice - trailingStopPrice) / entryPrice) * 100).toFixed(1);
     data.push({
       yAxis: trailingStopPrice,
       symbol: "none",

@@ -16,7 +16,7 @@ export type SimulatorPhase = "setup" | "running" | "finished";
  * 各銘柄は独自のローソク足データ、ポジション、取引履歴を持つ
  */
 export interface SymbolSession {
-  id: string;                        // UUID
+  id: string; // UUID
   fileName: string;
   allCandles: NormalizedCandle[];
   positions: Position[];
@@ -34,7 +34,7 @@ export interface SymbolSession {
 export interface CommonDateRange {
   startDate: number;
   endDate: number;
-  dates: number[];              // 共通日付の配列（ソート済み）
+  dates: number[]; // 共通日付の配列（ソート済み）
 }
 
 /**
@@ -53,7 +53,7 @@ export interface SymbolStats {
   fileName: string;
   pnl: number;
   pnlPercent: number;
-  allocation: number;  // 配分比率 (%)
+  allocation: number; // 配分比率 (%)
   tradeCount: number;
   winRate: number;
 }
@@ -62,7 +62,7 @@ export interface AggregatedStats {
   totalTradeCount: number;
   overallWinRate: number;
   maxDrawdown: number;
-  avgAlpha: number;  // vs B&H平均
+  avgAlpha: number; // vs B&H平均
 }
 
 export type PriceType = "nextOpen" | "high" | "low" | "close";
@@ -150,11 +150,11 @@ export interface MarketContext {
 
 // イグジット理由
 export type ExitReason =
-  | "TAKE_PROFIT"   // 利確
-  | "STOP_LOSS"     // 損切り
-  | "SIGNAL_FLIP"   // シグナル反転
-  | "TIMEOUT"       // 保有期間超過
-  | "MANUAL";       // 手動判断
+  | "TAKE_PROFIT" // 利確
+  | "STOP_LOSS" // 損切り
+  | "SIGNAL_FLIP" // シグナル反転
+  | "TIMEOUT" // 保有期間超過
+  | "MANUAL"; // 手動判断
 
 export const EXIT_REASON_LABELS: Record<ExitReason, string> = {
   TAKE_PROFIT: "利確",
@@ -166,14 +166,14 @@ export const EXIT_REASON_LABELS: Record<ExitReason, string> = {
 
 // イグジットトリガー（詳細理由）
 export type ExitTrigger =
-  | "TARGET_REACHED"    // 目標価格到達
-  | "RSI_OVERBOUGHT"    // RSI買われすぎ
-  | "RSI_OVERSOLD"      // RSI売られすぎ
-  | "MACD_CROSS"        // MACDクロス
-  | "MA_CROSS"          // MAクロス
-  | "TRAILING_STOP"     // トレーリングストップ
-  | "TIME_LIMIT"        // 時間制限
-  | "DISCRETIONARY";    // 裁量判断
+  | "TARGET_REACHED" // 目標価格到達
+  | "RSI_OVERBOUGHT" // RSI買われすぎ
+  | "RSI_OVERSOLD" // RSI売られすぎ
+  | "MACD_CROSS" // MACDクロス
+  | "MA_CROSS" // MAクロス
+  | "TRAILING_STOP" // トレーリングストップ
+  | "TIME_LIMIT" // 時間制限
+  | "DISCRETIONARY"; // 裁量判断
 
 export const EXIT_TRIGGER_LABELS: Record<ExitTrigger, string> = {
   TARGET_REACHED: "目標到達",
@@ -200,24 +200,24 @@ export interface Trade {
   indicators?: IndicatorSnapshot;
   marketContext?: MarketContext;
   // コスト関連
-  commission?: number;       // 手数料
-  slippage?: number;         // スリッページ額
-  effectivePrice?: number;   // 実効価格（スリッページ込み）
+  commission?: number; // 手数料
+  slippage?: number; // スリッページ額
+  effectivePrice?: number; // 実効価格（スリッページ込み）
   // SELL時のみ
-  exitReason?: ExitReason;   // イグジット理由
+  exitReason?: ExitReason; // イグジット理由
   exitTrigger?: ExitTrigger; // 詳細トリガー
-  grossPnl?: number;         // 粗利益（コスト前）
-  netPnl?: number;           // 純利益（コスト後）
-  tax?: number;              // 税金（利益がある場合のみ）
-  afterTaxPnl?: number;      // 税引後損益
+  grossPnl?: number; // 粗利益（コスト前）
+  netPnl?: number; // 純利益（コスト後）
+  tax?: number; // 税金（利益がある場合のみ）
+  afterTaxPnl?: number; // 税引後損益
   // MFE/MAE（SELL時のみ）
-  mfe?: number;              // 最大含み益(%)
-  mae?: number;              // 最大含み損(%)
-  mfePrice?: number;         // MFE時価格
-  maePrice?: number;         // MAE時価格
-  mfeDate?: number;          // MFE日
-  maeDate?: number;          // MAE日
-  mfeUtilization?: number;   // MFE活用度(%) - pnlPercent/mfe*100
+  mfe?: number; // 最大含み益(%)
+  mae?: number; // 最大含み損(%)
+  mfePrice?: number; // MFE時価格
+  maePrice?: number; // MAE時価格
+  mfeDate?: number; // MFE日
+  maeDate?: number; // MAE日
+  mfeUtilization?: number; // MFE活用度(%) - pnlPercent/mfe*100
 }
 
 export interface SimulationConfig {
@@ -227,16 +227,16 @@ export interface SimulationConfig {
   enabledIndicators: string[];
   indicatorParams: IndicatorParams;
   // コスト設定
-  commissionRate: number;   // 手数料率(%, デフォルト0)
-  slippageBps: number;      // スリッページ(bps, デフォルト0)
+  commissionRate: number; // 手数料率(%, デフォルト0)
+  slippageBps: number; // スリッページ(bps, デフォルト0)
   // 税金設定
-  taxRate: number;          // 譲渡益税率(%, デフォルト20.315)
+  taxRate: number; // 譲渡益税率(%, デフォルト20.315)
   // チャート表示設定
-  stopLossPercent: number;  // 損切りライン%(デフォルト5)
+  stopLossPercent: number; // 損切りライン%(デフォルト5)
   takeProfitPercent: number; // 利確ライン%(デフォルト10)
   // トレーリングストップ設定
-  trailingStopEnabled: boolean;   // トレーリングストップ有効
-  trailingStopPercent: number;    // トレーリングストップ%(デフォルト5)
+  trailingStopEnabled: boolean; // トレーリングストップ有効
+  trailingStopPercent: number; // トレーリングストップ%(デフォルト5)
 }
 
 // ===========================================
@@ -247,11 +247,11 @@ export type OrderType = "BUY" | "SELL" | "SELL_ALL";
 
 export interface PendingOrder {
   id: string;
-  symbolId: string;              // 対象銘柄
+  symbolId: string; // 対象銘柄
   orderType: OrderType;
   shares: number;
   memo: string;
-  createdAt: number;             // 注文作成日（現在のチャート日付）
+  createdAt: number; // 注文作成日（現在のチャート日付）
   // SELL時のみ
   exitReason?: ExitReason;
   exitTrigger?: ExitTrigger;
@@ -263,15 +263,15 @@ export type AlertType =
   | "TAKE_PROFIT_REACHED"
   | "TRAILING_STOP_HIT"
   | "ORDER_EXECUTED"
-  | "VOLUME_SPIKE_AVERAGE"       // 平均出来高のX倍超え
-  | "VOLUME_SPIKE_BREAKOUT"      // N日最高出来高更新
-  | "VOLUME_ACCUMULATION"        // 出来高蓄積フェーズ検知（回帰ベース）
-  | "VOLUME_ABOVE_AVERAGE"       // 出来高高水準継続（平均比較）
-  | "VOLUME_MA_CROSS"            // 出来高MAクロス
-  | "CMF_ACCUMULATION"           // CMF蓄積フェーズ（CMF > 0）
-  | "CMF_DISTRIBUTION"           // CMF分配フェーズ（CMF < 0）
-  | "OBV_RISING"                 // OBV上昇トレンド
-  | "OBV_FALLING";               // OBV下降トレンド
+  | "VOLUME_SPIKE_AVERAGE" // 平均出来高のX倍超え
+  | "VOLUME_SPIKE_BREAKOUT" // N日最高出来高更新
+  | "VOLUME_ACCUMULATION" // 出来高蓄積フェーズ検知（回帰ベース）
+  | "VOLUME_ABOVE_AVERAGE" // 出来高高水準継続（平均比較）
+  | "VOLUME_MA_CROSS" // 出来高MAクロス
+  | "CMF_ACCUMULATION" // CMF蓄積フェーズ（CMF > 0）
+  | "CMF_DISTRIBUTION" // CMF分配フェーズ（CMF < 0）
+  | "OBV_RISING" // OBV上昇トレンド
+  | "OBV_FALLING"; // OBV下降トレンド
 
 export interface Alert {
   id: string;
@@ -287,35 +287,35 @@ export interface Alert {
 export interface VolumeSpikeSettings {
   // 平均出来高検知
   averageVolumeEnabled: boolean;
-  averageVolumePeriod: number;       // N日平均 (default: 20)
-  averageVolumeMultiplier: number;   // X倍 (default: 2.0)
+  averageVolumePeriod: number; // N日平均 (default: 20)
+  averageVolumeMultiplier: number; // X倍 (default: 2.0)
   // ブレイクアウト検知
   breakoutVolumeEnabled: boolean;
-  breakoutVolumePeriod: number;      // N日最高値 (default: 20)
+  breakoutVolumePeriod: number; // N日最高値 (default: 20)
   // 蓄積フェーズ検知（出来高の右肩上がり - 回帰ベース）
   accumulationEnabled: boolean;
-  accumulationPeriod: number;        // 傾き計算期間 (default: 10)
-  accumulationMinSlope: number;      // 最小傾き (default: 0.05 = 5%/日)
-  accumulationMinDays: number;       // 最小連続日数 (default: 3)
+  accumulationPeriod: number; // 傾き計算期間 (default: 10)
+  accumulationMinSlope: number; // 最小傾き (default: 0.05 = 5%/日)
+  accumulationMinDays: number; // 最小連続日数 (default: 3)
   // 高水準継続検知（平均比較ベース）
   aboveAverageEnabled: boolean;
-  aboveAveragePeriod: number;        // 平均計算期間 (default: 20)
-  aboveAverageMinRatio: number;      // 最小比率 (default: 1.0 = 平均以上)
-  aboveAverageMinDays: number;       // 最小連続日数 (default: 3)
+  aboveAveragePeriod: number; // 平均計算期間 (default: 20)
+  aboveAverageMinRatio: number; // 最小比率 (default: 1.0 = 平均以上)
+  aboveAverageMinDays: number; // 最小連続日数 (default: 3)
   // MAクロス検知
   maCrossEnabled: boolean;
-  maCrossShortPeriod: number;        // 短期MA期間 (default: 5)
-  maCrossLongPeriod: number;         // 長期MA期間 (default: 20)
+  maCrossShortPeriod: number; // 短期MA期間 (default: 5)
+  maCrossLongPeriod: number; // 長期MA期間 (default: 20)
   // CMF蓄積/分配検知
   cmfEnabled: boolean;
-  cmfPeriod: number;                 // CMF計算期間 (default: 20)
-  cmfThreshold: number;              // 閾値 (default: 0)
+  cmfPeriod: number; // CMF計算期間 (default: 20)
+  cmfThreshold: number; // 閾値 (default: 0)
   // OBVトレンド検知
   obvEnabled: boolean;
-  obvPeriod: number;                 // OBV比較期間 (default: 10)
+  obvPeriod: number; // OBV比較期間 (default: 10)
   // 表示設定
-  showRealtimeAlerts: boolean;       // リアルタイムアラート表示
-  showChartMarkers: boolean;         // チャートマーカー表示
+  showRealtimeAlerts: boolean; // リアルタイムアラート表示
+  showChartMarkers: boolean; // チャートマーカー表示
 }
 
 export const DEFAULT_VOLUME_SPIKE_SETTINGS: VolumeSpikeSettings = {
@@ -349,8 +349,8 @@ export interface DetectedVolumeSpike {
   time: number;
   volume: number;
   type: "average" | "breakout" | "accumulation" | "above_average" | "ma_cross";
-  ratio: number;   // 平均比 or 前回最高比 or 正規化傾き or MA比率
-  consecutiveDays?: number;  // 蓄積フェーズ/高水準継続の連続日数
+  ratio: number; // 平均比 or 前回最高比 or 正規化傾き or MA比率
+  consecutiveDays?: number; // 蓄積フェーズ/高水準継続の連続日数
 }
 
 export interface SimulatorStats {
@@ -379,9 +379,9 @@ export interface YearHighLow {
 // Equity Curve用データポイント
 export interface EquityPoint {
   time: number;
-  equity: number;        // 現在資産
+  equity: number; // 現在資産
   buyHoldEquity: number; // B&H比較用
-  drawdown: number;      // ピークからの下落%
+  drawdown: number; // ピークからの下落%
   tradeType?: "BUY" | "SELL"; // トレードマーカー用
 }
 
@@ -401,7 +401,7 @@ export const AVAILABLE_INDICATORS = [
 export type IndicatorKey = (typeof AVAILABLE_INDICATORS)[number]["key"];
 
 // カテゴリ別インジケーター定義
-export type IndicatorCategory = "trend" | "volatility" | "momentum" | "volume";
+export type IndicatorCategory = "trend" | "volatility" | "momentum" | "volume" | "smc" | "patterns";
 export type ChartType = "overlay" | "subchart";
 
 // インジケーターパラメータの型定義
@@ -447,6 +447,27 @@ export interface IndicatorParams {
   keltnerMultiplier?: number;
   // Donchian
   donchianPeriod?: number;
+  // SMC Order Block
+  obSwingPeriod?: number;
+  obMinVolumeRatio?: number;
+  obMaxActiveOBs?: number;
+  // SMC Liquidity Sweep
+  lsSwingPeriod?: number;
+  lsMaxRecoveryBars?: number;
+  lsMinSweepDepth?: number;
+  // Double Top/Bottom
+  dtTolerance?: number;
+  dtMinDistance?: number;
+  dtMaxDistance?: number;
+  dtMinMiddleDepth?: number;
+  dtSwingLookback?: number;
+  // Head & Shoulders
+  hsShoulderTolerance?: number;
+  hsMaxNecklineSlope?: number;
+  // Cup with Handle
+  chMinCupDepth?: number;
+  chMaxCupDepth?: number;
+  chMinCupLength?: number;
 }
 
 export const DEFAULT_INDICATOR_PARAMS: IndicatorParams = {
@@ -477,6 +498,27 @@ export const DEFAULT_INDICATOR_PARAMS: IndicatorParams = {
   keltnerAtrPeriod: 10,
   keltnerMultiplier: 2,
   donchianPeriod: 20,
+  // SMC Order Block
+  obSwingPeriod: 5,
+  obMinVolumeRatio: 1.0,
+  obMaxActiveOBs: 10,
+  // SMC Liquidity Sweep
+  lsSwingPeriod: 5,
+  lsMaxRecoveryBars: 3,
+  lsMinSweepDepth: 0,
+  // Double Top/Bottom
+  dtTolerance: 0.02,
+  dtMinDistance: 15,
+  dtMaxDistance: 100,
+  dtMinMiddleDepth: 0.07,
+  dtSwingLookback: 5,
+  // Head & Shoulders
+  hsShoulderTolerance: 0.05,
+  hsMaxNecklineSlope: 0.1,
+  // Cup with Handle
+  chMinCupDepth: 0.12,
+  chMaxCupDepth: 0.35,
+  chMinCupLength: 30,
 };
 
 // パラメータ設定可能なインジケーターの定義
@@ -528,6 +570,34 @@ export const INDICATOR_PARAM_CONFIGS: Record<string, ParamConfig[]> = {
     { key: "keltnerMultiplier", label: "乗数", min: 0.5, max: 5, step: 0.5 },
   ],
   donchian: [{ key: "donchianPeriod", label: "期間", min: 2, max: 100, step: 1 }],
+  // SMC
+  orderBlock: [
+    { key: "obSwingPeriod", label: "スイング期間", min: 2, max: 20, step: 1 },
+    { key: "obMinVolumeRatio", label: "最小出来高比", min: 0.5, max: 3, step: 0.1 },
+    { key: "obMaxActiveOBs", label: "最大OB数", min: 3, max: 20, step: 1 },
+  ],
+  liquiditySweep: [
+    { key: "lsSwingPeriod", label: "スイング期間", min: 2, max: 20, step: 1 },
+    { key: "lsMaxRecoveryBars", label: "最大回復バー", min: 1, max: 10, step: 1 },
+    { key: "lsMinSweepDepth", label: "最小深さ%", min: 0, max: 5, step: 0.1 },
+  ],
+  // Patterns
+  doubleTopBottom: [
+    { key: "dtTolerance", label: "価格許容範囲", min: 0.01, max: 0.05, step: 0.005 },
+    { key: "dtMinDistance", label: "最小距離", min: 10, max: 40, step: 1 },
+    { key: "dtMaxDistance", label: "最大距離", min: 40, max: 150, step: 5 },
+    { key: "dtMinMiddleDepth", label: "中間の深さ%", min: 0.03, max: 0.15, step: 0.01 },
+    { key: "dtSwingLookback", label: "スイング確認期間", min: 3, max: 10, step: 1 },
+  ],
+  headShoulders: [
+    { key: "hsShoulderTolerance", label: "肩許容範囲", min: 0.01, max: 0.15, step: 0.01 },
+    { key: "hsMaxNecklineSlope", label: "最大傾斜", min: 0.01, max: 0.3, step: 0.01 },
+  ],
+  cupHandle: [
+    { key: "chMinCupDepth", label: "最小深さ", min: 0.05, max: 0.25, step: 0.01 },
+    { key: "chMaxCupDepth", label: "最大深さ", min: 0.2, max: 0.5, step: 0.01 },
+    { key: "chMinCupLength", label: "最小長さ", min: 15, max: 60, step: 5 },
+  ],
 };
 
 export interface IndicatorDefinition {
@@ -566,6 +636,25 @@ export const INDICATOR_DEFINITIONS: IndicatorDefinition[] = [
   { key: "volume", label: "Volume", category: "volume", chartType: "subchart" },
   { key: "obv", label: "OBV", category: "volume", chartType: "subchart" },
   { key: "mfi", label: "MFI", category: "volume", chartType: "subchart" },
+
+  // SMC系（オーバーレイ）
+  { key: "orderBlock", label: "Order Block", category: "smc", chartType: "overlay" },
+  { key: "liquiditySweep", label: "Liquidity Sweep", category: "smc", chartType: "overlay" },
+
+  // パターン認識（オーバーレイ）
+  {
+    key: "doubleTopBottom",
+    label: "ダブルトップ/ボトム",
+    category: "patterns",
+    chartType: "overlay",
+  },
+  {
+    key: "headShoulders",
+    label: "ヘッドアンドショルダーズ",
+    category: "patterns",
+    chartType: "overlay",
+  },
+  { key: "cupHandle", label: "カップウィズハンドル", category: "patterns", chartType: "overlay" },
 ];
 
 export const CATEGORY_LABELS: Record<IndicatorCategory, string> = {
@@ -573,10 +662,19 @@ export const CATEGORY_LABELS: Record<IndicatorCategory, string> = {
   volatility: "ボラティリティ系",
   momentum: "モメンタム系",
   volume: "出来高系",
+  smc: "SMC (スマートマネー)",
+  patterns: "パターン認識",
 };
 
 // カテゴリ順序
-export const CATEGORY_ORDER: IndicatorCategory[] = ["trend", "volatility", "momentum", "volume"];
+export const CATEGORY_ORDER: IndicatorCategory[] = [
+  "trend",
+  "volatility",
+  "momentum",
+  "volume",
+  "smc",
+  "patterns",
+];
 
 // ヘルパー関数
 export function getIndicatorsByCategory(category: IndicatorCategory): IndicatorDefinition[] {
