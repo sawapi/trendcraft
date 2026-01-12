@@ -34,10 +34,10 @@ export function parseCSV(text: string): NormalizedCandle[] {
     const date = new Date(
       Number.parseInt(dateParts[0]),
       Number.parseInt(dateParts[1]) - 1,
-      Number.parseInt(dateParts[2])
+      Number.parseInt(dateParts[2]),
     );
 
-    if (isNaN(date.getTime())) continue;
+    if (Number.isNaN(date.getTime())) continue;
 
     const rawClose = Number.parseFloat(close);
     const adjustedClose = adjClose ? Number.parseFloat(adjClose) : rawClose;

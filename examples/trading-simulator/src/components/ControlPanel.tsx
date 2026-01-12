@@ -1,8 +1,8 @@
-import { useCallback, useState, useMemo } from "react";
-import { useSimulatorStore } from "../store/simulatorStore";
+import { useCallback, useMemo, useState } from "react";
 import { usePlayback } from "../hooks/usePlayback";
-import { formatDate } from "../utils/fileParser";
+import { useSimulatorStore } from "../store/simulatorStore";
 import type { PlaybackSpeed } from "../types";
+import { formatDate } from "../utils/fileParser";
 
 export function ControlPanel() {
   const {
@@ -30,7 +30,7 @@ export function ControlPanel() {
   // アクティブ銘柄を取得
   const activeSymbol = useMemo(() => {
     if (!activeSymbolId) return symbols[0] || null;
-    return symbols.find(s => s.id === activeSymbolId) || null;
+    return symbols.find((s) => s.id === activeSymbolId) || null;
   }, [symbols, activeSymbolId]);
 
   // 現在の日付からインデックスを計算
@@ -38,7 +38,7 @@ export function ControlPanel() {
     if (!activeSymbol || !commonDateRange || currentDateIndex < 0) return 0;
     const targetDate = commonDateRange.dates[currentDateIndex];
     if (!targetDate) return 0;
-    return activeSymbol.allCandles.findIndex(c => c.time === targetDate);
+    return activeSymbol.allCandles.findIndex((c) => c.time === targetDate);
   }, [activeSymbol, commonDateRange, currentDateIndex]);
 
   const allCandles = activeSymbol?.allCandles || [];
@@ -54,12 +54,15 @@ export function ControlPanel() {
   const sliderValue = seekValue !== null ? seekValue : currentIndex;
   const previewCandle = allCandles[sliderValue];
 
-  const handleSeekChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = parseInt(e.target.value, 10);
-    setSeekValue(value);
-    // ドラッグ中は再生を停止
-    if (isPlaying) pause();
-  }, [isPlaying, pause]);
+  const handleSeekChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const value = Number.parseInt(e.target.value, 10);
+      setSeekValue(value);
+      // ドラッグ中は再生を停止
+      if (isPlaying) pause();
+    },
+    [isPlaying, pause],
+  );
 
   const handleSeekCommit = useCallback(() => {
     if (seekValue !== null) {
@@ -83,6 +86,7 @@ export function ControlPanel() {
 
       <div className="playback-controls">
         <button
+          type="button"
           onClick={stepBackward}
           disabled={currentIndex <= minIndex}
           title="前の日"
@@ -90,6 +94,7 @@ export function ControlPanel() {
           <span className="material-icons">skip_previous</span>
         </button>
         <button
+          type="button"
           onClick={togglePlay}
           className={isPlaying ? "active" : ""}
           disabled={isAtEnd}
@@ -97,28 +102,28 @@ export function ControlPanel() {
         >
           <span className="material-icons">{isPlaying ? "pause" : "play_arrow"}</span>
         </button>
-        <button onClick={handleFinish} title="終了">
+        <button type="button" onClick={handleFinish} title="終了">
           <span className="material-icons">stop</span>
         </button>
-        <button onClick={stepForward} disabled={isAtEnd} title="次の日">
+        <button type="button" onClick={stepForward} disabled={isAtEnd} title="次の日">
           <span className="material-icons">skip_next</span>
         </button>
       </div>
 
       <div className="speed-select">
-        <label>速度:</label>
-        <select value={playbackSpeed} onChange={handleSpeedChange}>
-          <option value={0.5}>0.5x</option>
-          <option value={1}>1x</option>
-          <option value={2}>2x</option>
-          <option value={4}>4x</option>
-        </select>
+        <label>
+          速度:
+          <select value={playbackSpeed} onChange={handleSpeedChange}>
+            <option value={0.5}>0.5x</option>
+            <option value={1}>1x</option>
+            <option value={2}>2x</option>
+            <option value={4}>4x</option>
+          </select>
+        </label>
       </div>
 
       <div className="progress-info">
-        <span className="date">
-          {currentCandle ? formatDate(currentCandle.time) : "-"}
-        </span>
+        <span className="date">{currentCandle ? formatDate(currentCandle.time) : "-"}</span>
         <span className="count">
           {progress} / {total}
         </span>
@@ -137,9 +142,7 @@ export function ControlPanel() {
           onTouchEnd={handleSeekCommit}
         />
         {seekValue !== null && previewCandle && (
-          <div className="seek-preview">
-            {formatDate(previewCandle.time)}
-          </div>
+          <div className="seek-preview">{formatDate(previewCandle.time)}</div>
         )}
       </div>
     </div>

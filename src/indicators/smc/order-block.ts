@@ -334,7 +334,7 @@ export function getNearestOrderBlock(
   const { bullish, bearish } = getActiveOrderBlocks(candles, options);
 
   let nearestOB: OrderBlock | null = null;
-  let minDistance = Infinity;
+  let minDistance = Number.POSITIVE_INFINITY;
 
   // Check bullish OBs (below price, support)
   for (const ob of bullish) {

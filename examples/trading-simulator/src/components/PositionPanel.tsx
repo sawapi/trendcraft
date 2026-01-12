@@ -17,7 +17,7 @@ export function PositionPanel() {
   // アクティブ銘柄を取得
   const activeSymbol = useMemo(() => {
     if (!activeSymbolId) return symbols[0] || null;
-    return symbols.find(s => s.id === activeSymbolId) || null;
+    return symbols.find((s) => s.id === activeSymbolId) || null;
   }, [symbols, activeSymbolId]);
 
   const positions = activeSymbol?.positions || [];
@@ -38,9 +38,7 @@ export function PositionPanel() {
         <div className="position-status long">
           <div className="status-label">
             ロング保有中 ({positions.length}回買付)
-            {holdingDays !== null && (
-              <span className="holding-days">保有{holdingDays}日目</span>
-            )}
+            {holdingDays !== null && <span className="holding-days">保有{holdingDays}日目</span>}
           </div>
           <div className="position-summary">
             <div className="summary-row">
@@ -65,9 +63,7 @@ export function PositionPanel() {
             </div>
           </div>
           {unrealizedPnl && (
-            <div
-              className={`pnl ${unrealizedPnl.pnl >= 0 ? "positive" : "negative"}`}
-            >
+            <div className={`pnl ${unrealizedPnl.pnl >= 0 ? "positive" : "negative"}`}>
               含み損益: {unrealizedPnl.pnl >= 0 ? "+" : ""}
               {unrealizedPnl.pnl.toLocaleString(undefined, { maximumFractionDigits: 0 })} (
               {unrealizedPnl.pnlPercent >= 0 ? "+" : ""}
@@ -79,7 +75,12 @@ export function PositionPanel() {
             <div className="trailing-stop-info">
               <span className="label">トレーリングストップ</span>
               <span className="value">
-                {Math.max(...positions.filter(p => p.trailingStopPrice).map(p => p.trailingStopPrice!)).toLocaleString(undefined, { maximumFractionDigits: 0 })}円
+                {Math.max(
+                  ...positions
+                    .filter((p) => p.trailingStopPrice)
+                    .map((p) => p.trailingStopPrice as number),
+                ).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                円
               </span>
             </div>
           )}
@@ -116,34 +117,24 @@ export function PositionPanel() {
           <h3>年初来</h3>
           <div className="year-stat">
             <span className="label">高値</span>
-            <span className="value high">
-              {yearHighLow.yearHigh.toLocaleString()}
-            </span>
+            <span className="value high">{yearHighLow.yearHigh.toLocaleString()}</span>
             <span className="date">({formatDate(yearHighLow.yearHighDate)})</span>
           </div>
           <div className="year-stat">
             <span className="label">安値</span>
-            <span className="value low">
-              {yearHighLow.yearLow.toLocaleString()}
-            </span>
+            <span className="value low">{yearHighLow.yearLow.toLocaleString()}</span>
             <span className="date">({formatDate(yearHighLow.yearLowDate)})</span>
           </div>
           <div className="year-stat current">
             <span className="label">現在値</span>
-            <span className="value">
-              {yearHighLow.currentPrice.toLocaleString()}
-            </span>
+            <span className="value">{yearHighLow.currentPrice.toLocaleString()}</span>
           </div>
           <div className="year-position">
-            <span
-              className={`from-value ${yearHighLow.fromHigh >= 0 ? "positive" : "negative"}`}
-            >
+            <span className={`from-value ${yearHighLow.fromHigh >= 0 ? "positive" : "negative"}`}>
               高値から {yearHighLow.fromHigh >= 0 ? "+" : ""}
               {yearHighLow.fromHigh.toFixed(1)}%
             </span>
-            <span
-              className={`from-value ${yearHighLow.fromLow >= 0 ? "positive" : "negative"}`}
-            >
+            <span className={`from-value ${yearHighLow.fromLow >= 0 ? "positive" : "negative"}`}>
               安値から {yearHighLow.fromLow >= 0 ? "+" : ""}
               {yearHighLow.fromLow.toFixed(1)}%
             </span>

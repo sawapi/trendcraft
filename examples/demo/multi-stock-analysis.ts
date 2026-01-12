@@ -4,9 +4,9 @@
  * Run: npx tsx examples/multi-stock-analysis.ts
  */
 
-import { readFileSync, readdirSync } from "fs";
-import { basename, dirname, resolve } from "path";
-import { fileURLToPath } from "url";
+import { readFileSync, readdirSync } from "node:fs";
+import { basename, dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -197,7 +197,7 @@ console.log(`\n${"=".repeat(80)}`);
 console.log("📊 複数銘柄バックテスト分析");
 console.log("=".repeat(80));
 console.log(`対象銘柄: ${csvFiles.length}銘柄`);
-console.log(`期間: 2015年以降`);
+console.log("期間: 2015年以降");
 console.log(`初期資金: ${capital.toLocaleString()}円`);
 console.log(`損切り: ${stopLoss}%`);
 
@@ -413,4 +413,4 @@ stockReturns.forEach((s, i) => {
   console.log(`${medal} ${s.symbol}: ${s.ret.toFixed(1)}% (勝率 ${s.winRate.toFixed(0)}%)`);
 });
 
-console.log(`\n✅ 分析完了`);
+console.log("\n✅ 分析完了");

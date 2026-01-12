@@ -1,7 +1,7 @@
-import { useState, useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useSimulatorStore } from "../store/simulatorStore";
-import type { PriceType, ExitReason, ExitTrigger, OrderType } from "../types";
-import { PRICE_TYPE_LABELS, EXIT_REASON_LABELS, EXIT_TRIGGER_LABELS } from "../types";
+import type { ExitReason, ExitTrigger, OrderType, PriceType } from "../types";
+import { EXIT_REASON_LABELS, EXIT_TRIGGER_LABELS, PRICE_TYPE_LABELS } from "../types";
 
 const PRICE_TYPES: PriceType[] = ["nextOpen", "high", "low", "close"];
 const EXIT_REASONS: ExitReason[] = ["TAKE_PROFIT", "STOP_LOSS", "SIGNAL_FLIP", "TIMEOUT", "MANUAL"];
@@ -49,7 +49,7 @@ export function TradePanel() {
   // アクティブ銘柄を取得
   const activeSymbol = useMemo(() => {
     if (!activeSymbolId) return symbols[0] || null;
-    return symbols.find(s => s.id === activeSymbolId) || null;
+    return symbols.find((s) => s.id === activeSymbolId) || null;
   }, [symbols, activeSymbolId]);
 
   // 現在の日付からインデックスを計算
@@ -57,7 +57,7 @@ export function TradePanel() {
     if (!activeSymbol || !commonDateRange || currentDateIndex < 0) return 0;
     const targetDate = commonDateRange.dates[currentDateIndex];
     if (!targetDate) return 0;
-    return activeSymbol.allCandles.findIndex(c => c.time === targetDate);
+    return activeSymbol.allCandles.findIndex((c) => c.time === targetDate);
   }, [activeSymbol, commonDateRange, currentDateIndex]);
 
   const positions = activeSymbol?.positions || [];
@@ -111,16 +111,14 @@ export function TradePanel() {
     switch (sizingMethod) {
       case "risk":
         // 固定リスク%方式: デフォルトの損切り%を使用
-        stopLossPrice = customStopLoss > 0
-          ? customStopLoss
-          : estimatedPrice * (1 - stopLossPercent / 100);
+        stopLossPrice =
+          customStopLoss > 0 ? customStopLoss : estimatedPrice * (1 - stopLossPercent / 100);
         break;
       case "atr":
         // ATRベース方式
         if (!currentAtr) return null;
-        stopLossPrice = estimatedPrice - (currentAtr * atrMultiplier);
+        stopLossPrice = estimatedPrice - currentAtr * atrMultiplier;
         break;
-      case "fixed":
       default:
         // 固定株数（計算不要）
         return null;
@@ -136,9 +134,18 @@ export function TradePanel() {
     return {
       shares,
       riskAmount: shares * riskPerShare,
-      riskPercent: (shares * riskPerShare / initialCapital) * 100,
+      riskPercent: ((shares * riskPerShare) / initialCapital) * 100,
     };
-  }, [sizingMethod, estimatedPrice, stopLossPercent, riskPercent, customStopLoss, currentAtr, atrMultiplier, initialCapital]);
+  }, [
+    sizingMethod,
+    estimatedPrice,
+    stopLossPercent,
+    riskPercent,
+    customStopLoss,
+    currentAtr,
+    atrMultiplier,
+    initialCapital,
+  ]);
 
   // 計算結果を買い株数に反映
   const applySizingResult = useCallback(() => {
@@ -183,7 +190,18 @@ export function TradePanel() {
     }
     setMemo("");
     setExitTrigger(undefined);
-  }, [isPlaying, pause, executeSell, placePendingOrder, sellShares, memo, priceType, exitReason, exitTrigger, activeSymbol]);
+  }, [
+    isPlaying,
+    pause,
+    executeSell,
+    placePendingOrder,
+    sellShares,
+    memo,
+    priceType,
+    exitReason,
+    exitTrigger,
+    activeSymbol,
+  ]);
 
   const handleSellAll = useCallback(() => {
     if (isPlaying) pause();
@@ -203,7 +221,17 @@ export function TradePanel() {
     }
     setMemo("");
     setExitTrigger(undefined);
-  }, [isPlaying, pause, executeSellAll, placePendingOrder, memo, priceType, exitReason, exitTrigger, activeSymbol]);
+  }, [
+    isPlaying,
+    pause,
+    executeSellAll,
+    placePendingOrder,
+    memo,
+    priceType,
+    exitReason,
+    exitTrigger,
+    activeSymbol,
+  ]);
 
   const handleBuySharesChange = (value: number) => {
     setBuyShares(Math.max(1, value));
@@ -229,7 +257,7 @@ export function TradePanel() {
   // アクティブ銘柄の予約注文を取得
   const symbolPendingOrders = useMemo(() => {
     if (!activeSymbol) return [];
-    return pendingOrders.filter(o => o.symbolId === activeSymbol.id);
+    return pendingOrders.filter((o) => o.symbolId === activeSymbol.id);
   }, [pendingOrders, activeSymbol]);
 
   // 注文タイプのラベル
@@ -310,7 +338,10 @@ export function TradePanel() {
                 max={10}
                 step={0.5}
               />
-              <span className="sizing-hint">資金{initialCapital.toLocaleString()}円 × {riskPercent}% = {(initialCapital * riskPercent / 100).toLocaleString()}円</span>
+              <span className="sizing-hint">
+                資金{initialCapital.toLocaleString()}円 × {riskPercent}% ={" "}
+                {((initialCapital * riskPercent) / 100).toLocaleString()}円
+              </span>
             </div>
 
             {sizingMethod === "risk" && (
@@ -337,7 +368,10 @@ export function TradePanel() {
                   max={5}
                   step={0.5}
                 />
-                <span className="sizing-hint">ATR: {currentAtr.toFixed(2)} × {atrMultiplier} = {(currentAtr * atrMultiplier).toFixed(2)}円</span>
+                <span className="sizing-hint">
+                  ATR: {currentAtr.toFixed(2)} × {atrMultiplier} ={" "}
+                  {(currentAtr * atrMultiplier).toFixed(2)}円
+                </span>
               </div>
             )}
           </div>
@@ -350,7 +384,10 @@ export function TradePanel() {
               </div>
               <div className="result-row">
                 <span className="result-label">リスク金額</span>
-                <span className="result-value">{sizingResult.riskAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}円</span>
+                <span className="result-value">
+                  {sizingResult.riskAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                  円
+                </span>
               </div>
               <div className="result-row">
                 <span className="result-label">リスク率</span>
@@ -363,9 +400,7 @@ export function TradePanel() {
           )}
 
           {!sizingResult && sizingMethod !== "fixed" && (
-            <div className="sizing-error">
-              計算できません。パラメータを確認してください。
-            </div>
+            <div className="sizing-error">計算できません。パラメータを確認してください。</div>
           )}
         </div>
       )}
@@ -410,9 +445,7 @@ export function TradePanel() {
               onClick={() => setPriceType(type)}
               disabled={type === "nextOpen" && !canUseNextOpen}
               title={
-                type === "nextOpen" && !canUseNextOpen
-                  ? "最終日のため翌日始値は選択できません"
-                  : ""
+                type === "nextOpen" && !canUseNextOpen ? "最終日のため翌日始値は選択できません" : ""
               }
             >
               {PRICE_TYPE_LABELS[type]}
@@ -420,10 +453,11 @@ export function TradePanel() {
           ))}
         </div>
         <div className="price-estimate">
-          {priceType === "nextOpen" ? "翌日始値" : PRICE_TYPE_LABELS[priceType]}
-          : {estimatedPrice.toLocaleString()}円
+          {priceType === "nextOpen" ? "翌日始値" : PRICE_TYPE_LABELS[priceType]}:{" "}
+          {estimatedPrice.toLocaleString()}円
           <span className="capital-ratio">
-            (買い概算: {totalBuyCost.toLocaleString()}円 / {((totalBuyCost / initialCapital) * 100).toFixed(1)}%)
+            (買い概算: {totalBuyCost.toLocaleString()}円 /{" "}
+            {((totalBuyCost / initialCapital) * 100).toFixed(1)}%)
           </span>
         </div>
       </div>
@@ -452,7 +486,7 @@ export function TradePanel() {
           <label>詳細トリガー（任意）</label>
           <select
             value={exitTrigger || ""}
-            onChange={(e) => setExitTrigger(e.target.value as ExitTrigger || undefined)}
+            onChange={(e) => setExitTrigger((e.target.value as ExitTrigger) || undefined)}
           >
             <option value="">選択しない</option>
             {EXIT_TRIGGERS.map((trigger) => (

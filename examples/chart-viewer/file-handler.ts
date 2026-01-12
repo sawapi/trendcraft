@@ -44,7 +44,7 @@ export function parseCSV(text: string): NormalizedCandle[] {
       Number.parseInt(dateParts[2]),
     );
 
-    if (isNaN(date.getTime())) continue;
+    if (Number.isNaN(date.getTime())) continue;
 
     // Use adjusted close if available to handle stock splits
     const rawClose = Number.parseFloat(close);

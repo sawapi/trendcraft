@@ -121,8 +121,7 @@ export function walkForwardAnalysis(
 
   if (boundaries.length === 0) {
     throw new Error(
-      `Insufficient data for walk-forward analysis. ` +
-        `Need at least ${windowSize + testSize} candles, got ${candles.length}.`,
+      `Insufficient data for walk-forward analysis. Need at least ${windowSize + testSize} candles, got ${candles.length}.`,
     );
   }
 
@@ -239,10 +238,10 @@ function calculateAggregateMetrics(
 
   for (const key of metricKeys) {
     avgInSample[key] =
-      inSampleMetrics.reduce((sum, m) => sum + (isFinite(m[key]) ? m[key] : 0), 0) /
+      inSampleMetrics.reduce((sum, m) => sum + (Number.isFinite(m[key]) ? m[key] : 0), 0) /
       inSampleMetrics.length;
     avgOutOfSample[key] =
-      outOfSampleMetrics.reduce((sum, m) => sum + (isFinite(m[key]) ? m[key] : 0), 0) /
+      outOfSampleMetrics.reduce((sum, m) => sum + (Number.isFinite(m[key]) ? m[key] : 0), 0) /
       outOfSampleMetrics.length;
   }
 
@@ -292,7 +291,7 @@ function generateRecommendation(
   for (const key of paramKeys) {
     const values = periods.map((p) => p.bestParams[key]);
     const mean = values.reduce((s, v) => s + v, 0) / values.length;
-    const variance = values.reduce((s, v) => s + Math.pow(v - mean, 2), 0) / values.length;
+    const variance = values.reduce((s, v) => s + (v - mean) ** 2, 0) / values.length;
     paramVariance[key] = variance;
   }
 

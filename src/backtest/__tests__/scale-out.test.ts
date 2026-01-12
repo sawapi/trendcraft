@@ -85,8 +85,8 @@ describe("Scale Out", () => {
 
       const partialTrade = result.trades.find((t) => t.isPartial);
       expect(partialTrade).toBeDefined();
-      expect(partialTrade!.exitPrice).toBeCloseTo(105, 0);
-      expect(partialTrade!.returnPercent).toBeGreaterThan(0);
+      expect(partialTrade?.exitPrice).toBeCloseTo(105, 0);
+      expect(partialTrade?.returnPercent).toBeGreaterThan(0);
     });
 
     it("should NOT trigger scale-out if threshold not reached", () => {

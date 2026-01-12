@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useSimulatorStore } from "../store/simulatorStore";
-import { formatDate } from "../utils/fileParser";
 import { PRICE_TYPE_LABELS } from "../types";
+import { formatDate } from "../utils/fileParser";
 
 export function TradeHistoryPanel() {
   const { symbols, activeSymbolId, jumpToIndex } = useSimulatorStore();
@@ -9,7 +9,7 @@ export function TradeHistoryPanel() {
   // アクティブ銘柄を取得
   const activeSymbol = useMemo(() => {
     if (!activeSymbolId) return symbols[0] || null;
-    return symbols.find(s => s.id === activeSymbolId) || null;
+    return symbols.find((s) => s.id === activeSymbolId) || null;
   }, [symbols, activeSymbolId]);
 
   const tradeHistory = activeSymbol?.tradeHistory || [];
@@ -44,32 +44,28 @@ export function TradeHistoryPanel() {
               key={trade.id}
               className={`trade-item ${trade.type.toLowerCase()} clickable`}
               onClick={() => handleTradeClick(trade.date)}
+              onKeyDown={(e) => e.key === "Enter" && handleTradeClick(trade.date)}
+              role="button"
+              tabIndex={0}
               title="クリックでこの日付にジャンプ"
             >
               <div className="trade-header">
-                <span className={`trade-type ${trade.type.toLowerCase()}`}>
-                  {trade.type}
-                </span>
+                <span className={`trade-type ${trade.type.toLowerCase()}`}>{trade.type}</span>
                 <span className="trade-date">{formatDate(trade.date)}</span>
               </div>
               <div className="trade-details">
-                <span className="trade-price">
-                  ¥{trade.price.toLocaleString()}
-                </span>
+                <span className="trade-price">¥{trade.price.toLocaleString()}</span>
                 <span className="trade-shares">×{trade.shares}株</span>
-                <span className="trade-price-type">
-                  ({PRICE_TYPE_LABELS[trade.priceType]})
-                </span>
+                <span className="trade-price-type">({PRICE_TYPE_LABELS[trade.priceType]})</span>
               </div>
               {trade.type === "SELL" && trade.pnlPercent !== undefined && (
-                <div
-                  className={`trade-pnl ${trade.pnlPercent >= 0 ? "positive" : "negative"}`}
-                >
+                <div className={`trade-pnl ${trade.pnlPercent >= 0 ? "positive" : "negative"}`}>
                   {trade.pnlPercent >= 0 ? "+" : ""}
                   {trade.pnlPercent.toFixed(2)}%
                   {trade.tax && trade.tax > 0 ? (
                     <span className="trade-tax-info">
-                      {" "}(税引後: ¥{trade.afterTaxPnl?.toLocaleString()})
+                      {" "}
+                      (税引後: ¥{trade.afterTaxPnl?.toLocaleString()})
                     </span>
                   ) : (
                     <span> (¥{trade.pnl?.toLocaleString()})</span>

@@ -433,7 +433,7 @@ async function main() {
   const atrCorrect = s2Excluded.filter((r) => r.noFilterReturn < 0).length;
   const atrWrong = s2Excluded.filter((r) => r.noFilterReturn > 0).length;
 
-  console.log(`ATRフィルタ (>=2.3%):`);
+  console.log("ATRフィルタ (>=2.3%):");
   console.log(`  - 除外銘柄: ${s2Excluded.length}銘柄`);
   console.log(`  - 正解（損失回避）: ${atrCorrect}銘柄`);
   console.log(`  - 誤り（利益逃す）: ${atrWrong}銘柄`);
@@ -448,7 +448,7 @@ async function main() {
     (r) => r.dynamicStopReturn !== null && r.dynamicStopReturn < r.noFilterReturn,
   ).length;
 
-  console.log(`動的停止ルール (WR<25%@20T):`);
+  console.log("動的停止ルール (WR<25%@20T):");
   console.log(`  - 発動銘柄: ${s3Stopped.length}銘柄`);
   console.log(`  - 効果あり（損失軽減）: ${stopBenefit}銘柄`);
   console.log(`  - 逆効果（利益逃す）: ${stopHarm}銘柄`);

@@ -7,8 +7,8 @@
 
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { basename, join } from "node:path";
-import type { CsvLoadError, CsvLoadResult } from "./types";
 import { parseCsv } from "./csv-parser";
+import type { CsvLoadError, CsvLoadResult } from "./types";
 
 // Re-export parseCsv for backwards compatibility
 export { parseCsv } from "./csv-parser";

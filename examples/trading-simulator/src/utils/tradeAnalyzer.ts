@@ -1,4 +1,4 @@
-import type { Trade, ExitReason } from "../types";
+import type { ExitReason, Trade } from "../types";
 
 export interface ExitReasonAnalysis {
   reason: ExitReason;
@@ -81,7 +81,7 @@ export function analyzeTradesByExitReason(trades: Trade[]): ExitReasonAnalysis[]
     if (!reasonMap.has(reason)) {
       reasonMap.set(reason, []);
     }
-    reasonMap.get(reason)!.push(trade);
+    reasonMap.get(reason)?.push(trade);
   }
 
   const results: ExitReasonAnalysis[] = [];
@@ -109,7 +109,7 @@ export function analyzeTradesByHoldingPeriod(trades: Trade[]): HoldingPeriodAnal
     "~5日": { min: 0, max: 5, trades: [] as [Trade, Trade][] },
     "6~14日": { min: 6, max: 14, trades: [] as [Trade, Trade][] },
     "15~30日": { min: 15, max: 30, trades: [] as [Trade, Trade][] },
-    "31日~": { min: 31, max: Infinity, trades: [] as [Trade, Trade][] },
+    "31日~": { min: 31, max: Number.POSITIVE_INFINITY, trades: [] as [Trade, Trade][] },
   };
 
   for (const [buy, sell] of pairs) {
@@ -129,7 +129,9 @@ export function analyzeTradesByHoldingPeriod(trades: Trade[]): HoldingPeriodAnal
     if (bucket.trades.length === 0) continue;
 
     const winTrades = bucket.trades.filter(([_, sell]) => (sell.pnlPercent || 0) > 0);
-    const avgPnl = bucket.trades.reduce((sum, [_, sell]) => sum + (sell.pnlPercent || 0), 0) / bucket.trades.length;
+    const avgPnl =
+      bucket.trades.reduce((sum, [_, sell]) => sum + (sell.pnlPercent || 0), 0) /
+      bucket.trades.length;
 
     results.push({
       label,
@@ -154,7 +156,7 @@ export function analyzeTradesByMarketRegime(trades: Trade[]): MarketRegimeAnalys
     if (!regimeMap.has(regime)) {
       regimeMap.set(regime, []);
     }
-    regimeMap.get(regime)!.push([buy, sell]);
+    regimeMap.get(regime)?.push([buy, sell]);
   }
 
   const regimeLabels: Record<"TREND_UP" | "TREND_DOWN" | "RANGE", string> = {
@@ -167,7 +169,8 @@ export function analyzeTradesByMarketRegime(trades: Trade[]): MarketRegimeAnalys
 
   for (const [regime, tradeList] of regimeMap) {
     const winTrades = tradeList.filter(([_, sell]) => (sell.pnlPercent || 0) > 0);
-    const avgPnl = tradeList.reduce((sum, [_, sell]) => sum + (sell.pnlPercent || 0), 0) / tradeList.length;
+    const avgPnl =
+      tradeList.reduce((sum, [_, sell]) => sum + (sell.pnlPercent || 0), 0) / tradeList.length;
 
     results.push({
       regime,
@@ -183,7 +186,20 @@ export function analyzeTradesByMarketRegime(trades: Trade[]): MarketRegimeAnalys
 }
 
 const DAY_LABELS = ["日", "月", "火", "水", "木", "金", "土"];
-const MONTH_LABELS = ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"];
+const MONTH_LABELS = [
+  "1月",
+  "2月",
+  "3月",
+  "4月",
+  "5月",
+  "6月",
+  "7月",
+  "8月",
+  "9月",
+  "10月",
+  "11月",
+  "12月",
+];
 
 export function analyzeTradesByDayOfWeek(trades: Trade[]): DayOfWeekAnalysis[] {
   const pairs = groupTradesIntoPairs(trades);
@@ -197,10 +213,10 @@ export function analyzeTradesByDayOfWeek(trades: Trade[]): DayOfWeekAnalysis[] {
     const exitDow = new Date(sell.date).getDay();
 
     if (!entryByDay.has(entryDow)) entryByDay.set(entryDow, []);
-    entryByDay.get(entryDow)!.push([buy, sell]);
+    entryByDay.get(entryDow)?.push([buy, sell]);
 
     if (!exitByDay.has(exitDow)) exitByDay.set(exitDow, []);
-    exitByDay.get(exitDow)!.push([buy, sell]);
+    exitByDay.get(exitDow)?.push([buy, sell]);
   }
 
   const results: DayOfWeekAnalysis[] = [];
@@ -213,12 +229,15 @@ export function analyzeTradesByDayOfWeek(trades: Trade[]): DayOfWeekAnalysis[] {
     const entryWins = entryTrades.filter(([_, sell]) => (sell.pnlPercent || 0) > 0);
     const exitWins = exitTrades.filter(([_, sell]) => (sell.pnlPercent || 0) > 0);
 
-    const avgEntryPnl = entryTrades.length > 0
-      ? entryTrades.reduce((sum, [_, sell]) => sum + (sell.pnlPercent || 0), 0) / entryTrades.length
-      : 0;
-    const avgExitPnl = exitTrades.length > 0
-      ? exitTrades.reduce((sum, [_, sell]) => sum + (sell.pnlPercent || 0), 0) / exitTrades.length
-      : 0;
+    const avgEntryPnl =
+      entryTrades.length > 0
+        ? entryTrades.reduce((sum, [_, sell]) => sum + (sell.pnlPercent || 0), 0) /
+          entryTrades.length
+        : 0;
+    const avgExitPnl =
+      exitTrades.length > 0
+        ? exitTrades.reduce((sum, [_, sell]) => sum + (sell.pnlPercent || 0), 0) / exitTrades.length
+        : 0;
 
     results.push({
       dayOfWeek: dow,
@@ -248,7 +267,7 @@ export function analyzeTradesByMonth(trades: Trade[]): MonthAnalysis[] {
     if (!monthMap.has(month)) {
       monthMap.set(month, []);
     }
-    monthMap.get(month)!.push([buy, sell]);
+    monthMap.get(month)?.push([buy, sell]);
   }
 
   const results: MonthAnalysis[] = [];
@@ -258,7 +277,8 @@ export function analyzeTradesByMonth(trades: Trade[]): MonthAnalysis[] {
     if (tradeList.length === 0) continue;
 
     const winTrades = tradeList.filter(([_, sell]) => (sell.pnlPercent || 0) > 0);
-    const avgPnl = tradeList.reduce((sum, [_, sell]) => sum + (sell.pnlPercent || 0), 0) / tradeList.length;
+    const avgPnl =
+      tradeList.reduce((sum, [_, sell]) => sum + (sell.pnlPercent || 0), 0) / tradeList.length;
 
     results.push({
       month,

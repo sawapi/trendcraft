@@ -134,7 +134,7 @@ type StockCharacteristics = {
 
 function calculateCAGR(startPrice: number, endPrice: number, years: number): number {
   if (startPrice <= 0 || years <= 0) return 0;
-  return (Math.pow(endPrice / startPrice, 1 / years) - 1) * 100;
+  return ((endPrice / startPrice) ** (1 / years) - 1) * 100;
 }
 
 function calculateHighUpdateRate(candles: NormalizedCandle[], lookback = 252): number {
@@ -212,7 +212,7 @@ function calculateDailyVolatility(candles: NormalizedCandle[]): number {
   if (returns.length === 0) return 0;
 
   const mean = returns.reduce((a, b) => a + b, 0) / returns.length;
-  const variance = returns.reduce((sum, r) => sum + Math.pow(r - mean, 2), 0) / returns.length;
+  const variance = returns.reduce((sum, r) => sum + (r - mean) ** 2, 0) / returns.length;
   return Math.sqrt(variance) * 100; // パーセント
 }
 
@@ -243,7 +243,7 @@ function calculateVolumeVolatility(candles: NormalizedCandle[]): number {
 
   if (mean === 0) return 0;
 
-  const variance = volumes.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / volumes.length;
+  const variance = volumes.reduce((sum, v) => sum + (v - mean) ** 2, 0) / volumes.length;
   return Math.sqrt(variance) / mean; // 変動係数
 }
 
@@ -429,7 +429,9 @@ function analyzeFailurePatterns(results: StockCharacteristics[]): void {
       winRate: group.reduce((s, r) => s + r.strategyWinRate, 0) / group.length,
       tradeCount: group.reduce((s, r) => s + r.strategyTradeCount, 0) / group.length,
       maxDD: group.reduce((s, r) => s + r.strategyMaxDD, 0) / group.length,
-      pf: group.reduce((s, r) => s + (isFinite(r.strategyPF) ? r.strategyPF : 0), 0) / group.length,
+      pf:
+        group.reduce((s, r) => s + (Number.isFinite(r.strategyPF) ? r.strategyPF : 0), 0) /
+        group.length,
     });
 
     const successTrade = avgTradeStats(successful);

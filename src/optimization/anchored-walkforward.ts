@@ -19,9 +19,9 @@ import type {
   OptimizationMetric,
 } from "../types/optimization";
 import {
-  combinationSearch,
-  type ConditionDefinition,
   type CombinationSearchOptions,
+  type ConditionDefinition,
+  combinationSearch,
 } from "./combination-search";
 import { calculateAllMetrics } from "./metrics";
 
@@ -50,10 +50,9 @@ type PeriodBoundary = {
  */
 export function generateAWFBoundaries(
   candles: NormalizedCandle[],
-  options: AnchoredWalkForwardOptions
+  options: AnchoredWalkForwardOptions,
 ): PeriodBoundary[] {
-  const initialTrainSize =
-    options.initialTrainSize ?? DEFAULT_OPTIONS.initialTrainSize;
+  const initialTrainSize = options.initialTrainSize ?? DEFAULT_OPTIONS.initialTrainSize;
   const expansionStep = options.expansionStep ?? DEFAULT_OPTIONS.expansionStep;
   const testSize = options.testSize ?? DEFAULT_OPTIONS.testSize;
   const { anchorDate } = options;
@@ -91,7 +90,7 @@ export function calculateAWFPeriodCount(
   anchorIndex: number,
   initialTrainSize: number,
   expansionStep: number,
-  testSize: number
+  testSize: number,
 ): number {
   const availableCandles = totalCandles - anchorIndex;
   const minRequired = initialTrainSize + testSize;
@@ -109,7 +108,7 @@ export function anchoredWalkForwardAnalysis(
   entryConditions: ConditionDefinition[],
   exitConditions: ConditionDefinition[],
   options: AnchoredWalkForwardOptions,
-  combinationOptions: Omit<CombinationSearchOptions, "progressCallback"> = {}
+  combinationOptions: Omit<CombinationSearchOptions, "progressCallback"> = {},
 ): AWFResult {
   const metric = options.metric ?? DEFAULT_OPTIONS.metric;
   const constraints = options.constraints ?? ([] as OptimizationConstraint[]);
@@ -119,11 +118,10 @@ export function anchoredWalkForwardAnalysis(
   const boundaries = generateAWFBoundaries(candles, options);
 
   if (boundaries.length === 0) {
-    const initialTrainSize =
-      options.initialTrainSize ?? DEFAULT_OPTIONS.initialTrainSize;
+    const initialTrainSize = options.initialTrainSize ?? DEFAULT_OPTIONS.initialTrainSize;
     const testSize = options.testSize ?? DEFAULT_OPTIONS.testSize;
     throw new Error(
-      `Insufficient data for AWF analysis. Need at least ${initialTrainSize + testSize} candles after anchor date.`
+      `Insufficient data for AWF analysis. Need at least ${initialTrainSize + testSize} candles after anchor date.`,
     );
   }
 
@@ -144,23 +142,15 @@ export function anchoredWalkForwardAnalysis(
     }
 
     // Extract training and test data
-    const trainCandles = candles.slice(
-      boundary.trainStart,
-      boundary.trainEnd + 1
-    );
+    const trainCandles = candles.slice(boundary.trainStart, boundary.trainEnd + 1);
     const testCandles = candles.slice(boundary.testStart, boundary.testEnd + 1);
 
     // Run combination search on training data
-    const searchResult = combinationSearch(
-      trainCandles,
-      entryConditions,
-      exitConditions,
-      {
-        ...combinationOptions,
-        metric,
-        constraints,
-      }
-    );
+    const searchResult = combinationSearch(trainCandles, entryConditions, exitConditions, {
+      ...combinationOptions,
+      metric,
+      constraints,
+    });
 
     // Get best combination
     const bestEntry = searchResult.bestEntry;
@@ -168,12 +158,10 @@ export function anchoredWalkForwardAnalysis(
 
     // Track condition frequency
     for (const cond of bestEntry) {
-      conditionOccurrences[`entry:${cond}`] =
-        (conditionOccurrences[`entry:${cond}`] || 0) + 1;
+      conditionOccurrences[`entry:${cond}`] = (conditionOccurrences[`entry:${cond}`] || 0) + 1;
     }
     for (const cond of bestExit) {
-      conditionOccurrences[`exit:${cond}`] =
-        (conditionOccurrences[`exit:${cond}`] || 0) + 1;
+      conditionOccurrences[`exit:${cond}`] = (conditionOccurrences[`exit:${cond}`] || 0) + 1;
     }
 
     if (progressCallback) {
@@ -181,38 +169,25 @@ export function anchoredWalkForwardAnalysis(
     }
 
     // Build combined conditions for test
-    const entryDefs = entryConditions.filter((c) =>
-      bestEntry.includes(c.name)
-    );
+    const entryDefs = entryConditions.filter((c) => bestEntry.includes(c.name));
     const exitDefs = exitConditions.filter((c) => bestExit.includes(c.name));
 
     const entryCondition =
-      entryDefs.length === 1
-        ? entryDefs[0].create()
-        : and(...entryDefs.map((d) => d.create()));
+      entryDefs.length === 1 ? entryDefs[0].create() : and(...entryDefs.map((d) => d.create()));
 
     const exitCondition =
-      exitDefs.length === 1
-        ? exitDefs[0].create()
-        : and(...exitDefs.map((d) => d.create()));
+      exitDefs.length === 1 ? exitDefs[0].create() : and(...exitDefs.map((d) => d.create()));
 
     // Get in-sample metrics from best result
     const bestSearchResult = searchResult.results.find(
       (r) =>
         r.entryConditions.join(",") === bestEntry.join(",") &&
-        r.exitConditions.join(",") === bestExit.join(",")
+        r.exitConditions.join(",") === bestExit.join(","),
     );
-    const inSampleMetrics =
-      bestSearchResult?.metrics ??
-      ({} as Record<OptimizationMetric, number>);
+    const inSampleMetrics = bestSearchResult?.metrics ?? ({} as Record<OptimizationMetric, number>);
 
     // Run out-of-sample test
-    const testBacktest = runBacktest(
-      testCandles,
-      entryCondition,
-      exitCondition,
-      backtestOpts
-    );
+    const testBacktest = runBacktest(testCandles, entryCondition, exitCondition, backtestOpts);
     const outOfSampleMetrics = calculateAllMetrics(testBacktest, testCandles, {
       initialCapital: backtestOpts.capital ?? 1000000,
     });
@@ -237,17 +212,10 @@ export function anchoredWalkForwardAnalysis(
   const aggregateMetrics = calculateAggregateAWFMetrics(periods, metric);
 
   // Analyze condition stability
-  const stabilityAnalysis = analyzeConditionStability(
-    periods,
-    conditionOccurrences
-  );
+  const stabilityAnalysis = analyzeConditionStability(periods, conditionOccurrences);
 
   // Generate recommendation
-  const recommendation = generateAWFRecommendation(
-    periods,
-    aggregateMetrics,
-    stabilityAnalysis
-  );
+  const recommendation = generateAWFRecommendation(periods, aggregateMetrics, stabilityAnalysis);
 
   return {
     periods,
@@ -262,7 +230,7 @@ export function anchoredWalkForwardAnalysis(
  */
 function calculateAggregateAWFMetrics(
   periods: AWFPeriod[],
-  primaryMetric: OptimizationMetric
+  primaryMetric: OptimizationMetric,
 ): AWFResult["aggregateMetrics"] {
   const metricKeys: OptimizationMetric[] = [
     "sharpe",
@@ -282,12 +250,12 @@ function calculateAggregateAWFMetrics(
     avgInSample[key] =
       periods.reduce((sum, p) => {
         const val = p.inSampleMetrics[key];
-        return sum + (isFinite(val) ? val : 0);
+        return sum + (Number.isFinite(val) ? val : 0);
       }, 0) / periods.length;
     avgOutOfSample[key] =
       periods.reduce((sum, p) => {
         const val = p.outOfSampleMetrics[key];
-        return sum + (isFinite(val) ? val : 0);
+        return sum + (Number.isFinite(val) ? val : 0);
       }, 0) / periods.length;
   }
 
@@ -309,8 +277,7 @@ function calculateAggregateAWFMetrics(
   const oosReturns = periods.map((p) => p.outOfSampleMetrics.returns);
   const meanOOS = oosReturns.reduce((s, r) => s + r, 0) / oosReturns.length;
   const oosReturnStdDev = Math.sqrt(
-    oosReturns.reduce((s, r) => s + Math.pow(r - meanOOS, 2), 0) /
-      oosReturns.length
+    oosReturns.reduce((s, r) => s + (r - meanOOS) ** 2, 0) / oosReturns.length,
   );
 
   return { avgInSample, avgOutOfSample, stabilityRatio, oosReturnStdDev };
@@ -321,7 +288,7 @@ function calculateAggregateAWFMetrics(
  */
 function analyzeConditionStability(
   periods: AWFPeriod[],
-  occurrences: Record<string, number>
+  occurrences: Record<string, number>,
 ): AWFResult["stabilityAnalysis"] {
   const totalPeriods = periods.length;
 
@@ -347,10 +314,7 @@ function analyzeConditionStability(
 
   // Consistency score based on how stable conditions are
   const allFreqs = Object.values(conditionFrequency);
-  const avgFreq =
-    allFreqs.length > 0
-      ? allFreqs.reduce((s, f) => s + f, 0) / allFreqs.length
-      : 0;
+  const avgFreq = allFreqs.length > 0 ? allFreqs.reduce((s, f) => s + f, 0) / allFreqs.length : 0;
   const consistencyScore = Math.min(avgFreq, 100);
 
   return {
@@ -367,35 +331,24 @@ function analyzeConditionStability(
 function generateAWFRecommendation(
   periods: AWFPeriod[],
   aggregateMetrics: AWFResult["aggregateMetrics"],
-  stabilityAnalysis: AWFResult["stabilityAnalysis"]
+  stabilityAnalysis: AWFResult["stabilityAnalysis"],
 ): AWFResult["recommendation"] {
   const { stabilityRatio } = aggregateMetrics;
-  const { stableEntryConditions, stableExitConditions, consistencyScore } =
-    stabilityAnalysis;
+  const { stableEntryConditions, stableExitConditions, consistencyScore } = stabilityAnalysis;
 
   // Count profitable OOS periods
-  const profitablePeriods = periods.filter(
-    (p) => p.outOfSampleMetrics.returns > 0
-  ).length;
+  const profitablePeriods = periods.filter((p) => p.outOfSampleMetrics.returns > 0).length;
   const profitableRatio = profitablePeriods / periods.length;
 
   // Use most frequent conditions from last period if no stable ones
   const lastPeriod = periods[periods.length - 1];
   const entryConditions =
-    stableEntryConditions.length > 0
-      ? stableEntryConditions
-      : lastPeriod.bestEntryConditions;
+    stableEntryConditions.length > 0 ? stableEntryConditions : lastPeriod.bestEntryConditions;
   const exitConditions =
-    stableExitConditions.length > 0
-      ? stableExitConditions
-      : lastPeriod.bestExitConditions;
+    stableExitConditions.length > 0 ? stableExitConditions : lastPeriod.bestExitConditions;
 
   // Decision logic
-  if (
-    stabilityRatio >= 0.5 &&
-    profitableRatio >= 0.6 &&
-    consistencyScore >= 40
-  ) {
+  if (stabilityRatio >= 0.5 && profitableRatio >= 0.6 && consistencyScore >= 40) {
     return {
       useOptimized: true,
       entryConditions,
@@ -435,9 +388,7 @@ export function summarizeAWFResult(result: AWFResult): {
   recommendedExit: string[];
   useOptimized: boolean;
 } {
-  const profitablePeriods = result.periods.filter(
-    (p) => p.outOfSampleMetrics.returns > 0
-  ).length;
+  const profitablePeriods = result.periods.filter((p) => p.outOfSampleMetrics.returns > 0).length;
 
   return {
     periodCount: result.periods.length,
@@ -456,9 +407,7 @@ export function summarizeAWFResult(result: AWFResult): {
  * Format AWF result for display
  */
 export function formatAWFResult(result: AWFResult): string {
-  const profitablePeriods = result.periods.filter(
-    (p) => p.outOfSampleMetrics.returns > 0
-  ).length;
+  const profitablePeriods = result.periods.filter((p) => p.outOfSampleMetrics.returns > 0).length;
 
   const lines = [
     "=== Anchored Walk-Forward Analysis Results ===",
@@ -498,13 +447,13 @@ export function formatAWFResult(result: AWFResult): string {
     const testStart = new Date(period.testStart).toISOString().slice(0, 10);
     const testEnd = new Date(period.testEnd).toISOString().slice(0, 10);
     lines.push(
-      `  [${period.periodNumber}] Train: ${trainStart}~${trainEnd} | Test: ${testStart}~${testEnd}`
+      `  [${period.periodNumber}] Train: ${trainStart}~${trainEnd} | Test: ${testStart}~${testEnd}`,
     );
     lines.push(
-      `      IS: ${period.inSampleMetrics.returns?.toFixed(1) ?? "N/A"}% | OOS: ${period.outOfSampleMetrics.returns.toFixed(1)}%`
+      `      IS: ${period.inSampleMetrics.returns?.toFixed(1) ?? "N/A"}% | OOS: ${period.outOfSampleMetrics.returns.toFixed(1)}%`,
     );
     lines.push(
-      `      Entry: ${period.bestEntryConditions.join("+")} | Exit: ${period.bestExitConditions.join("+")}`
+      `      Entry: ${period.bestEntryConditions.join("+")} | Exit: ${period.bestExitConditions.join("+")}`,
     );
   }
 
@@ -516,10 +465,9 @@ export function formatAWFResult(result: AWFResult): string {
  */
 export function getAWFEquityCurve(
   result: AWFResult,
-  initialCapital = 1000000
+  initialCapital = 1000000,
 ): Array<{ time: number; equity: number; periodNumber: number }> {
-  const curve: Array<{ time: number; equity: number; periodNumber: number }> =
-    [];
+  const curve: Array<{ time: number; equity: number; periodNumber: number }> = [];
   let equity = initialCapital;
 
   for (const period of result.periods) {

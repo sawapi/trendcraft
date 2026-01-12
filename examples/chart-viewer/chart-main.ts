@@ -70,11 +70,16 @@ export function getSelectedIndicators(): Record<string, boolean> {
   return selected;
 }
 
+interface DataZoomParams {
+  batch?: Array<{ start?: number; end?: number }>;
+  start?: number;
+  end?: number;
+}
+
 /**
  * Sync dataZoom across all charts
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function syncDataZoom(sourceChart: echarts.ECharts, params: any): void {
+export function syncDataZoom(sourceChart: echarts.ECharts, params: DataZoomParams): void {
   let start: number | undefined;
   let end: number | undefined;
 

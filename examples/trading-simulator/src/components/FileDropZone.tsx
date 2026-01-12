@@ -1,8 +1,8 @@
 import { useCallback, useState } from "react";
-import { useSimulatorStore } from "../store/simulatorStore";
-import { readFileAsText, parseCSV } from "../utils/fileParser";
-import { calculateIndicators } from "../utils/indicators";
 import type { SessionData } from "../hooks/useSessionPersistence";
+import { useSimulatorStore } from "../store/simulatorStore";
+import { parseCSV, readFileAsText } from "../utils/fileParser";
+import { calculateIndicators } from "../utils/indicators";
 
 interface FileDropZoneProps {
   pendingSession?: SessionData | null;
@@ -47,7 +47,7 @@ export function FileDropZone({ pendingSession }: FileDropZoneProps) {
           const indicatorData = calculateIndicators(
             candles,
             Array.from(reportIndicators),
-            pendingSession.config.indicatorParams
+            pendingSession.config.indicatorParams,
           );
 
           // セッション状態を復元
@@ -72,7 +72,7 @@ export function FileDropZone({ pendingSession }: FileDropZoneProps) {
           const symbolId = state.symbols[0]?.id;
           if (symbolId) {
             useSimulatorStore.setState({
-              symbols: state.symbols.map(s =>
+              symbols: state.symbols.map((s) =>
                 s.id === symbolId
                   ? {
                       ...s,
@@ -82,9 +82,12 @@ export function FileDropZone({ pendingSession }: FileDropZoneProps) {
                       indicatorData,
                       startIndex: pendingSession.config.startIndex,
                     }
-                  : s
+                  : s,
               ),
-              currentDateIndex: pendingSession.currentIndex - pendingSession.config.startIndex - pendingSession.config.initialCandleCount,
+              currentDateIndex:
+                pendingSession.currentIndex -
+                pendingSession.config.startIndex -
+                pendingSession.config.initialCandleCount,
             });
           }
         } else {
@@ -98,13 +101,13 @@ export function FileDropZone({ pendingSession }: FileDropZoneProps) {
             // 追加のファイル
             createSymbolSession(candles, file.name);
           }
-          setLoadedFiles(prev => [...prev, file.name]);
+          setLoadedFiles((prev) => [...prev, file.name]);
         }
       } catch {
         setError("ファイルの読み込みに失敗しました");
       }
     },
-    [loadCandles, createSymbolSession, pendingSession]
+    [loadCandles, createSymbolSession, pendingSession],
   );
 
   // 複数ファイルを処理
@@ -117,7 +120,7 @@ export function FileDropZone({ pendingSession }: FileDropZoneProps) {
         }
       }
     },
-    [handleFile]
+    [handleFile],
   );
 
   const handleDrop = useCallback(
@@ -126,7 +129,7 @@ export function FileDropZone({ pendingSession }: FileDropZoneProps) {
       setIsDragging(false);
       handleFiles(e.dataTransfer.files);
     },
-    [handleFiles]
+    [handleFiles],
   );
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -142,7 +145,7 @@ export function FileDropZone({ pendingSession }: FileDropZoneProps) {
     const input = document.createElement("input");
     input.type = "file";
     input.accept = ".csv";
-    input.multiple = true;  // 複数選択を有効化
+    input.multiple = true; // 複数選択を有効化
     input.onchange = (e) => {
       const files = (e.target as HTMLInputElement).files;
       if (files && files.length > 0) {
@@ -159,6 +162,9 @@ export function FileDropZone({ pendingSession }: FileDropZoneProps) {
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onClick={handleClick}
+      onKeyDown={(e) => e.key === "Enter" && handleClick()}
+      role="button"
+      tabIndex={0}
     >
       {hasSession ? (
         <>

@@ -7,15 +7,15 @@
  */
 
 import {
-  orderBlock,
-  type OrderBlockOptions,
-  type OrderBlockValue,
-} from "../../indicators/smc/order-block";
-import {
-  liquiditySweep,
   type LiquiditySweepOptions,
   type LiquiditySweepValue,
+  liquiditySweep,
 } from "../../indicators/smc/liquidity-sweep";
+import {
+  type OrderBlockOptions,
+  type OrderBlockValue,
+  orderBlock,
+} from "../../indicators/smc/order-block";
 import type { NormalizedCandle, PresetCondition, Series } from "../../types";
 
 // ============================================
@@ -122,9 +122,7 @@ export function priceAtBearishOrderBlock(
  *
  * @param options Order Block detection options
  */
-export function priceAtOrderBlock(
-  options: OrderBlockConditionOptions = {},
-): PresetCondition {
+export function priceAtOrderBlock(options: OrderBlockConditionOptions = {}): PresetCondition {
   return {
     type: "preset",
     name: "priceAtOrderBlock",

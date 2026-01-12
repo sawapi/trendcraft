@@ -1,9 +1,16 @@
 import { describe, expect, it } from "vitest";
 import type { NormalizedCandle } from "../../../types";
-import { cmfAbove, cmfBelow, obvRising, obvFalling, obvCrossUp, obvCrossDown } from "../volume-advanced";
-import { and } from "../core";
 import { runBacktest } from "../../engine";
-import { goldenCross, deadCross } from "../ma-cross";
+import { and } from "../core";
+import { deadCross, goldenCross } from "../ma-cross";
+import {
+  cmfAbove,
+  cmfBelow,
+  obvCrossDown,
+  obvCrossUp,
+  obvFalling,
+  obvRising,
+} from "../volume-advanced";
 
 /**
  * Generate candles with accumulation pattern
@@ -134,7 +141,7 @@ describe("CMF Conditions", () => {
         indicators,
         candles[candles.length - 1],
         candles.length - 1,
-        candles
+        candles,
       );
 
       // Accumulation pattern should have positive CMF
@@ -150,7 +157,7 @@ describe("CMF Conditions", () => {
         indicators,
         candles[candles.length - 1],
         candles.length - 1,
-        candles
+        candles,
       );
 
       // Distribution pattern should have negative CMF
@@ -164,12 +171,12 @@ describe("CMF Conditions", () => {
 
       // First call
       condition.evaluate(indicators, candles[29], 29, candles);
-      expect(indicators["cmf_20"]).toBeDefined();
+      expect(indicators.cmf_20).toBeDefined();
 
       // Second call should use cached data
-      const cachedData = indicators["cmf_20"];
+      const cachedData = indicators.cmf_20;
       condition.evaluate(indicators, candles[29], 29, candles);
-      expect(indicators["cmf_20"]).toBe(cachedData);
+      expect(indicators.cmf_20).toBe(cachedData);
     });
 
     it("should work with different thresholds", () => {
@@ -182,7 +189,7 @@ describe("CMF Conditions", () => {
         indicators,
         candles[candles.length - 1],
         candles.length - 1,
-        candles
+        candles,
       );
 
       // Result depends on actual CMF value
@@ -200,7 +207,7 @@ describe("CMF Conditions", () => {
         indicators,
         candles[candles.length - 1],
         candles.length - 1,
-        candles
+        candles,
       );
 
       // Distribution pattern should have negative CMF
@@ -216,7 +223,7 @@ describe("CMF Conditions", () => {
         indicators,
         candles[candles.length - 1],
         candles.length - 1,
-        candles
+        candles,
       );
 
       // Accumulation pattern should have positive CMF
@@ -236,7 +243,7 @@ describe("OBV Conditions", () => {
         indicators,
         candles[candles.length - 1],
         candles.length - 1,
-        candles
+        candles,
       );
 
       expect(result).toBe(true);
@@ -251,7 +258,7 @@ describe("OBV Conditions", () => {
         indicators,
         candles[candles.length - 1],
         candles.length - 1,
-        candles
+        candles,
       );
 
       expect(result).toBe(false);
@@ -266,7 +273,7 @@ describe("OBV Conditions", () => {
         indicators,
         candles[candles.length - 1],
         candles.length - 1,
-        candles
+        candles,
       );
 
       expect(result).toBe(false);
@@ -278,7 +285,7 @@ describe("OBV Conditions", () => {
       const indicators: Record<string, unknown> = {};
 
       condition.evaluate(indicators, candles[29], 29, candles);
-      expect(indicators["obv"]).toBeDefined();
+      expect(indicators.obv).toBeDefined();
     });
   });
 
@@ -292,7 +299,7 @@ describe("OBV Conditions", () => {
         indicators,
         candles[candles.length - 1],
         candles.length - 1,
-        candles
+        candles,
       );
 
       expect(result).toBe(true);
@@ -307,7 +314,7 @@ describe("OBV Conditions", () => {
         indicators,
         candles[candles.length - 1],
         candles.length - 1,
-        candles
+        candles,
       );
 
       expect(result).toBe(false);
@@ -329,7 +336,7 @@ describe("OBV Conditions", () => {
         indicators,
         candles[candles.length - 1],
         candles.length - 1,
-        candles
+        candles,
       );
 
       expect(result).toBe(false);
@@ -341,7 +348,7 @@ describe("OBV Conditions", () => {
       const indicators: Record<string, unknown> = {};
 
       condition.evaluate(indicators, candles[49], 49, candles);
-      expect(indicators["obvMa_5_20"]).toBeDefined();
+      expect(indicators.obvMa_5_20).toBeDefined();
     });
   });
 

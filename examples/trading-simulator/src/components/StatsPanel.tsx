@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useSimulatorStore } from "../store/simulatorStore";
-import type { Trade, PortfolioStats } from "../types";
+import type { PortfolioStats, Trade } from "../types";
 
 interface RealtimeStats {
   totalPnl: number;
@@ -22,11 +22,9 @@ function calculateRealtimeStats(
   tradeHistory: Trade[],
   initialCapital: number,
   startPrice: number | undefined,
-  currentPrice: number | undefined
+  currentPrice: number | undefined,
 ): RealtimeStats {
-  const sellTrades = tradeHistory.filter(
-    (t) => t.type === "SELL" && t.pnlPercent !== undefined
-  );
+  const sellTrades = tradeHistory.filter((t) => t.type === "SELL" && t.pnlPercent !== undefined);
 
   const emptyStats: RealtimeStats = {
     totalPnl: 0,
@@ -115,9 +113,11 @@ function calculateRealtimeStats(
 
   // MFE Utilization average
   const tradesWithMfeUtil = sellTrades.filter((t) => t.mfeUtilization !== undefined);
-  const avgMfeUtilization = tradesWithMfeUtil.length > 0
-    ? tradesWithMfeUtil.reduce((sum, t) => sum + (t.mfeUtilization || 0), 0) / tradesWithMfeUtil.length
-    : 0;
+  const avgMfeUtilization =
+    tradesWithMfeUtil.length > 0
+      ? tradesWithMfeUtil.reduce((sum, t) => sum + (t.mfeUtilization || 0), 0) /
+        tradesWithMfeUtil.length
+      : 0;
 
   // Buy&Hold comparison
   let buyHoldReturn: number | null = null;
@@ -134,7 +134,7 @@ function calculateRealtimeStats(
     winCount: wins.length,
     lossCount: losses.length,
     totalTrades: sellTrades.length,
-    profitFactor: isFinite(profitFactor) ? profitFactor : 999.99,
+    profitFactor: Number.isFinite(profitFactor) ? profitFactor : 999.99,
     maxDrawdown,
     avgHoldingDays,
     currentStreak,
@@ -257,9 +257,7 @@ export function StatsPanel() {
 
             <div className="stats-row">
               <span className="label">最大DD</span>
-              <span className="value negative">
-                -{stats.maxDrawdown.toFixed(2)}%
-              </span>
+              <span className="value negative">-{stats.maxDrawdown.toFixed(2)}%</span>
             </div>
 
             <div className="stats-row">
@@ -300,11 +298,7 @@ export function StatsPanel() {
         </>
       )}
 
-      {!hasTrades && !hasPosition && (
-        <div className="no-stats">
-          取引がありません
-        </div>
-      )}
+      {!hasTrades && !hasPosition && <div className="no-stats">取引がありません</div>}
 
       {/* ポートフォリオ統計（複数銘柄の場合のみ） */}
       {hasMultipleSymbols && portfolioStats && (
@@ -334,9 +328,7 @@ export function StatsPanel() {
                   <span className={`value ${symbolStat.pnl >= 0 ? "positive" : "negative"}`}>
                     {symbolStat.pnl >= 0 ? "+" : ""}
                     {symbolStat.pnlPercent.toFixed(1)}%
-                    <span className="sub-value">
-                      ({symbolStat.allocation.toFixed(0)}%)
-                    </span>
+                    <span className="sub-value">({symbolStat.allocation.toFixed(0)}%)</span>
                   </span>
                 </div>
               ))}

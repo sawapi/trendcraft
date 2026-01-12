@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { NormalizedCandle } from "../../../types";
-import {
-  liquiditySweep,
-  getRecoveredSweeps,
-  hasRecentSweepSignal,
-} from "../liquidity-sweep";
+import { getRecoveredSweeps, hasRecentSweepSignal, liquiditySweep } from "../liquidity-sweep";
 
 const makeCandles = (
   data: Array<{ o: number; h: number; l: number; c: number }>,
@@ -36,9 +32,7 @@ describe("liquiditySweep", () => {
       const result = liquiditySweep(candles, { swingPeriod: 1 });
 
       // Find the sweep bar
-      const sweepBar = result.find(
-        (r) => r.value.isSweep && r.value.sweep?.type === "bullish",
-      );
+      const sweepBar = result.find((r) => r.value.isSweep && r.value.sweep?.type === "bullish");
       expect(sweepBar).toBeDefined();
 
       if (sweepBar?.value.sweep) {
@@ -86,9 +80,7 @@ describe("liquiditySweep", () => {
 
       const result = liquiditySweep(candles, { swingPeriod: 1 });
 
-      const sweepBar = result.find(
-        (r) => r.value.isSweep && r.value.sweep?.type === "bearish",
-      );
+      const sweepBar = result.find((r) => r.value.isSweep && r.value.sweep?.type === "bearish");
       expect(sweepBar).toBeDefined();
 
       if (sweepBar?.value.sweep) {
@@ -161,9 +153,7 @@ describe("liquiditySweep", () => {
       const lastBar = result[result.length - 1];
 
       // The sweep should have been removed (unrecovered after 3 bars)
-      const unrecoveredSweeps = lastBar.value.recentSweeps.filter(
-        (s) => !s.recovered,
-      );
+      const unrecoveredSweeps = lastBar.value.recentSweeps.filter((s) => !s.recovered);
       expect(unrecoveredSweeps.length).toBe(0);
     });
   });

@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { volumeAboveAverage } from "../volume-above-average";
 import type { NormalizedCandle } from "../../types";
+import { volumeAboveAverage } from "../volume-above-average";
 
 /**
  * Generate candles with consistent high volume (above average)
  */
-function generateHighVolumeCandles(count: number, ratio: number = 1.5): NormalizedCandle[] {
+function generateHighVolumeCandles(count: number, ratio = 1.5): NormalizedCandle[] {
   const candles: NormalizedCandle[] = [];
   const baseTime = Date.now() - count * 24 * 60 * 60 * 1000;
   const baseVolume = 1000000;
@@ -59,7 +59,7 @@ function generateAlternatingVolumeCandles(count: number): NormalizedCandle[] {
 function generateSustainedHighVolumeCandles(
   count: number,
   sustainedDays: number,
-  ratio: number = 1.2
+  ratio = 1.2,
 ): NormalizedCandle[] {
   const candles: NormalizedCandle[] = [];
   const baseTime = Date.now() - count * 24 * 60 * 60 * 1000;
@@ -193,10 +193,10 @@ describe("volumeAboveAverage", () => {
       // The first signal after high volume starts should have ratio close to 3.0
       // because the average is calculated from the previous 10 days (all normal volume)
       const firstHighVolumeSignal = signals.find(
-        (s) => s.time >= baseTime + 20 * 24 * 60 * 60 * 1000
+        (s) => s.time >= baseTime + 20 * 24 * 60 * 60 * 1000,
       );
       expect(firstHighVolumeSignal).toBeDefined();
-      expect(firstHighVolumeSignal!.ratio).toBeCloseTo(3.0, 1);
+      expect(firstHighVolumeSignal?.ratio).toBeCloseTo(3.0, 1);
     });
   });
 
@@ -247,10 +247,10 @@ describe("volumeAboveAverage", () => {
       // Should have signals from both high volume periods
       // and consecutive days should reset between them
       const firstPeriodSignals = signals.filter(
-        (s) => s.time < baseTime + 32 * 24 * 60 * 60 * 1000
+        (s) => s.time < baseTime + 32 * 24 * 60 * 60 * 1000,
       );
       const secondPeriodSignals = signals.filter(
-        (s) => s.time >= baseTime + 35 * 24 * 60 * 60 * 1000
+        (s) => s.time >= baseTime + 35 * 24 * 60 * 60 * 1000,
       );
 
       if (secondPeriodSignals.length > 0) {

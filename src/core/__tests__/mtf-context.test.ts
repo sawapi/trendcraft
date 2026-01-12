@@ -67,8 +67,8 @@ describe("createMtfContext", () => {
 
     expect(weeklyDataset).toBeDefined();
     // Should have about 5 weekly candles
-    expect(weeklyDataset!.candles.length).toBeGreaterThanOrEqual(4);
-    expect(weeklyDataset!.candles.length).toBeLessThanOrEqual(6);
+    expect(weeklyDataset?.candles.length).toBeGreaterThanOrEqual(4);
+    expect(weeklyDataset?.candles.length).toBeLessThanOrEqual(6);
   });
 
   it("should resample daily candles to monthly", () => {
@@ -81,8 +81,8 @@ describe("createMtfContext", () => {
 
     expect(monthlyDataset).toBeDefined();
     // Should have about 3 monthly candles
-    expect(monthlyDataset!.candles.length).toBeGreaterThanOrEqual(2);
-    expect(monthlyDataset!.candles.length).toBeLessThanOrEqual(4);
+    expect(monthlyDataset?.candles.length).toBeGreaterThanOrEqual(2);
+    expect(monthlyDataset?.candles.length).toBeLessThanOrEqual(4);
   });
 
   it("should create multiple timeframe datasets", () => {
@@ -109,9 +109,9 @@ describe("createMtfContext", () => {
     const context = createMtfContext(candles, ["weekly"]);
 
     const weeklyDataset = context.datasets.get("weekly");
-    expect(weeklyDataset!.indicators).toBeDefined();
+    expect(weeklyDataset?.indicators).toBeDefined();
     // indicators is Record<string, unknown>, not Map
-    expect(typeof weeklyDataset!.indicators).toBe("object");
+    expect(typeof weeklyDataset?.indicators).toBe("object");
   });
 });
 
@@ -258,7 +258,7 @@ describe("getMtfIndicator / setMtfIndicator", () => {
       "weekly",
       "rsi_14",
     );
-    expect(result![0].value).toBe(60);
+    expect(result?.[0].value).toBe(60);
   });
 });
 

@@ -1,21 +1,21 @@
 import { describe, expect, it } from "vitest";
+import type { NormalizedCandle } from "../../../types";
 import {
+  BENCHMARK_CACHE_KEY,
+  mansfieldRSAbove,
+  mansfieldRSBelow,
+  outperformanceAbove,
+  outperformanceBelow,
   rsAbove,
   rsBelow,
-  rsRising,
   rsFalling,
   rsNewHigh,
   rsNewLow,
   rsRatingAbove,
   rsRatingBelow,
-  mansfieldRSAbove,
-  mansfieldRSBelow,
-  outperformanceAbove,
-  outperformanceBelow,
+  rsRising,
   setBenchmark,
-  BENCHMARK_CACHE_KEY,
 } from "../relative-strength";
-import type { NormalizedCandle } from "../../../types";
 
 // Fixed base time for consistent alignment between stock and benchmark
 const BASE_TIME = new Date(2024, 0, 1).getTime();

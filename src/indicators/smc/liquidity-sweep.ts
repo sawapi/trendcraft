@@ -29,7 +29,8 @@ function createSweep(params: {
   sweepDepthPercent: number;
   recovered: boolean;
 }): LiquiditySweep {
-  const { type, sweptLevel, sweepExtreme, sweepIndex, sweepTime, sweepDepthPercent, recovered } = params;
+  const { type, sweptLevel, sweepExtreme, sweepIndex, sweepTime, sweepDepthPercent, recovered } =
+    params;
   return {
     type,
     sweptLevel,
@@ -137,8 +138,7 @@ export function liquiditySweep(
 
   if (swingPeriod < 1) throw new Error("swingPeriod must be at least 1");
   if (maxRecoveryBars < 1) throw new Error("maxRecoveryBars must be at least 1");
-  if (maxTrackedSweeps < 1)
-    throw new Error("maxTrackedSweeps must be at least 1");
+  if (maxTrackedSweeps < 1) throw new Error("maxTrackedSweeps must be at least 1");
   if (minSweepDepth < 0) throw new Error("minSweepDepth must be non-negative");
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
@@ -235,10 +235,7 @@ export function liquiditySweep(
           sweep.recoveredIndex = i;
           sweep.recoveredTime = candle.time;
           recoveredThisBar.push(sweep);
-        } else if (
-          sweep.type === "bearish" &&
-          candle.close < sweep.sweptLevel
-        ) {
+        } else if (sweep.type === "bearish" && candle.close < sweep.sweptLevel) {
           sweep.recovered = true;
           sweep.recoveredIndex = i;
           sweep.recoveredTime = candle.time;

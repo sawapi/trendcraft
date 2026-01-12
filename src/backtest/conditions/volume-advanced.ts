@@ -7,9 +7,9 @@
  * - Volume trend confirmation
  */
 
+import { sma } from "../../indicators/moving-average/sma";
 import { cmf as calcCmf } from "../../indicators/volume/cmf";
 import { obv as calcObv } from "../../indicators/volume/obv";
-import { sma } from "../../indicators/moving-average/sma";
 import { volumeAnomaly as calcVolumeAnomaly } from "../../indicators/volume/volume-anomaly";
 import { volumeProfileSeries } from "../../indicators/volume/volume-profile";
 import { volumeTrend as calcVolumeTrend } from "../../indicators/volume/volume-trend";
@@ -492,9 +492,7 @@ export function cmfAbove(threshold = 0, period = 20): PresetCondition {
     type: "preset",
     name: `cmfAbove(${threshold})`,
     evaluate: (indicators, candle, index, candles) => {
-      let cmfData = indicators[cacheKey] as
-        | { time: number; value: number | null }[]
-        | undefined;
+      let cmfData = indicators[cacheKey] as { time: number; value: number | null }[] | undefined;
 
       if (!cmfData) {
         cmfData = calcCmf(candles, { period });
@@ -532,9 +530,7 @@ export function cmfBelow(threshold = 0, period = 20): PresetCondition {
     type: "preset",
     name: `cmfBelow(${threshold})`,
     evaluate: (indicators, candle, index, candles) => {
-      let cmfData = indicators[cacheKey] as
-        | { time: number; value: number | null }[]
-        | undefined;
+      let cmfData = indicators[cacheKey] as { time: number; value: number | null }[] | undefined;
 
       if (!cmfData) {
         cmfData = calcCmf(candles, { period });
@@ -578,9 +574,7 @@ export function obvRising(period = 10): PresetCondition {
     evaluate: (indicators, candle, index, candles) => {
       if (index < period) return false;
 
-      let obvData = indicators[cacheKey] as
-        | { time: number; value: number }[]
-        | undefined;
+      let obvData = indicators[cacheKey] as { time: number; value: number }[] | undefined;
 
       if (!obvData) {
         obvData = calcObv(candles);
@@ -623,9 +617,7 @@ export function obvFalling(period = 10): PresetCondition {
     evaluate: (indicators, candle, index, candles) => {
       if (index < period) return false;
 
-      let obvData = indicators[cacheKey] as
-        | { time: number; value: number }[]
-        | undefined;
+      let obvData = indicators[cacheKey] as { time: number; value: number }[] | undefined;
 
       if (!obvData) {
         obvData = calcObv(candles);

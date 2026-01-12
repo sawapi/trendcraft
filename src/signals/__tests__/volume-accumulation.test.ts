@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest";
-import { volumeAccumulation } from "../volume-accumulation";
+import { describe, expect, it } from "vitest";
 import type { NormalizedCandle } from "../../types";
+import { volumeAccumulation } from "../volume-accumulation";
 
 // Helper to create test candles
 function createCandles(volumes: number[], startTime = 0): NormalizedCandle[] {
@@ -24,9 +24,21 @@ describe("volumeAccumulation", () => {
   it("should detect upward volume accumulation", () => {
     // Create clearly increasing volumes
     const volumes = [
-      100, 100, 100, 100, 100, // baseline
-      120, 150, 180, 220, 260, // increasing
-      300, 350, 400, 450, 500, // strongly increasing
+      100,
+      100,
+      100,
+      100,
+      100, // baseline
+      120,
+      150,
+      180,
+      220,
+      260, // increasing
+      300,
+      350,
+      400,
+      450,
+      500, // strongly increasing
     ];
     const candles = createCandles(volumes);
     const result = volumeAccumulation(candles, {
@@ -99,9 +111,20 @@ describe("volumeAccumulation", () => {
   it("should respect minConsecutiveDays parameter", () => {
     // Create pattern: flat, then increasing
     const volumes = [
-      100, 100, 100, 100, 100, 100, 100, // flat
-      150, 200, 250, 300, // short increase
-      100, 100, 100, // flat again
+      100,
+      100,
+      100,
+      100,
+      100,
+      100,
+      100, // flat
+      150,
+      200,
+      250,
+      300, // short increase
+      100,
+      100,
+      100, // flat again
     ];
     const candles = createCandles(volumes);
 
@@ -133,8 +156,17 @@ describe("volumeAccumulation", () => {
   it("should track consecutive days correctly", () => {
     // Strong upward trend
     const volumes = [
-      100, 100, 100, // baseline
-      150, 200, 250, 300, 350, 400, 450, 500, // strong increase
+      100,
+      100,
+      100, // baseline
+      150,
+      200,
+      250,
+      300,
+      350,
+      400,
+      450,
+      500, // strong increase
     ];
     const candles = createCandles(volumes);
     const result = volumeAccumulation(candles, {

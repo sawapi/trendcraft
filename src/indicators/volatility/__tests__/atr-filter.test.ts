@@ -269,7 +269,7 @@ describe("atr-filter", () => {
         result.failing.find((s) => s.ticker === "TEST.T");
 
       expect(stock).toBeDefined();
-      expect(stock!.atrPercent).toBeGreaterThan(0);
+      expect(stock?.atrPercent).toBeGreaterThan(0);
     });
   });
 });

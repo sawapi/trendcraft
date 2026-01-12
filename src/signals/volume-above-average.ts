@@ -65,11 +65,7 @@ export function volumeAboveAverage(
   candles: Candle[] | NormalizedCandle[],
   options: VolumeAboveAverageOptions = {},
 ): VolumeAboveAverageSignal[] {
-  const {
-    period = 20,
-    minRatio = 1.0,
-    minConsecutiveDays = 3,
-  } = options;
+  const { period = 20, minRatio = 1.0, minConsecutiveDays = 3 } = options;
 
   if (period < 2) {
     throw new Error("Volume above average period must be at least 2");

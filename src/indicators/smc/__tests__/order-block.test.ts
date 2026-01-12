@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { NormalizedCandle } from "../../../types";
-import {
-  orderBlock,
-  getActiveOrderBlocks,
-  getNearestOrderBlock,
-} from "../order-block";
+import { getActiveOrderBlocks, getNearestOrderBlock, orderBlock } from "../order-block";
 
 const makeCandles = (
   data: Array<{ o: number; h: number; l: number; c: number; v?: number }>,
@@ -58,9 +54,7 @@ describe("orderBlock", () => {
         // OB should have high and low of the candle
         expect(obBar.value.newOrderBlock.high).toBeGreaterThan(0);
         expect(obBar.value.newOrderBlock.low).toBeGreaterThan(0);
-        expect(obBar.value.newOrderBlock.high).toBeGreaterThan(
-          obBar.value.newOrderBlock.low,
-        );
+        expect(obBar.value.newOrderBlock.high).toBeGreaterThan(obBar.value.newOrderBlock.low);
       }
     });
   });
@@ -104,9 +98,7 @@ describe("orderBlock", () => {
       const result = orderBlock(candles, { swingPeriod: 1, partialMitigation: true });
 
       // Check if any OB was mitigated
-      const mitigationBar = result.find(
-        (r) => r.value.mitigatedThisBar.length > 0,
-      );
+      const mitigationBar = result.find((r) => r.value.mitigatedThisBar.length > 0);
       expect(mitigationBar).toBeDefined();
       expect(mitigationBar?.value.mitigatedThisBar[0].mitigated).toBe(true);
     });
@@ -149,9 +141,7 @@ describe("orderBlock", () => {
       const lastBar = result[result.length - 1];
 
       // The mitigated OB should not be in the active list
-      const bullishOBs = lastBar.value.activeOrderBlocks.filter(
-        (ob) => ob.type === "bullish",
-      );
+      const bullishOBs = lastBar.value.activeOrderBlocks.filter((ob) => ob.type === "bullish");
       expect(bullishOBs.every((ob) => !ob.mitigated)).toBe(true);
     });
   });

@@ -719,7 +719,7 @@ export function createSupportResistanceLines(
         {
           xAxis: dates[line.endIdx],
           yAxis: line.price,
-          lineStyle: { color: color + "80", width: 1, type: "dashed" as LineType },
+          lineStyle: { color: `${color}80`, width: 1, type: "dashed" as LineType },
           label: { show: false, position, formatter: "", color, fontSize: 10 },
         },
         { xAxis: dates[dataLength - 1], yAxis: line.price },
@@ -809,9 +809,10 @@ export function updateRangeBoundEventsList(
             return `<span class="rb-event breakout-risk" title="Range Score: ${scoreStr}">▼ Risk↓ [${scoreStr}] ${formatDate(e.time)}</span>`;
           case "range_broken":
             return `<span class="rb-event trending" title="Range Score: ${scoreStr}">◆ Broken ${formatDate(e.time)}</span>`;
-          case "trending":
+          case "trending": {
             const reason = e.trendReason || "unknown";
             return `<span class="rb-event trending" title="Range Score: ${scoreStr}, Reason: ${reason}">→ ${reason} [${scoreStr}] ${formatDate(e.time)}</span>`;
+          }
           default:
             return "";
         }

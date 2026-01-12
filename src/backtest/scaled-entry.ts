@@ -543,9 +543,8 @@ function applySlippage(price: number, slippage: number, direction: "buy" | "sell
   const slippageMultiplier = slippage / 100;
   if (direction === "buy") {
     return price * (1 + slippageMultiplier);
-  } else {
-    return price * (1 - slippageMultiplier);
   }
+  return price * (1 - slippageMultiplier);
 }
 
 /**
@@ -579,7 +578,7 @@ function calculateStats(
   // Calculate Sharpe Ratio
   const avgReturn = returns.reduce((sum, r) => sum + r, 0) / returns.length;
   const stdReturn = Math.sqrt(
-    returns.reduce((sum, r) => sum + Math.pow(r - avgReturn, 2), 0) / returns.length,
+    returns.reduce((sum, r) => sum + (r - avgReturn) ** 2, 0) / returns.length,
   );
   const sharpeRatio = stdReturn > 0 ? (avgReturn / stdReturn) * Math.sqrt(252) : 0;
 

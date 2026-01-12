@@ -1,6 +1,17 @@
 import * as TrendCraft from "trendcraft";
-import type { NormalizedCandle, Series } from "trendcraft";
-import { DEFAULT_INDICATOR_PARAMS, type IndicatorParams, type IndicatorSnapshot, type MarketContext } from "../types";
+import type {
+  LiquiditySweepValue,
+  NormalizedCandle,
+  OrderBlockValue,
+  PatternSignal,
+  Series,
+} from "trendcraft";
+import {
+  DEFAULT_INDICATOR_PARAMS,
+  type IndicatorParams,
+  type IndicatorSnapshot,
+  type MarketContext,
+} from "../types";
 
 export interface IndicatorData {
   // 移動平均
@@ -72,6 +83,15 @@ export interface IndicatorData {
 
   // MFI
   mfi?: (number | null)[];
+
+  // SMC Order Block
+  orderBlockData?: OrderBlockValue[];
+
+  // SMC Liquidity Sweep
+  liquiditySweepData?: LiquiditySweepValue[];
+
+  // Price Patterns
+  detectedPatterns?: PatternSignal[];
 }
 
 // Helper to extract values from Series
@@ -82,7 +102,7 @@ function extractValues<T>(series: Series<T>): T[] {
 export function calculateIndicators(
   candles: NormalizedCandle[],
   enabledIndicators: string[],
-  params: IndicatorParams = DEFAULT_INDICATOR_PARAMS
+  params: IndicatorParams = DEFAULT_INDICATOR_PARAMS,
 ): IndicatorData {
   const result: IndicatorData = {};
 
@@ -237,6 +257,73 @@ export function calculateIndicators(
     result.mfi = extractValues(series);
   }
 
+  // ========== SMC系 ==========
+
+  if (enabledIndicators.includes("orderBlock")) {
+    const series = TrendCraft.orderBlock(candles, {
+      swingPeriod: p.obSwingPeriod!,
+      minVolumeRatio: p.obMinVolumeRatio!,
+      maxActiveOBs: p.obMaxActiveOBs!,
+    });
+    result.orderBlockData = series.map((item) => item.value);
+  }
+
+  if (enabledIndicators.includes("liquiditySweep")) {
+    const series = TrendCraft.liquiditySweep(candles, {
+      swingPeriod: p.lsSwingPeriod!,
+      maxRecoveryBars: p.lsMaxRecoveryBars!,
+      minSweepDepth: p.lsMinSweepDepth!,
+    });
+    result.liquiditySweepData = series.map((item) => item.value);
+  }
+
+  // ========== パターン認識 ==========
+
+  const patterns: PatternSignal[] = [];
+
+  if (enabledIndicators.includes("doubleTopBottom")) {
+    const tops = TrendCraft.doubleTop(candles, {
+      tolerance: p.dtTolerance!,
+      minDistance: p.dtMinDistance!,
+      maxDistance: p.dtMaxDistance!,
+      minMiddleDepth: p.dtMinMiddleDepth!,
+      swingLookback: p.dtSwingLookback!,
+    });
+    const bottoms = TrendCraft.doubleBottom(candles, {
+      tolerance: p.dtTolerance!,
+      minDistance: p.dtMinDistance!,
+      maxDistance: p.dtMaxDistance!,
+      minMiddleDepth: p.dtMinMiddleDepth!,
+      swingLookback: p.dtSwingLookback!,
+    });
+    patterns.push(...tops, ...bottoms);
+  }
+
+  if (enabledIndicators.includes("headShoulders")) {
+    const hs = TrendCraft.headAndShoulders(candles, {
+      shoulderTolerance: p.hsShoulderTolerance!,
+      maxNecklineSlope: p.hsMaxNecklineSlope!,
+    });
+    const ihs = TrendCraft.inverseHeadAndShoulders(candles, {
+      shoulderTolerance: p.hsShoulderTolerance!,
+      maxNecklineSlope: p.hsMaxNecklineSlope!,
+    });
+    patterns.push(...hs, ...ihs);
+  }
+
+  if (enabledIndicators.includes("cupHandle")) {
+    const cups = TrendCraft.cupWithHandle(candles, {
+      minCupDepth: p.chMinCupDepth!,
+      maxCupDepth: p.chMaxCupDepth!,
+      minCupLength: p.chMinCupLength!,
+    });
+    patterns.push(...cups);
+  }
+
+  if (patterns.length > 0) {
+    result.detectedPatterns = patterns;
+  }
+
   return result;
 }
 
@@ -245,7 +332,7 @@ export function calculateIndicators(
  */
 export function getIndicatorSnapshot(
   indicatorData: IndicatorData,
-  index: number
+  index: number,
 ): IndicatorSnapshot {
   return {
     sma5: indicatorData.sma5?.[index] ?? null,
@@ -275,7 +362,7 @@ export function getIndicatorSnapshot(
 export function analyzeMarketContext(
   candles: NormalizedCandle[],
   index: number,
-  indicatorData: IndicatorData
+  indicatorData: IndicatorData,
 ): MarketContext {
   const currentCandle = candles[index];
   const price = currentCandle.close;
@@ -333,9 +420,11 @@ export function analyzeMarketContext(
   let trendStrength: "strong" | "moderate" | "weak" = "weak";
 
   if (indicatorData.sma25 && index >= 5) {
-    const recentSma25 = indicatorData.sma25.slice(index - 5, index + 1).filter((v): v is number => v != null);
+    const recentSma25 = indicatorData.sma25
+      .slice(index - 5, index + 1)
+      .filter((v): v is number => v != null);
     if (recentSma25.length >= 5) {
-      const slope = (recentSma25[recentSma25.length - 1] - recentSma25[0]) / recentSma25[0] * 100;
+      const slope = ((recentSma25[recentSma25.length - 1] - recentSma25[0]) / recentSma25[0]) * 100;
 
       if (slope > 2) {
         trend = "uptrend";
@@ -351,8 +440,14 @@ export function analyzeMarketContext(
   }
 
   // regime（機械可読用enum）
-  const regime: "TREND_UP" | "TREND_DOWN" | "RANGE" =
-    trend === "uptrend" ? "TREND_UP" : trend === "downtrend" ? "TREND_DOWN" : "RANGE";
+  let regime: "TREND_UP" | "TREND_DOWN" | "RANGE";
+  if (trend === "uptrend") {
+    regime = "TREND_UP";
+  } else if (trend === "downtrend") {
+    regime = "TREND_DOWN";
+  } else {
+    regime = "RANGE";
+  }
 
   // confidence（0-1、ADXベースまたはtrendStrengthから推定）
   let confidence: number;
@@ -361,8 +456,13 @@ export function analyzeMarketContext(
     confidence = Math.min(adx / 50, 1);
   } else {
     // ADXがない場合はtrendStrengthから推定
-    confidence =
-      trendStrength === "strong" ? 0.8 : trendStrength === "moderate" ? 0.5 : 0.3;
+    if (trendStrength === "strong") {
+      confidence = 0.8;
+    } else if (trendStrength === "moderate") {
+      confidence = 0.5;
+    } else {
+      confidence = 0.3;
+    }
   }
 
   // RSIゾーン

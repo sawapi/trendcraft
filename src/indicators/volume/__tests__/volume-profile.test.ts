@@ -283,8 +283,8 @@ describe("volumeProfileSeries", () => {
       for (let i = 9; i < result.length; i++) {
         const profile = result[i].value;
         expect(profile).not.toBeNull();
-        expect(profile!.poc).toBeGreaterThan(0);
-        expect(profile!.levels.length).toBeGreaterThan(0);
+        expect(profile?.poc).toBeGreaterThan(0);
+        expect(profile?.levels.length).toBeGreaterThan(0);
       }
     });
 

@@ -38,9 +38,8 @@ export function bollingerBreakout(
 
       if (band === "upper") {
         return bb.upper !== null && candle.close > bb.upper;
-      } else {
-        return bb.lower !== null && candle.close < bb.lower;
       }
+      return bb.lower !== null && candle.close < bb.lower;
     },
   };
 }
@@ -76,9 +75,8 @@ export function bollingerTouch(band: "upper" | "lower", period = 20, stdDev = 2)
 
       if (band === "upper") {
         return candle.high >= bb.upper - tolerance && candle.close <= bb.upper;
-      } else {
-        return candle.low <= bb.lower + tolerance && candle.close >= bb.lower;
       }
+      return candle.low <= bb.lower + tolerance && candle.close >= bb.lower;
     },
   };
 }

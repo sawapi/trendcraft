@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import { useSimulatorStore } from "../store/simulatorStore";
 
 export function useKeyboardShortcuts() {
@@ -14,25 +14,22 @@ export function useKeyboardShortcuts() {
     (event: KeyboardEvent) => {
       // ハンドラ内で最新の状態を取得
       const state = useSimulatorStore.getState();
-      const { phase, isPlaying, symbols, activeSymbolId, commonDateRange, currentDateIndex } = state;
+      const { phase, isPlaying, symbols, activeSymbolId, commonDateRange, currentDateIndex } =
+        state;
 
       // アクティブ銘柄のデータを取得
-      const activeSymbol = symbols.find(s => s.id === activeSymbolId) || symbols[0];
+      const activeSymbol = symbols.find((s) => s.id === activeSymbolId) || symbols[0];
       const positions = activeSymbol?.positions || [];
 
       // Ignore if user is typing in an input or textarea
       const target = event.target as HTMLElement;
-      if (
-        target.tagName === "INPUT" ||
-        target.tagName === "TEXTAREA" ||
-        target.isContentEditable
-      ) {
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) {
         return;
       }
 
       // タブ切り替えショートカット (Ctrl/Cmd + 数字)
       if ((event.ctrlKey || event.metaKey) && !event.shiftKey) {
-        const num = parseInt(event.key);
+        const num = Number.parseInt(event.key);
         if (num >= 1 && num <= 9 && num <= symbols.length) {
           event.preventDefault();
           switchSymbol(symbols[num - 1].id);
@@ -76,7 +73,6 @@ export function useKeyboardShortcuts() {
         }
       }
 
-
       // Only handle other shortcuts during running phase
       if (phase !== "running") return;
 
@@ -115,9 +111,7 @@ export function useKeyboardShortcuts() {
         case "B":
           if (!isPlaying) {
             event.preventDefault();
-            const buyBtn = document.querySelector(
-              ".trade-buttons .buy-btn"
-            ) as HTMLButtonElement;
+            const buyBtn = document.querySelector(".trade-buttons .buy-btn") as HTMLButtonElement;
             if (buyBtn && !buyBtn.disabled) {
               buyBtn.focus();
               buyBtn.click();
@@ -130,7 +124,7 @@ export function useKeyboardShortcuts() {
           if (hasPosition && !isPlaying) {
             event.preventDefault();
             const sellAllBtn = document.querySelector(
-              ".trade-buttons .sell-all"
+              ".trade-buttons .sell-all",
             ) as HTMLButtonElement;
             if (sellAllBtn && !sellAllBtn.disabled) {
               sellAllBtn.focus();
@@ -143,7 +137,7 @@ export function useKeyboardShortcuts() {
           break;
       }
     },
-    [togglePlay, stepForward, stepBackward, switchSymbol, nextSymbol, previousSymbol]
+    [togglePlay, stepForward, stepBackward, switchSymbol, nextSymbol, previousSymbol],
   );
 
   useEffect(() => {

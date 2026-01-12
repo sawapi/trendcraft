@@ -4,26 +4,24 @@ import type { AlertType } from "../types";
 
 const AUTO_DISMISS_MS = 5000; // 5秒で自動消去
 
-// アラートタイプごとのスタイルとアイコンを取得
+const ALERT_STYLES: Record<AlertType, { className: string; icon: string }> = {
+  STOP_LOSS_WARNING: { className: "warning", icon: "⚠️" },
+  TAKE_PROFIT_REACHED: { className: "info", icon: "🎯" },
+  TRAILING_STOP_HIT: { className: "info", icon: "🎯" },
+  ORDER_EXECUTED: { className: "info", icon: "🎯" },
+  VOLUME_SPIKE_AVERAGE: { className: "volume-avg", icon: "📊" },
+  VOLUME_SPIKE_BREAKOUT: { className: "volume-breakout", icon: "🚀" },
+  VOLUME_ACCUMULATION: { className: "volume-accumulation", icon: "📈" },
+  VOLUME_ABOVE_AVERAGE: { className: "volume-accumulation", icon: "📈" },
+  VOLUME_MA_CROSS: { className: "volume-ma-cross", icon: "⚡" },
+  CMF_ACCUMULATION: { className: "info", icon: "💰" },
+  CMF_DISTRIBUTION: { className: "warning", icon: "📤" },
+  OBV_RISING: { className: "info", icon: "📈" },
+  OBV_FALLING: { className: "warning", icon: "📉" },
+};
+
 function getAlertStyle(type: AlertType): { className: string; icon: string } {
-  switch (type) {
-    case "STOP_LOSS_WARNING":
-      return { className: "warning", icon: "⚠️" };
-    case "TAKE_PROFIT_REACHED":
-    case "TRAILING_STOP_HIT":
-    case "ORDER_EXECUTED":
-      return { className: "info", icon: "🎯" };
-    case "VOLUME_SPIKE_AVERAGE":
-      return { className: "volume-avg", icon: "📊" };
-    case "VOLUME_SPIKE_BREAKOUT":
-      return { className: "volume-breakout", icon: "🚀" };
-    case "VOLUME_ACCUMULATION":
-      return { className: "volume-accumulation", icon: "📈" };
-    case "VOLUME_MA_CROSS":
-      return { className: "volume-ma-cross", icon: "⚡" };
-    default:
-      return { className: "info", icon: "ℹ️" };
-  }
+  return ALERT_STYLES[type];
 }
 
 export function AlertBanner() {
@@ -47,7 +45,7 @@ export function AlertBanner() {
     });
 
     // 削除されたアラートのタイマーをクリア
-    const currentAlertIds = new Set(alerts.map(a => a.id));
+    const currentAlertIds = new Set(alerts.map((a) => a.id));
     timerMap.forEach((timer, id) => {
       if (!currentAlertIds.has(id)) {
         clearTimeout(timer);
@@ -63,13 +61,11 @@ export function AlertBanner() {
       {alerts.map((alert) => {
         const style = getAlertStyle(alert.type);
         return (
-          <div
-            key={alert.id}
-            className={`alert-banner ${style.className}`}
-          >
+          <div key={alert.id} className={`alert-banner ${style.className}`}>
             <span className="alert-icon">{style.icon}</span>
             <span className="alert-message">{alert.message}</span>
             <button
+              type="button"
               className="alert-dismiss"
               onClick={() => dismissAlert(alert.id)}
               title="閉じる"

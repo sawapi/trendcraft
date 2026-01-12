@@ -31,9 +31,7 @@ export function VolumeSpikeSettings({ isInDialog = false }: VolumeSpikeSettingsP
           <input
             type="checkbox"
             checked={volumeSpikeSettings.averageVolumeEnabled}
-            onChange={(e) =>
-              setVolumeSpikeSettings({ averageVolumeEnabled: e.target.checked })
-            }
+            onChange={(e) => setVolumeSpikeSettings({ averageVolumeEnabled: e.target.checked })}
           />
           <span>平均出来高突破検知</span>
         </label>
@@ -85,9 +83,7 @@ export function VolumeSpikeSettings({ isInDialog = false }: VolumeSpikeSettingsP
           <input
             type="checkbox"
             checked={volumeSpikeSettings.breakoutVolumeEnabled}
-            onChange={(e) =>
-              setVolumeSpikeSettings({ breakoutVolumeEnabled: e.target.checked })
-            }
+            onChange={(e) => setVolumeSpikeSettings({ breakoutVolumeEnabled: e.target.checked })}
           />
           <span>N日最高出来高突破検知</span>
         </label>
@@ -121,18 +117,14 @@ export function VolumeSpikeSettings({ isInDialog = false }: VolumeSpikeSettingsP
           <input
             type="checkbox"
             checked={volumeSpikeSettings.accumulationEnabled}
-            onChange={(e) =>
-              setVolumeSpikeSettings({ accumulationEnabled: e.target.checked })
-            }
+            onChange={(e) => setVolumeSpikeSettings({ accumulationEnabled: e.target.checked })}
           />
           <span>増加傾向検知（回帰）</span>
         </label>
 
         {volumeSpikeSettings.accumulationEnabled && (
           <div className="setting-inputs">
-            <div className="setting-hint">
-              線形回帰で出来高の増加傾向を検知
-            </div>
+            <div className="setting-hint">線形回帰で出来高の増加傾向を検知</div>
             <div className="setting-input">
               <label>計算期間</label>
               <div className="input-with-unit">
@@ -195,18 +187,14 @@ export function VolumeSpikeSettings({ isInDialog = false }: VolumeSpikeSettingsP
           <input
             type="checkbox"
             checked={volumeSpikeSettings.aboveAverageEnabled}
-            onChange={(e) =>
-              setVolumeSpikeSettings({ aboveAverageEnabled: e.target.checked })
-            }
+            onChange={(e) => setVolumeSpikeSettings({ aboveAverageEnabled: e.target.checked })}
           />
           <span>高水準継続検知（平均比較）</span>
         </label>
 
         {volumeSpikeSettings.aboveAverageEnabled && (
           <div className="setting-inputs">
-            <div className="setting-hint">
-              N日平均を超える出来高が連続
-            </div>
+            <div className="setting-hint">N日平均を超える出来高が連続</div>
             <div className="setting-input">
               <label>平均計算期間</label>
               <div className="input-with-unit">
@@ -269,9 +257,7 @@ export function VolumeSpikeSettings({ isInDialog = false }: VolumeSpikeSettingsP
           <input
             type="checkbox"
             checked={volumeSpikeSettings.maCrossEnabled}
-            onChange={(e) =>
-              setVolumeSpikeSettings({ maCrossEnabled: e.target.checked })
-            }
+            onChange={(e) => setVolumeSpikeSettings({ maCrossEnabled: e.target.checked })}
           />
           <span>出来高MAクロス検知</span>
         </label>
@@ -322,9 +308,7 @@ export function VolumeSpikeSettings({ isInDialog = false }: VolumeSpikeSettingsP
           <input
             type="checkbox"
             checked={volumeSpikeSettings.cmfEnabled}
-            onChange={(e) =>
-              setVolumeSpikeSettings({ cmfEnabled: e.target.checked })
-            }
+            onChange={(e) => setVolumeSpikeSettings({ cmfEnabled: e.target.checked })}
           />
           <span>CMF蓄積/分配検知</span>
         </label>
@@ -363,12 +347,10 @@ export function VolumeSpikeSettings({ isInDialog = false }: VolumeSpikeSettingsP
                     })
                   }
                 />
-                <span className="unit"></span>
+                <span className="unit" />
               </div>
             </div>
-            <div className="setting-hint">
-              CMF &gt; 閾値: 蓄積 / CMF &lt; -閾値: 分配
-            </div>
+            <div className="setting-hint">CMF &gt; 閾値: 蓄積 / CMF &lt; -閾値: 分配</div>
           </div>
         )}
       </div>
@@ -379,9 +361,7 @@ export function VolumeSpikeSettings({ isInDialog = false }: VolumeSpikeSettingsP
           <input
             type="checkbox"
             checked={volumeSpikeSettings.obvEnabled}
-            onChange={(e) =>
-              setVolumeSpikeSettings({ obvEnabled: e.target.checked })
-            }
+            onChange={(e) => setVolumeSpikeSettings({ obvEnabled: e.target.checked })}
           />
           <span>OBVトレンド検知</span>
         </label>
@@ -405,9 +385,7 @@ export function VolumeSpikeSettings({ isInDialog = false }: VolumeSpikeSettingsP
                 <span className="unit">日</span>
               </div>
             </div>
-            <div className="setting-hint">
-              OBV上昇傾向: 買い優勢 / OBV下降傾向: 売り優勢
-            </div>
+            <div className="setting-hint">OBV上昇傾向: 買い優勢 / OBV下降傾向: 売り優勢</div>
           </div>
         )}
       </div>
@@ -419,9 +397,7 @@ export function VolumeSpikeSettings({ isInDialog = false }: VolumeSpikeSettingsP
           <input
             type="checkbox"
             checked={volumeSpikeSettings.showRealtimeAlerts}
-            onChange={(e) =>
-              setVolumeSpikeSettings({ showRealtimeAlerts: e.target.checked })
-            }
+            onChange={(e) => setVolumeSpikeSettings({ showRealtimeAlerts: e.target.checked })}
           />
           <span>リアルタイムアラート</span>
         </label>
@@ -429,9 +405,7 @@ export function VolumeSpikeSettings({ isInDialog = false }: VolumeSpikeSettingsP
           <input
             type="checkbox"
             checked={volumeSpikeSettings.showChartMarkers}
-            onChange={(e) =>
-              setVolumeSpikeSettings({ showChartMarkers: e.target.checked })
-            }
+            onChange={(e) => setVolumeSpikeSettings({ showChartMarkers: e.target.checked })}
           />
           <span>チャートマーカー</span>
         </label>
@@ -446,15 +420,10 @@ export function VolumeSpikeSettings({ isInDialog = false }: VolumeSpikeSettingsP
 
   return (
     <div className="volume-spike-settings panel">
-      <button
-        className="settings-toggle"
-        onClick={() => setIsExpanded(!isExpanded)}
-      >
+      <button className="settings-toggle" onClick={() => setIsExpanded(!isExpanded)}>
         <span className="toggle-icon">{isExpanded ? "▼" : "▶"}</span>
         <span className="toggle-label">出来高スパイク検知</span>
-        <span className="toggle-status">
-          {enabledCount > 0 ? `${enabledCount}件ON` : "OFF"}
-        </span>
+        <span className="toggle-status">{enabledCount > 0 ? `${enabledCount}件ON` : "OFF"}</span>
       </button>
 
       {isExpanded && content}

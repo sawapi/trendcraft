@@ -160,7 +160,7 @@ describe("TrendCraft", () => {
       const sma3 = tc.get("sma3");
 
       expect(sma3).toBeDefined();
-      expect(sma3![2].value).toBe(20);
+      expect(sma3?.[2].value).toBe(20);
     });
 
     it("should return undefined for unknown key", () => {

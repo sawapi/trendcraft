@@ -1,19 +1,19 @@
 import { describe, expect, it } from "vitest";
+import type { NormalizedCandle } from "../../../types";
 import {
-  patternDetected,
-  patternConfirmed,
-  anyBullishPattern,
   anyBearishPattern,
-  patternConfidenceAbove,
+  anyBullishPattern,
   anyPatternConfidenceAbove,
-  patternWithinBars,
-  doubleTopDetected,
+  cupHandleDetected,
   doubleBottomDetected,
+  doubleTopDetected,
   headShouldersDetected,
   inverseHeadShouldersDetected,
-  cupHandleDetected,
+  patternConfidenceAbove,
+  patternConfirmed,
+  patternDetected,
+  patternWithinBars,
 } from "../patterns";
-import type { NormalizedCandle } from "../../../types";
 
 /**
  * Create a candle at a given price

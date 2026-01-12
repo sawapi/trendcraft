@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { loadSession, clearSession, type SessionData } from "../hooks/useSessionPersistence";
+import { useEffect, useState } from "react";
+import { type SessionData, clearSession, loadSession } from "../hooks/useSessionPersistence";
 
 interface SessionManagerProps {
   onRestore: (session: SessionData) => void;
@@ -72,10 +72,10 @@ export function SessionManager({ onRestore, onDiscard }: SessionManagerProps) {
         </p>
 
         <div className="session-actions">
-          <button className="btn-primary" onClick={handleRestore}>
+          <button type="button" className="btn-primary" onClick={handleRestore}>
             復元する
           </button>
-          <button className="btn-secondary" onClick={handleDiscard}>
+          <button type="button" className="btn-secondary" onClick={handleDiscard}>
             破棄して新規開始
           </button>
         </div>

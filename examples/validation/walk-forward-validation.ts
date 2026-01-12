@@ -553,7 +553,7 @@ async function main() {
 
   // Run full period backtest
   console.log();
-  process.stdout.write(`  全期間 ... `);
+  process.stdout.write("  全期間 ... ");
   const fullPeriodResult = runPeriodBacktest(0, candles, strategy);
   console.log(
     `OK (${fullPeriodResult.metrics.tradeCount}取引, Sharpe ${fullPeriodResult.metrics.sharpe.toFixed(2)})`,

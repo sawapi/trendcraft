@@ -34,8 +34,7 @@ export type EvaluateConditionOptions = {
 export class MtfContextRequiredError extends Error {
   constructor(conditionName: string) {
     super(
-      `MTF condition "${conditionName}" requires MTF context. ` +
-        `Use withMtf() to enable multi-timeframe support, or set strictMtf: false to silently skip.`,
+      `MTF condition "${conditionName}" requires MTF context. Use withMtf() to enable multi-timeframe support, or set strictMtf: false to silently skip.`,
     );
     this.name = "MtfContextRequiredError";
   }

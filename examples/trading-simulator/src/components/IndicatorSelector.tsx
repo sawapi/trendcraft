@@ -1,10 +1,10 @@
 import { useState } from "react";
 import {
-  INDICATOR_DEFINITIONS,
   CATEGORY_LABELS,
-  INDICATOR_PARAM_CONFIGS,
+  CATEGORY_ORDER,
   DEFAULT_INDICATOR_PARAMS,
-  type IndicatorCategory,
+  INDICATOR_DEFINITIONS,
+  INDICATOR_PARAM_CONFIGS,
   type IndicatorParams,
 } from "../types";
 
@@ -16,15 +16,13 @@ interface Props {
   isInDialog?: boolean;
 }
 
-// カテゴリ順序
-const CATEGORY_ORDER: IndicatorCategory[] = [
-  "trend",
-  "volatility",
-  "momentum",
-  "volume",
-];
-
-export function IndicatorSelector({ selected, onChange, params, onParamsChange, isInDialog = false }: Props) {
+export function IndicatorSelector({
+  selected,
+  onChange,
+  params,
+  onParamsChange,
+  isInDialog = false,
+}: Props) {
   const [expandedIndicator, setExpandedIndicator] = useState<string | null>(null);
 
   const handleToggle = (key: string) => {
@@ -60,7 +58,7 @@ export function IndicatorSelector({ selected, onChange, params, onParamsChange, 
 
   return (
     <div className={`indicator-selector ${isInDialog ? "in-dialog" : ""}`}>
-      {!isInDialog && <label className="section-label">表示するインジケーター</label>}
+      {!isInDialog && <span className="section-label">表示するインジケーター</span>}
       {groupedIndicators.map(({ category, label, indicators }) => (
         <div key={category} className="indicator-category">
           <div className="category-header">{label}</div>
@@ -101,17 +99,22 @@ export function IndicatorSelector({ selected, onChange, params, onParamsChange, 
                     <div className="param-panel">
                       {paramConfigs.map((config) => (
                         <div key={config.key} className="param-row">
-                          <label>{config.label}</label>
-                          <input
-                            type="number"
-                            min={config.min}
-                            max={config.max}
-                            step={config.step}
-                            value={params[config.key] ?? DEFAULT_INDICATOR_PARAMS[config.key]}
-                            onChange={(e) =>
-                              handleParamChange(config.key, parseFloat(e.target.value) || config.min)
-                            }
-                          />
+                          <label>
+                            {config.label}
+                            <input
+                              type="number"
+                              min={config.min}
+                              max={config.max}
+                              step={config.step}
+                              value={params[config.key] ?? DEFAULT_INDICATOR_PARAMS[config.key]}
+                              onChange={(e) =>
+                                handleParamChange(
+                                  config.key,
+                                  Number.parseFloat(e.target.value) || config.min,
+                                )
+                              }
+                            />
+                          </label>
                         </div>
                       ))}
                     </div>

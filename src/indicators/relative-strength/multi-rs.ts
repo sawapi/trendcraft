@@ -77,9 +77,7 @@ export function rankByRS(
   // Calculate RS for each symbol
   const entries = Array.from(symbolsData.entries());
   for (const [symbol, candles] of entries) {
-    const normalized = isNormalized(candles)
-      ? candles
-      : normalizeCandles(candles);
+    const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
 
     if (normalized.length <= period) {
       continue; // Skip if insufficient data
@@ -110,9 +108,7 @@ export function rankByRS(
     symbol: r.symbol,
     rs: r.rs,
     rank: index + 1,
-    percentile: Math.round(
-      ((results.length - index - 1) / (results.length - 1)) * 100,
-    ),
+    percentile: Math.round(((results.length - index - 1) / (results.length - 1)) * 100),
     performance: r.performance,
   }));
 

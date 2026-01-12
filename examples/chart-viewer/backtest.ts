@@ -291,7 +291,7 @@ export function runBacktest(candles: NormalizedCandle[], mainChart: echarts.ECha
     updateChartWithTradeMarkers(candles, mainChart);
   } catch (error) {
     console.error("Backtest error:", error);
-    alert("Backtest failed: " + (error instanceof Error ? error.message : "Unknown error"));
+    alert(`Backtest failed: ${error instanceof Error ? error.message : "Unknown error"}`);
   }
 }
 
@@ -394,8 +394,8 @@ function updateEquityChart(candles: NormalizedCandle[]): void {
       axisLabel: {
         color: "#888",
         formatter: (value: number) => {
-          if (value >= 1e6) return (value / 1e6).toFixed(1) + "M";
-          if (value >= 1e3) return (value / 1e3).toFixed(0) + "K";
+          if (value >= 1e6) return `${(value / 1e6).toFixed(1)}M`;
+          if (value >= 1e3) return `${(value / 1e3).toFixed(0)}K`;
           return value.toString();
         },
       },

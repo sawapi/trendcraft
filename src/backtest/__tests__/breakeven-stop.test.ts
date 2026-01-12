@@ -461,12 +461,12 @@ describe("Breakeven Stop", () => {
       // First trade should be partial at +5%
       const partialTrade = result.trades.find((t) => t.isPartial);
       expect(partialTrade).toBeDefined();
-      expect(partialTrade!.returnPercent).toBeGreaterThan(0);
+      expect(partialTrade?.returnPercent).toBeGreaterThan(0);
 
       // Second trade should be breakeven exit
       const finalTrade = result.trades.find((t) => !t.isPartial);
       expect(finalTrade).toBeDefined();
-      expect(finalTrade!.exitPrice).toBeCloseTo(100, 0);
+      expect(finalTrade?.exitPrice).toBeCloseTo(100, 0);
     });
 
     it("should work with next-bar-open fill mode", () => {

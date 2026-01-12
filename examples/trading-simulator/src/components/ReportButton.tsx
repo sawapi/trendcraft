@@ -1,15 +1,15 @@
-import { useCallback, useState, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useSimulatorStore } from "../store/simulatorStore";
 import {
-  generateMarkdownReport,
-  generateCSVReport,
-  generateJSONReport,
-  generatePortfolioMarkdownReport,
-  generatePortfolioCSVReport,
-  generatePortfolioJSONReport,
-  downloadReport,
   type PortfolioReportData,
   type SymbolReportData,
+  downloadReport,
+  generateCSVReport,
+  generateJSONReport,
+  generateMarkdownReport,
+  generatePortfolioCSVReport,
+  generatePortfolioJSONReport,
+  generatePortfolioMarkdownReport,
 } from "../utils/reportGenerator";
 
 type ExportFormat = "markdown" | "csv" | "json";
@@ -34,7 +34,7 @@ export function ReportButton() {
   // アクティブ銘柄を取得
   const activeSymbol = useMemo(() => {
     if (!activeSymbolId) return symbols[0] || null;
-    return symbols.find(s => s.id === activeSymbolId) || null;
+    return symbols.find((s) => s.id === activeSymbolId) || null;
   }, [symbols, activeSymbolId]);
 
   const fileName = activeSymbol?.fileName || "";
@@ -47,7 +47,7 @@ export function ReportButton() {
     if (!activeSymbol || !commonDateRange || currentDateIndex < 0) return 0;
     const targetDate = commonDateRange.dates[currentDateIndex];
     if (!targetDate) return 0;
-    return activeSymbol.allCandles.findIndex(c => c.time === targetDate);
+    return activeSymbol.allCandles.findIndex((c) => c.time === targetDate);
   }, [activeSymbol, commonDateRange, currentDateIndex]);
 
   const [showFormats, setShowFormats] = useState(false);
@@ -55,7 +55,7 @@ export function ReportButton() {
 
   // 全銘柄に取引があるかチェック
   const hasAnyTrades = useMemo(() => {
-    return symbols.some(s => s.tradeHistory.length > 0);
+    return symbols.some((s) => s.tradeHistory.length > 0);
   }, [symbols]);
 
   // 複数銘柄があるかチェック
@@ -99,7 +99,7 @@ export function ReportButton() {
 
   // ポートフォリオレポートデータを取得
   const getPortfolioReportData = useCallback((): PortfolioReportData => {
-    const symbolReports: SymbolReportData[] = symbols.map(symbol => {
+    const symbolReports: SymbolReportData[] = symbols.map((symbol) => {
       const symStartIndex = symbol.startIndex || 0;
       const simStartIndex = symStartIndex + initialCandleCount;
 
@@ -108,7 +108,7 @@ export function ReportButton() {
       if (commonDateRange && currentDateIndex >= 0) {
         const targetDate = commonDateRange.dates[currentDateIndex];
         if (targetDate) {
-          symCurrentIndex = symbol.allCandles.findIndex(c => c.time === targetDate);
+          symCurrentIndex = symbol.allCandles.findIndex((c) => c.time === targetDate);
           if (symCurrentIndex < 0) symCurrentIndex = 0;
         }
       }
@@ -159,60 +159,38 @@ export function ReportButton() {
   const handleExport = useCallback(
     (format: ExportFormat) => {
       const date = new Date().toISOString().split("T")[0];
+      const isPortfolio = reportScope === "portfolio";
+      const prefix = isPortfolio ? "portfolio" : fileName.replace(/\.[^/.]+$/, "");
 
-      if (reportScope === "portfolio") {
-        // ポートフォリオレポート
-        const data = getPortfolioReportData();
-        switch (format) {
-          case "markdown": {
-            const content = generatePortfolioMarkdownReport(data);
-            downloadReport(content, `portfolio-report-${date}.md`, "text/markdown;charset=utf-8");
-            break;
+      const generators = isPortfolio
+        ? {
+            markdown: () => generatePortfolioMarkdownReport(getPortfolioReportData()),
+            csv: () => generatePortfolioCSVReport(getPortfolioReportData()),
+            json: () => generatePortfolioJSONReport(getPortfolioReportData()),
           }
-          case "csv": {
-            const content = generatePortfolioCSVReport(data);
-            downloadReport(content, `portfolio-trades-${date}.csv`, "text/csv;charset=utf-8");
-            break;
-          }
-          case "json": {
-            const content = generatePortfolioJSONReport(data);
-            downloadReport(content, `portfolio-report-${date}.json`, "application/json;charset=utf-8");
-            break;
-          }
-        }
-      } else {
-        // 個別レポート
-        const data = getReportData();
-        const symbolName = fileName.replace(/\.[^/.]+$/, "");
-        switch (format) {
-          case "markdown": {
-            const content = generateMarkdownReport(data);
-            downloadReport(content, `${symbolName}-report-${date}.md`, "text/markdown;charset=utf-8");
-            break;
-          }
-          case "csv": {
-            const content = generateCSVReport(data);
-            downloadReport(content, `${symbolName}-trades-${date}.csv`, "text/csv;charset=utf-8");
-            break;
-          }
-          case "json": {
-            const content = generateJSONReport(data);
-            downloadReport(content, `${symbolName}-report-${date}.json`, "application/json;charset=utf-8");
-            break;
-          }
-        }
-      }
+        : {
+            markdown: () => generateMarkdownReport(getReportData()),
+            csv: () => generateCSVReport(getReportData()),
+            json: () => generateJSONReport(getReportData()),
+          };
+
+      const fileInfo = {
+        markdown: { ext: "md", mime: "text/markdown;charset=utf-8", suffix: "report" },
+        csv: { ext: "csv", mime: "text/csv;charset=utf-8", suffix: "trades" },
+        json: { ext: "json", mime: "application/json;charset=utf-8", suffix: "report" },
+      };
+
+      const info = fileInfo[format];
+      const content = generators[format]();
+      downloadReport(content, `${prefix}-${info.suffix}-${date}.${info.ext}`, info.mime);
       setShowFormats(false);
     },
-    [reportScope, getReportData, getPortfolioReportData, fileName]
+    [reportScope, getReportData, getPortfolioReportData, fileName],
   );
 
   const handleReset = useCallback(() => {
     const totalTrades = symbols.reduce((sum, s) => sum + s.tradeHistory.length, 0);
-    if (
-      totalTrades > 0 &&
-      !confirm("シミュレーションをリセットしますか？取引履歴は失われます。")
-    ) {
+    if (totalTrades > 0 && !confirm("シミュレーションをリセットしますか？取引履歴は失われます。")) {
       return;
     }
     reset();
@@ -225,6 +203,7 @@ export function ReportButton() {
     <div className="report-panel">
       <div className="export-dropdown">
         <button
+          type="button"
           className="btn-primary"
           onClick={() => setShowFormats(!showFormats)}
           disabled={!canExport}
@@ -240,12 +219,14 @@ export function ReportButton() {
             {hasMultipleSymbols && (
               <div className="report-scope-selector">
                 <button
+                  type="button"
                   className={`scope-btn ${reportScope === "individual" ? "active" : ""}`}
                   onClick={() => setReportScope("individual")}
                 >
                   個別({fileName})
                 </button>
                 <button
+                  type="button"
                   className={`scope-btn ${reportScope === "portfolio" ? "active" : ""}`}
                   onClick={() => setReportScope("portfolio")}
                 >
@@ -253,22 +234,22 @@ export function ReportButton() {
                 </button>
               </div>
             )}
-            <button onClick={() => handleExport("markdown")}>
+            <button type="button" onClick={() => handleExport("markdown")}>
               <span className="material-icons">description</span>
               Markdown
             </button>
-            <button onClick={() => handleExport("csv")}>
+            <button type="button" onClick={() => handleExport("csv")}>
               <span className="material-icons">table_chart</span>
               CSV
             </button>
-            <button onClick={() => handleExport("json")}>
+            <button type="button" onClick={() => handleExport("json")}>
               <span className="material-icons">data_object</span>
               JSON
             </button>
           </div>
         )}
       </div>
-      <button className="btn-secondary" onClick={handleReset}>
+      <button type="button" className="btn-secondary" onClick={handleReset}>
         {phase === "finished" ? "新しいシミュレーション" : "リセット"}
       </button>
     </div>

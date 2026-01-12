@@ -6,11 +6,7 @@
  */
 
 import type { BacktestResult, Trade } from "../types";
-import type {
-  MonteCarloOptions,
-  MonteCarloResult,
-  MetricStatistics,
-} from "../types/optimization";
+import type { MetricStatistics, MonteCarloOptions, MonteCarloResult } from "../types/optimization";
 
 /**
  * Default options
@@ -36,7 +32,7 @@ function shuffleArray<T>(array: T[], random: () => number): T[] {
  * Simple seeded random number generator (Mulberry32)
  */
 function createSeededRandom(seed: number): () => number {
-  return function () {
+  return () => {
     let t = (seed += 0x6d2b79f5);
     t = Math.imul(t ^ (t >>> 15), t | 1);
     t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
@@ -69,8 +65,7 @@ export function calculateStatistics(values: number[]): MetricStatistics {
   const mean = values.reduce((sum, v) => sum + v, 0) / n;
 
   // Standard deviation
-  const variance =
-    values.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / n;
+  const variance = values.reduce((sum, v) => sum + (v - mean) ** 2, 0) / n;
   const stdDev = Math.sqrt(variance);
 
   // Percentiles using linear interpolation
@@ -100,7 +95,7 @@ export function calculateStatistics(values: number[]): MetricStatistics {
  */
 function recalculateMetricsFromTrades(
   trades: Trade[],
-  initialCapital: number
+  initialCapital: number,
 ): {
   sharpe: number;
   maxDrawdown: number;
@@ -135,22 +130,16 @@ function recalculateMetricsFromTrades(
 
   // Calculate Sharpe ratio from trade returns
   const meanReturn = returns.reduce((sum, r) => sum + r, 0) / returns.length;
-  const variance =
-    returns.reduce((sum, r) => sum + Math.pow(r - meanReturn, 2), 0) /
-    returns.length;
+  const variance = returns.reduce((sum, r) => sum + (r - meanReturn) ** 2, 0) / returns.length;
   const stdDev = Math.sqrt(variance);
   // Annualize assuming average trade length (simplified)
   const sharpe =
-    stdDev > 0
-      ? (meanReturn / stdDev) * Math.sqrt(252 / Math.max(1, trades.length))
-      : 0;
+    stdDev > 0 ? (meanReturn / stdDev) * Math.sqrt(252 / Math.max(1, trades.length)) : 0;
 
   // Calculate profit factor
-  const profits = trades
-    .filter((t) => t.return > 0)
-    .reduce((sum, t) => sum + t.return, 0);
+  const profits = trades.filter((t) => t.return > 0).reduce((sum, t) => sum + t.return, 0);
   const losses = Math.abs(
-    trades.filter((t) => t.return <= 0).reduce((sum, t) => sum + t.return, 0)
+    trades.filter((t) => t.return <= 0).reduce((sum, t) => sum + t.return, 0),
   );
   const profitFactor = losses > 0 ? profits / losses : profits > 0 ? 999.99 : 0;
 
@@ -168,11 +157,10 @@ function recalculateMetricsFromTrades(
  */
 export function runMonteCarloSimulation(
   result: BacktestResult,
-  options: MonteCarloOptions = {}
+  options: MonteCarloOptions = {},
 ): MonteCarloResult {
   const simulations = options.simulations ?? DEFAULT_OPTIONS.simulations;
-  const confidenceLevel =
-    options.confidenceLevel ?? DEFAULT_OPTIONS.confidenceLevel;
+  const confidenceLevel = options.confidenceLevel ?? DEFAULT_OPTIONS.confidenceLevel;
   const { progressCallback } = options;
 
   const trades = result.trades;
@@ -183,8 +171,7 @@ export function runMonteCarloSimulation(
   }
 
   // Create random generator
-  const random =
-    options.seed !== undefined ? createSeededRandom(options.seed) : Math.random;
+  const random = options.seed !== undefined ? createSeededRandom(options.seed) : Math.random;
 
   // Collect simulation results
   const sharpeValues: number[] = [];
@@ -225,10 +212,8 @@ export function runMonteCarloSimulation(
   const originalPF = result.profitFactor;
 
   // Calculate p-values (probability of achieving >= original by chance)
-  const pValueSharpe =
-    sharpeValues.filter((v) => v >= originalSharpe).length / simulations;
-  const pValueReturns =
-    returnValues.filter((v) => v >= originalReturn).length / simulations;
+  const pValueSharpe = sharpeValues.filter((v) => v >= originalSharpe).length / simulations;
+  const pValueReturns = returnValues.filter((v) => v >= originalReturn).length / simulations;
 
   // Calculate confidence intervals
   const alpha = 1 - confidenceLevel;
@@ -297,8 +282,7 @@ export function runMonteCarloSimulation(
  * Format Monte Carlo result for display
  */
 export function formatMonteCarloResult(result: MonteCarloResult): string {
-  const { originalResult, statistics, pValue, confidenceInterval, assessment } =
-    result;
+  const { originalResult, statistics, pValue, confidenceInterval, assessment } = result;
 
   const lines = [
     "=== Monte Carlo Simulation Results ===",

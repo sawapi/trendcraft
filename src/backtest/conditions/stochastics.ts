@@ -69,7 +69,7 @@ export function stochCrossUp(kPeriod = 14, dPeriod = 3): PresetCondition {
 
   return {
     type: "preset",
-    name: `stochCrossUp()`,
+    name: "stochCrossUp()",
     evaluate: (indicators, candle, index, candles) => {
       if (index < 1) return false;
 
@@ -109,7 +109,7 @@ export function stochCrossDown(kPeriod = 14, dPeriod = 3): PresetCondition {
 
   return {
     type: "preset",
-    name: `stochCrossDown()`,
+    name: "stochCrossDown()",
     evaluate: (indicators, candle, index, candles) => {
       if (index < 1) return false;
 

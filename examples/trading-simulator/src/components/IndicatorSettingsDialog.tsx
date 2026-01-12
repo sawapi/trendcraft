@@ -12,33 +12,41 @@ type TabType = "chart" | "volume";
 
 export function IndicatorSettingsDialog({ isOpen, onClose }: IndicatorSettingsDialogProps) {
   const [activeTab, setActiveTab] = useState<TabType>("chart");
-  const {
-    enabledIndicators,
-    setEnabledIndicators,
-    indicatorParams,
-    setIndicatorParams,
-  } = useSimulatorStore();
+  const { enabledIndicators, setEnabledIndicators, indicatorParams, setIndicatorParams } =
+    useSimulatorStore();
 
   if (!isOpen) return null;
 
   return (
-    <div className="indicator-dialog-overlay" onClick={onClose}>
-      <div className="indicator-dialog" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="indicator-dialog-overlay"
+      onClick={onClose}
+      onKeyDown={(e) => e.key === "Escape" && onClose()}
+      role="dialog"
+      aria-modal="true"
+    >
+      <div
+        className="indicator-dialog"
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
+      >
         <header className="indicator-dialog-header">
           <h3>インジケーター設定</h3>
-          <button className="dialog-close-btn" onClick={onClose}>
+          <button type="button" className="dialog-close-btn" onClick={onClose}>
             ×
           </button>
         </header>
 
         <div className="dialog-tabs">
           <button
+            type="button"
             className={`dialog-tab ${activeTab === "chart" ? "active" : ""}`}
             onClick={() => setActiveTab("chart")}
           >
             チャート表示
           </button>
           <button
+            type="button"
             className={`dialog-tab ${activeTab === "volume" ? "active" : ""}`}
             onClick={() => setActiveTab("volume")}
           >
@@ -56,9 +64,7 @@ export function IndicatorSettingsDialog({ isOpen, onClose }: IndicatorSettingsDi
               isInDialog
             />
           )}
-          {activeTab === "volume" && (
-            <VolumeSpikeSettings isInDialog />
-          )}
+          {activeTab === "volume" && <VolumeSpikeSettings isInDialog />}
         </div>
       </div>
     </div>

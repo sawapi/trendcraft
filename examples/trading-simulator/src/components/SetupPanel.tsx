@@ -1,14 +1,14 @@
-import { useState, useMemo, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSimulatorStore } from "../store/simulatorStore";
-import { IndicatorSelector } from "./IndicatorSelector";
-import { formatDate } from "../utils/fileParser";
 import { DEFAULT_INDICATOR_PARAMS, type IndicatorParams } from "../types";
+import { formatDate } from "../utils/fileParser";
+import { IndicatorSelector } from "./IndicatorSelector";
 
 export function SetupPanel() {
   const { symbols, activeSymbolId, startSimulation, reset } = useSimulatorStore();
 
   // アクティブ銘柄のデータを取得
-  const activeSymbol = symbols.find(s => s.id === activeSymbolId);
+  const activeSymbol = symbols.find((s) => s.id === activeSymbolId);
   const allCandles = activeSymbol?.allCandles || [];
   const fileName = activeSymbol?.fileName || "";
 
@@ -17,15 +17,15 @@ export function SetupPanel() {
     if (symbols.length === 0) return { min: "", max: "", defaultStart: "" };
 
     // 各銘柄の日付セットを作成
-    const allDateSets = symbols.map(s => new Set(s.allCandles.map(c => c.time)));
+    const allDateSets = symbols.map((s) => new Set(s.allCandles.map((c) => c.time)));
 
     // 共通日付を抽出
     let commonDates: number[];
     if (symbols.length === 1) {
-      commonDates = symbols[0].allCandles.map(c => c.time);
+      commonDates = symbols[0].allCandles.map((c) => c.time);
     } else {
       const firstDates = [...allDateSets[0]];
-      commonDates = firstDates.filter(d => allDateSets.every(set => set.has(d)));
+      commonDates = firstDates.filter((d) => allDateSets.every((set) => set.has(d)));
     }
 
     if (commonDates.length === 0) return { min: "", max: "", defaultStart: "" };
@@ -121,7 +121,9 @@ export function SetupPanel() {
       {symbols.length > 1 && (
         <div className="common-date-info">
           <span className="label">共通期間:</span>
-          <span className="value">{commonDateRange.min} - {commonDateRange.max}</span>
+          <span className="value">
+            {commonDateRange.min} - {commonDateRange.max}
+          </span>
           <span className="hint">（{symbols.length}銘柄の共通日付範囲でシミュレーション）</span>
         </div>
       )}

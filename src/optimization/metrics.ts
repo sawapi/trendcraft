@@ -25,8 +25,7 @@ export function calculateSharpeRatio(
   const meanReturn = returns.reduce((sum, r) => sum + r, 0) / returns.length;
 
   // Calculate standard deviation
-  const variance =
-    returns.reduce((sum, r) => sum + Math.pow(r - meanReturn, 2), 0) / returns.length;
+  const variance = returns.reduce((sum, r) => sum + (r - meanReturn) ** 2, 0) / returns.length;
   const stdDev = Math.sqrt(variance);
 
   if (stdDev === 0) return 0;
@@ -119,7 +118,7 @@ export function annualizeReturn(
     return -100;
   }
 
-  const annualizedDecimal = Math.pow(1 + totalReturn, 1 / years) - 1;
+  const annualizedDecimal = (1 + totalReturn) ** (1 / years) - 1;
   return annualizedDecimal * 100;
 }
 

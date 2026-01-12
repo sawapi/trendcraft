@@ -12,22 +12,19 @@
  */
 
 import { describe, expect, it } from "vitest";
-import type { Trade, ExitReason } from "../../types";
+import type { ExitReason, Trade } from "../../types";
 import {
-  calculateTradeStats,
+  analyzeAllTrades,
   analyzeByExitReason,
   analyzeByHoldingPeriod,
   analyzeByTime,
   analyzeMfeMae,
   analyzeStreaks,
-  analyzeAllTrades,
+  calculateTradeStats,
 } from "../edge-analysis";
 
 // Helper to create trades
-const makeTrade = (
-  returnPercent: number,
-  options: Partial<Trade> = {},
-): Trade => ({
+const makeTrade = (returnPercent: number, options: Partial<Trade> = {}): Trade => ({
   entryTime: options.entryTime ?? Date.now(),
   entryPrice: 100,
   exitTime: options.exitTime ?? Date.now() + 86400000 * (options.holdingDays ?? 5),
@@ -72,12 +69,7 @@ describe("calculateTradeStats", () => {
   });
 
   it("should calculate average returns", () => {
-    const trades = [
-      makeTrade(10),
-      makeTrade(-5),
-      makeTrade(15),
-      makeTrade(-10),
-    ];
+    const trades = [makeTrade(10), makeTrade(-5), makeTrade(15), makeTrade(-10)];
 
     const stats = calculateTradeStats(trades);
 
@@ -120,11 +112,7 @@ describe("calculateTradeStats", () => {
   });
 
   it("should handle all winning trades", () => {
-    const trades = [
-      makeTrade(10),
-      makeTrade(5),
-      makeTrade(15),
-    ];
+    const trades = [makeTrade(10), makeTrade(5), makeTrade(15)];
 
     const stats = calculateTradeStats(trades);
 
@@ -135,11 +123,7 @@ describe("calculateTradeStats", () => {
   });
 
   it("should handle all losing trades", () => {
-    const trades = [
-      makeTrade(-10),
-      makeTrade(-5),
-      makeTrade(-15),
-    ];
+    const trades = [makeTrade(-10), makeTrade(-5), makeTrade(-15)];
 
     const stats = calculateTradeStats(trades);
 
@@ -201,10 +185,7 @@ describe("analyzeByExitReason", () => {
   });
 
   it("should treat undefined exitReason as 'signal'", () => {
-    const trades = [
-      makeTrade(10),
-      makeTrade(5),
-    ];
+    const trades = [makeTrade(10), makeTrade(5)];
 
     const result = analyzeByExitReason(trades);
 
@@ -458,11 +439,7 @@ describe("analyzeStreaks", () => {
   });
 
   it("should handle all wins", () => {
-    const trades = [
-      makeTrade(10),
-      makeTrade(5),
-      makeTrade(3),
-    ];
+    const trades = [makeTrade(10), makeTrade(5), makeTrade(3)];
 
     const result = analyzeStreaks(trades);
 
@@ -473,10 +450,7 @@ describe("analyzeStreaks", () => {
   });
 
   it("should handle all losses", () => {
-    const trades = [
-      makeTrade(-10),
-      makeTrade(-5),
-    ];
+    const trades = [makeTrade(-10), makeTrade(-5)];
 
     const result = analyzeStreaks(trades);
 

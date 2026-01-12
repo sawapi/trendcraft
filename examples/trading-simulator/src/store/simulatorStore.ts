@@ -1,32 +1,45 @@
+import {
+  cmf,
+  obv,
+  volumeAboveAverage,
+  volumeAccumulation,
+  volumeAnomaly,
+  volumeBreakout,
+  volumeMaCross,
+} from "trendcraft";
 import { create } from "zustand";
 import type {
-  NormalizedCandle,
-  PlaybackSpeed,
-  SimulatorPhase,
-  Position,
-  PositionSummary,
-  Trade,
-  SimulationConfig,
-  YearHighLow,
-  PriceType,
+  Alert,
+  CommonDateRange,
+  DetectedVolumeSpike,
+  EquityPoint,
+  ExitReason,
+  ExitTrigger,
   IndicatorParams,
   IndicatorSnapshot,
   MarketContext,
-  ExitReason,
-  ExitTrigger,
-  Alert,
-  EquityPoint,
-  SymbolSession,
-  CommonDateRange,
-  PortfolioStats,
-  SymbolStats,
+  NormalizedCandle,
   PendingOrder,
+  PlaybackSpeed,
+  PortfolioStats,
+  Position,
+  PositionSummary,
+  PriceType,
+  SimulationConfig,
+  SimulatorPhase,
+  SymbolSession,
+  SymbolStats,
+  Trade,
   VolumeSpikeSettings,
-  DetectedVolumeSpike,
+  YearHighLow,
 } from "../types";
 import { DEFAULT_INDICATOR_PARAMS, DEFAULT_VOLUME_SPIKE_SETTINGS } from "../types";
-import { volumeAnomaly, volumeBreakout, volumeAccumulation, volumeAboveAverage, volumeMaCross, cmf, obv } from "trendcraft";
-import { calculateIndicators, getIndicatorSnapshot, analyzeMarketContext, type IndicatorData } from "../utils/indicators";
+import {
+  type IndicatorData,
+  analyzeMarketContext,
+  calculateIndicators,
+  getIndicatorSnapshot,
+} from "../utils/indicators";
 
 // =============================================
 // ヘルパー関数
@@ -40,7 +53,7 @@ function calculateCommonDateRange(symbols: SymbolSession[]): CommonDateRange | n
 
   if (symbols.length === 1) {
     // 単一銘柄の場合は全日付を使用
-    const dates = symbols[0].allCandles.map(c => c.time);
+    const dates = symbols[0].allCandles.map((c) => c.time);
     return {
       startDate: Math.min(...dates),
       endDate: Math.max(...dates),
@@ -49,11 +62,9 @@ function calculateCommonDateRange(symbols: SymbolSession[]): CommonDateRange | n
   }
 
   // 複数銘柄の場合は共通日付のみ
-  const allDateSets = symbols.map(s => new Set(s.allCandles.map(c => c.time)));
+  const allDateSets = symbols.map((s) => new Set(s.allCandles.map((c) => c.time)));
   const firstDates = [...allDateSets[0]];
-  const commonDates = firstDates.filter(d =>
-    allDateSets.every(set => set.has(d))
-  );
+  const commonDates = firstDates.filter((d) => allDateSets.every((set) => set.has(d)));
 
   if (commonDates.length === 0) return null;
 
@@ -69,7 +80,7 @@ function calculateCommonDateRange(symbols: SymbolSession[]): CommonDateRange | n
  * globalDateから銘柄のcurrentIndexを取得
  */
 function getSymbolCurrentIndex(symbol: SymbolSession, globalDate: number): number {
-  return symbol.allCandles.findIndex(c => c.time === globalDate);
+  return symbol.allCandles.findIndex((c) => c.time === globalDate);
 }
 
 /**
@@ -93,7 +104,7 @@ interface SimulatorState {
   // グローバル日付管理（全銘柄で同期）
   globalDate: number;
   commonDateRange: CommonDateRange | null;
-  currentDateIndex: number;  // commonDateRange.dates内のインデックス
+  currentDateIndex: number; // commonDateRange.dates内のインデックス
 
   // =============================================
   // 共有設定（全銘柄共通）
@@ -167,14 +178,25 @@ interface SimulatorState {
   stepForward: () => boolean;
   stepBackward: () => void;
   executeBuy: (shares: number, memo: string, priceType: PriceType) => void;
-  executeSell: (shares: number, memo: string, priceType: PriceType, exitReason: ExitReason, exitTrigger?: ExitTrigger) => void;
-  executeSellAll: (memo: string, priceType: PriceType, exitReason: ExitReason, exitTrigger?: ExitTrigger) => void;
+  executeSell: (
+    shares: number,
+    memo: string,
+    priceType: PriceType,
+    exitReason: ExitReason,
+    exitTrigger?: ExitTrigger,
+  ) => void;
+  executeSellAll: (
+    memo: string,
+    priceType: PriceType,
+    exitReason: ExitReason,
+    exitTrigger?: ExitTrigger,
+  ) => void;
 
   // 予約注文関連
   placePendingOrder: (order: Omit<PendingOrder, "id" | "createdAt">) => void;
   cancelPendingOrder: (orderId: string) => void;
   getPendingOrdersForSymbol: (symbolId: string) => PendingOrder[];
-  executePendingOrders: () => void;  // 内部用：stepForwardから呼ばれる
+  executePendingOrders: () => void; // 内部用：stepForwardから呼ばれる
   updatePositionMFEMAE: () => void;
   getNextCandle: () => NormalizedCandle | null;
   skip: () => void;
@@ -221,7 +243,7 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
   const getActiveSymbolInternal = (): SymbolSession | null => {
     const { symbols, activeSymbolId } = get();
     if (!activeSymbolId) return symbols[0] || null;
-    return symbols.find(s => s.id === activeSymbolId) || null;
+    return symbols.find((s) => s.id === activeSymbolId) || null;
   };
 
   // =============================================
@@ -238,7 +260,7 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
     const targetDate = commonDateRange.dates[currentDateIndex];
     if (!targetDate) return 0;
 
-    return symbol.allCandles.findIndex(c => c.time === targetDate);
+    return symbol.allCandles.findIndex((c) => c.time === targetDate);
   };
 
   return {
@@ -320,7 +342,7 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
         startIndex: 0,
       };
 
-      set(state => {
+      set((state) => {
         const newSymbols = [...state.symbols, newSession];
         return {
           symbols: newSymbols,
@@ -332,8 +354,8 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
     },
 
     closeSymbolSession: (symbolId) => {
-      set(state => {
-        const newSymbols = state.symbols.filter(s => s.id !== symbolId);
+      set((state) => {
+        const newSymbols = state.symbols.filter((s) => s.id !== symbolId);
         let newActiveId = state.activeSymbolId;
 
         // 閉じた銘柄がアクティブだった場合、次の銘柄をアクティブに
@@ -361,7 +383,7 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
       const { symbols, activeSymbolId } = get();
       if (symbols.length <= 1) return;
 
-      const currentIdx = symbols.findIndex(s => s.id === activeSymbolId);
+      const currentIdx = symbols.findIndex((s) => s.id === activeSymbolId);
       const nextIdx = (currentIdx + 1) % symbols.length;
       set({ activeSymbolId: symbols[nextIdx].id });
     },
@@ -370,7 +392,7 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
       const { symbols, activeSymbolId } = get();
       if (symbols.length <= 1) return;
 
-      const currentIdx = symbols.findIndex(s => s.id === activeSymbolId);
+      const currentIdx = symbols.findIndex((s) => s.id === activeSymbolId);
       const prevIdx = currentIdx <= 0 ? symbols.length - 1 : currentIdx - 1;
       set({ activeSymbolId: symbols[prevIdx].id });
     },
@@ -415,7 +437,7 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
       if (!commonDateRange || commonDateRange.dates.length === 0) return;
 
       // 開始日のインデックスを見つける
-      let startDateIdx = commonDateRange.dates.findIndex(d => d >= config.startDate);
+      let startDateIdx = commonDateRange.dates.findIndex((d) => d >= config.startDate);
       if (startDateIdx === -1) startDateIdx = 0;
 
       // 初期表示日数分前の日付から開始
@@ -425,23 +447,27 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
       // 各銘柄のインジケーターを計算
       const reportIndicators = new Set([
         ...config.enabledIndicators,
-        "sma25", "sma75", "rsi", "macd", "bb",
+        "sma25",
+        "sma75",
+        "rsi",
+        "macd",
+        "bb",
       ]);
 
-      const updatedSymbols = symbols.map(symbol => {
+      const updatedSymbols = symbols.map((symbol) => {
         const indicatorData = calculateIndicators(
           symbol.allCandles,
           Array.from(reportIndicators),
-          config.indicatorParams
+          config.indicatorParams,
         );
 
         // 銘柄固有のstartIndexを計算
         const startDate = commonDateRange.dates[initialIdx];
-        const symbolStartIdx = symbol.allCandles.findIndex(c => c.time === startDate);
+        const symbolStartIdx = symbol.allCandles.findIndex((c) => c.time === startDate);
 
         // 初期Equity Point
         const simStartDate = commonDateRange.dates[simStartDateIdx];
-        const simStartCandle = symbol.allCandles.find(c => c.time === simStartDate);
+        const simStartCandle = symbol.allCandles.find((c) => c.time === simStartDate);
 
         const initialEquityPoint: EquityPoint = {
           time: simStartCandle?.time || 0,
@@ -486,11 +512,18 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
 
     play: () => set({ isPlaying: true }),
     pause: () => set({ isPlaying: false }),
-    togglePlay: () => set(state => ({ isPlaying: !state.isPlaying })),
+    togglePlay: () => set((state) => ({ isPlaying: !state.isPlaying })),
     setSpeed: (speed) => set({ playbackSpeed: speed }),
 
     stepForward: () => {
-      const { currentDateIndex, commonDateRange, stopLossPercent, takeProfitPercent, trailingStopEnabled, alerts } = get();
+      const {
+        currentDateIndex,
+        commonDateRange,
+        stopLossPercent,
+        takeProfitPercent,
+        trailingStopEnabled,
+        alerts,
+      } = get();
 
       if (!commonDateRange) return false;
       if (currentDateIndex >= commonDateRange.dates.length - 1) {
@@ -529,30 +562,36 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
 
           // 損切りアラート
           if (candle.low <= stopLossPrice) {
-            const existingAlert = alerts.find(a => a.type === "STOP_LOSS_WARNING");
+            const existingAlert = alerts.find((a) => a.type === "STOP_LOSS_WARNING");
             if (!existingAlert) {
               set({
-                alerts: [...alerts, {
-                  id: generateId(),
-                  type: "STOP_LOSS_WARNING",
-                  message: `損切りライン(${stopLossPrice.toLocaleString()}円, -${stopLossPercent}%)に接触しました`,
-                  timestamp: Date.now(),
-                }],
+                alerts: [
+                  ...alerts,
+                  {
+                    id: generateId(),
+                    type: "STOP_LOSS_WARNING",
+                    message: `損切りライン(${stopLossPrice.toLocaleString()}円, -${stopLossPercent}%)に接触しました`,
+                    timestamp: Date.now(),
+                  },
+                ],
               });
             }
           }
 
           // 利確アラート
           if (candle.high >= takeProfitPrice) {
-            const existingAlert = alerts.find(a => a.type === "TAKE_PROFIT_REACHED");
+            const existingAlert = alerts.find((a) => a.type === "TAKE_PROFIT_REACHED");
             if (!existingAlert) {
               set({
-                alerts: [...get().alerts, {
-                  id: generateId(),
-                  type: "TAKE_PROFIT_REACHED",
-                  message: `利確ライン(${takeProfitPrice.toLocaleString()}円, +${takeProfitPercent}%)に到達しました`,
-                  timestamp: Date.now(),
-                }],
+                alerts: [
+                  ...get().alerts,
+                  {
+                    id: generateId(),
+                    type: "TAKE_PROFIT_REACHED",
+                    message: `利確ライン(${takeProfitPrice.toLocaleString()}円, +${takeProfitPercent}%)に到達しました`,
+                    timestamp: Date.now(),
+                  },
+                ],
               });
             }
           }
@@ -560,21 +599,24 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
           // トレーリングストップアラート
           if (trailingStopEnabled) {
             const trailingStopPrices = activeSymbol.positions
-              .filter(p => p.trailingStopPrice !== undefined)
-              .map(p => p.trailingStopPrice!);
+              .filter((p) => p.trailingStopPrice !== undefined)
+              .map((p) => p.trailingStopPrice!);
 
             if (trailingStopPrices.length > 0) {
               const minTrailingStop = Math.min(...trailingStopPrices);
               if (candle.low <= minTrailingStop) {
-                const existingAlert = get().alerts.find(a => a.type === "TRAILING_STOP_HIT");
+                const existingAlert = get().alerts.find((a) => a.type === "TRAILING_STOP_HIT");
                 if (!existingAlert) {
                   set({
-                    alerts: [...get().alerts, {
-                      id: generateId(),
-                      type: "TRAILING_STOP_HIT",
-                      message: `トレーリングストップ(${minTrailingStop.toLocaleString()}円)に到達しました`,
-                      timestamp: Date.now(),
-                    }],
+                    alerts: [
+                      ...get().alerts,
+                      {
+                        id: generateId(),
+                        type: "TRAILING_STOP_HIT",
+                        message: `トレーリングストップ(${minTrailingStop.toLocaleString()}円)に到達しました`,
+                        timestamp: Date.now(),
+                      },
+                    ],
                   });
                 }
               }
@@ -592,26 +634,31 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
         // 平均出来高スパイク検知（最新N+1日のみ）
         if (volSettings.averageVolumeEnabled && currentIdx >= volSettings.averageVolumePeriod) {
           const lookback = volSettings.averageVolumePeriod + 1;
-          const recentCandles = allCandles.slice(Math.max(0, currentIdx - lookback + 1), currentIdx + 1);
+          const recentCandles = allCandles.slice(
+            Math.max(0, currentIdx - lookback + 1),
+            currentIdx + 1,
+          );
           const anomalies = volumeAnomaly(recentCandles, {
             period: volSettings.averageVolumePeriod,
             highThreshold: volSettings.averageVolumeMultiplier,
           });
           const currentAnomaly = anomalies[anomalies.length - 1];
 
-          if (currentAnomaly && currentAnomaly.value.isAnomaly) {
-            const existingAlert = get().alerts.find(a =>
-              a.type === "VOLUME_SPIKE_AVERAGE" &&
-              Date.now() - a.timestamp < 3000
+          if (currentAnomaly?.value.isAnomaly) {
+            const existingAlert = get().alerts.find(
+              (a) => a.type === "VOLUME_SPIKE_AVERAGE" && Date.now() - a.timestamp < 3000,
             );
             if (!existingAlert) {
               set({
-                alerts: [...get().alerts, {
-                  id: generateId(),
-                  type: "VOLUME_SPIKE_AVERAGE",
-                  message: `出来高急増: ${currentAnomaly.value.ratio.toFixed(1)}倍 (${volSettings.averageVolumePeriod}日平均比)`,
-                  timestamp: Date.now(),
-                }],
+                alerts: [
+                  ...get().alerts,
+                  {
+                    id: generateId(),
+                    type: "VOLUME_SPIKE_AVERAGE",
+                    message: `出来高急増: ${currentAnomaly.value.ratio.toFixed(1)}倍 (${volSettings.averageVolumePeriod}日平均比)`,
+                    timestamp: Date.now(),
+                  },
+                ],
               });
             }
           }
@@ -620,27 +667,32 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
         // ブレイクアウト検知（最新N+1日のみ）
         if (volSettings.breakoutVolumeEnabled && currentIdx > volSettings.breakoutVolumePeriod) {
           const lookback = volSettings.breakoutVolumePeriod + 1;
-          const recentCandles = allCandles.slice(Math.max(0, currentIdx - lookback + 1), currentIdx + 1);
+          const recentCandles = allCandles.slice(
+            Math.max(0, currentIdx - lookback + 1),
+            currentIdx + 1,
+          );
           const breakouts = volumeBreakout(recentCandles, {
             period: volSettings.breakoutVolumePeriod,
           });
           // 最新のローソク足がブレイクアウトかチェック
           const currentCandle = allCandles[currentIdx];
-          const currentBreakout = breakouts.find(b => b.time === currentCandle.time);
+          const currentBreakout = breakouts.find((b) => b.time === currentCandle.time);
 
           if (currentBreakout) {
-            const existingAlert = get().alerts.find(a =>
-              a.type === "VOLUME_SPIKE_BREAKOUT" &&
-              Date.now() - a.timestamp < 3000
+            const existingAlert = get().alerts.find(
+              (a) => a.type === "VOLUME_SPIKE_BREAKOUT" && Date.now() - a.timestamp < 3000,
             );
             if (!existingAlert) {
               set({
-                alerts: [...get().alerts, {
-                  id: generateId(),
-                  type: "VOLUME_SPIKE_BREAKOUT",
-                  message: `出来高新高値: ${volSettings.breakoutVolumePeriod}日間の最高出来高を更新 (${currentBreakout.ratio.toFixed(1)}倍)`,
-                  timestamp: Date.now(),
-                }],
+                alerts: [
+                  ...get().alerts,
+                  {
+                    id: generateId(),
+                    type: "VOLUME_SPIKE_BREAKOUT",
+                    message: `出来高新高値: ${volSettings.breakoutVolumePeriod}日間の最高出来高を更新 (${currentBreakout.ratio.toFixed(1)}倍)`,
+                    timestamp: Date.now(),
+                  },
+                ],
               });
             }
           }
@@ -649,28 +701,33 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
         // 蓄積フェーズ検知（最新N日のみ計算）
         if (volSettings.accumulationEnabled && currentIdx > volSettings.accumulationPeriod) {
           const lookback = volSettings.accumulationPeriod + volSettings.accumulationMinDays + 5;
-          const recentCandles = allCandles.slice(Math.max(0, currentIdx - lookback + 1), currentIdx + 1);
+          const recentCandles = allCandles.slice(
+            Math.max(0, currentIdx - lookback + 1),
+            currentIdx + 1,
+          );
           const accumulations = volumeAccumulation(recentCandles, {
             period: volSettings.accumulationPeriod,
             minSlope: volSettings.accumulationMinSlope,
             minConsecutiveDays: volSettings.accumulationMinDays,
           });
           const currentCandle = allCandles[currentIdx];
-          const currentAccum = accumulations.find(a => a.time === currentCandle.time);
+          const currentAccum = accumulations.find((a) => a.time === currentCandle.time);
 
           if (currentAccum) {
-            const existingAlert = get().alerts.find(a =>
-              a.type === "VOLUME_ACCUMULATION" &&
-              Date.now() - a.timestamp < 3000
+            const existingAlert = get().alerts.find(
+              (a) => a.type === "VOLUME_ACCUMULATION" && Date.now() - a.timestamp < 3000,
             );
             if (!existingAlert) {
               set({
-                alerts: [...get().alerts, {
-                  id: generateId(),
-                  type: "VOLUME_ACCUMULATION",
-                  message: `蓄積フェーズ: 出来高上昇傾向 ${currentAccum.consecutiveDays}日継続`,
-                  timestamp: Date.now(),
-                }],
+                alerts: [
+                  ...get().alerts,
+                  {
+                    id: generateId(),
+                    type: "VOLUME_ACCUMULATION",
+                    message: `蓄積フェーズ: 出来高上昇傾向 ${currentAccum.consecutiveDays}日継続`,
+                    timestamp: Date.now(),
+                  },
+                ],
               });
             }
           }
@@ -679,28 +736,33 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
         // 高水準継続検知（平均比較ベース）
         if (volSettings.aboveAverageEnabled && currentIdx > volSettings.aboveAveragePeriod) {
           const lookback = volSettings.aboveAveragePeriod + volSettings.aboveAverageMinDays + 5;
-          const recentCandles = allCandles.slice(Math.max(0, currentIdx - lookback + 1), currentIdx + 1);
+          const recentCandles = allCandles.slice(
+            Math.max(0, currentIdx - lookback + 1),
+            currentIdx + 1,
+          );
           const aboveAvgSignals = volumeAboveAverage(recentCandles, {
             period: volSettings.aboveAveragePeriod,
             minRatio: volSettings.aboveAverageMinRatio,
             minConsecutiveDays: volSettings.aboveAverageMinDays,
           });
           const currentCandle = allCandles[currentIdx];
-          const currentAboveAvg = aboveAvgSignals.find(a => a.time === currentCandle.time);
+          const currentAboveAvg = aboveAvgSignals.find((a) => a.time === currentCandle.time);
 
           if (currentAboveAvg) {
-            const existingAlert = get().alerts.find(a =>
-              a.type === "VOLUME_ABOVE_AVERAGE" &&
-              Date.now() - a.timestamp < 3000
+            const existingAlert = get().alerts.find(
+              (a) => a.type === "VOLUME_ABOVE_AVERAGE" && Date.now() - a.timestamp < 3000,
             );
             if (!existingAlert) {
               set({
-                alerts: [...get().alerts, {
-                  id: generateId(),
-                  type: "VOLUME_ABOVE_AVERAGE",
-                  message: `高水準継続: 平均の${(currentAboveAvg.ratio * 100).toFixed(0)}%で ${currentAboveAvg.consecutiveDays}日継続`,
-                  timestamp: Date.now(),
-                }],
+                alerts: [
+                  ...get().alerts,
+                  {
+                    id: generateId(),
+                    type: "VOLUME_ABOVE_AVERAGE",
+                    message: `高水準継続: 平均の${(currentAboveAvg.ratio * 100).toFixed(0)}%で ${currentAboveAvg.consecutiveDays}日継続`,
+                    timestamp: Date.now(),
+                  },
+                ],
               });
             }
           }
@@ -709,27 +771,34 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
         // MAクロス検知（最新N日のみ計算）
         if (volSettings.maCrossEnabled && currentIdx > volSettings.maCrossLongPeriod) {
           const lookback = volSettings.maCrossLongPeriod + 10;
-          const recentCandles = allCandles.slice(Math.max(0, currentIdx - lookback + 1), currentIdx + 1);
+          const recentCandles = allCandles.slice(
+            Math.max(0, currentIdx - lookback + 1),
+            currentIdx + 1,
+          );
           const crosses = volumeMaCross(recentCandles, {
             shortPeriod: volSettings.maCrossShortPeriod,
             longPeriod: volSettings.maCrossLongPeriod,
           });
           const currentCandle = allCandles[currentIdx];
-          const currentCross = crosses.find(c => c.time === currentCandle.time && c.daysSinceCross === 1);
+          const currentCross = crosses.find(
+            (c) => c.time === currentCandle.time && c.daysSinceCross === 1,
+          );
 
           if (currentCross) {
-            const existingAlert = get().alerts.find(a =>
-              a.type === "VOLUME_MA_CROSS" &&
-              Date.now() - a.timestamp < 3000
+            const existingAlert = get().alerts.find(
+              (a) => a.type === "VOLUME_MA_CROSS" && Date.now() - a.timestamp < 3000,
             );
             if (!existingAlert) {
               set({
-                alerts: [...get().alerts, {
-                  id: generateId(),
-                  type: "VOLUME_MA_CROSS",
-                  message: `出来高MAクロス: 短期MA(${volSettings.maCrossShortPeriod})が長期MA(${volSettings.maCrossLongPeriod})を上抜け (${currentCross.ratio.toFixed(1)}倍)`,
-                  timestamp: Date.now(),
-                }],
+                alerts: [
+                  ...get().alerts,
+                  {
+                    id: generateId(),
+                    type: "VOLUME_MA_CROSS",
+                    message: `出来高MAクロス: 短期MA(${volSettings.maCrossShortPeriod})が長期MA(${volSettings.maCrossLongPeriod})を上抜け (${currentCross.ratio.toFixed(1)}倍)`,
+                    timestamp: Date.now(),
+                  },
+                ],
               });
             }
           }
@@ -738,7 +807,10 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
         // CMF蓄積/分配検知（状態変化時のみ通知）
         if (volSettings.cmfEnabled && currentIdx >= volSettings.cmfPeriod + 1) {
           const lookback = volSettings.cmfPeriod + 5;
-          const recentCandles = allCandles.slice(Math.max(0, currentIdx - lookback + 1), currentIdx + 1);
+          const recentCandles = allCandles.slice(
+            Math.max(0, currentIdx - lookback + 1),
+            currentIdx + 1,
+          );
           const cmfData = cmf(recentCandles, { period: volSettings.cmfPeriod });
           const currentCmf = cmfData[cmfData.length - 1];
           const prevCmf = cmfData[cmfData.length - 2];
@@ -747,30 +819,44 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
             const threshold = volSettings.cmfThreshold;
 
             // 現在と前日の状態を判定
-            const currentState = currentCmf.value > threshold ? "accumulation"
-              : currentCmf.value < -threshold ? "distribution" : "neutral";
-            const prevState = prevCmf.value > threshold ? "accumulation"
-              : prevCmf.value < -threshold ? "distribution" : "neutral";
+            const currentState =
+              currentCmf.value > threshold
+                ? "accumulation"
+                : currentCmf.value < -threshold
+                  ? "distribution"
+                  : "neutral";
+            const prevState =
+              prevCmf.value > threshold
+                ? "accumulation"
+                : prevCmf.value < -threshold
+                  ? "distribution"
+                  : "neutral";
 
             // 状態が変化した場合のみ通知
             if (currentState !== prevState) {
               if (currentState === "accumulation") {
                 set({
-                  alerts: [...get().alerts, {
-                    id: generateId(),
-                    type: "CMF_ACCUMULATION",
-                    message: `CMF蓄積フェーズ開始: CMF=${currentCmf.value.toFixed(3)} (閾値>${threshold})`,
-                    timestamp: Date.now(),
-                  }],
+                  alerts: [
+                    ...get().alerts,
+                    {
+                      id: generateId(),
+                      type: "CMF_ACCUMULATION",
+                      message: `CMF蓄積フェーズ開始: CMF=${currentCmf.value.toFixed(3)} (閾値>${threshold})`,
+                      timestamp: Date.now(),
+                    },
+                  ],
                 });
               } else if (currentState === "distribution") {
                 set({
-                  alerts: [...get().alerts, {
-                    id: generateId(),
-                    type: "CMF_DISTRIBUTION",
-                    message: `CMF分配フェーズ開始: CMF=${currentCmf.value.toFixed(3)} (閾値<${-threshold})`,
-                    timestamp: Date.now(),
-                  }],
+                  alerts: [
+                    ...get().alerts,
+                    {
+                      id: generateId(),
+                      type: "CMF_DISTRIBUTION",
+                      message: `CMF分配フェーズ開始: CMF=${currentCmf.value.toFixed(3)} (閾値<${-threshold})`,
+                      timestamp: Date.now(),
+                    },
+                  ],
                 });
               }
             }
@@ -780,7 +866,10 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
         // OBVトレンド検知（状態変化時のみ通知）
         if (volSettings.obvEnabled && currentIdx >= volSettings.obvPeriod + 1) {
           const lookback = volSettings.obvPeriod + 6;
-          const recentCandles = allCandles.slice(Math.max(0, currentIdx - lookback + 1), currentIdx + 1);
+          const recentCandles = allCandles.slice(
+            Math.max(0, currentIdx - lookback + 1),
+            currentIdx + 1,
+          );
           const obvData = obv(recentCandles);
 
           if (obvData.length >= volSettings.obvPeriod + 1) {
@@ -792,12 +881,18 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
             const prevObv = obvData[obvData.length - 2]?.value;
             const prevPastObv = obvData[obvData.length - volSettings.obvPeriod - 1]?.value;
 
-            if (currentObv !== null && pastObv !== null && prevObv !== null && prevPastObv !== null) {
+            if (
+              currentObv !== null &&
+              pastObv !== null &&
+              prevObv !== null &&
+              prevPastObv !== null
+            ) {
               const currentChange = currentObv - pastObv;
               const prevChange = prevObv - prevPastObv;
 
               // 現在と前日の状態を判定
-              const currentState = currentChange > 0 ? "rising" : currentChange < 0 ? "falling" : "neutral";
+              const currentState =
+                currentChange > 0 ? "rising" : currentChange < 0 ? "falling" : "neutral";
               const prevState = prevChange > 0 ? "rising" : prevChange < 0 ? "falling" : "neutral";
 
               // 状態が変化した場合のみ通知
@@ -807,7 +902,8 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
                   const absChange = Math.abs(change);
                   if (absChange >= 1000000) {
                     return `${(change / 1000000).toFixed(1)}M`;
-                  } else if (absChange >= 1000) {
+                  }
+                  if (absChange >= 1000) {
                     return `${(change / 1000).toFixed(0)}K`;
                   }
                   return change.toFixed(0);
@@ -815,21 +911,27 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
 
                 if (currentState === "rising") {
                   set({
-                    alerts: [...get().alerts, {
-                      id: generateId(),
-                      type: "OBV_RISING",
-                      message: `OBV上昇トレンド転換: ${volSettings.obvPeriod}日間で+${formatOBVChange(currentChange)}`,
-                      timestamp: Date.now(),
-                    }],
+                    alerts: [
+                      ...get().alerts,
+                      {
+                        id: generateId(),
+                        type: "OBV_RISING",
+                        message: `OBV上昇トレンド転換: ${volSettings.obvPeriod}日間で+${formatOBVChange(currentChange)}`,
+                        timestamp: Date.now(),
+                      },
+                    ],
                   });
                 } else if (currentState === "falling") {
                   set({
-                    alerts: [...get().alerts, {
-                      id: generateId(),
-                      type: "OBV_FALLING",
-                      message: `OBV下降トレンド転換: ${volSettings.obvPeriod}日間で${formatOBVChange(currentChange)}`,
-                      timestamp: Date.now(),
-                    }],
+                    alerts: [
+                      ...get().alerts,
+                      {
+                        id: generateId(),
+                        type: "OBV_FALLING",
+                        message: `OBV下降トレンド転換: ${volSettings.obvPeriod}日間で${formatOBVChange(currentChange)}`,
+                        timestamp: Date.now(),
+                      },
+                    ],
                   });
                 }
               }
@@ -844,7 +946,7 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
     updatePositionMFEMAE: () => {
       const { symbols, globalDate, trailingStopEnabled, trailingStopPercent } = get();
 
-      const updatedSymbols = symbols.map(symbol => {
+      const updatedSymbols = symbols.map((symbol) => {
         if (symbol.positions.length === 0) return symbol;
 
         const currentIdx = getSymbolCurrentIndex(symbol, globalDate);
@@ -852,7 +954,7 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
         if (!candle) return symbol;
 
         let updated = false;
-        const newPositions = symbol.positions.map(pos => {
+        const newPositions = symbol.positions.map((pos) => {
           let newPos = pos;
 
           if (candle.high > pos.highestPrice) {
@@ -897,9 +999,19 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
     },
 
     executeBuy: (shares, memo, priceType) => {
-      const { symbols, activeSymbolId, globalDate, commonDateRange, currentDateIndex, commissionRate, slippageBps, trailingStopEnabled, trailingStopPercent } = get();
+      const {
+        symbols,
+        activeSymbolId,
+        globalDate,
+        commonDateRange,
+        currentDateIndex,
+        commissionRate,
+        slippageBps,
+        trailingStopEnabled,
+        trailingStopPercent,
+      } = get();
 
-      const symbolIdx = symbols.findIndex(s => s.id === activeSymbolId);
+      const symbolIdx = symbols.findIndex((s) => s.id === activeSymbolId);
       if (symbolIdx === -1 || !commonDateRange) return;
 
       const symbol = symbols[symbolIdx];
@@ -994,9 +1106,18 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
     },
 
     executeSell: (shares, memo, priceType, exitReason, exitTrigger) => {
-      const { symbols, activeSymbolId, globalDate, commonDateRange, currentDateIndex, commissionRate, slippageBps, taxRate } = get();
+      const {
+        symbols,
+        activeSymbolId,
+        globalDate,
+        commonDateRange,
+        currentDateIndex,
+        commissionRate,
+        slippageBps,
+        taxRate,
+      } = get();
 
-      const symbolIdx = symbols.findIndex(s => s.id === activeSymbolId);
+      const symbolIdx = symbols.findIndex((s) => s.id === activeSymbolId);
       if (symbolIdx === -1 || !commonDateRange) return;
 
       const symbol = symbols[symbolIdx];
@@ -1212,8 +1333,8 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
     },
 
     dismissAlert: (id: string) => {
-      set(state => ({
-        alerts: state.alerts.filter(a => a.id !== id),
+      set((state) => ({
+        alerts: state.alerts.filter((a) => a.id !== id),
       }));
     },
 
@@ -1228,14 +1349,12 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
       const indicatorData = calculateIndicators(
         symbol.allCandles,
         indicators,
-        get().indicatorParams
+        get().indicatorParams,
       );
 
-      set(state => ({
+      set((state) => ({
         enabledIndicators: indicators,
-        symbols: state.symbols.map(s =>
-          s.id === symbol.id ? { ...s, indicatorData } : s
-        ),
+        symbols: state.symbols.map((s) => (s.id === symbol.id ? { ...s, indicatorData } : s)),
       }));
     },
 
@@ -1244,17 +1363,11 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
       if (!symbol) return;
 
       // インジケーターデータを再計算
-      const indicatorData = calculateIndicators(
-        symbol.allCandles,
-        get().enabledIndicators,
-        params
-      );
+      const indicatorData = calculateIndicators(symbol.allCandles, get().enabledIndicators, params);
 
-      set(state => ({
+      set((state) => ({
         indicatorParams: params,
-        symbols: state.symbols.map(s =>
-          s.id === symbol.id ? { ...s, indicatorData } : s
-        ),
+        symbols: state.symbols.map((s) => (s.id === symbol.id ? { ...s, indicatorData } : s)),
       }));
     },
 
@@ -1262,7 +1375,7 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
     // 出来高スパイク設定アクション
     // =============================================
     setVolumeSpikeSettings: (settings) => {
-      set(state => ({
+      set((state) => ({
         volumeSpikeSettings: { ...state.volumeSpikeSettings, ...settings },
       }));
     },
@@ -1289,7 +1402,7 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
 
         for (let i = startIdx; i <= currentIdx; i++) {
           const anomaly = anomalies[i];
-          if (anomaly && anomaly.value.isAnomaly) {
+          if (anomaly?.value.isAnomaly) {
             spikes.push({
               time: anomaly.time,
               volume: anomaly.value.volume,
@@ -1308,10 +1421,10 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
 
         for (const breakout of breakouts) {
           // 可視範囲内のみ
-          const idx = visibleCandles.findIndex(c => c.time === breakout.time);
+          const idx = visibleCandles.findIndex((c) => c.time === breakout.time);
           if (idx >= startIdx) {
             // 重複を避ける（同じ時間の平均検知がある場合はbreakoutを優先）
-            const existingIdx = spikes.findIndex(s => s.time === breakout.time);
+            const existingIdx = spikes.findIndex((s) => s.time === breakout.time);
             if (existingIdx >= 0) {
               spikes[existingIdx] = {
                 time: breakout.time,
@@ -1340,10 +1453,10 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
         });
 
         for (const accum of accumulations) {
-          const idx = visibleCandles.findIndex(c => c.time === accum.time);
+          const idx = visibleCandles.findIndex((c) => c.time === accum.time);
           if (idx >= startIdx) {
             // 重複がない場合のみ追加
-            const existingIdx = spikes.findIndex(s => s.time === accum.time);
+            const existingIdx = spikes.findIndex((s) => s.time === accum.time);
             if (existingIdx < 0) {
               spikes.push({
                 time: accum.time,
@@ -1366,10 +1479,10 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
         });
 
         for (const aboveAvg of aboveAvgSignals) {
-          const idx = visibleCandles.findIndex(c => c.time === aboveAvg.time);
+          const idx = visibleCandles.findIndex((c) => c.time === aboveAvg.time);
           if (idx >= startIdx) {
             // 重複がない場合のみ追加
-            const existingIdx = spikes.findIndex(s => s.time === aboveAvg.time);
+            const existingIdx = spikes.findIndex((s) => s.time === aboveAvg.time);
             if (existingIdx < 0) {
               spikes.push({
                 time: aboveAvg.time,
@@ -1393,9 +1506,9 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
         // クロスの開始日（daysSinceCross === 1）のみマーカー表示
         for (const cross of crosses) {
           if (cross.daysSinceCross !== 1) continue;
-          const idx = visibleCandles.findIndex(c => c.time === cross.time);
+          const idx = visibleCandles.findIndex((c) => c.time === cross.time);
           if (idx >= startIdx) {
-            const existingIdx = spikes.findIndex(s => s.time === cross.time);
+            const existingIdx = spikes.findIndex((s) => s.time === cross.time);
             if (existingIdx < 0) {
               spikes.push({
                 time: cross.time,
@@ -1445,7 +1558,8 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
       if (!summary) return null;
 
       const pnl = (currentCandle.close - summary.avgEntryPrice) * summary.totalShares;
-      const pnlPercent = ((currentCandle.close - summary.avgEntryPrice) / summary.avgEntryPrice) * 100;
+      const pnlPercent =
+        ((currentCandle.close - summary.avgEntryPrice) / summary.avgEntryPrice) * 100;
 
       return { pnl, pnlPercent };
     },
@@ -1466,7 +1580,7 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
       if (!symbol) return 0;
 
       return symbol.tradeHistory
-        .filter(t => t.type === "SELL" && t.pnl !== undefined)
+        .filter((t) => t.type === "SELL" && t.pnl !== undefined)
         .reduce((sum, t) => sum + (t.pnl || 0), 0);
     },
 
@@ -1483,7 +1597,7 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
       const yearStart = new Date(currentDate.getFullYear(), 0, 1).getTime();
 
       const yearCandles = symbol.allCandles.filter(
-        (c, i) => c.time >= yearStart && i <= currentIdx
+        (c, i) => c.time >= yearStart && i <= currentIdx,
       );
 
       if (yearCandles.length === 0) return null;
@@ -1517,7 +1631,7 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
       if (!symbol || symbol.positions.length === 0) return null;
 
       const currentIdx = getSymbolCurrentIndex(symbol, globalDate);
-      const firstEntryIndex = Math.min(...symbol.positions.map(p => p.entryIndex));
+      const firstEntryIndex = Math.min(...symbol.positions.map((p) => p.entryIndex));
       return currentIdx - firstEntryIndex;
     },
 
@@ -1530,14 +1644,14 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
       const { symbols, globalDate, initialCapital, initialCandleCount, commonDateRange } = get();
       if (!commonDateRange) return;
 
-      const updatedSymbols = symbols.map(symbol => {
+      const updatedSymbols = symbols.map((symbol) => {
         const currentIdx = getSymbolCurrentIndex(symbol, globalDate);
         const currentCandle = symbol.allCandles[currentIdx];
         if (!currentCandle) return symbol;
 
         // 確定損益
         const realizedPnl = symbol.tradeHistory
-          .filter(t => t.type === "SELL" && t.pnl !== undefined)
+          .filter((t) => t.type === "SELL" && t.pnl !== undefined)
           .reduce((sum, t) => sum + (t.pnl || 0), 0);
 
         // 含み損益
@@ -1565,9 +1679,8 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
 
         // トレードマーカー
         const lastTrade = symbol.tradeHistory[symbol.tradeHistory.length - 1];
-        const tradeType = lastTrade && lastTrade.date === currentCandle.time
-          ? lastTrade.type
-          : undefined;
+        const tradeType =
+          lastTrade && lastTrade.date === currentCandle.time ? lastTrade.type : undefined;
 
         const newPoint: EquityPoint = {
           time: currentCandle.time,
@@ -1601,25 +1714,28 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
         ...order,
       };
 
-      set(state => ({
+      set((state) => ({
         pendingOrders: [...state.pendingOrders, pendingOrder],
-        alerts: [...state.alerts, {
-          id: generateId(),
-          type: "ORDER_EXECUTED" as const,
-          message: `${order.orderType === "BUY" ? "買い" : "売り"}注文を予約しました（翌日始値で約定）`,
-          timestamp: Date.now(),
-        }],
+        alerts: [
+          ...state.alerts,
+          {
+            id: generateId(),
+            type: "ORDER_EXECUTED" as const,
+            message: `${order.orderType === "BUY" ? "買い" : "売り"}注文を予約しました（翌日始値で約定）`,
+            timestamp: Date.now(),
+          },
+        ],
       }));
     },
 
     cancelPendingOrder: (orderId) => {
-      set(state => ({
-        pendingOrders: state.pendingOrders.filter(o => o.id !== orderId),
+      set((state) => ({
+        pendingOrders: state.pendingOrders.filter((o) => o.id !== orderId),
       }));
     },
 
     getPendingOrdersForSymbol: (symbolId) => {
-      return get().pendingOrders.filter(o => o.symbolId === symbolId);
+      return get().pendingOrders.filter((o) => o.symbolId === symbolId);
     },
 
     executePendingOrders: () => {
@@ -1637,12 +1753,12 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
 
       if (pendingOrders.length === 0 || !commonDateRange) return;
 
-      let updatedSymbols = [...symbols];
+      const updatedSymbols = [...symbols];
       const executedOrderIds: string[] = [];
       const newAlerts: Alert[] = [];
 
       for (const order of pendingOrders) {
-        const symbolIdx = updatedSymbols.findIndex(s => s.id === order.symbolId);
+        const symbolIdx = updatedSymbols.findIndex((s) => s.id === order.symbolId);
         if (symbolIdx === -1) continue;
 
         const symbol = updatedSymbols[symbolIdx];
@@ -1650,7 +1766,7 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
         const currentCandle = symbol.allCandles[currentIdx];
         if (!currentCandle) continue;
 
-        const price = currentCandle.open;  // 翌日始値
+        const price = currentCandle.open; // 翌日始値
 
         if (order.orderType === "BUY") {
           // BUY処理
@@ -1663,7 +1779,11 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
           let marketContext: MarketContext | undefined;
           if (symbol.indicatorData) {
             indicators = getIndicatorSnapshot(symbol.indicatorData, currentIdx);
-            marketContext = analyzeMarketContext(symbol.allCandles, currentIdx, symbol.indicatorData);
+            marketContext = analyzeMarketContext(
+              symbol.allCandles,
+              currentIdx,
+              symbol.indicatorData,
+            );
           }
 
           const initialTrailingStop = trailingStopEnabled
@@ -1711,13 +1831,13 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
             message: `${symbol.fileName}: 買い注文が約定しました（${order.shares}株 @ ¥${price.toLocaleString()}）`,
             timestamp: Date.now(),
           });
-
         } else if (order.orderType === "SELL" || order.orderType === "SELL_ALL") {
           // SELL処理
           if (symbol.positions.length === 0) continue;
 
           const totalShares = symbol.positions.reduce((sum, p) => sum + p.shares, 0);
-          const sellShares = order.orderType === "SELL_ALL" ? totalShares : Math.min(order.shares, totalShares);
+          const sellShares =
+            order.orderType === "SELL_ALL" ? totalShares : Math.min(order.shares, totalShares);
 
           const slippage = price * (slippageBps / 10000);
           const effectivePrice = price - slippage;
@@ -1748,8 +1868,10 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
               remainingSharesToSell -= pos.shares;
               totalBuyCommission += pos.commission;
               totalEntryValue += pos.entryPrice * pos.shares;
-              totalMfeValue += ((pos.highestPrice - pos.entryPrice) / pos.entryPrice) * 100 * pos.shares;
-              totalMaeValue += ((pos.lowestPrice - pos.entryPrice) / pos.entryPrice) * 100 * pos.shares;
+              totalMfeValue +=
+                ((pos.highestPrice - pos.entryPrice) / pos.entryPrice) * 100 * pos.shares;
+              totalMaeValue +=
+                ((pos.lowestPrice - pos.entryPrice) / pos.entryPrice) * 100 * pos.shares;
               if (pos.highestPrice > mfePrice) {
                 mfePrice = pos.highestPrice;
                 mfeDate = pos.highestDate;
@@ -1764,8 +1886,12 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
               const partialRatio = remainingSharesToSell / pos.shares;
               totalBuyCommission += pos.commission * partialRatio;
               totalEntryValue += pos.entryPrice * remainingSharesToSell;
-              totalMfeValue += ((pos.highestPrice - pos.entryPrice) / pos.entryPrice) * 100 * remainingSharesToSell;
-              totalMaeValue += ((pos.lowestPrice - pos.entryPrice) / pos.entryPrice) * 100 * remainingSharesToSell;
+              totalMfeValue +=
+                ((pos.highestPrice - pos.entryPrice) / pos.entryPrice) *
+                100 *
+                remainingSharesToSell;
+              totalMaeValue +=
+                ((pos.lowestPrice - pos.entryPrice) / pos.entryPrice) * 100 * remainingSharesToSell;
               if (pos.highestPrice > mfePrice) {
                 mfePrice = pos.highestPrice;
                 mfeDate = pos.highestDate;
@@ -1800,7 +1926,11 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
           let marketContext: MarketContext | undefined;
           if (symbol.indicatorData) {
             indicators = getIndicatorSnapshot(symbol.indicatorData, currentIdx);
-            marketContext = analyzeMarketContext(symbol.allCandles, currentIdx, symbol.indicatorData);
+            marketContext = analyzeMarketContext(
+              symbol.allCandles,
+              currentIdx,
+              symbol.indicatorData,
+            );
           }
 
           const trade: Trade = {
@@ -1853,7 +1983,7 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
 
       set({
         symbols: updatedSymbols,
-        pendingOrders: get().pendingOrders.filter(o => !executedOrderIds.includes(o.id)),
+        pendingOrders: get().pendingOrders.filter((o) => !executedOrderIds.includes(o.id)),
         alerts: [...get().alerts, ...newAlerts],
       });
     },
@@ -1870,13 +2000,13 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
       let totalWinCount = 0;
       let totalAllocation = 0;
 
-      const symbolStats: SymbolStats[] = symbols.map(symbol => {
+      const symbolStats: SymbolStats[] = symbols.map((symbol) => {
         const currentIdx = getSymbolCurrentIndex(symbol, globalDate);
         const currentCandle = symbol.allCandles[currentIdx];
 
         // 確定損益
         const realizedPnl = symbol.tradeHistory
-          .filter(t => t.type === "SELL" && t.pnl !== undefined)
+          .filter((t) => t.type === "SELL" && t.pnl !== undefined)
           .reduce((sum, t) => sum + (t.pnl || 0), 0);
 
         // 含み損益
@@ -1892,9 +2022,9 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
         const pnlPercent = (pnl / initialCapital) * 100;
 
         // 取引統計
-        const sellTrades = symbol.tradeHistory.filter(t => t.type === "SELL");
+        const sellTrades = symbol.tradeHistory.filter((t) => t.type === "SELL");
         const tradeCount = sellTrades.length;
-        const winCount = sellTrades.filter(t => (t.pnl || 0) > 0).length;
+        const winCount = sellTrades.filter((t) => (t.pnl || 0) > 0).length;
         const winRate = tradeCount > 0 ? (winCount / tradeCount) * 100 : 0;
 
         // ポジション金額から配分を計算
@@ -1921,8 +2051,8 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
       });
 
       // 配分率を計算
-      symbolStats.forEach(s => {
-        const symbol = symbols.find(sym => sym.id === s.symbolId);
+      symbolStats.forEach((s) => {
+        const symbol = symbols.find((sym) => sym.id === s.symbolId);
         if (symbol && totalAllocation > 0) {
           const cost = symbol.positions.reduce((sum, p) => sum + p.entryPrice * p.shares, 0);
           s.allocation = (cost / totalAllocation) * 100;
@@ -1954,7 +2084,8 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
 
         if (simStartPrice) {
           const buyHoldReturn = ((currentCandle.close - simStartPrice) / simStartPrice) * 100;
-          const symbolPnlPercent = symbolStats.find(s => s.symbolId === symbol.id)?.pnlPercent || 0;
+          const symbolPnlPercent =
+            symbolStats.find((s) => s.symbolId === symbol.id)?.pnlPercent || 0;
           totalAlpha += symbolPnlPercent - buyHoldReturn;
           alphaCount++;
         }

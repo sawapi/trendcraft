@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { BacktestResult, Trade } from "../../types";
 import {
-  runMonteCarloSimulation,
   calculateStatistics,
   formatMonteCarloResult,
+  runMonteCarloSimulation,
   summarizeMonteCarloResult,
 } from "../monte-carlo";
 
@@ -93,7 +93,7 @@ function createDeterministicTrades(): Trade[] {
  */
 function createMockBacktestResult(
   trades: Trade[],
-  overrides: Partial<BacktestResult> = {}
+  overrides: Partial<BacktestResult> = {},
 ): BacktestResult {
   const totalReturn = trades.reduce((sum, t) => sum + t.return, 0);
   const totalReturnPercent = trades.reduce((sum, t) => sum + t.returnPercent, 0);
@@ -173,7 +173,7 @@ describe("Monte Carlo Simulation", () => {
       const result = createMockBacktestResult(trades);
 
       expect(() => runMonteCarloSimulation(result)).toThrow(
-        "Need at least 2 trades for Monte Carlo simulation"
+        "Need at least 2 trades for Monte Carlo simulation",
       );
     });
 
@@ -244,10 +244,8 @@ describe("Monte Carlo Simulation", () => {
       // Max drawdown statistics should differ because drawdown is path-dependent
       // At minimum, the percentiles or stdDev should be different
       const maxDDMatch =
-        result1.statistics.maxDrawdown.percentile5 ===
-          result2.statistics.maxDrawdown.percentile5 &&
-        result1.statistics.maxDrawdown.percentile95 ===
-          result2.statistics.maxDrawdown.percentile95;
+        result1.statistics.maxDrawdown.percentile5 === result2.statistics.maxDrawdown.percentile5 &&
+        result1.statistics.maxDrawdown.percentile95 === result2.statistics.maxDrawdown.percentile95;
       expect(maxDDMatch).toBe(false);
     });
 
@@ -292,7 +290,7 @@ describe("Monte Carlo Simulation", () => {
       expect(mcResult.confidenceInterval.sharpe.lower).toBeDefined();
       expect(mcResult.confidenceInterval.sharpe.upper).toBeDefined();
       expect(mcResult.confidenceInterval.sharpe.lower).toBeLessThanOrEqual(
-        mcResult.confidenceInterval.sharpe.upper
+        mcResult.confidenceInterval.sharpe.upper,
       );
     });
 

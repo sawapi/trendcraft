@@ -19,12 +19,8 @@
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
 import { runBacktest } from "../src/backtest/engine";
+import { createCriteriaFromNames, getAvailableConditions, loadCsvFile } from "../src/screening";
 import type { BacktestResult } from "../src/types";
-import {
-  createCriteriaFromNames,
-  getAvailableConditions,
-  loadCsvFile,
-} from "../src/screening";
 
 import type { FillMode, SlTpMode } from "../src/types";
 
@@ -281,9 +277,7 @@ function formatSingleResult(
       const entryDate = new Date(trade.entryTime).toISOString().split("T")[0];
       const exitDate = new Date(trade.exitTime).toISOString().split("T")[0];
       const returnPct = ((trade.exitPrice - trade.entryPrice) / trade.entryPrice) * 100;
-      const holdingDays = Math.round(
-        (trade.exitTime - trade.entryTime) / (24 * 60 * 60 * 1000),
-      );
+      const holdingDays = Math.round((trade.exitTime - trade.entryTime) / (24 * 60 * 60 * 1000));
 
       lines.push(
         `${entryDate.padEnd(12)} | ${exitDate.padEnd(12)} | ${trade.entryPrice.toFixed(0).padStart(8)} | ${trade.exitPrice.toFixed(0).padStart(8)} | ${returnPct.toFixed(2).padStart(7)}% | ${holdingDays.toString().padStart(4)}`,
@@ -305,12 +299,13 @@ function formatMultipleResults(results: BacktestResultWithTicker[]): string {
 
   // Summary stats
   const profitable = results.filter((r) => r.totalReturnPercent > 0);
-  const avgReturn =
-    results.reduce((sum, r) => sum + r.totalReturnPercent, 0) / results.length;
+  const avgReturn = results.reduce((sum, r) => sum + r.totalReturnPercent, 0) / results.length;
 
   lines.push("Summary:");
   lines.push(`  Total Stocks:     ${results.length}`);
-  lines.push(`  Profitable:       ${profitable.length} (${((profitable.length / results.length) * 100).toFixed(0)}%)`);
+  lines.push(
+    `  Profitable:       ${profitable.length} (${((profitable.length / results.length) * 100).toFixed(0)}%)`,
+  );
   lines.push(`  Average Return:   ${avgReturn.toFixed(2)}%`);
   lines.push("");
 
@@ -322,13 +317,11 @@ function formatMultipleResults(results: BacktestResultWithTicker[]): string {
   lines.push("-".repeat(110));
 
   // Sort by return descending
-  const sorted = [...results].sort(
-    (a, b) => b.totalReturnPercent - a.totalReturnPercent,
-  );
+  const sorted = [...results].sort((a, b) => b.totalReturnPercent - a.totalReturnPercent);
 
   for (const r of sorted) {
     lines.push(
-      `| ${r.ticker.padEnd(12)} | ${r.tradeCount.toString().padStart(6)} | ${(r.winRate.toFixed(1) + "%").padStart(8)} | ${(r.totalReturnPercent.toFixed(2) + "%").padStart(10)} | ${(r.maxDrawdown.toFixed(2) + "%").padStart(8)} | ${r.profitFactor.toFixed(2).padStart(6)} | ${r.sharpeRatio.toFixed(3).padStart(7)} |`,
+      `| ${r.ticker.padEnd(12)} | ${r.tradeCount.toString().padStart(6)} | ${(`${r.winRate.toFixed(1)}%`).padStart(8)} | ${(`${r.totalReturnPercent.toFixed(2)}%`).padStart(10)} | ${(`${r.maxDrawdown.toFixed(2)}%`).padStart(8)} | ${r.profitFactor.toFixed(2).padStart(6)} | ${r.sharpeRatio.toFixed(3).padStart(7)} |`,
     );
   }
 
@@ -337,17 +330,13 @@ function formatMultipleResults(results: BacktestResultWithTicker[]): string {
   return lines.join("\n");
 }
 
-function formatResultsJson(
-  results: BacktestResultWithTicker[],
-): string {
+function formatResultsJson(results: BacktestResultWithTicker[]): string {
   return JSON.stringify(
     {
       summary: {
         totalStocks: results.length,
         profitable: results.filter((r) => r.totalReturnPercent > 0).length,
-        averageReturn:
-          results.reduce((sum, r) => sum + r.totalReturnPercent, 0) /
-          results.length,
+        averageReturn: results.reduce((sum, r) => sum + r.totalReturnPercent, 0) / results.length,
       },
       results: results.map((r) => ({
         ticker: r.ticker,
@@ -446,13 +435,17 @@ function main(): void {
       const result = runBacktest(
         candles,
         criteria.entry,
-        criteria.exit!,
+        criteria.exit ?? criteria.entry,
         backtestOptions,
       );
 
       if (options.output === "json") {
         console.log(
-          JSON.stringify({ ticker, ...result, trades: options.showTrades ? result.trades : undefined }, null, 2),
+          JSON.stringify(
+            { ticker, ...result, trades: options.showTrades ? result.trades : undefined },
+            null,
+            2,
+          ),
         );
       } else {
         console.log(formatSingleResult(ticker, result, { showTrades: options.showTrades }));
@@ -480,7 +473,7 @@ function main(): void {
           const result = runBacktest(
             candles,
             criteria.entry,
-            criteria.exit!,
+            criteria.exit ?? criteria.entry,
             backtestOptions,
           );
 

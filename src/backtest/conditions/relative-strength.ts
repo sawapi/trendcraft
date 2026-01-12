@@ -18,8 +18,8 @@
  */
 
 import { benchmarkRS } from "../../indicators/relative-strength/benchmark-rs";
-import type { PresetCondition, Series, Candle, NormalizedCandle } from "../../types";
 import type { RSValue } from "../../indicators/relative-strength/benchmark-rs";
+import type { Candle, NormalizedCandle, PresetCondition, Series } from "../../types";
 
 const BENCHMARK_KEY = "__benchmarkCandles";
 const RS_CACHE_PREFIX = "rs_";

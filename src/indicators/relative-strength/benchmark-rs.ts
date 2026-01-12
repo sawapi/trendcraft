@@ -5,9 +5,9 @@
  * Useful for swing traders to identify stocks outperforming the market.
  */
 
-import { sma } from "../moving-average/sma";
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { sma } from "../moving-average/sma";
 
 /**
  * Relative Strength value
@@ -68,21 +68,14 @@ export function benchmarkRS(
   benchmark: Candle[] | NormalizedCandle[],
   options: BenchmarkRSOptions = {},
 ): Series<RSValue> {
-  const {
-    period = 52,
-    smaPeriod = 52,
-    rankingLookback = 252,
-    flatThreshold = 0.01,
-  } = options;
+  const { period = 52, smaPeriod = 52, rankingLookback = 252, flatThreshold = 0.01 } = options;
 
   if (period < 1) {
     throw new Error("RS period must be at least 1");
   }
 
   const stockNorm = isNormalized(candles) ? candles : normalizeCandles(candles);
-  const benchNorm = isNormalized(benchmark)
-    ? benchmark
-    : normalizeCandles(benchmark);
+  const benchNorm = isNormalized(benchmark) ? benchmark : normalizeCandles(benchmark);
 
   // Align data by timestamp
   const alignedData = alignByTime(stockNorm, benchNorm);
@@ -190,8 +183,7 @@ function alignByTime(
     benchMap.set(b.time, b.close);
   }
 
-  const aligned: { time: number; stockClose: number; benchClose: number }[] =
-    [];
+  const aligned: { time: number; stockClose: number; benchClose: number }[] = [];
 
   for (const s of stock) {
     const benchClose = benchMap.get(s.time);

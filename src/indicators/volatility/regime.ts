@@ -243,7 +243,7 @@ function calculateHistoricalVolatility(
 
     // Calculate standard deviation
     const mean = returns.reduce((sum, r) => sum + r, 0) / returns.length;
-    const variance = returns.reduce((sum, r) => sum + Math.pow(r - mean, 2), 0) / returns.length;
+    const variance = returns.reduce((sum, r) => sum + (r - mean) ** 2, 0) / returns.length;
     const stdDev = Math.sqrt(variance);
 
     // Annualize

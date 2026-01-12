@@ -118,9 +118,7 @@ export function gridSearch(
 
   if (totalCombinations > maxCombinations) {
     throw new Error(
-      `Too many parameter combinations (${totalCombinations}). ` +
-        `Maximum allowed is ${maxCombinations}. ` +
-        `Consider reducing parameter ranges or increasing step sizes.`,
+      `Too many parameter combinations (${totalCombinations}). Maximum allowed is ${maxCombinations}. Consider reducing parameter ranges or increasing step sizes.`,
     );
   }
 

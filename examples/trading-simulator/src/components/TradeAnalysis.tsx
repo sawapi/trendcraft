@@ -1,7 +1,7 @@
-import { useState, useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useSimulatorStore } from "../store/simulatorStore";
-import { analyzeAllTrades } from "../utils/tradeAnalyzer";
 import { EXIT_REASON_LABELS } from "../types";
+import { analyzeAllTrades } from "../utils/tradeAnalyzer";
 
 export function TradeAnalysis() {
   const [isOpen, setIsOpen] = useState(false);
@@ -17,15 +17,10 @@ export function TradeAnalysis() {
 
   return (
     <div className="trade-analysis">
-      <button
-        className="analysis-toggle"
-        onClick={() => setIsOpen(!isOpen)}
-      >
+      <button className="analysis-toggle" onClick={() => setIsOpen(!isOpen)}>
         <span className="material-icons">analytics</span>
         トレード分析
-        <span className="material-icons toggle-icon">
-          {isOpen ? "expand_less" : "expand_more"}
-        </span>
+        <span className="material-icons toggle-icon">{isOpen ? "expand_less" : "expand_more"}</span>
       </button>
 
       {isOpen && (
@@ -42,13 +37,12 @@ export function TradeAnalysis() {
                     {item.winRate.toFixed(0)}%
                   </span>
                   <span className={`avg-pnl ${item.avgPnl >= 0 ? "positive" : "negative"}`}>
-                    {item.avgPnl >= 0 ? "+" : ""}{item.avgPnl.toFixed(1)}%
+                    {item.avgPnl >= 0 ? "+" : ""}
+                    {item.avgPnl.toFixed(1)}%
                   </span>
                 </div>
               ))}
-              {analysis.exitReasons.length === 0 && (
-                <div className="no-data">データなし</div>
-              )}
+              {analysis.exitReasons.length === 0 && <div className="no-data">データなし</div>}
             </div>
           </div>
 
@@ -64,13 +58,12 @@ export function TradeAnalysis() {
                     {item.winRate.toFixed(0)}%
                   </span>
                   <span className={`avg-pnl ${item.avgPnl >= 0 ? "positive" : "negative"}`}>
-                    {item.avgPnl >= 0 ? "+" : ""}{item.avgPnl.toFixed(1)}%
+                    {item.avgPnl >= 0 ? "+" : ""}
+                    {item.avgPnl.toFixed(1)}%
                   </span>
                 </div>
               ))}
-              {analysis.holdingPeriods.length === 0 && (
-                <div className="no-data">データなし</div>
-              )}
+              {analysis.holdingPeriods.length === 0 && <div className="no-data">データなし</div>}
             </div>
           </div>
 
@@ -86,13 +79,12 @@ export function TradeAnalysis() {
                     {item.winRate.toFixed(0)}%
                   </span>
                   <span className={`avg-pnl ${item.avgPnl >= 0 ? "positive" : "negative"}`}>
-                    {item.avgPnl >= 0 ? "+" : ""}{item.avgPnl.toFixed(1)}%
+                    {item.avgPnl >= 0 ? "+" : ""}
+                    {item.avgPnl.toFixed(1)}%
                   </span>
                 </div>
               ))}
-              {analysis.marketRegimes.length === 0 && (
-                <div className="no-data">データなし</div>
-              )}
+              {analysis.marketRegimes.length === 0 && <div className="no-data">データなし</div>}
             </div>
           </div>
 
@@ -113,22 +105,24 @@ export function TradeAnalysis() {
                   <span className="dow-stats">
                     <span className="dow-entry">
                       <span className="count">{item.entryCount}回</span>
-                      <span className={`win-rate ${item.entryWinRate >= 50 ? "positive" : "negative"}`}>
+                      <span
+                        className={`win-rate ${item.entryWinRate >= 50 ? "positive" : "negative"}`}
+                      >
                         {item.entryCount > 0 ? `${item.entryWinRate.toFixed(0)}%` : "-"}
                       </span>
                     </span>
                     <span className="dow-exit">
                       <span className="count">{item.exitCount}回</span>
-                      <span className={`win-rate ${item.exitWinRate >= 50 ? "positive" : "negative"}`}>
+                      <span
+                        className={`win-rate ${item.exitWinRate >= 50 ? "positive" : "negative"}`}
+                      >
                         {item.exitCount > 0 ? `${item.exitWinRate.toFixed(0)}%` : "-"}
                       </span>
                     </span>
                   </span>
                 </div>
               ))}
-              {analysis.dayOfWeek.length === 0 && (
-                <div className="no-data">データなし</div>
-              )}
+              {analysis.dayOfWeek.length === 0 && <div className="no-data">データなし</div>}
             </div>
           </div>
 
@@ -144,13 +138,12 @@ export function TradeAnalysis() {
                     {item.winRate.toFixed(0)}%
                   </span>
                   <span className={`avg-pnl ${item.avgPnl >= 0 ? "positive" : "negative"}`}>
-                    {item.avgPnl >= 0 ? "+" : ""}{item.avgPnl.toFixed(1)}%
+                    {item.avgPnl >= 0 ? "+" : ""}
+                    {item.avgPnl.toFixed(1)}%
                   </span>
                 </div>
               ))}
-              {analysis.months.length === 0 && (
-                <div className="no-data">データなし</div>
-              )}
+              {analysis.months.length === 0 && <div className="no-data">データなし</div>}
             </div>
           </div>
         </div>

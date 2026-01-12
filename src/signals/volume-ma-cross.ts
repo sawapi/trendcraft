@@ -94,12 +94,7 @@ export function volumeMaCross(
   candles: Candle[] | NormalizedCandle[],
   options: VolumeMaCrossOptions = {},
 ): VolumeMaCrossSignal[] {
-  const {
-    shortPeriod = 5,
-    longPeriod = 20,
-    minRatio = 1.0,
-    bullishOnly = true,
-  } = options;
+  const { shortPeriod = 5, longPeriod = 20, minRatio = 1.0, bullishOnly = true } = options;
 
   if (shortPeriod < 1) {
     throw new Error("Short period must be at least 1");
@@ -117,7 +112,7 @@ export function volumeMaCross(
   const results: VolumeMaCrossSignal[] = [];
 
   // Pre-calculate all volumes and SMAs (O(n) instead of O(n²))
-  const volumes = normalized.map(c => c.volume);
+  const volumes = normalized.map((c) => c.volume);
   const shortMaArray = calculateSmaArray(volumes, shortPeriod);
   const longMaArray = calculateSmaArray(volumes, longPeriod);
 
@@ -151,8 +146,10 @@ export function volumeMaCross(
       daysSinceCross++;
     } else {
       // Direction changed without clear cross or no active state
-      if ((currentDirection === "bullish" && !isBullish) ||
-          (currentDirection === "bearish" && isBullish)) {
+      if (
+        (currentDirection === "bullish" && !isBullish) ||
+        (currentDirection === "bearish" && isBullish)
+      ) {
         currentDirection = null;
         daysSinceCross = 0;
       }

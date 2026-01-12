@@ -264,11 +264,7 @@ export type AnchoredWalkForwardOptions = {
   /** Constraints for optimization */
   constraints?: OptimizationConstraint[];
   /** Progress callback */
-  progressCallback?: (
-    period: number,
-    total: number,
-    phase: "train" | "test"
-  ) => void;
+  progressCallback?: (period: number, total: number, phase: "train" | "test") => void;
 };
 
 /**

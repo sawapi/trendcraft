@@ -1,11 +1,7 @@
 import { describe, expect, it } from "vitest";
-import {
-  benchmarkRS,
-  calculateRSRating,
-  isOutperforming,
-} from "../benchmark-rs";
-import { rankByRS, topByRS, bottomByRS, filterByRSPercentile, compareRS } from "../multi-rs";
 import type { NormalizedCandle } from "../../../types";
+import { benchmarkRS, calculateRSRating, isOutperforming } from "../benchmark-rs";
+import { bottomByRS, compareRS, filterByRSPercentile, rankByRS, topByRS } from "../multi-rs";
 
 // Fixed base time for consistent alignment
 const BASE_TIME = new Date(2024, 0, 1).getTime();

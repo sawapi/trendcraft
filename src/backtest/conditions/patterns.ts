@@ -6,14 +6,14 @@
  */
 
 import {
-  doubleTop as detectDoubleTop,
+  cupWithHandle as detectCupHandle,
   doubleBottom as detectDoubleBottom,
+  doubleTop as detectDoubleTop,
   headAndShoulders as detectHeadShoulders,
   inverseHeadAndShoulders as detectInverseHeadShoulders,
-  cupWithHandle as detectCupHandle,
 } from "../../signals/patterns";
 import type { PatternSignal, PatternType } from "../../signals/patterns";
-import type { PresetCondition, NormalizedCandle } from "../../types";
+import type { NormalizedCandle, PresetCondition } from "../../types";
 
 const PATTERN_CACHE_PREFIX = "pattern_";
 
@@ -23,7 +23,10 @@ const ALL_PATTERNS: PatternType[] = [...BULLISH_PATTERNS, ...BEARISH_PATTERNS];
 
 type CandleArray = Parameters<typeof detectDoubleTop>[0];
 
-const PATTERN_DETECTORS: Record<PatternType, (candles: CandleArray, opts: { swingLookback: number }) => PatternSignal[]> = {
+const PATTERN_DETECTORS: Record<
+  PatternType,
+  (candles: CandleArray, opts: { swingLookback: number }) => PatternSignal[]
+> = {
   double_top: detectDoubleTop,
   double_bottom: detectDoubleBottom,
   head_shoulders: detectHeadShoulders,

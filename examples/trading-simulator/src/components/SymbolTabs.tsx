@@ -1,6 +1,6 @@
-import { useState, useCallback } from "react";
+import { useCallback, useState } from "react";
 import { useSimulatorStore } from "../store/simulatorStore";
-import { readFileAsText, parseCSV } from "../utils/fileParser";
+import { parseCSV, readFileAsText } from "../utils/fileParser";
 
 interface FileDropDialogProps {
   onClose: () => void;
@@ -29,7 +29,7 @@ function FileDropDialog({ onClose }: FileDropDialogProps) {
         setError("ファイルの読み込みに失敗しました");
       }
     },
-    [createSymbolSession, onClose]
+    [createSymbolSession, onClose],
   );
 
   const handleDrop = useCallback(
@@ -39,7 +39,7 @@ function FileDropDialog({ onClose }: FileDropDialogProps) {
       const file = e.dataTransfer.files[0];
       if (file) handleFile(file);
     },
-    [handleFile]
+    [handleFile],
   );
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -63,11 +63,23 @@ function FileDropDialog({ onClose }: FileDropDialogProps) {
   }, [handleFile]);
 
   return (
-    <div className="file-drop-dialog-overlay" onClick={onClose}>
-      <div className="file-drop-dialog" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="file-drop-dialog-overlay"
+      onClick={onClose}
+      onKeyDown={(e) => e.key === "Escape" && onClose()}
+      role="dialog"
+      aria-modal="true"
+    >
+      <div
+        className="file-drop-dialog"
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
+      >
         <div className="dialog-header">
           <h3>銘柄を追加</h3>
-          <button className="close-btn" onClick={onClose}>×</button>
+          <button type="button" className="close-btn" onClick={onClose}>
+            ×
+          </button>
         </div>
         <div
           className={`dialog-drop-zone ${isDragging ? "dragging" : ""}`}
@@ -75,6 +87,9 @@ function FileDropDialog({ onClose }: FileDropDialogProps) {
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onClick={handleClick}
+          onKeyDown={(e) => e.key === "Enter" && handleClick()}
+          role="button"
+          tabIndex={0}
         >
           <p>CSVファイルをドロップ</p>
           <p className="sub">またはクリックして選択</p>
@@ -86,13 +101,7 @@ function FileDropDialog({ onClose }: FileDropDialogProps) {
 }
 
 export function SymbolTabs() {
-  const {
-    symbols,
-    activeSymbolId,
-    switchSymbol,
-    closeSymbolSession,
-    phase,
-  } = useSimulatorStore();
+  const { symbols, activeSymbolId, switchSymbol, closeSymbolSession, phase } = useSimulatorStore();
 
   const [showAddDialog, setShowAddDialog] = useState(false);
 
@@ -132,6 +141,11 @@ export function SymbolTabs() {
                 <span
                   className="tab-close"
                   onClick={(e) => handleClose(e, symbol.id)}
+                  onKeyDown={(e) =>
+                    e.key === "Enter" && handleClose(e as unknown as React.MouseEvent, symbol.id)
+                  }
+                  role="button"
+                  tabIndex={0}
                   title="閉じる"
                 >
                   ×
@@ -142,6 +156,7 @@ export function SymbolTabs() {
         </div>
         {canAddSymbol && (
           <button
+            type="button"
             className="add-tab-btn"
             onClick={() => setShowAddDialog(true)}
             title="新規銘柄を追加 (Ctrl+T)"
@@ -150,9 +165,7 @@ export function SymbolTabs() {
           </button>
         )}
       </div>
-      {showAddDialog && (
-        <FileDropDialog onClose={() => setShowAddDialog(false)} />
-      )}
+      {showAddDialog && <FileDropDialog onClose={() => setShowAddDialog(false)} />}
     </>
   );
 }

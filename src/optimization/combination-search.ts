@@ -217,9 +217,7 @@ export function combinationSearch(
 
   if (totalCombinations > maxCombinations) {
     throw new Error(
-      `Too many combinations (${totalCombinations}). ` +
-        `Maximum allowed is ${maxCombinations}. ` +
-        `Consider reducing condition pool or max conditions per combo.`,
+      `Too many combinations (${totalCombinations}). Maximum allowed is ${maxCombinations}. Consider reducing condition pool or max conditions per combo.`,
     );
   }
 
@@ -367,7 +365,7 @@ export function formatCombinationResult(entry: CombinationResultEntry): string {
   const lines = [
     `Entry: ${entry.entryDisplay}`,
     `Exit:  ${entry.exitDisplay}`,
-    `---`,
+    "---",
     `Return: ${entry.metrics.returns.toFixed(2)}%`,
     `Win Rate: ${entry.metrics.winRate.toFixed(1)}%`,
     `Trades: ${entry.metrics.tradeCount}`,

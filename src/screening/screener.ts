@@ -8,11 +8,7 @@
 import type { Condition } from "../types";
 import { getCsvFiles, loadCsvDirectory } from "./csv-loader";
 import { screenStock } from "./screen-stock";
-import type {
-  ScreeningOptions,
-  ScreeningResult,
-  ScreeningSessionResult,
-} from "./types";
+import type { ScreeningOptions, ScreeningResult, ScreeningSessionResult } from "./types";
 
 /**
  * Run screening session across all CSV files in directory

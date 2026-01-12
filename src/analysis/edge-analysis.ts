@@ -172,7 +172,8 @@ function calculateStreaks(wins: boolean[]): {
     lossStreaks.push(currentLossStreak);
   }
 
-  const avgWin = winStreaks.length > 0 ? winStreaks.reduce((a, b) => a + b, 0) / winStreaks.length : 0;
+  const avgWin =
+    winStreaks.length > 0 ? winStreaks.reduce((a, b) => a + b, 0) / winStreaks.length : 0;
   const avgLoss =
     lossStreaks.length > 0 ? lossStreaks.reduce((a, b) => a + b, 0) / lossStreaks.length : 0;
 

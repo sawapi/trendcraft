@@ -7,8 +7,8 @@
  * CSV format: date,open,high,low,close,volume (date: YYYY/MM/DD)
  */
 
-import { existsSync, readFileSync } from "fs";
-import { basename, resolve } from "path";
+import { existsSync, readFileSync } from "node:fs";
+import { basename, resolve } from "node:path";
 import {
   TrendCraft,
   and,
@@ -93,7 +93,7 @@ function formatResult(name: string, result: BacktestResult): void {
   console.log(`平均保有日数: ${result.avgHoldingDays.toFixed(1)}日`);
 
   if (result.trades.length > 0) {
-    console.log(`\n最近の取引:`);
+    console.log("\n最近の取引:");
     const recentTrades = result.trades.slice(-3);
     for (const trade of recentTrades) {
       const entryDate = new Date(trade.entryTime).toLocaleDateString("ja-JP");
@@ -591,7 +591,7 @@ const result25 = TrendCraft.from(candles)
   .strategy()
   .entry((_indicators, _candle, i) => {
     // PO形成チェック
-    let poData = _indicators["po_5_25_75_sma"] as
+    let poData = _indicators.po_5_25_75_sma as
       | { time: number; value: { formed: boolean; type: string; strength: number } }[]
       | undefined;
     if (!poData) {
@@ -599,7 +599,7 @@ const result25 = TrendCraft.from(candles)
         time: number;
         value: { formed: boolean; type: string; strength: number };
       }[];
-      _indicators["po_5_25_75_sma"] = poData;
+      _indicators.po_5_25_75_sma = poData;
     }
     const po = poData[i]?.value;
     if (!po || !po.formed || po.type !== "bullish") return false;
@@ -624,7 +624,7 @@ const result26 = TrendCraft.from(candles)
     if (i < 20) return false;
 
     // PO形成チェック
-    let poData = _indicators["po_5_25_75_sma"] as
+    let poData = _indicators.po_5_25_75_sma as
       | { time: number; value: { formed: boolean; type: string } }[]
       | undefined;
     if (!poData) {
@@ -632,7 +632,7 @@ const result26 = TrendCraft.from(candles)
         time: number;
         value: { formed: boolean; type: string };
       }[];
-      _indicators["po_5_25_75_sma"] = poData;
+      _indicators.po_5_25_75_sma = poData;
     }
     const po = poData[i]?.value;
     if (!po || !po.formed || po.type !== "bullish") return false;
@@ -658,7 +658,7 @@ const result27 = TrendCraft.from(candles)
   .strategy()
   .entry((_indicators, _candle, i) => {
     // PO形成チェック
-    let poData = _indicators["po_5_25_75_sma"] as
+    let poData = _indicators.po_5_25_75_sma as
       | { time: number; value: { formed: boolean; type: string } }[]
       | undefined;
     if (!poData) {
@@ -666,7 +666,7 @@ const result27 = TrendCraft.from(candles)
         time: number;
         value: { formed: boolean; type: string };
       }[];
-      _indicators["po_5_25_75_sma"] = poData;
+      _indicators.po_5_25_75_sma = poData;
     }
     const po = poData[i]?.value;
     if (!po || !po.formed || po.type !== "bullish") return false;
@@ -694,7 +694,7 @@ const result28 = TrendCraft.from(candles)
   .strategy()
   .entry((_indicators, _candle, i) => {
     // PO形成チェック
-    let poData = _indicators["po_5_25_75_sma"] as
+    let poData = _indicators.po_5_25_75_sma as
       | { time: number; value: { formed: boolean; type: string } }[]
       | undefined;
     if (!poData) {
@@ -702,7 +702,7 @@ const result28 = TrendCraft.from(candles)
         time: number;
         value: { formed: boolean; type: string };
       }[];
-      _indicators["po_5_25_75_sma"] = poData;
+      _indicators.po_5_25_75_sma = poData;
     }
     const po = poData[i]?.value;
     if (!po || !po.formed || po.type !== "bullish") return false;
@@ -728,7 +728,7 @@ const result29 = TrendCraft.from(candles)
     if (i < 1) return false;
 
     // PO継続チェック
-    let poData = _indicators["po_5_25_75_sma"] as
+    let poData = _indicators.po_5_25_75_sma as
       | { time: number; value: { type: string } }[]
       | undefined;
     if (!poData) {
@@ -736,7 +736,7 @@ const result29 = TrendCraft.from(candles)
         time: number;
         value: { type: string };
       }[];
-      _indicators["po_5_25_75_sma"] = poData;
+      _indicators.po_5_25_75_sma = poData;
     }
     const po = poData[i]?.value;
     if (!po || po.type !== "bullish") return false;
@@ -761,7 +761,7 @@ const result30 = TrendCraft.from(candles)
   .entry(perfectOrderBullish({ periods: [5, 25, 75] }))
   .exit((_indicators, candle, i) => {
     // PO崩壊チェック
-    let poData = _indicators["po_5_25_75_sma"] as
+    let poData = _indicators.po_5_25_75_sma as
       | { time: number; value: { collapsed: boolean } }[]
       | undefined;
     if (!poData) {
@@ -769,7 +769,7 @@ const result30 = TrendCraft.from(candles)
         time: number;
         value: { collapsed: boolean };
       }[];
-      _indicators["po_5_25_75_sma"] = poData;
+      _indicators.po_5_25_75_sma = poData;
     }
     const po = poData[i]?.value;
     if (po?.collapsed) return true;
@@ -799,7 +799,7 @@ const result31 = TrendCraft.from(candles)
   .exit((_indicators, _candle, i) => {
     // 固定20日でイグジット（エントリーからの経過はbacktestエンジンが管理）
     // ここでは単純にPO崩壊か20日経過でイグジット
-    let poData = _indicators["po_5_25_75_sma"] as
+    let poData = _indicators.po_5_25_75_sma as
       | { time: number; value: { collapsed: boolean; type: string } }[]
       | undefined;
     if (!poData) {
@@ -807,7 +807,7 @@ const result31 = TrendCraft.from(candles)
         time: number;
         value: { collapsed: boolean; type: string };
       }[];
-      _indicators["po_5_25_75_sma"] = poData;
+      _indicators.po_5_25_75_sma = poData;
     }
     const po = poData[i]?.value;
     // PO崩壊またはベアリッシュに転換で即座にイグジット
@@ -825,7 +825,7 @@ let entryPrice32 = 0;
 const result32 = TrendCraft.from(candles)
   .strategy()
   .entry((_indicators, candle, i) => {
-    let poData = _indicators["po_5_25_75_sma"] as
+    let poData = _indicators.po_5_25_75_sma as
       | { time: number; value: { formed: boolean; type: string } }[]
       | undefined;
     if (!poData) {
@@ -833,7 +833,7 @@ const result32 = TrendCraft.from(candles)
         time: number;
         value: { formed: boolean; type: string };
       }[];
-      _indicators["po_5_25_75_sma"] = poData;
+      _indicators.po_5_25_75_sma = poData;
     }
     const po = poData[i]?.value;
     if (po?.formed && po?.type === "bullish") {
@@ -848,7 +848,7 @@ const result32 = TrendCraft.from(candles)
       entryPrice32 = 0;
       return true;
     }
-    let poData = _indicators["po_5_25_75_sma"] as
+    let poData = _indicators.po_5_25_75_sma as
       | { time: number; value: { collapsed: boolean } }[]
       | undefined;
     if (!poData) {
@@ -856,7 +856,7 @@ const result32 = TrendCraft.from(candles)
         time: number;
         value: { collapsed: boolean };
       }[];
-      _indicators["po_5_25_75_sma"] = poData;
+      _indicators.po_5_25_75_sma = poData;
     }
     if (poData[i]?.value?.collapsed) {
       entryPrice32 = 0;
@@ -895,7 +895,7 @@ const result34 = TrendCraft.from(candles)
   .strategy()
   .entry((_indicators, candle, i) => {
     // PO継続チェック
-    let poData = _indicators["po_5_25_75_sma"] as
+    let poData = _indicators.po_5_25_75_sma as
       | { time: number; value: { type: string } }[]
       | undefined;
     if (!poData) {
@@ -903,7 +903,7 @@ const result34 = TrendCraft.from(candles)
         time: number;
         value: { type: string };
       }[];
-      _indicators["po_5_25_75_sma"] = poData;
+      _indicators.po_5_25_75_sma = poData;
     }
     const po = poData[i]?.value;
     if (!po || po.type !== "bullish") return false;
@@ -939,7 +939,7 @@ const result35 = TrendCraft.from(candles)
     if (currRsi !== null && currRsi > 70) return true;
 
     // PO崩壊でイグジット
-    let poData = _indicators["po_5_25_75_sma"] as
+    let poData = _indicators.po_5_25_75_sma as
       | { time: number; value: { collapsed: boolean } }[]
       | undefined;
     if (!poData) {
@@ -947,7 +947,7 @@ const result35 = TrendCraft.from(candles)
         time: number;
         value: { collapsed: boolean };
       }[];
-      _indicators["po_5_25_75_sma"] = poData;
+      _indicators.po_5_25_75_sma = poData;
     }
     return poData[i]?.value?.collapsed ?? false;
   })
@@ -1038,7 +1038,7 @@ const result40 = TrendCraft.from(candles)
     if (i < 20) return false;
 
     // PO形成チェック
-    let poData = _indicators["po_5_25_75_sma"] as
+    let poData = _indicators.po_5_25_75_sma as
       | { time: number; value: { formed: boolean; type: string } }[]
       | undefined;
     if (!poData) {
@@ -1046,7 +1046,7 @@ const result40 = TrendCraft.from(candles)
         time: number;
         value: { formed: boolean; type: string };
       }[];
-      _indicators["po_5_25_75_sma"] = poData;
+      _indicators.po_5_25_75_sma = poData;
     }
     const po = poData[i]?.value;
     if (!po || !po.formed || po.type !== "bullish") return false;

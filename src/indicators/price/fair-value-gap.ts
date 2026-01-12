@@ -265,7 +265,7 @@ export function getNearestFvg(
   const { bullish, bearish } = getUnfilledFvgs(candles, options);
 
   let nearestFvg: FvgGap | null = null;
-  let minDistance = Infinity;
+  let minDistance = Number.POSITIVE_INFINITY;
 
   // Check bullish FVGs (below price, support)
   for (const fvg of bullish) {

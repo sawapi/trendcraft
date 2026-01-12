@@ -3,11 +3,7 @@ import type { NormalizedCandle } from "../../types";
 import { volumeBreakout } from "../volume-breakout";
 
 // Helper to create test candle
-function createCandle(
-  day: number,
-  close: number,
-  volume: number,
-): NormalizedCandle {
+function createCandle(day: number, close: number, volume: number): NormalizedCandle {
   return {
     time: new Date(2024, 0, day).getTime(),
     open: close,
@@ -20,10 +16,7 @@ function createCandle(
 
 describe("volumeBreakout", () => {
   it("should return empty array for insufficient data", () => {
-    const candles = [
-      createCandle(1, 100, 1000),
-      createCandle(2, 101, 1100),
-    ];
+    const candles = [createCandle(1, 100, 1000), createCandle(2, 101, 1100)];
     expect(volumeBreakout(candles)).toEqual([]);
   });
 

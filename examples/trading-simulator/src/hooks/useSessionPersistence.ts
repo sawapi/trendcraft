@@ -1,6 +1,13 @@
-import { useEffect, useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import { useSimulatorStore } from "../store/simulatorStore";
-import type { Position, Trade, IndicatorParams, EquityPoint, SimulatorPhase, SymbolSession } from "../types";
+import type {
+  EquityPoint,
+  IndicatorParams,
+  Position,
+  SimulatorPhase,
+  SymbolSession,
+  Trade,
+} from "../types";
 
 const STORAGE_KEY = "trading-simulator-session";
 const SESSION_VERSION = 2; // Version bumped for multi-symbol support
@@ -132,7 +139,10 @@ export function loadSession(): SessionData | null {
         savedAt: multiSession.savedAt,
         fileName: firstSymbol.fileName,
         phase: multiSession.phase,
-        currentIndex: firstSymbol.startIndex + multiSession.config.initialCandleCount + multiSession.currentDateIndex,
+        currentIndex:
+          firstSymbol.startIndex +
+          multiSession.config.initialCandleCount +
+          multiSession.currentDateIndex,
         positions: firstSymbol.positions,
         tradeHistory: firstSymbol.tradeHistory,
         equityCurve: firstSymbol.equityCurve,
@@ -230,46 +240,49 @@ export function useSessionPersistence(): void {
 }
 
 export function useSessionRestore() {
-  const restoreSession = useCallback((session: SessionData, candles: SymbolSession["allCandles"]) => {
-    const store = useSimulatorStore.getState();
+  const restoreSession = useCallback(
+    (session: SessionData, candles: SymbolSession["allCandles"]) => {
+      const store = useSimulatorStore.getState();
 
-    store.loadCandles(candles, session.fileName);
+      store.loadCandles(candles, session.fileName);
 
-    // 状態を直接更新
-    useSimulatorStore.setState({
-      phase: session.phase,
-      initialCandleCount: session.config.initialCandleCount,
-      initialCapital: session.config.initialCapital,
-      enabledIndicators: session.config.enabledIndicators,
-      indicatorParams: session.config.indicatorParams,
-      commissionRate: session.config.commissionRate,
-      slippageBps: session.config.slippageBps,
-      taxRate: session.config.taxRate,
-      stopLossPercent: session.config.stopLossPercent,
-      takeProfitPercent: session.config.takeProfitPercent,
-      trailingStopEnabled: session.config.trailingStopEnabled ?? false,
-      trailingStopPercent: session.config.trailingStopPercent ?? 5,
-      isPlaying: false,
-    });
-
-    // アクティブシンボルの状態を更新
-    const activeSymbol = store.symbols.find((s) => s.id === store.activeSymbolId);
-    if (activeSymbol) {
+      // 状態を直接更新
       useSimulatorStore.setState({
-        symbols: store.symbols.map((s) =>
-          s.id === store.activeSymbolId
-            ? {
-                ...s,
-                positions: session.positions,
-                tradeHistory: session.tradeHistory,
-                equityCurve: session.equityCurve,
-                startIndex: session.config.startIndex,
-              }
-            : s
-        ),
+        phase: session.phase,
+        initialCandleCount: session.config.initialCandleCount,
+        initialCapital: session.config.initialCapital,
+        enabledIndicators: session.config.enabledIndicators,
+        indicatorParams: session.config.indicatorParams,
+        commissionRate: session.config.commissionRate,
+        slippageBps: session.config.slippageBps,
+        taxRate: session.config.taxRate,
+        stopLossPercent: session.config.stopLossPercent,
+        takeProfitPercent: session.config.takeProfitPercent,
+        trailingStopEnabled: session.config.trailingStopEnabled ?? false,
+        trailingStopPercent: session.config.trailingStopPercent ?? 5,
+        isPlaying: false,
       });
-    }
-  }, []);
+
+      // アクティブシンボルの状態を更新
+      const activeSymbol = store.symbols.find((s) => s.id === store.activeSymbolId);
+      if (activeSymbol) {
+        useSimulatorStore.setState({
+          symbols: store.symbols.map((s) =>
+            s.id === store.activeSymbolId
+              ? {
+                  ...s,
+                  positions: session.positions,
+                  tradeHistory: session.tradeHistory,
+                  equityCurve: session.equityCurve,
+                  startIndex: session.config.startIndex,
+                }
+              : s,
+          ),
+        });
+      }
+    },
+    [],
+  );
 
   return { restoreSession };
 }

@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { NormalizedCandle } from "../../types";
 import {
-  generateAWFBoundaries,
-  calculateAWFPeriodCount,
   anchoredWalkForwardAnalysis,
-  summarizeAWFResult,
+  calculateAWFPeriodCount,
   formatAWFResult,
+  generateAWFBoundaries,
   getAWFEquityCurve,
+  summarizeAWFResult,
 } from "../anchored-walkforward";
 import type { ConditionDefinition } from "../combination-search";
 
@@ -16,7 +16,7 @@ import type { ConditionDefinition } from "../combination-search";
 function generateTestCandles(
   count: number,
   startPrice = 100,
-  dailyReturn = 0.001
+  dailyReturn = 0.001,
 ): NormalizedCandle[] {
   const candles: NormalizedCandle[] = [];
   const baseTime = new Date("2015-01-01").getTime();
@@ -192,7 +192,7 @@ describe("Anchored Walk-Forward Analysis", () => {
           anchorDate: candles[0].time,
           initialTrainSize: 504,
           testSize: 252,
-        })
+        }),
       ).toThrow("Insufficient data");
     });
 
@@ -215,7 +215,7 @@ describe("Anchored Walk-Forward Analysis", () => {
         {
           maxEntryConditions: 1,
           maxExitConditions: 1,
-        }
+        },
       );
 
       expect(result.periods.length).toBeGreaterThan(0);
@@ -242,7 +242,7 @@ describe("Anchored Walk-Forward Analysis", () => {
         {
           maxEntryConditions: 1,
           maxExitConditions: 1,
-        }
+        },
       );
 
       // Should have some condition frequencies tracked
@@ -277,7 +277,7 @@ describe("Anchored Walk-Forward Analysis", () => {
         {
           maxEntryConditions: 1,
           maxExitConditions: 1,
-        }
+        },
       );
 
       expect(progressCalls.length).toBeGreaterThan(0);
@@ -304,7 +304,7 @@ describe("Anchored Walk-Forward Analysis", () => {
         {
           maxEntryConditions: 1,
           maxExitConditions: 1,
-        }
+        },
       );
 
       for (const period of result.periods) {
@@ -343,7 +343,7 @@ describe("Anchored Walk-Forward Analysis", () => {
         {
           maxEntryConditions: 1,
           maxExitConditions: 1,
-        }
+        },
       );
 
       const summary = summarizeAWFResult(result);
@@ -379,7 +379,7 @@ describe("Anchored Walk-Forward Analysis", () => {
         {
           maxEntryConditions: 1,
           maxExitConditions: 1,
-        }
+        },
       );
 
       const formatted = formatAWFResult(result);
@@ -411,7 +411,7 @@ describe("Anchored Walk-Forward Analysis", () => {
         {
           maxEntryConditions: 1,
           maxExitConditions: 1,
-        }
+        },
       );
 
       const formatted = formatAWFResult(result);
@@ -442,7 +442,7 @@ describe("Anchored Walk-Forward Analysis", () => {
         {
           maxEntryConditions: 1,
           maxExitConditions: 1,
-        }
+        },
       );
 
       const curve = getAWFEquityCurve(result);
@@ -473,7 +473,7 @@ describe("Anchored Walk-Forward Analysis", () => {
         {
           maxEntryConditions: 1,
           maxExitConditions: 1,
-        }
+        },
       );
 
       const curve1 = getAWFEquityCurve(result, 100000);
@@ -505,7 +505,7 @@ describe("Anchored Walk-Forward Analysis", () => {
         {
           maxEntryConditions: 1,
           maxExitConditions: 1,
-        }
+        },
       );
 
       const curve = getAWFEquityCurve(result, 100000);
@@ -539,7 +539,7 @@ describe("Anchored Walk-Forward Analysis", () => {
         {
           maxEntryConditions: 1,
           maxExitConditions: 1,
-        }
+        },
       );
 
       expect(typeof result.recommendation.useOptimized).toBe("boolean");
@@ -565,7 +565,7 @@ describe("Anchored Walk-Forward Analysis", () => {
         {
           maxEntryConditions: 1,
           maxExitConditions: 1,
-        }
+        },
       );
 
       if (result.recommendation.useOptimized) {
@@ -594,7 +594,7 @@ describe("Anchored Walk-Forward Analysis", () => {
         {
           maxEntryConditions: 1,
           maxExitConditions: 1,
-        }
+        },
       );
 
       expect(typeof result.aggregateMetrics.stabilityRatio).toBe("number");
@@ -619,7 +619,7 @@ describe("Anchored Walk-Forward Analysis", () => {
         {
           maxEntryConditions: 1,
           maxExitConditions: 1,
-        }
+        },
       );
 
       expect(typeof result.aggregateMetrics.oosReturnStdDev).toBe("number");

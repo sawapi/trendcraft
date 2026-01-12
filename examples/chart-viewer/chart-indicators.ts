@@ -685,9 +685,9 @@ export function updateObvChart(
         color: "#888",
         formatter: (value: number) => {
           const abs = Math.abs(value);
-          if (abs >= 1e9) return (value / 1e9).toFixed(1) + "B";
-          if (abs >= 1e6) return (value / 1e6).toFixed(0) + "M";
-          if (abs >= 1e3) return (value / 1e3).toFixed(0) + "K";
+          if (abs >= 1e9) return `${(value / 1e9).toFixed(1)}B`;
+          if (abs >= 1e6) return `${(value / 1e6).toFixed(0)}M`;
+          if (abs >= 1e3) return `${(value / 1e3).toFixed(0)}K`;
           return value.toString();
         },
       },
@@ -873,7 +873,7 @@ export function updateRocChart(
       formatter: (params) => {
         const p = Array.isArray(params) ? params[0] : params;
         const value = p.value as number | null;
-        return `${p.name}<br/>ROC: ${value !== null ? value.toFixed(2) + "%" : "-"}`;
+        return `${p.name}<br/>ROC: ${value !== null ? `${value.toFixed(2)}%` : "-"}`;
       },
     },
     title: {

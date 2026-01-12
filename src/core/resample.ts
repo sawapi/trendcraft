@@ -145,7 +145,7 @@ export function resample(
     if (!groups.has(periodStart)) {
       groups.set(periodStart, []);
     }
-    groups.get(periodStart)!.push(candle);
+    groups.get(periodStart)?.push(candle);
   }
 
   // Aggregate each group and sort by time

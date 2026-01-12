@@ -167,8 +167,7 @@ export function calculateStrength(
   // Calculate uniformity: how evenly spaced are the MAs?
   // Perfect uniformity = 1.0, poor uniformity approaches 0
   const avgSpread = spreads.reduce((a, b) => a + b, 0) / spreads.length;
-  const spreadVariance =
-    spreads.reduce((sum, s) => sum + Math.pow(s - avgSpread, 2), 0) / spreads.length;
+  const spreadVariance = spreads.reduce((sum, s) => sum + (s - avgSpread) ** 2, 0) / spreads.length;
   const spreadStdDev = Math.sqrt(spreadVariance);
   const uniformityScore = avgSpread > 0 ? Math.max(0, 1 - spreadStdDev / avgSpread) : 0;
 

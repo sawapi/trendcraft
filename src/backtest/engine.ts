@@ -477,7 +477,8 @@ export function runBacktest(
               : candle.close >= scaleOutThresholdPrice;
 
           if (scaleOutTrigger) {
-            const scaleOutExitPrice = slTpMode === "intraday" ? scaleOutThresholdPrice : candle.close;
+            const scaleOutExitPrice =
+              slTpMode === "intraday" ? scaleOutThresholdPrice : candle.close;
             const sharesToSell = position.shares * (level.sellPercent / 100);
             const sharesRemaining = position.shares - sharesToSell;
 
@@ -592,7 +593,8 @@ export function runBacktest(
         if (holdingDays >= timeExit.maxHoldDays) {
           // Check if we should only exit when position is flat
           if (timeExit.onlyIfFlat) {
-            const currentReturn = ((candle.close - position.entryPrice) / position.entryPrice) * 100;
+            const currentReturn =
+              ((candle.close - position.entryPrice) / position.entryPrice) * 100;
             const threshold = timeExit.onlyIfFlat.threshold;
 
             // Only exit if return is within ±threshold%
@@ -788,7 +790,7 @@ function calculateStats(
   // Calculate Sharpe Ratio (annualized, assuming 252 trading days)
   const avgReturn = returns.reduce((sum, r) => sum + r, 0) / returns.length;
   const stdReturn = Math.sqrt(
-    returns.reduce((sum, r) => sum + Math.pow(r - avgReturn, 2), 0) / returns.length,
+    returns.reduce((sum, r) => sum + (r - avgReturn) ** 2, 0) / returns.length,
   );
   // Annualize using sqrt(252) - standard annualization factor for daily returns
   const sharpeRatio = stdReturn > 0 ? (avgReturn / stdReturn) * Math.sqrt(252) : 0;

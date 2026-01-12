@@ -45,7 +45,11 @@ export type VolumeAccumulationOptions = {
 /**
  * Calculate linear regression slope and R-squared
  */
-function linearRegression(values: number[]): { slope: number; rSquared: number; intercept: number } {
+function linearRegression(values: number[]): {
+  slope: number;
+  rSquared: number;
+  intercept: number;
+} {
   const n = values.length;
   if (n < 2) return { slope: 0, rSquared: 0, intercept: 0 };
 
@@ -113,12 +117,7 @@ export function volumeAccumulation(
   candles: Candle[] | NormalizedCandle[],
   options: VolumeAccumulationOptions = {},
 ): VolumeAccumulationSignal[] {
-  const {
-    period = 10,
-    minSlope = 0.05,
-    minRSquared = 0.3,
-    minConsecutiveDays = 3,
-  } = options;
+  const { period = 10, minSlope = 0.05, minRSquared = 0.3, minConsecutiveDays = 3 } = options;
 
   if (period < 2) {
     throw new Error("Volume accumulation period must be at least 2");

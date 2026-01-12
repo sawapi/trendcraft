@@ -22,6 +22,7 @@ export function ShortcutsHelp() {
   return (
     <div className="shortcuts-help">
       <button
+        type="button"
         className="shortcuts-toggle"
         onClick={() => setIsOpen(!isOpen)}
         title="キーボードショートカット"
