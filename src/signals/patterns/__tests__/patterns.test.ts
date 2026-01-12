@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
+import type { NormalizedCandle } from "../../../types";
 import {
-  doubleTop,
+  cupWithHandle,
   doubleBottom,
+  doubleTop,
   headAndShoulders,
   inverseHeadAndShoulders,
-  cupWithHandle,
 } from "../index";
-import type { NormalizedCandle } from "../../../types";
 
 /**
  * Create a simple candle at a given price
@@ -256,7 +256,9 @@ describe("Pattern Detection Signals", () => {
       if (patterns.length > 0) {
         const pattern = patterns[0];
         expect(pattern.type).toBe("double_top");
-        expect(pattern.pattern.keyPoints).toHaveLength(3);
+        // 3-5 keyPoints: Start Low (optional) + First Peak + Middle Trough + Second Peak + End Low (if confirmed)
+        expect(pattern.pattern.keyPoints.length).toBeGreaterThanOrEqual(3);
+        expect(pattern.pattern.keyPoints.length).toBeLessThanOrEqual(5);
         expect(pattern.pattern.target).toBeDefined();
         expect(pattern.pattern.stopLoss).toBeDefined();
         expect(pattern.confidence).toBeGreaterThan(0);
@@ -307,10 +309,15 @@ describe("Pattern Detection Signals", () => {
       if (patterns.length > 0) {
         const pattern = patterns[0];
         expect(pattern.type).toBe("double_bottom");
-        expect(pattern.pattern.keyPoints).toHaveLength(3);
+        // 3-5 keyPoints: Start High (optional) + First Trough + Middle Peak + Second Trough + End High (if confirmed)
+        expect(pattern.pattern.keyPoints.length).toBeGreaterThanOrEqual(3);
+        expect(pattern.pattern.keyPoints.length).toBeLessThanOrEqual(5);
         expect(pattern.pattern.target).toBeDefined();
-        // Target should be above current price (bullish)
-        expect(pattern.pattern.target).toBeGreaterThan(pattern.pattern.keyPoints[1].price);
+        // Target should be above neckline price (bullish)
+        // Find Middle Peak keyPoint (always present as 2nd or 3rd point)
+        const middlePeakPoint = pattern.pattern.keyPoints.find((kp) => kp.label === "Middle Peak");
+        expect(middlePeakPoint).toBeDefined();
+        expect(pattern.pattern.target).toBeGreaterThan(middlePeakPoint?.price);
       }
     });
 
@@ -443,7 +450,13 @@ describe("Pattern Detection Signals", () => {
       for (const pattern of allPatterns) {
         // Required fields
         expect(typeof pattern.time).toBe("number");
-        expect(["double_top", "double_bottom", "head_shoulders", "inverse_head_shoulders", "cup_handle"]).toContain(pattern.type);
+        expect([
+          "double_top",
+          "double_bottom",
+          "head_shoulders",
+          "inverse_head_shoulders",
+          "cup_handle",
+        ]).toContain(pattern.type);
         expect(typeof pattern.confidence).toBe("number");
         expect(typeof pattern.confirmed).toBe("boolean");
         expect(pattern.confidence).toBeGreaterThanOrEqual(0);
