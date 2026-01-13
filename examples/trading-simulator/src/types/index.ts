@@ -461,6 +461,10 @@ export interface IndicatorParams {
   dtMaxDistance?: number;
   dtMinMiddleDepth?: number;
   dtSwingLookback?: number;
+  dtMaxBreakoutDistance?: number;
+  dtValidateNecklineViolation?: boolean;
+  dtNecklineViolationTolerance?: number;
+  dtStrictMode?: boolean;
   // Head & Shoulders
   hsShoulderTolerance?: number;
   hsMaxNecklineSlope?: number;
@@ -509,9 +513,13 @@ export const DEFAULT_INDICATOR_PARAMS: IndicatorParams = {
   // Double Top/Bottom
   dtTolerance: 0.02,
   dtMinDistance: 15,
-  dtMaxDistance: 100,
+  dtMaxDistance: 60, // Balanced: not too strict (40) or too loose (100)
   dtMinMiddleDepth: 0.07,
   dtSwingLookback: 5,
+  dtMaxBreakoutDistance: 20,
+  dtValidateNecklineViolation: true,
+  dtNecklineViolationTolerance: 0, // 0に変更：ネックラインを超える足は許容しない
+  dtStrictMode: false, // false = loose mode (default), true = strict mode
   // Head & Shoulders
   hsShoulderTolerance: 0.05,
   hsMaxNecklineSlope: 0.1,
@@ -588,6 +596,9 @@ export const INDICATOR_PARAM_CONFIGS: Record<string, ParamConfig[]> = {
     { key: "dtMaxDistance", label: "最大距離", min: 40, max: 150, step: 5 },
     { key: "dtMinMiddleDepth", label: "中間の深さ%", min: 0.03, max: 0.15, step: 0.01 },
     { key: "dtSwingLookback", label: "スイング確認期間", min: 3, max: 10, step: 1 },
+    { key: "dtMaxBreakoutDistance", label: "最大ブレイクアウト距離", min: 10, max: 50, step: 5 },
+    { key: "dtNecklineViolationTolerance", label: "ネックライン許容%", min: 0, max: 0.02, step: 0.001 },
+    { key: "dtStrictMode", label: "Strictモード(0/1)", min: 0, max: 1, step: 1 },
   ],
   headShoulders: [
     { key: "hsShoulderTolerance", label: "肩許容範囲", min: 0.01, max: 0.15, step: 0.01 },

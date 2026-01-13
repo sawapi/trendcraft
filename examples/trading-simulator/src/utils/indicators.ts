@@ -109,32 +109,27 @@ export function calculateIndicators(
   // Merge with defaults
   const p = { ...DEFAULT_INDICATOR_PARAMS, ...params };
 
+  // Helper to calculate and store simple moving average indicators
+  const calculateSma = (key: "sma5" | "sma25" | "sma75", periodKey: "sma5Period" | "sma25Period" | "sma75Period"): void => {
+    if (enabledIndicators.includes(key)) {
+      result[key] = extractValues(TrendCraft.sma(candles, { period: p[periodKey]! }));
+    }
+  };
+
+  // Helper to calculate and store exponential moving average indicators
+  const calculateEma = (key: "ema12" | "ema26", periodKey: "ema12Period" | "ema26Period"): void => {
+    if (enabledIndicators.includes(key)) {
+      result[key] = extractValues(TrendCraft.ema(candles, { period: p[periodKey]! }));
+    }
+  };
+
   // ========== トレンド系 ==========
 
-  if (enabledIndicators.includes("sma5")) {
-    const series = TrendCraft.sma(candles, { period: p.sma5Period! });
-    result.sma5 = extractValues(series);
-  }
-
-  if (enabledIndicators.includes("sma25")) {
-    const series = TrendCraft.sma(candles, { period: p.sma25Period! });
-    result.sma25 = extractValues(series);
-  }
-
-  if (enabledIndicators.includes("sma75")) {
-    const series = TrendCraft.sma(candles, { period: p.sma75Period! });
-    result.sma75 = extractValues(series);
-  }
-
-  if (enabledIndicators.includes("ema12")) {
-    const series = TrendCraft.ema(candles, { period: p.ema12Period! });
-    result.ema12 = extractValues(series);
-  }
-
-  if (enabledIndicators.includes("ema26")) {
-    const series = TrendCraft.ema(candles, { period: p.ema26Period! });
-    result.ema26 = extractValues(series);
-  }
+  calculateSma("sma5", "sma5Period");
+  calculateSma("sma25", "sma25Period");
+  calculateSma("sma75", "sma75Period");
+  calculateEma("ema12", "ema12Period");
+  calculateEma("ema26", "ema26Period");
 
   if (enabledIndicators.includes("ichimoku")) {
     const series = TrendCraft.ichimoku(candles);
@@ -282,12 +277,19 @@ export function calculateIndicators(
   const patterns: PatternSignal[] = [];
 
   if (enabledIndicators.includes("doubleTopBottom")) {
+    // Convert to boolean for strictMode (UI may pass 0/1 or true/false)
+    const strictMode = Boolean(p.dtStrictMode);
+
     const tops = TrendCraft.doubleTop(candles, {
       tolerance: p.dtTolerance!,
       minDistance: p.dtMinDistance!,
       maxDistance: p.dtMaxDistance!,
       minMiddleDepth: p.dtMinMiddleDepth!,
       swingLookback: p.dtSwingLookback!,
+      maxBreakoutDistance: p.dtMaxBreakoutDistance!,
+      validateNecklineViolation: p.dtValidateNecklineViolation!,
+      necklineViolationTolerance: p.dtNecklineViolationTolerance!,
+      strictMode,
     });
     const bottoms = TrendCraft.doubleBottom(candles, {
       tolerance: p.dtTolerance!,
@@ -295,6 +297,10 @@ export function calculateIndicators(
       maxDistance: p.dtMaxDistance!,
       minMiddleDepth: p.dtMinMiddleDepth!,
       swingLookback: p.dtSwingLookback!,
+      maxBreakoutDistance: p.dtMaxBreakoutDistance!,
+      validateNecklineViolation: p.dtValidateNecklineViolation!,
+      necklineViolationTolerance: p.dtNecklineViolationTolerance!,
+      strictMode,
     });
     patterns.push(...tops, ...bottoms);
   }
@@ -440,30 +446,20 @@ export function analyzeMarketContext(
   }
 
   // regime（機械可読用enum）
-  let regime: "TREND_UP" | "TREND_DOWN" | "RANGE";
-  if (trend === "uptrend") {
-    regime = "TREND_UP";
-  } else if (trend === "downtrend") {
-    regime = "TREND_DOWN";
-  } else {
-    regime = "RANGE";
-  }
+  const regimeMap: Record<typeof trend, "TREND_UP" | "TREND_DOWN" | "RANGE"> = {
+    uptrend: "TREND_UP",
+    downtrend: "TREND_DOWN",
+    range: "RANGE",
+  };
+  const regime = regimeMap[trend];
 
   // confidence（0-1、ADXベースまたはtrendStrengthから推定）
-  let confidence: number;
-  if (adx != null) {
-    // ADXを0-1にスケール（ADX 50以上は1.0）
-    confidence = Math.min(adx / 50, 1);
-  } else {
-    // ADXがない場合はtrendStrengthから推定
-    if (trendStrength === "strong") {
-      confidence = 0.8;
-    } else if (trendStrength === "moderate") {
-      confidence = 0.5;
-    } else {
-      confidence = 0.3;
-    }
-  }
+  const strengthConfidence: Record<typeof trendStrength, number> = {
+    strong: 0.8,
+    moderate: 0.5,
+    weak: 0.3,
+  };
+  const confidence = adx != null ? Math.min(adx / 50, 1) : strengthConfidence[trendStrength];
 
   // RSIゾーン
   let rsiZone: "overbought" | "oversold" | "neutral" | undefined;

@@ -79,12 +79,47 @@ export interface DoublePatternOptions {
   tolerance?: number;
   /** Minimum bars between peaks/troughs (default: 10) */
   minDistance?: number;
-  /** Maximum bars between peaks/troughs (default: 60) */
+  /** Maximum bars between peaks/troughs (default: 40, about 2 months for daily data) */
   maxDistance?: number;
   /** Minimum depth of the middle trough/peak as % of pattern height (default: 0.1 = 10%) */
   minMiddleDepth?: number;
   /** Swing point detection lookback (default: 5) */
   swingLookback?: number;
+
+  // Volume validation options
+  /** Enable volume validation on breakout (default: true) */
+  validateVolume?: boolean;
+  /** Minimum volume increase ratio on breakout compared to average (default: 1.2 = 20% increase) */
+  minVolumeIncrease?: number;
+  /** Lookback period for average volume calculation (default: 10) */
+  volumeLookback?: number;
+
+  // Neckline quality options
+  /** Enable neckline quality validation (default: true) */
+  validateNeckline?: boolean;
+  /** Maximum times price can cross neckline before confirmation (default: 3) */
+  maxNecklineCrosses?: number;
+
+  // Prominence validation options
+  /** Enable prominence validation - checks if peaks/troughs stand out from surroundings (default: true) */
+  validateProminence?: boolean;
+  /** Minimum prominence as percentage of price (default: 0.02 = 2%) */
+  minProminence?: number;
+
+  // Breakout distance options
+  /** Maximum bars to search for breakout point from second peak/trough (default: 20) */
+  maxBreakoutDistance?: number;
+
+  // Neckline violation options
+  /** Enable neckline violation validation during pattern formation (default: true) */
+  validateNecklineViolation?: boolean;
+  /** Tolerance for neckline violation as percentage of price (default: 0 = no tolerance) */
+  necklineViolationTolerance?: number;
+
+  // Strict mode options
+  /** Enable strict mode - requires pattern to start above neckline for double bottom,
+   *  or below neckline for double top (default: false = loose mode) */
+  strictMode?: boolean;
 }
 
 /**

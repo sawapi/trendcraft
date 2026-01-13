@@ -317,7 +317,7 @@ describe("Pattern Detection Signals", () => {
         // Find Middle Peak keyPoint (always present as 2nd or 3rd point)
         const middlePeakPoint = pattern.pattern.keyPoints.find((kp) => kp.label === "Middle Peak");
         expect(middlePeakPoint).toBeDefined();
-        expect(pattern.pattern.target).toBeGreaterThan(middlePeakPoint?.price);
+        expect(pattern.pattern.target).toBeGreaterThan(middlePeakPoint!.price);
       }
     });
 

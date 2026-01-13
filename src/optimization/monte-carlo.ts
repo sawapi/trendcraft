@@ -41,6 +41,18 @@ function createSeededRandom(seed: number): () => number {
 }
 
 /**
+ * Calculate percentile from sorted array using linear interpolation
+ */
+function getPercentile(sorted: number[], p: number): number {
+  const n = sorted.length;
+  const index = (p / 100) * (n - 1);
+  const lower = Math.floor(index);
+  const upper = Math.ceil(index);
+  if (lower === upper) return sorted[lower];
+  return sorted[lower] + (index - lower) * (sorted[upper] - sorted[lower]);
+}
+
+/**
  * Calculate statistics from array of values
  */
 export function calculateStatistics(values: number[]): MetricStatistics {
@@ -68,23 +80,14 @@ export function calculateStatistics(values: number[]): MetricStatistics {
   const variance = values.reduce((sum, v) => sum + (v - mean) ** 2, 0) / n;
   const stdDev = Math.sqrt(variance);
 
-  // Percentiles using linear interpolation
-  const percentile = (p: number): number => {
-    const index = (p / 100) * (n - 1);
-    const lower = Math.floor(index);
-    const upper = Math.ceil(index);
-    if (lower === upper) return sorted[lower];
-    return sorted[lower] + (index - lower) * (sorted[upper] - sorted[lower]);
-  };
-
   return {
     mean,
-    median: percentile(50),
+    median: getPercentile(sorted, 50),
     stdDev,
-    percentile5: percentile(5),
-    percentile25: percentile(25),
-    percentile75: percentile(75),
-    percentile95: percentile(95),
+    percentile5: getPercentile(sorted, 5),
+    percentile25: getPercentile(sorted, 25),
+    percentile75: getPercentile(sorted, 75),
+    percentile95: getPercentile(sorted, 95),
     min: sorted[0],
     max: sorted[n - 1],
   };
@@ -217,16 +220,8 @@ export function runMonteCarloSimulation(
 
   // Calculate confidence intervals
   const alpha = 1 - confidenceLevel;
-  const lowerPercentile = (alpha / 2) * 100;
-  const upperPercentile = (1 - alpha / 2) * 100;
-
-  const getPercentile = (sorted: number[], p: number): number => {
-    const index = (p / 100) * (sorted.length - 1);
-    const lower = Math.floor(index);
-    const upper = Math.ceil(index);
-    if (lower === upper) return sorted[lower];
-    return sorted[lower] + (index - lower) * (sorted[upper] - sorted[lower]);
-  };
+  const lowerPercentilePct = (alpha / 2) * 100;
+  const upperPercentilePct = (1 - alpha / 2) * 100;
 
   const sortedSharpe = [...sharpeValues].sort((a, b) => a - b);
   const sortedReturns = [...returnValues].sort((a, b) => a - b);
@@ -234,16 +229,16 @@ export function runMonteCarloSimulation(
 
   const confidenceInterval = {
     sharpe: {
-      lower: getPercentile(sortedSharpe, lowerPercentile),
-      upper: getPercentile(sortedSharpe, upperPercentile),
+      lower: getPercentile(sortedSharpe, lowerPercentilePct),
+      upper: getPercentile(sortedSharpe, upperPercentilePct),
     },
     returns: {
-      lower: getPercentile(sortedReturns, lowerPercentile),
-      upper: getPercentile(sortedReturns, upperPercentile),
+      lower: getPercentile(sortedReturns, lowerPercentilePct),
+      upper: getPercentile(sortedReturns, upperPercentilePct),
     },
     maxDrawdown: {
-      lower: getPercentile(sortedMaxDD, lowerPercentile),
-      upper: getPercentile(sortedMaxDD, upperPercentile),
+      lower: getPercentile(sortedMaxDD, lowerPercentilePct),
+      upper: getPercentile(sortedMaxDD, upperPercentilePct),
     },
   };
 

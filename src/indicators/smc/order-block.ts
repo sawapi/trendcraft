@@ -289,12 +289,11 @@ function checkMitigation(
   ob: OrderBlock,
   partialMitigation: boolean,
 ): boolean {
-  if (ob.type === "bullish") {
-    const threshold = partialMitigation ? ob.high : ob.low;
-    return candle.low <= threshold;
-  }
-  const threshold = partialMitigation ? ob.low : ob.high;
-  return candle.high >= threshold;
+  const isBullish = ob.type === "bullish";
+  const threshold = partialMitigation
+    ? (isBullish ? ob.high : ob.low)
+    : (isBullish ? ob.low : ob.high);
+  return isBullish ? candle.low <= threshold : candle.high >= threshold;
 }
 
 /**

@@ -3,7 +3,32 @@
  */
 
 import { bollingerBands } from "../../indicators/volatility/bollinger-bands";
-import type { PresetCondition } from "../../types";
+import type { NormalizedCandle, PresetCondition } from "../../types";
+
+type BBData = {
+  time: number;
+  value: { upper: number | null; lower: number | null; middle: number | null };
+}[];
+
+/**
+ * Get or calculate Bollinger Bands data with caching
+ */
+function getBBData(
+  indicators: Record<string, unknown>,
+  candles: NormalizedCandle[],
+  period: number,
+  stdDev: number,
+): BBData {
+  const key = `bb${period}`;
+  let bbData = indicators[key] as BBData | undefined;
+
+  if (!bbData) {
+    bbData = bollingerBands(candles, { period, stdDev });
+    indicators[key] = bbData;
+  }
+
+  return bbData;
+}
 
 // ============================================
 // Bollinger Bands Conditions
@@ -18,28 +43,17 @@ export function bollingerBreakout(
   period = 20,
   stdDev = 2,
 ): PresetCondition {
-  const key = `bb${period}`;
-
   return {
     type: "preset",
     name: `bollingerBreakout('${band}')`,
     evaluate: (indicators, candle, index, candles) => {
-      let bbData = indicators[key] as
-        | { time: number; value: { upper: number | null; lower: number | null } }[]
-        | undefined;
-
-      if (!bbData) {
-        bbData = bollingerBands(candles, { period, stdDev });
-        indicators[key] = bbData;
-      }
-
+      const bbData = getBBData(indicators, candles, period, stdDev);
       const bb = bbData[index]?.value;
       if (!bb) return false;
 
-      if (band === "upper") {
-        return bb.upper !== null && candle.close > bb.upper;
-      }
-      return bb.lower !== null && candle.close < bb.lower;
+      return band === "upper"
+        ? bb.upper !== null && candle.close > bb.upper
+        : bb.lower !== null && candle.close < bb.lower;
     },
   };
 }
@@ -49,34 +63,20 @@ export function bollingerBreakout(
  * @param band 'upper' or 'lower'
  */
 export function bollingerTouch(band: "upper" | "lower", period = 20, stdDev = 2): PresetCondition {
-  const key = `bb${period}`;
-
   return {
     type: "preset",
     name: `bollingerTouch('${band}')`,
     evaluate: (indicators, candle, index, candles) => {
-      let bbData = indicators[key] as
-        | {
-            time: number;
-            value: { upper: number | null; lower: number | null; middle: number | null };
-          }[]
-        | undefined;
-
-      if (!bbData) {
-        bbData = bollingerBands(candles, { period, stdDev });
-        indicators[key] = bbData;
-      }
-
+      const bbData = getBBData(indicators, candles, period, stdDev);
       const bb = bbData[index]?.value;
       if (!bb || bb.upper === null || bb.lower === null || bb.middle === null) return false;
 
       const bandWidth = bb.upper - bb.lower;
       const tolerance = bandWidth * 0.02; // 2% tolerance
 
-      if (band === "upper") {
-        return candle.high >= bb.upper - tolerance && candle.close <= bb.upper;
-      }
-      return candle.low <= bb.lower + tolerance && candle.close >= bb.lower;
+      return band === "upper"
+        ? candle.high >= bb.upper - tolerance && candle.close <= bb.upper
+        : candle.low <= bb.lower + tolerance && candle.close >= bb.lower;
     },
   };
 }

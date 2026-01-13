@@ -97,26 +97,34 @@ export function IndicatorSelector({
                   </label>
                   {isExpanded && paramConfigs.length > 0 && (
                     <div className="param-panel">
-                      {paramConfigs.map((config) => (
-                        <div key={config.key} className="param-row">
-                          <label>
-                            {config.label}
-                            <input
-                              type="number"
-                              min={config.min}
-                              max={config.max}
-                              step={config.step}
-                              value={params[config.key] ?? DEFAULT_INDICATOR_PARAMS[config.key]}
-                              onChange={(e) =>
-                                handleParamChange(
-                                  config.key,
-                                  Number.parseFloat(e.target.value) || config.min,
-                                )
-                              }
-                            />
-                          </label>
-                        </div>
-                      ))}
+                      {paramConfigs.map((config) => {
+                        const paramValue = params[config.key];
+                        const defaultValue = DEFAULT_INDICATOR_PARAMS[config.key];
+                        // Use param value if numeric, otherwise fall back to default or min
+                        const displayValue = typeof paramValue === "number"
+                          ? paramValue
+                          : (typeof defaultValue === "number" ? defaultValue : config.min);
+                        return (
+                          <div key={config.key} className="param-row">
+                            <label>
+                              {config.label}
+                              <input
+                                type="number"
+                                min={config.min}
+                                max={config.max}
+                                step={config.step}
+                                value={displayValue}
+                                onChange={(e) =>
+                                  handleParamChange(
+                                    config.key,
+                                    Number.parseFloat(e.target.value) || config.min,
+                                  )
+                                }
+                              />
+                            </label>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>

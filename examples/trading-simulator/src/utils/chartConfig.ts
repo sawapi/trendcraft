@@ -414,16 +414,8 @@ export function buildChartOption(
   // ========== パターン認識 ==========
 
   if (indicators.detectedPatterns && indicators.detectedPatterns.length > 0) {
-    // 成立パターンのみをフィルタリングし、タイプごとに最新のパターンのみ表示
-    const confirmedPatterns = indicators.detectedPatterns.filter((p) => p.confirmed);
-    const latestByType = new Map<string, (typeof confirmedPatterns)[0]>();
-    for (const pattern of confirmedPatterns) {
-      const existing = latestByType.get(pattern.type);
-      if (!existing || pattern.pattern.endTime > existing.pattern.endTime) {
-        latestByType.set(pattern.type, pattern);
-      }
-    }
-    const patternsToRender = Array.from(latestByType.values());
+    // 成立パターンのみをフィルタリングし、全て表示
+    const patternsToRender = indicators.detectedPatterns.filter((p) => p.confirmed);
 
     // 各パターンを描画
     for (const pattern of patternsToRender) {
@@ -432,12 +424,18 @@ export function buildChartOption(
       const isDoubleTop = pattern.type === "double_top";
 
       // キーポイントのインデックスを取得
+      // keyPoint.indexを直接使用（fractional indexもサポート）
       const pointsWithIndex: { idx: number; price: number; label: string }[] = [];
 
       for (const kp of keyPoints) {
-        const idx = candles.findIndex((c) => c.time === kp.time);
-        if (idx >= 0) {
-          pointsWithIndex.push({ idx, price: kp.price, label: kp.label });
+        // keyPoint.indexが存在し有効ならそれを使用、なければtimeから検索
+        if (typeof kp.index === "number" && kp.index >= 0) {
+          pointsWithIndex.push({ idx: kp.index, price: kp.price, label: kp.label });
+        } else {
+          const idx = candles.findIndex((c) => c.time === kp.time);
+          if (idx >= 0) {
+            pointsWithIndex.push({ idx, price: kp.price, label: kp.label });
+          }
         }
       }
 
@@ -453,6 +451,11 @@ export function buildChartOption(
         const patternTargetColor = isDoubleTop ? COLORS.patternBearishTarget : COLORS.patternTarget;
         const patternLabelColor = isDoubleTop ? COLORS.patternBearishLabel : COLORS.patternLabel;
 
+        // 7点構造（strictモード）かどうかを判定
+        const isStrictMode = capturedPoints.length === 7;
+        // ポリゴン用の点（strictモードは中央5点、通常は全点）
+        const polygonPointsData = isStrictMode ? capturedPoints.slice(1, 6) : capturedPoints;
+
         // ポリゴン（塗りつぶし）をカスタムシリーズで描画
         series.push({
           name: `Pattern Fill: ${pattern.type}`,
@@ -467,7 +470,7 @@ export function buildChartOption(
             x: -1,
             y: -1,
           },
-          renderItem: ((points: typeof capturedPoints, fillColor: string, strokeColor: string) => {
+          renderItem: ((points: typeof polygonPointsData, fillColor: string, strokeColor: string) => {
             return (params: SeriesItem, api: SeriesItem) => {
               // dataIndexが0以外の場合は空のグループを返す（nullではなく）
               if (params.dataIndex !== 0) {
@@ -507,18 +510,40 @@ export function buildChartOption(
                 ],
               };
             };
-          })(capturedPoints, patternFillColor, patternLineColor),
+          })(polygonPointsData, patternFillColor, patternLineColor),
           z: 10,
           silent: true,
         });
 
         // キーポイントを接続する線（markLineで描画）
         const lineMarkData = [];
-        for (let i = 0; i < capturedPoints.length - 1; i++) {
+        if (isStrictMode) {
+          // 7点構造: 補助線（0→1, 5→6）とメインライン（1→2→3→4→5）
+          // 補助線: Start → Neckline Start
           lineMarkData.push([
-            { coord: [capturedPoints[i].idx, capturedPoints[i].price] },
-            { coord: [capturedPoints[i + 1].idx, capturedPoints[i + 1].price] },
+            { coord: [capturedPoints[0].idx, capturedPoints[0].price] },
+            { coord: [capturedPoints[1].idx, capturedPoints[1].price] },
           ]);
+          // メインライン: Neckline Start → First Peak → Middle → Second Peak → Neckline End
+          for (let i = 1; i < capturedPoints.length - 2; i++) {
+            lineMarkData.push([
+              { coord: [capturedPoints[i].idx, capturedPoints[i].price] },
+              { coord: [capturedPoints[i + 1].idx, capturedPoints[i + 1].price] },
+            ]);
+          }
+          // 補助線: Neckline End → End
+          lineMarkData.push([
+            { coord: [capturedPoints[5].idx, capturedPoints[5].price] },
+            { coord: [capturedPoints[6].idx, capturedPoints[6].price] },
+          ]);
+        } else {
+          // 5点構造: 従来通り全点を接続
+          for (let i = 0; i < capturedPoints.length - 1; i++) {
+            lineMarkData.push([
+              { coord: [capturedPoints[i].idx, capturedPoints[i].price] },
+              { coord: [capturedPoints[i + 1].idx, capturedPoints[i + 1].price] },
+            ]);
+          }
         }
 
         series.push({
