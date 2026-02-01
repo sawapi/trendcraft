@@ -96,6 +96,92 @@ const SUBCHART_INDICATORS = INDICATOR_DEFINITIONS.filter((ind) => ind.chartType 
   (ind) => ind.key,
 );
 
+/**
+ * Subchart configuration options
+ */
+interface SubchartConfig {
+  title: string;
+  titleColor: string;
+  yAxisMin?: number;
+  yAxisMax?: number;
+  showYAxisLabel?: boolean;
+  yAxisLabelFormatter?: (value: number) => string;
+  showSplitLine?: boolean;
+}
+
+/**
+ * Subchart builder context - holds shared state for building subcharts
+ */
+interface SubchartContext {
+  grids: SeriesItem[];
+  titles: SeriesItem[];
+  xAxes: SeriesItem[];
+  yAxes: SeriesItem[];
+  dates: string[];
+  currentTop: number;
+  labelHeight: number;
+  subHeight: number;
+  subChartGap: number;
+}
+
+/**
+ * Create a subchart grid, axes, and title configuration
+ * Returns the gridIndex for use in series
+ */
+function createSubchart(ctx: SubchartContext, config: SubchartConfig): number {
+  const gridIndex = ctx.grids.length;
+
+  ctx.titles.push({
+    text: config.title,
+    left: 5,
+    top: `${ctx.currentTop}%`,
+    textStyle: { color: config.titleColor, fontSize: 10, fontWeight: "normal" },
+  });
+
+  ctx.grids.push({
+    left: 60,
+    right: 40,
+    top: `${ctx.currentTop + ctx.labelHeight}%`,
+    height: `${ctx.subHeight}%`,
+  });
+
+  ctx.xAxes.push({
+    type: "category",
+    gridIndex,
+    data: ctx.dates,
+    show: false,
+  });
+
+  const yAxisConfig: SeriesItem = {
+    type: "value",
+    gridIndex,
+  };
+
+  if (config.yAxisMin !== undefined) yAxisConfig.min = config.yAxisMin;
+  if (config.yAxisMax !== undefined) yAxisConfig.max = config.yAxisMax;
+
+  if (config.showSplitLine !== false) {
+    yAxisConfig.splitLine = { lineStyle: { color: "#333" } };
+  } else {
+    yAxisConfig.splitLine = { show: false };
+  }
+
+  if (config.showYAxisLabel !== false) {
+    yAxisConfig.axisLabel = {
+      color: "#a0a0a0",
+      fontSize: config.yAxisLabelFormatter ? 9 : 10,
+      ...(config.yAxisLabelFormatter && { formatter: config.yAxisLabelFormatter }),
+    };
+  } else {
+    yAxisConfig.axisLabel = { show: false };
+  }
+
+  ctx.yAxes.push(yAxisConfig);
+  ctx.currentTop += ctx.subHeight + ctx.subChartGap;
+
+  return gridIndex;
+}
+
 export interface PositionLine {
   entryPrice: number;
   entryIndex: number;
@@ -735,36 +821,28 @@ export function buildChartOption(
     },
   ];
 
-  let currentTop = mainHeight + 5;
+  // Subchart context for the helper function
+  const subchartCtx: SubchartContext = {
+    grids,
+    titles,
+    xAxes,
+    yAxes,
+    dates,
+    currentTop: mainHeight + 5,
+    labelHeight,
+    subHeight,
+    subChartGap,
+  };
 
   // ========== サブチャート系インジケーター ==========
 
   // Volume
   if (enabledIndicators.includes("volume")) {
-    const gridIndex = grids.length;
-    titles.push({
-      text: "Volume",
-      left: 5,
-      top: `${currentTop}%`,
-      textStyle: { color: "#a0a0a0", fontSize: 10, fontWeight: "normal" },
-    });
-    grids.push({
-      left: 60,
-      right: 40,
-      top: `${currentTop + labelHeight}%`,
-      height: `${subHeight}%`,
-    });
-    xAxes.push({
-      type: "category",
-      gridIndex,
-      data: dates,
-      show: false,
-    });
-    yAxes.push({
-      type: "value",
-      gridIndex,
-      splitLine: { show: false },
-      axisLabel: { show: false },
+    const gridIndex = createSubchart(subchartCtx, {
+      title: "Volume",
+      titleColor: "#a0a0a0",
+      showSplitLine: false,
+      showYAxisLabel: false,
     });
     // 出来高スパイクマーカーを生成
     const volumeSpikeMarkPointData = volumeSpikeMarkers
@@ -842,37 +920,15 @@ export function buildChartOption(
             }
           : undefined,
     });
-    currentTop += subHeight + subChartGap;
   }
 
   // RSI
   if (enabledIndicators.includes("rsi") && indicators.rsi) {
-    const gridIndex = grids.length;
-    titles.push({
-      text: "RSI",
-      left: 5,
-      top: `${currentTop}%`,
-      textStyle: { color: COLORS.rsi, fontSize: 10, fontWeight: "normal" },
-    });
-    grids.push({
-      left: 60,
-      right: 40,
-      top: `${currentTop + labelHeight}%`,
-      height: `${subHeight}%`,
-    });
-    xAxes.push({
-      type: "category",
-      gridIndex,
-      data: dates,
-      show: false,
-    });
-    yAxes.push({
-      type: "value",
-      gridIndex,
-      min: 0,
-      max: 100,
-      splitLine: { lineStyle: { color: "#333" } },
-      axisLabel: { color: "#a0a0a0", fontSize: 10 },
+    const gridIndex = createSubchart(subchartCtx, {
+      title: "RSI",
+      titleColor: COLORS.rsi,
+      yAxisMin: 0,
+      yAxisMax: 100,
     });
     series.push({
       name: "RSI",
@@ -889,7 +945,6 @@ export function buildChartOption(
         data: [{ yAxis: 30 }, { yAxis: 70 }],
       },
     });
-    currentTop += subHeight + subChartGap;
   }
 
   // MACD
@@ -899,30 +954,9 @@ export function buildChartOption(
     indicators.macdSignal &&
     indicators.macdHist
   ) {
-    const gridIndex = grids.length;
-    titles.push({
-      text: "MACD",
-      left: 5,
-      top: `${currentTop}%`,
-      textStyle: { color: COLORS.macdLine, fontSize: 10, fontWeight: "normal" },
-    });
-    grids.push({
-      left: 60,
-      right: 40,
-      top: `${currentTop + labelHeight}%`,
-      height: `${subHeight}%`,
-    });
-    xAxes.push({
-      type: "category",
-      gridIndex,
-      data: dates,
-      show: false,
-    });
-    yAxes.push({
-      type: "value",
-      gridIndex,
-      splitLine: { lineStyle: { color: "#333" } },
-      axisLabel: { color: "#a0a0a0", fontSize: 10 },
+    const gridIndex = createSubchart(subchartCtx, {
+      title: "MACD",
+      titleColor: COLORS.macdLine,
     });
     series.push({
       name: "MACD",
@@ -954,37 +988,15 @@ export function buildChartOption(
         },
       })),
     });
-    currentTop += subHeight + subChartGap;
   }
 
   // Stochastics
   if (enabledIndicators.includes("stochastics") && indicators.stochK && indicators.stochD) {
-    const gridIndex = grids.length;
-    titles.push({
-      text: "Stoch",
-      left: 5,
-      top: `${currentTop}%`,
-      textStyle: { color: COLORS.stochK, fontSize: 10, fontWeight: "normal" },
-    });
-    grids.push({
-      left: 60,
-      right: 40,
-      top: `${currentTop + labelHeight}%`,
-      height: `${subHeight}%`,
-    });
-    xAxes.push({
-      type: "category",
-      gridIndex,
-      data: dates,
-      show: false,
-    });
-    yAxes.push({
-      type: "value",
-      gridIndex,
-      min: 0,
-      max: 100,
-      splitLine: { lineStyle: { color: "#333" } },
-      axisLabel: { color: "#a0a0a0", fontSize: 10 },
+    const gridIndex = createSubchart(subchartCtx, {
+      title: "Stoch",
+      titleColor: COLORS.stochK,
+      yAxisMin: 0,
+      yAxisMax: 100,
     });
     series.push({
       name: "Stoch %K",
@@ -1004,37 +1016,15 @@ export function buildChartOption(
       symbol: "none",
       lineStyle: { color: COLORS.stochD, width: 1.5 },
     });
-    currentTop += subHeight + subChartGap;
   }
 
   // Stochastic RSI
   if (enabledIndicators.includes("stochRsi") && indicators.stochRsiK && indicators.stochRsiD) {
-    const gridIndex = grids.length;
-    titles.push({
-      text: "StochRSI",
-      left: 5,
-      top: `${currentTop}%`,
-      textStyle: { color: COLORS.stochRsiK, fontSize: 10, fontWeight: "normal" },
-    });
-    grids.push({
-      left: 60,
-      right: 40,
-      top: `${currentTop + labelHeight}%`,
-      height: `${subHeight}%`,
-    });
-    xAxes.push({
-      type: "category",
-      gridIndex,
-      data: dates,
-      show: false,
-    });
-    yAxes.push({
-      type: "value",
-      gridIndex,
-      min: 0,
-      max: 100,
-      splitLine: { lineStyle: { color: "#333" } },
-      axisLabel: { color: "#a0a0a0", fontSize: 10 },
+    const gridIndex = createSubchart(subchartCtx, {
+      title: "StochRSI",
+      titleColor: COLORS.stochRsiK,
+      yAxisMin: 0,
+      yAxisMax: 100,
     });
     series.push({
       name: "StochRSI %K",
@@ -1054,7 +1044,6 @@ export function buildChartOption(
       symbol: "none",
       lineStyle: { color: COLORS.stochRsiD, width: 1.5 },
     });
-    currentTop += subHeight + subChartGap;
   }
 
   // DMI/ADX
@@ -1064,32 +1053,11 @@ export function buildChartOption(
     indicators.dmiMinusDi &&
     indicators.dmiAdx
   ) {
-    const gridIndex = grids.length;
-    titles.push({
-      text: "DMI",
-      left: 5,
-      top: `${currentTop}%`,
-      textStyle: { color: COLORS.dmiAdx, fontSize: 10, fontWeight: "normal" },
-    });
-    grids.push({
-      left: 60,
-      right: 40,
-      top: `${currentTop + labelHeight}%`,
-      height: `${subHeight}%`,
-    });
-    xAxes.push({
-      type: "category",
-      gridIndex,
-      data: dates,
-      show: false,
-    });
-    yAxes.push({
-      type: "value",
-      gridIndex,
-      min: 0,
-      max: 100,
-      splitLine: { lineStyle: { color: "#333" } },
-      axisLabel: { color: "#a0a0a0", fontSize: 10 },
+    const gridIndex = createSubchart(subchartCtx, {
+      title: "DMI",
+      titleColor: COLORS.dmiAdx,
+      yAxisMin: 0,
+      yAxisMax: 100,
     });
     series.push({
       name: "+DI",
@@ -1118,35 +1086,13 @@ export function buildChartOption(
       symbol: "none",
       lineStyle: { color: COLORS.dmiAdx, width: 2 },
     });
-    currentTop += subHeight + subChartGap;
   }
 
   // CCI
   if (enabledIndicators.includes("cci") && indicators.cci) {
-    const gridIndex = grids.length;
-    titles.push({
-      text: "CCI",
-      left: 5,
-      top: `${currentTop}%`,
-      textStyle: { color: COLORS.cci, fontSize: 10, fontWeight: "normal" },
-    });
-    grids.push({
-      left: 60,
-      right: 40,
-      top: `${currentTop + labelHeight}%`,
-      height: `${subHeight}%`,
-    });
-    xAxes.push({
-      type: "category",
-      gridIndex,
-      data: dates,
-      show: false,
-    });
-    yAxes.push({
-      type: "value",
-      gridIndex,
-      splitLine: { lineStyle: { color: "#333" } },
-      axisLabel: { color: "#a0a0a0", fontSize: 10 },
+    const gridIndex = createSubchart(subchartCtx, {
+      title: "CCI",
+      titleColor: COLORS.cci,
     });
     series.push({
       name: "CCI",
@@ -1163,35 +1109,13 @@ export function buildChartOption(
         data: [{ yAxis: -100 }, { yAxis: 100 }],
       },
     });
-    currentTop += subHeight + subChartGap;
   }
 
   // ATR
   if (enabledIndicators.includes("atr") && indicators.atr) {
-    const gridIndex = grids.length;
-    titles.push({
-      text: "ATR",
-      left: 5,
-      top: `${currentTop}%`,
-      textStyle: { color: COLORS.atr, fontSize: 10, fontWeight: "normal" },
-    });
-    grids.push({
-      left: 60,
-      right: 40,
-      top: `${currentTop + labelHeight}%`,
-      height: `${subHeight}%`,
-    });
-    xAxes.push({
-      type: "category",
-      gridIndex,
-      data: dates,
-      show: false,
-    });
-    yAxes.push({
-      type: "value",
-      gridIndex,
-      splitLine: { lineStyle: { color: "#333" } },
-      axisLabel: { color: "#a0a0a0", fontSize: 10 },
+    const gridIndex = createSubchart(subchartCtx, {
+      title: "ATR",
+      titleColor: COLORS.atr,
     });
     series.push({
       name: "ATR",
@@ -1202,39 +1126,14 @@ export function buildChartOption(
       symbol: "none",
       lineStyle: { color: COLORS.atr, width: 1.5 },
     });
-    currentTop += subHeight + subChartGap;
   }
 
   // OBV
   if (enabledIndicators.includes("obv") && indicators.obv) {
-    const gridIndex = grids.length;
-    titles.push({
-      text: "OBV",
-      left: 5,
-      top: `${currentTop}%`,
-      textStyle: { color: "#a0a0a0", fontSize: 10, fontWeight: "normal" },
-    });
-    grids.push({
-      left: 60,
-      right: 40,
-      top: `${currentTop + labelHeight}%`,
-      height: `${subHeight}%`,
-    });
-    xAxes.push({
-      type: "category",
-      gridIndex,
-      data: dates,
-      show: false,
-    });
-    yAxes.push({
-      type: "value",
-      gridIndex,
-      splitLine: { lineStyle: { color: "#333" } },
-      axisLabel: {
-        color: "#a0a0a0",
-        fontSize: 9,
-        formatter: (value: number) => formatLargeNumber(value),
-      },
+    const gridIndex = createSubchart(subchartCtx, {
+      title: "OBV",
+      titleColor: "#a0a0a0",
+      yAxisLabelFormatter: formatLargeNumber,
     });
     series.push({
       name: "OBV",
@@ -1245,37 +1144,15 @@ export function buildChartOption(
       symbol: "none",
       lineStyle: { color: COLORS.obv, width: 1.5 },
     });
-    currentTop += subHeight + subChartGap;
   }
 
   // MFI
   if (enabledIndicators.includes("mfi") && indicators.mfi) {
-    const gridIndex = grids.length;
-    titles.push({
-      text: "MFI",
-      left: 5,
-      top: `${currentTop}%`,
-      textStyle: { color: COLORS.mfi, fontSize: 10, fontWeight: "normal" },
-    });
-    grids.push({
-      left: 60,
-      right: 40,
-      top: `${currentTop + labelHeight}%`,
-      height: `${subHeight}%`,
-    });
-    xAxes.push({
-      type: "category",
-      gridIndex,
-      data: dates,
-      show: false,
-    });
-    yAxes.push({
-      type: "value",
-      gridIndex,
-      min: 0,
-      max: 100,
-      splitLine: { lineStyle: { color: "#333" } },
-      axisLabel: { color: "#a0a0a0", fontSize: 10 },
+    const gridIndex = createSubchart(subchartCtx, {
+      title: "MFI",
+      titleColor: COLORS.mfi,
+      yAxisMin: 0,
+      yAxisMax: 100,
     });
     series.push({
       name: "MFI",
@@ -1292,39 +1169,14 @@ export function buildChartOption(
         data: [{ yAxis: 20 }, { yAxis: 80 }],
       },
     });
-    currentTop += subHeight + subChartGap;
   }
 
   // Equity Curve
   if (hasEquityCurve && equityCurve) {
-    const gridIndex = grids.length;
-    titles.push({
-      text: "Equity",
-      left: 5,
-      top: `${currentTop}%`,
-      textStyle: { color: COLORS.equity, fontSize: 10, fontWeight: "normal" },
-    });
-    grids.push({
-      left: 60,
-      right: 40,
-      top: `${currentTop + labelHeight}%`,
-      height: `${subHeight}%`,
-    });
-    xAxes.push({
-      type: "category",
-      gridIndex,
-      data: dates,
-      show: false,
-    });
-    yAxes.push({
-      type: "value",
-      gridIndex,
-      splitLine: { lineStyle: { color: "#333" } },
-      axisLabel: {
-        color: "#a0a0a0",
-        fontSize: 9,
-        formatter: (value: number) => formatLargeNumber(value),
-      },
+    const gridIndex = createSubchart(subchartCtx, {
+      title: "Equity",
+      titleColor: COLORS.equity,
+      yAxisLabelFormatter: formatLargeNumber,
     });
 
     // Equity Curveデータをローソク足の日付にマッピング
@@ -1401,8 +1253,6 @@ export function buildChartOption(
         markPoint: { data: tradePoints },
       });
     }
-
-    currentTop += subHeight + subChartGap;
   }
 
   return {

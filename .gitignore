@@ -23,6 +23,7 @@ coverage/
 
 # Cache
 .cache/
+**/.vitepress/cache/
 *.tsbuildinfo
 
 .plans/

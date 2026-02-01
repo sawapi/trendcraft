@@ -69,7 +69,7 @@ export function stochAbove(threshold = 80, kPeriod = 14, dPeriod = 3): PresetCon
 function hasValidStochValues(
   curr: { k: number | null; d: number | null } | undefined,
   prev: { k: number | null; d: number | null } | undefined,
-): curr is { k: number; d: number } & { k: number; d: number } {
+): curr is { k: number; d: number } {
   return (
     curr !== undefined &&
     prev !== undefined &&
