@@ -1,0 +1,112 @@
+/**
+ * Trade markers for backtest visualization
+ */
+
+import type { NormalizedCandle, Trade } from "trendcraft";
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type MarkPointItem = any;
+
+/**
+ * Format timestamp to date string
+ */
+function formatDate(timestamp: number): string {
+  const date = new Date(timestamp);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}/${month}/${day}`;
+}
+
+/**
+ * Create trade markers for backtest visualization
+ */
+export function createTradeMarkers(
+  trades: Trade[],
+  candles: NormalizedCandle[],
+  dates: string[]
+): MarkPointItem[] {
+  if (!trades || trades.length === 0) return [];
+
+  // Build time to index map
+  const timeToIdx = new Map<number, number>();
+  candles.forEach((c, i) => timeToIdx.set(c.time, i));
+
+  const markers: MarkPointItem[] = [];
+
+  for (const trade of trades) {
+    // Entry marker
+    const entryIdx = timeToIdx.get(trade.entryTime);
+    if (entryIdx !== undefined) {
+      const entryCandle = candles[entryIdx];
+      markers.push({
+        name: "Entry",
+        coord: [dates[entryIdx], entryCandle.low * 0.995],
+        symbol: "triangle",
+        symbolSize: 14,
+        itemStyle: { color: "#26a69a" },
+        label: {
+          show: true,
+          formatter: "B",
+          color: "#fff",
+          fontSize: 8,
+          position: "inside",
+        },
+      });
+    }
+
+    // Exit marker
+    const exitIdx = timeToIdx.get(trade.exitTime);
+    if (exitIdx !== undefined) {
+      const exitCandle = candles[exitIdx];
+      const isPartial = trade.isPartial;
+      markers.push({
+        name: isPartial ? "Partial Exit" : "Exit",
+        coord: [dates[exitIdx], exitCandle.high * 1.005],
+        symbol: "triangle",
+        symbolSize: isPartial ? 10 : 14,
+        symbolRotate: 180,
+        itemStyle: { color: isPartial ? "#ffd93d" : "#ef5350" },
+        label: {
+          show: true,
+          formatter: isPartial ? "P" : "S",
+          color: isPartial ? "#000" : "#fff",
+          fontSize: 8,
+          position: "inside",
+        },
+      });
+    }
+  }
+
+  return markers;
+}
+
+/**
+ * Build equity curve data from backtest result
+ */
+export function buildEquityCurve(
+  trades: Trade[],
+  capital: number,
+  candles: NormalizedCandle[]
+): Array<{ time: number; equity: number; date: string }> {
+  if (!trades || trades.length === 0) return [];
+
+  const equityData: Array<{ time: number; equity: number; date: string }> = [];
+
+  // Start with initial capital
+  const firstTradeTime = trades[0].entryTime;
+  const startTime = candles.find((c) => c.time >= firstTradeTime)?.time ?? firstTradeTime;
+  equityData.push({ time: startTime, equity: capital, date: formatDate(startTime) });
+
+  let currentEquity = capital;
+  for (const trade of trades) {
+    currentEquity += trade.return;
+    equityData.push({
+      time: trade.exitTime,
+      equity: currentEquity,
+      date: formatDate(trade.exitTime),
+    });
+  }
+
+  return equityData;
+}

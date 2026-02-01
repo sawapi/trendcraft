@@ -1,0 +1,1270 @@
+/**
+ * ECharts configuration builder for main chart and subcharts
+ */
+
+import type { EChartsOption } from "echarts";
+import type { NormalizedCandle, Trade } from "trendcraft";
+import type { OverlayType, SignalType, SubChartType } from "../types";
+import type { IndicatorData } from "../hooks/useIndicators";
+import type { SignalData } from "../hooks/useSignals";
+import type { OverlayData } from "../hooks/useOverlays";
+import {
+  createPerfectOrderMarkPoints,
+  createRangeBoundAreas,
+  createSupportResistanceLines,
+  createCrossMarkPoints,
+} from "./signalMarkers";
+import { createTradeMarkers } from "./backtestMarkers";
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SeriesItem = any;
+
+/**
+ * Color palette for chart elements
+ */
+const COLORS = {
+  up: "#26a69a",
+  down: "#ef5350",
+  // Momentum
+  rsi: "#f59e0b",
+  macdLine: "#3b82f6",
+  macdSignal: "#ef4444",
+  macdHistUp: "#26a69a",
+  macdHistDown: "#ef5350",
+  stochK: "#3b82f6",
+  stochD: "#ef4444",
+  stochRsiK: "#22d3d8",
+  stochRsiD: "#f472b6",
+  dmiPlusDi: "#26a69a",
+  dmiMinusDi: "#ef5350",
+  dmiAdx: "#f59e0b",
+  cci: "#a855f7",
+  williams: "#06b6d4",
+  roc: "#f59e0b",
+  // Volume
+  mfi: "#06b6d4",
+  obv: "#9b59b6",
+  cmf: "#22d3d8",
+  volumeAnomaly: "#a855f7",
+  volumeTrendUp: "#26a69a",
+  volumeTrendDown: "#ef5350",
+  // Range-bound
+  rangebound: "#f472b6",
+  // Overlay - Moving Averages
+  sma5: "#ff6b6b",
+  sma25: "#ffd93d",
+  sma75: "#c44dff",
+  ema12: "#4ecdc4",
+  ema26: "#45b7d1",
+  wma20: "#e74c3c",
+  // Overlay - Bands
+  bb: "#6bcb77",
+  donchian: "#1abc9c",
+  keltner: "#7c4dff",
+  // Overlay - Ichimoku
+  ichimokuTenkan: "#e74c3c",
+  ichimokuKijun: "#3498db",
+  ichimokuSenkouA: "#2ecc71",
+  ichimokuSenkouB: "#e67e22",
+  ichimokuChikou: "#9b59b6",
+};
+
+/**
+ * Subchart configuration options
+ */
+interface SubchartConfig {
+  title: string;
+  titleColor: string;
+  seriesNames: string[];
+  yAxisMin?: number;
+  yAxisMax?: number;
+  showYAxisLabel?: boolean;
+  yAxisLabelFormatter?: (value: number) => string;
+  showSplitLine?: boolean;
+  markLines?: number[];
+}
+
+/**
+ * Subchart legend info
+ */
+interface SubchartLegend {
+  top: number;
+  seriesNames: string[];
+}
+
+/**
+ * Subchart builder context (pixel-based)
+ */
+interface SubchartContext {
+  grids: SeriesItem[];
+  titles: SeriesItem[];
+  legends: SubchartLegend[];
+  xAxes: SeriesItem[];
+  yAxes: SeriesItem[];
+  dates: string[];
+  currentTop: number;  // pixels
+  labelHeight: number; // pixels
+  subHeight: number;   // pixels
+  subChartGap: number; // pixels
+}
+
+/**
+ * Format timestamp to date string
+ */
+function formatDate(timestamp: number): string {
+  const date = new Date(timestamp);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}/${month}/${day}`;
+}
+
+/**
+ * Calculate initial zoom range to show last 150 candles
+ */
+function calculateInitialZoom(candleCount: number): { start: number; end: number } {
+  const visibleCandles = 150;
+  const start = Math.max(0, 100 - (visibleCandles / candleCount) * 100);
+  return { start, end: 100 };
+}
+
+/**
+ * Format large numbers to K/M format
+ */
+function formatLargeNumber(value: number): string {
+  if (Math.abs(value) >= 1000000) {
+    return `${(value / 1000000).toFixed(1)}M`;
+  }
+  if (Math.abs(value) >= 1000) {
+    return `${(value / 1000).toFixed(0)}K`;
+  }
+  return value.toFixed(0);
+}
+
+/**
+ * Create a subchart grid, axes, title, and legend configuration (pixel-based)
+ * Returns the gridIndex for use in series
+ */
+function createSubchart(ctx: SubchartContext, config: SubchartConfig): number {
+  const gridIndex = ctx.grids.length;
+
+  // Add title
+  ctx.titles.push({
+    text: config.title,
+    left: 5,
+    top: ctx.currentTop,
+    textStyle: { color: config.titleColor, fontSize: 10, fontWeight: "normal" },
+  });
+
+  // Record legend info for this subchart (positioned after title)
+  ctx.legends.push({
+    top: ctx.currentTop,
+    seriesNames: config.seriesNames,
+  });
+
+  ctx.grids.push({
+    left: 60,
+    right: 60,
+    top: ctx.currentTop + ctx.labelHeight,
+    height: ctx.subHeight,
+  });
+
+  ctx.xAxes.push({
+    type: "category",
+    gridIndex,
+    data: ctx.dates,
+    show: false,
+  });
+
+  const yAxisConfig: SeriesItem = {
+    type: "value",
+    gridIndex,
+  };
+
+  if (config.yAxisMin !== undefined) yAxisConfig.min = config.yAxisMin;
+  if (config.yAxisMax !== undefined) yAxisConfig.max = config.yAxisMax;
+
+  if (config.showSplitLine !== false) {
+    yAxisConfig.splitLine = { lineStyle: { color: "#333" } };
+  } else {
+    yAxisConfig.splitLine = { show: false };
+  }
+
+  if (config.showYAxisLabel !== false) {
+    yAxisConfig.axisLabel = {
+      color: "#a0a0a0",
+      fontSize: config.yAxisLabelFormatter ? 9 : 10,
+      ...(config.yAxisLabelFormatter && { formatter: config.yAxisLabelFormatter }),
+    };
+  } else {
+    yAxisConfig.axisLabel = { show: false };
+  }
+
+  ctx.yAxes.push(yAxisConfig);
+  ctx.currentTop += ctx.labelHeight + ctx.subHeight + ctx.subChartGap;
+
+  return gridIndex;
+}
+
+/**
+ * Create markLine data for horizontal lines
+ */
+function createMarkLine(values: number[]): SeriesItem {
+  return {
+    silent: true,
+    symbol: "none",
+    lineStyle: { color: "#666", type: "dashed" },
+    label: {
+      color: "#888",
+      textBorderWidth: 0,
+    },
+    data: values.map((v) => ({ yAxis: v })),
+  };
+}
+
+/**
+ * Build ECharts option for main chart only (backward compatible)
+ */
+export function buildMainChartOption(candles: NormalizedCandle[]): EChartsOption {
+  return buildChartOption(candles, {}, [], null, [], null, {}, [], 500);
+}
+
+/**
+ * Build ECharts option for main chart with subcharts, signals, trades, and overlays
+ */
+export function buildChartOption(
+  candles: NormalizedCandle[],
+  indicators: IndicatorData,
+  enabledIndicators: SubChartType[],
+  signals: SignalData | null,
+  enabledSignals: SignalType[],
+  trades: Trade[] | null,
+  overlays: OverlayData,
+  enabledOverlays: OverlayType[],
+  _chartHeight: number = 500
+): EChartsOption {
+  if (candles.length === 0) {
+    return {};
+  }
+
+  // Prepare data
+  const dates = candles.map((c) => formatDate(c.time));
+  const ohlc = candles.map((c) => [c.open, c.close, c.low, c.high]);
+  const volumes = candles.map((c, i) => ({
+    value: c.volume,
+    itemStyle: {
+      color: candles[i].close >= candles[i].open ? COLORS.up : COLORS.down,
+      opacity: 0.5,
+    },
+  }));
+
+  const { start, end } = calculateInitialZoom(candles.length);
+
+  // Pixel-based grid heights
+  const subChartGap = 20;   // gap between subcharts (px) - increased for better spacing
+  const labelHeight = 26;   // space for title label (px) - increased for better title spacing
+  const mainHeight = 300;   // main chart height (px)
+  const volumeHeight = 80;  // volume chart height (px)
+  const subHeight = 70;     // subchart height (px)
+  const dataZoomHeight = 30; // dataZoom slider height (px)
+  const dataZoomGap = 20;    // gap between dataZoom and subcharts (px) - match subChartGap
+
+  // Initial grids for main chart and volume (pixel-based)
+  const mainTop = 40;
+  const volumeTop = mainTop + mainHeight + 10;
+  const dataZoomTop = volumeTop + volumeHeight + 10; // dataZoom directly below volume
+  const grids: SeriesItem[] = [
+    { left: 60, right: 60, top: mainTop, height: mainHeight },
+    { left: 60, right: 60, top: volumeTop, height: volumeHeight },
+  ];
+
+  const titles: SeriesItem[] = [];
+
+  const xAxes: SeriesItem[] = [
+    {
+      type: "category",
+      data: dates,
+      boundaryGap: true,
+      axisLine: { lineStyle: { color: "#666" } },
+      axisLabel: { color: "#888" },
+    },
+    {
+      type: "category",
+      data: dates,
+      gridIndex: 1,
+      boundaryGap: true,
+      axisLine: { lineStyle: { color: "#666" } },
+      axisLabel: { show: false },
+    },
+  ];
+
+  const yAxes: SeriesItem[] = [
+    {
+      scale: true,
+      splitLine: { lineStyle: { color: "#333" } },
+      axisLine: { lineStyle: { color: "#666" } },
+      axisLabel: { color: "#888" },
+    },
+    {
+      scale: true,
+      gridIndex: 1,
+      splitNumber: 2,
+      axisLabel: { show: false },
+      splitLine: { lineStyle: { color: "#333" } },
+    },
+  ];
+
+  // Build signal markers
+  const signalMarkPoints: SeriesItem[] = [];
+  const signalMarkAreas: SeriesItem[] = [];
+  const signalMarkLines: SeriesItem[] = [];
+
+  if (signals) {
+    // Perfect Order markers
+    if (enabledSignals.includes("perfectOrder") && signals.perfectOrder) {
+      const poMarkers = createPerfectOrderMarkPoints(signals.perfectOrder, candles, dates);
+      signalMarkPoints.push(...poMarkers);
+    }
+
+    // Range-Bound areas and S/R lines
+    if (enabledSignals.includes("rangeBound") && signals.rangeBound) {
+      const rbAreas = createRangeBoundAreas(signals.rangeBound, dates);
+      signalMarkAreas.push(...rbAreas);
+      const srLines = createSupportResistanceLines(signals.rangeBound, dates);
+      signalMarkLines.push(...srLines);
+    }
+
+    // Cross markers
+    if (enabledSignals.includes("cross") && signals.crossSignals) {
+      const crossMarkers = createCrossMarkPoints(signals.crossSignals, candles, dates);
+      signalMarkPoints.push(...crossMarkers);
+    }
+  }
+
+  // Add trade markers from backtest
+  if (trades && trades.length > 0) {
+    const tradeMarkers = createTradeMarkers(trades, candles, dates);
+    signalMarkPoints.push(...tradeMarkers);
+  }
+
+  // Series array
+  const candlestickSeries: SeriesItem = {
+    name: "Candlestick",
+    type: "candlestick",
+    data: ohlc,
+    itemStyle: {
+      color: COLORS.up,
+      color0: COLORS.down,
+      borderColor: COLORS.up,
+      borderColor0: COLORS.down,
+    },
+  };
+
+  // Add signal markers to candlestick series
+  if (signalMarkPoints.length > 0) {
+    candlestickSeries.markPoint = {
+      symbol: "diamond",
+      symbolSize: 14,
+      data: signalMarkPoints,
+    };
+  }
+  if (signalMarkAreas.length > 0) {
+    candlestickSeries.markArea = {
+      silent: true,
+      data: signalMarkAreas,
+    };
+  }
+  if (signalMarkLines.length > 0) {
+    candlestickSeries.markLine = {
+      silent: true,
+      symbol: "none",
+      data: signalMarkLines,
+    };
+  }
+
+  const series: SeriesItem[] = [
+    candlestickSeries,
+    {
+      name: "Volume",
+      type: "bar",
+      xAxisIndex: 1,
+      yAxisIndex: 1,
+      data: volumes,
+    },
+  ];
+
+  // ========== Overlay Indicators ==========
+
+  // SMA 5
+  if (enabledOverlays.includes("sma5") && overlays.sma5) {
+    series.push({
+      name: "SMA 5",
+      type: "line",
+      data: overlays.sma5,
+      symbol: "none",
+      lineStyle: { color: COLORS.sma5, width: 1.5 },
+    });
+  }
+
+  // SMA 25
+  if (enabledOverlays.includes("sma25") && overlays.sma25) {
+    series.push({
+      name: "SMA 25",
+      type: "line",
+      data: overlays.sma25,
+      symbol: "none",
+      lineStyle: { color: COLORS.sma25, width: 1.5 },
+    });
+  }
+
+  // SMA 75
+  if (enabledOverlays.includes("sma75") && overlays.sma75) {
+    series.push({
+      name: "SMA 75",
+      type: "line",
+      data: overlays.sma75,
+      symbol: "none",
+      lineStyle: { color: COLORS.sma75, width: 1.5 },
+    });
+  }
+
+  // EMA 12
+  if (enabledOverlays.includes("ema12") && overlays.ema12) {
+    series.push({
+      name: "EMA 12",
+      type: "line",
+      data: overlays.ema12,
+      symbol: "none",
+      lineStyle: { color: COLORS.ema12, width: 1.5, type: "dashed" },
+    });
+  }
+
+  // EMA 26
+  if (enabledOverlays.includes("ema26") && overlays.ema26) {
+    series.push({
+      name: "EMA 26",
+      type: "line",
+      data: overlays.ema26,
+      symbol: "none",
+      lineStyle: { color: COLORS.ema26, width: 1.5, type: "dashed" },
+    });
+  }
+
+  // WMA 20
+  if (enabledOverlays.includes("wma20") && overlays.wma20) {
+    series.push({
+      name: "WMA 20",
+      type: "line",
+      data: overlays.wma20,
+      symbol: "none",
+      lineStyle: { color: COLORS.wma20, width: 1.5 },
+    });
+  }
+
+  // Bollinger Bands
+  if (enabledOverlays.includes("bb") && overlays.bb) {
+    series.push({
+      name: "BB Upper",
+      type: "line",
+      data: overlays.bb.map((v) => v.upper),
+      symbol: "none",
+      lineStyle: { color: COLORS.bb, width: 1, type: "dashed" },
+    });
+    series.push({
+      name: "BB Middle",
+      type: "line",
+      data: overlays.bb.map((v) => v.middle),
+      symbol: "none",
+      lineStyle: { color: COLORS.bb, width: 1.5 },
+    });
+    series.push({
+      name: "BB Lower",
+      type: "line",
+      data: overlays.bb.map((v) => v.lower),
+      symbol: "none",
+      lineStyle: { color: COLORS.bb, width: 1, type: "dashed" },
+    });
+  }
+
+  // Donchian Channel
+  if (enabledOverlays.includes("donchian") && overlays.donchian) {
+    series.push({
+      name: "Donchian Upper",
+      type: "line",
+      data: overlays.donchian.map((v) => v.upper),
+      symbol: "none",
+      lineStyle: { color: COLORS.donchian, width: 1, type: "dashed" },
+    });
+    series.push({
+      name: "Donchian Middle",
+      type: "line",
+      data: overlays.donchian.map((v) => v.middle),
+      symbol: "none",
+      lineStyle: { color: COLORS.donchian, width: 1.5 },
+    });
+    series.push({
+      name: "Donchian Lower",
+      type: "line",
+      data: overlays.donchian.map((v) => v.lower),
+      symbol: "none",
+      lineStyle: { color: COLORS.donchian, width: 1, type: "dashed" },
+    });
+  }
+
+  // Keltner Channel
+  if (enabledOverlays.includes("keltner") && overlays.keltner) {
+    series.push({
+      name: "KC Upper",
+      type: "line",
+      data: overlays.keltner.map((v) => v.upper),
+      symbol: "none",
+      lineStyle: { color: COLORS.keltner, width: 1, type: "dashed" },
+    });
+    series.push({
+      name: "KC Middle",
+      type: "line",
+      data: overlays.keltner.map((v) => v.middle),
+      symbol: "none",
+      lineStyle: { color: COLORS.keltner, width: 1.5 },
+    });
+    series.push({
+      name: "KC Lower",
+      type: "line",
+      data: overlays.keltner.map((v) => v.lower),
+      symbol: "none",
+      lineStyle: { color: COLORS.keltner, width: 1, type: "dashed" },
+    });
+  }
+
+  // Ichimoku
+  if (enabledOverlays.includes("ichimoku") && overlays.ichimoku) {
+    series.push({
+      name: "Tenkan",
+      type: "line",
+      data: overlays.ichimoku.map((v) => v.tenkan),
+      symbol: "none",
+      lineStyle: { color: COLORS.ichimokuTenkan, width: 1.5 },
+    });
+    series.push({
+      name: "Kijun",
+      type: "line",
+      data: overlays.ichimoku.map((v) => v.kijun),
+      symbol: "none",
+      lineStyle: { color: COLORS.ichimokuKijun, width: 1.5 },
+    });
+    series.push({
+      name: "Senkou A",
+      type: "line",
+      data: overlays.ichimoku.map((v) => v.senkouA),
+      symbol: "none",
+      lineStyle: { color: COLORS.ichimokuSenkouA, width: 1, type: "dashed" },
+    });
+    series.push({
+      name: "Senkou B",
+      type: "line",
+      data: overlays.ichimoku.map((v) => v.senkouB),
+      symbol: "none",
+      lineStyle: { color: COLORS.ichimokuSenkouB, width: 1, type: "dashed" },
+    });
+    series.push({
+      name: "Chikou",
+      type: "line",
+      data: overlays.ichimoku.map((v) => v.chikou),
+      symbol: "none",
+      lineStyle: { color: COLORS.ichimokuChikou, width: 1, type: "dotted" },
+    });
+  }
+
+  // Supertrend
+  if (enabledOverlays.includes("supertrend") && overlays.supertrend) {
+    const bullishData = overlays.supertrend.map((v) =>
+      v.direction === 1 ? v.supertrend : null
+    );
+    const bearishData = overlays.supertrend.map((v) =>
+      v.direction === -1 ? v.supertrend : null
+    );
+    series.push({
+      name: "Supertrend Up",
+      type: "line",
+      data: bullishData,
+      symbol: "none",
+      lineStyle: { color: COLORS.up, width: 2 },
+    });
+    series.push({
+      name: "Supertrend Down",
+      type: "line",
+      data: bearishData,
+      symbol: "none",
+      lineStyle: { color: COLORS.down, width: 2 },
+    });
+  }
+
+  // Parabolic SAR
+  if (enabledOverlays.includes("psar") && overlays.psar) {
+    const bullishSar = overlays.psar.map((v) =>
+      v.direction === 1 ? v.sar : null
+    );
+    const bearishSar = overlays.psar.map((v) =>
+      v.direction === -1 ? v.sar : null
+    );
+    series.push({
+      name: "PSAR Up",
+      type: "scatter",
+      data: bullishSar,
+      symbolSize: 4,
+      itemStyle: { color: COLORS.up },
+    });
+    series.push({
+      name: "PSAR Down",
+      type: "scatter",
+      data: bearishSar,
+      symbolSize: 4,
+      itemStyle: { color: COLORS.down },
+    });
+  }
+
+  // Subchart context for helper function (pixel-based)
+  // Subchart legends will be collected here
+  const subchartLegends: SubchartLegend[] = [];
+
+  const subchartCtx: SubchartContext = {
+    grids,
+    titles,
+    legends: subchartLegends,
+    xAxes,
+    yAxes,
+    dates,
+    currentTop: dataZoomTop + dataZoomHeight + dataZoomGap, // Start subcharts below dataZoom
+    labelHeight,
+    subHeight,
+    subChartGap,
+  };
+
+  // ========== Subcharts ==========
+
+  // RSI
+  if (enabledIndicators.includes("rsi") && indicators.rsi) {
+    const gridIndex = createSubchart(subchartCtx, {
+      title: "RSI (14)",
+      titleColor: COLORS.rsi,
+      seriesNames: ["RSI"],
+      yAxisMin: 0,
+      yAxisMax: 100,
+    });
+    series.push({
+      name: "RSI",
+      type: "line",
+      xAxisIndex: gridIndex,
+      yAxisIndex: gridIndex,
+      data: indicators.rsi,
+      symbol: "none",
+      lineStyle: { color: COLORS.rsi, width: 1.5 },
+      markLine: createMarkLine([30, 70]),
+    });
+  }
+
+  // MACD
+  if (
+    enabledIndicators.includes("macd") &&
+    indicators.macdLine &&
+    indicators.macdSignal &&
+    indicators.macdHist
+  ) {
+    const gridIndex = createSubchart(subchartCtx, {
+      title: "MACD",
+      titleColor: COLORS.macdLine,
+      seriesNames: ["MACD Line", "MACD Signal", "MACD Histogram"],
+    });
+    series.push({
+      name: "MACD Line",
+      type: "line",
+      xAxisIndex: gridIndex,
+      yAxisIndex: gridIndex,
+      data: indicators.macdLine,
+      symbol: "none",
+      lineStyle: { color: COLORS.macdLine, width: 1.5 },
+    });
+    series.push({
+      name: "MACD Signal",
+      type: "line",
+      xAxisIndex: gridIndex,
+      yAxisIndex: gridIndex,
+      data: indicators.macdSignal,
+      symbol: "none",
+      lineStyle: { color: COLORS.macdSignal, width: 1.5 },
+    });
+    series.push({
+      name: "MACD Histogram",
+      type: "bar",
+      xAxisIndex: gridIndex,
+      yAxisIndex: gridIndex,
+      data: indicators.macdHist.map((v) => ({
+        value: v,
+        itemStyle: {
+          color: v !== null && v >= 0 ? COLORS.macdHistUp : COLORS.macdHistDown,
+        },
+      })),
+    });
+  }
+
+  // Stochastics
+  if (enabledIndicators.includes("stochastics") && indicators.stochK && indicators.stochD) {
+    const gridIndex = createSubchart(subchartCtx, {
+      title: "Stochastics",
+      titleColor: COLORS.stochK,
+      seriesNames: ["Stoch %K", "Stoch %D"],
+      yAxisMin: 0,
+      yAxisMax: 100,
+    });
+    series.push({
+      name: "Stoch %K",
+      type: "line",
+      xAxisIndex: gridIndex,
+      yAxisIndex: gridIndex,
+      data: indicators.stochK,
+      symbol: "none",
+      lineStyle: { color: COLORS.stochK, width: 1.5 },
+    });
+    series.push({
+      name: "Stoch %D",
+      type: "line",
+      xAxisIndex: gridIndex,
+      yAxisIndex: gridIndex,
+      data: indicators.stochD,
+      symbol: "none",
+      lineStyle: { color: COLORS.stochD, width: 1.5 },
+    });
+    series.push({
+      name: "Stoch Markers",
+      type: "line",
+      xAxisIndex: gridIndex,
+      yAxisIndex: gridIndex,
+      data: [],
+      markLine: createMarkLine([20, 80]),
+    });
+  }
+
+  // DMI/ADX
+  if (
+    enabledIndicators.includes("dmi") &&
+    indicators.dmiPlusDi &&
+    indicators.dmiMinusDi &&
+    indicators.dmiAdx
+  ) {
+    const gridIndex = createSubchart(subchartCtx, {
+      title: "DMI/ADX",
+      titleColor: COLORS.dmiAdx,
+      seriesNames: ["+DI", "-DI", "ADX"],
+      yAxisMin: 0,
+      yAxisMax: 100,
+    });
+    series.push({
+      name: "+DI",
+      type: "line",
+      xAxisIndex: gridIndex,
+      yAxisIndex: gridIndex,
+      data: indicators.dmiPlusDi,
+      symbol: "none",
+      lineStyle: { color: COLORS.dmiPlusDi, width: 1.5 },
+    });
+    series.push({
+      name: "-DI",
+      type: "line",
+      xAxisIndex: gridIndex,
+      yAxisIndex: gridIndex,
+      data: indicators.dmiMinusDi,
+      symbol: "none",
+      lineStyle: { color: COLORS.dmiMinusDi, width: 1.5 },
+    });
+    series.push({
+      name: "ADX",
+      type: "line",
+      xAxisIndex: gridIndex,
+      yAxisIndex: gridIndex,
+      data: indicators.dmiAdx,
+      symbol: "none",
+      lineStyle: { color: COLORS.dmiAdx, width: 2 },
+    });
+    series.push({
+      name: "DMI Markers",
+      type: "line",
+      xAxisIndex: gridIndex,
+      yAxisIndex: gridIndex,
+      data: [],
+      markLine: createMarkLine([25]),
+    });
+  }
+
+  // Stoch RSI
+  if (enabledIndicators.includes("stochrsi") && indicators.stochRsiK && indicators.stochRsiD) {
+    const gridIndex = createSubchart(subchartCtx, {
+      title: "Stoch RSI",
+      titleColor: COLORS.stochRsiK,
+      seriesNames: ["Stoch RSI %K", "Stoch RSI %D"],
+      yAxisMin: 0,
+      yAxisMax: 100,
+    });
+    series.push({
+      name: "Stoch RSI %K",
+      type: "line",
+      xAxisIndex: gridIndex,
+      yAxisIndex: gridIndex,
+      data: indicators.stochRsiK,
+      symbol: "none",
+      lineStyle: { color: COLORS.stochRsiK, width: 1.5 },
+    });
+    series.push({
+      name: "Stoch RSI %D",
+      type: "line",
+      xAxisIndex: gridIndex,
+      yAxisIndex: gridIndex,
+      data: indicators.stochRsiD,
+      symbol: "none",
+      lineStyle: { color: COLORS.stochRsiD, width: 1.5 },
+    });
+    series.push({
+      name: "StochRSI Markers",
+      type: "line",
+      xAxisIndex: gridIndex,
+      yAxisIndex: gridIndex,
+      data: [],
+      markLine: createMarkLine([20, 80]),
+    });
+  }
+
+  // MFI
+  if (enabledIndicators.includes("mfi") && indicators.mfi) {
+    const gridIndex = createSubchart(subchartCtx, {
+      title: "MFI (14)",
+      titleColor: COLORS.mfi,
+      seriesNames: ["MFI"],
+      yAxisMin: 0,
+      yAxisMax: 100,
+    });
+    series.push({
+      name: "MFI",
+      type: "line",
+      xAxisIndex: gridIndex,
+      yAxisIndex: gridIndex,
+      data: indicators.mfi,
+      symbol: "none",
+      lineStyle: { color: COLORS.mfi, width: 1.5 },
+      markLine: createMarkLine([20, 80]),
+    });
+  }
+
+  // OBV with area gradient
+  if (enabledIndicators.includes("obv") && indicators.obv) {
+    const gridIndex = createSubchart(subchartCtx, {
+      title: "OBV",
+      titleColor: COLORS.obv,
+      seriesNames: ["OBV"],
+      yAxisLabelFormatter: formatLargeNumber,
+    });
+    series.push({
+      name: "OBV",
+      type: "line",
+      xAxisIndex: gridIndex,
+      yAxisIndex: gridIndex,
+      data: indicators.obv,
+      symbol: "none",
+      lineStyle: { color: COLORS.obv, width: 1.5 },
+      areaStyle: {
+        color: {
+          type: "linear",
+          x: 0,
+          y: 0,
+          x2: 0,
+          y2: 1,
+          colorStops: [
+            { offset: 0, color: "rgba(155, 89, 182, 0.3)" },
+            { offset: 1, color: "rgba(155, 89, 182, 0.05)" },
+          ],
+        },
+      },
+    });
+  }
+
+  // CCI
+  if (enabledIndicators.includes("cci") && indicators.cci) {
+    const gridIndex = createSubchart(subchartCtx, {
+      title: "CCI (20)",
+      titleColor: COLORS.cci,
+      seriesNames: ["CCI"],
+    });
+    series.push({
+      name: "CCI",
+      type: "line",
+      xAxisIndex: gridIndex,
+      yAxisIndex: gridIndex,
+      data: indicators.cci,
+      symbol: "none",
+      lineStyle: { color: COLORS.cci, width: 1.5 },
+      markLine: createMarkLine([-100, 100]),
+    });
+  }
+
+  // Williams %R
+  if (enabledIndicators.includes("williams") && indicators.williams) {
+    const gridIndex = createSubchart(subchartCtx, {
+      title: "Williams %R",
+      titleColor: COLORS.williams,
+      seriesNames: ["Williams %R"],
+      yAxisMin: -100,
+      yAxisMax: 0,
+    });
+    series.push({
+      name: "Williams %R",
+      type: "line",
+      xAxisIndex: gridIndex,
+      yAxisIndex: gridIndex,
+      data: indicators.williams,
+      symbol: "none",
+      lineStyle: { color: COLORS.williams, width: 1.5 },
+      markLine: createMarkLine([-20, -80]),
+    });
+  }
+
+  // ROC
+  if (enabledIndicators.includes("roc") && indicators.roc) {
+    const gridIndex = createSubchart(subchartCtx, {
+      title: "ROC (12)",
+      titleColor: COLORS.roc,
+      seriesNames: ["ROC"],
+    });
+    series.push({
+      name: "ROC",
+      type: "line",
+      xAxisIndex: gridIndex,
+      yAxisIndex: gridIndex,
+      data: indicators.roc,
+      symbol: "none",
+      lineStyle: { color: COLORS.roc, width: 1.5 },
+      markLine: createMarkLine([0]),
+    });
+  }
+
+  // Range-Bound
+  if (enabledIndicators.includes("rangebound") && indicators.rangeBound) {
+    const gridIndex = createSubchart(subchartCtx, {
+      title: "Range-Bound",
+      titleColor: COLORS.rangebound,
+      seriesNames: ["RB Score"],
+      yAxisMin: 0,
+      yAxisMax: 100,
+    });
+    // Range score line
+    series.push({
+      name: "RB Score",
+      type: "line",
+      xAxisIndex: gridIndex,
+      yAxisIndex: gridIndex,
+      data: indicators.rangeBound.map((v) => v.rangeScore),
+      symbol: "none",
+      lineStyle: { color: COLORS.rangebound, width: 1.5 },
+      markLine: createMarkLine([70]),
+    });
+  }
+
+  // CMF - Bar chart with dynamic coloring
+  if (enabledIndicators.includes("cmf") && indicators.cmf) {
+    const gridIndex = createSubchart(subchartCtx, {
+      title: "CMF (20)",
+      titleColor: COLORS.cmf,
+      seriesNames: ["CMF"],
+    });
+    series.push({
+      name: "CMF",
+      type: "bar",
+      xAxisIndex: gridIndex,
+      yAxisIndex: gridIndex,
+      data: indicators.cmf.map((v) => ({
+        value: v,
+        itemStyle: {
+          color: v !== null && v >= 0 ? "#26a69a" : "#ef5350",
+        },
+      })),
+      markLine: {
+        silent: true,
+        symbol: "none",
+        label: { color: "#888", textBorderWidth: 0 },
+        data: [
+          { yAxis: 0, lineStyle: { color: "#666", type: "dashed" } },
+          {
+            yAxis: 0.1,
+            lineStyle: { color: "#26a69a", type: "dashed" },
+            label: { formatter: "+0.1", position: "end", fontSize: 9, color: "#888", textBorderWidth: 0 },
+          },
+          {
+            yAxis: -0.1,
+            lineStyle: { color: "#ef5350", type: "dashed" },
+            label: { formatter: "-0.1", position: "end", fontSize: 9, color: "#888", textBorderWidth: 0 },
+          },
+        ],
+      },
+    });
+  }
+
+  // Volume Anomaly
+  if (enabledIndicators.includes("volumeAnomaly") && indicators.volumeAnomaly) {
+    const gridIndex = createSubchart(subchartCtx, {
+      title: "Volume Anomaly",
+      titleColor: COLORS.volumeAnomaly,
+      seriesNames: ["Vol Ratio"],
+    });
+
+    // E/H マーカー（トライアングル）を収集
+    const anomalyMarkers: SeriesItem[] = [];
+    indicators.volumeAnomaly.forEach((v, i) => {
+      if (v.level === "extreme" || v.level === "high") {
+        anomalyMarkers.push({
+          coord: [i, v.ratio],
+          symbol: "triangle",
+          symbolSize: v.level === "extreme" ? 14 : 10,
+          itemStyle: {
+            color: v.level === "extreme" ? "#ef5350" : "#ff9800",
+          },
+          label: {
+            show: true,
+            formatter: v.level === "extreme" ? "E" : "H",
+            position: "top",
+            fontSize: 9,
+            color: "#fff",
+          },
+        });
+      }
+    });
+
+    // Ratio ライン（実線）+ 閾値線 + マーカー
+    series.push({
+      name: "Vol Ratio",
+      type: "line",
+      xAxisIndex: gridIndex,
+      yAxisIndex: gridIndex,
+      data: indicators.volumeAnomaly.map((v) => v.ratio),
+      symbol: "none",
+      lineStyle: { color: COLORS.volumeAnomaly, width: 1.5 },
+      markLine: {
+        silent: true,
+        symbol: "none",
+        lineStyle: { type: "dashed" },
+        label: { color: "#888", textBorderWidth: 0 },
+        data: [
+          {
+            yAxis: 2.0,
+            lineStyle: { color: "#ff9800" },
+            label: { formatter: "2.0x High", position: "end", fontSize: 9, color: "#888", textBorderWidth: 0 },
+          },
+          {
+            yAxis: 3.0,
+            lineStyle: { color: "#ef5350" },
+            label: { formatter: "3.0x Extreme", position: "end", fontSize: 9, color: "#888", textBorderWidth: 0 },
+          },
+        ],
+      },
+      ...(anomalyMarkers.length > 0 && {
+        markPoint: {
+          data: anomalyMarkers,
+        },
+      }),
+    });
+  }
+
+  // Volume Profile
+  if (enabledIndicators.includes("volumeProfile") && indicators.volumeProfile) {
+    const gridIndex = createSubchart(subchartCtx, {
+      title: "Volume Profile",
+      titleColor: "#ff5722", // POCの色に合わせる
+      seriesNames: ["POC", "VAH", "VAL"],
+    });
+    // POC - オレンジ実線
+    series.push({
+      name: "POC",
+      type: "line",
+      xAxisIndex: gridIndex,
+      yAxisIndex: gridIndex,
+      data: indicators.volumeProfile.map((v) => v?.poc ?? null),
+      symbol: "none",
+      lineStyle: { color: "#ff5722", width: 2 }, // オレンジ、太め
+    });
+    // VAH - グリーン破線
+    series.push({
+      name: "VAH",
+      type: "line",
+      xAxisIndex: gridIndex,
+      yAxisIndex: gridIndex,
+      data: indicators.volumeProfile.map((v) => v?.vah ?? null),
+      symbol: "none",
+      lineStyle: { color: "#4caf50", width: 1.5, type: "dashed" }, // グリーン
+    });
+    // VAL - 赤破線
+    series.push({
+      name: "VAL",
+      type: "line",
+      xAxisIndex: gridIndex,
+      yAxisIndex: gridIndex,
+      data: indicators.volumeProfile.map((v) => v?.val ?? null),
+      symbol: "none",
+      lineStyle: { color: "#f44336", width: 1.5, type: "dashed" }, // 赤
+    });
+  }
+
+  // Volume Trend
+  if (enabledIndicators.includes("volumeTrend") && indicators.volumeTrend) {
+    const gridIndex = createSubchart(subchartCtx, {
+      title: "Volume Trend",
+      titleColor: COLORS.volumeTrendUp,
+      seriesNames: ["VT Confidence"],
+      yAxisMin: 0,
+      yAxisMax: 100,
+    });
+
+    // Divergence マーカー（ダイアモンド）を収集
+    const divMarkers: SeriesItem[] = [];
+    indicators.volumeTrend.forEach((v, i) => {
+      if (v.hasDivergence) {
+        const isBearish = v.priceTrend === "up" && v.volumeTrend === "down";
+        divMarkers.push({
+          coord: [i, v.confidence],
+          symbol: "diamond",
+          symbolSize: 12,
+          itemStyle: { color: isBearish ? "#ef5350" : "#26a69a" },
+          label: {
+            show: true,
+            formatter: isBearish ? "BD" : "BuD",
+            position: "top",
+            fontSize: 8,
+            color: "#fff",
+          },
+        });
+      }
+    });
+
+    // バーチャートで confidence を表示（色分け: confirmed+up=緑, confirmed+down=赤, divergence=オレンジ, その他=グレー）
+    series.push({
+      name: "VT Confidence",
+      type: "bar",
+      xAxisIndex: gridIndex,
+      yAxisIndex: gridIndex,
+      data: indicators.volumeTrend.map((v) => ({
+        value: v.confidence,
+        itemStyle: {
+          color: v.hasDivergence
+            ? "#ff9800" // オレンジ for divergence
+            : v.isConfirmed && v.priceTrend === "up"
+              ? COLORS.volumeTrendUp // グリーン
+              : v.isConfirmed && v.priceTrend === "down"
+                ? COLORS.volumeTrendDown // 赤
+                : "#888", // グレー
+        },
+      })),
+      markLine: {
+        silent: true,
+        symbol: "none",
+        label: { color: "#888", textBorderWidth: 0 },
+        data: [
+          {
+            yAxis: 50,
+            lineStyle: { color: "#666", type: "dashed" },
+            label: { formatter: "50%", position: "end", fontSize: 9, color: "#888", textBorderWidth: 0 },
+          },
+        ],
+      },
+      ...(divMarkers.length > 0 && {
+        markPoint: {
+          data: divMarkers,
+        },
+      }),
+    });
+  }
+
+  // Build legend data from main chart series (exclude subcharts and Volume)
+  const mainLegendData = series
+    .filter((s) => {
+      // Include candlestick
+      if (s.name === "Candlestick") return true;
+      // Exclude Volume bar
+      if (s.name === "Volume") return false;
+      // Include overlay series (no xAxisIndex means main chart)
+      if (s.xAxisIndex === undefined || s.xAxisIndex === 0) return true;
+      return false;
+    })
+    .map((s) => s.name as string);
+
+  // Build legends array: main legend + subchart legends
+  const legends: SeriesItem[] = [
+    {
+      data: mainLegendData,
+      top: 10,
+      textStyle: { color: "#888", fontSize: 11 },
+      type: "scroll",
+      pageIconColor: "#888",
+      pageIconInactiveColor: "#555",
+      pageTextStyle: { color: "#888" },
+    },
+    // Subchart legends (positioned to the right of title)
+    ...subchartLegends.map((legend) => ({
+      data: legend.seriesNames,
+      top: legend.top,
+      left: 100,
+      textStyle: { color: "#888", fontSize: 10 },
+      itemWidth: 14,
+      itemHeight: 10,
+      itemGap: 8,
+    })),
+  ];
+
+  // Build final option
+  return {
+    backgroundColor: "transparent",
+    animation: false,
+    title: titles,
+    tooltip: {
+      trigger: "axis",
+      axisPointer: { type: "cross" },
+      backgroundColor: "rgba(0,0,0,0.8)",
+      borderColor: "#333",
+      textStyle: { color: "#fff" },
+      confine: true,
+      valueFormatter: (value: unknown) => {
+        if (value === null || value === undefined) return "-";
+        const formatNum = (v: unknown): string => {
+          if (typeof v !== "number" || !Number.isFinite(v)) return String(v ?? "-");
+          // 整数または大きな数値はカンマ区切りの整数表示
+          if (Number.isInteger(v) || Math.abs(v) >= 1000) {
+            return Math.round(v).toLocaleString();
+          }
+          // 小数点以下がある値は第3位まで
+          return v.toFixed(3);
+        };
+        if (Array.isArray(value)) return value.map(formatNum).join(", ");
+        return formatNum(value);
+      },
+    },
+    legend: legends,
+    axisPointer: {
+      link: [{ xAxisIndex: "all" }],
+      label: { backgroundColor: "#16213e" },
+    },
+    grid: grids,
+    xAxis: xAxes,
+    yAxis: yAxes,
+    series,
+    dataZoom: [
+      {
+        type: "inside",
+        xAxisIndex: xAxes.map((_: SeriesItem, i: number) => i),
+        start,
+        end,
+      },
+      {
+        type: "slider",
+        xAxisIndex: xAxes.map((_: SeriesItem, i: number) => i),
+        top: dataZoomTop,
+        height: dataZoomHeight,
+        start,
+        end,
+      },
+    ],
+  };
+}

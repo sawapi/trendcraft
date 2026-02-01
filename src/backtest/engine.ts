@@ -13,25 +13,29 @@ import type {
   Condition,
   ExitReason,
   FillMode,
+  FundamentalMetrics,
   MtfContext,
   NormalizedCandle,
   SlTpMode,
   TimeframeShorthand,
   Trade,
 } from "../types";
+import { createFundamentalsMap } from "../core/fundamentals";
 import { evaluateCondition } from "./conditions";
 import type { ExtendedCondition } from "./conditions";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 /**
- * Extended backtest options with MTF and ATR risk support
+ * Extended backtest options with MTF, ATR risk, and fundamentals support
  */
 export type MtfBacktestOptions = BacktestOptions & {
   /** Timeframes to include for MTF conditions */
   mtfTimeframes?: TimeframeShorthand[];
   /** ATR-based risk management options */
   atrRisk?: AtrRiskOptions;
+  /** Fundamental metrics (PER/PBR) for condition evaluation */
+  fundamentals?: FundamentalMetrics[];
 };
 
 /**
@@ -152,9 +156,10 @@ export function runBacktest(
     slTpMode = "close-only" as SlTpMode,
   } = options;
 
-  // Extract MTF timeframes and ATR risk options if provided
+  // Extract MTF timeframes, ATR risk options, and fundamentals if provided
   const mtfTimeframes = (options as MtfBacktestOptions).mtfTimeframes;
   const atrRisk = (options as MtfBacktestOptions).atrRisk;
+  const fundamentals = (options as MtfBacktestOptions).fundamentals;
 
   // Build settings for reproducibility
   const settings: BacktestSettings = {
@@ -194,6 +199,9 @@ export function runBacktest(
     atrSeries = atr(candles, { period: atrPeriod });
   }
 
+  // Build fundamentals map for fast lookup if provided
+  const fundamentalsMap = fundamentals ? createFundamentalsMap(fundamentals) : null;
+
   let position: Position | null = null;
 
   // Pending entry for next-bar-open mode
@@ -222,6 +230,13 @@ export function runBacktest(
     // Update MTF indices for this candle
     if (mtfContext && mtfIndexMap) {
       updateMtfIndices(mtfContext, mtfIndexMap, i, candle.time);
+    }
+
+    // Inject fundamental metrics into indicators for condition evaluation
+    if (fundamentalsMap) {
+      const fund = fundamentalsMap.get(candle.time);
+      indicators.per = fund?.per ?? null;
+      indicators.pbr = fund?.pbr ?? null;
     }
 
     // === Handle pending entry (next-bar-open mode) ===

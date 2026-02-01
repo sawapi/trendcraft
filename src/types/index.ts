@@ -971,6 +971,23 @@ export type ScaledEntryConfig = {
 };
 
 // ============================================================================
+// Fundamental Metrics Types
+// ============================================================================
+
+/**
+ * Fundamental metrics for a specific time point
+ * Used for PER/PBR-based condition evaluation in backtesting
+ */
+export type FundamentalMetrics = {
+  /** Timestamp (epoch milliseconds) */
+  time: number;
+  /** Price-to-Earnings Ratio (株価収益率) */
+  per?: number | null;
+  /** Price-to-Book Ratio (株価純資産倍率) */
+  pbr?: number | null;
+};
+
+// ============================================================================
 // Optimization Types (re-export from optimization.ts)
 // ============================================================================
 

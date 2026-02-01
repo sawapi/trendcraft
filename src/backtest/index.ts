@@ -155,6 +155,13 @@ export {
   headShouldersDetected,
   inverseHeadShouldersDetected,
   cupHandleDetected,
+  // Fundamental conditions (PER/PBR)
+  perBelow,
+  perAbove,
+  perBetween,
+  pbrBelow,
+  pbrAbove,
+  pbrBetween,
 } from "./conditions";
 
 export type {

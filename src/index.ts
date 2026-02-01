@@ -71,6 +71,8 @@ export type {
   ScaledEntryStrategy,
   ScaledEntryIntervalType,
   ScaledEntryConfig,
+  // Fundamental metrics types
+  FundamentalMetrics,
 } from "./types";
 
 // Core utilities
@@ -83,6 +85,14 @@ export {
 } from "./core/normalize";
 
 export { resample, parseTimeframe } from "./core/resample";
+
+// Fundamentals utilities
+export {
+  parseFundamentals,
+  createFundamentalsMap,
+  getFundamentalsAt,
+} from "./core/fundamentals";
+export type { ParseFundamentalsOptions } from "./core/fundamentals";
 
 // MTF context utilities
 export {
@@ -267,6 +277,13 @@ export {
   adxStrong,
   // Volume conditions
   volumeAboveAvg,
+  // Fundamental conditions
+  perBelow,
+  perAbove,
+  perBetween,
+  pbrBelow,
+  pbrAbove,
+  pbrBetween,
   // Engine
   runBacktest,
   runBacktestScaled,
