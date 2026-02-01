@@ -46,6 +46,28 @@ const OVERLAY_GROUPS: { group: string; options: { key: OverlayType; label: strin
       { key: "psar", label: "Parabolic SAR" },
     ],
   },
+  {
+    group: "Volume",
+    options: [
+      { key: "vwap", label: "VWAP" },
+    ],
+  },
+  {
+    group: "Price",
+    options: [
+      { key: "swingPoints", label: "Swing Points" },
+    ],
+  },
+  {
+    group: "Smart Money (SMC)",
+    options: [
+      { key: "orderBlock", label: "Order Block" },
+      { key: "fvg", label: "Fair Value Gap" },
+      { key: "bos", label: "Break of Structure" },
+      { key: "choch", label: "Change of Character" },
+      { key: "liquiditySweep", label: "Liquidity Sweep" },
+    ],
+  },
 ];
 
 /**
@@ -81,6 +103,12 @@ const SUBCHART_GROUPS: { group: string; options: { key: SubChartType; label: str
     ],
   },
   {
+    group: "Volatility",
+    options: [
+      { key: "atr", label: "ATR" },
+    ],
+  },
+  {
     group: "Volume",
     options: [
       { key: "mfi", label: "MFI" },
@@ -92,6 +120,17 @@ const SUBCHART_GROUPS: { group: string; options: { key: SubChartType; label: str
     ],
   },
 ];
+
+/**
+ * Fundamentals group (only shown when CSV contains PER/PBR data)
+ */
+const FUNDAMENTALS_GROUP: { group: string; options: { key: SubChartType; label: string }[] } = {
+  group: "Fundamentals",
+  options: [
+    { key: "per", label: "PER (株価収益率)" },
+    { key: "pbr", label: "PBR (株価純資産倍率)" },
+  ],
+};
 
 export function IndicatorSettingsDialog({ isOpen, onClose }: IndicatorSettingsDialogProps) {
   const [activeTab, setActiveTab] = useState<TabType>("overlay");
@@ -106,6 +145,12 @@ export function IndicatorSettingsDialog({ isOpen, onClose }: IndicatorSettingsDi
   const resetIndicatorParams = useChartStore((s) => s.resetIndicatorParams);
   const enabledSignals = useChartStore((s) => s.enabledSignals);
   const toggleSignal = useChartStore((s) => s.toggleSignal);
+  const fundamentals = useChartStore((s) => s.fundamentals);
+
+  // Build subchart groups with optional fundamentals
+  const subchartGroups = fundamentals
+    ? [...SUBCHART_GROUPS, FUNDAMENTALS_GROUP]
+    : SUBCHART_GROUPS;
 
   if (!isOpen) return null;
 
@@ -284,7 +329,7 @@ export function IndicatorSettingsDialog({ isOpen, onClose }: IndicatorSettingsDi
 
           {activeTab === "subchart" && (
             <div className="indicator-groups">
-              {SUBCHART_GROUPS.map((grp) => (
+              {subchartGroups.map((grp) => (
                 <div key={grp.group} className="indicator-group">
                   <div className="group-header">{grp.group}</div>
                   <div className="indicator-list">

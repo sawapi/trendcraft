@@ -11,6 +11,12 @@ import type {
   IchimokuValue,
   SupertrendValue,
   ParabolicSarValue,
+  VwapValue,
+  SwingPointValue,
+  OrderBlockValue,
+  FvgValue,
+  BosValue,
+  LiquiditySweepValue,
 } from "trendcraft";
 import {
   sma,
@@ -22,6 +28,13 @@ import {
   ichimoku,
   supertrend,
   parabolicSar,
+  vwap,
+  swingPoints,
+  orderBlock,
+  fairValueGap,
+  breakOfStructure,
+  changeOfCharacter,
+  liquiditySweep,
 } from "trendcraft";
 import type { OverlayType } from "../types";
 import { useChartStore } from "../store/chartStore";
@@ -45,6 +58,16 @@ export interface OverlayData {
   ichimoku?: IchimokuValue[];
   supertrend?: SupertrendValue[];
   psar?: ParabolicSarValue[];
+  // VWAP
+  vwap?: VwapValue[];
+  // Swing Points
+  swingPoints?: SwingPointValue[];
+  // SMC
+  orderBlock?: OrderBlockValue[];
+  fvg?: FvgValue[];
+  bos?: BosValue[];
+  choch?: BosValue[];
+  liquiditySweep?: LiquiditySweepValue[];
 }
 
 /**
@@ -146,6 +169,69 @@ export function useOverlays(
     if (enabledOverlays.includes("psar")) {
       const series = parabolicSar(candles, { step: p.psarStep, max: p.psarMax });
       data.psar = series.map((s) => s.value);
+    }
+
+    // VWAP
+    if (enabledOverlays.includes("vwap")) {
+      const series = vwap(candles, {
+        resetPeriod: p.vwapResetPeriod,
+        period: p.vwapRollingPeriod,
+      });
+      data.vwap = series.map((s) => s.value);
+    }
+
+    // Swing Points
+    if (enabledOverlays.includes("swingPoints")) {
+      const series = swingPoints(candles, {
+        leftBars: p.swingLeftBars,
+        rightBars: p.swingRightBars,
+      });
+      data.swingPoints = series.map((s) => s.value);
+    }
+
+    // Order Block
+    if (enabledOverlays.includes("orderBlock")) {
+      const series = orderBlock(candles, {
+        swingPeriod: p.orderBlockSwingPeriod,
+        volumePeriod: p.orderBlockVolumePeriod,
+        minVolumeRatio: p.orderBlockMinVolumeRatio,
+        maxActiveOBs: p.orderBlockMaxActive,
+      });
+      data.orderBlock = series.map((s) => s.value);
+    }
+
+    // Fair Value Gap
+    if (enabledOverlays.includes("fvg")) {
+      const series = fairValueGap(candles, {
+        minGapPercent: p.fvgMinGapPercent,
+        maxActiveFvgs: p.fvgMaxActive,
+      });
+      data.fvg = series.map((s) => s.value);
+    }
+
+    // Break of Structure
+    if (enabledOverlays.includes("bos")) {
+      const series = breakOfStructure(candles, {
+        swingPeriod: p.bosSwingPeriod,
+      });
+      data.bos = series.map((s) => s.value);
+    }
+
+    // Change of Character
+    if (enabledOverlays.includes("choch")) {
+      const series = changeOfCharacter(candles, {
+        swingPeriod: p.bosSwingPeriod,
+      });
+      data.choch = series.map((s) => s.value);
+    }
+
+    // Liquidity Sweep
+    if (enabledOverlays.includes("liquiditySweep")) {
+      const series = liquiditySweep(candles, {
+        swingPeriod: p.liquiditySweepSwingPeriod,
+        maxRecoveryBars: p.liquiditySweepMaxRecoveryBars,
+      });
+      data.liquiditySweep = series.map((s) => s.value);
     }
 
     return data;

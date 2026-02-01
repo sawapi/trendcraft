@@ -8,6 +8,7 @@ import type {
   BacktestConfig,
   ChartActions,
   ChartState,
+  FundamentalData,
   IndicatorParams,
   OverlayType,
   SignalType,
@@ -137,6 +138,7 @@ export const useChartStore = create<ChartStore>((set, get) => ({
   rawCandles: [],
   currentCandles: [],
   fileName: "",
+  fundamentals: null,
   timeframe: "daily",
   enabledIndicators: [],
   enabledOverlays: [],
@@ -149,7 +151,7 @@ export const useChartStore = create<ChartStore>((set, get) => ({
   isBacktestRunning: false,
 
   // Actions
-  loadCandles: (candles: NormalizedCandle[], fileName: string) => {
+  loadCandles: (candles: NormalizedCandle[], fundamentals: FundamentalData | null, fileName: string) => {
     const { timeframe } = get();
     const currentCandles = convertTimeframe(candles, timeframe);
 
@@ -157,6 +159,7 @@ export const useChartStore = create<ChartStore>((set, get) => ({
       rawCandles: candles,
       currentCandles,
       fileName,
+      fundamentals,
       zoomRange: { start: 0, end: 100 },
       backtestResult: null,
     });
@@ -169,6 +172,7 @@ export const useChartStore = create<ChartStore>((set, get) => ({
       timeframe,
       firstCandle: candles[0],
       lastCandle: candles[candles.length - 1],
+      hasFundamentals: fundamentals !== null,
     });
   },
 
@@ -259,6 +263,7 @@ export const useChartStore = create<ChartStore>((set, get) => ({
       rawCandles: [],
       currentCandles: [],
       fileName: "",
+      fundamentals: null,
       timeframe: "daily",
       enabledIndicators: [],
       enabledOverlays: [],

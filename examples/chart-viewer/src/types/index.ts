@@ -28,7 +28,18 @@ export type SubChartType =
   | "cmf"
   | "volumeAnomaly"
   | "volumeProfile"
-  | "volumeTrend";
+  | "volumeTrend"
+  | "atr"
+  | "per"
+  | "pbr";
+
+/**
+ * Fundamental data (PER/PBR from CSV)
+ */
+export interface FundamentalData {
+  per: (number | null)[];
+  pbr: (number | null)[];
+}
 
 /**
  * Overlay indicator types (displayed on main chart)
@@ -45,7 +56,14 @@ export type OverlayType =
   | "keltner"
   | "ichimoku"
   | "supertrend"
-  | "psar";
+  | "psar"
+  | "vwap"
+  | "swingPoints"
+  | "orderBlock"
+  | "fvg"
+  | "bos"
+  | "choch"
+  | "liquiditySweep";
 
 /**
  * Subchart configuration
@@ -135,6 +153,27 @@ export interface IndicatorParams {
   volumeProfileLevels: number;
   volumeTrendPricePeriod: number;
   volumeTrendVolumePeriod: number;
+  // ATR
+  atrPeriod: number;
+  // VWAP
+  vwapResetPeriod: "session" | "rolling";
+  vwapRollingPeriod: number;
+  // Swing Points
+  swingLeftBars: number;
+  swingRightBars: number;
+  // SMC - Order Block
+  orderBlockSwingPeriod: number;
+  orderBlockVolumePeriod: number;
+  orderBlockMinVolumeRatio: number;
+  orderBlockMaxActive: number;
+  // SMC - Fair Value Gap
+  fvgMinGapPercent: number;
+  fvgMaxActive: number;
+  // SMC - BOS/CHoCH
+  bosSwingPeriod: number;
+  // SMC - Liquidity Sweep
+  liquiditySweepSwingPeriod: number;
+  liquiditySweepMaxRecoveryBars: number;
 }
 
 /**
@@ -187,6 +226,27 @@ export const DEFAULT_INDICATOR_PARAMS: IndicatorParams = {
   volumeProfileLevels: 24,
   volumeTrendPricePeriod: 5,
   volumeTrendVolumePeriod: 20,
+  // ATR
+  atrPeriod: 14,
+  // VWAP
+  vwapResetPeriod: "rolling",
+  vwapRollingPeriod: 20,
+  // Swing Points
+  swingLeftBars: 5,
+  swingRightBars: 5,
+  // SMC - Order Block
+  orderBlockSwingPeriod: 5,
+  orderBlockVolumePeriod: 20,
+  orderBlockMinVolumeRatio: 1.0,
+  orderBlockMaxActive: 10,
+  // SMC - Fair Value Gap
+  fvgMinGapPercent: 0,
+  fvgMaxActive: 10,
+  // SMC - BOS/CHoCH
+  bosSwingPeriod: 5,
+  // SMC - Liquidity Sweep
+  liquiditySweepSwingPeriod: 5,
+  liquiditySweepMaxRecoveryBars: 3,
 };
 
 /**
@@ -272,6 +332,33 @@ export const INDICATOR_PARAM_CONFIGS: Record<string, ParamConfig[]> = {
     { key: "volumeTrendPricePeriod", label: "Price Period", min: 2, max: 20, step: 1 },
     { key: "volumeTrendVolumePeriod", label: "Vol Period", min: 5, max: 50, step: 1 },
   ],
+  atr: [{ key: "atrPeriod", label: "Period", min: 1, max: 50, step: 1 }],
+  vwap: [{ key: "vwapRollingPeriod", label: "Rolling Period", min: 5, max: 100, step: 1 }],
+  swingPoints: [
+    { key: "swingLeftBars", label: "Left Bars", min: 1, max: 20, step: 1 },
+    { key: "swingRightBars", label: "Right Bars", min: 1, max: 20, step: 1 },
+  ],
+  // SMC indicators
+  orderBlock: [
+    { key: "orderBlockSwingPeriod", label: "Swing Period", min: 1, max: 20, step: 1 },
+    { key: "orderBlockVolumePeriod", label: "Volume Period", min: 5, max: 50, step: 1 },
+    { key: "orderBlockMinVolumeRatio", label: "Min Vol Ratio", min: 0.5, max: 3, step: 0.1 },
+    { key: "orderBlockMaxActive", label: "Max Active", min: 1, max: 20, step: 1 },
+  ],
+  fvg: [
+    { key: "fvgMinGapPercent", label: "Min Gap %", min: 0, max: 2, step: 0.1 },
+    { key: "fvgMaxActive", label: "Max Active", min: 1, max: 20, step: 1 },
+  ],
+  bos: [
+    { key: "bosSwingPeriod", label: "Swing Period", min: 1, max: 20, step: 1 },
+  ],
+  choch: [
+    { key: "bosSwingPeriod", label: "Swing Period", min: 1, max: 20, step: 1 },
+  ],
+  liquiditySweep: [
+    { key: "liquiditySweepSwingPeriod", label: "Swing Period", min: 1, max: 20, step: 1 },
+    { key: "liquiditySweepMaxRecoveryBars", label: "Max Recovery Bars", min: 1, max: 10, step: 1 },
+  ],
 };
 
 /**
@@ -282,6 +369,7 @@ export interface ChartState {
   rawCandles: NormalizedCandle[];
   currentCandles: NormalizedCandle[];
   fileName: string;
+  fundamentals: FundamentalData | null;
 
   // Display settings
   timeframe: Timeframe;
@@ -304,7 +392,7 @@ export interface ChartState {
  * Chart store actions
  */
 export interface ChartActions {
-  loadCandles: (candles: NormalizedCandle[], fileName: string) => void;
+  loadCandles: (candles: NormalizedCandle[], fundamentals: FundamentalData | null, fileName: string) => void;
   setTimeframe: (timeframe: Timeframe) => void;
   setEnabledIndicators: (indicators: SubChartType[]) => void;
   setEnabledOverlays: (overlays: OverlayType[]) => void;

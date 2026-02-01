@@ -44,6 +44,8 @@ const SUBCHART_LABELS: Record<string, string> = {
   volumeAnomaly: "VolAnomaly",
   volumeProfile: "VolProfile",
   volumeTrend: "VolTrend",
+  per: "PER",
+  pbr: "PBR",
 };
 
 export default function App() {

@@ -151,6 +151,9 @@ export {
   returns,
   cumulativeReturns,
   pivotPoints,
+  swingPoints,
+  getSwingHighs,
+  getSwingLows,
   // Trend
   ichimoku,
   supertrend,
@@ -177,6 +180,12 @@ export {
   liquiditySweep,
   getRecoveredSweeps,
   hasRecentSweepSignal,
+  // BOS/CHoCH/FVG (SMC price structure)
+  breakOfStructure,
+  changeOfCharacter,
+  fairValueGap,
+  getUnfilledFvgs,
+  getNearestFvg,
 } from "./indicators";
 
 export type {
@@ -202,6 +211,8 @@ export type {
   RocOptions,
   PivotPointsOptions,
   PivotPointsValue,
+  SwingPointValue,
+  SwingPointOptions,
   IchimokuOptions,
   IchimokuValue,
   SupertrendOptions,
@@ -221,6 +232,12 @@ export type {
   LiquiditySweep,
   LiquiditySweepValue,
   LiquiditySweepOptions,
+  // BOS/CHoCH/FVG types
+  BosValue,
+  BosOptions,
+  FvgValue,
+  FvgGap,
+  FvgOptions,
 } from "./indicators";
 
 // Fluent API

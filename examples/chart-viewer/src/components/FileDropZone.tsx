@@ -20,14 +20,14 @@ export function FileDropZone() {
       setError(null);
 
       try {
-        const candles = await parseFile(file);
+        const { candles, fundamentals } = await parseFile(file);
 
         if (candles.length === 0) {
           setError("有効なデータが見つかりませんでした");
           return;
         }
 
-        loadCandles(candles, file.name);
+        loadCandles(candles, fundamentals, file.name);
       } catch (e) {
         setError(`ファイルの読み込みに失敗しました: ${e}`);
       } finally {

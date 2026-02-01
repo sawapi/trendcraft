@@ -4,7 +4,7 @@
 
 import type { EChartsOption } from "echarts";
 import type { NormalizedCandle, Trade } from "trendcraft";
-import type { OverlayType, SignalType, SubChartType } from "../types";
+import type { IndicatorParams, OverlayType, SignalType, SubChartType } from "../types";
 import type { IndicatorData } from "../hooks/useIndicators";
 import type { SignalData } from "../hooks/useSignals";
 import type { OverlayData } from "../hooks/useOverlays";
@@ -67,6 +67,27 @@ const COLORS = {
   ichimokuSenkouA: "#2ecc71",
   ichimokuSenkouB: "#e67e22",
   ichimokuChikou: "#9b59b6",
+  // ATR
+  atr: "#ff7043",
+  // Fundamentals
+  per: "#2196f3",  // Blue
+  pbr: "#9c27b0",  // Purple
+  // VWAP
+  vwap: "#00bcd4",
+  // Swing Points
+  swingHigh: "#ef5350",
+  swingLow: "#26a69a",
+  // SMC
+  orderBlockBullish: "rgba(38, 166, 154, 0.3)",
+  orderBlockBearish: "rgba(239, 83, 80, 0.3)",
+  fvgBullish: "rgba(100, 181, 246, 0.25)",
+  fvgBearish: "rgba(255, 183, 77, 0.25)",
+  bosBullish: "#4caf50",
+  bosBearish: "#f44336",
+  chochBullish: "#00bcd4",
+  chochBearish: "#e91e63",
+  liquiditySweepBullish: "#26a69a",
+  liquiditySweepBearish: "#ef5350",
 };
 
 /**
@@ -226,7 +247,7 @@ function createMarkLine(values: number[]): SeriesItem {
  * Build ECharts option for main chart only (backward compatible)
  */
 export function buildMainChartOption(candles: NormalizedCandle[]): EChartsOption {
-  return buildChartOption(candles, {}, [], null, [], null, {}, [], 500);
+  return buildChartOption(candles, {}, [], null, [], null, {}, [], 500, undefined);
 }
 
 /**
@@ -241,7 +262,8 @@ export function buildChartOption(
   trades: Trade[] | null,
   overlays: OverlayData,
   enabledOverlays: OverlayType[],
-  _chartHeight: number = 500
+  _chartHeight: number = 500,
+  indicatorParams?: IndicatorParams
 ): EChartsOption {
   if (candles.length === 0) {
     return {};
@@ -621,6 +643,336 @@ export function buildChartOption(
       symbolSize: 4,
       itemStyle: { color: COLORS.down },
     });
+  }
+
+  // VWAP
+  if (enabledOverlays.includes("vwap") && overlays.vwap) {
+    series.push({
+      name: "VWAP",
+      type: "line",
+      data: overlays.vwap.map((v) => v.vwap),
+      symbol: "none",
+      lineStyle: { color: COLORS.vwap, width: 2 },
+    });
+    series.push({
+      name: "VWAP Upper",
+      type: "line",
+      data: overlays.vwap.map((v) => v.upper),
+      symbol: "none",
+      lineStyle: { color: COLORS.vwap, width: 1, type: "dashed", opacity: 0.6 },
+    });
+    series.push({
+      name: "VWAP Lower",
+      type: "line",
+      data: overlays.vwap.map((v) => v.lower),
+      symbol: "none",
+      lineStyle: { color: COLORS.vwap, width: 1, type: "dashed", opacity: 0.6 },
+    });
+  }
+
+  // Swing Points
+  if (enabledOverlays.includes("swingPoints") && overlays.swingPoints) {
+    const swingHighData = overlays.swingPoints.map((v, i) =>
+      v.isSwingHigh ? candles[i].high : null
+    );
+    series.push({
+      name: "Swing High",
+      type: "scatter",
+      data: swingHighData,
+      symbol: "triangle",
+      symbolSize: 10,
+      symbolRotate: 180,
+      itemStyle: { color: COLORS.swingHigh },
+    });
+
+    const swingLowData = overlays.swingPoints.map((v, i) =>
+      v.isSwingLow ? candles[i].low : null
+    );
+    series.push({
+      name: "Swing Low",
+      type: "scatter",
+      data: swingLowData,
+      symbol: "triangle",
+      symbolSize: 10,
+      itemStyle: { color: COLORS.swingLow },
+    });
+  }
+
+  // Order Block
+  if (enabledOverlays.includes("orderBlock") && overlays.orderBlock) {
+    const orderBlockMarkAreas: SeriesItem[][] = [];
+    const lastOb = overlays.orderBlock[overlays.orderBlock.length - 1];
+    if (lastOb) {
+      // Active order blocks (bullish and bearish)
+      for (const ob of lastOb.activeOrderBlocks) {
+        const color = ob.type === "bullish" ? COLORS.orderBlockBullish : COLORS.orderBlockBearish;
+        orderBlockMarkAreas.push([
+          {
+            xAxis: dates[ob.startIndex],
+            yAxis: ob.low,
+            itemStyle: { color },
+          },
+          {
+            xAxis: dates[dates.length - 1],
+            yAxis: ob.high,
+          },
+        ]);
+      }
+    }
+    if (orderBlockMarkAreas.length > 0) {
+      series.push({
+        name: "Order Block",
+        type: "line",
+        data: [],
+        markArea: {
+          silent: true,
+          data: orderBlockMarkAreas,
+        },
+      });
+    }
+  }
+
+  // Fair Value Gap
+  if (enabledOverlays.includes("fvg") && overlays.fvg) {
+    const fvgMarkAreas: SeriesItem[][] = [];
+    const lastFvg = overlays.fvg[overlays.fvg.length - 1];
+    if (lastFvg) {
+      // Active bullish FVGs
+      for (const fvg of lastFvg.activeBullishFvgs) {
+        fvgMarkAreas.push([
+          {
+            xAxis: dates[fvg.startIndex],
+            yAxis: fvg.low,
+            itemStyle: {
+              color: COLORS.fvgBullish,
+              borderColor: "rgba(100, 181, 246, 0.5)",
+              borderWidth: 1,
+              borderType: "dashed",
+            },
+          },
+          {
+            xAxis: dates[dates.length - 1],
+            yAxis: fvg.high,
+          },
+        ]);
+      }
+      // Active bearish FVGs
+      for (const fvg of lastFvg.activeBearishFvgs) {
+        fvgMarkAreas.push([
+          {
+            xAxis: dates[fvg.startIndex],
+            yAxis: fvg.low,
+            itemStyle: {
+              color: COLORS.fvgBearish,
+              borderColor: "rgba(255, 183, 77, 0.5)",
+              borderWidth: 1,
+              borderType: "dashed",
+            },
+          },
+          {
+            xAxis: dates[dates.length - 1],
+            yAxis: fvg.high,
+          },
+        ]);
+      }
+    }
+    if (fvgMarkAreas.length > 0) {
+      series.push({
+        name: "FVG",
+        type: "line",
+        data: [],
+        markArea: {
+          silent: true,
+          data: fvgMarkAreas,
+        },
+      });
+    }
+  }
+
+  // Break of Structure
+  if (enabledOverlays.includes("bos") && overlays.bos) {
+    const bosMarkPoints: SeriesItem[] = [];
+    overlays.bos.forEach((v, i) => {
+      if (v.bullishBos) {
+        bosMarkPoints.push({
+          coord: [dates[i], candles[i].high],
+          symbol: "arrow",
+          symbolSize: 12,
+          symbolRotate: 0,
+          itemStyle: { color: COLORS.bosBullish },
+          label: {
+            show: true,
+            formatter: "BOS",
+            position: "top",
+            fontSize: 9,
+            color: COLORS.bosBullish,
+            fontWeight: "bold",
+          },
+        });
+      }
+      if (v.bearishBos) {
+        bosMarkPoints.push({
+          coord: [dates[i], candles[i].low],
+          symbol: "arrow",
+          symbolSize: 12,
+          symbolRotate: 180,
+          itemStyle: { color: COLORS.bosBearish },
+          label: {
+            show: true,
+            formatter: "BOS",
+            position: "bottom",
+            fontSize: 9,
+            color: COLORS.bosBearish,
+            fontWeight: "bold",
+          },
+        });
+      }
+    });
+    if (bosMarkPoints.length > 0) {
+      series.push({
+        name: "BOS",
+        type: "line",
+        data: [],
+        markPoint: {
+          data: bosMarkPoints,
+        },
+      });
+    }
+  }
+
+  // Change of Character
+  if (enabledOverlays.includes("choch") && overlays.choch) {
+    const chochMarkPoints: SeriesItem[] = [];
+    overlays.choch.forEach((v, i) => {
+      if (v.bullishBos) {
+        chochMarkPoints.push({
+          coord: [dates[i], candles[i].high],
+          symbol: "diamond",
+          symbolSize: 14,
+          itemStyle: { color: COLORS.chochBullish },
+          label: {
+            show: true,
+            formatter: "CHoCH",
+            position: "top",
+            fontSize: 9,
+            color: COLORS.chochBullish,
+            fontWeight: "bold",
+          },
+        });
+      }
+      if (v.bearishBos) {
+        chochMarkPoints.push({
+          coord: [dates[i], candles[i].low],
+          symbol: "diamond",
+          symbolSize: 14,
+          itemStyle: { color: COLORS.chochBearish },
+          label: {
+            show: true,
+            formatter: "CHoCH",
+            position: "bottom",
+            fontSize: 9,
+            color: COLORS.chochBearish,
+            fontWeight: "bold",
+          },
+        });
+      }
+    });
+    if (chochMarkPoints.length > 0) {
+      series.push({
+        name: "CHoCH",
+        type: "line",
+        data: [],
+        markPoint: {
+          data: chochMarkPoints,
+        },
+      });
+    }
+  }
+
+  // Liquidity Sweep
+  if (enabledOverlays.includes("liquiditySweep") && overlays.liquiditySweep) {
+    const sweepMarkPoints: SeriesItem[] = [];
+    const sweepMarkAreas: SeriesItem[][] = [];
+
+    overlays.liquiditySweep.forEach((v, i) => {
+      // New sweep detected
+      if (v.isSweep && v.sweep) {
+        const isBullish = v.sweep.type === "bullish";
+
+        // Marker at sweep point (triangle + label)
+        sweepMarkPoints.push({
+          coord: [dates[i], isBullish ? candles[i].low : candles[i].high],
+          symbol: "triangle",
+          symbolSize: 12,
+          symbolRotate: isBullish ? 0 : 180,
+          itemStyle: { color: isBullish ? COLORS.liquiditySweepBullish : COLORS.liquiditySweepBearish },
+          label: {
+            show: true,
+            formatter: isBullish ? "SL" : "SH",
+            position: isBullish ? "bottom" : "top",
+            fontSize: 9,
+            color: isBullish ? COLORS.liquiditySweepBullish : COLORS.liquiditySweepBearish,
+            fontWeight: "bold",
+          },
+        });
+
+        // Sweep area (sweptLevel to sweepExtreme) - displayed for 10 bars
+        const areaColor = isBullish
+          ? "rgba(38, 166, 154, 0.15)"
+          : "rgba(239, 83, 80, 0.15)";
+        sweepMarkAreas.push([
+          {
+            xAxis: dates[i],
+            yAxis: v.sweep.sweptLevel,
+            itemStyle: { color: areaColor },
+          },
+          {
+            xAxis: dates[Math.min(i + 10, dates.length - 1)],
+            yAxis: v.sweep.sweepExtreme,
+          },
+        ]);
+      }
+
+      // Recovery markers
+      if (v.recoveredThisBar.length > 0) {
+        for (const sweep of v.recoveredThisBar) {
+          const isBullish = sweep.type === "bullish";
+          sweepMarkPoints.push({
+            coord: [dates[i], isBullish ? candles[i].high : candles[i].low],
+            symbol: "pin",
+            symbolSize: 14,
+            itemStyle: { color: "#ff9800" },
+            label: {
+              show: true,
+              formatter: "R",
+              position: isBullish ? "top" : "bottom",
+              fontSize: 8,
+              color: "#ff9800",
+              fontWeight: "bold",
+            },
+          });
+        }
+      }
+    });
+
+    if (sweepMarkPoints.length > 0 || sweepMarkAreas.length > 0) {
+      series.push({
+        name: "Liquidity Sweep",
+        type: "line",
+        data: [],
+        ...(sweepMarkPoints.length > 0 && {
+          markPoint: {
+            data: sweepMarkPoints,
+          },
+        }),
+        ...(sweepMarkAreas.length > 0 && {
+          markArea: {
+            silent: true,
+            data: sweepMarkAreas,
+          },
+        }),
+      });
+    }
   }
 
   // Subchart context for helper function (pixel-based)
@@ -1177,6 +1529,61 @@ export function buildChartOption(
       }),
     });
   }
+
+  // ATR
+  if (enabledIndicators.includes("atr") && indicators.atr) {
+    const gridIndex = createSubchart(subchartCtx, {
+      title: `ATR (${indicatorParams?.atrPeriod ?? 14})`,
+      titleColor: COLORS.atr,
+      seriesNames: ["ATR"],
+    });
+    series.push({
+      name: "ATR",
+      type: "line",
+      xAxisIndex: gridIndex,
+      yAxisIndex: gridIndex,
+      data: indicators.atr,
+      symbol: "none",
+      lineStyle: { color: COLORS.atr, width: 1.5 },
+    });
+  }
+
+  // PER (Price-to-Earnings Ratio)
+  if (enabledIndicators.includes("per") && indicators.per) {
+    const gridIndex = createSubchart(subchartCtx, {
+      title: "PER",
+      titleColor: COLORS.per,
+      seriesNames: ["PER"],
+    });
+    series.push({
+      name: "PER",
+      type: "line",
+      xAxisIndex: gridIndex,
+      yAxisIndex: gridIndex,
+      data: indicators.per,
+      symbol: "none",
+      lineStyle: { color: COLORS.per, width: 1.5 },
+    });
+  }
+
+  // PBR (Price-to-Book Ratio)
+  if (enabledIndicators.includes("pbr") && indicators.pbr) {
+    const gridIndex = createSubchart(subchartCtx, {
+      title: "PBR",
+      titleColor: COLORS.pbr,
+      seriesNames: ["PBR"],
+    });
+    series.push({
+      name: "PBR",
+      type: "line",
+      xAxisIndex: gridIndex,
+      yAxisIndex: gridIndex,
+      data: indicators.pbr,
+      symbol: "none",
+      lineStyle: { color: COLORS.pbr, width: 1.5 },
+    });
+  }
+
 
   // Build legend data from main chart series (exclude subcharts and Volume)
   const mainLegendData = series

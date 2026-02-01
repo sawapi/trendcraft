@@ -27,8 +27,10 @@ export function MainChart() {
   const enabledOverlays = useChartStore((state) => state.enabledOverlays);
   const enabledSignals = useChartStore((state) => state.enabledSignals);
   const backtestResult = useChartStore((state) => state.backtestResult);
+  const indicatorParams = useChartStore((state) => state.indicatorParams);
+  const fundamentals = useChartStore((state) => state.fundamentals);
 
-  const indicators = useIndicators(currentCandles, enabledIndicators);
+  const indicators = useIndicators(currentCandles, enabledIndicators, fundamentals);
   const overlays = useOverlays(currentCandles, enabledOverlays);
   const signals = useSignals(currentCandles, enabledSignals);
 
@@ -48,9 +50,10 @@ export function MainChart() {
       trades,
       overlays,
       enabledOverlays,
-      chartHeight
+      chartHeight,
+      indicatorParams
     );
-  }, [currentCandles, indicators, enabledIndicators, signals, enabledSignals, trades, overlays, enabledOverlays, chartHeight]);
+  }, [currentCandles, indicators, enabledIndicators, signals, enabledSignals, trades, overlays, enabledOverlays, chartHeight, indicatorParams]);
 
   if (currentCandles.length === 0) {
     return null;

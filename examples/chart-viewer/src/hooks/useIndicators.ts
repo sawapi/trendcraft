@@ -3,7 +3,13 @@
  */
 
 import { useMemo } from "react";
-import type { NormalizedCandle, MacdValue, StochasticsValue, DmiValue, StochRsiValue } from "trendcraft";
+import type {
+  NormalizedCandle,
+  MacdValue,
+  StochasticsValue,
+  DmiValue,
+  StochRsiValue,
+} from "trendcraft";
 import {
   rsi,
   macd,
@@ -19,13 +25,14 @@ import {
   volumeAnomaly,
   volumeProfileSeries,
   volumeTrend,
+  atr,
 } from "trendcraft";
 import {
   rangeBound,
   type RangeBoundValue,
 } from "trendcraft";
 import type { VolumeAnomalyValue, VolumeProfileValue, VolumeTrendValue } from "trendcraft";
-import type { SubChartType } from "../types";
+import type { FundamentalData, SubChartType } from "../types";
 import { useChartStore } from "../store/chartStore";
 
 /**
@@ -68,6 +75,11 @@ export interface IndicatorData {
   volumeProfile?: (VolumeProfileValue | null)[];
   // Volume Trend
   volumeTrend?: VolumeTrendValue[];
+  // ATR
+  atr?: (number | null)[];
+  // Fundamentals (PER/PBR)
+  per?: (number | null)[];
+  pbr?: (number | null)[];
 }
 
 /**
@@ -75,7 +87,8 @@ export interface IndicatorData {
  */
 export function useIndicators(
   candles: NormalizedCandle[],
-  enabledIndicators: SubChartType[]
+  enabledIndicators: SubChartType[],
+  fundamentals?: FundamentalData | null
 ): IndicatorData {
   const indicatorParams = useChartStore((s) => s.indicatorParams);
 
@@ -210,6 +223,22 @@ export function useIndicators(
       data.volumeTrend = volumeTrendSeries.map((s) => s.value);
     }
 
+    // ATR
+    if (enabledIndicators.includes("atr")) {
+      const atrSeries = atr(candles, { period: p.atrPeriod });
+      data.atr = atrSeries.map((s) => s.value);
+    }
+
+    // PER (from CSV fundamentals)
+    if (enabledIndicators.includes("per") && fundamentals?.per) {
+      data.per = fundamentals.per;
+    }
+
+    // PBR (from CSV fundamentals)
+    if (enabledIndicators.includes("pbr") && fundamentals?.pbr) {
+      data.pbr = fundamentals.pbr;
+    }
+
     return data;
-  }, [candles, enabledIndicators, indicatorParams]);
+  }, [candles, enabledIndicators, indicatorParams, fundamentals]);
 }
