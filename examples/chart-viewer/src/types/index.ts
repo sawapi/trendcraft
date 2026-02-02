@@ -31,7 +31,8 @@ export type SubChartType =
   | "volumeTrend"
   | "atr"
   | "per"
-  | "pbr";
+  | "pbr"
+  | "roe";
 
 /**
  * Fundamental data (PER/PBR from CSV)

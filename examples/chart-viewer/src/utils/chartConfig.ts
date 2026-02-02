@@ -72,6 +72,7 @@ const COLORS = {
   // Fundamentals
   per: "#2196f3",  // Blue
   pbr: "#9c27b0",  // Purple
+  roe: "#4caf50",  // Green
   // VWAP
   vwap: "#00bcd4",
   // Swing Points
@@ -402,6 +403,35 @@ export function buildChartOption(
       symbol: "none",
       data: signalMarkLines,
     };
+  }
+
+  // Earnings announcement date markers (highlight area on main chart)
+  if (indicators.earningsDateIndices && indicators.earningsDateIndices.length > 0) {
+    const earningsMarkAreas = indicators.earningsDateIndices.map((idx) => {
+      const startIdx = Math.max(0, idx - 1);
+      const endIdx = Math.min(dates.length - 1, idx + 2);
+      return [
+        {
+          xAxis: dates[startIdx],
+          itemStyle: { color: "rgba(255, 183, 77, 0.15)" }, // Very light orange
+        },
+        {
+          xAxis: dates[endIdx],
+        },
+      ];
+    });
+
+    if (candlestickSeries.markArea) {
+      candlestickSeries.markArea.data = [
+        ...(candlestickSeries.markArea.data || []),
+        ...earningsMarkAreas,
+      ];
+    } else {
+      candlestickSeries.markArea = {
+        silent: true,
+        data: earningsMarkAreas,
+      };
+    }
   }
 
   const series: SeriesItem[] = [
@@ -1550,10 +1580,21 @@ export function buildChartOption(
 
   // PER (Price-to-Earnings Ratio)
   if (enabledIndicators.includes("per") && indicators.per) {
+    // Build dynamic title with current value, percentile, and level
+    const lastPerValue = indicators.per.filter((v): v is number => v !== null).pop();
+    let perTitle = "PER";
+    if (lastPerValue !== undefined) {
+      if (indicators.perPercentile) {
+        perTitle = `PER ${lastPerValue.toFixed(1)} (${indicators.perPercentile.level} ${indicators.perPercentile.value}%)`;
+      } else {
+        perTitle = `PER ${lastPerValue.toFixed(1)}`;
+      }
+    }
+
     const gridIndex = createSubchart(subchartCtx, {
-      title: "PER",
+      title: perTitle,
       titleColor: COLORS.per,
-      seriesNames: ["PER"],
+      seriesNames: ["PER", "PER SMA"],
     });
     series.push({
       name: "PER",
@@ -1564,14 +1605,37 @@ export function buildChartOption(
       symbol: "none",
       lineStyle: { color: COLORS.per, width: 1.5 },
     });
+    // PER SMA line (dashed, lighter)
+    if (indicators.perSma) {
+      series.push({
+        name: "PER SMA",
+        type: "line",
+        xAxisIndex: gridIndex,
+        yAxisIndex: gridIndex,
+        data: indicators.perSma,
+        symbol: "none",
+        lineStyle: { color: COLORS.per, width: 1, type: "dashed", opacity: 0.5 },
+      });
+    }
   }
 
   // PBR (Price-to-Book Ratio)
   if (enabledIndicators.includes("pbr") && indicators.pbr) {
+    // Build dynamic title with current value, percentile, and level
+    const lastPbrValue = indicators.pbr.filter((v): v is number => v !== null).pop();
+    let pbrTitle = "PBR";
+    if (lastPbrValue !== undefined) {
+      if (indicators.pbrPercentile) {
+        pbrTitle = `PBR ${lastPbrValue.toFixed(2)} (${indicators.pbrPercentile.level} ${indicators.pbrPercentile.value}%)`;
+      } else {
+        pbrTitle = `PBR ${lastPbrValue.toFixed(2)}`;
+      }
+    }
+
     const gridIndex = createSubchart(subchartCtx, {
-      title: "PBR",
+      title: pbrTitle,
       titleColor: COLORS.pbr,
-      seriesNames: ["PBR"],
+      seriesNames: ["PBR", "PBR SMA"],
     });
     series.push({
       name: "PBR",
@@ -1582,8 +1646,60 @@ export function buildChartOption(
       symbol: "none",
       lineStyle: { color: COLORS.pbr, width: 1.5 },
     });
+    // PBR SMA line (dashed, lighter)
+    if (indicators.pbrSma) {
+      series.push({
+        name: "PBR SMA",
+        type: "line",
+        xAxisIndex: gridIndex,
+        yAxisIndex: gridIndex,
+        data: indicators.pbrSma,
+        symbol: "none",
+        lineStyle: { color: COLORS.pbr, width: 1, type: "dashed", opacity: 0.5 },
+      });
+    }
   }
 
+  // ROE (Return on Equity)
+  if (enabledIndicators.includes("roe") && indicators.roe) {
+    // Build dynamic title with current value, percentile, and level
+    const lastRoeValue = indicators.roe.filter((v): v is number => v !== null).pop();
+    let roeTitle = "ROE";
+    if (lastRoeValue !== undefined) {
+      if (indicators.roePercentile) {
+        roeTitle = `ROE ${lastRoeValue.toFixed(1)}% (${indicators.roePercentile.level} ${indicators.roePercentile.value}%)`;
+      } else {
+        roeTitle = `ROE ${lastRoeValue.toFixed(1)}%`;
+      }
+    }
+
+    const gridIndex = createSubchart(subchartCtx, {
+      title: roeTitle,
+      titleColor: COLORS.roe,
+      seriesNames: ["ROE", "ROE SMA"],
+    });
+    series.push({
+      name: "ROE",
+      type: "line",
+      xAxisIndex: gridIndex,
+      yAxisIndex: gridIndex,
+      data: indicators.roe,
+      symbol: "none",
+      lineStyle: { color: COLORS.roe, width: 1.5 },
+    });
+    // ROE SMA line (dashed, lighter)
+    if (indicators.roeSma) {
+      series.push({
+        name: "ROE SMA",
+        type: "line",
+        xAxisIndex: gridIndex,
+        yAxisIndex: gridIndex,
+        data: indicators.roeSma,
+        symbol: "none",
+        lineStyle: { color: COLORS.roe, width: 1, type: "dashed", opacity: 0.5 },
+      });
+    }
+  }
 
   // Build legend data from main chart series (exclude subcharts and Volume)
   const mainLegendData = series

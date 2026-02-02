@@ -127,8 +127,10 @@ const SUBCHART_GROUPS: { group: string; options: { key: SubChartType; label: str
 const FUNDAMENTALS_GROUP: { group: string; options: { key: SubChartType; label: string }[] } = {
   group: "Fundamentals",
   options: [
-    { key: "per", label: "PER (株価収益率)" },
-    { key: "pbr", label: "PBR (株価純資産倍率)" },
+    { key: "per", label: "PER (Price-to-Earnings)" },
+    { key: "pbr", label: "PBR (Price-to-Book)" },
+    // ROE is hidden but code remains for future use
+    // { key: "roe", label: "ROE (Return on Equity)" },
   ],
 };
 

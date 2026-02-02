@@ -36,6 +36,149 @@ import type { FundamentalData, SubChartType } from "../types";
 import { useChartStore } from "../store/chartStore";
 
 /**
+ * Calculate Simple Moving Average for a numeric array with nulls
+ */
+function calculateSma(values: (number | null)[], period: number): (number | null)[] {
+  const result: (number | null)[] = [];
+
+  for (let i = 0; i < values.length; i++) {
+    if (i < period - 1) {
+      result.push(null);
+      continue;
+    }
+
+    let sum = 0;
+    let count = 0;
+    for (let j = i - period + 1; j <= i; j++) {
+      const val = values[j];
+      if (val !== null) {
+        sum += val;
+        count++;
+      }
+    }
+
+    if (count === period) {
+      result.push(sum / count);
+    } else {
+      result.push(null);
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Percentile level label (short form: L/M/H)
+ */
+export type PercentileLevel = "L" | "M" | "H";
+
+/**
+ * Percentile info with numeric value and level
+ */
+export interface PercentileInfo {
+  value: number;  // 0-100
+  level: PercentileLevel;
+}
+
+/**
+ * Calculate percentile info of the current value within a lookback window
+ * Returns numeric percentile (0-100) and level (Low/Mid/High)
+ */
+function calculatePercentileInfo(
+  values: (number | null)[],
+  index: number,
+  lookback: number = 252
+): PercentileInfo | null {
+  const current = values[index];
+  if (current === null) return null;
+
+  const start = Math.max(0, index - lookback + 1);
+  const window = values.slice(start, index + 1).filter((v): v is number => v !== null);
+
+  if (window.length < 10) return null; // Insufficient data
+
+  const below = window.filter((v) => v < current).length;
+  const percentile = Math.round((below / window.length) * 100);
+
+  let level: PercentileLevel;
+  if (percentile < 33) level = "L";
+  else if (percentile < 66) level = "M";
+  else level = "H";
+
+  return { value: percentile, level };
+}
+
+/**
+ * Detect estimated earnings announcement dates by EPS/BPS change
+ *
+ * Logic:
+ *   EPS = Close / PER
+ *   BPS = Close / PBR
+ *
+ * Stock price movement -> PER/PBR changes but EPS/BPS stays constant
+ * Earnings announcement -> EPS/BPS gets updated
+ *
+ * Therefore: EPS/BPS change = earnings announcement date
+ *
+ * Note: Different thresholds for EPS and BPS because:
+ * - PER/PBR rounding causes small noise in calculated EPS/BPS
+ * - EPS threshold is higher (2%) to filter out rounding noise
+ * - BPS threshold is lower (1%) because BPS changes are often smaller
+ */
+function detectEarningsDates(
+  per: (number | null)[],
+  pbr: (number | null)[],
+  closes: number[],
+  epsThresholdPercent: number = 2.0,
+  bpsThresholdPercent: number = 1.0,
+  cooldownDays: number = 55
+): number[] {
+  const indices: number[] = [];
+  let prevEps: number | null = null;
+  let prevBps: number | null = null;
+  let prevIndex: number | null = null;
+  let lastDetectedIndex: number = -cooldownDays;
+
+  for (let i = 0; i < per.length; i++) {
+    const p = per[i];
+    const b = pbr[i];
+    const close = closes[i];
+
+    if (p === null || b === null || p === 0 || b === 0) {
+      prevEps = null;
+      prevBps = null;
+      prevIndex = null;
+      continue;
+    }
+
+    const eps = close / p; // EPS = Price / PER
+    const bps = close / b; // BPS = Price / PBR
+
+    if (prevEps !== null && prevBps !== null && prevIndex !== null) {
+      const epsChangePercent = Math.abs((eps - prevEps) / prevEps) * 100;
+      const bpsChangePercent = Math.abs((bps - prevBps) / prevBps) * 100;
+
+      const daysSince = i - lastDetectedIndex;
+
+      // Detect if EPS >= 2% change OR BPS >= 1% change
+      if (
+        (epsChangePercent >= epsThresholdPercent || bpsChangePercent >= bpsThresholdPercent) &&
+        daysSince >= cooldownDays
+      ) {
+        indices.push(prevIndex);
+        lastDetectedIndex = i;
+      }
+    }
+
+    prevEps = eps;
+    prevBps = bps;
+    prevIndex = i;
+  }
+
+  return indices;
+}
+
+/**
  * Indicator data structure
  */
 export interface IndicatorData {
@@ -80,6 +223,18 @@ export interface IndicatorData {
   // Fundamentals (PER/PBR)
   per?: (number | null)[];
   pbr?: (number | null)[];
+  // PER/PBR SMA (20-period moving average)
+  perSma?: (number | null)[];
+  pbrSma?: (number | null)[];
+  // PER/PBR Percentile Info (value + level)
+  perPercentile?: PercentileInfo | null;
+  pbrPercentile?: PercentileInfo | null;
+  // ROE (Return on Equity)
+  roe?: (number | null)[];
+  roeSma?: (number | null)[];
+  roePercentile?: PercentileInfo | null;
+  // Estimated earnings announcement dates (detected by EPS/BPS change)
+  earningsDateIndices?: number[];
 }
 
 /**
@@ -232,11 +387,50 @@ export function useIndicators(
     // PER (from CSV fundamentals)
     if (enabledIndicators.includes("per") && fundamentals?.per) {
       data.per = fundamentals.per;
+      // Calculate SMA20 for PER
+      data.perSma = calculateSma(fundamentals.per, 20);
+      // Calculate percentile info for current PER
+      const lastIndex = fundamentals.per.length - 1;
+      data.perPercentile = calculatePercentileInfo(fundamentals.per, lastIndex, 252);
     }
 
     // PBR (from CSV fundamentals)
     if (enabledIndicators.includes("pbr") && fundamentals?.pbr) {
       data.pbr = fundamentals.pbr;
+      // Calculate SMA20 for PBR
+      data.pbrSma = calculateSma(fundamentals.pbr, 20);
+      // Calculate percentile info for current PBR
+      const lastIndex = fundamentals.pbr.length - 1;
+      data.pbrPercentile = calculatePercentileInfo(fundamentals.pbr, lastIndex, 252);
+    }
+
+    // ROE (Return on Equity) = PBR / PER * 100
+    if (enabledIndicators.includes("roe") && fundamentals?.per && fundamentals?.pbr) {
+      data.roe = fundamentals.per.map((per, i) => {
+        const pbr = fundamentals.pbr?.[i];
+        if (per === null || pbr === null || per === 0) return null;
+        return (pbr / per) * 100;
+      });
+      data.roeSma = calculateSma(data.roe, 20);
+      const lastIndex = data.roe.length - 1;
+      data.roePercentile = calculatePercentileInfo(data.roe, lastIndex, 252);
+    }
+
+    // Detect earnings announcement dates when PER/PBR/ROE subchart is enabled
+    const fundamentalSubchartEnabled =
+      enabledIndicators.includes("per") ||
+      enabledIndicators.includes("pbr") ||
+      enabledIndicators.includes("roe");
+    if (fundamentalSubchartEnabled && fundamentals?.per && fundamentals?.pbr) {
+      const closes = candles.map((c) => c.close);
+      data.earningsDateIndices = detectEarningsDates(
+        fundamentals.per,
+        fundamentals.pbr,
+        closes,
+        2.0, // EPS threshold: 2% (higher to filter PER rounding noise)
+        1.0, // BPS threshold: 1% (lower because BPS changes can be smaller)
+        55   // 55 days cooldown (quarterly ~63 trading days)
+      );
     }
 
     return data;
