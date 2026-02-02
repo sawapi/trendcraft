@@ -179,12 +179,85 @@ pnpm build
 pnpm preview
 ```
 
-## File Loading Flow
+## Data Loading
+
+### Method 1: CSV File (Drag & Drop)
 
 1. Drag & drop CSV file
 2. Parse to `NormalizedCandle[]` via `fileParser.ts`
 3. Save to store via `chartStore.loadCandles()`
 4. Convert via `toWeeklyCandles()` / `toMonthlyCandles()` based on timeframe
+
+### Method 2: postMessage API (Cross-Domain)
+
+Chart Viewer can receive data from a parent window via `postMessage`. This enables:
+- Embedding in dashboards as an iframe
+- Opening as a popup window from external sites
+- Using as a shared chart viewer hosted on GitHub Pages
+
+#### Message Format
+
+```typescript
+interface ChartDataMessage {
+  type: "LOAD_CHART_DATA";
+  candles: NormalizedCandle[];
+  fundamentals?: { per: (number | null)[]; pbr: (number | null)[] } | null;
+  fileName?: string;
+}
+```
+
+#### Usage with window.open()
+
+```javascript
+// Open chart-viewer in a new window
+const popup = window.open('http://localhost:5173/', 'chart-viewer', 'width=1200,height=800');
+
+// Wait for "CHART_VIEWER_READY" message
+window.addEventListener('message', (event) => {
+  if (event.data?.type === 'CHART_VIEWER_READY') {
+    console.log('chart-viewer is ready!');
+
+    // Send chart data
+    popup.postMessage({
+      type: 'LOAD_CHART_DATA',
+      candles: [
+        { time: 1704067200000, open: 100, high: 105, low: 98, close: 103, volume: 10000 },
+        { time: 1704153600000, open: 103, high: 110, low: 102, close: 108, volume: 12000 },
+        // ...
+      ],
+      fileName: 'My Stock Data'
+    }, '*');
+  }
+});
+```
+
+#### Usage with iframe
+
+```html
+<iframe id="chart" src="https://your-chart-viewer.com" width="100%" height="600"></iframe>
+
+<script>
+const iframe = document.getElementById('chart');
+
+// Wait for ready message
+window.addEventListener('message', (event) => {
+  if (event.data?.type === 'CHART_VIEWER_READY') {
+    iframe.contentWindow.postMessage({
+      type: 'LOAD_CHART_DATA',
+      candles: [...],
+      fileName: 'AAPL'
+    }, '*');
+  }
+});
+</script>
+```
+
+#### Messages
+
+| Message Type | Direction | Description |
+|-------------|-----------|-------------|
+| `CHART_VIEWER_READY` | chart-viewer → parent | Sent when chart-viewer is ready to receive data |
+| `LOAD_CHART_DATA` | parent → chart-viewer | Send candlestick data to display |
 
 ## Chart Option Builder
 

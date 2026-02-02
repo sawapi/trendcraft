@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useChartStore } from "../store/chartStore";
+import { usePostMessageLoader } from "../hooks/usePostMessageLoader";
 import { BacktestPanel } from "./BacktestPanel";
 import { FileDropZone } from "./FileDropZone";
 import { IndicatorSettingsDialog } from "./IndicatorSettingsDialog";
@@ -49,6 +50,9 @@ const SUBCHART_LABELS: Record<string, string> = {
 };
 
 export default function App() {
+  // Listen for postMessage to load chart data from parent window
+  usePostMessageLoader();
+
   const fileName = useChartStore((state) => state.fileName);
   const rawCandles = useChartStore((state) => state.rawCandles);
   const currentCandles = useChartStore((state) => state.currentCandles);

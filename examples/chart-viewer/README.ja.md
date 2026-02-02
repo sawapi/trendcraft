@@ -179,12 +179,85 @@ pnpm build
 pnpm preview
 ```
 
-## ファイル読み込み
+## データ読み込み
+
+### 方法1: CSVファイル (ドラッグ&ドロップ)
 
 1. CSVファイルをドラッグ&ドロップ
 2. `fileParser.ts`で`NormalizedCandle[]`に変換
 3. `chartStore.loadCandles()`でストアに保存
 4. 時間足に応じて`toWeeklyCandles()`/`toMonthlyCandles()`で変換
+
+### 方法2: postMessage API (クロスドメイン)
+
+Chart Viewerは親ウィンドウから`postMessage`でデータを受信できます。以下の用途に対応：
+- ダッシュボードにiframeとして埋め込み
+- 外部サイトからポップアップウィンドウとして開く
+- GitHub Pagesでホストして共有ビューアーとして使用
+
+#### メッセージフォーマット
+
+```typescript
+interface ChartDataMessage {
+  type: "LOAD_CHART_DATA";
+  candles: NormalizedCandle[];
+  fundamentals?: { per: (number | null)[]; pbr: (number | null)[] } | null;
+  fileName?: string;
+}
+```
+
+#### window.open() での使用例
+
+```javascript
+// chart-viewerを新しいウィンドウで開く
+const popup = window.open('http://localhost:5173/', 'chart-viewer', 'width=1200,height=800');
+
+// "CHART_VIEWER_READY" メッセージを待つ
+window.addEventListener('message', (event) => {
+  if (event.data?.type === 'CHART_VIEWER_READY') {
+    console.log('chart-viewer準備完了！');
+
+    // チャートデータを送信
+    popup.postMessage({
+      type: 'LOAD_CHART_DATA',
+      candles: [
+        { time: 1704067200000, open: 100, high: 105, low: 98, close: 103, volume: 10000 },
+        { time: 1704153600000, open: 103, high: 110, low: 102, close: 108, volume: 12000 },
+        // ...
+      ],
+      fileName: 'サンプル株価データ'
+    }, '*');
+  }
+});
+```
+
+#### iframe での使用例
+
+```html
+<iframe id="chart" src="https://your-chart-viewer.com" width="100%" height="600"></iframe>
+
+<script>
+const iframe = document.getElementById('chart');
+
+// 準備完了メッセージを待つ
+window.addEventListener('message', (event) => {
+  if (event.data?.type === 'CHART_VIEWER_READY') {
+    iframe.contentWindow.postMessage({
+      type: 'LOAD_CHART_DATA',
+      candles: [...],
+      fileName: 'AAPL'
+    }, '*');
+  }
+});
+</script>
+```
+
+#### メッセージ一覧
+
+| メッセージ種別 | 方向 | 説明 |
+|--------------|------|------|
+| `CHART_VIEWER_READY` | chart-viewer → 親 | chart-viewerがデータ受信可能になった時に送信 |
+| `LOAD_CHART_DATA` | 親 → chart-viewer | ローソク足データを送信してチャート表示 |
 
 ## チャート設定ビルダー
 
