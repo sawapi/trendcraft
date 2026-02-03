@@ -5,7 +5,7 @@
 import { useState } from "react";
 import type { ChangeEvent } from "react";
 import { useChartStore } from "../store/chartStore";
-import type { IndicatorParams, OverlayType, SubChartType, SignalType } from "../types";
+import type { DisplayStartYears, IndicatorParams, OverlayType, SubChartType, SignalType, ScoringPreset } from "../types";
 import { DEFAULT_INDICATOR_PARAMS, INDICATOR_PARAM_CONFIGS } from "../types";
 
 interface IndicatorSettingsDialogProps {
@@ -13,7 +13,17 @@ interface IndicatorSettingsDialogProps {
   onClose: () => void;
 }
 
-type TabType = "overlay" | "subchart" | "signals";
+type TabType = "overlay" | "subchart" | "signals" | "display";
+
+/**
+ * Display start years options
+ */
+const DISPLAY_START_YEARS_OPTIONS: { value: DisplayStartYears; label: string }[] = [
+  { value: null, label: "All Data" },
+  { value: 5, label: "Last 5 Years" },
+  { value: 10, label: "Last 10 Years" },
+  { value: 20, label: "Last 20 Years" },
+];
 
 /**
  * Overlay option groups
@@ -44,6 +54,7 @@ const OVERLAY_GROUPS: { group: string; options: { key: OverlayType; label: strin
       { key: "ichimoku", label: "Ichimoku" },
       { key: "supertrend", label: "Supertrend" },
       { key: "psar", label: "Parabolic SAR" },
+      { key: "chandelierExit", label: "Chandelier Exit" },
     ],
   },
   {
@@ -53,9 +64,17 @@ const OVERLAY_GROUPS: { group: string; options: { key: OverlayType; label: strin
     ],
   },
   {
+    group: "Volatility",
+    options: [
+      { key: "atrStops", label: "ATR Stops" },
+    ],
+  },
+  {
     group: "Price",
     options: [
       { key: "swingPoints", label: "Swing Points" },
+      { key: "pivotPoints", label: "Pivot Points" },
+      { key: "highestLowest", label: "Highest/Lowest" },
     ],
   },
   {
@@ -74,9 +93,13 @@ const OVERLAY_GROUPS: { group: string; options: { key: OverlayType; label: strin
  * Signal options
  */
 const SIGNAL_OPTIONS: { key: SignalType; label: string; description: string }[] = [
-  { key: "perfectOrder", label: "Perfect Order", description: "MA順序によるトレンド検出" },
-  { key: "rangeBound", label: "Range-Bound", description: "レンジ相場の検出" },
-  { key: "cross", label: "GC/DC", description: "ゴールデン/デッドクロス検出" },
+  { key: "perfectOrder", label: "Perfect Order", description: "Trend detection by MA alignment" },
+  { key: "rangeBound", label: "Range-Bound", description: "Sideways market detection" },
+  { key: "cross", label: "GC/DC", description: "Golden/Death cross detection" },
+  { key: "divergence", label: "Divergence", description: "RSI/MACD/OBV divergence detection" },
+  { key: "bbSqueeze", label: "BB Squeeze", description: "Bollinger Band squeeze (breakout signal)" },
+  { key: "volumeBreakout", label: "Volume Breakout", description: "Volume breaks N-period high" },
+  { key: "volumeMaCross", label: "Volume MA Cross", description: "Short/Long volume MA cross" },
 ];
 
 /**
@@ -106,6 +129,7 @@ const SUBCHART_GROUPS: { group: string; options: { key: SubChartType; label: str
     group: "Volatility",
     options: [
       { key: "atr", label: "ATR" },
+      { key: "volatilityRegime", label: "Volatility Regime" },
     ],
   },
   {
@@ -117,6 +141,12 @@ const SUBCHART_GROUPS: { group: string; options: { key: SubChartType; label: str
       { key: "volumeAnomaly", label: "Volume Anomaly" },
       { key: "volumeProfile", label: "Volume Profile" },
       { key: "volumeTrend", label: "Volume Trend" },
+    ],
+  },
+  {
+    group: "Scoring",
+    options: [
+      { key: "scoring", label: "Score" },
     ],
   },
 ];
@@ -148,6 +178,8 @@ export function IndicatorSettingsDialog({ isOpen, onClose }: IndicatorSettingsDi
   const enabledSignals = useChartStore((s) => s.enabledSignals);
   const toggleSignal = useChartStore((s) => s.toggleSignal);
   const fundamentals = useChartStore((s) => s.fundamentals);
+  const displayStartYears = useChartStore((s) => s.displayStartYears);
+  const setDisplayStartYears = useChartStore((s) => s.setDisplayStartYears);
 
   // Build subchart groups with optional fundamentals
   const subchartGroups = fundamentals
@@ -256,7 +288,7 @@ export function IndicatorSettingsDialog({ isOpen, onClose }: IndicatorSettingsDi
               type="button"
               className={`settings-btn ${isExpanded ? "active" : ""}`}
               onClick={(e) => handleSettingsClick(e, key)}
-              title="パラメータ設定"
+              title="Parameter Settings"
             >
               <span className="material-icons">tune</span>
             </button>
@@ -306,6 +338,13 @@ export function IndicatorSettingsDialog({ isOpen, onClose }: IndicatorSettingsDi
           >
             Signals
           </button>
+          <button
+            type="button"
+            className={`dialog-tab ${activeTab === "display" ? "active" : ""}`}
+            onClick={() => setActiveTab("display")}
+          >
+            Display
+          </button>
         </div>
 
         <div className="settings-dialog-content">
@@ -335,14 +374,55 @@ export function IndicatorSettingsDialog({ isOpen, onClose }: IndicatorSettingsDi
                 <div key={grp.group} className="indicator-group">
                   <div className="group-header">{grp.group}</div>
                   <div className="indicator-list">
-                    {grp.options.map((opt) =>
-                      renderIndicatorItem(
+                    {grp.options.map((opt) => {
+                      const isEnabled = enabledIndicators.includes(opt.key);
+
+                      // Special handling for scoring preset selector
+                      if (opt.key === "scoring") {
+                        return (
+                          <div key={opt.key} className="indicator-item">
+                            <label className="indicator-checkbox custom-checkbox">
+                              <input
+                                type="checkbox"
+                                checked={isEnabled}
+                                onChange={handleSubchartChange(opt.key)}
+                              />
+                              <span className="material-icons checkbox-icon">
+                                {isEnabled ? "check_box" : "check_box_outline_blank"}
+                              </span>
+                              <span className="indicator-name">{opt.label}</span>
+                            </label>
+                            {isEnabled && (
+                              <div className="scoring-preset-select">
+                                <label>Preset:</label>
+                                <select
+                                  value={indicatorParams.scoringPreset}
+                                  onChange={(e) =>
+                                    setIndicatorParams({
+                                      scoringPreset: e.target.value as ScoringPreset,
+                                    })
+                                  }
+                                >
+                                  <option value="balanced">Balanced</option>
+                                  <option value="momentum">Momentum</option>
+                                  <option value="meanReversion">Mean Reversion</option>
+                                  <option value="trendFollowing">Trend Following</option>
+                                  <option value="aggressive">Aggressive</option>
+                                  <option value="conservative">Conservative</option>
+                                </select>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      }
+
+                      return renderIndicatorItem(
                         opt.key,
                         opt.label,
-                        enabledIndicators.includes(opt.key),
+                        isEnabled,
                         handleSubchartChange(opt.key),
-                      ),
-                    )}
+                      );
+                    })}
                   </div>
                 </div>
               ))}
@@ -356,6 +436,9 @@ export function IndicatorSettingsDialog({ isOpen, onClose }: IndicatorSettingsDi
                 <div className="indicator-list">
                   {SIGNAL_OPTIONS.map((opt) => {
                     const isChecked = enabledSignals.includes(opt.key);
+                    const hasParams = INDICATOR_PARAM_CONFIGS[opt.key] !== undefined;
+                    const isExpanded = expandedIndicator === opt.key;
+
                     return (
                       <div key={opt.key} className="indicator-item">
                         <label className="indicator-checkbox custom-checkbox">
@@ -368,11 +451,73 @@ export function IndicatorSettingsDialog({ isOpen, onClose }: IndicatorSettingsDi
                             {isChecked ? "check_box" : "check_box_outline_blank"}
                           </span>
                           <span className="indicator-name">{opt.label}</span>
+                          {hasParams && isChecked && (
+                            <button
+                              type="button"
+                              className={`settings-btn ${isExpanded ? "active" : ""}`}
+                              onClick={(e) => handleSettingsClick(e, opt.key)}
+                              title="Parameter Settings"
+                            >
+                              <span className="material-icons">tune</span>
+                            </button>
+                          )}
                         </label>
                         <div className="signal-description">{opt.description}</div>
+                        {/* Divergence indicator selector */}
+                        {opt.key === "divergence" && isChecked && (
+                          <div className="divergence-indicator-select">
+                            <label>Indicator:</label>
+                            <select
+                              value={indicatorParams.divergenceIndicator}
+                              onChange={(e) =>
+                                setIndicatorParams({
+                                  divergenceIndicator: e.target.value as "rsi" | "macd" | "obv",
+                                })
+                              }
+                            >
+                              <option value="rsi">RSI</option>
+                              <option value="macd">MACD</option>
+                              <option value="obv">OBV</option>
+                            </select>
+                          </div>
+                        )}
+                        {isExpanded && renderParamPanel(opt.key)}
                       </div>
                     );
                   })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "display" && (
+            <div className="indicator-groups">
+              <div className="indicator-group">
+                <div className="group-header">Chart Display Settings</div>
+                <div className="display-settings-list">
+                  <div className="display-setting-item">
+                    <label className="display-setting-label">Data Range Limit</label>
+                    <p className="display-setting-description">
+                      Filter data to only include the specified period.
+                      Older data will be excluded from analysis.
+                    </p>
+                    <div className="display-start-years-options">
+                      {DISPLAY_START_YEARS_OPTIONS.map((opt) => (
+                        <label key={String(opt.value)} className="display-option custom-checkbox">
+                          <input
+                            type="radio"
+                            name="displayStartYears"
+                            checked={displayStartYears === opt.value}
+                            onChange={() => setDisplayStartYears(opt.value)}
+                          />
+                          <span className="material-icons checkbox-icon">
+                            {displayStartYears === opt.value ? "radio_button_checked" : "radio_button_unchecked"}
+                          </span>
+                          <span>{opt.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

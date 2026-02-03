@@ -8,6 +8,10 @@ import type {
   PerfectOrderValueEnhanced,
   RangeBoundValue,
   CrossSignalQuality,
+  DivergenceSignal,
+  SqueezeSignal,
+  VolumeBreakoutSignal,
+  VolumeMaCrossSignal,
   Series,
 } from "trendcraft";
 
@@ -43,6 +47,14 @@ const SIGNAL_COLORS = {
   goldenCross: "#26a69a",
   deadCross: "#ef5350",
   crossFake: "#ff9f43",
+  // Divergence
+  bullishDivergence: "#4caf50",
+  bearishDivergence: "#f44336",
+  // Bollinger Squeeze
+  squeeze: "#ff9800",
+  // Volume
+  volumeBreakout: "#00bcd4",  // Cyan
+  volumeMaCross: "#9c27b0",   // Purple
 };
 
 // ============================================================================
@@ -461,6 +473,183 @@ export function createCrossMarkPoints(
       },
     });
   });
+
+  return markPoints;
+}
+
+// ============================================================================
+// Divergence Markers
+// ============================================================================
+
+/**
+ * Create markPoint data for Divergence signals
+ */
+export function createDivergenceMarkers(
+  signals: DivergenceSignal[],
+  candles: NormalizedCandle[],
+  dates: string[]
+): MarkPointItem[] {
+  const markPoints: MarkPointItem[] = [];
+
+  signals.forEach((s) => {
+    const idx = s.secondIdx;
+    if (idx < 0 || idx >= candles.length) return;
+
+    const isBullish = s.type === "bullish";
+    const candle = candles[idx];
+    const price = isBullish ? candle.low * 0.995 : candle.high * 1.005;
+
+    markPoints.push({
+      name: isBullish ? "Bullish Divergence" : "Bearish Divergence",
+      coord: [dates[idx], price],
+      symbol: "diamond",
+      symbolSize: 16,
+      itemStyle: {
+        color: isBullish ? SIGNAL_COLORS.bullishDivergence : SIGNAL_COLORS.bearishDivergence,
+      },
+      label: {
+        show: true,
+        formatter: isBullish ? "Bull Div" : "Bear Div",
+        position: isBullish ? "bottom" : "top",
+        fontSize: 9,
+        color: isBullish ? SIGNAL_COLORS.bullishDivergence : SIGNAL_COLORS.bearishDivergence,
+      },
+    });
+  });
+
+  return markPoints;
+}
+
+// ============================================================================
+// Bollinger Squeeze Markers
+// ============================================================================
+
+/**
+ * Create markPoint data for Bollinger Squeeze signals
+ */
+export function createSqueezeMarkers(
+  signals: SqueezeSignal[],
+  candles: NormalizedCandle[],
+  dates: string[]
+): MarkPointItem[] {
+  const markPoints: MarkPointItem[] = [];
+
+  const timeToIdx = new Map<number, number>();
+  candles.forEach((c, i) => timeToIdx.set(c.time, i));
+
+  signals.forEach((s, i) => {
+    const idx = timeToIdx.get(s.time);
+    if (idx === undefined) return;
+
+    const candle = candles[idx];
+    const price = candle.low * 0.99;
+
+    // Only show label on first occurrence or if gap > 5 bars
+    const prevSignal = signals[i - 1];
+    const prevIdx = prevSignal ? timeToIdx.get(prevSignal.time) : -10;
+    const showLabel = prevIdx === undefined || idx - prevIdx >= 5;
+
+    markPoints.push({
+      name: "Bollinger Squeeze",
+      coord: [dates[idx], price],
+      symbol: "rect",
+      symbolSize: [8, 20],
+      itemStyle: { color: `${SIGNAL_COLORS.squeeze}80` },
+      label: {
+        show: showLabel,
+        formatter: "SQ",
+        position: "bottom",
+        fontSize: 8,
+        color: SIGNAL_COLORS.squeeze,
+      },
+    });
+  });
+
+  return markPoints;
+}
+
+// ============================================================================
+// Volume Breakout Markers
+// ============================================================================
+
+/**
+ * Create markPoint data for Volume Breakout signals
+ */
+export function createVolumeBreakoutMarkers(
+  signals: VolumeBreakoutSignal[],
+  candles: NormalizedCandle[],
+  dates: string[]
+): MarkPointItem[] {
+  if (!signals || signals.length === 0) return [];
+
+  const markPoints: MarkPointItem[] = [];
+  const timeToIdx = new Map<number, number>();
+  candles.forEach((c, i) => timeToIdx.set(c.time, i));
+
+  for (const signal of signals) {
+    const idx = timeToIdx.get(signal.time);
+    if (idx === undefined) continue;
+
+    markPoints.push({
+      name: "Volume Breakout",
+      coord: [dates[idx], candles[idx].low * 0.99],
+      symbol: "triangle",
+      symbolSize: [12, 10],
+      symbolRotate: 0,
+      itemStyle: { color: SIGNAL_COLORS.volumeBreakout },
+      label: {
+        show: true,
+        formatter: `VB\n${signal.ratio.toFixed(1)}x`,
+        color: SIGNAL_COLORS.volumeBreakout,
+        fontSize: 8,
+        position: "bottom",
+      },
+    });
+  }
+
+  return markPoints;
+}
+
+// ============================================================================
+// Volume MA Cross Markers
+// ============================================================================
+
+/**
+ * Create markPoint data for Volume MA Cross signals
+ */
+export function createVolumeMaCrossMarkers(
+  signals: VolumeMaCrossSignal[],
+  candles: NormalizedCandle[],
+  dates: string[]
+): MarkPointItem[] {
+  if (!signals || signals.length === 0) return [];
+
+  const markPoints: MarkPointItem[] = [];
+  const timeToIdx = new Map<number, number>();
+  candles.forEach((c, i) => timeToIdx.set(c.time, i));
+
+  // Only show signals where daysSinceCross === 0 (first day of cross, actually 1)
+  for (const signal of signals) {
+    if (signal.daysSinceCross !== 1) continue;
+
+    const idx = timeToIdx.get(signal.time);
+    if (idx === undefined) continue;
+
+    markPoints.push({
+      name: "Volume MA Cross",
+      coord: [dates[idx], candles[idx].low * 0.99],
+      symbol: "diamond",
+      symbolSize: 12,
+      itemStyle: { color: SIGNAL_COLORS.volumeMaCross },
+      label: {
+        show: true,
+        formatter: "VMC",
+        color: SIGNAL_COLORS.volumeMaCross,
+        fontSize: 8,
+        position: "bottom",
+      },
+    });
+  }
 
   return markPoints;
 }

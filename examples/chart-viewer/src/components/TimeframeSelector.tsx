@@ -16,9 +16,9 @@ export function TimeframeSelector() {
 
   return (
     <select className="timeframe-selector" value={timeframe} onChange={handleChange}>
-      <option value="daily">日足</option>
-      <option value="weekly">週足</option>
-      <option value="monthly">月足</option>
+      <option value="daily">Daily</option>
+      <option value="weekly">Weekly</option>
+      <option value="monthly">Monthly</option>
     </select>
   );
 }

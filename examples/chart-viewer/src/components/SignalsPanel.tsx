@@ -21,8 +21,9 @@ export function SignalsPanel() {
   const currentCandles = useChartStore((state) => state.currentCandles);
   const enabledSignals = useChartStore((state) => state.enabledSignals);
   const zoomRange = useChartStore((state) => state.zoomRange);
+  const indicatorParams = useChartStore((state) => state.indicatorParams);
 
-  const signals = useSignals(currentCandles, enabledSignals);
+  const signals = useSignals(currentCandles, enabledSignals, indicatorParams);
 
   // Don't render if no signals are enabled
   if (enabledSignals.length === 0) {
@@ -62,6 +63,24 @@ export function SignalsPanel() {
       {enabledSignals.includes("cross") && signals.crossSignals && (
         <CrossEvents
           data={signals.crossSignals}
+          startDate={startDate}
+          endDate={endDate}
+        />
+      )}
+
+      {/* Divergence Events */}
+      {enabledSignals.includes("divergence") && signals.divergence && (
+        <DivergenceEvents
+          data={signals.divergence}
+          startDate={startDate}
+          endDate={endDate}
+        />
+      )}
+
+      {/* BB Squeeze Events */}
+      {enabledSignals.includes("bbSqueeze") && signals.bbSqueeze && (
+        <SqueezeEvents
+          data={signals.bbSqueeze}
           startDate={startDate}
           endDate={endDate}
         />
@@ -322,7 +341,7 @@ function RangeBoundEvents({ data, startDate, endDate }: RangeBoundEventsProps) {
 // Cross Events
 // ============================================================================
 
-import type { CrossSignalQuality } from "trendcraft";
+import type { CrossSignalQuality, DivergenceSignal, SqueezeSignal } from "trendcraft";
 
 interface CrossEventsProps {
   data: CrossSignalQuality[];
@@ -368,6 +387,98 @@ function CrossEvents({ data, startDate, endDate }: CrossEventsProps) {
           return (
             <span key={i} className={className} title={tooltip}>
               {label} {formatDate(s.time)}{daysLabel}{fakeLabel}
+            </span>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// Divergence Events
+// ============================================================================
+
+interface DivergenceEventsProps {
+  data: DivergenceSignal[];
+  startDate: number;
+  endDate: number;
+}
+
+function DivergenceEvents({ data, startDate, endDate }: DivergenceEventsProps) {
+  const visibleSignals = data
+    .filter((s) => s.time >= startDate && s.time <= endDate)
+    .sort((a, b) => b.time - a.time)
+    .slice(0, 30);
+
+  if (visibleSignals.length === 0) {
+    return (
+      <div className="events-section">
+        <div className="events-header">Divergence</div>
+        <div className="events-empty">No events in visible range</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="events-section">
+      <div className="events-header">Divergence</div>
+      <div className="events-list">
+        {visibleSignals.map((s, i) => {
+          const isBullish = s.type === "bullish";
+          const label = isBullish ? "Bull Div" : "Bear Div";
+          const icon = isBullish ? "◆" : "◆";
+          const className = `divergence-event ${isBullish ? "bullish" : "bearish"}`;
+          const tooltip = `Price: ${s.price.first.toFixed(0)} → ${s.price.second.toFixed(0)}, Indicator: ${s.indicator.first.toFixed(2)} → ${s.indicator.second.toFixed(2)}`;
+
+          return (
+            <span key={i} className={className} title={tooltip}>
+              {icon} {label} {formatDate(s.time)}
+            </span>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// Squeeze Events
+// ============================================================================
+
+interface SqueezeEventsProps {
+  data: SqueezeSignal[];
+  startDate: number;
+  endDate: number;
+}
+
+function SqueezeEvents({ data, startDate, endDate }: SqueezeEventsProps) {
+  const visibleSignals = data
+    .filter((s) => s.time >= startDate && s.time <= endDate)
+    .sort((a, b) => b.time - a.time)
+    .slice(0, 30);
+
+  if (visibleSignals.length === 0) {
+    return (
+      <div className="events-section">
+        <div className="events-header">BB Squeeze</div>
+        <div className="events-empty">No events in visible range</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="events-section">
+      <div className="events-header">BB Squeeze</div>
+      <div className="events-list">
+        {visibleSignals.map((s, i) => {
+          const percentileStr = s.percentile.toFixed(1);
+          const bandwidthStr = (s.bandwidth * 100).toFixed(2);
+          const tooltip = `Bandwidth: ${bandwidthStr}%, Percentile: ${percentileStr}%`;
+
+          return (
+            <span key={i} className="squeeze-event" title={tooltip}>
+              ■ SQ [{percentileStr}%] {formatDate(s.time)}
             </span>
           );
         })}

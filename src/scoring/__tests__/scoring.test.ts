@@ -607,7 +607,9 @@ describe("Presets", () => {
       expect(presets).toContain("meanReversion");
       expect(presets).toContain("trendFollowing");
       expect(presets).toContain("balanced");
-      expect(presets).toHaveLength(4);
+      expect(presets).toContain("aggressive");
+      expect(presets).toContain("conservative");
+      expect(presets).toHaveLength(6);
     });
   });
 });

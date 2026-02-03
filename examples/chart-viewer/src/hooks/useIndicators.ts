@@ -26,12 +26,16 @@ import {
   volumeProfileSeries,
   volumeTrend,
   atr,
+  volatilityRegime,
+  calculateScoreSeries,
+  getPreset,
 } from "trendcraft";
+import type { ScoreResult } from "trendcraft";
 import {
   rangeBound,
   type RangeBoundValue,
 } from "trendcraft";
-import type { VolumeAnomalyValue, VolumeProfileValue, VolumeTrendValue } from "trendcraft";
+import type { VolumeAnomalyValue, VolumeProfileValue, VolumeTrendValue, VolatilityRegimeValue } from "trendcraft";
 import type { FundamentalData, SubChartType } from "../types";
 import { useChartStore } from "../store/chartStore";
 
@@ -235,6 +239,10 @@ export interface IndicatorData {
   roePercentile?: PercentileInfo | null;
   // Estimated earnings announcement dates (detected by EPS/BPS change)
   earningsDateIndices?: number[];
+  // Volatility Regime
+  volatilityRegime?: VolatilityRegimeValue[];
+  // Scoring
+  scoring?: ScoreResult[];
 }
 
 /**
@@ -431,6 +439,22 @@ export function useIndicators(
         1.0, // BPS threshold: 1% (lower because BPS changes can be smaller)
         55   // 55 days cooldown (quarterly ~63 trading days)
       );
+    }
+
+    // Volatility Regime
+    if (enabledIndicators.includes("volatilityRegime")) {
+      const series = volatilityRegime(candles, {
+        atrPeriod: p.volatilityRegimeAtrPeriod,
+        lookbackPeriod: p.volatilityRegimeLookback,
+      });
+      data.volatilityRegime = series.map((s) => s.value);
+    }
+
+    // Scoring
+    if (enabledIndicators.includes("scoring")) {
+      const config = getPreset(p.scoringPreset);
+      const scoreSeries = calculateScoreSeries(candles, config);
+      data.scoring = scoreSeries.map((s) => s.score);
     }
 
     return data;

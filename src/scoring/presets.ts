@@ -135,6 +135,10 @@ export function getPreset(name: ScoringPreset): ScoringConfig {
       return createTrendFollowingPreset();
     case "balanced":
       return createBalancedPreset();
+    case "aggressive":
+      return createAggressivePreset();
+    case "conservative":
+      return createConservativePreset();
     default:
       throw new Error(`Unknown preset: ${name}`);
   }
@@ -144,5 +148,5 @@ export function getPreset(name: ScoringPreset): ScoringConfig {
  * List all available preset names
  */
 export function listPresets(): ScoringPreset[] {
-  return ["momentum", "meanReversion", "trendFollowing", "balanced"];
+  return ["momentum", "meanReversion", "trendFollowing", "balanced", "aggressive", "conservative"];
 }

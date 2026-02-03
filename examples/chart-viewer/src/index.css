@@ -184,6 +184,14 @@ body {
   font-size: var(--font-md);
 }
 
+.visible-range {
+  color: var(--text-secondary);
+  font-size: var(--font-sm);
+  padding: 4px 8px;
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+}
+
 .reset-button {
   min-height: 32px;
   padding: var(--spacing-sm) var(--spacing-md);
@@ -301,6 +309,45 @@ body {
 
 .timeframe-selector:focus {
   border-color: var(--accent-primary);
+}
+
+/* ============================================
+   Period Selector
+   ============================================ */
+
+.period-selector {
+  display: flex;
+  gap: 2px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px;
+  position: relative;
+  z-index: 1;
+}
+
+.period-btn {
+  padding: 4px 10px;
+  min-width: 36px;
+  background: transparent;
+  border: none;
+  border-radius: 3px;
+  color: var(--text-secondary);
+  font-size: var(--font-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  white-space: nowrap;
+}
+
+.period-btn:hover {
+  background: var(--accent-secondary);
+  color: var(--text-primary);
+}
+
+.period-btn.active {
+  background: var(--accent-primary);
+  color: var(--text-primary);
 }
 
 /* Main Chart */
@@ -1327,6 +1374,63 @@ select:focus-visible {
   color: var(--text-secondary);
 }
 
+/* Divergence Indicator Select */
+.divergence-indicator-select {
+  padding: var(--spacing-sm) var(--spacing-md);
+  padding-left: calc(var(--spacing-md) + 28px);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.divergence-indicator-select label {
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+}
+
+.divergence-indicator-select select {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: var(--font-sm);
+}
+
+.divergence-indicator-select select:focus {
+  border-color: var(--accent-primary);
+  outline: none;
+}
+
+/* Scoring Preset Select */
+.scoring-preset-select {
+  padding: var(--spacing-sm) var(--spacing-md);
+  padding-left: calc(var(--spacing-md) + 28px);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.scoring-preset-select label {
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+}
+
+.scoring-preset-select select {
+  flex: 1;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: var(--font-sm);
+}
+
+.scoring-preset-select select:focus {
+  border-color: var(--accent-primary);
+  outline: none;
+}
+
 /* Param Panel */
 .param-panel {
   padding: var(--spacing-sm) var(--spacing-md) var(--spacing-md);
@@ -1398,6 +1502,73 @@ select:focus-visible {
 
 .reset-params-btn .material-icons {
   font-size: 16px;
+}
+
+/* Display Settings Tab */
+.display-settings-list {
+  padding: var(--spacing-md);
+}
+
+.display-setting-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.display-setting-label {
+  font-size: var(--font-base);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.display-setting-description {
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.display-start-years-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  margin-top: var(--spacing-sm);
+}
+
+.display-option {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--bg-secondary);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background var(--transition-normal);
+}
+
+.display-option:hover {
+  background: var(--bg-tertiary);
+}
+
+.display-option input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.display-option .checkbox-icon {
+  font-size: 20px;
+  color: var(--text-secondary);
+  transition: color var(--transition-normal);
+}
+
+.display-option:hover .checkbox-icon {
+  color: var(--text-primary);
+}
+
+.display-option input:checked + .checkbox-icon {
+  color: var(--accent-primary);
 }
 
 /* Responsive Dialog */

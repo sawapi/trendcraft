@@ -802,6 +802,45 @@ export type PositionSizingOptions =
 // ============================================================================
 
 /**
+ * Pre-computed indicator data for performance optimization
+ * Used by signal evaluators to avoid re-calculating indicators on each bar
+ */
+export type PrecomputedIndicators = {
+  /** RSI values (period: 14) */
+  rsi14?: (number | null)[];
+  /** MACD values (12, 26, 9) */
+  macd?: { macd: number | null; signal: number | null; histogram: number | null }[];
+  /** Stochastics values (k: 14, d: 3) */
+  stoch?: { k: number | null; d: number | null }[];
+  /** SMA values by period */
+  sma?: Map<number, (number | null)[]>;
+  /** EMA values by period */
+  ema?: Map<number, (number | null)[]>;
+  /** Volume MA values (period: 20) */
+  volumeMa20?: (number | null)[];
+  /** Volume anomaly data */
+  volumeAnomaly?: { ratio: number; level: string; isAnomaly: boolean; zScore: number | null }[];
+  /** Volume trend data */
+  volumeTrend?: {
+    isConfirmed: boolean;
+    priceTrend: string;
+    volumeTrend: string;
+    confidence: number;
+    hasDivergence: boolean;
+  }[];
+  /** CMF values (period: 20) */
+  cmf20?: (number | null)[];
+  /** Perfect Order data */
+  perfectOrder?: { type: string; strength: number }[];
+  /** Perfect Order Enhanced data */
+  perfectOrderEnhanced?: {
+    state: string;
+    isConfirmed: boolean;
+    confirmationFormed: boolean;
+  }[];
+};
+
+/**
  * Individual signal evaluator function
  * Returns a score between 0 and 1 indicating signal strength
  */
@@ -809,6 +848,7 @@ export type SignalEvaluator = (
   candles: NormalizedCandle[],
   index: number,
   context?: MtfContext,
+  precomputed?: PrecomputedIndicators,
 ) => number;
 
 /**
@@ -825,6 +865,8 @@ export type SignalDefinition = {
   evaluate: SignalEvaluator;
   /** Optional category for grouping */
   category?: "momentum" | "trend" | "volume" | "volatility" | "mtf";
+  /** Required pre-computed indicators for this signal */
+  requiredIndicators?: (keyof PrecomputedIndicators)[];
 };
 
 /**
@@ -890,7 +932,7 @@ export type ScoringConfig = {
 /**
  * Preset strategy names
  */
-export type ScoringPreset = "momentum" | "meanReversion" | "trendFollowing" | "balanced";
+export type ScoringPreset = "momentum" | "meanReversion" | "trendFollowing" | "balanced" | "aggressive" | "conservative";
 
 // ============================================================================
 // Volatility Regime Types

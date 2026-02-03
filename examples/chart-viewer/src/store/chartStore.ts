@@ -8,6 +8,7 @@ import type {
   BacktestConfig,
   ChartActions,
   ChartState,
+  DisplayStartYears,
   FundamentalData,
   IndicatorParams,
   OverlayType,
@@ -133,6 +134,48 @@ const getInitialSidebarCollapsed = (): boolean => {
   }
 };
 
+// Load display start years from localStorage
+const getInitialDisplayStartYears = (): DisplayStartYears => {
+  try {
+    const stored = localStorage.getItem("chart-viewer-display-start-years");
+    if (stored === "null" || stored === null) return 10; // Default to 10 years
+    const parsed = Number.parseInt(stored, 10);
+    if (parsed === 5 || parsed === 10 || parsed === 20) return parsed;
+    return 10;
+  } catch {
+    return 10;
+  }
+};
+
+/**
+ * Filter candles to only include data from the last N years
+ */
+function filterCandlesByYears(
+  candles: NormalizedCandle[],
+  years: DisplayStartYears,
+): NormalizedCandle[] {
+  if (years === null || candles.length === 0) {
+    return candles;
+  }
+
+  const now = Date.now();
+  const yearsInMs = years * 365 * 24 * 60 * 60 * 1000;
+  const cutoffTime = now - yearsInMs;
+
+  return candles.filter((c) => c.time >= cutoffTime);
+}
+
+/**
+ * Calculate initial zoom range to show last N days (default: 6 months = 120 trading days)
+ */
+function calculateInitialZoom(candleCount: number, days: number = 120): ZoomRange {
+  if (candleCount === 0 || days >= candleCount) {
+    return { start: 0, end: 100 };
+  }
+  const start = Math.max(0, 100 - (days / candleCount) * 100);
+  return { start, end: 100 };
+}
+
 export const useChartStore = create<ChartStore>((set, get) => ({
   // Initial state
   rawCandles: [],
@@ -140,6 +183,7 @@ export const useChartStore = create<ChartStore>((set, get) => ({
   fileName: "",
   fundamentals: null,
   timeframe: "daily",
+  displayStartYears: getInitialDisplayStartYears(),
   enabledIndicators: [],
   enabledOverlays: [],
   enabledSignals: [],
@@ -152,37 +196,50 @@ export const useChartStore = create<ChartStore>((set, get) => ({
 
   // Actions
   loadCandles: (candles: NormalizedCandle[], fundamentals: FundamentalData | null, fileName: string) => {
-    const { timeframe } = get();
-    const currentCandles = convertTimeframe(candles, timeframe);
+    const { timeframe, displayStartYears } = get();
+    const filteredCandles = filterCandlesByYears(candles, displayStartYears);
+    const currentCandles = convertTimeframe(filteredCandles, timeframe);
+    // Initial zoom to last 6 months (120 trading days)
+    const initialZoom = calculateInitialZoom(currentCandles.length, 120);
 
     set({
       rawCandles: candles,
       currentCandles,
       fileName,
       fundamentals,
-      zoomRange: { start: 0, end: 100 },
+      zoomRange: initialZoom,
       backtestResult: null,
-    });
-
-    // Debug log for Phase 1 verification
-    console.log("[chartStore] Loaded candles:", {
-      fileName,
-      rawCount: candles.length,
-      currentCount: currentCandles.length,
-      timeframe,
-      firstCandle: candles[0],
-      lastCandle: candles[candles.length - 1],
-      hasFundamentals: fundamentals !== null,
     });
   },
 
   setTimeframe: (timeframe: Timeframe) => {
-    const { rawCandles } = get();
-    const currentCandles = convertTimeframe(rawCandles, timeframe);
+    const { rawCandles, displayStartYears } = get();
+    const filteredCandles = filterCandlesByYears(rawCandles, displayStartYears);
+    const currentCandles = convertTimeframe(filteredCandles, timeframe);
+    const initialZoom = calculateInitialZoom(currentCandles.length, 120);
 
     set({
       timeframe,
       currentCandles,
+      zoomRange: initialZoom,
+      backtestResult: null,
+    });
+  },
+
+  setDisplayStartYears: (years: DisplayStartYears) => {
+    const { rawCandles, timeframe } = get();
+    try {
+      localStorage.setItem("chart-viewer-display-start-years", String(years));
+    } catch {
+      // Ignore localStorage errors
+    }
+    const filteredCandles = filterCandlesByYears(rawCandles, years);
+    const currentCandles = convertTimeframe(filteredCandles, timeframe);
+    const initialZoom = calculateInitialZoom(currentCandles.length, 120);
+    set({
+      displayStartYears: years,
+      currentCandles,
+      zoomRange: initialZoom,
       backtestResult: null,
     });
   },
@@ -265,6 +322,7 @@ export const useChartStore = create<ChartStore>((set, get) => ({
       fileName: "",
       fundamentals: null,
       timeframe: "daily",
+      displayStartYears: getInitialDisplayStartYears(),
       enabledIndicators: [],
       enabledOverlays: [],
       enabledSignals: [],

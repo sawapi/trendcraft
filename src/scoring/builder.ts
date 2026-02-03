@@ -96,6 +96,7 @@ export class ScoreBuilder {
       weight,
       category: "momentum",
       evaluate: createRsiOversoldEvaluator(threshold, period),
+      requiredIndicators: period === 14 ? ["rsi14"] : undefined,
     });
     return this;
   }
@@ -113,6 +114,7 @@ export class ScoreBuilder {
       weight,
       category: "momentum",
       evaluate: createRsiOverboughtEvaluator(threshold, period),
+      requiredIndicators: period === 14 ? ["rsi14"] : undefined,
     });
     return this;
   }
@@ -127,6 +129,7 @@ export class ScoreBuilder {
       weight,
       category: "momentum",
       evaluate: createMacdBullishEvaluator(),
+      requiredIndicators: ["macd"],
     });
     return this;
   }
@@ -141,6 +144,7 @@ export class ScoreBuilder {
       weight,
       category: "momentum",
       evaluate: createMacdBearishEvaluator(),
+      requiredIndicators: ["macd"],
     });
     return this;
   }
@@ -155,6 +159,7 @@ export class ScoreBuilder {
       weight,
       category: "momentum",
       evaluate: createStochOversoldEvaluator(threshold),
+      requiredIndicators: ["stoch"],
     });
     return this;
   }
@@ -169,6 +174,7 @@ export class ScoreBuilder {
       weight,
       category: "momentum",
       evaluate: createStochBullishCrossEvaluator(oversoldThreshold),
+      requiredIndicators: ["stoch"],
     });
     return this;
   }
@@ -187,6 +193,7 @@ export class ScoreBuilder {
       weight,
       category: "trend",
       evaluate: createPerfectOrderBullishEvaluator(),
+      requiredIndicators: ["perfectOrder"],
     });
     return this;
   }
@@ -201,6 +208,7 @@ export class ScoreBuilder {
       weight,
       category: "trend",
       evaluate: createPOConfirmationEvaluator(),
+      requiredIndicators: ["perfectOrderEnhanced"],
     });
     return this;
   }
@@ -217,6 +225,7 @@ export class ScoreBuilder {
       weight,
       category: "trend",
       evaluate: createPullbackEntryEvaluator(maPeriod),
+      requiredIndicators: ["sma"],
     });
     return this;
   }
@@ -231,6 +240,7 @@ export class ScoreBuilder {
       weight,
       category: "trend",
       evaluate: createGoldenCrossEvaluator(shortPeriod, longPeriod),
+      requiredIndicators: ["sma"],
     });
     return this;
   }
@@ -245,6 +255,7 @@ export class ScoreBuilder {
       weight,
       category: "trend",
       evaluate: createPriceAboveEmaEvaluator(period),
+      requiredIndicators: ["ema"],
     });
     return this;
   }
@@ -263,6 +274,7 @@ export class ScoreBuilder {
       weight,
       category: "volume",
       evaluate: createVolumeSpikeEvaluator(threshold),
+      requiredIndicators: ["volumeMa20"],
     });
     return this;
   }
@@ -277,6 +289,7 @@ export class ScoreBuilder {
       weight,
       category: "volume",
       evaluate: createVolumeAnomalyEvaluator(zThreshold),
+      requiredIndicators: ["volumeAnomaly"],
     });
     return this;
   }
@@ -291,6 +304,7 @@ export class ScoreBuilder {
       weight,
       category: "volume",
       evaluate: createBullishVolumeTrendEvaluator(),
+      requiredIndicators: ["volumeTrend"],
     });
     return this;
   }
@@ -305,6 +319,7 @@ export class ScoreBuilder {
       weight,
       category: "volume",
       evaluate: createCmfPositiveEvaluator(threshold),
+      requiredIndicators: ["cmf20"],
     });
     return this;
   }

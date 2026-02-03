@@ -13,10 +13,14 @@ import type {
   ParabolicSarValue,
   VwapValue,
   SwingPointValue,
+  PivotPointsValue,
   OrderBlockValue,
   FvgValue,
   BosValue,
   LiquiditySweepValue,
+  HighestLowestValue,
+  ChandelierExitValue,
+  AtrStopsValue,
 } from "trendcraft";
 import {
   sma,
@@ -30,11 +34,15 @@ import {
   parabolicSar,
   vwap,
   swingPoints,
+  pivotPoints,
   orderBlock,
   fairValueGap,
   breakOfStructure,
   changeOfCharacter,
   liquiditySweep,
+  highestLowest,
+  chandelierExit,
+  atrStops,
 } from "trendcraft";
 import type { OverlayType } from "../types";
 import { useChartStore } from "../store/chartStore";
@@ -62,12 +70,19 @@ export interface OverlayData {
   vwap?: VwapValue[];
   // Swing Points
   swingPoints?: SwingPointValue[];
+  // Pivot Points
+  pivotPoints?: PivotPointsValue[];
   // SMC
   orderBlock?: OrderBlockValue[];
   fvg?: FvgValue[];
   bos?: BosValue[];
   choch?: BosValue[];
   liquiditySweep?: LiquiditySweepValue[];
+  // Highest/Lowest Channel
+  highestLowest?: HighestLowestValue[];
+  // Volatility
+  chandelierExit?: ChandelierExitValue[];
+  atrStops?: AtrStopsValue[];
 }
 
 /**
@@ -189,6 +204,15 @@ export function useOverlays(
       data.swingPoints = series.map((s) => s.value);
     }
 
+    // Pivot Points
+    if (enabledOverlays.includes("pivotPoints")) {
+      const methodMap = ["standard", "fibonacci", "woodie", "camarilla", "demark"] as const;
+      const series = pivotPoints(candles, {
+        method: methodMap[p.pivotPointsMethod],
+      });
+      data.pivotPoints = series.map((s) => s.value);
+    }
+
     // Order Block
     if (enabledOverlays.includes("orderBlock")) {
       const series = orderBlock(candles, {
@@ -232,6 +256,33 @@ export function useOverlays(
         maxRecoveryBars: p.liquiditySweepMaxRecoveryBars,
       });
       data.liquiditySweep = series.map((s) => s.value);
+    }
+
+    // Highest/Lowest Channel
+    if (enabledOverlays.includes("highestLowest")) {
+      const series = highestLowest(candles, {
+        period: p.highestLowestPeriod,
+      });
+      data.highestLowest = series.map((s) => s.value);
+    }
+
+    // Chandelier Exit
+    if (enabledOverlays.includes("chandelierExit")) {
+      const series = chandelierExit(candles, {
+        period: p.chandelierPeriod,
+        multiplier: p.chandelierMultiplier,
+      });
+      data.chandelierExit = series.map((s) => s.value);
+    }
+
+    // ATR Stops
+    if (enabledOverlays.includes("atrStops")) {
+      const series = atrStops(candles, {
+        period: p.atrStopsPeriod,
+        stopMultiplier: p.atrStopsMultiplier,
+        takeProfitMultiplier: p.atrStopsTpMultiplier,
+      });
+      data.atrStops = series.map((s) => s.value);
     }
 
     return data;

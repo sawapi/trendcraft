@@ -12,7 +12,7 @@ export function FileDropZone() {
   const handleFile = useCallback(
     async (file: File) => {
       if (!file.name.endsWith(".csv")) {
-        setError("CSVファイルを選択してください");
+        setError("Please select a CSV file");
         return;
       }
 
@@ -23,13 +23,13 @@ export function FileDropZone() {
         const { candles, fundamentals } = await parseFile(file);
 
         if (candles.length === 0) {
-          setError("有効なデータが見つかりませんでした");
+          setError("No valid data found");
           return;
         }
 
         loadCandles(candles, fundamentals, file.name);
       } catch (e) {
-        setError(`ファイルの読み込みに失敗しました: ${e}`);
+        setError(`Failed to load file: ${e}`);
       } finally {
         setIsLoading(false);
       }
@@ -91,11 +91,11 @@ export function FileDropZone() {
         />
         <div className="drop-zone-content">
           {isLoading ? (
-            <p>読み込み中...</p>
+            <p>Loading...</p>
           ) : (
             <>
-              <p className="drop-zone-main">CSVファイルをドラッグ&ドロップ</p>
-              <p className="drop-zone-sub">またはクリックしてファイルを選択</p>
+              <p className="drop-zone-main">Drag & Drop CSV File</p>
+              <p className="drop-zone-sub">or click to select a file</p>
             </>
           )}
           {error && <p className="drop-zone-error">{error}</p>}

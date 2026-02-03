@@ -4,7 +4,7 @@
 
 import type { EChartsOption } from "echarts";
 import type { NormalizedCandle, Trade } from "trendcraft";
-import type { IndicatorParams, OverlayType, SignalType, SubChartType } from "../types";
+import type { IndicatorParams, OverlayType, SignalType, SubChartType, ZoomRange } from "../types";
 import type { IndicatorData } from "../hooks/useIndicators";
 import type { SignalData } from "../hooks/useSignals";
 import type { OverlayData } from "../hooks/useOverlays";
@@ -13,6 +13,10 @@ import {
   createRangeBoundAreas,
   createSupportResistanceLines,
   createCrossMarkPoints,
+  createDivergenceMarkers,
+  createSqueezeMarkers,
+  createVolumeBreakoutMarkers,
+  createVolumeMaCrossMarkers,
 } from "./signalMarkers";
 import { createTradeMarkers } from "./backtestMarkers";
 
@@ -78,6 +82,14 @@ const COLORS = {
   // Swing Points
   swingHigh: "#ef5350",
   swingLow: "#26a69a",
+  // Pivot Points
+  pivot: "#9e9e9e",
+  pivotR1: "#ef5350",
+  pivotR2: "#e53935",
+  pivotR3: "#c62828",
+  pivotS1: "#26a69a",
+  pivotS2: "#00897b",
+  pivotS3: "#004d40",
   // SMC
   orderBlockBullish: "rgba(38, 166, 154, 0.3)",
   orderBlockBearish: "rgba(239, 83, 80, 0.3)",
@@ -89,6 +101,26 @@ const COLORS = {
   chochBearish: "#e91e63",
   liquiditySweepBullish: "#26a69a",
   liquiditySweepBearish: "#ef5350",
+  // Highest/Lowest Channel
+  highestLowestUpper: "#ff7043",
+  highestLowestLower: "#42a5f5",
+  // Chandelier Exit
+  chandelierLong: "#4caf50",
+  chandelierShort: "#f44336",
+  // ATR Stops
+  atrStopsLong: "#26a69a",
+  atrStopsShort: "#ef5350",
+  atrStopsTp: "#ffc107",
+  // Volatility Regime
+  volRegimeLow: "#42a5f5",
+  volRegimeNormal: "#9e9e9e",
+  volRegimeHigh: "#ff9800",
+  volRegimeExtreme: "#f44336",
+  // Scoring
+  scoreStrong: "#4caf50",    // Green (70+)
+  scoreModerate: "#ff9800",  // Orange (50-70)
+  scoreWeak: "#ffeb3b",      // Yellow (30-50)
+  scoreNone: "#9e9e9e",      // Gray (0-30)
 };
 
 /**
@@ -248,7 +280,7 @@ function createMarkLine(values: number[]): SeriesItem {
  * Build ECharts option for main chart only (backward compatible)
  */
 export function buildMainChartOption(candles: NormalizedCandle[]): EChartsOption {
-  return buildChartOption(candles, {}, [], null, [], null, {}, [], 500, undefined);
+  return buildChartOption(candles, {}, [], null, [], null, {}, [], 500, undefined, undefined);
 }
 
 /**
@@ -264,7 +296,8 @@ export function buildChartOption(
   overlays: OverlayData,
   enabledOverlays: OverlayType[],
   _chartHeight: number = 500,
-  indicatorParams?: IndicatorParams
+  indicatorParams?: IndicatorParams,
+  zoomRange?: ZoomRange
 ): EChartsOption {
   if (candles.length === 0) {
     return {};
@@ -281,7 +314,7 @@ export function buildChartOption(
     },
   }));
 
-  const { start, end } = calculateInitialZoom(candles.length);
+  const { start, end } = zoomRange ?? calculateInitialZoom(candles.length);
 
   // Pixel-based grid heights
   const subChartGap = 20;   // gap between subcharts (px) - increased for better spacing
@@ -361,6 +394,38 @@ export function buildChartOption(
     if (enabledSignals.includes("cross") && signals.crossSignals) {
       const crossMarkers = createCrossMarkPoints(signals.crossSignals, candles, dates);
       signalMarkPoints.push(...crossMarkers);
+    }
+
+    // Divergence markers
+    if (enabledSignals.includes("divergence") && signals.divergence) {
+      const divergenceMarkers = createDivergenceMarkers(signals.divergence, candles, dates);
+      signalMarkPoints.push(...divergenceMarkers);
+    }
+
+    // Bollinger Squeeze markers
+    if (enabledSignals.includes("bbSqueeze") && signals.bbSqueeze) {
+      const squeezeMarkers = createSqueezeMarkers(signals.bbSqueeze, candles, dates);
+      signalMarkPoints.push(...squeezeMarkers);
+    }
+
+    // Volume Breakout markers
+    if (enabledSignals.includes("volumeBreakout") && signals.volumeBreakout) {
+      const volumeMarkers = createVolumeBreakoutMarkers(
+        signals.volumeBreakout,
+        candles,
+        dates
+      );
+      signalMarkPoints.push(...volumeMarkers);
+    }
+
+    // Volume MA Cross markers
+    if (enabledSignals.includes("volumeMaCross") && signals.volumeMaCross) {
+      const vmcMarkers = createVolumeMaCrossMarkers(
+        signals.volumeMaCross,
+        candles,
+        dates
+      );
+      signalMarkPoints.push(...vmcMarkers);
     }
   }
 
@@ -725,6 +790,116 @@ export function buildChartOption(
       symbol: "triangle",
       symbolSize: 10,
       itemStyle: { color: COLORS.swingLow },
+    });
+  }
+
+  // Pivot Points
+  if (enabledOverlays.includes("pivotPoints") && overlays.pivotPoints) {
+    // Pivot (central level)
+    series.push({
+      name: "Pivot",
+      type: "line",
+      data: overlays.pivotPoints.map((v) => v.pivot),
+      symbol: "none",
+      lineStyle: { color: COLORS.pivot, width: 1.5, type: "dashed" },
+    });
+    // Resistance levels
+    series.push({
+      name: "R1",
+      type: "line",
+      data: overlays.pivotPoints.map((v) => v.r1),
+      symbol: "none",
+      lineStyle: { color: COLORS.pivotR1, width: 1, type: "dotted" },
+    });
+    series.push({
+      name: "R2",
+      type: "line",
+      data: overlays.pivotPoints.map((v) => v.r2),
+      symbol: "none",
+      lineStyle: { color: COLORS.pivotR2, width: 1, type: "dotted" },
+    });
+    series.push({
+      name: "R3",
+      type: "line",
+      data: overlays.pivotPoints.map((v) => v.r3),
+      symbol: "none",
+      lineStyle: { color: COLORS.pivotR3, width: 1, type: "dotted" },
+    });
+    // Support levels
+    series.push({
+      name: "S1",
+      type: "line",
+      data: overlays.pivotPoints.map((v) => v.s1),
+      symbol: "none",
+      lineStyle: { color: COLORS.pivotS1, width: 1, type: "dotted" },
+    });
+    series.push({
+      name: "S2",
+      type: "line",
+      data: overlays.pivotPoints.map((v) => v.s2),
+      symbol: "none",
+      lineStyle: { color: COLORS.pivotS2, width: 1, type: "dotted" },
+    });
+    series.push({
+      name: "S3",
+      type: "line",
+      data: overlays.pivotPoints.map((v) => v.s3),
+      symbol: "none",
+      lineStyle: { color: COLORS.pivotS3, width: 1, type: "dotted" },
+    });
+  }
+
+  // Highest/Lowest Channel
+  if (enabledOverlays.includes("highestLowest") && overlays.highestLowest) {
+    series.push({
+      name: "Highest",
+      type: "line",
+      data: overlays.highestLowest.map((v) => v.highest),
+      symbol: "none",
+      lineStyle: { color: COLORS.highestLowestUpper, width: 1.5 },
+    });
+    series.push({
+      name: "Lowest",
+      type: "line",
+      data: overlays.highestLowest.map((v) => v.lowest),
+      symbol: "none",
+      lineStyle: { color: COLORS.highestLowestLower, width: 1.5 },
+    });
+  }
+
+  // Chandelier Exit
+  if (enabledOverlays.includes("chandelierExit") && overlays.chandelierExit) {
+    series.push({
+      name: "CE Long Exit",
+      type: "line",
+      data: overlays.chandelierExit.map((v) => v.longExit),
+      symbol: "none",
+      lineStyle: { color: COLORS.chandelierLong, width: 1.5 },
+    });
+    series.push({
+      name: "CE Short Exit",
+      type: "line",
+      data: overlays.chandelierExit.map((v) => v.shortExit),
+      symbol: "none",
+      lineStyle: { color: COLORS.chandelierShort, width: 1.5 },
+    });
+  }
+
+  // ATR Stops
+  if (enabledOverlays.includes("atrStops") && overlays.atrStops) {
+    series.push({
+      name: "ATR Long Stop",
+      type: "line",
+      data: overlays.atrStops.map((v) => v.longStopLevel),
+      symbol: "none",
+      lineStyle: { color: COLORS.atrStopsLong, width: 1, type: "dashed" },
+    });
+    series.push({
+      name: "ATR Short Stop",
+      type: "line",
+      data: overlays.atrStops.map((v) => v.shortStopLevel),
+      symbol: "none",
+      lineStyle: { color: COLORS.atrStopsShort, width: 1, type: "dashed" },
     });
   }
 
@@ -1395,7 +1570,7 @@ export function buildChartOption(
       seriesNames: ["Vol Ratio"],
     });
 
-    // E/H マーカー（トライアングル）を収集
+    // Collect E/H markers (triangles)
     const anomalyMarkers: SeriesItem[] = [];
     indicators.volumeAnomaly.forEach((v, i) => {
       if (v.level === "extreme" || v.level === "high") {
@@ -1417,7 +1592,7 @@ export function buildChartOption(
       }
     });
 
-    // Ratio ライン（実線）+ 閾値線 + マーカー
+    // Ratio line (solid) + threshold lines + markers
     series.push({
       name: "Vol Ratio",
       type: "line",
@@ -1456,10 +1631,10 @@ export function buildChartOption(
   if (enabledIndicators.includes("volumeProfile") && indicators.volumeProfile) {
     const gridIndex = createSubchart(subchartCtx, {
       title: "Volume Profile",
-      titleColor: "#ff5722", // POCの色に合わせる
+      titleColor: "#ff5722", // Match POC color
       seriesNames: ["POC", "VAH", "VAL"],
     });
-    // POC - オレンジ実線
+    // POC - Orange solid line
     series.push({
       name: "POC",
       type: "line",
@@ -1467,9 +1642,9 @@ export function buildChartOption(
       yAxisIndex: gridIndex,
       data: indicators.volumeProfile.map((v) => v?.poc ?? null),
       symbol: "none",
-      lineStyle: { color: "#ff5722", width: 2 }, // オレンジ、太め
+      lineStyle: { color: "#ff5722", width: 2 }, // Orange, thick
     });
-    // VAH - グリーン破線
+    // VAH - Green dashed line
     series.push({
       name: "VAH",
       type: "line",
@@ -1477,9 +1652,9 @@ export function buildChartOption(
       yAxisIndex: gridIndex,
       data: indicators.volumeProfile.map((v) => v?.vah ?? null),
       symbol: "none",
-      lineStyle: { color: "#4caf50", width: 1.5, type: "dashed" }, // グリーン
+      lineStyle: { color: "#4caf50", width: 1.5, type: "dashed" }, // Green
     });
-    // VAL - 赤破線
+    // VAL - Red dashed line
     series.push({
       name: "VAL",
       type: "line",
@@ -1487,7 +1662,7 @@ export function buildChartOption(
       yAxisIndex: gridIndex,
       data: indicators.volumeProfile.map((v) => v?.val ?? null),
       symbol: "none",
-      lineStyle: { color: "#f44336", width: 1.5, type: "dashed" }, // 赤
+      lineStyle: { color: "#f44336", width: 1.5, type: "dashed" }, // Red
     });
   }
 
@@ -1501,7 +1676,7 @@ export function buildChartOption(
       yAxisMax: 100,
     });
 
-    // Divergence マーカー（ダイアモンド）を収集
+    // Collect divergence markers (diamonds)
     const divMarkers: SeriesItem[] = [];
     indicators.volumeTrend.forEach((v, i) => {
       if (v.hasDivergence) {
@@ -1522,7 +1697,7 @@ export function buildChartOption(
       }
     });
 
-    // バーチャートで confidence を表示（色分け: confirmed+up=緑, confirmed+down=赤, divergence=オレンジ, その他=グレー）
+    // Display confidence as bar chart (colors: confirmed+up=green, confirmed+down=red, divergence=orange, other=gray)
     series.push({
       name: "VT Confidence",
       type: "bar",
@@ -1532,12 +1707,12 @@ export function buildChartOption(
         value: v.confidence,
         itemStyle: {
           color: v.hasDivergence
-            ? "#ff9800" // オレンジ for divergence
+            ? "#ff9800" // Orange for divergence
             : v.isConfirmed && v.priceTrend === "up"
-              ? COLORS.volumeTrendUp // グリーン
+              ? COLORS.volumeTrendUp // Green
               : v.isConfirmed && v.priceTrend === "down"
-                ? COLORS.volumeTrendDown // 赤
-                : "#888", // グレー
+                ? COLORS.volumeTrendDown // Red
+                : "#888", // Gray
         },
       })),
       markLine: {
@@ -1575,6 +1750,36 @@ export function buildChartOption(
       data: indicators.atr,
       symbol: "none",
       lineStyle: { color: COLORS.atr, width: 1.5 },
+    });
+  }
+
+  // Volatility Regime
+  if (enabledIndicators.includes("volatilityRegime") && indicators.volatilityRegime) {
+    const gridIndex = createSubchart(subchartCtx, {
+      title: "Volatility Regime",
+      titleColor: COLORS.volRegimeHigh,
+      seriesNames: ["ATR Percentile"],
+      yAxisMin: 0,
+      yAxisMax: 100,
+    });
+
+    // ATR Percentile as bar chart with color based on regime
+    series.push({
+      name: "ATR Percentile",
+      type: "bar",
+      xAxisIndex: gridIndex,
+      yAxisIndex: gridIndex,
+      data: indicators.volatilityRegime.map((v) => ({
+        value: v.atrPercentile,
+        itemStyle: {
+          color:
+            v.regime === "extreme" ? COLORS.volRegimeExtreme :
+            v.regime === "high" ? COLORS.volRegimeHigh :
+            v.regime === "low" ? COLORS.volRegimeLow :
+            COLORS.volRegimeNormal,
+        },
+      })),
+      markLine: createMarkLine([25, 75, 95]),
     });
   }
 
@@ -1701,6 +1906,35 @@ export function buildChartOption(
     }
   }
 
+  // Scoring
+  if (enabledIndicators.includes("scoring") && indicators.scoring) {
+    const gridIndex = createSubchart(subchartCtx, {
+      title: `Score (${indicatorParams?.scoringPreset ?? "balanced"})`,
+      titleColor: COLORS.scoreStrong,
+      seriesNames: ["Score"],
+      yAxisMin: 0,
+      yAxisMax: 100,
+    });
+
+    series.push({
+      name: "Score",
+      type: "bar",
+      xAxisIndex: gridIndex,
+      yAxisIndex: gridIndex,
+      data: indicators.scoring.map((s) => ({
+        value: s.normalizedScore,
+        itemStyle: {
+          color:
+            s.strength === "strong" ? COLORS.scoreStrong :
+            s.strength === "moderate" ? COLORS.scoreModerate :
+            s.strength === "weak" ? COLORS.scoreWeak :
+            COLORS.scoreNone,
+        },
+      })),
+      markLine: createMarkLine([30, 50, 70]),
+    });
+  }
+
   // Build legend data from main chart series (exclude subcharts and Volume)
   const mainLegendData = series
     .filter((s) => {
@@ -1753,11 +1987,11 @@ export function buildChartOption(
         if (value === null || value === undefined) return "-";
         const formatNum = (v: unknown): string => {
           if (typeof v !== "number" || !Number.isFinite(v)) return String(v ?? "-");
-          // 整数または大きな数値はカンマ区切りの整数表示
+          // Format integers or large numbers with comma separators
           if (Number.isInteger(v) || Math.abs(v) >= 1000) {
             return Math.round(v).toLocaleString();
           }
-          // 小数点以下がある値は第3位まで
+          // Format decimal values to 3 decimal places
           return v.toFixed(3);
         };
         if (Array.isArray(value)) return value.map(formatNum).join(", ");

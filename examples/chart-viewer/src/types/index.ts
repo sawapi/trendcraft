@@ -8,7 +8,14 @@ export type Timeframe = "daily" | "weekly" | "monthly";
 /**
  * Signal types for visualization
  */
-export type SignalType = "perfectOrder" | "rangeBound" | "cross";
+export type SignalType =
+  | "perfectOrder"
+  | "rangeBound"
+  | "cross"
+  | "divergence"
+  | "bbSqueeze"
+  | "volumeBreakout"
+  | "volumeMaCross";
 
 /**
  * Subchart indicator types
@@ -32,7 +39,20 @@ export type SubChartType =
   | "atr"
   | "per"
   | "pbr"
-  | "roe";
+  | "roe"
+  | "volatilityRegime"
+  | "scoring";
+
+/**
+ * Scoring preset type
+ */
+export type ScoringPreset =
+  | "momentum"
+  | "meanReversion"
+  | "trendFollowing"
+  | "balanced"
+  | "aggressive"
+  | "conservative";
 
 /**
  * Fundamental data (PER/PBR from CSV)
@@ -60,11 +80,15 @@ export type OverlayType =
   | "psar"
   | "vwap"
   | "swingPoints"
+  | "pivotPoints"
   | "orderBlock"
   | "fvg"
   | "bos"
   | "choch"
-  | "liquiditySweep";
+  | "liquiditySweep"
+  | "highestLowest"
+  | "chandelierExit"
+  | "atrStops";
 
 /**
  * Subchart configuration
@@ -175,6 +199,38 @@ export interface IndicatorParams {
   // SMC - Liquidity Sweep
   liquiditySweepSwingPeriod: number;
   liquiditySweepMaxRecoveryBars: number;
+  // Pivot Points
+  pivotPointsMethod: number;
+  // Highest/Lowest Channel
+  highestLowestPeriod: number;
+  // Chandelier Exit
+  chandelierPeriod: number;
+  chandelierMultiplier: number;
+  // ATR Stops
+  atrStopsPeriod: number;
+  atrStopsMultiplier: number;
+  atrStopsTpMultiplier: number;
+  // Volatility Regime
+  volatilityRegimeAtrPeriod: number;
+  volatilityRegimeLookback: number;
+  // Divergence
+  divergenceSwingLookback: number;
+  divergenceMinDistance: number;
+  divergenceMaxDistance: number;
+  divergenceIndicator: "rsi" | "macd" | "obv";
+  // Bollinger Squeeze
+  bbSqueezePeriod: number;
+  bbSqueezeStdDev: number;
+  bbSqueezeLookback: number;
+  bbSqueezeThreshold: number;
+  // Volume Breakout
+  volumeBreakoutPeriod: number;
+  volumeBreakoutMinRatio: number;
+  // Volume MA Cross
+  volumeMaCrossShortPeriod: number;
+  volumeMaCrossLongPeriod: number;
+  // Scoring
+  scoringPreset: ScoringPreset;
 }
 
 /**
@@ -248,6 +304,38 @@ export const DEFAULT_INDICATOR_PARAMS: IndicatorParams = {
   // SMC - Liquidity Sweep
   liquiditySweepSwingPeriod: 5,
   liquiditySweepMaxRecoveryBars: 3,
+  // Pivot Points
+  pivotPointsMethod: 0,
+  // Highest/Lowest Channel
+  highestLowestPeriod: 20,
+  // Chandelier Exit
+  chandelierPeriod: 22,
+  chandelierMultiplier: 3.0,
+  // ATR Stops
+  atrStopsPeriod: 14,
+  atrStopsMultiplier: 2.0,
+  atrStopsTpMultiplier: 3.0,
+  // Volatility Regime
+  volatilityRegimeAtrPeriod: 14,
+  volatilityRegimeLookback: 100,
+  // Divergence
+  divergenceSwingLookback: 5,
+  divergenceMinDistance: 5,
+  divergenceMaxDistance: 60,
+  divergenceIndicator: "rsi",
+  // Bollinger Squeeze
+  bbSqueezePeriod: 20,
+  bbSqueezeStdDev: 2,
+  bbSqueezeLookback: 120,
+  bbSqueezeThreshold: 5,
+  // Volume Breakout
+  volumeBreakoutPeriod: 20,
+  volumeBreakoutMinRatio: 1.5,
+  // Volume MA Cross
+  volumeMaCrossShortPeriod: 5,
+  volumeMaCrossLongPeriod: 20,
+  // Scoring
+  scoringPreset: "balanced",
 };
 
 /**
@@ -360,7 +448,50 @@ export const INDICATOR_PARAM_CONFIGS: Record<string, ParamConfig[]> = {
     { key: "liquiditySweepSwingPeriod", label: "Swing Period", min: 1, max: 20, step: 1 },
     { key: "liquiditySweepMaxRecoveryBars", label: "Max Recovery Bars", min: 1, max: 10, step: 1 },
   ],
+  pivotPoints: [
+    { key: "pivotPointsMethod", label: "Method (0:Std 1:Fib 2:Woodie 3:Cama 4:DeMark)", min: 0, max: 4, step: 1 },
+  ],
+  highestLowest: [
+    { key: "highestLowestPeriod", label: "Period", min: 2, max: 200, step: 1 },
+  ],
+  chandelierExit: [
+    { key: "chandelierPeriod", label: "Period", min: 5, max: 50, step: 1 },
+    { key: "chandelierMultiplier", label: "Multiplier", min: 1, max: 5, step: 0.5 },
+  ],
+  atrStops: [
+    { key: "atrStopsPeriod", label: "Period", min: 5, max: 50, step: 1 },
+    { key: "atrStopsMultiplier", label: "Stop Multi", min: 0.5, max: 5, step: 0.5 },
+    { key: "atrStopsTpMultiplier", label: "TP Multi", min: 1, max: 10, step: 0.5 },
+  ],
+  volatilityRegime: [
+    { key: "volatilityRegimeAtrPeriod", label: "ATR Period", min: 5, max: 50, step: 1 },
+    { key: "volatilityRegimeLookback", label: "Lookback", min: 50, max: 200, step: 10 },
+  ],
+  // Signals
+  divergence: [
+    { key: "divergenceSwingLookback", label: "Swing Lookback", min: 3, max: 20, step: 1 },
+    { key: "divergenceMinDistance", label: "Min Distance", min: 3, max: 20, step: 1 },
+    { key: "divergenceMaxDistance", label: "Max Distance", min: 20, max: 120, step: 10 },
+  ],
+  bbSqueeze: [
+    { key: "bbSqueezePeriod", label: "BB Period", min: 10, max: 50, step: 1 },
+    { key: "bbSqueezeLookback", label: "Lookback", min: 50, max: 200, step: 10 },
+    { key: "bbSqueezeThreshold", label: "Threshold %", min: 1, max: 20, step: 1 },
+  ],
+  volumeBreakout: [
+    { key: "volumeBreakoutPeriod", label: "Period", min: 5, max: 50, step: 1 },
+    { key: "volumeBreakoutMinRatio", label: "Min Ratio", min: 1.0, max: 5.0, step: 0.1 },
+  ],
+  volumeMaCross: [
+    { key: "volumeMaCrossShortPeriod", label: "Short Period", min: 2, max: 20, step: 1 },
+    { key: "volumeMaCrossLongPeriod", label: "Long Period", min: 10, max: 50, step: 1 },
+  ],
 };
+
+/**
+ * Display start years options
+ */
+export type DisplayStartYears = 5 | 10 | 20 | null;
 
 /**
  * Chart store state
@@ -374,6 +505,7 @@ export interface ChartState {
 
   // Display settings
   timeframe: Timeframe;
+  displayStartYears: DisplayStartYears;
   enabledIndicators: SubChartType[];
   enabledOverlays: OverlayType[];
   enabledSignals: SignalType[];
@@ -395,6 +527,7 @@ export interface ChartState {
 export interface ChartActions {
   loadCandles: (candles: NormalizedCandle[], fundamentals: FundamentalData | null, fileName: string) => void;
   setTimeframe: (timeframe: Timeframe) => void;
+  setDisplayStartYears: (years: DisplayStartYears) => void;
   setEnabledIndicators: (indicators: SubChartType[]) => void;
   setEnabledOverlays: (overlays: OverlayType[]) => void;
   setEnabledSignals: (signals: SignalType[]) => void;

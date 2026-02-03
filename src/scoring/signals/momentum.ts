@@ -5,7 +5,7 @@
  */
 
 import { macd, rsi, stochastics } from "../../indicators";
-import type { NormalizedCandle, SignalDefinition } from "../../types";
+import type { NormalizedCandle, PrecomputedIndicators, SignalDefinition } from "../../types";
 
 /**
  * Create RSI oversold signal evaluator
@@ -20,11 +20,22 @@ export function createRsiOversoldEvaluator(
   threshold = 30,
   period = 14,
 ): SignalDefinition["evaluate"] {
-  return (candles: NormalizedCandle[], index: number) => {
+  return (
+    candles: NormalizedCandle[],
+    index: number,
+    _context?: unknown,
+    precomputed?: PrecomputedIndicators,
+  ) => {
     if (index < period) return 0;
 
-    const rsiSeries = rsi(candles.slice(0, index + 1), { period });
-    const current = rsiSeries[rsiSeries.length - 1]?.value;
+    // Use pre-computed data if available (for period 14 only)
+    let current: number | null | undefined;
+    if (precomputed?.rsi14 && period === 14) {
+      current = precomputed.rsi14[index];
+    } else {
+      const rsiSeries = rsi(candles.slice(0, index + 1), { period });
+      current = rsiSeries[rsiSeries.length - 1]?.value;
+    }
 
     if (current === null || current === undefined) return 0;
 
@@ -50,11 +61,22 @@ export function createRsiOverboughtEvaluator(
   threshold = 70,
   period = 14,
 ): SignalDefinition["evaluate"] {
-  return (candles: NormalizedCandle[], index: number) => {
+  return (
+    candles: NormalizedCandle[],
+    index: number,
+    _context?: unknown,
+    precomputed?: PrecomputedIndicators,
+  ) => {
     if (index < period) return 0;
 
-    const rsiSeries = rsi(candles.slice(0, index + 1), { period });
-    const current = rsiSeries[rsiSeries.length - 1]?.value;
+    // Use pre-computed data if available (for period 14 only)
+    let current: number | null | undefined;
+    if (precomputed?.rsi14 && period === 14) {
+      current = precomputed.rsi14[index];
+    } else {
+      const rsiSeries = rsi(candles.slice(0, index + 1), { period });
+      current = rsiSeries[rsiSeries.length - 1]?.value;
+    }
 
     if (current === null || current === undefined) return 0;
 
@@ -80,11 +102,22 @@ export function createRsiNeutralEvaluator(
   upperBound = 60,
   period = 14,
 ): SignalDefinition["evaluate"] {
-  return (candles: NormalizedCandle[], index: number) => {
+  return (
+    candles: NormalizedCandle[],
+    index: number,
+    _context?: unknown,
+    precomputed?: PrecomputedIndicators,
+  ) => {
     if (index < period) return 0;
 
-    const rsiSeries = rsi(candles.slice(0, index + 1), { period });
-    const current = rsiSeries[rsiSeries.length - 1]?.value;
+    // Use pre-computed data if available (for period 14 only)
+    let current: number | null | undefined;
+    if (precomputed?.rsi14 && period === 14) {
+      current = precomputed.rsi14[index];
+    } else {
+      const rsiSeries = rsi(candles.slice(0, index + 1), { period });
+      current = rsiSeries[rsiSeries.length - 1]?.value;
+    }
 
     if (current === null || current === undefined) return 0;
 
@@ -103,19 +136,31 @@ export function createMacdBullishEvaluator(
   slowPeriod = 26,
   signalPeriod = 9,
 ): SignalDefinition["evaluate"] {
-  return (candles: NormalizedCandle[], index: number) => {
+  return (
+    candles: NormalizedCandle[],
+    index: number,
+    _context?: unknown,
+    precomputed?: PrecomputedIndicators,
+  ) => {
     if (index < slowPeriod + signalPeriod) return 0;
 
-    const macdSeries = macd(candles.slice(0, index + 1), {
-      fastPeriod,
-      slowPeriod,
-      signalPeriod,
-    });
+    // Use pre-computed data if available (for default periods only)
+    let current: { macd: number | null; signal: number | null; histogram: number | null } | undefined;
+    let prev: { macd: number | null; signal: number | null; histogram: number | null } | undefined;
 
-    if (macdSeries.length < 2) return 0;
-
-    const current = macdSeries[macdSeries.length - 1]?.value;
-    const prev = macdSeries[macdSeries.length - 2]?.value;
+    if (precomputed?.macd && fastPeriod === 12 && slowPeriod === 26 && signalPeriod === 9) {
+      current = precomputed.macd[index];
+      prev = precomputed.macd[index - 1];
+    } else {
+      const macdSeries = macd(candles.slice(0, index + 1), {
+        fastPeriod,
+        slowPeriod,
+        signalPeriod,
+      });
+      if (macdSeries.length < 2) return 0;
+      current = macdSeries[macdSeries.length - 1]?.value;
+      prev = macdSeries[macdSeries.length - 2]?.value;
+    }
 
     if (!current || !prev) return 0;
     if (current.histogram === null || prev.histogram === null) return 0;
@@ -144,19 +189,31 @@ export function createMacdBearishEvaluator(
   slowPeriod = 26,
   signalPeriod = 9,
 ): SignalDefinition["evaluate"] {
-  return (candles: NormalizedCandle[], index: number) => {
+  return (
+    candles: NormalizedCandle[],
+    index: number,
+    _context?: unknown,
+    precomputed?: PrecomputedIndicators,
+  ) => {
     if (index < slowPeriod + signalPeriod) return 0;
 
-    const macdSeries = macd(candles.slice(0, index + 1), {
-      fastPeriod,
-      slowPeriod,
-      signalPeriod,
-    });
+    // Use pre-computed data if available (for default periods only)
+    let current: { macd: number | null; signal: number | null; histogram: number | null } | undefined;
+    let prev: { macd: number | null; signal: number | null; histogram: number | null } | undefined;
 
-    if (macdSeries.length < 2) return 0;
-
-    const current = macdSeries[macdSeries.length - 1]?.value;
-    const prev = macdSeries[macdSeries.length - 2]?.value;
+    if (precomputed?.macd && fastPeriod === 12 && slowPeriod === 26 && signalPeriod === 9) {
+      current = precomputed.macd[index];
+      prev = precomputed.macd[index - 1];
+    } else {
+      const macdSeries = macd(candles.slice(0, index + 1), {
+        fastPeriod,
+        slowPeriod,
+        signalPeriod,
+      });
+      if (macdSeries.length < 2) return 0;
+      current = macdSeries[macdSeries.length - 1]?.value;
+      prev = macdSeries[macdSeries.length - 2]?.value;
+    }
 
     if (!current || !prev) return 0;
     if (current.histogram === null || prev.histogram === null) return 0;
@@ -187,15 +244,27 @@ export function createStochOversoldEvaluator(
   kPeriod = 14,
   dPeriod = 3,
 ): SignalDefinition["evaluate"] {
-  return (candles: NormalizedCandle[], index: number) => {
+  return (
+    candles: NormalizedCandle[],
+    index: number,
+    _context?: unknown,
+    precomputed?: PrecomputedIndicators,
+  ) => {
     if (index < kPeriod + dPeriod) return 0;
 
-    const stochSeries = stochastics(candles.slice(0, index + 1), {
-      kPeriod,
-      dPeriod,
-    });
+    // Use pre-computed data if available (for default periods only)
+    let current: { k: number | null; d: number | null } | undefined;
 
-    const current = stochSeries[stochSeries.length - 1]?.value;
+    if (precomputed?.stoch && kPeriod === 14 && dPeriod === 3) {
+      current = precomputed.stoch[index];
+    } else {
+      const stochSeries = stochastics(candles.slice(0, index + 1), {
+        kPeriod,
+        dPeriod,
+      });
+      current = stochSeries[stochSeries.length - 1]?.value;
+    }
+
     if (!current || current.k === null || current.d === null) return 0;
 
     // Both K and D oversold
@@ -226,15 +295,27 @@ export function createStochOverboughtEvaluator(
   kPeriod = 14,
   dPeriod = 3,
 ): SignalDefinition["evaluate"] {
-  return (candles: NormalizedCandle[], index: number) => {
+  return (
+    candles: NormalizedCandle[],
+    index: number,
+    _context?: unknown,
+    precomputed?: PrecomputedIndicators,
+  ) => {
     if (index < kPeriod + dPeriod) return 0;
 
-    const stochSeries = stochastics(candles.slice(0, index + 1), {
-      kPeriod,
-      dPeriod,
-    });
+    // Use pre-computed data if available (for default periods only)
+    let current: { k: number | null; d: number | null } | undefined;
 
-    const current = stochSeries[stochSeries.length - 1]?.value;
+    if (precomputed?.stoch && kPeriod === 14 && dPeriod === 3) {
+      current = precomputed.stoch[index];
+    } else {
+      const stochSeries = stochastics(candles.slice(0, index + 1), {
+        kPeriod,
+        dPeriod,
+      });
+      current = stochSeries[stochSeries.length - 1]?.value;
+    }
+
     if (!current || current.k === null || current.d === null) return 0;
 
     if (current.k >= threshold && current.d >= threshold) {
@@ -259,18 +340,30 @@ export function createStochBullishCrossEvaluator(
   kPeriod = 14,
   dPeriod = 3,
 ): SignalDefinition["evaluate"] {
-  return (candles: NormalizedCandle[], index: number) => {
+  return (
+    candles: NormalizedCandle[],
+    index: number,
+    _context?: unknown,
+    precomputed?: PrecomputedIndicators,
+  ) => {
     if (index < kPeriod + dPeriod + 1) return 0;
 
-    const stochSeries = stochastics(candles.slice(0, index + 1), {
-      kPeriod,
-      dPeriod,
-    });
+    // Use pre-computed data if available (for default periods only)
+    let current: { k: number | null; d: number | null } | undefined;
+    let prev: { k: number | null; d: number | null } | undefined;
 
-    if (stochSeries.length < 2) return 0;
-
-    const current = stochSeries[stochSeries.length - 1]?.value;
-    const prev = stochSeries[stochSeries.length - 2]?.value;
+    if (precomputed?.stoch && kPeriod === 14 && dPeriod === 3) {
+      current = precomputed.stoch[index];
+      prev = precomputed.stoch[index - 1];
+    } else {
+      const stochSeries = stochastics(candles.slice(0, index + 1), {
+        kPeriod,
+        dPeriod,
+      });
+      if (stochSeries.length < 2) return 0;
+      current = stochSeries[stochSeries.length - 1]?.value;
+      prev = stochSeries[stochSeries.length - 2]?.value;
+    }
 
     if (!current || !prev) return 0;
     if (current.k === null || current.d === null) return 0;
@@ -298,6 +391,7 @@ export const rsiOversold30: SignalDefinition = {
   weight: 2.0,
   category: "momentum",
   evaluate: createRsiOversoldEvaluator(30, 14),
+  requiredIndicators: ["rsi14"],
 };
 
 export const rsiOverbought70: SignalDefinition = {
@@ -306,6 +400,7 @@ export const rsiOverbought70: SignalDefinition = {
   weight: 2.0,
   category: "momentum",
   evaluate: createRsiOverboughtEvaluator(70, 14),
+  requiredIndicators: ["rsi14"],
 };
 
 export const macdBullish: SignalDefinition = {
@@ -314,6 +409,7 @@ export const macdBullish: SignalDefinition = {
   weight: 1.5,
   category: "momentum",
   evaluate: createMacdBullishEvaluator(),
+  requiredIndicators: ["macd"],
 };
 
 export const macdBearish: SignalDefinition = {
@@ -322,6 +418,7 @@ export const macdBearish: SignalDefinition = {
   weight: 1.5,
   category: "momentum",
   evaluate: createMacdBearishEvaluator(),
+  requiredIndicators: ["macd"],
 };
 
 export const stochOversold: SignalDefinition = {
@@ -330,6 +427,7 @@ export const stochOversold: SignalDefinition = {
   weight: 1.5,
   category: "momentum",
   evaluate: createStochOversoldEvaluator(20),
+  requiredIndicators: ["stoch"],
 };
 
 export const stochOverbought: SignalDefinition = {
@@ -338,4 +436,5 @@ export const stochOverbought: SignalDefinition = {
   weight: 1.5,
   category: "momentum",
   evaluate: createStochOverboughtEvaluator(80),
+  requiredIndicators: ["stoch"],
 };

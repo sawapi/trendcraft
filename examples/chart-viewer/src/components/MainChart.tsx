@@ -29,10 +29,12 @@ export function MainChart() {
   const backtestResult = useChartStore((state) => state.backtestResult);
   const indicatorParams = useChartStore((state) => state.indicatorParams);
   const fundamentals = useChartStore((state) => state.fundamentals);
+  const zoomRange = useChartStore((state) => state.zoomRange);
+  const setZoomRange = useChartStore((state) => state.setZoomRange);
 
   const indicators = useIndicators(currentCandles, enabledIndicators, fundamentals);
   const overlays = useOverlays(currentCandles, enabledOverlays);
-  const signals = useSignals(currentCandles, enabledSignals);
+  const signals = useSignals(currentCandles, enabledSignals, indicatorParams);
 
   const trades = backtestResult?.trades ?? null;
 
@@ -51,21 +53,48 @@ export function MainChart() {
       overlays,
       enabledOverlays,
       chartHeight,
-      indicatorParams
+      indicatorParams,
+      zoomRange
     );
-  }, [currentCandles, indicators, enabledIndicators, signals, enabledSignals, trades, overlays, enabledOverlays, chartHeight, indicatorParams]);
+  }, [currentCandles, indicators, enabledIndicators, signals, enabledSignals, trades, overlays, enabledOverlays, chartHeight, indicatorParams, zoomRange]);
+
+  // Handle dataZoom events from chart interaction
+  const onEvents = useMemo(() => ({
+    datazoom: (params: { start?: number; end?: number; batch?: Array<{ start?: number; end?: number }> }) => {
+      // dataZoom can fire with different structures
+      let start: number | undefined;
+      let end: number | undefined;
+
+      if (params.batch && params.batch.length > 0) {
+        start = params.batch[0].start;
+        end = params.batch[0].end;
+      } else {
+        start = params.start;
+        end = params.end;
+      }
+
+      if (start !== undefined && end !== undefined) {
+        setZoomRange({ start, end });
+      }
+    },
+  }), [setZoomRange]);
 
   if (currentCandles.length === 0) {
     return null;
   }
 
+  // Use candle count as key to force re-mount when data changes
+  const chartKey = `chart-${currentCandles.length}`;
+
   return (
     <div className="main-chart" style={{ height: chartHeight }}>
       <ReactECharts
+        key={chartKey}
         option={option}
         style={{ height: "100%", width: "100%" }}
         notMerge={true}
         lazyUpdate={true}
+        onEvents={onEvents}
       />
     </div>
   );

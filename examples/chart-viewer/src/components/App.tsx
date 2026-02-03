@@ -5,6 +5,7 @@ import { BacktestPanel } from "./BacktestPanel";
 import { FileDropZone } from "./FileDropZone";
 import { IndicatorSettingsDialog } from "./IndicatorSettingsDialog";
 import { MainChart } from "./MainChart";
+import { PeriodSelector } from "./PeriodSelector";
 import { SignalsPanel } from "./SignalsPanel";
 import { TimeframeSelector } from "./TimeframeSelector";
 
@@ -61,8 +62,31 @@ export default function App() {
   const reset = useChartStore((state) => state.reset);
   const enabledOverlays = useChartStore((state) => state.enabledOverlays);
   const enabledIndicators = useChartStore((state) => state.enabledIndicators);
+  const zoomRange = useChartStore((state) => state.zoomRange);
 
   const hasData = rawCandles.length > 0;
+
+  // Calculate visible date range from zoom range
+  const getVisibleDateRange = useCallback(() => {
+    if (currentCandles.length === 0) return null;
+    const startIdx = Math.floor((zoomRange.start / 100) * currentCandles.length);
+    const endIdx = Math.ceil((zoomRange.end / 100) * currentCandles.length) - 1;
+    const clampedStart = Math.max(0, Math.min(startIdx, currentCandles.length - 1));
+    const clampedEnd = Math.max(0, Math.min(endIdx, currentCandles.length - 1));
+
+    const formatDate = (timestamp: number) => {
+      const date = new Date(timestamp);
+      return `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, "0")}/${String(date.getDate()).padStart(2, "0")}`;
+    };
+
+    return {
+      start: formatDate(currentCandles[clampedStart].time),
+      end: formatDate(currentCandles[clampedEnd].time),
+      count: clampedEnd - clampedStart + 1,
+    };
+  }, [currentCandles, zoomRange]);
+
+  const visibleRange = hasData ? getVisibleDateRange() : null;
 
   // Mobile state
   const [isMobile, setIsMobile] = useState(false);
@@ -132,6 +156,12 @@ export default function App() {
             <span className="file-name">{fileName}</span>
             <span className="candle-count">{currentCandles.length} candles</span>
             <TimeframeSelector />
+            <PeriodSelector />
+            {visibleRange && (
+              <span className="visible-range">
+                {visibleRange.start} - {visibleRange.end} ({visibleRange.count})
+              </span>
+            )}
             <button type="button" className="reset-button" onClick={reset}>
               <span className="material-icons md-16">refresh</span>
               Reset
