@@ -502,6 +502,7 @@ export interface ChartState {
   currentCandles: NormalizedCandle[];
   fileName: string;
   fundamentals: FundamentalData | null;
+  currentFundamentals: FundamentalData | null;
 
   // Display settings
   timeframe: Timeframe;

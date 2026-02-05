@@ -28,11 +28,11 @@ export function MainChart() {
   const enabledSignals = useChartStore((state) => state.enabledSignals);
   const backtestResult = useChartStore((state) => state.backtestResult);
   const indicatorParams = useChartStore((state) => state.indicatorParams);
-  const fundamentals = useChartStore((state) => state.fundamentals);
+  const currentFundamentals = useChartStore((state) => state.currentFundamentals);
   const zoomRange = useChartStore((state) => state.zoomRange);
   const setZoomRange = useChartStore((state) => state.setZoomRange);
 
-  const indicators = useIndicators(currentCandles, enabledIndicators, fundamentals);
+  const indicators = useIndicators(currentCandles, enabledIndicators, currentFundamentals);
   const overlays = useOverlays(currentCandles, enabledOverlays);
   const signals = useSignals(currentCandles, enabledSignals, indicatorParams);
 
