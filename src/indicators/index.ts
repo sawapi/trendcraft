@@ -94,6 +94,7 @@ export {
   fairValueGap,
   getUnfilledFvgs,
   getNearestFvg,
+  fibonacciRetracement,
 } from "./price";
 export type {
   HighestLowestValue,
@@ -106,6 +107,8 @@ export type {
   FvgValue,
   FvgGap,
   FvgOptions,
+  FibonacciRetracementOptions,
+  FibonacciRetracementValue,
 } from "./price";
 
 // Trend

@@ -88,7 +88,8 @@ export type OverlayType =
   | "liquiditySweep"
   | "highestLowest"
   | "chandelierExit"
-  | "atrStops";
+  | "atrStops"
+  | "fibonacci";
 
 /**
  * Subchart configuration
@@ -199,6 +200,9 @@ export interface IndicatorParams {
   // SMC - Liquidity Sweep
   liquiditySweepSwingPeriod: number;
   liquiditySweepMaxRecoveryBars: number;
+  // Fibonacci Retracement
+  fibLeftBars: number;
+  fibRightBars: number;
   // Pivot Points
   pivotPointsMethod: number;
   // Highest/Lowest Channel
@@ -304,6 +308,9 @@ export const DEFAULT_INDICATOR_PARAMS: IndicatorParams = {
   // SMC - Liquidity Sweep
   liquiditySweepSwingPeriod: 5,
   liquiditySweepMaxRecoveryBars: 3,
+  // Fibonacci Retracement
+  fibLeftBars: 10,
+  fibRightBars: 10,
   // Pivot Points
   pivotPointsMethod: 0,
   // Highest/Lowest Channel
@@ -447,6 +454,10 @@ export const INDICATOR_PARAM_CONFIGS: Record<string, ParamConfig[]> = {
   liquiditySweep: [
     { key: "liquiditySweepSwingPeriod", label: "Swing Period", min: 1, max: 20, step: 1 },
     { key: "liquiditySweepMaxRecoveryBars", label: "Max Recovery Bars", min: 1, max: 10, step: 1 },
+  ],
+  fibonacci: [
+    { key: "fibLeftBars", label: "Left Bars", min: 1, max: 30, step: 1 },
+    { key: "fibRightBars", label: "Right Bars", min: 1, max: 30, step: 1 },
   ],
   pivotPoints: [
     { key: "pivotPointsMethod", label: "Method (0:Std 1:Fib 2:Woodie 3:Cama 4:DeMark)", min: 0, max: 4, step: 1 },

@@ -186,6 +186,8 @@ export {
   fairValueGap,
   getUnfilledFvgs,
   getNearestFvg,
+  // Fibonacci Retracement
+  fibonacciRetracement,
 } from "./indicators";
 
 export type {
@@ -238,6 +240,9 @@ export type {
   FvgValue,
   FvgGap,
   FvgOptions,
+  // Fibonacci Retracement types
+  FibonacciRetracementOptions,
+  FibonacciRetracementValue,
 } from "./indicators";
 
 // Fluent API

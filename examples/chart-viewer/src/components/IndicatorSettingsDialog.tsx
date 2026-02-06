@@ -74,6 +74,7 @@ const OVERLAY_GROUPS: { group: string; options: { key: OverlayType; label: strin
     options: [
       { key: "swingPoints", label: "Swing Points" },
       { key: "pivotPoints", label: "Pivot Points" },
+      { key: "fibonacci", label: "Fibonacci Retracement" },
       { key: "highestLowest", label: "Highest/Lowest" },
     ],
   },

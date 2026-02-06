@@ -21,6 +21,7 @@ import type {
   HighestLowestValue,
   ChandelierExitValue,
   AtrStopsValue,
+  FibonacciRetracementValue,
 } from "trendcraft";
 import {
   sma,
@@ -43,6 +44,7 @@ import {
   highestLowest,
   chandelierExit,
   atrStops,
+  fibonacciRetracement,
 } from "trendcraft";
 import type { OverlayType } from "../types";
 import { useChartStore } from "../store/chartStore";
@@ -83,6 +85,8 @@ export interface OverlayData {
   // Volatility
   chandelierExit?: ChandelierExitValue[];
   atrStops?: AtrStopsValue[];
+  // Fibonacci Retracement
+  fibonacci?: FibonacciRetracementValue[];
 }
 
 /**
@@ -273,6 +277,15 @@ export function useOverlays(
         multiplier: p.chandelierMultiplier,
       });
       data.chandelierExit = series.map((s) => s.value);
+    }
+
+    // Fibonacci Retracement
+    if (enabledOverlays.includes("fibonacci")) {
+      const series = fibonacciRetracement(candles, {
+        leftBars: p.fibLeftBars,
+        rightBars: p.fibRightBars,
+      });
+      data.fibonacci = series.map((s) => s.value);
     }
 
     // ATR Stops

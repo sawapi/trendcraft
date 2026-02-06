@@ -90,6 +90,14 @@ const COLORS = {
   pivotS1: "#26a69a",
   pivotS2: "#00897b",
   pivotS3: "#004d40",
+  // Fibonacci Retracement
+  fib0: "#4caf50",
+  fib236: "#8bc34a",
+  fib382: "#ffeb3b",
+  fib50: "#ff9800",
+  fib618: "#ff5722",
+  fib786: "#e91e63",
+  fib100: "#f44336",
   // SMC
   orderBlockBullish: "rgba(38, 166, 154, 0.3)",
   orderBlockBearish: "rgba(239, 83, 80, 0.3)",
@@ -847,6 +855,30 @@ export function buildChartOption(
       symbol: "none",
       lineStyle: { color: COLORS.pivotS3, width: 1, type: "dotted" },
     });
+  }
+
+  // Fibonacci Retracement
+  if (enabledOverlays.includes("fibonacci") && overlays.fibonacci) {
+    const fibLevels: { key: string; color: string; width: number; lineType: string }[] = [
+      { key: "0", color: COLORS.fib0, width: 1.5, lineType: "solid" },
+      { key: "0.236", color: COLORS.fib236, width: 1, lineType: "dashed" },
+      { key: "0.382", color: COLORS.fib382, width: 1, lineType: "dashed" },
+      { key: "0.5", color: COLORS.fib50, width: 1, lineType: "dashed" },
+      { key: "0.618", color: COLORS.fib618, width: 2, lineType: "dashed" },
+      { key: "0.786", color: COLORS.fib786, width: 1, lineType: "dashed" },
+      { key: "1", color: COLORS.fib100, width: 1.5, lineType: "solid" },
+    ];
+
+    for (const level of fibLevels) {
+      const label = level.key === "0.5" ? "50%" : `${(parseFloat(level.key) * 100).toFixed(1)}%`;
+      series.push({
+        name: `Fib ${label}`,
+        type: "line",
+        data: overlays.fibonacci.map((v) => v.levels?.[level.key] ?? null),
+        symbol: "none",
+        lineStyle: { color: level.color, width: level.width, type: level.lineType },
+      });
+    }
   }
 
   // Highest/Lowest Channel
