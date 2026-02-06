@@ -75,7 +75,11 @@ const OVERLAY_GROUPS: { group: string; options: { key: OverlayType; label: strin
       { key: "swingPoints", label: "Swing Points" },
       { key: "pivotPoints", label: "Pivot Points" },
       { key: "fibonacci", label: "Fibonacci Retracement" },
+      { key: "fibExtension", label: "Fibonacci Extension" },
       { key: "highestLowest", label: "Highest/Lowest" },
+      { key: "autoTrendLine", label: "Auto Trend Line" },
+      { key: "channelLine", label: "Channel Line" },
+      { key: "andrewsPitchfork", label: "Andrew's Pitchfork" },
     ],
   },
   {

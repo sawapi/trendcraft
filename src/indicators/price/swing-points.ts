@@ -183,6 +183,97 @@ export function getSwingHighs(
 /**
  * Get only swing low points from the series
  */
+/**
+ * A swing point with alternating high/low pattern
+ */
+export type AlternatingSwingPoint = {
+  time: number;
+  price: number;
+  index: number;
+  type: "high" | "low";
+};
+
+/**
+ * Get the last N alternating swing points (high-low-high or low-high-low).
+ *
+ * Collects all swing points in chronological order, merges consecutive
+ * same-type points (keeping the most extreme), and returns the last
+ * `count` points in time order.
+ *
+ * @param candles - Array of candles (raw or normalized)
+ * @param count - Number of alternating points to return
+ * @param options - Swing point options
+ * @returns Array of alternating swing points (up to `count`), time-ordered
+ *
+ * @example
+ * ```ts
+ * const points = getAlternatingSwingPoints(candles, 3, { leftBars: 10, rightBars: 10 });
+ * // points = [{ type: "low", ... }, { type: "high", ... }, { type: "low", ... }]
+ * ```
+ */
+export function getAlternatingSwingPoints(
+  candles: Candle[] | NormalizedCandle[],
+  count: number,
+  options: SwingPointOptions = {},
+): AlternatingSwingPoint[] {
+  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+
+  if (normalized.length === 0 || count <= 0) {
+    return [];
+  }
+
+  const swings = swingPoints(normalized, options);
+
+  // Collect all swing points in order
+  const allPoints: AlternatingSwingPoint[] = [];
+  for (let i = 0; i < swings.length; i++) {
+    const sp = swings[i].value;
+    if (sp.isSwingHigh) {
+      allPoints.push({
+        time: swings[i].time,
+        price: normalized[i].high,
+        index: i,
+        type: "high",
+      });
+    }
+    if (sp.isSwingLow) {
+      allPoints.push({
+        time: swings[i].time,
+        price: normalized[i].low,
+        index: i,
+        type: "low",
+      });
+    }
+  }
+
+  if (allPoints.length === 0) {
+    return [];
+  }
+
+  // Sort by index (should already be, but ensure for same-bar high+low)
+  allPoints.sort((a, b) => a.index - b.index);
+
+  // Merge consecutive same-type points: keep the most extreme value
+  const merged: AlternatingSwingPoint[] = [allPoints[0]];
+  for (let i = 1; i < allPoints.length; i++) {
+    const prev = merged[merged.length - 1];
+    const curr = allPoints[i];
+    if (curr.type === prev.type) {
+      // Same type: keep more extreme
+      if (curr.type === "high" && curr.price > prev.price) {
+        merged[merged.length - 1] = curr;
+      } else if (curr.type === "low" && curr.price < prev.price) {
+        merged[merged.length - 1] = curr;
+      }
+    } else {
+      merged.push(curr);
+    }
+  }
+
+  // Return last `count` points
+  return merged.slice(-count);
+}
+
 export function getSwingLows(
   candles: Candle[] | NormalizedCandle[],
   options: SwingPointOptions = {},

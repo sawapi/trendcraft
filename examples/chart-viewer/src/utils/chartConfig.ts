@@ -129,6 +129,25 @@ const COLORS = {
   scoreModerate: "#ff9800",  // Orange (50-70)
   scoreWeak: "#ffeb3b",      // Yellow (30-50)
   scoreNone: "#9e9e9e",      // Gray (0-30)
+  // Auto Trend Line
+  trendLineResistance: "#ef5350",
+  trendLineSupport: "#26a69a",
+  // Channel Line
+  channelUpper: "#ff7043",
+  channelLower: "#42a5f5",
+  channelMiddle: "#9e9e9e",
+  // Fibonacci Extension
+  fibExt0: "#b39ddb",
+  fibExt618: "#9575cd",
+  fibExt100: "#7e57c2",
+  fibExt1272: "#673ab7",
+  fibExt1618: "#5e35b1",
+  fibExt200: "#512da8",
+  fibExt2618: "#4527a0",
+  // Andrew's Pitchfork
+  pitchforkMedian: "#ff9800",
+  pitchforkUpper: "#ef5350",
+  pitchforkLower: "#26a69a",
 };
 
 /**
@@ -879,6 +898,98 @@ export function buildChartOption(
         lineStyle: { color: level.color, width: level.width, type: level.lineType },
       });
     }
+  }
+
+  // Auto Trend Line
+  if (enabledOverlays.includes("autoTrendLine") && overlays.autoTrendLine) {
+    series.push({
+      name: "Resistance TL",
+      type: "line",
+      data: overlays.autoTrendLine.map((v) => v.resistance),
+      symbol: "none",
+      lineStyle: { color: COLORS.trendLineResistance, width: 1.5, type: "dashed" },
+    });
+    series.push({
+      name: "Support TL",
+      type: "line",
+      data: overlays.autoTrendLine.map((v) => v.support),
+      symbol: "none",
+      lineStyle: { color: COLORS.trendLineSupport, width: 1.5, type: "dashed" },
+    });
+  }
+
+  // Channel Line
+  if (enabledOverlays.includes("channelLine") && overlays.channelLine) {
+    series.push({
+      name: "Channel Upper",
+      type: "line",
+      data: overlays.channelLine.map((v) => v.upper),
+      symbol: "none",
+      lineStyle: { color: COLORS.channelUpper, width: 1.5 },
+    });
+    series.push({
+      name: "Channel Lower",
+      type: "line",
+      data: overlays.channelLine.map((v) => v.lower),
+      symbol: "none",
+      lineStyle: { color: COLORS.channelLower, width: 1.5 },
+    });
+    series.push({
+      name: "Channel Middle",
+      type: "line",
+      data: overlays.channelLine.map((v) => v.middle),
+      symbol: "none",
+      lineStyle: { color: COLORS.channelMiddle, width: 1, type: "dashed" },
+    });
+  }
+
+  // Fibonacci Extension
+  if (enabledOverlays.includes("fibExtension") && overlays.fibExtension) {
+    const extLevels: { key: string; color: string; width: number; lineType: string }[] = [
+      { key: "0", color: COLORS.fibExt0, width: 1, lineType: "solid" },
+      { key: "0.618", color: COLORS.fibExt618, width: 1, lineType: "dashed" },
+      { key: "1", color: COLORS.fibExt100, width: 1.5, lineType: "solid" },
+      { key: "1.272", color: COLORS.fibExt1272, width: 2, lineType: "dashed" },
+      { key: "1.618", color: COLORS.fibExt1618, width: 2, lineType: "dashed" },
+      { key: "2", color: COLORS.fibExt200, width: 1.5, lineType: "solid" },
+      { key: "2.618", color: COLORS.fibExt2618, width: 1, lineType: "dashed" },
+    ];
+
+    for (const level of extLevels) {
+      const label = `${(parseFloat(level.key) * 100).toFixed(1)}%`;
+      series.push({
+        name: `Ext ${label}`,
+        type: "line",
+        data: overlays.fibExtension.map((v) => v.levels?.[level.key] ?? null),
+        symbol: "none",
+        lineStyle: { color: level.color, width: level.width, type: level.lineType },
+      });
+    }
+  }
+
+  // Andrew's Pitchfork
+  if (enabledOverlays.includes("andrewsPitchfork") && overlays.andrewsPitchfork) {
+    series.push({
+      name: "PF Median",
+      type: "line",
+      data: overlays.andrewsPitchfork.map((v) => v.median),
+      symbol: "none",
+      lineStyle: { color: COLORS.pitchforkMedian, width: 2 },
+    });
+    series.push({
+      name: "PF Upper",
+      type: "line",
+      data: overlays.andrewsPitchfork.map((v) => v.upper),
+      symbol: "none",
+      lineStyle: { color: COLORS.pitchforkUpper, width: 1.5, type: "dashed" },
+    });
+    series.push({
+      name: "PF Lower",
+      type: "line",
+      data: overlays.andrewsPitchfork.map((v) => v.lower),
+      symbol: "none",
+      lineStyle: { color: COLORS.pitchforkLower, width: 1.5, type: "dashed" },
+    });
   }
 
   // Highest/Lowest Channel

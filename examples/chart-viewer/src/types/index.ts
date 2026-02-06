@@ -89,7 +89,11 @@ export type OverlayType =
   | "highestLowest"
   | "chandelierExit"
   | "atrStops"
-  | "fibonacci";
+  | "fibonacci"
+  | "autoTrendLine"
+  | "channelLine"
+  | "fibExtension"
+  | "andrewsPitchfork";
 
 /**
  * Subchart configuration
@@ -203,6 +207,18 @@ export interface IndicatorParams {
   // Fibonacci Retracement
   fibLeftBars: number;
   fibRightBars: number;
+  // Auto Trend Line
+  autoTrendLineLeftBars: number;
+  autoTrendLineRightBars: number;
+  // Channel Line
+  channelLineLeftBars: number;
+  channelLineRightBars: number;
+  // Fibonacci Extension
+  fibExtLeftBars: number;
+  fibExtRightBars: number;
+  // Andrew's Pitchfork
+  pitchforkLeftBars: number;
+  pitchforkRightBars: number;
   // Pivot Points
   pivotPointsMethod: number;
   // Highest/Lowest Channel
@@ -311,6 +327,18 @@ export const DEFAULT_INDICATOR_PARAMS: IndicatorParams = {
   // Fibonacci Retracement
   fibLeftBars: 10,
   fibRightBars: 10,
+  // Auto Trend Line
+  autoTrendLineLeftBars: 10,
+  autoTrendLineRightBars: 10,
+  // Channel Line
+  channelLineLeftBars: 10,
+  channelLineRightBars: 10,
+  // Fibonacci Extension
+  fibExtLeftBars: 10,
+  fibExtRightBars: 10,
+  // Andrew's Pitchfork
+  pitchforkLeftBars: 10,
+  pitchforkRightBars: 10,
   // Pivot Points
   pivotPointsMethod: 0,
   // Highest/Lowest Channel
@@ -458,6 +486,22 @@ export const INDICATOR_PARAM_CONFIGS: Record<string, ParamConfig[]> = {
   fibonacci: [
     { key: "fibLeftBars", label: "Left Bars", min: 1, max: 30, step: 1 },
     { key: "fibRightBars", label: "Right Bars", min: 1, max: 30, step: 1 },
+  ],
+  autoTrendLine: [
+    { key: "autoTrendLineLeftBars", label: "Left Bars", min: 1, max: 30, step: 1 },
+    { key: "autoTrendLineRightBars", label: "Right Bars", min: 1, max: 30, step: 1 },
+  ],
+  channelLine: [
+    { key: "channelLineLeftBars", label: "Left Bars", min: 1, max: 30, step: 1 },
+    { key: "channelLineRightBars", label: "Right Bars", min: 1, max: 30, step: 1 },
+  ],
+  fibExtension: [
+    { key: "fibExtLeftBars", label: "Left Bars", min: 1, max: 30, step: 1 },
+    { key: "fibExtRightBars", label: "Right Bars", min: 1, max: 30, step: 1 },
+  ],
+  andrewsPitchfork: [
+    { key: "pitchforkLeftBars", label: "Left Bars", min: 1, max: 30, step: 1 },
+    { key: "pitchforkRightBars", label: "Right Bars", min: 1, max: 30, step: 1 },
   ],
   pivotPoints: [
     { key: "pivotPointsMethod", label: "Method (0:Std 1:Fib 2:Woodie 3:Cama 4:DeMark)", min: 0, max: 4, step: 1 },

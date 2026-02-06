@@ -188,6 +188,12 @@ export {
   getNearestFvg,
   // Fibonacci Retracement
   fibonacciRetracement,
+  // Auto Trend Line / Channel / Fibonacci Extension / Pitchfork
+  autoTrendLine,
+  channelLine,
+  fibonacciExtension,
+  andrewsPitchfork,
+  getAlternatingSwingPoints,
 } from "./indicators";
 
 export type {
@@ -243,6 +249,16 @@ export type {
   // Fibonacci Retracement types
   FibonacciRetracementOptions,
   FibonacciRetracementValue,
+  // Auto Trend Line / Channel / Fibonacci Extension / Pitchfork types
+  AutoTrendLineOptions,
+  AutoTrendLineValue,
+  ChannelLineOptions,
+  ChannelLineValue,
+  FibonacciExtensionOptions,
+  FibonacciExtensionValue,
+  AndrewsPitchforkOptions,
+  AndrewsPitchforkValue,
+  AlternatingSwingPoint,
 } from "./indicators";
 
 // Fluent API

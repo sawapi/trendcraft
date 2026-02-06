@@ -89,12 +89,17 @@ export {
   swingPoints,
   getSwingHighs,
   getSwingLows,
+  getAlternatingSwingPoints,
   breakOfStructure,
   changeOfCharacter,
   fairValueGap,
   getUnfilledFvgs,
   getNearestFvg,
   fibonacciRetracement,
+  autoTrendLine,
+  channelLine,
+  fibonacciExtension,
+  andrewsPitchfork,
 } from "./price";
 export type {
   HighestLowestValue,
@@ -102,6 +107,7 @@ export type {
   PivotPointsValue,
   SwingPointValue,
   SwingPointOptions,
+  AlternatingSwingPoint,
   BosValue,
   BosOptions,
   FvgValue,
@@ -109,6 +115,14 @@ export type {
   FvgOptions,
   FibonacciRetracementOptions,
   FibonacciRetracementValue,
+  AutoTrendLineOptions,
+  AutoTrendLineValue,
+  ChannelLineOptions,
+  ChannelLineValue,
+  FibonacciExtensionOptions,
+  FibonacciExtensionValue,
+  AndrewsPitchforkOptions,
+  AndrewsPitchforkValue,
 } from "./price";
 
 // Trend

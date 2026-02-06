@@ -22,6 +22,10 @@ import type {
   ChandelierExitValue,
   AtrStopsValue,
   FibonacciRetracementValue,
+  AutoTrendLineValue,
+  ChannelLineValue,
+  FibonacciExtensionValue,
+  AndrewsPitchforkValue,
 } from "trendcraft";
 import {
   sma,
@@ -45,6 +49,10 @@ import {
   chandelierExit,
   atrStops,
   fibonacciRetracement,
+  autoTrendLine,
+  channelLine,
+  fibonacciExtension,
+  andrewsPitchfork,
 } from "trendcraft";
 import type { OverlayType } from "../types";
 import { useChartStore } from "../store/chartStore";
@@ -87,6 +95,14 @@ export interface OverlayData {
   atrStops?: AtrStopsValue[];
   // Fibonacci Retracement
   fibonacci?: FibonacciRetracementValue[];
+  // Auto Trend Line
+  autoTrendLine?: AutoTrendLineValue[];
+  // Channel Line
+  channelLine?: ChannelLineValue[];
+  // Fibonacci Extension
+  fibExtension?: FibonacciExtensionValue[];
+  // Andrew's Pitchfork
+  andrewsPitchfork?: AndrewsPitchforkValue[];
 }
 
 /**
@@ -286,6 +302,42 @@ export function useOverlays(
         rightBars: p.fibRightBars,
       });
       data.fibonacci = series.map((s) => s.value);
+    }
+
+    // Auto Trend Line
+    if (enabledOverlays.includes("autoTrendLine")) {
+      const series = autoTrendLine(candles, {
+        leftBars: p.autoTrendLineLeftBars,
+        rightBars: p.autoTrendLineRightBars,
+      });
+      data.autoTrendLine = series.map((s) => s.value);
+    }
+
+    // Channel Line
+    if (enabledOverlays.includes("channelLine")) {
+      const series = channelLine(candles, {
+        leftBars: p.channelLineLeftBars,
+        rightBars: p.channelLineRightBars,
+      });
+      data.channelLine = series.map((s) => s.value);
+    }
+
+    // Fibonacci Extension
+    if (enabledOverlays.includes("fibExtension")) {
+      const series = fibonacciExtension(candles, {
+        leftBars: p.fibExtLeftBars,
+        rightBars: p.fibExtRightBars,
+      });
+      data.fibExtension = series.map((s) => s.value);
+    }
+
+    // Andrew's Pitchfork
+    if (enabledOverlays.includes("andrewsPitchfork")) {
+      const series = andrewsPitchfork(candles, {
+        leftBars: p.pitchforkLeftBars,
+        rightBars: p.pitchforkRightBars,
+      });
+      data.andrewsPitchfork = series.map((s) => s.value);
     }
 
     // ATR Stops
