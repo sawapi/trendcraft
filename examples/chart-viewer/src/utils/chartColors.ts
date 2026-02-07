@@ -130,6 +130,12 @@ export const COLORS = {
   pitchforkMedian: "#ff9800",
   pitchforkUpper: "#ef5350",
   pitchforkLower: "#26a69a",
+  // Volume Profile
+  volumeProfilePoc: "#ff5722",
+  volumeProfileVah: "#4caf50",
+  volumeProfileVal: "#f44336",
+  // Liquidity Sweep Recovery
+  liquiditySweepRecovery: "#ff9800",
   // VWMA
   vwma20: "#ff8c00",
   // Ehlers Filters

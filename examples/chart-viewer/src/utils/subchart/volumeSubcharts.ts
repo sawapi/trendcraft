@@ -20,14 +20,14 @@ export function buildVolumeSubcharts(
   ctx: SubchartContext,
   indicators: IndicatorData,
   enabledIndicators: SubChartType[],
-  _indicatorParams?: IndicatorParams,
+  indicatorParams?: IndicatorParams,
 ): SeriesItem[] {
   const series: SeriesItem[] = [];
 
   // MFI
   if (enabledIndicators.includes("mfi") && indicators.mfi) {
     const gridIndex = createSubchart(ctx, {
-      title: "MFI (14)",
+      title: `MFI (${indicatorParams?.mfiPeriod ?? 14})`,
       titleColor: COLORS.mfi,
       seriesNames: ["MFI"],
       yAxisMin: 0,
@@ -80,7 +80,7 @@ export function buildVolumeSubcharts(
   // CMF - Bar chart with dynamic coloring
   if (enabledIndicators.includes("cmf") && indicators.cmf) {
     const gridIndex = createSubchart(ctx, {
-      title: "CMF (20)",
+      title: `CMF (${indicatorParams?.cmfPeriod ?? 20})`,
       titleColor: COLORS.cmf,
       seriesNames: ["CMF"],
     });
@@ -92,7 +92,7 @@ export function buildVolumeSubcharts(
       data: indicators.cmf.map((v) => ({
         value: v,
         itemStyle: {
-          color: v !== null && v >= 0 ? "#26a69a" : "#ef5350",
+          color: v !== null && v >= 0 ? COLORS.up : COLORS.down,
         },
       })),
       markLine: {
@@ -183,7 +183,7 @@ export function buildVolumeSubcharts(
   if (enabledIndicators.includes("volumeProfile") && indicators.volumeProfile) {
     const gridIndex = createSubchart(ctx, {
       title: "Volume Profile",
-      titleColor: "#ff5722",
+      titleColor: COLORS.volumeProfilePoc,
       seriesNames: ["POC", "VAH", "VAL"],
     });
     series.push({
@@ -193,7 +193,7 @@ export function buildVolumeSubcharts(
       yAxisIndex: gridIndex,
       data: indicators.volumeProfile.map((v) => v?.poc ?? null),
       symbol: "none",
-      lineStyle: { color: "#ff5722", width: 2 },
+      lineStyle: { color: COLORS.volumeProfilePoc, width: 2 },
     });
     series.push({
       name: "VAH",
@@ -202,7 +202,7 @@ export function buildVolumeSubcharts(
       yAxisIndex: gridIndex,
       data: indicators.volumeProfile.map((v) => v?.vah ?? null),
       symbol: "none",
-      lineStyle: { color: "#4caf50", width: 1.5, type: "dashed" },
+      lineStyle: { color: COLORS.volumeProfileVah, width: 1.5, type: "dashed" },
     });
     series.push({
       name: "VAL",
@@ -211,7 +211,7 @@ export function buildVolumeSubcharts(
       yAxisIndex: gridIndex,
       data: indicators.volumeProfile.map((v) => v?.val ?? null),
       symbol: "none",
-      lineStyle: { color: "#f44336", width: 1.5, type: "dashed" },
+      lineStyle: { color: COLORS.volumeProfileVal, width: 1.5, type: "dashed" },
     });
   }
 

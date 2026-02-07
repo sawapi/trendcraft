@@ -46,8 +46,12 @@ export function detectSinglePatterns(
   const allowed = (name: string) => allowedPatterns === null || allowedPatterns.has(name);
 
   // Doji: very small body relative to range
+  // Direction depends on prior trend (reversal signal)
   if (allowed("doji") && br <= options.dojiThreshold) {
-    patterns.push({ name: "doji", direction: "bullish", confidence: 50, candleCount: 1 });
+    if (!options.requireTrend || trend !== 0) {
+      const direction = trend === 1 ? "bearish" : "bullish";
+      patterns.push({ name: "doji", direction, confidence: 50, candleCount: 1 });
+    }
   }
 
   // Marubozu: body covers almost entire range
@@ -71,6 +75,7 @@ export function detectSinglePatterns(
   }
 
   // Spinning Top: small body with both shadows longer than body
+  // Direction depends on prior trend (indecision/reversal signal)
   if (
     allowed("spinning_top") &&
     br > options.dojiThreshold &&
@@ -78,7 +83,10 @@ export function detectSinglePatterns(
     upper > body &&
     lower > body
   ) {
-    patterns.push({ name: "spinning_top", direction: "bullish", confidence: 30, candleCount: 1 });
+    if (!options.requireTrend || trend !== 0) {
+      const direction = trend === 1 ? "bearish" : "bullish";
+      patterns.push({ name: "spinning_top", direction, confidence: 30, candleCount: 1 });
+    }
   }
 
   // Hammer / Hanging Man: small body at top, long lower shadow, small upper shadow

@@ -253,13 +253,13 @@ export function buildSmcOverlaySeries(
             coord: [dates[i], isBullish ? candles[i].high : candles[i].low],
             symbol: "pin",
             symbolSize: 14,
-            itemStyle: { color: "#ff9800" },
+            itemStyle: { color: COLORS.liquiditySweepRecovery },
             label: {
               show: true,
               formatter: "R",
               position: isBullish ? "top" : "bottom",
               fontSize: 8,
-              color: "#ff9800",
+              color: COLORS.liquiditySweepRecovery,
               fontWeight: "bold",
             },
           });
