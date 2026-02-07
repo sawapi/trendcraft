@@ -119,4 +119,48 @@ describe("stochCrossDown()", () => {
     expect(condition.type).toBe("preset");
     expect(condition.name).toBe("stochCrossDown()");
   });
+
+  it("should detect stoch cross down in downtrend transition", () => {
+    // Uptrend then reversal
+    const candles: NormalizedCandle[] = [];
+    const baseTime = Date.now() - 80 * 24 * 60 * 60 * 1000;
+
+    for (let i = 0; i < 80; i++) {
+      let price: number;
+      if (i < 40) {
+        price = 100 + i * 1.5; // Uptrend
+      } else {
+        price = 160 - (i - 40) * 1.5; // Downtrend
+      }
+      candles.push({
+        time: baseTime + i * 24 * 60 * 60 * 1000,
+        open: price - 0.5,
+        high: price + 1,
+        low: price - 1,
+        close: price,
+        volume: 1000000,
+      });
+    }
+
+    const condition = stochCrossDown();
+    const indicators: Record<string, unknown> = {};
+
+    let found = false;
+    for (let i = 20; i < candles.length; i++) {
+      if (evaluateCondition(condition, indicators, candles[i], i, candles)) {
+        found = true;
+        break;
+      }
+    }
+
+    expect(found).toBe(true);
+  });
+
+  it("should return false at index 0", () => {
+    const candles = generateCandles(50);
+    const condition = stochCrossDown();
+    const indicators: Record<string, unknown> = {};
+
+    expect(evaluateCondition(condition, indicators, candles[0], 0, candles)).toBe(false);
+  });
 });

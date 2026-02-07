@@ -220,6 +220,41 @@ describe("isOutperforming", () => {
   });
 });
 
+describe("benchmarkRS edge cases", () => {
+  it("should handle period=1", () => {
+    const stock = generateTrendingCandles(50, 100, 0.01);
+    const benchmark = generateFlatCandles(50, 100);
+    const rs = benchmarkRS(stock, benchmark, { period: 1 });
+
+    expect(rs.length).toBeGreaterThan(0);
+    for (const entry of rs) {
+      expect(typeof entry.value.rs).toBe("number");
+      expect(Number.isFinite(entry.value.rs)).toBe(true);
+    }
+  });
+
+  it("should handle very short data with large period", () => {
+    const stock = generateFlatCandles(5, 100);
+    const benchmark = generateFlatCandles(5, 100);
+    const rs = benchmarkRS(stock, benchmark, { period: 52 });
+
+    expect(rs).toHaveLength(0);
+  });
+
+  it("should handle zero benchmark returns gracefully", () => {
+    // Benchmark has zero close (edge case)
+    const stock = generateFlatCandles(50, 100);
+    const benchmark = generateFlatCandles(50, 100);
+    const rs = benchmarkRS(stock, benchmark, { period: 10 });
+
+    // Should not throw and should have valid RS values
+    expect(rs.length).toBeGreaterThan(0);
+    for (const entry of rs) {
+      expect(Number.isFinite(entry.value.rs)).toBe(true);
+    }
+  });
+});
+
 describe("Multi-Symbol RS", () => {
   describe("rankByRS", () => {
     it("should rank symbols by RS", () => {
@@ -296,7 +331,6 @@ describe("Multi-Symbol RS", () => {
       const strong = generateTrendingCandles(100, 100, 0.02);
       const weak = generateTrendingCandles(100, 100, -0.01);
 
-      // compareRS returns a number: positive if symbol1 is stronger
       const diff = compareRS(strong, weak, 20);
 
       expect(diff).toBeGreaterThan(0);
@@ -309,6 +343,56 @@ describe("Multi-Symbol RS", () => {
       const diff = compareRS(a, b, 20);
 
       expect(diff).toBeCloseTo(0, 1);
+    });
+  });
+
+  describe("edge cases", () => {
+    it("should handle empty Map", () => {
+      const symbolsData = new Map<string, NormalizedCandle[]>();
+
+      const rankings = rankByRS(symbolsData, { period: 20 });
+      expect(rankings).toHaveLength(0);
+    });
+
+    it("should handle single symbol", () => {
+      const symbolsData = new Map([
+        ["ONLY", generateTrendingCandles(100, 100, 0.01)],
+      ]);
+
+      const rankings = rankByRS(symbolsData, { period: 20 });
+      expect(rankings).toHaveLength(1);
+      expect(rankings[0].symbol).toBe("ONLY");
+      expect(rankings[0].rank).toBe(1);
+    });
+
+    it("should handle all symbols with insufficient data", () => {
+      const symbolsData = new Map([
+        ["A", generateFlatCandles(5, 100)],
+        ["B", generateFlatCandles(5, 200)],
+      ]);
+
+      const rankings = rankByRS(symbolsData, { period: 52 });
+      // With insufficient data, rankings may be empty or have null values
+      expect(Array.isArray(rankings)).toBe(true);
+    });
+
+    it("should handle n > total symbols in topByRS", () => {
+      const symbolsData = new Map([
+        ["A", generateTrendingCandles(100, 100, 0.01)],
+        ["B", generateTrendingCandles(100, 100, 0.02)],
+      ]);
+
+      const top5 = topByRS(symbolsData, 5, { period: 20 });
+      expect(top5).toHaveLength(2);
+    });
+
+    it("should handle n > total symbols in bottomByRS", () => {
+      const symbolsData = new Map([
+        ["A", generateTrendingCandles(100, 100, 0.01)],
+      ]);
+
+      const bottom5 = bottomByRS(symbolsData, 5, { period: 20 });
+      expect(bottom5).toHaveLength(1);
     });
   });
 });

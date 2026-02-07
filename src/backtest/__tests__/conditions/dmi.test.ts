@@ -98,12 +98,11 @@ describe("adxStrong()", () => {
   });
 
   it("should detect strong ADX in trending market", () => {
-    // Generate strong trend
     const candles: NormalizedCandle[] = [];
     const baseTime = Date.now() - 100 * 24 * 60 * 60 * 1000;
 
     for (let i = 0; i < 100; i++) {
-      const price = 100 + i * 3; // Very strong uptrend
+      const price = 100 + i * 3;
       candles.push({
         time: baseTime + i * 24 * 60 * 60 * 1000,
         open: price - 1,
@@ -117,7 +116,6 @@ describe("adxStrong()", () => {
     const condition = adxStrong(25);
     const indicators: Record<string, unknown> = {};
 
-    // In strong trend, ADX should be high
     let found = false;
     for (let i = 40; i < candles.length; i++) {
       if (evaluateCondition(condition, indicators, candles[i], i, candles)) {
@@ -127,5 +125,36 @@ describe("adxStrong()", () => {
     }
 
     expect(found).toBe(true);
+  });
+
+  it("should not trigger in flat/range-bound market", () => {
+    const candles: NormalizedCandle[] = [];
+    const baseTime = Date.now() - 60 * 24 * 60 * 60 * 1000;
+
+    for (let i = 0; i < 60; i++) {
+      // Flat price with minimal movement
+      const price = 100 + (i % 2 === 0 ? 0.5 : -0.5);
+      candles.push({
+        time: baseTime + i * 24 * 60 * 60 * 1000,
+        open: price - 0.3,
+        high: price + 0.5,
+        low: price - 0.5,
+        close: price,
+        volume: 1000000,
+      });
+    }
+
+    const condition = adxStrong(25);
+    const indicators: Record<string, unknown> = {};
+
+    let found = false;
+    for (let i = 30; i < candles.length; i++) {
+      if (evaluateCondition(condition, indicators, candles[i], i, candles)) {
+        found = true;
+        break;
+      }
+    }
+
+    expect(found).toBe(false);
   });
 });
