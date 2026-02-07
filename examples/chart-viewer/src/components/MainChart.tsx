@@ -2,6 +2,8 @@
  * Main chart component (candlestick + volume + subcharts + overlays)
  */
 
+import * as echarts from "echarts/core";
+import { SVGRenderer } from "echarts/renderers";
 import ReactECharts from "echarts-for-react";
 import { forwardRef, useCallback, useImperativeHandle, useMemo, useRef } from "react";
 import { useChartStore } from "../store/chartStore";
@@ -10,8 +12,12 @@ import { useOverlays } from "../hooks/useOverlays";
 import { useSignals } from "../hooks/useSignals";
 import { buildChartOption } from "../utils/chartConfig";
 
+// Register SVG renderer for SVG export support
+echarts.use([SVGRenderer]);
+
 export interface MainChartHandle {
   exportPNG: () => void;
+  exportSVG: () => void;
 }
 
 /**
@@ -62,7 +68,41 @@ export const MainChart = forwardRef<MainChartHandle>(function MainChart(_props, 
     link.click();
   }, [fileName]);
 
-  useImperativeHandle(ref, () => ({ exportPNG }), [exportPNG]);
+  const exportSVG = useCallback(() => {
+    const instance = chartRef.current?.getEchartsInstance();
+    if (!instance) return;
+
+    // Create an offscreen SVG renderer instance with the same option
+    const container = document.createElement("div");
+    container.style.width = `${instance.getWidth()}px`;
+    container.style.height = `${instance.getHeight()}px`;
+    container.style.position = "absolute";
+    container.style.left = "-9999px";
+    document.body.appendChild(container);
+
+    const svgInstance = echarts.init(container, undefined, {
+      renderer: "svg",
+      width: instance.getWidth(),
+      height: instance.getHeight(),
+    });
+    svgInstance.setOption(instance.getOption());
+
+    const svgDataURL = svgInstance.getDataURL({
+      type: "svg",
+      backgroundColor: "#1a1a2e",
+    });
+
+    svgInstance.dispose();
+    document.body.removeChild(container);
+
+    const baseName = fileName?.replace(/\.[^.]+$/, "") ?? "chart";
+    const link = document.createElement("a");
+    link.href = svgDataURL;
+    link.download = `chart-${baseName}.svg`;
+    link.click();
+  }, [fileName]);
+
+  useImperativeHandle(ref, () => ({ exportPNG, exportSVG }), [exportPNG, exportSVG]);
 
   const chartHeight = useMemo(() => {
     return calculateChartHeight(enabledIndicators.length);

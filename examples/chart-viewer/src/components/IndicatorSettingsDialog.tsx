@@ -164,14 +164,14 @@ const FUNDAMENTALS_GROUP: { group: string; options: { key: SubChartType; label: 
   options: [
     { key: "per", label: "PER (Price-to-Earnings)" },
     { key: "pbr", label: "PBR (Price-to-Book)" },
-    // ROE is hidden but code remains for future use
-    // { key: "roe", label: "ROE (Return on Equity)" },
+    { key: "roe", label: "ROE (Return on Equity)" },
   ],
 };
 
 export function IndicatorSettingsDialog({ isOpen, onClose }: IndicatorSettingsDialogProps) {
   const [activeTab, setActiveTab] = useState<TabType>("overlay");
   const [expandedIndicator, setExpandedIndicator] = useState<string | null>(null);
+  const [presetName, setPresetName] = useState("");
 
   const enabledOverlays = useChartStore((s) => s.enabledOverlays);
   const setEnabledOverlays = useChartStore((s) => s.setEnabledOverlays);
@@ -185,6 +185,10 @@ export function IndicatorSettingsDialog({ isOpen, onClose }: IndicatorSettingsDi
   const fundamentals = useChartStore((s) => s.fundamentals);
   const displayStartYears = useChartStore((s) => s.displayStartYears);
   const setDisplayStartYears = useChartStore((s) => s.setDisplayStartYears);
+  const presets = useChartStore((s) => s.presets);
+  const savePreset = useChartStore((s) => s.savePreset);
+  const loadPreset = useChartStore((s) => s.loadPreset);
+  const deletePreset = useChartStore((s) => s.deletePreset);
 
   // Build subchart groups with optional fundamentals
   const subchartGroups = fundamentals
@@ -530,6 +534,59 @@ export function IndicatorSettingsDialog({ isOpen, onClose }: IndicatorSettingsDi
         </div>
 
         <footer className="settings-dialog-footer">
+          <div className="preset-controls">
+            <div className="preset-save-row">
+              <input
+                type="text"
+                className="preset-name-input"
+                placeholder="Preset name"
+                value={presetName}
+                onChange={(e) => setPresetName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && presetName.trim()) {
+                    savePreset(presetName.trim());
+                    setPresetName("");
+                  }
+                }}
+              />
+              <button
+                type="button"
+                className="preset-save-btn"
+                disabled={!presetName.trim()}
+                onClick={() => {
+                  savePreset(presetName.trim());
+                  setPresetName("");
+                }}
+              >
+                <span className="material-icons md-16">save</span>
+                Save
+              </button>
+            </div>
+            {presets.length > 0 && (
+              <div className="preset-list">
+                {presets.map((p) => (
+                  <div key={p.name} className="preset-item">
+                    <button
+                      type="button"
+                      className="preset-load-btn"
+                      onClick={() => loadPreset(p.name)}
+                      title={`Load "${p.name}"`}
+                    >
+                      {p.name}
+                    </button>
+                    <button
+                      type="button"
+                      className="preset-delete-btn"
+                      onClick={() => deletePreset(p.name)}
+                      title={`Delete "${p.name}"`}
+                    >
+                      <span className="material-icons md-14">close</span>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
           <button type="button" className="reset-params-btn" onClick={handleReset}>
             <span className="material-icons">refresh</span>
             Reset Parameters

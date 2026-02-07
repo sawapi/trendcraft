@@ -11,6 +11,7 @@ import type {
   DisplayStartYears,
   FundamentalData,
   IndicatorParams,
+  IndicatorPreset,
   OverlayType,
   SignalType,
   SubChartType,
@@ -134,6 +135,26 @@ const getInitialSidebarCollapsed = (): boolean => {
   }
 };
 
+// Load presets from localStorage
+const getInitialPresets = (): IndicatorPreset[] => {
+  try {
+    const stored = localStorage.getItem("chart-viewer-presets");
+    if (stored) return JSON.parse(stored);
+  } catch {
+    // Ignore parse errors
+  }
+  return [];
+};
+
+// Save presets to localStorage
+const persistPresets = (presets: IndicatorPreset[]) => {
+  try {
+    localStorage.setItem("chart-viewer-presets", JSON.stringify(presets));
+  } catch {
+    // Ignore localStorage errors
+  }
+};
+
 // Load display start years from localStorage
 const getInitialDisplayStartYears = (): DisplayStartYears => {
   try {
@@ -212,6 +233,7 @@ export const useChartStore = create<ChartStore>((set, get) => ({
   zoomRange: { start: 0, end: 100 },
   indicatorParams: { ...DEFAULT_INDICATOR_PARAMS },
   sidebarCollapsed: getInitialSidebarCollapsed(),
+  presets: getInitialPresets(),
   backtestConfig: { ...DEFAULT_BACKTEST_CONFIG },
   backtestResult: null,
   isBacktestRunning: false,
@@ -301,6 +323,38 @@ export const useChartStore = create<ChartStore>((set, get) => ({
 
   resetIndicatorParams: () => {
     set({ indicatorParams: { ...DEFAULT_INDICATOR_PARAMS } });
+  },
+
+  savePreset: (name: string) => {
+    const { indicatorParams, enabledOverlays, enabledIndicators, presets } = get();
+    const newPreset: IndicatorPreset = {
+      name,
+      params: { ...indicatorParams },
+      overlays: [...enabledOverlays],
+      indicators: [...enabledIndicators],
+    };
+    // Replace existing preset with same name, or append
+    const updated = presets.filter((p) => p.name !== name).concat(newPreset);
+    persistPresets(updated);
+    set({ presets: updated });
+  },
+
+  loadPreset: (name: string) => {
+    const { presets } = get();
+    const preset = presets.find((p) => p.name === name);
+    if (!preset) return;
+    set({
+      indicatorParams: { ...preset.params },
+      enabledOverlays: [...preset.overlays],
+      enabledIndicators: [...preset.indicators],
+    });
+  },
+
+  deletePreset: (name: string) => {
+    const { presets } = get();
+    const updated = presets.filter((p) => p.name !== name);
+    persistPresets(updated);
+    set({ presets: updated });
   },
 
   setBacktestConfig: (config: Partial<BacktestConfig>) => {

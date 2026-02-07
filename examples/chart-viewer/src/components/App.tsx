@@ -168,6 +168,10 @@ export default function App() {
               <span className="material-icons md-16">download</span>
               PNG
             </button>
+            <button type="button" className="reset-button" onClick={() => mainChartRef.current?.exportSVG()}>
+              <span className="material-icons md-16">download</span>
+              SVG
+            </button>
             <button type="button" className="reset-button" onClick={reset}>
               <span className="material-icons md-16">refresh</span>
               Reset

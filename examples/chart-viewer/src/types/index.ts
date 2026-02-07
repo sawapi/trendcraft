@@ -544,6 +544,16 @@ export const INDICATOR_PARAM_CONFIGS: Record<string, ParamConfig[]> = {
 };
 
 /**
+ * Indicator preset (saved configuration)
+ */
+export interface IndicatorPreset {
+  name: string;
+  params: IndicatorParams;
+  overlays: OverlayType[];
+  indicators: SubChartType[];
+}
+
+/**
  * Display start years options
  */
 export type DisplayStartYears = 5 | 10 | 20 | null;
@@ -571,6 +581,9 @@ export interface ChartState {
   // UI state
   sidebarCollapsed: boolean;
 
+  // Presets
+  presets: IndicatorPreset[];
+
   // Backtest
   backtestConfig: BacktestConfig;
   backtestResult: BacktestResult | null;
@@ -591,6 +604,9 @@ export interface ChartActions {
   setZoomRange: (range: ZoomRange) => void;
   setIndicatorParams: (params: Partial<IndicatorParams>) => void;
   resetIndicatorParams: () => void;
+  savePreset: (name: string) => void;
+  loadPreset: (name: string) => void;
+  deletePreset: (name: string) => void;
   setBacktestConfig: (config: Partial<BacktestConfig>) => void;
   setBacktestResult: (result: BacktestResult | null) => void;
   setIsBacktestRunning: (running: boolean) => void;
