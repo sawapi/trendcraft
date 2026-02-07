@@ -5,168 +5,18 @@
 import { useState } from "react";
 import type { ChangeEvent } from "react";
 import { useChartStore } from "../store/chartStore";
-import type { DisplayStartYears, IndicatorParams, OverlayType, SubChartType, SignalType, ScoringPreset } from "../types";
-import { DEFAULT_INDICATOR_PARAMS, INDICATOR_PARAM_CONFIGS } from "../types";
-
-interface IndicatorSettingsDialogProps {
-  isOpen: boolean;
-  onClose: () => void;
-}
-
-type TabType = "overlay" | "subchart" | "signals" | "display";
-
-/**
- * Display start years options
- */
-const DISPLAY_START_YEARS_OPTIONS: { value: DisplayStartYears; label: string }[] = [
-  { value: null, label: "All Data" },
-  { value: 5, label: "Last 5 Years" },
-  { value: 10, label: "Last 10 Years" },
-  { value: 20, label: "Last 20 Years" },
-];
-
-/**
- * Overlay option groups
- */
-const OVERLAY_GROUPS: { group: string; options: { key: OverlayType; label: string }[] }[] = [
-  {
-    group: "Moving Averages",
-    options: [
-      { key: "sma5", label: "SMA 5" },
-      { key: "sma25", label: "SMA 25" },
-      { key: "sma75", label: "SMA 75" },
-      { key: "ema12", label: "EMA 12" },
-      { key: "ema26", label: "EMA 26" },
-      { key: "wma20", label: "WMA 20" },
-    ],
-  },
-  {
-    group: "Bands / Channels",
-    options: [
-      { key: "bb", label: "Bollinger Bands" },
-      { key: "donchian", label: "Donchian Channel" },
-      { key: "keltner", label: "Keltner Channel" },
-    ],
-  },
-  {
-    group: "Trend",
-    options: [
-      { key: "ichimoku", label: "Ichimoku" },
-      { key: "supertrend", label: "Supertrend" },
-      { key: "psar", label: "Parabolic SAR" },
-      { key: "chandelierExit", label: "Chandelier Exit" },
-    ],
-  },
-  {
-    group: "Volume",
-    options: [
-      { key: "vwap", label: "VWAP" },
-    ],
-  },
-  {
-    group: "Volatility",
-    options: [
-      { key: "atrStops", label: "ATR Stops" },
-    ],
-  },
-  {
-    group: "Price",
-    options: [
-      { key: "swingPoints", label: "Swing Points" },
-      { key: "pivotPoints", label: "Pivot Points" },
-      { key: "fibonacci", label: "Fibonacci Retracement" },
-      { key: "fibExtension", label: "Fibonacci Extension" },
-      { key: "highestLowest", label: "Highest/Lowest" },
-      { key: "autoTrendLine", label: "Auto Trend Line" },
-      { key: "channelLine", label: "Channel Line" },
-      { key: "andrewsPitchfork", label: "Andrew's Pitchfork" },
-    ],
-  },
-  {
-    group: "Smart Money (SMC)",
-    options: [
-      { key: "orderBlock", label: "Order Block" },
-      { key: "fvg", label: "Fair Value Gap" },
-      { key: "bos", label: "Break of Structure" },
-      { key: "choch", label: "Change of Character" },
-      { key: "liquiditySweep", label: "Liquidity Sweep" },
-    ],
-  },
-];
-
-/**
- * Signal options
- */
-const SIGNAL_OPTIONS: { key: SignalType; label: string; description: string }[] = [
-  { key: "perfectOrder", label: "Perfect Order", description: "Trend detection by MA alignment" },
-  { key: "rangeBound", label: "Range-Bound", description: "Sideways market detection" },
-  { key: "cross", label: "GC/DC", description: "Golden/Death cross detection" },
-  { key: "divergence", label: "Divergence", description: "RSI/MACD/OBV divergence detection" },
-  { key: "bbSqueeze", label: "BB Squeeze", description: "Bollinger Band squeeze (breakout signal)" },
-  { key: "volumeBreakout", label: "Volume Breakout", description: "Volume breaks N-period high" },
-  { key: "volumeMaCross", label: "Volume MA Cross", description: "Short/Long volume MA cross" },
-];
-
-/**
- * Subchart indicator groups
- */
-const SUBCHART_GROUPS: { group: string; options: { key: SubChartType; label: string }[] }[] = [
-  {
-    group: "Momentum",
-    options: [
-      { key: "rsi", label: "RSI" },
-      { key: "macd", label: "MACD" },
-      { key: "stochastics", label: "Stochastics" },
-      { key: "stochrsi", label: "Stochastic RSI" },
-      { key: "cci", label: "CCI" },
-      { key: "williams", label: "Williams %R" },
-      { key: "roc", label: "ROC" },
-    ],
-  },
-  {
-    group: "Trend",
-    options: [
-      { key: "dmi", label: "DMI/ADX" },
-      { key: "rangebound", label: "Range-Bound" },
-    ],
-  },
-  {
-    group: "Volatility",
-    options: [
-      { key: "atr", label: "ATR" },
-      { key: "volatilityRegime", label: "Volatility Regime" },
-    ],
-  },
-  {
-    group: "Volume",
-    options: [
-      { key: "mfi", label: "MFI" },
-      { key: "obv", label: "OBV" },
-      { key: "cmf", label: "CMF" },
-      { key: "volumeAnomaly", label: "Volume Anomaly" },
-      { key: "volumeProfile", label: "Volume Profile" },
-      { key: "volumeTrend", label: "Volume Trend" },
-    ],
-  },
-  {
-    group: "Scoring",
-    options: [
-      { key: "scoring", label: "Score" },
-    ],
-  },
-];
-
-/**
- * Fundamentals group (only shown when CSV contains PER/PBR data)
- */
-const FUNDAMENTALS_GROUP: { group: string; options: { key: SubChartType; label: string }[] } = {
-  group: "Fundamentals",
-  options: [
-    { key: "per", label: "PER (Price-to-Earnings)" },
-    { key: "pbr", label: "PBR (Price-to-Book)" },
-    { key: "roe", label: "ROE (Return on Equity)" },
-  ],
-};
+import type { IndicatorParams, OverlayType, SubChartType, ScoringPreset } from "../types";
+import { INDICATOR_PARAM_CONFIGS } from "../types";
+import type { IndicatorSettingsDialogProps, TabType } from "./settings/settingsData";
+import {
+  DISPLAY_START_YEARS_OPTIONS,
+  OVERLAY_GROUPS,
+  SIGNAL_OPTIONS,
+  SUBCHART_GROUPS,
+  FUNDAMENTALS_GROUP,
+} from "./settings/settingsData";
+import { ParameterPanel } from "./settings/ParameterPanel";
+import { IndicatorItem } from "./settings/IndicatorItem";
 
 export function IndicatorSettingsDialog({ isOpen, onClose }: IndicatorSettingsDialogProps) {
   const [activeTab, setActiveTab] = useState<TabType>("overlay");
@@ -239,75 +89,6 @@ export function IndicatorSettingsDialog({ isOpen, onClose }: IndicatorSettingsDi
     }
   };
 
-  const renderParamPanel = (indicatorKey: string) => {
-    const configs = INDICATOR_PARAM_CONFIGS[indicatorKey];
-    if (!configs || configs.length === 0) return null;
-
-    return (
-      <div className="param-panel">
-        {configs.map((config) => {
-          const paramValue = indicatorParams[config.key];
-          const defaultValue = DEFAULT_INDICATOR_PARAMS[config.key];
-          const displayValue =
-            typeof paramValue === "number"
-              ? paramValue
-              : typeof defaultValue === "number"
-                ? defaultValue
-                : config.min;
-
-          return (
-            <div key={config.key} className="param-row">
-              <label>{config.label}</label>
-              <input
-                type="number"
-                min={config.min}
-                max={config.max}
-                step={config.step}
-                value={displayValue}
-                onChange={(e) =>
-                  handleParamChange(config.key, Number.parseFloat(e.target.value) || config.min)
-                }
-              />
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
-
-  const renderIndicatorItem = (
-    key: string,
-    label: string,
-    isEnabled: boolean,
-    onChange: (e: ChangeEvent<HTMLInputElement>) => void,
-  ) => {
-    const hasParams = INDICATOR_PARAM_CONFIGS[key] !== undefined;
-    const isExpanded = expandedIndicator === key;
-
-    return (
-      <div key={key} className="indicator-item">
-        <label className="indicator-checkbox custom-checkbox">
-          <input type="checkbox" checked={isEnabled} onChange={onChange} />
-          <span className="material-icons checkbox-icon">
-            {isEnabled ? "check_box" : "check_box_outline_blank"}
-          </span>
-          <span className="indicator-name">{label}</span>
-          {hasParams && isEnabled && (
-            <button
-              type="button"
-              className={`settings-btn ${isExpanded ? "active" : ""}`}
-              onClick={(e) => handleSettingsClick(e, key)}
-              title="Parameter Settings"
-            >
-              <span className="material-icons">tune</span>
-            </button>
-          )}
-        </label>
-        {isExpanded && renderParamPanel(key)}
-      </div>
-    );
-  };
-
   return (
     <div
       className="settings-dialog-overlay"
@@ -363,14 +144,19 @@ export function IndicatorSettingsDialog({ isOpen, onClose }: IndicatorSettingsDi
                 <div key={grp.group} className="indicator-group">
                   <div className="group-header">{grp.group}</div>
                   <div className="indicator-list">
-                    {grp.options.map((opt) =>
-                      renderIndicatorItem(
-                        opt.key,
-                        opt.label,
-                        enabledOverlays.includes(opt.key),
-                        handleOverlayChange(opt.key),
-                      ),
-                    )}
+                    {grp.options.map((opt) => (
+                      <IndicatorItem
+                        key={opt.key}
+                        indicatorKey={opt.key}
+                        label={opt.label}
+                        isEnabled={enabledOverlays.includes(opt.key)}
+                        onChange={handleOverlayChange(opt.key)}
+                        expandedIndicator={expandedIndicator}
+                        onSettingsClick={handleSettingsClick}
+                        indicatorParams={indicatorParams}
+                        onParamChange={handleParamChange}
+                      />
+                    ))}
                   </div>
                 </div>
               ))}
@@ -425,11 +211,18 @@ export function IndicatorSettingsDialog({ isOpen, onClose }: IndicatorSettingsDi
                         );
                       }
 
-                      return renderIndicatorItem(
-                        opt.key,
-                        opt.label,
-                        isEnabled,
-                        handleSubchartChange(opt.key),
+                      return (
+                        <IndicatorItem
+                          key={opt.key}
+                          indicatorKey={opt.key}
+                          label={opt.label}
+                          isEnabled={isEnabled}
+                          onChange={handleSubchartChange(opt.key)}
+                          expandedIndicator={expandedIndicator}
+                          onSettingsClick={handleSettingsClick}
+                          indicatorParams={indicatorParams}
+                          onParamChange={handleParamChange}
+                        />
                       );
                     })}
                   </div>
@@ -490,7 +283,13 @@ export function IndicatorSettingsDialog({ isOpen, onClose }: IndicatorSettingsDi
                             </select>
                           </div>
                         )}
-                        {isExpanded && renderParamPanel(opt.key)}
+                        {isExpanded && (
+                          <ParameterPanel
+                            indicatorKey={opt.key}
+                            indicatorParams={indicatorParams}
+                            onParamChange={handleParamChange}
+                          />
+                        )}
                       </div>
                     );
                   })}
