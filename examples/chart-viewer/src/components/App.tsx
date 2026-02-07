@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useChartStore } from "../store/chartStore";
 import { usePostMessageLoader } from "../hooks/usePostMessageLoader";
 import { BacktestPanel } from "./BacktestPanel";
 import { FileDropZone } from "./FileDropZone";
 import { IndicatorSettingsDialog } from "./IndicatorSettingsDialog";
-import { MainChart } from "./MainChart";
+import { MainChart, type MainChartHandle } from "./MainChart";
 import { PeriodSelector } from "./PeriodSelector";
 import { SignalsPanel } from "./SignalsPanel";
 import { TimeframeSelector } from "./TimeframeSelector";
@@ -53,6 +53,8 @@ const SUBCHART_LABELS: Record<string, string> = {
 export default function App() {
   // Listen for postMessage to load chart data from parent window
   usePostMessageLoader();
+
+  const mainChartRef = useRef<MainChartHandle>(null);
 
   const fileName = useChartStore((state) => state.fileName);
   const rawCandles = useChartStore((state) => state.rawCandles);
@@ -162,6 +164,10 @@ export default function App() {
                 {visibleRange.start} - {visibleRange.end} ({visibleRange.count})
               </span>
             )}
+            <button type="button" className="reset-button" onClick={() => mainChartRef.current?.exportPNG()}>
+              <span className="material-icons md-16">download</span>
+              PNG
+            </button>
             <button type="button" className="reset-button" onClick={reset}>
               <span className="material-icons md-16">refresh</span>
               Reset
@@ -204,7 +210,7 @@ export default function App() {
         ) : (
           <>
             <div className="chart-area">
-              <MainChart />
+              <MainChart ref={mainChartRef} />
             </div>
 
             {/* Mobile overlay */}

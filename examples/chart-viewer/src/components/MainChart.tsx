@@ -3,12 +3,16 @@
  */
 
 import ReactECharts from "echarts-for-react";
-import { useMemo } from "react";
+import { forwardRef, useCallback, useImperativeHandle, useMemo, useRef } from "react";
 import { useChartStore } from "../store/chartStore";
 import { useIndicators } from "../hooks/useIndicators";
 import { useOverlays } from "../hooks/useOverlays";
 import { useSignals } from "../hooks/useSignals";
 import { buildChartOption } from "../utils/chartConfig";
+
+export interface MainChartHandle {
+  exportPNG: () => void;
+}
 
 /**
  * Calculate chart height based on subchart count
@@ -21,7 +25,9 @@ function calculateChartHeight(subchartCount: number): number {
   return baseHeight + subchartCount * subchartHeight;
 }
 
-export function MainChart() {
+export const MainChart = forwardRef<MainChartHandle>(function MainChart(_props, ref) {
+  const chartRef = useRef<ReactECharts>(null);
+
   const currentCandles = useChartStore((state) => state.currentCandles);
   const enabledIndicators = useChartStore((state) => state.enabledIndicators);
   const enabledOverlays = useChartStore((state) => state.enabledOverlays);
@@ -31,12 +37,32 @@ export function MainChart() {
   const currentFundamentals = useChartStore((state) => state.currentFundamentals);
   const zoomRange = useChartStore((state) => state.zoomRange);
   const setZoomRange = useChartStore((state) => state.setZoomRange);
+  const fileName = useChartStore((state) => state.fileName);
 
   const indicators = useIndicators(currentCandles, enabledIndicators, currentFundamentals);
   const overlays = useOverlays(currentCandles, enabledOverlays);
   const signals = useSignals(currentCandles, enabledSignals, indicatorParams);
 
   const trades = backtestResult?.trades ?? null;
+
+  const exportPNG = useCallback(() => {
+    const instance = chartRef.current?.getEchartsInstance();
+    if (!instance) return;
+
+    const dataURL = instance.getDataURL({
+      type: "png",
+      pixelRatio: 2,
+      backgroundColor: "#1a1a2e",
+    });
+
+    const baseName = fileName?.replace(/\.[^.]+$/, "") ?? "chart";
+    const link = document.createElement("a");
+    link.href = dataURL;
+    link.download = `chart-${baseName}.png`;
+    link.click();
+  }, [fileName]);
+
+  useImperativeHandle(ref, () => ({ exportPNG }), [exportPNG]);
 
   const chartHeight = useMemo(() => {
     return calculateChartHeight(enabledIndicators.length);
@@ -89,6 +115,7 @@ export function MainChart() {
   return (
     <div className="main-chart" style={{ height: chartHeight }}>
       <ReactECharts
+        ref={chartRef}
         key={chartKey}
         option={option}
         style={{ height: "100%", width: "100%" }}
@@ -98,4 +125,4 @@ export function MainChart() {
       />
     </div>
   );
-}
+});
