@@ -884,6 +884,123 @@ interface PivotPointsValue {
 
 ---
 
+#### `autoTrendLine(candles, options)`
+
+スイングポイントを使った自動トレンドライン検出。直近のスイングハイ・スイングローを通るレジスタンスラインとサポートラインを描画します。
+
+```typescript
+const tl = autoTrendLine(candles, { leftBars: 10, rightBars: 10 });
+const last = tl[tl.length - 1].value;
+console.log(`Resistance: ${last.resistance}, Support: ${last.support}`);
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|--------|------|---------|-------------|
+| `leftBars` | `number` | `10` | スイング確認の左バー数 |
+| `rightBars` | `number` | `10` | スイング確認の右バー数 |
+
+**戻り値:** `Series<AutoTrendLineValue>`
+
+```typescript
+interface AutoTrendLineValue {
+  resistance: number | null;  // レジスタンスライン（補間値）
+  support: number | null;     // サポートライン（補間値）
+}
+```
+
+---
+
+#### `channelLine(candles, options)`
+
+スイングポイントを使ったチャネルラインインジケーター。上限・下限・中央のチャネルラインを描画します。
+
+```typescript
+const ch = channelLine(candles, { leftBars: 10, rightBars: 10 });
+const last = ch[ch.length - 1].value;
+console.log(`Upper: ${last.upper}, Lower: ${last.lower}, Dir: ${last.direction}`);
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|--------|------|---------|-------------|
+| `leftBars` | `number` | `10` | スイング確認の左バー数 |
+| `rightBars` | `number` | `10` | スイング確認の右バー数 |
+
+**戻り値:** `Series<ChannelLineValue>`
+
+```typescript
+interface ChannelLineValue {
+  upper: number | null;                   // 上限チャネルライン
+  lower: number | null;                   // 下限チャネルライン
+  middle: number | null;                  // 中央チャネルライン（平均）
+  direction: "up" | "down" | null;        // チャネル方向
+}
+```
+
+---
+
+#### `fibonacciExtension(candles, options)`
+
+3つのスイングポイント（A-B-Cパターン）から算出するフィボナッチエクステンションレベル。
+
+```typescript
+const ext = fibonacciExtension(candles, { leftBars: 10, rightBars: 10 });
+const last = ext[ext.length - 1].value;
+if (last.levels) {
+  console.log(`161.8%ターゲット: ${last.levels["1.618"]}`);
+}
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|--------|------|---------|-------------|
+| `leftBars` | `number` | `10` | スイング確認の左バー数 |
+| `rightBars` | `number` | `10` | スイング確認の右バー数 |
+| `levels` | `number[]` | `[0, 0.618, 1, 1.272, 1.618, 2, 2.618]` | エクステンション比率レベル |
+
+**戻り値:** `Series<FibonacciExtensionValue>`
+
+```typescript
+interface FibonacciExtensionValue {
+  levels: Record<string, number> | null;           // 比率別エクステンションレベル
+  pointA: number | null;                           // 初動の起点
+  pointB: number | null;                           // 初動の終点
+  pointC: number | null;                           // 戻りの終点
+  direction: "bullish" | "bearish" | null;         // エクステンション方向
+}
+```
+
+---
+
+#### `andrewsPitchfork(candles, options)`
+
+アンドリューズ・ピッチフォークインジケーター。中央線・上限ハンドル線・下限ハンドル線を描画します。
+
+```typescript
+const pf = andrewsPitchfork(candles, { leftBars: 10, rightBars: 10 });
+const last = pf[pf.length - 1].value;
+console.log(`Median: ${last.median}, Upper: ${last.upper}, Lower: ${last.lower}`);
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|--------|------|---------|-------------|
+| `leftBars` | `number` | `10` | スイング確認の左バー数 |
+| `rightBars` | `number` | `10` | スイング確認の右バー数 |
+
+**戻り値:** `Series<AndrewsPitchforkValue>`
+
+```typescript
+interface AndrewsPitchforkValue {
+  median: number | null;  // 中央線
+  upper: number | null;   // 上限ハンドル線
+  lower: number | null;   // 下限ハンドル線
+}
+```
+
+---
+
 ## シグナル
 
 ### クロス検出
