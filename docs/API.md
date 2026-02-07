@@ -876,6 +876,123 @@ interface PivotPointsValue {
 
 ---
 
+#### `autoTrendLine(candles, options)`
+
+Automatic trend line detection using swing points. Draws resistance and support lines through recent swing highs and swing lows.
+
+```typescript
+const tl = autoTrendLine(candles, { leftBars: 10, rightBars: 10 });
+const last = tl[tl.length - 1].value;
+console.log(`Resistance: ${last.resistance}, Support: ${last.support}`);
+```
+
+**Options:**
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `leftBars` | `number` | `10` | Bars to the left for swing confirmation |
+| `rightBars` | `number` | `10` | Bars to the right for swing confirmation |
+
+**Returns:** `Series<AutoTrendLineValue>`
+
+```typescript
+interface AutoTrendLineValue {
+  resistance: number | null;  // Resistance line value (interpolated)
+  support: number | null;     // Support line value (interpolated)
+}
+```
+
+---
+
+#### `channelLine(candles, options)`
+
+Channel line indicator that draws upper, lower, and middle channel lines using swing points.
+
+```typescript
+const ch = channelLine(candles, { leftBars: 10, rightBars: 10 });
+const last = ch[ch.length - 1].value;
+console.log(`Upper: ${last.upper}, Lower: ${last.lower}, Dir: ${last.direction}`);
+```
+
+**Options:**
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `leftBars` | `number` | `10` | Bars to the left for swing confirmation |
+| `rightBars` | `number` | `10` | Bars to the right for swing confirmation |
+
+**Returns:** `Series<ChannelLineValue>`
+
+```typescript
+interface ChannelLineValue {
+  upper: number | null;                   // Upper channel line
+  lower: number | null;                   // Lower channel line
+  middle: number | null;                  // Middle channel line (average)
+  direction: "up" | "down" | null;        // Channel direction
+}
+```
+
+---
+
+#### `fibonacciExtension(candles, options)`
+
+Fibonacci Extension levels calculated from three swing points (A-B-C pattern).
+
+```typescript
+const ext = fibonacciExtension(candles, { leftBars: 10, rightBars: 10 });
+const last = ext[ext.length - 1].value;
+if (last.levels) {
+  console.log(`161.8% target: ${last.levels["1.618"]}`);
+}
+```
+
+**Options:**
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `leftBars` | `number` | `10` | Bars to the left for swing confirmation |
+| `rightBars` | `number` | `10` | Bars to the right for swing confirmation |
+| `levels` | `number[]` | `[0, 0.618, 1, 1.272, 1.618, 2, 2.618]` | Extension ratio levels |
+
+**Returns:** `Series<FibonacciExtensionValue>`
+
+```typescript
+interface FibonacciExtensionValue {
+  levels: Record<string, number> | null;           // Extension levels by ratio
+  pointA: number | null;                           // Start of initial move
+  pointB: number | null;                           // End of initial move
+  pointC: number | null;                           // End of retracement
+  direction: "bullish" | "bearish" | null;         // Extension direction
+}
+```
+
+---
+
+#### `andrewsPitchfork(candles, options)`
+
+Andrew's Pitchfork indicator with median, upper, and lower handle lines.
+
+```typescript
+const pf = andrewsPitchfork(candles, { leftBars: 10, rightBars: 10 });
+const last = pf[pf.length - 1].value;
+console.log(`Median: ${last.median}, Upper: ${last.upper}, Lower: ${last.lower}`);
+```
+
+**Options:**
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `leftBars` | `number` | `10` | Bars to the left for swing confirmation |
+| `rightBars` | `number` | `10` | Bars to the right for swing confirmation |
+
+**Returns:** `Series<AndrewsPitchforkValue>`
+
+```typescript
+interface AndrewsPitchforkValue {
+  median: number | null;  // Median line value
+  upper: number | null;   // Upper handle line value
+  lower: number | null;   // Lower handle line value
+}
+```
+
+---
+
 ## Signals
 
 ### Cross Detection
