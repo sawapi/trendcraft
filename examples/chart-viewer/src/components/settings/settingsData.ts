@@ -40,6 +40,13 @@ export const OVERLAY_GROUPS: { group: string; options: { key: OverlayType; label
       { key: "ema12", label: "EMA 12" },
       { key: "ema26", label: "EMA 26" },
       { key: "wma20", label: "WMA 20" },
+      { key: "vwma20", label: "VWMA 20" },
+    ],
+  },
+  {
+    group: "Filter",
+    options: [
+      { key: "superSmoother", label: "Super Smoother" },
     ],
   },
   {
@@ -74,6 +81,7 @@ export const OVERLAY_GROUPS: { group: string; options: { key: OverlayType; label
   {
     group: "Price",
     options: [
+      { key: "heikinAshi", label: "Heikin-Ashi" },
       { key: "swingPoints", label: "Swing Points" },
       { key: "pivotPoints", label: "Pivot Points" },
       { key: "fibonacci", label: "Fibonacci Retracement" },
@@ -82,6 +90,12 @@ export const OVERLAY_GROUPS: { group: string; options: { key: OverlayType; label
       { key: "autoTrendLine", label: "Auto Trend Line" },
       { key: "channelLine", label: "Channel Line" },
       { key: "andrewsPitchfork", label: "Andrew's Pitchfork" },
+    ],
+  },
+  {
+    group: "Patterns",
+    options: [
+      { key: "candlestickPatterns", label: "Candlestick Patterns" },
     ],
   },
   {
@@ -130,6 +144,12 @@ export const SUBCHART_GROUPS: { group: string; options: { key: SubChartType; lab
     options: [
       { key: "dmi", label: "DMI/ADX" },
       { key: "rangebound", label: "Range-Bound" },
+    ],
+  },
+  {
+    group: "Filter",
+    options: [
+      { key: "roofingFilter", label: "Roofing Filter" },
     ],
   },
   {

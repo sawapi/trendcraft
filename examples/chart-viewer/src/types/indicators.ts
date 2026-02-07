@@ -11,6 +11,12 @@ export interface IndicatorParams {
   ema12Period: number;
   ema26Period: number;
   wma20Period: number;
+  vwma20Period: number;
+  // Overlays - Filter
+  superSmootherPeriod: number;
+  // Subcharts - Filter
+  roofingFilterHighPassPeriod: number;
+  roofingFilterLowPassPeriod: number;
   // Overlays - Bands
   bbPeriod: number;
   bbStdDev: number;
@@ -131,6 +137,12 @@ export const DEFAULT_INDICATOR_PARAMS: IndicatorParams = {
   ema12Period: 12,
   ema26Period: 26,
   wma20Period: 20,
+  vwma20Period: 20,
+  // Overlays - Filter
+  superSmootherPeriod: 10,
+  // Subcharts - Filter
+  roofingFilterHighPassPeriod: 48,
+  roofingFilterLowPassPeriod: 10,
   // Overlays - Bands
   bbPeriod: 20,
   bbStdDev: 2,
@@ -262,6 +274,12 @@ export const INDICATOR_PARAM_CONFIGS: Record<string, ParamConfig[]> = {
   ema12: [{ key: "ema12Period", label: "Period", min: 2, max: 200, step: 1 }],
   ema26: [{ key: "ema26Period", label: "Period", min: 2, max: 200, step: 1 }],
   wma20: [{ key: "wma20Period", label: "Period", min: 2, max: 200, step: 1 }],
+  vwma20: [{ key: "vwma20Period", label: "Period", min: 2, max: 200, step: 1 }],
+  superSmoother: [{ key: "superSmootherPeriod", label: "Period", min: 2, max: 100, step: 1 }],
+  roofingFilter: [
+    { key: "roofingFilterHighPassPeriod", label: "High-Pass Period", min: 10, max: 100, step: 1 },
+    { key: "roofingFilterLowPassPeriod", label: "Low-Pass Period", min: 2, max: 50, step: 1 },
+  ],
   // Overlays - Bands
   bb: [
     { key: "bbPeriod", label: "Period", min: 2, max: 100, step: 1 },

@@ -130,6 +130,17 @@ export const COLORS = {
   pitchforkMedian: "#ff9800",
   pitchforkUpper: "#ef5350",
   pitchforkLower: "#26a69a",
+  // VWMA
+  vwma20: "#ff8c00",
+  // Ehlers Filters
+  superSmoother: "#00e5ff",
+  roofingFilter: "#7c4dff",
+  // Heikin-Ashi
+  heikinAshiUp: "rgba(38, 166, 154, 0.4)",
+  heikinAshiDown: "rgba(239, 83, 80, 0.4)",
+  // Candlestick Patterns
+  candlePatternBull: "#00e676",
+  candlePatternBear: "#ff1744",
 };
 
 /**

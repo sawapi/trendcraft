@@ -21,6 +21,16 @@ export interface MainChartHandle {
 }
 
 /**
+ * Trigger a file download from a data URL
+ */
+function downloadDataURL(dataURL: string, filename: string): void {
+  const link = document.createElement("a");
+  link.href = dataURL;
+  link.download = filename;
+  link.click();
+}
+
+/**
  * Calculate chart height based on subchart count
  * Base height (main + volume + dataZoom) + additional height per subchart
  */
@@ -51,6 +61,8 @@ export const MainChart = forwardRef<MainChartHandle>(function MainChart(_props, 
 
   const trades = backtestResult?.trades ?? null;
 
+  const baseName = fileName?.replace(/\.[^.]+$/, "") ?? "chart";
+
   const exportPNG = useCallback(() => {
     const instance = chartRef.current?.getEchartsInstance();
     if (!instance) return;
@@ -60,34 +72,34 @@ export const MainChart = forwardRef<MainChartHandle>(function MainChart(_props, 
       pixelRatio: 2,
       backgroundColor: "#1a1a2e",
     });
-
-    const baseName = fileName?.replace(/\.[^.]+$/, "") ?? "chart";
-    const link = document.createElement("a");
-    link.href = dataURL;
-    link.download = `chart-${baseName}.png`;
-    link.click();
-  }, [fileName]);
+    downloadDataURL(dataURL, `chart-${baseName}.png`);
+  }, [baseName]);
 
   const exportSVG = useCallback(() => {
     const instance = chartRef.current?.getEchartsInstance();
     if (!instance) return;
 
+    const width = instance.getWidth();
+    const height = instance.getHeight();
+
     // Create an offscreen SVG renderer instance with the same option
     const container = document.createElement("div");
-    container.style.width = `${instance.getWidth()}px`;
-    container.style.height = `${instance.getHeight()}px`;
-    container.style.position = "absolute";
-    container.style.left = "-9999px";
+    Object.assign(container.style, {
+      width: `${width}px`,
+      height: `${height}px`,
+      position: "absolute",
+      left: "-9999px",
+    });
     document.body.appendChild(container);
 
     const svgInstance = echarts.init(container, undefined, {
       renderer: "svg",
-      width: instance.getWidth(),
-      height: instance.getHeight(),
+      width,
+      height,
     });
     svgInstance.setOption(instance.getOption());
 
-    const svgDataURL = svgInstance.getDataURL({
+    const dataURL = svgInstance.getDataURL({
       type: "svg",
       backgroundColor: "#1a1a2e",
     });
@@ -95,12 +107,8 @@ export const MainChart = forwardRef<MainChartHandle>(function MainChart(_props, 
     svgInstance.dispose();
     document.body.removeChild(container);
 
-    const baseName = fileName?.replace(/\.[^.]+$/, "") ?? "chart";
-    const link = document.createElement("a");
-    link.href = svgDataURL;
-    link.download = `chart-${baseName}.svg`;
-    link.click();
-  }, [fileName]);
+    downloadDataURL(dataURL, `chart-${baseName}.svg`);
+  }, [baseName]);
 
   useImperativeHandle(ref, () => ({ exportPNG, exportSVG }), [exportPNG, exportSVG]);
 

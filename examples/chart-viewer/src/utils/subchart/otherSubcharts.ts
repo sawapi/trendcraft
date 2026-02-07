@@ -113,6 +113,26 @@ export function buildOtherSubcharts(
     });
   }
 
+  // Roofing Filter
+  if (enabledIndicators.includes("roofingFilter") && indicators.roofingFilter) {
+    const gridIndex = createSubchart(ctx, {
+      title: "Roofing Filter",
+      titleColor: COLORS.roofingFilter,
+      seriesNames: ["Roofing"],
+      markLines: [0],
+    });
+    series.push({
+      name: "Roofing",
+      type: "line",
+      xAxisIndex: gridIndex,
+      yAxisIndex: gridIndex,
+      data: indicators.roofingFilter,
+      symbol: "none",
+      lineStyle: { color: COLORS.roofingFilter, width: 1.5 },
+      markLine: createMarkLine([0]),
+    });
+  }
+
   // Volatility Regime
   if (enabledIndicators.includes("volatilityRegime") && indicators.volatilityRegime) {
     const gridIndex = createSubchart(ctx, {

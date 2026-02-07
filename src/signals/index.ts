@@ -73,6 +73,15 @@ export {
   type VolumeAboveAverageOptions,
 } from "./volume-above-average";
 
+// Candlestick Patterns
+export {
+  candlestickPatterns,
+  type CandlestickPattern,
+  type CandlestickPatternName,
+  type CandlestickPatternOptions,
+  type CandlestickPatternValue,
+} from "./candlestick";
+
 // Price Pattern Recognition
 export {
   doubleTop,

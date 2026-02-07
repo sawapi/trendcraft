@@ -125,48 +125,53 @@ function convertTimeframe(candles: NormalizedCandle[], timeframe: Timeframe): No
   }
 }
 
-// Load sidebar collapsed state from localStorage
-const getInitialSidebarCollapsed = (): boolean => {
+/**
+ * Read a string value from localStorage, returning null on failure
+ */
+function readStorage(key: string): string | null {
   try {
-    const stored = localStorage.getItem("chart-viewer-sidebar-collapsed");
-    return stored === "true";
+    return localStorage.getItem(key);
   } catch {
-    return false;
+    return null;
   }
-};
+}
 
-// Load presets from localStorage
-const getInitialPresets = (): IndicatorPreset[] => {
+/**
+ * Write a value to localStorage, silently ignoring errors
+ */
+function writeStorage(key: string, value: string): void {
   try {
-    const stored = localStorage.getItem("chart-viewer-presets");
-    if (stored) return JSON.parse(stored);
-  } catch {
-    // Ignore parse errors
-  }
-  return [];
-};
-
-// Save presets to localStorage
-const persistPresets = (presets: IndicatorPreset[]) => {
-  try {
-    localStorage.setItem("chart-viewer-presets", JSON.stringify(presets));
+    localStorage.setItem(key, value);
   } catch {
     // Ignore localStorage errors
   }
-};
+}
 
-// Load display start years from localStorage
-const getInitialDisplayStartYears = (): DisplayStartYears => {
+function getInitialSidebarCollapsed(): boolean {
+  return readStorage("chart-viewer-sidebar-collapsed") === "true";
+}
+
+function getInitialPresets(): IndicatorPreset[] {
+  const stored = readStorage("chart-viewer-presets");
+  if (!stored) return [];
   try {
-    const stored = localStorage.getItem("chart-viewer-display-start-years");
-    if (stored === "null" || stored === null) return 10; // Default to 10 years
-    const parsed = Number.parseInt(stored, 10);
-    if (parsed === 5 || parsed === 10 || parsed === 20) return parsed;
-    return 10;
+    return JSON.parse(stored);
   } catch {
-    return 10;
+    return [];
   }
-};
+}
+
+function persistPresets(presets: IndicatorPreset[]): void {
+  writeStorage("chart-viewer-presets", JSON.stringify(presets));
+}
+
+function getInitialDisplayStartYears(): DisplayStartYears {
+  const stored = readStorage("chart-viewer-display-start-years");
+  if (stored === null || stored === "null") return 10;
+  const parsed = Number.parseInt(stored, 10);
+  if (parsed === 5 || parsed === 10 || parsed === 20) return parsed;
+  return 10;
+}
 
 /**
  * Filter candles and fundamentals to only include data from the last N years
@@ -218,6 +223,22 @@ function calculateInitialZoom(candleCount: number, days: number = 120): ZoomRang
   return { start, end: 100 };
 }
 
+/**
+ * Filter candles by year range, convert to timeframe, and compute initial zoom.
+ * Shared pipeline used by loadCandles, setTimeframe, and setDisplayStartYears.
+ */
+function recomputeCandles(
+  rawCandles: NormalizedCandle[],
+  fundamentals: FundamentalData | null,
+  years: DisplayStartYears,
+  timeframe: Timeframe,
+): { currentCandles: NormalizedCandle[]; currentFundamentals: FundamentalData | null; zoomRange: ZoomRange } {
+  const filtered = filterDataByYears(rawCandles, fundamentals, years);
+  const currentCandles = convertTimeframe(filtered.candles, timeframe);
+  const zoomRange = calculateInitialZoom(currentCandles.length, 120);
+  return { currentCandles, currentFundamentals: filtered.fundamentals, zoomRange };
+}
+
 export const useChartStore = create<ChartStore>((set, get) => ({
   // Initial state
   rawCandles: [],
@@ -241,54 +262,30 @@ export const useChartStore = create<ChartStore>((set, get) => ({
   // Actions
   loadCandles: (candles: NormalizedCandle[], fundamentals: FundamentalData | null, fileName: string) => {
     const { timeframe, displayStartYears } = get();
-    const filtered = filterDataByYears(candles, fundamentals, displayStartYears);
-    const currentCandles = convertTimeframe(filtered.candles, timeframe);
-    // Initial zoom to last 6 months (120 trading days)
-    const initialZoom = calculateInitialZoom(currentCandles.length, 120);
+    const computed = recomputeCandles(candles, fundamentals, displayStartYears, timeframe);
 
     set({
       rawCandles: candles,
-      currentCandles,
       fileName,
       fundamentals,
-      currentFundamentals: filtered.fundamentals,
-      zoomRange: initialZoom,
+      ...computed,
       backtestResult: null,
     });
   },
 
   setTimeframe: (timeframe: Timeframe) => {
     const { rawCandles, fundamentals, displayStartYears } = get();
-    const filtered = filterDataByYears(rawCandles, fundamentals, displayStartYears);
-    const currentCandles = convertTimeframe(filtered.candles, timeframe);
-    const initialZoom = calculateInitialZoom(currentCandles.length, 120);
+    const computed = recomputeCandles(rawCandles, fundamentals, displayStartYears, timeframe);
 
-    set({
-      timeframe,
-      currentCandles,
-      currentFundamentals: filtered.fundamentals,
-      zoomRange: initialZoom,
-      backtestResult: null,
-    });
+    set({ timeframe, ...computed, backtestResult: null });
   },
 
   setDisplayStartYears: (years: DisplayStartYears) => {
     const { rawCandles, fundamentals, timeframe } = get();
-    try {
-      localStorage.setItem("chart-viewer-display-start-years", String(years));
-    } catch {
-      // Ignore localStorage errors
-    }
-    const filtered = filterDataByYears(rawCandles, fundamentals, years);
-    const currentCandles = convertTimeframe(filtered.candles, timeframe);
-    const initialZoom = calculateInitialZoom(currentCandles.length, 120);
-    set({
-      displayStartYears: years,
-      currentCandles,
-      currentFundamentals: filtered.fundamentals,
-      zoomRange: initialZoom,
-      backtestResult: null,
-    });
+    writeStorage("chart-viewer-display-start-years", String(years));
+    const computed = recomputeCandles(rawCandles, fundamentals, years, timeframe);
+
+    set({ displayStartYears: years, ...computed, backtestResult: null });
   },
 
   setEnabledIndicators: (indicators: SubChartType[]) => {
@@ -375,22 +372,13 @@ export const useChartStore = create<ChartStore>((set, get) => ({
   },
 
   toggleSidebar: () => {
-    const { sidebarCollapsed } = get();
-    const newValue = !sidebarCollapsed;
-    try {
-      localStorage.setItem("chart-viewer-sidebar-collapsed", String(newValue));
-    } catch {
-      // Ignore localStorage errors
-    }
+    const newValue = !get().sidebarCollapsed;
+    writeStorage("chart-viewer-sidebar-collapsed", String(newValue));
     set({ sidebarCollapsed: newValue });
   },
 
   setSidebarCollapsed: (collapsed: boolean) => {
-    try {
-      localStorage.setItem("chart-viewer-sidebar-collapsed", String(collapsed));
-    } catch {
-      // Ignore localStorage errors
-    }
+    writeStorage("chart-viewer-sidebar-collapsed", String(collapsed));
     set({ sidebarCollapsed: collapsed });
   },
 

@@ -13,6 +13,7 @@ import { buildBollingerIchimokuSeries } from "./overlay/bollingerIchimoku";
 import { buildTrendOverlaySeries } from "./overlay/trendOverlays";
 import { buildPriceOverlaySeries } from "./overlay/priceOverlays";
 import { buildSmcOverlaySeries } from "./overlay/smcOverlays";
+import { buildFilterOverlaySeries } from "./overlay/filterOverlays";
 
 /**
  * Build overlay indicator series for the main chart
@@ -29,5 +30,6 @@ export function buildOverlaySeries(
     ...buildTrendOverlaySeries(overlays, enabledOverlays),
     ...buildPriceOverlaySeries(candles, overlays, enabledOverlays),
     ...buildSmcOverlaySeries(candles, overlays, enabledOverlays, dates),
+    ...buildFilterOverlaySeries(candles, overlays, enabledOverlays),
   ];
 }

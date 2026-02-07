@@ -21,3 +21,5 @@ export { andrewsPitchfork } from "./andrews-pitchfork";
 export type { AndrewsPitchforkOptions, AndrewsPitchforkValue } from "./andrews-pitchfork";
 export { getAlternatingSwingPoints } from "./swing-points";
 export type { AlternatingSwingPoint } from "./swing-points";
+export { heikinAshi } from "./heikin-ashi";
+export type { HeikinAshiValue } from "./heikin-ashi";

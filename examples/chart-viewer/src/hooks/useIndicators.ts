@@ -29,6 +29,7 @@ import {
   volatilityRegime,
   calculateScoreSeries,
   getPreset,
+  roofingFilter,
 } from "trendcraft";
 import type { ScoreResult } from "trendcraft";
 import {
@@ -241,6 +242,8 @@ export interface IndicatorData {
   earningsDateIndices?: number[];
   // Volatility Regime
   volatilityRegime?: VolatilityRegimeValue[];
+  // Roofing Filter
+  roofingFilter?: (number | null)[];
   // Scoring
   scoring?: ScoreResult[];
 }
@@ -439,6 +442,15 @@ export function useIndicators(
         1.0, // BPS threshold: 1% (lower because BPS changes can be smaller)
         55   // 55 days cooldown (quarterly ~63 trading days)
       );
+    }
+
+    // Roofing Filter
+    if (enabledIndicators.includes("roofingFilter")) {
+      const series = roofingFilter(candles, {
+        highPassPeriod: p.roofingFilterHighPassPeriod,
+        lowPassPeriod: p.roofingFilterLowPassPeriod,
+      });
+      data.roofingFilter = series.map((s) => s.value);
     }
 
     // Volatility Regime

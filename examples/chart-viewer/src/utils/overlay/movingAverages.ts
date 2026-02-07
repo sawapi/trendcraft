@@ -78,5 +78,16 @@ export function buildMovingAverageSeries(
     });
   }
 
+  // VWMA 20
+  if (enabledOverlays.includes("vwma20") && overlays.vwma20) {
+    series.push({
+      name: "VWMA 20",
+      type: "line",
+      data: overlays.vwma20,
+      symbol: "none",
+      lineStyle: { color: COLORS.vwma20, width: 1.5 },
+    });
+  }
+
   return series;
 }
