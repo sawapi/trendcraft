@@ -10,6 +10,8 @@
   - [出来高](#出来高)
   - [相対強度（RS）](#相対強度rs)
   - [価格](#価格)
+  - [フィボナッチリトレースメント](#フィボナッチリトレースメント)
+  - [スマートマネーコンセプト (SMC)](#スマートマネーコンセプト-smc)
 - [シグナル](#シグナル)
   - [クロス検出](#クロス検出)
   - [ダイバージェンス検出](#ダイバージェンス検出)
@@ -998,6 +1000,264 @@ interface AndrewsPitchforkValue {
   lower: number | null;   // 下限ハンドル線
 }
 ```
+
+---
+
+### フィボナッチリトレースメント
+
+#### `fibonacciRetracement(candles, options)`
+
+スイングポイントに基づくフィボナッチリトレースメントレベルの計算。直近のスイングハイとスイングローを検出し、その間のリトレースメントレベルを計算します。
+
+```typescript
+const fib = fibonacciRetracement(candles, { leftBars: 10, rightBars: 10 });
+const last = fib[fib.length - 1].value;
+if (last.levels) {
+  console.log(`61.8%レベル: ${last.levels["0.618"]}`);
+  console.log(`トレンド: ${last.trend}`);
+}
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|-----------|------|---------|-------------|
+| `leftBars` | `number` | `10` | スイングポイント確認の左バー数 |
+| `rightBars` | `number` | `10` | スイングポイント確認の右バー数 |
+| `levels` | `number[]` | `[0, 0.236, 0.382, 0.5, 0.618, 0.786, 1]` | 計算するフィボナッチ比率レベル |
+
+**戻り値:** `Series<FibonacciRetracementValue>`
+
+```typescript
+interface FibonacciRetracementValue {
+  levels: Record<string, number> | null;  // 比率文字列→価格のマッピング
+  swingHigh: number | null;               // 使用したスイングハイ価格
+  swingLow: number | null;                // 使用したスイングロー価格
+  trend: "up" | "down" | null;            // スイングハイが直近なら "up"
+}
+```
+
+---
+
+### スマートマネーコンセプト (SMC)
+
+#### `breakOfStructure(candles, options)`
+
+ブレイクオブストラクチャー（BOS）の検出。価格が直近のスイングハイを上回って引けると強気BOS、スイングローを下回ると弱気BOSとなります。
+
+```typescript
+const bos = breakOfStructure(candles, { swingPeriod: 5 });
+const lastBos = bos[bos.length - 1].value;
+if (lastBos.bullishBos) {
+  console.log(`強気BOS！ ${lastBos.brokenLevel} を上抜け`);
+}
+console.log(`現在のトレンド: ${lastBos.trend}`);
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|-----------|------|---------|-------------|
+| `swingPeriod` | `number` | `5` | スイング検出期間（左右のバー数） |
+
+**戻り値:** `Series<BosValue>`
+
+```typescript
+interface BosValue {
+  bullishBos: boolean;                            // 強気ブレイクオブストラクチャー
+  bearishBos: boolean;                            // 弱気ブレイクオブストラクチャー
+  brokenLevel: number | null;                     // ブレイクしたレベル
+  trend: "bullish" | "bearish" | "neutral";       // 現在のマーケットトレンド
+  swingHighLevel: number | null;                  // 直近のスイングハイレベル
+  swingLowLevel: number | null;                   // 直近のスイングローレベル
+}
+```
+
+---
+
+#### `changeOfCharacter(candles, options)`
+
+チェンジオブキャラクター（CHoCH）の検出。BOSと同様ですが、逆方向への最初のブレイクを特に検出し、トレンド転換の可能性を示します。
+
+```typescript
+const choch = changeOfCharacter(candles, { swingPeriod: 5 });
+const last = choch[choch.length - 1].value;
+if (last.bullishBos) {
+  console.log("強気CHoCH - 上昇トレンドへの転換の可能性");
+}
+```
+
+**オプション:** `breakOfStructure`と同じ。
+
+**戻り値:** `Series<BosValue>`（`breakOfStructure`と同じ構造）
+
+---
+
+#### `orderBlock(candles, options)`
+
+オーダーブロックの検出。BOSの直前の反対方向のローソク足がオーダーブロックとなります。これらのゾーンは価格が戻りやすいサポート/レジスタンスとして機能します。
+
+```typescript
+const obs = orderBlock(candles, { swingPeriod: 5, minVolumeRatio: 1.2 });
+const lastOb = obs[obs.length - 1].value;
+
+if (lastOb.newOrderBlock) {
+  console.log(`新規 ${lastOb.newOrderBlock.type} OB: ${lastOb.newOrderBlock.low}-${lastOb.newOrderBlock.high}`);
+}
+if (lastOb.atBullishOB) {
+  console.log("強気オーダーブロック付近 - サポートの可能性");
+}
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|-----------|------|---------|-------------|
+| `swingPeriod` | `number` | `5` | BOS検出のスイング期間 |
+| `volumePeriod` | `number` | `20` | 強度計算用の出来高MA期間 |
+| `minVolumeRatio` | `number` | `1.0` | 有効なOBの最低出来高倍率 |
+| `maxActiveOBs` | `number` | `10` | 追跡するアクティブOBの最大数 |
+| `partialMitigation` | `boolean` | `true` | 部分的な接触をミティゲーションと見なす |
+
+**戻り値:** `Series<OrderBlockValue>`
+
+```typescript
+interface OrderBlockValue {
+  newOrderBlock: OrderBlock | null;      // このバーで作成された新規OB
+  activeOrderBlocks: OrderBlock[];       // アクティブ（未ミティゲート）OB
+  mitigatedThisBar: OrderBlock[];        // このバーでミティゲートされたOB
+  atBullishOB: boolean;                  // 強気OBゾーンにいるか
+  atBearishOB: boolean;                  // 弱気OBゾーンにいるか
+}
+
+interface OrderBlock {
+  type: "bullish" | "bearish";
+  high: number;                          // 上限境界
+  low: number;                           // 下限境界
+  open: number;                          // OBローソク足の始値
+  close: number;                         // OBローソク足の終値
+  startIndex: number;                    // OB作成インデックス
+  startTime: number;                     // OB作成時刻
+  strength: number;                      // 強度スコア (0-100)
+  mitigated: boolean;                    // ミティゲート済みかどうか
+  mitigatedIndex: number | null;         // ミティゲートインデックス
+  mitigatedTime: number | null;          // ミティゲート時刻
+}
+```
+
+---
+
+#### `getActiveOrderBlocks(candles, options)`
+
+現在アクティブな（未ミティゲートの）オーダーブロックを取得。
+
+```typescript
+const { bullish, bearish } = getActiveOrderBlocks(candles, { swingPeriod: 5 });
+console.log(`強気OB: ${bullish.length}個, 弱気OB: ${bearish.length}個`);
+```
+
+**オプション:** `orderBlock`と同じ。
+
+**戻り値:** `{ bullish: OrderBlock[]; bearish: OrderBlock[] }`
+
+---
+
+#### `getNearestOrderBlock(candles, options)`
+
+現在価格に最も近いオーダーブロックを取得。
+
+```typescript
+const nearest = getNearestOrderBlock(candles);
+if (nearest) {
+  console.log(`最寄りOB: ${nearest.type} (${nearest.low}-${nearest.high})`);
+}
+```
+
+**オプション:** `orderBlock`と同じ。
+
+**戻り値:** `OrderBlock | null`
+
+---
+
+#### `liquiditySweep(candles, options)`
+
+流動性スイープの検出。価格がスイングハイ/ローを一時的にブレイクしてストップロスをトリガーし、すぐに反転するパターンです。機関投資家によく見られるパターンです。
+
+```typescript
+const sweeps = liquiditySweep(candles, { swingPeriod: 5 });
+const last = sweeps[sweeps.length - 1].value;
+
+if (last.recoveredThisBar.length > 0) {
+  const sweep = last.recoveredThisBar[0];
+  if (sweep.type === "bullish") {
+    console.log("強気スイープ回復 - ロングエントリーの可能性");
+  }
+}
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|-----------|------|---------|-------------|
+| `swingPeriod` | `number` | `5` | スイング検出期間 |
+| `maxRecoveryBars` | `number` | `3` | 回復を待つ最大バー数 |
+| `maxTrackedSweeps` | `number` | `10` | 追跡する直近スイープの最大数 |
+| `minSweepDepth` | `number` | `0` | 有効と見なす最小スイープ深度（%） |
+
+**戻り値:** `Series<LiquiditySweepValue>`
+
+```typescript
+interface LiquiditySweepValue {
+  isSweep: boolean;                        // このバーで新規スイープ発生
+  sweep: LiquiditySweep | null;            // 新規スイープの詳細
+  recentSweeps: LiquiditySweep[];          // 直近のスイープ
+  recoveredThisBar: LiquiditySweep[];      // このバーで回復したスイープ
+}
+
+interface LiquiditySweep {
+  type: "bullish" | "bearish";
+  sweptLevel: number;                      // スイープされたスイングレベル
+  sweepExtreme: number;                    // スイープ中の極値
+  sweepIndex: number;                      // スイープ発生インデックス
+  sweepTime: number;                       // スイープ発生時刻
+  recovered: boolean;                      // 価格が回復したか
+  recoveredIndex: number | null;           // 回復インデックス
+  recoveredTime: number | null;            // 回復時刻
+  sweepDepthPercent: number;               // スイングレベルからの深度（%）
+}
+```
+
+---
+
+#### `getRecoveredSweeps(candles, options)`
+
+全ての回復済みスイープを取得。
+
+```typescript
+const { bullish, bearish } = getRecoveredSweeps(candles, { swingPeriod: 5 });
+console.log(`強気回復: ${bullish.length}件, 弱気回復: ${bearish.length}件`);
+```
+
+**オプション:** `liquiditySweep`と同じ。
+
+**戻り値:** `{ bullish: LiquiditySweep[]; bearish: LiquiditySweep[] }`
+
+---
+
+#### `hasRecentSweepSignal(candles, type, options)`
+
+現在のバーで直近のスイープシグナルがあるかチェック。
+
+```typescript
+if (hasRecentSweepSignal(candles, "bullish")) {
+  console.log("強気スイープシグナル検出！");
+}
+```
+
+**パラメータ:**
+| パラメータ | 型 | デフォルト | 説明 |
+|-----------|------|---------|-------------|
+| `candles` | `Candle[]` | 必須 | ローソク足データ |
+| `type` | `"bullish" \| "bearish" \| "both"` | `"both"` | チェックするスイープタイプ |
+| `options` | `LiquiditySweepOptions` | `{}` | 流動性スイープオプション |
+
+**戻り値:** `boolean`
 
 ---
 

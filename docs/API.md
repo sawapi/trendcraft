@@ -10,6 +10,8 @@
   - [Volume](#volume)
   - [Relative Strength](#relative-strength)
   - [Price](#price)
+  - [Fibonacci Retracement](#fibonacci-retracement)
+  - [Smart Money Concepts (SMC)](#smart-money-concepts-smc)
 - [Signals](#signals)
   - [Cross Detection](#cross-detection)
   - [Divergence Detection](#divergence-detection)
@@ -990,6 +992,264 @@ interface AndrewsPitchforkValue {
   lower: number | null;   // Lower handle line value
 }
 ```
+
+---
+
+### Fibonacci Retracement
+
+#### `fibonacciRetracement(candles, options)`
+
+Calculate Fibonacci retracement levels based on swing points. Uses swing point detection to find the most recent swing high and swing low, then calculates retracement levels between them.
+
+```typescript
+const fib = fibonacciRetracement(candles, { leftBars: 10, rightBars: 10 });
+const last = fib[fib.length - 1].value;
+if (last.levels) {
+  console.log(`61.8% level: ${last.levels["0.618"]}`);
+  console.log(`Trend: ${last.trend}`);
+}
+```
+
+**Options:**
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `leftBars` | `number` | `10` | Bars to the left for swing point confirmation |
+| `rightBars` | `number` | `10` | Bars to the right for swing point confirmation |
+| `levels` | `number[]` | `[0, 0.236, 0.382, 0.5, 0.618, 0.786, 1]` | Fibonacci ratio levels to calculate |
+
+**Returns:** `Series<FibonacciRetracementValue>`
+
+```typescript
+interface FibonacciRetracementValue {
+  levels: Record<string, number> | null;  // Fibonacci levels mapped by ratio string to price
+  swingHigh: number | null;               // Price of the swing high used
+  swingLow: number | null;                // Price of the swing low used
+  trend: "up" | "down" | null;            // "up" if swing high is more recent
+}
+```
+
+---
+
+### Smart Money Concepts (SMC)
+
+#### `breakOfStructure(candles, options)`
+
+Detect Break of Structure (BOS). A bullish BOS occurs when price closes above a recent swing high. A bearish BOS occurs when price closes below a recent swing low.
+
+```typescript
+const bos = breakOfStructure(candles, { swingPeriod: 5 });
+const lastBos = bos[bos.length - 1].value;
+if (lastBos.bullishBos) {
+  console.log(`Bullish BOS! Broke above ${lastBos.brokenLevel}`);
+}
+console.log(`Current trend: ${lastBos.trend}`);
+```
+
+**Options:**
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `swingPeriod` | `number` | `5` | Swing detection period (bars on each side) |
+
+**Returns:** `Series<BosValue>`
+
+```typescript
+interface BosValue {
+  bullishBos: boolean;                            // Bullish break of structure
+  bearishBos: boolean;                            // Bearish break of structure
+  brokenLevel: number | null;                     // The level that was broken
+  trend: "bullish" | "bearish" | "neutral";       // Current market trend
+  swingHighLevel: number | null;                  // Most recent swing high level
+  swingLowLevel: number | null;                   // Most recent swing low level
+}
+```
+
+---
+
+#### `changeOfCharacter(candles, options)`
+
+Detect Change of Character (CHoCH). Similar to BOS but specifically detects the first break in the opposite direction, signaling a potential trend reversal.
+
+```typescript
+const choch = changeOfCharacter(candles, { swingPeriod: 5 });
+const last = choch[choch.length - 1].value;
+if (last.bullishBos) {
+  console.log("Bullish CHoCH - potential trend reversal to upside");
+}
+```
+
+**Options:** Same as `breakOfStructure`.
+
+**Returns:** `Series<BosValue>` (same structure as `breakOfStructure`)
+
+---
+
+#### `orderBlock(candles, options)`
+
+Detect Order Blocks. An Order Block is the last opposing candle before a Break of Structure. These zones act as support/resistance where price often returns.
+
+```typescript
+const obs = orderBlock(candles, { swingPeriod: 5, minVolumeRatio: 1.2 });
+const lastOb = obs[obs.length - 1].value;
+
+if (lastOb.newOrderBlock) {
+  console.log(`New ${lastOb.newOrderBlock.type} OB at ${lastOb.newOrderBlock.low}-${lastOb.newOrderBlock.high}`);
+}
+if (lastOb.atBullishOB) {
+  console.log("Price is at a bullish order block - potential support");
+}
+```
+
+**Options:**
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `swingPeriod` | `number` | `5` | Swing detection period for BOS |
+| `volumePeriod` | `number` | `20` | Volume MA period for strength calculation |
+| `minVolumeRatio` | `number` | `1.0` | Minimum volume ratio for valid OB |
+| `maxActiveOBs` | `number` | `10` | Maximum active order blocks to track |
+| `partialMitigation` | `boolean` | `true` | Consider partial touch as mitigation |
+
+**Returns:** `Series<OrderBlockValue>`
+
+```typescript
+interface OrderBlockValue {
+  newOrderBlock: OrderBlock | null;      // New OB created at this bar
+  activeOrderBlocks: OrderBlock[];       // Active (not mitigated) order blocks
+  mitigatedThisBar: OrderBlock[];        // OBs mitigated at this bar
+  atBullishOB: boolean;                  // Price at bullish OB zone
+  atBearishOB: boolean;                  // Price at bearish OB zone
+}
+
+interface OrderBlock {
+  type: "bullish" | "bearish";
+  high: number;                          // Upper boundary
+  low: number;                           // Lower boundary
+  open: number;                          // Open price of OB candle
+  close: number;                         // Close price of OB candle
+  startIndex: number;                    // Index where OB was created
+  startTime: number;                     // Time when OB was created
+  strength: number;                      // Strength score (0-100)
+  mitigated: boolean;                    // Whether OB has been mitigated
+  mitigatedIndex: number | null;         // Index of mitigation
+  mitigatedTime: number | null;          // Time of mitigation
+}
+```
+
+---
+
+#### `getActiveOrderBlocks(candles, options)`
+
+Get currently active (not mitigated) order blocks.
+
+```typescript
+const { bullish, bearish } = getActiveOrderBlocks(candles, { swingPeriod: 5 });
+console.log(`${bullish.length} bullish OBs, ${bearish.length} bearish OBs`);
+```
+
+**Options:** Same as `orderBlock`.
+
+**Returns:** `{ bullish: OrderBlock[]; bearish: OrderBlock[] }`
+
+---
+
+#### `getNearestOrderBlock(candles, options)`
+
+Find the nearest order block to the current price.
+
+```typescript
+const nearest = getNearestOrderBlock(candles);
+if (nearest) {
+  console.log(`Nearest OB: ${nearest.type} at ${nearest.low}-${nearest.high}`);
+}
+```
+
+**Options:** Same as `orderBlock`.
+
+**Returns:** `OrderBlock | null`
+
+---
+
+#### `liquiditySweep(candles, options)`
+
+Detect Liquidity Sweeps. A sweep occurs when price briefly breaks a swing high/low to trigger stop losses, then quickly reverses back. This is a common institutional pattern.
+
+```typescript
+const sweeps = liquiditySweep(candles, { swingPeriod: 5 });
+const last = sweeps[sweeps.length - 1].value;
+
+if (last.recoveredThisBar.length > 0) {
+  const sweep = last.recoveredThisBar[0];
+  if (sweep.type === "bullish") {
+    console.log("Bullish sweep recovered - potential long entry");
+  }
+}
+```
+
+**Options:**
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `swingPeriod` | `number` | `5` | Swing detection period |
+| `maxRecoveryBars` | `number` | `3` | Maximum bars to wait for recovery |
+| `maxTrackedSweeps` | `number` | `10` | Maximum recent sweeps to track |
+| `minSweepDepth` | `number` | `0` | Minimum sweep depth percentage |
+
+**Returns:** `Series<LiquiditySweepValue>`
+
+```typescript
+interface LiquiditySweepValue {
+  isSweep: boolean;                        // New sweep on this bar
+  sweep: LiquiditySweep | null;            // New sweep details
+  recentSweeps: LiquiditySweep[];          // Recent sweeps
+  recoveredThisBar: LiquiditySweep[];      // Sweeps recovered on this bar
+}
+
+interface LiquiditySweep {
+  type: "bullish" | "bearish";
+  sweptLevel: number;                      // The swing level that was swept
+  sweepExtreme: number;                    // Extreme price during sweep
+  sweepIndex: number;                      // Index of sweep
+  sweepTime: number;                       // Time of sweep
+  recovered: boolean;                      // Whether price recovered
+  recoveredIndex: number | null;           // Index of recovery
+  recoveredTime: number | null;            // Time of recovery
+  sweepDepthPercent: number;               // How far past swing level (%)
+}
+```
+
+---
+
+#### `getRecoveredSweeps(candles, options)`
+
+Get all recovered sweeps from the data.
+
+```typescript
+const { bullish, bearish } = getRecoveredSweeps(candles, { swingPeriod: 5 });
+console.log(`${bullish.length} bullish recoveries, ${bearish.length} bearish recoveries`);
+```
+
+**Options:** Same as `liquiditySweep`.
+
+**Returns:** `{ bullish: LiquiditySweep[]; bearish: LiquiditySweep[] }`
+
+---
+
+#### `hasRecentSweepSignal(candles, type, options)`
+
+Check if there's a recent sweep signal at the current bar.
+
+```typescript
+if (hasRecentSweepSignal(candles, "bullish")) {
+  console.log("Bullish sweep signal detected!");
+}
+```
+
+**Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `candles` | `Candle[]` | required | Candle data |
+| `type` | `"bullish" \| "bearish" \| "both"` | `"both"` | Sweep type to check |
+| `options` | `LiquiditySweepOptions` | `{}` | Liquidity Sweep options |
+
+**Returns:** `boolean`
 
 ---
 
