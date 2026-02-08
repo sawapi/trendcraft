@@ -32,3 +32,6 @@ examples/scratch/
 examples/reports/
 docs/analysis/
 output/
+
+# Python
+cross-validation/python/.venv/

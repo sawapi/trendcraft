@@ -1,0 +1,9 @@
+[project]
+name = "trendcraft-cross-validation"
+version = "0.1.0"
+description = "Cross-validation fixture generator using TA-Lib"
+requires-python = ">=3.12"
+dependencies = [
+    "ta-lib",
+    "numpy",
+]

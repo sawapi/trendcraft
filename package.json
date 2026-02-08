@@ -31,7 +31,9 @@
     "test:watch": "vitest",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
-    "format": "biome format --write ."
+    "format": "biome format --write .",
+    "test:crossval": "vitest run cross-validation",
+    "generate:fixtures": "cd cross-validation/python && uv run python generate_fixtures.py"
   },
   "keywords": [
     "trading",
