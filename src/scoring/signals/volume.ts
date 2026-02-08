@@ -76,6 +76,7 @@ export function createVolumeAnomalyEvaluator(
     // Use pre-computed data if available (for period 20 and zThreshold 2 only)
     let current:
       | { ratio: number; level: string; isAnomaly: boolean; zScore: number | null }
+      | null
       | undefined;
 
     if (precomputed?.volumeAnomaly && period === 20 && zThreshold === 2) {
@@ -129,6 +130,7 @@ export function createBullishVolumeTrendEvaluator(maPeriod = 20): SignalDefiniti
           confidence: number;
           hasDivergence: boolean;
         }
+      | null
       | undefined;
 
     if (precomputed?.volumeTrend && maPeriod === 20) {
@@ -178,6 +180,7 @@ export function createBearishVolumeTrendEvaluator(maPeriod = 20): SignalDefiniti
           confidence: number;
           hasDivergence: boolean;
         }
+      | null
       | undefined;
 
     if (precomputed?.volumeTrend && maPeriod === 20) {
