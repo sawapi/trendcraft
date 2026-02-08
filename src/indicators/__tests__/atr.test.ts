@@ -36,35 +36,38 @@ describe("atr", () => {
 
   it("should calculate ATR correctly", () => {
     // Create candles with known volatility
+    // TR skips index 0 (requires previous close), starts at index 1
     const candles = makeCandles([
-      [100, 110, 90, 105], // TR = 20 (high - low)
-      [105, 115, 95, 110], // TR = max(20, |115-105|, |95-105|) = 20
-      [110, 120, 100, 115], // TR = 20
-      [115, 125, 105, 120], // TR = 20
+      [100, 110, 90, 105], // index 0: TR skipped
+      [105, 115, 95, 110], // index 1: TR = max(20, |115-105|, |95-105|) = 20
+      [110, 120, 100, 115], // index 2: TR = 20
+      [115, 125, 105, 120], // index 3: TR = 20 → first ATR = SMA(TR[1..3]) = 20
+      [120, 130, 110, 125], // index 4: TR = 20 → Wilder's smoothed
     ]);
     const result = atr(candles, { period: 3 });
 
-    // First 2 values should be null
+    // First 3 values should be null (indices 0..period-1)
     expect(result[0].value).toBeNull();
     expect(result[1].value).toBeNull();
+    expect(result[2].value).toBeNull();
 
-    // Third value should be simple average of first 3 TRs
-    // All TRs are 20, so ATR should be 20
-    expect(result[2].value).toBeCloseTo(20, 1);
+    // Index 3: first ATR = SMA of TR[1..3] = 20
+    expect(result[3].value).toBeCloseTo(20, 1);
   });
 
   it("should apply Wilder smoothing after initial period", () => {
     const candles = makeCandles([
-      [100, 110, 90, 105],
-      [105, 115, 95, 110],
-      [110, 120, 100, 115],
-      [115, 135, 105, 130], // High volatility candle, TR = 30
+      [100, 110, 90, 105],  // index 0: TR skipped
+      [105, 115, 95, 110],  // index 1: TR = 20
+      [110, 120, 100, 115], // index 2: TR = 20
+      [115, 125, 105, 120], // index 3: TR = 20, first ATR = 20
+      [120, 140, 110, 135], // index 4: TR = 30, Wilder's smoothed
     ]);
     const result = atr(candles, { period: 3 });
 
-    // ATR should smooth toward the new TR
-    expect(result[3].value).toBeGreaterThan(20);
-    expect(result[3].value).toBeLessThan(30);
+    // ATR at index 4 should smooth toward the new TR
+    expect(result[4].value).toBeGreaterThan(20);
+    expect(result[4].value).toBeLessThan(30);
   });
 
   it("should use default period of 14", () => {
@@ -84,13 +87,14 @@ describe("atr", () => {
 
   it("should consider gap up/down in true range", () => {
     const candles = makeCandles([
-      [100, 110, 90, 105],
-      [120, 125, 115, 122], // Gap up: previous close = 105, current low = 115
+      [100, 110, 90, 105],  // index 0: TR skipped
+      [120, 125, 115, 122], // index 1: TR = max(10, |125-105|, |115-105|) = 20
     ]);
     const result = atr(candles, { period: 1 });
 
+    // index 0 is null (period=1, first ATR at index 1)
+    expect(result[0].value).toBeNull();
     // TR for second candle should include gap
-    // TR = max(125-115, |125-105|, |115-105|) = max(10, 20, 10) = 20
     expect(result[1].value).toBe(20);
   });
 });

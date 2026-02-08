@@ -105,25 +105,27 @@ export function parabolicSar(
 
   const result: Series<ParabolicSarValue> = [];
 
-  // Determine initial trend direction based on first two candles
-  let isUptrend = normalized[1].close > normalized[0].close;
+  // Determine initial trend direction using MINUS_DM (TA-Lib compatible)
+  // If -DM(period=1) > 0, start short; otherwise start long
+  const diffP = normalized[1].high - normalized[0].high; // plus delta
+  const diffM = normalized[0].low - normalized[1].low; // minus delta
+  const minusDm = diffM > 0 && diffM > diffP ? diffM : 0;
+  let isLong = minusDm > 0 ? false : true;
 
-  // Initialize SAR and EP
+  // Initialize SAR and EP (TA-Lib: sar = prev bar's low/high, ep = current bar's high/low)
   let sar: number;
   let ep: number;
   let af = step;
 
-  if (isUptrend) {
-    // Start SAR at the low of the first candle
+  if (isLong) {
     sar = normalized[0].low;
-    ep = normalized[0].high;
+    ep = normalized[1].high;
   } else {
-    // Start SAR at the high of the first candle
     sar = normalized[0].high;
-    ep = normalized[0].low;
+    ep = normalized[1].low;
   }
 
-  // First candle - no SAR yet
+  // First candle - no SAR (lookback = 1)
   result.push({
     time: normalized[0].time,
     value: {
@@ -135,65 +137,117 @@ export function parabolicSar(
     },
   });
 
+  // TA-Lib loop: prevLow/prevHigh track the previous bar's low/high
+  // For the first iteration, both prev and new point to bar[1] (startIdx)
+  let prevLow = normalized[1].low;
+  let prevHigh = normalized[1].high;
+
   for (let i = 1; i < normalized.length; i++) {
-    const candle = normalized[i];
-    const prevCandle = normalized[i - 1];
+    const newLow = normalized[i].low;
+    const newHigh = normalized[i].high;
     let isReversal = false;
+    let outputSar: number;
 
-    // Calculate new SAR
-    let newSar = sar + af * (ep - sar);
-
-    if (isUptrend) {
-      // In uptrend, SAR cannot be above the prior two lows
-      newSar = Math.min(newSar, prevCandle.low);
-      if (i >= 2) {
-        newSar = Math.min(newSar, normalized[i - 2].low);
-      }
-
-      // Check for reversal (price crosses below SAR)
-      if (candle.low < newSar) {
+    if (isLong) {
+      // Check for reversal: low penetrates SAR (inclusive, TA-Lib uses <=)
+      if (newLow <= sar) {
+        // Switch to short
+        isLong = false;
         isReversal = true;
-        isUptrend = false;
-        newSar = ep; // SAR becomes the EP of the previous trend
-        ep = candle.low;
+
+        // Override SAR with EP from previous trend
+        sar = ep;
+
+        // Constrain within yesterday's and today's range
+        if (sar < prevHigh) sar = prevHigh;
+        if (sar < newHigh) sar = newHigh;
+
+        // Output the override SAR
+        outputSar = sar;
+
+        // Reset af and ep for new downtrend
         af = step;
+        ep = newLow;
+
+        // Calculate new SAR for next iteration
+        sar = sar + af * (ep - sar);
+
+        // Constrain new SAR within yesterday's and today's range
+        if (sar < prevHigh) sar = prevHigh;
+        if (sar < newHigh) sar = newHigh;
       } else {
-        // Update EP if new high
-        if (candle.high > ep) {
-          ep = candle.high;
-          af = Math.min(af + step, max);
+        // No reversal - output the SAR (calculated in previous iteration)
+        outputSar = sar;
+
+        // Update EP and AF if new high
+        if (newHigh > ep) {
+          ep = newHigh;
+          af += step;
+          if (af > max) af = max;
         }
+
+        // Calculate new SAR for next iteration
+        sar = sar + af * (ep - sar);
+
+        // Constrain: SAR cannot be above prior two lows
+        if (sar > prevLow) sar = prevLow;
+        if (sar > newLow) sar = newLow;
       }
     } else {
-      // In downtrend, SAR cannot be below the prior two highs
-      newSar = Math.max(newSar, prevCandle.high);
-      if (i >= 2) {
-        newSar = Math.max(newSar, normalized[i - 2].high);
-      }
-
-      // Check for reversal (price crosses above SAR)
-      if (candle.high > newSar) {
+      // Check for reversal: high penetrates SAR (inclusive, TA-Lib uses >=)
+      if (newHigh >= sar) {
+        // Switch to long
+        isLong = true;
         isReversal = true;
-        isUptrend = true;
-        newSar = ep; // SAR becomes the EP of the previous trend
-        ep = candle.high;
+
+        // Override SAR with EP from previous trend
+        sar = ep;
+
+        // Constrain within yesterday's and today's range
+        if (sar > prevLow) sar = prevLow;
+        if (sar > newLow) sar = newLow;
+
+        // Output the override SAR
+        outputSar = sar;
+
+        // Reset af and ep for new uptrend
         af = step;
+        ep = newHigh;
+
+        // Calculate new SAR for next iteration
+        sar = sar + af * (ep - sar);
+
+        // Constrain new SAR within yesterday's and today's range
+        if (sar > prevLow) sar = prevLow;
+        if (sar > newLow) sar = newLow;
       } else {
-        // Update EP if new low
-        if (candle.low < ep) {
-          ep = candle.low;
-          af = Math.min(af + step, max);
+        // No reversal - output the SAR (calculated in previous iteration)
+        outputSar = sar;
+
+        // Update EP and AF if new low
+        if (newLow < ep) {
+          ep = newLow;
+          af += step;
+          if (af > max) af = max;
         }
+
+        // Calculate new SAR for next iteration
+        sar = sar + af * (ep - sar);
+
+        // Constrain: SAR cannot be below prior two highs
+        if (sar < prevHigh) sar = prevHigh;
+        if (sar < newHigh) sar = newHigh;
       }
     }
 
-    sar = newSar;
+    prevLow = newLow;
+    prevHigh = newHigh;
 
     result.push({
-      time: candle.time,
+      time: normalized[i].time,
       value: {
-        sar,
-        direction: isUptrend ? 1 : -1,
+        sar: outputSar,
+        direction: isLong ? 1 : -1,
         isReversal,
         af,
         ep,

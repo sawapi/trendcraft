@@ -79,8 +79,8 @@ export function dmi(
     const current = normalized[i];
 
     if (i === 0) {
-      // First bar: use high-low as TR, no DM
-      tr.push(current.high - current.low);
+      // First bar: TR requires previous close, so skip (TA-Lib compatible)
+      tr.push(0);
       plusDm.push(0);
       minusDm.push(0);
       continue;
@@ -173,16 +173,20 @@ export function dmi(
 function wilderSmooth(values: number[], period: number): (number | null)[] {
   const result: (number | null)[] = [];
 
+  // TA-Lib compatible: sum period-1 values (index 1..period-1), then start
+  // Wilder's smoothing at index=period. First non-null output is at index=period.
+  // Index 0 is always 0 (TR/DM requires previous bar).
+  let initSum = 0;
+
   for (let i = 0; i < values.length; i++) {
-    if (i < period - 1) {
+    if (i < period) {
+      // Accumulate initial sum (index 1..period-1 = period-1 values)
+      initSum += values[i]; // index 0 is 0, so effectively sums index 1..period-1
       result.push(null);
-    } else if (i === period - 1) {
-      // First value: sum of first N periods
-      let sum = 0;
-      for (let j = 0; j < period; j++) {
-        sum += values[i - j];
-      }
-      result.push(sum);
+    } else if (i === period) {
+      // First smoothed value: apply Wilder's to initial sum with current value
+      const smoothed = initSum - initSum / period + values[i];
+      result.push(smoothed);
     } else {
       // Wilder's smoothing: prev - (prev/N) + current
       const prev = result[i - 1];
