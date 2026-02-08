@@ -39,9 +39,7 @@ export function loadFixture(name: string): Fixture {
   return JSON.parse(raw);
 }
 
-export function isSingleTestCase(
-  tc: SingleTestCase | CompositeTestCase,
-): tc is SingleTestCase {
+export function isSingleTestCase(tc: SingleTestCase | CompositeTestCase): tc is SingleTestCase {
   return Array.isArray(tc.values);
 }
 

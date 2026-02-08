@@ -1,29 +1,29 @@
-import { describe, it, expect, beforeAll } from "vitest";
-import type { NormalizedCandle, Series } from "../../src/types";
+import { beforeAll, describe, expect, it } from "vitest";
 import {
-  sma,
-  ema,
-  wma,
-  rsi,
   atr,
-  cci,
-  williamsR,
-  roc,
-  obv,
-  macd,
-  fastStochastics,
-  stochastics,
-  mfi,
-  dmi,
   bollingerBands,
+  cci,
+  dmi,
+  donchianChannel,
+  ema,
+  fastStochastics,
+  highest,
+  keltnerChannel,
+  lowest,
+  macd,
+  mfi,
+  obv,
   parabolicSar,
+  roc,
+  rsi,
+  sma,
+  stochRsi,
+  stochastics,
+  williamsR,
+  wma,
 } from "../../src";
-import {
-  loadOhlcv,
-  loadFixture,
-  isSingleTestCase,
-  assertSeriesMatch,
-} from "./helpers";
+import type { NormalizedCandle, Series } from "../../src/types";
+import { assertSeriesMatch, isSingleTestCase, loadFixture, loadOhlcv } from "./helpers";
 
 let candles: NormalizedCandle[];
 
@@ -41,8 +41,8 @@ describe("SMA", () => {
     { period: 5, decimals: 10 },
   ])("sma(period=$period) matches TA-Lib within $decimals decimals", ({ period, decimals }) => {
     const fixture = loadFixture("sma");
-    const tc = fixture.test_cases.find((t) => t.params.period === period)!;
-    if (!isSingleTestCase(tc)) throw new Error("Expected single test case");
+    const tc = fixture.test_cases.find((t) => t.params.period === period);
+    if (!tc || !isSingleTestCase(tc)) throw new Error("Expected single test case");
 
     const result = sma(candles, { period });
     assertSeriesMatch(result, tc.values, decimals, `SMA(${period})`);
@@ -55,8 +55,8 @@ describe("EMA", () => {
     { period: 26, decimals: 6 },
   ])("ema(period=$period) matches TA-Lib within $decimals decimals", ({ period, decimals }) => {
     const fixture = loadFixture("ema");
-    const tc = fixture.test_cases.find((t) => t.params.period === period)!;
-    if (!isSingleTestCase(tc)) throw new Error("Expected single test case");
+    const tc = fixture.test_cases.find((t) => t.params.period === period);
+    if (!tc || !isSingleTestCase(tc)) throw new Error("Expected single test case");
 
     const result = ema(candles, { period });
     assertSeriesMatch(result, tc.values, decimals, `EMA(${period})`);
@@ -69,8 +69,8 @@ describe("WMA", () => {
     { period: 20, decimals: 8 },
   ])("wma(period=$period) matches TA-Lib within $decimals decimals", ({ period, decimals }) => {
     const fixture = loadFixture("wma");
-    const tc = fixture.test_cases.find((t) => t.params.period === period)!;
-    if (!isSingleTestCase(tc)) throw new Error("Expected single test case");
+    const tc = fixture.test_cases.find((t) => t.params.period === period);
+    if (!tc || !isSingleTestCase(tc)) throw new Error("Expected single test case");
 
     const result = wma(candles, { period });
     assertSeriesMatch(result, tc.values, decimals, `WMA(${period})`);
@@ -83,8 +83,8 @@ describe("RSI", () => {
     { period: 7, decimals: 6 },
   ])("rsi(period=$period) matches TA-Lib within $decimals decimals", ({ period, decimals }) => {
     const fixture = loadFixture("rsi");
-    const tc = fixture.test_cases.find((t) => t.params.period === period)!;
-    if (!isSingleTestCase(tc)) throw new Error("Expected single test case");
+    const tc = fixture.test_cases.find((t) => t.params.period === period);
+    if (!tc || !isSingleTestCase(tc)) throw new Error("Expected single test case");
 
     const result = rsi(candles, { period });
     assertSeriesMatch(result, tc.values, decimals, `RSI(${period})`);
@@ -97,8 +97,8 @@ describe("ATR", () => {
     { period: 7, decimals: 8 },
   ])("atr(period=$period) matches TA-Lib within $decimals decimals", ({ period, decimals }) => {
     const fixture = loadFixture("atr");
-    const tc = fixture.test_cases.find((t) => t.params.period === period)!;
-    if (!isSingleTestCase(tc)) throw new Error("Expected single test case");
+    const tc = fixture.test_cases.find((t) => t.params.period === period);
+    if (!tc || !isSingleTestCase(tc)) throw new Error("Expected single test case");
 
     const result = atr(candles, { period });
     assertSeriesMatch(result, tc.values, decimals, `ATR(${period})`);
@@ -111,8 +111,8 @@ describe("CCI", () => {
     { period: 14, decimals: 6 },
   ])("cci(period=$period) matches TA-Lib within $decimals decimals", ({ period, decimals }) => {
     const fixture = loadFixture("cci");
-    const tc = fixture.test_cases.find((t) => t.params.period === period)!;
-    if (!isSingleTestCase(tc)) throw new Error("Expected single test case");
+    const tc = fixture.test_cases.find((t) => t.params.period === period);
+    if (!tc || !isSingleTestCase(tc)) throw new Error("Expected single test case");
 
     const result = cci(candles, { period });
     assertSeriesMatch(result, tc.values, decimals, `CCI(${period})`);
@@ -123,14 +123,17 @@ describe("Williams %R", () => {
   it.each([
     { period: 14, decimals: 6 },
     { period: 7, decimals: 6 },
-  ])("williamsR(period=$period) matches TA-Lib within $decimals decimals", ({ period, decimals }) => {
-    const fixture = loadFixture("williams-r");
-    const tc = fixture.test_cases.find((t) => t.params.period === period)!;
-    if (!isSingleTestCase(tc)) throw new Error("Expected single test case");
+  ])(
+    "williamsR(period=$period) matches TA-Lib within $decimals decimals",
+    ({ period, decimals }) => {
+      const fixture = loadFixture("williams-r");
+      const tc = fixture.test_cases.find((t) => t.params.period === period);
+      if (!tc || !isSingleTestCase(tc)) throw new Error("Expected single test case");
 
-    const result = williamsR(candles, { period });
-    assertSeriesMatch(result, tc.values, decimals, `WilliamsR(${period})`);
-  });
+      const result = williamsR(candles, { period });
+      assertSeriesMatch(result, tc.values, decimals, `WilliamsR(${period})`);
+    },
+  );
 });
 
 describe("ROC", () => {
@@ -139,8 +142,8 @@ describe("ROC", () => {
     { period: 9, decimals: 6 },
   ])("roc(period=$period) matches TA-Lib within $decimals decimals", ({ period, decimals }) => {
     const fixture = loadFixture("roc");
-    const tc = fixture.test_cases.find((t) => t.params.period === period)!;
-    if (!isSingleTestCase(tc)) throw new Error("Expected single test case");
+    const tc = fixture.test_cases.find((t) => t.params.period === period);
+    if (!tc || !isSingleTestCase(tc)) throw new Error("Expected single test case");
 
     const result = roc(candles, { period });
     assertSeriesMatch(result, tc.values, decimals, `ROC(${period})`);
@@ -155,6 +158,34 @@ describe("OBV", () => {
 
     const result = obv(candles);
     assertSeriesMatch(result, tc.values, 0, "OBV");
+  });
+});
+
+describe("Highest", () => {
+  it.each([
+    { period: 20, decimals: 10 },
+    { period: 10, decimals: 10 },
+  ])("highest(period=$period) matches TA-Lib within $decimals decimals", ({ period, decimals }) => {
+    const fixture = loadFixture("highest");
+    const tc = fixture.test_cases.find((t) => t.params.period === period);
+    if (!tc || !isSingleTestCase(tc)) throw new Error("Expected single test case");
+
+    const result = highest(candles, period);
+    assertSeriesMatch(result, tc.values, decimals, `Highest(${period})`);
+  });
+});
+
+describe("Lowest", () => {
+  it.each([
+    { period: 20, decimals: 10 },
+    { period: 10, decimals: 10 },
+  ])("lowest(period=$period) matches TA-Lib within $decimals decimals", ({ period, decimals }) => {
+    const fixture = loadFixture("lowest");
+    const tc = fixture.test_cases.find((t) => t.params.period === period);
+    if (!tc || !isSingleTestCase(tc)) throw new Error("Expected single test case");
+
+    const result = lowest(candles, period);
+    assertSeriesMatch(result, tc.values, decimals, `Lowest(${period})`);
   });
 });
 
@@ -222,8 +253,8 @@ describe("MFI", () => {
     { period: 10, decimals: 6 },
   ])("mfi(period=$period) matches TA-Lib within $decimals decimals", ({ period, decimals }) => {
     const fixture = loadFixture("mfi");
-    const tc = fixture.test_cases.find((t) => t.params.period === period)!;
-    if (!isSingleTestCase(tc)) throw new Error("Expected single test case");
+    const tc = fixture.test_cases.find((t) => t.params.period === period);
+    if (!tc || !isSingleTestCase(tc)) throw new Error("Expected single test case");
 
     const result = mfi(candles, { period });
     assertSeriesMatch(result, tc.values, decimals, `MFI(${period})`);
@@ -245,6 +276,58 @@ describe("DMI", () => {
     assertSeriesMatch(plusDiValues, tc.values.plusDi, 8, "+DI");
     assertSeriesMatch(minusDiValues, tc.values.minusDi, 8, "-DI");
     assertSeriesMatch(adxValues, tc.values.adx, 8, "ADX");
+  });
+});
+
+describe("Donchian Channel", () => {
+  it("donchianChannel(20) matches TA-Lib within 10 decimals", () => {
+    const fixture = loadFixture("donchian-channel");
+    const tc = fixture.test_cases[0];
+    if (isSingleTestCase(tc)) throw new Error("Expected composite test case");
+
+    const result = donchianChannel(candles, { period: 20 });
+
+    const upperValues = result.map((r) => ({ time: r.time, value: r.value.upper }));
+    const middleValues = result.map((r) => ({ time: r.time, value: r.value.middle }));
+    const lowerValues = result.map((r) => ({ time: r.time, value: r.value.lower }));
+
+    assertSeriesMatch(upperValues, tc.values.upper, 10, "Donchian upper");
+    assertSeriesMatch(middleValues, tc.values.middle, 10, "Donchian middle");
+    assertSeriesMatch(lowerValues, tc.values.lower, 10, "Donchian lower");
+  });
+});
+
+describe("StochRSI", () => {
+  it("stochRsi(14,14,3,3) matches TA-Lib within 4 decimals", () => {
+    const fixture = loadFixture("stoch-rsi");
+    const tc = fixture.test_cases[0];
+    if (isSingleTestCase(tc)) throw new Error("Expected composite test case");
+
+    const result = stochRsi(candles, { rsiPeriod: 14, stochPeriod: 14, kPeriod: 3, dPeriod: 3 });
+
+    const kValues = result.map((r) => ({ time: r.time, value: r.value.k }));
+    const dValues = result.map((r) => ({ time: r.time, value: r.value.d }));
+
+    assertSeriesMatch(kValues, tc.values.k, 4, "StochRSI %K");
+    assertSeriesMatch(dValues, tc.values.d, 4, "StochRSI %D");
+  });
+});
+
+describe("Keltner Channel", () => {
+  it("keltnerChannel(20,10,2) matches TA-Lib within 6 decimals", () => {
+    const fixture = loadFixture("keltner-channel");
+    const tc = fixture.test_cases[0];
+    if (isSingleTestCase(tc)) throw new Error("Expected composite test case");
+
+    const result = keltnerChannel(candles, { emaPeriod: 20, atrPeriod: 10, multiplier: 2 });
+
+    const upperValues = result.map((r) => ({ time: r.time, value: r.value.upper }));
+    const middleValues = result.map((r) => ({ time: r.time, value: r.value.middle }));
+    const lowerValues = result.map((r) => ({ time: r.time, value: r.value.lower }));
+
+    assertSeriesMatch(middleValues, tc.values.middle, 6, "Keltner middle");
+    assertSeriesMatch(upperValues, tc.values.upper, 6, "Keltner upper");
+    assertSeriesMatch(lowerValues, tc.values.lower, 6, "Keltner lower");
   });
 });
 

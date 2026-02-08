@@ -264,6 +264,44 @@ def generate_all(ohlcv: dict) -> None:
         ],
     })
 
+    # Highest (MAX)
+    print("Generating Highest...")
+    save_fixture("highest", {
+        "indicator": "Highest",
+        "talib_function": "MAX",
+        "test_cases": [
+            {
+                "name": "highest_20",
+                "params": {"period": 20},
+                "values": to_json_safe(talib.MAX(high, timeperiod=20), n),
+            },
+            {
+                "name": "highest_10",
+                "params": {"period": 10},
+                "values": to_json_safe(talib.MAX(high, timeperiod=10), n),
+            },
+        ],
+    })
+
+    # Lowest (MIN)
+    print("Generating Lowest...")
+    save_fixture("lowest", {
+        "indicator": "Lowest",
+        "talib_function": "MIN",
+        "test_cases": [
+            {
+                "name": "lowest_20",
+                "params": {"period": 20},
+                "values": to_json_safe(talib.MIN(low, timeperiod=20), n),
+            },
+            {
+                "name": "lowest_10",
+                "params": {"period": 10},
+                "values": to_json_safe(talib.MIN(low, timeperiod=10), n),
+            },
+        ],
+    })
+
     # ROC
     print("Generating ROC...")
     save_fixture("roc", {
@@ -358,6 +396,89 @@ def generate_all(ohlcv: dict) -> None:
                 "values": {
                     "k": to_json_safe(slowk, n),
                     "d": to_json_safe(slowd, n),
+                },
+            },
+        ],
+    })
+
+    # Donchian Channel (composite: MAX + MIN + middle)
+    print("Generating Donchian Channel...")
+    dc_upper = talib.MAX(high, timeperiod=20)
+    dc_lower = talib.MIN(low, timeperiod=20)
+    dc_middle = (dc_upper + dc_lower) / 2.0
+    save_fixture("donchian-channel", {
+        "indicator": "DonchianChannel",
+        "talib_function": "MAX+MIN",
+        "test_cases": [
+            {
+                "name": "donchian_20",
+                "params": {"period": 20},
+                "values": {
+                    "upper": to_json_safe(dc_upper, n),
+                    "middle": to_json_safe(dc_middle, n),
+                    "lower": to_json_safe(dc_lower, n),
+                },
+            },
+        ],
+    })
+
+    # StochRSI
+    # TA-Lib STOCHRSI: timeperiod=RSI period, fastk_period=stochastic lookback,
+    # fastd_period=D smoothing. The fastk_period maps to trendcraft's stochPeriod.
+    # TA-Lib outputs "fastK" = SMA(rawStochRSI, 1) when fastk_period=stochPeriod,
+    # and "fastD" = SMA(fastK, fastd_period).
+    # To match trendcraft's (rsiPeriod=14, stochPeriod=14, kPeriod=3, dPeriod=3):
+    #   timeperiod=14, fastk_period=14, fastd_period=3
+    # TA-Lib fastK output = raw stochastic (unsmoothed) when kPeriod=1,
+    # but trendcraft %K = SMA(rawStochRSI, kPeriod=3).
+    # So we use STOCHRSI(timeperiod=14, fastk_period=14, fastd_period=3):
+    #   fastK = unsmoothed stochastic RSI → trendcraft rawStochRSI
+    #   fastD = SMA(fastK, 3) → BUT we need SMA(SMA(rawStochRSI,3), 3)
+    # Actually for a direct match we need:
+    #   TA-Lib STOCHRSI fastk_period=14 gives raw stochastic
+    #   Then we manually apply SMA(3) for K and SMA(3) for D
+    print("Generating StochRSI...")
+    # Get raw stochastic RSI (fastk_period=stochPeriod, fastd_period=1 for no smoothing)
+    stochrsi_raw_k, _ = talib.STOCHRSI(
+        close, timeperiod=14, fastk_period=14, fastd_period=1, fastd_matype=0
+    )
+    # Apply SMA(3) to get %K
+    stochrsi_k = talib.SMA(stochrsi_raw_k, timeperiod=3)
+    # Apply SMA(3) to %K to get %D
+    stochrsi_d = talib.SMA(stochrsi_k, timeperiod=3)
+    save_fixture("stoch-rsi", {
+        "indicator": "StochRSI",
+        "talib_function": "STOCHRSI+SMA",
+        "note": "TA-Lib STOCHRSI(14,14,1) gives raw StochRSI, then SMA(3) for K and SMA(3) for D",
+        "test_cases": [
+            {
+                "name": "stochrsi_14_14_3_3",
+                "params": {"rsiPeriod": 14, "stochPeriod": 14, "kPeriod": 3, "dPeriod": 3},
+                "values": {
+                    "k": to_json_safe(stochrsi_k, n),
+                    "d": to_json_safe(stochrsi_d, n),
+                },
+            },
+        ],
+    })
+
+    # Keltner Channel (composite: EMA + ATR)
+    print("Generating Keltner Channel...")
+    kc_ema = talib.EMA(close, timeperiod=20)
+    kc_atr = talib.ATR(high, low, close, timeperiod=10)
+    kc_upper = kc_ema + 2.0 * kc_atr
+    kc_lower = kc_ema - 2.0 * kc_atr
+    save_fixture("keltner-channel", {
+        "indicator": "KeltnerChannel",
+        "talib_function": "EMA+ATR",
+        "test_cases": [
+            {
+                "name": "keltner_20_10_2",
+                "params": {"emaPeriod": 20, "atrPeriod": 10, "multiplier": 2},
+                "values": {
+                    "upper": to_json_safe(kc_upper, n),
+                    "middle": to_json_safe(kc_ema, n),
+                    "lower": to_json_safe(kc_lower, n),
                 },
             },
         ],
