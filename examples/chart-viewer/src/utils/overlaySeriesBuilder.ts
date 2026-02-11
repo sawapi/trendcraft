@@ -5,7 +5,7 @@
  */
 
 import type { NormalizedCandle } from "trendcraft";
-import type { OverlayType } from "../types";
+import type { IndicatorParams, OverlayType } from "../types";
 import type { OverlayData } from "../hooks/useOverlays";
 import type { SeriesItem } from "./chartColors";
 import { buildMovingAverageSeries } from "./overlay/movingAverages";
@@ -23,13 +23,14 @@ export function buildOverlaySeries(
   overlays: OverlayData,
   enabledOverlays: OverlayType[],
   dates: string[],
+  indicatorParams?: IndicatorParams,
 ): SeriesItem[] {
   return [
     ...buildMovingAverageSeries(overlays, enabledOverlays),
     ...buildBollingerIchimokuSeries(overlays, enabledOverlays),
     ...buildTrendOverlaySeries(overlays, enabledOverlays),
     ...buildPriceOverlaySeries(candles, overlays, enabledOverlays),
-    ...buildSmcOverlaySeries(candles, overlays, enabledOverlays, dates),
+    ...buildSmcOverlaySeries(candles, overlays, enabledOverlays, dates, indicatorParams),
     ...buildFilterOverlaySeries(candles, overlays, enabledOverlays),
   ];
 }

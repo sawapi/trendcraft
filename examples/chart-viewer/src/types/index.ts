@@ -14,6 +14,7 @@ export type {
 export type {
   IndicatorParams,
   ParamConfig,
+  NumericParamConfig,
 } from "./indicators";
 export {
   DEFAULT_INDICATOR_PARAMS,

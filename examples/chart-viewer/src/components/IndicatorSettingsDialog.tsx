@@ -69,7 +69,7 @@ export function IndicatorSettingsDialog({ isOpen, onClose }: IndicatorSettingsDi
     }
   };
 
-  const handleParamChange = (paramKey: keyof IndicatorParams, value: number) => {
+  const handleParamChange = (paramKey: keyof IndicatorParams, value: number | boolean) => {
     setIndicatorParams({ [paramKey]: value });
   };
 

@@ -243,7 +243,7 @@ export function buildChartOption(
   ];
 
   // Overlay indicators
-  const overlaySeries = buildOverlaySeries(candles, overlays, enabledOverlays, dates);
+  const overlaySeries = buildOverlaySeries(candles, overlays, enabledOverlays, dates, indicatorParams);
   series.push(...overlaySeries);
 
   // Subchart context (pixel-based)

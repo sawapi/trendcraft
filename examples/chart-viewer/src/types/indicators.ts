@@ -69,9 +69,12 @@ export interface IndicatorParams {
   orderBlockVolumePeriod: number;
   orderBlockMinVolumeRatio: number;
   orderBlockMaxActive: number;
+  orderBlockDisplacementAtr: number;
+  orderBlockMaxBarsActive: number;
   // SMC - Fair Value Gap
   fvgMinGapPercent: number;
   fvgMaxActive: number;
+  fvgShowMitigated: boolean;
   // SMC - BOS/CHoCH
   bosSwingPeriod: number;
   // SMC - Liquidity Sweep
@@ -195,9 +198,12 @@ export const DEFAULT_INDICATOR_PARAMS: IndicatorParams = {
   orderBlockVolumePeriod: 20,
   orderBlockMinVolumeRatio: 1.0,
   orderBlockMaxActive: 10,
+  orderBlockDisplacementAtr: 0,
+  orderBlockMaxBarsActive: 500,
   // SMC - Fair Value Gap
   fvgMinGapPercent: 0,
   fvgMaxActive: 10,
+  fvgShowMitigated: false,
   // SMC - BOS/CHoCH
   bosSwingPeriod: 5,
   // SMC - Liquidity Sweep
@@ -255,12 +261,20 @@ export const DEFAULT_INDICATOR_PARAMS: IndicatorParams = {
 /**
  * Parameter config for UI
  */
-export interface ParamConfig {
+export type ParamConfig = NumericParamConfig | BooleanParamConfig;
+
+export interface NumericParamConfig {
   key: keyof IndicatorParams;
   label: string;
   min: number;
   max: number;
   step: number;
+}
+
+export interface BooleanParamConfig {
+  key: keyof IndicatorParams;
+  label: string;
+  type: "boolean";
 }
 
 /**
@@ -353,10 +367,13 @@ export const INDICATOR_PARAM_CONFIGS: Record<string, ParamConfig[]> = {
     { key: "orderBlockVolumePeriod", label: "Volume Period", min: 5, max: 50, step: 1 },
     { key: "orderBlockMinVolumeRatio", label: "Min Vol Ratio", min: 0.5, max: 3, step: 0.1 },
     { key: "orderBlockMaxActive", label: "Max Active", min: 1, max: 20, step: 1 },
+    { key: "orderBlockDisplacementAtr", label: "Displacement ATR", min: 0, max: 5, step: 0.1 },
+    { key: "orderBlockMaxBarsActive", label: "Max Bars Active", min: 50, max: 2000, step: 50 },
   ],
   fvg: [
     { key: "fvgMinGapPercent", label: "Min Gap %", min: 0, max: 2, step: 0.1 },
     { key: "fvgMaxActive", label: "Max Active", min: 1, max: 20, step: 1 },
+    { key: "fvgShowMitigated", label: "Show Filled", type: "boolean" },
   ],
   bos: [
     { key: "bosSwingPeriod", label: "Swing Period", min: 1, max: 20, step: 1 },

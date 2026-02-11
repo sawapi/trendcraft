@@ -15,7 +15,7 @@ interface IndicatorItemProps {
   expandedIndicator: string | null;
   onSettingsClick: (e: React.MouseEvent, key: string) => void;
   indicatorParams: IndicatorParams;
-  onParamChange: (paramKey: keyof IndicatorParams, value: number) => void;
+  onParamChange: (paramKey: keyof IndicatorParams, value: number | boolean) => void;
 }
 
 /**

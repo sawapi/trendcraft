@@ -254,6 +254,8 @@ export function useOverlays(
         volumePeriod: p.orderBlockVolumePeriod,
         minVolumeRatio: p.orderBlockMinVolumeRatio,
         maxActiveOBs: p.orderBlockMaxActive,
+        displacementAtr: p.orderBlockDisplacementAtr,
+        maxBarsActive: p.orderBlockMaxBarsActive,
       });
       data.orderBlock = series.map((s) => s.value);
     }
