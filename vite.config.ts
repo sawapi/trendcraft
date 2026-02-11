@@ -10,6 +10,7 @@ export default defineConfig({
         "screening/index": resolve(__dirname, "src/screening/index.ts"),
         "bin/trendcraft-screen": resolve(__dirname, "bin/trendcraft-screen.ts"),
         "bin/trendcraft-backtest": resolve(__dirname, "bin/trendcraft-backtest.ts"),
+        "bin/trendcraft-analyze": resolve(__dirname, "bin/trendcraft-analyze.ts"),
       },
       formats: ["es", "cjs"],
       fileName: (format, entryName) => {
