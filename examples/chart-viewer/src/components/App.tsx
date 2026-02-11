@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useChartStore } from "../store/chartStore";
+import { createChartApi, registerChartRef } from "../api";
 import { usePostMessageLoader } from "../hooks/usePostMessageLoader";
 import { BacktestPanel } from "./BacktestPanel";
 import { FileDropZone } from "./FileDropZone";
@@ -63,6 +64,14 @@ export default function App() {
   usePostMessageLoader();
 
   const mainChartRef = useRef<MainChartHandle>(null);
+
+  // Expose programmatic API on window for LLM agents and DevTools
+  useEffect(() => {
+    (window as any).__chartStore = useChartStore;
+    (window as any).__chart = createChartApi();
+    registerChartRef(mainChartRef);
+    console.log("[chart-viewer] API ready. Type __chart.help() for usage.");
+  }, []);
 
   const fileName = useChartStore((state) => state.fileName);
   const rawCandles = useChartStore((state) => state.rawCandles);
