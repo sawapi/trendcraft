@@ -7,12 +7,32 @@ import type { OverlayType } from "../../types";
 import type { OverlayData } from "../../hooks/useOverlays";
 import { COLORS, type SeriesItem } from "../chartColors";
 
+/**
+ * Clip a value to a range, returning null if outside bounds.
+ * Used to prevent extreme data points from distorting Y-axis scale.
+ */
+function clipToRange(
+  value: number | null | undefined,
+  min: number,
+  max: number,
+): number | null {
+  if (value === null || value === undefined) return null;
+  return value < min || value > max ? null : value;
+}
+
 export function buildPriceOverlaySeries(
   candles: NormalizedCandle[],
   overlays: OverlayData,
   enabledOverlays: OverlayType[],
 ): SeriesItem[] {
   const series: SeriesItem[] = [];
+
+  // Compute clip bounds from candle price range (used for Channel, Pitchfork, FibExtension)
+  const visibleHigh = Math.max(...candles.map((c) => c.high));
+  const visibleLow = Math.min(...candles.map((c) => c.low));
+  const range = visibleHigh - visibleLow;
+  const clipMax = visibleHigh + range * 0.5;
+  const clipMin = visibleLow - range * 0.5;
 
   // VWAP
   if (enabledOverlays.includes("vwap") && overlays.vwap) {
@@ -140,6 +160,15 @@ export function buildPriceOverlaySeries(
         data: overlays.fibonacci.map((v) => v.levels?.[level.key] ?? null),
         symbol: "none",
         lineStyle: { color: level.color, width: level.width, type: level.lineType },
+        endLabel: {
+          show: true,
+          formatter: (params: { value: number | number[] | null }) => {
+            const val = Array.isArray(params.value) ? params.value[1] : params.value;
+            return `${label} (${typeof val === "number" ? val.toLocaleString() : ""})`;
+          },
+          fontSize: 10,
+          color: level.color,
+        },
       });
     }
   }
@@ -162,26 +191,26 @@ export function buildPriceOverlaySeries(
     });
   }
 
-  // Channel Line
+  // Channel Line (clipped to prevent extreme extrapolation)
   if (enabledOverlays.includes("channelLine") && overlays.channelLine) {
     series.push({
       name: "Channel Upper",
       type: "line",
-      data: overlays.channelLine.map((v) => v.upper),
+      data: overlays.channelLine.map((v) => clipToRange(v.upper, clipMin, clipMax)),
       symbol: "none",
       lineStyle: { color: COLORS.channelUpper, width: 1.5 },
     });
     series.push({
       name: "Channel Lower",
       type: "line",
-      data: overlays.channelLine.map((v) => v.lower),
+      data: overlays.channelLine.map((v) => clipToRange(v.lower, clipMin, clipMax)),
       symbol: "none",
       lineStyle: { color: COLORS.channelLower, width: 1.5 },
     });
     series.push({
       name: "Channel Middle",
       type: "line",
-      data: overlays.channelLine.map((v) => v.middle),
+      data: overlays.channelLine.map((v) => clipToRange(v.middle, clipMin, clipMax)),
       symbol: "none",
       lineStyle: { color: COLORS.channelMiddle, width: 1, type: "dashed" },
     });
@@ -204,33 +233,45 @@ export function buildPriceOverlaySeries(
       series.push({
         name: `Ext ${label}`,
         type: "line",
-        data: overlays.fibExtension.map((v) => v.levels?.[level.key] ?? null),
+        data: overlays.fibExtension.map((v) => {
+          const val = v.levels?.[level.key] ?? null;
+          return clipToRange(val, clipMin, clipMax);
+        }),
         symbol: "none",
         lineStyle: { color: level.color, width: level.width, type: level.lineType },
+        endLabel: {
+          show: true,
+          formatter: (params: { value: number | number[] | null }) => {
+            const val = Array.isArray(params.value) ? params.value[1] : params.value;
+            return `${label} (${typeof val === "number" ? val.toLocaleString() : ""})`;
+          },
+          fontSize: 10,
+          color: level.color,
+        },
       });
     }
   }
 
-  // Andrew's Pitchfork
+  // Andrew's Pitchfork (clipped to prevent extreme extrapolation)
   if (enabledOverlays.includes("andrewsPitchfork") && overlays.andrewsPitchfork) {
     series.push({
       name: "PF Median",
       type: "line",
-      data: overlays.andrewsPitchfork.map((v) => v.median),
+      data: overlays.andrewsPitchfork.map((v) => clipToRange(v.median, clipMin, clipMax)),
       symbol: "none",
       lineStyle: { color: COLORS.pitchforkMedian, width: 2 },
     });
     series.push({
       name: "PF Upper",
       type: "line",
-      data: overlays.andrewsPitchfork.map((v) => v.upper),
+      data: overlays.andrewsPitchfork.map((v) => clipToRange(v.upper, clipMin, clipMax)),
       symbol: "none",
       lineStyle: { color: COLORS.pitchforkUpper, width: 1.5, type: "dashed" },
     });
     series.push({
       name: "PF Lower",
       type: "line",
-      data: overlays.andrewsPitchfork.map((v) => v.lower),
+      data: overlays.andrewsPitchfork.map((v) => clipToRange(v.lower, clipMin, clipMax)),
       symbol: "none",
       lineStyle: { color: COLORS.pitchforkLower, width: 1.5, type: "dashed" },
     });
