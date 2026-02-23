@@ -69,7 +69,7 @@ export function IndicatorSettingsDialog({ isOpen, onClose }: IndicatorSettingsDi
     }
   };
 
-  const handleParamChange = (paramKey: keyof IndicatorParams, value: number) => {
+  const handleParamChange = (paramKey: keyof IndicatorParams, value: number | boolean) => {
     setIndicatorParams({ [paramKey]: value });
   };
 
@@ -79,8 +79,11 @@ export function IndicatorSettingsDialog({ isOpen, onClose }: IndicatorSettingsDi
     setExpandedIndicator(expandedIndicator === key ? null : key);
   };
 
-  const handleReset = () => {
-    resetIndicatorParams();
+  const handleSavePreset = () => {
+    const name = presetName.trim();
+    if (!name) return;
+    savePreset(name);
+    setPresetName("");
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -342,20 +345,14 @@ export function IndicatorSettingsDialog({ isOpen, onClose }: IndicatorSettingsDi
                 value={presetName}
                 onChange={(e) => setPresetName(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" && presetName.trim()) {
-                    savePreset(presetName.trim());
-                    setPresetName("");
-                  }
+                  if (e.key === "Enter") handleSavePreset();
                 }}
               />
               <button
                 type="button"
                 className="preset-save-btn"
                 disabled={!presetName.trim()}
-                onClick={() => {
-                  savePreset(presetName.trim());
-                  setPresetName("");
-                }}
+                onClick={handleSavePreset}
               >
                 <span className="material-icons md-16">save</span>
                 Save
@@ -386,7 +383,7 @@ export function IndicatorSettingsDialog({ isOpen, onClose }: IndicatorSettingsDi
               </div>
             )}
           </div>
-          <button type="button" className="reset-params-btn" onClick={handleReset}>
+          <button type="button" className="reset-params-btn" onClick={resetIndicatorParams}>
             <span className="material-icons">refresh</span>
             Reset Parameters
           </button>

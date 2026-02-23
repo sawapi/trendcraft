@@ -3,7 +3,7 @@
  */
 
 import type { NormalizedCandle } from "trendcraft";
-import type { OverlayType } from "../../types";
+import type { IndicatorParams, OverlayType } from "../../types";
 import type { OverlayData } from "../../hooks/useOverlays";
 import { COLORS, type SeriesItem } from "../chartColors";
 
@@ -12,6 +12,7 @@ export function buildSmcOverlaySeries(
   overlays: OverlayData,
   enabledOverlays: OverlayType[],
   dates: string[],
+  indicatorParams?: IndicatorParams,
 ): SeriesItem[] {
   const series: SeriesItem[] = [];
 
@@ -20,8 +21,20 @@ export function buildSmcOverlaySeries(
     const orderBlockMarkAreas: SeriesItem[][] = [];
     const lastOb = overlays.orderBlock[overlays.orderBlock.length - 1];
     if (lastOb) {
-      for (const ob of lastOb.activeOrderBlocks) {
+      // Collect active + all mitigated OBs for display
+      const allObs = [...lastOb.activeOrderBlocks];
+      for (const entry of overlays.orderBlock) {
+        for (const m of entry.mitigatedThisBar) {
+          allObs.push(m);
+        }
+      }
+      for (const ob of allObs) {
         const color = ob.type === "bullish" ? COLORS.orderBlockBullish : COLORS.orderBlockBearish;
+        // Limit display width: mitigated OBs end at mitigatedIndex, active OBs extend max 100 bars
+        const maxDisplayBars = 100;
+        const endIndex = ob.mitigated && ob.mitigatedIndex !== null
+          ? Math.min(ob.mitigatedIndex, dates.length - 1)
+          : Math.min(ob.startIndex + maxDisplayBars, dates.length - 1);
         orderBlockMarkAreas.push([
           {
             xAxis: dates[ob.startIndex],
@@ -29,7 +42,7 @@ export function buildSmcOverlaySeries(
             itemStyle: { color },
           },
           {
-            xAxis: dates[dates.length - 1],
+            xAxis: dates[endIndex],
             yAxis: ob.high,
           },
         ]);
@@ -53,6 +66,7 @@ export function buildSmcOverlaySeries(
     const fvgMarkAreas: SeriesItem[][] = [];
     const lastFvg = overlays.fvg[overlays.fvg.length - 1];
     if (lastFvg) {
+      // Active FVGs
       for (const fvg of lastFvg.activeBullishFvgs) {
         fvgMarkAreas.push([
           {
@@ -90,6 +104,35 @@ export function buildSmcOverlaySeries(
         ]);
       }
     }
+
+    // Filled (mitigated) FVGs
+    if (indicatorParams?.fvgShowMitigated) {
+      for (const entry of overlays.fvg) {
+        for (const fvg of entry.filledFvgs) {
+          const endIdx = fvg.filledIndex != null
+            ? Math.min(fvg.filledIndex, dates.length - 1)
+            : dates.length - 1;
+          const isBullish = fvg.type === "bullish";
+          fvgMarkAreas.push([
+            {
+              xAxis: dates[fvg.startIndex],
+              yAxis: fvg.low,
+              itemStyle: {
+                color: isBullish ? "rgba(100, 181, 246, 0.06)" : "rgba(255, 183, 77, 0.06)",
+                borderColor: isBullish ? "rgba(100, 181, 246, 0.25)" : "rgba(255, 183, 77, 0.25)",
+                borderWidth: 1,
+                borderType: "dotted",
+              },
+            },
+            {
+              xAxis: dates[endIdx],
+              yAxis: fvg.high,
+            },
+          ]);
+        }
+      }
+    }
+
     if (fvgMarkAreas.length > 0) {
       series.push({
         name: "FVG",
@@ -253,13 +296,13 @@ export function buildSmcOverlaySeries(
             coord: [dates[i], isBullish ? candles[i].high : candles[i].low],
             symbol: "pin",
             symbolSize: 14,
-            itemStyle: { color: "#ff9800" },
+            itemStyle: { color: COLORS.liquiditySweepRecovery },
             label: {
               show: true,
               formatter: "R",
               position: isBullish ? "top" : "bottom",
               fontSize: 8,
-              color: "#ff9800",
+              color: COLORS.liquiditySweepRecovery,
               fontWeight: "bold",
             },
           });

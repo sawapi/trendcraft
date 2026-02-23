@@ -26,11 +26,14 @@ import type {
   ChannelLineValue,
   FibonacciExtensionValue,
   AndrewsPitchforkValue,
+  HeikinAshiValue,
+  CandlestickPatternValue,
 } from "trendcraft";
 import {
   sma,
   ema,
   wma,
+  vwma,
   bollingerBands,
   donchianChannel,
   keltnerChannel,
@@ -53,6 +56,9 @@ import {
   channelLine,
   fibonacciExtension,
   andrewsPitchfork,
+  superSmoother,
+  heikinAshi,
+  candlestickPatterns,
 } from "trendcraft";
 import type { OverlayType } from "../types";
 import { useChartStore } from "../store/chartStore";
@@ -103,6 +109,14 @@ export interface OverlayData {
   fibExtension?: FibonacciExtensionValue[];
   // Andrew's Pitchfork
   andrewsPitchfork?: AndrewsPitchforkValue[];
+  // VWMA
+  vwma20?: (number | null)[];
+  // Ehlers Filter
+  superSmoother?: (number | null)[];
+  // Heikin-Ashi
+  heikinAshi?: HeikinAshiValue[];
+  // Candlestick Patterns
+  candlestickPatterns?: CandlestickPatternValue[];
 }
 
 /**
@@ -240,6 +254,8 @@ export function useOverlays(
         volumePeriod: p.orderBlockVolumePeriod,
         minVolumeRatio: p.orderBlockMinVolumeRatio,
         maxActiveOBs: p.orderBlockMaxActive,
+        displacementAtr: p.orderBlockDisplacementAtr,
+        maxBarsActive: p.orderBlockMaxBarsActive,
       });
       data.orderBlock = series.map((s) => s.value);
     }
@@ -338,6 +354,30 @@ export function useOverlays(
         rightBars: p.pitchforkRightBars,
       });
       data.andrewsPitchfork = series.map((s) => s.value);
+    }
+
+    // VWMA 20
+    if (enabledOverlays.includes("vwma20")) {
+      const series = vwma(candles, { period: p.vwma20Period });
+      data.vwma20 = series.map((s) => s.value);
+    }
+
+    // Super Smoother
+    if (enabledOverlays.includes("superSmoother")) {
+      const series = superSmoother(candles, { period: p.superSmootherPeriod });
+      data.superSmoother = series.map((s) => s.value);
+    }
+
+    // Heikin-Ashi
+    if (enabledOverlays.includes("heikinAshi")) {
+      const series = heikinAshi(candles);
+      data.heikinAshi = series.map((s) => s.value);
+    }
+
+    // Candlestick Patterns
+    if (enabledOverlays.includes("candlestickPatterns")) {
+      const series = candlestickPatterns(candles);
+      data.candlestickPatterns = series.map((s) => s.value);
     }
 
     // ATR Stops

@@ -173,7 +173,7 @@ describe("CONDITION_PRESETS", () => {
       const factory = CONDITION_PRESETS[name];
       const condition = factory();
       expect(condition).toBeDefined();
-      expect(condition.type).toBeDefined();
+      expect(typeof condition === "object" && "type" in condition && condition.type).toBeDefined();
     }
   });
 });

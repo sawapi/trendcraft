@@ -19,14 +19,14 @@ export function buildMomentumSubcharts(
   ctx: SubchartContext,
   indicators: IndicatorData,
   enabledIndicators: SubChartType[],
-  _indicatorParams?: IndicatorParams,
+  indicatorParams?: IndicatorParams,
 ): SeriesItem[] {
   const series: SeriesItem[] = [];
 
   // RSI
   if (enabledIndicators.includes("rsi") && indicators.rsi) {
     const gridIndex = createSubchart(ctx, {
-      title: "RSI (14)",
+      title: `RSI (${indicatorParams?.rsiPeriod ?? 14})`,
       titleColor: COLORS.rsi,
       seriesNames: ["RSI"],
       yAxisMin: 0,
@@ -165,7 +165,7 @@ export function buildMomentumSubcharts(
   // CCI
   if (enabledIndicators.includes("cci") && indicators.cci) {
     const gridIndex = createSubchart(ctx, {
-      title: "CCI (20)",
+      title: `CCI (${indicatorParams?.cciPeriod ?? 20})`,
       titleColor: COLORS.cci,
       seriesNames: ["CCI"],
     });
@@ -205,7 +205,7 @@ export function buildMomentumSubcharts(
   // ROC
   if (enabledIndicators.includes("roc") && indicators.roc) {
     const gridIndex = createSubchart(ctx, {
-      title: "ROC (12)",
+      title: `ROC (${indicatorParams?.rocPeriod ?? 12})`,
       titleColor: COLORS.roc,
       seriesNames: ["ROC"],
     });

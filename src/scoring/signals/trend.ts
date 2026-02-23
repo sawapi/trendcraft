@@ -26,7 +26,7 @@ export function createPerfectOrderBullishEvaluator(
     if (index < longPeriod) return 0;
 
     // Use pre-computed data if available (for default periods only)
-    let current: { type: string; strength: number } | undefined;
+    let current: { type: string; strength: number } | null | undefined;
 
     const isDefaultPeriods =
       periods.length === 3 && periods[0] === 5 && periods[1] === 20 && periods[2] === 60;
@@ -71,7 +71,7 @@ export function createPerfectOrderBearishEvaluator(
     if (index < longPeriod) return 0;
 
     // Use pre-computed data if available (for default periods only)
-    let current: { type: string; strength: number } | undefined;
+    let current: { type: string; strength: number } | null | undefined;
 
     const isDefaultPeriods =
       periods.length === 3 && periods[0] === 5 && periods[1] === 20 && periods[2] === 60;
@@ -116,7 +116,7 @@ export function createPOConfirmationEvaluator(
     if (index < longPeriod + slopeLookback) return 0;
 
     // Use pre-computed data if available (for default periods only)
-    let current: { state: string; isConfirmed: boolean; confirmationFormed: boolean } | undefined;
+    let current: { state: string; isConfirmed: boolean; confirmationFormed: boolean } | null | undefined;
 
     const isDefaultPeriods =
       periods.length === 3 && periods[0] === 5 && periods[1] === 20 && periods[2] === 60;

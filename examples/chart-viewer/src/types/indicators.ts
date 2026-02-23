@@ -11,6 +11,12 @@ export interface IndicatorParams {
   ema12Period: number;
   ema26Period: number;
   wma20Period: number;
+  vwma20Period: number;
+  // Overlays - Filter
+  superSmootherPeriod: number;
+  // Subcharts - Filter
+  roofingFilterHighPassPeriod: number;
+  roofingFilterLowPassPeriod: number;
   // Overlays - Bands
   bbPeriod: number;
   bbStdDev: number;
@@ -63,9 +69,12 @@ export interface IndicatorParams {
   orderBlockVolumePeriod: number;
   orderBlockMinVolumeRatio: number;
   orderBlockMaxActive: number;
+  orderBlockDisplacementAtr: number;
+  orderBlockMaxBarsActive: number;
   // SMC - Fair Value Gap
   fvgMinGapPercent: number;
   fvgMaxActive: number;
+  fvgShowMitigated: boolean;
   // SMC - BOS/CHoCH
   bosSwingPeriod: number;
   // SMC - Liquidity Sweep
@@ -131,6 +140,12 @@ export const DEFAULT_INDICATOR_PARAMS: IndicatorParams = {
   ema12Period: 12,
   ema26Period: 26,
   wma20Period: 20,
+  vwma20Period: 20,
+  // Overlays - Filter
+  superSmootherPeriod: 10,
+  // Subcharts - Filter
+  roofingFilterHighPassPeriod: 48,
+  roofingFilterLowPassPeriod: 10,
   // Overlays - Bands
   bbPeriod: 20,
   bbStdDev: 2,
@@ -183,9 +198,12 @@ export const DEFAULT_INDICATOR_PARAMS: IndicatorParams = {
   orderBlockVolumePeriod: 20,
   orderBlockMinVolumeRatio: 1.0,
   orderBlockMaxActive: 10,
+  orderBlockDisplacementAtr: 0,
+  orderBlockMaxBarsActive: 500,
   // SMC - Fair Value Gap
   fvgMinGapPercent: 0,
   fvgMaxActive: 10,
+  fvgShowMitigated: false,
   // SMC - BOS/CHoCH
   bosSwingPeriod: 5,
   // SMC - Liquidity Sweep
@@ -243,12 +261,20 @@ export const DEFAULT_INDICATOR_PARAMS: IndicatorParams = {
 /**
  * Parameter config for UI
  */
-export interface ParamConfig {
+export type ParamConfig = NumericParamConfig | BooleanParamConfig;
+
+export interface NumericParamConfig {
   key: keyof IndicatorParams;
   label: string;
   min: number;
   max: number;
   step: number;
+}
+
+export interface BooleanParamConfig {
+  key: keyof IndicatorParams;
+  label: string;
+  type: "boolean";
 }
 
 /**
@@ -262,6 +288,12 @@ export const INDICATOR_PARAM_CONFIGS: Record<string, ParamConfig[]> = {
   ema12: [{ key: "ema12Period", label: "Period", min: 2, max: 200, step: 1 }],
   ema26: [{ key: "ema26Period", label: "Period", min: 2, max: 200, step: 1 }],
   wma20: [{ key: "wma20Period", label: "Period", min: 2, max: 200, step: 1 }],
+  vwma20: [{ key: "vwma20Period", label: "Period", min: 2, max: 200, step: 1 }],
+  superSmoother: [{ key: "superSmootherPeriod", label: "Period", min: 2, max: 100, step: 1 }],
+  roofingFilter: [
+    { key: "roofingFilterHighPassPeriod", label: "High-Pass Period", min: 10, max: 100, step: 1 },
+    { key: "roofingFilterLowPassPeriod", label: "Low-Pass Period", min: 2, max: 50, step: 1 },
+  ],
   // Overlays - Bands
   bb: [
     { key: "bbPeriod", label: "Period", min: 2, max: 100, step: 1 },
@@ -335,10 +367,13 @@ export const INDICATOR_PARAM_CONFIGS: Record<string, ParamConfig[]> = {
     { key: "orderBlockVolumePeriod", label: "Volume Period", min: 5, max: 50, step: 1 },
     { key: "orderBlockMinVolumeRatio", label: "Min Vol Ratio", min: 0.5, max: 3, step: 0.1 },
     { key: "orderBlockMaxActive", label: "Max Active", min: 1, max: 20, step: 1 },
+    { key: "orderBlockDisplacementAtr", label: "Displacement ATR", min: 0, max: 5, step: 0.1 },
+    { key: "orderBlockMaxBarsActive", label: "Max Bars Active", min: 50, max: 2000, step: 50 },
   ],
   fvg: [
     { key: "fvgMinGapPercent", label: "Min Gap %", min: 0, max: 2, step: 0.1 },
     { key: "fvgMaxActive", label: "Max Active", min: 1, max: 20, step: 1 },
+    { key: "fvgShowMitigated", label: "Show Filled", type: "boolean" },
   ],
   bos: [
     { key: "bosSwingPeriod", label: "Swing Period", min: 1, max: 20, step: 1 },

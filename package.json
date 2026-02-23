@@ -8,7 +8,8 @@
   "types": "./dist/index.d.ts",
   "bin": {
     "trendcraft-screen": "./dist/bin/trendcraft-screen.js",
-    "trendcraft-backtest": "./dist/bin/trendcraft-backtest.js"
+    "trendcraft-backtest": "./dist/bin/trendcraft-backtest.js",
+    "trendcraft-analyze": "./dist/bin/trendcraft-analyze.js"
   },
   "exports": {
     ".": {
@@ -31,7 +32,10 @@
     "test:watch": "vitest",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
-    "format": "biome format --write ."
+    "format": "biome format --write .",
+    "analyze": "npx tsx bin/trendcraft-analyze.ts",
+    "test:crossval": "vitest run cross-validation",
+    "generate:fixtures": "cd cross-validation/python && uv run python generate_fixtures.py"
   },
   "keywords": [
     "trading",

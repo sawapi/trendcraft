@@ -39,7 +39,8 @@ export type SubChartType =
   | "pbr"
   | "roe"
   | "volatilityRegime"
-  | "scoring";
+  | "scoring"
+  | "roofingFilter";
 
 /**
  * Scoring preset type
@@ -91,7 +92,11 @@ export type OverlayType =
   | "autoTrendLine"
   | "channelLine"
   | "fibExtension"
-  | "andrewsPitchfork";
+  | "andrewsPitchfork"
+  | "vwma20"
+  | "superSmoother"
+  | "heikinAshi"
+  | "candlestickPatterns";
 
 /**
  * Subchart configuration

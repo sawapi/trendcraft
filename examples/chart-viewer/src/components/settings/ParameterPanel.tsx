@@ -2,13 +2,13 @@
  * Parameter panel component for indicator settings
  */
 
-import type { IndicatorParams } from "../../types";
+import type { IndicatorParams, NumericParamConfig } from "../../types";
 import { INDICATOR_PARAM_CONFIGS, DEFAULT_INDICATOR_PARAMS } from "../../types";
 
 interface ParameterPanelProps {
   indicatorKey: string;
   indicatorParams: IndicatorParams;
-  onParamChange: (paramKey: keyof IndicatorParams, value: number) => void;
+  onParamChange: (paramKey: keyof IndicatorParams, value: number | boolean) => void;
 }
 
 /**
@@ -22,26 +22,46 @@ export function ParameterPanel({ indicatorKey, indicatorParams, onParamChange }:
   return (
     <div className="param-panel">
       {configs.map((config) => {
-        const paramValue = indicatorParams[config.key];
-        const defaultValue = DEFAULT_INDICATOR_PARAMS[config.key];
+        if ("type" in config && config.type === "boolean") {
+          const checked = !!indicatorParams[config.key];
+          return (
+            <div key={config.key} className="param-row param-row-boolean">
+              <label className="custom-checkbox">
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={(e) => onParamChange(config.key, e.target.checked)}
+                />
+                <span className="material-icons checkbox-icon">
+                  {checked ? "check_box" : "check_box_outline_blank"}
+                </span>
+                <span>{config.label}</span>
+              </label>
+            </div>
+          );
+        }
+
+        const numConfig = config as NumericParamConfig;
+        const paramValue = indicatorParams[numConfig.key];
+        const defaultValue = DEFAULT_INDICATOR_PARAMS[numConfig.key];
         const displayValue =
           typeof paramValue === "number"
             ? paramValue
             : typeof defaultValue === "number"
               ? defaultValue
-              : config.min;
+              : numConfig.min;
 
         return (
-          <div key={config.key} className="param-row">
-            <label>{config.label}</label>
+          <div key={numConfig.key} className="param-row">
+            <label>{numConfig.label}</label>
             <input
               type="number"
-              min={config.min}
-              max={config.max}
-              step={config.step}
+              min={numConfig.min}
+              max={numConfig.max}
+              step={numConfig.step}
               value={displayValue}
               onChange={(e) =>
-                onParamChange(config.key, Number.parseFloat(e.target.value) || config.min)
+                onParamChange(numConfig.key, Number.parseFloat(e.target.value) || numConfig.min)
               }
             />
           </div>

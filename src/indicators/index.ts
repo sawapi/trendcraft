@@ -1,6 +1,6 @@
 // Moving Averages
-export { sma, ema, wma } from "./moving-average";
-export type { WmaOptions } from "./moving-average";
+export { sma, ema, wma, vwma } from "./moving-average";
+export type { WmaOptions, VwmaOptions } from "./moving-average";
 
 // Momentum
 export {
@@ -100,6 +100,7 @@ export {
   channelLine,
   fibonacciExtension,
   andrewsPitchfork,
+  heikinAshi,
 } from "./price";
 export type {
   HighestLowestValue,
@@ -123,6 +124,7 @@ export type {
   FibonacciExtensionValue,
   AndrewsPitchforkOptions,
   AndrewsPitchforkValue,
+  HeikinAshiValue,
 } from "./price";
 
 // Trend
@@ -153,6 +155,10 @@ export type {
   SymbolRSRank,
   MultiRSOptions,
 } from "./relative-strength";
+
+// Filter (Ehlers)
+export { superSmoother, roofingFilter } from "./filter";
+export type { SuperSmootherOptions, RoofingFilterOptions } from "./filter";
 
 // Smart Money Concepts (SMC)
 export {

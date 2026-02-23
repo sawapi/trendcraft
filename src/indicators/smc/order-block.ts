@@ -11,6 +11,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { breakOfStructure } from "../price/break-of-structure";
+import { atr as calcAtr } from "../volatility/atr";
 import { volumeMa } from "../volume/volume-ma";
 
 /**
@@ -69,8 +70,12 @@ export type OrderBlockOptions = {
   minVolumeRatio?: number;
   /** Maximum number of active order blocks to track (default: 10) */
   maxActiveOBs?: number;
-  /** Consider partial touch as mitigation (default: true) */
+  /** Consider partial touch as mitigation (default: false). false = close-based, true = wick-based */
   partialMitigation?: boolean;
+  /** Minimum displacement as ATR multiplier for valid OB (default: 0 = disabled) */
+  displacementAtr?: number;
+  /** Maximum bars an OB stays active before auto-expiry (default: 500, 0 = unlimited) */
+  maxBarsActive?: number;
 };
 
 /**
@@ -113,13 +118,17 @@ export function orderBlock(
     volumePeriod = 20,
     minVolumeRatio = 1.0,
     maxActiveOBs = 10,
-    partialMitigation = true,
+    partialMitigation = false,
+    displacementAtr = 0,
+    maxBarsActive = 500,
   } = options;
 
   if (swingPeriod < 1) throw new Error("swingPeriod must be at least 1");
   if (volumePeriod < 1) throw new Error("volumePeriod must be at least 1");
   if (minVolumeRatio < 0) throw new Error("minVolumeRatio must be non-negative");
   if (maxActiveOBs < 1) throw new Error("maxActiveOBs must be at least 1");
+  if (displacementAtr < 0) throw new Error("displacementAtr must be non-negative");
+  if (maxBarsActive < 0) throw new Error("maxBarsActive must be non-negative");
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
 
@@ -132,6 +141,9 @@ export function orderBlock(
 
   // Get volume MA for strength calculation
   const volMa = volumeMa(normalized, { period: volumePeriod });
+
+  // Get ATR for displacement filter
+  const atrData = displacementAtr > 0 ? calcAtr(normalized, { period: 14 }) : null;
 
   const result: Series<OrderBlockValue> = [];
 
@@ -148,8 +160,20 @@ export function orderBlock(
 
     // Check for new Order Block on BOS
     if (bos && (bos.bullishBos || bos.bearishBos)) {
+      // Displacement filter: require BOS bar move >= ATR * displacementAtr
+      let passesDisplacement = true;
+      if (atrData && displacementAtr > 0) {
+        const currentAtr = atrData[i]?.value ?? null;
+        if (currentAtr !== null && currentAtr > 0) {
+          const barRange = candle.high - candle.low;
+          passesDisplacement = barRange >= currentAtr * displacementAtr;
+        }
+      }
+
       // Find the last opposing candle before BOS
-      const obCandle = findOrderBlockCandle(normalized, i, bos.bullishBos ? "bullish" : "bearish");
+      const obCandle = passesDisplacement
+        ? findOrderBlockCandle(normalized, i, bos.bullishBos ? "bullish" : "bearish")
+        : null;
 
       if (obCandle) {
         // Calculate strength based on volume and move size
@@ -198,6 +222,11 @@ export function orderBlock(
       // Skip if this is the creation bar
       if (i <= ob.startIndex) {
         return true;
+      }
+
+      // Auto-expire OBs that exceeded maxBarsActive
+      if (maxBarsActive > 0 && i - ob.startIndex > maxBarsActive) {
+        return false;
       }
 
       const isMitigated = checkMitigation(candle, ob, partialMitigation);
@@ -283,18 +312,27 @@ function calculateMoveStrength(
 
 /**
  * Check if an order block has been mitigated
+ *
+ * partialMitigation=true (wick-based): any wick touch into the OB zone
+ * partialMitigation=false (close-based): close must penetrate through the OB
  */
 function checkMitigation(
   candle: NormalizedCandle,
   ob: OrderBlock,
   partialMitigation: boolean,
 ): boolean {
-  if (ob.type === "bullish") {
-    const threshold = partialMitigation ? ob.high : ob.low;
-    return candle.low <= threshold;
+  if (partialMitigation) {
+    // Wick-based: any touch into the OB zone
+    if (ob.type === "bullish") {
+      return candle.low <= ob.high;
+    }
+    return candle.high >= ob.low;
   }
-  const threshold = partialMitigation ? ob.low : ob.high;
-  return candle.high >= threshold;
+  // Close-based: close must break through the OB
+  if (ob.type === "bullish") {
+    return candle.close < ob.low;
+  }
+  return candle.close > ob.high;
 }
 
 /**

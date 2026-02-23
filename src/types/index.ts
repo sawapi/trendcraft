@@ -819,25 +819,25 @@ export type PrecomputedIndicators = {
   /** Volume MA values (period: 20) */
   volumeMa20?: (number | null)[];
   /** Volume anomaly data */
-  volumeAnomaly?: { ratio: number; level: string; isAnomaly: boolean; zScore: number | null }[];
+  volumeAnomaly?: ({ ratio: number; level: string; isAnomaly: boolean; zScore: number | null } | null)[];
   /** Volume trend data */
-  volumeTrend?: {
+  volumeTrend?: ({
     isConfirmed: boolean;
     priceTrend: string;
     volumeTrend: string;
     confidence: number;
     hasDivergence: boolean;
-  }[];
+  } | null)[];
   /** CMF values (period: 20) */
   cmf20?: (number | null)[];
   /** Perfect Order data */
-  perfectOrder?: { type: string; strength: number }[];
+  perfectOrder?: ({ type: string; strength: number } | null)[];
   /** Perfect Order Enhanced data */
-  perfectOrderEnhanced?: {
+  perfectOrderEnhanced?: ({
     state: string;
     isConfirmed: boolean;
     confirmationFormed: boolean;
-  }[];
+  } | null)[];
 };
 
 /**

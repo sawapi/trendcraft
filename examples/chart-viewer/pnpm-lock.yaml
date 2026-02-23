@@ -42,6 +42,9 @@ importers:
       vite:
         specifier: ^6.0.3
         version: 6.4.1
+      zx:
+        specifier: ^8.8.5
+        version: 8.8.5
 
 packages:
 
@@ -670,6 +673,11 @@ packages:
       use-sync-external-store:
         optional: true
 
+  zx@8.8.5:
+    resolution: {integrity: sha512-SNgDF5L0gfN7FwVOdEFguY3orU5AkfFZm9B5YSHog/UDHv+lvmd82ZAsOenOkQixigwH2+yyH198AwNdKhj+RA==}
+    engines: {node: '>= 12.17.0'}
+    hasBin: true
+
 snapshots:
 
   '@babel/code-frame@7.29.0':
@@ -1187,3 +1195,5 @@ snapshots:
     optionalDependencies:
       '@types/react': 18.3.27
       react: 18.3.1
+
+  zx@8.8.5: {}

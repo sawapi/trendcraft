@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useChartStore } from "../store/chartStore";
+import { createChartApi, registerChartRef } from "../api";
 import { usePostMessageLoader } from "../hooks/usePostMessageLoader";
 import { BacktestPanel } from "./BacktestPanel";
 import { FileDropZone } from "./FileDropZone";
@@ -8,6 +9,14 @@ import { MainChart, type MainChartHandle } from "./MainChart";
 import { PeriodSelector } from "./PeriodSelector";
 import { SignalsPanel } from "./SignalsPanel";
 import { TimeframeSelector } from "./TimeframeSelector";
+
+/**
+ * Format a timestamp as YYYY/MM/DD
+ */
+function formatDate(timestamp: number): string {
+  const date = new Date(timestamp);
+  return `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, "0")}/${String(date.getDate()).padStart(2, "0")}`;
+}
 
 /**
  * Label mapping for overlay types
@@ -56,6 +65,14 @@ export default function App() {
 
   const mainChartRef = useRef<MainChartHandle>(null);
 
+  // Expose programmatic API on window for LLM agents and DevTools
+  useEffect(() => {
+    (window as any).__chartStore = useChartStore;
+    (window as any).__chart = createChartApi();
+    registerChartRef(mainChartRef);
+    console.log("[chart-viewer] API ready. Type __chart.help() for usage.");
+  }, []);
+
   const fileName = useChartStore((state) => state.fileName);
   const rawCandles = useChartStore((state) => state.rawCandles);
   const currentCandles = useChartStore((state) => state.currentCandles);
@@ -75,11 +92,6 @@ export default function App() {
     const endIdx = Math.ceil((zoomRange.end / 100) * currentCandles.length) - 1;
     const clampedStart = Math.max(0, Math.min(startIdx, currentCandles.length - 1));
     const clampedEnd = Math.max(0, Math.min(endIdx, currentCandles.length - 1));
-
-    const formatDate = (timestamp: number) => {
-      const date = new Date(timestamp);
-      return `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, "0")}/${String(date.getDate()).padStart(2, "0")}`;
-    };
 
     return {
       start: formatDate(currentCandles[clampedStart].time),
@@ -118,36 +130,25 @@ export default function App() {
   }, []);
 
   // Determine sidebar classes
-  const getSidebarClasses = () => {
-    const classes = ["signals-sidebar"];
-    if (isMobile) {
-      if (sidebarOpen) {
-        classes.push("mobile-open");
-      }
-    } else {
-      if (sidebarCollapsed) {
-        classes.push("collapsed");
-      }
-    }
-    return classes.join(" ");
-  };
+  const sidebarClasses = [
+    "signals-sidebar",
+    isMobile && sidebarOpen && "mobile-open",
+    !isMobile && sidebarCollapsed && "collapsed",
+  ].filter(Boolean).join(" ");
 
-  // Get enabled indicator labels
-  const getEnabledLabels = () => {
-    const overlayLabels = enabledOverlays.map((key) => ({
+  // Build enabled indicator labels for the indicator bar
+  const enabledLabels = [
+    ...enabledOverlays.map((key) => ({
       key,
       label: OVERLAY_LABELS[key] || key,
       type: "overlay" as const,
-    }));
-    const subchartLabels = enabledIndicators.map((key) => ({
+    })),
+    ...enabledIndicators.map((key) => ({
       key,
       label: SUBCHART_LABELS[key] || key,
       type: "subchart" as const,
-    }));
-    return [...overlayLabels, ...subchartLabels];
-  };
-
-  const enabledLabels = getEnabledLabels();
+    })),
+  ];
 
   return (
     <div className="app">
@@ -226,7 +227,7 @@ export default function App() {
             )}
 
             {/* Sidebar */}
-            <div className={getSidebarClasses()}>
+            <div className={sidebarClasses}>
               {/* Toggle button (desktop only) */}
               {!isMobile && (
                 <button

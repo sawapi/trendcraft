@@ -113,6 +113,7 @@ export {
   sma,
   ema,
   wma,
+  vwma,
   // Momentum
   rsi,
   macd,
@@ -194,6 +195,11 @@ export {
   fibonacciExtension,
   andrewsPitchfork,
   getAlternatingSwingPoints,
+  // Heikin-Ashi
+  heikinAshi,
+  // Filter (Ehlers)
+  superSmoother,
+  roofingFilter,
 } from "./indicators";
 
 export type {
@@ -212,6 +218,7 @@ export type {
   MfiOptions,
   CmfOptions,
   WmaOptions,
+  VwmaOptions,
   VwapOptions,
   VwapValue,
   CciOptions,
@@ -259,6 +266,9 @@ export type {
   AndrewsPitchforkOptions,
   AndrewsPitchforkValue,
   AlternatingSwingPoint,
+  HeikinAshiValue,
+  SuperSmootherOptions,
+  RoofingFilterOptions,
 } from "./indicators";
 
 // Fluent API
@@ -353,6 +363,8 @@ export {
   volumeAccumulation,
   volumeMaCross,
   volumeAboveAverage,
+  // Candlestick Patterns
+  candlestickPatterns,
   // Price Patterns
   doubleTop,
   doubleBottom,
@@ -386,6 +398,11 @@ export type {
   VolumeMaCrossOptions,
   VolumeAboveAverageSignal,
   VolumeAboveAverageOptions,
+  // Candlestick Pattern types
+  CandlestickPattern,
+  CandlestickPatternName,
+  CandlestickPatternOptions,
+  CandlestickPatternValue,
   // Pattern types
   PatternType,
   PatternKeyPoint,
