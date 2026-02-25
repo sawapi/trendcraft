@@ -125,6 +125,8 @@ export {
   cci,
   williamsR,
   roc,
+  trix,
+  aroon,
   // Volatility
   bollingerBands,
   atr,
@@ -145,6 +147,7 @@ export {
   volumeProfile,
   volumeProfileSeries,
   volumeTrend,
+  adl,
   // Price
   highestLowest,
   highest,
@@ -159,6 +162,7 @@ export {
   ichimoku,
   supertrend,
   parabolicSar,
+  vortex,
   // ATR Filter (stock screening)
   calculateAtrPercent,
   atrPercentSeries,
@@ -224,6 +228,10 @@ export type {
   CciOptions,
   WilliamsROptions,
   RocOptions,
+  TrixOptions,
+  TrixValue,
+  AroonOptions,
+  AroonValue,
   PivotPointsOptions,
   PivotPointsValue,
   SwingPointValue,
@@ -234,6 +242,8 @@ export type {
   SupertrendValue,
   ParabolicSarOptions,
   ParabolicSarValue,
+  VortexOptions,
+  VortexValue,
   AtrFilterOptions,
   AtrFilterResult,
   RSValue,
@@ -622,6 +632,16 @@ export {
   volumeAnomaly2z,
 } from "./scoring";
 
+// Result types
+export type { Ok, Err, Result, TrendCraftErrorCode, TrendCraftError } from "./types";
+export { ok, err, tcError, mapResult, flatMap, unwrapOr, unwrap, collectResults, partitionResults, tryCatch } from "./types";
+
+// Incremental Indicator API
+export * as incremental from "./indicators/incremental";
+
+// Indicator Cache
+export { IndicatorCache, createCachedIndicators } from "./core/indicator-cache";
+
 // Optimization
 export {
   // Metrics
@@ -632,6 +652,7 @@ export {
   calculateAllMetrics,
   // Grid Search
   gridSearch,
+  gridSearchSafe,
   generateParameterCombinations,
   countCombinations,
   param,
@@ -640,12 +661,14 @@ export {
   summarizeGridSearch,
   // Walk-Forward Analysis
   walkForwardAnalysis,
+  walkForwardAnalysisSafe,
   calculatePeriodCount,
   generatePeriodBoundaries,
   summarizeWalkForward,
   getOutOfSampleEquityCurve,
   // Combination Search
   combinationSearch,
+  combinationSearchSafe,
   generateCombinations,
   countTotalCombinations,
   getTopCombinations,
@@ -655,11 +678,13 @@ export {
   createExitConditionPool,
   // Monte Carlo Simulation
   runMonteCarloSimulation,
+  runMonteCarloSimulationSafe,
   calculateStatistics,
   formatMonteCarloResult,
   summarizeMonteCarloResult,
   // Anchored Walk-Forward Analysis
   anchoredWalkForwardAnalysis,
+  anchoredWalkForwardAnalysisSafe,
   generateAWFBoundaries,
   calculateAWFPeriodCount,
   summarizeAWFResult,
@@ -697,6 +722,7 @@ export type {
 // Screening (browser-compatible exports only - no fs dependency)
 export {
   screenStock,
+  screenStockSafe,
   createCriteriaFromNames,
   getAvailableConditions,
   CONDITION_PRESETS,

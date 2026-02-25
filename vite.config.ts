@@ -8,6 +8,7 @@ export default defineConfig({
       entry: {
         index: resolve(__dirname, "src/index.ts"),
         "screening/index": resolve(__dirname, "src/screening/index.ts"),
+        "indicators/incremental/index": resolve(__dirname, "src/indicators/incremental/index.ts"),
         "bin/trendcraft-screen": resolve(__dirname, "bin/trendcraft-screen.ts"),
         "bin/trendcraft-backtest": resolve(__dirname, "bin/trendcraft-backtest.ts"),
         "bin/trendcraft-analyze": resolve(__dirname, "bin/trendcraft-analyze.ts"),
@@ -19,7 +20,7 @@ export default defineConfig({
       },
     },
     sourcemap: true,
-    minify: false,
+    minify: "esbuild",
     rollupOptions: {
       external: [
         "node:fs",

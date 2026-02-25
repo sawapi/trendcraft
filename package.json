@@ -21,6 +21,11 @@
       "types": "./dist/screening/index.d.ts",
       "import": "./dist/screening/index.js",
       "require": "./dist/screening/index.cjs"
+    },
+    "./incremental": {
+      "types": "./dist/indicators/incremental/index.d.ts",
+      "import": "./dist/indicators/incremental/index.js",
+      "require": "./dist/indicators/incremental/index.cjs"
     }
   },
   "sideEffects": false,
@@ -35,7 +40,8 @@
     "format": "biome format --write .",
     "analyze": "npx tsx bin/trendcraft-analyze.ts",
     "test:crossval": "vitest run cross-validation",
-    "generate:fixtures": "cd cross-validation/python && uv run python generate_fixtures.py"
+    "generate:fixtures": "cd cross-validation/python && uv run python generate_fixtures.py",
+    "bench": "vitest bench"
   },
   "keywords": [
     "trading",
