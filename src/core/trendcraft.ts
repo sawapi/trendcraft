@@ -3,9 +3,6 @@
  * Provides a chainable interface for technical analysis
  */
 
-import type { ExtendedCondition } from "../backtest/conditions/core";
-import { runBacktest } from "../backtest/engine";
-import type { MtfBacktestOptions } from "../backtest/engine";
 import { macd } from "../indicators/momentum/macd";
 import { rsi } from "../indicators/momentum/rsi";
 import { ema } from "../indicators/moving-average/ema";
@@ -24,11 +21,8 @@ import { volumeMa } from "../indicators/volume/volume-ma";
 import { volumeProfile, volumeProfileSeries } from "../indicators/volume/volume-profile";
 import { volumeTrend } from "../indicators/volume/volume-trend";
 import type {
-  BacktestOptions,
-  BacktestResult,
   BollingerBandsValue,
   Candle,
-  Condition,
   MacdValue,
   NormalizedCandle,
   PriceSource,
@@ -42,6 +36,7 @@ import type {
 import { isNormalized } from "./normalize";
 import { normalizeCandles } from "./normalize";
 import { resample } from "./resample";
+import { StrategyBuilder, MtfStrategyBuilder } from "./strategy-builder";
 
 /**
  * Indicator specification for lazy evaluation
@@ -463,79 +458,8 @@ export class TrendCraft {
   }
 }
 
-/**
- * Strategy Builder for backtesting
- */
-export class StrategyBuilder {
-  protected _candles: NormalizedCandle[];
-  protected _entryCondition: Condition | ExtendedCondition | null = null;
-  protected _exitCondition: Condition | ExtendedCondition | null = null;
-
-  constructor(candles: NormalizedCandle[]) {
-    this._candles = candles;
-  }
-
-  /**
-   * Set entry condition
-   */
-  entry(condition: Condition | ExtendedCondition): this {
-    this._entryCondition = condition;
-    return this;
-  }
-
-  /**
-   * Set exit condition
-   */
-  exit(condition: Condition | ExtendedCondition): this {
-    this._exitCondition = condition;
-    return this;
-  }
-
-  /**
-   * Run backtest with the configured strategy
-   */
-  backtest(options: BacktestOptions): BacktestResult {
-    if (!this._entryCondition) {
-      throw new Error("Entry condition is required. Use .entry() to set it.");
-    }
-    if (!this._exitCondition) {
-      throw new Error("Exit condition is required. Use .exit() to set it.");
-    }
-
-    return runBacktest(this._candles, this._entryCondition, this._exitCondition, options);
-  }
-}
-
-/**
- * MTF-enabled Strategy Builder for backtesting with multi-timeframe conditions
- */
-export class MtfStrategyBuilder extends StrategyBuilder {
-  private _mtfTimeframes: TimeframeShorthand[];
-
-  constructor(candles: NormalizedCandle[], mtfTimeframes: TimeframeShorthand[]) {
-    super(candles);
-    this._mtfTimeframes = mtfTimeframes;
-  }
-
-  /**
-   * Run backtest with MTF support
-   */
-  backtest(options: BacktestOptions): BacktestResult {
-    if (!this._entryCondition) {
-      throw new Error("Entry condition is required. Use .entry() to set it.");
-    }
-    if (!this._exitCondition) {
-      throw new Error("Exit condition is required. Use .exit() to set it.");
-    }
-
-    const mtfOptions: MtfBacktestOptions = {
-      ...options,
-      mtfTimeframes: this._mtfTimeframes,
-    };
-
-    return runBacktest(this._candles, this._entryCondition, this._exitCondition, mtfOptions);
-  }
-}
+// Re-export strategy builders for backward compatibility
+export { StrategyBuilder, MtfStrategyBuilder } from "./strategy-builder";
 
 /**
  * TrendCraft with MTF (Multi-Timeframe) support
