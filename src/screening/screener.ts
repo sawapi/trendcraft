@@ -6,6 +6,7 @@
  */
 
 import type { Condition } from "../types";
+import { type Result, ok, err, tcError } from "../types/result";
 import { getCsvFiles, loadCsvDirectory } from "./csv-loader";
 import { screenStock } from "./screen-stock";
 import type { ScreeningOptions, ScreeningResult, ScreeningSessionResult } from "./types";
@@ -146,4 +147,26 @@ function getConditionDescription(condition: Condition): string {
     return `NOT(${childDescs[0]})`;
   }
   return `${combined.type.toUpperCase()}(${childDescs.join(", ")})`;
+}
+
+/**
+ * Safe variant of runScreening that returns a Result instead of throwing.
+ *
+ * @example
+ * ```ts
+ * const result = runScreeningSafe(options);
+ * if (result.ok) {
+ *   console.log(result.value.summary);
+ * } else {
+ *   console.error(result.error.message);
+ * }
+ * ```
+ */
+export function runScreeningSafe(options: ScreeningOptions): Result<ScreeningSessionResult> {
+  try {
+    return ok(runScreening(options));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return err(tcError("SCREENING_FAILED", message, { dataPath: options.dataPath }, error instanceof Error ? error : undefined));
+  }
 }

@@ -41,13 +41,14 @@ export type {
 // Browser-compatible functions (no fs dependency)
 export {
   screenStock,
+  screenStockSafe,
   createCriteriaFromNames,
   getAvailableConditions,
   CONDITION_PRESETS,
 } from "./screen-stock";
 
 // Node.js-only functions (require fs)
-export { runScreening } from "./screener";
+export { runScreening, runScreeningSafe } from "./screener";
 
 // CSV utilities
 // parseCsv is browser-safe (from csv-parser.ts)

@@ -9,6 +9,7 @@ import { rsi } from "../indicators/momentum/rsi";
 import { calculateAtrPercent } from "../indicators/volatility/atr-filter";
 import { volumeMa } from "../indicators/volume/volume-ma";
 import type { Condition, NormalizedCandle } from "../types";
+import { type Result, ok, err, tcError } from "../types/result";
 import type { ScreeningCriteria, ScreeningResult } from "./types";
 
 // Import all conditions for CLI name resolution
@@ -204,4 +205,34 @@ export function createCriteriaFromNames(
     entry,
     exit,
   };
+}
+
+/**
+ * Safe variant of screenStock that returns a Result instead of throwing.
+ *
+ * @example
+ * ```ts
+ * const result = screenStockSafe("6758.T", candles, criteria);
+ * if (result.ok) {
+ *   console.log(result.value.entrySignal);
+ * } else {
+ *   console.error(result.error.message);
+ * }
+ * ```
+ */
+export function screenStockSafe(
+  ticker: string,
+  candles: NormalizedCandle[],
+  criteria: ScreeningCriteria,
+  options: { includeCandles?: boolean } = {},
+): Result<ScreeningResult> {
+  try {
+    return ok(screenStock(ticker, candles, criteria, options));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const code = message.includes("No candle data")
+      ? ("NO_DATA" as const)
+      : ("SCREENING_FAILED" as const);
+    return err(tcError(code, message, { ticker }, error instanceof Error ? error : undefined));
+  }
 }
