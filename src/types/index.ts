@@ -1,1037 +1,121 @@
 /**
  * Core type definitions for TrendCraft
- */
-
-// ============================================
-// Candle Types
-// ============================================
-
-/**
- * Raw candle data input format
- * Accepts both epoch milliseconds and ISO string for time
- */
-export type Candle = {
-  time: number | string;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume: number;
-};
-
-/**
- * Normalized candle with time always as epoch milliseconds
- */
-export type NormalizedCandle = {
-  time: number;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume: number;
-};
-
-// ============================================
-// Indicator Types
-// ============================================
-
-/**
- * Single indicator data point with timestamp
- */
-export type IndicatorValue<T> = {
-  time: number;
-  value: T;
-};
-
-/**
- * Time series of indicator values
- */
-export type Series<T> = IndicatorValue<T>[];
-
-/**
- * Price source for indicator calculations
- */
-export type PriceSource = "open" | "high" | "low" | "close" | "hl2" | "hlc3" | "ohlc4" | "volume";
-
-// ============================================
-// Timeframe Types
-// ============================================
-
-/**
- * Supported timeframe units for resampling
- */
-export type TimeframeUnit = "minute" | "hour" | "day" | "week" | "month";
-
-/**
- * Timeframe specification
- * Examples: { value: 1, unit: 'day' }, { value: 4, unit: 'hour' }
- */
-export type Timeframe = {
-  value: number;
-  unit: TimeframeUnit;
-};
-
-/**
- * Shorthand timeframe strings
- */
-export type TimeframeShorthand =
-  | "1m"
-  | "5m"
-  | "15m"
-  | "30m"
-  | "1h"
-  | "4h"
-  | "1d"
-  | "1w"
-  | "1M"
-  | "daily"
-  | "weekly"
-  | "monthly";
-
-// ============================================
-// Indicator Result Types
-// ============================================
-
-/**
- * MACD indicator result
- */
-export type MacdValue = {
-  macd: number | null;
-  signal: number | null;
-  histogram: number | null;
-};
-
-/**
- * Bollinger Bands indicator result
- */
-export type BollingerBandsValue = {
-  upper: number | null;
-  middle: number | null;
-  lower: number | null;
-  percentB: number | null;
-  bandwidth: number | null;
-};
-
-// ============================================
-// Signal Types
-// ============================================
-
-/**
- * Signal type for trading decisions
- */
-export type SignalType = "buy" | "sell" | "hold";
-
-/**
- * Signal output from condition evaluation
- */
-export type Signal = {
-  time: number;
-  type: SignalType;
-  name: string;
-  confidence?: number;
-  metadata?: Record<string, unknown>;
-};
-
-// ============================================
-// Utility Types
-// ============================================
-
-/**
- * Options for SMA calculation
- */
-export type SmaOptions = {
-  period: number;
-  source?: PriceSource;
-};
-
-/**
- * Options for EMA calculation
- */
-export type EmaOptions = {
-  period: number;
-  source?: PriceSource;
-};
-
-/**
- * Options for RSI calculation (Wilder's method)
- */
-export type RsiOptions = {
-  period?: number;
-};
-
-/**
- * Options for MACD calculation
- */
-export type MacdOptions = {
-  fastPeriod?: number;
-  slowPeriod?: number;
-  signalPeriod?: number;
-};
-
-/**
- * Options for Bollinger Bands calculation
- */
-export type BollingerBandsOptions = {
-  period?: number;
-  stdDev?: number;
-  source?: PriceSource;
-};
-
-/**
- * Options for ATR calculation (Wilder's method)
- */
-export type AtrOptions = {
-  period?: number;
-};
-
-/**
- * Options for Highest/Lowest calculation
- */
-export type HighestLowestOptions = {
-  period: number;
-  source?: "high" | "low" | "close";
-};
-
-/**
- * Options for Returns calculation
- */
-export type ReturnsOptions = {
-  period?: number;
-  type?: "simple" | "log";
-};
-
-/**
- * Options for Golden Cross / Dead Cross detection
- */
-export type CrossOptions = {
-  /** Short-term period (default: 5) */
-  short?: number;
-  /** Long-term period (default: 25, Japanese stock standard) */
-  long?: number;
-};
-
-// ============================================
-// Backtest Types
-// ============================================
-
-/**
- * Exit reason for trade analysis
- * Tracks why each trade was closed for performance analysis
- */
-export type ExitReason =
-  | "signal" // Exit signal condition triggered
-  | "stopLoss" // Stop loss (fixed or ATR-based)
-  | "takeProfit" // Take profit (fixed or ATR-based)
-  | "trailing" // Trailing stop (fixed or ATR-based)
-  | "breakeven" // Breakeven stop triggered
-  | "scaleOut" // Scale-out partial exit
-  | "partialTakeProfit" // Partial take profit exit
-  | "timeExit" // Time-based exit (maxHoldDays)
-  | "endOfData"; // Position closed at end of backtest data
-
-/**
- * Condition function signature for custom entry/exit logic
- */
-export type ConditionFn = (
-  indicators: Record<string, unknown>,
-  candle: NormalizedCandle,
-  index: number,
-  candles: NormalizedCandle[],
-) => boolean;
-
-/**
- * Preset condition type
- */
-export type PresetCondition = {
-  type: "preset";
-  name: string;
-  evaluate: ConditionFn;
-};
-
-/**
- * Combined condition type (and/or/not)
- */
-export type CombinedCondition = {
-  type: "and" | "or" | "not";
-  conditions: Condition[];
-};
-
-/**
- * Condition can be preset, combined, MTF preset, or custom function
- */
-export type Condition = PresetCondition | CombinedCondition | MtfPresetCondition | ConditionFn;
-
-/**
- * Single trade record
- */
-export type Trade = {
-  entryTime: number;
-  entryPrice: number;
-  exitTime: number;
-  exitPrice: number;
-  return: number;
-  returnPercent: number;
-  holdingDays: number;
-  /** Whether this is a partial exit (true) or full exit (false/undefined) */
-  isPartial?: boolean;
-  /** Percentage of original position sold in this trade */
-  exitPercent?: number;
-  /** Reason why the trade was closed */
-  exitReason?: ExitReason;
-  /** Maximum Favorable Excursion - highest unrealized profit % during trade */
-  mfe?: number;
-  /** Maximum Adverse Excursion - largest unrealized loss % during trade */
-  mae?: number;
-  /** MFE Utilization - actual return / MFE (how much of max profit was captured) */
-  mfeUtilization?: number;
-};
-
-/**
- * Partial take profit configuration
- */
-export type PartialTakeProfitConfig = {
-  /** Profit threshold in percent to trigger partial exit (e.g., 5 = +5%) */
-  threshold: number;
-  /** Percentage of position to sell (e.g., 50 = sell 50% of position) */
-  sellPercent: number;
-};
-
-/**
- * Breakeven stop configuration
  *
- * Moves stop loss to entry price (or slightly above) once position reaches a profit threshold.
- * This "locks in" a no-loss trade after initial profit is achieved.
- *
- * @example
- * ```ts
- * // Move stop to breakeven after +3% gain
- * breakevenStop: { threshold: 3 }
- *
- * // Move stop to +0.5% above entry after +3% gain
- * breakevenStop: { threshold: 3, buffer: 0.5 }
- * ```
+ * Re-exports all types from submodules for backward compatibility.
+ * Import from "trendcraft" or from specific submodules:
+ *   - ./candle       Candle, Indicator, Timeframe, Signal, Utility Option types
+ *   - ./backtest     Backtest, MTF types
+ *   - ./volume-risk  Volume Analysis, ATR Risk, Position Sizing types
+ *   - ./scoring      Signal Scoring, Volatility Regime, Scaled Entry, Fundamental types
+ *   - ./optimization Optimization types
+ *   - ./result       Result/Error types
  */
-export type BreakevenStopConfig = {
-  /** Profit threshold in percent to activate breakeven (e.g., 3 = +3%) */
-  threshold: number;
-  /** Buffer above entry price in percent (default: 0, e.g., 0.5 = stop at +0.5%) */
-  buffer?: number;
-};
-
-/**
- * Scale-out configuration for partial position exits at multiple profit levels
- *
- * @example
- * ```ts
- * scaleOut: {
- *   levels: [
- *     { threshold: 5, sellPercent: 33 },   // Sell 33% at +5%
- *     { threshold: 10, sellPercent: 50 },  // Sell 50% of remaining at +10%
- *     { threshold: 20, sellPercent: 100 }, // Sell rest at +20%
- *   ]
- * }
- * ```
- */
-export type ScaleOutLevel = {
-  /** Profit threshold in percent to trigger this level (e.g., 5 = +5%) */
-  threshold: number;
-  /** Percentage of remaining position to sell (e.g., 33 = sell 33%) */
-  sellPercent: number;
-};
-
-export type ScaleOutConfig = {
-  /** Array of scale-out levels (should be ordered by threshold ascending) */
-  levels: ScaleOutLevel[];
-};
-
-/**
- * Time-based exit configuration
- *
- * Exits position after holding for a specified number of days.
- * Useful for swing traders who want to avoid being stuck in non-moving positions.
- *
- * @example
- * ```ts
- * // Exit after 20 days regardless of P&L
- * timeExit: { maxHoldDays: 20 }
- *
- * // Exit after 20 days only if P&L is within ±2%
- * timeExit: { maxHoldDays: 20, onlyIfFlat: { threshold: 2 } }
- * ```
- */
-export type TimeExitConfig = {
-  /** Maximum holding period in days */
-  maxHoldDays: number;
-  /** Only exit if position is within this P&L range (e.g., threshold: 2 = ±2%) */
-  onlyIfFlat?: { threshold: number };
-};
-
-/**
- * ATR-based trailing stop configuration
- *
- * Tracks the highest price since entry and exits when price drops
- * by (ATR × multiplier) from that high.
- */
-export type AtrTrailingStopConfig = {
-  /** ATR multiplier (e.g., 2.0 = exit when price drops 2×ATR from high) */
-  multiplier: number;
-  /** ATR calculation period (default: 14) */
-  period?: number;
-};
-
-/**
- * Fill mode for order execution timing
- * - "same-bar-close": Execute at signal bar's close (default, legacy behavior - has look-ahead bias)
- * - "next-bar-open": Execute at next bar's open (realistic, no look-ahead bias)
- */
-export type FillMode = "same-bar-close" | "next-bar-open";
-
-/**
- * Stop loss / Take profit evaluation mode
- * - "intraday": Check against high/low within the bar (has look-ahead bias)
- * - "close-only": Check only against close price (no look-ahead bias, default)
- */
-export type SlTpMode = "intraday" | "close-only";
-
-/**
- * Backtest options
- */
-export type BacktestOptions = {
-  /** Initial capital */
-  capital: number;
-  /** Commission per trade in currency (default: 0) */
-  commission?: number;
-  /** Commission rate in percent per trade (default: 0, e.g., 0.1 = 0.1%) */
-  commissionRate?: number;
-  /** Slippage in percent (default: 0) */
-  slippage?: number;
-  /** Stop loss in percent (e.g., 5 = exit when -5% loss) */
-  stopLoss?: number;
-  /** Take profit in percent (e.g., 10 = exit when +10% gain) */
-  takeProfit?: number;
-  /** Trailing stop in percent (e.g., 5 = exit if price drops 5% from peak) */
-  trailingStop?: number;
-  /** ATR-based trailing stop (exits when price drops ATR×multiplier from high since entry) */
-  atrTrailingStop?: AtrTrailingStopConfig;
-  /** Partial take profit config (sell portion of position at threshold) */
-  partialTakeProfit?: PartialTakeProfitConfig;
-  /** Tax rate on profits in percent (default: 0, e.g., 20.315 for Japan) */
-  taxRate?: number;
-  /**
-   * Order fill timing mode (default: "next-bar-open")
-   * - "same-bar-close": Fill at signal bar's close (legacy, has look-ahead bias)
-   * - "next-bar-open": Fill at next bar's open (realistic, recommended)
-   */
-  fillMode?: FillMode;
-  /**
-   * Stop loss / Take profit evaluation mode (default: "close-only")
-   * - "intraday": Check high/low within bar (has look-ahead bias)
-   * - "close-only": Check only close price (conservative, recommended)
-   */
-  slTpMode?: SlTpMode;
-  /** Breakeven stop config (move stop to entry price after reaching profit threshold) */
-  breakevenStop?: BreakevenStopConfig;
-  /** Scale-out config (staged position reduction at multiple profit levels) */
-  scaleOut?: ScaleOutConfig;
-  /** Time-based exit config (exit after N days) */
-  timeExit?: TimeExitConfig;
-};
-
-/**
- * Backtest settings snapshot for reproducibility
- */
-export type BacktestSettings = {
-  /** Order fill timing mode */
-  fillMode: FillMode;
-  /** Stop loss / Take profit evaluation mode */
-  slTpMode: SlTpMode;
-  /** Stop loss in percent */
-  stopLoss?: number;
-  /** Take profit in percent */
-  takeProfit?: number;
-  /** Trailing stop in percent */
-  trailingStop?: number;
-  /** Slippage in percent */
-  slippage: number;
-  /** Fixed commission per trade */
-  commission: number;
-  /** Commission rate in percent */
-  commissionRate: number;
-};
-
-/**
- * Backtest result
- */
-export type BacktestResult = {
-  /** Initial capital */
-  initialCapital: number;
-  /** Final capital */
-  finalCapital: number;
-  /** Total return amount */
-  totalReturn: number;
-  /** Total return percentage */
-  totalReturnPercent: number;
-  /** Number of trades */
-  tradeCount: number;
-  /** Win rate percentage */
-  winRate: number;
-  /** Maximum drawdown percentage */
-  maxDrawdown: number;
-  /** Sharpe ratio (annualized) */
-  sharpeRatio: number;
-  /** Profit factor */
-  profitFactor: number;
-  /** Average holding days */
-  avgHoldingDays: number;
-  /** Individual trade records */
-  trades: Trade[];
-  /** Settings used for this backtest (for reproducibility) */
-  settings: BacktestSettings;
-};
 
 // ============================================
-// Multi-Timeframe (MTF) Types
+// Candle, Indicator, Timeframe, Signal, Utility Option Types
 // ============================================
 
-/**
- * Dataset for a single timeframe
- */
-export type MtfDataset = {
-  /** Timeframe identifier */
-  timeframe: TimeframeShorthand;
-  /** Candle data for this timeframe */
-  candles: NormalizedCandle[];
-  /** Cached indicators for this timeframe */
-  indicators: Record<string, unknown>;
-};
-
-/**
- * MTF context for condition evaluation
- * Provides access to multiple timeframe data during backtest
- */
-export type MtfContext = {
-  /** Available timeframe datasets */
-  datasets: Map<TimeframeShorthand, MtfDataset>;
-  /** Current index for each timeframe (maps base timeframe index to higher TF index) */
-  indices: Map<TimeframeShorthand, number>;
-  /** Current timestamp (from base timeframe) */
-  currentTime: number;
-};
-
-/**
- * MTF condition function signature
- */
-export type MtfConditionFn = (
-  mtf: MtfContext,
-  indicators: Record<string, unknown>,
-  candle: NormalizedCandle,
-  index: number,
-  candles: NormalizedCandle[],
-) => boolean;
-
-/**
- * MTF preset condition type
- */
-export type MtfPresetCondition = {
-  type: "mtf-preset";
-  name: string;
-  /** Required timeframes for this condition */
-  requiredTimeframes: TimeframeShorthand[];
-  evaluate: MtfConditionFn;
-};
+export type {
+  Candle,
+  NormalizedCandle,
+  IndicatorValue,
+  Series,
+  PriceSource,
+  TimeframeUnit,
+  Timeframe,
+  TimeframeShorthand,
+  MacdValue,
+  BollingerBandsValue,
+  SignalType,
+  Signal,
+  SmaOptions,
+  EmaOptions,
+  RsiOptions,
+  MacdOptions,
+  BollingerBandsOptions,
+  AtrOptions,
+  HighestLowestOptions,
+  ReturnsOptions,
+  CrossOptions,
+} from "./candle";
 
 // ============================================
-// Volume Analysis Types
+// Backtest & MTF Types
 // ============================================
 
-/**
- * Volume anomaly detection result
- */
-export type VolumeAnomalyValue = {
-  /** Current volume */
-  volume: number;
-  /** Average volume over period */
-  avgVolume: number;
-  /** Volume ratio (volume / avgVolume) */
-  ratio: number;
-  /** Whether this is considered anomalous */
-  isAnomaly: boolean;
-  /** Anomaly level */
-  level: "normal" | "high" | "extreme" | null;
-  /** Z-score (standard deviations from mean) */
-  zScore: number | null;
-};
-
-/**
- * Single price level in Volume Profile
- */
-export type VolumePriceLevel = {
-  /** Price level lower bound */
-  priceLow: number;
-  /** Price level upper bound */
-  priceHigh: number;
-  /** Price level midpoint */
-  priceMid: number;
-  /** Total volume at this price level */
-  volume: number;
-  /** Percentage of total volume */
-  volumePercent: number;
-};
-
-/**
- * Volume Profile result
- */
-export type VolumeProfileValue = {
-  /** Volume distribution by price level */
-  levels: VolumePriceLevel[];
-  /** Point of Control - price level with highest volume */
-  poc: number;
-  /** Value Area High - upper bound of 70% volume concentration */
-  vah: number;
-  /** Value Area Low - lower bound of 70% volume concentration */
-  val: number;
-  /** Highest price in the profile period */
-  periodHigh: number;
-  /** Lowest price in the profile period */
-  periodLow: number;
-};
-
-/**
- * Volume trend confirmation result
- */
-export type VolumeTrendValue = {
-  /** Price trend direction */
-  priceTrend: "up" | "down" | "neutral";
-  /** Volume trend direction */
-  volumeTrend: "up" | "down" | "neutral";
-  /** True if volume confirms price trend (up+up or down+down) */
-  isConfirmed: boolean;
-  /** True if volume diverges from price (potential reversal signal) */
-  hasDivergence: boolean;
-  /** Confidence score (0-100) */
-  confidence: number;
-};
+export type {
+  ExitReason,
+  ConditionFn,
+  PresetCondition,
+  CombinedCondition,
+  Condition,
+  Trade,
+  PartialTakeProfitConfig,
+  BreakevenStopConfig,
+  ScaleOutLevel,
+  ScaleOutConfig,
+  TimeExitConfig,
+  AtrTrailingStopConfig,
+  FillMode,
+  SlTpMode,
+  BacktestOptions,
+  BacktestSettings,
+  BacktestResult,
+  MtfDataset,
+  MtfContext,
+  MtfConditionFn,
+  MtfPresetCondition,
+} from "./backtest";
 
 // ============================================
-// ATR Risk Management Types
+// Volume Analysis, ATR Risk, Position Sizing Types
 // ============================================
 
-/**
- * ATR-based risk management options for backtesting
- */
-export type AtrRiskOptions = {
-  /** ATR period for calculations (default: 14) */
-  atrPeriod?: number;
-  /** ATR multiplier for stop loss (e.g., 2.5 = 2.5 * ATR below entry) */
-  atrStopMultiplier?: number;
-  /** ATR multiplier for take profit (e.g., 3.0 = 3.0 * ATR above entry) */
-  atrTakeProfitMultiplier?: number;
-  /** ATR multiplier for trailing stop (e.g., 2.0 = 2.0 * ATR from peak) */
-  atrTrailingMultiplier?: number;
-  /** Use ATR from entry time (true) or recalculate each bar (false, default) */
-  useEntryAtr?: boolean;
-};
-
-/**
- * Chandelier Exit indicator options
- */
-export type ChandelierExitOptions = {
-  /** ATR period (default: 22, classic Chandelier uses 22) */
-  period?: number;
-  /** ATR multiplier (default: 3.0) */
-  multiplier?: number;
-  /** Lookback period for highest high / lowest low (default: same as ATR period) */
-  lookback?: number;
-};
-
-/**
- * Chandelier Exit indicator result
- */
-export type ChandelierExitValue = {
-  /** Long exit level (for long positions) - highest high minus ATR * multiplier */
-  longExit: number | null;
-  /** Short exit level (for short positions) - lowest low plus ATR * multiplier */
-  shortExit: number | null;
-  /** Current trend direction: 1 = bullish, -1 = bearish, 0 = undefined */
-  direction: 1 | -1 | 0;
-  /** Whether price crossed the exit level (potential exit signal) */
-  isCrossover: boolean;
-  /** Highest high over lookback period */
-  highestHigh: number | null;
-  /** Lowest low over lookback period */
-  lowestLow: number | null;
-  /** Current ATR value */
-  atr: number | null;
-};
-
-/**
- * ATR Stop Levels indicator options
- */
-export type AtrStopsOptions = {
-  /** ATR period (default: 14) */
-  period?: number;
-  /** Stop loss multiplier (default: 2.0) */
-  stopMultiplier?: number;
-  /** Take profit multiplier (default: 3.0) */
-  takeProfitMultiplier?: number;
-};
-
-/**
- * ATR Stop Levels indicator result
- * Provides ATR-based price levels for risk management
- */
-export type AtrStopsValue = {
-  /** Stop loss level for long position (current close - ATR * multiplier) */
-  longStopLevel: number | null;
-  /** Stop loss level for short position (current close + ATR * multiplier) */
-  shortStopLevel: number | null;
-  /** Take profit level for long position (current close + ATR * multiplier) */
-  longTakeProfitLevel: number | null;
-  /** Take profit level for short position (current close - ATR * multiplier) */
-  shortTakeProfitLevel: number | null;
-  /** Current ATR value */
-  atr: number | null;
-  /** Stop distance in price units */
-  stopDistance: number | null;
-  /** Take profit distance in price units */
-  takeProfitDistance: number | null;
-};
+export type {
+  VolumeAnomalyValue,
+  VolumePriceLevel,
+  VolumeProfileValue,
+  VolumeTrendValue,
+  AtrRiskOptions,
+  ChandelierExitOptions,
+  ChandelierExitValue,
+  AtrStopsOptions,
+  AtrStopsValue,
+  PositionSizeResult,
+  PositionSizingMethod,
+  PositionSizingBaseOptions,
+  RiskBasedSizingOptions,
+  AtrBasedSizingOptions,
+  KellySizingOptions,
+  FixedFractionalOptions,
+  PositionSizingOptions,
+} from "./volume-risk";
 
 // ============================================
-// Position Sizing Types
+// Signal Scoring, Volatility Regime, Scaled Entry, Fundamental Types
 // ============================================
 
-/**
- * Position size calculation result
- */
-export type PositionSizeResult = {
-  /** Number of shares/units to trade */
-  shares: number;
-  /** Dollar amount to invest */
-  positionValue: number;
-  /** Risk amount in dollars */
-  riskAmount: number;
-  /** Percentage of capital being risked */
-  riskPercent: number;
-  /** Stop loss price (if applicable) */
-  stopPrice: number | null;
-  /** Calculation method used */
-  method: PositionSizingMethod;
-};
+export type {
+  PrecomputedIndicators,
+  SignalEvaluator,
+  SignalDefinition,
+  ScoreResult,
+  SignalContribution,
+  ScoreBreakdown,
+  ScoringConfig,
+  ScoringPreset,
+  VolatilityRegime,
+  VolatilityRegimeOptions,
+  VolatilityRegimeValue,
+  ScaledEntryStrategy,
+  ScaledEntryIntervalType,
+  ScaledEntryConfig,
+  FundamentalMetrics,
+} from "./scoring";
 
-/**
- * Position sizing method type
- */
-export type PositionSizingMethod = "risk-based" | "atr-based" | "kelly" | "fixed-fractional";
-
-/**
- * Base options for all position sizing methods
- */
-export type PositionSizingBaseOptions = {
-  /** Account/portfolio size */
-  accountSize: number;
-  /** Entry price of the security */
-  entryPrice: number;
-  /** Minimum share size (e.g., 1 for stocks, 0.001 for crypto) */
-  minShares?: number;
-  /** Maximum position as percentage of account (default: 100) */
-  maxPositionPercent?: number;
-  /** Round shares to nearest integer (default: true) */
-  roundShares?: boolean;
-};
-
-/**
- * Options for risk-based position sizing
- */
-export type RiskBasedSizingOptions = PositionSizingBaseOptions & {
-  /** Risk percentage per trade (e.g., 1 = 1% of account) */
-  riskPercent: number;
-  /** Stop loss price */
-  stopLossPrice: number;
-  /** Position direction: long (stop below entry) or short (stop above entry) */
-  direction?: "long" | "short";
-};
-
-/**
- * Options for ATR-based position sizing
- */
-export type AtrBasedSizingOptions = PositionSizingBaseOptions & {
-  /** Risk percentage per trade (e.g., 1 = 1% of account) */
-  riskPercent: number;
-  /** Current ATR value */
-  atrValue: number;
-  /** ATR multiplier for stop distance (default: 2) */
-  atrMultiplier?: number;
-  /** Position direction: long (stop below entry) or short (stop above entry) */
-  direction?: "long" | "short";
-};
-
-/**
- * Options for Kelly Criterion position sizing
- */
-export type KellySizingOptions = PositionSizingBaseOptions & {
-  /** Historical win rate (0-1) */
-  winRate: number;
-  /** Average win/loss ratio (avgWin / avgLoss) */
-  winLossRatio: number;
-  /** Kelly fraction to use (default: 0.5 = half-Kelly) */
-  kellyFraction?: number;
-  /** Maximum Kelly percentage allowed (default: 25) */
-  maxKellyPercent?: number;
-};
-
-/**
- * Options for fixed fractional position sizing
- */
-export type FixedFractionalOptions = PositionSizingBaseOptions & {
-  /** Fixed percentage of account per trade */
-  fractionPercent: number;
-};
-
-/**
- * Combined position sizing options (union type)
- */
-export type PositionSizingOptions =
-  | ({ method: "risk-based" } & RiskBasedSizingOptions)
-  | ({ method: "atr-based" } & AtrBasedSizingOptions)
-  | ({ method: "kelly" } & KellySizingOptions)
-  | ({ method: "fixed-fractional" } & FixedFractionalOptions);
-
-// ============================================================================
-// Signal Scoring Types
-// ============================================================================
-
-/**
- * Pre-computed indicator data for performance optimization
- * Used by signal evaluators to avoid re-calculating indicators on each bar
- */
-export type PrecomputedIndicators = {
-  /** RSI values (period: 14) */
-  rsi14?: (number | null)[];
-  /** MACD values (12, 26, 9) */
-  macd?: { macd: number | null; signal: number | null; histogram: number | null }[];
-  /** Stochastics values (k: 14, d: 3) */
-  stoch?: { k: number | null; d: number | null }[];
-  /** SMA values by period */
-  sma?: Map<number, (number | null)[]>;
-  /** EMA values by period */
-  ema?: Map<number, (number | null)[]>;
-  /** Volume MA values (period: 20) */
-  volumeMa20?: (number | null)[];
-  /** Volume anomaly data */
-  volumeAnomaly?: ({ ratio: number; level: string; isAnomaly: boolean; zScore: number | null } | null)[];
-  /** Volume trend data */
-  volumeTrend?: ({
-    isConfirmed: boolean;
-    priceTrend: string;
-    volumeTrend: string;
-    confidence: number;
-    hasDivergence: boolean;
-  } | null)[];
-  /** CMF values (period: 20) */
-  cmf20?: (number | null)[];
-  /** Perfect Order data */
-  perfectOrder?: ({ type: string; strength: number } | null)[];
-  /** Perfect Order Enhanced data */
-  perfectOrderEnhanced?: ({
-    state: string;
-    isConfirmed: boolean;
-    confirmationFormed: boolean;
-  } | null)[];
-};
-
-/**
- * Individual signal evaluator function
- * Returns a score between 0 and 1 indicating signal strength
- */
-export type SignalEvaluator = (
-  candles: NormalizedCandle[],
-  index: number,
-  context?: MtfContext,
-  precomputed?: PrecomputedIndicators,
-) => number;
-
-/**
- * Signal definition with name and weight
- */
-export type SignalDefinition = {
-  /** Unique identifier for the signal */
-  name: string;
-  /** Display name for reporting */
-  displayName: string;
-  /** Weight for scoring (higher = more important) */
-  weight: number;
-  /** Signal evaluator function */
-  evaluate: SignalEvaluator;
-  /** Optional category for grouping */
-  category?: "momentum" | "trend" | "volume" | "volatility" | "mtf";
-  /** Required pre-computed indicators for this signal */
-  requiredIndicators?: (keyof PrecomputedIndicators)[];
-};
-
-/**
- * Result of scoring all signals
- */
-export type ScoreResult = {
-  /** Raw weighted sum of all signals */
-  rawScore: number;
-  /** Normalized score (0-100) */
-  normalizedScore: number;
-  /** Maximum possible score */
-  maxScore: number;
-  /** Signal strength classification */
-  strength: "strong" | "moderate" | "weak" | "none";
-  /** Number of active signals */
-  activeSignals: number;
-  /** Total number of signals */
-  totalSignals: number;
-};
-
-/**
- * Detailed breakdown of individual signal contributions
- */
-export type SignalContribution = {
-  /** Signal name */
-  name: string;
-  /** Display name */
-  displayName: string;
-  /** Raw score from evaluator (0-1) */
-  rawValue: number;
-  /** Weighted score contribution */
-  score: number;
-  /** Weight used */
-  weight: number;
-  /** Whether signal is active (rawValue > 0) */
-  isActive: boolean;
-  /** Category of the signal */
-  category?: string;
-};
-
-/**
- * Full score breakdown with all signal contributions
- */
-export type ScoreBreakdown = ScoreResult & {
-  /** Individual signal contributions */
-  contributions: SignalContribution[];
-};
-
-/**
- * Configuration for the scoring system
- */
-export type ScoringConfig = {
-  /** Array of signal definitions */
-  signals: SignalDefinition[];
-  /** Threshold for "strong" strength (default: 70) */
-  strongThreshold?: number;
-  /** Threshold for "moderate" strength (default: 50) */
-  moderateThreshold?: number;
-  /** Threshold for "weak" strength (default: 30) */
-  weakThreshold?: number;
-};
-
-/**
- * Preset strategy names
- */
-export type ScoringPreset = "momentum" | "meanReversion" | "trendFollowing" | "balanced" | "aggressive" | "conservative";
-
-// ============================================================================
-// Volatility Regime Types
-// ============================================================================
-
-/**
- * Volatility regime classification
- */
-export type VolatilityRegime = "low" | "normal" | "high" | "extreme";
-
-/**
- * Options for volatility regime calculation
- */
-export type VolatilityRegimeOptions = {
-  /** ATR period (default: 14) */
-  atrPeriod?: number;
-  /** Bollinger Bands period (default: 20) */
-  bbPeriod?: number;
-  /** Lookback period for percentile calculation (default: 100) */
-  lookbackPeriod?: number;
-  /** Thresholds for regime classification (percentiles) */
-  thresholds?: {
-    /** Low volatility threshold (default: 25) */
-    low?: number;
-    /** High volatility threshold (default: 75) */
-    high?: number;
-    /** Extreme volatility threshold (default: 95) */
-    extreme?: number;
-  };
-};
-
-/**
- * Volatility regime calculation result
- */
-export type VolatilityRegimeValue = {
-  /** Current volatility regime */
-  regime: VolatilityRegime;
-  /** ATR percentile (0-100) relative to lookback period */
-  atrPercentile: number | null;
-  /** Bollinger bandwidth percentile (0-100) relative to lookback period */
-  bandwidthPercentile: number | null;
-  /** Historical volatility (annualized standard deviation of returns) */
-  historicalVol: number | null;
-  /** Current ATR value */
-  atr: number | null;
-  /** Current Bollinger bandwidth */
-  bandwidth: number | null;
-  /** Regime confidence score (0-1) based on indicator agreement */
-  confidence: number;
-};
-
-// ============================================================================
-// Scaled Entry Types
-// ============================================================================
-
-/**
- * Scaled entry strategy type
- */
-export type ScaledEntryStrategy = "equal" | "pyramid" | "reverse-pyramid";
-
-/**
- * Scaled entry interval type
- */
-export type ScaledEntryIntervalType = "signal" | "price";
-
-/**
- * Configuration for scaled/split entry
- */
-export type ScaledEntryConfig = {
-  /** Number of entry tranches (default: 3) */
-  tranches: number;
-  /** Entry allocation strategy */
-  strategy: ScaledEntryStrategy;
-  /** Entry interval type */
-  intervalType: ScaledEntryIntervalType;
-  /** Price interval in percent (for 'price' type, e.g., -2 = buy 2% lower each time) */
-  priceInterval?: number;
-};
-
-// ============================================================================
-// Fundamental Metrics Types
-// ============================================================================
-
-/**
- * Fundamental metrics for a specific time point
- * Used for PER/PBR-based condition evaluation in backtesting
- */
-export type FundamentalMetrics = {
-  /** Timestamp (epoch milliseconds) */
-  time: number;
-  /** Price-to-Earnings Ratio (株価収益率) */
-  per?: number | null;
-  /** Price-to-Book Ratio (株価純資産倍率) */
-  pbr?: number | null;
-};
-
-// ============================================================================
+// ============================================
 // Optimization Types (re-export from optimization.ts)
-// ============================================================================
+// ============================================
 
 export type {
   ParameterRange,
@@ -1044,3 +128,21 @@ export type {
   WalkForwardResult,
   WalkForwardOptions,
 } from "./optimization";
+
+// ============================================
+// Result Types (re-export from result.ts)
+// ============================================
+
+export type { Ok, Err, Result, TrendCraftErrorCode, TrendCraftError } from "./result";
+export {
+  ok,
+  err,
+  tcError,
+  mapResult,
+  flatMap,
+  unwrapOr,
+  unwrap,
+  collectResults,
+  partitionResults,
+  tryCatch,
+} from "./result";
