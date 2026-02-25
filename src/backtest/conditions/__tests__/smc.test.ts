@@ -130,6 +130,8 @@ describe("SMC Conditions", () => {
 
     describe("orderBlockMitigated", () => {
       it("should detect when OB is mitigated", () => {
+        // OB candle is index 3 (last bearish before BOS): high=103, low=100
+        // For close-based mitigation (default), close must break below ob.low (100)
         const candles = makeCandles([
           { o: 100, h: 102, l: 99, c: 101 },
           { o: 101, h: 110, l: 100, c: 108 },
@@ -137,7 +139,7 @@ describe("SMC Conditions", () => {
           { o: 104, h: 103, l: 100, c: 101 },
           { o: 101, h: 115, l: 108, c: 112 }, // OB created
           { o: 112, h: 118, l: 110, c: 116 },
-          { o: 116, h: 117, l: 99, c: 102 }, // Price goes through OB zone
+          { o: 116, h: 117, l: 97, c: 98 }, // Close penetrates below OB low (100)
         ]);
 
         const condition = orderBlockMitigated("bullish", { swingPeriod: 1 });
