@@ -7,6 +7,7 @@
 
 import type { BacktestResult, Trade } from "../types";
 import type { MetricStatistics, MonteCarloOptions, MonteCarloResult } from "../types/optimization";
+import { type Result, ok, err, tcError } from "../types/result";
 
 /**
  * Default options
@@ -322,4 +323,32 @@ export function summarizeMonteCarloResult(result: MonteCarloResult): {
     sharpe95CI: result.confidenceInterval.sharpe,
     originalSharpe: result.originalResult.sharpe,
   };
+}
+
+/**
+ * Safe variant of runMonteCarloSimulation that returns a Result instead of throwing.
+ *
+ * @example
+ * ```ts
+ * const result = runMonteCarloSimulationSafe(backtestResult);
+ * if (result.ok) {
+ *   console.log(result.value.assessment);
+ * } else {
+ *   console.error(result.error.message);
+ * }
+ * ```
+ */
+export function runMonteCarloSimulationSafe(
+  result: BacktestResult,
+  options: MonteCarloOptions = {},
+): Result<MonteCarloResult> {
+  try {
+    return ok(runMonteCarloSimulation(result, options));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const code = message.includes("Need at least")
+      ? ("INSUFFICIENT_DATA" as const)
+      : ("COMPUTATION_FAILED" as const);
+    return err(tcError(code, message, {}, error instanceof Error ? error : undefined));
+  }
 }

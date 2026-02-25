@@ -43,6 +43,7 @@ export {
 // Grid Search
 export {
   gridSearch,
+  gridSearchSafe,
   generateParameterCombinations,
   countCombinations,
   param,
@@ -55,6 +56,7 @@ export type { StrategyFactory } from "./grid-search";
 // Walk-Forward Analysis
 export {
   walkForwardAnalysis,
+  walkForwardAnalysisSafe,
   calculatePeriodCount,
   generatePeriodBoundaries,
   summarizeWalkForward,
@@ -66,11 +68,6 @@ export {
   combinationSearch,
   generateCombinations,
   countTotalCombinations,
-  getTopCombinations,
-  formatCombinationResult,
-  summarizeCombinationSearch,
-  createEntryConditionPool,
-  createExitConditionPool,
 } from "./combination-search";
 export type {
   ConditionDefinition,
@@ -79,9 +76,20 @@ export type {
   CombinationSearchOptions,
 } from "./combination-search";
 
+// Condition Pools & Combination Search Utilities
+export {
+  combinationSearchSafe,
+  getTopCombinations,
+  formatCombinationResult,
+  summarizeCombinationSearch,
+  createEntryConditionPool,
+  createExitConditionPool,
+} from "./condition-pools";
+
 // Monte Carlo Simulation
 export {
   runMonteCarloSimulation,
+  runMonteCarloSimulationSafe,
   calculateStatistics,
   formatMonteCarloResult,
   summarizeMonteCarloResult,
@@ -90,6 +98,7 @@ export {
 // Anchored Walk-Forward Analysis
 export {
   anchoredWalkForwardAnalysis,
+  anchoredWalkForwardAnalysisSafe,
   generateAWFBoundaries,
   calculateAWFPeriodCount,
   summarizeAWFResult,

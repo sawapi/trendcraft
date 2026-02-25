@@ -5,7 +5,9 @@
  */
 
 import { runBacktest } from "../backtest";
+import { IndicatorCache } from "../core/indicator-cache";
 import type { BacktestOptions, Condition, NormalizedCandle } from "../types";
+import { type Result, ok, err, tcError } from "../types/result";
 import type {
   GridSearchOptions,
   GridSearchResult,
@@ -125,6 +127,9 @@ export function gridSearch(
   // Generate all combinations
   const combinations = generateParameterCombinations(parameterRanges);
 
+  // Shared indicator cache across all backtest runs on same candle data
+  const cache = new IndicatorCache();
+
   // Run backtests and collect results
   const results: OptimizationResultEntry[] = [];
   let bestScore = Number.NEGATIVE_INFINITY;
@@ -147,8 +152,8 @@ export function gridSearch(
         ...strategy.options,
       };
 
-      // Run backtest
-      const backtest = runBacktest(candles, strategy.entry, strategy.exit, backtestOptions);
+      // Run backtest with shared cache
+      const backtest = runBacktest(candles, strategy.entry, strategy.exit, backtestOptions, cache);
 
       // Calculate metrics
       const metrics = calculateAllMetrics(backtest, candles, {
@@ -267,4 +272,34 @@ export function summarizeGridSearch(result: GridSearchResult): {
     bestScore: result.bestScore,
     metric: result.metric,
   };
+}
+
+/**
+ * Safe variant of gridSearch that returns a Result instead of throwing.
+ *
+ * @example
+ * ```ts
+ * const result = gridSearchSafe(candles, createStrategy, parameterRanges);
+ * if (result.ok) {
+ *   console.log(result.value.bestParams);
+ * } else {
+ *   console.error(result.error.message);
+ * }
+ * ```
+ */
+export function gridSearchSafe(
+  candles: NormalizedCandle[],
+  createStrategy: StrategyFactory,
+  parameterRanges: ParameterRange[],
+  options: GridSearchOptions = {},
+): Result<GridSearchResult> {
+  try {
+    return ok(gridSearch(candles, createStrategy, parameterRanges, options));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const code = message.includes("Too many parameter combinations")
+      ? ("TOO_MANY_COMBINATIONS" as const)
+      : ("OPTIMIZATION_FAILED" as const);
+    return err(tcError(code, message, {}, error instanceof Error ? error : undefined));
+  }
 }

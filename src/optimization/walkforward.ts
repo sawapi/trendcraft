@@ -6,7 +6,9 @@
  */
 
 import { runBacktest } from "../backtest";
+import { IndicatorCache } from "../core/indicator-cache";
 import type { BacktestOptions, Condition, NormalizedCandle } from "../types";
+import { type Result, ok, err, tcError } from "../types/result";
 import type {
   OptimizationConstraint,
   OptimizationMetric,
@@ -390,4 +392,34 @@ export function getOutOfSampleEquityCurve(
   }
 
   return curve;
+}
+
+/**
+ * Safe variant of walkForwardAnalysis that returns a Result instead of throwing.
+ *
+ * @example
+ * ```ts
+ * const result = walkForwardAnalysisSafe(candles, createStrategy, parameterRanges);
+ * if (result.ok) {
+ *   console.log(result.value.recommendation);
+ * } else {
+ *   console.error(result.error.message);
+ * }
+ * ```
+ */
+export function walkForwardAnalysisSafe(
+  candles: NormalizedCandle[],
+  createStrategy: StrategyFactory,
+  parameterRanges: ParameterRange[],
+  options: WalkForwardOptions = {},
+): Result<WalkForwardResult> {
+  try {
+    return ok(walkForwardAnalysis(candles, createStrategy, parameterRanges, options));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const code = message.includes("Insufficient data")
+      ? ("INSUFFICIENT_DATA" as const)
+      : ("OPTIMIZATION_FAILED" as const);
+    return err(tcError(code, message, {}, error instanceof Error ? error : undefined));
+  }
 }
