@@ -14,6 +14,8 @@ export {
   cci,
   williamsR,
   roc,
+  trix,
+  aroon,
 } from "./momentum";
 export type {
   StochasticsValue,
@@ -25,6 +27,10 @@ export type {
   CciOptions,
   WilliamsROptions,
   RocOptions,
+  TrixOptions,
+  TrixValue,
+  AroonOptions,
+  AroonValue,
 } from "./momentum";
 
 // Volatility
@@ -66,6 +72,7 @@ export {
   volumeProfile,
   volumeProfileSeries,
   volumeTrend,
+  adl,
 } from "./volume";
 export type {
   VolumeMaOptions,
@@ -128,7 +135,7 @@ export type {
 } from "./price";
 
 // Trend
-export { ichimoku, supertrend, parabolicSar } from "./trend";
+export { ichimoku, supertrend, parabolicSar, vortex } from "./trend";
 export type {
   IchimokuOptions,
   IchimokuValue,
@@ -136,6 +143,8 @@ export type {
   SupertrendValue,
   ParabolicSarOptions,
   ParabolicSarValue,
+  VortexOptions,
+  VortexValue,
 } from "./trend";
 
 // Relative Strength

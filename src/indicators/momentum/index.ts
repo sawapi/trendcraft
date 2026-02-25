@@ -12,3 +12,7 @@ export { williamsR } from "./williams-r";
 export type { WilliamsROptions } from "./williams-r";
 export { roc } from "./roc";
 export type { RocOptions } from "./roc";
+export { trix } from "./trix";
+export type { TrixOptions, TrixValue } from "./trix";
+export { aroon } from "./aroon";
+export type { AroonOptions, AroonValue } from "./aroon";

@@ -13,3 +13,4 @@ export { volumeProfile, volumeProfileSeries } from "./volume-profile";
 export type { VolumeProfileOptions } from "./volume-profile";
 export { volumeTrend } from "./volume-trend";
 export type { VolumeTrendOptions } from "./volume-trend";
+export { adl } from "./adl";
