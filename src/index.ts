@@ -84,7 +84,7 @@ export {
   getPriceSeries,
 } from "./core/normalize";
 
-export { resample, parseTimeframe } from "./core/resample";
+export { resample, parseTimeframe, getPeriodStart } from "./core/resample";
 
 // Fundamentals utilities
 export {
@@ -764,3 +764,6 @@ export type {
   StreakAnalysis,
   TradeAnalysis,
 } from "./analysis";
+
+// Streaming (real-time trading pipeline)
+export * as streaming from "./streaming";

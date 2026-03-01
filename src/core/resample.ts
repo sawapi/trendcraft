@@ -37,8 +37,12 @@ export function parseTimeframe(input: TimeframeShorthand | Timeframe): Timeframe
 
 /**
  * Get the start of the period for grouping candles
+ *
+ * @param time - Epoch milliseconds timestamp
+ * @param timeframe - Target timeframe for period alignment
+ * @returns Period start timestamp in epoch milliseconds
  */
-function getPeriodStart(time: number, timeframe: Timeframe): number {
+export function getPeriodStart(time: number, timeframe: Timeframe): number {
   const date = new Date(time);
 
   switch (timeframe.unit) {
