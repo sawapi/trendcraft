@@ -108,3 +108,26 @@ export type {
   ForceCloseEvent,
   GuardedTradingSession,
 } from "./guards";
+
+// Phase 6: Position Management
+export {
+  createPositionTracker,
+  createManagedSession,
+} from "./position-manager";
+export type {
+  ManagedPosition,
+  AccountState,
+  FillRecord,
+  PositionSizingConfig,
+  PositionManagerOptions,
+  OpenPositionOptions,
+  UpdatePriceResult,
+  ClosedTradeResult,
+  PositionTrackerState,
+  PositionTracker,
+  PositionTrackerOptions,
+  PositionEvent,
+  ManagedEvent,
+  ManagedSessionState,
+  ManagedSession,
+} from "./position-manager";
