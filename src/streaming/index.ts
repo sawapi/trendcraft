@@ -84,3 +84,27 @@ export type { StreamingMtfOptions } from "./mtf";
 
 // Phase 4: Session
 export { createTradingSession } from "./session";
+
+// Phase 5: Guards (Risk Management & Time Control)
+export {
+  createRiskGuard,
+  createTimeGuard,
+  createGuardedSession,
+} from "./guards";
+export type {
+  RiskGuardOptions,
+  RiskGuardState,
+  RiskGuardCheckResult,
+  RiskGuard,
+  TradingWindow,
+  BlackoutPeriod,
+  TimeGuardOptions,
+  TimeGuardState,
+  TimeGuardCheckResult,
+  TimeGuard,
+  GuardedSessionOptions,
+  GuardedSessionState,
+  BlockedEvent,
+  ForceCloseEvent,
+  GuardedTradingSession,
+} from "./guards";

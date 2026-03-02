@@ -363,7 +363,9 @@ export type SessionEvent =
   | { type: "signal"; name: string; candle: NormalizedCandle }
   | { type: "entry"; snapshot: IndicatorSnapshot; candle: NormalizedCandle }
   | { type: "exit"; snapshot: IndicatorSnapshot; candle: NormalizedCandle }
-  | { type: "partial"; candle: NormalizedCandle; snapshot: IndicatorSnapshot };
+  | { type: "partial"; candle: NormalizedCandle; snapshot: IndicatorSnapshot }
+  | { type: "blocked"; reason: string; candle: NormalizedCandle }
+  | { type: "force-close"; reason: string; candle: NormalizedCandle; snapshot: IndicatorSnapshot };
 
 /**
  * Session configuration options
