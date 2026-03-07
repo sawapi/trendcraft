@@ -45,9 +45,7 @@ export const OVERLAY_GROUPS: { group: string; options: { key: OverlayType; label
   },
   {
     group: "Filter",
-    options: [
-      { key: "superSmoother", label: "Super Smoother" },
-    ],
+    options: [{ key: "superSmoother", label: "Super Smoother" }],
   },
   {
     group: "Bands / Channels",
@@ -68,15 +66,11 @@ export const OVERLAY_GROUPS: { group: string; options: { key: OverlayType; label
   },
   {
     group: "Volume",
-    options: [
-      { key: "vwap", label: "VWAP" },
-    ],
+    options: [{ key: "vwap", label: "VWAP" }],
   },
   {
     group: "Volatility",
-    options: [
-      { key: "atrStops", label: "ATR Stops" },
-    ],
+    options: [{ key: "atrStops", label: "ATR Stops" }],
   },
   {
     group: "Price",
@@ -94,9 +88,7 @@ export const OVERLAY_GROUPS: { group: string; options: { key: OverlayType; label
   },
   {
     group: "Patterns",
-    options: [
-      { key: "candlestickPatterns", label: "Candlestick Patterns" },
-    ],
+    options: [{ key: "candlestickPatterns", label: "Candlestick Patterns" }],
   },
   {
     group: "Smart Money (SMC)",
@@ -118,7 +110,11 @@ export const SIGNAL_OPTIONS: { key: SignalType; label: string; description: stri
   { key: "rangeBound", label: "Range-Bound", description: "Sideways market detection" },
   { key: "cross", label: "GC/DC", description: "Golden/Death cross detection" },
   { key: "divergence", label: "Divergence", description: "RSI/MACD/OBV divergence detection" },
-  { key: "bbSqueeze", label: "BB Squeeze", description: "Bollinger Band squeeze (breakout signal)" },
+  {
+    key: "bbSqueeze",
+    label: "BB Squeeze",
+    description: "Bollinger Band squeeze (breakout signal)",
+  },
   { key: "volumeBreakout", label: "Volume Breakout", description: "Volume breaks N-period high" },
   { key: "volumeMaCross", label: "Volume MA Cross", description: "Short/Long volume MA cross" },
 ];
@@ -126,62 +122,62 @@ export const SIGNAL_OPTIONS: { key: SignalType; label: string; description: stri
 /**
  * Subchart indicator groups
  */
-export const SUBCHART_GROUPS: { group: string; options: { key: SubChartType; label: string }[] }[] = [
-  {
-    group: "Momentum",
-    options: [
-      { key: "rsi", label: "RSI" },
-      { key: "macd", label: "MACD" },
-      { key: "stochastics", label: "Stochastics" },
-      { key: "stochrsi", label: "Stochastic RSI" },
-      { key: "cci", label: "CCI" },
-      { key: "williams", label: "Williams %R" },
-      { key: "roc", label: "ROC" },
-    ],
-  },
-  {
-    group: "Trend",
-    options: [
-      { key: "dmi", label: "DMI/ADX" },
-      { key: "rangebound", label: "Range-Bound" },
-    ],
-  },
-  {
-    group: "Filter",
-    options: [
-      { key: "roofingFilter", label: "Roofing Filter" },
-    ],
-  },
-  {
-    group: "Volatility",
-    options: [
-      { key: "atr", label: "ATR" },
-      { key: "volatilityRegime", label: "Volatility Regime" },
-    ],
-  },
-  {
-    group: "Volume",
-    options: [
-      { key: "mfi", label: "MFI" },
-      { key: "obv", label: "OBV" },
-      { key: "cmf", label: "CMF" },
-      { key: "volumeAnomaly", label: "Volume Anomaly" },
-      { key: "volumeProfile", label: "Volume Profile" },
-      { key: "volumeTrend", label: "Volume Trend" },
-    ],
-  },
-  {
-    group: "Scoring",
-    options: [
-      { key: "scoring", label: "Score" },
-    ],
-  },
-];
+export const SUBCHART_GROUPS: { group: string; options: { key: SubChartType; label: string }[] }[] =
+  [
+    {
+      group: "Momentum",
+      options: [
+        { key: "rsi", label: "RSI" },
+        { key: "macd", label: "MACD" },
+        { key: "stochastics", label: "Stochastics" },
+        { key: "stochrsi", label: "Stochastic RSI" },
+        { key: "cci", label: "CCI" },
+        { key: "williams", label: "Williams %R" },
+        { key: "roc", label: "ROC" },
+      ],
+    },
+    {
+      group: "Trend",
+      options: [
+        { key: "dmi", label: "DMI/ADX" },
+        { key: "rangebound", label: "Range-Bound" },
+      ],
+    },
+    {
+      group: "Filter",
+      options: [{ key: "roofingFilter", label: "Roofing Filter" }],
+    },
+    {
+      group: "Volatility",
+      options: [
+        { key: "atr", label: "ATR" },
+        { key: "volatilityRegime", label: "Volatility Regime" },
+      ],
+    },
+    {
+      group: "Volume",
+      options: [
+        { key: "mfi", label: "MFI" },
+        { key: "obv", label: "OBV" },
+        { key: "cmf", label: "CMF" },
+        { key: "volumeAnomaly", label: "Volume Anomaly" },
+        { key: "volumeProfile", label: "Volume Profile" },
+        { key: "volumeTrend", label: "Volume Trend" },
+      ],
+    },
+    {
+      group: "Scoring",
+      options: [{ key: "scoring", label: "Score" }],
+    },
+  ];
 
 /**
  * Fundamentals group (only shown when CSV contains PER/PBR data)
  */
-export const FUNDAMENTALS_GROUP: { group: string; options: { key: SubChartType; label: string }[] } = {
+export const FUNDAMENTALS_GROUP: {
+  group: string;
+  options: { key: SubChartType; label: string }[];
+} = {
   group: "Fundamentals",
   options: [
     { key: "per", label: "PER (Price-to-Earnings)" },

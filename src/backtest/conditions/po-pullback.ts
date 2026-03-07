@@ -2,10 +2,7 @@
  * Perfect Order pullback and entry conditions
  */
 
-import {
-  type PerfectOrderValueEnhanced,
-  perfectOrderEnhanced,
-} from "../../signals/perfect-order";
+import { type PerfectOrderValueEnhanced, perfectOrderEnhanced } from "../../signals/perfect-order";
 import type { PresetCondition } from "../../types";
 import type { PerfectOrderEnhancedConditionOptions } from "./po-enhanced";
 

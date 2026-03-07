@@ -209,6 +209,7 @@ export function useSessionPersistence(): void {
   // 取引発生時に自動保存（tradeHistoryの合計長を監視）
   const totalTrades = symbols.reduce((sum, s) => sum + s.tradeHistory.length, 0);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally trigger on totalTrades change
   useEffect(() => {
     if (phase === "running" || phase === "finished") {
       saveSession();

@@ -11,34 +11,30 @@
  *   review --from-backtest -s SPY -p 1 -t 1Min   Review backtest results (no live needed)
  */
 
+import { atr, ema } from "trendcraft";
+import { createAgentManager } from "../agent/manager.js";
+import { fetchHistoricalBars, monthsAgo, today } from "../alpaca/historical.js";
+import { runStrategyBacktests } from "../backtest/runner.js";
 import { loadEnv } from "../config/env.js";
 import { createStateStore } from "../persistence/store.js";
-import { createAgentManager } from "../agent/manager.js";
+import { applyActions, loadOverrides, removeOverride } from "../review/applier.js";
+import { loadCustomStrategies } from "../review/applier.js";
+import { loadRecentReviews, loadTodayReviews, saveReviewRecord } from "../review/history.js";
+import { reviewWithLLM } from "../review/llm-client.js";
+import { detectRollbackCandidates, evaluateOutcomes } from "../review/outcome-tracker.js";
 import {
-  getAllStrategies,
-  applyStrategyOverrides,
-  loadCustomStrategiesFromTemplates,
-} from "../strategy/registry.js";
-import {
-  generateDailyReport,
   generateBacktestReport,
+  generateDailyReport,
   saveReport,
 } from "../review/report-generator.js";
-import { reviewWithLLM } from "../review/llm-client.js";
 import { validateRecommendation } from "../review/safety.js";
-import { applyActions, loadOverrides, removeOverride } from "../review/applier.js";
+import type { BuyAndHoldBenchmark, DailyReport, MarketContext } from "../review/types.js";
 import {
-  saveReviewRecord,
-  loadRecentReviews,
-  loadTodayReviews,
-} from "../review/history.js";
-import { evaluateOutcomes, detectRollbackCandidates } from "../review/outcome-tracker.js";
-import { fetchHistoricalBars, monthsAgo, today } from "../alpaca/historical.js";
-import { atr, ema } from "trendcraft";
-import { runStrategyBacktests } from "../backtest/runner.js";
+  applyStrategyOverrides,
+  getAllStrategies,
+  loadCustomStrategiesFromTemplates,
+} from "../strategy/registry.js";
 import { PRESET_TEMPLATES } from "../strategy/template.js";
-import { loadCustomStrategies } from "../review/applier.js";
-import type { MarketContext, DailyReport, BuyAndHoldBenchmark } from "../review/types.js";
 
 export type ReviewCommandOptions = {
   reportOnly?: boolean;
@@ -65,18 +61,15 @@ export async function reviewCommand(opts: ReviewCommandOptions): Promise<void> {
 /**
  * Review based on backtest results — works anytime, no live trading needed
  */
-async function backtestReviewCommand(
-  opts: ReviewCommandOptions,
-  date: string,
-): Promise<void> {
+async function backtestReviewCommand(opts: ReviewCommandOptions, date: string): Promise<void> {
   console.log(`\n=== Backtest Review: ${date} ===\n`);
 
   const env = loadEnv();
   const symbols = opts.symbols
     ? opts.symbols.split(",").map((s) => s.trim().toUpperCase())
     : ["SPY"];
-  const periodMonths = parseInt(opts.period ?? "3", 10);
-  const capital = parseInt(opts.capital ?? "100000", 10);
+  const periodMonths = Number.parseInt(opts.period ?? "3", 10);
+  const capital = Number.parseInt(opts.capital ?? "100000", 10);
   const timeframe = opts.timeframe ?? "1Day";
 
   // Load overrides and custom strategies
@@ -95,9 +88,7 @@ async function backtestReviewCommand(
 
   const strategies = getAllStrategies();
 
-  console.log(
-    `Running backtest: ${strategies.length} strategies x ${symbols.length} symbols`,
-  );
+  console.log(`Running backtest: ${strategies.length} strategies x ${symbols.length} symbols`);
   console.log(
     `Period: ${periodMonths} months | Timeframe: ${timeframe} | Capital: $${capital.toLocaleString()}\n`,
   );
@@ -144,7 +135,10 @@ async function backtestReviewCommand(
   try {
     marketContext = await fetchMarketContext(env, symbols);
   } catch (err) {
-    console.warn("[review] Failed to fetch market context:", err instanceof Error ? err.message : err);
+    console.warn(
+      "[review] Failed to fetch market context:",
+      err instanceof Error ? err.message : err,
+    );
   }
 
   const activeOverrides = loadOverrides();
@@ -157,7 +151,7 @@ async function backtestReviewCommand(
   });
 
   const { jsonPath, mdPath } = saveReport(report);
-  console.log(`\nReport saved:`);
+  console.log("\nReport saved:");
   console.log(`  JSON: ${jsonPath}`);
   console.log(`  Markdown: ${mdPath}`);
 
@@ -176,10 +170,7 @@ async function backtestReviewCommand(
 /**
  * Review based on live/paper trading results
  */
-async function liveReviewCommand(
-  opts: ReviewCommandOptions,
-  date: string,
-): Promise<void> {
+async function liveReviewCommand(opts: ReviewCommandOptions, date: string): Promise<void> {
   console.log(`\n=== Daily Review: ${date} ===\n`);
 
   // Load agent state
@@ -192,9 +183,7 @@ async function liveReviewCommand(
   }
 
   // Rebuild agent manager from state
-  const strategyMap = new Map(
-    getAllStrategies().map((s) => [s.id, s]),
-  );
+  const strategyMap = new Map(getAllStrategies().map((s) => [s.id, s]));
   const manager = createAgentManager();
   manager.restoreStates(savedState.agents, strategyMap);
 
@@ -230,11 +219,17 @@ async function liveReviewCommand(
           });
         }
       } catch (err) {
-        console.warn(`[review] Failed to fetch B&H data for ${symbol}:`, err instanceof Error ? err.message : err);
+        console.warn(
+          `[review] Failed to fetch B&H data for ${symbol}:`,
+          err instanceof Error ? err.message : err,
+        );
       }
     }
   } catch (err) {
-    console.warn("[review] Could not fetch market context:", err instanceof Error ? err.message : err);
+    console.warn(
+      "[review] Could not fetch market context:",
+      err instanceof Error ? err.message : err,
+    );
   }
 
   // Load active overrides
@@ -251,7 +246,7 @@ async function liveReviewCommand(
   });
 
   const { jsonPath, mdPath } = saveReport(report);
-  console.log(`Report saved:`);
+  console.log("Report saved:");
   console.log(`  JSON: ${jsonPath}`);
   console.log(`  Markdown: ${mdPath}`);
 
@@ -276,7 +271,7 @@ async function runLLMReview(
   backtestRankings?: import("../backtest/scorer.js").ScoredResult[],
 ): Promise<void> {
   console.log("\n--- LLM Review ---");
-  const historyDays = parseInt(opts.days ?? "7", 10);
+  const historyDays = Number.parseInt(opts.days ?? "7", 10);
   const history = loadRecentReviews(historyDays);
 
   // Evaluate outcomes of past recommendations (with benchmark-relative scoring)
@@ -298,7 +293,7 @@ async function runLLMReview(
     }
   }
 
-  let recommendation;
+  let recommendation: import("../review/types.js").LLMRecommendation | undefined;
   try {
     recommendation = await reviewWithLLM(report, history, {
       userMessageOptions: {
@@ -306,10 +301,7 @@ async function runLLMReview(
       },
     });
   } catch (err) {
-    console.error(
-      "LLM review failed:",
-      err instanceof Error ? err.message : err,
-    );
+    console.error("LLM review failed:", err instanceof Error ? err.message : err);
     return;
   }
 
@@ -322,17 +314,11 @@ async function runLLMReview(
   }
 
   // Validate actions
-  const allTemplates = [
-    ...PRESET_TEMPLATES,
-    ...loadCustomStrategies(),
-  ];
+  const allTemplates = [...PRESET_TEMPLATES, ...loadCustomStrategies()];
   const todayReviews = loadTodayReviews();
-  const { valid, rejected } = validateRecommendation(
-    recommendation,
-    todayReviews,
-    allTemplates,
-    { recentReviews: history },
-  );
+  const { valid, rejected } = validateRecommendation(recommendation, todayReviews, allTemplates, {
+    recentReviews: history,
+  });
 
   if (rejected.length > 0) {
     console.log(`\nRejected actions (${rejected.length}):`);
@@ -355,9 +341,7 @@ async function runLLMReview(
   }
 
   if (!opts.apply) {
-    console.log(
-      `\n${valid.length} valid action(s) ready. Use --apply to apply them.`,
-    );
+    console.log(`\n${valid.length} valid action(s) ready. Use --apply to apply them.`);
     const record = {
       date,
       reviewedAt: Date.now(),
@@ -373,7 +357,7 @@ async function runLLMReview(
   console.log(`\n--- Applying ${valid.length} action(s) ---`);
 
   // Fetch backtest data for create_strategy gate
-  let backtestCandles;
+  let backtestCandles: import("trendcraft").NormalizedCandle[] | undefined;
   const createActions = valid.filter((a) => a.action === "create_strategy");
   if (createActions.length > 0) {
     try {
@@ -387,15 +371,15 @@ async function runLLMReview(
         end: today(),
       });
     } catch (err) {
-      console.warn("[review] Could not fetch backtest data:", err instanceof Error ? err.message : err);
+      console.warn(
+        "[review] Could not fetch backtest data:",
+        err instanceof Error ? err.message : err,
+      );
       console.log("New strategies will be saved without backtest gate.");
     }
   }
 
-  const { applied, rejected: applyRejected } = await applyActions(
-    valid,
-    backtestCandles,
-  );
+  const { applied, rejected: applyRejected } = await applyActions(valid, backtestCandles);
 
   console.log(`\nApplied: ${applied.length}`);
   for (const a of applied) {
@@ -424,7 +408,7 @@ async function runLLMReview(
 }
 
 function printLeaderboard(report: DailyReport): void {
-  console.log(`\n--- Leaderboard ---`);
+  console.log("\n--- Leaderboard ---");
   for (const entry of report.leaderboard) {
     const m = entry.metrics;
     console.log(
@@ -469,8 +453,7 @@ async function fetchMarketContext(
 
       const ctx: MarketContext = {
         symbol,
-        dailyChangePercent:
-          ((latest.close - prev.close) / prev.close) * 100,
+        dailyChangePercent: ((latest.close - prev.close) / prev.close) * 100,
         close: latest.close,
         volume: latest.volume,
       };
@@ -496,7 +479,8 @@ async function fetchMarketContext(
               ctx.atrPercent = (latestAtr / latest.close) * 100;
 
               // Percentile of current ATR within lookback
-              const atrValues = atrSeries.slice(-60)
+              const atrValues = atrSeries
+                .slice(-60)
                 .map((s) => s.value)
                 .filter((v): v is number => v != null);
               const sorted = [...atrValues].sort((a, b) => a - b);
@@ -530,13 +514,19 @@ async function fetchMarketContext(
             }
           }
         } catch (err) {
-          console.warn(`[review] Regime detection failed for ${symbol}:`, err instanceof Error ? err.message : err);
+          console.warn(
+            `[review] Regime detection failed for ${symbol}:`,
+            err instanceof Error ? err.message : err,
+          );
         }
       }
 
       results.push(ctx);
     } catch (err) {
-      console.warn(`[review] Failed to fetch market data for ${symbol}:`, err instanceof Error ? err.message : err);
+      console.warn(
+        `[review] Failed to fetch market data for ${symbol}:`,
+        err instanceof Error ? err.message : err,
+      );
     }
   }
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { NormalizedCandle } from "../../../types";
 import { evaluateCondition, macdCrossDown, macdCrossUp } from "../../conditions";
-import { generateStrongDowntrend, generateStrongUptrend, generateCandles } from "./test-helpers";
+import { generateCandles, generateStrongDowntrend, generateStrongUptrend } from "./test-helpers";
 
 describe("macdCrossUp()", () => {
   it("should create a valid preset condition", () => {
@@ -60,7 +60,7 @@ describe("macdCrossUp()", () => {
     const indicators: Record<string, unknown> = {};
 
     evaluateCondition(condition, indicators, candles[40], 40, candles);
-    expect(indicators["macd_12_26_9"]).toBeDefined();
+    expect(indicators.macd_12_26_9).toBeDefined();
   });
 });
 

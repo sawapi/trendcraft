@@ -5,16 +5,16 @@
  */
 
 import {
-  runBacktest,
-  walkForwardAnalysisSafe,
-  runMonteCarloSimulationSafe,
   type BacktestResult,
+  type MonteCarloResult,
   type NormalizedCandle,
   type WalkForwardResult,
-  type MonteCarloResult,
+  runBacktest,
+  runMonteCarloSimulationSafe,
+  walkForwardAnalysisSafe,
 } from "trendcraft";
 import type { StrategyDefinition } from "../strategy/types.js";
-import { scoreResult, type ScoredResult, type ScoreWeights } from "./scorer.js";
+import { type ScoreWeights, type ScoredResult, scoreResult } from "./scorer.js";
 
 export type BacktestRunResult = {
   rankings: ScoredResult[];
@@ -194,13 +194,9 @@ export function formatLeaderboard(rankings: ScoredResult[]): string {
   const lines: string[] = [];
 
   lines.push("");
-  lines.push(
-    "=".repeat(100),
-  );
+  lines.push("=".repeat(100));
   lines.push("  BACKTEST LEADERBOARD");
-  lines.push(
-    "=".repeat(100),
-  );
+  lines.push("=".repeat(100));
   lines.push(
     `  ${"Rank".padEnd(6)}${"Strategy".padEnd(25)}${"Symbol".padEnd(8)}` +
       `${"Score".padEnd(8)}${"Return%".padEnd(10)}${"WinRate".padEnd(10)}` +
@@ -218,7 +214,7 @@ export function formatLeaderboard(rankings: ScoredResult[]): string {
     const sharpe = r.result.sharpeRatio.toFixed(2).padEnd(9);
     const dd = `${r.result.maxDrawdown.toFixed(1)}%`.padEnd(9);
     const pf =
-      r.result.profitFactor === Infinity
+      r.result.profitFactor === Number.POSITIVE_INFINITY
         ? "Inf".padEnd(8)
         : r.result.profitFactor.toFixed(2).padEnd(8);
     const trades = String(r.result.tradeCount).padEnd(8);

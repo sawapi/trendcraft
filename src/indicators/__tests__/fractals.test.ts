@@ -3,9 +3,7 @@ import type { NormalizedCandle } from "../../types";
 import { fractals } from "../price/fractals";
 
 describe("fractals", () => {
-  const makeCandles = (
-    data: { high: number; low: number }[],
-  ): NormalizedCandle[] =>
+  const makeCandles = (data: { high: number; low: number }[]): NormalizedCandle[] =>
     data.map((d, i) => ({
       time: 1700000000000 + i * 86400000,
       open: (d.high + d.low) / 2,
@@ -17,9 +15,7 @@ describe("fractals", () => {
 
   it("should throw if period is less than 1", () => {
     const candles = makeCandles([{ high: 10, low: 5 }]);
-    expect(() => fractals(candles, { period: 0 })).toThrow(
-      "Fractals period must be at least 1",
-    );
+    expect(() => fractals(candles, { period: 0 })).toThrow("Fractals period must be at least 1");
   });
 
   it("should detect up fractal (classic 5-bar pattern)", () => {

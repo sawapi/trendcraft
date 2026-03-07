@@ -2,8 +2,8 @@
  * Environment configuration loader
  */
 
-import { config } from "dotenv";
 import { resolve } from "node:path";
+import { config } from "dotenv";
 
 config({ path: resolve(import.meta.dirname, "../../.env") });
 
@@ -30,8 +30,6 @@ export function loadEnv(): AlpacaEnv {
     apiSecret,
     baseUrl: process.env.ALPACA_BASE_URL ?? "https://paper-api.alpaca.markets",
     dataUrl: process.env.ALPACA_DATA_URL ?? "https://data.alpaca.markets",
-    streamUrl:
-      process.env.ALPACA_STREAM_URL ??
-      "wss://stream.data.alpaca.markets/v2/iex",
+    streamUrl: process.env.ALPACA_STREAM_URL ?? "wss://stream.data.alpaca.markets/v2/iex",
   };
 }

@@ -18,11 +18,7 @@
  */
 
 import type { NormalizedCandle } from "../types";
-import type {
-  CandleResampler,
-  CandleResamplerOptions,
-  CandleResamplerState,
-} from "./types";
+import type { CandleResampler, CandleResamplerOptions, CandleResamplerState } from "./types";
 
 /**
  * Compute the period start for a given timestamp and interval.

@@ -73,13 +73,11 @@ export function createSignalManager(
   const signalKey: SignalKeyFn = options.signalKey ?? defaultSignalKey;
 
   // Mutable state
-  let signals: ManagedSignal[] = fromState?.signals ? [...fromState.signals] : [];
+  const signals: ManagedSignal[] = fromState?.signals ? [...fromState.signals] : [];
   let barCount = fromState?.barCount ?? 0;
   let lastTime = fromState?.lastTime ?? 0;
   const cooldownMap: Map<string, { bar: number; time: number }> = new Map(
-    fromState?.cooldownMap
-      ? Object.entries(fromState.cooldownMap)
-      : [],
+    fromState?.cooldownMap ? Object.entries(fromState.cooldownMap) : [],
   );
 
   // Pending signals waiting for debounce confirmation
@@ -113,7 +111,11 @@ export function createSignalManager(
     if (expiry.bars !== undefined && currentBar - ms.activatedAtBar >= expiry.bars) {
       return true;
     }
-    if (expiry.ms !== undefined && ms.activatedAt !== null && currentTime - ms.activatedAt >= expiry.ms) {
+    if (
+      expiry.ms !== undefined &&
+      ms.activatedAt !== null &&
+      currentTime - ms.activatedAt >= expiry.ms
+    ) {
       return true;
     }
     return false;

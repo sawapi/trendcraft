@@ -7,7 +7,6 @@
 import { runBacktest } from "../backtest";
 import { IndicatorCache } from "../core/indicator-cache";
 import type { BacktestOptions, Condition, NormalizedCandle } from "../types";
-import { type Result, ok, err, tcError } from "../types/result";
 import type {
   GridSearchOptions,
   GridSearchResult,
@@ -16,6 +15,7 @@ import type {
   OptimizationResultEntry,
   ParameterRange,
 } from "../types/optimization";
+import { type Result, err, ok, tcError } from "../types/result";
 import { calculateAllMetrics, checkConstraint, getMetricValue } from "./metrics";
 
 /**

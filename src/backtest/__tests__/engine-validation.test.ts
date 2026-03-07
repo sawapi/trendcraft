@@ -1,14 +1,11 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { NormalizedCandle } from "../../types";
+import { rsiAbove, rsiBelow } from "../conditions";
 import { runBacktest } from "../engine";
-import { rsiBelow, rsiAbove } from "../conditions";
 
 const DAY = 24 * 60 * 60 * 1000;
 
-function makeCandle(
-  i: number,
-  overrides?: Partial<NormalizedCandle>,
-): NormalizedCandle {
+function makeCandle(i: number, overrides?: Partial<NormalizedCandle>): NormalizedCandle {
   const price = 100 + i;
   return {
     time: Date.now() - (100 - i) * DAY,
@@ -78,7 +75,14 @@ describe("runBacktest with validateData", () => {
     // Pass with specific validation options (disable OHLC check)
     const result = runBacktest(candles, rsiBelow(30), rsiAbove(70), {
       capital: 1_000_000,
-      validateData: { ohlc: false, gaps: false, duplicates: false, spikes: false, volumeAnomalies: false, stale: false },
+      validateData: {
+        ohlc: false,
+        gaps: false,
+        duplicates: false,
+        spikes: false,
+        volumeAnomalies: false,
+        stale: false,
+      },
     });
 
     expect(result.initialCapital).toBe(1_000_000);

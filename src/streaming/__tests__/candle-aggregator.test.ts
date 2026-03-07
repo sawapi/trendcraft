@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { createCandleAggregator } from "../candle-aggregator";
 import type { Trade } from "../types";
 
@@ -24,12 +24,12 @@ describe("createCandleAggregator", () => {
 
     const current = agg.getCurrentCandle();
     expect(current).not.toBeNull();
-    expect(current!.open).toBe(100);
-    expect(current!.high).toBe(105);
-    expect(current!.low).toBe(95);
-    expect(current!.close).toBe(102);
-    expect(current!.volume).toBe(26);
-    expect(current!.time).toBe(0);
+    expect(current?.open).toBe(100);
+    expect(current?.high).toBe(105);
+    expect(current?.low).toBe(95);
+    expect(current?.close).toBe(102);
+    expect(current?.volume).toBe(26);
+    expect(current?.time).toBe(0);
   });
 
   it("should complete a candle when a trade arrives in a new period", () => {
@@ -40,19 +40,19 @@ describe("createCandleAggregator", () => {
     // Trade in the next minute triggers completion
     const completed = agg.addTrade(trade(60_000, 108, 3));
     expect(completed).not.toBeNull();
-    expect(completed!.time).toBe(0);
-    expect(completed!.open).toBe(100);
-    expect(completed!.high).toBe(110);
-    expect(completed!.low).toBe(100);
-    expect(completed!.close).toBe(110);
-    expect(completed!.volume).toBe(15);
+    expect(completed?.time).toBe(0);
+    expect(completed?.open).toBe(100);
+    expect(completed?.high).toBe(110);
+    expect(completed?.low).toBe(100);
+    expect(completed?.close).toBe(110);
+    expect(completed?.volume).toBe(15);
 
     // Current candle is the new period
     const current = agg.getCurrentCandle();
-    expect(current!.time).toBe(60_000);
-    expect(current!.open).toBe(108);
-    expect(current!.close).toBe(108);
-    expect(current!.volume).toBe(3);
+    expect(current?.time).toBe(60_000);
+    expect(current?.open).toBe(108);
+    expect(current?.close).toBe(108);
+    expect(current?.volume).toBe(3);
   });
 
   it("should handle multiple period rollovers", () => {
@@ -61,15 +61,15 @@ describe("createCandleAggregator", () => {
 
     const c1 = agg.addTrade(trade(60_000, 200));
     expect(c1).not.toBeNull();
-    expect(c1!.close).toBe(100);
+    expect(c1?.close).toBe(100);
 
     const c2 = agg.addTrade(trade(120_000, 300));
     expect(c2).not.toBeNull();
-    expect(c2!.close).toBe(200);
+    expect(c2?.close).toBe(200);
 
     const c3 = agg.addTrade(trade(180_000, 400));
     expect(c3).not.toBeNull();
-    expect(c3!.close).toBe(300);
+    expect(c3?.close).toBe(300);
   });
 
   it("should flush the current candle", () => {
@@ -79,10 +79,10 @@ describe("createCandleAggregator", () => {
 
     const flushed = agg.flush();
     expect(flushed).not.toBeNull();
-    expect(flushed!.open).toBe(100);
-    expect(flushed!.high).toBe(110);
-    expect(flushed!.close).toBe(110);
-    expect(flushed!.volume).toBe(15);
+    expect(flushed?.open).toBe(100);
+    expect(flushed?.high).toBe(110);
+    expect(flushed?.close).toBe(110);
+    expect(flushed?.volume).toBe(15);
 
     // After flush, no current candle
     expect(agg.getCurrentCandle()).toBeNull();
@@ -104,7 +104,7 @@ describe("createCandleAggregator", () => {
     // Trade at 2:03 → period start = 2:00 (120_000)
     agg.addTrade(trade(123_000, 100));
     const current = agg.getCurrentCandle();
-    expect(current!.time).toBe(0); // floor(123_000 / 300_000) * 300_000 = 0
+    expect(current?.time).toBe(0); // floor(123_000 / 300_000) * 300_000 = 0
   });
 
   it("should align 5-min period correctly", () => {
@@ -113,7 +113,7 @@ describe("createCandleAggregator", () => {
     // Trade at 7m30s → period = 5m
     agg.addTrade(trade(450_000, 100));
     const current = agg.getCurrentCandle();
-    expect(current!.time).toBe(300_000);
+    expect(current?.time).toBe(300_000);
   });
 
   describe("state persistence", () => {
@@ -130,11 +130,11 @@ describe("createCandleAggregator", () => {
       agg2.addTrade(trade(45_000, 90, 3));
 
       const current = agg2.getCurrentCandle();
-      expect(current!.open).toBe(100);
-      expect(current!.high).toBe(110);
-      expect(current!.low).toBe(90);
-      expect(current!.close).toBe(90);
-      expect(current!.volume).toBe(18);
+      expect(current?.open).toBe(100);
+      expect(current?.high).toBe(110);
+      expect(current?.low).toBe(90);
+      expect(current?.close).toBe(90);
+      expect(current?.volume).toBe(18);
     });
 
     it("should produce identical candle after state restore + new period", () => {

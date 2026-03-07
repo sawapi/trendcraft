@@ -355,9 +355,7 @@ describe("Multi-Symbol RS", () => {
     });
 
     it("should handle single symbol", () => {
-      const symbolsData = new Map([
-        ["ONLY", generateTrendingCandles(100, 100, 0.01)],
-      ]);
+      const symbolsData = new Map([["ONLY", generateTrendingCandles(100, 100, 0.01)]]);
 
       const rankings = rankByRS(symbolsData, { period: 20 });
       expect(rankings).toHaveLength(1);
@@ -387,9 +385,7 @@ describe("Multi-Symbol RS", () => {
     });
 
     it("should handle n > total symbols in bottomByRS", () => {
-      const symbolsData = new Map([
-        ["A", generateTrendingCandles(100, 100, 0.01)],
-      ]);
+      const symbolsData = new Map([["A", generateTrendingCandles(100, 100, 0.01)]]);
 
       const bottom5 = bottomByRS(symbolsData, 5, { period: 20 });
       expect(bottom5).toHaveLength(1);

@@ -2,13 +2,9 @@
  * Perfect Order signal markers for ECharts
  */
 
-import type {
-  NormalizedCandle,
-  PerfectOrderValueEnhanced,
-  Series,
-} from "trendcraft";
+import type { NormalizedCandle, PerfectOrderValueEnhanced, Series } from "trendcraft";
 
-import { SIGNAL_COLORS, type MarkPointItem } from "./signalColors";
+import { type MarkPointItem, SIGNAL_COLORS } from "./signalColors";
 
 /**
  * Create markPoint data for enhanced perfect order signals
@@ -16,7 +12,7 @@ import { SIGNAL_COLORS, type MarkPointItem } from "./signalColors";
 export function createPerfectOrderMarkPoints(
   poData: Series<PerfectOrderValueEnhanced>,
   candles: NormalizedCandle[],
-  dates: string[]
+  dates: string[],
 ): MarkPointItem[] {
   const markPoints: MarkPointItem[] = [];
 

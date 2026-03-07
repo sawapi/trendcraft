@@ -7,7 +7,7 @@
 
 import type { BacktestResult, Trade } from "../types";
 import type { MetricStatistics, MonteCarloOptions, MonteCarloResult } from "../types/optimization";
-import { type Result, ok, err, tcError } from "../types/result";
+import { type Result, err, ok, tcError } from "../types/result";
 
 /**
  * Default options

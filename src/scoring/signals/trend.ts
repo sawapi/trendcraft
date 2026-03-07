@@ -116,7 +116,10 @@ export function createPOConfirmationEvaluator(
     if (index < longPeriod + slopeLookback) return 0;
 
     // Use pre-computed data if available (for default periods only)
-    let current: { state: string; isConfirmed: boolean; confirmationFormed: boolean } | null | undefined;
+    let current:
+      | { state: string; isConfirmed: boolean; confirmationFormed: boolean }
+      | null
+      | undefined;
 
     const isDefaultPeriods =
       periods.length === 3 && periods[0] === 5 && periods[1] === 20 && periods[2] === 60;
@@ -368,7 +371,7 @@ export function createPriceAboveEmaEvaluator(period = 20): SignalDefinition["eva
     let emaValue: number | null | undefined;
 
     if (precomputed?.ema?.has(period)) {
-      emaValue = precomputed.ema.get(period)![index];
+      emaValue = precomputed.ema.get(period)?.[index];
     } else {
       const slice = candles.slice(0, index + 1);
       const emaSeries = ema(slice, { period });
@@ -398,7 +401,7 @@ export function createPriceBelowEmaEvaluator(period = 20): SignalDefinition["eva
     let emaValue: number | null | undefined;
 
     if (precomputed?.ema?.has(period)) {
-      emaValue = precomputed.ema.get(period)![index];
+      emaValue = precomputed.ema.get(period)?.[index];
     } else {
       const slice = candles.slice(0, index + 1);
       const emaSeries = ema(slice, { period });

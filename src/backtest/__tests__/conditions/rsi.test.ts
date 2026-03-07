@@ -68,7 +68,7 @@ describe("rsiBelow()", () => {
     const indicators: Record<string, unknown> = {};
 
     evaluateCondition(condition, indicators, candles[20], 20, candles);
-    expect(indicators["rsi14"]).toBeDefined();
+    expect(indicators.rsi14).toBeDefined();
   });
 });
 
@@ -145,6 +145,6 @@ describe("rsiAbove()", () => {
     const indicators: Record<string, unknown> = {};
 
     evaluateCondition(condition, indicators, candles[30], 30, candles);
-    expect(indicators["rsi7"]).toBeDefined();
+    expect(indicators.rsi7).toBeDefined();
   });
 });

@@ -37,15 +37,15 @@
  * ```
  */
 
-import type { NormalizedCandle, Trade as BacktestTrade } from "../../types";
-import type { IndicatorSnapshot, SessionEvent, Trade as TickTrade } from "../types";
-import type { GuardedSessionOptions, GuardedSessionState } from "../guards/types";
-import type { SessionOptions } from "../types";
-import { createGuardedSession } from "../guards/guarded-session";
-import { riskBasedSize } from "../../position-sizing/risk-based";
+import { applySlippage } from "../../backtest/engine-utils";
 import { atrBasedSize } from "../../position-sizing/atr-based";
 import { fixedFractionalSize } from "../../position-sizing/fixed-fractional";
-import { applySlippage } from "../../backtest/engine-utils";
+import { riskBasedSize } from "../../position-sizing/risk-based";
+import type { Trade as BacktestTrade, NormalizedCandle } from "../../types";
+import { createGuardedSession } from "../guards/guarded-session";
+import type { GuardedSessionOptions, GuardedSessionState } from "../guards/types";
+import type { IndicatorSnapshot, SessionEvent, Trade as TickTrade } from "../types";
+import type { SessionOptions } from "../types";
 import { createPositionTracker } from "./position-tracker";
 import type {
   FillRecord,
@@ -170,8 +170,7 @@ export function createManagedSession(
     fromState?.guardedState,
   );
 
-  const sizingConfig: PositionSizingConfig =
-    positionOptions.sizing ?? { method: "full-capital" };
+  const sizingConfig: PositionSizingConfig = positionOptions.sizing ?? { method: "full-capital" };
   const stopLossPercent = positionOptions.stopLoss ?? 0;
   const slippage = positionOptions.slippage ?? 0;
 
@@ -201,9 +200,7 @@ export function createManagedSession(
   /**
    * Handle an entry event: calculate sizing and open position
    */
-  function handleEntry(
-    event: Extract<SessionEvent, { type: "entry" }>,
-  ): ManagedEvent[] {
+  function handleEntry(event: Extract<SessionEvent, { type: "entry" }>): ManagedEvent[] {
     // Skip if already holding a position
     if (tracker.getPosition()) {
       return [event];
@@ -223,11 +220,7 @@ export function createManagedSession(
       return [event];
     }
 
-    const position = tracker.openPosition(
-      event.candle.close,
-      shares,
-      event.candle.time,
-    );
+    const position = tracker.openPosition(event.candle.close, shares, event.candle.time);
 
     const fill: FillRecord = {
       time: event.candle.time,
@@ -251,20 +244,13 @@ export function createManagedSession(
   /**
    * Handle an exit or force-close event: close position if open
    */
-  function handleExit(
-    event: SessionEvent,
-    reason: FillRecord["reason"],
-  ): ManagedEvent[] {
+  function handleExit(event: SessionEvent, reason: FillRecord["reason"]): ManagedEvent[] {
     if (!tracker.getPosition()) {
       return [event];
     }
 
     const candle = event.candle;
-    const { trade, fill } = tracker.closePosition(
-      candle.close,
-      candle.time,
-      reason,
-    );
+    const { trade, fill } = tracker.closePosition(candle.close, candle.time, reason);
     reportToRiskGuard(trade, candle.time);
 
     return [
@@ -282,9 +268,7 @@ export function createManagedSession(
   /**
    * Handle a candle event: update position price and check SL/TP/trailing
    */
-  function handleCandle(
-    event: Extract<SessionEvent, { type: "candle" }>,
-  ): ManagedEvent[] {
+  function handleCandle(event: Extract<SessionEvent, { type: "candle" }>): ManagedEvent[] {
     if (!tracker.getPosition()) {
       return [event];
     }
@@ -293,10 +277,7 @@ export function createManagedSession(
 
     // Update equity in risk guard for drawdown tracking
     const accountAfterUpdate = tracker.getAccount();
-    guardedSession.riskGuard?.updateEquity(
-      accountAfterUpdate.equity,
-      event.candle.time,
-    );
+    guardedSession.riskGuard?.updateEquity(accountAfterUpdate.equity, event.candle.time);
 
     if (triggered) {
       // SL/TP/trailing was hit
@@ -373,9 +354,9 @@ export function createManagedSession(
       if (tracker.getPosition()) {
         const trades = tracker.getTrades();
         // Use the last candle from events if available
-        const candleEvent = events.find(
-          (e) => e.type === "candle",
-        ) as Extract<SessionEvent, { type: "candle" }> | undefined;
+        const candleEvent = events.find((e) => e.type === "candle") as
+          | Extract<SessionEvent, { type: "candle" }>
+          | undefined;
         if (candleEvent) {
           const { trade, fill } = tracker.closePosition(
             candleEvent.candle.close,

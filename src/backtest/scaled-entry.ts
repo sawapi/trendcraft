@@ -26,10 +26,10 @@ import { evaluateCondition } from "./conditions";
 import type { ExtendedCondition } from "./conditions";
 import {
   MS_PER_DAY,
-  runStandardBacktest,
   applySlippage,
   calculateStats,
   emptyResult,
+  runStandardBacktest,
 } from "./scaled-entry-utils";
 
 /**

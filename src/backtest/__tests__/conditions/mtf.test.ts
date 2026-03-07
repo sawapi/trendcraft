@@ -449,13 +449,13 @@ describe("Condition caching", () => {
     // Check that indicator was cached (indicators is Record<string, unknown>)
     const weeklyDataset = context.datasets.get("weekly");
     expect(weeklyDataset).toBeDefined();
-    const cacheKeys = Object.keys(weeklyDataset!.indicators);
+    const cacheKeys = Object.keys(weeklyDataset?.indicators);
     expect(cacheKeys.length).toBeGreaterThan(0);
 
     // Second evaluation should reuse cache
     const beforeCacheSize = cacheKeys.length;
     evaluateCondition(condition, {}, candles[testIndex], testIndex, candles, context);
-    expect(Object.keys(weeklyDataset!.indicators).length).toBe(beforeCacheSize);
+    expect(Object.keys(weeklyDataset?.indicators).length).toBe(beforeCacheSize);
   });
 });
 

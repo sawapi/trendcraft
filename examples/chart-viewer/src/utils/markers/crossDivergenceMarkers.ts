@@ -3,13 +3,13 @@
  */
 
 import type {
-  NormalizedCandle,
   CrossSignalQuality,
   DivergenceSignal,
+  NormalizedCandle,
   SqueezeSignal,
 } from "trendcraft";
 
-import { SIGNAL_COLORS, type MarkPointItem } from "./signalColors";
+import { type MarkPointItem, SIGNAL_COLORS } from "./signalColors";
 
 /**
  * Create markPoint data for Golden/Dead Cross signals
@@ -17,7 +17,7 @@ import { SIGNAL_COLORS, type MarkPointItem } from "./signalColors";
 export function createCrossMarkPoints(
   crossSignals: CrossSignalQuality[],
   candles: NormalizedCandle[],
-  dates: string[]
+  dates: string[],
 ): MarkPointItem[] {
   const markPoints: MarkPointItem[] = [];
 
@@ -64,7 +64,7 @@ export function createCrossMarkPoints(
 export function createDivergenceMarkers(
   signals: DivergenceSignal[],
   candles: NormalizedCandle[],
-  dates: string[]
+  dates: string[],
 ): MarkPointItem[] {
   const markPoints: MarkPointItem[] = [];
 
@@ -103,7 +103,7 @@ export function createDivergenceMarkers(
 export function createSqueezeMarkers(
   signals: SqueezeSignal[],
   candles: NormalizedCandle[],
-  dates: string[]
+  dates: string[],
 ): MarkPointItem[] {
   const markPoints: MarkPointItem[] = [];
 

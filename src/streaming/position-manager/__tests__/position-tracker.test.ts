@@ -1,10 +1,8 @@
-import { describe, it, expect } from "vitest";
-import { createPositionTracker } from "../position-tracker";
+import { describe, expect, it } from "vitest";
 import type { NormalizedCandle } from "../../../types";
+import { createPositionTracker } from "../position-tracker";
 
-function makeCandle(
-  overrides: Partial<NormalizedCandle> & { close: number },
-): NormalizedCandle {
+function makeCandle(overrides: Partial<NormalizedCandle> & { close: number }): NormalizedCandle {
   const c = overrides.close;
   return {
     time: overrides.time ?? 1000,
@@ -161,7 +159,7 @@ describe("createPositionTracker", () => {
       const result = tracker.updatePrice(candle);
 
       expect(result.triggered).not.toBeNull();
-      expect(result.triggered!.reason).toBe("stop-loss");
+      expect(result.triggered?.reason).toBe("stop-loss");
       expect(tracker.getPosition()).toBeNull();
 
       const trades = tracker.getTrades();
@@ -186,7 +184,7 @@ describe("createPositionTracker", () => {
       const result = tracker.updatePrice(candle);
 
       expect(result.triggered).not.toBeNull();
-      expect(result.triggered!.reason).toBe("take-profit");
+      expect(result.triggered?.reason).toBe("take-profit");
       expect(tracker.getPosition()).toBeNull();
 
       const trades = tracker.getTrades();
@@ -203,7 +201,7 @@ describe("createPositionTracker", () => {
 
       // Price rises to 110
       tracker.updatePrice(makeCandle({ close: 110, high: 110, low: 105 }));
-      expect(tracker.getPosition()!.peakPrice).toBe(110);
+      expect(tracker.getPosition()?.peakPrice).toBe(110);
 
       // Trailing stop = 110 * (1 - 0.05) = 104.5
       // Candle low = 104 → triggered
@@ -216,7 +214,7 @@ describe("createPositionTracker", () => {
       const result = tracker.updatePrice(candle);
 
       expect(result.triggered).not.toBeNull();
-      expect(result.triggered!.reason).toBe("trailing-stop");
+      expect(result.triggered?.reason).toBe("trailing-stop");
       expect(tracker.getPosition()).toBeNull();
 
       const trades = tracker.getTrades();
@@ -235,9 +233,7 @@ describe("createPositionTracker", () => {
       tracker.updatePrice(makeCandle({ close: 110, high: 110, low: 108 }));
 
       // Low at 105 > 104.5 → no trigger
-      const result = tracker.updatePrice(
-        makeCandle({ close: 107, high: 109, low: 105 }),
-      );
+      const result = tracker.updatePrice(makeCandle({ close: 107, high: 109, low: 105 }));
       expect(result.triggered).toBeNull();
       expect(tracker.getPosition()).not.toBeNull();
     });
@@ -268,7 +264,7 @@ describe("createPositionTracker", () => {
       const result = tracker.updatePrice(candle);
 
       expect(result.triggered).not.toBeNull();
-      expect(result.triggered!.reason).toBe("stop-loss");
+      expect(result.triggered?.reason).toBe("stop-loss");
     });
   });
 

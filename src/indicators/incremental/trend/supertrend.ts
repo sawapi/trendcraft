@@ -5,8 +5,8 @@
  */
 
 import type { NormalizedCandle } from "../../../types";
-import { createAtr } from "../volatility/atr";
 import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import { createAtr } from "../volatility/atr";
 
 export type SupertrendValue = {
   supertrend: number | null;
@@ -62,7 +62,12 @@ export function createSupertrend(
     count = s.count;
   }
 
-  const nullValue: SupertrendValue = { supertrend: null, direction: 0, upperBand: null, lowerBand: null };
+  const nullValue: SupertrendValue = {
+    supertrend: null,
+    direction: 0,
+    upperBand: null,
+    lowerBand: null,
+  };
 
   const indicator: IncrementalIndicator<SupertrendValue, SupertrendState> = {
     next(candle: NormalizedCandle) {
@@ -133,11 +138,19 @@ export function createSupertrend(
       const basicUpper = hl2 + multiplier * atrPeek.value;
       const basicLower = hl2 - multiplier * atrPeek.value;
 
-      let finalUpper = prevFinalUpper === null ? basicUpper :
-        (basicUpper < prevFinalUpper || (prevClose !== null && prevClose > prevFinalUpper) ? basicUpper : prevFinalUpper);
+      const finalUpper =
+        prevFinalUpper === null
+          ? basicUpper
+          : basicUpper < prevFinalUpper || (prevClose !== null && prevClose > prevFinalUpper)
+            ? basicUpper
+            : prevFinalUpper;
 
-      let finalLower = prevFinalLower === null ? basicLower :
-        (basicLower > prevFinalLower || (prevClose !== null && prevClose < prevFinalLower) ? basicLower : prevFinalLower);
+      const finalLower =
+        prevFinalLower === null
+          ? basicLower
+          : basicLower > prevFinalLower || (prevClose !== null && prevClose < prevFinalLower)
+            ? basicLower
+            : prevFinalLower;
 
       let dir = direction;
       if (dir === 0) {

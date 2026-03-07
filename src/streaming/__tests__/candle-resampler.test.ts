@@ -1,8 +1,15 @@
-import { describe, it, expect } from "vitest";
-import { createCandleResampler } from "../candle-resampler";
+import { describe, expect, it } from "vitest";
 import type { NormalizedCandle } from "../../types";
+import { createCandleResampler } from "../candle-resampler";
 
-function candle(time: number, o: number, h: number, l: number, c: number, v = 100): NormalizedCandle {
+function candle(
+  time: number,
+  o: number,
+  h: number,
+  l: number,
+  c: number,
+  v = 100,
+): NormalizedCandle {
   return { time, open: o, high: h, low: l, close: c, volume: v };
 }
 
@@ -23,12 +30,12 @@ describe("createCandleResampler", () => {
 
     const current = r.getCurrentCandle();
     expect(current).not.toBeNull();
-    expect(current!.time).toBe(0);
-    expect(current!.open).toBe(100);
-    expect(current!.high).toBe(110);
-    expect(current!.low).toBe(90);
-    expect(current!.close).toBe(92);
-    expect(current!.volume).toBe(100);
+    expect(current?.time).toBe(0);
+    expect(current?.open).toBe(100);
+    expect(current?.high).toBe(110);
+    expect(current?.low).toBe(90);
+    expect(current?.close).toBe(92);
+    expect(current?.volume).toBe(100);
   });
 
   it("should complete a candle when a new period starts", () => {
@@ -39,17 +46,17 @@ describe("createCandleResampler", () => {
     // Candle in next 5-min period
     const completed = r.addCandle(candle(300_000, 112, 120, 110, 118, 40));
     expect(completed).not.toBeNull();
-    expect(completed!.time).toBe(0);
-    expect(completed!.open).toBe(100);
-    expect(completed!.high).toBe(115);
-    expect(completed!.low).toBe(90);
-    expect(completed!.close).toBe(112);
-    expect(completed!.volume).toBe(80);
+    expect(completed?.time).toBe(0);
+    expect(completed?.open).toBe(100);
+    expect(completed?.high).toBe(115);
+    expect(completed?.low).toBe(90);
+    expect(completed?.close).toBe(112);
+    expect(completed?.volume).toBe(80);
 
     // Current candle is the new period
     const current = r.getCurrentCandle();
-    expect(current!.time).toBe(300_000);
-    expect(current!.open).toBe(112);
+    expect(current?.time).toBe(300_000);
+    expect(current?.open).toBe(112);
   });
 
   it("should handle single-candle periods", () => {
@@ -58,12 +65,12 @@ describe("createCandleResampler", () => {
     const completed = r.addCandle(candle(300_000, 105, 115, 95, 110, 60));
 
     expect(completed).not.toBeNull();
-    expect(completed!.time).toBe(0);
-    expect(completed!.open).toBe(100);
-    expect(completed!.high).toBe(110);
-    expect(completed!.low).toBe(90);
-    expect(completed!.close).toBe(105);
-    expect(completed!.volume).toBe(50);
+    expect(completed?.time).toBe(0);
+    expect(completed?.open).toBe(100);
+    expect(completed?.high).toBe(110);
+    expect(completed?.low).toBe(90);
+    expect(completed?.close).toBe(105);
+    expect(completed?.volume).toBe(50);
   });
 
   it("should flush the current candle", () => {
@@ -73,11 +80,11 @@ describe("createCandleResampler", () => {
 
     const flushed = r.flush();
     expect(flushed).not.toBeNull();
-    expect(flushed!.open).toBe(100);
-    expect(flushed!.high).toBe(115);
-    expect(flushed!.low).toBe(90);
-    expect(flushed!.close).toBe(112);
-    expect(flushed!.volume).toBe(80);
+    expect(flushed?.open).toBe(100);
+    expect(flushed?.high).toBe(115);
+    expect(flushed?.low).toBe(90);
+    expect(flushed?.close).toBe(112);
+    expect(flushed?.volume).toBe(80);
 
     expect(r.getCurrentCandle()).toBeNull();
     expect(r.flush()).toBeNull();
@@ -102,11 +109,11 @@ describe("createCandleResampler", () => {
       r2.addCandle(candle(120_000, 112, 120, 108, 118, 20));
 
       const current = r2.getCurrentCandle();
-      expect(current!.open).toBe(100);
-      expect(current!.high).toBe(120);
-      expect(current!.low).toBe(90);
-      expect(current!.close).toBe(118);
-      expect(current!.volume).toBe(100);
+      expect(current?.open).toBe(100);
+      expect(current?.high).toBe(120);
+      expect(current?.low).toBe(90);
+      expect(current?.close).toBe(118);
+      expect(current?.volume).toBe(100);
     });
 
     it("should produce identical candle after state restore + new period", () => {
@@ -151,7 +158,7 @@ describe("createCandleResampler", () => {
     expect(completed[1].close).toBe(110); // close of 9th minute candle
 
     const partial = r.getCurrentCandle();
-    expect(partial!.time).toBe(600_000);
-    expect(partial!.open).toBe(110);
+    expect(partial?.time).toBe(600_000);
+    expect(partial?.open).toBe(110);
   });
 });

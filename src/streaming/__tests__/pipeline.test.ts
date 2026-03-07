@@ -1,7 +1,7 @@
-import { describe, it, expect } from "vitest";
-import { createPipeline } from "../pipeline";
-import { rsiBelow, rsiAbove, and, priceAbove } from "../conditions";
+import { describe, expect, it } from "vitest";
 import type { NormalizedCandle } from "../../types";
+import { and, priceAbove, rsiAbove, rsiBelow } from "../conditions";
+import { createPipeline } from "../pipeline";
 
 /**
  * Minimal mock indicator that returns a fixed value sequence
@@ -11,20 +11,24 @@ function createMockIndicator(values: (number | null)[]) {
   let state = { idx: 0, values };
   return {
     next(candle: NormalizedCandle) {
-      const value = idx < values.length ? values[idx] : values[values.length - 1] ?? null;
+      const value = idx < values.length ? values[idx] : (values[values.length - 1] ?? null);
       idx++;
       state = { idx, values };
       return { time: candle.time, value };
     },
     peek(candle: NormalizedCandle) {
-      const value = idx < values.length ? values[idx] : values[values.length - 1] ?? null;
+      const value = idx < values.length ? values[idx] : (values[values.length - 1] ?? null);
       return { time: candle.time, value };
     },
     getState() {
       return state;
     },
-    get count() { return idx; },
-    get isWarmedUp() { return idx > 0; },
+    get count() {
+      return idx;
+    },
+    get isWarmedUp() {
+      return idx > 0;
+    },
   };
 }
 
@@ -36,9 +40,7 @@ describe("createPipeline", () => {
   it("should process candles and build snapshot", () => {
     const rsiValues = [null, null, 45, 25, 75];
     const pipeline = createPipeline({
-      indicators: [
-        { name: "rsi", create: () => createMockIndicator(rsiValues) },
-      ],
+      indicators: [{ name: "rsi", create: () => createMockIndicator(rsiValues) }],
     });
 
     const r0 = pipeline.next(candle(0, 100));
@@ -54,9 +56,7 @@ describe("createPipeline", () => {
   it("should evaluate entry and exit conditions", () => {
     const rsiValues = [25, 50, 75];
     const pipeline = createPipeline({
-      indicators: [
-        { name: "rsi", create: () => createMockIndicator(rsiValues) },
-      ],
+      indicators: [{ name: "rsi", create: () => createMockIndicator(rsiValues) }],
       entry: rsiBelow(30),
       exit: rsiAbove(70),
     });
@@ -77,9 +77,7 @@ describe("createPipeline", () => {
   it("should evaluate named signals", () => {
     const rsiValues = [25, 75, 50];
     const pipeline = createPipeline({
-      indicators: [
-        { name: "rsi", create: () => createMockIndicator(rsiValues) },
-      ],
+      indicators: [{ name: "rsi", create: () => createMockIndicator(rsiValues) }],
       signals: [
         { name: "oversold", condition: rsiBelow(30) },
         { name: "overbought", condition: rsiAbove(70) },
@@ -113,9 +111,7 @@ describe("createPipeline", () => {
   it("should support peek without advancing state", () => {
     const rsiValues = [25, 50];
     const pipeline = createPipeline({
-      indicators: [
-        { name: "rsi", create: () => createMockIndicator(rsiValues) },
-      ],
+      indicators: [{ name: "rsi", create: () => createMockIndicator(rsiValues) }],
       entry: rsiBelow(30),
     });
 
@@ -129,9 +125,7 @@ describe("createPipeline", () => {
 
   it("should return false for entry/exit when not configured", () => {
     const pipeline = createPipeline({
-      indicators: [
-        { name: "rsi", create: () => createMockIndicator([50]) },
-      ],
+      indicators: [{ name: "rsi", create: () => createMockIndicator([50]) }],
     });
 
     const result = pipeline.next(candle(0, 100));
@@ -142,9 +136,7 @@ describe("createPipeline", () => {
 
   it("should serialize state", () => {
     const pipeline = createPipeline({
-      indicators: [
-        { name: "rsi", create: () => createMockIndicator([25, 50]) },
-      ],
+      indicators: [{ name: "rsi", create: () => createMockIndicator([25, 50]) }],
     });
 
     pipeline.next(candle(0, 100));

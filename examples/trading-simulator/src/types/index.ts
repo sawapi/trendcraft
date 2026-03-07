@@ -597,7 +597,13 @@ export const INDICATOR_PARAM_CONFIGS: Record<string, ParamConfig[]> = {
     { key: "dtMinMiddleDepth", label: "中間の深さ%", min: 0.03, max: 0.15, step: 0.01 },
     { key: "dtSwingLookback", label: "スイング確認期間", min: 3, max: 10, step: 1 },
     { key: "dtMaxBreakoutDistance", label: "最大ブレイクアウト距離", min: 10, max: 50, step: 5 },
-    { key: "dtNecklineViolationTolerance", label: "ネックライン許容%", min: 0, max: 0.02, step: 0.001 },
+    {
+      key: "dtNecklineViolationTolerance",
+      label: "ネックライン許容%",
+      min: 0,
+      max: 0.02,
+      step: 0.001,
+    },
     { key: "dtStrictMode", label: "Strictモード(0/1)", min: 0, max: 1, step: 1 },
   ],
   headShoulders: [

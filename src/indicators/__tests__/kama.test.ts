@@ -20,16 +20,12 @@ describe("kama", () => {
 
   it("should throw if fastPeriod is less than 1", () => {
     const candles = makeCandles([100, 101, 102]);
-    expect(() => kama(candles, { fastPeriod: 0 })).toThrow(
-      "KAMA fastPeriod must be at least 1",
-    );
+    expect(() => kama(candles, { fastPeriod: 0 })).toThrow("KAMA fastPeriod must be at least 1");
   });
 
   it("should throw if slowPeriod is less than 1", () => {
     const candles = makeCandles([100, 101, 102]);
-    expect(() => kama(candles, { slowPeriod: 0 })).toThrow(
-      "KAMA slowPeriod must be at least 1",
-    );
+    expect(() => kama(candles, { slowPeriod: 0 })).toThrow("KAMA slowPeriod must be at least 1");
   });
 
   it("should return null for insufficient data", () => {

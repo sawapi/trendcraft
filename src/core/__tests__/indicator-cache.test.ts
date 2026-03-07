@@ -112,8 +112,8 @@ describe("createCachedIndicators", () => {
     const candles = [{ time: 1 }];
     const indicators = createCachedIndicators(candles);
 
-    indicators["sma_20"] = [1, 2, 3];
-    expect(indicators["sma_20"]).toEqual([1, 2, 3]);
+    indicators.sma_20 = [1, 2, 3];
+    expect(indicators.sma_20).toEqual([1, 2, 3]);
   });
 
   it("returns Proxy when cache provided", () => {
@@ -121,10 +121,10 @@ describe("createCachedIndicators", () => {
     const candles = [{ time: 1 }];
     const indicators = createCachedIndicators(candles, cache);
 
-    indicators["sma_20"] = [10, 20, 30];
+    indicators.sma_20 = [10, 20, 30];
 
     // Value accessible through proxy
-    expect(indicators["sma_20"]).toEqual([10, 20, 30]);
+    expect(indicators.sma_20).toEqual([10, 20, 30]);
     // Value also stored in shared cache
     expect(cache.get<number[]>("sma_20", candles)).toEqual([10, 20, 30]);
   });
@@ -139,7 +139,7 @@ describe("createCachedIndicators", () => {
     const indicators = createCachedIndicators(candles, cache);
 
     // Should read from cache even though nothing was set locally
-    expect(indicators["rsi_14"]).toEqual([55, 60, 65]);
+    expect(indicators.rsi_14).toEqual([55, 60, 65]);
   });
 
   it("prefers local value over shared cache", () => {
@@ -150,13 +150,13 @@ describe("createCachedIndicators", () => {
 
     const indicators = createCachedIndicators(candles, cache);
     // First read populates local from cache
-    expect(indicators["sma_20"]).toEqual([100]);
+    expect(indicators.sma_20).toEqual([100]);
 
     // Update cache directly with different value
     cache.set("sma_20", candles, [999]);
 
     // Local value should still be returned (was cached locally on first read)
-    expect(indicators["sma_20"]).toEqual([100]);
+    expect(indicators.sma_20).toEqual([100]);
   });
 
   it("returns undefined for keys not in local or cache", () => {
@@ -164,7 +164,7 @@ describe("createCachedIndicators", () => {
     const candles = [{ time: 1 }];
     const indicators = createCachedIndicators(candles, cache);
 
-    expect(indicators["nonexistent"]).toBeUndefined();
+    expect(indicators.nonexistent).toBeUndefined();
   });
 
   it("shares data between multiple proxy instances on same candles", () => {
@@ -175,10 +175,10 @@ describe("createCachedIndicators", () => {
     const indicators2 = createCachedIndicators(candles, cache);
 
     // Write through first proxy
-    indicators1["sma_20"] = [10, 20];
+    indicators1.sma_20 = [10, 20];
 
     // Read through second proxy (should find in shared cache)
-    expect(indicators2["sma_20"]).toEqual([10, 20]);
+    expect(indicators2.sma_20).toEqual([10, 20]);
   });
 
   it("does not share data between different candle references", () => {
@@ -189,7 +189,7 @@ describe("createCachedIndicators", () => {
     const indicatorsA = createCachedIndicators(candlesA, cache);
     const indicatorsB = createCachedIndicators(candlesB, cache);
 
-    indicatorsA["sma_20"] = [10];
-    expect(indicatorsB["sma_20"]).toBeUndefined();
+    indicatorsA.sma_20 = [10];
+    expect(indicatorsB.sma_20).toBeUndefined();
   });
 });

@@ -39,13 +39,13 @@ describe("andrewsPitchfork", () => {
   it("should calculate pitchfork from 3 alternating swing points (L-H-L)", () => {
     // P0=Low(70) at idx 1, P1=High(130) at idx 3, P2=Low(90) at idx 5
     const candles = makeCandles([
-      { o: 100, h: 105, l: 98, c: 101 },   // 0
-      { o: 101, h: 102, l: 70, c: 72 },    // 1 - P0: swing low (70)
-      { o: 72, h: 110, l: 80, c: 108 },    // 2
-      { o: 108, h: 130, l: 100, c: 128 },  // 3 - P1: swing high (130)
-      { o: 128, h: 125, l: 95, c: 98 },    // 4
-      { o: 98, h: 100, l: 90, c: 95 },     // 5 - P2: swing low (90)
-      { o: 95, h: 105, l: 93, c: 102 },    // 6
+      { o: 100, h: 105, l: 98, c: 101 }, // 0
+      { o: 101, h: 102, l: 70, c: 72 }, // 1 - P0: swing low (70)
+      { o: 72, h: 110, l: 80, c: 108 }, // 2
+      { o: 108, h: 130, l: 100, c: 128 }, // 3 - P1: swing high (130)
+      { o: 128, h: 125, l: 95, c: 98 }, // 4
+      { o: 98, h: 100, l: 90, c: 95 }, // 5 - P2: swing low (90)
+      { o: 95, h: 105, l: 93, c: 102 }, // 6
     ]);
 
     const result = andrewsPitchfork(candles, { leftBars: 1, rightBars: 1 });
@@ -69,11 +69,11 @@ describe("andrewsPitchfork", () => {
   it("should have median pass through P0", () => {
     const candles = makeCandles([
       { o: 100, h: 105, l: 98, c: 101 },
-      { o: 101, h: 102, l: 70, c: 72 },    // 1 - P0
+      { o: 101, h: 102, l: 70, c: 72 }, // 1 - P0
       { o: 72, h: 110, l: 80, c: 108 },
-      { o: 108, h: 130, l: 100, c: 128 },  // 3 - P1
+      { o: 108, h: 130, l: 100, c: 128 }, // 3 - P1
       { o: 128, h: 125, l: 95, c: 98 },
-      { o: 98, h: 100, l: 90, c: 95 },     // 5 - P2
+      { o: 98, h: 100, l: 90, c: 95 }, // 5 - P2
       { o: 95, h: 105, l: 93, c: 102 },
     ]);
 
@@ -89,13 +89,13 @@ describe("andrewsPitchfork", () => {
   it("should handle three points in order H-L-H", () => {
     // P0=High(130) at idx 1, P1=Low(70) at idx 3, P2=High(110) at idx 5
     const candles = makeCandles([
-      { o: 100, h: 105, l: 98, c: 101 },   // 0
-      { o: 101, h: 130, l: 99, c: 128 },   // 1 - P0: swing high (130)
-      { o: 128, h: 125, l: 75, c: 78 },    // 2
-      { o: 78, h: 85, l: 70, c: 80 },      // 3 - P1: swing low (70)
-      { o: 80, h: 100, l: 78, c: 98 },     // 4
-      { o: 98, h: 110, l: 95, c: 108 },    // 5 - P2: swing high (110)
-      { o: 108, h: 105, l: 90, c: 92 },    // 6
+      { o: 100, h: 105, l: 98, c: 101 }, // 0
+      { o: 101, h: 130, l: 99, c: 128 }, // 1 - P0: swing high (130)
+      { o: 128, h: 125, l: 75, c: 78 }, // 2
+      { o: 78, h: 85, l: 70, c: 80 }, // 3 - P1: swing low (70)
+      { o: 80, h: 100, l: 78, c: 98 }, // 4
+      { o: 98, h: 110, l: 95, c: 108 }, // 5 - P2: swing high (110)
+      { o: 108, h: 105, l: 90, c: 92 }, // 6
     ]);
 
     const result = andrewsPitchfork(candles, { leftBars: 1, rightBars: 1 });

@@ -4,24 +4,24 @@
 
 import { useMemo } from "react";
 import {
-  perfectOrderEnhanced,
-  rangeBound,
-  validateCrossSignals,
-  rsiDivergence,
-  macdDivergence,
-  obvDivergence,
-  bollingerSqueeze,
-  volumeBreakout,
-  volumeMaCross,
+  type CrossSignalQuality,
+  type DivergenceSignal,
   type NormalizedCandle,
   type PerfectOrderValueEnhanced,
   type RangeBoundValue,
-  type CrossSignalQuality,
-  type DivergenceSignal,
+  type Series,
   type SqueezeSignal,
   type VolumeBreakoutSignal,
   type VolumeMaCrossSignal,
-  type Series,
+  bollingerSqueeze,
+  macdDivergence,
+  obvDivergence,
+  perfectOrderEnhanced,
+  rangeBound,
+  rsiDivergence,
+  validateCrossSignals,
+  volumeBreakout,
+  volumeMaCross,
 } from "trendcraft";
 import type { IndicatorParams, SignalType } from "../types";
 
@@ -41,7 +41,7 @@ export interface SignalData {
 export function useSignals(
   candles: NormalizedCandle[],
   enabledSignals: SignalType[],
-  indicatorParams?: IndicatorParams
+  indicatorParams?: IndicatorParams,
 ): SignalData {
   const perfectOrder = useMemo(() => {
     if (!enabledSignals.includes("perfectOrder") || candles.length === 0) {
@@ -95,7 +95,6 @@ export function useSignals(
         return macdDivergence(candles, options);
       case "obv":
         return obvDivergence(candles, options);
-      case "rsi":
       default:
         return rsiDivergence(candles, options);
     }

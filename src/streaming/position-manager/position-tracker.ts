@@ -17,11 +17,8 @@
  * ```
  */
 
+import { applySlippage, calculateTradeClose } from "../../backtest/engine-utils";
 import type { NormalizedCandle, PositionDirection, Trade } from "../../types";
-import {
-  applySlippage,
-  calculateTradeClose,
-} from "../../backtest/engine-utils";
 import type {
   ClosedTradeResult,
   FillRecord,
@@ -98,7 +95,7 @@ export function createPositionTracker(
 
   // Mutable state
   let position: ManagedPosition | null = fromState?.position ?? null;
-  let account = fromState?.account ?? {
+  const account = fromState?.account ?? {
     initialCapital: options.capital,
     currentCapital: options.capital,
     unrealizedPnl: 0,
@@ -147,8 +144,7 @@ export function createPositionTracker(
         : (currentPrice - position.entryPrice) * position.shares;
       account.unrealizedPnl = priceDiff;
       // Equity = cash + position market value
-      account.equity =
-        account.currentCapital + currentPrice * position.shares;
+      account.equity = account.currentCapital + currentPrice * position.shares;
     }
 
     // Track peak equity and drawdown
@@ -156,8 +152,7 @@ export function createPositionTracker(
       account.peakEquity = account.equity;
     }
     if (account.peakEquity > 0) {
-      const drawdown =
-        ((account.peakEquity - account.equity) / account.peakEquity) * 100;
+      const drawdown = ((account.peakEquity - account.equity) / account.peakEquity) * 100;
       if (drawdown > account.maxDrawdownPercent) {
         account.maxDrawdownPercent = drawdown;
       }
@@ -196,7 +191,7 @@ export function createPositionTracker(
       },
       exitTime: time,
       exitPrice: price,
-      exitReason: exitReason!,
+      exitReason: exitReason,
       sharesToClose: position.shares,
       commission,
       commissionRate,
@@ -249,8 +244,7 @@ export function createPositionTracker(
       const positionValue = entryPrice * shares;
 
       // Deduct from available capital
-      const entryCost =
-        commission + positionValue * (commissionRate / 100);
+      const entryCost = commission + positionValue * (commissionRate / 100);
       account.currentCapital -= positionValue + entryCost;
 
       const levels = calculateLevels(entryPrice);
@@ -262,12 +256,10 @@ export function createPositionTracker(
         shares,
         originalShares: shares,
         direction,
-        stopLossPrice: opts?.stopLossPrice !== undefined
-          ? opts.stopLossPrice
-          : levels.stopLossPrice,
-        takeProfitPrice: opts?.takeProfitPrice !== undefined
-          ? opts.takeProfitPrice
-          : levels.takeProfitPrice,
+        stopLossPrice:
+          opts?.stopLossPrice !== undefined ? opts.stopLossPrice : levels.stopLossPrice,
+        takeProfitPrice:
+          opts?.takeProfitPrice !== undefined ? opts.takeProfitPrice : levels.takeProfitPrice,
         peakPrice: entryPrice,
         troughPrice: entryPrice,
         maxProfitPercent: 0,
@@ -294,10 +286,8 @@ export function createPositionTracker(
 
       // Update MFE/MAE based on direction
       if (isShort) {
-        const profitPercent =
-          ((position.entryPrice - candle.low) / position.entryPrice) * 100;
-        const lossPercent =
-          ((candle.high - position.entryPrice) / position.entryPrice) * 100;
+        const profitPercent = ((position.entryPrice - candle.low) / position.entryPrice) * 100;
+        const lossPercent = ((candle.high - position.entryPrice) / position.entryPrice) * 100;
         if (profitPercent > position.maxProfitPercent) {
           position.maxProfitPercent = profitPercent;
         }
@@ -307,8 +297,7 @@ export function createPositionTracker(
       } else {
         const currentProfitPercent =
           ((candle.high - position.entryPrice) / position.entryPrice) * 100;
-        const currentLossPercent =
-          ((position.entryPrice - candle.low) / position.entryPrice) * 100;
+        const currentLossPercent = ((position.entryPrice - candle.low) / position.entryPrice) * 100;
         if (currentProfitPercent > position.maxProfitPercent) {
           position.maxProfitPercent = currentProfitPercent;
         }
@@ -359,11 +348,7 @@ export function createPositionTracker(
       return { position: { ...position }, triggered: null };
     },
 
-    closePosition(
-      price: number,
-      time: number,
-      reason: FillRecord["reason"],
-    ): ClosedTradeResult {
+    closePosition(price: number, time: number, reason: FillRecord["reason"]): ClosedTradeResult {
       if (!position) {
         throw new Error("No open position to close");
       }

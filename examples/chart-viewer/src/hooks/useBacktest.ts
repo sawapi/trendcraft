@@ -2,8 +2,8 @@
  * Backtest execution hook
  */
 
-import { useMemo, useCallback } from "react";
-import type { BacktestResult, Condition, NormalizedCandle, BacktestOptions } from "trendcraft";
+import { useCallback, useMemo } from "react";
+import type { BacktestOptions, BacktestResult, Condition, NormalizedCandle } from "trendcraft";
 import * as TC from "trendcraft";
 import type { BacktestConfig } from "../types";
 
@@ -23,7 +23,10 @@ export const ENTRY_CONDITIONS: Record<string, { label: string; factory: () => Co
   macdUp: { label: "MACD Cross Up", factory: () => TC.macdCrossUp() },
 
   // Perfect Order
-  poBullish: { label: "PO Bullish (Legacy)", factory: () => TC.perfectOrderBullish({ periods: [5, 25, 75] }) },
+  poBullish: {
+    label: "PO Bullish (Legacy)",
+    factory: () => TC.perfectOrderBullish({ periods: [5, 25, 75] }),
+  },
   poPlus: { label: "PO+ Entry", factory: () => TC.poPlusEntry({ periods: [5, 25, 75] }) },
   pb: { label: "Pullback Buy", factory: () => TC.pbEntry({ periods: [5, 25, 75] }) },
   poPlusPb: { label: "PO+ or PB", factory: () => TC.poPlusPbEntry({ periods: [5, 25, 75] }) },
@@ -97,8 +100,14 @@ export const EXIT_CONDITIONS: Record<string, { label: string; factory: () => Con
   macdDown: { label: "MACD Cross Down", factory: () => TC.macdCrossDown() },
 
   // Perfect Order
-  poCollapsed: { label: "PO Collapsed", factory: () => TC.perfectOrderCollapsed({ periods: [5, 25, 75] }) },
-  poBreakdown: { label: "PO Breakdown", factory: () => TC.perfectOrderBreakdown({ periods: [5, 25, 75] }) },
+  poCollapsed: {
+    label: "PO Collapsed",
+    factory: () => TC.perfectOrderCollapsed({ periods: [5, 25, 75] }),
+  },
+  poBreakdown: {
+    label: "PO Breakdown",
+    factory: () => TC.perfectOrderBreakdown({ periods: [5, 25, 75] }),
+  },
 
   // Bollinger Bands
   bbUpper: { label: "BB Upper Touch", factory: () => TC.bollingerTouch("upper") },
@@ -136,7 +145,7 @@ export const EXIT_CONDITIONS: Record<string, { label: string; factory: () => Con
  */
 export function executeBacktest(
   candles: NormalizedCandle[],
-  config: BacktestConfig
+  config: BacktestConfig,
 ): BacktestResult | null {
   if (candles.length < 50) {
     console.warn("Not enough data for backtest (minimum 50 candles required)");
@@ -212,7 +221,7 @@ export function useBacktest(
   candles: NormalizedCandle[],
   config: BacktestConfig,
   setResult: (result: BacktestResult | null) => void,
-  setRunning: (running: boolean) => void
+  setRunning: (running: boolean) => void,
 ) {
   const run = useCallback(() => {
     setRunning(true);

@@ -2,15 +2,15 @@
  * Volume indicator subchart builders: MFI, OBV, CMF, Volume Anomaly, Volume Profile, Volume Trend
  */
 
-import type { IndicatorParams, SubChartType } from "../../types";
 import type { IndicatorData } from "../../hooks/useIndicators";
+import type { IndicatorParams, SubChartType } from "../../types";
 import {
   COLORS,
+  type SeriesItem,
+  type SubchartContext,
   createMarkLine,
   createSubchart,
   formatLargeNumber,
-  type SeriesItem,
-  type SubchartContext,
 } from "../chartColors";
 
 /**
@@ -104,12 +104,24 @@ export function buildVolumeSubcharts(
           {
             yAxis: 0.1,
             lineStyle: { color: "#26a69a", type: "dashed" },
-            label: { formatter: "+0.1", position: "end", fontSize: 9, color: "#888", textBorderWidth: 0 },
+            label: {
+              formatter: "+0.1",
+              position: "end",
+              fontSize: 9,
+              color: "#888",
+              textBorderWidth: 0,
+            },
           },
           {
             yAxis: -0.1,
             lineStyle: { color: "#ef5350", type: "dashed" },
-            label: { formatter: "-0.1", position: "end", fontSize: 9, color: "#888", textBorderWidth: 0 },
+            label: {
+              formatter: "-0.1",
+              position: "end",
+              fontSize: 9,
+              color: "#888",
+              textBorderWidth: 0,
+            },
           },
         ],
       },
@@ -162,12 +174,24 @@ export function buildVolumeSubcharts(
           {
             yAxis: 2.0,
             lineStyle: { color: "#ff9800" },
-            label: { formatter: "2.0x High", position: "end", fontSize: 9, color: "#888", textBorderWidth: 0 },
+            label: {
+              formatter: "2.0x High",
+              position: "end",
+              fontSize: 9,
+              color: "#888",
+              textBorderWidth: 0,
+            },
           },
           {
             yAxis: 3.0,
             lineStyle: { color: "#ef5350" },
-            label: { formatter: "3.0x Extreme", position: "end", fontSize: 9, color: "#888", textBorderWidth: 0 },
+            label: {
+              formatter: "3.0x Extreme",
+              position: "end",
+              fontSize: 9,
+              color: "#888",
+              textBorderWidth: 0,
+            },
           },
         ],
       },
@@ -270,7 +294,13 @@ export function buildVolumeSubcharts(
           {
             yAxis: 50,
             lineStyle: { color: "#666", type: "dashed" },
-            label: { formatter: "50%", position: "end", fontSize: 9, color: "#888", textBorderWidth: 0 },
+            label: {
+              formatter: "50%",
+              position: "end",
+              fontSize: 9,
+              color: "#888",
+              textBorderWidth: 0,
+            },
           },
         ],
       },

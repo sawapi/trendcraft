@@ -1,7 +1,7 @@
-import { describe, it, expect } from "vitest";
-import { createCrossOverDetector, createCrossUnderDetector } from "../cross";
+import { describe, expect, it } from "vitest";
 import { crossOver, crossUnder } from "../../../signals/cross";
 import type { Series } from "../../../types";
+import { createCrossOverDetector, createCrossUnderDetector } from "../cross";
 
 describe("createCrossOverDetector", () => {
   it("should return false on first call (no previous data)", () => {

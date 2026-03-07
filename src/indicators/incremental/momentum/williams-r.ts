@@ -110,14 +110,7 @@ export function createWilliamsR(
       tempHigh.push(candle.high);
       tempLow.push(candle.low);
 
-      const value = compute(
-        candle.high,
-        candle.low,
-        candle.close,
-        tempHigh,
-        tempLow,
-        count + 1,
-      );
+      const value = compute(candle.high, candle.low, candle.close, tempHigh, tempLow, count + 1);
       return { time: candle.time, value };
     },
 

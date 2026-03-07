@@ -50,7 +50,7 @@ export function PeriodSelector() {
 
     // Find the closest matching option
     let closestOption: string | null = null;
-    let closestDiff = Infinity;
+    let closestDiff = Number.POSITIVE_INFINITY;
 
     for (const opt of PERIOD_OPTIONS) {
       if (opt.days === null) continue;

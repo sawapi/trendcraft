@@ -9,7 +9,7 @@ import { rsi } from "../indicators/momentum/rsi";
 import { calculateAtrPercent } from "../indicators/volatility/atr-filter";
 import { volumeMa } from "../indicators/volume/volume-ma";
 import type { Condition, NormalizedCandle } from "../types";
-import { type Result, ok, err, tcError } from "../types/result";
+import { type Result, err, ok, tcError } from "../types/result";
 import type { ScreeningCriteria, ScreeningResult } from "./types";
 
 // Import all conditions for CLI name resolution

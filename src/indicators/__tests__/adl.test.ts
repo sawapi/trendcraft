@@ -21,9 +21,7 @@ describe("adl", () => {
 
   it("should calculate CLV correctly when close is at high", () => {
     // Close = High → CLV = ((H-L) - 0) / (H-L) = 1
-    const candles = makeCandles([
-      { high: 110, low: 90, close: 110, volume: 1000 },
-    ]);
+    const candles = makeCandles([{ high: 110, low: 90, close: 110, volume: 1000 }]);
 
     const result = adl(candles);
     // CLV = 1, MFV = 1 * 1000 = 1000
@@ -32,9 +30,7 @@ describe("adl", () => {
 
   it("should calculate CLV correctly when close is at low", () => {
     // Close = Low → CLV = (0 - (H-L)) / (H-L) = -1
-    const candles = makeCandles([
-      { high: 110, low: 90, close: 90, volume: 1000 },
-    ]);
+    const candles = makeCandles([{ high: 110, low: 90, close: 90, volume: 1000 }]);
 
     const result = adl(candles);
     // CLV = -1, MFV = -1 * 1000 = -1000
@@ -43,9 +39,7 @@ describe("adl", () => {
 
   it("should calculate CLV correctly when close is at midpoint", () => {
     // Close = midpoint → CLV = 0
-    const candles = makeCandles([
-      { high: 110, low: 90, close: 100, volume: 1000 },
-    ]);
+    const candles = makeCandles([{ high: 110, low: 90, close: 100, volume: 1000 }]);
 
     const result = adl(candles);
     // CLV = 0, MFV = 0
@@ -53,9 +47,7 @@ describe("adl", () => {
   });
 
   it("should handle zero range (high = low)", () => {
-    const candles = makeCandles([
-      { high: 100, low: 100, close: 100, volume: 1000 },
-    ]);
+    const candles = makeCandles([{ high: 100, low: 100, close: 100, volume: 1000 }]);
 
     const result = adl(candles);
     // CLV = 0 (range is 0)
@@ -66,7 +58,7 @@ describe("adl", () => {
     const candles = makeCandles([
       { high: 110, low: 90, close: 110, volume: 1000 }, // CLV=1, MFV=1000, ADL=1000
       { high: 110, low: 90, close: 110, volume: 2000 }, // CLV=1, MFV=2000, ADL=3000
-      { high: 110, low: 90, close: 90, volume: 500 },   // CLV=-1, MFV=-500, ADL=2500
+      { high: 110, low: 90, close: 90, volume: 500 }, // CLV=-1, MFV=-500, ADL=2500
     ]);
 
     const result = adl(candles);
@@ -115,9 +107,7 @@ describe("adl", () => {
 
   it("should calculate CLV formula correctly", () => {
     // CLV = ((close - low) - (high - close)) / (high - low)
-    const candles = makeCandles([
-      { high: 120, low: 80, close: 110, volume: 1000 },
-    ]);
+    const candles = makeCandles([{ high: 120, low: 80, close: 110, volume: 1000 }]);
 
     const result = adl(candles);
     // CLV = ((110-80) - (120-110)) / (120-80) = (30 - 10) / 40 = 0.5
@@ -137,9 +127,7 @@ describe("adl", () => {
   });
 
   it("should handle single candle", () => {
-    const candles = makeCandles([
-      { high: 110, low: 90, close: 105, volume: 2000 },
-    ]);
+    const candles = makeCandles([{ high: 110, low: 90, close: 105, volume: 2000 }]);
 
     const result = adl(candles);
     expect(result.length).toBe(1);

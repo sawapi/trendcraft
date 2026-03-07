@@ -375,12 +375,8 @@ export const INDICATOR_PARAM_CONFIGS: Record<string, ParamConfig[]> = {
     { key: "fvgMaxActive", label: "Max Active", min: 1, max: 20, step: 1 },
     { key: "fvgShowMitigated", label: "Show Filled", type: "boolean" },
   ],
-  bos: [
-    { key: "bosSwingPeriod", label: "Swing Period", min: 1, max: 20, step: 1 },
-  ],
-  choch: [
-    { key: "bosSwingPeriod", label: "Swing Period", min: 1, max: 20, step: 1 },
-  ],
+  bos: [{ key: "bosSwingPeriod", label: "Swing Period", min: 1, max: 20, step: 1 }],
+  choch: [{ key: "bosSwingPeriod", label: "Swing Period", min: 1, max: 20, step: 1 }],
   liquiditySweep: [
     { key: "liquiditySweepSwingPeriod", label: "Swing Period", min: 1, max: 20, step: 1 },
     { key: "liquiditySweepMaxRecoveryBars", label: "Max Recovery Bars", min: 1, max: 10, step: 1 },
@@ -406,11 +402,15 @@ export const INDICATOR_PARAM_CONFIGS: Record<string, ParamConfig[]> = {
     { key: "pitchforkRightBars", label: "Right Bars", min: 1, max: 30, step: 1 },
   ],
   pivotPoints: [
-    { key: "pivotPointsMethod", label: "Method (0:Std 1:Fib 2:Woodie 3:Cama 4:DeMark)", min: 0, max: 4, step: 1 },
+    {
+      key: "pivotPointsMethod",
+      label: "Method (0:Std 1:Fib 2:Woodie 3:Cama 4:DeMark)",
+      min: 0,
+      max: 4,
+      step: 1,
+    },
   ],
-  highestLowest: [
-    { key: "highestLowestPeriod", label: "Period", min: 2, max: 200, step: 1 },
-  ],
+  highestLowest: [{ key: "highestLowestPeriod", label: "Period", min: 2, max: 200, step: 1 }],
   chandelierExit: [
     { key: "chandelierPeriod", label: "Period", min: 5, max: 50, step: 1 },
     { key: "chandelierMultiplier", label: "Multiplier", min: 1, max: 5, step: 0.5 },

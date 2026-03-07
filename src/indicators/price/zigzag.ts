@@ -107,9 +107,10 @@ export function zigzag(
     const low = normalized[i].low;
 
     // Get threshold for current bar
-    const threshold = useAtr && atrValues && atrValues[i] !== null && atrValues[i]! > 0
-      ? atrValues[i]! * atrMultiplier
-      : (lastPivotPrice || high) * (deviation / 100);
+    const threshold =
+      useAtr && atrValues && atrValues[i] !== null && atrValues[i]! > 0
+        ? atrValues[i]! * atrMultiplier
+        : (lastPivotPrice || high) * (deviation / 100);
 
     if (trend === null) {
       // Initialize trend
@@ -177,15 +178,15 @@ export function zigzag(
 
       // Check for reversal down
       const drop = currentHigh - low;
-      const dropThreshold = useAtr && atrValues && atrValues[i] !== null && atrValues[i]! > 0
-        ? atrValues[i]! * atrMultiplier
-        : currentHigh * (deviation / 100);
+      const dropThreshold =
+        useAtr && atrValues && atrValues[i] !== null && atrValues[i]! > 0
+          ? atrValues[i]! * atrMultiplier
+          : currentHigh * (deviation / 100);
 
       if (drop >= dropThreshold) {
         // Mark the high as a pivot
-        const changePct = lastPivotPrice > 0
-          ? ((currentHigh - lastPivotPrice) / lastPivotPrice) * 100
-          : null;
+        const changePct =
+          lastPivotPrice > 0 ? ((currentHigh - lastPivotPrice) / lastPivotPrice) * 100 : null;
         result[currentHighIndex].value = {
           point: "high",
           price: currentHigh,
@@ -207,15 +208,15 @@ export function zigzag(
 
       // Check for reversal up
       const rise = high - currentLow;
-      const riseThreshold = useAtr && atrValues && atrValues[i] !== null && atrValues[i]! > 0
-        ? atrValues[i]! * atrMultiplier
-        : currentLow * (deviation / 100);
+      const riseThreshold =
+        useAtr && atrValues && atrValues[i] !== null && atrValues[i]! > 0
+          ? atrValues[i]! * atrMultiplier
+          : currentLow * (deviation / 100);
 
       if (rise >= riseThreshold) {
         // Mark the low as a pivot
-        const changePct = lastPivotPrice > 0
-          ? ((currentLow - lastPivotPrice) / lastPivotPrice) * 100
-          : null;
+        const changePct =
+          lastPivotPrice > 0 ? ((currentLow - lastPivotPrice) / lastPivotPrice) * 100 : null;
         result[currentLowIndex].value = {
           point: "low",
           price: currentLow,

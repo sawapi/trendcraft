@@ -41,13 +41,13 @@ describe("channelLine", () => {
     // Two ascending swing lows with a swing high between
     // idx 1: swing low (70), idx 3: swing high (130), idx 5: swing low (85)
     const candles = makeCandles([
-      { o: 100, h: 102, l: 98, c: 101 },   // 0
-      { o: 101, h: 103, l: 70, c: 72 },    // 1 - swing low (70)
-      { o: 72, h: 110, l: 80, c: 108 },    // 2
-      { o: 108, h: 130, l: 100, c: 128 },  // 3 - swing high (130)
-      { o: 128, h: 125, l: 90, c: 92 },    // 4
-      { o: 92, h: 100, l: 85, c: 95 },     // 5 - swing low (85) > 70 = uptrend
-      { o: 95, h: 110, l: 93, c: 108 },    // 6
+      { o: 100, h: 102, l: 98, c: 101 }, // 0
+      { o: 101, h: 103, l: 70, c: 72 }, // 1 - swing low (70)
+      { o: 72, h: 110, l: 80, c: 108 }, // 2
+      { o: 108, h: 130, l: 100, c: 128 }, // 3 - swing high (130)
+      { o: 128, h: 125, l: 90, c: 92 }, // 4
+      { o: 92, h: 100, l: 85, c: 95 }, // 5 - swing low (85) > 70 = uptrend
+      { o: 95, h: 110, l: 93, c: 108 }, // 6
     ]);
 
     const result = channelLine(candles, { leftBars: 1, rightBars: 1 });
@@ -65,13 +65,13 @@ describe("channelLine", () => {
     // Two descending swing highs with swing low between
     // idx 1: swing high (130), idx 3: swing low (70), idx 5: swing high (120)
     const candles = makeCandles([
-      { o: 100, h: 102, l: 98, c: 101 },   // 0
-      { o: 101, h: 130, l: 99, c: 128 },   // 1 - swing high (130)
-      { o: 128, h: 125, l: 75, c: 78 },    // 2
-      { o: 78, h: 85, l: 70, c: 80 },      // 3 - swing low (70)
-      { o: 80, h: 110, l: 78, c: 108 },    // 4
-      { o: 108, h: 120, l: 95, c: 118 },   // 5 - swing high (120) < 130 = downtrend
-      { o: 118, h: 115, l: 90, c: 92 },    // 6
+      { o: 100, h: 102, l: 98, c: 101 }, // 0
+      { o: 101, h: 130, l: 99, c: 128 }, // 1 - swing high (130)
+      { o: 128, h: 125, l: 75, c: 78 }, // 2
+      { o: 78, h: 85, l: 70, c: 80 }, // 3 - swing low (70)
+      { o: 80, h: 110, l: 78, c: 108 }, // 4
+      { o: 108, h: 120, l: 95, c: 118 }, // 5 - swing high (120) < 130 = downtrend
+      { o: 118, h: 115, l: 90, c: 92 }, // 6
     ]);
 
     const result = channelLine(candles, { leftBars: 1, rightBars: 1 });

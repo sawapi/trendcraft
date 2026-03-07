@@ -82,7 +82,7 @@ export function createStochastics(
   }
 
   function getHighestHigh(): number {
-    let max = -Infinity;
+    let max = Number.NEGATIVE_INFINITY;
     for (let i = 0; i < highBuffer.length; i++) {
       if (highBuffer.get(i) > max) max = highBuffer.get(i);
     }
@@ -90,7 +90,7 @@ export function createStochastics(
   }
 
   function getLowestLow(): number {
-    let min = Infinity;
+    let min = Number.POSITIVE_INFINITY;
     for (let i = 0; i < lowBuffer.length; i++) {
       if (lowBuffer.get(i) < min) min = lowBuffer.get(i);
     }

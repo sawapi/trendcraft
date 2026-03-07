@@ -40,9 +40,7 @@ const alwaysFalse: Condition = () => false;
 
 describe("screenStock", () => {
   it("should throw when candles array is empty", () => {
-    expect(() =>
-      screenStock("TEST", [], { entry: alwaysTrue }),
-    ).toThrow("No candle data");
+    expect(() => screenStock("TEST", [], { entry: alwaysTrue })).toThrow("No candle data");
   });
 
   it("should return entrySignal=true for always-true condition", () => {

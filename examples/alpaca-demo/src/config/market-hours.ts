@@ -35,7 +35,7 @@ export const US_MARKET_HOURS = {
   tradingWindows: [
     {
       startMs: 9 * HOUR + 30 * MINUTE, // 9:30
-      endMs: 16 * HOUR,                // 16:00
+      endMs: 16 * HOUR, // 16:00
     },
   ],
   timezoneOffsetMs: getEasternOffsetMs(),

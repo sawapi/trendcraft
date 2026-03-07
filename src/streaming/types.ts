@@ -171,9 +171,17 @@ export type SqueezeDetectorState = {
  */
 export type SqueezeDetector = {
   /** Advance state and return squeeze events */
-  next(bandwidth: number | null): { squeezeStart: boolean; squeezeEnd: boolean; inSqueeze: boolean };
+  next(bandwidth: number | null): {
+    squeezeStart: boolean;
+    squeezeEnd: boolean;
+    inSqueeze: boolean;
+  };
   /** Preview without advancing state */
-  peek(bandwidth: number | null): { squeezeStart: boolean; squeezeEnd: boolean; inSqueeze: boolean };
+  peek(bandwidth: number | null): {
+    squeezeStart: boolean;
+    squeezeEnd: boolean;
+    inSqueeze: boolean;
+  };
   /** Serialize internal state */
   getState(): SqueezeDetectorState;
 };
@@ -220,7 +228,10 @@ export type IndicatorSnapshot = { [key: string]: unknown };
 /**
  * A function-based streaming condition
  */
-export type StreamingConditionFn = (snapshot: IndicatorSnapshot, candle: NormalizedCandle) => boolean;
+export type StreamingConditionFn = (
+  snapshot: IndicatorSnapshot,
+  candle: NormalizedCandle,
+) => boolean;
 
 /**
  * Preset streaming condition with a name
@@ -258,8 +269,13 @@ export type PipelineIndicatorConfig = {
   /** Key name in the snapshot (e.g., "rsi14", "sma20") */
   name: string;
   /** Factory function that creates the incremental indicator */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  create: () => { next(candle: NormalizedCandle): { value: any }; peek(candle: NormalizedCandle): { value: any }; getState(): unknown };
+  create: () => {
+    // biome-ignore lint/suspicious/noExplicitAny: indicator values are heterogeneous
+    next(candle: NormalizedCandle): { value: any };
+    // biome-ignore lint/suspicious/noExplicitAny: indicator values are heterogeneous
+    peek(candle: NormalizedCandle): { value: any };
+    getState(): unknown;
+  };
   /** Optional state to restore from */
   state?: unknown;
 };

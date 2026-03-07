@@ -107,13 +107,11 @@ export function autoTrendLine(
       }
     }
 
-    const resistance = hasResistance && i >= resAnchorIdx
-      ? resAnchorPrice + resSlope * (i - resAnchorIdx)
-      : null;
+    const resistance =
+      hasResistance && i >= resAnchorIdx ? resAnchorPrice + resSlope * (i - resAnchorIdx) : null;
 
-    const support = hasSupport && i >= supAnchorIdx
-      ? supAnchorPrice + supSlope * (i - supAnchorIdx)
-      : null;
+    const support =
+      hasSupport && i >= supAnchorIdx ? supAnchorPrice + supSlope * (i - supAnchorIdx) : null;
 
     result.push({
       time: swings[i].time,

@@ -74,7 +74,7 @@ export function createSma(
   function compute(candle: NormalizedCandle): { time: number; value: number | null } {
     const price = getSourcePrice(candle, source);
     let newSum = sum;
-    let newCount = count + 1;
+    const newCount = count + 1;
 
     if (buffer.isFull) {
       newSum = newSum - buffer.oldest() + price;

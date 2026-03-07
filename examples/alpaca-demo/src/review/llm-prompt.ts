@@ -203,7 +203,7 @@ export function buildUserMessage(
   if (report.backtestResults && report.backtestResults.length > 0) {
     parts.push("## Backtest Results");
     for (const b of report.backtestResults) {
-      let line = `- **${b.strategyId}:${b.symbol}** — Score: ${b.score.toFixed(1)}, Return: ${b.totalReturnPercent.toFixed(2)}%, WR: ${b.winRate.toFixed(1)}%, Sharpe: ${b.sharpeRatio.toFixed(2)}, DD: ${b.maxDrawdown.toFixed(1)}%, PF: ${b.profitFactor === Infinity ? "Inf" : b.profitFactor.toFixed(2)}, Trades: ${b.tradeCount}`;
+      let line = `- **${b.strategyId}:${b.symbol}** — Score: ${b.score.toFixed(1)}, Return: ${b.totalReturnPercent.toFixed(2)}%, WR: ${b.winRate.toFixed(1)}%, Sharpe: ${b.sharpeRatio.toFixed(2)}, DD: ${b.maxDrawdown.toFixed(1)}%, PF: ${b.profitFactor === Number.POSITIVE_INFINITY ? "Inf" : b.profitFactor.toFixed(2)}, Trades: ${b.tradeCount}`;
       if (b.monteCarlo) {
         line += ` | MC: ${b.monteCarlo.isSignificant ? "significant" : "not significant"}, P(ret>0): ${(b.monteCarlo.pReturnPositive * 100).toFixed(0)}%, 5%ile: ${b.monteCarlo.percentile5Return.toFixed(2)}%`;
       }
@@ -216,7 +216,9 @@ export function buildUserMessage(
   if (report.dataQuality && report.dataQuality.length > 0) {
     parts.push("## Data Quality");
     for (const dq of report.dataQuality) {
-      parts.push(`- ${dq.symbol}: ${dq.totalCandles} candles, ${dq.errors} errors, ${dq.warnings} warnings${dq.cleaned ? " (auto-cleaned)" : ""}`);
+      parts.push(
+        `- ${dq.symbol}: ${dq.totalCandles} candles, ${dq.errors} errors, ${dq.warnings} warnings${dq.cleaned ? " (auto-cleaned)" : ""}`,
+      );
     }
     parts.push("");
   }
@@ -226,7 +228,9 @@ export function buildUserMessage(
     const rc = report.reconciliation;
     if (rc.discrepancies > 0 || rc.orphanedPositions > 0) {
       parts.push("## Position Reconciliation");
-      parts.push(`- Matched: ${rc.matched}, Discrepancies: ${rc.discrepancies}, Orphaned: ${rc.orphanedPositions}`);
+      parts.push(
+        `- Matched: ${rc.matched}, Discrepancies: ${rc.discrepancies}, Orphaned: ${rc.orphanedPositions}`,
+      );
       parts.push("");
     }
   }
@@ -239,7 +243,9 @@ export function buildUserMessage(
     parts.push(`Strategy: ${agent.strategyId} | Symbol: ${agent.symbol} | Tier: ${agent.tier}`);
     parts.push(`Return: $${m.totalReturn.toFixed(2)} (${m.totalReturnPercent.toFixed(2)}%)`);
     parts.push(`Daily P&L: $${m.dailyPnl.toFixed(2)}`);
-    parts.push(`Win Rate: ${m.winRate.toFixed(1)}% | Sharpe: ${m.sharpeRatio.toFixed(2)} | MaxDD: ${m.maxDrawdown.toFixed(1)}% | PF: ${m.profitFactor === Infinity ? "Inf" : m.profitFactor.toFixed(2)} | Trades: ${m.totalTrades}`);
+    parts.push(
+      `Win Rate: ${m.winRate.toFixed(1)}% | Sharpe: ${m.sharpeRatio.toFixed(2)} | MaxDD: ${m.maxDrawdown.toFixed(1)}% | PF: ${m.profitFactor === Number.POSITIVE_INFINITY ? "Inf" : m.profitFactor.toFixed(2)} | Trades: ${m.totalTrades}`,
+    );
     parts.push(`Promotion: ${agent.promotionDecision.action} — ${agent.promotionDecision.reason}`);
 
     // Individual trade details
@@ -257,9 +263,7 @@ export function buildUserMessage(
   // Leaderboard
   parts.push("## Leaderboard");
   for (const entry of report.leaderboard) {
-    parts.push(
-      `#${entry.rank} ${entry.agentId} (score: ${entry.score.toFixed(1)})`,
-    );
+    parts.push(`#${entry.rank} ${entry.agentId} (score: ${entry.score.toFixed(1)})`);
   }
   parts.push("");
 
@@ -287,7 +291,9 @@ export function buildUserMessage(
   if (report.activeOverrides.length > 0) {
     parts.push("## Current Active Overrides");
     for (const o of report.activeOverrides) {
-      parts.push(`- ${o.strategyId}: ${o.reasoning} (applied ${new Date(o.appliedAt).toISOString().split("T")[0]})`);
+      parts.push(
+        `- ${o.strategyId}: ${o.reasoning} (applied ${new Date(o.appliedAt).toISOString().split("T")[0]})`,
+      );
     }
     parts.push("");
   }
@@ -301,7 +307,9 @@ export function buildUserMessage(
       if (record.appliedActions.length > 0) {
         parts.push("Applied:");
         for (const a of record.appliedActions) {
-          parts.push(`  - ${a.action.action}: ${a.action.reasoning}${a.backtestScore !== undefined ? ` (backtest score: ${a.backtestScore.toFixed(1)})` : ""}`);
+          parts.push(
+            `  - ${a.action.action}: ${a.action.reasoning}${a.backtestScore !== undefined ? ` (backtest score: ${a.backtestScore.toFixed(1)})` : ""}`,
+          );
         }
       }
       if (record.rejectedActions.length > 0) {
@@ -314,14 +322,21 @@ export function buildUserMessage(
       if (record.outcomes && record.outcomes.length > 0) {
         parts.push("Outcomes:");
         for (const o of record.outcomes) {
-          const strategyId = "strategyId" in o.action ? (o.action as { strategyId: string }).strategyId : ("agentId" in o.action ? (o.action as { agentId: string }).agentId : "unknown");
+          const strategyId =
+            "strategyId" in o.action
+              ? (o.action as { strategyId: string }).strategyId
+              : "agentId" in o.action
+                ? (o.action as { agentId: string }).agentId
+                : "unknown";
           const verdict = o.verdict ? o.verdict.toUpperCase() : "PENDING";
-          const scoreStr = o.scoreAfter != null
-            ? ` (score: ${o.scoreBefore.toFixed(0)}→${o.scoreAfter.toFixed(0)})`
-            : ` (score before: ${o.scoreBefore.toFixed(0)})`;
-          const benchStr = o.relativeDelta != null
-            ? ` [relative: ${o.relativeDelta >= 0 ? "+" : ""}${o.relativeDelta.toFixed(1)}, mkt: ${o.benchmarkReturnPercent != null ? `${o.benchmarkReturnPercent >= 0 ? "+" : ""}${o.benchmarkReturnPercent.toFixed(1)}%` : "n/a"}]`
-            : "";
+          const scoreStr =
+            o.scoreAfter != null
+              ? ` (score: ${o.scoreBefore.toFixed(0)}→${o.scoreAfter.toFixed(0)})`
+              : ` (score before: ${o.scoreBefore.toFixed(0)})`;
+          const benchStr =
+            o.relativeDelta != null
+              ? ` [relative: ${o.relativeDelta >= 0 ? "+" : ""}${o.relativeDelta.toFixed(1)}, mkt: ${o.benchmarkReturnPercent != null ? `${o.benchmarkReturnPercent >= 0 ? "+" : ""}${o.benchmarkReturnPercent.toFixed(1)}%` : "n/a"}]`
+              : "";
           parts.push(`  - ${o.action.action}(${strategyId}): ${verdict}${scoreStr}${benchStr}`);
         }
       }
@@ -344,7 +359,9 @@ export function buildUserMessage(
   // Rollback candidates
   if (options?.rollbackCandidates && options.rollbackCandidates.length > 0) {
     parts.push("## Auto-Rollback Candidates");
-    parts.push("The following strategies have received 2+ consecutive DEGRADED verdicts and will be rolled back to original presets:");
+    parts.push(
+      "The following strategies have received 2+ consecutive DEGRADED verdicts and will be rolled back to original presets:",
+    );
     for (const sid of options.rollbackCandidates) {
       parts.push(`- **${sid}** — rolling back to original preset`);
     }
@@ -355,7 +372,10 @@ export function buildUserMessage(
   parts.push("## Available Palette");
   parts.push("### Indicators");
   for (const [key, ind] of Object.entries(report.palette.indicators)) {
-    const def = ind as { description: string; params: Record<string, { min: number; max: number; default: number }> };
+    const def = ind as {
+      description: string;
+      params: Record<string, { min: number; max: number; default: number }>;
+    };
     const paramStr = Object.entries(def.params)
       .map(([k, v]) => `${k}: ${v.min}-${v.max} (default: ${v.default})`)
       .join(", ");
@@ -364,7 +384,9 @@ export function buildUserMessage(
   parts.push("### Conditions");
   for (const [key, cond] of Object.entries(report.palette.conditions)) {
     const def = cond as { description: string; requiredIndicators?: string[] };
-    parts.push(`- **${key}**: ${def.description}${def.requiredIndicators ? ` (requires: ${def.requiredIndicators.join(", ")})` : ""}`);
+    parts.push(
+      `- **${key}**: ${def.description}${def.requiredIndicators ? ` (requires: ${def.requiredIndicators.join(", ")})` : ""}`,
+    );
   }
 
   return parts.join("\n");
@@ -375,7 +397,8 @@ export function buildUserMessage(
  */
 function formatTradeRecord(t: TradeRecord, index: number): string {
   const dir = (t.direction ?? "long").toUpperCase();
-  const ret = t.returnPercent >= 0 ? `+${t.returnPercent.toFixed(1)}%` : `${t.returnPercent.toFixed(1)}%`;
+  const ret =
+    t.returnPercent >= 0 ? `+${t.returnPercent.toFixed(1)}%` : `${t.returnPercent.toFixed(1)}%`;
   const exit = t.exitReason ?? "signal";
   let line = `#${index}: ${dir} $${t.entryPrice.toFixed(2)}→$${t.exitPrice.toFixed(2)} (${ret}) exit:${exit}`;
   if (t.mfe != null) line += ` MFE:${t.mfe.toFixed(1)}%`;
@@ -392,18 +415,17 @@ function formatTradeAnalysis(trades: TradeRecord[]): string {
   if (trades.length === 0) return "";
 
   const withMfe = trades.filter((t) => t.mfeUtilization != null);
-  const avgUtil = withMfe.length > 0
-    ? withMfe.reduce((s, t) => s + t.mfeUtilization!, 0) / withMfe.length
-    : null;
+  const avgUtil =
+    withMfe.length > 0
+      ? withMfe.reduce((s, t) => s + (t.mfeUtilization as number), 0) / withMfe.length
+      : null;
 
   const exitReasons = new Map<string, number>();
   for (const t of trades) {
     const reason = t.exitReason ?? "signal";
     exitReasons.set(reason, (exitReasons.get(reason) ?? 0) + 1);
   }
-  const exitDist = [...exitReasons.entries()]
-    .map(([r, c]) => `${r}:${c}`)
-    .join(" ");
+  const exitDist = [...exitReasons.entries()].map(([r, c]) => `${r}:${c}`).join(" ");
 
   let line = `  Analysis: exits=[${exitDist}]`;
   if (avgUtil != null) line += ` avgMFEUtil:${avgUtil.toFixed(0)}%`;

@@ -1,8 +1,8 @@
-import { describe, it, expect } from "vitest";
-import { crossOver, crossUnder } from "../conditions/cross";
-import { getField } from "../snapshot-utils";
-import type { IndicatorSnapshot } from "../conditions/types";
+import { describe, expect, it } from "vitest";
 import type { NormalizedCandle } from "../../types";
+import { crossOver, crossUnder } from "../conditions/cross";
+import type { IndicatorSnapshot } from "../conditions/types";
+import { getField } from "../snapshot-utils";
 
 const dummyCandle: NormalizedCandle = {
   time: 1000,
@@ -54,15 +54,9 @@ describe("crossOver", () => {
     it("detects MACD signal line cross", () => {
       const cond = crossOver("macd.macd", "macd.signal");
 
-      cond.evaluate(
-        makeSnap({ macd: { macd: 0.8, signal: 1.0, histogram: -0.2 } }),
-        dummyCandle,
-      );
+      cond.evaluate(makeSnap({ macd: { macd: 0.8, signal: 1.0, histogram: -0.2 } }), dummyCandle);
       expect(
-        cond.evaluate(
-          makeSnap({ macd: { macd: 1.1, signal: 1.0, histogram: 0.1 } }),
-          dummyCandle,
-        ),
+        cond.evaluate(makeSnap({ macd: { macd: 1.1, signal: 1.0, histogram: 0.1 } }), dummyCandle),
       ).toBe(true);
     });
   });
@@ -92,10 +86,7 @@ describe("crossOver", () => {
 
       cond.evaluate(makeSnap({ dmi: { plusDi: 20, minusDi: 25, adx: 30 } }), dummyCandle);
       expect(
-        cond.evaluate(
-          makeSnap({ dmi: { plusDi: 26, minusDi: 25, adx: 30 } }),
-          dummyCandle,
-        ),
+        cond.evaluate(makeSnap({ dmi: { plusDi: 26, minusDi: 25, adx: 30 } }), dummyCandle),
       ).toBe(true);
     });
   });
@@ -120,7 +111,12 @@ describe("crossOver", () => {
   it("has descriptive name", () => {
     expect(crossOver("sma20", "sma50").name).toBe("crossOver(sma20, sma50)");
     expect(crossOver("rsi", 30).name).toBe("crossOver(rsi, 30)");
-    expect(crossOver(() => null, () => null).name).toBe("crossOver(fn, fn)");
+    expect(
+      crossOver(
+        () => null,
+        () => null,
+      ).name,
+    ).toBe("crossOver(fn, fn)");
   });
 });
 

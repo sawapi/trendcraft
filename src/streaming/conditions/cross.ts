@@ -25,8 +25,8 @@
  */
 
 import type { NormalizedCandle } from "../../types";
-import type { IndicatorSnapshot, StreamingPresetCondition } from "./types";
 import { resolveNumber } from "../snapshot-utils";
+import type { IndicatorSnapshot, StreamingPresetCondition } from "./types";
 
 /**
  * A value extractor for cross detection.
@@ -73,10 +73,7 @@ function formatName(v: ValueExtractor | number): string {
  * const rsiRecovery = crossOver("rsi", 30);
  * ```
  */
-export function crossOver(
-  a: ValueExtractor,
-  b: ValueExtractor | number,
-): StreamingPresetCondition {
+export function crossOver(a: ValueExtractor, b: ValueExtractor | number): StreamingPresetCondition {
   const extractA = toExtractorFn(a);
   const extractB = toExtractorFn(b);
   let prevA: number | null = null;

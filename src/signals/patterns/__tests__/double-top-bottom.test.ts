@@ -355,9 +355,8 @@ function generateLateBreakoutDoubleBottomCandles(): NormalizedCandle[] {
     // Decline to second trough (index 26-35)
     103, 100, 97, 94, 91, 88, 85, 83, 82, 81,
     // Stay below neckline for a long time (index 36-65) - 30 bars of consolidation
-    80, 82, 81, 83, 82, 84, 83, 85, 84, 86,
-    85, 87, 86, 88, 87, 89, 88, 90, 89, 91,
-    90, 92, 91, 93, 92, 94, 93, 95, 94, 96,
+    80, 82, 81, 83, 82, 84, 83, 85, 84, 86, 85, 87, 86, 88, 87, 89, 88, 90, 89, 91, 90, 92, 91, 93,
+    92, 94, 93, 95, 94, 96,
     // Finally break above neckline at index 66+
     97, 100, 103, 106, 109, 112,
   ];

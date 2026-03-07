@@ -18,8 +18,8 @@
  *   status.json       - Chart state metadata
  */
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from "fs";
-import { basename, resolve } from "path";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { basename, resolve } from "node:path";
 
 // ---------------------------------------------------------------------------
 // Args
@@ -64,7 +64,10 @@ async function chartEval(js) {
 async function saveSnapshot(outfile) {
   const raw = await browserEval("__chart.snapshot()");
   // Strip surrounding quotes and data URL prefix
-  const b64 = raw.replace(/^"/, "").replace(/"$/, "").replace(/^data:image\/png;base64,/, "");
+  const b64 = raw
+    .replace(/^"/, "")
+    .replace(/"$/, "")
+    .replace(/^data:image\/png;base64,/, "");
   writeFileSync(outfile, Buffer.from(b64, "base64"));
 }
 
@@ -85,7 +88,7 @@ function formatTable(rows) {
         const v = r[k];
         if (v == null) return 1;
         return String(typeof v === "number" ? v.toFixed(v > 1000 ? 0 : 2) : v).length;
-      })
+      }),
     );
   }
   const header = keys.map((k) => k.padStart(widths[k])).join(" | ");
@@ -97,10 +100,11 @@ function formatTable(rows) {
         .map((k) => {
           const v = row[k];
           if (v == null) return "-".padStart(widths[k]);
-          if (typeof v === "number") return (v > 1000 ? v.toFixed(0) : v.toFixed(2)).padStart(widths[k]);
+          if (typeof v === "number")
+            return (v > 1000 ? v.toFixed(0) : v.toFixed(2)).padStart(widths[k]);
           return String(v).padStart(widths[k]);
         })
-        .join(" | ")
+        .join(" | "),
     );
   }
   return lines.join("\n");
@@ -109,7 +113,7 @@ function formatTable(rows) {
 /** Compute derived metrics from time series rows */
 function addDerivedMetrics(rows) {
   for (const r of rows) {
-    const close = r["Close"];
+    const close = r.Close;
     const sma25 = r["SMA 25"];
     const sma75 = r["SMA 75"];
     const bbU = r["BB Upper"];
@@ -133,8 +137,8 @@ function addDerivedMetrics(rows) {
     }
 
     // Remove raw SMA columns (deviation % is more useful)
-    delete r["SMA 25"];
-    delete r["SMA 75"];
+    r["SMA 25"] = undefined;
+    r["SMA 75"] = undefined;
   }
   return rows;
 }
@@ -154,7 +158,7 @@ function extractRecentData(csvPath, count = 20) {
   rows.sort((a, b) => new Date(b[0].replace(/\//g, "-")) - new Date(a[0].replace(/\//g, "-")));
 
   const recent = rows.slice(0, count);
-  const hasFundamentals = recent.some((r) => r[7] && !isNaN(parseFloat(r[7])));
+  const hasFundamentals = recent.some((r) => r[7] && !Number.isNaN(Number.parseFloat(r[7])));
 
   let header = "Date        | Open    | High    | Low     | Close   | Volume      | Adj Close";
   if (hasFundamentals) header += " | PER    | PBR";
@@ -172,7 +176,7 @@ function extractRecentData(csvPath, count = 20) {
       (r[6] || "").padStart(9),
     ].join(" | ");
     if (hasFundamentals) {
-      line += " | " + (r[7] || "").padStart(6) + " | " + (r[8] || "").padStart(4);
+      line += ` | ${(r[7] || "").padStart(6)} | ${(r[8] || "").padStart(4)}`;
     }
     out.push(line);
   }
@@ -215,7 +219,7 @@ function formatSignals(data) {
     const sorted = [...data.divergence].reverse();
     for (const d of sorted) {
       lines.push(
-        `  ${d.date}  ${d.type}  ${d.indicator}  price:[${d.priceChange[0]}, ${d.priceChange[1]}]  ind:[${d.indicatorChange[0]}, ${d.indicatorChange[1]}]`
+        `  ${d.date}  ${d.type}  ${d.indicator}  price:[${d.priceChange[0]}, ${d.priceChange[1]}]  ind:[${d.indicatorChange[0]}, ${d.indicatorChange[1]}]`,
       );
     }
   }
@@ -228,7 +232,7 @@ function formatSignals(data) {
     const sorted = [...data.bbSqueeze].reverse();
     for (const s of sorted) {
       lines.push(
-        `  ${s.date}  bandwidth:${(s.bandwidth * 100).toFixed(1)}%  percentile:${Math.round(s.percentile)}`
+        `  ${s.date}  bandwidth:${(s.bandwidth * 100).toFixed(1)}%  percentile:${Math.round(s.percentile)}`,
       );
     }
   }
@@ -280,7 +284,7 @@ echo("[3/8] Weekly trend snapshot...");
 await chartEval(
   '__chart.setTimeframe("weekly"); __chart.setDisplayYears(5); ' +
     '__chart.setOverlays(["sma25","sma75"]); __chart.setIndicators([]); ' +
-    '__chart.setZoom(0,100); "ok"'
+    '__chart.setZoom(0,100); "ok"',
 );
 await saveSnapshot(`${outputDir}/step1-weekly.png`);
 
@@ -289,7 +293,7 @@ echo("[4/8] Extracting indicator time series...");
 await chartEval(
   '__chart.setTimeframe("daily"); ' +
     '__chart.setOverlays(["bb","sma25","sma75"]); __chart.setIndicators(["rsi","macd","obv","volumeAnomaly"]); ' +
-    '__chart.setSignals([]); __chart.setZoom(85,100); "ok"'
+    '__chart.setSignals([]); __chart.setZoom(85,100); "ok"',
 );
 const tsRaw = await browserEval("JSON.stringify(__chart.timeSeries(20))");
 const tsRows = addDerivedMetrics(parseEvalJson(tsRaw));
@@ -297,9 +301,7 @@ writeFileSync(`${outputDir}/readings.txt`, formatTable(tsRows));
 
 // --- 5. Signals -> signals.txt ---
 echo("[5/8] Extracting signal data...");
-await chartEval(
-  '__chart.setSignals(["cross","divergence","bbSqueeze"]); "ok"'
-);
+await chartEval('__chart.setSignals(["cross","divergence","bbSqueeze"]); "ok"');
 const sigRaw = await browserEval("JSON.stringify(__chart.signalSummary())");
 const sigData = parseEvalJson(sigRaw);
 if (typeof sigData === "object" && sigData !== null) {
@@ -309,11 +311,13 @@ if (typeof sigData === "object" && sigData !== null) {
 }
 
 // --- 6. Fundamentals -> valuation.txt ---
-const hasFundamentals = (await browserEval("__chartStore.getState().fundamentals !== null")).replace(/"/g, "");
+const hasFundamentals = (
+  await browserEval("__chartStore.getState().fundamentals !== null")
+).replace(/"/g, "");
 if (hasFundamentals === "true") {
   echo("[6/8] Extracting valuation data...");
   await chartEval(
-    '__chart.setOverlays([]); __chart.setIndicators(["per","pbr","roe"]); __chart.setSignals([]); __chart.setZoom(0,100); "ok"'
+    '__chart.setOverlays([]); __chart.setIndicators(["per","pbr","roe"]); __chart.setSignals([]); __chart.setZoom(0,100); "ok"',
   );
   const valRaw = await browserEval("JSON.stringify(__chart.fundamentalSummary())");
   const valData = parseEvalJson(valRaw);
@@ -330,7 +334,7 @@ if (hasFundamentals === "true") {
 echo("[7/8] Saving status & recent data...");
 const statusRaw = await browserEval("JSON.stringify(__chart.status())");
 const status = parseEvalJson(statusRaw);
-delete status.params;
+status.params = undefined;
 writeFileSync(`${outputDir}/status.json`, JSON.stringify(status, null, 2));
 
 // Close browser

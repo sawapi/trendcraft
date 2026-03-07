@@ -10,7 +10,10 @@ export type { BosValue, BosOptions } from "./break-of-structure";
 export { fairValueGap, getUnfilledFvgs, getNearestFvg } from "./fair-value-gap";
 export type { FvgValue, FvgGap, FvgOptions } from "./fair-value-gap";
 export { fibonacciRetracement } from "./fibonacci-retracement";
-export type { FibonacciRetracementOptions, FibonacciRetracementValue } from "./fibonacci-retracement";
+export type {
+  FibonacciRetracementOptions,
+  FibonacciRetracementValue,
+} from "./fibonacci-retracement";
 export { autoTrendLine } from "./auto-trend-line";
 export type { AutoTrendLineOptions, AutoTrendLineValue } from "./auto-trend-line";
 export { channelLine } from "./channel-line";

@@ -6,23 +6,17 @@
  * Mean-reversion approach using Bollinger Bands
  */
 
-import {
-  incremental,
-  bollingerTouch,
-  rsiAbove as backtestRsiAbove,
-} from "trendcraft";
-import type { streaming, NormalizedCandle } from "trendcraft";
-import type { StrategyDefinition } from "../types.js";
-import { DEFAULT_SYMBOLS } from "../../config/symbols.js";
+import { rsiAbove as backtestRsiAbove, bollingerTouch, incremental } from "trendcraft";
+import type { NormalizedCandle, streaming } from "trendcraft";
 import { US_MARKET_HOURS } from "../../config/market-hours.js";
+import { DEFAULT_SYMBOLS } from "../../config/symbols.js";
+import type { StrategyDefinition } from "../types.js";
 
 const entryCondition: streaming.StreamingConditionFn = (
   snapshot: streaming.IndicatorSnapshot,
   candle: NormalizedCandle,
 ) => {
-  const bb = snapshot.bb as
-    | { lower: number; upper: number; middle: number }
-    | null;
+  const bb = snapshot.bb as { lower: number; upper: number; middle: number } | null;
   const rsi = snapshot.rsi as number | null;
   if (!bb || rsi === null) return false;
   return candle.close <= bb.lower && rsi < 40;
@@ -32,9 +26,7 @@ const exitCondition: streaming.StreamingConditionFn = (
   snapshot: streaming.IndicatorSnapshot,
   candle: NormalizedCandle,
 ) => {
-  const bb = snapshot.bb as
-    | { lower: number; upper: number; middle: number }
-    | null;
+  const bb = snapshot.bb as { lower: number; upper: number; middle: number } | null;
   const rsi = snapshot.rsi as number | null;
   if (!bb || rsi === null) return false;
   return candle.close >= bb.upper || rsi > 70;
@@ -43,8 +35,7 @@ const exitCondition: streaming.StreamingConditionFn = (
 export const bollingerSqueeze: StrategyDefinition = {
   id: "bollinger-squeeze",
   name: "Bollinger Squeeze",
-  description:
-    "Buy at lower Bollinger Band + RSI < 40, sell at upper band or RSI > 70",
+  description: "Buy at lower Bollinger Band + RSI < 40, sell at upper band or RSI > 70",
   intervalMs: 60_000,
   symbols: DEFAULT_SYMBOLS,
 
@@ -52,8 +43,7 @@ export const bollingerSqueeze: StrategyDefinition = {
     indicators: [
       {
         name: "bb",
-        create: () =>
-          incremental.createBollingerBands({ period: 20, stdDev: 2 }),
+        create: () => incremental.createBollingerBands({ period: 20, stdDev: 2 }),
       },
       { name: "rsi", create: () => incremental.createRsi({ period: 14 }) },
     ],

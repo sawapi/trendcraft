@@ -145,7 +145,9 @@ export function createMacdBullishEvaluator(
     if (index < slowPeriod + signalPeriod) return 0;
 
     // Use pre-computed data if available (for default periods only)
-    let current: { macd: number | null; signal: number | null; histogram: number | null } | undefined;
+    let current:
+      | { macd: number | null; signal: number | null; histogram: number | null }
+      | undefined;
     let prev: { macd: number | null; signal: number | null; histogram: number | null } | undefined;
 
     if (precomputed?.macd && fastPeriod === 12 && slowPeriod === 26 && signalPeriod === 9) {
@@ -198,7 +200,9 @@ export function createMacdBearishEvaluator(
     if (index < slowPeriod + signalPeriod) return 0;
 
     // Use pre-computed data if available (for default periods only)
-    let current: { macd: number | null; signal: number | null; histogram: number | null } | undefined;
+    let current:
+      | { macd: number | null; signal: number | null; histogram: number | null }
+      | undefined;
     let prev: { macd: number | null; signal: number | null; histogram: number | null } | undefined;
 
     if (precomputed?.macd && fastPeriod === 12 && slowPeriod === 26 && signalPeriod === 9) {

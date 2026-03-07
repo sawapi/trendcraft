@@ -5,7 +5,14 @@
  * Cache key: {symbol}_{timeframe}_{start}_{end}
  */
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, unlinkSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { resolve } from "node:path";
 import type { NormalizedCandle } from "trendcraft";
 import type { AlpacaEnv } from "../config/env.js";
@@ -45,9 +52,11 @@ export async function fetchCachedBars(
       };
 
       // Cache valid for 24 hours (or indefinitely for historical data with fixed end date)
-      const maxAge = opts.end ? Infinity : 24 * 60 * 60 * 1000;
+      const maxAge = opts.end ? Number.POSITIVE_INFINITY : 24 * 60 * 60 * 1000;
       if (Date.now() - cached.cachedAt < maxAge) {
-        console.log(`[CACHE] Hit: ${opts.symbol} ${opts.timeframe} (${cached.candles.length} candles)`);
+        console.log(
+          `[CACHE] Hit: ${opts.symbol} ${opts.timeframe} (${cached.candles.length} candles)`,
+        );
         return cached.candles;
       }
     } catch {
@@ -60,11 +69,7 @@ export async function fetchCachedBars(
 
   // Save to cache
   try {
-    writeFileSync(
-      path,
-      JSON.stringify({ cachedAt: Date.now(), candles }, null, 2),
-      "utf-8",
-    );
+    writeFileSync(path, JSON.stringify({ cachedAt: Date.now(), candles }, null, 2), "utf-8");
     console.log(`[CACHE] Saved: ${opts.symbol} ${opts.timeframe} (${candles.length} candles)`);
   } catch (err) {
     console.warn(`[CACHE] Failed to save: ${err}`);

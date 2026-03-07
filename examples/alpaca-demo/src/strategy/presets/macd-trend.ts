@@ -6,21 +6,15 @@
  * Uses trailing stop for profit protection
  */
 
-import {
-  incremental,
-  streaming,
-  macdCrossUp,
-  macdCrossDown,
-} from "trendcraft";
-import type { StrategyDefinition } from "../types.js";
-import { DEFAULT_SYMBOLS } from "../../config/symbols.js";
+import { incremental, macdCrossDown, macdCrossUp, streaming } from "trendcraft";
 import { US_MARKET_HOURS } from "../../config/market-hours.js";
+import { DEFAULT_SYMBOLS } from "../../config/symbols.js";
+import type { StrategyDefinition } from "../types.js";
 
 export const macdTrend: StrategyDefinition = {
   id: "macd-trend",
   name: "MACD Trend Following",
-  description:
-    "Enter on MACD bullish cross, exit on bearish cross with trailing stop",
+  description: "Enter on MACD bullish cross, exit on bearish cross with trailing stop",
   intervalMs: 60_000,
   symbols: DEFAULT_SYMBOLS,
 

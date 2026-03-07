@@ -2,12 +2,9 @@
  * Range-Bound area and support/resistance line markers for ECharts
  */
 
-import type {
-  RangeBoundValue,
-  Series,
-} from "trendcraft";
+import type { RangeBoundValue, Series } from "trendcraft";
 
-import { SIGNAL_COLORS, type MarkAreaItem, type MarkLineItem } from "./signalColors";
+import { type MarkAreaItem, type MarkLineItem, SIGNAL_COLORS } from "./signalColors";
 
 interface RangeInfo {
   startIdx: number;
@@ -48,7 +45,7 @@ export function mergeRanges(r1: RangeInfo, r2: RangeInfo): RangeInfo {
  */
 export function createRangeBoundAreas(
   rbData: Series<RangeBoundValue>,
-  dates: string[]
+  dates: string[],
 ): MarkAreaItem[] {
   const ranges: RangeInfo[] = [];
 
@@ -143,7 +140,7 @@ export function createRangeBoundAreas(
  */
 export function createSupportResistanceLines(
   rbData: Series<RangeBoundValue>,
-  dates: string[]
+  dates: string[],
 ): MarkLineItem[] {
   interface SupportResistanceLine {
     type: "resistance" | "support";

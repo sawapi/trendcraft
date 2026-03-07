@@ -5,8 +5,8 @@
  * compatible with TrendCraft's streaming module.
  */
 
-import WebSocket from "ws";
 import type { streaming } from "trendcraft";
+import WebSocket from "ws";
 import type { AlpacaEnv } from "../config/env.js";
 
 export type AlpacaTradeMessage = {

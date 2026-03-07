@@ -88,7 +88,7 @@ const COLORS = {
   patternBearishLabel: "#ef4444",
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// biome-ignore lint/suspicious/noExplicitAny: ECharts internal type
 type SeriesItem = any;
 
 // サブチャートを持つインジケーターのキー
@@ -556,7 +556,11 @@ export function buildChartOption(
             x: -1,
             y: -1,
           },
-          renderItem: ((points: typeof polygonPointsData, fillColor: string, strokeColor: string) => {
+          renderItem: ((
+            points: typeof polygonPointsData,
+            fillColor: string,
+            strokeColor: string,
+          ) => {
             return (params: SeriesItem, api: SeriesItem) => {
               // dataIndexが0以外の場合は空のグループを返す（nullではなく）
               if (params.dataIndex !== 0) {

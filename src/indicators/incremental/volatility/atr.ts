@@ -52,7 +52,11 @@ export function createAtr(
   }
 
   function calculateTR(candle: NormalizedCandle, pc: number): number {
-    return Math.max(candle.high - candle.low, Math.abs(candle.high - pc), Math.abs(candle.low - pc));
+    return Math.max(
+      candle.high - candle.low,
+      Math.abs(candle.high - pc),
+      Math.abs(candle.low - pc),
+    );
   }
 
   const indicator: IncrementalIndicator<number | null, AtrState> = {

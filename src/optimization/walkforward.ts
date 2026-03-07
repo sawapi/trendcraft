@@ -8,7 +8,6 @@
 import { runBacktest } from "../backtest";
 import { IndicatorCache } from "../core/indicator-cache";
 import type { BacktestOptions, Condition, NormalizedCandle } from "../types";
-import { type Result, ok, err, tcError } from "../types/result";
 import type {
   OptimizationConstraint,
   OptimizationMetric,
@@ -17,6 +16,7 @@ import type {
   WalkForwardPeriod,
   WalkForwardResult,
 } from "../types/optimization";
+import { type Result, err, ok, tcError } from "../types/result";
 import { type StrategyFactory, gridSearch } from "./grid-search";
 import { calculateAllMetrics, getMetricValue } from "./metrics";
 

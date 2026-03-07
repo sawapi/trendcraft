@@ -6,12 +6,12 @@
  */
 
 import type { NormalizedCandle } from "../types";
-import { type Result, ok, err, tcError } from "../types/result";
 import type { OptimizationMetric } from "../types/optimization";
+import { type Result, err, ok, tcError } from "../types/result";
 import {
-  type CombinationSearchResult,
   type CombinationResultEntry,
   type CombinationSearchOptions,
+  type CombinationSearchResult,
   type ConditionDefinition,
   combinationSearch,
 } from "./combination-search";

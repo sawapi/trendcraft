@@ -85,9 +85,10 @@ export function findNecklineBreakPoint(
   direction: "up" | "down",
   maxDistance?: number,
 ): { index: number; price: number } | null {
-  const endIndex = maxDistance !== undefined
-    ? Math.min(fromIndex + 1 + maxDistance, candles.length)
-    : candles.length;
+  const endIndex =
+    maxDistance !== undefined
+      ? Math.min(fromIndex + 1 + maxDistance, candles.length)
+      : candles.length;
 
   for (let i = fromIndex + 1; i < endIndex; i++) {
     if (direction === "down" && candles[i].close < necklinePrice) {
@@ -270,7 +271,7 @@ export function hasNecklineViolation(
   endIndex: number,
   necklinePrice: number,
   direction: "above" | "below",
-  tolerancePercent: number = 0,
+  tolerancePercent = 0,
   middleIndex?: number,
 ): boolean {
   // Need at least one candle between start and end (exclusive range)
@@ -317,7 +318,7 @@ export function calculateProminence(
   candles: NormalizedCandle[],
   index: number,
   type: "peak" | "trough",
-  lookback: number = 10,
+  lookback = 10,
 ): number {
   const start = Math.max(0, index - lookback);
   const end = Math.min(candles.length - 1, index + lookback);
@@ -338,23 +339,22 @@ export function calculateProminence(
     // Prominence = drop from peak to the higher of the two valleys (key level)
     const keyLevel = Math.max(leftMin, rightMin);
     return (peakPrice - keyLevel) / peakPrice;
-  } else {
-    const troughPrice = candles[index].low;
-    // Find highest points on left and right sides
-    let leftMax = troughPrice;
-    let rightMax = troughPrice;
-
-    for (let i = start; i < index; i++) {
-      leftMax = Math.max(leftMax, candles[i].high);
-    }
-    for (let i = index + 1; i <= end; i++) {
-      rightMax = Math.max(rightMax, candles[i].high);
-    }
-
-    // Prominence = rise from trough to the lower of the two peaks (key level)
-    const keyLevel = Math.min(leftMax, rightMax);
-    return (keyLevel - troughPrice) / troughPrice;
   }
+  const troughPrice = candles[index].low;
+  // Find highest points on left and right sides
+  let leftMax = troughPrice;
+  let rightMax = troughPrice;
+
+  for (let i = start; i < index; i++) {
+    leftMax = Math.max(leftMax, candles[i].high);
+  }
+  for (let i = index + 1; i <= end; i++) {
+    rightMax = Math.max(rightMax, candles[i].high);
+  }
+
+  // Prominence = rise from trough to the lower of the two peaks (key level)
+  const keyLevel = Math.min(leftMax, rightMax);
+  return (keyLevel - troughPrice) / troughPrice;
 }
 
 /**

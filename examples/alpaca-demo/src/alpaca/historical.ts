@@ -4,16 +4,10 @@
  * Retrieves historical bar data and converts to NormalizedCandle format.
  */
 
-import { type NormalizedCandle, validateCandles, type ValidationResult } from "trendcraft";
+import { type NormalizedCandle, type ValidationResult, validateCandles } from "trendcraft";
 import type { AlpacaEnv } from "../config/env.js";
 
-export type AlpacaTimeframe =
-  | "1Min"
-  | "5Min"
-  | "15Min"
-  | "30Min"
-  | "1Hour"
-  | "1Day";
+export type AlpacaTimeframe = "1Min" | "5Min" | "15Min" | "30Min" | "1Hour" | "1Day";
 
 export type AlpacaBar = {
   t: string; // timestamp ISO string
@@ -92,7 +86,9 @@ export async function fetchHistoricalBars(
     }
   }
   if (validation.warnings.length > 0) {
-    console.log(`[DATA] ${opts.symbol}: ${validation.warnings.length} warning(s) in ${candles.length} candles`);
+    console.log(
+      `[DATA] ${opts.symbol}: ${validation.warnings.length} warning(s) in ${candles.length} candles`,
+    );
   }
 
   return validation.cleanedCandles ?? candles;
@@ -101,9 +97,7 @@ export async function fetchHistoricalBars(
 /**
  * Validate candle data and return the full validation result
  */
-export function validateHistoricalBars(
-  candles: NormalizedCandle[],
-): ValidationResult {
+export function validateHistoricalBars(candles: NormalizedCandle[]): ValidationResult {
   return validateCandles(candles, {
     gaps: { maxGapMultiplier: 3, skipWeekends: true },
     duplicates: true,

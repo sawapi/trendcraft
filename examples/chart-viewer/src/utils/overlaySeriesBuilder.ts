@@ -5,15 +5,15 @@
  */
 
 import type { NormalizedCandle } from "trendcraft";
-import type { IndicatorParams, OverlayType } from "../types";
 import type { OverlayData } from "../hooks/useOverlays";
+import type { IndicatorParams, OverlayType } from "../types";
 import type { SeriesItem } from "./chartColors";
-import { buildMovingAverageSeries } from "./overlay/movingAverages";
 import { buildBollingerIchimokuSeries } from "./overlay/bollingerIchimoku";
-import { buildTrendOverlaySeries } from "./overlay/trendOverlays";
+import { buildFilterOverlaySeries } from "./overlay/filterOverlays";
+import { buildMovingAverageSeries } from "./overlay/movingAverages";
 import { buildPriceOverlaySeries } from "./overlay/priceOverlays";
 import { buildSmcOverlaySeries } from "./overlay/smcOverlays";
-import { buildFilterOverlaySeries } from "./overlay/filterOverlays";
+import { buildTrendOverlaySeries } from "./overlay/trendOverlays";
 
 /**
  * Build overlay indicator series for the main chart

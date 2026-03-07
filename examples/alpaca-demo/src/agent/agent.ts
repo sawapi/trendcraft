@@ -4,11 +4,11 @@
  * Wraps a ManagedSession with metrics tracking and state persistence.
  */
 
-import type { streaming, NormalizedCandle, Trade } from "trendcraft";
+import type { NormalizedCandle, Trade, streaming } from "trendcraft";
+import type { OrderIntent } from "../executor/types.js";
+import { createSessionFromStrategy } from "../strategy/factory.js";
 import type { StrategyDefinition } from "../strategy/types.js";
 import type { AgentMetrics, AgentState, AgentTier } from "./types.js";
-import { createSessionFromStrategy } from "../strategy/factory.js";
-import type { OrderIntent } from "../executor/types.js";
 
 export type Agent = {
   readonly id: string;
@@ -51,7 +51,7 @@ export function createAgent(
 
   // Signal lifecycle state
   const lifecycle = strategy.signalLifecycle;
-  let barsSinceLastTrade = Infinity;
+  let barsSinceLastTrade = Number.POSITIVE_INFINITY;
   let consecutiveEntryBars = 0;
   let lastBarTime = 0;
 
@@ -103,8 +103,7 @@ export function createAgent(
     if (trades.length >= 2) {
       const returns = trades.map((t) => t.returnPercent / 100);
       const mean = returns.reduce((a, b) => a + b, 0) / returns.length;
-      const variance =
-        returns.reduce((a, r) => a + (r - mean) ** 2, 0) / returns.length;
+      const variance = returns.reduce((a, r) => a + (r - mean) ** 2, 0) / returns.length;
       const std = Math.sqrt(variance);
       if (std > 0) {
         sharpe = (mean / std) * Math.sqrt(252);
@@ -112,20 +111,12 @@ export function createAgent(
     }
 
     // Calculate profit factor
-    const grossProfit = trades
-      .filter((t) => t.return > 0)
-      .reduce((sum, t) => sum + t.return, 0);
+    const grossProfit = trades.filter((t) => t.return > 0).reduce((sum, t) => sum + t.return, 0);
     const grossLoss = Math.abs(
-      trades
-        .filter((t) => t.return < 0)
-        .reduce((sum, t) => sum + t.return, 0),
+      trades.filter((t) => t.return < 0).reduce((sum, t) => sum + t.return, 0),
     );
     const profitFactor =
-      grossLoss > 0
-        ? grossProfit / grossLoss
-        : grossProfit > 0
-          ? Infinity
-          : 0;
+      grossLoss > 0 ? grossProfit / grossLoss : grossProfit > 0 ? Number.POSITIVE_INFINITY : 0;
 
     return {
       totalTrades: trades.length,
@@ -135,8 +126,7 @@ export function createAgent(
       profitFactor,
       totalReturn: account.totalRealizedPnl,
       totalReturnPercent:
-        ((account.equity - account.initialCapital) / account.initialCapital) *
-        100,
+        ((account.equity - account.initialCapital) / account.initialCapital) * 100,
       dailyPnl: dailyPnlAccumulator,
       startedAt,
     };

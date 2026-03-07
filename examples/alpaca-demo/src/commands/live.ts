@@ -4,30 +4,30 @@
  * Start live paper trading with one or more agents.
  */
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { createAgentManager } from "../agent/manager.js";
+import { fetchCachedBars } from "../alpaca/cache.js";
+import { createAlpacaClient } from "../alpaca/client.js";
+import { monthsAgo, today } from "../alpaca/historical.js";
+import { createAlpacaWebSocket } from "../alpaca/websocket.js";
 import { loadEnv } from "../config/env.js";
 import { DEFAULT_SYMBOLS } from "../config/symbols.js";
+import { createDryRunExecutor } from "../executor/dry-run-executor.js";
+import { createPaperExecutor } from "../executor/paper-executor.js";
+import { formatReconciliation, reconcilePositions } from "../executor/reconciler.js";
+import type { OrderExecutor } from "../executor/types.js";
+import { createStateStore } from "../persistence/store.js";
+import { loadCustomStrategies, loadOverrides } from "../review/applier.js";
+import { scheduleReview } from "../review/scheduler.js";
 import {
+  applyStrategyOverrides,
   getAllStrategies,
   getStrategy,
   loadCustomStrategiesFromTemplates,
-  applyStrategyOverrides,
 } from "../strategy/registry.js";
-import { monthsAgo, today } from "../alpaca/historical.js";
-import { fetchCachedBars } from "../alpaca/cache.js";
-import { createAlpacaClient } from "../alpaca/client.js";
-import { createAlpacaWebSocket } from "../alpaca/websocket.js";
-import { createAgentManager } from "../agent/manager.js";
-import { createPaperExecutor } from "../executor/paper-executor.js";
-import { createDryRunExecutor } from "../executor/dry-run-executor.js";
-import { reconcilePositions, formatReconciliation } from "../executor/reconciler.js";
-import { createStateStore } from "../persistence/store.js";
-import { getLeaderboard, formatLiveLeaderboard, evaluateAgent } from "../tracker/leaderboard.js";
-import { loadOverrides, loadCustomStrategies } from "../review/applier.js";
 import type { StrategyDefinition } from "../strategy/types.js";
-import type { OrderExecutor } from "../executor/types.js";
-import { scheduleReview } from "../review/scheduler.js";
+import { evaluateAgent, formatLiveLeaderboard, getLeaderboard } from "../tracker/leaderboard.js";
 import { executeReviewCycle } from "./review.js";
 
 const DATA_DIR = resolve(import.meta.dirname, "../../data");
@@ -47,11 +47,7 @@ export type LiveCommandOptions = {
 
 function writeHeartbeat(): void {
   mkdirSync(DATA_DIR, { recursive: true });
-  writeFileSync(
-    HEARTBEAT_PATH,
-    JSON.stringify({ pid: process.pid, time: Date.now() }),
-    "utf-8",
-  );
+  writeFileSync(HEARTBEAT_PATH, JSON.stringify({ pid: process.pid, time: Date.now() }), "utf-8");
 }
 
 function checkStaleHeartbeat(): { stale: boolean; lastTime?: number } {
@@ -70,14 +66,14 @@ function checkStaleHeartbeat(): { stale: boolean; lastTime?: number } {
 
 export async function liveCommand(opts: LiveCommandOptions): Promise<void> {
   const env = loadEnv();
-  const capital = parseInt(opts.capital ?? "100000", 10);
+  const capital = Number.parseInt(opts.capital ?? "100000", 10);
   const client = createAlpacaClient(env);
 
   // Dead-man's switch: check for stale heartbeat from crashed process
   const heartbeat = checkStaleHeartbeat();
   if (heartbeat.stale) {
     console.warn(
-      `[RECOVERY] Stale heartbeat detected (last: ${new Date(heartbeat.lastTime!).toISOString()})`,
+      `[RECOVERY] Stale heartbeat detected (last: ${new Date(heartbeat.lastTime as number).toISOString()})`,
     );
     console.warn("[RECOVERY] Closing all positions from previous session...");
     try {
@@ -98,10 +94,7 @@ export async function liveCommand(opts: LiveCommandOptions): Promise<void> {
 
   const customTemplates = loadCustomStrategies();
   if (customTemplates.length > 0) {
-    const { loaded, errors } = loadCustomStrategiesFromTemplates(
-      customTemplates,
-      overrides,
-    );
+    const { loaded, errors } = loadCustomStrategiesFromTemplates(customTemplates, overrides);
     if (loaded > 0) console.log(`Loaded ${loaded} custom strategy(ies)`);
     for (const err of errors) console.warn(`Custom strategy error: ${err}`);
   }
@@ -141,17 +134,14 @@ export async function liveCommand(opts: LiveCommandOptions): Promise<void> {
   // Try to restore state (skip inactive agents)
   const savedState = store.load();
   if (savedState) {
-    const strategyMap = new Map(
-      getAllStrategies().map((s) => [s.id, s]),
-    );
+    const strategyMap = new Map(getAllStrategies().map((s) => [s.id, s]));
     const activeAgents = savedState.agents.filter(
       (a) => (a as typeof a & { active?: boolean }).active !== false,
     );
     const skipped = savedState.agents.length - activeAgents.length;
     manager.restoreStates(activeAgents, strategyMap);
     console.log(
-      `Restored ${activeAgents.length} agents from saved state` +
-        (skipped > 0 ? ` (${skipped} inactive skipped)` : ""),
+      `Restored ${activeAgents.length} agents from saved state${skipped > 0 ? ` (${skipped} inactive skipped)` : ""}`,
     );
   }
 
@@ -218,9 +208,7 @@ export async function liveCommand(opts: LiveCommandOptions): Promise<void> {
     for (const agent of agents) {
       const decision = evaluateAgent(agent);
       if (decision.action !== "hold") {
-        console.log(
-          `  [${decision.action.toUpperCase()}] ${agent.id}: ${decision.reason}`,
-        );
+        console.log(`  [${decision.action.toUpperCase()}] ${agent.id}: ${decision.reason}`);
       }
     }
   }, LEADERBOARD_INTERVAL);

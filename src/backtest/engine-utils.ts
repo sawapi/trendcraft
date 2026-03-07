@@ -70,9 +70,10 @@ export function calculateTradeClose(ctx: TradeCloseContext): TradeCloseResult {
   const direction = ctx.position.direction ?? "long";
   const exitSide = direction === "long" ? "sell" : "buy";
   const exitPriceWithSlippage = applySlippage(ctx.exitPrice, ctx.slippage, exitSide);
-  const priceDiff = direction === "long"
-    ? exitPriceWithSlippage - ctx.position.entryPrice
-    : ctx.position.entryPrice - exitPriceWithSlippage;
+  const priceDiff =
+    direction === "long"
+      ? exitPriceWithSlippage - ctx.position.entryPrice
+      : ctx.position.entryPrice - exitPriceWithSlippage;
   const grossReturn = priceDiff * ctx.sharesToClose;
   const exitValue = exitPriceWithSlippage * ctx.sharesToClose;
   const exitCommission = ctx.commission + exitValue * (ctx.commissionRate / 100);
@@ -114,9 +115,10 @@ export function calculateTradeClose(ctx: TradeCloseContext): TradeCloseResult {
   //   = entryPrice*shares + (entryPrice - exitPrice)*shares - costs
   //   = 2*entryPrice*shares - exitValue - costs
   const entryValue = ctx.position.entryPrice * ctx.sharesToClose;
-  const netProceeds = direction === "short"
-    ? entryValue + grossReturn - exitCommission - tax
-    : exitValue - exitCommission - tax;
+  const netProceeds =
+    direction === "short"
+      ? entryValue + grossReturn - exitCommission - tax
+      : exitValue - exitCommission - tax;
 
   return {
     trade,

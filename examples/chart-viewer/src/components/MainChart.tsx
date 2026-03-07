@@ -2,16 +2,16 @@
  * Main chart component (candlestick + volume + subcharts + overlays)
  */
 
+import ReactECharts from "echarts-for-react";
 import * as echarts from "echarts/core";
 import { SVGRenderer } from "echarts/renderers";
-import ReactECharts from "echarts-for-react";
 import { forwardRef, useCallback, useImperativeHandle, useMemo, useRef } from "react";
 import type { IndicatorData, PercentileInfo } from "../hooks/useIndicators";
-import type { SignalData } from "../hooks/useSignals";
-import { useChartStore } from "../store/chartStore";
 import { useIndicators } from "../hooks/useIndicators";
 import { useOverlays } from "../hooks/useOverlays";
+import type { SignalData } from "../hooks/useSignals";
 import { useSignals } from "../hooks/useSignals";
+import { useChartStore } from "../store/chartStore";
 import { buildChartOption } from "../utils/chartConfig";
 
 // Register SVG renderer for SVG export support
@@ -40,9 +40,24 @@ export interface SignalSummary {
 }
 
 export interface FundamentalSummary {
-  per: { current: number; sma20: number | null; percentile: number | null; level: string | null } | null;
-  pbr: { current: number; sma20: number | null; percentile: number | null; level: string | null } | null;
-  roe: { current: number; sma20: number | null; percentile: number | null; level: string | null } | null;
+  per: {
+    current: number;
+    sma20: number | null;
+    percentile: number | null;
+    level: string | null;
+  } | null;
+  pbr: {
+    current: number;
+    sma20: number | null;
+    percentile: number | null;
+    level: string | null;
+  } | null;
+  roe: {
+    current: number;
+    sma20: number | null;
+    percentile: number | null;
+    level: string | null;
+  } | null;
 }
 
 export interface MainChartHandle {
@@ -179,14 +194,20 @@ export const MainChart = forwardRef<MainChartHandle>(function MainChart(_props, 
         let v = s.data[i];
         if (v == null || v === "-" || v === "") continue;
         // Handle ECharts object format: { value: n, itemStyle: {...} }
-        if (typeof v === "object" && !Array.isArray(v) && "value" in (v as Record<string, unknown>)) {
+        if (
+          typeof v === "object" &&
+          !Array.isArray(v) &&
+          "value" in (v as Record<string, unknown>)
+        ) {
           v = (v as Record<string, unknown>).value;
           if (v == null) continue;
         }
         if (typeof v === "number") {
           readings[s.name] = Math.round(v * 1000) / 1000;
         } else if (Array.isArray(v)) {
-          readings[s.name] = v.map((x) => (typeof x === "number" ? Math.round(x * 1000) / 1000 : x));
+          readings[s.name] = v.map((x) =>
+            typeof x === "number" ? Math.round(x * 1000) / 1000 : x,
+          );
         }
         break;
       }
@@ -219,9 +240,15 @@ export const MainChart = forwardRef<MainChartHandle>(function MainChart(_props, 
       validSeries.push({ name: s.name, data: s.data });
     }
 
-    const extractValue = (v: unknown): number | null => {
-      if (v == null || v === "-" || v === "") return null;
-      if (typeof v === "object" && !Array.isArray(v) && v !== null && "value" in (v as Record<string, unknown>)) {
+    const extractValue = (raw: unknown): number | null => {
+      if (raw == null || raw === "-" || raw === "") return null;
+      let v: unknown = raw;
+      if (
+        typeof v === "object" &&
+        !Array.isArray(v) &&
+        v !== null &&
+        "value" in (v as Record<string, unknown>)
+      ) {
         v = (v as Record<string, unknown>).value;
       }
       return typeof v === "number" ? Math.round(v * 100) / 100 : null;
@@ -234,7 +261,7 @@ export const MainChart = forwardRef<MainChartHandle>(function MainChart(_props, 
       if (candlestickData?.[i]) {
         const candle = candlestickData[i] as number[];
         if (Array.isArray(candle) && candle.length >= 2) {
-          row["Close"] = Math.round(candle[1] * 100) / 100;
+          row.Close = Math.round(candle[1] * 100) / 100;
         }
       }
       for (const s of validSeries) {
@@ -291,7 +318,7 @@ export const MainChart = forwardRef<MainChartHandle>(function MainChart(_props, 
     const lastVal = (arr?: (number | null)[]): number | null => {
       if (!arr) return null;
       for (let i = arr.length - 1; i >= 0; i--) {
-        if (arr[i] !== null) return Math.round(arr[i]! * 100) / 100;
+        if (arr[i] !== null) return Math.round((arr[i] as number) * 100) / 100;
       }
       return null;
     };
@@ -299,7 +326,7 @@ export const MainChart = forwardRef<MainChartHandle>(function MainChart(_props, 
     const buildEntry = (
       values?: (number | null)[],
       smaValues?: (number | null)[],
-      percentile?: PercentileInfo | null
+      percentile?: PercentileInfo | null,
     ) => {
       const current = lastVal(values);
       if (current === null) return null;
@@ -318,7 +345,27 @@ export const MainChart = forwardRef<MainChartHandle>(function MainChart(_props, 
     };
   }, []);
 
-  useImperativeHandle(ref, () => ({ exportPNG, exportSVG, getBase64PNG, getReadings, getTimeSeries, getSignalSummary, getFundamentalSummary }), [exportPNG, exportSVG, getBase64PNG, getReadings, getTimeSeries, getSignalSummary, getFundamentalSummary]);
+  useImperativeHandle(
+    ref,
+    () => ({
+      exportPNG,
+      exportSVG,
+      getBase64PNG,
+      getReadings,
+      getTimeSeries,
+      getSignalSummary,
+      getFundamentalSummary,
+    }),
+    [
+      exportPNG,
+      exportSVG,
+      getBase64PNG,
+      getReadings,
+      getTimeSeries,
+      getSignalSummary,
+      getFundamentalSummary,
+    ],
+  );
 
   const chartHeight = useMemo(() => {
     return calculateChartHeight(enabledIndicators.length);
@@ -336,30 +383,49 @@ export const MainChart = forwardRef<MainChartHandle>(function MainChart(_props, 
       enabledOverlays,
       chartHeight,
       indicatorParams,
-      zoomRange
+      zoomRange,
     );
-  }, [currentCandles, indicators, enabledIndicators, signals, enabledSignals, trades, overlays, enabledOverlays, chartHeight, indicatorParams, zoomRange]);
+  }, [
+    currentCandles,
+    indicators,
+    enabledIndicators,
+    signals,
+    enabledSignals,
+    trades,
+    overlays,
+    enabledOverlays,
+    chartHeight,
+    indicatorParams,
+    zoomRange,
+  ]);
 
   // Handle dataZoom events from chart interaction
-  const onEvents = useMemo(() => ({
-    datazoom: (params: { start?: number; end?: number; batch?: Array<{ start?: number; end?: number }> }) => {
-      // dataZoom can fire with different structures
-      let start: number | undefined;
-      let end: number | undefined;
+  const onEvents = useMemo(
+    () => ({
+      datazoom: (params: {
+        start?: number;
+        end?: number;
+        batch?: Array<{ start?: number; end?: number }>;
+      }) => {
+        // dataZoom can fire with different structures
+        let start: number | undefined;
+        let end: number | undefined;
 
-      if (params.batch && params.batch.length > 0) {
-        start = params.batch[0].start;
-        end = params.batch[0].end;
-      } else {
-        start = params.start;
-        end = params.end;
-      }
+        if (params.batch && params.batch.length > 0) {
+          start = params.batch[0].start;
+          end = params.batch[0].end;
+        } else {
+          start = params.start;
+          end = params.end;
+        }
 
-      if (start !== undefined && end !== undefined) {
-        setZoomRange({ start, end });
-      }
-    },
-  }), [setZoomRange]);
+        if (start !== undefined && end !== undefined) {
+          setZoomRange({ start, end });
+        }
+      },
+    }),
+    [setZoomRange],
+  );
 
   if (currentCandles.length === 0) {
     return null;

@@ -2,7 +2,7 @@
  * Strategy factory — creates ManagedSession from StrategyDefinition
  */
 
-import { streaming, type NormalizedCandle } from "trendcraft";
+import { type NormalizedCandle, streaming } from "trendcraft";
 import type { StrategyDefinition } from "./types.js";
 
 export type CreateSessionOptions = {
@@ -15,9 +15,7 @@ export type CreateSessionOptions = {
 /**
  * Create a ManagedSession from a StrategyDefinition
  */
-export function createSessionFromStrategy(
-  opts: CreateSessionOptions,
-): streaming.ManagedSession {
+export function createSessionFromStrategy(opts: CreateSessionOptions): streaming.ManagedSession {
   const { strategy, capital, warmUp, fromState } = opts;
 
   const sessionOptions: streaming.SessionOptions = {

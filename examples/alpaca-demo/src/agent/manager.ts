@@ -5,12 +5,12 @@
  * manages the agent lifecycle, and evaluates leaderboard rankings.
  */
 
-import type { streaming, NormalizedCandle } from "trendcraft";
+import type { NormalizedCandle, streaming } from "trendcraft";
+import type { OrderIntent } from "../executor/types.js";
 import type { StrategyDefinition } from "../strategy/types.js";
 import type { Agent } from "./agent.js";
-import type { AgentState } from "./types.js";
-import type { OrderIntent } from "../executor/types.js";
 import { createAgent } from "./agent.js";
+import type { AgentState } from "./types.js";
 
 export type AgentManagerOptions = {
   capital?: number;

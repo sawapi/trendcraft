@@ -2,14 +2,14 @@
  * Other indicator subchart builders: DMI/ADX, Range-Bound, ATR, Volatility Regime, PER, PBR, ROE, Scoring
  */
 
-import type { IndicatorParams, SubChartType } from "../../types";
 import type { IndicatorData } from "../../hooks/useIndicators";
+import type { IndicatorParams, SubChartType } from "../../types";
 import {
   COLORS,
-  createMarkLine,
-  createSubchart,
   type SeriesItem,
   type SubchartContext,
+  createMarkLine,
+  createSubchart,
 } from "../chartColors";
 
 /**
@@ -152,10 +152,13 @@ export function buildOtherSubcharts(
         value: v.atrPercentile,
         itemStyle: {
           color:
-            v.regime === "extreme" ? COLORS.volRegimeExtreme :
-            v.regime === "high" ? COLORS.volRegimeHigh :
-            v.regime === "low" ? COLORS.volRegimeLow :
-            COLORS.volRegimeNormal,
+            v.regime === "extreme"
+              ? COLORS.volRegimeExtreme
+              : v.regime === "high"
+                ? COLORS.volRegimeHigh
+                : v.regime === "low"
+                  ? COLORS.volRegimeLow
+                  : COLORS.volRegimeNormal,
         },
       })),
       markLine: createMarkLine([25, 75, 95]),
@@ -298,10 +301,13 @@ export function buildOtherSubcharts(
         value: s.normalizedScore,
         itemStyle: {
           color:
-            s.strength === "strong" ? COLORS.scoreStrong :
-            s.strength === "moderate" ? COLORS.scoreModerate :
-            s.strength === "weak" ? COLORS.scoreWeak :
-            COLORS.scoreNone,
+            s.strength === "strong"
+              ? COLORS.scoreStrong
+              : s.strength === "moderate"
+                ? COLORS.scoreModerate
+                : s.strength === "weak"
+                  ? COLORS.scoreWeak
+                  : COLORS.scoreNone,
         },
       })),
       markLine: createMarkLine([30, 50, 70]),

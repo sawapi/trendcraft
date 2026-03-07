@@ -10,16 +10,16 @@
  * 6. Cumulative drift cap
  */
 
+import { CONDITION_PALETTE, INDICATOR_PALETTE } from "../strategy/palette.js";
+import type { IndicatorRef, StrategyTemplate } from "../strategy/template.js";
+import { PRESET_TEMPLATES, getPresetTemplate, isCombined } from "../strategy/template.js";
 import type {
-  LLMAction,
-  LLMRecommendation,
   AdjustParamsAction,
   CreateStrategyAction,
+  LLMAction,
+  LLMRecommendation,
   ReviewRecord,
 } from "./types.js";
-import type { StrategyTemplate, IndicatorRef } from "../strategy/template.js";
-import { INDICATOR_PALETTE, CONDITION_PALETTE } from "../strategy/palette.js";
-import { PRESET_TEMPLATES, getPresetTemplate, isCombined } from "../strategy/template.js";
 
 export type ValidationResult = {
   valid: boolean;
@@ -27,14 +27,14 @@ export type ValidationResult = {
 };
 
 export type SafetyConfig = {
-  maxParamChangePct: number;     // max ±% change per day (default: 20)
-  maxKillsPerDay: number;        // default: 1
-  maxRevivesPerDay: number;      // default: 1
-  maxCreatesPerDay: number;      // default: 1
+  maxParamChangePct: number; // max ±% change per day (default: 20)
+  maxKillsPerDay: number; // default: 1
+  maxRevivesPerDay: number; // default: 1
+  maxCreatesPerDay: number; // default: 1
   maxCumulativeDriftPct: number; // max drift from original (default: 50)
-  minBacktestScore: number;      // for new strategies (default: 30)
+  minBacktestScore: number; // for new strategies (default: 30)
   minDaysBetweenChanges: number; // min days between changes to same strategy (default: 3)
-  maxChangesPerWeek: number;     // max total adjust_params actions per week (default: 3)
+  maxChangesPerWeek: number; // max total adjust_params actions per week (default: 3)
 };
 
 const DEFAULT_CONFIG: SafetyConfig = {
@@ -148,7 +148,7 @@ export function validateRecommendation(
         lastChangeDate.set(action.strategyId, Date.now());
       }
     } else {
-      rejected.push({ action, reason: result.reason! });
+      rejected.push({ action, reason: result.reason ?? "unknown" });
     }
   }
 
@@ -180,7 +180,7 @@ function validateAction(
       }
       return validateCreateStrategy(action, config);
     default:
-      return { valid: false, reason: `Unknown action type` };
+      return { valid: false, reason: "Unknown action type" };
   }
 }
 
@@ -191,8 +191,7 @@ function validateAdjustParams(
 ): ValidationResult {
   // Find the current template
   const current =
-    activeTemplates.find((t) => t.id === action.strategyId) ??
-    getPresetTemplate(action.strategyId);
+    activeTemplates.find((t) => t.id === action.strategyId) ?? getPresetTemplate(action.strategyId);
 
   if (!current) {
     return { valid: false, reason: `Strategy "${action.strategyId}" not found` };
@@ -323,12 +322,8 @@ function validateCreateStrategy(
   const indicatorNames = new Set(template.indicators.map((i) => i.name));
   const indicatorTypes = new Set(template.indicators.map((i) => i.type));
 
-  const conditionRefs = isCombined(template.entry)
-    ? template.entry.conditions
-    : [template.entry];
-  const exitRefs = isCombined(template.exit)
-    ? template.exit.conditions
-    : [template.exit];
+  const conditionRefs = isCombined(template.entry) ? template.entry.conditions : [template.entry];
+  const exitRefs = isCombined(template.exit) ? template.exit.conditions : [template.exit];
 
   for (const ref of [...conditionRefs, ...exitRefs]) {
     const condDef = CONDITION_PALETTE[ref.type];

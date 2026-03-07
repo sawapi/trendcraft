@@ -20,14 +20,22 @@ export type BollingerBandsState = {
 
 function getSourcePrice(candle: NormalizedCandle, source: PriceSource): number {
   switch (source) {
-    case "open": return candle.open;
-    case "high": return candle.high;
-    case "low": return candle.low;
-    case "close": return candle.close;
-    case "hl2": return (candle.high + candle.low) / 2;
-    case "hlc3": return (candle.high + candle.low + candle.close) / 3;
-    case "ohlc4": return (candle.open + candle.high + candle.low + candle.close) / 4;
-    default: return candle.close;
+    case "open":
+      return candle.open;
+    case "high":
+      return candle.high;
+    case "low":
+      return candle.low;
+    case "close":
+      return candle.close;
+    case "hl2":
+      return (candle.high + candle.low) / 2;
+    case "hlc3":
+      return (candle.high + candle.low + candle.close) / 3;
+    case "ohlc4":
+      return (candle.open + candle.high + candle.low + candle.close) / 4;
+    default:
+      return candle.close;
   }
 }
 
@@ -77,7 +85,11 @@ export function createBollingerBands(
     bandwidth: null,
   };
 
-  function computeBands(currentSum: number, currentSumSq: number, price: number): BollingerBandsValue {
+  function computeBands(
+    currentSum: number,
+    currentSumSq: number,
+    price: number,
+  ): BollingerBandsValue {
     const mean = currentSum / period;
     const variance = Math.max(0, currentSumSq / period - mean * mean);
     const std = Math.sqrt(variance);

@@ -3,8 +3,8 @@
  * Display signal event list (toggles moved to Settings dialog)
  */
 
-import { useChartStore } from "../store/chartStore";
 import { useSignals } from "../hooks/useSignals";
+import { useChartStore } from "../store/chartStore";
 
 /**
  * Format timestamp to date string
@@ -35,7 +35,8 @@ export function SignalsPanel() {
   const startIdx = Math.floor((zoomRange.start / 100) * totalCandles);
   const endIdx = Math.ceil((zoomRange.end / 100) * totalCandles) - 1;
   const startDate = currentCandles[Math.max(0, startIdx)]?.time ?? 0;
-  const endDate = currentCandles[Math.min(totalCandles - 1, endIdx)]?.time ?? Number.POSITIVE_INFINITY;
+  const endDate =
+    currentCandles[Math.min(totalCandles - 1, endIdx)]?.time ?? Number.POSITIVE_INFINITY;
 
   return (
     <div className="signals-panel">
@@ -43,47 +44,27 @@ export function SignalsPanel() {
 
       {/* Perfect Order Events */}
       {enabledSignals.includes("perfectOrder") && signals.perfectOrder && (
-        <PerfectOrderEvents
-          data={signals.perfectOrder}
-          startDate={startDate}
-          endDate={endDate}
-        />
+        <PerfectOrderEvents data={signals.perfectOrder} startDate={startDate} endDate={endDate} />
       )}
 
       {/* Range-Bound Events */}
       {enabledSignals.includes("rangeBound") && signals.rangeBound && (
-        <RangeBoundEvents
-          data={signals.rangeBound}
-          startDate={startDate}
-          endDate={endDate}
-        />
+        <RangeBoundEvents data={signals.rangeBound} startDate={startDate} endDate={endDate} />
       )}
 
       {/* Cross Events */}
       {enabledSignals.includes("cross") && signals.crossSignals && (
-        <CrossEvents
-          data={signals.crossSignals}
-          startDate={startDate}
-          endDate={endDate}
-        />
+        <CrossEvents data={signals.crossSignals} startDate={startDate} endDate={endDate} />
       )}
 
       {/* Divergence Events */}
       {enabledSignals.includes("divergence") && signals.divergence && (
-        <DivergenceEvents
-          data={signals.divergence}
-          startDate={startDate}
-          endDate={endDate}
-        />
+        <DivergenceEvents data={signals.divergence} startDate={startDate} endDate={endDate} />
       )}
 
       {/* BB Squeeze Events */}
       {enabledSignals.includes("bbSqueeze") && signals.bbSqueeze && (
-        <SqueezeEvents
-          data={signals.bbSqueeze}
-          startDate={startDate}
-          endDate={endDate}
-        />
+        <SqueezeEvents data={signals.bbSqueeze} startDate={startDate} endDate={endDate} />
       )}
     </div>
   );
@@ -135,10 +116,18 @@ function PerfectOrderEvents({ data, startDate, endDate }: PerfectOrderEventsProp
     if (po.value.confirmationFormed && po.value.state === "BEARISH_PO") {
       events.push({ time: po.time, type: "bearish_confirmed", confidence: po.value.confidence });
     }
-    if (po.value.state === "PRE_BULLISH_PO" && po.value.persistCount === 1 && !hasEverConfirmedBullish) {
+    if (
+      po.value.state === "PRE_BULLISH_PO" &&
+      po.value.persistCount === 1 &&
+      !hasEverConfirmedBullish
+    ) {
       events.push({ time: po.time, type: "pre_bullish", confidence: po.value.confidence });
     }
-    if (po.value.state === "PRE_BEARISH_PO" && po.value.persistCount === 1 && !hasEverConfirmedBearish) {
+    if (
+      po.value.state === "PRE_BEARISH_PO" &&
+      po.value.persistCount === 1 &&
+      !hasEverConfirmedBearish
+    ) {
       events.push({ time: po.time, type: "pre_bearish", confidence: po.value.confidence });
     }
     if (po.value.breakdownDetected) {
@@ -150,10 +139,14 @@ function PerfectOrderEvents({ data, startDate, endDate }: PerfectOrderEventsProp
     if (po.value.pullbackBuySignal && po.value.type === "bullish") {
       const shortMa = po.value.maValues[0];
       const midMa = po.value.maValues[1];
-      const gapPercent = shortMa !== null && midMa !== null && midMa !== 0
-        ? ((shortMa - midMa) / midMa) * 100
-        : 0;
-      events.push({ time: po.time, type: "pullback_buy", confidence: po.value.confidence, gapPercent });
+      const gapPercent =
+        shortMa !== null && midMa !== null && midMa !== 0 ? ((shortMa - midMa) / midMa) * 100 : 0;
+      events.push({
+        time: po.time,
+        type: "pullback_buy",
+        confidence: po.value.confidence,
+        gapPercent,
+      });
     }
   });
 
@@ -372,11 +365,17 @@ function CrossEvents({ data, startDate, endDate }: CrossEventsProps) {
           const isGolden = s.type === "golden";
           const label = isGolden ? "GC" : "DC";
           const fakeLabel = s.isFake ? " (fake?)" : "";
-          const daysLabel = s.details.daysUntilReverse !== null ? ` [→${s.details.daysUntilReverse}d]` : "";
+          const daysLabel =
+            s.details.daysUntilReverse !== null ? ` [→${s.details.daysUntilReverse}d]` : "";
 
           const volIcon = s.details.volumeConfirmed ? "✓" : "✗";
           const trendIcon = s.details.trendConfirmed ? "✓" : "✗";
-          const holdIcon = s.details.holdingConfirmed === true ? "✓" : s.details.holdingConfirmed === false ? "✗" : "?";
+          const holdIcon =
+            s.details.holdingConfirmed === true
+              ? "✓"
+              : s.details.holdingConfirmed === false
+                ? "✗"
+                : "?";
           const priceIcon = s.details.pricePositionConfirmed ? "✓" : "✗";
           const tooltip = `Vol: ${volIcon} / Trend: ${trendIcon} / Hold: ${holdIcon} / Price: ${priceIcon}`;
 
@@ -386,7 +385,9 @@ function CrossEvents({ data, startDate, endDate }: CrossEventsProps) {
 
           return (
             <span key={i} className={className} title={tooltip}>
-              {label} {formatDate(s.time)}{daysLabel}{fakeLabel}
+              {label} {formatDate(s.time)}
+              {daysLabel}
+              {fakeLabel}
             </span>
           );
         })}

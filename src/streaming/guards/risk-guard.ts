@@ -21,7 +21,7 @@
  * ```
  */
 
-import type { RiskGuardOptions, RiskGuardState, RiskGuard } from "./types";
+import type { RiskGuard, RiskGuardOptions, RiskGuardState } from "./types";
 
 const MS_PER_DAY = 86_400_000;
 
@@ -64,10 +64,7 @@ function getDayNumber(time: number, resetTimeOffsetMs: number): number {
  * const restored = createRiskGuard(options, state);
  * ```
  */
-export function createRiskGuard(
-  options: RiskGuardOptions,
-  fromState?: RiskGuardState,
-): RiskGuard {
+export function createRiskGuard(options: RiskGuardOptions, fromState?: RiskGuardState): RiskGuard {
   const resetTimeOffsetMs = options.resetTimeOffsetMs ?? 0;
 
   let dailyPnl = fromState?.dailyPnl ?? 0;
@@ -108,13 +105,8 @@ export function createRiskGuard(
       }
 
       // Check max drawdown from peak equity
-      if (
-        options.maxDrawdownPercent !== undefined &&
-        peakEquity > 0 &&
-        currentEquity > 0
-      ) {
-        const drawdownPercent =
-          ((peakEquity - currentEquity) / peakEquity) * 100;
+      if (options.maxDrawdownPercent !== undefined && peakEquity > 0 && currentEquity > 0) {
+        const drawdownPercent = ((peakEquity - currentEquity) / peakEquity) * 100;
         if (drawdownPercent >= options.maxDrawdownPercent) {
           return {
             allowed: false,
@@ -124,10 +116,7 @@ export function createRiskGuard(
       }
 
       // Check daily loss limit
-      if (
-        options.maxDailyLoss !== undefined &&
-        dailyPnl <= options.maxDailyLoss
-      ) {
+      if (options.maxDailyLoss !== undefined && dailyPnl <= options.maxDailyLoss) {
         return {
           allowed: false,
           reason: `Daily loss limit reached: ${dailyPnl} <= ${options.maxDailyLoss}`,
@@ -135,10 +124,7 @@ export function createRiskGuard(
       }
 
       // Check daily trade count
-      if (
-        options.maxDailyTrades !== undefined &&
-        dailyTradeCount >= options.maxDailyTrades
-      ) {
+      if (options.maxDailyTrades !== undefined && dailyTradeCount >= options.maxDailyTrades) {
         return {
           allowed: false,
           reason: `Daily trade limit reached: ${dailyTradeCount} >= ${options.maxDailyTrades}`,
@@ -188,10 +174,7 @@ export function createRiskGuard(
     },
 
     checkPositionSize(positionValue: number) {
-      if (
-        options.maxPositionPercent !== undefined &&
-        currentEquity > 0
-      ) {
+      if (options.maxPositionPercent !== undefined && currentEquity > 0) {
         const positionPercent = (Math.abs(positionValue) / currentEquity) * 100;
         if (positionPercent > options.maxPositionPercent) {
           return {

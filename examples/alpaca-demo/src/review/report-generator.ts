@@ -5,25 +5,25 @@
  * to produce a daily review report in both JSON and Markdown formats.
  */
 
-import { readFileSync, existsSync } from "node:fs";
-import { resolve, dirname } from "node:path";
-import { mkdirSync, writeFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { mkdirSync, readdirSync, writeFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 import type { Agent } from "../agent/agent.js";
 import type { AgentState } from "../agent/types.js";
-import { evaluateAgent } from "../tracker/leaderboard.js";
+import type { ScoredResult } from "../backtest/scorer.js";
 import { getPalette } from "../strategy/palette.js";
+import type { ParameterOverride } from "../strategy/template.js";
+import { evaluateAgent } from "../tracker/leaderboard.js";
 import type {
-  DailyReport,
   AgentReport,
   BacktestEntry,
-  MarketContext,
+  BuyAndHoldBenchmark,
+  DailyReport,
   HistoricalMetric,
   LeaderboardEntry,
+  MarketContext,
   TradeRecord,
-  BuyAndHoldBenchmark,
 } from "./types.js";
-import type { ParameterOverride } from "../strategy/template.js";
-import type { ScoredResult } from "../backtest/scorer.js";
 
 const DATA_DIR = resolve(import.meta.dirname, "../../data");
 const REVIEWS_DIR = resolve(DATA_DIR, "reviews");
@@ -191,7 +191,7 @@ function extractRecentTrades(agent: Agent): TradeRecord[] {
       entryPrice: t.entryPrice,
       exitPrice: t.exitPrice,
       shares: 0,
-      side: (t.direction ?? "long") === "long" ? "buy" as const : "sell" as const,
+      side: (t.direction ?? "long") === "long" ? ("buy" as const) : ("sell" as const),
       pnl: t.return,
       returnPercent: t.returnPercent,
       reason: t.exitReason ?? "signal",
@@ -214,31 +214,19 @@ function computeAgentScore(report: AgentReport): number {
   const m = report.metrics;
   const sharpeNorm = Math.min(Math.max(m.sharpeRatio, 0) / 2, 1) * 100;
   const winRateNorm = Math.min(m.winRate, 100);
-  const ddNorm = Math.max(0, (1 - m.maxDrawdown / 50)) * 100;
+  const ddNorm = Math.max(0, 1 - m.maxDrawdown / 50) * 100;
   const pfNorm =
-    Math.min(
-      Math.max(m.profitFactor === Infinity ? 3 : m.profitFactor, 0) / 3,
-      1,
-    ) * 100;
-  const retNorm =
-    Math.min(Math.max((m.totalReturnPercent + 50) / 150, 0), 1) * 100;
+    Math.min(Math.max(m.profitFactor === Number.POSITIVE_INFINITY ? 3 : m.profitFactor, 0) / 3, 1) *
+    100;
+  const retNorm = Math.min(Math.max((m.totalReturnPercent + 50) / 150, 0), 1) * 100;
 
-  return (
-    sharpeNorm * 0.3 +
-    winRateNorm * 0.15 +
-    ddNorm * 0.2 +
-    pfNorm * 0.2 +
-    retNorm * 0.15
-  );
+  return sharpeNorm * 0.3 + winRateNorm * 0.15 + ddNorm * 0.2 + pfNorm * 0.2 + retNorm * 0.15;
 }
 
 /**
  * Load metrics from past N days of reports
  */
-function loadHistoricalTrend(
-  currentDate: string,
-  days: number,
-): HistoricalMetric[] {
+function loadHistoricalTrend(currentDate: string, days: number): HistoricalMetric[] {
   ensureDir(REVIEWS_DIR);
   const results: HistoricalMetric[] = [];
 
@@ -299,16 +287,12 @@ function formatReportMarkdown(report: DailyReport): string {
   // Leaderboard
   lines.push("## Agent Leaderboard");
   lines.push("");
-  lines.push(
-    "| Rank | Agent | Score | Return% | WinRate | Sharpe | MaxDD | PF | Trades |",
-  );
-  lines.push(
-    "|------|-------|-------|---------|---------|--------|-------|----|--------|",
-  );
+  lines.push("| Rank | Agent | Score | Return% | WinRate | Sharpe | MaxDD | PF | Trades |");
+  lines.push("|------|-------|-------|---------|---------|--------|-------|----|--------|");
   for (const entry of report.leaderboard) {
     const m = entry.metrics;
     lines.push(
-      `| #${entry.rank} | ${entry.agentId} | ${entry.score.toFixed(1)} | ${m.totalReturnPercent.toFixed(2)}% | ${m.winRate.toFixed(1)}% | ${m.sharpeRatio.toFixed(2)} | ${m.maxDrawdown.toFixed(1)}% | ${m.profitFactor === Infinity ? "Inf" : m.profitFactor.toFixed(2)} | ${m.totalTrades} |`,
+      `| #${entry.rank} | ${entry.agentId} | ${entry.score.toFixed(1)} | ${m.totalReturnPercent.toFixed(2)}% | ${m.winRate.toFixed(1)}% | ${m.sharpeRatio.toFixed(2)} | ${m.maxDrawdown.toFixed(1)}% | ${m.profitFactor === Number.POSITIVE_INFINITY ? "Inf" : m.profitFactor.toFixed(2)} | ${m.totalTrades} |`,
     );
   }
   lines.push("");
@@ -323,9 +307,13 @@ function formatReportMarkdown(report: DailyReport): string {
     lines.push(`- **Strategy**: ${agent.strategyId}`);
     lines.push(`- **Symbol**: ${agent.symbol}`);
     lines.push(`- **Tier**: ${agent.tier}`);
-    lines.push(`- **Total Return**: $${agent.metrics.totalReturn.toFixed(2)} (${agent.metrics.totalReturnPercent.toFixed(2)}%)`);
+    lines.push(
+      `- **Total Return**: $${agent.metrics.totalReturn.toFixed(2)} (${agent.metrics.totalReturnPercent.toFixed(2)}%)`,
+    );
     lines.push(`- **Daily P&L**: $${agent.metrics.dailyPnl.toFixed(2)}`);
-    lines.push(`- **Promotion**: ${agent.promotionDecision.action} — ${agent.promotionDecision.reason}`);
+    lines.push(
+      `- **Promotion**: ${agent.promotionDecision.action} — ${agent.promotionDecision.reason}`,
+    );
     lines.push("");
   }
 
@@ -341,7 +329,7 @@ function formatReportMarkdown(report: DailyReport): string {
     );
     report.backtestResults.forEach((b, i) => {
       lines.push(
-        `| #${i + 1} | ${b.strategyId} | ${b.symbol} | ${b.score.toFixed(1)} | ${b.totalReturnPercent.toFixed(2)}% | ${b.winRate.toFixed(1)}% | ${b.sharpeRatio.toFixed(2)} | ${b.maxDrawdown.toFixed(1)}% | ${b.profitFactor === Infinity ? "Inf" : b.profitFactor.toFixed(2)} | ${b.tradeCount} |`,
+        `| #${i + 1} | ${b.strategyId} | ${b.symbol} | ${b.score.toFixed(1)} | ${b.totalReturnPercent.toFixed(2)}% | ${b.winRate.toFixed(1)}% | ${b.sharpeRatio.toFixed(2)} | ${b.maxDrawdown.toFixed(1)}% | ${b.profitFactor === Number.POSITIVE_INFINITY ? "Inf" : b.profitFactor.toFixed(2)} | ${b.tradeCount} |`,
       );
     });
     lines.push("");

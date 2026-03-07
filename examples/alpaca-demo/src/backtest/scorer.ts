@@ -17,10 +17,10 @@ export type ScoreWeights = {
 };
 
 export const DEFAULT_WEIGHTS: ScoreWeights = {
-  sharpe: 0.30,
+  sharpe: 0.3,
   winRate: 0.15,
-  drawdown: 0.20,
-  profitFactor: 0.20,
+  drawdown: 0.2,
+  profitFactor: 0.2,
   returnPercent: 0.15,
 };
 
@@ -59,19 +59,17 @@ export function scoreResult(
   const winRateNorm = Math.min(result.winRate, 100);
 
   // Drawdown: 0% = 100, 50%+ = 0 (inverse scale)
-  const drawdownNorm = Math.max(0, (1 - result.maxDrawdown / 50)) * 100;
+  const drawdownNorm = Math.max(0, 1 - result.maxDrawdown / 50) * 100;
 
   // Profit factor: 0 = 0, 3+ = 100
   const pfNorm =
     Math.min(
-      Math.max(result.profitFactor === Infinity ? 3 : result.profitFactor, 0) /
-        3,
+      Math.max(result.profitFactor === Number.POSITIVE_INFINITY ? 3 : result.profitFactor, 0) / 3,
       1,
     ) * 100;
 
   // Return percent: -50% = 0, +100%+ = 100
-  const retNorm =
-    Math.min(Math.max((result.totalReturnPercent + 50) / 150, 0), 1) * 100;
+  const retNorm = Math.min(Math.max((result.totalReturnPercent + 50) / 150, 0), 1) * 100;
 
   const breakdown = {
     sharpe: sharpeNorm,
@@ -91,7 +89,7 @@ export function scoreResult(
   // Monte Carlo penalty: if 5th percentile return is negative, reduce score
   if (monteCarlo && monteCarlo.percentile5Return < 0) {
     const penalty = Math.min(Math.abs(monteCarlo.percentile5Return) / 10, 0.3);
-    score *= (1 - penalty);
+    score *= 1 - penalty;
   }
 
   return { strategyId, symbol, score, result, breakdown, monteCarlo };

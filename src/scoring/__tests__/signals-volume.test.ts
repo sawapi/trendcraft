@@ -130,11 +130,7 @@ describe("createVolumeAnomalyEvaluator", () => {
     const precomputed: PrecomputedIndicators = {
       volumeAnomaly: Array(25)
         .fill(null)
-        .map((_, i) =>
-          i >= 20
-            ? { ratio: 3, level: "high", isAnomaly: true, zScore: 3 }
-            : null,
-        ),
+        .map((_, i) => (i >= 20 ? { ratio: 3, level: "high", isAnomaly: true, zScore: 3 } : null)),
     };
     const score = evaluate(candles, 22, undefined, precomputed);
     // isAnomaly=true, zScore=3, excess=1: min(1, 0.7 + 1 * 0.1) = 0.8
@@ -148,9 +144,7 @@ describe("createVolumeAnomalyEvaluator", () => {
       volumeAnomaly: Array(25)
         .fill(null)
         .map((_, i) =>
-          i >= 20
-            ? { ratio: 10, level: "extreme", isAnomaly: true, zScore: 10 }
-            : null,
+          i >= 20 ? { ratio: 10, level: "extreme", isAnomaly: true, zScore: 10 } : null,
         ),
     };
     const score = evaluate(candles, 22, undefined, precomputed);
@@ -164,9 +158,7 @@ describe("createVolumeAnomalyEvaluator", () => {
       volumeAnomaly: Array(25)
         .fill(null)
         .map((_, i) =>
-          i >= 20
-            ? { ratio: 1, level: "normal", isAnomaly: false, zScore: 0.5 }
-            : null,
+          i >= 20 ? { ratio: 1, level: "normal", isAnomaly: false, zScore: 0.5 } : null,
         ),
     };
     expect(evaluate(candles, 22, undefined, precomputed)).toBe(0);
@@ -179,9 +171,7 @@ describe("createVolumeAnomalyEvaluator", () => {
       volumeAnomaly: Array(25)
         .fill(null)
         .map((_, i) =>
-          i >= 20
-            ? { ratio: 3, level: "high", isAnomaly: true, zScore: null }
-            : null,
+          i >= 20 ? { ratio: 3, level: "high", isAnomaly: true, zScore: null } : null,
         ),
     };
     expect(evaluate(candles, 22, undefined, precomputed)).toBe(0);

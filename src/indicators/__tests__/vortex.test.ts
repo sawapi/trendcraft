@@ -3,9 +3,7 @@ import type { NormalizedCandle } from "../../types";
 import { vortex } from "../trend/vortex";
 
 describe("vortex", () => {
-  const makeCandles = (
-    data: { high: number; low: number; close: number }[],
-  ): NormalizedCandle[] =>
+  const makeCandles = (data: { high: number; low: number; close: number }[]): NormalizedCandle[] =>
     data.map((d, i) => ({
       time: 1700000000000 + i * 86400000,
       open: d.close,

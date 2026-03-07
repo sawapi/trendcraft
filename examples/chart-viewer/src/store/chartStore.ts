@@ -215,7 +215,7 @@ function filterDataByYears(
 /**
  * Calculate initial zoom range to show last N days (default: 6 months = 120 trading days)
  */
-function calculateInitialZoom(candleCount: number, days: number = 120): ZoomRange {
+function calculateInitialZoom(candleCount: number, days = 120): ZoomRange {
   if (candleCount === 0 || days >= candleCount) {
     return { start: 0, end: 100 };
   }
@@ -232,7 +232,11 @@ function recomputeCandles(
   fundamentals: FundamentalData | null,
   years: DisplayStartYears,
   timeframe: Timeframe,
-): { currentCandles: NormalizedCandle[]; currentFundamentals: FundamentalData | null; zoomRange: ZoomRange } {
+): {
+  currentCandles: NormalizedCandle[];
+  currentFundamentals: FundamentalData | null;
+  zoomRange: ZoomRange;
+} {
   const filtered = filterDataByYears(rawCandles, fundamentals, years);
   const currentCandles = convertTimeframe(filtered.candles, timeframe);
   const zoomRange = calculateInitialZoom(currentCandles.length, 120);
@@ -260,7 +264,11 @@ export const useChartStore = create<ChartStore>((set, get) => ({
   isBacktestRunning: false,
 
   // Actions
-  loadCandles: (candles: NormalizedCandle[], fundamentals: FundamentalData | null, fileName: string) => {
+  loadCandles: (
+    candles: NormalizedCandle[],
+    fundamentals: FundamentalData | null,
+    fileName: string,
+  ) => {
     const { timeframe, displayStartYears } = get();
     const computed = recomputeCandles(candles, fundamentals, displayStartYears, timeframe);
 

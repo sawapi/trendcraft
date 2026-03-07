@@ -7,14 +7,14 @@
  */
 
 import {
+  rsiAbove as backtestRsiAbove,
+  rsiBelow as backtestRsiBelow,
   incremental,
   streaming,
-  rsiBelow as backtestRsiBelow,
-  rsiAbove as backtestRsiAbove,
 } from "trendcraft";
-import type { StrategyDefinition } from "../types.js";
-import { DEFAULT_SYMBOLS } from "../../config/symbols.js";
 import { US_MARKET_HOURS } from "../../config/market-hours.js";
+import { DEFAULT_SYMBOLS } from "../../config/symbols.js";
+import type { StrategyDefinition } from "../types.js";
 
 export const rsiMeanReversion: StrategyDefinition = {
   id: "rsi-mean-reversion",
@@ -24,9 +24,7 @@ export const rsiMeanReversion: StrategyDefinition = {
   symbols: DEFAULT_SYMBOLS,
 
   pipeline: {
-    indicators: [
-      { name: "rsi", create: () => incremental.createRsi({ period: 14 }) },
-    ],
+    indicators: [{ name: "rsi", create: () => incremental.createRsi({ period: 14 }) }],
     entry: streaming.rsiBelow(30),
     exit: streaming.rsiAbove(70),
   },

@@ -4,13 +4,13 @@
  * Converts various TrendCraft signal types into the unified TradeSignal format.
  */
 
+import type { PipelineResult } from "../../streaming/types";
+import type { ScoreBreakdown } from "../../types/scoring";
+import type { PriceLevels, TradeSignal } from "../../types/trade-signal";
+import type { SqueezeSignal } from "../bollinger-squeeze";
 import type { CrossSignalQuality } from "../cross";
 import type { DivergenceSignal } from "../divergence";
-import type { SqueezeSignal } from "../bollinger-squeeze";
 import type { PatternSignal } from "../patterns/types";
-import type { ScoreBreakdown } from "../../types/scoring";
-import type { PipelineResult } from "../../streaming/types";
-import type { PriceLevels, TradeSignal } from "../../types/trade-signal";
 
 /**
  * Convert a CrossSignalQuality to a TradeSignal
@@ -25,10 +25,7 @@ import type { PriceLevels, TradeSignal } from "../../types/trade-signal";
  * const tradeSignals = signals.map(s => fromCrossSignal(s, candles[i].close));
  * ```
  */
-export function fromCrossSignal(
-  signal: CrossSignalQuality,
-  entryPrice?: number,
-): TradeSignal {
+export function fromCrossSignal(signal: CrossSignalQuality, entryPrice?: number): TradeSignal {
   const isGolden = signal.type === "golden";
   return {
     id: `cross-${signal.type}-${signal.time}`,
@@ -66,10 +63,7 @@ export function fromCrossSignal(
  * const tradeSignals = divSignals.map(s => fromDivergenceSignal(s, candles[s.secondIdx].close));
  * ```
  */
-export function fromDivergenceSignal(
-  signal: DivergenceSignal,
-  entryPrice?: number,
-): TradeSignal {
+export function fromDivergenceSignal(signal: DivergenceSignal, entryPrice?: number): TradeSignal {
   const isBullish = signal.type === "bullish";
   return {
     id: `divergence-${signal.type}-${signal.time}`,
@@ -151,10 +145,7 @@ export function fromSqueezeSignal(
  * const tradeSignals = patterns.map(p => fromPatternSignal(p));
  * ```
  */
-export function fromPatternSignal(
-  signal: PatternSignal,
-  entryPrice?: number,
-): TradeSignal {
+export function fromPatternSignal(signal: PatternSignal, entryPrice?: number): TradeSignal {
   const bullishPatterns = ["double_bottom", "inverse_head_shoulders", "cup_handle"];
   const isBullish = bullishPatterns.includes(signal.type);
 

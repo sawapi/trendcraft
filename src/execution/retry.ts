@@ -19,7 +19,7 @@
  * ```
  */
 
-import type { RetryOptions, PollOptions } from "./types";
+import type { PollOptions, RetryOptions } from "./types";
 
 /**
  * Calculate delay with optional jitter
@@ -31,10 +31,7 @@ function computeDelay(
   backoffMultiplier: number,
   jitter: boolean,
 ): number {
-  const base = Math.min(
-    initialDelayMs * backoffMultiplier ** attempt,
-    maxDelayMs,
-  );
+  const base = Math.min(initialDelayMs * backoffMultiplier ** attempt, maxDelayMs);
   if (!jitter) return base;
   // Full jitter: uniform random in [0, base]
   return Math.random() * base;
@@ -57,10 +54,7 @@ function computeDelay(
  * });
  * ```
  */
-export async function withRetry<T>(
-  fn: () => Promise<T>,
-  options?: RetryOptions,
-): Promise<T> {
+export async function withRetry<T>(fn: () => Promise<T>, options?: RetryOptions): Promise<T> {
   const maxAttempts = options?.maxAttempts ?? 3;
   const initialDelayMs = options?.initialDelayMs ?? 500;
   const maxDelayMs = options?.maxDelayMs ?? 10_000;
@@ -86,13 +80,7 @@ export async function withRetry<T>(
         throw err;
       }
 
-      const delay = computeDelay(
-        attempt,
-        initialDelayMs,
-        maxDelayMs,
-        backoffMultiplier,
-        jitter,
-      );
+      const delay = computeDelay(attempt, initialDelayMs, maxDelayMs, backoffMultiplier, jitter);
       await new Promise((resolve) => setTimeout(resolve, delay));
     }
   }

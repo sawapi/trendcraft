@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import type { NormalizedCandle, Condition } from "../../types";
+import type { Condition, NormalizedCandle } from "../../types";
 import { screenStockSafe } from "../screen-stock";
 
 const makeCandles = (count: number, basePrice = 100): NormalizedCandle[] =>

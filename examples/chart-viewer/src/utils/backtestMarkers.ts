@@ -4,7 +4,7 @@
 
 import type { NormalizedCandle, Trade } from "trendcraft";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// biome-ignore lint/suspicious/noExplicitAny: ECharts internal type
 type MarkPointItem = any;
 
 /**
@@ -24,7 +24,7 @@ function formatDate(timestamp: number): string {
 export function createTradeMarkers(
   trades: Trade[],
   candles: NormalizedCandle[],
-  dates: string[]
+  dates: string[],
 ): MarkPointItem[] {
   if (!trades || trades.length === 0) return [];
 
@@ -87,7 +87,7 @@ export function createTradeMarkers(
 export function buildEquityCurve(
   trades: Trade[],
   capital: number,
-  candles: NormalizedCandle[]
+  candles: NormalizedCandle[],
 ): Array<{ time: number; equity: number; date: string }> {
   if (!trades || trades.length === 0) return [];
 

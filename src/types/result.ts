@@ -246,9 +246,7 @@ export function collectResults<T, E>(results: Result<T, E>[]): Result<T[], E> {
  * // failures: [{ code: "NO_DATA", ... }]
  * ```
  */
-export function partitionResults<T, E>(
-  results: Result<T, E>[],
-): { successes: T[]; failures: E[] } {
+export function partitionResults<T, E>(results: Result<T, E>[]): { successes: T[]; failures: E[] } {
   const successes: T[] = [];
   const failures: E[] = [];
   for (const result of results) {
@@ -272,10 +270,7 @@ export function partitionResults<T, E>(
  * );
  * ```
  */
-export function tryCatch<T, E>(
-  fn: () => T,
-  onError: (error: unknown) => E,
-): Result<T, E> {
+export function tryCatch<T, E>(fn: () => T, onError: (error: unknown) => E): Result<T, E> {
   try {
     return ok(fn());
   } catch (error) {

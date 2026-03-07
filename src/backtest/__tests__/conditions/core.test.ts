@@ -146,7 +146,10 @@ describe("MTF condition handling", () => {
   });
 
   it("should return false for requiresMtf on non-MTF conditions", () => {
-    const simple = and(() => true, () => false);
+    const simple = and(
+      () => true,
+      () => false,
+    );
     expect(requiresMtf(simple)).toBe(false);
     expect(getRequiredTimeframes(simple).size).toBe(0);
   });

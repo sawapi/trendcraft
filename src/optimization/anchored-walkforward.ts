@@ -11,7 +11,6 @@
 import { runBacktest } from "../backtest";
 import { and } from "../backtest/conditions";
 import type { BacktestOptions, NormalizedCandle } from "../types";
-import { type Result, ok, err, tcError } from "../types/result";
 import type {
   AWFPeriod,
   AWFResult,
@@ -19,17 +18,18 @@ import type {
   OptimizationConstraint,
   OptimizationMetric,
 } from "../types/optimization";
+import { type Result, err, ok, tcError } from "../types/result";
+import {
+  analyzeConditionStability,
+  calculateAggregateAWFMetrics,
+  generateAWFRecommendation,
+} from "./anchored-walkforward-utils";
 import {
   type CombinationSearchOptions,
   type ConditionDefinition,
   combinationSearch,
 } from "./combination-search";
 import { calculateAllMetrics } from "./metrics";
-import {
-  calculateAggregateAWFMetrics,
-  analyzeConditionStability,
-  generateAWFRecommendation,
-} from "./anchored-walkforward-utils";
 
 // Re-export public utility functions
 export {
@@ -259,7 +259,15 @@ export function anchoredWalkForwardAnalysisSafe(
   combinationOptions: Omit<CombinationSearchOptions, "progressCallback"> = {},
 ): Result<AWFResult> {
   try {
-    return ok(anchoredWalkForwardAnalysis(candles, entryConditions, exitConditions, options, combinationOptions));
+    return ok(
+      anchoredWalkForwardAnalysis(
+        candles,
+        entryConditions,
+        exitConditions,
+        options,
+        combinationOptions,
+      ),
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     const code = message.includes("Insufficient data")

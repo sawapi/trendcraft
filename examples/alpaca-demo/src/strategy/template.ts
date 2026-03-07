@@ -128,8 +128,7 @@ export const PRESET_TEMPLATES: StrategyTemplate[] = [
   {
     id: "macd-trend",
     name: "MACD Trend Following",
-    description:
-      "Enter on MACD bullish cross, exit on bearish cross with trailing stop",
+    description: "Enter on MACD bullish cross, exit on bearish cross with trailing stop",
     intervalMs: 60_000,
     symbols: ["AAPL", "SPY", "MSFT", "GOOGL", "AMZN"],
     indicators: [
@@ -156,8 +155,7 @@ export const PRESET_TEMPLATES: StrategyTemplate[] = [
   {
     id: "bollinger-squeeze",
     name: "Bollinger Squeeze",
-    description:
-      "Buy at lower Bollinger Band + RSI < 40, sell at upper band or RSI > 70",
+    description: "Buy at lower Bollinger Band + RSI < 40, sell at upper band or RSI > 70",
     intervalMs: 60_000,
     symbols: ["AAPL", "SPY", "MSFT", "GOOGL", "AMZN"],
     indicators: [
@@ -218,8 +216,7 @@ export const PRESET_TEMPLATES: StrategyTemplate[] = [
   {
     id: "dmi-trend",
     name: "DMI Trend",
-    description:
-      "Enter when ADX >= 25 and +DI > -DI (bullish), exit when bearish or ADX weakens",
+    description: "Enter when ADX >= 25 and +DI > -DI (bullish), exit when bearish or ADX weakens",
     intervalMs: 60_000,
     symbols: ["AAPL", "SPY", "MSFT", "GOOGL", "AMZN"],
     indicators: [
@@ -282,8 +279,7 @@ export const PRESET_TEMPLATES: StrategyTemplate[] = [
   {
     id: "bollinger-reversal",
     name: "Bollinger Reversal",
-    description:
-      "Buy at BB(20,2) lower band + Stochastics K < 20, exit at BB middle or Stoch > 80",
+    description: "Buy at BB(20,2) lower band + Stochastics K < 20, exit at BB middle or Stoch > 80",
     intervalMs: 60_000,
     symbols: ["AAPL", "SPY", "MSFT", "GOOGL", "AMZN"],
     indicators: [
@@ -365,17 +361,11 @@ export const PRESET_TEMPLATES: StrategyTemplate[] = [
     ],
     entry: {
       operator: "and",
-      conditions: [
-        { type: "macdPositive" },
-        { type: "dmiBullish", params: { threshold: 20 } },
-      ],
+      conditions: [{ type: "macdPositive" }, { type: "dmiBullish", params: { threshold: 20 } }],
     },
     exit: {
       operator: "or",
-      conditions: [
-        { type: "macdNegative" },
-        { type: "dmiBearish", params: { threshold: 20 } },
-      ],
+      conditions: [{ type: "macdNegative" }, { type: "dmiBearish", params: { threshold: 20 } }],
     },
     guards: { maxDailyLoss: -5_000, maxDailyTrades: 8 },
     position: {

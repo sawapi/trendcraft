@@ -40,7 +40,10 @@
  * ```
  */
 
+import { createTradingSession } from "../session";
 import type { SessionEvent, SessionOptions, Trade } from "../types";
+import { createRiskGuard } from "./risk-guard";
+import { createTimeGuard } from "./time-guard";
 import type {
   GuardedSessionOptions,
   GuardedSessionState,
@@ -48,9 +51,6 @@ import type {
   RiskGuard,
   TimeGuard,
 } from "./types";
-import { createTradingSession } from "../session";
-import { createRiskGuard } from "./risk-guard";
-import { createTimeGuard } from "./time-guard";
 
 /**
  * Create a guarded trading session with risk and time management.
@@ -88,10 +88,7 @@ export function createGuardedSession(
   guardOptions: GuardedSessionOptions,
   fromState?: GuardedSessionState,
 ): GuardedTradingSession {
-  const inner = createTradingSession(
-    sessionOptions,
-    fromState?.sessionState,
-  );
+  const inner = createTradingSession(sessionOptions, fromState?.sessionState);
 
   const riskGuard: RiskGuard | null = guardOptions.riskGuard
     ? createRiskGuard(guardOptions.riskGuard, fromState?.riskGuardState)
@@ -107,10 +104,7 @@ export function createGuardedSession(
    * - Inject force-close events when time guard signals
    * - Pass through all other events unchanged
    */
-  function applyGuards(
-    events: SessionEvent[],
-    trade: Trade,
-  ): SessionEvent[] {
+  function applyGuards(events: SessionEvent[], trade: Trade): SessionEvent[] {
     const result: SessionEvent[] = [];
     let forceCloseEmitted = false;
 
@@ -120,7 +114,8 @@ export function createGuardedSession(
       if (timeCheck.shouldForceClose && !forceCloseEmitted) {
         // Find the candle from events, or use the first candle-bearing event
         const candleEvent = events.find(
-          (e) => e.type === "candle" || e.type === "entry" || e.type === "exit" || e.type === "partial",
+          (e) =>
+            e.type === "candle" || e.type === "entry" || e.type === "exit" || e.type === "partial",
         );
         if (candleEvent) {
           const candle = candleEvent.candle;

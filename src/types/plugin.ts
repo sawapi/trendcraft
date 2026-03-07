@@ -57,11 +57,7 @@ export interface IndicatorPlugin<
  * const result = TrendCraft.from(candles).use(mySma, { period: 50 }).compute();
  * ```
  */
-export function defineIndicator<
-  K extends string,
-  TOptions extends Record<string, unknown>,
-  TValue,
->(
+export function defineIndicator<K extends string, TOptions extends Record<string, unknown>, TValue>(
   plugin: IndicatorPlugin<K, TOptions, TValue>,
 ): IndicatorPlugin<K, TOptions, TValue> {
   return plugin;

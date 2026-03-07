@@ -4,30 +4,30 @@
 
 import type { EChartsOption } from "echarts";
 import type { NormalizedCandle, Trade } from "trendcraft";
-import type { IndicatorParams, OverlayType, SignalType, SubChartType, ZoomRange } from "../types";
 import type { IndicatorData } from "../hooks/useIndicators";
-import type { SignalData } from "../hooks/useSignals";
 import type { OverlayData } from "../hooks/useOverlays";
-import {
-  createPerfectOrderMarkPoints,
-  createRangeBoundAreas,
-  createSupportResistanceLines,
-  createCrossMarkPoints,
-  createDivergenceMarkers,
-  createSqueezeMarkers,
-  createVolumeBreakoutMarkers,
-  createVolumeMaCrossMarkers,
-} from "./signalMarkers";
+import type { SignalData } from "../hooks/useSignals";
+import type { IndicatorParams, OverlayType, SignalType, SubChartType, ZoomRange } from "../types";
 import { createTradeMarkers } from "./backtestMarkers";
 import {
   COLORS,
-  formatDate,
-  calculateInitialZoom,
   type SeriesItem,
-  type SubchartLegend,
   type SubchartContext,
+  type SubchartLegend,
+  calculateInitialZoom,
+  formatDate,
 } from "./chartColors";
 import { buildOverlaySeries } from "./overlaySeriesBuilder";
+import {
+  createCrossMarkPoints,
+  createDivergenceMarkers,
+  createPerfectOrderMarkPoints,
+  createRangeBoundAreas,
+  createSqueezeMarkers,
+  createSupportResistanceLines,
+  createVolumeBreakoutMarkers,
+  createVolumeMaCrossMarkers,
+} from "./signalMarkers";
 import { buildSubchartSeries } from "./subchartSeriesBuilder";
 
 /**
@@ -49,9 +49,9 @@ export function buildChartOption(
   trades: Trade[] | null,
   overlays: OverlayData,
   enabledOverlays: OverlayType[],
-  _chartHeight: number = 500,
+  _chartHeight = 500,
   indicatorParams?: IndicatorParams,
-  zoomRange?: ZoomRange
+  zoomRange?: ZoomRange,
 ): EChartsOption {
   if (candles.length === 0) {
     return {};
@@ -243,7 +243,13 @@ export function buildChartOption(
   ];
 
   // Overlay indicators
-  const overlaySeries = buildOverlaySeries(candles, overlays, enabledOverlays, dates, indicatorParams);
+  const overlaySeries = buildOverlaySeries(
+    candles,
+    overlays,
+    enabledOverlays,
+    dates,
+    indicatorParams,
+  );
   series.push(...overlaySeries);
 
   // Subchart context (pixel-based)
@@ -262,7 +268,12 @@ export function buildChartOption(
   };
 
   // Subchart indicators
-  const subchartSeries = buildSubchartSeries(subchartCtx, indicators, enabledIndicators, indicatorParams);
+  const subchartSeries = buildSubchartSeries(
+    subchartCtx,
+    indicators,
+    enabledIndicators,
+    indicatorParams,
+  );
   series.push(...subchartSeries);
 
   // Build legend data from main chart series (exclude subcharts and Volume)

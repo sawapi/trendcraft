@@ -15,11 +15,7 @@ import {
 /**
  * Generate flat (range-bound) candles oscillating around a price
  */
-function generateRangeBoundCandles(
-  count: number,
-  center = 100,
-  amplitude = 3,
-): NormalizedCandle[] {
+function generateRangeBoundCandles(count: number, center = 100, amplitude = 3): NormalizedCandle[] {
   const candles: NormalizedCandle[] = [];
   const baseTime = Date.now() - count * 24 * 60 * 60 * 1000;
 
@@ -229,7 +225,7 @@ describe("rangeBreakout()", () => {
     const indicators: Record<string, unknown> = {};
 
     // Look for breakout event
-    let results: boolean[] = [];
+    const results: boolean[] = [];
     for (let i = 0; i < candles.length; i++) {
       results.push(evaluateCondition(condition, indicators, candles[i], i, candles));
     }
@@ -252,7 +248,7 @@ describe("tightRange()", () => {
     const condition = tightRange();
     const indicators: Record<string, unknown> = {};
 
-    let results: boolean[] = [];
+    const results: boolean[] = [];
     for (let i = 0; i < candles.length; i++) {
       results.push(evaluateCondition(condition, indicators, candles[i], i, candles));
     }

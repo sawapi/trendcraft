@@ -1,8 +1,8 @@
-import { describe, it, expect } from "vitest";
-import { createTradingSession } from "../session";
-import { rsiBelow, rsiAbove } from "../conditions";
-import type { Trade, SessionEvent } from "../types";
+import { describe, expect, it } from "vitest";
 import type { NormalizedCandle } from "../../types";
+import { rsiAbove, rsiBelow } from "../conditions";
+import { createTradingSession } from "../session";
+import type { SessionEvent, Trade } from "../types";
 
 /**
  * Mock indicator with a deterministic sequence
@@ -23,8 +23,12 @@ function createMockIndicator(startValue: number, step: number) {
     getState() {
       return { value, count };
     },
-    get count() { return count; },
-    get isWarmedUp() { return count > 0; },
+    get count() {
+      return count;
+    },
+    get isWarmedUp() {
+      return count > 0;
+    },
   };
 }
 
@@ -39,9 +43,7 @@ describe("createTradingSession", () => {
     const session = createTradingSession({
       intervalMs: INTERVAL,
       pipeline: {
-        indicators: [
-          { name: "rsi", create: () => createMockIndicator(50, 0) },
-        ],
+        indicators: [{ name: "rsi", create: () => createMockIndicator(50, 0) }],
       },
     });
 
@@ -103,12 +105,8 @@ describe("createTradingSession", () => {
     const session = createTradingSession({
       intervalMs: INTERVAL,
       pipeline: {
-        indicators: [
-          { name: "rsi", create: () => createMockIndicator(25, 0) },
-        ],
-        signals: [
-          { name: "oversold", condition: rsiBelow(30) },
-        ],
+        indicators: [{ name: "rsi", create: () => createMockIndicator(25, 0) }],
+        signals: [{ name: "oversold", condition: rsiBelow(30) }],
       },
     });
 
@@ -123,9 +121,7 @@ describe("createTradingSession", () => {
     const session = createTradingSession({
       intervalMs: INTERVAL,
       pipeline: {
-        indicators: [
-          { name: "rsi", create: () => createMockIndicator(50, 0) },
-        ],
+        indicators: [{ name: "rsi", create: () => createMockIndicator(50, 0) }],
       },
       emitPartial: true,
     });
@@ -140,9 +136,7 @@ describe("createTradingSession", () => {
     const session = createTradingSession({
       intervalMs: INTERVAL,
       pipeline: {
-        indicators: [
-          { name: "rsi", create: () => createMockIndicator(50, 0) },
-        ],
+        indicators: [{ name: "rsi", create: () => createMockIndicator(50, 0) }],
       },
     });
 
@@ -155,9 +149,7 @@ describe("createTradingSession", () => {
     const session = createTradingSession({
       intervalMs: INTERVAL,
       pipeline: {
-        indicators: [
-          { name: "rsi", create: () => createMockIndicator(50, 0) },
-        ],
+        indicators: [{ name: "rsi", create: () => createMockIndicator(50, 0) }],
       },
     });
 
@@ -222,9 +214,7 @@ describe("createTradingSession", () => {
       const session1 = createTradingSession({
         intervalMs: INTERVAL,
         pipeline: {
-          indicators: [
-            { name: "rsi", create: () => createMockIndicator(50, 0) },
-          ],
+          indicators: [{ name: "rsi", create: () => createMockIndicator(50, 0) }],
         },
       });
 
@@ -246,9 +236,15 @@ describe("createTradingSession", () => {
           {
             name: "rsi",
             create: () => ({
-              next() { return { time: 0, value: rsiVal }; },
-              peek() { return { time: 0, value: rsiVal }; },
-              getState() { return { val: rsiVal }; },
+              next() {
+                return { time: 0, value: rsiVal };
+              },
+              peek() {
+                return { time: 0, value: rsiVal };
+              },
+              getState() {
+                return { val: rsiVal };
+              },
             }),
           },
         ],

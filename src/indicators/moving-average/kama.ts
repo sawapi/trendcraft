@@ -93,7 +93,7 @@ export function kama(
     const er = volatility === 0 ? 0 : direction / volatility;
 
     // Smoothing Constant
-    const sc = Math.pow(er * (fastSC - slowSC) + slowSC, 2);
+    const sc = (er * (fastSC - slowSC) + slowSC) ** 2;
 
     // KAMA value
     const kamaValue = prevKama! + sc * (price - prevKama!);

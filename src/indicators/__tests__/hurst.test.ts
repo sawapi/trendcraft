@@ -15,9 +15,7 @@ describe("hurst", () => {
 
   it("should throw if minWindow is less than 2", () => {
     const candles = makeCandles(Array(200).fill(100));
-    expect(() => hurst(candles, { minWindow: 1 })).toThrow(
-      "Hurst minWindow must be at least 2",
-    );
+    expect(() => hurst(candles, { minWindow: 1 })).toThrow("Hurst minWindow must be at least 2");
   });
 
   it("should throw if maxWindow is not greater than minWindow", () => {

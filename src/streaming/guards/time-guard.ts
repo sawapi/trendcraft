@@ -22,11 +22,11 @@
  */
 
 import type {
+  BlackoutPeriod,
+  TimeGuard,
+  TimeGuardCheckResult,
   TimeGuardOptions,
   TimeGuardState,
-  TimeGuardCheckResult,
-  TimeGuard,
-  BlackoutPeriod,
   TradingWindow,
 } from "./types";
 
@@ -36,7 +36,7 @@ const MS_PER_DAY = 86_400_000;
  * Get the local time-of-day offset in ms from midnight for a given timestamp.
  */
 function getLocalTimeOfDay(time: number, timezoneOffsetMs: number): number {
-  return ((time + timezoneOffsetMs) % MS_PER_DAY + MS_PER_DAY) % MS_PER_DAY;
+  return (((time + timezoneOffsetMs) % MS_PER_DAY) + MS_PER_DAY) % MS_PER_DAY;
 }
 
 /**
@@ -56,10 +56,7 @@ function isInWindow(localTimeMs: number, window: TradingWindow): boolean {
  * Calculate the time remaining until the current window ends.
  * Returns the remaining ms, or -1 if not in any window.
  */
-function getTimeUntilWindowEnd(
-  localTimeMs: number,
-  window: TradingWindow,
-): number {
+function getTimeUntilWindowEnd(localTimeMs: number, window: TradingWindow): number {
   if (!isInWindow(localTimeMs, window)) return -1;
 
   if (window.startMs <= window.endMs) {
@@ -98,10 +95,7 @@ function getTimeUntilWindowEnd(
  * });
  * ```
  */
-export function createTimeGuard(
-  options: TimeGuardOptions,
-  fromState?: TimeGuardState,
-): TimeGuard {
+export function createTimeGuard(options: TimeGuardOptions, fromState?: TimeGuardState): TimeGuard {
   const timezoneOffsetMs = options.timezoneOffsetMs ?? 0;
   const forceCloseBeforeEndMs = options.forceCloseBeforeEndMs ?? 0;
   const blackoutPeriods: BlackoutPeriod[] = fromState?.blackoutPeriods
@@ -118,9 +112,7 @@ export function createTimeGuard(
           return {
             allowed: false,
             shouldForceClose: true,
-            reason: blackout.reason
-              ? `Blackout: ${blackout.reason}`
-              : "Blackout period active",
+            reason: blackout.reason ? `Blackout: ${blackout.reason}` : "Blackout period active",
           };
         }
       }

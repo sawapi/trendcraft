@@ -139,7 +139,15 @@ export function createRsi(
     },
 
     getState(): RsiState {
-      return { period, prevClose, avgGain, avgLoss, count, initialGains: [...initialGains], initialLosses: [...initialLosses] };
+      return {
+        period,
+        prevClose,
+        avgGain,
+        avgLoss,
+        count,
+        initialGains: [...initialGains],
+        initialLosses: [...initialLosses],
+      };
     },
 
     get count() {

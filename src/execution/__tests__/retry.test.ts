@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from "vitest";
-import { withRetry, pollUntil } from "../retry";
+import { describe, expect, it, vi } from "vitest";
+import { pollUntil, withRetry } from "../retry";
 
 describe("withRetry", () => {
   it("should return result on first success", async () => {
@@ -10,10 +10,7 @@ describe("withRetry", () => {
   });
 
   it("should retry on failure and succeed", async () => {
-    const fn = vi
-      .fn()
-      .mockRejectedValueOnce(new Error("fail1"))
-      .mockResolvedValue("ok");
+    const fn = vi.fn().mockRejectedValueOnce(new Error("fail1")).mockResolvedValue("ok");
 
     const result = await withRetry(fn, {
       maxAttempts: 3,
@@ -108,10 +105,7 @@ describe("withRetry", () => {
   });
 
   it("should apply jitter when enabled", async () => {
-    const asyncFn = vi
-      .fn()
-      .mockRejectedValueOnce(new Error("fail"))
-      .mockResolvedValue("ok");
+    const asyncFn = vi.fn().mockRejectedValueOnce(new Error("fail")).mockResolvedValue("ok");
 
     // Just verify it doesn't throw — jitter is random so we can't assert exact values
     const result = await withRetry(asyncFn, {
@@ -126,10 +120,7 @@ describe("withRetry", () => {
 describe("pollUntil", () => {
   it("should return immediately when predicate matches on first poll", async () => {
     const fn = vi.fn().mockResolvedValue({ status: "filled" });
-    const { result, settled } = await pollUntil(
-      fn,
-      (r) => r.status === "filled",
-    );
+    const { result, settled } = await pollUntil(fn, (r) => r.status === "filled");
 
     expect(settled).toBe(true);
     expect(result.status).toBe("filled");
@@ -143,11 +134,10 @@ describe("pollUntil", () => {
       .mockResolvedValueOnce({ status: "pending" })
       .mockResolvedValue({ status: "filled" });
 
-    const { result, settled } = await pollUntil(
-      fn,
-      (r) => r.status === "filled",
-      { maxAttempts: 10, initialIntervalMs: 1 },
-    );
+    const { result, settled } = await pollUntil(fn, (r) => r.status === "filled", {
+      maxAttempts: 10,
+      initialIntervalMs: 1,
+    });
 
     expect(settled).toBe(true);
     expect(result.status).toBe("filled");
@@ -157,11 +147,10 @@ describe("pollUntil", () => {
   it("should return settled=false when max attempts exhausted", async () => {
     const fn = vi.fn().mockResolvedValue({ status: "pending" });
 
-    const { result, settled } = await pollUntil(
-      fn,
-      (r) => r.status === "filled",
-      { maxAttempts: 3, initialIntervalMs: 1 },
-    );
+    const { result, settled } = await pollUntil(fn, (r) => r.status === "filled", {
+      maxAttempts: 3,
+      initialIntervalMs: 1,
+    });
 
     expect(settled).toBe(false);
     expect(result.status).toBe("pending");

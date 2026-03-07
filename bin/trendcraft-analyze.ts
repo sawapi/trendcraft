@@ -13,28 +13,21 @@
  *   npx trendcraft-analyze ./data/7182.T.csv /tmp/analysis/7182
  */
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, resolve } from "node:path";
 
-import type { NormalizedCandle } from "../src/types";
+import { bollingerBands, macd, obv, rsi, sma, volumeAnomaly } from "../src/indicators";
 import {
-  sma,
-  bollingerBands,
-  rsi,
-  macd,
-  obv,
-  volumeAnomaly,
-} from "../src/indicators";
-import {
-  validateCrossSignals,
-  rsiDivergence,
   bollingerSqueeze,
+  cupWithHandle,
+  doubleBottom,
+  doubleTop,
   headAndShoulders,
   inverseHeadAndShoulders,
-  doubleTop,
-  doubleBottom,
-  cupWithHandle,
+  rsiDivergence,
+  validateCrossSignals,
 } from "../src/signals";
+import type { NormalizedCandle } from "../src/types";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -461,7 +454,7 @@ function nullableSma(values: (number | null)[], period: number): (number | null)
     let count = 0;
     for (let j = i - period + 1; j <= i; j++) {
       if (values[j] !== null) {
-        sum += values[j]!;
+        sum += values[j] as number;
         count++;
       }
     }
@@ -474,7 +467,7 @@ function percentile(values: (number | null)[], idx: number, lookback: number): n
   const start = Math.max(0, idx - lookback + 1);
   const valid: number[] = [];
   for (let i = start; i <= idx; i++) {
-    if (values[i] !== null) valid.push(values[i]!);
+    if (values[i] !== null) valid.push(values[i] as number);
   }
   if (valid.length < 10) return null;
   const current = values[idx];
@@ -574,10 +567,8 @@ function generateReadings(candles: NormalizedCandle[]): string {
     const volVal = volMap.get(t);
 
     // Derived metrics
-    const sma25Dev =
-      s25 != null ? Math.round(((c.close - s25) / s25) * 10000) / 100 : null;
-    const sma75Dev =
-      s75 != null ? Math.round(((c.close - s75) / s75) * 10000) / 100 : null;
+    const sma25Dev = s25 != null ? Math.round(((c.close - s25) / s25) * 10000) / 100 : null;
+    const sma75Dev = s75 != null ? Math.round(((c.close - s75) / s75) * 10000) / 100 : null;
 
     let bbPctB: number | null = null;
     let bbBW: number | null = null;
@@ -631,9 +622,7 @@ function generateSignals(candles: NormalizedCandle[]): string {
       const typeLabel = c.type === "golden" ? "GC" : "DC";
       let detail: string;
       if (c.details.daysUntilReverse === null) {
-        const daysSince = Math.round(
-          (now.getTime() - c.time) / (1000 * 60 * 60 * 24),
-        );
+        const daysSince = Math.round((now.getTime() - c.time) / (1000 * 60 * 60 * 24));
         detail = `(active, ${daysSince} days)`;
       } else {
         const fake = c.isFake ? " (fake)" : "";
@@ -738,7 +727,7 @@ function generateValuation(fundamentals: FundamentalData): string {
   const roe: (number | null)[] = [];
   for (let i = 0; i < len; i++) {
     if (per[i] !== null && pbr[i] !== null && per[i] !== 0) {
-      roe.push((pbr[i]! / per[i]!) * 100);
+      roe.push(((pbr[i] as number) / (per[i] as number)) * 100);
     } else {
       roe.push(null);
     }
@@ -810,8 +799,7 @@ function generateRecentData(csvPath: string): string {
   // Sort by date descending
   rows.sort(
     (a, b) =>
-      new Date(b[0].replace(/\//g, "-")).getTime() -
-      new Date(a[0].replace(/\//g, "-")).getTime(),
+      new Date(b[0].replace(/\//g, "-")).getTime() - new Date(a[0].replace(/\//g, "-")).getTime(),
   );
 
   const recent = rows.slice(0, 20);
@@ -833,7 +821,7 @@ function generateRecentData(csvPath: string): string {
       (r[6] || "").padStart(9),
     ].join(" | ");
     if (hasFundamentals) {
-      line += " | " + (r[7] || "").padStart(6) + " | " + (r[8] || "").padStart(4);
+      line += ` | ${(r[7] || "").padStart(6)} | ${(r[8] || "").padStart(4)}`;
     }
     out.push(line);
   }

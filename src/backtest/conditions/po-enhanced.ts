@@ -2,10 +2,7 @@
  * Enhanced Perfect Order conditions
  */
 
-import {
-  type PerfectOrderValueEnhanced,
-  perfectOrderEnhanced,
-} from "../../signals/perfect-order";
+import { type PerfectOrderValueEnhanced, perfectOrderEnhanced } from "../../signals/perfect-order";
 import type { PresetCondition } from "../../types";
 import type { PerfectOrderConditionOptions } from "./po-basic";
 

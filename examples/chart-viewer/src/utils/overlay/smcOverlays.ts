@@ -3,8 +3,8 @@
  */
 
 import type { NormalizedCandle } from "trendcraft";
-import type { IndicatorParams, OverlayType } from "../../types";
 import type { OverlayData } from "../../hooks/useOverlays";
+import type { IndicatorParams, OverlayType } from "../../types";
 import { COLORS, type SeriesItem } from "../chartColors";
 
 export function buildSmcOverlaySeries(
@@ -32,9 +32,10 @@ export function buildSmcOverlaySeries(
         const color = ob.type === "bullish" ? COLORS.orderBlockBullish : COLORS.orderBlockBearish;
         // Limit display width: mitigated OBs end at mitigatedIndex, active OBs extend max 100 bars
         const maxDisplayBars = 100;
-        const endIndex = ob.mitigated && ob.mitigatedIndex !== null
-          ? Math.min(ob.mitigatedIndex, dates.length - 1)
-          : Math.min(ob.startIndex + maxDisplayBars, dates.length - 1);
+        const endIndex =
+          ob.mitigated && ob.mitigatedIndex !== null
+            ? Math.min(ob.mitigatedIndex, dates.length - 1)
+            : Math.min(ob.startIndex + maxDisplayBars, dates.length - 1);
         orderBlockMarkAreas.push([
           {
             xAxis: dates[ob.startIndex],
@@ -109,9 +110,10 @@ export function buildSmcOverlaySeries(
     if (indicatorParams?.fvgShowMitigated) {
       for (const entry of overlays.fvg) {
         for (const fvg of entry.filledFvgs) {
-          const endIdx = fvg.filledIndex != null
-            ? Math.min(fvg.filledIndex, dates.length - 1)
-            : dates.length - 1;
+          const endIdx =
+            fvg.filledIndex != null
+              ? Math.min(fvg.filledIndex, dates.length - 1)
+              : dates.length - 1;
           const isBullish = fvg.type === "bullish";
           fvgMarkAreas.push([
             {
@@ -261,7 +263,9 @@ export function buildSmcOverlaySeries(
           symbol: "triangle",
           symbolSize: 12,
           symbolRotate: isBullish ? 0 : 180,
-          itemStyle: { color: isBullish ? COLORS.liquiditySweepBullish : COLORS.liquiditySweepBearish },
+          itemStyle: {
+            color: isBullish ? COLORS.liquiditySweepBullish : COLORS.liquiditySweepBearish,
+          },
           label: {
             show: true,
             formatter: isBullish ? "SL" : "SH",
@@ -272,9 +276,7 @@ export function buildSmcOverlaySeries(
           },
         });
 
-        const areaColor = isBullish
-          ? "rgba(38, 166, 154, 0.15)"
-          : "rgba(239, 83, 80, 0.15)";
+        const areaColor = isBullish ? "rgba(38, 166, 154, 0.15)" : "rgba(239, 83, 80, 0.15)";
         sweepMarkAreas.push([
           {
             xAxis: dates[i],

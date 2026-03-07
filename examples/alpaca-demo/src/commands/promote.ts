@@ -4,8 +4,8 @@
  * Manually promote or demote an agent's tier.
  */
 
-import { createStateStore } from "../persistence/store.js";
 import type { AgentTier } from "../agent/types.js";
+import { createStateStore } from "../persistence/store.js";
 
 export type PromoteCommandOptions = {
   agent: string;

@@ -18,13 +18,13 @@
  * ```
  */
 
+import { fromPipelineResult } from "../signals/trade-signal/converters";
 import type { NormalizedCandle } from "../types";
 import type { TradeSignal } from "../types/trade-signal";
+import { createPipeline } from "./pipeline";
+import { createTradingSession } from "./session";
 import type { PipelineOptions, SessionEvent } from "./types";
 import type { Trade } from "./types";
-import { createTradingSession } from "./session";
-import { fromPipelineResult } from "../signals/trade-signal/converters";
-import { createPipeline } from "./pipeline";
 
 /**
  * Options for creating a SignalEmitter

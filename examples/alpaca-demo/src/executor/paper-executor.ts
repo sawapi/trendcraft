@@ -8,7 +8,7 @@
 import { execution } from "trendcraft";
 const { withRetry, pollUntil } = execution;
 import type { AlpacaClient } from "../alpaca/client.js";
-import type { OrderIntent, ExecutionResult, OrderExecutor } from "./types.js";
+import type { ExecutionResult, OrderExecutor, OrderIntent } from "./types.js";
 
 export function createPaperExecutor(client: AlpacaClient): OrderExecutor {
   return {
@@ -45,11 +45,9 @@ export function createPaperExecutor(client: AlpacaClient): OrderExecutor {
 
         if (filledOrder.status === "filled") {
           const filledPrice = filledOrder.filled_avg_price
-            ? parseFloat(filledOrder.filled_avg_price)
+            ? Number.parseFloat(filledOrder.filled_avg_price)
             : undefined;
-          console.log(
-            `[ORDER] FILLED ${order.id} @ $${filledPrice?.toFixed(2) ?? "?"}`,
-          );
+          console.log(`[ORDER] FILLED ${order.id} @ $${filledPrice?.toFixed(2) ?? "?"}`);
           return {
             intent,
             success: true,
@@ -59,9 +57,7 @@ export function createPaperExecutor(client: AlpacaClient): OrderExecutor {
         }
 
         const status = settled ? filledOrder.status : "timeout";
-        console.warn(
-          `[ORDER] NOT FILLED ${order.id}: status=${status}`,
-        );
+        console.warn(`[ORDER] NOT FILLED ${order.id}: status=${status}`);
         return {
           intent,
           success: false,
@@ -70,9 +66,7 @@ export function createPaperExecutor(client: AlpacaClient): OrderExecutor {
         };
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        console.error(
-          `[ORDER] FAILED ${intent.side} ${intent.symbol}: ${message}`,
-        );
+        console.error(`[ORDER] FAILED ${intent.side} ${intent.symbol}: ${message}`);
         return {
           intent,
           success: false,

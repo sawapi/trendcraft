@@ -2,8 +2,8 @@
  * Signal Scoring, Volatility Regime, Scaled Entry, and Fundamental Metrics type definitions for TrendCraft
  */
 
-import type { NormalizedCandle } from "./candle";
 import type { MtfContext } from "./backtest";
+import type { NormalizedCandle } from "./candle";
 
 // ============================================================================
 // Signal Scoring Types
@@ -27,7 +27,12 @@ export type PrecomputedIndicators = {
   /** Volume MA values (period: 20) */
   volumeMa20?: (number | null)[];
   /** Volume anomaly data */
-  volumeAnomaly?: ({ ratio: number; level: string; isAnomaly: boolean; zScore: number | null } | null)[];
+  volumeAnomaly?: ({
+    ratio: number;
+    level: string;
+    isAnomaly: boolean;
+    zScore: number | null;
+  } | null)[];
   /** Volume trend data */
   volumeTrend?: ({
     isConfirmed: boolean;
@@ -140,7 +145,13 @@ export type ScoringConfig = {
 /**
  * Preset strategy names
  */
-export type ScoringPreset = "momentum" | "meanReversion" | "trendFollowing" | "balanced" | "aggressive" | "conservative";
+export type ScoringPreset =
+  | "momentum"
+  | "meanReversion"
+  | "trendFollowing"
+  | "balanced"
+  | "aggressive"
+  | "conservative";
 
 // ============================================================================
 // Volatility Regime Types

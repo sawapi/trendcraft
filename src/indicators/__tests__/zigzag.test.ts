@@ -3,9 +3,7 @@ import type { NormalizedCandle } from "../../types";
 import { zigzag } from "../price/zigzag";
 
 describe("zigzag", () => {
-  const makeCandles = (
-    data: { high: number; low: number }[],
-  ): NormalizedCandle[] =>
+  const makeCandles = (data: { high: number; low: number }[]): NormalizedCandle[] =>
     data.map((d, i) => ({
       time: 1700000000000 + i * 86400000,
       open: (d.high + d.low) / 2,
@@ -17,12 +15,8 @@ describe("zigzag", () => {
 
   it("should throw if deviation is not positive", () => {
     const candles = makeCandles([{ high: 10, low: 5 }]);
-    expect(() => zigzag(candles, { deviation: 0 })).toThrow(
-      "Zigzag deviation must be positive",
-    );
-    expect(() => zigzag(candles, { deviation: -1 })).toThrow(
-      "Zigzag deviation must be positive",
-    );
+    expect(() => zigzag(candles, { deviation: 0 })).toThrow("Zigzag deviation must be positive");
+    expect(() => zigzag(candles, { deviation: -1 })).toThrow("Zigzag deviation must be positive");
   });
 
   it("should return all nulls for insufficient data", () => {
@@ -154,7 +148,7 @@ describe("zigzag", () => {
       { high: 115, low: 108 },
       { high: 108, low: 100 },
       { high: 102, low: 95 },
-      { high: 98, low: 90 },  // Low area
+      { high: 98, low: 90 }, // Low area
       { high: 100, low: 93 },
       { high: 105, low: 98 },
       { high: 110, low: 103 },
@@ -186,37 +180,33 @@ describe("zigzag", () => {
   it("should detect specific pivot positions with percentage mode", () => {
     // Well-defined V-shape: up to index 3 (high=120), down to index 7 (low=85), up again
     const candles = makeCandles([
-      { high: 100, low: 95 },   // 0
-      { high: 108, low: 102 },  // 1
-      { high: 115, low: 108 },  // 2
-      { high: 120, low: 113 },  // 3 - peak (high=120)
-      { high: 115, low: 108 },  // 4
-      { high: 108, low: 100 },  // 5
-      { high: 100, low: 92 },   // 6
-      { high: 92, low: 85 },    // 7 - trough (low=85)
-      { high: 95, low: 88 },    // 8
-      { high: 102, low: 95 },   // 9
-      { high: 110, low: 103 },  // 10
-      { high: 118, low: 112 },  // 11
+      { high: 100, low: 95 }, // 0
+      { high: 108, low: 102 }, // 1
+      { high: 115, low: 108 }, // 2
+      { high: 120, low: 113 }, // 3 - peak (high=120)
+      { high: 115, low: 108 }, // 4
+      { high: 108, low: 100 }, // 5
+      { high: 100, low: 92 }, // 6
+      { high: 92, low: 85 }, // 7 - trough (low=85)
+      { high: 95, low: 88 }, // 8
+      { high: 102, low: 95 }, // 9
+      { high: 110, low: 103 }, // 10
+      { high: 118, low: 112 }, // 11
     ]);
 
     const result = zigzag(candles, { deviation: 10 });
     const pivots = result.filter((r) => r.value.point !== null);
 
     // Should find the high at index 3 and the low at index 7
-    const highPivot = result.find(
-      (r) => r.value.point === "high" && r.value.price === 120,
-    );
-    const lowPivot = result.find(
-      (r) => r.value.point === "low" && r.value.price === 85,
-    );
+    const highPivot = result.find((r) => r.value.point === "high" && r.value.price === 120);
+    const lowPivot = result.find((r) => r.value.point === "low" && r.value.price === 85);
 
     expect(highPivot).toBeDefined();
     expect(lowPivot).toBeDefined();
 
     // Verify pivot prices match actual candle extremes
-    expect(highPivot!.time).toBe(candles[3].time);
-    expect(lowPivot!.time).toBe(candles[7].time);
+    expect(highPivot?.time).toBe(candles[3].time);
+    expect(lowPivot?.time).toBe(candles[7].time);
   });
 
   it("should use percentage fallback during ATR warmup", () => {
@@ -224,21 +214,21 @@ describe("zigzag", () => {
     // Start flat, then create a clear up-down-up pattern so trend initialization
     // happens cleanly during warmup.
     const candles = makeCandles([
-      { high: 102, low: 98 },   // 0 - flat start
-      { high: 103, low: 99 },   // 1
-      { high: 104, low: 100 },  // 2
-      { high: 105, low: 101 },  // 3
-      { high: 106, low: 102 },  // 4
-      { high: 115, low: 108 },  // 5 - ATR becomes available, big up
-      { high: 125, low: 118 },  // 6
-      { high: 135, low: 128 },  // 7 - peak area
-      { high: 130, low: 122 },  // 8
-      { high: 120, low: 112 },  // 9
-      { high: 110, low: 102 },  // 10
-      { high: 100, low: 92 },   // 11 - trough area
-      { high: 108, low: 100 },  // 12
-      { high: 118, low: 110 },  // 13
-      { high: 128, low: 120 },  // 14
+      { high: 102, low: 98 }, // 0 - flat start
+      { high: 103, low: 99 }, // 1
+      { high: 104, low: 100 }, // 2
+      { high: 105, low: 101 }, // 3
+      { high: 106, low: 102 }, // 4
+      { high: 115, low: 108 }, // 5 - ATR becomes available, big up
+      { high: 125, low: 118 }, // 6
+      { high: 135, low: 128 }, // 7 - peak area
+      { high: 130, low: 122 }, // 8
+      { high: 120, low: 112 }, // 9
+      { high: 110, low: 102 }, // 10
+      { high: 100, low: 92 }, // 11 - trough area
+      { high: 108, low: 100 }, // 12
+      { high: 118, low: 110 }, // 13
+      { high: 128, low: 120 }, // 14
     ]);
 
     const result = zigzag(candles, { useAtr: true, atrPeriod: 5, atrMultiplier: 2 });

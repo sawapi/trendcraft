@@ -20,22 +20,22 @@ import type {
   VolumeProfileValue,
   VolumeTrendValue,
 } from "../types";
-import type { KeltnerChannelValue } from "./volatility/keltner-channel";
-import type { ParabolicSarValue } from "./trend/parabolic-sar";
 import { defineIndicator } from "../types/plugin";
-import { sma as smaFn } from "./moving-average/sma";
-import { ema as emaFn } from "./moving-average/ema";
-import { rsi as rsiFn } from "./momentum/rsi";
 import { macd as macdFn } from "./momentum/macd";
-import { bollingerBands as bollingerBandsFn } from "./volatility/bollinger-bands";
-import { atr as atrFn } from "./volatility/atr";
-import { volumeMa as volumeMaFn } from "./volume/volume-ma";
+import { rsi as rsiFn } from "./momentum/rsi";
+import { ema as emaFn } from "./moving-average/ema";
+import { sma as smaFn } from "./moving-average/sma";
 import { highest as highestFn, lowest as lowestFn } from "./price/highest-lowest";
 import { returns as returnsFn } from "./price/returns";
+import type { ParabolicSarValue } from "./trend/parabolic-sar";
 import { parabolicSar as parabolicSarFn } from "./trend/parabolic-sar";
+import { atr as atrFn } from "./volatility/atr";
+import { bollingerBands as bollingerBandsFn } from "./volatility/bollinger-bands";
+import type { KeltnerChannelValue } from "./volatility/keltner-channel";
 import { keltnerChannel as keltnerChannelFn } from "./volatility/keltner-channel";
 import { cmf as cmfFn } from "./volume/cmf";
 import { volumeAnomaly as volumeAnomalyFn } from "./volume/volume-anomaly";
+import { volumeMa as volumeMaFn } from "./volume/volume-ma";
 import { volumeProfileSeries as volumeProfileSeriesFn } from "./volume/volume-profile";
 import { volumeTrend as volumeTrendFn } from "./volume/volume-trend";
 
@@ -105,8 +105,7 @@ export const volumeMa = defineIndicator({
   name: "volumeMa" as const,
   compute: (candles, opts) => volumeMaFn(candles, { period: opts.period, type: opts.maType }),
   defaultOptions: { period: 20, maType: "sma" as "sma" | "ema" },
-  buildKey: (opts) =>
-    opts.maType === "sma" ? `vma${opts.period}` : `vma${opts.period}_ema`,
+  buildKey: (opts) => (opts.maType === "sma" ? `vma${opts.period}` : `vma${opts.period}_ema`),
 });
 
 /** Highest High plugin */
@@ -131,16 +130,13 @@ export const returns = defineIndicator({
   compute: (candles, opts) => returnsFn(candles, { period: opts.period, type: opts.returnType }),
   defaultOptions: { period: 1, returnType: "simple" as "simple" | "log" },
   buildKey: (opts) =>
-    opts.returnType === "simple"
-      ? `returns${opts.period}`
-      : `returns${opts.period}_log`,
+    opts.returnType === "simple" ? `returns${opts.period}` : `returns${opts.period}_log`,
 });
 
 /** Parabolic SAR plugin */
 export const parabolicSar = defineIndicator({
   name: "parabolicSar" as const,
-  compute: (candles, opts) =>
-    parabolicSarFn(candles, { step: opts.step, max: opts.max }),
+  compute: (candles, opts) => parabolicSarFn(candles, { step: opts.step, max: opts.max }),
   defaultOptions: { step: 0.02, max: 0.2 },
   buildKey: (opts) => `psar_${opts.step}_${opts.max}`,
 });

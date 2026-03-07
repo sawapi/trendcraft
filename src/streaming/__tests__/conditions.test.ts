@@ -1,18 +1,18 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
+import type { NormalizedCandle } from "../../types";
 import {
   and,
-  or,
-  not,
   evaluateStreamingCondition,
-  rsiBelow,
-  rsiAbove,
-  smaGoldenCross,
+  indicatorAbove,
   macdPositive,
+  not,
+  or,
   priceAbove,
   priceBelow,
-  indicatorAbove,
+  rsiAbove,
+  rsiBelow,
+  smaGoldenCross,
 } from "../conditions";
-import type { NormalizedCandle } from "../../types";
 
 const candle: NormalizedCandle = {
   time: 1000,
@@ -39,15 +39,9 @@ describe("evaluateStreamingCondition", () => {
 
   it("should evaluate AND conditions", () => {
     const condition = and(rsiBelow(30), priceAbove("sma20"));
-    expect(
-      evaluateStreamingCondition(condition, { rsi: 25, sma20: 90 }, candle),
-    ).toBe(true);
-    expect(
-      evaluateStreamingCondition(condition, { rsi: 35, sma20: 90 }, candle),
-    ).toBe(false);
-    expect(
-      evaluateStreamingCondition(condition, { rsi: 25, sma20: 110 }, candle),
-    ).toBe(false);
+    expect(evaluateStreamingCondition(condition, { rsi: 25, sma20: 90 }, candle)).toBe(true);
+    expect(evaluateStreamingCondition(condition, { rsi: 35, sma20: 90 }, candle)).toBe(false);
+    expect(evaluateStreamingCondition(condition, { rsi: 25, sma20: 110 }, candle)).toBe(false);
   });
 
   it("should evaluate OR conditions", () => {
@@ -64,18 +58,11 @@ describe("evaluateStreamingCondition", () => {
   });
 
   it("should evaluate nested combinators", () => {
-    const condition = and(
-      or(rsiBelow(30), rsiAbove(70)),
-      not(priceBelow("sma200")),
-    );
+    const condition = and(or(rsiBelow(30), rsiAbove(70)), not(priceBelow("sma200")));
     // RSI oversold + price above SMA200
-    expect(
-      evaluateStreamingCondition(condition, { rsi: 25, sma200: 90 }, candle),
-    ).toBe(true);
+    expect(evaluateStreamingCondition(condition, { rsi: 25, sma200: 90 }, candle)).toBe(true);
     // RSI neutral → false
-    expect(
-      evaluateStreamingCondition(condition, { rsi: 50, sma200: 90 }, candle),
-    ).toBe(false);
+    expect(evaluateStreamingCondition(condition, { rsi: 50, sma200: 90 }, candle)).toBe(false);
   });
 });
 
@@ -116,7 +103,7 @@ describe("preset conditions", () => {
 
   it("priceAbove", () => {
     const c = priceAbove("sma20");
-    expect(c.evaluate({ sma20: 90 }, candle)).toBe(true);  // close=102 > 90
+    expect(c.evaluate({ sma20: 90 }, candle)).toBe(true); // close=102 > 90
     expect(c.evaluate({ sma20: 110 }, candle)).toBe(false); // close=102 < 110
   });
 

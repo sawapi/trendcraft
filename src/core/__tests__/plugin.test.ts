@@ -1,10 +1,15 @@
 import { describe, expect, it } from "vitest";
+import { sma } from "../../indicators/moving-average/sma";
+import {
+  atr as atrPlugin,
+  macd as macdPlugin,
+  rsi as rsiPlugin,
+  sma as smaPlugin,
+} from "../../indicators/plugins";
 import type { NormalizedCandle, Series } from "../../types";
 import { defineIndicator } from "../../types/plugin";
 import type { IndicatorPlugin } from "../../types/plugin";
 import { TrendCraft, TrendCraftMtf } from "../trendcraft";
-import { sma as smaPlugin, rsi as rsiPlugin, macd as macdPlugin, atr as atrPlugin } from "../../indicators/plugins";
-import { sma } from "../../indicators/moving-average/sma";
 
 // Helper to create simple candles
 const makeCandles = (closes: number[]): NormalizedCandle[] =>
@@ -39,7 +44,7 @@ describe("Plugin System", () => {
         buildKey: (opts) => `myKey_${opts.period}`,
       });
 
-      expect(plugin.buildKey!({ period: 50 })).toBe("myKey_50");
+      expect(plugin.buildKey?.({ period: 50 })).toBe("myKey_50");
     });
   });
 
@@ -49,8 +54,7 @@ describe("Plugin System", () => {
     it("should compute a custom plugin indicator", () => {
       const doubleClose = defineIndicator({
         name: "doubleClose" as const,
-        compute: (candles) =>
-          candles.map((c) => ({ time: c.time, value: c.close * 2 })),
+        compute: (candles) => candles.map((c) => ({ time: c.time, value: c.close * 2 })),
         defaultOptions: {},
       });
 
@@ -99,17 +103,12 @@ describe("Plugin System", () => {
     it("should support chaining .use() with shorthands", () => {
       const customInd = defineIndicator({
         name: "dbl" as const,
-        compute: (candles) =>
-          candles.map((c) => ({ time: c.time, value: c.close * 2 })),
+        compute: (candles) => candles.map((c) => ({ time: c.time, value: c.close * 2 })),
         defaultOptions: {},
         buildKey: () => "dbl",
       });
 
-      const result = TrendCraft.from(candles)
-        .sma(3)
-        .use(customInd)
-        .ema(3)
-        .compute();
+      const result = TrendCraft.from(candles).sma(3).use(customInd).ema(3).compute();
 
       expect(result.indicators.sma3).toBeDefined();
       expect(result.indicators.dbl).toBeDefined();
@@ -141,9 +140,7 @@ describe("Plugin System", () => {
         .use(macdPlugin, { fast: 12, slow: 26, signal: 9 })
         .compute();
 
-      expect(shorthand.indicators.macd_12_26_9).toEqual(
-        plugin.indicators.macd_12_26_9,
-      );
+      expect(shorthand.indicators.macd_12_26_9).toEqual(plugin.indicators.macd_12_26_9);
     });
 
     it("atrPlugin should match atr shorthand", () => {
@@ -212,8 +209,7 @@ describe("Plugin System", () => {
       const candles = makeCandles([10, 20, 30, 40, 50]);
       const custom = defineIndicator({
         name: "myInd" as const,
-        compute: (candles) =>
-          candles.map((c) => ({ time: c.time, value: c.close + 1 })),
+        compute: (candles) => candles.map((c) => ({ time: c.time, value: c.close + 1 })),
         defaultOptions: {},
         buildKey: () => "myInd",
       });
@@ -222,7 +218,7 @@ describe("Plugin System", () => {
       const series = tc.get("myInd");
 
       expect(series).toBeDefined();
-      expect(series![0].value).toBe(11); // 10 + 1
+      expect(series?.[0].value).toBe(11); // 10 + 1
     });
   });
 
@@ -256,12 +252,11 @@ describe("Plugin System", () => {
   describe("Type safety", () => {
     it("should accept IndicatorPlugin type", () => {
       // Type-level check: defineIndicator returns IndicatorPlugin
-      const plugin: IndicatorPlugin<"test", { period: number }, number | null> =
-        defineIndicator({
-          name: "test" as const,
-          compute: (candles, opts) => sma(candles, { period: opts.period }),
-          defaultOptions: { period: 10 },
-        });
+      const plugin: IndicatorPlugin<"test", { period: number }, number | null> = defineIndicator({
+        name: "test" as const,
+        compute: (candles, opts) => sma(candles, { period: opts.period }),
+        defaultOptions: { period: 10 },
+      });
 
       expect(plugin.name).toBe("test");
     });

@@ -4,11 +4,7 @@
  * Helper and formatting functions for AWF analysis results.
  */
 
-import type {
-  AWFPeriod,
-  AWFResult,
-  OptimizationMetric,
-} from "../types/optimization";
+import type { AWFPeriod, AWFResult, OptimizationMetric } from "../types/optimization";
 
 /**
  * Calculate aggregate metrics across all AWF periods

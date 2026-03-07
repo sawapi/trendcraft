@@ -2,12 +2,12 @@
  * Backtest configuration and results panel
  */
 
-import { useChartStore } from "../store/chartStore";
-import { useBacktest, ENTRY_CONDITIONS, EXIT_CONDITIONS } from "../hooks/useBacktest";
-import { buildEquityCurve } from "../utils/backtestMarkers";
+import type { EChartsOption } from "echarts";
 import ReactECharts from "echarts-for-react";
 import { useMemo } from "react";
-import type { EChartsOption } from "echarts";
+import { ENTRY_CONDITIONS, EXIT_CONDITIONS, useBacktest } from "../hooks/useBacktest";
+import { useChartStore } from "../store/chartStore";
+import { buildEquityCurve } from "../utils/backtestMarkers";
 
 /**
  * Format date for display
@@ -46,7 +46,7 @@ export function BacktestPanel() {
     currentCandles,
     backtestConfig,
     setBacktestResult,
-    setIsBacktestRunning
+    setIsBacktestRunning,
   );
 
   // Build equity curve chart option
@@ -56,7 +56,7 @@ export function BacktestPanel() {
     const equityData = buildEquityCurve(
       backtestResult.trades,
       backtestConfig.capital,
-      currentCandles
+      currentCandles,
     );
     const dates = equityData.map((d) => d.date);
     const equityValues = equityData.map((d) => d.equity);
@@ -77,8 +77,7 @@ export function BacktestPanel() {
         textStyle: { color: "#fff", fontSize: 11 },
         formatter: (params) => {
           const p = Array.isArray(params) ? params[0] : params;
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const value = (p as any).value as number;
+          const value = (p as { value: number }).value;
           return `${(p as { name: string }).name}<br/>Equity: ${value.toLocaleString()}`;
         },
       },
@@ -303,7 +302,9 @@ export function BacktestPanel() {
               </div>
               <div className="result-item">
                 <span className="result-label">Max DD</span>
-                <span className="result-value negative">-{backtestResult.maxDrawdown.toFixed(1)}%</span>
+                <span className="result-value negative">
+                  -{backtestResult.maxDrawdown.toFixed(1)}%
+                </span>
               </div>
               <div className="result-item">
                 <span className="result-label">Sharpe</span>
@@ -346,8 +347,7 @@ export function BacktestPanel() {
                         <span className="trade-days">{trade.holdingDays}d</span>
                         <span className="trade-return">
                           {isWin ? "+" : ""}
-                          {trade.returnPercent.toFixed(1)}%
-                          {trade.isPartial ? " (P)" : ""}
+                          {trade.returnPercent.toFixed(1)}%{trade.isPartial ? " (P)" : ""}
                         </span>
                       </div>
                     );

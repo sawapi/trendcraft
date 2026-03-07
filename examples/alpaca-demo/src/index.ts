@@ -8,9 +8,9 @@
 import { Command } from "commander";
 import { backtestCommand } from "./commands/backtest.js";
 import { liveCommand } from "./commands/live.js";
-import { statusCommand } from "./commands/status.js";
 import { promoteCommand } from "./commands/promote.js";
 import { reviewCommand } from "./commands/review.js";
+import { statusCommand } from "./commands/status.js";
 import { getStrategyIds } from "./strategy/registry.js";
 
 const program = new Command();
@@ -32,10 +32,7 @@ program
 program
   .command("live")
   .description("Start live paper trading")
-  .option(
-    "-S, --strategy <id>",
-    `Strategy ID (${getStrategyIds().join(", ")})`,
-  )
+  .option("-S, --strategy <id>", `Strategy ID (${getStrategyIds().join(", ")})`)
   .option("-s, --symbol <symbol>", "Single symbol")
   .option("--symbols <symbols>", "Comma-separated symbol list")
   .option("-a, --all", "Use all strategies")
@@ -44,10 +41,7 @@ program
   .option("--no-auto-review", "Disable automatic daily review after market close")
   .action(liveCommand);
 
-program
-  .command("status")
-  .description("Show agent status and leaderboard")
-  .action(statusCommand);
+program.command("status").description("Show agent status and leaderboard").action(statusCommand);
 
 program
   .command("promote")

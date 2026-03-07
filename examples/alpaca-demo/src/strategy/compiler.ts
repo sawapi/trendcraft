@@ -6,39 +6,34 @@
  */
 
 import {
-  incremental,
-  streaming,
-  sma,
-  ema,
-  rsi,
-  bollingerBands,
-  stochastics,
-  atr,
-  dmi,
-  vwap,
-  rsiBelow as backtestRsiBelow,
-  rsiAbove as backtestRsiAbove,
-  macdCrossUp,
-  macdCrossDown,
-  goldenCrossCondition as backtestGoldenCross,
-  deadCrossCondition as backtestDeadCross,
-  dmiBullish as backtestDmiBullish,
-  dmiBearish as backtestDmiBearish,
-  and as backtestAnd,
-  or as backtestOr,
-  type NormalizedCandle,
   type Condition,
+  type NormalizedCandle,
   type SignalManagerOptions,
+  atr,
+  and as backtestAnd,
+  deadCrossCondition as backtestDeadCross,
+  dmiBearish as backtestDmiBearish,
+  dmiBullish as backtestDmiBullish,
+  goldenCrossCondition as backtestGoldenCross,
+  or as backtestOr,
+  rsiAbove as backtestRsiAbove,
+  rsiBelow as backtestRsiBelow,
+  bollingerBands,
+  dmi,
+  ema,
+  incremental,
+  macdCrossDown,
+  macdCrossUp,
+  rsi,
+  sma,
+  stochastics,
+  streaming,
+  vwap,
 } from "trendcraft";
-import type { StrategyDefinition } from "./types.js";
-import type {
-  StrategyTemplate,
-  ConditionRule,
-  ConditionRef,
-  IndicatorRef,
-} from "./template.js";
-import { isCombined } from "./template.js";
 import { US_MARKET_HOURS } from "../config/market-hours.js";
+import type { ConditionRef, ConditionRule, IndicatorRef, StrategyTemplate } from "./template.js";
+import { isCombined } from "./template.js";
+import type { StrategyDefinition } from "./types.js";
 
 export type CompileResult =
   | { ok: true; strategy: StrategyDefinition }
@@ -158,17 +153,11 @@ function compileStreamingConditionRef(
     case "macdNegative":
       return streaming.macdNegative(findIndicatorName(indicators, "macd"));
     case "priceAbove": {
-      const key = resolveIndicatorKey(
-        ref.params?.indicatorKey as string,
-        indicators,
-      );
+      const key = resolveIndicatorKey(ref.params?.indicatorKey as string, indicators);
       return buildPriceCondition("above", key, indicators);
     }
     case "priceBelow": {
-      const key = resolveIndicatorKey(
-        ref.params?.indicatorKey as string,
-        indicators,
-      );
+      const key = resolveIndicatorKey(ref.params?.indicatorKey as string, indicators);
       return buildPriceCondition("below", key, indicators);
     }
     case "smaGoldenCross": {
@@ -215,12 +204,8 @@ function compileStreamingCondition(
   indicators: IndicatorRef[],
 ): streaming.StreamingCondition {
   if (isCombined(rule)) {
-    const compiled = rule.conditions.map((c) =>
-      compileStreamingConditionRef(c, indicators),
-    );
-    return rule.operator === "and"
-      ? streaming.and(...compiled)
-      : streaming.or(...compiled);
+    const compiled = rule.conditions.map((c) => compileStreamingConditionRef(c, indicators));
+    return rule.operator === "and" ? streaming.and(...compiled) : streaming.or(...compiled);
   }
   return compileStreamingConditionRef(rule, indicators);
 }
@@ -228,14 +213,8 @@ function compileStreamingCondition(
 // --- Backtest condition compilation ---
 
 function buildBacktestAdapter(template: StrategyTemplate) {
-  const entryCondition = compileBacktestCondition(
-    template.entry,
-    template.indicators,
-  );
-  const exitCondition = compileBacktestCondition(
-    template.exit,
-    template.indicators,
-  );
+  const entryCondition = compileBacktestCondition(template.entry, template.indicators);
+  const exitCondition = compileBacktestCondition(template.exit, template.indicators);
 
   return {
     entryCondition,
@@ -268,10 +247,7 @@ function buildBacktestAdapter(template: StrategyTemplate) {
   };
 }
 
-function compileBacktestConditionRef(
-  ref: ConditionRef,
-  indicators: IndicatorRef[],
-): Condition {
+function compileBacktestConditionRef(ref: ConditionRef, indicators: IndicatorRef[]): Condition {
   switch (ref.type) {
     case "rsiBelow":
       return backtestRsiBelow((ref.params?.threshold as number) ?? 30);
@@ -322,27 +298,17 @@ function compileBacktestConditionRef(
   }
 }
 
-function compileBacktestCondition(
-  rule: ConditionRule,
-  indicators: IndicatorRef[],
-): Condition {
+function compileBacktestCondition(rule: ConditionRule, indicators: IndicatorRef[]): Condition {
   if (isCombined(rule)) {
-    const compiled = rule.conditions.map((c) =>
-      compileBacktestConditionRef(c, indicators),
-    );
-    return rule.operator === "and"
-      ? backtestAnd(...compiled)
-      : backtestOr(...compiled);
+    const compiled = rule.conditions.map((c) => compileBacktestConditionRef(c, indicators));
+    return rule.operator === "and" ? backtestAnd(...compiled) : backtestOr(...compiled);
   }
   return compileBacktestConditionRef(rule, indicators);
 }
 
 // --- Helpers ---
 
-function findIndicatorName(
-  indicators: IndicatorRef[],
-  type: string,
-): string {
+function findIndicatorName(indicators: IndicatorRef[], type: string): string {
   const found = indicators.find((i) => i.type === type);
   return found?.name ?? type;
 }
@@ -351,10 +317,7 @@ function findIndicatorName(
  * Resolve indicator keys like "bb.lower" into the actual indicator name
  * and sub-field path.
  */
-function resolveIndicatorKey(
-  key: string,
-  _indicators: IndicatorRef[],
-): string {
+function resolveIndicatorKey(key: string, _indicators: IndicatorRef[]): string {
   return key;
 }
 
@@ -371,7 +334,8 @@ function buildSmaCrossCondition(
   let prevLong: number | null = null;
 
   return (snapshot: streaming.IndicatorSnapshot, _candle: NormalizedCandle) => {
-    const currShort = typeof snapshot[shortKey] === "number" ? (snapshot[shortKey] as number) : null;
+    const currShort =
+      typeof snapshot[shortKey] === "number" ? (snapshot[shortKey] as number) : null;
     const currLong = typeof snapshot[longKey] === "number" ? (snapshot[longKey] as number) : null;
 
     let crossed = false;
@@ -429,15 +393,11 @@ function buildPriceCondition(
         vwapPrice = (val as { vwap: number | null }).vwap;
       }
       if (vwapPrice === null) return false;
-      return direction === "above"
-        ? candle.close > vwapPrice
-        : candle.close < vwapPrice;
+      return direction === "above" ? candle.close > vwapPrice : candle.close < vwapPrice;
     };
     return fn;
   }
-  return direction === "above"
-    ? streaming.priceAbove(key)
-    : streaming.priceBelow(key);
+  return direction === "above" ? streaming.priceAbove(key) : streaming.priceBelow(key);
 }
 
 /**
@@ -493,10 +453,7 @@ function ensureIndicator(
  * Build custom backtest condition for price/indicator comparisons.
  * Computes indicators on demand from template IndicatorRef definitions.
  */
-function buildBacktestCustomCondition(
-  ref: ConditionRef,
-  indicatorRefs: IndicatorRef[],
-): Condition {
+function buildBacktestCustomCondition(ref: ConditionRef, indicatorRefs: IndicatorRef[]): Condition {
   const key = ref.params?.indicatorKey as string;
   const threshold = ref.params?.threshold as number | undefined;
 
@@ -520,9 +477,7 @@ function buildBacktestCustomCondition(
         if (entry?.value) value = entry.value[parts[1]] ?? null;
       }
     } else {
-      const series = indicators[indicatorName] as
-        | { time: number; value: unknown }[]
-        | undefined;
+      const series = indicators[indicatorName] as { time: number; value: unknown }[] | undefined;
       if (series) {
         const entry = series[index];
         if (entry) {
@@ -561,9 +516,7 @@ function buildBacktestCustomCondition(
   };
 }
 
-function buildSignalLifecycle(
-  template: StrategyTemplate,
-): SignalManagerOptions | undefined {
+function buildSignalLifecycle(template: StrategyTemplate): SignalManagerOptions | undefined {
   const lc = template.signalLifecycle;
   if (!lc) return undefined;
   if (!lc.cooldownBars && !lc.debounceBars && !lc.expiryBars) return undefined;
@@ -575,9 +528,7 @@ function buildSignalLifecycle(
   };
 }
 
-function buildPosition(
-  template: StrategyTemplate,
-): streaming.PositionManagerOptions {
+function buildPosition(template: StrategyTemplate): streaming.PositionManagerOptions {
   let sizing: streaming.PositionManagerOptions["sizing"];
 
   switch (template.position.sizingMethod) {

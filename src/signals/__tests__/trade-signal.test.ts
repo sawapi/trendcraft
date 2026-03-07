@@ -1,21 +1,21 @@
 /**
  * Tests for Trade Signal Converters (Feature 1)
  */
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
+import type { PipelineResult } from "../../streaming/types";
+import type { ScoreBreakdown } from "../../types/scoring";
+import type { SqueezeSignal } from "../bollinger-squeeze";
+import type { CrossSignalQuality } from "../cross";
+import type { DivergenceSignal } from "../divergence";
+import type { PatternSignal } from "../patterns/types";
 import {
   fromCrossSignal,
   fromDivergenceSignal,
-  fromSqueezeSignal,
   fromPatternSignal,
-  fromScoreResult,
   fromPipelineResult,
+  fromScoreResult,
+  fromSqueezeSignal,
 } from "../trade-signal/converters";
-import type { CrossSignalQuality } from "../cross";
-import type { DivergenceSignal } from "../divergence";
-import type { SqueezeSignal } from "../bollinger-squeeze";
-import type { PatternSignal } from "../patterns/types";
-import type { ScoreBreakdown } from "../../types/scoring";
-import type { PipelineResult } from "../../streaming/types";
 
 describe("fromCrossSignal", () => {
   const goldenSignal: CrossSignalQuality = {
@@ -172,17 +172,31 @@ describe("fromScoreResult", () => {
     strength: "strong" as const,
     activeSignals: 1,
     contributions: [
-      { name: "rsiOversold", displayName: "RSI Oversold", rawValue: 1, score: 30, weight: 30, isActive: true },
-      { name: "macdBullish", displayName: "MACD Bullish", rawValue: 0, score: 0, weight: 20, isActive: false },
+      {
+        name: "rsiOversold",
+        displayName: "RSI Oversold",
+        rawValue: 1,
+        score: 30,
+        weight: 30,
+        isActive: true,
+      },
+      {
+        name: "macdBullish",
+        displayName: "MACD Bullish",
+        rawValue: 0,
+        score: 0,
+        weight: 20,
+        isActive: false,
+      },
     ],
   };
 
   it("converts score to signal", () => {
     const result = fromScoreResult(breakdown, 7000, { entryPrice: 100 });
     expect(result).not.toBeNull();
-    expect(result!.confidence).toBe(72);
-    expect(result!.reasons.length).toBe(1); // Only active signals
-    expect(result!.reasons[0].name).toBe("rsiOversold");
+    expect(result?.confidence).toBe(72);
+    expect(result?.reasons.length).toBe(1); // Only active signals
+    expect(result?.reasons[0].name).toBe("rsiOversold");
   });
 
   it("returns null when below threshold", () => {
@@ -192,8 +206,8 @@ describe("fromScoreResult", () => {
 
   it("supports custom direction", () => {
     const result = fromScoreResult(breakdown, 7000, { direction: "SHORT" });
-    expect(result!.action).toBe("SELL");
-    expect(result!.direction).toBe("SHORT");
+    expect(result?.action).toBe("SELL");
+    expect(result?.direction).toBe("SHORT");
   });
 });
 
@@ -207,8 +221,8 @@ describe("fromPipelineResult", () => {
     };
     const signal = fromPipelineResult(result, 8000, 100);
     expect(signal).not.toBeNull();
-    expect(signal!.action).toBe("BUY");
-    expect(signal!.reasons).toContainEqual({ source: "pipeline", name: "entry" });
+    expect(signal?.action).toBe("BUY");
+    expect(signal?.reasons).toContainEqual({ source: "pipeline", name: "entry" });
   });
 
   it("converts exit signal", () => {
@@ -219,7 +233,7 @@ describe("fromPipelineResult", () => {
       signals: [],
     };
     const signal = fromPipelineResult(result, 9000);
-    expect(signal!.action).toBe("CLOSE");
+    expect(signal?.action).toBe("CLOSE");
   });
 
   it("returns null when no signals", () => {
@@ -241,6 +255,6 @@ describe("fromPipelineResult", () => {
       signals: ["squeeze_breakout"],
     };
     const signal = fromPipelineResult(result, 11000);
-    expect(signal!.reasons).toContainEqual({ source: "pipeline", name: "squeeze_breakout" });
+    expect(signal?.reasons).toContainEqual({ source: "pipeline", name: "squeeze_breakout" });
   });
 });

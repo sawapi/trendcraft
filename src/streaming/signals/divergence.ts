@@ -49,12 +49,10 @@ export function createDivergenceDetector(
   options: DivergenceDetectorOptions = {},
   fromState?: DivergenceDetectorState,
 ): DivergenceDetector {
-  const lookback = fromState?.lookback ?? (options.lookback ?? 14);
+  const lookback = fromState?.lookback ?? options.lookback ?? 14;
   const bufferSize = fromState?.bufferSize ?? lookback;
 
-  let priceBuffer: (number | null)[] = fromState?.priceBuffer
-    ? [...fromState.priceBuffer]
-    : [];
+  let priceBuffer: (number | null)[] = fromState?.priceBuffer ? [...fromState.priceBuffer] : [];
   let indicatorBuffer: (number | null)[] = fromState?.indicatorBuffer
     ? [...fromState.indicatorBuffer]
     : [];

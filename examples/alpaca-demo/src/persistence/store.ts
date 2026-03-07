@@ -4,9 +4,9 @@
  * Atomic writes to prevent corruption on crash.
  */
 
-import { readFileSync, writeFileSync, existsSync, renameSync } from "node:fs";
-import { resolve, dirname } from "node:path";
+import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { mkdirSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 import type { AgentState } from "../agent/types.js";
 
 export type PersistentState = {
@@ -43,9 +43,7 @@ export function createStateStore(path: string = DEFAULT_PATH): StateStore {
       writeFileSync(tmpPath, json, "utf-8");
       renameSync(tmpPath, path);
 
-      console.log(
-        `[STORE] State saved (${agents.length} agents) at ${new Date().toISOString()}`,
-      );
+      console.log(`[STORE] State saved (${agents.length} agents) at ${new Date().toISOString()}`);
     },
 
     load(): PersistentState | null {

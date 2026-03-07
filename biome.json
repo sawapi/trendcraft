@@ -34,5 +34,24 @@
   },
   "files": {
     "ignore": ["dist", "node_modules", "*.config.ts"]
-  }
+  },
+  "overrides": [
+    {
+      "include": ["examples/**"],
+      "linter": {
+        "rules": {
+          "a11y": {
+            "noLabelWithoutControl": "off",
+            "useKeyWithClickEvents": "off",
+            "useButtonType": "off",
+            "useSemanticElements": "off",
+            "useGenericFontNames": "off"
+          },
+          "suspicious": {
+            "noArrayIndexKey": "off"
+          }
+        }
+      }
+    }
+  ]
 }

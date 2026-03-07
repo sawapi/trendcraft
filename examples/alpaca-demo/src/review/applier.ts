@@ -7,30 +7,30 @@
  * - create_strategy → backtest gate → save to custom-strategies.json
  */
 
-import { readFileSync, existsSync } from "node:fs";
-import { resolve, dirname } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
 import { mkdirSync } from "node:fs";
-import { atomicWriteJson } from "../persistence/atomic-write.js";
-import { runBacktest, type NormalizedCandle } from "trendcraft";
+import { dirname, resolve } from "node:path";
+import { type NormalizedCandle, runBacktest } from "trendcraft";
+import type { AgentState } from "../agent/types.js";
+import { runMonteCarloValidation, runWalkForwardValidation } from "../backtest/runner.js";
 import { scoreResult } from "../backtest/scorer.js";
-import { runWalkForwardValidation, runMonteCarloValidation } from "../backtest/runner.js";
+import { atomicWriteJson } from "../persistence/atomic-write.js";
 import { compileTemplate } from "../strategy/compiler.js";
-import type {
-  LLMAction,
-  AdjustParamsAction,
-  KillAgentAction,
-  ReviveAgentAction,
-  CreateStrategyAction,
-  AppliedAction,
-  RejectedAction,
-} from "./types.js";
 import {
   type ParameterOverride,
   type StrategyTemplate,
-  getPresetTemplate,
   applyOverrides as applyTemplateOverrides,
+  getPresetTemplate,
 } from "../strategy/template.js";
-import type { AgentState } from "../agent/types.js";
+import type {
+  AdjustParamsAction,
+  AppliedAction,
+  CreateStrategyAction,
+  KillAgentAction,
+  LLMAction,
+  RejectedAction,
+  ReviveAgentAction,
+} from "./types.js";
 
 const DATA_DIR = resolve(import.meta.dirname, "../../data");
 const OVERRIDES_PATH = resolve(DATA_DIR, "strategy-overrides.json");
@@ -67,7 +67,7 @@ export async function applyActions(
           wfaEfficiency: result.wfaEfficiency,
         });
       } else {
-        rejected.push({ action, reason: result.reason! });
+        rejected.push({ action, reason: result.reason ?? "unknown" });
       }
     } catch (err) {
       rejected.push({
@@ -142,8 +142,11 @@ function applyAdjustParams(
 
   // Walk-Forward gate for logic/risk changes (indicators, entry, exit, position, guards)
   const hasLogicChanges =
-    action.changes.indicators || action.changes.entry || action.changes.exit ||
-    action.changes.position || action.changes.guards;
+    action.changes.indicators ||
+    action.changes.entry ||
+    action.changes.exit ||
+    action.changes.position ||
+    action.changes.guards;
 
   if (hasLogicChanges && backtestCandles && backtestCandles.length > 0) {
     const baseTemplate = getPresetTemplate(action.strategyId);
@@ -239,8 +242,7 @@ function applyCreateStrategy(
 
   // Run backtest gate if candles available
   if (backtestCandles && backtestCandles.length > 0) {
-    const { entryCondition, exitCondition, options } =
-      compiled.strategy.backtestAdapter;
+    const { entryCondition, exitCondition, options } = compiled.strategy.backtestAdapter;
 
     const btResult = runBacktest(backtestCandles, entryCondition, exitCondition, {
       ...options,
@@ -291,9 +293,7 @@ function applyCreateStrategy(
 
   // No backtest data — save but warn
   saveCustomStrategy(template);
-  console.log(
-    `[APPLY] New strategy "${template.id}" saved (no backtest data available)`,
-  );
+  console.log(`[APPLY] New strategy "${template.id}" saved (no backtest data available)`);
   return { ok: true };
 }
 
@@ -326,7 +326,11 @@ export function removeOverride(strategyId: string): boolean {
   return true;
 }
 
-function loadState(): { version: number; savedAt: number; agents: (AgentState & { active?: boolean })[] } | null {
+function loadState(): {
+  version: number;
+  savedAt: number;
+  agents: (AgentState & { active?: boolean })[];
+} | null {
   if (!existsSync(STATE_PATH)) return null;
   try {
     return JSON.parse(readFileSync(STATE_PATH, "utf-8"));
@@ -335,7 +339,11 @@ function loadState(): { version: number; savedAt: number; agents: (AgentState & 
   }
 }
 
-function saveState(state: { version: number; savedAt: number; agents: (AgentState & { active?: boolean })[] }): void {
+function saveState(state: {
+  version: number;
+  savedAt: number;
+  agents: (AgentState & { active?: boolean })[];
+}): void {
   atomicWriteJson(STATE_PATH, state);
 }
 

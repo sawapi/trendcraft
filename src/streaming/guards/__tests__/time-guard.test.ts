@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { createTimeGuard } from "../time-guard";
 
 const HOUR = 3600_000;
@@ -334,14 +334,10 @@ describe("createTimeGuard", () => {
       const guard = createTimeGuard(
         {
           tradingWindows: [{ startMs: 0, endMs: 24 * HOUR }],
-          blackoutPeriods: [
-            { startTime: 100, endTime: 200, reason: "from options" },
-          ],
+          blackoutPeriods: [{ startTime: 100, endTime: 200, reason: "from options" }],
         },
         {
-          blackoutPeriods: [
-            { startTime: 300, endTime: 400, reason: "from state" },
-          ],
+          blackoutPeriods: [{ startTime: 300, endTime: 400, reason: "from state" }],
         },
       );
 

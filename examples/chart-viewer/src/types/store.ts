@@ -48,7 +48,11 @@ export interface ChartState {
  * Chart store actions
  */
 export interface ChartActions {
-  loadCandles: (candles: NormalizedCandle[], fundamentals: FundamentalData | null, fileName: string) => void;
+  loadCandles: (
+    candles: NormalizedCandle[],
+    fundamentals: FundamentalData | null,
+    fileName: string,
+  ) => void;
   setTimeframe: (timeframe: Timeframe) => void;
   setDisplayStartYears: (years: DisplayStartYears) => void;
   setEnabledIndicators: (indicators: SubChartType[]) => void;

@@ -101,9 +101,12 @@ export function IndicatorSelector({
                         const paramValue = params[config.key];
                         const defaultValue = DEFAULT_INDICATOR_PARAMS[config.key];
                         // Use param value if numeric, otherwise fall back to default or min
-                        const displayValue = typeof paramValue === "number"
-                          ? paramValue
-                          : (typeof defaultValue === "number" ? defaultValue : config.min);
+                        const displayValue =
+                          typeof paramValue === "number"
+                            ? paramValue
+                            : typeof defaultValue === "number"
+                              ? defaultValue
+                              : config.min;
                         return (
                           <div key={config.key} className="param-row">
                             <label>

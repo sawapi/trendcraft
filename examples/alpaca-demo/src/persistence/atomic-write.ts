@@ -5,7 +5,7 @@
  * This prevents partial/corrupt JSON if the process is interrupted.
  */
 
-import { writeFileSync, renameSync, mkdirSync } from "node:fs";
+import { mkdirSync, renameSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 
 export function atomicWriteJson(filePath: string, data: unknown): void {

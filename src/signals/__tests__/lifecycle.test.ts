@@ -1,10 +1,10 @@
 /**
  * Tests for Signal Lifecycle Management (Feature 2)
  */
-import { describe, it, expect } from "vitest";
-import { createSignalManager } from "../lifecycle/signal-manager";
-import { processSignalsBatch } from "../lifecycle/batch-adapter";
+import { describe, expect, it } from "vitest";
 import type { TradeSignal } from "../../types/trade-signal";
+import { processSignalsBatch } from "../lifecycle/batch-adapter";
+import { createSignalManager } from "../lifecycle/signal-manager";
 
 function makeSignal(time: number, action: "BUY" | "SELL" = "BUY"): TradeSignal {
   return {

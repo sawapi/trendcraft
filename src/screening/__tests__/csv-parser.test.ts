@@ -47,11 +47,9 @@ describe("parseCsv", () => {
   });
 
   it("should handle trailing newline", () => {
-    const csv = [
-      "date,open,high,low,close,volume",
-      "2024-01-01,100,110,95,105,1000000",
-      "",
-    ].join("\n");
+    const csv = ["date,open,high,low,close,volume", "2024-01-01,100,110,95,105,1000000", ""].join(
+      "\n",
+    );
 
     const candles = parseCsv(csv);
     expect(candles).toHaveLength(1);
@@ -67,12 +65,11 @@ describe("parseCsv", () => {
   });
 
   it("should throw when a row has fewer than 6 columns", () => {
-    const csv = [
-      "date,open,high,low,close,volume",
-      "2024-01-01,100,110,95",
-    ].join("\n");
+    const csv = ["date,open,high,low,close,volume", "2024-01-01,100,110,95"].join("\n");
 
-    expect(() => parseCsv(csv)).toThrow("Invalid CSV format at line 2: expected at least 6 columns");
+    expect(() => parseCsv(csv)).toThrow(
+      "Invalid CSV format at line 2: expected at least 6 columns",
+    );
   });
 
   it("should accept 7+ columns (adjusted_close)", () => {
@@ -87,10 +84,7 @@ describe("parseCsv", () => {
   });
 
   it("should return candles with numeric time values after normalization", () => {
-    const csv = [
-      "date,open,high,low,close,volume",
-      "2024-01-01,100,110,95,105,1000000",
-    ].join("\n");
+    const csv = ["date,open,high,low,close,volume", "2024-01-01,100,110,95,105,1000000"].join("\n");
 
     const candles = parseCsv(csv);
     expect(typeof candles[0].time).toBe("number");
@@ -103,9 +97,9 @@ describe("parseCsv", () => {
     ].join("\n");
 
     const candles = parseCsv(csv);
-    expect(candles[0].open).toBeCloseTo(100.50, 2);
+    expect(candles[0].open).toBeCloseTo(100.5, 2);
     expect(candles[0].high).toBeCloseTo(110.75, 2);
     expect(candles[0].low).toBeCloseTo(95.25, 2);
-    expect(candles[0].close).toBeCloseTo(105.30, 2);
+    expect(candles[0].close).toBeCloseTo(105.3, 2);
   });
 });

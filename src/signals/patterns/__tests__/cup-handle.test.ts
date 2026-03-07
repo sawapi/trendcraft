@@ -153,7 +153,7 @@ describe("cupWithHandle", () => {
     // Cup formation
     for (let i = 0; i < 10; i++) candles.push(createCandle(day++, 100));
     for (let i = 0; i < 20; i++) {
-      candles.push(createCandle(day++, 100 - Math.sin(i / 20 * Math.PI) * 20));
+      candles.push(createCandle(day++, 100 - Math.sin((i / 20) * Math.PI) * 20));
     }
     for (let i = 0; i < 10; i++) candles.push(createCandle(day++, 100));
 

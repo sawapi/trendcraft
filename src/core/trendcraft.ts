@@ -4,25 +4,24 @@
  */
 
 import {
-  sma as smaPlugin,
-  ema as emaPlugin,
-  rsi as rsiPlugin,
-  macd as macdPlugin,
-  bollingerBands as bollingerBandsPlugin,
   atr as atrPlugin,
-  volumeMa as volumeMaPlugin,
-  highest as highestPlugin,
-  lowest as lowestPlugin,
-  returns as returnsPlugin,
-  parabolicSar as parabolicSarPlugin,
-  keltnerChannel as keltnerChannelPlugin,
+  bollingerBands as bollingerBandsPlugin,
   cmf as cmfPlugin,
+  ema as emaPlugin,
+  highest as highestPlugin,
+  keltnerChannel as keltnerChannelPlugin,
+  lowest as lowestPlugin,
+  macd as macdPlugin,
+  parabolicSar as parabolicSarPlugin,
+  returns as returnsPlugin,
+  rsi as rsiPlugin,
+  sma as smaPlugin,
   volumeAnomaly as volumeAnomalyPlugin,
+  volumeMa as volumeMaPlugin,
   volumeProfileSeries as volumeProfileSeriesPlugin,
   volumeTrend as volumeTrendPlugin,
 } from "../indicators/plugins";
 import { volumeProfile } from "../indicators/volume/volume-profile";
-import type { IndicatorPlugin } from "../types/plugin";
 import type {
   Candle,
   NormalizedCandle,
@@ -32,10 +31,11 @@ import type {
   TimeframeShorthand,
   VolumeProfileValue,
 } from "../types";
+import type { IndicatorPlugin } from "../types/plugin";
 import { isNormalized } from "./normalize";
 import { normalizeCandles } from "./normalize";
 import { resample } from "./resample";
-import { StrategyBuilder, MtfStrategyBuilder } from "./strategy-builder";
+import { MtfStrategyBuilder, StrategyBuilder } from "./strategy-builder";
 
 /**
  * Internal pipeline entry referencing a plugin with resolved options

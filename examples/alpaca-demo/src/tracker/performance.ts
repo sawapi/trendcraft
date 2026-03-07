@@ -16,10 +16,7 @@ export type PerformanceSummary = {
  */
 export function getPerformanceSummary(agent: Agent): PerformanceSummary {
   const metrics = agent.getMetrics();
-  const evalDays = Math.max(
-    1,
-    (Date.now() - metrics.startedAt) / (24 * 60 * 60 * 1000),
-  );
+  const evalDays = Math.max(1, (Date.now() - metrics.startedAt) / (24 * 60 * 60 * 1000));
 
   return {
     agentId: agent.id,

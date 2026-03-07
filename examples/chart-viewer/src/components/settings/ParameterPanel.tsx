@@ -3,7 +3,7 @@
  */
 
 import type { IndicatorParams, NumericParamConfig } from "../../types";
-import { INDICATOR_PARAM_CONFIGS, DEFAULT_INDICATOR_PARAMS } from "../../types";
+import { DEFAULT_INDICATOR_PARAMS, INDICATOR_PARAM_CONFIGS } from "../../types";
 
 interface ParameterPanelProps {
   indicatorKey: string;
@@ -15,7 +15,11 @@ interface ParameterPanelProps {
  * Renders the parameter panel for a given indicator key.
  * Shows number inputs for each configurable parameter.
  */
-export function ParameterPanel({ indicatorKey, indicatorParams, onParamChange }: ParameterPanelProps) {
+export function ParameterPanel({
+  indicatorKey,
+  indicatorParams,
+  onParamChange,
+}: ParameterPanelProps) {
   const configs = INDICATOR_PARAM_CONFIGS[indicatorKey];
   if (!configs || configs.length === 0) return null;
 

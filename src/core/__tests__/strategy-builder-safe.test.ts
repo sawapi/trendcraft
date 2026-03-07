@@ -3,8 +3,8 @@
  */
 
 import { describe, expect, it } from "vitest";
-import type { NormalizedCandle, Condition } from "../../types";
-import { StrategyBuilder, MtfStrategyBuilder } from "../strategy-builder";
+import type { Condition, NormalizedCandle } from "../../types";
+import { MtfStrategyBuilder, StrategyBuilder } from "../strategy-builder";
 
 const makeCandles = (count: number, basePrice = 100): NormalizedCandle[] =>
   Array.from({ length: count }, (_, i) => {
@@ -19,7 +19,10 @@ const makeCandles = (count: number, basePrice = 100): NormalizedCandle[] =>
     };
   });
 
-const entryEveryN = (n: number): Condition => (_indicators, _candle, i) => i % n === 0;
+const entryEveryN =
+  (n: number): Condition =>
+  (_indicators, _candle, i) =>
+    i % n === 0;
 
 describe("StrategyBuilder.backtestSafe", () => {
   it("returns Ok with valid backtest result", () => {

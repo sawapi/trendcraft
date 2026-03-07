@@ -58,7 +58,9 @@ describe("createRsiOversoldEvaluator", () => {
     const evaluate = createRsiOversoldEvaluator(30, 14);
     const candles = createTestCandles(20);
     const precomputed: PrecomputedIndicators = {
-      rsi14: Array(20).fill(null).map((_, i) => (i >= 14 ? 25 : null)),
+      rsi14: Array(20)
+        .fill(null)
+        .map((_, i) => (i >= 14 ? 25 : null)),
     };
     expect(evaluate(candles, 15, undefined, precomputed)).toBe(1);
   });
@@ -67,7 +69,9 @@ describe("createRsiOversoldEvaluator", () => {
     const evaluate = createRsiOversoldEvaluator(30, 14);
     const candles = createTestCandles(20);
     const precomputed: PrecomputedIndicators = {
-      rsi14: Array(20).fill(null).map((_, i) => (i >= 14 ? 35 : null)),
+      rsi14: Array(20)
+        .fill(null)
+        .map((_, i) => (i >= 14 ? 35 : null)),
     };
     const score = evaluate(candles, 15, undefined, precomputed);
     // RSI=35, threshold=30: 1 - (35-30)/10 = 0.5
@@ -78,7 +82,9 @@ describe("createRsiOversoldEvaluator", () => {
     const evaluate = createRsiOversoldEvaluator(30, 14);
     const candles = createTestCandles(20);
     const precomputed: PrecomputedIndicators = {
-      rsi14: Array(20).fill(null).map((_, i) => (i >= 14 ? 50 : null)),
+      rsi14: Array(20)
+        .fill(null)
+        .map((_, i) => (i >= 14 ? 50 : null)),
     };
     expect(evaluate(candles, 15, undefined, precomputed)).toBe(0);
   });
@@ -118,7 +124,9 @@ describe("createRsiOverboughtEvaluator", () => {
     const evaluate = createRsiOverboughtEvaluator(70, 14);
     const candles = createTestCandles(20);
     const precomputed: PrecomputedIndicators = {
-      rsi14: Array(20).fill(null).map((_, i) => (i >= 14 ? 80 : null)),
+      rsi14: Array(20)
+        .fill(null)
+        .map((_, i) => (i >= 14 ? 80 : null)),
     };
     expect(evaluate(candles, 15, undefined, precomputed)).toBe(1);
   });
@@ -127,7 +135,9 @@ describe("createRsiOverboughtEvaluator", () => {
     const evaluate = createRsiOverboughtEvaluator(70, 14);
     const candles = createTestCandles(20);
     const precomputed: PrecomputedIndicators = {
-      rsi14: Array(20).fill(null).map((_, i) => (i >= 14 ? 65 : null)),
+      rsi14: Array(20)
+        .fill(null)
+        .map((_, i) => (i >= 14 ? 65 : null)),
     };
     const score = evaluate(candles, 15, undefined, precomputed);
     // RSI=65, threshold=70: 1 - (70-65)/10 = 0.5
@@ -138,7 +148,9 @@ describe("createRsiOverboughtEvaluator", () => {
     const evaluate = createRsiOverboughtEvaluator(70, 14);
     const candles = createTestCandles(20);
     const precomputed: PrecomputedIndicators = {
-      rsi14: Array(20).fill(null).map((_, i) => (i >= 14 ? 50 : null)),
+      rsi14: Array(20)
+        .fill(null)
+        .map((_, i) => (i >= 14 ? 50 : null)),
     };
     expect(evaluate(candles, 15, undefined, precomputed)).toBe(0);
   });
@@ -159,7 +171,9 @@ describe("createRsiNeutralEvaluator", () => {
     const evaluate = createRsiNeutralEvaluator(40, 60, 14);
     const candles = createTestCandles(20);
     const precomputed: PrecomputedIndicators = {
-      rsi14: Array(20).fill(null).map((_, i) => (i >= 14 ? 50 : null)),
+      rsi14: Array(20)
+        .fill(null)
+        .map((_, i) => (i >= 14 ? 50 : null)),
     };
     expect(evaluate(candles, 15, undefined, precomputed)).toBe(1);
   });
@@ -168,7 +182,9 @@ describe("createRsiNeutralEvaluator", () => {
     const evaluate = createRsiNeutralEvaluator(40, 60, 14);
     const candles = createTestCandles(20);
     const precomputed: PrecomputedIndicators = {
-      rsi14: Array(20).fill(null).map((_, i) => (i >= 14 ? 40 : null)),
+      rsi14: Array(20)
+        .fill(null)
+        .map((_, i) => (i >= 14 ? 40 : null)),
     };
     expect(evaluate(candles, 15, undefined, precomputed)).toBe(1);
   });
@@ -177,7 +193,9 @@ describe("createRsiNeutralEvaluator", () => {
     const evaluate = createRsiNeutralEvaluator(40, 60, 14);
     const candles = createTestCandles(20);
     const precomputed: PrecomputedIndicators = {
-      rsi14: Array(20).fill(null).map((_, i) => (i >= 14 ? 30 : null)),
+      rsi14: Array(20)
+        .fill(null)
+        .map((_, i) => (i >= 14 ? 30 : null)),
     };
     expect(evaluate(candles, 15, undefined, precomputed)).toBe(0);
   });
@@ -199,12 +217,12 @@ describe("createMacdBullishEvaluator", () => {
     const candles = createTestCandles(40);
     const precomputed: PrecomputedIndicators = {
       macd: Array.from({ length: 40 }, (_, i) =>
-          i >= 35
-            ? i === 35
-              ? { macd: -0.5, signal: 0, histogram: -0.5 }
-              : { macd: 0.5, signal: 0, histogram: 0.5 }
-            : { macd: 0 as number | null, signal: 0 as number | null, histogram: 0 as number | null },
-        ),
+        i >= 35
+          ? i === 35
+            ? { macd: -0.5, signal: 0, histogram: -0.5 }
+            : { macd: 0.5, signal: 0, histogram: 0.5 }
+          : { macd: 0 as number | null, signal: 0 as number | null, histogram: 0 as number | null },
+      ),
     };
     expect(evaluate(candles, 36, undefined, precomputed)).toBe(1);
   });
@@ -214,10 +232,10 @@ describe("createMacdBullishEvaluator", () => {
     const candles = createTestCandles(40);
     const precomputed: PrecomputedIndicators = {
       macd: Array.from({ length: 40 }, (_, i) =>
-          i >= 35
-            ? { macd: 0.5, signal: 0, histogram: 0.5 }
-            : { macd: 0 as number | null, signal: 0 as number | null, histogram: 0 as number | null },
-        ),
+        i >= 35
+          ? { macd: 0.5, signal: 0, histogram: 0.5 }
+          : { macd: 0 as number | null, signal: 0 as number | null, histogram: 0 as number | null },
+      ),
     };
     expect(evaluate(candles, 36, undefined, precomputed)).toBe(0.5);
   });
@@ -227,10 +245,10 @@ describe("createMacdBullishEvaluator", () => {
     const candles = createTestCandles(40);
     const precomputed: PrecomputedIndicators = {
       macd: Array.from({ length: 40 }, (_, i) =>
-          i >= 35
-            ? { macd: -0.5, signal: 0, histogram: -0.5 }
-            : { macd: 0 as number | null, signal: 0 as number | null, histogram: 0 as number | null },
-        ),
+        i >= 35
+          ? { macd: -0.5, signal: 0, histogram: -0.5 }
+          : { macd: 0 as number | null, signal: 0 as number | null, histogram: 0 as number | null },
+      ),
     };
     expect(evaluate(candles, 36, undefined, precomputed)).toBe(0);
   });
@@ -240,10 +258,10 @@ describe("createMacdBullishEvaluator", () => {
     const candles = createTestCandles(40);
     const precomputed: PrecomputedIndicators = {
       macd: Array.from({ length: 40 }, (_, i) =>
-          i >= 35
-            ? { macd: 0.5, signal: 0, histogram: null }
-            : { macd: 0 as number | null, signal: 0 as number | null, histogram: 0 as number | null },
-        ),
+        i >= 35
+          ? { macd: 0.5, signal: 0, histogram: null }
+          : { macd: 0 as number | null, signal: 0 as number | null, histogram: 0 as number | null },
+      ),
     };
     expect(evaluate(candles, 36, undefined, precomputed)).toBe(0);
   });
@@ -259,12 +277,12 @@ describe("createMacdBearishEvaluator", () => {
     const candles = createTestCandles(40);
     const precomputed: PrecomputedIndicators = {
       macd: Array.from({ length: 40 }, (_, i) =>
-          i >= 35
-            ? i === 35
-              ? { macd: 0.5, signal: 0, histogram: 0.5 }
-              : { macd: -0.5, signal: 0, histogram: -0.5 }
-            : { macd: 0 as number | null, signal: 0 as number | null, histogram: 0 as number | null },
-        ),
+        i >= 35
+          ? i === 35
+            ? { macd: 0.5, signal: 0, histogram: 0.5 }
+            : { macd: -0.5, signal: 0, histogram: -0.5 }
+          : { macd: 0 as number | null, signal: 0 as number | null, histogram: 0 as number | null },
+      ),
     };
     expect(evaluate(candles, 36, undefined, precomputed)).toBe(1);
   });
@@ -274,10 +292,10 @@ describe("createMacdBearishEvaluator", () => {
     const candles = createTestCandles(40);
     const precomputed: PrecomputedIndicators = {
       macd: Array.from({ length: 40 }, (_, i) =>
-          i >= 35
-            ? { macd: -0.5, signal: 0, histogram: -0.5 }
-            : { macd: 0 as number | null, signal: 0 as number | null, histogram: 0 as number | null },
-        ),
+        i >= 35
+          ? { macd: -0.5, signal: 0, histogram: -0.5 }
+          : { macd: 0 as number | null, signal: 0 as number | null, histogram: 0 as number | null },
+      ),
     };
     expect(evaluate(candles, 36, undefined, precomputed)).toBe(0.5);
   });
@@ -287,10 +305,10 @@ describe("createMacdBearishEvaluator", () => {
     const candles = createTestCandles(40);
     const precomputed: PrecomputedIndicators = {
       macd: Array.from({ length: 40 }, (_, i) =>
-          i >= 35
-            ? { macd: 0.5, signal: 0, histogram: 0.5 }
-            : { macd: 0 as number | null, signal: 0 as number | null, histogram: 0 as number | null },
-        ),
+        i >= 35
+          ? { macd: 0.5, signal: 0, histogram: 0.5 }
+          : { macd: 0 as number | null, signal: 0 as number | null, histogram: 0 as number | null },
+      ),
     };
     expect(evaluate(candles, 36, undefined, precomputed)).toBe(0);
   });
@@ -312,8 +330,8 @@ describe("createStochOversoldEvaluator", () => {
     const candles = createTestCandles(20);
     const precomputed: PrecomputedIndicators = {
       stoch: Array.from({ length: 20 }, (_, i) =>
-          i >= 17 ? { k: 15, d: 18 } : { k: 0 as number | null, d: 0 as number | null },
-        ),
+        i >= 17 ? { k: 15, d: 18 } : { k: 0 as number | null, d: 0 as number | null },
+      ),
     };
     expect(evaluate(candles, 18, undefined, precomputed)).toBe(1);
   });
@@ -323,8 +341,8 @@ describe("createStochOversoldEvaluator", () => {
     const candles = createTestCandles(20);
     const precomputed: PrecomputedIndicators = {
       stoch: Array.from({ length: 20 }, (_, i) =>
-          i >= 17 ? { k: 15, d: 25 } : { k: 0 as number | null, d: 0 as number | null },
-        ),
+        i >= 17 ? { k: 15, d: 25 } : { k: 0 as number | null, d: 0 as number | null },
+      ),
     };
     expect(evaluate(candles, 18, undefined, precomputed)).toBe(0.7);
   });
@@ -334,8 +352,8 @@ describe("createStochOversoldEvaluator", () => {
     const candles = createTestCandles(20);
     const precomputed: PrecomputedIndicators = {
       stoch: Array.from({ length: 20 }, (_, i) =>
-          i >= 17 ? { k: 50, d: 55 } : { k: 0 as number | null, d: 0 as number | null },
-        ),
+        i >= 17 ? { k: 50, d: 55 } : { k: 0 as number | null, d: 0 as number | null },
+      ),
     };
     expect(evaluate(candles, 18, undefined, precomputed)).toBe(0);
   });
@@ -345,8 +363,8 @@ describe("createStochOversoldEvaluator", () => {
     const candles = createTestCandles(20);
     const precomputed: PrecomputedIndicators = {
       stoch: Array.from({ length: 20 }, (_, i) =>
-          i >= 17 ? { k: null, d: null } : { k: 0 as number | null, d: 0 as number | null },
-        ),
+        i >= 17 ? { k: null, d: null } : { k: 0 as number | null, d: 0 as number | null },
+      ),
     };
     expect(evaluate(candles, 18, undefined, precomputed)).toBe(0);
   });
@@ -362,8 +380,8 @@ describe("createStochOverboughtEvaluator", () => {
     const candles = createTestCandles(20);
     const precomputed: PrecomputedIndicators = {
       stoch: Array.from({ length: 20 }, (_, i) =>
-          i >= 17 ? { k: 85, d: 82 } : { k: 0 as number | null, d: 0 as number | null },
-        ),
+        i >= 17 ? { k: 85, d: 82 } : { k: 0 as number | null, d: 0 as number | null },
+      ),
     };
     expect(evaluate(candles, 18, undefined, precomputed)).toBe(1);
   });
@@ -373,8 +391,8 @@ describe("createStochOverboughtEvaluator", () => {
     const candles = createTestCandles(20);
     const precomputed: PrecomputedIndicators = {
       stoch: Array.from({ length: 20 }, (_, i) =>
-          i >= 17 ? { k: 85, d: 70 } : { k: 0 as number | null, d: 0 as number | null },
-        ),
+        i >= 17 ? { k: 85, d: 70 } : { k: 0 as number | null, d: 0 as number | null },
+      ),
     };
     expect(evaluate(candles, 18, undefined, precomputed)).toBe(0.7);
   });
@@ -384,8 +402,8 @@ describe("createStochOverboughtEvaluator", () => {
     const candles = createTestCandles(20);
     const precomputed: PrecomputedIndicators = {
       stoch: Array.from({ length: 20 }, (_, i) =>
-          i >= 17 ? { k: 50, d: 55 } : { k: 0 as number | null, d: 0 as number | null },
-        ),
+        i >= 17 ? { k: 50, d: 55 } : { k: 0 as number | null, d: 0 as number | null },
+      ),
     };
     expect(evaluate(candles, 18, undefined, precomputed)).toBe(0);
   });
@@ -407,10 +425,10 @@ describe("createStochBullishCrossEvaluator", () => {
     const candles = createTestCandles(20);
     const precomputed: PrecomputedIndicators = {
       stoch: Array.from({ length: 20 }, (_, i) => {
-          if (i === 17) return { k: 10, d: 15 }; // K below D
-          if (i === 18) return { k: 22, d: 18 }; // K crosses above D, within oversold+10
-          return { k: 0 as number | null, d: 0 as number | null };
-        }),
+        if (i === 17) return { k: 10, d: 15 }; // K below D
+        if (i === 18) return { k: 22, d: 18 }; // K crosses above D, within oversold+10
+        return { k: 0 as number | null, d: 0 as number | null };
+      }),
     };
     expect(evaluate(candles, 18, undefined, precomputed)).toBe(1);
   });
@@ -420,10 +438,10 @@ describe("createStochBullishCrossEvaluator", () => {
     const candles = createTestCandles(20);
     const precomputed: PrecomputedIndicators = {
       stoch: Array.from({ length: 20 }, (_, i) => {
-          if (i === 17) return { k: 40, d: 50 }; // K below D
-          if (i === 18) return { k: 55, d: 50 }; // K crosses above D, outside oversold
-          return { k: 0 as number | null, d: 0 as number | null };
-        }),
+        if (i === 17) return { k: 40, d: 50 }; // K below D
+        if (i === 18) return { k: 55, d: 50 }; // K crosses above D, outside oversold
+        return { k: 0 as number | null, d: 0 as number | null };
+      }),
     };
     expect(evaluate(candles, 18, undefined, precomputed)).toBe(0.5);
   });
@@ -433,10 +451,10 @@ describe("createStochBullishCrossEvaluator", () => {
     const candles = createTestCandles(20);
     const precomputed: PrecomputedIndicators = {
       stoch: Array.from({ length: 20 }, (_, i) => {
-          if (i === 17) return { k: 55, d: 50 }; // K already above D
-          if (i === 18) return { k: 60, d: 50 }; // K still above D (no cross)
-          return { k: 0 as number | null, d: 0 as number | null };
-        }),
+        if (i === 17) return { k: 55, d: 50 }; // K already above D
+        if (i === 18) return { k: 60, d: 50 }; // K still above D (no cross)
+        return { k: 0 as number | null, d: 0 as number | null };
+      }),
     };
     expect(evaluate(candles, 18, undefined, precomputed)).toBe(0);
   });
@@ -446,10 +464,10 @@ describe("createStochBullishCrossEvaluator", () => {
     const candles = createTestCandles(20);
     const precomputed: PrecomputedIndicators = {
       stoch: Array.from({ length: 20 }, (_, i) => {
-          if (i === 17) return { k: null, d: null };
-          if (i === 18) return { k: 22, d: 18 };
-          return { k: 0 as number | null, d: 0 as number | null };
-        }),
+        if (i === 17) return { k: null, d: null };
+        if (i === 18) return { k: 22, d: 18 };
+        return { k: 0 as number | null, d: 0 as number | null };
+      }),
     };
     expect(evaluate(candles, 18, undefined, precomputed)).toBe(0);
   });

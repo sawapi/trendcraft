@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  parseFundamentals,
-  createFundamentalsMap,
-  getFundamentalsAt,
-} from "../fundamentals";
+import { createFundamentalsMap, getFundamentalsAt, parseFundamentals } from "../fundamentals";
 
 describe("parseFundamentals", () => {
   it("should parse PER/PBR from CSV with standard format", () => {
@@ -88,7 +84,7 @@ describe("parseFundamentals", () => {
   });
 
   it("should return empty array for header-only CSV", () => {
-    const csv = `date,open,high,low,close,volume,adjusted_close,per,pbr`;
+    const csv = "date,open,high,low,close,volume,adjusted_close,per,pbr";
     const result = parseFundamentals(csv);
     expect(result).toHaveLength(0);
   });
@@ -112,7 +108,7 @@ describe("parseFundamentals", () => {
   });
 
   it("should not skip header when skipHeader is false", () => {
-    const csv = `2024/1/5,100,105,99,104,1000000,104,15.5,1.2`;
+    const csv = "2024/1/5,100,105,99,104,1000000,104,15.5,1.2";
 
     const result = parseFundamentals(csv, { skipHeader: false });
     expect(result).toHaveLength(1);

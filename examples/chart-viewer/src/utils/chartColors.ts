@@ -2,7 +2,7 @@
  * Chart color palette, shared types, and utility functions
  */
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// biome-ignore lint/suspicious/noExplicitAny: ECharts internal type
 export type SeriesItem = any;
 
 /**
@@ -56,9 +56,9 @@ export const COLORS = {
   // ATR
   atr: "#ff7043",
   // Fundamentals
-  per: "#2196f3",  // Blue
-  pbr: "#9c27b0",  // Purple
-  roe: "#4caf50",  // Green
+  per: "#2196f3", // Blue
+  pbr: "#9c27b0", // Purple
+  roe: "#4caf50", // Green
   // VWAP
   vwap: "#00bcd4",
   // Swing Points
@@ -107,10 +107,10 @@ export const COLORS = {
   volRegimeHigh: "#ff9800",
   volRegimeExtreme: "#f44336",
   // Scoring
-  scoreStrong: "#4caf50",    // Green (70+)
-  scoreModerate: "#ff9800",  // Orange (50-70)
-  scoreWeak: "#ffeb3b",      // Yellow (30-50)
-  scoreNone: "#9e9e9e",      // Gray (0-30)
+  scoreStrong: "#4caf50", // Green (70+)
+  scoreModerate: "#ff9800", // Orange (50-70)
+  scoreWeak: "#ffeb3b", // Yellow (30-50)
+  scoreNone: "#9e9e9e", // Gray (0-30)
   // Auto Trend Line
   trendLineResistance: "#ef5350",
   trendLineSupport: "#26a69a",
@@ -182,9 +182,9 @@ export interface SubchartContext {
   xAxes: SeriesItem[];
   yAxes: SeriesItem[];
   dates: string[];
-  currentTop: number;  // pixels
+  currentTop: number; // pixels
   labelHeight: number; // pixels
-  subHeight: number;   // pixels
+  subHeight: number; // pixels
   subChartGap: number; // pixels
 }
 

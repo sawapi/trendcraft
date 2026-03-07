@@ -2,12 +2,12 @@
  * Subchart series builder for indicator subcharts (RSI, MACD, etc.)
  */
 
-import type { IndicatorParams, SubChartType } from "../types";
 import type { IndicatorData } from "../hooks/useIndicators";
+import type { IndicatorParams, SubChartType } from "../types";
 import type { SeriesItem, SubchartContext } from "./chartColors";
 import { buildMomentumSubcharts } from "./subchart/momentumSubcharts";
-import { buildVolumeSubcharts } from "./subchart/volumeSubcharts";
 import { buildOtherSubcharts } from "./subchart/otherSubcharts";
+import { buildVolumeSubcharts } from "./subchart/volumeSubcharts";
 
 /**
  * Build subchart indicator series

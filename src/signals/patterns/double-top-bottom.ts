@@ -167,9 +167,15 @@ export function doubleTop(
       const confirmed = breakdownPoint !== null;
 
       // Volume validation
-      const volumeValid = !validateVolume || !breakdownPoint
-        ? true
-        : validateBreakoutVolume(normalized, breakdownPoint.index, volumeLookback, minVolumeIncrease);
+      const volumeValid =
+        !validateVolume || !breakdownPoint
+          ? true
+          : validateBreakoutVolume(
+              normalized,
+              breakdownPoint.index,
+              volumeLookback,
+              minVolumeIncrease,
+            );
 
       // Neckline quality check - count crosses between middle trough and breakdown/end
       const necklineCrosses = !validateNeckline
@@ -228,7 +234,8 @@ export function doubleTop(
           firstPeak.price !== startLow.price
             ? (necklinePrice - startLow.price) / (firstPeak.price - startLow.price)
             : 0;
-        const intersection1Index = startLow.index + priceRatio1 * (firstPeak.index - startLow.index);
+        const intersection1Index =
+          startLow.index + priceRatio1 * (firstPeak.index - startLow.index);
 
         // Calculate intersection point: secondPeak → breakdownPoint line crosses neckline
         const intersection2Time = interpolateTime(
@@ -458,8 +465,18 @@ export function doubleBottom(
 
       // Check prominence - troughs must stand out from surroundings
       const prominenceLookback = swingLookback * 2;
-      const prom1 = calculateProminence(normalized, firstTrough.index, "trough", prominenceLookback);
-      const prom2 = calculateProminence(normalized, secondTrough.index, "trough", prominenceLookback);
+      const prom1 = calculateProminence(
+        normalized,
+        firstTrough.index,
+        "trough",
+        prominenceLookback,
+      );
+      const prom2 = calculateProminence(
+        normalized,
+        secondTrough.index,
+        "trough",
+        prominenceLookback,
+      );
 
       if (validateProminence) {
         if (prom1 < minProminence || prom2 < minProminence) continue;
@@ -507,9 +524,15 @@ export function doubleBottom(
       const confirmed = breakoutPoint !== null;
 
       // Volume validation
-      const volumeValid = !validateVolume || !breakoutPoint
-        ? true
-        : validateBreakoutVolume(normalized, breakoutPoint.index, volumeLookback, minVolumeIncrease);
+      const volumeValid =
+        !validateVolume || !breakoutPoint
+          ? true
+          : validateBreakoutVolume(
+              normalized,
+              breakoutPoint.index,
+              volumeLookback,
+              minVolumeIncrease,
+            );
 
       // Neckline quality check - count crosses between middle peak and breakout/end
       const necklineCrosses = !validateNeckline

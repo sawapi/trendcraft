@@ -61,7 +61,12 @@ function bufferMinMax(buf: CircularBuffer<number>): { min: number; max: number }
   return { min, max };
 }
 
-function midPrice(buf: CircularBuffer<number>, period: number, highOrLow: "high" | "low", otherBuf: CircularBuffer<number>): number | null {
+function midPrice(
+  buf: CircularBuffer<number>,
+  period: number,
+  highOrLow: "high" | "low",
+  otherBuf: CircularBuffer<number>,
+): number | null {
   if (buf.length < period) return null;
   const { max } = bufferMinMax(buf);
   const { min } = bufferMinMax(otherBuf);
@@ -124,7 +129,11 @@ export function createIchimoku(
     count = 0;
   }
 
-  function computeMidPrice(highBuf: CircularBuffer<number>, lowBuf: CircularBuffer<number>, period: number): number | null {
+  function computeMidPrice(
+    highBuf: CircularBuffer<number>,
+    lowBuf: CircularBuffer<number>,
+    period: number,
+  ): number | null {
     if (highBuf.length < period) return null;
     const { max } = bufferMinMax(highBuf);
     const { min } = bufferMinMax(lowBuf);
@@ -198,7 +207,7 @@ export function createIchimoku(
         kijunLowBuf: kijunLowBuf.snapshot(),
         senkouBHighBuf: senkouBHighBuf.snapshot(),
         senkouBLowBuf: senkouBLowBuf.snapshot(),
-        delayBuffer: delayBuffer.map(d => ({ ...d })),
+        delayBuffer: delayBuffer.map((d) => ({ ...d })),
         count,
       };
     },

@@ -197,7 +197,7 @@ export function createParabolicSar(
         const diffP = candle.high - firstHigh;
         const diffM = firstLow - candle.low;
         const minusDm = diffM > 0 && diffM > diffP ? diffM : 0;
-        isLong = minusDm > 0 ? false : true;
+        isLong = !(minusDm > 0);
 
         if (isLong) {
           sar = firstLow;
@@ -214,11 +214,7 @@ export function createParabolicSar(
         initialized = true;
       }
 
-      const result = computeSar(
-        candle.high, candle.low,
-        sar, ep, af, isLong,
-        prevHigh, prevLow,
-      );
+      const result = computeSar(candle.high, candle.low, sar, ep, af, isLong, prevHigh, prevLow);
 
       // Update state for next iteration
       sar = result.nextSar;
@@ -250,7 +246,7 @@ export function createParabolicSar(
         const diffP = candle.high - firstHigh;
         const diffM = firstLow - candle.low;
         const minusDm = diffM > 0 && diffM > diffP ? diffM : 0;
-        const peekIsLong = minusDm > 0 ? false : true;
+        const peekIsLong = !(minusDm > 0);
 
         let peekSar: number;
         let peekEp: number;
@@ -263,9 +259,14 @@ export function createParabolicSar(
         }
 
         const result = computeSar(
-          candle.high, candle.low,
-          peekSar, peekEp, step, peekIsLong,
-          candle.high, candle.low,
+          candle.high,
+          candle.low,
+          peekSar,
+          peekEp,
+          step,
+          peekIsLong,
+          candle.high,
+          candle.low,
         );
 
         return {
@@ -280,11 +281,7 @@ export function createParabolicSar(
         };
       }
 
-      const result = computeSar(
-        candle.high, candle.low,
-        sar, ep, af, isLong,
-        prevHigh, prevLow,
-      );
+      const result = computeSar(candle.high, candle.low, sar, ep, af, isLong, prevHigh, prevLow);
 
       return {
         time: candle.time,
@@ -300,9 +297,18 @@ export function createParabolicSar(
 
     getState(): ParabolicSarState {
       return {
-        step, max, count, initialized, isLong,
-        sar, ep, af, prevLow, prevHigh,
-        firstHigh, firstLow,
+        step,
+        max,
+        count,
+        initialized,
+        isLong,
+        sar,
+        ep,
+        af,
+        prevLow,
+        prevHigh,
+        firstHigh,
+        firstLow,
       };
     },
 

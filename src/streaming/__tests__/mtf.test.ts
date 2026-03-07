@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest";
-import { createStreamingMtf } from "../mtf";
+import { describe, expect, it } from "vitest";
 import type { NormalizedCandle } from "../../types";
+import { createStreamingMtf } from "../mtf";
 
 function candle(time: number, close: number): NormalizedCandle {
   return { time, open: close, high: close + 1, low: close - 1, close, volume: 100 };
@@ -24,8 +24,12 @@ function createCounterIndicator() {
     getState() {
       return { count, lastValue };
     },
-    get count() { return count; },
-    get isWarmedUp() { return count > 0; },
+    get count() {
+      return count;
+    },
+    get isWarmedUp() {
+      return count > 0;
+    },
   };
 }
 
@@ -35,9 +39,7 @@ describe("createStreamingMtf", () => {
       timeframes: [
         {
           intervalMs: 300_000, // 5 min
-          indicators: [
-            { name: "close", create: () => createCounterIndicator() },
-          ],
+          indicators: [{ name: "close", create: () => createCounterIndicator() }],
         },
       ],
     });
@@ -57,11 +59,26 @@ describe("createStreamingMtf", () => {
   it("should generate correct timeframe keys", () => {
     const mtf = createStreamingMtf({
       timeframes: [
-        { intervalMs: 60_000, indicators: [{ name: "val", create: () => createCounterIndicator() }] },
-        { intervalMs: 300_000, indicators: [{ name: "val", create: () => createCounterIndicator() }] },
-        { intervalMs: 900_000, indicators: [{ name: "val", create: () => createCounterIndicator() }] },
-        { intervalMs: 3_600_000, indicators: [{ name: "val", create: () => createCounterIndicator() }] },
-        { intervalMs: 86_400_000, indicators: [{ name: "val", create: () => createCounterIndicator() }] },
+        {
+          intervalMs: 60_000,
+          indicators: [{ name: "val", create: () => createCounterIndicator() }],
+        },
+        {
+          intervalMs: 300_000,
+          indicators: [{ name: "val", create: () => createCounterIndicator() }],
+        },
+        {
+          intervalMs: 900_000,
+          indicators: [{ name: "val", create: () => createCounterIndicator() }],
+        },
+        {
+          intervalMs: 3_600_000,
+          indicators: [{ name: "val", create: () => createCounterIndicator() }],
+        },
+        {
+          intervalMs: 86_400_000,
+          indicators: [{ name: "val", create: () => createCounterIndicator() }],
+        },
       ],
     });
 
@@ -121,9 +138,7 @@ describe("createStreamingMtf", () => {
       timeframes: [
         {
           intervalMs: 300_000,
-          indicators: [
-            { name: "val", create: () => createCounterIndicator() },
-          ],
+          indicators: [{ name: "val", create: () => createCounterIndicator() }],
         },
       ],
     });

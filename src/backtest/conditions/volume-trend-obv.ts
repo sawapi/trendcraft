@@ -11,10 +11,7 @@ import { sma } from "../../indicators/moving-average/sma";
 import { cmf as calcCmf } from "../../indicators/volume/cmf";
 import { obv as calcObv } from "../../indicators/volume/obv";
 import { volumeTrend as calcVolumeTrend } from "../../indicators/volume/volume-trend";
-import type {
-  PresetCondition,
-  VolumeTrendValue,
-} from "../../types";
+import type { PresetCondition, VolumeTrendValue } from "../../types";
 
 // ============================================
 // Volume Trend Conditions

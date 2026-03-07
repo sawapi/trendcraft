@@ -44,19 +44,19 @@ function createSessionResult(
         ticker: "GOOG",
         entrySignal: false,
         exitSignal: true,
-        currentPrice: 140.50,
+        currentPrice: 140.5,
         timestamp: new Date("2024-01-15").getTime(),
         atrPercent: 3.1234,
-        metrics: { rsi14: 32.50, volume: 3000000, volumeRatio: 0.95 },
+        metrics: { rsi14: 32.5, volume: 3000000, volumeRatio: 0.95 },
       },
       {
         ticker: "MSFT",
         entrySignal: false,
         exitSignal: false,
-        currentPrice: 380.00,
+        currentPrice: 380.0,
         timestamp: new Date("2024-01-15").getTime(),
         atrPercent: 1.8765,
-        metrics: { rsi14: 55.00, volume: 4000000, volumeRatio: 1.20 },
+        metrics: { rsi14: 55.0, volume: 4000000, volumeRatio: 1.2 },
       },
     ],
     skipped: [],
@@ -117,7 +117,7 @@ describe("formatCsv", () => {
     const session = createSessionResult({
       results: [
         {
-          ticker: 'Stock,Inc',
+          ticker: "Stock,Inc",
           entrySignal: true,
           exitSignal: false,
           currentPrice: 100,
@@ -199,9 +199,7 @@ describe("formatJson", () => {
           timestamp: new Date("2024-01-15").getTime(),
           atrPercent: 2.5,
           metrics: { rsi14: 65, volume: 5000000, volumeRatio: 1.85 },
-          candles: [
-            { time: 1, open: 100, high: 110, low: 90, close: 105, volume: 1000 },
-          ],
+          candles: [{ time: 1, open: 100, high: 110, low: 90, close: 105, volume: 1000 }],
         },
       ],
     });

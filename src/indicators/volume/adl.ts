@@ -50,7 +50,7 @@ export function adl(candles: Candle[] | NormalizedCandle[]): Series<number> {
     if (range === 0) {
       clv = 0;
     } else {
-      clv = ((close - low) - (high - close)) / range;
+      clv = (close - low - (high - close)) / range;
     }
 
     const moneyFlowVolume = clv * volume;

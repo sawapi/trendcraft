@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { createRiskGuard } from "../risk-guard";
 
 // Helper: base time = 2024-01-15 10:00:00 UTC
@@ -250,10 +250,7 @@ describe("createRiskGuard", () => {
       guard.reportTrade(-100, BASE_TIME);
 
       const state = JSON.parse(JSON.stringify(guard.getState()));
-      const restored = createRiskGuard(
-        { maxConsecutiveLosses: 3, cooldownMs: HOUR },
-        state,
-      );
+      const restored = createRiskGuard({ maxConsecutiveLosses: 3, cooldownMs: HOUR }, state);
       expect(restored.getState().consecutiveLosses).toBe(2);
     });
   });

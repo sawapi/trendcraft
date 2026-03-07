@@ -7,14 +7,14 @@
  * - 5-day minimum evaluation period (reduced market noise)
  */
 
-import type {
-  ReviewRecord,
-  ActionOutcome,
-  LeaderboardEntry,
-  LLMAction,
-  MarketContext,
-} from "./types.js";
 import { saveReviewRecord } from "./history.js";
+import type {
+  ActionOutcome,
+  LLMAction,
+  LeaderboardEntry,
+  MarketContext,
+  ReviewRecord,
+} from "./types.js";
 
 const SCORE_THRESHOLD = 3;
 const MIN_DAYS_FOR_EVALUATION = 5;
@@ -38,10 +38,7 @@ function getActionStrategyId(action: LLMAction): string | null {
 /**
  * Capture the current score for an action's target strategy
  */
-export function capturePreMetrics(
-  leaderboard: LeaderboardEntry[],
-  action: LLMAction,
-): number {
+export function capturePreMetrics(leaderboard: LeaderboardEntry[], action: LLMAction): number {
   const strategyId = getActionStrategyId(action);
   const entry = leaderboard.find((e) => e.strategyId === strategyId);
   return entry?.score ?? 0;
@@ -82,17 +79,13 @@ export function evaluateOutcomes(
     // Build or update outcomes
     const outcomes: ActionOutcome[] = review.appliedActions.map((applied) => {
       const existing = review.outcomes?.find(
-        (o) =>
-          o.action.action === applied.action.action &&
-          o.reviewDate === review.date,
+        (o) => o.action.action === applied.action.action && o.reviewDate === review.date,
       );
 
       if (existing?.verdict != null) return existing;
 
       const strategyId = getActionStrategyId(applied.action);
-      const currentEntry = currentLeaderboard.find(
-        (e) => e.strategyId === strategyId,
-      );
+      const currentEntry = currentLeaderboard.find((e) => e.strategyId === strategyId);
       const scoreAfter = currentEntry?.score ?? null;
       const scoreBefore = applied.backtestScore ?? existing?.scoreBefore ?? 0;
 
@@ -100,9 +93,7 @@ export function evaluateOutcomes(
       if (scoreAfter != null) {
         // Benchmark-relative: subtract market return from score delta
         const rawDiff = scoreAfter - scoreBefore;
-        const relativeDelta = marketReturn != null
-          ? rawDiff - marketReturn
-          : rawDiff;
+        const relativeDelta = marketReturn != null ? rawDiff - marketReturn : rawDiff;
 
         if (relativeDelta > SCORE_THRESHOLD) verdict = "improved";
         else if (relativeDelta < -SCORE_THRESHOLD) verdict = "degraded";
@@ -138,9 +129,7 @@ export function evaluateOutcomes(
  *
  * Returns a list of strategy IDs that should be rolled back to their original preset.
  */
-export function detectRollbackCandidates(
-  pastReviews: ReviewRecord[],
-): string[] {
+export function detectRollbackCandidates(pastReviews: ReviewRecord[]): string[] {
   // Group outcomes by strategy, ordered chronologically
   const strategyOutcomes = new Map<string, ActionOutcome[]>();
 
@@ -161,8 +150,10 @@ export function detectRollbackCandidates(
   for (const [strategyId, outcomes] of strategyOutcomes) {
     // Check last N verdicts for consecutive "degraded"
     const recent = outcomes.slice(-CONSECUTIVE_DEGRADED_ROLLBACK);
-    if (recent.length >= CONSECUTIVE_DEGRADED_ROLLBACK &&
-        recent.every((o) => o.verdict === "degraded")) {
+    if (
+      recent.length >= CONSECUTIVE_DEGRADED_ROLLBACK &&
+      recent.every((o) => o.verdict === "degraded")
+    ) {
       rollbackIds.push(strategyId);
     }
   }
@@ -173,9 +164,7 @@ export function detectRollbackCandidates(
 /**
  * Compute average market return from market context (used as benchmark baseline)
  */
-function computeAverageMarketReturn(
-  marketContext?: MarketContext[],
-): number | null {
+function computeAverageMarketReturn(marketContext?: MarketContext[]): number | null {
   if (!marketContext || marketContext.length === 0) return null;
   const total = marketContext.reduce((s, mc) => s + mc.dailyChangePercent, 0);
   return total / marketContext.length;

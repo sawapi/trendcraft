@@ -4,8 +4,8 @@
  * Runs all enabled validation checks and returns a unified result.
  */
 
-import type { Candle, NormalizedCandle } from "../types";
 import { isNormalized, normalizeCandles } from "../core/normalize";
+import type { Candle, NormalizedCandle } from "../types";
 import { detectDuplicates, removeDuplicates } from "./duplicate-detection";
 import { detectGaps } from "./gap-detection";
 import { detectOhlcErrors, detectPriceSpikes, detectVolumeAnomalies } from "./outlier-detection";

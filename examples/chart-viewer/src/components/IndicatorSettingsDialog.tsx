@@ -5,18 +5,18 @@
 import { useState } from "react";
 import type { ChangeEvent } from "react";
 import { useChartStore } from "../store/chartStore";
-import type { IndicatorParams, OverlayType, SubChartType, ScoringPreset } from "../types";
+import type { IndicatorParams, OverlayType, ScoringPreset, SubChartType } from "../types";
 import { INDICATOR_PARAM_CONFIGS } from "../types";
+import { IndicatorItem } from "./settings/IndicatorItem";
+import { ParameterPanel } from "./settings/ParameterPanel";
 import type { IndicatorSettingsDialogProps, TabType } from "./settings/settingsData";
 import {
   DISPLAY_START_YEARS_OPTIONS,
+  FUNDAMENTALS_GROUP,
   OVERLAY_GROUPS,
   SIGNAL_OPTIONS,
   SUBCHART_GROUPS,
-  FUNDAMENTALS_GROUP,
 } from "./settings/settingsData";
-import { ParameterPanel } from "./settings/ParameterPanel";
-import { IndicatorItem } from "./settings/IndicatorItem";
 
 export function IndicatorSettingsDialog({ isOpen, onClose }: IndicatorSettingsDialogProps) {
   const [activeTab, setActiveTab] = useState<TabType>("overlay");
@@ -41,9 +41,7 @@ export function IndicatorSettingsDialog({ isOpen, onClose }: IndicatorSettingsDi
   const deletePreset = useChartStore((s) => s.deletePreset);
 
   // Build subchart groups with optional fundamentals
-  const subchartGroups = fundamentals
-    ? [...SUBCHART_GROUPS, FUNDAMENTALS_GROUP]
-    : SUBCHART_GROUPS;
+  const subchartGroups = fundamentals ? [...SUBCHART_GROUPS, FUNDAMENTALS_GROUP] : SUBCHART_GROUPS;
 
   if (!isOpen) return null;
 
@@ -309,8 +307,8 @@ export function IndicatorSettingsDialog({ isOpen, onClose }: IndicatorSettingsDi
                   <div className="display-setting-item">
                     <label className="display-setting-label">Data Range Limit</label>
                     <p className="display-setting-description">
-                      Filter data to only include the specified period.
-                      Older data will be excluded from analysis.
+                      Filter data to only include the specified period. Older data will be excluded
+                      from analysis.
                     </p>
                     <div className="display-start-years-options">
                       {DISPLAY_START_YEARS_OPTIONS.map((opt) => (
@@ -322,7 +320,9 @@ export function IndicatorSettingsDialog({ isOpen, onClose }: IndicatorSettingsDi
                             onChange={() => setDisplayStartYears(opt.value)}
                           />
                           <span className="material-icons checkbox-icon">
-                            {displayStartYears === opt.value ? "radio_button_checked" : "radio_button_unchecked"}
+                            {displayStartYears === opt.value
+                              ? "radio_button_checked"
+                              : "radio_button_unchecked"}
                           </span>
                           <span>{opt.label}</span>
                         </label>

@@ -13,10 +13,10 @@
  */
 
 import { incremental } from "trendcraft";
-import type { streaming, NormalizedCandle } from "trendcraft";
-import type { StrategyDefinition } from "../types.js";
-import { DEFAULT_SYMBOLS } from "../../config/symbols.js";
+import type { NormalizedCandle, streaming } from "trendcraft";
 import { US_MARKET_HOURS } from "../../config/market-hours.js";
+import { DEFAULT_SYMBOLS } from "../../config/symbols.js";
+import type { StrategyDefinition } from "../types.js";
 
 const entryCondition: streaming.StreamingConditionFn = (
   snapshot: streaming.IndicatorSnapshot,
@@ -51,8 +51,7 @@ const exitCondition: streaming.StreamingConditionFn = (
 export const vwapBounce: StrategyDefinition = {
   id: "vwap-bounce",
   name: "VWAP Bounce",
-  description:
-    "Buy dips below VWAP + RSI < 35, exit above VWAP + EMA(9) or RSI > 65",
+  description: "Buy dips below VWAP + RSI < 35, exit above VWAP + EMA(9) or RSI > 65",
   intervalMs: 60_000,
   symbols: DEFAULT_SYMBOLS,
 
@@ -89,9 +88,7 @@ export const vwapBounce: StrategyDefinition = {
       const vwapSeries = indicators.vwap as
         | { time: number; value: { vwap: number | null } }[]
         | undefined;
-      const rsiSeries = indicators.rsi as
-        | { time: number; value: number | null }[]
-        | undefined;
+      const rsiSeries = indicators.rsi as { time: number; value: number | null }[] | undefined;
       if (!vwapSeries || !rsiSeries) return false;
 
       const vwapEntry = vwapSeries.find((v) => v.time === candle.time);
@@ -104,17 +101,14 @@ export const vwapBounce: StrategyDefinition = {
       const vwapSeries = indicators.vwap as
         | { time: number; value: { vwap: number | null } }[]
         | undefined;
-      const rsiSeries = indicators.rsi as
-        | { time: number; value: number | null }[]
-        | undefined;
+      const rsiSeries = indicators.rsi as { time: number; value: number | null }[] | undefined;
       if (!vwapSeries || !rsiSeries) return false;
 
       const vwapEntry = vwapSeries.find((v) => v.time === candle.time);
       const rsiEntry = rsiSeries.find((r) => r.time === candle.time);
 
       if (rsiEntry?.value && rsiEntry.value > 65) return true;
-      if (vwapEntry?.value.vwap && candle.close > vwapEntry.value.vwap)
-        return true;
+      if (vwapEntry?.value.vwap && candle.close > vwapEntry.value.vwap) return true;
 
       return false;
     },

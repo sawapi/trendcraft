@@ -110,7 +110,12 @@ function testPeek(
         // For floating point, compare stringified then fall back to deep check
         if (peekStr !== nextStr) {
           // Values differ slightly - check within tolerance
-          compareWithTolerance(peekResult.value, nextResult.value, tolerance, `${name} at index ${i}`);
+          compareWithTolerance(
+            peekResult.value,
+            nextResult.value,
+            tolerance,
+            `${name} at index ${i}`,
+          );
         }
       }
     }

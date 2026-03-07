@@ -1,16 +1,12 @@
-import { describe, it, expect } from "vitest";
-import { validateCandles } from "../validate";
-import { detectGaps } from "../gap-detection";
-import { detectDuplicates, removeDuplicates } from "../duplicate-detection";
-import {
-  detectOhlcErrors,
-  detectPriceSpikes,
-  detectVolumeAnomalies,
-} from "../outlier-detection";
-import { detectStaleData } from "../stale-detection";
-import { detectSplitHints } from "../split-detection";
+import { describe, expect, it } from "vitest";
 import { normalizeAndValidate } from "../../core/normalize";
 import type { NormalizedCandle } from "../../types";
+import { detectDuplicates, removeDuplicates } from "../duplicate-detection";
+import { detectGaps } from "../gap-detection";
+import { detectOhlcErrors, detectPriceSpikes, detectVolumeAnomalies } from "../outlier-detection";
+import { detectSplitHints } from "../split-detection";
+import { detectStaleData } from "../stale-detection";
+import { validateCandles } from "../validate";
 
 // Helper to create test candles
 function makeCandle(
@@ -52,11 +48,7 @@ describe("gap-detection", () => {
     const fri = new Date("2025-01-03T00:00:00Z").getTime();
     const mon = new Date("2025-01-06T00:00:00Z").getTime();
     const tue = new Date("2025-01-07T00:00:00Z").getTime();
-    const candles = [
-      makeCandle(fri, 100),
-      makeCandle(mon, 101),
-      makeCandle(tue, 102),
-    ];
+    const candles = [makeCandle(fri, 100), makeCandle(mon, 101), makeCandle(tue, 102)];
     const findings = detectGaps(candles, {
       maxGapMultiplier: 2,
       skipWeekends: true,
@@ -83,11 +75,7 @@ describe("duplicate-detection", () => {
   });
 
   it("removeDuplicates keeps last occurrence", () => {
-    const candles = [
-      makeCandle(DAY, 100),
-      makeCandle(DAY, 101),
-      makeCandle(DAY * 2, 102),
-    ];
+    const candles = [makeCandle(DAY, 100), makeCandle(DAY, 101), makeCandle(DAY * 2, 102)];
     const cleaned = removeDuplicates(candles);
     expect(cleaned.length).toBe(2);
     expect(cleaned[0].close).toBe(101);
@@ -157,17 +145,13 @@ describe("outlier-detection", () => {
 
 describe("stale-detection", () => {
   it("detects stale data", () => {
-    const candles = Array.from({ length: 10 }, (_, i) =>
-      makeCandle(DAY * (i + 1), 100, 1000 + i),
-    );
+    const candles = Array.from({ length: 10 }, (_, i) => makeCandle(DAY * (i + 1), 100, 1000 + i));
     const findings = detectStaleData(candles, { minConsecutive: 5 });
     expect(findings.length).toBe(1);
   });
 
   it("does not flag varying prices", () => {
-    const candles = Array.from({ length: 10 }, (_, i) =>
-      makeCandle(DAY * (i + 1), 100 + i),
-    );
+    const candles = Array.from({ length: 10 }, (_, i) => makeCandle(DAY * (i + 1), 100 + i));
     const findings = detectStaleData(candles, { minConsecutive: 5 });
     expect(findings.length).toBe(0);
   });
@@ -176,9 +160,7 @@ describe("stale-detection", () => {
     const candles = [
       makeCandle(DAY, 100),
       makeCandle(DAY * 2, 105),
-      ...Array.from({ length: 6 }, (_, i) =>
-        makeCandle(DAY * (i + 3), 110),
-      ),
+      ...Array.from({ length: 6 }, (_, i) => makeCandle(DAY * (i + 3), 110)),
     ];
     const findings = detectStaleData(candles, { minConsecutive: 5 });
     expect(findings.length).toBe(1);
@@ -220,9 +202,7 @@ describe("split-detection", () => {
 
 describe("validateCandles", () => {
   it("returns valid for clean data", () => {
-    const candles = Array.from({ length: 10 }, (_, i) =>
-      makeCandle(DAY * (i + 1), 100 + i),
-    );
+    const candles = Array.from({ length: 10 }, (_, i) => makeCandle(DAY * (i + 1), 100 + i));
     const result = validateCandles(candles);
     expect(result.valid).toBe(true);
     expect(result.errors.length).toBe(0);
@@ -236,8 +216,8 @@ describe("validateCandles", () => {
     ];
     const result = validateCandles(candles, { autoClean: true });
     expect(result.cleanedCandles).toBeDefined();
-    expect(result.cleanedCandles!.length).toBe(2);
-    expect(result.cleanedCandles![0].time).toBe(DAY);
+    expect(result.cleanedCandles?.length).toBe(2);
+    expect(result.cleanedCandles?.[0].time).toBe(DAY);
   });
 
   it("accepts raw Candle[] with string time", () => {
@@ -270,9 +250,7 @@ describe("validateCandles", () => {
     ];
     const result = validateCandles(candles, { duplicates: false });
     // Should not find duplicate errors when disabled
-    expect(result.errors.filter((e) => e.category === "duplicate").length).toBe(
-      0,
-    );
+    expect(result.errors.filter((e) => e.category === "duplicate").length).toBe(0);
   });
 
   it("split hints are disabled by default", () => {
@@ -285,9 +263,7 @@ describe("validateCandles", () => {
 
     // Enable splits
     const resultWithSplits = validateCandles(candles, { splits: true });
-    expect(
-      resultWithSplits.info.filter((f) => f.category === "split").length,
-    ).toBe(1);
+    expect(resultWithSplits.info.filter((f) => f.category === "split").length).toBe(1);
   });
 });
 
@@ -319,7 +295,7 @@ describe("normalizeAndValidate", () => {
     });
     expect(result.candles.length).toBe(2);
     expect(result.validation).toBeDefined();
-    expect(result.validation!.valid).toBe(true);
+    expect(result.validation?.valid).toBe(true);
   });
 
   it("returns candles without validation when no options", () => {

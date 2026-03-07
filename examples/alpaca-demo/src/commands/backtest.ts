@@ -4,17 +4,17 @@
  * Run all strategies against historical data and output leaderboard.
  */
 
+import { fetchHistoricalBars, monthsAgo, today } from "../alpaca/historical.js";
+import { formatLeaderboard, runStrategyBacktests } from "../backtest/runner.js";
+import type { ScoredResult } from "../backtest/scorer.js";
 import { loadEnv } from "../config/env.js";
 import { DEFAULT_SYMBOLS } from "../config/symbols.js";
+import { loadCustomStrategies, loadOverrides } from "../review/applier.js";
 import {
+  applyStrategyOverrides,
   getAllStrategies,
   loadCustomStrategiesFromTemplates,
-  applyStrategyOverrides,
 } from "../strategy/registry.js";
-import { fetchHistoricalBars, monthsAgo, today } from "../alpaca/historical.js";
-import { runStrategyBacktests, formatLeaderboard } from "../backtest/runner.js";
-import { loadOverrides, loadCustomStrategies } from "../review/applier.js";
-import type { ScoredResult } from "../backtest/scorer.js";
 
 export type BacktestCommandOptions = {
   symbols?: string;
@@ -28,8 +28,8 @@ export async function backtestCommand(opts: BacktestCommandOptions): Promise<voi
   const symbols = opts.symbols
     ? opts.symbols.split(",").map((s) => s.trim().toUpperCase())
     : DEFAULT_SYMBOLS;
-  const periodMonths = parseInt(opts.period ?? "6", 10);
-  const capital = parseInt(opts.capital ?? "100000", 10);
+  const periodMonths = Number.parseInt(opts.period ?? "6", 10);
+  const capital = Number.parseInt(opts.capital ?? "100000", 10);
   const timeframe = opts.timeframe ?? "1Day";
 
   // Load strategy overrides and custom strategies
@@ -74,12 +74,7 @@ export async function backtestCommand(opts: BacktestCommandOptions): Promise<voi
 
     console.log(`  ${candles.length} candles loaded. Running strategies...`);
 
-    const { rankings } = runStrategyBacktests(
-      strategies,
-      symbol,
-      candles,
-      capital,
-    );
+    const { rankings } = runStrategyBacktests(strategies, symbol, candles, capital);
 
     allRankings.push(...rankings);
   }

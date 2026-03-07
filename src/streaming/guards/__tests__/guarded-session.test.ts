@@ -1,8 +1,8 @@
-import { describe, it, expect } from "vitest";
-import { createGuardedSession } from "../guarded-session";
-import type { Trade, SessionEvent } from "../../types";
+import { describe, expect, it } from "vitest";
 import type { NormalizedCandle } from "../../../types";
-import { rsiBelow, rsiAbove } from "../../conditions";
+import { rsiAbove, rsiBelow } from "../../conditions";
+import type { SessionEvent, Trade } from "../../types";
+import { createGuardedSession } from "../guarded-session";
 
 const INTERVAL = 60_000; // 1 minute
 const HOUR = 3600_000;
@@ -38,9 +38,7 @@ describe("createGuardedSession", () => {
         {
           intervalMs: INTERVAL,
           pipeline: {
-            indicators: [
-              { name: "rsi", create: () => createControllableIndicator(rsiRef) },
-            ],
+            indicators: [{ name: "rsi", create: () => createControllableIndicator(rsiRef) }],
             entry: rsiBelow(30),
           },
         },
@@ -60,9 +58,7 @@ describe("createGuardedSession", () => {
         {
           intervalMs: INTERVAL,
           pipeline: {
-            indicators: [
-              { name: "rsi", create: () => createControllableIndicator(rsiRef) },
-            ],
+            indicators: [{ name: "rsi", create: () => createControllableIndicator(rsiRef) }],
             signals: [{ name: "test", condition: rsiAbove(40) }],
           },
         },
@@ -83,9 +79,7 @@ describe("createGuardedSession", () => {
         {
           intervalMs: INTERVAL,
           pipeline: {
-            indicators: [
-              { name: "rsi", create: () => createControllableIndicator(rsiRef) },
-            ],
+            indicators: [{ name: "rsi", create: () => createControllableIndicator(rsiRef) }],
             entry: rsiBelow(30),
           },
         },
@@ -93,7 +87,7 @@ describe("createGuardedSession", () => {
       );
 
       // Report a big loss
-      session.riskGuard!.reportTrade(-6000, 0);
+      session.riskGuard?.reportTrade(-6000, 0);
 
       // Feed trades to generate entry signal
       session.onTrade(trade(0, 100));
@@ -115,9 +109,7 @@ describe("createGuardedSession", () => {
         {
           intervalMs: INTERVAL,
           pipeline: {
-            indicators: [
-              { name: "rsi", create: () => createControllableIndicator(rsiRef) },
-            ],
+            indicators: [{ name: "rsi", create: () => createControllableIndicator(rsiRef) }],
             entry: rsiBelow(30),
           },
         },
@@ -125,8 +117,8 @@ describe("createGuardedSession", () => {
       );
 
       // Use up trade allowance
-      session.riskGuard!.reportTrade(100, 0);
-      session.riskGuard!.reportTrade(100, 0);
+      session.riskGuard?.reportTrade(100, 0);
+      session.riskGuard?.reportTrade(100, 0);
 
       session.onTrade(trade(0, 100));
       const events = session.onTrade(trade(INTERVAL, 105));
@@ -140,9 +132,7 @@ describe("createGuardedSession", () => {
         {
           intervalMs: INTERVAL,
           pipeline: {
-            indicators: [
-              { name: "rsi", create: () => createControllableIndicator(rsiRef) },
-            ],
+            indicators: [{ name: "rsi", create: () => createControllableIndicator(rsiRef) }],
             entry: rsiBelow(30),
           },
         },
@@ -165,9 +155,7 @@ describe("createGuardedSession", () => {
         {
           intervalMs: INTERVAL,
           pipeline: {
-            indicators: [
-              { name: "rsi", create: () => createControllableIndicator(rsiRef) },
-            ],
+            indicators: [{ name: "rsi", create: () => createControllableIndicator(rsiRef) }],
             entry: rsiBelow(30),
           },
         },
@@ -195,9 +183,7 @@ describe("createGuardedSession", () => {
         {
           intervalMs: INTERVAL,
           pipeline: {
-            indicators: [
-              { name: "rsi", create: () => createControllableIndicator(rsiRef) },
-            ],
+            indicators: [{ name: "rsi", create: () => createControllableIndicator(rsiRef) }],
             entry: rsiBelow(30),
           },
         },
@@ -225,9 +211,7 @@ describe("createGuardedSession", () => {
         {
           intervalMs: INTERVAL,
           pipeline: {
-            indicators: [
-              { name: "rsi", create: () => createControllableIndicator(rsiRef) },
-            ],
+            indicators: [{ name: "rsi", create: () => createControllableIndicator(rsiRef) }],
           },
         },
         {
@@ -246,9 +230,9 @@ describe("createGuardedSession", () => {
 
       const forceClose = events.filter((e) => e.type === "force-close");
       expect(forceClose).toHaveLength(1);
-      expect(
-        (forceClose[0] as { type: "force-close"; reason: string }).reason,
-      ).toContain("Force-close");
+      expect((forceClose[0] as { type: "force-close"; reason: string }).reason).toContain(
+        "Force-close",
+      );
     });
 
     it("should not emit force-close well within window", () => {
@@ -258,9 +242,7 @@ describe("createGuardedSession", () => {
         {
           intervalMs: INTERVAL,
           pipeline: {
-            indicators: [
-              { name: "rsi", create: () => createControllableIndicator(rsiRef) },
-            ],
+            indicators: [{ name: "rsi", create: () => createControllableIndicator(rsiRef) }],
           },
         },
         {
@@ -288,9 +270,7 @@ describe("createGuardedSession", () => {
         {
           intervalMs: INTERVAL,
           pipeline: {
-            indicators: [
-              { name: "rsi", create: () => createControllableIndicator(rsiRef) },
-            ],
+            indicators: [{ name: "rsi", create: () => createControllableIndicator(rsiRef) }],
             entry: rsiBelow(30),
           },
         },
@@ -322,9 +302,7 @@ describe("createGuardedSession", () => {
         {
           intervalMs: INTERVAL,
           pipeline: {
-            indicators: [
-              { name: "rsi", create: () => createControllableIndicator(rsiRef) },
-            ],
+            indicators: [{ name: "rsi", create: () => createControllableIndicator(rsiRef) }],
             entry: rsiBelow(30),
           },
         },
@@ -353,9 +331,7 @@ describe("createGuardedSession", () => {
         {
           intervalMs: INTERVAL,
           pipeline: {
-            indicators: [
-              { name: "rsi", create: () => createControllableIndicator(rsiRef) },
-            ],
+            indicators: [{ name: "rsi", create: () => createControllableIndicator(rsiRef) }],
             exit: rsiAbove(70),
           },
         },
@@ -380,9 +356,7 @@ describe("createGuardedSession", () => {
         {
           intervalMs: INTERVAL,
           pipeline: {
-            indicators: [
-              { name: "rsi", create: () => createControllableIndicator(rsiRef) },
-            ],
+            indicators: [{ name: "rsi", create: () => createControllableIndicator(rsiRef) }],
           },
         },
         {},
@@ -402,9 +376,7 @@ describe("createGuardedSession", () => {
         {
           intervalMs: INTERVAL,
           pipeline: {
-            indicators: [
-              { name: "rsi", create: () => createControllableIndicator(rsiRef) },
-            ],
+            indicators: [{ name: "rsi", create: () => createControllableIndicator(rsiRef) }],
             entry: rsiBelow(30),
           },
         },
@@ -419,8 +391,8 @@ describe("createGuardedSession", () => {
 
       const t = Date.UTC(2024, 0, 15, 10, 0, 0);
       session1.onTrade(trade(t, 100));
-      session1.riskGuard!.reportTrade(-1000, t);
-      session1.timeGuard!.addBlackout({
+      session1.riskGuard?.reportTrade(-1000, t);
+      session1.timeGuard?.addBlackout({
         startTime: t + HOUR,
         endTime: t + 2 * HOUR,
         reason: "test",
@@ -440,9 +412,7 @@ describe("createGuardedSession", () => {
       const options = {
         intervalMs: INTERVAL,
         pipeline: {
-          indicators: [
-            { name: "rsi", create: () => createControllableIndicator(rsiRef) },
-          ],
+          indicators: [{ name: "rsi", create: () => createControllableIndicator(rsiRef) }],
           entry: rsiBelow(30),
         },
       };
@@ -455,12 +425,12 @@ describe("createGuardedSession", () => {
       };
 
       const session1 = createGuardedSession(options, guardOpts);
-      session1.riskGuard!.reportTrade(-3000, Date.UTC(2024, 0, 15, 10, 0, 0));
+      session1.riskGuard?.reportTrade(-3000, Date.UTC(2024, 0, 15, 10, 0, 0));
 
       const state = JSON.parse(JSON.stringify(session1.getState()));
       const session2 = createGuardedSession(options, guardOpts, state);
 
-      expect(session2.riskGuard!.getState().dailyPnl).toBe(-3000);
+      expect(session2.riskGuard?.getState().dailyPnl).toBe(-3000);
     });
   });
 

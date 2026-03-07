@@ -6,7 +6,6 @@
 import type { ExtendedCondition } from "../backtest/conditions/core";
 import { runBacktest } from "../backtest/engine";
 import type { MtfBacktestOptions } from "../backtest/engine";
-import { type Result, ok, err, tcError } from "../types/result";
 import type {
   BacktestOptions,
   BacktestResult,
@@ -14,6 +13,7 @@ import type {
   NormalizedCandle,
   TimeframeShorthand,
 } from "../types";
+import { type Result, err, ok, tcError } from "../types/result";
 
 /**
  * Strategy Builder for backtesting
@@ -77,16 +77,22 @@ export class StrategyBuilder {
    */
   backtestSafe(options: BacktestOptions): Result<BacktestResult> {
     if (!this._entryCondition) {
-      return err(tcError("MISSING_CONDITION", "Entry condition is required. Use .entry() to set it."));
+      return err(
+        tcError("MISSING_CONDITION", "Entry condition is required. Use .entry() to set it."),
+      );
     }
     if (!this._exitCondition) {
-      return err(tcError("MISSING_CONDITION", "Exit condition is required. Use .exit() to set it."));
+      return err(
+        tcError("MISSING_CONDITION", "Exit condition is required. Use .exit() to set it."),
+      );
     }
     try {
       return ok(runBacktest(this._candles, this._entryCondition, this._exitCondition, options));
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      return err(tcError("BACKTEST_FAILED", message, {}, error instanceof Error ? error : undefined));
+      return err(
+        tcError("BACKTEST_FAILED", message, {}, error instanceof Error ? error : undefined),
+      );
     }
   }
 }
@@ -142,10 +148,14 @@ export class MtfStrategyBuilder extends StrategyBuilder {
    */
   backtestSafe(options: BacktestOptions): Result<BacktestResult> {
     if (!this._entryCondition) {
-      return err(tcError("MISSING_CONDITION", "Entry condition is required. Use .entry() to set it."));
+      return err(
+        tcError("MISSING_CONDITION", "Entry condition is required. Use .entry() to set it."),
+      );
     }
     if (!this._exitCondition) {
-      return err(tcError("MISSING_CONDITION", "Exit condition is required. Use .exit() to set it."));
+      return err(
+        tcError("MISSING_CONDITION", "Exit condition is required. Use .exit() to set it."),
+      );
     }
     try {
       const mtfOptions: MtfBacktestOptions = {
@@ -155,7 +165,9 @@ export class MtfStrategyBuilder extends StrategyBuilder {
       return ok(runBacktest(this._candles, this._entryCondition, this._exitCondition, mtfOptions));
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      return err(tcError("BACKTEST_FAILED", message, {}, error instanceof Error ? error : undefined));
+      return err(
+        tcError("BACKTEST_FAILED", message, {}, error instanceof Error ? error : undefined),
+      );
     }
   }
 }

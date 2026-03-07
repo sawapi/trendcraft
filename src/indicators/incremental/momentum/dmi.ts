@@ -257,11 +257,21 @@ export function createDmi(
 
     getState(): DmiState {
       return {
-        period, adxPeriod, count,
-        prevClose, prevHigh, prevLow,
-        initSumTr, initSumPlusDm, initSumMinusDm,
-        smoothedTr, smoothedPlusDm, smoothedMinusDm,
-        dxInitSum, dxValidCount, adx: adxVal,
+        period,
+        adxPeriod,
+        count,
+        prevClose,
+        prevHigh,
+        prevLow,
+        initSumTr,
+        initSumPlusDm,
+        initSumMinusDm,
+        smoothedTr,
+        smoothedPlusDm,
+        smoothedMinusDm,
+        dxInitSum,
+        dxValidCount,
+        adx: adxVal,
       };
     },
 

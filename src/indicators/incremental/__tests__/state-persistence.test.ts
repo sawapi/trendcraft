@@ -72,8 +72,14 @@ const secondHalf = candles.slice(splitAt);
  */
 function testStatePersistence(
   name: string,
-  createFn: () => { next: (c: NormalizedCandle) => { time: number; value: unknown }; getState: () => unknown },
-  restoreFn: (state: unknown) => { next: (c: NormalizedCandle) => { time: number; value: unknown }; getState: () => unknown },
+  createFn: () => {
+    next: (c: NormalizedCandle) => { time: number; value: unknown };
+    getState: () => unknown;
+  },
+  restoreFn: (state: unknown) => {
+    next: (c: NormalizedCandle) => { time: number; value: unknown };
+    getState: () => unknown;
+  },
 ) {
   it(`${name}: restored indicator produces identical output`, () => {
     const original = createFn();

@@ -110,7 +110,10 @@ export function calculateIndicators(
   const p = { ...DEFAULT_INDICATOR_PARAMS, ...params };
 
   // Helper to calculate and store simple moving average indicators
-  const calculateSma = (key: "sma5" | "sma25" | "sma75", periodKey: "sma5Period" | "sma25Period" | "sma75Period"): void => {
+  const calculateSma = (
+    key: "sma5" | "sma25" | "sma75",
+    periodKey: "sma5Period" | "sma25Period" | "sma75Period",
+  ): void => {
     if (enabledIndicators.includes(key)) {
       result[key] = extractValues(TrendCraft.sma(candles, { period: p[periodKey]! }));
     }

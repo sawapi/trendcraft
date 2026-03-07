@@ -137,9 +137,10 @@ export function fibonacciExtension(
 
       if (direction) {
         // Validate C is between A and B
-        const validRetracement = direction === "bullish"
-          ? (c.price > a.price && c.price < b.price)
-          : (c.price < a.price && c.price > b.price);
+        const validRetracement =
+          direction === "bullish"
+            ? c.price > a.price && c.price < b.price
+            : c.price < a.price && c.price > b.price;
 
         if (validRetracement) {
           const move = Math.abs(b.price - a.price);
@@ -166,11 +167,11 @@ export function fibonacciExtension(
     result.push({
       time: swings[i].time,
       value: {
-        levels: (displayFromIdx >= 0 && i >= displayFromIdx) ? currentLevels : null,
-        pointA: (displayFromIdx >= 0 && i >= displayFromIdx) ? currentPointA : null,
-        pointB: (displayFromIdx >= 0 && i >= displayFromIdx) ? currentPointB : null,
-        pointC: (displayFromIdx >= 0 && i >= displayFromIdx) ? currentPointC : null,
-        direction: (displayFromIdx >= 0 && i >= displayFromIdx) ? currentDirection : null,
+        levels: displayFromIdx >= 0 && i >= displayFromIdx ? currentLevels : null,
+        pointA: displayFromIdx >= 0 && i >= displayFromIdx ? currentPointA : null,
+        pointB: displayFromIdx >= 0 && i >= displayFromIdx ? currentPointB : null,
+        pointC: displayFromIdx >= 0 && i >= displayFromIdx ? currentPointC : null,
+        direction: displayFromIdx >= 0 && i >= displayFromIdx ? currentDirection : null,
       },
     });
   }

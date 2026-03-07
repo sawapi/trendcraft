@@ -2,13 +2,13 @@
  * Strategy registry — all available strategy presets
  */
 
-import type { StrategyDefinition } from "./types.js";
-import { rsiMeanReversion } from "./presets/rsi-mean-reversion.js";
-import { macdTrend } from "./presets/macd-trend.js";
-import { bollingerSqueeze } from "./presets/bollinger-squeeze.js";
 import { compileTemplate } from "./compiler.js";
-import { applyOverrides, getPresetTemplate, PRESET_TEMPLATES } from "./template.js";
+import { bollingerSqueeze } from "./presets/bollinger-squeeze.js";
+import { macdTrend } from "./presets/macd-trend.js";
+import { rsiMeanReversion } from "./presets/rsi-mean-reversion.js";
+import { PRESET_TEMPLATES, applyOverrides, getPresetTemplate } from "./template.js";
 import type { ParameterOverride, StrategyTemplate } from "./template.js";
+import type { StrategyDefinition } from "./types.js";
 
 const strategies: Map<string, StrategyDefinition> = new Map();
 
@@ -84,18 +84,17 @@ export function loadCustomStrategiesFromTemplates(
  * For overrides that change indicators, entry, or exit, we recompile
  * from the template representation.
  */
-export function applyStrategyOverrides(
-  overrides: ParameterOverride[],
-): { applied: number; errors: string[] } {
+export function applyStrategyOverrides(overrides: ParameterOverride[]): {
+  applied: number;
+  errors: string[];
+} {
   const errors: string[] = [];
   let applied = 0;
 
   for (const override of overrides) {
     const existingStrategy = strategies.get(override.strategyId);
     const hasLogicChanges =
-      override.overrides.indicators ||
-      override.overrides.entry ||
-      override.overrides.exit;
+      override.overrides.indicators || override.overrides.entry || override.overrides.exit;
 
     if (existingStrategy && !hasLogicChanges) {
       // Position/guards-only change — patch the existing strategy directly

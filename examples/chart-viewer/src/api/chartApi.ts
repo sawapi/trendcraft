@@ -6,12 +6,13 @@
  */
 
 import type { RefObject } from "react";
-import { useChartStore } from "../store/chartStore";
-import { parseCSV } from "../utils/fileParser";
-import { INDICATOR_PARAM_CONFIGS } from "../types/indicators";
-import type { NumericParamConfig } from "../types/indicators";
-import { OVERLAY_GROUPS, SUBCHART_GROUPS, SIGNAL_OPTIONS } from "../components/settings/settingsData";
 import type { MainChartHandle } from "../components/MainChart";
+import {
+  OVERLAY_GROUPS,
+  SIGNAL_OPTIONS,
+  SUBCHART_GROUPS,
+} from "../components/settings/settingsData";
+import { useChartStore } from "../store/chartStore";
 import type {
   DisplayStartYears,
   IndicatorParams,
@@ -20,6 +21,9 @@ import type {
   SubChartType,
   Timeframe,
 } from "../types";
+import { INDICATOR_PARAM_CONFIGS } from "../types/indicators";
+import type { NumericParamConfig } from "../types/indicators";
+import { parseCSV } from "../utils/fileParser";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -92,7 +96,10 @@ export interface ChartApi {
   listOverlays(): { group: string; keys: string[] }[];
   listIndicators(): { group: string; keys: string[] }[];
   listSignals(): { key: string; label: string; description: string }[];
-  listParams(): Record<string, { key: string; label: string; type?: string; min?: number; max?: number; step?: number }[]>;
+  listParams(): Record<
+    string,
+    { key: string; label: string; type?: string; min?: number; max?: number; step?: number }[]
+  >;
 
   // Presets
   savePreset(name: string): string;
@@ -228,7 +235,7 @@ export function createChartApi(): ChartApi {
 
     setZoom(start, end) {
       if (start < 0 || end > 100 || start >= end) {
-        return `Error: invalid range (0 <= start < end <= 100)`;
+        return "Error: invalid range (0 <= start < end <= 100)";
       }
       store().setZoomRange({ start, end });
       return `Zoom: ${start}% - ${end}%`;
@@ -236,7 +243,7 @@ export function createChartApi(): ChartApi {
 
     setDisplayYears(years) {
       const valid: DisplayStartYears[] = [5, 10, 20, null];
-      if (!valid.includes(years)) return `Error: years must be 5, 10, 20, or null`;
+      if (!valid.includes(years)) return "Error: years must be 5, 10, 20, or null";
       store().setDisplayStartYears(years);
       return `Display years: ${years ?? "all"}`;
     },
@@ -250,7 +257,10 @@ export function createChartApi(): ChartApi {
       const candles = s.currentCandles;
       const dateRange =
         candles.length > 0
-          ? { start: formatDate(candles[0].time), end: formatDate(candles[candles.length - 1].time) }
+          ? {
+              start: formatDate(candles[0].time),
+              end: formatDate(candles[candles.length - 1].time),
+            }
           : null;
 
       return {
@@ -304,7 +314,10 @@ export function createChartApi(): ChartApi {
     },
 
     listParams() {
-      const result: Record<string, { key: string; label: string; type?: string; min?: number; max?: number; step?: number }[]> = {};
+      const result: Record<
+        string,
+        { key: string; label: string; type?: string; min?: number; max?: number; step?: number }[]
+      > = {};
       for (const [indicator, configs] of Object.entries(INDICATOR_PARAM_CONFIGS)) {
         result[indicator] = configs.map((c) => {
           if ("type" in c && c.type === "boolean") {
@@ -349,13 +362,18 @@ export function createChartApi(): ChartApi {
     signalSummary() {
       const handle = _chartRef?.current;
       if (!handle) return "Error: chart not available";
-      return (handle.getSignalSummary() as unknown as Record<string, unknown>) ?? "Error: no signal data";
+      return (
+        (handle.getSignalSummary() as unknown as Record<string, unknown>) ?? "Error: no signal data"
+      );
     },
 
     fundamentalSummary() {
       const handle = _chartRef?.current;
       if (!handle) return "Error: chart not available";
-      return (handle.getFundamentalSummary() as unknown as Record<string, unknown>) ?? "No fundamental data available";
+      return (
+        (handle.getFundamentalSummary() as unknown as Record<string, unknown>) ??
+        "No fundamental data available"
+      );
     },
 
     // -----------------------------------------------------------------------

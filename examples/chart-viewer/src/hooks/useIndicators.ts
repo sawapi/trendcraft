@@ -4,41 +4,43 @@
 
 import { useMemo } from "react";
 import type {
-  NormalizedCandle,
-  MacdValue,
-  StochasticsValue,
   DmiValue,
+  MacdValue,
+  NormalizedCandle,
   StochRsiValue,
+  StochasticsValue,
 } from "trendcraft";
 import {
-  rsi,
-  macd,
-  stochastics,
+  atr,
+  calculateScoreSeries,
+  cci,
+  cmf,
   dmi,
-  stochRsi,
+  getPreset,
+  macd,
   mfi,
   obv,
-  cci,
-  williamsR,
   roc,
-  cmf,
+  roofingFilter,
+  rsi,
+  stochRsi,
+  stochastics,
+  volatilityRegime,
   volumeAnomaly,
   volumeProfileSeries,
   volumeTrend,
-  atr,
-  volatilityRegime,
-  calculateScoreSeries,
-  getPreset,
-  roofingFilter,
+  williamsR,
 } from "trendcraft";
 import type { ScoreResult } from "trendcraft";
-import {
-  rangeBound,
-  type RangeBoundValue,
+import { type RangeBoundValue, rangeBound } from "trendcraft";
+import type {
+  VolatilityRegimeValue,
+  VolumeAnomalyValue,
+  VolumeProfileValue,
+  VolumeTrendValue,
 } from "trendcraft";
-import type { VolumeAnomalyValue, VolumeProfileValue, VolumeTrendValue, VolatilityRegimeValue } from "trendcraft";
-import type { FundamentalData, SubChartType } from "../types";
 import { useChartStore } from "../store/chartStore";
+import type { FundamentalData, SubChartType } from "../types";
 
 /**
  * Calculate Simple Moving Average for a numeric array with nulls
@@ -81,7 +83,7 @@ export type PercentileLevel = "L" | "M" | "H";
  * Percentile info with numeric value and level
  */
 export interface PercentileInfo {
-  value: number;  // 0-100
+  value: number; // 0-100
   level: PercentileLevel;
 }
 
@@ -92,7 +94,7 @@ export interface PercentileInfo {
 function calculatePercentileInfo(
   values: (number | null)[],
   index: number,
-  lookback: number = 252
+  lookback = 252,
 ): PercentileInfo | null {
   const current = values[index];
   if (current === null) return null;
@@ -134,15 +136,15 @@ function detectEarningsDates(
   per: (number | null)[],
   pbr: (number | null)[],
   closes: number[],
-  epsThresholdPercent: number = 2.0,
-  bpsThresholdPercent: number = 1.0,
-  cooldownDays: number = 55
+  epsThresholdPercent = 2.0,
+  bpsThresholdPercent = 1.0,
+  cooldownDays = 55,
 ): number[] {
   const indices: number[] = [];
   let prevEps: number | null = null;
   let prevBps: number | null = null;
   let prevIndex: number | null = null;
-  let lastDetectedIndex: number = -cooldownDays;
+  let lastDetectedIndex = -cooldownDays;
 
   for (let i = 0; i < per.length; i++) {
     const p = per[i];
@@ -254,7 +256,7 @@ export interface IndicatorData {
 export function useIndicators(
   candles: NormalizedCandle[],
   enabledIndicators: SubChartType[],
-  fundamentals?: FundamentalData | null
+  fundamentals?: FundamentalData | null,
 ): IndicatorData {
   const indicatorParams = useChartStore((s) => s.indicatorParams);
 
@@ -440,7 +442,7 @@ export function useIndicators(
         closes,
         2.0, // EPS threshold: 2% (higher to filter PER rounding noise)
         1.0, // BPS threshold: 1% (lower because BPS changes can be smaller)
-        55   // 55 days cooldown (quarterly ~63 trading days)
+        55, // 55 days cooldown (quarterly ~63 trading days)
       );
     }
 

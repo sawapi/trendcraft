@@ -6,11 +6,7 @@
  */
 
 import type { NormalizedCandle } from "../../types";
-import type {
-  IndicatorSnapshot,
-  SessionState,
-  TradingSession,
-} from "../types";
+import type { IndicatorSnapshot, SessionState, TradingSession } from "../types";
 
 // ============================================
 // RiskGuard Types (Circuit Breaker)

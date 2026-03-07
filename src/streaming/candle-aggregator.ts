@@ -21,10 +21,10 @@
 
 import type { NormalizedCandle } from "../types";
 import type {
-  Trade,
   CandleAggregator,
   CandleAggregatorOptions,
   CandleAggregatorState,
+  Trade,
 } from "./types";
 
 /**

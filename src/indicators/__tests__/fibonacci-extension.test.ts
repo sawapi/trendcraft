@@ -39,13 +39,13 @@ describe("fibonacciExtension", () => {
     // A=Low(70) at idx 1, B=High(130) at idx 3, C=Low(90) at idx 5
     // C(90) > A(70) and C(90) < B(130) → valid bullish retracement
     const candles = makeCandles([
-      { o: 100, h: 105, l: 98, c: 101 },   // 0
-      { o: 101, h: 102, l: 70, c: 72 },    // 1 - swing low A (70)
-      { o: 72, h: 110, l: 80, c: 108 },    // 2
-      { o: 108, h: 130, l: 100, c: 128 },  // 3 - swing high B (130)
-      { o: 128, h: 125, l: 95, c: 98 },    // 4
-      { o: 98, h: 100, l: 90, c: 95 },     // 5 - swing low C (90)
-      { o: 95, h: 105, l: 93, c: 102 },    // 6
+      { o: 100, h: 105, l: 98, c: 101 }, // 0
+      { o: 101, h: 102, l: 70, c: 72 }, // 1 - swing low A (70)
+      { o: 72, h: 110, l: 80, c: 108 }, // 2
+      { o: 108, h: 130, l: 100, c: 128 }, // 3 - swing high B (130)
+      { o: 128, h: 125, l: 95, c: 98 }, // 4
+      { o: 98, h: 100, l: 90, c: 95 }, // 5 - swing low C (90)
+      { o: 95, h: 105, l: 93, c: 102 }, // 6
     ]);
 
     const result = fibonacciExtension(candles, { leftBars: 1, rightBars: 1 });
@@ -59,26 +59,26 @@ describe("fibonacciExtension", () => {
 
     // move = |130 - 70| = 60
     // bullish: level = C + ratio * move = 90 + ratio * 60
-    expect(last.levels!["0"]).toBeCloseTo(90);          // 0%
-    expect(last.levels!["0.618"]).toBeCloseTo(127.08);   // 61.8%
-    expect(last.levels!["1"]).toBeCloseTo(150);          // 100%
-    expect(last.levels!["1.272"]).toBeCloseTo(166.32);   // 127.2%
-    expect(last.levels!["1.618"]).toBeCloseTo(187.08);   // 161.8%
-    expect(last.levels!["2"]).toBeCloseTo(210);          // 200%
-    expect(last.levels!["2.618"]).toBeCloseTo(247.08);   // 261.8%
+    expect(last.levels?.["0"]).toBeCloseTo(90); // 0%
+    expect(last.levels?.["0.618"]).toBeCloseTo(127.08); // 61.8%
+    expect(last.levels?.["1"]).toBeCloseTo(150); // 100%
+    expect(last.levels?.["1.272"]).toBeCloseTo(166.32); // 127.2%
+    expect(last.levels?.["1.618"]).toBeCloseTo(187.08); // 161.8%
+    expect(last.levels?.["2"]).toBeCloseTo(210); // 200%
+    expect(last.levels?.["2.618"]).toBeCloseTo(247.08); // 261.8%
   });
 
   it("should calculate bearish extension (High→Low→High)", () => {
     // A=High(130) at idx 1, B=Low(70) at idx 3, C=High(110) at idx 5
     // C(110) < A(130) and C(110) > B(70) → valid bearish retracement
     const candles = makeCandles([
-      { o: 100, h: 105, l: 98, c: 101 },   // 0
-      { o: 101, h: 130, l: 99, c: 128 },   // 1 - swing high A (130)
-      { o: 128, h: 125, l: 75, c: 78 },    // 2
-      { o: 78, h: 85, l: 70, c: 80 },      // 3 - swing low B (70)
-      { o: 80, h: 100, l: 78, c: 98 },     // 4
-      { o: 98, h: 110, l: 95, c: 108 },    // 5 - swing high C (110)
-      { o: 108, h: 105, l: 90, c: 92 },    // 6
+      { o: 100, h: 105, l: 98, c: 101 }, // 0
+      { o: 101, h: 130, l: 99, c: 128 }, // 1 - swing high A (130)
+      { o: 128, h: 125, l: 75, c: 78 }, // 2
+      { o: 78, h: 85, l: 70, c: 80 }, // 3 - swing low B (70)
+      { o: 80, h: 100, l: 78, c: 98 }, // 4
+      { o: 98, h: 110, l: 95, c: 108 }, // 5 - swing high C (110)
+      { o: 108, h: 105, l: 90, c: 92 }, // 6
     ]);
 
     const result = fibonacciExtension(candles, { leftBars: 1, rightBars: 1 });
@@ -92,19 +92,19 @@ describe("fibonacciExtension", () => {
 
     // move = |70 - 130| = 60
     // bearish: level = C - ratio * move = 110 - ratio * 60
-    expect(last.levels!["0"]).toBeCloseTo(110);         // 0%
-    expect(last.levels!["1"]).toBeCloseTo(50);           // 100%
-    expect(last.levels!["1.618"]).toBeCloseTo(12.92);    // 161.8%
+    expect(last.levels?.["0"]).toBeCloseTo(110); // 0%
+    expect(last.levels?.["1"]).toBeCloseTo(50); // 100%
+    expect(last.levels?.["1.618"]).toBeCloseTo(12.92); // 161.8%
   });
 
   it("should support custom levels", () => {
     const candles = makeCandles([
       { o: 100, h: 105, l: 98, c: 101 },
-      { o: 101, h: 102, l: 70, c: 72 },    // swing low A
+      { o: 101, h: 102, l: 70, c: 72 }, // swing low A
       { o: 72, h: 110, l: 80, c: 108 },
-      { o: 108, h: 130, l: 100, c: 128 },  // swing high B
+      { o: 108, h: 130, l: 100, c: 128 }, // swing high B
       { o: 128, h: 125, l: 95, c: 98 },
-      { o: 98, h: 100, l: 90, c: 95 },     // swing low C
+      { o: 98, h: 100, l: 90, c: 95 }, // swing low C
       { o: 95, h: 105, l: 93, c: 102 },
     ]);
 
@@ -124,11 +124,11 @@ describe("fibonacciExtension", () => {
     // C(70) < A(80), so NOT a valid retracement
     const candles = makeCandles([
       { o: 100, h: 105, l: 98, c: 101 },
-      { o: 101, h: 102, l: 80, c: 82 },    // swing low A (80)
+      { o: 101, h: 102, l: 80, c: 82 }, // swing low A (80)
       { o: 82, h: 95, l: 85, c: 93 },
-      { o: 93, h: 100, l: 88, c: 98 },     // swing high B (100)
+      { o: 93, h: 100, l: 88, c: 98 }, // swing high B (100)
       { o: 98, h: 95, l: 75, c: 78 },
-      { o: 78, h: 80, l: 70, c: 75 },      // swing low C (70) < A=80, invalid
+      { o: 78, h: 80, l: 70, c: 75 }, // swing low C (70) < A=80, invalid
       { o: 75, h: 85, l: 73, c: 80 },
     ]);
 

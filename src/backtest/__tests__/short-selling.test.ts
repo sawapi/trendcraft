@@ -1,10 +1,10 @@
 /**
  * Tests for Short Selling Support (Feature 3)
  */
-import { describe, it, expect } from "vitest";
-import { runBacktest } from "../engine";
+import { describe, expect, it } from "vitest";
 import { createPositionTracker } from "../../streaming/position-manager/position-tracker";
-import type { NormalizedCandle, ConditionFn } from "../../types";
+import type { ConditionFn, NormalizedCandle } from "../../types";
+import { runBacktest } from "../engine";
 
 const DAY = 86400000;
 
@@ -63,7 +63,10 @@ describe("backtest short selling", () => {
     const candles = makeCandles([100, 100, 100, 106, 110]);
     let entered = false;
     const entryOnce: ConditionFn = () => {
-      if (!entered) { entered = true; return true; }
+      if (!entered) {
+        entered = true;
+        return true;
+      }
       return false;
     };
     const result = runBacktest(candles, entryOnce, alwaysFalse, {
@@ -82,7 +85,10 @@ describe("backtest short selling", () => {
     // Entry on first bar, then only exit by TP (no re-entry)
     let entered = false;
     const entryOnce: ConditionFn = () => {
-      if (!entered) { entered = true; return true; }
+      if (!entered) {
+        entered = true;
+        return true;
+      }
       return false;
     };
     const result = runBacktest(candles, entryOnce, alwaysFalse, {
@@ -108,7 +114,10 @@ describe("backtest short selling", () => {
     ];
     let entered = false;
     const entryOnce: ConditionFn = () => {
-      if (!entered) { entered = true; return true; }
+      if (!entered) {
+        entered = true;
+        return true;
+      }
       return false;
     };
     const result = runBacktest(candles, entryOnce, alwaysFalse, {
@@ -207,7 +216,7 @@ describe("streaming position tracker short selling", () => {
     };
     const result = tracker.updatePrice(candle);
     expect(result.triggered).not.toBeNull();
-    expect(result.triggered!.reason).toBe("stop-loss");
+    expect(result.triggered?.reason).toBe("stop-loss");
   });
 
   it("short take profit triggers on price drop", () => {
@@ -232,7 +241,7 @@ describe("streaming position tracker short selling", () => {
     };
     const result = tracker.updatePrice(candle);
     expect(result.triggered).not.toBeNull();
-    expect(result.triggered!.reason).toBe("take-profit");
+    expect(result.triggered?.reason).toBe("take-profit");
   });
 
   it("short trailing stop tracks trough price", () => {
@@ -246,12 +255,22 @@ describe("streaming position tracker short selling", () => {
 
     // Price drops to 90 (small drop, trough=90, trailing=90*1.10=99, high=92 < 99, no trigger)
     tracker.updatePrice({
-      time: 2000, open: 95, high: 92, low: 90, close: 91, volume: 1000,
+      time: 2000,
+      open: 95,
+      high: 92,
+      low: 90,
+      close: 91,
+      volume: 1000,
     });
 
     // Price drops further to 80 (trough=80, trailing=80*1.10=88, high=82 < 88, no trigger)
     tracker.updatePrice({
-      time: 3000, open: 88, high: 82, low: 80, close: 81, volume: 1000,
+      time: 3000,
+      open: 88,
+      high: 82,
+      low: 80,
+      close: 81,
+      volume: 1000,
     });
 
     const pos = tracker.getPosition()!;
@@ -259,10 +278,15 @@ describe("streaming position tracker short selling", () => {
 
     // Price bounces to above trailing level (80 * 1.10 = 88, high=90 > 88)
     const result = tracker.updatePrice({
-      time: 4000, open: 85, high: 90, low: 84, close: 89, volume: 1000,
+      time: 4000,
+      open: 85,
+      high: 90,
+      low: 84,
+      close: 89,
+      volume: 1000,
     });
     expect(result.triggered).not.toBeNull();
-    expect(result.triggered!.reason).toBe("trailing-stop");
+    expect(result.triggered?.reason).toBe("trailing-stop");
   });
 
   it("short unrealized P&L is positive when price drops", () => {
@@ -273,7 +297,12 @@ describe("streaming position tracker short selling", () => {
 
     tracker.openPosition(100, 100, 1000);
     tracker.updatePrice({
-      time: 2000, open: 95, high: 96, low: 93, close: 95, volume: 1000,
+      time: 2000,
+      open: 95,
+      high: 96,
+      low: 93,
+      close: 95,
+      volume: 1000,
     });
 
     const account = tracker.getAccount();

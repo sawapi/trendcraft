@@ -3,9 +3,7 @@ import type { NormalizedCandle } from "../../types";
 import { aroon } from "../momentum/aroon";
 
 describe("aroon", () => {
-  const makeCandles = (
-    data: { high: number; low: number }[],
-  ): NormalizedCandle[] =>
+  const makeCandles = (data: { high: number; low: number }[]): NormalizedCandle[] =>
     data.map((d, i) => ({
       time: 1700000000000 + i * 86400000,
       open: (d.high + d.low) / 2,

@@ -5,13 +5,13 @@
  */
 
 import Anthropic from "@anthropic-ai/sdk";
-import type { DailyReport, LLMRecommendation, ReviewRecord } from "./types.js";
 import {
+  type UserMessageOptions,
   buildSystemPrompt,
   buildUserMessage,
   parseLLMResponse,
-  type UserMessageOptions,
 } from "./llm-prompt.js";
+import type { DailyReport, LLMRecommendation, ReviewRecord } from "./types.js";
 
 const MODEL = "claude-sonnet-4-20250514";
 const MAX_TOKENS = 4096;
@@ -32,9 +32,7 @@ export async function reviewWithLLM(
 ): Promise<LLMRecommendation> {
   const apiKey = opts?.apiKey ?? process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
-    throw new Error(
-      "Missing ANTHROPIC_API_KEY. Set it in .env or pass via --api-key.",
-    );
+    throw new Error("Missing ANTHROPIC_API_KEY. Set it in .env or pass via --api-key.");
   }
 
   const client = new Anthropic({ apiKey });
@@ -60,16 +58,13 @@ export async function reviewWithLLM(
 
       const parsed = parseLLMResponse(text);
       if (!parsed) {
-        lastError = new Error(
-          `Failed to parse LLM response (attempt ${attempt + 1})`,
-        );
+        lastError = new Error(`Failed to parse LLM response (attempt ${attempt + 1})`);
         continue;
       }
 
       return parsed;
     } catch (err) {
-      lastError =
-        err instanceof Error ? err : new Error(String(err));
+      lastError = err instanceof Error ? err : new Error(String(err));
     }
   }
 

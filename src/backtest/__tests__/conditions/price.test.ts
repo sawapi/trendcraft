@@ -62,11 +62,11 @@ describe("priceAboveSma()", () => {
     const indicators: Record<string, unknown> = {};
 
     evaluateCondition(condition, indicators, candles[20], 20, candles);
-    expect(indicators["sma10"]).toBeDefined();
+    expect(indicators.sma10).toBeDefined();
 
     // Second call should reuse cached data
     evaluateCondition(condition, indicators, candles[30], 30, candles);
-    expect(indicators["sma10"]).toBeDefined();
+    expect(indicators.sma10).toBeDefined();
   });
 });
 
@@ -190,6 +190,6 @@ describe("priceDroppedAtr()", () => {
     const indicators: Record<string, unknown> = {};
 
     evaluateCondition(condition, indicators, candles[30], 30, candles);
-    expect(indicators["atr14"]).toBeDefined();
+    expect(indicators.atr14).toBeDefined();
   });
 });

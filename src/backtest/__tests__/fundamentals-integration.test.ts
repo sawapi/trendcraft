@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { FundamentalMetrics, NormalizedCandle } from "../../types";
-import { runBacktest } from "../engine";
 import { and, or } from "../conditions/core";
-import { goldenCross, deadCross } from "../conditions/ma-cross";
-import { perBelow, perAbove, pbrBelow } from "../conditions/fundamentals";
+import { pbrBelow, perAbove, perBelow } from "../conditions/fundamentals";
+import { deadCross, goldenCross } from "../conditions/ma-cross";
+import { runBacktest } from "../engine";
 
 /**
  * Generate test candles with trending data
@@ -17,7 +17,7 @@ function generateTrendingCandles(count: number, startPrice = 100): NormalizedCan
 
   for (let i = 0; i < count; i++) {
     // Simulate uptrend with some volatility
-    const change = (Math.sin(i * 0.2) * 2) + 0.5;
+    const change = Math.sin(i * 0.2) * 2 + 0.5;
     price += change;
 
     candles.push({

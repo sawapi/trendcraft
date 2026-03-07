@@ -1,6 +1,6 @@
 import { useEffect } from "react";
-import { useChartStore } from "../store/chartStore";
 import type { NormalizedCandle } from "trendcraft";
+import { useChartStore } from "../store/chartStore";
 import type {
   FundamentalData,
   IndicatorParams,

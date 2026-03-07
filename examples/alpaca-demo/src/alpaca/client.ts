@@ -81,11 +81,7 @@ export function createAlpacaClient(env: AlpacaEnv): AlpacaClient {
     "Content-Type": "application/json",
   };
 
-  async function request<T>(
-    path: string,
-    method = "GET",
-    body?: unknown,
-  ): Promise<T> {
+  async function request<T>(path: string, method = "GET", body?: unknown): Promise<T> {
     const url = `${env.baseUrl}${path}`;
     const res = await fetch(url, {
       method,

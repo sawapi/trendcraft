@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { NormalizedCandle } from "../../../types";
-import { perBelow, perAbove, perBetween, pbrBelow, pbrAbove, pbrBetween } from "../fundamentals";
+import { pbrAbove, pbrBelow, pbrBetween, perAbove, perBelow, perBetween } from "../fundamentals";
 
 // Helper to create a mock candle
 function createCandle(time = 1000): NormalizedCandle {

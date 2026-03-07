@@ -110,7 +110,7 @@ export function parabolicSar(
   const diffP = normalized[1].high - normalized[0].high; // plus delta
   const diffM = normalized[0].low - normalized[1].low; // minus delta
   const minusDm = diffM > 0 && diffM > diffP ? diffM : 0;
-  let isLong = minusDm > 0 ? false : true;
+  let isLong = !(minusDm > 0);
 
   // Initialize SAR and EP (TA-Lib: sar = prev bar's low/high, ep = current bar's high/low)
   let sar: number;

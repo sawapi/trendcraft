@@ -135,9 +135,7 @@ export function trix(
     const trixVal = trixValues[i];
     // Signal is only valid after firstValidTrix + signalPeriod - 1
     const signalVal =
-      firstValidTrix >= 0 && i >= firstValidTrix + signalPeriod - 1
-        ? signalEma[i].value
-        : null;
+      firstValidTrix >= 0 && i >= firstValidTrix + signalPeriod - 1 ? signalEma[i].value : null;
 
     result.push({
       time: normalized[i].time,

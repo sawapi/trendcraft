@@ -9,10 +9,7 @@ import { runBacktest } from "../backtest";
 import { and, or } from "../backtest/conditions";
 import { IndicatorCache } from "../core/indicator-cache";
 import type { BacktestOptions, Condition, NormalizedCandle } from "../types";
-import type {
-  OptimizationConstraint,
-  OptimizationMetric,
-} from "../types/optimization";
+import type { OptimizationConstraint, OptimizationMetric } from "../types/optimization";
 import { calculateAllMetrics, checkConstraint, getMetricValue } from "./metrics";
 
 /**
@@ -283,7 +280,13 @@ export function combinationSearch(
           allExitConditions.length === 1 ? allExitConditions[0] : and(...allExitConditions);
 
         // Run backtest with shared cache
-        const backtest = runBacktest(candles, entryCondition, exitCondition, backtestOptions, cache);
+        const backtest = runBacktest(
+          candles,
+          entryCondition,
+          exitCondition,
+          backtestOptions,
+          cache,
+        );
 
         // Skip if no trades
         if (backtest.tradeCount === 0) continue;

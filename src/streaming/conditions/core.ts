@@ -16,11 +16,7 @@
  */
 
 import type { NormalizedCandle } from "../../types";
-import type {
-  StreamingCondition,
-  StreamingCombinedCondition,
-  IndicatorSnapshot,
-} from "./types";
+import type { IndicatorSnapshot, StreamingCombinedCondition, StreamingCondition } from "./types";
 
 /**
  * Combine conditions with AND logic (all must be true)
@@ -98,13 +94,9 @@ export function evaluateStreamingCondition(
   // Combined conditions
   switch (condition.type) {
     case "and":
-      return condition.conditions.every((c) =>
-        evaluateStreamingCondition(c, snapshot, candle),
-      );
+      return condition.conditions.every((c) => evaluateStreamingCondition(c, snapshot, candle));
     case "or":
-      return condition.conditions.some((c) =>
-        evaluateStreamingCondition(c, snapshot, candle),
-      );
+      return condition.conditions.some((c) => evaluateStreamingCondition(c, snapshot, candle));
     case "not":
       return !evaluateStreamingCondition(condition.conditions[0], snapshot, candle);
     default:

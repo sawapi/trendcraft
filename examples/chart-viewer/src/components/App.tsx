@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useChartStore } from "../store/chartStore";
 import { createChartApi, registerChartRef } from "../api";
 import { usePostMessageLoader } from "../hooks/usePostMessageLoader";
+import { useChartStore } from "../store/chartStore";
 import { BacktestPanel } from "./BacktestPanel";
 import { FileDropZone } from "./FileDropZone";
 import { IndicatorSettingsDialog } from "./IndicatorSettingsDialog";
@@ -67,7 +67,9 @@ export default function App() {
 
   // Expose programmatic API on window for LLM agents and DevTools
   useEffect(() => {
+    // biome-ignore lint/suspicious/noExplicitAny: exposing debug API on window
     (window as any).__chartStore = useChartStore;
+    // biome-ignore lint/suspicious/noExplicitAny: exposing debug API on window
     (window as any).__chart = createChartApi();
     registerChartRef(mainChartRef);
     console.log("[chart-viewer] API ready. Type __chart.help() for usage.");
@@ -134,7 +136,9 @@ export default function App() {
     "signals-sidebar",
     isMobile && sidebarOpen && "mobile-open",
     !isMobile && sidebarCollapsed && "collapsed",
-  ].filter(Boolean).join(" ");
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   // Build enabled indicator labels for the indicator bar
   const enabledLabels = [
@@ -165,11 +169,19 @@ export default function App() {
                 {visibleRange.start} - {visibleRange.end} ({visibleRange.count})
               </span>
             )}
-            <button type="button" className="reset-button" onClick={() => mainChartRef.current?.exportPNG()}>
+            <button
+              type="button"
+              className="reset-button"
+              onClick={() => mainChartRef.current?.exportPNG()}
+            >
               <span className="material-icons md-16">download</span>
               PNG
             </button>
-            <button type="button" className="reset-button" onClick={() => mainChartRef.current?.exportSVG()}>
+            <button
+              type="button"
+              className="reset-button"
+              onClick={() => mainChartRef.current?.exportSVG()}
+            >
               <span className="material-icons md-16">download</span>
               SVG
             </button>

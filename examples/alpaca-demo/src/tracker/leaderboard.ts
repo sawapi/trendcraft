@@ -5,7 +5,7 @@
 import type { Agent } from "../agent/agent.js";
 import type { PromotionConfig } from "../config/promotion.js";
 import { DEFAULT_PROMOTION_CONFIG } from "../config/promotion.js";
-import { getPerformanceSummary, type PerformanceSummary } from "./performance.js";
+import { type PerformanceSummary, getPerformanceSummary } from "./performance.js";
 
 export type PromotionDecision = {
   agentId: string;
@@ -124,7 +124,7 @@ export function formatLiveLeaderboard(summaries: PerformanceSummary[]): string {
     const sharpe = s.metrics.sharpeRatio.toFixed(2).padEnd(9);
     const dd = `${s.metrics.maxDrawdown.toFixed(1)}%`.padEnd(9);
     const pf =
-      s.metrics.profitFactor === Infinity
+      s.metrics.profitFactor === Number.POSITIVE_INFINITY
         ? "Inf".padEnd(8)
         : s.metrics.profitFactor.toFixed(2).padEnd(8);
     const trades = String(s.metrics.totalTrades).padEnd(8);

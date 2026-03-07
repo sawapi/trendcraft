@@ -165,8 +165,8 @@ function rescaledRange(returns: number[]): number | null {
   }
 
   // Range
-  let maxDev = -Infinity;
-  let minDev = Infinity;
+  let maxDev = Number.NEGATIVE_INFINITY;
+  let minDev = Number.POSITIVE_INFINITY;
   for (let i = 0; i < n; i++) {
     if (cumDev[i] > maxDev) maxDev = cumDev[i];
     if (cumDev[i] < minDev) minDev = cumDev[i];
@@ -192,7 +192,10 @@ function rescaledRange(returns: number[]): number | null {
  */
 function linearRegressionSlope(x: number[], y: number[]): number {
   const n = x.length;
-  let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+  let sumX = 0;
+  let sumY = 0;
+  let sumXY = 0;
+  let sumXX = 0;
   for (let i = 0; i < n; i++) {
     sumX += x[i];
     sumY += y[i];

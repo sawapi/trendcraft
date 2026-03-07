@@ -57,8 +57,8 @@ describe("atr", () => {
 
   it("should apply Wilder smoothing after initial period", () => {
     const candles = makeCandles([
-      [100, 110, 90, 105],  // index 0: TR skipped
-      [105, 115, 95, 110],  // index 1: TR = 20
+      [100, 110, 90, 105], // index 0: TR skipped
+      [105, 115, 95, 110], // index 1: TR = 20
       [110, 120, 100, 115], // index 2: TR = 20
       [115, 125, 105, 120], // index 3: TR = 20, first ATR = 20
       [120, 140, 110, 135], // index 4: TR = 30, Wilder's smoothed
@@ -87,7 +87,7 @@ describe("atr", () => {
 
   it("should consider gap up/down in true range", () => {
     const candles = makeCandles([
-      [100, 110, 90, 105],  // index 0: TR skipped
+      [100, 110, 90, 105], // index 0: TR skipped
       [120, 125, 115, 122], // index 1: TR = max(10, |125-105|, |115-105|) = 20
     ]);
     const result = atr(candles, { period: 1 });

@@ -33,10 +33,7 @@ import type { IndicatorSnapshot } from "./conditions/types";
  * const rsi = getNumber(snapshot, "rsi"); // 42.5 | null
  * ```
  */
-export function getNumber(
-  snapshot: IndicatorSnapshot,
-  key: string,
-): number | null {
+export function getNumber(snapshot: IndicatorSnapshot, key: string): number | null {
   const val = snapshot[key];
   return typeof val === "number" ? val : null;
 }
@@ -59,11 +56,7 @@ export function getNumber(
  * getField(snapshot, "dmi", "adx");        // number | null
  * ```
  */
-export function getField(
-  snapshot: IndicatorSnapshot,
-  key: string,
-  field: string,
-): number | null {
+export function getField(snapshot: IndicatorSnapshot, key: string, field: string): number | null {
   const val = snapshot[key];
   if (val == null || typeof val !== "object") return null;
   const fieldVal = (val as Record<string, unknown>)[field];
@@ -87,10 +80,7 @@ export function getField(
  * resolveNumber(snapshot, "macd.histogram"); // getField(snapshot, "macd", "histogram")
  * ```
  */
-export function resolveNumber(
-  snapshot: IndicatorSnapshot,
-  path: string,
-): number | null {
+export function resolveNumber(snapshot: IndicatorSnapshot, path: string): number | null {
   const dotIndex = path.indexOf(".");
   if (dotIndex === -1) {
     return getNumber(snapshot, path);

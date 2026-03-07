@@ -15,8 +15,8 @@
  */
 
 import type { TradeSignal } from "../../types/trade-signal";
-import type { SignalManagerOptions } from "./types";
 import { createSignalManager } from "./signal-manager";
+import type { SignalManagerOptions } from "./types";
 
 /**
  * Process an array of signals through a SignalManager in batch mode

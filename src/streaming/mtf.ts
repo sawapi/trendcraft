@@ -35,15 +35,15 @@
  */
 
 import type { NormalizedCandle } from "../types";
-import type {
-  StreamingMtfTimeframeConfig,
-  StreamingMtfState,
-  MtfSnapshot,
-  IndicatorSnapshot,
-  StreamingMtf,
-  PipelineIndicatorConfig,
-} from "./types";
 import { createCandleResampler } from "./candle-resampler";
+import type {
+  IndicatorSnapshot,
+  MtfSnapshot,
+  PipelineIndicatorConfig,
+  StreamingMtf,
+  StreamingMtfState,
+  StreamingMtfTimeframeConfig,
+} from "./types";
 import type { CandleResampler } from "./types";
 
 type MtfTimeframeInstance = {
@@ -52,8 +52,13 @@ type MtfTimeframeInstance = {
   resampler: CandleResampler;
   indicators: {
     name: string;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    indicator: { next(candle: NormalizedCandle): { value: any }; peek(candle: NormalizedCandle): { value: any }; getState(): unknown };
+    indicator: {
+      // biome-ignore lint/suspicious/noExplicitAny: indicator values are heterogeneous
+      next(candle: NormalizedCandle): { value: any };
+      // biome-ignore lint/suspicious/noExplicitAny: indicator values are heterogeneous
+      peek(candle: NormalizedCandle): { value: any };
+      getState(): unknown;
+    };
   }[];
   lastCompletedCandle: NormalizedCandle | null;
 };
@@ -113,7 +118,11 @@ export function createStreamingMtf(
     };
   });
 
-  function processCandle(inst: MtfTimeframeInstance, candle: NormalizedCandle, method: "next" | "peek"): void {
+  function processCandle(
+    inst: MtfTimeframeInstance,
+    candle: NormalizedCandle,
+    method: "next" | "peek",
+  ): void {
     if (method === "next") {
       const completed = inst.resampler.addCandle(candle);
       if (completed) {
@@ -138,7 +147,15 @@ export function createStreamingMtf(
         } else {
           // Use last computed value from next()
           tfSnapshot[ind.name] = ind.indicator.peek(
-            currentCandle ?? inst.lastCompletedCandle ?? { time: 0, open: 0, high: 0, low: 0, close: 0, volume: 0 },
+            currentCandle ??
+              inst.lastCompletedCandle ?? {
+                time: 0,
+                open: 0,
+                high: 0,
+                low: 0,
+                close: 0,
+                volume: 0,
+              },
           ).value;
         }
       }

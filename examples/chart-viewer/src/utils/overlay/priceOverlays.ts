@@ -3,19 +3,15 @@
  */
 
 import type { NormalizedCandle } from "trendcraft";
-import type { OverlayType } from "../../types";
 import type { OverlayData } from "../../hooks/useOverlays";
+import type { OverlayType } from "../../types";
 import { COLORS, type SeriesItem } from "../chartColors";
 
 /**
  * Clip a value to a range, returning null if outside bounds.
  * Used to prevent extreme data points from distorting Y-axis scale.
  */
-function clipToRange(
-  value: number | null | undefined,
-  min: number,
-  max: number,
-): number | null {
+function clipToRange(value: number | null | undefined, min: number, max: number): number | null {
   if (value === null || value === undefined) return null;
   return value < min || value > max ? null : value;
 }
@@ -62,7 +58,7 @@ export function buildPriceOverlaySeries(
   // Swing Points
   if (enabledOverlays.includes("swingPoints") && overlays.swingPoints) {
     const swingHighData = overlays.swingPoints.map((v, i) =>
-      v.isSwingHigh ? candles[i].high : null
+      v.isSwingHigh ? candles[i].high : null,
     );
     series.push({
       name: "Swing High",
@@ -74,9 +70,7 @@ export function buildPriceOverlaySeries(
       itemStyle: { color: COLORS.swingHigh },
     });
 
-    const swingLowData = overlays.swingPoints.map((v, i) =>
-      v.isSwingLow ? candles[i].low : null
-    );
+    const swingLowData = overlays.swingPoints.map((v, i) => (v.isSwingLow ? candles[i].low : null));
     series.push({
       name: "Swing Low",
       type: "scatter",
@@ -153,7 +147,8 @@ export function buildPriceOverlaySeries(
     ];
 
     for (const level of fibLevels) {
-      const label = level.key === "0.5" ? "50%" : `${(parseFloat(level.key) * 100).toFixed(1)}%`;
+      const label =
+        level.key === "0.5" ? "50%" : `${(Number.parseFloat(level.key) * 100).toFixed(1)}%`;
       series.push({
         name: `Fib ${label}`,
         type: "line",
@@ -229,7 +224,7 @@ export function buildPriceOverlaySeries(
     ];
 
     for (const level of extLevels) {
-      const label = `${(parseFloat(level.key) * 100).toFixed(1)}%`;
+      const label = `${(Number.parseFloat(level.key) * 100).toFixed(1)}%`;
       series.push({
         name: `Ext ${label}`,
         type: "line",

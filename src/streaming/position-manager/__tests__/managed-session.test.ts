@@ -1,9 +1,9 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
+import type { NormalizedCandle } from "../../../types";
+import type { GuardedSessionOptions } from "../../guards/types";
+import type { SessionOptions } from "../../types";
 import { createManagedSession } from "../managed-session";
 import type { ManagedEvent, PositionManagerOptions } from "../types";
-import type { SessionOptions } from "../../types";
-import type { GuardedSessionOptions } from "../../guards/types";
-import type { NormalizedCandle } from "../../../types";
 
 /**
  * Minimal incremental indicator that tracks close price
@@ -48,10 +48,7 @@ function eventsOfType<T extends ManagedEvent["type"]>(
   events: ManagedEvent[],
   type: T,
 ): Extract<ManagedEvent, { type: T }>[] {
-  return events.filter((e) => e.type === type) as Extract<
-    ManagedEvent,
-    { type: T }
-  >[];
+  return events.filter((e) => e.type === type) as Extract<ManagedEvent, { type: T }>[];
 }
 
 const alwaysEnter = {
@@ -84,11 +81,7 @@ const defaultPositionOptions: PositionManagerOptions = {
 describe("createManagedSession", () => {
   describe("basic flow", () => {
     it("should open a position on entry signal", () => {
-      const session = createManagedSession(
-        defaultSessionOptions,
-        noGuards,
-        defaultPositionOptions,
-      );
+      const session = createManagedSession(defaultSessionOptions, noGuards, defaultPositionOptions);
 
       // Feed trades that complete candles
       // t=0: starts candle [0, 1000)
@@ -112,11 +105,7 @@ describe("createManagedSession", () => {
     });
 
     it("should not open a second position while one is open", () => {
-      const session = createManagedSession(
-        defaultSessionOptions,
-        noGuards,
-        defaultPositionOptions,
-      );
+      const session = createManagedSession(defaultSessionOptions, noGuards, defaultPositionOptions);
 
       const events: ManagedEvent[] = [];
       for (let i = 0; i < 10; i++) {
@@ -174,11 +163,7 @@ describe("createManagedSession", () => {
     });
 
     it("should emit position-update on candle events while holding", () => {
-      const session = createManagedSession(
-        defaultSessionOptions,
-        noGuards,
-        defaultPositionOptions,
-      );
+      const session = createManagedSession(defaultSessionOptions, noGuards, defaultPositionOptions);
 
       // Open position
       feedTrades(session, [
@@ -233,7 +218,7 @@ describe("createManagedSession", () => {
         { time: 1000, price: 100, volume: 10 },
       ]);
       expect(session.getPosition()).not.toBeNull();
-      expect(session.getPosition()!.stopLossPrice).toBe(95);
+      expect(session.getPosition()?.stopLossPrice).toBe(95);
 
       // Next candle [1000,2000) drops to 90 (below SL of 95)
       const events = feedTrades(session, [
@@ -296,11 +281,7 @@ describe("createManagedSession", () => {
 
   describe("position sizing", () => {
     it("should use full-capital sizing by default", () => {
-      const session = createManagedSession(
-        defaultSessionOptions,
-        noGuards,
-        { capital: 100_000 },
-      );
+      const session = createManagedSession(defaultSessionOptions, noGuards, { capital: 100_000 });
 
       feedTrades(session, [
         { time: 0, price: 100, volume: 10 },
@@ -310,18 +291,14 @@ describe("createManagedSession", () => {
       const pos = session.getPosition();
       expect(pos).not.toBeNull();
       // Full capital: 100,000 / 100 = 1000 shares
-      expect(pos!.shares).toBe(1000);
+      expect(pos?.shares).toBe(1000);
     });
 
     it("should use fixed-fractional sizing", () => {
-      const session = createManagedSession(
-        defaultSessionOptions,
-        noGuards,
-        {
-          capital: 100_000,
-          sizing: { method: "fixed-fractional", fractionPercent: 10 },
-        },
-      );
+      const session = createManagedSession(defaultSessionOptions, noGuards, {
+        capital: 100_000,
+        sizing: { method: "fixed-fractional", fractionPercent: 10 },
+      });
 
       feedTrades(session, [
         { time: 0, price: 100, volume: 10 },
@@ -331,19 +308,15 @@ describe("createManagedSession", () => {
       const pos = session.getPosition();
       expect(pos).not.toBeNull();
       // 10% of 100,000 = 10,000 / 100 = 100 shares
-      expect(pos!.shares).toBe(100);
+      expect(pos?.shares).toBe(100);
     });
 
     it("should use risk-based sizing with stop loss", () => {
-      const session = createManagedSession(
-        defaultSessionOptions,
-        noGuards,
-        {
-          capital: 100_000,
-          sizing: { method: "risk-based", riskPercent: 1 },
-          stopLoss: 2,
-        },
-      );
+      const session = createManagedSession(defaultSessionOptions, noGuards, {
+        capital: 100_000,
+        sizing: { method: "risk-based", riskPercent: 1 },
+        stopLoss: 2,
+      });
 
       feedTrades(session, [
         { time: 0, price: 100, volume: 10 },
@@ -355,18 +328,14 @@ describe("createManagedSession", () => {
       // Risk = 100,000 * 0.01 = 1,000
       // Stop distance = 100 * 0.02 = 2
       // Shares = 1,000 / 2 = 500
-      expect(pos!.shares).toBe(500);
+      expect(pos?.shares).toBe(500);
     });
 
     it("should fall back to full-capital when risk-based but no stop loss", () => {
-      const session = createManagedSession(
-        defaultSessionOptions,
-        noGuards,
-        {
-          capital: 100_000,
-          sizing: { method: "risk-based", riskPercent: 1 },
-        },
-      );
+      const session = createManagedSession(defaultSessionOptions, noGuards, {
+        capital: 100_000,
+        sizing: { method: "risk-based", riskPercent: 1 },
+      });
 
       feedTrades(session, [
         { time: 0, price: 100, volume: 10 },
@@ -375,7 +344,7 @@ describe("createManagedSession", () => {
 
       const pos = session.getPosition();
       expect(pos).not.toBeNull();
-      expect(pos!.shares).toBe(1000);
+      expect(pos?.shares).toBe(1000);
     });
   });
 
@@ -482,11 +451,7 @@ describe("createManagedSession", () => {
 
   describe("manual operations", () => {
     it("should manually close position", () => {
-      const session = createManagedSession(
-        defaultSessionOptions,
-        noGuards,
-        defaultPositionOptions,
-      );
+      const session = createManagedSession(defaultSessionOptions, noGuards, defaultPositionOptions);
 
       feedTrades(session, [
         { time: 0, price: 100, volume: 10 },
@@ -502,11 +467,10 @@ describe("createManagedSession", () => {
     });
 
     it("should update stop loss", () => {
-      const session = createManagedSession(
-        defaultSessionOptions,
-        noGuards,
-        { capital: 100_000, stopLoss: 5 },
-      );
+      const session = createManagedSession(defaultSessionOptions, noGuards, {
+        capital: 100_000,
+        stopLoss: 5,
+      });
 
       feedTrades(session, [
         { time: 0, price: 100, volume: 10 },
@@ -514,18 +478,17 @@ describe("createManagedSession", () => {
       ]);
 
       // SL at 100 * 0.95 = 95
-      expect(session.getPosition()!.stopLossPrice).toBe(95);
+      expect(session.getPosition()?.stopLossPrice).toBe(95);
 
       session.updateStopLoss(97);
-      expect(session.getPosition()!.stopLossPrice).toBe(97);
+      expect(session.getPosition()?.stopLossPrice).toBe(97);
     });
 
     it("should update take profit", () => {
-      const session = createManagedSession(
-        defaultSessionOptions,
-        noGuards,
-        { capital: 100_000, takeProfit: 10 },
-      );
+      const session = createManagedSession(defaultSessionOptions, noGuards, {
+        capital: 100_000,
+        takeProfit: 10,
+      });
 
       feedTrades(session, [
         { time: 0, price: 100, volume: 10 },
@@ -533,18 +496,14 @@ describe("createManagedSession", () => {
       ]);
 
       // TP at 100 * 1.10 ≈ 110
-      expect(session.getPosition()!.takeProfitPrice).toBeCloseTo(110, 5);
+      expect(session.getPosition()?.takeProfitPrice).toBeCloseTo(110, 5);
 
       session.updateTakeProfit(115);
-      expect(session.getPosition()!.takeProfitPrice).toBe(115);
+      expect(session.getPosition()?.takeProfitPrice).toBe(115);
     });
 
     it("should return empty array when manually closing with no position", () => {
-      const session = createManagedSession(
-        defaultSessionOptions,
-        noGuards,
-        defaultPositionOptions,
-      );
+      const session = createManagedSession(defaultSessionOptions, noGuards, defaultPositionOptions);
 
       const events = session.closePosition(1000, 100);
       expect(events).toHaveLength(0);
@@ -553,11 +512,7 @@ describe("createManagedSession", () => {
 
   describe("close session", () => {
     it("should force-close open position on session close", () => {
-      const session = createManagedSession(
-        defaultSessionOptions,
-        noGuards,
-        defaultPositionOptions,
-      );
+      const session = createManagedSession(defaultSessionOptions, noGuards, defaultPositionOptions);
 
       feedTrades(session, [
         { time: 0, price: 100, volume: 10 },
@@ -618,11 +573,10 @@ describe("createManagedSession", () => {
 
   describe("state persistence", () => {
     it("should save and restore session state", () => {
-      const session1 = createManagedSession(
-        defaultSessionOptions,
-        noGuards,
-        { capital: 100_000, stopLoss: 2 },
-      );
+      const session1 = createManagedSession(defaultSessionOptions, noGuards, {
+        capital: 100_000,
+        stopLoss: 2,
+      });
 
       feedTrades(session1, [
         { time: 0, price: 100, volume: 10 },
@@ -642,12 +596,8 @@ describe("createManagedSession", () => {
 
       // Position should be restored
       expect(session2.getPosition()).not.toBeNull();
-      expect(session2.getPosition()!.entryPrice).toBe(
-        session1.getPosition()!.entryPrice,
-      );
-      expect(session2.getAccount().currentCapital).toBe(
-        session1.getAccount().currentCapital,
-      );
+      expect(session2.getPosition()?.entryPrice).toBe(session1.getPosition()?.entryPrice);
+      expect(session2.getAccount().currentCapital).toBe(session1.getAccount().currentCapital);
     });
   });
 });

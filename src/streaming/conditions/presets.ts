@@ -11,8 +11,8 @@
  * ```
  */
 
-import type { StreamingPresetCondition, IndicatorSnapshot } from "./types";
-import { getNumber, getField } from "../snapshot-utils";
+import { getField, getNumber } from "../snapshot-utils";
+import type { IndicatorSnapshot, StreamingPresetCondition } from "./types";
 
 /**
  * Condition: RSI is below a threshold

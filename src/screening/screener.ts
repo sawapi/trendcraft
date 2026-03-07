@@ -6,7 +6,7 @@
  */
 
 import type { Condition } from "../types";
-import { type Result, ok, err, tcError } from "../types/result";
+import { type Result, err, ok, tcError } from "../types/result";
 import { getCsvFiles, loadCsvDirectory } from "./csv-loader";
 import { screenStock } from "./screen-stock";
 import type { ScreeningOptions, ScreeningResult, ScreeningSessionResult } from "./types";
@@ -167,6 +167,13 @@ export function runScreeningSafe(options: ScreeningOptions): Result<ScreeningSes
     return ok(runScreening(options));
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    return err(tcError("SCREENING_FAILED", message, { dataPath: options.dataPath }, error instanceof Error ? error : undefined));
+    return err(
+      tcError(
+        "SCREENING_FAILED",
+        message,
+        { dataPath: options.dataPath },
+        error instanceof Error ? error : undefined,
+      ),
+    );
   }
 }

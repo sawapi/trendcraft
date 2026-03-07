@@ -8,9 +8,9 @@
  */
 
 import type { NormalizedCandle } from "../../../types";
+import { type EmaState, createEma } from "../moving-average/ema";
 import type { IncrementalIndicator, WarmUpOptions } from "../types";
-import { createEma, type EmaState } from "../moving-average/ema";
-import { createAtr, type AtrState } from "../volatility/atr";
+import { type AtrState, createAtr } from "../volatility/atr";
 
 /**
  * Keltner Channel output value

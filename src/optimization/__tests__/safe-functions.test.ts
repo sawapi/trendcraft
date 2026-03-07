@@ -4,16 +4,16 @@
  */
 
 import { describe, expect, it } from "vitest";
-import type { NormalizedCandle, Condition } from "../../types";
+import { runBacktest } from "../../backtest";
+import type { Condition, NormalizedCandle } from "../../types";
 import type { ParameterRange } from "../../types/optimization";
+import { anchoredWalkForwardAnalysisSafe } from "../anchored-walkforward";
+import type { ConditionDefinition } from "../combination-search";
+import { combinationSearchSafe } from "../condition-pools";
 import type { StrategyFactory } from "../grid-search";
 import { gridSearchSafe } from "../grid-search";
-import { walkForwardAnalysisSafe } from "../walkforward";
 import { runMonteCarloSimulationSafe } from "../monte-carlo";
-import { combinationSearchSafe } from "../condition-pools";
-import { anchoredWalkForwardAnalysisSafe } from "../anchored-walkforward";
-import { runBacktest } from "../../backtest";
-import type { ConditionDefinition } from "../combination-search";
+import { walkForwardAnalysisSafe } from "../walkforward";
 
 // Helper: create minimal NormalizedCandle data
 const makeCandles = (count: number, basePrice = 100): NormalizedCandle[] =>
@@ -34,11 +34,14 @@ const alwaysTrue: Condition = () => true;
 const alwaysFalse: Condition = () => false;
 
 // Helper: alternating entry condition (enters every N bars)
-const entryEveryN = (n: number): Condition => (_indicators, _candle, i) => i % n === 0;
+const entryEveryN =
+  (n: number): Condition =>
+  (_indicators, _candle, i) =>
+    i % n === 0;
 
 // Helper: simple strategy factory for grid search
 const simpleStrategyFactory: StrategyFactory = (params) => {
-  const period = params["period"] ?? 5;
+  const period = params.period ?? 5;
   return {
     entry: (_indicators, _candle, i) => i % period === 0,
     exit: (_indicators, _candle, i) => i % period === Math.floor(period / 2),
@@ -76,9 +79,7 @@ const makeExitConditions = (): ConditionDefinition[] => [
 describe("gridSearchSafe", () => {
   it("returns Ok with valid result on success", () => {
     const candles = makeCandles(200);
-    const ranges: ParameterRange[] = [
-      { name: "period", min: 3, max: 5, step: 1 },
-    ];
+    const ranges: ParameterRange[] = [{ name: "period", min: 3, max: 5, step: 1 }];
 
     const result = gridSearchSafe(candles, simpleStrategyFactory, ranges);
     expect(result.ok).toBe(true);
@@ -127,9 +128,7 @@ describe("gridSearchSafe", () => {
 describe("walkForwardAnalysisSafe", () => {
   it("returns Ok with valid result on success", () => {
     const candles = makeCandles(500);
-    const ranges: ParameterRange[] = [
-      { name: "period", min: 3, max: 5, step: 1 },
-    ];
+    const ranges: ParameterRange[] = [{ name: "period", min: 3, max: 5, step: 1 }];
 
     const result = walkForwardAnalysisSafe(candles, simpleStrategyFactory, ranges, {
       windowSize: 100,
@@ -145,9 +144,7 @@ describe("walkForwardAnalysisSafe", () => {
 
   it("returns Err with INSUFFICIENT_DATA for too few candles", () => {
     const candles = makeCandles(10);
-    const ranges: ParameterRange[] = [
-      { name: "period", min: 3, max: 5, step: 1 },
-    ];
+    const ranges: ParameterRange[] = [{ name: "period", min: 3, max: 5, step: 1 }];
 
     const result = walkForwardAnalysisSafe(candles, simpleStrategyFactory, ranges, {
       windowSize: 100,
@@ -165,12 +162,9 @@ describe("runMonteCarloSimulationSafe", () => {
   it("returns Ok with valid result on success", () => {
     // Use actual backtest to get a properly structured BacktestResult
     const candles = makeCandles(200);
-    const backtestResult = runBacktest(
-      candles,
-      entryEveryN(10),
-      entryEveryN(15),
-      { capital: 1000000 },
-    );
+    const backtestResult = runBacktest(candles, entryEveryN(10), entryEveryN(15), {
+      capital: 1000000,
+    });
 
     const result = runMonteCarloSimulationSafe(backtestResult, {
       simulations: 100,
@@ -204,16 +198,11 @@ describe("combinationSearchSafe", () => {
   it("returns Ok with valid result on success", () => {
     const candles = makeCandles(200);
 
-    const result = combinationSearchSafe(
-      candles,
-      makeEntryConditions(),
-      makeExitConditions(),
-      {
-        backtestOptions: { capital: 1000000 },
-        maxEntryConditions: 2,
-        maxExitConditions: 2,
-      },
-    );
+    const result = combinationSearchSafe(candles, makeEntryConditions(), makeExitConditions(), {
+      backtestOptions: { capital: 1000000 },
+      maxEntryConditions: 2,
+      maxExitConditions: 2,
+    });
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.value.totalCombinations).toBeGreaterThan(0);

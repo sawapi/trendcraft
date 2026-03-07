@@ -5,8 +5,8 @@
  * and actual Alpaca account positions.
  */
 
-import type { AlpacaClient, AlpacaPosition } from "../alpaca/client.js";
 import type { AgentManager } from "../agent/manager.js";
+import type { AlpacaClient, AlpacaPosition } from "../alpaca/client.js";
 
 export type ReconciliationResult = {
   timestamp: number;
@@ -43,10 +43,9 @@ export async function reconcilePositions(
   for (const agent of manager.getAgents()) {
     agentSymbols.add(agent.symbol);
     const state = agent.getState();
-    const hasInternalPosition = state.sessionState !== null &&
-      state.metrics.totalTrades > 0;
+    const hasInternalPosition = state.sessionState !== null && state.metrics.totalTrades > 0;
     const alpacaPos = alpacaBySymbol.get(agent.symbol);
-    const hasAlpacaPosition = alpacaPos !== undefined && parseFloat(alpacaPos.qty) > 0;
+    const hasAlpacaPosition = alpacaPos !== undefined && Number.parseFloat(alpacaPos.qty) > 0;
 
     if (hasInternalPosition === hasAlpacaPosition) {
       matched++;
@@ -56,14 +55,14 @@ export async function reconcilePositions(
         agentId: agent.id,
         expected: hasInternalPosition ? "has-position" : "no-position",
         actual: hasAlpacaPosition ? "has-position" : "no-position",
-        alpacaQty: hasAlpacaPosition ? parseFloat(alpacaPos!.qty) : undefined,
+        alpacaQty: hasAlpacaPosition ? Number.parseFloat(alpacaPos?.qty) : undefined,
       });
     }
   }
 
   // Find orphaned positions (Alpaca has position but no agent manages it)
   const orphanedPositions = alpacaPositions.filter(
-    (pos) => !agentSymbols.has(pos.symbol) && parseFloat(pos.qty) > 0,
+    (pos) => !agentSymbols.has(pos.symbol) && Number.parseFloat(pos.qty) > 0,
   );
 
   return {
@@ -83,15 +82,12 @@ export function formatReconciliation(result: ReconciliationResult): string {
 
   for (const d of result.discrepancies) {
     lines.push(
-      `  DISCREPANCY: ${d.agentId} — expected ${d.expected}, actual ${d.actual}` +
-        (d.alpacaQty !== undefined ? ` (Alpaca qty: ${d.alpacaQty})` : ""),
+      `  DISCREPANCY: ${d.agentId} — expected ${d.expected}, actual ${d.actual}${d.alpacaQty !== undefined ? ` (Alpaca qty: ${d.alpacaQty})` : ""}`,
     );
   }
 
   for (const pos of result.orphanedPositions) {
-    lines.push(
-      `  ORPHANED: ${pos.symbol} — qty: ${pos.qty}, P&L: $${pos.unrealized_pl}`,
-    );
+    lines.push(`  ORPHANED: ${pos.symbol} — qty: ${pos.qty}, P&L: $${pos.unrealized_pl}`);
   }
 
   return lines.join("\n");

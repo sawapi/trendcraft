@@ -2,8 +2,8 @@
  * Bollinger Bands, Donchian, Keltner, and Ichimoku overlay series builders
  */
 
-import type { OverlayType } from "../../types";
 import type { OverlayData } from "../../hooks/useOverlays";
+import type { OverlayType } from "../../types";
 import { COLORS, type SeriesItem } from "../chartColors";
 
 export function buildBollingerIchimokuSeries(

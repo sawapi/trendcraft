@@ -148,9 +148,7 @@ describe("createPOConfirmationEvaluator", () => {
       perfectOrderEnhanced: Array(70)
         .fill(null)
         .map((_, i) =>
-          i >= 63
-            ? { state: "BULLISH_PO", isConfirmed: true, confirmationFormed: true }
-            : null,
+          i >= 63 ? { state: "BULLISH_PO", isConfirmed: true, confirmationFormed: true } : null,
         ),
     };
     expect(evaluate(candles, 65, undefined, precomputed)).toBe(1);
@@ -163,9 +161,7 @@ describe("createPOConfirmationEvaluator", () => {
       perfectOrderEnhanced: Array(70)
         .fill(null)
         .map((_, i) =>
-          i >= 63
-            ? { state: "BULLISH_PO", isConfirmed: true, confirmationFormed: false }
-            : null,
+          i >= 63 ? { state: "BULLISH_PO", isConfirmed: true, confirmationFormed: false } : null,
         ),
     };
     expect(evaluate(candles, 65, undefined, precomputed)).toBe(0.8);
@@ -193,9 +189,7 @@ describe("createPOConfirmationEvaluator", () => {
       perfectOrderEnhanced: Array(70)
         .fill(null)
         .map((_, i) =>
-          i >= 63
-            ? { state: "BEARISH_PO", isConfirmed: false, confirmationFormed: false }
-            : null,
+          i >= 63 ? { state: "BEARISH_PO", isConfirmed: false, confirmationFormed: false } : null,
         ),
     };
     expect(evaluate(candles, 65, undefined, precomputed)).toBe(0);

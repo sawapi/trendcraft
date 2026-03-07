@@ -5,7 +5,7 @@
  * configurations in a single unified object.
  */
 
-import type { BacktestOptions, Condition, streaming, SignalManagerOptions } from "trendcraft";
+import type { BacktestOptions, Condition, SignalManagerOptions, streaming } from "trendcraft";
 
 /**
  * Unified strategy definition for both live and backtest modes

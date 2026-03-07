@@ -683,7 +683,19 @@ export {
 
 // Result types
 export type { Ok, Err, Result, TrendCraftErrorCode, TrendCraftError } from "./types";
-export { ok, err, tcError, mapResult, flatMap, unwrapOr, unwrap, collectResults, partitionResults, tryCatch, toResult } from "./types";
+export {
+  ok,
+  err,
+  tcError,
+  mapResult,
+  flatMap,
+  unwrapOr,
+  unwrap,
+  collectResults,
+  partitionResults,
+  tryCatch,
+  toResult,
+} from "./types";
 
 // Safe indicator versions (Result-returning)
 export * as safe from "./indicators/safe";

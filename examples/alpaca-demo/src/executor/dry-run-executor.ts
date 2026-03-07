@@ -2,7 +2,7 @@
  * Dry-run executor — logs order intents without sending real orders
  */
 
-import type { OrderIntent, ExecutionResult, OrderExecutor } from "./types.js";
+import type { ExecutionResult, OrderExecutor, OrderIntent } from "./types.js";
 
 export function createDryRunExecutor(): OrderExecutor {
   return {

@@ -38,10 +38,10 @@ describe("autoTrendLine", () => {
   it("should calculate resistance line from two swing highs", () => {
     // Two swing highs at idx 1 (110) and idx 3 (120)
     const candles = makeCandles([
-      { o: 95, h: 97, l: 93, c: 96 },   // 0
-      { o: 96, h: 110, l: 95, c: 108 },  // 1 - swing high (110)
-      { o: 108, h: 105, l: 90, c: 92 },  // 2
-      { o: 92, h: 120, l: 91, c: 118 },  // 3 - swing high (120)
+      { o: 95, h: 97, l: 93, c: 96 }, // 0
+      { o: 96, h: 110, l: 95, c: 108 }, // 1 - swing high (110)
+      { o: 108, h: 105, l: 90, c: 92 }, // 2
+      { o: 92, h: 120, l: 91, c: 118 }, // 3 - swing high (120)
       { o: 118, h: 115, l: 110, c: 112 }, // 4
     ]);
 
@@ -61,13 +61,13 @@ describe("autoTrendLine", () => {
     // leftBars=1, rightBars=1: valid indices 1..len-2
     // Swing low at idx 1 (80) and idx 5 (85)
     const candles = makeCandles([
-      { o: 110, h: 115, l: 108, c: 112 },  // 0
-      { o: 112, h: 113, l: 80, c: 82 },    // 1 - swing low (80)
-      { o: 82, h: 120, l: 95, c: 118 },    // 2 - swing high
-      { o: 118, h: 115, l: 100, c: 105 },  // 3
-      { o: 105, h: 110, l: 98, c: 108 },   // 4
-      { o: 108, h: 109, l: 85, c: 87 },    // 5 - swing low (85)
-      { o: 87, h: 100, l: 90, c: 98 },     // 6
+      { o: 110, h: 115, l: 108, c: 112 }, // 0
+      { o: 112, h: 113, l: 80, c: 82 }, // 1 - swing low (80)
+      { o: 82, h: 120, l: 95, c: 118 }, // 2 - swing high
+      { o: 118, h: 115, l: 100, c: 105 }, // 3
+      { o: 105, h: 110, l: 98, c: 108 }, // 4
+      { o: 108, h: 109, l: 85, c: 87 }, // 5 - swing low (85)
+      { o: 87, h: 100, l: 90, c: 98 }, // 6
     ]);
 
     const result = autoTrendLine(candles, { leftBars: 1, rightBars: 1 });

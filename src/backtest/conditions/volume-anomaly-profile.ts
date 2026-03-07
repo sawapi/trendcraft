@@ -8,11 +8,7 @@
 
 import { volumeAnomaly as calcVolumeAnomaly } from "../../indicators/volume/volume-anomaly";
 import { volumeProfileSeries } from "../../indicators/volume/volume-profile";
-import type {
-  PresetCondition,
-  VolumeAnomalyValue,
-  VolumeProfileValue,
-} from "../../types";
+import type { PresetCondition, VolumeAnomalyValue, VolumeProfileValue } from "../../types";
 
 // ============================================
 // Volume Anomaly Conditions

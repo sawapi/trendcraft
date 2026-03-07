@@ -2,8 +2,8 @@
  * Trend overlay series builders (Supertrend, PSAR, Chandelier, ATR Stops, Highest/Lowest)
  */
 
-import type { OverlayType } from "../../types";
 import type { OverlayData } from "../../hooks/useOverlays";
+import type { OverlayType } from "../../types";
 import { COLORS, type SeriesItem } from "../chartColors";
 
 export function buildTrendOverlaySeries(
@@ -14,12 +14,8 @@ export function buildTrendOverlaySeries(
 
   // Supertrend
   if (enabledOverlays.includes("supertrend") && overlays.supertrend) {
-    const bullishData = overlays.supertrend.map((v) =>
-      v.direction === 1 ? v.supertrend : null
-    );
-    const bearishData = overlays.supertrend.map((v) =>
-      v.direction === -1 ? v.supertrend : null
-    );
+    const bullishData = overlays.supertrend.map((v) => (v.direction === 1 ? v.supertrend : null));
+    const bearishData = overlays.supertrend.map((v) => (v.direction === -1 ? v.supertrend : null));
     series.push({
       name: "Supertrend Up",
       type: "line",
@@ -38,12 +34,8 @@ export function buildTrendOverlaySeries(
 
   // Parabolic SAR
   if (enabledOverlays.includes("psar") && overlays.psar) {
-    const bullishSar = overlays.psar.map((v) =>
-      v.direction === 1 ? v.sar : null
-    );
-    const bearishSar = overlays.psar.map((v) =>
-      v.direction === -1 ? v.sar : null
-    );
+    const bullishSar = overlays.psar.map((v) => (v.direction === 1 ? v.sar : null));
+    const bearishSar = overlays.psar.map((v) => (v.direction === -1 ? v.sar : null));
     series.push({
       name: "PSAR Up",
       type: "scatter",

@@ -2,11 +2,11 @@
  * Signal color constants and ECharts type aliases
  */
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// biome-ignore lint/suspicious/noExplicitAny: ECharts internal type
 export type MarkPointItem = any;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// biome-ignore lint/suspicious/noExplicitAny: ECharts internal type
 export type MarkAreaItem = any;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// biome-ignore lint/suspicious/noExplicitAny: ECharts internal type
 export type MarkLineItem = any;
 
 /**
@@ -40,6 +40,6 @@ export const SIGNAL_COLORS = {
   // Bollinger Squeeze
   squeeze: "#ff9800",
   // Volume
-  volumeBreakout: "#00bcd4",  // Cyan
-  volumeMaCross: "#9c27b0",   // Purple
+  volumeBreakout: "#00bcd4", // Cyan
+  volumeMaCross: "#9c27b0", // Purple
 };

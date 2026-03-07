@@ -27,20 +27,25 @@
  */
 
 import type { NormalizedCandle } from "../types";
+import { evaluateStreamingCondition } from "./conditions/core";
 import type {
+  IndicatorSnapshot,
+  PipelineIndicatorConfig,
   PipelineOptions,
   PipelineResult,
   PipelineState,
   StreamingPipeline,
-  IndicatorSnapshot,
-  PipelineIndicatorConfig,
 } from "./types";
-import { evaluateStreamingCondition } from "./conditions/core";
 
 type IndicatorInstance = {
   name: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  indicator: { next(candle: NormalizedCandle): { value: any }; peek(candle: NormalizedCandle): { value: any }; getState(): unknown };
+  indicator: {
+    // biome-ignore lint/suspicious/noExplicitAny: indicator values are heterogeneous
+    next(candle: NormalizedCandle): { value: any };
+    // biome-ignore lint/suspicious/noExplicitAny: indicator values are heterogeneous
+    peek(candle: NormalizedCandle): { value: any };
+    getState(): unknown;
+  };
 };
 
 /**

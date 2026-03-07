@@ -241,11 +241,7 @@ export type PositionTracker = {
   /** Update price and check SL/TP/trailing triggers */
   updatePrice(candle: NormalizedCandle): UpdatePriceResult;
   /** Close the current position */
-  closePosition(
-    price: number,
-    time: number,
-    reason: FillRecord["reason"],
-  ): ClosedTradeResult;
+  closePosition(price: number, time: number, reason: FillRecord["reason"]): ClosedTradeResult;
   /** Get the current open position (null if none) */
   getPosition(): ManagedPosition | null;
   /** Get current account state */

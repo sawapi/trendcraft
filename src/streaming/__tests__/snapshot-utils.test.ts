@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest";
-import { getNumber, getField, resolveNumber } from "../snapshot-utils";
+import { describe, expect, it } from "vitest";
 import type { IndicatorSnapshot } from "../conditions/types";
+import { getField, getNumber, resolveNumber } from "../snapshot-utils";
 
 describe("getNumber", () => {
   it("returns number when value is a number", () => {

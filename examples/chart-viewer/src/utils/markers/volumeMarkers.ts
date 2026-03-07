@@ -2,13 +2,9 @@
  * Volume signal markers for ECharts
  */
 
-import type {
-  NormalizedCandle,
-  VolumeBreakoutSignal,
-  VolumeMaCrossSignal,
-} from "trendcraft";
+import type { NormalizedCandle, VolumeBreakoutSignal, VolumeMaCrossSignal } from "trendcraft";
 
-import { SIGNAL_COLORS, type MarkPointItem } from "./signalColors";
+import { type MarkPointItem, SIGNAL_COLORS } from "./signalColors";
 
 /**
  * Create markPoint data for Volume Breakout signals
@@ -16,7 +12,7 @@ import { SIGNAL_COLORS, type MarkPointItem } from "./signalColors";
 export function createVolumeBreakoutMarkers(
   signals: VolumeBreakoutSignal[],
   candles: NormalizedCandle[],
-  dates: string[]
+  dates: string[],
 ): MarkPointItem[] {
   if (!signals || signals.length === 0) return [];
 
@@ -54,7 +50,7 @@ export function createVolumeBreakoutMarkers(
 export function createVolumeMaCrossMarkers(
   signals: VolumeMaCrossSignal[],
   candles: NormalizedCandle[],
-  dates: string[]
+  dates: string[],
 ): MarkPointItem[] {
   if (!signals || signals.length === 0) return [];
 

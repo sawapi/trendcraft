@@ -30,9 +30,7 @@ export function scheduleReview(opts: ScheduleReviewOptions): () => void {
     if (cancelled) return;
 
     const delayMs = getDelayUntilNextReview();
-    console.log(
-      `[SCHEDULER] Next review in ${(delayMs / MINUTE).toFixed(0)} minutes`,
-    );
+    console.log(`[SCHEDULER] Next review in ${(delayMs / MINUTE).toFixed(0)} minutes`);
 
     timer = setTimeout(async () => {
       if (cancelled) return;
@@ -93,7 +91,8 @@ function getDelayUntilNextReview(): number {
   // Skip weekends (Saturday = 6, Sunday = 0)
   const targetDate = new Date(etMs + targetMs);
   const day = targetDate.getDay();
-  if (day === 0) targetMs += 24 * HOUR; // Sunday → Monday
+  if (day === 0)
+    targetMs += 24 * HOUR; // Sunday → Monday
   else if (day === 6) targetMs += 2 * 24 * HOUR; // Saturday → Monday
 
   return targetMs;

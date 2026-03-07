@@ -37,15 +37,9 @@
  */
 
 import type { NormalizedCandle } from "../types";
-import type {
-  Trade,
-  SessionEvent,
-  SessionOptions,
-  SessionState,
-  TradingSession,
-} from "./types";
 import { createCandleAggregator } from "./candle-aggregator";
 import { createPipeline } from "./pipeline";
+import type { SessionEvent, SessionOptions, SessionState, Trade, TradingSession } from "./types";
 
 /**
  * Create a trading session that processes trades through the full pipeline.
