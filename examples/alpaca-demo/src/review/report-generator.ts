@@ -176,17 +176,27 @@ export function saveReport(report: DailyReport): { jsonPath: string; mdPath: str
  * Extract recent trades from an agent (last 10)
  */
 function extractRecentTrades(agent: Agent): TradeRecord[] {
-  // Access trades through the agent's public interface
-  // The agent wraps a ManagedSession which tracks trades
   try {
-    const metrics = agent.getMetrics();
-    // We don't have direct access to trade history via public API,
-    // so return an empty array with just the summary metrics
-    if (metrics.totalTrades === 0) return [];
+    const trades = agent.getTrades();
+    if (trades.length === 0) return [];
 
-    // Best-effort: we can't access individual trades from outside the session
-    // The review system will work with aggregate metrics
-    return [];
+    return trades.slice(-10).map((t) => ({
+      entryTime: t.entryTime,
+      exitTime: t.exitTime,
+      entryPrice: t.entryPrice,
+      exitPrice: t.exitPrice,
+      shares: 0,
+      side: (t.direction ?? "long") === "long" ? "buy" as const : "sell" as const,
+      pnl: t.return,
+      returnPercent: t.returnPercent,
+      reason: t.exitReason ?? "signal",
+      direction: t.direction ?? "long",
+      exitReason: t.exitReason,
+      mfe: t.mfe,
+      mae: t.mae,
+      mfeUtilization: t.mfeUtilization,
+      holdingBars: t.holdingDays,
+    }));
   } catch {
     return [];
   }

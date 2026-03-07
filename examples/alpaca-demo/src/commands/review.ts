@@ -32,7 +32,9 @@ import {
   loadRecentReviews,
   loadTodayReviews,
 } from "../review/history.js";
+import { evaluateOutcomes } from "../review/outcome-tracker.js";
 import { fetchHistoricalBars, monthsAgo, today } from "../alpaca/historical.js";
+import { atr, ema } from "trendcraft";
 import { runStrategyBacktests } from "../backtest/runner.js";
 import { PRESET_TEMPLATES } from "../strategy/template.js";
 import { loadCustomStrategies } from "../review/applier.js";
@@ -47,6 +49,7 @@ export type ReviewCommandOptions = {
   period?: string;
   timeframe?: string;
   capital?: string;
+  noAutoReview?: boolean;
 };
 
 export async function reviewCommand(opts: ReviewCommandOptions): Promise<void> {
@@ -234,6 +237,12 @@ async function runLLMReview(
   const historyDays = parseInt(opts.days ?? "7", 10);
   const history = loadRecentReviews(historyDays);
 
+  // Evaluate outcomes of past recommendations
+  if (history.length > 0 && report.leaderboard.length > 0) {
+    evaluateOutcomes(history, report.leaderboard);
+    console.log("Evaluated outcomes of past recommendations.");
+  }
+
   let recommendation;
   try {
     recommendation = await reviewWithLLM(report, history);
@@ -364,7 +373,7 @@ function printLeaderboard(report: DailyReport): void {
 }
 
 /**
- * Fetch market context for symbols using Alpaca API
+ * Fetch market context for symbols using Alpaca API, including regime detection
  */
 async function fetchMarketContext(
   env: import("../config/env.js").AlpacaEnv,
@@ -374,38 +383,116 @@ async function fetchMarketContext(
 
   for (const symbol of symbols) {
     try {
+      // Fetch 60 days for regime detection (fallback to 2-day if insufficient)
       const bars = await fetchHistoricalBars(env, {
         symbol,
         timeframe: "1Day",
-        start: daysAgo(2),
+        start: daysAgo(90),
         end: today(),
-        limit: 2,
       });
 
-      if (bars.length >= 2) {
-        const prev = bars[bars.length - 2];
-        const latest = bars[bars.length - 1];
-        results.push({
-          symbol,
-          dailyChangePercent:
-            ((latest.close - prev.close) / prev.close) * 100,
-          close: latest.close,
-          volume: latest.volume,
-        });
-      } else if (bars.length === 1) {
-        results.push({
-          symbol,
-          dailyChangePercent: 0,
-          close: bars[0].close,
-          volume: bars[0].volume,
-        });
+      if (bars.length < 2) {
+        if (bars.length === 1) {
+          results.push({
+            symbol,
+            dailyChangePercent: 0,
+            close: bars[0].close,
+            volume: bars[0].volume,
+          });
+        }
+        continue;
       }
+
+      const prev = bars[bars.length - 2];
+      const latest = bars[bars.length - 1];
+
+      const ctx: MarketContext = {
+        symbol,
+        dailyChangePercent:
+          ((latest.close - prev.close) / prev.close) * 100,
+        close: latest.close,
+        volume: latest.volume,
+      };
+
+      // Compute regime if we have enough data (30+ bars)
+      if (bars.length >= 30) {
+        try {
+          const candles = bars.map((b) => ({
+            time: b.time,
+            open: b.open,
+            high: b.high,
+            low: b.low,
+            close: b.close,
+            volume: b.volume,
+          }));
+
+          // ATR-based volatility regime
+          const atrSeries = atr(candles, { period: 14 });
+          if (atrSeries.length > 0) {
+            const latestAtr = atrSeries[atrSeries.length - 1].value;
+            if (latestAtr != null) {
+              ctx.atr14 = latestAtr;
+              ctx.atrPercent = (latestAtr / latest.close) * 100;
+
+              // Percentile of current ATR within lookback
+              const atrValues = atrSeries.slice(-60)
+                .map((s) => s.value)
+                .filter((v): v is number => v != null);
+              const sorted = [...atrValues].sort((a, b) => a - b);
+              const rank = sorted.findIndex((v) => v >= latestAtr);
+              const percentile = (rank / sorted.length) * 100;
+
+              if (percentile <= 25) ctx.volatilityRegime = "low";
+              else if (percentile >= 75) ctx.volatilityRegime = "high";
+              else ctx.volatilityRegime = "normal";
+            }
+          }
+
+          // EMA trend direction
+          if (bars.length >= 50) {
+            const ema20 = ema(candles, { period: 20 });
+            const ema50 = ema(candles, { period: 50 });
+
+            if (ema20.length > 0 && ema50.length > 0) {
+              const latestEma20 = ema20[ema20.length - 1].value;
+              const latestEma50 = ema50[ema50.length - 1].value;
+              if (latestEma20 != null && latestEma50 != null && latestEma50 !== 0) {
+                const diff = ((latestEma20 - latestEma50) / latestEma50) * 100;
+
+                if (Math.abs(diff) < 0.5) ctx.trendDirection = "sideways";
+                else if (diff > 0) ctx.trendDirection = "bullish";
+                else ctx.trendDirection = "bearish";
+
+                // Use absolute diff as rough strength proxy (0-100 scale)
+                ctx.trendStrength = Math.min(Math.abs(diff) * 10, 100);
+              }
+            }
+          }
+        } catch {
+          // Regime detection failed — continue with basic context
+        }
+      }
+
+      results.push(ctx);
     } catch {
       // Skip symbol if data unavailable
     }
   }
 
   return results;
+}
+
+/**
+ * Execute a full review cycle — can be called from CLI or scheduler.
+ *
+ * Loads agent state, fetches market context, generates report, and runs LLM review.
+ */
+export async function executeReviewCycle(opts: {
+  apply?: boolean;
+  days?: string;
+}): Promise<void> {
+  const date = new Date().toISOString().split("T")[0];
+  await liveReviewCommand({ apply: opts.apply, days: opts.days }, date);
 }
 
 function daysAgo(n: number): string {

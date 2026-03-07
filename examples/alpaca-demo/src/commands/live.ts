@@ -27,6 +27,8 @@ import { getLeaderboard, formatLiveLeaderboard, evaluateAgent } from "../tracker
 import { loadOverrides, loadCustomStrategies } from "../review/applier.js";
 import type { StrategyDefinition } from "../strategy/types.js";
 import type { OrderExecutor } from "../executor/types.js";
+import { scheduleReview } from "../review/scheduler.js";
+import { executeReviewCycle } from "./review.js";
 
 const DATA_DIR = resolve(import.meta.dirname, "../../data");
 const HEARTBEAT_PATH = resolve(DATA_DIR, "heartbeat.json");
@@ -40,6 +42,7 @@ export type LiveCommandOptions = {
   dryRun?: boolean;
   all?: boolean;
   capital?: string;
+  noAutoReview?: boolean;
 };
 
 function writeHeartbeat(): void {
@@ -236,6 +239,16 @@ export async function liveCommand(opts: LiveCommandOptions): Promise<void> {
         }
       }, RECONCILE_INTERVAL);
 
+  // Auto-review scheduler
+  let cancelReview: (() => void) | null = null;
+  if (!opts.noAutoReview) {
+    cancelReview = scheduleReview({
+      onReview: () => executeReviewCycle({ apply: true }),
+      onError: (err) => console.error("[SCHEDULER] Review error:", err),
+    });
+    console.log("Auto-review scheduler enabled (16:05 ET daily).");
+  }
+
   // Graceful shutdown
   async function shutdown(): Promise<void> {
     console.log("\nShutting down...");
@@ -244,6 +257,7 @@ export async function liveCommand(opts: LiveCommandOptions): Promise<void> {
     clearInterval(leaderboardTimer);
     clearInterval(heartbeatTimer);
     if (reconcileTimer) clearInterval(reconcileTimer);
+    if (cancelReview) cancelReview();
 
     // Close all positions
     const closeIntents = manager.closeAll();

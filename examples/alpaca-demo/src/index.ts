@@ -41,6 +41,7 @@ program
   .option("-a, --all", "Use all strategies")
   .option("-d, --dry-run", "Dry run (no real orders)")
   .option("-c, --capital <amount>", "Capital per agent", "100000")
+  .option("--no-auto-review", "Disable automatic daily review after market close")
   .action(liveCommand);
 
 program

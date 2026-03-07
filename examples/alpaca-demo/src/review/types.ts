@@ -29,6 +29,12 @@ export type TradeRecord = {
   pnl: number;
   returnPercent: number;
   reason: string;
+  direction?: "long" | "short";
+  exitReason?: string;
+  mfe?: number;
+  mae?: number;
+  mfeUtilization?: number;
+  holdingBars?: number;
 };
 
 export type MarketContext = {
@@ -36,6 +42,11 @@ export type MarketContext = {
   dailyChangePercent: number;
   close: number;
   volume: number;
+  atr14?: number;
+  atrPercent?: number;
+  volatilityRegime?: "low" | "normal" | "high";
+  trendDirection?: "bullish" | "bearish" | "sideways";
+  trendStrength?: number;
 };
 
 export type HistoricalMetric = {
@@ -162,10 +173,19 @@ export type RejectedAction = {
   reason: string;
 };
 
+export type ActionOutcome = {
+  reviewDate: string;
+  action: LLMAction;
+  scoreBefore: number;
+  scoreAfter?: number;
+  verdict?: "improved" | "degraded" | "neutral";
+};
+
 export type ReviewRecord = {
   date: string;
   reviewedAt: number;
   llmResponse: LLMRecommendation;
   appliedActions: AppliedAction[];
   rejectedActions: RejectedAction[];
+  outcomes?: ActionOutcome[];
 };

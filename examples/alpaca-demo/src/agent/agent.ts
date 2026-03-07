@@ -4,7 +4,7 @@
  * Wraps a ManagedSession with metrics tracking and state persistence.
  */
 
-import type { streaming, NormalizedCandle } from "trendcraft";
+import type { streaming, NormalizedCandle, Trade } from "trendcraft";
 import type { StrategyDefinition } from "../strategy/types.js";
 import type { AgentMetrics, AgentState, AgentTier } from "./types.js";
 import { createSessionFromStrategy } from "../strategy/factory.js";
@@ -21,6 +21,7 @@ export type Agent = {
   };
   close(): { events: streaming.ManagedEvent[]; intents: OrderIntent[] };
   getMetrics(): AgentMetrics;
+  getTrades(): Trade[];
   getState(): AgentState;
   restore(state: AgentState): void;
 };
@@ -213,6 +214,10 @@ export function createAgent(
     },
 
     getMetrics,
+
+    getTrades(): Trade[] {
+      return session.getTrades();
+    },
 
     getState(): AgentState {
       return {

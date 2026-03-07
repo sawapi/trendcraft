@@ -5,7 +5,7 @@
  * Claude API daily review call.
  */
 
-import type { DailyReport, LLMRecommendation, ReviewRecord } from "./types.js";
+import type { DailyReport, LLMRecommendation, ReviewRecord, TradeRecord } from "./types.js";
 
 /**
  * Build the system prompt for the daily review
@@ -126,6 +126,26 @@ You can set these in the position section:
 - **Monte Carlo**: Backtest results include statistical significance testing. Strategies relying on few lucky trades will be penalized
 - Keep these gates in mind — your proposed changes will be validated automatically
 
+## Trade-Level Analysis (MFE/MAE)
+When individual trade data is provided, analyze:
+- **MFE Utilization** (actual return / max favorable excursion): Low utilization (<50%) suggests trailing stops or partial take-profits could capture more profit
+- **MAE** (max adverse excursion): Large MAE with frequent stop-loss hits suggests stops are too tight or entry timing is poor
+- **Exit Reason Distribution**: High stopLoss rate → review stop placement; low takeProfit rate → consider lowering TP targets
+- **Holding Bars**: Very short holds with losses suggest false signals; consider debounce/cooldown
+
+## Market Regime Awareness
+When regime data is provided:
+- **High volatility**: Recommend wider stops (ATR-based), smaller position sizes, and caution with tight parameters
+- **Low volatility**: Tighter stops acceptable; trend-following may underperform
+- **Sideways/ranging**: Mean-reversion strategies (RSI) tend to outperform; reduce trend-following exposure
+- **Strong trend (high ADX)**: Favor trend-following; widen trailing stops to avoid premature exits
+
+## Outcome Tracking
+When past action outcomes are shown:
+- Actions marked **degraded** should be considered for reversal
+- Actions marked **improved** suggest the approach works — consider applying similar logic to other underperforming strategies
+- Actions marked **neutral** may need more time or a different approach
+
 ## Important Guidelines
 - If performance is acceptable, it's OK to return an empty actions array
 - Focus on agents with clear negative trends over multiple days
@@ -148,13 +168,20 @@ export function buildUserMessage(
   parts.push(`Mode: ${report.mode}`);
   parts.push("");
 
-  // Market context
+  // Market context with regime info
   if (report.marketContext.length > 0) {
     parts.push("## Market Context");
     for (const mc of report.marketContext) {
-      parts.push(
-        `- ${mc.symbol}: $${mc.close.toFixed(2)} (${mc.dailyChangePercent >= 0 ? "+" : ""}${mc.dailyChangePercent.toFixed(2)}%)`,
-      );
+      let line = `- ${mc.symbol}: $${mc.close.toFixed(2)} (${mc.dailyChangePercent >= 0 ? "+" : ""}${mc.dailyChangePercent.toFixed(2)}%)`;
+      if (mc.volatilityRegime) {
+        line += ` | Vol: ${mc.volatilityRegime}`;
+        if (mc.atrPercent != null) line += ` (ATR: ${mc.atrPercent.toFixed(1)}%)`;
+      }
+      if (mc.trendDirection) {
+        line += ` | Trend: ${mc.trendDirection}`;
+        if (mc.trendStrength != null) line += ` (ADX: ${mc.trendStrength.toFixed(0)})`;
+      }
+      parts.push(line);
     }
     parts.push("");
   }
@@ -201,6 +228,16 @@ export function buildUserMessage(
     parts.push(`Daily P&L: $${m.dailyPnl.toFixed(2)}`);
     parts.push(`Win Rate: ${m.winRate.toFixed(1)}% | Sharpe: ${m.sharpeRatio.toFixed(2)} | MaxDD: ${m.maxDrawdown.toFixed(1)}% | PF: ${m.profitFactor === Infinity ? "Inf" : m.profitFactor.toFixed(2)} | Trades: ${m.totalTrades}`);
     parts.push(`Promotion: ${agent.promotionDecision.action} — ${agent.promotionDecision.reason}`);
+
+    // Individual trade details
+    if (agent.recentTrades.length > 0) {
+      parts.push("Recent Trades:");
+      for (let i = 0; i < agent.recentTrades.length; i++) {
+        parts.push(`  ${formatTradeRecord(agent.recentTrades[i], i + 1)}`);
+      }
+      // Aggregate trade analysis
+      parts.push(formatTradeAnalysis(agent.recentTrades));
+    }
     parts.push("");
   }
 
@@ -242,7 +279,7 @@ export function buildUserMessage(
     parts.push("");
   }
 
-  // Past review history
+  // Past review history with outcome tracking
   if (history.length > 0) {
     parts.push("## Recent Review History");
     for (const record of history.slice(-5)) {
@@ -258,6 +295,18 @@ export function buildUserMessage(
         parts.push("Rejected:");
         for (const r of record.rejectedActions) {
           parts.push(`  - ${r.action.action}: ${r.reason}`);
+        }
+      }
+      // Outcome tracking
+      if (record.outcomes && record.outcomes.length > 0) {
+        parts.push("Outcomes:");
+        for (const o of record.outcomes) {
+          const strategyId = "strategyId" in o.action ? (o.action as { strategyId: string }).strategyId : ("agentId" in o.action ? (o.action as { agentId: string }).agentId : "unknown");
+          const verdict = o.verdict ? o.verdict.toUpperCase() : "PENDING";
+          const scoreStr = o.scoreAfter != null
+            ? ` (score: ${o.scoreBefore.toFixed(0)}→${o.scoreAfter.toFixed(0)})`
+            : ` (score before: ${o.scoreBefore.toFixed(0)})`;
+          parts.push(`  - ${o.action.action}(${strategyId}): ${verdict}${scoreStr}`);
         }
       }
       parts.push("");
@@ -281,6 +330,46 @@ export function buildUserMessage(
   }
 
   return parts.join("\n");
+}
+
+/**
+ * Format a single trade record for the LLM prompt
+ */
+function formatTradeRecord(t: TradeRecord, index: number): string {
+  const dir = (t.direction ?? "long").toUpperCase();
+  const ret = t.returnPercent >= 0 ? `+${t.returnPercent.toFixed(1)}%` : `${t.returnPercent.toFixed(1)}%`;
+  const exit = t.exitReason ?? "signal";
+  let line = `#${index}: ${dir} $${t.entryPrice.toFixed(2)}→$${t.exitPrice.toFixed(2)} (${ret}) exit:${exit}`;
+  if (t.mfe != null) line += ` MFE:${t.mfe.toFixed(1)}%`;
+  if (t.mae != null) line += ` MAE:${t.mae.toFixed(1)}%`;
+  if (t.mfeUtilization != null) line += ` util:${t.mfeUtilization.toFixed(0)}%`;
+  if (t.holdingBars != null) line += ` ${t.holdingBars}bars`;
+  return line;
+}
+
+/**
+ * Format aggregate trade analysis for an agent's recent trades
+ */
+function formatTradeAnalysis(trades: TradeRecord[]): string {
+  if (trades.length === 0) return "";
+
+  const withMfe = trades.filter((t) => t.mfeUtilization != null);
+  const avgUtil = withMfe.length > 0
+    ? withMfe.reduce((s, t) => s + t.mfeUtilization!, 0) / withMfe.length
+    : null;
+
+  const exitReasons = new Map<string, number>();
+  for (const t of trades) {
+    const reason = t.exitReason ?? "signal";
+    exitReasons.set(reason, (exitReasons.get(reason) ?? 0) + 1);
+  }
+  const exitDist = [...exitReasons.entries()]
+    .map(([r, c]) => `${r}:${c}`)
+    .join(" ");
+
+  let line = `  Analysis: exits=[${exitDist}]`;
+  if (avgUtil != null) line += ` avgMFEUtil:${avgUtil.toFixed(0)}%`;
+  return line;
 }
 
 /**
