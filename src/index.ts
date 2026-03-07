@@ -121,6 +121,8 @@ export {
   ema,
   wma,
   vwma,
+  kama,
+  t3,
   // Momentum
   rsi,
   macd,
@@ -134,6 +136,8 @@ export {
   roc,
   trix,
   aroon,
+  dpo,
+  hurst,
   // Volatility
   bollingerBands,
   atr,
@@ -206,6 +210,9 @@ export {
   fibonacciExtension,
   andrewsPitchfork,
   getAlternatingSwingPoints,
+  // Fractals / Zigzag
+  fractals,
+  zigzag,
   // Heikin-Ashi
   heikinAshi,
   // Filter (Ehlers)
@@ -230,6 +237,8 @@ export type {
   CmfOptions,
   WmaOptions,
   VwmaOptions,
+  KamaOptions,
+  T3Options,
   VwapOptions,
   VwapValue,
   CciOptions,
@@ -239,6 +248,8 @@ export type {
   TrixValue,
   AroonOptions,
   AroonValue,
+  DpoOptions,
+  HurstOptions,
   PivotPointsOptions,
   PivotPointsValue,
   SwingPointValue,
@@ -284,6 +295,10 @@ export type {
   AndrewsPitchforkValue,
   AlternatingSwingPoint,
   HeikinAshiValue,
+  FractalValue,
+  FractalOptions,
+  ZigzagValue,
+  ZigzagOptions,
   SuperSmootherOptions,
   RoofingFilterOptions,
 } from "./indicators";
@@ -668,7 +683,10 @@ export {
 
 // Result types
 export type { Ok, Err, Result, TrendCraftErrorCode, TrendCraftError } from "./types";
-export { ok, err, tcError, mapResult, flatMap, unwrapOr, unwrap, collectResults, partitionResults, tryCatch } from "./types";
+export { ok, err, tcError, mapResult, flatMap, unwrapOr, unwrap, collectResults, partitionResults, tryCatch, toResult } from "./types";
+
+// Safe indicator versions (Result-returning)
+export * as safe from "./indicators/safe";
 
 // Incremental Indicator API
 export * as incremental from "./indicators/incremental";

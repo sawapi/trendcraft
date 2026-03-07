@@ -1,6 +1,6 @@
 // Moving Averages
-export { sma, ema, wma, vwma } from "./moving-average";
-export type { WmaOptions, VwmaOptions } from "./moving-average";
+export { sma, ema, wma, vwma, kama, t3 } from "./moving-average";
+export type { WmaOptions, VwmaOptions, KamaOptions, T3Options } from "./moving-average";
 
 // Momentum
 export {
@@ -16,6 +16,8 @@ export {
   roc,
   trix,
   aroon,
+  dpo,
+  hurst,
 } from "./momentum";
 export type {
   StochasticsValue,
@@ -31,6 +33,8 @@ export type {
   TrixValue,
   AroonOptions,
   AroonValue,
+  DpoOptions,
+  HurstOptions,
 } from "./momentum";
 
 // Volatility
@@ -108,6 +112,8 @@ export {
   fibonacciExtension,
   andrewsPitchfork,
   heikinAshi,
+  fractals,
+  zigzag,
 } from "./price";
 export type {
   HighestLowestValue,
@@ -132,6 +138,10 @@ export type {
   AndrewsPitchforkOptions,
   AndrewsPitchforkValue,
   HeikinAshiValue,
+  FractalValue,
+  FractalOptions,
+  ZigzagValue,
+  ZigzagOptions,
 } from "./price";
 
 // Trend

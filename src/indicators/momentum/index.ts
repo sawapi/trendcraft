@@ -16,3 +16,7 @@ export { trix } from "./trix";
 export type { TrixOptions, TrixValue } from "./trix";
 export { aroon } from "./aroon";
 export type { AroonOptions, AroonValue } from "./aroon";
+export { dpo } from "./dpo";
+export type { DpoOptions } from "./dpo";
+export { hurst } from "./hurst";
+export type { HurstOptions } from "./hurst";

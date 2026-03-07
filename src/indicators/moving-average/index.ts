@@ -4,3 +4,7 @@ export { wma } from "./wma";
 export type { WmaOptions } from "./wma";
 export { vwma } from "./vwma";
 export type { VwmaOptions } from "./vwma";
+export { kama } from "./kama";
+export type { KamaOptions } from "./kama";
+export { t3 } from "./t3";
+export type { T3Options } from "./t3";

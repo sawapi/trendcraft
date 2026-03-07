@@ -23,3 +23,7 @@ export { getAlternatingSwingPoints } from "./swing-points";
 export type { AlternatingSwingPoint } from "./swing-points";
 export { heikinAshi } from "./heikin-ashi";
 export type { HeikinAshiValue } from "./heikin-ashi";
+export { fractals } from "./fractals";
+export type { FractalValue, FractalOptions } from "./fractals";
+export { zigzag } from "./zigzag";
+export type { ZigzagValue, ZigzagOptions } from "./zigzag";
