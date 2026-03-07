@@ -41,7 +41,8 @@
     "analyze": "npx tsx bin/trendcraft-analyze.ts",
     "test:crossval": "vitest run cross-validation",
     "generate:fixtures": "cd cross-validation/python && uv run python generate_fixtures.py",
-    "bench": "vitest bench"
+    "bench": "vitest bench",
+    "prepare": "husky"
   },
   "keywords": [
     "trading",
@@ -61,11 +62,16 @@
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
     "@types/node": "^25.0.2",
+    "husky": "^9.1.7",
     "iconv-lite": "^0.7.1",
+    "lint-staged": "^16.3.2",
     "typescript": "^5.7.2",
     "vite": "^6.0.3",
     "vite-plugin-dts": "^4.3.0",
     "vitest": "^2.1.8"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx,json}": ["biome check --write --no-errors-on-unmatched"]
   },
   "engines": {
     "node": ">=18.0.0"
