@@ -1,0 +1,963 @@
+# TrendCraft
+
+> A TypeScript library for technical analysis of financial data. Calculate 45+ indicators, detect signals, backtest strategies, optimize parameters, and build real-time trading pipelines.
+
+## Installation
+
+```bash
+npm install trendcraft
+```
+
+All functions accept candle data and return `Series<T>` (`{ time: number, value: T }[]`).
+
+```typescript
+interface Candle {
+  time: number | string | Date;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+type Series<T> = { time: number; value: T }[];
+type PriceSource = 'open' | 'high' | 'low' | 'close' | 'hl2' | 'hlc3' | 'ohlc4';
+```
+
+## Quick Start
+
+```typescript
+import { sma, rsi, bollingerBands, goldenCross } from 'trendcraft';
+
+const sma20 = sma(candles, { period: 20 });
+const rsi14 = rsi(candles, { period: 14 });
+const bb = bollingerBands(candles, { period: 20, stdDev: 2 });
+const crosses = goldenCross(candles, { short: 5, long: 25 });
+
+// Fluent API
+import { TrendCraft } from 'trendcraft';
+const result = TrendCraft.from(candles).sma(20).ema(12).rsi(14).compute();
+
+// Backtesting
+import { TrendCraft, goldenCross, deadCross, and, rsiBelow } from 'trendcraft';
+const bt = TrendCraft.from(candles)
+  .strategy()
+    .entry(and(goldenCross(), rsiBelow(30)))
+    .exit(deadCross())
+  .backtest({ capital: 1000000, stopLoss: 5, takeProfit: 15 });
+```
+
+## Indicators — Moving Averages
+
+### `sma(candles, { period, source? })`
+Simple Moving Average. Returns `Series<number | null>`.
+
+### `ema(candles, { period, source? })`
+Exponential Moving Average. Returns `Series<number | null>`.
+
+### `wma(candles, { period, source? })`
+Weighted Moving Average. Returns `Series<number | null>`.
+
+### `vwma(candles, { period })`
+Volume Weighted Moving Average. Returns `Series<number | null>`.
+
+## Indicators — Trend
+
+### `ichimoku(candles, options?)`
+Ichimoku Cloud. Options: `tenkanPeriod` (9), `kijunPeriod` (26), `senkouBPeriod` (52), `displacement` (26).
+
+Returns `Series<{ tenkan, kijun, senkouA, senkouB, chikou }>` (all `number | null`).
+
+### `supertrend(candles, options?)`
+Supertrend. Options: `period` (10), `multiplier` (3).
+
+Returns `Series<{ supertrend: number | null, direction: 1 | -1 | 0, upperBand, lowerBand }>`.
+
+### `parabolicSar(candles, options?)`
+Parabolic SAR. Options: `step` (0.02), `max` (0.2).
+
+Returns `Series<{ sar, direction: 1 | -1 | 0, isReversal: boolean, af, ep }>`.
+
+### `vortex(candles, { period })`
+Vortex Indicator. Returns `Series<{ viPlus, viMinus }>`.
+
+## Indicators — Momentum
+
+### `rsi(candles, { period?, source? })`
+Relative Strength Index (Wilder's smoothing). Default period: 14. Returns `Series<number | null>` (0-100).
+
+### `macd(candles, { fast?, slow?, signal?, source? })`
+MACD. Defaults: fast=12, slow=26, signal=9.
+
+Returns `Series<{ macd: number | null, signal: number | null, histogram: number | null }>`.
+
+### `stochastics(candles, { kPeriod?, dPeriod?, smoothK? })`
+Stochastic Oscillator. Also: `fastStochastics()`, `slowStochastics()`.
+
+Returns `Series<{ k: number | null, d: number | null }>`.
+
+### `dmi(candles, { period?, adxPeriod? })`
+Directional Movement Index with ADX. Defaults: period=14, adxPeriod=14.
+
+Returns `Series<{ plusDi, minusDi, adx }>` (all `number | null`).
+
+### `stochRsi(candles, { rsiPeriod?, stochPeriod?, kPeriod?, dPeriod? })`
+Stochastic RSI. All defaults: 14/14/3/3. Returns `Series<{ k, d }>`.
+
+### `cci(candles, { period?, constant? })`
+Commodity Channel Index. Default period: 20. Returns `Series<number | null>`.
+
+### `williamsR(candles, { period? })`
+Williams %R. Default period: 14. Returns `Series<number | null>` (-100 to 0).
+
+### `roc(candles, { period?, source? })`
+Rate of Change. Default period: 12. Returns `Series<number | null>` (percentage).
+
+### `trix(candles, { period })`
+Triple EMA oscillator. Returns `Series<{ trix: number | null, signal: number | null }>`.
+
+### `aroon(candles, { period })`
+Aroon indicator. Returns `Series<{ up, down, oscillator }>` (all `number | null`).
+
+## Indicators — Volatility
+
+### `bollingerBands(candles, { period?, stdDev?, source? })`
+Bollinger Bands. Defaults: period=20, stdDev=2.
+
+Returns `Series<{ upper, middle, lower, percentB, bandwidth }>` (all `number | null`).
+
+### `atr(candles, { period? })`
+Average True Range (Wilder's method). Default period: 14. Returns `Series<number | null>`.
+
+### `donchianChannel(candles, { period? })`
+Donchian Channel. Default period: 20.
+
+Returns `Series<{ upper, middle, lower }>` (all `number | null`).
+
+### `keltnerChannel(candles, { emaPeriod?, atrPeriod?, multiplier? })`
+Keltner Channel. Defaults: 20/10/2.
+
+Returns `Series<{ upper, middle, lower }>` (all `number | null`).
+
+### `chandelierExit(candles, { period?, multiplier? })`
+Chandelier Exit trailing stop. Defaults: period=22, multiplier=3.
+
+Returns `Series<{ longExit, shortExit, direction: 1 | -1, isCrossover: boolean }>`.
+
+### `volatilityRegime(candles, options?)`
+Classify volatility into regimes. Options: `atrPeriod` (14), `bbPeriod` (20), `lookbackPeriod` (100), `thresholds: { low: 25, high: 75, extreme: 95 }`.
+
+Returns `Series<{ regime: 'low' | 'normal' | 'high' | 'extreme', atrPercentile, bandwidthPercentile, historicalVol, confidence }>`.
+
+## Indicators — Volume
+
+### `obv(candles)`
+On Balance Volume. Returns `Series<number>`.
+
+### `mfi(candles, { period? })`
+Money Flow Index. Default: 14. Returns `Series<number | null>` (0-100).
+
+### `vwap(candles, { resetPeriod?, period? })`
+VWAP. resetPeriod: `'session'` (default) | `'rolling'` | number. Returns `Series<{ vwap, upper, lower }>`.
+
+### `cmf(candles, { period? })`
+Chaikin Money Flow. Default: 20. Returns `Series<number | null>` (-1 to +1).
+
+### `volumeMa(candles, { period? })`
+Volume Moving Average. Default: 20. Returns `Series<number | null>`.
+
+### `volumeAnomaly(candles, { period?, highThreshold?, extremeThreshold? })`
+Volume spike detection. Defaults: 20/2.0/3.0.
+
+Returns `Series<{ volume, avgVolume, ratio, isAnomaly: boolean, level: 'normal' | 'high' | 'extreme' | null, zScore }>`.
+
+### `volumeProfile(candles, { period?, numLevels?, valueAreaPercent? })`
+Volume Profile. Returns `{ levels: VolumePriceLevel[], poc, vah, val, periodHigh, periodLow }`.
+
+### `volumeProfileSeries(candles, options?)`
+Rolling Volume Profile. Returns `Series<VolumeProfileValue | null>`.
+
+### `volumeTrend(candles, { pricePeriod?, volumePeriod?, maPeriod?, minPriceChange? })`
+Volume trend confirmation. Returns `Series<{ priceTrend, volumeTrend, isConfirmed, hasDivergence, confidence }>`.
+
+### `adl(candles)`
+Accumulation/Distribution Line. Returns `Series<number>`.
+
+## Indicators — Price
+
+### `highest(candles, { period })` / `lowest(candles, { period })`
+Highest High / Lowest Low. Returns `Series<number | null>`.
+
+### `returns(candles, { period?, log? })` / `cumulativeReturns(candles)`
+Price returns. Returns `Series<number | null>`.
+
+### `pivotPoints(candles, { method? })`
+Pivot Points. Methods: `'standard'` | `'fibonacci'` | `'woodie'` | `'camarilla'` | `'demark'`.
+
+Returns `Series<{ pivot, r1, r2, r3, s1, s2, s3 }>`.
+
+### `swingPoints(candles, { leftBars?, rightBars? })`
+Swing highs and lows. Returns `Series<{ type: 'high' | 'low' | null, price }>`.
+
+### `fibonacciRetracement(candles, { leftBars?, rightBars?, levels? })`
+Fibonacci retracement. Returns `Series<{ levels: Record<string, number> | null, swingHigh, swingLow, trend: 'up' | 'down' | null }>`.
+
+## Indicators — Drawing Tools
+
+### `autoTrendLine(candles, { leftBars?, rightBars? })`
+Auto trend line. Returns `Series<{ resistance, support }>` (both `number | null`).
+
+### `channelLine(candles, { leftBars?, rightBars? })`
+Channel line. Returns `Series<{ upper, lower, middle, direction: 'up' | 'down' | null }>`.
+
+### `fibonacciExtension(candles, { leftBars?, rightBars?, levels? })`
+Fibonacci extension. Returns `Series<{ levels, pointA, pointB, pointC, direction: 'bullish' | 'bearish' | null }>`.
+
+### `andrewsPitchfork(candles, { leftBars?, rightBars? })`
+Andrew's Pitchfork. Returns `Series<{ median, upper, lower }>`.
+
+## Indicators — Smart Money Concepts (SMC)
+
+### `breakOfStructure(candles, { swingPeriod? })`
+Break of Structure. Returns `Series<{ bullishBos, bearishBos, brokenLevel, trend: 'bullish' | 'bearish' | 'neutral', swingHighLevel, swingLowLevel }>`.
+
+### `changeOfCharacter(candles, { swingPeriod? })`
+Change of Character (trend reversal). Same return type as `breakOfStructure`.
+
+### `orderBlock(candles, { swingPeriod?, volumePeriod?, minVolumeRatio?, maxActiveOBs?, partialMitigation? })`
+Order Block detection. Returns `Series<{ newOrderBlock, activeOrderBlocks, mitigatedThisBar, atBullishOB, atBearishOB }>`.
+
+Helpers: `getActiveOrderBlocks(candles, opts?)`, `getNearestOrderBlock(candles, opts?)`.
+
+### `liquiditySweep(candles, { swingPeriod?, maxRecoveryBars?, maxTrackedSweeps?, minSweepDepth? })`
+Liquidity Sweep detection. Returns `Series<{ isSweep, sweep, recentSweeps, recoveredThisBar }>`.
+
+Helpers: `getRecoveredSweeps(candles, opts?)`, `hasRecentSweepSignal(candles, type?, opts?)`.
+
+### `fairValueGap(candles, opts?)`
+Fair Value Gap. Helpers: `getUnfilledFvgs()`, `getNearestFvg()`.
+
+## Indicators — Other
+
+### `heikinAshi(candles)`
+Heikin-Ashi candles. Returns `Series<HeikinAshiValue>`.
+
+### `superSmoother(candles, opts?)` / `roofingFilter(candles, opts?)`
+Ehlers filters for noise reduction.
+
+### `benchmarkRS(candles, benchmark, { period?, smaPeriod?, rankingLookback? })`
+Relative Strength vs benchmark. Returns `Series<{ rs, rsRating, trend, mansfieldRS, outperformance }>`.
+
+Multi-symbol: `rankByRS()`, `topByRS()`, `bottomByRS()`, `filterByRSPercentile()`, `compareRS()`.
+
+### `calculateAtrPercent(candles)` / `atrPercentSeries(candles)` / `filterStocksByAtr()`
+ATR as percentage of price for stock screening.
+
+## Signals — Cross Detection
+
+### `crossOver(series1, series2)` / `crossUnder(series1, series2)`
+Generic crossover detection. Returns `Signal[]` (`{ time, type: 'bullish' | 'bearish' }`).
+
+### `goldenCross(candles, { short, long })` / `deadCross(candles, { short, long })`
+MA cross signals. Returns `Signal[]`.
+
+### `validateCrossSignals(candles, options)`
+Cross signals with quality assessment. Returns `CrossSignalQuality[]` with `isFake`, `volumeConfirmed`, `trendConfirmed`, etc.
+
+## Signals — Divergence
+
+### `rsiDivergence(candles, opts?)` / `macdDivergence(candles, opts?)` / `obvDivergence(candles, opts?)`
+Divergence detection. Options: `swingLookback` (5), `minSwingDistance` (5), `maxSwingDistance` (60).
+
+Returns `DivergenceSignal[]` (`{ time, type: 'bullish' | 'bearish', firstIdx, secondIdx, price, indicator }`).
+
+### `detectDivergence(candles, indicator, opts?)`
+Generic divergence detection against any indicator series.
+
+## Signals — Patterns
+
+### `bollingerSqueeze(candles, { period?, stdDev?, lookback?, threshold? })`
+Low volatility squeeze. Returns `SqueezeSignal[]`.
+
+### `perfectOrder(candles, opts?)` / `perfectOrderEnhanced(candles, opts?)`
+Perfect Order detection with slope analysis and state tracking.
+
+### `rangeBound(candles, opts?)`
+Range-bound market detection. Returns `Series<RangeBoundValue>` with states: `NEUTRAL`, `RANGE_FORMING`, `RANGE_CONFIRMED`, `RANGE_TIGHT`, `BREAKOUT_RISK_UP`, `BREAKOUT_RISK_DOWN`, `TRENDING`.
+
+### Volume Signals
+- `volumeBreakout(candles, { period? })` — Volume breaks N-day high
+- `volumeAccumulation(candles, { period?, minSlope?, minConsecutiveDays?, minR2? })` — Volume accumulation via regression
+- `volumeAboveAverage(candles, { period?, minRatio?, minConsecutiveDays? })` — Sustained high volume
+- `volumeMaCross(candles, { shortPeriod?, longPeriod? })` — Volume MA crossovers
+
+### Price Patterns
+- `doubleTop(candles, opts?)` / `doubleBottom(candles, opts?)` — Double top/bottom
+- `headAndShoulders(candles, opts?)` / `inverseHeadAndShoulders(candles, opts?)` — H&S patterns
+- `cupWithHandle(candles, opts?)` — Cup with handle
+
+All return `PatternSignal[]` with `confidence` (0-100), `confirmed` (boolean), `pattern.target`, `pattern.stopLoss`.
+
+### `candlestickPatterns(candles, opts?)`
+Candlestick pattern recognition (hammer, engulfing, doji, etc.).
+
+## Signals — TradeSignal (Unified Format)
+
+```typescript
+type TradeSignal = {
+  id: string;
+  time: number;
+  action: 'BUY' | 'SELL' | 'CLOSE';
+  direction: 'LONG' | 'SHORT';
+  confidence: number;        // 0-100
+  prices?: { entry?, stopLoss?, takeProfit? };
+  reasons: { source, name, detail? }[];
+  timeframe?: string;
+  metadata?: Record<string, unknown>;
+};
+```
+
+### Signal Converters
+- `fromCrossSignal(signal, entryPrice?)` — Cross → TradeSignal
+- `fromDivergenceSignal(signal, entryPrice?)` — Divergence → TradeSignal
+- `fromSqueezeSignal(signal, direction?, entryPrice?)` — Squeeze → TradeSignal
+- `fromPatternSignal(signal, entryPrice?)` — Pattern → TradeSignal (maps target/stopLoss)
+- `fromScoreResult(score, time, { minScore?, direction?, entryPrice? })` — Score → TradeSignal
+- `fromPipelineResult(result, time, entryPrice?)` — Pipeline → TradeSignal
+
+### Signal Lifecycle
+```typescript
+import { createSignalManager, processSignalsBatch } from 'trendcraft';
+
+const manager = createSignalManager({
+  cooldown: { bars: 5 },    // Suppress duplicates for 5 bars
+  debounce: { bars: 3 },    // Require 3 consecutive bars
+  expiry: { bars: 10 },     // Expire after 10 bars
+});
+
+const activated = manager.onBar(signals, barTime);
+manager.fill(signal.id);
+manager.cancel(signal.id);
+```
+
+Signal states: `PENDING` → `ACTIVE` → `EXPIRED` / `FILLED` / `CANCELLED`.
+
+## Backtesting
+
+### `runBacktest(candles, entry, exit, options)`
+
+```typescript
+import { runBacktest, goldenCross, deadCross } from 'trendcraft';
+
+const result = runBacktest(candles, goldenCross(5, 25), deadCross(5, 25), {
+  capital: 1000000,
+  commission: 0,
+  commissionRate: 0.1,      // 0.1%
+  slippage: 0.05,            // 0.05%
+  stopLoss: 5,               // 5%
+  takeProfit: 10,            // 10%
+  trailingStop: 3,           // 3%
+  taxRate: 20.315,
+  fillMode: 'next-bar-open', // default, prevents look-ahead bias
+  slTpMode: 'close-only',   // default, prevents look-ahead bias
+  direction: 'long',         // or 'short'
+});
+```
+
+**BacktestResult:**
+```typescript
+interface BacktestResult {
+  initialCapital: number;
+  finalCapital: number;
+  totalReturn: number;
+  totalReturnPercent: number;
+  tradeCount: number;
+  winRate: number;            // %
+  maxDrawdown: number;        // %
+  sharpeRatio: number;
+  profitFactor: number;
+  avgHoldingDays: number;
+  trades: Trade[];
+  settings: BacktestSettings;
+}
+```
+
+### Fluent API Backtesting
+```typescript
+const result = TrendCraft.from(candles)
+  .strategy()
+    .entry(and(goldenCross(), rsiBelow(30)))
+    .exit(or(deadCross(), rsiAbove(70)))
+  .backtest({ capital: 1000000 });
+
+// With MTF
+const result = TrendCraft.from(dailyCandles)
+  .withMtf(['weekly'])
+  .strategy()
+    .entry(and(weeklyRsiAbove(50), goldenCrossCondition()))
+    .exit(deadCrossCondition())
+  .backtest({ capital: 1000000 });
+```
+
+### Condition Combinators
+- `and(...conditions)` / `or(...conditions)` / `not(condition)`
+
+### Custom Condition Function
+```typescript
+const custom = (indicators, candle, index, candles) => {
+  return candle.volume > 1000000 && candle.close > candle.open;
+};
+```
+
+### Preset Conditions (50+)
+
+**Moving Average:**
+- `goldenCrossCondition(short?, long?)` — Short MA crosses above Long MA
+- `deadCrossCondition(short?, long?)` — Short MA crosses below Long MA
+- `priceAboveSma(period)` / `priceBelowSma(period)` — Price vs SMA
+- `validatedGoldenCross(opts)` / `validatedDeadCross(opts)` — With fake signal detection
+- `priceDroppedAtr(multiplier, period)` — Price dropped N*ATR
+
+**RSI:**
+- `rsiBelow(threshold?, period?)` — RSI < threshold (default: 30, 14)
+- `rsiAbove(threshold?, period?)` — RSI > threshold (default: 70, 14)
+
+**MACD:**
+- `macdCrossUp(fast?, slow?, signal?)` / `macdCrossDown(fast?, slow?, signal?)`
+
+**Bollinger Bands:**
+- `bollingerBreakout('upper' | 'lower', period?, stdDev?)` — Price breaks band
+- `bollingerTouch('upper' | 'lower', period?, stdDev?)` — Price touches band
+
+**Stochastics:**
+- `stochBelow(val)` / `stochAbove(val)` / `stochCrossUp()` / `stochCrossDown()`
+
+**DMI/ADX:**
+- `dmiBullish()` / `dmiBearish()` / `adxStrong(threshold?)`
+
+**Perfect Order:**
+- `perfectOrderBullish()` / `perfectOrderBearish()` / `perfectOrderCollapsed()`
+- `perfectOrderActiveBullish()` / `perfectOrderActiveBearish()`
+- `perfectOrderBullishConfirmed()` / `perfectOrderBearishConfirmed()`
+- `perfectOrderPreBullish()` / `perfectOrderPreBearish()`
+- `poPlusEntry()` / `pbEntry()` / `poPlusPbEntry()`
+
+**Volume:**
+- `volumeAboveAvg(multiplier)` — Volume above average
+- `volumeAnomalyCondition(threshold?)` / `volumeExtreme()` / `volumeRatioAbove(ratio)`
+- `nearPoc(tolerance?)` / `inValueArea()` / `breakoutVah()` / `breakdownVal()`
+- `priceAbovePoc()` / `priceBelowPoc()`
+- `volumeConfirmsTrend()` / `volumeDivergence()` / `bullishVolumeDivergence()` / `bearishVolumeDivergence()`
+- `volumeTrendConfidence(min)` — Confidence above threshold
+- `cmfAbove(threshold?, period?)` / `cmfBelow(threshold?, period?)` — CMF conditions
+- `obvRising(period?)` / `obvFalling(period?)` / `obvCrossUp(short?, long?)` / `obvCrossDown(short?, long?)`
+
+**Range-Bound:**
+- `inRangeBound()` / `rangeForming()` / `rangeConfirmed()` / `rangeBreakout()`
+- `tightRange()` / `breakoutRiskUp()` / `breakoutRiskDown()` / `rangeScoreAbove(threshold)`
+
+**Volatility Regime:**
+- `regimeIs('low' | 'normal' | 'high' | 'extreme')` / `regimeNot(regime)`
+- `volatilityAbove(percentile)` / `volatilityBelow(percentile)`
+- `atrPercentileAbove(val)` / `atrPercentileBelow(val)`
+- `volatilityExpanding(threshold?, lookback?)` / `volatilityContracting(threshold?, lookback?)`
+- `atrPercentAbove(threshold)` / `atrPercentBelow(threshold)`
+
+**MTF (Multi-Timeframe):**
+- `weeklyRsiAbove(val)` / `weeklyRsiBelow(val)` / `monthlyRsiAbove(val)` / `monthlyRsiBelow(val)`
+- `mtfRsiAbove(timeframe, val)` / `mtfRsiBelow(timeframe, val)`
+- `weeklyPriceAboveSma(period)` / `weeklyPriceBelowSma(period)` / `monthlyPriceAboveSma(period)`
+- `mtfPriceAboveSma(timeframe, period)` / `mtfPriceBelowSma(timeframe, period)`
+- `weeklyPriceAboveEma(period)` / `mtfPriceAboveEma(timeframe, period)`
+- `weeklyUptrend()` / `weeklyDowntrend()` / `mtfUptrend(tf)` / `mtfDowntrend(tf)`
+- `weeklyTrendStrong(adxThreshold?)` / `monthlyTrendStrong()` / `mtfTrendStrong(tf, threshold?)`
+- `mtfCondition(timeframe, fn)` — Custom MTF condition
+
+**Relative Strength (RS):**
+- `rsAbove(threshold)` / `rsBelow(threshold)` / `rsRising()` / `rsFalling()`
+- `rsNewHigh(lookback?)` / `rsNewLow(lookback?)`
+- `rsRatingAbove(rating)` / `rsRatingBelow(rating)`
+- `mansfieldRSAbove(threshold)` / `mansfieldRSBelow(threshold)`
+- `outperformanceAbove(percent)` / `outperformanceBelow(percent)`
+- `setBenchmark(indicators, benchmarkCandles)` — Required before RS conditions
+
+**Price Patterns:**
+- `patternDetected(type, opts?)` / `patternConfirmed(type, opts?)`
+- `anyBullishPattern(opts?)` / `anyBearishPattern(opts?)`
+- `patternConfidenceAbove(type, min)` / `anyPatternConfidenceAbove(min)`
+- `patternWithinBars(type, lookback, opts?)`
+- `doubleTopDetected()` / `doubleBottomDetected()` / `headShouldersDetected()` / `inverseHeadShouldersDetected()` / `cupHandleDetected()`
+
+**Fundamentals:**
+- `perBelow(val)` / `perAbove(val)` / `perBetween(min, max)` — P/E ratio
+- `pbrBelow(val)` / `pbrAbove(val)` / `pbrBetween(min, max)` — P/B ratio
+
+### Short Selling
+
+```typescript
+const result = runBacktest(candles, deadCross(5, 25), goldenCross(5, 25), {
+  capital: 1000000,
+  direction: 'short',
+  stopLoss: 5,       // Triggers at entry * 1.05 (price rises)
+  takeProfit: 5,     // Triggers at entry * 0.95 (price drops)
+  trailingStop: 3,   // Trails from lowest price
+});
+```
+
+### Scaled Entry
+
+```typescript
+import { runBacktestScaled } from 'trendcraft';
+
+const result = runBacktestScaled(candles, entry, exit, {
+  capital: 1000000,
+  scaledEntry: {
+    tranches: 3,
+    strategy: 'pyramid',       // 50%, 33%, 17%  (also: 'equal', 'reverse-pyramid')
+    intervalType: 'price',     // or 'signal'
+    priceInterval: -2,         // Add on 2% dips
+  },
+});
+```
+
+## Optimization
+
+### `gridSearch(candles, strategyFactory, paramRanges, options?)`
+
+```typescript
+import { gridSearch, param, constraint } from 'trendcraft';
+
+const result = gridSearch(candles, (params) => ({
+  entry: goldenCross(params.short, params.long),
+  exit: deadCross(params.short, params.long),
+}), [
+  param('short', [5, 10, 15, 20]),
+  param('long', [25, 50, 75]),
+], {
+  metric: 'sharpeRatio',  // or 'calmarRatio' | 'recoveryFactor' | 'totalReturn' | 'winRate' | 'profitFactor'
+  constraints: [constraint('winRate', '>=', 40), constraint('maxDrawdown', '<=', 30)],
+  topN: 10,
+});
+```
+
+Returns `GridSearchResult` with `results[]`, `bestParameters`, `bestMetrics`.
+
+### `walkForwardAnalysis(candles, strategyFactory, paramRanges, options?)`
+Out-of-sample validation. Options: `inSampleRatio` (0.7), `periods` (5), `metric`.
+
+### `anchoredWalkForwardAnalysis(candles, entryPool, exitPool, options?)`
+Expanding training window. Options: `anchorDate`, `initialTrainSize` (504), `expansionStep` (252), `testSize` (252).
+
+Returns `AWFResult` with `periods[]`, `aggregateMetrics`, `stabilityAnalysis` (condition frequency, stable conditions, consistency score), `recommendation`.
+
+### `combinationSearch(candles, entryPool, exitPool, options?)`
+Find optimal entry/exit combinations. Use `createEntryConditionPool()` and `createExitConditionPool()` for default pools.
+
+### `runMonteCarloSimulation(backtestResult, options?)`
+Statistical significance test. Options: `simulations` (1000), `seed`, `confidenceLevel` (0.95).
+
+Returns `MonteCarloResult` with `pValue`, `assessment.isSignificant`, `confidenceInterval`.
+
+### Metrics
+- `calculateSharpeRatio(returns, riskFreeRate?)`
+- `calculateCalmarRatio(totalReturn, maxDrawdown, years)`
+- `calculateRecoveryFactor(totalReturn, maxDrawdown)`
+- `calculateAllMetrics(backtestResult)`
+
+## Streaming
+
+Real-time trading infrastructure with 6 layers. All components are stateful, serializable (`getState()`), and restorable (`fromState`).
+
+```
+Layer 1: Ticks → createCandleAggregator → Candles → createCandleResampler → Higher-TF Candles
+Layer 2: Signal Detectors (crossover, threshold, squeeze, divergence)
+Layer 3: Conditions with and/or/not combinators
+Layer 4: createPipeline (indicators + conditions → signals) + createStreamingMtf
+Layer 5: createTradingSession + createGuardedSession (risk/time guards)
+Layer 6: createPositionTracker + createManagedSession (SL/TP/trailing/P&L)
+```
+
+### Layer 1: Candle Aggregation
+
+```typescript
+import { streaming } from 'trendcraft';
+
+const agg = streaming.createCandleAggregator({ intervalMs: 60_000 });
+const candle = agg.addTrade({ time: Date.now(), price: 100, volume: 10 }); // null or completed candle
+agg.flush(); // Force-close current candle
+
+const resampler = streaming.createCandleResampler({ targetIntervalMs: 300_000 }); // 1m → 5m
+const candle5m = resampler.addCandle(candle1m);
+```
+
+### Layer 2: Signal Detectors
+
+```typescript
+const crossOver = streaming.createCrossOverDetector();
+crossOver.next(21, 20); // true when valueA crosses above valueB
+
+const crossUnder = streaming.createCrossUnderDetector();
+crossUnder.next(9, 10); // true when valueA crosses below valueB
+
+const threshold = streaming.createThresholdDetector(70);
+threshold.next(72); // { crossAbove: true, crossBelow: false }
+
+const squeeze = streaming.createSqueezeDetector({ bandwidthThreshold: 0.05 });
+squeeze.next(0.04); // { squeezeStart: true, squeezeEnd: false, inSqueeze: true }
+
+const divergence = streaming.createDivergenceDetector({ lookback: 14 });
+divergence.next(price, rsiValue); // { bullish: boolean, bearish: boolean }
+```
+
+All detectors support `next()`, `peek()` (preview without state change), and `getState()`.
+
+### Layer 3: Conditions
+
+```typescript
+import { streaming } from 'trendcraft';
+
+const entry = streaming.and(streaming.rsiBelow(30), streaming.smaGoldenCross());
+const exit = streaming.or(streaming.rsiAbove(70), streaming.smaDeadCross());
+
+// Preset conditions: rsiBelow, rsiAbove, smaGoldenCross, smaDeadCross,
+// macdPositive, macdNegative, priceAbove, priceBelow, indicatorAbove, indicatorBelow
+```
+
+### Layer 4: Pipeline & MTF
+
+```typescript
+import { streaming } from 'trendcraft';
+import { incremental } from 'trendcraft';
+
+const pipeline = streaming.createPipeline({
+  indicators: [
+    { name: 'rsi', create: () => incremental.createRsi({ period: 14 }) },
+    { name: 'sma20', create: () => incremental.createSma({ period: 20 }) },
+  ],
+  entry: streaming.rsiBelow(30),
+  exit: streaming.rsiAbove(70),
+  signals: [{ name: 'oversold', condition: streaming.rsiBelow(20) }],
+});
+
+const result = pipeline.next(candle);
+// { snapshot: {...}, entrySignal: boolean, exitSignal: boolean, signals: string[] }
+
+// Multi-Timeframe
+const mtf = streaming.createStreamingMtf({
+  timeframes: [
+    { intervalMs: 300_000, indicators: [{ name: 'sma20', create: () => incremental.createSma({ period: 20 }) }] },
+  ],
+});
+const snapshot = mtf.next(candle1m); // { "5m": { sma20: ... } }
+```
+
+### Layer 5: Session & Guards
+
+```typescript
+const session = streaming.createTradingSession({
+  intervalMs: 60_000,
+  pipeline: { indicators: [...], entry: ..., exit: ... },
+  warmUp: historicalCandles,
+});
+
+const events = session.onTrade({ time, price, volume });
+// Events: 'candle' | 'signal' | 'entry' | 'exit' | 'partial' | 'blocked' | 'force-close'
+
+// Risk Guard
+const riskGuard = streaming.createRiskGuard({
+  maxDailyLoss: -50000,
+  maxDailyTrades: 20,
+  maxConsecutiveLosses: 3,
+  cooldownMs: 30 * 60_000,
+});
+
+// Time Guard
+const timeGuard = streaming.createTimeGuard({
+  tradingWindows: [{ startMs: 9 * 3600_000, endMs: 15 * 3600_000 }],
+  timezoneOffsetMs: 9 * 3600_000,
+  forceCloseBeforeEndMs: 5 * 60_000,
+  blackoutPeriods: [{ startTime, endTime, reason: 'FOMC' }],
+});
+
+// Combined
+const guarded = streaming.createGuardedSession(sessionOpts, {
+  riskGuard: { maxDailyLoss: -50000 },
+  timeGuard: { tradingWindows: [...] },
+});
+```
+
+### Layer 6: Position Management
+
+```typescript
+const tracker = streaming.createPositionTracker({
+  capital: 1_000_000,
+  stopLoss: 2,
+  takeProfit: 6,
+  trailingStop: 3,
+  commissionRate: 0.1,
+  slippage: 0.05,
+});
+
+tracker.openPosition(price, shares, time);
+const { triggered } = tracker.updatePrice(candle); // Check SL/TP/trailing
+tracker.closePosition(price, time, reason);
+
+// Full managed session (tick → signal → position → P&L)
+const managed = streaming.createManagedSession(
+  sessionOpts,
+  { riskGuard: {...}, timeGuard: {...} },
+  {
+    capital: 1_000_000,
+    sizing: { method: 'risk-based', riskPercent: 1 },
+    // also: 'full-capital' | 'fixed-fractional' | 'atr-based'
+    stopLoss: 2,
+    takeProfit: 6,
+    trailingStop: 3,
+  },
+);
+
+const events = managed.onTrade({ time, price, volume });
+// Events: all session events + 'position-opened' | 'position-closed' | 'position-update'
+```
+
+### Signal Emitter
+
+```typescript
+const emitter = streaming.createSignalEmitter({
+  intervalMs: 60000,
+  pipeline: { indicators: [...], entry: ..., exit: ... },
+  onSignal: (signal: TradeSignal) => { console.log(signal.action); },
+});
+
+emitter.onTrade({ time, price, volume });
+emitter.close();
+```
+
+## Scoring
+
+### ScoreBuilder
+
+```typescript
+import { ScoreBuilder, calculateScore, calculateScoreBreakdown, calculateScoreSeries } from 'trendcraft';
+
+const config = ScoreBuilder.create()
+  .addRsiOversold(30, 2.0)          // threshold, weight
+  .addRsiOverbought(70, 2.0)
+  .addMacdBullish(1.5)
+  .addMacdBearish(1.5)
+  .addPerfectOrderBullish(2.0)
+  .addPOConfirmation(3.0)
+  .addPullbackEntry(20, 1.5)        // maPeriod, weight
+  .addGoldenCross(5, 25, 1.0)       // short, long, weight
+  .addPriceAboveEma(50, 1.0)
+  .addVolumeSpike(1.5, 1.5)         // threshold, weight
+  .addVolumeAnomaly(2.0, 1.0)       // zThreshold, weight
+  .addBullishVolumeTrend(1.0)
+  .addCmfPositive(0, 1.0)
+  .addStochOversold(20, 1.0)
+  .addStochBullishCross(20, 1.0)
+  .setThresholds(70, 50, 30)        // strong, moderate, weak
+  .build();
+
+const score = calculateScore(candles, index, config);
+// { rawScore, normalizedScore: 0-100, maxScore, strength: 'strong' | 'moderate' | 'weak' | 'none', activeSignals, totalSignals }
+
+const breakdown = calculateScoreBreakdown(candles, index, config);
+// Includes contributions[] array
+
+const series = calculateScoreSeries(candles, config);
+```
+
+### Presets
+```typescript
+import { getPreset, listPresets } from 'trendcraft';
+
+const config = getPreset('trendFollowing');
+// Available: 'momentum', 'meanReversion', 'trendFollowing', 'balanced', 'aggressive', 'conservative'
+```
+
+### Score Backtest Conditions
+- `scoreAbove(threshold, configOrPreset)` / `scoreBelow(threshold, configOrPreset)`
+- `scoreStrength('strong' | 'moderate' | 'weak', config)`
+- `minActiveSignals(count, config)` / `scoreWithMinSignals(threshold, minActive, config)`
+- `scoreIncreasing(minIncrease, config)`
+
+## Position Sizing
+
+### `riskBasedSize(options)`
+```typescript
+const result = riskBasedSize({
+  accountSize: 100000,
+  entryPrice: 50,
+  stopLossPrice: 48,
+  riskPercent: 1,            // Risk 1% of account
+  maxPositionPercent: 25,
+  direction: 'long',         // or 'short'
+});
+// { shares: 500, positionValue: 25000, riskAmount: 1000, method: 'risk-based' }
+```
+
+### `atrBasedSize(options)`
+```typescript
+const result = atrBasedSize({
+  accountSize: 100000,
+  entryPrice: 50,
+  atrValue: 2.5,
+  atrMultiplier: 2,
+  riskPercent: 1,
+});
+// stopPrice: 45, shares: 200
+```
+
+### `kellySize(options)`
+```typescript
+const result = kellySize({
+  accountSize: 100000,
+  entryPrice: 50,
+  winRate: 0.6,
+  winLossRatio: 1.5,
+  kellyFraction: 0.5,       // Half-Kelly
+  maxKellyPercent: 25,
+});
+```
+
+### `fixedFractionalSize(options)`
+```typescript
+const result = fixedFractionalSize({
+  accountSize: 100000,
+  entryPrice: 50,
+  fractionPercent: 10,
+});
+```
+
+Helpers: `calculateKellyPercent(winRate, winLossRatio)`, `maxPositions(accountSize, fraction)`, `fractionForPositionCount(n)`, `calculateAtrStopDistance(atr, multiplier)`, `recommendedAtrMultiplier(style)`.
+
+## ATR Risk Management
+
+### `chandelierExit(candles, { period?, multiplier? })`
+Trailing stop. Returns `Series<{ longExit, shortExit, direction, isCrossover }>`.
+
+### `atrStops(candles, { atrPeriod?, stopMultiplier?, takeProfitMultiplier? })`
+ATR-based stop/TP levels. Returns `Series<{ atr, stopDistance, takeProfitDistance, longStop, longTakeProfit, shortStop, shortTakeProfit }>`.
+
+Standalone helpers: `calculateAtrStop(opts)`, `calculateAtrTakeProfit(opts)`, `calculateAtrTrailingStop(opts)`.
+
+Backtest integration:
+```typescript
+runBacktest(candles, entry, exit, {
+  atrRisk: { atrPeriod: 14, atrStopMultiplier: 2.5, atrTakeProfitMultiplier: 4, atrTrailingMultiplier: 2 },
+});
+```
+
+## Data Utilities
+
+### Normalization
+- `normalizeCandles(candles)` — Normalize date formats to Unix timestamps
+- `normalizeCandle(candle)` — Single candle
+- `normalizeTime(time)` — Time value only
+- `getPrice(candle, source)` / `getPriceSeries(candles, source)` — Extract price by source
+
+### Resampling
+- `resample(candles, 'weekly' | 'monthly' | '1w' | '1M')` — Timeframe resampling
+
+### Validation
+```typescript
+import { validateCandles, normalizeAndValidate } from 'trendcraft';
+
+const result = validateCandles(candles, {
+  gaps: true,           // or GapDetectionOptions
+  duplicates: true,
+  ohlc: true,
+  spikes: true,         // or SpikeDetectionOptions
+  volumeAnomalies: true,
+  stale: true,
+  splits: false,
+  autoClean: true,      // Return cleaned candles
+});
+
+// All-in-one
+const { candles: normalized, validation } = normalizeAndValidate(rawCandles, { autoClean: true });
+```
+
+Individual detectors: `detectGaps()`, `detectDuplicates()`, `removeDuplicates()`, `detectOhlcErrors()`, `detectPriceSpikes()`, `detectVolumeAnomalies()`, `detectStaleData()`, `detectSplitHints()`.
+
+### Screening
+- `screenStock(candles, criteria)` — Screen single stock
+- `createCriteriaFromNames(entryNames, exitNames)` — Create from preset names
+- `CONDITION_PRESETS` — All available preset names
+- `parseCsv(csvString)` — Parse CSV to candles
+
+### Fundamentals
+- `parseFundamentals(data, opts?)` — Parse fundamental data
+- `createFundamentalsMap(data)` / `getFundamentalsAt(map, time)` — Time-indexed access
+
+### Trade Analysis
+- `analyzeAllTrades(trades)` — Full analysis
+- `calculateTradeStats(trades)` — Basic stats
+- `analyzeByExitReason(trades)` / `analyzeByHoldingPeriod(trades)` / `analyzeByTime(trades)`
+- `analyzeMfeMae(trades)` / `analyzeStreaks(trades)`
+
+## Plugin System
+
+```typescript
+import { defineIndicator, TrendCraft, plugins } from 'trendcraft';
+
+// Define custom indicator
+const myIndicator = defineIndicator({
+  name: 'myInd' as const,
+  compute: (candles, opts) => { /* return Series<T> */ },
+  defaultOptions: { period: 20 },
+  buildKey: (opts) => `myInd_${opts.period}`,
+});
+
+// Use in fluent API
+TrendCraft.from(candles).use(myIndicator, { period: 10 }).compute();
+
+// Built-in plugins for dynamic use
+TrendCraft.from(candles).use(plugins.sma, { period: 50 }).use(plugins.rsi).compute();
+```
+
+Built-in plugins: `plugins.sma`, `plugins.ema`, `plugins.rsi`, `plugins.macd`, `plugins.bollingerBands`, `plugins.atr`, `plugins.volumeMa`, `plugins.highest`, `plugins.lowest`, `plugins.returns`, `plugins.parabolicSar`, `plugins.keltnerChannel`, `plugins.cmf`, `plugins.volumeAnomaly`, `plugins.volumeProfileSeries`, `plugins.volumeTrend`.
+
+## Incremental Indicators
+
+```typescript
+import { incremental } from 'trendcraft';
+
+// Stateful indicators for streaming (O(1) per candle)
+const rsi = incremental.createRsi({ period: 14 });
+const sma = incremental.createSma({ period: 20 });
+const atr = incremental.createAtr({ period: 14 });
+
+const result = rsi.next(candle); // { time, value }
+const preview = rsi.peek(candle); // Preview without advancing state
+const state = rsi.getState(); // Serialize for persistence
+```
+
+## Result Type
+
+```typescript
+import { ok, err, unwrapOr, tryCatch } from 'trendcraft';
+type Result<T, E> = { ok: true; value: T } | { ok: false; error: E };
+
+// Safe variants available for error handling
+import { gridSearchSafe, walkForwardAnalysisSafe, runMonteCarloSimulationSafe } from 'trendcraft';
+```
+
+## CLI Tools
+
+```bash
+# Stock screening
+npx trendcraft-screen ./data --entry "goldenCross,volumeAnomaly" --exit "deadCross" --min-atr 2.3
+
+# Backtesting
+npx trendcraft-backtest ./data --entry "goldenCross" --exit "deadCross" --stop-loss 5 --take-profit 10
+
+# Trade analysis
+npx trendcraft-analyze ./data/trades.json
+
+# List available conditions
+npx trendcraft-screen --list
+npx trendcraft-backtest --list
+```
+
+Output formats: `--output table` (default), `--output json`, `--output csv`.
