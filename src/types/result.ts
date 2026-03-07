@@ -58,7 +58,8 @@ export type TrendCraftErrorCode =
   | "OPTIMIZATION_FAILED"
   | "BACKTEST_FAILED"
   | "SCREENING_FAILED"
-  | "COMPUTATION_FAILED";
+  | "COMPUTATION_FAILED"
+  | "INDICATOR_ERROR";
 
 /**
  * Structured error with code, message, and optional context
@@ -279,5 +280,33 @@ export function tryCatch<T, E>(
     return ok(fn());
   } catch (error) {
     return err(onError(error));
+  }
+}
+
+/**
+ * Wrap a throwing function into a Result with a default error code
+ *
+ * Convenience wrapper over `tryCatch` that automatically constructs
+ * a `TrendCraftError` from the caught exception.
+ *
+ * @example
+ * ```ts
+ * const result = toResult(() => rsi(candles, { period: 14 }));
+ * if (result.ok) {
+ *   console.log(result.value);
+ * } else {
+ *   console.error(result.error.code, result.error.message);
+ * }
+ * ```
+ */
+export function toResult<T>(
+  fn: () => T,
+  code: TrendCraftErrorCode = "COMPUTATION_FAILED",
+): Result<T> {
+  try {
+    return ok(fn());
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return err(tcError(code, message, {}, error instanceof Error ? error : undefined));
   }
 }

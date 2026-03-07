@@ -4483,3 +4483,72 @@ interface Signal {
   type: SignalType;
 }
 ```
+
+---
+
+## Error Handling Guide
+
+TrendCraft provides two approaches for error handling:
+
+### Throw Version (Default)
+
+All indicator functions throw on invalid parameters. Use `try/catch` for error handling:
+
+```typescript
+import { rsi, sma } from "trendcraft";
+
+try {
+  const result = rsi(candles, { period: 14 });
+} catch (error) {
+  console.error(error.message);
+}
+```
+
+Best for: Internal calculations, performance-critical paths, scripts.
+
+### Safe Version (Result-returning)
+
+Every indicator has a Safe counterpart accessible via the `safe` namespace.
+These return `Result<T>` instead of throwing:
+
+```typescript
+import { safe } from "trendcraft";
+
+const result = safe.rsiSafe(candles, { period: 14 });
+if (result.ok) {
+  console.log(result.value); // Series<number | null>
+} else {
+  console.error(result.error.code);    // "INDICATOR_ERROR"
+  console.error(result.error.message); // Human-readable message
+}
+```
+
+Best for: User-facing applications, pipelines with fallback logic, batch processing.
+
+### toResult Utility
+
+Wrap any throwing function into a Result:
+
+```typescript
+import { toResult } from "trendcraft";
+
+const result = toResult(() => someThrowingFunction(), "INDICATOR_ERROR");
+```
+
+### Error Codes
+
+| Code | Description |
+|------|-------------|
+| `INDICATOR_ERROR` | Indicator computation failure (invalid parameters, etc.) |
+| `INVALID_PARAMETER` | Invalid parameter value |
+| `INSUFFICIENT_DATA` | Not enough data points |
+| `NO_DATA` | Empty input data |
+| `COMPUTATION_FAILED` | General computation failure |
+| `OPTIMIZATION_FAILED` | Optimization process failure |
+| `BACKTEST_FAILED` | Backtest execution failure |
+| `SCREENING_FAILED` | Screening process failure |
+
+### Recommendation
+
+- **Library consumers**: Prefer Safe versions for robustness
+- **Internal / performance-critical code**: Use throw versions directly

@@ -146,6 +146,7 @@ export {
   collectResults,
   partitionResults,
   tryCatch,
+  toResult,
 } from "./result";
 
 // ============================================
