@@ -59,12 +59,13 @@ export function validateRecommendation(
   recommendation: LLMRecommendation,
   todayReviews: ReviewRecord[],
   activeTemplates: StrategyTemplate[],
-  config: SafetyConfig = DEFAULT_CONFIG,
-  recentReviews: ReviewRecord[] = [],
+  opts: { config?: SafetyConfig; recentReviews?: ReviewRecord[] } = {},
 ): {
   valid: LLMAction[];
   rejected: { action: LLMAction; reason: string }[];
 } {
+  const config = opts.config ?? DEFAULT_CONFIG;
+  const recentReviews = opts.recentReviews ?? [];
   const valid: LLMAction[] = [];
   const rejected: { action: LLMAction; reason: string }[] = [];
 

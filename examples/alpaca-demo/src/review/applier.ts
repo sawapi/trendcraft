@@ -311,6 +311,20 @@ function saveOverrides(overrides: ParameterOverride[]): void {
   writeFileSync(OVERRIDES_PATH, JSON.stringify(overrides, null, 2), "utf-8");
 }
 
+/**
+ * Remove a single strategy override (used by auto-rollback)
+ *
+ * @returns true if the override was found and removed
+ */
+export function removeOverride(strategyId: string): boolean {
+  const overrides = loadOverrides();
+  const idx = overrides.findIndex((o) => o.strategyId === strategyId);
+  if (idx < 0) return false;
+  overrides.splice(idx, 1);
+  saveOverrides(overrides);
+  return true;
+}
+
 function loadState(): { version: number; savedAt: number; agents: (AgentState & { active?: boolean })[] } | null {
   if (!existsSync(STATE_PATH)) return null;
   try {

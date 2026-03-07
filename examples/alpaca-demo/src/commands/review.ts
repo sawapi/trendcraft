@@ -26,7 +26,7 @@ import {
 } from "../review/report-generator.js";
 import { reviewWithLLM } from "../review/llm-client.js";
 import { validateRecommendation } from "../review/safety.js";
-import { applyActions, loadOverrides } from "../review/applier.js";
+import { applyActions, loadOverrides, removeOverride } from "../review/applier.js";
 import {
   saveReviewRecord,
   loadRecentReviews,
@@ -201,12 +201,38 @@ async function liveReviewCommand(
   const agents = manager.getAgents();
   console.log(`Loaded ${agents.length} agents from state.\n`);
 
-  // Fetch market context
+  // Fetch market context + Buy & Hold benchmark
   let marketContext: MarketContext[] = [];
+  const buyAndHoldBenchmarks: BuyAndHoldBenchmark[] = [];
   try {
     const env = loadEnv();
     const symbols = [...new Set(agents.map((a) => a.symbol))];
     marketContext = await fetchMarketContext(env, symbols);
+
+    // Compute B&H from same 90-day data
+    for (const symbol of symbols) {
+      try {
+        const bars = await fetchHistoricalBars(env, {
+          symbol,
+          timeframe: "1Day",
+          start: daysAgo(90),
+          end: today(),
+        });
+        if (bars.length >= 2) {
+          const startPrice = bars[0].close;
+          const endPrice = bars[bars.length - 1].close;
+          buyAndHoldBenchmarks.push({
+            symbol,
+            startPrice,
+            endPrice,
+            returnPercent: ((endPrice - startPrice) / startPrice) * 100,
+            period: "90d",
+          });
+        }
+      } catch {
+        // Skip symbol if data unavailable
+      }
+    }
   } catch {
     console.log("Could not fetch market context (Alpaca API may not be configured).");
   }
@@ -220,6 +246,7 @@ async function liveReviewCommand(
     agentStates: savedState.agents,
     marketContext,
     activeOverrides,
+    buyAndHold: buyAndHoldBenchmarks.length > 0 ? buyAndHoldBenchmarks : undefined,
     date,
   });
 
@@ -264,19 +291,7 @@ async function runLLMReview(
     console.log(`\nAuto-rollback candidates: ${rollbackCandidates.join(", ")}`);
     if (opts.apply) {
       for (const strategyId of rollbackCandidates) {
-        const { loadOverrides: loadOvr } = await import("../review/applier.js");
-        const overrides = loadOvr();
-        const idx = overrides.findIndex((o) => o.strategyId === strategyId);
-        if (idx >= 0) {
-          overrides.splice(idx, 1);
-          const { writeFileSync } = await import("node:fs");
-          const { resolve } = await import("node:path");
-          const dataDir = resolve(import.meta.dirname, "../../data");
-          writeFileSync(
-            resolve(dataDir, "strategy-overrides.json"),
-            JSON.stringify(overrides, null, 2),
-            "utf-8",
-          );
+        if (removeOverride(strategyId)) {
           console.log(`  Rolled back "${strategyId}" to original preset.`);
         }
       }
@@ -316,8 +331,7 @@ async function runLLMReview(
     recommendation,
     todayReviews,
     allTemplates,
-    undefined,
-    history,
+    { recentReviews: history },
   );
 
   if (rejected.length > 0) {

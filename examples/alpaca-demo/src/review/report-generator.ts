@@ -103,6 +103,7 @@ export function generateDailyReport(opts: {
   agentStates: AgentState[];
   marketContext?: MarketContext[];
   activeOverrides?: ParameterOverride[];
+  buyAndHold?: BuyAndHoldBenchmark[];
   date?: string;
 }): DailyReport {
   const date = opts.date ?? new Date().toISOString().split("T")[0];
@@ -157,6 +158,7 @@ export function generateDailyReport(opts: {
       indicators: palette.indicators,
       conditions: palette.conditions,
     },
+    buyAndHold: opts.buyAndHold,
   };
 }
 
