@@ -37,6 +37,18 @@ function getBBData(
 /**
  * Price breaks out of Bollinger Band
  * @param band 'upper' or 'lower'
+ * @example
+ * ```ts
+ * import { runBacktest, bollingerBreakout } from "trendcraft";
+ *
+ * // Buy on lower band breakout (mean reversion), sell on upper band breakout
+ * const result = runBacktest(
+ *   candles,
+ *   bollingerBreakout("lower"),
+ *   bollingerBreakout("upper"),
+ *   { capital: 1_000_000 },
+ * );
+ * ```
  */
 export function bollingerBreakout(
   band: "upper" | "lower",
@@ -61,6 +73,14 @@ export function bollingerBreakout(
 /**
  * Price touches Bollinger Band (within band, touching edge)
  * @param band 'upper' or 'lower'
+ * @example
+ * ```ts
+ * import { runBacktest, bollingerTouch, rsiBelow, and } from "trendcraft";
+ *
+ * // Mean reversion: price touches lower band + RSI oversold
+ * const entry = and(bollingerTouch("lower"), rsiBelow(30));
+ * const result = runBacktest(candles, entry, bollingerTouch("upper"), { capital: 1_000_000 });
+ * ```
  */
 export function bollingerTouch(band: "upper" | "lower", period = 20, stdDev = 2): PresetCondition {
   return {

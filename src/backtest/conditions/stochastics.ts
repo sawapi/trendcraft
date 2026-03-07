@@ -34,6 +34,14 @@ function getStochData(
 /**
  * Stochastics %K below threshold (oversold)
  * @param threshold %K threshold (default: 20)
+ * @example
+ * ```ts
+ * import { runBacktest, stochBelow, stochAbove } from "trendcraft";
+ *
+ * const result = runBacktest(candles, stochBelow(20), stochAbove(80), {
+ *   capital: 1_000_000,
+ * });
+ * ```
  */
 export function stochBelow(threshold = 20, kPeriod = 14, dPeriod = 3): PresetCondition {
   return {
@@ -50,6 +58,14 @@ export function stochBelow(threshold = 20, kPeriod = 14, dPeriod = 3): PresetCon
 /**
  * Stochastics %K above threshold (overbought)
  * @param threshold %K threshold (default: 80)
+ * @example
+ * ```ts
+ * import { runBacktest, stochBelow, stochAbove } from "trendcraft";
+ *
+ * const result = runBacktest(candles, stochBelow(20), stochAbove(80), {
+ *   capital: 1_000_000,
+ * });
+ * ```
  */
 export function stochAbove(threshold = 80, kPeriod = 14, dPeriod = 3): PresetCondition {
   return {
@@ -82,6 +98,14 @@ function hasValidStochValues(
 
 /**
  * Stochastics Golden Cross: %K crosses above %D
+ * @example
+ * ```ts
+ * import { runBacktest, stochCrossUp, stochCrossDown } from "trendcraft";
+ *
+ * const result = runBacktest(candles, stochCrossUp(), stochCrossDown(), {
+ *   capital: 1_000_000,
+ * });
+ * ```
  */
 export function stochCrossUp(kPeriod = 14, dPeriod = 3): PresetCondition {
   return {
@@ -104,6 +128,14 @@ export function stochCrossUp(kPeriod = 14, dPeriod = 3): PresetCondition {
 
 /**
  * Stochastics Dead Cross: %K crosses below %D
+ * @example
+ * ```ts
+ * import { runBacktest, stochCrossUp, stochCrossDown } from "trendcraft";
+ *
+ * const result = runBacktest(candles, stochCrossUp(), stochCrossDown(), {
+ *   capital: 1_000_000,
+ * });
+ * ```
  */
 export function stochCrossDown(kPeriod = 14, dPeriod = 3): PresetCondition {
   return {

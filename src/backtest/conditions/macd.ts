@@ -11,6 +11,14 @@ import type { PresetCondition } from "../../types";
 
 /**
  * MACD line crosses above signal line
+ * @example
+ * ```ts
+ * import { runBacktest, macdCrossUp, macdCrossDown } from "trendcraft";
+ *
+ * const result = runBacktest(candles, macdCrossUp(), macdCrossDown(), {
+ *   capital: 1_000_000,
+ * });
+ * ```
  */
 export function macdCrossUp(fast = 12, slow = 26, signal = 9): PresetCondition {
   const key = `macd_${fast}_${slow}_${signal}`;
@@ -51,6 +59,14 @@ export function macdCrossUp(fast = 12, slow = 26, signal = 9): PresetCondition {
 
 /**
  * MACD line crosses below signal line
+ * @example
+ * ```ts
+ * import { runBacktest, macdCrossUp, macdCrossDown } from "trendcraft";
+ *
+ * const result = runBacktest(candles, macdCrossUp(12, 26, 9), macdCrossDown(12, 26, 9), {
+ *   capital: 1_000_000,
+ * });
+ * ```
  */
 export function macdCrossDown(fast = 12, slow = 26, signal = 9): PresetCondition {
   const key = `macd_${fast}_${slow}_${signal}`;

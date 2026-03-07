@@ -12,6 +12,14 @@ import type { NormalizedCandle, PrecomputedIndicators, SignalDefinition } from "
  * Create Perfect Order bullish signal evaluator
  *
  * Returns 1 when Perfect Order is bullish (short > mid > long MA).
+ * @example
+ * ```ts
+ * import { ScoreBuilder, createPerfectOrderBullishEvaluator } from "trendcraft";
+ *
+ * const config = ScoreBuilder.create()
+ *   .addSignal({ name: "poBull", weight: 3.0, evaluate: createPerfectOrderBullishEvaluator() })
+ *   .build();
+ * ```
  */
 export function createPerfectOrderBullishEvaluator(
   periods: number[] = [5, 20, 60],
@@ -167,6 +175,14 @@ export function createPOConfirmationEvaluator(
  * Create pullback entry evaluator
  *
  * Returns 1 when price pulls back to key MA level in uptrend.
+ * @example
+ * ```ts
+ * import { ScoreBuilder, createPullbackEntryEvaluator } from "trendcraft";
+ *
+ * const config = ScoreBuilder.create()
+ *   .addSignal({ name: "pullback", weight: 2.5, evaluate: createPullbackEntryEvaluator(20, 1) })
+ *   .build();
+ * ```
  */
 export function createPullbackEntryEvaluator(
   maPeriod = 20,
@@ -229,6 +245,14 @@ export function createPullbackEntryEvaluator(
  * Create golden cross evaluator
  *
  * Returns 1 when short MA crosses above long MA.
+ * @example
+ * ```ts
+ * import { ScoreBuilder, createGoldenCrossEvaluator } from "trendcraft";
+ *
+ * const config = ScoreBuilder.create()
+ *   .addSignal({ name: "gc", weight: 2.0, evaluate: createGoldenCrossEvaluator(50, 200) })
+ *   .build();
+ * ```
  */
 export function createGoldenCrossEvaluator(
   shortPeriod = 50,

@@ -13,6 +13,14 @@ import type { OptimizationMetric } from "../types/optimization";
  * @param riskFreeRate Annual risk-free rate (default: 0)
  * @param periodsPerYear Number of periods per year (default: 252 for daily)
  * @returns Annualized Sharpe Ratio
+ * @example
+ * ```ts
+ * import { calculateSharpeRatio } from "trendcraft";
+ *
+ * const dailyReturns = [0.01, -0.005, 0.008, 0.003, -0.002];
+ * const sharpe = calculateSharpeRatio(dailyReturns, 0.02); // risk-free = 2%
+ * console.log(sharpe); // e.g. 1.52
+ * ```
  */
 export function calculateSharpeRatio(
   returns: number[],
@@ -213,6 +221,16 @@ export function calculateDailyReturns(
  * @param candles Candle data
  * @param options Calculation options
  * @returns Record of all metrics
+ * @example
+ * ```ts
+ * import { runBacktest, calculateAllMetrics, goldenCrossCondition, deadCrossCondition } from "trendcraft";
+ *
+ * const result = runBacktest(candles, goldenCrossCondition(), deadCrossCondition(), {
+ *   capital: 1_000_000,
+ * });
+ * const metrics = calculateAllMetrics(result, candles, { initialCapital: 1_000_000 });
+ * console.log(metrics.sharpe, metrics.calmar, metrics.profitFactor);
+ * ```
  */
 export function calculateAllMetrics(
   result: BacktestResult,

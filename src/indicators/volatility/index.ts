@@ -1,3 +1,17 @@
+/**
+ * Volatility indicators — measure price dispersion and risk
+ *
+ * - **Bollinger Bands**: Price channels based on standard deviation
+ * - **ATR**: Average True Range — volatility in absolute terms
+ * - **Donchian Channel**: Highest high / lowest low over N periods
+ * - **Keltner Channel**: ATR-based price channel around EMA
+ * - **Chandelier Exit**: Trailing stop based on ATR from highest high
+ * - **ATR Stops**: Stop-loss and take-profit levels based on ATR
+ * - **Volatility Regime**: Classify market as low/normal/high/extreme volatility
+ * - **ATR Filter**: Filter stocks by ATR% for screening
+ *
+ * @module
+ */
 export { bollingerBands } from "./bollinger-bands";
 export { atr } from "./atr";
 export { donchianChannel } from "./donchian-channel";

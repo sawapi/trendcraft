@@ -14,6 +14,14 @@ import type { NormalizedCandle, PrecomputedIndicators, SignalDefinition } from "
  *
  * @param threshold - Volume ratio threshold (default: 1.5 = 50% above avg)
  * @param period - MA period for average (default: 20)
+ * @example
+ * ```ts
+ * import { ScoreBuilder, createVolumeSpikeEvaluator } from "trendcraft";
+ *
+ * const config = ScoreBuilder.create()
+ *   .addSignal({ name: "volSpike", weight: 1.5, evaluate: createVolumeSpikeEvaluator(1.5) })
+ *   .build();
+ * ```
  */
 export function createVolumeSpikeEvaluator(
   threshold = 1.5,
@@ -214,6 +222,14 @@ export function createBearishVolumeTrendEvaluator(maPeriod = 20): SignalDefiniti
  *
  * @param threshold - CMF threshold (default: 0.1)
  * @param period - CMF period (default: 20)
+ * @example
+ * ```ts
+ * import { ScoreBuilder, createCmfPositiveEvaluator } from "trendcraft";
+ *
+ * const config = ScoreBuilder.create()
+ *   .addSignal({ name: "cmf", weight: 1.5, evaluate: createCmfPositiveEvaluator(0.1) })
+ *   .build();
+ * ```
  */
 export function createCmfPositiveEvaluator(
   threshold = 0.1,

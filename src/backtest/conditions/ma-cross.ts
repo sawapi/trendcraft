@@ -13,6 +13,14 @@ import type { NormalizedCandle, PresetCondition } from "../../types";
  * Golden Cross: Short MA crosses above Long MA
  * @param shortPeriod Short-term MA period (default: 5)
  * @param longPeriod Long-term MA period (default: 25)
+ * @example
+ * ```ts
+ * import { runBacktest, goldenCrossCondition, deadCrossCondition } from "trendcraft";
+ *
+ * const result = runBacktest(candles, goldenCrossCondition(), deadCrossCondition(), {
+ *   capital: 1_000_000,
+ * });
+ * ```
  */
 export function goldenCross(shortPeriod = 5, longPeriod = 25): PresetCondition {
   const cacheKey = `gc_${shortPeriod}_${longPeriod}`;
@@ -59,6 +67,14 @@ export function goldenCross(shortPeriod = 5, longPeriod = 25): PresetCondition {
  * Dead Cross: Short MA crosses below Long MA
  * @param shortPeriod Short-term MA period (default: 5)
  * @param longPeriod Long-term MA period (default: 25)
+ * @example
+ * ```ts
+ * import { runBacktest, goldenCrossCondition, deadCrossCondition } from "trendcraft";
+ *
+ * const result = runBacktest(candles, goldenCrossCondition(5, 25), deadCrossCondition(5, 25), {
+ *   capital: 1_000_000,
+ * });
+ * ```
  */
 export function deadCross(shortPeriod = 5, longPeriod = 25): PresetCondition {
   return {

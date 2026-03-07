@@ -19,6 +19,19 @@ import {
 
 /**
  * Detect all single-candle patterns at the given index
+ *
+ * Detects: Hammer, Inverted Hammer, Shooting Star, Hanging Man,
+ * Doji, Bullish/Bearish Marubozu, Spinning Top.
+ *
+ * @example
+ * ```ts
+ * import { candlestickPatterns, normalizeCandles } from "trendcraft";
+ *
+ * const candles = normalizeCandles(rawCandles);
+ * const patterns = candlestickPatterns(candles);
+ * // Filter single-candle patterns
+ * const singles = patterns.filter(p => p.value.patterns.some(pp => pp.candleCount === 1));
+ * ```
  */
 export function detectSinglePatterns(
   candles: NormalizedCandle[],

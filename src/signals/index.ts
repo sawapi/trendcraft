@@ -1,5 +1,16 @@
 /**
- * Signal detection utilities
+ * Signal detection and pattern recognition
+ *
+ * **Cross signals**: Golden/Dead cross detection with quality validation
+ * **Divergence**: RSI, MACD, OBV divergence detection (bullish/bearish)
+ * **Bollinger Squeeze**: Volatility contraction signals
+ * **Perfect Order**: Multi-MA alignment detection (bullish/bearish)
+ * **Range-Bound**: Detect consolidation zones and breakout risk
+ * **Volume signals**: Volume breakout, accumulation, MA cross
+ * **Candlestick patterns**: 20+ single/double/triple candle patterns
+ * **Price patterns**: Double top/bottom, head & shoulders, cup with handle
+ * **Signal lifecycle**: Cooldown, debounce, expiry management
+ * **Trade signal converters**: Convert any signal to unified TradeSignal format
  */
 
 export {

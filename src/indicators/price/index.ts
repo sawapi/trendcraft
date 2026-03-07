@@ -1,3 +1,22 @@
+/**
+ * Price-derived indicators — structural analysis of price action
+ *
+ * - **Highest/Lowest**: N-period high/low values
+ * - **Returns**: Simple and cumulative returns
+ * - **Pivot Points**: Support/resistance from prior period OHLC
+ * - **Swing Points**: Local highs and lows for structure analysis
+ * - **BOS/CHoCH**: Break of Structure / Change of Character (SMC)
+ * - **Fair Value Gap (FVG)**: Imbalance zones in price action
+ * - **Fibonacci Retracement/Extension**: Key retracement and extension levels
+ * - **Auto Trend Line**: Automatically detected trend lines
+ * - **Channel Line**: Parallel channel detection
+ * - **Andrews Pitchfork**: Median line channel tool
+ * - **Heikin-Ashi**: Smoothed candlestick representation
+ * - **Fractals**: Williams fractals for reversal points
+ * - **Zigzag**: Significant price movements filter
+ *
+ * @module
+ */
 export { highestLowest, highest, lowest } from "./highest-lowest";
 export type { HighestLowestValue } from "./highest-lowest";
 export { returns, cumulativeReturns } from "./returns";

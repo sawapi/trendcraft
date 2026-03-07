@@ -19,6 +19,22 @@ import {
 
 /**
  * Detect all double-candle patterns ending at the given index
+ *
+ * Detects: Bullish/Bearish Engulfing, Bullish/Bearish Harami,
+ * Tweezer Top/Bottom, Piercing Line, Dark Cloud Cover.
+ *
+ * @example
+ * ```ts
+ * import { candlestickPatterns, normalizeCandles } from "trendcraft";
+ *
+ * const candles = normalizeCandles(rawCandles);
+ * const patterns = candlestickPatterns(candles, { patterns: ["bullish_engulfing", "bearish_engulfing"] });
+ * for (const p of patterns) {
+ *   if (p.value.patterns.length > 0) {
+ *     console.log(p.time, p.value.patterns[0].name, p.value.patterns[0].direction);
+ *   }
+ * }
+ * ```
  */
 export function detectDoublePatterns(
   candles: NormalizedCandle[],

@@ -19,6 +19,19 @@ import {
 
 /**
  * Detect all triple-candle patterns ending at the given index
+ *
+ * Detects: Morning/Evening Star, Three White Soldiers / Three Black Crows,
+ * Three Inside Up / Three Inside Down.
+ *
+ * @example
+ * ```ts
+ * import { candlestickPatterns, normalizeCandles } from "trendcraft";
+ *
+ * const candles = normalizeCandles(rawCandles);
+ * const patterns = candlestickPatterns(candles, { patterns: ["morning_star", "evening_star"] });
+ * const stars = patterns.filter(p => p.value.patterns.length > 0);
+ * console.log(`Found ${stars.length} star patterns`);
+ * ```
  */
 export function detectTriplePatterns(
   candles: NormalizedCandle[],

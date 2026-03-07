@@ -12,6 +12,14 @@ import type { PresetCondition } from "../../types";
 /**
  * Volume above average (strong volume)
  * @param multiplier How many times the average (default: 1.5)
+ * @example
+ * ```ts
+ * import { runBacktest, and, goldenCrossCondition, volumeAboveAvg, deadCrossCondition } from "trendcraft";
+ *
+ * // Golden cross confirmed by above-average volume
+ * const entry = and(goldenCrossCondition(), volumeAboveAvg(1.5));
+ * const result = runBacktest(candles, entry, deadCrossCondition(), { capital: 1_000_000 });
+ * ```
  */
 export function volumeAboveAvg(multiplier = 1.5, period = 20): PresetCondition {
   const cacheKey = `volMa_${period}`;

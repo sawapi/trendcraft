@@ -12,6 +12,15 @@ import { ScoreBuilder } from "./builder";
  *
  * Focuses on RSI, MACD, and Stochastics for momentum-based entries.
  * Best for swing trading with mean reversion or breakout strategies.
+ * @example
+ * ```ts
+ * import { createMomentumPreset, calculateScore, normalizeCandles } from "trendcraft";
+ *
+ * const config = createMomentumPreset();
+ * const candles = normalizeCandles(rawCandles);
+ * const score = calculateScore(candles, candles.length - 1, config);
+ * console.log(score.totalScore, score.strength); // e.g. 72, "strong"
+ * ```
  */
 export function createMomentumPreset(): ScoringConfig {
   return ScoreBuilder.create()
@@ -29,6 +38,14 @@ export function createMomentumPreset(): ScoringConfig {
  *
  * Focuses on oversold conditions for buying dips.
  * Includes multiple oversold indicators for confirmation.
+ * @example
+ * ```ts
+ * import { createMeanReversionPreset, calculateScore } from "trendcraft";
+ *
+ * const config = createMeanReversionPreset();
+ * const score = calculateScore(candles, candles.length - 1, config);
+ * if (score.strength === "strong") console.log("buy signal");
+ * ```
  */
 export function createMeanReversionPreset(): ScoringConfig {
   return ScoreBuilder.create()
@@ -47,6 +64,15 @@ export function createMeanReversionPreset(): ScoringConfig {
  *
  * Focuses on Perfect Order and trend confirmation signals.
  * Best for swing trading in established trends.
+ * @example
+ * ```ts
+ * import { createTrendFollowingPreset, calculateScoreSeries } from "trendcraft";
+ *
+ * const config = createTrendFollowingPreset();
+ * const series = calculateScoreSeries(candles, config);
+ * const latest = series[series.length - 1];
+ * console.log(latest.value.totalScore, latest.value.strength);
+ * ```
  */
 export function createTrendFollowingPreset(): ScoringConfig {
   return ScoreBuilder.create()
@@ -66,6 +92,14 @@ export function createTrendFollowingPreset(): ScoringConfig {
  *
  * Combines momentum, trend, and volume signals for a balanced approach.
  * Good general-purpose strategy.
+ * @example
+ * ```ts
+ * import { createBalancedPreset, calculateScore } from "trendcraft";
+ *
+ * const config = createBalancedPreset();
+ * const score = calculateScore(candles, candles.length - 1, config);
+ * console.log(score.totalScore); // 0-100
+ * ```
  */
 export function createBalancedPreset(): ScoringConfig {
   return (
@@ -92,6 +126,14 @@ export function createBalancedPreset(): ScoringConfig {
  *
  * Lower thresholds for more frequent signals.
  * Higher risk, higher potential reward.
+ * @example
+ * ```ts
+ * import { createAggressivePreset, calculateScore } from "trendcraft";
+ *
+ * const config = createAggressivePreset();
+ * const score = calculateScore(candles, candles.length - 1, config);
+ * // Lower thresholds: strong >= 60, moderate >= 40, weak >= 25
+ * ```
  */
 export function createAggressivePreset(): ScoringConfig {
   return ScoreBuilder.create()
@@ -109,6 +151,14 @@ export function createAggressivePreset(): ScoringConfig {
  *
  * Higher thresholds and more confirmations required.
  * Lower risk, fewer but higher quality signals.
+ * @example
+ * ```ts
+ * import { createConservativePreset, calculateScore } from "trendcraft";
+ *
+ * const config = createConservativePreset();
+ * const score = calculateScore(candles, candles.length - 1, config);
+ * // Higher thresholds: strong >= 80, moderate >= 60, weak >= 40
+ * ```
  */
 export function createConservativePreset(): ScoringConfig {
   return ScoreBuilder.create()
@@ -124,6 +174,13 @@ export function createConservativePreset(): ScoringConfig {
 
 /**
  * Get preset configuration by name
+ * @example
+ * ```ts
+ * import { getPreset, calculateScore } from "trendcraft";
+ *
+ * const config = getPreset("momentum");
+ * const score = calculateScore(candles, candles.length - 1, config);
+ * ```
  */
 export function getPreset(name: ScoringPreset): ScoringConfig {
   switch (name) {
@@ -146,6 +203,13 @@ export function getPreset(name: ScoringPreset): ScoringConfig {
 
 /**
  * List all available preset names
+ * @example
+ * ```ts
+ * import { listPresets } from "trendcraft";
+ *
+ * console.log(listPresets());
+ * // ["momentum", "meanReversion", "trendFollowing", "balanced", "aggressive", "conservative"]
+ * ```
  */
 export function listPresets(): ScoringPreset[] {
   return ["momentum", "meanReversion", "trendFollowing", "balanced", "aggressive", "conservative"];

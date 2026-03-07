@@ -553,6 +553,20 @@ Both CLI tools support these preset conditions:
 | Volatility | `atrPercentAbove2_3`, `atrPercentAbove3` |
 | Volatility Regime | `regimeIs('low')`, `regimeNot('high')`, `volatilityAbove(70)`, `volatilityBelow(30)` |
 
+## Cookbook
+
+See [Cookbook](./docs/COOKBOOK.md) for practical recipes including:
+- Golden Cross + RSI backtest
+- Trend following with ADX + volume
+- Mean reversion with Bollinger Bands
+- Multi-timeframe strategies
+- ATR risk management + position sizing
+- Parameter optimization with walk-forward validation
+- Real-time streaming pipelines
+- Scoring-based entry strategies
+- Stock screening
+- Scaled entry with partial take profit
+
 ## API Reference
 
 See [API Documentation](./docs/API.md) for detailed API reference.

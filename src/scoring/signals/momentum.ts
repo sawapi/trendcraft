@@ -15,6 +15,14 @@ import type { NormalizedCandle, PrecomputedIndicators, SignalDefinition } from "
  *
  * @param threshold - RSI oversold threshold (default: 30)
  * @param period - RSI period (default: 14)
+ * @example
+ * ```ts
+ * import { ScoreBuilder, createRsiOversoldEvaluator } from "trendcraft";
+ *
+ * const config = ScoreBuilder.create()
+ *   .addSignal({ name: "rsiOS", weight: 2.0, evaluate: createRsiOversoldEvaluator(25) })
+ *   .build();
+ * ```
  */
 export function createRsiOversoldEvaluator(
   threshold = 30,
@@ -130,6 +138,14 @@ export function createRsiNeutralEvaluator(
  * Create MACD bullish crossover signal evaluator
  *
  * Returns 1 when MACD line crosses above signal line.
+ * @example
+ * ```ts
+ * import { ScoreBuilder, createMacdBullishEvaluator } from "trendcraft";
+ *
+ * const config = ScoreBuilder.create()
+ *   .addSignal({ name: "macdBull", weight: 1.5, evaluate: createMacdBullishEvaluator() })
+ *   .build();
+ * ```
  */
 export function createMacdBullishEvaluator(
   fastPeriod = 12,
@@ -242,6 +258,14 @@ export function createMacdBearishEvaluator(
  * @param threshold - Oversold threshold (default: 20)
  * @param kPeriod - %K period (default: 14)
  * @param dPeriod - %D period (default: 3)
+ * @example
+ * ```ts
+ * import { ScoreBuilder, createStochOversoldEvaluator } from "trendcraft";
+ *
+ * const config = ScoreBuilder.create()
+ *   .addSignal({ name: "stochOS", weight: 2.0, evaluate: createStochOversoldEvaluator(20) })
+ *   .build();
+ * ```
  */
 export function createStochOversoldEvaluator(
   threshold = 20,
@@ -338,6 +362,14 @@ export function createStochOverboughtEvaluator(
  * Create Stochastics bullish crossover evaluator
  *
  * Returns 1 when %K crosses above %D in oversold territory.
+ * @example
+ * ```ts
+ * import { ScoreBuilder, createStochBullishCrossEvaluator } from "trendcraft";
+ *
+ * const config = ScoreBuilder.create()
+ *   .addSignal({ name: "stochCross", weight: 2.5, evaluate: createStochBullishCrossEvaluator(20) })
+ *   .build();
+ * ```
  */
 export function createStochBullishCrossEvaluator(
   oversoldThreshold = 20,

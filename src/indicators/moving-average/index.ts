@@ -1,3 +1,15 @@
+/**
+ * Moving Average indicators — smooth price data to identify trends
+ *
+ * - **SMA**: Simple Moving Average — equal-weighted mean over N periods
+ * - **EMA**: Exponential Moving Average — more weight on recent prices
+ * - **WMA**: Weighted Moving Average — linearly weighted
+ * - **VWMA**: Volume-Weighted Moving Average — weighted by volume
+ * - **KAMA**: Kaufman Adaptive MA — adjusts speed to market noise
+ * - **T3**: Tillson T3 — ultra-smooth, low-lag triple EMA
+ *
+ * @module
+ */
 export { sma } from "./sma";
 export { ema } from "./ema";
 export { wma } from "./wma";

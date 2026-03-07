@@ -60,6 +60,19 @@ export type MtfBacktestOptions = BacktestOptions & {
  * @param exitCondition - Exit condition
  * @param options - Backtest options
  * @param cache - Optional IndicatorCache for sharing indicator computations across backtests
+ * @example
+ * ```ts
+ * import { runBacktest, goldenCrossCondition, deadCrossCondition, normalizeCandles } from "trendcraft";
+ *
+ * const candles = normalizeCandles(rawCandles);
+ * const result = runBacktest(
+ *   candles,
+ *   goldenCrossCondition(5, 25),   // entry: golden cross
+ *   deadCrossCondition(5, 25),     // exit: dead cross
+ *   { capital: 1_000_000, stopLoss: 5, takeProfit: 10 },
+ * );
+ * console.log(result.totalReturnPercent, result.winRate, result.tradeCount);
+ * ```
  */
 export function runBacktest(
   candles: NormalizedCandle[],
