@@ -12,14 +12,7 @@ export type ValidationFinding = {
   /** Severity level */
   severity: ValidationSeverity;
   /** Finding category */
-  category:
-    | "gap"
-    | "duplicate"
-    | "ohlc"
-    | "spike"
-    | "volume"
-    | "stale"
-    | "split";
+  category: "gap" | "duplicate" | "ohlc" | "spike" | "volume" | "stale" | "split";
   /** Human-readable message */
   message: string;
   /** Index in the candle array */

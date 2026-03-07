@@ -17,11 +17,7 @@ export type AgentManagerOptions = {
 };
 
 export type AgentManager = {
-  addAgent(
-    strategy: StrategyDefinition,
-    symbol: string,
-    warmUp?: NormalizedCandle[],
-  ): Agent;
+  addAgent(strategy: StrategyDefinition, symbol: string, warmUp?: NormalizedCandle[]): Agent;
   removeAgent(agentId: string): void;
   onTrade(symbol: string, trade: streaming.Trade): OrderIntent[];
   closeAll(): OrderIntent[];
@@ -29,15 +25,10 @@ export type AgentManager = {
   getAgent(agentId: string): Agent | undefined;
   getSymbols(): string[];
   getAllStates(): AgentState[];
-  restoreStates(
-    states: AgentState[],
-    strategies: Map<string, StrategyDefinition>,
-  ): void;
+  restoreStates(states: AgentState[], strategies: Map<string, StrategyDefinition>): void;
 };
 
-export function createAgentManager(
-  opts?: AgentManagerOptions,
-): AgentManager {
+export function createAgentManager(opts?: AgentManagerOptions): AgentManager {
   const agents = new Map<string, Agent>();
   const symbolAgents = new Map<string, Set<string>>();
 
@@ -121,9 +112,7 @@ export function createAgentManager(
       for (const state of states) {
         const strategy = strategies.get(state.strategyId);
         if (!strategy) {
-          console.warn(
-            `Strategy "${state.strategyId}" not found, skipping agent ${state.id}`,
-          );
+          console.warn(`Strategy "${state.strategyId}" not found, skipping agent ${state.id}`);
           continue;
         }
         const agent = createAgent(strategy, state.symbol, {

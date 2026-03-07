@@ -5,11 +5,7 @@
  */
 
 import type { NormalizedCandle } from "../types";
-import type {
-  SpikeDetectionOptions,
-  ValidationFinding,
-  VolumeAnomalyOptions,
-} from "./types";
+import type { SpikeDetectionOptions, ValidationFinding, VolumeAnomalyOptions } from "./types";
 
 /**
  * Detect OHLC consistency errors
@@ -27,9 +23,7 @@ import type {
  * const findings = detectOhlcErrors(candles);
  * ```
  */
-export function detectOhlcErrors(
-  candles: NormalizedCandle[],
-): ValidationFinding[] {
+export function detectOhlcErrors(candles: NormalizedCandle[]): ValidationFinding[] {
   const findings: ValidationFinding[] = [];
 
   for (let i = 0; i < candles.length; i++) {
@@ -96,7 +90,7 @@ export function detectPriceSpikes(
     const prev = candles[i - 1].close;
     if (prev === 0) continue;
 
-    const change = Math.abs(candles[i].close - prev) / Math.abs(prev) * 100;
+    const change = (Math.abs(candles[i].close - prev) / Math.abs(prev)) * 100;
 
     if (change > maxChange) {
       findings.push({

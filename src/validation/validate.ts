@@ -8,11 +8,7 @@ import type { Candle, NormalizedCandle } from "../types";
 import { isNormalized, normalizeCandles } from "../core/normalize";
 import { detectDuplicates, removeDuplicates } from "./duplicate-detection";
 import { detectGaps } from "./gap-detection";
-import {
-  detectOhlcErrors,
-  detectPriceSpikes,
-  detectVolumeAnomalies,
-} from "./outlier-detection";
+import { detectOhlcErrors, detectPriceSpikes, detectVolumeAnomalies } from "./outlier-detection";
 import { detectSplitHints } from "./split-detection";
 import { detectStaleData } from "./stale-detection";
 import type {
@@ -48,9 +44,7 @@ export function validateCandles(
   candles: Candle[] | NormalizedCandle[],
   options?: ValidationOptions,
 ): ValidationResult {
-  const normalized = isNormalized(candles)
-    ? candles
-    : normalizeCandles(candles);
+  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
 
   const opts: ValidationOptions = options ?? {};
   const findings: ValidationFinding[] = [];
@@ -82,9 +76,7 @@ export function validateCandles(
   // Volume anomalies (default: true)
   if (opts.volumeAnomalies !== false) {
     const volOpts: VolumeAnomalyOptions | undefined =
-      typeof opts.volumeAnomalies === "object"
-        ? opts.volumeAnomalies
-        : undefined;
+      typeof opts.volumeAnomalies === "object" ? opts.volumeAnomalies : undefined;
     findings.push(...detectVolumeAnomalies(normalized, volOpts));
   }
 

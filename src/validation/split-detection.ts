@@ -43,9 +43,7 @@ const RATIO_TOLERANCE = 0.05;
  * // findings: [{ severity: "info", category: "split", message: "Possible 2:1 split ..." }]
  * ```
  */
-export function detectSplitHints(
-  candles: NormalizedCandle[],
-): ValidationFinding[] {
+export function detectSplitHints(candles: NormalizedCandle[]): ValidationFinding[] {
   if (candles.length < 2) return [];
 
   const findings: ValidationFinding[] = [];

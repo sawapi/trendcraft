@@ -20,9 +20,7 @@ import type { ValidationFinding } from "./types";
  * // findings: [{ severity: "error", category: "duplicate", ... }]
  * ```
  */
-export function detectDuplicates(
-  candles: NormalizedCandle[],
-): ValidationFinding[] {
+export function detectDuplicates(candles: NormalizedCandle[]): ValidationFinding[] {
   const seen = new Map<number, number>(); // time -> first index
   const findings: ValidationFinding[] = [];
 
@@ -58,9 +56,7 @@ export function detectDuplicates(
  * // Duplicates removed, last value for each timestamp kept
  * ```
  */
-export function removeDuplicates(
-  candles: NormalizedCandle[],
-): NormalizedCandle[] {
+export function removeDuplicates(candles: NormalizedCandle[]): NormalizedCandle[] {
   const map = new Map<number, NormalizedCandle>();
 
   for (const candle of candles) {
