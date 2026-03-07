@@ -12,21 +12,7 @@
  */
 
 import type { StreamingPresetCondition, IndicatorSnapshot } from "./types";
-
-/**
- * Helper to safely extract a number from the snapshot
- */
-function getNumber(snapshot: IndicatorSnapshot, key: string): number | null {
-  const val = snapshot[key];
-  return typeof val === "number" ? val : null;
-}
-
-/**
- * Helper to safely extract a boolean from the snapshot
- */
-function getBoolean(snapshot: IndicatorSnapshot, key: string): boolean {
-  return snapshot[key] === true;
-}
+import { getNumber, getField } from "../snapshot-utils";
 
 /**
  * Condition: RSI is below a threshold
@@ -78,6 +64,7 @@ export function rsiAbove(threshold: number, key = "rsi"): StreamingPresetConditi
  * Requires a boolean signal key in the snapshot (typically set by a
  * CrossDetector in the pipeline signal configuration).
  *
+ * @deprecated Use `crossOver("sma20", "sma50")` from `cross.ts` instead.
  * @param key - Snapshot key for golden cross signal (default: "goldenCross")
  *
  * @example
@@ -89,13 +76,14 @@ export function smaGoldenCross(key = "goldenCross"): StreamingPresetCondition {
   return {
     type: "preset",
     name: "smaGoldenCross",
-    evaluate: (snapshot) => getBoolean(snapshot, key),
+    evaluate: (snapshot) => snapshot[key] === true,
   };
 }
 
 /**
  * Condition: Short SMA crosses below long SMA (dead cross)
  *
+ * @deprecated Use `crossUnder("sma20", "sma50")` from `cross.ts` instead.
  * @param key - Snapshot key for dead cross signal (default: "deadCross")
  *
  * @example
@@ -107,7 +95,7 @@ export function smaDeadCross(key = "deadCross"): StreamingPresetCondition {
   return {
     type: "preset",
     name: "smaDeadCross",
-    evaluate: (snapshot) => getBoolean(snapshot, key),
+    evaluate: (snapshot) => snapshot[key] === true,
   };
 }
 
@@ -126,12 +114,8 @@ export function macdPositive(key = "macd"): StreamingPresetCondition {
     type: "preset",
     name: "macdPositive",
     evaluate: (snapshot) => {
-      const macd = snapshot[key];
-      if (macd && typeof macd === "object" && "histogram" in macd) {
-        const hist = (macd as { histogram: number | null }).histogram;
-        return hist !== null && hist > 0;
-      }
-      return false;
+      const hist = getField(snapshot, key, "histogram");
+      return hist !== null && hist > 0;
     },
   };
 }
@@ -151,12 +135,8 @@ export function macdNegative(key = "macd"): StreamingPresetCondition {
     type: "preset",
     name: "macdNegative",
     evaluate: (snapshot) => {
-      const macd = snapshot[key];
-      if (macd && typeof macd === "object" && "histogram" in macd) {
-        const hist = (macd as { histogram: number | null }).histogram;
-        return hist !== null && hist < 0;
-      }
-      return false;
+      const hist = getField(snapshot, key, "histogram");
+      return hist !== null && hist < 0;
     },
   };
 }
@@ -243,6 +223,56 @@ export function indicatorBelow(indicatorKey: string, threshold: number): Streami
     evaluate: (snapshot) => {
       const val = getNumber(snapshot, indicatorKey);
       return val !== null && val < threshold;
+    },
+  };
+}
+
+/**
+ * Condition: DMI Bullish — +DI > -DI and ADX >= threshold
+ *
+ * @param threshold - Minimum ADX for trend strength (default: 25)
+ * @param key - Snapshot key for DMI value (default: "dmi")
+ *
+ * @example
+ * ```ts
+ * const bullishTrend = dmiBullish(25);
+ * ```
+ */
+export function dmiBullish(threshold = 25, key = "dmi"): StreamingPresetCondition {
+  return {
+    type: "preset",
+    name: `dmiBullish(ADX>=${threshold})`,
+    evaluate: (snapshot) => {
+      const plusDi = getField(snapshot, key, "plusDi");
+      const minusDi = getField(snapshot, key, "minusDi");
+      const adx = getField(snapshot, key, "adx");
+      if (plusDi == null || minusDi == null || adx == null) return false;
+      return plusDi > minusDi && adx >= threshold;
+    },
+  };
+}
+
+/**
+ * Condition: DMI Bearish — -DI > +DI and ADX >= threshold
+ *
+ * @param threshold - Minimum ADX for trend strength (default: 25)
+ * @param key - Snapshot key for DMI value (default: "dmi")
+ *
+ * @example
+ * ```ts
+ * const bearishTrend = dmiBearish(25);
+ * ```
+ */
+export function dmiBearish(threshold = 25, key = "dmi"): StreamingPresetCondition {
+  return {
+    type: "preset",
+    name: `dmiBearish(ADX>=${threshold})`,
+    evaluate: (snapshot) => {
+      const plusDi = getField(snapshot, key, "plusDi");
+      const minusDi = getField(snapshot, key, "minusDi");
+      const adx = getField(snapshot, key, "adx");
+      if (plusDi == null || minusDi == null || adx == null) return false;
+      return minusDi > plusDi && adx >= threshold;
     },
   };
 }

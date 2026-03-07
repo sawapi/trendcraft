@@ -75,7 +75,15 @@ export {
   priceBelow,
   indicatorAbove,
   indicatorBelow,
+  dmiBullish,
+  dmiBearish,
+  getNumber,
+  getField,
+  resolveNumber,
+  crossOver,
+  crossUnder,
 } from "./conditions";
+export type { ValueExtractor } from "./conditions";
 
 // Phase 3: Pipeline & MTF
 export { createPipeline } from "./pipeline";

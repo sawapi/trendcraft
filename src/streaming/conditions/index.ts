@@ -25,4 +25,10 @@ export {
   priceBelow,
   indicatorAbove,
   indicatorBelow,
+  dmiBullish,
+  dmiBearish,
 } from "./presets";
+
+export { getNumber, getField, resolveNumber } from "../snapshot-utils";
+export { crossOver, crossUnder } from "./cross";
+export type { ValueExtractor } from "./cross";
