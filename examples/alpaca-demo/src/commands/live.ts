@@ -4,6 +4,8 @@
  * Start live paper trading with one or more agents.
  */
 
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
+import { resolve } from "node:path";
 import { loadEnv } from "../config/env.js";
 import { DEFAULT_SYMBOLS } from "../config/symbols.js";
 import {
@@ -12,17 +14,24 @@ import {
   loadCustomStrategiesFromTemplates,
   applyStrategyOverrides,
 } from "../strategy/registry.js";
-import { fetchHistoricalBars, monthsAgo, today } from "../alpaca/historical.js";
+import { monthsAgo, today } from "../alpaca/historical.js";
+import { fetchCachedBars } from "../alpaca/cache.js";
 import { createAlpacaClient } from "../alpaca/client.js";
 import { createAlpacaWebSocket } from "../alpaca/websocket.js";
 import { createAgentManager } from "../agent/manager.js";
 import { createPaperExecutor } from "../executor/paper-executor.js";
 import { createDryRunExecutor } from "../executor/dry-run-executor.js";
+import { reconcilePositions, formatReconciliation } from "../executor/reconciler.js";
 import { createStateStore } from "../persistence/store.js";
 import { getLeaderboard, formatLiveLeaderboard, evaluateAgent } from "../tracker/leaderboard.js";
 import { loadOverrides, loadCustomStrategies } from "../review/applier.js";
 import type { StrategyDefinition } from "../strategy/types.js";
 import type { OrderExecutor } from "../executor/types.js";
+
+const DATA_DIR = resolve(import.meta.dirname, "../../data");
+const HEARTBEAT_PATH = resolve(DATA_DIR, "heartbeat.json");
+const HEARTBEAT_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+const STALE_HEARTBEAT_MS = 10 * 60 * 1000; // 10 minutes
 
 export type LiveCommandOptions = {
   strategy?: string;
@@ -33,9 +42,48 @@ export type LiveCommandOptions = {
   capital?: string;
 };
 
+function writeHeartbeat(): void {
+  mkdirSync(DATA_DIR, { recursive: true });
+  writeFileSync(
+    HEARTBEAT_PATH,
+    JSON.stringify({ pid: process.pid, time: Date.now() }),
+    "utf-8",
+  );
+}
+
+function checkStaleHeartbeat(): { stale: boolean; lastTime?: number } {
+  if (!existsSync(HEARTBEAT_PATH)) return { stale: false };
+  try {
+    const data = JSON.parse(readFileSync(HEARTBEAT_PATH, "utf-8"));
+    const age = Date.now() - data.time;
+    if (age > STALE_HEARTBEAT_MS) {
+      return { stale: true, lastTime: data.time };
+    }
+  } catch {
+    // Corrupted heartbeat file
+  }
+  return { stale: false };
+}
+
 export async function liveCommand(opts: LiveCommandOptions): Promise<void> {
   const env = loadEnv();
   const capital = parseInt(opts.capital ?? "100000", 10);
+  const client = createAlpacaClient(env);
+
+  // Dead-man's switch: check for stale heartbeat from crashed process
+  const heartbeat = checkStaleHeartbeat();
+  if (heartbeat.stale) {
+    console.warn(
+      `[RECOVERY] Stale heartbeat detected (last: ${new Date(heartbeat.lastTime!).toISOString()})`,
+    );
+    console.warn("[RECOVERY] Closing all positions from previous session...");
+    try {
+      await client.closeAllPositions();
+      console.warn("[RECOVERY] All positions closed.");
+    } catch (err) {
+      console.error("[RECOVERY] Failed to close positions:", err);
+    }
+  }
 
   // Load strategy overrides and custom strategies
   const overrides = loadOverrides();
@@ -79,7 +127,6 @@ export async function liveCommand(opts: LiveCommandOptions): Promise<void> {
       : DEFAULT_SYMBOLS.slice(0, 2); // Default to first 2 symbols for live
 
   // Create executor
-  const client = createAlpacaClient(env);
   const executor: OrderExecutor = opts.dryRun
     ? createDryRunExecutor()
     : createPaperExecutor(client);
@@ -115,7 +162,7 @@ export async function liveCommand(opts: LiveCommandOptions): Promise<void> {
 
       // Fetch warm-up data (200 bars of 1-minute candles)
       console.log(`Fetching warm-up data for ${strategy.id}:${symbol}...`);
-      const warmUp = await fetchHistoricalBars(env, {
+      const warmUp = await fetchCachedBars(env, {
         symbol,
         timeframe: "1Min",
         start: monthsAgo(1),
@@ -149,6 +196,11 @@ export async function liveCommand(opts: LiveCommandOptions): Promise<void> {
   // Periodic tasks
   const STATE_SAVE_INTERVAL = 5 * 60 * 1000; // 5 min
   const LEADERBOARD_INTERVAL = 60 * 60 * 1000; // 1 hour
+  const RECONCILE_INTERVAL = 15 * 60 * 1000; // 15 min
+
+  // Start heartbeat
+  writeHeartbeat();
+  const heartbeatTimer = setInterval(writeHeartbeat, HEARTBEAT_INTERVAL_MS);
 
   const saveTimer = setInterval(() => {
     store.save(manager.getAllStates());
@@ -170,12 +222,28 @@ export async function liveCommand(opts: LiveCommandOptions): Promise<void> {
     }
   }, LEADERBOARD_INTERVAL);
 
+  // Position reconciliation (skip in dry-run mode)
+  const reconcileTimer = opts.dryRun
+    ? null
+    : setInterval(async () => {
+        try {
+          const result = await reconcilePositions(client, manager);
+          if (result.discrepancies.length > 0 || result.orphanedPositions.length > 0) {
+            console.warn(formatReconciliation(result));
+          }
+        } catch (err) {
+          console.error("[RECONCILE] Error:", err);
+        }
+      }, RECONCILE_INTERVAL);
+
   // Graceful shutdown
   async function shutdown(): Promise<void> {
     console.log("\nShutting down...");
 
     clearInterval(saveTimer);
     clearInterval(leaderboardTimer);
+    clearInterval(heartbeatTimer);
+    if (reconcileTimer) clearInterval(reconcileTimer);
 
     // Close all positions
     const closeIntents = manager.closeAll();
@@ -199,6 +267,20 @@ export async function liveCommand(opts: LiveCommandOptions): Promise<void> {
   });
   process.on("SIGTERM", () => {
     shutdown();
+  });
+
+  // Emergency handlers: save state and close positions on crash
+  process.on("uncaughtException", (err) => {
+    console.error("[CRASH] Uncaught exception:", err);
+    store.save(manager.getAllStates());
+    if (!opts.dryRun) {
+      client.closeAllPositions().catch(() => {});
+    }
+    process.exit(1);
+  });
+  process.on("unhandledRejection", (reason) => {
+    console.error("[CRASH] Unhandled rejection:", reason);
+    store.save(manager.getAllStates());
   });
 
   console.log("\nListening for trades... (Ctrl+C to stop)\n");

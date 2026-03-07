@@ -47,6 +47,8 @@ export const rsiMeanReversion: StrategyDefinition = {
     slippage: 0.05,
   },
 
+  signalLifecycle: { cooldown: { bars: 3 } },
+
   backtestAdapter: {
     entryCondition: backtestRsiBelow(30),
     exitCondition: backtestRsiAbove(70),

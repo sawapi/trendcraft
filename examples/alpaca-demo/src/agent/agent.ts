@@ -48,6 +48,20 @@ export function createAgent(
 
   let dailyPnlAccumulator = opts?.fromState?.metrics.dailyPnl ?? 0;
 
+  // Signal lifecycle state
+  const lifecycle = strategy.signalLifecycle;
+  let barsSinceLastTrade = Infinity;
+  let consecutiveEntryBars = 0;
+  let lastBarTime = 0;
+
+  function isNewBar(time: number): boolean {
+    if (time - lastBarTime >= strategy.intervalMs) {
+      lastBarTime = time;
+      return true;
+    }
+    return false;
+  }
+
   function eventsToIntents(events: streaming.ManagedEvent[]): OrderIntent[] {
     const intents: OrderIntent[] = [];
 
@@ -145,8 +159,50 @@ export function createAgent(
     },
 
     feedTrade(trade: streaming.Trade) {
+      const newBar = isNewBar(trade.time);
       const events = session.onTrade(trade);
-      const intents = eventsToIntents(events);
+      let intents = eventsToIntents(events);
+
+      if (newBar) {
+        barsSinceLastTrade++;
+      }
+
+      if (lifecycle && intents.length > 0) {
+        const filtered: OrderIntent[] = [];
+        for (const intent of intents) {
+          // Always allow exit intents (stop-loss, take-profit, trailing-stop, exit)
+          if (intent.reason !== "entry") {
+            filtered.push(intent);
+            continue;
+          }
+
+          // Cooldown: suppress entry if too recent
+          if (lifecycle.cooldown?.bars && barsSinceLastTrade < lifecycle.cooldown.bars) {
+            continue;
+          }
+
+          // Debounce: require consecutive bars with entry signals
+          if (lifecycle.debounce?.bars) {
+            if (newBar) {
+              consecutiveEntryBars++;
+            }
+            if (consecutiveEntryBars < lifecycle.debounce.bars) {
+              continue;
+            }
+            consecutiveEntryBars = 0;
+          }
+
+          filtered.push(intent);
+        }
+        intents = filtered;
+      }
+
+      // Track entry execution for cooldown
+      if (intents.some((i) => i.reason === "entry")) {
+        barsSinceLastTrade = 0;
+        consecutiveEntryBars = 0;
+      }
+
       return { events, intents };
     },
 

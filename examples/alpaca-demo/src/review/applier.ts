@@ -12,6 +12,7 @@ import { resolve, dirname } from "node:path";
 import { mkdirSync } from "node:fs";
 import { runBacktest, type NormalizedCandle } from "trendcraft";
 import { scoreResult } from "../backtest/scorer.js";
+import { runWalkForwardValidation, runMonteCarloValidation } from "../backtest/runner.js";
 import { compileTemplate } from "../strategy/compiler.js";
 import type {
   LLMAction,
@@ -22,9 +23,11 @@ import type {
   AppliedAction,
   RejectedAction,
 } from "./types.js";
-import type {
-  ParameterOverride,
-  StrategyTemplate,
+import {
+  type ParameterOverride,
+  type StrategyTemplate,
+  getPresetTemplate,
+  applyOverrides as applyTemplateOverrides,
 } from "../strategy/template.js";
 import type { AgentState } from "../agent/types.js";
 
@@ -57,7 +60,11 @@ export async function applyActions(
     try {
       const result = await applyAction(action, backtestCandles, minBacktestScore);
       if (result.ok) {
-        applied.push({ action, backtestScore: result.backtestScore });
+        applied.push({
+          action,
+          backtestScore: result.backtestScore,
+          wfaEfficiency: result.wfaEfficiency,
+        });
       } else {
         rejected.push({ action, reason: result.reason! });
       }
@@ -73,7 +80,7 @@ export async function applyActions(
 }
 
 type ActionResult =
-  | { ok: true; backtestScore?: number }
+  | { ok: true; backtestScore?: number; wfaEfficiency?: number }
   | { ok: false; reason: string };
 
 async function applyAction(
@@ -83,7 +90,7 @@ async function applyAction(
 ): Promise<ActionResult> {
   switch (action.action) {
     case "adjust_params":
-      return applyAdjustParams(action);
+      return applyAdjustParams(action, backtestCandles);
     case "kill_agent":
       return applyKillAgent(action);
     case "revive_agent":
@@ -95,7 +102,10 @@ async function applyAction(
   }
 }
 
-function applyAdjustParams(action: AdjustParamsAction): ActionResult {
+function applyAdjustParams(
+  action: AdjustParamsAction,
+  backtestCandles?: NormalizedCandle[],
+): ActionResult {
   ensureDir(DATA_DIR);
 
   const overrides = loadOverrides();
@@ -127,6 +137,32 @@ function applyAdjustParams(action: AdjustParamsAction): ActionResult {
     };
   } else {
     overrides.push(override);
+  }
+
+  // Walk-Forward gate for logic changes (indicators, entry, exit)
+  const hasLogicChanges =
+    action.changes.indicators || action.changes.entry || action.changes.exit;
+
+  if (hasLogicChanges && backtestCandles && backtestCandles.length > 0) {
+    const baseTemplate = getPresetTemplate(action.strategyId);
+    if (baseTemplate) {
+      const modified = applyTemplateOverrides(baseTemplate, override);
+      const compiled = compileTemplate(modified);
+      if (compiled.ok) {
+        const wfa = runWalkForwardValidation(
+          compiled.strategy,
+          backtestCandles,
+          modified.position.capital,
+        );
+        if (!wfa.passed) {
+          return {
+            ok: false,
+            reason: `Walk-Forward validation failed for adjust_params: ${wfa.reason}`,
+          };
+        }
+        console.log(`[APPLY] WFA passed for ${action.strategyId}: ${wfa.reason}`);
+      }
+    }
   }
 
   saveOverrides(overrides);
@@ -209,10 +245,15 @@ function applyCreateStrategy(
       capital: template.position.capital,
     });
 
+    // Monte Carlo validation
+    const mcSummary = runMonteCarloValidation(btResult, 500);
+
     const scored = scoreResult(
       template.id,
       template.symbols[0] ?? "TEST",
       btResult,
+      undefined,
+      mcSummary,
     );
 
     if (scored.score < minBacktestScore) {
@@ -222,12 +263,28 @@ function applyCreateStrategy(
       };
     }
 
+    // Walk-Forward validation gate
+    const wfa = runWalkForwardValidation(
+      compiled.strategy,
+      backtestCandles,
+      template.position.capital,
+    );
+
+    if (!wfa.passed) {
+      return {
+        ok: false,
+        reason: `Walk-Forward validation failed: ${wfa.reason}`,
+      };
+    }
+
     // Save the template
     saveCustomStrategy(template);
+    const wfaInfo = wfa.efficiency > 0 ? `, WFA efficiency: ${wfa.efficiency.toFixed(2)}` : "";
+    const mcInfo = mcSummary.isSignificant ? ", MC: significant" : ", MC: not significant";
     console.log(
-      `[APPLY] New strategy "${template.id}" saved (backtest score: ${scored.score.toFixed(1)})`,
+      `[APPLY] New strategy "${template.id}" saved (score: ${scored.score.toFixed(1)}${wfaInfo}${mcInfo})`,
     );
-    return { ok: true, backtestScore: scored.score };
+    return { ok: true, backtestScore: scored.score, wfaEfficiency: wfa.efficiency };
   }
 
   // No backtest data — save but warn

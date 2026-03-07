@@ -109,6 +109,23 @@ Respond with ONLY valid JSON matching this schema:
   "reasoning": "Overall reasoning"
 }
 
+## Signal Lifecycle (new)
+You can set signalLifecycle in strategy templates to control signal filtering:
+- cooldownBars: Suppress same signal for N bars after a trade (reduces whipsaw)
+- debounceBars: Require signal for N consecutive bars before acting
+- expiryBars: Signal expires if not filled within N bars
+
+## Advanced Exit Strategies (new)
+You can set these in the position section:
+- atrTrailingStop: { period, multiplier } — volatility-adaptive trailing stop
+- partialTakeProfit: { threshold, portion } — take partial profits at threshold
+- breakEvenStop: { triggerPercent, offset } — move stop to breakeven after trigger
+
+## Validation Gates
+- **Walk-Forward Analysis**: New strategies and logic changes are validated with out-of-sample testing. OOS Sharpe must be > 0 and WFA efficiency > 0.5 to pass
+- **Monte Carlo**: Backtest results include statistical significance testing. Strategies relying on few lucky trades will be penalized
+- Keep these gates in mind — your proposed changes will be validated automatically
+
 ## Important Guidelines
 - If performance is acceptable, it's OK to return an empty actions array
 - Focus on agents with clear negative trends over multiple days
@@ -146,9 +163,32 @@ export function buildUserMessage(
   if (report.backtestResults && report.backtestResults.length > 0) {
     parts.push("## Backtest Results");
     for (const b of report.backtestResults) {
-      parts.push(`- **${b.strategyId}:${b.symbol}** — Score: ${b.score.toFixed(1)}, Return: ${b.totalReturnPercent.toFixed(2)}%, WR: ${b.winRate.toFixed(1)}%, Sharpe: ${b.sharpeRatio.toFixed(2)}, DD: ${b.maxDrawdown.toFixed(1)}%, PF: ${b.profitFactor === Infinity ? "Inf" : b.profitFactor.toFixed(2)}, Trades: ${b.tradeCount}`);
+      let line = `- **${b.strategyId}:${b.symbol}** — Score: ${b.score.toFixed(1)}, Return: ${b.totalReturnPercent.toFixed(2)}%, WR: ${b.winRate.toFixed(1)}%, Sharpe: ${b.sharpeRatio.toFixed(2)}, DD: ${b.maxDrawdown.toFixed(1)}%, PF: ${b.profitFactor === Infinity ? "Inf" : b.profitFactor.toFixed(2)}, Trades: ${b.tradeCount}`;
+      if (b.monteCarlo) {
+        line += ` | MC: ${b.monteCarlo.isSignificant ? "significant" : "not significant"}, P(ret>0): ${(b.monteCarlo.pReturnPositive * 100).toFixed(0)}%, 5%ile: ${b.monteCarlo.percentile5Return.toFixed(2)}%`;
+      }
+      parts.push(line);
     }
     parts.push("");
+  }
+
+  // Data quality
+  if (report.dataQuality && report.dataQuality.length > 0) {
+    parts.push("## Data Quality");
+    for (const dq of report.dataQuality) {
+      parts.push(`- ${dq.symbol}: ${dq.totalCandles} candles, ${dq.errors} errors, ${dq.warnings} warnings${dq.cleaned ? " (auto-cleaned)" : ""}`);
+    }
+    parts.push("");
+  }
+
+  // Reconciliation
+  if (report.reconciliation) {
+    const rc = report.reconciliation;
+    if (rc.discrepancies > 0 || rc.orphanedPositions > 0) {
+      parts.push("## Position Reconciliation");
+      parts.push(`- Matched: ${rc.matched}, Discrepancies: ${rc.discrepancies}, Orphaned: ${rc.orphanedPositions}`);
+      parts.push("");
+    }
   }
 
   // Agent performance

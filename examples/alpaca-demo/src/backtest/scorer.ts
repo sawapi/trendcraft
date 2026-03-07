@@ -2,9 +2,11 @@
  * Composite scoring for backtest results
  *
  * Combines multiple metrics into a single ranking score.
+ * Includes optional Monte Carlo penalty for statistical robustness.
  */
 
 import type { BacktestResult } from "trendcraft";
+import type { MonteCarloSummary } from "./runner.js";
 
 export type ScoreWeights = {
   sharpe: number;
@@ -34,18 +36,21 @@ export type ScoredResult = {
     profitFactor: number;
     returnPercent: number;
   };
+  monteCarlo?: MonteCarloSummary;
 };
 
 /**
  * Calculate composite score for a backtest result
  *
  * Each metric is normalized to a 0-100 scale, then weighted.
+ * Optional Monte Carlo penalty reduces score if 5th percentile return is negative.
  */
 export function scoreResult(
   strategyId: string,
   symbol: string,
   result: BacktestResult,
   weights: ScoreWeights = DEFAULT_WEIGHTS,
+  monteCarlo?: MonteCarloSummary,
 ): ScoredResult {
   // Normalize Sharpe: 0 = 0, 2+ = 100
   const sharpeNorm = Math.min(Math.max(result.sharpeRatio, 0) / 2, 1) * 100;
@@ -76,12 +81,18 @@ export function scoreResult(
     returnPercent: retNorm,
   };
 
-  const score =
+  let score =
     breakdown.sharpe * weights.sharpe +
     breakdown.winRate * weights.winRate +
     breakdown.drawdown * weights.drawdown +
     breakdown.profitFactor * weights.profitFactor +
     breakdown.returnPercent * weights.returnPercent;
 
-  return { strategyId, symbol, score, result, breakdown };
+  // Monte Carlo penalty: if 5th percentile return is negative, reduce score
+  if (monteCarlo && monteCarlo.percentile5Return < 0) {
+    const penalty = Math.min(Math.abs(monteCarlo.percentile5Return) / 10, 0.3);
+    score *= (1 - penalty);
+  }
+
+  return { strategyId, symbol, score, result, breakdown, monteCarlo };
 }

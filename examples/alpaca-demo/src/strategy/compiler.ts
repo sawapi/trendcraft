@@ -18,6 +18,7 @@ import {
   or as backtestOr,
   type NormalizedCandle,
   type Condition,
+  type SignalManagerOptions,
 } from "trendcraft";
 import type { StrategyDefinition } from "./types.js";
 import type {
@@ -41,6 +42,8 @@ export function compileTemplate(template: StrategyTemplate): CompileResult {
     const pipeline = buildPipeline(template);
     const backtestAdapter = buildBacktestAdapter(template);
 
+    const signalLifecycle = buildSignalLifecycle(template);
+
     const strategy: StrategyDefinition = {
       id: template.id,
       name: template.name,
@@ -56,6 +59,7 @@ export function compileTemplate(template: StrategyTemplate): CompileResult {
         timeGuard: US_MARKET_HOURS,
       },
       position: buildPosition(template),
+      ...(signalLifecycle && { signalLifecycle }),
       backtestAdapter,
     };
 
@@ -213,6 +217,21 @@ function buildBacktestAdapter(template: StrategyTemplate) {
       }),
       ...(template.position.trailingStop !== undefined && {
         trailingStop: template.position.trailingStop,
+      }),
+      ...(template.position.atrTrailingStop && {
+        atrTrailingStop: template.position.atrTrailingStop,
+      }),
+      ...(template.position.partialTakeProfit && {
+        partialTakeProfit: {
+          threshold: template.position.partialTakeProfit.threshold,
+          sellPercent: template.position.partialTakeProfit.portion,
+        },
+      }),
+      ...(template.position.breakEvenStop && {
+        breakevenStop: {
+          threshold: template.position.breakEvenStop.triggerPercent,
+          buffer: template.position.breakEvenStop.offset,
+        },
       }),
       slippage: template.position.slippage,
     },
@@ -377,12 +396,21 @@ function buildBacktestCustomCondition(
         if (entry) {
           if (typeof entry.value === "number") {
             value = entry.value;
-          } else if (
-            entry.value &&
-            typeof entry.value === "object" &&
-            "vwap" in (entry.value as Record<string, unknown>)
-          ) {
-            value = (entry.value as { vwap: number | null }).vwap;
+          } else if (entry.value && typeof entry.value === "object") {
+            const obj = entry.value as Record<string, unknown>;
+            // Extract primary value from known multi-value indicators
+            if ("vwap" in obj) {
+              value = (obj.vwap as number) ?? null;
+            } else if ("k" in obj) {
+              // Stochastics: use K line as primary value
+              value = (obj.k as number) ?? null;
+            } else if ("adx" in obj) {
+              // DMI: use ADX as primary value
+              value = (obj.adx as number) ?? null;
+            } else if ("middle" in obj) {
+              // Bollinger: use middle as primary value
+              value = (obj.middle as number) ?? null;
+            }
           }
         }
       }
@@ -405,21 +433,50 @@ function buildBacktestCustomCondition(
   };
 }
 
+function buildSignalLifecycle(
+  template: StrategyTemplate,
+): SignalManagerOptions | undefined {
+  const lc = template.signalLifecycle;
+  if (!lc) return undefined;
+  if (!lc.cooldownBars && !lc.debounceBars && !lc.expiryBars) return undefined;
+
+  return {
+    ...(lc.cooldownBars && { cooldown: { bars: lc.cooldownBars } }),
+    ...(lc.debounceBars && { debounce: { bars: lc.debounceBars } }),
+    ...(lc.expiryBars && { expiry: { bars: lc.expiryBars } }),
+  };
+}
+
 function buildPosition(
   template: StrategyTemplate,
 ): streaming.PositionManagerOptions {
-  const sizing: streaming.PositionManagerOptions["sizing"] =
-    template.position.sizingMethod === "risk-based"
-      ? {
-          method: "risk-based" as const,
-          riskPercent: template.position.riskPercent ?? 1,
-        }
-      : template.position.sizingMethod === "fixed-fractional"
-        ? {
-            method: "fixed-fractional" as const,
-            fractionPercent: template.position.riskPercent ?? 10,
-          }
-        : { method: "full-capital" as const };
+  let sizing: streaming.PositionManagerOptions["sizing"];
+
+  switch (template.position.sizingMethod) {
+    case "risk-based":
+      sizing = {
+        method: "risk-based" as const,
+        riskPercent: template.position.riskPercent ?? 1,
+      };
+      break;
+    case "fixed-fractional":
+      sizing = {
+        method: "fixed-fractional" as const,
+        fractionPercent: template.position.riskPercent ?? 10,
+      };
+      break;
+    case "kelly":
+      // Kelly maps to fixed-fractional with half-Kelly default (5%)
+      // The actual Kelly percentage gets recalculated by the agent
+      // based on live win rate and payoff ratio
+      sizing = {
+        method: "fixed-fractional" as const,
+        fractionPercent: (template.position.riskPercent ?? 5) * 0.5,
+      };
+      break;
+    default:
+      sizing = { method: "full-capital" as const };
+  }
 
   return {
     capital: template.position.capital,

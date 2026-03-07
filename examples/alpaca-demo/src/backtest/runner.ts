@@ -1,8 +1,18 @@
 /**
  * Backtest runner — executes all strategies against historical data
+ *
+ * Includes Walk-Forward validation and Monte Carlo simulation support.
  */
 
-import { runBacktest, type BacktestResult, type NormalizedCandle } from "trendcraft";
+import {
+  runBacktest,
+  walkForwardAnalysisSafe,
+  runMonteCarloSimulationSafe,
+  type BacktestResult,
+  type NormalizedCandle,
+  type WalkForwardResult,
+  type MonteCarloResult,
+} from "trendcraft";
 import type { StrategyDefinition } from "../strategy/types.js";
 import { scoreResult, type ScoredResult, type ScoreWeights } from "./scorer.js";
 
@@ -43,6 +53,138 @@ export function runStrategyBacktests(
   rankings.sort((a, b) => b.score - a.score);
 
   return { rankings, results };
+}
+
+/**
+ * Walk-Forward validation result
+ */
+export type WalkForwardValidation = {
+  passed: boolean;
+  efficiency: number;
+  avgOosSharpe: number;
+  reason: string;
+  result?: WalkForwardResult;
+};
+
+/**
+ * Run Walk-Forward validation for a strategy
+ *
+ * Uses trendcraft's walkForwardAnalysis to check if strategy parameters
+ * are robust to out-of-sample testing.
+ *
+ * Pass criteria: OOS avg Sharpe > 0 AND WFA stability ratio > 0.5
+ */
+export function runWalkForwardValidation(
+  strategy: StrategyDefinition,
+  candles: NormalizedCandle[],
+  capital: number,
+): WalkForwardValidation {
+  const { entryCondition, exitCondition, options } = strategy.backtestAdapter;
+
+  // Need enough data for walk-forward windows
+  if (candles.length < 500) {
+    return {
+      passed: true,
+      efficiency: 0,
+      avgOosSharpe: 0,
+      reason: "Insufficient data for WFA (< 500 candles), skipping",
+    };
+  }
+
+  const createStrategy = () => ({
+    entry: entryCondition,
+    exit: exitCondition,
+    options: { ...options, capital },
+  });
+
+  const wfaResult = walkForwardAnalysisSafe(
+    candles,
+    createStrategy,
+    [], // No parameter ranges — validate current params
+    {
+      windowSize: Math.min(252, Math.floor(candles.length * 0.4)),
+      stepSize: Math.min(63, Math.floor(candles.length * 0.1)),
+      testSize: Math.min(63, Math.floor(candles.length * 0.1)),
+      metric: "sharpe",
+    },
+  );
+
+  if (!wfaResult.ok) {
+    return {
+      passed: true,
+      efficiency: 0,
+      avgOosSharpe: 0,
+      reason: `WFA error: ${wfaResult.error}, skipping`,
+    };
+  }
+
+  const result = wfaResult.value;
+  const avgOosSharpe = result.aggregateMetrics.avgOutOfSample.sharpe ?? 0;
+  const efficiency = result.aggregateMetrics.stabilityRatio;
+
+  const passed = avgOosSharpe > 0 && efficiency > 0.5;
+
+  return {
+    passed,
+    efficiency,
+    avgOosSharpe,
+    reason: passed
+      ? `WFA passed: OOS Sharpe=${avgOosSharpe.toFixed(2)}, efficiency=${efficiency.toFixed(2)}`
+      : `WFA failed: OOS Sharpe=${avgOosSharpe.toFixed(2)}, efficiency=${efficiency.toFixed(2)}`,
+    result,
+  };
+}
+
+/**
+ * Monte Carlo simulation result summary
+ */
+export type MonteCarloSummary = {
+  isSignificant: boolean;
+  pReturnPositive: number;
+  percentile5Return: number;
+  percentile95Drawdown: number;
+  result?: MonteCarloResult;
+};
+
+/**
+ * Run Monte Carlo simulation on a backtest result
+ */
+export function runMonteCarloValidation(
+  backtestResult: BacktestResult,
+  simulations = 500,
+): MonteCarloSummary {
+  if (backtestResult.tradeCount < 5) {
+    return {
+      isSignificant: false,
+      pReturnPositive: 0,
+      percentile5Return: 0,
+      percentile95Drawdown: 0,
+    };
+  }
+
+  const mcResult = runMonteCarloSimulationSafe(backtestResult, {
+    simulations,
+    confidenceLevel: 0.95,
+  });
+
+  if (!mcResult.ok) {
+    return {
+      isSignificant: false,
+      pReturnPositive: 0,
+      percentile5Return: 0,
+      percentile95Drawdown: 0,
+    };
+  }
+
+  const mc = mcResult.value;
+
+  return {
+    isSignificant: mc.assessment.isSignificant,
+    pReturnPositive: 1 - mc.pValue.returns,
+    percentile5Return: mc.statistics.totalReturnPercent.percentile5,
+    percentile95Drawdown: mc.statistics.maxDrawdown.percentile95,
+    result: mc,
+  };
 }
 
 /**

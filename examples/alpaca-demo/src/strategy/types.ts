@@ -5,7 +5,7 @@
  * configurations in a single unified object.
  */
 
-import type { BacktestOptions, Condition, streaming } from "trendcraft";
+import type { BacktestOptions, Condition, streaming, SignalManagerOptions } from "trendcraft";
 
 /**
  * Unified strategy definition for both live and backtest modes
@@ -28,6 +28,9 @@ export type StrategyDefinition = {
   guards: streaming.GuardedSessionOptions;
   /** Position management configuration */
   position: streaming.PositionManagerOptions;
+
+  /** Signal lifecycle configuration */
+  signalLifecycle?: SignalManagerOptions;
 
   /** Backtest-specific adapter */
   backtestAdapter: {

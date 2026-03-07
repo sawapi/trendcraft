@@ -54,6 +54,27 @@ export type BacktestEntry = {
   maxDrawdown: number;
   profitFactor: number;
   tradeCount: number;
+  monteCarlo?: {
+    isSignificant: boolean;
+    pReturnPositive: number;
+    percentile5Return: number;
+    percentile95Drawdown: number;
+  };
+};
+
+export type DataQualityReport = {
+  symbol: string;
+  totalCandles: number;
+  errors: number;
+  warnings: number;
+  cleaned: boolean;
+};
+
+export type ReconciliationReport = {
+  timestamp: number;
+  matched: number;
+  discrepancies: number;
+  orphanedPositions: number;
 };
 
 export type DailyReport = {
@@ -70,6 +91,8 @@ export type DailyReport = {
     indicators: Record<string, unknown>;
     conditions: Record<string, unknown>;
   };
+  dataQuality?: DataQualityReport[];
+  reconciliation?: ReconciliationReport;
 };
 
 export type LeaderboardEntry = {
@@ -131,6 +154,7 @@ export type LLMRecommendation = {
 export type AppliedAction = {
   action: LLMAction;
   backtestScore?: number;
+  wfaEfficiency?: number;
 };
 
 export type RejectedAction = {

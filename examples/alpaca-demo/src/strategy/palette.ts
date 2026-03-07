@@ -148,9 +148,36 @@ export const CONDITION_PALETTE: Record<string, ConditionDef> = {
 };
 
 /**
+ * Signal lifecycle parameter ranges
+ */
+export const SIGNAL_LIFECYCLE_PALETTE: Record<string, ParamRange> = {
+  cooldownBars: { min: 1, max: 20, default: 3 },
+  debounceBars: { min: 1, max: 10, default: 2 },
+  expiryBars: { min: 5, max: 50, default: 20 },
+};
+
+/**
+ * Advanced exit strategy parameter ranges
+ */
+export const EXIT_STRATEGY_PALETTE = {
+  atrTrailingStop: {
+    period: { min: 5, max: 30, default: 14 } as ParamRange,
+    multiplier: { min: 1, max: 5, default: 2, step: 0.5 } as ParamRange,
+  },
+  partialTakeProfit: {
+    threshold: { min: 1, max: 20, default: 5 } as ParamRange,
+    portion: { min: 10, max: 80, default: 50, step: 10 } as ParamRange,
+  },
+  breakEvenStop: {
+    triggerPercent: { min: 1, max: 10, default: 3 } as ParamRange,
+    offset: { min: 0, max: 2, default: 0.5, step: 0.1 } as ParamRange,
+  },
+};
+
+/**
  * Sizing methods available for position management
  */
-export const SIZING_METHODS = ["risk-based", "fixed-fractional", "full-capital"] as const;
+export const SIZING_METHODS = ["risk-based", "fixed-fractional", "full-capital", "kelly"] as const;
 
 /**
  * Return the full palette for LLM context
@@ -160,5 +187,7 @@ export function getPalette() {
     indicators: INDICATOR_PALETTE,
     conditions: CONDITION_PALETTE,
     sizingMethods: SIZING_METHODS,
+    signalLifecycle: SIGNAL_LIFECYCLE_PALETTE,
+    exitStrategies: EXIT_STRATEGY_PALETTE,
   };
 }

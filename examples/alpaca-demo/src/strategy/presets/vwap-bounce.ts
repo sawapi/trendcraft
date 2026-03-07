@@ -82,6 +82,8 @@ export const vwapBounce: StrategyDefinition = {
     slippage: 0.05,
   },
 
+  signalLifecycle: { cooldown: { bars: 3 } },
+
   backtestAdapter: {
     entryCondition: (indicators, candle) => {
       const vwapSeries = indicators.vwap as

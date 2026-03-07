@@ -55,12 +55,21 @@ export type StrategyTemplate = {
   };
   position: {
     capital: number;
-    sizingMethod: "risk-based" | "fixed-fractional" | "full-capital";
+    sizingMethod: "risk-based" | "fixed-fractional" | "full-capital" | "kelly";
     riskPercent?: number;
     stopLoss: number;
     takeProfit?: number;
     trailingStop?: number;
+    atrTrailingStop?: { period: number; multiplier: number };
+    partialTakeProfit?: { threshold: number; portion: number };
+    breakEvenStop?: { triggerPercent: number; offset: number };
     slippage: number;
+  };
+
+  signalLifecycle?: {
+    cooldownBars?: number;
+    debounceBars?: number;
+    expiryBars?: number;
   };
 
   source: "preset" | "llm-generated";
@@ -113,6 +122,7 @@ export const PRESET_TEMPLATES: StrategyTemplate[] = [
       takeProfit: 6,
       slippage: 0.05,
     },
+    signalLifecycle: { cooldownBars: 3 },
     source: "preset",
   },
   {
@@ -140,6 +150,7 @@ export const PRESET_TEMPLATES: StrategyTemplate[] = [
       trailingStop: 3,
       slippage: 0.05,
     },
+    signalLifecycle: { cooldownBars: 3 },
     source: "preset",
   },
   {
@@ -176,6 +187,7 @@ export const PRESET_TEMPLATES: StrategyTemplate[] = [
       takeProfit: 5,
       slippage: 0.05,
     },
+    signalLifecycle: { cooldownBars: 3 },
     source: "preset",
   },
   {
@@ -213,6 +225,7 @@ export const PRESET_TEMPLATES: StrategyTemplate[] = [
       takeProfit: 3,
       slippage: 0.05,
     },
+    signalLifecycle: { cooldownBars: 3 },
     source: "preset",
   },
 ];

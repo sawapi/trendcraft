@@ -56,6 +56,8 @@ export const macdTrend: StrategyDefinition = {
     slippage: 0.05,
   },
 
+  signalLifecycle: { cooldown: { bars: 3 } },
+
   backtestAdapter: {
     entryCondition: macdCrossUp(),
     exitCondition: macdCrossDown(),

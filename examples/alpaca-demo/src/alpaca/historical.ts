@@ -4,7 +4,7 @@
  * Retrieves historical bar data and converts to NormalizedCandle format.
  */
 
-import type { NormalizedCandle } from "trendcraft";
+import { type NormalizedCandle, validateCandles, type ValidationResult } from "trendcraft";
 import type { AlpacaEnv } from "../config/env.js";
 
 export type AlpacaTimeframe =
@@ -75,7 +75,42 @@ export async function fetchHistoricalBars(
     pageToken = data.next_page_token;
   } while (pageToken);
 
-  return allBars.map(barToCandle);
+  const candles = allBars.map(barToCandle);
+
+  // Validate data quality
+  const validation = validateCandles(candles, {
+    gaps: { maxGapMultiplier: 3, skipWeekends: true },
+    duplicates: true,
+    ohlc: true,
+    spikes: { maxPriceChangePercent: 20 },
+    autoClean: true,
+  });
+
+  if (validation.errors.length > 0) {
+    for (const err of validation.errors) {
+      console.warn(`[DATA] Error: ${err.message}`);
+    }
+  }
+  if (validation.warnings.length > 0) {
+    console.log(`[DATA] ${opts.symbol}: ${validation.warnings.length} warning(s) in ${candles.length} candles`);
+  }
+
+  return validation.cleanedCandles ?? candles;
+}
+
+/**
+ * Validate candle data and return the full validation result
+ */
+export function validateHistoricalBars(
+  candles: NormalizedCandle[],
+): ValidationResult {
+  return validateCandles(candles, {
+    gaps: { maxGapMultiplier: 3, skipWeekends: true },
+    duplicates: true,
+    ohlc: true,
+    spikes: { maxPriceChangePercent: 20 },
+    autoClean: true,
+  });
 }
 
 /**
