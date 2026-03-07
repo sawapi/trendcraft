@@ -43,6 +43,11 @@ export type ZigzagOptions = {
  * smaller than the deviation threshold. The result connects only the
  * major turning points.
  *
+ * When `useAtr` is true, the threshold is based on ATR. During ATR warmup
+ * (first `atrPeriod` bars), a percentage-based fallback is used automatically.
+ * If the price action is too flat to initialize a trend within the threshold,
+ * a fallback initialization occurs after `max(20, atrPeriod * 2)` bars.
+ *
  * @param candles - Array of candles (raw or normalized)
  * @param options - Zigzag options
  * @returns Series of zigzag values

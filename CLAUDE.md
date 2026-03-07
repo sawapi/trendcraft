@@ -12,7 +12,7 @@ Provides technical indicators, signal detection, backtesting, and optimization.
 ```
 src/
 ├── core/           # Data normalization, MTF context
-├── indicators/     # Technical indicators (45+)
+├── indicators/     # Technical indicators (51+)
 │   ├── moving-average/  # SMA, EMA, WMA
 │   ├── momentum/        # RSI, MACD, Stochastics, DMI/ADX, CCI, ROC
 │   ├── trend/           # Ichimoku, Supertrend, Parabolic SAR

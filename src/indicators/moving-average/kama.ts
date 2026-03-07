@@ -31,7 +31,8 @@ export type KamaOptions = {
  * 1. ER = |Price - Price[period]| / Sum(|Price[i] - Price[i-1]|, period)
  * 2. SC = (ER * (fastSC - slowSC) + slowSC)^2
  *    where fastSC = 2/(fastPeriod+1), slowSC = 2/(slowPeriod+1)
- * 3. KAMA = KAMA[prev] + SC * (Price - KAMA[prev])
+ * 3. KAMA seed = close[period-1] (TA-Lib compatible)
+ * 4. KAMA = KAMA[prev] + SC * (Price - KAMA[prev])
  *
  * @param candles - Array of candles (raw or normalized)
  * @param options - KAMA options
@@ -71,12 +72,8 @@ export function kama(
     if (i < period) {
       result.push({ time: normalized[i].time, value: null });
       if (i === period - 1) {
-        // Seed KAMA with SMA of first period prices (TA-Lib compatible)
-        let seedSum = 0;
-        for (let j = 0; j <= i; j++) {
-          seedSum += getPrice(normalized[j], source);
-        }
-        prevKama = seedSum / period;
+        // Seed KAMA with the last price in the lookback window (TA-Lib compatible)
+        prevKama = getPrice(normalized[i], source);
       }
       continue;
     }

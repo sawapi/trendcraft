@@ -104,20 +104,19 @@ describe("kama", () => {
     }
   });
 
-  it("should seed with SMA of first period prices (TA-Lib compatible)", () => {
-    // With period=10, KAMA seed should be SMA of first 10 prices
+  it("should seed with last price in lookback window (TA-Lib compatible)", () => {
+    // With period=10, KAMA seed = close[period-1] = close[9]
     const closes = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120];
     const candles = makeCandles(closes);
     const result = kama(candles, { period: 10 });
 
-    // SMA(0..9) = (10+20+30+40+50+60+70+80+90+100)/10 = 55
-    // The seed is used internally at index 9, first output at index 10
+    // Seed = close[9] = 100
     // At index 10, price=110, direction = |110 - 10| = 100
     // volatility = sum of |close[j] - close[j-1]| for j=1..10 = 10*10 = 100
     // ER = 100/100 = 1.0
     // fastSC = 2/3, slowSC = 2/31
     // SC = (1.0 * (2/3 - 2/31) + 2/31)^2 = (2/3)^2 = 4/9
-    // KAMA = 55 + (4/9) * (110 - 55) = 55 + 24.444... = 79.444...
-    expect(result[10].value).toBeCloseTo(79.4444, 2);
+    // KAMA = 100 + (4/9) * (110 - 100) = 100 + 4.444... = 104.444...
+    expect(result[10].value).toBeCloseTo(104.4444, 2);
   });
 });

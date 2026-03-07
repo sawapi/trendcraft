@@ -32,6 +32,9 @@ export type T3Options = {
  * c4 = 1 + 3v + v^3 + 3v^2
  * T3 = c1*e6 + c2*e5 + c3*e4 + c4*e3
  *
+ * Note: T3 requires `6 * (period - 1)` bars of warmup before the first
+ * non-null value is produced (e.g., period=5 → first value at index 24).
+ *
  * @param candles - Array of candles (raw or normalized)
  * @param options - T3 options
  * @returns Series of T3 values

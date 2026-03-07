@@ -8,6 +8,7 @@ import {
   ema,
   fastStochastics,
   highest,
+  kama,
   keltnerChannel,
   lowest,
   macd,
@@ -19,6 +20,7 @@ import {
   sma,
   stochRsi,
   stochastics,
+  t3,
   williamsR,
   wma,
 } from "../../src";
@@ -350,6 +352,34 @@ describe("Bollinger Bands", () => {
     assertSeriesMatch(middleValues, tc.values.middle, 10, "BB middle");
     assertSeriesMatch(upperValues, tc.values.upper, 8, "BB upper");
     assertSeriesMatch(lowerValues, tc.values.lower, 8, "BB lower");
+  });
+});
+
+describe("KAMA", () => {
+  it.each([
+    { period: 10, decimals: 6 },
+    { period: 20, decimals: 6 },
+  ])("kama(period=$period) matches TA-Lib within $decimals decimals", ({ period, decimals }) => {
+    const fixture = loadFixture("kama");
+    const tc = fixture.test_cases.find((t) => t.params.period === period);
+    if (!tc || !isSingleTestCase(tc)) throw new Error("Expected single test case");
+
+    const result = kama(candles, { period });
+    assertSeriesMatch(result, tc.values, decimals, `KAMA(${period})`);
+  });
+});
+
+describe("T3", () => {
+  it.each([
+    { period: 5, decimals: 4 },
+    { period: 8, decimals: 4 },
+  ])("t3(period=$period) matches TA-Lib within $decimals decimals", ({ period, decimals }) => {
+    const fixture = loadFixture("t3");
+    const tc = fixture.test_cases.find((t) => t.params.period === period);
+    if (!tc || !isSingleTestCase(tc)) throw new Error("Expected single test case");
+
+    const result = t3(candles, { period, vFactor: 0.7 });
+    assertSeriesMatch(result, tc.values, decimals, `T3(${period})`);
   });
 });
 

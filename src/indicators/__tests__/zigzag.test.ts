@@ -183,6 +183,77 @@ describe("zigzag", () => {
     }
   });
 
+  it("should detect specific pivot positions with percentage mode", () => {
+    // Well-defined V-shape: up to index 3 (high=120), down to index 7 (low=85), up again
+    const candles = makeCandles([
+      { high: 100, low: 95 },   // 0
+      { high: 108, low: 102 },  // 1
+      { high: 115, low: 108 },  // 2
+      { high: 120, low: 113 },  // 3 - peak (high=120)
+      { high: 115, low: 108 },  // 4
+      { high: 108, low: 100 },  // 5
+      { high: 100, low: 92 },   // 6
+      { high: 92, low: 85 },    // 7 - trough (low=85)
+      { high: 95, low: 88 },    // 8
+      { high: 102, low: 95 },   // 9
+      { high: 110, low: 103 },  // 10
+      { high: 118, low: 112 },  // 11
+    ]);
+
+    const result = zigzag(candles, { deviation: 10 });
+    const pivots = result.filter((r) => r.value.point !== null);
+
+    // Should find the high at index 3 and the low at index 7
+    const highPivot = result.find(
+      (r) => r.value.point === "high" && r.value.price === 120,
+    );
+    const lowPivot = result.find(
+      (r) => r.value.point === "low" && r.value.price === 85,
+    );
+
+    expect(highPivot).toBeDefined();
+    expect(lowPivot).toBeDefined();
+
+    // Verify pivot prices match actual candle extremes
+    expect(highPivot!.time).toBe(candles[3].time);
+    expect(lowPivot!.time).toBe(candles[7].time);
+  });
+
+  it("should use percentage fallback during ATR warmup", () => {
+    // With atrPeriod=5, first 5 bars have no ATR → falls back to percentage.
+    // Start flat, then create a clear up-down-up pattern so trend initialization
+    // happens cleanly during warmup.
+    const candles = makeCandles([
+      { high: 102, low: 98 },   // 0 - flat start
+      { high: 103, low: 99 },   // 1
+      { high: 104, low: 100 },  // 2
+      { high: 105, low: 101 },  // 3
+      { high: 106, low: 102 },  // 4
+      { high: 115, low: 108 },  // 5 - ATR becomes available, big up
+      { high: 125, low: 118 },  // 6
+      { high: 135, low: 128 },  // 7 - peak area
+      { high: 130, low: 122 },  // 8
+      { high: 120, low: 112 },  // 9
+      { high: 110, low: 102 },  // 10
+      { high: 100, low: 92 },   // 11 - trough area
+      { high: 108, low: 100 },  // 12
+      { high: 118, low: 110 },  // 13
+      { high: 128, low: 120 },  // 14
+    ]);
+
+    const result = zigzag(candles, { useAtr: true, atrPeriod: 5, atrMultiplier: 2 });
+    const pivots = result.filter((r) => r.value.point !== null);
+
+    // Should still produce pivots even with ATR warmup period
+    expect(pivots.length).toBeGreaterThanOrEqual(2);
+
+    // All pivots should have valid prices
+    for (const p of pivots) {
+      expect(p.value.price).not.toBeNull();
+      expect(p.value.price).toBeGreaterThan(0);
+    }
+  });
+
   it("should initialize trend with flat price action (fallback)", () => {
     // Very small moves that won't exceed 5% threshold
     const candles = makeCandles(

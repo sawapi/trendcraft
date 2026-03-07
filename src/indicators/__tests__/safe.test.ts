@@ -14,6 +14,16 @@ import {
   hurstSafe,
   fractalsSafe,
   zigzagSafe,
+  wmaSafe,
+  cciSafe,
+  stochasticsSafe,
+  dmiSafe,
+  rocSafe,
+  ichimokuSafe,
+  supertrendSafe,
+  obvSafe,
+  mfiSafe,
+  vwapSafe,
 } from "../safe";
 
 describe("safe indicator wrappers", () => {
@@ -178,6 +188,129 @@ describe("safe indicator wrappers", () => {
       expect(result.ok).toBe(false);
       if (!result.ok) {
         expect(result.error.code).toBe("INDICATOR_ERROR");
+      }
+    });
+  });
+
+  describe("wmaSafe", () => {
+    it("should return Ok with valid parameters", () => {
+      const result = wmaSafe(candles, { period: 5 });
+      expect(result.ok).toBe(true);
+    });
+
+    it("should return Err with invalid parameters", () => {
+      const result = wmaSafe(candles, { period: 0 });
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error.code).toBe("INDICATOR_ERROR");
+        expect(result.error.message).toContain("period");
+      }
+    });
+  });
+
+  describe("cciSafe", () => {
+    it("should return Ok with valid parameters", () => {
+      const result = cciSafe(candles, { period: 14 });
+      expect(result.ok).toBe(true);
+    });
+  });
+
+  describe("stochasticsSafe", () => {
+    it("should return Ok with valid parameters", () => {
+      const result = stochasticsSafe(candles);
+      expect(result.ok).toBe(true);
+    });
+  });
+
+  describe("dmiSafe", () => {
+    it("should return Ok with valid parameters", () => {
+      const result = dmiSafe(candles);
+      expect(result.ok).toBe(true);
+    });
+  });
+
+  describe("rocSafe", () => {
+    it("should return Ok with valid parameters", () => {
+      const result = rocSafe(candles, { period: 12 });
+      expect(result.ok).toBe(true);
+    });
+
+    it("should return Err with invalid parameters", () => {
+      const result = rocSafe(candles, { period: 0 });
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error.code).toBe("INDICATOR_ERROR");
+      }
+    });
+  });
+
+  describe("ichimokuSafe", () => {
+    it("should return Ok with valid parameters", () => {
+      const longCandles = makeCandles(Array.from({ length: 60 }, (_, i) => 100 + i));
+      const result = ichimokuSafe(longCandles);
+      expect(result.ok).toBe(true);
+    });
+
+    it("should return Err with invalid parameters", () => {
+      const result = ichimokuSafe(candles, { tenkanPeriod: 0 });
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error.code).toBe("INDICATOR_ERROR");
+      }
+    });
+  });
+
+  describe("supertrendSafe", () => {
+    it("should return Ok with valid parameters", () => {
+      const result = supertrendSafe(candles);
+      expect(result.ok).toBe(true);
+    });
+
+    it("should return Err with invalid parameters", () => {
+      const result = supertrendSafe(candles, { period: 0 });
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error.code).toBe("INDICATOR_ERROR");
+      }
+    });
+  });
+
+  describe("obvSafe", () => {
+    it("should return Ok with valid parameters", () => {
+      const result = obvSafe(candles);
+      expect(result.ok).toBe(true);
+    });
+  });
+
+  describe("mfiSafe", () => {
+    it("should return Ok with valid parameters", () => {
+      const result = mfiSafe(candles, { period: 14 });
+      expect(result.ok).toBe(true);
+    });
+
+    it("should return Err with invalid parameters", () => {
+      const result = mfiSafe(candles, { period: 0 });
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error.code).toBe("INDICATOR_ERROR");
+      }
+    });
+  });
+
+  describe("vwapSafe", () => {
+    it("should return Ok with valid parameters", () => {
+      const result = vwapSafe(candles);
+      expect(result.ok).toBe(true);
+    });
+  });
+
+  describe("t3Safe error path", () => {
+    it("should return Err with invalid parameters", () => {
+      const result = t3Safe(candles, { period: 0 });
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error.code).toBe("INDICATOR_ERROR");
+        expect(result.error.message).toContain("period");
       }
     });
   });
