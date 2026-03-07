@@ -817,6 +817,7 @@ export {
   analyzeMfeMae,
   analyzeStreaks,
   analyzeAllTrades,
+  detectMarketRegime,
 } from "./analysis";
 
 export type {
@@ -827,6 +828,8 @@ export type {
   MfeMaeAnalysis,
   StreakAnalysis,
   TradeAnalysis,
+  MarketRegimeResult,
+  MarketRegimeOptions,
 } from "./analysis";
 
 // Validation
@@ -855,6 +858,20 @@ export { normalizeAndValidate } from "./core/normalize";
 
 // Streaming (real-time trading pipeline)
 export * as streaming from "./streaming";
+
+// Unified Conditions (define once, use in backtest & streaming)
+export {
+  defineUnifiedCondition,
+  unifiedAnd,
+  unifiedOr,
+  unifiedNot,
+} from "./conditions";
+
+export type {
+  IndicatorAccessor,
+  UnifiedConditionDef,
+  UnifiedCondition,
+} from "./conditions";
 
 // Execution utilities (resilient order execution)
 export * as execution from "./execution";

@@ -22,3 +22,7 @@ export {
   type StreakAnalysis,
   type TradeAnalysis,
 } from "./edge-analysis";
+
+// Market Regime Detection
+export { detectMarketRegime } from "./market-regime";
+export type { MarketRegimeResult, MarketRegimeOptions } from "./market-regime";
