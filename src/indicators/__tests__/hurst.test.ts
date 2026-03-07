@@ -58,8 +58,22 @@ describe("hurst", () => {
     const validValues = result.filter((r) => r.value !== null);
     const lastValue = validValues[validValues.length - 1].value!;
 
-    // Strong trend should produce H > 0.5
-    expect(lastValue).toBeGreaterThan(0.4);
+    // Strong trend should produce H significantly above 0.5
+    expect(lastValue).toBeGreaterThan(0.6);
+  });
+
+  it("should detect mean-reverting series (H < 0.5)", () => {
+    // Alternating up/down pattern — classic mean-reverting behavior
+    const closes = Array.from({ length: 200 }, (_, i) => 100 + (i % 2 === 0 ? 5 : -5));
+    const candles = makeCandles(closes);
+    const result = hurst(candles, { minWindow: 10, maxWindow: 80 });
+
+    const validValues = result.filter((r) => r.value !== null);
+    expect(validValues.length).toBeGreaterThan(0);
+    const lastValue = validValues[validValues.length - 1].value!;
+
+    // Mean-reverting series should produce H < 0.5
+    expect(lastValue).toBeLessThan(0.5);
   });
 
   it("should handle empty array", () => {

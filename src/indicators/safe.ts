@@ -8,7 +8,7 @@
  * ```ts
  * import { safe } from "trendcraft";
  *
- * const result = safe.rsi(candles, { period: 14 });
+ * const result = safe.rsiSafe(candles, { period: 14 });
  * if (result.ok) {
  *   console.log(result.value); // Series<number | null>
  * } else {

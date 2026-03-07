@@ -2,7 +2,7 @@
 
 > A TypeScript library for technical analysis of financial data. Calculate indicators, detect signals, backtest strategies, and analyze market trends.
 
-TrendCraft provides 45+ technical indicators, signal detection, backtesting with 50+ preset conditions, strategy optimization, real-time streaming pipelines, and position sizing — all with a consistent `Series<T>` return type.
+TrendCraft provides 51+ technical indicators, signal detection, backtesting with 50+ preset conditions, strategy optimization, real-time streaming pipelines, and position sizing — all with a consistent `Series<T>` return type.
 
 ## Installation
 
@@ -50,6 +50,8 @@ const bt = TrendCraft.from(candles)
 - `ema(candles, { period })` — Exponential Moving Average
 - `wma(candles, { period })` — Weighted Moving Average
 - `vwma(candles, { period })` — Volume Weighted Moving Average
+- `kama(candles, { period, fastPeriod, slowPeriod })` — Kaufman Adaptive Moving Average
+- `t3(candles, { period, vFactor })` — Tillson T3 (6-fold cascaded EMA)
 
 ### Trend
 - `ichimoku(candles, opts?)` — Ichimoku Cloud (tenkan, kijun, senkouA, senkouB, chikou)
@@ -69,6 +71,8 @@ const bt = TrendCraft.from(candles)
 - `roc(candles, { period })` — Rate of Change
 - `trix(candles, { period })` — Triple EMA oscillator
 - `aroon(candles, { period })` — Aroon Up/Down/Oscillator
+- `dpo(candles, { period })` — Detrended Price Oscillator
+- `hurst(candles, { minWindow, maxWindow })` — Hurst Exponent (R/S analysis, 0-1 range)
 
 ### Volatility
 - `bollingerBands(candles, { period, stdDev })` — Bollinger Bands (upper, middle, lower, %B, bandwidth)
@@ -96,6 +100,8 @@ const bt = TrendCraft.from(candles)
 - `pivotPoints(candles, opts?)` — Pivot Points (support/resistance)
 - `swingPoints(candles, opts?)` — Swing highs and lows
 - `fibonacciRetracement(candles, opts?)` — Fibonacci retracement levels
+- `fractals(candles, opts?)` — Williams Fractals (up/down fractal detection)
+- `zigzag(candles, opts?)` — Zigzag indicator (significant swing point connection)
 
 ### Smart Money Concepts (SMC)
 - `orderBlock(candles, opts?)` — Order Block detection

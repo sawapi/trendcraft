@@ -1,6 +1,6 @@
 # TrendCraft
 
-> A TypeScript library for technical analysis of financial data. Calculate 45+ indicators, detect signals, backtest strategies, optimize parameters, and build real-time trading pipelines.
+> A TypeScript library for technical analysis of financial data. Calculate 51+ indicators, detect signals, backtest strategies, optimize parameters, and build real-time trading pipelines.
 
 ## Installation
 
@@ -60,6 +60,12 @@ Weighted Moving Average. Returns `Series<number | null>`.
 ### `vwma(candles, { period })`
 Volume Weighted Moving Average. Returns `Series<number | null>`.
 
+### `kama(candles, { period?, fastPeriod?, slowPeriod?, source? })`
+Kaufman Adaptive Moving Average. Adapts smoothing speed based on Efficiency Ratio — fast in trends, slow in choppy markets. Defaults: period=10, fastPeriod=2, slowPeriod=30. Returns `Series<number | null>`.
+
+### `t3(candles, { period?, vFactor?, source? })`
+Tillson T3 — ultra-smooth moving average using 6 cascaded EMAs with a volume factor. Provides minimal lag while extremely smooth. Defaults: period=5, vFactor=0.7. Returns `Series<number | null>`.
+
 ## Indicators — Trend
 
 ### `ichimoku(candles, options?)`
@@ -117,6 +123,12 @@ Triple EMA oscillator. Returns `Series<{ trix: number | null, signal: number | n
 
 ### `aroon(candles, { period })`
 Aroon indicator. Returns `Series<{ up, down, oscillator }>` (all `number | null`).
+
+### `dpo(candles, { period?, source? })`
+Detrended Price Oscillator. Removes trend by comparing price to a shifted SMA. Last `floor(period/2)+1` bars are null (no future SMA available). Returns `Series<number | null>`.
+
+### `hurst(candles, { minWindow?, maxWindow?, source? })`
+Hurst Exponent via Rescaled Range (R/S) analysis. Measures persistence: H>0.5 trending, H<0.5 mean-reverting, H≈0.5 random. Defaults: minWindow=20, maxWindow=100. Returns `Series<number | null>` (values in [0,1]).
 
 ## Indicators — Volatility
 
@@ -200,6 +212,12 @@ Swing highs and lows. Returns `Series<{ type: 'high' | 'low' | null, price }>`.
 
 ### `fibonacciRetracement(candles, { leftBars?, rightBars?, levels? })`
 Fibonacci retracement. Returns `Series<{ levels: Record<string, number> | null, swingHigh, swingLow, trend: 'up' | 'down' | null }>`.
+
+### `fractals(candles, { period? })`
+Williams Fractals. Detects fractal highs and lows based on local extremes. Default period=2. Returns `Series<{ up: boolean, down: boolean, upPrice: number | null, downPrice: number | null }>`.
+
+### `zigzag(candles, { deviation?, useAtr?, atrPeriod?, atrMultiplier? })`
+Zigzag indicator. Connects significant swing points, filtering noise below the deviation threshold (default 5%). Supports ATR-based dynamic thresholds. Returns `Series<{ point: 'high' | 'low' | null, price: number | null, changePercent: number | null }>`.
 
 ## Indicators — Drawing Tools
 

@@ -94,24 +94,35 @@ function calcEma(data: (number | null)[], period: number): (number | null)[] {
   const result: (number | null)[] = new Array(data.length).fill(null);
   const multiplier = 2 / (period + 1);
 
+  // Find the first non-null index to maintain proper time-series alignment
+  let startIdx = 0;
+  while (startIdx < data.length && data[startIdx] === null) {
+    startIdx++;
+  }
+
+  if (startIdx >= data.length) return result;
+
   let prevEma: number | null = null;
   let count = 0;
   let sum = 0;
 
-  for (let i = 0; i < data.length; i++) {
-    if (data[i] === null) {
-      continue;
+  for (let i = startIdx; i < data.length; i++) {
+    const val = data[i];
+    if (val === null) {
+      // After valid values start, null should not appear in cascaded EMAs;
+      // stop processing to avoid misaligned seeds
+      break;
     }
 
     if (prevEma === null) {
       count++;
-      sum += data[i]!;
+      sum += val;
       if (count === period) {
         prevEma = sum / period;
         result[i] = prevEma;
       }
     } else {
-      prevEma = data[i]! * multiplier + prevEma * (1 - multiplier);
+      prevEma = val * multiplier + prevEma * (1 - multiplier);
       result[i] = prevEma;
     }
   }

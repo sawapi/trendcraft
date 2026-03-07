@@ -179,7 +179,8 @@ function rescaledRange(returns: number[]): number | null {
     const d = returns[i] - mean;
     variance += d * d;
   }
-  const std = Math.sqrt(variance / n);
+  // Use sample standard deviation (n-1) per academic convention for R/S analysis
+  const std = Math.sqrt(variance / (n - 1));
 
   if (std === 0) return null;
 
@@ -199,6 +200,8 @@ function linearRegressionSlope(x: number[], y: number[]): number {
     sumXX += x[i] * x[i];
   }
   const denominator = n * sumXX - sumX * sumX;
+  // When all x values are identical, regression is undefined;
+  // return 0.5 (random walk) as a neutral fallback
   if (denominator === 0) return 0.5;
   return (n * sumXY - sumX * sumY) / denominator;
 }

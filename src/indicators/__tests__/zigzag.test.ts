@@ -139,4 +139,64 @@ describe("zigzag", () => {
       expect(pivots[1].value.changePercent).not.toBeNull();
     }
   });
+
+  it("should work with ATR-based threshold", () => {
+    // Create a clear swing pattern with ATR mode
+    const candles = makeCandles([
+      { high: 100, low: 95 },
+      { high: 105, low: 100 },
+      { high: 110, low: 105 },
+      { high: 120, low: 115 },
+      { high: 125, low: 118 },
+      { high: 130, low: 123 }, // High area
+      { high: 128, low: 120 },
+      { high: 122, low: 115 },
+      { high: 115, low: 108 },
+      { high: 108, low: 100 },
+      { high: 102, low: 95 },
+      { high: 98, low: 90 },  // Low area
+      { high: 100, low: 93 },
+      { high: 105, low: 98 },
+      { high: 110, low: 103 },
+      { high: 118, low: 110 },
+      { high: 125, low: 118 },
+      { high: 132, low: 125 },
+      { high: 138, low: 130 },
+      { high: 140, low: 133 },
+    ]);
+
+    const result = zigzag(candles, { useAtr: true, atrPeriod: 5, atrMultiplier: 2 });
+    const pivots = result.filter((r) => r.value.point !== null);
+
+    // Should detect at least some pivots with ATR mode
+    expect(pivots.length).toBeGreaterThan(0);
+
+    // All pivots should have valid prices
+    for (const p of pivots) {
+      expect(p.value.price).not.toBeNull();
+      expect(p.value.price).toBeGreaterThan(0);
+    }
+
+    // Pivots should alternate
+    for (let i = 1; i < pivots.length; i++) {
+      expect(pivots[i].value.point).not.toBe(pivots[i - 1].value.point);
+    }
+  });
+
+  it("should initialize trend with flat price action (fallback)", () => {
+    // Very small moves that won't exceed 5% threshold
+    const candles = makeCandles(
+      Array.from({ length: 30 }, (_, i) => ({
+        high: 100 + (i % 2) * 0.5,
+        low: 99.5 + (i % 2) * 0.5,
+      })),
+    );
+
+    // With 5% deviation, these tiny moves won't trigger normal initialization
+    // The fallback should kick in after maxInitBars
+    const result = zigzag(candles, { deviation: 5 });
+
+    // Should not throw and should return valid result
+    expect(result.length).toBe(30);
+  });
 });

@@ -6,13 +6,13 @@ A TypeScript library for technical analysis of financial data. Calculate indicat
 
 ## Features
 
-### Indicators
-- **Moving Averages**: SMA, EMA, WMA
-- **Trend**: Ichimoku Cloud, Supertrend, Parabolic SAR
-- **Momentum**: RSI, MACD, Stochastics (Fast/Slow), DMI/ADX, Stoch RSI, CCI, Williams %R, ROC
-- **Volatility**: Bollinger Bands, ATR, Donchian Channel, Keltner Channel
-- **Volume**: OBV, MFI, VWAP, Volume MA, CMF, Volume Anomaly, Volume Profile, Volume Trend
-- **Price**: Highest/Lowest, Returns, Pivot Points
+### Indicators (51+)
+- **Moving Averages**: SMA, EMA, WMA, VWMA, KAMA, T3
+- **Trend**: Ichimoku Cloud, Supertrend, Parabolic SAR, Vortex
+- **Momentum**: RSI, MACD, Stochastics (Fast/Slow), DMI/ADX, Stoch RSI, CCI, Williams %R, ROC, TRIX, Aroon, DPO, Hurst Exponent
+- **Volatility**: Bollinger Bands, ATR, Donchian Channel, Keltner Channel, Chandelier Exit, Volatility Regime
+- **Volume**: OBV, MFI, VWAP, Volume MA, CMF, Volume Anomaly, Volume Profile, Volume Trend, ADL
+- **Price**: Highest/Lowest, Returns, Pivot Points, Swing Points, Fractals, Zigzag, Fibonacci Retracement/Extension, Heikin-Ashi
 
 ### Signal Detection
 - **Cross Detection**: Golden Cross, Dead Cross, custom crossovers

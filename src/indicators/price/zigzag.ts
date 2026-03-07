@@ -8,6 +8,7 @@
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { atr as calculateAtr } from "../volatility/atr";
 
 /**
  * Zigzag point value
@@ -77,10 +78,11 @@ export function zigzag(
     return result;
   }
 
-  // Calculate ATR if needed
-  let atrValues: number[] | null = null;
+  // Calculate ATR if needed using the existing atr() indicator
+  let atrValues: (number | null)[] | null = null;
   if (useAtr) {
-    atrValues = calculateSimpleAtr(normalized, atrPeriod);
+    const atrSeries = calculateAtr(normalized, { period: atrPeriod });
+    atrValues = atrSeries.map((s) => s.value);
   }
 
   // Track current zigzag state
@@ -92,13 +94,16 @@ export function zigzag(
   let currentLow = normalized[0].low;
   let currentLowIndex = 0;
 
+  // Maximum bars to wait before forcing trend initialization
+  const maxInitBars = Math.max(20, atrPeriod * 2);
+
   for (let i = 1; i < normalized.length; i++) {
     const high = normalized[i].high;
     const low = normalized[i].low;
 
     // Get threshold for current bar
-    const threshold = useAtr && atrValues && atrValues[i] > 0
-      ? atrValues[i] * atrMultiplier
+    const threshold = useAtr && atrValues && atrValues[i] !== null && atrValues[i]! > 0
+      ? atrValues[i]! * atrMultiplier
       : (lastPivotPrice || high) * (deviation / 100);
 
     if (trend === null) {
@@ -131,6 +136,30 @@ export function zigzag(
           price: currentHigh,
           changePercent: null,
         };
+      } else if (i >= maxInitBars) {
+        // Fallback: force initialization after maxInitBars bars
+        // Use the direction from first bar to the largest observed extreme
+        const upRange = currentHigh - normalized[0].low;
+        const downRange = normalized[0].high - currentLow;
+        if (upRange >= downRange) {
+          trend = "up";
+          lastPivotPrice = currentLow;
+          lastPivotIndex = currentLowIndex;
+          result[currentLowIndex].value = {
+            point: "low",
+            price: currentLow,
+            changePercent: null,
+          };
+        } else {
+          trend = "down";
+          lastPivotPrice = currentHigh;
+          lastPivotIndex = currentHighIndex;
+          result[currentHighIndex].value = {
+            point: "high",
+            price: currentHigh,
+            changePercent: null,
+          };
+        }
       }
       continue;
     }
@@ -143,8 +172,8 @@ export function zigzag(
 
       // Check for reversal down
       const drop = currentHigh - low;
-      const dropThreshold = useAtr && atrValues && atrValues[i] > 0
-        ? atrValues[i] * atrMultiplier
+      const dropThreshold = useAtr && atrValues && atrValues[i] !== null && atrValues[i]! > 0
+        ? atrValues[i]! * atrMultiplier
         : currentHigh * (deviation / 100);
 
       if (drop >= dropThreshold) {
@@ -173,8 +202,8 @@ export function zigzag(
 
       // Check for reversal up
       const rise = high - currentLow;
-      const riseThreshold = useAtr && atrValues && atrValues[i] > 0
-        ? atrValues[i] * atrMultiplier
+      const riseThreshold = useAtr && atrValues && atrValues[i] !== null && atrValues[i]! > 0
+        ? atrValues[i]! * atrMultiplier
         : currentLow * (deviation / 100);
 
       if (rise >= riseThreshold) {
@@ -194,36 +223,6 @@ export function zigzag(
         currentHigh = high;
         currentHighIndex = i;
       }
-    }
-  }
-
-  return result;
-}
-
-/**
- * Simple ATR calculation for internal use (avoids circular dependency)
- */
-function calculateSimpleAtr(candles: NormalizedCandle[], period: number): number[] {
-  const result: number[] = new Array(candles.length).fill(0);
-
-  for (let i = 1; i < candles.length; i++) {
-    const tr = Math.max(
-      candles[i].high - candles[i].low,
-      Math.abs(candles[i].high - candles[i - 1].close),
-      Math.abs(candles[i].low - candles[i - 1].close),
-    );
-
-    if (i < period) {
-      // Accumulate for initial average
-      result[i] = result[i - 1] + tr;
-      if (i === period - 1) {
-        result[i] = (result[i]) / period;
-      }
-    } else if (i === period - 1) {
-      result[i] = result[i] / period;
-    } else {
-      // Wilder's smoothing
-      result[i] = (result[i - 1] * (period - 1) + tr) / period;
     }
   }
 

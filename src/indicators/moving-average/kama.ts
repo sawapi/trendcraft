@@ -71,8 +71,12 @@ export function kama(
     if (i < period) {
       result.push({ time: normalized[i].time, value: null });
       if (i === period - 1) {
-        // Seed KAMA with the price at index period-1
-        prevKama = getPrice(normalized[i], source);
+        // Seed KAMA with SMA of first period prices (TA-Lib compatible)
+        let seedSum = 0;
+        for (let j = 0; j <= i; j++) {
+          seedSum += getPrice(normalized[j], source);
+        }
+        prevKama = seedSum / period;
       }
       continue;
     }

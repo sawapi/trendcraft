@@ -94,4 +94,62 @@ describe("t3", () => {
       expect(last07).not.toBeCloseTo(last09, 5);
     }
   });
+
+  it("should have correct null structure for period=2", () => {
+    // With period=2, each cascaded EMA needs 2 values to seed:
+    // e1 starts at index 1 (needs 2 prices)
+    // e2 starts at index 2 (needs 2 e1 values: indices 1,2)
+    // e3 at index 3, e4 at 4, e5 at 5, e6 at 6
+    // So first non-null T3 should be at index 6
+    const closes = Array.from({ length: 30 }, (_, i) => 100 + i);
+    const candles = makeCandles(closes);
+    const result = t3(candles, { period: 2 });
+
+    // Indices 0-5 should be null
+    for (let i = 0; i < 6; i++) {
+      expect(result[i].value).toBeNull();
+    }
+    // Index 6 should have a value
+    expect(result[6].value).not.toBeNull();
+    // All subsequent values should be non-null
+    for (let i = 6; i < result.length; i++) {
+      expect(result[i].value).not.toBeNull();
+    }
+  });
+
+  it("should match hand-calculated reference for period=1", () => {
+    // With period=1, EMA seed = SMA(1) = first value itself
+    // EMA with period=1 has multiplier = 2/(1+1) = 1.0, so EMA = current value
+    // Each cascaded EMA just passes through the value
+    // T3 with period=1 should equal the input price for all bars
+    const closes = [100, 105, 110, 108, 112];
+    const candles = makeCandles(closes);
+    const result = t3(candles, { period: 1 });
+
+    for (let i = 0; i < closes.length; i++) {
+      expect(result[i].value).not.toBeNull();
+      expect(result[i].value).toBeCloseTo(closes[i], 5);
+    }
+  });
+
+  it("should maintain contiguous non-null values after warmup", () => {
+    // Verify cascaded EMAs don't produce null gaps after initial warmup
+    const closes = Array.from({ length: 50 }, (_, i) => 100 + Math.sin(i * 0.3) * 20);
+    const candles = makeCandles(closes);
+    const result = t3(candles, { period: 3 });
+
+    let firstNonNull = -1;
+    for (let i = 0; i < result.length; i++) {
+      if (result[i].value !== null) {
+        firstNonNull = i;
+        break;
+      }
+    }
+    expect(firstNonNull).toBeGreaterThan(0);
+
+    // After the first non-null, all remaining should be non-null
+    for (let i = firstNonNull; i < result.length; i++) {
+      expect(result[i].value).not.toBeNull();
+    }
+  });
 });
