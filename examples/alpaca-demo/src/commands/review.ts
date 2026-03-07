@@ -32,13 +32,13 @@ import {
   loadRecentReviews,
   loadTodayReviews,
 } from "../review/history.js";
-import { evaluateOutcomes } from "../review/outcome-tracker.js";
+import { evaluateOutcomes, detectRollbackCandidates } from "../review/outcome-tracker.js";
 import { fetchHistoricalBars, monthsAgo, today } from "../alpaca/historical.js";
 import { atr, ema } from "trendcraft";
 import { runStrategyBacktests } from "../backtest/runner.js";
 import { PRESET_TEMPLATES } from "../strategy/template.js";
 import { loadCustomStrategies } from "../review/applier.js";
-import type { MarketContext, DailyReport } from "../review/types.js";
+import type { MarketContext, DailyReport, BuyAndHoldBenchmark } from "../review/types.js";
 
 export type ReviewCommandOptions = {
   reportOnly?: boolean;
@@ -103,6 +103,7 @@ async function backtestReviewCommand(
   );
 
   const allRankings: import("../backtest/scorer.js").ScoredResult[] = [];
+  const buyAndHoldBenchmarks: BuyAndHoldBenchmark[] = [];
 
   for (const symbol of symbols) {
     console.log(`Fetching data for ${symbol}...`);
@@ -121,6 +122,19 @@ async function backtestReviewCommand(
     console.log(`  ${candles.length} candles. Running strategies...`);
     const { rankings } = runStrategyBacktests(strategies, symbol, candles, capital);
     allRankings.push(...rankings);
+
+    // Compute Buy & Hold benchmark
+    if (candles.length >= 2) {
+      const startPrice = candles[0].close;
+      const endPrice = candles[candles.length - 1].close;
+      buyAndHoldBenchmarks.push({
+        symbol,
+        startPrice,
+        endPrice,
+        returnPercent: ((endPrice - startPrice) / startPrice) * 100,
+        period: `${periodMonths}mo`,
+      });
+    }
   }
 
   allRankings.sort((a, b) => b.score - a.score);
@@ -138,6 +152,7 @@ async function backtestReviewCommand(
     rankings: allRankings,
     marketContext,
     activeOverrides,
+    buyAndHold: buyAndHoldBenchmarks,
     date,
   });
 
@@ -237,15 +252,44 @@ async function runLLMReview(
   const historyDays = parseInt(opts.days ?? "7", 10);
   const history = loadRecentReviews(historyDays);
 
-  // Evaluate outcomes of past recommendations
+  // Evaluate outcomes of past recommendations (with benchmark-relative scoring)
   if (history.length > 0 && report.leaderboard.length > 0) {
-    evaluateOutcomes(history, report.leaderboard);
+    evaluateOutcomes(history, report.leaderboard, report.marketContext);
     console.log("Evaluated outcomes of past recommendations.");
+  }
+
+  // Detect and execute auto-rollbacks
+  const rollbackCandidates = detectRollbackCandidates(history);
+  if (rollbackCandidates.length > 0) {
+    console.log(`\nAuto-rollback candidates: ${rollbackCandidates.join(", ")}`);
+    if (opts.apply) {
+      for (const strategyId of rollbackCandidates) {
+        const { loadOverrides: loadOvr } = await import("../review/applier.js");
+        const overrides = loadOvr();
+        const idx = overrides.findIndex((o) => o.strategyId === strategyId);
+        if (idx >= 0) {
+          overrides.splice(idx, 1);
+          const { writeFileSync } = await import("node:fs");
+          const { resolve } = await import("node:path");
+          const dataDir = resolve(import.meta.dirname, "../../data");
+          writeFileSync(
+            resolve(dataDir, "strategy-overrides.json"),
+            JSON.stringify(overrides, null, 2),
+            "utf-8",
+          );
+          console.log(`  Rolled back "${strategyId}" to original preset.`);
+        }
+      }
+    }
   }
 
   let recommendation;
   try {
-    recommendation = await reviewWithLLM(report, history);
+    recommendation = await reviewWithLLM(report, history, {
+      userMessageOptions: {
+        rollbackCandidates: rollbackCandidates.length > 0 ? rollbackCandidates : undefined,
+      },
+    });
   } catch (err) {
     console.error(
       "LLM review failed:",
@@ -272,6 +316,8 @@ async function runLLMReview(
     recommendation,
     todayReviews,
     allTemplates,
+    undefined,
+    history,
   );
 
   if (rejected.length > 0) {

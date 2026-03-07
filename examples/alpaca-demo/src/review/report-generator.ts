@@ -20,6 +20,7 @@ import type {
   HistoricalMetric,
   LeaderboardEntry,
   TradeRecord,
+  BuyAndHoldBenchmark,
 } from "./types.js";
 import type { ParameterOverride } from "../strategy/template.js";
 import type { ScoredResult } from "../backtest/scorer.js";
@@ -38,6 +39,7 @@ export function generateBacktestReport(opts: {
   rankings: ScoredResult[];
   marketContext?: MarketContext[];
   activeOverrides?: ParameterOverride[];
+  buyAndHold?: BuyAndHoldBenchmark[];
   date?: string;
 }): DailyReport {
   const date = opts.date ?? new Date().toISOString().split("T")[0];
@@ -89,6 +91,7 @@ export function generateBacktestReport(opts: {
       indicators: palette.indicators,
       conditions: palette.conditions,
     },
+    buyAndHold: opts.buyAndHold,
   };
 }
 
@@ -339,6 +342,20 @@ function formatReportMarkdown(report: DailyReport): string {
         `| #${i + 1} | ${b.strategyId} | ${b.symbol} | ${b.score.toFixed(1)} | ${b.totalReturnPercent.toFixed(2)}% | ${b.winRate.toFixed(1)}% | ${b.sharpeRatio.toFixed(2)} | ${b.maxDrawdown.toFixed(1)}% | ${b.profitFactor === Infinity ? "Inf" : b.profitFactor.toFixed(2)} | ${b.tradeCount} |`,
       );
     });
+    lines.push("");
+  }
+
+  // Buy & Hold Benchmark
+  if (report.buyAndHold && report.buyAndHold.length > 0) {
+    lines.push("## Buy & Hold Benchmark");
+    lines.push("");
+    lines.push("| Symbol | Start | End | Return% | Period |");
+    lines.push("|--------|-------|-----|---------|--------|");
+    for (const bh of report.buyAndHold) {
+      lines.push(
+        `| ${bh.symbol} | $${bh.startPrice.toFixed(2)} | $${bh.endPrice.toFixed(2)} | ${bh.returnPercent >= 0 ? "+" : ""}${bh.returnPercent.toFixed(2)}% | ${bh.period} |`,
+      );
+    }
     lines.push("");
   }
 

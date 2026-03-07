@@ -10,6 +10,7 @@ import {
   buildSystemPrompt,
   buildUserMessage,
   parseLLMResponse,
+  type UserMessageOptions,
 } from "./llm-prompt.js";
 
 const MODEL = "claude-sonnet-4-20250514";
@@ -18,6 +19,7 @@ const MAX_TOKENS = 4096;
 export type LLMClientOptions = {
   apiKey?: string;
   maxRetries?: number;
+  userMessageOptions?: UserMessageOptions;
 };
 
 /**
@@ -37,7 +39,7 @@ export async function reviewWithLLM(
 
   const client = new Anthropic({ apiKey });
   const systemPrompt = buildSystemPrompt();
-  const userMessage = buildUserMessage(report, history);
+  const userMessage = buildUserMessage(report, history, opts?.userMessageOptions);
   const maxRetries = opts?.maxRetries ?? 1;
 
   let lastError: Error | null = null;

@@ -33,6 +33,8 @@ export type SafetyConfig = {
   maxCreatesPerDay: number;      // default: 1
   maxCumulativeDriftPct: number; // max drift from original (default: 50)
   minBacktestScore: number;      // for new strategies (default: 30)
+  minDaysBetweenChanges: number; // min days between changes to same strategy (default: 3)
+  maxChangesPerWeek: number;     // max total adjust_params actions per week (default: 3)
 };
 
 const DEFAULT_CONFIG: SafetyConfig = {
@@ -42,18 +44,23 @@ const DEFAULT_CONFIG: SafetyConfig = {
   maxCreatesPerDay: 1,
   maxCumulativeDriftPct: 50,
   minBacktestScore: 30,
+  minDaysBetweenChanges: 3,
+  maxChangesPerWeek: 3,
 };
 
 /**
  * Validate all actions in a recommendation
  *
  * Returns arrays of valid and rejected actions.
+ *
+ * @param recentReviews - Reviews from the past 7 days (for frequency limiting)
  */
 export function validateRecommendation(
   recommendation: LLMRecommendation,
   todayReviews: ReviewRecord[],
   activeTemplates: StrategyTemplate[],
   config: SafetyConfig = DEFAULT_CONFIG,
+  recentReviews: ReviewRecord[] = [],
 ): {
   valid: LLMAction[];
   rejected: { action: LLMAction; reason: string }[];
@@ -73,7 +80,55 @@ export function validateRecommendation(
     }
   }
 
+  // Count weekly adjust_params actions
+  const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  let adjustsThisWeek = 0;
+  for (const review of recentReviews) {
+    if (review.reviewedAt < weekAgo) continue;
+    for (const applied of review.appliedActions) {
+      if (applied.action.action === "adjust_params") adjustsThisWeek++;
+    }
+  }
+
+  // Build map of last change date per strategy (for frequency limiting)
+  const lastChangeDate = new Map<string, number>();
+  for (const review of recentReviews) {
+    for (const applied of review.appliedActions) {
+      if (applied.action.action === "adjust_params") {
+        const sid = applied.action.strategyId;
+        const existing = lastChangeDate.get(sid) ?? 0;
+        if (review.reviewedAt > existing) {
+          lastChangeDate.set(sid, review.reviewedAt);
+        }
+      }
+    }
+  }
+
   for (const action of recommendation.actions) {
+    // Check weekly limit for adjust_params
+    if (action.action === "adjust_params") {
+      if (adjustsThisWeek >= config.maxChangesPerWeek) {
+        rejected.push({
+          action,
+          reason: `Weekly adjust_params limit reached (${config.maxChangesPerWeek}/week)`,
+        });
+        continue;
+      }
+
+      // Check per-strategy frequency limit
+      const lastChange = lastChangeDate.get(action.strategyId);
+      if (lastChange != null) {
+        const daysSince = (Date.now() - lastChange) / (1000 * 60 * 60 * 24);
+        if (daysSince < config.minDaysBetweenChanges) {
+          rejected.push({
+            action,
+            reason: `Strategy "${action.strategyId}" was changed ${daysSince.toFixed(1)} days ago (minimum ${config.minDaysBetweenChanges} days between changes)`,
+          });
+          continue;
+        }
+      }
+    }
+
     const result = validateAction(
       action,
       { killsToday, revivesToday, createsToday },
@@ -87,6 +142,10 @@ export function validateRecommendation(
       if (action.action === "kill_agent") killsToday++;
       if (action.action === "revive_agent") revivesToday++;
       if (action.action === "create_strategy") createsToday++;
+      if (action.action === "adjust_params") {
+        adjustsThisWeek++;
+        lastChangeDate.set(action.strategyId, Date.now());
+      }
     } else {
       rejected.push({ action, reason: result.reason! });
     }

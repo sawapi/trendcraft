@@ -7,6 +7,10 @@
 
 import type { DailyReport, LLMRecommendation, ReviewRecord, TradeRecord } from "./types.js";
 
+export type UserMessageOptions = {
+  rollbackCandidates?: string[];
+};
+
 /**
  * Build the system prompt for the daily review
  */
@@ -145,6 +149,14 @@ When past action outcomes are shown:
 - Actions marked **degraded** should be considered for reversal
 - Actions marked **improved** suggest the approach works — consider applying similar logic to other underperforming strategies
 - Actions marked **neutral** may need more time or a different approach
+- Outcomes use **benchmark-relative scoring**: score changes are adjusted for overall market movement
+- Evaluation requires **5 business days** minimum — recent changes may not have outcomes yet
+
+## Safeguards (enforced automatically)
+- **Change frequency**: Same strategy cannot be modified more than once every 3 days
+- **Weekly limit**: Maximum 3 parameter adjustments per week across all strategies
+- **Auto-rollback**: If a strategy receives 2 consecutive "degraded" verdicts, it will be automatically rolled back to its original preset
+- **Buy & Hold comparison**: Always consider B&H returns when evaluating strategy performance — outperforming B&H is the minimum bar
 
 ## Important Guidelines
 - If performance is acceptable, it's OK to return an empty actions array
@@ -160,6 +172,7 @@ When past action outcomes are shown:
 export function buildUserMessage(
   report: DailyReport,
   history: ReviewRecord[],
+  options?: UserMessageOptions,
 ): string {
   const parts: string[] = [];
 
@@ -306,11 +319,36 @@ export function buildUserMessage(
           const scoreStr = o.scoreAfter != null
             ? ` (score: ${o.scoreBefore.toFixed(0)}→${o.scoreAfter.toFixed(0)})`
             : ` (score before: ${o.scoreBefore.toFixed(0)})`;
-          parts.push(`  - ${o.action.action}(${strategyId}): ${verdict}${scoreStr}`);
+          const benchStr = o.relativeDelta != null
+            ? ` [relative: ${o.relativeDelta >= 0 ? "+" : ""}${o.relativeDelta.toFixed(1)}, mkt: ${o.benchmarkReturnPercent != null ? `${o.benchmarkReturnPercent >= 0 ? "+" : ""}${o.benchmarkReturnPercent.toFixed(1)}%` : "n/a"}]`
+            : "";
+          parts.push(`  - ${o.action.action}(${strategyId}): ${verdict}${scoreStr}${benchStr}`);
         }
       }
       parts.push("");
     }
+  }
+
+  // Buy & Hold Benchmark
+  if (report.buyAndHold && report.buyAndHold.length > 0) {
+    parts.push("## Buy & Hold Benchmark");
+    for (const bh of report.buyAndHold) {
+      parts.push(
+        `- ${bh.symbol}: ${bh.returnPercent >= 0 ? "+" : ""}${bh.returnPercent.toFixed(2)}% (${bh.period})`,
+      );
+    }
+    parts.push("Note: Strategies should ideally outperform B&H on a risk-adjusted basis.");
+    parts.push("");
+  }
+
+  // Rollback candidates
+  if (options?.rollbackCandidates && options.rollbackCandidates.length > 0) {
+    parts.push("## Auto-Rollback Candidates");
+    parts.push("The following strategies have received 2+ consecutive DEGRADED verdicts and will be rolled back to original presets:");
+    for (const sid of options.rollbackCandidates) {
+      parts.push(`- **${sid}** — rolling back to original preset`);
+    }
+    parts.push("");
   }
 
   // Available palette

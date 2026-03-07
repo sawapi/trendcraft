@@ -104,6 +104,7 @@ export type DailyReport = {
   };
   dataQuality?: DataQualityReport[];
   reconciliation?: ReconciliationReport;
+  buyAndHold?: BuyAndHoldBenchmark[];
 };
 
 export type LeaderboardEntry = {
@@ -179,6 +180,16 @@ export type ActionOutcome = {
   scoreBefore: number;
   scoreAfter?: number;
   verdict?: "improved" | "degraded" | "neutral";
+  benchmarkReturnPercent?: number;
+  relativeDelta?: number;
+};
+
+export type BuyAndHoldBenchmark = {
+  symbol: string;
+  startPrice: number;
+  endPrice: number;
+  returnPercent: number;
+  period: string;
 };
 
 export type ReviewRecord = {

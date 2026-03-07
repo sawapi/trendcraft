@@ -34,8 +34,8 @@ The system runs a closed-loop feedback cycle to continuously improve strategy pe
 
 1. **Collect** — Per-trade MFE/MAE/exit reasons, market regime (volatility + trend), aggregate metrics
 2. **Analyze** — LLM receives full context and recommends parameter adjustments, agent kills/revives, or new strategies
-3. **Apply** — Safety layer validates changes (±20%/day limit, palette bounds, cumulative drift cap). Walk-Forward + Monte Carlo gates for new strategies
-4. **Track** — Outcomes of past recommendations are evaluated (improved/degraded/neutral) and fed back into the next cycle
+3. **Apply** — Safety layer validates changes (±20%/day limit, palette bounds, cumulative drift cap, per-strategy cooldown, weekly cap). Walk-Forward + Monte Carlo gates for new strategies
+4. **Track** — Outcomes are evaluated after 5 business days using benchmark-relative scoring. Auto-rollback triggers after 2 consecutive degraded verdicts
 
 ## Setup
 
@@ -213,21 +213,31 @@ Market Context:
 After applying LLM recommendations, the system tracks whether they improved performance:
 
 1. Each applied action records the strategy's score at the time of application
-2. After 2+ days, the system compares the current score with the pre-action score
-3. Verdict: `improved` (+3 points), `degraded` (-3 points), or `neutral`
-4. Outcome history is fed back to the LLM in subsequent reviews
+2. After **5 business days** (reduced market noise), the system evaluates performance
+3. **Benchmark-relative scoring**: Score changes are adjusted for overall market movement, so strategies aren't penalized for market-wide declines
+4. Verdict: `improved` (relative delta > +3), `degraded` (< -3), or `neutral`
+5. Outcome history is fed back to the LLM in subsequent reviews
 
 Example LLM context:
 
 ```
 Outcomes:
-  - adjust_params(rsi-mean-reversion): IMPROVED (score: 45→52)
-  - adjust_params(macd-trend): DEGRADED (score: 60→55)
+  - adjust_params(rsi-mean-reversion): IMPROVED (score: 45→52) [relative: +5.2, mkt: +1.8%]
+  - adjust_params(macd-trend): DEGRADED (score: 60→55) [relative: -6.1, mkt: +1.1%]
 ```
+
+#### Auto-Rollback
+
+If a strategy receives **2 consecutive "degraded" verdicts**, the system automatically rolls back its parameter overrides to the original preset. This prevents runaway degradation from compounding LLM errors.
+
+#### Buy & Hold Benchmark
+
+Backtest review reports include Buy & Hold returns for each symbol, providing a baseline. Strategies should ideally outperform B&H on a risk-adjusted basis.
 
 The LLM is instructed to:
 - Consider reversing **degraded** actions
 - Apply successful patterns from **improved** actions to other underperforming strategies
+- Compare strategy returns against the B&H benchmark
 
 ### Automatic Review Scheduling
 
@@ -270,6 +280,9 @@ All LLM recommendations pass through a multi-layer safety pipeline:
 | Daily change limit | ±20% maximum parameter change per day |
 | Cumulative drift cap | ±50% maximum drift from original preset values |
 | Rate limits | 1 kill, 1 revive, 1 create per day |
+| Change frequency | Same strategy cannot be modified within 3 days |
+| Weekly cap | Maximum 3 parameter adjustments per week |
+| Auto-rollback | 2 consecutive "degraded" verdicts → revert to original preset |
 | Backtest gate | New strategies require score ≥ 30 |
 | Walk-Forward Analysis | OOS Sharpe > 0 and WFA efficiency > 0.5 |
 | Monte Carlo | Statistical significance validation |
