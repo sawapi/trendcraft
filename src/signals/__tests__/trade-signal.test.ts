@@ -171,6 +171,7 @@ describe("fromScoreResult", () => {
     maxScore: 50,
     strength: "strong" as const,
     activeSignals: 1,
+    totalSignals: 2,
     contributions: [
       {
         name: "rsiOversold",

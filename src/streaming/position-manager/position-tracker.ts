@@ -18,7 +18,7 @@
  */
 
 import { applySlippage, calculateTradeClose } from "../../backtest/engine-utils";
-import type { NormalizedCandle, PositionDirection, Trade } from "../../types";
+import type { ExitReason, NormalizedCandle, PositionDirection, Trade } from "../../types";
 import type {
   ClosedTradeResult,
   FillRecord,
@@ -33,7 +33,7 @@ import type {
 /**
  * Map fill reason to ExitReason for trade records
  */
-function toExitReason(reason: FillRecord["reason"]): Trade["exitReason"] {
+function toExitReason(reason: FillRecord["reason"]): ExitReason {
   switch (reason) {
     case "stop-loss":
       return "stopLoss";

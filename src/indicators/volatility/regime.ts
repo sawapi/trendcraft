@@ -293,7 +293,7 @@ function classifyRegime(
     confidence = 0.5; // Only one indicator available
   } else {
     // Higher confidence when indicators agree
-    const spread = Math.abs(atrPercentile! - bandwidthPercentile!);
+    const spread = Math.abs((atrPercentile as number) - (bandwidthPercentile as number));
     // Max spread is 100, so normalize to 0-1 (lower spread = higher confidence)
     confidence = 1 - spread / 100;
     confidence = Math.round(confidence * 100) / 100;

@@ -78,7 +78,7 @@ export function dpo(
     const smaIndex = i + shift;
     if (smaIndex < normalized.length && smaValues[smaIndex] !== null) {
       const price = getPrice(normalized[i], source);
-      result.push({ time: normalized[i].time, value: price - smaValues[smaIndex]! });
+      result.push({ time: normalized[i].time, value: price - (smaValues[smaIndex] as number) });
     } else {
       result.push({ time: normalized[i].time, value: null });
     }

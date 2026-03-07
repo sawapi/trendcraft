@@ -84,6 +84,7 @@ export interface AnalysisResult {
  *   .compute();
  * ```
  */
+// biome-ignore lint/complexity/noBannedTypes: empty object is intentional for generic default
 export class TrendCraft<TIndicators extends Record<string, unknown> = {}> {
   protected _candles: NormalizedCandle[];
   protected _pipeline: PipelineEntry[] = [];
@@ -328,7 +329,7 @@ export class TrendCraft<TIndicators extends Record<string, unknown> = {}> {
         const computed = entry.plugin.compute(this._candles, entry.options);
         this._cache.set(entry.key, computed);
       }
-      indicators[entry.key] = this._cache.get(entry.key)!;
+      indicators[entry.key] = this._cache.get(entry.key) as Series<unknown>;
     }
 
     return {
@@ -408,6 +409,7 @@ export { StrategyBuilder, MtfStrategyBuilder } from "./strategy-builder";
  * TrendCraft with MTF (Multi-Timeframe) support
  */
 export class TrendCraftMtf<
+  // biome-ignore lint/complexity/noBannedTypes: empty object is intentional for generic default
   TIndicators extends Record<string, unknown> = {},
 > extends TrendCraft<TIndicators> {
   private _mtfTimeframes: TimeframeShorthand[];

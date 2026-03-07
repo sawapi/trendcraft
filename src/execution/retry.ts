@@ -136,5 +136,5 @@ export async function pollUntil<T>(
     }
   }
 
-  return { result: lastResult!, settled: false };
+  return { result: lastResult as T, settled: false };
 }

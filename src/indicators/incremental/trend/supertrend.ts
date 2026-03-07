@@ -54,6 +54,7 @@ export function createSupertrend(
 
   if (warmUpOptions?.fromState) {
     const s = warmUpOptions.fromState;
+    // biome-ignore lint/suspicious/noExplicitAny: ATR state type is opaque
     atrIndicator = createAtr({ period }, { fromState: s.atrState as any });
     prevFinalUpper = s.prevFinalUpper;
     prevFinalLower = s.prevFinalLower;

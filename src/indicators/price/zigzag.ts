@@ -108,8 +108,8 @@ export function zigzag(
 
     // Get threshold for current bar
     const threshold =
-      useAtr && atrValues && atrValues[i] !== null && atrValues[i]! > 0
-        ? atrValues[i]! * atrMultiplier
+      useAtr && atrValues && atrValues[i] !== null && (atrValues[i] as number) > 0
+        ? (atrValues[i] as number) * atrMultiplier
         : (lastPivotPrice || high) * (deviation / 100);
 
     if (trend === null) {
@@ -179,8 +179,8 @@ export function zigzag(
       // Check for reversal down
       const drop = currentHigh - low;
       const dropThreshold =
-        useAtr && atrValues && atrValues[i] !== null && atrValues[i]! > 0
-          ? atrValues[i]! * atrMultiplier
+        useAtr && atrValues && atrValues[i] !== null && (atrValues[i] as number) > 0
+          ? (atrValues[i] as number) * atrMultiplier
           : currentHigh * (deviation / 100);
 
       if (drop >= dropThreshold) {
@@ -209,8 +209,8 @@ export function zigzag(
       // Check for reversal up
       const rise = high - currentLow;
       const riseThreshold =
-        useAtr && atrValues && atrValues[i] !== null && atrValues[i]! > 0
-          ? atrValues[i]! * atrMultiplier
+        useAtr && atrValues && atrValues[i] !== null && (atrValues[i] as number) > 0
+          ? (atrValues[i] as number) * atrMultiplier
           : currentLow * (deviation / 100);
 
       if (rise >= riseThreshold) {

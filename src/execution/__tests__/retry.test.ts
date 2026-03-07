@@ -120,7 +120,10 @@ describe("withRetry", () => {
 describe("pollUntil", () => {
   it("should return immediately when predicate matches on first poll", async () => {
     const fn = vi.fn().mockResolvedValue({ status: "filled" });
-    const { result, settled } = await pollUntil(fn, (r) => r.status === "filled");
+    const { result, settled } = await pollUntil<{ status: string }>(
+      fn,
+      (r) => r.status === "filled",
+    );
 
     expect(settled).toBe(true);
     expect(result.status).toBe("filled");
@@ -134,10 +137,14 @@ describe("pollUntil", () => {
       .mockResolvedValueOnce({ status: "pending" })
       .mockResolvedValue({ status: "filled" });
 
-    const { result, settled } = await pollUntil(fn, (r) => r.status === "filled", {
-      maxAttempts: 10,
-      initialIntervalMs: 1,
-    });
+    const { result, settled } = await pollUntil<{ status: string }>(
+      fn,
+      (r) => r.status === "filled",
+      {
+        maxAttempts: 10,
+        initialIntervalMs: 1,
+      },
+    );
 
     expect(settled).toBe(true);
     expect(result.status).toBe("filled");
@@ -147,10 +154,14 @@ describe("pollUntil", () => {
   it("should return settled=false when max attempts exhausted", async () => {
     const fn = vi.fn().mockResolvedValue({ status: "pending" });
 
-    const { result, settled } = await pollUntil(fn, (r) => r.status === "filled", {
-      maxAttempts: 3,
-      initialIntervalMs: 1,
-    });
+    const { result, settled } = await pollUntil<{ status: string }>(
+      fn,
+      (r) => r.status === "filled",
+      {
+        maxAttempts: 3,
+        initialIntervalMs: 1,
+      },
+    );
 
     expect(settled).toBe(false);
     expect(result.status).toBe("pending");
@@ -171,7 +182,7 @@ describe("pollUntil", () => {
       .mockResolvedValueOnce({ status: "pending" })
       .mockResolvedValue({ status: "filled" });
 
-    await pollUntil(fn, (r) => r.status === "filled", {
+    await pollUntil<{ status: string }>(fn, (r) => r.status === "filled", {
       maxAttempts: 5,
       initialIntervalMs: 100,
       backoffMultiplier: 2,
@@ -195,7 +206,7 @@ describe("pollUntil", () => {
 
     const fn = vi.fn().mockResolvedValue({ status: "pending" });
 
-    await pollUntil(fn, (r) => r.status === "filled", {
+    await pollUntil<{ status: string }>(fn, (r) => r.status === "filled", {
       maxAttempts: 4,
       initialIntervalMs: 100,
       backoffMultiplier: 100,

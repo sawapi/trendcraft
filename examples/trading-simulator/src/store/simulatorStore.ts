@@ -600,7 +600,7 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
           if (trailingStopEnabled) {
             const trailingStopPrices = activeSymbol.positions
               .filter((p) => p.trailingStopPrice !== undefined)
-              .map((p) => p.trailingStopPrice!);
+              .map((p) => p.trailingStopPrice as number);
 
             if (trailingStopPrices.length > 0) {
               const minTrailingStop = Math.min(...trailingStopPrices);

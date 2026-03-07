@@ -81,7 +81,11 @@ export function t3(
     if (e6[i] === null) {
       result.push({ time: normalized[i].time, value: null });
     } else {
-      const t3Value = c1 * e6[i]! + c2 * e5[i]! + c3 * e4[i]! + c4 * e3[i]!;
+      const t3Value =
+        c1 * (e6[i] as number) +
+        c2 * (e5[i] as number) +
+        c3 * (e4[i] as number) +
+        c4 * (e3[i] as number);
       result.push({ time: normalized[i].time, value: t3Value });
     }
   }

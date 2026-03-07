@@ -154,9 +154,10 @@ export function createDmi(
       smoothedMinusDm = initSumMinusDm - initSumMinusDm / period + raw.mDm;
     } else {
       // Wilder's smoothing: prev - prev/period + current
-      smoothedTr = smoothedTr! - smoothedTr! / period + raw.tr;
-      smoothedPlusDm = smoothedPlusDm! - smoothedPlusDm! / period + raw.pDm;
-      smoothedMinusDm = smoothedMinusDm! - smoothedMinusDm! / period + raw.mDm;
+      smoothedTr = (smoothedTr as number) - (smoothedTr as number) / period + raw.tr;
+      smoothedPlusDm = (smoothedPlusDm as number) - (smoothedPlusDm as number) / period + raw.pDm;
+      smoothedMinusDm =
+        (smoothedMinusDm as number) - (smoothedMinusDm as number) / period + raw.mDm;
     }
 
     // Compute +DI, -DI
@@ -167,8 +168,8 @@ export function createDmi(
       return nullValue;
     }
 
-    const plusDi = (100 * smoothedPlusDm!) / smoothedTr!;
-    const minusDi = (100 * smoothedMinusDm!) / smoothedTr!;
+    const plusDi = (100 * (smoothedPlusDm as number)) / (smoothedTr as number);
+    const minusDi = (100 * (smoothedMinusDm as number)) / (smoothedTr as number);
 
     // Compute DX
     const diSum = plusDi + minusDi;
@@ -188,7 +189,7 @@ export function createDmi(
       currentAdx = adxVal;
     } else {
       // Wilder's smoothing for ADX: (prev * (period-1) + curr) / period
-      adxVal = (adxVal! * (adxPeriod - 1) + dx) / adxPeriod;
+      adxVal = ((adxVal as number) * (adxPeriod - 1) + dx) / adxPeriod;
       currentAdx = adxVal;
     }
 
@@ -227,9 +228,11 @@ export function createDmi(
         peekSmoothedPlusDm = initSumPlusDm - initSumPlusDm / period + raw.pDm;
         peekSmoothedMinusDm = initSumMinusDm - initSumMinusDm / period + raw.mDm;
       } else {
-        peekSmoothedTr = smoothedTr! - smoothedTr! / period + raw.tr;
-        peekSmoothedPlusDm = smoothedPlusDm! - smoothedPlusDm! / period + raw.pDm;
-        peekSmoothedMinusDm = smoothedMinusDm! - smoothedMinusDm! / period + raw.mDm;
+        peekSmoothedTr = (smoothedTr as number) - (smoothedTr as number) / period + raw.tr;
+        peekSmoothedPlusDm =
+          (smoothedPlusDm as number) - (smoothedPlusDm as number) / period + raw.pDm;
+        peekSmoothedMinusDm =
+          (smoothedMinusDm as number) - (smoothedMinusDm as number) / period + raw.mDm;
       }
 
       if (peekSmoothedTr === 0) {
@@ -249,7 +252,7 @@ export function createDmi(
       } else if (peekDxValidCount === adxPeriod) {
         currentAdx = (dxInitSum + dx) / adxPeriod;
       } else {
-        currentAdx = (adxVal! * (adxPeriod - 1) + dx) / adxPeriod;
+        currentAdx = ((adxVal as number) * (adxPeriod - 1) + dx) / adxPeriod;
       }
 
       return { time: candle.time, value: { plusDi, minusDi, adx: currentAdx } };

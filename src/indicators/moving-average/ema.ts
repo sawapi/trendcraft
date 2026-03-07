@@ -56,7 +56,7 @@ export function ema(
       result.push({ time: normalized[i].time, value: prevEma });
     } else {
       // EMA = (Price * Multiplier) + (Previous EMA * (1 - Multiplier))
-      prevEma = price * multiplier + prevEma! * (1 - multiplier);
+      prevEma = price * multiplier + (prevEma as number) * (1 - multiplier);
       result.push({ time: normalized[i].time, value: prevEma });
     }
   }

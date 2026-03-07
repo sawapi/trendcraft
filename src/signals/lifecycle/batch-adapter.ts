@@ -63,7 +63,7 @@ export function processSignalsBatch(
   const result: TradeSignal[] = [];
 
   for (const time of sortedTimes) {
-    const group = groups.get(time)!;
+    const group = groups.get(time) as TradeSignal[];
     const activated = manager.onBar(group, time);
     result.push(...activated);
   }

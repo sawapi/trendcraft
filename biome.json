@@ -52,6 +52,19 @@
           }
         }
       }
+    },
+    {
+      "include": ["**/__tests__/**", "**/*.test.ts", "**/*.test.tsx", "**/*.bench.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noNonNullAssertion": "off"
+          },
+          "suspicious": {
+            "noExplicitAny": "off"
+          }
+        }
+      }
     }
   ]
 }

@@ -81,7 +81,7 @@ export function createEma(
       return (sum + price) / period;
     }
     // EMA = price * multiplier + prevEma * (1 - multiplier)
-    return price * multiplier + prevEma! * (1 - multiplier);
+    return price * multiplier + (prevEma as number) * (1 - multiplier);
   }
 
   const indicator: IncrementalIndicator<number | null, EmaState> = {
@@ -102,7 +102,7 @@ export function createEma(
       }
 
       // Standard EMA calculation
-      prevEma = price * multiplier + prevEma! * (1 - multiplier);
+      prevEma = price * multiplier + (prevEma as number) * (1 - multiplier);
       return { time: candle.time, value: prevEma };
     },
 

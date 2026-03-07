@@ -96,7 +96,8 @@ export function stochCrossUp(kPeriod = 14, dPeriod = 3): PresetCondition {
 
       if (!hasValidStochValues(curr, prev)) return false;
 
-      return prev.k! <= prev.d! && curr.k! > curr.d!;
+      const p = prev as { k: number; d: number };
+      return p.k <= p.d && curr.k > curr.d;
     },
   };
 }
@@ -117,7 +118,8 @@ export function stochCrossDown(kPeriod = 14, dPeriod = 3): PresetCondition {
 
       if (!hasValidStochValues(curr, prev)) return false;
 
-      return prev.k! >= prev.d! && curr.k! < curr.d!;
+      const p = prev as { k: number; d: number };
+      return p.k >= p.d && curr.k < curr.d;
     },
   };
 }

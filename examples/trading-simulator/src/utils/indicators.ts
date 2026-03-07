@@ -107,7 +107,7 @@ export function calculateIndicators(
   const result: IndicatorData = {};
 
   // Merge with defaults
-  const p = { ...DEFAULT_INDICATOR_PARAMS, ...params };
+  const p = { ...DEFAULT_INDICATOR_PARAMS, ...params } as Required<IndicatorParams>;
 
   // Helper to calculate and store simple moving average indicators
   const calculateSma = (
@@ -115,14 +115,14 @@ export function calculateIndicators(
     periodKey: "sma5Period" | "sma25Period" | "sma75Period",
   ): void => {
     if (enabledIndicators.includes(key)) {
-      result[key] = extractValues(TrendCraft.sma(candles, { period: p[periodKey]! }));
+      result[key] = extractValues(TrendCraft.sma(candles, { period: p[periodKey] }));
     }
   };
 
   // Helper to calculate and store exponential moving average indicators
   const calculateEma = (key: "ema12" | "ema26", periodKey: "ema12Period" | "ema26Period"): void => {
     if (enabledIndicators.includes(key)) {
-      result[key] = extractValues(TrendCraft.ema(candles, { period: p[periodKey]! }));
+      result[key] = extractValues(TrendCraft.ema(candles, { period: p[periodKey] }));
     }
   };
 
@@ -145,8 +145,8 @@ export function calculateIndicators(
 
   if (enabledIndicators.includes("supertrend")) {
     const series = TrendCraft.supertrend(candles, {
-      period: p.supertrendPeriod!,
-      multiplier: p.supertrendMultiplier!,
+      period: p.supertrendPeriod,
+      multiplier: p.supertrendMultiplier,
     });
     result.supertrendLine = series.map((item) => item.value?.supertrend ?? null);
     result.supertrendDirection = series.map((item) => item.value?.direction ?? null);
@@ -162,8 +162,8 @@ export function calculateIndicators(
 
   if (enabledIndicators.includes("bb")) {
     const series = TrendCraft.bollingerBands(candles, {
-      period: p.bbPeriod!,
-      stdDev: p.bbStdDev!,
+      period: p.bbPeriod,
+      stdDev: p.bbStdDev,
     });
     result.bbUpper = series.map((item) => item.value?.upper ?? null);
     result.bbMiddle = series.map((item) => item.value?.middle ?? null);
@@ -172,9 +172,9 @@ export function calculateIndicators(
 
   if (enabledIndicators.includes("keltner")) {
     const series = TrendCraft.keltnerChannel(candles, {
-      emaPeriod: p.keltnerEmaPeriod!,
-      atrPeriod: p.keltnerAtrPeriod!,
-      multiplier: p.keltnerMultiplier!,
+      emaPeriod: p.keltnerEmaPeriod,
+      atrPeriod: p.keltnerAtrPeriod,
+      multiplier: p.keltnerMultiplier,
     });
     result.keltnerUpper = series.map((item) => item.value?.upper ?? null);
     result.keltnerMiddle = series.map((item) => item.value?.middle ?? null);
@@ -182,29 +182,29 @@ export function calculateIndicators(
   }
 
   if (enabledIndicators.includes("donchian")) {
-    const series = TrendCraft.donchianChannel(candles, { period: p.donchianPeriod! });
+    const series = TrendCraft.donchianChannel(candles, { period: p.donchianPeriod });
     result.donchianUpper = series.map((item) => item.value?.upper ?? null);
     result.donchianMiddle = series.map((item) => item.value?.middle ?? null);
     result.donchianLower = series.map((item) => item.value?.lower ?? null);
   }
 
   if (enabledIndicators.includes("atr")) {
-    const series = TrendCraft.atr(candles, { period: p.atrPeriod! });
+    const series = TrendCraft.atr(candles, { period: p.atrPeriod });
     result.atr = extractValues(series);
   }
 
   // ========== モメンタム系 ==========
 
   if (enabledIndicators.includes("rsi")) {
-    const series = TrendCraft.rsi(candles, { period: p.rsiPeriod! });
+    const series = TrendCraft.rsi(candles, { period: p.rsiPeriod });
     result.rsi = extractValues(series);
   }
 
   if (enabledIndicators.includes("macd")) {
     const series = TrendCraft.macd(candles, {
-      fastPeriod: p.macdFastPeriod!,
-      slowPeriod: p.macdSlowPeriod!,
-      signalPeriod: p.macdSignalPeriod!,
+      fastPeriod: p.macdFastPeriod,
+      slowPeriod: p.macdSlowPeriod,
+      signalPeriod: p.macdSignalPeriod,
     });
     result.macdLine = series.map((item) => item.value?.macd ?? null);
     result.macdSignal = series.map((item) => item.value?.signal ?? null);
@@ -213,8 +213,8 @@ export function calculateIndicators(
 
   if (enabledIndicators.includes("stochastics")) {
     const series = TrendCraft.stochastics(candles, {
-      kPeriod: p.stochKPeriod!,
-      dPeriod: p.stochDPeriod!,
+      kPeriod: p.stochKPeriod,
+      dPeriod: p.stochDPeriod,
     });
     result.stochK = series.map((item) => item.value?.k ?? null);
     result.stochD = series.map((item) => item.value?.d ?? null);
@@ -222,24 +222,24 @@ export function calculateIndicators(
 
   if (enabledIndicators.includes("stochRsi")) {
     const series = TrendCraft.stochRsi(candles, {
-      rsiPeriod: p.stochRsiRsiPeriod!,
-      stochPeriod: p.stochRsiStochPeriod!,
-      kPeriod: p.stochRsiKPeriod!,
-      dPeriod: p.stochRsiDPeriod!,
+      rsiPeriod: p.stochRsiRsiPeriod,
+      stochPeriod: p.stochRsiStochPeriod,
+      kPeriod: p.stochRsiKPeriod,
+      dPeriod: p.stochRsiDPeriod,
     });
     result.stochRsiK = series.map((item) => item.value?.k ?? null);
     result.stochRsiD = series.map((item) => item.value?.d ?? null);
   }
 
   if (enabledIndicators.includes("dmi")) {
-    const series = TrendCraft.dmi(candles, { period: p.dmiPeriod! });
+    const series = TrendCraft.dmi(candles, { period: p.dmiPeriod });
     result.dmiPlusDi = series.map((item) => item.value?.plusDi ?? null);
     result.dmiMinusDi = series.map((item) => item.value?.minusDi ?? null);
     result.dmiAdx = series.map((item) => item.value?.adx ?? null);
   }
 
   if (enabledIndicators.includes("cci")) {
-    const series = TrendCraft.cci(candles, { period: p.cciPeriod! });
+    const series = TrendCraft.cci(candles, { period: p.cciPeriod });
     result.cci = extractValues(series);
   }
 
@@ -251,7 +251,7 @@ export function calculateIndicators(
   }
 
   if (enabledIndicators.includes("mfi")) {
-    const series = TrendCraft.mfi(candles, { period: p.mfiPeriod! });
+    const series = TrendCraft.mfi(candles, { period: p.mfiPeriod });
     result.mfi = extractValues(series);
   }
 
@@ -259,18 +259,18 @@ export function calculateIndicators(
 
   if (enabledIndicators.includes("orderBlock")) {
     const series = TrendCraft.orderBlock(candles, {
-      swingPeriod: p.obSwingPeriod!,
-      minVolumeRatio: p.obMinVolumeRatio!,
-      maxActiveOBs: p.obMaxActiveOBs!,
+      swingPeriod: p.obSwingPeriod,
+      minVolumeRatio: p.obMinVolumeRatio,
+      maxActiveOBs: p.obMaxActiveOBs,
     });
     result.orderBlockData = series.map((item) => item.value);
   }
 
   if (enabledIndicators.includes("liquiditySweep")) {
     const series = TrendCraft.liquiditySweep(candles, {
-      swingPeriod: p.lsSwingPeriod!,
-      maxRecoveryBars: p.lsMaxRecoveryBars!,
-      minSweepDepth: p.lsMinSweepDepth!,
+      swingPeriod: p.lsSwingPeriod,
+      maxRecoveryBars: p.lsMaxRecoveryBars,
+      minSweepDepth: p.lsMinSweepDepth,
     });
     result.liquiditySweepData = series.map((item) => item.value);
   }
@@ -284,25 +284,25 @@ export function calculateIndicators(
     const strictMode = Boolean(p.dtStrictMode);
 
     const tops = TrendCraft.doubleTop(candles, {
-      tolerance: p.dtTolerance!,
-      minDistance: p.dtMinDistance!,
-      maxDistance: p.dtMaxDistance!,
-      minMiddleDepth: p.dtMinMiddleDepth!,
-      swingLookback: p.dtSwingLookback!,
-      maxBreakoutDistance: p.dtMaxBreakoutDistance!,
-      validateNecklineViolation: p.dtValidateNecklineViolation!,
-      necklineViolationTolerance: p.dtNecklineViolationTolerance!,
+      tolerance: p.dtTolerance,
+      minDistance: p.dtMinDistance,
+      maxDistance: p.dtMaxDistance,
+      minMiddleDepth: p.dtMinMiddleDepth,
+      swingLookback: p.dtSwingLookback,
+      maxBreakoutDistance: p.dtMaxBreakoutDistance,
+      validateNecklineViolation: p.dtValidateNecklineViolation,
+      necklineViolationTolerance: p.dtNecklineViolationTolerance,
       strictMode,
     });
     const bottoms = TrendCraft.doubleBottom(candles, {
-      tolerance: p.dtTolerance!,
-      minDistance: p.dtMinDistance!,
-      maxDistance: p.dtMaxDistance!,
-      minMiddleDepth: p.dtMinMiddleDepth!,
-      swingLookback: p.dtSwingLookback!,
-      maxBreakoutDistance: p.dtMaxBreakoutDistance!,
-      validateNecklineViolation: p.dtValidateNecklineViolation!,
-      necklineViolationTolerance: p.dtNecklineViolationTolerance!,
+      tolerance: p.dtTolerance,
+      minDistance: p.dtMinDistance,
+      maxDistance: p.dtMaxDistance,
+      minMiddleDepth: p.dtMinMiddleDepth,
+      swingLookback: p.dtSwingLookback,
+      maxBreakoutDistance: p.dtMaxBreakoutDistance,
+      validateNecklineViolation: p.dtValidateNecklineViolation,
+      necklineViolationTolerance: p.dtNecklineViolationTolerance,
       strictMode,
     });
     patterns.push(...tops, ...bottoms);
@@ -310,21 +310,21 @@ export function calculateIndicators(
 
   if (enabledIndicators.includes("headShoulders")) {
     const hs = TrendCraft.headAndShoulders(candles, {
-      shoulderTolerance: p.hsShoulderTolerance!,
-      maxNecklineSlope: p.hsMaxNecklineSlope!,
+      shoulderTolerance: p.hsShoulderTolerance,
+      maxNecklineSlope: p.hsMaxNecklineSlope,
     });
     const ihs = TrendCraft.inverseHeadAndShoulders(candles, {
-      shoulderTolerance: p.hsShoulderTolerance!,
-      maxNecklineSlope: p.hsMaxNecklineSlope!,
+      shoulderTolerance: p.hsShoulderTolerance,
+      maxNecklineSlope: p.hsMaxNecklineSlope,
     });
     patterns.push(...hs, ...ihs);
   }
 
   if (enabledIndicators.includes("cupHandle")) {
     const cups = TrendCraft.cupWithHandle(candles, {
-      minCupDepth: p.chMinCupDepth!,
-      maxCupDepth: p.chMaxCupDepth!,
-      minCupLength: p.chMinCupLength!,
+      minCupDepth: p.chMinCupDepth,
+      maxCupDepth: p.chMaxCupDepth,
+      minCupLength: p.chMinCupLength,
     });
     patterns.push(...cups);
   }
