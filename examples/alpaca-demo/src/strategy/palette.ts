@@ -1,0 +1,164 @@
+/**
+ * Strategy Palette — catalog of available indicators and conditions
+ *
+ * Defines what building blocks the LLM can use when creating or
+ * modifying strategies, along with safe parameter bounds.
+ */
+
+export type ParamRange = {
+  min: number;
+  max: number;
+  default: number;
+  step?: number;
+};
+
+export type IndicatorDef = {
+  description: string;
+  params: Record<string, ParamRange>;
+};
+
+export type ConditionDef = {
+  description: string;
+  requiredIndicators?: string[];
+  params?: Record<string, ParamRange | "indicatorKey">;
+};
+
+/**
+ * Available indicators that can be used in strategy templates
+ */
+export const INDICATOR_PALETTE: Record<string, IndicatorDef> = {
+  rsi: {
+    description: "Relative Strength Index — momentum oscillator (0-100)",
+    params: {
+      period: { min: 5, max: 30, default: 14 },
+    },
+  },
+  macd: {
+    description: "MACD — trend-following momentum (histogram, signal, macd)",
+    params: {
+      fastPeriod: { min: 5, max: 20, default: 12 },
+      slowPeriod: { min: 15, max: 40, default: 26 },
+      signalPeriod: { min: 5, max: 15, default: 9 },
+    },
+  },
+  bollinger: {
+    description: "Bollinger Bands — volatility bands around SMA",
+    params: {
+      period: { min: 10, max: 50, default: 20 },
+      stdDev: { min: 1, max: 3, default: 2, step: 0.5 },
+    },
+  },
+  ema: {
+    description: "Exponential Moving Average",
+    params: {
+      period: { min: 3, max: 200, default: 9 },
+    },
+  },
+  sma: {
+    description: "Simple Moving Average",
+    params: {
+      period: { min: 3, max: 200, default: 20 },
+    },
+  },
+  vwap: {
+    description: "Volume-Weighted Average Price (intraday)",
+    params: {},
+  },
+  atr: {
+    description: "Average True Range — volatility measure",
+    params: {
+      period: { min: 5, max: 30, default: 14 },
+    },
+  },
+  stochastics: {
+    description: "Stochastic Oscillator — K and D lines",
+    params: {
+      kPeriod: { min: 5, max: 21, default: 14 },
+      dPeriod: { min: 3, max: 7, default: 3 },
+    },
+  },
+  dmi: {
+    description: "Directional Movement Index — ADX, +DI, -DI",
+    params: {
+      period: { min: 7, max: 30, default: 14 },
+    },
+  },
+};
+
+/**
+ * Available conditions that can be used in entry/exit rules
+ */
+export const CONDITION_PALETTE: Record<string, ConditionDef> = {
+  rsiBelow: {
+    description: "RSI is below threshold (oversold)",
+    requiredIndicators: ["rsi"],
+    params: {
+      threshold: { min: 10, max: 50, default: 30 },
+    },
+  },
+  rsiAbove: {
+    description: "RSI is above threshold (overbought)",
+    requiredIndicators: ["rsi"],
+    params: {
+      threshold: { min: 50, max: 90, default: 70 },
+    },
+  },
+  macdPositive: {
+    description: "MACD histogram is positive (bullish momentum)",
+    requiredIndicators: ["macd"],
+  },
+  macdNegative: {
+    description: "MACD histogram is negative (bearish momentum)",
+    requiredIndicators: ["macd"],
+  },
+  priceAbove: {
+    description: "Price is above a named indicator",
+    params: {
+      indicatorKey: "indicatorKey",
+    },
+  },
+  priceBelow: {
+    description: "Price is below a named indicator",
+    params: {
+      indicatorKey: "indicatorKey",
+    },
+  },
+  smaGoldenCross: {
+    description: "Short SMA crosses above long SMA",
+    requiredIndicators: ["sma"],
+  },
+  smaDeadCross: {
+    description: "Short SMA crosses below long SMA",
+    requiredIndicators: ["sma"],
+  },
+  indicatorAbove: {
+    description: "An indicator value is above a numeric threshold",
+    params: {
+      indicatorKey: "indicatorKey",
+      threshold: { min: -100, max: 100, default: 0 },
+    },
+  },
+  indicatorBelow: {
+    description: "An indicator value is below a numeric threshold",
+    params: {
+      indicatorKey: "indicatorKey",
+      threshold: { min: -100, max: 100, default: 0 },
+    },
+  },
+};
+
+/**
+ * Sizing methods available for position management
+ */
+export const SIZING_METHODS = ["risk-based", "fixed-fractional", "full-capital"] as const;
+
+/**
+ * Return the full palette for LLM context
+ */
+export function getPalette() {
+  return {
+    indicators: INDICATOR_PALETTE,
+    conditions: CONDITION_PALETTE,
+    sizingMethods: SIZING_METHODS,
+  };
+}
