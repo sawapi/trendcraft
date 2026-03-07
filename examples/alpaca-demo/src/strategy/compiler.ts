@@ -8,12 +8,22 @@
 import {
   incremental,
   streaming,
+  sma,
+  ema,
+  rsi,
+  bollingerBands,
+  stochastics,
+  atr,
+  dmi,
+  vwap,
   rsiBelow as backtestRsiBelow,
   rsiAbove as backtestRsiAbove,
   macdCrossUp,
   macdCrossDown,
   goldenCrossCondition as backtestGoldenCross,
   deadCrossCondition as backtestDeadCross,
+  dmiBullish as backtestDmiBullish,
+  dmiBearish as backtestDmiBearish,
   and as backtestAnd,
   or as backtestOr,
   type NormalizedCandle,
@@ -161,10 +171,20 @@ function compileStreamingConditionRef(
       );
       return buildPriceCondition("below", key, indicators);
     }
-    case "smaGoldenCross":
-      return streaming.smaGoldenCross();
-    case "smaDeadCross":
-      return streaming.smaDeadCross();
+    case "smaGoldenCross": {
+      const smaInds = indicators.filter((i) => i.type === "sma");
+      const sorted = [...smaInds].sort((a, b) => (a.params.period ?? 20) - (b.params.period ?? 20));
+      const shortName = sorted[0]?.name ?? "sma20";
+      const longName = sorted[1]?.name ?? "sma50";
+      return buildSmaCrossCondition("over", shortName, longName);
+    }
+    case "smaDeadCross": {
+      const smaInds = indicators.filter((i) => i.type === "sma");
+      const sorted = [...smaInds].sort((a, b) => (a.params.period ?? 20) - (b.params.period ?? 20));
+      const shortName = sorted[0]?.name ?? "sma20";
+      const longName = sorted[1]?.name ?? "sma50";
+      return buildSmaCrossCondition("under", shortName, longName);
+    }
     case "indicatorAbove":
       return streaming.indicatorAbove(
         ref.params?.indicatorKey as string,
@@ -174,6 +194,16 @@ function compileStreamingConditionRef(
       return streaming.indicatorBelow(
         ref.params?.indicatorKey as string,
         (ref.params?.threshold as number) ?? 0,
+      );
+    case "dmiBullish":
+      return streaming.dmiBullish(
+        (ref.params?.threshold as number) ?? 25,
+        findIndicatorName(indicators, "dmi"),
+      );
+    case "dmiBearish":
+      return streaming.dmiBearish(
+        (ref.params?.threshold as number) ?? 25,
+        findIndicatorName(indicators, "dmi"),
       );
     default:
       throw new Error(`Unknown condition type: ${ref.type}`);
@@ -268,11 +298,25 @@ function compileBacktestConditionRef(
     case "indicatorAbove":
     case "indicatorBelow":
       // These require custom functions for backtest
-      return buildBacktestCustomCondition(ref);
+      return buildBacktestCustomCondition(ref, indicators);
     case "smaGoldenCross":
       return backtestGoldenCross();
     case "smaDeadCross":
       return backtestDeadCross();
+    case "dmiBullish": {
+      const dmiInd = indicators.find((i) => i.type === "dmi");
+      return backtestDmiBullish(
+        (ref.params?.threshold as number) ?? 25,
+        dmiInd?.params.period ?? 14,
+      );
+    }
+    case "dmiBearish": {
+      const dmiInd = indicators.find((i) => i.type === "dmi");
+      return backtestDmiBearish(
+        (ref.params?.threshold as number) ?? 25,
+        dmiInd?.params.period ?? 14,
+      );
+    }
     default:
       throw new Error(`Unknown backtest condition type: ${ref.type}`);
   }
@@ -312,6 +356,37 @@ function resolveIndicatorKey(
   _indicators: IndicatorRef[],
 ): string {
   return key;
+}
+
+/**
+ * Build a streaming condition that detects SMA cross (golden/dead cross)
+ * by tracking previous SMA values in a closure.
+ */
+function buildSmaCrossCondition(
+  direction: "over" | "under",
+  shortKey: string,
+  longKey: string,
+): streaming.StreamingConditionFn {
+  let prevShort: number | null = null;
+  let prevLong: number | null = null;
+
+  return (snapshot: streaming.IndicatorSnapshot, _candle: NormalizedCandle) => {
+    const currShort = typeof snapshot[shortKey] === "number" ? (snapshot[shortKey] as number) : null;
+    const currLong = typeof snapshot[longKey] === "number" ? (snapshot[longKey] as number) : null;
+
+    let crossed = false;
+    if (prevShort !== null && prevLong !== null && currShort !== null && currLong !== null) {
+      if (direction === "over") {
+        crossed = prevShort <= prevLong && currShort > currLong;
+      } else {
+        crossed = prevShort >= prevLong && currShort < currLong;
+      }
+    }
+
+    prevShort = currShort;
+    prevLong = currLong;
+    return crossed;
+  };
 }
 
 /**
@@ -366,49 +441,102 @@ function buildPriceCondition(
 }
 
 /**
- * Build custom backtest condition for price/indicator comparisons
+ * Compute indicator series on demand and cache in the indicators object.
+ * Maps template indicator names (e.g. "sma50", "bb") to trendcraft functions.
+ */
+function ensureIndicator(
+  indicatorCache: Record<string, unknown>,
+  indicatorName: string,
+  indicatorRefs: IndicatorRef[],
+  candles: NormalizedCandle[],
+): void {
+  if (indicatorCache[indicatorName]) return;
+
+  const ref = indicatorRefs.find((i) => i.name === indicatorName);
+  if (!ref) return;
+
+  switch (ref.type) {
+    case "sma":
+      indicatorCache[indicatorName] = sma(candles, { period: ref.params.period ?? 20 });
+      break;
+    case "ema":
+      indicatorCache[indicatorName] = ema(candles, { period: ref.params.period ?? 9 });
+      break;
+    case "rsi":
+      indicatorCache[indicatorName] = rsi(candles, { period: ref.params.period ?? 14 });
+      break;
+    case "bollinger":
+      indicatorCache[indicatorName] = bollingerBands(candles, {
+        period: ref.params.period ?? 20,
+        stdDev: ref.params.stdDev ?? 2,
+      });
+      break;
+    case "stochastics":
+      indicatorCache[indicatorName] = stochastics(candles, {
+        kPeriod: ref.params.kPeriod ?? 14,
+        dPeriod: ref.params.dPeriod ?? 3,
+      });
+      break;
+    case "atr":
+      indicatorCache[indicatorName] = atr(candles, { period: ref.params.period ?? 14 });
+      break;
+    case "dmi":
+      indicatorCache[indicatorName] = dmi(candles, { period: ref.params.period ?? 14 });
+      break;
+    case "vwap":
+      indicatorCache[indicatorName] = vwap(candles);
+      break;
+  }
+}
+
+/**
+ * Build custom backtest condition for price/indicator comparisons.
+ * Computes indicators on demand from template IndicatorRef definitions.
  */
 function buildBacktestCustomCondition(
   ref: ConditionRef,
+  indicatorRefs: IndicatorRef[],
 ): Condition {
   const key = ref.params?.indicatorKey as string;
   const threshold = ref.params?.threshold as number | undefined;
 
-  return (indicators, candle) => {
+  return (indicators, candle, index, candles) => {
     const parts = key?.split(".") ?? [];
     let value: number | null = null;
 
+    const indicatorName = parts[0];
+    if (!indicatorName) return false;
+
+    // Ensure the indicator is computed
+    ensureIndicator(indicators, indicatorName, indicatorRefs, candles);
+
     if (parts.length === 2) {
       // e.g., "bb.lower"
-      const series = indicators[parts[0]] as
+      const series = indicators[indicatorName] as
         | { time: number; value: Record<string, number> }[]
         | undefined;
       if (series) {
-        const entry = series.find((e) => e.time === candle.time);
+        const entry = series[index];
         if (entry?.value) value = entry.value[parts[1]] ?? null;
       }
-    } else if (key) {
-      const series = indicators[key] as
+    } else {
+      const series = indicators[indicatorName] as
         | { time: number; value: unknown }[]
         | undefined;
       if (series) {
-        const entry = series.find((e) => e.time === candle.time);
+        const entry = series[index];
         if (entry) {
           if (typeof entry.value === "number") {
             value = entry.value;
           } else if (entry.value && typeof entry.value === "object") {
             const obj = entry.value as Record<string, unknown>;
-            // Extract primary value from known multi-value indicators
             if ("vwap" in obj) {
               value = (obj.vwap as number) ?? null;
             } else if ("k" in obj) {
-              // Stochastics: use K line as primary value
               value = (obj.k as number) ?? null;
             } else if ("adx" in obj) {
-              // DMI: use ADX as primary value
               value = (obj.adx as number) ?? null;
             } else if ("middle" in obj) {
-              // Bollinger: use middle as primary value
               value = (obj.middle as number) ?? null;
             }
           }
