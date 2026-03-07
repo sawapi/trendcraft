@@ -53,6 +53,20 @@
   - [Layer 4: Pipeline & MTF](#layer-4-pipeline--mtf)
   - [Layer 5: Session & Guards](#layer-5-session--guards)
   - [Layer 6: Position Management](#layer-6-position-management)
+- [Trade Signals](#trade-signals)
+  - [TradeSignal Type](#tradesignal-type)
+  - [Signal Converters](#signal-converters)
+  - [Signal Emitter](#signal-emitter)
+- [Signal Lifecycle](#signal-lifecycle)
+  - [SignalManager](#signalmanager)
+  - [Batch Processing](#batch-processing)
+- [Short Selling](#short-selling)
+  - [Backtest Short Selling](#backtest-short-selling)
+  - [Streaming Short Selling](#streaming-short-selling)
+- [Data Validation](#data-validation)
+  - [validateCandles](#validatecandles)
+  - [normalizeAndValidate](#normalizeandvalidate)
+  - [Individual Detectors](#individual-detectors)
 - [Custom Indicators (Plugin System)](#custom-indicators-plugin-system)
   - [defineIndicator](#defineindicator)
   - [TrendCraft.use()](#trendcraftuse)
@@ -1828,6 +1842,7 @@ const result = runBacktest(
 | `taxRate` | `number` | `0` | Tax rate on profits (%) |
 | `fillMode` | `FillMode` | `'next-bar-open'` | Order fill timing (see below) |
 | `slTpMode` | `SlTpMode` | `'close-only'` | Stop loss/take profit evaluation mode (see below) |
+| `direction` | `PositionDirection` | `'long'` | Position direction (`'long'` or `'short'`). See [Short Selling](#short-selling) |
 
 #### Look-Ahead Bias Prevention
 
@@ -3902,6 +3917,393 @@ ws.on("trade", (data) => {
 | `closePosition(time, price)` | `ManagedEvent[]` | Manually close current position |
 | `updateStopLoss(price)` | `void` | Update stop loss price |
 | `updateTakeProfit(price)` | `void` | Update take profit price |
+
+---
+
+## Trade Signals
+
+Unified trade signal format for consumption by automated trading scripts.
+
+### TradeSignal Type
+
+```typescript
+type TradeSignal = {
+  id: string;              // Unique signal identifier
+  time: number;            // Signal timestamp (epoch ms)
+  action: TradeAction;     // "BUY" | "SELL" | "CLOSE"
+  direction: TradeDirection; // "LONG" | "SHORT"
+  confidence: number;      // 0-100
+  prices?: PriceLevels;    // { entry, stopLoss?, takeProfit? }
+  reasons: SignalReason[];  // [{ source, name, detail? }]
+  timeframe?: string;      // e.g., "1d", "4h"
+  metadata?: Record<string, unknown>;
+};
+```
+
+### Signal Converters
+
+Convert existing TrendCraft signal types into the unified `TradeSignal` format.
+
+#### `fromCrossSignal(signal, entryPrice?)`
+
+```typescript
+import { fromCrossSignal } from 'trendcraft';
+
+const signals = validateCrossSignals(candles);
+const tradeSignals = signals.map(s => fromCrossSignal(s, candles[i].close));
+// { action: "BUY", direction: "LONG", confidence: 85, ... }
+```
+
+#### `fromDivergenceSignal(signal, entryPrice?)`
+
+```typescript
+import { fromDivergenceSignal } from 'trendcraft';
+
+const divSignals = rsiDivergence(candles);
+const tradeSignals = divSignals.map(s => fromDivergenceSignal(s, candles[s.secondIdx].close));
+```
+
+#### `fromSqueezeSignal(signal, direction?, entryPrice?)`
+
+```typescript
+import { fromSqueezeSignal } from 'trendcraft';
+
+const squeezes = bollingerSqueeze(candles);
+const tradeSignals = squeezes.map(s => fromSqueezeSignal(s, "LONG", candles[i].close));
+```
+
+#### `fromPatternSignal(signal, entryPrice?)`
+
+Maps pattern `target` and `stopLoss` to `TradeSignal.prices`.
+
+```typescript
+import { fromPatternSignal } from 'trendcraft';
+
+const patterns = doubleBottom(candles);
+const tradeSignals = patterns.map(p => fromPatternSignal(p, 100));
+// { prices: { entry: 100, takeProfit: 120, stopLoss: 90 }, ... }
+```
+
+#### `fromScoreResult(score, time, options?)`
+
+Converts a `ScoreBreakdown` to a `TradeSignal`. Returns `null` if below threshold.
+
+```typescript
+import { fromScoreResult } from 'trendcraft';
+
+const breakdown = calculateScoreBreakdown(candles, signals, i);
+const signal = fromScoreResult(breakdown, candle.time, { minScore: 50, entryPrice: 100 });
+```
+
+**Options:**
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `minScore` | `number` | `0` | Minimum score threshold |
+| `direction` | `'LONG' \| 'SHORT'` | `'LONG'` | Position direction |
+| `entryPrice` | `number` | - | Entry price |
+
+#### `fromPipelineResult(result, time, entryPrice?)`
+
+Converts a streaming `PipelineResult` to a `TradeSignal`. Returns `null` when no signal is detected.
+
+```typescript
+import { fromPipelineResult } from 'trendcraft';
+
+const result = pipeline.next(candle);
+const signal = fromPipelineResult(result, candle.time, candle.close);
+```
+
+### Signal Emitter
+
+Wraps a streaming pipeline to automatically emit `TradeSignal` events.
+
+#### `createSignalEmitter(options)`
+
+```typescript
+import { streaming } from 'trendcraft';
+
+const emitter = streaming.createSignalEmitter({
+  intervalMs: 60000,
+  pipeline: {
+    indicators: [{ name: 'rsi14', create: () => streaming.incremental.rsi({ period: 14 }) }],
+    entry: rsiBelow(30),
+    exit: rsiAbove(70),
+  },
+  onSignal: (signal) => {
+    console.log(`${signal.action} at confidence ${signal.confidence}`);
+  },
+});
+
+for (const trade of trades) {
+  emitter.onTrade(trade);
+}
+emitter.close();
+```
+
+**Options:**
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `intervalMs` | `number` | required | Candle interval in milliseconds |
+| `pipeline` | `PipelineOptions` | required | Pipeline configuration |
+| `onSignal` | `(signal: TradeSignal) => void` | required | Callback for generated signals |
+| `emitPartial` | `boolean` | `false` | Emit partial candle events |
+| `warmUp` | `NormalizedCandle[]` | - | Historical candles for indicator warm-up |
+
+---
+
+## Signal Lifecycle
+
+Deduplication and lifecycle management for trade signals.
+
+### SignalManager
+
+#### `createSignalManager(options?, state?)`
+
+Creates a signal manager that filters incoming signals through cooldown, debounce, and expiry rules.
+
+```typescript
+import { createSignalManager } from 'trendcraft';
+
+const manager = createSignalManager({
+  cooldown: { bars: 5 },    // Suppress duplicates for 5 bars
+  debounce: { bars: 3 },    // Require 3 consecutive bars
+  expiry: { bars: 10 },     // Expire after 10 bars
+});
+
+// Process signals bar by bar
+const activated = manager.onBar(incomingSignals, barTime);
+// Only newly activated signals are returned
+
+// Mark signals as filled or cancelled
+manager.fill(signal.id);
+manager.cancel(signal.id);
+
+// Query state
+manager.getActiveCount();        // Number of active signals
+manager.getSignals('FILLED');    // Get filled signals
+manager.getState();              // Serialize for persistence
+```
+
+**Options:**
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `cooldown` | `CooldownConfig` | - | Suppress duplicates for N bars or ms |
+| `debounce` | `DebounceConfig` | - | Require N consecutive bars to activate |
+| `expiry` | `ExpiryConfig` | - | Auto-expire active signals after TTL |
+| `signalKey` | `SignalKeyFn` | default | Custom function for signal identity |
+
+**CooldownConfig:** `{ bars?: number; ms?: number }`
+**DebounceConfig:** `{ bars: number }`
+**ExpiryConfig:** `{ bars?: number; ms?: number }`
+
+**Signal states:** `PENDING` → `ACTIVE` → `EXPIRED` / `FILLED` / `CANCELLED`
+
+**State restoration:**
+
+```typescript
+const state = manager.getState();
+// Persist state (e.g., to disk)
+const restored = createSignalManager(options, state);
+```
+
+### Batch Processing
+
+#### `processSignalsBatch(signals, options?)`
+
+Applies lifecycle rules to an array of signals at once. Useful for backtest post-processing.
+
+```typescript
+import { processSignalsBatch } from 'trendcraft';
+
+const allSignals = [/* signals from backtest */];
+const filtered = processSignalsBatch(allSignals, { cooldown: { bars: 3 } });
+// Removes duplicate signals within 3-bar windows
+```
+
+---
+
+## Short Selling
+
+TrendCraft supports short selling in both backtest and streaming modes. All short-related fields are optional — omitting `direction` defaults to `"long"` for full backward compatibility.
+
+### Backtest Short Selling
+
+Pass `direction: "short"` in backtest options to simulate short positions.
+
+```typescript
+import { runBacktest, deadCross, goldenCross } from 'trendcraft';
+
+const result = runBacktest(
+  candles,
+  deadCross(5, 25),     // Entry: Dead Cross (short entry)
+  goldenCross(5, 25),   // Exit: Golden Cross (short exit)
+  {
+    capital: 1000000,
+    direction: 'short',  // Enable short selling
+    stopLoss: 5,         // Triggers at entry * 1.05 (price rises)
+    takeProfit: 5,       // Triggers at entry * 0.95 (price drops)
+    trailingStop: 3,     // Trails from lowest price (trough)
+  }
+);
+
+// Short P&L is direction-aware
+console.log(result.totalReturnPercent); // Positive when price drops
+console.log(result.trades[0].direction); // "short"
+```
+
+**Short position behavior:**
+
+| Feature | Long (default) | Short |
+|---------|---------------|-------|
+| Profit | Price rises | Price drops |
+| Stop Loss | `entry * (1 - sl%)` | `entry * (1 + sl%)` |
+| Take Profit | `entry * (1 + tp%)` | `entry * (1 - tp%)` |
+| Trailing Stop | Tracks peak price, triggers on drop | Tracks trough price, triggers on rise |
+| MFE | Max unrealized profit from price rise | Max unrealized profit from price drop |
+| MAE | Max unrealized loss from price drop | Max unrealized loss from price rise |
+
+### Streaming Short Selling
+
+The position tracker also supports short positions.
+
+```typescript
+import { streaming } from 'trendcraft';
+
+const tracker = streaming.createPositionTracker({
+  capital: 100000,
+  direction: 'short',
+  stopLoss: 5,        // SL at entry * 1.05
+  takeProfit: 10,     // TP at entry * 0.90
+  trailingStop: 3,    // Trail from trough
+});
+
+tracker.openPosition(100, currentTime, 1000);
+
+// Unrealized P&L is direction-aware
+const account = tracker.getAccount();
+console.log(account.unrealizedPnl); // Positive when price < entry
+
+// Auto-triggers: SL on price rise, TP on price drop
+const result = tracker.updatePrice(candle);
+if (result.triggered) {
+  console.log(result.triggered.reason); // "stop-loss" | "take-profit" | "trailing-stop"
+}
+```
+
+---
+
+## Data Validation
+
+Validate candle data quality before running indicators or backtests.
+
+### `validateCandles(candles, options?)`
+
+Runs all enabled validation checks and returns a unified result.
+
+```typescript
+import { validateCandles } from 'trendcraft';
+
+const result = validateCandles(candles);
+
+if (!result.valid) {
+  console.log('Errors:', result.errors);
+}
+console.log('Warnings:', result.warnings);
+console.log('Info:', result.info);
+```
+
+**Options:**
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `gaps` | `boolean \| GapDetectionOptions` | `true` | Detect time gaps |
+| `duplicates` | `boolean` | `true` | Detect duplicate timestamps |
+| `ohlc` | `boolean` | `true` | Check OHLC consistency |
+| `spikes` | `boolean \| SpikeDetectionOptions` | `true` | Detect price spikes |
+| `volumeAnomalies` | `boolean \| VolumeAnomalyOptions` | `true` | Detect volume anomalies |
+| `stale` | `boolean \| StaleDetectionOptions` | `true` | Detect stale/frozen data |
+| `splits` | `boolean` | `false` | Detect stock split hints |
+| `autoClean` | `boolean` | `false` | Return cleaned candles (deduped, sorted) |
+
+**Detection options:**
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `GapDetectionOptions.maxGapMultiplier` | `number` | `3` | Max gap as multiple of expected interval |
+| `GapDetectionOptions.skipWeekends` | `boolean` | `true` | Skip weekends in gap calculation |
+| `SpikeDetectionOptions.maxPriceChangePercent` | `number` | `20` | Max single-bar price change (%) |
+| `VolumeAnomalyOptions.zScoreThreshold` | `number` | `4` | Z-score threshold |
+| `VolumeAnomalyOptions.lookback` | `number` | `20` | Lookback period for mean/std |
+| `StaleDetectionOptions.minConsecutive` | `number` | `5` | Min consecutive bars with same close |
+
+**Validation findings:**
+
+| Category | Severity | Description |
+|----------|----------|-------------|
+| `duplicate` | error | Duplicate timestamps |
+| `ohlc` | error | OHLC inconsistency (e.g., high < low) |
+| `gap` | warning | Time gaps exceeding threshold |
+| `spike` | warning | Single-bar price change exceeding threshold |
+| `volume` | warning | Volume z-score exceeding threshold |
+| `stale` | warning | Consecutive identical close prices |
+| `split` | info | Price ratio matches common split ratios (1:2, 1:3, etc.) |
+
+**Auto-clean example:**
+
+```typescript
+const result = validateCandles(candles, { autoClean: true });
+if (result.cleanedCandles) {
+  // Use cleaned data (duplicates removed, sorted by time)
+  const indicators = sma(result.cleanedCandles, { period: 20 });
+}
+```
+
+### `normalizeAndValidate(candles, validation?)`
+
+Convenience wrapper that normalizes and validates in one step.
+
+```typescript
+import { normalizeAndValidate } from 'trendcraft';
+
+const { candles: normalized, validation } = normalizeAndValidate(rawCandles, {
+  gaps: true,
+  duplicates: true,
+  autoClean: true,
+});
+
+if (validation && !validation.valid) {
+  console.warn('Data quality issues:', validation.errors);
+}
+```
+
+### Individual Detectors
+
+Each validation check is also available as a standalone function:
+
+```typescript
+import {
+  detectGaps,
+  detectDuplicates,
+  removeDuplicates,
+  detectOhlcErrors,
+  detectPriceSpikes,
+  detectVolumeAnomalies,
+  detectStaleData,
+  detectSplitHints,
+} from 'trendcraft';
+
+const gaps = detectGaps(candles, { maxGapMultiplier: 5 });
+const dupes = detectDuplicates(candles);
+const cleaned = removeDuplicates(candles); // Returns deduped array
+const ohlcErrors = detectOhlcErrors(candles);
+const spikes = detectPriceSpikes(candles, { maxPriceChangePercent: 15 });
+const volumeIssues = detectVolumeAnomalies(candles, { zScoreThreshold: 3 });
+const stale = detectStaleData(candles, { minConsecutive: 10 });
+const splits = detectSplitHints(candles);
+```
 
 ---
 

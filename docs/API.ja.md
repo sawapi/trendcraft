@@ -53,6 +53,20 @@
   - [Layer 4: パイプライン & MTF](#layer-4-パイプライン--mtf)
   - [Layer 5: セッション & ガード](#layer-5-セッション--ガード)
   - [Layer 6: ポジション管理](#layer-6-ポジション管理)
+- [トレードシグナル](#トレードシグナル)
+  - [TradeSignal型](#tradesignal型)
+  - [シグナルコンバーター](#シグナルコンバーター)
+  - [シグナルエミッター](#シグナルエミッター)
+- [シグナルライフサイクル](#シグナルライフサイクル)
+  - [SignalManager](#signalmanager)
+  - [バッチ処理](#バッチ処理)
+- [ショートセリング](#ショートセリング)
+  - [バックテストでのショート](#バックテストでのショート)
+  - [ストリーミングでのショート](#ストリーミングでのショート)
+- [データ品質バリデーション](#データ品質バリデーション)
+  - [validateCandles](#validatecandles)
+  - [normalizeAndValidate](#normalizeandvalidate)
+  - [個別検出関数](#個別検出関数)
 - [カスタムインジケーター（プラグインシステム）](#カスタムインジケータープラグインシステム)
   - [defineIndicator](#defineindicator)
   - [TrendCraft.use()](#trendcraftuse)
@@ -1830,6 +1844,7 @@ const result = runBacktest(
 | `taxRate` | `number` | `0` | 利益に対する税率 (%) |
 | `fillMode` | `FillMode` | `'next-bar-open'` | 約定タイミング（下記参照） |
 | `slTpMode` | `SlTpMode` | `'close-only'` | SL/TP判定方法（下記参照） |
+| `direction` | `PositionDirection` | `'long'` | ポジション方向（`'long'` or `'short'`）。[ショートセリング](#ショートセリング)参照 |
 
 #### 先読みバイアス対策
 
@@ -3809,6 +3824,393 @@ ws.on("trade", (data) => {
 | `closePosition(time, price)` | `ManagedEvent[]` | 手動でポジションを決済 |
 | `updateStopLoss(price)` | `void` | ストップロス価格を更新 |
 | `updateTakeProfit(price)` | `void` | テイクプロフィット価格を更新 |
+
+---
+
+## トレードシグナル
+
+自動売買スクリプトが利用しやすい統一シグナルフォーマット。
+
+### TradeSignal型
+
+```typescript
+type TradeSignal = {
+  id: string;              // 一意のシグナルID
+  time: number;            // タイムスタンプ (epoch ms)
+  action: TradeAction;     // "BUY" | "SELL" | "CLOSE"
+  direction: TradeDirection; // "LONG" | "SHORT"
+  confidence: number;      // 0-100
+  prices?: PriceLevels;    // { entry, stopLoss?, takeProfit? }
+  reasons: SignalReason[];  // [{ source, name, detail? }]
+  timeframe?: string;      // 例: "1d", "4h"
+  metadata?: Record<string, unknown>;
+};
+```
+
+### シグナルコンバーター
+
+既存のTrendCraftシグナル型を統一`TradeSignal`フォーマットに変換。
+
+#### `fromCrossSignal(signal, entryPrice?)`
+
+```typescript
+import { fromCrossSignal } from 'trendcraft';
+
+const signals = validateCrossSignals(candles);
+const tradeSignals = signals.map(s => fromCrossSignal(s, candles[i].close));
+// { action: "BUY", direction: "LONG", confidence: 85, ... }
+```
+
+#### `fromDivergenceSignal(signal, entryPrice?)`
+
+```typescript
+import { fromDivergenceSignal } from 'trendcraft';
+
+const divSignals = rsiDivergence(candles);
+const tradeSignals = divSignals.map(s => fromDivergenceSignal(s, candles[s.secondIdx].close));
+```
+
+#### `fromSqueezeSignal(signal, direction?, entryPrice?)`
+
+```typescript
+import { fromSqueezeSignal } from 'trendcraft';
+
+const squeezes = bollingerSqueeze(candles);
+const tradeSignals = squeezes.map(s => fromSqueezeSignal(s, "LONG", candles[i].close));
+```
+
+#### `fromPatternSignal(signal, entryPrice?)`
+
+パターンの`target`と`stopLoss`を`TradeSignal.prices`にマッピング。
+
+```typescript
+import { fromPatternSignal } from 'trendcraft';
+
+const patterns = doubleBottom(candles);
+const tradeSignals = patterns.map(p => fromPatternSignal(p, 100));
+// { prices: { entry: 100, takeProfit: 120, stopLoss: 90 }, ... }
+```
+
+#### `fromScoreResult(score, time, options?)`
+
+`ScoreBreakdown`を`TradeSignal`に変換。閾値未満の場合`null`を返す。
+
+```typescript
+import { fromScoreResult } from 'trendcraft';
+
+const breakdown = calculateScoreBreakdown(candles, signals, i);
+const signal = fromScoreResult(breakdown, candle.time, { minScore: 50, entryPrice: 100 });
+```
+
+**オプション:**
+
+| オプション | 型 | デフォルト | 説明 |
+|------------|------|---------|------|
+| `minScore` | `number` | `0` | 最低スコア閾値 |
+| `direction` | `'LONG' \| 'SHORT'` | `'LONG'` | ポジション方向 |
+| `entryPrice` | `number` | - | エントリー価格 |
+
+#### `fromPipelineResult(result, time, entryPrice?)`
+
+ストリーミングの`PipelineResult`を`TradeSignal`に変換。シグナルなしの場合`null`を返す。
+
+```typescript
+import { fromPipelineResult } from 'trendcraft';
+
+const result = pipeline.next(candle);
+const signal = fromPipelineResult(result, candle.time, candle.close);
+```
+
+### シグナルエミッター
+
+ストリーミングパイプラインをラップし、`TradeSignal`イベントを自動発火。
+
+#### `createSignalEmitter(options)`
+
+```typescript
+import { streaming } from 'trendcraft';
+
+const emitter = streaming.createSignalEmitter({
+  intervalMs: 60000,
+  pipeline: {
+    indicators: [{ name: 'rsi14', create: () => streaming.incremental.rsi({ period: 14 }) }],
+    entry: rsiBelow(30),
+    exit: rsiAbove(70),
+  },
+  onSignal: (signal) => {
+    console.log(`${signal.action} at confidence ${signal.confidence}`);
+  },
+});
+
+for (const trade of trades) {
+  emitter.onTrade(trade);
+}
+emitter.close();
+```
+
+**オプション:**
+
+| オプション | 型 | デフォルト | 説明 |
+|------------|------|---------|------|
+| `intervalMs` | `number` | 必須 | ローソク足間隔 (ms) |
+| `pipeline` | `PipelineOptions` | 必須 | パイプライン設定 |
+| `onSignal` | `(signal: TradeSignal) => void` | 必須 | シグナル発火コールバック |
+| `emitPartial` | `boolean` | `false` | 部分ローソク足を発火 |
+| `warmUp` | `NormalizedCandle[]` | - | ウォームアップ用ヒストリカルデータ |
+
+---
+
+## シグナルライフサイクル
+
+トレードシグナルの重複排除とライフサイクル管理。
+
+### SignalManager
+
+#### `createSignalManager(options?, state?)`
+
+クールダウン、デバウンス、有効期限ルールでシグナルをフィルタリングするマネージャーを作成。
+
+```typescript
+import { createSignalManager } from 'trendcraft';
+
+const manager = createSignalManager({
+  cooldown: { bars: 5 },    // 5バー間、同一シグナルを抑制
+  debounce: { bars: 3 },    // 3バー連続で初めて発火
+  expiry: { bars: 10 },     // 10バー後に期限切れ
+});
+
+// バーごとにシグナルを処理
+const activated = manager.onBar(incomingSignals, barTime);
+// 新たにアクティブ化されたシグナルのみ返される
+
+// シグナルを約定済み/キャンセルに設定
+manager.fill(signal.id);
+manager.cancel(signal.id);
+
+// 状態の問い合わせ
+manager.getActiveCount();        // アクティブシグナル数
+manager.getSignals('FILLED');    // 約定済みシグナルを取得
+manager.getState();              // 永続化用にシリアライズ
+```
+
+**オプション:**
+
+| オプション | 型 | デフォルト | 説明 |
+|------------|------|---------|------|
+| `cooldown` | `CooldownConfig` | - | 重複抑制期間 (バー数 or ms) |
+| `debounce` | `DebounceConfig` | - | 連続バー数の要件 |
+| `expiry` | `ExpiryConfig` | - | アクティブシグナルの自動期限切れ |
+| `signalKey` | `SignalKeyFn` | デフォルト | シグナル同一判定のカスタム関数 |
+
+**CooldownConfig:** `{ bars?: number; ms?: number }`
+**DebounceConfig:** `{ bars: number }`
+**ExpiryConfig:** `{ bars?: number; ms?: number }`
+
+**シグナル状態遷移:** `PENDING` → `ACTIVE` → `EXPIRED` / `FILLED` / `CANCELLED`
+
+**状態の保存・復元:**
+
+```typescript
+const state = manager.getState();
+// 状態を永続化 (例: ファイル)
+const restored = createSignalManager(options, state);
+```
+
+### バッチ処理
+
+#### `processSignalsBatch(signals, options?)`
+
+シグナル配列にライフサイクルルールを一括適用。バックテスト後のポスト処理に便利。
+
+```typescript
+import { processSignalsBatch } from 'trendcraft';
+
+const allSignals = [/* バックテストのシグナル */];
+const filtered = processSignalsBatch(allSignals, { cooldown: { bars: 3 } });
+// 3バー以内の重複シグナルを除去
+```
+
+---
+
+## ショートセリング
+
+TrendCraftはバックテスト・ストリーミング両方でショートポジションをサポート。ショート関連フィールドはすべてオプショナルで、`direction`未指定時は`"long"`がデフォルト（完全後方互換）。
+
+### バックテストでのショート
+
+バックテストオプションに`direction: "short"`を指定。
+
+```typescript
+import { runBacktest, deadCross, goldenCross } from 'trendcraft';
+
+const result = runBacktest(
+  candles,
+  deadCross(5, 25),     // エントリー: デッドクロス（ショートイン）
+  goldenCross(5, 25),   // イグジット: ゴールデンクロス（ショートアウト）
+  {
+    capital: 1000000,
+    direction: 'short',  // ショートセリング有効化
+    stopLoss: 5,         // entry * 1.05 で発動（価格上昇時）
+    takeProfit: 5,       // entry * 0.95 で発動（価格下落時）
+    trailingStop: 3,     // 最安値（トラフ）から追跡
+  }
+);
+
+// ショートP&Lは方向を考慮
+console.log(result.totalReturnPercent); // 価格下落時にプラス
+console.log(result.trades[0].direction); // "short"
+```
+
+**ショートポジションの動作:**
+
+| 項目 | ロング（デフォルト） | ショート |
+|------|---------------------|----------|
+| 利益 | 価格上昇 | 価格下落 |
+| ストップロス | `entry * (1 - sl%)` | `entry * (1 + sl%)` |
+| テイクプロフィット | `entry * (1 + tp%)` | `entry * (1 - tp%)` |
+| トレーリングストップ | 最高値から下落で発動 | 最安値から上昇で発動 |
+| MFE | 価格上昇による最大含み益 | 価格下落による最大含み益 |
+| MAE | 価格下落による最大含み損 | 価格上昇による最大含み損 |
+
+### ストリーミングでのショート
+
+ポジショントラッカーもショートポジションをサポート。
+
+```typescript
+import { streaming } from 'trendcraft';
+
+const tracker = streaming.createPositionTracker({
+  capital: 100000,
+  direction: 'short',
+  stopLoss: 5,        // SL: entry * 1.05
+  takeProfit: 10,     // TP: entry * 0.90
+  trailingStop: 3,    // トラフから追跡
+});
+
+tracker.openPosition(100, currentTime, 1000);
+
+// 含み損益は方向を考慮
+const account = tracker.getAccount();
+console.log(account.unrealizedPnl); // 価格 < entry でプラス
+
+// 自動発動: 価格上昇でSL、価格下落でTP
+const result = tracker.updatePrice(candle);
+if (result.triggered) {
+  console.log(result.triggered.reason); // "stop-loss" | "take-profit" | "trailing-stop"
+}
+```
+
+---
+
+## データ品質バリデーション
+
+インジケーター計算やバックテスト前にデータ品質を検証。
+
+### `validateCandles(candles, options?)`
+
+有効な全検出チェックを実行し、統一された結果を返す。
+
+```typescript
+import { validateCandles } from 'trendcraft';
+
+const result = validateCandles(candles);
+
+if (!result.valid) {
+  console.log('エラー:', result.errors);
+}
+console.log('警告:', result.warnings);
+console.log('情報:', result.info);
+```
+
+**オプション:**
+
+| オプション | 型 | デフォルト | 説明 |
+|------------|------|---------|------|
+| `gaps` | `boolean \| GapDetectionOptions` | `true` | 時間ギャップ検出 |
+| `duplicates` | `boolean` | `true` | 重複タイムスタンプ検出 |
+| `ohlc` | `boolean` | `true` | OHLC整合性チェック |
+| `spikes` | `boolean \| SpikeDetectionOptions` | `true` | 価格スパイク検出 |
+| `volumeAnomalies` | `boolean \| VolumeAnomalyOptions` | `true` | 出来高異常検出 |
+| `stale` | `boolean \| StaleDetectionOptions` | `true` | データ停滞検出 |
+| `splits` | `boolean` | `false` | 株式分割ヒント検出 |
+| `autoClean` | `boolean` | `false` | クリーニング済みデータを返す（重複除去＋ソート） |
+
+**検出オプション:**
+
+| オプション | 型 | デフォルト | 説明 |
+|------------|------|---------|------|
+| `GapDetectionOptions.maxGapMultiplier` | `number` | `3` | 予想間隔の倍数としての最大ギャップ |
+| `GapDetectionOptions.skipWeekends` | `boolean` | `true` | ギャップ計算で週末をスキップ |
+| `SpikeDetectionOptions.maxPriceChangePercent` | `number` | `20` | 1バーの最大価格変動 (%) |
+| `VolumeAnomalyOptions.zScoreThreshold` | `number` | `4` | Zスコア閾値 |
+| `VolumeAnomalyOptions.lookback` | `number` | `20` | 平均/標準偏差の計算期間 |
+| `StaleDetectionOptions.minConsecutive` | `number` | `5` | 同一終値の最小連続バー数 |
+
+**検出結果:**
+
+| カテゴリ | 重要度 | 説明 |
+|----------|--------|------|
+| `duplicate` | error | 重複タイムスタンプ |
+| `ohlc` | error | OHLC不整合（例: high < low） |
+| `gap` | warning | 閾値を超える時間ギャップ |
+| `spike` | warning | 閾値を超える1バー価格変動 |
+| `volume` | warning | 閾値を超えるZスコア |
+| `stale` | warning | 同一終値の連続 |
+| `split` | info | 一般的な分割比率に一致（1:2, 1:3等） |
+
+**autoCleanの例:**
+
+```typescript
+const result = validateCandles(candles, { autoClean: true });
+if (result.cleanedCandles) {
+  // クリーニング済みデータを使用（重複除去・ソート済み）
+  const indicators = sma(result.cleanedCandles, { period: 20 });
+}
+```
+
+### `normalizeAndValidate(candles, validation?)`
+
+正規化とバリデーションを一括で行うラッパー。
+
+```typescript
+import { normalizeAndValidate } from 'trendcraft';
+
+const { candles: normalized, validation } = normalizeAndValidate(rawCandles, {
+  gaps: true,
+  duplicates: true,
+  autoClean: true,
+});
+
+if (validation && !validation.valid) {
+  console.warn('データ品質に問題あり:', validation.errors);
+}
+```
+
+### 個別検出関数
+
+各バリデーションチェックはスタンドアロン関数としても利用可能:
+
+```typescript
+import {
+  detectGaps,
+  detectDuplicates,
+  removeDuplicates,
+  detectOhlcErrors,
+  detectPriceSpikes,
+  detectVolumeAnomalies,
+  detectStaleData,
+  detectSplitHints,
+} from 'trendcraft';
+
+const gaps = detectGaps(candles, { maxGapMultiplier: 5 });
+const dupes = detectDuplicates(candles);
+const cleaned = removeDuplicates(candles); // 重複除去済み配列を返す
+const ohlcErrors = detectOhlcErrors(candles);
+const spikes = detectPriceSpikes(candles, { maxPriceChangePercent: 15 });
+const volumeIssues = detectVolumeAnomalies(candles, { zScoreThreshold: 3 });
+const stale = detectStaleData(candles, { minConsecutive: 10 });
+const splits = detectSplitHints(candles);
+```
 
 ---
 
