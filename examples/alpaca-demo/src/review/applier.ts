@@ -7,9 +7,10 @@
  * - create_strategy → backtest gate → save to custom-strategies.json
  */
 
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { mkdirSync } from "node:fs";
+import { atomicWriteJson } from "../persistence/atomic-write.js";
 import { runBacktest, type NormalizedCandle } from "trendcraft";
 import { scoreResult } from "../backtest/scorer.js";
 import { runWalkForwardValidation, runMonteCarloValidation } from "../backtest/runner.js";
@@ -139,9 +140,10 @@ function applyAdjustParams(
     overrides.push(override);
   }
 
-  // Walk-Forward gate for logic changes (indicators, entry, exit)
+  // Walk-Forward gate for logic/risk changes (indicators, entry, exit, position, guards)
   const hasLogicChanges =
-    action.changes.indicators || action.changes.entry || action.changes.exit;
+    action.changes.indicators || action.changes.entry || action.changes.exit ||
+    action.changes.position || action.changes.guards;
 
   if (hasLogicChanges && backtestCandles && backtestCandles.length > 0) {
     const baseTemplate = getPresetTemplate(action.strategyId);
@@ -307,8 +309,7 @@ export function loadOverrides(): ParameterOverride[] {
 }
 
 function saveOverrides(overrides: ParameterOverride[]): void {
-  ensureDir(DATA_DIR);
-  writeFileSync(OVERRIDES_PATH, JSON.stringify(overrides, null, 2), "utf-8");
+  atomicWriteJson(OVERRIDES_PATH, overrides);
 }
 
 /**
@@ -335,8 +336,7 @@ function loadState(): { version: number; savedAt: number; agents: (AgentState & 
 }
 
 function saveState(state: { version: number; savedAt: number; agents: (AgentState & { active?: boolean })[] }): void {
-  ensureDir(DATA_DIR);
-  writeFileSync(STATE_PATH, JSON.stringify(state, null, 2), "utf-8");
+  atomicWriteJson(STATE_PATH, state);
 }
 
 export function loadCustomStrategies(): StrategyTemplate[] {
@@ -357,9 +357,5 @@ function saveCustomStrategy(template: StrategyTemplate): void {
   } else {
     existing.push(template);
   }
-  writeFileSync(
-    CUSTOM_STRATEGIES_PATH,
-    JSON.stringify(existing, null, 2),
-    "utf-8",
-  );
+  atomicWriteJson(CUSTOM_STRATEGIES_PATH, existing);
 }

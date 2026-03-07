@@ -143,8 +143,8 @@ async function backtestReviewCommand(
   let marketContext: MarketContext[] = [];
   try {
     marketContext = await fetchMarketContext(env, symbols);
-  } catch {
-    // OK
+  } catch (err) {
+    console.warn("[review] Failed to fetch market context:", err instanceof Error ? err.message : err);
   }
 
   const activeOverrides = loadOverrides();
@@ -229,12 +229,12 @@ async function liveReviewCommand(
             period: "90d",
           });
         }
-      } catch {
-        // Skip symbol if data unavailable
+      } catch (err) {
+        console.warn(`[review] Failed to fetch B&H data for ${symbol}:`, err instanceof Error ? err.message : err);
       }
     }
-  } catch {
-    console.log("Could not fetch market context (Alpaca API may not be configured).");
+  } catch (err) {
+    console.warn("[review] Could not fetch market context:", err instanceof Error ? err.message : err);
   }
 
   // Load active overrides
@@ -386,8 +386,9 @@ async function runLLMReview(
         start: monthsAgo(3),
         end: today(),
       });
-    } catch {
-      console.log("Could not fetch backtest data — new strategies will be saved without backtest gate.");
+    } catch (err) {
+      console.warn("[review] Could not fetch backtest data:", err instanceof Error ? err.message : err);
+      console.log("New strategies will be saved without backtest gate.");
     }
   }
 
@@ -528,14 +529,14 @@ async function fetchMarketContext(
               }
             }
           }
-        } catch {
-          // Regime detection failed — continue with basic context
+        } catch (err) {
+          console.warn(`[review] Regime detection failed for ${symbol}:`, err instanceof Error ? err.message : err);
         }
       }
 
       results.push(ctx);
-    } catch {
-      // Skip symbol if data unavailable
+    } catch (err) {
+      console.warn(`[review] Failed to fetch market data for ${symbol}:`, err instanceof Error ? err.message : err);
     }
   }
 

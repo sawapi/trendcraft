@@ -42,7 +42,7 @@ const DEFAULT_CONFIG: SafetyConfig = {
   maxKillsPerDay: 1,
   maxRevivesPerDay: 1,
   maxCreatesPerDay: 1,
-  maxCumulativeDriftPct: 50,
+  maxCumulativeDriftPct: 30,
   minBacktestScore: 30,
   minDaysBetweenChanges: 3,
   maxChangesPerWeek: 3,
@@ -281,11 +281,21 @@ function validateAdjustParams(
   return { valid: true };
 }
 
+const MAX_INDICATORS_PER_STRATEGY = 5;
+
 function validateCreateStrategy(
   action: CreateStrategyAction,
   _config: SafetyConfig,
 ): ValidationResult {
   const { template } = action;
+
+  // Limit indicator count to prevent overfitting
+  if (template.indicators.length > MAX_INDICATORS_PER_STRATEGY) {
+    return {
+      valid: false,
+      reason: `Too many indicators (${template.indicators.length}): max ${MAX_INDICATORS_PER_STRATEGY} allowed to reduce overfitting risk`,
+    };
+  }
 
   // Validate all indicators exist in palette
   for (const ind of template.indicators) {

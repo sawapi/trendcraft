@@ -6,9 +6,8 @@ import type { StrategyDefinition } from "./types.js";
 import { rsiMeanReversion } from "./presets/rsi-mean-reversion.js";
 import { macdTrend } from "./presets/macd-trend.js";
 import { bollingerSqueeze } from "./presets/bollinger-squeeze.js";
-import { vwapBounce } from "./presets/vwap-bounce.js";
 import { compileTemplate } from "./compiler.js";
-import { applyOverrides, getPresetTemplate } from "./template.js";
+import { applyOverrides, getPresetTemplate, PRESET_TEMPLATES } from "./template.js";
 import type { ParameterOverride, StrategyTemplate } from "./template.js";
 
 const strategies: Map<string, StrategyDefinition> = new Map();
@@ -17,11 +16,22 @@ function register(strategy: StrategyDefinition): void {
   strategies.set(strategy.id, strategy);
 }
 
-// Register built-in presets
+// Register handcoded presets (these have optimized backtest adapters)
+const HANDCODED_IDS = new Set(["rsi-mean-reversion", "macd-trend", "bollinger-squeeze"]);
 register(rsiMeanReversion);
 register(macdTrend);
 register(bollingerSqueeze);
-register(vwapBounce);
+
+// Register template-only presets (compiled from PRESET_TEMPLATES)
+for (const template of PRESET_TEMPLATES) {
+  if (HANDCODED_IDS.has(template.id)) continue;
+  const result = compileTemplate(template);
+  if (result.ok) {
+    register(result.strategy);
+  } else {
+    console.warn(`Failed to compile preset ${template.id}: ${result.error}`);
+  }
+}
 
 export function getStrategy(id: string): StrategyDefinition | undefined {
   return strategies.get(id);

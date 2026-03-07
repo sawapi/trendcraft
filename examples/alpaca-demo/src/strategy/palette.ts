@@ -145,6 +145,20 @@ export const CONDITION_PALETTE: Record<string, ConditionDef> = {
       threshold: { min: -100, max: 100, default: 0 },
     },
   },
+  dmiBullish: {
+    description: "+DI > -DI and ADX >= threshold (bullish trend)",
+    requiredIndicators: ["dmi"],
+    params: {
+      threshold: { min: 15, max: 50, default: 25 },
+    },
+  },
+  dmiBearish: {
+    description: "-DI > +DI and ADX >= threshold (bearish trend)",
+    requiredIndicators: ["dmi"],
+    params: {
+      threshold: { min: 15, max: 50, default: 25 },
+    },
+  },
 };
 
 /**

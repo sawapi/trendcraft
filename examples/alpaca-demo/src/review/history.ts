@@ -2,9 +2,10 @@
  * Review History — persist and load daily review records
  */
 
-import { readFileSync, writeFileSync, existsSync, readdirSync } from "node:fs";
+import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { mkdirSync } from "node:fs";
+import { atomicWriteJson } from "../persistence/atomic-write.js";
 import type { ReviewRecord } from "./types.js";
 
 const REVIEWS_DIR = resolve(import.meta.dirname, "../../data/reviews");
@@ -19,7 +20,7 @@ function ensureDir(dir: string): void {
 export function saveReviewRecord(record: ReviewRecord): string {
   ensureDir(REVIEWS_DIR);
   const path = resolve(REVIEWS_DIR, `${record.date}-review.json`);
-  writeFileSync(path, JSON.stringify(record, null, 2), "utf-8");
+  atomicWriteJson(path, record);
   return path;
 }
 
@@ -55,12 +56,12 @@ export function loadRecentReviews(days = 7): ReviewRecord[] {
           readFileSync(resolve(REVIEWS_DIR, file), "utf-8"),
         ) as ReviewRecord;
         results.push(data);
-      } catch {
-        // Skip corrupted files
+      } catch (err) {
+        console.warn(`[history] Skipping corrupted review file ${file}:`, err instanceof Error ? err.message : err);
       }
     }
-  } catch {
-    // Dir may not exist
+  } catch (err) {
+    console.warn("[history] Failed to read reviews directory:", err instanceof Error ? err.message : err);
   }
 
   return results;
