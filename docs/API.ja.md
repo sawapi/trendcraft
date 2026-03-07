@@ -46,6 +46,13 @@
   - [モンテカルロシミュレーション](#モンテカルロシミュレーション)
   - [Anchored Walk-Forward分析](#anchored-walk-forward分析-awf)
 - [分割エントリー](#分割エントリー)
+- [ストリーミング](#ストリーミング)
+  - [Layer 1: キャンドル集約](#layer-1-キャンドル集約)
+  - [Layer 2: シグナル検出](#layer-2-シグナル検出)
+  - [Layer 3: 条件](#layer-3-条件)
+  - [Layer 4: パイプライン & MTF](#layer-4-パイプライン--mtf)
+  - [Layer 5: セッション & ガード](#layer-5-セッション--ガード)
+  - [Layer 6: ポジション管理](#layer-6-ポジション管理)
 - [カスタムインジケーター（プラグインシステム）](#カスタムインジケータープラグインシステム)
   - [defineIndicator](#defineindicator)
   - [TrendCraft.use()](#trendcraftuse)
@@ -3034,6 +3041,774 @@ const result = runBacktestScaled(candles, goldenCross(), deadCross(), {
 |------|---------|
 | `signal` | 各エントリーシグナルでトランシェ追加 |
 | `price` | 最初のエントリーから `priceInterval` % 価格変動でトランシェ追加 |
+
+---
+
+## ストリーミング
+
+リアルタイムの市場データを処理するためのレイヤード・パイプライン基盤です。すべてのコンポーネントは**ステートフル**、**シリアライズ可能**（`getState()`）、**復元可能**（`fromState` パラメータ）です。ほとんどのオブジェクトは `next()` で状態を進め、`peek()` で副作用なしにプレビューできます。
+
+### アーキテクチャ
+
+```
+Layer 1 — キャンドル集約
+  トレードティック  →  createCandleAggregator  →  NormalizedCandle
+  キャンドル       →  createCandleResampler   →  上位時間足キャンドル
+
+Layer 2 — シグナル検出
+  CrossOver / CrossUnder / Threshold / Squeeze / Divergence
+
+Layer 3 — 条件
+  and() / or() / not() コンビネータ + プリセット条件 (rsiBelow, priceAbove 等)
+
+Layer 4 — パイプライン & MTF
+  createPipeline     →  インジケーター + 条件 → エントリー/エグジットシグナル
+  createStreamingMtf →  マルチタイムフレーム・インジケータースナップショット
+
+Layer 5 — セッション & ガード
+  createTradingSession  →  ティック→シグナル（アグリゲーター + パイプライン）
+  createGuardedSession  →  + リスクガード（サーキットブレーカー）+ タイムガード
+
+Layer 6 — ポジション管理
+  createPositionTracker →  SL / TP / トレーリングストップ / P&L
+  createManagedSession  →  フルE2E: ティック → シグナル → ポジション → P&L
+```
+
+---
+
+### Layer 1: キャンドル集約
+
+#### `createCandleAggregator(options, fromState?)`
+
+トレードティックのストリームを、固定時間間隔でグループ化してOHLCVキャンドルに変換します。
+
+```typescript
+import { createCandleAggregator } from "trendcraft/streaming";
+
+const agg = createCandleAggregator({ intervalMs: 60_000 }); // 1分足
+
+for (const tick of tickStream) {
+  const candle = agg.addTrade(tick);
+  if (candle) {
+    console.log("完成したキャンドル:", candle);
+  }
+}
+
+// セッション終了時に最後の部分キャンドルをフラッシュ
+const last = agg.flush();
+```
+
+| オプション | 型 | デフォルト | 説明 |
+|-----------|------|---------|-------------|
+| `intervalMs` | `number` | — (必須) | キャンドルの間隔（ミリ秒、例: `60000` = 1分足） |
+
+**`Trade` 型:**
+
+| フィールド | 型 | 説明 |
+|-----------|------|-------------|
+| `time` | `number` | エポックミリ秒タイムスタンプ |
+| `price` | `number` | 約定価格 |
+| `volume` | `number` | 取引量（株数/コントラクト/ユニット） |
+| `side` | `'buy' \| 'sell'` | 取引サイド（オプション、オーダーフロー分析用） |
+
+**メソッド:**
+
+| メソッド | 戻り値 | 説明 |
+|--------|---------|-------------|
+| `addTrade(trade)` | `NormalizedCandle \| null` | トレードを処理。期間が切り替わると完成したキャンドルを返す |
+| `getCurrentCandle()` | `NormalizedCandle \| null` | 作成中の（未完成の）キャンドルを取得 |
+| `flush()` | `NormalizedCandle \| null` | 現在のキャンドルを強制クローズ |
+| `getState()` | `CandleAggregatorState` | 内部状態をシリアライズ |
+
+---
+
+#### `createCandleResampler(options, fromState?)`
+
+下位時間足のキャンドルを上位時間足にインクリメンタルにリサンプリングします（例: 1分足 → 5分足）。
+
+```typescript
+import { createCandleResampler } from "trendcraft/streaming";
+
+const resampler = createCandleResampler({ targetIntervalMs: 300_000 }); // 5分足
+
+for (const candle1m of stream) {
+  const candle5m = resampler.addCandle(candle1m);
+  if (candle5m) {
+    console.log("5分足キャンドル:", candle5m);
+  }
+}
+```
+
+| オプション | 型 | デフォルト | 説明 |
+|-----------|------|---------|-------------|
+| `targetIntervalMs` | `number` | — (必須) | ターゲットの上位時間足間隔（ミリ秒） |
+
+**メソッド:**
+
+| メソッド | 戻り値 | 説明 |
+|--------|---------|-------------|
+| `addCandle(candle)` | `NormalizedCandle \| null` | キャンドルを処理。期間が切り替わると完成した上位TFキャンドルを返す |
+| `getCurrentCandle()` | `NormalizedCandle \| null` | 作成中の上位TFキャンドルを取得 |
+| `flush()` | `NormalizedCandle \| null` | 現在の上位TFキャンドルを強制クローズ |
+| `getState()` | `CandleResamplerState` | 内部状態をシリアライズ |
+
+---
+
+### Layer 2: シグナル検出
+
+1データポイントずつ処理するインクリメンタルなシグナル検出器です。各検出器は `next()` / `peek()` / `getState()` パターンに従います。
+
+#### `createCrossOverDetector(fromState?)`
+
+valueA が valueB を下から上に交差したことを検出します。
+
+```typescript
+import { createCrossOverDetector } from "trendcraft/streaming";
+
+const crossOver = createCrossOverDetector();
+crossOver.next(10, 20); // false（初回呼び出し、前の値なし）
+crossOver.next(21, 20); // true （クロスオーバー発生）
+crossOver.next(22, 20); // false（既に上にいる、新しいクロスなし）
+```
+
+**メソッド:**
+
+| メソッド | 戻り値 | 説明 |
+|--------|---------|-------------|
+| `next(valueA, valueB)` | `boolean` | 状態を進めてクロスオーバーが発生したか返す |
+| `peek(valueA, valueB)` | `boolean` | 状態を変えずにプレビュー |
+| `getState()` | `CrossDetectorState` | 内部状態をシリアライズ |
+
+---
+
+#### `createCrossUnderDetector(fromState?)`
+
+valueA が valueB を上から下に交差したことを検出します。
+
+```typescript
+import { createCrossUnderDetector } from "trendcraft/streaming";
+
+const crossUnder = createCrossUnderDetector();
+crossUnder.next(20, 10); // false（初回呼び出し）
+crossUnder.next(9, 10);  // true （クロスアンダー発生）
+```
+
+メソッドは `createCrossOverDetector` と同じです。
+
+---
+
+#### `createThresholdDetector(threshold, fromState?)`
+
+値が固定の閾値を上回ったり下回ったりしたことを検出します。
+
+```typescript
+import { createThresholdDetector } from "trendcraft/streaming";
+
+const detector = createThresholdDetector(70);
+detector.next(65); // { crossAbove: false, crossBelow: false }
+detector.next(72); // { crossAbove: true, crossBelow: false }
+detector.next(68); // { crossAbove: false, crossBelow: true }
+```
+
+| パラメータ | 型 | 説明 |
+|-----------|------|-------------|
+| `threshold` | `number` | クロスを検出する閾値 |
+
+**メソッド:**
+
+| メソッド | 戻り値 | 説明 |
+|--------|---------|-------------|
+| `next(value)` | `{ crossAbove: boolean; crossBelow: boolean }` | 状態を進めてクロスイベントを返す |
+| `peek(value)` | `{ crossAbove: boolean; crossBelow: boolean }` | 状態を変えずにプレビュー |
+| `getState()` | `ThresholdDetectorState` | 内部状態をシリアライズ |
+
+---
+
+#### `createSqueezeDetector(options?, fromState?)`
+
+ボリンジャーバンドのスクイーズ状態（低ボラティリティ）とその解放を検出します。
+
+```typescript
+import { createSqueezeDetector } from "trendcraft/streaming";
+
+const squeeze = createSqueezeDetector({ bandwidthThreshold: 0.05 });
+squeeze.next(0.08); // { squeezeStart: false, squeezeEnd: false, inSqueeze: false }
+squeeze.next(0.04); // { squeezeStart: true, squeezeEnd: false, inSqueeze: true }
+squeeze.next(0.06); // { squeezeStart: false, squeezeEnd: true, inSqueeze: false }
+```
+
+| オプション | 型 | デフォルト | 説明 |
+|-----------|------|---------|-------------|
+| `bandwidthThreshold` | `number` | `0.1` | スクイーズがアクティブになるバンド幅の閾値 |
+
+**メソッド:**
+
+| メソッド | 戻り値 | 説明 |
+|--------|---------|-------------|
+| `next(bandwidth)` | `{ squeezeStart, squeezeEnd, inSqueeze }` | 状態を進めてスクイーズイベントを返す |
+| `peek(bandwidth)` | `{ squeezeStart, squeezeEnd, inSqueeze }` | 状態を変えずにプレビュー |
+| `getState()` | `SqueezeDetectorState` | 内部状態をシリアライズ |
+
+---
+
+#### `createDivergenceDetector(options?, fromState?)`
+
+価格とインジケーター間のブリッシュ/ベアリッシュ・ダイバージェンスを検出します。
+
+```typescript
+import { createDivergenceDetector } from "trendcraft/streaming";
+
+const divergence = createDivergenceDetector({ lookback: 14 });
+for (const candle of stream) {
+  const rsi = rsiIndicator.next(candle).value;
+  const { bullish, bearish } = divergence.next(candle.close, rsi);
+  if (bullish) console.log("ブリッシュ・ダイバージェンス検出");
+}
+```
+
+| オプション | 型 | デフォルト | 説明 |
+|-----------|------|---------|-------------|
+| `lookback` | `number` | `14` | ダイバージェンス検出のルックバック期間 |
+
+**メソッド:**
+
+| メソッド | 戻り値 | 説明 |
+|--------|---------|-------------|
+| `next(price, indicatorValue)` | `{ bullish: boolean; bearish: boolean }` | 状態を進めてダイバージェンスイベントを返す |
+| `peek(price, indicatorValue)` | `{ bullish: boolean; bearish: boolean }` | 状態を変えずにプレビュー |
+| `getState()` | `DivergenceDetectorState` | 内部状態をシリアライズ |
+
+---
+
+### Layer 3: 条件
+
+コンビネータ（`and`、`or`、`not`）とプリセット条件を備えたストリーミング条件システムです。`IndicatorSnapshot`（インジケーター値のキー・バリューマップ）と `NormalizedCandle` を受け取ります。
+
+#### `and(...conditions)`
+
+AND論理で条件を組み合わせます（すべてtrueである必要があります）。
+
+```typescript
+import { and, rsiBelow, smaGoldenCross } from "trendcraft/streaming";
+
+const entry = and(rsiBelow(30), smaGoldenCross());
+```
+
+---
+
+#### `or(...conditions)`
+
+OR論理で条件を組み合わせます（いずれかがtrueであればよい）。
+
+```typescript
+import { or, rsiAbove, smaDeadCross } from "trendcraft/streaming";
+
+const exit = or(rsiAbove(70), smaDeadCross());
+```
+
+---
+
+#### `not(condition)`
+
+条件を否定します。
+
+```typescript
+import { not, rsiAbove } from "trendcraft/streaming";
+
+const notOverbought = not(rsiAbove(70));
+```
+
+---
+
+#### `evaluateStreamingCondition(condition, snapshot, candle)`
+
+ストリーミング条件をスナップショットとキャンドルに対して評価します。
+
+```typescript
+import { evaluateStreamingCondition } from "trendcraft/streaming";
+
+const isEntry = evaluateStreamingCondition(entryCondition, snapshot, candle);
+```
+
+---
+
+#### プリセット条件
+
+| 関数 | 説明 | デフォルトキー |
+|----------|-------------|-------------|
+| `rsiBelow(threshold, key?)` | RSIが閾値以下 | `"rsi"` |
+| `rsiAbove(threshold, key?)` | RSIが閾値以上 | `"rsi"` |
+| `smaGoldenCross(key?)` | 短期SMAが長期SMAを上抜け | `"goldenCross"` |
+| `smaDeadCross(key?)` | 短期SMAが長期SMAを下抜け | `"deadCross"` |
+| `macdPositive(key?)` | MACDヒストグラムがプラス | `"macd"` |
+| `macdNegative(key?)` | MACDヒストグラムがマイナス | `"macd"` |
+| `priceAbove(indicatorKey)` | 価格（終値）がインジケーター値より上 | — |
+| `priceBelow(indicatorKey)` | 価格（終値）がインジケーター値より下 | — |
+| `indicatorAbove(key, threshold)` | インジケーター値が閾値より上 | — |
+| `indicatorBelow(key, threshold)` | インジケーター値が閾値より下 | — |
+
+プレーンな関数を条件として渡すこともできます:
+
+```typescript
+const customCondition = (snapshot, candle) => {
+  return candle.close > 100 && snapshot.rsi < 50;
+};
+```
+
+---
+
+### Layer 4: パイプライン & MTF
+
+#### `createPipeline(options, fromState?)`
+
+インクリメンタルなインジケーターとストリーミング条件を組み合わせてシグナル評価パイプラインを構築します。キャンドル1本あたりO(1)のコストで処理します。
+
+```typescript
+import { createPipeline, rsiBelow, rsiAbove } from "trendcraft/streaming";
+import { createRsi, createSma } from "trendcraft/incremental";
+
+const pipeline = createPipeline({
+  indicators: [
+    { name: "rsi", create: () => createRsi({ period: 14 }) },
+    { name: "sma20", create: () => createSma({ period: 20 }) },
+  ],
+  entry: rsiBelow(30),
+  exit: rsiAbove(70),
+  signals: [
+    { name: "oversold", condition: rsiBelow(20) },
+  ],
+});
+
+for (const candle of stream) {
+  const result = pipeline.next(candle);
+  if (result.entrySignal) console.log("買い", result.snapshot);
+}
+```
+
+| オプション | 型 | デフォルト | 説明 |
+|-----------|------|---------|-------------|
+| `indicators` | `PipelineIndicatorConfig[]` | — (必須) | インジケーター定義（`name` + `create` ファクトリ） |
+| `entry` | `StreamingCondition` | — | エントリー条件 |
+| `exit` | `StreamingCondition` | — | エグジット条件 |
+| `signals` | `{ name, condition }[]` | — | 名前付きシグナル検出器 |
+
+**`PipelineResult` の戻り値:**
+
+| フィールド | 型 | 説明 |
+|-----------|------|-------------|
+| `snapshot` | `IndicatorSnapshot` | 現在のインジケーター値のキー・バリューマップ |
+| `entrySignal` | `boolean` | エントリー条件が満たされたか |
+| `exitSignal` | `boolean` | エグジット条件が満たされたか |
+| `signals` | `string[]` | トリガーされたシグナル検出器の名前 |
+
+---
+
+#### `createStreamingMtf(options, fromState?)`
+
+ベース時間足のキャンドルストリームを複数の上位時間足にリサンプリングし、各時間足でインジケーターを実行するマルチタイムフレームコンテキストです。
+
+```typescript
+import { createStreamingMtf } from "trendcraft/streaming";
+import { createSma, createRsi } from "trendcraft/incremental";
+
+const mtf = createStreamingMtf({
+  timeframes: [
+    {
+      intervalMs: 300_000, // 5分足
+      indicators: [
+        { name: "sma20", create: () => createSma({ period: 20 }) },
+      ],
+    },
+    {
+      intervalMs: 900_000, // 15分足
+      indicators: [
+        { name: "rsi14", create: () => createRsi({ period: 14 }) },
+      ],
+    },
+  ],
+});
+
+// 1分足キャンドルを投入
+for (const candle of stream) {
+  const snapshot = mtf.next(candle);
+  console.log(snapshot["5m"].sma20, snapshot["15m"].rsi14);
+}
+```
+
+| オプション | 型 | デフォルト | 説明 |
+|-----------|------|---------|-------------|
+| `timeframes` | `StreamingMtfTimeframeConfig[]` | — (必須) | 上位時間足の定義 |
+
+各 `StreamingMtfTimeframeConfig`:
+
+| フィールド | 型 | 説明 |
+|-----------|------|-------------|
+| `intervalMs` | `number` | 時間足の間隔（ミリ秒） |
+| `indicators` | `PipelineIndicatorConfig[]` | この時間足のインジケーター定義 |
+
+**`MtfSnapshot` の戻り値:** 自動生成されたタイムフレームラベル（例: `"5m"`、`"15m"`、`"1h"`）をキーとするオブジェクト。各値は `IndicatorSnapshot` です。
+
+---
+
+### Layer 5: セッション & ガード
+
+#### `createTradingSession(options, fromState?)`
+
+エンドツーエンドのパイプライン: ティック → キャンドル → インジケーター → シグナル → イベント。`CandleAggregator` と `StreamingPipeline` を単一のエントリーポイントに統合します。
+
+```typescript
+import { createTradingSession, rsiBelow, rsiAbove } from "trendcraft/streaming";
+import { createRsi } from "trendcraft/incremental";
+
+const session = createTradingSession({
+  intervalMs: 60_000,
+  pipeline: {
+    indicators: [
+      { name: "rsi", create: () => createRsi({ period: 14 }) },
+    ],
+    entry: rsiBelow(30),
+    exit: rsiAbove(70),
+  },
+  warmUp: historicalCandles, // オプション: インジケーターのウォームアップ
+});
+
+ws.on("trade", (data) => {
+  const events = session.onTrade({
+    time: data.timestamp,
+    price: data.price,
+    volume: data.quantity,
+  });
+  for (const event of events) {
+    if (event.type === "entry") placeOrder(event);
+  }
+});
+
+// セッション終了
+const closeEvents = session.close();
+```
+
+| オプション | 型 | デフォルト | 説明 |
+|-----------|------|---------|-------------|
+| `intervalMs` | `number` | — (必須) | キャンドルの間隔（ミリ秒） |
+| `pipeline` | `PipelineOptions` | — (必須) | パイプライン設定（インジケーター + 条件） |
+| `emitPartial` | `boolean` | `false` | 各トレードで部分的な（未完成の）キャンドルイベントを発行 |
+| `warmUp` | `NormalizedCandle[]` | — | インジケーターウォームアップ用のヒストリカルキャンドル |
+
+**`SessionEvent` タイプ:**
+
+| タイプ | 説明 | 主要フィールド |
+|------|-------------|------------|
+| `candle` | キャンドルが完成した | `candle` |
+| `signal` | 名前付きシグナルがトリガーされた | `name`, `candle` |
+| `entry` | エントリー条件が満たされた | `snapshot`, `candle` |
+| `exit` | エグジット条件が満たされた | `snapshot`, `candle` |
+| `partial` | 部分キャンドル更新（`emitPartial` 有効時） | `candle`, `snapshot` |
+| `blocked` | ガードによりエントリーがブロックされた | `reason`, `candle` |
+| `force-close` | タイムガードによる強制決済 | `reason`, `candle`, `snapshot` |
+
+---
+
+#### `createRiskGuard(options, fromState?)`
+
+日次損失制限、取引回数制限、連続負け後のクールダウンを適用するサーキットブレーカーです。
+
+```typescript
+import { createRiskGuard } from "trendcraft/streaming";
+
+const guard = createRiskGuard({
+  maxDailyLoss: -50000,
+  maxDailyTrades: 20,
+  maxConsecutiveLosses: 3,
+  cooldownMs: 30 * 60_000,
+});
+
+const { allowed, reason } = guard.check(Date.now());
+if (!allowed) console.log("ブロック:", reason);
+
+// 取引結果を報告
+guard.reportTrade(-200, Date.now());
+```
+
+| オプション | 型 | デフォルト | 説明 |
+|-----------|------|---------|-------------|
+| `maxDailyLoss` | `number` | — | 日次最大損失額（例: `-50000`）。`dailyPnl <= この値` で取引ブロック |
+| `maxDailyTrades` | `number` | — | 1日あたりの最大取引回数 |
+| `maxConsecutiveLosses` | `number` | — | 連続負けの最大回数 |
+| `cooldownMs` | `number` | — | 連続負け制限後のクールダウン期間（ミリ秒） |
+| `resetTimeOffsetMs` | `number` | `0` | UTC深夜からの日次リセット時刻オフセット（ミリ秒） |
+
+**メソッド:**
+
+| メソッド | 戻り値 | 説明 |
+|--------|---------|-------------|
+| `check(time)` | `{ allowed, reason? }` | 現在取引が許可されているか確認 |
+| `reportTrade(pnl, time)` | `void` | 完了した取引結果を報告 |
+| `reset()` | `void` | すべてのカウンターをリセット |
+| `getState()` | `RiskGuardState` | 内部状態をシリアライズ |
+
+---
+
+#### `createTimeGuard(options, fromState?)`
+
+取引時間枠、強制決済タイミング、ブラックアウト期間を管理します。
+
+```typescript
+import { createTimeGuard } from "trendcraft/streaming";
+
+const guard = createTimeGuard({
+  tradingWindows: [
+    { startMs: 9 * 3600_000, endMs: 11.5 * 3600_000 },   // 9:00-11:30
+    { startMs: 12.5 * 3600_000, endMs: 15 * 3600_000 },   // 12:30-15:00
+  ],
+  timezoneOffsetMs: 9 * 3600_000, // JST
+  forceCloseBeforeEndMs: 5 * 60_000,
+});
+
+const result = guard.check(Date.now());
+if (!result.allowed) console.log("取引時間外:", result.reason);
+if (result.shouldForceClose) closeAllPositions();
+
+// ブラックアウト期間を動的に追加
+guard.addBlackout({
+  startTime: Date.parse("2024-01-31T19:00:00Z"),
+  endTime: Date.parse("2024-01-31T19:30:00Z"),
+  reason: "FOMC発表",
+});
+```
+
+| オプション | 型 | デフォルト | 説明 |
+|-----------|------|---------|-------------|
+| `tradingWindows` | `TradingWindow[]` | — (必須) | 取引時間枠（`{ startMs, endMs }` ローカル深夜からのオフセット） |
+| `forceCloseBeforeEndMs` | `number` | `0` | 各ウィンドウ終了のNミリ秒前にポジションを強制決済 |
+| `timezoneOffsetMs` | `number` | `0` | UTCからのタイムゾーンオフセット（ミリ秒、例: JST = `9 * 3600_000`） |
+| `blackoutPeriods` | `BlackoutPeriod[]` | `[]` | 絶対ブラックアウト期間（例: 経済指標発表） |
+
+**メソッド:**
+
+| メソッド | 戻り値 | 説明 |
+|--------|---------|-------------|
+| `check(time)` | `{ allowed, shouldForceClose, reason? }` | 指定時刻で取引が許可されているか確認 |
+| `addBlackout(period)` | `void` | ブラックアウト期間を動的に追加 |
+| `getState()` | `TimeGuardState` | 内部状態をシリアライズ |
+
+---
+
+#### `createGuardedSession(sessionOptions, guardOptions, fromState?)`
+
+`TradingSession` をリスクガードとタイムガードでラップします。エントリーシグナルはガードによるチェック後に発行され、取引時間枠の終了が近づくと強制決済イベントが挿入されます。
+
+```typescript
+import { createGuardedSession, rsiBelow, rsiAbove } from "trendcraft/streaming";
+import { createRsi } from "trendcraft/incremental";
+
+const session = createGuardedSession(
+  {
+    intervalMs: 60_000,
+    pipeline: {
+      indicators: [
+        { name: "rsi", create: () => createRsi({ period: 14 }) },
+      ],
+      entry: rsiBelow(30),
+      exit: rsiAbove(70),
+    },
+  },
+  {
+    riskGuard: { maxDailyLoss: -50000, maxDailyTrades: 20 },
+    timeGuard: {
+      tradingWindows: [{ startMs: 9 * 3600_000, endMs: 15 * 3600_000 }],
+      timezoneOffsetMs: 9 * 3600_000,
+      forceCloseBeforeEndMs: 5 * 60_000,
+    },
+  },
+);
+
+const events = session.onTrade({ time: Date.now(), price: 100, volume: 10 });
+for (const e of events) {
+  if (e.type === "blocked") console.log("ブロック:", e.reason);
+  if (e.type === "force-close") closeAllPositions();
+}
+
+// リスク追跡のために取引結果を報告
+session.riskGuard?.reportTrade(-200, Date.now());
+```
+
+| パラメータ | 型 | 説明 |
+|-----------|------|-------------|
+| `sessionOptions` | `SessionOptions` | 標準セッション設定 |
+| `guardOptions` | `GuardedSessionOptions` | ガード設定 |
+| `guardOptions.riskGuard` | `RiskGuardOptions` | リスクガード設定（省略で無効化） |
+| `guardOptions.timeGuard` | `TimeGuardOptions` | タイムガード設定（省略で無効化） |
+
+**返されるセッションの追加プロパティ:**
+
+| プロパティ | 型 | 説明 |
+|----------|------|-------------|
+| `riskGuard` | `RiskGuard \| null` | RiskGuardインスタンス（未設定時はnull） |
+| `timeGuard` | `TimeGuard \| null` | TimeGuardインスタンス（未設定時はnull） |
+
+---
+
+### Layer 6: ポジション管理
+
+#### `createPositionTracker(options, fromState?)`
+
+SL/TP/トレーリングストップ検出とP&L計算を備えたステートフルなポジション・アカウント管理です。
+
+```typescript
+import { createPositionTracker } from "trendcraft/streaming";
+
+const tracker = createPositionTracker({
+  capital: 1_000_000,
+  stopLoss: 2,
+  takeProfit: 6,
+  trailingStop: 3,
+  commissionRate: 0.1,
+  slippage: 0.05,
+});
+
+// ポジションを建てる
+const pos = tracker.openPosition(100, 50, Date.now());
+
+// 各キャンドルでSL/TP/トレーリングをチェック
+const { triggered } = tracker.updatePrice(candle);
+if (triggered) {
+  console.log(`${triggered.reason} トリガー @ ${triggered.price}`);
+}
+
+// 手動決済
+const { trade } = tracker.closePosition(105, Date.now(), "exit-signal");
+console.log("P&L:", trade.return);
+```
+
+| オプション | 型 | デフォルト | 説明 |
+|-----------|------|---------|-------------|
+| `capital` | `number` | — (必須) | 初期資金 |
+| `stopLoss` | `number` | `0` | ストップロス（%、例: `2` = -2%で決済） |
+| `takeProfit` | `number` | `0` | テイクプロフィット（%、例: `6` = +6%で決済） |
+| `trailingStop` | `number` | `0` | トレーリングストップ（%、例: `3` = ピークから3%下落で決済） |
+| `commission` | `number` | `0` | 1取引あたりの固定手数料 |
+| `commissionRate` | `number` | `0` | 手数料率（%、例: `0.1` = 0.1%） |
+| `taxRate` | `number` | `0` | 利益に対する税率（%） |
+| `slippage` | `number` | `0` | スリッページ（%） |
+| `maxTradeHistory` | `number` | `1000` | メモリに保持する最大取引履歴数 |
+
+**メソッド:**
+
+| メソッド | 戻り値 | 説明 |
+|--------|---------|-------------|
+| `openPosition(price, shares, time, opts?)` | `ManagedPosition` | 新しいポジションを建てる（`opts` でSL/TPを個別指定可） |
+| `updatePrice(candle)` | `{ position, triggered }` | 価格を更新しSL/TP/トレーリングのトリガーをチェック |
+| `closePosition(price, time, reason)` | `{ trade, fill }` | 現在のポジションを決済 |
+| `getPosition()` | `ManagedPosition \| null` | 現在のオープンポジションを取得 |
+| `getAccount()` | `AccountState` | 現在のアカウント状態を取得 |
+| `getTrades()` | `Trade[]` | すべての決済済み取引レコードを取得 |
+| `updateStopLoss(price)` | `void` | 現在のポジションのストップロス価格を更新 |
+| `updateTakeProfit(price)` | `void` | 現在のポジションのテイクプロフィット価格を更新 |
+| `getState()` | `PositionTrackerState` | 内部状態をシリアライズ |
+
+---
+
+#### `createManagedSession(sessionOptions, guardOptions, positionOptions, fromState?)`
+
+フルE2Eのマネージドトレーディングセッション: ティック → キャンドル → インジケーター → シグナル → ポジション → P&L。`GuardedSession` に自動ポジション管理（サイジング、SL/TP/トレーリング、RiskGuardへの自動レポート）を統合します。
+
+```typescript
+import { createManagedSession, rsiBelow, rsiAbove } from "trendcraft/streaming";
+import { createRsi, createAtr } from "trendcraft/incremental";
+
+const session = createManagedSession(
+  {
+    intervalMs: 60_000,
+    pipeline: {
+      indicators: [
+        { name: "rsi", create: () => createRsi({ period: 14 }) },
+        { name: "atr14", create: () => createAtr({ period: 14 }) },
+      ],
+      entry: rsiBelow(30),
+      exit: rsiAbove(70),
+    },
+  },
+  {
+    riskGuard: { maxDailyLoss: -50000, maxDailyTrades: 20 },
+    timeGuard: {
+      tradingWindows: [{ startMs: 9 * 3600_000, endMs: 15 * 3600_000 }],
+      timezoneOffsetMs: 9 * 3600_000,
+      forceCloseBeforeEndMs: 5 * 60_000,
+    },
+  },
+  {
+    capital: 1_000_000,
+    sizing: { method: "risk-based", riskPercent: 1 },
+    stopLoss: 2,
+    takeProfit: 6,
+    trailingStop: 3,
+    commissionRate: 0.1,
+    slippage: 0.05,
+  },
+);
+
+ws.on("trade", (data) => {
+  const events = session.onTrade({
+    time: data.timestamp,
+    price: data.price,
+    volume: data.quantity,
+  });
+  for (const e of events) {
+    if (e.type === "position-opened") console.log("建玉:", e.position.shares);
+    if (e.type === "position-closed") console.log("P&L:", e.trade.return);
+    if (e.type === "position-update") console.log("評価額:", e.equity);
+  }
+});
+```
+
+| パラメータ | 型 | 説明 |
+|-----------|------|-------------|
+| `sessionOptions` | `SessionOptions` | 標準セッション設定 |
+| `guardOptions` | `GuardedSessionOptions` | ガード設定（リスク / タイム） |
+| `positionOptions` | `PositionManagerOptions` | ポジション管理設定（下記参照） |
+
+**`PositionManagerOptions`:**
+
+| オプション | 型 | デフォルト | 説明 |
+|-----------|------|---------|-------------|
+| `capital` | `number` | — (必須) | 初期資金 |
+| `sizing` | `PositionSizingConfig` | `{ method: 'full-capital' }` | ポジションサイジング方式 |
+| `stopLoss` | `number` | `0` | ストップロス（%） |
+| `takeProfit` | `number` | `0` | テイクプロフィット（%） |
+| `trailingStop` | `number` | `0` | トレーリングストップ（%） |
+| `commission` | `number` | `0` | 1取引あたりの固定手数料 |
+| `commissionRate` | `number` | `0` | 手数料率（%） |
+| `taxRate` | `number` | `0` | 利益に対する税率（%） |
+| `slippage` | `number` | `0` | スリッページ（%） |
+| `maxTradeHistory` | `number` | `1000` | 保持する最大取引履歴数 |
+
+**`PositionSizingConfig` バリアント:**
+
+| 方式 | フィールド | 説明 |
+|--------|--------|-------------|
+| `full-capital` | — | 利用可能な全資金を使用 |
+| `fixed-fractional` | `fractionPercent` | 資金の固定割合を投資 |
+| `risk-based` | `riskPercent` | 1取引あたり資金の一定割合をリスク（`stopLoss` 必要） |
+| `atr-based` | `riskPercent`, `atrKey`, `atrMultiplier?` | ATRベースのサイジング（デフォルト乗数: `2`） |
+
+**`ManagedEvent` タイプ**（すべての `SessionEvent` タイプに加えて）:
+
+| タイプ | 説明 | 主要フィールド |
+|------|-------------|------------|
+| `position-opened` | ポジションが建てられた | `position`, `fill`, `candle` |
+| `position-closed` | ポジションが決済された | `trade`, `fill`, `account`, `candle` |
+| `position-update` | ポジションのP&L更新 | `unrealizedPnl`, `equity`, `candle` |
+
+**`ManagedSession` の追加メソッド:**
+
+| メソッド | 戻り値 | 説明 |
+|--------|---------|-------------|
+| `getPosition()` | `ManagedPosition \| null` | 現在のオープンポジションを取得 |
+| `getAccount()` | `AccountState` | 現在のアカウント状態を取得 |
+| `getTrades()` | `Trade[]` | すべての決済済み取引レコードを取得 |
+| `closePosition(time, price)` | `ManagedEvent[]` | 手動でポジションを決済 |
+| `updateStopLoss(price)` | `void` | ストップロス価格を更新 |
+| `updateTakeProfit(price)` | `void` | テイクプロフィット価格を更新 |
 
 ---
 

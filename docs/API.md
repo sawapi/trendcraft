@@ -38,6 +38,21 @@
 - [ATR Risk Management](#atr-risk-management)
   - [Chandelier Exit](#chandelier-exit)
   - [ATR Stops](#atr-stops)
+- [Volatility Regime](#volatility-regime)
+- [Optimization](#optimization)
+  - [Grid Search](#gridsearchcandles-strategyfactory-paramranges-options)
+  - [Walk-Forward Analysis](#walkforwardanalysiscandles-strategyfactory-paramranges-options)
+  - [Combination Search](#combinationsearchcandles-entrypool-exitpool-options)
+  - [Monte Carlo Simulation](#runmontecarlosimulationresult-options)
+  - [Anchored Walk-Forward Analysis](#anchoredwalkforwardanalysiscandles-entrypool-exitpool-options)
+- [Scaled Entry](#scaled-entry)
+- [Streaming](#streaming)
+  - [Layer 1: Candle Aggregation](#layer-1-candle-aggregation)
+  - [Layer 2: Signal Detectors](#layer-2-signal-detectors)
+  - [Layer 3: Conditions](#layer-3-conditions)
+  - [Layer 4: Pipeline & MTF](#layer-4-pipeline--mtf)
+  - [Layer 5: Session & Guards](#layer-5-session--guards)
+  - [Layer 6: Position Management](#layer-6-position-management)
 - [Custom Indicators (Plugin System)](#custom-indicators-plugin-system)
   - [defineIndicator](#defineindicator)
   - [TrendCraft.use()](#trendcraftuse)
@@ -3119,6 +3134,774 @@ const result = runBacktestScaled(candles, goldenCross(), deadCross(), {
 |------|---------|
 | `signal` | Add tranche on each entry signal |
 | `price` | Add tranche when price drops by `priceInterval` % from first entry |
+
+---
+
+## Streaming
+
+Real-time trading infrastructure for processing live market data through a layered pipeline. All components are **stateful**, **serializable** (via `getState()`), and **restorable** (via `fromState` parameter). Most objects expose `next()` to advance state and `peek()` to preview without side effects.
+
+### Architecture
+
+```
+Layer 1 — Candle Aggregation
+  Trade ticks  →  createCandleAggregator  →  NormalizedCandle
+  Candles      →  createCandleResampler   →  Higher-TF Candle
+
+Layer 2 — Signal Detectors
+  CrossOver / CrossUnder / Threshold / Squeeze / Divergence
+
+Layer 3 — Conditions
+  and() / or() / not() combinators + preset conditions (rsiBelow, priceAbove, etc.)
+
+Layer 4 — Pipeline & MTF
+  createPipeline   →  indicators + conditions → entry/exit signals
+  createStreamingMtf → multi-timeframe indicator snapshots
+
+Layer 5 — Session & Guards
+  createTradingSession  →  tick-to-signal (aggregator + pipeline)
+  createGuardedSession  →  + risk guard (circuit breaker) + time guard
+
+Layer 6 — Position Management
+  createPositionTracker →  SL / TP / trailing stop / P&L
+  createManagedSession  →  full end-to-end: tick → signal → position → P&L
+```
+
+---
+
+### Layer 1: Candle Aggregation
+
+#### `createCandleAggregator(options, fromState?)`
+
+Converts a stream of trade ticks into OHLCV candles by grouping trades within fixed time intervals.
+
+```typescript
+import { createCandleAggregator } from "trendcraft/streaming";
+
+const agg = createCandleAggregator({ intervalMs: 60_000 }); // 1-min candles
+
+for (const tick of tickStream) {
+  const candle = agg.addTrade(tick);
+  if (candle) {
+    console.log("Completed candle:", candle);
+  }
+}
+
+// Flush the last partial candle at session end
+const last = agg.flush();
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `intervalMs` | `number` | — (required) | Candle interval in milliseconds (e.g., `60000` for 1-min) |
+
+**`Trade` type:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `time` | `number` | Epoch milliseconds timestamp |
+| `price` | `number` | Execution price |
+| `volume` | `number` | Trade volume (shares/contracts/units) |
+| `side` | `'buy' \| 'sell'` | Trade side (optional, for order flow analysis) |
+
+**Methods:**
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `addTrade(trade)` | `NormalizedCandle \| null` | Process a trade; returns completed candle when period rolls over |
+| `getCurrentCandle()` | `NormalizedCandle \| null` | Get the in-progress (unfinished) candle |
+| `flush()` | `NormalizedCandle \| null` | Force-close the current candle |
+| `getState()` | `CandleAggregatorState` | Serialize internal state for persistence |
+
+---
+
+#### `createCandleResampler(options, fromState?)`
+
+Incrementally resamples lower-timeframe candles into higher-timeframe candles (e.g., 1-min → 5-min).
+
+```typescript
+import { createCandleResampler } from "trendcraft/streaming";
+
+const resampler = createCandleResampler({ targetIntervalMs: 300_000 }); // 5-min
+
+for (const candle1m of stream) {
+  const candle5m = resampler.addCandle(candle1m);
+  if (candle5m) {
+    console.log("5-min candle:", candle5m);
+  }
+}
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `targetIntervalMs` | `number` | — (required) | Target higher-timeframe interval in milliseconds |
+
+**Methods:**
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `addCandle(candle)` | `NormalizedCandle \| null` | Process a candle; returns completed higher-TF candle when period rolls over |
+| `getCurrentCandle()` | `NormalizedCandle \| null` | Get the in-progress higher-TF candle |
+| `flush()` | `NormalizedCandle \| null` | Force-close the current higher-TF candle |
+| `getState()` | `CandleResamplerState` | Serialize internal state |
+
+---
+
+### Layer 2: Signal Detectors
+
+Incremental signal detectors that process one data point at a time. Each detector follows the `next()` / `peek()` / `getState()` pattern.
+
+#### `createCrossOverDetector(fromState?)`
+
+Detects when valueA crosses from below/equal to above valueB.
+
+```typescript
+import { createCrossOverDetector } from "trendcraft/streaming";
+
+const crossOver = createCrossOverDetector();
+crossOver.next(10, 20); // false (first call, no previous)
+crossOver.next(21, 20); // true  (crossed over)
+crossOver.next(22, 20); // false (already above, no new cross)
+```
+
+**Methods:**
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `next(valueA, valueB)` | `boolean` | Advance state and return whether a cross-over occurred |
+| `peek(valueA, valueB)` | `boolean` | Preview without advancing state |
+| `getState()` | `CrossDetectorState` | Serialize internal state |
+
+---
+
+#### `createCrossUnderDetector(fromState?)`
+
+Detects when valueA crosses from above/equal to below valueB.
+
+```typescript
+import { createCrossUnderDetector } from "trendcraft/streaming";
+
+const crossUnder = createCrossUnderDetector();
+crossUnder.next(20, 10); // false (first call)
+crossUnder.next(9, 10);  // true  (crossed under)
+```
+
+Same methods as `createCrossOverDetector`.
+
+---
+
+#### `createThresholdDetector(threshold, fromState?)`
+
+Detects when a value crosses above or below a fixed threshold level.
+
+```typescript
+import { createThresholdDetector } from "trendcraft/streaming";
+
+const detector = createThresholdDetector(70);
+detector.next(65); // { crossAbove: false, crossBelow: false }
+detector.next(72); // { crossAbove: true, crossBelow: false }
+detector.next(68); // { crossAbove: false, crossBelow: true }
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `threshold` | `number` | The level to detect crosses against |
+
+**Methods:**
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `next(value)` | `{ crossAbove: boolean; crossBelow: boolean }` | Advance state and return cross events |
+| `peek(value)` | `{ crossAbove: boolean; crossBelow: boolean }` | Preview without advancing state |
+| `getState()` | `ThresholdDetectorState` | Serialize internal state |
+
+---
+
+#### `createSqueezeDetector(options?, fromState?)`
+
+Detects Bollinger Band squeeze conditions (low volatility) and their release.
+
+```typescript
+import { createSqueezeDetector } from "trendcraft/streaming";
+
+const squeeze = createSqueezeDetector({ bandwidthThreshold: 0.05 });
+squeeze.next(0.08); // { squeezeStart: false, squeezeEnd: false, inSqueeze: false }
+squeeze.next(0.04); // { squeezeStart: true, squeezeEnd: false, inSqueeze: true }
+squeeze.next(0.06); // { squeezeStart: false, squeezeEnd: true, inSqueeze: false }
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `bandwidthThreshold` | `number` | `0.1` | Bandwidth threshold below which a squeeze is active |
+
+**Methods:**
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `next(bandwidth)` | `{ squeezeStart, squeezeEnd, inSqueeze }` | Advance state and return squeeze events |
+| `peek(bandwidth)` | `{ squeezeStart, squeezeEnd, inSqueeze }` | Preview without advancing state |
+| `getState()` | `SqueezeDetectorState` | Serialize internal state |
+
+---
+
+#### `createDivergenceDetector(options?, fromState?)`
+
+Detects bullish/bearish divergences between price and an indicator by comparing recent highs/lows.
+
+```typescript
+import { createDivergenceDetector } from "trendcraft/streaming";
+
+const divergence = createDivergenceDetector({ lookback: 14 });
+for (const candle of stream) {
+  const rsi = rsiIndicator.next(candle).value;
+  const { bullish, bearish } = divergence.next(candle.close, rsi);
+  if (bullish) console.log("Bullish divergence detected");
+}
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `lookback` | `number` | `14` | Number of bars to look back for divergence detection |
+
+**Methods:**
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `next(price, indicatorValue)` | `{ bullish: boolean; bearish: boolean }` | Advance state and return divergence events |
+| `peek(price, indicatorValue)` | `{ bullish: boolean; bearish: boolean }` | Preview without advancing state |
+| `getState()` | `DivergenceDetectorState` | Serialize internal state |
+
+---
+
+### Layer 3: Conditions
+
+Streaming condition system with combinators (`and`, `or`, `not`) and preset conditions. These take an `IndicatorSnapshot` (key-value map of indicator values) and a `NormalizedCandle`.
+
+#### `and(...conditions)`
+
+Combine conditions with AND logic (all must be true).
+
+```typescript
+import { and, rsiBelow, smaGoldenCross } from "trendcraft/streaming";
+
+const entry = and(rsiBelow(30), smaGoldenCross());
+```
+
+---
+
+#### `or(...conditions)`
+
+Combine conditions with OR logic (any must be true).
+
+```typescript
+import { or, rsiAbove, smaDeadCross } from "trendcraft/streaming";
+
+const exit = or(rsiAbove(70), smaDeadCross());
+```
+
+---
+
+#### `not(condition)`
+
+Negate a condition.
+
+```typescript
+import { not, rsiAbove } from "trendcraft/streaming";
+
+const notOverbought = not(rsiAbove(70));
+```
+
+---
+
+#### `evaluateStreamingCondition(condition, snapshot, candle)`
+
+Evaluate a streaming condition against a snapshot and candle.
+
+```typescript
+import { evaluateStreamingCondition } from "trendcraft/streaming";
+
+const isEntry = evaluateStreamingCondition(entryCondition, snapshot, candle);
+```
+
+---
+
+#### Preset Conditions
+
+| Function | Description | Default Key |
+|----------|-------------|-------------|
+| `rsiBelow(threshold, key?)` | RSI is below threshold | `"rsi"` |
+| `rsiAbove(threshold, key?)` | RSI is above threshold | `"rsi"` |
+| `smaGoldenCross(key?)` | Short SMA crossed above long SMA | `"goldenCross"` |
+| `smaDeadCross(key?)` | Short SMA crossed below long SMA | `"deadCross"` |
+| `macdPositive(key?)` | MACD histogram is positive | `"macd"` |
+| `macdNegative(key?)` | MACD histogram is negative | `"macd"` |
+| `priceAbove(indicatorKey)` | Price (close) is above the indicator value | — |
+| `priceBelow(indicatorKey)` | Price (close) is below the indicator value | — |
+| `indicatorAbove(key, threshold)` | Indicator value is above threshold | — |
+| `indicatorBelow(key, threshold)` | Indicator value is below threshold | — |
+
+You can also pass a plain function as a condition:
+
+```typescript
+const customCondition = (snapshot, candle) => {
+  return candle.close > 100 && snapshot.rsi < 50;
+};
+```
+
+---
+
+### Layer 4: Pipeline & MTF
+
+#### `createPipeline(options, fromState?)`
+
+Combines incremental indicators with streaming conditions into a signal evaluation pipeline. Processes one candle at a time with O(1) per-candle cost.
+
+```typescript
+import { createPipeline, rsiBelow, rsiAbove } from "trendcraft/streaming";
+import { createRsi, createSma } from "trendcraft/incremental";
+
+const pipeline = createPipeline({
+  indicators: [
+    { name: "rsi", create: () => createRsi({ period: 14 }) },
+    { name: "sma20", create: () => createSma({ period: 20 }) },
+  ],
+  entry: rsiBelow(30),
+  exit: rsiAbove(70),
+  signals: [
+    { name: "oversold", condition: rsiBelow(20) },
+  ],
+});
+
+for (const candle of stream) {
+  const result = pipeline.next(candle);
+  if (result.entrySignal) console.log("BUY", result.snapshot);
+}
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `indicators` | `PipelineIndicatorConfig[]` | — (required) | Indicator definitions (`name` + `create` factory) |
+| `entry` | `StreamingCondition` | — | Entry condition |
+| `exit` | `StreamingCondition` | — | Exit condition |
+| `signals` | `{ name, condition }[]` | — | Named signal detectors |
+
+**Returns `PipelineResult`:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `snapshot` | `IndicatorSnapshot` | Key-value map of current indicator values |
+| `entrySignal` | `boolean` | Whether entry condition is met |
+| `exitSignal` | `boolean` | Whether exit condition is met |
+| `signals` | `string[]` | Names of triggered signal detectors |
+
+---
+
+#### `createStreamingMtf(options, fromState?)`
+
+Multi-timeframe context that resamples a base-timeframe candle stream into multiple higher timeframes and runs indicators on each.
+
+```typescript
+import { createStreamingMtf } from "trendcraft/streaming";
+import { createSma, createRsi } from "trendcraft/incremental";
+
+const mtf = createStreamingMtf({
+  timeframes: [
+    {
+      intervalMs: 300_000, // 5-min
+      indicators: [
+        { name: "sma20", create: () => createSma({ period: 20 }) },
+      ],
+    },
+    {
+      intervalMs: 900_000, // 15-min
+      indicators: [
+        { name: "rsi14", create: () => createRsi({ period: 14 }) },
+      ],
+    },
+  ],
+});
+
+// Feed 1-min candles
+for (const candle of stream) {
+  const snapshot = mtf.next(candle);
+  console.log(snapshot["5m"].sma20, snapshot["15m"].rsi14);
+}
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `timeframes` | `StreamingMtfTimeframeConfig[]` | — (required) | Higher-timeframe definitions |
+
+Each `StreamingMtfTimeframeConfig`:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `intervalMs` | `number` | Timeframe interval in milliseconds |
+| `indicators` | `PipelineIndicatorConfig[]` | Indicator definitions for this timeframe |
+
+**Returns `MtfSnapshot`:** Object keyed by auto-generated timeframe label (e.g., `"5m"`, `"15m"`, `"1h"`), each containing an `IndicatorSnapshot`.
+
+---
+
+### Layer 5: Session & Guards
+
+#### `createTradingSession(options, fromState?)`
+
+End-to-end pipeline: tick → candle → indicator → signal → event. Combines `CandleAggregator` and `StreamingPipeline` into a single entry point.
+
+```typescript
+import { createTradingSession, rsiBelow, rsiAbove } from "trendcraft/streaming";
+import { createRsi } from "trendcraft/incremental";
+
+const session = createTradingSession({
+  intervalMs: 60_000,
+  pipeline: {
+    indicators: [
+      { name: "rsi", create: () => createRsi({ period: 14 }) },
+    ],
+    entry: rsiBelow(30),
+    exit: rsiAbove(70),
+  },
+  warmUp: historicalCandles, // optional: warm up indicators
+});
+
+ws.on("trade", (data) => {
+  const events = session.onTrade({
+    time: data.timestamp,
+    price: data.price,
+    volume: data.quantity,
+  });
+  for (const event of events) {
+    if (event.type === "entry") placeOrder(event);
+  }
+});
+
+// At session end
+const closeEvents = session.close();
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `intervalMs` | `number` | — (required) | Candle interval in milliseconds |
+| `pipeline` | `PipelineOptions` | — (required) | Pipeline configuration (indicators + conditions) |
+| `emitPartial` | `boolean` | `false` | Emit partial (unfinished candle) events on each trade |
+| `warmUp` | `NormalizedCandle[]` | — | Historical candles for warming up indicators |
+
+**`SessionEvent` types:**
+
+| Type | Description | Key Fields |
+|------|-------------|------------|
+| `candle` | A candle was completed | `candle` |
+| `signal` | A named signal triggered | `name`, `candle` |
+| `entry` | Entry condition met | `snapshot`, `candle` |
+| `exit` | Exit condition met | `snapshot`, `candle` |
+| `partial` | Partial candle update (if `emitPartial`) | `candle`, `snapshot` |
+| `blocked` | Entry blocked by a guard | `reason`, `candle` |
+| `force-close` | Force-close triggered by time guard | `reason`, `candle`, `snapshot` |
+
+---
+
+#### `createRiskGuard(options, fromState?)`
+
+Circuit breaker that enforces daily loss limits, trade count limits, and consecutive loss cooldowns.
+
+```typescript
+import { createRiskGuard } from "trendcraft/streaming";
+
+const guard = createRiskGuard({
+  maxDailyLoss: -50000,
+  maxDailyTrades: 20,
+  maxConsecutiveLosses: 3,
+  cooldownMs: 30 * 60_000,
+});
+
+const { allowed, reason } = guard.check(Date.now());
+if (!allowed) console.log("Blocked:", reason);
+
+// Report trade results
+guard.reportTrade(-200, Date.now());
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `maxDailyLoss` | `number` | — | Maximum daily loss (e.g., `-50000`). Trading blocked when `dailyPnl <= this` |
+| `maxDailyTrades` | `number` | — | Maximum number of trades per day |
+| `maxConsecutiveLosses` | `number` | — | Maximum consecutive losing trades before blocking |
+| `cooldownMs` | `number` | — | Cooldown period in ms after hitting consecutive loss limit |
+| `resetTimeOffsetMs` | `number` | `0` | Daily reset time as offset from UTC midnight in ms |
+
+**Methods:**
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `check(time)` | `{ allowed, reason? }` | Check if trading is currently allowed |
+| `reportTrade(pnl, time)` | `void` | Report a completed trade result |
+| `reset()` | `void` | Reset all counters |
+| `getState()` | `RiskGuardState` | Serialize internal state |
+
+---
+
+#### `createTimeGuard(options, fromState?)`
+
+Enforces trading windows, force-close timing, and blackout periods.
+
+```typescript
+import { createTimeGuard } from "trendcraft/streaming";
+
+const guard = createTimeGuard({
+  tradingWindows: [
+    { startMs: 9 * 3600_000, endMs: 11.5 * 3600_000 },   // 9:00-11:30
+    { startMs: 12.5 * 3600_000, endMs: 15 * 3600_000 },   // 12:30-15:00
+  ],
+  timezoneOffsetMs: 9 * 3600_000, // JST
+  forceCloseBeforeEndMs: 5 * 60_000,
+});
+
+const result = guard.check(Date.now());
+if (!result.allowed) console.log("Outside trading hours:", result.reason);
+if (result.shouldForceClose) closeAllPositions();
+
+// Dynamically add a blackout period
+guard.addBlackout({
+  startTime: Date.parse("2024-01-31T19:00:00Z"),
+  endTime: Date.parse("2024-01-31T19:30:00Z"),
+  reason: "FOMC announcement",
+});
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `tradingWindows` | `TradingWindow[]` | — (required) | Trading time windows (`{ startMs, endMs }` offsets from local midnight) |
+| `forceCloseBeforeEndMs` | `number` | `0` | Force-close positions N ms before each window ends |
+| `timezoneOffsetMs` | `number` | `0` | Timezone offset from UTC in ms (e.g., JST = `9 * 3600_000`) |
+| `blackoutPeriods` | `BlackoutPeriod[]` | `[]` | Absolute blackout periods (e.g., economic announcements) |
+
+**Methods:**
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `check(time)` | `{ allowed, shouldForceClose, reason? }` | Check if trading is allowed at the given time |
+| `addBlackout(period)` | `void` | Add a blackout period dynamically |
+| `getState()` | `TimeGuardState` | Serialize internal state |
+
+---
+
+#### `createGuardedSession(sessionOptions, guardOptions, fromState?)`
+
+Wraps a `TradingSession` with risk and time guards. Entry signals are checked against guards before being emitted; force-close events are injected when trading windows are about to end.
+
+```typescript
+import { createGuardedSession, rsiBelow, rsiAbove } from "trendcraft/streaming";
+import { createRsi } from "trendcraft/incremental";
+
+const session = createGuardedSession(
+  {
+    intervalMs: 60_000,
+    pipeline: {
+      indicators: [
+        { name: "rsi", create: () => createRsi({ period: 14 }) },
+      ],
+      entry: rsiBelow(30),
+      exit: rsiAbove(70),
+    },
+  },
+  {
+    riskGuard: { maxDailyLoss: -50000, maxDailyTrades: 20 },
+    timeGuard: {
+      tradingWindows: [{ startMs: 9 * 3600_000, endMs: 15 * 3600_000 }],
+      timezoneOffsetMs: 9 * 3600_000,
+      forceCloseBeforeEndMs: 5 * 60_000,
+    },
+  },
+);
+
+const events = session.onTrade({ time: Date.now(), price: 100, volume: 10 });
+for (const e of events) {
+  if (e.type === "blocked") console.log("Blocked:", e.reason);
+  if (e.type === "force-close") closeAllPositions();
+}
+
+// Report trade results for risk tracking
+session.riskGuard?.reportTrade(-200, Date.now());
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `sessionOptions` | `SessionOptions` | Standard session configuration |
+| `guardOptions` | `GuardedSessionOptions` | Guard configuration |
+| `guardOptions.riskGuard` | `RiskGuardOptions` | Risk guard config (omit to disable) |
+| `guardOptions.timeGuard` | `TimeGuardOptions` | Time guard config (omit to disable) |
+
+**Additional properties on returned session:**
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `riskGuard` | `RiskGuard \| null` | RiskGuard instance (null if not configured) |
+| `timeGuard` | `TimeGuard \| null` | TimeGuard instance (null if not configured) |
+
+---
+
+### Layer 6: Position Management
+
+#### `createPositionTracker(options, fromState?)`
+
+Stateful position and account management with SL/TP/trailing stop detection and P&L calculation.
+
+```typescript
+import { createPositionTracker } from "trendcraft/streaming";
+
+const tracker = createPositionTracker({
+  capital: 1_000_000,
+  stopLoss: 2,
+  takeProfit: 6,
+  trailingStop: 3,
+  commissionRate: 0.1,
+  slippage: 0.05,
+});
+
+// Open a position
+const pos = tracker.openPosition(100, 50, Date.now());
+
+// Check SL/TP/trailing on each candle
+const { triggered } = tracker.updatePrice(candle);
+if (triggered) {
+  console.log(`${triggered.reason} triggered @ ${triggered.price}`);
+}
+
+// Manual close
+const { trade } = tracker.closePosition(105, Date.now(), "exit-signal");
+console.log("P&L:", trade.return);
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `capital` | `number` | — (required) | Initial capital |
+| `stopLoss` | `number` | `0` | Stop loss in percent (e.g., `2` = exit at -2%) |
+| `takeProfit` | `number` | `0` | Take profit in percent (e.g., `6` = exit at +6%) |
+| `trailingStop` | `number` | `0` | Trailing stop in percent (e.g., `3` = exit if price drops 3% from peak) |
+| `commission` | `number` | `0` | Fixed commission per trade in currency |
+| `commissionRate` | `number` | `0` | Commission rate in percent (e.g., `0.1` = 0.1%) |
+| `taxRate` | `number` | `0` | Tax rate on profits in percent |
+| `slippage` | `number` | `0` | Slippage in percent |
+| `maxTradeHistory` | `number` | `1000` | Maximum number of closed trades to keep in memory |
+
+**Methods:**
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `openPosition(price, shares, time, opts?)` | `ManagedPosition` | Open a new position (optional SL/TP override via `opts`) |
+| `updatePrice(candle)` | `{ position, triggered }` | Update price and check SL/TP/trailing triggers |
+| `closePosition(price, time, reason)` | `{ trade, fill }` | Close the current position |
+| `getPosition()` | `ManagedPosition \| null` | Get the current open position |
+| `getAccount()` | `AccountState` | Get current account state |
+| `getTrades()` | `Trade[]` | Get all closed trade records |
+| `updateStopLoss(price)` | `void` | Update stop loss price for current position |
+| `updateTakeProfit(price)` | `void` | Update take profit price for current position |
+| `getState()` | `PositionTrackerState` | Serialize internal state |
+
+---
+
+#### `createManagedSession(sessionOptions, guardOptions, positionOptions, fromState?)`
+
+Full end-to-end managed trading session: tick → candle → indicator → signal → position → P&L. Wraps `GuardedSession` with automatic position management, including sizing, SL/TP/trailing, and auto-reporting to RiskGuard.
+
+```typescript
+import { createManagedSession, rsiBelow, rsiAbove } from "trendcraft/streaming";
+import { createRsi, createAtr } from "trendcraft/incremental";
+
+const session = createManagedSession(
+  {
+    intervalMs: 60_000,
+    pipeline: {
+      indicators: [
+        { name: "rsi", create: () => createRsi({ period: 14 }) },
+        { name: "atr14", create: () => createAtr({ period: 14 }) },
+      ],
+      entry: rsiBelow(30),
+      exit: rsiAbove(70),
+    },
+  },
+  {
+    riskGuard: { maxDailyLoss: -50000, maxDailyTrades: 20 },
+    timeGuard: {
+      tradingWindows: [{ startMs: 9 * 3600_000, endMs: 15 * 3600_000 }],
+      timezoneOffsetMs: 9 * 3600_000,
+      forceCloseBeforeEndMs: 5 * 60_000,
+    },
+  },
+  {
+    capital: 1_000_000,
+    sizing: { method: "risk-based", riskPercent: 1 },
+    stopLoss: 2,
+    takeProfit: 6,
+    trailingStop: 3,
+    commissionRate: 0.1,
+    slippage: 0.05,
+  },
+);
+
+ws.on("trade", (data) => {
+  const events = session.onTrade({
+    time: data.timestamp,
+    price: data.price,
+    volume: data.quantity,
+  });
+  for (const e of events) {
+    if (e.type === "position-opened") console.log("Opened:", e.position.shares);
+    if (e.type === "position-closed") console.log("P&L:", e.trade.return);
+    if (e.type === "position-update") console.log("Equity:", e.equity);
+  }
+});
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `sessionOptions` | `SessionOptions` | Standard session configuration |
+| `guardOptions` | `GuardedSessionOptions` | Guard configuration (risk and/or time) |
+| `positionOptions` | `PositionManagerOptions` | Position management configuration (see below) |
+
+**`PositionManagerOptions`:**
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `capital` | `number` | — (required) | Initial capital |
+| `sizing` | `PositionSizingConfig` | `{ method: 'full-capital' }` | Position sizing method |
+| `stopLoss` | `number` | `0` | Stop loss in percent |
+| `takeProfit` | `number` | `0` | Take profit in percent |
+| `trailingStop` | `number` | `0` | Trailing stop in percent |
+| `commission` | `number` | `0` | Fixed commission per trade |
+| `commissionRate` | `number` | `0` | Commission rate in percent |
+| `taxRate` | `number` | `0` | Tax rate on profits in percent |
+| `slippage` | `number` | `0` | Slippage in percent |
+| `maxTradeHistory` | `number` | `1000` | Maximum trade history to keep |
+
+**`PositionSizingConfig` variants:**
+
+| Method | Fields | Description |
+|--------|--------|-------------|
+| `full-capital` | — | Use all available equity |
+| `fixed-fractional` | `fractionPercent` | Invest a fixed percentage of equity |
+| `risk-based` | `riskPercent` | Risk a percentage of equity per trade (requires `stopLoss`) |
+| `atr-based` | `riskPercent`, `atrKey`, `atrMultiplier?` | ATR-based sizing (default multiplier: `2`) |
+
+**`ManagedEvent` types** (in addition to all `SessionEvent` types):
+
+| Type | Description | Key Fields |
+|------|-------------|------------|
+| `position-opened` | A position was opened | `position`, `fill`, `candle` |
+| `position-closed` | A position was closed | `trade`, `fill`, `account`, `candle` |
+| `position-update` | Position P&L update | `unrealizedPnl`, `equity`, `candle` |
+
+**Additional methods on `ManagedSession`:**
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `getPosition()` | `ManagedPosition \| null` | Get current open position |
+| `getAccount()` | `AccountState` | Get current account state |
+| `getTrades()` | `Trade[]` | Get all closed trade records |
+| `closePosition(time, price)` | `ManagedEvent[]` | Manually close current position |
+| `updateStopLoss(price)` | `void` | Update stop loss price |
+| `updateTakeProfit(price)` | `void` | Update take profit price |
 
 ---
 
