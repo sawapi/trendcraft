@@ -24,6 +24,25 @@ import {
   obvSafe,
   mfiSafe,
   vwapSafe,
+  swingPointsSafe,
+  pivotPointsSafe,
+  highestLowestSafe,
+  heikinAshiSafe,
+  superSmootherSafe,
+  roofingFilterSafe,
+  donchianChannelSafe,
+  keltnerChannelSafe,
+  chandelierExitSafe,
+  volatilityRegimeSafe,
+  williamsRSafe,
+  stochRsiSafe,
+  trixSafe,
+  aroonSafe,
+  cmfSafe,
+  adlSafe,
+  volumeTrendSafe,
+  parabolicSarSafe,
+  vortexSafe,
 } from "../safe";
 
 describe("safe indicator wrappers", () => {
@@ -312,6 +331,158 @@ describe("safe indicator wrappers", () => {
         expect(result.error.code).toBe("INDICATOR_ERROR");
         expect(result.error.message).toContain("period");
       }
+    });
+  });
+
+  describe("swingPointsSafe", () => {
+    it("should return Ok with valid parameters", () => {
+      const result = swingPointsSafe(candles);
+      expect(result.ok).toBe(true);
+    });
+  });
+
+  describe("pivotPointsSafe", () => {
+    it("should return Ok with valid parameters", () => {
+      const result = pivotPointsSafe(candles);
+      expect(result.ok).toBe(true);
+    });
+  });
+
+  describe("highestLowestSafe", () => {
+    it("should return Ok with valid parameters", () => {
+      const result = highestLowestSafe(candles, { period: 10 });
+      expect(result.ok).toBe(true);
+    });
+
+    it("should return Err with invalid parameters", () => {
+      const result = highestLowestSafe(candles, { period: 0 });
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error.code).toBe("INDICATOR_ERROR");
+      }
+    });
+  });
+
+  describe("heikinAshiSafe", () => {
+    it("should return Ok with valid parameters", () => {
+      const result = heikinAshiSafe(candles);
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.value.length).toBe(candles.length);
+      }
+    });
+  });
+
+  describe("superSmootherSafe", () => {
+    it("should return Ok with valid parameters", () => {
+      const result = superSmootherSafe(candles, { period: 10 });
+      expect(result.ok).toBe(true);
+    });
+
+    it("should return Err with invalid parameters", () => {
+      const result = superSmootherSafe(candles, { period: 0 });
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error.code).toBe("INDICATOR_ERROR");
+      }
+    });
+  });
+
+  describe("roofingFilterSafe", () => {
+    it("should return Ok with valid parameters", () => {
+      const result = roofingFilterSafe(candles);
+      expect(result.ok).toBe(true);
+    });
+  });
+
+  describe("donchianChannelSafe", () => {
+    it("should return Ok with valid parameters", () => {
+      const result = donchianChannelSafe(candles);
+      expect(result.ok).toBe(true);
+    });
+  });
+
+  describe("keltnerChannelSafe", () => {
+    it("should return Ok with valid parameters", () => {
+      const result = keltnerChannelSafe(candles);
+      expect(result.ok).toBe(true);
+    });
+  });
+
+  describe("chandelierExitSafe", () => {
+    it("should return Ok with valid parameters", () => {
+      const result = chandelierExitSafe(candles);
+      expect(result.ok).toBe(true);
+    });
+  });
+
+  describe("volatilityRegimeSafe", () => {
+    it("should return Ok with valid parameters", () => {
+      const result = volatilityRegimeSafe(candles);
+      expect(result.ok).toBe(true);
+    });
+  });
+
+  describe("williamsRSafe", () => {
+    it("should return Ok with valid parameters", () => {
+      const result = williamsRSafe(candles, { period: 14 });
+      expect(result.ok).toBe(true);
+    });
+  });
+
+  describe("stochRsiSafe", () => {
+    it("should return Ok with valid parameters", () => {
+      const result = stochRsiSafe(candles);
+      expect(result.ok).toBe(true);
+    });
+  });
+
+  describe("trixSafe", () => {
+    it("should return Ok with valid parameters", () => {
+      const result = trixSafe(candles, { period: 5 });
+      expect(result.ok).toBe(true);
+    });
+  });
+
+  describe("aroonSafe", () => {
+    it("should return Ok with valid parameters", () => {
+      const result = aroonSafe(candles, { period: 14 });
+      expect(result.ok).toBe(true);
+    });
+  });
+
+  describe("cmfSafe", () => {
+    it("should return Ok with valid parameters", () => {
+      const result = cmfSafe(candles);
+      expect(result.ok).toBe(true);
+    });
+  });
+
+  describe("adlSafe", () => {
+    it("should return Ok with valid parameters", () => {
+      const result = adlSafe(candles);
+      expect(result.ok).toBe(true);
+    });
+  });
+
+  describe("volumeTrendSafe", () => {
+    it("should return Ok with valid parameters", () => {
+      const result = volumeTrendSafe(candles);
+      expect(result.ok).toBe(true);
+    });
+  });
+
+  describe("parabolicSarSafe", () => {
+    it("should return Ok with valid parameters", () => {
+      const result = parabolicSarSafe(candles);
+      expect(result.ok).toBe(true);
+    });
+  });
+
+  describe("vortexSafe", () => {
+    it("should return Ok with valid parameters", () => {
+      const result = vortexSafe(candles);
+      expect(result.ok).toBe(true);
     });
   });
 

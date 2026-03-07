@@ -1,7 +1,7 @@
 {
   "indicator": "KAMA",
   "talib_function": "KAMA",
-  "note": "TA-Lib KAMA seeds with SMA of first N prices",
+  "note": "TA-Lib KAMA seeds with close[period-1]",
   "test_cases": [
     {
       "name": "KAMA(10)",
