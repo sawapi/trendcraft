@@ -843,3 +843,6 @@ export { normalizeAndValidate } from "./core/normalize";
 
 // Streaming (real-time trading pipeline)
 export * as streaming from "./streaming";
+
+// Execution utilities (resilient order execution)
+export * as execution from "./execution";

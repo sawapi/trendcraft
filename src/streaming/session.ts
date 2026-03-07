@@ -87,7 +87,26 @@ export function createTradingSession(
     }
   }
 
+  /**
+   * Check basic OHLC consistency: high >= open,close and low <= open,close
+   */
+  function isOhlcValid(candle: NormalizedCandle): boolean {
+    return (
+      candle.high >= candle.open &&
+      candle.high >= candle.close &&
+      candle.low <= candle.open &&
+      candle.low <= candle.close
+    );
+  }
+
   function processCandle(candle: NormalizedCandle): SessionEvent[] {
+    // Validate OHLC if enabled
+    if (options.validateOhlc && !isOhlcValid(candle)) {
+      const reason = `Invalid OHLC: O=${candle.open} H=${candle.high} L=${candle.low} C=${candle.close}`;
+      options.onInvalidCandle?.(candle, reason);
+      return [];
+    }
+
     const events: SessionEvent[] = [];
 
     // Emit candle event

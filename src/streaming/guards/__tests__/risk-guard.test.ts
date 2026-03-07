@@ -313,4 +313,116 @@ describe("createRiskGuard", () => {
       expect(result.reason).toContain("Consecutive loss limit");
     });
   });
+
+  describe("maxDrawdownPercent", () => {
+    it("should block when drawdown exceeds threshold", () => {
+      const guard = createRiskGuard({ maxDrawdownPercent: 10 });
+
+      // Peak equity at 100,000
+      guard.updateEquity(100_000, BASE_TIME);
+      expect(guard.check(BASE_TIME).allowed).toBe(true);
+
+      // Equity drops to 91,000 → 9% drawdown, still allowed
+      guard.updateEquity(91_000, BASE_TIME + HOUR);
+      expect(guard.check(BASE_TIME + HOUR).allowed).toBe(true);
+
+      // Equity drops to 90,000 → 10% drawdown, blocked
+      guard.updateEquity(90_000, BASE_TIME + 2 * HOUR);
+      const result = guard.check(BASE_TIME + 2 * HOUR);
+      expect(result.allowed).toBe(false);
+      expect(result.reason).toContain("Max drawdown");
+    });
+
+    it("should track peak equity correctly through rises", () => {
+      const guard = createRiskGuard({ maxDrawdownPercent: 5 });
+
+      guard.updateEquity(100_000, BASE_TIME);
+      guard.updateEquity(110_000, BASE_TIME + HOUR); // New peak
+      guard.updateEquity(105_000, BASE_TIME + 2 * HOUR); // 4.5% from peak
+
+      expect(guard.check(BASE_TIME + 2 * HOUR).allowed).toBe(true);
+
+      // Drop to 104,500 → 5% from 110,000 peak
+      guard.updateEquity(104_500, BASE_TIME + 3 * HOUR);
+      expect(guard.check(BASE_TIME + 3 * HOUR).allowed).toBe(false);
+    });
+
+    it("should not block when no equity has been reported", () => {
+      const guard = createRiskGuard({ maxDrawdownPercent: 5 });
+      expect(guard.check(BASE_TIME).allowed).toBe(true);
+    });
+  });
+
+  describe("maxPositionPercent", () => {
+    it("should block position that exceeds concentration limit", () => {
+      const guard = createRiskGuard({ maxPositionPercent: 25 });
+      guard.updateEquity(100_000, BASE_TIME);
+
+      const result = guard.checkPositionSize(30_000);
+      expect(result.allowed).toBe(false);
+      expect(result.reason).toContain("exceeds limit");
+    });
+
+    it("should allow position within concentration limit", () => {
+      const guard = createRiskGuard({ maxPositionPercent: 25 });
+      guard.updateEquity(100_000, BASE_TIME);
+
+      expect(guard.checkPositionSize(20_000).allowed).toBe(true);
+    });
+
+    it("should allow any position when maxPositionPercent is not set", () => {
+      const guard = createRiskGuard({});
+      guard.updateEquity(100_000, BASE_TIME);
+      expect(guard.checkPositionSize(100_000).allowed).toBe(true);
+    });
+  });
+
+  describe("equity state persistence", () => {
+    it("should restore peak and current equity from state", () => {
+      const guard1 = createRiskGuard({ maxDrawdownPercent: 10 });
+      guard1.updateEquity(100_000, BASE_TIME);
+      guard1.updateEquity(95_000, BASE_TIME + HOUR);
+
+      const state = guard1.getState();
+      expect(state.peakEquity).toBe(100_000);
+      expect(state.currentEquity).toBe(95_000);
+
+      // Restore
+      const guard2 = createRiskGuard({ maxDrawdownPercent: 10 }, state);
+      expect(guard2.getState().peakEquity).toBe(100_000);
+      expect(guard2.getState().currentEquity).toBe(95_000);
+
+      // Further drop should trigger
+      guard2.updateEquity(90_000, BASE_TIME + 2 * HOUR);
+      expect(guard2.check(BASE_TIME + 2 * HOUR).allowed).toBe(false);
+    });
+
+    it("should be backward-compatible with old state (no equity fields)", () => {
+      const oldState: any = {
+        dailyPnl: -1000,
+        dailyTradeCount: 5,
+        consecutiveLosses: 1,
+        lastResetDay: 0,
+        cooldownUntil: 0,
+      };
+      const guard = createRiskGuard({ maxDrawdownPercent: 10 }, oldState);
+      // Should not crash, equity defaults to 0
+      expect(guard.getState().peakEquity).toBe(0);
+      expect(guard.check(BASE_TIME).allowed).toBe(true);
+    });
+  });
+
+  describe("reset clears equity tracking", () => {
+    it("should reset peak and current equity", () => {
+      const guard = createRiskGuard({ maxDrawdownPercent: 5 });
+      guard.updateEquity(100_000, BASE_TIME);
+      guard.updateEquity(90_000, BASE_TIME + HOUR);
+      guard.reset();
+
+      const state = guard.getState();
+      expect(state.peakEquity).toBe(0);
+      expect(state.currentEquity).toBe(0);
+      expect(guard.check(BASE_TIME).allowed).toBe(true);
+    });
+  });
 });

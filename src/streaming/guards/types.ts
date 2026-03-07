@@ -41,6 +41,10 @@ export type RiskGuardOptions = {
   cooldownMs?: number;
   /** Daily reset time as offset from UTC midnight in ms (e.g., JST 9:00 AM = 0) */
   resetTimeOffsetMs?: number;
+  /** Max drawdown % from peak equity. When exceeded, blocks all new trades */
+  maxDrawdownPercent?: number;
+  /** Max single position size as % of equity */
+  maxPositionPercent?: number;
 };
 
 /**
@@ -52,6 +56,8 @@ export type RiskGuardState = {
   consecutiveLosses: number;
   lastResetDay: number;
   cooldownUntil: number;
+  peakEquity?: number;
+  currentEquity?: number;
 };
 
 /**
@@ -71,6 +77,10 @@ export type RiskGuard = {
   check(time: number): RiskGuardCheckResult;
   /** Report a completed trade result */
   reportTrade(pnl: number, time: number): void;
+  /** Report current equity for drawdown tracking */
+  updateEquity(equity: number, time: number): void;
+  /** Check if a position size (as % of equity) exceeds the limit */
+  checkPositionSize(positionValue: number): RiskGuardCheckResult;
   /** Reset all counters */
   reset(): void;
   /** Serialize internal state */

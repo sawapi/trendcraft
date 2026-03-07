@@ -291,6 +291,13 @@ export function createManagedSession(
 
     const { triggered } = tracker.updatePrice(event.candle);
 
+    // Update equity in risk guard for drawdown tracking
+    const accountAfterUpdate = tracker.getAccount();
+    guardedSession.riskGuard?.updateEquity(
+      accountAfterUpdate.equity,
+      event.candle.time,
+    );
+
     if (triggered) {
       // SL/TP/trailing was hit
       const trades = tracker.getTrades();

@@ -379,6 +379,10 @@ export type SessionOptions = {
   emitPartial?: boolean;
   /** Historical candles for warming up indicators */
   warmUp?: NormalizedCandle[];
+  /** Validate OHLC consistency on each completed candle (H >= O,C; L <= O,C) */
+  validateOhlc?: boolean;
+  /** Callback invoked when an invalid candle is detected. The candle is skipped */
+  onInvalidCandle?: (candle: NormalizedCandle, reason: string) => void;
 };
 
 /**

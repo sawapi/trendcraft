@@ -75,6 +75,8 @@ export function createRiskGuard(
   let consecutiveLosses = fromState?.consecutiveLosses ?? 0;
   let lastResetDay = fromState?.lastResetDay ?? -1;
   let cooldownUntil = fromState?.cooldownUntil ?? 0;
+  let peakEquity = fromState?.peakEquity ?? 0;
+  let currentEquity = fromState?.currentEquity ?? 0;
 
   function maybeResetDay(time: number): void {
     const currentDay = getDayNumber(time, resetTimeOffsetMs);
@@ -103,6 +105,22 @@ export function createRiskGuard(
         // Cooldown expired — reset consecutive losses and cooldown
         consecutiveLosses = 0;
         cooldownUntil = 0;
+      }
+
+      // Check max drawdown from peak equity
+      if (
+        options.maxDrawdownPercent !== undefined &&
+        peakEquity > 0 &&
+        currentEquity > 0
+      ) {
+        const drawdownPercent =
+          ((peakEquity - currentEquity) / peakEquity) * 100;
+        if (drawdownPercent >= options.maxDrawdownPercent) {
+          return {
+            allowed: false,
+            reason: `Max drawdown reached: ${drawdownPercent.toFixed(1)}% >= ${options.maxDrawdownPercent}%`,
+          };
+        }
       }
 
       // Check daily loss limit
@@ -162,12 +180,37 @@ export function createRiskGuard(
       }
     },
 
+    updateEquity(equity: number, _time: number) {
+      currentEquity = equity;
+      if (equity > peakEquity) {
+        peakEquity = equity;
+      }
+    },
+
+    checkPositionSize(positionValue: number) {
+      if (
+        options.maxPositionPercent !== undefined &&
+        currentEquity > 0
+      ) {
+        const positionPercent = (Math.abs(positionValue) / currentEquity) * 100;
+        if (positionPercent > options.maxPositionPercent) {
+          return {
+            allowed: false,
+            reason: `Position size ${positionPercent.toFixed(1)}% exceeds limit ${options.maxPositionPercent}%`,
+          };
+        }
+      }
+      return { allowed: true };
+    },
+
     reset() {
       dailyPnl = 0;
       dailyTradeCount = 0;
       consecutiveLosses = 0;
       cooldownUntil = 0;
       lastResetDay = -1;
+      peakEquity = 0;
+      currentEquity = 0;
     },
 
     getState(): RiskGuardState {
@@ -177,6 +220,8 @@ export function createRiskGuard(
         consecutiveLosses,
         lastResetDay,
         cooldownUntil,
+        peakEquity,
+        currentEquity,
       };
     },
   };

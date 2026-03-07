@@ -22,6 +22,8 @@ import type {
   TimeframeShorthand,
   Trade,
 } from "../types";
+import type { ValidationOptions } from "../validation/types";
+import { validateCandles } from "../validation/validate";
 import { createFundamentalsMap } from "../core/fundamentals";
 import { type IndicatorCache, createCachedIndicators } from "../core/indicator-cache";
 import { evaluateCondition } from "./conditions";
@@ -47,6 +49,8 @@ export type MtfBacktestOptions = BacktestOptions & {
   atrRisk?: AtrRiskOptions;
   /** Fundamental metrics (PER/PBR) for condition evaluation */
   fundamentals?: FundamentalMetrics[];
+  /** Validate input candle data before running backtest. Default: false */
+  validateData?: boolean | ValidationOptions;
 };
 
 /**
@@ -103,6 +107,20 @@ export function runBacktest(
     commission,
     commissionRate,
   };
+
+  // Validate input data if requested
+  const validateDataOpt = (options as MtfBacktestOptions).validateData;
+  if (validateDataOpt) {
+    const valOpts =
+      typeof validateDataOpt === "object" ? validateDataOpt : undefined;
+    const valResult = validateCandles(candles, valOpts);
+    if (!valResult.valid) {
+      throw new Error(
+        `Data validation failed: ${valResult.errors.length} error(s) found. ` +
+          `First: ${valResult.errors[0]?.message ?? "unknown"}`,
+      );
+    }
+  }
 
   if (candles.length < 2) {
     return emptyResult(capital, settings);
