@@ -44,6 +44,7 @@ export type {
 // ============================================
 
 export type {
+  PositionDirection,
   ExitReason,
   ConditionFn,
   PresetCondition,
@@ -148,8 +149,35 @@ export {
 } from "./result";
 
 // ============================================
+// Trade Signal Types
+// ============================================
+
+export type {
+  TradeAction,
+  TradeDirection,
+  SignalReason,
+  PriceLevels,
+  TradeSignal,
+} from "./trade-signal";
+
+// ============================================
 // Plugin Types
 // ============================================
 
 export type { IndicatorPlugin } from "./plugin";
 export { defineIndicator } from "./plugin";
+
+// ============================================
+// Validation Types
+// ============================================
+
+export type {
+  ValidationResult,
+  ValidationFinding,
+  ValidationOptions,
+  ValidationSeverity,
+  GapDetectionOptions,
+  SpikeDetectionOptions,
+  VolumeAnomalyOptions,
+  StaleDetectionOptions,
+} from "../validation/types";

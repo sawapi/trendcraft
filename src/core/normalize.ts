@@ -3,6 +3,8 @@
  */
 
 import type { Candle, NormalizedCandle, PriceSource } from "../types";
+import type { ValidationOptions, ValidationResult } from "../validation/types";
+import { validateCandles } from "../validation/validate";
 
 /**
  * Convert time value to epoch milliseconds
@@ -106,4 +108,40 @@ export function isNormalized(
 ): candles is NormalizedCandle[] {
   if (candles.length === 0) return true;
   return typeof candles[0].time === "number";
+}
+
+/**
+ * Normalize candles and optionally validate data quality
+ *
+ * Combines normalization with validation in a single call.
+ * When validation options are provided, runs all enabled checks
+ * and returns cleaned candles if autoClean is enabled.
+ *
+ * @param candles - Raw candle array to normalize
+ * @param validation - Optional validation options
+ * @returns Normalized candles and optional validation result
+ *
+ * @example
+ * ```ts
+ * const { candles, validation } = normalizeAndValidate(rawCandles, {
+ *   gaps: true,
+ *   duplicates: true,
+ *   autoClean: true,
+ * });
+ * if (validation && !validation.valid) {
+ *   console.warn("Data quality issues found:", validation.errors);
+ * }
+ * ```
+ */
+export function normalizeAndValidate(
+  candles: Candle[],
+  validation?: ValidationOptions,
+): { candles: NormalizedCandle[]; validation?: ValidationResult } {
+  const normalized = normalizeCandles(candles);
+  if (!validation) return { candles: normalized };
+  const result = validateCandles(normalized, validation);
+  return {
+    candles: result.cleanedCandles ?? normalized,
+    validation: result,
+  };
 }

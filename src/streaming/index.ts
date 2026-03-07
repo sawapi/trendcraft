@@ -109,6 +109,10 @@ export type {
   GuardedTradingSession,
 } from "./guards";
 
+// Signal Emitter
+export { createSignalEmitter } from "./signal-emitter";
+export type { SignalEmitterOptions, SignalEmitter } from "./signal-emitter";
+
 // Phase 6: Position Management
 export {
   createPositionTracker,

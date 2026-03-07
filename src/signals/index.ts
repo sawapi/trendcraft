@@ -82,6 +82,16 @@ export {
   type CandlestickPatternValue,
 } from "./candlestick";
 
+// Trade Signal Converters
+export {
+  fromCrossSignal,
+  fromDivergenceSignal,
+  fromSqueezeSignal,
+  fromPatternSignal,
+  fromScoreResult,
+  fromPipelineResult,
+} from "./trade-signal";
+
 // Price Pattern Recognition
 export {
   doubleTop,
@@ -97,3 +107,18 @@ export {
   type HeadShouldersOptions,
   type CupHandleOptions,
 } from "./patterns";
+
+// Signal Lifecycle
+export {
+  createSignalManager,
+  processSignalsBatch,
+  type SignalState,
+  type ManagedSignal,
+  type CooldownConfig,
+  type DebounceConfig,
+  type ExpiryConfig,
+  type SignalKeyFn,
+  type SignalManagerOptions,
+  type SignalManagerState,
+  type SignalManager,
+} from "./lifecycle";

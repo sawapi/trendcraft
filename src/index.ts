@@ -33,7 +33,14 @@ export type {
   HighestLowestOptions,
   ReturnsOptions,
   CrossOptions,
+  // Trade Signal types
+  TradeAction,
+  TradeDirection,
+  SignalReason,
+  PriceLevels,
+  TradeSignal,
   // Backtest types
+  PositionDirection,
   Condition,
   ConditionFn,
   PresetCondition,
@@ -380,6 +387,13 @@ export {
   volumeAccumulation,
   volumeMaCross,
   volumeAboveAverage,
+  // Trade Signal Converters
+  fromCrossSignal,
+  fromDivergenceSignal,
+  fromSqueezeSignal,
+  fromPatternSignal,
+  fromScoreResult,
+  fromPipelineResult,
   // Candlestick Patterns
   candlestickPatterns,
   // Price Patterns
@@ -388,8 +402,21 @@ export {
   headAndShoulders,
   inverseHeadAndShoulders,
   cupWithHandle,
+  // Signal Lifecycle
+  createSignalManager,
+  processSignalsBatch,
 } from "./signals";
 export type {
+  // Signal Lifecycle types
+  SignalState,
+  ManagedSignal,
+  CooldownConfig,
+  DebounceConfig,
+  ExpiryConfig,
+  SignalKeyFn,
+  SignalManagerOptions,
+  SignalManagerState,
+  SignalManager,
   CrossValidationOptions,
   CrossSignalQuality,
   DivergenceSignal,
@@ -771,6 +798,30 @@ export type {
   StreakAnalysis,
   TradeAnalysis,
 } from "./analysis";
+
+// Validation
+export {
+  validateCandles,
+  detectGaps,
+  detectDuplicates,
+  removeDuplicates,
+  detectOhlcErrors,
+  detectPriceSpikes,
+  detectVolumeAnomalies,
+  detectStaleData,
+  detectSplitHints,
+} from "./validation";
+export type {
+  ValidationResult,
+  ValidationFinding,
+  ValidationOptions,
+  ValidationSeverity,
+  GapDetectionOptions,
+  SpikeDetectionOptions,
+  VolumeAnomalyOptions,
+  StaleDetectionOptions,
+} from "./validation";
+export { normalizeAndValidate } from "./core/normalize";
 
 // Streaming (real-time trading pipeline)
 export * as streaming from "./streaming";
