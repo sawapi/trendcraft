@@ -11,7 +11,7 @@
  *   review --from-backtest -s SPY -p 1 -t 1Min   Review backtest results (no live needed)
  */
 
-import { atr, ema } from "trendcraft";
+import { atr, detectMarketRegime } from "trendcraft";
 import { createAgentManager } from "../agent/manager.js";
 import { fetchHistoricalBars, monthsAgo, today } from "../alpaca/historical.js";
 import { runStrategyBacktests } from "../backtest/runner.js";
@@ -470,49 +470,21 @@ async function fetchMarketContext(
             volume: b.volume,
           }));
 
-          // ATR-based volatility regime
+          // ATR for atr14/atrPercent context
           const atrSeries = atr(candles, { period: 14 });
           if (atrSeries.length > 0) {
             const latestAtr = atrSeries[atrSeries.length - 1].value;
             if (latestAtr != null) {
               ctx.atr14 = latestAtr;
               ctx.atrPercent = (latestAtr / latest.close) * 100;
-
-              // Percentile of current ATR within lookback
-              const atrValues = atrSeries
-                .slice(-60)
-                .map((s) => s.value)
-                .filter((v): v is number => v != null);
-              const sorted = [...atrValues].sort((a, b) => a - b);
-              const rank = sorted.findIndex((v) => v >= latestAtr);
-              const percentile = (rank / sorted.length) * 100;
-
-              if (percentile <= 25) ctx.volatilityRegime = "low";
-              else if (percentile >= 75) ctx.volatilityRegime = "high";
-              else ctx.volatilityRegime = "normal";
             }
           }
 
-          // EMA trend direction
-          if (bars.length >= 50) {
-            const ema20 = ema(candles, { period: 20 });
-            const ema50 = ema(candles, { period: 50 });
-
-            if (ema20.length > 0 && ema50.length > 0) {
-              const latestEma20 = ema20[ema20.length - 1].value;
-              const latestEma50 = ema50[ema50.length - 1].value;
-              if (latestEma20 != null && latestEma50 != null && latestEma50 !== 0) {
-                const diff = ((latestEma20 - latestEma50) / latestEma50) * 100;
-
-                if (Math.abs(diff) < 0.5) ctx.trendDirection = "sideways";
-                else if (diff > 0) ctx.trendDirection = "bullish";
-                else ctx.trendDirection = "bearish";
-
-                // Use absolute diff as rough strength proxy (0-100 scale)
-                ctx.trendStrength = Math.min(Math.abs(diff) * 10, 100);
-              }
-            }
-          }
+          // Unified regime detection via trendcraft
+          const regime = detectMarketRegime(candles, { lookback: 60 });
+          ctx.volatilityRegime = regime.volatility;
+          ctx.trendDirection = regime.trend;
+          ctx.trendStrength = regime.trendStrength;
         } catch (err) {
           console.warn(
             `[review] Regime detection failed for ${symbol}:`,

@@ -165,14 +165,14 @@ function compileStreamingConditionRef(
       const sorted = [...smaInds].sort((a, b) => (a.params.period ?? 20) - (b.params.period ?? 20));
       const shortName = sorted[0]?.name ?? "sma20";
       const longName = sorted[1]?.name ?? "sma50";
-      return buildSmaCrossCondition("over", shortName, longName);
+      return streaming.crossOver(shortName, longName);
     }
     case "smaDeadCross": {
       const smaInds = indicators.filter((i) => i.type === "sma");
       const sorted = [...smaInds].sort((a, b) => (a.params.period ?? 20) - (b.params.period ?? 20));
       const shortName = sorted[0]?.name ?? "sma20";
       const longName = sorted[1]?.name ?? "sma50";
-      return buildSmaCrossCondition("under", shortName, longName);
+      return streaming.crossUnder(shortName, longName);
     }
     case "indicatorAbove":
       return streaming.indicatorAbove(
@@ -322,38 +322,6 @@ function resolveIndicatorKey(key: string, _indicators: IndicatorRef[]): string {
 }
 
 /**
- * Build a streaming condition that detects SMA cross (golden/dead cross)
- * by tracking previous SMA values in a closure.
- */
-function buildSmaCrossCondition(
-  direction: "over" | "under",
-  shortKey: string,
-  longKey: string,
-): streaming.StreamingConditionFn {
-  let prevShort: number | null = null;
-  let prevLong: number | null = null;
-
-  return (snapshot: streaming.IndicatorSnapshot, _candle: NormalizedCandle) => {
-    const currShort =
-      typeof snapshot[shortKey] === "number" ? (snapshot[shortKey] as number) : null;
-    const currLong = typeof snapshot[longKey] === "number" ? (snapshot[longKey] as number) : null;
-
-    let crossed = false;
-    if (prevShort !== null && prevLong !== null && currShort !== null && currLong !== null) {
-      if (direction === "over") {
-        crossed = prevShort <= prevLong && currShort > currLong;
-      } else {
-        crossed = prevShort >= prevLong && currShort < currLong;
-      }
-    }
-
-    prevShort = currShort;
-    prevLong = currLong;
-    return crossed;
-  };
-}
-
-/**
  * Build streaming priceAbove/priceBelow that handles dotted keys like "bb.lower"
  */
 function buildPriceCondition(
@@ -361,43 +329,33 @@ function buildPriceCondition(
   key: string,
   _indicators: IndicatorRef[],
 ): streaming.StreamingCondition {
-  const parts = key.split(".");
-  if (parts.length === 2) {
-    // Compound key like "bb.lower" — need custom streaming condition
-    const [indicatorName, field] = parts;
-    const fn: streaming.StreamingConditionFn = (
-      snapshot: streaming.IndicatorSnapshot,
-      candle: NormalizedCandle,
-    ) => {
-      const val = snapshot[indicatorName];
-      if (val && typeof val === "object" && field in (val as Record<string, unknown>)) {
-        const num = (val as Record<string, number>)[field];
-        if (typeof num !== "number") return false;
-        return direction === "above" ? candle.close > num : candle.close < num;
+  // Handle VWAP nested value (vwap.vwap)
+  const resolveKey = key === "vwap" ? "vwap.vwap" : key;
+
+  // For simple keys without dots, try resolveNumber first (handles both
+  // plain numbers and compound objects), falling back to the preset
+  if (!key.includes(".") && key !== "vwap") {
+    return direction === "above" ? streaming.priceAbove(key) : streaming.priceBelow(key);
+  }
+
+  // For dotted keys (e.g. "bb.lower") and vwap, use resolveNumber for type-safe access
+  const fn: streaming.StreamingConditionFn = (
+    snapshot: streaming.IndicatorSnapshot,
+    candle: NormalizedCandle,
+  ) => {
+    const value = streaming.resolveNumber(snapshot, resolveKey);
+    if (value === null) {
+      // Fallback: try the original key as a plain number (e.g. vwap stored as number)
+      if (key === "vwap") {
+        const plain = streaming.getNumber(snapshot, "vwap");
+        if (plain === null) return false;
+        return direction === "above" ? candle.close > plain : candle.close < plain;
       }
       return false;
-    };
-    return fn;
-  }
-  // Simple key — check if it's a VWAP-style nested value
-  if (key === "vwap") {
-    const fn: streaming.StreamingConditionFn = (
-      snapshot: streaming.IndicatorSnapshot,
-      candle: NormalizedCandle,
-    ) => {
-      const val = snapshot.vwap;
-      let vwapPrice: number | null = null;
-      if (typeof val === "number") {
-        vwapPrice = val;
-      } else if (val && typeof val === "object" && "vwap" in (val as Record<string, unknown>)) {
-        vwapPrice = (val as { vwap: number | null }).vwap;
-      }
-      if (vwapPrice === null) return false;
-      return direction === "above" ? candle.close > vwapPrice : candle.close < vwapPrice;
-    };
-    return fn;
-  }
-  return direction === "above" ? streaming.priceAbove(key) : streaming.priceBelow(key);
+    }
+    return direction === "above" ? candle.close > value : candle.close < value;
+  };
+  return fn;
 }
 
 /**
