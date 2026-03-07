@@ -4,6 +4,11 @@
 
 import type { NormalizedCandle, TimeframeShorthand } from "./candle";
 
+/**
+ * Position direction for long/short trading
+ */
+export type PositionDirection = "long" | "short";
+
 // ============================================
 // Backtest Types
 // ============================================
@@ -66,6 +71,8 @@ export type Trade = {
   return: number;
   returnPercent: number;
   holdingDays: number;
+  /** Position direction (default: "long") */
+  direction?: PositionDirection;
   /** Whether this is a partial exit (true) or full exit (false/undefined) */
   isPartial?: boolean;
   /** Percentage of original position sold in this trade */
@@ -193,6 +200,8 @@ export type SlTpMode = "intraday" | "close-only";
 export type BacktestOptions = {
   /** Initial capital */
   capital: number;
+  /** Position direction: "long" (default) or "short" */
+  direction?: PositionDirection;
   /** Commission per trade in currency (default: 0) */
   commission?: number;
   /** Commission rate in percent per trade (default: 0, e.g., 0.1 = 0.1%) */
@@ -239,6 +248,8 @@ export type BacktestSettings = {
   fillMode: FillMode;
   /** Stop loss / Take profit evaluation mode */
   slTpMode: SlTpMode;
+  /** Position direction */
+  direction?: PositionDirection;
   /** Stop loss in percent */
   stopLoss?: number;
   /** Take profit in percent */

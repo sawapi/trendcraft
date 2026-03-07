@@ -1,6 +1,7 @@
 /**
  * Backtest Engine
  * Simulates trading strategy on historical data
+ * Supports both long and short positions
  */
 
 import { buildMtfIndexMap, createMtfContext, updateMtfIndices } from "../core/mtf-context";
@@ -16,6 +17,7 @@ import type {
   FundamentalMetrics,
   MtfContext,
   NormalizedCandle,
+  PositionDirection,
   SlTpMode,
   TimeframeShorthand,
   Trade,
@@ -29,8 +31,8 @@ import {
   applySlippage,
   calculateStats,
   calculateTradeClose,
-  checkProfitTrigger,
-  checkStopTrigger,
+  checkProfitTriggerDirectional,
+  checkStopTriggerDirectional,
   emptyResult,
 } from "./engine-utils";
 import type { Position } from "./engine-utils";
@@ -64,6 +66,7 @@ export function runBacktest(
 ): BacktestResult {
   const {
     capital,
+    direction: dir = "long" as PositionDirection,
     commission = 0,
     commissionRate = 0,
     slippage = 0,
@@ -80,6 +83,9 @@ export function runBacktest(
     slTpMode = "close-only" as SlTpMode,
   } = options;
 
+  const isShort = dir === "short";
+  const entrySide = isShort ? "sell" : "buy";
+
   // Extract MTF timeframes, ATR risk options, and fundamentals if provided
   const mtfTimeframes = (options as MtfBacktestOptions).mtfTimeframes;
   const atrRisk = (options as MtfBacktestOptions).atrRisk;
@@ -89,6 +95,7 @@ export function runBacktest(
   const settings: BacktestSettings = {
     fillMode,
     slTpMode,
+    direction: isShort ? "short" : undefined,
     stopLoss,
     takeProfit,
     trailingStop,
@@ -138,7 +145,7 @@ export function runBacktest(
   // Pending exit for next-bar-open mode
   let pendingExit: {
     signalTime: number;
-    exitPrice: number; // Target price (for SL/TP) or 0 for signal-based exit
+    exitPrice: number;
     isSignalBased: boolean;
     exitReason: ExitReason;
   } | null = null;
@@ -147,6 +154,121 @@ export function runBacktest(
   let peakCapital = capital;
   let maxDrawdown = 0;
   const returns: number[] = [];
+
+  /**
+   * Create a position from entry parameters
+   */
+  function createPosition(
+    entryTime: number,
+    entryPrice: number,
+    shares: number,
+    entryAtr: number | null,
+    initialHigh: number,
+    initialLow: number,
+  ): Position {
+    return {
+      entryTime,
+      entryPrice,
+      peakPrice: initialHigh,
+      troughPrice: initialLow,
+      direction: dir,
+      shares,
+      originalShares: shares,
+      partialTaken: false,
+      breakevenActivated: false,
+      scaleOutLevelsTaken: scaleOut ? scaleOut.levels.map(() => false) : [],
+      entryAtr,
+      maxProfitPercent: 0,
+      maxLossPercent: 0,
+    };
+  }
+
+  /**
+   * Calculate SL price based on direction
+   * Long: entry * (1 - sl%), Short: entry * (1 + sl%)
+   */
+  function calcStopLossPrice(entryPrice: number, slPercent: number): number {
+    return isShort
+      ? entryPrice * (1 + slPercent / 100)
+      : entryPrice * (1 - slPercent / 100);
+  }
+
+  /**
+   * Calculate TP price based on direction
+   * Long: entry * (1 + tp%), Short: entry * (1 - tp%)
+   */
+  function calcTakeProfitPrice(entryPrice: number, tpPercent: number): number {
+    return isShort
+      ? entryPrice * (1 - tpPercent / 100)
+      : entryPrice * (1 + tpPercent / 100);
+  }
+
+  /**
+   * Calculate ATR stop loss price based on direction
+   */
+  function calcAtrStopPrice(entryPrice: number, atrVal: number, multiplier: number): number {
+    return isShort
+      ? entryPrice + atrVal * multiplier
+      : entryPrice - atrVal * multiplier;
+  }
+
+  /**
+   * Calculate ATR take profit price based on direction
+   */
+  function calcAtrTpPrice(entryPrice: number, atrVal: number, multiplier: number): number {
+    return isShort
+      ? entryPrice - atrVal * multiplier
+      : entryPrice + atrVal * multiplier;
+  }
+
+  /**
+   * Calculate trailing stop price based on direction
+   * Long: peakPrice * (1 - trail%), Short: troughPrice * (1 + trail%)
+   */
+  function calcTrailingStopPrice(pos: Position, trailPercent: number): number {
+    return isShort
+      ? pos.troughPrice * (1 + trailPercent / 100)
+      : pos.peakPrice * (1 - trailPercent / 100);
+  }
+
+  /**
+   * Calculate ATR trailing price based on direction
+   */
+  function calcAtrTrailPrice(pos: Position, atrVal: number, multiplier: number): number {
+    return isShort
+      ? pos.troughPrice + atrVal * multiplier
+      : pos.peakPrice - atrVal * multiplier;
+  }
+
+  /**
+   * Update MFE/MAE for direction
+   */
+  function updateMfeMae(pos: Position, candle: NormalizedCandle): void {
+    if (isShort) {
+      // Short: profit when price drops, loss when price rises
+      const profitPercent = ((pos.entryPrice - candle.low) / pos.entryPrice) * 100;
+      const lossPercent = ((candle.high - pos.entryPrice) / pos.entryPrice) * 100;
+      if (profitPercent > pos.maxProfitPercent) pos.maxProfitPercent = profitPercent;
+      if (lossPercent > 0 && lossPercent > pos.maxLossPercent) pos.maxLossPercent = lossPercent;
+    } else {
+      // Long: profit when price rises, loss when price drops
+      const highReturn = ((candle.high - pos.entryPrice) / pos.entryPrice) * 100;
+      const lowReturn = ((candle.low - pos.entryPrice) / pos.entryPrice) * 100;
+      if (highReturn > pos.maxProfitPercent) pos.maxProfitPercent = highReturn;
+      if (lowReturn < 0 && Math.abs(lowReturn) > pos.maxLossPercent) {
+        pos.maxLossPercent = Math.abs(lowReturn);
+      }
+    }
+  }
+
+  /**
+   * Calculate current return percent for time exit flat check
+   */
+  function currentReturnPercent(pos: Position, price: number): number {
+    return isShort
+      ? ((pos.entryPrice - price) / pos.entryPrice) * 100
+      : ((price - pos.entryPrice) / pos.entryPrice) * 100;
+  }
 
   for (let i = 1; i < candles.length; i++) {
     const candle = candles[i];
@@ -165,7 +287,7 @@ export function runBacktest(
 
     // === Handle pending entry (next-bar-open mode) ===
     if (pendingEntry !== null && position === null) {
-      const entryPrice = applySlippage(candle.open, slippage, "buy");
+      const entryPrice = applySlippage(candle.open, slippage, entrySide);
 
       // Calculate commission (fixed + rate-based)
       const tradeValue = currentCapital;
@@ -174,19 +296,10 @@ export function runBacktest(
       // Calculate shares after commission
       const shares = (currentCapital - entryCommission) / entryPrice;
 
-      position = {
-        entryTime: candle.time,
-        entryPrice,
-        peakPrice: candle.high, // Use current bar's high as initial peak
-        shares,
-        originalShares: shares,
-        partialTaken: false,
-        breakevenActivated: false,
-        scaleOutLevelsTaken: scaleOut ? scaleOut.levels.map(() => false) : [],
-        entryAtr: pendingEntry.entryAtr,
-        maxProfitPercent: 0,
-        maxLossPercent: 0,
-      };
+      position = createPosition(
+        candle.time, entryPrice, shares, pendingEntry.entryAtr,
+        candle.high, candle.low,
+      );
 
       // Capital is now invested in position
       currentCapital = 0;
@@ -242,7 +355,7 @@ export function runBacktest(
 
         if (fillMode === "same-bar-close") {
           // Legacy mode: enter at this bar's close
-          const entryPrice = applySlippage(candle.close, slippage, "buy");
+          const entryPrice = applySlippage(candle.close, slippage, entrySide);
 
           // Calculate commission (fixed + rate-based)
           const tradeValue = currentCapital;
@@ -251,19 +364,10 @@ export function runBacktest(
           // Calculate shares after commission
           const shares = (currentCapital - entryCommission) / entryPrice;
 
-          position = {
-            entryTime: candle.time,
-            entryPrice,
-            peakPrice: entryPrice,
-            shares,
-            originalShares: shares,
-            partialTaken: false,
-            breakevenActivated: false,
-            scaleOutLevelsTaken: scaleOut ? scaleOut.levels.map(() => false) : [],
-            entryAtr,
-            maxProfitPercent: 0,
-            maxLossPercent: 0,
-          };
+          position = createPosition(
+            candle.time, entryPrice, shares, entryAtr,
+            entryPrice, entryPrice,
+          );
 
           // Capital is now invested in position
           currentCapital = 0;
@@ -279,46 +383,35 @@ export function runBacktest(
     } else if (position !== null && pendingExit === null) {
       // === Position management ===
 
-      // Update peak price for trailing stop
+      // Update peak/trough prices
       if (candle.high > position.peakPrice) {
         position.peakPrice = candle.high;
       }
-
-      // Track MFE/MAE (Maximum Favorable/Adverse Excursion)
-      // Use high for potential max profit, low for potential max loss
-      const highReturn = ((candle.high - position.entryPrice) / position.entryPrice) * 100;
-      const lowReturn = ((candle.low - position.entryPrice) / position.entryPrice) * 100;
-
-      // MFE: maximum unrealized profit (highest high return)
-      if (highReturn > position.maxProfitPercent) {
-        position.maxProfitPercent = highReturn;
+      if (candle.low < position.troughPrice) {
+        position.troughPrice = candle.low;
       }
 
-      // MAE: maximum unrealized loss (lowest low return, stored as positive)
-      if (lowReturn < 0 && Math.abs(lowReturn) > position.maxLossPercent) {
-        position.maxLossPercent = Math.abs(lowReturn);
-      }
+      // Track MFE/MAE
+      updateMfeMae(position, candle);
 
       let shouldExit = false;
       let exitPrice = candle.close;
-      let exitReason: ExitReason = "signal"; // Default, will be overwritten
+      let exitReason: ExitReason = "signal";
 
       // Get current ATR value for ATR-based risk management
       let currentAtr: number | null = null;
       if (atrRisk && atrSeries) {
         if (atrRisk.useEntryAtr && position.entryAtr !== null) {
-          // Use ATR from entry time (fixed stop distance)
           currentAtr = position.entryAtr;
         } else {
-          // Use current ATR (dynamic stop distance)
           currentAtr = atrSeries[i].value;
         }
       }
 
       // === Stop Loss Check ===
       if (stopLoss !== undefined) {
-        const stopLossPrice = position.entryPrice * (1 - stopLoss / 100);
-        const triggered = checkStopTrigger(candle, stopLossPrice, slTpMode);
+        const stopLossPrice = calcStopLossPrice(position.entryPrice, stopLoss);
+        const triggered = checkStopTriggerDirectional(candle, stopLossPrice, slTpMode, dir);
         if (triggered) {
           shouldExit = true;
           exitPrice = triggered.price;
@@ -328,8 +421,8 @@ export function runBacktest(
 
       // ATR-based stop loss
       if (!shouldExit && currentAtr !== null && atrRisk?.atrStopMultiplier !== undefined) {
-        const atrStopPrice = position.entryPrice - currentAtr * atrRisk.atrStopMultiplier;
-        const triggered = checkStopTrigger(candle, atrStopPrice, slTpMode);
+        const atrStopPrice = calcAtrStopPrice(position.entryPrice, currentAtr, atrRisk.atrStopMultiplier);
+        const triggered = checkStopTriggerDirectional(candle, atrStopPrice, slTpMode, dir);
         if (triggered) {
           shouldExit = true;
           exitPrice = triggered.price;
@@ -339,8 +432,8 @@ export function runBacktest(
 
       // === Take Profit Check ===
       if (!shouldExit && takeProfit !== undefined) {
-        const takeProfitPrice = position.entryPrice * (1 + takeProfit / 100);
-        const triggered = checkProfitTrigger(candle, takeProfitPrice, slTpMode);
+        const takeProfitPrice = calcTakeProfitPrice(position.entryPrice, takeProfit);
+        const triggered = checkProfitTriggerDirectional(candle, takeProfitPrice, slTpMode, dir);
         if (triggered) {
           shouldExit = true;
           exitPrice = triggered.price;
@@ -350,8 +443,8 @@ export function runBacktest(
 
       // ATR-based take profit
       if (!shouldExit && currentAtr !== null && atrRisk?.atrTakeProfitMultiplier !== undefined) {
-        const atrTpPrice = position.entryPrice + currentAtr * atrRisk.atrTakeProfitMultiplier;
-        const triggered = checkProfitTrigger(candle, atrTpPrice, slTpMode);
+        const atrTpPrice = calcAtrTpPrice(position.entryPrice, currentAtr, atrRisk.atrTakeProfitMultiplier);
+        const triggered = checkProfitTriggerDirectional(candle, atrTpPrice, slTpMode, dir);
         if (triggered) {
           shouldExit = true;
           exitPrice = triggered.price;
@@ -359,15 +452,12 @@ export function runBacktest(
         }
       }
 
-      // Partial take profit check (sell portion of position at threshold)
+      // Partial take profit check
       if (!shouldExit && partialTakeProfit && !position.partialTaken) {
-        const partialThresholdPrice = position.entryPrice * (1 + partialTakeProfit.threshold / 100);
-        const partialTrigger =
-          slTpMode === "intraday"
-            ? candle.high >= partialThresholdPrice
-            : candle.close >= partialThresholdPrice;
+        const partialThresholdPrice = calcTakeProfitPrice(position.entryPrice, partialTakeProfit.threshold);
+        const partialTrigger = checkProfitTriggerDirectional(candle, partialThresholdPrice, slTpMode, dir);
         if (partialTrigger) {
-          const partialExitPrice = slTpMode === "intraday" ? partialThresholdPrice : candle.close;
+          const partialExitPrice = partialTrigger.price;
           const sharesToSell = position.shares * (partialTakeProfit.sellPercent / 100);
 
           const result = calculateTradeClose({
@@ -403,21 +493,17 @@ export function runBacktest(
         }
       }
 
-      // Scale-out check (sell portions at multiple profit levels)
+      // Scale-out check
       if (!shouldExit && scaleOut && position.shares > 0) {
         for (let levelIndex = 0; levelIndex < scaleOut.levels.length; levelIndex++) {
           if (position.scaleOutLevelsTaken[levelIndex]) continue;
 
           const level = scaleOut.levels[levelIndex];
-          const scaleOutThresholdPrice = position.entryPrice * (1 + level.threshold / 100);
-          const scaleOutTrigger =
-            slTpMode === "intraday"
-              ? candle.high >= scaleOutThresholdPrice
-              : candle.close >= scaleOutThresholdPrice;
+          const scaleOutThresholdPrice = calcTakeProfitPrice(position.entryPrice, level.threshold);
+          const scaleOutTrigger = checkProfitTriggerDirectional(candle, scaleOutThresholdPrice, slTpMode, dir);
 
           if (scaleOutTrigger) {
-            const scaleOutExitPrice =
-              slTpMode === "intraday" ? scaleOutThresholdPrice : candle.close;
+            const scaleOutExitPrice = scaleOutTrigger.price;
             const sharesToSell = position.shares * (level.sellPercent / 100);
             const sharesRemaining = position.shares - sharesToSell;
 
@@ -464,15 +550,17 @@ export function runBacktest(
         continue;
       }
 
-      // Breakeven stop check (move stop to entry price after profit threshold)
+      // Breakeven stop check
       if (!shouldExit && breakevenStop) {
-        const breakevenThresholdPrice = position.entryPrice * (1 + breakevenStop.threshold / 100);
+        const breakevenThresholdPrice = calcTakeProfitPrice(position.entryPrice, breakevenStop.threshold);
         const buffer = breakevenStop.buffer ?? 0;
-        const breakevenStopPrice = position.entryPrice * (1 + buffer / 100);
+        const breakevenStopPrice = isShort
+          ? position.entryPrice * (1 - buffer / 100)
+          : position.entryPrice * (1 + buffer / 100);
 
         // Activate breakeven if threshold is reached
         if (!position.breakevenActivated) {
-          const triggered = checkProfitTrigger(candle, breakevenThresholdPrice, slTpMode);
+          const triggered = checkProfitTriggerDirectional(candle, breakevenThresholdPrice, slTpMode, dir);
           if (triggered) {
             position.breakevenActivated = true;
           }
@@ -480,7 +568,7 @@ export function runBacktest(
 
         // Check breakeven stop if activated
         if (position.breakevenActivated) {
-          const triggered = checkStopTrigger(candle, breakevenStopPrice, slTpMode);
+          const triggered = checkStopTriggerDirectional(candle, breakevenStopPrice, slTpMode, dir);
           if (triggered) {
             shouldExit = true;
             exitPrice = triggered.price;
@@ -491,8 +579,8 @@ export function runBacktest(
 
       // Trailing stop check (fixed percentage)
       if (!shouldExit && trailingStop !== undefined) {
-        const trailingStopPrice = position.peakPrice * (1 - trailingStop / 100);
-        const triggered = checkStopTrigger(candle, trailingStopPrice, slTpMode);
+        const trailingStopPrice = calcTrailingStopPrice(position, trailingStop);
+        const triggered = checkStopTriggerDirectional(candle, trailingStopPrice, slTpMode, dir);
         if (triggered) {
           shouldExit = true;
           exitPrice = triggered.price;
@@ -502,8 +590,8 @@ export function runBacktest(
 
       // ATR-based trailing stop (via atrRisk option)
       if (!shouldExit && currentAtr !== null && atrRisk?.atrTrailingMultiplier !== undefined) {
-        const atrTrailPrice = position.peakPrice - currentAtr * atrRisk.atrTrailingMultiplier;
-        const triggered = checkStopTrigger(candle, atrTrailPrice, slTpMode);
+        const atrTrailPrice = calcAtrTrailPrice(position, currentAtr, atrRisk.atrTrailingMultiplier);
+        const triggered = checkStopTriggerDirectional(candle, atrTrailPrice, slTpMode, dir);
         if (triggered) {
           shouldExit = true;
           exitPrice = triggered.price;
@@ -515,8 +603,8 @@ export function runBacktest(
       if (!shouldExit && atrTrailingStop && atrSeries) {
         const atrValue = atrSeries[i]?.value;
         if (atrValue !== null && atrValue !== undefined) {
-          const atrTrailPrice = position.peakPrice - atrValue * atrTrailingStop.multiplier;
-          const triggered = checkStopTrigger(candle, atrTrailPrice, slTpMode);
+          const atrTrailPrice = calcAtrTrailPrice(position, atrValue, atrTrailingStop.multiplier);
+          const triggered = checkStopTriggerDirectional(candle, atrTrailPrice, slTpMode, dir);
           if (triggered) {
             shouldExit = true;
             exitPrice = triggered.price;
@@ -530,20 +618,15 @@ export function runBacktest(
         const holdingDays = Math.floor((candle.time - position.entryTime) / MS_PER_DAY);
 
         if (holdingDays >= timeExit.maxHoldDays) {
-          // Check if we should only exit when position is flat
           if (timeExit.onlyIfFlat) {
-            const currentReturn =
-              ((candle.close - position.entryPrice) / position.entryPrice) * 100;
+            const cr = currentReturnPercent(position, candle.close);
             const threshold = timeExit.onlyIfFlat.threshold;
-
-            // Only exit if return is within +/-threshold%
-            if (Math.abs(currentReturn) <= threshold) {
+            if (Math.abs(cr) <= threshold) {
               shouldExit = true;
               exitPrice = candle.close;
               exitReason = "timeExit";
             }
           } else {
-            // No flat condition, just exit after time
             shouldExit = true;
             exitPrice = candle.close;
             exitReason = "timeExit";

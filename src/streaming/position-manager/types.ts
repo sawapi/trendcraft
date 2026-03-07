@@ -5,7 +5,7 @@
  * account state management, and position sizing configuration.
  */
 
-import type { ExitReason, NormalizedCandle, Trade } from "../../types";
+import type { ExitReason, NormalizedCandle, PositionDirection, Trade } from "../../types";
 import type { IndicatorSnapshot, SessionEvent } from "../types";
 
 // ============================================
@@ -42,12 +42,16 @@ export type ManagedPosition = {
   shares: number;
   /** Original shares at entry */
   originalShares: number;
+  /** Position direction (default: "long") */
+  direction: PositionDirection;
   /** Stop loss price level (null if not set) */
   stopLossPrice: number | null;
   /** Take profit price level (null if not set) */
   takeProfitPrice: number | null;
   /** Peak price since entry (for trailing stop) */
   peakPrice: number;
+  /** Trough price since entry (for short trailing stop) */
+  troughPrice: number;
   /** Maximum favorable excursion in percent */
   maxProfitPercent: number;
   /** Maximum adverse excursion in percent */
@@ -163,6 +167,8 @@ export type PositionSizingConfig =
 export type PositionManagerOptions = {
   /** Initial capital */
   capital: number;
+  /** Position direction: "long" (default) or "short" */
+  direction?: PositionDirection;
   /** Position sizing method (default: full-capital) */
   sizing?: PositionSizingConfig;
   /** Stop loss in percent (e.g., 2 = exit at -2%) */
@@ -260,6 +266,8 @@ export type PositionTracker = {
 export type PositionTrackerOptions = {
   /** Initial capital */
   capital: number;
+  /** Position direction: "long" (default) or "short" */
+  direction?: PositionDirection;
   /** Stop loss in percent */
   stopLoss?: number;
   /** Take profit in percent */

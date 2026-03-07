@@ -178,6 +178,7 @@ export function createManagedSession(
   const tracker = createPositionTracker(
     {
       capital: positionOptions.capital,
+      direction: positionOptions.direction,
       stopLoss: positionOptions.stopLoss,
       takeProfit: positionOptions.takeProfit,
       trailingStop: positionOptions.trailingStop,
@@ -232,7 +233,7 @@ export function createManagedSession(
       time: event.candle.time,
       price: position.entryPrice,
       shares: position.shares,
-      side: "buy",
+      side: position.direction === "short" ? "sell" : "buy",
       reason: "entry",
     };
 

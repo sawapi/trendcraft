@@ -3,6 +3,7 @@
  *
  * Tracks a single open position with SL/TP/trailing stop detection,
  * calculates P&L using backtest engine utilities, and manages account state.
+ * Supports both long and short positions.
  *
  * @example
  * ```ts
@@ -16,7 +17,7 @@
  * ```
  */
 
-import type { NormalizedCandle, Trade } from "../../types";
+import type { NormalizedCandle, PositionDirection, Trade } from "../../types";
 import {
   applySlippage,
   calculateTradeClose,
@@ -57,39 +58,35 @@ function toExitReason(reason: FillRecord["reason"]): Trade["exitReason"] {
 /**
  * Create a new PositionTracker instance
  *
- * @param options - Tracker configuration (capital, SL/TP, fees)
+ * @param options - Tracker configuration (capital, SL/TP, fees, direction)
  * @param fromState - Optional saved state to restore from
  * @returns A PositionTracker instance
  *
  * @example
  * ```ts
+ * // Long position tracker
  * const tracker = createPositionTracker({
  *   capital: 1_000_000,
  *   stopLoss: 2,
  *   takeProfit: 6,
  *   trailingStop: 3,
- *   commissionRate: 0.1,
- *   slippage: 0.05,
  * });
  *
- * // Open a position
- * const pos = tracker.openPosition(100, 50, Date.now());
- *
- * // Check SL/TP/trailing on each candle
- * const { triggered } = tracker.updatePrice(candle);
- * if (triggered) {
- *   console.log(`${triggered.reason} triggered @ ${triggered.price}`);
- * }
- *
- * // Manual close
- * const { trade } = tracker.closePosition(105, Date.now(), 'exit-signal');
- * console.log(`P&L: ${trade.return}`);
+ * // Short position tracker
+ * const shortTracker = createPositionTracker({
+ *   capital: 1_000_000,
+ *   direction: 'short',
+ *   stopLoss: 2,
+ *   takeProfit: 4,
+ * });
  * ```
  */
 export function createPositionTracker(
   options: PositionTrackerOptions,
   fromState?: PositionTrackerState,
 ): PositionTracker {
+  const direction: PositionDirection = options.direction ?? "long";
+  const isShort = direction === "short";
   const stopLossPercent = options.stopLoss ?? 0;
   const takeProfitPercent = options.takeProfit ?? 0;
   const trailingStopPercent = options.trailingStop ?? 0;
@@ -120,28 +117,35 @@ export function createPositionTracker(
     stopLossPrice: number | null;
     takeProfitPrice: number | null;
   } {
-    const stopLossPrice =
-      stopLossPercent > 0
-        ? entryPrice * (1 - stopLossPercent / 100)
-        : null;
-    const takeProfitPrice =
-      takeProfitPercent > 0
-        ? entryPrice * (1 + takeProfitPercent / 100)
-        : null;
+    let stopLossPrice: number | null = null;
+    let takeProfitPrice: number | null = null;
+
+    if (stopLossPercent > 0) {
+      stopLossPrice = isShort
+        ? entryPrice * (1 + stopLossPercent / 100)
+        : entryPrice * (1 - stopLossPercent / 100);
+    }
+    if (takeProfitPercent > 0) {
+      takeProfitPrice = isShort
+        ? entryPrice * (1 - takeProfitPercent / 100)
+        : entryPrice * (1 + takeProfitPercent / 100);
+    }
+
     return { stopLossPrice, takeProfitPrice };
   }
 
   /**
-   * Update unrealized P&L and equity from current price.
-   * equity = currentCapital + market value of open position
+   * Update unrealized P&L and equity from current price
    */
   function updateUnrealized(currentPrice: number): void {
     if (!position) {
       account.unrealizedPnl = 0;
       account.equity = account.currentCapital;
     } else {
-      account.unrealizedPnl =
-        (currentPrice - position.entryPrice) * position.shares;
+      const priceDiff = isShort
+        ? (position.entryPrice - currentPrice) * position.shares
+        : (currentPrice - position.entryPrice) * position.shares;
+      account.unrealizedPnl = priceDiff;
       // Equity = cash + position market value
       account.equity =
         account.currentCapital + currentPrice * position.shares;
@@ -173,11 +177,14 @@ export function createPositionTracker(
     }
 
     const exitReason = toExitReason(reason);
+    const exitSide = isShort ? "buy" : "sell";
     const result = calculateTradeClose({
       position: {
         entryTime: position.entryTime,
         entryPrice: position.entryPrice,
         peakPrice: position.peakPrice,
+        troughPrice: position.troughPrice,
+        direction,
         shares: position.shares,
         originalShares: position.originalShares,
         partialTaken: false,
@@ -201,7 +208,7 @@ export function createPositionTracker(
       time,
       price: result.trade.exitPrice,
       shares: position.shares,
-      side: "sell",
+      side: exitSide,
       reason,
     };
 
@@ -237,7 +244,8 @@ export function createPositionTracker(
       }
 
       positionCounter++;
-      const entryPrice = applySlippage(price, slippage, "buy");
+      const entrySide = isShort ? "sell" : "buy";
+      const entryPrice = applySlippage(price, slippage, entrySide);
       const positionValue = entryPrice * shares;
 
       // Deduct from available capital
@@ -253,6 +261,7 @@ export function createPositionTracker(
         entryPrice,
         shares,
         originalShares: shares,
+        direction,
         stopLossPrice: opts?.stopLossPrice !== undefined
           ? opts.stopLossPrice
           : levels.stopLossPrice,
@@ -260,6 +269,7 @@ export function createPositionTracker(
           ? opts.takeProfitPrice
           : levels.takeProfitPrice,
         peakPrice: entryPrice,
+        troughPrice: entryPrice,
         maxProfitPercent: 0,
         maxLossPercent: 0,
       };
@@ -274,40 +284,70 @@ export function createPositionTracker(
         return { position: null as unknown as ManagedPosition, triggered: null };
       }
 
-      // Update peak price (track high for trailing)
+      // Update peak and trough prices
       if (candle.high > position.peakPrice) {
         position.peakPrice = candle.high;
       }
-
-      // Update MFE/MAE
-      const currentProfitPercent =
-        ((candle.high - position.entryPrice) / position.entryPrice) * 100;
-      const currentLossPercent =
-        ((position.entryPrice - candle.low) / position.entryPrice) * 100;
-      if (currentProfitPercent > position.maxProfitPercent) {
-        position.maxProfitPercent = currentProfitPercent;
-      }
-      if (currentLossPercent > position.maxLossPercent) {
-        position.maxLossPercent = currentLossPercent;
+      if (candle.low < position.troughPrice) {
+        position.troughPrice = candle.low;
       }
 
-      // Check stop loss (lowest priority — check first, may be overridden)
-      if (position.stopLossPrice !== null && candle.low <= position.stopLossPrice) {
-        const result = executeClose(position.stopLossPrice, candle.time, "stop-loss");
-        return { position: null as unknown as ManagedPosition, triggered: result.fill };
+      // Update MFE/MAE based on direction
+      if (isShort) {
+        const profitPercent =
+          ((position.entryPrice - candle.low) / position.entryPrice) * 100;
+        const lossPercent =
+          ((candle.high - position.entryPrice) / position.entryPrice) * 100;
+        if (profitPercent > position.maxProfitPercent) {
+          position.maxProfitPercent = profitPercent;
+        }
+        if (lossPercent > 0 && lossPercent > position.maxLossPercent) {
+          position.maxLossPercent = lossPercent;
+        }
+      } else {
+        const currentProfitPercent =
+          ((candle.high - position.entryPrice) / position.entryPrice) * 100;
+        const currentLossPercent =
+          ((position.entryPrice - candle.low) / position.entryPrice) * 100;
+        if (currentProfitPercent > position.maxProfitPercent) {
+          position.maxProfitPercent = currentProfitPercent;
+        }
+        if (currentLossPercent > position.maxLossPercent) {
+          position.maxLossPercent = currentLossPercent;
+        }
+      }
+
+      // Check stop loss
+      if (position.stopLossPrice !== null) {
+        const slTriggered = isShort
+          ? candle.high >= position.stopLossPrice
+          : candle.low <= position.stopLossPrice;
+        if (slTriggered) {
+          const result = executeClose(position.stopLossPrice, candle.time, "stop-loss");
+          return { position: null as unknown as ManagedPosition, triggered: result.fill };
+        }
       }
 
       // Check take profit
-      if (position.takeProfitPrice !== null && candle.high >= position.takeProfitPrice) {
-        const result = executeClose(position.takeProfitPrice, candle.time, "take-profit");
-        return { position: null as unknown as ManagedPosition, triggered: result.fill };
+      if (position.takeProfitPrice !== null) {
+        const tpTriggered = isShort
+          ? candle.low <= position.takeProfitPrice
+          : candle.high >= position.takeProfitPrice;
+        if (tpTriggered) {
+          const result = executeClose(position.takeProfitPrice, candle.time, "take-profit");
+          return { position: null as unknown as ManagedPosition, triggered: result.fill };
+        }
       }
 
       // Check trailing stop
       if (trailingStopPercent > 0) {
-        const trailingStopPrice =
-          position.peakPrice * (1 - trailingStopPercent / 100);
-        if (candle.low <= trailingStopPrice) {
+        const trailingStopPrice = isShort
+          ? position.troughPrice * (1 + trailingStopPercent / 100)
+          : position.peakPrice * (1 - trailingStopPercent / 100);
+        const trailTriggered = isShort
+          ? candle.high >= trailingStopPrice
+          : candle.low <= trailingStopPrice;
+        if (trailTriggered) {
           const result = executeClose(trailingStopPrice, candle.time, "trailing-stop");
           return { position: null as unknown as ManagedPosition, triggered: result.fill };
         }

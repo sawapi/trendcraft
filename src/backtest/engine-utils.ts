@@ -8,6 +8,7 @@ import type {
   BacktestSettings,
   ExitReason,
   NormalizedCandle,
+  PositionDirection,
   SlTpMode,
   Trade,
 } from "../types";
@@ -21,6 +22,10 @@ export type Position = {
   entryTime: number;
   entryPrice: number;
   peakPrice: number;
+  /** Trough price since entry (for short trailing stop) */
+  troughPrice: number;
+  /** Position direction (default: "long") */
+  direction: PositionDirection;
   shares: number;
   originalShares: number;
   partialTaken: boolean;
@@ -62,8 +67,13 @@ export type TradeCloseResult = {
  * Calculate trade result when closing a position (full or partial)
  */
 export function calculateTradeClose(ctx: TradeCloseContext): TradeCloseResult {
-  const exitPriceWithSlippage = applySlippage(ctx.exitPrice, ctx.slippage, "sell");
-  const grossReturn = (exitPriceWithSlippage - ctx.position.entryPrice) * ctx.sharesToClose;
+  const direction = ctx.position.direction ?? "long";
+  const exitSide = direction === "long" ? "sell" : "buy";
+  const exitPriceWithSlippage = applySlippage(ctx.exitPrice, ctx.slippage, exitSide);
+  const priceDiff = direction === "long"
+    ? exitPriceWithSlippage - ctx.position.entryPrice
+    : ctx.position.entryPrice - exitPriceWithSlippage;
+  const grossReturn = priceDiff * ctx.sharesToClose;
   const exitValue = exitPriceWithSlippage * ctx.sharesToClose;
   const exitCommission = ctx.commission + exitValue * (ctx.commissionRate / 100);
 
@@ -85,6 +95,7 @@ export function calculateTradeClose(ctx: TradeCloseContext): TradeCloseResult {
     return: netReturn,
     returnPercent,
     holdingDays,
+    direction: direction === "short" ? "short" : undefined,
     exitReason: ctx.exitReason,
     mfe: Math.round(ctx.position.maxProfitPercent * 100) / 100,
     mae: Math.round(ctx.position.maxLossPercent * 100) / 100,
@@ -98,9 +109,18 @@ export function calculateTradeClose(ctx: TradeCloseContext): TradeCloseResult {
     }
   }
 
+  // For long: net proceeds = sell value - costs
+  // For short: net proceeds = entry value + profit - costs
+  //   = entryPrice*shares + (entryPrice - exitPrice)*shares - costs
+  //   = 2*entryPrice*shares - exitValue - costs
+  const entryValue = ctx.position.entryPrice * ctx.sharesToClose;
+  const netProceeds = direction === "short"
+    ? entryValue + grossReturn - exitCommission - tax
+    : exitValue - exitCommission - tax;
+
   return {
     trade,
-    netProceeds: exitValue - exitCommission - tax,
+    netProceeds,
     returnPercent,
   };
 }
@@ -153,6 +173,42 @@ export function checkProfitTrigger(
     }
   }
   return null;
+}
+
+/**
+ * Check stop loss trigger with direction awareness
+ * For long: price drops to stop level (same as checkStopTrigger)
+ * For short: price rises to stop level
+ */
+export function checkStopTriggerDirectional(
+  candle: NormalizedCandle,
+  stopPrice: number,
+  slTpMode: SlTpMode,
+  direction: PositionDirection,
+): { price: number } | null {
+  if (direction === "short") {
+    // Short stop loss: triggered when price rises above stop
+    return checkProfitTrigger(candle, stopPrice, slTpMode);
+  }
+  return checkStopTrigger(candle, stopPrice, slTpMode);
+}
+
+/**
+ * Check take profit trigger with direction awareness
+ * For long: price rises to target (same as checkProfitTrigger)
+ * For short: price drops to target
+ */
+export function checkProfitTriggerDirectional(
+  candle: NormalizedCandle,
+  targetPrice: number,
+  slTpMode: SlTpMode,
+  direction: PositionDirection,
+): { price: number } | null {
+  if (direction === "short") {
+    // Short take profit: triggered when price drops below target
+    return checkStopTrigger(candle, targetPrice, slTpMode);
+  }
+  return checkProfitTrigger(candle, targetPrice, slTpMode);
 }
 
 /**
