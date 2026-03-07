@@ -281,6 +281,30 @@ export type {
   RoofingFilterOptions,
 } from "./indicators";
 
+// Indicator Plugins
+export {
+  smaPlugin,
+  emaPlugin,
+  rsiPlugin,
+  macdPlugin,
+  bollingerBandsPlugin,
+  atrPlugin,
+  volumeMaPlugin,
+  highestPlugin,
+  lowestPlugin,
+  returnsPlugin,
+  parabolicSarPlugin,
+  keltnerChannelPlugin,
+  cmfPlugin,
+  volumeAnomalyPlugin,
+  volumeProfileSeriesPlugin,
+  volumeTrendPlugin,
+} from "./indicators";
+
+// Plugin system
+export type { IndicatorPlugin } from "./types";
+export { defineIndicator } from "./types";
+
 // Fluent API
 export { TrendCraft, StrategyBuilder, MtfStrategyBuilder, TrendCraftMtf } from "./core/trendcraft";
 export type { AnalysisResult } from "./core/trendcraft";

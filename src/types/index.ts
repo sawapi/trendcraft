@@ -146,3 +146,10 @@ export {
   partitionResults,
   tryCatch,
 } from "./result";
+
+// ============================================
+// Plugin Types
+// ============================================
+
+export type { IndicatorPlugin } from "./plugin";
+export { defineIndicator } from "./plugin";

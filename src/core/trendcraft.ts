@@ -3,35 +3,34 @@
  * Provides a chainable interface for technical analysis
  */
 
-import { macd } from "../indicators/momentum/macd";
-import { rsi } from "../indicators/momentum/rsi";
-import { ema } from "../indicators/moving-average/ema";
-import { sma } from "../indicators/moving-average/sma";
-import { highest, lowest } from "../indicators/price/highest-lowest";
-import { returns } from "../indicators/price/returns";
-import { parabolicSar } from "../indicators/trend/parabolic-sar";
-import type { ParabolicSarValue } from "../indicators/trend/parabolic-sar";
-import { atr } from "../indicators/volatility/atr";
-import { bollingerBands } from "../indicators/volatility/bollinger-bands";
-import { keltnerChannel } from "../indicators/volatility/keltner-channel";
-import type { KeltnerChannelValue } from "../indicators/volatility/keltner-channel";
-import { cmf } from "../indicators/volume/cmf";
-import { volumeAnomaly } from "../indicators/volume/volume-anomaly";
-import { volumeMa } from "../indicators/volume/volume-ma";
-import { volumeProfile, volumeProfileSeries } from "../indicators/volume/volume-profile";
-import { volumeTrend } from "../indicators/volume/volume-trend";
+import {
+  smaPlugin,
+  emaPlugin,
+  rsiPlugin,
+  macdPlugin,
+  bollingerBandsPlugin,
+  atrPlugin,
+  volumeMaPlugin,
+  highestPlugin,
+  lowestPlugin,
+  returnsPlugin,
+  parabolicSarPlugin,
+  keltnerChannelPlugin,
+  cmfPlugin,
+  volumeAnomalyPlugin,
+  volumeProfileSeriesPlugin,
+  volumeTrendPlugin,
+} from "../indicators/plugins";
+import { volumeProfile } from "../indicators/volume/volume-profile";
+import type { IndicatorPlugin } from "../types/plugin";
 import type {
-  BollingerBandsValue,
   Candle,
-  MacdValue,
   NormalizedCandle,
   PriceSource,
   Series,
   Timeframe,
   TimeframeShorthand,
-  VolumeAnomalyValue,
   VolumeProfileValue,
-  VolumeTrendValue,
 } from "../types";
 import { isNormalized } from "./normalize";
 import { normalizeCandles } from "./normalize";
@@ -39,31 +38,13 @@ import { resample } from "./resample";
 import { StrategyBuilder, MtfStrategyBuilder } from "./strategy-builder";
 
 /**
- * Indicator specification for lazy evaluation
+ * Internal pipeline entry referencing a plugin with resolved options
  */
-type IndicatorSpec =
-  | { type: "sma"; period: number; source: PriceSource; key: string }
-  | { type: "ema"; period: number; source: PriceSource; key: string }
-  | { type: "rsi"; period: number; key: string }
-  | { type: "macd"; fast: number; slow: number; signal: number; key: string }
-  | { type: "bollingerBands"; period: number; stdDev: number; source: PriceSource; key: string }
-  | { type: "atr"; period: number; key: string }
-  | { type: "volumeMa"; period: number; maType: "sma" | "ema"; key: string }
-  | { type: "highest"; period: number; key: string }
-  | { type: "lowest"; period: number; key: string }
-  | { type: "returns"; period: number; returnType: "simple" | "log"; key: string }
-  | { type: "parabolicSar"; step: number; max: number; key: string }
-  | {
-      type: "keltnerChannel";
-      emaPeriod: number;
-      atrPeriod: number;
-      multiplier: number;
-      key: string;
-    }
-  | { type: "cmf"; period: number; key: string }
-  | { type: "volumeAnomaly"; period: number; highThreshold: number; key: string }
-  | { type: "volumeProfileSeries"; period: number; key: string }
-  | { type: "volumeTrend"; pricePeriod: number; volumePeriod: number; key: string };
+interface PipelineEntry {
+  plugin: IndicatorPlugin<string, Record<string, unknown>, unknown>;
+  options: Record<string, unknown>;
+  key: string;
+}
 
 /**
  * Analysis result containing computed indicators
@@ -78,25 +59,34 @@ export interface AnalysisResult {
 /**
  * TrendCraft - Fluent API for technical analysis
  *
+ * @typeParam TIndicators - Accumulated indicator type map (auto-inferred via `.use()`)
+ *
  * @example
  * ```ts
+ * // Built-in shorthand methods
  * const result = TrendCraft.from(candles)
- *   .resample('weekly')
  *   .sma(20)
- *   .sma(50)
- *   .ema(12)
  *   .rsi(14)
  *   .macd()
- *   .bollingerBands()
  *   .compute();
  *
- * console.log(result.indicators.sma20);
- * console.log(result.indicators.rsi14);
+ * // Custom plugin via .use()
+ * import { defineIndicator } from "trendcraft";
+ *
+ * const myIndicator = defineIndicator({
+ *   name: "myInd" as const,
+ *   compute: (candles, opts) => sma(candles, opts),
+ *   defaultOptions: { period: 20, source: "close" as const },
+ * });
+ *
+ * const result = TrendCraft.from(candles)
+ *   .use(myIndicator, { period: 50 })
+ *   .compute();
  * ```
  */
-export class TrendCraft {
+export class TrendCraft<TIndicators extends Record<string, unknown> = {}> {
   protected _candles: NormalizedCandle[];
-  protected _pipeline: IndicatorSpec[] = [];
+  protected _pipeline: PipelineEntry[] = [];
   protected _cache: Map<string, Series<unknown>> = new Map();
 
   protected constructor(candles: NormalizedCandle[]) {
@@ -109,6 +99,40 @@ export class TrendCraft {
   static from(candles: Candle[] | NormalizedCandle[]): TrendCraft {
     const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
     return new TrendCraft(normalized);
+  }
+
+  /**
+   * Add a custom indicator plugin to the computation pipeline
+   *
+   * @example
+   * ```ts
+   * import { defineIndicator, sma } from "trendcraft";
+   *
+   * const customSma = defineIndicator({
+   *   name: "customSma" as const,
+   *   compute: (candles, opts) => sma(candles, { period: opts.period }),
+   *   defaultOptions: { period: 10 },
+   * });
+   *
+   * const result = TrendCraft.from(candles)
+   *   .use(customSma, { period: 30 })
+   *   .compute();
+   * ```
+   */
+  use<K extends string, O extends Record<string, unknown>, V>(
+    plugin: IndicatorPlugin<K, O, V>,
+    options?: Partial<O>,
+  ): TrendCraft<TIndicators & Record<K, Series<V>>> {
+    const resolved = { ...plugin.defaultOptions, ...options } as O;
+    const key = plugin.buildKey
+      ? plugin.buildKey(resolved)
+      : `${plugin.name}_${JSON.stringify(resolved)}`;
+    this._pipeline.push({
+      plugin: plugin as IndicatorPlugin<string, Record<string, unknown>, unknown>,
+      options: resolved,
+      key,
+    });
+    return this as TrendCraft<TIndicators & Record<K, Series<V>>>;
   }
 
   /**
@@ -151,8 +175,7 @@ export class TrendCraft {
    * Add Simple Moving Average to computation pipeline
    */
   sma(period: number, source: PriceSource = "close"): this {
-    const key = source === "close" ? `sma${period}` : `sma${period}_${source}`;
-    this._pipeline.push({ type: "sma", period, source, key });
+    this.use(smaPlugin, { period, source });
     return this;
   }
 
@@ -160,8 +183,7 @@ export class TrendCraft {
    * Add Exponential Moving Average to computation pipeline
    */
   ema(period: number, source: PriceSource = "close"): this {
-    const key = source === "close" ? `ema${period}` : `ema${period}_${source}`;
-    this._pipeline.push({ type: "ema", period, source, key });
+    this.use(emaPlugin, { period, source });
     return this;
   }
 
@@ -169,8 +191,7 @@ export class TrendCraft {
    * Add Relative Strength Index to computation pipeline
    */
   rsi(period = 14): this {
-    const key = `rsi${period}`;
-    this._pipeline.push({ type: "rsi", period, key });
+    this.use(rsiPlugin, { period });
     return this;
   }
 
@@ -178,8 +199,7 @@ export class TrendCraft {
    * Add MACD to computation pipeline
    */
   macd(fast = 12, slow = 26, signal = 9): this {
-    const key = `macd_${fast}_${slow}_${signal}`;
-    this._pipeline.push({ type: "macd", fast, slow, signal, key });
+    this.use(macdPlugin, { fast, slow, signal });
     return this;
   }
 
@@ -187,8 +207,7 @@ export class TrendCraft {
    * Add Bollinger Bands to computation pipeline
    */
   bollingerBands(period = 20, stdDev = 2, source: PriceSource = "close"): this {
-    const key = source === "close" ? `bb${period}` : `bb${period}_${source}`;
-    this._pipeline.push({ type: "bollingerBands", period, stdDev, source, key });
+    this.use(bollingerBandsPlugin, { period, stdDev, source });
     return this;
   }
 
@@ -196,8 +215,7 @@ export class TrendCraft {
    * Add Average True Range to computation pipeline
    */
   atr(period = 14): this {
-    const key = `atr${period}`;
-    this._pipeline.push({ type: "atr", period, key });
+    this.use(atrPlugin, { period });
     return this;
   }
 
@@ -205,8 +223,7 @@ export class TrendCraft {
    * Add Volume Moving Average to computation pipeline
    */
   volumeMa(period: number, type: "sma" | "ema" = "sma"): this {
-    const key = type === "sma" ? `vma${period}` : `vma${period}_ema`;
-    this._pipeline.push({ type: "volumeMa", period, maType: type, key });
+    this.use(volumeMaPlugin, { period, maType: type });
     return this;
   }
 
@@ -214,8 +231,7 @@ export class TrendCraft {
    * Add Highest High to computation pipeline
    */
   highest(period: number): this {
-    const key = `highest${period}`;
-    this._pipeline.push({ type: "highest", period, key });
+    this.use(highestPlugin, { period });
     return this;
   }
 
@@ -223,8 +239,7 @@ export class TrendCraft {
    * Add Lowest Low to computation pipeline
    */
   lowest(period: number): this {
-    const key = `lowest${period}`;
-    this._pipeline.push({ type: "lowest", period, key });
+    this.use(lowestPlugin, { period });
     return this;
   }
 
@@ -232,8 +247,7 @@ export class TrendCraft {
    * Add Returns to computation pipeline
    */
   returns(period = 1, type: "simple" | "log" = "simple"): this {
-    const key = type === "simple" ? `returns${period}` : `returns${period}_log`;
-    this._pipeline.push({ type: "returns", period, returnType: type, key });
+    this.use(returnsPlugin, { period, returnType: type });
     return this;
   }
 
@@ -241,8 +255,7 @@ export class TrendCraft {
    * Add Parabolic SAR to computation pipeline
    */
   parabolicSar(step = 0.02, max = 0.2): this {
-    const key = `psar_${step}_${max}`;
-    this._pipeline.push({ type: "parabolicSar", step, max, key });
+    this.use(parabolicSarPlugin, { step, max });
     return this;
   }
 
@@ -250,8 +263,7 @@ export class TrendCraft {
    * Add Keltner Channel to computation pipeline
    */
   keltnerChannel(emaPeriod = 20, atrPeriod = 10, multiplier = 2): this {
-    const key = `kc_${emaPeriod}_${atrPeriod}_${multiplier}`;
-    this._pipeline.push({ type: "keltnerChannel", emaPeriod, atrPeriod, multiplier, key });
+    this.use(keltnerChannelPlugin, { emaPeriod, atrPeriod, multiplier });
     return this;
   }
 
@@ -259,8 +271,7 @@ export class TrendCraft {
    * Add Chaikin Money Flow to computation pipeline
    */
   cmf(period = 20): this {
-    const key = `cmf${period}`;
-    this._pipeline.push({ type: "cmf", period, key });
+    this.use(cmfPlugin, { period });
     return this;
   }
 
@@ -271,8 +282,7 @@ export class TrendCraft {
    * @param highThreshold - Threshold for high volume detection (default: 2.0)
    */
   volumeAnomalyIndicator(period = 20, highThreshold = 2.0): this {
-    const key = `volAnomaly${period}`;
-    this._pipeline.push({ type: "volumeAnomaly", period, highThreshold, key });
+    this.use(volumeAnomalyPlugin, { period, highThreshold });
     return this;
   }
 
@@ -282,8 +292,7 @@ export class TrendCraft {
    * @param period - Number of candles for profile calculation (default: 20)
    */
   volumeProfileIndicator(period = 20): this {
-    const key = `volProfile${period}`;
-    this._pipeline.push({ type: "volumeProfileSeries", period, key });
+    this.use(volumeProfileSeriesPlugin, { period });
     return this;
   }
 
@@ -294,8 +303,7 @@ export class TrendCraft {
    * @param volumePeriod - Period for volume trend detection (default: 10)
    */
   volumeTrendIndicator(pricePeriod = 10, volumePeriod = 10): this {
-    const key = `volTrend${pricePeriod}_${volumePeriod}`;
-    this._pipeline.push({ type: "volumeTrend", pricePeriod, volumePeriod, key });
+    this.use(volumeTrendPlugin, { pricePeriod, volumePeriod });
     return this;
   }
 
@@ -315,12 +323,12 @@ export class TrendCraft {
   compute(): AnalysisResult {
     const indicators: Record<string, Series<unknown>> = {};
 
-    for (const spec of this._pipeline) {
-      if (!this._cache.has(spec.key)) {
-        const computed = this._computeIndicator(spec);
-        this._cache.set(spec.key, computed);
+    for (const entry of this._pipeline) {
+      if (!this._cache.has(entry.key)) {
+        const computed = entry.plugin.compute(this._candles, entry.options);
+        this._cache.set(entry.key, computed);
       }
-      indicators[spec.key] = this._cache.get(spec.key)!;
+      indicators[entry.key] = this._cache.get(entry.key)!;
     }
 
     return {
@@ -334,77 +342,12 @@ export class TrendCraft {
    */
   get(key: string): Series<unknown> | undefined {
     if (!this._cache.has(key)) {
-      const spec = this._pipeline.find((s) => s.key === key);
-      if (spec) {
-        this._cache.set(key, this._computeIndicator(spec));
+      const entry = this._pipeline.find((e) => e.key === key);
+      if (entry) {
+        this._cache.set(key, entry.plugin.compute(this._candles, entry.options));
       }
     }
     return this._cache.get(key);
-  }
-
-  /**
-   * Compute a single indicator
-   */
-  private _computeIndicator(spec: IndicatorSpec): Series<unknown> {
-    switch (spec.type) {
-      case "sma":
-        return sma(this._candles, { period: spec.period, source: spec.source });
-      case "ema":
-        return ema(this._candles, { period: spec.period, source: spec.source });
-      case "rsi":
-        return rsi(this._candles, { period: spec.period });
-      case "macd":
-        return macd(this._candles, {
-          fastPeriod: spec.fast,
-          slowPeriod: spec.slow,
-          signalPeriod: spec.signal,
-        }) as Series<MacdValue>;
-      case "bollingerBands":
-        return bollingerBands(this._candles, {
-          period: spec.period,
-          stdDev: spec.stdDev,
-          source: spec.source,
-        }) as Series<BollingerBandsValue>;
-      case "atr":
-        return atr(this._candles, { period: spec.period });
-      case "volumeMa":
-        return volumeMa(this._candles, { period: spec.period, type: spec.maType });
-      case "highest":
-        return highest(this._candles, spec.period);
-      case "lowest":
-        return lowest(this._candles, spec.period);
-      case "returns":
-        return returns(this._candles, { period: spec.period, type: spec.returnType });
-      case "parabolicSar":
-        return parabolicSar(this._candles, {
-          step: spec.step,
-          max: spec.max,
-        }) as Series<ParabolicSarValue>;
-      case "keltnerChannel":
-        return keltnerChannel(this._candles, {
-          emaPeriod: spec.emaPeriod,
-          atrPeriod: spec.atrPeriod,
-          multiplier: spec.multiplier,
-        }) as Series<KeltnerChannelValue>;
-      case "cmf":
-        return cmf(this._candles, { period: spec.period });
-      case "volumeAnomaly":
-        return volumeAnomaly(this._candles, {
-          period: spec.period,
-          highThreshold: spec.highThreshold,
-        }) as Series<VolumeAnomalyValue>;
-      case "volumeProfileSeries":
-        return volumeProfileSeries(this._candles, {
-          period: spec.period,
-        }) as Series<VolumeProfileValue | null>;
-      case "volumeTrend":
-        return volumeTrend(this._candles, {
-          pricePeriod: spec.pricePeriod,
-          volumePeriod: spec.volumePeriod,
-        }) as Series<VolumeTrendValue>;
-      default:
-        throw new Error(`Unknown indicator type: ${(spec as IndicatorSpec).type}`);
-    }
   }
 
   /**
@@ -464,19 +407,32 @@ export { StrategyBuilder, MtfStrategyBuilder } from "./strategy-builder";
 /**
  * TrendCraft with MTF (Multi-Timeframe) support
  */
-export class TrendCraftMtf extends TrendCraft {
+export class TrendCraftMtf<
+  TIndicators extends Record<string, unknown> = {},
+> extends TrendCraft<TIndicators> {
   private _mtfTimeframes: TimeframeShorthand[];
 
   constructor(
     candles: NormalizedCandle[],
     mtfTimeframes: TimeframeShorthand[],
-    pipeline: IndicatorSpec[] = [],
+    pipeline: PipelineEntry[] = [],
     cache: Map<string, Series<unknown>> = new Map(),
   ) {
     super(candles);
     this._pipeline = pipeline;
     this._cache = cache;
     this._mtfTimeframes = mtfTimeframes;
+  }
+
+  /**
+   * Add a custom indicator plugin (preserves MTF context)
+   */
+  use<K extends string, O extends Record<string, unknown>, V>(
+    plugin: IndicatorPlugin<K, O, V>,
+    options?: Partial<O>,
+  ): TrendCraftMtf<TIndicators & Record<K, Series<V>>> {
+    super.use(plugin, options);
+    return this as TrendCraftMtf<TIndicators & Record<K, Series<V>>>;
   }
 
   /**

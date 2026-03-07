@@ -38,6 +38,10 @@
 - [ATR Risk Management](#atr-risk-management)
   - [Chandelier Exit](#chandelier-exit)
   - [ATR Stops](#atr-stops)
+- [Custom Indicators (Plugin System)](#custom-indicators-plugin-system)
+  - [defineIndicator](#defineindicator)
+  - [TrendCraft.use()](#trendcraftuse)
+  - [Built-in Plugins](#built-in-plugins)
 - [Types](#types)
 
 ---
@@ -3115,6 +3119,124 @@ const result = runBacktestScaled(candles, goldenCross(), deadCross(), {
 |------|---------|
 | `signal` | Add tranche on each entry signal |
 | `price` | Add tranche when price drops by `priceInterval` % from first entry |
+
+---
+
+## Custom Indicators (Plugin System)
+
+Create custom indicators as plugins and add them to the TrendCraft fluent API pipeline.
+
+### defineIndicator
+
+Helper function to define a type-safe indicator plugin.
+
+```typescript
+import { defineIndicator, sma } from "trendcraft";
+import type { IndicatorPlugin } from "trendcraft";
+
+const customSma = defineIndicator({
+  name: "customSma" as const,
+  compute: (candles, opts) => sma(candles, { period: opts.period, source: opts.source }),
+  defaultOptions: { period: 20, source: "close" as const },
+  buildKey: (opts) => `customSma_${opts.period}`,
+});
+```
+
+**Plugin interface:**
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `name` | `string` (const) | Unique name used as cache key prefix |
+| `compute` | `(candles, options) => Series<T>` | Compute function |
+| `defaultOptions` | `TOptions` | Default option values |
+| `buildKey` | `(options) => string` (optional) | Custom cache key generator. Falls back to `name_JSON(options)` |
+
+### TrendCraft.use()
+
+Add a plugin to the computation pipeline.
+
+```typescript
+import { defineIndicator, TrendCraft, sma, ema } from "trendcraft";
+
+// Define a custom spread indicator
+const spread = defineIndicator({
+  name: "spread" as const,
+  compute: (candles, opts) => {
+    const fast = sma(candles, { period: opts.fastPeriod });
+    const slow = sma(candles, { period: opts.slowPeriod });
+    return fast.map((f, i) => ({
+      time: f.time,
+      value:
+        f.value != null && slow[i].value != null
+          ? f.value - slow[i].value
+          : null,
+    }));
+  },
+  defaultOptions: { fastPeriod: 5, slowPeriod: 20 },
+  buildKey: (opts) => `spread_${opts.fastPeriod}_${opts.slowPeriod}`,
+});
+
+// Use in the fluent API
+const result = TrendCraft.from(candles)
+  .sma(20)                                 // built-in shorthand
+  .use(spread, { fastPeriod: 10 })         // custom plugin (slowPeriod defaults to 20)
+  .rsi(14)                                 // built-in shorthand
+  .compute();
+
+console.log(result.indicators.sma20);
+console.log(result.indicators.spread_10_20);
+console.log(result.indicators.rsi14);
+```
+
+**Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `plugin` | `IndicatorPlugin<K, O, V>` | Plugin definition |
+| `options` | `Partial<O>` (optional) | Partial options merged with defaults |
+
+**Returns:** `TrendCraft` (chainable)
+
+### Built-in Plugins
+
+All built-in shorthand methods (`.sma()`, `.rsi()`, etc.) are backed by plugins.
+You can use them directly with `.use()` for programmatic or dynamic usage:
+
+```typescript
+import { TrendCraft, smaPlugin, rsiPlugin, macdPlugin } from "trendcraft";
+
+// Equivalent to .sma(50)
+TrendCraft.from(candles).use(smaPlugin, { period: 50 });
+
+// Dynamic plugin selection
+const plugins = [smaPlugin, rsiPlugin];
+let tc = TrendCraft.from(candles);
+for (const p of plugins) {
+  tc = tc.use(p);
+}
+const result = tc.compute();
+```
+
+**Available built-in plugins:**
+
+| Plugin | Shorthand | Default Options |
+|--------|-----------|-----------------|
+| `smaPlugin` | `.sma()` | `{ period: 20, source: "close" }` |
+| `emaPlugin` | `.ema()` | `{ period: 20, source: "close" }` |
+| `rsiPlugin` | `.rsi()` | `{ period: 14 }` |
+| `macdPlugin` | `.macd()` | `{ fast: 12, slow: 26, signal: 9 }` |
+| `bollingerBandsPlugin` | `.bollingerBands()` | `{ period: 20, stdDev: 2, source: "close" }` |
+| `atrPlugin` | `.atr()` | `{ period: 14 }` |
+| `volumeMaPlugin` | `.volumeMa()` | `{ period: 20, maType: "sma" }` |
+| `highestPlugin` | `.highest()` | `{ period: 20 }` |
+| `lowestPlugin` | `.lowest()` | `{ period: 20 }` |
+| `returnsPlugin` | `.returns()` | `{ period: 1, returnType: "simple" }` |
+| `parabolicSarPlugin` | `.parabolicSar()` | `{ step: 0.02, max: 0.2 }` |
+| `keltnerChannelPlugin` | `.keltnerChannel()` | `{ emaPeriod: 20, atrPeriod: 10, multiplier: 2 }` |
+| `cmfPlugin` | `.cmf()` | `{ period: 20 }` |
+| `volumeAnomalyPlugin` | `.volumeAnomalyIndicator()` | `{ period: 20, highThreshold: 2.0 }` |
+| `volumeProfileSeriesPlugin` | `.volumeProfileIndicator()` | `{ period: 20 }` |
+| `volumeTrendPlugin` | `.volumeTrendIndicator()` | `{ pricePeriod: 10, volumePeriod: 10 }` |
 
 ---
 

@@ -46,6 +46,10 @@
   - [モンテカルロシミュレーション](#モンテカルロシミュレーション)
   - [Anchored Walk-Forward分析](#anchored-walk-forward分析-awf)
 - [分割エントリー](#分割エントリー)
+- [カスタムインジケーター（プラグインシステム）](#カスタムインジケータープラグインシステム)
+  - [defineIndicator](#defineindicator)
+  - [TrendCraft.use()](#trendcraftuse)
+  - [組み込みプラグイン](#組み込みプラグイン)
 - [型定義](#型定義)
 
 ---
@@ -3030,6 +3034,124 @@ const result = runBacktestScaled(candles, goldenCross(), deadCross(), {
 |------|---------|
 | `signal` | 各エントリーシグナルでトランシェ追加 |
 | `price` | 最初のエントリーから `priceInterval` % 価格変動でトランシェ追加 |
+
+---
+
+## カスタムインジケーター（プラグインシステム）
+
+カスタムインジケーターをプラグインとして定義し、TrendCraftのFluent APIパイプラインに追加できます。
+
+### defineIndicator
+
+型安全なインジケータープラグインを定義するヘルパー関数です。
+
+```typescript
+import { defineIndicator, sma } from "trendcraft";
+import type { IndicatorPlugin } from "trendcraft";
+
+const customSma = defineIndicator({
+  name: "customSma" as const,
+  compute: (candles, opts) => sma(candles, { period: opts.period, source: opts.source }),
+  defaultOptions: { period: 20, source: "close" as const },
+  buildKey: (opts) => `customSma_${opts.period}`,
+});
+```
+
+**プラグインインターフェース:**
+
+| プロパティ | 型 | 説明 |
+|----------|------|-------------|
+| `name` | `string` (const) | キャッシュキーのプレフィックスとして使用される一意な名前 |
+| `compute` | `(candles, options) => Series<T>` | 計算関数 |
+| `defaultOptions` | `TOptions` | デフォルトのオプション値 |
+| `buildKey` | `(options) => string` (省略可) | カスタムキャッシュキー生成関数。省略時は `name_JSON(options)` |
+
+### TrendCraft.use()
+
+プラグインを計算パイプラインに追加します。
+
+```typescript
+import { defineIndicator, TrendCraft, sma, ema } from "trendcraft";
+
+// カスタムスプレッドインジケーターを定義
+const spread = defineIndicator({
+  name: "spread" as const,
+  compute: (candles, opts) => {
+    const fast = sma(candles, { period: opts.fastPeriod });
+    const slow = sma(candles, { period: opts.slowPeriod });
+    return fast.map((f, i) => ({
+      time: f.time,
+      value:
+        f.value != null && slow[i].value != null
+          ? f.value - slow[i].value
+          : null,
+    }));
+  },
+  defaultOptions: { fastPeriod: 5, slowPeriod: 20 },
+  buildKey: (opts) => `spread_${opts.fastPeriod}_${opts.slowPeriod}`,
+});
+
+// Fluent APIで使用
+const result = TrendCraft.from(candles)
+  .sma(20)                                 // 組み込みショートハンド
+  .use(spread, { fastPeriod: 10 })         // カスタムプラグイン（slowPeriodはデフォルト20）
+  .rsi(14)                                 // 組み込みショートハンド
+  .compute();
+
+console.log(result.indicators.sma20);
+console.log(result.indicators.spread_10_20);
+console.log(result.indicators.rsi14);
+```
+
+**パラメータ:**
+
+| パラメータ | 型 | 説明 |
+|-----------|------|-------------|
+| `plugin` | `IndicatorPlugin<K, O, V>` | プラグイン定義 |
+| `options` | `Partial<O>` (省略可) | デフォルトとマージされる部分オプション |
+
+**戻り値:** `TrendCraft`（チェーン可能）
+
+### 組み込みプラグイン
+
+すべての組み込みショートハンドメソッド（`.sma()`、`.rsi()` 等）はプラグインで実装されています。
+`.use()` で直接使用することで、プログラム的・動的なインジケーター追加が可能です：
+
+```typescript
+import { TrendCraft, smaPlugin, rsiPlugin, macdPlugin } from "trendcraft";
+
+// .sma(50) と同等
+TrendCraft.from(candles).use(smaPlugin, { period: 50 });
+
+// 動的なプラグイン選択
+const plugins = [smaPlugin, rsiPlugin];
+let tc = TrendCraft.from(candles);
+for (const p of plugins) {
+  tc = tc.use(p);
+}
+const result = tc.compute();
+```
+
+**利用可能な組み込みプラグイン:**
+
+| プラグイン | ショートハンド | デフォルトオプション |
+|--------|-----------|-----------------|
+| `smaPlugin` | `.sma()` | `{ period: 20, source: "close" }` |
+| `emaPlugin` | `.ema()` | `{ period: 20, source: "close" }` |
+| `rsiPlugin` | `.rsi()` | `{ period: 14 }` |
+| `macdPlugin` | `.macd()` | `{ fast: 12, slow: 26, signal: 9 }` |
+| `bollingerBandsPlugin` | `.bollingerBands()` | `{ period: 20, stdDev: 2, source: "close" }` |
+| `atrPlugin` | `.atr()` | `{ period: 14 }` |
+| `volumeMaPlugin` | `.volumeMa()` | `{ period: 20, maType: "sma" }` |
+| `highestPlugin` | `.highest()` | `{ period: 20 }` |
+| `lowestPlugin` | `.lowest()` | `{ period: 20 }` |
+| `returnsPlugin` | `.returns()` | `{ period: 1, returnType: "simple" }` |
+| `parabolicSarPlugin` | `.parabolicSar()` | `{ step: 0.02, max: 0.2 }` |
+| `keltnerChannelPlugin` | `.keltnerChannel()` | `{ emaPeriod: 20, atrPeriod: 10, multiplier: 2 }` |
+| `cmfPlugin` | `.cmf()` | `{ period: 20 }` |
+| `volumeAnomalyPlugin` | `.volumeAnomalyIndicator()` | `{ period: 20, highThreshold: 2.0 }` |
+| `volumeProfileSeriesPlugin` | `.volumeProfileIndicator()` | `{ period: 20 }` |
+| `volumeTrendPlugin` | `.volumeTrendIndicator()` | `{ pricePeriod: 10, volumePeriod: 10 }` |
 
 ---
 
