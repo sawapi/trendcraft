@@ -185,7 +185,7 @@ export function createPullbackEntryEvaluator(
     let prevMa: number | null | undefined;
 
     if (precomputed?.sma?.has(maPeriod)) {
-      const smaData = precomputed.sma.get(maPeriod) as number[];
+      const smaData = precomputed.sma.get(maPeriod) ?? [];
       maValue = smaData[index];
       prevMa = index >= 5 ? smaData[index - 4] : null;
     } else {
@@ -249,8 +249,8 @@ export function createGoldenCrossEvaluator(
     let prevLong: number | null | undefined;
 
     if (precomputed?.sma?.has(shortPeriod) && precomputed?.sma?.has(longPeriod)) {
-      const shortData = precomputed.sma.get(shortPeriod) as number[];
-      const longData = precomputed.sma.get(longPeriod) as number[];
+      const shortData = precomputed.sma.get(shortPeriod) ?? [];
+      const longData = precomputed.sma.get(longPeriod) ?? [];
       currentShort = shortData[index];
       currentLong = longData[index];
       prevShort = shortData[index - 1];
@@ -315,8 +315,8 @@ export function createDeathCrossEvaluator(
     let prevLong: number | null | undefined;
 
     if (precomputed?.sma?.has(shortPeriod) && precomputed?.sma?.has(longPeriod)) {
-      const shortData = precomputed.sma.get(shortPeriod) as number[];
-      const longData = precomputed.sma.get(longPeriod) as number[];
+      const shortData = precomputed.sma.get(shortPeriod) ?? [];
+      const longData = precomputed.sma.get(longPeriod) ?? [];
       currentShort = shortData[index];
       currentLong = longData[index];
       prevShort = shortData[index - 1];

@@ -87,7 +87,7 @@ export function createAtr(
       }
 
       // Wilder's smoothing: ((prevATR * (period - 1)) + currentTR) / period
-      atrValue = ((atrValue as number) * (period - 1) + tr) / period;
+      atrValue = ((atrValue ?? 0) * (period - 1) + tr) / period;
       return { time: candle.time, value: atrValue };
     },
 
@@ -103,7 +103,7 @@ export function createAtr(
         return { time: candle.time, value: peekAtr };
       }
 
-      const peekAtr = ((atrValue as number) * (period - 1) + tr) / period;
+      const peekAtr = ((atrValue ?? 0) * (period - 1) + tr) / period;
       return { time: candle.time, value: peekAtr };
     },
 

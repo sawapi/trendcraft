@@ -102,11 +102,11 @@ export function trix(
       trixValues.push(null);
       continue;
     }
-    const prev = ema3[i - 1].value as number;
+    const prev = ema3[i - 1].value ?? 0;
     if (prev === 0) {
       trixValues.push(0);
     } else {
-      trixValues.push((((ema3[i].value as number) - prev) / prev) * 100);
+      trixValues.push((((ema3[i].value ?? 0) - prev) / prev) * 100);
     }
   }
 

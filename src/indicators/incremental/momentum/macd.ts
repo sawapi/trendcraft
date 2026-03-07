@@ -94,7 +94,7 @@ export function createMacd(
       const newSum = sum + price;
       return { ema: newSum / period, sum: newSum };
     }
-    return { ema: price * mult + (prevEma as number) * (1 - mult), sum };
+    return { ema: price * mult + (prevEma ?? 0) * (1 - mult), sum };
   }
 
   const indicator: IncrementalIndicator<MacdValue, MacdState> = {
@@ -133,10 +133,10 @@ export function createMacd(
         signalSum += macdLine;
         signalEma = signalSum / signalPeriod;
       } else {
-        signalEma = macdLine * signalMult + (signalEma as number) * (1 - signalMult);
+        signalEma = macdLine * signalMult + (signalEma ?? 0) * (1 - signalMult);
       }
 
-      const histogram = macdLine - (signalEma as number);
+      const histogram = macdLine - (signalEma ?? 0);
 
       return {
         time: candle.time,
@@ -170,7 +170,7 @@ export function createMacd(
       if (peekValidCount === signalPeriod) {
         peekSignal = (signalSum + macdLine) / signalPeriod;
       } else {
-        peekSignal = macdLine * signalMult + (signalEma as number) * (1 - signalMult);
+        peekSignal = macdLine * signalMult + (signalEma ?? 0) * (1 - signalMult);
       }
 
       return {

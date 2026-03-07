@@ -94,7 +94,7 @@ function calculateVolumeEma(candles: NormalizedCandle[], period: number): Series
       prevEma = sum / period;
       result.push({ time: candles[i].time, value: prevEma });
     } else {
-      prevEma = volume * multiplier + (prevEma as number) * (1 - multiplier);
+      prevEma = volume * multiplier + (prevEma ?? 0) * (1 - multiplier);
       result.push({ time: candles[i].time, value: prevEma });
     }
   }

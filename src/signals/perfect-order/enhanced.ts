@@ -36,7 +36,7 @@ function determineEnhancedState(
     return { state: "NEUTRAL_MIXED", confidence: 0.3 };
   }
 
-  const values = maValues as number[];
+  const values = maValues.filter((v): v is number => v !== null);
   const shortestMa = values[0];
 
   // 2. Check for collapsed state first (highest priority)

@@ -172,7 +172,7 @@ function calculateSma(values: (number | null)[], period: number): (number | null
         hasNull = true;
         break;
       }
-      sum += values[j] as number;
+      sum += values[j] ?? 0;
       count++;
     }
 

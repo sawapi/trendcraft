@@ -6,6 +6,7 @@
 
 import type { NormalizedCandle } from "../../../types";
 import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import type { AtrState } from "../volatility/atr";
 import { createAtr } from "../volatility/atr";
 
 export type SupertrendValue = {
@@ -18,7 +19,7 @@ export type SupertrendValue = {
 export type SupertrendState = {
   period: number;
   multiplier: number;
-  atrState: unknown;
+  atrState: AtrState;
   prevFinalUpper: number | null;
   prevFinalLower: number | null;
   prevClose: number | null;
@@ -54,8 +55,7 @@ export function createSupertrend(
 
   if (warmUpOptions?.fromState) {
     const s = warmUpOptions.fromState;
-    // biome-ignore lint/suspicious/noExplicitAny: ATR state type is opaque
-    atrIndicator = createAtr({ period }, { fromState: s.atrState as any });
+    atrIndicator = createAtr({ period }, { fromState: s.atrState });
     prevFinalUpper = s.prevFinalUpper;
     prevFinalLower = s.prevFinalLower;
     prevClose = s.prevClose;

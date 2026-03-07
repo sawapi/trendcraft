@@ -96,7 +96,7 @@ export function kama(
     const sc = (er * (fastSC - slowSC) + slowSC) ** 2;
 
     // KAMA value
-    const prev = prevKama as number;
+    const prev: number = prevKama ?? 0;
     const kamaValue = prev + sc * (price - prev);
     prevKama = kamaValue;
 

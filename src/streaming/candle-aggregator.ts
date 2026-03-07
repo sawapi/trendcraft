@@ -68,11 +68,11 @@ export function createCandleAggregator(
 
   function buildCandle(): NormalizedCandle {
     return {
-      time: currentPeriodStart as number,
-      open: open as number,
-      high: high as number,
-      low: low as number,
-      close: close as number,
+      time: currentPeriodStart ?? 0,
+      open: open ?? 0,
+      high: high ?? 0,
+      low: low ?? 0,
+      close: close ?? 0,
       volume,
     };
   }

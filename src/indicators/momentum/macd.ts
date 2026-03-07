@@ -133,7 +133,7 @@ function calculateSignalLine(macdLine: (number | null)[], period: number): (numb
       result.push(prevEma);
     } else {
       // EMA calculation
-      prevEma = value * multiplier + (prevEma as number) * (1 - multiplier);
+      prevEma = value * multiplier + (prevEma ?? 0) * (1 - multiplier);
       result.push(prevEma);
     }
   }

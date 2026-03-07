@@ -76,7 +76,7 @@ export function determinePerfectOrderTypeWithHysteresis(
     return "none";
   }
 
-  const values = maValues as number[];
+  const values = maValues.filter((v): v is number => v !== null);
   const shortestMa = values[0];
 
   // Check MA order first
@@ -146,7 +146,7 @@ export function calculateStrength(
   type: PerfectOrderType,
   price: number,
 ): number {
-  const values = maValues as number[];
+  const values = maValues.filter((v): v is number => v !== null);
 
   if (values.length < 2) {
     return 0;

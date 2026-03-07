@@ -79,7 +79,7 @@ export function atr(
       result.push({ time: normalized[i].time, value: prevAtr });
     } else {
       // Wilder's smoothing: ATR = ((Previous ATR * (period - 1)) + Current TR) / period
-      prevAtr = (prevAtr as number) * (period - 1) + trueRanges[i];
+      prevAtr = (prevAtr ?? 0) * (period - 1) + trueRanges[i];
       prevAtr = prevAtr / period;
       result.push({ time: normalized[i].time, value: prevAtr });
     }
