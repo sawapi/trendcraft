@@ -3126,6 +3126,15 @@ const result = runBacktestScaled(candles, goldenCross(), deadCross(), {
 
 Create custom indicators as plugins and add them to the TrendCraft fluent API pipeline.
 
+### When to Use Custom Indicators
+
+Use the plugin system when:
+- **Proprietary indicators**: You have custom formulas not included in the 45+ built-in indicators
+- **Composite indicators**: Combine multiple built-in indicators into a single series (e.g., SMA spread, multi-factor score)
+- **Dynamic pipelines**: Build indicator sets from configuration files or user input at runtime
+
+For most use cases, the built-in shorthand methods (`.sma()`, `.rsi()`, etc.) are sufficient.
+
 ### defineIndicator
 
 Helper function to define a type-safe indicator plugin.
@@ -3203,15 +3212,15 @@ All built-in shorthand methods (`.sma()`, `.rsi()`, etc.) are backed by plugins.
 You can use them directly with `.use()` for programmatic or dynamic usage:
 
 ```typescript
-import { TrendCraft, smaPlugin, rsiPlugin, macdPlugin } from "trendcraft";
+import { TrendCraft, plugins } from "trendcraft";
 
 // Equivalent to .sma(50)
-TrendCraft.from(candles).use(smaPlugin, { period: 50 });
+TrendCraft.from(candles).use(plugins.sma, { period: 50 });
 
 // Dynamic plugin selection
-const plugins = [smaPlugin, rsiPlugin];
+const selected = [plugins.sma, plugins.rsi];
 let tc = TrendCraft.from(candles);
-for (const p of plugins) {
+for (const p of selected) {
   tc = tc.use(p);
 }
 const result = tc.compute();
@@ -3221,22 +3230,22 @@ const result = tc.compute();
 
 | Plugin | Shorthand | Default Options |
 |--------|-----------|-----------------|
-| `smaPlugin` | `.sma()` | `{ period: 20, source: "close" }` |
-| `emaPlugin` | `.ema()` | `{ period: 20, source: "close" }` |
-| `rsiPlugin` | `.rsi()` | `{ period: 14 }` |
-| `macdPlugin` | `.macd()` | `{ fast: 12, slow: 26, signal: 9 }` |
-| `bollingerBandsPlugin` | `.bollingerBands()` | `{ period: 20, stdDev: 2, source: "close" }` |
-| `atrPlugin` | `.atr()` | `{ period: 14 }` |
-| `volumeMaPlugin` | `.volumeMa()` | `{ period: 20, maType: "sma" }` |
-| `highestPlugin` | `.highest()` | `{ period: 20 }` |
-| `lowestPlugin` | `.lowest()` | `{ period: 20 }` |
-| `returnsPlugin` | `.returns()` | `{ period: 1, returnType: "simple" }` |
-| `parabolicSarPlugin` | `.parabolicSar()` | `{ step: 0.02, max: 0.2 }` |
-| `keltnerChannelPlugin` | `.keltnerChannel()` | `{ emaPeriod: 20, atrPeriod: 10, multiplier: 2 }` |
-| `cmfPlugin` | `.cmf()` | `{ period: 20 }` |
-| `volumeAnomalyPlugin` | `.volumeAnomalyIndicator()` | `{ period: 20, highThreshold: 2.0 }` |
-| `volumeProfileSeriesPlugin` | `.volumeProfileIndicator()` | `{ period: 20 }` |
-| `volumeTrendPlugin` | `.volumeTrendIndicator()` | `{ pricePeriod: 10, volumePeriod: 10 }` |
+| `plugins.sma` | `.sma()` | `{ period: 20, source: "close" }` |
+| `plugins.ema` | `.ema()` | `{ period: 20, source: "close" }` |
+| `plugins.rsi` | `.rsi()` | `{ period: 14 }` |
+| `plugins.macd` | `.macd()` | `{ fast: 12, slow: 26, signal: 9 }` |
+| `plugins.bollingerBands` | `.bollingerBands()` | `{ period: 20, stdDev: 2, source: "close" }` |
+| `plugins.atr` | `.atr()` | `{ period: 14 }` |
+| `plugins.volumeMa` | `.volumeMa()` | `{ period: 20, maType: "sma" }` |
+| `plugins.highest` | `.highest()` | `{ period: 20 }` |
+| `plugins.lowest` | `.lowest()` | `{ period: 20 }` |
+| `plugins.returns` | `.returns()` | `{ period: 1, returnType: "simple" }` |
+| `plugins.parabolicSar` | `.parabolicSar()` | `{ step: 0.02, max: 0.2 }` |
+| `plugins.keltnerChannel` | `.keltnerChannel()` | `{ emaPeriod: 20, atrPeriod: 10, multiplier: 2 }` |
+| `plugins.cmf` | `.cmf()` | `{ period: 20 }` |
+| `plugins.volumeAnomaly` | `.volumeAnomalyIndicator()` | `{ period: 20, highThreshold: 2.0 }` |
+| `plugins.volumeProfileSeries` | `.volumeProfileIndicator()` | `{ period: 20 }` |
+| `plugins.volumeTrend` | `.volumeTrendIndicator()` | `{ pricePeriod: 10, volumePeriod: 10 }` |
 
 ---
 

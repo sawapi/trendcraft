@@ -281,25 +281,8 @@ export type {
   RoofingFilterOptions,
 } from "./indicators";
 
-// Indicator Plugins
-export {
-  smaPlugin,
-  emaPlugin,
-  rsiPlugin,
-  macdPlugin,
-  bollingerBandsPlugin,
-  atrPlugin,
-  volumeMaPlugin,
-  highestPlugin,
-  lowestPlugin,
-  returnsPlugin,
-  parabolicSarPlugin,
-  keltnerChannelPlugin,
-  cmfPlugin,
-  volumeAnomalyPlugin,
-  volumeProfileSeriesPlugin,
-  volumeTrendPlugin,
-} from "./indicators";
+// Indicator Plugins (namespace)
+export * as plugins from "./indicators/plugins";
 
 // Plugin system
 export type { IndicatorPlugin } from "./types";

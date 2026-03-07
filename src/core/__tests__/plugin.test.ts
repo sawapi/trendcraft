@@ -3,7 +3,7 @@ import type { NormalizedCandle, Series } from "../../types";
 import { defineIndicator } from "../../types/plugin";
 import type { IndicatorPlugin } from "../../types/plugin";
 import { TrendCraft, TrendCraftMtf } from "../trendcraft";
-import { smaPlugin, rsiPlugin, macdPlugin, atrPlugin } from "../../indicators/plugins";
+import { sma as smaPlugin, rsi as rsiPlugin, macd as macdPlugin, atr as atrPlugin } from "../../indicators/plugins";
 import { sma } from "../../indicators/moving-average/sma";
 
 // Helper to create simple candles
@@ -266,26 +266,27 @@ describe("Plugin System", () => {
       expect(plugin.name).toBe("test");
     });
 
-    it("should allow re-export through package entry", async () => {
+    it("should allow re-export through package entry via plugins namespace", async () => {
       // Verify exports are accessible from the package root
       const mod = await import("../../index");
 
       expect(mod.defineIndicator).toBeDefined();
-      expect(mod.smaPlugin).toBeDefined();
-      expect(mod.rsiPlugin).toBeDefined();
-      expect(mod.macdPlugin).toBeDefined();
-      expect(mod.atrPlugin).toBeDefined();
-      expect(mod.bollingerBandsPlugin).toBeDefined();
-      expect(mod.volumeMaPlugin).toBeDefined();
-      expect(mod.highestPlugin).toBeDefined();
-      expect(mod.lowestPlugin).toBeDefined();
-      expect(mod.returnsPlugin).toBeDefined();
-      expect(mod.parabolicSarPlugin).toBeDefined();
-      expect(mod.keltnerChannelPlugin).toBeDefined();
-      expect(mod.cmfPlugin).toBeDefined();
-      expect(mod.volumeAnomalyPlugin).toBeDefined();
-      expect(mod.volumeProfileSeriesPlugin).toBeDefined();
-      expect(mod.volumeTrendPlugin).toBeDefined();
+      expect(mod.plugins).toBeDefined();
+      expect(mod.plugins.sma).toBeDefined();
+      expect(mod.plugins.rsi).toBeDefined();
+      expect(mod.plugins.macd).toBeDefined();
+      expect(mod.plugins.atr).toBeDefined();
+      expect(mod.plugins.bollingerBands).toBeDefined();
+      expect(mod.plugins.volumeMa).toBeDefined();
+      expect(mod.plugins.highest).toBeDefined();
+      expect(mod.plugins.lowest).toBeDefined();
+      expect(mod.plugins.returns).toBeDefined();
+      expect(mod.plugins.parabolicSar).toBeDefined();
+      expect(mod.plugins.keltnerChannel).toBeDefined();
+      expect(mod.plugins.cmf).toBeDefined();
+      expect(mod.plugins.volumeAnomaly).toBeDefined();
+      expect(mod.plugins.volumeProfileSeries).toBeDefined();
+      expect(mod.plugins.volumeTrend).toBeDefined();
     });
   });
 });

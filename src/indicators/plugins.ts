@@ -3,6 +3,12 @@
  *
  * Wraps existing indicator functions as IndicatorPlugin instances
  * for use with `TrendCraft.use()`.
+ *
+ * Exported under the `plugins` namespace from the package root:
+ * ```typescript
+ * import { plugins } from "trendcraft";
+ * TrendCraft.from(candles).use(plugins.sma, { period: 50 });
+ * ```
  */
 
 import type {
@@ -17,53 +23,53 @@ import type {
 import type { KeltnerChannelValue } from "./volatility/keltner-channel";
 import type { ParabolicSarValue } from "./trend/parabolic-sar";
 import { defineIndicator } from "../types/plugin";
-import { sma } from "./moving-average/sma";
-import { ema } from "./moving-average/ema";
-import { rsi } from "./momentum/rsi";
-import { macd } from "./momentum/macd";
-import { bollingerBands } from "./volatility/bollinger-bands";
-import { atr } from "./volatility/atr";
-import { volumeMa } from "./volume/volume-ma";
-import { highest, lowest } from "./price/highest-lowest";
-import { returns } from "./price/returns";
-import { parabolicSar } from "./trend/parabolic-sar";
-import { keltnerChannel } from "./volatility/keltner-channel";
-import { cmf } from "./volume/cmf";
-import { volumeAnomaly } from "./volume/volume-anomaly";
-import { volumeProfileSeries } from "./volume/volume-profile";
-import { volumeTrend } from "./volume/volume-trend";
+import { sma as smaFn } from "./moving-average/sma";
+import { ema as emaFn } from "./moving-average/ema";
+import { rsi as rsiFn } from "./momentum/rsi";
+import { macd as macdFn } from "./momentum/macd";
+import { bollingerBands as bollingerBandsFn } from "./volatility/bollinger-bands";
+import { atr as atrFn } from "./volatility/atr";
+import { volumeMa as volumeMaFn } from "./volume/volume-ma";
+import { highest as highestFn, lowest as lowestFn } from "./price/highest-lowest";
+import { returns as returnsFn } from "./price/returns";
+import { parabolicSar as parabolicSarFn } from "./trend/parabolic-sar";
+import { keltnerChannel as keltnerChannelFn } from "./volatility/keltner-channel";
+import { cmf as cmfFn } from "./volume/cmf";
+import { volumeAnomaly as volumeAnomalyFn } from "./volume/volume-anomaly";
+import { volumeProfileSeries as volumeProfileSeriesFn } from "./volume/volume-profile";
+import { volumeTrend as volumeTrendFn } from "./volume/volume-trend";
 
 /** SMA plugin */
-export const smaPlugin = defineIndicator({
+export const sma = defineIndicator({
   name: "sma" as const,
-  compute: (candles, opts) => sma(candles, { period: opts.period, source: opts.source }),
+  compute: (candles, opts) => smaFn(candles, { period: opts.period, source: opts.source }),
   defaultOptions: { period: 20, source: "close" as PriceSource },
   buildKey: (opts) =>
     opts.source === "close" ? `sma${opts.period}` : `sma${opts.period}_${opts.source}`,
 });
 
 /** EMA plugin */
-export const emaPlugin = defineIndicator({
+export const ema = defineIndicator({
   name: "ema" as const,
-  compute: (candles, opts) => ema(candles, { period: opts.period, source: opts.source }),
+  compute: (candles, opts) => emaFn(candles, { period: opts.period, source: opts.source }),
   defaultOptions: { period: 20, source: "close" as PriceSource },
   buildKey: (opts) =>
     opts.source === "close" ? `ema${opts.period}` : `ema${opts.period}_${opts.source}`,
 });
 
 /** RSI plugin */
-export const rsiPlugin = defineIndicator({
+export const rsi = defineIndicator({
   name: "rsi" as const,
-  compute: (candles, opts) => rsi(candles, { period: opts.period }),
+  compute: (candles, opts) => rsiFn(candles, { period: opts.period }),
   defaultOptions: { period: 14 },
   buildKey: (opts) => `rsi${opts.period}`,
 });
 
 /** MACD plugin */
-export const macdPlugin = defineIndicator({
+export const macd = defineIndicator({
   name: "macd" as const,
   compute: (candles, opts) =>
-    macd(candles, {
+    macdFn(candles, {
       fastPeriod: opts.fast,
       slowPeriod: opts.slow,
       signalPeriod: opts.signal,
@@ -73,10 +79,10 @@ export const macdPlugin = defineIndicator({
 });
 
 /** Bollinger Bands plugin */
-export const bollingerBandsPlugin = defineIndicator({
+export const bollingerBands = defineIndicator({
   name: "bollingerBands" as const,
   compute: (candles, opts) =>
-    bollingerBands(candles, {
+    bollingerBandsFn(candles, {
       period: opts.period,
       stdDev: opts.stdDev,
       source: opts.source,
@@ -87,42 +93,42 @@ export const bollingerBandsPlugin = defineIndicator({
 });
 
 /** ATR plugin */
-export const atrPlugin = defineIndicator({
+export const atr = defineIndicator({
   name: "atr" as const,
-  compute: (candles, opts) => atr(candles, { period: opts.period }),
+  compute: (candles, opts) => atrFn(candles, { period: opts.period }),
   defaultOptions: { period: 14 },
   buildKey: (opts) => `atr${opts.period}`,
 });
 
 /** Volume Moving Average plugin */
-export const volumeMaPlugin = defineIndicator({
+export const volumeMa = defineIndicator({
   name: "volumeMa" as const,
-  compute: (candles, opts) => volumeMa(candles, { period: opts.period, type: opts.maType }),
+  compute: (candles, opts) => volumeMaFn(candles, { period: opts.period, type: opts.maType }),
   defaultOptions: { period: 20, maType: "sma" as "sma" | "ema" },
   buildKey: (opts) =>
     opts.maType === "sma" ? `vma${opts.period}` : `vma${opts.period}_ema`,
 });
 
 /** Highest High plugin */
-export const highestPlugin = defineIndicator({
+export const highest = defineIndicator({
   name: "highest" as const,
-  compute: (candles, opts) => highest(candles, opts.period),
+  compute: (candles, opts) => highestFn(candles, opts.period),
   defaultOptions: { period: 20 },
   buildKey: (opts) => `highest${opts.period}`,
 });
 
 /** Lowest Low plugin */
-export const lowestPlugin = defineIndicator({
+export const lowest = defineIndicator({
   name: "lowest" as const,
-  compute: (candles, opts) => lowest(candles, opts.period),
+  compute: (candles, opts) => lowestFn(candles, opts.period),
   defaultOptions: { period: 20 },
   buildKey: (opts) => `lowest${opts.period}`,
 });
 
 /** Returns plugin */
-export const returnsPlugin = defineIndicator({
+export const returns = defineIndicator({
   name: "returns" as const,
-  compute: (candles, opts) => returns(candles, { period: opts.period, type: opts.returnType }),
+  compute: (candles, opts) => returnsFn(candles, { period: opts.period, type: opts.returnType }),
   defaultOptions: { period: 1, returnType: "simple" as "simple" | "log" },
   buildKey: (opts) =>
     opts.returnType === "simple"
@@ -131,19 +137,19 @@ export const returnsPlugin = defineIndicator({
 });
 
 /** Parabolic SAR plugin */
-export const parabolicSarPlugin = defineIndicator({
+export const parabolicSar = defineIndicator({
   name: "parabolicSar" as const,
   compute: (candles, opts) =>
-    parabolicSar(candles, { step: opts.step, max: opts.max }),
+    parabolicSarFn(candles, { step: opts.step, max: opts.max }),
   defaultOptions: { step: 0.02, max: 0.2 },
   buildKey: (opts) => `psar_${opts.step}_${opts.max}`,
 });
 
 /** Keltner Channel plugin */
-export const keltnerChannelPlugin = defineIndicator({
+export const keltnerChannel = defineIndicator({
   name: "keltnerChannel" as const,
   compute: (candles, opts) =>
-    keltnerChannel(candles, {
+    keltnerChannelFn(candles, {
       emaPeriod: opts.emaPeriod,
       atrPeriod: opts.atrPeriod,
       multiplier: opts.multiplier,
@@ -153,18 +159,18 @@ export const keltnerChannelPlugin = defineIndicator({
 });
 
 /** Chaikin Money Flow plugin */
-export const cmfPlugin = defineIndicator({
+export const cmf = defineIndicator({
   name: "cmf" as const,
-  compute: (candles, opts) => cmf(candles, { period: opts.period }),
+  compute: (candles, opts) => cmfFn(candles, { period: opts.period }),
   defaultOptions: { period: 20 },
   buildKey: (opts) => `cmf${opts.period}`,
 });
 
 /** Volume Anomaly plugin */
-export const volumeAnomalyPlugin = defineIndicator({
+export const volumeAnomaly = defineIndicator({
   name: "volumeAnomaly" as const,
   compute: (candles, opts) =>
-    volumeAnomaly(candles, {
+    volumeAnomalyFn(candles, {
       period: opts.period,
       highThreshold: opts.highThreshold,
     }),
@@ -173,19 +179,19 @@ export const volumeAnomalyPlugin = defineIndicator({
 });
 
 /** Volume Profile Series plugin */
-export const volumeProfileSeriesPlugin = defineIndicator({
+export const volumeProfileSeries = defineIndicator({
   name: "volumeProfileSeries" as const,
   compute: (candles: NormalizedCandle[], opts) =>
-    volumeProfileSeries(candles, { period: opts.period }),
+    volumeProfileSeriesFn(candles, { period: opts.period }),
   defaultOptions: { period: 20 },
   buildKey: (opts) => `volProfile${opts.period}`,
 });
 
 /** Volume Trend plugin */
-export const volumeTrendPlugin = defineIndicator({
+export const volumeTrend = defineIndicator({
   name: "volumeTrend" as const,
   compute: (candles, opts) =>
-    volumeTrend(candles, {
+    volumeTrendFn(candles, {
       pricePeriod: opts.pricePeriod,
       volumePeriod: opts.volumePeriod,
     }),

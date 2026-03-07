@@ -4,22 +4,22 @@
  */
 
 import {
-  smaPlugin,
-  emaPlugin,
-  rsiPlugin,
-  macdPlugin,
-  bollingerBandsPlugin,
-  atrPlugin,
-  volumeMaPlugin,
-  highestPlugin,
-  lowestPlugin,
-  returnsPlugin,
-  parabolicSarPlugin,
-  keltnerChannelPlugin,
-  cmfPlugin,
-  volumeAnomalyPlugin,
-  volumeProfileSeriesPlugin,
-  volumeTrendPlugin,
+  sma as smaPlugin,
+  ema as emaPlugin,
+  rsi as rsiPlugin,
+  macd as macdPlugin,
+  bollingerBands as bollingerBandsPlugin,
+  atr as atrPlugin,
+  volumeMa as volumeMaPlugin,
+  highest as highestPlugin,
+  lowest as lowestPlugin,
+  returns as returnsPlugin,
+  parabolicSar as parabolicSarPlugin,
+  keltnerChannel as keltnerChannelPlugin,
+  cmf as cmfPlugin,
+  volumeAnomaly as volumeAnomalyPlugin,
+  volumeProfileSeries as volumeProfileSeriesPlugin,
+  volumeTrend as volumeTrendPlugin,
 } from "../indicators/plugins";
 import { volumeProfile } from "../indicators/volume/volume-profile";
 import type { IndicatorPlugin } from "../types/plugin";
