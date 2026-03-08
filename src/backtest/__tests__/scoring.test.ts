@@ -24,6 +24,7 @@ function makeResult(overrides: Partial<BacktestResult> = {}): BacktestResult {
       slippage: 0,
       taxRate: 0,
     },
+    drawdownPeriods: [],
     ...overrides,
   };
 }

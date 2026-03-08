@@ -62,6 +62,7 @@ export type {
   BacktestOptions,
   BacktestSettings,
   BacktestResult,
+  DrawdownPeriod,
   MtfDataset,
   MtfContext,
   MtfConditionFn,

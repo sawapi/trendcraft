@@ -6,6 +6,7 @@
 import type {
   BacktestResult,
   BacktestSettings,
+  DrawdownPeriod,
   ExitReason,
   NormalizedCandle,
   PositionDirection,
@@ -236,6 +237,7 @@ export function calculateStats(
   finalCapital: number,
   maxDrawdown: number,
   settings: BacktestSettings,
+  drawdownPeriods: DrawdownPeriod[] = [],
 ): BacktestResult {
   if (trades.length === 0) {
     return emptyResult(initialCapital, settings);
@@ -276,6 +278,7 @@ export function calculateStats(
     avgHoldingDays: Math.round(avgHoldingDays * 10) / 10,
     trades,
     settings,
+    drawdownPeriods,
   };
 }
 
@@ -296,5 +299,6 @@ export function emptyResult(capital: number, settings: BacktestSettings): Backte
     avgHoldingDays: 0,
     trades: [],
     settings,
+    drawdownPeriods: [],
   };
 }

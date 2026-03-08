@@ -56,7 +56,9 @@ function createMockBacktestResult(overrides: Partial<BacktestResult> = {}): Back
       slippage: 0,
       commission: 0,
       commissionRate: 0,
+      taxRate: 0,
     },
+    drawdownPeriods: [],
     ...overrides,
   };
 }

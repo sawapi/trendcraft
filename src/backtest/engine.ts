@@ -28,6 +28,7 @@ import type { ValidationOptions } from "../validation/types";
 import { validateCandles } from "../validation/validate";
 import { evaluateCondition } from "./conditions";
 import type { ExtendedCondition } from "./conditions";
+import { createDrawdownTracker } from "./drawdown-tracker";
 import {
   MS_PER_DAY,
   applySlippage,
@@ -185,6 +186,7 @@ export function runBacktest(
   let peakCapital = capital;
   let maxDrawdown = 0;
   const returns: number[] = [];
+  const ddTracker = createDrawdownTracker(capital);
 
   /**
    * Create a position from entry parameters
@@ -357,6 +359,7 @@ export function runBacktest(
       if (drawdown > maxDrawdown) {
         maxDrawdown = drawdown;
       }
+      ddTracker.update(currentCapital, candle.time, i);
 
       position = null;
       pendingExit = null;
@@ -531,6 +534,7 @@ export function runBacktest(
           if (drawdown > maxDrawdown) {
             maxDrawdown = drawdown;
           }
+          ddTracker.update(currentCapital, candle.time, i);
 
           // Update position (keep remaining shares)
           position.shares -= sharesToSell;
@@ -583,6 +587,7 @@ export function runBacktest(
             if (drawdown > maxDrawdown) {
               maxDrawdown = drawdown;
             }
+            ddTracker.update(currentCapital, candle.time, i);
 
             position.shares = sharesRemaining;
             position.scaleOutLevelsTaken[levelIndex] = true;
@@ -740,6 +745,7 @@ export function runBacktest(
           if (drawdown > maxDrawdown) {
             maxDrawdown = drawdown;
           }
+          ddTracker.update(currentCapital, candle.time, i);
 
           position = null;
         } else {
@@ -774,7 +780,18 @@ export function runBacktest(
     trades.push(result.trade);
     currentCapital += result.netProceeds;
     returns.push(result.returnPercent / 100);
+    ddTracker.update(currentCapital, lastCandle.time, candles.length - 1);
   }
 
-  return calculateStats(trades, returns, capital, currentCapital, maxDrawdown, settings);
+  ddTracker.finalize(candles[candles.length - 1].time, candles.length - 1);
+
+  return calculateStats(
+    trades,
+    returns,
+    capital,
+    currentCapital,
+    maxDrawdown,
+    settings,
+    ddTracker.getPeriods(),
+  );
 }

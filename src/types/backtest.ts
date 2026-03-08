@@ -294,6 +294,34 @@ export type BacktestResult = {
   trades: Trade[];
   /** Settings used for this backtest (for reproducibility) */
   settings: BacktestSettings;
+  /** Individual drawdown periods with peak-trough-recovery tracking */
+  drawdownPeriods: DrawdownPeriod[];
+};
+
+// ============================================
+// Drawdown Period Types
+// ============================================
+
+/**
+ * A single drawdown period tracking peak-to-trough-to-recovery
+ */
+export type DrawdownPeriod = {
+  /** Timestamp when drawdown started (peak equity) */
+  startTime: number;
+  /** Peak equity value at start of drawdown */
+  peakEquity: number;
+  /** Timestamp of maximum drawdown depth */
+  troughTime: number;
+  /** Equity at maximum drawdown depth */
+  troughEquity: number;
+  /** Timestamp when equity recovered to peak (undefined if not recovered) */
+  recoveryTime?: number;
+  /** Maximum drawdown depth in percent */
+  maxDepthPercent: number;
+  /** Duration of drawdown in bars (from start to recovery or end) */
+  durationBars: number;
+  /** Bars from trough to recovery (undefined if not recovered) */
+  recoveryBars?: number;
 };
 
 // ============================================

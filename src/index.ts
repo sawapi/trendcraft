@@ -42,6 +42,7 @@ export type {
   // Backtest types
   PositionDirection,
   Condition,
+  DrawdownPeriod,
   ConditionFn,
   PresetCondition,
   CombinedCondition,
@@ -836,6 +837,10 @@ export {
   analyzeAllTrades,
   detectMarketRegime,
   calculateRuntimeMetrics,
+  analyzeDrawdowns,
+  projectPatternOutcome,
+  projectFromSeries,
+  projectFromPatterns,
 } from "./analysis";
 
 export type {
@@ -850,6 +855,11 @@ export type {
   MarketRegimeOptions,
   RuntimeMetrics,
   RuntimeMetricsOptions,
+  DrawdownSummary,
+  PatternProjectionOptions,
+  HitRate,
+  PatternProjection,
+  EventExtractor,
 } from "./analysis";
 
 // Validation

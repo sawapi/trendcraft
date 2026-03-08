@@ -120,7 +120,9 @@ function createMockBacktestResult(
       slippage: 0,
       commission: 0,
       commissionRate: 0,
+      taxRate: 0,
     },
+    drawdownPeriods: [],
     ...overrides,
   };
 }
