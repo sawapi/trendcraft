@@ -15,6 +15,25 @@ import { getField, getNumber } from "../snapshot-utils";
 import type { IndicatorSnapshot, StreamingPresetCondition } from "./types";
 
 /**
+ * Volatility level classification for regime filter
+ */
+export type VolatilityLevel = "low" | "normal" | "high";
+
+/**
+ * Options for regimeFilter condition
+ */
+export type RegimeFilterOptions = {
+  /** Allowed volatility levels (default: all) */
+  allowedVolatility?: VolatilityLevel[];
+  /** Minimum trend strength (0-100, default: 0) */
+  minTrendStrength?: number;
+  /** Allowed trend directions */
+  allowedTrends?: ("bullish" | "bearish" | "sideways")[];
+  /** Snapshot key for regime data (default: "regime") */
+  key?: string;
+};
+
+/**
  * Condition: RSI is below a threshold
  *
  * @param threshold - RSI level (e.g., 30 for oversold)
@@ -275,4 +294,128 @@ export function dmiBearish(threshold = 25, key = "dmi"): StreamingPresetConditio
       return minusDi > plusDi && adx >= threshold;
     },
   };
+}
+
+/**
+ * Condition: Market regime filter
+ *
+ * Filters trading signals based on the current market regime
+ * (volatility level, trend direction, trend strength).
+ * Requires a regime indicator in the pipeline snapshot.
+ *
+ * The regime snapshot value should have shape:
+ * `{ volatility: "low"|"normal"|"high", trend: "bullish"|"bearish"|"sideways", trendStrength: number }`
+ *
+ * @param options - Filter configuration
+ *
+ * @example
+ * ```ts
+ * // Only trade in normal/low volatility with bullish trend
+ * const filter = regimeFilter({
+ *   allowedVolatility: ["low", "normal"],
+ *   allowedTrends: ["bullish"],
+ *   minTrendStrength: 30,
+ * });
+ * ```
+ */
+export function regimeFilter(options: RegimeFilterOptions = {}): StreamingPresetCondition {
+  const key = options.key ?? "regime";
+  return {
+    type: "preset",
+    name: `regimeFilter(${key})`,
+    evaluate: (snapshot) => {
+      const regime = snapshot[key];
+      if (regime == null || typeof regime !== "object") return false;
+
+      const r = regime as Record<string, unknown>;
+
+      // Check volatility
+      if (options.allowedVolatility && options.allowedVolatility.length > 0) {
+        const vol = r.volatility as string | undefined;
+        if (vol && !options.allowedVolatility.includes(vol as VolatilityLevel)) {
+          return false;
+        }
+      }
+
+      // Check trend direction
+      if (options.allowedTrends && options.allowedTrends.length > 0) {
+        const trend = r.trend as string | undefined;
+        if (trend && !options.allowedTrends.includes(trend as "bullish" | "bearish" | "sideways")) {
+          return false;
+        }
+      }
+
+      // Check trend strength
+      if (options.minTrendStrength !== undefined) {
+        const strength = r.trendStrength;
+        if (typeof strength === "number" && strength < options.minTrendStrength) {
+          return false;
+        }
+      }
+
+      return true;
+    },
+  };
+}
+
+/**
+ * Regime-adjusted position sizing multiplier configuration
+ */
+export type RegimeMultipliers = {
+  /** Multiplier for low volatility regime (default: 1.0) */
+  low?: number;
+  /** Multiplier for normal volatility regime (default: 1.0) */
+  normal?: number;
+  /** Multiplier for high volatility regime (default: 0.5) */
+  high?: number;
+};
+
+/**
+ * Get a position sizing multiplier based on the current market regime.
+ *
+ * Returns a multiplier (0-N) that can be applied to position size.
+ * Useful for reducing position size in high-volatility regimes.
+ *
+ * @param snapshot - Current indicator snapshot
+ * @param multipliers - Multipliers per volatility level
+ * @param key - Snapshot key for regime data (default: "regime")
+ * @returns Position sizing multiplier (default: 1.0 if regime not available)
+ *
+ * @example
+ * ```ts
+ * const multiplier = getRegimeSizeMultiplier(snapshot, {
+ *   low: 1.2,     // increase size in calm markets
+ *   normal: 1.0,  // standard size
+ *   high: 0.5,    // halve size in volatile markets
+ * });
+ * const adjustedShares = Math.floor(baseShares * multiplier);
+ * ```
+ */
+export function getRegimeSizeMultiplier(
+  snapshot: IndicatorSnapshot,
+  multipliers: RegimeMultipliers = {},
+  key = "regime",
+): number {
+  const defaults: Required<RegimeMultipliers> = {
+    low: multipliers.low ?? 1.0,
+    normal: multipliers.normal ?? 1.0,
+    high: multipliers.high ?? 0.5,
+  };
+
+  const regime = snapshot[key];
+  if (regime == null || typeof regime !== "object") return 1.0;
+
+  const vol = (regime as Record<string, unknown>).volatility as string | undefined;
+  if (!vol) return 1.0;
+
+  switch (vol) {
+    case "low":
+      return defaults.low;
+    case "normal":
+      return defaults.normal;
+    case "high":
+      return defaults.high;
+    default:
+      return 1.0;
+  }
 }

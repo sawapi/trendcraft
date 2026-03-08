@@ -27,7 +27,10 @@ export {
   indicatorBelow,
   dmiBullish,
   dmiBearish,
+  regimeFilter,
+  getRegimeSizeMultiplier,
 } from "./presets";
+export type { VolatilityLevel, RegimeFilterOptions, RegimeMultipliers } from "./presets";
 
 export { getNumber, getField, resolveNumber } from "../snapshot-utils";
 export { crossOver, crossUnder } from "./cross";

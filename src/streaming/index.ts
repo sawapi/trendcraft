@@ -77,13 +77,20 @@ export {
   indicatorBelow,
   dmiBullish,
   dmiBearish,
+  regimeFilter,
+  getRegimeSizeMultiplier,
   getNumber,
   getField,
   resolveNumber,
   crossOver,
   crossUnder,
 } from "./conditions";
-export type { ValueExtractor } from "./conditions";
+export type {
+  ValueExtractor,
+  VolatilityLevel,
+  RegimeFilterOptions,
+  RegimeMultipliers,
+} from "./conditions";
 
 // Phase 3: Pipeline & MTF
 export { createPipeline } from "./pipeline";
@@ -98,6 +105,7 @@ export {
   createRiskGuard,
   createTimeGuard,
   createGuardedSession,
+  createPortfolioGuard,
 } from "./guards";
 export type {
   RiskGuardOptions,
@@ -110,6 +118,11 @@ export type {
   TimeGuardState,
   TimeGuardCheckResult,
   TimeGuard,
+  PortfolioGuardOptions,
+  PortfolioGuardState,
+  PortfolioGuardCheckResult,
+  PortfolioExposure,
+  PortfolioGuard,
   GuardedSessionOptions,
   GuardedSessionState,
   BlockedEvent,

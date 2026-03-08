@@ -818,6 +818,7 @@ export {
   analyzeStreaks,
   analyzeAllTrades,
   detectMarketRegime,
+  calculateRuntimeMetrics,
 } from "./analysis";
 
 export type {
@@ -830,6 +831,8 @@ export type {
   TradeAnalysis,
   MarketRegimeResult,
   MarketRegimeOptions,
+  RuntimeMetrics,
+  RuntimeMetricsOptions,
 } from "./analysis";
 
 // Validation
@@ -872,6 +875,13 @@ export type {
   UnifiedConditionDef,
   UnifiedCondition,
 } from "./conditions";
+
+// Backtest Scoring
+export { scoreBacktestResult } from "./backtest";
+export type { BacktestScore, ScoreBreakdownEntry, ScoreWeights, ScoreOptions } from "./backtest";
+
+// Strategy Definition
+export * as strategy from "./strategy";
 
 // Execution utilities (resilient order execution)
 export * as execution from "./execution";
