@@ -261,6 +261,7 @@ export const useChartStore = create<ChartStore>((set, get) => ({
   presets: getInitialPresets(),
   backtestConfig: { ...DEFAULT_BACKTEST_CONFIG },
   backtestResult: null,
+  tradeAnalysis: null,
   isBacktestRunning: false,
 
   // Actions
@@ -278,6 +279,7 @@ export const useChartStore = create<ChartStore>((set, get) => ({
       fundamentals,
       ...computed,
       backtestResult: null,
+      tradeAnalysis: null,
     });
   },
 
@@ -285,7 +287,7 @@ export const useChartStore = create<ChartStore>((set, get) => ({
     const { rawCandles, fundamentals, displayStartYears } = get();
     const computed = recomputeCandles(rawCandles, fundamentals, displayStartYears, timeframe);
 
-    set({ timeframe, ...computed, backtestResult: null });
+    set({ timeframe, ...computed, backtestResult: null, tradeAnalysis: null });
   },
 
   setDisplayStartYears: (years: DisplayStartYears) => {
@@ -293,7 +295,7 @@ export const useChartStore = create<ChartStore>((set, get) => ({
     writeStorage("chart-viewer-display-start-years", String(years));
     const computed = recomputeCandles(rawCandles, fundamentals, years, timeframe);
 
-    set({ displayStartYears: years, ...computed, backtestResult: null });
+    set({ displayStartYears: years, ...computed, backtestResult: null, tradeAnalysis: null });
   },
 
   setEnabledIndicators: (indicators: SubChartType[]) => {
@@ -371,12 +373,16 @@ export const useChartStore = create<ChartStore>((set, get) => ({
     set({ backtestResult: result });
   },
 
+  setTradeAnalysis: (analysis) => {
+    set({ tradeAnalysis: analysis });
+  },
+
   setIsBacktestRunning: (running: boolean) => {
     set({ isBacktestRunning: running });
   },
 
   clearBacktest: () => {
-    set({ backtestResult: null });
+    set({ backtestResult: null, tradeAnalysis: null });
   },
 
   toggleSidebar: () => {
@@ -407,6 +413,7 @@ export const useChartStore = create<ChartStore>((set, get) => ({
       sidebarCollapsed: getInitialSidebarCollapsed(),
       backtestConfig: { ...DEFAULT_BACKTEST_CONFIG },
       backtestResult: null,
+      tradeAnalysis: null,
       isBacktestRunning: false,
     });
   },

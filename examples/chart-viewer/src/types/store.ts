@@ -1,4 +1,4 @@
-import type { BacktestResult, NormalizedCandle } from "trendcraft";
+import type { BacktestResult, NormalizedCandle, TradeAnalysis } from "trendcraft";
 import type {
   BacktestConfig,
   DisplayStartYears,
@@ -41,6 +41,7 @@ export interface ChartState {
   // Backtest
   backtestConfig: BacktestConfig;
   backtestResult: BacktestResult | null;
+  tradeAnalysis: TradeAnalysis | null;
   isBacktestRunning: boolean;
 }
 
@@ -67,6 +68,7 @@ export interface ChartActions {
   deletePreset: (name: string) => void;
   setBacktestConfig: (config: Partial<BacktestConfig>) => void;
   setBacktestResult: (result: BacktestResult | null) => void;
+  setTradeAnalysis: (analysis: TradeAnalysis | null) => void;
   setIsBacktestRunning: (running: boolean) => void;
   clearBacktest: () => void;
   toggleSidebar: () => void;

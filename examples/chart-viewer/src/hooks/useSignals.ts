@@ -7,6 +7,7 @@ import {
   type CrossSignalQuality,
   type DivergenceSignal,
   type NormalizedCandle,
+  type PatternSignal,
   type PerfectOrderValueEnhanced,
   type RangeBoundValue,
   type Series,
@@ -14,6 +15,11 @@ import {
   type VolumeBreakoutSignal,
   type VolumeMaCrossSignal,
   bollingerSqueeze,
+  cupWithHandle,
+  doubleBottom,
+  doubleTop,
+  headAndShoulders,
+  inverseHeadAndShoulders,
   macdDivergence,
   obvDivergence,
   perfectOrderEnhanced,
@@ -33,6 +39,7 @@ export interface SignalData {
   bbSqueeze: SqueezeSignal[] | null;
   volumeBreakout: VolumeBreakoutSignal[] | null;
   volumeMaCross: VolumeMaCrossSignal[] | null;
+  chartPatterns: PatternSignal[] | null;
 }
 
 /**
@@ -133,6 +140,32 @@ export function useSignals(
     });
   }, [candles, enabledSignals, indicatorParams]);
 
+  const chartPatterns = useMemo(() => {
+    if (!enabledSignals.includes("chartPatterns") || candles.length === 0) {
+      return null;
+    }
+    const swingLookback = indicatorParams?.chartPatternSwingLookback ?? 5;
+    const tolerance = indicatorParams?.chartPatternTolerance ?? 0.02;
+    const minDistance = indicatorParams?.chartPatternMinDistance ?? 10;
+    const maxDistance = indicatorParams?.chartPatternMaxDistance ?? 40;
+
+    const doubleOpts = { tolerance, minDistance, maxDistance, swingLookback };
+    const hsOpts = { swingLookback };
+    const cupOpts = { swingLookback };
+
+    const patterns: PatternSignal[] = [
+      ...doubleTop(candles, doubleOpts),
+      ...doubleBottom(candles, doubleOpts),
+      ...headAndShoulders(candles, hsOpts),
+      ...inverseHeadAndShoulders(candles, hsOpts),
+      ...cupWithHandle(candles, cupOpts),
+    ];
+
+    // Sort by time descending
+    patterns.sort((a, b) => b.time - a.time);
+    return patterns;
+  }, [candles, enabledSignals, indicatorParams]);
+
   return {
     perfectOrder,
     rangeBound: rangeBoundData,
@@ -141,5 +174,6 @@ export function useSignals(
     bbSqueeze,
     volumeBreakout: volumeBreakoutSignals,
     volumeMaCross: volumeMaCrossSignals,
+    chartPatterns,
   };
 }

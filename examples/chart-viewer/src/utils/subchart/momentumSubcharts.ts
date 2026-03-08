@@ -221,5 +221,122 @@ export function buildMomentumSubcharts(
     });
   }
 
+  // TRIX
+  if (enabledIndicators.includes("trix") && indicators.trixLine && indicators.trixSignal) {
+    const gridIndex = createSubchart(ctx, {
+      title: `TRIX (${indicatorParams?.trixPeriod ?? 15})`,
+      titleColor: COLORS.trixLine,
+      seriesNames: ["TRIX", "TRIX Signal"],
+    });
+    series.push({
+      name: "TRIX",
+      type: "line",
+      xAxisIndex: gridIndex,
+      yAxisIndex: gridIndex,
+      data: indicators.trixLine,
+      symbol: "none",
+      lineStyle: { color: COLORS.trixLine, width: 1.5 },
+    });
+    series.push({
+      name: "TRIX Signal",
+      type: "line",
+      xAxisIndex: gridIndex,
+      yAxisIndex: gridIndex,
+      data: indicators.trixSignal,
+      symbol: "none",
+      lineStyle: { color: COLORS.trixSignal, width: 1.5 },
+    });
+    series.push({
+      name: "TRIX Markers",
+      type: "line",
+      xAxisIndex: gridIndex,
+      yAxisIndex: gridIndex,
+      data: [],
+      markLine: createMarkLine([0]),
+    });
+  }
+
+  // Aroon
+  if (
+    enabledIndicators.includes("aroon") &&
+    indicators.aroonUp &&
+    indicators.aroonDown &&
+    indicators.aroonOscillator
+  ) {
+    const gridIndex = createSubchart(ctx, {
+      title: `Aroon (${indicatorParams?.aroonPeriod ?? 25})`,
+      titleColor: COLORS.aroonUp,
+      seriesNames: ["Aroon Up", "Aroon Down", "Aroon Osc"],
+      yAxisMin: 0,
+      yAxisMax: 100,
+    });
+    series.push({
+      name: "Aroon Up",
+      type: "line",
+      xAxisIndex: gridIndex,
+      yAxisIndex: gridIndex,
+      data: indicators.aroonUp,
+      symbol: "none",
+      lineStyle: { color: COLORS.aroonUp, width: 1.5 },
+    });
+    series.push({
+      name: "Aroon Down",
+      type: "line",
+      xAxisIndex: gridIndex,
+      yAxisIndex: gridIndex,
+      data: indicators.aroonDown,
+      symbol: "none",
+      lineStyle: { color: COLORS.aroonDown, width: 1.5 },
+    });
+    series.push({
+      name: "Aroon Markers",
+      type: "line",
+      xAxisIndex: gridIndex,
+      yAxisIndex: gridIndex,
+      data: [],
+      markLine: createMarkLine([30, 70]),
+    });
+  }
+
+  // DPO
+  if (enabledIndicators.includes("dpo") && indicators.dpo) {
+    const gridIndex = createSubchart(ctx, {
+      title: `DPO (${indicatorParams?.dpoPeriod ?? 20})`,
+      titleColor: COLORS.dpo,
+      seriesNames: ["DPO"],
+    });
+    series.push({
+      name: "DPO",
+      type: "line",
+      xAxisIndex: gridIndex,
+      yAxisIndex: gridIndex,
+      data: indicators.dpo,
+      symbol: "none",
+      lineStyle: { color: COLORS.dpo, width: 1.5 },
+      markLine: createMarkLine([0]),
+    });
+  }
+
+  // Hurst Exponent
+  if (enabledIndicators.includes("hurst") && indicators.hurst) {
+    const gridIndex = createSubchart(ctx, {
+      title: "Hurst Exponent",
+      titleColor: COLORS.hurst,
+      seriesNames: ["Hurst"],
+      yAxisMin: 0,
+      yAxisMax: 1,
+    });
+    series.push({
+      name: "Hurst",
+      type: "line",
+      xAxisIndex: gridIndex,
+      yAxisIndex: gridIndex,
+      data: indicators.hurst,
+      symbol: "none",
+      lineStyle: { color: COLORS.hurst, width: 1.5 },
+      markLine: createMarkLine([0.5]),
+    });
+  }
+
   return series;
 }

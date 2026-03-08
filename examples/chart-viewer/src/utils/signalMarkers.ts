@@ -27,3 +27,5 @@ export {
   createVolumeBreakoutMarkers,
   createVolumeMaCrossMarkers,
 } from "./markers/volumeMarkers";
+
+export { createPatternMarkPoints, createPatternMarkLines } from "./markers/patternMarkers";

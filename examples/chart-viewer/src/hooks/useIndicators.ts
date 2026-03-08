@@ -4,19 +4,26 @@
 
 import { useMemo } from "react";
 import type {
+  AroonValue,
   DmiValue,
   MacdValue,
   NormalizedCandle,
   StochRsiValue,
   StochasticsValue,
+  TrixValue,
+  VortexValue,
 } from "trendcraft";
 import {
+  adl,
+  aroon,
   atr,
   calculateScoreSeries,
   cci,
   cmf,
   dmi,
+  dpo,
   getPreset,
+  hurst,
   macd,
   mfi,
   obv,
@@ -25,10 +32,12 @@ import {
   rsi,
   stochRsi,
   stochastics,
+  trix,
   volatilityRegime,
   volumeAnomaly,
   volumeProfileSeries,
   volumeTrend,
+  vortex,
   williamsR,
 } from "trendcraft";
 import type { ScoreResult } from "trendcraft";
@@ -248,6 +257,22 @@ export interface IndicatorData {
   roofingFilter?: (number | null)[];
   // Scoring
   scoring?: ScoreResult[];
+  // TRIX
+  trixLine?: (number | null)[];
+  trixSignal?: (number | null)[];
+  // Aroon
+  aroonUp?: (number | null)[];
+  aroonDown?: (number | null)[];
+  aroonOscillator?: (number | null)[];
+  // DPO
+  dpo?: (number | null)[];
+  // Hurst
+  hurst?: (number | null)[];
+  // Vortex
+  vortexPlus?: (number | null)[];
+  vortexMinus?: (number | null)[];
+  // ADL
+  adl?: number[];
 }
 
 /**
@@ -444,6 +469,52 @@ export function useIndicators(
         1.0, // BPS threshold: 1% (lower because BPS changes can be smaller)
         55, // 55 days cooldown (quarterly ~63 trading days)
       );
+    }
+
+    // TRIX
+    if (enabledIndicators.includes("trix")) {
+      const trixSeries = trix(candles, {
+        period: p.trixPeriod,
+        signalPeriod: p.trixSignalPeriod,
+      });
+      data.trixLine = trixSeries.map((s) => (s.value as TrixValue)?.trix ?? null);
+      data.trixSignal = trixSeries.map((s) => (s.value as TrixValue)?.signal ?? null);
+    }
+
+    // Aroon
+    if (enabledIndicators.includes("aroon")) {
+      const aroonSeries = aroon(candles, { period: p.aroonPeriod });
+      data.aroonUp = aroonSeries.map((s) => (s.value as AroonValue)?.up ?? null);
+      data.aroonDown = aroonSeries.map((s) => (s.value as AroonValue)?.down ?? null);
+      data.aroonOscillator = aroonSeries.map((s) => (s.value as AroonValue)?.oscillator ?? null);
+    }
+
+    // DPO
+    if (enabledIndicators.includes("dpo")) {
+      const dpoSeries = dpo(candles, { period: p.dpoPeriod });
+      data.dpo = dpoSeries.map((s) => s.value);
+    }
+
+    // Hurst Exponent
+    if (enabledIndicators.includes("hurst")) {
+      const hurstSeries = hurst(candles, {
+        minWindow: p.hurstMinWindow,
+        maxWindow: p.hurstMaxWindow,
+      });
+      data.hurst = hurstSeries.map((s) => s.value);
+    }
+
+    // Vortex
+    if (enabledIndicators.includes("vortex")) {
+      const vortexSeries = vortex(candles, { period: p.vortexPeriod });
+      data.vortexPlus = vortexSeries.map((s) => (s.value as VortexValue)?.viPlus ?? null);
+      data.vortexMinus = vortexSeries.map((s) => (s.value as VortexValue)?.viMinus ?? null);
+    }
+
+    // ADL
+    if (enabledIndicators.includes("adl")) {
+      const adlSeries = adl(candles);
+      data.adl = adlSeries.map((s) => s.value);
     }
 
     // Roofing Filter

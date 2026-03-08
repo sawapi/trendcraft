@@ -15,6 +15,7 @@ import type {
   DonchianValue,
   FibonacciExtensionValue,
   FibonacciRetracementValue,
+  FractalValue,
   FvgValue,
   HeikinAshiValue,
   HighestLowestValue,
@@ -28,6 +29,7 @@ import type {
   SupertrendValue,
   SwingPointValue,
   VwapValue,
+  ZigzagValue,
 } from "trendcraft";
 import {
   andrewsPitchfork,
@@ -44,9 +46,11 @@ import {
   fairValueGap,
   fibonacciExtension,
   fibonacciRetracement,
+  fractals,
   heikinAshi,
   highestLowest,
   ichimoku,
+  kama,
   keltnerChannel,
   liquiditySweep,
   orderBlock,
@@ -56,9 +60,11 @@ import {
   superSmoother,
   supertrend,
   swingPoints,
+  t3,
   vwap,
   vwma,
   wma,
+  zigzag,
 } from "trendcraft";
 import { useChartStore } from "../store/chartStore";
 import type { OverlayType } from "../types";
@@ -117,6 +123,14 @@ export interface OverlayData {
   heikinAshi?: HeikinAshiValue[];
   // Candlestick Patterns
   candlestickPatterns?: CandlestickPatternValue[];
+  // KAMA
+  kama?: (number | null)[];
+  // T3
+  t3?: (number | null)[];
+  // Fractals
+  fractals?: FractalValue[];
+  // Zigzag
+  zigzag?: ZigzagValue[];
 }
 
 /**
@@ -378,6 +392,34 @@ export function useOverlays(
     if (enabledOverlays.includes("candlestickPatterns")) {
       const series = candlestickPatterns(candles);
       data.candlestickPatterns = series.map((s) => s.value);
+    }
+
+    // KAMA
+    if (enabledOverlays.includes("kama")) {
+      const series = kama(candles, {
+        period: p.kamaPeriod,
+        fastPeriod: p.kamaFastPeriod,
+        slowPeriod: p.kamaSlowPeriod,
+      });
+      data.kama = series.map((s) => s.value);
+    }
+
+    // T3
+    if (enabledOverlays.includes("t3")) {
+      const series = t3(candles, { period: p.t3Period, vFactor: p.t3VFactor });
+      data.t3 = series.map((s) => s.value);
+    }
+
+    // Fractals
+    if (enabledOverlays.includes("fractals")) {
+      const series = fractals(candles, { period: p.fractalsPeriod });
+      data.fractals = series.map((s) => s.value);
+    }
+
+    // Zigzag
+    if (enabledOverlays.includes("zigzag")) {
+      const series = zigzag(candles, { deviation: p.zigzagDeviation });
+      data.zigzag = series.map((s) => s.value);
     }
 
     // ATR Stops

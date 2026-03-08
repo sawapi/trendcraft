@@ -13,7 +13,8 @@ export type SignalType =
   | "divergence"
   | "bbSqueeze"
   | "volumeBreakout"
-  | "volumeMaCross";
+  | "volumeMaCross"
+  | "chartPatterns";
 
 /**
  * Subchart indicator types
@@ -40,7 +41,13 @@ export type SubChartType =
   | "roe"
   | "volatilityRegime"
   | "scoring"
-  | "roofingFilter";
+  | "roofingFilter"
+  | "trix"
+  | "aroon"
+  | "dpo"
+  | "hurst"
+  | "vortex"
+  | "adl";
 
 /**
  * Scoring preset type
@@ -96,7 +103,11 @@ export type OverlayType =
   | "vwma20"
   | "superSmoother"
   | "heikinAshi"
-  | "candlestickPatterns";
+  | "candlestickPatterns"
+  | "kama"
+  | "t3"
+  | "fractals"
+  | "zigzag";
 
 /**
  * Subchart configuration

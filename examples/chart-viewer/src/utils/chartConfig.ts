@@ -21,6 +21,8 @@ import { buildOverlaySeries } from "./overlaySeriesBuilder";
 import {
   createCrossMarkPoints,
   createDivergenceMarkers,
+  createPatternMarkLines,
+  createPatternMarkPoints,
   createPerfectOrderMarkPoints,
   createRangeBoundAreas,
   createSqueezeMarkers,
@@ -158,6 +160,12 @@ export function buildChartOption(
     if (enabledSignals.includes("volumeMaCross") && signals.volumeMaCross) {
       const vmcMarkers = createVolumeMaCrossMarkers(signals.volumeMaCross, candles, dates);
       signalMarkPoints.push(...vmcMarkers);
+    }
+    if (enabledSignals.includes("chartPatterns") && signals.chartPatterns) {
+      const patternPoints = createPatternMarkPoints(signals.chartPatterns, candles, dates);
+      signalMarkPoints.push(...patternPoints);
+      const patternLines = createPatternMarkLines(signals.chartPatterns, candles, dates);
+      signalMarkLines.push(...patternLines);
     }
   }
 

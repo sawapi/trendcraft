@@ -127,6 +127,34 @@ export interface IndicatorParams {
   volumeMaCrossLongPeriod: number;
   // Scoring
   scoringPreset: ScoringPreset;
+  // KAMA
+  kamaPeriod: number;
+  kamaFastPeriod: number;
+  kamaSlowPeriod: number;
+  // T3
+  t3Period: number;
+  t3VFactor: number;
+  // Fractals
+  fractalsPeriod: number;
+  // Zigzag
+  zigzagDeviation: number;
+  // Chart Patterns
+  chartPatternSwingLookback: number;
+  chartPatternTolerance: number;
+  chartPatternMinDistance: number;
+  chartPatternMaxDistance: number;
+  // TRIX
+  trixPeriod: number;
+  trixSignalPeriod: number;
+  // Aroon
+  aroonPeriod: number;
+  // DPO
+  dpoPeriod: number;
+  // Hurst
+  hurstMinWindow: number;
+  hurstMaxWindow: number;
+  // Vortex
+  vortexPeriod: number;
 }
 
 /**
@@ -256,6 +284,34 @@ export const DEFAULT_INDICATOR_PARAMS: IndicatorParams = {
   volumeMaCrossLongPeriod: 20,
   // Scoring
   scoringPreset: "balanced",
+  // Chart Patterns
+  chartPatternSwingLookback: 10,
+  chartPatternTolerance: 0.03,
+  chartPatternMinDistance: 10,
+  chartPatternMaxDistance: 100,
+  // KAMA
+  kamaPeriod: 10,
+  kamaFastPeriod: 2,
+  kamaSlowPeriod: 30,
+  // T3
+  t3Period: 5,
+  t3VFactor: 0.7,
+  // Fractals
+  fractalsPeriod: 2,
+  // Zigzag
+  zigzagDeviation: 5,
+  // TRIX
+  trixPeriod: 15,
+  trixSignalPeriod: 9,
+  // Aroon
+  aroonPeriod: 25,
+  // DPO
+  dpoPeriod: 20,
+  // Hurst
+  hurstMinWindow: 20,
+  hurstMaxWindow: 100,
+  // Vortex
+  vortexPeriod: 14,
 };
 
 /**
@@ -443,4 +499,35 @@ export const INDICATOR_PARAM_CONFIGS: Record<string, ParamConfig[]> = {
     { key: "volumeMaCrossShortPeriod", label: "Short Period", min: 2, max: 20, step: 1 },
     { key: "volumeMaCrossLongPeriod", label: "Long Period", min: 10, max: 50, step: 1 },
   ],
+  // New overlays
+  kama: [
+    { key: "kamaPeriod", label: "Period", min: 2, max: 100, step: 1 },
+    { key: "kamaFastPeriod", label: "Fast Period", min: 2, max: 10, step: 1 },
+    { key: "kamaSlowPeriod", label: "Slow Period", min: 10, max: 50, step: 1 },
+  ],
+  t3: [
+    { key: "t3Period", label: "Period", min: 2, max: 100, step: 1 },
+    { key: "t3VFactor", label: "V-Factor", min: 0.1, max: 1.0, step: 0.1 },
+  ],
+  fractals: [{ key: "fractalsPeriod", label: "Period", min: 1, max: 10, step: 1 }],
+  zigzag: [{ key: "zigzagDeviation", label: "Deviation %", min: 1, max: 20, step: 0.5 }],
+  // Chart Patterns
+  chartPatterns: [
+    { key: "chartPatternSwingLookback", label: "Swing Lookback", min: 2, max: 20, step: 1 },
+    { key: "chartPatternTolerance", label: "Tolerance", min: 0.01, max: 0.1, step: 0.01 },
+    { key: "chartPatternMinDistance", label: "Min Distance", min: 5, max: 30, step: 1 },
+    { key: "chartPatternMaxDistance", label: "Max Distance", min: 20, max: 100, step: 5 },
+  ],
+  // New subcharts
+  trix: [
+    { key: "trixPeriod", label: "Period", min: 2, max: 50, step: 1 },
+    { key: "trixSignalPeriod", label: "Signal", min: 2, max: 20, step: 1 },
+  ],
+  aroon: [{ key: "aroonPeriod", label: "Period", min: 2, max: 50, step: 1 }],
+  dpo: [{ key: "dpoPeriod", label: "Period", min: 2, max: 100, step: 1 }],
+  hurst: [
+    { key: "hurstMinWindow", label: "Min Window", min: 10, max: 50, step: 5 },
+    { key: "hurstMaxWindow", label: "Max Window", min: 50, max: 200, step: 10 },
+  ],
+  vortex: [{ key: "vortexPeriod", label: "Period", min: 2, max: 50, step: 1 }],
 };

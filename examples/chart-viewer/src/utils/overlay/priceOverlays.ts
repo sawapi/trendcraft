@@ -247,6 +247,66 @@ export function buildPriceOverlaySeries(
     }
   }
 
+  // Fractals
+  if (enabledOverlays.includes("fractals") && overlays.fractals) {
+    const upData = overlays.fractals.map((v, i) => (v.upFractal ? candles[i].high : null));
+    series.push({
+      name: "Fractal Up",
+      type: "scatter",
+      data: upData,
+      symbol: "triangle",
+      symbolSize: 8,
+      symbolRotate: 180,
+      symbolOffset: [0, -6],
+      itemStyle: { color: COLORS.fractalUp },
+    });
+
+    const downData = overlays.fractals.map((v, i) => (v.downFractal ? candles[i].low : null));
+    series.push({
+      name: "Fractal Down",
+      type: "scatter",
+      data: downData,
+      symbol: "triangle",
+      symbolSize: 8,
+      symbolOffset: [0, 6],
+      itemStyle: { color: COLORS.fractalDown },
+    });
+  }
+
+  // Zigzag
+  if (enabledOverlays.includes("zigzag") && overlays.zigzag) {
+    // Build connected line segments between zigzag points
+    const zigzagLineData: (number | null)[] = new Array(overlays.zigzag.length).fill(null);
+    const pivotIndices: number[] = [];
+    overlays.zigzag.forEach((v, i) => {
+      if (v.point !== null && v.price !== null) {
+        pivotIndices.push(i);
+        zigzagLineData[i] = v.price;
+      }
+    });
+
+    // Interpolate between pivot points for continuous line
+    for (let k = 0; k < pivotIndices.length - 1; k++) {
+      const startIdx = pivotIndices[k];
+      const endIdx = pivotIndices[k + 1];
+      const startPrice = zigzagLineData[startIdx] as number;
+      const endPrice = zigzagLineData[endIdx] as number;
+      for (let j = startIdx + 1; j < endIdx; j++) {
+        const ratio = (j - startIdx) / (endIdx - startIdx);
+        zigzagLineData[j] = startPrice + (endPrice - startPrice) * ratio;
+      }
+    }
+
+    series.push({
+      name: "Zigzag",
+      type: "line",
+      data: zigzagLineData,
+      symbol: "none",
+      lineStyle: { color: COLORS.zigzag, width: 2 },
+      connectNulls: false,
+    });
+  }
+
   // Andrew's Pitchfork (clipped to prevent extreme extrapolation)
   if (enabledOverlays.includes("andrewsPitchfork") && overlays.andrewsPitchfork) {
     series.push({

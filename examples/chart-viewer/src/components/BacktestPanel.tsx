@@ -4,10 +4,13 @@
 
 import type { EChartsOption } from "echarts";
 import ReactECharts from "echarts-for-react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { ENTRY_CONDITIONS, EXIT_CONDITIONS, useBacktest } from "../hooks/useBacktest";
 import { useChartStore } from "../store/chartStore";
 import { buildEquityCurve } from "../utils/backtestMarkers";
+import { TradeAnalysisPanel } from "./backtest/TradeAnalysisPanel";
+
+type BacktestTab = "summary" | "analysis";
 
 /**
  * Format date for display
@@ -34,18 +37,22 @@ function formatLargeNumber(value: number): string {
 }
 
 export function BacktestPanel() {
+  const [activeTab, setActiveTab] = useState<BacktestTab>("summary");
   const currentCandles = useChartStore((state) => state.currentCandles);
   const backtestConfig = useChartStore((state) => state.backtestConfig);
   const backtestResult = useChartStore((state) => state.backtestResult);
+  const tradeAnalysis = useChartStore((state) => state.tradeAnalysis);
   const isBacktestRunning = useChartStore((state) => state.isBacktestRunning);
   const setBacktestConfig = useChartStore((state) => state.setBacktestConfig);
   const setBacktestResult = useChartStore((state) => state.setBacktestResult);
+  const setTradeAnalysis = useChartStore((state) => state.setTradeAnalysis);
   const setIsBacktestRunning = useChartStore((state) => state.setIsBacktestRunning);
 
   const { run, clear } = useBacktest(
     currentCandles,
     backtestConfig,
     setBacktestResult,
+    setTradeAnalysis,
     setIsBacktestRunning,
   );
 
@@ -281,79 +288,105 @@ export function BacktestPanel() {
       {/* Results */}
       {backtestResult && (
         <>
-          <div className="backtest-results">
-            <div className="result-grid">
-              <div className="result-item">
-                <span className="result-label">Return</span>
-                <span
-                  className={`result-value ${backtestResult.totalReturnPercent >= 0 ? "positive" : "negative"}`}
-                >
-                  {backtestResult.totalReturnPercent >= 0 ? "+" : ""}
-                  {backtestResult.totalReturnPercent.toFixed(1)}%
-                </span>
-              </div>
-              <div className="result-item">
-                <span className="result-label">Win Rate</span>
-                <span className="result-value">{backtestResult.winRate.toFixed(0)}%</span>
-              </div>
-              <div className="result-item">
-                <span className="result-label">Trades</span>
-                <span className="result-value">{backtestResult.tradeCount}</span>
-              </div>
-              <div className="result-item">
-                <span className="result-label">Max DD</span>
-                <span className="result-value negative">
-                  -{backtestResult.maxDrawdown.toFixed(1)}%
-                </span>
-              </div>
-              <div className="result-item">
-                <span className="result-label">Sharpe</span>
-                <span className="result-value">{backtestResult.sharpeRatio.toFixed(2)}</span>
-              </div>
-              <div className="result-item">
-                <span className="result-label">PF</span>
-                <span className="result-value">{backtestResult.profitFactor.toFixed(2)}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Equity Chart */}
-          {equityChartOption && (
-            <div className="equity-chart-container">
-              <ReactECharts
-                option={equityChartOption}
-                style={{ height: "100px", width: "100%" }}
-                notMerge={true}
-                lazyUpdate={true}
-              />
+          {/* Tab switcher */}
+          {tradeAnalysis && (
+            <div className="backtest-tabs">
+              <button
+                type="button"
+                className={`backtest-tab ${activeTab === "summary" ? "active" : ""}`}
+                onClick={() => setActiveTab("summary")}
+              >
+                Summary
+              </button>
+              <button
+                type="button"
+                className={`backtest-tab ${activeTab === "analysis" ? "active" : ""}`}
+                onClick={() => setActiveTab("analysis")}
+              >
+                Analysis
+              </button>
             </div>
           )}
 
-          {/* Trades Table */}
-          {backtestResult.trades.length > 0 && (
-            <div className="trades-table">
-              <div className="trades-header">Trades ({backtestResult.trades.length})</div>
-              <div className="trades-list">
-                {[...backtestResult.trades]
-                  .sort((a, b) => b.exitTime - a.exitTime)
-                  .slice(0, 20)
-                  .map((trade, idx) => {
-                    const isWin = trade.return > 0;
-                    return (
-                      <div key={idx} className={`trade-row ${isWin ? "win" : "loss"}`}>
-                        <span className="trade-period">
-                          {formatDate(trade.entryTime)} → {formatDate(trade.exitTime)}
-                        </span>
-                        <span className="trade-days">{trade.holdingDays}d</span>
-                        <span className="trade-return">
-                          {isWin ? "+" : ""}
-                          {trade.returnPercent.toFixed(1)}%{trade.isPartial ? " (P)" : ""}
-                        </span>
-                      </div>
-                    );
-                  })}
+          {activeTab === "analysis" && tradeAnalysis ? (
+            <TradeAnalysisPanel analysis={tradeAnalysis} trades={backtestResult.trades} />
+          ) : (
+            <>
+              <div className="backtest-results">
+                <div className="result-grid">
+                  <div className="result-item">
+                    <span className="result-label">Return</span>
+                    <span
+                      className={`result-value ${backtestResult.totalReturnPercent >= 0 ? "positive" : "negative"}`}
+                    >
+                      {backtestResult.totalReturnPercent >= 0 ? "+" : ""}
+                      {backtestResult.totalReturnPercent.toFixed(1)}%
+                    </span>
+                  </div>
+                  <div className="result-item">
+                    <span className="result-label">Win Rate</span>
+                    <span className="result-value">{backtestResult.winRate.toFixed(0)}%</span>
+                  </div>
+                  <div className="result-item">
+                    <span className="result-label">Trades</span>
+                    <span className="result-value">{backtestResult.tradeCount}</span>
+                  </div>
+                  <div className="result-item">
+                    <span className="result-label">Max DD</span>
+                    <span className="result-value negative">
+                      -{backtestResult.maxDrawdown.toFixed(1)}%
+                    </span>
+                  </div>
+                  <div className="result-item">
+                    <span className="result-label">Sharpe</span>
+                    <span className="result-value">{backtestResult.sharpeRatio.toFixed(2)}</span>
+                  </div>
+                  <div className="result-item">
+                    <span className="result-label">PF</span>
+                    <span className="result-value">{backtestResult.profitFactor.toFixed(2)}</span>
+                  </div>
+                </div>
               </div>
-            </div>
+
+              {/* Equity Chart */}
+              {equityChartOption && (
+                <div className="equity-chart-container">
+                  <ReactECharts
+                    option={equityChartOption}
+                    style={{ height: "100px", width: "100%" }}
+                    notMerge={true}
+                    lazyUpdate={true}
+                  />
+                </div>
+              )}
+
+              {/* Trades Table */}
+              {backtestResult.trades.length > 0 && (
+                <div className="trades-table">
+                  <div className="trades-header">Trades ({backtestResult.trades.length})</div>
+                  <div className="trades-list">
+                    {[...backtestResult.trades]
+                      .sort((a, b) => b.exitTime - a.exitTime)
+                      .slice(0, 20)
+                      .map((trade, idx) => {
+                        const isWin = trade.return > 0;
+                        return (
+                          <div key={idx} className={`trade-row ${isWin ? "win" : "loss"}`}>
+                            <span className="trade-period">
+                              {formatDate(trade.entryTime)} → {formatDate(trade.exitTime)}
+                            </span>
+                            <span className="trade-days">{trade.holdingDays}d</span>
+                            <span className="trade-return">
+                              {isWin ? "+" : ""}
+                              {trade.returnPercent.toFixed(1)}%{trade.isPartial ? " (P)" : ""}
+                            </span>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </>
       )}

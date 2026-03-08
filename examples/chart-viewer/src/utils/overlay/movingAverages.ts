@@ -78,6 +78,28 @@ export function buildMovingAverageSeries(
     });
   }
 
+  // KAMA
+  if (enabledOverlays.includes("kama") && overlays.kama) {
+    series.push({
+      name: "KAMA",
+      type: "line",
+      data: overlays.kama,
+      symbol: "none",
+      lineStyle: { color: COLORS.kama, width: 1.5, type: "dashed" },
+    });
+  }
+
+  // T3
+  if (enabledOverlays.includes("t3") && overlays.t3) {
+    series.push({
+      name: "T3",
+      type: "line",
+      data: overlays.t3,
+      symbol: "none",
+      lineStyle: { color: COLORS.t3, width: 1.5 },
+    });
+  }
+
   // VWMA 20
   if (enabledOverlays.includes("vwma20") && overlays.vwma20) {
     series.push({

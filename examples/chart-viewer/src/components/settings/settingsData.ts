@@ -41,6 +41,8 @@ export const OVERLAY_GROUPS: { group: string; options: { key: OverlayType; label
       { key: "ema26", label: "EMA 26" },
       { key: "wma20", label: "WMA 20" },
       { key: "vwma20", label: "VWMA 20" },
+      { key: "kama", label: "KAMA" },
+      { key: "t3", label: "T3" },
     ],
   },
   {
@@ -88,7 +90,11 @@ export const OVERLAY_GROUPS: { group: string; options: { key: OverlayType; label
   },
   {
     group: "Patterns",
-    options: [{ key: "candlestickPatterns", label: "Candlestick Patterns" }],
+    options: [
+      { key: "candlestickPatterns", label: "Candlestick Patterns" },
+      { key: "fractals", label: "Fractals" },
+      { key: "zigzag", label: "Zigzag" },
+    ],
   },
   {
     group: "Smart Money (SMC)",
@@ -117,6 +123,11 @@ export const SIGNAL_OPTIONS: { key: SignalType; label: string; description: stri
   },
   { key: "volumeBreakout", label: "Volume Breakout", description: "Volume breaks N-period high" },
   { key: "volumeMaCross", label: "Volume MA Cross", description: "Short/Long volume MA cross" },
+  {
+    key: "chartPatterns",
+    label: "Chart Patterns",
+    description: "Double Top/Bottom, H&S, Cup & Handle",
+  },
 ];
 
 /**
@@ -134,12 +145,17 @@ export const SUBCHART_GROUPS: { group: string; options: { key: SubChartType; lab
         { key: "cci", label: "CCI" },
         { key: "williams", label: "Williams %R" },
         { key: "roc", label: "ROC" },
+        { key: "trix", label: "TRIX" },
+        { key: "aroon", label: "Aroon" },
+        { key: "dpo", label: "DPO" },
+        { key: "hurst", label: "Hurst Exponent" },
       ],
     },
     {
       group: "Trend",
       options: [
         { key: "dmi", label: "DMI/ADX" },
+        { key: "vortex", label: "Vortex" },
         { key: "rangebound", label: "Range-Bound" },
       ],
     },
@@ -163,6 +179,7 @@ export const SUBCHART_GROUPS: { group: string; options: { key: SubChartType; lab
         { key: "volumeAnomaly", label: "Volume Anomaly" },
         { key: "volumeProfile", label: "Volume Profile" },
         { key: "volumeTrend", label: "Volume Trend" },
+        { key: "adl", label: "ADL" },
       ],
     },
     {

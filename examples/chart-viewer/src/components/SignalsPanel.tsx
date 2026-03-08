@@ -66,6 +66,11 @@ export function SignalsPanel() {
       {enabledSignals.includes("bbSqueeze") && signals.bbSqueeze && (
         <SqueezeEvents data={signals.bbSqueeze} startDate={startDate} endDate={endDate} />
       )}
+
+      {/* Chart Pattern Events */}
+      {enabledSignals.includes("chartPatterns") && signals.chartPatterns && (
+        <ChartPatternEvents data={signals.chartPatterns} startDate={startDate} endDate={endDate} />
+      )}
     </div>
   );
 }
@@ -480,6 +485,77 @@ function SqueezeEvents({ data, startDate, endDate }: SqueezeEventsProps) {
           return (
             <span key={i} className="squeeze-event" title={tooltip}>
               ■ SQ [{percentileStr}%] {formatDate(s.time)}
+            </span>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// Chart Pattern Events
+// ============================================================================
+
+import type { PatternSignal } from "trendcraft";
+
+const PATTERN_DISPLAY_NAMES: Record<string, string> = {
+  double_top: "Double Top",
+  double_bottom: "Double Bottom",
+  head_shoulders: "H&S",
+  inverse_head_shoulders: "Inv H&S",
+  cup_handle: "Cup & Handle",
+};
+
+interface ChartPatternEventsProps {
+  data: PatternSignal[];
+  startDate: number;
+  endDate: number;
+}
+
+function ChartPatternEvents({ data, startDate, endDate }: ChartPatternEventsProps) {
+  const visibleSignals = data
+    .filter((s) => s.time >= startDate && s.time <= endDate)
+    .sort((a, b) => b.time - a.time)
+    .slice(0, 30);
+
+  if (visibleSignals.length === 0) {
+    return (
+      <div className="events-section">
+        <div className="events-header">Chart Patterns</div>
+        <div className="events-empty">No patterns in visible range</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="events-section">
+      <div className="events-header">Chart Patterns</div>
+      <div className="events-list">
+        {visibleSignals.map((s, i) => {
+          const name = PATTERN_DISPLAY_NAMES[s.type] ?? s.type;
+          const confStr = Math.round(s.confidence);
+          const isBullish =
+            s.type === "double_bottom" ||
+            s.type === "inverse_head_shoulders" ||
+            s.type === "cup_handle";
+          const icon = isBullish ? "▲" : "▼";
+          const confirmedTag = s.confirmed ? " [Confirmed]" : "";
+          const targetStr =
+            s.pattern.target !== undefined ? ` T:${s.pattern.target.toFixed(0)}` : "";
+          const className = `pattern-event ${isBullish ? "bullish" : "bearish"}${s.confirmed ? " confirmed" : ""}`;
+          const tooltip = [
+            `${name}${confirmedTag}`,
+            `Confidence: ${confStr}%`,
+            s.pattern.target !== undefined ? `Target: ${s.pattern.target.toFixed(1)}` : null,
+            s.pattern.stopLoss !== undefined ? `Stop: ${s.pattern.stopLoss.toFixed(1)}` : null,
+          ]
+            .filter(Boolean)
+            .join(", ");
+
+          return (
+            <span key={i} className={className} title={tooltip}>
+              {icon} {name} [{confStr}%]{targetStr} {formatDate(s.time)}
             </span>
           );
         })}

@@ -3,7 +3,13 @@
  */
 
 import { useCallback, useMemo } from "react";
-import type { BacktestOptions, BacktestResult, Condition, NormalizedCandle } from "trendcraft";
+import type {
+  BacktestOptions,
+  BacktestResult,
+  Condition,
+  NormalizedCandle,
+  TradeAnalysis,
+} from "trendcraft";
 import * as TC from "trendcraft";
 import type { BacktestConfig } from "../types";
 
@@ -141,12 +147,20 @@ export const EXIT_CONDITIONS: Record<string, { label: string; factory: () => Con
 };
 
 /**
+ * Backtest execution result including trade analysis
+ */
+export type BacktestExecutionResult = {
+  result: BacktestResult;
+  tradeAnalysis: TradeAnalysis;
+};
+
+/**
  * Run backtest with given configuration
  */
 export function executeBacktest(
   candles: NormalizedCandle[],
   config: BacktestConfig,
-): BacktestResult | null {
+): BacktestExecutionResult | null {
   if (candles.length < 50) {
     console.warn("Not enough data for backtest (minimum 50 candles required)");
     return null;
@@ -207,7 +221,10 @@ export function executeBacktest(
       .exit(exitCondition)
       .backtest(options);
 
-    return result;
+    // Compute trade analysis
+    const tradeAnalysis = TC.analyzeAllTrades(result.trades);
+
+    return { result, tradeAnalysis };
   } catch (error) {
     console.error("Backtest error:", error);
     return null;
@@ -221,21 +238,29 @@ export function useBacktest(
   candles: NormalizedCandle[],
   config: BacktestConfig,
   setResult: (result: BacktestResult | null) => void,
+  setTradeAnalysis: (analysis: TradeAnalysis | null) => void,
   setRunning: (running: boolean) => void,
 ) {
   const run = useCallback(() => {
     setRunning(true);
     try {
-      const result = executeBacktest(candles, config);
-      setResult(result);
+      const execResult = executeBacktest(candles, config);
+      if (execResult) {
+        setResult(execResult.result);
+        setTradeAnalysis(execResult.tradeAnalysis);
+      } else {
+        setResult(null);
+        setTradeAnalysis(null);
+      }
     } finally {
       setRunning(false);
     }
-  }, [candles, config, setResult, setRunning]);
+  }, [candles, config, setResult, setTradeAnalysis, setRunning]);
 
   const clear = useCallback(() => {
     setResult(null);
-  }, [setResult]);
+    setTradeAnalysis(null);
+  }, [setResult, setTradeAnalysis]);
 
   // Memoized condition lists
   const entryOptions = useMemo(() => {

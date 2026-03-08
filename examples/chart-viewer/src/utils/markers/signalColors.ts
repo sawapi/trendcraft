@@ -42,4 +42,7 @@ export const SIGNAL_COLORS = {
   // Volume
   volumeBreakout: "#00bcd4", // Cyan
   volumeMaCross: "#9c27b0", // Purple
+  // Chart Patterns
+  patternBullish: "#4caf50", // Green
+  patternBearish: "#f44336", // Red
 };

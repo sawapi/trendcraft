@@ -1,14 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createChartApi, registerChartRef } from "../api";
+import { useDataQuality } from "../hooks/useDataQuality";
 import { usePostMessageLoader } from "../hooks/usePostMessageLoader";
 import { useChartStore } from "../store/chartStore";
 import { BacktestPanel } from "./BacktestPanel";
+import { DataQualityPanel } from "./DataQualityPanel";
 import { FileDropZone } from "./FileDropZone";
 import { IndicatorSettingsDialog } from "./IndicatorSettingsDialog";
 import { MainChart, type MainChartHandle } from "./MainChart";
 import { PeriodSelector } from "./PeriodSelector";
+import { PositionSizingPanel } from "./PositionSizingPanel";
 import { SignalsPanel } from "./SignalsPanel";
 import { TimeframeSelector } from "./TimeframeSelector";
+import { OptimizationPanel } from "./optimization/OptimizationPanel";
 
 /**
  * Format a timestamp as YYYY/MM/DD
@@ -86,6 +90,9 @@ export default function App() {
   const zoomRange = useChartStore((state) => state.zoomRange);
 
   const hasData = rawCandles.length > 0;
+
+  // Data quality validation
+  const validationResult = useDataQuality(currentCandles);
 
   // Calculate visible date range from zoom range
   const getVisibleDateRange = useCallback(() => {
@@ -221,6 +228,10 @@ export default function App() {
 
       <IndicatorSettingsDialog isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
 
+      {hasData && validationResult && validationResult.totalFindings > 0 && (
+        <DataQualityPanel result={validationResult} />
+      )}
+
       <main className="app-main">
         {!hasData ? (
           <FileDropZone />
@@ -266,6 +277,8 @@ export default function App() {
               )}
               <SignalsPanel />
               <BacktestPanel />
+              <OptimizationPanel />
+              <PositionSizingPanel />
             </div>
 
             {/* Mobile open button */}

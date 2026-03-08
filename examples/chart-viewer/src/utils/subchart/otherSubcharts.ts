@@ -10,6 +10,7 @@ import {
   type SubchartContext,
   createMarkLine,
   createSubchart,
+  formatLargeNumber,
 } from "../chartColors";
 
 /**
@@ -280,6 +281,73 @@ export function buildOtherSubcharts(
         lineStyle: { color: COLORS.roe, width: 1, type: "dashed", opacity: 0.5 },
       });
     }
+  }
+
+  // Vortex
+  if (enabledIndicators.includes("vortex") && indicators.vortexPlus && indicators.vortexMinus) {
+    const gridIndex = createSubchart(ctx, {
+      title: `Vortex (${indicatorParams?.vortexPeriod ?? 14})`,
+      titleColor: COLORS.vortexPlus,
+      seriesNames: ["VI+", "VI-"],
+    });
+    series.push({
+      name: "VI+",
+      type: "line",
+      xAxisIndex: gridIndex,
+      yAxisIndex: gridIndex,
+      data: indicators.vortexPlus,
+      symbol: "none",
+      lineStyle: { color: COLORS.vortexPlus, width: 1.5 },
+    });
+    series.push({
+      name: "VI-",
+      type: "line",
+      xAxisIndex: gridIndex,
+      yAxisIndex: gridIndex,
+      data: indicators.vortexMinus,
+      symbol: "none",
+      lineStyle: { color: COLORS.vortexMinus, width: 1.5 },
+    });
+    series.push({
+      name: "Vortex Markers",
+      type: "line",
+      xAxisIndex: gridIndex,
+      yAxisIndex: gridIndex,
+      data: [],
+      markLine: createMarkLine([1.0]),
+    });
+  }
+
+  // ADL
+  if (enabledIndicators.includes("adl") && indicators.adl) {
+    const gridIndex = createSubchart(ctx, {
+      title: "ADL",
+      titleColor: COLORS.adl,
+      seriesNames: ["ADL"],
+      yAxisLabelFormatter: formatLargeNumber,
+    });
+    series.push({
+      name: "ADL",
+      type: "line",
+      xAxisIndex: gridIndex,
+      yAxisIndex: gridIndex,
+      data: indicators.adl,
+      symbol: "none",
+      lineStyle: { color: COLORS.adl, width: 1.5 },
+      areaStyle: {
+        color: {
+          type: "linear",
+          x: 0,
+          y: 0,
+          x2: 0,
+          y2: 1,
+          colorStops: [
+            { offset: 0, color: "rgba(92, 107, 192, 0.3)" },
+            { offset: 1, color: "rgba(92, 107, 192, 0.05)" },
+          ],
+        },
+      },
+    });
   }
 
   // Scoring

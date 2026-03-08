@@ -147,6 +147,30 @@ export const COLORS = {
   // Candlestick Patterns
   candlePatternBull: "#00e676",
   candlePatternBear: "#ff1744",
+  // KAMA / T3
+  kama: "#ff6f00",
+  t3: "#ab47bc",
+  // Fractals
+  fractalUp: "#ef5350",
+  fractalDown: "#26a69a",
+  // Zigzag
+  zigzag: "#ffab40",
+  // TRIX
+  trixLine: "#26c6da",
+  trixSignal: "#f44336",
+  // Aroon
+  aroonUp: "#4caf50",
+  aroonDown: "#f44336",
+  aroonOscillator: "#ff9800",
+  // DPO
+  dpo: "#7e57c2",
+  // Hurst
+  hurst: "#00897b",
+  // Vortex
+  vortexPlus: "#4caf50",
+  vortexMinus: "#f44336",
+  // ADL
+  adl: "#5c6bc0",
 };
 
 /**
