@@ -882,6 +882,8 @@ export type { BacktestScore, ScoreBreakdownEntry, ScoreWeights, ScoreOptions } f
 
 // Strategy Definition
 export * as strategy from "./strategy";
+export type { StrategyDefinition, SessionOverrides } from "./strategy";
+export { createSessionFromStrategy } from "./strategy";
 
 // Execution utilities (resilient order execution)
 export * as execution from "./execution";

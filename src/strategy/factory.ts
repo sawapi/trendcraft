@@ -65,5 +65,6 @@ export function createSessionFromStrategy(
     },
     strategy.guards ?? {},
     positionOptions,
+    overrides?.fromState,
   );
 }

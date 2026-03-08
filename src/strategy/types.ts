@@ -99,4 +99,6 @@ export type SessionOverrides = {
   takeProfit?: number;
   /** Historical candles for warming up indicators */
   warmUp?: import("../types").NormalizedCandle[];
+  /** Restore from a previously saved session state */
+  fromState?: import("../streaming/position-manager/types").ManagedSessionState;
 };

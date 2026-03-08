@@ -52,6 +52,27 @@ describe("createSessionFromStrategy", () => {
     expect(session.riskGuard).not.toBeNull();
   });
 
+  it("should restore session from saved state via fromState override", () => {
+    // Create session, make a trade to change state
+    const session1 = createSessionFromStrategy(baseStrategy, { capital: 50_000 });
+    session1.onTrade({ time: 1000, price: 100, volume: 10 });
+    session1.onTrade({ time: 2000, price: 101, volume: 10 });
+
+    // Save state
+    const savedState = session1.getState();
+
+    // Restore from state
+    const session2 = createSessionFromStrategy(baseStrategy, {
+      capital: 50_000,
+      fromState: savedState,
+    });
+
+    // Verify restored session has the same account state
+    const account2 = session2.getAccount();
+    expect(account2.initialCapital).toBe(50_000);
+    expect(session2.getState()).toEqual(savedState);
+  });
+
   it("should support optional metadata fields", () => {
     const strategy: StrategyDefinition = {
       ...baseStrategy,
