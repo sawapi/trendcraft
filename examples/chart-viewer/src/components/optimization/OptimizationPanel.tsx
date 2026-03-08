@@ -13,6 +13,7 @@ import {
   useOptimization,
 } from "../../hooks/useOptimization";
 import { useChartStore } from "../../store/chartStore";
+import { renderGroupedOptions } from "../BacktestPanel";
 import { ResultsTable } from "./ResultsTable";
 
 // ── Metric options ────────────────────────────────────────────────
@@ -434,11 +435,7 @@ export function OptimizationPanel() {
                 value={activeConfig.entryCondition}
                 onChange={(e) => updateActiveConfig({ entryCondition: e.target.value })}
               >
-                {Object.entries(ENTRY_CONDITIONS).map(([key, { label }]) => (
-                  <option key={key} value={key}>
-                    {label}
-                  </option>
-                ))}
+                {renderGroupedOptions(ENTRY_CONDITIONS)}
               </select>
             </div>
             <div className="condition-row">
@@ -447,11 +444,7 @@ export function OptimizationPanel() {
                 value={activeConfig.exitCondition}
                 onChange={(e) => updateActiveConfig({ exitCondition: e.target.value })}
               >
-                {Object.entries(EXIT_CONDITIONS).map(([key, { label }]) => (
-                  <option key={key} value={key}>
-                    {label}
-                  </option>
-                ))}
+                {renderGroupedOptions(EXIT_CONDITIONS)}
               </select>
             </div>
             <div className="condition-row">

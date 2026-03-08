@@ -13,6 +13,28 @@ import { TradeAnalysisPanel } from "./backtest/TradeAnalysisPanel";
 type BacktestTab = "summary" | "analysis";
 
 /**
+ * Render grouped <optgroup> options for condition select
+ */
+export function renderGroupedOptions(
+  conditions: Record<string, { label: string; group: string }>,
+): JSX.Element[] {
+  const groups = new Map<string, { key: string; label: string }[]>();
+  for (const [key, { label, group }] of Object.entries(conditions)) {
+    if (!groups.has(group)) groups.set(group, []);
+    groups.get(group)!.push({ key, label });
+  }
+  return Array.from(groups.entries()).map(([group, items]) => (
+    <optgroup key={group} label={group}>
+      {items.map(({ key, label }) => (
+        <option key={key} value={key}>
+          {label}
+        </option>
+      ))}
+    </optgroup>
+  ));
+}
+
+/**
  * Format date for display
  */
 function formatDate(timestamp: number): string {
@@ -152,11 +174,7 @@ export function BacktestPanel() {
             value={backtestConfig.entryCondition}
             onChange={(e) => setBacktestConfig({ entryCondition: e.target.value })}
           >
-            {Object.entries(ENTRY_CONDITIONS).map(([key, { label }]) => (
-              <option key={key} value={key}>
-                {label}
-              </option>
-            ))}
+            {renderGroupedOptions(ENTRY_CONDITIONS)}
           </select>
         </div>
         <div className="condition-row">
@@ -165,11 +183,7 @@ export function BacktestPanel() {
             value={backtestConfig.exitCondition}
             onChange={(e) => setBacktestConfig({ exitCondition: e.target.value })}
           >
-            {Object.entries(EXIT_CONDITIONS).map(([key, { label }]) => (
-              <option key={key} value={key}>
-                {label}
-              </option>
-            ))}
+            {renderGroupedOptions(EXIT_CONDITIONS)}
           </select>
         </div>
       </div>

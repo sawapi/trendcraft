@@ -162,6 +162,17 @@ export {
   pbrBelow,
   pbrAbove,
   pbrBetween,
+  // Smart Money Concepts (SMC) conditions
+  priceAtBullishOrderBlock,
+  priceAtBearishOrderBlock,
+  priceAtOrderBlock,
+  orderBlockCreated,
+  orderBlockMitigated,
+  hasActiveOrderBlocks,
+  liquiditySweepDetected,
+  liquiditySweepRecovered,
+  hasRecentSweeps,
+  sweepDepthAbove,
 } from "./conditions";
 
 export type {
@@ -172,6 +183,8 @@ export type {
   ExtendedCondition,
   RSConditionOptions,
   PatternConditionOptions,
+  OrderBlockConditionOptions,
+  LiquiditySweepConditionOptions,
 } from "./conditions";
 
 export { runBacktest } from "./engine";

@@ -610,6 +610,28 @@ export {
 
 export type { PatternConditionOptions } from "./backtest";
 
+// Smart Money Concepts (SMC) conditions
+export {
+  priceAtBullishOrderBlock,
+  priceAtBearishOrderBlock,
+  priceAtOrderBlock,
+  orderBlockCreated,
+  orderBlockMitigated,
+  hasActiveOrderBlocks,
+  liquiditySweepDetected,
+  liquiditySweepRecovered,
+  hasRecentSweeps,
+  sweepDepthAbove,
+} from "./backtest";
+
+export type { OrderBlockConditionOptions, LiquiditySweepConditionOptions } from "./backtest";
+
+// Perfect Order Pullback conditions
+export {
+  perfectOrderPullbackEntry,
+  perfectOrderPullbackSellEntry,
+} from "./backtest";
+
 // Volatility Regime indicator
 export { volatilityRegime } from "./indicators";
 
