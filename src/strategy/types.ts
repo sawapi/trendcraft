@@ -72,8 +72,8 @@ export type StrategyDefinition = {
   backtestEntry?: Condition;
   /** Exit condition for backtesting */
   backtestExit?: Condition;
-  /** Additional backtest options */
-  backtestOptions?: Partial<BacktestOptions>;
+  /** Additional backtest options (capital is excluded — specify it at runBacktest call site) */
+  backtestOptions?: Omit<Partial<BacktestOptions>, "capital">;
 
   // ---- Metadata ----
 

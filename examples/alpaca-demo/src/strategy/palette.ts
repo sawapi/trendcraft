@@ -83,6 +83,18 @@ export const INDICATOR_PALETTE: Record<string, IndicatorDef> = {
       period: { min: 7, max: 30, default: 14 },
     },
   },
+  regime: {
+    description:
+      "Volatility regime detector — classifies volatility (low/normal/high), " +
+      "trend (bullish/bearish/sideways), and trend strength (ADX). " +
+      "Use with regimeFilter condition to gate trades by market regime.",
+    params: {
+      atrPeriod: { min: 5, max: 30, default: 14 },
+      bbPeriod: { min: 10, max: 50, default: 20 },
+      dmiPeriod: { min: 7, max: 30, default: 14 },
+      lookback: { min: 30, max: 200, default: 100 },
+    },
+  },
 };
 
 /**
@@ -162,7 +174,7 @@ export const CONDITION_PALETTE: Record<string, ConditionDef> = {
   regimeFilter: {
     description:
       "Market regime filter — only allow trades in specified volatility/trend conditions. " +
-      "Requires a 'regime' indicator in the snapshot (e.g. from periodic regime detection).",
+      "Requires a 'regime' indicator in the pipeline (type: 'regime', name: 'regime').",
     params: {
       key: "indicatorKey",
     },

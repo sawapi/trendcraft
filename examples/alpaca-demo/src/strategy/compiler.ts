@@ -116,6 +116,14 @@ function compileIndicator(ind: IndicatorRef): IncrementalFactory {
         });
     case "dmi":
       return () => incremental.createDmi({ period: ind.params.period ?? 14 });
+    case "regime":
+      return () =>
+        incremental.createRegime({
+          atrPeriod: ind.params.atrPeriod ?? 14,
+          bbPeriod: ind.params.bbPeriod ?? 20,
+          dmiPeriod: ind.params.dmiPeriod ?? 14,
+          lookback: ind.params.lookback ?? 100,
+        });
     default:
       throw new Error(`Unknown indicator type: ${ind.type}`);
   }
