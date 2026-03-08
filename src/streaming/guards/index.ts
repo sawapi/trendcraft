@@ -18,6 +18,11 @@ export type {
   TimeGuardState,
   TimeGuardCheckResult,
   TimeGuard,
+  PortfolioGuardOptions,
+  PortfolioGuardState,
+  PortfolioGuardCheckResult,
+  PortfolioExposure,
+  PortfolioGuard,
   GuardedSessionOptions,
   GuardedSessionState,
   BlockedEvent,
@@ -29,3 +34,4 @@ export type {
 export { createRiskGuard } from "./risk-guard";
 export { createTimeGuard } from "./time-guard";
 export { createGuardedSession } from "./guarded-session";
+export { createPortfolioGuard } from "./portfolio-guard";

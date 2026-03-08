@@ -224,6 +224,94 @@ export type ForceCloseEvent = {
   snapshot: IndicatorSnapshot;
 };
 
+// ============================================
+// PortfolioGuard Types (Cross-Symbol Risk)
+// ============================================
+
+/**
+ * Configuration for PortfolioGuard
+ *
+ * @example
+ * ```ts
+ * const options: PortfolioGuardOptions = {
+ *   maxTotalExposure: 200,      // max 200% of equity (2x leverage)
+ *   maxSymbolExposure: 25,      // max 25% per symbol
+ *   maxOpenPositions: 10,
+ *   maxPortfolioDrawdown: 15,   // halt at 15% drawdown from peak
+ *   maxCorrelatedExposure: 50,
+ *   correlationGroups: [["AAPL", "MSFT", "GOOGL"]],
+ * };
+ * ```
+ */
+export type PortfolioGuardOptions = {
+  /** Maximum total exposure as % of equity (e.g., 200 = 2x leverage) */
+  maxTotalExposure?: number;
+  /** Maximum exposure per symbol as % of equity */
+  maxSymbolExposure?: number;
+  /** Maximum combined exposure for correlated assets as % of equity */
+  maxCorrelatedExposure?: number;
+  /** Groups of correlated symbols */
+  correlationGroups?: string[][];
+  /** Maximum number of concurrent open positions */
+  maxOpenPositions?: number;
+  /** Maximum portfolio drawdown as % from peak equity */
+  maxPortfolioDrawdown?: number;
+};
+
+/**
+ * Serializable state for PortfolioGuard
+ */
+export type PortfolioGuardState = {
+  symbolExposure: Record<string, number>;
+  totalEquity: number;
+  peakEquity: number;
+  openPositionCount: number;
+};
+
+/**
+ * Result of a PortfolioGuard check
+ */
+export type PortfolioGuardCheckResult = {
+  allowed: boolean;
+  reason?: string;
+};
+
+/**
+ * Portfolio exposure summary
+ */
+export type PortfolioExposure = {
+  /** Total exposure as % of equity */
+  totalPercent: number;
+  /** Per-symbol exposure as % of equity */
+  bySymbol: Record<string, number>;
+  /** Number of open positions */
+  openPositions: number;
+};
+
+/**
+ * Cross-symbol portfolio risk management guard
+ */
+export type PortfolioGuard = {
+  /** Check if a new position can be opened */
+  canOpenPosition(symbol: string, notional: number): PortfolioGuardCheckResult;
+  /** Report that a position was opened */
+  reportPositionOpen(symbol: string, notional: number): void;
+  /** Report that a position was closed */
+  reportPositionClose(symbol: string, notional: number, pnl: number): void;
+  /** Update total equity */
+  updateEquity(totalEquity: number): void;
+  /** Get current exposure summary */
+  getExposure(): PortfolioExposure;
+  /** Reset all state */
+  reset(): void;
+  /** Serialize internal state */
+  getState(): PortfolioGuardState;
+};
+
+// ============================================
+// GuardedSession Types
+// ============================================
+
 /**
  * A TradingSession wrapped with risk and time guards
  */
