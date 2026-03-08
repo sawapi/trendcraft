@@ -113,7 +113,7 @@ describe("safe indicator wrappers", () => {
       const result = smaSafe(candles, { period: 0 });
       expect(result.ok).toBe(false);
       if (!result.ok) {
-        expect(result.error.code).toBe("INDICATOR_ERROR");
+        expect(result.error.code).toBe("INVALID_PARAMETER");
         expect(result.error.message).toContain("period");
       }
     });
@@ -129,7 +129,7 @@ describe("safe indicator wrappers", () => {
       const result = emaSafe(candles, { period: 0 });
       expect(result.ok).toBe(false);
       if (!result.ok) {
-        expect(result.error.code).toBe("INDICATOR_ERROR");
+        expect(result.error.code).toBe("INVALID_PARAMETER");
       }
     });
   });
@@ -172,7 +172,7 @@ describe("safe indicator wrappers", () => {
       const result = kamaSafe(candles, { period: 0 });
       expect(result.ok).toBe(false);
       if (!result.ok) {
-        expect(result.error.code).toBe("INDICATOR_ERROR");
+        expect(result.error.code).toBe("INVALID_PARAMETER");
       }
     });
 
@@ -206,7 +206,7 @@ describe("safe indicator wrappers", () => {
       const result = zigzagSafe(candles, { deviation: 0 });
       expect(result.ok).toBe(false);
       if (!result.ok) {
-        expect(result.error.code).toBe("INDICATOR_ERROR");
+        expect(result.error.code).toBe("INVALID_PARAMETER");
       }
     });
   });
@@ -221,7 +221,7 @@ describe("safe indicator wrappers", () => {
       const result = wmaSafe(candles, { period: 0 });
       expect(result.ok).toBe(false);
       if (!result.ok) {
-        expect(result.error.code).toBe("INDICATOR_ERROR");
+        expect(result.error.code).toBe("INVALID_PARAMETER");
         expect(result.error.message).toContain("period");
       }
     });
@@ -258,7 +258,7 @@ describe("safe indicator wrappers", () => {
       const result = rocSafe(candles, { period: 0 });
       expect(result.ok).toBe(false);
       if (!result.ok) {
-        expect(result.error.code).toBe("INDICATOR_ERROR");
+        expect(result.error.code).toBe("INVALID_PARAMETER");
       }
     });
   });
@@ -274,7 +274,7 @@ describe("safe indicator wrappers", () => {
       const result = ichimokuSafe(candles, { tenkanPeriod: 0 });
       expect(result.ok).toBe(false);
       if (!result.ok) {
-        expect(result.error.code).toBe("INDICATOR_ERROR");
+        expect(result.error.code).toBe("INVALID_PARAMETER");
       }
     });
   });
@@ -289,7 +289,7 @@ describe("safe indicator wrappers", () => {
       const result = supertrendSafe(candles, { period: 0 });
       expect(result.ok).toBe(false);
       if (!result.ok) {
-        expect(result.error.code).toBe("INDICATOR_ERROR");
+        expect(result.error.code).toBe("INVALID_PARAMETER");
       }
     });
   });
@@ -311,7 +311,7 @@ describe("safe indicator wrappers", () => {
       const result = mfiSafe(candles, { period: 0 });
       expect(result.ok).toBe(false);
       if (!result.ok) {
-        expect(result.error.code).toBe("INDICATOR_ERROR");
+        expect(result.error.code).toBe("INVALID_PARAMETER");
       }
     });
   });
@@ -328,7 +328,7 @@ describe("safe indicator wrappers", () => {
       const result = t3Safe(candles, { period: 0 });
       expect(result.ok).toBe(false);
       if (!result.ok) {
-        expect(result.error.code).toBe("INDICATOR_ERROR");
+        expect(result.error.code).toBe("INVALID_PARAMETER");
         expect(result.error.message).toContain("period");
       }
     });
@@ -358,7 +358,7 @@ describe("safe indicator wrappers", () => {
       const result = highestLowestSafe(candles, { period: 0 });
       expect(result.ok).toBe(false);
       if (!result.ok) {
-        expect(result.error.code).toBe("INDICATOR_ERROR");
+        expect(result.error.code).toBe("INVALID_PARAMETER");
       }
     });
   });
@@ -383,7 +383,7 @@ describe("safe indicator wrappers", () => {
       const result = superSmootherSafe(candles, { period: 0 });
       expect(result.ok).toBe(false);
       if (!result.ok) {
-        expect(result.error.code).toBe("INDICATOR_ERROR");
+        expect(result.error.code).toBe("INVALID_PARAMETER");
       }
     });
   });
@@ -495,6 +495,41 @@ describe("safe indicator wrappers", () => {
         expect(result.value[0].time).toBe(candles[0].time);
         expect(result.value[0].value).toBeNull();
         expect(result.value[4].value).not.toBeNull();
+      }
+    });
+  });
+
+  describe("error code classification", () => {
+    it("should classify 'must be at least' as INVALID_PARAMETER", () => {
+      const result = smaSafe(candles, { period: 0 });
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error.code).toBe("INVALID_PARAMETER");
+      }
+    });
+
+    it("should classify 'must be positive' as INVALID_PARAMETER", () => {
+      const result = zigzagSafe(candles, { deviation: 0 });
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error.code).toBe("INVALID_PARAMETER");
+      }
+    });
+
+    it("should classify 'must be less' as INVALID_PARAMETER", () => {
+      // MACD: "Fast period must be less than slow period"
+      const result = macdSafe(candles, { fastPeriod: 26, slowPeriod: 12 });
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error.code).toBe("INVALID_PARAMETER");
+      }
+    });
+
+    it("should preserve error cause from original Error", () => {
+      const result = smaSafe(candles, { period: 0 });
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error.cause).toBeInstanceOf(Error);
       }
     });
   });

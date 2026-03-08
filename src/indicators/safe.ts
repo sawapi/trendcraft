@@ -17,8 +17,8 @@
  * ```
  */
 
-import { toResult } from "../types";
-import type { Result, TrendCraftError } from "../types";
+import { err, ok, tcError } from "../types";
+import type { Result, TrendCraftError, TrendCraftErrorCode } from "../types";
 
 import {
   adl,
@@ -94,9 +94,26 @@ type SafeVersion<F extends (...args: never[]) => unknown> = (
   ...args: Parameters<F>
 ) => Result<ReturnType<F>, TrendCraftError>;
 
+function classifyErrorCode(message: string): TrendCraftErrorCode {
+  if (/must be (at least|positive|greater|less|non-negative)/i.test(message)) {
+    return "INVALID_PARAMETER";
+  }
+  if (/not enough|insufficient|need at least/i.test(message)) {
+    return "INSUFFICIENT_DATA";
+  }
+  return "INDICATOR_ERROR";
+}
+
 function makeSafe<F extends (...args: never[]) => unknown>(fn: F): SafeVersion<F> {
-  return ((...args: Parameters<F>) =>
-    toResult(() => fn(...args), "INDICATOR_ERROR")) as SafeVersion<F>;
+  return ((...args: Parameters<F>) => {
+    try {
+      return ok(fn(...args));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const code = classifyErrorCode(message);
+      return err(tcError(code, message, {}, error instanceof Error ? error : undefined));
+    }
+  }) as SafeVersion<F>;
 }
 
 // Moving Averages
