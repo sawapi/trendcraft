@@ -119,6 +119,7 @@ export function runBacktest(
     slippage,
     commission,
     commissionRate,
+    taxRate,
   };
 
   // Validate input data if requested

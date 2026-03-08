@@ -262,6 +262,8 @@ export type BacktestSettings = {
   commission: number;
   /** Commission rate in percent */
   commissionRate: number;
+  /** Tax rate on profits in percent */
+  taxRate: number;
 };
 
 /**

@@ -36,6 +36,8 @@ import type { KeltnerChannelValue } from "../../volatility/keltner-channel";
 import { cmf } from "../../volume/cmf";
 import { mfi } from "../../volume/mfi";
 import { obv } from "../../volume/obv";
+import { vwap } from "../../volume/vwap";
+import type { VwapValue } from "../../volume/vwap";
 import { processAll } from "../bridge";
 import { createCci } from "../momentum/cci";
 import { createDmi } from "../momentum/dmi";
@@ -55,9 +57,12 @@ import { createAtr } from "../volatility/atr";
 import { createBollingerBands } from "../volatility/bollinger-bands";
 import { createDonchianChannel } from "../volatility/donchian-channel";
 import { createKeltnerChannel } from "../volatility/keltner-channel";
+import { createRegime } from "../volatility/regime";
+import type { RegimeValue } from "../volatility/regime";
 import { createCmf } from "../volume/cmf";
 import { createMfi } from "../volume/mfi";
 import { createObv } from "../volume/obv";
+import { createVwap } from "../volume/vwap";
 
 /**
  * Generate test candles with realistic-looking data
@@ -745,6 +750,71 @@ describe("Ichimoku consistency", () => {
         expect(iv.senkouA).not.toBeNull();
         expect(Math.abs(iv.senkouA! - bv.senkouA)).toBeLessThan(1e-10);
       }
+    }
+  });
+});
+
+// ==========================================
+// VWAP & Regime consistency
+// ==========================================
+
+describe("VWAP consistency", () => {
+  it("session-based VWAP matches batch", () => {
+    const batch = vwap(candles);
+    const incremental = processAll(createVwap(), candles);
+
+    expect(incremental.length).toBe(batch.length);
+    for (let i = 0; i < batch.length; i++) {
+      expect(incremental[i].time).toBe(batch[i].time);
+
+      const bv = batch[i].value as VwapValue;
+      const iv = incremental[i].value as { vwap: number | null };
+
+      if (bv.vwap === null) {
+        expect(iv.vwap).toBeNull();
+      } else {
+        expect(iv.vwap).not.toBeNull();
+        expect(Math.abs(iv.vwap! - bv.vwap)).toBeLessThan(1e-10);
+      }
+    }
+  });
+});
+
+describe("Regime consistency", () => {
+  it("processAll produces valid output with correct warm-up", () => {
+    const incremental = processAll(createRegime({ lookback: 50 }), candles);
+
+    expect(incremental.length).toBe(candles.length);
+
+    // After warm-up, values should be non-null
+    let hasNonNull = false;
+    for (const entry of incremental) {
+      const v = entry.value as RegimeValue | null;
+      if (v !== null) {
+        hasNonNull = true;
+        expect(["low", "normal", "high"]).toContain(v.volatility);
+        expect(["bullish", "bearish", "sideways"]).toContain(v.trend);
+        expect(v.trendStrength).toBeGreaterThanOrEqual(0);
+        expect(v.trendStrength).toBeLessThanOrEqual(100);
+      }
+    }
+    expect(hasNonNull).toBe(true);
+  });
+
+  it("custom params produce valid output", () => {
+    const opts = { atrPeriod: 10, bbPeriod: 15, dmiPeriod: 10, lookback: 40 };
+    const incremental = processAll(createRegime(opts), candles);
+
+    expect(incremental.length).toBe(candles.length);
+
+    const nonNullValues = incremental
+      .map((e) => e.value as RegimeValue | null)
+      .filter((v): v is RegimeValue => v !== null);
+
+    expect(nonNullValues.length).toBeGreaterThan(0);
+    for (const v of nonNullValues) {
+      expect(["low", "normal", "high"]).toContain(v.volatility);
+      expect(["bullish", "bearish", "sideways"]).toContain(v.trend);
     }
   });
 });
