@@ -8,12 +8,12 @@ import {
   type BacktestResult,
   type MonteCarloResult,
   type NormalizedCandle,
+  type StrategyDefinition,
   type WalkForwardResult,
   runBacktest,
   runMonteCarloSimulationSafe,
   walkForwardAnalysisSafe,
 } from "trendcraft";
-import type { StrategyDefinition } from "../strategy/types.js";
 import { type ScoreWeights, type ScoredResult, scoreResult } from "./scorer.js";
 
 export type BacktestRunResult = {
@@ -35,10 +35,10 @@ export function runStrategyBacktests(
   const rankings: ScoredResult[] = [];
 
   for (const strategy of strategies) {
-    const { entryCondition, exitCondition, options } = strategy.backtestAdapter;
+    if (!strategy.backtestEntry || !strategy.backtestExit) continue;
 
-    const result = runBacktest(candles, entryCondition, exitCondition, {
-      ...options,
+    const result = runBacktest(candles, strategy.backtestEntry, strategy.backtestExit, {
+      ...strategy.backtestOptions,
       capital,
     });
 
@@ -79,7 +79,20 @@ export function runWalkForwardValidation(
   candles: NormalizedCandle[],
   capital: number,
 ): WalkForwardValidation {
-  const { entryCondition, exitCondition, options } = strategy.backtestAdapter;
+  if (!strategy.backtestEntry || !strategy.backtestExit) {
+    return {
+      passed: true,
+      efficiency: 0,
+      avgOosSharpe: 0,
+      reason: "No backtest conditions defined, skipping",
+    };
+  }
+
+  const {
+    backtestEntry: entryCondition,
+    backtestExit: exitCondition,
+    backtestOptions: options,
+  } = strategy;
 
   // Need enough data for walk-forward windows
   if (candles.length < 500) {

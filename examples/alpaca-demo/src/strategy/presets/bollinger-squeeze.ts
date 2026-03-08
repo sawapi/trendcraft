@@ -6,11 +6,16 @@
  * Mean-reversion approach using Bollinger Bands
  */
 
-import { rsiAbove as backtestRsiAbove, bollingerTouch, incremental } from "trendcraft";
-import type { NormalizedCandle, streaming } from "trendcraft";
+import {
+  type NormalizedCandle,
+  type StrategyDefinition,
+  rsiAbove as backtestRsiAbove,
+  bollingerTouch,
+  incremental,
+  type streaming,
+} from "trendcraft";
 import { US_MARKET_HOURS } from "../../config/market-hours.js";
 import { DEFAULT_SYMBOLS } from "../../config/symbols.js";
-import type { StrategyDefinition } from "../types.js";
 
 const entryCondition: streaming.StreamingConditionFn = (
   snapshot: streaming.IndicatorSnapshot,
@@ -69,13 +74,11 @@ export const bollingerSqueeze: StrategyDefinition = {
 
   signalLifecycle: { cooldown: { bars: 3 } },
 
-  backtestAdapter: {
-    entryCondition: bollingerTouch("lower"),
-    exitCondition: backtestRsiAbove(70),
-    options: {
-      stopLoss: 2.5,
-      takeProfit: 5,
-      slippage: 0.05,
-    },
+  backtestEntry: bollingerTouch("lower"),
+  backtestExit: backtestRsiAbove(70),
+  backtestOptions: {
+    stopLoss: 2.5,
+    takeProfit: 5,
+    slippage: 0.05,
   },
 };

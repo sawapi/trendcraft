@@ -6,10 +6,15 @@
  * Uses trailing stop for profit protection
  */
 
-import { incremental, macdCrossDown, macdCrossUp, streaming } from "trendcraft";
+import {
+  type StrategyDefinition,
+  incremental,
+  macdCrossDown,
+  macdCrossUp,
+  streaming,
+} from "trendcraft";
 import { US_MARKET_HOURS } from "../../config/market-hours.js";
 import { DEFAULT_SYMBOLS } from "../../config/symbols.js";
-import type { StrategyDefinition } from "../types.js";
 
 export const macdTrend: StrategyDefinition = {
   id: "macd-trend",
@@ -52,13 +57,11 @@ export const macdTrend: StrategyDefinition = {
 
   signalLifecycle: { cooldown: { bars: 3 } },
 
-  backtestAdapter: {
-    entryCondition: macdCrossUp(),
-    exitCondition: macdCrossDown(),
-    options: {
-      stopLoss: 2,
-      trailingStop: 3,
-      slippage: 0.05,
-    },
+  backtestEntry: macdCrossUp(),
+  backtestExit: macdCrossDown(),
+  backtestOptions: {
+    stopLoss: 2,
+    trailingStop: 3,
+    slippage: 0.05,
   },
 };

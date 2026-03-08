@@ -7,18 +7,20 @@
 import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
+import type { streaming } from "trendcraft";
 import type { AgentState } from "../agent/types.js";
 
 export type PersistentState = {
   version: 1;
   savedAt: number;
   agents: AgentState[];
+  portfolioGuardState?: streaming.PortfolioGuardState;
 };
 
 const DEFAULT_PATH = resolve(import.meta.dirname, "../../data/state.json");
 
 export type StateStore = {
-  save(agents: AgentState[]): void;
+  save(agents: AgentState[], portfolioGuardState?: streaming.PortfolioGuardState): void;
   load(): PersistentState | null;
   exists(): boolean;
 };
@@ -29,11 +31,12 @@ export function createStateStore(path: string = DEFAULT_PATH): StateStore {
   mkdirSync(dir, { recursive: true });
 
   return {
-    save(agents: AgentState[]): void {
+    save(agents: AgentState[], portfolioGuardState?: streaming.PortfolioGuardState): void {
       const state: PersistentState = {
         version: 1,
         savedAt: Date.now(),
         agents,
+        portfolioGuardState,
       };
 
       const json = JSON.stringify(state, null, 2);

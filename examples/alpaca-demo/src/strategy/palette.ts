@@ -159,6 +159,14 @@ export const CONDITION_PALETTE: Record<string, ConditionDef> = {
       threshold: { min: 15, max: 50, default: 25 },
     },
   },
+  regimeFilter: {
+    description:
+      "Market regime filter — only allow trades in specified volatility/trend conditions. " +
+      "Requires a 'regime' indicator in the snapshot (e.g. from periodic regime detection).",
+    params: {
+      key: "indicatorKey",
+    },
+  },
 };
 
 /**

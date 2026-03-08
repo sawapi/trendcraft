@@ -12,11 +12,14 @@
  * - EMA(9) above VWAP confirms short-term momentum recovery for exit
  */
 
-import { incremental } from "trendcraft";
-import type { NormalizedCandle, streaming } from "trendcraft";
+import {
+  type NormalizedCandle,
+  type StrategyDefinition,
+  incremental,
+  type streaming,
+} from "trendcraft";
 import { US_MARKET_HOURS } from "../../config/market-hours.js";
 import { DEFAULT_SYMBOLS } from "../../config/symbols.js";
-import type { StrategyDefinition } from "../types.js";
 
 const entryCondition: streaming.StreamingConditionFn = (
   snapshot: streaming.IndicatorSnapshot,
@@ -83,39 +86,37 @@ export const vwapBounce: StrategyDefinition = {
 
   signalLifecycle: { cooldown: { bars: 3 } },
 
-  backtestAdapter: {
-    entryCondition: (indicators, candle) => {
-      const vwapSeries = indicators.vwap as
-        | { time: number; value: { vwap: number | null } }[]
-        | undefined;
-      const rsiSeries = indicators.rsi as { time: number; value: number | null }[] | undefined;
-      if (!vwapSeries || !rsiSeries) return false;
+  backtestEntry: (indicators, candle) => {
+    const vwapSeries = indicators.vwap as
+      | { time: number; value: { vwap: number | null } }[]
+      | undefined;
+    const rsiSeries = indicators.rsi as { time: number; value: number | null }[] | undefined;
+    if (!vwapSeries || !rsiSeries) return false;
 
-      const vwapEntry = vwapSeries.find((v) => v.time === candle.time);
-      const rsiEntry = rsiSeries.find((r) => r.time === candle.time);
-      if (!vwapEntry?.value.vwap || !rsiEntry?.value) return false;
+    const vwapEntry = vwapSeries.find((v) => v.time === candle.time);
+    const rsiEntry = rsiSeries.find((r) => r.time === candle.time);
+    if (!vwapEntry?.value.vwap || !rsiEntry?.value) return false;
 
-      return candle.close < vwapEntry.value.vwap && rsiEntry.value < 35;
-    },
-    exitCondition: (indicators, candle) => {
-      const vwapSeries = indicators.vwap as
-        | { time: number; value: { vwap: number | null } }[]
-        | undefined;
-      const rsiSeries = indicators.rsi as { time: number; value: number | null }[] | undefined;
-      if (!vwapSeries || !rsiSeries) return false;
+    return candle.close < vwapEntry.value.vwap && rsiEntry.value < 35;
+  },
+  backtestExit: (indicators, candle) => {
+    const vwapSeries = indicators.vwap as
+      | { time: number; value: { vwap: number | null } }[]
+      | undefined;
+    const rsiSeries = indicators.rsi as { time: number; value: number | null }[] | undefined;
+    if (!vwapSeries || !rsiSeries) return false;
 
-      const vwapEntry = vwapSeries.find((v) => v.time === candle.time);
-      const rsiEntry = rsiSeries.find((r) => r.time === candle.time);
+    const vwapEntry = vwapSeries.find((v) => v.time === candle.time);
+    const rsiEntry = rsiSeries.find((r) => r.time === candle.time);
 
-      if (rsiEntry?.value && rsiEntry.value > 65) return true;
-      if (vwapEntry?.value.vwap && candle.close > vwapEntry.value.vwap) return true;
+    if (rsiEntry?.value && rsiEntry.value > 65) return true;
+    if (vwapEntry?.value.vwap && candle.close > vwapEntry.value.vwap) return true;
 
-      return false;
-    },
-    options: {
-      stopLoss: 1.5,
-      takeProfit: 3,
-      slippage: 0.05,
-    },
+    return false;
+  },
+  backtestOptions: {
+    stopLoss: 1.5,
+    takeProfit: 3,
+    slippage: 0.05,
   },
 };

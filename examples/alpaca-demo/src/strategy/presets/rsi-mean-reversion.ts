@@ -7,6 +7,7 @@
  */
 
 import {
+  type StrategyDefinition,
   rsiAbove as backtestRsiAbove,
   rsiBelow as backtestRsiBelow,
   incremental,
@@ -14,7 +15,6 @@ import {
 } from "trendcraft";
 import { US_MARKET_HOURS } from "../../config/market-hours.js";
 import { DEFAULT_SYMBOLS } from "../../config/symbols.js";
-import type { StrategyDefinition } from "../types.js";
 
 export const rsiMeanReversion: StrategyDefinition = {
   id: "rsi-mean-reversion",
@@ -47,13 +47,11 @@ export const rsiMeanReversion: StrategyDefinition = {
 
   signalLifecycle: { cooldown: { bars: 3 } },
 
-  backtestAdapter: {
-    entryCondition: backtestRsiBelow(30),
-    exitCondition: backtestRsiAbove(70),
-    options: {
-      stopLoss: 3,
-      takeProfit: 6,
-      slippage: 0.05,
-    },
+  backtestEntry: backtestRsiBelow(30),
+  backtestExit: backtestRsiAbove(70),
+  backtestOptions: {
+    stopLoss: 3,
+    takeProfit: 6,
+    slippage: 0.05,
   },
 };

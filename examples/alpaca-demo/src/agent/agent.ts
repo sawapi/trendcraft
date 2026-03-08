@@ -4,10 +4,15 @@
  * Wraps a ManagedSession with metrics tracking and state persistence.
  */
 
-import type { NormalizedCandle, Trade, streaming } from "trendcraft";
+import {
+  type NormalizedCandle,
+  type StrategyDefinition,
+  type Trade,
+  calculateRuntimeMetrics,
+  createSessionFromStrategy,
+  type streaming,
+} from "trendcraft";
 import type { OrderIntent } from "../executor/types.js";
-import { createSessionFromStrategy } from "../strategy/factory.js";
-import type { StrategyDefinition } from "../strategy/types.js";
 import type { AgentMetrics, AgentState, AgentTier } from "./types.js";
 
 export type Agent = {
@@ -40,8 +45,7 @@ export function createAgent(
   let tier: AgentTier = opts?.tier ?? "paper";
   const startedAt = opts?.fromState?.metrics.startedAt ?? Date.now();
 
-  let session = createSessionFromStrategy({
-    strategy,
+  let session = createSessionFromStrategy(strategy, {
     capital: opts?.capital ?? strategy.position.capital,
     warmUp: opts?.warmUp,
     fromState: opts?.fromState?.sessionState ?? undefined,
@@ -94,39 +98,19 @@ export function createAgent(
   }
 
   function getMetrics(): AgentMetrics {
-    const account = session.getAccount();
     const trades = session.getTrades();
-    const wins = trades.filter((t) => t.return > 0);
-
-    // Calculate Sharpe (simplified: annualized from trade returns)
-    let sharpe = 0;
-    if (trades.length >= 2) {
-      const returns = trades.map((t) => t.returnPercent / 100);
-      const mean = returns.reduce((a, b) => a + b, 0) / returns.length;
-      const variance = returns.reduce((a, r) => a + (r - mean) ** 2, 0) / returns.length;
-      const std = Math.sqrt(variance);
-      if (std > 0) {
-        sharpe = (mean / std) * Math.sqrt(252);
-      }
-    }
-
-    // Calculate profit factor
-    const grossProfit = trades.filter((t) => t.return > 0).reduce((sum, t) => sum + t.return, 0);
-    const grossLoss = Math.abs(
-      trades.filter((t) => t.return < 0).reduce((sum, t) => sum + t.return, 0),
-    );
-    const profitFactor =
-      grossLoss > 0 ? grossProfit / grossLoss : grossProfit > 0 ? Number.POSITIVE_INFINITY : 0;
-
+    const account = session.getAccount();
+    const rm = calculateRuntimeMetrics(trades, {
+      initialCapital: account.initialCapital,
+    });
     return {
-      totalTrades: trades.length,
-      winRate: trades.length > 0 ? (wins.length / trades.length) * 100 : 0,
-      sharpeRatio: sharpe,
+      totalTrades: rm.tradeCount,
+      winRate: rm.winRate,
+      sharpeRatio: rm.sharpeRatio,
       maxDrawdown: account.maxDrawdownPercent,
-      profitFactor,
-      totalReturn: account.totalRealizedPnl,
-      totalReturnPercent:
-        ((account.equity - account.initialCapital) / account.initialCapital) * 100,
+      profitFactor: rm.profitFactor,
+      totalReturn: rm.totalReturn,
+      totalReturnPercent: rm.totalReturnPercent,
       dailyPnl: dailyPnlAccumulator,
       startedAt,
     };
@@ -225,8 +209,7 @@ export function createAgent(
     restore(state: AgentState) {
       tier = state.tier;
       dailyPnlAccumulator = state.metrics.dailyPnl;
-      session = createSessionFromStrategy({
-        strategy,
+      session = createSessionFromStrategy(strategy, {
         capital: opts?.capital ?? strategy.position.capital,
         fromState: state.sessionState ?? undefined,
       });

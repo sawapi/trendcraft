@@ -2,13 +2,13 @@
  * Strategy registry — all available strategy presets
  */
 
+import type { StrategyDefinition } from "trendcraft";
 import { compileTemplate } from "./compiler.js";
 import { bollingerSqueeze } from "./presets/bollinger-squeeze.js";
 import { macdTrend } from "./presets/macd-trend.js";
 import { rsiMeanReversion } from "./presets/rsi-mean-reversion.js";
 import { PRESET_TEMPLATES, applyOverrides, getPresetTemplate } from "./template.js";
 import type { ParameterOverride, StrategyTemplate } from "./template.js";
-import type { StrategyDefinition } from "./types.js";
 
 const strategies: Map<string, StrategyDefinition> = new Map();
 
@@ -105,21 +105,18 @@ export function applyStrategyOverrides(overrides: ParameterOverride[]): {
       if (override.overrides.guards) {
         patched.guards = {
           ...patched.guards,
-          riskGuard: { ...patched.guards.riskGuard, ...override.overrides.guards },
+          riskGuard: { ...patched.guards?.riskGuard, ...override.overrides.guards },
         };
       }
-      // Also patch backtestAdapter options
+      // Also patch backtestOptions
       if (override.overrides.position) {
         const posOv = override.overrides.position;
-        patched.backtestAdapter = {
-          ...patched.backtestAdapter,
-          options: {
-            ...patched.backtestAdapter.options,
-            ...(posOv.stopLoss !== undefined && { stopLoss: posOv.stopLoss }),
-            ...(posOv.takeProfit !== undefined && { takeProfit: posOv.takeProfit }),
-            ...(posOv.trailingStop !== undefined && { trailingStop: posOv.trailingStop }),
-            ...(posOv.slippage !== undefined && { slippage: posOv.slippage }),
-          },
+        patched.backtestOptions = {
+          ...patched.backtestOptions,
+          ...(posOv.stopLoss !== undefined && { stopLoss: posOv.stopLoss }),
+          ...(posOv.takeProfit !== undefined && { takeProfit: posOv.takeProfit }),
+          ...(posOv.trailingStop !== undefined && { trailingStop: posOv.trailingStop }),
+          ...(posOv.slippage !== undefined && { slippage: posOv.slippage }),
         };
       }
       register(patched);

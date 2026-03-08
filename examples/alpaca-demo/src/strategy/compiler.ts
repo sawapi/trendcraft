@@ -9,6 +9,7 @@ import {
   type Condition,
   type NormalizedCandle,
   type SignalManagerOptions,
+  type StrategyDefinition,
   atr,
   and as backtestAnd,
   deadCrossCondition as backtestDeadCross,
@@ -33,7 +34,6 @@ import {
 import { US_MARKET_HOURS } from "../config/market-hours.js";
 import type { ConditionRef, ConditionRule, IndicatorRef, StrategyTemplate } from "./template.js";
 import { isCombined } from "./template.js";
-import type { StrategyDefinition } from "./types.js";
 
 export type CompileResult =
   | { ok: true; strategy: StrategyDefinition }
@@ -45,7 +45,7 @@ export type CompileResult =
 export function compileTemplate(template: StrategyTemplate): CompileResult {
   try {
     const pipeline = buildPipeline(template);
-    const backtestAdapter = buildBacktestAdapter(template);
+    const { backtestEntry, backtestExit, backtestOptions } = buildBacktestConfig(template);
 
     const signalLifecycle = buildSignalLifecycle(template);
 
@@ -65,7 +65,9 @@ export function compileTemplate(template: StrategyTemplate): CompileResult {
       },
       position: buildPosition(template),
       ...(signalLifecycle && { signalLifecycle }),
-      backtestAdapter,
+      backtestEntry,
+      backtestExit,
+      backtestOptions,
     };
 
     return { ok: true, strategy };
@@ -194,6 +196,17 @@ function compileStreamingConditionRef(
         (ref.params?.threshold as number) ?? 25,
         findIndicatorName(indicators, "dmi"),
       );
+    case "regimeFilter":
+      return streaming.regimeFilter({
+        key: ref.params?.key as string | undefined,
+        allowedVolatility: ref.params?.allowedVolatility
+          ? (String(ref.params.allowedVolatility).split(",") as ("low" | "normal" | "high")[])
+          : undefined,
+        allowedTrends: ref.params?.allowedTrends
+          ? (String(ref.params.allowedTrends).split(",") as ("bullish" | "bearish" | "sideways")[])
+          : undefined,
+        minTrendStrength: ref.params?.minTrendStrength as number | undefined,
+      });
     default:
       throw new Error(`Unknown condition type: ${ref.type}`);
   }
@@ -212,39 +225,37 @@ function compileStreamingCondition(
 
 // --- Backtest condition compilation ---
 
-function buildBacktestAdapter(template: StrategyTemplate) {
-  const entryCondition = compileBacktestCondition(template.entry, template.indicators);
-  const exitCondition = compileBacktestCondition(template.exit, template.indicators);
+function buildBacktestConfig(template: StrategyTemplate) {
+  const backtestEntry = compileBacktestCondition(template.entry, template.indicators);
+  const backtestExit = compileBacktestCondition(template.exit, template.indicators);
 
-  return {
-    entryCondition,
-    exitCondition,
-    options: {
-      stopLoss: template.position.stopLoss,
-      ...(template.position.takeProfit !== undefined && {
-        takeProfit: template.position.takeProfit,
-      }),
-      ...(template.position.trailingStop !== undefined && {
-        trailingStop: template.position.trailingStop,
-      }),
-      ...(template.position.atrTrailingStop && {
-        atrTrailingStop: template.position.atrTrailingStop,
-      }),
-      ...(template.position.partialTakeProfit && {
-        partialTakeProfit: {
-          threshold: template.position.partialTakeProfit.threshold,
-          sellPercent: template.position.partialTakeProfit.portion,
-        },
-      }),
-      ...(template.position.breakEvenStop && {
-        breakevenStop: {
-          threshold: template.position.breakEvenStop.triggerPercent,
-          buffer: template.position.breakEvenStop.offset,
-        },
-      }),
-      slippage: template.position.slippage,
-    },
+  const backtestOptions = {
+    stopLoss: template.position.stopLoss,
+    ...(template.position.takeProfit !== undefined && {
+      takeProfit: template.position.takeProfit,
+    }),
+    ...(template.position.trailingStop !== undefined && {
+      trailingStop: template.position.trailingStop,
+    }),
+    ...(template.position.atrTrailingStop && {
+      atrTrailingStop: template.position.atrTrailingStop,
+    }),
+    ...(template.position.partialTakeProfit && {
+      partialTakeProfit: {
+        threshold: template.position.partialTakeProfit.threshold,
+        sellPercent: template.position.partialTakeProfit.portion,
+      },
+    }),
+    ...(template.position.breakEvenStop && {
+      breakevenStop: {
+        threshold: template.position.breakEvenStop.triggerPercent,
+        buffer: template.position.breakEvenStop.offset,
+      },
+    }),
+    slippage: template.position.slippage,
   };
+
+  return { backtestEntry, backtestExit, backtestOptions };
 }
 
 function compileBacktestConditionRef(ref: ConditionRef, indicators: IndicatorRef[]): Condition {

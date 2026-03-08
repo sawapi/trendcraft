@@ -242,12 +242,19 @@ function applyCreateStrategy(
 
   // Run backtest gate if candles available
   if (backtestCandles && backtestCandles.length > 0) {
-    const { entryCondition, exitCondition, options } = compiled.strategy.backtestAdapter;
+    if (!compiled.strategy.backtestEntry || !compiled.strategy.backtestExit) {
+      return { ok: false, reason: "No backtest conditions defined" };
+    }
 
-    const btResult = runBacktest(backtestCandles, entryCondition, exitCondition, {
-      ...options,
-      capital: template.position.capital,
-    });
+    const btResult = runBacktest(
+      backtestCandles,
+      compiled.strategy.backtestEntry,
+      compiled.strategy.backtestExit,
+      {
+        ...compiled.strategy.backtestOptions,
+        capital: template.position.capital,
+      },
+    );
 
     // Monte Carlo validation
     const mcSummary = runMonteCarloValidation(btResult, 500);

@@ -6,12 +6,14 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
+import type { StrategyDefinition } from "trendcraft";
 import { createAgentManager } from "../agent/manager.js";
 import { fetchCachedBars } from "../alpaca/cache.js";
 import { createAlpacaClient } from "../alpaca/client.js";
 import { monthsAgo, today } from "../alpaca/historical.js";
 import { createAlpacaWebSocket } from "../alpaca/websocket.js";
 import { loadEnv } from "../config/env.js";
+import { DEFAULT_PORTFOLIO_GUARD } from "../config/portfolio.js";
 import { DEFAULT_SYMBOLS } from "../config/symbols.js";
 import { createDryRunExecutor } from "../executor/dry-run-executor.js";
 import { createPaperExecutor } from "../executor/paper-executor.js";
@@ -26,7 +28,6 @@ import {
   getStrategy,
   loadCustomStrategiesFromTemplates,
 } from "../strategy/registry.js";
-import type { StrategyDefinition } from "../strategy/types.js";
 import { evaluateAgent, formatLiveLeaderboard, getLeaderboard } from "../tracker/leaderboard.js";
 import { executeReviewCycle } from "./review.js";
 
@@ -129,7 +130,11 @@ export async function liveCommand(opts: LiveCommandOptions): Promise<void> {
 
   // State management
   const store = createStateStore();
-  const manager = createAgentManager({ capital });
+  const manager = createAgentManager({ capital, portfolioGuard: DEFAULT_PORTFOLIO_GUARD });
+  function saveState(): void {
+    const s = manager.getState();
+    store.save(s.agents, s.portfolioGuardState);
+  }
 
   // Try to restore state (skip inactive agents)
   const savedState = store.load();
@@ -139,7 +144,7 @@ export async function liveCommand(opts: LiveCommandOptions): Promise<void> {
       (a) => (a as typeof a & { active?: boolean }).active !== false,
     );
     const skipped = savedState.agents.length - activeAgents.length;
-    manager.restoreStates(activeAgents, strategyMap);
+    manager.restoreStates(activeAgents, strategyMap, savedState.portfolioGuardState);
     console.log(
       `Restored ${activeAgents.length} agents from saved state${skipped > 0 ? ` (${skipped} inactive skipped)` : ""}`,
     );
@@ -196,7 +201,7 @@ export async function liveCommand(opts: LiveCommandOptions): Promise<void> {
   const heartbeatTimer = setInterval(writeHeartbeat, HEARTBEAT_INTERVAL_MS);
 
   const saveTimer = setInterval(() => {
-    store.save(manager.getAllStates());
+    saveState();
   }, STATE_SAVE_INTERVAL);
 
   const leaderboardTimer = setInterval(() => {
@@ -254,7 +259,7 @@ export async function liveCommand(opts: LiveCommandOptions): Promise<void> {
     }
 
     // Save final state
-    store.save(manager.getAllStates());
+    saveState();
 
     // Print final leaderboard
     const board = getLeaderboard(manager.getAgents());
@@ -274,7 +279,7 @@ export async function liveCommand(opts: LiveCommandOptions): Promise<void> {
   // Emergency handlers: save state and close positions on crash
   process.on("uncaughtException", (err) => {
     console.error("[CRASH] Uncaught exception:", err);
-    store.save(manager.getAllStates());
+    saveState();
     if (!opts.dryRun) {
       client.closeAllPositions().catch(() => {});
     }
@@ -282,7 +287,7 @@ export async function liveCommand(opts: LiveCommandOptions): Promise<void> {
   });
   process.on("unhandledRejection", (reason) => {
     console.error("[CRASH] Unhandled rejection:", reason);
-    store.save(manager.getAllStates());
+    saveState();
   });
 
   console.log("\nListening for trades... (Ctrl+C to stop)\n");

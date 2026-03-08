@@ -2,18 +2,19 @@
  * AgentManager — orchestrates all agents
  *
  * Routes WebSocket trade data to the appropriate agents,
- * manages the agent lifecycle, and evaluates leaderboard rankings.
+ * manages the agent lifecycle, evaluates leaderboard rankings,
+ * and enforces portfolio-level risk limits via PortfolioGuard.
  */
 
-import type { NormalizedCandle, streaming } from "trendcraft";
+import { type NormalizedCandle, type StrategyDefinition, streaming } from "trendcraft";
 import type { OrderIntent } from "../executor/types.js";
-import type { StrategyDefinition } from "../strategy/types.js";
 import type { Agent } from "./agent.js";
 import { createAgent } from "./agent.js";
-import type { AgentState } from "./types.js";
+import type { AgentState, ManagerState } from "./types.js";
 
 export type AgentManagerOptions = {
   capital?: number;
+  portfolioGuard?: streaming.PortfolioGuardOptions;
 };
 
 export type AgentManager = {
@@ -25,12 +26,26 @@ export type AgentManager = {
   getAgent(agentId: string): Agent | undefined;
   getSymbols(): string[];
   getAllStates(): AgentState[];
-  restoreStates(states: AgentState[], strategies: Map<string, StrategyDefinition>): void;
+  getState(): ManagerState;
+  restoreStates(
+    states: AgentState[],
+    strategies: Map<string, StrategyDefinition>,
+    portfolioGuardState?: streaming.PortfolioGuardState,
+  ): void;
+  getPortfolioExposure(): streaming.PortfolioExposure | null;
 };
 
 export function createAgentManager(opts?: AgentManagerOptions): AgentManager {
   const agents = new Map<string, Agent>();
   const symbolAgents = new Map<string, Set<string>>();
+
+  let portfolioGuard: streaming.PortfolioGuard | null = null;
+  if (opts?.portfolioGuard) {
+    portfolioGuard = streaming.createPortfolioGuard(opts.portfolioGuard);
+    if (opts.capital) {
+      portfolioGuard.updateEquity(opts.capital);
+    }
+  }
 
   function addToSymbolMap(symbol: string, agentId: string): void {
     let set = symbolAgents.get(symbol);
@@ -77,7 +92,27 @@ export function createAgentManager(opts?: AgentManagerOptions): AgentManager {
         const agent = agents.get(agentId);
         if (agent) {
           const { intents } = agent.feedTrade(trade);
-          allIntents.push(...intents);
+
+          for (const intent of intents) {
+            // PortfolioGuard check for entry intents
+            if (portfolioGuard && intent.reason === "entry") {
+              const notional = intent.shares * trade.price;
+              const check = portfolioGuard.canOpenPosition(symbol, notional);
+              if (!check.allowed) {
+                console.log(`[PORTFOLIO] Blocked ${intent.agentId} entry: ${check.reason}`);
+                continue;
+              }
+              portfolioGuard.reportPositionOpen(symbol, notional);
+            }
+
+            // Report position close to PortfolioGuard
+            if (portfolioGuard && intent.reason !== "entry" && intent.pnl !== undefined) {
+              const notional = intent.shares * trade.price;
+              portfolioGuard.reportPositionClose(symbol, notional, intent.pnl);
+            }
+
+            allIntents.push(intent);
+          }
         }
       }
       return allIntents;
@@ -108,7 +143,22 @@ export function createAgentManager(opts?: AgentManagerOptions): AgentManager {
       return [...agents.values()].map((a) => a.getState());
     },
 
-    restoreStates(states, strategies) {
+    getState(): ManagerState {
+      return {
+        agents: [...agents.values()].map((a) => a.getState()),
+        portfolioGuardState: portfolioGuard?.getState(),
+      };
+    },
+
+    restoreStates(states, strategies, savedPortfolioGuardState?) {
+      // Restore PortfolioGuard state
+      if (opts?.portfolioGuard && savedPortfolioGuardState) {
+        portfolioGuard = streaming.createPortfolioGuard(
+          opts.portfolioGuard,
+          savedPortfolioGuardState,
+        );
+      }
+
       for (const state of states) {
         const strategy = strategies.get(state.strategyId);
         if (!strategy) {
@@ -123,6 +173,10 @@ export function createAgentManager(opts?: AgentManagerOptions): AgentManager {
         agents.set(agent.id, agent);
         addToSymbolMap(state.symbol, agent.id);
       }
+    },
+
+    getPortfolioExposure(): streaming.PortfolioExposure | null {
+      return portfolioGuard?.getExposure() ?? null;
     },
   };
 }

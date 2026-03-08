@@ -28,3 +28,8 @@ export type AgentState = {
   sessionState: streaming.ManagedSessionState | null;
   lastUpdated: number;
 };
+
+export type ManagerState = {
+  agents: AgentState[];
+  portfolioGuardState?: streaming.PortfolioGuardState;
+};
