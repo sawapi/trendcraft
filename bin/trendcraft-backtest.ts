@@ -16,11 +16,12 @@
  *   trendcraft-backtest ./data --entry "goldenCross,volumeAnomaly" --stop-loss 5 --take-profit 10
  */
 
-import { existsSync, readdirSync, statSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
 import { runBacktest } from "../src/backtest/engine";
+import { batchBacktest } from "../src/backtest/portfolio";
 import { createCriteriaFromNames, getAvailableConditions, loadCsvFile } from "../src/screening";
-import type { BacktestResult } from "../src/types";
+import type { BacktestResult, BatchBacktestResult } from "../src/types";
 
 import type { FillMode, SlTpMode } from "../src/types";
 
@@ -29,6 +30,7 @@ function parseArgs(args: string[]): {
   target?: string;
   entry: string[];
   exit: string[];
+  strategy?: string;
   output: "table" | "json" | "csv";
   capital: number;
   stopLoss?: number;
@@ -45,6 +47,7 @@ function parseArgs(args: string[]): {
     target: undefined as string | undefined,
     entry: [] as string[],
     exit: [] as string[],
+    strategy: undefined as string | undefined,
     output: "table" as "table" | "json" | "csv",
     capital: 1000000,
     stopLoss: undefined as number | undefined,
@@ -66,6 +69,11 @@ function parseArgs(args: string[]): {
       result.help = true;
     } else if (arg === "--list" || arg === "-l") {
       result.list = true;
+    } else if (arg === "--strategy" || arg === "-s") {
+      i++;
+      if (args[i]) {
+        result.strategy = args[i];
+      }
     } else if (arg === "--entry" || arg === "-e") {
       i++;
       if (args[i]) {
@@ -136,6 +144,40 @@ function parseArgs(args: string[]): {
   return result;
 }
 
+/**
+ * JSON strategy file schema.
+ * Allows defining entry/exit conditions and backtest options in a JSON file.
+ */
+type StrategyJson = {
+  entry: string[];
+  exit?: string[];
+  capital?: number;
+  stopLoss?: number;
+  takeProfit?: number;
+  trailingStop?: number;
+  commission?: number;
+  fillMode?: FillMode;
+  slTpMode?: SlTpMode;
+};
+
+/**
+ * Load and parse a JSON strategy file
+ */
+function loadStrategyJson(filePath: string): StrategyJson {
+  const resolvedPath = resolve(filePath);
+  if (!existsSync(resolvedPath)) {
+    throw new Error(`Strategy file not found: ${resolvedPath}`);
+  }
+  const content = readFileSync(resolvedPath, "utf-8");
+  const parsed = JSON.parse(content) as StrategyJson;
+
+  if (!parsed.entry || !Array.isArray(parsed.entry) || parsed.entry.length === 0) {
+    throw new Error("Strategy file must have an 'entry' array with at least one condition name");
+  }
+
+  return parsed;
+}
+
 function printHelp(): void {
   console.log(`
 TrendCraft Backtest CLI
@@ -151,6 +193,7 @@ Options:
                          Default: goldenCross
   -x, --exit <conds>     Exit conditions (comma-separated)
                          Default: deadCross
+  -s, --strategy <file>  Load strategy from JSON file (overrides --entry/--exit)
   -o, --output <format>  Output format: table, json, csv
                          Default: table
   -c, --capital <amount> Initial capital
@@ -168,9 +211,21 @@ Options:
   -l, --list             List available condition names
   -h, --help             Show this help
 
+Strategy JSON Format:
+  {
+    "entry": ["goldenCross", "volumeAnomaly"],
+    "exit": ["deadCross"],
+    "capital": 1000000,
+    "stopLoss": 5,
+    "takeProfit": 15
+  }
+
 Examples:
   # Single file with detailed output
   trendcraft-backtest ./data/6758.T.csv --entry "goldenCross" --exit "deadCross"
+
+  # Load strategy from JSON file
+  trendcraft-backtest ./data --strategy strategy.json
 
   # Multiple files comparison
   trendcraft-backtest ./data --entry "perfectOrderActiveBullish" --exit "perfectOrderCollapsed"
@@ -408,6 +463,20 @@ function main(): void {
   }
 
   try {
+    // Load strategy from JSON file if provided
+    if (options.strategy) {
+      const strategy = loadStrategyJson(options.strategy);
+      options.entry = strategy.entry;
+      options.exit = strategy.exit ?? options.exit;
+      if (strategy.capital !== undefined) options.capital = strategy.capital;
+      if (strategy.stopLoss !== undefined) options.stopLoss = strategy.stopLoss;
+      if (strategy.takeProfit !== undefined) options.takeProfit = strategy.takeProfit;
+      if (strategy.trailingStop !== undefined) options.trailingStop = strategy.trailingStop;
+      if (strategy.commission !== undefined) options.commission = strategy.commission;
+      if (strategy.fillMode !== undefined) options.fillMode = strategy.fillMode;
+      if (strategy.slTpMode !== undefined) options.slTpMode = strategy.slTpMode;
+    }
+
     // Create conditions from names
     const criteria = createCriteriaFromNames(options.entry, options.exit);
 
@@ -451,7 +520,7 @@ function main(): void {
         console.log(formatSingleResult(ticker, result, { showTrades: options.showTrades }));
       }
     } else {
-      // Multiple files backtest
+      // Multiple files backtest using batchBacktest for portfolio metrics
       const files = readdirSync(targetPath).filter((f) => f.endsWith(".csv"));
 
       if (files.length === 0) {
@@ -459,40 +528,65 @@ function main(): void {
         process.exit(1);
       }
 
-      const results: BacktestResultWithTicker[] = [];
-
+      // Load datasets
+      const datasets: { symbol: string; candles: import("../src/types").NormalizedCandle[] }[] = [];
       for (const file of files) {
         const filepath = join(targetPath, file);
         try {
           const { ticker, candles } = loadCsvFile(filepath);
-
-          if (candles.length < 100) {
-            continue; // Skip files with insufficient data
+          if (candles.length >= 100) {
+            datasets.push({ symbol: ticker, candles });
           }
-
-          const result = runBacktest(
-            candles,
-            criteria.entry,
-            criteria.exit ?? criteria.entry,
-            backtestOptions,
-          );
-
-          results.push({ ticker, ...result });
         } catch {
           // Skip files that fail to load
         }
       }
 
-      if (results.length === 0) {
+      if (datasets.length === 0) {
         console.error("Error: No valid data files found");
         process.exit(1);
       }
 
+      // Use batchBacktest for portfolio-level metrics
+      const batchResult = batchBacktest(
+        datasets,
+        criteria.entry,
+        criteria.exit ?? criteria.entry,
+        backtestOptions,
+      );
+
+      // Convert to BacktestResultWithTicker for existing formatters
+      const results: BacktestResultWithTicker[] = batchResult.symbols.map((sr) => ({
+        ticker: sr.symbol,
+        ...sr.result,
+      }));
+
       if (options.output === "json") {
-        console.log(formatResultsJson(results));
+        console.log(
+          JSON.stringify(
+            {
+              portfolio: batchResult.portfolio,
+              ...JSON.parse(formatResultsJson(results)),
+            },
+            null,
+            2,
+          ),
+        );
       } else if (options.output === "csv") {
         console.log(formatResultsCsv(results));
       } else {
+        // Show portfolio summary before per-symbol table
+        const p = batchResult.portfolio;
+        console.log("=".repeat(110));
+        console.log("Portfolio Summary");
+        console.log("=".repeat(110));
+        console.log(`  Total Return:     ${p.totalReturnPercent.toFixed(2)}%`);
+        console.log(`  Max Drawdown:     ${p.maxDrawdown.toFixed(2)}%`);
+        console.log(`  Sharpe Ratio:     ${p.sharpeRatio.toFixed(3)}`);
+        console.log(`  Total Trades:     ${p.tradeCount}`);
+        console.log(`  Win Rate:         ${p.winRate.toFixed(1)}%`);
+        console.log(`  Profit Factor:    ${p.profitFactor.toFixed(2)}`);
+        console.log("");
         console.log(formatMultipleResults(results));
       }
     }

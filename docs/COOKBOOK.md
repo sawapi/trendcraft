@@ -478,3 +478,295 @@ for (const { plugin, options } of pipeline) {
 const dynamicResult = tc.compute();
 console.log(Object.keys(dynamicResult.indicators));
 ```
+
+---
+
+## Recipe 12: Multi-Asset Backtest — Portfolio of Stocks
+
+**Goal:** Backtest the same strategy across multiple symbols and get portfolio-level metrics.
+**Use case:** Evaluate a trend-following strategy across a diversified basket.
+
+```typescript
+import {
+  normalizeCandles,
+  batchBacktest,
+  goldenCrossCondition,
+  deadCrossCondition,
+} from "trendcraft";
+
+// Prepare datasets (one per symbol)
+const datasets = [
+  { symbol: "AAPL", candles: normalizeCandles(aaplRaw) },
+  { symbol: "MSFT", candles: normalizeCandles(msftRaw) },
+  { symbol: "GOOG", candles: normalizeCandles(googRaw) },
+  { symbol: "AMZN", candles: normalizeCandles(amznRaw) },
+];
+
+// Run batch backtest with equal capital allocation
+const result = batchBacktest(
+  datasets,
+  goldenCrossCondition(5, 25),
+  deadCrossCondition(5, 25),
+  { capital: 4_000_000, stopLoss: 5, takeProfit: 15 },
+);
+
+// Portfolio-level metrics
+console.log(`Portfolio Return: ${result.portfolio.totalReturnPercent}%`);
+console.log(`Portfolio Drawdown: ${result.portfolio.maxDrawdown}%`);
+console.log(`Total Trades: ${result.portfolio.tradeCount}`);
+
+// Per-symbol breakdown
+for (const s of result.symbols) {
+  console.log(`  ${s.symbol}: ${s.result.totalReturnPercent}% (${s.result.tradeCount} trades)`);
+}
+
+// Custom allocation (overweight AAPL)
+const weighted = batchBacktest(
+  datasets,
+  goldenCrossCondition(5, 25),
+  deadCrossCondition(5, 25),
+  {
+    capital: 4_000_000,
+    allocation: "custom",
+    allocations: { AAPL: 0.4, MSFT: 0.25, GOOG: 0.2, AMZN: 0.15 },
+    stopLoss: 5,
+  },
+);
+```
+
+---
+
+## Recipe 13: Portfolio Backtest — Shared Capital with Position Limits
+
+**Goal:** Simulate a portfolio with shared capital, per-symbol exposure caps, and rebalancing.
+
+```typescript
+import {
+  normalizeCandles,
+  portfolioBacktest,
+  goldenCrossCondition,
+  deadCrossCondition,
+} from "trendcraft";
+
+const datasets = [
+  { symbol: "7203.T", candles: normalizeCandles(toyotaRaw) },
+  { symbol: "6758.T", candles: normalizeCandles(sonyRaw) },
+  { symbol: "9984.T", candles: normalizeCandles(softbankRaw) },
+];
+
+const result = portfolioBacktest(
+  datasets,
+  goldenCrossCondition(5, 25),
+  deadCrossCondition(5, 25),
+  {
+    capital: 10_000_000,
+    allocation: { type: "equal" },
+    maxPositions: 2,           // Max 2 concurrent positions
+    maxSymbolExposure: 40,     // Max 40% per symbol
+    maxPortfolioDrawdown: 15,  // Halt if DD exceeds 15%
+    rebalance: { frequency: "monthly" },
+    tradeOptions: {
+      stopLoss: 5,
+      takeProfit: 15,
+      trailingStop: 8,
+    },
+  },
+);
+
+console.log(`Return: ${result.portfolio.totalReturnPercent}%`);
+console.log(`Peak Concurrent Positions: ${result.peakConcurrentPositions}`);
+console.log(`Rebalance Events: ${result.rebalanceCount}`);
+```
+
+---
+
+## Recipe 14: Series Utilities — Combining Indicators
+
+**Goal:** Combine and transform indicator series with time-aligned operations.
+
+```typescript
+import {
+  normalizeCandles,
+  sma,
+  rsi,
+  bollingerBands,
+  zipSeries,
+  mapSeries,
+  filterSeries,
+  alignSeries,
+  resample,
+} from "trendcraft";
+
+const candles = normalizeCandles(rawCandles);
+
+// Transform: Normalize RSI to 0-1 range
+const rsi14 = rsi(candles);
+const normalizedRsi = mapSeries(rsi14, (val) => val / 100);
+
+// Combine: SMA spread
+const sma5 = sma(candles, { period: 5 });
+const sma25 = sma(candles, { period: 25 });
+const spread = zipSeries(sma5, sma25, (fast, slow) => fast - slow);
+
+// Complex merge: Create a composite signal
+const bb = bollingerBands(candles);
+const composite = zipSeries(rsi14, bb, (rsiVal, bbVal) => ({
+  rsi: rsiVal,
+  percentB: bbVal.percentB,
+  signal:
+    rsiVal < 30 && bbVal.percentB !== null && bbVal.percentB < 0
+      ? "strong_buy"
+      : rsiVal > 70 && bbVal.percentB !== null && bbVal.percentB > 1
+        ? "strong_sell"
+        : "neutral",
+}));
+
+// Filter: Find oversold moments
+const oversold = filterSeries(rsi14, (val) => val < 30);
+console.log(`Oversold points: ${oversold.length}`);
+
+// Align: Higher timeframe indicator to daily data
+const weeklyCandles = resample(candles, { value: 1, unit: "week" });
+const weeklySma = sma(weeklyCandles, { period: 20 });
+const dailySma = sma(candles, { period: 20 });
+const alignedWeeklySma = alignSeries(weeklySma, dailySma);
+```
+
+---
+
+## Recipe 15: AI-Powered Strategy Generation with llms.txt
+
+**Goal:** Use an LLM (ChatGPT, Claude, etc.) to generate TrendCraft strategies.
+**No code changes needed — just leverage the existing `llms.txt` file.**
+
+### Step 1: Provide Context to the LLM
+
+Copy the contents of `llms.txt` (shipped with the package) into your LLM prompt:
+
+```
+You are a quant strategy developer. Use the TrendCraft library to build strategies.
+Here is the API reference:
+
+[paste contents of llms.txt]
+
+Create a mean-reversion strategy for Japanese stocks with:
+- Entry: RSI below 25 + price at lower Bollinger Band
+- Exit: RSI above 65
+- Risk: 2% max loss per trade, 3:1 R/R ratio
+- Use ATR-based position sizing
+```
+
+### Step 2: The LLM generates ready-to-run code
+
+```typescript
+// Generated by LLM using llms.txt context
+import {
+  normalizeCandles,
+  runBacktest,
+  bollingerTouch,
+  rsiBelow,
+  rsiAbove,
+  and,
+  riskBasedSize,
+  atr,
+} from "trendcraft";
+
+const candles = normalizeCandles(rawCandles);
+
+const result = runBacktest(
+  candles,
+  and(bollingerTouch("lower"), rsiBelow(25)),
+  rsiAbove(65),
+  {
+    capital: 1_000_000,
+    atrRisk: {
+      atrPeriod: 14,
+      atrStopMultiplier: 2,
+      atrTakeProfitMultiplier: 6,
+    },
+  },
+);
+```
+
+### Tips for Better LLM-Generated Strategies
+
+- Always include `llms.txt` — it contains all function signatures and examples
+- Use `StrategyDefinition` type for serializable strategies the LLM can output as JSON
+- Validate generated code with `pnpm build` before running
+
+---
+
+## Recipe 16: Data Integration — Connecting External Sources
+
+**Goal:** Convert data from popular APIs (CCXT, Alpaca, Yahoo Finance) to TrendCraft format.
+**No library dependency needed — just use `normalizeCandles()`.**
+
+### CCXT (Crypto Exchanges)
+
+```typescript
+import { normalizeCandles } from "trendcraft";
+
+// CCXT returns [timestamp, open, high, low, close, volume]
+const ohlcv = await exchange.fetchOHLCV("BTC/USDT", "1d", undefined, 200);
+
+const candles = normalizeCandles(
+  ohlcv.map(([time, open, high, low, close, volume]) => ({
+    time,
+    open,
+    high,
+    low,
+    close,
+    volume,
+  })),
+);
+```
+
+### Alpaca Markets
+
+```typescript
+import { normalizeCandles } from "trendcraft";
+
+// Alpaca bars: { t, o, h, l, c, v }
+const bars = await alpaca.getBars({ symbol: "AAPL", timeframe: "1Day", limit: 200 });
+
+const candles = normalizeCandles(
+  bars.map((bar) => ({
+    time: new Date(bar.t).getTime(),
+    open: bar.o,
+    high: bar.h,
+    low: bar.l,
+    close: bar.c,
+    volume: bar.v,
+  })),
+);
+```
+
+### Yahoo Finance (via yahoo-finance2)
+
+```typescript
+import { normalizeCandles } from "trendcraft";
+
+// yahoo-finance2 returns { date, open, high, low, close, volume }
+const history = await yahooFinance.chart("AAPL", { period1: "2023-01-01" });
+
+const candles = normalizeCandles(
+  history.quotes.map((q) => ({
+    time: q.date.getTime(),
+    open: q.open,
+    high: q.high,
+    low: q.low,
+    close: q.close,
+    volume: q.volume,
+  })),
+);
+```
+
+### CSV Files
+
+```typescript
+import { parseCsv, normalizeCandles } from "trendcraft";
+
+// TrendCraft's built-in CSV parser handles common formats
+const raw = parseCsv(csvString); // Returns Candle[]
+const candles = normalizeCandles(raw);
+```

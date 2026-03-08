@@ -178,6 +178,9 @@ export { runBacktest } from "./engine";
 export { runBacktestScaled } from "./scaled-entry";
 export type { ScaledBacktestOptions } from "./scaled-entry";
 
+// Portfolio / Multi-Asset Backtest
+export { batchBacktest, portfolioBacktest } from "./portfolio";
+
 // Scoring
 export { scoreBacktestResult } from "./scoring";
 export type { BacktestScore, ScoreBreakdownEntry, ScoreWeights, ScoreOptions } from "./scoring";

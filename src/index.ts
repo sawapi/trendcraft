@@ -374,6 +374,9 @@ export {
   // Engine
   runBacktest,
   runBacktestScaled,
+  // Portfolio / Multi-Asset Backtest
+  batchBacktest,
+  portfolioBacktest,
 } from "./backtest";
 
 export type {
@@ -382,6 +385,20 @@ export type {
   PerfectOrderEnhancedConditionOptions,
   ScaledBacktestOptions,
 } from "./backtest";
+
+// Portfolio types
+export type {
+  SymbolData,
+  SymbolBacktestResult,
+  EquityPoint,
+  BatchBacktestOptions,
+  PortfolioMetrics,
+  BatchBacktestResult,
+  AllocationStrategy,
+  RebalanceConfig,
+  PortfolioBacktestOptions,
+  PortfolioBacktestResult,
+} from "./types";
 
 // Signals
 export {
@@ -887,3 +904,6 @@ export { createSessionFromStrategy } from "./strategy";
 
 // Execution utilities (resilient order execution)
 export * as execution from "./execution";
+
+// Series Utilities
+export { zipSeries, mapSeries, filterSeries, alignSeries } from "./utils/series";

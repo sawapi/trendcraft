@@ -294,6 +294,48 @@ Presets: `"momentum"`, `"meanReversion"`, `"trendFollowing"`, `"balanced"`, `"ag
 - `createCriteriaFromNames(entryNames, exitNames)` — Create criteria from preset names
 - `CONDITION_PRESETS` — Map of all available preset condition names
 
+### Portfolio / Multi-Asset Backtest
+```typescript
+import { batchBacktest, portfolioBacktest } from 'trendcraft';
+
+// Phase 1: Independent per-symbol backtests with merged portfolio metrics
+const result = batchBacktest(
+  [{ symbol: 'AAPL', candles }, { symbol: 'MSFT', candles2 }],
+  goldenCrossCondition(5, 25), deadCrossCondition(5, 25),
+  { capital: 2_000_000, stopLoss: 5 }
+);
+// result.portfolio — aggregated PortfolioMetrics
+// result.symbols — per-symbol BacktestResult[]
+// result.equityCurve — merged EquityPoint[]
+// result.allTrades — all trades with symbol tags, sorted by entry time
+
+// Phase 2: Shared capital with allocation + position limits
+const portResult = portfolioBacktest(datasets, entry, exit, {
+  capital: 3_000_000,
+  allocation: { type: 'equal' },
+  maxPositions: 5,
+  maxSymbolExposure: 25,
+  tradeOptions: { stopLoss: 5, takeProfit: 15 },
+});
+```
+
+### Series Utilities
+```typescript
+import { zipSeries, mapSeries, filterSeries, alignSeries } from 'trendcraft';
+
+// Combine two series by aligned timestamps
+const spread = zipSeries(sma5, sma25, (fast, slow) => fast - slow);
+
+// Transform values
+const normalized = mapSeries(rsi14, val => val / 100);
+
+// Filter by predicate
+const oversold = filterSeries(rsi14, val => val < 30);
+
+// Align higher-TF indicator to lower-TF timestamps
+const aligned = alignSeries(weeklySma, dailySma);
+```
+
 ### Trade Analysis
 - `analyzeAllTrades(trades)` — Comprehensive trade analysis (stats, exit reasons, holding periods, MFE/MAE, streaks)
 
@@ -302,6 +344,7 @@ Presets: `"momentum"`, `"meanReversion"`, `"trendFollowing"`, `"balanced"`, `"ag
 ### CLI Tools
 - `npx trendcraft-screen ./data --entry "goldenCross"` — Stock screening CLI
 - `npx trendcraft-backtest ./data --entry "goldenCross" --exit "deadCross"` — Backtest CLI
+- `npx trendcraft-backtest ./data --strategy strategy.json` — Load strategy from JSON file
 
 ### Plugin System
 ```typescript
@@ -321,6 +364,6 @@ All indicators support `Result<Series<T>, TrendCraftError>` via safe variants fo
 
 ## Types
 
-Key types: `Candle`, `NormalizedCandle`, `Series<T>`, `IndicatorValue<T>`, `TradeSignal`, `BacktestResult`, `BacktestOptions`, `Condition`, `ScoringConfig`, `PipelineOptions`, `PipelineResult`
+Key types: `Candle`, `NormalizedCandle`, `Series<T>`, `IndicatorValue<T>`, `TradeSignal`, `BacktestResult`, `BacktestOptions`, `Condition`, `ScoringConfig`, `PipelineOptions`, `PipelineResult`, `SymbolData`, `BatchBacktestResult`, `PortfolioMetrics`, `EquityPoint`, `BatchBacktestOptions`, `PortfolioBacktestOptions`, `PortfolioBacktestResult`
 
 See [API Reference](https://github.com/sawapi/trendcraft/blob/main/docs/API.md) for complete type definitions.

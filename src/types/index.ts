@@ -182,3 +182,20 @@ export type {
   VolumeAnomalyOptions,
   StaleDetectionOptions,
 } from "../validation/types";
+
+// ============================================
+// Portfolio Types
+// ============================================
+
+export type {
+  SymbolData,
+  SymbolBacktestResult,
+  EquityPoint,
+  BatchBacktestOptions,
+  PortfolioMetrics,
+  BatchBacktestResult,
+  AllocationStrategy,
+  RebalanceConfig,
+  PortfolioBacktestOptions,
+  PortfolioBacktestResult,
+} from "./portfolio";
