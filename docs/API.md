@@ -63,6 +63,9 @@
 - [Short Selling](#short-selling)
   - [Backtest Short Selling](#backtest-short-selling)
   - [Streaming Short Selling](#streaming-short-selling)
+- [Trade Analysis](#trade-analysis)
+  - [analyzeDrawdowns](#analyzedrawdownsperiods)
+  - [Pattern Projection](#pattern-projection)
 - [Data Validation](#data-validation)
   - [validateCandles](#validatecandles)
   - [normalizeAndValidate](#normalizeandvalidate)
@@ -1886,18 +1889,30 @@ const legacyResult = runBacktest(candles, entry, exit, {
 
 ```typescript
 interface BacktestResult {
-  initialCapital: number;      // Initial capital
-  finalCapital: number;        // Final capital
-  totalReturn: number;         // Total return amount
-  totalReturnPercent: number;  // Total return percentage
-  tradeCount: number;          // Number of trades
-  winRate: number;             // Win rate (%)
-  maxDrawdown: number;         // Maximum drawdown (%)
-  sharpeRatio: number;         // Sharpe ratio (annualized)
-  profitFactor: number;        // Profit factor
-  avgHoldingDays: number;      // Average holding days
-  trades: Trade[];             // Trade details
-  settings: BacktestSettings;  // Settings used (for reproducibility)
+  initialCapital: number;            // Initial capital
+  finalCapital: number;              // Final capital
+  totalReturn: number;               // Total return amount
+  totalReturnPercent: number;        // Total return percentage
+  tradeCount: number;                // Number of trades
+  winRate: number;                   // Win rate (%)
+  maxDrawdown: number;               // Maximum drawdown (%)
+  sharpeRatio: number;               // Sharpe ratio (annualized)
+  profitFactor: number;              // Profit factor
+  avgHoldingDays: number;            // Average holding days
+  trades: Trade[];                   // Trade details
+  settings: BacktestSettings;        // Settings used (for reproducibility)
+  drawdownPeriods: DrawdownPeriod[]; // Individual drawdown periods
+}
+
+interface DrawdownPeriod {
+  startTime: number;         // Timestamp when drawdown started (peak equity)
+  peakEquity: number;        // Peak equity value at start
+  troughTime: number;        // Timestamp of maximum depth
+  troughEquity: number;      // Equity at maximum depth
+  recoveryTime?: number;     // Timestamp of recovery (undefined if not recovered)
+  maxDepthPercent: number;   // Maximum drawdown depth (%)
+  durationBars: number;      // Duration in bars
+  recoveryBars?: number;     // Bars from trough to recovery
 }
 
 interface BacktestSettings {
@@ -4191,6 +4206,109 @@ const result = tracker.updatePrice(candle);
 if (result.triggered) {
   console.log(result.triggered.reason); // "stop-loss" | "take-profit" | "trailing-stop"
 }
+```
+
+---
+
+## Trade Analysis
+
+### `analyzeDrawdowns(periods)`
+
+Analyze drawdown periods from backtest results to produce summary statistics.
+
+```typescript
+import { runBacktest, analyzeDrawdowns } from 'trendcraft';
+
+const result = runBacktest(candles, entry, exit, { capital: 1_000_000 });
+const summary = analyzeDrawdowns(result.drawdownPeriods);
+
+console.log(`Drawdown count: ${summary.count}`);
+console.log(`Worst drawdown: ${summary.maxDepth}%`);
+console.log(`Avg recovery: ${summary.avgRecoveryBars} bars`);
+console.log(`Recovery rate: ${summary.recoveryRate}%`);
+```
+
+**Returns:** `DrawdownSummary`
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `count` | `number` | Total number of drawdown periods |
+| `avgDepth` | `number` | Average drawdown depth (%) |
+| `maxDepth` | `number` | Maximum drawdown depth (%) |
+| `avgDurationBars` | `number` | Average drawdown duration in bars |
+| `maxDurationBars` | `number` | Maximum drawdown duration in bars |
+| `avgRecoveryBars` | `number` | Average recovery time in bars |
+| `maxRecoveryBars` | `number` | Maximum recovery time in bars |
+| `recoveryRate` | `number` | Percentage of drawdowns that recovered |
+| `worstDrawdown` | `DrawdownPeriod \| null` | The deepest drawdown period |
+| `longestRecovery` | `DrawdownPeriod \| null` | The longest recovery period |
+
+---
+
+### Pattern Projection
+
+Analyze price behavior after pattern/event occurrences to project future returns with statistical confidence bounds.
+
+#### `projectPatternOutcome(candles, events, extractor, options?)`
+
+Generic projection function for any event type.
+
+```typescript
+import { projectPatternOutcome, doubleBottom } from 'trendcraft';
+
+const patterns = doubleBottom(candles);
+const projection = projectPatternOutcome(
+  candles,
+  patterns,
+  (p) => ({ time: p.time, direction: 'bullish' }),
+  { horizon: 30, confidenceLevel: 0.95, thresholds: [1, 2, 5, 10] },
+);
+
+console.log(`Valid events: ${projection.validCount}`);
+console.log(`Avg return after 10 bars: ${projection.avgReturnByBar[9]}%`);
+console.log(`5% hit rate: ${projection.hitRates.find(h => h.threshold === 5)?.rate}%`);
+```
+
+**Options:**
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `horizon` | `number` | `20` | Number of bars to project forward |
+| `confidenceLevel` | `number` | `0.95` | Confidence level for upper/lower bounds |
+| `thresholds` | `number[]` | `[1,2,5,10]` | Return thresholds for hit rate calculation |
+
+**Returns:** `PatternProjection`
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `patternCount` | `number` | Total events found |
+| `validCount` | `number` | Events with sufficient forward data |
+| `avgReturnByBar` | `number[]` | Average return at each bar offset |
+| `medianReturnByBar` | `number[]` | Median return at each bar offset |
+| `upperBound` | `number[]` | Upper confidence bound |
+| `lowerBound` | `number[]` | Lower confidence bound |
+| `hitRates` | `HitRate[]` | Hit rates for each threshold |
+
+#### `projectFromPatterns(candles, signals, options?)`
+
+Convenience wrapper for `PatternSignal[]`. Automatically detects direction from pattern type (double_top/head_shoulders → bearish, others → bullish).
+
+```typescript
+import { projectFromPatterns, doubleTop, doubleBottom } from 'trendcraft';
+
+const tops = doubleTop(candles);
+const projection = projectFromPatterns(candles, tops); // auto bearish
+```
+
+#### `projectFromSeries(candles, series, options?)`
+
+Project outcomes from any `Series<T>` where truthy values are events.
+
+```typescript
+import { projectFromSeries, crossOver, sma } from 'trendcraft';
+
+const crosses = crossOver(sma(candles, { period: 5 }), sma(candles, { period: 25 }));
+const projection = projectFromSeries(candles, crosses, { horizon: 20 });
 ```
 
 ---

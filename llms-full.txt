@@ -396,6 +396,7 @@ interface BacktestResult {
   avgHoldingDays: number;
   trades: Trade[];
   settings: BacktestSettings;
+  drawdownPeriods: DrawdownPeriod[];  // Individual peak-trough-recovery periods
 }
 ```
 
@@ -913,6 +914,12 @@ Individual detectors: `detectGaps()`, `detectDuplicates()`, `removeDuplicates()`
 - `calculateTradeStats(trades)` — Basic stats
 - `analyzeByExitReason(trades)` / `analyzeByHoldingPeriod(trades)` / `analyzeByTime(trades)`
 - `analyzeMfeMae(trades)` / `analyzeStreaks(trades)`
+- `analyzeDrawdowns(result.drawdownPeriods)` — Drawdown period analysis (count, avg/max depth, recovery rate, worst drawdown)
+
+### Pattern Projection
+- `projectPatternOutcome(candles, events, extractor, opts?)` — Project price outcomes after events with confidence bounds and hit rates
+- `projectFromPatterns(candles, signals, opts?)` — Pattern projection with auto direction detection (bearish patterns have returns inverted)
+- `projectFromSeries(candles, series, opts?)` — Project outcomes from indicator series (truthy values = events)
 
 ## Plugin System
 

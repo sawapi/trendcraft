@@ -63,6 +63,9 @@
 - [ショートセリング](#ショートセリング)
   - [バックテストでのショート](#バックテストでのショート)
   - [ストリーミングでのショート](#ストリーミングでのショート)
+- [トレード分析](#トレード分析)
+  - [analyzeDrawdowns](#analyzedrawdownsperiods)
+  - [パターンプロジェクション](#パターンプロジェクション)
 - [データ品質バリデーション](#データ品質バリデーション)
   - [validateCandles](#validatecandles)
   - [normalizeAndValidate](#normalizeandvalidate)
@@ -1888,18 +1891,30 @@ const legacyResult = runBacktest(candles, entry, exit, {
 
 ```typescript
 interface BacktestResult {
-  initialCapital: number;      // 初期資金
-  finalCapital: number;        // 最終資金
-  totalReturn: number;         // 総リターン額
-  totalReturnPercent: number;  // 総リターン率
-  tradeCount: number;          // 取引回数
-  winRate: number;             // 勝率 (%)
-  maxDrawdown: number;         // 最大ドローダウン (%)
-  sharpeRatio: number;         // シャープレシオ（年率化）
-  profitFactor: number;        // プロフィットファクター
-  avgHoldingDays: number;      // 平均保有日数
-  trades: Trade[];             // 取引詳細
-  settings: BacktestSettings;  // 使用した設定（再現性のため）
+  initialCapital: number;            // 初期資金
+  finalCapital: number;              // 最終資金
+  totalReturn: number;               // 総リターン額
+  totalReturnPercent: number;        // 総リターン率
+  tradeCount: number;                // 取引回数
+  winRate: number;                   // 勝率 (%)
+  maxDrawdown: number;               // 最大ドローダウン (%)
+  sharpeRatio: number;               // シャープレシオ（年率化）
+  profitFactor: number;              // プロフィットファクター
+  avgHoldingDays: number;            // 平均保有日数
+  trades: Trade[];                   // 取引詳細
+  settings: BacktestSettings;        // 使用した設定（再現性のため）
+  drawdownPeriods: DrawdownPeriod[]; // 個別ドローダウン期間
+}
+
+interface DrawdownPeriod {
+  startTime: number;         // ドローダウン開始タイムスタンプ（ピーク時点）
+  peakEquity: number;        // 開始時のピーク資産額
+  troughTime: number;        // 最大深度のタイムスタンプ
+  troughEquity: number;      // 最大深度時の資産額
+  recoveryTime?: number;     // 回復タイムスタンプ（未回復の場合undefined）
+  maxDepthPercent: number;   // 最大ドローダウン深度 (%)
+  durationBars: number;      // 期間（バー数）
+  recoveryBars?: number;     // 底値から回復までのバー数
 }
 
 interface BacktestSettings {
@@ -4098,6 +4113,109 @@ const result = tracker.updatePrice(candle);
 if (result.triggered) {
   console.log(result.triggered.reason); // "stop-loss" | "take-profit" | "trailing-stop"
 }
+```
+
+---
+
+## トレード分析
+
+### `analyzeDrawdowns(periods)`
+
+バックテスト結果のドローダウン期間を分析し、サマリー統計を生成します。
+
+```typescript
+import { runBacktest, analyzeDrawdowns } from 'trendcraft';
+
+const result = runBacktest(candles, entry, exit, { capital: 1_000_000 });
+const summary = analyzeDrawdowns(result.drawdownPeriods);
+
+console.log(`ドローダウン回数: ${summary.count}`);
+console.log(`最大ドローダウン: ${summary.maxDepth}%`);
+console.log(`平均回復期間: ${summary.avgRecoveryBars} バー`);
+console.log(`回復率: ${summary.recoveryRate}%`);
+```
+
+**戻り値:** `DrawdownSummary`
+
+| プロパティ | 型 | 説明 |
+|-----------|------|------|
+| `count` | `number` | ドローダウン期間の総数 |
+| `avgDepth` | `number` | 平均ドローダウン深度 (%) |
+| `maxDepth` | `number` | 最大ドローダウン深度 (%) |
+| `avgDurationBars` | `number` | 平均ドローダウン期間（バー数） |
+| `maxDurationBars` | `number` | 最大ドローダウン期間（バー数） |
+| `avgRecoveryBars` | `number` | 平均回復時間（バー数） |
+| `maxRecoveryBars` | `number` | 最大回復時間（バー数） |
+| `recoveryRate` | `number` | 回復したドローダウンの割合 (%) |
+| `worstDrawdown` | `DrawdownPeriod \| null` | 最も深いドローダウン期間 |
+| `longestRecovery` | `DrawdownPeriod \| null` | 最も長い回復期間 |
+
+---
+
+### パターンプロジェクション
+
+パターン/イベント発生後の価格推移を統計分析し、信頼区間付きの将来リターンを予測します。
+
+#### `projectPatternOutcome(candles, events, extractor, options?)`
+
+任意のイベントタイプに対応する汎用プロジェクション関数。
+
+```typescript
+import { projectPatternOutcome, doubleBottom } from 'trendcraft';
+
+const patterns = doubleBottom(candles);
+const projection = projectPatternOutcome(
+  candles,
+  patterns,
+  (p) => ({ time: p.time, direction: 'bullish' }),
+  { horizon: 30, confidenceLevel: 0.95, thresholds: [1, 2, 5, 10] },
+);
+
+console.log(`有効イベント数: ${projection.validCount}`);
+console.log(`10バー後の平均リターン: ${projection.avgReturnByBar[9]}%`);
+console.log(`5%ヒット率: ${projection.hitRates.find(h => h.threshold === 5)?.rate}%`);
+```
+
+**オプション:**
+
+| オプション | 型 | デフォルト | 説明 |
+|-----------|------|---------|------|
+| `horizon` | `number` | `20` | 前方投影するバー数 |
+| `confidenceLevel` | `number` | `0.95` | 上限/下限の信頼水準 |
+| `thresholds` | `number[]` | `[1,2,5,10]` | ヒット率計算用のリターン閾値 |
+
+**戻り値:** `PatternProjection`
+
+| プロパティ | 型 | 説明 |
+|-----------|------|------|
+| `patternCount` | `number` | 検出されたイベント総数 |
+| `validCount` | `number` | 十分な前方データがあるイベント数 |
+| `avgReturnByBar` | `number[]` | 各バーオフセットでの平均リターン |
+| `medianReturnByBar` | `number[]` | 各バーオフセットでの中央値リターン |
+| `upperBound` | `number[]` | 信頼区間上限 |
+| `lowerBound` | `number[]` | 信頼区間下限 |
+| `hitRates` | `HitRate[]` | 各閾値に対するヒット率 |
+
+#### `projectFromPatterns(candles, signals, options?)`
+
+`PatternSignal[]` 用の便利ラッパー。パターンタイプから方向を自動検出（double_top/head_shoulders → bearish、その他 → bullish）。
+
+```typescript
+import { projectFromPatterns, doubleTop } from 'trendcraft';
+
+const tops = doubleTop(candles);
+const projection = projectFromPatterns(candles, tops); // 自動でbearish
+```
+
+#### `projectFromSeries(candles, series, options?)`
+
+任意の `Series<T>` からプロジェクション。truthy値をイベントとして扱います。
+
+```typescript
+import { projectFromSeries, crossOver, sma } from 'trendcraft';
+
+const crosses = crossOver(sma(candles, { period: 5 }), sma(candles, { period: 25 }));
+const projection = projectFromSeries(candles, crosses, { horizon: 20 });
 ```
 
 ---

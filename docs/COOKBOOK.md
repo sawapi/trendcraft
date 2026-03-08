@@ -696,7 +696,134 @@ const result = runBacktest(
 
 ---
 
-## Recipe 16: Data Integration — Connecting External Sources
+## Recipe 16: Drawdown Analysis — Risk Management Insights
+
+**Goal:** Analyze drawdown periods from backtest results to identify risk characteristics and recovery patterns.
+
+```typescript
+import {
+  runBacktest,
+  analyzeDrawdowns,
+  goldenCrossCondition,
+  deadCrossCondition,
+} from "trendcraft";
+
+const result = runBacktest(candles, goldenCrossCondition(5, 25), deadCrossCondition(5, 25), {
+  capital: 1_000_000,
+  stopLoss: 5,
+  takeProfit: 15,
+});
+
+// Analyze drawdown periods
+const dd = analyzeDrawdowns(result.drawdownPeriods);
+
+console.log(`=== Drawdown Analysis ===`);
+console.log(`Total drawdowns: ${dd.count}`);
+console.log(`Avg depth: ${dd.avgDepth}%`);
+console.log(`Max depth: ${dd.maxDepth}%`);
+console.log(`Avg duration: ${dd.avgDurationBars} bars`);
+console.log(`Max duration: ${dd.maxDurationBars} bars`);
+console.log(`Recovery rate: ${dd.recoveryRate}%`);
+console.log(`Avg recovery: ${dd.avgRecoveryBars} bars`);
+
+if (dd.worstDrawdown) {
+  const w = dd.worstDrawdown;
+  console.log(`\nWorst drawdown: ${w.maxDepthPercent}% (peak: ${w.peakEquity} → trough: ${w.troughEquity})`);
+}
+
+// Compare strategies by drawdown profile
+const strategies = [
+  { name: "SL 3%", opts: { capital: 1_000_000, stopLoss: 3 } },
+  { name: "SL 5%", opts: { capital: 1_000_000, stopLoss: 5 } },
+  { name: "SL 10%", opts: { capital: 1_000_000, stopLoss: 10 } },
+];
+
+for (const s of strategies) {
+  const r = runBacktest(candles, goldenCrossCondition(5, 25), deadCrossCondition(5, 25), s.opts);
+  const d = analyzeDrawdowns(r.drawdownPeriods);
+  console.log(`${s.name}: maxDD=${d.maxDepth}%, avgRecovery=${d.avgRecoveryBars} bars, recoveryRate=${d.recoveryRate}%`);
+}
+```
+
+**Key insights:**
+- `recoveryRate` < 80% suggests the strategy has trouble recovering from losses
+- Compare `avgRecoveryBars` across strategies to find faster-recovering setups
+- `worstDrawdown` helps set realistic expectations for live trading
+
+---
+
+## Recipe 17: Pattern Projection — Expected Returns After Signals
+
+**Goal:** Statistically analyze what happens after a pattern or signal occurs, with confidence bounds and hit rates.
+
+```typescript
+import {
+  projectFromPatterns,
+  projectFromSeries,
+  projectPatternOutcome,
+  doubleBottom,
+  crossOver,
+  sma,
+  rsi,
+} from "trendcraft";
+
+// === Example 1: Double bottom pattern projection ===
+const patterns = doubleBottom(candles);
+const dbProjection = projectFromPatterns(candles, patterns, {
+  horizon: 30,
+  confidenceLevel: 0.95,
+});
+
+console.log(`=== Double Bottom Projection ===`);
+console.log(`Patterns found: ${dbProjection.patternCount}`);
+console.log(`Valid (with forward data): ${dbProjection.validCount}`);
+console.log(`Avg return after 5 bars: ${dbProjection.avgReturnByBar[4]}%`);
+console.log(`Avg return after 20 bars: ${dbProjection.avgReturnByBar[19]}%`);
+console.log(`95% CI at 20 bars: [${dbProjection.lowerBound[19]}%, ${dbProjection.upperBound[19]}%]`);
+
+for (const hr of dbProjection.hitRates) {
+  console.log(`  ${hr.threshold}% target hit rate: ${hr.rate}%`);
+}
+
+// === Example 2: Golden cross projection ===
+const crosses = crossOver(sma(candles, { period: 5 }), sma(candles, { period: 25 }));
+const gcProjection = projectFromSeries(candles, crosses, { horizon: 20 });
+
+console.log(`\n=== Golden Cross Projection ===`);
+console.log(`Events: ${gcProjection.validCount}`);
+for (let i = 0; i < 20; i += 5) {
+  console.log(
+    `  Bar ${i + 1}: avg=${gcProjection.avgReturnByBar[i]}%, ` +
+      `median=${gcProjection.medianReturnByBar[i]}%`,
+  );
+}
+
+// === Example 3: Custom event — RSI oversold bounce ===
+const rsi14 = rsi(candles, { period: 14 });
+const oversoldEvents = rsi14.filter((r) => r.value !== null && r.value < 30);
+
+const rsiProjection = projectPatternOutcome(
+  candles,
+  oversoldEvents,
+  (e) => ({ time: e.time, direction: "bullish" }),
+  { horizon: 10, thresholds: [1, 3, 5] },
+);
+
+console.log(`\n=== RSI Oversold Bounce ===`);
+console.log(`Events: ${rsiProjection.validCount}`);
+console.log(`5-bar avg return: ${rsiProjection.avgReturnByBar[4]}%`);
+console.log(`3% hit rate: ${rsiProjection.hitRates.find((h) => h.threshold === 3)?.rate}%`);
+```
+
+**Key insights:**
+- Use `hitRates` to validate if a pattern is worth trading (e.g., "does this pattern reach +5% within 20 bars at least 60% of the time?")
+- Compare `avgReturnByBar` vs `medianReturnByBar` to detect skewed distributions
+- `lowerBound` / `upperBound` show the range of expected outcomes
+- Bearish patterns (double top, H&S) have returns automatically inverted so positive = favorable
+
+---
+
+## Recipe 18: Data Integration — Connecting External Sources
 
 **Goal:** Convert data from popular APIs (CCXT, Alpaca, Yahoo Finance) to TrendCraft format.
 **No library dependency needed — just use `normalizeCandles()`.**

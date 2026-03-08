@@ -179,7 +179,7 @@ const result = runBacktest(candles, {
 });
 ```
 
-**BacktestResult** includes: `totalReturnPercent`, `winRate`, `maxDrawdown`, `sharpeRatio`, `profitFactor`, `trades[]`, and more.
+**BacktestResult** includes: `totalReturnPercent`, `winRate`, `maxDrawdown`, `sharpeRatio`, `profitFactor`, `trades[]`, `drawdownPeriods[]`, and more.
 
 ### Condition Combinators
 - `and(...conditions)` / `or(...conditions)` / `not(condition)` — Combine conditions
@@ -338,6 +338,10 @@ const aligned = alignSeries(weeklySma, dailySma);
 
 ### Trade Analysis
 - `analyzeAllTrades(trades)` — Comprehensive trade analysis (stats, exit reasons, holding periods, MFE/MAE, streaks)
+- `analyzeDrawdowns(result.drawdownPeriods)` — Drawdown period analysis (count, avg/max depth, avg/max duration, recovery rate, worst drawdown)
+- `projectPatternOutcome(candles, events, extractor, opts?)` — Project price outcomes after events with confidence bounds and hit rates
+- `projectFromPatterns(candles, patternSignals, opts?)` — Pattern projection with auto direction detection
+- `projectFromSeries(candles, series, opts?)` — Project outcomes from indicator series
 
 ## Optional
 
@@ -364,6 +368,6 @@ All indicators support `Result<Series<T>, TrendCraftError>` via safe variants fo
 
 ## Types
 
-Key types: `Candle`, `NormalizedCandle`, `Series<T>`, `IndicatorValue<T>`, `TradeSignal`, `BacktestResult`, `BacktestOptions`, `Condition`, `ScoringConfig`, `PipelineOptions`, `PipelineResult`, `SymbolData`, `BatchBacktestResult`, `PortfolioMetrics`, `EquityPoint`, `BatchBacktestOptions`, `PortfolioBacktestOptions`, `PortfolioBacktestResult`
+Key types: `Candle`, `NormalizedCandle`, `Series<T>`, `IndicatorValue<T>`, `TradeSignal`, `BacktestResult`, `BacktestOptions`, `Condition`, `DrawdownPeriod`, `DrawdownSummary`, `PatternProjection`, `ScoringConfig`, `PipelineOptions`, `PipelineResult`, `SymbolData`, `BatchBacktestResult`, `PortfolioMetrics`, `EquityPoint`, `BatchBacktestOptions`, `PortfolioBacktestOptions`, `PortfolioBacktestResult`
 
 See [API Reference](https://github.com/sawapi/trendcraft/blob/main/docs/API.md) for complete type definitions.
