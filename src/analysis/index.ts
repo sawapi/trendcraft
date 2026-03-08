@@ -23,6 +23,10 @@ export {
   type TradeAnalysis,
 } from "./edge-analysis";
 
+// Runtime Metrics
+export { calculateRuntimeMetrics } from "./runtime-metrics";
+export type { RuntimeMetrics, RuntimeMetricsOptions } from "./runtime-metrics";
+
 // Market Regime Detection
 export { detectMarketRegime } from "./market-regime";
 export type { MarketRegimeResult, MarketRegimeOptions } from "./market-regime";
