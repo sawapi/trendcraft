@@ -421,3 +421,60 @@ const byReason = result.trades.reduce(
 );
 console.log("Exit reasons:", byReason);
 ```
+
+---
+
+## Recipe 11: Custom Indicator — Plugin System
+
+**Goal:** Create a custom indicator and use it alongside built-in indicators.
+**Use case:** SMA spread (fast SMA − slow SMA) as a trend strength measure.
+
+```typescript
+import { defineIndicator, TrendCraft, sma } from "trendcraft";
+
+// Step 1: Define a custom indicator
+const smaSpread = defineIndicator({
+  name: "smaSpread" as const,
+  compute: (candles, opts) => {
+    const fast = sma(candles, { period: opts.fastPeriod });
+    const slow = sma(candles, { period: opts.slowPeriod });
+    return fast.map((f, i) => ({
+      time: f.time,
+      value:
+        f.value != null && slow[i].value != null
+          ? f.value - slow[i].value
+          : null,
+    }));
+  },
+  defaultOptions: { fastPeriod: 5, slowPeriod: 20 },
+  buildKey: (opts) => `smaSpread_${opts.fastPeriod}_${opts.slowPeriod}`,
+});
+
+// Step 2: Use in the fluent API pipeline
+const result = TrendCraft.from(candles)
+  .sma(20)
+  .rsi(14)
+  .use(smaSpread, { fastPeriod: 10, slowPeriod: 50 })
+  .compute();
+
+// Access results by cache key
+console.log(result.indicators.sma20);
+console.log(result.indicators.rsi14);
+console.log(result.indicators.smaSpread_10_50);
+
+// Step 3: Dynamic plugin selection from config
+import { plugins } from "trendcraft";
+
+const pipeline = [
+  { plugin: plugins.sma, options: { period: 50 } },
+  { plugin: plugins.rsi, options: { period: 14 } },
+  { plugin: smaSpread, options: { fastPeriod: 5, slowPeriod: 20 } },
+];
+
+let tc = TrendCraft.from(candles);
+for (const { plugin, options } of pipeline) {
+  tc = tc.use(plugin, options);
+}
+const dynamicResult = tc.compute();
+console.log(Object.keys(dynamicResult.indicators));
+```
