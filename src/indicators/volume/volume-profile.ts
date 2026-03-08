@@ -202,29 +202,158 @@ export function volumeProfileSeries(
   candles: Candle[] | NormalizedCandle[],
   options: VolumeProfileOptions = {},
 ): Series<VolumeProfileValue | null> {
-  const { period = 20 } = options;
+  const { period = 20, levels = 24, valueAreaPercent = 0.7 } = options;
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const len = normalized.length;
 
-  if (normalized.length === 0) {
+  if (len === 0) {
     return [];
   }
 
-  const result: Series<VolumeProfileValue | null> = [];
+  const result: Series<VolumeProfileValue | null> = new Array(len);
 
-  for (let i = 0; i < normalized.length; i++) {
-    if (i < period - 1) {
-      // Not enough data
-      result.push({ time: normalized[i].time, value: null });
-    } else {
-      // Calculate profile for the window ending at current candle
-      const windowCandles = normalized.slice(i - period + 1, i + 1);
-      const profile = volumeProfile(windowCandles, { ...options, period: undefined });
-      result.push({ time: normalized[i].time, value: profile });
-    }
+  for (let i = 0; i < period - 1 && i < len; i++) {
+    result[i] = { time: normalized[i].time, value: null };
+  }
+
+  for (let i = period - 1; i < len; i++) {
+    const profile = computeProfileWindow(
+      normalized,
+      i - period + 1,
+      i + 1,
+      levels,
+      valueAreaPercent,
+    );
+    result[i] = { time: normalized[i].time, value: profile };
   }
 
   return result;
+}
+
+/**
+ * Compute Volume Profile for a window defined by [start, end) indices.
+ * Avoids array slicing and redundant normalization.
+ */
+function computeProfileWindow(
+  candles: NormalizedCandle[],
+  start: number,
+  end: number,
+  levels: number,
+  valueAreaPercent: number,
+): VolumeProfileValue {
+  if (start >= end) {
+    return createEmptyProfile();
+  }
+
+  // Find price range
+  let periodHigh = Number.NEGATIVE_INFINITY;
+  let periodLow = Number.POSITIVE_INFINITY;
+
+  for (let i = start; i < end; i++) {
+    const c = candles[i];
+    if (c.high > periodHigh) periodHigh = c.high;
+    if (c.low < periodLow) periodLow = c.low;
+  }
+
+  // Handle edge case where all prices are the same
+  if (periodHigh === periodLow) {
+    let totalVol = 0;
+    for (let i = start; i < end; i++) totalVol += candles[i].volume;
+
+    return {
+      levels: [
+        {
+          priceLow: periodLow,
+          priceHigh: periodHigh,
+          priceMid: periodLow,
+          volume: totalVol,
+          volumePercent: 100,
+        },
+      ],
+      poc: periodLow,
+      vah: periodHigh,
+      val: periodLow,
+      periodHigh,
+      periodLow,
+    };
+  }
+
+  // Create price levels
+  const priceRange = periodHigh - periodLow;
+  const levelHeight = priceRange / levels;
+  const volumeLevels: VolumePriceLevel[] = new Array(levels);
+
+  for (let i = 0; i < levels; i++) {
+    volumeLevels[i] = {
+      priceLow: periodLow + i * levelHeight,
+      priceHigh: periodLow + (i + 1) * levelHeight,
+      priceMid: periodLow + (i + 0.5) * levelHeight,
+      volume: 0,
+      volumePercent: 0,
+    };
+  }
+
+  // Distribute volume to price levels
+  let totalVolume = 0;
+  const invLevels = 1 / levels;
+
+  for (let ci = start; ci < end; ci++) {
+    const candle = candles[ci];
+    const candleVolume = candle.volume;
+    totalVolume += candleVolume;
+
+    const candleLow = Math.min(candle.low, candle.high);
+    const candleHigh = Math.max(candle.low, candle.high);
+    const candleRange = candleHigh - candleLow;
+
+    // Narrow search to only levels that could overlap
+    const firstLevel = Math.max(0, Math.floor((candleLow - periodLow) / levelHeight));
+    const lastLevel = Math.min(levels - 1, Math.floor((candleHigh - periodLow) / levelHeight));
+
+    if (candleRange > 0) {
+      const invCandleRange = 1 / candleRange;
+      for (let li = firstLevel; li <= lastLevel; li++) {
+        const level = volumeLevels[li];
+        const overlapLow = Math.max(candleLow, level.priceLow);
+        const overlapHigh = Math.min(candleHigh, level.priceHigh);
+        if (overlapHigh > overlapLow) {
+          level.volume += candleVolume * (overlapHigh - overlapLow) * invCandleRange;
+        }
+      }
+    } else {
+      for (let li = firstLevel; li <= lastLevel; li++) {
+        volumeLevels[li].volume += candleVolume * invLevels;
+      }
+    }
+  }
+
+  // Calculate volume percentages
+  if (totalVolume > 0) {
+    const invTotal = 100 / totalVolume;
+    for (let i = 0; i < levels; i++) {
+      volumeLevels[i].volumePercent = volumeLevels[i].volume * invTotal;
+    }
+  }
+
+  // Find POC
+  let maxVolumeLevel = volumeLevels[0];
+  for (let i = 1; i < levels; i++) {
+    if (volumeLevels[i].volume > maxVolumeLevel.volume) {
+      maxVolumeLevel = volumeLevels[i];
+    }
+  }
+
+  const { vah, val } = calculateValueArea(volumeLevels, valueAreaPercent, totalVolume);
+
+  return {
+    levels: volumeLevels,
+    poc: maxVolumeLevel.priceMid,
+    vah,
+    val,
+    periodHigh,
+    periodLow,
+  };
 }
 
 /**
