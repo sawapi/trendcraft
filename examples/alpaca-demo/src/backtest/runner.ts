@@ -6,10 +6,13 @@
 
 import {
   type BacktestResult,
+  type BatchBacktestResult,
   type MonteCarloResult,
   type NormalizedCandle,
   type StrategyDefinition,
+  type SymbolData,
   type WalkForwardResult,
+  batchBacktest,
   runBacktest,
   runMonteCarloSimulationSafe,
   walkForwardAnalysisSafe,
@@ -237,6 +240,71 @@ export function formatLeaderboard(rankings: ScoredResult[]): string {
 
   lines.push("=".repeat(100));
   lines.push("");
+
+  return lines.join("\n");
+}
+
+/**
+ * Run portfolio-level backtest for a strategy across multiple symbols using batchBacktest
+ *
+ * @returns BatchBacktestResult or null if strategy has no backtest conditions
+ */
+export function runPortfolioSummary(
+  strategy: StrategyDefinition,
+  symbolCandles: Map<string, NormalizedCandle[]>,
+  capital: number,
+): BatchBacktestResult | null {
+  if (!strategy.backtestEntry || !strategy.backtestExit) {
+    return null;
+  }
+
+  const datasets: SymbolData[] = [];
+  for (const [symbol, candles] of symbolCandles) {
+    if (candles.length >= 50) {
+      datasets.push({ symbol, candles });
+    }
+  }
+
+  if (datasets.length === 0) {
+    return null;
+  }
+
+  return batchBacktest(datasets, strategy.backtestEntry, strategy.backtestExit, {
+    ...strategy.backtestOptions,
+    capital,
+  });
+}
+
+/**
+ * Format portfolio summary for console output
+ */
+export function formatPortfolioSummary(strategyId: string, result: BatchBacktestResult): string {
+  const lines: string[] = [];
+  const p = result.portfolio;
+
+  lines.push("");
+  lines.push(`  Strategy: ${strategyId}`);
+  lines.push(
+    `  Portfolio Return: ${p.totalReturnPercent >= 0 ? "+" : ""}${p.totalReturnPercent.toFixed(2)}%` +
+      `  |  MaxDD: ${p.maxDrawdown.toFixed(2)}%` +
+      `  |  Sharpe: ${p.sharpeRatio.toFixed(2)}` +
+      `  |  PF: ${p.profitFactor.toFixed(2)}` +
+      `  |  Trades: ${p.tradeCount}` +
+      `  |  WinRate: ${p.winRate.toFixed(1)}%`,
+  );
+
+  // Per-symbol breakdown
+  lines.push(
+    `  ${"Symbol".padEnd(10)}${"Return%".padEnd(12)}${"Trades".padEnd(10)}${"WinRate".padEnd(10)}${"MaxDD".padEnd(10)}`,
+  );
+  lines.push(`  ${"-".repeat(50)}`);
+  for (const sr of result.symbols) {
+    const r = sr.result;
+    const retStr = `${r.totalReturnPercent >= 0 ? "+" : ""}${r.totalReturnPercent.toFixed(2)}%`;
+    lines.push(
+      `  ${sr.symbol.padEnd(10)}${retStr.padEnd(12)}${String(r.tradeCount).padEnd(10)}${`${r.winRate.toFixed(1)}%`.padEnd(10)}${`${r.maxDrawdown.toFixed(2)}%`.padEnd(10)}`,
+    );
+  }
 
   return lines.join("\n");
 }

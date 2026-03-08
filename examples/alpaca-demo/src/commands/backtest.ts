@@ -4,8 +4,14 @@
  * Run all strategies against historical data and output leaderboard.
  */
 
+import type { NormalizedCandle } from "trendcraft";
 import { fetchHistoricalBars, monthsAgo, today } from "../alpaca/historical.js";
-import { formatLeaderboard, runStrategyBacktests } from "../backtest/runner.js";
+import {
+  formatLeaderboard,
+  formatPortfolioSummary,
+  runPortfolioSummary,
+  runStrategyBacktests,
+} from "../backtest/runner.js";
 import type { ScoredResult } from "../backtest/scorer.js";
 import { loadEnv } from "../config/env.js";
 import { DEFAULT_SYMBOLS } from "../config/symbols.js";
@@ -56,6 +62,7 @@ export async function backtestCommand(opts: BacktestCommandOptions): Promise<voi
   );
 
   const allRankings: ScoredResult[] = [];
+  const symbolCandles = new Map<string, NormalizedCandle[]>();
 
   for (const symbol of symbols) {
     console.log(`\nFetching historical data for ${symbol}...`);
@@ -73,6 +80,7 @@ export async function backtestCommand(opts: BacktestCommandOptions): Promise<voi
     }
 
     console.log(`  ${candles.length} candles loaded. Running strategies...`);
+    symbolCandles.set(symbol, candles);
 
     const { rankings } = runStrategyBacktests(strategies, symbol, candles, capital);
 
@@ -83,4 +91,38 @@ export async function backtestCommand(opts: BacktestCommandOptions): Promise<voi
   allRankings.sort((a, b) => b.score - a.score);
 
   console.log(formatLeaderboard(allRankings));
+
+  // Portfolio summary for top 3 strategies (if multiple symbols)
+  if (symbolCandles.size >= 2) {
+    // Deduplicate strategy IDs from top rankings
+    const seen = new Set<string>();
+    const topStrategyIds: string[] = [];
+    for (const r of allRankings) {
+      if (!seen.has(r.strategyId)) {
+        seen.add(r.strategyId);
+        topStrategyIds.push(r.strategyId);
+        if (topStrategyIds.length >= 3) break;
+      }
+    }
+
+    if (topStrategyIds.length > 0) {
+      console.log("=".repeat(100));
+      console.log("  PORTFOLIO SUMMARY (top strategies across all symbols)");
+      console.log("=".repeat(100));
+
+      for (const strategyId of topStrategyIds) {
+        const strategy = strategies.find((s) => s.id === strategyId);
+        if (!strategy) continue;
+
+        const result = runPortfolioSummary(strategy, symbolCandles, capital);
+        if (result) {
+          console.log(formatPortfolioSummary(strategyId, result));
+        }
+      }
+
+      console.log("");
+      console.log("=".repeat(100));
+      console.log("");
+    }
+  }
 }
