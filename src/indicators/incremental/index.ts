@@ -47,6 +47,8 @@ export { createDonchianChannel } from "./volatility/donchian-channel";
 export type { DonchianState, DonchianValue } from "./volatility/donchian-channel";
 export { createKeltnerChannel } from "./volatility/keltner-channel";
 export type { KeltnerChannelState, KeltnerChannelValue } from "./volatility/keltner-channel";
+export { createRegime } from "./volatility/regime";
+export type { RegimeState, RegimeValue, RegimeOptions } from "./volatility/regime";
 
 // Trend
 export { createSupertrend } from "./trend/supertrend";
