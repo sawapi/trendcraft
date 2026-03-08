@@ -9,6 +9,7 @@ export default defineConfig({
         index: resolve(__dirname, "src/index.ts"),
         "screening/index": resolve(__dirname, "src/screening/index.ts"),
         "indicators/incremental/index": resolve(__dirname, "src/indicators/incremental/index.ts"),
+        "indicators/safe/index": resolve(__dirname, "src/indicators/safe/index.ts"),
         "bin/trendcraft-screen": resolve(__dirname, "bin/trendcraft-screen.ts"),
         "bin/trendcraft-backtest": resolve(__dirname, "bin/trendcraft-backtest.ts"),
         "bin/trendcraft-analyze": resolve(__dirname, "bin/trendcraft-analyze.ts"),

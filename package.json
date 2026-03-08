@@ -26,6 +26,11 @@
       "types": "./dist/indicators/incremental/index.d.ts",
       "import": "./dist/indicators/incremental/index.js",
       "require": "./dist/indicators/incremental/index.cjs"
+    },
+    "./safe": {
+      "types": "./dist/indicators/safe/index.d.ts",
+      "import": "./dist/indicators/safe/index.js",
+      "require": "./dist/indicators/safe/index.cjs"
     }
   },
   "sideEffects": false,
