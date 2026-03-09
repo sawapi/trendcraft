@@ -90,7 +90,7 @@ export function analyzeDrawdowns(periods: DrawdownPeriod[]): DrawdownSummary {
   let longestRecovery: DrawdownPeriod | null = null;
 
   for (const p of recovered) {
-    const rb = p.recoveryBars!;
+    const rb = p.recoveryBars ?? 0;
     totalRecoveryBars += rb;
     if (rb > maxRecoveryBars) {
       maxRecoveryBars = rb;
