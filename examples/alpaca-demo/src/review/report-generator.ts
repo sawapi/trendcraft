@@ -72,6 +72,9 @@ export function generateBacktestReport(opts: {
       totalReturnPercent: b.totalReturnPercent,
       dailyPnl: 0,
       startedAt: Date.now(),
+      grossReturn: 0,
+      totalCommission: 0,
+      estimatedTax: 0,
     },
   }));
 

@@ -12,6 +12,7 @@ import {
   createSessionFromStrategy,
   type streaming,
 } from "trendcraft";
+import { DEFAULT_TRADING_COSTS } from "../config/trading-costs.js";
 import type { OrderIntent } from "../executor/types.js";
 import type { AgentMetrics, AgentState, AgentTier } from "./types.js";
 
@@ -53,6 +54,18 @@ export function createAgent(
 
   let dailyPnlAccumulator = opts?.fromState?.metrics.dailyPnl ?? 0;
 
+  // Cost tracking accumulators (restored from state if available)
+  let grossReturnAccumulator = opts?.fromState?.metrics.grossReturn ?? 0;
+  let totalCommissionAccumulator = opts?.fromState?.metrics.totalCommission ?? 0;
+  let estimatedTaxAccumulator = opts?.fromState?.metrics.estimatedTax ?? 0;
+
+  // Cost config from strategy position options
+  const costConfig = {
+    commission: strategy.position.commission ?? DEFAULT_TRADING_COSTS.commission,
+    commissionRate: strategy.position.commissionRate ?? DEFAULT_TRADING_COSTS.commissionRate,
+    taxRate: strategy.position.taxRate ?? DEFAULT_TRADING_COSTS.taxRate,
+  };
+
   // Signal lifecycle state
   const lifecycle = strategy.signalLifecycle;
   let barsSinceLastTrade = Number.POSITIVE_INFINITY;
@@ -91,6 +104,33 @@ export function createAgent(
           pnl: event.trade.return,
         });
         dailyPnlAccumulator += event.trade.return;
+
+        // Reverse-engineer gross return and cost breakdown from net return.
+        // Engine formula: net = gross - exitCommission - tax
+        //   exitCommission = commission + exitValue * (commissionRate / 100)
+        //   tax = gross > 0 ? gross * (taxRate / 100) : 0
+        const netReturn = event.trade.return;
+        const exitValue = event.trade.exitPrice * event.fill.shares;
+        const exitCommission =
+          costConfig.commission + exitValue * (costConfig.commissionRate / 100);
+
+        // Solve for gross: if gross > 0, net = gross * (1 - taxRate/100) - exitCommission
+        //   → gross = (net + exitCommission) / (1 - taxRate/100)
+        // If gross <= 0: net = gross - exitCommission → gross = net + exitCommission
+        const grossCandidate = netReturn + exitCommission;
+        let grossReturn: number;
+        let tax: number;
+        if (grossCandidate > 0 && costConfig.taxRate > 0) {
+          grossReturn = (netReturn + exitCommission) / (1 - costConfig.taxRate / 100);
+          tax = grossReturn * (costConfig.taxRate / 100);
+        } else {
+          grossReturn = grossCandidate;
+          tax = 0;
+        }
+
+        grossReturnAccumulator += grossReturn;
+        totalCommissionAccumulator += exitCommission;
+        estimatedTaxAccumulator += tax;
       }
     }
 
@@ -113,6 +153,9 @@ export function createAgent(
       totalReturnPercent: rm.totalReturnPercent,
       dailyPnl: dailyPnlAccumulator,
       startedAt,
+      grossReturn: grossReturnAccumulator,
+      totalCommission: totalCommissionAccumulator,
+      estimatedTax: estimatedTaxAccumulator,
     };
   }
 
@@ -209,6 +252,9 @@ export function createAgent(
     restore(state: AgentState) {
       tier = state.tier;
       dailyPnlAccumulator = state.metrics.dailyPnl;
+      grossReturnAccumulator = state.metrics.grossReturn ?? 0;
+      totalCommissionAccumulator = state.metrics.totalCommission ?? 0;
+      estimatedTaxAccumulator = state.metrics.estimatedTax ?? 0;
       session = createSessionFromStrategy(strategy, {
         capital: opts?.capital ?? strategy.position.capital,
         fromState: state.sessionState ?? undefined,

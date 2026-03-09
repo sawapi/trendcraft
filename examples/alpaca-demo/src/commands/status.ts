@@ -23,9 +23,10 @@ export async function statusCommand(): Promise<void> {
   lines.push(
     `  ${"Agent".padEnd(30)}${"Tier".padEnd(10)}${"Trades".padEnd(8)}` +
       `${"WinRate".padEnd(10)}${"Return%".padEnd(10)}${"Sharpe".padEnd(9)}` +
-      `${"MaxDD".padEnd(9)}${"DailyPnL".padEnd(12)}`,
+      `${"MaxDD".padEnd(9)}${"Gross$".padEnd(10)}${"Cost$".padEnd(10)}` +
+      `${"Tax$".padEnd(10)}${"Net$".padEnd(10)}${"DailyPnL".padEnd(12)}`,
   );
-  lines.push("-".repeat(98));
+  lines.push("-".repeat(128));
 
   for (const agent of state.agents) {
     const m = agent.metrics;
@@ -33,6 +34,10 @@ export async function statusCommand(): Promise<void> {
       `  ${agent.id.padEnd(30)}${agent.tier.padEnd(10)}${String(m.totalTrades).padEnd(8)}` +
         `${`${m.winRate.toFixed(1)}%`.padEnd(10)}${`${m.totalReturnPercent.toFixed(2)}%`.padEnd(10)}` +
         `${m.sharpeRatio.toFixed(2).padEnd(9)}${`${m.maxDrawdown.toFixed(1)}%`.padEnd(9)}` +
+        `${`$${(m.grossReturn ?? 0).toFixed(0)}`.padEnd(10)}` +
+        `${`$${(m.totalCommission ?? 0).toFixed(0)}`.padEnd(10)}` +
+        `${`$${(m.estimatedTax ?? 0).toFixed(0)}`.padEnd(10)}` +
+        `${`$${m.totalReturn.toFixed(0)}`.padEnd(10)}` +
         `${`$${m.dailyPnl.toFixed(0)}`.padEnd(12)}`,
     );
   }

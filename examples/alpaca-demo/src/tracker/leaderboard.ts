@@ -106,15 +106,16 @@ export function formatLiveLeaderboard(summaries: PerformanceSummary[]): string {
   const lines: string[] = [];
 
   lines.push("");
-  lines.push("=".repeat(95));
+  lines.push("=".repeat(125));
   lines.push("  LIVE AGENT LEADERBOARD");
-  lines.push("=".repeat(95));
+  lines.push("=".repeat(125));
   lines.push(
     `  ${"Rank".padEnd(6)}${"Agent".padEnd(30)}${"Return%".padEnd(10)}` +
       `${"WinRate".padEnd(10)}${"Sharpe".padEnd(9)}${"MaxDD".padEnd(9)}` +
-      `${"PF".padEnd(8)}${"Trades".padEnd(8)}${"Days".padEnd(6)}`,
+      `${"PF".padEnd(8)}${"Gross$".padEnd(10)}${"Cost$".padEnd(10)}` +
+      `${"Tax$".padEnd(10)}${"Net$".padEnd(10)}${"Trades".padEnd(8)}${"Days".padEnd(6)}`,
   );
-  lines.push("-".repeat(95));
+  lines.push("-".repeat(125));
 
   summaries.forEach((s, i) => {
     const rank = `#${i + 1}`.padEnd(6);
@@ -127,13 +128,19 @@ export function formatLiveLeaderboard(summaries: PerformanceSummary[]): string {
       s.metrics.profitFactor === Number.POSITIVE_INFINITY
         ? "Inf".padEnd(8)
         : s.metrics.profitFactor.toFixed(2).padEnd(8);
+    const gross = `$${(s.metrics.grossReturn ?? 0).toFixed(0)}`.padEnd(10);
+    const cost = `$${(s.metrics.totalCommission ?? 0).toFixed(0)}`.padEnd(10);
+    const tax = `$${(s.metrics.estimatedTax ?? 0).toFixed(0)}`.padEnd(10);
+    const net = `$${s.metrics.totalReturn.toFixed(0)}`.padEnd(10);
     const trades = String(s.metrics.totalTrades).padEnd(8);
     const days = s.evalDays.toFixed(1).padEnd(6);
 
-    lines.push(`  ${rank}${agent}${ret}${wr}${sharpe}${dd}${pf}${trades}${days}`);
+    lines.push(
+      `  ${rank}${agent}${ret}${wr}${sharpe}${dd}${pf}${gross}${cost}${tax}${net}${trades}${days}`,
+    );
   });
 
-  lines.push("=".repeat(95));
+  lines.push("=".repeat(125));
   lines.push("");
 
   return lines.join("\n");

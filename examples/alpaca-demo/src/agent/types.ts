@@ -16,6 +16,12 @@ export type AgentMetrics = {
   totalReturnPercent: number;
   dailyPnl: number;
   startedAt: number;
+  /** Cumulative gross return (before commission/tax) */
+  grossReturn: number;
+  /** Cumulative commission paid */
+  totalCommission: number;
+  /** Cumulative estimated tax on realized gains */
+  estimatedTax: number;
 };
 
 export type AgentState = {
