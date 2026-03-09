@@ -14,6 +14,7 @@ import {
   streaming,
 } from "trendcraft";
 import { DEFAULT_SYMBOLS } from "../../config/symbols.js";
+import { DEFAULT_TRADING_COSTS } from "../../config/trading-costs.js";
 
 // Custom backtest condition for EMA cross (golden)
 function emaCross(direction: "golden" | "dead", shortPeriod: number, longPeriod: number) {
@@ -83,7 +84,10 @@ export const emaSwingDaily: StrategyDefinition = {
     sizing: { method: "risk-based", riskPercent: 0.5 },
     stopLoss: 5,
     trailingStop: 6,
-    slippage: 0.05,
+    slippage: DEFAULT_TRADING_COSTS.slippage,
+    commission: DEFAULT_TRADING_COSTS.commission,
+    commissionRate: DEFAULT_TRADING_COSTS.commissionRate,
+    taxRate: DEFAULT_TRADING_COSTS.taxRate,
   },
 
   signalLifecycle: { cooldown: { bars: 2 } },
@@ -93,6 +97,9 @@ export const emaSwingDaily: StrategyDefinition = {
   backtestOptions: {
     stopLoss: 5,
     trailingStop: 6,
-    slippage: 0.05,
+    slippage: DEFAULT_TRADING_COSTS.slippage,
+    commission: DEFAULT_TRADING_COSTS.commission,
+    commissionRate: DEFAULT_TRADING_COSTS.commissionRate,
+    taxRate: DEFAULT_TRADING_COSTS.taxRate,
   },
 };

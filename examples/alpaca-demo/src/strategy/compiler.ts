@@ -32,6 +32,7 @@ import {
   vwap,
 } from "trendcraft";
 import { US_MARKET_HOURS } from "../config/market-hours.js";
+import { DEFAULT_TRADING_COSTS } from "../config/trading-costs.js";
 import type { ConditionRef, ConditionRule, IndicatorRef, StrategyTemplate } from "./template.js";
 import { isCombined } from "./template.js";
 
@@ -277,6 +278,9 @@ function buildBacktestConfig(template: StrategyTemplate) {
       },
     }),
     slippage: template.position.slippage,
+    commission: template.position.commission ?? DEFAULT_TRADING_COSTS.commission,
+    commissionRate: template.position.commissionRate ?? DEFAULT_TRADING_COSTS.commissionRate,
+    taxRate: template.position.taxRate ?? DEFAULT_TRADING_COSTS.taxRate,
   };
 
   return { backtestEntry, backtestExit, backtestOptions };
@@ -615,5 +619,8 @@ function buildPosition(template: StrategyTemplate): streaming.PositionManagerOpt
       trailingStop: template.position.trailingStop,
     }),
     slippage: template.position.slippage,
+    commission: template.position.commission ?? DEFAULT_TRADING_COSTS.commission,
+    commissionRate: template.position.commissionRate ?? DEFAULT_TRADING_COSTS.commissionRate,
+    taxRate: template.position.taxRate ?? DEFAULT_TRADING_COSTS.taxRate,
   };
 }

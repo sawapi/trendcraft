@@ -15,6 +15,7 @@ import {
   type streaming,
 } from "trendcraft";
 import { DEFAULT_SYMBOLS } from "../../config/symbols.js";
+import { DEFAULT_TRADING_COSTS } from "../../config/trading-costs.js";
 
 // Streaming entry: price < BB lower AND ADX > 25
 const entryCondition: streaming.StreamingConditionFn = (
@@ -124,7 +125,10 @@ export const bollingerSwingHourly: StrategyDefinition = {
     capital: 100_000,
     sizing: { method: "risk-based", riskPercent: 0.75 },
     stopLoss: 4,
-    slippage: 0.05,
+    slippage: DEFAULT_TRADING_COSTS.slippage,
+    commission: DEFAULT_TRADING_COSTS.commission,
+    commissionRate: DEFAULT_TRADING_COSTS.commissionRate,
+    taxRate: DEFAULT_TRADING_COSTS.taxRate,
   },
 
   signalLifecycle: { cooldown: { bars: 3 } },
@@ -134,6 +138,9 @@ export const bollingerSwingHourly: StrategyDefinition = {
   backtestOptions: {
     stopLoss: 4,
     atrTrailingStop: { period: 14, multiplier: 2.5 },
-    slippage: 0.05,
+    slippage: DEFAULT_TRADING_COSTS.slippage,
+    commission: DEFAULT_TRADING_COSTS.commission,
+    commissionRate: DEFAULT_TRADING_COSTS.commissionRate,
+    taxRate: DEFAULT_TRADING_COSTS.taxRate,
   },
 };

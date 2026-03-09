@@ -15,6 +15,7 @@ import {
 } from "trendcraft";
 import { US_MARKET_HOURS } from "../../config/market-hours.js";
 import { DEFAULT_SYMBOLS } from "../../config/symbols.js";
+import { DEFAULT_TRADING_COSTS } from "../../config/trading-costs.js";
 
 export const rsiMeanReversion: StrategyDefinition = {
   id: "rsi-mean-reversion",
@@ -42,7 +43,10 @@ export const rsiMeanReversion: StrategyDefinition = {
     sizing: { method: "risk-based", riskPercent: 1 },
     stopLoss: 3,
     takeProfit: 6,
-    slippage: 0.05,
+    slippage: DEFAULT_TRADING_COSTS.slippage,
+    commission: DEFAULT_TRADING_COSTS.commission,
+    commissionRate: DEFAULT_TRADING_COSTS.commissionRate,
+    taxRate: DEFAULT_TRADING_COSTS.taxRate,
   },
 
   signalLifecycle: { cooldown: { bars: 3 } },
@@ -52,6 +56,9 @@ export const rsiMeanReversion: StrategyDefinition = {
   backtestOptions: {
     stopLoss: 3,
     takeProfit: 6,
-    slippage: 0.05,
+    slippage: DEFAULT_TRADING_COSTS.slippage,
+    commission: DEFAULT_TRADING_COSTS.commission,
+    commissionRate: DEFAULT_TRADING_COSTS.commissionRate,
+    taxRate: DEFAULT_TRADING_COSTS.taxRate,
   },
 };

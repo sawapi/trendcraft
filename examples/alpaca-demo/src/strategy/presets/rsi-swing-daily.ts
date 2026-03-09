@@ -16,6 +16,7 @@ import {
   streaming,
 } from "trendcraft";
 import { DEFAULT_SYMBOLS } from "../../config/symbols.js";
+import { DEFAULT_TRADING_COSTS } from "../../config/trading-costs.js";
 
 // Backtest entry: RSI < 35 AND price > EMA(50)
 function rsiSwingEntry() {
@@ -74,7 +75,10 @@ export const rsiSwingDaily: StrategyDefinition = {
     sizing: { method: "risk-based", riskPercent: 0.5 },
     stopLoss: 5,
     takeProfit: 10,
-    slippage: 0.05,
+    slippage: DEFAULT_TRADING_COSTS.slippage,
+    commission: DEFAULT_TRADING_COSTS.commission,
+    commissionRate: DEFAULT_TRADING_COSTS.commissionRate,
+    taxRate: DEFAULT_TRADING_COSTS.taxRate,
   },
 
   signalLifecycle: { cooldown: { bars: 3 } },
@@ -84,6 +88,9 @@ export const rsiSwingDaily: StrategyDefinition = {
   backtestOptions: {
     stopLoss: 5,
     takeProfit: 10,
-    slippage: 0.05,
+    slippage: DEFAULT_TRADING_COSTS.slippage,
+    commission: DEFAULT_TRADING_COSTS.commission,
+    commissionRate: DEFAULT_TRADING_COSTS.commissionRate,
+    taxRate: DEFAULT_TRADING_COSTS.taxRate,
   },
 };

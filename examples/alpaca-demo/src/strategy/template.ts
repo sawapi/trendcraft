@@ -65,6 +65,12 @@ export type StrategyTemplate = {
     partialTakeProfit?: { threshold: number; portion: number };
     breakEvenStop?: { triggerPercent: number; offset: number };
     slippage: number;
+    /** Fixed per-trade commission ($) — defaults to DEFAULT_TRADING_COSTS */
+    commission?: number;
+    /** Proportional commission rate (%) — defaults to DEFAULT_TRADING_COSTS */
+    commissionRate?: number;
+    /** Tax rate on realized gains (%) — defaults to DEFAULT_TRADING_COSTS */
+    taxRate?: number;
   };
 
   signalLifecycle?: {
