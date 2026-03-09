@@ -41,6 +41,7 @@ program
   .option("-d, --dry-run", "Dry run (no real orders)")
   .option("-c, --capital <amount>", "Capital per agent", "100000")
   .option("--no-auto-review", "Disable automatic daily review after market close")
+  .option("-v, --verbose", "Show ticker summary every 30s")
   .action(liveCommand);
 
 program.command("status").description("Show agent status and leaderboard").action(statusCommand);

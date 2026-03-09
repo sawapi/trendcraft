@@ -47,6 +47,7 @@ export type LiveCommandOptions = {
   all?: boolean;
   capital?: string;
   noAutoReview?: boolean;
+  verbose?: boolean;
 };
 
 function writeHeartbeat(): void {
@@ -231,7 +232,18 @@ export async function liveCommand(opts: LiveCommandOptions): Promise<void> {
   // Connect WebSocket
   const ws = createAlpacaWebSocket(env);
 
+  // Verbose ticker tracking
+  const tickerStats = new Map<string, { count: number; last: number; volume: number }>();
+
   ws.onTrade((symbol, trade) => {
+    if (opts.verbose) {
+      const stat = tickerStats.get(symbol) ?? { count: 0, last: 0, volume: 0 };
+      stat.count++;
+      stat.last = trade.price;
+      stat.volume += trade.volume;
+      tickerStats.set(symbol, stat);
+    }
+
     const intents = manager.onTrade(symbol, trade);
     for (const intent of intents) {
       executor.execute(intent);
@@ -267,6 +279,25 @@ export async function liveCommand(opts: LiveCommandOptions): Promise<void> {
     }
   }, LEADERBOARD_INTERVAL);
 
+  // Verbose ticker summary (every 30s)
+  const VERBOSE_INTERVAL = 30 * 1000;
+  const verboseTimer = opts.verbose
+    ? setInterval(() => {
+        if (tickerStats.size === 0) return;
+        const parts: string[] = [];
+        for (const [sym, stat] of tickerStats) {
+          parts.push(`${sym} $${stat.last.toFixed(2)} (${stat.count} trades, vol ${stat.volume})`);
+        }
+        const time = new Date().toLocaleTimeString("en-US", { hour12: false });
+        console.log(`[TICKER ${time}] ${parts.join(" | ")}`);
+        // Reset counts for next interval
+        for (const stat of tickerStats.values()) {
+          stat.count = 0;
+          stat.volume = 0;
+        }
+      }, VERBOSE_INTERVAL)
+    : null;
+
   // Position reconciliation (skip in dry-run mode)
   const reconcileTimer = opts.dryRun
     ? null
@@ -298,6 +329,7 @@ export async function liveCommand(opts: LiveCommandOptions): Promise<void> {
     clearInterval(saveTimer);
     clearInterval(leaderboardTimer);
     clearInterval(heartbeatTimer);
+    if (verboseTimer) clearInterval(verboseTimer);
     if (reconcileTimer) clearInterval(reconcileTimer);
     if (cancelReview) cancelReview();
 

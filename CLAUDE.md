@@ -86,3 +86,9 @@ import { gridSearch, walkForwardAnalysis } from "trendcraft";
 
 - `trading-simulator/` - React-based trading simulator with backtesting
 - `chart-viewer/` - Simple chart visualization tool
+- `alpaca-demo/` - Multi-agent paper trading system (Alpaca API)
+
+## Alpaca Demo
+
+- Type check: `cd examples/alpaca-demo && npx tsc --noEmit`
+- **pnpm 7+ does NOT need `--` to pass arguments to scripts.** Use `pnpm run dev <command> [options]` directly, not `pnpm run dev -- <command>`. The `--` gets forwarded literally and breaks commander's subcommand parsing.
