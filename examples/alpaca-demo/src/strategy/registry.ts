@@ -5,8 +5,11 @@
 import type { StrategyDefinition } from "trendcraft";
 import { compileTemplate } from "./compiler.js";
 import { bollingerSqueeze } from "./presets/bollinger-squeeze.js";
+import { bollingerSwingHourly } from "./presets/bollinger-swing-hourly.js";
+import { emaSwingDaily } from "./presets/ema-swing-daily.js";
 import { macdTrend } from "./presets/macd-trend.js";
 import { rsiMeanReversion } from "./presets/rsi-mean-reversion.js";
+import { rsiSwingDaily } from "./presets/rsi-swing-daily.js";
 import { PRESET_TEMPLATES, applyOverrides, getPresetTemplate } from "./template.js";
 import type { ParameterOverride, StrategyTemplate } from "./template.js";
 
@@ -17,10 +20,20 @@ function register(strategy: StrategyDefinition): void {
 }
 
 // Register handcoded presets (these have optimized backtest adapters)
-const HANDCODED_IDS = new Set(["rsi-mean-reversion", "macd-trend", "bollinger-squeeze"]);
+const HANDCODED_IDS = new Set([
+  "rsi-mean-reversion",
+  "macd-trend",
+  "bollinger-squeeze",
+  "ema-swing-daily",
+  "rsi-swing-daily",
+  "bollinger-swing-hourly",
+]);
 register(rsiMeanReversion);
 register(macdTrend);
 register(bollingerSqueeze);
+register(emaSwingDaily);
+register(rsiSwingDaily);
+register(bollingerSwingHourly);
 
 // Register template-only presets (compiled from PRESET_TEMPLATES)
 for (const template of PRESET_TEMPLATES) {

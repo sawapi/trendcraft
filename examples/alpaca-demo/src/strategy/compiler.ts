@@ -61,7 +61,9 @@ export function compileTemplate(template: StrategyTemplate): CompileResult {
           maxDailyLoss: template.guards.maxDailyLoss,
           maxDailyTrades: template.guards.maxDailyTrades,
         },
-        timeGuard: US_MARKET_HOURS,
+        ...(template.guards.timeGuard !== null && {
+          timeGuard: US_MARKET_HOURS,
+        }),
       },
       position: buildPosition(template),
       ...(signalLifecycle && { signalLifecycle }),
@@ -184,6 +186,20 @@ function compileStreamingConditionRef(
       const longName = sorted[1]?.name ?? "sma50";
       return streaming.crossUnder(shortName, longName);
     }
+    case "emaGoldenCross": {
+      const emaInds = indicators.filter((i) => i.type === "ema");
+      const sorted = [...emaInds].sort((a, b) => (a.params.period ?? 9) - (b.params.period ?? 9));
+      const shortName = sorted[0]?.name ?? "ema10";
+      const longName = sorted[1]?.name ?? "ema30";
+      return streaming.crossOver(shortName, longName);
+    }
+    case "emaDeadCross": {
+      const emaInds = indicators.filter((i) => i.type === "ema");
+      const sorted = [...emaInds].sort((a, b) => (a.params.period ?? 9) - (b.params.period ?? 9));
+      const shortName = sorted[0]?.name ?? "ema10";
+      const longName = sorted[1]?.name ?? "ema30";
+      return streaming.crossUnder(shortName, longName);
+    }
     case "indicatorAbove":
       return streaming.indicatorAbove(
         ref.params?.indicatorKey as string,
@@ -298,6 +314,20 @@ function compileBacktestConditionRef(ref: ConditionRef, indicators: IndicatorRef
       return backtestGoldenCross();
     case "smaDeadCross":
       return backtestDeadCross();
+    case "emaGoldenCross": {
+      const emaInds = indicators.filter((i) => i.type === "ema");
+      const sorted = [...emaInds].sort((a, b) => (a.params.period ?? 9) - (b.params.period ?? 9));
+      const shortPeriod = sorted[0]?.params.period ?? 10;
+      const longPeriod = sorted[1]?.params.period ?? 30;
+      return buildEmaCrossCondition("golden", shortPeriod, longPeriod);
+    }
+    case "emaDeadCross": {
+      const emaInds = indicators.filter((i) => i.type === "ema");
+      const sorted = [...emaInds].sort((a, b) => (a.params.period ?? 9) - (b.params.period ?? 9));
+      const shortPeriod = sorted[0]?.params.period ?? 10;
+      const longPeriod = sorted[1]?.params.period ?? 30;
+      return buildEmaCrossCondition("dead", shortPeriod, longPeriod);
+    }
     case "dmiBullish": {
       const dmiInd = indicators.find((i) => i.type === "dmi");
       return backtestDmiBullish(
@@ -490,6 +520,46 @@ function buildBacktestCustomCondition(ref: ConditionRef, indicatorRefs: Indicato
       default:
         return false;
     }
+  };
+}
+
+/**
+ * Build an EMA cross backtest condition (golden or dead)
+ */
+function buildEmaCrossCondition(
+  direction: "golden" | "dead",
+  shortPeriod: number,
+  longPeriod: number,
+): Condition {
+  return (indicators, _candle, index, candles) => {
+    if (index < 1) return false;
+
+    const shortKey = `ema${shortPeriod}`;
+    const longKey = `ema${longPeriod}`;
+
+    if (!indicators[shortKey]) {
+      indicators[shortKey] = ema(candles, { period: shortPeriod });
+    }
+    if (!indicators[longKey]) {
+      indicators[longKey] = ema(candles, { period: longPeriod });
+    }
+
+    const shortEma = indicators[shortKey] as { time: number; value: number | null }[];
+    const longEma = indicators[longKey] as { time: number; value: number | null }[];
+
+    const currShort = shortEma[index]?.value;
+    const currLong = longEma[index]?.value;
+    const prevShort = shortEma[index - 1]?.value;
+    const prevLong = longEma[index - 1]?.value;
+
+    if (currShort === null || currLong === null || prevShort === null || prevLong === null) {
+      return false;
+    }
+
+    if (direction === "golden") {
+      return prevShort <= prevLong && currShort > currLong;
+    }
+    return prevShort >= prevLong && currShort < currLong;
   };
 }
 

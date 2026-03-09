@@ -11,6 +11,7 @@ import { createAgentManager } from "../agent/manager.js";
 import { fetchCachedBars } from "../alpaca/cache.js";
 import { createAlpacaClient } from "../alpaca/client.js";
 import { monthsAgo, today } from "../alpaca/historical.js";
+import type { AlpacaTimeframe } from "../alpaca/historical.js";
 import { createAlpacaWebSocket } from "../alpaca/websocket.js";
 import { loadEnv } from "../config/env.js";
 import { DEFAULT_PORTFOLIO_GUARD } from "../config/portfolio.js";
@@ -28,6 +29,7 @@ import {
   getStrategy,
   loadCustomStrategiesFromTemplates,
 } from "../strategy/registry.js";
+import { isSwingStrategy } from "../strategy/template.js";
 import { evaluateAgent, formatLiveLeaderboard, getLeaderboard } from "../tracker/leaderboard.js";
 import { executeReviewCycle } from "./review.js";
 
@@ -51,6 +53,15 @@ function writeHeartbeat(): void {
   writeFileSync(HEARTBEAT_PATH, JSON.stringify({ pid: process.pid, time: Date.now() }), "utf-8");
 }
 
+function getWarmUpTimeframe(intervalMs: number): {
+  timeframe: AlpacaTimeframe;
+  lookbackMonths: number;
+} {
+  if (intervalMs >= 86_400_000) return { timeframe: "1Day", lookbackMonths: 12 };
+  if (intervalMs >= 3_600_000) return { timeframe: "1Hour", lookbackMonths: 3 };
+  return { timeframe: "1Min", lookbackMonths: 1 };
+}
+
 function checkStaleHeartbeat(): { stale: boolean; lastTime?: number } {
   if (!existsSync(HEARTBEAT_PATH)) return { stale: false };
   try {
@@ -72,16 +83,25 @@ export async function liveCommand(opts: LiveCommandOptions): Promise<void> {
 
   // Dead-man's switch: check for stale heartbeat from crashed process
   const heartbeat = checkStaleHeartbeat();
-  if (heartbeat.stale) {
+  if (heartbeat.stale && !opts.dryRun) {
     console.warn(
       `[RECOVERY] Stale heartbeat detected (last: ${new Date(heartbeat.lastTime as number).toISOString()})`,
     );
-    console.warn("[RECOVERY] Closing all positions from previous session...");
-    try {
-      await client.closeAllPositions();
-      console.warn("[RECOVERY] All positions closed.");
-    } catch (err) {
-      console.error("[RECOVERY] Failed to close positions:", err);
+    // Check if any active strategies are swing (overnight-holding).
+    // If so, only warn — don't blindly close all positions.
+    const allStrats = getAllStrategies();
+    const hasSwing = allStrats.some((s) => isSwingStrategy(s));
+    if (hasSwing) {
+      console.warn("[RECOVERY] Swing strategies detected — skipping blanket position close.");
+      console.warn("[RECOVERY] Swing positions may still be open from previous session.");
+    } else {
+      console.warn("[RECOVERY] Closing all positions from previous session...");
+      try {
+        await client.closeAllPositions();
+        console.warn("[RECOVERY] All positions closed.");
+      } catch (err) {
+        console.error("[RECOVERY] Failed to close positions:", err);
+      }
     }
   }
 
@@ -158,12 +178,13 @@ export async function liveCommand(opts: LiveCommandOptions): Promise<void> {
       const agentId = `${strategy.id}:${symbol}`;
       if (existingAgentIds.has(agentId)) continue;
 
-      // Fetch warm-up data (200 bars of 1-minute candles)
-      console.log(`Fetching warm-up data for ${strategy.id}:${symbol}...`);
+      // Fetch warm-up data with timeframe matching the strategy interval
+      const { timeframe, lookbackMonths } = getWarmUpTimeframe(strategy.intervalMs);
+      console.log(`Fetching warm-up data for ${strategy.id}:${symbol} (${timeframe})...`);
       const warmUp = await fetchCachedBars(env, {
         symbol,
-        timeframe: "1Min",
-        start: monthsAgo(1),
+        timeframe,
+        start: monthsAgo(lookbackMonths),
         end: today(),
         limit: 200,
       });
@@ -252,10 +273,18 @@ export async function liveCommand(opts: LiveCommandOptions): Promise<void> {
     if (reconcileTimer) clearInterval(reconcileTimer);
     if (cancelReview) cancelReview();
 
-    // Close all positions
-    const closeIntents = manager.closeAll();
-    for (const intent of closeIntents) {
-      await executor.execute(intent);
+    // Close day-trade positions, keep swing positions
+    const agents = manager.getAgents();
+    for (const agent of agents) {
+      const strategy = getStrategy(agent.strategyId);
+      if (strategy && isSwingStrategy(strategy)) {
+        console.log(`[SHUTDOWN] Keeping position for swing agent: ${agent.id}`);
+        continue;
+      }
+      const { intents } = agent.close();
+      for (const intent of intents) {
+        await executor.execute(intent);
+      }
     }
 
     // Save final state
@@ -281,7 +310,13 @@ export async function liveCommand(opts: LiveCommandOptions): Promise<void> {
     console.error("[CRASH] Uncaught exception:", err);
     saveState();
     if (!opts.dryRun) {
-      client.closeAllPositions().catch(() => {});
+      // Only close all if no swing strategies are active
+      const hasSwing = strategies.some((s) => isSwingStrategy(s));
+      if (!hasSwing) {
+        client.closeAllPositions().catch(() => {});
+      } else {
+        console.warn("[CRASH] Swing strategies active — skipping blanket position close.");
+      }
     }
     process.exit(1);
   });

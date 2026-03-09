@@ -52,6 +52,7 @@ export type StrategyTemplate = {
   guards: {
     maxDailyLoss: number;
     maxDailyTrades: number;
+    timeGuard?: "market-hours" | null; // null = no time guard (swing)
   };
   position: {
     capital: number;
@@ -344,6 +345,92 @@ export const PRESET_TEMPLATES: StrategyTemplate[] = [
     signalLifecycle: { cooldownBars: 3 },
     source: "preset",
   },
+  // --- Swing strategies (no time guard, daily/hourly intervals) ---
+  {
+    id: "ema-swing-daily",
+    name: "EMA Crossover Swing (Daily)",
+    description: "Daily EMA(10)/EMA(30) crossover swing trade — no intraday time guard",
+    intervalMs: 86_400_000,
+    symbols: ["SPY", "QQQ", "AAPL", "MSFT"],
+    indicators: [
+      { type: "ema", name: "ema10", params: { period: 10 } },
+      { type: "ema", name: "ema30", params: { period: 30 } },
+    ],
+    entry: { type: "emaGoldenCross" },
+    exit: { type: "emaDeadCross" },
+    guards: { maxDailyLoss: -5_000, maxDailyTrades: 4, timeGuard: null },
+    position: {
+      capital: 100_000,
+      sizingMethod: "risk-based",
+      riskPercent: 0.5,
+      stopLoss: 5,
+      trailingStop: 6,
+      slippage: 0.05,
+    },
+    signalLifecycle: { cooldownBars: 2 },
+    source: "preset",
+  },
+  {
+    id: "rsi-swing-daily",
+    name: "RSI Swing (Daily)",
+    description: "Daily RSI < 35 + price > EMA(50) entry, RSI > 65 exit — swing trade",
+    intervalMs: 86_400_000,
+    symbols: ["SPY", "QQQ", "AAPL", "MSFT"],
+    indicators: [
+      { type: "rsi", name: "rsi", params: { period: 14 } },
+      { type: "ema", name: "ema50", params: { period: 50 } },
+    ],
+    entry: {
+      operator: "and",
+      conditions: [
+        { type: "rsiBelow", params: { threshold: 35 } },
+        { type: "priceAbove", params: { indicatorKey: "ema50" } },
+      ],
+    },
+    exit: { type: "rsiAbove", params: { threshold: 65 } },
+    guards: { maxDailyLoss: -5_000, maxDailyTrades: 4, timeGuard: null },
+    position: {
+      capital: 100_000,
+      sizingMethod: "risk-based",
+      riskPercent: 0.5,
+      stopLoss: 5,
+      takeProfit: 10,
+      slippage: 0.05,
+    },
+    signalLifecycle: { cooldownBars: 3 },
+    source: "preset",
+  },
+  {
+    id: "bollinger-swing-hourly",
+    name: "Bollinger + ADX Trend (Hourly)",
+    description: "Hourly BB(20,2) lower band + ADX > 25 entry, BB upper band exit — swing trade",
+    intervalMs: 3_600_000,
+    symbols: ["SPY", "QQQ", "AAPL", "MSFT"],
+    indicators: [
+      { type: "bollinger", name: "bb", params: { period: 20, stdDev: 2 } },
+      { type: "dmi", name: "dmi", params: { period: 14 } },
+      { type: "atr", name: "atr", params: { period: 14 } },
+    ],
+    entry: {
+      operator: "and",
+      conditions: [
+        { type: "priceBelow", params: { indicatorKey: "bb.lower" } },
+        { type: "dmiBullish", params: { threshold: 25 } },
+      ],
+    },
+    exit: { type: "priceAbove", params: { indicatorKey: "bb.upper" } },
+    guards: { maxDailyLoss: -5_000, maxDailyTrades: 6, timeGuard: null },
+    position: {
+      capital: 100_000,
+      sizingMethod: "risk-based",
+      riskPercent: 0.75,
+      stopLoss: 4,
+      atrTrailingStop: { period: 14, multiplier: 2.5 },
+      slippage: 0.05,
+    },
+    signalLifecycle: { cooldownBars: 3 },
+    source: "preset",
+  },
   {
     id: "macd-adx-filter",
     name: "MACD + ADX Filter",
@@ -380,6 +467,16 @@ export const PRESET_TEMPLATES: StrategyTemplate[] = [
     source: "preset",
   },
 ];
+
+/**
+ * Get a preset template by ID
+ */
+/**
+ * Check if a strategy definition is a swing strategy (no time guard)
+ */
+export function isSwingStrategy(strategy: { guards?: { timeGuard?: unknown } }): boolean {
+  return !strategy.guards?.timeGuard;
+}
 
 /**
  * Get a preset template by ID
