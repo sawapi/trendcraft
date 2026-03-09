@@ -74,8 +74,8 @@ export function createTradingSession(
 
   const pipeline = createPipeline(options.pipeline, fromState?.pipelineState);
 
-  // Warm up indicators with historical candles
-  if (options.warmUp) {
+  // Warm up indicators with historical candles (skip if restoring from state)
+  if (options.warmUp && !fromState) {
     for (const candle of options.warmUp) {
       pipeline.next(candle);
     }

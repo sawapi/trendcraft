@@ -225,6 +225,49 @@ describe("createTradingSession", () => {
       expect(state.aggregatorState).toBeDefined();
       expect(state.pipelineState).toBeDefined();
     });
+
+    it("should skip warmUp when restoring from state", () => {
+      let callCount = 0;
+      const warmUpCandles = [
+        { time: 0, open: 100, high: 105, low: 95, close: 102, volume: 100 },
+        { time: 60_000, open: 102, high: 108, low: 100, close: 106, volume: 150 },
+      ];
+
+      const createOpts = () => ({
+        intervalMs: INTERVAL,
+        pipeline: {
+          indicators: [
+            {
+              name: "counter",
+              create: () => ({
+                next() {
+                  callCount++;
+                  return { time: 0, value: callCount };
+                },
+                peek() {
+                  return { time: 0, value: callCount };
+                },
+                getState() {
+                  return { count: callCount };
+                },
+              }),
+            },
+          ],
+        },
+        warmUp: warmUpCandles,
+      });
+
+      // First session: warmUp should run
+      const session1 = createTradingSession(createOpts());
+      expect(callCount).toBe(2);
+
+      const state = session1.getState();
+
+      // Restore session: warmUp should be skipped (state already contains warmed-up data)
+      callCount = 0;
+      createTradingSession(createOpts(), state);
+      expect(callCount).toBe(0);
+    });
   });
 
   it("should handle e2e flow: trades → candle → entry → exit", () => {
