@@ -64,7 +64,7 @@ function createIndicators(
 
   return configs.map((config) => ({
     name: config.name,
-    indicator: config.create(),
+    indicator: config.create(stateMap.get(config.name)),
   }));
 }
 

@@ -268,8 +268,8 @@ export type StreamingCondition =
 export type PipelineIndicatorConfig = {
   /** Key name in the snapshot (e.g., "rsi14", "sma20") */
   name: string;
-  /** Factory function that creates the incremental indicator */
-  create: () => {
+  /** Factory function that creates the incremental indicator, optionally restoring from saved state */
+  create: (fromState?: unknown) => {
     // biome-ignore lint/suspicious/noExplicitAny: indicator values are heterogeneous
     next(candle: NormalizedCandle): { value: any };
     // biome-ignore lint/suspicious/noExplicitAny: indicator values are heterogeneous

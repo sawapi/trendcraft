@@ -101,8 +101,25 @@ export function createStreamingMtf(
   options: StreamingMtfOptions,
   fromState?: StreamingMtfState,
 ): StreamingMtf {
-  const instances: MtfTimeframeInstance[] = options.timeframes.map((tf, i) => {
-    const savedTf = fromState?.timeframes[i];
+  // Build a map keyed by intervalMs for state restoration (order-independent)
+  const stateMap = new Map<number, StreamingMtfState["timeframes"][0]>();
+  if (fromState) {
+    for (const tf of fromState.timeframes) {
+      stateMap.set(tf.intervalMs, tf);
+    }
+  }
+
+  const instances: MtfTimeframeInstance[] = options.timeframes.map((tf) => {
+    const savedTf = stateMap.get(tf.intervalMs);
+
+    // Build indicator state map for this timeframe
+    const indStateMap = new Map<string, unknown>();
+    if (savedTf) {
+      for (const s of savedTf.indicatorStates) {
+        indStateMap.set(s.name, s.state);
+      }
+    }
+
     return {
       intervalMs: tf.intervalMs,
       key: intervalToKey(tf.intervalMs),
@@ -112,7 +129,7 @@ export function createStreamingMtf(
       ),
       indicators: tf.indicators.map((config) => ({
         name: config.name,
-        indicator: config.create(),
+        indicator: config.create(indStateMap.get(config.name)),
       })),
       lastCompletedCandle: null,
     };
@@ -135,17 +152,44 @@ export function createStreamingMtf(
     // For peek, we don't advance the resampler
   }
 
-  function buildMtfSnapshot(method: "next" | "peek"): MtfSnapshot {
+  /**
+   * Merge a base-timeframe candle into the resampler's current partial candle
+   * to produce a hypothetical higher-TF candle for peek evaluation.
+   */
+  function mergeWithCurrentCandle(
+    inst: MtfTimeframeInstance,
+    candle: NormalizedCandle,
+  ): NormalizedCandle {
+    const current = inst.resampler.getCurrentCandle();
+    if (!current) {
+      // No partial candle yet — use the input candle as-is
+      return candle;
+    }
+    return {
+      time: current.time,
+      open: current.open,
+      high: Math.max(current.high, candle.high),
+      low: Math.min(current.low, candle.low),
+      close: candle.close,
+      volume: current.volume + candle.volume,
+    };
+  }
+
+  function buildMtfSnapshot(method: "next" | "peek", peekCandle?: NormalizedCandle): MtfSnapshot {
     const snapshot: MtfSnapshot = {};
     for (const inst of instances) {
       const tfSnapshot: IndicatorSnapshot = {};
-      // Use the current partial candle for peek or current state for next
-      const currentCandle = inst.resampler.getCurrentCandle();
-      for (const ind of inst.indicators) {
-        if (currentCandle && method === "peek") {
-          tfSnapshot[ind.name] = ind.indicator.peek(currentCandle).value;
-        } else {
-          // Use last computed value from next()
+
+      if (method === "peek" && peekCandle) {
+        // Build a hypothetical merged candle for peek evaluation
+        const mergedCandle = mergeWithCurrentCandle(inst, peekCandle);
+        for (const ind of inst.indicators) {
+          tfSnapshot[ind.name] = ind.indicator.peek(mergedCandle).value;
+        }
+      } else {
+        // Use the current partial candle or last completed for next snapshot
+        const currentCandle = inst.resampler.getCurrentCandle();
+        for (const ind of inst.indicators) {
           tfSnapshot[ind.name] = ind.indicator.peek(
             currentCandle ??
               inst.lastCompletedCandle ?? {
@@ -173,7 +217,7 @@ export function createStreamingMtf(
     },
 
     peek(candle: NormalizedCandle): MtfSnapshot {
-      return buildMtfSnapshot("peek");
+      return buildMtfSnapshot("peek", candle);
     },
 
     getState(): StreamingMtfState {
