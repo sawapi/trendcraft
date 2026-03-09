@@ -8,7 +8,9 @@
 import { Command } from "commander";
 import { backtestCommand } from "./commands/backtest.js";
 import { liveCommand } from "./commands/live.js";
+import { preflightCommand } from "./commands/preflight.js";
 import { promoteCommand } from "./commands/promote.js";
+import { reportCommand } from "./commands/report.js";
 import { reviewCommand } from "./commands/review.js";
 import { statusCommand } from "./commands/status.js";
 import { getStrategyIds } from "./strategy/registry.js";
@@ -62,5 +64,18 @@ program
   .option("-t, --timeframe <tf>", "Backtest timeframe (1Min, 1Day, etc.)", "1Day")
   .option("-c, --capital <amount>", "Capital for backtest", "100000")
   .action(reviewCommand);
+
+program
+  .command("preflight")
+  .description("Run pre-launch checks before paper trading")
+  .action(preflightCommand);
+
+program
+  .command("report")
+  .description("Generate trade CSV export and/or tax summary report")
+  .option("-y, --year <year>", "Tax year to report", String(new Date().getFullYear()))
+  .option("-f, --format <format>", "Output format: csv, tax, or both", "both")
+  .option("-o, --output <dir>", "Output directory", "./data")
+  .action(reportCommand);
 
 program.parse();

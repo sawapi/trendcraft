@@ -16,6 +16,7 @@ import { createAlpacaWebSocket } from "../alpaca/websocket.js";
 import { loadEnv } from "../config/env.js";
 import { DEFAULT_PORTFOLIO_GUARD } from "../config/portfolio.js";
 import { DEFAULT_SYMBOLS } from "../config/symbols.js";
+import { DEFAULT_TRADING_COSTS } from "../config/trading-costs.js";
 import { createDryRunExecutor } from "../executor/dry-run-executor.js";
 import { createPaperExecutor } from "../executor/paper-executor.js";
 import { formatReconciliation, reconcilePositions } from "../executor/reconciler.js";
@@ -195,10 +196,37 @@ export async function liveCommand(opts: LiveCommandOptions): Promise<void> {
   }
 
   const allSymbols = manager.getSymbols();
+  const agentCount = manager.getAgents().length;
+
+  // Startup summary banner
+  const mode = opts.dryRun ? "DRY RUN" : "PAPER TRADING";
+  const stratNames = strategies.map((s) => s.id).join(", ");
+  const symNames = allSymbols.join(", ");
+  const tc = DEFAULT_TRADING_COSTS;
+
+  console.log("");
+  console.log(`\u2554${"\u2550".repeat(52)}\u2557`);
+  console.log(`\u2551  ALPACA PAPER TRADING - STARTUP SUMMARY${" ".repeat(11)}\u2551`);
+  console.log(`\u2560${"\u2550".repeat(52)}\u2563`);
+  console.log(`\u2551  Mode:       ${mode.padEnd(38)}\u2551`);
+  console.log(`\u2551  Strategies: ${String(strategies.length).padEnd(38)}\u2551`);
+  console.log(`\u2551  Symbols:    ${symNames.slice(0, 38).padEnd(38)}\u2551`);
+  console.log(`\u2551  Agents:     ${String(agentCount).padEnd(38)}\u2551`);
+  console.log(`\u2551  Capital:    ${`$${capital.toLocaleString()} per agent`.padEnd(38)}\u2551`);
+  console.log(`\u2551  Tax Rate:   ${`${tc.taxRate}%`.padEnd(38)}\u2551`);
   console.log(
-    `\nStarting live trading: ${manager.getAgents().length} agents on ${allSymbols.join(", ")}`,
+    `\u2551  Commission: ${`$${tc.commission} + ${tc.commissionRate}%`.padEnd(38)}\u2551`,
   );
-  console.log(opts.dryRun ? "Mode: DRY RUN (no real orders)" : "Mode: PAPER TRADING");
+  console.log(`\u2551  Slippage:   ${`${tc.slippage}%`.padEnd(38)}\u2551`);
+  console.log(`\u255A${"\u2550".repeat(52)}\u255D`);
+
+  // Agent count vs maxOpenPositions guard check
+  const maxPositions = DEFAULT_PORTFOLIO_GUARD.maxOpenPositions ?? Number.POSITIVE_INFINITY;
+  if (agentCount > maxPositions) {
+    console.warn(
+      `\n[WARNING] Agent count (${agentCount}) > maxOpenPositions (${maxPositions}). Not all agents can hold positions simultaneously.`,
+    );
+  }
 
   // Connect WebSocket
   const ws = createAlpacaWebSocket(env);
