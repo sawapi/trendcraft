@@ -17,6 +17,7 @@ import { loadEnv } from "../config/env.js";
 import { DEFAULT_PORTFOLIO_GUARD } from "../config/portfolio.js";
 import { DEFAULT_SYMBOLS } from "../config/symbols.js";
 import { DEFAULT_TRADING_COSTS } from "../config/trading-costs.js";
+import { applyExcludeList, getUniverse, getUniverseIds } from "../config/universe.js";
 import { createDryRunExecutor } from "../executor/dry-run-executor.js";
 import { createPaperExecutor } from "../executor/paper-executor.js";
 import { formatReconciliation, reconcilePositions } from "../executor/reconciler.js";
@@ -24,6 +25,7 @@ import type { OrderExecutor } from "../executor/types.js";
 import { createStateStore } from "../persistence/store.js";
 import { loadCustomStrategies, loadOverrides } from "../review/applier.js";
 import { scheduleReview } from "../review/scheduler.js";
+import { scanUniverse } from "../scanner/index.js";
 import {
   applyStrategyOverrides,
   getAllStrategies,
@@ -48,6 +50,12 @@ export type LiveCommandOptions = {
   capital?: string;
   noAutoReview?: boolean;
   verbose?: boolean;
+  autoScan?: boolean;
+  universe?: string;
+  sector?: string;
+  industry?: string;
+  exclude?: string;
+  top?: string;
 };
 
 function writeHeartbeat(): void {
@@ -139,11 +147,30 @@ export async function liveCommand(opts: LiveCommandOptions): Promise<void> {
   }
 
   // Determine symbols
-  const symbols = opts.symbol
-    ? [opts.symbol.toUpperCase()]
-    : opts.symbols
-      ? opts.symbols.split(",").map((s) => s.trim().toUpperCase())
-      : DEFAULT_SYMBOLS.slice(0, 2); // Default to first 2 symbols for live
+  let symbols: string[];
+  if (opts.symbol) {
+    symbols = [opts.symbol.toUpperCase()];
+  } else if (opts.symbols) {
+    symbols = opts.symbols.split(",").map((s) => s.trim().toUpperCase());
+  } else if (opts.autoScan) {
+    const universeId = opts.universe ?? "mega30";
+    const universe = getUniverse(universeId, opts.sector, opts.industry);
+    if (!universe) {
+      console.error(`Unknown universe: ${universeId}. Available: ${getUniverseIds().join(", ")}`);
+      process.exit(1);
+    }
+    const filtered = applyExcludeList(universe, opts.exclude);
+    const top = opts.top ? Number.parseInt(opts.top, 10) : 5;
+    const scanResult = await scanUniverse(env, filtered, universeId, { top });
+    if (scanResult.candidates.length === 0) {
+      console.error("[SCAN] No candidates found. Cannot start live trading.");
+      process.exit(1);
+    }
+    symbols = scanResult.candidates.map((c) => c.symbol);
+    console.log(`[SCAN] Selected ${symbols.length} symbols: ${symbols.join(", ")}`);
+  } else {
+    symbols = DEFAULT_SYMBOLS.slice(0, 2); // Default to first 2 symbols for live
+  }
 
   // Create executor
   const executor: OrderExecutor = opts.dryRun

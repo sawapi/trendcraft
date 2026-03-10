@@ -12,7 +12,11 @@ import { preflightCommand } from "./commands/preflight.js";
 import { promoteCommand } from "./commands/promote.js";
 import { reportCommand } from "./commands/report.js";
 import { reviewCommand } from "./commands/review.js";
+import { scanCommand } from "./commands/scan.js";
 import { statusCommand } from "./commands/status.js";
+import { updateUniverseCommand } from "./commands/update-universe.js";
+import { getUniverseIds } from "./config/universe.js";
+import { getAllIndustries, getAllSectors } from "./sec/index.js";
 import { getStrategyIds } from "./strategy/registry.js";
 
 const program = new Command();
@@ -42,7 +46,40 @@ program
   .option("-c, --capital <amount>", "Capital per agent", "100000")
   .option("--no-auto-review", "Disable automatic daily review after market close")
   .option("-v, --verbose", "Show ticker summary every 30s")
+  .option("--auto-scan", "Auto-scan universe to select symbols before trading")
+  .option(
+    "-u, --universe <id>",
+    `Universe for auto-scan (${getUniverseIds().join(", ")})`,
+    "mega30",
+  )
+  .option("--sector <sector>", `Sector filter for SEC universe (${getAllSectors().join(", ")})`)
+  .option(
+    "--industry <industry>",
+    `Industry filter for SEC universe (${getAllIndustries().join(", ")})`,
+  )
+  .option("--exclude <file>", "Exclude symbols file (default: data/exclude-symbols.txt)")
+  .option("-n, --top <n>", "Number of top symbols from scan", "5")
   .action(liveCommand);
+
+program
+  .command("scan")
+  .description("Scan symbol universe and rank candidates for trading")
+  .option("-u, --universe <id>", `Universe to scan (${getUniverseIds().join(", ")})`, "mega30")
+  .option("-s, --symbols <symbols>", "Comma-separated symbol list (overrides universe)")
+  .option("--sector <sector>", `Sector filter for SEC universe (${getAllSectors().join(", ")})`)
+  .option(
+    "--industry <industry>",
+    `Industry filter for SEC universe (${getAllIndustries().join(", ")})`,
+  )
+  .option("--exclude <file>", "Exclude symbols file (default: data/exclude-symbols.txt)")
+  .option("-n, --top <n>", "Number of top candidates", "10")
+  .option("--min-atr <pct>", "Minimum ATR% threshold", "1.0")
+  .option("--min-volume <ratio>", "Minimum volume ratio vs 20-day avg", "0.5")
+  .option("--rsi-min <value>", "Minimum RSI filter")
+  .option("--rsi-max <value>", "Maximum RSI filter")
+  .option("--lookback <days>", "Lookback period in days", "250")
+  .option("--concurrency <n>", "Max concurrent API requests", "5")
+  .action(scanCommand);
 
 program.command("status").description("Show agent status and leaderboard").action(statusCommand);
 
@@ -78,5 +115,12 @@ program
   .option("-f, --format <format>", "Output format: csv, tax, or both", "both")
   .option("-o, --output <dir>", "Output directory", "./data")
   .action(reportCommand);
+
+program
+  .command("update-universe")
+  .description("Build/refresh SEC EDGAR universe cache with sector classification")
+  .option("-f, --force", "Force full rebuild (ignore existing cache)")
+  .option("--no-alpaca-filter", "Skip Alpaca tradable filter")
+  .action(updateUniverseCommand);
 
 program.parse();
