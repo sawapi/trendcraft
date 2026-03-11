@@ -128,10 +128,7 @@ export function filterSeries<T>(
  * const dailyAlignedWeeklySma = alignSeries(weeklySma, dailySma);
  * ```
  */
-export function alignSeries<T>(
-  source: Series<T>,
-  target: Series<IndicatorValue<unknown>>,
-): Series<T | null> {
+export function alignSeries<T>(source: Series<T>, target: Series<unknown>): Series<T | null> {
   if (source.length === 0) {
     return target.map((t) => ({ time: t.time, value: null }));
   }

@@ -167,6 +167,7 @@ export function runBacktestScaled(
     slippage,
     commission,
     commissionRate,
+    taxRate,
   };
 
   // If no scaled entry config, fall back to single entry behavior
