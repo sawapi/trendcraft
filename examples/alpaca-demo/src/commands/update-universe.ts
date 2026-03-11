@@ -6,21 +6,72 @@
 
 import { loadEnv } from "../config/env.js";
 import {
+  buildFundamentalsCache,
   buildSecUniverse,
   getAllIndustries,
   getAllSectors,
   getIndustryName,
   getSectorName,
+  loadSecUniverse,
+  repairFundamentalsCache,
 } from "../sec/index.js";
 import type { IndustryId, SectorId } from "../sec/index.js";
 
 export type UpdateUniverseOptions = {
   force?: boolean;
   noAlpacaFilter?: boolean;
+  withFundamentals?: boolean;
+  fundamentalsOnly?: boolean;
+  repairFundamentals?: boolean;
 };
 
 export async function updateUniverseCommand(opts: UpdateUniverseOptions): Promise<void> {
   const startMs = Date.now();
+
+  // --- Repair mode: SEC API only, no Alpaca env needed ---
+  if (opts.repairFundamentals) {
+    const repairStart = Date.now();
+    await repairFundamentalsCache((done, total, repaired) => {
+      if (done % 5 === 0 || done === total) {
+        const pct = ((done / total) * 100).toFixed(1);
+        process.stdout.write(`\r  Repairing... ${done}/${total} (${pct}%) [${repaired} fixed]`);
+      }
+    });
+    process.stdout.write(`\r${" ".repeat(60)}\r`);
+    const elapsedSec = ((Date.now() - repairStart) / 1000).toFixed(1);
+    console.log(`Repair completed in ${elapsedSec}s`);
+    return;
+  }
+
+  // --- Fundamentals-only mode ---
+  if (opts.fundamentalsOnly) {
+    const universe = loadSecUniverse();
+    if (!universe) {
+      console.error("No SEC universe cache found. Run 'update-universe' first.");
+      process.exit(1);
+    }
+    console.log(`Loading SEC universe (${universe.entries.length} entries)...`);
+    const fundStart = Date.now();
+    await buildFundamentalsCache(universe.entries, {
+      force: opts.force,
+      skipDiffCheck: true, // Only fetch non-cached entries; use --force for full re-fetch
+      onProgress(done, total, fetched) {
+        if (done % 10 === 0 || done === total) {
+          const pct = ((done / total) * 100).toFixed(1);
+          const elapsedSec = (Date.now() - fundStart) / 1000;
+          const rate = done / elapsedSec;
+          const etaMin = rate > 0 ? ((total - done) / rate / 60).toFixed(1) : "?";
+          process.stdout.write(
+            `\r  Fetching fundamentals... ${done}/${total} (${pct}%) [${fetched} new] ETA: ${etaMin}m`,
+          );
+        }
+      },
+    });
+    process.stdout.write(`\r${" ".repeat(80)}\r`);
+    const elapsedSec = ((Date.now() - startMs) / 1000).toFixed(1);
+    console.log(`\nFundamentals cache updated in ${elapsedSec}s`);
+    return;
+  }
 
   // Load Alpaca env (needed for tradable filter unless --no-alpaca-filter)
   let env = null;
@@ -32,7 +83,7 @@ export async function updateUniverseCommand(opts: UpdateUniverseOptions): Promis
     }
   }
 
-  // Build universe
+  // --- Build universe (SIC codes) ---
   const result = await buildSecUniverse(env, {
     force: opts.force,
     noAlpacaFilter: opts.noAlpacaFilter,
@@ -89,4 +140,26 @@ export async function updateUniverseCommand(opts: UpdateUniverseOptions): Promis
   const elapsedSec = ((Date.now() - startMs) / 1000).toFixed(1);
   console.log(`\nTotal: ${result.entries.length} symbols in ${elapsedSec}s`);
   console.log("Cache saved to data/sec-universe.json");
+
+  // --- Optionally build fundamentals ---
+  if (opts.withFundamentals) {
+    console.log("\nBuilding fundamentals cache...");
+    const fundStart = Date.now();
+    await buildFundamentalsCache(result.entries, {
+      force: opts.force,
+      onProgress(done, total, fetched) {
+        if (done % 10 === 0 || done === total) {
+          const pct = ((done / total) * 100).toFixed(1);
+          const elapsedSec = (Date.now() - fundStart) / 1000;
+          const rate = done / elapsedSec;
+          const etaMin = rate > 0 ? ((total - done) / rate / 60).toFixed(1) : "?";
+          process.stdout.write(
+            `\r  Fetching fundamentals... ${done}/${total} (${pct}%) [${fetched} new] ETA: ${etaMin}m`,
+          );
+        }
+      },
+    });
+    process.stdout.write(`\r${" ".repeat(80)}\r`);
+    console.log("Fundamentals cache saved to data/sec-fundamentals.json");
+  }
 }

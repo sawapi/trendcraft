@@ -8,8 +8,11 @@
 import type { NormalizedCandle } from "trendcraft";
 import { atr, rsi } from "trendcraft";
 import { fetchCachedBars } from "../alpaca/cache.js";
-import { monthsAgo, today } from "../alpaca/historical.js";
+import { today } from "../alpaca/historical.js";
 import type { AlpacaEnv } from "../config/env.js";
+import { loadFundamentalsCache } from "../sec/fundamentals-cache.js";
+import { computeRatios } from "../sec/fundamentals.js";
+import type { CompanyFundamentals, FundamentalFilters, FundamentalRatios } from "../sec/types.js";
 import type { ScanCandidate, ScanResult, ScannerOptions } from "./types.js";
 
 const DEFAULT_OPTIONS: Required<ScannerOptions> = {
@@ -19,6 +22,7 @@ const DEFAULT_OPTIONS: Required<ScannerOptions> = {
   top: 10,
   lookbackDays: 250,
   concurrency: 5,
+  fundamentals: undefined as unknown as ScannerOptions["fundamentals"] & {},
 };
 
 type AnalysisResult = {
@@ -199,9 +203,52 @@ export async function scanUniverse(
     });
   }
 
+  // --- Fundamental filtering ---
+  const fundFilters = config.fundamentals;
+  const hasFundFilters = fundFilters && Object.keys(fundFilters).length > 0;
+
+  // Load fundamentals cache if filters are present
+  let fundMap: Map<string, CompanyFundamentals> | null = null;
+  if (hasFundFilters) {
+    const cache = loadFundamentalsCache();
+    if (cache) {
+      fundMap = new Map(cache.entries.map((e) => [e.ticker, e]));
+      console.log(`[SCAN] Fundamentals cache loaded (${cache.entries.length} entries)`);
+    } else {
+      console.warn(
+        "[SCAN] No fundamentals cache found. Run 'update-universe --with-fundamentals' first.",
+      );
+    }
+  }
+
+  // Apply fundamental filters and attach ratios
+  const filtered: ScanCandidate[] = [];
+  for (const c of candidates) {
+    const fund = fundMap?.get(c.symbol);
+    let ratios: FundamentalRatios | undefined;
+
+    if (fund) {
+      ratios = computeRatios(fund, c.price);
+    }
+
+    if (hasFundFilters && fundFilters) {
+      if (!ratios) {
+        skipped.push({ symbol: c.symbol, reason: "no fundamentals data" });
+        continue;
+      }
+
+      if (!passesFundamentalFilters(ratios, fundFilters)) {
+        skipped.push({ symbol: c.symbol, reason: "failed fundamental filter" });
+        continue;
+      }
+    }
+
+    filtered.push({ ...c, ratios });
+  }
+
   // Sort by score descending, take top N
-  candidates.sort((a, b) => b.score - a.score);
-  const topCandidates = candidates.slice(0, config.top);
+  filtered.sort((a, b) => b.score - a.score);
+  const topCandidates = filtered.slice(0, config.top);
 
   const elapsedMs = Date.now() - startTime;
 
@@ -214,4 +261,62 @@ export async function scanUniverse(
     candidates: topCandidates,
     elapsedMs,
   };
+}
+
+/**
+ * Check if computed ratios pass all fundamental filters.
+ */
+function passesFundamentalFilters(ratios: FundamentalRatios, filters: FundamentalFilters): boolean {
+  if (
+    filters.maxPer != null &&
+    (ratios.per == null || ratios.per > filters.maxPer || ratios.per <= 0)
+  ) {
+    return false;
+  }
+  if (
+    filters.maxPbr != null &&
+    (ratios.pbr == null || ratios.pbr > filters.maxPbr || ratios.pbr <= 0)
+  ) {
+    return false;
+  }
+  if (
+    filters.maxPsr != null &&
+    (ratios.psr == null || ratios.psr > filters.maxPsr || ratios.psr <= 0)
+  ) {
+    return false;
+  }
+  if (
+    filters.minRevenueGrowth != null &&
+    (ratios.revenueGrowth == null || ratios.revenueGrowth < filters.minRevenueGrowth)
+  ) {
+    return false;
+  }
+  if (
+    filters.minEpsGrowth != null &&
+    (ratios.epsGrowth == null || ratios.epsGrowth < filters.minEpsGrowth)
+  ) {
+    return false;
+  }
+  if (
+    filters.minGrossMargin != null &&
+    (ratios.grossMargin == null || ratios.grossMargin < filters.minGrossMargin)
+  ) {
+    return false;
+  }
+  if (
+    filters.minOpMargin != null &&
+    (ratios.opMargin == null || ratios.opMargin < filters.minOpMargin)
+  ) {
+    return false;
+  }
+  if (filters.minRoe != null && (ratios.roe == null || ratios.roe < filters.minRoe)) {
+    return false;
+  }
+  if (
+    filters.maxDeRatio != null &&
+    (ratios.debtToEquity == null || ratios.debtToEquity > filters.maxDeRatio)
+  ) {
+    return false;
+  }
+  return true;
 }

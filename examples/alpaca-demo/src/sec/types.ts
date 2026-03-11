@@ -100,3 +100,61 @@ export type BuildOptions = {
   noAlpacaFilter?: boolean;
   onProgress?: (done: number, total: number) => void;
 };
+
+/** Extracted financial metrics for a single company */
+export type CompanyFundamentals = {
+  ticker: string;
+  cik: number;
+  lastFiled: string; // Most recent filing date (for diff update)
+  // Latest annual values
+  revenue: number | null;
+  revenuePrior: number | null; // Prior year (for growth calc)
+  netIncome: number | null;
+  netIncomePrior: number | null;
+  operatingIncome: number | null;
+  operatingIncomePrior: number | null;
+  grossProfit: number | null;
+  eps: number | null;
+  epsPrior: number | null;
+  sharesOutstanding: number | null;
+  stockholdersEquity: number | null;
+  longTermDebt: number | null;
+  cash: number | null;
+  currentAssets: number | null;
+  currentLiabilities: number | null;
+};
+
+/** Computed ratios (calculated at scan time with live price) */
+export type FundamentalRatios = {
+  per: number | null; // Price / EPS
+  pbr: number | null; // MarketCap / Equity
+  psr: number | null; // MarketCap / Revenue
+  revenueGrowth: number | null; // (rev - revPrior) / revPrior
+  epsGrowth: number | null;
+  opIncomeGrowth: number | null;
+  grossMargin: number | null; // grossProfit / revenue
+  opMargin: number | null; // opIncome / revenue
+  roe: number | null; // netIncome / equity
+  debtToEquity: number | null; // debt / equity
+  currentRatio: number | null; // currentAssets / currentLiabilities
+};
+
+/** Persisted fundamentals cache */
+export type FundamentalsCache = {
+  builtAt: number;
+  version: number;
+  entries: CompanyFundamentals[];
+};
+
+/** Fundamental filter options for scanner */
+export type FundamentalFilters = {
+  maxPer?: number;
+  maxPbr?: number;
+  maxPsr?: number;
+  minRevenueGrowth?: number; // percentage
+  minEpsGrowth?: number;
+  minGrossMargin?: number;
+  minOpMargin?: number;
+  minRoe?: number;
+  maxDeRatio?: number;
+};

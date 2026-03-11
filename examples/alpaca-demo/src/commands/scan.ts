@@ -22,6 +22,16 @@ export type ScanCommandOptions = {
   rsiMax?: string;
   lookback?: string;
   concurrency?: string;
+  // Fundamental filters
+  maxPer?: string;
+  maxPbr?: string;
+  maxPsr?: string;
+  minRevenueGrowth?: string;
+  minEpsGrowth?: string;
+  minGrossMargin?: string;
+  minOpMargin?: string;
+  minRoe?: string;
+  maxDeRatio?: string;
 };
 
 export async function scanCommand(opts: ScanCommandOptions): Promise<void> {
@@ -64,6 +74,23 @@ export async function scanCommand(opts: ScanCommandOptions): Promise<void> {
     scanOpts.rsiRange = [min, max];
   }
 
+  // Build fundamental filters
+  const fundFilters: Record<string, number> = {};
+  if (opts.maxPer) fundFilters.maxPer = Number.parseFloat(opts.maxPer);
+  if (opts.maxPbr) fundFilters.maxPbr = Number.parseFloat(opts.maxPbr);
+  if (opts.maxPsr) fundFilters.maxPsr = Number.parseFloat(opts.maxPsr);
+  if (opts.minRevenueGrowth)
+    fundFilters.minRevenueGrowth = Number.parseFloat(opts.minRevenueGrowth);
+  if (opts.minEpsGrowth) fundFilters.minEpsGrowth = Number.parseFloat(opts.minEpsGrowth);
+  if (opts.minGrossMargin) fundFilters.minGrossMargin = Number.parseFloat(opts.minGrossMargin);
+  if (opts.minOpMargin) fundFilters.minOpMargin = Number.parseFloat(opts.minOpMargin);
+  if (opts.minRoe) fundFilters.minRoe = Number.parseFloat(opts.minRoe);
+  if (opts.maxDeRatio) fundFilters.maxDeRatio = Number.parseFloat(opts.maxDeRatio);
+
+  if (Object.keys(fundFilters).length > 0) {
+    scanOpts.fundamentals = fundFilters;
+  }
+
   const result = await scanUniverse(env, symbols, universeName, scanOpts);
 
   // Print results
@@ -77,10 +104,18 @@ export async function scanCommand(opts: ScanCommandOptions): Promise<void> {
     return;
   }
 
+  // Check if any candidate has fundamental ratios
+  const hasFundamentals = result.candidates.some((c) => c.ratios);
+
   // Table header
   console.log("");
-  console.log("  Rank  Symbol  Price        ATR%    RSI     VolRatio  Score");
-  console.log(`  ${"\u2500".repeat(57)}`);
+  if (hasFundamentals) {
+    console.log("  Rank  Symbol  Price        ATR%    RSI     Score   PER    RevGr%  ROE%");
+    console.log(`  ${"\u2500".repeat(69)}`);
+  } else {
+    console.log("  Rank  Symbol  Price        ATR%    RSI     VolRatio  Score");
+    console.log(`  ${"\u2500".repeat(57)}`);
+  }
 
   // Table rows
   for (let i = 0; i < result.candidates.length; i++) {
@@ -90,10 +125,22 @@ export async function scanCommand(opts: ScanCommandOptions): Promise<void> {
     const price = `$${c.price.toFixed(2)}`.padStart(10);
     const atrPct = `${c.atrPercent.toFixed(1)}%`.padStart(6);
     const rsiVal = c.rsi14 != null ? c.rsi14.toFixed(1).padStart(6) : "   N/A";
-    const vol = `${c.volumeRatio.toFixed(1)}x`.padStart(8);
-    const score = c.score.toFixed(1).padStart(6);
 
-    console.log(`  ${rank}   ${sym}  ${price}  ${atrPct}  ${rsiVal}  ${vol}  ${score}`);
+    if (hasFundamentals) {
+      const score = c.score.toFixed(1).padStart(6);
+      const per = c.ratios?.per != null ? c.ratios.per.toFixed(1).padStart(6) : "   N/A";
+      const revGr =
+        c.ratios?.revenueGrowth != null ? c.ratios.revenueGrowth.toFixed(1).padStart(7) : "    N/A";
+      const roe = c.ratios?.roe != null ? c.ratios.roe.toFixed(1).padStart(6) : "   N/A";
+
+      console.log(
+        `  ${rank}   ${sym}  ${price}  ${atrPct}  ${rsiVal}  ${score}  ${per}  ${revGr}  ${roe}`,
+      );
+    } else {
+      const vol = `${c.volumeRatio.toFixed(1)}x`.padStart(8);
+      const score = c.score.toFixed(1).padStart(6);
+      console.log(`  ${rank}   ${sym}  ${price}  ${atrPct}  ${rsiVal}  ${vol}  ${score}`);
+    }
   }
 
   console.log("");

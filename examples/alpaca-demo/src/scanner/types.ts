@@ -2,6 +2,8 @@
  * Scanner type definitions
  */
 
+import type { FundamentalFilters, FundamentalRatios } from "../sec/types.js";
+
 export type ScannerOptions = {
   /** Minimum ATR% to include (default: 1.0) */
   minAtrPercent?: number;
@@ -15,6 +17,8 @@ export type ScannerOptions = {
   lookbackDays?: number;
   /** Maximum concurrent API requests (default: 5) */
   concurrency?: number;
+  /** Fundamental filters (requires fundamentals cache) */
+  fundamentals?: FundamentalFilters;
 };
 
 export type ScanCandidate = {
@@ -25,6 +29,8 @@ export type ScanCandidate = {
   volumeRatio: number;
   /** Composite ranking score (0-100) */
   score: number;
+  /** Fundamental ratios (present when fundamentals cache is available) */
+  ratios?: FundamentalRatios;
 };
 
 export type ScanResult = {

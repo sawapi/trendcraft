@@ -79,6 +79,16 @@ program
   .option("--rsi-max <value>", "Maximum RSI filter")
   .option("--lookback <days>", "Lookback period in days", "250")
   .option("--concurrency <n>", "Max concurrent API requests", "5")
+  // Fundamental filters
+  .option("--max-per <n>", "Maximum PER (Price/Earnings)")
+  .option("--max-pbr <n>", "Maximum PBR (Price/Book)")
+  .option("--max-psr <n>", "Maximum PSR (Price/Sales)")
+  .option("--min-revenue-growth <pct>", "Minimum revenue growth % (YoY)")
+  .option("--min-eps-growth <pct>", "Minimum EPS growth % (YoY)")
+  .option("--min-gross-margin <pct>", "Minimum gross margin %")
+  .option("--min-op-margin <pct>", "Minimum operating margin %")
+  .option("--min-roe <pct>", "Minimum ROE %")
+  .option("--max-de-ratio <n>", "Maximum Debt/Equity ratio")
   .action(scanCommand);
 
 program.command("status").description("Show agent status and leaderboard").action(statusCommand);
@@ -121,6 +131,9 @@ program
   .description("Build/refresh SEC EDGAR universe cache with sector classification")
   .option("-f, --force", "Force full rebuild (ignore existing cache)")
   .option("--no-alpaca-filter", "Skip Alpaca tradable filter")
+  .option("--with-fundamentals", "Also fetch financial data (EPS, revenue, etc.)")
+  .option("--fundamentals-only", "Only update fundamentals cache (skip SIC rebuild)")
+  .option("--repair-fundamentals", "Re-fetch only entries with missing data (e.g., EPS fix)")
   .action(updateUniverseCommand);
 
 program.parse();

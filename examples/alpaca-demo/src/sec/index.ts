@@ -9,6 +9,10 @@ export type {
   SecUniverseEntry,
   SecUniverseData,
   BuildOptions,
+  CompanyFundamentals,
+  FundamentalRatios,
+  FundamentalsCache,
+  FundamentalFilters,
 } from "./types.js";
 export {
   sicToSector,
@@ -26,3 +30,10 @@ export {
   getSecUniverseAge,
   warnIfStale,
 } from "./universe-builder.js";
+export { fetchCompanyFacts, extractFundamentals, computeRatios } from "./fundamentals.js";
+export {
+  loadFundamentalsCache,
+  saveFundamentalsCache,
+  buildFundamentalsCache,
+  repairFundamentalsCache,
+} from "./fundamentals-cache.js";
