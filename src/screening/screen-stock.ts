@@ -153,6 +153,84 @@ export const CONDITION_PRESETS: Record<string, () => Condition> = {
   // Volatility
   atrPercentAbove2_3: () => conditions.atrPercentAbove(2.3),
   atrPercentAbove3: () => conditions.atrPercentAbove(3.0),
+
+  // Perfect Order Extended
+  perfectOrderActiveBearish: () => conditions.perfectOrderActiveBearish({ periods: [5, 25, 75] }),
+  perfectOrderBullishConfirmed: () =>
+    conditions.perfectOrderBullishConfirmed({ periods: [5, 25, 75] }),
+  perfectOrderBearishConfirmed: () =>
+    conditions.perfectOrderBearishConfirmed({ periods: [5, 25, 75] }),
+  perfectOrderConfirmationFormed: () =>
+    conditions.perfectOrderConfirmationFormed({ periods: [5, 25, 75] }),
+  perfectOrderBreakdown: () => conditions.perfectOrderBreakdown({ periods: [5, 25, 75] }),
+  perfectOrderMaCollapsed: () => conditions.perfectOrderMaCollapsed({ periods: [5, 25, 75] }),
+  perfectOrderPreBullish: () => conditions.perfectOrderPreBullish({ periods: [5, 25, 75] }),
+  perfectOrderPreBearish: () => conditions.perfectOrderPreBearish({ periods: [5, 25, 75] }),
+  perfectOrderPullbackEntry: () => conditions.perfectOrderPullbackEntry({ periods: [5, 25, 75] }),
+  perfectOrderPullbackSellEntry: () =>
+    conditions.perfectOrderPullbackSellEntry({ periods: [5, 25, 75] }),
+  poPlusEntry: () => conditions.poPlusEntry({ periods: [5, 25, 75] }),
+  pbEntry: () => conditions.pbEntry({ periods: [5, 25, 75] }),
+  poPlusPbEntry: () => conditions.poPlusPbEntry({ periods: [5, 25, 75] }),
+
+  // Validated MA Cross
+  validatedGoldenCross: () => conditions.validatedGoldenCross(),
+  validatedDeadCross: () => conditions.validatedDeadCross(),
+
+  // Price Extended
+  priceDroppedAtr: () => conditions.priceDroppedAtr(),
+
+  // Range-Bound Extended
+  rangeForming: () => conditions.rangeForming(),
+  breakoutRiskUp: () => conditions.breakoutRiskUp(),
+  breakoutRiskDown: () => conditions.breakoutRiskDown(),
+  tightRange: () => conditions.tightRange(),
+  rangeScoreAbove: () => conditions.rangeScoreAbove(70),
+
+  // Advanced Volume
+  volumeExtreme: () => conditions.volumeExtreme(),
+  volumeDivergence: () => conditions.volumeDivergence(),
+  bullishVolumeDivergence: () => conditions.bullishVolumeDivergence(),
+  bearishVolumeDivergence: () => conditions.bearishVolumeDivergence(),
+  volumeTrendConfidence: () => conditions.volumeTrendConfidence(),
+  nearPoc: () => conditions.nearPoc(),
+  inValueArea: () => conditions.inValueArea(),
+  breakoutVah: () => conditions.breakoutVah(),
+  breakdownVal: () => conditions.breakdownVal(),
+  priceAbovePoc: () => conditions.priceAbovePoc(),
+  priceBelowPoc: () => conditions.priceBelowPoc(),
+  cmfAbove: () => conditions.cmfAbove(0.05),
+  cmfBelow: () => conditions.cmfBelow(-0.05),
+  obvRising: () => conditions.obvRising(),
+  obvFalling: () => conditions.obvFalling(),
+  obvCrossUp: () => conditions.obvCrossUp(),
+  obvCrossDown: () => conditions.obvCrossDown(),
+
+  // Volatility Regime
+  volatilityExpanding: () => conditions.volatilityExpanding(),
+  volatilityContracting: () => conditions.volatilityContracting(),
+  volatilityAbove: () => conditions.volatilityAbove(0.7),
+  volatilityBelow: () => conditions.volatilityBelow(0.3),
+  atrPercentileAbove: () => conditions.atrPercentileAbove(75),
+  atrPercentileBelow: () => conditions.atrPercentileBelow(25),
+  atrPercentBelow: () => conditions.atrPercentBelow(1.0),
+
+  // Price Patterns
+  anyBullishPattern: () => conditions.anyBullishPattern(),
+  anyBearishPattern: () => conditions.anyBearishPattern(),
+  doubleTopDetected: () => conditions.doubleTopDetected(),
+  doubleBottomDetected: () => conditions.doubleBottomDetected(),
+  headShouldersDetected: () => conditions.headShouldersDetected(),
+  inverseHeadShouldersDetected: () => conditions.inverseHeadShouldersDetected(),
+  cupHandleDetected: () => conditions.cupHandleDetected(),
+
+  // Smart Money Concepts (SMC)
+  priceAtBullishOrderBlock: () => conditions.priceAtBullishOrderBlock(),
+  priceAtBearishOrderBlock: () => conditions.priceAtBearishOrderBlock(),
+  orderBlockCreated: () => conditions.orderBlockCreated(),
+  liquiditySweepDetected: () => conditions.liquiditySweepDetected(),
+  liquiditySweepRecovered: () => conditions.liquiditySweepRecovered(),
+  hasRecentSweeps: () => conditions.hasRecentSweeps(),
 };
 
 /**
