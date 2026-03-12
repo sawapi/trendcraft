@@ -72,7 +72,7 @@ export function screenStock(
 
   const volMaData = volumeMa(candles, { period: 20 });
   const avgVolume = volMaData[lastIndex]?.value ?? 0;
-  const volumeRatio = avgVolume && avgVolume > 0 ? lastCandle.volume / avgVolume : 1;
+  const volumeRatio = avgVolume > 0 ? lastCandle.volume / avgVolume : 1;
 
   return {
     ticker,
@@ -82,7 +82,7 @@ export function screenStock(
     timestamp: lastCandle.time,
     atrPercent,
     metrics: {
-      rsi14: rsi14 ?? undefined,
+      rsi14,
       volume: lastCandle.volume,
       volumeRatio,
     },

@@ -148,100 +148,67 @@ Examples:
 `);
 }
 
+const VOLUME_PROFILE_NAMES = new Set([
+  "nearPoc",
+  "inValueArea",
+  "breakoutVah",
+  "breakdownVal",
+  "priceAbovePoc",
+  "priceBelowPoc",
+]);
+
+const PERFECT_ORDER_NAMES = new Set(["poPlusEntry", "pbEntry", "poPlusPbEntry"]);
+
+/**
+ * Categorization rules applied in order. First match wins.
+ * Each rule is [category, predicate].
+ */
+const CATEGORY_RULES: Array<[string, (name: string) => boolean]> = [
+  [
+    "Moving Average Cross",
+    (n) => n.includes("Cross") && !n.includes("macd") && !n.includes("stoch") && !n.includes("obv"),
+  ],
+  ["RSI", (n) => n.startsWith("rsi")],
+  ["MACD", (n) => n.startsWith("macd")],
+  [
+    "Perfect Order",
+    (n) => n.includes("perfectOrder") || n.includes("Perfect") || PERFECT_ORDER_NAMES.has(n),
+  ],
+  ["Volume (CMF/OBV)", (n) => n.startsWith("cmf") || n.startsWith("obv")],
+  ["Volume Profile", (n) => VOLUME_PROFILE_NAMES.has(n)],
+  ["Volume", (n) => /volume/i.test(n)],
+  ["Range/Pattern", (n) => /range|bollinger|breakoutRisk/i.test(n)],
+  ["Volatility", (n) => n.includes("volatility") || n.includes("atrPercent")],
+  ["SMC", (n) => /orderBlock|liquidity|sweep/i.test(n)],
+  ["Price Patterns", (n) => /pattern|Detected|double|head|inverse|cup/i.test(n)],
+];
+
+function categorizeCondition(name: string): string {
+  for (const [category, predicate] of CATEGORY_RULES) {
+    if (predicate(name)) return category;
+  }
+  return "Other";
+}
+
 function printConditionList(): void {
   console.log("\nAvailable Condition Presets:\n");
 
   const conditions = getAvailableConditions();
-  const categories: Record<string, string[]> = {
-    "Moving Average Cross": [],
-    RSI: [],
-    MACD: [],
-    "Perfect Order": [],
-    Volume: [],
-    "Volume Profile": [],
-    "Volume (CMF/OBV)": [],
-    "Range/Pattern": [],
-    Volatility: [],
-    "Price Patterns": [],
-    SMC: [],
-    Other: [],
-  };
+  const categories = new Map<string, string[]>();
 
   for (const name of conditions) {
-    if (
-      name.includes("Cross") &&
-      !name.includes("macd") &&
-      !name.includes("stoch") &&
-      !name.includes("obv")
-    ) {
-      categories["Moving Average Cross"].push(name);
-    } else if (name.startsWith("rsi")) {
-      categories.RSI.push(name);
-    } else if (name.startsWith("macd")) {
-      categories.MACD.push(name);
-    } else if (
-      name.includes("perfectOrder") ||
-      name.includes("Perfect") ||
-      name === "poPlusEntry" ||
-      name === "pbEntry" ||
-      name === "poPlusPbEntry"
-    ) {
-      categories["Perfect Order"].push(name);
-    } else if (name.startsWith("cmf") || name.startsWith("obv")) {
-      categories["Volume (CMF/OBV)"].push(name);
-    } else if (
-      [
-        "nearPoc",
-        "inValueArea",
-        "breakoutVah",
-        "breakdownVal",
-        "priceAbovePoc",
-        "priceBelowPoc",
-      ].includes(name)
-    ) {
-      categories["Volume Profile"].push(name);
-    } else if (name.includes("volume") || name.includes("Volume")) {
-      categories.Volume.push(name);
-    } else if (
-      name.includes("range") ||
-      name.includes("Range") ||
-      name.includes("bollinger") ||
-      name.includes("breakoutRisk")
-    ) {
-      categories["Range/Pattern"].push(name);
-    } else if (name.includes("volatility") || name.includes("atrPercent")) {
-      categories.Volatility.push(name);
-    } else if (
-      name.includes("OrderBlock") ||
-      name.includes("orderBlock") ||
-      name.includes("liquidity") ||
-      name.includes("Sweep") ||
-      name.includes("sweep")
-    ) {
-      categories.SMC.push(name);
-    } else if (
-      name.includes("Pattern") ||
-      name.includes("Detected") ||
-      name.includes("pattern") ||
-      name.includes("double") ||
-      name.includes("head") ||
-      name.includes("inverse") ||
-      name.includes("cup")
-    ) {
-      categories["Price Patterns"].push(name);
-    } else {
-      categories.Other.push(name);
-    }
+    const category = categorizeCondition(name);
+    const list = categories.get(category) ?? [];
+    list.push(name);
+    categories.set(category, list);
   }
 
-  for (const [category, names] of Object.entries(categories)) {
-    if (names.length > 0) {
-      console.log(`${category}:`);
-      for (const name of names) {
-        console.log(`  - ${name}`);
-      }
-      console.log("");
+  for (const [category, names] of categories) {
+    console.log(`${category}:`);
+    for (const name of names) {
+      console.log(`  - ${name}`);
     }
+    console.log("");
   }
 }
 
