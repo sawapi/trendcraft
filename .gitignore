@@ -29,8 +29,10 @@ coverage/
 .plans/
 examples/data/
 examples/scratch/
+examples/demo/
 examples/reports/
 docs/analysis/
+docs-site/
 output/
 
 # Python
