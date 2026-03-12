@@ -8,6 +8,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import type { StrategyDefinition } from "trendcraft";
 import { createAgentManager } from "../agent/manager.js";
+import { createMarketState } from "../agent/market-state.js";
 import { fetchCachedBars } from "../alpaca/cache.js";
 import { createAlpacaClient } from "../alpaca/client.js";
 import { monthsAgo, today } from "../alpaca/historical.js";
@@ -29,6 +30,7 @@ import { scanUniverse } from "../scanner/index.js";
 import {
   applyStrategyOverrides,
   getAllStrategies,
+  getMarketFilters,
   getStrategy,
   loadCustomStrategiesFromTemplates,
 } from "../strategy/registry.js";
@@ -133,12 +135,16 @@ export async function liveCommand(opts: LiveCommandOptions): Promise<void> {
   // Determine strategies
   let strategies: StrategyDefinition[];
   if (opts.strategy) {
-    const s = getStrategy(opts.strategy);
-    if (!s) {
-      console.error(`Unknown strategy: ${opts.strategy}`);
-      process.exit(1);
+    const ids = opts.strategy.split(",").map((id: string) => id.trim());
+    strategies = [];
+    for (const id of ids) {
+      const s = getStrategy(id);
+      if (!s) {
+        console.error(`Unknown strategy: ${id}`);
+        process.exit(1);
+      }
+      strategies.push(s);
     }
-    strategies = [s];
   } else if (opts.all) {
     strategies = getAllStrategies();
   } else {
@@ -179,23 +185,37 @@ export async function liveCommand(opts: LiveCommandOptions): Promise<void> {
 
   // State management
   const store = createStateStore();
-  const manager = createAgentManager({ capital, portfolioGuard: DEFAULT_PORTFOLIO_GUARD });
+  const marketState = createMarketState();
+  const manager = createAgentManager({
+    capital,
+    portfolioGuard: DEFAULT_PORTFOLIO_GUARD,
+    marketState,
+  });
+
+  // Load market filters from strategy templates/overrides
+  for (const [strategyId, filter] of getMarketFilters()) {
+    manager.setMarketFilter(strategyId, filter);
+  }
   function saveState(): void {
     const s = manager.getState();
     store.save(s.agents, s.portfolioGuardState);
   }
 
-  // Try to restore state (skip inactive agents)
+  // Try to restore state (skip inactive agents and filter to current strategies/symbols)
   const savedState = store.load();
+  const activeStrategyIds = new Set(strategies.map((s) => s.id));
+  const activeSymbols = new Set(symbols);
   if (savedState) {
     const strategyMap = new Map(getAllStrategies().map((s) => [s.id, s]));
-    const activeAgents = savedState.agents.filter(
-      (a) => (a as typeof a & { active?: boolean }).active !== false,
-    );
+    const activeAgents = savedState.agents.filter((a) => {
+      if ((a as typeof a & { active?: boolean }).active === false) return false;
+      // Only restore agents matching current strategies and symbols
+      return activeStrategyIds.has(a.strategyId) && activeSymbols.has(a.symbol);
+    });
     const skipped = savedState.agents.length - activeAgents.length;
     manager.restoreStates(activeAgents, strategyMap, savedState.portfolioGuardState);
     console.log(
-      `Restored ${activeAgents.length} agents from saved state${skipped > 0 ? ` (${skipped} inactive skipped)` : ""}`,
+      `Restored ${activeAgents.length} agents from saved state${skipped > 0 ? ` (${skipped} skipped)` : ""}`,
     );
   }
 
@@ -223,7 +243,12 @@ export async function liveCommand(opts: LiveCommandOptions): Promise<void> {
     }
   }
 
-  const allSymbols = manager.getSymbols();
+  // Ensure benchmark symbols are subscribed for market filter tracking
+  const benchmarkSymbols = new Set<string>();
+  for (const [, filter] of getMarketFilters()) {
+    benchmarkSymbols.add(filter.symbol ?? "SPY");
+  }
+  const allSymbols = [...new Set([...manager.getSymbols(), ...benchmarkSymbols])];
   const agentCount = manager.getAgents().length;
 
   // Startup summary banner
@@ -263,6 +288,9 @@ export async function liveCommand(opts: LiveCommandOptions): Promise<void> {
   const tickerStats = new Map<string, { count: number; last: number; volume: number }>();
 
   ws.onTrade((symbol, trade) => {
+    // Update market state for benchmark tracking
+    marketState.onTrade(symbol, trade.price, trade.time);
+
     if (opts.verbose) {
       const stat = tickerStats.get(symbol) ?? { count: 0, last: 0, volume: 0 };
       stat.count++;
@@ -342,11 +370,15 @@ export async function liveCommand(opts: LiveCommandOptions): Promise<void> {
   // Auto-review scheduler
   let cancelReview: (() => void) | null = null;
   if (!opts.noAutoReview) {
-    cancelReview = scheduleReview({
-      onReview: () => executeReviewCycle({ apply: true }),
-      onError: (err) => console.error("[SCHEDULER] Review error:", err),
-    });
-    console.log("Auto-review scheduler enabled (16:05 ET daily).");
+    if (process.env.ANTHROPIC_API_KEY) {
+      cancelReview = scheduleReview({
+        onReview: () => executeReviewCycle({ apply: true }),
+        onError: (err) => console.error("[SCHEDULER] Review error:", err),
+      });
+      console.log("Auto-review scheduler enabled (16:05 ET daily).");
+    } else {
+      console.log("[SCHEDULER] ANTHROPIC_API_KEY not set — auto-review disabled.");
+    }
   }
 
   // Graceful shutdown

@@ -8,13 +8,16 @@
 
 import { type NormalizedCandle, type StrategyDefinition, streaming } from "trendcraft";
 import type { OrderIntent } from "../executor/types.js";
+import type { MarketFilter } from "../strategy/template.js";
 import type { Agent } from "./agent.js";
 import { createAgent } from "./agent.js";
+import type { MarketState } from "./market-state.js";
 import type { AgentState, ManagerState } from "./types.js";
 
 export type AgentManagerOptions = {
   capital?: number;
   portfolioGuard?: streaming.PortfolioGuardOptions;
+  marketState?: MarketState;
 };
 
 export type AgentManager = {
@@ -33,11 +36,15 @@ export type AgentManager = {
     portfolioGuardState?: streaming.PortfolioGuardState,
   ): void;
   getPortfolioExposure(): streaming.PortfolioExposure | null;
+  /** Set market filter for a strategy (used by LLM overrides) */
+  setMarketFilter(strategyId: string, filter: MarketFilter | null): void;
 };
 
 export function createAgentManager(opts?: AgentManagerOptions): AgentManager {
   const agents = new Map<string, Agent>();
   const symbolAgents = new Map<string, Set<string>>();
+  const marketFilters = new Map<string, MarketFilter>();
+  const marketState = opts?.marketState ?? null;
 
   let portfolioGuard: streaming.PortfolioGuard | null = null;
   if (opts?.portfolioGuard) {
@@ -94,6 +101,18 @@ export function createAgentManager(opts?: AgentManagerOptions): AgentManager {
           const { intents } = agent.feedTrade(trade);
 
           for (const intent of intents) {
+            // Market filter check for entry intents
+            if (marketState && intent.reason === "entry") {
+              const filter = marketFilters.get(agent.strategyId);
+              if (filter) {
+                const check = marketState.checkFilter(filter);
+                if (!check.allowed) {
+                  console.log(`[MARKET] Blocked ${intent.agentId} entry: ${check.reason}`);
+                  continue;
+                }
+              }
+            }
+
             // PortfolioGuard check for entry intents
             if (portfolioGuard && intent.reason === "entry") {
               const notional = intent.shares * trade.price;
@@ -177,6 +196,14 @@ export function createAgentManager(opts?: AgentManagerOptions): AgentManager {
 
     getPortfolioExposure(): streaming.PortfolioExposure | null {
       return portfolioGuard?.getExposure() ?? null;
+    },
+
+    setMarketFilter(strategyId: string, filter: MarketFilter | null): void {
+      if (filter) {
+        marketFilters.set(strategyId, filter);
+      } else {
+        marketFilters.delete(strategyId);
+      }
     },
   };
 }

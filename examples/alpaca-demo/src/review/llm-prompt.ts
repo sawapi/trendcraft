@@ -62,10 +62,12 @@ Respond with ONLY valid JSON matching this schema:
   "changes": {
     "indicators": [{ "type": "rsi", "name": "rsi", "params": { "period": 16 } }],
     "position": { "stopLoss": 3.5, "riskPercent": 1.2 },
-    "guards": { "maxDailyTrades": 12 }
+    "guards": { "maxDailyTrades": 12 },
+    "marketFilter": { "symbol": "SPY", "maxDailyChange": -0.3, "allowedTrends": ["bearish"] }
   },
   "reasoning": "Why this change"
 }
+Note: Set "marketFilter": null to remove an existing filter.
 
 ### kill_agent
 {
@@ -106,6 +108,7 @@ Respond with ONLY valid JSON matching this schema:
       "takeProfit": 6,
       "slippage": 0.05
     },
+    "marketFilter": { "symbol": "SPY", "allowedTrends": ["bullish"] },
     "source": "llm-generated",
     "parentId": "optional-parent-strategy-id",
     "reasoning": "Why this strategy should work"
@@ -144,6 +147,34 @@ When regime data is provided:
 - **Sideways/ranging**: Mean-reversion strategies (RSI) tend to outperform; reduce trend-following exposure
 - **Strong trend (high ADX)**: Favor trend-following; widen trailing stops to avoid premature exits
 
+## Market Filter (per-strategy)
+Each strategy can have an optional **marketFilter** that controls when entries are allowed based on a benchmark symbol (default: SPY). The system tracks the benchmark's real-time daily change %, trend direction, and volatility regime.
+
+You can set or modify the market filter via **adjust_params** or **create_strategy**:
+
+\`\`\`json
+"marketFilter": {
+  "symbol": "SPY",
+  "maxDailyChange": -0.3,
+  "minDailyChange": null,
+  "allowedTrends": ["bearish", "sideways"],
+  "allowedVolatility": ["normal", "high"]
+}
+\`\`\`
+
+Available fields:
+- **symbol**: Benchmark to monitor (default: "SPY")
+- **maxDailyChange**: Only enter when benchmark daily change % ≤ this value (e.g., -0.3 means "only when SPY is down 0.3%+")
+- **minDailyChange**: Only enter when benchmark daily change % ≥ this value (e.g., 0.5 means "only when SPY is up 0.5%+")
+- **allowedTrends**: Array of allowed trend states: "bullish", "bearish", "sideways"
+- **allowedVolatility**: Array of allowed volatility regimes: "low", "normal", "high"
+- Set to **null** to remove an existing market filter
+
+Use this to match each strategy to its ideal market conditions. Analyze which strategies performed well/poorly in specific market environments and set filters accordingly. For example:
+- A mean-reversion strategy might work best when the market is down or sideways
+- A trend-following strategy might work best when the market has a clear bullish trend
+- Do NOT assume a fixed rule — decide based on actual performance data
+
 ## Outcome Tracking
 When past action outcomes are shown:
 - Actions marked **degraded** should be considered for reversal
@@ -162,8 +193,9 @@ When past action outcomes are shown:
 - If performance is acceptable, it's OK to return an empty actions array
 - Focus on agents with clear negative trends over multiple days
 - When adjusting parameters, prefer small changes (5-10%) over large ones
-- Consider market context when making recommendations
-- Learn from past review history — if a previous change made things worse, suggest reverting`;
+- Consider market context when making recommendations — correlate each strategy's performance with broad market direction (SPY/QQQ daily change). Note which strategies thrived in down markets vs up markets
+- Learn from past review history — if a previous change made things worse, suggest reverting
+- When analyzing agent performance, always note whether gains/losses coincided with market-wide moves or were alpha (strategy-specific)`;
 }
 
 /**
@@ -322,12 +354,12 @@ export function buildUserMessage(
       if (record.outcomes && record.outcomes.length > 0) {
         parts.push("Outcomes:");
         for (const o of record.outcomes) {
-          const strategyId =
-            "strategyId" in o.action
-              ? (o.action as { strategyId: string }).strategyId
-              : "agentId" in o.action
-                ? (o.action as { agentId: string }).agentId
-                : "unknown";
+          let strategyId = "unknown";
+          if ("strategyId" in o.action) {
+            strategyId = (o.action as { strategyId: string }).strategyId;
+          } else if ("agentId" in o.action) {
+            strategyId = (o.action as { agentId: string }).agentId;
+          }
           const verdict = o.verdict ? o.verdict.toUpperCase() : "PENDING";
           const scoreStr =
             o.scoreAfter != null

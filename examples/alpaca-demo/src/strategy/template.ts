@@ -36,6 +36,24 @@ export type IndicatorRef = {
 };
 
 /**
+ * Market filter — conditions on a benchmark symbol (e.g., SPY) that must be met
+ * before the strategy is allowed to enter trades.
+ * LLMs can set this per-strategy to control when a strategy is deployed.
+ */
+export type MarketFilter = {
+  /** Benchmark symbol to monitor (default: "SPY") */
+  symbol?: string;
+  /** Only enter when benchmark daily change % is above this value (e.g., -0.3 = market down 0.3%+) */
+  maxDailyChange?: number;
+  /** Only enter when benchmark daily change % is below this value */
+  minDailyChange?: number;
+  /** Only enter when benchmark is in one of these trend states */
+  allowedTrends?: Array<"bullish" | "bearish" | "sideways">;
+  /** Only enter when benchmark volatility is in one of these regimes */
+  allowedVolatility?: Array<"low" | "normal" | "high">;
+};
+
+/**
  * Declarative strategy template — LLM reads and writes this format
  */
 export type StrategyTemplate = {
@@ -54,6 +72,8 @@ export type StrategyTemplate = {
     maxDailyTrades: number;
     timeGuard?: "market-hours" | null; // null = no time guard (swing)
   };
+  /** Market-level filter — only allow entries when benchmark meets conditions */
+  marketFilter?: MarketFilter;
   position: {
     capital: number;
     sizingMethod: "risk-based" | "fixed-fractional" | "full-capital" | "kelly";
@@ -93,6 +113,7 @@ export type ParameterOverride = {
     indicators?: IndicatorRef[];
     position?: Partial<StrategyTemplate["position"]>;
     guards?: Partial<StrategyTemplate["guards"]>;
+    marketFilter?: MarketFilter | null;
     entry?: ConditionRule;
     exit?: ConditionRule;
   };
@@ -475,9 +496,6 @@ export const PRESET_TEMPLATES: StrategyTemplate[] = [
 ];
 
 /**
- * Get a preset template by ID
- */
-/**
  * Check if a strategy definition is a swing strategy (no time guard)
  */
 export function isSwingStrategy(strategy: { guards?: { timeGuard?: unknown } }): boolean {
@@ -508,6 +526,10 @@ export function applyOverrides(
   }
   if (override.overrides.guards) {
     result.guards = { ...result.guards, ...override.overrides.guards };
+  }
+  if (override.overrides.marketFilter !== undefined) {
+    // null clears the filter, MarketFilter object sets it
+    result.marketFilter = override.overrides.marketFilter ?? undefined;
   }
   if (override.overrides.entry) {
     result.entry = override.overrides.entry;

@@ -118,6 +118,9 @@ function applyAdjustParams(
       }),
       ...(action.changes.position && { position: action.changes.position }),
       ...(action.changes.guards && { guards: action.changes.guards }),
+      ...(action.changes.marketFilter !== undefined && {
+        marketFilter: action.changes.marketFilter,
+      }),
       ...(action.changes.entry && { entry: action.changes.entry }),
       ...(action.changes.exit && { exit: action.changes.exit }),
     },

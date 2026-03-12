@@ -3,7 +3,12 @@
  */
 
 import type { AgentMetrics, AgentTier } from "../agent/types.js";
-import type { ConditionRule, IndicatorRef, StrategyTemplate } from "../strategy/template.js";
+import type {
+  ConditionRule,
+  IndicatorRef,
+  MarketFilter,
+  StrategyTemplate,
+} from "../strategy/template.js";
 import type { PromotionDecision } from "../tracker/leaderboard.js";
 
 // --- Daily Report ---
@@ -124,6 +129,7 @@ export type AdjustParamsAction = {
     indicators?: IndicatorRef[];
     position?: Record<string, number>;
     guards?: Record<string, number>;
+    marketFilter?: MarketFilter | null;
     entry?: ConditionRule;
     exit?: ConditionRule;
   };

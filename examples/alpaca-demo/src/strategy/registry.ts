@@ -11,7 +11,9 @@ import { macdTrend } from "./presets/macd-trend.js";
 import { rsiMeanReversion } from "./presets/rsi-mean-reversion.js";
 import { rsiSwingDaily } from "./presets/rsi-swing-daily.js";
 import { PRESET_TEMPLATES, applyOverrides, getPresetTemplate } from "./template.js";
-import type { ParameterOverride, StrategyTemplate } from "./template.js";
+import type { MarketFilter, ParameterOverride, StrategyTemplate } from "./template.js";
+
+const marketFilterMap = new Map<string, MarketFilter>();
 
 const strategies: Map<string, StrategyDefinition> = new Map();
 
@@ -44,6 +46,9 @@ for (const template of PRESET_TEMPLATES) {
   } else {
     console.warn(`Failed to compile preset ${template.id}: ${result.error}`);
   }
+  if (template.marketFilter) {
+    marketFilterMap.set(template.id, template.marketFilter);
+  }
 }
 
 export function getStrategy(id: string): StrategyDefinition | undefined {
@@ -56,6 +61,13 @@ export function getAllStrategies(): StrategyDefinition[] {
 
 export function getStrategyIds(): string[] {
   return [...strategies.keys()];
+}
+
+/**
+ * Get all registered market filters (strategyId → MarketFilter)
+ */
+export function getMarketFilters(): Map<string, MarketFilter> {
+  return new Map(marketFilterMap);
 }
 
 /**
@@ -82,6 +94,9 @@ export function loadCustomStrategiesFromTemplates(
     } else {
       errors.push(`${template.id}: ${result.error}`);
     }
+    if (template.marketFilter) {
+      marketFilterMap.set(template.id, template.marketFilter);
+    }
   }
 
   return { loaded, errors };
@@ -105,6 +120,13 @@ export function applyStrategyOverrides(overrides: ParameterOverride[]): {
   let applied = 0;
 
   for (const override of overrides) {
+    // Track market filter from overrides (null removes, object sets)
+    if (override.overrides.marketFilter === null) {
+      marketFilterMap.delete(override.strategyId);
+    } else if (override.overrides.marketFilter) {
+      marketFilterMap.set(override.strategyId, override.overrides.marketFilter);
+    }
+
     const existingStrategy = strategies.get(override.strategyId);
     const hasLogicChanges =
       override.overrides.indicators || override.overrides.entry || override.overrides.exit;
