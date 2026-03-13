@@ -131,6 +131,15 @@ export function monthsAgo(n: number): string {
 }
 
 /**
+ * Get ISO date string for N days ago
+ */
+export function daysAgo(n: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return d.toISOString().split("T")[0];
+}
+
+/**
  * Get ISO date string for today
  */
 export function today(): string {

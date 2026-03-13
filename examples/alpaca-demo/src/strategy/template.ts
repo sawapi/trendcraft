@@ -99,6 +99,11 @@ export type StrategyTemplate = {
     expiryBars?: number;
   };
 
+  /** Preferred bar timeframe for backtesting (overrides intervalMs-based inference) */
+  backtestTimeframe?: "1Min" | "5Min" | "15Min" | "30Min" | "1Hour" | "1Day";
+  /** Preferred lookback period in days for backtesting */
+  backtestPeriodDays?: number;
+
   source: "preset" | "llm-generated";
   parentId?: string;
   reasoning?: string;
@@ -116,6 +121,8 @@ export type ParameterOverride = {
     marketFilter?: MarketFilter | null;
     entry?: ConditionRule;
     exit?: ConditionRule;
+    backtestTimeframe?: StrategyTemplate["backtestTimeframe"];
+    backtestPeriodDays?: number;
   };
   appliedAt: number;
   reasoning: string;
@@ -151,6 +158,8 @@ export const PRESET_TEMPLATES: StrategyTemplate[] = [
       slippage: 0.05,
     },
     signalLifecycle: { cooldownBars: 3 },
+    backtestTimeframe: "5Min",
+    backtestPeriodDays: 5,
     source: "preset",
   },
   {
@@ -178,6 +187,8 @@ export const PRESET_TEMPLATES: StrategyTemplate[] = [
       slippage: 0.05,
     },
     signalLifecycle: { cooldownBars: 3 },
+    backtestTimeframe: "5Min",
+    backtestPeriodDays: 5,
     source: "preset",
   },
   {
@@ -214,6 +225,8 @@ export const PRESET_TEMPLATES: StrategyTemplate[] = [
       slippage: 0.05,
     },
     signalLifecycle: { cooldownBars: 3 },
+    backtestTimeframe: "5Min",
+    backtestPeriodDays: 5,
     source: "preset",
   },
   {
@@ -239,6 +252,8 @@ export const PRESET_TEMPLATES: StrategyTemplate[] = [
       slippage: 0.05,
     },
     signalLifecycle: { cooldownBars: 5 },
+    backtestTimeframe: "5Min",
+    backtestPeriodDays: 5,
     source: "preset",
   },
   {
@@ -263,6 +278,8 @@ export const PRESET_TEMPLATES: StrategyTemplate[] = [
       slippage: 0.05,
     },
     signalLifecycle: { cooldownBars: 5 },
+    backtestTimeframe: "5Min",
+    backtestPeriodDays: 5,
     source: "preset",
   },
   {
@@ -302,6 +319,8 @@ export const PRESET_TEMPLATES: StrategyTemplate[] = [
       slippage: 0.05,
     },
     signalLifecycle: { cooldownBars: 3 },
+    backtestTimeframe: "5Min",
+    backtestPeriodDays: 5,
     source: "preset",
   },
   {
@@ -338,6 +357,8 @@ export const PRESET_TEMPLATES: StrategyTemplate[] = [
       slippage: 0.05,
     },
     signalLifecycle: { cooldownBars: 3 },
+    backtestTimeframe: "5Min",
+    backtestPeriodDays: 5,
     source: "preset",
   },
   {
@@ -370,6 +391,8 @@ export const PRESET_TEMPLATES: StrategyTemplate[] = [
       slippage: 0.05,
     },
     signalLifecycle: { cooldownBars: 3 },
+    backtestTimeframe: "5Min",
+    backtestPeriodDays: 5,
     source: "preset",
   },
   // --- Swing strategies (no time guard, daily/hourly intervals) ---
@@ -395,6 +418,8 @@ export const PRESET_TEMPLATES: StrategyTemplate[] = [
       slippage: 0.05,
     },
     signalLifecycle: { cooldownBars: 2 },
+    backtestTimeframe: "1Day",
+    backtestPeriodDays: 180,
     source: "preset",
   },
   {
@@ -425,6 +450,8 @@ export const PRESET_TEMPLATES: StrategyTemplate[] = [
       slippage: 0.05,
     },
     signalLifecycle: { cooldownBars: 3 },
+    backtestTimeframe: "1Day",
+    backtestPeriodDays: 180,
     source: "preset",
   },
   {
@@ -456,6 +483,8 @@ export const PRESET_TEMPLATES: StrategyTemplate[] = [
       slippage: 0.05,
     },
     signalLifecycle: { cooldownBars: 3 },
+    backtestTimeframe: "1Hour",
+    backtestPeriodDays: 90,
     source: "preset",
   },
   {
@@ -491,6 +520,8 @@ export const PRESET_TEMPLATES: StrategyTemplate[] = [
       slippage: 0.05,
     },
     signalLifecycle: { cooldownBars: 5 },
+    backtestTimeframe: "5Min",
+    backtestPeriodDays: 5,
     source: "preset",
   },
 ];
@@ -536,6 +567,12 @@ export function applyOverrides(
   }
   if (override.overrides.exit) {
     result.exit = override.overrides.exit;
+  }
+  if (override.overrides.backtestTimeframe) {
+    result.backtestTimeframe = override.overrides.backtestTimeframe;
+  }
+  if (override.overrides.backtestPeriodDays) {
+    result.backtestPeriodDays = override.overrides.backtestPeriodDays;
   }
 
   return result;

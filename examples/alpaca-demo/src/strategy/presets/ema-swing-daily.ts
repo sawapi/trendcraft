@@ -92,6 +92,8 @@ export const emaSwingDaily: StrategyDefinition = {
 
   signalLifecycle: { cooldown: { bars: 2 } },
 
+  metadata: { backtestTimeframe: "1Day", backtestPeriodDays: 180 },
+
   backtestEntry: emaCross("golden", 10, 30),
   backtestExit: emaCross("dead", 10, 30),
   backtestOptions: {

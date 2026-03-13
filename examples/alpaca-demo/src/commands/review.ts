@@ -13,7 +13,7 @@
 
 import { atr, detectMarketRegime } from "trendcraft";
 import { createAgentManager } from "../agent/manager.js";
-import { fetchHistoricalBars, monthsAgo, today } from "../alpaca/historical.js";
+import { daysAgo, fetchHistoricalBars, monthsAgo, today } from "../alpaca/historical.js";
 import { runStrategyBacktests } from "../backtest/runner.js";
 import { loadEnv } from "../config/env.js";
 import { createStateStore } from "../persistence/store.js";
@@ -516,10 +516,4 @@ export async function executeReviewCycle(opts: {
 }): Promise<void> {
   const date = new Date().toISOString().split("T")[0];
   await liveReviewCommand({ apply: opts.apply, days: opts.days }, date);
-}
-
-function daysAgo(n: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() - n);
-  return d.toISOString().split("T")[0];
 }

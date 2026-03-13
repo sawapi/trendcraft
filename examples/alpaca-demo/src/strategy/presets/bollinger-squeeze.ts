@@ -78,6 +78,8 @@ export const bollingerSqueeze: StrategyDefinition = {
 
   signalLifecycle: { cooldown: { bars: 3 } },
 
+  metadata: { backtestTimeframe: "5Min", backtestPeriodDays: 5 },
+
   backtestEntry: bollingerTouch("lower"),
   backtestExit: backtestRsiAbove(70),
   backtestOptions: {

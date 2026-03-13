@@ -61,6 +61,8 @@ export const macdTrend: StrategyDefinition = {
 
   signalLifecycle: { cooldown: { bars: 3 } },
 
+  metadata: { backtestTimeframe: "5Min", backtestPeriodDays: 5 },
+
   backtestEntry: macdCrossUp(),
   backtestExit: macdCrossDown(),
   backtestOptions: {

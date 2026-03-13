@@ -71,6 +71,12 @@ export function compileTemplate(template: StrategyTemplate): CompileResult {
       backtestEntry,
       backtestExit,
       backtestOptions,
+      ...(template.backtestTimeframe && {
+        metadata: {
+          backtestTimeframe: template.backtestTimeframe,
+          backtestPeriodDays: template.backtestPeriodDays,
+        },
+      }),
     };
 
     return { ok: true, strategy };

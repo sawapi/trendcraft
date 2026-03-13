@@ -30,9 +30,9 @@ program
   .command("backtest")
   .description("Run backtest tournament on historical data")
   .option("-s, --symbols <symbols>", "Comma-separated symbol list (e.g., AAPL,SPY)")
-  .option("-p, --period <months>", "Lookback period in months", "6")
+  .option("-p, --period <days>", "Override lookback period in days")
   .option("-c, --capital <amount>", "Initial capital per strategy", "100000")
-  .option("-t, --timeframe <tf>", "Bar timeframe (1Min, 5Min, 1Hour, 1Day)", "1Day")
+  .option("-t, --timeframe <tf>", "Override timeframe for all strategies (1Min, 5Min, 1Hour, 1Day)")
   .action(backtestCommand);
 
 program

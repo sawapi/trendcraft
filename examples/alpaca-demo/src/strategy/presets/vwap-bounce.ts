@@ -90,6 +90,8 @@ export const vwapBounce: StrategyDefinition = {
 
   signalLifecycle: { cooldown: { bars: 3 } },
 
+  metadata: { backtestTimeframe: "5Min", backtestPeriodDays: 5 },
+
   backtestEntry: (indicators, candle) => {
     const vwapSeries = indicators.vwap as
       | { time: number; value: { vwap: number | null } }[]

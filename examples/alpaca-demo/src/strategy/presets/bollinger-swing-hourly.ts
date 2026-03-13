@@ -133,6 +133,8 @@ export const bollingerSwingHourly: StrategyDefinition = {
 
   signalLifecycle: { cooldown: { bars: 3 } },
 
+  metadata: { backtestTimeframe: "1Hour", backtestPeriodDays: 90 },
+
   backtestEntry: bollingerAdxEntry(),
   backtestExit: bollingerUpperExit(),
   backtestOptions: {

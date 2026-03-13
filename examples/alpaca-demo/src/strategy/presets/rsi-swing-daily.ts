@@ -83,6 +83,8 @@ export const rsiSwingDaily: StrategyDefinition = {
 
   signalLifecycle: { cooldown: { bars: 3 } },
 
+  metadata: { backtestTimeframe: "1Day", backtestPeriodDays: 180 },
+
   backtestEntry: rsiSwingEntry(),
   backtestExit: backtestRsiAbove(65),
   backtestOptions: {

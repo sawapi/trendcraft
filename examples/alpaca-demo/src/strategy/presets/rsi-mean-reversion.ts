@@ -51,6 +51,8 @@ export const rsiMeanReversion: StrategyDefinition = {
 
   signalLifecycle: { cooldown: { bars: 3 } },
 
+  metadata: { backtestTimeframe: "5Min", backtestPeriodDays: 5 },
+
   backtestEntry: backtestRsiBelow(30),
   backtestExit: backtestRsiAbove(70),
   backtestOptions: {
