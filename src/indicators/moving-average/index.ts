@@ -23,3 +23,7 @@ export { t3 } from "./t3";
 export type { T3Options } from "./t3";
 export { hma } from "./hma";
 export type { HmaOptions } from "./hma";
+export { mcginleyDynamic } from "./mcginley-dynamic";
+export type { McGinleyDynamicOptions } from "./mcginley-dynamic";
+export { emaRibbon } from "./ema-ribbon";
+export type { EmaRibbonOptions, EmaRibbonValue } from "./ema-ribbon";

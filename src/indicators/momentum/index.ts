@@ -41,3 +41,7 @@ export { hurst } from "./hurst";
 export type { HurstOptions } from "./hurst";
 export { connorsRsi } from "./connors-rsi";
 export type { ConnorsRsiOptions, ConnorsRsiValue } from "./connors-rsi";
+export { imi } from "./imi";
+export type { ImiOptions } from "./imi";
+export { adxr } from "./adxr";
+export type { AdxrOptions } from "./adxr";

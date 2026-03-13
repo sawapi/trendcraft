@@ -1,6 +1,15 @@
 // Moving Averages
-export { sma, ema, wma, vwma, kama, t3, hma } from "./moving-average";
-export type { WmaOptions, VwmaOptions, KamaOptions, T3Options, HmaOptions } from "./moving-average";
+export { sma, ema, wma, vwma, kama, t3, hma, mcginleyDynamic, emaRibbon } from "./moving-average";
+export type {
+  WmaOptions,
+  VwmaOptions,
+  KamaOptions,
+  T3Options,
+  HmaOptions,
+  McGinleyDynamicOptions,
+  EmaRibbonOptions,
+  EmaRibbonValue,
+} from "./moving-average";
 
 // Momentum
 export {
@@ -19,6 +28,8 @@ export {
   dpo,
   hurst,
   connorsRsi,
+  imi,
+  adxr,
 } from "./momentum";
 export type {
   StochasticsValue,
@@ -38,6 +49,8 @@ export type {
   HurstOptions,
   ConnorsRsiOptions,
   ConnorsRsiValue,
+  ImiOptions,
+  AdxrOptions,
 } from "./momentum";
 
 // Volatility
@@ -83,6 +96,12 @@ export {
   volumeTrend,
   adl,
   anchoredVwap,
+  elderForceIndex,
+  easeOfMovement,
+  klinger,
+  twap,
+  weisWave,
+  marketProfile,
 } from "./volume";
 export type {
   VolumeMaOptions,
@@ -96,6 +115,15 @@ export type {
   VolumeTrendOptions,
   AnchoredVwapOptions,
   AnchoredVwapValue,
+  ElderForceIndexOptions,
+  EaseOfMovementOptions,
+  KlingerOptions,
+  KlingerValue,
+  TwapOptions,
+  WeisWaveOptions,
+  WeisWaveValue,
+  MarketProfileOptions,
+  MarketProfileValue,
 } from "./volume";
 
 // Price
