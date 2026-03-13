@@ -1,6 +1,6 @@
 // Moving Averages
-export { sma, ema, wma, vwma, kama, t3 } from "./moving-average";
-export type { WmaOptions, VwmaOptions, KamaOptions, T3Options } from "./moving-average";
+export { sma, ema, wma, vwma, kama, t3, hma } from "./moving-average";
+export type { WmaOptions, VwmaOptions, KamaOptions, T3Options, HmaOptions } from "./moving-average";
 
 // Momentum
 export {
@@ -18,6 +18,7 @@ export {
   aroon,
   dpo,
   hurst,
+  connorsRsi,
 } from "./momentum";
 export type {
   StochasticsValue,
@@ -35,6 +36,8 @@ export type {
   AroonValue,
   DpoOptions,
   HurstOptions,
+  ConnorsRsiOptions,
+  ConnorsRsiValue,
 } from "./momentum";
 
 // Volatility
@@ -55,6 +58,7 @@ export {
   passesAtrFilter,
   filterStocksByAtr,
   DEFAULT_ATR_THRESHOLD,
+  choppinessIndex,
 } from "./volatility";
 export type {
   DonchianValue,
@@ -63,6 +67,7 @@ export type {
   KeltnerChannelValue,
   AtrFilterOptions,
   AtrFilterResult,
+  ChoppinessIndexOptions,
 } from "./volatility";
 
 // Volume
@@ -77,16 +82,20 @@ export {
   volumeProfileSeries,
   volumeTrend,
   adl,
+  anchoredVwap,
 } from "./volume";
 export type {
   VolumeMaOptions,
   MfiOptions,
   VwapOptions,
   VwapValue,
+  VwapBand,
   CmfOptions,
   VolumeAnomalyOptions,
   VolumeProfileOptions,
   VolumeTrendOptions,
+  AnchoredVwapOptions,
+  AnchoredVwapValue,
 } from "./volume";
 
 // Price
@@ -114,6 +123,8 @@ export {
   heikinAshi,
   fractals,
   zigzag,
+  openingRange,
+  gapAnalysis,
 } from "./price";
 export type {
   HighestLowestValue,
@@ -142,6 +153,10 @@ export type {
   FractalOptions,
   ZigzagValue,
   ZigzagOptions,
+  OpeningRangeOptions,
+  OpeningRangeValue,
+  GapAnalysisOptions,
+  GapValue,
 } from "./price";
 
 // Trend

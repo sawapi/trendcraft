@@ -14,6 +14,8 @@
  * - **Heikin-Ashi**: Smoothed candlestick representation
  * - **Fractals**: Williams fractals for reversal points
  * - **Zigzag**: Significant price movements filter
+ * - **Opening Range**: Opening range breakout detection
+ * - **Gap Analysis**: Price gap detection and fill tracking
  *
  * @module
  */
@@ -49,3 +51,7 @@ export { fractals } from "./fractals";
 export type { FractalValue, FractalOptions } from "./fractals";
 export { zigzag } from "./zigzag";
 export type { ZigzagValue, ZigzagOptions } from "./zigzag";
+export { openingRange } from "./opening-range";
+export type { OpeningRangeOptions, OpeningRangeValue } from "./opening-range";
+export { gapAnalysis } from "./gap-analysis";
+export type { GapAnalysisOptions, GapValue } from "./gap-analysis";

@@ -9,6 +9,7 @@
  * - **ATR Stops**: Stop-loss and take-profit levels based on ATR
  * - **Volatility Regime**: Classify market as low/normal/high/extreme volatility
  * - **ATR Filter**: Filter stocks by ATR% for screening
+ * - **Choppiness Index**: Measure whether the market is choppy or trending
  *
  * @module
  */
@@ -34,3 +35,5 @@ export {
   DEFAULT_ATR_THRESHOLD,
 } from "./atr-filter";
 export type { AtrFilterOptions, AtrFilterResult } from "./atr-filter";
+export { choppinessIndex } from "./choppiness-index";
+export type { ChoppinessIndexOptions } from "./choppiness-index";

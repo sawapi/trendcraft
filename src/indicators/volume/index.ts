@@ -10,6 +10,7 @@
  * - **Volume Profile**: Price-volume distribution (POC, Value Area)
  * - **Volume Trend**: Confirm price trends with volume analysis
  * - **ADL**: Accumulation/Distribution Line
+ * - **Anchored VWAP**: VWAP from an arbitrary anchor point
  *
  * @module
  */
@@ -19,7 +20,7 @@ export { obv } from "./obv";
 export { mfi } from "./mfi";
 export type { MfiOptions } from "./mfi";
 export { vwap } from "./vwap";
-export type { VwapOptions, VwapValue } from "./vwap";
+export type { VwapOptions, VwapValue, VwapBand } from "./vwap";
 export { cmf } from "./cmf";
 export type { CmfOptions } from "./cmf";
 export { volumeAnomaly } from "./volume-anomaly";
@@ -29,3 +30,5 @@ export type { VolumeProfileOptions } from "./volume-profile";
 export { volumeTrend } from "./volume-trend";
 export type { VolumeTrendOptions } from "./volume-trend";
 export { adl } from "./adl";
+export { anchoredVwap } from "./anchored-vwap";
+export type { AnchoredVwapOptions, AnchoredVwapValue } from "./anchored-vwap";

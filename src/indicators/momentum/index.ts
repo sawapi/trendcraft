@@ -13,6 +13,7 @@
  * - **TRIX**: Triple-smoothed EMA rate of change
  * - **DPO**: Detrended price oscillator
  * - **Hurst**: Hurst exponent for trend persistence measurement
+ * - **Connors RSI**: Composite momentum oscillator (RSI + streak RSI + ROC percentile)
  *
  * @module
  */
@@ -38,3 +39,5 @@ export { dpo } from "./dpo";
 export type { DpoOptions } from "./dpo";
 export { hurst } from "./hurst";
 export type { HurstOptions } from "./hurst";
+export { connorsRsi } from "./connors-rsi";
+export type { ConnorsRsiOptions, ConnorsRsiValue } from "./connors-rsi";

@@ -124,6 +124,7 @@ export {
   vwma,
   kama,
   t3,
+  hma,
   // Momentum
   rsi,
   macd,
@@ -139,6 +140,7 @@ export {
   aroon,
   dpo,
   hurst,
+  connorsRsi,
   // Volatility
   bollingerBands,
   atr,
@@ -149,6 +151,7 @@ export {
   calculateAtrStop,
   calculateAtrTakeProfit,
   calculateAtrTrailingStop,
+  choppinessIndex,
   // Volume
   volumeMa,
   obv,
@@ -160,6 +163,7 @@ export {
   volumeProfileSeries,
   volumeTrend,
   adl,
+  anchoredVwap,
   // Price
   highestLowest,
   highest,
@@ -214,6 +218,9 @@ export {
   // Fractals / Zigzag
   fractals,
   zigzag,
+  // Gap / Opening Range
+  openingRange,
+  gapAnalysis,
   // Heikin-Ashi
   heikinAshi,
   // Filter (Ehlers)
@@ -240,8 +247,10 @@ export type {
   VwmaOptions,
   KamaOptions,
   T3Options,
+  HmaOptions,
   VwapOptions,
   VwapValue,
+  VwapBand,
   CciOptions,
   WilliamsROptions,
   RocOptions,
@@ -251,6 +260,8 @@ export type {
   AroonValue,
   DpoOptions,
   HurstOptions,
+  ConnorsRsiOptions,
+  ConnorsRsiValue,
   PivotPointsOptions,
   PivotPointsValue,
   SwingPointValue,
@@ -265,6 +276,7 @@ export type {
   VortexValue,
   AtrFilterOptions,
   AtrFilterResult,
+  ChoppinessIndexOptions,
   RSValue,
   BenchmarkRSOptions,
   SymbolRSRank,
@@ -300,6 +312,12 @@ export type {
   FractalOptions,
   ZigzagValue,
   ZigzagOptions,
+  OpeningRangeOptions,
+  OpeningRangeValue,
+  GapAnalysisOptions,
+  GapValue,
+  AnchoredVwapOptions,
+  AnchoredVwapValue,
   SuperSmootherOptions,
   RoofingFilterOptions,
 } from "./indicators";
