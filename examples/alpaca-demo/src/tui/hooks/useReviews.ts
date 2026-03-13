@@ -1,8 +1,9 @@
 /**
- * useReviews — load review history from disk
+ * useReviews — load review history from disk, trigger manual reviews
  */
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { executeReviewCycle } from "../../commands/review.js";
 import { loadRecentReviews, loadTodayIntraSessionReviews } from "../../review/history.js";
 import type { IntraSessionReviewRecord, ReviewRecord } from "../../review/types.js";
 
@@ -10,13 +11,18 @@ export type ReviewsState = {
   dailyReviews: ReviewRecord[];
   intraReviews: IntraSessionReviewRecord[];
   isLoading: boolean;
+  isReviewing: boolean;
 };
 
-export function useReviews(): [ReviewsState, { reload: () => void }] {
+export function useReviews(): [
+  ReviewsState,
+  { reload: () => void; runReview: (opts: { apply: boolean }) => Promise<void> },
+] {
   const [state, setState] = useState<ReviewsState>({
     dailyReviews: [],
     intraReviews: [],
     isLoading: true,
+    isReviewing: false,
   });
 
   useEffect(() => {
@@ -24,7 +30,7 @@ export function useReviews(): [ReviewsState, { reload: () => void }] {
     try {
       const dailyReviews = loadRecentReviews(7);
       const intraReviews = loadTodayIntraSessionReviews();
-      setState({ dailyReviews, intraReviews, isLoading: false });
+      setState({ dailyReviews, intraReviews, isLoading: false, isReviewing: false });
     } catch {
       setState((prev) => ({ ...prev, isLoading: false }));
     }
@@ -35,11 +41,29 @@ export function useReviews(): [ReviewsState, { reload: () => void }] {
     try {
       const dailyReviews = loadRecentReviews(7);
       const intraReviews = loadTodayIntraSessionReviews();
-      setState({ dailyReviews, intraReviews, isLoading: false });
+      setState((prev) => ({ ...prev, dailyReviews, intraReviews, isLoading: false }));
     } catch {
       setState((prev) => ({ ...prev, isLoading: false }));
     }
   };
 
-  return [state, { reload }];
+  const runReview = useCallback(async (opts: { apply: boolean }) => {
+    setState((prev) => ({ ...prev, isReviewing: true }));
+    try {
+      await executeReviewCycle({ apply: opts.apply });
+    } catch (err) {
+      // Review errors are logged by executeReviewCycle itself
+    } finally {
+      // Reload after review completes
+      try {
+        const dailyReviews = loadRecentReviews(7);
+        const intraReviews = loadTodayIntraSessionReviews();
+        setState((prev) => ({ ...prev, dailyReviews, intraReviews, isReviewing: false }));
+      } catch {
+        setState((prev) => ({ ...prev, isReviewing: false }));
+      }
+    }
+  }, []);
+
+  return [state, { reload, runReview }];
 }

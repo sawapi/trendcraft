@@ -11,14 +11,27 @@ import type { ReviewsState } from "../hooks/useReviews.js";
 type ReviewViewProps = {
   reviews: ReviewsState;
   onReload: () => void;
+  onRunReview: (opts: { apply: boolean }) => Promise<void>;
 };
 
-export function ReviewView({ reviews, onReload }: ReviewViewProps): React.ReactElement {
+export function ReviewView({
+  reviews,
+  onReload,
+  onRunReview,
+}: ReviewViewProps): React.ReactElement {
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   useInput((input, key) => {
+    if (reviews.isReviewing) return; // Disable navigation during review
+
     if (input === "r") {
       onReload();
+    }
+    if (input === "e") {
+      onRunReview({ apply: false });
+    }
+    if (input === "E") {
+      onRunReview({ apply: true });
     }
     if (key.upArrow) {
       setSelectedIndex((prev) => Math.max(0, prev - 1));
@@ -39,9 +52,17 @@ export function ReviewView({ reviews, onReload }: ReviewViewProps): React.ReactE
         </Text>
       </Box>
 
+      {reviews.isReviewing && (
+        <Box marginBottom={1}>
+          <Text color="yellow" bold>
+            Running LLM review...
+          </Text>
+        </Box>
+      )}
+
       {reviews.isLoading && <Text color="yellow">Loading reviews...</Text>}
 
-      {!reviews.isLoading && reviews.dailyReviews.length === 0 && (
+      {!reviews.isLoading && reviews.dailyReviews.length === 0 && !reviews.isReviewing && (
         <Text color="gray">No review records found.</Text>
       )}
 
@@ -116,10 +137,16 @@ export function ReviewView({ reviews, onReload }: ReviewViewProps): React.ReactE
 
       <Box marginTop={1}>
         <KeyHint
-          hints={[
-            { key: "r", action: "Reload" },
-            { key: "Up/Down", action: "Navigate" },
-          ]}
+          hints={
+            reviews.isReviewing
+              ? [{ key: "...", action: "Review in progress" }]
+              : [
+                  { key: "e", action: "Run review (preview)" },
+                  { key: "E", action: "Run review + apply" },
+                  { key: "r", action: "Reload" },
+                  { key: "Up/Down", action: "Navigate" },
+                ]
+          }
         />
       </Box>
     </Box>

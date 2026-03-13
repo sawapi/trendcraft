@@ -1,5 +1,5 @@
 /**
- * useBacktest — run backtest from TUI
+ * useBacktest — run backtest from TUI (multi-symbol support)
  */
 
 import { useCallback, useState } from "react";
@@ -9,55 +9,68 @@ import type { ScoredResult } from "../../backtest/scorer.js";
 import { loadEnv } from "../../config/env.js";
 import { getAllStrategies } from "../../strategy/registry.js";
 
+export type BacktestResult = ScoredResult & {
+  symbol: string;
+};
+
 export type BacktestState = {
-  results: ScoredResult[];
+  results: BacktestResult[];
   isRunning: boolean;
   error: string | null;
-  symbol: string | null;
+  progress: string | null;
 };
 
 export function useBacktest(): [
   BacktestState,
-  { run: (symbol: string, periodMonths?: number) => Promise<void> },
+  { run: (symbols: string[], periodMonths?: number) => Promise<void> },
 ] {
   const [state, setState] = useState<BacktestState>({
     results: [],
     isRunning: false,
     error: null,
-    symbol: null,
+    progress: null,
   });
 
-  const run = useCallback(async (symbol: string, periodMonths = 3) => {
-    setState({ results: [], isRunning: true, error: null, symbol });
+  const run = useCallback(async (symbols: string[], periodMonths = 3) => {
+    setState({ results: [], isRunning: true, error: null, progress: null });
 
     try {
       const env = loadEnv();
-      const candles = await fetchHistoricalBars(env, {
-        symbol,
-        timeframe: "1Day",
-        start: monthsAgo(periodMonths),
-        end: today(),
-      });
+      const strategies = getAllStrategies();
+      const allResults: BacktestResult[] = [];
 
-      if (candles.length < 50) {
+      for (let i = 0; i < symbols.length; i++) {
+        const symbol = symbols[i];
         setState((prev) => ({
           ...prev,
-          isRunning: false,
-          error: `Insufficient data: only ${candles.length} candles`,
+          progress: `Running ${symbol} (${i + 1}/${symbols.length})...`,
         }));
-        return;
+
+        const candles = await fetchHistoricalBars(env, {
+          symbol,
+          timeframe: "1Day",
+          start: monthsAgo(periodMonths),
+          end: today(),
+        });
+
+        if (candles.length < 50) {
+          continue; // Skip symbols with insufficient data
+        }
+
+        const { rankings } = runStrategyBacktests(strategies, symbol, candles, 100000);
+        for (const r of rankings) {
+          allResults.push({ ...r, symbol });
+        }
       }
 
-      const strategies = getAllStrategies();
-      const { rankings } = runStrategyBacktests(strategies, symbol, candles, 100000);
-      rankings.sort((a, b) => b.score - a.score);
-
-      setState({ results: rankings, isRunning: false, error: null, symbol });
+      allResults.sort((a, b) => b.score - a.score);
+      setState({ results: allResults, isRunning: false, error: null, progress: null });
     } catch (err) {
       setState((prev) => ({
         ...prev,
         isRunning: false,
         error: err instanceof Error ? err.message : String(err),
+        progress: null,
       }));
     }
   }, []);

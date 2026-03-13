@@ -5,7 +5,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { AgentState } from "../../agent/types.js";
 import { createStateStore } from "../../persistence/store.js";
-import { getAllStrategies } from "../../strategy/registry.js";
 import type { TradingEvent } from "../../trading/events.js";
 import { createTradingSession } from "../../trading/session.js";
 import type { SessionOptions, TradingSession } from "../../trading/session.js";
@@ -21,9 +20,17 @@ export type TradingState = {
   error: string | null;
 };
 
+type KilledAgent = {
+  strategyId: string;
+  symbol: string;
+};
+
 export type TradingActions = {
   startSession: (opts: SessionOptions) => Promise<void>;
   stopSession: () => Promise<void>;
+  killAgent: (agentId: string) => void;
+  reviveAgent: (agentId: string) => void;
+  getKilledAgents: () => Map<string, KilledAgent>;
   session: TradingSession | null;
 };
 
@@ -43,6 +50,7 @@ export function useTrading(): [TradingState, TradingActions] {
 
   const sessionRef = useRef<TradingSession | null>(null);
   const refreshTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const killedAgentsRef = useRef<Map<string, KilledAgent>>(new Map());
 
   // Load offline state from state.json on mount
   useEffect(() => {
@@ -136,6 +144,59 @@ export function useTrading(): [TradingState, TradingActions] {
     }));
 
     sessionRef.current = null;
+    killedAgentsRef.current.clear();
+  }, []);
+
+  const killAgent = useCallback((agentId: string) => {
+    const session = sessionRef.current;
+    if (!session?.isRunning()) return;
+
+    const manager = session.getManager();
+    const agent = manager.getAgent(agentId);
+    if (!agent) return;
+
+    // Close the agent's position first
+    const { intents } = agent.close();
+    const executor = session.getExecutor();
+    for (const intent of intents) {
+      executor.execute(intent);
+    }
+
+    // Record before removal
+    killedAgentsRef.current.set(agentId, {
+      strategyId: agent.strategyId,
+      symbol: agent.symbol,
+    });
+
+    manager.removeAgent(agentId);
+
+    // Refresh state
+    const agents = manager.getAllStates();
+    setState((prev) => ({ ...prev, agents }));
+  }, []);
+
+  const reviveAgent = useCallback((agentId: string) => {
+    const session = sessionRef.current;
+    if (!session?.isRunning()) return;
+
+    const killed = killedAgentsRef.current.get(agentId);
+    if (!killed) return;
+
+    const strategies = session.getStrategies();
+    const strategy = strategies.find((s) => s.id === killed.strategyId);
+    if (!strategy) return;
+
+    const manager = session.getManager();
+    manager.addAgent(strategy, killed.symbol);
+    killedAgentsRef.current.delete(agentId);
+
+    // Refresh state
+    const agents = manager.getAllStates();
+    setState((prev) => ({ ...prev, agents }));
+  }, []);
+
+  const getKilledAgents = useCallback(() => {
+    return new Map(killedAgentsRef.current);
   }, []);
 
   return [
@@ -143,6 +204,9 @@ export function useTrading(): [TradingState, TradingActions] {
     {
       startSession,
       stopSession,
+      killAgent,
+      reviveAgent,
+      getKilledAgents,
       session: sessionRef.current,
     },
   ];

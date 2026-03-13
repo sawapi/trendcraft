@@ -11,6 +11,7 @@ import { TabBar } from "./components/TabBar.js";
 import type { Tab } from "./components/TabBar.js";
 import { useBacktest } from "./hooks/useBacktest.js";
 import { useReviews } from "./hooks/useReviews.js";
+import { useSettings } from "./hooks/useSettings.js";
 import { useTrading } from "./hooks/useTrading.js";
 import { BacktestView } from "./views/BacktestView.js";
 import { Dashboard } from "./views/Dashboard.js";
@@ -36,6 +37,7 @@ export function App({ options }: AppProps): React.ReactElement {
   const [tradingState, tradingActions] = useTrading();
   const [reviewsState, reviewsActions] = useReviews();
   const [backtestState, backtestActions] = useBacktest();
+  const [settings, settingsActions] = useSettings();
 
   useInput((_input, _key) => {
     // Tab switching via number keys
@@ -91,11 +93,21 @@ export function App({ options }: AppProps): React.ReactElement {
             error={tradingState.error}
             onStart={tradingActions.startSession}
             onStop={tradingActions.stopSession}
+            onKillAgent={tradingActions.killAgent}
+            onReviveAgent={tradingActions.reviveAgent}
+            getKilledAgents={tradingActions.getKilledAgents}
+            defaultSymbols={settings.defaultSymbols}
           />
         )}
-        {activeTab === 2 && <ReviewView reviews={reviewsState} onReload={reviewsActions.reload} />}
+        {activeTab === 2 && (
+          <ReviewView
+            reviews={reviewsState}
+            onReload={reviewsActions.reload}
+            onRunReview={reviewsActions.runReview}
+          />
+        )}
         {activeTab === 3 && <BacktestView backtest={backtestState} onRun={backtestActions.run} />}
-        {activeTab === 4 && <Settings />}
+        {activeTab === 4 && <Settings settings={settings} actions={settingsActions} />}
       </Box>
 
       {/* Status bar */}
