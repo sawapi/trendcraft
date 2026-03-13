@@ -23,6 +23,7 @@
 - [価格パターン](#価格パターン)
 - [マルチタイムフレーム（MTF）分析](#マルチタイムフレームmtf分析)
 - [レンジ相場検出](#レンジ相場検出)
+- [デイトレード・短期スイング向けインジケーター](#デイトレード短期スイング向けインジケーター)
 - [バックテスト](#バックテスト)
 - [シグナルスコアリング](#シグナルスコアリング)
 - [ポジションサイジング](#ポジションサイジング)
@@ -1348,6 +1349,116 @@ const result2 = TrendCraft.from(candles)
 - `persistBars`オプションで状態維持期間を調整可能（デフォルト: 3本）
 - `rangeScore`が高いほど信頼性が高い
 - ブレイクアウトシグナルは出来高確認と組み合わせると効果的
+
+---
+
+## デイトレード・短期スイング向けインジケーター
+
+デイトレードや短期スイングトレードに特に有用なインジケーター群です。
+
+### ハル移動平均線（HMA）
+
+HMAはネストされたWMA計算により、従来の移動平均線のラグを軽減します。
+
+```typescript
+import { hma } from 'trendcraft';
+
+const hma9 = hma(candles);                          // デフォルト期間9
+const hma20 = hma(candles, { period: 20 });          // カスタム期間
+```
+
+同じ期間のSMAやEMAよりも価格変動に素早く反応するため、短期トレンドの検出に最適です。
+
+### チョッピネスインデックス
+
+市場がチョッピー（レンジ相場）かトレンド相場かを計測します。0-100のスケール。
+
+```typescript
+import { choppinessIndex } from 'trendcraft';
+
+const chop = choppinessIndex(candles);               // デフォルト期間14
+
+chop.forEach(({ value }) => {
+  if (value !== null) {
+    if (value > 61.8) console.log('チョッピー — トレンド戦略を避ける');
+    if (value < 38.2) console.log('トレンド発生中 — トレンドフォローに適している');
+  }
+});
+```
+
+### VWAPバンド
+
+標準VWAPに追加の標準偏差バンドを追加してサポート/レジスタンス分析を強化。
+
+```typescript
+import { vwap } from 'trendcraft';
+
+const result = vwap(candles, { bandMultipliers: [2, 3] });
+// result[i].value.bands で ±2σ、±3σバンドにアクセス
+```
+
+### アンカードVWAP
+
+特定の起点からVWAPを計算 — 決算発表、ブレイクアウト、安値など重要イベントからの機関投資家のコストベース分析に使用。
+
+```typescript
+import { anchoredVwap } from 'trendcraft';
+
+const avwap = anchoredVwap(candles, {
+  anchorTime: Date.parse('2024-01-15'),
+  bands: 2,
+});
+```
+
+### コナーズRSI
+
+ミーンリバージョンシグナル用の3要素複合オシレーター：
+
+```typescript
+import { connorsRsi } from 'trendcraft';
+
+const crsi = connorsRsi(candles);
+
+crsi.forEach(({ value }) => {
+  if (value.crsi !== null) {
+    if (value.crsi < 10) console.log('強い売られすぎ');
+    if (value.crsi > 90) console.log('強い買われすぎ');
+  }
+});
+```
+
+### ギャップ分析
+
+連続するローソク足間の価格ギャップを検出し、分類、フィル追跡を行います。
+
+```typescript
+import { gapAnalysis } from 'trendcraft';
+
+const gaps = gapAnalysis(candles, { minGapPercent: 0.5 });
+
+gaps.forEach(({ value }) => {
+  if (value.type) {
+    console.log(`ギャップ${value.type}: ${value.gapPercent.toFixed(1)}% (${value.classification})`);
+    if (value.filled) console.log('  → ギャップがフィルされました');
+  }
+});
+```
+
+### オープニングレンジブレイクアウト（ORB）
+
+セッション最初のN分間の高値・安値を特定し、ブレイクアウトを検出します。
+
+```typescript
+import { openingRange } from 'trendcraft';
+
+const orb = openingRange(intradayCandles);           // 30分（デフォルト）
+const orb15 = openingRange(intradayCandles, { minutes: 15 });
+
+orb.forEach(({ value }) => {
+  if (value.breakout === 'above') console.log('オープニングレンジ上抜け！');
+  if (value.breakout === 'below') console.log('オープニングレンジ下抜け！');
+});
+```
 
 ---
 

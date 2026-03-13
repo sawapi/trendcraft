@@ -136,6 +136,27 @@ const result = ema(candles, { period: 12 });
 
 ---
 
+#### `hma(candles, options)`
+
+ハル移動平均線 — ネストされたWMA計算によりラグを軽減しつつ滑らかさを維持。
+
+```typescript
+const result = hma(candles);
+const custom = hma(candles, { period: 20, source: 'close' });
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|-----------|------|-----------|------|
+| `period` | `number` | `9` | HMA期間（2以上） |
+| `source` | `PriceSource` | `'close'` | 価格ソース |
+
+**戻り値:** `Series<number | null>`
+
+**計算式:** `HMA(n) = WMA(2 * WMA(n/2) - WMA(n), sqrt(n))`
+
+---
+
 ### トレンド
 
 #### `ichimoku(candles, options)`
@@ -421,6 +442,40 @@ const custom = roc(candles, { period: 9 });
 
 ---
 
+#### `connorsRsi(candles, options)`
+
+コナーズRSI — RSI、ストリークRSI、ROCパーセンタイルランクを組み合わせた複合モメンタムオシレーター。
+
+```typescript
+const result = connorsRsi(candles);
+const custom = connorsRsi(candles, { rsiPeriod: 3, streakPeriod: 2, rocPeriod: 100 });
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|-----------|------|-----------|------|
+| `rsiPeriod` | `number` | `3` | 価格のRSI期間 |
+| `streakPeriod` | `number` | `2` | 連騰/連落ストリークのRSI期間 |
+| `rocPeriod` | `number` | `100` | ROCパーセントランクのルックバック期間 |
+
+**戻り値:** `Series<ConnorsRsiValue>`
+
+```typescript
+interface ConnorsRsiValue {
+  crsi: number | null;          // コナーズRSI（3要素の平均）
+  rsi: number | null;           // 価格のRSI
+  streakRsi: number | null;     // 連騰/連落ストリークのRSI
+  rocPercentile: number | null; // 1期間ROCのパーセントランク
+}
+```
+
+**解釈:**
+- 10未満: 強い売られすぎ（ミーンリバージョンの買いシグナル）
+- 90超: 強い買われすぎ（ミーンリバージョンの売りシグナル）
+- CRSI = (RSI + StreakRSI + PercentRank) / 3
+
+---
+
 ### ボラティリティ
 
 #### `bollingerBands(candles, options)`
@@ -522,6 +577,30 @@ interface KeltnerChannelValue {
 
 ---
 
+#### `choppinessIndex(candles, options)`
+
+チョッピネスインデックス — 市場がチョッピー（レンジ相場）かトレンド相場かを計測。
+
+```typescript
+const result = choppinessIndex(candles);
+const custom = choppinessIndex(candles, { period: 7 });
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|-----------|------|-----------|------|
+| `period` | `number` | `14` | ルックバック期間 |
+
+**戻り値:** `Series<number | null>`（0-100スケール）
+
+**計算式:** `CHOP = 100 * LOG10(SUM(ATR(1), period) / (最高値 - 最安値)) / LOG10(period)`
+
+**解釈:**
+- 61.8超: チョッピー/保ち合い — トレンドフォロー戦略を避ける
+- 38.2未満: 強いトレンド — トレンドフォローに適している
+
+---
+
 ### 出来高
 
 #### `vwap(candles, options)`
@@ -541,6 +620,7 @@ const rolling = vwap(candles, { resetPeriod: 'rolling', period: 20 });
 |------------|------|---------|------|
 | `resetPeriod` | `'session' \| 'rolling' \| number` | `'session'` | リセット期間タイプ |
 | `period` | `number` | `20` | ローリングVWAP期間 |
+| `bandMultipliers` | `number[]` | — | 追加σバンドの倍率（例：`[2, 3]` で±2σ、±3σ） |
 
 **戻り値:** `Series<VwapValue>`
 
@@ -549,7 +629,9 @@ interface VwapValue {
   vwap: number | null;   // VWAP値
   upper: number | null;  // 上バンド（VWAP + 標準偏差）
   lower: number | null;  // 下バンド（VWAP - 標準偏差）
+  bands?: VwapBand[];    // bandMultipliers指定時の追加バンド
 }
+interface VwapBand { upper: number; lower: number; }
 ```
 
 ---
@@ -739,6 +821,35 @@ interface VolumeTrendValue {
 - **確認済み下降トレンド**: 価格下落 + 出来高増加（強い売り）
 - **強気ダイバージェンス**: 価格下落 + 出来高減少（売り枯れ）
 - **弱気ダイバージェンス**: 価格上昇 + 出来高減少（弱い上昇）
+
+---
+
+#### `anchoredVwap(candles, options)`
+
+アンカードVWAP — 任意の起点タイムスタンプからVWAPを計算。機関投資家のコストベース把握に使用。
+
+```typescript
+const result = anchoredVwap(candles, { anchorTime: Date.parse('2024-01-15') });
+const withBands = anchoredVwap(candles, { anchorTime: Date.parse('2024-01-15'), bands: 2 });
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|-----------|------|-----------|------|
+| `anchorTime` | `number` | 必須 | アンカータイムスタンプ（エポックからのms） |
+| `bands` | `number` | `0` | 標準偏差バンド数（0, 1, 2） |
+
+**戻り値:** `Series<AnchoredVwapValue>`
+
+```typescript
+interface AnchoredVwapValue {
+  vwap: number | null;
+  upper1?: number | null;  // +1σバンド
+  lower1?: number | null;  // -1σバンド
+  upper2?: number | null;  // +2σバンド
+  lower2?: number | null;  // -2σバンド
+}
+```
 
 ---
 
@@ -1063,6 +1174,66 @@ interface FibonacciRetracementValue {
   trend: "up" | "down" | null;            // スイングハイが直近なら "up"
 }
 ```
+
+---
+
+#### `openingRange(candles, options)`
+
+オープニングレンジブレイクアウト（ORB） — セッションのオープニングレンジを検出し、ブレイクアウトを判定。
+
+```typescript
+const result = openingRange(candles);
+const custom = openingRange(candles, { minutes: 15, sessionResetPeriod: 'day' });
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|-----------|------|-----------|------|
+| `minutes` | `number` | `30` | オープニングレンジの時間（分） |
+| `sessionResetPeriod` | `'day' \| number` | `'day'` | セッションリセット方式 |
+
+**戻り値:** `Series<OpeningRangeValue>`
+
+```typescript
+interface OpeningRangeValue {
+  high: number | null;
+  low: number | null;
+  breakout: 'above' | 'below' | null;
+}
+```
+
+---
+
+#### `gapAnalysis(candles, options)`
+
+ギャップ分析 — 連続するローソク足間の価格ギャップを検出・分類し、フィル状況を追跡。
+
+```typescript
+const result = gapAnalysis(candles);
+const custom = gapAnalysis(candles, { minGapPercent: 1.0 });
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|-----------|------|-----------|------|
+| `minGapPercent` | `number` | `0.5` | ギャップと認定する最小パーセンテージ |
+
+**戻り値:** `Series<GapValue>`
+
+```typescript
+interface GapValue {
+  type: 'up' | 'down' | null;
+  gapPercent: number;
+  classification: 'full' | 'partial' | 'unfilled' | null;
+  filled: boolean;
+}
+```
+
+**分類:**
+- **フルギャップアップ**: 始値 > 前日高値
+- **パーシャルギャップアップ**: 始値 > 前日終値 かつ ≤ 前日高値
+- **フルギャップダウン**: 始値 < 前日安値
+- **パーシャルギャップダウン**: 始値 < 前日終値 かつ ≥ 前日安値
 
 ---
 

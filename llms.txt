@@ -2,7 +2,7 @@
 
 > A TypeScript library for technical analysis of financial data. Calculate indicators, detect signals, backtest strategies, and analyze market trends.
 
-TrendCraft provides 51+ technical indicators, signal detection, backtesting with 50+ preset conditions, strategy optimization, real-time streaming pipelines, and position sizing — all with a consistent `Series<T>` return type.
+TrendCraft provides 58+ technical indicators, signal detection, backtesting with 50+ preset conditions, strategy optimization, real-time streaming pipelines, and position sizing — all with a consistent `Series<T>` return type.
 
 ## Installation
 
@@ -52,6 +52,7 @@ const bt = TrendCraft.from(candles)
 - `vwma(candles, { period })` — Volume Weighted Moving Average
 - `kama(candles, { period, fastPeriod, slowPeriod })` — Kaufman Adaptive Moving Average
 - `t3(candles, { period, vFactor })` — Tillson T3 (6-fold cascaded EMA)
+- `hma(candles, { period })` — Hull Moving Average (reduced lag)
 
 ### Trend
 - `ichimoku(candles, opts?)` — Ichimoku Cloud (tenkan, kijun, senkouA, senkouB, chikou)
@@ -73,6 +74,7 @@ const bt = TrendCraft.from(candles)
 - `aroon(candles, { period })` — Aroon Up/Down/Oscillator
 - `dpo(candles, { period })` — Detrended Price Oscillator
 - `hurst(candles, { minWindow, maxWindow })` — Hurst Exponent (R/S analysis, 0-1 range)
+- `connorsRsi(candles, { rsiPeriod, streakPeriod, rocPeriod })` — Connors RSI (RSI + Streak RSI + ROC Percentile)
 
 ### Volatility
 - `bollingerBands(candles, { period, stdDev })` — Bollinger Bands (upper, middle, lower, %B, bandwidth)
@@ -81,11 +83,12 @@ const bt = TrendCraft.from(candles)
 - `keltnerChannel(candles, opts?)` — Keltner Channel
 - `chandelierExit(candles, { period, multiplier })` — Chandelier Exit trailing stops
 - `volatilityRegime(candles, opts?)` — Classify volatility (low/normal/high/extreme)
+- `choppinessIndex(candles, { period })` — Choppiness Index (0-100: >61.8 choppy, <38.2 trending)
 
 ### Volume
 - `obv(candles)` — On Balance Volume
 - `mfi(candles, { period })` — Money Flow Index
-- `vwap(candles, opts?)` — Volume Weighted Average Price
+- `vwap(candles, opts?)` — Volume Weighted Average Price (supports bandMultipliers for ±nσ bands)
 - `cmf(candles, { period })` — Chaikin Money Flow
 - `volumeMa(candles, { period })` — Volume Moving Average
 - `volumeAnomaly(candles, opts?)` — Volume spike detection
@@ -93,6 +96,7 @@ const bt = TrendCraft.from(candles)
 - `volumeProfileSeries(candles, opts?)` — Rolling Volume Profile series
 - `volumeTrend(candles)` — Volume trend confirmation
 - `adl(candles)` — Accumulation/Distribution Line
+- `anchoredVwap(candles, { anchorTime, bands? })` — Anchored VWAP from specific timestamp
 
 ### Price
 - `highest(candles, { period })` / `lowest(candles, { period })` — Highest/Lowest values
@@ -102,6 +106,8 @@ const bt = TrendCraft.from(candles)
 - `fibonacciRetracement(candles, opts?)` — Fibonacci retracement levels
 - `fractals(candles, opts?)` — Williams Fractals (up/down fractal detection)
 - `zigzag(candles, opts?)` — Zigzag indicator (significant swing point connection)
+- `openingRange(candles, { minutes?, sessionResetPeriod? })` — Opening Range Breakout (ORB)
+- `gapAnalysis(candles, { minGapPercent? })` — Gap detection, classification, and fill tracking
 
 ### Smart Money Concepts (SMC)
 - `orderBlock(candles, opts?)` — Order Block detection

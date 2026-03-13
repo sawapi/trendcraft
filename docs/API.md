@@ -3,7 +3,7 @@
 ## Table of Contents
 
 - [Indicators](#indicators)
-  - [Moving Averages](#moving-averages)
+  - [Moving Averages (SMA, WMA, EMA, HMA)](#moving-averages-sma-wma-ema-hma)
   - [Trend](#trend)
   - [Momentum](#momentum)
   - [Volatility](#volatility)
@@ -80,7 +80,7 @@
 
 ## Indicators
 
-### Moving Averages
+### Moving Averages (SMA, WMA, EMA, HMA)
 
 #### `sma(candles, options)`
 
@@ -133,6 +133,27 @@ const result = ema(candles, { period: 12 });
 | `source` | `PriceSource` | `'close'` | Price source |
 
 **Returns:** `Series<number | null>`
+
+---
+
+#### `hma(candles, options)`
+
+Hull Moving Average — reduces lag while maintaining smoothness using nested WMA calculations.
+
+```typescript
+const result = hma(candles);
+const custom = hma(candles, { period: 20, source: 'close' });
+```
+
+**Options:**
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `period` | `number` | `9` | HMA period (must be >= 2) |
+| `source` | `PriceSource` | `'close'` | Price source |
+
+**Returns:** `Series<number | null>`
+
+**Formula:** `HMA(n) = WMA(2 * WMA(n/2) - WMA(n), sqrt(n))`
 
 ---
 
@@ -421,6 +442,40 @@ const custom = roc(candles, { period: 9 });
 
 ---
 
+#### `connorsRsi(candles, options)`
+
+Connors RSI — composite momentum oscillator combining RSI, streak RSI, and ROC percentile rank.
+
+```typescript
+const result = connorsRsi(candles);
+const custom = connorsRsi(candles, { rsiPeriod: 3, streakPeriod: 2, rocPeriod: 100 });
+```
+
+**Options:**
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `rsiPeriod` | `number` | `3` | RSI period for price |
+| `streakPeriod` | `number` | `2` | RSI period for up/down streak |
+| `rocPeriod` | `number` | `100` | Lookback period for ROC percent rank |
+
+**Returns:** `Series<ConnorsRsiValue>`
+
+```typescript
+interface ConnorsRsiValue {
+  crsi: number | null;          // Composite Connors RSI (average of 3 components)
+  rsi: number | null;           // RSI of price
+  streakRsi: number | null;     // RSI of consecutive up/down streak
+  rocPercentile: number | null; // Percent rank of 1-period ROC
+}
+```
+
+**Interpretation:**
+- Below 10: Strongly oversold (mean reversion buy signal)
+- Above 90: Strongly overbought (mean reversion sell signal)
+- CRSI = (RSI + StreakRSI + PercentRank) / 3
+
+---
+
 ### Volatility
 
 #### `bollingerBands(candles, options)`
@@ -522,6 +577,31 @@ interface KeltnerChannelValue {
 
 ---
 
+#### `choppinessIndex(candles, options)`
+
+Choppiness Index — measures whether the market is choppy (range-bound) or trending.
+
+```typescript
+const result = choppinessIndex(candles);
+const custom = choppinessIndex(candles, { period: 7 });
+```
+
+**Options:**
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `period` | `number` | `14` | Lookback period |
+
+**Returns:** `Series<number | null>` (0-100 scale)
+
+**Formula:** `CHOP = 100 * LOG10(SUM(ATR(1), period) / (Highest High - Lowest Low)) / LOG10(period)`
+
+**Interpretation:**
+- Above 61.8: Market is choppy/consolidating — avoid trend-following strategies
+- Below 38.2: Market is trending strongly — good for trend-following
+- Values oscillate between these extremes
+
+---
+
 ### Volume
 
 #### `vwap(candles, options)`
@@ -541,6 +621,7 @@ const rolling = vwap(candles, { resetPeriod: 'rolling', period: 20 });
 |--------|------|---------|-------------|
 | `resetPeriod` | `'session' \| 'rolling' \| number` | `'session'` | Reset period type |
 | `period` | `number` | `20` | Period for rolling VWAP |
+| `bandMultipliers` | `number[]` | — | Additional σ-band multipliers (e.g., `[2, 3]` for ±2σ, ±3σ) |
 
 **Returns:** `Series<VwapValue>`
 
@@ -549,6 +630,12 @@ interface VwapValue {
   vwap: number | null;   // VWAP value
   upper: number | null;  // Upper band (VWAP + stdDev)
   lower: number | null;  // Lower band (VWAP - stdDev)
+  bands?: VwapBand[];    // Additional bands when bandMultipliers is set
+}
+
+interface VwapBand {
+  upper: number;  // Upper band value
+  lower: number;  // Lower band value
 }
 ```
 
@@ -739,6 +826,35 @@ interface VolumeTrendValue {
 - **Confirmed downtrend**: Price falling + volume increasing (strong selling)
 - **Bullish divergence**: Price falling + volume decreasing (selling exhaustion)
 - **Bearish divergence**: Price rising + volume decreasing (weak rally)
+
+---
+
+#### `anchoredVwap(candles, options)`
+
+Anchored VWAP — calculates VWAP from an arbitrary anchor timestamp. Used by institutional investors to determine cost basis from significant events.
+
+```typescript
+const result = anchoredVwap(candles, { anchorTime: Date.parse('2024-01-15') });
+const withBands = anchoredVwap(candles, { anchorTime: Date.parse('2024-01-15'), bands: 2 });
+```
+
+**Options:**
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `anchorTime` | `number` | required | Anchor timestamp (ms since epoch) |
+| `bands` | `number` | `0` | Number of standard deviation bands (0, 1, or 2) |
+
+**Returns:** `Series<AnchoredVwapValue>`
+
+```typescript
+interface AnchoredVwapValue {
+  vwap: number | null;     // VWAP value
+  upper1?: number | null;  // +1σ band (if bands >= 1)
+  lower1?: number | null;  // -1σ band (if bands >= 1)
+  upper2?: number | null;  // +2σ band (if bands >= 2)
+  lower2?: number | null;  // -2σ band (if bands >= 2)
+}
+```
 
 ---
 
@@ -1063,6 +1179,66 @@ interface FibonacciRetracementValue {
   trend: "up" | "down" | null;            // "up" if swing high is more recent
 }
 ```
+
+---
+
+#### `openingRange(candles, options)`
+
+Opening Range Breakout (ORB) — detects the opening range of a session and identifies breakouts.
+
+```typescript
+const result = openingRange(candles);
+const custom = openingRange(candles, { minutes: 15, sessionResetPeriod: 'day' });
+```
+
+**Options:**
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `minutes` | `number` | `30` | Opening range duration in minutes |
+| `sessionResetPeriod` | `'day' \| number` | `'day'` | Session reset mode |
+
+**Returns:** `Series<OpeningRangeValue>`
+
+```typescript
+interface OpeningRangeValue {
+  high: number | null;                      // Opening range high
+  low: number | null;                       // Opening range low
+  breakout: 'above' | 'below' | null;      // Breakout direction
+}
+```
+
+---
+
+#### `gapAnalysis(candles, options)`
+
+Gap Analysis — detects and classifies price gaps between consecutive candles and tracks fill status.
+
+```typescript
+const result = gapAnalysis(candles);
+const custom = gapAnalysis(candles, { minGapPercent: 1.0 });
+```
+
+**Options:**
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `minGapPercent` | `number` | `0.5` | Minimum gap percentage to qualify |
+
+**Returns:** `Series<GapValue>`
+
+```typescript
+interface GapValue {
+  type: 'up' | 'down' | null;                              // Gap direction
+  gapPercent: number;                                       // Gap size as % of previous close
+  classification: 'full' | 'partial' | 'unfilled' | null;  // Gap classification
+  filled: boolean;                                          // Whether the gap has been filled
+}
+```
+
+**Classification:**
+- **Full gap up**: Open > Previous High
+- **Partial gap up**: Open > Previous Close but ≤ Previous High
+- **Full gap down**: Open < Previous Low
+- **Partial gap down**: Open < Previous Close but ≥ Previous Low
 
 ---
 

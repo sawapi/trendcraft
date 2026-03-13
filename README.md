@@ -6,13 +6,13 @@ A TypeScript library for technical analysis of financial data. Calculate indicat
 
 ## Features
 
-### Indicators (51+)
-- **Moving Averages**: SMA, EMA, WMA, VWMA, KAMA, T3
+### Indicators (58+)
+- **Moving Averages**: SMA, EMA, WMA, VWMA, KAMA, T3, HMA (Hull)
 - **Trend**: Ichimoku Cloud, Supertrend, Parabolic SAR, Vortex
-- **Momentum**: RSI, MACD, Stochastics (Fast/Slow), DMI/ADX, Stoch RSI, CCI, Williams %R, ROC, TRIX, Aroon, DPO, Hurst Exponent
-- **Volatility**: Bollinger Bands, ATR, Donchian Channel, Keltner Channel, Chandelier Exit, Volatility Regime
-- **Volume**: OBV, MFI, VWAP, Volume MA, CMF, Volume Anomaly, Volume Profile, Volume Trend, ADL
-- **Price**: Highest/Lowest, Returns, Pivot Points, Swing Points, Fractals, Zigzag, Fibonacci Retracement/Extension, Heikin-Ashi
+- **Momentum**: RSI, MACD, Stochastics (Fast/Slow), DMI/ADX, Stoch RSI, CCI, Williams %R, ROC, TRIX, Aroon, DPO, Hurst Exponent, Connors RSI
+- **Volatility**: Bollinger Bands, ATR, Donchian Channel, Keltner Channel, Chandelier Exit, Volatility Regime, Choppiness Index
+- **Volume**: OBV, MFI, VWAP (with Bands), Volume MA, CMF, Volume Anomaly, Volume Profile, Volume Trend, ADL, Anchored VWAP
+- **Price**: Highest/Lowest, Returns, Pivot Points, Swing Points, Fractals, Zigzag, Fibonacci Retracement/Extension, Heikin-Ashi, Opening Range Breakout, Gap Analysis
 
 ### Signal Detection
 - **Cross Detection**: Golden Cross, Dead Cross, custom crossovers

@@ -1,6 +1,6 @@
 # TrendCraft
 
-> A TypeScript library for technical analysis of financial data. Calculate 51+ indicators, detect signals, backtest strategies, optimize parameters, and build real-time trading pipelines.
+> A TypeScript library for technical analysis of financial data. Calculate 58+ indicators, detect signals, backtest strategies, optimize parameters, and build real-time trading pipelines.
 
 ## Installation
 
@@ -66,6 +66,9 @@ Kaufman Adaptive Moving Average. Adapts smoothing speed based on Efficiency Rati
 ### `t3(candles, { period?, vFactor?, source? })`
 Tillson T3 — ultra-smooth moving average using 6 cascaded EMAs with a volume factor. Provides minimal lag while extremely smooth. Defaults: period=5, vFactor=0.7. Returns `Series<number | null>`.
 
+### `hma(candles, { period?, source? })`
+Hull Moving Average — reduces lag using nested WMA: `HMA(n) = WMA(2*WMA(n/2) - WMA(n), sqrt(n))`. Default period: 9. Returns `Series<number | null>`.
+
 ## Indicators — Trend
 
 ### `ichimoku(candles, options?)`
@@ -130,6 +133,9 @@ Detrended Price Oscillator. Removes trend by comparing price to a shifted SMA. L
 ### `hurst(candles, { minWindow?, maxWindow?, source? })`
 Hurst Exponent via Rescaled Range (R/S) analysis. Measures persistence: H>0.5 trending, H<0.5 mean-reverting, H≈0.5 random. Defaults: minWindow=20, maxWindow=100. Returns `Series<number | null>` (values in [0,1]).
 
+### `connorsRsi(candles, { rsiPeriod?, streakPeriod?, rocPeriod? })`
+Connors RSI — composite momentum oscillator: `(RSI(price) + RSI(streak) + PercentRank(ROC)) / 3`. Defaults: 3/2/100. Below 10 = oversold, above 90 = overbought. Returns `Series<{ crsi, rsi, streakRsi, rocPercentile }>` (all `number | null`).
+
 ## Indicators — Volatility
 
 ### `bollingerBands(candles, { period?, stdDev?, source? })`
@@ -160,6 +166,9 @@ Classify volatility into regimes. Options: `atrPeriod` (14), `bbPeriod` (20), `l
 
 Returns `Series<{ regime: 'low' | 'normal' | 'high' | 'extreme', atrPercentile, bandwidthPercentile, historicalVol, confidence }>`.
 
+### `choppinessIndex(candles, { period? })`
+Choppiness Index — measures if market is choppy or trending. `CHOP = 100 * LOG10(SUM(TR, n) / (HH - LL)) / LOG10(n)`. Default period: 14. Above 61.8 = choppy, below 38.2 = trending. Returns `Series<number | null>` (0-100).
+
 ## Indicators — Volume
 
 ### `obv(candles)`
@@ -168,8 +177,8 @@ On Balance Volume. Returns `Series<number>`.
 ### `mfi(candles, { period? })`
 Money Flow Index. Default: 14. Returns `Series<number | null>` (0-100).
 
-### `vwap(candles, { resetPeriod?, period? })`
-VWAP. resetPeriod: `'session'` (default) | `'rolling'` | number. Returns `Series<{ vwap, upper, lower }>`.
+### `vwap(candles, { resetPeriod?, period?, bandMultipliers? })`
+VWAP. resetPeriod: `'session'` (default) | `'rolling'` | number. Optional `bandMultipliers` (e.g., `[2, 3]`) adds ±nσ bands. Returns `Series<{ vwap, upper, lower, bands?: { upper, lower }[] }>`.
 
 ### `cmf(candles, { period? })`
 Chaikin Money Flow. Default: 20. Returns `Series<number | null>` (-1 to +1).
@@ -193,6 +202,9 @@ Volume trend confirmation. Returns `Series<{ priceTrend, volumeTrend, isConfirme
 
 ### `adl(candles)`
 Accumulation/Distribution Line. Returns `Series<number>`.
+
+### `anchoredVwap(candles, { anchorTime, bands? })`
+Anchored VWAP — cumulative VWAP from a specific anchor timestamp. `bands` (0/1/2) adds ±1σ/±2σ bands. Returns `Series<{ vwap, upper1?, lower1?, upper2?, lower2? }>` (all `number | null`).
 
 ## Indicators — Price
 
@@ -218,6 +230,12 @@ Williams Fractals. Detects fractal highs and lows based on local extremes. Defau
 
 ### `zigzag(candles, { deviation?, useAtr?, atrPeriod?, atrMultiplier? })`
 Zigzag indicator. Connects significant swing points, filtering noise below the deviation threshold (default 5%). Supports ATR-based dynamic thresholds. Returns `Series<{ point: 'high' | 'low' | null, price: number | null, changePercent: number | null }>`.
+
+### `openingRange(candles, { minutes?, sessionResetPeriod? })`
+Opening Range Breakout (ORB). Detects the first N minutes' high/low of a session, then identifies breakouts. Defaults: minutes=30, sessionResetPeriod='day'. Returns `Series<{ high, low, breakout: 'above' | 'below' | null }>`.
+
+### `gapAnalysis(candles, { minGapPercent? })`
+Gap Analysis. Detects gap ups/downs, classifies as full/partial, and tracks fill status. Default minGapPercent: 0.5. Returns `Series<{ type: 'up' | 'down' | null, gapPercent, classification: 'full' | 'partial' | 'unfilled' | null, filled: boolean }>`.
 
 ## Indicators — Drawing Tools
 

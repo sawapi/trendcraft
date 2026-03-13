@@ -23,6 +23,7 @@ A practical guide to understanding technical indicators and trading signals.
 - [Price Patterns](#price-patterns)
 - [Multi-Timeframe (MTF) Analysis](#multi-timeframe-mtf-analysis)
 - [Range-Bound Detection](#range-bound-detection)
+- [Day Trading & Short-Term Swing Indicators](#day-trading--short-term-swing-indicators)
 - [Backtesting](#backtesting)
 - [Signal Scoring](#signal-scoring)
 - [Position Sizing](#position-sizing)
@@ -1352,6 +1353,125 @@ const result = TrendCraft.from(candles)
 | `tightRange()` | In a very tight range |
 | `breakoutRiskUp()` | Price near upper boundary |
 | `breakoutRiskDown()` | Price near lower boundary |
+
+---
+
+## Day Trading & Short-Term Swing Indicators
+
+These indicators are particularly useful for intraday and short-term swing trading.
+
+### Hull Moving Average (HMA)
+
+HMA reduces the lag inherent in traditional moving averages by using nested WMA calculations.
+
+```typescript
+import { hma } from 'trendcraft';
+
+const hma9 = hma(candles);                          // Default period 9
+const hma20 = hma(candles, { period: 20 });          // Custom period
+```
+
+HMA responds faster to price changes than SMA or EMA of the same period, making it ideal for short-term trend detection.
+
+### Choppiness Index
+
+Measures whether the market is choppy (range-bound) or trending. Values range from 0-100.
+
+```typescript
+import { choppinessIndex } from 'trendcraft';
+
+const chop = choppinessIndex(candles);               // Default period 14
+
+// Interpretation
+chop.forEach(({ value }) => {
+  if (value !== null) {
+    if (value > 61.8) console.log('Choppy — avoid trend strategies');
+    if (value < 38.2) console.log('Trending — good for trend following');
+  }
+});
+```
+
+### VWAP Bands
+
+The standard VWAP now supports additional standard deviation bands for better support/resistance analysis.
+
+```typescript
+import { vwap } from 'trendcraft';
+
+// Add ±2σ and ±3σ bands
+const result = vwap(candles, { bandMultipliers: [2, 3] });
+result.forEach(({ value }) => {
+  console.log(value.vwap);           // VWAP
+  console.log(value.upper, value.lower);  // ±1σ bands (always included)
+  console.log(value.bands);          // [{upper, lower}, {upper, lower}] for 2σ and 3σ
+});
+```
+
+### Anchored VWAP
+
+Calculate VWAP from a specific anchor point — useful for measuring institutional cost basis from significant events like earnings, breakouts, or lows.
+
+```typescript
+import { anchoredVwap } from 'trendcraft';
+
+const avwap = anchoredVwap(candles, {
+  anchorTime: Date.parse('2024-01-15'),
+  bands: 2,                           // Include ±1σ and ±2σ bands
+});
+```
+
+### Connors RSI
+
+A composite oscillator combining three components for mean reversion signals:
+
+```typescript
+import { connorsRsi } from 'trendcraft';
+
+const crsi = connorsRsi(candles);    // Default: rsiPeriod=3, streakPeriod=2, rocPeriod=100
+
+crsi.forEach(({ value }) => {
+  if (value.crsi !== null) {
+    if (value.crsi < 10) console.log('Strongly oversold');
+    if (value.crsi > 90) console.log('Strongly overbought');
+  }
+});
+```
+
+### Gap Analysis
+
+Detects price gaps between consecutive candles, classifies them, and tracks whether they get filled.
+
+```typescript
+import { gapAnalysis } from 'trendcraft';
+
+const gaps = gapAnalysis(candles, { minGapPercent: 0.5 });
+
+gaps.forEach(({ value }) => {
+  if (value.type) {
+    console.log(`Gap ${value.type}: ${value.gapPercent.toFixed(1)}% (${value.classification})`);
+    if (value.filled) console.log('  → Gap has been filled');
+  }
+});
+```
+
+### Opening Range Breakout (ORB)
+
+Identifies the high and low of the first N minutes of a trading session, then detects breakouts.
+
+```typescript
+import { openingRange } from 'trendcraft';
+
+// 30-minute opening range (default)
+const orb = openingRange(intradayCandles);
+
+// 15-minute opening range
+const orb15 = openingRange(intradayCandles, { minutes: 15 });
+
+orb.forEach(({ value }) => {
+  if (value.breakout === 'above') console.log('Breakout above opening range!');
+  if (value.breakout === 'below') console.log('Breakdown below opening range!');
+});
+```
 
 ---
 

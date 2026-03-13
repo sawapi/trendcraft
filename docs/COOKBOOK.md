@@ -897,3 +897,107 @@ import { parseCsv, normalizeCandles } from "trendcraft";
 const raw = parseCsv(csvString); // Returns Candle[]
 const candles = normalizeCandles(raw);
 ```
+
+---
+
+## Recipe 19: Day Trading — ORB + Choppiness Filter + HMA Trend
+
+**Goal:** Intraday strategy using Opening Range Breakout with a choppiness filter and HMA for trend confirmation.
+**Indicators:** Opening Range, Choppiness Index, HMA, VWAP
+
+```typescript
+import {
+  normalizeCandles,
+  openingRange,
+  choppinessIndex,
+  hma,
+  vwap,
+} from "trendcraft";
+
+const candles = normalizeCandles(intradayCandles); // 5-minute bars
+
+// Opening Range (first 30 minutes)
+const orb = openingRange(candles, { minutes: 30 });
+
+// Choppiness filter — only trade when market is trending
+const chop = choppinessIndex(candles, { period: 14 });
+
+// HMA for fast trend direction
+const hma9 = hma(candles, { period: 9 });
+
+// VWAP with 2σ/3σ bands for targets
+const vwapData = vwap(candles, { bandMultipliers: [2, 3] });
+
+// Strategy logic
+for (let i = 1; i < candles.length; i++) {
+  const orbVal = orb[i].value;
+  const chopVal = chop[i].value;
+  const hmaVal = hma9[i].value;
+  const prevHma = hma9[i - 1].value;
+
+  if (!orbVal.breakout || chopVal === null || hmaVal === null || prevHma === null) continue;
+
+  // Only take breakouts when market is trending (chop < 50)
+  if (chopVal > 50) continue;
+
+  if (orbVal.breakout === "above" && hmaVal > prevHma) {
+    console.log(`LONG at ${candles[i].close} — ORB breakout + HMA rising`);
+  }
+  if (orbVal.breakout === "below" && hmaVal < prevHma) {
+    console.log(`SHORT at ${candles[i].close} — ORB breakdown + HMA falling`);
+  }
+}
+```
+
+---
+
+## Recipe 20: Mean Reversion — Connors RSI + Anchored VWAP
+
+**Goal:** Mean reversion strategy using Connors RSI for timing and Anchored VWAP for value reference.
+**Indicators:** Connors RSI, Anchored VWAP, Gap Analysis
+
+```typescript
+import {
+  normalizeCandles,
+  connorsRsi,
+  anchoredVwap,
+  gapAnalysis,
+} from "trendcraft";
+
+const candles = normalizeCandles(rawCandles);
+
+// Connors RSI for overbought/oversold
+const crsi = connorsRsi(candles, { rsiPeriod: 3, streakPeriod: 2, rocPeriod: 100 });
+
+// Anchor VWAP from the recent major low (e.g., last quarter start)
+const avwap = anchoredVwap(candles, {
+  anchorTime: Date.parse("2024-01-01"),
+  bands: 2,
+});
+
+// Gap analysis for additional context
+const gaps = gapAnalysis(candles, { minGapPercent: 1.0 });
+
+for (let i = 0; i < candles.length; i++) {
+  const crsiVal = crsi[i].value;
+  const avwapVal = avwap[i].value;
+  const gapVal = gaps[i].value;
+
+  if (crsiVal.crsi === null || avwapVal.vwap === null) continue;
+
+  // Buy: CRSI oversold + price near/below anchored VWAP
+  if (crsiVal.crsi < 10 && candles[i].close <= avwapVal.vwap) {
+    console.log(`BUY signal: CRSI=${crsiVal.crsi.toFixed(1)}, price at/below AVWAP`);
+  }
+
+  // Sell: CRSI overbought + price above AVWAP upper band
+  if (crsiVal.crsi > 90 && avwapVal.upper1 && candles[i].close > avwapVal.upper1) {
+    console.log(`SELL signal: CRSI=${crsiVal.crsi.toFixed(1)}, price above AVWAP +1σ`);
+  }
+
+  // Gap fade: large gap down + CRSI oversold
+  if (gapVal.type === "down" && gapVal.gapPercent > 2 && crsiVal.crsi < 15) {
+    console.log(`GAP FADE: ${gapVal.gapPercent.toFixed(1)}% gap down + oversold`);
+  }
+}
+```
