@@ -30,6 +30,8 @@ export type Agent = {
   getTrades(): Trade[];
   getState(): AgentState;
   restore(state: AgentState): void;
+  /** Hot-swap: replace the strategy while preserving position and trade history */
+  replaceStrategy(newStrategy: StrategyDefinition): void;
 };
 
 export function createAgent(
@@ -43,6 +45,7 @@ export function createAgent(
   },
 ): Agent {
   const id = `${strategy.id}:${symbol}`;
+  let currentStrategy = strategy;
   let tier: AgentTier = opts?.tier ?? "paper";
   const startedAt = opts?.fromState?.metrics.startedAt ?? Date.now();
 
@@ -60,20 +63,20 @@ export function createAgent(
   let estimatedTaxAccumulator = opts?.fromState?.metrics.estimatedTax ?? 0;
 
   // Cost config from strategy position options
-  const costConfig = {
+  let costConfig = {
     commission: strategy.position.commission ?? DEFAULT_TRADING_COSTS.commission,
     commissionRate: strategy.position.commissionRate ?? DEFAULT_TRADING_COSTS.commissionRate,
     taxRate: strategy.position.taxRate ?? DEFAULT_TRADING_COSTS.taxRate,
   };
 
   // Signal lifecycle state
-  const lifecycle = strategy.signalLifecycle;
+  let lifecycle = currentStrategy.signalLifecycle;
   let barsSinceLastTrade = Number.POSITIVE_INFINITY;
   let consecutiveEntryBars = 0;
   let lastBarTime = 0;
 
   function isNewBar(time: number): boolean {
-    if (time - lastBarTime >= strategy.intervalMs) {
+    if (time - lastBarTime >= currentStrategy.intervalMs) {
       lastBarTime = time;
       return true;
     }
@@ -164,7 +167,7 @@ export function createAgent(
       return id;
     },
     get strategyId() {
-      return strategy.id;
+      return currentStrategy.id;
     },
     get symbol() {
       return symbol;
@@ -239,7 +242,7 @@ export function createAgent(
     getState(): AgentState {
       return {
         id,
-        strategyId: strategy.id,
+        strategyId: currentStrategy.id,
         symbol,
         tier,
         active: true,
@@ -255,10 +258,35 @@ export function createAgent(
       grossReturnAccumulator = state.metrics.grossReturn ?? 0;
       totalCommissionAccumulator = state.metrics.totalCommission ?? 0;
       estimatedTaxAccumulator = state.metrics.estimatedTax ?? 0;
-      session = createSessionFromStrategy(strategy, {
-        capital: opts?.capital ?? strategy.position.capital,
+      session = createSessionFromStrategy(currentStrategy, {
+        capital: opts?.capital ?? currentStrategy.position.capital,
         fromState: state.sessionState ?? undefined,
       });
+    },
+
+    replaceStrategy(newStrategy: StrategyDefinition) {
+      // Preserve current session state (position, trade history)
+      const currentState = session.getState();
+
+      currentStrategy = newStrategy;
+
+      // Rebuild session with new strategy, preserving position/trade state
+      session = createSessionFromStrategy(newStrategy, {
+        capital: opts?.capital ?? newStrategy.position.capital,
+        fromState: currentState,
+      });
+
+      // Update cost config
+      costConfig = {
+        commission: newStrategy.position.commission ?? DEFAULT_TRADING_COSTS.commission,
+        commissionRate: newStrategy.position.commissionRate ?? DEFAULT_TRADING_COSTS.commissionRate,
+        taxRate: newStrategy.position.taxRate ?? DEFAULT_TRADING_COSTS.taxRate,
+      };
+
+      // Update signal lifecycle
+      lifecycle = newStrategy.signalLifecycle;
+
+      console.log(`[AGENT] ${id} strategy hot-swapped`);
     },
   };
 }

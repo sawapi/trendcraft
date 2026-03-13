@@ -36,6 +36,8 @@ export type AgentManager = {
     portfolioGuardState?: streaming.PortfolioGuardState,
   ): void;
   getPortfolioExposure(): streaming.PortfolioExposure | null;
+  /** Hot-swap strategy for an agent (used by intra-session review) */
+  replaceAgentStrategy(agentId: string, newStrategy: StrategyDefinition): boolean;
   /** Set market filter for a strategy (used by LLM overrides) */
   setMarketFilter(strategyId: string, filter: MarketFilter | null): void;
 };
@@ -196,6 +198,13 @@ export function createAgentManager(opts?: AgentManagerOptions): AgentManager {
 
     getPortfolioExposure(): streaming.PortfolioExposure | null {
       return portfolioGuard?.getExposure() ?? null;
+    },
+
+    replaceAgentStrategy(agentId: string, newStrategy: StrategyDefinition): boolean {
+      const agent = agents.get(agentId);
+      if (!agent) return false;
+      agent.replaceStrategy(newStrategy);
+      return true;
     },
 
     setMarketFilter(strategyId: string, filter: MarketFilter | null): void {
