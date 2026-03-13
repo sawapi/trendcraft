@@ -24,9 +24,16 @@ import { createPaperExecutor } from "../executor/paper-executor.js";
 import { formatReconciliation, reconcilePositions } from "../executor/reconciler.js";
 import type { OrderExecutor } from "../executor/types.js";
 import { createStateStore } from "../persistence/store.js";
-import { loadCustomStrategies, loadOverrides } from "../review/applier.js";
+import { loadCustomStrategies, loadOverrides, saveOverrides } from "../review/applier.js";
+import { loadTodayIntraSessionReviews, saveIntraSessionRecord } from "../review/history.js";
+import { buildIntraSessionReport } from "../review/intra-session-report.js";
+import { validateIntraSessionActions } from "../review/intra-session-safety.js";
+import { scheduleIntraSessionReview } from "../review/intra-session-scheduler.js";
+import { reviewIntraSession } from "../review/llm-client.js";
 import { scheduleReview } from "../review/scheduler.js";
+import type { IntraSessionReviewRecord } from "../review/types.js";
 import { scanUniverse } from "../scanner/index.js";
+import { compileTemplate } from "../strategy/compiler.js";
 import {
   applyStrategyOverrides,
   getAllStrategies,
@@ -34,7 +41,12 @@ import {
   getStrategy,
   loadCustomStrategiesFromTemplates,
 } from "../strategy/registry.js";
-import { isSwingStrategy } from "../strategy/template.js";
+import {
+  type ParameterOverride,
+  applyOverrides as applyTemplateOverrides,
+  getPresetTemplate,
+  isSwingStrategy,
+} from "../strategy/template.js";
 import { evaluateAgent, formatLiveLeaderboard, getLeaderboard } from "../tracker/leaderboard.js";
 import { executeReviewCycle } from "./review.js";
 
@@ -51,6 +63,8 @@ export type LiveCommandOptions = {
   all?: boolean;
   capital?: string;
   noAutoReview?: boolean;
+  noIntraReview?: boolean;
+  intraInterval?: string;
   verbose?: boolean;
   autoScan?: boolean;
   universe?: string;
@@ -381,6 +395,191 @@ export async function liveCommand(opts: LiveCommandOptions): Promise<void> {
     }
   }
 
+  // Intra-session review scheduler
+  const sessionStartTime = Date.now();
+  let intraReviewNumber = loadTodayIntraSessionReviews().length;
+  let cancelIntraReview: (() => void) | null = null;
+  if (!opts.noIntraReview && process.env.ANTHROPIC_API_KEY) {
+    const intraIntervalMin = Number.parseInt(opts.intraInterval ?? "30", 10);
+    cancelIntraReview = scheduleIntraSessionReview({
+      intervalMs: intraIntervalMin * 60 * 1000,
+      onReview: async () => {
+        intraReviewNumber++;
+        const reviewNum = intraReviewNumber;
+        console.log(`\n[INTRA] Starting intra-session review #${reviewNum}...`);
+
+        // 1. Build report
+        const report = buildIntraSessionReport(manager, sessionStartTime, reviewNum, marketState);
+
+        // 2. Call LLM
+        let recommendation: import("../review/types.js").LLMRecommendation;
+        try {
+          recommendation = await reviewIntraSession(report);
+        } catch (err) {
+          console.error("[INTRA] LLM call failed:", err instanceof Error ? err.message : err);
+          return;
+        }
+
+        console.log(`[INTRA] Summary: ${recommendation.summary}`);
+        console.log(`[INTRA] Actions proposed: ${recommendation.actions.length}`);
+
+        // 3. Validate actions
+        const todayIntraReviews = loadTodayIntraSessionReviews();
+        const agentPositions = new Map<string, boolean>();
+        for (const agent of manager.getAgents()) {
+          const st = agent.getState();
+          const hasPos =
+            st.sessionState?.trackerState?.position != null &&
+            st.sessionState.trackerState.position.shares > 0;
+          agentPositions.set(agent.id, hasPos);
+        }
+
+        const { valid, rejected } = validateIntraSessionActions(
+          recommendation,
+          todayIntraReviews,
+          agentPositions,
+        );
+
+        if (rejected.length > 0) {
+          console.log(`[INTRA] Rejected: ${rejected.length}`);
+          for (const r of rejected) {
+            console.log(`  - [${r.action.action}] ${r.reason}`);
+          }
+        }
+
+        // 4. Apply valid actions
+        const appliedActions: IntraSessionReviewRecord["appliedActions"] = [];
+        const rejectedActions: IntraSessionReviewRecord["rejectedActions"] = rejected;
+
+        for (const action of valid) {
+          try {
+            if (action.action === "adjust_params") {
+              // Build override and save to strategy-overrides.json
+              const currentOverrides = loadOverrides();
+              const override: ParameterOverride = {
+                strategyId: action.strategyId,
+                overrides: {
+                  ...(action.changes.indicators && { indicators: action.changes.indicators }),
+                  ...(action.changes.position && { position: action.changes.position }),
+                  ...(action.changes.guards && { guards: action.changes.guards }),
+                  ...(action.changes.marketFilter !== undefined && {
+                    marketFilter: action.changes.marketFilter,
+                  }),
+                  ...(action.changes.entry && { entry: action.changes.entry }),
+                  ...(action.changes.exit && { exit: action.changes.exit }),
+                },
+                appliedAt: Date.now(),
+                reasoning: `[intra-#${reviewNum}] ${action.reasoning}`,
+              };
+
+              // Merge with existing
+              const idx = currentOverrides.findIndex((o) => o.strategyId === action.strategyId);
+              if (idx >= 0) {
+                currentOverrides[idx] = {
+                  ...currentOverrides[idx],
+                  overrides: { ...currentOverrides[idx].overrides, ...override.overrides },
+                  appliedAt: override.appliedAt,
+                  reasoning: `${currentOverrides[idx].reasoning} | ${override.reasoning}`,
+                };
+              } else {
+                currentOverrides.push(override);
+              }
+              saveOverrides(currentOverrides);
+
+              // Hot-swap: recompile template and replace agent strategy
+              const baseTemplate = getPresetTemplate(action.strategyId);
+              if (baseTemplate) {
+                const finalOverride = currentOverrides.find(
+                  (o) => o.strategyId === action.strategyId,
+                )!;
+                const modified = applyTemplateOverrides(baseTemplate, finalOverride);
+                const compiled = compileTemplate(modified);
+                if (compiled.ok) {
+                  const swapped = manager.replaceAgentStrategy(
+                    `${action.strategyId}:${report.agents.find((a) => a.strategyId === action.strategyId)?.symbol ?? ""}`,
+                    compiled.strategy,
+                  );
+                  // Try all agents for this strategy
+                  if (!swapped) {
+                    for (const agent of manager.getAgents()) {
+                      if (agent.strategyId === action.strategyId) {
+                        manager.replaceAgentStrategy(agent.id, compiled.strategy);
+                      }
+                    }
+                  }
+                  // Update market filter if changed
+                  if (action.changes.marketFilter !== undefined) {
+                    manager.setMarketFilter(action.strategyId, action.changes.marketFilter);
+                  }
+                  console.log(`[INTRA] Applied adjust_params for ${action.strategyId}`);
+                } else {
+                  console.warn(
+                    `[INTRA] Template compile failed for ${action.strategyId}: ${compiled.error}`,
+                  );
+                }
+              }
+
+              appliedActions.push({ action });
+            } else if (action.action === "kill_agent") {
+              const agent = manager.getAgent(action.agentId);
+              if (agent) {
+                const { intents } = agent.close();
+                for (const intent of intents) {
+                  await executor.execute(intent);
+                }
+                manager.removeAgent(action.agentId);
+                console.log(`[INTRA] Killed agent ${action.agentId}`);
+                appliedActions.push({ action });
+              } else {
+                rejectedActions.push({ action, reason: `Agent "${action.agentId}" not found` });
+              }
+            } else if (action.action === "revive_agent") {
+              const [strategyId, symbol] = action.agentId.split(":");
+              const strategy = getStrategy(strategyId);
+              if (strategy && symbol) {
+                const { timeframe, lookbackMonths } = getWarmUpTimeframe(strategy.intervalMs);
+                const warmUp = await fetchCachedBars(env, {
+                  symbol,
+                  timeframe,
+                  start: monthsAgo(lookbackMonths),
+                  end: today(),
+                  limit: 200,
+                });
+                manager.addAgent(strategy, symbol, warmUp);
+                console.log(`[INTRA] Revived agent ${action.agentId}`);
+                appliedActions.push({ action });
+              } else {
+                rejectedActions.push({ action, reason: `Strategy "${strategyId}" not found` });
+              }
+            }
+          } catch (err) {
+            console.error(`[INTRA] Failed to apply ${action.action}:`, err);
+            rejectedActions.push({
+              action,
+              reason: err instanceof Error ? err.message : String(err),
+            });
+          }
+        }
+
+        // 5. Save intra-session record
+        const record: IntraSessionReviewRecord = {
+          timestamp: Date.now(),
+          reviewNumber: reviewNum,
+          llmResponse: recommendation,
+          appliedActions,
+          rejectedActions,
+        };
+        const path = saveIntraSessionRecord(record);
+        console.log(`[INTRA] Review #${reviewNum} saved: ${path}`);
+
+        // Save state after changes
+        saveState();
+      },
+      onError: (err) => console.error("[INTRA] Scheduler error:", err),
+    });
+    console.log(`Intra-session review enabled (every ${intraIntervalMin}min during market hours).`);
+  }
+
   // Graceful shutdown
   async function shutdown(): Promise<void> {
     console.log("\nShutting down...");
@@ -391,6 +590,7 @@ export async function liveCommand(opts: LiveCommandOptions): Promise<void> {
     if (verboseTimer) clearInterval(verboseTimer);
     if (reconcileTimer) clearInterval(reconcileTimer);
     if (cancelReview) cancelReview();
+    if (cancelIntraReview) cancelIntraReview();
 
     // Close day-trade positions, keep swing positions
     const agents = manager.getAgents();

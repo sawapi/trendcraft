@@ -59,6 +59,8 @@ program
   )
   .option("--exclude <file>", "Exclude symbols file (default: data/exclude-symbols.txt)")
   .option("-n, --top <n>", "Number of top symbols from scan", "5")
+  .option("--no-intra-review", "Disable intra-session LLM reviews")
+  .option("--intra-interval <min>", "Intra-session review interval in minutes", "30")
   .action(liveCommand);
 
 program

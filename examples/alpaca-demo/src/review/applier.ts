@@ -318,7 +318,7 @@ export function loadOverrides(): ParameterOverride[] {
   }
 }
 
-function saveOverrides(overrides: ParameterOverride[]): void {
+export function saveOverrides(overrides: ParameterOverride[]): void {
   atomicWriteJson(OVERRIDES_PATH, overrides);
 }
 
