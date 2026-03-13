@@ -23,6 +23,7 @@ import {
   dmi,
   ema,
   incremental,
+  keltnerChannel,
   macdCrossDown,
   macdCrossUp,
   rsi,
@@ -125,6 +126,13 @@ function compileIndicator(ind: IndicatorRef): IncrementalFactory {
         });
     case "dmi":
       return () => incremental.createDmi({ period: ind.params.period ?? 14 });
+    case "keltner":
+      return () =>
+        incremental.createKeltnerChannel({
+          emaPeriod: ind.params.period ?? 20,
+          atrPeriod: ind.params.period ?? 20,
+          multiplier: ind.params.multiplier ?? 2,
+        });
     case "regime":
       return () =>
         incremental.createRegime({
@@ -179,33 +187,19 @@ function compileStreamingConditionRef(
       const key = resolveIndicatorKey(ref.params?.indicatorKey as string, indicators);
       return buildPriceCondition("below", key, indicators);
     }
-    case "smaGoldenCross": {
-      const smaInds = indicators.filter((i) => i.type === "sma");
-      const sorted = [...smaInds].sort((a, b) => (a.params.period ?? 20) - (b.params.period ?? 20));
-      const shortName = sorted[0]?.name ?? "sma20";
-      const longName = sorted[1]?.name ?? "sma50";
-      return streaming.crossOver(shortName, longName);
-    }
+    case "smaGoldenCross":
     case "smaDeadCross": {
-      const smaInds = indicators.filter((i) => i.type === "sma");
-      const sorted = [...smaInds].sort((a, b) => (a.params.period ?? 20) - (b.params.period ?? 20));
-      const shortName = sorted[0]?.name ?? "sma20";
-      const longName = sorted[1]?.name ?? "sma50";
-      return streaming.crossUnder(shortName, longName);
+      const [shortName, longName] = sortedIndicatorPair(indicators, "sma", 20, "sma20", "sma50");
+      return ref.type === "smaGoldenCross"
+        ? streaming.crossOver(shortName, longName)
+        : streaming.crossUnder(shortName, longName);
     }
-    case "emaGoldenCross": {
-      const emaInds = indicators.filter((i) => i.type === "ema");
-      const sorted = [...emaInds].sort((a, b) => (a.params.period ?? 9) - (b.params.period ?? 9));
-      const shortName = sorted[0]?.name ?? "ema10";
-      const longName = sorted[1]?.name ?? "ema30";
-      return streaming.crossOver(shortName, longName);
-    }
+    case "emaGoldenCross":
     case "emaDeadCross": {
-      const emaInds = indicators.filter((i) => i.type === "ema");
-      const sorted = [...emaInds].sort((a, b) => (a.params.period ?? 9) - (b.params.period ?? 9));
-      const shortName = sorted[0]?.name ?? "ema10";
-      const longName = sorted[1]?.name ?? "ema30";
-      return streaming.crossUnder(shortName, longName);
+      const [shortName, longName] = sortedIndicatorPair(indicators, "ema", 9, "ema10", "ema30");
+      return ref.type === "emaGoldenCross"
+        ? streaming.crossOver(shortName, longName)
+        : streaming.crossUnder(shortName, longName);
     }
     case "indicatorAbove":
       return streaming.indicatorAbove(
@@ -227,6 +221,45 @@ function compileStreamingConditionRef(
         (ref.params?.threshold as number) ?? 25,
         findIndicatorName(indicators, "dmi"),
       );
+    case "priceBelowVwap":
+      return priceVsField(indicators, "vwap", "vwap", "below");
+    case "priceAboveVwap":
+      return priceVsField(indicators, "vwap", "vwap", "above");
+    case "priceBelowKeltnerLower":
+      return priceVsField(indicators, "keltner", "lower", "below");
+    case "priceAboveKeltnerMiddle":
+      return priceVsField(indicators, "keltner", "middle", "above");
+    case "emaCrossUp":
+    case "emaCrossDown": {
+      const [shortName, longName] = sortedIndicatorPair(indicators, "ema", 9, "ema8", "ema21");
+      return ref.type === "emaCrossUp"
+        ? streaming.crossOver(shortName, longName)
+        : streaming.crossUnder(shortName, longName);
+    }
+    case "stochOversoldCrossUp": {
+      const stochName = findIndicatorName(indicators, "stochastics");
+      const threshold = (ref.params?.threshold as number) ?? 20;
+      const crossUp = streaming.crossOver(
+        (snapshot) => streaming.getField(snapshot, stochName, "k"),
+        (snapshot) => streaming.getField(snapshot, stochName, "d"),
+      );
+      const fn: streaming.StreamingConditionFn = (snapshot, candle) => {
+        const k = streaming.getField(snapshot, stochName, "k");
+        if (k === null || k >= threshold) return false;
+        return crossUp.evaluate(snapshot, candle);
+      };
+      return fn;
+    }
+    case "stochOverbought": {
+      const stochName = findIndicatorName(indicators, "stochastics");
+      const threshold = (ref.params?.threshold as number) ?? 80;
+      const fn: streaming.StreamingConditionFn = (snapshot) => {
+        const k = streaming.getField(snapshot, stochName, "k");
+        if (k === null) return false;
+        return k > threshold;
+      };
+      return fn;
+    }
     case "regimeFilter":
       return streaming.regimeFilter({
         key: ref.params?.key as string | undefined,
@@ -324,19 +357,14 @@ function compileBacktestConditionRef(ref: ConditionRef, indicators: IndicatorRef
       return backtestGoldenCross();
     case "smaDeadCross":
       return backtestDeadCross();
-    case "emaGoldenCross": {
-      const emaInds = indicators.filter((i) => i.type === "ema");
-      const sorted = [...emaInds].sort((a, b) => (a.params.period ?? 9) - (b.params.period ?? 9));
-      const shortPeriod = sorted[0]?.params.period ?? 10;
-      const longPeriod = sorted[1]?.params.period ?? 30;
-      return buildEmaCrossCondition("golden", shortPeriod, longPeriod);
-    }
+    case "emaGoldenCross":
     case "emaDeadCross": {
-      const emaInds = indicators.filter((i) => i.type === "ema");
-      const sorted = [...emaInds].sort((a, b) => (a.params.period ?? 9) - (b.params.period ?? 9));
-      const shortPeriod = sorted[0]?.params.period ?? 10;
-      const longPeriod = sorted[1]?.params.period ?? 30;
-      return buildEmaCrossCondition("dead", shortPeriod, longPeriod);
+      const [shortP, longP] = sortedIndicatorPeriods(indicators, "ema", 9, 10, 30);
+      return buildEmaCrossCondition(
+        ref.type === "emaGoldenCross" ? "golden" : "dead",
+        shortP,
+        longP,
+      );
     }
     case "dmiBullish": {
       const dmiInd = indicators.find((i) => i.type === "dmi");
@@ -352,6 +380,23 @@ function compileBacktestConditionRef(ref: ConditionRef, indicators: IndicatorRef
         dmiInd?.params.period ?? 14,
       );
     }
+    case "priceBelowVwap":
+      return buildBacktestBandCondition("vwap", "vwap", "below", indicators);
+    case "priceAboveVwap":
+      return buildBacktestBandCondition("vwap", "vwap", "above", indicators);
+    case "priceBelowKeltnerLower":
+      return buildBacktestBandCondition("keltner", "lower", "below", indicators);
+    case "priceAboveKeltnerMiddle":
+      return buildBacktestBandCondition("keltner", "middle", "above", indicators);
+    case "emaCrossUp":
+    case "emaCrossDown": {
+      const [shortP, longP] = sortedIndicatorPeriods(indicators, "ema", 9, 8, 21);
+      return buildEmaCrossCondition(ref.type === "emaCrossUp" ? "golden" : "dead", shortP, longP);
+    }
+    case "stochOversoldCrossUp":
+      return buildBacktestStochCrossUp((ref.params?.threshold as number) ?? 20, indicators);
+    case "stochOverbought":
+      return buildBacktestStochOverbought((ref.params?.threshold as number) ?? 80, indicators);
     default:
       throw new Error(`Unknown backtest condition type: ${ref.type}`);
   }
@@ -378,6 +423,60 @@ function findIndicatorName(indicators: IndicatorRef[], type: string): string {
  */
 function resolveIndicatorKey(key: string, _indicators: IndicatorRef[]): string {
   return key;
+}
+
+/**
+ * Sort indicators of a given type by period and return the short/long names.
+ * Falls back to the provided defaults when fewer than 2 indicators are found.
+ */
+function sortedIndicatorPair(
+  indicators: IndicatorRef[],
+  type: string,
+  defaultPeriod: number,
+  defaultShort: string,
+  defaultLong: string,
+): [string, string] {
+  const filtered = indicators.filter((i) => i.type === type);
+  const sorted = [...filtered].sort(
+    (a, b) => (a.params.period ?? defaultPeriod) - (b.params.period ?? defaultPeriod),
+  );
+  return [sorted[0]?.name ?? defaultShort, sorted[1]?.name ?? defaultLong];
+}
+
+/**
+ * Sort indicators of a given type by period and return the short/long periods.
+ * Used by backtest EMA cross conditions that need numeric periods rather than names.
+ */
+function sortedIndicatorPeriods(
+  indicators: IndicatorRef[],
+  type: string,
+  defaultPeriod: number,
+  defaultShort: number,
+  defaultLong: number,
+): [number, number] {
+  const filtered = indicators.filter((i) => i.type === type);
+  const sorted = [...filtered].sort(
+    (a, b) => (a.params.period ?? defaultPeriod) - (b.params.period ?? defaultPeriod),
+  );
+  return [sorted[0]?.params.period ?? defaultShort, sorted[1]?.params.period ?? defaultLong];
+}
+
+/**
+ * Build a streaming condition that compares candle.close against a sub-field
+ * of a compound indicator (e.g. vwap.vwap, keltner.lower).
+ */
+function priceVsField(
+  indicators: IndicatorRef[],
+  indicatorType: string,
+  field: string,
+  direction: "above" | "below",
+): streaming.StreamingConditionFn {
+  const name = findIndicatorName(indicators, indicatorType);
+  return (snapshot, candle) => {
+    const v = streaming.resolveNumber(snapshot, `${name}.${field}`);
+    if (v === null) return false;
+    return direction === "above" ? candle.close > v : candle.close < v;
+  };
 }
 
 /**
@@ -462,6 +561,13 @@ function ensureIndicator(
       break;
     case "vwap":
       indicatorCache[indicatorName] = vwap(candles);
+      break;
+    case "keltner":
+      indicatorCache[indicatorName] = keltnerChannel(candles, {
+        emaPeriod: ref.params.period ?? 20,
+        atrPeriod: ref.params.period ?? 20,
+        multiplier: ref.params.multiplier ?? 2,
+      });
       break;
   }
 }
@@ -570,6 +676,71 @@ function buildEmaCrossCondition(
       return prevShort <= prevLong && currShort > currLong;
     }
     return prevShort >= prevLong && currShort < currLong;
+  };
+}
+
+/**
+ * Build a backtest condition that compares candle.close against a sub-field
+ * of a compound indicator (e.g. vwap.vwap, keltner.lower).
+ */
+function buildBacktestBandCondition(
+  indicatorType: string,
+  field: string,
+  direction: "above" | "below",
+  indicatorRefs: IndicatorRef[],
+): Condition {
+  return (indicators, candle, index, candles) => {
+    const name = findIndicatorName(indicatorRefs, indicatorType);
+    ensureIndicator(indicators, name, indicatorRefs, candles);
+    const series = indicators[name] as
+      | { time: number; value: Record<string, number | null> }[]
+      | undefined;
+    const v = series?.[index]?.value?.[field];
+    if (v === null || v === undefined) return false;
+    return direction === "above" ? candle.close > v : candle.close < v;
+  };
+}
+
+/**
+ * Resolve stochastic series from the backtest indicator cache
+ */
+function resolveStochSeries(
+  indicators: Record<string, unknown>,
+  indicatorRefs: IndicatorRef[],
+  candles: NormalizedCandle[],
+): { time: number; value: { k: number | null; d: number | null } }[] | undefined {
+  const name = findIndicatorName(indicatorRefs, "stochastics");
+  ensureIndicator(indicators, name, indicatorRefs, candles);
+  return indicators[name] as
+    | { time: number; value: { k: number | null; d: number | null } }[]
+    | undefined;
+}
+
+/**
+ * Build a backtest condition for Stochastic oversold K crosses above D
+ */
+function buildBacktestStochCrossUp(threshold: number, indicatorRefs: IndicatorRef[]): Condition {
+  return (indicators, _candle, index, candles) => {
+    if (index < 1) return false;
+    const series = resolveStochSeries(indicators, indicatorRefs, candles);
+    if (!series) return false;
+    const curr = series[index]?.value;
+    const prev = series[index - 1]?.value;
+    if (!curr?.k || !curr?.d || !prev?.k || !prev?.d) return false;
+    // K crosses above D while K is below threshold (oversold)
+    return curr.k < threshold && prev.k <= prev.d && curr.k > curr.d;
+  };
+}
+
+/**
+ * Build a backtest condition for Stochastic overbought
+ */
+function buildBacktestStochOverbought(threshold: number, indicatorRefs: IndicatorRef[]): Condition {
+  return (indicators, _candle, index, candles) => {
+    const series = resolveStochSeries(indicators, indicatorRefs, candles);
+    const k = series?.[index]?.value?.k;
+    if (k === null || k === undefined) return false;
+    return k > threshold;
   };
 }
 

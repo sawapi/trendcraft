@@ -524,6 +524,181 @@ export const PRESET_TEMPLATES: StrategyTemplate[] = [
     backtestPeriodDays: 5,
     source: "preset",
   },
+  // --- New day-trading / short-term swing strategies ---
+  {
+    id: "vwap-mean-reversion",
+    name: "VWAP Mean Reversion",
+    description: "Buy when price < VWAP + RSI < 35 + price > EMA(50) — institutional bounce play",
+    intervalMs: 3_600_000,
+    symbols: ["SPY", "QQQ", "AAPL", "MSFT", "NVDA"],
+    indicators: [
+      { type: "vwap", name: "vwap", params: {} },
+      { type: "rsi", name: "rsi", params: { period: 10 } },
+      { type: "ema", name: "ema50", params: { period: 50 } },
+      { type: "atr", name: "atr", params: { period: 14 } },
+    ],
+    entry: {
+      operator: "and",
+      conditions: [
+        { type: "priceBelowVwap" },
+        { type: "rsiBelow", params: { threshold: 35 } },
+        { type: "priceAbove", params: { indicatorKey: "ema50" } },
+      ],
+    },
+    exit: {
+      operator: "or",
+      conditions: [{ type: "priceAboveVwap" }, { type: "rsiAbove", params: { threshold: 65 } }],
+    },
+    guards: { maxDailyLoss: -5_000, maxDailyTrades: 8, timeGuard: null },
+    position: {
+      capital: 100_000,
+      sizingMethod: "risk-based",
+      riskPercent: 1,
+      stopLoss: 2,
+      takeProfit: 4,
+      atrTrailingStop: { period: 14, multiplier: 2 },
+      slippage: 0.05,
+    },
+    signalLifecycle: { cooldownBars: 3 },
+    backtestTimeframe: "1Hour",
+    backtestPeriodDays: 90,
+    source: "preset",
+    reasoning:
+      "VWAP is the institutional average cost level. " +
+      "Buying below VWAP with RSI confirmation targets oversold bounces in an uptrend.",
+  },
+  {
+    id: "keltner-reversion",
+    name: "Keltner Channel Mean Reversion",
+    description:
+      "Buy at Keltner lower band + RSI < 30, exit at middle band — ATR-based mean reversion",
+    intervalMs: 3_600_000,
+    symbols: ["SPY", "QQQ", "AAPL", "MSFT", "NVDA"],
+    indicators: [
+      { type: "keltner", name: "keltner", params: { period: 20, multiplier: 2 } },
+      { type: "rsi", name: "rsi", params: { period: 14 } },
+      { type: "atr", name: "atr", params: { period: 14 } },
+    ],
+    entry: {
+      operator: "and",
+      conditions: [
+        { type: "priceBelowKeltnerLower" },
+        { type: "rsiBelow", params: { threshold: 30 } },
+      ],
+    },
+    exit: {
+      operator: "or",
+      conditions: [
+        { type: "priceAboveKeltnerMiddle" },
+        { type: "rsiAbove", params: { threshold: 70 } },
+      ],
+    },
+    guards: { maxDailyLoss: -5_000, maxDailyTrades: 8, timeGuard: null },
+    position: {
+      capital: 100_000,
+      sizingMethod: "risk-based",
+      riskPercent: 1,
+      stopLoss: 3,
+      takeProfit: 6,
+      atrTrailingStop: { period: 14, multiplier: 1.5 },
+      slippage: 0.05,
+    },
+    signalLifecycle: { cooldownBars: 3 },
+    backtestTimeframe: "1Hour",
+    backtestPeriodDays: 90,
+    source: "preset",
+    reasoning:
+      "Keltner uses ATR instead of stddev, making bands more robust to outliers. " +
+      "77% win rate reported on S&P500 (QuantifiedStrategies.com).",
+  },
+  {
+    id: "ema-vwap-momentum",
+    name: "EMA Cross + VWAP Momentum",
+    description:
+      "EMA(8)/EMA(21) bullish cross + price > VWAP + RSI > 50 — triple-confirmation momentum",
+    intervalMs: 3_600_000,
+    symbols: ["SPY", "QQQ", "AAPL", "MSFT", "NVDA"],
+    indicators: [
+      { type: "ema", name: "ema8", params: { period: 8 } },
+      { type: "ema", name: "ema21", params: { period: 21 } },
+      { type: "vwap", name: "vwap", params: {} },
+      { type: "rsi", name: "rsi", params: { period: 14 } },
+    ],
+    entry: {
+      operator: "and",
+      conditions: [
+        { type: "emaCrossUp" },
+        { type: "priceAboveVwap" },
+        { type: "rsiAbove", params: { threshold: 50 } },
+      ],
+    },
+    exit: {
+      operator: "or",
+      conditions: [{ type: "emaCrossDown" }, { type: "priceBelowVwap" }],
+    },
+    guards: { maxDailyLoss: -5_000, maxDailyTrades: 8, timeGuard: null },
+    position: {
+      capital: 100_000,
+      sizingMethod: "risk-based",
+      riskPercent: 1,
+      stopLoss: 1.5,
+      takeProfit: 3,
+      trailingStop: 2,
+      slippage: 0.05,
+    },
+    signalLifecycle: { cooldownBars: 3 },
+    backtestTimeframe: "1Hour",
+    backtestPeriodDays: 90,
+    source: "preset",
+    reasoning:
+      "Triple confirmation: trend (EMA cross) + volume (VWAP) + momentum (RSI). " +
+      "Non-correlated indicators reduce false signals.",
+  },
+  {
+    id: "stoch-momentum-swing",
+    name: "Stochastic Momentum Swing",
+    description:
+      "Stochastic K/D oversold cross + price > EMA(50) — reversal from oversold in uptrend",
+    intervalMs: 3_600_000,
+    symbols: ["SPY", "QQQ", "AAPL", "MSFT", "NVDA"],
+    indicators: [
+      { type: "stochastics", name: "stoch", params: { kPeriod: 14, dPeriod: 3 } },
+      { type: "ema", name: "ema50", params: { period: 50 } },
+      { type: "rsi", name: "rsi", params: { period: 14 } },
+      { type: "atr", name: "atr", params: { period: 14 } },
+    ],
+    entry: {
+      operator: "and",
+      conditions: [
+        { type: "stochOversoldCrossUp", params: { threshold: 20 } },
+        { type: "priceAbove", params: { indicatorKey: "ema50" } },
+      ],
+    },
+    exit: {
+      operator: "or",
+      conditions: [
+        { type: "stochOverbought", params: { threshold: 80 } },
+        { type: "rsiAbove", params: { threshold: 70 } },
+      ],
+    },
+    guards: { maxDailyLoss: -5_000, maxDailyTrades: 8, timeGuard: null },
+    position: {
+      capital: 100_000,
+      sizingMethod: "risk-based",
+      riskPercent: 1,
+      stopLoss: 2,
+      takeProfit: 4,
+      atrTrailingStop: { period: 14, multiplier: 2 },
+      slippage: 0.05,
+    },
+    signalLifecycle: { cooldownBars: 3 },
+    backtestTimeframe: "1Hour",
+    backtestPeriodDays: 90,
+    source: "preset",
+    reasoning:
+      "Stochastic oversold crossup targets reversals from exhaustion points. " +
+      "EMA(50) filter ensures we only buy dips in an established uptrend.",
+  },
 ];
 
 /**

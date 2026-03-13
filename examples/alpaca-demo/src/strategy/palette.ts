@@ -83,6 +83,13 @@ export const INDICATOR_PALETTE: Record<string, IndicatorDef> = {
       period: { min: 7, max: 30, default: 14 },
     },
   },
+  keltner: {
+    description: "Keltner Channel — ATR-based volatility bands around EMA",
+    params: {
+      period: { min: 10, max: 50, default: 20 },
+      multiplier: { min: 1, max: 4, default: 2, step: 0.5 },
+    },
+  },
   regime: {
     description:
       "Volatility regime detector — classifies volatility (low/normal/high), " +
@@ -169,6 +176,44 @@ export const CONDITION_PALETTE: Record<string, ConditionDef> = {
     requiredIndicators: ["dmi"],
     params: {
       threshold: { min: 15, max: 50, default: 25 },
+    },
+  },
+  priceBelowVwap: {
+    description: "Price is below VWAP (institutional average cost)",
+    requiredIndicators: ["vwap"],
+  },
+  priceAboveVwap: {
+    description: "Price is above VWAP (institutional average cost)",
+    requiredIndicators: ["vwap"],
+  },
+  priceBelowKeltnerLower: {
+    description: "Price is below Keltner Channel lower band",
+    requiredIndicators: ["keltner"],
+  },
+  priceAboveKeltnerMiddle: {
+    description: "Price is above Keltner Channel middle (EMA)",
+    requiredIndicators: ["keltner"],
+  },
+  emaCrossUp: {
+    description: "Short EMA crosses above long EMA (bullish crossover)",
+    requiredIndicators: ["ema"],
+  },
+  emaCrossDown: {
+    description: "Short EMA crosses below long EMA (bearish crossover)",
+    requiredIndicators: ["ema"],
+  },
+  stochOversoldCrossUp: {
+    description: "Stochastic K crosses above D in oversold zone",
+    requiredIndicators: ["stochastics"],
+    params: {
+      threshold: { min: 10, max: 40, default: 20 },
+    },
+  },
+  stochOverbought: {
+    description: "Stochastic K is above overbought threshold",
+    requiredIndicators: ["stochastics"],
+    params: {
+      threshold: { min: 60, max: 95, default: 80 },
     },
   },
   regimeFilter: {
