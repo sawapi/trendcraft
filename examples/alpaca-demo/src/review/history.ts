@@ -6,7 +6,7 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { atomicWriteJson } from "../persistence/atomic-write.js";
-import type { ReviewRecord } from "./types.js";
+import type { IntraSessionReviewRecord, ReviewRecord } from "./types.js";
 
 const REVIEWS_DIR = resolve(import.meta.dirname, "../../data/reviews");
 
@@ -78,4 +78,54 @@ export function loadTodayReviews(): ReviewRecord[] {
   const today = new Date().toISOString().split("T")[0];
   const record = loadReviewRecord(today);
   return record ? [record] : [];
+}
+
+// --- Intra-Session Review Records ---
+
+/**
+ * Save an intra-session review record.
+ * Files are named: YYYY-MM-DD-intra-N.json
+ */
+export function saveIntraSessionRecord(record: IntraSessionReviewRecord): string {
+  ensureDir(REVIEWS_DIR);
+  const date = new Date(record.timestamp).toISOString().split("T")[0];
+  const path = resolve(REVIEWS_DIR, `${date}-intra-${record.reviewNumber}.json`);
+  atomicWriteJson(path, record);
+  return path;
+}
+
+/**
+ * Load today's intra-session review records (for rate limiting)
+ */
+export function loadTodayIntraSessionReviews(): IntraSessionReviewRecord[] {
+  ensureDir(REVIEWS_DIR);
+  const today = new Date().toISOString().split("T")[0];
+  const results: IntraSessionReviewRecord[] = [];
+
+  try {
+    const files = readdirSync(REVIEWS_DIR)
+      .filter((f) => f.startsWith(`${today}-intra-`) && f.endsWith(".json"))
+      .sort();
+
+    for (const file of files) {
+      try {
+        const data = JSON.parse(
+          readFileSync(resolve(REVIEWS_DIR, file), "utf-8"),
+        ) as IntraSessionReviewRecord;
+        results.push(data);
+      } catch (err) {
+        console.warn(
+          `[history] Skipping corrupted intra-session file ${file}:`,
+          err instanceof Error ? err.message : err,
+        );
+      }
+    }
+  } catch (err) {
+    console.warn(
+      "[history] Failed to read intra-session reviews:",
+      err instanceof Error ? err.message : err,
+    );
+  }
+
+  return results;
 }

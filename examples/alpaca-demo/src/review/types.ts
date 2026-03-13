@@ -206,3 +206,34 @@ export type ReviewRecord = {
   rejectedActions: RejectedAction[];
   outcomes?: ActionOutcome[];
 };
+
+// --- Intra-Session Review ---
+
+export type IntraSessionAgentReport = {
+  agentId: string;
+  strategyId: string;
+  symbol: string;
+  active: boolean;
+  sessionPnl: number;
+  unrealizedPnl: number;
+  tradesThisSession: number;
+  winRate: number;
+  currentPosition: "flat" | "long";
+  recentTrades: TradeRecord[];
+};
+
+export type IntraSessionReport = {
+  timestamp: number;
+  sessionStartTime: number;
+  reviewNumber: number;
+  agents: IntraSessionAgentReport[];
+  marketSnapshots: MarketContext[];
+};
+
+export type IntraSessionReviewRecord = {
+  timestamp: number;
+  reviewNumber: number;
+  llmResponse: LLMRecommendation;
+  appliedActions: AppliedAction[];
+  rejectedActions: RejectedAction[];
+};
