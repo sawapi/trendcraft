@@ -1,8 +1,8 @@
 /**
  * Template Compiler — converts StrategyTemplate to StrategyDefinition
  *
- * Uses a safe switch/map approach (no eval). Each indicator type and
- * condition type maps to a known trendcraft factory function.
+ * Uses registry-based approach (no eval). Indicator and condition types are
+ * registered once and used for both streaming and backtest compilation.
  */
 
 import {
@@ -40,6 +40,298 @@ import { isCombined } from "./template.js";
 export type CompileResult =
   | { ok: true; strategy: StrategyDefinition }
   | { ok: false; error: string };
+
+// ---------------------------------------------------------------------------
+// Indicator Registry — single source of truth for both incremental & batch
+// ---------------------------------------------------------------------------
+
+type IncrementalFactory = () => incremental.IncrementalIndicator<unknown>;
+
+type IndicatorDef = {
+  createIncremental: (params: Record<string, number>) => IncrementalFactory;
+  computeBatch: (candles: NormalizedCandle[], params: Record<string, number>) => unknown;
+};
+
+const INDICATOR_REGISTRY: Record<string, IndicatorDef> = {
+  rsi: {
+    createIncremental: (p) => () => incremental.createRsi({ period: p.period ?? 14 }),
+    computeBatch: (c, p) => rsi(c, { period: p.period ?? 14 }),
+  },
+  macd: {
+    createIncremental: (p) => () =>
+      incremental.createMacd({
+        fastPeriod: p.fastPeriod ?? 12,
+        slowPeriod: p.slowPeriod ?? 26,
+        signalPeriod: p.signalPeriod ?? 9,
+      }),
+    computeBatch: (c, p) =>
+      // macd batch is computed on-demand via custom condition; not used directly
+      null,
+  },
+  bollinger: {
+    createIncremental: (p) => () =>
+      incremental.createBollingerBands({ period: p.period ?? 20, stdDev: p.stdDev ?? 2 }),
+    computeBatch: (c, p) => bollingerBands(c, { period: p.period ?? 20, stdDev: p.stdDev ?? 2 }),
+  },
+  ema: {
+    createIncremental: (p) => () => incremental.createEma({ period: p.period ?? 9 }),
+    computeBatch: (c, p) => ema(c, { period: p.period ?? 9 }),
+  },
+  sma: {
+    createIncremental: (p) => () => incremental.createSma({ period: p.period ?? 20 }),
+    computeBatch: (c, p) => sma(c, { period: p.period ?? 20 }),
+  },
+  vwap: {
+    createIncremental: (_p) => () => incremental.createVwap(),
+    computeBatch: (c, _p) => vwap(c),
+  },
+  atr: {
+    createIncremental: (p) => () => incremental.createAtr({ period: p.period ?? 14 }),
+    computeBatch: (c, p) => atr(c, { period: p.period ?? 14 }),
+  },
+  stochastics: {
+    createIncremental: (p) => () =>
+      incremental.createStochastics({ kPeriod: p.kPeriod ?? 14, dPeriod: p.dPeriod ?? 3 }),
+    computeBatch: (c, p) => stochastics(c, { kPeriod: p.kPeriod ?? 14, dPeriod: p.dPeriod ?? 3 }),
+  },
+  dmi: {
+    createIncremental: (p) => () => incremental.createDmi({ period: p.period ?? 14 }),
+    computeBatch: (c, p) => dmi(c, { period: p.period ?? 14 }),
+  },
+  keltner: {
+    createIncremental: (p) => () =>
+      incremental.createKeltnerChannel({
+        emaPeriod: p.period ?? 20,
+        atrPeriod: p.period ?? 20,
+        multiplier: p.multiplier ?? 2,
+      }),
+    computeBatch: (c, p) =>
+      keltnerChannel(c, {
+        emaPeriod: p.period ?? 20,
+        atrPeriod: p.period ?? 20,
+        multiplier: p.multiplier ?? 2,
+      }),
+  },
+  regime: {
+    createIncremental: (p) => () =>
+      incremental.createRegime({
+        atrPeriod: p.atrPeriod ?? 14,
+        bbPeriod: p.bbPeriod ?? 20,
+        dmiPeriod: p.dmiPeriod ?? 14,
+        lookback: p.lookback ?? 100,
+      }),
+    computeBatch: (_c, _p) => null, // regime is streaming-only
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Condition Registry — single source of truth for streaming & backtest
+// ---------------------------------------------------------------------------
+
+type ConditionDef = {
+  streaming: (ref: ConditionRef, indicators: IndicatorRef[]) => streaming.StreamingCondition;
+  backtest: (ref: ConditionRef, indicators: IndicatorRef[]) => Condition;
+};
+
+const CONDITION_REGISTRY: Record<string, ConditionDef> = {
+  rsiBelow: {
+    streaming: (ref, inds) =>
+      streaming.rsiBelow((ref.params?.threshold as number) ?? 30, findIndicatorName(inds, "rsi")),
+    backtest: (ref, _inds) => backtestRsiBelow((ref.params?.threshold as number) ?? 30),
+  },
+  rsiAbove: {
+    streaming: (ref, inds) =>
+      streaming.rsiAbove((ref.params?.threshold as number) ?? 70, findIndicatorName(inds, "rsi")),
+    backtest: (ref, _inds) => backtestRsiAbove((ref.params?.threshold as number) ?? 70),
+  },
+  macdPositive: {
+    streaming: (_ref, inds) => streaming.macdPositive(findIndicatorName(inds, "macd")),
+    backtest: (_ref, inds) => {
+      const m = inds.find((i) => i.type === "macd");
+      return macdCrossUp(
+        m?.params.fastPeriod ?? 12,
+        m?.params.slowPeriod ?? 26,
+        m?.params.signalPeriod ?? 9,
+      );
+    },
+  },
+  macdNegative: {
+    streaming: (_ref, inds) => streaming.macdNegative(findIndicatorName(inds, "macd")),
+    backtest: (_ref, inds) => {
+      const m = inds.find((i) => i.type === "macd");
+      return macdCrossDown(
+        m?.params.fastPeriod ?? 12,
+        m?.params.slowPeriod ?? 26,
+        m?.params.signalPeriod ?? 9,
+      );
+    },
+  },
+  priceAbove: {
+    streaming: (ref, inds) =>
+      buildPriceCondition("above", ref.params?.indicatorKey as string, inds),
+    backtest: (ref, inds) => buildBacktestCustomCondition(ref, inds),
+  },
+  priceBelow: {
+    streaming: (ref, inds) =>
+      buildPriceCondition("below", ref.params?.indicatorKey as string, inds),
+    backtest: (ref, inds) => buildBacktestCustomCondition(ref, inds),
+  },
+  smaGoldenCross: {
+    streaming: (_ref, inds) => {
+      const [s, l] = sortedIndicatorPair(inds, "sma", 20, "sma20", "sma50");
+      return streaming.crossOver(s, l);
+    },
+    backtest: () => backtestGoldenCross(),
+  },
+  smaDeadCross: {
+    streaming: (_ref, inds) => {
+      const [s, l] = sortedIndicatorPair(inds, "sma", 20, "sma20", "sma50");
+      return streaming.crossUnder(s, l);
+    },
+    backtest: () => backtestDeadCross(),
+  },
+  emaGoldenCross: {
+    streaming: (_ref, inds) => {
+      const [s, l] = sortedIndicatorPair(inds, "ema", 9, "ema10", "ema30");
+      return streaming.crossOver(s, l);
+    },
+    backtest: (_ref, inds) => {
+      const [sp, lp] = sortedIndicatorPeriods(inds, "ema", 9, 10, 30);
+      return buildEmaCrossCondition("golden", sp, lp);
+    },
+  },
+  emaDeadCross: {
+    streaming: (_ref, inds) => {
+      const [s, l] = sortedIndicatorPair(inds, "ema", 9, "ema10", "ema30");
+      return streaming.crossUnder(s, l);
+    },
+    backtest: (_ref, inds) => {
+      const [sp, lp] = sortedIndicatorPeriods(inds, "ema", 9, 10, 30);
+      return buildEmaCrossCondition("dead", sp, lp);
+    },
+  },
+  indicatorAbove: {
+    streaming: (ref, _inds) =>
+      streaming.indicatorAbove(
+        ref.params?.indicatorKey as string,
+        (ref.params?.threshold as number) ?? 0,
+      ),
+    backtest: (ref, inds) => buildBacktestCustomCondition(ref, inds),
+  },
+  indicatorBelow: {
+    streaming: (ref, _inds) =>
+      streaming.indicatorBelow(
+        ref.params?.indicatorKey as string,
+        (ref.params?.threshold as number) ?? 0,
+      ),
+    backtest: (ref, inds) => buildBacktestCustomCondition(ref, inds),
+  },
+  dmiBullish: {
+    streaming: (ref, inds) =>
+      streaming.dmiBullish((ref.params?.threshold as number) ?? 25, findIndicatorName(inds, "dmi")),
+    backtest: (ref, inds) => {
+      const d = inds.find((i) => i.type === "dmi");
+      return backtestDmiBullish((ref.params?.threshold as number) ?? 25, d?.params.period ?? 14);
+    },
+  },
+  dmiBearish: {
+    streaming: (ref, inds) =>
+      streaming.dmiBearish((ref.params?.threshold as number) ?? 25, findIndicatorName(inds, "dmi")),
+    backtest: (ref, inds) => {
+      const d = inds.find((i) => i.type === "dmi");
+      return backtestDmiBearish((ref.params?.threshold as number) ?? 25, d?.params.period ?? 14);
+    },
+  },
+  priceBelowVwap: {
+    streaming: (_ref, inds) => priceVsField(inds, "vwap", "vwap", "below"),
+    backtest: (_ref, inds) => buildBacktestBandCondition("vwap", "vwap", "below", inds),
+  },
+  priceAboveVwap: {
+    streaming: (_ref, inds) => priceVsField(inds, "vwap", "vwap", "above"),
+    backtest: (_ref, inds) => buildBacktestBandCondition("vwap", "vwap", "above", inds),
+  },
+  priceBelowKeltnerLower: {
+    streaming: (_ref, inds) => priceVsField(inds, "keltner", "lower", "below"),
+    backtest: (_ref, inds) => buildBacktestBandCondition("keltner", "lower", "below", inds),
+  },
+  priceAboveKeltnerMiddle: {
+    streaming: (_ref, inds) => priceVsField(inds, "keltner", "middle", "above"),
+    backtest: (_ref, inds) => buildBacktestBandCondition("keltner", "middle", "above", inds),
+  },
+  emaCrossUp: {
+    streaming: (_ref, inds) => {
+      const [s, l] = sortedIndicatorPair(inds, "ema", 9, "ema8", "ema21");
+      return streaming.crossOver(s, l);
+    },
+    backtest: (_ref, inds) => {
+      const [sp, lp] = sortedIndicatorPeriods(inds, "ema", 9, 8, 21);
+      return buildEmaCrossCondition("golden", sp, lp);
+    },
+  },
+  emaCrossDown: {
+    streaming: (_ref, inds) => {
+      const [s, l] = sortedIndicatorPair(inds, "ema", 9, "ema8", "ema21");
+      return streaming.crossUnder(s, l);
+    },
+    backtest: (_ref, inds) => {
+      const [sp, lp] = sortedIndicatorPeriods(inds, "ema", 9, 8, 21);
+      return buildEmaCrossCondition("dead", sp, lp);
+    },
+  },
+  stochOversoldCrossUp: {
+    streaming: (ref, inds) => {
+      const stochName = findIndicatorName(inds, "stochastics");
+      const threshold = (ref.params?.threshold as number) ?? 20;
+      const crossUp = streaming.crossOver(
+        (snapshot) => streaming.getField(snapshot, stochName, "k"),
+        (snapshot) => streaming.getField(snapshot, stochName, "d"),
+      );
+      const fn: streaming.StreamingConditionFn = (snapshot, candle) => {
+        const k = streaming.getField(snapshot, stochName, "k");
+        if (k === null || k >= threshold) return false;
+        return crossUp.evaluate(snapshot, candle);
+      };
+      return fn;
+    },
+    backtest: (ref, inds) =>
+      buildBacktestStochCrossUp((ref.params?.threshold as number) ?? 20, inds),
+  },
+  stochOverbought: {
+    streaming: (ref, inds) => {
+      const stochName = findIndicatorName(inds, "stochastics");
+      const threshold = (ref.params?.threshold as number) ?? 80;
+      const fn: streaming.StreamingConditionFn = (snapshot) => {
+        const k = streaming.getField(snapshot, stochName, "k");
+        if (k === null) return false;
+        return k > threshold;
+      };
+      return fn;
+    },
+    backtest: (ref, inds) =>
+      buildBacktestStochOverbought((ref.params?.threshold as number) ?? 80, inds),
+  },
+  regimeFilter: {
+    streaming: (ref, _inds) =>
+      streaming.regimeFilter({
+        key: ref.params?.key as string | undefined,
+        allowedVolatility: ref.params?.allowedVolatility
+          ? (String(ref.params.allowedVolatility).split(",") as ("low" | "normal" | "high")[])
+          : undefined,
+        allowedTrends: ref.params?.allowedTrends
+          ? (String(ref.params.allowedTrends).split(",") as ("bullish" | "bearish" | "sideways")[])
+          : undefined,
+        minTrendStrength: ref.params?.minTrendStrength as number | undefined,
+      }),
+    backtest: (_ref, _inds) => {
+      // regimeFilter is streaming-only; always pass in backtest
+      return () => true;
+    },
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
 
 /**
  * Compile a StrategyTemplate into an executable StrategyDefinition
@@ -89,62 +381,39 @@ export function compileTemplate(template: StrategyTemplate): CompileResult {
   }
 }
 
-// --- Indicator compilation ---
-
-type IncrementalFactory = () => incremental.IncrementalIndicator<unknown>;
+// ---------------------------------------------------------------------------
+// Indicator compilation (via registry)
+// ---------------------------------------------------------------------------
 
 function compileIndicator(ind: IndicatorRef): IncrementalFactory {
-  switch (ind.type) {
-    case "rsi":
-      return () => incremental.createRsi({ period: ind.params.period ?? 14 });
-    case "macd":
-      return () =>
-        incremental.createMacd({
-          fastPeriod: ind.params.fastPeriod ?? 12,
-          slowPeriod: ind.params.slowPeriod ?? 26,
-          signalPeriod: ind.params.signalPeriod ?? 9,
-        });
-    case "bollinger":
-      return () =>
-        incremental.createBollingerBands({
-          period: ind.params.period ?? 20,
-          stdDev: ind.params.stdDev ?? 2,
-        });
-    case "ema":
-      return () => incremental.createEma({ period: ind.params.period ?? 9 });
-    case "sma":
-      return () => incremental.createSma({ period: ind.params.period ?? 20 });
-    case "vwap":
-      return () => incremental.createVwap();
-    case "atr":
-      return () => incremental.createAtr({ period: ind.params.period ?? 14 });
-    case "stochastics":
-      return () =>
-        incremental.createStochastics({
-          kPeriod: ind.params.kPeriod ?? 14,
-          dPeriod: ind.params.dPeriod ?? 3,
-        });
-    case "dmi":
-      return () => incremental.createDmi({ period: ind.params.period ?? 14 });
-    case "keltner":
-      return () =>
-        incremental.createKeltnerChannel({
-          emaPeriod: ind.params.period ?? 20,
-          atrPeriod: ind.params.period ?? 20,
-          multiplier: ind.params.multiplier ?? 2,
-        });
-    case "regime":
-      return () =>
-        incremental.createRegime({
-          atrPeriod: ind.params.atrPeriod ?? 14,
-          bbPeriod: ind.params.bbPeriod ?? 20,
-          dmiPeriod: ind.params.dmiPeriod ?? 14,
-          lookback: ind.params.lookback ?? 100,
-        });
-    default:
-      throw new Error(`Unknown indicator type: ${ind.type}`);
-  }
+  const def = INDICATOR_REGISTRY[ind.type];
+  if (!def) throw new Error(`Unknown indicator type: ${ind.type}`);
+  return def.createIncremental(ind.params);
 }
+
+/**
+ * Compute indicator series on demand and cache in the indicators object.
+ */
+function ensureIndicator(
+  indicatorCache: Record<string, unknown>,
+  indicatorName: string,
+  indicatorRefs: IndicatorRef[],
+  candles: NormalizedCandle[],
+): void {
+  if (indicatorCache[indicatorName]) return;
+
+  const ref = indicatorRefs.find((i) => i.name === indicatorName);
+  if (!ref) return;
+
+  const def = INDICATOR_REGISTRY[ref.type];
+  if (!def) return;
+
+  indicatorCache[indicatorName] = def.computeBatch(candles, ref.params);
+}
+
+// ---------------------------------------------------------------------------
+// Pipeline & condition compilation (via registry)
+// ---------------------------------------------------------------------------
 
 function buildPipeline(template: StrategyTemplate): streaming.PipelineOptions {
   const indicators = template.indicators.map((ind) => ({
@@ -158,122 +427,13 @@ function buildPipeline(template: StrategyTemplate): streaming.PipelineOptions {
   return { indicators, entry, exit };
 }
 
-// --- Streaming condition compilation ---
-
 function compileStreamingConditionRef(
   ref: ConditionRef,
   indicators: IndicatorRef[],
 ): streaming.StreamingCondition {
-  switch (ref.type) {
-    case "rsiBelow":
-      return streaming.rsiBelow(
-        (ref.params?.threshold as number) ?? 30,
-        findIndicatorName(indicators, "rsi"),
-      );
-    case "rsiAbove":
-      return streaming.rsiAbove(
-        (ref.params?.threshold as number) ?? 70,
-        findIndicatorName(indicators, "rsi"),
-      );
-    case "macdPositive":
-      return streaming.macdPositive(findIndicatorName(indicators, "macd"));
-    case "macdNegative":
-      return streaming.macdNegative(findIndicatorName(indicators, "macd"));
-    case "priceAbove": {
-      const key = resolveIndicatorKey(ref.params?.indicatorKey as string, indicators);
-      return buildPriceCondition("above", key, indicators);
-    }
-    case "priceBelow": {
-      const key = resolveIndicatorKey(ref.params?.indicatorKey as string, indicators);
-      return buildPriceCondition("below", key, indicators);
-    }
-    case "smaGoldenCross":
-    case "smaDeadCross": {
-      const [shortName, longName] = sortedIndicatorPair(indicators, "sma", 20, "sma20", "sma50");
-      return ref.type === "smaGoldenCross"
-        ? streaming.crossOver(shortName, longName)
-        : streaming.crossUnder(shortName, longName);
-    }
-    case "emaGoldenCross":
-    case "emaDeadCross": {
-      const [shortName, longName] = sortedIndicatorPair(indicators, "ema", 9, "ema10", "ema30");
-      return ref.type === "emaGoldenCross"
-        ? streaming.crossOver(shortName, longName)
-        : streaming.crossUnder(shortName, longName);
-    }
-    case "indicatorAbove":
-      return streaming.indicatorAbove(
-        ref.params?.indicatorKey as string,
-        (ref.params?.threshold as number) ?? 0,
-      );
-    case "indicatorBelow":
-      return streaming.indicatorBelow(
-        ref.params?.indicatorKey as string,
-        (ref.params?.threshold as number) ?? 0,
-      );
-    case "dmiBullish":
-      return streaming.dmiBullish(
-        (ref.params?.threshold as number) ?? 25,
-        findIndicatorName(indicators, "dmi"),
-      );
-    case "dmiBearish":
-      return streaming.dmiBearish(
-        (ref.params?.threshold as number) ?? 25,
-        findIndicatorName(indicators, "dmi"),
-      );
-    case "priceBelowVwap":
-      return priceVsField(indicators, "vwap", "vwap", "below");
-    case "priceAboveVwap":
-      return priceVsField(indicators, "vwap", "vwap", "above");
-    case "priceBelowKeltnerLower":
-      return priceVsField(indicators, "keltner", "lower", "below");
-    case "priceAboveKeltnerMiddle":
-      return priceVsField(indicators, "keltner", "middle", "above");
-    case "emaCrossUp":
-    case "emaCrossDown": {
-      const [shortName, longName] = sortedIndicatorPair(indicators, "ema", 9, "ema8", "ema21");
-      return ref.type === "emaCrossUp"
-        ? streaming.crossOver(shortName, longName)
-        : streaming.crossUnder(shortName, longName);
-    }
-    case "stochOversoldCrossUp": {
-      const stochName = findIndicatorName(indicators, "stochastics");
-      const threshold = (ref.params?.threshold as number) ?? 20;
-      const crossUp = streaming.crossOver(
-        (snapshot) => streaming.getField(snapshot, stochName, "k"),
-        (snapshot) => streaming.getField(snapshot, stochName, "d"),
-      );
-      const fn: streaming.StreamingConditionFn = (snapshot, candle) => {
-        const k = streaming.getField(snapshot, stochName, "k");
-        if (k === null || k >= threshold) return false;
-        return crossUp.evaluate(snapshot, candle);
-      };
-      return fn;
-    }
-    case "stochOverbought": {
-      const stochName = findIndicatorName(indicators, "stochastics");
-      const threshold = (ref.params?.threshold as number) ?? 80;
-      const fn: streaming.StreamingConditionFn = (snapshot) => {
-        const k = streaming.getField(snapshot, stochName, "k");
-        if (k === null) return false;
-        return k > threshold;
-      };
-      return fn;
-    }
-    case "regimeFilter":
-      return streaming.regimeFilter({
-        key: ref.params?.key as string | undefined,
-        allowedVolatility: ref.params?.allowedVolatility
-          ? (String(ref.params.allowedVolatility).split(",") as ("low" | "normal" | "high")[])
-          : undefined,
-        allowedTrends: ref.params?.allowedTrends
-          ? (String(ref.params.allowedTrends).split(",") as ("bullish" | "bearish" | "sideways")[])
-          : undefined,
-        minTrendStrength: ref.params?.minTrendStrength as number | undefined,
-      });
-    default:
-      throw new Error(`Unknown condition type: ${ref.type}`);
-  }
+  const def = CONDITION_REGISTRY[ref.type];
+  if (!def) throw new Error(`Unknown condition type: ${ref.type}`);
+  return def.streaming(ref, indicators);
 }
 
 function compileStreamingCondition(
@@ -287,7 +447,23 @@ function compileStreamingCondition(
   return compileStreamingConditionRef(rule, indicators);
 }
 
-// --- Backtest condition compilation ---
+function compileBacktestConditionRef(ref: ConditionRef, indicators: IndicatorRef[]): Condition {
+  const def = CONDITION_REGISTRY[ref.type];
+  if (!def) throw new Error(`Unknown backtest condition type: ${ref.type}`);
+  return def.backtest(ref, indicators);
+}
+
+function compileBacktestCondition(rule: ConditionRule, indicators: IndicatorRef[]): Condition {
+  if (isCombined(rule)) {
+    const compiled = rule.conditions.map((c) => compileBacktestConditionRef(c, indicators));
+    return rule.operator === "and" ? backtestAnd(...compiled) : backtestOr(...compiled);
+  }
+  return compileBacktestConditionRef(rule, indicators);
+}
+
+// ---------------------------------------------------------------------------
+// Backtest config builder
+// ---------------------------------------------------------------------------
 
 function buildBacktestConfig(template: StrategyTemplate) {
   const backtestEntry = compileBacktestCondition(template.entry, template.indicators);
@@ -325,92 +501,9 @@ function buildBacktestConfig(template: StrategyTemplate) {
   return { backtestEntry, backtestExit, backtestOptions };
 }
 
-function compileBacktestConditionRef(ref: ConditionRef, indicators: IndicatorRef[]): Condition {
-  switch (ref.type) {
-    case "rsiBelow":
-      return backtestRsiBelow((ref.params?.threshold as number) ?? 30);
-    case "rsiAbove":
-      return backtestRsiAbove((ref.params?.threshold as number) ?? 70);
-    case "macdPositive": {
-      const macdInd = indicators.find((i) => i.type === "macd");
-      return macdCrossUp(
-        macdInd?.params.fastPeriod ?? 12,
-        macdInd?.params.slowPeriod ?? 26,
-        macdInd?.params.signalPeriod ?? 9,
-      );
-    }
-    case "macdNegative": {
-      const macdInd = indicators.find((i) => i.type === "macd");
-      return macdCrossDown(
-        macdInd?.params.fastPeriod ?? 12,
-        macdInd?.params.slowPeriod ?? 26,
-        macdInd?.params.signalPeriod ?? 9,
-      );
-    }
-    case "priceAbove":
-    case "priceBelow":
-    case "indicatorAbove":
-    case "indicatorBelow":
-      // These require custom functions for backtest
-      return buildBacktestCustomCondition(ref, indicators);
-    case "smaGoldenCross":
-      return backtestGoldenCross();
-    case "smaDeadCross":
-      return backtestDeadCross();
-    case "emaGoldenCross":
-    case "emaDeadCross": {
-      const [shortP, longP] = sortedIndicatorPeriods(indicators, "ema", 9, 10, 30);
-      return buildEmaCrossCondition(
-        ref.type === "emaGoldenCross" ? "golden" : "dead",
-        shortP,
-        longP,
-      );
-    }
-    case "dmiBullish": {
-      const dmiInd = indicators.find((i) => i.type === "dmi");
-      return backtestDmiBullish(
-        (ref.params?.threshold as number) ?? 25,
-        dmiInd?.params.period ?? 14,
-      );
-    }
-    case "dmiBearish": {
-      const dmiInd = indicators.find((i) => i.type === "dmi");
-      return backtestDmiBearish(
-        (ref.params?.threshold as number) ?? 25,
-        dmiInd?.params.period ?? 14,
-      );
-    }
-    case "priceBelowVwap":
-      return buildBacktestBandCondition("vwap", "vwap", "below", indicators);
-    case "priceAboveVwap":
-      return buildBacktestBandCondition("vwap", "vwap", "above", indicators);
-    case "priceBelowKeltnerLower":
-      return buildBacktestBandCondition("keltner", "lower", "below", indicators);
-    case "priceAboveKeltnerMiddle":
-      return buildBacktestBandCondition("keltner", "middle", "above", indicators);
-    case "emaCrossUp":
-    case "emaCrossDown": {
-      const [shortP, longP] = sortedIndicatorPeriods(indicators, "ema", 9, 8, 21);
-      return buildEmaCrossCondition(ref.type === "emaCrossUp" ? "golden" : "dead", shortP, longP);
-    }
-    case "stochOversoldCrossUp":
-      return buildBacktestStochCrossUp((ref.params?.threshold as number) ?? 20, indicators);
-    case "stochOverbought":
-      return buildBacktestStochOverbought((ref.params?.threshold as number) ?? 80, indicators);
-    default:
-      throw new Error(`Unknown backtest condition type: ${ref.type}`);
-  }
-}
-
-function compileBacktestCondition(rule: ConditionRule, indicators: IndicatorRef[]): Condition {
-  if (isCombined(rule)) {
-    const compiled = rule.conditions.map((c) => compileBacktestConditionRef(c, indicators));
-    return rule.operator === "and" ? backtestAnd(...compiled) : backtestOr(...compiled);
-  }
-  return compileBacktestConditionRef(rule, indicators);
-}
-
-// --- Helpers ---
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
 function findIndicatorName(indicators: IndicatorRef[], type: string): string {
   const found = indicators.find((i) => i.type === type);
@@ -418,16 +511,7 @@ function findIndicatorName(indicators: IndicatorRef[], type: string): string {
 }
 
 /**
- * Resolve indicator keys like "bb.lower" into the actual indicator name
- * and sub-field path.
- */
-function resolveIndicatorKey(key: string, _indicators: IndicatorRef[]): string {
-  return key;
-}
-
-/**
  * Sort indicators of a given type by period and return the short/long names.
- * Falls back to the provided defaults when fewer than 2 indicators are found.
  */
 function sortedIndicatorPair(
   indicators: IndicatorRef[],
@@ -445,7 +529,6 @@ function sortedIndicatorPair(
 
 /**
  * Sort indicators of a given type by period and return the short/long periods.
- * Used by backtest EMA cross conditions that need numeric periods rather than names.
  */
 function sortedIndicatorPeriods(
   indicators: IndicatorRef[],
@@ -490,20 +573,16 @@ function buildPriceCondition(
   // Handle VWAP nested value (vwap.vwap)
   const resolveKey = key === "vwap" ? "vwap.vwap" : key;
 
-  // For simple keys without dots, try resolveNumber first (handles both
-  // plain numbers and compound objects), falling back to the preset
   if (!key.includes(".") && key !== "vwap") {
     return direction === "above" ? streaming.priceAbove(key) : streaming.priceBelow(key);
   }
 
-  // For dotted keys (e.g. "bb.lower") and vwap, use resolveNumber for type-safe access
   const fn: streaming.StreamingConditionFn = (
     snapshot: streaming.IndicatorSnapshot,
     candle: NormalizedCandle,
   ) => {
     const value = streaming.resolveNumber(snapshot, resolveKey);
     if (value === null) {
-      // Fallback: try the original key as a plain number (e.g. vwap stored as number)
       if (key === "vwap") {
         const plain = streaming.getNumber(snapshot, "vwap");
         if (plain === null) return false;
@@ -517,64 +596,7 @@ function buildPriceCondition(
 }
 
 /**
- * Compute indicator series on demand and cache in the indicators object.
- * Maps template indicator names (e.g. "sma50", "bb") to trendcraft functions.
- */
-function ensureIndicator(
-  indicatorCache: Record<string, unknown>,
-  indicatorName: string,
-  indicatorRefs: IndicatorRef[],
-  candles: NormalizedCandle[],
-): void {
-  if (indicatorCache[indicatorName]) return;
-
-  const ref = indicatorRefs.find((i) => i.name === indicatorName);
-  if (!ref) return;
-
-  switch (ref.type) {
-    case "sma":
-      indicatorCache[indicatorName] = sma(candles, { period: ref.params.period ?? 20 });
-      break;
-    case "ema":
-      indicatorCache[indicatorName] = ema(candles, { period: ref.params.period ?? 9 });
-      break;
-    case "rsi":
-      indicatorCache[indicatorName] = rsi(candles, { period: ref.params.period ?? 14 });
-      break;
-    case "bollinger":
-      indicatorCache[indicatorName] = bollingerBands(candles, {
-        period: ref.params.period ?? 20,
-        stdDev: ref.params.stdDev ?? 2,
-      });
-      break;
-    case "stochastics":
-      indicatorCache[indicatorName] = stochastics(candles, {
-        kPeriod: ref.params.kPeriod ?? 14,
-        dPeriod: ref.params.dPeriod ?? 3,
-      });
-      break;
-    case "atr":
-      indicatorCache[indicatorName] = atr(candles, { period: ref.params.period ?? 14 });
-      break;
-    case "dmi":
-      indicatorCache[indicatorName] = dmi(candles, { period: ref.params.period ?? 14 });
-      break;
-    case "vwap":
-      indicatorCache[indicatorName] = vwap(candles);
-      break;
-    case "keltner":
-      indicatorCache[indicatorName] = keltnerChannel(candles, {
-        emaPeriod: ref.params.period ?? 20,
-        atrPeriod: ref.params.period ?? 20,
-        multiplier: ref.params.multiplier ?? 2,
-      });
-      break;
-  }
-}
-
-/**
  * Build custom backtest condition for price/indicator comparisons.
- * Computes indicators on demand from template IndicatorRef definitions.
  */
 function buildBacktestCustomCondition(ref: ConditionRef, indicatorRefs: IndicatorRef[]): Condition {
   const key = ref.params?.indicatorKey as string;
@@ -587,11 +609,9 @@ function buildBacktestCustomCondition(ref: ConditionRef, indicatorRefs: Indicato
     const indicatorName = parts[0];
     if (!indicatorName) return false;
 
-    // Ensure the indicator is computed
     ensureIndicator(indicators, indicatorName, indicatorRefs, candles);
 
     if (parts.length === 2) {
-      // e.g., "bb.lower"
       const series = indicators[indicatorName] as
         | { time: number; value: Record<string, number> }[]
         | undefined;
@@ -716,9 +736,6 @@ function resolveStochSeries(
     | undefined;
 }
 
-/**
- * Build a backtest condition for Stochastic oversold K crosses above D
- */
 function buildBacktestStochCrossUp(threshold: number, indicatorRefs: IndicatorRef[]): Condition {
   return (indicators, _candle, index, candles) => {
     if (index < 1) return false;
@@ -727,14 +744,10 @@ function buildBacktestStochCrossUp(threshold: number, indicatorRefs: IndicatorRe
     const curr = series[index]?.value;
     const prev = series[index - 1]?.value;
     if (!curr?.k || !curr?.d || !prev?.k || !prev?.d) return false;
-    // K crosses above D while K is below threshold (oversold)
     return curr.k < threshold && prev.k <= prev.d && curr.k > curr.d;
   };
 }
 
-/**
- * Build a backtest condition for Stochastic overbought
- */
 function buildBacktestStochOverbought(threshold: number, indicatorRefs: IndicatorRef[]): Condition {
   return (indicators, _candle, index, candles) => {
     const series = resolveStochSeries(indicators, indicatorRefs, candles);
@@ -773,9 +786,6 @@ function buildPosition(template: StrategyTemplate): streaming.PositionManagerOpt
       };
       break;
     case "kelly":
-      // Kelly maps to fixed-fractional with half-Kelly default (5%)
-      // The actual Kelly percentage gets recalculated by the agent
-      // based on live win rate and payoff ratio
       sizing = {
         method: "fixed-fractional" as const,
         fractionPercent: (template.position.riskPercent ?? 5) * 0.5,

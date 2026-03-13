@@ -15,6 +15,7 @@ import { monthsAgo, today } from "../alpaca/historical.js";
 import type { AlpacaTimeframe } from "../alpaca/historical.js";
 import { createAlpacaWebSocket } from "../alpaca/websocket.js";
 import { loadEnv } from "../config/env.js";
+import { INTERVALS } from "../config/intervals.js";
 import { DEFAULT_PORTFOLIO_GUARD } from "../config/portfolio.js";
 import { DEFAULT_SYMBOLS } from "../config/symbols.js";
 import { DEFAULT_TRADING_COSTS } from "../config/trading-costs.js";
@@ -24,8 +25,9 @@ import { createPaperExecutor } from "../executor/paper-executor.js";
 import { formatReconciliation, reconcilePositions } from "../executor/reconciler.js";
 import type { OrderExecutor } from "../executor/types.js";
 import { createStateStore } from "../persistence/store.js";
-import { loadCustomStrategies, loadOverrides, saveOverrides } from "../review/applier.js";
+import { loadCustomStrategies, loadOverrides } from "../review/applier.js";
 import { loadTodayIntraSessionReviews, saveIntraSessionRecord } from "../review/history.js";
+import { applyIntraSessionActions } from "../review/intra-session-applier.js";
 import { buildIntraSessionReport } from "../review/intra-session-report.js";
 import { validateIntraSessionActions } from "../review/intra-session-safety.js";
 import { scheduleIntraSessionReview } from "../review/intra-session-scheduler.js";
@@ -33,7 +35,6 @@ import { reviewIntraSession } from "../review/llm-client.js";
 import { scheduleReview } from "../review/scheduler.js";
 import type { IntraSessionReviewRecord } from "../review/types.js";
 import { scanUniverse } from "../scanner/index.js";
-import { compileTemplate } from "../strategy/compiler.js";
 import {
   applyStrategyOverrides,
   getAllStrategies,
@@ -41,19 +42,12 @@ import {
   getStrategy,
   loadCustomStrategiesFromTemplates,
 } from "../strategy/registry.js";
-import {
-  type ParameterOverride,
-  applyOverrides as applyTemplateOverrides,
-  getPresetTemplate,
-  isSwingStrategy,
-} from "../strategy/template.js";
+import { isSwingStrategy } from "../strategy/template.js";
 import { evaluateAgent, formatLiveLeaderboard, getLeaderboard } from "../tracker/leaderboard.js";
 import { executeReviewCycle } from "./review.js";
 
 const DATA_DIR = resolve(import.meta.dirname, "../../data");
 const HEARTBEAT_PATH = resolve(DATA_DIR, "heartbeat.json");
-const HEARTBEAT_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
-const STALE_HEARTBEAT_MS = 10 * 60 * 1000; // 10 minutes
 
 export type LiveCommandOptions = {
   strategy?: string;
@@ -93,7 +87,7 @@ function checkStaleHeartbeat(): { stale: boolean; lastTime?: number } {
   try {
     const data = JSON.parse(readFileSync(HEARTBEAT_PATH, "utf-8"));
     const age = Date.now() - data.time;
-    if (age > STALE_HEARTBEAT_MS) {
+    if (age > INTERVALS.staleHeartbeatMs) {
       return { stale: true, lastTime: data.time };
     }
   } catch {
@@ -222,7 +216,7 @@ export async function liveCommand(opts: LiveCommandOptions): Promise<void> {
   if (savedState) {
     const strategyMap = new Map(getAllStrategies().map((s) => [s.id, s]));
     const activeAgents = savedState.agents.filter((a) => {
-      if ((a as typeof a & { active?: boolean }).active === false) return false;
+      if (a.active === false) return false;
       // Only restore agents matching current strategies and symbols
       return activeStrategyIds.has(a.strategyId) && activeSymbols.has(a.symbol);
     });
@@ -295,6 +289,21 @@ export async function liveCommand(opts: LiveCommandOptions): Promise<void> {
     );
   }
 
+  // Startup position reconciliation (non-dry-run)
+  if (!opts.dryRun) {
+    try {
+      const result = await reconcilePositions(client, manager);
+      if (result.discrepancies.length > 0 || result.orphanedPositions.length > 0) {
+        console.warn("[STARTUP] Position discrepancies detected:");
+        console.warn(formatReconciliation(result));
+      } else {
+        console.log("[STARTUP] Position reconciliation OK — no discrepancies.");
+      }
+    } catch (err) {
+      console.error("[STARTUP] Reconciliation failed:", err);
+    }
+  }
+
   // Connect WebSocket
   const ws = createAlpacaWebSocket(env);
 
@@ -322,17 +331,14 @@ export async function liveCommand(opts: LiveCommandOptions): Promise<void> {
   ws.subscribe(allSymbols);
 
   // Periodic tasks
-  const STATE_SAVE_INTERVAL = 5 * 60 * 1000; // 5 min
-  const LEADERBOARD_INTERVAL = 60 * 60 * 1000; // 1 hour
-  const RECONCILE_INTERVAL = 15 * 60 * 1000; // 15 min
 
   // Start heartbeat
   writeHeartbeat();
-  const heartbeatTimer = setInterval(writeHeartbeat, HEARTBEAT_INTERVAL_MS);
+  const heartbeatTimer = setInterval(writeHeartbeat, INTERVALS.heartbeatMs);
 
   const saveTimer = setInterval(() => {
     saveState();
-  }, STATE_SAVE_INTERVAL);
+  }, INTERVALS.stateSaveMs);
 
   const leaderboardTimer = setInterval(() => {
     const agents = manager.getAgents();
@@ -346,10 +352,9 @@ export async function liveCommand(opts: LiveCommandOptions): Promise<void> {
         console.log(`  [${decision.action.toUpperCase()}] ${agent.id}: ${decision.reason}`);
       }
     }
-  }, LEADERBOARD_INTERVAL);
+  }, INTERVALS.leaderboardMs);
 
-  // Verbose ticker summary (every 30s)
-  const VERBOSE_INTERVAL = 30 * 1000;
+  // Verbose ticker summary
   const verboseTimer = opts.verbose
     ? setInterval(() => {
         if (tickerStats.size === 0) return;
@@ -364,7 +369,7 @@ export async function liveCommand(opts: LiveCommandOptions): Promise<void> {
           stat.count = 0;
           stat.volume = 0;
         }
-      }, VERBOSE_INTERVAL)
+      }, INTERVALS.verboseMs)
     : null;
 
   // Position reconciliation (skip in dry-run mode)
@@ -379,7 +384,7 @@ export async function liveCommand(opts: LiveCommandOptions): Promise<void> {
         } catch (err) {
           console.error("[RECONCILE] Error:", err);
         }
-      }, RECONCILE_INTERVAL);
+      }, INTERVALS.reconcileMs);
 
   // Auto-review scheduler
   let cancelReview: (() => void) | null = null;
@@ -448,118 +453,26 @@ export async function liveCommand(opts: LiveCommandOptions): Promise<void> {
         }
 
         // 4. Apply valid actions
-        const appliedActions: IntraSessionReviewRecord["appliedActions"] = [];
-        const rejectedActions: IntraSessionReviewRecord["rejectedActions"] = rejected;
-
-        for (const action of valid) {
-          try {
-            if (action.action === "adjust_params") {
-              // Build override and save to strategy-overrides.json
-              const currentOverrides = loadOverrides();
-              const override: ParameterOverride = {
-                strategyId: action.strategyId,
-                overrides: {
-                  ...(action.changes.indicators && { indicators: action.changes.indicators }),
-                  ...(action.changes.position && { position: action.changes.position }),
-                  ...(action.changes.guards && { guards: action.changes.guards }),
-                  ...(action.changes.marketFilter !== undefined && {
-                    marketFilter: action.changes.marketFilter,
-                  }),
-                  ...(action.changes.entry && { entry: action.changes.entry }),
-                  ...(action.changes.exit && { exit: action.changes.exit }),
-                },
-                appliedAt: Date.now(),
-                reasoning: `[intra-#${reviewNum}] ${action.reasoning}`,
-              };
-
-              // Merge with existing
-              const idx = currentOverrides.findIndex((o) => o.strategyId === action.strategyId);
-              if (idx >= 0) {
-                currentOverrides[idx] = {
-                  ...currentOverrides[idx],
-                  overrides: { ...currentOverrides[idx].overrides, ...override.overrides },
-                  appliedAt: override.appliedAt,
-                  reasoning: `${currentOverrides[idx].reasoning} | ${override.reasoning}`,
-                };
-              } else {
-                currentOverrides.push(override);
-              }
-              saveOverrides(currentOverrides);
-
-              // Hot-swap: recompile template and replace agent strategy
-              const baseTemplate = getPresetTemplate(action.strategyId);
-              if (baseTemplate) {
-                const finalOverride = currentOverrides.find(
-                  (o) => o.strategyId === action.strategyId,
-                )!;
-                const modified = applyTemplateOverrides(baseTemplate, finalOverride);
-                const compiled = compileTemplate(modified);
-                if (compiled.ok) {
-                  const swapped = manager.replaceAgentStrategy(
-                    `${action.strategyId}:${report.agents.find((a) => a.strategyId === action.strategyId)?.symbol ?? ""}`,
-                    compiled.strategy,
-                  );
-                  // Try all agents for this strategy
-                  if (!swapped) {
-                    for (const agent of manager.getAgents()) {
-                      if (agent.strategyId === action.strategyId) {
-                        manager.replaceAgentStrategy(agent.id, compiled.strategy);
-                      }
-                    }
-                  }
-                  // Update market filter if changed
-                  if (action.changes.marketFilter !== undefined) {
-                    manager.setMarketFilter(action.strategyId, action.changes.marketFilter);
-                  }
-                  console.log(`[INTRA] Applied adjust_params for ${action.strategyId}`);
-                } else {
-                  console.warn(
-                    `[INTRA] Template compile failed for ${action.strategyId}: ${compiled.error}`,
-                  );
-                }
-              }
-
-              appliedActions.push({ action });
-            } else if (action.action === "kill_agent") {
-              const agent = manager.getAgent(action.agentId);
-              if (agent) {
-                const { intents } = agent.close();
-                for (const intent of intents) {
-                  await executor.execute(intent);
-                }
-                manager.removeAgent(action.agentId);
-                console.log(`[INTRA] Killed agent ${action.agentId}`);
-                appliedActions.push({ action });
-              } else {
-                rejectedActions.push({ action, reason: `Agent "${action.agentId}" not found` });
-              }
-            } else if (action.action === "revive_agent") {
-              const [strategyId, symbol] = action.agentId.split(":");
-              const strategy = getStrategy(strategyId);
-              if (strategy && symbol) {
-                const { timeframe, lookbackMonths } = getWarmUpTimeframe(strategy.intervalMs);
-                const warmUp = await fetchCachedBars(env, {
-                  symbol,
-                  timeframe,
-                  start: monthsAgo(lookbackMonths),
-                  end: today(),
-                  limit: 200,
-                });
-                manager.addAgent(strategy, symbol, warmUp);
-                console.log(`[INTRA] Revived agent ${action.agentId}`);
-                appliedActions.push({ action });
-              } else {
-                rejectedActions.push({ action, reason: `Strategy "${strategyId}" not found` });
-              }
-            }
-          } catch (err) {
-            console.error(`[INTRA] Failed to apply ${action.action}:`, err);
-            rejectedActions.push({
-              action,
-              reason: err instanceof Error ? err.message : String(err),
-            });
-          }
-        }
+        const { appliedActions, rejectedActions } = await applyIntraSessionActions(
+          valid,
+          rejected,
+          {
+            manager,
+            executor,
+            reviewNum,
+            agents: report.agents,
+            fetchWarmUp: async (strategy, symbol) => {
+              const { timeframe, lookbackMonths } = getWarmUpTimeframe(strategy.intervalMs);
+              return fetchCachedBars(env, {
+                symbol,
+                timeframe,
+                start: monthsAgo(lookbackMonths),
+                end: today(),
+                limit: 200,
+              });
+            },
+          },
+        );
 
         // 5. Save intra-session record
         const record: IntraSessionReviewRecord = {

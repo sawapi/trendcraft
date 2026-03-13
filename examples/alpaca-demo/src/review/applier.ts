@@ -103,35 +103,37 @@ async function applyAction(
   }
 }
 
-function applyAdjustParams(
-  action: AdjustParamsAction,
-  backtestCandles?: NormalizedCandle[],
-): ActionResult {
-  ensureDir(DATA_DIR);
-
-  const overrides = loadOverrides();
-  const override: ParameterOverride = {
-    strategyId: action.strategyId,
+/**
+ * Build a ParameterOverride from an AdjustParamsAction's changes
+ */
+export function buildOverrideFromChanges(
+  strategyId: string,
+  changes: AdjustParamsAction["changes"],
+  reasoning: string,
+): ParameterOverride {
+  return {
+    strategyId,
     overrides: {
-      ...(action.changes.indicators && {
-        indicators: action.changes.indicators,
-      }),
-      ...(action.changes.position && { position: action.changes.position }),
-      ...(action.changes.guards && { guards: action.changes.guards }),
-      ...(action.changes.marketFilter !== undefined && {
-        marketFilter: action.changes.marketFilter,
-      }),
-      ...(action.changes.entry && { entry: action.changes.entry }),
-      ...(action.changes.exit && { exit: action.changes.exit }),
+      ...(changes.indicators && { indicators: changes.indicators }),
+      ...(changes.position && { position: changes.position }),
+      ...(changes.guards && { guards: changes.guards }),
+      ...(changes.marketFilter !== undefined && { marketFilter: changes.marketFilter }),
+      ...(changes.entry && { entry: changes.entry }),
+      ...(changes.exit && { exit: changes.exit }),
     },
     appliedAt: Date.now(),
-    reasoning: action.reasoning,
+    reasoning,
   };
+}
 
-  // Replace existing override for same strategy, or add new
-  const idx = overrides.findIndex((o) => o.strategyId === action.strategyId);
+/**
+ * Merge a new override into an existing list (mutates the list).
+ * If an override for the same strategy already exists, merges with it.
+ * Otherwise appends the new override.
+ */
+export function mergeOverride(overrides: ParameterOverride[], override: ParameterOverride): void {
+  const idx = overrides.findIndex((o) => o.strategyId === override.strategyId);
   if (idx >= 0) {
-    // Merge with existing override
     const existing = overrides[idx];
     overrides[idx] = {
       ...existing,
@@ -142,6 +144,17 @@ function applyAdjustParams(
   } else {
     overrides.push(override);
   }
+}
+
+function applyAdjustParams(
+  action: AdjustParamsAction,
+  backtestCandles?: NormalizedCandle[],
+): ActionResult {
+  ensureDir(DATA_DIR);
+
+  const overrides = loadOverrides();
+  const override = buildOverrideFromChanges(action.strategyId, action.changes, action.reasoning);
+  mergeOverride(overrides, override);
 
   // Walk-Forward gate for logic/risk changes (indicators, entry, exit, position, guards)
   const hasLogicChanges =
@@ -185,14 +198,12 @@ function applyKillAgent(action: KillAgentAction): ActionResult {
     return { ok: false, reason: "No state file found" };
   }
 
-  const agent = state.agents.find(
-    (a: AgentState & { active?: boolean }) => a.id === action.agentId,
-  );
+  const agent = state.agents.find((a) => a.id === action.agentId);
   if (!agent) {
     return { ok: false, reason: `Agent "${action.agentId}" not found in state` };
   }
 
-  (agent as AgentState & { active: boolean }).active = false;
+  agent.active = false;
   saveState(state);
   console.log(`[APPLY] Agent ${action.agentId} deactivated`);
 
@@ -205,14 +216,12 @@ function applyReviveAgent(action: ReviveAgentAction): ActionResult {
     return { ok: false, reason: "No state file found" };
   }
 
-  const agent = state.agents.find(
-    (a: AgentState & { active?: boolean }) => a.id === action.agentId,
-  );
+  const agent = state.agents.find((a) => a.id === action.agentId);
   if (!agent) {
     return { ok: false, reason: `Agent "${action.agentId}" not found in state` };
   }
 
-  (agent as AgentState & { active: boolean }).active = true;
+  agent.active = true;
   saveState(state);
   console.log(`[APPLY] Agent ${action.agentId} reactivated`);
 
@@ -339,7 +348,7 @@ export function removeOverride(strategyId: string): boolean {
 function loadState(): {
   version: number;
   savedAt: number;
-  agents: (AgentState & { active?: boolean })[];
+  agents: AgentState[];
 } | null {
   if (!existsSync(STATE_PATH)) return null;
   try {
@@ -352,7 +361,7 @@ function loadState(): {
 function saveState(state: {
   version: number;
   savedAt: number;
-  agents: (AgentState & { active?: boolean })[];
+  agents: AgentState[];
 }): void {
   atomicWriteJson(STATE_PATH, state);
 }
