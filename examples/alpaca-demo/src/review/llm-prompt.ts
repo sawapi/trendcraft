@@ -5,10 +5,17 @@
  * Claude API daily review call.
  */
 
-import type { DailyReport, LLMRecommendation, ReviewRecord, TradeRecord } from "./types.js";
+import type {
+  DailyReport,
+  IntraSessionReviewRecord,
+  LLMRecommendation,
+  ReviewRecord,
+  TradeRecord,
+} from "./types.js";
 
 export type UserMessageOptions = {
   rollbackCandidates?: string[];
+  intraSessionActions?: IntraSessionReviewRecord[];
 };
 
 /**
@@ -396,6 +403,33 @@ export function buildUserMessage(
     );
     for (const sid of options.rollbackCandidates) {
       parts.push(`- **${sid}** — rolling back to original preset`);
+    }
+    parts.push("");
+  }
+
+  // Intra-session actions taken today
+  if (options?.intraSessionActions && options.intraSessionActions.length > 0) {
+    parts.push("## Intra-Session Actions Today");
+    parts.push("The following tactical adjustments were made during today's trading session:");
+    for (const review of options.intraSessionActions) {
+      const time = new Date(review.timestamp).toLocaleTimeString("en-US", {
+        timeZone: "America/New_York",
+        hour12: false,
+      });
+      parts.push(`### Intra-Review #${review.reviewNumber} (${time} ET)`);
+      parts.push(`Summary: ${review.llmResponse.summary}`);
+      if (review.appliedActions.length > 0) {
+        parts.push("Applied:");
+        for (const a of review.appliedActions) {
+          parts.push(`  - [${a.action.action}] ${a.action.reasoning}`);
+        }
+      }
+      if (review.rejectedActions.length > 0) {
+        parts.push("Rejected:");
+        for (const r of review.rejectedActions) {
+          parts.push(`  - [${r.action.action}] ${r.reason}`);
+        }
+      }
     }
     parts.push("");
   }
