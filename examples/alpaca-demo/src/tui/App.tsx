@@ -1,0 +1,116 @@
+/**
+ * App — main TUI application with tab routing
+ */
+
+import { Box, Text, useApp, useInput } from "ink";
+import type React from "react";
+import { useState } from "react";
+import type { SessionOptions } from "../trading/session.js";
+import { StatusBar, formatDuration } from "./components/StatusBar.js";
+import { TabBar } from "./components/TabBar.js";
+import type { Tab } from "./components/TabBar.js";
+import { useBacktest } from "./hooks/useBacktest.js";
+import { useReviews } from "./hooks/useReviews.js";
+import { useTrading } from "./hooks/useTrading.js";
+import { BacktestView } from "./views/BacktestView.js";
+import { Dashboard } from "./views/Dashboard.js";
+import { LiveControl } from "./views/LiveControl.js";
+import { ReviewView } from "./views/ReviewView.js";
+import { Settings } from "./views/Settings.js";
+
+const TABS: Tab[] = [
+  { key: "1", label: "Dashboard" },
+  { key: "2", label: "Live" },
+  { key: "3", label: "Review" },
+  { key: "4", label: "Backtest" },
+  { key: "5", label: "Settings" },
+];
+
+type AppProps = {
+  options: SessionOptions;
+};
+
+export function App({ options }: AppProps): React.ReactElement {
+  const { exit } = useApp();
+  const [activeTab, setActiveTab] = useState(0);
+  const [tradingState, tradingActions] = useTrading();
+  const [reviewsState, reviewsActions] = useReviews();
+  const [backtestState, backtestActions] = useBacktest();
+
+  useInput((_input, _key) => {
+    // Tab switching via number keys
+    if (_input === "1") setActiveTab(0);
+    else if (_input === "2") setActiveTab(1);
+    else if (_input === "3") setActiveTab(2);
+    else if (_input === "4") setActiveTab(3);
+    else if (_input === "5") setActiveTab(4);
+
+    // Quit
+    if (_input === "q") {
+      if (tradingState.isRunning) {
+        tradingActions.stopSession().then(() => exit());
+      } else {
+        exit();
+      }
+    }
+  });
+
+  const totalPnl = tradingState.agents.reduce((sum, a) => sum + a.metrics.totalReturn, 0);
+  const sessionDuration = tradingState.isRunning
+    ? formatDuration(Date.now() - tradingState.startTime)
+    : "—";
+
+  return (
+    <Box flexDirection="column" minHeight={20}>
+      {/* Header */}
+      <Box borderStyle="single" borderColor="cyan" paddingX={1}>
+        <Text bold color="cyan">
+          ALPACA TRADING CONSOLE
+        </Text>
+      </Box>
+
+      {/* Tab bar */}
+      <Box paddingX={1} marginBottom={1}>
+        <TabBar tabs={TABS} activeIndex={activeTab} />
+      </Box>
+
+      {/* Content area */}
+      <Box flexGrow={1} paddingX={1}>
+        {activeTab === 0 && (
+          <Dashboard
+            agents={tradingState.agents}
+            events={tradingState.events}
+            isRunning={tradingState.isRunning}
+          />
+        )}
+        {activeTab === 1 && (
+          <LiveControl
+            agents={tradingState.agents}
+            isRunning={tradingState.isRunning}
+            isInitializing={tradingState.isInitializing}
+            error={tradingState.error}
+            onStart={tradingActions.startSession}
+            onStop={tradingActions.stopSession}
+          />
+        )}
+        {activeTab === 2 && <ReviewView reviews={reviewsState} onReload={reviewsActions.reload} />}
+        {activeTab === 3 && <BacktestView backtest={backtestState} onRun={backtestActions.run} />}
+        {activeTab === 4 && <Settings />}
+      </Box>
+
+      {/* Status bar */}
+      <StatusBar
+        mode={tradingState.mode}
+        sessionDuration={sessionDuration}
+        agentCount={tradingState.agents.length}
+        totalPnl={totalPnl}
+        isRunning={tradingState.isRunning}
+      />
+
+      {/* Navigation hint */}
+      <Box paddingX={1}>
+        <Text color="gray">1-5: Switch tabs | q: Quit</Text>
+      </Box>
+    </Box>
+  );
+}

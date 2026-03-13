@@ -18,6 +18,7 @@ import { updateUniverseCommand } from "./commands/update-universe.js";
 import { getUniverseIds } from "./config/universe.js";
 import { getAllIndustries, getAllSectors } from "./sec/index.js";
 import { getStrategyIds } from "./strategy/registry.js";
+import { consoleCommand } from "./tui/index.js";
 
 const program = new Command();
 
@@ -127,6 +128,33 @@ program
   .option("-f, --format <format>", "Output format: csv, tax, or both", "both")
   .option("-o, --output <dir>", "Output directory", "./data")
   .action(reportCommand);
+
+program
+  .command("console")
+  .description("Launch interactive TUI trading console")
+  .option("-S, --strategy <id>", `Strategy ID (${getStrategyIds().join(", ")})`)
+  .option("-s, --symbol <symbol>", "Single symbol")
+  .option("--symbols <symbols>", "Comma-separated symbol list")
+  .option("-a, --all", "Use all strategies")
+  .option("-d, --dry-run", "Dry run (no real orders)")
+  .option("-c, --capital <amount>", "Capital per agent", "100000")
+  .option("--no-auto-review", "Disable automatic daily review after market close")
+  .option("--no-intra-review", "Disable intra-session LLM reviews")
+  .option("--intra-interval <min>", "Intra-session review interval in minutes", "30")
+  .option("--auto-scan", "Auto-scan universe to select symbols before trading")
+  .option(
+    "-u, --universe <id>",
+    `Universe for auto-scan (${getUniverseIds().join(", ")})`,
+    "mega30",
+  )
+  .option("--sector <sector>", `Sector filter for SEC universe (${getAllSectors().join(", ")})`)
+  .option(
+    "--industry <industry>",
+    `Industry filter for SEC universe (${getAllIndustries().join(", ")})`,
+  )
+  .option("--exclude <file>", "Exclude symbols file (default: data/exclude-symbols.txt)")
+  .option("-n, --top <n>", "Number of top symbols from scan", "5")
+  .action(consoleCommand);
 
 program
   .command("update-universe")
