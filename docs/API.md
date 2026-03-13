@@ -3,7 +3,7 @@
 ## Table of Contents
 
 - [Indicators](#indicators)
-  - [Moving Averages (SMA, WMA, EMA, HMA)](#moving-averages-sma-wma-ema-hma)
+  - [Moving Averages](#moving-averages)
   - [Trend](#trend)
   - [Momentum](#momentum)
   - [Volatility](#volatility)
@@ -80,7 +80,7 @@
 
 ## Indicators
 
-### Moving Averages (SMA, WMA, EMA, HMA)
+### Moving Averages
 
 #### `sma(candles, options)`
 
@@ -154,6 +154,61 @@ const custom = hma(candles, { period: 20, source: 'close' });
 **Returns:** `Series<number | null>`
 
 **Formula:** `HMA(n) = WMA(2 * WMA(n/2) - WMA(n), sqrt(n))`
+
+---
+
+#### `mcginleyDynamic(candles, options)`
+
+McGinley Dynamic — an adaptive moving average that automatically adjusts speed based on market conditions, reducing lag in fast markets.
+
+```typescript
+const result = mcginleyDynamic(candles);
+const custom = mcginleyDynamic(candles, { period: 14, k: 0.6 });
+```
+
+**Options:**
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `period` | `number` | `14` | Lookback period |
+| `k` | `number` | `0.6` | Adjustment constant |
+| `source` | `PriceSource` | `'close'` | Price source |
+
+**Returns:** `Series<number | null>`
+
+**Formula:** `MD[i] = MD[i-1] + (Close - MD[i-1]) / (k × period × (Close/MD[i-1])^4)`
+
+---
+
+#### `emaRibbon(candles, options)`
+
+EMA Ribbon — multiple EMAs plotted together to visualize trend strength and direction. Bullish when shorter EMAs are above longer ones.
+
+```typescript
+const result = emaRibbon(candles);
+const custom = emaRibbon(candles, { periods: [8, 13, 21, 34, 55] });
+```
+
+**Options:**
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `periods` | `number[]` | `[8, 13, 21, 34, 55]` | EMA periods (shortest to longest) |
+| `source` | `PriceSource` | `'close'` | Price source |
+
+**Returns:** `Series<EmaRibbonValue>`
+
+```typescript
+interface EmaRibbonValue {
+  values: (number | null)[];    // EMA values (sorted by period, shortest first)
+  bullish: boolean | null;      // True if all EMAs in bullish order
+  expanding: boolean | null;    // True if ribbon spread is widening
+}
+```
+
+**Interpretation:**
+- **Bullish alignment**: Shorter EMAs above longer EMAs — strong uptrend
+- **Bearish alignment**: Shorter EMAs below longer EMAs — strong downtrend
+- **Expanding**: Trend is strengthening
+- **Contracting**: Trend is weakening or reversing
 
 ---
 
@@ -473,6 +528,60 @@ interface ConnorsRsiValue {
 - Below 10: Strongly oversold (mean reversion buy signal)
 - Above 90: Strongly overbought (mean reversion sell signal)
 - CRSI = (RSI + StreakRSI + PercentRank) / 3
+
+---
+
+#### `imi(candles, options)`
+
+Intraday Momentum Index — a variation of RSI using open-to-close price movement with simple rolling sums instead of Wilder's smoothing.
+
+```typescript
+const result = imi(candles);
+const custom = imi(candles, { period: 14 });
+```
+
+**Options:**
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `period` | `number` | `14` | Rolling sum period |
+
+**Returns:** `Series<number | null>` (0-100 scale)
+
+**Formula:** `IMI = 100 × SUM(gains, n) / (SUM(gains, n) + SUM(losses, n))`
+- Gain = Close - Open (when Close > Open)
+- Loss = Open - Close (when Open > Close)
+
+**Interpretation:**
+- Above 70: Overbought (strong intraday buying pressure)
+- Below 30: Oversold (strong intraday selling pressure)
+- 50: Neutral (equal buying and selling pressure)
+
+---
+
+#### `adxr(candles, options)`
+
+ADXR (Average Directional Movement Index Rating) — smoothed version of ADX providing a lagging confirmation of trend strength.
+
+```typescript
+const result = adxr(candles);
+const custom = adxr(candles, { period: 14, dmiPeriod: 14, adxPeriod: 14 });
+```
+
+**Options:**
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `period` | `number` | `14` | ADXR lookback period |
+| `dmiPeriod` | `number` | `14` | DMI calculation period |
+| `adxPeriod` | `number` | `14` | ADX smoothing period |
+
+**Returns:** `Series<number | null>`
+
+**Formula:** `ADXR = (ADX[i] + ADX[i - period]) / 2`
+
+**Interpretation:**
+- Above 25: Trending market confirmed
+- Below 20: Weak trend / ranging market
+- Smoother than ADX, fewer false signals
 
 ---
 
@@ -855,6 +964,176 @@ interface AnchoredVwapValue {
   lower2?: number | null;  // -2σ band (if bands >= 2)
 }
 ```
+
+---
+
+#### `elderForceIndex(candles, options)`
+
+Elder's Force Index — measures the force behind price movements by combining price change and volume, smoothed with EMA.
+
+```typescript
+const result = elderForceIndex(candles);
+const custom = elderForceIndex(candles, { period: 13 });
+```
+
+**Options:**
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `period` | `number` | `13` | EMA smoothing period |
+
+**Returns:** `Series<number | null>`
+
+**Formula:** `Force = (Close - Previous Close) × Volume`, then smoothed with EMA.
+
+**Interpretation:**
+- Positive: Bulls are in control
+- Negative: Bears are in control
+- Zero-line crossovers signal trend changes
+
+---
+
+#### `easeOfMovement(candles, options)`
+
+Ease of Movement (EMV) — measures the relationship between price change and volume, indicating how easily price moves.
+
+```typescript
+const result = easeOfMovement(candles);
+const custom = easeOfMovement(candles, { period: 14, volumeDivisor: 10000 });
+```
+
+**Options:**
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `period` | `number` | `14` | SMA smoothing period |
+| `volumeDivisor` | `number` | `10000` | Volume scaling divisor |
+
+**Returns:** `Series<number | null>`
+
+**Formula:** `EMV = ((H+L)/2 - (prevH+prevL)/2) / ((Volume/divisor) / (H-L))`
+
+**Interpretation:**
+- Positive: Price is moving up easily on low volume
+- Negative: Price is moving down easily
+- Near zero: Price is having difficulty moving (high volume required)
+
+---
+
+#### `klinger(candles, options)`
+
+Klinger Volume Oscillator — compares short-term and long-term volume force to identify long-term money flow trends.
+
+```typescript
+const result = klinger(candles);
+const custom = klinger(candles, { shortPeriod: 34, longPeriod: 55, signalPeriod: 13 });
+```
+
+**Options:**
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `shortPeriod` | `number` | `34` | Short EMA period |
+| `longPeriod` | `number` | `55` | Long EMA period |
+| `signalPeriod` | `number` | `13` | Signal line EMA period |
+
+**Returns:** `Series<KlingerValue>`
+
+```typescript
+interface KlingerValue {
+  kvo: number | null;        // KVO line (short EMA - long EMA of Volume Force)
+  signal: number | null;     // Signal line (EMA of KVO)
+  histogram: number | null;  // KVO - Signal
+}
+```
+
+**Interpretation:**
+- KVO above signal: Bullish volume trend
+- KVO below signal: Bearish volume trend
+- Zero-line crossover confirms trend direction
+
+---
+
+#### `twap(candles, options)`
+
+Time-Weighted Average Price — equal-weighted average of typical prices within a session, commonly used as an execution benchmark.
+
+```typescript
+const result = twap(candles);
+const fixed = twap(candles, { sessionResetPeriod: 30 });
+```
+
+**Options:**
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `sessionResetPeriod` | `'session' \| number` | `'session'` | Reset at each day or every N candles |
+
+**Returns:** `Series<number | null>`
+
+**Formula:** `TWAP = Cumulative Sum(Typical Price) / Count` within session
+
+---
+
+#### `weisWave(candles, options)`
+
+Weis Wave Volume — accumulates volume within directional price waves. When price reverses direction, a new wave begins.
+
+```typescript
+const result = weisWave(candles);
+const custom = weisWave(candles, { method: 'highlow', threshold: 0.5 });
+```
+
+**Options:**
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `method` | `'close' \| 'highlow'` | `'close'` | Price method for direction detection |
+| `threshold` | `number` | `0` | Minimum price change to trigger a new wave |
+
+**Returns:** `Series<WeisWaveValue>`
+
+```typescript
+interface WeisWaveValue {
+  waveVolume: number;            // Cumulative volume for current wave
+  direction: 'up' | 'down';     // Current wave direction
+}
+```
+
+**Interpretation:**
+- Large up-wave volume with small down-wave volume: Strong accumulation
+- Large down-wave volume with small up-wave volume: Strong distribution
+- Divergence between wave volume and price: Potential reversal
+
+---
+
+#### `marketProfile(candles, options)`
+
+Market Profile / TPO — analyzes time spent at each price level, identifying POC and Value Area per session.
+
+```typescript
+const result = marketProfile(candles);
+const custom = marketProfile(candles, { tickSize: 0.5, valueAreaPercent: 0.70 });
+```
+
+**Options:**
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `tickSize` | `number` | `auto` | Price bucket size (0 = auto-detect) |
+| `sessionResetPeriod` | `'session' \| number` | `'session'` | Session reset logic |
+| `valueAreaPercent` | `number` | `0.70` | Percentage of TPOs for Value Area (70%) |
+
+**Returns:** `Series<MarketProfileValue>`
+
+```typescript
+interface MarketProfileValue {
+  poc: number | null;                    // Point of Control (most visited price)
+  valueAreaHigh: number | null;          // Value Area High
+  valueAreaLow: number | null;          // Value Area Low
+  profile: Map<number, number> | null;   // Price level → TPO count
+}
+```
+
+**Interpretation:**
+- **POC**: Strongest support/resistance level — "fair value"
+- **Value Area**: 70% of time spent here — acceptance zone
+- Price above VAH: Breakout potential, overbought
+- Price below VAL: Breakdown potential, oversold
 
 ---
 

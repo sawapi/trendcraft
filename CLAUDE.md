@@ -12,12 +12,12 @@ Provides technical indicators, signal detection, backtesting, and optimization.
 ```
 src/
 ├── core/           # Data normalization, MTF context
-├── indicators/     # Technical indicators (58+)
-│   ├── moving-average/  # SMA, EMA, WMA, VWMA, KAMA, T3, HMA
-│   ├── momentum/        # RSI, MACD, Stochastics, DMI/ADX, CCI, ROC, Connors RSI
+├── indicators/     # Technical indicators (68+)
+│   ├── moving-average/  # SMA, EMA, WMA, VWMA, KAMA, T3, HMA, McGinley Dynamic, EMA Ribbon
+│   ├── momentum/        # RSI, MACD, Stochastics, DMI/ADX, CCI, ROC, Connors RSI, IMI, ADXR
 │   ├── trend/           # Ichimoku, Supertrend, Parabolic SAR
 │   ├── volatility/      # Bollinger Bands, ATR, Keltner, Donchian, Choppiness Index
-│   ├── volume/          # OBV, MFI, VWAP (Bands), CMF, Volume Profile, Anchored VWAP
+│   ├── volume/          # OBV, MFI, VWAP (Bands), CMF, Volume Profile, Anchored VWAP, Elder Force Index, EMV, Klinger, TWAP, Weis Wave, Market Profile
 │   ├── price/           # Swing Points, Pivot, FVG, BOS, CHoCH, ORB, Gap Analysis
 │   ├── relative-strength/
 │   └── smc/             # Order Block, Liquidity Sweep

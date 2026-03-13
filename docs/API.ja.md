@@ -157,6 +157,61 @@ const custom = hma(candles, { period: 20, source: 'close' });
 
 ---
 
+#### `mcginleyDynamic(candles, options)`
+
+McGinley Dynamic — 市場速度に自動適応するMA。速い市場でのラグを軽減。
+
+```typescript
+const result = mcginleyDynamic(candles);
+const custom = mcginleyDynamic(candles, { period: 20, k: 0.6, source: 'close' });
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|-----------|------|-----------|------|
+| `period` | `number` | `14` | 期間 |
+| `k` | `number` | `0.6` | 平滑化定数 |
+| `source` | `PriceSource` | `'close'` | 価格ソース |
+
+**戻り値:** `Series<number | null>`
+
+**計算式:** `MD[i] = MD[i-1] + (Close - MD[i-1]) / (k × period × (Close/MD[i-1])^4)`
+
+**シード:** SMA(period)
+
+---
+
+#### `emaRibbon(candles, options)`
+
+EMAリボン — 複数EMAの束でトレンド強度・方向を可視化。
+
+```typescript
+const result = emaRibbon(candles);
+const custom = emaRibbon(candles, { periods: [8, 13, 21, 34, 55], source: 'close' });
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|-----------|------|-----------|------|
+| `periods` | `number[]` | `[8, 13, 21, 34, 55]` | EMA期間の配列 |
+| `source` | `PriceSource` | `'close'` | 価格ソース |
+
+**戻り値:** `Series<EmaRibbonValue>`
+
+```typescript
+interface EmaRibbonValue {
+  values: (number | null)[];  // 各EMAの値
+  bullish: boolean;           // 短期EMA>長期EMA順で整列
+  expanding: boolean;         // スプレッド拡大中
+}
+```
+
+**解釈:**
+- `bullish` = 短期EMAが長期EMAより上に整列している状態
+- `expanding` = EMA間のスプレッドが拡大中（トレンド加速）
+
+---
+
 ### トレンド
 
 #### `ichimoku(candles, options)`
@@ -473,6 +528,59 @@ interface ConnorsRsiValue {
 - 10未満: 強い売られすぎ（ミーンリバージョンの買いシグナル）
 - 90超: 強い買われすぎ（ミーンリバージョンの売りシグナル）
 - CRSI = (RSI + StreakRSI + PercentRank) / 3
+
+---
+
+#### `imi(candles, options)`
+
+Intraday Momentum Index — Open-Closeベースの RSI変種。ローリングサム方式。
+
+```typescript
+const result = imi(candles);
+const custom = imi(candles, { period: 14 });
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|-----------|------|-----------|------|
+| `period` | `number` | `14` | 期間 |
+
+**戻り値:** `Series<number | null>` (0-100)
+
+**計算式:** `100 × SUM(gains, n) / (SUM(gains, n) + SUM(losses, n))`
+
+- gain = Close - Open（Close > Open時）
+- loss = Open - Close（Open > Close時）
+
+**解釈:**
+- 70超: 過熱（買われすぎ）
+- 30未満: 売られすぎ
+
+---
+
+#### `adxr(candles, options)`
+
+ADXR — ADXの平滑版。トレンド強度の遅行確認。
+
+```typescript
+const result = adxr(candles);
+const custom = adxr(candles, { period: 14, dmiPeriod: 14, adxPeriod: 14 });
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|-----------|------|-----------|------|
+| `period` | `number` | `14` | ADXR平滑化期間 |
+| `dmiPeriod` | `number` | `14` | DMI期間 |
+| `adxPeriod` | `number` | `14` | ADX期間 |
+
+**戻り値:** `Series<number | null>`
+
+**計算式:** `(ADX[i] + ADX[i - period]) / 2`
+
+**解釈:**
+- 25超: トレンドあり
+- 20未満: レンジ相場
 
 ---
 
@@ -848,6 +956,152 @@ interface AnchoredVwapValue {
   lower1?: number | null;  // -1σバンド
   upper2?: number | null;  // +2σバンド
   lower2?: number | null;  // -2σバンド
+}
+```
+
+---
+
+#### `elderForceIndex(candles, options)`
+
+Elder's Force Index — 価格変化×ボリュームをEMAで平滑化。
+
+```typescript
+const result = elderForceIndex(candles);
+const custom = elderForceIndex(candles, { period: 13 });
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|-----------|------|-----------|------|
+| `period` | `number` | `13` | EMA平滑化期間 |
+
+**戻り値:** `Series<number | null>`
+
+**計算式:** `Force = (Close - Prev Close) × Volume → EMA平滑化`
+
+---
+
+#### `easeOfMovement(candles, options)`
+
+Ease of Movement — 価格変化とボリューム効率の指標。
+
+```typescript
+const result = easeOfMovement(candles);
+const custom = easeOfMovement(candles, { period: 14, volumeDivisor: 10000 });
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|-----------|------|-----------|------|
+| `period` | `number` | `14` | 平滑化期間 |
+| `volumeDivisor` | `number` | `10000` | ボリューム除数 |
+
+**戻り値:** `Series<number | null>`
+
+**計算式:** `((H+L)/2 - (prevH+prevL)/2) / ((Volume/divisor) / (H-L))`
+
+---
+
+#### `klinger(candles, options)`
+
+Klinger Volume Oscillator — Volume Forceの短期-長期EMA差分。
+
+```typescript
+const result = klinger(candles);
+const custom = klinger(candles, { shortPeriod: 34, longPeriod: 55, signalPeriod: 13 });
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|-----------|------|-----------|------|
+| `shortPeriod` | `number` | `34` | 短期EMA期間 |
+| `longPeriod` | `number` | `55` | 長期EMA期間 |
+| `signalPeriod` | `number` | `13` | シグナルライン期間 |
+
+**戻り値:** `Series<KlingerValue>`
+
+```typescript
+interface KlingerValue {
+  kvo: number | null;        // Klinger Volume Oscillator
+  signal: number | null;     // シグナルライン
+  histogram: number | null;  // KVO - Signal
+}
+```
+
+---
+
+#### `twap(candles, options)`
+
+TWAP（時間加重平均価格） — セッション内のTypical Priceの均等加重平均。
+
+```typescript
+const result = twap(candles);
+const custom = twap(candles, { sessionResetPeriod: 'session' });
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|-----------|------|-----------|------|
+| `sessionResetPeriod` | `'session' \| number` | `'session'` | セッションリセット期間 |
+
+**戻り値:** `Series<number | null>`
+
+---
+
+#### `weisWave(candles, options)`
+
+Weis Wave Volume — 波動方向ごとにボリュームを累積。
+
+```typescript
+const result = weisWave(candles);
+const custom = weisWave(candles, { method: 'close', threshold: 0 });
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|-----------|------|-----------|------|
+| `method` | `'close' \| 'highlow'` | `'close'` | 方向判定方法 |
+| `threshold` | `number` | `0` | 方向転換の閾値 |
+
+**戻り値:** `Series<WeisWaveValue>`
+
+```typescript
+interface WeisWaveValue {
+  waveVolume: number;   // 波動の累積ボリューム
+  direction: 1 | -1;   // 波動の方向（1=上昇, -1=下降）
+}
+```
+
+---
+
+#### `marketProfile(candles, options)`
+
+Market Profile / TPO — 価格帯ごとの滞在時間分析。POC・Value Area算出。
+
+```typescript
+const result = marketProfile(candles);
+const custom = marketProfile(candles, {
+  tickSize: 0.01,
+  sessionResetPeriod: 'session',
+  valueAreaPercent: 0.70
+});
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|-----------|------|-----------|------|
+| `tickSize` | `number` | `auto` | 価格帯のティックサイズ |
+| `sessionResetPeriod` | `'session' \| number` | `'session'` | セッションリセット期間 |
+| `valueAreaPercent` | `number` | `0.70` | Value Areaの割合 |
+
+**戻り値:** `Series<MarketProfileValue>`
+
+```typescript
+interface MarketProfileValue {
+  poc: number;              // Point of Control（最頻出価格帯）
+  valueAreaHigh: number;    // Value Area上限
+  valueAreaLow: number;     // Value Area下限
+  profile: Map<number, number>;  // 価格帯ごとのTPOカウント
 }
 ```
 
