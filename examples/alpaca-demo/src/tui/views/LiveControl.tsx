@@ -173,7 +173,7 @@ export function LiveControl({
   return (
     <Box flexDirection="column" flexGrow={1}>
       {/* Status line */}
-      <Box gap={3} marginBottom={1}>
+      <Box gap={3} marginBottom={1} flexShrink={0}>
         <Text bold color="cyan">
           Trading Control
         </Text>
@@ -198,53 +198,70 @@ export function LiveControl({
       )}
 
       {/* Configuration panels (when not running) */}
-      {!isRunning && (
-        <StrategyAndSymbolPanels
-          strategyIds={strategyIds}
-          selectedStrategy={selectedStrategy}
-          focusPanel={focusPanel}
-          symbolSource={symbolSource}
-          symbolSourceActions={symbolSourceActions}
-          selectedSymbols={selectedSymbols}
-          onToggleSymbol={onToggleSymbol}
-          maxRows={maxRows - 4}
-        />
-      )}
+      {!isRunning &&
+        (() => {
+          // Fixed overhead: status(1)+margin(1) + keyHints marginTop(1)+text(1) = 4
+          // Agent table (when agents exist): title(1)+marginTop(1)+header(1)+separator(1)+rows+marginBottom(1)
+          const agentTableRows = agents.length > 0 ? agents.length + 5 : 0;
+          const panelMaxRows = maxRows - 4 - (error ? 2 : 0) - agentTableRows;
+          return (
+            <StrategyAndSymbolPanels
+              strategyIds={strategyIds}
+              selectedStrategy={selectedStrategy}
+              focusPanel={focusPanel}
+              symbolSource={symbolSource}
+              symbolSourceActions={symbolSourceActions}
+              selectedSymbols={selectedSymbols}
+              onToggleSymbol={onToggleSymbol}
+              maxRows={panelMaxRows}
+            />
+          );
+        })()}
 
       {/* Agent table (when running or has agents) */}
-      {agents.length > 0 && (
-        <Box flexDirection="column" marginBottom={1}>
-          <Text bold color="cyan">
-            {" "}
-            Active Agents{" "}
-          </Text>
-          <Box marginTop={1} flexDirection="column">
-            {isRunning && (
-              <Box flexDirection="column">
-                {agents.map((agent, i) => {
-                  const isCursor = i === agentCursor;
-                  const isKillTarget = killConfirm === agent.id;
-                  return (
-                    <Box key={agent.id}>
-                      <Text color={isCursor ? "cyan" : "white"}>
-                        {isCursor ? "> " : "  "}
-                        {agent.id.padEnd(30)}
-                        <Text color={agent.metrics.totalReturn >= 0 ? "green" : "red"}>
-                          {`${agent.metrics.totalReturnPercent.toFixed(2)}%`.padEnd(10)}
-                        </Text>
-                        {`W:${agent.metrics.winRate.toFixed(0)}%`.padEnd(8)}
-                        {`T:${agent.metrics.totalTrades}`}
-                        {isKillTarget && <Text color="red"> [press k again to confirm kill]</Text>}
-                      </Text>
-                    </Box>
-                  );
-                })}
+      {agents.length > 0 &&
+        (() => {
+          // 6 = status(1)+margin(1) + "Active Agents" title(1)+marginTop(1) + keyHints marginTop(1)+text(1)
+          const maxVisibleAgents = Math.max(2, maxRows - 6);
+          const visibleAgents = isRunning ? agents.slice(0, maxVisibleAgents) : agents;
+          const hiddenCount = agents.length - visibleAgents.length;
+          return (
+            <Box flexDirection="column" marginBottom={1} flexShrink={0}>
+              <Text bold color="cyan">
+                {" "}
+                Active Agents{" "}
+              </Text>
+              <Box marginTop={1} flexDirection="column" flexShrink={0}>
+                {isRunning && (
+                  <Box flexDirection="column">
+                    {visibleAgents.map((agent, i) => {
+                      const isCursor = i === agentCursor;
+                      const isKillTarget = killConfirm === agent.id;
+                      return (
+                        <Box key={agent.id}>
+                          <Text color={isCursor ? "cyan" : "white"}>
+                            {isCursor ? "> " : "  "}
+                            {agent.id.padEnd(30)}
+                            <Text color={agent.metrics.totalReturn >= 0 ? "green" : "red"}>
+                              {`${agent.metrics.totalReturnPercent.toFixed(2)}%`.padEnd(10)}
+                            </Text>
+                            {`W:${agent.metrics.winRate.toFixed(0)}%`.padEnd(8)}
+                            {`T:${agent.metrics.totalTrades}`}
+                            {isKillTarget && (
+                              <Text color="red"> [press k again to confirm kill]</Text>
+                            )}
+                          </Text>
+                        </Box>
+                      );
+                    })}
+                    {hiddenCount > 0 && <Text color="gray"> ... {hiddenCount} more agents</Text>}
+                  </Box>
+                )}
+                {!isRunning && <AgentTable agents={agents} compact />}
               </Box>
-            )}
-            {!isRunning && <AgentTable agents={agents} compact />}
-          </Box>
-        </Box>
-      )}
+            </Box>
+          );
+        })()}
 
       {/* Revive sub-list */}
       {showReviveList && (
@@ -274,7 +291,7 @@ export function LiveControl({
       )}
 
       {/* Key hints */}
-      <Box marginTop={1}>
+      <Box marginTop={1} flexShrink={0}>
         <KeyHint
           hints={
             showReviveList
@@ -361,11 +378,11 @@ function StrategyAndSymbolPanels({
 
   if (isFocused) {
     return (
-      <Box flexDirection="column">
+      <Box flexDirection="column" flexShrink={0}>
         <Text bold color="cyan">
           Strategy Selection
         </Text>
-        <Box flexDirection="column">
+        <Box flexDirection="column" flexShrink={0}>
           {visibleStart > 0 && (
             <Text color="gray">
               {"  "}... {visibleStart} more above
@@ -378,7 +395,7 @@ function StrategyAndSymbolPanels({
             const label = itemIndex === 0 ? "[ALL] Use all strategies" : strategyIds[stratIdx];
 
             return (
-              <Box key={itemIndex}>
+              <Box key={itemIndex} flexShrink={0}>
                 <Text color={isSelected ? "cyan" : "white"}>
                   {isSelected ? "> " : "  "}
                   {label}
@@ -409,7 +426,7 @@ function StrategyAndSymbolPanels({
 
   // Symbols panel
   return (
-    <Box flexDirection="column">
+    <Box flexDirection="column" flexShrink={0}>
       <Text color="gray">
         Strategy:{" "}
         <Text color="yellow">

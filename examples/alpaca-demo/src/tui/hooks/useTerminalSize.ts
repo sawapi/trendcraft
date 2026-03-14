@@ -10,8 +10,8 @@ export type TerminalSize = {
   columns: number;
 };
 
-/** Fixed overhead: header(3) + tabbar(2) + statusbar(1) + nav hint(1) + padding(2) = 9 */
-const CHROME_ROWS = 9;
+/** Fixed overhead: header(3) + tabbar(1) + statusbar(3) + nav hint(1) = 8 */
+const CHROME_ROWS = 8;
 
 export function useTerminalSize(): TerminalSize & { contentRows: number } {
   const { stdout } = useStdout();

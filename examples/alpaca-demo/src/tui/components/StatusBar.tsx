@@ -24,7 +24,7 @@ export function StatusBar({
   const pnlSign = totalPnl >= 0 ? "+" : "";
 
   return (
-    <Box borderStyle="single" borderColor="gray" paddingX={1}>
+    <Box borderStyle="single" borderColor="gray" paddingX={1} flexShrink={0}>
       <Text>
         Status:{" "}
         <Text bold color={isRunning ? "green" : "yellow"}>

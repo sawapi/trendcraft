@@ -86,19 +86,19 @@ export function App({ options }: AppProps): React.ReactElement {
   return (
     <Box flexDirection="column" height={rows}>
       {/* Header */}
-      <Box borderStyle="single" borderColor="cyan" paddingX={1}>
+      <Box borderStyle="single" borderColor="cyan" paddingX={1} flexShrink={0}>
         <Text bold color="cyan">
           ALPACA TRADING CONSOLE
         </Text>
       </Box>
 
       {/* Tab bar */}
-      <Box paddingX={1}>
+      <Box paddingX={1} flexShrink={0}>
         <TabBar tabs={TABS} activeIndex={activeTab} />
       </Box>
 
       {/* Content area */}
-      <Box flexGrow={1} paddingX={1}>
+      <Box flexGrow={1} paddingX={1} overflow="hidden">
         {activeTab === 0 && (
           <Dashboard
             agents={tradingState.agents}
@@ -164,7 +164,7 @@ export function App({ options }: AppProps): React.ReactElement {
       />
 
       {/* Navigation hint */}
-      <Box paddingX={1}>
+      <Box paddingX={1} flexShrink={0}>
         <Text color="gray">1-5: Switch tabs | q: Quit</Text>
       </Box>
     </Box>
