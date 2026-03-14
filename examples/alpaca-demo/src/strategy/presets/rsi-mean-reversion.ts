@@ -43,6 +43,8 @@ export const rsiMeanReversion: StrategyDefinition = {
     sizing: { method: "risk-based", riskPercent: 1 },
     stopLoss: 3,
     takeProfit: 6,
+    partialTakeProfit: { threshold: 3, sellPercent: 50 },
+    breakevenStop: { threshold: 2, buffer: 0.5 },
     slippage: DEFAULT_TRADING_COSTS.slippage,
     commission: DEFAULT_TRADING_COSTS.commission,
     commissionRate: DEFAULT_TRADING_COSTS.commissionRate,
@@ -58,6 +60,8 @@ export const rsiMeanReversion: StrategyDefinition = {
   backtestOptions: {
     stopLoss: 3,
     takeProfit: 6,
+    partialTakeProfit: { threshold: 3, sellPercent: 50 },
+    breakevenStop: { threshold: 2, buffer: 0.5 },
     slippage: DEFAULT_TRADING_COSTS.slippage,
     commission: DEFAULT_TRADING_COSTS.commission,
     commissionRate: DEFAULT_TRADING_COSTS.commissionRate,

@@ -135,7 +135,28 @@ export function applyStrategyOverrides(overrides: ParameterOverride[]): {
       // Position/guards-only change — patch the existing strategy directly
       const patched = { ...existingStrategy };
       if (override.overrides.position) {
-        patched.position = { ...patched.position, ...override.overrides.position };
+        const posOv = override.overrides.position;
+        // Convert template-style partialTakeProfit/breakEvenStop to core types
+        const convertedPtp = posOv.partialTakeProfit
+          ? {
+              threshold: posOv.partialTakeProfit.threshold,
+              sellPercent: posOv.partialTakeProfit.portion,
+            }
+          : undefined;
+        const convertedBe = posOv.breakEvenStop
+          ? {
+              threshold: posOv.breakEvenStop.triggerPercent,
+              buffer: posOv.breakEvenStop.offset,
+            }
+          : undefined;
+
+        const { partialTakeProfit: _ptp, breakEvenStop: _be, ...restPosOv } = posOv;
+        patched.position = {
+          ...patched.position,
+          ...restPosOv,
+          ...(convertedPtp && { partialTakeProfit: convertedPtp }),
+          ...(convertedBe && { breakevenStop: convertedBe }),
+        };
       }
       if (override.overrides.guards) {
         patched.guards = {
@@ -152,6 +173,18 @@ export function applyStrategyOverrides(overrides: ParameterOverride[]): {
           ...(posOv.takeProfit !== undefined && { takeProfit: posOv.takeProfit }),
           ...(posOv.trailingStop !== undefined && { trailingStop: posOv.trailingStop }),
           ...(posOv.slippage !== undefined && { slippage: posOv.slippage }),
+          ...(posOv.partialTakeProfit && {
+            partialTakeProfit: {
+              threshold: posOv.partialTakeProfit.threshold,
+              sellPercent: posOv.partialTakeProfit.portion,
+            },
+          }),
+          ...(posOv.breakEvenStop && {
+            breakevenStop: {
+              threshold: posOv.breakEvenStop.triggerPercent,
+              buffer: posOv.breakEvenStop.offset,
+            },
+          }),
         };
       }
       register(patched);

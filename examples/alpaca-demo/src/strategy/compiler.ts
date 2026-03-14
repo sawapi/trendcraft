@@ -1025,6 +1025,18 @@ function buildPosition(template: StrategyTemplate): streaming.PositionManagerOpt
     ...(template.position.trailingStop !== undefined && {
       trailingStop: template.position.trailingStop,
     }),
+    ...(template.position.partialTakeProfit && {
+      partialTakeProfit: {
+        threshold: template.position.partialTakeProfit.threshold,
+        sellPercent: template.position.partialTakeProfit.portion,
+      },
+    }),
+    ...(template.position.breakEvenStop && {
+      breakevenStop: {
+        threshold: template.position.breakEvenStop.triggerPercent,
+        buffer: template.position.breakEvenStop.offset,
+      },
+    }),
     slippage: template.position.slippage,
     commission: template.position.commission ?? DEFAULT_TRADING_COSTS.commission,
     commissionRate: template.position.commissionRate ?? DEFAULT_TRADING_COSTS.commissionRate,

@@ -125,6 +125,35 @@ export function createAgent(
           time: event.fill.time,
           ...(orderType === "limit" && { orderType, limitPrice }),
         });
+      } else if (event.type === "position-partial-close") {
+        intents.push({
+          agentId: id,
+          symbol,
+          side: event.fill.side,
+          shares: event.fill.shares,
+          reason: event.fill.reason,
+          time: event.fill.time,
+          pnl: event.trade.return,
+        });
+        dailyPnlAccumulator += event.trade.return;
+
+        const partialExitValue = event.trade.exitPrice * event.fill.shares;
+        const partialExitCommission =
+          costConfig.commission + partialExitValue * (costConfig.commissionRate / 100);
+        const partialGrossCandidate = event.trade.return + partialExitCommission;
+        let partialGross: number;
+        let partialTax: number;
+        if (partialGrossCandidate > 0 && costConfig.taxRate > 0) {
+          partialGross =
+            (event.trade.return + partialExitCommission) / (1 - costConfig.taxRate / 100);
+          partialTax = partialGross * (costConfig.taxRate / 100);
+        } else {
+          partialGross = partialGrossCandidate;
+          partialTax = 0;
+        }
+        grossReturnAccumulator += partialGross;
+        totalCommissionAccumulator += partialExitCommission;
+        estimatedTaxAccumulator += partialTax;
       } else if (event.type === "position-closed") {
         intents.push({
           agentId: id,

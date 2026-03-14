@@ -84,6 +84,8 @@ export const emaSwingDaily: StrategyDefinition = {
     sizing: { method: "risk-based", riskPercent: 0.5 },
     stopLoss: 5,
     trailingStop: 6,
+    partialTakeProfit: { threshold: 4, sellPercent: 50 },
+    breakevenStop: { threshold: 3, buffer: 0.5 },
     slippage: DEFAULT_TRADING_COSTS.slippage,
     commission: DEFAULT_TRADING_COSTS.commission,
     commissionRate: DEFAULT_TRADING_COSTS.commissionRate,
@@ -99,6 +101,8 @@ export const emaSwingDaily: StrategyDefinition = {
   backtestOptions: {
     stopLoss: 5,
     trailingStop: 6,
+    partialTakeProfit: { threshold: 4, sellPercent: 50 },
+    breakevenStop: { threshold: 3, buffer: 0.5 },
     slippage: DEFAULT_TRADING_COSTS.slippage,
     commission: DEFAULT_TRADING_COSTS.commission,
     commissionRate: DEFAULT_TRADING_COSTS.commissionRate,
