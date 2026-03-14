@@ -40,6 +40,17 @@ const PARAMETER_RANGES: Record<string, ParameterRange[]> = {
 };
 
 /**
+ * Explicit mapping from WFA parameter names to indicator params.
+ * Used to safely map optimized parameter values back to indicator configs.
+ */
+const INDICATOR_PARAM_KEYS: Record<string, Record<string, string>> = {
+  rsi: { rsiPeriod: "period" },
+  ema: { emaPeriod: "period" },
+  sma: { smaPeriod: "period" },
+  bollinger: { bbPeriod: "period", bbStdDev: "stdDev" },
+};
+
+/**
  * Run Walk-Forward optimization for a strategy-symbol pair.
  *
  * @param template - Strategy template to optimize
@@ -101,11 +112,11 @@ export function optimizeStrategy(
         const modified = { ...template };
         modified.indicators = template.indicators.map((ind) => {
           const newParams = { ...ind.params };
-          for (const range of ranges) {
-            if (range.name.startsWith(ind.type.substring(0, 3))) {
-              const paramKey = range.name.replace(/^[a-z]+/, "").toLowerCase() || "period";
-              if (params[range.name] !== undefined) {
-                newParams[paramKey] = params[range.name];
+          const keyMap = INDICATOR_PARAM_KEYS[ind.type];
+          if (keyMap) {
+            for (const [rangeName, paramKey] of Object.entries(keyMap)) {
+              if (params[rangeName] !== undefined) {
+                newParams[paramKey] = params[rangeName];
               }
             }
           }
@@ -143,10 +154,12 @@ export function optimizeStrategy(
         overrides: {
           indicators: template.indicators.map((ind) => {
             const newParams = { ...ind.params };
-            for (const [key, value] of Object.entries(bestParams)) {
-              if (key.startsWith(ind.type.substring(0, 3))) {
-                const paramKey = key.replace(/^[a-z]+/, "").toLowerCase() || "period";
-                newParams[paramKey] = value;
+            const keyMap = INDICATOR_PARAM_KEYS[ind.type];
+            if (keyMap) {
+              for (const [rangeName, paramKey] of Object.entries(keyMap)) {
+                if (bestParams[rangeName] !== undefined) {
+                  newParams[paramKey] = bestParams[rangeName];
+                }
               }
             }
             return { ...ind, params: newParams };

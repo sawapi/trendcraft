@@ -17,6 +17,12 @@ import { createAgent } from "./agent.js";
 import type { MarketState } from "./market-state.js";
 import type { AgentState, ManagerState } from "./types.js";
 
+export type BlockedEntry = {
+  agentId: string;
+  symbol: string;
+  reason: string;
+};
+
 export type AgentManagerOptions = {
   capital?: number;
   portfolioGuard?: streaming.PortfolioGuardOptions;
@@ -32,7 +38,10 @@ export type AgentManagerOptions = {
 export type AgentManager = {
   addAgent(strategy: StrategyDefinition, symbol: string, warmUp?: NormalizedCandle[]): Agent;
   removeAgent(agentId: string): void;
-  onTrade(symbol: string, trade: streaming.Trade): OrderIntent[];
+  onTrade(
+    symbol: string,
+    trade: streaming.Trade,
+  ): { intents: OrderIntent[]; blocked: BlockedEntry[] };
   closeAll(): OrderIntent[];
   getAgents(): Agent[];
   getAgent(agentId: string): Agent | undefined;
@@ -111,11 +120,15 @@ export function createAgentManager(opts?: AgentManagerOptions): AgentManager {
       }
     },
 
-    onTrade(symbol: string, trade: streaming.Trade): OrderIntent[] {
+    onTrade(
+      symbol: string,
+      trade: streaming.Trade,
+    ): { intents: OrderIntent[]; blocked: BlockedEntry[] } {
       const agentIds = symbolAgents.get(symbol);
-      if (!agentIds) return [];
+      if (!agentIds) return { intents: [], blocked: [] };
 
       const allIntents: OrderIntent[] = [];
+      const allBlocked: BlockedEntry[] = [];
       for (const agentId of agentIds) {
         const agent = agents.get(agentId);
         if (agent) {
@@ -124,6 +137,7 @@ export function createAgentManager(opts?: AgentManagerOptions): AgentManager {
           for (const intent of intents) {
             // Strategy deactivation check for entry intents
             if (deactivatedStrategies.has(agent.strategyId) && intent.reason === "entry") {
+              allBlocked.push({ agentId: intent.agentId, symbol, reason: "regime rotation" });
               continue;
             }
 
@@ -134,6 +148,11 @@ export function createAgentManager(opts?: AgentManagerOptions): AgentManager {
                 const check = marketState.checkFilter(filter);
                 if (!check.allowed) {
                   console.log(`[MARKET] Blocked ${intent.agentId} entry: ${check.reason}`);
+                  allBlocked.push({
+                    agentId: intent.agentId,
+                    symbol,
+                    reason: check.reason ?? "market filter",
+                  });
                   continue;
                 }
               }
@@ -143,7 +162,9 @@ export function createAgentManager(opts?: AgentManagerOptions): AgentManager {
             if (earningsGuard && intent.reason === "entry") {
               if (earningsGuard.hasUpcomingEarnings(symbol)) {
                 const nextDate = earningsGuard.getNextEarnings(symbol);
-                console.log(`[EARNINGS] Blocked ${intent.agentId} entry: earnings on ${nextDate}`);
+                const reason = `earnings on ${nextDate}`;
+                console.log(`[EARNINGS] Blocked ${intent.agentId} entry: ${reason}`);
+                allBlocked.push({ agentId: intent.agentId, symbol, reason });
                 continue;
               }
             }
@@ -168,16 +189,27 @@ export function createAgentManager(opts?: AgentManagerOptions): AgentManager {
               );
               if (!sectorCheck.allowed) {
                 console.log(`[SECTOR] Blocked ${intent.agentId} entry: ${sectorCheck.reason}`);
+                allBlocked.push({
+                  agentId: intent.agentId,
+                  symbol,
+                  reason: sectorCheck.reason ?? "sector limit",
+                });
                 continue;
               }
             }
 
             // PortfolioGuard check for entry intents
+            // Note: check-and-reserve is non-atomic but safe — single-threaded event loop
             if (portfolioGuard && intent.reason === "entry") {
               const notional = intent.shares * trade.price;
               const check = portfolioGuard.canOpenPosition(symbol, notional);
               if (!check.allowed) {
                 console.log(`[PORTFOLIO] Blocked ${intent.agentId} entry: ${check.reason}`);
+                allBlocked.push({
+                  agentId: intent.agentId,
+                  symbol,
+                  reason: check.reason ?? "portfolio limit",
+                });
                 continue;
               }
               portfolioGuard.reportPositionOpen(symbol, notional);
@@ -193,7 +225,7 @@ export function createAgentManager(opts?: AgentManagerOptions): AgentManager {
           }
         }
       }
-      return allIntents;
+      return { intents: allIntents, blocked: allBlocked };
     },
 
     closeAll(): OrderIntent[] {
@@ -225,6 +257,8 @@ export function createAgentManager(opts?: AgentManagerOptions): AgentManager {
       return {
         agents: [...agents.values()].map((a) => a.getState()),
         portfolioGuardState: portfolioGuard?.getState(),
+        deactivatedStrategies:
+          deactivatedStrategies.size > 0 ? [...deactivatedStrategies] : undefined,
       };
     },
 
@@ -236,6 +270,8 @@ export function createAgentManager(opts?: AgentManagerOptions): AgentManager {
           savedPortfolioGuardState,
         );
       }
+
+      // Note: deactivated strategies are restored separately via the session
 
       for (const state of states) {
         const strategy = strategies.get(state.strategyId);

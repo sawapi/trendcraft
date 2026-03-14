@@ -9,9 +9,14 @@ import type { AgentState } from "../../agent/types.js";
 type AgentTableProps = {
   agents: AgentState[];
   compact?: boolean;
+  deactivatedStrategies?: Set<string>;
 };
 
-export function AgentTable({ agents, compact }: AgentTableProps): React.ReactElement {
+export function AgentTable({
+  agents,
+  compact,
+  deactivatedStrategies,
+}: AgentTableProps): React.ReactElement {
   if (agents.length === 0) {
     return (
       <Box>
@@ -44,13 +49,16 @@ export function AgentTable({ agents, compact }: AgentTableProps): React.ReactEle
         const m = agent.metrics;
         const retColor = m.totalReturnPercent >= 0 ? "green" : "red";
         const pnlColor = m.totalReturn >= 0 ? "green" : "red";
+        const isDeactivated = deactivatedStrategies?.has(agent.strategyId) ?? false;
+        const badge = isDeactivated ? " [OFF]" : "";
+        const nameMaxLen = (compact ? 22 : 28) - badge.length;
 
         return (
           <Box key={agent.id}>
             <Text>
               {String(i + 1).padEnd(4)}
-              <Text color={agent.active ? "white" : "gray"}>
-                {agent.strategyId.slice(0, compact ? 22 : 28).padEnd(compact ? 24 : 30)}
+              <Text color={isDeactivated ? "gray" : agent.active ? "white" : "gray"}>
+                {(agent.strategyId.slice(0, nameMaxLen) + badge).padEnd(compact ? 24 : 30)}
               </Text>
               {agent.symbol.padEnd(8)}
               <Text color={retColor}>{`${m.totalReturnPercent.toFixed(2)}%`.padEnd(10)}</Text>

@@ -33,6 +33,15 @@ export type Agent = {
   restore(state: AgentState): void;
   /** Hot-swap: replace the strategy while preserving position and trade history */
   replaceStrategy(newStrategy: StrategyDefinition): void;
+  /** Get latest regime indicator snapshot (null if no regime indicator configured) */
+  getRegimeSnapshot(): RegimeData | null;
+};
+
+/** Cached regime data extracted from indicator snapshots */
+export type RegimeData = {
+  trend: "bullish" | "bearish" | "sideways";
+  volatility: "low" | "normal" | "high";
+  trendStrength: number;
 };
 
 export function createAgent(
@@ -83,6 +92,9 @@ export function createAgent(
     : null;
   let lastAtrValue: number | null = null;
 
+  // Cached regime data from indicator snapshots
+  let cachedRegime: RegimeData | null = null;
+
   function isNewBar(time: number): boolean {
     if (time - lastBarTime >= currentStrategy.intervalMs) {
       lastBarTime = time;
@@ -96,6 +108,14 @@ export function createAgent(
 
     for (const event of events) {
       if (event.type === "position-opened") {
+        const meta = currentStrategy.metadata as
+          | { orderType?: "market" | "limit"; limitOffsetPercent?: number }
+          | undefined;
+        const orderType = meta?.orderType ?? "market";
+        const limitPrice =
+          orderType === "limit" && meta?.limitOffsetPercent != null
+            ? event.fill.price * (1 - meta.limitOffsetPercent / 100)
+            : undefined;
         intents.push({
           agentId: id,
           symbol,
@@ -103,6 +123,7 @@ export function createAgent(
           shares: event.fill.shares,
           reason: "entry",
           time: event.fill.time,
+          ...(orderType === "limit" && { orderType, limitPrice }),
         });
       } else if (event.type === "position-closed") {
         intents.push({
@@ -207,13 +228,27 @@ export function createAgent(
       }
 
       const events = session.onTrade(trade);
+
+      // Extract regime data from indicator snapshots in events
+      for (const event of events) {
+        if ("snapshot" in event && event.snapshot) {
+          const regime = event.snapshot.regime as RegimeData | undefined;
+          if (regime?.trend) {
+            cachedRegime = regime;
+          }
+        }
+      }
+
       let intents = eventsToIntents(events);
 
       // Update ATR trailing stop after position opens or on each new bar
       if (atrTrailingConfig && lastAtrValue !== null) {
         const position = session.getPosition();
         if (position && position.shares > 0) {
-          const stopPrice = trade.price - lastAtrValue * atrTrailingConfig.multiplier;
+          const stopPrice =
+            position.direction === "short"
+              ? trade.price + lastAtrValue * atrTrailingConfig.multiplier
+              : trade.price - lastAtrValue * atrTrailingConfig.multiplier;
           if (stopPrice > 0) {
             session.updateStopLoss(stopPrice);
           }
@@ -330,6 +365,10 @@ export function createAgent(
       lastAtrValue = null;
 
       console.log(`[AGENT] ${id} strategy hot-swapped`);
+    },
+
+    getRegimeSnapshot(): RegimeData | null {
+      return cachedRegime;
     },
   };
 }

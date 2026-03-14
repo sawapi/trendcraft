@@ -15,12 +15,17 @@ export type PersistentState = {
   savedAt: number;
   agents: AgentState[];
   portfolioGuardState?: streaming.PortfolioGuardState;
+  deactivatedStrategies?: string[];
 };
 
 const DEFAULT_PATH = resolve(import.meta.dirname, "../../data/state.json");
 
 export type StateStore = {
-  save(agents: AgentState[], portfolioGuardState?: streaming.PortfolioGuardState): void;
+  save(
+    agents: AgentState[],
+    portfolioGuardState?: streaming.PortfolioGuardState,
+    deactivatedStrategies?: string[],
+  ): void;
   load(): PersistentState | null;
   exists(): boolean;
 };
@@ -31,12 +36,17 @@ export function createStateStore(path: string = DEFAULT_PATH): StateStore {
   mkdirSync(dir, { recursive: true });
 
   return {
-    save(agents: AgentState[], portfolioGuardState?: streaming.PortfolioGuardState): void {
+    save(
+      agents: AgentState[],
+      portfolioGuardState?: streaming.PortfolioGuardState,
+      deactivatedStrategies?: string[],
+    ): void {
       const state: PersistentState = {
         version: 1,
         savedAt: Date.now(),
         agents,
         portfolioGuardState,
+        deactivatedStrategies,
       };
 
       const json = JSON.stringify(state, null, 2);
@@ -73,4 +83,58 @@ export function createStateStore(path: string = DEFAULT_PATH): StateStore {
       return existsSync(path);
     },
   };
+}
+
+// ---------------------------------------------------------------------------
+// Daily cache utilities (optimizer overrides, earnings calendar)
+// ---------------------------------------------------------------------------
+
+const DATA_DIR = resolve(import.meta.dirname, "../../data");
+
+function todayString(): string {
+  return new Date().toISOString().split("T")[0];
+}
+
+/**
+ * Save optimizer overrides for today. Skips re-optimization if a cache exists.
+ */
+export function saveOptimizerCache(overrides: unknown[]): void {
+  mkdirSync(DATA_DIR, { recursive: true });
+  const filePath = resolve(DATA_DIR, `optimizer-overrides-${todayString()}.json`);
+  writeFileSync(filePath, JSON.stringify(overrides, null, 2), "utf-8");
+}
+
+/**
+ * Load today's optimizer cache. Returns null if no cache exists.
+ */
+export function loadOptimizerCache(): unknown[] | null {
+  const filePath = resolve(DATA_DIR, `optimizer-overrides-${todayString()}.json`);
+  if (!existsSync(filePath)) return null;
+  try {
+    return JSON.parse(readFileSync(filePath, "utf-8")) as unknown[];
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Save earnings calendar for today.
+ */
+export function saveEarningsCache(entries: unknown[]): void {
+  mkdirSync(DATA_DIR, { recursive: true });
+  const filePath = resolve(DATA_DIR, `earnings-${todayString()}.json`);
+  writeFileSync(filePath, JSON.stringify(entries, null, 2), "utf-8");
+}
+
+/**
+ * Load today's earnings cache. Returns null if no cache exists.
+ */
+export function loadEarningsCache(): unknown[] | null {
+  const filePath = resolve(DATA_DIR, `earnings-${todayString()}.json`);
+  if (!existsSync(filePath)) return null;
+  try {
+    return JSON.parse(readFileSync(filePath, "utf-8")) as unknown[];
+  } catch {
+    return null;
+  }
 }

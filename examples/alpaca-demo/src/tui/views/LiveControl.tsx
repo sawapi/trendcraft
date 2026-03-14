@@ -160,14 +160,11 @@ export function LiveControl({
       }
     }
 
-    // Panel switching (works in both panels)
-    if (key.leftArrow && focusPanel === "symbols" && symbolSource.source !== "sec") {
-      setFocusPanel("strategy");
+    // Panel switching via Tab (works in both panels)
+    if (key.tab) {
+      setFocusPanel((prev) => (prev === "strategy" ? "symbols" : "strategy"));
     }
-    if (key.rightArrow && focusPanel === "strategy") {
-      setFocusPanel("symbols");
-    }
-    // For SEC source, use Escape to go back to strategy panel
+    // Escape also returns to strategy panel from symbols
     if (key.escape && focusPanel === "symbols") {
       setFocusPanel("strategy");
     }
@@ -175,31 +172,23 @@ export function LiveControl({
 
   return (
     <Box flexDirection="column" flexGrow={1}>
-      {/* Status */}
-      <Box marginBottom={1}>
+      {/* Status line */}
+      <Box gap={3} marginBottom={1}>
         <Text bold color="cyan">
-          {" "}
-          Trading Control{" "}
+          Trading Control
         </Text>
-      </Box>
-
-      <Box marginBottom={1} gap={4}>
-        <Box>
-          <Text>
-            Status:{" "}
-            <Text bold color={isRunning ? "green" : isInitializing ? "yellow" : "gray"}>
-              {isRunning ? "RUNNING" : isInitializing ? "INITIALIZING..." : "STOPPED"}
-            </Text>
+        <Text>
+          Status:{" "}
+          <Text bold color={isRunning ? "green" : isInitializing ? "yellow" : "gray"}>
+            {isRunning ? "RUNNING" : isInitializing ? "INITIALIZING..." : "STOPPED"}
           </Text>
-        </Box>
-        <Box>
-          <Text>
-            Mode:{" "}
-            <Text bold color={dryRun ? "yellow" : "red"}>
-              {dryRun ? "DRY RUN" : "PAPER TRADING"}
-            </Text>
+        </Text>
+        <Text>
+          Mode:{" "}
+          <Text bold color={dryRun ? "yellow" : "red"}>
+            {dryRun ? "DRY RUN" : "PAPER TRADING"}
           </Text>
-        </Box>
+        </Text>
       </Box>
 
       {error && (
@@ -210,40 +199,16 @@ export function LiveControl({
 
       {/* Configuration panels (when not running) */}
       {!isRunning && (
-        <Box gap={4} marginBottom={1}>
-          {/* Strategy panel */}
-          <Box flexDirection="column" width={36}>
-            <Text bold color={focusPanel === "strategy" ? "cyan" : "white"}>
-              Strategy Selection
-            </Text>
-            <Box marginTop={1} flexDirection="column">
-              <Box>
-                <Text color={selectedStrategy === -1 ? "cyan" : "gray"}>
-                  {selectedStrategy === -1 ? "> " : "  "}
-                  [ALL] Use all strategies
-                </Text>
-              </Box>
-              {strategyIds.map((id, i) => (
-                <Box key={id}>
-                  <Text color={selectedStrategy === i ? "cyan" : "white"}>
-                    {selectedStrategy === i ? "> " : "  "}
-                    {id}
-                  </Text>
-                </Box>
-              ))}
-            </Box>
-          </Box>
-
-          {/* Symbol picker panel */}
-          <SymbolPicker
-            symbolSource={symbolSource}
-            symbolSourceActions={symbolSourceActions}
-            selected={selectedSymbols}
-            onToggle={onToggleSymbol}
-            focused={focusPanel === "symbols"}
-            maxListRows={Math.max(5, maxRows - 6)}
-          />
-        </Box>
+        <StrategyAndSymbolPanels
+          strategyIds={strategyIds}
+          selectedStrategy={selectedStrategy}
+          focusPanel={focusPanel}
+          symbolSource={symbolSource}
+          symbolSourceActions={symbolSourceActions}
+          selectedSymbols={selectedSymbols}
+          onToggleSymbol={onToggleSymbol}
+          maxRows={maxRows - 4}
+        />
       )}
 
       {/* Agent table (when running or has agents) */}
@@ -331,20 +296,135 @@ export function LiveControl({
                     { key: "s", action: `Start (${selectedSymbols.size} sym)` },
                     { key: "d", action: `Dry-run (${dryRun ? "ON" : "OFF"})` },
                     ...(focusPanel === "strategy" ? [{ key: "a", action: "All strategies" }] : []),
-                    { key: "Right/Esc", action: "Switch panel" },
+                    { key: "Tab", action: "Switch panel" },
                     ...(focusPanel === "symbols"
                       ? [
-                          { key: "Tab", action: "Change source" },
+                          { key: "n", action: "Change source" },
                           ...(symbolSource.source === "sec"
                             ? [{ key: "Left/Right", action: "Sector" }]
                             : []),
                           { key: "Space", action: "Toggle" },
                         ]
-                      : []),
+                      : [{ key: "Up/Down", action: "Select" }]),
                   ]
           }
         />
       </Box>
+    </Box>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Strategy list with scrolling + Symbol picker in side-by-side panels
+// ---------------------------------------------------------------------------
+
+type PanelsProps = {
+  strategyIds: string[];
+  selectedStrategy: number;
+  focusPanel: Panel;
+  symbolSource: SymbolSourceState;
+  symbolSourceActions: SymbolSourceActions;
+  selectedSymbols: Set<string>;
+  onToggleSymbol: (symbol: string) => void;
+  maxRows: number;
+};
+
+function StrategyAndSymbolPanels({
+  strategyIds,
+  selectedStrategy,
+  focusPanel,
+  symbolSource,
+  symbolSourceActions,
+  selectedSymbols,
+  onToggleSymbol,
+  maxRows,
+}: PanelsProps): React.ReactElement {
+  // Show only the focused panel to avoid horizontal overflow
+  const isFocused = focusPanel === "strategy";
+
+  // All items: index -1 = [ALL], then 0..n = strategies
+  const totalItems = strategyIds.length + 1; // +1 for [ALL]
+  const cursorIndex = selectedStrategy + 1; // map -1→0, 0→1, etc.
+
+  // Scrolling: keep cursor visible in a viewport
+  // Panel overhead: title(1) + above/below hints(2) + summary(1) = 4
+  const panelOverhead = 4;
+  const panelMaxRows = Math.max(3, maxRows - panelOverhead);
+  const pageSize = Math.min(panelMaxRows, totalItems);
+
+  const pageStart = Math.max(
+    0,
+    Math.min(cursorIndex - Math.floor(pageSize / 2), totalItems - pageSize),
+  );
+  const visibleStart = Math.max(0, pageStart);
+  const visibleEnd = Math.min(totalItems, visibleStart + pageSize);
+
+  if (isFocused) {
+    return (
+      <Box flexDirection="column">
+        <Text bold color="cyan">
+          Strategy Selection
+        </Text>
+        <Box flexDirection="column">
+          {visibleStart > 0 && (
+            <Text color="gray">
+              {"  "}... {visibleStart} more above
+            </Text>
+          )}
+          {Array.from({ length: visibleEnd - visibleStart }, (_, i) => {
+            const itemIndex = visibleStart + i;
+            const stratIdx = itemIndex - 1;
+            const isSelected = stratIdx === selectedStrategy;
+            const label = itemIndex === 0 ? "[ALL] Use all strategies" : strategyIds[stratIdx];
+
+            return (
+              <Box key={itemIndex}>
+                <Text color={isSelected ? "cyan" : "white"}>
+                  {isSelected ? "> " : "  "}
+                  {label}
+                </Text>
+              </Box>
+            );
+          })}
+          {visibleEnd < totalItems && (
+            <Text color="gray">
+              {"  "}... {totalItems - visibleEnd} more below
+            </Text>
+          )}
+        </Box>
+        <Text color="gray">
+          Selected:{" "}
+          <Text color="yellow">
+            {selectedStrategy === -1 ? "ALL" : strategyIds[selectedStrategy]}
+          </Text>
+          {"  |  "}Symbols:{" "}
+          <Text color="yellow">
+            {selectedSymbols.size > 0 ? [...selectedSymbols].join(", ") : "(none)"}
+          </Text>
+          {"  "}[Tab→Symbols]
+        </Text>
+      </Box>
+    );
+  }
+
+  // Symbols panel
+  return (
+    <Box flexDirection="column">
+      <Text color="gray">
+        Strategy:{" "}
+        <Text color="yellow">
+          {selectedStrategy === -1 ? "ALL" : strategyIds[selectedStrategy]}
+        </Text>
+        {"  "}[Tab→Strategy]
+      </Text>
+      <SymbolPicker
+        symbolSource={symbolSource}
+        symbolSourceActions={symbolSourceActions}
+        selected={selectedSymbols}
+        onToggle={onToggleSymbol}
+        focused
+        maxListRows={Math.max(5, maxRows - 2)}
+      />
     </Box>
   );
 }

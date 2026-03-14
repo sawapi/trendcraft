@@ -74,7 +74,7 @@ export function buildIntraSessionReport(
       unrealizedPnl,
       tradesThisSession: sessionTrades.length,
       winRate,
-      currentPosition: hasPosition ? "long" : "flat",
+      currentPosition: hasPosition ? (position?.direction ?? "long") : "flat",
       recentTrades,
     });
   }

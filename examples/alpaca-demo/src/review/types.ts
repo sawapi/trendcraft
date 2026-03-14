@@ -218,7 +218,7 @@ export type IntraSessionAgentReport = {
   unrealizedPnl: number;
   tradesThisSession: number;
   winRate: number;
-  currentPosition: "flat" | "long";
+  currentPosition: "flat" | "long" | "short";
   recentTrades: TradeRecord[];
 };
 

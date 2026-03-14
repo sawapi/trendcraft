@@ -14,8 +14,16 @@ export function createPaperExecutor(client: AlpacaClient): OrderExecutor {
   return {
     async execute(intent: OrderIntent): Promise<ExecutionResult> {
       try {
-        const orderType = intent.orderType ?? "market";
+        let orderType = intent.orderType ?? "market";
         const timeInForce = intent.timeInForce ?? "day";
+
+        // Validate limit orders have a price; fall back to market if missing
+        if (orderType === "limit" && intent.limitPrice == null) {
+          console.warn(
+            `[ORDER] ${intent.symbol}: limit order missing limitPrice, falling back to market`,
+          );
+          orderType = "market";
+        }
 
         // Submit order with retry on transient failures
         const order = await withRetry(

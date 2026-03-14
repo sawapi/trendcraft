@@ -14,9 +14,15 @@ type DashboardProps = {
   events: TradingEvent[];
   isRunning: boolean;
   maxRows: number;
+  deactivatedStrategies?: Set<string>;
 };
 
-export function Dashboard({ agents, events, maxRows }: DashboardProps): React.ReactElement {
+export function Dashboard({
+  agents,
+  events,
+  maxRows,
+  deactivatedStrategies,
+}: DashboardProps): React.ReactElement {
   // Portfolio summary
   const activeAgents = agents.filter((a) => a.active);
   const totalPnl = activeAgents.reduce((sum, a) => sum + a.metrics.totalReturn, 0);
@@ -77,7 +83,10 @@ export function Dashboard({ agents, events, maxRows }: DashboardProps): React.Re
         </Text>
       </Box>
       <Box marginBottom={1}>
-        <AgentTable agents={agents.slice(0, maxAgentRows)} />
+        <AgentTable
+          agents={agents.slice(0, maxAgentRows)}
+          deactivatedStrategies={deactivatedStrategies}
+        />
       </Box>
 
       {/* Event log */}

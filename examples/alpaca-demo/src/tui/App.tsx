@@ -97,14 +97,15 @@ export function App({ options }: AppProps): React.ReactElement {
         <TabBar tabs={TABS} activeIndex={activeTab} />
       </Box>
 
-      {/* Content area — fixed height to prevent overflow */}
-      <Box flexGrow={1} paddingX={1} height={contentRows} overflow="hidden">
+      {/* Content area */}
+      <Box flexGrow={1} paddingX={1}>
         {activeTab === 0 && (
           <Dashboard
             agents={tradingState.agents}
             events={tradingState.events}
             isRunning={tradingState.isRunning}
             maxRows={contentRows}
+            deactivatedStrategies={tradingState.deactivatedStrategies}
           />
         )}
         {activeTab === 1 && (

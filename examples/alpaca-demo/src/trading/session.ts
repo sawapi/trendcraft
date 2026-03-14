@@ -28,7 +28,13 @@ import { createDryRunExecutor } from "../executor/dry-run-executor.js";
 import { createPaperExecutor } from "../executor/paper-executor.js";
 import { formatReconciliation, reconcilePositions } from "../executor/reconciler.js";
 import type { OrderExecutor } from "../executor/types.js";
-import { createStateStore } from "../persistence/store.js";
+import {
+  createStateStore,
+  loadEarningsCache,
+  loadOptimizerCache,
+  saveEarningsCache,
+  saveOptimizerCache,
+} from "../persistence/store.js";
 import type { StateStore } from "../persistence/store.js";
 import { loadCustomStrategies, loadOverrides } from "../review/applier.js";
 import { loadTodayIntraSessionReviews, saveIntraSessionRecord } from "../review/history.js";
@@ -188,7 +194,7 @@ export function createTradingSession(opts: SessionOptions): TradingSession {
 
   function saveState(): void {
     const s = manager.getState();
-    store.save(s.agents, s.portfolioGuardState);
+    store.save(s.agents, s.portfolioGuardState, s.deactivatedStrategies);
     emit({ type: "state-saved", agentCount: s.agents.length });
   }
 
@@ -292,17 +298,27 @@ export function createTradingSession(opts: SessionOptions): TradingSession {
         earningsGuard,
       });
 
-      // Fetch earnings calendar
+      // Fetch earnings calendar (with daily cache)
       try {
-        const earnings = await fetchEarningsCalendar(
-          env.baseUrl,
-          env.apiKey,
-          env.apiSecret,
-          symbols,
-        );
-        if (earnings.length > 0) {
-          earningsGuard.addEarnings(earnings);
-          console.log(`Loaded ${earnings.length} earnings date(s)`);
+        const cachedEarnings = loadEarningsCache();
+        if (cachedEarnings) {
+          const entries = cachedEarnings as import("../risk/earnings-guard.js").EarningsEntry[];
+          if (entries.length > 0) {
+            earningsGuard.addEarnings(entries);
+            console.log(`Loaded ${entries.length} cached earnings date(s) from today`);
+          }
+        } else {
+          const earnings = await fetchEarningsCalendar(
+            env.baseUrl,
+            env.apiKey,
+            env.apiSecret,
+            symbols,
+          );
+          if (earnings.length > 0) {
+            earningsGuard.addEarnings(earnings);
+            saveEarningsCache(earnings);
+            console.log(`Loaded ${earnings.length} earnings date(s)`);
+          }
         }
       } catch {
         console.warn("Failed to fetch earnings calendar — continuing without it");
@@ -325,6 +341,15 @@ export function createTradingSession(opts: SessionOptions): TradingSession {
         });
         const skipped = savedState.agents.length - activeAgents.length;
         manager.restoreStates(activeAgents, strategyMap, savedState.portfolioGuardState);
+        // Restore deactivated strategies
+        if (savedState.deactivatedStrategies) {
+          for (const id of savedState.deactivatedStrategies) {
+            manager.deactivateStrategy(id);
+          }
+          console.log(
+            `Restored ${savedState.deactivatedStrategies.length} deactivated strategy(ies)`,
+          );
+        }
         console.log(
           `Restored ${activeAgents.length} agents from saved state${skipped > 0 ? ` (${skipped} skipped)` : ""}`,
         );
@@ -353,30 +378,41 @@ export function createTradingSession(opts: SessionOptions): TradingSession {
         }
       }
 
-      // Preflight Walk-Forward optimization
+      // Preflight Walk-Forward optimization (with daily cache)
       try {
-        const { getPresetTemplate } = await import("../strategy/template.js");
-        const templates = strategies
-          .map((s) => getPresetTemplate(s.id))
-          .filter((t): t is NonNullable<typeof t> => t != null);
-        if (templates.length > 0) {
-          const candlesBySymbol = new Map<string, import("trendcraft").NormalizedCandle[]>();
-          for (const symbol of symbols) {
-            const { timeframe, lookbackMonths } = getWarmUpTimeframe(strategies[0].intervalMs);
-            const candles = await fetchCachedBars(env, {
-              symbol,
-              timeframe,
-              start: monthsAgo(lookbackMonths),
-              end: today(),
-              limit: 500,
-            });
-            if (candles.length > 0) candlesBySymbol.set(symbol, candles);
+        const cachedOverrides = loadOptimizerCache();
+        if (cachedOverrides) {
+          const { applied } = applyStrategyOverrides(
+            cachedOverrides as import("../strategy/template.js").ParameterOverride[],
+          );
+          if (applied > 0) {
+            console.log(`[OPTIMIZER] Applied ${applied} cached optimization(s) from today`);
           }
-          const pfOverrides = preflightOptimize(templates, candlesBySymbol);
-          if (pfOverrides.length > 0) {
-            const { applied } = applyStrategyOverrides(pfOverrides);
-            if (applied > 0) {
-              console.log(`[OPTIMIZER] Applied ${applied} preflight optimization(s)`);
+        } else {
+          const { getPresetTemplate } = await import("../strategy/template.js");
+          const templates = strategies
+            .map((s) => getPresetTemplate(s.id))
+            .filter((t): t is NonNullable<typeof t> => t != null);
+          if (templates.length > 0) {
+            const candlesBySymbol = new Map<string, import("trendcraft").NormalizedCandle[]>();
+            for (const symbol of symbols) {
+              const { timeframe, lookbackMonths } = getWarmUpTimeframe(strategies[0].intervalMs);
+              const candles = await fetchCachedBars(env, {
+                symbol,
+                timeframe,
+                start: monthsAgo(lookbackMonths),
+                end: today(),
+                limit: 500,
+              });
+              if (candles.length > 0) candlesBySymbol.set(symbol, candles);
+            }
+            const pfOverrides = preflightOptimize(templates, candlesBySymbol);
+            if (pfOverrides.length > 0) {
+              saveOptimizerCache(pfOverrides);
+              const { applied } = applyStrategyOverrides(pfOverrides);
+              if (applied > 0) {
+                console.log(`[OPTIMIZER] Applied ${applied} preflight optimization(s)`);
+              }
             }
           }
         }
@@ -437,7 +473,10 @@ export function createTradingSession(opts: SessionOptions): TradingSession {
           tickerStats.set(symbol, stat);
         }
 
-        const intents = manager.onTrade(symbol, trade);
+        const { intents, blocked } = manager.onTrade(symbol, trade);
+        for (const b of blocked) {
+          emit({ type: "trade-blocked", agentId: b.agentId, symbol: b.symbol, reason: b.reason });
+        }
         for (const intent of intents) {
           executor.execute(intent);
           emit({
@@ -514,15 +553,36 @@ export function createTradingSession(opts: SessionOptions): TradingSession {
         const rot = rotator;
         rotationTimer = setInterval(
           () => {
-            // Build aggregate regime from SPY (or first benchmark symbol)
-            const spySnapshot = marketState.getSnapshot("SPY");
-            if (!spySnapshot) return;
+            // Build aggregate regime from SPY agent's regime indicator (preferred)
+            // or fall back to marketState snapshot
+            let regime: RegimeSnapshot | null = null;
 
-            const regime: RegimeSnapshot = {
-              trend: spySnapshot.trendDirection ?? "sideways",
-              volatility: spySnapshot.volatilityRegime ?? "normal",
-              trendStrength: 20, // Default; will be updated by regime indicator
-            };
+            // Try to get regime from an agent that tracks SPY with a regime indicator
+            const spyAgents = manager.getAgents().filter((a) => a.symbol === "SPY");
+            for (const a of spyAgents) {
+              const r = a.getRegimeSnapshot();
+              if (r) {
+                regime = {
+                  trend: r.trend,
+                  volatility: r.volatility,
+                  trendStrength: r.trendStrength,
+                };
+                // Also propagate to marketState for other consumers
+                marketState.setRegime("SPY", r.trend, r.volatility);
+                break;
+              }
+            }
+
+            // Fall back to marketState if no agent has regime data
+            if (!regime) {
+              const spySnapshot = marketState.getSnapshot("SPY");
+              if (!spySnapshot) return;
+              regime = {
+                trend: spySnapshot.trendDirection ?? "sideways",
+                volatility: spySnapshot.volatilityRegime ?? "normal",
+                trendStrength: 20,
+              };
+            }
 
             const { activate, deactivate } = rot.onRegimeChange(regime);
             for (const id of deactivate) {

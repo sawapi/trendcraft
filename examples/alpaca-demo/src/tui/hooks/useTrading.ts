@@ -18,6 +18,7 @@ export type TradingState = {
   mode: string;
   startTime: number;
   error: string | null;
+  deactivatedStrategies: Set<string>;
 };
 
 type KilledAgent = {
@@ -46,6 +47,7 @@ export function useTrading(): [TradingState, TradingActions] {
     mode: "OFFLINE",
     startTime: 0,
     error: null,
+    deactivatedStrategies: new Set<string>(),
   });
 
   const sessionRef = useRef<TradingSession | null>(null);
@@ -70,8 +72,10 @@ export function useTrading(): [TradingState, TradingActions] {
       refreshTimerRef.current = setInterval(() => {
         const session = sessionRef.current;
         if (session?.isRunning()) {
-          const agents = session.getManager().getAllStates();
-          setState((prev) => ({ ...prev, agents }));
+          const mgr = session.getManager();
+          const agents = mgr.getAllStates();
+          const deactivatedStrategies = mgr.getDeactivatedStrategies();
+          setState((prev) => ({ ...prev, agents, deactivatedStrategies }));
         }
       }, 5000);
 

@@ -38,4 +38,6 @@ export type AgentState = {
 export type ManagerState = {
   agents: AgentState[];
   portfolioGuardState?: streaming.PortfolioGuardState;
+  /** Strategy IDs that are currently deactivated by regime rotation */
+  deactivatedStrategies?: string[];
 };

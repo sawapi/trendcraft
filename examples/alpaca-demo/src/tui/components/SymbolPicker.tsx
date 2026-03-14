@@ -35,8 +35,8 @@ export function SymbolPicker({
   const [cursor, setCursor] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Overhead: header(1) + search(1 if active) + selected(1 if any) + above/below indicators(2)
-  const overhead = 2 + (searchQuery ? 1 : 0) + (selected.size > 0 ? 1 : 0);
+  // Overhead: header(1) + above/below hints(2) + search(0-1) + selected(0-1)
+  const overhead = 3 + (searchQuery ? 1 : 0) + (selected.size > 0 ? 1 : 0);
   const pageSize = Math.max(3, (maxListRows ?? DEFAULT_PAGE_SIZE) - overhead);
 
   // Filter symbols by search query
@@ -67,8 +67,8 @@ export function SymbolPicker({
     (input, key) => {
       if (!focused) return;
 
-      // Source switching
-      if (key.tab) {
+      // Source switching (n key — Tab is reserved for panel switching)
+      if (input === "n") {
         symbolSourceActions.nextSource();
         setSearchQuery("");
         return;
@@ -139,7 +139,7 @@ export function SymbolPicker({
     <Box flexDirection="column">
       {/* Source + filter header */}
       <Box gap={2}>
-        <Text bold color={focused ? "cyan" : "white"}>
+        <Text bold color={focused ? "cyan" : "gray"}>
           Symbols
         </Text>
         <Text color="gray">

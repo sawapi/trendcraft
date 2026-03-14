@@ -355,6 +355,7 @@ const CONDITION_REGISTRY: Record<string, ConditionDef> = {
   gapDown: {
     streaming: (ref, _inds) => {
       const minGapPct = (ref.params?.minGapPercent as number) ?? 1;
+      // Closure state is safe: each agent gets its own compileTemplate() call
       let prevClose: number | null = null;
       const fn: streaming.StreamingConditionFn = (_snapshot, candle) => {
         if (prevClose === null) {
@@ -380,6 +381,7 @@ const CONDITION_REGISTRY: Record<string, ConditionDef> = {
   gapUp: {
     streaming: (ref, _inds) => {
       const minGapPct = (ref.params?.minGapPercent as number) ?? 1;
+      // Closure state is safe: each agent gets its own compileTemplate() call
       let prevClose: number | null = null;
       const fn: streaming.StreamingConditionFn = (_snapshot, candle) => {
         if (prevClose === null) {
@@ -538,13 +540,17 @@ export function compileTemplate(template: StrategyTemplate): CompileResult {
       backtestEntry,
       backtestExit,
       backtestOptions,
-      ...(template.backtestTimeframe && {
-        metadata: {
+      metadata: {
+        ...(template.backtestTimeframe && {
           backtestTimeframe: template.backtestTimeframe,
           backtestPeriodDays: template.backtestPeriodDays,
-          ...(template.mtfIndicators && { mtfIndicators: template.mtfIndicators }),
-        },
-      }),
+        }),
+        ...(template.mtfIndicators && { mtfIndicators: template.mtfIndicators }),
+        ...(template.position.orderType && { orderType: template.position.orderType }),
+        ...(template.position.limitOffsetPercent != null && {
+          limitOffsetPercent: template.position.limitOffsetPercent,
+        }),
+      },
     };
 
     return { ok: true, strategy };
@@ -1010,7 +1016,7 @@ function buildPosition(template: StrategyTemplate): streaming.PositionManagerOpt
 
   return {
     capital: template.position.capital,
-    ...(template.direction === "short" && { direction: "short" as const }),
+    direction: (template.direction ?? "long") as "long" | "short",
     sizing,
     stopLoss: template.position.stopLoss,
     ...(template.position.takeProfit !== undefined && {

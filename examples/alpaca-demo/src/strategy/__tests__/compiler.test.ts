@@ -123,4 +123,112 @@ describe("compileTemplate", () => {
       );
     }
   });
+
+  it("compiles gapDown condition", () => {
+    const template = makeTemplate({
+      indicators: [],
+      entry: { type: "gapDown", params: { minGapPercent: 2 } },
+      exit: { type: "rsiAbove", params: { threshold: 70 } },
+    });
+    // gapDown entry needs rsi indicator for exit
+    template.indicators = [{ type: "rsi", name: "rsi", params: { period: 14 } }];
+    const result = compileTemplate(template);
+    expect(result.ok).toBe(true);
+  });
+
+  it("compiles gapUp condition", () => {
+    const template = makeTemplate({
+      indicators: [{ type: "rsi", name: "rsi", params: { period: 14 } }],
+      entry: { type: "gapUp", params: { minGapPercent: 1 } },
+    });
+    const result = compileTemplate(template);
+    expect(result.ok).toBe(true);
+  });
+
+  it("compiles vwap conditions", () => {
+    const template = makeTemplate({
+      indicators: [
+        { type: "vwap", name: "vwap", params: {} },
+        { type: "rsi", name: "rsi", params: { period: 14 } },
+      ],
+      entry: { type: "priceBelowVwap", params: {} },
+      exit: { type: "priceAboveVwap", params: {} },
+    });
+    const result = compileTemplate(template);
+    expect(result.ok).toBe(true);
+  });
+
+  it("compiles SMC conditions", () => {
+    const template = makeTemplate({
+      indicators: [{ type: "rsi", name: "rsi", params: { period: 14 } }],
+      entry: { type: "priceAtBullishOB", params: {} },
+      exit: { type: "rsiAbove", params: { threshold: 70 } },
+    });
+    const result = compileTemplate(template);
+    expect(result.ok).toBe(true);
+  });
+
+  it("compiles MTF conditions (streaming-only, backtest passes)", () => {
+    const template = makeTemplate({
+      indicators: [
+        { type: "ema", name: "ema9", params: { period: 9 } },
+        { type: "rsi", name: "rsi", params: { period: 14 } },
+      ],
+      entry: { type: "mtfPriceAbove", params: { indicatorKey: "ema50", timeframe: "15m" } },
+      exit: { type: "rsiAbove", params: { threshold: 70 } },
+    });
+    const result = compileTemplate(template);
+    expect(result.ok).toBe(true);
+  });
+
+  it("compiles short direction strategy", () => {
+    const template = makeTemplate({ direction: "short" });
+    const result = compileTemplate(template);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.strategy.position.direction).toBe("short");
+  });
+
+  it("defaults direction to long", () => {
+    const template = makeTemplate();
+    const result = compileTemplate(template);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.strategy.position.direction).toBe("long");
+  });
+
+  it("compiles regimeGate and auto-injects regime indicator", () => {
+    const template = makeTemplate({
+      regimeGate: {
+        allowedTrends: ["bullish"],
+        minTrendStrength: 25,
+      },
+    });
+    const result = compileTemplate(template);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // Pipeline should have regime indicator injected
+    const indicatorNames = result.strategy.pipeline.indicators.map((i) => i.name);
+    expect(indicatorNames).toContain("regime");
+  });
+
+  it("stores orderType and limitOffsetPercent in metadata", () => {
+    const template = makeTemplate({
+      position: {
+        capital: 100000,
+        sizingMethod: "risk-based",
+        riskPercent: 1,
+        stopLoss: 3,
+        slippage: 0.05,
+        orderType: "limit",
+        limitOffsetPercent: 0.1,
+      },
+    });
+    const result = compileTemplate(template);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const meta = result.strategy.metadata as Record<string, unknown>;
+    expect(meta.orderType).toBe("limit");
+    expect(meta.limitOffsetPercent).toBe(0.1);
+  });
 });
