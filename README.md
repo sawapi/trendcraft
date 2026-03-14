@@ -74,6 +74,49 @@ A TypeScript library for technical analysis of financial data. Calculate indicat
 - Timeframe resampling (daily to weekly/monthly)
 - Fluent API for chaining operations
 
+### Signal Explainability
+- Trace why signals fire with structured condition traces
+- Capture indicator values at evaluation time
+- Human-readable narratives in English and Japanese
+- Works with any combination of preset, combined, and MTF conditions
+
+### Composable Indicator Algebra
+- `pipe()` / `compose()` / `through()` API for chaining indicators
+- Apply any indicator to another indicator's output: `ema(rsi(candles, 14), 9)`
+- Extract fields from complex indicators (MACD histogram, Bollinger %B)
+- Combine and transform series with `mapValues()`, `combineSeries()`
+
+### Alpha Decay Monitor
+- Track strategy predictive power degradation over time
+- Rolling Information Coefficient (IC) and hit rate
+- CUSUM structural break detection
+- Four-level assessment: healthy, warning, degraded, critical
+
+### Adaptive Indicators
+- **Adaptive RSI**: Period adjusts based on ATR volatility percentile
+- **Adaptive Bollinger Bands**: StdDev multiplier adjusts based on kurtosis
+- **Adaptive MA**: Smoothing adapts via Efficiency Ratio (trending vs choppy)
+- **Adaptive Stochastics**: Period adjusts based on ADX trend strength
+
+### Strategy Robustness Score
+- Composite A+ to F grade from multiple dimensions
+- Monte Carlo survival rate, trade consistency, drawdown resilience
+- Full analysis with parameter sensitivity and walk-forward efficiency
+- Actionable recommendations for improvement
+
+### Pairs Trading / Cointegration
+- Engle-Granger cointegration test (ADF)
+- Spread calculation with z-score (full sample or rolling window)
+- Mean reversion half-life estimation (AR(1) model)
+- Hurst exponent via rescaled range analysis
+- Automated pairs trading signal generation
+
+### Cross-Asset Correlation
+- Rolling Pearson and Spearman correlation
+- Correlation regime detection (5 regimes with duration tracking)
+- Lead-lag analysis via cross-correlation at multiple lags
+- Intermarket divergence detection with z-score significance
+
 ## TA-Lib Cross-Validation
 
 23 indicators are cross-validated against [TA-Lib](https://ta-lib.org/) (Python ta-lib 0.6.8) using 200-bar synthetic OHLCV data covering 4 market phases (uptrend → high volatility → range → downtrend). Test code and fixtures are in the `cross-validation/` directory.
@@ -425,6 +468,113 @@ const result = TrendCraft.from(candles)
   });
 ```
 
+### Signal Explainability
+
+```typescript
+import { explainSignal, rsiBelow, goldenCrossCondition } from 'trendcraft';
+
+const explanation = explainSignal(candles, 50, rsiBelow(30), goldenCrossCondition());
+
+console.log(explanation.fired);       // true/false
+console.log(explanation.narrative);   // "Entry signal fired because rsiBelow(30): passed..."
+console.log(explanation.contributions);  // [{ name: "rsiBelow(30)", passed: true, indicatorValues: { rsi14: 28.5 } }]
+```
+
+### Composable Indicator Algebra
+
+```typescript
+import { pipe, through, extractField, rsi, ema, macd, bollingerBands } from 'trendcraft';
+
+// EMA of RSI (smoothed RSI)
+const smoothedRsi = pipe(
+  candles,
+  c => rsi(c, { period: 14 }),
+  through(ema, { period: 9 }),
+);
+
+// Bollinger Bands of MACD histogram
+const histBands = pipe(
+  candles,
+  c => macd(c),
+  s => extractField(s, "histogram"),
+  through(bollingerBands, { period: 20 }),
+);
+```
+
+### Alpha Decay Monitor
+
+```typescript
+import { analyzeAlphaDecay, createObservationsFromTrades, runBacktest } from 'trendcraft';
+
+const result = runBacktest(candles, entry, exit, options);
+const observations = createObservationsFromTrades(result.trades);
+const decay = analyzeAlphaDecay(observations);
+
+console.log(decay.assessment.status);    // "healthy" | "warning" | "degraded" | "critical"
+console.log(decay.assessment.halfLife);  // Estimated bars until IC halves
+```
+
+### Adaptive Indicators
+
+```typescript
+import { adaptiveRsi, adaptiveBollinger } from 'trendcraft';
+
+// RSI that uses shorter period in high volatility
+const arsi = adaptiveRsi(candles, { basePeriod: 14, minPeriod: 6, maxPeriod: 28 });
+arsi.forEach(({ value }) => {
+  console.log(`RSI: ${value.rsi}, Period: ${value.effectivePeriod}`);
+});
+
+// Bollinger Bands with kurtosis-adapted multiplier
+const abb = adaptiveBollinger(candles, { period: 20 });
+```
+
+### Strategy Robustness Score
+
+```typescript
+import { quickRobustnessScore, runBacktest } from 'trendcraft';
+
+const result = runBacktest(candles, entry, exit, options);
+const robustness = quickRobustnessScore(result);
+
+console.log(robustness.grade);          // "A+" to "F"
+console.log(robustness.compositeScore); // 0-100
+console.log(robustness.recommendations); // ["Strategy passes all robustness checks..."]
+```
+
+### Pairs Trading
+
+```typescript
+import { analyzePair } from 'trendcraft';
+
+const result = analyzePair(
+  candlesA.map(c => ({ time: c.time, value: c.close })),
+  candlesB.map(c => ({ time: c.time, value: c.close })),
+);
+
+if (result.cointegration.isCointegrated) {
+  console.log(`Hedge ratio: ${result.cointegration.hedgeRatio}`);
+  console.log(`Half-life: ${result.meanReversion.halfLife} bars`);
+  console.log(`Signals: ${result.signals.length}`);
+}
+```
+
+### Cross-Asset Correlation
+
+```typescript
+import { analyzeCorrelation } from 'trendcraft';
+
+const analysis = analyzeCorrelation(
+  seriesSPY.map(c => ({ time: c.time, value: c.close })),
+  seriesQQQ.map(c => ({ time: c.time, value: c.close })),
+  { window: 60 },
+);
+
+console.log(`Current regime: ${analysis.summary.currentRegime}`);
+console.log(`Lead-lag: ${analysis.leadLag.assessment}`);
+console.log(`Divergences: ${analysis.divergences.length}`);
+```
+
 ## CLI Tools
 
 TrendCraft provides two CLI tools for screening and backtesting.
@@ -581,6 +731,11 @@ See [Cookbook](./docs/COOKBOOK.md) for practical recipes including:
 - Scoring-based entry strategies
 - Stock screening
 - Scaled entry with partial take profit
+- Signal explainability for debugging strategies
+- Composable indicator pipelines
+- Alpha decay monitoring
+- Pairs trading with cointegration
+- Cross-asset correlation analysis
 
 ## API Reference
 

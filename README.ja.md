@@ -6,7 +6,7 @@
 
 ## 機能
 
-### インジケーター (58+)
+### インジケーター (100+)
 - **移動平均**: SMA, EMA, WMA, VWMA, KAMA, T3, HMA（ハル移動平均）
 - **トレンド**: 一目均衡表, Supertrend, パラボリックSAR, Vortex
 - **モメンタム**: RSI, MACD, ストキャスティクス (Fast/Slow), DMI/ADX, Stoch RSI, CCI, Williams %R, ROC, TRIX, Aroon, DPO, Hurst, コナーズRSI
@@ -70,6 +70,49 @@
 - データ正規化（様々な日付形式をタイムスタンプに変換）
 - タイムフレーム変換（日足から週足/月足へ）
 - Fluent API（メソッドチェーン）
+
+### シグナル説明エンジン
+- シグナル発火理由を構造化されたトレースで確認
+- 評価時点のインジケーター値をキャプチャ
+- 英語・日本語での人間可読なナラティブ
+- プリセット・複合・MTF条件の任意の組み合わせに対応
+
+### インジケーター合成
+- `pipe()` / `compose()` / `through()` APIでインジケーターをチェーン
+- 任意のインジケーターの出力に別のインジケーターを適用: `ema(rsi(candles, 14), 9)`
+- 複合インジケーターからフィールドを抽出（MACDヒストグラム、ボリンジャー%B）
+- `mapValues()`、`combineSeries()`でシリーズを変換・結合
+
+### アルファ減衰モニター
+- 戦略の予測力低下を経時的に追跡
+- ローリング情報係数（IC）とヒット率
+- CUSUM構造変化検出
+- 4段階評価: healthy, warning, degraded, critical
+
+### 適応型インジケーター
+- **適応型RSI**: ATRボラティリティパーセンタイルに基づいて期間を調整
+- **適応型ボリンジャーバンド**: 尖度に基づいて標準偏差倍率を調整
+- **適応型MA**: 効率比（トレンド vs レンジ）で平滑化を適応
+- **適応型ストキャスティクス**: ADXトレンド強度に基づいて期間を調整
+
+### 戦略ロバストネススコア
+- 複数の次元からA+〜Fの総合グレード
+- モンテカルロ生存率、トレード一貫性、ドローダウン耐性
+- パラメータ感度とウォークフォワード効率による完全分析
+- 改善のための具体的な推奨事項
+
+### ペアトレーディング / 共和分
+- Engle-Granger共和分検定（ADF）
+- zスコアによるスプレッド計算（全サンプルまたはローリングウィンドウ）
+- 平均回帰ハーフライフ推定（AR(1)モデル）
+- 再スケール範囲分析によるハースト指数
+- 自動ペアトレーディングシグナル生成
+
+### クロスアセット相関
+- ローリングピアソン相関とスピアマン相関
+- 相関レジーム検出（5レジーム、期間トラッキング付き）
+- 複数ラグでのクロス相関によるリードラグ分析
+- zスコア有意性によるインターマーケット・ダイバージェンス検出
 
 ## インストール
 
@@ -410,6 +453,113 @@ const result = TrendCraft.from(candles)
   });
 ```
 
+### シグナル説明エンジン
+
+```typescript
+import { explainSignal, rsiBelow, goldenCrossCondition } from 'trendcraft';
+
+const explanation = explainSignal(candles, 50, rsiBelow(30), goldenCrossCondition());
+
+console.log(explanation.fired);       // true/false
+console.log(explanation.narrative);   // "Entry signal fired because rsiBelow(30): passed..."
+console.log(explanation.contributions);  // [{ name: "rsiBelow(30)", passed: true, indicatorValues: { rsi14: 28.5 } }]
+```
+
+### インジケーター合成
+
+```typescript
+import { pipe, through, extractField, rsi, ema, macd, bollingerBands } from 'trendcraft';
+
+// RSIのEMA（平滑化RSI）
+const smoothedRsi = pipe(
+  candles,
+  c => rsi(c, { period: 14 }),
+  through(ema, { period: 9 }),
+);
+
+// MACDヒストグラムのボリンジャーバンド
+const histBands = pipe(
+  candles,
+  c => macd(c),
+  s => extractField(s, "histogram"),
+  through(bollingerBands, { period: 20 }),
+);
+```
+
+### アルファ減衰モニター
+
+```typescript
+import { analyzeAlphaDecay, createObservationsFromTrades, runBacktest } from 'trendcraft';
+
+const result = runBacktest(candles, entry, exit, options);
+const observations = createObservationsFromTrades(result.trades);
+const decay = analyzeAlphaDecay(observations);
+
+console.log(decay.assessment.status);    // "healthy" | "warning" | "degraded" | "critical"
+console.log(decay.assessment.halfLife);  // ICが半減するまでの推定バー数
+```
+
+### 適応型インジケーター
+
+```typescript
+import { adaptiveRsi, adaptiveBollinger } from 'trendcraft';
+
+// 高ボラティリティ時に短い期間を使うRSI
+const arsi = adaptiveRsi(candles, { basePeriod: 14, minPeriod: 6, maxPeriod: 28 });
+arsi.forEach(({ value }) => {
+  console.log(`RSI: ${value.rsi}, Period: ${value.effectivePeriod}`);
+});
+
+// 尖度に基づいて倍率が適応するボリンジャーバンド
+const abb = adaptiveBollinger(candles, { period: 20 });
+```
+
+### 戦略ロバストネススコア
+
+```typescript
+import { quickRobustnessScore, runBacktest } from 'trendcraft';
+
+const result = runBacktest(candles, entry, exit, options);
+const robustness = quickRobustnessScore(result);
+
+console.log(robustness.grade);          // "A+" to "F"
+console.log(robustness.compositeScore); // 0-100
+console.log(robustness.recommendations); // ["Strategy passes all robustness checks..."]
+```
+
+### ペアトレーディング
+
+```typescript
+import { analyzePair } from 'trendcraft';
+
+const result = analyzePair(
+  candlesA.map(c => ({ time: c.time, value: c.close })),
+  candlesB.map(c => ({ time: c.time, value: c.close })),
+);
+
+if (result.cointegration.isCointegrated) {
+  console.log(`Hedge ratio: ${result.cointegration.hedgeRatio}`);
+  console.log(`Half-life: ${result.meanReversion.halfLife} bars`);
+  console.log(`Signals: ${result.signals.length}`);
+}
+```
+
+### クロスアセット相関
+
+```typescript
+import { analyzeCorrelation } from 'trendcraft';
+
+const analysis = analyzeCorrelation(
+  seriesSPY.map(c => ({ time: c.time, value: c.close })),
+  seriesQQQ.map(c => ({ time: c.time, value: c.close })),
+  { window: 60 },
+);
+
+console.log(`Current regime: ${analysis.summary.currentRegime}`);
+console.log(`Lead-lag: ${analysis.leadLag.assessment}`);
+console.log(`Divergences: ${analysis.divergences.length}`);
+```
+
 ## CLIツール
 
 TrendCraftはスクリーニングとバックテストの2つのCLIツールを提供しています。
@@ -566,6 +716,11 @@ Summary:
 - スコアリングベースのエントリー戦略
 - 銘柄スクリーニング
 - スケールドエントリー + 部分利確
+- シグナル説明エンジンによる戦略デバッグ
+- インジケーター合成パイプライン
+- アルファ減衰モニタリング
+- 共和分によるペアトレーディング
+- クロスアセット相関分析
 
 ## APIリファレンス
 
