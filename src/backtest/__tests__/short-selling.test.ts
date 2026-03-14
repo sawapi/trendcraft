@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { createPositionTracker } from "../../streaming/position-manager/position-tracker";
 import type { ConditionFn, NormalizedCandle } from "../../types";
 import { runBacktest } from "../engine";
+import { batchBacktest, portfolioBacktest } from "../portfolio";
 
 const DAY = 86400000;
 
@@ -21,6 +22,15 @@ function makeCandles(prices: number[], startTime = DAY): NormalizedCandle[] {
 
 const alwaysTrue: ConditionFn = () => true;
 const alwaysFalse: ConditionFn = () => false;
+
+function createEntryOnce(): ConditionFn {
+  let entered = false;
+  return () => {
+    if (entered) return false;
+    entered = true;
+    return true;
+  };
+}
 
 describe("backtest short selling", () => {
   it("backward compatibility: direction omitted defaults to long", () => {
@@ -61,15 +71,7 @@ describe("backtest short selling", () => {
   it("short stop loss triggers when price rises above entry * (1 + sl%)", () => {
     // Price rises significantly
     const candles = makeCandles([100, 100, 100, 106, 110]);
-    let entered = false;
-    const entryOnce: ConditionFn = () => {
-      if (!entered) {
-        entered = true;
-        return true;
-      }
-      return false;
-    };
-    const result = runBacktest(candles, entryOnce, alwaysFalse, {
+    const result = runBacktest(candles, createEntryOnce(), alwaysFalse, {
       capital: 10000,
       direction: "short",
       stopLoss: 5,
@@ -82,16 +84,7 @@ describe("backtest short selling", () => {
 
   it("short take profit triggers when price drops below entry * (1 - tp%)", () => {
     const candles = makeCandles([100, 100, 100, 94, 90]);
-    // Entry on first bar, then only exit by TP (no re-entry)
-    let entered = false;
-    const entryOnce: ConditionFn = () => {
-      if (!entered) {
-        entered = true;
-        return true;
-      }
-      return false;
-    };
-    const result = runBacktest(candles, entryOnce, alwaysFalse, {
+    const result = runBacktest(candles, createEntryOnce(), alwaysFalse, {
       capital: 10000,
       direction: "short",
       takeProfit: 5,
@@ -112,15 +105,7 @@ describe("backtest short selling", () => {
       { time: DAY * 4, open: 90, high: 91, low: 78, close: 80, volume: 1000 },
       { time: DAY * 5, open: 82, high: 90, low: 81, close: 88, volume: 1000 },
     ];
-    let entered = false;
-    const entryOnce: ConditionFn = () => {
-      if (!entered) {
-        entered = true;
-        return true;
-      }
-      return false;
-    };
-    const result = runBacktest(candles, entryOnce, alwaysFalse, {
+    const result = runBacktest(candles, createEntryOnce(), alwaysFalse, {
       capital: 10000,
       direction: "short",
       trailingStop: 10,
@@ -324,5 +309,86 @@ describe("streaming position tracker short selling", () => {
     const { trade } = tracker.closePosition(110, 2000, "exit-signal");
     expect(trade.return).toBeGreaterThan(0);
     expect(trade.direction).toBeUndefined(); // long is omitted
+  });
+});
+
+describe("portfolio/batch backtest short selling", () => {
+  function makeDatasets(pricesA: number[], pricesB: number[]) {
+    return [
+      { symbol: "A", candles: makeCandles(pricesA) },
+      { symbol: "B", candles: makeCandles(pricesB) },
+    ];
+  }
+
+  it("batchBacktest with direction: 'short' produces short trades", () => {
+    // Prices drop → short profits
+    const datasets = makeDatasets([100, 100, 90, 80], [200, 200, 180, 160]);
+
+    const result = batchBacktest(datasets, alwaysTrue, alwaysFalse, {
+      capital: 20000,
+      direction: "short",
+      fillMode: "same-bar-close",
+    });
+
+    // Both symbols should have short trades
+    for (const sr of result.symbols) {
+      expect(sr.result.trades.length).toBe(1);
+      expect(sr.result.trades[0].direction).toBe("short");
+      expect(sr.result.totalReturnPercent).toBeGreaterThan(0); // prices dropped
+    }
+
+    // Portfolio should be profitable
+    expect(result.portfolio.totalReturnPercent).toBeGreaterThan(0);
+  });
+
+  it("batchBacktest without direction defaults to long", () => {
+    const datasets = makeDatasets([100, 100, 110, 120], [200, 200, 220, 240]);
+
+    const result = batchBacktest(datasets, alwaysTrue, alwaysFalse, {
+      capital: 20000,
+      fillMode: "same-bar-close",
+    });
+
+    for (const sr of result.symbols) {
+      expect(sr.result.trades[0].direction).toBeUndefined(); // long is omitted
+      expect(sr.result.totalReturnPercent).toBeGreaterThan(0); // prices rose
+    }
+  });
+
+  it("portfolioBacktest with tradeOptions.direction: 'short' produces short trades", () => {
+    // Prices drop → short profits
+    const datasets = makeDatasets([100, 100, 90, 80], [200, 200, 180, 160]);
+
+    const result = portfolioBacktest(datasets, alwaysTrue, alwaysFalse, {
+      capital: 20000,
+      allocation: { type: "equal" },
+      tradeOptions: {
+        direction: "short",
+        fillMode: "same-bar-close",
+      },
+    });
+
+    for (const sr of result.symbols) {
+      expect(sr.result.trades.length).toBe(1);
+      expect(sr.result.trades[0].direction).toBe("short");
+      expect(sr.result.totalReturnPercent).toBeGreaterThan(0);
+    }
+
+    expect(result.portfolio.totalReturnPercent).toBeGreaterThan(0);
+  });
+
+  it("portfolioBacktest without direction defaults to long", () => {
+    const datasets = makeDatasets([100, 100, 110, 120], [200, 200, 220, 240]);
+
+    const result = portfolioBacktest(datasets, alwaysTrue, alwaysFalse, {
+      capital: 20000,
+      allocation: { type: "equal" },
+      tradeOptions: { fillMode: "same-bar-close" },
+    });
+
+    for (const sr of result.symbols) {
+      expect(sr.result.trades[0].direction).toBeUndefined();
+      expect(sr.result.totalReturnPercent).toBeGreaterThan(0);
+    }
   });
 });

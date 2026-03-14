@@ -63,6 +63,8 @@
 - [ショートセリング](#ショートセリング)
   - [バックテストでのショート](#バックテストでのショート)
   - [ストリーミングでのショート](#ストリーミングでのショート)
+  - [ポートフォリオ / バッチでのショート](#ポートフォリオ--バッチでのショート)
+  - [ショート戦略レシピ](#ショート戦略レシピ)
 - [トレード分析](#トレード分析)
   - [analyzeDrawdowns](#analyzedrawdownsperiods)
   - [パターンプロジェクション](#パターンプロジェクション)
@@ -4538,6 +4540,64 @@ const result = tracker.updatePrice(candle);
 if (result.triggered) {
   console.log(result.triggered.reason); // "stop-loss" | "take-profit" | "trailing-stop"
 }
+```
+
+### ポートフォリオ / バッチでのショート
+
+`batchBacktest()` と `portfolioBacktest()` も同じ `direction` オプションでショートセリングに対応。
+
+```typescript
+import { batchBacktest, deadCross, goldenCross } from 'trendcraft';
+
+// バッチバックテスト: direction をオプションに直接指定
+const batchResult = batchBacktest(datasets, deadCross(5, 25), goldenCross(5, 25), {
+  capital: 3_000_000,
+  direction: 'short',
+  stopLoss: 5,
+  takeProfit: 10,
+});
+
+// ポートフォリオバックテスト: direction は tradeOptions 内に指定
+const portfolioResult = portfolioBacktest(datasets, deadCross(5, 25), goldenCross(5, 25), {
+  capital: 3_000_000,
+  allocation: { type: 'equal' },
+  maxPositions: 5,
+  tradeOptions: {
+    direction: 'short',
+    stopLoss: 5,
+    takeProfit: 10,
+  },
+});
+```
+
+### ショート戦略レシピ
+
+組み込み条件を使った代表的なショート戦略パターン:
+
+```typescript
+import {
+  and, rsiAbove, rsiBelow, bollingerTouch, deadCross, goldenCross,
+  dmiBearish, anyBearishPattern, stochAbove, stochBelow,
+} from 'trendcraft';
+
+// ミーンリバージョンショート: 買われすぎからの反転
+const mrEntry = and(rsiAbove(70), bollingerTouch('upper'));
+const mrExit  = rsiBelow(50);
+
+// トレンドフォローショート: 下落トレンド確認
+const tfEntry = and(deadCross(5, 25), dmiBearish());
+const tfExit  = goldenCross(5, 25);
+
+// パターンベースショート: 弱気パターン + ストキャスティクス買われすぎ
+const ptEntry = and(anyBearishPattern(), stochAbove(80));
+const ptExit  = stochBelow(20);
+
+const result = runBacktest(candles, tfEntry, tfExit, {
+  capital: 1_000_000,
+  direction: 'short',
+  stopLoss: 5,
+  takeProfit: 15,
+});
 ```
 
 ---

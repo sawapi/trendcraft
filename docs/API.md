@@ -63,6 +63,8 @@
 - [Short Selling](#short-selling)
   - [Backtest Short Selling](#backtest-short-selling)
   - [Streaming Short Selling](#streaming-short-selling)
+  - [Portfolio / Batch Short Selling](#portfolio--batch-short-selling)
+  - [Short Strategy Recipes](#short-strategy-recipes)
 - [Trade Analysis](#trade-analysis)
   - [analyzeDrawdowns](#analyzedrawdownsperiods)
   - [Pattern Projection](#pattern-projection)
@@ -4661,6 +4663,64 @@ const result = tracker.updatePrice(candle);
 if (result.triggered) {
   console.log(result.triggered.reason); // "stop-loss" | "take-profit" | "trailing-stop"
 }
+```
+
+### Portfolio / Batch Short Selling
+
+Both `batchBacktest()` and `portfolioBacktest()` support short selling through the same `direction` option.
+
+```typescript
+import { batchBacktest, deadCross, goldenCross } from 'trendcraft';
+
+// Batch backtest: direction is passed directly in options
+const batchResult = batchBacktest(datasets, deadCross(5, 25), goldenCross(5, 25), {
+  capital: 3_000_000,
+  direction: 'short',
+  stopLoss: 5,
+  takeProfit: 10,
+});
+
+// Portfolio backtest: direction goes inside tradeOptions
+const portfolioResult = portfolioBacktest(datasets, deadCross(5, 25), goldenCross(5, 25), {
+  capital: 3_000_000,
+  allocation: { type: 'equal' },
+  maxPositions: 5,
+  tradeOptions: {
+    direction: 'short',
+    stopLoss: 5,
+    takeProfit: 10,
+  },
+});
+```
+
+### Short Strategy Recipes
+
+Common short strategy patterns using built-in conditions:
+
+```typescript
+import {
+  and, rsiAbove, rsiBelow, bollingerTouch, deadCross, goldenCross,
+  dmiBearish, anyBearishPattern, stochAbove, stochBelow,
+} from 'trendcraft';
+
+// Mean reversion short: overbought reversal
+const mrEntry = and(rsiAbove(70), bollingerTouch('upper'));
+const mrExit  = rsiBelow(50);
+
+// Trend-following short: confirmed downtrend
+const tfEntry = and(deadCross(5, 25), dmiBearish());
+const tfExit  = goldenCross(5, 25);
+
+// Pattern-based short: bearish pattern + overbought stochastic
+const ptEntry = and(anyBearishPattern(), stochAbove(80));
+const ptExit  = stochBelow(20);
+
+const result = runBacktest(candles, tfEntry, tfExit, {
+  capital: 1_000_000,
+  direction: 'short',
+  stopLoss: 5,
+  takeProfit: 15,
+});
 ```
 
 ---
