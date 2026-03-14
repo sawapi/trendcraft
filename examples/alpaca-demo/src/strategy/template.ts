@@ -36,6 +36,19 @@ export type IndicatorRef = {
 };
 
 /**
+ * Regime gate — blocks entries when market regime doesn't match.
+ * Automatically injects a regime indicator and wraps entry conditions.
+ */
+export type RegimeGate = {
+  /** Minimum ADX trend strength to allow entry (default: 20) */
+  minTrendStrength?: number;
+  /** Only allow entries in these trend directions */
+  allowedTrends?: Array<"bullish" | "bearish" | "sideways">;
+  /** Only allow entries in these volatility regimes */
+  allowedVolatility?: Array<"low" | "normal" | "high">;
+};
+
+/**
  * Market filter — conditions on a benchmark symbol (e.g., SPY) that must be met
  * before the strategy is allowed to enter trades.
  * LLMs can set this per-strategy to control when a strategy is deployed.
@@ -63,6 +76,9 @@ export type StrategyTemplate = {
   intervalMs: number;
   symbols: string[];
 
+  /** Position direction: "long" (default), "short", or "both" */
+  direction?: "long" | "short" | "both";
+
   indicators: IndicatorRef[];
   entry: ConditionRule;
   exit: ConditionRule;
@@ -74,6 +90,13 @@ export type StrategyTemplate = {
   };
   /** Market-level filter — only allow entries when benchmark meets conditions */
   marketFilter?: MarketFilter;
+  /** Regime gate — block entries when market regime doesn't match */
+  regimeGate?: RegimeGate;
+  /** Multi-timeframe indicators — higher TF confirmation for entry */
+  mtfIndicators?: {
+    timeframe: "5Min" | "15Min" | "1Hour" | "1Day";
+    indicators: IndicatorRef[];
+  }[];
   position: {
     capital: number;
     sizingMethod: "risk-based" | "fixed-fractional" | "full-capital" | "kelly";
@@ -91,6 +114,10 @@ export type StrategyTemplate = {
     commissionRate?: number;
     /** Tax rate on realized gains (%) — defaults to DEFAULT_TRADING_COSTS */
     taxRate?: number;
+    /** Order type: "market" (default) or "limit" */
+    orderType?: "market" | "limit";
+    /** Limit price offset from signal price in percent (for limit orders) */
+    limitOffsetPercent?: number;
   };
 
   signalLifecycle?: {
@@ -119,6 +146,8 @@ export type ParameterOverride = {
     position?: Partial<StrategyTemplate["position"]>;
     guards?: Partial<StrategyTemplate["guards"]>;
     marketFilter?: MarketFilter | null;
+    regimeGate?: RegimeGate | null;
+    mtfIndicators?: StrategyTemplate["mtfIndicators"];
     entry?: ConditionRule;
     exit?: ConditionRule;
     backtestTimeframe?: StrategyTemplate["backtestTimeframe"];
@@ -178,6 +207,7 @@ export const PRESET_TEMPLATES: StrategyTemplate[] = [
     entry: { type: "macdPositive" },
     exit: { type: "macdNegative" },
     guards: { maxDailyLoss: -5_000, maxDailyTrades: 8 },
+    regimeGate: { minTrendStrength: 20 },
     position: {
       capital: 100_000,
       sizingMethod: "risk-based",
@@ -243,6 +273,7 @@ export const PRESET_TEMPLATES: StrategyTemplate[] = [
     entry: { type: "smaGoldenCross" },
     exit: { type: "smaDeadCross" },
     guards: { maxDailyLoss: -5_000, maxDailyTrades: 6 },
+    regimeGate: { minTrendStrength: 20 },
     position: {
       capital: 100_000,
       sizingMethod: "risk-based",
@@ -269,6 +300,7 @@ export const PRESET_TEMPLATES: StrategyTemplate[] = [
     entry: { type: "dmiBullish", params: { threshold: 25 } },
     exit: { type: "dmiBearish", params: { threshold: 20 } },
     guards: { maxDailyLoss: -5_000, maxDailyTrades: 6 },
+    regimeGate: { minTrendStrength: 20 },
     position: {
       capital: 100_000,
       sizingMethod: "risk-based",
@@ -382,6 +414,7 @@ export const PRESET_TEMPLATES: StrategyTemplate[] = [
     },
     exit: { type: "priceBelow", params: { indicatorKey: "ema21" } },
     guards: { maxDailyLoss: -5_000, maxDailyTrades: 10 },
+    regimeGate: { minTrendStrength: 20 },
     position: {
       capital: 100_000,
       sizingMethod: "risk-based",
@@ -511,6 +544,7 @@ export const PRESET_TEMPLATES: StrategyTemplate[] = [
       conditions: [{ type: "macdNegative" }, { type: "dmiBearish", params: { threshold: 20 } }],
     },
     guards: { maxDailyLoss: -5_000, maxDailyTrades: 8 },
+    regimeGate: { minTrendStrength: 20 },
     position: {
       capital: 100_000,
       sizingMethod: "risk-based",
@@ -637,6 +671,7 @@ export const PRESET_TEMPLATES: StrategyTemplate[] = [
       conditions: [{ type: "emaCrossDown" }, { type: "priceBelowVwap" }],
     },
     guards: { maxDailyLoss: -5_000, maxDailyTrades: 8, timeGuard: null },
+    regimeGate: { minTrendStrength: 20 },
     position: {
       capital: 100_000,
       sizingMethod: "risk-based",
@@ -699,6 +734,279 @@ export const PRESET_TEMPLATES: StrategyTemplate[] = [
       "Stochastic oversold crossup targets reversals from exhaustion points. " +
       "EMA(50) filter ensures we only buy dips in an established uptrend.",
   },
+  // --- Multi-timeframe (MTF) strategies ---
+  {
+    id: "ema-cross-htf-filter",
+    name: "EMA Cross + HTF Filter",
+    description: "1min EMA(9)/EMA(21) cross + 15min EMA(50) trend filter — higher TF confirmation",
+    intervalMs: 60_000,
+    symbols: ["SPY", "QQQ", "AAPL", "MSFT", "NVDA"],
+    indicators: [
+      { type: "ema", name: "ema9", params: { period: 9 } },
+      { type: "ema", name: "ema21", params: { period: 21 } },
+      { type: "atr", name: "atr", params: { period: 14 } },
+    ],
+    mtfIndicators: [
+      {
+        timeframe: "15Min",
+        indicators: [{ type: "ema", name: "ema50", params: { period: 50 } }],
+      },
+    ],
+    entry: {
+      operator: "and",
+      conditions: [
+        { type: "emaCrossUp" },
+        { type: "mtfPriceAbove", params: { indicatorKey: "ema50", timeframe: "15m" } },
+      ],
+    },
+    exit: { type: "emaCrossDown" },
+    guards: { maxDailyLoss: -5_000, maxDailyTrades: 8 },
+    regimeGate: { minTrendStrength: 20 },
+    position: {
+      capital: 100_000,
+      sizingMethod: "risk-based",
+      riskPercent: 1,
+      stopLoss: 1.5,
+      takeProfit: 3,
+      atrTrailingStop: { period: 14, multiplier: 2 },
+      slippage: 0.05,
+    },
+    signalLifecycle: { cooldownBars: 3 },
+    backtestTimeframe: "5Min",
+    backtestPeriodDays: 5,
+    source: "preset",
+    reasoning:
+      "Higher timeframe trend filter reduces false signals. " +
+      "Only trade EMA crosses when 15min EMA(50) confirms the trend direction.",
+  },
+  // --- Short selling strategies ---
+  {
+    id: "rsi-overbought-short",
+    name: "RSI Overbought Short",
+    description: "Short when RSI > 70 + price below EMA(50), cover when RSI < 30",
+    intervalMs: 3_600_000,
+    symbols: ["SPY", "QQQ", "AAPL", "MSFT", "NVDA"],
+    direction: "short",
+    indicators: [
+      { type: "rsi", name: "rsi", params: { period: 14 } },
+      { type: "ema", name: "ema50", params: { period: 50 } },
+      { type: "atr", name: "atr", params: { period: 14 } },
+    ],
+    entry: {
+      operator: "and",
+      conditions: [
+        { type: "rsiAbove", params: { threshold: 70 } },
+        { type: "priceBelow", params: { indicatorKey: "ema50" } },
+      ],
+    },
+    exit: { type: "rsiBelow", params: { threshold: 30 } },
+    guards: { maxDailyLoss: -5_000, maxDailyTrades: 6, timeGuard: null },
+    regimeGate: { allowedTrends: ["bearish", "sideways"] },
+    position: {
+      capital: 100_000,
+      sizingMethod: "risk-based",
+      riskPercent: 0.5,
+      stopLoss: 3,
+      takeProfit: 6,
+      atrTrailingStop: { period: 14, multiplier: 2 },
+      slippage: 0.05,
+    },
+    signalLifecycle: { cooldownBars: 5 },
+    backtestTimeframe: "1Hour",
+    backtestPeriodDays: 90,
+    source: "preset",
+    reasoning: "Short overbought RSI below a declining EMA(50) — bearish trend exhaustion short.",
+  },
+  {
+    id: "ema-dead-cross-short",
+    name: "EMA Dead Cross Short",
+    description: "Short on EMA(10)/EMA(30) dead cross, cover on golden cross",
+    intervalMs: 3_600_000,
+    symbols: ["SPY", "QQQ", "AAPL", "MSFT", "NVDA"],
+    direction: "short",
+    indicators: [
+      { type: "ema", name: "ema10", params: { period: 10 } },
+      { type: "ema", name: "ema30", params: { period: 30 } },
+      { type: "atr", name: "atr", params: { period: 14 } },
+    ],
+    entry: { type: "emaDeadCross" },
+    exit: { type: "emaGoldenCross" },
+    guards: { maxDailyLoss: -5_000, maxDailyTrades: 4, timeGuard: null },
+    regimeGate: { minTrendStrength: 20 },
+    position: {
+      capital: 100_000,
+      sizingMethod: "risk-based",
+      riskPercent: 0.5,
+      stopLoss: 4,
+      trailingStop: 5,
+      slippage: 0.05,
+    },
+    signalLifecycle: { cooldownBars: 5 },
+    backtestTimeframe: "1Hour",
+    backtestPeriodDays: 90,
+    source: "preset",
+    reasoning:
+      "EMA dead cross is a classic bearish signal. " +
+      "Regime gate ensures we only short in confirmed downtrends.",
+  },
+  // --- SMC (Smart Money Concepts) strategies ---
+  {
+    id: "smc-ob-bounce",
+    name: "SMC Order Block Bounce",
+    description: "Buy at bullish Order Block zone + RSI < 40 — institutional support bounce",
+    intervalMs: 3_600_000,
+    symbols: ["SPY", "QQQ", "AAPL", "MSFT", "NVDA"],
+    indicators: [
+      { type: "rsi", name: "rsi", params: { period: 14 } },
+      { type: "atr", name: "atr", params: { period: 14 } },
+    ],
+    entry: {
+      operator: "and",
+      conditions: [{ type: "priceAtBullishOB" }, { type: "rsiBelow", params: { threshold: 40 } }],
+    },
+    exit: {
+      operator: "or",
+      conditions: [{ type: "rsiAbove", params: { threshold: 70 } }],
+    },
+    guards: { maxDailyLoss: -3_000, maxDailyTrades: 6, timeGuard: null },
+    position: {
+      capital: 100_000,
+      sizingMethod: "risk-based",
+      riskPercent: 1,
+      stopLoss: 2,
+      takeProfit: 4,
+      atrTrailingStop: { period: 14, multiplier: 2 },
+      slippage: 0.05,
+    },
+    signalLifecycle: { cooldownBars: 5 },
+    backtestTimeframe: "1Hour",
+    backtestPeriodDays: 90,
+    source: "preset",
+    reasoning:
+      "Order blocks mark zones where institutional traders placed orders. " +
+      "Bullish OB + oversold RSI = high-probability reversal zone.",
+  },
+  {
+    id: "smc-sweep-reversal",
+    name: "SMC Sweep Reversal",
+    description: "Buy on recovered bullish liquidity sweep + RSI < 45 — smart money reversal",
+    intervalMs: 3_600_000,
+    symbols: ["SPY", "QQQ", "AAPL", "MSFT", "NVDA"],
+    indicators: [
+      { type: "rsi", name: "rsi", params: { period: 14 } },
+      { type: "atr", name: "atr", params: { period: 14 } },
+    ],
+    entry: {
+      operator: "and",
+      conditions: [
+        { type: "liquiditySweepRecovered", params: { type: "bullish" } },
+        { type: "rsiBelow", params: { threshold: 45 } },
+      ],
+    },
+    exit: {
+      operator: "or",
+      conditions: [{ type: "rsiAbove", params: { threshold: 65 } }],
+    },
+    guards: { maxDailyLoss: -3_000, maxDailyTrades: 6, timeGuard: null },
+    position: {
+      capital: 100_000,
+      sizingMethod: "risk-based",
+      riskPercent: 1,
+      stopLoss: 2.5,
+      takeProfit: 5,
+      atrTrailingStop: { period: 14, multiplier: 2 },
+      slippage: 0.05,
+    },
+    signalLifecycle: { cooldownBars: 5 },
+    backtestTimeframe: "1Hour",
+    backtestPeriodDays: 90,
+    source: "preset",
+    reasoning:
+      "Liquidity sweeps below swing lows trap retail stops. " +
+      "Recovery after sweep signals institutional accumulation.",
+  },
+  // --- VWAP Band and Gap strategies ---
+  {
+    id: "vwap-band-reversion",
+    name: "VWAP Band Reversion",
+    description:
+      "Buy at VWAP lower band (−1σ) + RSI < 35, sell at VWAP — institutional mean reversion",
+    intervalMs: 60_000,
+    symbols: ["SPY", "QQQ", "AAPL", "MSFT", "NVDA"],
+    indicators: [
+      { type: "vwap", name: "vwap", params: {} },
+      { type: "rsi", name: "rsi", params: { period: 14 } },
+      { type: "atr", name: "atr", params: { period: 14 } },
+    ],
+    entry: {
+      operator: "and",
+      conditions: [
+        { type: "priceBelowVwapLowerBand" },
+        { type: "rsiBelow", params: { threshold: 35 } },
+      ],
+    },
+    exit: {
+      operator: "or",
+      conditions: [{ type: "priceAboveVwap" }, { type: "rsiAbove", params: { threshold: 65 } }],
+    },
+    guards: { maxDailyLoss: -3_000, maxDailyTrades: 10 },
+    position: {
+      capital: 100_000,
+      sizingMethod: "risk-based",
+      riskPercent: 1,
+      stopLoss: 1.5,
+      takeProfit: 3,
+      atrTrailingStop: { period: 14, multiplier: 1.5 },
+      slippage: 0.05,
+    },
+    signalLifecycle: { cooldownBars: 5 },
+    backtestTimeframe: "5Min",
+    backtestPeriodDays: 5,
+    source: "preset",
+    reasoning:
+      "VWAP lower band represents institutional oversold. " +
+      "Mean reversion to VWAP with RSI confirmation for high-probability bounces.",
+  },
+  {
+    id: "gap-fade",
+    name: "Gap Fade",
+    description: "Buy gap-down reversals: open > -1% below prev close + RSI < 30 — fade the gap",
+    intervalMs: 60_000,
+    symbols: ["SPY", "QQQ", "AAPL", "MSFT", "NVDA"],
+    indicators: [
+      { type: "rsi", name: "rsi", params: { period: 14 } },
+      { type: "ema", name: "ema50", params: { period: 50 } },
+      { type: "atr", name: "atr", params: { period: 14 } },
+    ],
+    entry: {
+      operator: "and",
+      conditions: [
+        { type: "gapDown", params: { minGapPercent: 1 } },
+        { type: "rsiBelow", params: { threshold: 30 } },
+      ],
+    },
+    exit: {
+      operator: "or",
+      conditions: [{ type: "rsiAbove", params: { threshold: 60 } }],
+    },
+    guards: { maxDailyLoss: -3_000, maxDailyTrades: 4 },
+    position: {
+      capital: 100_000,
+      sizingMethod: "risk-based",
+      riskPercent: 1,
+      stopLoss: 2,
+      takeProfit: 3,
+      atrTrailingStop: { period: 14, multiplier: 2 },
+      slippage: 0.1,
+    },
+    signalLifecycle: { cooldownBars: 10 },
+    backtestTimeframe: "5Min",
+    backtestPeriodDays: 10,
+    source: "preset",
+    reasoning:
+      "Gap downs often reverse intraday, especially on large caps. " +
+      "RSI < 30 confirms oversold before fading the gap.",
+  },
 ];
 
 /**
@@ -736,6 +1044,9 @@ export function applyOverrides(
   if (override.overrides.marketFilter !== undefined) {
     // null clears the filter, MarketFilter object sets it
     result.marketFilter = override.overrides.marketFilter ?? undefined;
+  }
+  if (override.overrides.regimeGate !== undefined) {
+    result.regimeGate = override.overrides.regimeGate ?? undefined;
   }
   if (override.overrides.entry) {
     result.entry = override.overrides.entry;

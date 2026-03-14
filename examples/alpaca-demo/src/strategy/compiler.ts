@@ -16,7 +16,9 @@ import {
   dmiBearish as backtestDmiBearish,
   dmiBullish as backtestDmiBullish,
   goldenCrossCondition as backtestGoldenCross,
+  liquiditySweepRecovered as backtestLiquiditySweepRecovered,
   or as backtestOr,
+  priceAtBullishOrderBlock as backtestPriceAtBullishOB,
   rsiAbove as backtestRsiAbove,
   rsiBelow as backtestRsiBelow,
   bollingerBands,
@@ -24,8 +26,10 @@ import {
   ema,
   incremental,
   keltnerChannel,
+  liquiditySweep,
   macdCrossDown,
   macdCrossUp,
+  orderBlock,
   rsi,
   sma,
   stochastics,
@@ -34,7 +38,13 @@ import {
 } from "trendcraft";
 import { US_MARKET_HOURS } from "../config/market-hours.js";
 import { DEFAULT_TRADING_COSTS } from "../config/trading-costs.js";
-import type { ConditionRef, ConditionRule, IndicatorRef, StrategyTemplate } from "./template.js";
+import type {
+  ConditionRef,
+  ConditionRule,
+  IndicatorRef,
+  RegimeGate,
+  StrategyTemplate,
+} from "./template.js";
 import { isCombined } from "./template.js";
 
 export type CompileResult =
@@ -310,6 +320,170 @@ const CONDITION_REGISTRY: Record<string, ConditionDef> = {
     backtest: (ref, inds) =>
       buildBacktestStochOverbought((ref.params?.threshold as number) ?? 80, inds),
   },
+  priceBelowVwapLowerBand: {
+    streaming: (_ref, inds) => {
+      const name = findIndicatorName(inds, "vwap");
+      const fn: streaming.StreamingConditionFn = (snapshot, candle) => {
+        const vwapVal = streaming.resolveNumber(snapshot, `${name}.vwap`);
+        if (vwapVal === null) {
+          const plain = streaming.getNumber(snapshot, name);
+          if (plain === null) return false;
+          return candle.close < plain * 0.99; // ~1σ below VWAP
+        }
+        return candle.close < vwapVal * 0.99;
+      };
+      return fn;
+    },
+    backtest: (_ref, inds) => buildBacktestBandCondition("vwap", "lower", "below", inds),
+  },
+  priceAboveVwapUpperBand: {
+    streaming: (_ref, inds) => {
+      const name = findIndicatorName(inds, "vwap");
+      const fn: streaming.StreamingConditionFn = (snapshot, candle) => {
+        const vwapVal = streaming.resolveNumber(snapshot, `${name}.vwap`);
+        if (vwapVal === null) {
+          const plain = streaming.getNumber(snapshot, name);
+          if (plain === null) return false;
+          return candle.close > plain * 1.01; // ~1σ above VWAP
+        }
+        return candle.close > vwapVal * 1.01;
+      };
+      return fn;
+    },
+    backtest: (_ref, inds) => buildBacktestBandCondition("vwap", "upper", "above", inds),
+  },
+  gapDown: {
+    streaming: (ref, _inds) => {
+      const minGapPct = (ref.params?.minGapPercent as number) ?? 1;
+      let prevClose: number | null = null;
+      const fn: streaming.StreamingConditionFn = (_snapshot, candle) => {
+        if (prevClose === null) {
+          prevClose = candle.close;
+          return false;
+        }
+        const gapPct = ((candle.open - prevClose) / prevClose) * 100;
+        prevClose = candle.close;
+        return gapPct <= -minGapPct;
+      };
+      return fn;
+    },
+    backtest: (ref, _inds) => {
+      const minGapPct = (ref.params?.minGapPercent as number) ?? 1;
+      return (_indicators, candle, index, candles) => {
+        if (index < 1) return false;
+        const prevClose = candles[index - 1].close;
+        const gapPct = ((candle.open - prevClose) / prevClose) * 100;
+        return gapPct <= -minGapPct;
+      };
+    },
+  },
+  gapUp: {
+    streaming: (ref, _inds) => {
+      const minGapPct = (ref.params?.minGapPercent as number) ?? 1;
+      let prevClose: number | null = null;
+      const fn: streaming.StreamingConditionFn = (_snapshot, candle) => {
+        if (prevClose === null) {
+          prevClose = candle.close;
+          return false;
+        }
+        const gapPct = ((candle.open - prevClose) / prevClose) * 100;
+        prevClose = candle.close;
+        return gapPct >= minGapPct;
+      };
+      return fn;
+    },
+    backtest: (ref, _inds) => {
+      const minGapPct = (ref.params?.minGapPercent as number) ?? 1;
+      return (_indicators, candle, index, candles) => {
+        if (index < 1) return false;
+        const prevClose = candles[index - 1].close;
+        const gapPct = ((candle.open - prevClose) / prevClose) * 100;
+        return gapPct >= minGapPct;
+      };
+    },
+  },
+  priceAtBullishOB: {
+    streaming: (_ref, _inds) => {
+      // Rolling window OB detection for streaming
+      const buffer: NormalizedCandle[] = [];
+      const maxBuffer = 100;
+      const fn: streaming.StreamingConditionFn = (_snapshot, candle) => {
+        buffer.push(candle);
+        if (buffer.length > maxBuffer) buffer.shift();
+        if (buffer.length < 20) return false;
+        // Recompute every 10 bars to limit overhead
+        if (buffer.length % 10 !== 0) return false;
+        try {
+          const obData = orderBlock(buffer);
+          const last = obData[obData.length - 1]?.value;
+          return last?.atBullishOB ?? false;
+        } catch {
+          return false;
+        }
+      };
+      return fn;
+    },
+    backtest: (_ref, _inds) => backtestPriceAtBullishOB(),
+  },
+  liquiditySweepRecovered: {
+    streaming: (ref, _inds) => {
+      const sweepType = (ref.params?.type as "bullish" | "bearish" | undefined) ?? "bullish";
+      const buffer: NormalizedCandle[] = [];
+      const maxBuffer = 100;
+      const fn: streaming.StreamingConditionFn = (_snapshot, candle) => {
+        buffer.push(candle);
+        if (buffer.length > maxBuffer) buffer.shift();
+        if (buffer.length < 20) return false;
+        if (buffer.length % 10 !== 0) return false;
+        try {
+          const sweepData = liquiditySweep(buffer);
+          const last = sweepData[sweepData.length - 1]?.value;
+          if (!last?.recoveredThisBar.length) return false;
+          return last.recoveredThisBar.some((s) => s.type === sweepType);
+        } catch {
+          return false;
+        }
+      };
+      return fn;
+    },
+    backtest: (ref, _inds) => {
+      const sweepType = (ref.params?.type as "bullish" | "bearish" | undefined) ?? "bullish";
+      return backtestLiquiditySweepRecovered(sweepType);
+    },
+  },
+  mtfPriceAbove: {
+    streaming: (ref, _inds) => {
+      const indicatorKey = ref.params?.indicatorKey as string;
+      const timeframeKey = (ref.params?.timeframe as string) ?? "15m";
+      const fn: streaming.StreamingConditionFn = (snapshot, candle) => {
+        const mtf = snapshot[`mtf_${timeframeKey}`] as Record<string, unknown> | undefined;
+        if (!mtf) return false;
+        const value = mtf[indicatorKey];
+        if (typeof value !== "number") return false;
+        return candle.close > value;
+      };
+      return fn;
+    },
+    backtest: (_ref, _inds) => () => true, // MTF is streaming-only
+  },
+  mtfTrendBullish: {
+    streaming: (ref, _inds) => {
+      const timeframeKey = (ref.params?.timeframe as string) ?? "15m";
+      const fn: streaming.StreamingConditionFn = (snapshot, _candle) => {
+        const mtf = snapshot[`mtf_${timeframeKey}`] as Record<string, unknown> | undefined;
+        if (!mtf) return false;
+        // Check if regime shows bullish trend
+        const regime = mtf.regime as Record<string, unknown> | undefined;
+        if (regime) {
+          return regime.trend === "bullish";
+        }
+        // Fallback: check if EMA is rising (price > ema value)
+        return false;
+      };
+      return fn;
+    },
+    backtest: (_ref, _inds) => () => true, // MTF is streaming-only
+  },
   regimeFilter: {
     streaming: (ref, _inds) =>
       streaming.regimeFilter({
@@ -368,6 +542,7 @@ export function compileTemplate(template: StrategyTemplate): CompileResult {
         metadata: {
           backtestTimeframe: template.backtestTimeframe,
           backtestPeriodDays: template.backtestPeriodDays,
+          ...(template.mtfIndicators && { mtfIndicators: template.mtfIndicators }),
         },
       }),
     };
@@ -416,13 +591,38 @@ function ensureIndicator(
 // ---------------------------------------------------------------------------
 
 function buildPipeline(template: StrategyTemplate): streaming.PipelineOptions {
-  const indicators = template.indicators.map((ind) => ({
+  // Merge template indicators with auto-injected ones
+  const effectiveIndicators = [...template.indicators];
+
+  const indicators = effectiveIndicators.map((ind) => ({
     name: ind.name,
     create: compileIndicator(ind),
   }));
 
-  const entry = compileStreamingCondition(template.entry, template.indicators);
-  const exit = compileStreamingCondition(template.exit, template.indicators);
+  let entry = compileStreamingCondition(template.entry, effectiveIndicators);
+  const exit = compileStreamingCondition(template.exit, effectiveIndicators);
+
+  // Regime gate: auto-inject regime indicator and wrap entry with regimeFilter
+  if (template.regimeGate) {
+    const gate = template.regimeGate;
+    const hasRegime = effectiveIndicators.some((i) => i.type === "regime");
+    if (!hasRegime) {
+      const regimeDef = INDICATOR_REGISTRY.regime;
+      indicators.push({
+        name: "regime",
+        create: regimeDef.createIncremental({}),
+      });
+    }
+
+    const regimeCondition = streaming.regimeFilter({
+      key: "regime",
+      minTrendStrength: gate.minTrendStrength,
+      allowedTrends: gate.allowedTrends,
+      allowedVolatility: gate.allowedVolatility,
+    });
+
+    entry = streaming.and(regimeCondition, entry);
+  }
 
   return { indicators, entry, exit };
 }
@@ -773,12 +973,25 @@ function buildPosition(template: StrategyTemplate): streaming.PositionManagerOpt
   let sizing: streaming.PositionManagerOptions["sizing"];
 
   switch (template.position.sizingMethod) {
-    case "risk-based":
-      sizing = {
-        method: "risk-based" as const,
-        riskPercent: template.position.riskPercent ?? 1,
-      };
+    case "risk-based": {
+      // Auto-upgrade to ATR-based sizing when an ATR indicator is present
+      const atrInd = template.indicators.find((i) => i.type === "atr");
+      if (atrInd) {
+        const multiplier = template.position.atrTrailingStop?.multiplier ?? 2;
+        sizing = {
+          method: "atr-based" as const,
+          riskPercent: template.position.riskPercent ?? 1,
+          atrKey: atrInd.name,
+          atrMultiplier: multiplier,
+        };
+      } else {
+        sizing = {
+          method: "risk-based" as const,
+          riskPercent: template.position.riskPercent ?? 1,
+        };
+      }
       break;
+    }
     case "fixed-fractional":
       sizing = {
         method: "fixed-fractional" as const,
@@ -797,6 +1010,7 @@ function buildPosition(template: StrategyTemplate): streaming.PositionManagerOpt
 
   return {
     capital: template.position.capital,
+    ...(template.direction === "short" && { direction: "short" as const }),
     sizing,
     stopLoss: template.position.stopLoss,
     ...(template.position.takeProfit !== undefined && {
