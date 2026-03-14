@@ -58,8 +58,10 @@ export function createVolumeAnomaly(
     count = 0;
   }
 
-  function compute(volume: number): VolumeAnomalyValue {
-    if (count < period) {
+  function computeFromBuffer(volume: number, buf: CircularBuffer<number>): VolumeAnomalyValue {
+    // Batch computes stats over [i-period+1 ... i] (including current candle)
+    // When called, buffer already contains the current volume
+    if (buf.length < period) {
       return {
         volume,
         avgVolume: volume,
@@ -70,11 +72,10 @@ export function createVolumeAnomaly(
       };
     }
 
-    // Calculate mean and stddev from buffer
     let sum = 0;
     let sumSq = 0;
-    for (let i = 0; i < buffer.length; i++) {
-      const v = buffer.get(i);
+    for (let i = 0; i < buf.length; i++) {
+      const v = buf.get(i);
       sum += v;
       sumSq += v * v;
     }
@@ -112,13 +113,16 @@ export function createVolumeAnomaly(
   const indicator: IncrementalIndicator<VolumeAnomalyValue, VolumeAnomalyState> = {
     next(candle: NormalizedCandle) {
       count++;
-      const value = compute(candle.volume);
       buffer.push(candle.volume);
+      const value = computeFromBuffer(candle.volume, buffer);
       return { time: candle.time, value };
     },
 
     peek(candle: NormalizedCandle) {
-      return { time: candle.time, value: compute(candle.volume) };
+      // Simulate buffer with current volume added
+      const peekBuf = CircularBuffer.fromSnapshot<number>(buffer.snapshot());
+      peekBuf.push(candle.volume);
+      return { time: candle.time, value: computeFromBuffer(candle.volume, peekBuf) };
     },
 
     getState(): VolumeAnomalyState {

@@ -107,20 +107,15 @@ export function createTrix(
       }
 
       // Signal line = EMA of TRIX values
+      // Batch feeds ALL candles to signal EMA (using 0 for null trix values)
+      const signalInput = trixVal ?? 0;
+      const sigResult = signalEma.next(makeCandle(candle.time, signalInput));
+
+      // Signal is only valid after firstValidTrix + signalPeriod - 1
       let signalVal: number | null = null;
       if (trixVal !== null) {
         trixCount++;
-        if (trixCount < signalPeriod) {
-          trixSum += trixVal;
-        } else if (trixCount === signalPeriod) {
-          trixSum += trixVal;
-          const seed = trixSum / signalPeriod;
-          // Feed the signal EMA — we need to feed all prior trix values
-          // Actually, we'll use the signalEma which processes from position 0
-          const sigResult = signalEma.next(makeCandle(candle.time, trixVal));
-          signalVal = sigResult.value;
-        } else {
-          const sigResult = signalEma.next(makeCandle(candle.time, trixVal));
+        if (trixCount >= signalPeriod) {
           signalVal = sigResult.value;
         }
       }
