@@ -6,13 +6,16 @@ A TypeScript library for technical analysis of financial data. Calculate indicat
 
 ## Features
 
-### Indicators (58+)
-- **Moving Averages**: SMA, EMA, WMA, VWMA, KAMA, T3, HMA (Hull)
-- **Trend**: Ichimoku Cloud, Supertrend, Parabolic SAR, Vortex
-- **Momentum**: RSI, MACD, Stochastics (Fast/Slow), DMI/ADX, Stoch RSI, CCI, Williams %R, ROC, TRIX, Aroon, DPO, Hurst Exponent, Connors RSI
-- **Volatility**: Bollinger Bands, ATR, Donchian Channel, Keltner Channel, Chandelier Exit, Volatility Regime, Choppiness Index
-- **Volume**: OBV, MFI, VWAP (with Bands), Volume MA, CMF, Volume Anomaly, Volume Profile, Volume Trend, ADL, Anchored VWAP
-- **Price**: Highest/Lowest, Returns, Pivot Points, Swing Points, Fractals, Zigzag, Fibonacci Retracement/Extension, Heikin-Ashi, Opening Range Breakout, Gap Analysis
+### Indicators (100+)
+- **Moving Averages**: SMA, EMA, WMA, VWMA, KAMA, T3, HMA (Hull), McGinley Dynamic, EMA Ribbon, DEMA, TEMA, ZLEMA, FRAMA, ALMA
+- **Trend**: Ichimoku Cloud, Supertrend, Parabolic SAR, Vortex, Schaff Trend Cycle, Linear Regression
+- **Momentum**: RSI, MACD, Stochastics (Fast/Slow), DMI/ADX, ADXR, Stoch RSI, CCI, Williams %R, ROC, TRIX, Aroon, DPO, Hurst Exponent, Connors RSI, IMI, Ultimate Oscillator, Awesome Oscillator, Mass Index, KST, Coppock Curve, TSI, PPO, CMO, Balance of Power, QStick
+- **Volatility**: Bollinger Bands, ATR, Donchian Channel, Keltner Channel, Chandelier Exit, Volatility Regime, Choppiness Index, Ulcer Index, Historical Volatility, Garman-Klass, Standard Deviation
+- **Volume**: OBV, MFI, VWAP (with Bands), Volume MA, CMF, Volume Anomaly, Volume Profile, Volume Trend, ADL, Anchored VWAP, Elder Force Index, Ease of Movement, Klinger, TWAP, Weis Wave, Market Profile, PVT, NVI
+- **Price**: Highest/Lowest, Returns, Pivot Points, Swing Points, Fractals, Zigzag, Fibonacci Retracement/Extension, Heikin-Ashi, Opening Range Breakout, Gap Analysis, Median Price, Typical Price, Weighted Close
+- **Smart Money Concepts (SMC)**: Order Block, Liquidity Sweep
+- **Filter**: Super Smoother, Roofing Filter (Ehlers)
+- **Relative Strength**: Benchmark RS, RS Rating, RS Ranking
 
 ### Signal Detection
 - **Cross Detection**: Golden Cross, Dead Cross, custom crossovers
@@ -70,6 +73,18 @@ A TypeScript library for technical analysis of financial data. Calculate indicat
 - Data normalization (various date formats to timestamps)
 - Timeframe resampling (daily to weekly/monthly)
 - Fluent API for chaining operations
+
+## TA-Lib Cross-Validation
+
+23 indicators are cross-validated against [TA-Lib](https://ta-lib.org/) (Python ta-lib 0.6.8) using 200-bar synthetic OHLCV data covering 4 market phases (uptrend → high volatility → range → downtrend). Test code and fixtures are in the `cross-validation/` directory.
+
+| Precision | Indicators | Decimals |
+|-----------|-----------|----------|
+| **Exact** | SMA, Highest, Lowest, Donchian Channel | 10+ |
+| **High** | EMA, WMA, RSI, CCI, Williams %R, ROC, ATR, MFI, DMI/ADX, Keltner Channel, Bollinger Bands, KAMA, OBV, Parabolic SAR | 6–8 |
+| **Good** | MACD, Stochastics (Fast/Slow), T3, StochRSI | 3–4 |
+
+> **Good tier note**: Minor differences are due to documented implementation differences (e.g., MACD EMA seeding, T3 cascaded EMA warmup). These converge over longer series.
 
 ## Installation
 
