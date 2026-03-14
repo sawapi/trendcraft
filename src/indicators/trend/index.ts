@@ -16,3 +16,7 @@ export { parabolicSar } from "./parabolic-sar";
 export type { ParabolicSarOptions, ParabolicSarValue } from "./parabolic-sar";
 export { vortex } from "./vortex";
 export type { VortexOptions, VortexValue } from "./vortex";
+export { schaffTrendCycle } from "./schaff-trend-cycle";
+export type { SchaffTrendCycleOptions } from "./schaff-trend-cycle";
+export { linearRegression } from "./linear-regression";
+export type { LinearRegressionOptions, LinearRegressionValue } from "./linear-regression";

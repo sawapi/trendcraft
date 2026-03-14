@@ -44,3 +44,6 @@ export { weisWave } from "./weis-wave";
 export type { WeisWaveOptions, WeisWaveValue } from "./weis-wave";
 export { marketProfile } from "./market-profile";
 export type { MarketProfileOptions, MarketProfileValue } from "./market-profile";
+export { pvt } from "./pvt";
+export { nvi } from "./nvi";
+export type { NviOptions } from "./nvi";

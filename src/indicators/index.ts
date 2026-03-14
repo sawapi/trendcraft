@@ -1,5 +1,20 @@
 // Moving Averages
-export { sma, ema, wma, vwma, kama, t3, hma, mcginleyDynamic, emaRibbon } from "./moving-average";
+export {
+  sma,
+  ema,
+  wma,
+  vwma,
+  kama,
+  t3,
+  hma,
+  mcginleyDynamic,
+  emaRibbon,
+  dema,
+  tema,
+  zlema,
+  frama,
+  alma,
+} from "./moving-average";
 export type {
   WmaOptions,
   VwmaOptions,
@@ -9,6 +24,11 @@ export type {
   McGinleyDynamicOptions,
   EmaRibbonOptions,
   EmaRibbonValue,
+  DemaOptions,
+  TemaOptions,
+  ZlemaOptions,
+  FramaOptions,
+  AlmaOptions,
 } from "./moving-average";
 
 // Momentum
@@ -30,6 +50,16 @@ export {
   connorsRsi,
   imi,
   adxr,
+  ultimateOscillator,
+  awesomeOscillator,
+  massIndex,
+  kst,
+  coppockCurve,
+  tsi,
+  ppo,
+  cmo,
+  balanceOfPower,
+  qstick,
 } from "./momentum";
 export type {
   StochasticsValue,
@@ -51,6 +81,19 @@ export type {
   ConnorsRsiValue,
   ImiOptions,
   AdxrOptions,
+  UltimateOscillatorOptions,
+  AwesomeOscillatorOptions,
+  MassIndexOptions,
+  KstOptions,
+  KstValue,
+  CoppockCurveOptions,
+  TsiOptions,
+  TsiValue,
+  PpoOptions,
+  PpoValue,
+  CmoOptions,
+  BalanceOfPowerOptions,
+  QstickOptions,
 } from "./momentum";
 
 // Volatility
@@ -72,6 +115,10 @@ export {
   filterStocksByAtr,
   DEFAULT_ATR_THRESHOLD,
   choppinessIndex,
+  ulcerIndex,
+  historicalVolatility,
+  garmanKlass,
+  standardDeviation,
 } from "./volatility";
 export type {
   DonchianValue,
@@ -81,6 +128,10 @@ export type {
   AtrFilterOptions,
   AtrFilterResult,
   ChoppinessIndexOptions,
+  UlcerIndexOptions,
+  HistoricalVolatilityOptions,
+  GarmanKlassOptions,
+  StandardDeviationOptions,
 } from "./volatility";
 
 // Volume
@@ -102,6 +153,8 @@ export {
   twap,
   weisWave,
   marketProfile,
+  pvt,
+  nvi,
 } from "./volume";
 export type {
   VolumeMaOptions,
@@ -124,6 +177,7 @@ export type {
   WeisWaveValue,
   MarketProfileOptions,
   MarketProfileValue,
+  NviOptions,
 } from "./volume";
 
 // Price
@@ -153,6 +207,9 @@ export {
   zigzag,
   openingRange,
   gapAnalysis,
+  medianPrice,
+  typicalPrice,
+  weightedClose,
 } from "./price";
 export type {
   HighestLowestValue,
@@ -188,7 +245,14 @@ export type {
 } from "./price";
 
 // Trend
-export { ichimoku, supertrend, parabolicSar, vortex } from "./trend";
+export {
+  ichimoku,
+  supertrend,
+  parabolicSar,
+  vortex,
+  schaffTrendCycle,
+  linearRegression,
+} from "./trend";
 export type {
   IchimokuOptions,
   IchimokuValue,
@@ -198,6 +262,9 @@ export type {
   ParabolicSarValue,
   VortexOptions,
   VortexValue,
+  SchaffTrendCycleOptions,
+  LinearRegressionOptions,
+  LinearRegressionValue,
 } from "./trend";
 
 // Relative Strength

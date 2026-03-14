@@ -55,3 +55,4 @@ export { openingRange } from "./opening-range";
 export type { OpeningRangeOptions, OpeningRangeValue } from "./opening-range";
 export { gapAnalysis } from "./gap-analysis";
 export type { GapAnalysisOptions, GapValue } from "./gap-analysis";
+export { medianPrice, typicalPrice, weightedClose } from "./median-price";

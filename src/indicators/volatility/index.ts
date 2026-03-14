@@ -37,3 +37,11 @@ export {
 export type { AtrFilterOptions, AtrFilterResult } from "./atr-filter";
 export { choppinessIndex } from "./choppiness-index";
 export type { ChoppinessIndexOptions } from "./choppiness-index";
+export { ulcerIndex } from "./ulcer-index";
+export type { UlcerIndexOptions } from "./ulcer-index";
+export { historicalVolatility } from "./historical-volatility";
+export type { HistoricalVolatilityOptions } from "./historical-volatility";
+export { garmanKlass } from "./garman-klass";
+export type { GarmanKlassOptions } from "./garman-klass";
+export { standardDeviation } from "./standard-deviation";
+export type { StandardDeviationOptions } from "./standard-deviation";
