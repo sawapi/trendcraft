@@ -200,3 +200,73 @@ export type {
   PortfolioBacktestOptions,
   PortfolioBacktestResult,
 } from "./portfolio";
+
+// ============================================
+// Robustness Types
+// ============================================
+
+export type {
+  DimensionScore,
+  RobustnessGrade,
+  RobustnessResult,
+  RobustnessOptions,
+  QuickRobustnessOptions,
+  QuickRobustnessResult,
+} from "./robustness";
+
+// ============================================
+// Composable Indicator Algebra Types
+// ============================================
+
+export type { IndicatorFn, SeriesTransformFn, SeriesToCandlesOptions } from "./compose";
+
+// ============================================
+// Explainability Types
+// ============================================
+
+export type {
+  ConditionTrace,
+  SignalExplanation,
+  ExplainOptions,
+} from "./explainability";
+
+// ============================================
+// Alpha Decay Types
+// ============================================
+
+export type {
+  DecayObservation,
+  RollingICPoint,
+  HitRatePoint,
+  CusumBreak,
+  DecayAssessment,
+  AlphaDecayResult,
+  AlphaDecayOptions,
+} from "./alpha-decay";
+
+// ============================================
+// Pairs Trading / Cointegration Types
+// ============================================
+
+export type {
+  CointegrationResult,
+  SpreadPoint,
+  MeanReversionResult,
+  PairsSignal,
+  PairsAnalysisOptions,
+  PairsAnalysisResult,
+} from "./pairs";
+
+// ============================================
+// Cross-Asset Correlation Types
+// ============================================
+
+export type {
+  CorrelationPoint,
+  CorrelationRegime,
+  CorrelationRegimePoint,
+  LeadLagResult,
+  DivergencePoint,
+  CorrelationAnalysisResult,
+  CorrelationAnalysisOptions,
+} from "./correlation";

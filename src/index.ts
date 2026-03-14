@@ -263,6 +263,11 @@ export {
   // Filter (Ehlers)
   superSmoother,
   roofingFilter,
+  // Adaptive Indicators
+  adaptiveRsi,
+  adaptiveBollinger,
+  adaptiveMa,
+  adaptiveStochastics,
 } from "./indicators";
 
 export type {
@@ -397,6 +402,15 @@ export type {
   NviOptions,
   SuperSmootherOptions,
   RoofingFilterOptions,
+  // Adaptive Indicator types
+  AdaptiveRsiOptions,
+  AdaptiveRsiValue,
+  AdaptiveBollingerOptions,
+  AdaptiveBollingerValue,
+  AdaptiveMaOptions,
+  AdaptiveMaValue,
+  AdaptiveStochasticsOptions,
+  AdaptiveStochasticsValue,
 } from "./indicators";
 
 // Indicator Plugins (namespace)
@@ -1034,3 +1048,90 @@ export * as execution from "./execution";
 
 // Series Utilities
 export { zipSeries, mapSeries, filterSeries, alignSeries } from "./utils/series";
+
+// Composable Indicator Algebra
+export {
+  pipe,
+  compose,
+  applyIndicator,
+  through,
+  seriesToCandles,
+  extractField,
+  mapValues,
+  combineSeries,
+} from "./compose";
+export type { IndicatorFn, SeriesTransformFn, SeriesToCandlesOptions } from "./types";
+
+// Signal Explainability
+export {
+  explainSignal,
+  explainCondition,
+  traceCondition,
+  generateNarrative,
+} from "./explainability";
+export type { ConditionTrace, SignalExplanation, ExplainOptions } from "./types";
+
+// Alpha Decay Monitor
+export {
+  analyzeAlphaDecay,
+  createObservationsFromTrades,
+  createObservationsFromScores,
+  spearmanCorrelation,
+} from "./alpha-decay";
+export type {
+  DecayObservation,
+  RollingICPoint,
+  HitRatePoint,
+  CusumBreak,
+  DecayAssessment,
+  AlphaDecayResult,
+  AlphaDecayOptions,
+} from "./types";
+
+// Pairs Trading / Cointegration
+export {
+  analyzePair,
+  adfTest,
+  calculateSpread,
+  analyzeMeanReversion,
+  olsRegression,
+} from "./pairs";
+export type {
+  CointegrationResult,
+  SpreadPoint,
+  MeanReversionResult,
+  PairsSignal,
+  PairsAnalysisOptions,
+  PairsAnalysisResult,
+} from "./types";
+
+// Cross-Asset Correlation
+export {
+  analyzeCorrelation,
+  rollingCorrelation,
+  pearsonCorrelation,
+  spearmanRankCorrelation,
+  detectCorrelationRegimes,
+  analyzeLeadLag,
+  detectIntermarketDivergence,
+} from "./correlation";
+export type {
+  CorrelationPoint,
+  CorrelationRegime,
+  CorrelationRegimePoint,
+  LeadLagResult,
+  DivergencePoint,
+  CorrelationAnalysisResult,
+  CorrelationAnalysisOptions,
+} from "./types";
+
+// Strategy Robustness Score
+export { quickRobustnessScore, calculateRobustnessScore, scoreToGrade } from "./robustness";
+export type {
+  DimensionScore,
+  RobustnessGrade,
+  RobustnessResult,
+  RobustnessOptions,
+  QuickRobustnessOptions,
+  QuickRobustnessResult,
+} from "./types";

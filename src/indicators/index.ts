@@ -289,6 +289,24 @@ export type {
 export { superSmoother, roofingFilter } from "./filter";
 export type { SuperSmootherOptions, RoofingFilterOptions } from "./filter";
 
+// Adaptive Indicators
+export {
+  adaptiveRsi,
+  adaptiveBollinger,
+  adaptiveMa,
+  adaptiveStochastics,
+} from "./adaptive";
+export type {
+  AdaptiveRsiOptions,
+  AdaptiveRsiValue,
+  AdaptiveBollingerOptions,
+  AdaptiveBollingerValue,
+  AdaptiveMaOptions,
+  AdaptiveMaValue,
+  AdaptiveStochasticsOptions,
+  AdaptiveStochasticsValue,
+} from "./adaptive";
+
 // Smart Money Concepts (SMC)
 export {
   orderBlock,
