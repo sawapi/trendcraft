@@ -21,7 +21,7 @@ import { executeReviewCycle } from "../commands/review.js";
 import type { AlpacaEnv } from "../config/env.js";
 import { loadEnv } from "../config/env.js";
 import { INTERVALS } from "../config/intervals.js";
-import { DEFAULT_PORTFOLIO_GUARD } from "../config/portfolio.js";
+import { DEFAULT_MAX_SECTOR_POSITIONS, DEFAULT_PORTFOLIO_GUARD } from "../config/portfolio.js";
 import { DEFAULT_SYMBOLS } from "../config/symbols.js";
 import { applyExcludeList, getUniverse, getUniverseIds } from "../config/universe.js";
 import { createDryRunExecutor } from "../executor/dry-run-executor.js";
@@ -39,7 +39,10 @@ import { scheduleIntraSessionReview } from "../review/intra-session-scheduler.js
 import { reviewIntraSession } from "../review/llm-client.js";
 import { scheduleReview } from "../review/scheduler.js";
 import type { IntraSessionReviewRecord, LLMRecommendation } from "../review/types.js";
+import { buildSectorMap } from "../risk/correlation-guard.js";
+import { createEarningsGuard, fetchEarningsCalendar } from "../risk/earnings-guard.js";
 import { scanUniverse } from "../scanner/index.js";
+import { preflightOptimize } from "../strategy/auto-optimizer.js";
 import {
   applyStrategyOverrides,
   getAllStrategies,
@@ -47,6 +50,8 @@ import {
   getStrategy,
   loadCustomStrategiesFromTemplates,
 } from "../strategy/registry.js";
+import { createStrategyRotator } from "../strategy/rotator.js";
+import type { RegimeSnapshot, StrategyRotator } from "../strategy/rotator.js";
 import { isSwingStrategy } from "../strategy/template.js";
 import { evaluateAgent, formatLiveLeaderboard, getLeaderboard } from "../tracker/leaderboard.js";
 import type { TradingEvent } from "./events.js";
@@ -171,7 +176,9 @@ export function createTradingSession(opts: SessionOptions): TradingSession {
   let reconcileTimer: ReturnType<typeof setInterval> | null = null;
   let cancelReview: (() => void) | null = null;
   let cancelIntraReview: (() => void) | null = null;
+  let rotationTimer: ReturnType<typeof setInterval> | null = null;
   let intraReviewNumber = 0;
+  let rotator: StrategyRotator | null = null;
 
   // WebSocket reference
   let ws: ReturnType<typeof createAlpacaWebSocket> | null = null;
@@ -271,11 +278,35 @@ export function createTradingSession(opts: SessionOptions): TradingSession {
       // State management
       store = createStateStore();
       marketState = createMarketState();
+      const sectorMap = buildSectorMap();
+      if (sectorMap.size > 0) {
+        console.log(`Loaded sector map: ${sectorMap.size} symbols`);
+      }
+      const earningsGuard = createEarningsGuard({ bufferDays: 2, bufferDaysAfter: 1 });
       manager = createAgentManager({
         capital,
         portfolioGuard: DEFAULT_PORTFOLIO_GUARD,
         marketState,
+        sectorMap,
+        maxSectorPositions: DEFAULT_MAX_SECTOR_POSITIONS,
+        earningsGuard,
       });
+
+      // Fetch earnings calendar
+      try {
+        const earnings = await fetchEarningsCalendar(
+          env.baseUrl,
+          env.apiKey,
+          env.apiSecret,
+          symbols,
+        );
+        if (earnings.length > 0) {
+          earningsGuard.addEarnings(earnings);
+          console.log(`Loaded ${earnings.length} earnings date(s)`);
+        }
+      } catch {
+        console.warn("Failed to fetch earnings calendar — continuing without it");
+      }
 
       // Load market filters
       for (const [strategyId, filter] of getMarketFilters()) {
@@ -321,6 +352,42 @@ export function createTradingSession(opts: SessionOptions): TradingSession {
           console.log(`  Agent created: ${agentId} (${warmUp.length} warm-up candles)`);
         }
       }
+
+      // Preflight Walk-Forward optimization
+      try {
+        const { getPresetTemplate } = await import("../strategy/template.js");
+        const templates = strategies
+          .map((s) => getPresetTemplate(s.id))
+          .filter((t): t is NonNullable<typeof t> => t != null);
+        if (templates.length > 0) {
+          const candlesBySymbol = new Map<string, import("trendcraft").NormalizedCandle[]>();
+          for (const symbol of symbols) {
+            const { timeframe, lookbackMonths } = getWarmUpTimeframe(strategies[0].intervalMs);
+            const candles = await fetchCachedBars(env, {
+              symbol,
+              timeframe,
+              start: monthsAgo(lookbackMonths),
+              end: today(),
+              limit: 500,
+            });
+            if (candles.length > 0) candlesBySymbol.set(symbol, candles);
+          }
+          const pfOverrides = preflightOptimize(templates, candlesBySymbol);
+          if (pfOverrides.length > 0) {
+            const { applied } = applyStrategyOverrides(pfOverrides);
+            if (applied > 0) {
+              console.log(`[OPTIMIZER] Applied ${applied} preflight optimization(s)`);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn(
+          `[OPTIMIZER] Preflight optimization failed: ${err instanceof Error ? err.message : err}`,
+        );
+      }
+
+      // Initialize strategy rotator
+      rotator = createStrategyRotator(strategies.map((s) => s.id));
 
       initialized = true;
     },
@@ -440,6 +507,42 @@ export function createTradingSession(opts: SessionOptions): TradingSession {
             console.error("[RECONCILE] Error:", err);
           }
         }, INTERVALS.reconcileMs);
+      }
+
+      // Strategy rotation based on regime (every 5 minutes)
+      if (rotator) {
+        const rot = rotator;
+        rotationTimer = setInterval(
+          () => {
+            // Build aggregate regime from SPY (or first benchmark symbol)
+            const spySnapshot = marketState.getSnapshot("SPY");
+            if (!spySnapshot) return;
+
+            const regime: RegimeSnapshot = {
+              trend: spySnapshot.trendDirection ?? "sideways",
+              volatility: spySnapshot.volatilityRegime ?? "normal",
+              trendStrength: 20, // Default; will be updated by regime indicator
+            };
+
+            const { activate, deactivate } = rot.onRegimeChange(regime);
+            for (const id of deactivate) {
+              manager.deactivateStrategy(id);
+              console.log(
+                `[ROTATION] Deactivated: ${id} (regime: ${regime.trend}, ADX~${regime.trendStrength})`,
+              );
+            }
+            for (const id of activate) {
+              manager.activateStrategy(id);
+              console.log(
+                `[ROTATION] Activated: ${id} (regime: ${regime.trend}, ADX~${regime.trendStrength})`,
+              );
+            }
+            if (activate.length > 0 || deactivate.length > 0) {
+              emit({ type: "leaderboard-updated" });
+            }
+          },
+          5 * 60 * 1000,
+        );
       }
 
       // Auto-review scheduler
@@ -571,6 +674,7 @@ export function createTradingSession(opts: SessionOptions): TradingSession {
       if (leaderboardTimer) clearInterval(leaderboardTimer);
       if (verboseTimer) clearInterval(verboseTimer);
       if (reconcileTimer) clearInterval(reconcileTimer);
+      if (rotationTimer) clearInterval(rotationTimer);
       if (cancelReview) cancelReview();
       if (cancelIntraReview) cancelIntraReview();
 
