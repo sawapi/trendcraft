@@ -1,0 +1,10 @@
+{
+  "name": "Bollinger Band Breakout",
+  "description": "Enter on upper band breakout (volume confirmed), exit on lower band touch",
+  "entry": ["bollingerBreakoutUp"],
+  "exit": ["bollingerBreakoutDown"],
+  "stopLoss": 3,
+  "trailingStop": 5,
+  "capital": 100000,
+  "commission": 0
+}

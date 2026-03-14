@@ -1,0 +1,9 @@
+{
+  "name": "Golden Cross (50/200 SMA)",
+  "description": "Classic golden cross / dead cross strategy with 5% stop loss",
+  "entry": ["goldenCross"],
+  "exit": ["deadCross"],
+  "stopLoss": 5,
+  "capital": 100000,
+  "commission": 0
+}

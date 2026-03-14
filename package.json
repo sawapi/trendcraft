@@ -1,6 +1,6 @@
 {
   "name": "trendcraft",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Financial data analysis library for technical indicators, signals, and backtesting",
   "type": "module",
   "main": "./dist/index.cjs",

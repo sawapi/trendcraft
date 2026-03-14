@@ -1,0 +1,9 @@
+{
+  "name": "RSI Mean Reversion",
+  "description": "Buy oversold (RSI < 30), sell overbought (RSI > 70) with trailing stop",
+  "entry": ["rsiBelow30"],
+  "exit": ["rsiAbove70"],
+  "trailingStop": 3,
+  "capital": 100000,
+  "commission": 0
+}

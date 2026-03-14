@@ -1,0 +1,9 @@
+{
+  "name": "Perfect Order Trend Follow",
+  "description": "Enter on bullish perfect order (SMA 5>10>20>50>200), exit on collapse",
+  "entry": ["perfectOrderActiveBullish"],
+  "exit": ["perfectOrderCollapsed"],
+  "stopLoss": 7,
+  "capital": 100000,
+  "commission": 0
+}

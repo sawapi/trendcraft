@@ -1,0 +1,9 @@
+{
+  "name": "MACD Momentum",
+  "description": "MACD signal line crossover with histogram confirmation",
+  "entry": ["macdCrossAboveSignal"],
+  "exit": ["macdCrossBelowSignal"],
+  "stopLoss": 4,
+  "capital": 100000,
+  "commission": 0
+}

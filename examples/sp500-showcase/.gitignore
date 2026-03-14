@@ -1,0 +1,5 @@
+# Data files (fetched via API, not redistributed)
+data/*.csv
+
+# Generated reports are committed as showcase artifacts
+# reports/*.md
