@@ -7,6 +7,8 @@
 
 import { describe, expect, it } from "vitest";
 import type { BollingerBandsValue, MacdValue, NormalizedCandle } from "../../../types";
+import type { VolumeAnomalyValue } from "../../../types";
+import type { ChandelierExitValue } from "../../../types";
 import { cci } from "../../momentum/cci";
 import type { DmiValue } from "../../momentum/dmi";
 import { dmi } from "../../momentum/dmi";
@@ -17,9 +19,12 @@ import { stochRsi } from "../../momentum/stoch-rsi";
 import type { StochRsiValue } from "../../momentum/stoch-rsi";
 import type { StochasticsValue } from "../../momentum/stochastics";
 import { stochastics } from "../../momentum/stochastics";
+import { trix } from "../../momentum/trix";
+import type { TrixValue } from "../../momentum/trix";
 import { williamsR } from "../../momentum/williams-r";
 import { ema } from "../../moving-average/ema";
 import { sma } from "../../moving-average/sma";
+import { vwma } from "../../moving-average/vwma";
 import { wma } from "../../moving-average/wma";
 import { ichimoku } from "../../trend/ichimoku";
 import type { IchimokuValue } from "../../trend/ichimoku";
@@ -29,13 +34,18 @@ import type { SupertrendValue } from "../../trend/supertrend";
 import { supertrend } from "../../trend/supertrend";
 import { atr } from "../../volatility/atr";
 import { bollingerBands } from "../../volatility/bollinger-bands";
+import { chandelierExit } from "../../volatility/chandelier-exit";
 import { donchianChannel } from "../../volatility/donchian-channel";
 import type { DonchianValue } from "../../volatility/donchian-channel";
 import { keltnerChannel } from "../../volatility/keltner-channel";
 import type { KeltnerChannelValue } from "../../volatility/keltner-channel";
+import { adl } from "../../volume/adl";
 import { cmf } from "../../volume/cmf";
+import { elderForceIndex } from "../../volume/elder-force-index";
 import { mfi } from "../../volume/mfi";
 import { obv } from "../../volume/obv";
+import { twap } from "../../volume/twap";
+import { volumeAnomaly } from "../../volume/volume-anomaly";
 import { vwap } from "../../volume/vwap";
 import type { VwapValue } from "../../volume/vwap";
 import { processAll } from "../bridge";
@@ -46,22 +56,30 @@ import { createRoc } from "../momentum/roc";
 import { createRsi } from "../momentum/rsi";
 import { createStochRsi } from "../momentum/stoch-rsi";
 import { createStochastics } from "../momentum/stochastics";
+import { createTrix } from "../momentum/trix";
+import type { TrixValue as IncrementalTrixValue } from "../momentum/trix";
 import { createWilliamsR } from "../momentum/williams-r";
 import { createEma } from "../moving-average/ema";
 import { createSma } from "../moving-average/sma";
+import { createVwma } from "../moving-average/vwma";
 import { createWma } from "../moving-average/wma";
 import { createIchimoku } from "../trend/ichimoku";
 import { createParabolicSar } from "../trend/parabolic-sar";
 import { createSupertrend } from "../trend/supertrend";
 import { createAtr } from "../volatility/atr";
 import { createBollingerBands } from "../volatility/bollinger-bands";
+import { createChandelierExit } from "../volatility/chandelier-exit";
 import { createDonchianChannel } from "../volatility/donchian-channel";
 import { createKeltnerChannel } from "../volatility/keltner-channel";
 import { createRegime } from "../volatility/regime";
 import type { RegimeValue } from "../volatility/regime";
+import { createAdl } from "../volume/adl";
 import { createCmf } from "../volume/cmf";
+import { createElderForceIndex } from "../volume/elder-force-index";
 import { createMfi } from "../volume/mfi";
 import { createObv } from "../volume/obv";
+import { createTwap } from "../volume/twap";
+import { createVolumeAnomaly } from "../volume/volume-anomaly";
 import { createVwap } from "../volume/vwap";
 
 /**
@@ -776,6 +794,202 @@ describe("VWAP consistency", () => {
         expect(iv.vwap).not.toBeNull();
         expect(Math.abs(iv.vwap! - bv.vwap)).toBeLessThan(1e-10);
       }
+    }
+  });
+});
+
+// ==========================================
+// VWMA, ADL, TWAP consistency
+// ==========================================
+
+describe("VWMA consistency", () => {
+  it.each([5, 10, 20])("period=%i matches batch", (period) => {
+    const batch = vwma(candles, { period });
+    const incremental = processAll(createVwma({ period }), candles);
+    assertConsistency(batch, incremental);
+  });
+
+  it("works with different price sources", () => {
+    for (const source of ["open", "high", "low", "close", "hl2"] as const) {
+      const batch = vwma(candles, { period: 10, source });
+      const incremental = processAll(createVwma({ period: 10, source }), candles);
+      assertConsistency(batch, incremental);
+    }
+  });
+});
+
+describe("ADL consistency", () => {
+  it("matches batch", () => {
+    const batch = adl(candles);
+    const incremental = processAll(createAdl(), candles);
+
+    expect(incremental.length).toBe(batch.length);
+    for (let i = 0; i < batch.length; i++) {
+      expect(incremental[i].time).toBe(batch[i].time);
+      expect(Math.abs(incremental[i].value - batch[i].value)).toBeLessThan(1e-8);
+    }
+  });
+});
+
+describe("TWAP consistency", () => {
+  it("session-based matches batch", () => {
+    const batch = twap(candles);
+    const incremental = processAll(createTwap(), candles);
+    assertConsistency(batch, incremental);
+  });
+
+  it("candle-count reset matches batch", () => {
+    const batch = twap(candles, { sessionResetPeriod: 20 });
+    const incremental = processAll(createTwap({ sessionResetPeriod: 20 }), candles);
+    assertConsistency(batch, incremental);
+  });
+});
+
+// ==========================================
+// Elder Force Index, TRIX, Volume Anomaly, Chandelier Exit
+// ==========================================
+
+describe("Elder Force Index consistency", () => {
+  it.each([7, 13, 20])("period=%i matches batch", (period) => {
+    const batch = elderForceIndex(candles, { period });
+    const incremental = processAll(createElderForceIndex({ period }), candles);
+    assertConsistency(batch, incremental, 1e-8);
+  });
+});
+
+describe("TRIX consistency", () => {
+  it("default params match batch", () => {
+    const batch = trix(candles);
+    const incremental = processAll(createTrix(), candles);
+
+    expect(incremental.length).toBe(batch.length);
+    for (let i = 0; i < batch.length; i++) {
+      expect(incremental[i].time).toBe(batch[i].time);
+
+      const bv = batch[i].value as TrixValue;
+      const iv = incremental[i].value as IncrementalTrixValue;
+
+      if (bv.trix === null) {
+        expect(iv.trix).toBeNull();
+      } else {
+        expect(iv.trix).not.toBeNull();
+        expect(Math.abs(iv.trix! - bv.trix)).toBeLessThan(1e-8);
+      }
+
+      if (bv.signal === null) {
+        expect(iv.signal).toBeNull();
+      } else {
+        expect(iv.signal).not.toBeNull();
+        expect(Math.abs(iv.signal! - bv.signal)).toBeLessThan(1e-8);
+      }
+    }
+  });
+
+  it("custom params match batch", () => {
+    const opts = { period: 10, signalPeriod: 5 };
+    const batch = trix(candles, opts);
+    const incremental = processAll(createTrix(opts), candles);
+
+    expect(incremental.length).toBe(batch.length);
+    for (let i = 0; i < batch.length; i++) {
+      const bv = batch[i].value as TrixValue;
+      const iv = incremental[i].value as IncrementalTrixValue;
+
+      if (bv.trix === null) {
+        expect(iv.trix).toBeNull();
+      } else {
+        expect(iv.trix).not.toBeNull();
+        expect(Math.abs(iv.trix! - bv.trix)).toBeLessThan(1e-8);
+      }
+
+      if (bv.signal === null) {
+        expect(iv.signal).toBeNull();
+      } else {
+        expect(iv.signal).not.toBeNull();
+        expect(Math.abs(iv.signal! - bv.signal)).toBeLessThan(1e-8);
+      }
+    }
+  });
+});
+
+describe("Volume Anomaly consistency", () => {
+  it.each([10, 20])("period=%i matches batch", (period) => {
+    const batch = volumeAnomaly(candles, { period });
+    const incremental = processAll(createVolumeAnomaly({ period }), candles);
+
+    expect(incremental.length).toBe(batch.length);
+    for (let i = 0; i < batch.length; i++) {
+      expect(incremental[i].time).toBe(batch[i].time);
+
+      const bv = batch[i].value as VolumeAnomalyValue;
+      const iv = incremental[i].value as VolumeAnomalyValue;
+
+      expect(iv.volume).toBe(bv.volume);
+      expect(Math.abs(iv.avgVolume - bv.avgVolume)).toBeLessThan(1e-6);
+      expect(Math.abs(iv.ratio - bv.ratio)).toBeLessThan(1e-6);
+      expect(iv.isAnomaly).toBe(bv.isAnomaly);
+      expect(iv.level).toBe(bv.level);
+
+      if (bv.zScore === null) {
+        expect(iv.zScore).toBeNull();
+      } else {
+        expect(iv.zScore).not.toBeNull();
+        expect(Math.abs(iv.zScore! - bv.zScore)).toBeLessThan(1e-6);
+      }
+    }
+  });
+});
+
+describe("Chandelier Exit consistency", () => {
+  it("default params match batch", () => {
+    const batch = chandelierExit(candles);
+    const incremental = processAll(createChandelierExit(), candles);
+
+    expect(incremental.length).toBe(batch.length);
+    for (let i = 0; i < batch.length; i++) {
+      expect(incremental[i].time).toBe(batch[i].time);
+
+      const bv = batch[i].value as ChandelierExitValue;
+      const iv = incremental[i].value as ChandelierExitValue;
+
+      if (bv.longExit === null) {
+        expect(iv.longExit).toBeNull();
+      } else {
+        expect(iv.longExit).not.toBeNull();
+        expect(Math.abs(iv.longExit! - bv.longExit)).toBeLessThan(1e-8);
+      }
+
+      if (bv.shortExit === null) {
+        expect(iv.shortExit).toBeNull();
+      } else {
+        expect(iv.shortExit).not.toBeNull();
+        expect(Math.abs(iv.shortExit! - bv.shortExit)).toBeLessThan(1e-8);
+      }
+
+      expect(iv.direction).toBe(bv.direction);
+      expect(iv.isCrossover).toBe(bv.isCrossover);
+    }
+  });
+
+  it("custom params match batch", () => {
+    const opts = { period: 14, multiplier: 2.5 };
+    const batch = chandelierExit(candles, opts);
+    const incremental = processAll(createChandelierExit(opts), candles);
+
+    expect(incremental.length).toBe(batch.length);
+    for (let i = 0; i < batch.length; i++) {
+      const bv = batch[i].value as ChandelierExitValue;
+      const iv = incremental[i].value as ChandelierExitValue;
+
+      if (bv.longExit === null) {
+        expect(iv.longExit).toBeNull();
+      } else {
+        expect(iv.longExit).not.toBeNull();
+        expect(Math.abs(iv.longExit! - bv.longExit)).toBeLessThan(1e-8);
+      }
+
+      expect(iv.direction).toBe(bv.direction);
+      expect(iv.isCrossover).toBe(bv.isCrossover);
     }
   });
 });

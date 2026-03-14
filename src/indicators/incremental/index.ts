@@ -19,8 +19,10 @@ export { createEma } from "./moving-average/ema";
 export type { EmaState } from "./moving-average/ema";
 export { createWma } from "./moving-average/wma";
 export type { WmaState } from "./moving-average/wma";
+export { createVwma } from "./moving-average/vwma";
+export type { VwmaState } from "./moving-average/vwma";
 
-// Momentum
+// Momentum (includes TRIX)
 export { createRsi } from "./momentum/rsi";
 export type { RsiState } from "./momentum/rsi";
 export { createMacd } from "./momentum/macd";
@@ -37,6 +39,8 @@ export { createCci } from "./momentum/cci";
 export type { CciState } from "./momentum/cci";
 export { createStochRsi } from "./momentum/stoch-rsi";
 export type { StochRsiState, StochRsiValue } from "./momentum/stoch-rsi";
+export { createTrix } from "./momentum/trix";
+export type { TrixState, TrixValue as IncrementalTrixValue } from "./momentum/trix";
 
 // Volatility
 export { createAtr } from "./volatility/atr";
@@ -49,6 +53,8 @@ export { createKeltnerChannel } from "./volatility/keltner-channel";
 export type { KeltnerChannelState, KeltnerChannelValue } from "./volatility/keltner-channel";
 export { createRegime } from "./volatility/regime";
 export type { RegimeState, RegimeValue, RegimeOptions } from "./volatility/regime";
+export { createChandelierExit } from "./volatility/chandelier-exit";
+export type { ChandelierExitState } from "./volatility/chandelier-exit";
 
 // Trend
 export { createSupertrend } from "./trend/supertrend";
@@ -67,3 +73,11 @@ export { createMfi } from "./volume/mfi";
 export type { MfiState } from "./volume/mfi";
 export { createVwap } from "./volume/vwap";
 export type { VwapState, VwapValue } from "./volume/vwap";
+export { createAdl } from "./volume/adl";
+export type { AdlState } from "./volume/adl";
+export { createTwap } from "./volume/twap";
+export type { TwapState } from "./volume/twap";
+export { createElderForceIndex } from "./volume/elder-force-index";
+export type { ElderForceIndexState } from "./volume/elder-force-index";
+export { createVolumeAnomaly } from "./volume/volume-anomaly";
+export type { VolumeAnomalyState } from "./volume/volume-anomaly";
