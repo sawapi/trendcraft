@@ -6,12 +6,12 @@ import { Box, Text, useInput } from "ink";
 import type React from "react";
 import { useState } from "react";
 import type { AgentState } from "../../agent/types.js";
-import { DEFAULT_SYMBOLS } from "../../config/symbols.js";
 import { getStrategyIds } from "../../strategy/registry.js";
 import type { SessionOptions } from "../../trading/session.js";
 import { AgentTable } from "../components/AgentTable.js";
 import { KeyHint } from "../components/KeyHint.js";
-import { MultiSelect } from "../components/MultiSelect.js";
+import { SymbolPicker } from "../components/SymbolPicker.js";
+import type { SymbolSourceActions, SymbolSourceState } from "../hooks/useSymbolSource.js";
 
 type KilledAgent = {
   strategyId: string;
@@ -28,7 +28,11 @@ type LiveControlProps = {
   onKillAgent: (agentId: string) => void;
   onReviveAgent: (agentId: string) => void;
   getKilledAgents: () => Map<string, KilledAgent>;
-  defaultSymbols: string[];
+  selectedSymbols: Set<string>;
+  onToggleSymbol: (symbol: string) => void;
+  symbolSource: SymbolSourceState;
+  symbolSourceActions: SymbolSourceActions;
+  maxRows: number;
 };
 
 type Panel = "strategy" | "symbols";
@@ -43,15 +47,15 @@ export function LiveControl({
   onKillAgent,
   onReviveAgent,
   getKilledAgents,
-  defaultSymbols,
+  selectedSymbols,
+  onToggleSymbol,
+  symbolSource,
+  symbolSourceActions,
+  maxRows,
 }: LiveControlProps): React.ReactElement {
   const [selectedStrategy, setSelectedStrategy] = useState(0);
   const [dryRun, setDryRun] = useState(true);
-  const [selectedSymbols, setSelectedSymbols] = useState<Set<string>>(
-    () => new Set(defaultSymbols),
-  );
   const [focusPanel, setFocusPanel] = useState<Panel>("strategy");
-  const [symbolCursor, setSymbolCursor] = useState(0);
   const [agentCursor, setAgentCursor] = useState(0);
   const [killConfirm, setKillConfirm] = useState<string | null>(null);
   const [showReviveList, setShowReviveList] = useState(false);
@@ -109,61 +113,65 @@ export function LiveControl({
         setShowReviveList(true);
         setReviveCursor(0);
       }
-      // Clear kill confirmation if navigating
       if (key.upArrow || key.downArrow) {
         setKillConfirm(null);
       }
       return;
     }
 
-    // Stopped mode — configuration
-    if (input === "s") {
-      if (selectedSymbols.size === 0) return;
-      const strategyId = strategyIds[selectedStrategy];
-      onStart({
-        strategy: strategyId,
-        all: selectedStrategy === -1,
-        dryRun,
-        symbols: [...selectedSymbols].join(","),
-      });
-    }
-    if (input === "d") {
-      setDryRun((prev) => !prev);
-    }
-    if (input === "a") {
-      setSelectedStrategy(-1);
-    }
-
-    // Panel switching
-    if (key.leftArrow) {
-      setFocusPanel("strategy");
-    }
-    if (key.rightArrow) {
-      setFocusPanel("symbols");
-    }
-
-    // Navigation within strategy panel
-    if (focusPanel === "strategy") {
+    // Stopped mode — only handle keys that SymbolPicker doesn't consume
+    if (focusPanel !== "symbols") {
+      if (input === "s") {
+        if (selectedSymbols.size === 0) return;
+        const strategyId = strategyIds[selectedStrategy];
+        onStart({
+          strategy: strategyId,
+          all: selectedStrategy === -1,
+          dryRun,
+          symbols: [...selectedSymbols].join(","),
+        });
+      }
+      if (input === "d") {
+        setDryRun((prev) => !prev);
+      }
+      if (input === "a") {
+        setSelectedStrategy(-1);
+      }
       if (key.upArrow) {
         setSelectedStrategy((prev) => Math.max(-1, prev - 1));
       }
       if (key.downArrow) {
         setSelectedStrategy((prev) => Math.min(strategyIds.length - 1, prev + 1));
       }
+    } else {
+      // In symbols panel, still handle s/d/a
+      if (input === "s") {
+        if (selectedSymbols.size === 0) return;
+        const strategyId = strategyIds[selectedStrategy];
+        onStart({
+          strategy: strategyId,
+          all: selectedStrategy === -1,
+          dryRun,
+          symbols: [...selectedSymbols].join(","),
+        });
+      }
+      if (input === "d") {
+        setDryRun((prev) => !prev);
+      }
+    }
+
+    // Panel switching (works in both panels)
+    if (key.leftArrow && focusPanel === "symbols" && symbolSource.source !== "sec") {
+      setFocusPanel("strategy");
+    }
+    if (key.rightArrow && focusPanel === "strategy") {
+      setFocusPanel("symbols");
+    }
+    // For SEC source, use Escape to go back to strategy panel
+    if (key.escape && focusPanel === "symbols") {
+      setFocusPanel("strategy");
     }
   });
-
-  const handleSymbolToggle = (symbol: string) => {
-    setSelectedSymbols((prev) => {
-      const next = new Set(prev);
-      if (next.has(symbol)) {
-        next.delete(symbol);
-      } else {
-        next.add(symbol);
-      }
-      return next;
-    });
-  };
 
   return (
     <Box flexDirection="column" flexGrow={1}>
@@ -204,7 +212,7 @@ export function LiveControl({
       {!isRunning && (
         <Box gap={4} marginBottom={1}>
           {/* Strategy panel */}
-          <Box flexDirection="column">
+          <Box flexDirection="column" width={36}>
             <Text bold color={focusPanel === "strategy" ? "cyan" : "white"}>
               Strategy Selection
             </Text>
@@ -226,15 +234,14 @@ export function LiveControl({
             </Box>
           </Box>
 
-          {/* Symbol panel */}
-          <MultiSelect
-            items={DEFAULT_SYMBOLS}
+          {/* Symbol picker panel */}
+          <SymbolPicker
+            symbolSource={symbolSource}
+            symbolSourceActions={symbolSourceActions}
             selected={selectedSymbols}
+            onToggle={onToggleSymbol}
             focused={focusPanel === "symbols"}
-            cursor={symbolCursor}
-            onToggle={handleSymbolToggle}
-            onCursorChange={setSymbolCursor}
-            label="Symbols"
+            maxListRows={Math.max(5, maxRows - 6)}
           />
         </Box>
       )}
@@ -321,12 +328,19 @@ export function LiveControl({
                     { key: "Up/Down", action: "Select agent" },
                   ]
                 : [
-                    { key: "s", action: "Start" },
-                    { key: "d", action: `Toggle dry-run (${dryRun ? "ON" : "OFF"})` },
-                    { key: "a", action: "Select all" },
-                    { key: "Left/Right", action: "Switch panel" },
-                    { key: "Up/Down", action: "Navigate" },
-                    { key: "Space", action: "Toggle symbol" },
+                    { key: "s", action: `Start (${selectedSymbols.size} sym)` },
+                    { key: "d", action: `Dry-run (${dryRun ? "ON" : "OFF"})` },
+                    ...(focusPanel === "strategy" ? [{ key: "a", action: "All strategies" }] : []),
+                    { key: "Right/Esc", action: "Switch panel" },
+                    ...(focusPanel === "symbols"
+                      ? [
+                          { key: "Tab", action: "Change source" },
+                          ...(symbolSource.source === "sec"
+                            ? [{ key: "Left/Right", action: "Sector" }]
+                            : []),
+                          { key: "Space", action: "Toggle" },
+                        ]
+                      : []),
                   ]
           }
         />

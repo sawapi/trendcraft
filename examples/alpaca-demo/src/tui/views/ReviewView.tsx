@@ -12,12 +12,14 @@ type ReviewViewProps = {
   reviews: ReviewsState;
   onReload: () => void;
   onRunReview: (opts: { apply: boolean }) => Promise<void>;
+  maxRows: number;
 };
 
 export function ReviewView({
   reviews,
   onReload,
   onRunReview,
+  maxRows,
 }: ReviewViewProps): React.ReactElement {
   const [selectedIndex, setSelectedIndex] = useState(0);
 
@@ -106,7 +108,7 @@ export function ReviewView({
                 <Text color="gray">Market: {selected.llmResponse.marketAnalysis}</Text>
               )}
               <Text>Actions proposed: {selected.llmResponse.actions.length}</Text>
-              {selected.llmResponse.actions.map((action, i) => (
+              {selected.llmResponse.actions.slice(0, Math.max(2, maxRows - 12)).map((action, i) => (
                 <Text key={i} color="yellow">
                   {"  "}[{action.action}] {action.reasoning}
                 </Text>

@@ -6,19 +6,26 @@ import { Box, Text, useInput } from "ink";
 import type React from "react";
 import { useState } from "react";
 import { KeyHint } from "../components/KeyHint.js";
-import { MultiSelect } from "../components/MultiSelect.js";
+import { SymbolPicker } from "../components/SymbolPicker.js";
 import type { BacktestState } from "../hooks/useBacktest.js";
+import type { SymbolSourceActions, SymbolSourceState } from "../hooks/useSymbolSource.js";
 
 type BacktestViewProps = {
   backtest: BacktestState;
   onRun: (symbols: string[], periodMonths?: number) => Promise<void>;
+  symbolSource: SymbolSourceState;
+  symbolSourceActions: SymbolSourceActions;
+  maxRows: number;
 };
 
-const QUICK_SYMBOLS = ["SPY", "AAPL", "MSFT", "NVDA", "QQQ"];
-
-export function BacktestView({ backtest, onRun }: BacktestViewProps): React.ReactElement {
+export function BacktestView({
+  backtest,
+  onRun,
+  symbolSource,
+  symbolSourceActions,
+  maxRows,
+}: BacktestViewProps): React.ReactElement {
   const [selectedSymbols, setSelectedSymbols] = useState<Set<string>>(() => new Set(["SPY"]));
-  const [symbolCursor, setSymbolCursor] = useState(0);
 
   useInput((input) => {
     if (input === "b" && !backtest.isRunning && selectedSymbols.size > 0) {
@@ -50,14 +57,13 @@ export function BacktestView({ backtest, onRun }: BacktestViewProps): React.Reac
       {/* Symbol selection */}
       {!backtest.isRunning && (
         <Box marginBottom={1}>
-          <MultiSelect
-            items={QUICK_SYMBOLS}
+          <SymbolPicker
+            symbolSource={symbolSource}
+            symbolSourceActions={symbolSourceActions}
             selected={selectedSymbols}
-            focused={true}
-            cursor={symbolCursor}
             onToggle={handleToggle}
-            onCursorChange={setSymbolCursor}
-            label="Select Symbols:"
+            focused={true}
+            maxListRows={Math.max(5, maxRows - 4)}
           />
         </Box>
       )}
@@ -90,7 +96,7 @@ export function BacktestView({ backtest, onRun }: BacktestViewProps): React.Reac
             </Text>
           </Box>
           <Text color="gray">{"-".repeat(100)}</Text>
-          {backtest.results.slice(0, 15).map((r, i) => {
+          {backtest.results.slice(0, Math.max(3, maxRows - 6)).map((r, i) => {
             const m = r.result;
             const retColor = m.totalReturnPercent >= 0 ? "green" : "red";
             return (
@@ -119,8 +125,10 @@ export function BacktestView({ backtest, onRun }: BacktestViewProps): React.Reac
       <Box marginTop={1}>
         <KeyHint
           hints={[
-            { key: "b", action: `Run backtest (${selectedSymbols.size} symbols)` },
-            { key: "Space", action: "Toggle symbol" },
+            { key: "b", action: `Run backtest (${selectedSymbols.size} sym)` },
+            { key: "Tab", action: "Change source" },
+            ...(symbolSource.source === "sec" ? [{ key: "Left/Right", action: "Sector" }] : []),
+            { key: "Space", action: "Toggle" },
             { key: "Up/Down", action: "Navigate" },
           ]}
         />

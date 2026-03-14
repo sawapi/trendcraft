@@ -5,13 +5,13 @@
 import { Box, Text, useInput } from "ink";
 import type React from "react";
 import { useState } from "react";
-import { DEFAULT_SYMBOLS } from "../../config/symbols.js";
 import { loadOverrides } from "../../review/applier.js";
 import { getAllStrategies } from "../../strategy/registry.js";
 import { PRESET_TEMPLATES } from "../../strategy/template.js";
 import { KeyHint } from "../components/KeyHint.js";
-import { MultiSelect } from "../components/MultiSelect.js";
+import { SymbolPicker } from "../components/SymbolPicker.js";
 import type { SettingsActions, TuiSettings } from "../hooks/useSettings.js";
+import type { SymbolSourceActions, SymbolSourceState } from "../hooks/useSymbolSource.js";
 
 const CAPITAL_PRESETS = [50000, 100000, 200000, 500000];
 
@@ -20,28 +20,48 @@ type Section = "capital" | "symbols" | "overrides";
 type SettingsProps = {
   settings: TuiSettings;
   actions: SettingsActions;
+  symbolSource: SymbolSourceState;
+  symbolSourceActions: SymbolSourceActions;
+  maxRows: number;
 };
 
-export function Settings({ settings, actions }: SettingsProps): React.ReactElement {
+export function Settings({
+  settings,
+  actions,
+  symbolSource,
+  symbolSourceActions,
+  maxRows,
+}: SettingsProps): React.ReactElement {
   const strategies = getAllStrategies();
   const overrides = loadOverrides();
 
   const [section, setSection] = useState<Section>("capital");
-  const [symbolCursor, setSymbolCursor] = useState(0);
   const [overrideCursor, setOverrideCursor] = useState(0);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   const capitalIndex = CAPITAL_PRESETS.indexOf(settings.capital);
 
   useInput((input, key) => {
-    // Section switching with tab
-    if (key.tab || input === "n") {
+    // Section switching — only when NOT in symbols section (Tab is used by SymbolPicker)
+    if (section !== "symbols" && (key.tab || input === "n")) {
       setSection((prev) => {
         if (prev === "capital") return "symbols";
-        if (prev === "symbols") return "overrides";
+        if (prev === "overrides") return "capital";
         return "capital";
       });
       setDeleteConfirm(null);
+      return;
+    }
+
+    // Escape from symbols section
+    if (section === "symbols" && key.escape) {
+      setSection("overrides");
+      return;
+    }
+
+    // n key in symbols section to go to next section
+    if (section === "symbols" && input === "n") {
+      setSection("overrides");
       return;
     }
 
@@ -115,14 +135,13 @@ export function Settings({ settings, actions }: SettingsProps): React.ReactEleme
 
       {/* Default symbols section */}
       <Box flexDirection="column" marginBottom={1}>
-        <MultiSelect
-          items={DEFAULT_SYMBOLS}
+        <SymbolPicker
+          symbolSource={symbolSource}
+          symbolSourceActions={symbolSourceActions}
           selected={new Set(settings.defaultSymbols)}
-          focused={section === "symbols"}
-          cursor={symbolCursor}
           onToggle={handleSymbolToggle}
-          onCursorChange={setSymbolCursor}
-          label="Default Symbols"
+          focused={section === "symbols"}
+          maxListRows={Math.max(5, maxRows - 14)}
         />
       </Box>
 
@@ -186,9 +205,12 @@ export function Settings({ settings, actions }: SettingsProps): React.ReactEleme
                 ]
               : section === "symbols"
                 ? [
+                    { key: "Tab", action: "Change source" },
+                    ...(symbolSource.source === "sec"
+                      ? [{ key: "Left/Right", action: "Sector" }]
+                      : []),
                     { key: "Space", action: "Toggle symbol" },
-                    { key: "Up/Down", action: "Navigate" },
-                    { key: "Tab/n", action: "Next section" },
+                    { key: "n/Esc", action: "Next section" },
                   ]
                 : [
                     { key: "x", action: "Delete override" },

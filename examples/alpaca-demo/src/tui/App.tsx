@@ -12,6 +12,8 @@ import type { Tab } from "./components/TabBar.js";
 import { useBacktest } from "./hooks/useBacktest.js";
 import { useReviews } from "./hooks/useReviews.js";
 import { useSettings } from "./hooks/useSettings.js";
+import { useSymbolSource } from "./hooks/useSymbolSource.js";
+import { useTerminalSize } from "./hooks/useTerminalSize.js";
 import { useTrading } from "./hooks/useTrading.js";
 import { BacktestView } from "./views/BacktestView.js";
 import { Dashboard } from "./views/Dashboard.js";
@@ -38,6 +40,25 @@ export function App({ options }: AppProps): React.ReactElement {
   const [reviewsState, reviewsActions] = useReviews();
   const [backtestState, backtestActions] = useBacktest();
   const [settings, settingsActions] = useSettings();
+  const [symbolSource, symbolSourceActions] = useSymbolSource();
+  const { rows, contentRows } = useTerminalSize();
+
+  // Shared selected symbols state for LiveControl
+  const [selectedSymbols, setSelectedSymbols] = useState<Set<string>>(
+    () => new Set(settings.defaultSymbols),
+  );
+
+  const handleToggleSymbol = (symbol: string) => {
+    setSelectedSymbols((prev) => {
+      const next = new Set(prev);
+      if (next.has(symbol)) {
+        next.delete(symbol);
+      } else {
+        next.add(symbol);
+      }
+      return next;
+    });
+  };
 
   useInput((_input, _key) => {
     // Tab switching via number keys
@@ -63,7 +84,7 @@ export function App({ options }: AppProps): React.ReactElement {
     : "—";
 
   return (
-    <Box flexDirection="column" minHeight={20}>
+    <Box flexDirection="column" height={rows}>
       {/* Header */}
       <Box borderStyle="single" borderColor="cyan" paddingX={1}>
         <Text bold color="cyan">
@@ -72,17 +93,18 @@ export function App({ options }: AppProps): React.ReactElement {
       </Box>
 
       {/* Tab bar */}
-      <Box paddingX={1} marginBottom={1}>
+      <Box paddingX={1}>
         <TabBar tabs={TABS} activeIndex={activeTab} />
       </Box>
 
-      {/* Content area */}
-      <Box flexGrow={1} paddingX={1}>
+      {/* Content area — fixed height to prevent overflow */}
+      <Box flexGrow={1} paddingX={1} height={contentRows} overflow="hidden">
         {activeTab === 0 && (
           <Dashboard
             agents={tradingState.agents}
             events={tradingState.events}
             isRunning={tradingState.isRunning}
+            maxRows={contentRows}
           />
         )}
         {activeTab === 1 && (
@@ -96,7 +118,11 @@ export function App({ options }: AppProps): React.ReactElement {
             onKillAgent={tradingActions.killAgent}
             onReviveAgent={tradingActions.reviveAgent}
             getKilledAgents={tradingActions.getKilledAgents}
-            defaultSymbols={settings.defaultSymbols}
+            selectedSymbols={selectedSymbols}
+            onToggleSymbol={handleToggleSymbol}
+            symbolSource={symbolSource}
+            symbolSourceActions={symbolSourceActions}
+            maxRows={contentRows}
           />
         )}
         {activeTab === 2 && (
@@ -104,10 +130,27 @@ export function App({ options }: AppProps): React.ReactElement {
             reviews={reviewsState}
             onReload={reviewsActions.reload}
             onRunReview={reviewsActions.runReview}
+            maxRows={contentRows}
           />
         )}
-        {activeTab === 3 && <BacktestView backtest={backtestState} onRun={backtestActions.run} />}
-        {activeTab === 4 && <Settings settings={settings} actions={settingsActions} />}
+        {activeTab === 3 && (
+          <BacktestView
+            backtest={backtestState}
+            onRun={backtestActions.run}
+            symbolSource={symbolSource}
+            symbolSourceActions={symbolSourceActions}
+            maxRows={contentRows}
+          />
+        )}
+        {activeTab === 4 && (
+          <Settings
+            settings={settings}
+            actions={settingsActions}
+            symbolSource={symbolSource}
+            symbolSourceActions={symbolSourceActions}
+            maxRows={contentRows}
+          />
+        )}
       </Box>
 
       {/* Status bar */}
