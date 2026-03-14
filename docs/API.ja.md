@@ -76,6 +76,13 @@
   - [defineIndicator](#defineindicator)
   - [TrendCraft.use()](#trendcraftuse)
   - [組み込みプラグイン](#組み込みプラグイン)
+- [シグナル説明性](#シグナル説明性)
+- [合成可能なインジケーター代数](#合成可能なインジケーター代数)
+- [アルファ減衰モニター](#アルファ減衰モニター)
+- [適応型インジケーター](#適応型インジケーター)
+- [戦略堅牢性スコア](#戦略堅牢性スコア)
+- [ペアトレーディング](#ペアトレーディング)
+- [クロスアセット相関分析](#クロスアセット相関分析)
 - [型定義](#型定義)
 
 ---
@@ -4941,6 +4948,443 @@ const result = tc.compute();
 | `plugins.volumeAnomaly` | `.volumeAnomalyIndicator()` | `{ period: 20, highThreshold: 2.0 }` |
 | `plugins.volumeProfileSeries` | `.volumeProfileIndicator()` | `{ period: 20 }` |
 | `plugins.volumeTrend` | `.volumeTrendIndicator()` | `{ pricePeriod: 10, volumePeriod: 10 }` |
+
+---
+
+## シグナル説明性
+
+シグナルが発火した理由をトレースし、どのインジケーターが寄与したか、その値、どの条件が成立/不成立だったかを人間が読めるナラティブ付きで提供します。
+
+### `explainSignal(candles, index, entryCondition, exitCondition, options?, mtfContext?)`
+
+特定のローソク足インデックスでシグナル評価を説明します。エントリーとイグジットの両条件をトレースします。
+
+```typescript
+import { explainSignal, rsiBelow, rsiAbove, and, goldenCrossCondition } from "trendcraft";
+
+const entry = and(goldenCrossCondition(), rsiBelow(40));
+const exit = rsiAbove(70);
+
+const explanation = explainSignal(candles, 50, entry, exit);
+console.log(explanation.fired);          // true/false
+console.log(explanation.signalType);     // "entry" | "exit"
+console.log(explanation.narrative);      // 人間が読めるテキスト
+console.log(explanation.contributions);  // リーフ条件の詳細
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|--------|------|---------|-------------|
+| `includeValues` | `boolean` | `true` | トレースにインジケーター値を含める |
+| `maxDepth` | `number` | `10` | 最大トレース再帰深度 |
+| `language` | `'en' \| 'ja'` | `'en'` | ナラティブの出力言語 |
+
+**戻り値:** `SignalExplanation`（`signalType`, `fired`, `time`, `candle`, `trace`, `contributions`, `narrative` を含む）
+
+### `explainCondition(candles, index, condition, options?, mtfContext?)`
+
+単一の条件評価をトレースします。
+
+```typescript
+import { explainCondition, rsiBelow } from "trendcraft";
+
+const trace = explainCondition(candles, 50, rsiBelow(30));
+console.log(trace.passed);          // true/false
+console.log(trace.indicatorValues); // { rsi14: 28.5 }
+```
+
+**戻り値:** `ConditionTrace`（`name`, `passed`, `indicatorValues`, `reason`, `type`, `children?` を含む）
+
+### `traceCondition(condition, indicators, candle, index, candles, mtfContext?, options?, depth?)`
+
+低レベルの条件トレース。結合条件（and/or/not）を再帰的にトレースし、インジケーターキャッシュの状態をキャプチャします。
+
+### `generateNarrative(trace, signalType, fired, candle, language?)`
+
+条件トレースから人間が読めるナラティブ文字列を生成します。英語と日本語に対応。
+
+```typescript
+const narrative = generateNarrative(trace, "entry", true, candle, "ja");
+// => "エントリーシグナルは終値=150で発火しました。rsiBelow(30): 成立 (rsi14 = 28.5)"
+```
+
+---
+
+## 合成可能なインジケーター代数
+
+`pipe()`、`compose()`、およびアダプター関数によるインジケーター計算のチェーニングを提供します。`Candle[]`を受け取るインジケーターと`Series<T>`を返すインジケーターを橋渡しします。
+
+### `pipe(source, ...transforms)`
+
+値を一連の変換関数に通します。
+
+```typescript
+import { pipe, through, extractField, rsi, ema, macd, bollingerBands } from "trendcraft";
+
+// RSIのEMA
+const smoothedRsi = pipe(
+  candles,
+  c => rsi(c, { period: 14 }),
+  through(ema, { period: 9 }),
+);
+
+// MACDヒストグラムのボリンジャーバンド
+const bbOfHist = pipe(
+  candles,
+  c => macd(c),
+  s => extractField(s, "histogram"),
+  through(bollingerBands, { period: 20 }),
+);
+```
+
+### `compose(...fns)`
+
+複数の変換を単一の関数に合成します（右から左の順序）。
+
+### `through(indicator, options?)`
+
+`pipe()`で使用するインジケーターステップを作成します。Seriesをローソク足に変換してインジケーターを適用します。
+
+### `applyIndicator(series, indicator, options?)`
+
+ローソク足を期待するインジケーター関数を`Series<number|null>`に適用します。内部的に`seriesToCandles`経由で変換します。
+
+### `seriesToCandles(series, options?)`
+
+`Series<number|null>`を擬似`NormalizedCandle[]`に変換してインジケーター関数の入力として使用します。
+
+### `extractField(series, field)`
+
+複合シリーズから数値フィールドを抽出して`Series<number|null>`を作成します。
+
+```typescript
+const histogram = extractField(macd(candles), "histogram");
+```
+
+### `mapValues(series, fn)`
+
+シリーズの値を変換関数でマッピングします。
+
+### `combineSeries(a, b, fn)`
+
+2つのシリーズをインデックスごとにポイント単位で結合します。
+
+---
+
+## アルファ減衰モニター
+
+戦略の予測力が時間とともに劣化するかを、ローリングIC（情報係数）、ヒットレート、CUSUM構造的ブレーク検出で追跡します。
+
+### `analyzeAlphaDecay(observations, options?)`
+
+シグナル/リターン観測のシーケンスからアルファ減衰を分析します。
+
+```typescript
+import { analyzeAlphaDecay, createObservationsFromTrades } from "trendcraft";
+
+const observations = createObservationsFromTrades(result.trades);
+const decay = analyzeAlphaDecay(observations);
+
+console.log(decay.assessment.status);      // "healthy" | "warning" | "degraded" | "critical"
+console.log(decay.assessment.reason);      // 人間が読める評価
+console.log(decay.assessment.currentIC);   // 現在の情報係数
+console.log(decay.assessment.halfLife);     // 推定半減期（バー数、またはnull）
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|--------|------|---------|-------------|
+| `window` | `number` | `60` | ローリングウィンドウサイズ |
+| `cusumThreshold` | `number` | `4.0` | CUSUM検出閾値 |
+| `minObservations` | `number` | `30` | 必要な最小観測数 |
+
+### `createObservationsFromTrades(trades)`
+
+バックテストのトレードを減衰観測に変換します。
+
+### `createObservationsFromScores(scores, candles, forwardBars?)`
+
+シグナルスコアとローソク足データからの実際の先行リターンをペアリングします。
+
+### `spearmanCorrelation(x, y)`
+
+Spearman順位相関係数（p値付き）。
+
+**戻り値:** `{ rho: number, pValue: number }`
+
+---
+
+## 適応型インジケーター
+
+市場状況（ボラティリティ、トレンド強度）に基づいてパラメーターを動的に調整するインジケーターです。
+
+### `adaptiveRsi(candles, options?)`
+
+市場ボラティリティに基づいてピリオドが適応するRSI。高ボラティリティでは短いピリオド（高速応答）、低ボラティリティでは長いピリオド（スムーズ）を使用します。
+
+```typescript
+import { adaptiveRsi } from "trendcraft";
+
+const result = adaptiveRsi(candles, { basePeriod: 14, minPeriod: 6, maxPeriod: 28 });
+result.forEach(p => console.log(`RSI: ${p.value.rsi}, Period: ${p.value.effectivePeriod}`));
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|--------|------|---------|-------------|
+| `basePeriod` | `number` | `14` | ベースRSIピリオド |
+| `minPeriod` | `number` | `6` | 最小ピリオド（高ボラティリティ） |
+| `maxPeriod` | `number` | `28` | 最大ピリオド（低ボラティリティ） |
+| `atrPeriod` | `number` | `14` | ボラティリティ測定用ATRピリオド |
+| `volLookback` | `number` | `100` | 正規化用ボラティリティルックバック |
+
+**戻り値:** `Series<{ rsi: number | null, effectivePeriod: number, volatilityPercentile: number | null }>`
+
+### `adaptiveBollinger(candles, options?)`
+
+ローリング尖度に基づいて標準偏差乗数が適応するボリンジャーバンド。ファットテール（高尖度）では広いバンドを生成します。
+
+```typescript
+const result = adaptiveBollinger(candles, { period: 20, baseStdDev: 2 });
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|--------|------|---------|-------------|
+| `period` | `number` | `20` | SMAピリオド |
+| `baseStdDev` | `number` | `2` | ベース標準偏差乗数 |
+| `kurtosisLookback` | `number` | `100` | 尖度計算のルックバック |
+| `minMultiplier` | `number` | `1.5` | 最小バンド乗数 |
+| `maxMultiplier` | `number` | `3.0` | 最大バンド乗数 |
+
+**戻り値:** `Series<{ upper, middle, lower, bandwidth, effectiveMultiplier, kurtosis }>`
+
+### `adaptiveMa(candles, options?)`
+
+効率比（ER）に基づいてスムージング速度を調整する移動平均。トレンド市場では高速スムージング、レンジ市場では低速スムージングを使用します。
+
+```typescript
+const result = adaptiveMa(candles, { erPeriod: 10 });
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|--------|------|---------|-------------|
+| `erPeriod` | `number` | `10` | 効率比ルックバックピリオド |
+| `fastConstant` | `number` | `0.6667` | 高速スムージング定数 |
+| `slowConstant` | `number` | `0.0645` | 低速スムージング定数 |
+
+**戻り値:** `Series<{ value: number | null, efficiencyRatio: number | null, smoothingConstant: number | null }>`
+
+### `adaptiveStochastics(candles, options?)`
+
+ADXトレンド強度に基づいてルックバックピリオドが適応するストキャスティクス。強いトレンドでは長いピリオド（ウィップソー回避）、弱いトレンドでは短いピリオド（応答性）を使用します。
+
+```typescript
+const result = adaptiveStochastics(candles, { basePeriod: 14, adxThreshold: 40 });
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|--------|------|---------|-------------|
+| `basePeriod` | `number` | `14` | ベースストキャスティクスルックバック |
+| `minPeriod` | `number` | `5` | 最小ピリオド（低ADX） |
+| `maxPeriod` | `number` | `21` | 最大ピリオド（高ADX） |
+| `adxPeriod` | `number` | `14` | ADXピリオド |
+| `adxThreshold` | `number` | `40` | 完全適応のADX閾値 |
+| `kSmoothing` | `number` | `3` | Kラインスムージングピリオド |
+| `dSmoothing` | `number` | `3` | Dラインスムージングピリオド |
+
+**戻り値:** `Series<{ k: number | null, d: number | null, effectivePeriod: number, adx: number | null }>`
+
+---
+
+## 戦略堅牢性スコア
+
+バックテスト戦略の複合的な堅牢性グレーディング（A+からF）。モンテカルロ生存性、トレード一貫性、ドローダウン耐性、パラメーター感度、ウォークフォワード効率、レジーム一貫性を評価します。
+
+### `quickRobustnessScore(result, options?)`
+
+単一のバックテスト結果からの簡易堅牢性評価。バックテストの再実行は不要です。
+
+```typescript
+import { quickRobustnessScore } from "trendcraft";
+
+const robustness = quickRobustnessScore(result);
+console.log(`Grade: ${robustness.grade} (${robustness.compositeScore}/100)`);
+console.log(robustness.assessment);
+console.log(robustness.recommendations);
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|--------|------|---------|-------------|
+| `monteCarloSimulations` | `number` | `300` | モンテカルロシミュレーション回数 |
+| `seed` | `number` | - | 再現性のためのランダムシード |
+
+**戻り値:** `QuickRobustnessResult`（`compositeScore`（0-100）、`grade`（A+からF）、`dimensions`、`assessment`、`recommendations` を含む）
+
+### `calculateRobustnessScore(candles, originalResult, createStrategy, parameterRanges, options?)`
+
+完全な堅牢性分析。ローソク足、戦略定義、パラメーター範囲が必要です。4つの次元（モンテカルロ、パラメーター感度、ウォークフォワード効率、レジーム一貫性）すべてを評価します。
+
+```typescript
+import { calculateRobustnessScore } from "trendcraft";
+
+const robustness = calculateRobustnessScore(
+  candles,
+  result,
+  (params) => ({
+    entry: and(rsiBelow(params.rsiThreshold), goldenCrossCondition(params.shortMA, params.longMA)),
+    exit: rsiAbove(70),
+    options: { capital: 1_000_000 },
+  }),
+  [
+    { name: "rsiThreshold", min: 20, max: 40, step: 5 },
+    { name: "shortMA", min: 3, max: 10, step: 1 },
+    { name: "longMA", min: 20, max: 40, step: 5 },
+  ],
+);
+```
+
+**戻り値:** `RobustnessResult`（`compositeScore`、`grade`、`dimensions`、`assessment`、`recommendations` を含む）
+
+### `scoreToGrade(score)`
+
+数値スコア（0-100）をレターグレードに変換します。
+
+グレードスケール: A+（90+）、A（80+）、B+（70+）、B（60+）、C+（50+）、C（40+）、D（25+）、F（<25）
+
+---
+
+## ペアトレーディング
+
+ペアトレーディングのための統計的裁定ツール。共和分検定（Engle-Granger法）、スプレッド計算、平均回帰分析、シグナル生成を含みます。
+
+### `analyzePair(seriesA, seriesB, options?)`
+
+2つの銘柄間の完全なペアトレーディング分析。
+
+```typescript
+import { analyzePair } from "trendcraft";
+
+const result = analyzePair(
+  candlesGOOG.map(c => ({ time: c.time, value: c.close })),
+  candlesMSFT.map(c => ({ time: c.time, value: c.close })),
+  { entryThreshold: 2.0, exitThreshold: 0.5 },
+);
+
+if (result.cointegration.isCointegrated) {
+  console.log(`Hedge ratio: ${result.cointegration.hedgeRatio}`);
+  console.log(`Half-life: ${result.meanReversion.halfLife} bars`);
+  console.log(`Viable: ${result.assessment.isViable}`);
+}
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|--------|------|---------|-------------|
+| `significanceLevel` | `number` | `0.05` | ADF検定の有意水準 |
+| `entryThreshold` | `number` | `2.0` | シグナルエントリーのZスコア閾値 |
+| `exitThreshold` | `number` | `0.5` | シグナルイグジットのZスコア閾値 |
+| `maxHalfLife` | `number` | `100` | 平均回帰と見なす最大半減期 |
+| `rollingWindow` | `number` | `0` | Zスコアのローリングウィンドウ（0=全サンプル） |
+
+**戻り値:** `PairsAnalysisResult`（`cointegration`、`meanReversion`、`spreadSeries`、`signals`、`assessment` を含む）
+
+### `adfTest(series, maxLag?)`
+
+拡張Dickey-Fuller検定（定常性検定）。
+
+**戻り値:** `{ adfStatistic, pValue, criticalValues: { "1%", "5%", "10%" }, lag }`
+
+### `calculateSpread(seriesY, seriesX, hedgeRatio, intercept, times, options?)`
+
+ヘッジレシオを指定して2つの価格系列間のスプレッドとZスコアを計算します。
+
+**戻り値:** `SpreadPoint[]`（`time`、`spread`、`zScore`、`mean`、`stdDev` を含む）
+
+### `analyzeMeanReversion(spreads, maxHalfLife?)`
+
+AR(1)半減期とHurst指数（R/S分析）を使用した平均回帰特性の分析。
+
+**戻り値:** `{ halfLife, lambda, isMeanReverting, hurstExponent }`
+
+### `olsRegression(x, y)`
+
+最小二乗法回帰。
+
+**戻り値:** `{ beta, intercept, rSquared, residuals }`
+
+---
+
+## クロスアセット相関分析
+
+2つのアセット間の相関ダイナミクスを分析します。ローリング相関、レジーム検出、リードラグ関係、インターマーケットダイバージェンスを含みます。
+
+### `analyzeCorrelation(seriesA, seriesB, options?)`
+
+完全なクロスアセット相関分析。
+
+```typescript
+import { analyzeCorrelation } from "trendcraft";
+
+const analysis = analyzeCorrelation(
+  candlesSPY.map(c => ({ time: c.time, value: c.close })),
+  candlesQQQ.map(c => ({ time: c.time, value: c.close })),
+  { window: 60 },
+);
+console.log(`Average correlation: ${analysis.summary.avgCorrelation}`);
+console.log(`Current regime: ${analysis.summary.currentRegime}`);
+console.log(`Lead-lag: ${analysis.leadLag.assessment}`);
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|--------|------|---------|-------------|
+| `window` | `number` | `60` | ローリング相関ウィンドウ |
+| `maxLag` | `number` | `10` | リードラグ分析の最大ラグ |
+| `regimeThresholds` | `object` | - | カスタムレジーム閾値 |
+| `divergenceLookback` | `number` | `20` | ダイバージェンス検出のルックバック |
+| `divergenceThreshold` | `number` | `2.0` | ダイバージェンスのZスコア閾値 |
+
+**戻り値:** `CorrelationAnalysisResult`（`rollingCorrelation`、`regimes`、`leadLag`、`divergences`、`summary` を含む）
+
+### `rollingCorrelation(returnsA, returnsB, times, window?)`
+
+2つのリターン系列間のローリングPearson・Spearman相関を計算します。
+
+**戻り値:** `CorrelationPoint[]`（`time`、`pearson`、`spearman` を含む）
+
+### `pearsonCorrelation(x, y)`
+
+Pearson相関係数。
+
+**戻り値:** `number`（-1から1）
+
+### `spearmanRankCorrelation(x, y)`
+
+Spearman順位相関係数。
+
+**戻り値:** `number`（-1から1）
+
+### `detectCorrelationRegimes(correlationSeries, options?)`
+
+ローリング相関系列の各ポイントをレジームに分類します: `strong_positive`、`positive`、`neutral`、`negative`、`strong_negative`。
+
+**戻り値:** `CorrelationRegimePoint[]`（`time`、`regime`、`correlation`、`regimeDuration` を含む）
+
+### `analyzeLeadLag(returnsA, returnsB, options?)`
+
+クロス相関を使用したリードラグ関係の分析。正の最適ラグはAがBをリード、負はBがAをリードすることを意味します。
+
+**戻り値:** `LeadLagResult`（`optimalLag`、`crossCorrelation`、`maxCorrelation`、`assessment` を含む）
+
+### `detectIntermarketDivergence(pricesA, pricesB, times, options?)`
+
+インターマーケットダイバージェンスを検出します。相関するアセットの一方が上昇し他方が下降する場合にシグナルを発します。
+
+**戻り値:** `DivergencePoint[]`（`time`、`type`（`'bullish'` | `'bearish'`）、`returnA`、`returnB`、`returnSpread`、`significance` を含む）
 
 ---
 

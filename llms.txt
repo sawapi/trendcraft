@@ -2,7 +2,7 @@
 
 > A TypeScript library for technical analysis of financial data. Calculate indicators, detect signals, backtest strategies, and analyze market trends.
 
-TrendCraft provides 58+ technical indicators, signal detection, backtesting with 50+ preset conditions, strategy optimization, real-time streaming pipelines, and position sizing — all with a consistent `Series<T>` return type.
+TrendCraft provides 100+ technical indicators, signal detection, backtesting with 50+ preset conditions, strategy optimization, real-time streaming pipelines, position sizing, adaptive indicators, pairs trading, cross-asset correlation, signal explainability, and strategy robustness scoring — all with a consistent `Series<T>` return type.
 
 ## Installation
 
@@ -121,6 +121,12 @@ const bt = TrendCraft.from(candles)
 - `channelLine(candles, opts?)` — Channel line detection
 - `fibonacciExtension(candles, opts?)` — Fibonacci extension levels
 - `andrewsPitchfork(candles, opts?)` — Andrew's Pitchfork
+
+### Adaptive
+- `adaptiveRsi(candles, opts?)` — RSI with volatility-adaptive period
+- `adaptiveBollinger(candles, opts?)` — Bollinger Bands with kurtosis-adaptive multiplier
+- `adaptiveMa(candles, opts?)` — MA with efficiency-ratio-adaptive smoothing
+- `adaptiveStochastics(candles, opts?)` — Stochastics with ADX-adaptive lookback
 
 ### Other
 - `heikinAshi(candles)` — Heikin-Ashi candles
@@ -349,6 +355,48 @@ const aligned = alignSeries(weeklySma, dailySma);
 - `projectFromPatterns(candles, patternSignals, opts?)` — Pattern projection with auto direction detection
 - `projectFromSeries(candles, series, opts?)` — Project outcomes from indicator series
 
+## Signal Explainability
+- `explainSignal(candles, index, entry, exit, opts?)` — Trace why a signal fired/didn't fire with indicator values and human-readable narrative
+- `explainCondition(candles, index, condition, opts?)` — Trace a single condition evaluation
+- `traceCondition(condition, indicators, candle, index, candles)` — Low-level condition tracing
+- `generateNarrative(trace, signalType, fired, candle, language?)` — Generate human-readable explanation (en/ja)
+
+## Composable Indicator Algebra
+- `pipe(source, ...transforms)` — Pipe a value through transform functions
+- `compose(...fns)` — Compose transforms into a single function (right-to-left)
+- `through(indicator, opts?)` — Create indicator step for pipe chains
+- `applyIndicator(series, indicator, opts?)` — Apply candle-based indicator to Series
+- `seriesToCandles(series)` — Convert Series to pseudo-candles
+- `extractField(series, field)` — Extract numeric field from complex Series
+- `mapValues(series, fn)` — Map series values
+- `combineSeries(a, b, fn)` — Combine two series point-by-point
+
+## Alpha Decay Monitor
+- `analyzeAlphaDecay(observations, opts?)` — Track strategy alpha degradation via rolling IC, hit rate, CUSUM
+- `createObservationsFromTrades(trades)` — Convert backtest trades to decay observations
+- `createObservationsFromScores(scores, candles, forwardBars?)` — Pair scores with forward returns
+- `spearmanCorrelation(x, y)` — Spearman rank correlation with p-value
+
+## Strategy Robustness Score
+- `quickRobustnessScore(result, opts?)` — Quick robustness grade (A+ to F) from a single backtest result
+- `calculateRobustnessScore(candles, result, strategy, ranges, opts?)` — Full robustness analysis (Monte Carlo, parameter sensitivity, walk-forward, regime consistency)
+- `scoreToGrade(score)` — Convert numeric score (0-100) to letter grade
+
+## Pairs Trading
+- `analyzePair(seriesA, seriesB, opts?)` — Full pairs analysis (cointegration, spread, mean reversion, signals)
+- `adfTest(series, maxLag?)` — Augmented Dickey-Fuller stationarity test
+- `calculateSpread(seriesY, seriesX, hedgeRatio, intercept, times, opts?)` — Spread and z-score calculation
+- `analyzeMeanReversion(spreads, maxHalfLife?)` — Half-life and Hurst exponent analysis
+- `olsRegression(x, y)` — OLS regression
+
+## Cross-Asset Correlation
+- `analyzeCorrelation(seriesA, seriesB, opts?)` — Full correlation analysis (rolling, regimes, lead-lag, divergence)
+- `rollingCorrelation(returnsA, returnsB, times, window?)` — Rolling Pearson and Spearman correlation
+- `pearsonCorrelation(x, y)` / `spearmanRankCorrelation(x, y)` — Correlation coefficients
+- `detectCorrelationRegimes(correlationSeries, opts?)` — Classify correlation into regimes
+- `analyzeLeadLag(returnsA, returnsB, opts?)` — Cross-correlation lead-lag analysis
+- `detectIntermarketDivergence(pricesA, pricesB, times, opts?)` — Intermarket divergence detection
+
 ## Optional
 
 ### CLI Tools
@@ -374,6 +422,6 @@ All indicators support `Result<Series<T>, TrendCraftError>` via safe variants fo
 
 ## Types
 
-Key types: `Candle`, `NormalizedCandle`, `Series<T>`, `IndicatorValue<T>`, `TradeSignal`, `BacktestResult`, `BacktestOptions`, `Condition`, `DrawdownPeriod`, `DrawdownSummary`, `PatternProjection`, `ScoringConfig`, `PipelineOptions`, `PipelineResult`, `SymbolData`, `BatchBacktestResult`, `PortfolioMetrics`, `EquityPoint`, `BatchBacktestOptions`, `PortfolioBacktestOptions`, `PortfolioBacktestResult`
+Key types: `Candle`, `NormalizedCandle`, `Series<T>`, `IndicatorValue<T>`, `TradeSignal`, `BacktestResult`, `BacktestOptions`, `Condition`, `DrawdownPeriod`, `DrawdownSummary`, `PatternProjection`, `ScoringConfig`, `PipelineOptions`, `PipelineResult`, `SymbolData`, `BatchBacktestResult`, `PortfolioMetrics`, `EquityPoint`, `BatchBacktestOptions`, `PortfolioBacktestOptions`, `PortfolioBacktestResult`, `SignalExplanation`, `ConditionTrace`, `ExplainOptions`, `AlphaDecayResult`, `DecayObservation`, `DecayAssessment`, `QuickRobustnessResult`, `RobustnessResult`, `RobustnessGrade`, `PairsAnalysisResult`, `SpreadPoint`, `MeanReversionResult`, `CorrelationAnalysisResult`, `CorrelationPoint`, `LeadLagResult`, `DivergencePoint`, `AdaptiveRsiValue`, `AdaptiveBollingerValue`, `AdaptiveMaValue`, `AdaptiveStochasticsValue`
 
 See [API Reference](https://github.com/sawapi/trendcraft/blob/main/docs/API.md) for complete type definitions.

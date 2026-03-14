@@ -1,6 +1,6 @@
 # TrendCraft
 
-> A TypeScript library for technical analysis of financial data. Calculate 58+ indicators, detect signals, backtest strategies, optimize parameters, and build real-time trading pipelines.
+> A TypeScript library for technical analysis of financial data. Calculate 100+ indicators, detect signals, backtest strategies, optimize parameters, and build real-time trading pipelines.
 
 ## Installation
 
@@ -287,6 +287,20 @@ Multi-symbol: `rankByRS()`, `topByRS()`, `bottomByRS()`, `filterByRSPercentile()
 
 ### `calculateAtrPercent(candles)` / `atrPercentSeries(candles)` / `filterStocksByAtr()`
 ATR as percentage of price for stock screening.
+
+## Indicators — Adaptive
+
+### `adaptiveRsi(candles, options?)`
+RSI whose period adapts based on ATR volatility percentile. High volatility uses shorter period (faster response), low volatility uses longer period. Options: `basePeriod` (14), `minPeriod` (6), `maxPeriod` (28), `atrPeriod` (14), `volLookback` (100). Returns `Series<{ rsi, effectivePeriod, volatilityPercentile }>`.
+
+### `adaptiveBollinger(candles, options?)`
+Bollinger Bands with kurtosis-adaptive standard deviation multiplier. Fat tails (high kurtosis) produce wider bands. Options: `period` (20), `baseStdDev` (2), `kurtosisLookback` (100), `minMultiplier` (1.5), `maxMultiplier` (3.0). Returns `Series<{ upper, middle, lower, bandwidth, effectiveMultiplier, kurtosis }>`.
+
+### `adaptiveMa(candles, options?)`
+MA with Efficiency Ratio-based adaptive smoothing. Trending market: fast smoothing. Choppy market: slow smoothing. Options: `erPeriod` (10), `fastConstant` (0.6667), `slowConstant` (0.0645). Returns `Series<{ value, efficiencyRatio, smoothingConstant }>`.
+
+### `adaptiveStochastics(candles, options?)`
+Stochastics with ADX-adaptive lookback period. Strong trend: longer period (avoid whipsaws). Weak trend: shorter period. Options: `basePeriod` (14), `minPeriod` (5), `maxPeriod` (21), `adxPeriod` (14), `adxThreshold` (40), `kSmoothing` (3), `dSmoothing` (3). Returns `Series<{ k, d, effectivePeriod, adx }>`.
 
 ## Signals — Cross Detection
 
@@ -985,6 +999,202 @@ type Result<T, E> = { ok: true; value: T } | { ok: false; error: E };
 // Safe variants available for error handling
 import { gridSearchSafe, walkForwardAnalysisSafe, runMonteCarloSimulationSafe } from 'trendcraft';
 ```
+
+## Signal Explainability
+
+Traces why a signal fired, which indicators contributed, and generates human-readable narratives.
+
+```typescript
+import { explainSignal, explainCondition, rsiBelow, rsiAbove, and, goldenCrossCondition } from 'trendcraft';
+
+// Full signal explanation (entry + exit)
+const explanation = explainSignal(candles, 50, and(goldenCrossCondition(), rsiBelow(40)), rsiAbove(70));
+console.log(explanation.fired);          // true/false
+console.log(explanation.signalType);     // "entry" | "exit"
+console.log(explanation.narrative);      // "Entry signal fired at close=150. goldenCross: passed AND rsiBelow(30): passed (rsi14 = 28.5)."
+console.log(explanation.contributions);  // [{ name, passed, indicatorValues }]
+
+// Single condition trace
+const trace = explainCondition(candles, 50, rsiBelow(30));
+// trace: { name, passed, indicatorValues: { rsi14: 28.5 }, reason, type, children? }
+
+// Generate narrative (supports "en" and "ja")
+import { generateNarrative } from 'trendcraft';
+const text = generateNarrative(trace, 'entry', true, candle, 'ja');
+```
+
+Options: `includeValues` (boolean), `maxDepth` (number), `language` ('en' | 'ja').
+
+Types: `SignalExplanation`, `ConditionTrace`, `ExplainOptions`.
+
+## Composable Indicator Algebra
+
+Functional composition for chaining indicator calculations.
+
+```typescript
+import { pipe, compose, through, applyIndicator, extractField, mapValues, combineSeries, seriesToCandles } from 'trendcraft';
+
+// EMA of RSI using pipe
+const smoothedRsi = pipe(
+  candles,
+  c => rsi(c, { period: 14 }),
+  through(ema, { period: 9 }),
+);
+
+// Bollinger Bands of MACD histogram
+const bbOfHist = pipe(
+  candles,
+  c => macd(c),
+  s => extractField(s, 'histogram'),
+  through(bollingerBands, { period: 20 }),
+);
+
+// compose: right-to-left composition
+const fn = compose(
+  (s: Series<number|null>) => applyIndicator(s, ema, { period: 9 }),
+  (c: NormalizedCandle[]) => rsi(c, { period: 14 }),
+);
+
+// Adapters
+const pseudoCandles = seriesToCandles(rsiSeries);
+const histogram = extractField(macdSeries, 'histogram');
+const normalized = mapValues(rsiSeries, v => v !== null ? v / 100 : null);
+const spread = combineSeries(seriesA, seriesB, (a, b) => a !== null && b !== null ? a - b : null);
+```
+
+## Alpha Decay Monitor
+
+Tracks whether a strategy's predictive power degrades over time.
+
+```typescript
+import { analyzeAlphaDecay, createObservationsFromTrades, createObservationsFromScores, spearmanCorrelation } from 'trendcraft';
+
+// From backtest trades
+const observations = createObservationsFromTrades(result.trades);
+const decay = analyzeAlphaDecay(observations, { window: 60, cusumThreshold: 4.0 });
+// decay.assessment.status: "healthy" | "warning" | "degraded" | "critical"
+// decay.assessment.currentIC, decay.assessment.halfLife
+// decay.rollingIC, decay.rollingHitRate, decay.breaks (CUSUM structural breaks)
+
+// From signal scores
+const obs = createObservationsFromScores(scoreSeries, candles, 5);
+
+// Statistics
+const { rho, pValue } = spearmanCorrelation([1, 2, 3], [10, 20, 30]);
+```
+
+Types: `AlphaDecayResult`, `DecayObservation`, `DecayAssessment`, `AlphaDecayOptions`.
+
+## Adaptive Indicators
+
+Indicators whose parameters adjust based on market conditions.
+
+```typescript
+import { adaptiveRsi, adaptiveBollinger, adaptiveMa, adaptiveStochastics } from 'trendcraft';
+
+// RSI with volatility-adaptive period (high vol → short period, low vol → long period)
+const arsi = adaptiveRsi(candles, { basePeriod: 14, minPeriod: 6, maxPeriod: 28, atrPeriod: 14, volLookback: 100 });
+// Series<{ rsi: number|null, effectivePeriod: number, volatilityPercentile: number|null }>
+
+// Bollinger Bands with kurtosis-adaptive multiplier (fat tails → wider bands)
+const abb = adaptiveBollinger(candles, { period: 20, baseStdDev: 2, kurtosisLookback: 100, minMultiplier: 1.5, maxMultiplier: 3.0 });
+// Series<{ upper, middle, lower, bandwidth, effectiveMultiplier, kurtosis }>
+
+// MA with efficiency-ratio-adaptive smoothing (trending → fast, choppy → slow)
+const ama = adaptiveMa(candles, { erPeriod: 10 });
+// Series<{ value: number|null, efficiencyRatio: number|null, smoothingConstant: number|null }>
+
+// Stochastics with ADX-adaptive lookback (strong trend → longer period)
+const astoch = adaptiveStochastics(candles, { basePeriod: 14, adxThreshold: 40 });
+// Series<{ k: number|null, d: number|null, effectivePeriod: number, adx: number|null }>
+```
+
+## Strategy Robustness Score
+
+Composite robustness grading (A+ to F) for backtest strategies.
+
+```typescript
+import { quickRobustnessScore, calculateRobustnessScore, scoreToGrade } from 'trendcraft';
+
+// Quick assessment from a single BacktestResult (no re-running needed)
+const quick = quickRobustnessScore(result, { monteCarloSimulations: 300 });
+// quick.compositeScore (0-100), quick.grade ("A+" to "F")
+// quick.dimensions: { monteCarlo, tradeConsistency, drawdownResilience }
+// quick.assessment, quick.recommendations
+
+// Full analysis (requires candles + strategy definition + parameter ranges)
+const full = calculateRobustnessScore(candles, result, (params) => ({
+  entry: and(rsiBelow(params.rsi), goldenCrossCondition(params.short, params.long)),
+  exit: rsiAbove(70),
+}), [
+  { name: 'rsi', min: 20, max: 40, step: 5 },
+  { name: 'short', min: 3, max: 10, step: 1 },
+  { name: 'long', min: 20, max: 40, step: 5 },
+]);
+// full.dimensions: { monteCarlo, parameterSensitivity, walkForward, regimeConsistency }
+
+scoreToGrade(92); // "A+"  — Grade scale: A+(90+), A(80+), B+(70+), B(60+), C+(50+), C(40+), D(25+), F(<25)
+```
+
+Types: `QuickRobustnessResult`, `RobustnessResult`, `RobustnessGrade`, `DimensionScore`.
+
+## Pairs Trading
+
+Statistical arbitrage tools: cointegration testing, spread calculation, mean reversion analysis.
+
+```typescript
+import { analyzePair, adfTest, calculateSpread, analyzeMeanReversion, olsRegression } from 'trendcraft';
+
+// Full pairs analysis
+const result = analyzePair(
+  candlesGOOG.map(c => ({ time: c.time, value: c.close })),
+  candlesMSFT.map(c => ({ time: c.time, value: c.close })),
+  { significanceLevel: 0.05, entryThreshold: 2.0, exitThreshold: 0.5, maxHalfLife: 100 },
+);
+// result.cointegration: { isCointegrated, adfStatistic, pValue, hedgeRatio, intercept, rSquared }
+// result.meanReversion: { halfLife, lambda, isMeanReverting, hurstExponent }
+// result.spreadSeries: SpreadPoint[] (time, spread, zScore, mean, stdDev)
+// result.signals: PairsSignal[] (open_long, open_short, close)
+// result.assessment: { isViable, reason, confidenceFactor }
+
+// Individual functions
+const adf = adfTest(residuals); // { adfStatistic, pValue, criticalValues, lag }
+const spread = calculateSpread(pricesA, pricesB, hedgeRatio, intercept, times);
+const mr = analyzeMeanReversion(spreads); // { halfLife, lambda, isMeanReverting, hurstExponent }
+const reg = olsRegression(x, y); // { beta, intercept, rSquared, residuals }
+```
+
+Types: `PairsAnalysisResult`, `SpreadPoint`, `PairsSignal`, `MeanReversionResult`.
+
+## Cross-Asset Correlation
+
+Rolling correlation, regime detection, lead-lag analysis, and intermarket divergence.
+
+```typescript
+import { analyzeCorrelation, rollingCorrelation, pearsonCorrelation, spearmanRankCorrelation, detectCorrelationRegimes, analyzeLeadLag, detectIntermarketDivergence } from 'trendcraft';
+
+// Full correlation analysis
+const analysis = analyzeCorrelation(
+  candlesSPY.map(c => ({ time: c.time, value: c.close })),
+  candlesQQQ.map(c => ({ time: c.time, value: c.close })),
+  { window: 60, maxLag: 10, divergenceLookback: 20, divergenceThreshold: 2.0 },
+);
+// analysis.rollingCorrelation: CorrelationPoint[] (time, pearson, spearman)
+// analysis.regimes: CorrelationRegimePoint[] (regime: strong_positive|positive|neutral|negative|strong_negative)
+// analysis.leadLag: { optimalLag, crossCorrelation, maxCorrelation, assessment }
+// analysis.divergences: DivergencePoint[] (type: bullish|bearish, returnA, returnB, significance)
+// analysis.summary: { avgCorrelation, stability, currentRegime, dominantRegime }
+
+// Individual functions
+const corr = rollingCorrelation(returnsA, returnsB, times, 60);
+const r = pearsonCorrelation(x, y);   // -1 to 1
+const rs = spearmanRankCorrelation(x, y); // -1 to 1
+const regimes = detectCorrelationRegimes(corr, { regimeThresholds: { strongPositive: 0.7 } });
+const leadLag = analyzeLeadLag(returnsA, returnsB, { maxLag: 5 });
+const divs = detectIntermarketDivergence(pricesA, pricesB, times);
+```
+
+Types: `CorrelationAnalysisResult`, `CorrelationPoint`, `CorrelationRegimePoint`, `LeadLagResult`, `DivergencePoint`.
 
 ## CLI Tools
 
