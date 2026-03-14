@@ -110,6 +110,16 @@ export function buildIntraSessionUserMessage(report: IntraSessionReport): string
     parts.push("");
   }
 
+  // Regime summary
+  if (report.regimeSummary) {
+    parts.push("## Regime Summary");
+    parts.push(report.regimeSummary.description);
+    parts.push(
+      `Dominant Trend: ${report.regimeSummary.dominantTrend} | Volatility: ${report.regimeSummary.dominantVolatility}`,
+    );
+    parts.push("");
+  }
+
   // Agent performance
   parts.push("## Agents");
   for (const agent of report.agents) {

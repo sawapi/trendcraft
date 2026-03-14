@@ -228,6 +228,12 @@ export type IntraSessionReport = {
   reviewNumber: number;
   agents: IntraSessionAgentReport[];
   marketSnapshots: MarketContext[];
+  /** Aggregated regime summary for LLM context */
+  regimeSummary?: {
+    dominantTrend: string;
+    dominantVolatility: string;
+    description: string;
+  };
 };
 
 export type IntraSessionReviewRecord = {

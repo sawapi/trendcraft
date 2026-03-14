@@ -98,11 +98,44 @@ export function buildIntraSessionReport(
     }
   }
 
+  // Aggregate regime summary for the report
+  const regimeSummary = buildRegimeSummary(marketSnapshots);
+
   return {
     timestamp: Date.now(),
     sessionStartTime,
     reviewNumber,
     agents: agentReports,
     marketSnapshots,
+    regimeSummary,
   };
+}
+
+/**
+ * Build a regime summary from market snapshots.
+ */
+function buildRegimeSummary(
+  snapshots: MarketContext[],
+): { dominantTrend: string; dominantVolatility: string; description: string } | undefined {
+  if (snapshots.length === 0) return undefined;
+
+  const trends: Record<string, number> = {};
+  const volatilities: Record<string, number> = {};
+
+  for (const s of snapshots) {
+    if (s.trendDirection) {
+      trends[s.trendDirection] = (trends[s.trendDirection] ?? 0) + 1;
+    }
+    if (s.volatilityRegime) {
+      volatilities[s.volatilityRegime] = (volatilities[s.volatilityRegime] ?? 0) + 1;
+    }
+  }
+
+  const dominantTrend = Object.entries(trends).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "unknown";
+  const dominantVolatility =
+    Object.entries(volatilities).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "unknown";
+
+  const description = `Market regime: ${dominantTrend} trend, ${dominantVolatility} volatility across ${snapshots.length} symbols`;
+
+  return { dominantTrend, dominantVolatility, description };
 }

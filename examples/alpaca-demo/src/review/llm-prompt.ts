@@ -154,6 +154,36 @@ When regime data is provided:
 - **Sideways/ranging**: Mean-reversion strategies (RSI) tend to outperform; reduce trend-following exposure
 - **Strong trend (high ADX)**: Favor trend-following; widen trailing stops to avoid premature exits
 
+## Regime Gate (per-strategy — new)
+Each strategy can have a **regimeGate** that automatically blocks entries when the per-symbol regime doesn't match. This is different from marketFilter (which checks a benchmark symbol). The regime gate checks the individual symbol's ADX, trend, and volatility using an auto-injected regime indicator.
+
+You can set regimeGate in strategy templates:
+\`\`\`json
+"regimeGate": {
+  "minTrendStrength": 20,
+  "allowedTrends": ["bullish"],
+  "allowedVolatility": ["normal", "low"]
+}
+\`\`\`
+
+Trend-following strategies already have a default regimeGate with minTrendStrength: 20. Consider adjusting this threshold:
+- **Higher (25-30)**: More selective, fewer trades, higher quality entries
+- **Lower (15)**: More trades, accepts weaker trends, higher false signal risk
+- **Remove**: Set regimeGate to null for mean-reversion strategies that work in sideways markets
+
+## Strategy Rotation (system-level — new)
+The system can automatically activate/deactivate strategies based on the overall market regime:
+- **Strong bullish trend** (ADX > 25): Trend-following active, reversion deactivated
+- **Weak/sideways** (ADX < 20): Mean-reversion active, trend-following deactivated
+- **Bearish**: Short strategies + reversion active
+Consider recommending strategy rotation adjustments when multiple strategies are losing in the same regime.
+
+## Short Selling (new)
+Strategies can now target short positions with \`"direction": "short"\`. Available short presets:
+- **rsi-overbought-short**: Short overbought RSI below declining EMA
+- **ema-dead-cross-short**: Short on EMA death cross
+Consider recommending short strategies when the market is bearish and long-only strategies are struggling.
+
 ## Market Filter (per-strategy)
 Each strategy can have an optional **marketFilter** that controls when entries are allowed based on a benchmark symbol (default: SPY). The system tracks the benchmark's real-time daily change %, trend direction, and volatility regime.
 
