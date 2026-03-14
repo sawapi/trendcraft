@@ -37,8 +37,8 @@ function mockBacktestResult(overrides: Partial<BacktestResult> = {}): BacktestRe
     avgHoldingDays: 5,
     trades: [],
     settings: {
-      capital: 100000,
-      positionSize: 1,
+      fillMode: "next-bar-open",
+      slTpMode: "close-only",
       slippage: 0,
       commission: 0,
       commissionRate: 0,
@@ -144,7 +144,8 @@ describe("quickRobustnessScore", () => {
           troughTime: 2000,
           troughEquity: 104500,
           recoveryTime: 3000,
-          drawdownPercent: 5,
+          maxDepthPercent: 5,
+          durationBars: 10,
         } as DrawdownPeriod,
       ],
     });
@@ -249,7 +250,8 @@ describe("quickRobustnessScore", () => {
           troughTime: 2000,
           troughEquity: 106700,
           recoveryTime: 3000,
-          drawdownPercent: 3,
+          maxDepthPercent: 3,
+          durationBars: 10,
         } as DrawdownPeriod,
       ],
     });

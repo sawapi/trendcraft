@@ -158,6 +158,11 @@ const bt = TrendCraft.from(candles)
 - `doubleTop(candles, opts?)` / `doubleBottom(candles, opts?)` — Double top/bottom
 - `headAndShoulders(candles, opts?)` / `inverseHeadAndShoulders(candles, opts?)` — H&S patterns
 - `cupWithHandle(candles, opts?)` — Cup with handle pattern
+- `detectTriangle(candles, opts?)` — Symmetrical, ascending, descending triangles
+- `detectWedge(candles, opts?)` — Rising wedge (bearish), falling wedge (bullish)
+- `detectChannel(candles, opts?)` — Ascending, descending, horizontal channels
+- `detectFlag(candles, opts?)` — Bull/bear flags and pennants
+- `filterPatterns(patterns, candles, opts?)` — Context filter (ATR ratio, trend, volume)
 - `candlestickPatterns(candles, opts?)` — Candlestick pattern recognition
 
 ### TradeSignal (Unified Format)
@@ -208,7 +213,7 @@ const result = runBacktest(candles, {
 - **Range**: `rangeBreakout()`, `rangeConfirmed()`, `inRangeBound()`, `tightRange()`
 - **Volatility Regime**: `regimeIs('low'|'normal'|'high')`, `volatilityAbove(val)`, `volatilityBelow(val)`
 - **MTF**: `weeklyRsiAbove(val)`, `weeklyPriceAboveSma(period)`, `mtfCondition(timeframe, fn)`
-- **Patterns**: `doubleTopDetected()`, `doubleBottomDetected()`, `headShouldersDetected()`, `anyBullishPattern()`
+- **Patterns**: `doubleTopDetected()`, `doubleBottomDetected()`, `headShouldersDetected()`, `triangleDetected()`, `wedgeDetected()`, `channelDetected()`, `flagDetected()`, `bullFlagDetected()`, `bearFlagDetected()`, `anyBullishPattern()`, `anyBearishPattern()`
 - **RS**: `rsAbove(val)`, `rsRising()`, `rsRatingAbove(val)`
 - **Fundamentals**: `perBelow(val)`, `pbrBelow(val)`
 

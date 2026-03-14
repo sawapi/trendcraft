@@ -23,6 +23,8 @@ A TypeScript library for technical analysis of financial data. Calculate indicat
 - **Divergence**: OBV, RSI, MACD divergence detection
 - **Squeeze**: Bollinger Bands squeeze detection
 - **Range-Bound**: Detect sideways markets and potential breakouts
+- **Chart Patterns**: Double Top/Bottom, Head & Shoulders, Cup with Handle, Triangle (symmetrical/ascending/descending), Wedge (rising/falling), Channel (ascending/descending/horizontal), Flag/Pennant
+- **Pattern Filter**: ATR ratio, trend context, and volume confirmation filters
 
 ### Backtesting
 - Simple strategy backtesting with preset conditions

@@ -205,7 +205,7 @@ export function createPositionTracker(
       originalShares: pos.originalShares,
       partialTaken: pos.partialTaken,
       breakevenActivated: pos.breakevenActivated,
-      scaleOutLevelsTaken: [] as number[],
+      scaleOutLevelsTaken: [] as boolean[],
       entryAtr: null,
       maxProfitPercent: pos.maxProfitPercent,
       maxLossPercent: pos.maxLossPercent,

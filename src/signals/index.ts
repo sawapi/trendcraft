@@ -110,6 +110,14 @@ export {
   headAndShoulders,
   inverseHeadAndShoulders,
   cupWithHandle,
+  detectTriangle,
+  detectWedge,
+  detectChannel,
+  detectFlag,
+  filterPatterns,
+  fitTrendline,
+  fitTrendlinePair,
+  classifyTrendlinePair,
   type PatternType,
   type PatternKeyPoint,
   type PatternNeckline,
@@ -117,6 +125,13 @@ export {
   type DoublePatternOptions,
   type HeadShouldersOptions,
   type CupHandleOptions,
+  type TriangleOptions,
+  type WedgeOptions,
+  type ChannelOptions,
+  type FlagOptions,
+  type PatternFilterOptions,
+  type TrendlineFit,
+  type TrendlinePairType,
 } from "./patterns";
 
 // Signal Lifecycle

@@ -344,8 +344,16 @@ Range-bound market detection. Returns `Series<RangeBoundValue>` with states: `NE
 - `doubleTop(candles, opts?)` / `doubleBottom(candles, opts?)` — Double top/bottom
 - `headAndShoulders(candles, opts?)` / `inverseHeadAndShoulders(candles, opts?)` — H&S patterns
 - `cupWithHandle(candles, opts?)` — Cup with handle
+- `detectTriangle(candles, opts?)` — Symmetrical, ascending, descending triangles (OLS trendline fitting)
+- `detectWedge(candles, opts?)` — Rising wedge (bearish reversal), falling wedge (bullish reversal)
+- `detectChannel(candles, opts?)` — Ascending, descending, horizontal channels (parallel trendlines)
+- `detectFlag(candles, opts?)` — Bull/bear flags and pennants (flagpole + consolidation)
+- `filterPatterns(patterns, candles, opts?)` — Context filter: ATR ratio, trend direction, volume confirmation
+- `fitTrendline(points)` / `fitTrendlinePair(highs, lows)` — Trendline fitting utilities
+- `classifyTrendlinePair(upper, lower)` — Classify trendline pair relationship
 
 All return `PatternSignal[]` with `confidence` (0-100), `confirmed` (boolean), `pattern.target`, `pattern.stopLoss`.
+PatternType includes: `double_top`, `double_bottom`, `head_shoulders`, `inverse_head_shoulders`, `cup_handle`, `triangle_symmetrical`, `triangle_ascending`, `triangle_descending`, `rising_wedge`, `falling_wedge`, `channel_ascending`, `channel_descending`, `channel_horizontal`, `bull_flag`, `bear_flag`, `bull_pennant`, `bear_pennant`.
 
 ### `candlestickPatterns(candles, opts?)`
 Candlestick pattern recognition (hammer, engulfing, doji, etc.).
@@ -537,6 +545,8 @@ const custom = (indicators, candle, index, candles) => {
 - `patternConfidenceAbove(type, min)` / `anyPatternConfidenceAbove(min)`
 - `patternWithinBars(type, lookback, opts?)`
 - `doubleTopDetected()` / `doubleBottomDetected()` / `headShouldersDetected()` / `inverseHeadShouldersDetected()` / `cupHandleDetected()`
+- `triangleDetected(subtype?)` / `wedgeDetected(subtype?)` / `channelDetected(subtype?)` / `flagDetected(subtype?)`
+- `bullFlagDetected()` / `bearFlagDetected()`
 
 **Fundamentals:**
 - `perBelow(val)` / `perAbove(val)` / `perBetween(min, max)` — P/E ratio

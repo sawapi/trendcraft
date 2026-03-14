@@ -2208,6 +2208,114 @@ patterns.forEach(p => {
 
 ---
 
+#### `detectTriangle(candles, options)`
+
+対称・上昇・下降トライアングルパターンをOLSトレンドラインフィッティングで検出。
+
+```typescript
+import { detectTriangle } from 'trendcraft';
+
+const patterns = detectTriangle(candles);
+patterns.forEach(p => {
+  console.log(`${p.type}, 信頼度: ${p.confidence}, 目標: ${p.pattern.target}`);
+});
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|-----------|-----|----------|------|
+| `swingLookback` | `number` | `3` | スイングポイント検出ルックバック |
+| `minPoints` | `number` | `2` | トレンドラインあたりの最小ポイント数 |
+| `minRSquared` | `number` | `0.6` | トレンドラインフィット品質の最小R² |
+| `flatTolerance` | `number` | `0.0003` | 水平判定の傾き閾値 |
+| `minBars` | `number` | `15` | パターン形成の最小バー数 |
+| `maxBreakoutBars` | `number` | `20` | ブレイクアウト検索の最大バー数 |
+
+---
+
+#### `detectWedge(candles, options)`
+
+ライジングウェッジ（弱気）とフォーリングウェッジ（強気）パターンを検出。
+
+```typescript
+import { detectWedge } from 'trendcraft';
+
+const patterns = detectWedge(candles);
+const fallingWedges = patterns.filter(p => p.type === 'falling_wedge');
+```
+
+**オプション:** `detectTriangle`と同様（`flatTolerance`を除く）。
+
+---
+
+#### `detectChannel(candles, options)`
+
+上昇・下降・水平チャネルパターンを検出。
+
+```typescript
+import { detectChannel } from 'trendcraft';
+
+const patterns = detectChannel(candles);
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|-----------|-----|----------|------|
+| `swingLookback` | `number` | `3` | スイングポイント検出ルックバック |
+| `minRSquared` | `number` | `0.6` | トレンドラインフィットの最小R² |
+| `flatTolerance` | `number` | `0.0003` | 水平判定の傾き閾値 |
+| `parallelTolerance` | `number` | `0.0003` | 平行判定の傾き差の最大値 |
+| `minBars` | `number` | `20` | パターン形成の最小バー数 |
+
+---
+
+#### `detectFlag(candles, options)`
+
+フラッグ・ペナント継続パターン（フラッグポール＋コンソリデーション）を検出。
+
+```typescript
+import { detectFlag } from 'trendcraft';
+
+const patterns = detectFlag(candles);
+const bullFlags = patterns.filter(p => p.type === 'bull_flag');
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|-----------|-----|----------|------|
+| `swingLookback` | `number` | `2` | スイングポイント検出ルックバック |
+| `minAtrMultiple` | `number` | `2.0` | フラッグポールの最小サイズ（ATR倍数） |
+| `maxPoleBars` | `number` | `8` | フラッグポールの最大バー数 |
+| `minConsolidationBars` | `number` | `5` | コンソリデーションの最小バー数 |
+| `maxConsolidationBars` | `number` | `20` | コンソリデーションの最大バー数 |
+
+---
+
+#### `filterPatterns(patterns, candles, options)`
+
+パターンシグナルにコンテキストフィルタ（ATR比率、トレンド方向、ボリューム）を適用。
+
+```typescript
+import { doubleTop, filterPatterns } from 'trendcraft';
+
+const raw = doubleTop(candles);
+const filtered = filterPatterns(raw, candles, {
+  minATRRatio: 2.0,
+  trendContext: true,
+  minConfidence: 60,
+});
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|-----------|-----|----------|------|
+| `minATRRatio` | `number` | `1.5` | パターン高さ/ATRの最小比率 |
+| `volumeConfirm` | `boolean` | `true` | ボリューム確認を要求 |
+| `trendContext` | `boolean` | `true` | トレンド方向の整合性チェック |
+| `minConfidence` | `number` | `50` | フィルタ後の最低信頼度 |
+
+---
+
 #### パターンシグナル構造
 
 すべてのパターン検出関数は `PatternSignal[]` を返します：
@@ -2237,6 +2345,18 @@ interface PatternSignal {
 | `head_shoulders` | 弱気 | ネックラインを下抜け |
 | `inverse_head_shoulders` | 強気 | ネックラインを上抜け |
 | `cup_handle` | 強気 | カップリムを上抜け |
+| `triangle_symmetrical` | 中立 | トレンドラインを上抜けまたは下抜け |
+| `triangle_ascending` | 強気 | 水平レジスタンスを上抜け |
+| `triangle_descending` | 弱気 | 水平サポートを下抜け |
+| `rising_wedge` | 弱気 | 下側トレンドラインを下抜け |
+| `falling_wedge` | 強気 | 上側トレンドラインを上抜け |
+| `channel_ascending` | 中立 | チャネルを上抜けまたは下抜け |
+| `channel_descending` | 中立 | チャネルを上抜けまたは下抜け |
+| `channel_horizontal` | 中立 | チャネルを上抜けまたは下抜け |
+| `bull_flag` | 強気 | コンソリデーションを上抜け |
+| `bear_flag` | 弱気 | コンソリデーションを下抜け |
+| `bull_pennant` | 強気 | ペナントを上抜け |
+| `bear_pennant` | 弱気 | ペナントを下抜け |
 
 ---
 
@@ -2656,8 +2776,8 @@ const cupEntry = patternWithinBars('cup_handle', 5, { confirmedOnly: true });
 |------|------|
 | `patternDetected(type, options)` | 現在のバーでパターン検出 |
 | `patternConfirmed(type, options)` | 確認済みパターン（ブレイクアウト発生） |
-| `anyBullishPattern(options)` | 任意の強気パターン（ダブルボトム、逆H&S、カップハンドル） |
-| `anyBearishPattern(options)` | 任意の弱気パターン（ダブルトップ、H&S） |
+| `anyBullishPattern(options)` | 任意の強気パターン |
+| `anyBearishPattern(options)` | 任意の弱気パターン |
 | `patternConfidenceAbove(type, min, options)` | パターン信頼度 > 閾値 |
 | `anyPatternConfidenceAbove(min, options)` | 任意のパターンで信頼度 > 閾値 |
 | `patternWithinBars(type, lookback, options)` | 直近Nバー以内でパターン検出 |
@@ -2666,6 +2786,12 @@ const cupEntry = patternWithinBars('cup_handle', 5, { confirmedOnly: true });
 | `headShouldersDetected(options)` | ヘッドアンドショルダーパターン |
 | `inverseHeadShouldersDetected(options)` | 逆ヘッドアンドショルダーパターン |
 | `cupHandleDetected(options)` | カップ・ウィズ・ハンドルパターン |
+| `triangleDetected(subtype?, options)` | トライアングルパターン（全体またはサブタイプ指定） |
+| `wedgeDetected(subtype?, options)` | ウェッジパターン（全体またはサブタイプ指定） |
+| `channelDetected(subtype?, options)` | チャネルパターン（全体またはサブタイプ指定） |
+| `flagDetected(subtype?, options)` | フラッグ/ペナントパターン（全体またはサブタイプ指定） |
+| `bullFlagDetected(options)` | ブルフラッグパターン |
+| `bearFlagDetected(options)` | ベアフラッグパターン |
 
 ---
 

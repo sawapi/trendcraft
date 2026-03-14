@@ -2236,6 +2236,114 @@ patterns.forEach(p => {
 
 ---
 
+#### `detectTriangle(candles, options)`
+
+Detect symmetrical, ascending, and descending triangle patterns using OLS trendline fitting.
+
+```typescript
+import { detectTriangle } from 'trendcraft';
+
+const patterns = detectTriangle(candles);
+patterns.forEach(p => {
+  console.log(`${p.type}, confidence: ${p.confidence}, target: ${p.pattern.target}`);
+});
+```
+
+**Options:**
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `swingLookback` | `number` | `3` | Swing point detection lookback |
+| `minPoints` | `number` | `2` | Minimum points per trendline |
+| `minRSquared` | `number` | `0.6` | Minimum R² for trendline fit quality |
+| `flatTolerance` | `number` | `0.0003` | Threshold for flat slope detection |
+| `minBars` | `number` | `15` | Minimum bars for pattern formation |
+| `maxBreakoutBars` | `number` | `20` | Maximum bars to search for breakout |
+
+---
+
+#### `detectWedge(candles, options)`
+
+Detect rising wedge (bearish) and falling wedge (bullish) patterns.
+
+```typescript
+import { detectWedge } from 'trendcraft';
+
+const patterns = detectWedge(candles);
+const fallingWedges = patterns.filter(p => p.type === 'falling_wedge');
+```
+
+**Options:** Same as `detectTriangle` (minus `flatTolerance`).
+
+---
+
+#### `detectChannel(candles, options)`
+
+Detect ascending, descending, and horizontal channel patterns.
+
+```typescript
+import { detectChannel } from 'trendcraft';
+
+const patterns = detectChannel(candles);
+```
+
+**Options:**
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `swingLookback` | `number` | `3` | Swing point detection lookback |
+| `minRSquared` | `number` | `0.6` | Minimum R² for trendline fit |
+| `flatTolerance` | `number` | `0.0003` | Threshold for flat slope |
+| `parallelTolerance` | `number` | `0.0003` | Max slope difference for parallel |
+| `minBars` | `number` | `20` | Minimum bars for pattern formation |
+
+---
+
+#### `detectFlag(candles, options)`
+
+Detect flag and pennant continuation patterns (flagpole + consolidation).
+
+```typescript
+import { detectFlag } from 'trendcraft';
+
+const patterns = detectFlag(candles);
+const bullFlags = patterns.filter(p => p.type === 'bull_flag');
+```
+
+**Options:**
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `swingLookback` | `number` | `2` | Swing point detection lookback |
+| `minAtrMultiple` | `number` | `2.0` | Minimum flagpole size (ATR multiples) |
+| `maxPoleBars` | `number` | `8` | Maximum flagpole length |
+| `minConsolidationBars` | `number` | `5` | Minimum consolidation length |
+| `maxConsolidationBars` | `number` | `20` | Maximum consolidation length |
+
+---
+
+#### `filterPatterns(patterns, candles, options)`
+
+Apply contextual filters (ATR ratio, trend direction, volume) to pattern signals.
+
+```typescript
+import { doubleTop, filterPatterns } from 'trendcraft';
+
+const raw = doubleTop(candles);
+const filtered = filterPatterns(raw, candles, {
+  minATRRatio: 2.0,
+  trendContext: true,
+  minConfidence: 60,
+});
+```
+
+**Options:**
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `minATRRatio` | `number` | `1.5` | Minimum pattern height / ATR ratio |
+| `volumeConfirm` | `boolean` | `true` | Require volume confirmation |
+| `trendContext` | `boolean` | `true` | Check trend direction alignment |
+| `minConfidence` | `number` | `50` | Minimum confidence after filtering |
+
+---
+
 #### Pattern Signal Structure
 
 All pattern detection functions return `PatternSignal[]`:
@@ -2265,6 +2373,18 @@ interface PatternSignal {
 | `head_shoulders` | Bearish | Price breaks below neckline |
 | `inverse_head_shoulders` | Bullish | Price breaks above neckline |
 | `cup_handle` | Bullish | Price breaks above cup rim |
+| `triangle_symmetrical` | Neutral | Price breaks above or below trendline |
+| `triangle_ascending` | Bullish | Price breaks above flat resistance |
+| `triangle_descending` | Bearish | Price breaks below flat support |
+| `rising_wedge` | Bearish | Price breaks below lower trendline |
+| `falling_wedge` | Bullish | Price breaks above upper trendline |
+| `channel_ascending` | Neutral | Price breaks above or below channel |
+| `channel_descending` | Neutral | Price breaks above or below channel |
+| `channel_horizontal` | Neutral | Price breaks above or below channel |
+| `bull_flag` | Bullish | Price breaks above consolidation |
+| `bear_flag` | Bearish | Price breaks below consolidation |
+| `bull_pennant` | Bullish | Price breaks above pennant |
+| `bear_pennant` | Bearish | Price breaks below pennant |
 
 ---
 
@@ -2684,8 +2804,8 @@ const cupEntry = patternWithinBars('cup_handle', 5, { confirmedOnly: true });
 |----------|-------------|
 | `patternDetected(type, options)` | Pattern detected at current bar |
 | `patternConfirmed(type, options)` | Confirmed pattern (breakout occurred) |
-| `anyBullishPattern(options)` | Any bullish pattern (double bottom, inverse H&S, cup handle) |
-| `anyBearishPattern(options)` | Any bearish pattern (double top, H&S) |
+| `anyBullishPattern(options)` | Any bullish pattern |
+| `anyBearishPattern(options)` | Any bearish pattern |
 | `patternConfidenceAbove(type, min, options)` | Pattern confidence > threshold |
 | `anyPatternConfidenceAbove(min, options)` | Any pattern with confidence > threshold |
 | `patternWithinBars(type, lookback, options)` | Pattern detected within last N bars |
@@ -2694,6 +2814,12 @@ const cupEntry = patternWithinBars('cup_handle', 5, { confirmedOnly: true });
 | `headShouldersDetected(options)` | Head and Shoulders pattern |
 | `inverseHeadShouldersDetected(options)` | Inverse H&S pattern |
 | `cupHandleDetected(options)` | Cup with Handle pattern |
+| `triangleDetected(subtype?, options)` | Triangle pattern (any or specific subtype) |
+| `wedgeDetected(subtype?, options)` | Wedge pattern (any or specific subtype) |
+| `channelDetected(subtype?, options)` | Channel pattern (any or specific subtype) |
+| `flagDetected(subtype?, options)` | Flag/Pennant pattern (any or specific subtype) |
+| `bullFlagDetected(options)` | Bull Flag pattern |
+| `bearFlagDetected(options)` | Bear Flag pattern |
 
 ---
 

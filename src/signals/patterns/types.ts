@@ -10,7 +10,19 @@ export type PatternType =
   | "double_bottom"
   | "head_shoulders"
   | "inverse_head_shoulders"
-  | "cup_handle";
+  | "cup_handle"
+  | "triangle_symmetrical"
+  | "triangle_ascending"
+  | "triangle_descending"
+  | "rising_wedge"
+  | "falling_wedge"
+  | "channel_ascending"
+  | "channel_descending"
+  | "channel_horizontal"
+  | "bull_flag"
+  | "bear_flag"
+  | "bull_pennant"
+  | "bear_pennant";
 
 /**
  * Key point in a pattern (peak, trough, neckline point, etc.)
@@ -152,4 +164,70 @@ export interface CupHandleOptions {
   minHandleLength?: number;
   /** Swing point detection lookback (default: 5) */
   swingLookback?: number;
+}
+
+/**
+ * Common trendline-based pattern options
+ */
+interface TrendlinePatternBaseOptions {
+  /** Swing point detection lookback (default: 3) */
+  swingLookback?: number;
+  /** Minimum swing points per trendline (default: 2) */
+  minPoints?: number;
+  /** Minimum R² for trendline fit (default: 0.6) */
+  minRSquared?: number;
+  /** Maximum bars to search for breakout (default: 20) */
+  maxBreakoutBars?: number;
+  /** Enable volume validation on breakout (default: true) */
+  validateVolume?: boolean;
+  /** Minimum volume increase ratio on breakout (default: 1.2) */
+  minVolumeIncrease?: number;
+  /** Lookback period for average volume calculation (default: 10) */
+  volumeLookback?: number;
+}
+
+/**
+ * Triangle pattern options (symmetrical, ascending, descending)
+ */
+export interface TriangleOptions extends TrendlinePatternBaseOptions {
+  /** Threshold for flat slope detection (default: 0.0003) */
+  flatTolerance?: number;
+  /** Minimum bars for pattern formation (default: 15) */
+  minBars?: number;
+}
+
+/**
+ * Wedge pattern options (rising, falling)
+ */
+export interface WedgeOptions extends TrendlinePatternBaseOptions {
+  /** Minimum bars for pattern formation (default: 15) */
+  minBars?: number;
+}
+
+/**
+ * Channel pattern options (ascending, descending, horizontal)
+ */
+export interface ChannelOptions extends TrendlinePatternBaseOptions {
+  /** Threshold for flat slope detection (default: 0.0003) */
+  flatTolerance?: number;
+  /** Max slope difference for parallel detection (default: 0.0003) */
+  parallelTolerance?: number;
+  /** Minimum bars for pattern formation (default: 20) */
+  minBars?: number;
+}
+
+/**
+ * Flag and Pennant pattern options
+ */
+export interface FlagOptions extends TrendlinePatternBaseOptions {
+  /** Threshold for flat slope detection (default: 0.0003) */
+  flatTolerance?: number;
+  /** Minimum flagpole size as ATR multiple (default: 2.0) */
+  minAtrMultiple?: number;
+  /** Maximum bars for flagpole (default: 8) */
+  maxPoleBars?: number;
+  /** Minimum consolidation bars (default: 5) */
+  minConsolidationBars?: number;
+  /** Maximum consolidation bars (default: 20) */
+  maxConsolidationBars?: number;
 }

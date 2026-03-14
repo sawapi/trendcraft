@@ -184,6 +184,12 @@ export {
   headShouldersDetected,
   inverseHeadShouldersDetected,
   cupHandleDetected,
+  triangleDetected,
+  wedgeDetected,
+  channelDetected,
+  flagDetected,
+  bullFlagDetected,
+  bearFlagDetected,
   type PatternConditionOptions,
 } from "./patterns";
 

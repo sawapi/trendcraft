@@ -155,6 +155,12 @@ export {
   headShouldersDetected,
   inverseHeadShouldersDetected,
   cupHandleDetected,
+  triangleDetected,
+  wedgeDetected,
+  channelDetected,
+  flagDetected,
+  bullFlagDetected,
+  bearFlagDetected,
   // Fundamental conditions (PER/PBR)
   perBelow,
   perAbove,

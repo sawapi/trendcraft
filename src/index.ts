@@ -544,6 +544,14 @@ export {
   headAndShoulders,
   inverseHeadAndShoulders,
   cupWithHandle,
+  detectTriangle,
+  detectWedge,
+  detectChannel,
+  detectFlag,
+  filterPatterns,
+  fitTrendline,
+  fitTrendlinePair,
+  classifyTrendlinePair,
   // Signal Lifecycle
   createSignalManager,
   processSignalsBatch,
@@ -597,6 +605,13 @@ export type {
   DoublePatternOptions,
   HeadShouldersOptions,
   CupHandleOptions,
+  TriangleOptions,
+  WedgeOptions,
+  ChannelOptions,
+  FlagOptions,
+  PatternFilterOptions,
+  TrendlineFit,
+  TrendlinePairType,
 } from "./signals";
 
 // Range-Bound backtest conditions
@@ -715,6 +730,12 @@ export {
   headShouldersDetected,
   inverseHeadShouldersDetected,
   cupHandleDetected,
+  triangleDetected,
+  wedgeDetected,
+  channelDetected,
+  flagDetected,
+  bullFlagDetected,
+  bearFlagDetected,
 } from "./backtest";
 
 export type { PatternConditionOptions } from "./backtest";

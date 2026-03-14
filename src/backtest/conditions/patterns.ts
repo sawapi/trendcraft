@@ -2,23 +2,43 @@
  * Price Pattern Backtest Conditions
  *
  * Conditions for detecting chart patterns in backtesting.
- * Supports Double Top/Bottom, Head & Shoulders, and Cup with Handle patterns.
+ * Supports Double Top/Bottom, Head & Shoulders, Cup with Handle,
+ * Triangle, Wedge, Channel, and Flag/Pennant patterns.
  */
 
 import {
+  detectChannel,
   cupWithHandle as detectCupHandle,
   doubleBottom as detectDoubleBottom,
   doubleTop as detectDoubleTop,
+  detectFlag,
   headAndShoulders as detectHeadShoulders,
   inverseHeadAndShoulders as detectInverseHeadShoulders,
+  detectTriangle,
+  detectWedge,
 } from "../../signals/patterns";
 import type { PatternSignal, PatternType } from "../../signals/patterns";
 import type { NormalizedCandle, PresetCondition } from "../../types";
 
 const PATTERN_CACHE_PREFIX = "pattern_";
 
-const BULLISH_PATTERNS: PatternType[] = ["double_bottom", "inverse_head_shoulders", "cup_handle"];
-const BEARISH_PATTERNS: PatternType[] = ["double_top", "head_shoulders"];
+const BULLISH_PATTERNS: PatternType[] = [
+  "double_bottom",
+  "inverse_head_shoulders",
+  "cup_handle",
+  "falling_wedge",
+  "triangle_ascending",
+  "bull_flag",
+  "bull_pennant",
+];
+const BEARISH_PATTERNS: PatternType[] = [
+  "double_top",
+  "head_shoulders",
+  "rising_wedge",
+  "triangle_descending",
+  "bear_flag",
+  "bear_pennant",
+];
 const ALL_PATTERNS: PatternType[] = [...BULLISH_PATTERNS, ...BEARISH_PATTERNS];
 
 type CandleArray = Parameters<typeof detectDoubleTop>[0];
@@ -32,6 +52,18 @@ const PATTERN_DETECTORS: Record<
   head_shoulders: detectHeadShoulders,
   inverse_head_shoulders: detectInverseHeadShoulders,
   cup_handle: detectCupHandle,
+  triangle_symmetrical: (c, o) => detectTriangle(c, { swingLookback: o.swingLookback }),
+  triangle_ascending: (c, o) => detectTriangle(c, { swingLookback: o.swingLookback }),
+  triangle_descending: (c, o) => detectTriangle(c, { swingLookback: o.swingLookback }),
+  rising_wedge: (c, o) => detectWedge(c, { swingLookback: o.swingLookback }),
+  falling_wedge: (c, o) => detectWedge(c, { swingLookback: o.swingLookback }),
+  channel_ascending: (c, o) => detectChannel(c, { swingLookback: o.swingLookback }),
+  channel_descending: (c, o) => detectChannel(c, { swingLookback: o.swingLookback }),
+  channel_horizontal: (c, o) => detectChannel(c, { swingLookback: o.swingLookback }),
+  bull_flag: (c, o) => detectFlag(c, { swingLookback: o.swingLookback }),
+  bear_flag: (c, o) => detectFlag(c, { swingLookback: o.swingLookback }),
+  bull_pennant: (c, o) => detectFlag(c, { swingLookback: o.swingLookback }),
+  bear_pennant: (c, o) => detectFlag(c, { swingLookback: o.swingLookback }),
 };
 
 /**
@@ -60,7 +92,9 @@ function getPatternData(
   if (cached) return cached;
 
   const detector = PATTERN_DETECTORS[patternType];
-  const patterns = detector ? detector(candles, { swingLookback }) : [];
+  // Detectors like detectTriangle return all subtypes; filter to requested type
+  const allPatterns = detector ? detector(candles, { swingLookback }) : [];
+  const patterns = allPatterns.filter((p) => p.type === patternType);
 
   indicators[cacheKey] = patterns;
   return patterns;
@@ -154,7 +188,7 @@ export function patternConfirmed(
 // ============================================
 
 /**
- * Any bullish pattern detected (Double Bottom, Inverse H&S, Cup with Handle)
+ * Any bullish pattern detected
  *
  * @param options - Pattern detection options
  *
@@ -174,7 +208,7 @@ export function anyBullishPattern(options: PatternConditionOptions = {}): Preset
 }
 
 /**
- * Any bearish pattern detected (Double Top, Head & Shoulders)
+ * Any bearish pattern detected
  *
  * @param options - Pattern detection options
  *
@@ -353,4 +387,90 @@ export function inverseHeadShouldersDetected(
  */
 export function cupHandleDetected(options: PatternConditionOptions = {}): PresetCondition {
   return patternDetected("cup_handle", options);
+}
+
+/**
+ * Triangle pattern detected (any subtype)
+ */
+export function triangleDetected(
+  subtype?: "triangle_symmetrical" | "triangle_ascending" | "triangle_descending",
+  options: PatternConditionOptions = {},
+): PresetCondition {
+  if (subtype) return patternDetected(subtype, options);
+  const types: PatternType[] = [
+    "triangle_symmetrical",
+    "triangle_ascending",
+    "triangle_descending",
+  ];
+  return {
+    type: "preset",
+    name: "triangleDetected()",
+    evaluate: (indicators, candle, _index, candles) =>
+      hasMatchingPattern(indicators, candles, candle, types, options),
+  };
+}
+
+/**
+ * Wedge pattern detected (any subtype)
+ */
+export function wedgeDetected(
+  subtype?: "rising_wedge" | "falling_wedge",
+  options: PatternConditionOptions = {},
+): PresetCondition {
+  if (subtype) return patternDetected(subtype, options);
+  const types: PatternType[] = ["rising_wedge", "falling_wedge"];
+  return {
+    type: "preset",
+    name: "wedgeDetected()",
+    evaluate: (indicators, candle, _index, candles) =>
+      hasMatchingPattern(indicators, candles, candle, types, options),
+  };
+}
+
+/**
+ * Channel pattern detected (any subtype)
+ */
+export function channelDetected(
+  subtype?: "channel_ascending" | "channel_descending" | "channel_horizontal",
+  options: PatternConditionOptions = {},
+): PresetCondition {
+  if (subtype) return patternDetected(subtype, options);
+  const types: PatternType[] = ["channel_ascending", "channel_descending", "channel_horizontal"];
+  return {
+    type: "preset",
+    name: "channelDetected()",
+    evaluate: (indicators, candle, _index, candles) =>
+      hasMatchingPattern(indicators, candles, candle, types, options),
+  };
+}
+
+/**
+ * Flag or Pennant pattern detected (any subtype)
+ */
+export function flagDetected(
+  subtype?: "bull_flag" | "bear_flag" | "bull_pennant" | "bear_pennant",
+  options: PatternConditionOptions = {},
+): PresetCondition {
+  if (subtype) return patternDetected(subtype, options);
+  const types: PatternType[] = ["bull_flag", "bear_flag", "bull_pennant", "bear_pennant"];
+  return {
+    type: "preset",
+    name: "flagDetected()",
+    evaluate: (indicators, candle, _index, candles) =>
+      hasMatchingPattern(indicators, candles, candle, types, options),
+  };
+}
+
+/**
+ * Bull Flag detected
+ */
+export function bullFlagDetected(options: PatternConditionOptions = {}): PresetCondition {
+  return patternDetected("bull_flag", options);
+}
+
+/**
+ * Bear Flag detected
+ */
+export function bearFlagDetected(options: PatternConditionOptions = {}): PresetCondition {
+  return patternDetected("bear_flag", options);
 }
