@@ -8,6 +8,9 @@
 
 import { type NormalizedCandle, type StrategyDefinition, streaming } from "trendcraft";
 import type { OrderIntent } from "../executor/types.js";
+import { checkSectorExposure } from "../risk/correlation-guard.js";
+import type { EarningsGuard } from "../risk/earnings-guard.js";
+import type { SectorId } from "../sec/types.js";
 import type { MarketFilter } from "../strategy/template.js";
 import type { Agent } from "./agent.js";
 import { createAgent } from "./agent.js";
@@ -18,6 +21,12 @@ export type AgentManagerOptions = {
   capital?: number;
   portfolioGuard?: streaming.PortfolioGuardOptions;
   marketState?: MarketState;
+  /** Symbol → sector map for correlation guard */
+  sectorMap?: Map<string, SectorId>;
+  /** Maximum positions per sector (default: 2) */
+  maxSectorPositions?: number;
+  /** Earnings guard — blocks entries near earnings dates */
+  earningsGuard?: EarningsGuard;
 };
 
 export type AgentManager = {
@@ -40,6 +49,12 @@ export type AgentManager = {
   replaceAgentStrategy(agentId: string, newStrategy: StrategyDefinition): boolean;
   /** Set market filter for a strategy (used by LLM overrides) */
   setMarketFilter(strategyId: string, filter: MarketFilter | null): void;
+  /** Deactivate all agents for a strategy (regime rotation) */
+  deactivateStrategy(strategyId: string): void;
+  /** Reactivate all agents for a strategy (regime rotation) */
+  activateStrategy(strategyId: string): void;
+  /** Get set of deactivated strategy IDs */
+  getDeactivatedStrategies(): Set<string>;
 };
 
 export function createAgentManager(opts?: AgentManagerOptions): AgentManager {
@@ -47,6 +62,10 @@ export function createAgentManager(opts?: AgentManagerOptions): AgentManager {
   const symbolAgents = new Map<string, Set<string>>();
   const marketFilters = new Map<string, MarketFilter>();
   const marketState = opts?.marketState ?? null;
+  const sectorMap = opts?.sectorMap ?? new Map<string, SectorId>();
+  const maxSectorPositions = opts?.maxSectorPositions ?? 2;
+  const earningsGuard = opts?.earningsGuard ?? null;
+  const deactivatedStrategies = new Set<string>();
 
   let portfolioGuard: streaming.PortfolioGuard | null = null;
   if (opts?.portfolioGuard) {
@@ -103,6 +122,11 @@ export function createAgentManager(opts?: AgentManagerOptions): AgentManager {
           const { intents } = agent.feedTrade(trade);
 
           for (const intent of intents) {
+            // Strategy deactivation check for entry intents
+            if (deactivatedStrategies.has(agent.strategyId) && intent.reason === "entry") {
+              continue;
+            }
+
             // Market filter check for entry intents
             if (marketState && intent.reason === "entry") {
               const filter = marketFilters.get(agent.strategyId);
@@ -112,6 +136,39 @@ export function createAgentManager(opts?: AgentManagerOptions): AgentManager {
                   console.log(`[MARKET] Blocked ${intent.agentId} entry: ${check.reason}`);
                   continue;
                 }
+              }
+            }
+
+            // Earnings guard for entry intents
+            if (earningsGuard && intent.reason === "entry") {
+              if (earningsGuard.hasUpcomingEarnings(symbol)) {
+                const nextDate = earningsGuard.getNextEarnings(symbol);
+                console.log(`[EARNINGS] Blocked ${intent.agentId} entry: earnings on ${nextDate}`);
+                continue;
+              }
+            }
+
+            // Sector correlation guard for entry intents
+            if (sectorMap.size > 0 && intent.reason === "entry") {
+              const openPositions: { symbol: string }[] = [];
+              for (const a of agents.values()) {
+                const st = a.getState();
+                if (
+                  st.sessionState?.trackerState?.position != null &&
+                  st.sessionState.trackerState.position.shares > 0
+                ) {
+                  openPositions.push({ symbol: a.symbol });
+                }
+              }
+              const sectorCheck = checkSectorExposure(
+                symbol,
+                openPositions,
+                sectorMap,
+                maxSectorPositions,
+              );
+              if (!sectorCheck.allowed) {
+                console.log(`[SECTOR] Blocked ${intent.agentId} entry: ${sectorCheck.reason}`);
+                continue;
               }
             }
 
@@ -213,6 +270,18 @@ export function createAgentManager(opts?: AgentManagerOptions): AgentManager {
       } else {
         marketFilters.delete(strategyId);
       }
+    },
+
+    deactivateStrategy(strategyId: string): void {
+      deactivatedStrategies.add(strategyId);
+    },
+
+    activateStrategy(strategyId: string): void {
+      deactivatedStrategies.delete(strategyId);
+    },
+
+    getDeactivatedStrategies(): Set<string> {
+      return new Set(deactivatedStrategies);
     },
   };
 }

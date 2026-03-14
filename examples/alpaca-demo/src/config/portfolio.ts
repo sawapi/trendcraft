@@ -10,3 +10,6 @@ export const DEFAULT_PORTFOLIO_GUARD: streaming.PortfolioGuardOptions = {
   maxOpenPositions: 8,
   maxPortfolioDrawdown: 10,
 };
+
+/** Maximum positions per sector for correlation guard */
+export const DEFAULT_MAX_SECTOR_POSITIONS = 2;
