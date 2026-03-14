@@ -186,6 +186,8 @@ export function createManagedSession(
       taxRate: positionOptions.taxRate,
       slippage: positionOptions.slippage,
       maxTradeHistory: positionOptions.maxTradeHistory,
+      partialTakeProfit: positionOptions.partialTakeProfit,
+      breakevenStop: positionOptions.breakevenStop,
     },
     fromState?.trackerState,
   );
@@ -273,41 +275,54 @@ export function createManagedSession(
       return [event];
     }
 
-    const { triggered } = tracker.updatePrice(event.candle);
+    const { triggered, partialFills } = tracker.updatePrice(event.candle);
 
     // Update equity in risk guard for drawdown tracking
     const accountAfterUpdate = tracker.getAccount();
     guardedSession.riskGuard?.updateEquity(accountAfterUpdate.equity, event.candle.time);
 
+    const events: ManagedEvent[] = [event];
+
+    // Emit partial fill events
+    for (const pf of partialFills) {
+      reportToRiskGuard(pf.trade, event.candle.time);
+      events.push({
+        type: "position-partial-close",
+        trade: pf.trade,
+        fill: pf.fill,
+        remainingPosition: tracker.getPosition()!,
+        account: tracker.getAccount(),
+        candle: event.candle,
+      });
+    }
+
     if (triggered) {
-      // SL/TP/trailing was hit
+      // SL/TP/trailing/breakeven was hit
       const trades = tracker.getTrades();
       const trade = trades[trades.length - 1];
       reportToRiskGuard(trade, event.candle.time);
 
-      return [
-        event,
-        {
-          type: "position-closed",
-          trade,
-          fill: triggered,
-          account: tracker.getAccount(),
-          candle: event.candle,
-        },
-      ];
+      events.push({
+        type: "position-closed",
+        trade,
+        fill: triggered,
+        account: tracker.getAccount(),
+        candle: event.candle,
+      });
+
+      return events;
     }
 
     // Position still open — emit update
     const account = tracker.getAccount();
-    return [
-      event,
-      {
-        type: "position-update",
-        unrealizedPnl: account.unrealizedPnl,
-        equity: account.equity,
-        candle: event.candle,
-      },
-    ];
+    events.push({
+      type: "position-update",
+      unrealizedPnl: account.unrealizedPnl,
+      equity: account.equity,
+      candle: event.candle,
+    });
+
+    return events;
   }
 
   /**

@@ -5,7 +5,14 @@
  * account state management, and position sizing configuration.
  */
 
-import type { ExitReason, NormalizedCandle, PositionDirection, Trade } from "../../types";
+import type {
+  BreakevenStopConfig,
+  ExitReason,
+  NormalizedCandle,
+  PartialTakeProfitConfig,
+  PositionDirection,
+  Trade,
+} from "../../types";
 import type { IndicatorSnapshot, SessionEvent } from "../types";
 
 // ============================================
@@ -56,6 +63,10 @@ export type ManagedPosition = {
   maxProfitPercent: number;
   /** Maximum adverse excursion in percent */
   maxLossPercent: number;
+  /** Whether partial take profit has been executed */
+  partialTaken: boolean;
+  /** Whether breakeven stop has been activated */
+  breakevenActivated: boolean;
 };
 
 /**
@@ -110,6 +121,8 @@ export type FillRecord = {
     | "stop-loss"
     | "take-profit"
     | "trailing-stop"
+    | "partial-take-profit"
+    | "breakeven"
     | "force-close"
     | "manual";
 };
@@ -187,6 +200,10 @@ export type PositionManagerOptions = {
   slippage?: number;
   /** Maximum number of closed trades to keep in memory (default: 1000) */
   maxTradeHistory?: number;
+  /** Partial take profit configuration */
+  partialTakeProfit?: PartialTakeProfitConfig;
+  /** Breakeven stop configuration */
+  breakevenStop?: BreakevenStopConfig;
 };
 
 // ============================================
@@ -202,11 +219,20 @@ export type OpenPositionOptions = {
 };
 
 /**
+ * Result of a partial fill (partial take profit)
+ */
+export type PartialFillResult = {
+  fill: FillRecord;
+  trade: Trade;
+};
+
+/**
  * Result of updatePrice when SL/TP/trailing is triggered
  */
 export type UpdatePriceResult = {
   position: ManagedPosition;
   triggered: FillRecord | null;
+  partialFills: PartialFillResult[];
 };
 
 /**
@@ -280,6 +306,10 @@ export type PositionTrackerOptions = {
   slippage?: number;
   /** Maximum trade history to keep */
   maxTradeHistory?: number;
+  /** Partial take profit configuration */
+  partialTakeProfit?: PartialTakeProfitConfig;
+  /** Breakeven stop configuration */
+  breakevenStop?: BreakevenStopConfig;
 };
 
 // ============================================
@@ -300,6 +330,14 @@ export type PositionEvent =
       type: "position-closed";
       trade: Trade;
       fill: FillRecord;
+      account: AccountState;
+      candle: NormalizedCandle;
+    }
+  | {
+      type: "position-partial-close";
+      trade: Trade;
+      fill: FillRecord;
+      remainingPosition: ManagedPosition;
       account: AccountState;
       candle: NormalizedCandle;
     }

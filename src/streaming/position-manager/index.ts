@@ -17,6 +17,7 @@ export type {
   ClosedTradeResult,
   PositionTrackerState,
   PositionTracker,
+  PartialFillResult,
   PositionTrackerOptions,
   PositionEvent,
   ManagedEvent,

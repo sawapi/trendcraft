@@ -18,12 +18,20 @@
  */
 
 import { applySlippage, calculateTradeClose } from "../../backtest/engine-utils";
-import type { ExitReason, NormalizedCandle, PositionDirection, Trade } from "../../types";
+import type {
+  BreakevenStopConfig,
+  ExitReason,
+  NormalizedCandle,
+  PartialTakeProfitConfig,
+  PositionDirection,
+  Trade,
+} from "../../types";
 import type {
   ClosedTradeResult,
   FillRecord,
   ManagedPosition,
   OpenPositionOptions,
+  PartialFillResult,
   PositionTracker,
   PositionTrackerOptions,
   PositionTrackerState,
@@ -41,6 +49,10 @@ function toExitReason(reason: FillRecord["reason"]): ExitReason {
       return "takeProfit";
     case "trailing-stop":
       return "trailing";
+    case "partial-take-profit":
+      return "partialTakeProfit";
+    case "breakeven":
+      return "breakeven";
     case "exit-signal":
       return "signal";
     case "force-close":
@@ -84,6 +96,8 @@ export function createPositionTracker(
 ): PositionTracker {
   const direction: PositionDirection = options.direction ?? "long";
   const isShort = direction === "short";
+  const exitSide: "buy" | "sell" = isShort ? "buy" : "sell";
+  const directionSign = isShort ? -1 : 1;
   const stopLossPercent = options.stopLoss ?? 0;
   const takeProfitPercent = options.takeProfit ?? 0;
   const trailingStopPercent = options.trailingStop ?? 0;
@@ -92,6 +106,8 @@ export function createPositionTracker(
   const taxRate = options.taxRate ?? 0;
   const slippage = options.slippage ?? 0;
   const maxTradeHistory = options.maxTradeHistory ?? 1000;
+  const partialTakeProfit: PartialTakeProfitConfig | undefined = options.partialTakeProfit;
+  const breakevenStop: BreakevenStopConfig | undefined = options.breakevenStop;
 
   // Mutable state
   let position: ManagedPosition | null = fromState?.position ?? null;
@@ -108,26 +124,44 @@ export function createPositionTracker(
   let positionCounter = fromState?.positionCounter ?? 0;
 
   /**
+   * Compute a price level offset from a base price by a percentage.
+   * Positive sign = favorable direction (TP), negative sign = adverse direction (SL).
+   *
+   * Long  favorable: base * (1 + pct/100)   — price rises
+   * Short favorable: base * (1 - pct/100)   — price falls
+   */
+  function favorablePrice(base: number, pct: number): number {
+    return base * (1 + (directionSign * pct) / 100);
+  }
+
+  function adversePrice(base: number, pct: number): number {
+    return base * (1 - (directionSign * pct) / 100);
+  }
+
+  /**
+   * Check if price has reached a favorable target (long: price >= target, short: price <= target)
+   */
+  function hitFavorable(candle: NormalizedCandle, target: number): boolean {
+    return isShort ? candle.low <= target : candle.high >= target;
+  }
+
+  /**
+   * Check if price has reached an adverse target (long: price <= target, short: price >= target)
+   */
+  function hitAdverse(candle: NormalizedCandle, target: number): boolean {
+    return isShort ? candle.high >= target : candle.low <= target;
+  }
+
+  /**
    * Calculate SL/TP price levels from entry price and percentages
    */
   function calculateLevels(entryPrice: number): {
     stopLossPrice: number | null;
     takeProfitPrice: number | null;
   } {
-    let stopLossPrice: number | null = null;
-    let takeProfitPrice: number | null = null;
-
-    if (stopLossPercent > 0) {
-      stopLossPrice = isShort
-        ? entryPrice * (1 + stopLossPercent / 100)
-        : entryPrice * (1 - stopLossPercent / 100);
-    }
-    if (takeProfitPercent > 0) {
-      takeProfitPrice = isShort
-        ? entryPrice * (1 - takeProfitPercent / 100)
-        : entryPrice * (1 + takeProfitPercent / 100);
-    }
-
+    const stopLossPrice = stopLossPercent > 0 ? adversePrice(entryPrice, stopLossPercent) : null;
+    const takeProfitPrice =
+      takeProfitPercent > 0 ? favorablePrice(entryPrice, takeProfitPercent) : null;
     return { stopLossPrice, takeProfitPrice };
   }
 
@@ -139,10 +173,8 @@ export function createPositionTracker(
       account.unrealizedPnl = 0;
       account.equity = account.currentCapital;
     } else {
-      const priceDiff = isShort
-        ? (position.entryPrice - currentPrice) * position.shares
-        : (currentPrice - position.entryPrice) * position.shares;
-      account.unrealizedPnl = priceDiff;
+      account.unrealizedPnl =
+        directionSign * (currentPrice - position.entryPrice) * position.shares;
       // Equity = cash + position market value
       account.equity = account.currentCapital + currentPrice * position.shares;
     }
@@ -160,6 +192,39 @@ export function createPositionTracker(
   }
 
   /**
+   * Build the position snapshot object needed by calculateTradeClose
+   */
+  function positionSnapshot(pos: ManagedPosition) {
+    return {
+      entryTime: pos.entryTime,
+      entryPrice: pos.entryPrice,
+      peakPrice: pos.peakPrice,
+      troughPrice: pos.troughPrice,
+      direction,
+      shares: pos.shares,
+      originalShares: pos.originalShares,
+      partialTaken: pos.partialTaken,
+      breakevenActivated: pos.breakevenActivated,
+      scaleOutLevelsTaken: [] as number[],
+      entryAtr: null,
+      maxProfitPercent: pos.maxProfitPercent,
+      maxLossPercent: pos.maxLossPercent,
+    };
+  }
+
+  /**
+   * Record a trade result: update account and append to trade history
+   */
+  function recordTrade(netProceeds: number, trade: Trade): void {
+    account.currentCapital += netProceeds;
+    account.totalRealizedPnl += trade.return;
+    trades.push(trade);
+    if (trades.length > maxTradeHistory) {
+      trades = trades.slice(trades.length - maxTradeHistory);
+    }
+  }
+
+  /**
    * Execute a position close using engine-utils
    */
   function executeClose(
@@ -171,27 +236,11 @@ export function createPositionTracker(
       throw new Error("No open position to close");
     }
 
-    const exitReason = toExitReason(reason);
-    const exitSide = isShort ? "buy" : "sell";
     const result = calculateTradeClose({
-      position: {
-        entryTime: position.entryTime,
-        entryPrice: position.entryPrice,
-        peakPrice: position.peakPrice,
-        troughPrice: position.troughPrice,
-        direction,
-        shares: position.shares,
-        originalShares: position.originalShares,
-        partialTaken: false,
-        breakevenActivated: false,
-        scaleOutLevelsTaken: [],
-        entryAtr: null,
-        maxProfitPercent: position.maxProfitPercent,
-        maxLossPercent: position.maxLossPercent,
-      },
+      position: positionSnapshot(position),
       exitTime: time,
       exitPrice: price,
-      exitReason: exitReason,
+      exitReason: toExitReason(reason),
       sharesToClose: position.shares,
       commission,
       commissionRate,
@@ -207,21 +256,54 @@ export function createPositionTracker(
       reason,
     };
 
-    // Update account
-    account.currentCapital += result.netProceeds;
-    account.totalRealizedPnl += result.trade.return;
-
-    // Clear position
+    recordTrade(result.netProceeds, result.trade);
     position = null;
     updateUnrealized(0);
 
-    // Store trade
-    trades.push(result.trade);
-    if (trades.length > maxTradeHistory) {
-      trades = trades.slice(trades.length - maxTradeHistory);
+    return { trade: result.trade, fill };
+  }
+
+  /**
+   * Execute a partial position close (for partial take profit)
+   */
+  function executePartialClose(
+    exitPrice: number,
+    time: number,
+    sellPercent: number,
+  ): PartialFillResult {
+    if (!position) {
+      throw new Error("No open position for partial close");
     }
 
-    return { trade: result.trade, fill };
+    const sharesToSell = position.shares * (sellPercent / 100);
+
+    const result = calculateTradeClose({
+      position: positionSnapshot(position),
+      exitTime: time,
+      exitPrice,
+      exitReason: "partialTakeProfit",
+      sharesToClose: sharesToSell,
+      isPartial: true,
+      exitPercent: sellPercent,
+      commission,
+      commissionRate,
+      taxRate,
+      slippage,
+    });
+
+    const fill: FillRecord = {
+      time,
+      price: result.trade.exitPrice,
+      shares: sharesToSell,
+      side: exitSide,
+      reason: "partial-take-profit",
+    };
+
+    position.shares -= sharesToSell;
+    position.partialTaken = true;
+    recordTrade(result.netProceeds, result.trade);
+
+    return { fill, trade: result.trade };
   }
 
   return {
@@ -239,7 +321,7 @@ export function createPositionTracker(
       }
 
       positionCounter++;
-      const entrySide = isShort ? "sell" : "buy";
+      const entrySide: "buy" | "sell" = isShort ? "sell" : "buy";
       const entryPrice = applySlippage(price, slippage, entrySide);
       const positionValue = entryPrice * shares;
 
@@ -264,6 +346,8 @@ export function createPositionTracker(
         troughPrice: entryPrice,
         maxProfitPercent: 0,
         maxLossPercent: 0,
+        partialTaken: false,
+        breakevenActivated: false,
       };
 
       updateUnrealized(entryPrice);
@@ -273,8 +357,14 @@ export function createPositionTracker(
 
     updatePrice(candle: NormalizedCandle): UpdatePriceResult {
       if (!position) {
-        return { position: null as unknown as ManagedPosition, triggered: null };
+        return {
+          position: null as unknown as ManagedPosition,
+          triggered: null,
+          partialFills: [],
+        };
       }
+
+      const partialFills: PartialFillResult[] = [];
 
       // Update peak and trough prices
       if (candle.high > position.peakPrice) {
@@ -284,68 +374,80 @@ export function createPositionTracker(
         position.troughPrice = candle.low;
       }
 
-      // Update MFE/MAE based on direction
-      if (isShort) {
-        const profitPercent = ((position.entryPrice - candle.low) / position.entryPrice) * 100;
-        const lossPercent = ((candle.high - position.entryPrice) / position.entryPrice) * 100;
-        if (profitPercent > position.maxProfitPercent) {
-          position.maxProfitPercent = profitPercent;
-        }
-        if (lossPercent > 0 && lossPercent > position.maxLossPercent) {
-          position.maxLossPercent = lossPercent;
-        }
-      } else {
-        const currentProfitPercent =
-          ((candle.high - position.entryPrice) / position.entryPrice) * 100;
-        const currentLossPercent = ((position.entryPrice - candle.low) / position.entryPrice) * 100;
-        if (currentProfitPercent > position.maxProfitPercent) {
-          position.maxProfitPercent = currentProfitPercent;
-        }
-        if (currentLossPercent > position.maxLossPercent) {
-          position.maxLossPercent = currentLossPercent;
+      // Update MFE/MAE: favorable = high for long, low for short
+      const bestPrice = isShort ? candle.low : candle.high;
+      const worstPrice = isShort ? candle.high : candle.low;
+      const profitPercent =
+        (directionSign * (bestPrice - position.entryPrice) * 100) / position.entryPrice;
+      const lossPercent =
+        (directionSign * (position.entryPrice - worstPrice) * 100) / position.entryPrice;
+      if (profitPercent > position.maxProfitPercent) {
+        position.maxProfitPercent = profitPercent;
+      }
+      if (lossPercent > 0 && lossPercent > position.maxLossPercent) {
+        position.maxLossPercent = lossPercent;
+      }
+
+      /** Helper to build a closed-position result */
+      function closedResult(fill: FillRecord): UpdatePriceResult {
+        return {
+          position: null as unknown as ManagedPosition,
+          triggered: fill,
+          partialFills,
+        };
+      }
+
+      // Check stop loss (adverse price hit)
+      if (position.stopLossPrice !== null && hitAdverse(candle, position.stopLossPrice)) {
+        const result = executeClose(position.stopLossPrice, candle.time, "stop-loss");
+        return closedResult(result.fill);
+      }
+
+      // Check take profit (favorable price hit)
+      if (position.takeProfitPrice !== null && hitFavorable(candle, position.takeProfitPrice)) {
+        const result = executeClose(position.takeProfitPrice, candle.time, "take-profit");
+        return closedResult(result.fill);
+      }
+
+      // Partial take profit check
+      if (partialTakeProfit && !position.partialTaken) {
+        const thresholdPrice = favorablePrice(position.entryPrice, partialTakeProfit.threshold);
+        if (hitFavorable(candle, thresholdPrice)) {
+          partialFills.push(
+            executePartialClose(thresholdPrice, candle.time, partialTakeProfit.sellPercent),
+          );
         }
       }
 
-      // Check stop loss
-      if (position.stopLossPrice !== null) {
-        const slTriggered = isShort
-          ? candle.high >= position.stopLossPrice
-          : candle.low <= position.stopLossPrice;
-        if (slTriggered) {
-          const result = executeClose(position.stopLossPrice, candle.time, "stop-loss");
-          return { position: null as unknown as ManagedPosition, triggered: result.fill };
-        }
-      }
+      // Breakeven stop check
+      if (breakevenStop && position) {
+        const beThresholdPrice = favorablePrice(position.entryPrice, breakevenStop.threshold);
+        const beStopPrice = favorablePrice(position.entryPrice, breakevenStop.buffer ?? 0);
 
-      // Check take profit
-      if (position.takeProfitPrice !== null) {
-        const tpTriggered = isShort
-          ? candle.low <= position.takeProfitPrice
-          : candle.high >= position.takeProfitPrice;
-        if (tpTriggered) {
-          const result = executeClose(position.takeProfitPrice, candle.time, "take-profit");
-          return { position: null as unknown as ManagedPosition, triggered: result.fill };
+        if (!position.breakevenActivated && hitFavorable(candle, beThresholdPrice)) {
+          position.breakevenActivated = true;
+        }
+
+        if (position.breakevenActivated && hitAdverse(candle, beStopPrice)) {
+          const result = executeClose(beStopPrice, candle.time, "breakeven");
+          return closedResult(result.fill);
         }
       }
 
       // Check trailing stop
-      if (trailingStopPercent > 0) {
-        const trailingStopPrice = isShort
-          ? position.troughPrice * (1 + trailingStopPercent / 100)
-          : position.peakPrice * (1 - trailingStopPercent / 100);
-        const trailTriggered = isShort
-          ? candle.high >= trailingStopPrice
-          : candle.low <= trailingStopPrice;
-        if (trailTriggered) {
+      if (trailingStopPercent > 0 && position) {
+        const anchor = isShort ? position.troughPrice : position.peakPrice;
+        const trailingStopPrice = adversePrice(anchor, trailingStopPercent);
+        if (hitAdverse(candle, trailingStopPrice)) {
           const result = executeClose(trailingStopPrice, candle.time, "trailing-stop");
-          return { position: null as unknown as ManagedPosition, triggered: result.fill };
+          return closedResult(result.fill);
         }
       }
 
       // No trigger — update unrealized
       updateUnrealized(candle.close);
 
-      return { position: { ...position }, triggered: null };
+      return { position: { ...position }, triggered: null, partialFills };
     },
 
     closePosition(price: number, time: number, reason: FillRecord["reason"]): ClosedTradeResult {
