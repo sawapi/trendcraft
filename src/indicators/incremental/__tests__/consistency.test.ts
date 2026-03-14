@@ -9,7 +9,11 @@ import { describe, expect, it } from "vitest";
 import type { BollingerBandsValue, MacdValue, NormalizedCandle } from "../../../types";
 import type { VolumeAnomalyValue } from "../../../types";
 import type { ChandelierExitValue } from "../../../types";
+import { aroon } from "../../momentum/aroon";
+import type { AroonValue } from "../../momentum/aroon";
 import { cci } from "../../momentum/cci";
+import { connorsRsi } from "../../momentum/connors-rsi";
+import type { ConnorsRsiValue } from "../../momentum/connors-rsi";
 import type { DmiValue } from "../../momentum/dmi";
 import { dmi } from "../../momentum/dmi";
 import { macd } from "../../momentum/macd";
@@ -23,6 +27,11 @@ import { trix } from "../../momentum/trix";
 import type { TrixValue } from "../../momentum/trix";
 import { williamsR } from "../../momentum/williams-r";
 import { ema } from "../../moving-average/ema";
+import { emaRibbon } from "../../moving-average/ema-ribbon";
+import type { EmaRibbonValue } from "../../moving-average/ema-ribbon";
+import { hma } from "../../moving-average/hma";
+import { kama } from "../../moving-average/kama";
+import { mcginleyDynamic } from "../../moving-average/mcginley-dynamic";
 import { sma } from "../../moving-average/sma";
 import { vwma } from "../../moving-average/vwma";
 import { wma } from "../../moving-average/wma";
@@ -32,9 +41,12 @@ import type { ParabolicSarValue } from "../../trend/parabolic-sar";
 import { parabolicSar } from "../../trend/parabolic-sar";
 import type { SupertrendValue } from "../../trend/supertrend";
 import { supertrend } from "../../trend/supertrend";
+import { vortex } from "../../trend/vortex";
+import type { VortexValue } from "../../trend/vortex";
 import { atr } from "../../volatility/atr";
 import { bollingerBands } from "../../volatility/bollinger-bands";
 import { chandelierExit } from "../../volatility/chandelier-exit";
+import { choppinessIndex } from "../../volatility/choppiness-index";
 import { donchianChannel } from "../../volatility/donchian-channel";
 import type { DonchianValue } from "../../volatility/donchian-channel";
 import { keltnerChannel } from "../../volatility/keltner-channel";
@@ -49,7 +61,11 @@ import { volumeAnomaly } from "../../volume/volume-anomaly";
 import { vwap } from "../../volume/vwap";
 import type { VwapValue } from "../../volume/vwap";
 import { processAll } from "../bridge";
+import { createAroon } from "../momentum/aroon";
+import type { AroonValue as IncrementalAroonValue } from "../momentum/aroon";
 import { createCci } from "../momentum/cci";
+import { createConnorsRsi } from "../momentum/connors-rsi";
+import type { ConnorsRsiValue as IncrementalConnorsRsiValue } from "../momentum/connors-rsi";
 import { createDmi } from "../momentum/dmi";
 import { createMacd } from "../momentum/macd";
 import { createRoc } from "../momentum/roc";
@@ -58,8 +74,15 @@ import { createStochRsi } from "../momentum/stoch-rsi";
 import { createStochastics } from "../momentum/stochastics";
 import { createTrix } from "../momentum/trix";
 import type { TrixValue as IncrementalTrixValue } from "../momentum/trix";
+import { createVortex } from "../momentum/vortex";
+import type { VortexValue as IncrementalVortexValue } from "../momentum/vortex";
 import { createWilliamsR } from "../momentum/williams-r";
 import { createEma } from "../moving-average/ema";
+import { createEmaRibbon } from "../moving-average/ema-ribbon";
+import type { EmaRibbonValue as IncrementalEmaRibbonValue } from "../moving-average/ema-ribbon";
+import { createHma } from "../moving-average/hma";
+import { createKama } from "../moving-average/kama";
+import { createMcGinleyDynamic } from "../moving-average/mcginley-dynamic";
 import { createSma } from "../moving-average/sma";
 import { createVwma } from "../moving-average/vwma";
 import { createWma } from "../moving-average/wma";
@@ -69,6 +92,7 @@ import { createSupertrend } from "../trend/supertrend";
 import { createAtr } from "../volatility/atr";
 import { createBollingerBands } from "../volatility/bollinger-bands";
 import { createChandelierExit } from "../volatility/chandelier-exit";
+import { createChoppinessIndex } from "../volatility/choppiness-index";
 import { createDonchianChannel } from "../volatility/donchian-channel";
 import { createKeltnerChannel } from "../volatility/keltner-channel";
 import { createRegime } from "../volatility/regime";
@@ -940,6 +964,84 @@ describe("Volume Anomaly consistency", () => {
   });
 });
 
+// ==========================================
+// KAMA, HMA, McGinley Dynamic, Aroon
+// ==========================================
+
+describe("KAMA consistency", () => {
+  it("default params match batch", () => {
+    const batch = kama(candles);
+    const incremental = processAll(createKama(), candles);
+    assertConsistency(batch, incremental, 1e-8);
+  });
+
+  it("custom params match batch", () => {
+    const opts = { period: 20, fastPeriod: 2, slowPeriod: 30 };
+    const batch = kama(candles, opts);
+    const incremental = processAll(createKama(opts), candles);
+    assertConsistency(batch, incremental, 1e-8);
+  });
+});
+
+describe("HMA consistency", () => {
+  it.each([9, 14, 20])("period=%i matches batch", (period) => {
+    const batch = hma(candles, { period });
+    const incremental = processAll(createHma({ period }), candles);
+    assertConsistency(batch, incremental, 1e-6);
+  });
+});
+
+describe("McGinley Dynamic consistency", () => {
+  it("default params match batch", () => {
+    const batch = mcginleyDynamic(candles);
+    const incremental = processAll(createMcGinleyDynamic(), candles);
+    assertConsistency(batch, incremental, 1e-8);
+  });
+
+  it("custom params match batch", () => {
+    const opts = { period: 20, k: 0.6 };
+    const batch = mcginleyDynamic(candles, opts);
+    const incremental = processAll(createMcGinleyDynamic(opts), candles);
+    assertConsistency(batch, incremental, 1e-8);
+  });
+});
+
+describe("Aroon consistency", () => {
+  it.each([14, 25])("period=%i matches batch", (period) => {
+    const batch = aroon(candles, { period });
+    const incremental = processAll(createAroon({ period }), candles);
+
+    expect(incremental.length).toBe(batch.length);
+    for (let i = 0; i < batch.length; i++) {
+      expect(incremental[i].time).toBe(batch[i].time);
+
+      const bv = batch[i].value as AroonValue;
+      const iv = incremental[i].value as IncrementalAroonValue;
+
+      if (bv.up === null) {
+        expect(iv.up).toBeNull();
+      } else {
+        expect(iv.up).not.toBeNull();
+        expect(Math.abs(iv.up! - bv.up)).toBeLessThan(1e-10);
+      }
+
+      if (bv.down === null) {
+        expect(iv.down).toBeNull();
+      } else {
+        expect(iv.down).not.toBeNull();
+        expect(Math.abs(iv.down! - bv.down)).toBeLessThan(1e-10);
+      }
+
+      if (bv.oscillator === null) {
+        expect(iv.oscillator).toBeNull();
+      } else {
+        expect(iv.oscillator).not.toBeNull();
+        expect(Math.abs(iv.oscillator! - bv.oscillator)).toBeLessThan(1e-10);
+      }
+    }
+  });
+});
+
 describe("Chandelier Exit consistency", () => {
   it("default params match batch", () => {
     const batch = chandelierExit(candles);
@@ -990,6 +1092,117 @@ describe("Chandelier Exit consistency", () => {
 
       expect(iv.direction).toBe(bv.direction);
       expect(iv.isCrossover).toBe(bv.isCrossover);
+    }
+  });
+});
+
+// ==========================================
+// Connors RSI, EMA Ribbon, Choppiness Index, Vortex
+// ==========================================
+
+describe("Connors RSI consistency", () => {
+  it("default params match batch", () => {
+    const batch = connorsRsi(candles);
+    const incremental = processAll(createConnorsRsi(), candles);
+
+    expect(incremental.length).toBe(batch.length);
+    for (let i = 0; i < batch.length; i++) {
+      expect(incremental[i].time).toBe(batch[i].time);
+
+      const bv = batch[i].value as ConnorsRsiValue;
+      const iv = incremental[i].value as IncrementalConnorsRsiValue;
+
+      if (bv.crsi === null) {
+        expect(iv.crsi).toBeNull();
+      } else {
+        expect(iv.crsi).not.toBeNull();
+        expect(Math.abs(iv.crsi! - bv.crsi)).toBeLessThan(1e-6);
+      }
+
+      if (bv.rsi === null) {
+        expect(iv.rsi).toBeNull();
+      } else {
+        expect(iv.rsi).not.toBeNull();
+        expect(Math.abs(iv.rsi! - bv.rsi)).toBeLessThan(1e-8);
+      }
+
+      if (bv.streakRsi === null) {
+        expect(iv.streakRsi).toBeNull();
+      } else {
+        expect(iv.streakRsi).not.toBeNull();
+        expect(Math.abs(iv.streakRsi! - bv.streakRsi)).toBeLessThan(1e-8);
+      }
+
+      if (bv.rocPercentile === null) {
+        expect(iv.rocPercentile).toBeNull();
+      } else if (iv.rocPercentile !== null) {
+        expect(Math.abs(iv.rocPercentile - bv.rocPercentile)).toBeLessThan(1e-6);
+      }
+    }
+  });
+});
+
+describe("EMA Ribbon consistency", () => {
+  it("default params match batch", () => {
+    const batch = emaRibbon(candles);
+    const incremental = processAll(createEmaRibbon(), candles);
+
+    expect(incremental.length).toBe(batch.length);
+    for (let i = 0; i < batch.length; i++) {
+      expect(incremental[i].time).toBe(batch[i].time);
+
+      const bv = batch[i].value as EmaRibbonValue;
+      const iv = incremental[i].value as IncrementalEmaRibbonValue;
+
+      expect(iv.values.length).toBe(bv.values.length);
+      for (let j = 0; j < bv.values.length; j++) {
+        if (bv.values[j] === null) {
+          expect(iv.values[j]).toBeNull();
+        } else {
+          expect(iv.values[j]).not.toBeNull();
+          expect(Math.abs(iv.values[j]! - bv.values[j]!)).toBeLessThan(1e-8);
+        }
+      }
+
+      expect(iv.bullish).toBe(bv.bullish);
+      expect(iv.expanding).toBe(bv.expanding);
+    }
+  });
+});
+
+describe("Choppiness Index consistency", () => {
+  it.each([7, 14, 20])("period=%i matches batch", (period) => {
+    const batch = choppinessIndex(candles, { period });
+    const incremental = processAll(createChoppinessIndex({ period }), candles);
+    assertConsistency(batch, incremental, 1e-8);
+  });
+});
+
+describe("Vortex consistency", () => {
+  it.each([7, 14, 21])("period=%i matches batch", (period) => {
+    const batch = vortex(candles, { period });
+    const incremental = processAll(createVortex({ period }), candles);
+
+    expect(incremental.length).toBe(batch.length);
+    for (let i = 0; i < batch.length; i++) {
+      expect(incremental[i].time).toBe(batch[i].time);
+
+      const bv = batch[i].value as VortexValue;
+      const iv = incremental[i].value as IncrementalVortexValue;
+
+      if (bv.viPlus === null) {
+        expect(iv.viPlus).toBeNull();
+      } else {
+        expect(iv.viPlus).not.toBeNull();
+        expect(Math.abs(iv.viPlus! - bv.viPlus)).toBeLessThan(1e-8);
+      }
+
+      if (bv.viMinus === null) {
+        expect(iv.viMinus).toBeNull();
+      } else {
+        expect(iv.viMinus).not.toBeNull();
+        expect(Math.abs(iv.viMinus! - bv.viMinus)).toBeLessThan(1e-8);
+      }
     }
   });
 });

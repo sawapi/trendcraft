@@ -11,6 +11,7 @@ export type { IncrementalIndicator, WarmUpOptions } from "./types";
 // Utilities
 export { CircularBuffer } from "./circular-buffer";
 export { processAll } from "./bridge";
+export { getSourcePrice, makeCandle } from "./utils";
 
 // Moving Averages
 export { createSma } from "./moving-average/sma";
@@ -21,6 +22,14 @@ export { createWma } from "./moving-average/wma";
 export type { WmaState } from "./moving-average/wma";
 export { createVwma } from "./moving-average/vwma";
 export type { VwmaState } from "./moving-average/vwma";
+export { createKama } from "./moving-average/kama";
+export type { KamaState } from "./moving-average/kama";
+export { createHma } from "./moving-average/hma";
+export type { HmaState } from "./moving-average/hma";
+export { createMcGinleyDynamic } from "./moving-average/mcginley-dynamic";
+export type { McGinleyDynamicState } from "./moving-average/mcginley-dynamic";
+export { createEmaRibbon } from "./moving-average/ema-ribbon";
+export type { EmaRibbonState, EmaRibbonValue } from "./moving-average/ema-ribbon";
 
 // Momentum (includes TRIX)
 export { createRsi } from "./momentum/rsi";
@@ -41,6 +50,15 @@ export { createStochRsi } from "./momentum/stoch-rsi";
 export type { StochRsiState, StochRsiValue } from "./momentum/stoch-rsi";
 export { createTrix } from "./momentum/trix";
 export type { TrixState, TrixValue as IncrementalTrixValue } from "./momentum/trix";
+export { createAroon } from "./momentum/aroon";
+export type { AroonState, AroonValue as IncrementalAroonValue } from "./momentum/aroon";
+export { createConnorsRsi } from "./momentum/connors-rsi";
+export type {
+  ConnorsRsiState,
+  ConnorsRsiValue as IncrementalConnorsRsiValue,
+} from "./momentum/connors-rsi";
+export { createVortex } from "./momentum/vortex";
+export type { VortexState, VortexValue as IncrementalVortexValue } from "./momentum/vortex";
 
 // Volatility
 export { createAtr } from "./volatility/atr";
@@ -55,6 +73,8 @@ export { createRegime } from "./volatility/regime";
 export type { RegimeState, RegimeValue, RegimeOptions } from "./volatility/regime";
 export { createChandelierExit } from "./volatility/chandelier-exit";
 export type { ChandelierExitState } from "./volatility/chandelier-exit";
+export { createChoppinessIndex } from "./volatility/choppiness-index";
+export type { ChoppinessIndexState } from "./volatility/choppiness-index";
 
 // Trend
 export { createSupertrend } from "./trend/supertrend";

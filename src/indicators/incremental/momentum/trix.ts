@@ -12,6 +12,7 @@ import type { NormalizedCandle } from "../../../types";
 import { createEma } from "../moving-average/ema";
 import type { EmaState } from "../moving-average/ema";
 import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import { makeCandle } from "../utils";
 
 export type TrixValue = {
   trix: number | null;
@@ -27,13 +28,8 @@ export type TrixState = {
   signalEmaState: EmaState;
   prevEma3: number | null;
   trixCount: number;
-  trixSum: number;
   count: number;
 };
-
-function makeCandle(time: number, value: number): NormalizedCandle {
-  return { time, open: value, high: value, low: value, close: value, volume: 0 };
-}
 
 /**
  * Create an incremental TRIX indicator
@@ -60,7 +56,6 @@ export function createTrix(
   let signalEma: ReturnType<typeof createEma>;
   let prevEma3: number | null;
   let trixCount: number;
-  let trixSum: number;
   let count: number;
 
   if (warmUpOptions?.fromState) {
@@ -71,7 +66,6 @@ export function createTrix(
     signalEma = createEma({ period: signalPeriod }, { fromState: s.signalEmaState });
     prevEma3 = s.prevEma3;
     trixCount = s.trixCount;
-    trixSum = s.trixSum;
     count = s.count;
   } else {
     ema1 = createEma({ period });
@@ -80,7 +74,6 @@ export function createTrix(
     signalEma = createEma({ period: signalPeriod });
     prevEma3 = null;
     trixCount = 0;
-    trixSum = 0;
     count = 0;
   }
 
@@ -88,13 +81,13 @@ export function createTrix(
     next(candle: NormalizedCandle) {
       count++;
 
-      // Pass through triple EMA
+      // Pass through triple EMA (batch maps null → 0 for synthetic candles)
       const e1 = ema1.next(candle);
       const e1Val = e1.value;
-      const e2 = e1Val !== null ? ema2.next(makeCandle(candle.time, e1Val)) : { value: null };
-      const e2Val = e2.value as number | null;
-      const e3 = e2Val !== null ? ema3.next(makeCandle(candle.time, e2Val)) : { value: null };
-      const e3Val = e3.value as number | null;
+      const e2 = ema2.next(makeCandle(candle.time, e1Val ?? 0));
+      const e2Val = e2.value;
+      const e3 = ema3.next(makeCandle(candle.time, e2Val ?? 0));
+      const e3Val = e3.value;
 
       // TRIX = ROC of EMA3
       let trixVal: number | null = null;
@@ -160,7 +153,6 @@ export function createTrix(
         signalEmaState: signalEma.getState(),
         prevEma3,
         trixCount,
-        trixSum,
         count,
       };
     },

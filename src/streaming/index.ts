@@ -84,6 +84,65 @@ export {
   resolveNumber,
   crossOver,
   crossUnder,
+  // Bollinger
+  bollingerBreakout,
+  bollingerTouch,
+  bollingerSqueeze,
+  bollingerExpansion,
+  // Stochastics
+  stochBelow,
+  stochAbove,
+  stochCrossUp,
+  stochCrossDown,
+  // MACD
+  macdCrossUp,
+  macdCrossDown,
+  macdHistogramRising,
+  macdHistogramFalling,
+  // DMI/ADX
+  adxStrong,
+  adxRising,
+  dmiCrossUp,
+  dmiCrossDown,
+  // Volume
+  volumeAboveAvg,
+  cmfAbove,
+  cmfBelow,
+  obvRising,
+  obvFalling,
+  obvCrossUp,
+  obvCrossDown,
+  // Volatility
+  atrPercentAbove,
+  atrPercentBelow,
+  volatilityExpanding,
+  volatilityContracting,
+  // Trend
+  supertrendBullish,
+  supertrendBearish,
+  supertrendFlip,
+  ichimokuBullish,
+  ichimokuBearish,
+  sarFlip,
+  // Price
+  priceDroppedAtr,
+  priceGainedAtr,
+  newHigh,
+  newLow,
+  // Perfect Order
+  perfectOrderBullish,
+  perfectOrderBearish,
+  perfectOrderForming,
+  perfectOrderCollapsed,
+  // Keltner
+  keltnerBreakout,
+  keltnerTouch,
+  keltnerSqueeze,
+  // Donchian
+  donchianBreakoutHigh,
+  donchianBreakoutLow,
+  donchianMiddleCrossUp,
+  donchianMiddleCrossDown,
 } from "./conditions";
 export type {
   ValueExtractor,

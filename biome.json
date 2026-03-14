@@ -33,7 +33,7 @@
     }
   },
   "files": {
-    "ignore": ["dist", "node_modules", "*.config.ts"]
+    "ignore": ["dist", "node_modules", "*.config.ts", "examples/alpaca-demo/data"]
   },
   "overrides": [
     {

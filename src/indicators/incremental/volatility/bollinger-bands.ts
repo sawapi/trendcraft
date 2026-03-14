@@ -7,6 +7,7 @@
 import type { BollingerBandsValue, NormalizedCandle, PriceSource } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
 import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import { getSourcePrice } from "../utils";
 
 export type BollingerBandsState = {
   period: number;
@@ -17,27 +18,6 @@ export type BollingerBandsState = {
   sumSquares: number;
   count: number;
 };
-
-function getSourcePrice(candle: NormalizedCandle, source: PriceSource): number {
-  switch (source) {
-    case "open":
-      return candle.open;
-    case "high":
-      return candle.high;
-    case "low":
-      return candle.low;
-    case "close":
-      return candle.close;
-    case "hl2":
-      return (candle.high + candle.low) / 2;
-    case "hlc3":
-      return (candle.high + candle.low + candle.close) / 3;
-    case "ohlc4":
-      return (candle.open + candle.high + candle.low + candle.close) / 4;
-    default:
-      return candle.close;
-  }
-}
 
 /**
  * Create an incremental Bollinger Bands indicator
