@@ -10,6 +10,7 @@ import {
   type Trade,
   calculateRuntimeMetrics,
   createSessionFromStrategy,
+  incremental,
   type streaming,
 } from "trendcraft";
 import { DEFAULT_TRADING_COSTS } from "../config/trading-costs.js";
@@ -74,6 +75,13 @@ export function createAgent(
   let barsSinceLastTrade = Number.POSITIVE_INFINITY;
   let consecutiveEntryBars = 0;
   let lastBarTime = 0;
+
+  // ATR trailing stop state (for live streaming)
+  let atrTrailingConfig = extractAtrTrailingConfig(currentStrategy);
+  let atrIndicator = atrTrailingConfig
+    ? incremental.createAtr({ period: atrTrailingConfig.period })
+    : null;
+  let lastAtrValue: number | null = null;
 
   function isNewBar(time: number): boolean {
     if (time - lastBarTime >= currentStrategy.intervalMs) {
@@ -181,8 +189,36 @@ export function createAgent(
 
     feedTrade(trade: streaming.Trade) {
       const newBar = isNewBar(trade.time);
+
+      // Update ATR indicator on new bars
+      if (newBar && atrIndicator) {
+        const candle: NormalizedCandle = {
+          time: trade.time,
+          open: trade.price,
+          high: trade.price,
+          low: trade.price,
+          close: trade.price,
+          volume: trade.volume,
+        };
+        const result = atrIndicator.next(candle);
+        if (result.value !== null) {
+          lastAtrValue = result.value;
+        }
+      }
+
       const events = session.onTrade(trade);
       let intents = eventsToIntents(events);
+
+      // Update ATR trailing stop after position opens or on each new bar
+      if (atrTrailingConfig && lastAtrValue !== null) {
+        const position = session.getPosition();
+        if (position && position.shares > 0) {
+          const stopPrice = trade.price - lastAtrValue * atrTrailingConfig.multiplier;
+          if (stopPrice > 0) {
+            session.updateStopLoss(stopPrice);
+          }
+        }
+      }
 
       if (newBar) {
         barsSinceLastTrade++;
@@ -286,7 +322,30 @@ export function createAgent(
       // Update signal lifecycle
       lifecycle = newStrategy.signalLifecycle;
 
+      // Update ATR trailing stop config
+      atrTrailingConfig = extractAtrTrailingConfig(newStrategy);
+      atrIndicator = atrTrailingConfig
+        ? incremental.createAtr({ period: atrTrailingConfig.period })
+        : null;
+      lastAtrValue = null;
+
       console.log(`[AGENT] ${id} strategy hot-swapped`);
     },
   };
+}
+
+/**
+ * Extract ATR trailing stop configuration from a strategy's backtest options.
+ * Returns null if the strategy doesn't have ATR trailing stop configured.
+ */
+function extractAtrTrailingConfig(
+  strategy: StrategyDefinition,
+): { period: number; multiplier: number } | null {
+  const opts = strategy.backtestOptions as
+    | { atrTrailingStop?: { period: number; multiplier: number } }
+    | undefined;
+  if (opts?.atrTrailingStop) {
+    return opts.atrTrailingStop;
+  }
+  return null;
 }

@@ -14,6 +14,9 @@ export function createPaperExecutor(client: AlpacaClient): OrderExecutor {
   return {
     async execute(intent: OrderIntent): Promise<ExecutionResult> {
       try {
+        const orderType = intent.orderType ?? "market";
+        const timeInForce = intent.timeInForce ?? "day";
+
         // Submit order with retry on transient failures
         const order = await withRetry(
           () =>
@@ -21,15 +24,19 @@ export function createPaperExecutor(client: AlpacaClient): OrderExecutor {
               symbol: intent.symbol,
               qty: Math.floor(intent.shares),
               side: intent.side,
-              type: "market",
-              time_in_force: "day",
+              type: orderType,
+              time_in_force: timeInForce,
+              ...(orderType === "limit" && intent.limitPrice
+                ? { limit_price: intent.limitPrice }
+                : {}),
             }),
           { maxAttempts: 3, initialDelayMs: 500, maxDelayMs: 5_000 },
         );
 
+        const priceInfo = orderType === "limit" ? ` limit=$${intent.limitPrice?.toFixed(2)}` : "";
         console.log(
-          `[ORDER] ${intent.side.toUpperCase()} ${Math.floor(intent.shares)} ${intent.symbol} ` +
-            `(agent: ${intent.agentId}, reason: ${intent.reason}) -> order ${order.id}`,
+          `[ORDER] ${intent.side.toUpperCase()} ${Math.floor(intent.shares)} ${intent.symbol}` +
+            `${priceInfo} (agent: ${intent.agentId}, reason: ${intent.reason}) -> order ${order.id}`,
         );
 
         // Poll for fill confirmation with backoff

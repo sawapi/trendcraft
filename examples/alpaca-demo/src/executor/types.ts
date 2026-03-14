@@ -12,6 +12,12 @@ export type OrderIntent = {
   reason: streaming.FillRecord["reason"];
   time: number;
   pnl?: number;
+  /** Order type: "market" (default) or "limit" */
+  orderType?: "market" | "limit";
+  /** Limit price (required when orderType is "limit") */
+  limitPrice?: number;
+  /** Time in force (default: "day") */
+  timeInForce?: "day" | "gtc" | "ioc";
 };
 
 export type ExecutionResult = {
