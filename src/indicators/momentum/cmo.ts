@@ -3,6 +3,9 @@
  *
  * Created by Tushar Chande, CMO measures momentum using both up and down
  * price movement, oscillating between -100 and +100.
+ *
+ * Uses Wilder's smoothing method (same approach as RSI) to match
+ * the industry-standard TA-Lib implementation.
  */
 
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
@@ -21,7 +24,7 @@ export type CmoOptions = {
 /**
  * Calculate Chande Momentum Oscillator
  *
- * CMO = 100 × (Sum of Up Changes - Sum of Down Changes) / (Sum of Up Changes + Sum of Down Changes)
+ * CMO = 100 × (AvgGain - AvgLoss) / (AvgGain + AvgLoss)
  *
  * Interpretation:
  * - Above +50: Overbought
@@ -52,32 +55,49 @@ export function cmo(
   const result: Series<number | null> = [];
   const prices = normalized.map((c) => getPrice(c, source));
 
-  // Calculate up and down changes
-  const ups: number[] = [0];
-  const downs: number[] = [0];
-
-  for (let i = 1; i < prices.length; i++) {
-    const diff = prices[i] - prices[i - 1];
-    ups.push(diff > 0 ? diff : 0);
-    downs.push(diff < 0 ? -diff : 0);
+  // Null padding for insufficient data
+  for (let i = 0; i < Math.min(period, normalized.length); i++) {
+    result.push({ time: normalized[i].time, value: null });
   }
 
-  for (let i = 0; i < normalized.length; i++) {
-    if (i < period) {
-      result.push({ time: normalized[i].time, value: null });
-      continue;
+  if (normalized.length <= period) {
+    return result;
+  }
+
+  // Initial seed: simple average of first `period` changes
+  let avgUp = 0;
+  let avgDown = 0;
+  for (let j = 1; j <= period; j++) {
+    const diff = prices[j] - prices[j - 1];
+    if (diff > 0) avgUp += diff;
+    else avgDown -= diff;
+  }
+  avgUp /= period;
+  avgDown /= period;
+
+  // First CMO value
+  let total = avgUp + avgDown;
+  result.push({
+    time: normalized[period].time,
+    value: total === 0 ? 0 : (100 * (avgUp - avgDown)) / total,
+  });
+
+  // Subsequent values use Wilder's smoothing
+  for (let i = period + 1; i < normalized.length; i++) {
+    const diff = prices[i] - prices[i - 1];
+    if (diff > 0) {
+      avgUp = (avgUp * (period - 1) + diff) / period;
+      avgDown = (avgDown * (period - 1)) / period;
+    } else {
+      avgUp = (avgUp * (period - 1)) / period;
+      avgDown = (avgDown * (period - 1) - diff) / period;
     }
 
-    let sumUp = 0;
-    let sumDown = 0;
-    for (let j = i - period + 1; j <= i; j++) {
-      sumUp += ups[j];
-      sumDown += downs[j];
-    }
-
-    const total = sumUp + sumDown;
-    const cmoValue = total === 0 ? 0 : (100 * (sumUp - sumDown)) / total;
-    result.push({ time: normalized[i].time, value: cmoValue });
+    total = avgUp + avgDown;
+    result.push({
+      time: normalized[i].time,
+      value: total === 0 ? 0 : (100 * (avgUp - avgDown)) / total,
+    });
   }
 
   return result;

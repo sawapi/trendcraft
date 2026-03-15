@@ -52,13 +52,16 @@ export function adxr(
 
   const result: Series<number | null> = [];
 
+  // ADXR lookback is period-1 (matches TA-Lib: adx[i] + adx[i-(period-1)])
+  const lookback = period - 1;
+
   for (let i = 0; i < dmiResult.length; i++) {
     const currentAdx = dmiResult[i].value.adx;
 
-    if (currentAdx === null || i < period || dmiResult[i - period].value.adx === null) {
+    if (currentAdx === null || i < lookback || dmiResult[i - lookback].value.adx === null) {
       result.push({ time: dmiResult[i].time, value: null });
     } else {
-      const pastAdx = dmiResult[i - period].value.adx as number;
+      const pastAdx = dmiResult[i - lookback].value.adx as number;
       result.push({
         time: dmiResult[i].time,
         value: (currentAdx + pastAdx) / 2,

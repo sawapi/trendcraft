@@ -524,6 +524,233 @@ def generate_all(ohlcv: dict) -> None:
         ],
     })
 
+    # --- Batch A: Trivial 1:1 mapping indicators ---
+
+    # DEMA
+    print("Generating DEMA...")
+    save_fixture("dema", {
+        "indicator": "DEMA",
+        "talib_function": "DEMA",
+        "test_cases": [
+            {
+                "name": "dema_20",
+                "params": {"period": 20},
+                "values": to_json_safe(talib.DEMA(close, timeperiod=20), n),
+            },
+            {
+                "name": "dema_10",
+                "params": {"period": 10},
+                "values": to_json_safe(talib.DEMA(close, timeperiod=10), n),
+            },
+        ],
+    })
+
+    # TEMA
+    print("Generating TEMA...")
+    save_fixture("tema", {
+        "indicator": "TEMA",
+        "talib_function": "TEMA",
+        "test_cases": [
+            {
+                "name": "tema_20",
+                "params": {"period": 20},
+                "values": to_json_safe(talib.TEMA(close, timeperiod=20), n),
+            },
+            {
+                "name": "tema_10",
+                "params": {"period": 10},
+                "values": to_json_safe(talib.TEMA(close, timeperiod=10), n),
+            },
+        ],
+    })
+
+    # STDDEV
+    print("Generating STDDEV...")
+    save_fixture("stddev", {
+        "indicator": "StandardDeviation",
+        "talib_function": "STDDEV",
+        "note": "TA-Lib STDDEV uses population variance (/N) by default, matching TrendCraft.",
+        "test_cases": [
+            {
+                "name": "stddev_20",
+                "params": {"period": 20},
+                "values": to_json_safe(talib.STDDEV(close, timeperiod=20, nbdev=1), n),
+            },
+            {
+                "name": "stddev_10",
+                "params": {"period": 10},
+                "values": to_json_safe(talib.STDDEV(close, timeperiod=10, nbdev=1), n),
+            },
+        ],
+    })
+
+    # MEDPRICE
+    print("Generating MEDPRICE...")
+    open_ = np.array([c["open"] for c in candles], dtype=np.float64)
+    save_fixture("medprice", {
+        "indicator": "MedianPrice",
+        "talib_function": "MEDPRICE",
+        "test_cases": [
+            {
+                "name": "medprice",
+                "params": {},
+                "values": to_json_safe(talib.MEDPRICE(high, low), n),
+            },
+        ],
+    })
+
+    # TYPPRICE
+    print("Generating TYPPRICE...")
+    save_fixture("typprice", {
+        "indicator": "TypicalPrice",
+        "talib_function": "TYPPRICE",
+        "test_cases": [
+            {
+                "name": "typprice",
+                "params": {},
+                "values": to_json_safe(talib.TYPPRICE(high, low, close), n),
+            },
+        ],
+    })
+
+    # WCLPRICE
+    print("Generating WCLPRICE...")
+    save_fixture("wclprice", {
+        "indicator": "WeightedClose",
+        "talib_function": "WCLPRICE",
+        "test_cases": [
+            {
+                "name": "wclprice",
+                "params": {},
+                "values": to_json_safe(talib.WCLPRICE(high, low, close), n),
+            },
+        ],
+    })
+
+    # AD (Accumulation/Distribution Line)
+    print("Generating AD...")
+    save_fixture("ad", {
+        "indicator": "ADL",
+        "talib_function": "AD",
+        "test_cases": [
+            {
+                "name": "ad",
+                "params": {},
+                "values": to_json_safe(talib.AD(high, low, close, volume), n),
+            },
+        ],
+    })
+
+    # CMO (Chande Momentum Oscillator)
+    print("Generating CMO...")
+    save_fixture("cmo", {
+        "indicator": "CMO",
+        "talib_function": "CMO",
+        "test_cases": [
+            {
+                "name": "cmo_14",
+                "params": {"period": 14},
+                "values": to_json_safe(talib.CMO(close, timeperiod=14), n),
+            },
+            {
+                "name": "cmo_9",
+                "params": {"period": 9},
+                "values": to_json_safe(talib.CMO(close, timeperiod=9), n),
+            },
+        ],
+    })
+
+    # --- Batch B: Composite / parameter-mapping indicators ---
+
+    # AROON
+    print("Generating AROON...")
+    aroon_down, aroon_up = talib.AROON(high, low, timeperiod=25)
+    aroon_osc = talib.AROONOSC(high, low, timeperiod=25)
+    save_fixture("aroon", {
+        "indicator": "Aroon",
+        "talib_function": "AROON+AROONOSC",
+        "test_cases": [
+            {
+                "name": "aroon_25",
+                "params": {"period": 25},
+                "values": {
+                    "up": to_json_safe(aroon_up, n),
+                    "down": to_json_safe(aroon_down, n),
+                    "oscillator": to_json_safe(aroon_osc, n),
+                },
+            },
+        ],
+    })
+
+    # PPO (Percentage Price Oscillator)
+    print("Generating PPO...")
+    ppo_line = talib.PPO(close, fastperiod=12, slowperiod=26, matype=1)  # matype=1 = EMA
+    # PPO signal = EMA(PPO, signalperiod)
+    ppo_signal = talib.EMA(ppo_line, timeperiod=9)
+    ppo_hist = ppo_line - ppo_signal
+    # Replace NaN with None
+    save_fixture("ppo", {
+        "indicator": "PPO",
+        "talib_function": "PPO+EMA",
+        "note": "PPO signal and histogram computed from PPO + EMA(9). EMA seeding divergence expected.",
+        "test_cases": [
+            {
+                "name": "ppo_12_26_9",
+                "params": {"fastPeriod": 12, "slowPeriod": 26, "signalPeriod": 9},
+                "values": {
+                    "ppo": to_json_safe(ppo_line, n),
+                    "signal": to_json_safe(ppo_signal, n),
+                    "histogram": to_json_safe(ppo_hist, n),
+                },
+            },
+        ],
+    })
+
+    # ADXR
+    print("Generating ADXR...")
+    save_fixture("adxr", {
+        "indicator": "ADXR",
+        "talib_function": "ADXR",
+        "test_cases": [
+            {
+                "name": "adxr_14",
+                "params": {"period": 14},
+                "values": to_json_safe(talib.ADXR(high, low, close, timeperiod=14), n),
+            },
+        ],
+    })
+
+    # ULTOSC (Ultimate Oscillator)
+    print("Generating ULTOSC...")
+    save_fixture("ultosc", {
+        "indicator": "UltimateOscillator",
+        "talib_function": "ULTOSC",
+        "test_cases": [
+            {
+                "name": "ultosc_7_14_28",
+                "params": {"period1": 7, "period2": 14, "period3": 28},
+                "values": to_json_safe(talib.ULTOSC(high, low, close, timeperiod1=7, timeperiod2=14, timeperiod3=28), n),
+            },
+        ],
+    })
+
+    # LINEARREG + LINEARREG_SLOPE
+    print("Generating LINEARREG...")
+    save_fixture("linearreg", {
+        "indicator": "LinearRegression",
+        "talib_function": "LINEARREG+LINEARREG_SLOPE",
+        "test_cases": [
+            {
+                "name": "linearreg_14",
+                "params": {"period": 14},
+                "values": {
+                    "value": to_json_safe(talib.LINEARREG(close, timeperiod=14), n),
+                    "slope": to_json_safe(talib.LINEARREG_SLOPE(close, timeperiod=14), n),
+                },
+            },
+        ],
+    })
+
     # --- Phase 3: Known discrepancy indicators ---
 
     # Bollinger Bands

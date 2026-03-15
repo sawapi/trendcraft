@@ -1,8 +1,13 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import {
+  adl,
+  adxr,
+  aroon,
   atr,
   bollingerBands,
   cci,
+  cmo,
+  dema,
   dmi,
   donchianChannel,
   ema,
@@ -10,17 +15,25 @@ import {
   highest,
   kama,
   keltnerChannel,
+  linearRegression,
   lowest,
   macd,
+  medianPrice,
   mfi,
   obv,
   parabolicSar,
+  ppo,
   roc,
   rsi,
   sma,
+  standardDeviation,
   stochRsi,
   stochastics,
   t3,
+  tema,
+  typicalPrice,
+  ultimateOscillator,
+  weightedClose,
   williamsR,
   wma,
 } from "../../src";
@@ -188,6 +201,206 @@ describe("Lowest", () => {
 
     const result = lowest(candles, period);
     assertSeriesMatch(result, tc.values, decimals, `Lowest(${period})`);
+  });
+});
+
+// ============================================================
+// Batch A: Trivial 1:1 mapping indicators
+// ============================================================
+
+describe("DEMA", () => {
+  it.each([
+    { period: 20, decimals: 6 },
+    { period: 10, decimals: 6 },
+  ])("dema(period=$period) matches TA-Lib within $decimals decimals", ({ period, decimals }) => {
+    const fixture = loadFixture("dema");
+    const tc = fixture.test_cases.find((t) => t.params.period === period);
+    if (!tc || !isSingleTestCase(tc)) throw new Error("Expected single test case");
+
+    const result = dema(candles, { period });
+    assertSeriesMatch(result, tc.values, decimals, `DEMA(${period})`);
+  });
+});
+
+describe("TEMA", () => {
+  it.each([
+    { period: 20, decimals: 6 },
+    { period: 10, decimals: 6 },
+  ])("tema(period=$period) matches TA-Lib within $decimals decimals", ({ period, decimals }) => {
+    const fixture = loadFixture("tema");
+    const tc = fixture.test_cases.find((t) => t.params.period === period);
+    if (!tc || !isSingleTestCase(tc)) throw new Error("Expected single test case");
+
+    const result = tema(candles, { period });
+    assertSeriesMatch(result, tc.values, decimals, `TEMA(${period})`);
+  });
+});
+
+describe("Standard Deviation", () => {
+  it.each([
+    { period: 20, decimals: 9 },
+    { period: 10, decimals: 9 },
+  ])(
+    "standardDeviation(period=$period) matches TA-Lib within $decimals decimals",
+    ({ period, decimals }) => {
+      const fixture = loadFixture("stddev");
+      const tc = fixture.test_cases.find((t) => t.params.period === period);
+      if (!tc || !isSingleTestCase(tc)) throw new Error("Expected single test case");
+
+      const result = standardDeviation(candles, { period });
+      assertSeriesMatch(result, tc.values, decimals, `StdDev(${period})`);
+    },
+  );
+});
+
+describe("Median Price", () => {
+  it("medianPrice() matches TA-Lib within 10 decimals", () => {
+    const fixture = loadFixture("medprice");
+    const tc = fixture.test_cases[0];
+    if (!isSingleTestCase(tc)) throw new Error("Expected single test case");
+
+    const result = medianPrice(candles);
+    assertSeriesMatch(result, tc.values, 10, "MedianPrice");
+  });
+});
+
+describe("Typical Price", () => {
+  it("typicalPrice() matches TA-Lib within 10 decimals", () => {
+    const fixture = loadFixture("typprice");
+    const tc = fixture.test_cases[0];
+    if (!isSingleTestCase(tc)) throw new Error("Expected single test case");
+
+    const result = typicalPrice(candles);
+    assertSeriesMatch(result, tc.values, 10, "TypicalPrice");
+  });
+});
+
+describe("Weighted Close", () => {
+  it("weightedClose() matches TA-Lib within 10 decimals", () => {
+    const fixture = loadFixture("wclprice");
+    const tc = fixture.test_cases[0];
+    if (!isSingleTestCase(tc)) throw new Error("Expected single test case");
+
+    const result = weightedClose(candles);
+    assertSeriesMatch(result, tc.values, 10, "WeightedClose");
+  });
+});
+
+describe("ADL", () => {
+  it("adl() matches TA-Lib within 0 decimals", () => {
+    const fixture = loadFixture("ad");
+    const tc = fixture.test_cases[0];
+    if (!isSingleTestCase(tc)) throw new Error("Expected single test case");
+
+    const result = adl(candles);
+    assertSeriesMatch(result, tc.values, 0, "ADL");
+  });
+});
+
+describe("CMO", () => {
+  it.each([
+    { period: 14, decimals: 6 },
+    { period: 9, decimals: 6 },
+  ])("cmo(period=$period) matches TA-Lib within $decimals decimals", ({ period, decimals }) => {
+    const fixture = loadFixture("cmo");
+    const tc = fixture.test_cases.find((t) => t.params.period === period);
+    if (!tc || !isSingleTestCase(tc)) throw new Error("Expected single test case");
+
+    const result = cmo(candles, { period });
+    assertSeriesMatch(result, tc.values, decimals, `CMO(${period})`);
+  });
+});
+
+// ============================================================
+// Batch B: Composite / parameter-mapping indicators
+// ============================================================
+
+describe("Aroon", () => {
+  it("aroon(25) matches TA-Lib within 6 decimals", () => {
+    const fixture = loadFixture("aroon");
+    const tc = fixture.test_cases[0];
+    if (isSingleTestCase(tc)) throw new Error("Expected composite test case");
+
+    const result = aroon(candles, { period: 25 });
+
+    const upValues = result.map((r) => ({ time: r.time, value: r.value.up }));
+    const downValues = result.map((r) => ({ time: r.time, value: r.value.down }));
+    const oscValues = result.map((r) => ({ time: r.time, value: r.value.oscillator }));
+
+    assertSeriesMatch(upValues, tc.values.up, 6, "Aroon Up");
+    assertSeriesMatch(downValues, tc.values.down, 6, "Aroon Down");
+    assertSeriesMatch(oscValues, tc.values.oscillator, 6, "Aroon Oscillator");
+  });
+});
+
+describe("PPO", () => {
+  it("ppo(12,26,9) matches TA-Lib within 3 decimals (after warmup)", () => {
+    const fixture = loadFixture("ppo");
+    const tc = fixture.test_cases[0];
+    if (isSingleTestCase(tc)) throw new Error("Expected composite test case");
+
+    const result = ppo(candles, { fastPeriod: 12, slowPeriod: 26, signalPeriod: 9 });
+
+    const ppoValues = result.map((r) => ({
+      time: r.time,
+      value: r.value === null ? null : r.value.ppo,
+    }));
+    const signalValues = result.map((r) => ({
+      time: r.time,
+      value: r.value === null ? null : r.value.signal,
+    }));
+    const histValues = result.map((r) => ({
+      time: r.time,
+      value: r.value === null ? null : r.value.histogram,
+    }));
+
+    assertSeriesMatch(ppoValues, tc.values.ppo, 3, "PPO line", 75);
+    assertSeriesMatch(signalValues, tc.values.signal, 3, "PPO signal", 75);
+    assertSeriesMatch(histValues, tc.values.histogram, 3, "PPO histogram", 75);
+  });
+});
+
+describe("ADXR", () => {
+  it("adxr(14) matches TA-Lib within 8 decimals", () => {
+    const fixture = loadFixture("adxr");
+    const tc = fixture.test_cases[0];
+    if (!isSingleTestCase(tc)) throw new Error("Expected single test case");
+
+    const result = adxr(candles, { period: 14 });
+    assertSeriesMatch(result, tc.values, 8, "ADXR(14)");
+  });
+});
+
+describe("Ultimate Oscillator", () => {
+  it("ultimateOscillator(7,14,28) matches TA-Lib within 6 decimals", () => {
+    const fixture = loadFixture("ultosc");
+    const tc = fixture.test_cases[0];
+    if (!isSingleTestCase(tc)) throw new Error("Expected single test case");
+
+    const result = ultimateOscillator(candles, { period1: 7, period2: 14, period3: 28 });
+    assertSeriesMatch(result, tc.values, 6, "UltOsc(7,14,28)");
+  });
+});
+
+describe("Linear Regression", () => {
+  it("linearRegression(14) value and slope match TA-Lib within 6 decimals", () => {
+    const fixture = loadFixture("linearreg");
+    const tc = fixture.test_cases[0];
+    if (isSingleTestCase(tc)) throw new Error("Expected composite test case");
+
+    const result = linearRegression(candles, { period: 14 });
+
+    const valueResults = result.map((r) => ({
+      time: r.time,
+      value: r.value === null ? null : r.value.value,
+    }));
+    const slopeResults = result.map((r) => ({
+      time: r.time,
+      value: r.value === null ? null : r.value.slope,
+    }));
+
+    assertSeriesMatch(valueResults, tc.values.value, 6, "LinReg value");
+    assertSeriesMatch(slopeResults, tc.values.slope, 6, "LinReg slope");
   });
 });
 
