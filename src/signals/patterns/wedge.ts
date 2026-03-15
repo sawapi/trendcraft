@@ -109,7 +109,7 @@ export function detectWedge(
 ): PatternSignal[] {
   const {
     swingLookback = 3,
-    minPoints = 2,
+    minPoints = 3, // Industry standard: 3 touches per trendline to validate
     minRSquared = 0.6,
     maxBreakoutBars = 20,
     validateVolume = true,
@@ -133,81 +133,110 @@ export function detectWedge(
 
     if (highs.length < minPoints || lows.length < minPoints) continue;
 
-    const windowSizes = [4, 5, 6];
+    const windowSizes = [3, 4, 5, 6];
 
     for (const winSize of windowSizes) {
-      const recentHighs = highs.slice(-Math.min(winSize, highs.length)).map((h) => ({
-        index: h.index,
-        price: h.price,
-      }));
-      const recentLows = lows.slice(-Math.min(winSize, lows.length)).map((l) => ({
-        index: l.index,
-        price: l.price,
-      }));
+      // Slide window across all swing points, not just the most recent
+      const maxWindows = Math.max(highs.length - winSize + 1, 1);
+      for (let wi = Math.max(0, maxWindows - 10); wi < maxWindows; wi++) {
+        const recentHighs = highs.slice(wi, wi + winSize).map((h) => ({
+          index: h.index,
+          price: h.price,
+        }));
+        const recentLows = lows.slice(wi, Math.min(wi + winSize, lows.length)).map((l) => ({
+          index: l.index,
+          price: l.price,
+        }));
 
-      const pair = fitTrendlinePair(recentHighs, recentLows);
-      if (!pair) continue;
+        if (recentHighs.length < minPoints || recentLows.length < minPoints) continue;
 
-      const { upper, lower } = pair;
-      if (upper.rSquared < minRSquared || lower.rSquared < minRSquared) continue;
+        const pair = fitTrendlinePair(recentHighs, recentLows);
+        if (!pair) continue;
 
-      const subtype = classifyWedge(upper, lower);
-      if (!subtype) continue;
+        const { upper, lower } = pair;
+        if (upper.rSquared < minRSquared || lower.rSquared < minRSquared) continue;
 
-      const { startIndex, endIndex } = getPatternBounds(recentHighs, recentLows);
-      if (endIndex - startIndex < minBars) continue;
+        const subtype = classifyWedge(upper, lower);
+        if (!subtype) continue;
 
-      const patternKey = `${subtype}_${Math.round(startIndex / 5)}_${Math.round(endIndex / 5)}`;
-      if (seenPatterns.has(patternKey)) continue;
-      seenPatterns.add(patternKey);
+        const { startIndex, endIndex } = getPatternBounds(recentHighs, recentLows);
+        if (endIndex - startIndex < minBars) continue;
 
-      const patternHeight = Math.abs(upper.valueAt(startIndex) - lower.valueAt(startIndex));
-      if (patternHeight <= 0) continue;
+        // Apex must be in the future (convergence point hasn't been reached yet)
+        if (pair.convergenceBar !== null && pair.convergenceBar <= endIndex) continue;
 
-      const currentAtr = lookupAtr(atrData, normalized, endIndex);
-      const breakout = findWedgeBreakout(
-        normalized,
-        upper,
-        lower,
-        subtype,
-        endIndex + 1,
-        maxBreakoutBars,
-      );
-      const confirmed = breakout != null;
+        const patternKey = `${subtype}_${Math.round(startIndex / 10)}_${Math.round(endIndex / 10)}`;
+        if (seenPatterns.has(patternKey)) continue;
+        seenPatterns.add(patternKey);
 
-      const volumeValid = confirmed
-        ? checkBreakoutVolume(
-            normalized,
-            breakout!.index,
-            validateVolume,
-            volumeLookback,
-            minVolumeIncrease,
-          )
-        : true;
+        const patternHeight = Math.abs(upper.valueAt(startIndex) - lower.valueAt(startIndex));
+        if (patternHeight <= 0) continue;
 
-      const detectionIndex = confirmed ? breakout!.index : endIndex;
+        const currentAtr = lookupAtr(atrData, normalized, endIndex);
+        const breakout = findWedgeBreakout(
+          normalized,
+          upper,
+          lower,
+          subtype,
+          endIndex + 1,
+          maxBreakoutBars,
+        );
+        const confirmed = breakout != null;
 
-      let confidence = calculateWedgeConfidence(upper, lower, currentAtr, patternHeight, confirmed);
-      if (!volumeValid) confidence = Math.max(0, confidence - 10);
+        const volumeValid = confirmed
+          ? checkBreakoutVolume(
+              normalized,
+              breakout!.index,
+              validateVolume,
+              volumeLookback,
+              minVolumeIncrease,
+            )
+          : true;
 
-      const levels = breakout
-        ? calculateBreakoutLevels(normalized, breakout, upper, lower, patternHeight)
-        : undefined;
+        const detectionIndex = confirmed ? breakout!.index : endIndex;
 
-      results.push({
-        time: normalized[detectionIndex].time,
-        type: subtype,
-        pattern: {
-          startTime: normalized[startIndex].time,
-          endTime: normalized[endIndex].time,
-          keyPoints: buildTouchKeyPoints(normalized, recentHighs, recentLows),
-          target: levels?.target,
-          stopLoss: levels?.stopLoss,
-          height: patternHeight,
-        },
-        confidence,
-        confirmed,
-      });
+        // Volume typically decreases as the wedge forms
+        const wedgeLen = endIndex - startIndex;
+        const halfLen = Math.floor(wedgeLen / 2);
+        let firstHalfVol = 0;
+        let secondHalfVol = 0;
+        for (let k = startIndex; k < startIndex + halfLen; k++)
+          firstHalfVol += normalized[k].volume;
+        for (let k = startIndex + halfLen; k <= endIndex; k++)
+          secondHalfVol += normalized[k].volume;
+        firstHalfVol /= halfLen || 1;
+        secondHalfVol /= wedgeLen - halfLen + 1 || 1;
+        const volumeDecreasing = secondHalfVol < firstHalfVol * 0.9;
+
+        let confidence = calculateWedgeConfidence(
+          upper,
+          lower,
+          currentAtr,
+          patternHeight,
+          confirmed,
+        );
+        if (volumeDecreasing) confidence = Math.min(100, confidence + 5);
+        if (!volumeValid) confidence = Math.max(0, confidence - 10);
+
+        const levels = breakout
+          ? calculateBreakoutLevels(normalized, breakout, upper, lower, patternHeight)
+          : undefined;
+
+        results.push({
+          time: normalized[detectionIndex].time,
+          type: subtype,
+          pattern: {
+            startTime: normalized[startIndex].time,
+            endTime: normalized[endIndex].time,
+            keyPoints: buildTouchKeyPoints(normalized, recentHighs, recentLows),
+            target: levels?.target,
+            stopLoss: levels?.stopLoss,
+            height: patternHeight,
+          },
+          confidence,
+          confirmed,
+        });
+      } // end sliding window
     }
   }
 

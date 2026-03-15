@@ -8,6 +8,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { getSwingHighs, getSwingLows } from "../../indicators/price/swing-points";
 import type { Candle, NormalizedCandle } from "../../types";
+import { validateBreakoutVolume } from "./double-pattern-utils";
 import type {
   HeadShouldersOptions,
   PatternKeyPoint,
@@ -121,17 +122,24 @@ export function headAndShoulders(
     const patternHeight = head.price - neckline.currentPrice;
     const target = neckline.currentPrice - patternHeight;
 
-    // Check if confirmed (price broke below neckline)
-    const confirmed = checkNecklineBreak(normalized, rightShoulder.index, neckline, "down");
+    // Check if confirmed (price broke below neckline within 30 bars)
+    const breakoutIndex = findNecklineBreakIndex(normalized, rightShoulder.index, neckline, "down");
+    const confirmed = breakoutIndex !== null;
+
+    // Volume validation on breakout
+    const volumeValid = confirmed
+      ? validateBreakoutVolume(normalized, breakoutIndex!, 10, 1.2)
+      : true;
 
     // Calculate confidence
-    const confidence = calculateHSConfidence(
+    let confidence = calculateHSConfidence(
       leftShoulder.price,
       rightShoulder.price,
       headHeight,
       totalPriceChange,
       confirmed,
     );
+    if (confirmed && !volumeValid) confidence = Math.max(0, confidence - 10);
 
     const keyPoints: PatternKeyPoint[] = [
       {
@@ -275,17 +283,24 @@ export function inverseHeadAndShoulders(
     const patternHeight = neckline.currentPrice - head.price;
     const target = neckline.currentPrice + patternHeight;
 
-    // Check if confirmed (price broke above neckline)
-    const confirmed = checkNecklineBreak(normalized, rightShoulder.index, neckline, "up");
+    // Check if confirmed (price broke above neckline within 30 bars)
+    const breakoutIndex = findNecklineBreakIndex(normalized, rightShoulder.index, neckline, "up");
+    const confirmed = breakoutIndex !== null;
+
+    // Volume validation on breakout
+    const volumeValid = confirmed
+      ? validateBreakoutVolume(normalized, breakoutIndex!, 10, 1.2)
+      : true;
 
     // Calculate confidence
-    const confidence = calculateHSConfidence(
+    let confidence = calculateHSConfidence(
       leftShoulder.price,
       rightShoulder.price,
       headDepth,
       totalPriceChange,
       confirmed,
     );
+    if (confirmed && !volumeValid) confidence = Math.max(0, confidence - 10);
 
     const keyPoints: PatternKeyPoint[] = [
       {
@@ -397,24 +412,26 @@ function calculateNeckline(
   };
 }
 
-function checkNecklineBreak(
+function findNecklineBreakIndex(
   candles: NormalizedCandle[],
   fromIndex: number,
   neckline: PatternNeckline,
   direction: "up" | "down",
-): boolean {
-  for (let i = fromIndex + 1; i < candles.length; i++) {
+  maxBars = 30,
+): number | null {
+  const endIndex = Math.min(fromIndex + maxBars, candles.length);
+  for (let i = fromIndex + 1; i < endIndex; i++) {
     // Calculate neckline price at this index (accounting for slope)
     const necklinePrice = neckline.startPrice + neckline.slope * (i - fromIndex);
 
     if (direction === "down" && candles[i].close < necklinePrice) {
-      return true;
+      return i;
     }
     if (direction === "up" && candles[i].close > necklinePrice) {
-      return true;
+      return i;
     }
   }
-  return false;
+  return null;
 }
 
 function calculateHSConfidence(

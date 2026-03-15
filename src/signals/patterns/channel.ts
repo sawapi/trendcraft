@@ -117,7 +117,7 @@ export function detectChannel(
 ): PatternSignal[] {
   const {
     swingLookback = 3,
-    minPoints = 2,
+    minPoints = 3, // Industry standard: 3 touches per boundary, 4+ total
     minRSquared = 0.6,
     flatTolerance = 0.0003,
     parallelTolerance = 0.0003,
@@ -143,95 +143,101 @@ export function detectChannel(
 
     if (highs.length < minPoints || lows.length < minPoints) continue;
 
-    const windowSizes = [4, 5, 6];
+    const windowSizes = [3, 4, 5, 6];
 
     for (const winSize of windowSizes) {
-      const recentHighs = highs.slice(-Math.min(winSize, highs.length)).map((h) => ({
-        index: h.index,
-        price: h.price,
-      }));
-      const recentLows = lows.slice(-Math.min(winSize, lows.length)).map((l) => ({
-        index: l.index,
-        price: l.price,
-      }));
+      // Slide window across all swing points, not just the most recent
+      const maxWindows = Math.max(highs.length - winSize + 1, 1);
+      for (let wi = Math.max(0, maxWindows - 10); wi < maxWindows; wi++) {
+        const recentHighs = highs.slice(wi, wi + winSize).map((h) => ({
+          index: h.index,
+          price: h.price,
+        }));
+        const recentLows = lows.slice(wi, Math.min(wi + winSize, lows.length)).map((l) => ({
+          index: l.index,
+          price: l.price,
+        }));
 
-      const pair = fitTrendlinePair(recentHighs, recentLows);
-      if (!pair) continue;
+        if (recentHighs.length < minPoints || recentLows.length < minPoints) continue;
 
-      const { upper, lower } = pair;
-      if (upper.rSquared < minRSquared || lower.rSquared < minRSquared) continue;
+        const pair = fitTrendlinePair(recentHighs, recentLows);
+        if (!pair) continue;
 
-      const { startIndex, endIndex } = getPatternBounds(recentHighs, recentLows);
-      if (endIndex - startIndex < minBars) continue;
+        const { upper, lower } = pair;
+        if (upper.rSquared < minRSquared || lower.rSquared < minRSquared) continue;
 
-      const avgPrice = avgClosePrice(normalized, startIndex, endIndex);
-      const subtype = classifyChannel(upper, lower, avgPrice, flatTolerance, parallelTolerance);
-      if (!subtype) continue;
+        const { startIndex, endIndex } = getPatternBounds(recentHighs, recentLows);
+        if (endIndex - startIndex < minBars) continue;
 
-      const patternKey = `${subtype}_${Math.round(startIndex / 5)}_${Math.round(endIndex / 5)}`;
-      if (seenPatterns.has(patternKey)) continue;
-      seenPatterns.add(patternKey);
+        const avgPrice = avgClosePrice(normalized, startIndex, endIndex);
+        const subtype = classifyChannel(upper, lower, avgPrice, flatTolerance, parallelTolerance);
+        if (!subtype) continue;
 
-      const midIndex = (startIndex + endIndex) / 2;
-      const patternHeight = Math.abs(upper.valueAt(midIndex) - lower.valueAt(midIndex));
-      if (patternHeight <= 0) continue;
+        const patternKey = `${subtype}_${Math.round(startIndex / 10)}_${Math.round(endIndex / 10)}`;
+        if (seenPatterns.has(patternKey)) continue;
+        seenPatterns.add(patternKey);
 
-      const currentAtr = lookupAtr(atrData, normalized, endIndex);
-      const breakout = findTrendlineBreakout(
-        normalized,
-        upper,
-        lower,
-        endIndex + 1,
-        maxBreakoutBars,
-      );
-      const confirmed = breakout != null;
+        const midIndex = (startIndex + endIndex) / 2;
+        const patternHeight = Math.abs(upper.valueAt(midIndex) - lower.valueAt(midIndex));
+        if (patternHeight <= 0) continue;
 
-      const volumeValid = confirmed
-        ? checkBreakoutVolume(
-            normalized,
-            breakout!.index,
-            validateVolume,
-            volumeLookback,
-            minVolumeIncrease,
-          )
-        : true;
+        const currentAtr = lookupAtr(atrData, normalized, endIndex);
+        const breakout = findTrendlineBreakout(
+          normalized,
+          upper,
+          lower,
+          endIndex + 1,
+          maxBreakoutBars,
+        );
+        const confirmed = breakout != null;
 
-      const detectionIndex = confirmed ? breakout!.index : endIndex;
+        const volumeValid = confirmed
+          ? checkBreakoutVolume(
+              normalized,
+              breakout!.index,
+              validateVolume,
+              volumeLookback,
+              minVolumeIncrease,
+            )
+          : true;
 
-      let confidence = calculateChannelConfidence(
-        upper,
-        lower,
-        currentAtr,
-        patternHeight,
-        confirmed,
-        endIndex - startIndex,
-      );
-      if (!volumeValid) confidence = Math.max(0, confidence - 10);
+        const detectionIndex = confirmed ? breakout!.index : endIndex;
 
-      const levels = breakout
-        ? calculateBreakoutLevels(normalized, breakout, upper, lower, patternHeight)
-        : undefined;
+        let confidence = calculateChannelConfidence(
+          upper,
+          lower,
+          currentAtr,
+          patternHeight,
+          confirmed,
+          endIndex - startIndex,
+        );
+        if (!volumeValid) confidence = Math.max(0, confidence - 10);
 
-      results.push({
-        time: normalized[detectionIndex].time,
-        type: subtype,
-        pattern: {
-          startTime: normalized[startIndex].time,
-          endTime: normalized[endIndex].time,
-          keyPoints: buildTouchKeyPoints(normalized, recentHighs, recentLows),
-          neckline: {
-            startPrice: upper.valueAt(startIndex),
-            endPrice: upper.valueAt(endIndex),
-            slope: upper.slope,
-            currentPrice: upper.valueAt(endIndex),
+        const levels = breakout
+          ? calculateBreakoutLevels(normalized, breakout, upper, lower, patternHeight)
+          : undefined;
+
+        results.push({
+          time: normalized[detectionIndex].time,
+          type: subtype,
+          pattern: {
+            startTime: normalized[startIndex].time,
+            endTime: normalized[endIndex].time,
+            keyPoints: buildTouchKeyPoints(normalized, recentHighs, recentLows),
+            neckline: {
+              startPrice: upper.valueAt(startIndex),
+              endPrice: upper.valueAt(endIndex),
+              slope: upper.slope,
+              currentPrice: upper.valueAt(endIndex),
+            },
+            target: levels?.target,
+            stopLoss: levels?.stopLoss,
+            height: patternHeight,
           },
-          target: levels?.target,
-          stopLoss: levels?.stopLoss,
-          height: patternHeight,
-        },
-        confidence,
-        confirmed,
-      });
+          confidence,
+          confirmed,
+        });
+      } // end sliding window
     }
   }
 

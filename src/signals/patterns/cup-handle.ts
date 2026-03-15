@@ -8,6 +8,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { getSwingHighs, getSwingLows } from "../../indicators/price/swing-points";
 import type { Candle, NormalizedCandle } from "../../types";
+import { validateBreakoutVolume } from "./double-pattern-utils";
 import type { CupHandleOptions, PatternKeyPoint, PatternSignal } from "./types";
 
 /**
@@ -110,17 +111,28 @@ export function cupWithHandle(
       const pivotPoint = Math.max(leftRim.price, rightRim.price);
       const target = pivotPoint + cupHeight; // Measured move from pivot
 
+      // Handle depth should not exceed 50% of cup depth (industry standard)
+      const handleRetraceRatio = cupHeight > 0 ? (handle.depth * rightRim.price) / cupHeight : 1;
+      if (handleRetraceRatio > 0.5) continue;
+
       // Check if breakout confirmed
-      const confirmed = checkBreakout(normalized, handle.endIndex, pivotPoint);
+      const breakoutIndex = findBreakoutIndex(normalized, handle.endIndex, pivotPoint);
+      const confirmed = breakoutIndex !== null;
+
+      // Volume validation on breakout
+      const volumeValid = confirmed
+        ? validateBreakoutVolume(normalized, breakoutIndex!, 10, 1.2)
+        : true;
 
       // Calculate confidence
-      const confidence = calculateCupConfidence(
+      let confidence = calculateCupConfidence(
         cupDepth,
         rimDiff,
         handle.depth,
         cupLength,
         confirmed,
       );
+      if (confirmed && !volumeValid) confidence = Math.max(0, confidence - 10);
 
       const keyPoints: PatternKeyPoint[] = [
         {
@@ -316,17 +328,19 @@ function findHandle(
   };
 }
 
-function checkBreakout(
+function findBreakoutIndex(
   candles: NormalizedCandle[],
   fromIndex: number,
   pivotPoint: number,
-): boolean {
-  for (let i = fromIndex; i < candles.length; i++) {
+  maxBars = 30,
+): number | null {
+  const endIndex = Math.min(fromIndex + maxBars, candles.length);
+  for (let i = fromIndex; i < endIndex; i++) {
     if (candles[i].close > pivotPoint) {
-      return true;
+      return i;
     }
   }
-  return false;
+  return null;
 }
 
 function calculateCupConfidence(

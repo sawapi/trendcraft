@@ -216,132 +216,163 @@ export function detectFlag(
 
   if (highs.length < minPoints || lows.length < minPoints) return [];
 
-  for (let consEnd = minTotalBars; consEnd < normalized.length; consEnd++) {
-    const currentAtr = lookupAtr(atrData, normalized, consEnd);
+  // Find flagpole candidates at swing extremes (sharp moves ending at swing highs/lows)
+  // instead of scanning every bar, which causes massive over-detection.
+  const poleEndCandidates: { index: number; direction: "up" | "down" }[] = [];
+  for (const h of highs) {
+    if (h.index >= maxPoleBars) poleEndCandidates.push({ index: h.index, direction: "up" });
+  }
+  for (const l of lows) {
+    if (l.index >= maxPoleBars) poleEndCandidates.push({ index: l.index, direction: "down" });
+  }
+  poleEndCandidates.sort((a, b) => a.index - b.index);
+
+  for (const candidate of poleEndCandidates) {
+    const consStart = candidate.index;
+    if (consStart + minConsolidationBars >= normalized.length) continue;
+
+    const currentAtr = lookupAtr(atrData, normalized, consStart);
     if (currentAtr <= 0) continue;
 
-    for (let consLen = minConsolidationBars; consLen <= maxConsolidationBars; consLen++) {
-      const consStart = consEnd - consLen;
-      if (consStart < maxPoleBars) continue;
+    const pole = findFlagpole(normalized, consStart, currentAtr, minAtrMultiple, maxPoleBars);
+    if (!pole) continue;
+    // Direction must match the swing point type
+    if (pole.direction !== candidate.direction) continue;
 
-      const pole = findFlagpole(normalized, consStart, currentAtr, minAtrMultiple, maxPoleBars);
-      if (!pole) continue;
+    // Try the consolidation window that maximizes swing point coverage
+    const consEndMax = Math.min(consStart + maxConsolidationBars, normalized.length - 1);
+    const consEnd = consEndMax;
+    const consEndMin = consStart + minConsolidationBars;
+    if (consEndMin > consEndMax) continue;
 
-      // Get swing points within the consolidation zone
-      const consHighs = highs
-        .filter((h) => h.index >= consStart && h.index <= consEnd)
-        .map((h) => ({ index: h.index, price: h.price }));
-      const consLows = lows
-        .filter((l) => l.index >= consStart && l.index <= consEnd)
-        .map((l) => ({ index: l.index, price: l.price }));
+    // Get swing points within the consolidation zone
+    const consHighs = highs
+      .filter((h) => h.index >= consStart && h.index <= consEnd)
+      .map((h) => ({ index: h.index, price: h.price }));
+    const consLows = lows
+      .filter((l) => l.index >= consStart && l.index <= consEnd)
+      .map((l) => ({ index: l.index, price: l.price }));
 
-      if (consHighs.length < minPoints || consLows.length < minPoints) continue;
+    if (consHighs.length < minPoints || consLows.length < minPoints) continue;
 
-      const pair = fitTrendlinePair(consHighs, consLows);
-      if (!pair) continue;
+    const pair = fitTrendlinePair(consHighs, consLows);
+    if (!pair) continue;
 
-      const { upper, lower } = pair;
-      if (upper.rSquared < minRSquared || lower.rSquared < minRSquared) continue;
+    const { upper, lower } = pair;
+    if (upper.rSquared < minRSquared || lower.rSquared < minRSquared) continue;
 
-      const avgPrice = avgClosePrice(normalized, consStart, consEnd);
-      const subtype = classifyConsolidation(upper, lower, pole.direction, avgPrice, flatTolerance);
-      if (!subtype) continue;
+    const avgPrice = avgClosePrice(normalized, consStart, consEnd);
+    const subtype = classifyConsolidation(upper, lower, pole.direction, avgPrice, flatTolerance);
+    if (!subtype) continue;
 
-      const patternKey = `${subtype}_${Math.round(pole.startIndex / 3)}_${Math.round(consEnd / 3)}`;
-      if (seenPatterns.has(patternKey)) continue;
-      seenPatterns.add(patternKey);
+    // Deduplicate by pole location
+    const patternKey = `${subtype}_${Math.round(pole.startIndex / maxPoleBars)}`;
+    if (seenPatterns.has(patternKey)) continue;
+    seenPatterns.add(patternKey);
 
-      const midIndex = (consStart + consEnd) / 2;
-      const patternHeight = Math.abs(upper.valueAt(midIndex) - lower.valueAt(midIndex));
+    const midIndex = (consStart + consEnd) / 2;
+    const patternHeight = Math.abs(upper.valueAt(midIndex) - lower.valueAt(midIndex));
 
-      // Consolidation should be smaller than the pole
-      if (patternHeight > pole.magnitude * 0.75) continue;
+    // Consolidation should retrace no more than 50% of the pole (industry standard: 38-50%)
+    if (patternHeight > pole.magnitude * 0.5) continue;
 
-      const breakout = findFlagBreakout(
-        normalized,
-        upper,
-        lower,
-        pole.direction,
-        consEnd + 1,
-        maxBreakoutBars,
-      );
-      const confirmed = breakout != null;
+    // Consolidation duration should not greatly exceed the flagpole duration
+    const poleBars = pole.endIndex - pole.startIndex;
+    const consBars = consEnd - consStart;
+    if (poleBars > 0 && consBars > poleBars * 3) continue;
 
-      const volumeValid = confirmed
-        ? checkBreakoutVolume(
-            normalized,
-            breakout!.index,
-            validateVolume,
-            volumeLookback,
-            minVolumeIncrease,
-          )
-        : true;
+    // Volume should generally decrease during consolidation
+    const poleAvgVol =
+      normalized.slice(pole.startIndex, pole.endIndex + 1).reduce((s, c) => s + c.volume, 0) /
+      (poleBars + 1);
+    const consAvgVol =
+      normalized.slice(consStart, consEnd + 1).reduce((s, c) => s + c.volume, 0) / (consBars + 1);
+    if (poleAvgVol > 0 && consAvgVol > poleAvgVol * 1.2) continue;
 
-      const detectionIndex = confirmed ? breakout!.index : consEnd;
+    const breakout = findFlagBreakout(
+      normalized,
+      upper,
+      lower,
+      pole.direction,
+      consEnd + 1,
+      maxBreakoutBars,
+    );
+    const confirmed = breakout != null;
 
-      const confidence = calculateFlagConfidence(
-        upper,
-        lower,
-        pole.magnitude,
-        patternHeight,
-        currentAtr,
-        confirmed,
-        volumeValid,
-      );
+    const volumeValid = confirmed
+      ? checkBreakoutVolume(
+          normalized,
+          breakout!.index,
+          validateVolume,
+          volumeLookback,
+          minVolumeIncrease,
+        )
+      : true;
 
-      // Target: flagpole magnitude projected from breakout
-      const levels = breakout
-        ? calculateBreakoutLevels(normalized, breakout, upper, lower, pole.magnitude)
-        : undefined;
+    const detectionIndex = confirmed ? breakout!.index : consEnd;
 
-      // Build key points with pole start/end + consolidation touches
-      const keyPoints: PatternKeyPoint[] = [
-        {
-          time: normalized[pole.startIndex].time,
-          index: pole.startIndex,
-          price: normalized[pole.startIndex].close,
-          label: "pole_start",
-        },
-        {
-          time: normalized[pole.endIndex].time,
-          index: pole.endIndex,
-          price: normalized[pole.endIndex].close,
-          label: "pole_end",
-        },
-      ];
-      for (const p of consHighs) {
-        keyPoints.push({
-          time: normalized[p.index].time,
-          index: p.index,
-          price: p.price,
-          label: "consolidation_high",
-        });
-      }
-      for (const p of consLows) {
-        keyPoints.push({
-          time: normalized[p.index].time,
-          index: p.index,
-          price: p.price,
-          label: "consolidation_low",
-        });
-      }
-      keyPoints.sort((a, b) => a.index - b.index);
+    const confidence = calculateFlagConfidence(
+      upper,
+      lower,
+      pole.magnitude,
+      patternHeight,
+      currentAtr,
+      confirmed,
+      volumeValid,
+    );
 
-      results.push({
-        time: normalized[detectionIndex].time,
-        type: subtype,
-        pattern: {
-          startTime: normalized[pole.startIndex].time,
-          endTime: normalized[consEnd].time,
-          keyPoints,
-          target: levels?.target,
-          stopLoss: levels?.stopLoss,
-          height: pole.magnitude,
-        },
-        confidence,
-        confirmed,
+    // Target: flagpole magnitude projected from breakout
+    const levels = breakout
+      ? calculateBreakoutLevels(normalized, breakout, upper, lower, pole.magnitude)
+      : undefined;
+
+    // Build key points with pole start/end + consolidation touches
+    const keyPoints: PatternKeyPoint[] = [
+      {
+        time: normalized[pole.startIndex].time,
+        index: pole.startIndex,
+        price: normalized[pole.startIndex].close,
+        label: "pole_start",
+      },
+      {
+        time: normalized[pole.endIndex].time,
+        index: pole.endIndex,
+        price: normalized[pole.endIndex].close,
+        label: "pole_end",
+      },
+    ];
+    for (const p of consHighs) {
+      keyPoints.push({
+        time: normalized[p.index].time,
+        index: p.index,
+        price: p.price,
+        label: "consolidation_high",
       });
     }
+    for (const p of consLows) {
+      keyPoints.push({
+        time: normalized[p.index].time,
+        index: p.index,
+        price: p.price,
+        label: "consolidation_low",
+      });
+    }
+    keyPoints.sort((a, b) => a.index - b.index);
+
+    results.push({
+      time: normalized[detectionIndex].time,
+      type: subtype,
+      pattern: {
+        startTime: normalized[pole.startIndex].time,
+        endTime: normalized[consEnd].time,
+        keyPoints,
+        target: levels?.target,
+        stopLoss: levels?.stopLoss,
+        height: pole.magnitude,
+      },
+      confidence,
+      confirmed,
+    });
   }
 
   return results;
