@@ -5080,7 +5080,7 @@ Create custom indicators as plugins and add them to the TrendCraft fluent API pi
 ### When to Use Custom Indicators
 
 Use the plugin system when:
-- **Proprietary indicators**: You have custom formulas not included in the 45+ built-in indicators
+- **Proprietary indicators**: You have custom formulas not included in the 130+ built-in indicators
 - **Composite indicators**: Combine multiple built-in indicators into a single series (e.g., SMA spread, multi-factor score)
 - **Dynamic pipelines**: Build indicator sets from configuration files or user input at runtime
 

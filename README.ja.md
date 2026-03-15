@@ -7,12 +7,15 @@
 ## 機能
 
 ### インジケーター (130+)
-- **移動平均**: SMA, EMA, WMA, VWMA, KAMA, T3, HMA（ハル移動平均）
-- **トレンド**: 一目均衡表, Supertrend, パラボリックSAR, Vortex
-- **モメンタム**: RSI, MACD, ストキャスティクス (Fast/Slow), DMI/ADX, Stoch RSI, CCI, Williams %R, ROC, TRIX, Aroon, DPO, Hurst, コナーズRSI
-- **ボラティリティ**: ボリンジャーバンド, ATR, ドンチャンチャネル, ケルトナーチャネル, シャンデリアイグジット, ボラティリティレジーム, チョッピネスインデックス
-- **出来高**: OBV, MFI, VWAP（バンド対応）, 出来高移動平均, CMF, 出来高異常検出, Volume Profile, 出来高トレンド確認, ADL, アンカードVWAP
-- **価格**: 最高値/最安値, リターン, ピボットポイント, スイングポイント, フラクタル, Zigzag, フィボナッチリトレースメント/エクステンション, 平均足, オープニングレンジブレイクアウト, ギャップ分析
+- **移動平均**: SMA, EMA, WMA, VWMA, KAMA, T3, HMA（ハル移動平均）, McGinley Dynamic, EMA Ribbon, DEMA, TEMA, ZLEMA, FRAMA, ALMA
+- **トレンド**: 一目均衡表, Supertrend, パラボリックSAR, Vortex, Schaff Trend Cycle, Linear Regression
+- **モメンタム**: RSI, MACD, ストキャスティクス (Fast/Slow), DMI/ADX, ADXR, Stoch RSI, CCI, Williams %R, ROC, TRIX, Aroon, DPO, Hurst Exponent, コナーズRSI, IMI, Ultimate Oscillator, Awesome Oscillator, Mass Index, KST, Coppock Curve, TSI, PPO, CMO, Balance of Power, QStick
+- **ボラティリティ**: ボリンジャーバンド, ATR, ドンチャンチャネル, ケルトナーチャネル, シャンデリアイグジット, ボラティリティレジーム, チョッピネスインデックス, Ulcer Index, Historical Volatility, Garman-Klass, Standard Deviation
+- **出来高**: OBV, MFI, VWAP（バンド対応）, 出来高移動平均, CMF, 出来高異常検出, Volume Profile, 出来高トレンド確認, ADL, アンカードVWAP, Elder Force Index, Ease of Movement, Klinger, TWAP, Weis Wave, Market Profile, PVT, NVI
+- **価格**: 最高値/最安値, リターン, ピボットポイント, スイングポイント, フラクタル, Zigzag, フィボナッチリトレースメント/エクステンション, 平均足, オープニングレンジブレイクアウト, ギャップ分析, Median Price, Typical Price, Weighted Close
+- **スマートマネーコンセプト (SMC)**: Order Block, Liquidity Sweep
+- **フィルター**: Super Smoother, Roofing Filter (Ehlers)
+- **相対力**: Benchmark RS, RS Rating, RS Ranking
 
 ### シグナル検出
 - **クロス検出**: ゴールデンクロス、デッドクロス、カスタムクロスオーバー
@@ -20,6 +23,8 @@
 - **ダイバージェンス**: OBV、RSI、MACDのダイバージェンス検出
 - **スクイーズ**: ボリンジャーバンドのスクイーズ検出
 - **レンジ相場検出**: ボックス相場の検出、ブレイクアウトリスク判定
+- **チャートパターン**: ダブルトップ/ボトム, ヘッドアンドショルダー, カップウィズハンドル, トライアングル（対称/上昇/下降）, ウェッジ（上昇/下降）, チャネル（上昇/下降/水平）, フラッグ/ペナント
+- **パターンフィルター**: ATR比率、トレンドコンテキスト、出来高確認フィルター
 
 ### バックテスト
 - プリセット条件を使ったシンプルな戦略検証

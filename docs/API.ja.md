@@ -4957,7 +4957,7 @@ const splits = detectSplitHints(candles);
 ### いつ使うべきか
 
 プラグインシステムは以下の場合に使用してください：
-- **独自インジケーター**: 45以上の組み込みインジケーターに含まれない独自の計算式がある場合
+- **独自インジケーター**: 130以上の組み込みインジケーターに含まれない独自の計算式がある場合
 - **複合インジケーター**: 複数の組み込みインジケーターを1つのシリーズに統合する場合（例：SMAスプレッド、マルチファクタースコア）
 - **動的パイプライン**: 設定ファイルやユーザー入力から実行時にインジケーターセットを構築する場合
 
@@ -5563,3 +5563,72 @@ interface Signal {
   type: SignalType;
 }
 ```
+
+---
+
+## エラーハンドリングガイド
+
+TrendCraftはエラーハンドリングに2つのアプローチを提供しています：
+
+### Throwバージョン（デフォルト）
+
+すべてのインジケーター関数は無効なパラメータに対して例外をスローします。`try/catch` でエラーハンドリングを行います：
+
+```typescript
+import { rsi, sma } from "trendcraft";
+
+try {
+  const result = rsi(candles, { period: 14 });
+} catch (error) {
+  console.error(error.message);
+}
+```
+
+最適な用途: 内部計算、パフォーマンス重視のパス、スクリプト。
+
+### Safeバージョン（Result返却型）
+
+すべてのインジケーターには `safe` 名前空間からアクセスできるSafe版があります。
+例外をスローする代わりに `Result<T>` を返します：
+
+```typescript
+import { safe } from "trendcraft";
+
+const result = safe.rsiSafe(candles, { period: 14 });
+if (result.ok) {
+  console.log(result.value); // Series<number | null>
+} else {
+  console.error(result.error.code);    // "INDICATOR_ERROR"
+  console.error(result.error.message); // 人間可読なメッセージ
+}
+```
+
+最適な用途: ユーザー向けアプリケーション、フォールバックロジックを持つパイプライン、バッチ処理。
+
+### toResultユーティリティ
+
+任意のスロー関数をResultに変換します：
+
+```typescript
+import { toResult } from "trendcraft";
+
+const result = toResult(() => someThrowingFunction(), "INDICATOR_ERROR");
+```
+
+### エラーコード
+
+| コード | 説明 |
+|------|-------------|
+| `INDICATOR_ERROR` | インジケーター計算エラー（無効なパラメータ等） |
+| `INVALID_PARAMETER` | 無効なパラメータ値 |
+| `INSUFFICIENT_DATA` | データポイント不足 |
+| `NO_DATA` | 入力データが空 |
+| `COMPUTATION_FAILED` | 一般的な計算エラー |
+| `OPTIMIZATION_FAILED` | 最適化プロセスのエラー |
+| `BACKTEST_FAILED` | バックテスト実行エラー |
+| `SCREENING_FAILED` | スクリーニングプロセスのエラー |
+
+### 推奨事項
+
+- **ライブラリ利用者**: 堅牢性のためSafeバージョンを推奨
+- **内部 / パフォーマンス重視のコード**: Throwバージョンを直接使用
