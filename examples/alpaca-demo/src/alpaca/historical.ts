@@ -52,6 +52,7 @@ export async function fetchHistoricalBars(
       start: opts.start,
       limit: String(opts.limit ?? 10000),
       feed: "iex",
+      adjustment: "split",
     });
     if (opts.end) params.set("end", opts.end);
     if (pageToken) params.set("page_token", pageToken);

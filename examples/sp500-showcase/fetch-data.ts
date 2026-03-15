@@ -89,6 +89,7 @@ async function fetchBars(symbol: string, start: string, end?: string): Promise<A
       start,
       limit: "10000",
       feed: "sip",
+      adjustment: "split",
     });
     if (end) params.set("end", end);
     if (pageToken) params.set("page_token", pageToken);
