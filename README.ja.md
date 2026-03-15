@@ -6,7 +6,7 @@
 
 ## 機能
 
-### インジケーター (100+)
+### インジケーター (130+)
 - **移動平均**: SMA, EMA, WMA, VWMA, KAMA, T3, HMA（ハル移動平均）
 - **トレンド**: 一目均衡表, Supertrend, パラボリックSAR, Vortex
 - **モメンタム**: RSI, MACD, ストキャスティクス (Fast/Slow), DMI/ADX, Stoch RSI, CCI, Williams %R, ROC, TRIX, Aroon, DPO, Hurst, コナーズRSI
@@ -113,6 +113,18 @@
 - 相関レジーム検出（5レジーム、期間トラッキング付き）
 - 複数ラグでのクロス相関によるリードラグ分析
 - zスコア有意性によるインターマーケット・ダイバージェンス検出
+
+## TA-Lib クロスバリデーション
+
+36個のインジケーターを [TA-Lib](https://ta-lib.org/)（Python ta-lib 0.6.8）と照合検証しています。4つのマーケットフェーズ（上昇トレンド → 高ボラティリティ → レンジ → 下降トレンド）をカバーする200本の合成OHLCVデータを使用。テストコードとフィクスチャは `cross-validation/` ディレクトリにあります。
+
+| 精度 | インジケーター | 小数桁 |
+|------|---------------|--------|
+| **完全一致** | SMA, Highest, Lowest, Donchian Channel, Median Price, Typical Price, Weighted Close, OBV, ADL, Standard Deviation | 9+ |
+| **高精度** | EMA, WMA, RSI, CCI, Williams %R, ROC, ATR, MFI, DMI/ADX, Keltner Channel, Bollinger Bands, KAMA, Parabolic SAR, DEMA, TEMA, CMO, Aroon, ADXR, Ultimate Oscillator, Linear Regression | 6–8 |
+| **良好** | MACD, Stochastics (Fast/Slow), T3, StochRSI, PPO | 3–4 |
+
+> **良好ティアの注記**: 微小な差異は実装の違い（MACD の EMA シード、T3 のカスケード EMA ウォームアップなど）に起因します。系列が長くなると収束します。
 
 ## インストール
 
@@ -419,7 +431,7 @@ const fixedResult = fixedFractionalSize({
 ### ATRリスク管理
 
 ```typescript
-import { chandelierExit, calculateAtrStops, TrendCraft, goldenCross, deadCross } from 'trendcraft';
+import { chandelierExit, calculateAtrStop, TrendCraft, goldenCross, deadCross } from 'trendcraft';
 
 // シャンデリアイグジット（トレーリングストップ）
 const chandelier = chandelierExit(candles, { period: 22, multiplier: 3 });
@@ -428,7 +440,7 @@ chandelier.forEach(({ time, value }) => {
 });
 
 // ATRベースのストップ・利確レベルを計算
-const stops = calculateAtrStops({
+const stops = calculateAtrStop({
   entryPrice: 100,
   atrValue: 2.5,
   stopMultiplier: 2,        // 2x ATR でストップ
@@ -692,16 +704,25 @@ Summary:
 | カテゴリ | 条件名 |
 |----------|--------|
 | 移動平均 | `goldenCross`, `deadCross`, `goldenCross25_75`, `deadCross25_75` |
+| 検証済みクロス | `validatedGoldenCross`, `validatedDeadCross` |
 | RSI | `rsiBelow30`, `rsiBelow40`, `rsiAbove60`, `rsiAbove70` |
 | MACD | `macdCrossUp`, `macdCrossDown` |
-| パーフェクトオーダー | `perfectOrderBullish`, `perfectOrderBearish`, `perfectOrderCollapsed`, `perfectOrderActiveBullish`, `perfectOrderPullbackEntry`, `perfectOrderBullishConfirmed`, `perfectOrderPreBullish` |
-| 出来高 | `volumeAnomaly`, `volumeAbove1_5x`, `volumeAbove2x`, `volumeConfirmsTrend` |
+| パーフェクトオーダー | `perfectOrderBullish`, `perfectOrderBearish`, `perfectOrderCollapsed`, `perfectOrderActiveBullish`, `perfectOrderActiveBearish`, `perfectOrderBullishConfirmed`, `perfectOrderBearishConfirmed`, `perfectOrderConfirmationFormed`, `perfectOrderBreakdown`, `perfectOrderMaCollapsed`, `perfectOrderPreBullish`, `perfectOrderPreBearish`, `perfectOrderPullbackEntry`, `perfectOrderPullbackSellEntry` |
+| PO拡張 | `poPlusEntry`, `pbEntry`, `poPlusPbEntry` |
+| 価格 | `priceAboveSma25`, `priceBelowSma25`, `priceDroppedAtr` |
 | ボリンジャー | `bollingerBreakoutUp`, `bollingerBreakoutDown` |
 | ストキャスティクス | `stochBelow20`, `stochAbove80`, `stochCrossUp`, `stochCrossDown` |
 | DMI/ADX | `dmiBullish`, `dmiBearish`, `adxStrong` |
+| 出来高 | `volumeAnomaly`, `volumeAbove1_5x`, `volumeAbove2x`, `volumeConfirmsTrend` |
+| 出来高拡張 | `volumeExtreme`, `volumeDivergence`, `bullishVolumeDivergence`, `bearishVolumeDivergence`, `volumeTrendConfidence`, `nearPoc`, `inValueArea`, `breakoutVah`, `breakdownVal`, `priceAbovePoc`, `priceBelowPoc`, `cmfAbove`, `cmfBelow`, `obvRising`, `obvFalling`, `obvCrossUp`, `obvCrossDown` |
 | レンジ | `rangeBreakout`, `rangeConfirmed`, `inRangeBound`, `tightRange` |
+| レンジ拡張 | `rangeForming`, `breakoutRiskUp`, `breakoutRiskDown`, `rangeScoreAbove` |
 | ボラティリティ | `atrPercentAbove2_3`, `atrPercentAbove3` |
-| ボラティリティレジーム | `regimeIs('low')`, `regimeNot('high')`, `volatilityAbove(70)`, `volatilityBelow(30)` |
+| ボラティリティレジーム | `volatilityExpanding`, `volatilityContracting`, `volatilityAbove`, `volatilityBelow`, `atrPercentileAbove`, `atrPercentileBelow`, `atrPercentBelow` |
+| パターン | `anyBullishPattern`, `anyBearishPattern`, `doubleTopDetected`, `doubleBottomDetected`, `headShouldersDetected`, `inverseHeadShouldersDetected`, `cupHandleDetected` |
+| SMC | `priceAtBullishOrderBlock`, `priceAtBearishOrderBlock`, `orderBlockCreated`, `liquiditySweepDetected`, `liquiditySweepRecovered`, `hasRecentSweeps` |
+
+詳細なパラメータと使用例は [APIリファレンス](./docs/API.md#preset-conditions) を参照してください。
 
 ## クックブック
 

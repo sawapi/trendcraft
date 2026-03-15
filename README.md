@@ -6,7 +6,7 @@ A TypeScript library for technical analysis of financial data. Calculate indicat
 
 ## Features
 
-### Indicators (100+)
+### Indicators (130+)
 - **Moving Averages**: SMA, EMA, WMA, VWMA, KAMA, T3, HMA (Hull), McGinley Dynamic, EMA Ribbon, DEMA, TEMA, ZLEMA, FRAMA, ALMA
 - **Trend**: Ichimoku Cloud, Supertrend, Parabolic SAR, Vortex, Schaff Trend Cycle, Linear Regression
 - **Momentum**: RSI, MACD, Stochastics (Fast/Slow), DMI/ADX, ADXR, Stoch RSI, CCI, Williams %R, ROC, TRIX, Aroon, DPO, Hurst Exponent, Connors RSI, IMI, Ultimate Oscillator, Awesome Oscillator, Mass Index, KST, Coppock Curve, TSI, PPO, CMO, Balance of Power, QStick
@@ -121,13 +121,13 @@ A TypeScript library for technical analysis of financial data. Calculate indicat
 
 ## TA-Lib Cross-Validation
 
-23 indicators are cross-validated against [TA-Lib](https://ta-lib.org/) (Python ta-lib 0.6.8) using 200-bar synthetic OHLCV data covering 4 market phases (uptrend → high volatility → range → downtrend). Test code and fixtures are in the `cross-validation/` directory.
+36 indicators are cross-validated against [TA-Lib](https://ta-lib.org/) (Python ta-lib 0.6.8) using 200-bar synthetic OHLCV data covering 4 market phases (uptrend → high volatility → range → downtrend). Test code and fixtures are in the `cross-validation/` directory.
 
 | Precision | Indicators | Decimals |
 |-----------|-----------|----------|
-| **Exact** | SMA, Highest, Lowest, Donchian Channel | 10+ |
-| **High** | EMA, WMA, RSI, CCI, Williams %R, ROC, ATR, MFI, DMI/ADX, Keltner Channel, Bollinger Bands, KAMA, OBV, Parabolic SAR | 6–8 |
-| **Good** | MACD, Stochastics (Fast/Slow), T3, StochRSI | 3–4 |
+| **Exact** | SMA, Highest, Lowest, Donchian Channel, Median Price, Typical Price, Weighted Close, OBV, ADL, Standard Deviation | 9+ |
+| **High** | EMA, WMA, RSI, CCI, Williams %R, ROC, ATR, MFI, DMI/ADX, Keltner Channel, Bollinger Bands, KAMA, Parabolic SAR, DEMA, TEMA, CMO, Aroon, ADXR, Ultimate Oscillator, Linear Regression | 6–8 |
+| **Good** | MACD, Stochastics (Fast/Slow), T3, StochRSI, PPO | 3–4 |
 
 > **Good tier note**: Minor differences are due to documented implementation differences (e.g., MACD EMA seeding, T3 cascaded EMA warmup). These converge over longer series.
 
@@ -436,7 +436,7 @@ const fixedResult = fixedFractionalSize({
 ### ATR Risk Management
 
 ```typescript
-import { chandelierExit, calculateAtrStops, TrendCraft, goldenCross, deadCross } from 'trendcraft';
+import { chandelierExit, calculateAtrStop, TrendCraft, goldenCross, deadCross } from 'trendcraft';
 
 // Chandelier Exit trailing stop
 const chandelier = chandelierExit(candles, { period: 22, multiplier: 3 });
@@ -445,7 +445,7 @@ chandelier.forEach(({ time, value }) => {
 });
 
 // Calculate ATR-based stop and take-profit levels
-const stops = calculateAtrStops({
+const stops = calculateAtrStop({
   entryPrice: 100,
   atrValue: 2.5,
   stopMultiplier: 2,        // 2x ATR for stop
@@ -709,16 +709,25 @@ Both CLI tools support these preset conditions:
 | Category | Conditions |
 |----------|-----------|
 | Moving Average | `goldenCross`, `deadCross`, `goldenCross25_75`, `deadCross25_75` |
+| Validated Cross | `validatedGoldenCross`, `validatedDeadCross` |
 | RSI | `rsiBelow30`, `rsiBelow40`, `rsiAbove60`, `rsiAbove70` |
 | MACD | `macdCrossUp`, `macdCrossDown` |
-| Perfect Order | `perfectOrderBullish`, `perfectOrderBearish`, `perfectOrderCollapsed`, `perfectOrderActiveBullish`, `perfectOrderPullbackEntry`, `perfectOrderBullishConfirmed`, `perfectOrderPreBullish` |
-| Volume | `volumeAnomaly`, `volumeAbove1_5x`, `volumeAbove2x`, `volumeConfirmsTrend` |
+| Perfect Order | `perfectOrderBullish`, `perfectOrderBearish`, `perfectOrderCollapsed`, `perfectOrderActiveBullish`, `perfectOrderActiveBearish`, `perfectOrderBullishConfirmed`, `perfectOrderBearishConfirmed`, `perfectOrderConfirmationFormed`, `perfectOrderBreakdown`, `perfectOrderMaCollapsed`, `perfectOrderPreBullish`, `perfectOrderPreBearish`, `perfectOrderPullbackEntry`, `perfectOrderPullbackSellEntry` |
+| PO Extended | `poPlusEntry`, `pbEntry`, `poPlusPbEntry` |
+| Price | `priceAboveSma25`, `priceBelowSma25`, `priceDroppedAtr` |
 | Bollinger | `bollingerBreakoutUp`, `bollingerBreakoutDown` |
 | Stochastics | `stochBelow20`, `stochAbove80`, `stochCrossUp`, `stochCrossDown` |
 | DMI/ADX | `dmiBullish`, `dmiBearish`, `adxStrong` |
+| Volume | `volumeAnomaly`, `volumeAbove1_5x`, `volumeAbove2x`, `volumeConfirmsTrend` |
+| Volume Extended | `volumeExtreme`, `volumeDivergence`, `bullishVolumeDivergence`, `bearishVolumeDivergence`, `volumeTrendConfidence`, `nearPoc`, `inValueArea`, `breakoutVah`, `breakdownVal`, `priceAbovePoc`, `priceBelowPoc`, `cmfAbove`, `cmfBelow`, `obvRising`, `obvFalling`, `obvCrossUp`, `obvCrossDown` |
 | Range | `rangeBreakout`, `rangeConfirmed`, `inRangeBound`, `tightRange` |
+| Range Extended | `rangeForming`, `breakoutRiskUp`, `breakoutRiskDown`, `rangeScoreAbove` |
 | Volatility | `atrPercentAbove2_3`, `atrPercentAbove3` |
-| Volatility Regime | `regimeIs('low')`, `regimeNot('high')`, `volatilityAbove(70)`, `volatilityBelow(30)` |
+| Volatility Regime | `volatilityExpanding`, `volatilityContracting`, `volatilityAbove`, `volatilityBelow`, `atrPercentileAbove`, `atrPercentileBelow`, `atrPercentBelow` |
+| Patterns | `anyBullishPattern`, `anyBearishPattern`, `doubleTopDetected`, `doubleBottomDetected`, `headShouldersDetected`, `inverseHeadShouldersDetected`, `cupHandleDetected` |
+| SMC | `priceAtBullishOrderBlock`, `priceAtBearishOrderBlock`, `orderBlockCreated`, `liquiditySweepDetected`, `liquiditySweepRecovered`, `hasRecentSweeps` |
+
+See [API Reference](./docs/API.md#preset-conditions) for full condition documentation with parameters and examples.
 
 ## Cookbook
 
