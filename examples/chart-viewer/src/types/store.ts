@@ -2,11 +2,15 @@ import type { BacktestResult, NormalizedCandle, TradeAnalysis } from "trendcraft
 import type {
   BacktestConfig,
   DisplayStartYears,
+  Drawing,
+  DrawingToolType,
   FundamentalData,
   OverlayType,
   SignalType,
   SubChartType,
+  ThemeType,
   Timeframe,
+  YAxisType,
   ZoomRange,
 } from "./chart";
 import type { IndicatorParams } from "./indicators";
@@ -31,6 +35,25 @@ export interface ChartState {
   enabledSignals: SignalType[];
   zoomRange: ZoomRange;
   indicatorParams: IndicatorParams;
+
+  // Y-axis settings
+  yAxisType: YAxisType;
+  yAxisPercent: boolean;
+
+  // Theme
+  theme: ThemeType;
+
+  // Drawing tools
+  activeDrawingTool: DrawingToolType;
+  drawings: Drawing[];
+  drawingHistory: Drawing[][];
+  drawingHistoryIndex: number;
+
+  // Subchart heights (per indicator key)
+  subchartHeights: Record<string, number>;
+
+  // Drawing pending point (first click of a 2-click tool)
+  pendingPoint: { dateIndex: number; price: number } | null;
 
   // UI state
   sidebarCollapsed: boolean;
@@ -74,4 +97,24 @@ export interface ChartActions {
   toggleSidebar: () => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
   reset: () => void;
+
+  // Y-axis
+  setYAxisType: (type: YAxisType) => void;
+  setYAxisPercent: (percent: boolean) => void;
+
+  // Theme
+  setTheme: (theme: ThemeType) => void;
+
+  // Drawing tools
+  setActiveDrawingTool: (tool: DrawingToolType) => void;
+  setPendingPoint: (point: { dateIndex: number; price: number } | null) => void;
+  addDrawing: (drawing: Drawing) => void;
+  updateDrawing: (id: string, updates: Partial<Drawing>) => void;
+  removeDrawing: (id: string) => void;
+  clearDrawings: () => void;
+  undoDrawing: () => void;
+  redoDrawing: () => void;
+
+  // Subchart heights
+  setSubchartHeight: (key: string, height: number) => void;
 }

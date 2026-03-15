@@ -155,3 +155,88 @@ export interface BacktestConfig {
  * Display start years options
  */
 export type DisplayStartYears = 5 | 10 | 20 | null;
+
+/**
+ * Y-axis scale type
+ */
+export type YAxisType = "value" | "log";
+
+/**
+ * Theme type
+ */
+export type ThemeType = "dark" | "light";
+
+/**
+ * Drawing tool types
+ */
+export type DrawingToolType = "cursor" | "hline" | "trendline" | "fibRetracement" | "rect" | "text";
+
+/**
+ * Base drawing object
+ */
+export interface DrawingBase {
+  id: string;
+  type: DrawingToolType;
+  color: string;
+  lineWidth: number;
+  visible: boolean;
+}
+
+/**
+ * Horizontal line drawing
+ */
+export interface HLineDrawing extends DrawingBase {
+  type: "hline";
+  price: number;
+  label?: string;
+}
+
+/**
+ * Trend line drawing (2 points)
+ */
+export interface TrendLineDrawing extends DrawingBase {
+  type: "trendline";
+  point1: { dateIndex: number; price: number };
+  point2: { dateIndex: number; price: number };
+}
+
+/**
+ * Fibonacci retracement drawing
+ */
+export interface FibRetracementDrawing extends DrawingBase {
+  type: "fibRetracement";
+  point1: { dateIndex: number; price: number };
+  point2: { dateIndex: number; price: number };
+  levels: number[];
+}
+
+/**
+ * Rectangle drawing
+ */
+export interface RectDrawing extends DrawingBase {
+  type: "rect";
+  point1: { dateIndex: number; price: number };
+  point2: { dateIndex: number; price: number };
+  fillColor: string;
+}
+
+/**
+ * Text annotation drawing
+ */
+export interface TextDrawing extends DrawingBase {
+  type: "text";
+  dateIndex: number;
+  price: number;
+  text: string;
+  fontSize: number;
+}
+
+/**
+ * Union of all drawing types
+ */
+export type Drawing =
+  | HLineDrawing
+  | TrendLineDrawing
+  | FibRetracementDrawing
+  | RectDrawing
+  | TextDrawing;

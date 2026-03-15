@@ -210,6 +210,8 @@ export interface SubchartContext {
   labelHeight: number; // pixels
   subHeight: number; // pixels
   subChartGap: number; // pixels
+  subchartHeights?: Record<string, number>; // per-indicator custom heights
+  theme?: string; // theme for colors
 }
 
 /**
@@ -249,8 +251,14 @@ export function formatLargeNumber(value: number): string {
  * Create a subchart grid, axes, title, and legend configuration (pixel-based)
  * Returns the gridIndex for use in series
  */
-export function createSubchart(ctx: SubchartContext, config: SubchartConfig): number {
+export function createSubchart(ctx: SubchartContext, config: SubchartConfig, key?: string): number {
   const gridIndex = ctx.grids.length;
+  const isLight = ctx.theme === "light";
+  const splitLineColor = isLight ? "#e0e0e0" : "#333";
+  const labelColor = isLight ? "#666" : "#a0a0a0";
+
+  // Use custom height if set, otherwise default
+  const height = (key && ctx.subchartHeights?.[key]) || ctx.subHeight;
 
   // Add title
   ctx.titles.push({
@@ -270,7 +278,7 @@ export function createSubchart(ctx: SubchartContext, config: SubchartConfig): nu
     left: 60,
     right: 60,
     top: ctx.currentTop + ctx.labelHeight,
-    height: ctx.subHeight,
+    height,
   });
 
   ctx.xAxes.push({
@@ -289,14 +297,14 @@ export function createSubchart(ctx: SubchartContext, config: SubchartConfig): nu
   if (config.yAxisMax !== undefined) yAxisConfig.max = config.yAxisMax;
 
   if (config.showSplitLine !== false) {
-    yAxisConfig.splitLine = { lineStyle: { color: "#333" } };
+    yAxisConfig.splitLine = { lineStyle: { color: splitLineColor } };
   } else {
     yAxisConfig.splitLine = { show: false };
   }
 
   if (config.showYAxisLabel !== false) {
     yAxisConfig.axisLabel = {
-      color: "#a0a0a0",
+      color: labelColor,
       fontSize: config.yAxisLabelFormatter ? 9 : 10,
       ...(config.yAxisLabelFormatter && { formatter: config.yAxisLabelFormatter }),
     };
@@ -305,7 +313,7 @@ export function createSubchart(ctx: SubchartContext, config: SubchartConfig): nu
   }
 
   ctx.yAxes.push(yAxisConfig);
-  ctx.currentTop += ctx.labelHeight + ctx.subHeight + ctx.subChartGap;
+  ctx.currentTop += ctx.labelHeight + height + ctx.subChartGap;
 
   return gridIndex;
 }

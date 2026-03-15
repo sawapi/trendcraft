@@ -5,12 +5,14 @@ import { usePostMessageLoader } from "../hooks/usePostMessageLoader";
 import { useChartStore } from "../store/chartStore";
 import { BacktestPanel } from "./BacktestPanel";
 import { DataQualityPanel } from "./DataQualityPanel";
+import { DrawingToolbar } from "./DrawingToolbar";
 import { FileDropZone } from "./FileDropZone";
 import { IndicatorSettingsDialog } from "./IndicatorSettingsDialog";
 import { MainChart, type MainChartHandle } from "./MainChart";
 import { PeriodSelector } from "./PeriodSelector";
 import { PositionSizingPanel } from "./PositionSizingPanel";
 import { SignalsPanel } from "./SignalsPanel";
+import { SymbolSearch } from "./SymbolSearch";
 import { TimeframeSelector } from "./TimeframeSelector";
 import { OptimizationPanel } from "./optimization/OptimizationPanel";
 
@@ -89,10 +91,22 @@ export default function App() {
   const enabledIndicators = useChartStore((state) => state.enabledIndicators);
   const zoomRange = useChartStore((state) => state.zoomRange);
 
+  const theme = useChartStore((state) => state.theme);
+  const setTheme = useChartStore((state) => state.setTheme);
+  const yAxisType = useChartStore((state) => state.yAxisType);
+  const setYAxisType = useChartStore((state) => state.setYAxisType);
+  const yAxisPercent = useChartStore((state) => state.yAxisPercent);
+  const setYAxisPercent = useChartStore((state) => state.setYAxisPercent);
+
   const hasData = rawCandles.length > 0;
 
   // Data quality validation
   const validationResult = useDataQuality(currentCandles);
+
+  // Apply theme to document
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+  }, [theme]);
 
   // Calculate visible date range from zoom range
   const getVisibleDateRange = useCallback(() => {
@@ -128,6 +142,28 @@ export default function App() {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
+  // Keyboard shortcuts
+  const undoDrawing = useChartStore((state) => state.undoDrawing);
+  const redoDrawing = useChartStore((state) => state.redoDrawing);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore when typing in inputs
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey) {
+        e.preventDefault();
+        undoDrawing();
+      }
+      if ((e.ctrlKey || e.metaKey) && (e.key === "y" || (e.key === "z" && e.shiftKey))) {
+        e.preventDefault();
+        redoDrawing();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [undoDrawing, redoDrawing]);
+
   // Close sidebar when clicking overlay
   const handleOverlayClick = useCallback(() => {
     setSidebarOpen(false);
@@ -162,9 +198,10 @@ export default function App() {
   ];
 
   return (
-    <div className="app">
+    <div className="app" data-theme={theme}>
       <header className="app-header">
         <h1>Chart Viewer</h1>
+        {!hasData && <SymbolSearch />}
         {hasData && (
           <div className="header-info">
             <span className="file-name">{fileName}</span>
@@ -176,6 +213,25 @@ export default function App() {
                 {visibleRange.start} - {visibleRange.end} ({visibleRange.count})
               </span>
             )}
+
+            {/* Y-axis controls */}
+            <button
+              type="button"
+              className={`header-toggle-btn ${yAxisType === "log" ? "active" : ""}`}
+              onClick={() => setYAxisType(yAxisType === "log" ? "value" : "log")}
+              title="Toggle logarithmic scale"
+            >
+              Log
+            </button>
+            <button
+              type="button"
+              className={`header-toggle-btn ${yAxisPercent ? "active" : ""}`}
+              onClick={() => setYAxisPercent(!yAxisPercent)}
+              title="Toggle percentage mode"
+            >
+              %
+            </button>
+
             <button
               type="button"
               className="reset-button"
@@ -192,6 +248,19 @@ export default function App() {
               <span className="material-icons md-16">download</span>
               SVG
             </button>
+
+            {/* Theme toggle */}
+            <button
+              type="button"
+              className="reset-button"
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              title={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+            >
+              <span className="material-icons md-16">
+                {theme === "dark" ? "light_mode" : "dark_mode"}
+              </span>
+            </button>
+
             <button type="button" className="reset-button" onClick={reset}>
               <span className="material-icons md-16">refresh</span>
               Reset
@@ -200,31 +269,34 @@ export default function App() {
         )}
       </header>
 
-      {hasData && (
-        <div className="indicator-bar">
-          <button
-            type="button"
-            className="settings-button"
-            onClick={() => setSettingsOpen(true)}
-            title="Indicator Settings"
-          >
-            <span className="material-icons">settings</span>
-            Settings
-          </button>
-          {enabledLabels.length > 0 && (
-            <div className="enabled-indicators">
-              {enabledLabels.map(({ key, label, type }) => (
-                <span
-                  key={key}
-                  className={`indicator-tag ${type === "overlay" ? "overlay-tag" : "subchart-tag"}`}
-                >
-                  {label}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+      <div className="indicator-bar">
+        {hasData && <SymbolSearch />}
+        {hasData && (
+          <>
+            <button
+              type="button"
+              className="settings-button"
+              onClick={() => setSettingsOpen(true)}
+              title="Indicator Settings"
+            >
+              <span className="material-icons">settings</span>
+              Settings
+            </button>
+            {enabledLabels.length > 0 && (
+              <div className="enabled-indicators">
+                {enabledLabels.map(({ key, label, type }) => (
+                  <span
+                    key={key}
+                    className={`indicator-tag ${type === "overlay" ? "overlay-tag" : "subchart-tag"}`}
+                  >
+                    {label}
+                  </span>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
 
       <IndicatorSettingsDialog isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
 
@@ -237,8 +309,11 @@ export default function App() {
           <FileDropZone />
         ) : (
           <>
-            <div className="chart-area">
-              <MainChart ref={mainChartRef} />
+            <div className="chart-area-wrapper">
+              <DrawingToolbar />
+              <div className="chart-area">
+                <MainChart ref={mainChartRef} />
+              </div>
             </div>
 
             {/* Mobile overlay */}

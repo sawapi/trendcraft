@@ -5,13 +5,20 @@
 import ReactECharts from "echarts-for-react";
 import * as echarts from "echarts/core";
 import { SVGRenderer } from "echarts/renderers";
-import { forwardRef, useCallback, useImperativeHandle, useMemo, useRef } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef } from "react";
 import type { IndicatorData, PercentileInfo } from "../hooks/useIndicators";
 import { useIndicators } from "../hooks/useIndicators";
 import { useOverlays } from "../hooks/useOverlays";
 import type { SignalData } from "../hooks/useSignals";
 import { useSignals } from "../hooks/useSignals";
 import { useChartStore } from "../store/chartStore";
+import type {
+  Drawing,
+  FibRetracementDrawing,
+  RectDrawing,
+  TextDrawing,
+  TrendLineDrawing,
+} from "../types";
 import { buildChartOption } from "../utils/chartConfig";
 
 // Register SVG renderer for SVG export support
@@ -371,6 +378,111 @@ export const MainChart = forwardRef<MainChartHandle>(function MainChart(_props, 
     return calculateChartHeight(enabledIndicators.length);
   }, [enabledIndicators.length]);
 
+  const yAxisType = useChartStore((state) => state.yAxisType);
+  const yAxisPercent = useChartStore((state) => state.yAxisPercent);
+  const theme = useChartStore((state) => state.theme);
+  const drawings = useChartStore((state) => state.drawings);
+  const subchartHeights = useChartStore((state) => state.subchartHeights);
+  const activeDrawingTool = useChartStore((state) => state.activeDrawingTool);
+  const setPendingPoint = useChartStore((state) => state.setPendingPoint);
+  const addDrawing = useChartStore((state) => state.addDrawing);
+
+  // Drawing tool click handler on ZRender level
+  useEffect(() => {
+    if (activeDrawingTool === "cursor" || activeDrawingTool === "hline") return;
+    const instance = chartRef.current?.getEchartsInstance();
+    if (!instance) return;
+
+    let drawingIdCounter = 0;
+    const generateId = () => `drawing-${Date.now()}-${++drawingIdCounter}`;
+
+    const handler = (params: { offsetX: number; offsetY: number }) => {
+      const point = instance.convertFromPixel({ gridIndex: 0 }, [params.offsetX, params.offsetY]);
+      if (!point) return;
+
+      const [dataIndex, price] = point;
+      const roundedIndex = Math.round(dataIndex);
+      if (roundedIndex < 0 || roundedIndex >= currentCandles.length) return;
+
+      const tool = useChartStore.getState().activeDrawingTool;
+      const pending = useChartStore.getState().pendingPoint;
+
+      if (tool === "text") {
+        const text = window.prompt("Enter text:");
+        if (!text) return;
+        const drawing: TextDrawing = {
+          id: generateId(),
+          type: "text",
+          color: "#ffffff",
+          lineWidth: 1,
+          visible: true,
+          dateIndex: roundedIndex,
+          price,
+          text,
+          fontSize: 12,
+        };
+        addDrawing(drawing);
+        return;
+      }
+
+      // 2-click tools: trendline, fibRetracement, rect
+      if (!pending) {
+        setPendingPoint({ dateIndex: roundedIndex, price });
+        return;
+      }
+
+      // Second click — create the drawing
+      const p1 = pending;
+      const p2 = { dateIndex: roundedIndex, price };
+
+      let drawing: Drawing;
+      if (tool === "trendline") {
+        drawing = {
+          id: generateId(),
+          type: "trendline",
+          color: "#2196f3",
+          lineWidth: 2,
+          visible: true,
+          point1: p1,
+          point2: p2,
+        } satisfies TrendLineDrawing;
+      } else if (tool === "fibRetracement") {
+        drawing = {
+          id: generateId(),
+          type: "fibRetracement",
+          color: "#ff9800",
+          lineWidth: 1,
+          visible: true,
+          point1: p1,
+          point2: p2,
+          levels: [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1],
+        } satisfies FibRetracementDrawing;
+      } else {
+        drawing = {
+          id: generateId(),
+          type: "rect",
+          color: "#ff9800",
+          lineWidth: 1,
+          visible: true,
+          point1: p1,
+          point2: p2,
+          fillColor: "rgba(255, 152, 0, 0.15)",
+        } satisfies RectDrawing;
+      }
+
+      addDrawing(drawing);
+      setPendingPoint(null);
+    };
+
+    const zr = instance.getZr();
+    zr.on("click", handler);
+    return () => {
+      zr.off("click", handler);
+    };
+  }, [activeDrawingTool, currentCandles.length, addDrawing, setPendingPoint]);
+
+  const isDrawingActive = activeDrawingTool !== "cursor" && activeDrawingTool !== "hline";
+
   const option = useMemo(() => {
     return buildChartOption(
       currentCandles,
@@ -384,6 +496,11 @@ export const MainChart = forwardRef<MainChartHandle>(function MainChart(_props, 
       chartHeight,
       indicatorParams,
       zoomRange,
+      yAxisType,
+      yAxisPercent,
+      theme,
+      drawings,
+      subchartHeights,
     );
   }, [
     currentCandles,
@@ -397,6 +514,11 @@ export const MainChart = forwardRef<MainChartHandle>(function MainChart(_props, 
     chartHeight,
     indicatorParams,
     zoomRange,
+    yAxisType,
+    yAxisPercent,
+    theme,
+    drawings,
+    subchartHeights,
   ]);
 
   // Handle dataZoom events from chart interaction
@@ -435,7 +557,10 @@ export const MainChart = forwardRef<MainChartHandle>(function MainChart(_props, 
   const chartKey = `chart-${currentCandles.length}`;
 
   return (
-    <div className="main-chart" style={{ height: chartHeight }}>
+    <div
+      className={`main-chart${isDrawingActive ? " drawing-active" : ""}`}
+      style={{ height: chartHeight }}
+    >
       <ReactECharts
         ref={chartRef}
         key={chartKey}

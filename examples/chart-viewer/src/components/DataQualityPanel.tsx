@@ -14,11 +14,23 @@ function formatDate(timestamp: number): string {
   return `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, "0")}/${String(date.getDate()).padStart(2, "0")}`;
 }
 
-/** Color constants for severity levels */
+/** Color constants for severity levels (using CSS variables for theme support) */
 const SEVERITY_COLORS = {
-  error: { bg: "#5c1a1a", text: "#ff6b6b", badge: "#e53935" },
-  warning: { bg: "#5c3d1a", text: "#ffb74d", badge: "#fb8c00" },
-  info: { bg: "#1a3a5c", text: "#64b5f6", badge: "#1e88e5" },
+  error: {
+    bg: "var(--severity-error-bg)",
+    text: "var(--severity-error-text)",
+    badge: "var(--severity-error-badge)",
+  },
+  warning: {
+    bg: "var(--severity-warning-bg)",
+    text: "var(--severity-warning-text)",
+    badge: "var(--severity-warning-badge)",
+  },
+  info: {
+    bg: "var(--severity-info-bg)",
+    text: "var(--severity-info-text)",
+    badge: "var(--severity-info-badge)",
+  },
 } as const;
 
 /** Category label mapping */
@@ -84,8 +96,8 @@ function FindingRow({ finding }: { finding: ValidationFinding }) {
         gap: 8,
         padding: "4px 8px",
         fontSize: 12,
-        color: "#e0e0e0",
-        borderBottom: "1px solid #333",
+        color: "var(--dq-text)",
+        borderBottom: "1px solid var(--dq-border)",
       }}
     >
       <span
@@ -104,7 +116,7 @@ function FindingRow({ finding }: { finding: ValidationFinding }) {
       </span>
       <span style={{ flex: 1 }}>{finding.message}</span>
       {finding.time != null && (
-        <span style={{ color: "#888", whiteSpace: "nowrap", fontSize: 11 }}>
+        <span style={{ color: "var(--dq-muted)", whiteSpace: "nowrap", fontSize: 11 }}>
           {formatDate(finding.time)}
         </span>
       )}
@@ -173,9 +185,9 @@ export function DataQualityPanel({ result }: DataQualityPanelProps) {
   return (
     <div
       style={{
-        backgroundColor: "#1e1e1e",
-        borderBottom: "1px solid #333",
-        color: "#e0e0e0",
+        backgroundColor: "var(--dq-bg)",
+        borderBottom: "1px solid var(--dq-border)",
+        color: "var(--dq-text)",
       }}
     >
       {/* Header bar */}
@@ -190,7 +202,7 @@ export function DataQualityPanel({ result }: DataQualityPanelProps) {
           padding: "6px 12px",
           border: "none",
           background: "none",
-          color: "#e0e0e0",
+          color: "var(--dq-text)",
           cursor: "pointer",
           fontSize: 13,
         }}
@@ -217,8 +229,8 @@ export function DataQualityPanel({ result }: DataQualityPanelProps) {
               gap: 4,
               padding: "2px 8px",
               borderRadius: 12,
-              backgroundColor: "#1a3d1a",
-              color: "#66bb6a",
+              backgroundColor: "var(--dq-ok-bg)",
+              color: "var(--dq-ok-text)",
               fontSize: 12,
               fontWeight: 600,
             }}
@@ -241,7 +253,7 @@ export function DataQualityPanel({ result }: DataQualityPanelProps) {
           }}
         >
           {!hasIssues && result.info.length === 0 ? (
-            <div style={{ padding: "8px 0", fontSize: 12, color: "#888" }}>
+            <div style={{ padding: "8px 0", fontSize: 12, color: "var(--dq-muted)" }}>
               No issues found. All candle data looks valid.
             </div>
           ) : (

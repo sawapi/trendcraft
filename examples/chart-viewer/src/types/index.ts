@@ -9,6 +9,16 @@ export type {
   ZoomRange,
   BacktestConfig,
   DisplayStartYears,
+  YAxisType,
+  ThemeType,
+  DrawingToolType,
+  DrawingBase,
+  HLineDrawing,
+  TrendLineDrawing,
+  FibRetracementDrawing,
+  RectDrawing,
+  TextDrawing,
+  Drawing,
 } from "./chart";
 
 export type {

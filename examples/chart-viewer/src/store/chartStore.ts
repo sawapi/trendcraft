@@ -9,13 +9,17 @@ import type {
   ChartActions,
   ChartState,
   DisplayStartYears,
+  Drawing,
+  DrawingToolType,
   FundamentalData,
   IndicatorParams,
   IndicatorPreset,
   OverlayType,
   SignalType,
   SubChartType,
+  ThemeType,
   Timeframe,
+  YAxisType,
   ZoomRange,
 } from "../types";
 import { DEFAULT_INDICATOR_PARAMS } from "../types";
@@ -151,6 +155,30 @@ function getInitialSidebarCollapsed(): boolean {
   return readStorage("chart-viewer-sidebar-collapsed") === "true";
 }
 
+function getInitialTheme(): ThemeType {
+  const stored = readStorage("chart-viewer-theme");
+  return stored === "light" ? "light" : "dark";
+}
+
+function getInitialYAxisType(): YAxisType {
+  const stored = readStorage("chart-viewer-yaxis-type");
+  return stored === "log" ? "log" : "value";
+}
+
+function getInitialDrawings(): Drawing[] {
+  const stored = readStorage("chart-viewer-drawings");
+  if (!stored) return [];
+  try {
+    return JSON.parse(stored);
+  } catch {
+    return [];
+  }
+}
+
+function persistDrawings(drawings: Drawing[]): void {
+  writeStorage("chart-viewer-drawings", JSON.stringify(drawings));
+}
+
 function getInitialPresets(): IndicatorPreset[] {
   const stored = readStorage("chart-viewer-presets");
   if (!stored) return [];
@@ -257,6 +285,15 @@ export const useChartStore = create<ChartStore>((set, get) => ({
   enabledSignals: [],
   zoomRange: { start: 0, end: 100 },
   indicatorParams: { ...DEFAULT_INDICATOR_PARAMS },
+  yAxisType: getInitialYAxisType(),
+  yAxisPercent: false,
+  theme: getInitialTheme(),
+  activeDrawingTool: "cursor" as DrawingToolType,
+  pendingPoint: null,
+  drawings: getInitialDrawings(),
+  drawingHistory: [],
+  drawingHistoryIndex: -1,
+  subchartHeights: {},
   sidebarCollapsed: getInitialSidebarCollapsed(),
   presets: getInitialPresets(),
   backtestConfig: { ...DEFAULT_BACKTEST_CONFIG },
@@ -415,6 +452,112 @@ export const useChartStore = create<ChartStore>((set, get) => ({
       backtestResult: null,
       tradeAnalysis: null,
       isBacktestRunning: false,
+      drawings: [],
+      drawingHistory: [],
+      drawingHistoryIndex: -1,
+      activeDrawingTool: "cursor" as DrawingToolType,
+      pendingPoint: null,
+      subchartHeights: {},
     });
+  },
+
+  // Y-axis
+  setYAxisType: (type: YAxisType) => {
+    writeStorage("chart-viewer-yaxis-type", type);
+    set({ yAxisType: type });
+  },
+
+  setYAxisPercent: (percent: boolean) => {
+    set({ yAxisPercent: percent });
+  },
+
+  // Theme
+  setTheme: (theme: ThemeType) => {
+    writeStorage("chart-viewer-theme", theme);
+    document.documentElement.setAttribute("data-theme", theme);
+    set({ theme });
+  },
+
+  // Drawing tools
+  setActiveDrawingTool: (tool: DrawingToolType) => {
+    set({ activeDrawingTool: tool, pendingPoint: null });
+  },
+
+  setPendingPoint: (point) => {
+    set({ pendingPoint: point });
+  },
+
+  addDrawing: (drawing: Drawing) => {
+    const { drawings, drawingHistory, drawingHistoryIndex } = get();
+    const newDrawings = [...drawings, drawing];
+    // Truncate redo history
+    const newHistory = [...drawingHistory.slice(0, drawingHistoryIndex + 1), [...drawings]];
+    persistDrawings(newDrawings);
+    set({
+      drawings: newDrawings,
+      drawingHistory: newHistory,
+      drawingHistoryIndex: newHistory.length - 1,
+    });
+  },
+
+  updateDrawing: (id: string, updates: Partial<Drawing>) => {
+    const { drawings } = get();
+    const newDrawings = drawings.map((d) => (d.id === id ? ({ ...d, ...updates } as Drawing) : d));
+    persistDrawings(newDrawings);
+    set({ drawings: newDrawings });
+  },
+
+  removeDrawing: (id: string) => {
+    const { drawings, drawingHistory, drawingHistoryIndex } = get();
+    const newDrawings = drawings.filter((d) => d.id !== id);
+    const newHistory = [...drawingHistory.slice(0, drawingHistoryIndex + 1), [...drawings]];
+    persistDrawings(newDrawings);
+    set({
+      drawings: newDrawings,
+      drawingHistory: newHistory,
+      drawingHistoryIndex: newHistory.length - 1,
+    });
+  },
+
+  clearDrawings: () => {
+    const { drawings, drawingHistory, drawingHistoryIndex } = get();
+    const newHistory = [...drawingHistory.slice(0, drawingHistoryIndex + 1), [...drawings]];
+    persistDrawings([]);
+    set({
+      drawings: [],
+      drawingHistory: newHistory,
+      drawingHistoryIndex: newHistory.length - 1,
+    });
+  },
+
+  undoDrawing: () => {
+    const { drawingHistory, drawingHistoryIndex } = get();
+    if (drawingHistoryIndex < 0) return;
+    const prevDrawings = drawingHistory[drawingHistoryIndex];
+    persistDrawings(prevDrawings);
+    set({
+      drawings: prevDrawings,
+      drawingHistoryIndex: drawingHistoryIndex - 1,
+    });
+  },
+
+  redoDrawing: () => {
+    const { drawingHistory, drawingHistoryIndex, drawings } = get();
+    if (drawingHistoryIndex >= drawingHistory.length - 1) return;
+    const nextIndex = drawingHistoryIndex + 1;
+    // The next state is the one *after* the snapshot at nextIndex
+    const nextDrawings =
+      nextIndex + 1 < drawingHistory.length ? drawingHistory[nextIndex + 1] : drawings;
+    persistDrawings(nextDrawings);
+    set({
+      drawings: nextDrawings,
+      drawingHistoryIndex: nextIndex,
+    });
+  },
+
+  // Subchart heights
+  setSubchartHeight: (key: string, height: number) => {
+    const { subchartHeights } = get();
+    set({ subchartHeights: { ...subchartHeights, [key]: height } });
   },
 }));
