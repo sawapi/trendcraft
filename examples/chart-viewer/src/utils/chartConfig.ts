@@ -169,6 +169,26 @@ export function buildChartOption(
     }
   }
 
+  // Overlay-based chart patterns
+  const overlayPatterns = [
+    ...(enabledOverlays.includes("trianglePattern") && overlays.trianglePattern
+      ? overlays.trianglePattern
+      : []),
+    ...(enabledOverlays.includes("wedgePattern") && overlays.wedgePattern
+      ? overlays.wedgePattern
+      : []),
+    ...(enabledOverlays.includes("channelPattern") && overlays.channelPattern
+      ? overlays.channelPattern
+      : []),
+    ...(enabledOverlays.includes("flagPattern") && overlays.flagPattern
+      ? overlays.flagPattern
+      : []),
+  ];
+  if (overlayPatterns.length > 0) {
+    signalMarkPoints.push(...createPatternMarkPoints(overlayPatterns, candles, dates));
+    signalMarkLines.push(...createPatternMarkLines(overlayPatterns, candles, dates));
+  }
+
   // Add trade markers from backtest
   if (trades && trades.length > 0) {
     const tradeMarkers = createTradeMarkers(trades, candles, dates);

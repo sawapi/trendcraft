@@ -25,6 +25,7 @@ import type {
   NormalizedCandle,
   OrderBlockValue,
   ParabolicSarValue,
+  PatternSignal,
   PivotPointsValue,
   SupertrendValue,
   SwingPointValue,
@@ -41,6 +42,10 @@ import {
   chandelierExit,
   changeOfCharacter,
   channelLine,
+  detectChannel,
+  detectFlag,
+  detectTriangle,
+  detectWedge,
   donchianChannel,
   ema,
   fairValueGap,
@@ -131,6 +136,11 @@ export interface OverlayData {
   fractals?: FractalValue[];
   // Zigzag
   zigzag?: ZigzagValue[];
+  // Chart Patterns (overlay)
+  trianglePattern?: PatternSignal[];
+  wedgePattern?: PatternSignal[];
+  channelPattern?: PatternSignal[];
+  flagPattern?: PatternSignal[];
 }
 
 /**
@@ -420,6 +430,30 @@ export function useOverlays(
     if (enabledOverlays.includes("zigzag")) {
       const series = zigzag(candles, { deviation: p.zigzagDeviation });
       data.zigzag = series.map((s) => s.value);
+    }
+
+    // Triangle Pattern
+    if (enabledOverlays.includes("trianglePattern")) {
+      const swingLookback = p.chartPatternSwingLookback;
+      data.trianglePattern = detectTriangle(candles, { swingLookback });
+    }
+
+    // Wedge Pattern
+    if (enabledOverlays.includes("wedgePattern")) {
+      const swingLookback = p.chartPatternSwingLookback;
+      data.wedgePattern = detectWedge(candles, { swingLookback });
+    }
+
+    // Channel Pattern
+    if (enabledOverlays.includes("channelPattern")) {
+      const swingLookback = p.chartPatternSwingLookback;
+      data.channelPattern = detectChannel(candles, { swingLookback });
+    }
+
+    // Flag / Pennant Pattern
+    if (enabledOverlays.includes("flagPattern")) {
+      const swingLookback = p.chartPatternSwingLookback;
+      data.flagPattern = detectFlag(candles, { swingLookback });
     }
 
     // ATR Stops

@@ -16,6 +16,10 @@ import {
   type VolumeMaCrossSignal,
   bollingerSqueeze,
   cupWithHandle,
+  detectChannel,
+  detectFlag,
+  detectTriangle,
+  detectWedge,
   doubleBottom,
   doubleTop,
   headAndShoulders,
@@ -159,6 +163,10 @@ export function useSignals(
       ...headAndShoulders(candles, hsOpts),
       ...inverseHeadAndShoulders(candles, hsOpts),
       ...cupWithHandle(candles, cupOpts),
+      ...detectTriangle(candles, { swingLookback }),
+      ...detectWedge(candles, { swingLookback }),
+      ...detectChannel(candles, { swingLookback }),
+      ...detectFlag(candles, { swingLookback }),
     ];
 
     // Sort by time descending

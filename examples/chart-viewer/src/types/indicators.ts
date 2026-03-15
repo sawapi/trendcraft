@@ -518,6 +518,19 @@ export const INDICATOR_PARAM_CONFIGS: Record<string, ParamConfig[]> = {
     { key: "chartPatternMinDistance", label: "Min Distance", min: 5, max: 30, step: 1 },
     { key: "chartPatternMaxDistance", label: "Max Distance", min: 20, max: 100, step: 5 },
   ],
+  // Overlay Chart Patterns (share swingLookback)
+  trianglePattern: [
+    { key: "chartPatternSwingLookback", label: "Swing Lookback", min: 2, max: 20, step: 1 },
+  ],
+  wedgePattern: [
+    { key: "chartPatternSwingLookback", label: "Swing Lookback", min: 2, max: 20, step: 1 },
+  ],
+  channelPattern: [
+    { key: "chartPatternSwingLookback", label: "Swing Lookback", min: 2, max: 20, step: 1 },
+  ],
+  flagPattern: [
+    { key: "chartPatternSwingLookback", label: "Swing Lookback", min: 2, max: 20, step: 1 },
+  ],
   // New subcharts
   trix: [
     { key: "trixPeriod", label: "Period", min: 2, max: 50, step: 1 },

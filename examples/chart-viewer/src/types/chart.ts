@@ -107,7 +107,11 @@ export type OverlayType =
   | "kama"
   | "t3"
   | "fractals"
-  | "zigzag";
+  | "zigzag"
+  | "trianglePattern"
+  | "wedgePattern"
+  | "channelPattern"
+  | "flagPattern";
 
 /**
  * Subchart configuration

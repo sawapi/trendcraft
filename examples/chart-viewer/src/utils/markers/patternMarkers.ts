@@ -14,6 +14,18 @@ const PATTERN_LABELS: Record<string, string> = {
   head_shoulders: "H&S",
   inverse_head_shoulders: "IH&S",
   cup_handle: "C&H",
+  triangle_symmetrical: "ST",
+  triangle_ascending: "AT",
+  triangle_descending: "DsT",
+  rising_wedge: "RW",
+  falling_wedge: "FW",
+  channel_ascending: "AC",
+  channel_descending: "DC",
+  channel_horizontal: "HC",
+  bull_flag: "BF",
+  bear_flag: "BrF",
+  bull_pennant: "BP",
+  bear_pennant: "BrP",
 };
 
 /** Pattern-specific full names */
@@ -23,13 +35,33 @@ const PATTERN_NAMES: Record<string, string> = {
   head_shoulders: "Head & Shoulders",
   inverse_head_shoulders: "Inv H&S",
   cup_handle: "Cup & Handle",
+  triangle_symmetrical: "Symmetrical Triangle",
+  triangle_ascending: "Ascending Triangle",
+  triangle_descending: "Descending Triangle",
+  rising_wedge: "Rising Wedge",
+  falling_wedge: "Falling Wedge",
+  channel_ascending: "Ascending Channel",
+  channel_descending: "Descending Channel",
+  channel_horizontal: "Horizontal Channel",
+  bull_flag: "Bull Flag",
+  bear_flag: "Bear Flag",
+  bull_pennant: "Bull Pennant",
+  bear_pennant: "Bear Pennant",
 };
 
 /**
  * Determine if a pattern is bullish or bearish
  */
 function isBullishPattern(type: string): boolean {
-  return type === "double_bottom" || type === "inverse_head_shoulders" || type === "cup_handle";
+  return (
+    type === "double_bottom" ||
+    type === "inverse_head_shoulders" ||
+    type === "cup_handle" ||
+    type === "triangle_ascending" ||
+    type === "falling_wedge" ||
+    type === "bull_flag" ||
+    type === "bull_pennant"
+  );
 }
 
 /**

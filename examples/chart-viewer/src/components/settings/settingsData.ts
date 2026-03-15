@@ -94,6 +94,10 @@ export const OVERLAY_GROUPS: { group: string; options: { key: OverlayType; label
       { key: "candlestickPatterns", label: "Candlestick Patterns" },
       { key: "fractals", label: "Fractals" },
       { key: "zigzag", label: "Zigzag" },
+      { key: "trianglePattern", label: "Triangle" },
+      { key: "wedgePattern", label: "Wedge" },
+      { key: "channelPattern", label: "Channel" },
+      { key: "flagPattern", label: "Flag / Pennant" },
     ],
   },
   {
@@ -126,7 +130,7 @@ export const SIGNAL_OPTIONS: { key: SignalType; label: string; description: stri
   {
     key: "chartPatterns",
     label: "Chart Patterns",
-    description: "Double Top/Bottom, H&S, Cup & Handle",
+    description: "Double Top/Bottom, H&S, Cup & Handle, Triangle, Wedge, Channel, Flag/Pennant",
   },
 ];
 

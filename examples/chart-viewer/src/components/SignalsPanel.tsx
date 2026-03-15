@@ -505,6 +505,18 @@ const PATTERN_DISPLAY_NAMES: Record<string, string> = {
   head_shoulders: "H&S",
   inverse_head_shoulders: "Inv H&S",
   cup_handle: "Cup & Handle",
+  triangle_symmetrical: "Sym Triangle",
+  triangle_ascending: "Asc Triangle",
+  triangle_descending: "Desc Triangle",
+  rising_wedge: "Rising Wedge",
+  falling_wedge: "Falling Wedge",
+  channel_ascending: "Asc Channel",
+  channel_descending: "Desc Channel",
+  channel_horizontal: "Horiz Channel",
+  bull_flag: "Bull Flag",
+  bear_flag: "Bear Flag",
+  bull_pennant: "Bull Pennant",
+  bear_pennant: "Bear Pennant",
 };
 
 interface ChartPatternEventsProps {
@@ -538,7 +550,11 @@ function ChartPatternEvents({ data, startDate, endDate }: ChartPatternEventsProp
           const isBullish =
             s.type === "double_bottom" ||
             s.type === "inverse_head_shoulders" ||
-            s.type === "cup_handle";
+            s.type === "cup_handle" ||
+            s.type === "triangle_ascending" ||
+            s.type === "falling_wedge" ||
+            s.type === "bull_flag" ||
+            s.type === "bull_pennant";
           const icon = isBullish ? "▲" : "▼";
           const confirmedTag = s.confirmed ? " [Confirmed]" : "";
           const targetStr =
