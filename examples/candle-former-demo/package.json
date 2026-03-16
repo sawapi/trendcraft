@@ -1,0 +1,21 @@
+{
+  "name": "candle-former-demo",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "fetch-data": "tsx src/fetch-data.ts",
+    "train": "tsx src/train.ts",
+    "predict": "tsx src/predict.ts",
+    "backtest": "tsx src/backtest-example.ts"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.0",
+    "trendcraft": "link:../.."
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.7.0"
+  }
+}

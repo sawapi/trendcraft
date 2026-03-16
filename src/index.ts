@@ -1156,3 +1156,36 @@ export type {
   QuickRobustnessOptions,
   QuickRobustnessResult,
 } from "./types";
+
+// CandleFormer - ML-based candlestick prediction
+export {
+  trainCandleFormer,
+  candleFormer,
+  candleFormerBullish,
+  candleFormerBearish,
+  quantizeCandle,
+  tokenizeCandles,
+  tokenizePatterns,
+  classifyShape,
+  SHAPE_NAMES,
+  PATTERN_NAMES,
+  VOCAB_SIZE,
+  PAD_TOKEN,
+  NUM_CLASSES,
+  NUM_SHAPES,
+  NUM_VOLUME_BINS,
+  NUM_PATTERNS,
+  PATTERN_VOCAB_SIZE,
+  PATTERN_NONE,
+  DEFAULT_CONFIG as CANDLE_FORMER_DEFAULT_CONFIG,
+} from "./ml";
+export type {
+  CandleToken,
+  CandleFormerConfig,
+  CandleFormerWeights,
+  CandleFormerTrainOptions,
+  CandleFormerTrainResult,
+  CandleFormerOptions,
+  CandleFormerValue,
+  PredictionDirection,
+} from "./ml";
