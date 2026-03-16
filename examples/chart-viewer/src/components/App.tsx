@@ -3,17 +3,22 @@ import { createChartApi, registerChartRef } from "../api";
 import { useDataQuality } from "../hooks/useDataQuality";
 import { usePostMessageLoader } from "../hooks/usePostMessageLoader";
 import { useChartStore } from "../store/chartStore";
+import type { DrawingToolType } from "../types";
 import { BacktestPanel } from "./BacktestPanel";
+import { ComparisonSelector } from "./ComparisonSelector";
+import { CrosshairDataPanel } from "./CrosshairDataPanel";
 import { DataQualityPanel } from "./DataQualityPanel";
 import { DrawingToolbar } from "./DrawingToolbar";
 import { FileDropZone } from "./FileDropZone";
 import { IndicatorSettingsDialog } from "./IndicatorSettingsDialog";
+import { KeyboardShortcutsHelp } from "./KeyboardShortcutsHelp";
 import { MainChart, type MainChartHandle } from "./MainChart";
 import { PeriodSelector } from "./PeriodSelector";
 import { PositionSizingPanel } from "./PositionSizingPanel";
 import { SignalsPanel } from "./SignalsPanel";
 import { SymbolSearch } from "./SymbolSearch";
 import { TimeframeSelector } from "./TimeframeSelector";
+import { Watchlist, useWatchlist } from "./Watchlist";
 import { OptimizationPanel } from "./optimization/OptimizationPanel";
 
 /**
@@ -40,6 +45,9 @@ const OVERLAY_LABELS: Record<string, string> = {
   ichimoku: "Ichimoku",
   supertrend: "Supertrend",
   psar: "PSAR",
+  hma: "HMA",
+  mcginley: "McGinley",
+  emaRibbon: "EMA Ribbon",
 };
 
 /**
@@ -63,6 +71,13 @@ const SUBCHART_LABELS: Record<string, string> = {
   volumeTrend: "VolTrend",
   per: "PER",
   pbr: "PBR",
+  connorsRsi: "CRSI",
+  choppiness: "CHOP",
+  klinger: "KVO",
+  cmo: "CMO",
+  adxr: "ADXR",
+  imi: "IMI",
+  elderForce: "EFI",
 };
 
 export default function App() {
@@ -99,6 +114,7 @@ export default function App() {
   const setYAxisPercent = useChartStore((state) => state.setYAxisPercent);
 
   const hasData = rawCandles.length > 0;
+  const watchlist = useWatchlist();
 
   // Data quality validation
   const validationResult = useDataQuality(currentCandles);
@@ -132,6 +148,9 @@ export default function App() {
   // Settings dialog state
   const [settingsOpen, setSettingsOpen] = useState(false);
 
+  // Copy feedback state
+  const [copyFeedback, setCopyFeedback] = useState(false);
+
   // Check if mobile on mount and resize
   useEffect(() => {
     const checkMobile = () => {
@@ -145,24 +164,99 @@ export default function App() {
   // Keyboard shortcuts
   const undoDrawing = useChartStore((state) => state.undoDrawing);
   const redoDrawing = useChartStore((state) => state.redoDrawing);
+  const setActiveDrawingTool = useChartStore((state) => state.setActiveDrawingTool);
+  const setTimeframe = useChartStore((state) => state.setTimeframe);
+
+  const [shortcutsHelpOpen, setShortcutsHelpOpen] = useState(false);
 
   useEffect(() => {
+    const DRAWING_TOOLS: DrawingToolType[] = [
+      "cursor",
+      "hline",
+      "trendline",
+      "fibRetracement",
+      "rect",
+      "text",
+    ];
+
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignore when typing in inputs
+      // Ignore when typing in inputs or dialogs
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
-      if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey) {
-        e.preventDefault();
-        undoDrawing();
+      // Ctrl/Cmd shortcuts
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === "z" && !e.shiftKey) {
+          e.preventDefault();
+          undoDrawing();
+          return;
+        }
+        if (e.key === "y" || (e.key === "z" && e.shiftKey)) {
+          e.preventDefault();
+          redoDrawing();
+          return;
+        }
+        return;
       }
-      if ((e.ctrlKey || e.metaKey) && (e.key === "y" || (e.key === "z" && e.shiftKey))) {
-        e.preventDefault();
-        redoDrawing();
+
+      // Drawing tool shortcuts (1-6)
+      const num = Number.parseInt(e.key, 10);
+      if (num >= 1 && num <= 6) {
+        setActiveDrawingTool(DRAWING_TOOLS[num - 1]);
+        return;
+      }
+
+      switch (e.key) {
+        case "d":
+          setTimeframe("daily");
+          break;
+        case "w":
+          setTimeframe("weekly");
+          break;
+        case "m":
+          setTimeframe("monthly");
+          break;
+        case "+":
+        case "=": {
+          const state = useChartStore.getState();
+          const range = 10;
+          const newStart = Math.min(state.zoomRange.start + range, state.zoomRange.end - 5);
+          useChartStore.getState().setZoomRange({ start: newStart, end: state.zoomRange.end });
+          break;
+        }
+        case "-": {
+          const state = useChartStore.getState();
+          const newStart = Math.max(state.zoomRange.start - 10, 0);
+          useChartStore.getState().setZoomRange({ start: newStart, end: state.zoomRange.end });
+          break;
+        }
+        case "f":
+          if (document.fullscreenElement) {
+            document.exitFullscreen();
+          } else {
+            document.documentElement.requestFullscreen();
+          }
+          break;
+        case "Escape":
+          setActiveDrawingTool("cursor");
+          break;
+        case "Delete":
+        case "Backspace": {
+          const state = useChartStore.getState();
+          if (state.selectedDrawingId) {
+            state.removeDrawing(state.selectedDrawingId);
+          }
+          break;
+        }
+        case "?":
+          setShortcutsHelpOpen((prev) => !prev);
+          break;
+        default:
+          break;
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [undoDrawing, redoDrawing]);
+  }, [undoDrawing, redoDrawing, setActiveDrawingTool, setTimeframe]);
 
   // Close sidebar when clicking overlay
   const handleOverlayClick = useCallback(() => {
@@ -205,6 +299,20 @@ export default function App() {
         {hasData && (
           <div className="header-info">
             <span className="file-name">{fileName}</span>
+            {import.meta.env.VITE_ALPACA_ENABLED && fileName && (
+              <button
+                type="button"
+                className="watchlist-star-btn"
+                onClick={() =>
+                  watchlist.has(fileName) ? watchlist.remove(fileName) : watchlist.add(fileName)
+                }
+                title={watchlist.has(fileName) ? "Remove from watchlist" : "Add to watchlist"}
+              >
+                <span className="material-icons md-16">
+                  {watchlist.has(fileName) ? "star" : "star_outline"}
+                </span>
+              </button>
+            )}
             <span className="candle-count">{currentCandles.length} candles</span>
             <TimeframeSelector />
             <PeriodSelector />
@@ -248,6 +356,23 @@ export default function App() {
               <span className="material-icons md-16">download</span>
               SVG
             </button>
+            <button
+              type="button"
+              className="reset-button"
+              onClick={async () => {
+                const ok = await mainChartRef.current?.copyToClipboard();
+                if (ok) {
+                  setCopyFeedback(true);
+                  setTimeout(() => setCopyFeedback(false), 1500);
+                }
+              }}
+              title="Copy chart to clipboard"
+            >
+              <span className="material-icons md-16">
+                {copyFeedback ? "check" : "content_copy"}
+              </span>
+              {copyFeedback ? "Copied!" : "Copy"}
+            </button>
 
             {/* Theme toggle */}
             <button
@@ -271,6 +396,7 @@ export default function App() {
 
       <div className="indicator-bar">
         {hasData && <SymbolSearch />}
+        {hasData && <Watchlist symbols={watchlist.symbols} onRemove={watchlist.remove} />}
         {hasData && (
           <>
             <button
@@ -282,6 +408,7 @@ export default function App() {
               <span className="material-icons">settings</span>
               Settings
             </button>
+            <ComparisonSelector />
             {enabledLabels.length > 0 && (
               <div className="enabled-indicators">
                 {enabledLabels.map(({ key, label, type }) => (
@@ -299,6 +426,12 @@ export default function App() {
       </div>
 
       <IndicatorSettingsDialog isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <KeyboardShortcutsHelp
+        isOpen={shortcutsHelpOpen}
+        onClose={() => setShortcutsHelpOpen(false)}
+      />
+
+      {hasData && <CrosshairDataPanel />}
 
       {hasData && validationResult && validationResult.totalFindings > 0 && (
         <DataQualityPanel result={validationResult} />

@@ -43,6 +43,9 @@ export const OVERLAY_GROUPS: { group: string; options: { key: OverlayType; label
       { key: "vwma20", label: "VWMA 20" },
       { key: "kama", label: "KAMA" },
       { key: "t3", label: "T3" },
+      { key: "hma", label: "HMA" },
+      { key: "mcginley", label: "McGinley Dynamic" },
+      { key: "emaRibbon", label: "EMA Ribbon" },
     ],
   },
   {
@@ -149,6 +152,9 @@ export const SUBCHART_GROUPS: { group: string; options: { key: SubChartType; lab
         { key: "cci", label: "CCI" },
         { key: "williams", label: "Williams %R" },
         { key: "roc", label: "ROC" },
+        { key: "connorsRsi", label: "Connors RSI" },
+        { key: "cmo", label: "CMO" },
+        { key: "imi", label: "IMI" },
         { key: "trix", label: "TRIX" },
         { key: "aroon", label: "Aroon" },
         { key: "dpo", label: "DPO" },
@@ -159,6 +165,7 @@ export const SUBCHART_GROUPS: { group: string; options: { key: SubChartType; lab
       group: "Trend",
       options: [
         { key: "dmi", label: "DMI/ADX" },
+        { key: "adxr", label: "ADXR" },
         { key: "vortex", label: "Vortex" },
         { key: "rangebound", label: "Range-Bound" },
       ],
@@ -171,6 +178,7 @@ export const SUBCHART_GROUPS: { group: string; options: { key: SubChartType; lab
       group: "Volatility",
       options: [
         { key: "atr", label: "ATR" },
+        { key: "choppiness", label: "Choppiness Index" },
         { key: "volatilityRegime", label: "Volatility Regime" },
       ],
     },
@@ -184,6 +192,8 @@ export const SUBCHART_GROUPS: { group: string; options: { key: SubChartType; lab
         { key: "volumeProfile", label: "Volume Profile" },
         { key: "volumeTrend", label: "Volume Trend" },
         { key: "adl", label: "ADL" },
+        { key: "klinger", label: "Klinger Oscillator" },
+        { key: "elderForce", label: "Elder Force Index" },
       ],
     },
     {

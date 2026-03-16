@@ -338,5 +338,111 @@ export function buildMomentumSubcharts(
     });
   }
 
+  // Connors RSI
+  if (enabledIndicators.includes("connorsRsi") && indicators.connorsRsi) {
+    const p = indicatorParams;
+    const gridIndex = createSubchart(ctx, {
+      title: `Connors RSI (${p?.connorsRsiPeriod ?? 3},${p?.connorsStreakPeriod ?? 2},${p?.connorsRocPeriod ?? 100})`,
+      titleColor: COLORS.connorsRsi,
+      seriesNames: ["CRSI"],
+      yAxisMin: 0,
+      yAxisMax: 100,
+    });
+    series.push({
+      name: "CRSI",
+      type: "line",
+      xAxisIndex: gridIndex,
+      yAxisIndex: gridIndex,
+      data: indicators.connorsRsi,
+      symbol: "none",
+      lineStyle: { color: COLORS.connorsRsi, width: 1.5 },
+      markLine: createMarkLine([10, 90]),
+    });
+  }
+
+  // Choppiness Index
+  if (enabledIndicators.includes("choppiness") && indicators.choppiness) {
+    const gridIndex = createSubchart(ctx, {
+      title: `Choppiness (${indicatorParams?.choppinessPeriod ?? 14})`,
+      titleColor: COLORS.choppiness,
+      seriesNames: ["CHOP"],
+      yAxisMin: 0,
+      yAxisMax: 100,
+    });
+    series.push({
+      name: "CHOP",
+      type: "line",
+      xAxisIndex: gridIndex,
+      yAxisIndex: gridIndex,
+      data: indicators.choppiness,
+      symbol: "none",
+      lineStyle: { color: COLORS.choppiness, width: 1.5 },
+      markLine: createMarkLine([38.2, 61.8]),
+    });
+  }
+
+  // CMO
+  if (enabledIndicators.includes("cmo") && indicators.cmo) {
+    const gridIndex = createSubchart(ctx, {
+      title: `CMO (${indicatorParams?.cmoPeriod ?? 14})`,
+      titleColor: COLORS.cmo,
+      seriesNames: ["CMO"],
+      yAxisMin: -100,
+      yAxisMax: 100,
+    });
+    series.push({
+      name: "CMO",
+      type: "line",
+      xAxisIndex: gridIndex,
+      yAxisIndex: gridIndex,
+      data: indicators.cmo,
+      symbol: "none",
+      lineStyle: { color: COLORS.cmo, width: 1.5 },
+      markLine: createMarkLine([0]),
+    });
+  }
+
+  // ADXR
+  if (enabledIndicators.includes("adxr") && indicators.adxr) {
+    const gridIndex = createSubchart(ctx, {
+      title: `ADXR (${indicatorParams?.adxrPeriod ?? 14})`,
+      titleColor: COLORS.adxr,
+      seriesNames: ["ADXR"],
+      yAxisMin: 0,
+      yAxisMax: 100,
+    });
+    series.push({
+      name: "ADXR",
+      type: "line",
+      xAxisIndex: gridIndex,
+      yAxisIndex: gridIndex,
+      data: indicators.adxr,
+      symbol: "none",
+      lineStyle: { color: COLORS.adxr, width: 1.5 },
+      markLine: createMarkLine([25]),
+    });
+  }
+
+  // IMI
+  if (enabledIndicators.includes("imi") && indicators.imi) {
+    const gridIndex = createSubchart(ctx, {
+      title: `IMI (${indicatorParams?.imiPeriod ?? 14})`,
+      titleColor: COLORS.imi,
+      seriesNames: ["IMI"],
+      yAxisMin: 0,
+      yAxisMax: 100,
+    });
+    series.push({
+      name: "IMI",
+      type: "line",
+      xAxisIndex: gridIndex,
+      yAxisIndex: gridIndex,
+      data: indicators.imi,
+      symbol: "none",
+      lineStyle: { color: COLORS.imi, width: 1.5 },
+      markLine: createMarkLine([30, 70]),
+    });
+  }
+
   return series;
 }

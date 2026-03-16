@@ -1,6 +1,7 @@
 import type { BacktestResult, NormalizedCandle, TradeAnalysis } from "trendcraft";
 import type {
   BacktestConfig,
+  ComparisonSymbol,
   DisplayStartYears,
   Drawing,
   DrawingToolType,
@@ -54,6 +55,15 @@ export interface ChartState {
 
   // Drawing pending point (first click of a 2-click tool)
   pendingPoint: { dateIndex: number; price: number } | null;
+
+  // Selected drawing for context menu / delete
+  selectedDrawingId: string | null;
+
+  // Crosshair hover index
+  hoveredDataIndex: number | null;
+
+  // Comparison mode
+  comparisonSymbols: ComparisonSymbol[];
 
   // UI state
   sidebarCollapsed: boolean;
@@ -114,6 +124,17 @@ export interface ChartActions {
   clearDrawings: () => void;
   undoDrawing: () => void;
   redoDrawing: () => void;
+
+  // Selected drawing
+  selectDrawing: (id: string | null) => void;
+
+  // Crosshair
+  setHoveredDataIndex: (index: number | null) => void;
+
+  // Comparison mode
+  addComparison: (symbol: ComparisonSymbol) => void;
+  removeComparison: (symbol: string) => void;
+  clearComparisons: () => void;
 
   // Subchart heights
   setSubchartHeight: (key: string, height: number) => void;

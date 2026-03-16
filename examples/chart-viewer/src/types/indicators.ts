@@ -155,6 +155,30 @@ export interface IndicatorParams {
   hurstMaxWindow: number;
   // Vortex
   vortexPeriod: number;
+  // HMA
+  hmaPeriod: number;
+  // McGinley Dynamic
+  mcginleyPeriod: number;
+  // EMA Ribbon
+  emaRibbonPeriods: string; // comma-separated: "8,13,21,34,55"
+  // Connors RSI
+  connorsRsiPeriod: number;
+  connorsStreakPeriod: number;
+  connorsRocPeriod: number;
+  // Choppiness Index
+  choppinessPeriod: number;
+  // Klinger
+  klingerShortPeriod: number;
+  klingerLongPeriod: number;
+  klingerSignalPeriod: number;
+  // CMO
+  cmoPeriod: number;
+  // ADXR
+  adxrPeriod: number;
+  // IMI
+  imiPeriod: number;
+  // Elder Force Index
+  elderForcePeriod: number;
 }
 
 /**
@@ -312,6 +336,30 @@ export const DEFAULT_INDICATOR_PARAMS: IndicatorParams = {
   hurstMaxWindow: 100,
   // Vortex
   vortexPeriod: 14,
+  // HMA
+  hmaPeriod: 9,
+  // McGinley Dynamic
+  mcginleyPeriod: 14,
+  // EMA Ribbon
+  emaRibbonPeriods: "8,13,21,34,55",
+  // Connors RSI
+  connorsRsiPeriod: 3,
+  connorsStreakPeriod: 2,
+  connorsRocPeriod: 100,
+  // Choppiness Index
+  choppinessPeriod: 14,
+  // Klinger
+  klingerShortPeriod: 34,
+  klingerLongPeriod: 55,
+  klingerSignalPeriod: 13,
+  // CMO
+  cmoPeriod: 14,
+  // ADXR
+  adxrPeriod: 14,
+  // IMI
+  imiPeriod: 14,
+  // Elder Force Index
+  elderForcePeriod: 13,
 };
 
 /**
@@ -543,4 +591,23 @@ export const INDICATOR_PARAM_CONFIGS: Record<string, ParamConfig[]> = {
     { key: "hurstMaxWindow", label: "Max Window", min: 50, max: 200, step: 10 },
   ],
   vortex: [{ key: "vortexPeriod", label: "Period", min: 2, max: 50, step: 1 }],
+  // New overlays
+  hma: [{ key: "hmaPeriod", label: "Period", min: 2, max: 200, step: 1 }],
+  mcginley: [{ key: "mcginleyPeriod", label: "Period", min: 2, max: 200, step: 1 }],
+  // New subcharts
+  connorsRsi: [
+    { key: "connorsRsiPeriod", label: "RSI Period", min: 2, max: 20, step: 1 },
+    { key: "connorsStreakPeriod", label: "Streak Period", min: 2, max: 10, step: 1 },
+    { key: "connorsRocPeriod", label: "ROC Period", min: 50, max: 200, step: 10 },
+  ],
+  choppiness: [{ key: "choppinessPeriod", label: "Period", min: 2, max: 50, step: 1 }],
+  klinger: [
+    { key: "klingerShortPeriod", label: "Short", min: 10, max: 50, step: 1 },
+    { key: "klingerLongPeriod", label: "Long", min: 30, max: 100, step: 1 },
+    { key: "klingerSignalPeriod", label: "Signal", min: 5, max: 30, step: 1 },
+  ],
+  cmo: [{ key: "cmoPeriod", label: "Period", min: 2, max: 50, step: 1 }],
+  adxr: [{ key: "adxrPeriod", label: "Period", min: 2, max: 50, step: 1 }],
+  imi: [{ key: "imiPeriod", label: "Period", min: 2, max: 50, step: 1 }],
+  elderForce: [{ key: "elderForcePeriod", label: "Period", min: 2, max: 50, step: 1 }],
 };

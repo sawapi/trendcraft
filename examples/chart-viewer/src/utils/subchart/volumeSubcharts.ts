@@ -312,5 +312,65 @@ export function buildVolumeSubcharts(
     });
   }
 
+  // Klinger Volume Oscillator
+  if (
+    enabledIndicators.includes("klinger") &&
+    indicators.klingerLine &&
+    indicators.klingerSignal &&
+    indicators.klingerHist
+  ) {
+    const gridIndex = createSubchart(ctx, {
+      title: `Klinger (${indicatorParams?.klingerShortPeriod ?? 34},${indicatorParams?.klingerLongPeriod ?? 55},${indicatorParams?.klingerSignalPeriod ?? 13})`,
+      titleColor: COLORS.klingerLine,
+      seriesNames: ["KVO", "KVO Signal", "KVO Hist"],
+    });
+    series.push({
+      name: "KVO",
+      type: "line",
+      xAxisIndex: gridIndex,
+      yAxisIndex: gridIndex,
+      data: indicators.klingerLine,
+      symbol: "none",
+      lineStyle: { color: COLORS.klingerLine, width: 1.5 },
+    });
+    series.push({
+      name: "KVO Signal",
+      type: "line",
+      xAxisIndex: gridIndex,
+      yAxisIndex: gridIndex,
+      data: indicators.klingerSignal,
+      symbol: "none",
+      lineStyle: { color: COLORS.klingerSignal, width: 1 },
+    });
+    series.push({
+      name: "KVO Hist",
+      type: "bar",
+      xAxisIndex: gridIndex,
+      yAxisIndex: gridIndex,
+      data: indicators.klingerHist.map((v) =>
+        v != null ? { value: v, itemStyle: { color: v >= 0 ? COLORS.up : COLORS.down } } : null,
+      ),
+    });
+  }
+
+  // Elder Force Index
+  if (enabledIndicators.includes("elderForce") && indicators.elderForce) {
+    const gridIndex = createSubchart(ctx, {
+      title: `Elder Force (${indicatorParams?.elderForcePeriod ?? 13})`,
+      titleColor: COLORS.elderForce,
+      seriesNames: ["EFI"],
+    });
+    series.push({
+      name: "EFI",
+      type: "line",
+      xAxisIndex: gridIndex,
+      yAxisIndex: gridIndex,
+      data: indicators.elderForce,
+      symbol: "none",
+      lineStyle: { color: COLORS.elderForce, width: 1.5 },
+      markLine: createMarkLine([0]),
+    });
+  }
+
   return series;
 }

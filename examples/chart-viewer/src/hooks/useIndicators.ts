@@ -6,6 +6,7 @@ import { useMemo } from "react";
 import type {
   AroonValue,
   DmiValue,
+  KlingerValue,
   MacdValue,
   NormalizedCandle,
   StochRsiValue,
@@ -15,15 +16,22 @@ import type {
 } from "trendcraft";
 import {
   adl,
+  adxr,
   aroon,
   atr,
   calculateScoreSeries,
   cci,
+  choppinessIndex,
   cmf,
+  cmo,
+  connorsRsi,
   dmi,
   dpo,
+  elderForceIndex,
   getPreset,
   hurst,
+  imi,
+  klinger,
   macd,
   mfi,
   obv,
@@ -273,6 +281,22 @@ export interface IndicatorData {
   vortexMinus?: (number | null)[];
   // ADL
   adl?: number[];
+  // Connors RSI
+  connorsRsi?: (number | null)[];
+  // Choppiness Index
+  choppiness?: (number | null)[];
+  // Klinger
+  klingerLine?: (number | null)[];
+  klingerSignal?: (number | null)[];
+  klingerHist?: (number | null)[];
+  // CMO
+  cmo?: (number | null)[];
+  // ADXR
+  adxr?: (number | null)[];
+  // IMI
+  imi?: (number | null)[];
+  // Elder Force Index
+  elderForce?: (number | null)[];
 }
 
 /**
@@ -540,6 +564,58 @@ export function useIndicators(
       const config = getPreset(p.scoringPreset);
       const scoreSeries = calculateScoreSeries(candles, config);
       data.scoring = scoreSeries.map((s) => s.score);
+    }
+
+    // Connors RSI
+    if (enabledIndicators.includes("connorsRsi")) {
+      const series = connorsRsi(candles, {
+        rsiPeriod: p.connorsRsiPeriod,
+        streakPeriod: p.connorsStreakPeriod,
+        rocPeriod: p.connorsRocPeriod,
+      });
+      data.connorsRsi = series.map((s) => s.value.crsi);
+    }
+
+    // Choppiness Index
+    if (enabledIndicators.includes("choppiness")) {
+      const series = choppinessIndex(candles, { period: p.choppinessPeriod });
+      data.choppiness = series.map((s) => s.value);
+    }
+
+    // Klinger
+    if (enabledIndicators.includes("klinger")) {
+      const series = klinger(candles, {
+        shortPeriod: p.klingerShortPeriod,
+        longPeriod: p.klingerLongPeriod,
+        signalPeriod: p.klingerSignalPeriod,
+      });
+      data.klingerLine = series.map((s) => (s.value as KlingerValue).kvo);
+      data.klingerSignal = series.map((s) => (s.value as KlingerValue).signal);
+      data.klingerHist = series.map((s) => (s.value as KlingerValue).histogram);
+    }
+
+    // CMO
+    if (enabledIndicators.includes("cmo")) {
+      const series = cmo(candles, { period: p.cmoPeriod });
+      data.cmo = series.map((s) => s.value);
+    }
+
+    // ADXR
+    if (enabledIndicators.includes("adxr")) {
+      const series = adxr(candles, { period: p.adxrPeriod });
+      data.adxr = series.map((s) => s.value);
+    }
+
+    // IMI
+    if (enabledIndicators.includes("imi")) {
+      const series = imi(candles, { period: p.imiPeriod });
+      data.imi = series.map((s) => s.value);
+    }
+
+    // Elder Force Index
+    if (enabledIndicators.includes("elderForce")) {
+      const series = elderForceIndex(candles, { period: p.elderForcePeriod });
+      data.elderForce = series.map((s) => s.value);
     }
 
     return data;

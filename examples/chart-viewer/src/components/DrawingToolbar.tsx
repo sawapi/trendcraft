@@ -7,12 +7,12 @@ import { useChartStore } from "../store/chartStore";
 import type { DrawingToolType, HLineDrawing } from "../types";
 
 const TOOLS: { type: DrawingToolType; icon: string; label: string }[] = [
-  { type: "cursor", icon: "near_me", label: "Cursor" },
-  { type: "hline", icon: "horizontal_rule", label: "Horizontal Line" },
-  { type: "trendline", icon: "trending_up", label: "Trend Line" },
-  { type: "fibRetracement", icon: "layers", label: "Fibonacci" },
-  { type: "rect", icon: "crop_landscape", label: "Rectangle" },
-  { type: "text", icon: "text_fields", label: "Text" },
+  { type: "cursor", icon: "near_me", label: "Cursor (1)" },
+  { type: "hline", icon: "horizontal_rule", label: "Horizontal Line (2)" },
+  { type: "trendline", icon: "trending_up", label: "Trend Line (3)" },
+  { type: "fibRetracement", icon: "layers", label: "Fibonacci (4)" },
+  { type: "rect", icon: "crop_landscape", label: "Rectangle (5)" },
+  { type: "text", icon: "text_fields", label: "Text (6)" },
 ];
 
 let drawingIdCounter = 0;

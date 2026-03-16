@@ -48,16 +48,19 @@ import {
   detectWedge,
   donchianChannel,
   ema,
+  emaRibbon,
   fairValueGap,
   fibonacciExtension,
   fibonacciRetracement,
   fractals,
   heikinAshi,
   highestLowest,
+  hma,
   ichimoku,
   kama,
   keltnerChannel,
   liquiditySweep,
+  mcginleyDynamic,
   orderBlock,
   parabolicSar,
   pivotPoints,
@@ -71,6 +74,7 @@ import {
   wma,
   zigzag,
 } from "trendcraft";
+import type { EmaRibbonValue } from "trendcraft";
 import { useChartStore } from "../store/chartStore";
 import type { OverlayType } from "../types";
 
@@ -141,6 +145,12 @@ export interface OverlayData {
   wedgePattern?: PatternSignal[];
   channelPattern?: PatternSignal[];
   flagPattern?: PatternSignal[];
+  // HMA
+  hma?: (number | null)[];
+  // McGinley Dynamic
+  mcginley?: (number | null)[];
+  // EMA Ribbon
+  emaRibbon?: EmaRibbonValue[];
 }
 
 /**
@@ -464,6 +474,28 @@ export function useOverlays(
         takeProfitMultiplier: p.atrStopsTpMultiplier,
       });
       data.atrStops = series.map((s) => s.value);
+    }
+
+    // HMA
+    if (enabledOverlays.includes("hma")) {
+      const series = hma(candles, { period: p.hmaPeriod });
+      data.hma = series.map((s) => s.value);
+    }
+
+    // McGinley Dynamic
+    if (enabledOverlays.includes("mcginley")) {
+      const series = mcginleyDynamic(candles, { period: p.mcginleyPeriod });
+      data.mcginley = series.map((s) => s.value);
+    }
+
+    // EMA Ribbon
+    if (enabledOverlays.includes("emaRibbon")) {
+      const periods = p.emaRibbonPeriods
+        .split(",")
+        .map((s) => Number.parseInt(s.trim(), 10))
+        .filter((n) => !Number.isNaN(n));
+      const series = emaRibbon(candles, { periods });
+      data.emaRibbon = series.map((s) => s.value);
     }
 
     return data;

@@ -47,7 +47,14 @@ export type SubChartType =
   | "dpo"
   | "hurst"
   | "vortex"
-  | "adl";
+  | "adl"
+  | "connorsRsi"
+  | "choppiness"
+  | "klinger"
+  | "cmo"
+  | "adxr"
+  | "imi"
+  | "elderForce";
 
 /**
  * Scoring preset type
@@ -111,7 +118,10 @@ export type OverlayType =
   | "trianglePattern"
   | "wedgePattern"
   | "channelPattern"
-  | "flagPattern";
+  | "flagPattern"
+  | "hma"
+  | "mcginley"
+  | "emaRibbon";
 
 /**
  * Subchart configuration
@@ -240,3 +250,12 @@ export type Drawing =
   | FibRetracementDrawing
   | RectDrawing
   | TextDrawing;
+
+/**
+ * Comparison symbol for overlay on main chart
+ */
+export interface ComparisonSymbol {
+  symbol: string;
+  candles: import("trendcraft").NormalizedCandle[];
+  color: string;
+}

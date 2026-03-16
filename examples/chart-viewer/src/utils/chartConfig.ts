@@ -8,6 +8,7 @@ import type { IndicatorData } from "../hooks/useIndicators";
 import type { OverlayData } from "../hooks/useOverlays";
 import type { SignalData } from "../hooks/useSignals";
 import type {
+  ComparisonSymbol,
   Drawing,
   IndicatorParams,
   OverlayType,
@@ -91,6 +92,7 @@ function buildDrawingGraphics(
   drawings: Drawing[],
   _candles: NormalizedCandle[],
   dates: string[],
+  selectedDrawingId?: string | null,
 ): { markLines: SeriesItem[]; markAreas: SeriesItem[]; markPoints: SeriesItem[] } {
   const markLines: SeriesItem[] = [];
   const markAreas: SeriesItem[] = [];
@@ -98,6 +100,8 @@ function buildDrawingGraphics(
 
   for (const drawing of drawings) {
     if (!drawing.visible) continue;
+    const isSelected = drawing.id === selectedDrawingId;
+    const lw = isSelected ? drawing.lineWidth + 1 : drawing.lineWidth;
 
     switch (drawing.type) {
       case "hline": {
@@ -105,7 +109,7 @@ function buildDrawingGraphics(
           yAxis: drawing.price,
           lineStyle: {
             color: drawing.color,
-            width: drawing.lineWidth,
+            width: lw,
             type: "solid",
           },
           label: {
@@ -124,7 +128,7 @@ function buildDrawingGraphics(
             coord: [dates[drawing.point1.dateIndex] ?? 0, drawing.point1.price],
             lineStyle: {
               color: drawing.color,
-              width: drawing.lineWidth,
+              width: lw,
               type: "solid",
             },
             label: { show: false },
@@ -176,7 +180,7 @@ function buildDrawingGraphics(
             itemStyle: {
               color: drawing.fillColor,
               borderColor: drawing.color,
-              borderWidth: drawing.lineWidth,
+              borderWidth: lw,
             },
           },
           {
@@ -233,6 +237,8 @@ export function buildChartOption(
   theme?: ThemeType,
   drawings?: Drawing[],
   _subchartHeights?: Record<string, number>,
+  selectedDrawingId?: string | null,
+  comparisonSymbols?: ComparisonSymbol[],
 ): EChartsOption {
   if (candles.length === 0) {
     return {};
@@ -407,7 +413,7 @@ export function buildChartOption(
 
   // Drawing elements (markLines, markAreas, markPoints)
   if (drawings && drawings.length > 0) {
-    const drawingGraphics = buildDrawingGraphics(drawings, candles, dates);
+    const drawingGraphics = buildDrawingGraphics(drawings, candles, dates, selectedDrawingId);
     signalMarkLines.push(...drawingGraphics.markLines);
     signalMarkAreas.push(...drawingGraphics.markAreas);
     signalMarkPoints.push(...drawingGraphics.markPoints);
@@ -497,6 +503,44 @@ export function buildChartOption(
     indicatorParams,
   );
   series.push(...overlaySeries);
+
+  // Comparison symbols (percentage-normalized overlay lines)
+  if (comparisonSymbols && comparisonSymbols.length > 0) {
+    // Build date lookup for main candles
+    const mainDateMap = new Map<string, number>();
+    for (let i = 0; i < candles.length; i++) {
+      const d = new Date(candles[i].time);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      mainDateMap.set(key, i);
+    }
+
+    for (const comp of comparisonSymbols) {
+      // Align comparison candles to main dates
+      const aligned: (number | null)[] = new Array(candles.length).fill(null);
+      let basePrice: number | null = null;
+
+      for (const c of comp.candles) {
+        const d = new Date(c.time);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+        const idx = mainDateMap.get(key);
+        if (idx !== undefined) {
+          if (basePrice === null) basePrice = c.close;
+          aligned[idx] = ((c.close - basePrice) / basePrice) * 100;
+        }
+      }
+
+      series.push({
+        name: comp.symbol,
+        type: "line",
+        data: aligned.map((v) => v ?? "-"),
+        lineStyle: { color: comp.color, width: 1.5 },
+        itemStyle: { color: comp.color },
+        symbol: "none",
+        yAxisIndex: 0,
+        z: 2,
+      });
+    }
+  }
 
   // Subchart context (pixel-based)
   const subchartLegends: SubchartLegend[] = [];

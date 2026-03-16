@@ -19,6 +19,7 @@ export type {
   RectDrawing,
   TextDrawing,
   Drawing,
+  ComparisonSymbol,
 } from "./chart";
 
 export type {

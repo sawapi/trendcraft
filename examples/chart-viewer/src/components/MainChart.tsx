@@ -5,7 +5,15 @@
 import ReactECharts from "echarts-for-react";
 import * as echarts from "echarts/core";
 import { SVGRenderer } from "echarts/renderers";
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { IndicatorData, PercentileInfo } from "../hooks/useIndicators";
 import { useIndicators } from "../hooks/useIndicators";
 import { useOverlays } from "../hooks/useOverlays";
@@ -20,6 +28,8 @@ import type {
   TrendLineDrawing,
 } from "../types";
 import { buildChartOption } from "../utils/chartConfig";
+import { hitTestDrawings } from "../utils/drawingHitTest";
+import { DrawingContextMenu } from "./DrawingContextMenu";
 
 // Register SVG renderer for SVG export support
 echarts.use([SVGRenderer]);
@@ -70,6 +80,7 @@ export interface FundamentalSummary {
 export interface MainChartHandle {
   exportPNG: () => void;
   exportSVG: () => void;
+  copyToClipboard: () => Promise<boolean>;
   getBase64PNG: () => string | null;
   getReadings: () => Record<string, number | number[] | null>;
   getTimeSeries: (count: number) => Record<string, unknown>[];
@@ -172,6 +183,26 @@ export const MainChart = forwardRef<MainChartHandle>(function MainChart(_props, 
 
     downloadDataURL(dataURL, `chart-${baseName}.svg`);
   }, [baseName]);
+
+  const copyToClipboard = useCallback(async (): Promise<boolean> => {
+    const instance = chartRef.current?.getEchartsInstance();
+    if (!instance) return false;
+    try {
+      const currentTheme = useChartStore.getState().theme;
+      const bgColor = currentTheme === "dark" ? "#1a1a2e" : "#ffffff";
+      const dataURL = instance.getDataURL({
+        type: "png",
+        pixelRatio: 2,
+        backgroundColor: bgColor,
+      });
+      const res = await fetch(dataURL);
+      const blob = await res.blob();
+      await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+      return true;
+    } catch {
+      return false;
+    }
+  }, []);
 
   const getBase64PNG = useCallback(() => {
     const instance = chartRef.current?.getEchartsInstance();
@@ -357,6 +388,7 @@ export const MainChart = forwardRef<MainChartHandle>(function MainChart(_props, 
     () => ({
       exportPNG,
       exportSVG,
+      copyToClipboard,
       getBase64PNG,
       getReadings,
       getTimeSeries,
@@ -366,6 +398,7 @@ export const MainChart = forwardRef<MainChartHandle>(function MainChart(_props, 
     [
       exportPNG,
       exportSVG,
+      copyToClipboard,
       getBase64PNG,
       getReadings,
       getTimeSeries,
@@ -400,9 +433,26 @@ export const MainChart = forwardRef<MainChartHandle>(function MainChart(_props, 
       const point = instance.convertFromPixel({ gridIndex: 0 }, [params.offsetX, params.offsetY]);
       if (!point) return;
 
-      const [dataIndex, price] = point;
+      const [dataIndex, rawPrice] = point;
       const roundedIndex = Math.round(dataIndex);
-      if (roundedIndex < 0 || roundedIndex >= currentCandles.length) return;
+      const storeCandles = useChartStore.getState().currentCandles;
+      if (roundedIndex < 0 || roundedIndex >= storeCandles.length) return;
+
+      // OHLC snap: snap to nearest OHLC value if within 15px
+      const candle = storeCandles[roundedIndex];
+      const ohlcValues = [candle.open, candle.high, candle.low, candle.close];
+      let price = rawPrice;
+      let minPixelDist = 15;
+      for (const ohlc of ohlcValues) {
+        const ohlcPixel = instance.convertToPixel({ gridIndex: 0 }, [roundedIndex, ohlc]);
+        if (ohlcPixel) {
+          const dist = Math.abs(params.offsetY - ohlcPixel[1]);
+          if (dist < minPixelDist) {
+            minPixelDist = dist;
+            price = ohlc;
+          }
+        }
+      }
 
       const tool = useChartStore.getState().activeDrawingTool;
       const pending = useChartStore.getState().pendingPoint;
@@ -479,9 +529,84 @@ export const MainChart = forwardRef<MainChartHandle>(function MainChart(_props, 
     return () => {
       zr.off("click", handler);
     };
-  }, [activeDrawingTool, currentCandles.length, addDrawing, setPendingPoint]);
+  }, [activeDrawingTool, addDrawing, setPendingPoint]);
+
+  const selectDrawing = useChartStore((state) => state.selectDrawing);
+
+  // Context menu state
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    drawingId: string;
+  } | null>(null);
+
+  // Right-click handler for drawings
+  useEffect(() => {
+    const instance = chartRef.current?.getEchartsInstance();
+    if (!instance) return;
+
+    const handler = (params: { event: { event: MouseEvent } }) => {
+      const e = params.event.event;
+      e.preventDefault();
+
+      const convertToPixel = (dataPoint: [number, number]) =>
+        instance.convertToPixel({ gridIndex: 0 }, dataPoint);
+
+      const hit = hitTestDrawings(
+        useChartStore.getState().drawings,
+        e.offsetX,
+        e.offsetY,
+        convertToPixel,
+        instance.getWidth(),
+      );
+
+      if (hit) {
+        selectDrawing(hit.id);
+        setContextMenu({ x: e.clientX, y: e.clientY, drawingId: hit.id });
+      } else {
+        selectDrawing(null);
+        setContextMenu(null);
+      }
+    };
+
+    const zr = instance.getZr();
+    zr.on("contextmenu", handler);
+    return () => {
+      zr.off("contextmenu", handler);
+    };
+  }, [selectDrawing]);
+
+  // Click handler to select/deselect drawings
+  useEffect(() => {
+    if (activeDrawingTool !== "cursor") return;
+    const instance = chartRef.current?.getEchartsInstance();
+    if (!instance) return;
+
+    const handler = (params: { offsetX: number; offsetY: number }) => {
+      const convertToPixel = (dataPoint: [number, number]) =>
+        instance.convertToPixel({ gridIndex: 0 }, dataPoint);
+
+      const hit = hitTestDrawings(
+        useChartStore.getState().drawings,
+        params.offsetX,
+        params.offsetY,
+        convertToPixel,
+        instance.getWidth(),
+      );
+
+      selectDrawing(hit?.id ?? null);
+    };
+
+    const zr = instance.getZr();
+    zr.on("click", handler);
+    return () => {
+      zr.off("click", handler);
+    };
+  }, [activeDrawingTool, selectDrawing]);
 
   const isDrawingActive = activeDrawingTool !== "cursor" && activeDrawingTool !== "hline";
+  const selectedDrawingId = useChartStore((state) => state.selectedDrawingId);
+  const comparisonSymbols = useChartStore((state) => state.comparisonSymbols);
 
   const option = useMemo(() => {
     return buildChartOption(
@@ -501,6 +626,8 @@ export const MainChart = forwardRef<MainChartHandle>(function MainChart(_props, 
       theme,
       drawings,
       subchartHeights,
+      selectedDrawingId,
+      comparisonSymbols,
     );
   }, [
     currentCandles,
@@ -519,7 +646,29 @@ export const MainChart = forwardRef<MainChartHandle>(function MainChart(_props, 
     theme,
     drawings,
     subchartHeights,
+    selectedDrawingId,
+    comparisonSymbols,
   ]);
+
+  const setHoveredDataIndex = useChartStore((state) => state.setHoveredDataIndex);
+
+  // Track hovered data index via DOM mousemove + convertFromPixel
+  const handleChartMouseMove = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      const instance = chartRef.current?.getEchartsInstance();
+      if (!instance) return;
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const point = instance.convertFromPixel({ gridIndex: 0 }, [x, y]);
+      if (!point) return;
+      const idx = Math.round(point[0]);
+      if (idx >= 0 && idx < currentCandles.length) {
+        setHoveredDataIndex(idx);
+      }
+    },
+    [currentCandles.length, setHoveredDataIndex],
+  );
 
   // Handle dataZoom events from chart interaction
   const onEvents = useMemo(
@@ -560,6 +709,8 @@ export const MainChart = forwardRef<MainChartHandle>(function MainChart(_props, 
     <div
       className={`main-chart${isDrawingActive ? " drawing-active" : ""}`}
       style={{ height: chartHeight }}
+      onMouseMove={handleChartMouseMove}
+      onMouseLeave={() => setHoveredDataIndex(null)}
     >
       <ReactECharts
         ref={chartRef}
@@ -570,6 +721,17 @@ export const MainChart = forwardRef<MainChartHandle>(function MainChart(_props, 
         lazyUpdate={true}
         onEvents={onEvents}
       />
+      {contextMenu && (
+        <DrawingContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          drawingId={contextMenu.drawingId}
+          onClose={() => {
+            setContextMenu(null);
+            selectDrawing(null);
+          }}
+        />
+      )}
     </div>
   );
 });

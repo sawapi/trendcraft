@@ -111,5 +111,42 @@ export function buildMovingAverageSeries(
     });
   }
 
+  // HMA
+  if (enabledOverlays.includes("hma") && overlays.hma) {
+    series.push({
+      name: "HMA",
+      type: "line",
+      data: overlays.hma,
+      symbol: "none",
+      lineStyle: { color: COLORS.hma, width: 1.5 },
+    });
+  }
+
+  // McGinley Dynamic
+  if (enabledOverlays.includes("mcginley") && overlays.mcginley) {
+    series.push({
+      name: "McGinley",
+      type: "line",
+      data: overlays.mcginley,
+      symbol: "none",
+      lineStyle: { color: COLORS.mcginley, width: 1.5 },
+    });
+  }
+
+  // EMA Ribbon
+  if (enabledOverlays.includes("emaRibbon") && overlays.emaRibbon) {
+    const ribbonColors = ["#ff6b6b", "#ffa07a", "#ffd93d", "#6bcb77", "#4ecdc4"];
+    const periods = overlays.emaRibbon[0]?.values?.length ?? 0;
+    for (let p = 0; p < periods; p++) {
+      series.push({
+        name: `EMA Ribbon ${p + 1}`,
+        type: "line",
+        data: overlays.emaRibbon.map((v) => v.values[p]),
+        symbol: "none",
+        lineStyle: { color: ribbonColors[p % ribbonColors.length], width: 1 },
+      });
+    }
+  }
+
   return series;
 }

@@ -150,6 +150,24 @@ export const COLORS = {
   // KAMA / T3
   kama: "#ff6f00",
   t3: "#ab47bc",
+  hma: "#ff69b4",
+  mcginley: "#9c27b0",
+  // Connors RSI
+  connorsRsi: "#e040fb",
+  // Choppiness Index
+  choppiness: "#ff7043",
+  // Klinger
+  klingerLine: "#00bcd4",
+  klingerSignal: "#ff5722",
+  klingerHist: "#78909c",
+  // CMO
+  cmo: "#7c4dff",
+  // ADXR
+  adxr: "#ff6f00",
+  // IMI
+  imi: "#00e5ff",
+  // Elder Force Index
+  elderForce: "#8bc34a",
   // Fractals
   fractalUp: "#ef5350",
   fractalDown: "#26a69a",

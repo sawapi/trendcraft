@@ -8,6 +8,7 @@ import type {
   BacktestConfig,
   ChartActions,
   ChartState,
+  ComparisonSymbol,
   DisplayStartYears,
   Drawing,
   DrawingToolType,
@@ -293,6 +294,9 @@ export const useChartStore = create<ChartStore>((set, get) => ({
   drawings: getInitialDrawings(),
   drawingHistory: [],
   drawingHistoryIndex: -1,
+  selectedDrawingId: null,
+  hoveredDataIndex: null,
+  comparisonSymbols: [],
   subchartHeights: {},
   sidebarCollapsed: getInitialSidebarCollapsed(),
   presets: getInitialPresets(),
@@ -457,6 +461,8 @@ export const useChartStore = create<ChartStore>((set, get) => ({
       drawingHistoryIndex: -1,
       activeDrawingTool: "cursor" as DrawingToolType,
       pendingPoint: null,
+      selectedDrawingId: null,
+      comparisonSymbols: [],
       subchartHeights: {},
     });
   },
@@ -553,6 +559,30 @@ export const useChartStore = create<ChartStore>((set, get) => ({
       drawings: nextDrawings,
       drawingHistoryIndex: nextIndex,
     });
+  },
+
+  selectDrawing: (id: string | null) => {
+    set({ selectedDrawingId: id });
+  },
+
+  setHoveredDataIndex: (index: number | null) => {
+    set({ hoveredDataIndex: index });
+  },
+
+  addComparison: (symbol: ComparisonSymbol) => {
+    const { comparisonSymbols } = get();
+    if (comparisonSymbols.length >= 4) return;
+    if (comparisonSymbols.some((c) => c.symbol === symbol.symbol)) return;
+    set({ comparisonSymbols: [...comparisonSymbols, symbol] });
+  },
+
+  removeComparison: (symbol: string) => {
+    const { comparisonSymbols } = get();
+    set({ comparisonSymbols: comparisonSymbols.filter((c) => c.symbol !== symbol) });
+  },
+
+  clearComparisons: () => {
+    set({ comparisonSymbols: [] });
   },
 
   // Subchart heights
