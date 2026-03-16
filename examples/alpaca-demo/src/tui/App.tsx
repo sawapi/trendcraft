@@ -18,6 +18,7 @@ import { useTrading } from "./hooks/useTrading.js";
 import { BacktestView } from "./views/BacktestView.js";
 import { Dashboard } from "./views/Dashboard.js";
 import { LiveControl } from "./views/LiveControl.js";
+import { MarketView } from "./views/MarketView.js";
 import { ReviewView } from "./views/ReviewView.js";
 import { Settings } from "./views/Settings.js";
 
@@ -27,6 +28,7 @@ const TABS: Tab[] = [
   { key: "3", label: "Review" },
   { key: "4", label: "Backtest" },
   { key: "5", label: "Settings" },
+  { key: "6", label: "Market" },
 ];
 
 type AppProps = {
@@ -67,6 +69,7 @@ export function App({ options }: AppProps): React.ReactElement {
     else if (_input === "3") setActiveTab(2);
     else if (_input === "4") setActiveTab(3);
     else if (_input === "5") setActiveTab(4);
+    else if (_input === "6") setActiveTab(5);
 
     // Quit
     if (_input === "q") {
@@ -152,6 +155,13 @@ export function App({ options }: AppProps): React.ReactElement {
             maxRows={contentRows}
           />
         )}
+        {activeTab === 5 && (
+          <MarketView
+            snapshots={tradingState.tickerSnapshots}
+            isRunning={tradingState.isRunning}
+            maxRows={contentRows}
+          />
+        )}
       </Box>
 
       {/* Status bar */}
@@ -165,7 +175,7 @@ export function App({ options }: AppProps): React.ReactElement {
 
       {/* Navigation hint */}
       <Box paddingX={1} flexShrink={0}>
-        <Text color="gray">1-5: Switch tabs | q: Quit</Text>
+        <Text color="gray">1-6: Switch tabs | q: Quit</Text>
       </Box>
     </Box>
   );

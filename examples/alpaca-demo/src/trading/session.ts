@@ -463,7 +463,7 @@ export function createTradingSession(opts: SessionOptions): TradingSession {
 
       ws = createAlpacaWebSocket(env);
       ws.onTrade((symbol, trade) => {
-        marketState.onTrade(symbol, trade.price, trade.time);
+        marketState.onTrade(symbol, trade.price, trade.time, trade.volume);
 
         if (opts.verbose) {
           const stat = tickerStats.get(symbol) ?? { count: 0, last: 0, volume: 0 };

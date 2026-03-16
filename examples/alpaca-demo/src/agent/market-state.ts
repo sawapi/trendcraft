@@ -20,13 +20,17 @@ export type BenchmarkSnapshot = {
   trendDirection?: "bullish" | "bearish" | "sideways";
   /** Volatility regime (from daily review market context, if available) */
   volatilityRegime?: "low" | "normal" | "high";
+  /** Cumulative trade count for the session */
+  tradeCount: number;
+  /** Cumulative volume for the session */
+  volume: number;
   /** Last updated timestamp */
   updatedAt: number;
 };
 
 export type MarketState = {
   /** Update with a new trade for a benchmark symbol */
-  onTrade(symbol: string, price: number, timestamp: number): void;
+  onTrade(symbol: string, price: number, timestamp: number, volume?: number): void;
   /** Set regime info (from daily review or startup) */
   setRegime(
     symbol: string,
@@ -35,6 +39,8 @@ export type MarketState = {
   ): void;
   /** Get snapshot for a symbol */
   getSnapshot(symbol: string): BenchmarkSnapshot | undefined;
+  /** Get all snapshots (for ticker display) */
+  getAllSnapshots(): BenchmarkSnapshot[];
   /** Check if a market filter passes */
   checkFilter(filter: MarketFilter): { allowed: boolean; reason?: string };
   /** Reset daily state (call at market open) */
@@ -45,7 +51,7 @@ export function createMarketState(): MarketState {
   const snapshots = new Map<string, BenchmarkSnapshot>();
 
   return {
-    onTrade(symbol, price, timestamp) {
+    onTrade(symbol, price, timestamp, volume) {
       const existing = snapshots.get(symbol);
       if (!existing) {
         snapshots.set(symbol, {
@@ -53,11 +59,15 @@ export function createMarketState(): MarketState {
           openPrice: price,
           lastPrice: price,
           dailyChangePercent: 0,
+          tradeCount: 1,
+          volume: volume ?? 0,
           updatedAt: timestamp,
         });
       } else {
         existing.lastPrice = price;
         existing.dailyChangePercent = ((price - existing.openPrice) / existing.openPrice) * 100;
+        existing.tradeCount++;
+        existing.volume += volume ?? 0;
         existing.updatedAt = timestamp;
       }
     },
@@ -72,6 +82,10 @@ export function createMarketState(): MarketState {
 
     getSnapshot(symbol) {
       return snapshots.get(symbol);
+    },
+
+    getAllSnapshots() {
+      return Array.from(snapshots.values());
     },
 
     checkFilter(filter) {

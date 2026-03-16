@@ -3,6 +3,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { BenchmarkSnapshot } from "../../agent/market-state.js";
 import type { AgentState } from "../../agent/types.js";
 import { createStateStore } from "../../persistence/store.js";
 import type { TradingEvent } from "../../trading/events.js";
@@ -12,6 +13,7 @@ import type { SessionOptions, TradingSession } from "../../trading/session.js";
 export type TradingState = {
   agents: AgentState[];
   events: TradingEvent[];
+  tickerSnapshots: BenchmarkSnapshot[];
   isRunning: boolean;
   isInitialized: boolean;
   isInitializing: boolean;
@@ -41,6 +43,7 @@ export function useTrading(): [TradingState, TradingActions] {
   const [state, setState] = useState<TradingState>({
     agents: [],
     events: [],
+    tickerSnapshots: [],
     isRunning: false,
     isInitialized: false,
     isInitializing: false,
@@ -75,7 +78,8 @@ export function useTrading(): [TradingState, TradingActions] {
           const mgr = session.getManager();
           const agents = mgr.getAllStates();
           const deactivatedStrategies = mgr.getDeactivatedStrategies();
-          setState((prev) => ({ ...prev, agents, deactivatedStrategies }));
+          const tickerSnapshots = session.getMarketState().getAllSnapshots();
+          setState((prev) => ({ ...prev, agents, deactivatedStrategies, tickerSnapshots }));
         }
       }, 5000);
 
