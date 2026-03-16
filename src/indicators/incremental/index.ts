@@ -26,6 +26,8 @@ export { createKama } from "./moving-average/kama";
 export type { KamaState } from "./moving-average/kama";
 export { createHma } from "./moving-average/hma";
 export type { HmaState } from "./moving-average/hma";
+export { createT3 } from "./moving-average/t3";
+export type { T3State } from "./moving-average/t3";
 export { createMcGinleyDynamic } from "./moving-average/mcginley-dynamic";
 export type { McGinleyDynamicState } from "./moving-average/mcginley-dynamic";
 export { createEmaRibbon } from "./moving-average/ema-ribbon";
@@ -57,6 +59,12 @@ export type {
   ConnorsRsiState,
   ConnorsRsiValue as IncrementalConnorsRsiValue,
 } from "./momentum/connors-rsi";
+export { createCmo } from "./momentum/cmo";
+export type { CmoState } from "./momentum/cmo";
+export { createAdxr } from "./momentum/adxr";
+export type { AdxrState } from "./momentum/adxr";
+export { createImi } from "./momentum/imi";
+export type { ImiState as IncrementalImiState } from "./momentum/imi";
 export { createVortex } from "./momentum/vortex";
 export type { VortexState, VortexValue as IncrementalVortexValue } from "./momentum/vortex";
 
@@ -101,3 +109,5 @@ export { createElderForceIndex } from "./volume/elder-force-index";
 export type { ElderForceIndexState } from "./volume/elder-force-index";
 export { createVolumeAnomaly } from "./volume/volume-anomaly";
 export type { VolumeAnomalyState } from "./volume/volume-anomaly";
+export { createKlinger } from "./volume/klinger";
+export type { KlingerState, KlingerValue as IncrementalKlingerValue } from "./volume/klinger";

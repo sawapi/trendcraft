@@ -5,7 +5,7 @@
  * These utilities handle time-alignment and value transformation.
  */
 
-import type { IndicatorValue, Series } from "../types";
+import type { Series } from "../types";
 
 /**
  * Combine two series by aligning on timestamp and applying a merge function.
@@ -150,4 +150,95 @@ export function alignSeries<T>(source: Series<T>, target: Series<unknown>): Seri
   }
 
   return result;
+}
+
+/**
+ * Convert a numeric series to percent change from a base value.
+ * Null values are passed through unchanged.
+ *
+ * @param series - Input series with numeric or null values
+ * @param baseIndex - Index of the base value (default: first non-null value)
+ * @returns Series of percent change values
+ *
+ * @example
+ * ```ts
+ * import { sma, normalizeToPercent } from "trendcraft";
+ *
+ * const sma20 = sma(candles, { period: 20 });
+ * const pctChange = normalizeToPercent(sma20);
+ * // First non-null value → 0%, subsequent values → % change from base
+ * ```
+ */
+export function normalizeToPercent(
+  series: Series<number | null>,
+  baseIndex?: number,
+): Series<number | null> {
+  // Find base value
+  let base: number | null = null;
+  if (baseIndex !== undefined) {
+    const val = series[baseIndex]?.value;
+    if (val !== null && val !== undefined) {
+      base = val;
+    }
+  } else {
+    for (const item of series) {
+      if (item.value !== null) {
+        base = item.value;
+        break;
+      }
+    }
+  }
+
+  if (base === null || base === 0) {
+    return series.map((item) => ({ time: item.time, value: item.value === null ? null : 0 }));
+  }
+
+  return series.map((item) => ({
+    time: item.time,
+    value: item.value === null ? null : ((item.value - base) / base) * 100,
+  }));
+}
+
+/**
+ * Align two candle arrays by timestamp and normalize both to percent change.
+ * Useful for comparison charts where two instruments need to be overlaid.
+ *
+ * @param mainCandles - Primary candle array
+ * @param comparisonCandles - Candle array to compare against
+ * @returns Object with aligned and normalized close-price series
+ *
+ * @example
+ * ```ts
+ * import { alignAndNormalize } from "trendcraft";
+ *
+ * const { main, comparison } = alignAndNormalize(appleCandles, googleCandles);
+ * // Both series start at 0% and show relative performance
+ * ```
+ */
+export function alignAndNormalize(
+  mainCandles: { time: number; close: number }[],
+  comparisonCandles: { time: number; close: number }[],
+): { main: Series<number | null>; comparison: Series<number | null> } {
+  // Build time→close map for comparison
+  const compMap = new Map<number, number>();
+  for (const c of comparisonCandles) {
+    compMap.set(c.time, c.close);
+  }
+
+  // Align: keep only timestamps present in both
+  const alignedMain: Series<number | null> = [];
+  const alignedComp: Series<number | null> = [];
+
+  for (const c of mainCandles) {
+    const compClose = compMap.get(c.time);
+    if (compClose !== undefined) {
+      alignedMain.push({ time: c.time, value: c.close });
+      alignedComp.push({ time: c.time, value: compClose });
+    }
+  }
+
+  return {
+    main: normalizeToPercent(alignedMain),
+    comparison: normalizeToPercent(alignedComp),
+  };
 }

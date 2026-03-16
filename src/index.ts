@@ -1068,7 +1068,14 @@ export { createSessionFromStrategy } from "./strategy";
 export * as execution from "./execution";
 
 // Series Utilities
-export { zipSeries, mapSeries, filterSeries, alignSeries } from "./utils/series";
+export {
+  zipSeries,
+  mapSeries,
+  filterSeries,
+  alignSeries,
+  normalizeToPercent,
+  alignAndNormalize,
+} from "./utils/series";
 
 // Composable Indicator Algebra
 export {
