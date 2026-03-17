@@ -18,7 +18,7 @@ import type {
   YAxisType,
   ZoomRange,
 } from "../types";
-import { createTradeMarkers } from "./backtestMarkers";
+import { createTradeAreas, createTradeMarkers } from "./backtestMarkers";
 import {
   COLORS,
   type SeriesItem,
@@ -405,10 +405,12 @@ export function buildChartOption(
     signalMarkLines.push(...createPatternMarkLines(overlayPatterns, candles, dates));
   }
 
-  // Add trade markers from backtest
+  // Add trade markers and holding period areas from backtest
   if (trades && trades.length > 0) {
     const tradeMarkers = createTradeMarkers(trades, candles, dates);
     signalMarkPoints.push(...tradeMarkers);
+    const tradeAreas = createTradeAreas(trades, dates, candles);
+    signalMarkAreas.push(...tradeAreas);
   }
 
   // Drawing elements (markLines, markAreas, markPoints)

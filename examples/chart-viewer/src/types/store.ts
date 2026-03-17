@@ -76,6 +76,9 @@ export interface ChartState {
   backtestResult: BacktestResult | null;
   tradeAnalysis: TradeAnalysis | null;
   isBacktestRunning: boolean;
+
+  // Explain bar
+  explainBar: { barIndex: number } | null;
 }
 
 /**
@@ -138,4 +141,7 @@ export interface ChartActions {
 
   // Subchart heights
   setSubchartHeight: (key: string, height: number) => void;
+
+  // Explain bar
+  setExplainBar: (barIndex: number | null) => void;
 }

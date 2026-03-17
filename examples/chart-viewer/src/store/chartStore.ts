@@ -304,6 +304,7 @@ export const useChartStore = create<ChartStore>((set, get) => ({
   backtestResult: null,
   tradeAnalysis: null,
   isBacktestRunning: false,
+  explainBar: null,
 
   // Actions
   loadCandles: (
@@ -456,6 +457,7 @@ export const useChartStore = create<ChartStore>((set, get) => ({
       backtestResult: null,
       tradeAnalysis: null,
       isBacktestRunning: false,
+      explainBar: null,
       drawings: [],
       drawingHistory: [],
       drawingHistoryIndex: -1,
@@ -589,5 +591,10 @@ export const useChartStore = create<ChartStore>((set, get) => ({
   setSubchartHeight: (key: string, height: number) => {
     const { subchartHeights } = get();
     set({ subchartHeights: { ...subchartHeights, [key]: height } });
+  },
+
+  // Explain bar
+  setExplainBar: (barIndex: number | null) => {
+    set({ explainBar: barIndex !== null ? { barIndex } : null });
   },
 }));

@@ -539,6 +539,17 @@ export function useBacktest(
   setTradeAnalysis: (analysis: TradeAnalysis | null) => void,
   setRunning: (running: boolean) => void,
 ) {
+  // Expose current condition objects for explainability
+  const currentEntryCondition = useMemo(() => {
+    const factory = ENTRY_CONDITIONS[config.entryCondition]?.factory;
+    return factory ? factory() : null;
+  }, [config.entryCondition]);
+
+  const currentExitCondition = useMemo(() => {
+    const factory = EXIT_CONDITIONS[config.exitCondition]?.factory;
+    return factory ? factory() : null;
+  }, [config.exitCondition]);
+
   const run = useCallback(() => {
     setRunning(true);
     try {
@@ -580,5 +591,7 @@ export function useBacktest(
     clear,
     entryOptions,
     exitOptions,
+    currentEntryCondition,
+    currentExitCondition,
   };
 }

@@ -29,6 +29,7 @@ import type {
 } from "../types";
 import { buildChartOption } from "../utils/chartConfig";
 import { hitTestDrawings } from "../utils/drawingHitTest";
+import { BarContextMenu } from "./BarContextMenu";
 import { DrawingContextMenu } from "./DrawingContextMenu";
 
 // Register SVG renderer for SVG export support
@@ -111,6 +112,7 @@ function calculateChartHeight(subchartCount: number): number {
 
 export const MainChart = forwardRef<MainChartHandle>(function MainChart(_props, ref) {
   const chartRef = useRef<ReactECharts>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const currentCandles = useChartStore((state) => state.currentCandles);
   const enabledIndicators = useChartStore((state) => state.enabledIndicators);
@@ -540,22 +542,81 @@ export const MainChart = forwardRef<MainChartHandle>(function MainChart(_props, 
     drawingId: string;
   } | null>(null);
 
-  // Right-click handler for drawings
+  // Bar context menu state
+  const [barContextMenu, setBarContextMenu] = useState<{
+    x: number;
+    y: number;
+    barIndex: number;
+  } | null>(null);
+
+  // Guard against ECharts' getRawIndex crash on mouseup (right-click) and mouseout.
+  //
+  // Root cause: ECharts dispatches mouse events to series elements and calls
+  // getDataParams → getRawIndex on data that may not exist. This is an ECharts
+  // bug triggered by:
+  //   - mouseup with button=2 (right-click)
+  //   - mouseout when the cursor leaves the canvas (e.g. context menu appears)
+  //
+  // Fix: attach capture-phase listeners on the ECharts canvas DOM element itself
+  // (not the parent div), so we intercept before ECharts' own HandlerDomProxy.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: must re-attach when chart key remounts (driven by currentCandles.length)
   useEffect(() => {
     const instance = chartRef.current?.getEchartsInstance();
     if (!instance) return;
+    const zr = instance.getZr();
+    // biome-ignore lint/suspicious/noExplicitAny: accessing ZRender internal DOM
+    const canvasDom = (zr as any).dom as HTMLElement | undefined;
+    if (!canvasDom) return;
 
-    const handler = (params: { event: { event: MouseEvent } }) => {
-      const e = params.event.event;
+    const blockMouseUp = (e: MouseEvent) => {
+      if (e.button === 2) e.stopImmediatePropagation();
+    };
+    const blockMouseOut = (e: MouseEvent) => {
+      // Only block mouseout that leaves the canvas entirely (not between child elements)
+      if (!canvasDom.contains(e.relatedTarget as Node)) {
+        e.stopImmediatePropagation();
+      }
+    };
+
+    canvasDom.addEventListener("mouseup", blockMouseUp, true);
+    canvasDom.addEventListener("mouseout", blockMouseOut, true);
+    return () => {
+      canvasDom.removeEventListener("mouseup", blockMouseUp, true);
+      canvasDom.removeEventListener("mouseout", blockMouseOut, true);
+    };
+  }, [currentCandles.length]);
+
+  /**
+   * Check whether ECharts' grid coordinate system is initialized.
+   * convertFromPixel / convertToPixel crash if called before setOption
+   * has been processed (e.g. during key-based re-mount).
+   */
+  const isGridReady = useCallback((): boolean => {
+    const instance = chartRef.current?.getEchartsInstance();
+    if (!instance) return false;
+    const opt = instance.getOption();
+    return !!(opt && (opt as { grid?: unknown }).grid);
+  }, []);
+
+  // Right-click handler for drawings and bar context menu
+  const handleContextMenu = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
       e.preventDefault();
+
+      const instance = chartRef.current?.getEchartsInstance();
+      if (!instance || !isGridReady()) return;
+
+      const rect = e.currentTarget.getBoundingClientRect();
+      const offsetX = e.clientX - rect.left;
+      const offsetY = e.clientY - rect.top;
 
       const convertToPixel = (dataPoint: [number, number]) =>
         instance.convertToPixel({ gridIndex: 0 }, dataPoint);
 
       const hit = hitTestDrawings(
         useChartStore.getState().drawings,
-        e.offsetX,
-        e.offsetY,
+        offsetX,
+        offsetY,
         convertToPixel,
         instance.getWidth(),
       );
@@ -563,18 +624,22 @@ export const MainChart = forwardRef<MainChartHandle>(function MainChart(_props, 
       if (hit) {
         selectDrawing(hit.id);
         setContextMenu({ x: e.clientX, y: e.clientY, drawingId: hit.id });
+        setBarContextMenu(null);
       } else {
         selectDrawing(null);
         setContextMenu(null);
+        // Show bar context menu
+        const point = instance.convertFromPixel({ gridIndex: 0 }, [offsetX, offsetY]);
+        if (point) {
+          const dataIndex = Math.round(point[0]);
+          if (dataIndex >= 0 && dataIndex < useChartStore.getState().currentCandles.length) {
+            setBarContextMenu({ x: e.clientX, y: e.clientY, barIndex: dataIndex });
+          }
+        }
       }
-    };
-
-    const zr = instance.getZr();
-    zr.on("contextmenu", handler);
-    return () => {
-      zr.off("contextmenu", handler);
-    };
-  }, [selectDrawing]);
+    },
+    [selectDrawing, isGridReady],
+  );
 
   // Click handler to select/deselect drawings
   useEffect(() => {
@@ -707,10 +772,12 @@ export const MainChart = forwardRef<MainChartHandle>(function MainChart(_props, 
 
   return (
     <div
+      ref={containerRef}
       className={`main-chart${isDrawingActive ? " drawing-active" : ""}`}
       style={{ height: chartHeight }}
       onMouseMove={handleChartMouseMove}
       onMouseLeave={() => setHoveredDataIndex(null)}
+      onContextMenu={handleContextMenu}
     >
       <ReactECharts
         ref={chartRef}
@@ -730,6 +797,14 @@ export const MainChart = forwardRef<MainChartHandle>(function MainChart(_props, 
             setContextMenu(null);
             selectDrawing(null);
           }}
+        />
+      )}
+      {barContextMenu && !contextMenu && (
+        <BarContextMenu
+          x={barContextMenu.x}
+          y={barContextMenu.y}
+          barIndex={barContextMenu.barIndex}
+          onClose={() => setBarContextMenu(null)}
         />
       )}
     </div>

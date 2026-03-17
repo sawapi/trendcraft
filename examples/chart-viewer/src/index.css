@@ -2665,3 +2665,239 @@ select:focus-visible {
 .comparison-remove:hover {
   color: var(--accent);
 }
+
+/* Explain Bar Panel */
+.explain-panel {
+  position: fixed;
+  right: 0;
+  top: 0;
+  width: 360px;
+  height: 100vh;
+  background: var(--bg-secondary);
+  border-left: 1px solid var(--border);
+  overflow-y: auto;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  font-size: var(--font-sm);
+  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.3);
+}
+
+.explain-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: var(--bg-secondary);
+  z-index: 1;
+}
+
+.explain-title {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.explain-date {
+  color: var(--text-secondary);
+  font-size: var(--font-xs);
+  margin-left: auto;
+}
+
+.explain-close {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+}
+
+.explain-close:hover {
+  color: var(--text-primary);
+}
+
+.explain-ohlcv {
+  padding: 8px 12px;
+  font-family: monospace;
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border);
+}
+
+.explain-narrative {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.explain-narrative p {
+  margin: 0;
+  padding: 8px 10px;
+  background: var(--bg-primary);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 4px 4px 0;
+  line-height: 1.5;
+  color: var(--text-primary);
+  font-size: var(--font-xs);
+}
+
+.explain-section {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.explain-section-title {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  font-size: var(--font-sm);
+}
+
+.explain-section-title.pass {
+  color: var(--success);
+}
+
+.explain-section-title.fail {
+  color: var(--error);
+}
+
+.condition-tree {
+  font-size: var(--font-xs);
+}
+
+.condition-node-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 4px;
+  border-radius: 3px;
+}
+
+.condition-node-row:hover {
+  background: var(--bg-primary);
+}
+
+.condition-node-row.passed {
+  color: var(--text-primary);
+}
+
+.condition-node-row.failed {
+  color: var(--text-secondary);
+}
+
+.condition-icon {
+  flex-shrink: 0;
+}
+
+.condition-icon.pass {
+  color: var(--success);
+}
+
+.condition-icon.fail {
+  color: var(--error);
+}
+
+.condition-toggle {
+  flex-shrink: 0;
+  color: var(--text-secondary);
+}
+
+.condition-name {
+  font-weight: 500;
+}
+
+.indicator-value {
+  margin-left: auto;
+  font-family: monospace;
+  font-size: 11px;
+  background: var(--bg-primary);
+  padding: 1px 5px;
+  border-radius: 3px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.ctx-menu-item.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.ctx-menu-item.disabled:hover {
+  background: transparent;
+}
+
+/* Trade context banner */
+.explain-trade-context {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.trade-context-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: var(--font-xs);
+  font-weight: 500;
+  padding: 6px 8px;
+  border-radius: 4px;
+}
+
+.trade-context-row.entry {
+  background: color-mix(in srgb, var(--success) 12%, transparent);
+  color: var(--success);
+}
+
+.trade-context-row.exit {
+  background: color-mix(in srgb, var(--error) 12%, transparent);
+  color: var(--error);
+}
+
+.trade-context-row.holding {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
+}
+
+.trade-jump-links {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.trade-jump-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background: none;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  color: inherit;
+  cursor: pointer;
+  font-size: 11px;
+  padding: 1px 6px;
+  margin-left: auto;
+  opacity: 0.8;
+}
+
+.trade-jump-btn:hover {
+  opacity: 1;
+  background: color-mix(in srgb, currentColor 10%, transparent);
+}
+
+.explain-eval-note {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--accent);
+  margin-bottom: 6px;
+  font-weight: 500;
+}

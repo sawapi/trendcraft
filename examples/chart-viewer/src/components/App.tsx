@@ -9,6 +9,7 @@ import { ComparisonSelector } from "./ComparisonSelector";
 import { CrosshairDataPanel } from "./CrosshairDataPanel";
 import { DataQualityPanel } from "./DataQualityPanel";
 import { DrawingToolbar } from "./DrawingToolbar";
+import { ExplainBarPanel } from "./ExplainBarPanel";
 import { FileDropZone } from "./FileDropZone";
 import { IndicatorSettingsDialog } from "./IndicatorSettingsDialog";
 import { KeyboardShortcutsHelp } from "./KeyboardShortcutsHelp";
@@ -112,6 +113,8 @@ export default function App() {
   const setYAxisType = useChartStore((state) => state.setYAxisType);
   const yAxisPercent = useChartStore((state) => state.yAxisPercent);
   const setYAxisPercent = useChartStore((state) => state.setYAxisPercent);
+
+  const explainBar = useChartStore((state) => state.explainBar);
 
   const hasData = rawCandles.length > 0;
   const watchlist = useWatchlist();
@@ -448,6 +451,9 @@ export default function App() {
                 <MainChart ref={mainChartRef} />
               </div>
             </div>
+
+            {/* Explain Bar Panel */}
+            {explainBar && <ExplainBarPanel />}
 
             {/* Mobile overlay */}
             {isMobile && (

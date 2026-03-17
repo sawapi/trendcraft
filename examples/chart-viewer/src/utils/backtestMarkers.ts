@@ -19,7 +19,12 @@ function formatDate(timestamp: number): string {
 }
 
 /**
- * Create trade markers for backtest visualization
+ * Create trade markers for backtest visualization.
+ * Returns both execution markers (▲/▼) and signal markers (◇).
+ *
+ * - Execution markers: placed on the bar where the trade was filled
+ * - Signal markers: placed on the previous bar where the condition fired
+ *   (backtest evaluates at bar N close, executes at bar N+1 open)
  */
 export function createTradeMarkers(
   trades: Trade[],
@@ -35,7 +40,7 @@ export function createTradeMarkers(
   const markers: MarkPointItem[] = [];
 
   for (const trade of trades) {
-    // Entry marker
+    // Entry execution marker
     const entryIdx = timeToIdx.get(trade.entryTime);
     if (entryIdx !== undefined) {
       const entryCandle = candles[entryIdx];
@@ -53,9 +58,23 @@ export function createTradeMarkers(
           position: "inside",
         },
       });
+
+      // Entry signal marker (previous bar)
+      const signalIdx = entryIdx - 1;
+      if (signalIdx >= 0) {
+        const signalCandle = candles[signalIdx];
+        markers.push({
+          name: "Entry Signal",
+          coord: [dates[signalIdx], signalCandle.low * 0.992],
+          symbol: "diamond",
+          symbolSize: 10,
+          itemStyle: { color: "transparent", borderColor: "#26a69a", borderWidth: 2 },
+          label: { show: false },
+        });
+      }
     }
 
-    // Exit marker
+    // Exit execution marker
     const exitIdx = timeToIdx.get(trade.exitTime);
     if (exitIdx !== undefined) {
       const exitCandle = candles[exitIdx];
@@ -75,10 +94,64 @@ export function createTradeMarkers(
           position: "inside",
         },
       });
+
+      // Exit signal marker (previous bar) — skip for partial exits
+      if (!isPartial) {
+        const signalIdx = exitIdx - 1;
+        if (signalIdx >= 0) {
+          const signalCandle = candles[signalIdx];
+          markers.push({
+            name: "Exit Signal",
+            coord: [dates[signalIdx], signalCandle.high * 1.008],
+            symbol: "diamond",
+            symbolSize: 10,
+            symbolRotate: 0,
+            itemStyle: { color: "transparent", borderColor: "#ef5350", borderWidth: 2 },
+            label: { show: false },
+          });
+        }
+      }
     }
   }
 
   return markers;
+}
+
+/**
+ * Create markArea data for trade holding periods.
+ * Shades the background between entry and exit bars.
+ */
+export function createTradeAreas(
+  trades: Trade[],
+  dates: string[],
+  candles: NormalizedCandle[],
+): MarkPointItem[][] {
+  if (!trades || trades.length === 0) return [];
+
+  const timeToIdx = new Map<number, number>();
+  candles.forEach((c, i) => timeToIdx.set(c.time, i));
+
+  const areas: MarkPointItem[][] = [];
+
+  for (const trade of trades) {
+    if (trade.isPartial) continue;
+    const entryIdx = timeToIdx.get(trade.entryTime);
+    const exitIdx = timeToIdx.get(trade.exitTime);
+    if (entryIdx === undefined || exitIdx === undefined) continue;
+
+    const isProfit = trade.returnPercent >= 0;
+    areas.push([
+      {
+        xAxis: dates[entryIdx],
+        itemStyle: {
+          color: isProfit ? "rgba(38, 166, 154, 0.06)" : "rgba(239, 83, 80, 0.06)",
+        },
+      },
+      { xAxis: dates[exitIdx] },
+    ]);
+  }
+
+  return areas;
 }
 
 /**
