@@ -6,6 +6,15 @@ const SHORTCUTS = [
   { key: "←", action: "前の日" },
   { key: "B", action: "買い/追加買い" },
   { key: "S", action: "全売り" },
+  { key: "Q", action: "部分売り" },
+  { key: "1-5", action: "株数プリセット" },
+  { key: "+/-", action: "株数±100" },
+  { key: "T", action: "ブラケット注文" },
+  { key: "J", action: "ジャーナル" },
+  { key: "I", action: "インジケーター設定" },
+  { key: "R", action: "レビュー画面" },
+  { key: "⌘Z", action: "取消 (Undo)" },
+  { key: "⌘⇧Z", action: "やり直し (Redo)" },
 ];
 
 const TAB_SHORTCUTS = [

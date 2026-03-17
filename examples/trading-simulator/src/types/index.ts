@@ -186,6 +186,18 @@ export const EXIT_TRIGGER_LABELS: Record<ExitTrigger, string> = {
   DISCRETIONARY: "裁量",
 };
 
+export interface TradeJournalEntry {
+  thesis: string;
+  setup: string;
+  confidence: 1 | 2 | 3 | 4 | 5;
+  coachingSignalsAtTime: string[]; // Signal type strings at trade time
+}
+
+export interface BracketOrder {
+  takeProfitPrice: number | null;
+  stopLossPrice: number | null;
+}
+
 export interface Trade {
   id: string;
   type: "BUY" | "SELL";
@@ -194,6 +206,8 @@ export interface Trade {
   shares: number;
   memo: string;
   priceType: PriceType;
+  journal?: TradeJournalEntry;
+  bracket?: BracketOrder;
   pnl?: number;
   pnlPercent?: number;
   // 取引時点の情報（LLM分析用）

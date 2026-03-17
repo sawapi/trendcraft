@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { AlertBanner } from "./components/AlertBanner";
 import { Chart } from "./components/Chart";
+import { CoachingPanel } from "./components/CoachingPanel";
 import { ControlPanel } from "./components/ControlPanel";
 import { FileDropZone } from "./components/FileDropZone";
 import { IndicatorSettingsDialog } from "./components/IndicatorSettingsDialog";
@@ -15,6 +16,7 @@ import { ThemeToggle } from "./components/ThemeToggle";
 import { TradeAnalysis } from "./components/TradeAnalysis";
 import { TradeHistoryPanel } from "./components/TradeHistoryPanel";
 import { TradePanel } from "./components/TradePanel";
+import { PerformanceReview } from "./components/review/PerformanceReview";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import {
   type SessionData,
@@ -79,6 +81,22 @@ export default function App() {
     );
   }
 
+  if (phase === "finished") {
+    return (
+      <div className="app">
+        <div className="app-header">
+          <h1>Trading Simulator</h1>
+          <div className="header-controls">
+            <ThemeToggle />
+          </div>
+        </div>
+        <div className="finished-layout">
+          <PerformanceReview />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="app">
       <AlertBanner />
@@ -104,6 +122,7 @@ export default function App() {
             <span className="settings-icon">&#9881;</span>
             <span>インジケーター設定</span>
           </button>
+          <CoachingPanel />
           <StatsPanel />
           <PositionPanel />
           <TradePanel />
