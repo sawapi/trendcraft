@@ -10,9 +10,19 @@ import type { TradingEvent } from "../../trading/events.js";
 import { createTradingSession } from "../../trading/session.js";
 import type { SessionOptions, TradingSession } from "../../trading/session.js";
 
+export type TimestampedEvent = {
+  event: TradingEvent;
+  timestamp: number;
+};
+
+export type PortfolioExposureSnapshot = {
+  totalPercent: number;
+  openPositions: number;
+};
+
 export type TradingState = {
   agents: AgentState[];
-  events: TradingEvent[];
+  events: TimestampedEvent[];
   tickerSnapshots: BenchmarkSnapshot[];
   isRunning: boolean;
   isInitialized: boolean;
@@ -21,6 +31,8 @@ export type TradingState = {
   startTime: number;
   error: string | null;
   deactivatedStrategies: Set<string>;
+  portfolioExposure: PortfolioExposureSnapshot | null;
+  unrealizedPnl: number;
 };
 
 type KilledAgent = {
@@ -51,6 +63,8 @@ export function useTrading(): [TradingState, TradingActions] {
     startTime: 0,
     error: null,
     deactivatedStrategies: new Set<string>(),
+    portfolioExposure: null,
+    unrealizedPnl: 0,
   });
 
   const sessionRef = useRef<TradingSession | null>(null);
@@ -79,7 +93,34 @@ export function useTrading(): [TradingState, TradingActions] {
           const agents = mgr.getAllStates();
           const deactivatedStrategies = mgr.getDeactivatedStrategies();
           const tickerSnapshots = session.getMarketState().getAllSnapshots();
-          setState((prev) => ({ ...prev, agents, deactivatedStrategies, tickerSnapshots }));
+
+          // Portfolio exposure
+          const rawExposure = mgr.getPortfolioExposure();
+          const portfolioExposure: PortfolioExposureSnapshot | null = rawExposure
+            ? { totalPercent: rawExposure.totalPercent, openPositions: rawExposure.openPositions }
+            : null;
+
+          // Unrealized P&L: sum across agents with open positions
+          const snapshotMap = new Map(tickerSnapshots.map((s) => [s.symbol, s]));
+          let unrealizedPnl = 0;
+          for (const a of agents) {
+            const pos = a.sessionState?.trackerState?.position;
+            if (pos && pos.shares > 0) {
+              const snap = snapshotMap.get(a.symbol);
+              if (snap) {
+                unrealizedPnl += (snap.lastPrice - pos.entryPrice) * pos.shares;
+              }
+            }
+          }
+
+          setState((prev) => ({
+            ...prev,
+            agents,
+            deactivatedStrategies,
+            tickerSnapshots,
+            portfolioExposure,
+            unrealizedPnl,
+          }));
         }
       }, 5000);
 
@@ -90,9 +131,10 @@ export function useTrading(): [TradingState, TradingActions] {
   }, [state.isRunning]);
 
   const addEvent = useCallback((event: TradingEvent) => {
+    const stamped: TimestampedEvent = { event, timestamp: Date.now() };
     setState((prev) => ({
       ...prev,
-      events: [...prev.events.slice(-(MAX_EVENTS - 1)), event],
+      events: [...prev.events.slice(-(MAX_EVENTS - 1)), stamped],
     }));
   }, []);
 

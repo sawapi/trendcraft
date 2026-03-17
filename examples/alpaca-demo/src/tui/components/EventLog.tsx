@@ -1,15 +1,26 @@
 /**
- * EventLog — scrollable list of recent trading events
+ * EventLog — scrollable list of recent trading events with timestamps
  */
 
 import { Box, Text } from "ink";
 import type React from "react";
 import type { TradingEvent } from "../../trading/events.js";
+import type { TimestampedEvent } from "../hooks/useTrading.js";
+
+/** Event types that are considered noise for the Dashboard view */
+const NOISE_TYPES: Set<TradingEvent["type"]> = new Set(["state-saved", "leaderboard-updated"]);
 
 type EventLogProps = {
-  events: TradingEvent[];
+  events: TimestampedEvent[];
   maxLines?: number;
+  /** If true, filter out noise events (state-saved, leaderboard-updated) */
+  filterNoise?: boolean;
 };
+
+function formatTime(ts: number): string {
+  const d = new Date(ts);
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`;
+}
 
 function formatEvent(event: TradingEvent): { text: string; color: string } {
   switch (event.type) {
@@ -59,8 +70,13 @@ function formatEvent(event: TradingEvent): { text: string; color: string } {
   }
 }
 
-export function EventLog({ events, maxLines = 10 }: EventLogProps): React.ReactElement {
-  const visible = events.slice(-maxLines);
+export function EventLog({
+  events,
+  maxLines = 10,
+  filterNoise,
+}: EventLogProps): React.ReactElement {
+  const filtered = filterNoise ? events.filter((e) => !NOISE_TYPES.has(e.event.type)) : events;
+  const visible = filtered.slice(-maxLines);
 
   if (visible.length === 0) {
     return (
@@ -72,10 +88,12 @@ export function EventLog({ events, maxLines = 10 }: EventLogProps): React.ReactE
 
   return (
     <Box flexDirection="column">
-      {visible.map((event, i) => {
-        const { text, color } = formatEvent(event);
+      {visible.map((stamped, i) => {
+        const { text, color } = formatEvent(stamped.event);
+        const timeStr = formatTime(stamped.timestamp);
         return (
           <Box key={i}>
+            <Text color="gray">{timeStr} </Text>
             <Text color={color}>{text}</Text>
           </Box>
         );

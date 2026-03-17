@@ -6,6 +6,7 @@ import { Box, Text, useApp, useInput } from "ink";
 import type React from "react";
 import { useState } from "react";
 import type { SessionOptions } from "../trading/session.js";
+import { AlertBanner } from "./components/AlertBanner.js";
 import { StatusBar, formatDuration } from "./components/StatusBar.js";
 import { TabBar } from "./components/TabBar.js";
 import type { Tab } from "./components/TabBar.js";
@@ -24,11 +25,11 @@ import { Settings } from "./views/Settings.js";
 
 const TABS: Tab[] = [
   { key: "1", label: "Dashboard" },
-  { key: "2", label: "Live" },
-  { key: "3", label: "Review" },
+  { key: "2", label: "Market" },
+  { key: "3", label: "Live" },
   { key: "4", label: "Backtest" },
-  { key: "5", label: "Settings" },
-  { key: "6", label: "Market" },
+  { key: "5", label: "Review" },
+  { key: "6", label: "Settings" },
 ];
 
 type AppProps = {
@@ -100,6 +101,9 @@ export function App({ options }: AppProps): React.ReactElement {
         <TabBar tabs={TABS} activeIndex={activeTab} />
       </Box>
 
+      {/* Alert banner */}
+      <AlertBanner events={tradingState.events} />
+
       {/* Content area */}
       <Box flexGrow={1} paddingX={1} overflow="hidden">
         {activeTab === 0 && (
@@ -109,9 +113,28 @@ export function App({ options }: AppProps): React.ReactElement {
             isRunning={tradingState.isRunning}
             maxRows={contentRows}
             deactivatedStrategies={tradingState.deactivatedStrategies}
+            tickerSnapshots={tradingState.tickerSnapshots}
+            getAgentDetail={(agentId) => {
+              const session = tradingActions.session;
+              if (!session) return null;
+              const agent = session.getManager().getAgent(agentId);
+              if (!agent) return null;
+              const state = agent.getState();
+              const trades = agent.getTrades();
+              const regime = agent.getRegimeSnapshot();
+              const snap = tradingState.tickerSnapshots.find((s) => s.symbol === agent.symbol);
+              return { state, trades, regime, currentPrice: snap?.lastPrice ?? null };
+            }}
           />
         )}
         {activeTab === 1 && (
+          <MarketView
+            snapshots={tradingState.tickerSnapshots}
+            isRunning={tradingState.isRunning}
+            maxRows={contentRows}
+          />
+        )}
+        {activeTab === 2 && (
           <LiveControl
             agents={tradingState.agents}
             isRunning={tradingState.isRunning}
@@ -129,14 +152,6 @@ export function App({ options }: AppProps): React.ReactElement {
             maxRows={contentRows}
           />
         )}
-        {activeTab === 2 && (
-          <ReviewView
-            reviews={reviewsState}
-            onReload={reviewsActions.reload}
-            onRunReview={reviewsActions.runReview}
-            maxRows={contentRows}
-          />
-        )}
         {activeTab === 3 && (
           <BacktestView
             backtest={backtestState}
@@ -147,18 +162,19 @@ export function App({ options }: AppProps): React.ReactElement {
           />
         )}
         {activeTab === 4 && (
+          <ReviewView
+            reviews={reviewsState}
+            onReload={reviewsActions.reload}
+            onRunReview={reviewsActions.runReview}
+            maxRows={contentRows}
+          />
+        )}
+        {activeTab === 5 && (
           <Settings
             settings={settings}
             actions={settingsActions}
             symbolSource={symbolSource}
             symbolSourceActions={symbolSourceActions}
-            maxRows={contentRows}
-          />
-        )}
-        {activeTab === 5 && (
-          <MarketView
-            snapshots={tradingState.tickerSnapshots}
-            isRunning={tradingState.isRunning}
             maxRows={contentRows}
           />
         )}
@@ -171,6 +187,9 @@ export function App({ options }: AppProps): React.ReactElement {
         agentCount={tradingState.agents.length}
         totalPnl={totalPnl}
         isRunning={tradingState.isRunning}
+        exposurePercent={tradingState.portfolioExposure?.totalPercent ?? null}
+        openPositions={tradingState.portfolioExposure?.openPositions ?? null}
+        unrealizedPnl={tradingState.unrealizedPnl}
       />
 
       {/* Navigation hint */}
