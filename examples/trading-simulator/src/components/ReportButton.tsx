@@ -31,7 +31,7 @@ export function ReportButton() {
     taxRate,
   } = useSimulatorStore();
 
-  // アクティブ銘柄を取得
+  // Get active symbol
   const activeSymbol = useMemo(() => {
     if (!activeSymbolId) return symbols[0] || null;
     return symbols.find((s) => s.id === activeSymbolId) || null;
@@ -42,7 +42,7 @@ export function ReportButton() {
   const tradeHistory = activeSymbol?.tradeHistory || [];
   const startIndex = activeSymbol?.startIndex || 0;
 
-  // currentIndexをglobalDateから算出
+  // Compute currentIndex from globalDate
   const currentIndex = useMemo(() => {
     if (!activeSymbol || !commonDateRange || currentDateIndex < 0) return 0;
     const targetDate = commonDateRange.dates[currentDateIndex];
@@ -53,15 +53,15 @@ export function ReportButton() {
   const [showFormats, setShowFormats] = useState(false);
   const [reportScope, setReportScope] = useState<ReportScope>("individual");
 
-  // 全銘柄に取引があるかチェック
+  // Check if any symbol has trades
   const hasAnyTrades = useMemo(() => {
     return symbols.some((s) => s.tradeHistory.length > 0);
   }, [symbols]);
 
-  // 複数銘柄があるかチェック
+  // Check if there are multiple symbols
   const hasMultipleSymbols = symbols.length > 1;
 
-  // 個別レポートデータを取得
+  // Get individual report data
   const getReportData = useCallback(() => {
     const simStartIndex = startIndex + initialCandleCount;
     const startDate = allCandles[simStartIndex]?.time || 0;
@@ -97,13 +97,13 @@ export function ReportButton() {
     taxRate,
   ]);
 
-  // ポートフォリオレポートデータを取得
+  // Get portfolio report data
   const getPortfolioReportData = useCallback((): PortfolioReportData => {
     const symbolReports: SymbolReportData[] = symbols.map((symbol) => {
       const symStartIndex = symbol.startIndex || 0;
       const simStartIndex = symStartIndex + initialCandleCount;
 
-      // この銘柄のcurrentIndexを計算
+      // Calculate currentIndex for this symbol
       let symCurrentIndex = 0;
       if (commonDateRange && currentDateIndex >= 0) {
         const targetDate = commonDateRange.dates[currentDateIndex];
@@ -190,13 +190,13 @@ export function ReportButton() {
 
   const handleReset = useCallback(() => {
     const totalTrades = symbols.reduce((sum, s) => sum + s.tradeHistory.length, 0);
-    if (totalTrades > 0 && !confirm("シミュレーションをリセットしますか？取引履歴は失われます。")) {
+    if (totalTrades > 0 && !confirm("Reset simulation? Trade history will be lost.")) {
       return;
     }
     reset();
   }, [symbols, reset]);
 
-  // レポート出力可能かチェック
+  // Check if report export is available
   const canExport = reportScope === "portfolio" ? hasAnyTrades : tradeHistory.length > 0;
 
   return (
@@ -208,14 +208,14 @@ export function ReportButton() {
           onClick={() => setShowFormats(!showFormats)}
           disabled={!canExport}
         >
-          レポート出力
+          Export Report
           <span className="material-icons dropdown-icon">
             {showFormats ? "expand_less" : "expand_more"}
           </span>
         </button>
         {showFormats && canExport && (
           <div className="export-formats">
-            {/* スコープ選択（複数銘柄の場合のみ表示） */}
+            {/* Scope selector (only for multi-symbol) */}
             {hasMultipleSymbols && (
               <div className="report-scope-selector">
                 <button
@@ -223,14 +223,14 @@ export function ReportButton() {
                   className={`scope-btn ${reportScope === "individual" ? "active" : ""}`}
                   onClick={() => setReportScope("individual")}
                 >
-                  個別({fileName})
+                  Individual ({fileName})
                 </button>
                 <button
                   type="button"
                   className={`scope-btn ${reportScope === "portfolio" ? "active" : ""}`}
                   onClick={() => setReportScope("portfolio")}
                 >
-                  ポートフォリオ
+                  Portfolio
                 </button>
               </div>
             )}
@@ -250,7 +250,7 @@ export function ReportButton() {
         )}
       </div>
       <button type="button" className="btn-secondary" onClick={handleReset}>
-        {phase === "finished" ? "新しいシミュレーション" : "リセット"}
+        {phase === "finished" ? "New Simulation" : "Reset"}
       </button>
     </div>
   );

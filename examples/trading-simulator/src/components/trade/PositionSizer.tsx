@@ -78,28 +78,28 @@ export function PositionSizer({
   return (
     <div className="sizing-calculator">
       <div className="sizing-method-selector">
-        <label>計算方式</label>
+        <label>Method</label>
         <div className="sizing-method-buttons">
           <button
             className={`sizing-method-btn ${sizingMethod === "risk" ? "active" : ""}`}
             onClick={() => setSizingMethod("risk")}
           >
-            リスク%
+            Risk %
           </button>
           <button
             className={`sizing-method-btn ${sizingMethod === "atr" ? "active" : ""}`}
             onClick={() => setSizingMethod("atr")}
             disabled={!currentAtr}
-            title={!currentAtr ? "ATRインジケーターを有効にしてください" : ""}
+            title={!currentAtr ? "Enable ATR indicator first" : ""}
           >
-            ATRベース
+            ATR Based
           </button>
         </div>
       </div>
 
       <div className="sizing-inputs">
         <div className="sizing-input">
-          <label>リスク許容度 (%)</label>
+          <label>Risk Tolerance (%)</label>
           <input
             type="number"
             value={riskPercent}
@@ -109,14 +109,14 @@ export function PositionSizer({
             step={0.5}
           />
           <span className="sizing-hint">
-            資金{initialCapital.toLocaleString()}円 × {riskPercent}% ={" "}
-            {((initialCapital * riskPercent) / 100).toLocaleString()}円
+            Capital ¥{initialCapital.toLocaleString()} × {riskPercent}% = ¥
+            {((initialCapital * riskPercent) / 100).toLocaleString()}
           </span>
         </div>
 
         {sizingMethod === "risk" && (
           <div className="sizing-input">
-            <label>損切り価格 (0=デフォルト{stopLossPercent}%)</label>
+            <label>Stop Loss Price (0=default {stopLossPercent}%)</label>
             <input
               type="number"
               value={customStopLoss}
@@ -129,7 +129,7 @@ export function PositionSizer({
 
         {sizingMethod === "atr" && currentAtr && (
           <div className="sizing-input">
-            <label>ATR倍率</label>
+            <label>ATR Multiplier</label>
             <input
               type="number"
               value={atrMultiplier}
@@ -139,8 +139,8 @@ export function PositionSizer({
               step={0.5}
             />
             <span className="sizing-hint">
-              ATR: {currentAtr.toFixed(2)} × {atrMultiplier} ={" "}
-              {(currentAtr * atrMultiplier).toFixed(2)}円
+              ATR: {currentAtr.toFixed(2)} × {atrMultiplier} = ¥
+              {(currentAtr * atrMultiplier).toFixed(2)}
             </span>
           </div>
         )}
@@ -149,28 +149,26 @@ export function PositionSizer({
       {sizingResult && (
         <div className="sizing-result">
           <div className="result-row">
-            <span className="result-label">推奨株数</span>
-            <span className="result-value">{sizingResult.shares.toLocaleString()}株</span>
+            <span className="result-label">Recommended</span>
+            <span className="result-value">{sizingResult.shares.toLocaleString()} shares</span>
           </div>
           <div className="result-row">
-            <span className="result-label">リスク金額</span>
+            <span className="result-label">Risk Amount</span>
             <span className="result-value">
-              {sizingResult.riskAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}円
+              ¥{sizingResult.riskAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}
             </span>
           </div>
           <div className="result-row">
-            <span className="result-label">リスク率</span>
+            <span className="result-label">Risk %</span>
             <span className="result-value">{sizingResult.riskPercent.toFixed(2)}%</span>
           </div>
           <button className="apply-sizing-btn" onClick={handleApply}>
-            この株数を適用
+            Apply
           </button>
         </div>
       )}
 
-      {!sizingResult && (
-        <div className="sizing-error">計算できません。パラメータを確認してください。</div>
-      )}
+      {!sizingResult && <div className="sizing-error">Cannot calculate. Check parameters.</div>}
     </div>
   );
 }

@@ -183,25 +183,25 @@ export function TradeForm() {
   }, [pendingOrders, activeSymbol]);
 
   const ORDER_TYPE_LABELS: Record<OrderType, string> = {
-    BUY: "買い",
-    SELL: "部分売り",
-    SELL_ALL: "全売り",
+    BUY: "Buy",
+    SELL: "Partial Sell",
+    SELL_ALL: "Sell All",
   };
 
   return (
     <div className="trade-panel">
-      <h3>売買アクション</h3>
+      <h3>Trade Actions</h3>
 
       {/* Buy Section */}
       <div className="shares-input">
         <div className="shares-header">
-          <label>買い株数</label>
+          <label>Buy Shares</label>
           <button
             className="sizing-calc-toggle"
             onClick={() => setShowSizingCalc(!showSizingCalc)}
-            title="ポジションサイジング計算機"
+            title="Position Sizing Calculator"
           >
-            {showSizingCalc ? "✕ 閉じる" : "計算機"}
+            {showSizingCalc ? "✕ Close" : "Calculator"}
           </button>
         </div>
         <input
@@ -250,7 +250,7 @@ export function TradeForm() {
       {/* Sell Section */}
       {hasPosition && positionSummary && (
         <div className="shares-input">
-          <label>売り株数 (保有: {positionSummary.totalShares}株)</label>
+          <label>Sell Shares (held: {positionSummary.totalShares})</label>
           <input
             type="number"
             value={Math.min(sellShares, positionSummary.totalShares)}
@@ -284,7 +284,7 @@ export function TradeForm() {
       )}
 
       <div className="price-type-selector">
-        <label>約定価格</label>
+        <label>Execution Price</label>
         <div className="price-type-buttons">
           {PRICE_TYPES.map((type) => (
             <button
@@ -293,7 +293,7 @@ export function TradeForm() {
               onClick={() => setPriceType(type)}
               disabled={type === "nextOpen" && !canUseNextOpen}
               title={
-                type === "nextOpen" && !canUseNextOpen ? "最終日のため翌日始値は選択できません" : ""
+                type === "nextOpen" && !canUseNextOpen ? "Next open unavailable on last day" : ""
               }
             >
               {PRICE_TYPE_LABELS[type]}
@@ -301,10 +301,10 @@ export function TradeForm() {
           ))}
         </div>
         <div className="price-estimate">
-          {priceType === "nextOpen" ? "翌日始値" : PRICE_TYPE_LABELS[priceType]}:{" "}
-          {estimatedPrice.toLocaleString()}円
+          {priceType === "nextOpen" ? "Next Open" : PRICE_TYPE_LABELS[priceType]}: ¥
+          {estimatedPrice.toLocaleString()}
           <span className="capital-ratio">
-            (買い概算: {totalBuyCost.toLocaleString()}円 /{" "}
+            (est. cost: ¥{totalBuyCost.toLocaleString()} /{" "}
             {((totalBuyCost / initialCapital) * 100).toFixed(1)}%)
           </span>
         </div>
@@ -313,7 +313,7 @@ export function TradeForm() {
       {/* Exit Reason */}
       {hasPosition && (
         <div className="exit-reason-selector">
-          <label>イグジット理由</label>
+          <label>Exit Reason</label>
           <div className="exit-reason-buttons">
             {EXIT_REASONS.map((reason) => (
               <button
@@ -331,12 +331,12 @@ export function TradeForm() {
       {/* Exit Trigger */}
       {hasPosition && exitReason !== "MANUAL" && (
         <div className="exit-trigger-selector">
-          <label>詳細トリガー（任意）</label>
+          <label>Exit Trigger (optional)</label>
           <select
             value={exitTrigger || ""}
             onChange={(e) => setExitTrigger((e.target.value as ExitTrigger) || undefined)}
           >
-            <option value="">選択しない</option>
+            <option value="">None</option>
             {EXIT_TRIGGERS.map((trigger) => (
               <option key={trigger} value={trigger}>
                 {EXIT_TRIGGER_LABELS[trigger]}
@@ -351,32 +351,32 @@ export function TradeForm() {
           className="buy-btn"
           onClick={handleBuy}
           disabled={priceType === "nextOpen" && !canUseNextOpen}
-          title={hasPosition ? "追加買い" : "新規買い"}
+          title={hasPosition ? "Add to position" : "New position"}
         >
-          {hasPosition ? "追加買" : "BUY"}
+          {hasPosition ? "ADD" : "BUY"}
         </button>
         <button
           className="sell-btn"
           onClick={handleSell}
           disabled={!hasPosition || (priceType === "nextOpen" && !canUseNextOpen)}
-          title={!hasPosition ? "ポジションがありません" : "部分売り"}
+          title={!hasPosition ? "No position" : "Partial sell"}
         >
-          部分売
+          SELL
         </button>
         <button
           className="sell-btn sell-all"
           onClick={handleSellAll}
           disabled={!hasPosition || (priceType === "nextOpen" && !canUseNextOpen)}
-          title={!hasPosition ? "ポジションがありません" : "全売り"}
+          title={!hasPosition ? "No position" : "Sell all"}
         >
-          全売
+          ALL
         </button>
       </div>
 
       {/* Memo */}
       <div className="memo-input">
         <div className="memo-header">
-          <label>メモ（判断理由を記録）</label>
+          <label>Memo (record your reasoning)</label>
           <button className="journal-toggle-btn" onClick={() => setShowJournal(!showJournal)}>
             {showJournal ? "Simple" : "Journal"}
           </button>
@@ -385,7 +385,7 @@ export function TradeForm() {
           <textarea
             value={memo}
             onChange={(e) => setMemo(e.target.value)}
-            placeholder="例: RSIが30を下回り、サポートラインに接触したため買いエントリー"
+            placeholder="e.g. RSI below 30, touching support line — buying"
           />
         ) : (
           <JournalEntry
@@ -405,7 +405,7 @@ export function TradeForm() {
       {/* Pending Orders */}
       {symbolPendingOrders.length > 0 && (
         <div className="pending-orders">
-          <h4>予約注文（翌日始値で約定）</h4>
+          <h4>Pending Orders (fill at next open)</h4>
           <ul className="pending-orders-list">
             {symbolPendingOrders.map((order) => (
               <li key={order.id} className={`pending-order ${order.orderType.toLowerCase()}`}>
@@ -414,7 +414,7 @@ export function TradeForm() {
                     {ORDER_TYPE_LABELS[order.orderType]}
                   </span>
                   {order.orderType !== "SELL_ALL" && (
-                    <span className="order-shares">{order.shares}株</span>
+                    <span className="order-shares">{order.shares} sh</span>
                   )}
                   {order.memo && (
                     <span className="order-memo" title={order.memo}>
@@ -425,7 +425,7 @@ export function TradeForm() {
                 <button
                   className="cancel-order-btn"
                   onClick={() => cancelPendingOrder(order.id)}
-                  title="注文をキャンセル"
+                  title="Cancel order"
                 >
                   ×
                 </button>

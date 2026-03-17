@@ -26,7 +26,7 @@ export interface MarketRegimeAnalysis {
 }
 
 export interface DayOfWeekAnalysis {
-  dayOfWeek: number; // 0=日曜, 1=月曜, ..., 6=土曜
+  dayOfWeek: number; // 0=Sun, 1=Mon, ..., 6=Sat
   label: string;
   entryCount: number;
   exitCount: number;
@@ -106,10 +106,10 @@ export function analyzeTradesByHoldingPeriod(trades: Trade[]): HoldingPeriodAnal
   const pairs = groupTradesIntoPairs(trades);
 
   const periodBuckets = {
-    "~5日": { min: 0, max: 5, trades: [] as [Trade, Trade][] },
-    "6~14日": { min: 6, max: 14, trades: [] as [Trade, Trade][] },
-    "15~30日": { min: 15, max: 30, trades: [] as [Trade, Trade][] },
-    "31日~": { min: 31, max: Number.POSITIVE_INFINITY, trades: [] as [Trade, Trade][] },
+    "≤5d": { min: 0, max: 5, trades: [] as [Trade, Trade][] },
+    "6-14d": { min: 6, max: 14, trades: [] as [Trade, Trade][] },
+    "15-30d": { min: 15, max: 30, trades: [] as [Trade, Trade][] },
+    "31d+": { min: 31, max: Number.POSITIVE_INFINITY, trades: [] as [Trade, Trade][] },
   };
 
   for (const [buy, sell] of pairs) {
@@ -146,7 +146,7 @@ export function analyzeTradesByHoldingPeriod(trades: Trade[]): HoldingPeriodAnal
 }
 
 export function analyzeTradesByMarketRegime(trades: Trade[]): MarketRegimeAnalysis[] {
-  // Buy時点のMarketContextを使用
+  // Use MarketContext at the time of buy
   const pairs = groupTradesIntoPairs(trades);
 
   const regimeMap = new Map<"TREND_UP" | "TREND_DOWN" | "RANGE", [Trade, Trade][]>();
@@ -160,9 +160,9 @@ export function analyzeTradesByMarketRegime(trades: Trade[]): MarketRegimeAnalys
   }
 
   const regimeLabels: Record<"TREND_UP" | "TREND_DOWN" | "RANGE", string> = {
-    TREND_UP: "上昇トレンド",
-    TREND_DOWN: "下降トレンド",
-    RANGE: "レンジ相場",
+    TREND_UP: "Uptrend",
+    TREND_DOWN: "Downtrend",
+    RANGE: "Range",
   };
 
   const results: MarketRegimeAnalysis[] = [];
@@ -185,26 +185,26 @@ export function analyzeTradesByMarketRegime(trades: Trade[]): MarketRegimeAnalys
   return results.sort((a, b) => b.count - a.count);
 }
 
-const DAY_LABELS = ["日", "月", "火", "水", "木", "金", "土"];
+const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTH_LABELS = [
-  "1月",
-  "2月",
-  "3月",
-  "4月",
-  "5月",
-  "6月",
-  "7月",
-  "8月",
-  "9月",
-  "10月",
-  "11月",
-  "12月",
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
 ];
 
 export function analyzeTradesByDayOfWeek(trades: Trade[]): DayOfWeekAnalysis[] {
   const pairs = groupTradesIntoPairs(trades);
 
-  // エントリー曜日別とイグジット曜日別の両方を分析
+  // Analyze both by entry day-of-week and exit day-of-week
   const entryByDay = new Map<number, [Trade, Trade][]>();
   const exitByDay = new Map<number, [Trade, Trade][]>();
 
@@ -221,7 +221,7 @@ export function analyzeTradesByDayOfWeek(trades: Trade[]): DayOfWeekAnalysis[] {
 
   const results: DayOfWeekAnalysis[] = [];
 
-  // 月曜から金曜のみ（株式市場は週末休み）
+  // Monday through Friday only (stock market closed on weekends)
   for (let dow = 1; dow <= 5; dow++) {
     const entryTrades = entryByDay.get(dow) || [];
     const exitTrades = exitByDay.get(dow) || [];
@@ -262,7 +262,7 @@ export function analyzeTradesByMonth(trades: Trade[]): MonthAnalysis[] {
   const monthMap = new Map<number, [Trade, Trade][]>();
 
   for (const [buy, sell] of pairs) {
-    // エントリー月で分類
+    // Classify by entry month
     const month = new Date(buy.date).getMonth() + 1; // 1-12
     if (!monthMap.has(month)) {
       monthMap.set(month, []);

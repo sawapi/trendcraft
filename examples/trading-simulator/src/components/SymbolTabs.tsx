@@ -19,14 +19,14 @@ function FileDropDialog({ onClose }: FileDropDialogProps) {
         const candles = parseCSV(text);
 
         if (candles.length === 0) {
-          setError("CSVからデータを読み込めませんでした");
+          setError("Failed to parse CSV data");
           return;
         }
 
         createSymbolSession(candles, file.name);
         onClose();
       } catch {
-        setError("ファイルの読み込みに失敗しました");
+        setError("Failed to read file");
       }
     },
     [createSymbolSession, onClose],
@@ -76,7 +76,7 @@ function FileDropDialog({ onClose }: FileDropDialogProps) {
         onKeyDown={(e) => e.stopPropagation()}
       >
         <div className="dialog-header">
-          <h3>銘柄を追加</h3>
+          <h3>Add Symbol</h3>
           <button type="button" className="close-btn" onClick={onClose}>
             ×
           </button>
@@ -91,8 +91,8 @@ function FileDropDialog({ onClose }: FileDropDialogProps) {
           role="button"
           tabIndex={0}
         >
-          <p>CSVファイルをドロップ</p>
-          <p className="sub">またはクリックして選択</p>
+          <p>Drop CSV file here</p>
+          <p className="sub">or click to select</p>
         </div>
         {error && <p className="error">{error}</p>}
       </div>
@@ -112,10 +112,10 @@ export function SymbolTabs() {
     }
   };
 
-  // シミュレーション中は銘柄追加を無効化
+  // Disable adding symbols during simulation
   const canAddSymbol = phase === "setup";
 
-  // 銘柄が1つ以下の場合はタブを表示しない
+  // Don't show tabs when there's only one or no symbols
   if (symbols.length <= 1 && !canAddSymbol) {
     return null;
   }
@@ -134,7 +134,7 @@ export function SymbolTabs() {
               <span className="tab-name">{symbol.fileName}</span>
               {symbol.positions.length > 0 && (
                 <span className="tab-position-badge">
-                  {symbol.positions.reduce((sum, p) => sum + p.shares, 0)}株
+                  {symbol.positions.reduce((sum, p) => sum + p.shares, 0)}
                 </span>
               )}
               {symbols.length > 1 && (
@@ -146,7 +146,7 @@ export function SymbolTabs() {
                   }
                   role="button"
                   tabIndex={0}
-                  title="閉じる"
+                  title="Close"
                 >
                   ×
                 </span>
@@ -159,7 +159,7 @@ export function SymbolTabs() {
             type="button"
             className="add-tab-btn"
             onClick={() => setShowAddDialog(true)}
-            title="新規銘柄を追加 (Ctrl+T)"
+            title="Add symbol (Ctrl+T)"
           >
             +
           </button>

@@ -32,7 +32,7 @@ export default function App() {
   const [showSessionManager, setShowSessionManager] = useState(() => !!loadSession());
   const [showIndicatorSettings, setShowIndicatorSettings] = useState(false);
 
-  // 銘柄が読み込まれているかどうか
+  // Whether symbol data has been loaded
   const hasData = symbols.length > 0 && symbols[0].allCandles.length > 0;
 
   // Enable keyboard shortcuts
@@ -44,7 +44,7 @@ export default function App() {
   const handleSessionRestore = useCallback((session: SessionData) => {
     setPendingSession(session);
     setShowSessionManager(false);
-    // ファイルの読み込みを促す（FileDropZoneでセッション復元を処理）
+    // Prompt file loading (session restore is handled in FileDropZone)
   }, []);
 
   const handleSessionDiscard = useCallback(() => {
@@ -120,7 +120,7 @@ export default function App() {
             onClick={() => setShowIndicatorSettings(true)}
           >
             <span className="settings-icon">&#9881;</span>
-            <span>インジケーター設定</span>
+            <span>Indicator Settings</span>
           </button>
           <CoachingPanel />
           <StatsPanel />

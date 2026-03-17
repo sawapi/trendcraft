@@ -1,28 +1,28 @@
 import { useState } from "react";
 
 const SHORTCUTS = [
-  { key: "Space", action: "再生/一時停止" },
-  { key: "→", action: "次の日" },
-  { key: "←", action: "前の日" },
-  { key: "B", action: "買い/追加買い" },
-  { key: "S", action: "全売り" },
-  { key: "Q", action: "部分売り" },
-  { key: "1-5", action: "株数プリセット" },
-  { key: "+/-", action: "株数±100" },
-  { key: "T", action: "ブラケット注文" },
-  { key: "J", action: "ジャーナル" },
-  { key: "I", action: "インジケーター設定" },
-  { key: "R", action: "レビュー画面" },
-  { key: "⌘Z", action: "取消 (Undo)" },
-  { key: "⌘⇧Z", action: "やり直し (Redo)" },
+  { key: "Space", action: "Play/Pause" },
+  { key: "→", action: "Next Day" },
+  { key: "←", action: "Prev Day" },
+  { key: "B", action: "Buy/Add" },
+  { key: "S", action: "Sell All" },
+  { key: "Q", action: "Partial Sell" },
+  { key: "1-5", action: "Shares Preset" },
+  { key: "+/-", action: "Shares ±100" },
+  { key: "T", action: "Bracket Order" },
+  { key: "J", action: "Journal" },
+  { key: "I", action: "Indicator Settings" },
+  { key: "R", action: "Review" },
+  { key: "⌘Z", action: "Undo" },
+  { key: "⌘⇧Z", action: "Redo" },
 ];
 
 const TAB_SHORTCUTS = [
-  { key: "⌘1-9", action: "タブ切替" },
-  { key: "⌘→", action: "次のタブ" },
-  { key: "⌘←", action: "前のタブ" },
-  { key: "⌘T", action: "タブ追加" },
-  { key: "⌘W", action: "タブを閉じる" },
+  { key: "⌘1-9", action: "Switch Tab" },
+  { key: "⌘→", action: "Next Tab" },
+  { key: "⌘←", action: "Prev Tab" },
+  { key: "⌘T", action: "New Tab" },
+  { key: "⌘W", action: "Close Tab" },
 ];
 
 export function ShortcutsHelp() {
@@ -34,13 +34,13 @@ export function ShortcutsHelp() {
         type="button"
         className="shortcuts-toggle"
         onClick={() => setIsOpen(!isOpen)}
-        title="キーボードショートカット"
+        title="Keyboard Shortcuts"
       >
         <span className="material-icons">keyboard</span>
       </button>
       {isOpen && (
         <div className="shortcuts-popup">
-          <h4>キーボードショートカット</h4>
+          <h4>Keyboard Shortcuts</h4>
           <ul>
             {SHORTCUTS.map(({ key, action }) => (
               <li key={key}>
@@ -49,7 +49,7 @@ export function ShortcutsHelp() {
               </li>
             ))}
           </ul>
-          <h4 style={{ marginTop: "12px" }}>タブ操作</h4>
+          <h4 style={{ marginTop: "12px" }}>Tab Controls</h4>
           <ul>
             {TAB_SHORTCUTS.map(({ key, action }) => (
               <li key={key}>

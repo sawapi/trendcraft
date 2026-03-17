@@ -53,7 +53,7 @@ export const createAlertSlice: SliceCreator<AlertSlice> = (set, get) => ({
             {
               id: generateId(),
               type: "STOP_LOSS_WARNING",
-              message: `損切りライン(${stopLossPrice.toLocaleString()}円, -${stopLossPercent}%)に接触しました`,
+              message: `Stop loss line hit (${stopLossPrice.toLocaleString()}, -${stopLossPercent}%)`,
               timestamp: Date.now(),
             },
           ],
@@ -71,7 +71,7 @@ export const createAlertSlice: SliceCreator<AlertSlice> = (set, get) => ({
             {
               id: generateId(),
               type: "TAKE_PROFIT_REACHED",
-              message: `利確ライン(${takeProfitPrice.toLocaleString()}円, +${takeProfitPercent}%)に到達しました`,
+              message: `Take profit line reached (${takeProfitPrice.toLocaleString()}, +${takeProfitPercent}%)`,
               timestamp: Date.now(),
             },
           ],
@@ -96,7 +96,7 @@ export const createAlertSlice: SliceCreator<AlertSlice> = (set, get) => ({
                 {
                   id: generateId(),
                   type: "TRAILING_STOP_HIT",
-                  message: `トレーリングストップ(${minTrailingStop.toLocaleString()}円)に到達しました`,
+                  message: `Trailing stop hit (${minTrailingStop.toLocaleString()})`,
                   timestamp: Date.now(),
                 },
               ],
@@ -142,7 +142,7 @@ export const createAlertSlice: SliceCreator<AlertSlice> = (set, get) => ({
               {
                 id: generateId(),
                 type: "VOLUME_SPIKE_AVERAGE",
-                message: `出来高急増: ${currentAnomaly.value.ratio.toFixed(1)}倍 (${volSettings.averageVolumePeriod}日平均比)`,
+                message: `Volume surge: ${currentAnomaly.value.ratio.toFixed(1)}x (vs ${volSettings.averageVolumePeriod}-day avg)`,
                 timestamp: Date.now(),
               },
             ],
@@ -175,7 +175,7 @@ export const createAlertSlice: SliceCreator<AlertSlice> = (set, get) => ({
               {
                 id: generateId(),
                 type: "VOLUME_SPIKE_BREAKOUT",
-                message: `出来高新高値: ${volSettings.breakoutVolumePeriod}日間の最高出来高を更新 (${currentBreakout.ratio.toFixed(1)}倍)`,
+                message: `Volume new high: ${volSettings.breakoutVolumePeriod}-day highest volume (${currentBreakout.ratio.toFixed(1)}x)`,
                 timestamp: Date.now(),
               },
             ],
@@ -210,7 +210,7 @@ export const createAlertSlice: SliceCreator<AlertSlice> = (set, get) => ({
               {
                 id: generateId(),
                 type: "VOLUME_ACCUMULATION",
-                message: `蓄積フェーズ: 出来高上昇傾向 ${currentAccum.consecutiveDays}日継続`,
+                message: `Accumulation phase: rising volume trend for ${currentAccum.consecutiveDays} days`,
                 timestamp: Date.now(),
               },
             ],
@@ -245,7 +245,7 @@ export const createAlertSlice: SliceCreator<AlertSlice> = (set, get) => ({
               {
                 id: generateId(),
                 type: "VOLUME_ABOVE_AVERAGE",
-                message: `高水準継続: 平均の${(currentAboveAvg.ratio * 100).toFixed(0)}%で ${currentAboveAvg.consecutiveDays}日継続`,
+                message: `Above average: ${(currentAboveAvg.ratio * 100).toFixed(0)}% of avg for ${currentAboveAvg.consecutiveDays} days`,
                 timestamp: Date.now(),
               },
             ],
@@ -281,7 +281,7 @@ export const createAlertSlice: SliceCreator<AlertSlice> = (set, get) => ({
               {
                 id: generateId(),
                 type: "VOLUME_MA_CROSS",
-                message: `出来高MAクロス: 短期MA(${volSettings.maCrossShortPeriod})が長期MA(${volSettings.maCrossLongPeriod})を上抜け (${currentCross.ratio.toFixed(1)}倍)`,
+                message: `Volume MA cross: short MA(${volSettings.maCrossShortPeriod}) crossed above long MA(${volSettings.maCrossLongPeriod}) (${currentCross.ratio.toFixed(1)}x)`,
                 timestamp: Date.now(),
               },
             ],
@@ -325,7 +325,7 @@ export const createAlertSlice: SliceCreator<AlertSlice> = (set, get) => ({
                 {
                   id: generateId(),
                   type: "CMF_ACCUMULATION",
-                  message: `CMF蓄積フェーズ開始: CMF=${currentCmf.value.toFixed(3)} (閾値>${threshold})`,
+                  message: `CMF accumulation started: CMF=${currentCmf.value.toFixed(3)} (threshold>${threshold})`,
                   timestamp: Date.now(),
                 },
               ],
@@ -337,7 +337,7 @@ export const createAlertSlice: SliceCreator<AlertSlice> = (set, get) => ({
                 {
                   id: generateId(),
                   type: "CMF_DISTRIBUTION",
-                  message: `CMF分配フェーズ開始: CMF=${currentCmf.value.toFixed(3)} (閾値<${-threshold})`,
+                  message: `CMF distribution started: CMF=${currentCmf.value.toFixed(3)} (threshold<${-threshold})`,
                   timestamp: Date.now(),
                 },
               ],
@@ -389,7 +389,7 @@ export const createAlertSlice: SliceCreator<AlertSlice> = (set, get) => ({
                   {
                     id: generateId(),
                     type: "OBV_RISING",
-                    message: `OBV上昇トレンド転換: ${volSettings.obvPeriod}日間で+${formatOBVChange(currentChange)}`,
+                    message: `OBV turned bullish: +${formatOBVChange(currentChange)} over ${volSettings.obvPeriod} days`,
                     timestamp: Date.now(),
                   },
                 ],
@@ -401,7 +401,7 @@ export const createAlertSlice: SliceCreator<AlertSlice> = (set, get) => ({
                   {
                     id: generateId(),
                     type: "OBV_FALLING",
-                    message: `OBV下降トレンド転換: ${volSettings.obvPeriod}日間で${formatOBVChange(currentChange)}`,
+                    message: `OBV turned bearish: ${formatOBVChange(currentChange)} over ${volSettings.obvPeriod} days`,
                     timestamp: Date.now(),
                   },
                 ],

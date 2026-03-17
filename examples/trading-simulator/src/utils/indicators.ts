@@ -14,29 +14,29 @@ import {
 } from "../types";
 
 export interface IndicatorData {
-  // 移動平均
+  // Moving averages
   sma5?: (number | null)[];
   sma25?: (number | null)[];
   sma75?: (number | null)[];
   ema12?: (number | null)[];
   ema26?: (number | null)[];
 
-  // ボリンジャーバンド
+  // Bollinger Bands
   bbUpper?: (number | null)[];
   bbMiddle?: (number | null)[];
   bbLower?: (number | null)[];
 
-  // ケルトナーチャネル
+  // Keltner Channel
   keltnerUpper?: (number | null)[];
   keltnerMiddle?: (number | null)[];
   keltnerLower?: (number | null)[];
 
-  // ドンチャンチャネル
+  // Donchian Channel
   donchianUpper?: (number | null)[];
   donchianMiddle?: (number | null)[];
   donchianLower?: (number | null)[];
 
-  // 一目均衡表
+  // Ichimoku
   ichimokuTenkan?: (number | null)[];
   ichimokuKijun?: (number | null)[];
   ichimokuSenkouA?: (number | null)[];
@@ -126,7 +126,7 @@ export function calculateIndicators(
     }
   };
 
-  // ========== トレンド系 ==========
+  // ========== Trend ==========
 
   calculateSma("sma5", "sma5Period");
   calculateSma("sma25", "sma25Period");
@@ -158,7 +158,7 @@ export function calculateIndicators(
     result.parabolicSarDirection = series.map((item) => item.value?.direction ?? null);
   }
 
-  // ========== ボラティリティ系 ==========
+  // ========== Volatility ==========
 
   if (enabledIndicators.includes("bb")) {
     const series = TrendCraft.bollingerBands(candles, {
@@ -193,7 +193,7 @@ export function calculateIndicators(
     result.atr = extractValues(series);
   }
 
-  // ========== モメンタム系 ==========
+  // ========== Momentum ==========
 
   if (enabledIndicators.includes("rsi")) {
     const series = TrendCraft.rsi(candles, { period: p.rsiPeriod });
@@ -243,7 +243,7 @@ export function calculateIndicators(
     result.cci = extractValues(series);
   }
 
-  // ========== 出来高系 ==========
+  // ========== Volume ==========
 
   if (enabledIndicators.includes("obv")) {
     const series = TrendCraft.obv(candles);
@@ -255,7 +255,7 @@ export function calculateIndicators(
     result.mfi = extractValues(series);
   }
 
-  // ========== SMC系 ==========
+  // ========== SMC ==========
 
   if (enabledIndicators.includes("orderBlock")) {
     const series = TrendCraft.orderBlock(candles, {
@@ -275,7 +275,7 @@ export function calculateIndicators(
     result.liquiditySweepData = series.map((item) => item.value);
   }
 
-  // ========== パターン認識 ==========
+  // ========== Pattern Recognition ==========
 
   const patterns: PatternSignal[] = [];
 
@@ -337,7 +337,7 @@ export function calculateIndicators(
 }
 
 /**
- * 特定のインデックスでのインジケーター値のスナップショットを取得
+ * Get indicator value snapshot at a specific index
  */
 export function getIndicatorSnapshot(
   indicatorData: IndicatorData,
@@ -366,7 +366,7 @@ export function getIndicatorSnapshot(
 }
 
 /**
- * 市場コンテキスト（チャートパターン・トレンド状態）を分析
+ * Analyze market context (chart pattern and trend state)
  */
 export function analyzeMarketContext(
   candles: NormalizedCandle[],
@@ -376,7 +376,7 @@ export function analyzeMarketContext(
   const currentCandle = candles[index];
   const price = currentCandle.close;
 
-  // SMA値を取得
+  // Get SMA values
   const sma25 = indicatorData.sma25?.[index];
   const sma75 = indicatorData.sma75?.[index];
   const rsi = indicatorData.rsi?.[index];
@@ -385,7 +385,7 @@ export function analyzeMarketContext(
   const bbLower = indicatorData.bbLower?.[index];
   const bbMiddle = indicatorData.bbMiddle?.[index];
 
-  // 価格 vs SMA25
+  // Price vs SMA25
   let priceVsSma25: "above" | "below" | "at" = "at";
   if (sma25 != null) {
     const diff = ((price - sma25) / sma25) * 100;
@@ -393,7 +393,7 @@ export function analyzeMarketContext(
     else if (diff < -0.5) priceVsSma25 = "below";
   }
 
-  // 価格 vs SMA75
+  // Price vs SMA75
   let priceVsSma75: "above" | "below" | "at" = "at";
   if (sma75 != null) {
     const diff = ((price - sma75) / sma75) * 100;
@@ -401,14 +401,14 @@ export function analyzeMarketContext(
     else if (diff < -0.5) priceVsSma75 = "below";
   }
 
-  // SMA25 vs SMA75 (ゴールデンクロス/デッドクロス検出)
+  // SMA25 vs SMA75 (golden cross / death cross detection)
   let sma25VsSma75: "golden_cross" | "death_cross" | "above" | "below" = "above";
   if (sma25 != null && sma75 != null) {
     const prevSma25 = indicatorData.sma25?.[index - 1];
     const prevSma75 = indicatorData.sma75?.[index - 1];
 
     if (prevSma25 != null && prevSma75 != null) {
-      // クロス判定（直近でクロスしたか）
+      // Cross detection (did a cross just occur?)
       if (prevSma25 < prevSma75 && sma25 > sma75) {
         sma25VsSma75 = "golden_cross";
       } else if (prevSma25 > prevSma75 && sma25 < sma75) {
@@ -421,10 +421,10 @@ export function analyzeMarketContext(
     }
   }
 
-  // ADX（confidence計算用）
+  // ADX (for confidence calculation)
   const adx = indicatorData.dmiAdx?.[index];
 
-  // トレンド判定（SMA25の傾きで判定）
+  // Trend detection (based on SMA25 slope)
   let trend: "uptrend" | "downtrend" | "range" = "range";
   let trendStrength: "strong" | "moderate" | "weak" = "weak";
 
@@ -448,7 +448,7 @@ export function analyzeMarketContext(
     }
   }
 
-  // regime（機械可読用enum）
+  // regime (machine-readable enum)
   const regimeMap: Record<typeof trend, "TREND_UP" | "TREND_DOWN" | "RANGE"> = {
     uptrend: "TREND_UP",
     downtrend: "TREND_DOWN",
@@ -456,7 +456,7 @@ export function analyzeMarketContext(
   };
   const regime = regimeMap[trend];
 
-  // confidence（0-1、ADXベースまたはtrendStrengthから推定）
+  // confidence (0-1, based on ADX or estimated from trendStrength)
   const strengthConfidence: Record<typeof trendStrength, number> = {
     strong: 0.8,
     moderate: 0.5,
@@ -464,7 +464,7 @@ export function analyzeMarketContext(
   };
   const confidence = adx != null ? Math.min(adx / 50, 1) : strengthConfidence[trendStrength];
 
-  // RSIゾーン
+  // RSI zone
   let rsiZone: "overbought" | "oversold" | "neutral" | undefined;
   if (rsi != null) {
     if (rsi >= 70) rsiZone = "overbought";
@@ -472,7 +472,7 @@ export function analyzeMarketContext(
     else rsiZone = "neutral";
   }
 
-  // MACDシグナル
+  // MACD signal
   let macdSignal: "bullish" | "bearish" | "neutral" | undefined;
   if (macdHist != null) {
     const prevMacdHist = indicatorData.macdHist?.[index - 1];
@@ -483,7 +483,7 @@ export function analyzeMarketContext(
     }
   }
 
-  // BBポジション
+  // BB position
   let bbPosition: "upper" | "middle" | "lower" | undefined;
   if (bbUpper != null && bbLower != null && bbMiddle != null) {
     const totalRange = bbUpper - bbLower;
@@ -496,48 +496,48 @@ export function analyzeMarketContext(
     }
   }
 
-  // 説明テキスト生成
+  // Generate description text
   const descParts: string[] = [];
 
-  // トレンド
+  // Trend
   const trendLabel = {
-    uptrend: "上昇トレンド",
-    downtrend: "下降トレンド",
-    range: "レンジ相場",
+    uptrend: "Uptrend",
+    downtrend: "Downtrend",
+    range: "Range",
   }[trend];
   const strengthLabel = {
-    strong: "強い",
-    moderate: "やや",
+    strong: "Strong ",
+    moderate: "Moderate ",
     weak: "",
   }[trendStrength];
   descParts.push(`${strengthLabel}${trendLabel}`);
 
-  // MA関係
+  // MA relationship
   if (sma25VsSma75 === "golden_cross") {
-    descParts.push("ゴールデンクロス発生");
+    descParts.push("Golden cross");
   } else if (sma25VsSma75 === "death_cross") {
-    descParts.push("デッドクロス発生");
+    descParts.push("Death cross");
   } else if (sma25 != null && sma75 != null) {
     descParts.push(sma25 > sma75 ? "MA25>MA75" : "MA25<MA75");
   }
 
-  // 価格位置
+  // Price position
   if (priceVsSma25 !== "at") {
-    descParts.push(`価格はMA25の${priceVsSma25 === "above" ? "上" : "下"}`);
+    descParts.push(`Price ${priceVsSma25 === "above" ? "above" : "below"} MA25`);
   }
 
   // RSI
   if (rsiZone === "overbought") {
-    descParts.push("RSI買われすぎ圏");
+    descParts.push("RSI overbought");
   } else if (rsiZone === "oversold") {
-    descParts.push("RSI売られすぎ圏");
+    descParts.push("RSI oversold");
   }
 
   // BB
   if (bbPosition === "upper") {
-    descParts.push("BB上限付近");
+    descParts.push("Near BB upper");
   } else if (bbPosition === "lower") {
-    descParts.push("BB下限付近");
+    descParts.push("Near BB lower");
   }
 
   return {
@@ -551,6 +551,6 @@ export function analyzeMarketContext(
     rsiZone,
     macdSignal,
     bbPosition,
-    description: descParts.join("、"),
+    description: descParts.join(", "),
   };
 }

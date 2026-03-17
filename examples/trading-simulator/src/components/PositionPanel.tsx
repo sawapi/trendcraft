@@ -14,7 +14,7 @@ export function PositionPanel() {
     trailingStopEnabled,
   } = useSimulatorStore();
 
-  // アクティブ銘柄を取得
+  // Get the active symbol
   const activeSymbol = useMemo(() => {
     if (!activeSymbolId) return symbols[0] || null;
     return symbols.find((s) => s.id === activeSymbolId) || null;
@@ -32,21 +32,21 @@ export function PositionPanel() {
 
   return (
     <div className="position-panel">
-      <h3>ポジション</h3>
+      <h3>Position</h3>
 
       {positions.length > 0 && positionSummary ? (
         <div className="position-status long">
           <div className="status-label">
-            ロング保有中 ({positions.length}回買付)
-            {holdingDays !== null && <span className="holding-days">保有{holdingDays}日目</span>}
+            Long ({positions.length} entries)
+            {holdingDays !== null && <span className="holding-days">Day {holdingDays}</span>}
           </div>
           <div className="position-summary">
             <div className="summary-row">
-              <span className="label">保有株数</span>
-              <span className="value">{positionSummary.totalShares}株</span>
+              <span className="label">Shares</span>
+              <span className="value">{positionSummary.totalShares}</span>
             </div>
             <div className="summary-row">
-              <span className="label">平均取得単価</span>
+              <span className="label">Avg Entry</span>
               <span className="value">
                 {positionSummary.avgEntryPrice.toLocaleString(undefined, {
                   maximumFractionDigits: 0,
@@ -54,7 +54,7 @@ export function PositionPanel() {
               </span>
             </div>
             <div className="summary-row">
-              <span className="label">取得総額</span>
+              <span className="label">Total Cost</span>
               <span className="value">
                 {positionSummary.totalCost.toLocaleString(undefined, {
                   maximumFractionDigits: 0,
@@ -64,7 +64,7 @@ export function PositionPanel() {
           </div>
           {unrealizedPnl && (
             <div className={`pnl ${unrealizedPnl.pnl >= 0 ? "positive" : "negative"}`}>
-              含み損益: {unrealizedPnl.pnl >= 0 ? "+" : ""}
+              Unrealized: {unrealizedPnl.pnl >= 0 ? "+" : ""}
               {unrealizedPnl.pnl.toLocaleString(undefined, { maximumFractionDigits: 0 })} (
               {unrealizedPnl.pnlPercent >= 0 ? "+" : ""}
               {unrealizedPnl.pnlPercent.toFixed(2)}%)
@@ -73,25 +73,25 @@ export function PositionPanel() {
 
           {trailingStopEnabled && positions.some((p) => p.trailingStopPrice) && (
             <div className="trailing-stop-info">
-              <span className="label">トレーリングストップ</span>
+              <span className="label">Trailing Stop</span>
               <span className="value">
+                ¥
                 {Math.max(
                   ...positions
                     .filter((p) => p.trailingStopPrice)
                     .map((p) => p.trailingStopPrice as number),
                 ).toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                円
               </span>
             </div>
           )}
 
           {positions.length > 1 && (
             <div className="position-list">
-              <div className="list-header">買付履歴</div>
+              <div className="list-header">Entry History</div>
               {positions.map((pos, idx) => (
                 <div key={pos.id} className="position-item">
                   <span className="item-num">#{idx + 1}</span>
-                  <span className="item-shares">{pos.shares}株</span>
+                  <span className="item-shares">{pos.shares}</span>
                   <span className="item-price">@{pos.entryPrice.toLocaleString()}</span>
                 </div>
               ))}
@@ -99,12 +99,12 @@ export function PositionPanel() {
           )}
         </div>
       ) : (
-        <div className="no-position">ポジションなし</div>
+        <div className="no-position">No position</div>
       )}
 
       {tradeCount > 0 && (
         <div className="total-pnl">
-          <span className="label">確定損益 ({tradeCount}回)</span>
+          <span className="label">Realized ({tradeCount})</span>
           <span className={`value ${totalPnl >= 0 ? "positive" : "negative"}`}>
             {totalPnl >= 0 ? "+" : ""}
             {totalPnl.toLocaleString()}
@@ -114,28 +114,28 @@ export function PositionPanel() {
 
       {yearHighLow && (
         <div className="year-high-low">
-          <h3>年初来</h3>
+          <h3>YTD Range</h3>
           <div className="year-stat">
-            <span className="label">高値</span>
+            <span className="label">High</span>
             <span className="value high">{yearHighLow.yearHigh.toLocaleString()}</span>
             <span className="date">({formatDate(yearHighLow.yearHighDate)})</span>
           </div>
           <div className="year-stat">
-            <span className="label">安値</span>
+            <span className="label">Low</span>
             <span className="value low">{yearHighLow.yearLow.toLocaleString()}</span>
             <span className="date">({formatDate(yearHighLow.yearLowDate)})</span>
           </div>
           <div className="year-stat current">
-            <span className="label">現在値</span>
+            <span className="label">Current</span>
             <span className="value">{yearHighLow.currentPrice.toLocaleString()}</span>
           </div>
           <div className="year-position">
             <span className={`from-value ${yearHighLow.fromHigh >= 0 ? "positive" : "negative"}`}>
-              高値から {yearHighLow.fromHigh >= 0 ? "+" : ""}
+              From High {yearHighLow.fromHigh >= 0 ? "+" : ""}
               {yearHighLow.fromHigh.toFixed(1)}%
             </span>
             <span className={`from-value ${yearHighLow.fromLow >= 0 ? "positive" : "negative"}`}>
-              安値から {yearHighLow.fromLow >= 0 ? "+" : ""}
+              From Low {yearHighLow.fromLow >= 0 ? "+" : ""}
               {yearHighLow.fromLow.toFixed(1)}%
             </span>
           </div>

@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { useSimulatorStore } from "../store/simulatorStore";
 import type { AlertType } from "../types";
 
-const AUTO_DISMISS_MS = 5000; // 5秒で自動消去
+const AUTO_DISMISS_MS = 5000; // Auto-dismiss after 5 seconds
 
 const ALERT_STYLES: Record<AlertType, { className: string; icon: string }> = {
   STOP_LOSS_WARNING: { className: "warning", icon: "⚠️" },
@@ -26,14 +26,14 @@ function getAlertStyle(type: AlertType): { className: string; icon: string } {
 
 export function AlertBanner() {
   const { alerts, dismissAlert } = useSimulatorStore();
-  // 各アラートIDごとにタイマーを管理（既にタイマーがあるものは再設定しない）
+  // Manage timers per alert ID (skip if timer already exists)
   const timerMapRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
 
-  // 各アラートを5秒後に自動消去（個別管理）
+  // Auto-dismiss each alert after 5 seconds (individually managed)
   useEffect(() => {
     const timerMap = timerMapRef.current;
 
-    // 新しいアラートにだけタイマーを設定
+    // Set timers only for new alerts
     alerts.forEach((alert) => {
       if (!timerMap.has(alert.id)) {
         const timer = setTimeout(() => {
@@ -44,7 +44,7 @@ export function AlertBanner() {
       }
     });
 
-    // 削除されたアラートのタイマーをクリア
+    // Clear timers for removed alerts
     const currentAlertIds = new Set(alerts.map((a) => a.id));
     timerMap.forEach((timer, id) => {
       if (!currentAlertIds.has(id)) {
@@ -68,7 +68,7 @@ export function AlertBanner() {
               type="button"
               className="alert-dismiss"
               onClick={() => dismissAlert(alert.id)}
-              title="閉じる"
+              title="Dismiss"
             >
               ✕
             </button>

@@ -7,13 +7,13 @@ import type { IndicatorData } from "./indicators";
 const COLORS = {
   up: "#4ade80",
   down: "#ef4444",
-  // トレンド系
+  // Trend
   sma5: "#f59e0b",
   sma25: "#3b82f6",
   sma75: "#a855f7",
   ema12: "#22d3d8",
   ema26: "#f472b6",
-  // 一目均衡表
+  // Ichimoku
   ichimokuTenkan: "#f59e0b",
   ichimokuKijun: "#ef4444",
   ichimokuSenkouA: "#4ade80",
@@ -26,7 +26,7 @@ const COLORS = {
   supertrendDown: "#ef4444",
   // Parabolic SAR
   parabolicSar: "#f59e0b",
-  // ボラティリティ系
+  // Volatility
   bbUpper: "#6b7280",
   bbMiddle: "#9ca3af",
   bbLower: "#6b7280",
@@ -37,7 +37,7 @@ const COLORS = {
   donchianMiddle: "#60a5fa",
   donchianLower: "#3b82f6",
   atr: "#f59e0b",
-  // モメンタム系
+  // Momentum
   rsi: "#f59e0b",
   macdLine: "#3b82f6",
   macdSignal: "#ef4444",
@@ -51,7 +51,7 @@ const COLORS = {
   dmiMinusDi: "#ef4444",
   dmiAdx: "#f59e0b",
   cci: "#a855f7",
-  // 出来高系
+  // Volume
   volume: "#4b5563",
   obv: "#4b5563",
   mfi: "#06b6d4",
@@ -60,10 +60,10 @@ const COLORS = {
   buyHold: "#6b7280",
   drawdown: "rgba(239, 68, 68, 0.3)",
   // Volume Spike
-  volumeSpikeAvg: "#06b6d4", // シアン
-  volumeSpikeBreakout: "#a855f7", // パープル
-  volumeAccumulation: "#22c55e", // グリーン
-  volumeMaCross: "#f59e0b", // アンバー
+  volumeSpikeAvg: "#06b6d4", // Cyan
+  volumeSpikeBreakout: "#a855f7", // Purple
+  volumeAccumulation: "#22c55e", // Green
+  volumeMaCross: "#f59e0b", // Amber
   // SMC
   orderBlockBullish: "rgba(34, 197, 94, 0.2)",
   orderBlockBearish: "rgba(239, 68, 68, 0.2)",
@@ -71,7 +71,7 @@ const COLORS = {
   orderBlockBearishBorder: "#ef4444",
   liquiditySweepBullish: "#22d3d8",
   liquiditySweepBearish: "#f472b6",
-  // Patterns - Bullish (Double Bottom) ティール系
+  // Patterns - Bullish (Double Bottom) Teal
   patternLine: "#14b8a6",
   patternFill: "rgba(20, 184, 166, 0.4)",
   patternNeckline: "#14b8a6",
@@ -80,7 +80,7 @@ const COLORS = {
   patternLabel: "#14b8a6",
   patternConfirmedBox: "rgba(20, 184, 166, 0.15)",
   patternConfirmedBorder: "#14b8a6",
-  // Patterns - Bearish (Double Top) 赤系
+  // Patterns - Bearish (Double Top) Red
   patternBearishLine: "#ef4444",
   patternBearishFill: "rgba(239, 68, 68, 0.4)",
   patternBearishNeckline: "#ef4444",
@@ -91,7 +91,7 @@ const COLORS = {
 // biome-ignore lint/suspicious/noExplicitAny: ECharts internal type
 type SeriesItem = any;
 
-// サブチャートを持つインジケーターのキー
+// Keys of indicators with subcharts
 const SUBCHART_INDICATORS = INDICATOR_DEFINITIONS.filter((ind) => ind.chartType === "subchart").map(
   (ind) => ind.key,
 );
@@ -185,9 +185,9 @@ function createSubchart(ctx: SubchartContext, config: SubchartConfig): number {
 export interface PositionLine {
   entryPrice: number;
   entryIndex: number;
-  stopLossPercent?: number; // 損切り%（例: 5 = 5%下）
-  takeProfitPercent?: number; // 利確%（例: 10 = 10%上）
-  trailingStopPrice?: number; // トレーリングストップ価格
+  stopLossPercent?: number; // Stop loss % (e.g. 5 = 5% below)
+  takeProfitPercent?: number; // Take profit % (e.g. 10 = 10% above)
+  trailingStopPrice?: number; // Trailing stop price
 }
 
 export function buildChartOption(
@@ -225,9 +225,9 @@ export function buildChartOption(
     },
   ];
 
-  // ========== オーバーレイ系インジケーター ==========
+  // ========== Overlay indicators ==========
 
-  // 移動平均
+  // Moving averages
   if (enabledIndicators.includes("sma5") && indicators.sma5) {
     series.push(createLineSeries("SMA5", indicators.sma5, COLORS.sma5));
   }
@@ -244,18 +244,18 @@ export function buildChartOption(
     series.push(createLineSeries("EMA26", indicators.ema26, COLORS.ema26));
   }
 
-  // 一目均衡表
+  // Ichimoku
   if (enabledIndicators.includes("ichimoku")) {
     if (indicators.ichimokuTenkan) {
-      series.push(createLineSeries("転換線", indicators.ichimokuTenkan, COLORS.ichimokuTenkan));
+      series.push(createLineSeries("Tenkan", indicators.ichimokuTenkan, COLORS.ichimokuTenkan));
     }
     if (indicators.ichimokuKijun) {
-      series.push(createLineSeries("基準線", indicators.ichimokuKijun, COLORS.ichimokuKijun));
+      series.push(createLineSeries("Kijun", indicators.ichimokuKijun, COLORS.ichimokuKijun));
     }
     if (indicators.ichimokuSenkouA && indicators.ichimokuSenkouB) {
-      // 雲（先行スパンA/B）をエリアで表示
+      // Cloud (Senkou A/B) as area
       series.push({
-        name: "雲",
+        name: "Cloud",
         type: "line",
         data: indicators.ichimokuSenkouA,
         symbol: "none",
@@ -265,13 +265,11 @@ export function buildChartOption(
           origin: "auto",
         },
       });
-      series.push(
-        createLineSeries("先行スパンB", indicators.ichimokuSenkouB, COLORS.ichimokuSenkouB),
-      );
+      series.push(createLineSeries("Senkou B", indicators.ichimokuSenkouB, COLORS.ichimokuSenkouB));
     }
     if (indicators.ichimokuChikou) {
       series.push(
-        createLineSeries("遅行スパン", indicators.ichimokuChikou, COLORS.ichimokuChikou, "dashed"),
+        createLineSeries("Chikou", indicators.ichimokuChikou, COLORS.ichimokuChikou, "dashed"),
       );
     }
   }
@@ -282,7 +280,7 @@ export function buildChartOption(
     indicators.supertrendLine &&
     indicators.supertrendDirection
   ) {
-    // 方向に応じて色を変える
+    // Color by direction
     const supertrendData = indicators.supertrendLine.map((val, i) => {
       const dir = indicators.supertrendDirection?.[i];
       return {
@@ -315,7 +313,7 @@ export function buildChartOption(
     });
   }
 
-  // ボリンジャーバンド
+  // Bollinger Bands
   if (enabledIndicators.includes("bb")) {
     if (indicators.bbUpper) {
       series.push(createLineSeries("BB Upper", indicators.bbUpper, COLORS.bbUpper, "dashed"));
@@ -328,7 +326,7 @@ export function buildChartOption(
     }
   }
 
-  // ケルトナーチャネル
+  // Keltner Channel
   if (enabledIndicators.includes("keltner")) {
     if (indicators.keltnerUpper) {
       series.push(
@@ -347,7 +345,7 @@ export function buildChartOption(
     }
   }
 
-  // ドンチャンチャネル
+  // Donchian Channel
   if (enabledIndicators.includes("donchian")) {
     if (indicators.donchianUpper) {
       series.push(
@@ -376,15 +374,15 @@ export function buildChartOption(
     }
   }
 
-  // ========== SMC系 ==========
+  // ========== SMC ==========
 
-  // Order Blocks (矩形ゾーンで表示)
+  // Order Blocks (displayed as rectangular zones)
   if (enabledIndicators.includes("orderBlock") && indicators.orderBlockData) {
     const currentIndex = candles.length - 1;
     const currentOBData = indicators.orderBlockData[currentIndex];
 
     if (currentOBData?.activeOrderBlocks) {
-      // アクティブなオーダーブロックを矩形で表示
+      // Display active order blocks as rectangles
       const markAreaData = currentOBData.activeOrderBlocks.map((ob) => {
         const startIdx = candles.findIndex((c) => c.time === ob.startTime);
         const isBullish = ob.type === "bullish";
@@ -422,7 +420,7 @@ export function buildChartOption(
       }
     }
 
-    // 新しいオーダーブロック発生時のマーカー
+    // Markers for newly formed order blocks
     const newOBMarkers = indicators.orderBlockData
       .map((data, idx) => {
         if (!data?.newOrderBlock) return null;
@@ -458,7 +456,7 @@ export function buildChartOption(
     }
   }
 
-  // Liquidity Sweeps (矢印マーカーで表示)
+  // Liquidity Sweeps (displayed as arrow markers)
   if (enabledIndicators.includes("liquiditySweep") && indicators.liquiditySweepData) {
     const sweepMarkers = indicators.liquiditySweepData
       .map((data, idx) => {
@@ -497,24 +495,24 @@ export function buildChartOption(
     }
   }
 
-  // ========== パターン認識 ==========
+  // ========== Pattern Recognition ==========
 
   if (indicators.detectedPatterns && indicators.detectedPatterns.length > 0) {
-    // 成立パターンのみをフィルタリングし、全て表示
+    // Filter to confirmed patterns only, display all
     const patternsToRender = indicators.detectedPatterns.filter((p) => p.confirmed);
 
-    // 各パターンを描画
+    // Render each pattern
     for (const pattern of patternsToRender) {
       const { keyPoints, neckline, target } = pattern.pattern;
       const isDoubleBottom = pattern.type === "double_bottom";
       const isDoubleTop = pattern.type === "double_top";
 
-      // キーポイントのインデックスを取得
-      // keyPoint.indexを直接使用（fractional indexもサポート）
+      // Get indices of key points
+      // Use keyPoint.index directly (supports fractional indices)
       const pointsWithIndex: { idx: number; price: number; label: string }[] = [];
 
       for (const kp of keyPoints) {
-        // keyPoint.indexが存在し有効ならそれを使用、なければtimeから検索
+        // Use keyPoint.index if available and valid, otherwise search by time
         if (typeof kp.index === "number" && kp.index >= 0) {
           pointsWithIndex.push({ idx: kp.index, price: kp.price, label: kp.label });
         } else {
@@ -526,9 +524,9 @@ export function buildChartOption(
       }
 
       if (pointsWithIndex.length >= 3) {
-        // IIFEでクロージャを確実にキャプチャ
+        // IIFE to reliably capture closure
         const capturedPoints = JSON.parse(JSON.stringify(pointsWithIndex));
-        // パターンタイプに応じた色を選択（Double Top: 赤、Double Bottom: ティール）
+        // Select color based on pattern type (Double Top: red, Double Bottom: teal)
         const patternFillColor = isDoubleTop ? COLORS.patternBearishFill : COLORS.patternFill;
         const patternLineColor = isDoubleTop ? COLORS.patternBearishLine : COLORS.patternLine;
         const patternNecklineColor = isDoubleTop
@@ -537,21 +535,21 @@ export function buildChartOption(
         const patternTargetColor = isDoubleTop ? COLORS.patternBearishTarget : COLORS.patternTarget;
         const patternLabelColor = isDoubleTop ? COLORS.patternBearishLabel : COLORS.patternLabel;
 
-        // 7点構造（strictモード）かどうかを判定
+        // Determine if this is a 7-point structure (strict mode)
         const isStrictMode = capturedPoints.length === 7;
-        // ポリゴン用の点（strictモードは中央5点、通常は全点）
+        // Points for polygon (strict mode uses center 5, normal uses all)
         const polygonPointsData = isStrictMode ? capturedPoints.slice(1, 6) : capturedPoints;
 
-        // ポリゴン（塗りつぶし）をカスタムシリーズで描画
+        // Render polygon (fill) using custom series
         series.push({
           name: `Pattern Fill: ${pattern.type}`,
           type: "custom",
           coordinateSystem: "cartesian2d",
           xAxisIndex: 0,
           yAxisIndex: 0,
-          // データフォーマット: スカラーではなくオブジェクト
+          // Data format: object, not scalar
           data: [{}],
-          // カテゴリ軸対応のためencodeを追加
+          // Add encode for category axis support
           encode: {
             x: -1,
             y: -1,
@@ -562,12 +560,12 @@ export function buildChartOption(
             strokeColor: string,
           ) => {
             return (params: SeriesItem, api: SeriesItem) => {
-              // dataIndexが0以外の場合は空のグループを返す（nullではなく）
+              // Return empty group for dataIndex != 0 (not null)
               if (params.dataIndex !== 0) {
                 return { type: "group", children: [] };
               }
 
-              // ポリゴンの頂点をピクセル座標に変換
+              // Convert polygon vertices to pixel coordinates
               const polygonPoints: number[][] = [];
               for (const p of points) {
                 const point = api.coord([p.idx, p.price]);
@@ -576,12 +574,12 @@ export function buildChartOption(
                 }
               }
 
-              // 有効な点が3点未満なら空グループ
+              // Return empty group if fewer than 3 valid points
               if (polygonPoints.length < 3) {
                 return { type: "group", children: [] };
               }
 
-              // groupでラップして返す（より安全）
+              // Wrap in group for safety
               return {
                 type: "group",
                 children: [
@@ -605,29 +603,29 @@ export function buildChartOption(
           silent: true,
         });
 
-        // キーポイントを接続する線（markLineで描画）
+        // Lines connecting key points (rendered via markLine)
         const lineMarkData = [];
         if (isStrictMode) {
-          // 7点構造: 補助線（0→1, 5→6）とメインライン（1→2→3→4→5）
-          // 補助線: Start → Neckline Start
+          // 7-point structure: auxiliary lines (0->1, 5->6) and main line (1->2->3->4->5)
+          // Auxiliary line: Start -> Neckline Start
           lineMarkData.push([
             { coord: [capturedPoints[0].idx, capturedPoints[0].price] },
             { coord: [capturedPoints[1].idx, capturedPoints[1].price] },
           ]);
-          // メインライン: Neckline Start → First Peak → Middle → Second Peak → Neckline End
+          // Main line: Neckline Start -> First Peak -> Middle -> Second Peak -> Neckline End
           for (let i = 1; i < capturedPoints.length - 2; i++) {
             lineMarkData.push([
               { coord: [capturedPoints[i].idx, capturedPoints[i].price] },
               { coord: [capturedPoints[i + 1].idx, capturedPoints[i + 1].price] },
             ]);
           }
-          // 補助線: Neckline End → End
+          // Auxiliary line: Neckline End -> End
           lineMarkData.push([
             { coord: [capturedPoints[5].idx, capturedPoints[5].price] },
             { coord: [capturedPoints[6].idx, capturedPoints[6].price] },
           ]);
         } else {
-          // 5点構造: 従来通り全点を接続
+          // 5-point structure: connect all points as before
           for (let i = 0; i < capturedPoints.length - 1; i++) {
             lineMarkData.push([
               { coord: [capturedPoints[i].idx, capturedPoints[i].price] },
@@ -655,9 +653,9 @@ export function buildChartOption(
           z: 2,
         });
 
-        // ネックラインがある場合（点線で右に延長）
+        // If neckline exists (extend right with dotted line)
         if (neckline) {
-          // ネックラインの開始位置を最初のキーポイントから
+          // Start neckline from the first key point
           const firstPoint = capturedPoints[0];
           const lastPoint = capturedPoints[capturedPoints.length - 1];
           const necklineEndIdx = Math.min(lastPoint.idx + 30, candles.length - 1);
@@ -686,7 +684,7 @@ export function buildChartOption(
           });
         }
 
-        // ターゲット価格（垂直点線で表示）
+        // Target price (displayed as vertical dashed line)
         if (target && neckline) {
           const lastPoint = capturedPoints[capturedPoints.length - 1];
           const targetXIdx = Math.min(lastPoint.idx + 20, candles.length - 1);
@@ -721,7 +719,7 @@ export function buildChartOption(
           });
         }
 
-        // Bottom 1, Bottom 2 等のラベル（markPointで描画）
+        // Bottom 1, Bottom 2 etc. labels (rendered via markPoint)
         let labelsToShow: string[] = [];
         if (isDoubleBottom) {
           labelsToShow = ["First Trough", "Second Trough"];
@@ -774,17 +772,17 @@ export function buildChartOption(
     }
   }
 
-  // ========== サブチャートの動的計算 ==========
+  // ========== Dynamic subchart calculation ==========
 
-  // 有効なサブチャートインジケーターを特定
+  // Identify enabled subchart indicators
   const enabledSubcharts = enabledIndicators.filter((ind) => SUBCHART_INDICATORS.includes(ind));
-  // Equity Curveがある場合は+1
+  // +1 if Equity Curve is present
   const hasEquityCurve = equityCurve && equityCurve.length > 1;
   const subChartCount = enabledSubcharts.length + (hasEquityCurve ? 1 : 0);
 
-  // グリッド高さの計算（サブチャート間にスペースを確保、ラベル用に2%追加）
-  const subChartGap = 5; // サブチャート間のギャップ(%) - ラベル用スペース含む
-  const labelHeight = 2; // ラベル用の高さ(%)
+  // Calculate grid heights (reserve space between subcharts, add 2% for labels)
+  const subChartGap = 5; // Gap between subcharts (%) - includes label space
+  const labelHeight = 2; // Label height (%)
   const mainHeight = subChartCount === 0 ? 90 : Math.max(30, 65 - subChartCount * 9);
   const subHeight =
     subChartCount > 0
@@ -793,10 +791,10 @@ export function buildChartOption(
 
   const grids: SeriesItem[] = [{ left: 60, right: 40, top: 40, height: `${mainHeight}%` }];
 
-  // タイトル配列（各サブチャートのラベル用）
+  // Title array (for subchart labels)
   const titles: SeriesItem[] = [];
 
-  // 大きな数値をK/M形式でフォーマット
+  // Format large numbers in K/M notation
   const formatLargeNumber = (value: number): string => {
     if (Math.abs(value) >= 1000000) {
       return `${(value / 1000000).toFixed(1)}M`;
@@ -838,7 +836,7 @@ export function buildChartOption(
     subChartGap,
   };
 
-  // ========== サブチャート系インジケーター ==========
+  // ========== Subchart indicators ==========
 
   // Volume
   if (enabledIndicators.includes("volume")) {
@@ -848,13 +846,13 @@ export function buildChartOption(
       showSplitLine: false,
       showYAxisLabel: false,
     });
-    // 出来高スパイクマーカーを生成
+    // Generate volume spike markers
     const volumeSpikeMarkPointData = volumeSpikeMarkers
       .map((spike) => {
         const idx = candles.findIndex((c) => c.time === spike.time);
         if (idx === -1) return null;
 
-        // タイプ別の設定
+        // Settings by type
         let symbol = "triangle";
         let symbolSize = 14;
         let symbolRotate = 180;
@@ -874,7 +872,7 @@ export function buildChartOption(
             symbolSize = 16;
             symbolRotate = 0;
             color = COLORS.volumeAccumulation;
-            label = spike.consecutiveDays ? `${spike.consecutiveDays}日` : "蓄積";
+            label = spike.consecutiveDays ? `${spike.consecutiveDays}d` : "Accumulation";
             break;
           case "ma_cross":
             symbol = "arrow";
@@ -884,7 +882,7 @@ export function buildChartOption(
             label = "Cross";
             break;
           default:
-            // デフォルト設定はそのまま
+            // Keep default settings
             break;
         }
 
@@ -1183,7 +1181,7 @@ export function buildChartOption(
       yAxisLabelFormatter: formatLargeNumber,
     });
 
-    // Equity Curveデータをローソク足の日付にマッピング
+    // Map Equity Curve data to candle dates
     const equityByTime = new Map(equityCurve.map((p) => [p.time, p]));
     const equityData = candles.map((c) => {
       const point = equityByTime.get(c.time);
@@ -1194,7 +1192,7 @@ export function buildChartOption(
       return point ? point.buyHoldEquity : null;
     });
 
-    // Buy&Holdライン
+    // Buy & Hold line
     series.push({
       name: "Buy&Hold",
       type: "line",
@@ -1205,7 +1203,7 @@ export function buildChartOption(
       lineStyle: { color: COLORS.buyHold, width: 1, type: "dashed" },
     });
 
-    // Equityライン
+    // Equity line
     series.push({
       name: "Equity",
       type: "line",
@@ -1229,7 +1227,7 @@ export function buildChartOption(
       },
     });
 
-    // トレードマーカー
+    // Trade markers
     const tradePoints = equityCurve
       .filter((p) => p.tradeType)
       .map((p) => {
@@ -1361,7 +1359,7 @@ function buildPositionLines(
   const { entryPrice, stopLossPercent, takeProfitPercent, trailingStopPrice } = positionLines;
   const data: SeriesItem[] = [];
 
-  // エントリーライン（実線、緑）- 水平線として描画
+  // Entry line (solid, green) - rendered as horizontal line
   data.push({
     yAxis: entryPrice,
     symbol: "none",
@@ -1381,7 +1379,7 @@ function buildPositionLines(
     },
   });
 
-  // 利確ライン（破線、青/シアン）
+  // Take profit line (dashed, blue/cyan)
   if (takeProfitPercent && takeProfitPercent > 0) {
     const takeProfitPrice = entryPrice * (1 + takeProfitPercent / 100);
     data.push({
@@ -1404,7 +1402,7 @@ function buildPositionLines(
     });
   }
 
-  // 損切りライン（破線、赤）
+  // Stop loss line (dashed, red)
   if (stopLossPercent && stopLossPercent > 0) {
     const stopLossPrice = entryPrice * (1 - stopLossPercent / 100);
     data.push({
@@ -1427,7 +1425,7 @@ function buildPositionLines(
     });
   }
 
-  // トレーリングストップライン（点線、オレンジ）
+  // Trailing stop line (dotted, orange)
   if (trailingStopPrice && trailingStopPrice > 0) {
     const trailingPct = (((entryPrice - trailingStopPrice) / entryPrice) * 100).toFixed(1);
     data.push({

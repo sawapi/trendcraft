@@ -43,7 +43,7 @@ function calculateRealtimeStats(
   };
 
   if (sellTrades.length === 0) {
-    // Buy&Hold計算（取引がなくても可能）
+    // Buy&Hold calculation (possible even without trades)
     if (startPrice && currentPrice) {
       emptyStats.buyHoldReturn = ((currentPrice - startPrice) / startPrice) * 100;
     }
@@ -174,7 +174,7 @@ export function StatsPanel() {
   const hasPosition = positions.length > 0;
   const hasTrades = stats.totalTrades > 0;
 
-  // ポートフォリオ統計（複数銘柄の場合のみ）
+  // Portfolio stats (only for multiple symbols)
   const portfolioStats: PortfolioStats | null = useMemo(() => {
     if (symbols.length <= 1) return null;
     return getPortfolioStats();
@@ -184,14 +184,13 @@ export function StatsPanel() {
 
   return (
     <div className="stats-panel">
-      <h3>リアルタイム統計</h3>
+      <h3>Live Stats</h3>
 
       <div className="stats-section">
         <div className="stats-row highlight">
-          <span className="label">損益</span>
+          <span className="label">P&L</span>
           <span className={`value ${totalWithUnrealized >= 0 ? "positive" : "negative"}`}>
-            {totalWithUnrealized >= 0 ? "+" : ""}
-            {Math.round(totalWithUnrealized).toLocaleString()}円
+            {totalWithUnrealized >= 0 ? "+" : ""}¥{Math.round(totalWithUnrealized).toLocaleString()}
             <span className="percent">
               ({totalPercentWithUnrealized >= 0 ? "+" : ""}
               {totalPercentWithUnrealized.toFixed(2)}%)
@@ -201,20 +200,18 @@ export function StatsPanel() {
 
         {hasPosition && unrealizedPnl && (
           <div className="stats-row sub">
-            <span className="label">含み損益</span>
+            <span className="label">Unrealized</span>
             <span className={`value ${unrealizedPnl.pnl >= 0 ? "positive" : "negative"}`}>
-              {unrealizedPnl.pnl >= 0 ? "+" : ""}
-              {Math.round(unrealizedPnl.pnl).toLocaleString()}円
+              {unrealizedPnl.pnl >= 0 ? "+" : ""}¥{Math.round(unrealizedPnl.pnl).toLocaleString()}
             </span>
           </div>
         )}
 
         {hasTrades && (
           <div className="stats-row sub">
-            <span className="label">確定損益</span>
+            <span className="label">Realized</span>
             <span className={`value ${stats.totalPnl >= 0 ? "positive" : "negative"}`}>
-              {stats.totalPnl >= 0 ? "+" : ""}
-              {Math.round(stats.totalPnl).toLocaleString()}円
+              {stats.totalPnl >= 0 ? "+" : ""}¥{Math.round(stats.totalPnl).toLocaleString()}
             </span>
           </div>
         )}
@@ -226,18 +223,20 @@ export function StatsPanel() {
 
           <div className="stats-section">
             <div className="stats-row">
-              <span className="label">勝率</span>
+              <span className="label">Win Rate</span>
               <span className="value">
                 {stats.winRate.toFixed(1)}%
                 <span className="sub-value">
-                  ({stats.winCount}勝/{stats.lossCount}敗)
+                  ({stats.winCount}W/{stats.lossCount}L)
                 </span>
               </span>
             </div>
 
             {stats.currentStreak !== 0 && (
               <div className="stats-row">
-                <span className="label">{stats.currentStreak > 0 ? "連勝中" : "連敗中"}</span>
+                <span className="label">
+                  {stats.currentStreak > 0 ? "Win Streak" : "Lose Streak"}
+                </span>
                 <span className={`value ${stats.currentStreak > 0 ? "positive" : "negative"}`}>
                   {Math.abs(stats.currentStreak)}
                 </span>
@@ -256,18 +255,18 @@ export function StatsPanel() {
             </div>
 
             <div className="stats-row">
-              <span className="label">最大DD</span>
+              <span className="label">Max DD</span>
               <span className="value negative">-{stats.maxDrawdown.toFixed(2)}%</span>
             </div>
 
             <div className="stats-row">
-              <span className="label">平均保有</span>
-              <span className="value">{stats.avgHoldingDays.toFixed(1)}日</span>
+              <span className="label">Avg Hold</span>
+              <span className="value">{stats.avgHoldingDays.toFixed(1)}d</span>
             </div>
 
             {stats.avgMfeUtilization > 0 && (
               <div className="stats-row">
-                <span className="label">MFE活用</span>
+                <span className="label">MFE Util</span>
                 <span className="value">{stats.avgMfeUtilization.toFixed(1)}%</span>
               </div>
             )}
@@ -298,20 +297,20 @@ export function StatsPanel() {
         </>
       )}
 
-      {!hasTrades && !hasPosition && <div className="no-stats">取引がありません</div>}
+      {!hasTrades && !hasPosition && <div className="no-stats">No trades yet</div>}
 
-      {/* ポートフォリオ統計（複数銘柄の場合のみ） */}
+      {/* Portfolio stats (only for multiple symbols) */}
       {hasMultipleSymbols && portfolioStats && (
         <>
           <div className="stats-divider" />
-          <h3>ポートフォリオ</h3>
+          <h3>Portfolio</h3>
 
           <div className="stats-section">
             <div className="stats-row highlight">
-              <span className="label">全体損益</span>
+              <span className="label">Total P&L</span>
               <span className={`value ${portfolioStats.totalPnl >= 0 ? "positive" : "negative"}`}>
-                {portfolioStats.totalPnl >= 0 ? "+" : ""}
-                {Math.round(portfolioStats.totalPnl).toLocaleString()}円
+                {portfolioStats.totalPnl >= 0 ? "+" : ""}¥
+                {Math.round(portfolioStats.totalPnl).toLocaleString()}
                 <span className="percent">
                   ({portfolioStats.totalPnlPercent >= 0 ? "+" : ""}
                   {portfolioStats.totalPnlPercent.toFixed(2)}%)
@@ -338,14 +337,14 @@ export function StatsPanel() {
           {portfolioStats.aggregatedStats.totalTradeCount > 0 && (
             <div className="stats-section">
               <div className="stats-row">
-                <span className="label">全体勝率</span>
+                <span className="label">Overall Win Rate</span>
                 <span className="value">
                   {portfolioStats.aggregatedStats.overallWinRate.toFixed(1)}%
                 </span>
               </div>
               <div className="stats-row">
-                <span className="label">総取引</span>
-                <span className="value">{portfolioStats.aggregatedStats.totalTradeCount}回</span>
+                <span className="label">Total Trades</span>
+                <span className="value">{portfolioStats.aggregatedStats.totalTradeCount}</span>
               </div>
             </div>
           )}

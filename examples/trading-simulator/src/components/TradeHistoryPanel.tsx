@@ -6,7 +6,7 @@ import { formatDate } from "../utils/fileParser";
 export function TradeHistoryPanel() {
   const { symbols, activeSymbolId, jumpToIndex } = useSimulatorStore();
 
-  // アクティブ銘柄を取得
+  // Get the active symbol
   const activeSymbol = useMemo(() => {
     if (!activeSymbolId) return symbols[0] || null;
     return symbols.find((s) => s.id === activeSymbolId) || null;
@@ -16,7 +16,7 @@ export function TradeHistoryPanel() {
   const allCandles = activeSymbol?.allCandles || [];
 
   const handleTradeClick = (tradeDate: number) => {
-    // 取引日に対応するインデックスを見つける
+    // Find the index corresponding to the trade date
     const targetIndex = allCandles.findIndex((c) => c.time === tradeDate);
     if (targetIndex !== -1) {
       jumpToIndex(targetIndex);
@@ -26,15 +26,15 @@ export function TradeHistoryPanel() {
   if (tradeHistory.length === 0) {
     return (
       <div className="trade-history-panel">
-        <h3>取引履歴</h3>
-        <p className="no-trades">まだ取引がありません</p>
+        <h3>Trade History</h3>
+        <p className="no-trades">No trades yet</p>
       </div>
     );
   }
 
   return (
     <div className="trade-history-panel">
-      <h3>取引履歴 ({tradeHistory.length}件)</h3>
+      <h3>Trade History ({tradeHistory.length})</h3>
       <div className="trade-list">
         {tradeHistory
           .slice()
@@ -47,7 +47,7 @@ export function TradeHistoryPanel() {
               onKeyDown={(e) => e.key === "Enter" && handleTradeClick(trade.date)}
               role="button"
               tabIndex={0}
-              title="クリックでこの日付にジャンプ"
+              title="Click to jump to this date"
             >
               <div className="trade-header">
                 <span className={`trade-type ${trade.type.toLowerCase()}`}>{trade.type}</span>
@@ -55,7 +55,7 @@ export function TradeHistoryPanel() {
               </div>
               <div className="trade-details">
                 <span className="trade-price">¥{trade.price.toLocaleString()}</span>
-                <span className="trade-shares">×{trade.shares}株</span>
+                <span className="trade-shares">×{trade.shares}</span>
                 <span className="trade-price-type">({PRICE_TYPE_LABELS[trade.priceType]})</span>
               </div>
               {trade.type === "SELL" && trade.pnlPercent !== undefined && (
@@ -65,7 +65,7 @@ export function TradeHistoryPanel() {
                   {trade.tax && trade.tax > 0 ? (
                     <span className="trade-tax-info">
                       {" "}
-                      (税引後: ¥{trade.afterTaxPnl?.toLocaleString()})
+                      (after tax: ¥{trade.afterTaxPnl?.toLocaleString()})
                     </span>
                   ) : (
                     <span> (¥{trade.pnl?.toLocaleString()})</span>

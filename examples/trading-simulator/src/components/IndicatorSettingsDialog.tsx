@@ -31,7 +31,7 @@ export function IndicatorSettingsDialog({ isOpen, onClose }: IndicatorSettingsDi
         onKeyDown={(e) => e.stopPropagation()}
       >
         <header className="indicator-dialog-header">
-          <h3>インジケーター設定</h3>
+          <h3>Indicator Settings</h3>
           <button type="button" className="dialog-close-btn" onClick={onClose}>
             ×
           </button>
@@ -43,14 +43,14 @@ export function IndicatorSettingsDialog({ isOpen, onClose }: IndicatorSettingsDi
             className={`dialog-tab ${activeTab === "chart" ? "active" : ""}`}
             onClick={() => setActiveTab("chart")}
           >
-            チャート表示
+            Chart Display
           </button>
           <button
             type="button"
             className={`dialog-tab ${activeTab === "volume" ? "active" : ""}`}
             onClick={() => setActiveTab("volume")}
           >
-            出来高検知
+            Volume Detection
           </button>
         </div>
 

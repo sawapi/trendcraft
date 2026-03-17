@@ -24,16 +24,16 @@ export function ControlPanel() {
 
   const { isAtEnd } = usePlayback();
 
-  // シークバードラッグ中の仮の値
+  // Temporary value while dragging the seek bar
   const [seekValue, setSeekValue] = useState<number | null>(null);
 
-  // アクティブ銘柄を取得
+  // Get active symbol
   const activeSymbol = useMemo(() => {
     if (!activeSymbolId) return symbols[0] || null;
     return symbols.find((s) => s.id === activeSymbolId) || null;
   }, [symbols, activeSymbolId]);
 
-  // 現在の日付からインデックスを計算
+  // Calculate index from current date
   const currentIndex = useMemo(() => {
     if (!activeSymbol || !commonDateRange || currentDateIndex < 0) return 0;
     const targetDate = commonDateRange.dates[currentDateIndex];
@@ -50,7 +50,7 @@ export function ControlPanel() {
   const progress = currentIndex - minIndex + 1;
   const total = allCandles.length - minIndex;
 
-  // シークバーの現在値（ドラッグ中は仮の値を使用）
+  // Current seek bar value (use temporary value while dragging)
   const sliderValue = seekValue !== null ? seekValue : currentIndex;
   const previewCandle = allCandles[sliderValue];
 
@@ -58,7 +58,7 @@ export function ControlPanel() {
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const value = Number.parseInt(e.target.value, 10);
       setSeekValue(value);
-      // ドラッグ中は再生を停止
+      // Pause playback while dragging
       if (isPlaying) pause();
     },
     [isPlaying, pause],
@@ -82,14 +82,14 @@ export function ControlPanel() {
 
   return (
     <div className="control-panel">
-      <h3>再生コントロール</h3>
+      <h3>Playback</h3>
 
       <div className="playback-controls">
         <button
           type="button"
           onClick={stepBackward}
           disabled={currentIndex <= minIndex}
-          title="前の日"
+          title="Previous day"
         >
           <span className="material-icons">skip_previous</span>
         </button>
@@ -98,21 +98,21 @@ export function ControlPanel() {
           onClick={togglePlay}
           className={isPlaying ? "active" : ""}
           disabled={isAtEnd}
-          title={isPlaying ? "一時停止" : "再生"}
+          title={isPlaying ? "Pause" : "Play"}
         >
           <span className="material-icons">{isPlaying ? "pause" : "play_arrow"}</span>
         </button>
-        <button type="button" onClick={handleFinish} title="終了">
+        <button type="button" onClick={handleFinish} title="Stop">
           <span className="material-icons">stop</span>
         </button>
-        <button type="button" onClick={stepForward} disabled={isAtEnd} title="次の日">
+        <button type="button" onClick={stepForward} disabled={isAtEnd} title="Next day">
           <span className="material-icons">skip_next</span>
         </button>
       </div>
 
       <div className="speed-select">
         <label>
-          速度:
+          Speed:
           <select value={playbackSpeed} onChange={handleSpeedChange}>
             <option value={0.5}>0.5x</option>
             <option value={1}>1x</option>

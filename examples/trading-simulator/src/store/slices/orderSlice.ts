@@ -32,7 +32,7 @@ export const createOrderSlice: SliceCreator<OrderSlice> = (set, get) => ({
         {
           id: generateId(),
           type: "ORDER_EXECUTED" as const,
-          message: `${order.orderType === "BUY" ? "買い" : "売り"}注文を予約しました（翌日始値で約定）`,
+          message: `${order.orderType === "BUY" ? "Buy" : "Sell"} order placed (fills at next open)`,
           timestamp: Date.now(),
         },
       ],
@@ -133,7 +133,7 @@ export const createOrderSlice: SliceCreator<OrderSlice> = (set, get) => ({
         newAlerts.push({
           id: generateId(),
           type: "ORDER_EXECUTED",
-          message: `${symbol.fileName}: 買い注文が約定しました（${order.shares}株 @ ¥${price.toLocaleString()}）`,
+          message: `${symbol.fileName}: Buy order filled (${order.shares} shares @ ¥${price.toLocaleString()})`,
           timestamp: Date.now(),
         });
       } else if (order.orderType === "SELL" || order.orderType === "SELL_ALL") {
@@ -266,7 +266,7 @@ export const createOrderSlice: SliceCreator<OrderSlice> = (set, get) => ({
         newAlerts.push({
           id: generateId(),
           type: "ORDER_EXECUTED",
-          message: `${symbol.fileName}: 売り注文が約定しました（${sellShares}株 @ ¥${price.toLocaleString()} / ${pnlSign}${pnlPercent.toFixed(1)}%）`,
+          message: `${symbol.fileName}: Sell order filled (${sellShares} shares @ ¥${price.toLocaleString()} / ${pnlSign}${pnlPercent.toFixed(1)}%)`,
           timestamp: Date.now(),
         });
       }

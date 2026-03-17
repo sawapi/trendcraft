@@ -7,19 +7,19 @@ import { IndicatorSelector } from "./IndicatorSelector";
 export function SetupPanel() {
   const { symbols, activeSymbolId, startSimulation, reset } = useSimulatorStore();
 
-  // アクティブ銘柄のデータを取得
+  // Get active symbol data
   const activeSymbol = symbols.find((s) => s.id === activeSymbolId);
   const allCandles = activeSymbol?.allCandles || [];
   const fileName = activeSymbol?.fileName || "";
 
-  // 全銘柄の共通日付範囲を計算
+  // Calculate common date range across all symbols
   const commonDateRange = useMemo(() => {
     if (symbols.length === 0) return { min: "", max: "", defaultStart: "" };
 
-    // 各銘柄の日付セットを作成
+    // Create date sets for each symbol
     const allDateSets = symbols.map((s) => new Set(s.allCandles.map((c) => c.time)));
 
-    // 共通日付を抽出
+    // Extract common dates
     let commonDates: number[];
     if (symbols.length === 1) {
       commonDates = symbols[0].allCandles.map((c) => c.time);
@@ -89,48 +89,48 @@ export function SetupPanel() {
     reset();
   };
 
-  // データがない場合は何も表示しない
+  // Show nothing if no data
   if (symbols.length === 0) {
     return (
       <div className="setup-panel">
-        <p>銘柄データがありません。CSVファイルを読み込んでください。</p>
+        <p>No symbol data. Please load a CSV file.</p>
       </div>
     );
   }
 
   return (
     <div className="setup-panel">
-      {/* アクティブ銘柄のファイル情報（タブ切り替えで変わる部分） */}
+      {/* Active symbol file info (changes with tab switching) */}
       <div className="file-info">
-        <span className="label">ファイル:</span>
+        <span className="label">File:</span>
         <span className="value">{fileName}</span>
-        <span className="label">期間:</span>
+        <span className="label">Range:</span>
         <span className="value">
           {allCandles.length > 0
             ? `${formatDate(allCandles[0].time)} - ${formatDate(allCandles[allCandles.length - 1].time)}`
             : "-"}
         </span>
-        <span className="label">データ数:</span>
-        <span className="value">{allCandles.length}件</span>
+        <span className="label">Rows:</span>
+        <span className="value">{allCandles.length}</span>
         <button className="btn-secondary" onClick={handleReset}>
-          別のファイルを選択
+          Select Different File
         </button>
       </div>
 
-      {/* 複数銘柄の場合、共通期間を表示 */}
+      {/* Show common date range for multiple symbols */}
       {symbols.length > 1 && (
         <div className="common-date-info">
-          <span className="label">共通期間:</span>
+          <span className="label">Common Range:</span>
           <span className="value">
             {commonDateRange.min} - {commonDateRange.max}
           </span>
-          <span className="hint">（{symbols.length}銘柄の共通日付範囲でシミュレーション）</span>
+          <span className="hint">({symbols.length} symbols, common dates only)</span>
         </div>
       )}
 
       <div className="setup-form">
         <div className="form-group">
-          <label>シミュレーション開始日</label>
+          <label>Simulation Start Date</label>
           <input
             type="date"
             value={startDate}
@@ -138,11 +138,11 @@ export function SetupPanel() {
             max={commonDateRange.max}
             onChange={(e) => setStartDate(e.target.value)}
           />
-          <p className="hint">この日付から1日ずつ進めていきます</p>
+          <p className="hint">Simulation advances one day at a time from this date</p>
         </div>
 
         <div className="form-group">
-          <label>初期表示日数</label>
+          <label>Initial Chart Bars</label>
           <input
             type="number"
             value={initialCandleCount}
@@ -150,11 +150,11 @@ export function SetupPanel() {
             max={500}
             onChange={(e) => setInitialCandleCount(Number(e.target.value))}
           />
-          <p className="hint">開始日より前に表示するローソク足の数（約1年=250日）</p>
+          <p className="hint">Candles shown before start date (~1 year = 250)</p>
         </div>
 
         <div className="form-group">
-          <label>初期資金</label>
+          <label>Initial Capital</label>
           <input
             type="number"
             value={initialCapital}
@@ -165,10 +165,10 @@ export function SetupPanel() {
         </div>
 
         <div className="form-group cost-settings">
-          <label>コスト・税金設定</label>
+          <label>Cost & Tax Settings</label>
           <div className="cost-inputs">
             <div className="cost-input">
-              <label>手数料率 (%)</label>
+              <label>Commission (%)</label>
               <input
                 type="number"
                 value={commissionRate}
@@ -177,10 +177,10 @@ export function SetupPanel() {
                 step={0.01}
                 onChange={(e) => setCommissionRate(Number(e.target.value))}
               />
-              <p className="hint">例: 0.1% = 10万円取引で100円</p>
+              <p className="hint">e.g. 0.1% = ¥100 on ¥100K trade</p>
             </div>
             <div className="cost-input">
-              <label>スリッページ (bps)</label>
+              <label>Slippage (bps)</label>
               <input
                 type="number"
                 value={slippageBps}
@@ -189,10 +189,10 @@ export function SetupPanel() {
                 step={1}
                 onChange={(e) => setSlippageBps(Number(e.target.value))}
               />
-              <p className="hint">例: 10bps = 0.1%の価格変動</p>
+              <p className="hint">e.g. 10 bps = 0.1% price impact</p>
             </div>
             <div className="cost-input">
-              <label>譲渡益税率 (%)</label>
+              <label>Capital Gains Tax (%)</label>
               <input
                 type="number"
                 value={taxRate}
@@ -201,16 +201,16 @@ export function SetupPanel() {
                 step={0.001}
                 onChange={(e) => setTaxRate(Number(e.target.value))}
               />
-              <p className="hint">利益に対する税金（日本: 20.315%）</p>
+              <p className="hint">Tax on gains (Japan: 20.315%)</p>
             </div>
           </div>
         </div>
 
         <div className="form-group chart-settings">
-          <label>チャート表示設定</label>
+          <label>Chart Display Settings</label>
           <div className="chart-setting-inputs">
             <div className="chart-setting-input">
-              <label>損切りライン (%)</label>
+              <label>Stop Loss Line (%)</label>
               <input
                 type="number"
                 value={stopLossPercent}
@@ -219,10 +219,10 @@ export function SetupPanel() {
                 step={0.5}
                 onChange={(e) => setStopLossPercent(Number(e.target.value))}
               />
-              <p className="hint">エントリー価格からN%下に損切りラインを表示</p>
+              <p className="hint">Shows stop loss line N% below entry price</p>
             </div>
             <div className="chart-setting-input">
-              <label>利確ライン (%)</label>
+              <label>Take Profit Line (%)</label>
               <input
                 type="number"
                 value={takeProfitPercent}
@@ -231,7 +231,7 @@ export function SetupPanel() {
                 step={0.5}
                 onChange={(e) => setTakeProfitPercent(Number(e.target.value))}
               />
-              <p className="hint">エントリー価格からN%上に利確ラインを表示</p>
+              <p className="hint">Shows take profit line N% above entry price</p>
             </div>
           </div>
           <div className="trailing-stop-settings">
@@ -241,11 +241,11 @@ export function SetupPanel() {
                 checked={trailingStopEnabled}
                 onChange={(e) => setTrailingStopEnabled(e.target.checked)}
               />
-              トレーリングストップを有効にする
+              Enable Trailing Stop
             </label>
             {trailingStopEnabled && (
               <div className="trailing-stop-input">
-                <label>トレーリングストップ幅 (%)</label>
+                <label>Trailing Stop Width (%)</label>
                 <input
                   type="number"
                   value={trailingStopPercent}
@@ -254,7 +254,7 @@ export function SetupPanel() {
                   step={0.5}
                   onChange={(e) => setTrailingStopPercent(Number(e.target.value))}
                 />
-                <p className="hint">高値からN%下落でストップ（価格上昇に追従）</p>
+                <p className="hint">Stops N% below high (follows price up)</p>
               </div>
             )}
           </div>
@@ -268,7 +268,7 @@ export function SetupPanel() {
         />
 
         <button className="btn-primary" onClick={handleStart}>
-          シミュレーション開始
+          Start Simulation
         </button>
       </div>
     </div>

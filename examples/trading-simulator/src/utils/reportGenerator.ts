@@ -7,19 +7,19 @@ import {
 } from "../types";
 import { formatDate } from "./fileParser";
 
-// インジケーター値をフォーマット
+// Format indicator value
 function formatIndicatorValue(value: number | null | undefined, decimals = 2): string {
   if (value == null) return "-";
   return value.toFixed(decimals);
 }
 
-// インジケータースナップショットをMarkdown形式でフォーマット
+// Format indicator snapshot as Markdown
 function formatIndicatorSnapshot(indicators: IndicatorSnapshot | undefined): string {
   if (!indicators) return "";
 
   const parts: string[] = [];
 
-  // MA系
+  // MA
   if (indicators.sma25 != null) {
     parts.push(`SMA25: ${formatIndicatorValue(indicators.sma25, 0)}`);
   }
@@ -48,7 +48,7 @@ function formatIndicatorSnapshot(indicators: IndicatorSnapshot | undefined): str
   return parts.length > 0 ? parts.join(" | ") : "";
 }
 
-// マーケットコンテキストをMarkdown形式でフォーマット
+// Format market context as Markdown
 function formatMarketContext(context: MarketContext | undefined): string {
   if (!context) return "";
   return context.description;
@@ -61,12 +61,12 @@ interface ReportData {
   initialCapital: number;
   enabledIndicators: string[];
   tradeHistory: Trade[];
-  startPrice?: number; // Buy&Hold比較用
-  endPrice?: number; // Buy&Hold比較用
+  startPrice?: number; // For Buy&Hold comparison
+  endPrice?: number; // For Buy&Hold comparison
   commissionRate?: number;
   slippageBps?: number;
-  taxRate?: number; // 譲渡益税率
-  totalTradingDays?: number; // シミュレーション期間の営業日数（marketExposure計算用）
+  taxRate?: number; // Capital gains tax rate
+  totalTradingDays?: number; // Trading days in sim period (for marketExposure)
 }
 
 // Extended stats interface for advanced metrics
@@ -77,9 +77,9 @@ interface ExtendedStats extends SimulatorStats {
   maxLoseStreak: number;
   avgMfe: number;
   avgMae: number;
-  avgMfeUtilization: number; // MFE活用度の平均
-  marketExposure: number; // 市場滞在率(%)
-  totalPositionDays: number; // 合計ポジション保有日数
+  avgMfeUtilization: number; // Average MFE utilization
+  marketExposure: number; // Market exposure (%)
+  totalPositionDays: number; // Total position holding days
   totalCommission: number;
   totalSlippage: number;
   totalTax: number;
@@ -97,73 +97,73 @@ export function generateMarkdownReport(data: ReportData): string {
   const lines: string[] = [];
 
   // Header
-  lines.push("# 売買シミュレーションレポート");
+  lines.push("# Trading Simulation Report");
   lines.push("");
 
   // Session Info
-  lines.push("## セッション情報");
+  lines.push("## Session Info");
   lines.push("");
-  lines.push(`- **銘柄**: ${data.fileName}`);
-  lines.push(`- **期間**: ${formatDate(data.startDate)} - ${formatDate(data.endDate)}`);
-  lines.push(`- **初期資金**: ${data.initialCapital.toLocaleString()}`);
-  lines.push(`- **最終資金**: ${finalCapital.toLocaleString()}`);
+  lines.push(`- **Symbol**: ${data.fileName}`);
+  lines.push(`- **Period**: ${formatDate(data.startDate)} - ${formatDate(data.endDate)}`);
+  lines.push(`- **Initial Capital**: ${data.initialCapital.toLocaleString()}`);
+  lines.push(`- **Final Capital**: ${finalCapital.toLocaleString()}`);
   if (data.commissionRate || data.slippageBps || data.taxRate) {
     const costParts = [];
-    if (data.commissionRate) costParts.push(`手数料${data.commissionRate}%`);
-    if (data.slippageBps) costParts.push(`スリッページ${data.slippageBps}bps`);
-    if (data.taxRate) costParts.push(`税率${data.taxRate}%`);
-    lines.push(`- **コスト設定**: ${costParts.join(" / ")}`);
+    if (data.commissionRate) costParts.push(`Commission ${data.commissionRate}%`);
+    if (data.slippageBps) costParts.push(`Slippage ${data.slippageBps}bps`);
+    if (data.taxRate) costParts.push(`Tax ${data.taxRate}%`);
+    lines.push(`- **Cost Settings**: ${costParts.join(" / ")}`);
   }
   lines.push("");
 
   // Performance Summary
-  lines.push("## パフォーマンス");
+  lines.push("## Performance");
   lines.push("");
-  lines.push("| 指標 | 値 |");
+  lines.push("| Metric | Value |");
   lines.push("|------|------|");
   lines.push(
-    `| 総利益率 | ${stats.totalPnlPercent >= 0 ? "+" : ""}${stats.totalPnlPercent.toFixed(2)}% |`,
+    `| Total Return | ${stats.totalPnlPercent >= 0 ? "+" : ""}${stats.totalPnlPercent.toFixed(2)}% |`,
   );
-  lines.push(`| 勝率 | ${stats.winRate.toFixed(1)}% |`);
-  lines.push(`| 取引回数 | ${stats.totalTrades} |`);
-  lines.push(`| 勝ち | ${stats.winCount} |`);
-  lines.push(`| 負け | ${stats.lossCount} |`);
-  lines.push(`| 平均利益 | ${stats.avgWin >= 0 ? "+" : ""}${stats.avgWin.toFixed(2)}% |`);
-  lines.push(`| 平均損失 | ${stats.avgLoss.toFixed(2)}% |`);
-  lines.push(`| 最大ドローダウン | ${stats.maxDrawdown.toFixed(2)}% |`);
-  lines.push(`| プロフィットファクター | ${stats.profitFactor.toFixed(2)} |`);
-  lines.push(`| シャープレシオ | ${stats.sharpeRatio.toFixed(2)} |`);
-  lines.push(`| 平均保有日数 | ${stats.avgHoldingDays.toFixed(1)}日 |`);
-  lines.push(`| 最大連勝 | ${stats.maxWinStreak} |`);
-  lines.push(`| 最大連敗 | ${stats.maxLoseStreak} |`);
+  lines.push(`| Win Rate | ${stats.winRate.toFixed(1)}% |`);
+  lines.push(`| Trades | ${stats.totalTrades} |`);
+  lines.push(`| Wins | ${stats.winCount} |`);
+  lines.push(`| Losses | ${stats.lossCount} |`);
+  lines.push(`| Avg Win | ${stats.avgWin >= 0 ? "+" : ""}${stats.avgWin.toFixed(2)}% |`);
+  lines.push(`| Avg Loss | ${stats.avgLoss.toFixed(2)}% |`);
+  lines.push(`| Max Drawdown | ${stats.maxDrawdown.toFixed(2)}% |`);
+  lines.push(`| Profit Factor | ${stats.profitFactor.toFixed(2)} |`);
+  lines.push(`| Sharpe Ratio | ${stats.sharpeRatio.toFixed(2)} |`);
+  lines.push(`| Avg Holding Days | ${stats.avgHoldingDays.toFixed(1)}d |`);
+  lines.push(`| Max Win Streak | ${stats.maxWinStreak} |`);
+  lines.push(`| Max Lose Streak | ${stats.maxLoseStreak} |`);
   if (stats.avgMfe !== 0 || stats.avgMae !== 0) {
-    lines.push(`| 平均MFE | +${stats.avgMfe.toFixed(2)}% |`);
-    lines.push(`| 平均MAE | ${stats.avgMae.toFixed(2)}% |`);
+    lines.push(`| Avg MFE | +${stats.avgMfe.toFixed(2)}% |`);
+    lines.push(`| Avg MAE | ${stats.avgMae.toFixed(2)}% |`);
     if (stats.avgMfeUtilization !== 0) {
-      lines.push(`| 平均MFE活用度 | ${stats.avgMfeUtilization.toFixed(1)}% |`);
+      lines.push(`| Avg MFE Util | ${stats.avgMfeUtilization.toFixed(1)}% |`);
     }
   }
   if (stats.marketExposure > 0) {
-    lines.push(`| 市場滞在率 | ${stats.marketExposure.toFixed(1)}% |`);
-    lines.push(`| 合計保有日数 | ${stats.totalPositionDays.toFixed(0)}日 |`);
+    lines.push(`| Market Exposure | ${stats.marketExposure.toFixed(1)}% |`);
+    lines.push(`| Total Position Days | ${stats.totalPositionDays.toFixed(0)}d |`);
   }
   if (stats.totalCommission > 0 || stats.totalSlippage > 0 || stats.totalTax > 0) {
     if (stats.grossPnl !== stats.totalPnl) {
       lines.push(
-        `| 粗利益 | ${stats.grossPnl >= 0 ? "+" : ""}${stats.grossPnl.toLocaleString()}円 |`,
+        `| Gross P&L | ${stats.grossPnl >= 0 ? "+" : ""}${stats.grossPnl.toLocaleString()} |`,
       );
     }
     if (stats.totalCommission > 0) {
-      lines.push(`| 総手数料 | ${stats.totalCommission.toLocaleString()}円 |`);
+      lines.push(`| Total Commission | ${stats.totalCommission.toLocaleString()} |`);
     }
     if (stats.totalSlippage > 0) {
-      lines.push(`| 総スリッページ | ${stats.totalSlippage.toLocaleString()}円 |`);
+      lines.push(`| Total Slippage | ${stats.totalSlippage.toLocaleString()} |`);
     }
     if (stats.totalTax > 0) {
-      lines.push(`| 総税金 | ${stats.totalTax.toLocaleString()}円 |`);
+      lines.push(`| Total Tax | ${stats.totalTax.toLocaleString()} |`);
     }
     lines.push(
-      `| 税引後損益 | ${stats.totalPnl >= 0 ? "+" : ""}${stats.totalPnl.toLocaleString()}円 |`,
+      `| After-Tax P&L | ${stats.totalPnl >= 0 ? "+" : ""}${stats.totalPnl.toLocaleString()} |`,
     );
   }
   lines.push("");
@@ -172,12 +172,12 @@ export function generateMarkdownReport(data: ReportData): string {
   if (data.startPrice && data.endPrice) {
     const buyHoldReturn = ((data.endPrice - data.startPrice) / data.startPrice) * 100;
     const alpha = stats.totalPnlPercent - buyHoldReturn;
-    lines.push("## ベンチマーク比較");
+    lines.push("## Benchmark Comparison");
     lines.push("");
-    lines.push("| 指標 | 値 |");
+    lines.push("| Metric | Value |");
     lines.push("|------|------|");
     lines.push(
-      `| 戦略リターン | ${stats.totalPnlPercent >= 0 ? "+" : ""}${stats.totalPnlPercent.toFixed(2)}% |`,
+      `| Strategy Return | ${stats.totalPnlPercent >= 0 ? "+" : ""}${stats.totalPnlPercent.toFixed(2)}% |`,
     );
     lines.push(`| Buy&Hold | ${buyHoldReturn >= 0 ? "+" : ""}${buyHoldReturn.toFixed(2)}% |`);
     lines.push(`| Alpha | ${alpha >= 0 ? "+" : ""}${alpha.toFixed(2)}% |`);
@@ -185,7 +185,7 @@ export function generateMarkdownReport(data: ReportData): string {
   }
 
   // Trade History
-  lines.push("## 取引履歴");
+  lines.push("## Trade History");
   lines.push("");
 
   const trades = groupTradesIntoPairs(data.tradeHistory);
@@ -195,30 +195,30 @@ export function generateMarkdownReport(data: ReportData): string {
     lines.push(`### #${index + 1}`);
     lines.push("");
     lines.push(`**BUY** @ ${formatDate(buy.date)}`);
-    lines.push(`- 価格: ${buy.price.toLocaleString()} (${PRICE_TYPE_LABELS[buy.priceType]})`);
-    lines.push(`- 株数: ${buy.shares}`);
+    lines.push(`- Price: ${buy.price.toLocaleString()} (${PRICE_TYPE_LABELS[buy.priceType]})`);
+    lines.push(`- Shares: ${buy.shares}`);
 
-    // インジケーター値
+    // Indicator values
     const buyIndicators = formatIndicatorSnapshot(buy.indicators);
     if (buyIndicators) {
-      lines.push(`- インジケーター: ${buyIndicators}`);
+      lines.push(`- Indicators: ${buyIndicators}`);
     }
 
-    // マーケットコンテキスト
+    // Market context
     const buyContext = formatMarketContext(buy.marketContext);
     if (buyContext) {
-      lines.push(`- 相場状況: ${buyContext}`);
+      lines.push(`- Market: ${buyContext}`);
     }
 
     if (buy.memo) {
-      lines.push(`- メモ: "${buy.memo}"`);
+      lines.push(`- Memo: "${buy.memo}"`);
     }
     lines.push("");
 
     if (sell) {
       lines.push(`**SELL** @ ${formatDate(sell.date)}`);
-      lines.push(`- 価格: ${sell.price.toLocaleString()} (${PRICE_TYPE_LABELS[sell.priceType]})`);
-      lines.push(`- 株数: ${sell.shares}`);
+      lines.push(`- Price: ${sell.price.toLocaleString()} (${PRICE_TYPE_LABELS[sell.priceType]})`);
+      lines.push(`- Shares: ${sell.shares}`);
 
       // exitReason & exitTrigger
       if (sell.exitReason) {
@@ -226,21 +226,21 @@ export function generateMarkdownReport(data: ReportData): string {
         if (sell.exitTrigger) {
           reasonText += ` (${EXIT_TRIGGER_LABELS[sell.exitTrigger]})`;
         }
-        lines.push(`- 理由: ${reasonText}`);
+        lines.push(`- Reason: ${reasonText}`);
       }
 
-      // 税金がある場合は詳細表示
+      // Show cost details if tax exists
       if (sell.tax !== undefined && sell.tax > 0) {
         lines.push(
-          `- 粗利益: ${sell.grossPnl !== undefined && sell.grossPnl >= 0 ? "+" : ""}${sell.grossPnl?.toLocaleString()}円`,
+          `- Gross P&L: ${sell.grossPnl !== undefined && sell.grossPnl >= 0 ? "+" : ""}${sell.grossPnl?.toLocaleString()}`,
         );
-        lines.push(`- 税金: ${sell.tax.toLocaleString()}円`);
+        lines.push(`- Tax: ${sell.tax.toLocaleString()}`);
         lines.push(
-          `- 税引後損益: ${sell.afterTaxPnl !== undefined && sell.afterTaxPnl >= 0 ? "+" : ""}${sell.afterTaxPnl?.toLocaleString()}円 (${sell.pnlPercent !== undefined && sell.pnlPercent >= 0 ? "+" : ""}${sell.pnlPercent?.toFixed(2)}%)`,
+          `- After-Tax P&L: ${sell.afterTaxPnl !== undefined && sell.afterTaxPnl >= 0 ? "+" : ""}${sell.afterTaxPnl?.toLocaleString()} (${sell.pnlPercent !== undefined && sell.pnlPercent >= 0 ? "+" : ""}${sell.pnlPercent?.toFixed(2)}%)`,
         );
       } else {
         lines.push(
-          `- 損益: ${sell.pnlPercent !== undefined && sell.pnlPercent >= 0 ? "+" : ""}${sell.pnlPercent?.toFixed(2)}% (${sell.pnl !== undefined && sell.pnl >= 0 ? "+" : ""}${sell.pnl?.toLocaleString()}円)`,
+          `- P&L: ${sell.pnlPercent !== undefined && sell.pnlPercent >= 0 ? "+" : ""}${sell.pnlPercent?.toFixed(2)}% (${sell.pnl !== undefined && sell.pnl >= 0 ? "+" : ""}${sell.pnl?.toLocaleString()})`,
         );
       }
 
@@ -248,42 +248,42 @@ export function generateMarkdownReport(data: ReportData): string {
       if (sell.mfe !== undefined && sell.mae !== undefined) {
         let mfeMaeText = `+${sell.mfe.toFixed(2)}% / ${sell.mae.toFixed(2)}%`;
         if (sell.mfeUtilization !== undefined) {
-          mfeMaeText += ` (活用度: ${sell.mfeUtilization.toFixed(1)}%)`;
+          mfeMaeText += ` (util: ${sell.mfeUtilization.toFixed(1)}%)`;
         }
         lines.push(`- MFE/MAE: ${mfeMaeText}`);
       }
 
-      // コスト情報
+      // Cost info
       if (sell.commission || sell.slippage) {
         const costParts = [];
         if (sell.commission)
-          costParts.push(`手数料${Math.round(sell.commission).toLocaleString()}円`);
+          costParts.push(`Commission ¥${Math.round(sell.commission).toLocaleString()}`);
         if (sell.slippage)
-          costParts.push(`スリッページ${(sell.slippage * sell.shares).toLocaleString()}円`);
-        lines.push(`- コスト: ${costParts.join(" / ")}`);
+          costParts.push(`Slippage ¥${(sell.slippage * sell.shares).toLocaleString()}`);
+        lines.push(`- Cost: ${costParts.join(" / ")}`);
       }
 
-      // インジケーター値
+      // Indicator values
       const sellIndicators = formatIndicatorSnapshot(sell.indicators);
       if (sellIndicators) {
-        lines.push(`- インジケーター: ${sellIndicators}`);
+        lines.push(`- Indicators: ${sellIndicators}`);
       }
 
-      // マーケットコンテキスト
+      // Market context
       const sellContext = formatMarketContext(sell.marketContext);
       if (sellContext) {
-        lines.push(`- 相場状況: ${sellContext}`);
+        lines.push(`- Market: ${sellContext}`);
       }
 
       if (sell.memo) {
-        lines.push(`- メモ: "${sell.memo}"`);
+        lines.push(`- Memo: "${sell.memo}"`);
       }
       lines.push("");
     }
   });
 
   // Indicators Used
-  lines.push("## 使用インジケーター");
+  lines.push("## Indicators Used");
   lines.push("");
   const indicatorLabels = data.enabledIndicators.map((key) => {
     const found = AVAILABLE_INDICATORS.find((i) => i.key === key);
@@ -297,7 +297,7 @@ export function generateMarkdownReport(data: ReportData): string {
   // Footer
   lines.push("---");
   lines.push("");
-  lines.push(`Generated: ${new Date().toLocaleString("ja-JP")}  `);
+  lines.push(`Generated: ${new Date().toISOString()}  `);
   lines.push("TrendCraft Trading Simulator");
 
   return lines.join("\n");
@@ -417,7 +417,7 @@ function calculateExtendedStats(
     }
   });
 
-  // MFE/MAE平均を計算
+  // Calculate MFE/MAE averages
   const tradesWithMfe = sellTrades.filter((t) => t.mfe !== undefined);
   const avgMfe =
     tradesWithMfe.length > 0
@@ -428,7 +428,7 @@ function calculateExtendedStats(
       ? tradesWithMfe.reduce((sum, t) => sum + (t.mae || 0), 0) / tradesWithMfe.length
       : 0;
 
-  // MFE活用度の平均を計算
+  // Calculate average MFE utilization
   const tradesWithMfeUtilization = sellTrades.filter((t) => t.mfeUtilization !== undefined);
   const avgMfeUtilization =
     tradesWithMfeUtilization.length > 0
@@ -436,12 +436,12 @@ function calculateExtendedStats(
         tradesWithMfeUtilization.length
       : 0;
 
-  // 市場滞在率を計算（totalHoldingDays は既に計算済み）
+  // Calculate market exposure (totalHoldingDays already computed)
   const totalPositionDays = totalHoldingDays;
   const marketExposure =
     totalTradingDays && totalTradingDays > 0 ? (totalPositionDays / totalTradingDays) * 100 : 0;
 
-  // 総コストを計算
+  // Calculate total costs
   const totalCommission = trades.reduce((sum, t) => sum + (t.commission || 0), 0);
   const totalSlippage = trades.reduce((sum, t) => sum + (t.slippage || 0) * t.shares, 0);
   const totalTax = sellTrades.reduce((sum, t) => sum + (t.tax || 0), 0);
@@ -515,9 +515,7 @@ export function generateCSVReport(data: ReportData): string {
   const lines: string[] = [];
 
   // Header
-  lines.push(
-    "取引番号,種別,日付,価格,株数,約定方法,損益,損益率,SMA25,SMA75,RSI,MACD,相場状況,メモ",
-  );
+  lines.push("Trade#,Type,Date,Price,Shares,Execution,P&L,P&L%,SMA25,SMA75,RSI,MACD,Market,Memo");
 
   // Trade rows
   data.tradeHistory.forEach((trade, index) => {
@@ -552,7 +550,7 @@ export function generateJSONReport(data: ReportData): string {
   );
   const finalCapital = data.initialCapital + stats.totalPnl;
 
-  // Buy&Hold計算
+  // Buy&Hold calculation
   let buyHoldReturn: number | undefined;
   let alpha: number | undefined;
   if (data.startPrice && data.endPrice) {
@@ -654,7 +652,7 @@ export function generateJSONReport(data: ReportData): string {
 }
 
 // ===========================================
-// ポートフォリオレポート（複数銘柄対応）
+// Portfolio report (multi-symbol)
 // ===========================================
 
 export interface SymbolReportData extends ReportData {
@@ -684,30 +682,30 @@ export function generatePortfolioMarkdownReport(data: PortfolioReportData): stri
   const lines: string[] = [];
 
   // Header
-  lines.push("# ポートフォリオ売買シミュレーションレポート");
+  lines.push("# Portfolio Trading Simulation Report");
   lines.push("");
 
   // Session Info
-  lines.push("## セッション情報");
+  lines.push("## Session Info");
   lines.push("");
-  lines.push(`- 銘柄数: ${data.symbols.length}`);
-  lines.push(`- 初期資金: ${data.initialCapital.toLocaleString()}円`);
+  lines.push(`- Symbols: ${data.symbols.length}`);
+  lines.push(`- Initial Capital: ¥${data.initialCapital.toLocaleString()}`);
 
-  // 期間（全銘柄の共通期間を表示）
+  // Period (common range across all symbols)
   const allStartDates = data.symbols.map((s) => s.startDate).filter((d) => d > 0);
   const allEndDates = data.symbols.map((s) => s.endDate).filter((d) => d > 0);
   if (allStartDates.length > 0 && allEndDates.length > 0) {
     const startDate = Math.max(...allStartDates);
     const endDate = Math.min(...allEndDates);
-    lines.push(`- 期間: ${formatDate(startDate)} - ${formatDate(endDate)}`);
+    lines.push(`- Period: ${formatDate(startDate)} - ${formatDate(endDate)}`);
   }
   lines.push("");
 
-  // ポートフォリオサマリー
-  lines.push("## ポートフォリオサマリー");
+  // Portfolio summary
+  lines.push("## Portfolio Summary");
   lines.push("");
 
-  // 各銘柄の統計を計算
+  // Calculate stats for each symbol
   const symbolSummaries: SymbolSummary[] = data.symbols.map((symbol) => {
     const stats = calculateExtendedStats(
       symbol.tradeHistory,
@@ -731,7 +729,7 @@ export function generatePortfolioMarkdownReport(data: PortfolioReportData): stri
     };
   });
 
-  // ポートフォリオ全体の統計
+  // Portfolio-wide stats
   const totalPnl = symbolSummaries.reduce((sum, s) => sum + s.totalPnl, 0);
   const totalPnlPercent = (totalPnl / data.initialCapital) * 100;
   const totalTrades = symbolSummaries.reduce((sum, s) => sum + s.totalTrades, 0);
@@ -740,7 +738,7 @@ export function generatePortfolioMarkdownReport(data: PortfolioReportData): stri
   }, 0);
   const overallWinRate = totalTrades > 0 ? (totalWins / totalTrades) * 100 : 0;
 
-  // Buy&Hold平均
+  // Buy&Hold average
   const symbolsWithBuyHold = symbolSummaries.filter((s) => s.buyHoldReturn !== undefined);
   const avgBuyHoldReturn =
     symbolsWithBuyHold.length > 0
@@ -749,30 +747,30 @@ export function generatePortfolioMarkdownReport(data: PortfolioReportData): stri
       : undefined;
   const avgAlpha = avgBuyHoldReturn !== undefined ? totalPnlPercent - avgBuyHoldReturn : undefined;
 
-  lines.push("### 全体パフォーマンス");
+  lines.push("### Overall Performance");
   lines.push("");
-  lines.push("| 指標 | 値 |");
+  lines.push("| Metric | Value |");
   lines.push("|------|------|");
   lines.push(
-    `| 総損益 | ${totalPnl >= 0 ? "+" : ""}${totalPnl.toLocaleString()}円 (${totalPnlPercent >= 0 ? "+" : ""}${totalPnlPercent.toFixed(2)}%) |`,
+    `| Total P&L | ${totalPnl >= 0 ? "+" : ""}${totalPnl.toLocaleString()} (${totalPnlPercent >= 0 ? "+" : ""}${totalPnlPercent.toFixed(2)}%) |`,
   );
-  lines.push(`| 最終資産 | ${(data.initialCapital + totalPnl).toLocaleString()}円 |`);
-  lines.push(`| 総取引回数 | ${totalTrades}回 |`);
-  lines.push(`| 全体勝率 | ${overallWinRate.toFixed(1)}% |`);
+  lines.push(`| Final Capital | ${(data.initialCapital + totalPnl).toLocaleString()} |`);
+  lines.push(`| Total Trades | ${totalTrades} |`);
+  lines.push(`| Overall Win Rate | ${overallWinRate.toFixed(1)}% |`);
   if (avgBuyHoldReturn !== undefined) {
     lines.push(
-      `| Buy&Hold平均 | ${avgBuyHoldReturn >= 0 ? "+" : ""}${avgBuyHoldReturn.toFixed(2)}% |`,
+      `| Avg Buy&Hold | ${avgBuyHoldReturn >= 0 ? "+" : ""}${avgBuyHoldReturn.toFixed(2)}% |`,
     );
     lines.push(
-      `| 平均Alpha | ${avgAlpha !== undefined && avgAlpha >= 0 ? "+" : ""}${avgAlpha?.toFixed(2)}% |`,
+      `| Avg Alpha | ${avgAlpha !== undefined && avgAlpha >= 0 ? "+" : ""}${avgAlpha?.toFixed(2)}% |`,
     );
   }
   lines.push("");
 
-  // 銘柄別サマリーテーブル
-  lines.push("### 銘柄別パフォーマンス");
+  // Per-symbol summary table
+  lines.push("### Per-Symbol Performance");
   lines.push("");
-  lines.push("| 銘柄 | 取引回数 | 勝率 | 損益 | 損益率 | B&H | Alpha |");
+  lines.push("| Symbol | Trades | Win Rate | P&L | P&L% | B&H | Alpha |");
   lines.push("|------|---------|------|------|--------|-----|-------|");
 
   symbolSummaries.forEach((s) => {
@@ -785,15 +783,15 @@ export function generatePortfolioMarkdownReport(data: PortfolioReportData): stri
     const alphaStr =
       s.alpha !== undefined ? `${s.alpha >= 0 ? "+" : ""}${s.alpha.toFixed(1)}%` : "-";
     lines.push(
-      `| ${s.fileName} | ${s.totalTrades}回 | ${s.winRate.toFixed(1)}% | ${pnlSign}${s.totalPnl.toLocaleString()}円 | ${pnlPctSign}${s.totalPnlPercent.toFixed(2)}% | ${bhStr} | ${alphaStr} |`,
+      `| ${s.fileName} | ${s.totalTrades} | ${s.winRate.toFixed(1)}% | ${pnlSign}${s.totalPnl.toLocaleString()} | ${pnlPctSign}${s.totalPnlPercent.toFixed(2)}% | ${bhStr} | ${alphaStr} |`,
     );
   });
   lines.push("");
 
-  // 各銘柄の詳細
+  // Per-symbol details
   lines.push("---");
   lines.push("");
-  lines.push("## 銘柄別詳細");
+  lines.push("## Per-Symbol Details");
   lines.push("");
 
   data.symbols.forEach((symbol, index) => {
@@ -806,29 +804,29 @@ export function generatePortfolioMarkdownReport(data: PortfolioReportData): stri
       symbol.totalTradingDays,
     );
 
-    lines.push("| 指標 | 値 |");
+    lines.push("| Metric | Value |");
     lines.push("|------|------|");
-    lines.push(`| 取引回数 | ${stats.totalTrades}回 (${stats.winCount}勝${stats.lossCount}敗) |`);
-    lines.push(`| 勝率 | ${stats.winRate.toFixed(1)}% |`);
+    lines.push(`| Trades | ${stats.totalTrades} (${stats.winCount}W/${stats.lossCount}L) |`);
+    lines.push(`| Win Rate | ${stats.winRate.toFixed(1)}% |`);
     lines.push(
-      `| 総損益 | ${stats.totalPnl >= 0 ? "+" : ""}${stats.totalPnl.toLocaleString()}円 (${stats.totalPnlPercent >= 0 ? "+" : ""}${stats.totalPnlPercent.toFixed(2)}%) |`,
+      `| Total P&L | ${stats.totalPnl >= 0 ? "+" : ""}${stats.totalPnl.toLocaleString()} (${stats.totalPnlPercent >= 0 ? "+" : ""}${stats.totalPnlPercent.toFixed(2)}%) |`,
     );
-    lines.push(`| 平均勝ち | ${stats.avgWin >= 0 ? "+" : ""}${stats.avgWin.toFixed(2)}% |`);
-    lines.push(`| 平均負け | ${stats.avgLoss.toFixed(2)}% |`);
+    lines.push(`| Avg Win | ${stats.avgWin >= 0 ? "+" : ""}${stats.avgWin.toFixed(2)}% |`);
+    lines.push(`| Avg Loss | ${stats.avgLoss.toFixed(2)}% |`);
     lines.push(`| PF | ${stats.profitFactor.toFixed(2)} |`);
-    lines.push(`| 最大DD | ${stats.maxDrawdown.toFixed(2)}% |`);
+    lines.push(`| Max DD | ${stats.maxDrawdown.toFixed(2)}% |`);
     if (stats.avgMfe > 0 || stats.avgMae < 0) {
-      lines.push(`| 平均MFE/MAE | +${stats.avgMfe.toFixed(2)}% / ${stats.avgMae.toFixed(2)}% |`);
+      lines.push(`| Avg MFE/MAE | +${stats.avgMfe.toFixed(2)}% / ${stats.avgMae.toFixed(2)}% |`);
     }
     if (stats.avgMfeUtilization > 0) {
-      lines.push(`| MFE活用度 | ${stats.avgMfeUtilization.toFixed(1)}% |`);
+      lines.push(`| MFE Util | ${stats.avgMfeUtilization.toFixed(1)}% |`);
     }
     lines.push("");
 
-    // 取引履歴（簡略版）
+    // Trade history (summary)
     const pairs = groupTradesIntoPairs(symbol.tradeHistory);
     if (pairs.length > 0) {
-      lines.push("**取引履歴:**");
+      lines.push("**Trade History:**");
       lines.push("");
       pairs.forEach(([buy, sell], pairIndex) => {
         if (sell) {
@@ -840,15 +838,15 @@ export function generatePortfolioMarkdownReport(data: PortfolioReportData): stri
             `${pairIndex + 1}. ${formatDate(buy.date)} → ${formatDate(sell.date)}: ${pnlStr}`,
           );
         } else {
-          lines.push(`${pairIndex + 1}. ${formatDate(buy.date)} → (保有中)`);
+          lines.push(`${pairIndex + 1}. ${formatDate(buy.date)} → (open)`);
         }
       });
       lines.push("");
     }
   });
 
-  // インジケーター
-  lines.push("## 使用インジケーター");
+  // Indicators
+  lines.push("## Indicators Used");
   lines.push("");
   const indicatorLabels = data.enabledIndicators.map((key) => {
     const found = AVAILABLE_INDICATORS.find((i) => i.key === key);
@@ -862,7 +860,7 @@ export function generatePortfolioMarkdownReport(data: PortfolioReportData): stri
   // Footer
   lines.push("---");
   lines.push("");
-  lines.push(`Generated: ${new Date().toLocaleString("ja-JP")}  `);
+  lines.push(`Generated: ${new Date().toISOString()}  `);
   lines.push("TrendCraft Trading Simulator - Portfolio Report");
 
   return lines.join("\n");
@@ -872,7 +870,7 @@ export function generatePortfolioCSVReport(data: PortfolioReportData): string {
   const lines: string[] = [];
 
   // Header
-  lines.push("銘柄,取引番号,種別,日付,価格,株数,約定方法,損益,損益率,メモ");
+  lines.push("Symbol,Trade#,Type,Date,Price,Shares,Execution,P&L,P&L%,Memo");
 
   // Trade rows for all symbols
   data.symbols.forEach((symbol) => {

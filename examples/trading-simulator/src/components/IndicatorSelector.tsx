@@ -49,7 +49,7 @@ export function IndicatorSelector({
     setExpandedIndicator(expandedIndicator === key ? null : key);
   };
 
-  // カテゴリ別にグループ化
+  // Group by category
   const groupedIndicators = CATEGORY_ORDER.map((category) => ({
     category,
     label: CATEGORY_LABELS[category],
@@ -58,7 +58,7 @@ export function IndicatorSelector({
 
   return (
     <div className={`indicator-selector ${isInDialog ? "in-dialog" : ""}`}>
-      {!isInDialog && <span className="section-label">表示するインジケーター</span>}
+      {!isInDialog && <span className="section-label">Indicators</span>}
       {groupedIndicators.map(({ category, label, indicators }) => (
         <div key={category} className="indicator-category">
           <div className="category-header">{label}</div>
@@ -79,7 +79,7 @@ export function IndicatorSelector({
                     <span className="indicator-name">
                       {indLabel}
                       {chartType === "subchart" && (
-                        <span className="subchart-badge" title="サブチャート表示">
+                        <span className="subchart-badge" title="Subchart">
                           ⬜
                         </span>
                       )}
@@ -89,7 +89,7 @@ export function IndicatorSelector({
                         type="button"
                         className={`param-toggle ${isExpanded ? "active" : ""}`}
                         onClick={(e) => handleSettingsClick(e, key)}
-                        title="パラメータ設定"
+                        title="Parameters"
                       >
                         <span className="material-icons">settings</span>
                       </button>

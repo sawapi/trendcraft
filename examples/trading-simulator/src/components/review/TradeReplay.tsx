@@ -59,26 +59,26 @@ export function TradeReplay({ trades }: TradeReplayProps) {
           <div className="replay-detail-row">
             <span className="replay-label">Entry</span>
             <span>
-              {new Date(selectedPair.buy.date).toLocaleDateString()} @{" "}
-              {selectedPair.buy.price.toLocaleString()}円 × {selectedPair.buy.shares}株
+              {new Date(selectedPair.buy.date).toLocaleDateString()} @ ¥
+              {selectedPair.buy.price.toLocaleString()} × {selectedPair.buy.shares}
             </span>
           </div>
           <div className="replay-detail-row">
             <span className="replay-label">Exit</span>
             <span>
-              {new Date(selectedPair.sell.date).toLocaleDateString()} @{" "}
-              {selectedPair.sell.price.toLocaleString()}円 × {selectedPair.sell.shares}株
+              {new Date(selectedPair.sell.date).toLocaleDateString()} @ ¥
+              {selectedPair.sell.price.toLocaleString()} × {selectedPair.sell.shares}
             </span>
           </div>
           <div className="replay-detail-row">
             <span className="replay-label">P&L</span>
             <span className={(selectedPair.sell.pnlPercent || 0) >= 0 ? "positive" : "negative"}>
               {(selectedPair.sell.pnlPercent || 0) >= 0 ? "+" : ""}
-              {(selectedPair.sell.pnlPercent || 0).toFixed(2)}% (
+              {(selectedPair.sell.pnlPercent || 0).toFixed(2)}% (¥
               {(selectedPair.sell.pnl || 0).toLocaleString(undefined, {
                 maximumFractionDigits: 0,
               })}
-              円)
+              )
             </span>
           </div>
           {selectedPair.sell.mfe != null && (

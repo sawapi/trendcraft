@@ -18,13 +18,13 @@ export function Chart() {
     getDetectedVolumeSpikes,
   } = useSimulatorStore();
 
-  // アクティブ銘柄を取得
+  // Get active symbol
   const activeSymbol = useMemo(() => {
     if (!activeSymbolId) return symbols[0] || null;
     return symbols.find((s) => s.id === activeSymbolId) || null;
   }, [symbols, activeSymbolId]);
 
-  // 現在の日付からインデックスを計算
+  // Calculate index from current date
   const currentIndex = useMemo(() => {
     if (!activeSymbol || !commonDateRange || currentDateIndex < 0) return 0;
     const targetDate = commonDateRange.dates[currentDateIndex];
@@ -32,7 +32,7 @@ export function Chart() {
     return activeSymbol.allCandles.findIndex((c) => c.time === targetDate);
   }, [activeSymbol, commonDateRange, currentDateIndex]);
 
-  // データを抽出
+  // Extract data
   const allCandles = activeSymbol?.allCandles || [];
   const startIndex = activeSymbol?.startIndex || 0;
   const tradeHistory = activeSymbol?.tradeHistory || [];
@@ -55,7 +55,7 @@ export function Chart() {
     }));
   }, [tradeHistory]);
 
-  // ポジションがある場合、エントリーラインと損切りラインを計算
+  // Calculate entry and stop loss lines when position exists
   const positionLines: PositionLine | undefined = useMemo(() => {
     if (positions.length === 0) return undefined;
 
@@ -82,7 +82,7 @@ export function Chart() {
     };
   }, [positions, startIndex, stopLossPercent, takeProfitPercent, trailingStopEnabled]);
 
-  // 出来高スパイクマーカーを取得
+  // Get volume spike markers
   const volumeSpikeMarkers = useMemo(() => {
     return getDetectedVolumeSpikes();
   }, [getDetectedVolumeSpikes]);
@@ -107,11 +107,11 @@ export function Chart() {
     volumeSpikeMarkers,
   ]);
 
-  // データがない場合はチャートを表示しない（EChartsのクリーンアップエラーを回避）
+  // Don't render chart when no data (avoids ECharts cleanup errors)
   if (visibleCandles.length === 0) {
     return (
       <div className="chart-container">
-        <div className="chart-placeholder">チャートデータがありません</div>
+        <div className="chart-placeholder">No chart data</div>
       </div>
     );
   }

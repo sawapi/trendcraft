@@ -84,10 +84,10 @@ export function PerformanceReview() {
               sellTrades.reduce((s, t) => s + (t.pnl || 0), 0) >= 0 ? "positive" : "negative"
             }`}
           >
+            ¥
             {sellTrades
               .reduce((s, t) => s + (t.pnl || 0), 0)
               .toLocaleString(undefined, { maximumFractionDigits: 0 })}
-            円
           </span>
         </div>
       </div>

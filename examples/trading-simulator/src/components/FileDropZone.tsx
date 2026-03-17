@@ -15,7 +15,7 @@ export function FileDropZone({ pendingSession }: FileDropZoneProps) {
   const loadCandles = useSimulatorStore((s) => s.loadCandles);
   const createSymbolSession = useSimulatorStore((s) => s.createSymbolSession);
 
-  // pendingSessionがある場合のメッセージ
+  // Message when a pending session exists
   const hasSession = !!pendingSession;
 
   const handleFile = useCallback(
@@ -26,16 +26,16 @@ export function FileDropZone({ pendingSession }: FileDropZoneProps) {
         const candles = parseCSV(text);
 
         if (candles.length === 0) {
-          setError("CSVからデータを読み込めませんでした");
+          setError("Failed to parse CSV data");
           return;
         }
 
-        // セッションがあり、同じファイル名の場合は復元
+        // If a session exists with the same filename, restore it
         if (pendingSession && file.name === pendingSession.fileName) {
-          // 先にcandlesをロード
+          // Load candles first
           loadCandles(candles, file.name);
 
-          // インジケーターを計算
+          // Calculate indicators
           const reportIndicators = new Set([
             ...pendingSession.config.enabledIndicators,
             "sma25",
@@ -50,7 +50,7 @@ export function FileDropZone({ pendingSession }: FileDropZoneProps) {
             pendingSession.config.indicatorParams,
           );
 
-          // セッション状態を復元
+          // Restore session state
           useSimulatorStore.setState({
             phase: pendingSession.phase,
             initialCandleCount: pendingSession.config.initialCandleCount,
@@ -67,7 +67,7 @@ export function FileDropZone({ pendingSession }: FileDropZoneProps) {
             isPlaying: false,
           });
 
-          // シンボルの状態を更新
+          // Update symbol state
           const state = useSimulatorStore.getState();
           const symbolId = state.symbols[0]?.id;
           if (symbolId) {
@@ -91,26 +91,26 @@ export function FileDropZone({ pendingSession }: FileDropZoneProps) {
             });
           }
         } else {
-          // 新しいファイルの場合は銘柄を追加
-          // 現在の状態を直接取得して判定
+          // New file: add as symbol
+          // Check current state directly
           const currentState = useSimulatorStore.getState();
           if (currentState.symbols.length === 0) {
-            // 最初のファイル
+            // First file
             loadCandles(candles, file.name);
           } else {
-            // 追加のファイル
+            // Additional file
             createSymbolSession(candles, file.name);
           }
           setLoadedFiles((prev) => [...prev, file.name]);
         }
       } catch {
-        setError("ファイルの読み込みに失敗しました");
+        setError("Failed to read file");
       }
     },
     [loadCandles, createSymbolSession, pendingSession],
   );
 
-  // 複数ファイルを処理
+  // Process multiple files
   const handleFiles = useCallback(
     async (files: FileList) => {
       for (let i = 0; i < files.length; i++) {
@@ -145,7 +145,7 @@ export function FileDropZone({ pendingSession }: FileDropZoneProps) {
     const input = document.createElement("input");
     input.type = "file";
     input.accept = ".csv";
-    input.multiple = true; // 複数選択を有効化
+    input.multiple = true; // Enable multiple selection
     input.onchange = (e) => {
       const files = (e.target as HTMLInputElement).files;
       if (files && files.length > 0) {
@@ -168,19 +168,19 @@ export function FileDropZone({ pendingSession }: FileDropZoneProps) {
     >
       {hasSession ? (
         <>
-          <p>セッションを復元するには</p>
+          <p>To restore your session, drop</p>
           <p className="highlight">{pendingSession?.fileName}</p>
-          <p className="sub">をドロップまたは選択してください</p>
+          <p className="sub">or click to select it</p>
         </>
       ) : (
         <>
-          <p>CSVファイルをドロップ</p>
-          <p className="sub">またはクリックして選択（複数可）</p>
+          <p>Drop CSV file here</p>
+          <p className="sub">or click to select (multiple OK)</p>
         </>
       )}
       {loadedFiles.length > 0 && (
         <div className="loaded-files">
-          <p className="sub">読み込み済み: {loadedFiles.join(", ")}</p>
+          <p className="sub">Loaded: {loadedFiles.join(", ")}</p>
         </div>
       )}
       {error && <p className="error">{error}</p>}

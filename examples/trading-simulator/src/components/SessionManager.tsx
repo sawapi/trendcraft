@@ -39,44 +39,44 @@ export function SessionManager({ onRestore, onDiscard }: SessionManagerProps) {
   return (
     <div className="session-manager-overlay">
       <div className="session-manager-modal">
-        <h3>保存されたセッションが見つかりました</h3>
+        <h3>Saved session found</h3>
 
         <div className="session-info">
           <div className="session-row">
-            <span className="label">銘柄</span>
+            <span className="label">Symbol</span>
             <span className="value">{session.fileName}</span>
           </div>
           <div className="session-row">
-            <span className="label">保存日時</span>
+            <span className="label">Saved</span>
             <span className="value">
-              {savedDate.toLocaleDateString("ja-JP")} {savedDate.toLocaleTimeString("ja-JP")}
+              {savedDate.toLocaleDateString("en-US")} {savedDate.toLocaleTimeString("en-US")}
             </span>
           </div>
           <div className="session-row">
-            <span className="label">取引回数</span>
-            <span className="value">{tradeCount}回</span>
+            <span className="label">Trades</span>
+            <span className="value">{tradeCount}</span>
           </div>
           <div className="session-row">
-            <span className="label">ポジション</span>
+            <span className="label">Position</span>
             <span className="value">
               {session.positions.length > 0
-                ? `${session.positions.reduce((sum, p) => sum + p.shares, 0)}株保有中`
-                : "なし"}
+                ? `${session.positions.reduce((sum, p) => sum + p.shares, 0)} shares`
+                : "None"}
             </span>
           </div>
         </div>
 
         <p className="session-note">
-          同じCSVファイルを読み込んでセッションを復元できます。
-          別のファイルを使用する場合は「破棄」を選択してください。
+          Load the same CSV file to restore your session. Choose "Discard" to start fresh with a
+          different file.
         </p>
 
         <div className="session-actions">
           <button type="button" className="btn-primary" onClick={handleRestore}>
-            復元する
+            Restore
           </button>
           <button type="button" className="btn-secondary" onClick={handleDiscard}>
-            破棄して新規開始
+            Discard & Start New
           </button>
         </div>
       </div>
