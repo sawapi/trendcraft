@@ -1,4 +1,4 @@
-import type { BacktestResult, NormalizedCandle, TradeAnalysis } from "trendcraft";
+import type { BacktestResult, NormalizedCandle, PatternSignal, TradeAnalysis } from "trendcraft";
 import type {
   BacktestConfig,
   ComparisonSymbol,
@@ -79,6 +79,10 @@ export interface ChartState {
 
   // Explain bar
   explainBar: { barIndex: number } | null;
+
+  // Pattern replay
+  replayPattern: PatternSignal | null;
+  replayEndIndex: number | null;
 }
 
 /**
@@ -144,4 +148,8 @@ export interface ChartActions {
 
   // Explain bar
   setExplainBar: (barIndex: number | null) => void;
+
+  // Pattern replay
+  setReplayPattern: (pattern: PatternSignal | null) => void;
+  setReplayEndIndex: (index: number | null) => void;
 }

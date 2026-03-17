@@ -526,6 +526,8 @@ interface ChartPatternEventsProps {
 }
 
 function ChartPatternEvents({ data, startDate, endDate }: ChartPatternEventsProps) {
+  const setReplayPattern = useChartStore((s) => s.setReplayPattern);
+
   const visibleSignals = data
     .filter((s) => s.time >= startDate && s.time <= endDate)
     .sort((a, b) => b.time - a.time)
@@ -571,6 +573,17 @@ function ChartPatternEvents({ data, startDate, endDate }: ChartPatternEventsProp
 
           return (
             <span key={i} className={className} title={tooltip}>
+              <button
+                type="button"
+                className="replay-trigger-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setReplayPattern(s);
+                }}
+                title="Replay this pattern"
+              >
+                <span className="material-icons md-14">play_circle</span>
+              </button>
               {icon} {name} [{confStr}%]{targetStr} {formatDate(s.time)}
             </span>
           );

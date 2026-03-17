@@ -14,6 +14,7 @@ import { FileDropZone } from "./FileDropZone";
 import { IndicatorSettingsDialog } from "./IndicatorSettingsDialog";
 import { KeyboardShortcutsHelp } from "./KeyboardShortcutsHelp";
 import { MainChart, type MainChartHandle } from "./MainChart";
+import { PatternReplayPanel } from "./PatternReplayPanel";
 import { PeriodSelector } from "./PeriodSelector";
 import { PositionSizingPanel } from "./PositionSizingPanel";
 import { SignalsPanel } from "./SignalsPanel";
@@ -115,6 +116,7 @@ export default function App() {
   const setYAxisPercent = useChartStore((state) => state.setYAxisPercent);
 
   const explainBar = useChartStore((state) => state.explainBar);
+  const replayPattern = useChartStore((state) => state.replayPattern);
 
   const hasData = rawCandles.length > 0;
   const watchlist = useWatchlist();
@@ -454,6 +456,9 @@ export default function App() {
 
             {/* Explain Bar Panel */}
             {explainBar && <ExplainBarPanel />}
+
+            {/* Pattern Replay Panel */}
+            {replayPattern && <PatternReplayPanel />}
 
             {/* Mobile overlay */}
             {isMobile && (

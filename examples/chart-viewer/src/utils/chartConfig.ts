@@ -239,6 +239,8 @@ export function buildChartOption(
   _subchartHeights?: Record<string, number>,
   selectedDrawingId?: string | null,
   comparisonSymbols?: ComparisonSymbol[],
+  replayEndIndex?: number | null,
+  projectionFanSeries?: SeriesItem[],
 ): EChartsOption {
   if (candles.length === 0) {
     return {};
@@ -265,6 +267,16 @@ export function buildChartOption(
       opacity: 0.5,
     },
   }));
+
+  // Replay mode: mask data beyond replayEndIndex
+  const replayActive =
+    replayEndIndex !== null && replayEndIndex !== undefined && replayEndIndex >= 0;
+  if (replayActive) {
+    for (let i = replayEndIndex + 1; i < ohlc.length; i++) {
+      ohlc[i] = ["-", "-", "-", "-"] as unknown as number[];
+      volumes[i] = { value: 0, itemStyle: { color: "transparent", opacity: 0 } };
+    }
+  }
 
   const { start, end } = zoomRange ?? calculateInitialZoom(candles.length);
 
@@ -569,6 +581,24 @@ export function buildChartOption(
     indicatorParams,
   );
   series.push(...subchartSeries);
+
+  // Projection fan series (pattern replay)
+  if (projectionFanSeries && projectionFanSeries.length > 0) {
+    series.push(...projectionFanSeries);
+  }
+
+  // Replay mode: mask overlay/subchart series data beyond replayEndIndex
+  if (replayActive) {
+    for (const s of series) {
+      if (s.name === "Candlestick" || s.name === "Volume") continue;
+      if (!Array.isArray(s.data)) continue;
+      // Skip projection fan series
+      if (s.name === "Proj Upper" || s.name === "Proj Lower" || s.name === "Proj Avg") continue;
+      for (let i = replayEndIndex + 1; i < s.data.length; i++) {
+        s.data[i] = "-";
+      }
+    }
+  }
 
   // Build legend data from main chart series (exclude subcharts and Volume)
   const mainLegendData = series

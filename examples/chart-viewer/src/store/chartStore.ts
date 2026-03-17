@@ -2,7 +2,7 @@
  * Zustand store for chart state management
  */
 
-import type { BacktestResult, NormalizedCandle } from "trendcraft";
+import type { BacktestResult, NormalizedCandle, PatternSignal } from "trendcraft";
 import { create } from "zustand";
 import type {
   BacktestConfig,
@@ -305,6 +305,8 @@ export const useChartStore = create<ChartStore>((set, get) => ({
   tradeAnalysis: null,
   isBacktestRunning: false,
   explainBar: null,
+  replayPattern: null,
+  replayEndIndex: null,
 
   // Actions
   loadCandles: (
@@ -458,6 +460,8 @@ export const useChartStore = create<ChartStore>((set, get) => ({
       tradeAnalysis: null,
       isBacktestRunning: false,
       explainBar: null,
+      replayPattern: null,
+      replayEndIndex: null,
       drawings: [],
       drawingHistory: [],
       drawingHistoryIndex: -1,
@@ -596,5 +600,14 @@ export const useChartStore = create<ChartStore>((set, get) => ({
   // Explain bar
   setExplainBar: (barIndex: number | null) => {
     set({ explainBar: barIndex !== null ? { barIndex } : null });
+  },
+
+  // Pattern replay
+  setReplayPattern: (pattern: PatternSignal | null) => {
+    set({ replayPattern: pattern, replayEndIndex: null });
+  },
+
+  setReplayEndIndex: (index: number | null) => {
+    set({ replayEndIndex: index });
   },
 }));

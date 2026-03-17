@@ -2901,3 +2901,329 @@ select:focus-visible {
   margin-bottom: 6px;
   font-weight: 500;
 }
+
+/* ==========================================================================
+   Pattern Replay Panel
+   ========================================================================== */
+
+.replay-panel {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin: 8px 16px;
+  padding: 0;
+  font-size: var(--font-sm);
+  overflow: hidden;
+}
+
+.replay-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border);
+}
+
+.replay-panel-title {
+  font-weight: 600;
+  font-size: var(--font-md);
+  color: var(--text-primary);
+  flex: 1;
+}
+
+.replay-phase-badge {
+  font-size: var(--font-xs);
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: var(--accent-secondary);
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.replay-close-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+}
+
+.replay-close-btn:hover {
+  color: var(--error);
+  background: rgba(255, 68, 68, 0.1);
+}
+
+/* Controls row */
+.replay-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.replay-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+}
+
+.replay-btn:hover {
+  background: var(--bg-tertiary);
+}
+
+.replay-btn-primary {
+  background: var(--accent-secondary);
+  border-color: var(--accent-secondary);
+}
+
+.replay-btn-primary:hover {
+  background: var(--bg-tertiary);
+}
+
+.replay-progress {
+  flex: 1;
+  height: 4px;
+  accent-color: var(--accent-primary);
+  cursor: pointer;
+  margin: 0 4px;
+}
+
+.replay-progress-label {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+  min-width: 40px;
+  text-align: center;
+}
+
+.replay-speed-group {
+  display: flex;
+  gap: 2px;
+  margin-left: 4px;
+}
+
+.replay-speed-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: var(--font-xs);
+}
+
+.replay-speed-btn.active {
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+  color: #fff;
+}
+
+.replay-speed-btn:hover {
+  background: var(--bg-tertiary);
+}
+
+/* Body */
+.replay-body {
+  display: flex;
+  gap: 16px;
+  padding: 10px 12px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+/* Projection stats */
+.replay-stats {
+  flex: 1;
+  min-width: 0;
+}
+
+.replay-stats-title {
+  font-weight: 600;
+  font-size: var(--font-sm);
+  color: var(--text-primary);
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 4px;
+}
+
+.replay-stats-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 3px;
+  flex-wrap: wrap;
+}
+
+.replay-stat-label {
+  color: var(--text-secondary);
+  font-size: var(--font-xs);
+  white-space: nowrap;
+}
+
+.replay-stat-value {
+  color: var(--text-primary);
+  font-size: var(--font-xs);
+  font-weight: 500;
+}
+
+.replay-stat-value.positive {
+  color: var(--success);
+}
+
+.replay-stat-value.negative {
+  color: var(--error);
+}
+
+/* Past instances */
+.past-instances {
+  flex: 1;
+  min-width: 0;
+}
+
+.past-instances-title {
+  font-weight: 600;
+  font-size: var(--font-sm);
+  color: var(--text-primary);
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 4px;
+}
+
+.past-instances-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.past-instance-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 6px;
+  border-radius: 3px;
+  font-size: var(--font-xs);
+}
+
+.past-instance-row.current {
+  background: rgba(233, 69, 96, 0.1);
+  border: 1px solid rgba(233, 69, 96, 0.3);
+}
+
+.past-instance-row:not(.current):hover {
+  background: var(--bg-tertiary);
+}
+
+.past-instance-date {
+  color: var(--text-secondary);
+  min-width: 70px;
+}
+
+.past-instance-conf {
+  color: var(--text-secondary);
+  min-width: 55px;
+}
+
+.past-instance-result {
+  min-width: 45px;
+  font-weight: 600;
+}
+
+.past-instance-result.positive {
+  color: var(--success);
+}
+
+.past-instance-result.negative {
+  color: var(--error);
+}
+
+.past-instance-jump {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: var(--font-xs);
+  margin-left: auto;
+}
+
+.past-instance-jump:hover {
+  background: var(--accent-secondary);
+  color: var(--text-primary);
+}
+
+.past-instance-current-tag {
+  font-size: var(--font-xs);
+  color: var(--accent-primary);
+  margin-left: auto;
+  font-weight: 500;
+}
+
+/* Replay trigger button in signals panel */
+.replay-trigger-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0 2px;
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+  opacity: 0.6;
+}
+
+.replay-trigger-btn:hover {
+  color: var(--accent-primary);
+  opacity: 1;
+}
+
+/* Light theme overrides for replay panel */
+[data-theme="light"] .replay-panel {
+  background: #f8f9fa;
+  border-color: #ddd;
+}
+
+[data-theme="light"] .replay-panel-header {
+  background: #e8eaf0;
+  border-color: #ddd;
+}
+
+[data-theme="light"] .replay-btn {
+  border-color: #ccc;
+  color: #333;
+}
+
+[data-theme="light"] .replay-btn:hover {
+  background: #e8eaf0;
+}
+
+[data-theme="light"] .replay-speed-btn {
+  border-color: #ccc;
+  color: #666;
+}
+
+[data-theme="light"] .replay-speed-btn:hover {
+  background: #e8eaf0;
+}
+
+[data-theme="light"] .past-instance-row.current {
+  background: rgba(233, 69, 96, 0.08);
+  border-color: rgba(233, 69, 96, 0.2);
+}
+
+[data-theme="light"] .past-instance-row:not(.current):hover {
+  background: #e8eaf0;
+}

@@ -17,6 +17,7 @@ import {
 import type { IndicatorData, PercentileInfo } from "../hooks/useIndicators";
 import { useIndicators } from "../hooks/useIndicators";
 import { useOverlays } from "../hooks/useOverlays";
+import { useProjectionFan } from "../hooks/useProjectionFan";
 import type { SignalData } from "../hooks/useSignals";
 import { useSignals } from "../hooks/useSignals";
 import { useChartStore } from "../store/chartStore";
@@ -673,6 +674,16 @@ export const MainChart = forwardRef<MainChartHandle>(function MainChart(_props, 
   const selectedDrawingId = useChartStore((state) => state.selectedDrawingId);
   const comparisonSymbols = useChartStore((state) => state.comparisonSymbols);
 
+  // Pattern replay
+  const replayPattern = useChartStore((state) => state.replayPattern);
+  const replayEndIndex = useChartStore((state) => state.replayEndIndex);
+  const projectionFanSeries = useProjectionFan(
+    replayPattern,
+    signals.chartPatterns,
+    currentCandles,
+    replayEndIndex,
+  );
+
   const option = useMemo(() => {
     return buildChartOption(
       currentCandles,
@@ -693,6 +704,8 @@ export const MainChart = forwardRef<MainChartHandle>(function MainChart(_props, 
       subchartHeights,
       selectedDrawingId,
       comparisonSymbols,
+      replayEndIndex,
+      projectionFanSeries,
     );
   }, [
     currentCandles,
@@ -713,6 +726,8 @@ export const MainChart = forwardRef<MainChartHandle>(function MainChart(_props, 
     subchartHeights,
     selectedDrawingId,
     comparisonSymbols,
+    replayEndIndex,
+    projectionFanSeries,
   ]);
 
   const setHoveredDataIndex = useChartStore((state) => state.setHoveredDataIndex);
