@@ -6,19 +6,46 @@
  */
 
 import { DEFAULT_PORTFOLIO_GUARD } from "../config/portfolio.js";
+import { loadTradingConfig, mergeConfigWithOpts } from "../config/trading-config.js";
 import { DEFAULT_TRADING_COSTS } from "../config/trading-costs.js";
+import { getStrategyIds } from "../strategy/registry.js";
 import { createTradingSession } from "../trading/session.js";
 import type { SessionOptions } from "../trading/session.js";
+import { createLogger, setJsonOutput, setLogLevel } from "../util/logger.js";
+import type { LogLevel } from "../util/logger.js";
 
-export type LiveCommandOptions = SessionOptions;
+const log = createLogger("LIVE");
 
-export async function liveCommand(opts: LiveCommandOptions): Promise<void> {
+export type LiveCommandOptions = SessionOptions & { config?: string };
+
+export async function liveCommand(rawOpts: LiveCommandOptions): Promise<void> {
+  // Load config file and merge with CLI options
+  const config = loadTradingConfig(rawOpts.config);
+  const opts = mergeConfigWithOpts(config, rawOpts) as LiveCommandOptions;
+
+  // Apply config-level log settings
+  if (config?.logLevel) setLogLevel(config.logLevel as LogLevel);
+  if (config?.logJson) setJsonOutput(true);
+
+  // Pass webhook config from trading.json to session options
+  if (config?.webhook && !opts.webhook) {
+    opts.webhook = config.webhook;
+  }
+
+  // Early validation — fail fast before session.init()
+  if (!opts.strategy && !opts.all) {
+    log.error(
+      `No strategy specified.\nHint: Use --strategy <id> or --all. Run 'list strategies' to see available options.\nAvailable: ${getStrategyIds().join(", ")}`,
+    );
+    process.exit(1);
+  }
+
   const session = createTradingSession(opts);
 
   try {
     await session.init();
   } catch (err) {
-    console.error(err instanceof Error ? err.message : err);
+    log.error(err instanceof Error ? err.message : err);
     process.exit(1);
   }
 
@@ -49,14 +76,14 @@ export async function liveCommand(opts: LiveCommandOptions): Promise<void> {
   // Agent count vs maxOpenPositions guard check
   const maxPositions = DEFAULT_PORTFOLIO_GUARD.maxOpenPositions ?? Number.POSITIVE_INFINITY;
   if (agentCount > maxPositions) {
-    console.warn(
-      `\n[WARNING] Agent count (${agentCount}) > maxOpenPositions (${maxPositions}). Not all agents can hold positions simultaneously.`,
+    log.warn(
+      `Agent count (${agentCount}) > maxOpenPositions (${maxPositions}). Not all agents can hold positions simultaneously.`,
     );
   }
 
   await session.start();
 
-  console.log("\nListening for trades... (Ctrl+C to stop)\n");
+  log.info("Listening for trades... (Ctrl+C to stop)");
 
   // Graceful shutdown
   const shutdown = () => {
@@ -68,7 +95,7 @@ export async function liveCommand(opts: LiveCommandOptions): Promise<void> {
 
   // Emergency handlers
   process.on("uncaughtException", (err) => {
-    console.error("[CRASH] Uncaught exception:", err);
+    log.error("Crash: Uncaught exception:", err);
     // Save state via session's stop (best effort)
     try {
       const s = session.getManager().getState();
@@ -80,7 +107,7 @@ export async function liveCommand(opts: LiveCommandOptions): Promise<void> {
   });
 
   process.on("unhandledRejection", (reason) => {
-    console.error("[CRASH] Unhandled rejection:", reason);
+    log.error("Crash: Unhandled rejection:", reason);
     try {
       const s = session.getManager().getState();
       session.getStore().save(s.agents, s.portfolioGuardState);

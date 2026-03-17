@@ -35,6 +35,9 @@ import {
   loadCustomStrategiesFromTemplates,
 } from "../strategy/registry.js";
 import { PRESET_TEMPLATES } from "../strategy/template.js";
+import { createLogger } from "../util/logger.js";
+
+const log = createLogger("REVIEW");
 
 export type ReviewCommandOptions = {
   reportOnly?: boolean;
@@ -62,7 +65,7 @@ export async function reviewCommand(opts: ReviewCommandOptions): Promise<void> {
  * Review based on backtest results — works anytime, no live trading needed
  */
 async function backtestReviewCommand(opts: ReviewCommandOptions, date: string): Promise<void> {
-  console.log(`\n=== Backtest Review: ${date} ===\n`);
+  log.info(`\n=== Backtest Review: ${date} ===\n`);
 
   const env = loadEnv();
   const symbols = opts.symbols
@@ -76,20 +79,20 @@ async function backtestReviewCommand(opts: ReviewCommandOptions, date: string): 
   const overrides = loadOverrides();
   if (overrides.length > 0) {
     const { applied, errors } = applyStrategyOverrides(overrides);
-    if (applied > 0) console.log(`Applied ${applied} strategy override(s)`);
-    for (const err of errors) console.warn(`Override error: ${err}`);
+    if (applied > 0) log.info(`Applied ${applied} strategy override(s)`);
+    for (const err of errors) log.warn(`Override error: ${err}`);
   }
   const customTemplates = loadCustomStrategies();
   if (customTemplates.length > 0) {
     const { loaded, errors } = loadCustomStrategiesFromTemplates(customTemplates, overrides);
-    if (loaded > 0) console.log(`Loaded ${loaded} custom strategy(ies)`);
-    for (const err of errors) console.warn(`Custom strategy error: ${err}`);
+    if (loaded > 0) log.info(`Loaded ${loaded} custom strategy(ies)`);
+    for (const err of errors) log.warn(`Custom strategy error: ${err}`);
   }
 
   const strategies = getAllStrategies();
 
-  console.log(`Running backtest: ${strategies.length} strategies x ${symbols.length} symbols`);
-  console.log(
+  log.info(`Running backtest: ${strategies.length} strategies x ${symbols.length} symbols`);
+  log.info(
     `Period: ${periodMonths} months | Timeframe: ${timeframe} | Capital: $${capital.toLocaleString()}\n`,
   );
 
@@ -97,7 +100,7 @@ async function backtestReviewCommand(opts: ReviewCommandOptions, date: string): 
   const buyAndHoldBenchmarks: BuyAndHoldBenchmark[] = [];
 
   for (const symbol of symbols) {
-    console.log(`Fetching data for ${symbol}...`);
+    log.info(`Fetching data for ${symbol}...`);
     const candles = await fetchHistoricalBars(env, {
       symbol,
       timeframe: timeframe as "1Day",
@@ -106,11 +109,11 @@ async function backtestReviewCommand(opts: ReviewCommandOptions, date: string): 
     });
 
     if (candles.length < 50) {
-      console.warn(`  Skipping ${symbol}: only ${candles.length} candles`);
+      log.warn(`  Skipping ${symbol}: only ${candles.length} candles`);
       continue;
     }
 
-    console.log(`  ${candles.length} candles. Running strategies...`);
+    log.info(`  ${candles.length} candles. Running strategies...`);
     const { rankings } = runStrategyBacktests(strategies, symbol, candles, capital);
     allRankings.push(...rankings);
 
@@ -135,10 +138,7 @@ async function backtestReviewCommand(opts: ReviewCommandOptions, date: string): 
   try {
     marketContext = await fetchMarketContext(env, symbols);
   } catch (err) {
-    console.warn(
-      "[review] Failed to fetch market context:",
-      err instanceof Error ? err.message : err,
-    );
+    log.warn("Failed to fetch market context:", err instanceof Error ? err.message : err);
   }
 
   const activeOverrides = loadOverrides();
@@ -151,15 +151,15 @@ async function backtestReviewCommand(opts: ReviewCommandOptions, date: string): 
   });
 
   const { jsonPath, mdPath } = saveReport(report);
-  console.log("\nReport saved:");
-  console.log(`  JSON: ${jsonPath}`);
-  console.log(`  Markdown: ${mdPath}`);
+  log.info("\nReport saved:");
+  log.info(`  JSON: ${jsonPath}`);
+  log.info(`  Markdown: ${mdPath}`);
 
   // Print leaderboard
   printLeaderboard(report);
 
   if (opts.reportOnly) {
-    console.log("\n--report-only mode: skipping LLM review.");
+    log.info("\n--report-only mode: skipping LLM review.");
     return;
   }
 
@@ -171,14 +171,14 @@ async function backtestReviewCommand(opts: ReviewCommandOptions, date: string): 
  * Review based on live/paper trading results
  */
 async function liveReviewCommand(opts: ReviewCommandOptions, date: string): Promise<void> {
-  console.log(`\n=== Daily Review: ${date} ===\n`);
+  log.info(`\n=== Daily Review: ${date} ===\n`);
 
   // Load agent state
   const store = createStateStore();
   const savedState = store.load();
 
   if (!savedState || savedState.agents.length === 0) {
-    console.log("No agent state found. Run 'live' first, or use --from-backtest.");
+    log.info("No agent state found. Run 'live' first, or use --from-backtest.");
     return;
   }
 
@@ -188,7 +188,7 @@ async function liveReviewCommand(opts: ReviewCommandOptions, date: string): Prom
   manager.restoreStates(savedState.agents, strategyMap);
 
   const agents = manager.getAgents();
-  console.log(`Loaded ${agents.length} agents from state.\n`);
+  log.info(`Loaded ${agents.length} agents from state.\n`);
 
   // Fetch market context + Buy & Hold benchmark
   let marketContext: MarketContext[] = [];
@@ -219,17 +219,14 @@ async function liveReviewCommand(opts: ReviewCommandOptions, date: string): Prom
           });
         }
       } catch (err) {
-        console.warn(
-          `[review] Failed to fetch B&H data for ${symbol}:`,
+        log.warn(
+          `Failed to fetch B&H data for ${symbol}:`,
           err instanceof Error ? err.message : err,
         );
       }
     }
   } catch (err) {
-    console.warn(
-      "[review] Could not fetch market context:",
-      err instanceof Error ? err.message : err,
-    );
+    log.warn("Could not fetch market context:", err instanceof Error ? err.message : err);
   }
 
   // Load active overrides
@@ -246,14 +243,14 @@ async function liveReviewCommand(opts: ReviewCommandOptions, date: string): Prom
   });
 
   const { jsonPath, mdPath } = saveReport(report);
-  console.log("Report saved:");
-  console.log(`  JSON: ${jsonPath}`);
-  console.log(`  Markdown: ${mdPath}`);
+  log.info("Report saved:");
+  log.info(`  JSON: ${jsonPath}`);
+  log.info(`  Markdown: ${mdPath}`);
 
   printLeaderboard(report);
 
   if (opts.reportOnly) {
-    console.log("\n--report-only mode: skipping LLM review.");
+    log.info("\n--report-only mode: skipping LLM review.");
     return;
   }
 
@@ -270,24 +267,24 @@ async function runLLMReview(
   date: string,
   backtestRankings?: import("../backtest/scorer.js").ScoredResult[],
 ): Promise<void> {
-  console.log("\n--- LLM Review ---");
+  log.info("\n--- LLM Review ---");
   const historyDays = Number.parseInt(opts.days ?? "7", 10);
   const history = loadRecentReviews(historyDays);
 
   // Evaluate outcomes of past recommendations (with benchmark-relative scoring)
   if (history.length > 0 && report.leaderboard.length > 0) {
     evaluateOutcomes(history, report.leaderboard, report.marketContext);
-    console.log("Evaluated outcomes of past recommendations.");
+    log.info("Evaluated outcomes of past recommendations.");
   }
 
   // Detect and execute auto-rollbacks
   const rollbackCandidates = detectRollbackCandidates(history);
   if (rollbackCandidates.length > 0) {
-    console.log(`\nAuto-rollback candidates: ${rollbackCandidates.join(", ")}`);
+    log.info(`\nAuto-rollback candidates: ${rollbackCandidates.join(", ")}`);
     if (opts.apply) {
       for (const strategyId of rollbackCandidates) {
         if (removeOverride(strategyId)) {
-          console.log(`  Rolled back "${strategyId}" to original preset.`);
+          log.info(`  Rolled back "${strategyId}" to original preset.`);
         }
       }
     }
@@ -301,16 +298,16 @@ async function runLLMReview(
       },
     });
   } catch (err) {
-    console.error("LLM review failed:", err instanceof Error ? err.message : err);
+    log.error("LLM review failed:", err instanceof Error ? err.message : err);
     return;
   }
 
-  console.log(`\nLLM Summary: ${recommendation.summary}`);
-  console.log(`Market Analysis: ${recommendation.marketAnalysis}`);
-  console.log(`Actions proposed: ${recommendation.actions.length}`);
+  log.info(`\nLLM Summary: ${recommendation.summary}`);
+  log.info(`Market Analysis: ${recommendation.marketAnalysis}`);
+  log.info(`Actions proposed: ${recommendation.actions.length}`);
 
   for (const action of recommendation.actions) {
-    console.log(`  - [${action.action}] ${action.reasoning}`);
+    log.info(`  - [${action.action}] ${action.reasoning}`);
   }
 
   // Validate actions
@@ -321,14 +318,14 @@ async function runLLMReview(
   });
 
   if (rejected.length > 0) {
-    console.log(`\nRejected actions (${rejected.length}):`);
+    log.info(`\nRejected actions (${rejected.length}):`);
     for (const r of rejected) {
-      console.log(`  - [${r.action.action}] ${r.reason}`);
+      log.info(`  - [${r.action.action}] ${r.reason}`);
     }
   }
 
   if (valid.length === 0) {
-    console.log("\nNo valid actions to apply.");
+    log.info("\nNo valid actions to apply.");
     const record = {
       date,
       reviewedAt: Date.now(),
@@ -341,7 +338,7 @@ async function runLLMReview(
   }
 
   if (!opts.apply) {
-    console.log(`\n${valid.length} valid action(s) ready. Use --apply to apply them.`);
+    log.info(`\n${valid.length} valid action(s) ready. Use --apply to apply them.`);
     const record = {
       date,
       reviewedAt: Date.now(),
@@ -354,7 +351,7 @@ async function runLLMReview(
   }
 
   // Apply actions
-  console.log(`\n--- Applying ${valid.length} action(s) ---`);
+  log.info(`\n--- Applying ${valid.length} action(s) ---`);
 
   // Fetch backtest data for create_strategy gate
   let backtestCandles: import("trendcraft").NormalizedCandle[] | undefined;
@@ -363,7 +360,7 @@ async function runLLMReview(
     try {
       const env = loadEnv();
       const symbol = "SPY";
-      console.log(`Fetching 3-month backtest data for ${symbol}...`);
+      log.info(`Fetching 3-month backtest data for ${symbol}...`);
       backtestCandles = await fetchHistoricalBars(env, {
         symbol,
         timeframe: "1Day",
@@ -371,27 +368,24 @@ async function runLLMReview(
         end: today(),
       });
     } catch (err) {
-      console.warn(
-        "[review] Could not fetch backtest data:",
-        err instanceof Error ? err.message : err,
-      );
-      console.log("New strategies will be saved without backtest gate.");
+      log.warn("Could not fetch backtest data:", err instanceof Error ? err.message : err);
+      log.info("New strategies will be saved without backtest gate.");
     }
   }
 
   const { applied, rejected: applyRejected } = await applyActions(valid, backtestCandles);
 
-  console.log(`\nApplied: ${applied.length}`);
+  log.info(`\nApplied: ${applied.length}`);
   for (const a of applied) {
-    console.log(
+    log.info(
       `  - [${a.action.action}] ${a.action.reasoning}${a.backtestScore !== undefined ? ` (score: ${a.backtestScore.toFixed(1)})` : ""}`,
     );
   }
 
   if (applyRejected.length > 0) {
-    console.log(`Rejected during apply: ${applyRejected.length}`);
+    log.info(`Rejected during apply: ${applyRejected.length}`);
     for (const r of applyRejected) {
-      console.log(`  - [${r.action.action}] ${r.reason}`);
+      log.info(`  - [${r.action.action}] ${r.reason}`);
     }
   }
 
@@ -404,14 +398,14 @@ async function runLLMReview(
     rejectedActions: [...rejected, ...applyRejected],
   };
   const reviewPath = saveReviewRecord(record);
-  console.log(`\nReview record saved: ${reviewPath}`);
+  log.info(`\nReview record saved: ${reviewPath}`);
 }
 
 function printLeaderboard(report: DailyReport): void {
-  console.log("\n--- Leaderboard ---");
+  log.info("\n--- Leaderboard ---");
   for (const entry of report.leaderboard) {
     const m = entry.metrics;
-    console.log(
+    log.info(
       `  #${entry.rank} ${entry.agentId.padEnd(30)} Score: ${entry.score.toFixed(1).padEnd(6)} Return: ${m.totalReturnPercent.toFixed(2)}%  Sharpe: ${m.sharpeRatio.toFixed(2)}`,
     );
   }
@@ -486,8 +480,8 @@ async function fetchMarketContext(
           ctx.trendDirection = regime.trend;
           ctx.trendStrength = regime.trendStrength;
         } catch (err) {
-          console.warn(
-            `[review] Regime detection failed for ${symbol}:`,
+          log.warn(
+            `Regime detection failed for ${symbol}:`,
             err instanceof Error ? err.message : err,
           );
         }
@@ -495,8 +489,8 @@ async function fetchMarketContext(
 
       results.push(ctx);
     } catch (err) {
-      console.warn(
-        `[review] Failed to fetch market data for ${symbol}:`,
+      log.warn(
+        `Failed to fetch market data for ${symbol}:`,
         err instanceof Error ? err.message : err,
       );
     }

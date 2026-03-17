@@ -3,7 +3,10 @@
  */
 
 import type { StrategyDefinition } from "trendcraft";
+import { createLogger } from "../util/logger.js";
 import { compileTemplate } from "./compiler.js";
+
+const log = createLogger("REGISTRY");
 import { bollingerSqueeze } from "./presets/bollinger-squeeze.js";
 import { bollingerSwingHourly } from "./presets/bollinger-swing-hourly.js";
 import { emaSwingDaily } from "./presets/ema-swing-daily.js";
@@ -44,7 +47,7 @@ for (const template of PRESET_TEMPLATES) {
   if (result.ok) {
     register(result.strategy);
   } else {
-    console.warn(`Failed to compile preset ${template.id}: ${result.error}`);
+    log.warn(`Failed to compile preset ${template.id}: ${result.error}`);
   }
   if (template.marketFilter) {
     marketFilterMap.set(template.id, template.marketFilter);

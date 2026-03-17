@@ -28,6 +28,8 @@ import { createDryRunExecutor } from "../executor/dry-run-executor.js";
 import { createPaperExecutor } from "../executor/paper-executor.js";
 import { formatReconciliation, reconcilePositions } from "../executor/reconciler.js";
 import type { OrderExecutor } from "../executor/types.js";
+import { createWebhookNotifier } from "../notifications/webhook.js";
+import type { WebhookConfig } from "../notifications/webhook.js";
 import {
   createStateStore,
   loadEarningsCache,
@@ -60,7 +62,10 @@ import { createStrategyRotator } from "../strategy/rotator.js";
 import type { RegimeSnapshot, StrategyRotator } from "../strategy/rotator.js";
 import { isSwingStrategy } from "../strategy/template.js";
 import { evaluateAgent, formatLiveLeaderboard, getLeaderboard } from "../tracker/leaderboard.js";
+import { createLogger } from "../util/logger.js";
 import type { TradingEvent } from "./events.js";
+
+const log = createLogger("SESSION");
 
 const DATA_DIR = resolve(import.meta.dirname, "../../data");
 const HEARTBEAT_PATH = resolve(DATA_DIR, "heartbeat.json");
@@ -82,6 +87,8 @@ export type SessionOptions = {
   industry?: string;
   exclude?: string;
   top?: string;
+  /** Webhook configuration for external notifications */
+  webhook?: WebhookConfig;
 };
 
 export type TradingSession = {
@@ -203,20 +210,20 @@ export function createTradingSession(opts: SessionOptions): TradingSession {
       // Dead-man's switch
       const heartbeat = checkStaleHeartbeat();
       if (heartbeat.stale && !opts.dryRun) {
-        console.warn(
-          `[RECOVERY] Stale heartbeat detected (last: ${new Date(heartbeat.lastTime as number).toISOString()})`,
+        log.warn(
+          `Stale heartbeat detected (last: ${new Date(heartbeat.lastTime as number).toISOString()})`,
         );
         const allStrats = getAllStrategies();
         const hasSwing = allStrats.some((s) => isSwingStrategy(s));
         if (hasSwing) {
-          console.warn("[RECOVERY] Swing strategies detected — skipping blanket position close.");
+          log.warn("Swing strategies detected — skipping blanket position close.");
         } else {
-          console.warn("[RECOVERY] Closing all positions from previous session...");
+          log.warn("Closing all positions from previous session...");
           try {
             await client.closeAllPositions();
-            console.warn("[RECOVERY] All positions closed.");
+            log.warn("All positions closed.");
           } catch (err) {
-            console.error("[RECOVERY] Failed to close positions:", err);
+            log.error("Failed to close positions:", err);
           }
         }
       }
@@ -225,15 +232,15 @@ export function createTradingSession(opts: SessionOptions): TradingSession {
       const overrides = loadOverrides();
       if (overrides.length > 0) {
         const { applied, errors } = applyStrategyOverrides(overrides);
-        if (applied > 0) console.log(`Applied ${applied} strategy override(s)`);
-        for (const err of errors) console.warn(`Override error: ${err}`);
+        if (applied > 0) log.info(`Applied ${applied} strategy override(s)`);
+        for (const err of errors) log.warn(`Override error: ${err}`);
       }
 
       const customTemplates = loadCustomStrategies();
       if (customTemplates.length > 0) {
         const { loaded, errors } = loadCustomStrategiesFromTemplates(customTemplates, overrides);
-        if (loaded > 0) console.log(`Loaded ${loaded} custom strategy(ies)`);
-        for (const err of errors) console.warn(`Custom strategy error: ${err}`);
+        if (loaded > 0) log.info(`Loaded ${loaded} custom strategy(ies)`);
+        for (const err of errors) log.warn(`Custom strategy error: ${err}`);
       }
 
       // Determine strategies
@@ -273,7 +280,7 @@ export function createTradingSession(opts: SessionOptions): TradingSession {
           throw new Error("No candidates found. Cannot start live trading.");
         }
         symbols = scanResult.candidates.map((c) => c.symbol);
-        console.log(`[SCAN] Selected ${symbols.length} symbols: ${symbols.join(", ")}`);
+        log.info(`Selected ${symbols.length} symbols: ${symbols.join(", ")}`);
       } else {
         symbols = DEFAULT_SYMBOLS.slice(0, 2);
       }
@@ -286,7 +293,7 @@ export function createTradingSession(opts: SessionOptions): TradingSession {
       marketState = createMarketState();
       const sectorMap = buildSectorMap();
       if (sectorMap.size > 0) {
-        console.log(`Loaded sector map: ${sectorMap.size} symbols`);
+        log.info(`Loaded sector map: ${sectorMap.size} symbols`);
       }
       const earningsGuard = createEarningsGuard({ bufferDays: 2, bufferDaysAfter: 1 });
       manager = createAgentManager({
@@ -305,7 +312,7 @@ export function createTradingSession(opts: SessionOptions): TradingSession {
           const entries = cachedEarnings as import("../risk/earnings-guard.js").EarningsEntry[];
           if (entries.length > 0) {
             earningsGuard.addEarnings(entries);
-            console.log(`Loaded ${entries.length} cached earnings date(s) from today`);
+            log.info(`Loaded ${entries.length} cached earnings date(s) from today`);
           }
         } else {
           const earnings = await fetchEarningsCalendar(
@@ -317,11 +324,11 @@ export function createTradingSession(opts: SessionOptions): TradingSession {
           if (earnings.length > 0) {
             earningsGuard.addEarnings(earnings);
             saveEarningsCache(earnings);
-            console.log(`Loaded ${earnings.length} earnings date(s)`);
+            log.info(`Loaded ${earnings.length} earnings date(s)`);
           }
         }
       } catch {
-        console.warn("Failed to fetch earnings calendar — continuing without it");
+        log.warn("Failed to fetch earnings calendar — continuing without it");
       }
 
       // Load market filters
@@ -346,11 +353,9 @@ export function createTradingSession(opts: SessionOptions): TradingSession {
           for (const id of savedState.deactivatedStrategies) {
             manager.deactivateStrategy(id);
           }
-          console.log(
-            `Restored ${savedState.deactivatedStrategies.length} deactivated strategy(ies)`,
-          );
+          log.info(`Restored ${savedState.deactivatedStrategies.length} deactivated strategy(ies)`);
         }
-        console.log(
+        log.info(
           `Restored ${activeAgents.length} agents from saved state${skipped > 0 ? ` (${skipped} skipped)` : ""}`,
         );
       }
@@ -363,7 +368,7 @@ export function createTradingSession(opts: SessionOptions): TradingSession {
           if (existingAgentIds.has(agentId)) continue;
 
           const { timeframe, lookbackMonths } = getWarmUpTimeframe(strategy.intervalMs);
-          console.log(`Fetching warm-up data for ${strategy.id}:${symbol} (${timeframe})...`);
+          log.info(`Fetching warm-up data for ${strategy.id}:${symbol} (${timeframe})...`);
           const warmUp = await fetchCachedBars(env, {
             symbol,
             timeframe,
@@ -374,7 +379,7 @@ export function createTradingSession(opts: SessionOptions): TradingSession {
 
           manager.addAgent(strategy, symbol, warmUp);
           emit({ type: "agent-created", agentId, symbol, strategyId: strategy.id });
-          console.log(`  Agent created: ${agentId} (${warmUp.length} warm-up candles)`);
+          log.info(`  Agent created: ${agentId} (${warmUp.length} warm-up candles)`);
         }
       }
 
@@ -386,7 +391,7 @@ export function createTradingSession(opts: SessionOptions): TradingSession {
             cachedOverrides as import("../strategy/template.js").ParameterOverride[],
           );
           if (applied > 0) {
-            console.log(`[OPTIMIZER] Applied ${applied} cached optimization(s) from today`);
+            log.info(`Optimizer: Applied ${applied} cached optimization(s) from today`);
           }
         } else {
           const { getPresetTemplate } = await import("../strategy/template.js");
@@ -411,14 +416,14 @@ export function createTradingSession(opts: SessionOptions): TradingSession {
               saveOptimizerCache(pfOverrides);
               const { applied } = applyStrategyOverrides(pfOverrides);
               if (applied > 0) {
-                console.log(`[OPTIMIZER] Applied ${applied} preflight optimization(s)`);
+                log.info(`Optimizer: Applied ${applied} preflight optimization(s)`);
               }
             }
           }
         }
       } catch (err) {
-        console.warn(
-          `[OPTIMIZER] Preflight optimization failed: ${err instanceof Error ? err.message : err}`,
+        log.warn(
+          `Optimizer: Preflight optimization failed: ${err instanceof Error ? err.message : err}`,
         );
       }
 
@@ -439,18 +444,18 @@ export function createTradingSession(opts: SessionOptions): TradingSession {
         try {
           const result = await reconcilePositions(client, manager);
           if (result.discrepancies.length > 0 || result.orphanedPositions.length > 0) {
-            console.warn("[STARTUP] Position discrepancies detected:");
-            console.warn(formatReconciliation(result));
+            log.warn("Position discrepancies detected:");
+            log.warn(formatReconciliation(result));
             emit({
               type: "reconciliation",
               discrepancies: result.discrepancies.length,
               orphaned: result.orphanedPositions.length,
             });
           } else {
-            console.log("[STARTUP] Position reconciliation OK — no discrepancies.");
+            log.info("Position reconciliation OK — no discrepancies.");
           }
         } catch (err) {
-          console.error("[STARTUP] Reconciliation failed:", err);
+          log.error("Reconciliation failed:", err);
         }
       }
 
@@ -502,11 +507,11 @@ export function createTradingSession(opts: SessionOptions): TradingSession {
       leaderboardTimer = setInterval(() => {
         const agents = manager.getAgents();
         const board = getLeaderboard(agents);
-        console.log(formatLiveLeaderboard(board));
+        log.info(formatLiveLeaderboard(board));
         for (const agent of agents) {
           const decision = evaluateAgent(agent);
           if (decision.action !== "hold") {
-            console.log(`  [${decision.action.toUpperCase()}] ${agent.id}: ${decision.reason}`);
+            log.info(`  [${decision.action.toUpperCase()}] ${agent.id}: ${decision.reason}`);
           }
         }
         emit({ type: "leaderboard-updated" });
@@ -522,7 +527,7 @@ export function createTradingSession(opts: SessionOptions): TradingSession {
             );
           }
           const time = new Date().toLocaleTimeString("en-US", { hour12: false });
-          console.log(`[TICKER ${time}] ${parts.join(" | ")}`);
+          log.debug(`Ticker ${time}: ${parts.join(" | ")}`);
           for (const stat of tickerStats.values()) {
             stat.count = 0;
             stat.volume = 0;
@@ -535,7 +540,7 @@ export function createTradingSession(opts: SessionOptions): TradingSession {
           try {
             const result = await reconcilePositions(client, manager);
             if (result.discrepancies.length > 0 || result.orphanedPositions.length > 0) {
-              console.warn(formatReconciliation(result));
+              log.warn(formatReconciliation(result));
               emit({
                 type: "reconciliation",
                 discrepancies: result.discrepancies.length,
@@ -543,7 +548,7 @@ export function createTradingSession(opts: SessionOptions): TradingSession {
               });
             }
           } catch (err) {
-            console.error("[RECONCILE] Error:", err);
+            log.error("Reconcile error:", err);
           }
         }, INTERVALS.reconcileMs);
       }
@@ -587,14 +592,14 @@ export function createTradingSession(opts: SessionOptions): TradingSession {
             const { activate, deactivate } = rot.onRegimeChange(regime);
             for (const id of deactivate) {
               manager.deactivateStrategy(id);
-              console.log(
-                `[ROTATION] Deactivated: ${id} (regime: ${regime.trend}, ADX~${regime.trendStrength})`,
+              log.info(
+                `Rotation: Deactivated: ${id} (regime: ${regime.trend}, ADX~${regime.trendStrength})`,
               );
             }
             for (const id of activate) {
               manager.activateStrategy(id);
-              console.log(
-                `[ROTATION] Activated: ${id} (regime: ${regime.trend}, ADX~${regime.trendStrength})`,
+              log.info(
+                `Rotation: Activated: ${id} (regime: ${regime.trend}, ADX~${regime.trendStrength})`,
               );
             }
             if (activate.length > 0 || deactivate.length > 0) {
@@ -610,11 +615,11 @@ export function createTradingSession(opts: SessionOptions): TradingSession {
         cancelReview = scheduleReview({
           onReview: () => executeReviewCycle({ apply: true }),
           onError: (err) => {
-            console.error("[SCHEDULER] Review error:", err);
+            log.error("Scheduler: Review error:", err);
             emit({ type: "error", message: String(err), source: "review-scheduler" });
           },
         });
-        console.log("Auto-review scheduler enabled (16:05 ET daily).");
+        log.info("Auto-review scheduler enabled (16:05 ET daily).");
       }
 
       // Intra-session review scheduler
@@ -627,7 +632,7 @@ export function createTradingSession(opts: SessionOptions): TradingSession {
             intraReviewNumber++;
             const reviewNum = intraReviewNumber;
             emit({ type: "review-started", reviewType: "intra-session", reviewNumber: reviewNum });
-            console.log(`\n[INTRA] Starting intra-session review #${reviewNum}...`);
+            log.info(`Intra: Starting intra-session review #${reviewNum}...`);
 
             const report = buildIntraSessionReport(
               manager,
@@ -640,13 +645,13 @@ export function createTradingSession(opts: SessionOptions): TradingSession {
             try {
               recommendation = await reviewIntraSession(report);
             } catch (err) {
-              console.error("[INTRA] LLM call failed:", err instanceof Error ? err.message : err);
+              log.error("Intra: LLM call failed:", err instanceof Error ? err.message : err);
               emit({ type: "error", message: String(err), source: "intra-review" });
               return;
             }
 
-            console.log(`[INTRA] Summary: ${recommendation.summary}`);
-            console.log(`[INTRA] Actions proposed: ${recommendation.actions.length}`);
+            log.info(`Intra: Summary: ${recommendation.summary}`);
+            log.info(`Intra: Actions proposed: ${recommendation.actions.length}`);
 
             const todayIntraReviews = loadTodayIntraSessionReviews();
             const agentPositions = new Map<string, boolean>();
@@ -665,9 +670,9 @@ export function createTradingSession(opts: SessionOptions): TradingSession {
             );
 
             if (rejected.length > 0) {
-              console.log(`[INTRA] Rejected: ${rejected.length}`);
+              log.info(`Intra: Rejected: ${rejected.length}`);
               for (const r of rejected) {
-                console.log(`  - [${r.action.action}] ${r.reason}`);
+                log.info(`  - [${r.action.action}] ${r.reason}`);
               }
             }
 
@@ -700,7 +705,7 @@ export function createTradingSession(opts: SessionOptions): TradingSession {
               rejectedActions,
             };
             const path = saveIntraSessionRecord(record);
-            console.log(`[INTRA] Review #${reviewNum} saved: ${path}`);
+            log.info(`Intra: Review #${reviewNum} saved: ${path}`);
             emit({
               type: "review-completed",
               reviewType: "intra-session",
@@ -711,13 +716,20 @@ export function createTradingSession(opts: SessionOptions): TradingSession {
             saveState();
           },
           onError: (err) => {
-            console.error("[INTRA] Scheduler error:", err);
+            log.error("Intra: Scheduler error:", err);
             emit({ type: "error", message: String(err), source: "intra-scheduler" });
           },
         });
-        console.log(
+        log.info(
           `Intra-session review enabled (every ${Number.parseInt(opts.intraInterval ?? "30", 10)}min during market hours).`,
         );
+      }
+
+      // Register webhook notifier if configured
+      if (opts.webhook?.url) {
+        const webhookNotifier = createWebhookNotifier(opts.webhook);
+        eventHandlers.add(webhookNotifier);
+        log.info(`Webhook notifications enabled → ${opts.webhook.url}`);
       }
 
       running = true;
@@ -727,7 +739,7 @@ export function createTradingSession(opts: SessionOptions): TradingSession {
 
     async stop() {
       if (!running) return;
-      console.log("\nShutting down...");
+      log.info("Shutting down...");
 
       if (heartbeatTimer) clearInterval(heartbeatTimer);
       if (saveTimer) clearInterval(saveTimer);
@@ -743,7 +755,7 @@ export function createTradingSession(opts: SessionOptions): TradingSession {
       for (const agent of agents) {
         const strategy = getStrategy(agent.strategyId);
         if (strategy && isSwingStrategy(strategy)) {
-          console.log(`[SHUTDOWN] Keeping position for swing agent: ${agent.id}`);
+          log.info(`Shutdown: Keeping position for swing agent: ${agent.id}`);
           continue;
         }
         const { intents } = agent.close();
@@ -755,7 +767,7 @@ export function createTradingSession(opts: SessionOptions): TradingSession {
       saveState();
 
       const board = getLeaderboard(manager.getAgents());
-      console.log(formatLiveLeaderboard(board));
+      log.info(formatLiveLeaderboard(board));
 
       if (ws) ws.close();
 

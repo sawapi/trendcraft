@@ -7,6 +7,8 @@
 
 import { Command } from "commander";
 import { backtestCommand } from "./commands/backtest.js";
+import { initCommand } from "./commands/init.js";
+import { listCommand } from "./commands/list.js";
 import { liveCommand } from "./commands/live.js";
 import { preflightCommand } from "./commands/preflight.js";
 import { promoteCommand } from "./commands/promote.js";
@@ -19,13 +21,34 @@ import { getUniverseIds } from "./config/universe.js";
 import { getAllIndustries, getAllSectors } from "./sec/index.js";
 import { getStrategyIds } from "./strategy/registry.js";
 import { consoleCommand } from "./tui/index.js";
+import { setJsonOutput, setLogLevel } from "./util/logger.js";
+import type { LogLevel } from "./util/logger.js";
 
 const program = new Command();
 
 program
   .name("alpaca-demo")
   .description("Multi-agent paper trading system using TrendCraft + Alpaca")
-  .version("0.1.0");
+  .version("0.1.0")
+  .option("--log-level <level>", "Log level: debug, info, warn, error", "info")
+  .option("--log-json", "Emit structured JSON log lines");
+
+// Apply global options before any command runs
+program.hook("preAction", (thisCommand) => {
+  const opts = thisCommand.opts();
+  if (opts.logLevel) {
+    setLogLevel(opts.logLevel as LogLevel);
+  }
+  if (opts.logJson) {
+    setJsonOutput(true);
+  }
+});
+
+program
+  .command("list")
+  .description("List available strategies, universes, or other resources")
+  .argument("<target>", "What to list: strategies, universes")
+  .action(listCommand);
 
 program
   .command("backtest")
@@ -62,6 +85,7 @@ program
   .option("-n, --top <n>", "Number of top symbols from scan", "5")
   .option("--no-intra-review", "Disable intra-session LLM reviews")
   .option("--intra-interval <min>", "Intra-session review interval in minutes", "30")
+  .option("--config <path>", "Trading config file (default: data/trading.json)")
   .action(liveCommand);
 
 program
@@ -154,7 +178,13 @@ program
   )
   .option("--exclude <file>", "Exclude symbols file (default: data/exclude-symbols.txt)")
   .option("-n, --top <n>", "Number of top symbols from scan", "5")
+  .option("--config <path>", "Trading config file (default: data/trading.json)")
   .action(consoleCommand);
+
+program
+  .command("init")
+  .description("Initialize project with default trading.json config and preflight guidance")
+  .action(initCommand);
 
 program
   .command("update-universe")

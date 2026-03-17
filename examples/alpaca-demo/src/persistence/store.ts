@@ -9,6 +9,9 @@ import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import type { streaming } from "trendcraft";
 import type { AgentState } from "../agent/types.js";
+import { createLogger } from "../util/logger.js";
+
+const log = createLogger("STORE");
 
 export type PersistentState = {
   version: 1;
@@ -56,7 +59,7 @@ export function createStateStore(path: string = DEFAULT_PATH): StateStore {
       writeFileSync(tmpPath, json, "utf-8");
       renameSync(tmpPath, path);
 
-      console.log(`[STORE] State saved (${agents.length} agents) at ${new Date().toISOString()}`);
+      log.info(`State saved (${agents.length} agents) at ${new Date().toISOString()}`);
     },
 
     load(): PersistentState | null {
@@ -66,15 +69,15 @@ export function createStateStore(path: string = DEFAULT_PATH): StateStore {
         const json = readFileSync(path, "utf-8");
         const state = JSON.parse(json) as PersistentState;
         if (state.version !== 1) {
-          console.warn(`[STORE] Unknown state version: ${state.version}`);
+          log.warn(`Unknown state version: ${state.version}`);
           return null;
         }
-        console.log(
-          `[STORE] State loaded (${state.agents.length} agents, saved at ${new Date(state.savedAt).toISOString()})`,
+        log.info(
+          `State loaded (${state.agents.length} agents, saved at ${new Date(state.savedAt).toISOString()})`,
         );
         return state;
       } catch (err) {
-        console.error("[STORE] Failed to load state:", err);
+        log.error("Failed to load state:", err);
         return null;
       }
     },

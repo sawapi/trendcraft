@@ -9,6 +9,9 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { loadSecUniverse, warnIfStale } from "../sec/index.js";
 import type { IndustryId, SectorId } from "../sec/index.js";
+import { createLogger } from "../util/logger.js";
+
+const log = createLogger("UNIVERSE");
 
 const DEFAULT_EXCLUDE_FILE = resolve(import.meta.dirname, "../../data/exclude-symbols.txt");
 
@@ -153,7 +156,7 @@ export function getUniverse(id: string, sector?: string, industry?: string): str
 function getSecSymbols(sector?: SectorId, industry?: IndustryId): string[] | null {
   const data = loadSecUniverse();
   if (!data) {
-    console.error("SEC universe cache not found. Run 'update-universe' first.");
+    log.error("SEC universe cache not found. Run 'update-universe' first.");
     return null;
   }
   warnIfStale();
@@ -196,7 +199,7 @@ export function loadExcludeList(filePath?: string): Set<string> {
   }
 
   if (symbols.size > 0) {
-    console.log(`Excluding ${symbols.size} symbols from ${path}`);
+    log.info(`Excluding ${symbols.size} symbols from ${path}`);
   }
   return symbols;
 }
