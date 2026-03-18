@@ -12,13 +12,15 @@ Provides technical indicators, signal detection, backtesting, and optimization.
 ```
 src/
 ├── core/           # Data normalization, MTF context
-├── indicators/     # Technical indicators (68+)
+├── indicators/     # Technical indicators (80+)
 │   ├── moving-average/  # SMA, EMA, WMA, VWMA, KAMA, T3, HMA, McGinley Dynamic, EMA Ribbon
 │   ├── momentum/        # RSI, MACD, Stochastics, DMI/ADX, CCI, ROC, Connors RSI, IMI, ADXR
 │   ├── trend/           # Ichimoku, Supertrend, Parabolic SAR
 │   ├── volatility/      # Bollinger Bands, ATR, Keltner, Donchian, Choppiness Index
-│   ├── volume/          # OBV, MFI, VWAP (Bands), CMF, Volume Profile, Anchored VWAP, Elder Force Index, EMV, Klinger, TWAP, Weis Wave, Market Profile
-│   ├── price/           # Swing Points, Pivot, FVG, BOS, CHoCH, ORB, Gap Analysis
+│   ├── volume/          # OBV, MFI, VWAP (Bands), CMF, Volume Profile, Anchored VWAP, Elder Force Index, EMV, Klinger, TWAP, Weis Wave, Market Profile, CVD
+│   ├── price/           # Swing Points, Pivot, FVG, BOS, CHoCH, ORB, Gap Analysis, S/R Zone Clustering
+│   ├── session/         # ICT Kill Zones, Session Analytics, Session Breakout
+│   ├── regime/          # HMM Regime Detection (Baum-Welch, Viterbi)
 │   ├── relative-strength/
 │   └── smc/             # Order Block, Liquidity Sweep
 ├── signals/        # Signal detection (crosses, divergence, patterns)
@@ -73,13 +75,25 @@ pnpm format       # Prettier
 import { sma, ema, rsi, macd, bollingerBands, atr } from "trendcraft";
 
 // Signal detection
-import { detectCrosses, detectDivergence } from "trendcraft";
+import { detectCrosses, detectDivergence, cvdDivergence } from "trendcraft";
 
 // Backtesting
 import { backtest, and, or, goldenCross, rsiBelow } from "trendcraft";
 
 // Optimization
 import { gridSearch, walkForwardAnalysis } from "trendcraft";
+
+// Order Flow & Volume Delta
+import { cvd, cvdWithSignal } from "trendcraft";
+
+// S/R Zone Clustering
+import { srZones, srZonesSeries } from "trendcraft";
+
+// Session / Kill Zones
+import { detectSessions, killZones, sessionBreakout, sessionStats } from "trendcraft";
+
+// HMM Regime Detection
+import { hmmRegimes, fitHmm, regimeTransitionMatrix } from "trendcraft";
 ```
 
 ## examples/

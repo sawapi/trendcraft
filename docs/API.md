@@ -10,11 +10,15 @@
   - [Volume](#volume)
   - [Relative Strength](#relative-strength)
   - [Price](#price)
+  - [S/R Zone Clustering](#sr-zone-clustering)
   - [Fibonacci Retracement](#fibonacci-retracement)
   - [Smart Money Concepts (SMC)](#smart-money-concepts-smc)
+  - [Session / Kill Zones](#session--kill-zones)
+  - [HMM Regime Detection](#hmm-regime-detection)
 - [Signals](#signals)
   - [Cross Detection](#cross-detection)
   - [Divergence Detection](#divergence-detection)
+  - [CVD Divergence](#cvd-divergence)
   - [Squeeze Detection](#squeeze-detection)
   - [Range-Bound Detection](#range-bound-detection)
   - [Price Patterns](#price-patterns)
@@ -1146,6 +1150,136 @@ interface MarketProfileValue {
 
 ---
 
+#### `cvd(candles)`
+
+Cumulative Volume Delta — estimates buying vs selling pressure by measuring where the close falls within each bar's range, then accumulates the delta.
+
+```typescript
+const cvdData = cvd(candles);
+const currentCvd = cvdData[i].value;
+
+// CVD increasing = net buying pressure
+if (cvdData[i].value > cvdData[i - 1].value) {
+  // Buying pressure dominant
+}
+```
+
+**Calculation:**
+- `buyVolume = volume × (close - low) / (high - low)`
+- `sellVolume = volume - buyVolume`
+- `delta = buyVolume - sellVolume`
+- `CVD = running sum of delta`
+
+**Returns:** `Series<number>`
+
+**Interpretation:**
+- Rising CVD: Net buying pressure (accumulation)
+- Falling CVD: Net selling pressure (distribution)
+- CVD diverging from price signals potential reversal
+- Doji (range = 0): delta = 0
+
+---
+
+#### `cvdWithSignal(candles, options)`
+
+CVD with optional EMA smoothing and a signal line.
+
+```typescript
+const data = cvdWithSignal(candles, { smoothing: 5, signalPeriod: 9 });
+const last = data[data.length - 1].value;
+
+// CVD crossing above signal = bullish
+if (last.cvd > last.signal!) {
+  // Bullish momentum
+}
+```
+
+**Options:**
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `smoothing` | `number` | `1` | EMA smoothing period for CVD (1 = no smoothing) |
+| `signalPeriod` | `number` | `9` | EMA period for the signal line |
+
+**Returns:** `Series<CvdWithSignalValue>`
+
+```typescript
+interface CvdWithSignalValue {
+  cvd: number;              // CVD value (optionally smoothed)
+  signal: number | null;    // Signal line (EMA of CVD), null during warmup
+}
+```
+
+---
+
+### S/R Zone Clustering
+
+#### `srZones(candles, options)`
+
+Identifies support and resistance zones by collecting price levels from multiple sources and clustering them using K-means++. Each zone is scored by touch count, source diversity, and recency.
+
+```typescript
+const result = srZones(candles);
+console.log(result.zones[0]);
+// { price: 100.5, low: 99.8, high: 101.2, touchCount: 5,
+//   sourceDiversity: 3, sources: ['swing', 'pivot', 'round'], strength: 85 }
+```
+
+**Sources collected:**
+- **Swing points**: Swing highs and lows
+- **Pivot points**: PP, R1, R2, S1, S2
+- **VWAP**: Last VWAP value
+- **Volume Profile**: POC, Value Area High/Low
+- **Round numbers**: Auto-detected interval based on price range
+- **Custom levels**: User-provided price levels
+
+**Options:**
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `numZones` | `number` | `auto` | Number of zones (auto: `min(max(3, levels/3), 15)`) |
+| `zoneWidth` | `number` | `0.5` | ATR multiplier for zone width |
+| `includeRoundNumbers` | `boolean` | `true` | Include round number levels |
+| `includeSwingPoints` | `boolean` | `true` | Include swing point levels |
+| `includePivotPoints` | `boolean` | `true` | Include pivot point levels |
+| `includeVwap` | `boolean` | `true` | Include VWAP level |
+| `includeVolumeProfile` | `boolean` | `true` | Include volume profile levels |
+| `customLevels` | `number[]` | `[]` | Custom price levels |
+| `swingLookback` | `number` | `5` | Swing point lookback bars |
+| `maxIterations` | `number` | `50` | Max K-means iterations |
+
+**Returns:** `SrZonesResult`
+
+```typescript
+interface SrZonesResult {
+  zones: SrZone[];              // Zones sorted by strength descending
+  rawLevels: PriceLevelSource[];  // All raw levels before clustering
+}
+
+interface SrZone {
+  price: number;          // Weighted centroid
+  low: number;            // Lower boundary (centroid − zoneWidth × ATR)
+  high: number;           // Upper boundary (centroid + zoneWidth × ATR)
+  touchCount: number;     // Number of raw levels in cluster
+  sourceDiversity: number; // Number of unique source types
+  sources: string[];      // List of unique source types
+  strength: number;       // Score 0-100 (touchCount 40% + diversity 40% + recency 20%)
+}
+```
+
+---
+
+#### `srZonesSeries(candles, options)`
+
+Rolling version of `srZones` — computes zones at each bar using a lookback window.
+
+```typescript
+const series = srZonesSeries(candles, { numZones: 5 });
+const currentZones = series[series.length - 1].value;
+```
+
+**Returns:** `Series<SrZone[]>`
+
+---
+
 ### Relative Strength
 
 #### `benchmarkRS(candles, benchmark, options)`
@@ -1753,6 +1887,258 @@ if (hasRecentSweepSignal(candles, "bullish")) {
 
 ---
 
+### Session / Kill Zones
+
+ICT-standard session detection, kill zone identification, session statistics, and session breakout detection. All times are in UTC (ET = UTC-5, DST ignored).
+
+#### `getIctSessions()`
+
+Returns the 4 standard ICT sessions in UTC.
+
+```typescript
+const sessions = getIctSessions();
+// [{ name: 'Asia', startHour: 0, startMinute: 0, endHour: 5, endMinute: 0 },
+//  { name: 'London', startHour: 7, ... }, { name: 'NY AM', ... }, { name: 'NY PM', ... }]
+```
+
+| Session | UTC Time | ET Time | Characteristics |
+|---------|----------|---------|----------------|
+| Asia | 00:00-05:00 | 19:00-00:00 | Low liquidity, range formation |
+| London | 07:00-10:00 | 02:00-05:00 | European entry, fakeouts |
+| NY AM | 13:30-16:00 | 08:30-11:00 | Maximum liquidity |
+| NY PM | 18:30-21:00 | 13:30-16:00 | Reversals common |
+
+---
+
+#### `defineSession(name, startHour, startMinute, endHour, endMinute)`
+
+Factory function to create custom session definitions.
+
+```typescript
+const preMarket = defineSession('Pre-Market', 9, 0, 13, 30);
+```
+
+---
+
+#### `detectSessions(candles, sessions?)`
+
+For each candle, determine which session it belongs to and track session OHLC.
+
+```typescript
+const sessionData = detectSessions(candles);
+const bar = sessionData[i].value;
+if (bar.inSession) {
+  console.log(`In ${bar.session}, high so far: ${bar.sessionHigh}`);
+}
+```
+
+**Returns:** `Series<SessionInfo>`
+
+```typescript
+interface SessionInfo {
+  session: string | null;       // Session name (null if outside all sessions)
+  inSession: boolean;           // Whether in any defined session
+  barIndex: number;             // Bar index within current session (0-based)
+  sessionOpen: number | null;   // Session open price
+  sessionHigh: number | null;   // Session high so far
+  sessionLow: number | null;    // Session low so far
+}
+```
+
+---
+
+#### `sessionStats(candles, options?)`
+
+Compute per-session aggregate statistics over a lookback period.
+
+```typescript
+const stats = sessionStats(candles, { lookback: 20 });
+stats.forEach(s => {
+  console.log(`${s.session}: avgRange=${s.avgRange.toFixed(2)}, bullish=${(s.bullishPercent * 100).toFixed(0)}%`);
+});
+```
+
+**Options:**
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `sessions` | `SessionDefinition[]` | ICT sessions | Session definitions |
+| `lookback` | `number` | `20` | Number of session occurrences to analyze |
+
+**Returns:** `SessionStatsValue[]`
+
+```typescript
+interface SessionStatsValue {
+  session: string;        // Session name
+  avgRange: number;       // Average range per session occurrence
+  avgVolume: number;      // Average volume per session occurrence
+  bullishPercent: number; // Percentage of bullish bars (close > open)
+  barCount: number;       // Total bar count across all occurrences
+}
+```
+
+---
+
+#### `getIctKillZones()`
+
+Returns the 4 standard ICT Kill Zones in UTC with characteristic descriptions.
+
+```typescript
+const zones = getIctKillZones();
+// [{ name: 'Asian KZ', ..., characteristic: 'Range formation, accumulation' }, ...]
+```
+
+| Kill Zone | UTC Time | Characteristic |
+|-----------|----------|---------------|
+| Asian KZ | 00:00-05:00 | Range formation, accumulation |
+| London Open KZ | 07:00-09:00 | Fakeouts, stop hunts, initial move |
+| NY Open KZ | 12:00-14:00 | Maximum liquidity, strongest moves |
+| London Close KZ | 15:00-17:00 | Reversals, profit taking |
+
+---
+
+#### `killZones(candles, zones?)`
+
+For each candle, determine if it falls within a kill zone.
+
+```typescript
+const kz = killZones(candles);
+if (kz[i].value.inKillZone) {
+  console.log(`In ${kz[i].value.zone}: ${kz[i].value.characteristic}`);
+}
+```
+
+**Returns:** `Series<KillZoneValue>`
+
+```typescript
+interface KillZoneValue {
+  zone: string | null;             // Kill zone name (null if outside)
+  inKillZone: boolean;             // Whether in any kill zone
+  characteristic: string | null;   // Expected behavior description
+}
+```
+
+---
+
+#### `sessionBreakout(candles, options?)`
+
+Detect breakouts above/below the most recently completed session's range.
+
+```typescript
+const breakouts = sessionBreakout(candles);
+if (breakouts[i].value.breakout === 'above') {
+  console.log(`Broke above ${breakouts[i].value.fromSession} high at ${breakouts[i].value.rangeHigh}`);
+}
+```
+
+**Returns:** `Series<SessionBreakoutValue>`
+
+```typescript
+interface SessionBreakoutValue {
+  fromSession: string | null;             // Previous session name
+  breakout: 'above' | 'below' | null;    // Breakout direction
+  rangeHigh: number | null;              // Previous session high
+  rangeLow: number | null;               // Previous session low
+}
+```
+
+---
+
+### HMM Regime Detection
+
+Hidden Markov Model for probabilistic market regime classification. Pure TypeScript implementation (Baum-Welch / Viterbi) with zero external dependencies.
+
+#### `hmmRegimes(candles, options?)`
+
+Detect market regimes using a Gaussian HMM. Extracts features (returns, volatility, volume ratio, range, body ratio), fits the model with EM, and decodes the most likely state sequence.
+
+```typescript
+const regimes = hmmRegimes(candles, { numStates: 3, seed: 42 });
+const current = regimes[regimes.length - 1].value;
+console.log(`Regime: ${current.label}, P=${current.probabilities}`);
+// Regime: "trending-up", P=[0.02, 0.08, 0.90]
+```
+
+**Options:**
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `numStates` | `number` | `3` | Number of regime states |
+| `maxIterations` | `number` | `100` | Max EM iterations |
+| `seed` | `number` | `42` | Random seed for reproducibility |
+| `numRestarts` | `number` | `5` | Random restarts to avoid local optima |
+| `featureOptions` | `FeatureOptions` | `{}` | Feature extraction settings |
+
+**Feature Options:**
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `returnLookback` | `number` | `1` | Return calculation lookback |
+| `volatilityWindow` | `number` | `20` | Rolling volatility window |
+| `volumeWindow` | `number` | `20` | Volume ratio window |
+
+**Returns:** `Series<HmmRegimeValue>`
+
+```typescript
+interface HmmRegimeValue {
+  regime: number;           // Regime index (0-based)
+  label: string;            // "trending-up" | "ranging" | "trending-down" (3 states)
+  probabilities: number[];  // State probabilities at this time step
+  logLikelihood: number;    // Log-likelihood of the fitted model
+}
+```
+
+**Labels (3-state model):** States are sorted by mean return — lowest = "trending-down", middle = "ranging", highest = "trending-up". For N ≠ 3, labels are "state-0", "state-1", etc.
+
+---
+
+#### `fitHmm(candles, options?)`
+
+Fit the HMM without decoding — returns the trained model for analysis.
+
+```typescript
+const model = fitHmm(candles, { numStates: 3 });
+console.log(`Log-likelihood: ${model.logLikelihood}`);
+console.log(`Converged: ${model.converged}`);
+```
+
+**Returns:** `HmmModel`
+
+```typescript
+interface HmmModel {
+  numStates: number;
+  pi: number[];                    // Initial state probabilities
+  transitionMatrix: number[][];    // A[i][j] = P(state j | state i)
+  emissionMeans: number[][];       // means[state][feature]
+  emissionVariances: number[][];   // variances[state][feature]
+  logLikelihood: number;
+  converged: boolean;
+}
+```
+
+---
+
+#### `regimeTransitionMatrix(model, labels?)`
+
+Extract transition analysis from a fitted model.
+
+```typescript
+const model = fitHmm(candles);
+const info = regimeTransitionMatrix(model);
+console.log(`Expected durations: ${info.expectedDurations}`);
+console.log(`Stationary distribution: ${info.stationaryDistribution}`);
+```
+
+**Returns:** `RegimeTransitionInfo`
+
+```typescript
+interface RegimeTransitionInfo {
+  matrix: number[][];             // Transition probability matrix
+  labels: string[];               // Labels for each state
+  expectedDurations: number[];    // Expected bars in each state: 1 / (1 - self-transition)
+  stationaryDistribution: number[]; // Long-run state probabilities
+}
+```
+
+---
+
 ## Signals
 
 ### Cross Detection
@@ -1855,6 +2241,22 @@ Detect MACD divergence.
 
 ```typescript
 const signals = macdDivergence(candles);
+```
+
+---
+
+### CVD Divergence
+
+#### `cvdDivergence(candles, options)`
+
+Detect divergence between price and Cumulative Volume Delta (CVD). Uses `detectDivergence()` internally.
+
+```typescript
+const signals = cvdDivergence(candles);
+const bullish = signals.filter(s => s.type === 'bullish');
+// Bullish: price lower low, CVD higher low → buying pressure building
+const bearish = signals.filter(s => s.type === 'bearish');
+// Bearish: price higher high, CVD lower high → selling pressure building
 ```
 
 ---
