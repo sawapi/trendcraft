@@ -33,6 +33,8 @@ export {
   type DivergenceOptions,
 } from "./divergence";
 
+export { cvdDivergence } from "./cvd-divergence";
+
 export {
   bollingerSqueeze,
   type SqueezeSignal,

@@ -195,6 +195,8 @@ export {
   marketProfile,
   pvt,
   nvi,
+  cvd,
+  cvdWithSignal,
   // Price
   highestLowest,
   highest,
@@ -400,6 +402,8 @@ export type {
   MarketProfileOptions,
   MarketProfileValue,
   NviOptions,
+  CvdWithSignalOptions,
+  CvdWithSignalValue,
   SuperSmootherOptions,
   RoofingFilterOptions,
   // Adaptive Indicator types
@@ -520,6 +524,7 @@ export {
   obvDivergence,
   rsiDivergence,
   macdDivergence,
+  cvdDivergence,
   detectDivergence,
   bollingerSqueeze,
   perfectOrder,

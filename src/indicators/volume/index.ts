@@ -47,3 +47,5 @@ export type { MarketProfileOptions, MarketProfileValue } from "./market-profile"
 export { pvt } from "./pvt";
 export { nvi } from "./nvi";
 export type { NviOptions } from "./nvi";
+export { cvd, cvdWithSignal } from "./cvd";
+export type { CvdWithSignalOptions, CvdWithSignalValue } from "./cvd";

@@ -155,6 +155,8 @@ export {
   marketProfile,
   pvt,
   nvi,
+  cvd,
+  cvdWithSignal,
 } from "./volume";
 export type {
   VolumeMaOptions,
@@ -178,6 +180,8 @@ export type {
   MarketProfileOptions,
   MarketProfileValue,
   NviOptions,
+  CvdWithSignalOptions,
+  CvdWithSignalValue,
 } from "./volume";
 
 // Price
