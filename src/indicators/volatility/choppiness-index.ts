@@ -49,8 +49,8 @@ export function choppinessIndex(
 ): Series<number | null> {
   const { period = 14 } = options;
 
-  if (period < 1) {
-    throw new Error("Choppiness Index period must be at least 1");
+  if (period < 2) {
+    throw new Error("Choppiness Index period must be at least 2");
   }
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);

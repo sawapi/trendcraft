@@ -15,10 +15,13 @@ describe("choppinessIndex", () => {
       volume: 1000,
     }));
 
-  it("should throw if period is less than 1", () => {
+  it("should throw if period is less than 2", () => {
     const candles = makeCandles([{ high: 110, low: 90, close: 100 }]);
     expect(() => choppinessIndex(candles, { period: 0 })).toThrow(
-      "Choppiness Index period must be at least 1",
+      "Choppiness Index period must be at least 2",
+    );
+    expect(() => choppinessIndex(candles, { period: 1 })).toThrow(
+      "Choppiness Index period must be at least 2",
     );
   });
 

@@ -34,6 +34,9 @@ export function createChoppinessIndex(
   warmUpOptions?: WarmUpOptions<ChoppinessIndexState>,
 ): IncrementalIndicator<number | null, ChoppinessIndexState> {
   const period = options.period ?? 14;
+  if (period < 2) {
+    throw new Error("Choppiness Index period must be at least 2");
+  }
   const log10Period = Math.log10(period);
 
   let trBuffer: CircularBuffer<number>;

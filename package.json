@@ -34,7 +34,9 @@
     }
   },
   "sideEffects": false,
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -67,6 +69,7 @@
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
     "@types/node": "^25.0.2",
+    "@vitest/coverage-v8": "^2.1.9",
     "husky": "^9.1.7",
     "iconv-lite": "^0.7.1",
     "lint-staged": "^16.3.2",
@@ -76,7 +79,9 @@
     "vitest": "^2.1.8"
   },
   "lint-staged": {
-    "*.{ts,tsx,js,jsx,json}": ["biome check --write --no-errors-on-unmatched"]
+    "*.{ts,tsx,js,jsx,json}": [
+      "biome check --write --no-errors-on-unmatched"
+    ]
   },
   "engines": {
     "node": ">=18.0.0"
