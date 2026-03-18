@@ -6,7 +6,7 @@
  * for non-blocking execution on large parameter spaces.
  */
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   GridSearchResult,
   NormalizedCandle,
@@ -15,6 +15,7 @@ import type {
   WalkForwardResult,
 } from "trendcraft";
 import * as TC from "trendcraft";
+import { useChartStore } from "../store/chartStore";
 import { ENTRY_CONDITIONS, EXIT_CONDITIONS } from "./useBacktest";
 
 // ── Types ──────────────────────────────────────────────────────────
@@ -172,12 +173,41 @@ export function useOptimization(candles: NormalizedCandle[]) {
     current: number;
     total: number;
   } | null>(null);
-  const [gridSearchResult, setGridSearchResult] = useState<GridSearchResult | null>(null);
-  const [walkForwardResult, setWalkForwardResult] = useState<WalkForwardResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Read from store (shared with DNA panel)
+  const gridSearchResult = useChartStore((s) => s.gridSearchResult);
+  const walkForwardResult = useChartStore((s) => s.walkForwardResult);
+  const setGridSearchResult = useChartStore((s) => s.setGridSearchResult);
+  const setWalkForwardResult = useChartStore((s) => s.setWalkForwardResult);
 
   const [gridConfig, setGridConfig] = useState<GridSearchConfig>(DEFAULT_GRID_CONFIG);
   const [wfConfig, setWfConfig] = useState<WalkForwardConfig>(DEFAULT_WF_CONFIG);
+
+  // Pick up recommended params from Strategy DNA panel
+  const pendingRecommendedParams = useChartStore((s) => s.pendingRecommendedParams);
+  const setPendingRecommendedParams = useChartStore((s) => s.setPendingRecommendedParams);
+
+  useEffect(() => {
+    if (!pendingRecommendedParams) return;
+    // Update grid config parameter ranges to center on recommended values
+    setGridConfig((prev) => ({
+      ...prev,
+      parameterRanges: prev.parameterRanges.map((r) => {
+        const recValue = pendingRecommendedParams[r.name];
+        if (recValue === undefined) return r;
+        // Shrink range to ±2 steps around recommended value
+        const halfRange = r.step * 2;
+        return {
+          ...r,
+          min: Math.max(r.step, recValue - halfRange),
+          max: recValue + halfRange,
+        };
+      }),
+    }));
+    setTab("gridSearch");
+    setPendingRecommendedParams(null);
+  }, [pendingRecommendedParams, setPendingRecommendedParams]);
 
   // Abort ref for potential future async support
   const abortRef = useRef(false);
@@ -229,7 +259,15 @@ export function useOptimization(candles: NormalizedCandle[]) {
           },
         });
 
-        setGridSearchResult(result);
+        // Strip heavy backtest objects from non-best results to reduce memory
+        // Keep only params, score, metrics, passedConstraints for sensitivity analysis
+        const lightResults = result.results.map((r, idx) => {
+          if (idx < 5) return r; // Keep top 5 full results for ResultsTable
+          const { backtest: _, ...rest } = r;
+          return rest as typeof r;
+        });
+
+        setGridSearchResult({ ...result, results: lightResults });
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
       } finally {
@@ -237,7 +275,7 @@ export function useOptimization(candles: NormalizedCandle[]) {
         setProgress(null);
       }
     }, 50);
-  }, [candles, gridConfig]);
+  }, [candles, gridConfig, setGridSearchResult]);
 
   const runWalkForward = useCallback(() => {
     if (candles.length < 50) {
@@ -283,14 +321,14 @@ export function useOptimization(candles: NormalizedCandle[]) {
         setProgress(null);
       }
     }, 50);
-  }, [candles, wfConfig]);
+  }, [candles, wfConfig, setWalkForwardResult]);
 
   const clearResults = useCallback(() => {
     setGridSearchResult(null);
     setWalkForwardResult(null);
     setError(null);
     setProgress(null);
-  }, []);
+  }, [setGridSearchResult, setWalkForwardResult]);
 
   return {
     // State

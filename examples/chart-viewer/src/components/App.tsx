@@ -4,6 +4,7 @@ import { useDataQuality } from "../hooks/useDataQuality";
 import { usePostMessageLoader } from "../hooks/usePostMessageLoader";
 import { useChartStore } from "../store/chartStore";
 import type { DrawingToolType } from "../types";
+import { decodeBacktestConfig } from "../utils/strategyDna";
 import { BacktestPanel } from "./BacktestPanel";
 import { ComparisonSelector } from "./ComparisonSelector";
 import { CrosshairDataPanel } from "./CrosshairDataPanel";
@@ -22,6 +23,7 @@ import { SymbolSearch } from "./SymbolSearch";
 import { TimeframeSelector } from "./TimeframeSelector";
 import { Watchlist, useWatchlist } from "./Watchlist";
 import { OptimizationPanel } from "./optimization/OptimizationPanel";
+import { StrategyDnaPanel } from "./strategy-dna/StrategyDnaPanel";
 
 /**
  * Format a timestamp as YYYY/MM/DD
@@ -128,6 +130,17 @@ export default function App() {
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
   }, [theme]);
+
+  // Restore backtest config from URL params
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.has("e")) {
+      const config = decodeBacktestConfig(params);
+      useChartStore.getState().setBacktestConfig(config);
+      // Clean URL without reloading
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
 
   // Calculate visible date range from zoom range
   const getVisibleDateRange = useCallback(() => {
@@ -497,6 +510,7 @@ export default function App() {
               <SignalsPanel />
               <BacktestPanel />
               <OptimizationPanel />
+              <StrategyDnaPanel />
               <PositionSizingPanel />
             </div>
 

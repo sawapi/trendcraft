@@ -1,4 +1,11 @@
-import type { BacktestResult, NormalizedCandle, PatternSignal, TradeAnalysis } from "trendcraft";
+import type {
+  BacktestResult,
+  GridSearchResult,
+  NormalizedCandle,
+  PatternSignal,
+  TradeAnalysis,
+  WalkForwardResult,
+} from "trendcraft";
 import type {
   BacktestConfig,
   ComparisonSymbol,
@@ -77,12 +84,19 @@ export interface ChartState {
   tradeAnalysis: TradeAnalysis | null;
   isBacktestRunning: boolean;
 
+  // Optimization results (shared with DNA panel)
+  gridSearchResult: GridSearchResult | null;
+  walkForwardResult: WalkForwardResult | null;
+
   // Explain bar
   explainBar: { barIndex: number } | null;
 
   // Pattern replay
   replayPattern: PatternSignal | null;
   replayEndIndex: number | null;
+
+  // Recommended params to apply to optimization grid config
+  pendingRecommendedParams: Record<string, number> | null;
 }
 
 /**
@@ -146,10 +160,17 @@ export interface ChartActions {
   // Subchart heights
   setSubchartHeight: (key: string, height: number) => void;
 
+  // Optimization results
+  setGridSearchResult: (result: GridSearchResult | null) => void;
+  setWalkForwardResult: (result: WalkForwardResult | null) => void;
+
   // Explain bar
   setExplainBar: (barIndex: number | null) => void;
 
   // Pattern replay
   setReplayPattern: (pattern: PatternSignal | null) => void;
   setReplayEndIndex: (index: number | null) => void;
+
+  // Recommended params
+  setPendingRecommendedParams: (params: Record<string, number> | null) => void;
 }

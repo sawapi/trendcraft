@@ -304,9 +304,12 @@ export const useChartStore = create<ChartStore>((set, get) => ({
   backtestResult: null,
   tradeAnalysis: null,
   isBacktestRunning: false,
+  gridSearchResult: null,
+  walkForwardResult: null,
   explainBar: null,
   replayPattern: null,
   replayEndIndex: null,
+  pendingRecommendedParams: null,
 
   // Actions
   loadCandles: (
@@ -459,9 +462,12 @@ export const useChartStore = create<ChartStore>((set, get) => ({
       backtestResult: null,
       tradeAnalysis: null,
       isBacktestRunning: false,
+      gridSearchResult: null,
+      walkForwardResult: null,
       explainBar: null,
       replayPattern: null,
       replayEndIndex: null,
+      pendingRecommendedParams: null,
       drawings: [],
       drawingHistory: [],
       drawingHistoryIndex: -1,
@@ -597,6 +603,15 @@ export const useChartStore = create<ChartStore>((set, get) => ({
     set({ subchartHeights: { ...subchartHeights, [key]: height } });
   },
 
+  // Optimization results
+  setGridSearchResult: (result) => {
+    set({ gridSearchResult: result });
+  },
+
+  setWalkForwardResult: (result) => {
+    set({ walkForwardResult: result });
+  },
+
   // Explain bar
   setExplainBar: (barIndex: number | null) => {
     set({ explainBar: barIndex !== null ? { barIndex } : null });
@@ -609,5 +624,10 @@ export const useChartStore = create<ChartStore>((set, get) => ({
 
   setReplayEndIndex: (index: number | null) => {
     set({ replayEndIndex: index });
+  },
+
+  // Recommended params
+  setPendingRecommendedParams: (params: Record<string, number> | null) => {
+    set({ pendingRecommendedParams: params });
   },
 }));
