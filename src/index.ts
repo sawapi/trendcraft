@@ -265,6 +265,14 @@ export {
   gapAnalysis,
   // Heikin-Ashi
   heikinAshi,
+  // Session / Kill Zones
+  defineSession,
+  getIctSessions,
+  detectSessions,
+  sessionStats,
+  killZones,
+  getIctKillZones,
+  sessionBreakout,
   // Filter (Ehlers)
   superSmoother,
   roofingFilter,
@@ -413,6 +421,15 @@ export type {
   CvdWithSignalValue,
   SuperSmootherOptions,
   RoofingFilterOptions,
+  // Session / Kill Zone types
+  SessionDefinition,
+  SessionInfo,
+  SessionStatsOptions,
+  SessionStatsValue,
+  KillZoneDefinition,
+  KillZoneValue,
+  SessionBreakoutOptions,
+  SessionBreakoutValue,
   // Adaptive Indicator types
   AdaptiveRsiOptions,
   AdaptiveRsiValue,

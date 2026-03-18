@@ -317,6 +317,27 @@ export type {
   AdaptiveStochasticsValue,
 } from "./adaptive";
 
+// Session / Kill Zones
+export {
+  defineSession,
+  getIctSessions,
+  detectSessions,
+  sessionStats,
+  killZones,
+  getIctKillZones,
+  sessionBreakout,
+} from "./session";
+export type {
+  SessionDefinition,
+  SessionInfo,
+  SessionStatsOptions,
+  SessionStatsValue,
+  KillZoneDefinition,
+  KillZoneValue,
+  SessionBreakoutOptions,
+  SessionBreakoutValue,
+} from "./session";
+
 // Smart Money Concepts (SMC)
 export {
   orderBlock,
