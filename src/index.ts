@@ -281,6 +281,10 @@ export {
   adaptiveBollinger,
   adaptiveMa,
   adaptiveStochastics,
+  // HMM Regime Detection
+  hmmRegimes,
+  fitHmm,
+  regimeTransitionMatrix,
 } from "./indicators";
 
 export type {
@@ -439,6 +443,13 @@ export type {
   AdaptiveMaValue,
   AdaptiveStochasticsOptions,
   AdaptiveStochasticsValue,
+  // HMM Regime Detection types
+  HmmModel,
+  HmmOptions,
+  HmmRegimeOptions,
+  HmmRegimeValue,
+  RegimeTransitionInfo,
+  HmmFeatureOptions,
 } from "./indicators";
 
 // Indicator Plugins (namespace)

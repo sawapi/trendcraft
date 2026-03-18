@@ -355,3 +355,18 @@ export type {
   LiquiditySweepValue,
   LiquiditySweepOptions,
 } from "./smc";
+
+// Regime Detection
+export {
+  hmmRegimes,
+  fitHmm,
+  regimeTransitionMatrix,
+} from "./regime";
+export type {
+  HmmModel,
+  HmmOptions,
+  HmmRegimeOptions,
+  HmmRegimeValue,
+  RegimeTransitionInfo,
+  FeatureOptions as HmmFeatureOptions,
+} from "./regime";
