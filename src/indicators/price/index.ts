@@ -56,3 +56,5 @@ export type { OpeningRangeOptions, OpeningRangeValue } from "./opening-range";
 export { gapAnalysis } from "./gap-analysis";
 export type { GapAnalysisOptions, GapValue } from "./gap-analysis";
 export { medianPrice, typicalPrice, weightedClose } from "./median-price";
+export { srZones, srZonesSeries } from "./sr-zones";
+export type { PriceLevelSource, SrZone, SrZonesOptions, SrZonesResult } from "./sr-zones";

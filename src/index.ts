@@ -211,6 +211,9 @@ export {
   medianPrice,
   typicalPrice,
   weightedClose,
+  // S/R Zone Clustering
+  srZones,
+  srZonesSeries,
   // Trend
   ichimoku,
   supertrend,
@@ -390,6 +393,10 @@ export type {
   OpeningRangeValue,
   GapAnalysisOptions,
   GapValue,
+  PriceLevelSource,
+  SrZone,
+  SrZonesOptions,
+  SrZonesResult,
   AnchoredVwapOptions,
   AnchoredVwapValue,
   ElderForceIndexOptions,

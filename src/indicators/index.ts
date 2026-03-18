@@ -214,6 +214,8 @@ export {
   medianPrice,
   typicalPrice,
   weightedClose,
+  srZones,
+  srZonesSeries,
 } from "./price";
 export type {
   HighestLowestValue,
@@ -246,6 +248,10 @@ export type {
   OpeningRangeValue,
   GapAnalysisOptions,
   GapValue,
+  PriceLevelSource,
+  SrZone,
+  SrZonesOptions,
+  SrZonesResult,
 } from "./price";
 
 // Trend
