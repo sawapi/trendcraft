@@ -6207,4 +6207,200 @@ const result = toResult(() => someThrowingFunction(), "INDICATOR_ERROR");
 ### Recommendation
 
 - **Library consumers**: Prefer Safe versions for robustness
+
+---
+
+## Wyckoff Analysis (VSA + Phase Detection)
+
+### `vsa(candles, options?)`
+
+Volume Spread Analysis — classifies each bar by the relationship between volume, spread, and close position.
+
+```typescript
+import { vsa } from "trendcraft";
+
+const vsaBars = vsa(candles, { volumeMaPeriod: 20, atrPeriod: 14 });
+const last = vsaBars[vsaBars.length - 1].value;
+// last.barType: 'noSupply' | 'noDemand' | 'stoppingVolume' | 'climacticAction'
+//             | 'test' | 'upthrust' | 'spring' | 'absorption'
+//             | 'effortUp' | 'effortDown' | 'normal'
+// last.spreadRelative: number (1.0 = average)
+// last.closePosition: number (0 = low, 1 = high)
+// last.volumeRelative: number (1.0 = average)
+// last.isEffortDivergence: boolean
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `volumeMaPeriod` | `20` | Volume MA period |
+| `atrPeriod` | `14` | ATR period for spread normalization |
+| `highVolumeThreshold` | `1.5` | Relative volume threshold for "high" |
+| `lowVolumeThreshold` | `0.7` | Relative volume threshold for "low" |
+| `wideSpreadThreshold` | `1.2` | Relative spread threshold for "wide" |
+| `narrowSpreadThreshold` | `0.7` | Relative spread threshold for "narrow" |
+
+### `wyckoffPhases(candles, options?)`
+
+Wyckoff Phase Detection — identifies accumulation/distribution phases and schematic events using a state machine driven by VSA, swing points, and BOS/CHoCH.
+
+```typescript
+import { wyckoffPhases } from "trendcraft";
+
+const phases = wyckoffPhases(candles, { swingPeriod: 5, minRangeBars: 20 });
+const last = phases[phases.length - 1].value;
+// last.phase: 'accumulation' | 'markup' | 'distribution' | 'markdown' | 'unknown'
+// last.event: 'PS' | 'SC' | 'AR' | 'ST' | 'spring' | 'SOS' | 'LPS' | ... | null
+// last.confidence: 0-100
+// last.eventsDetected: WyckoffEvent[]
+// last.rangeHigh / last.rangeLow: range boundaries
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `swingPeriod` | `5` | Swing point detection period |
+| `minRangeBars` | `20` | Minimum bars for a trading range |
+| `atrPeriod` | `14` | ATR period |
+| `volumeMaPeriod` | `20` | Volume MA period |
+| `rangeTolerance` | `0.5` | ATR multiplier for range boundary tolerance |
+
+---
+
+## Meta-Strategy (Equity Curve Trading)
+
+### `applyEquityCurveFilter(result, options?)`
+
+Filters a backtest result by analyzing the equity curve health. Skips or reduces trades when the equity is below its MA, in excessive drawdown, or has low win rate.
+
+```typescript
+import { runBacktest, applyEquityCurveFilter } from "trendcraft";
+
+const result = runBacktest(candles, entry, exit, { capital: 100000 });
+const analysis = applyEquityCurveFilter(result, {
+  type: 'ma',
+  maPeriod: 10,
+  filteredSizeFactor: 0, // 0 = skip, 0.5 = half size
+});
+console.log(analysis.tradesSkipped);
+console.log(analysis.improvement.maxDrawdown); // positive = improvement
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `type` | `'ma'` | Filter type: `'ma'`, `'drawdown'`, `'winRate'`, `'combined'` |
+| `maPeriod` | `20` | MA period (in trades) |
+| `maType` | `'sma'` | `'sma'` or `'ema'` |
+| `maxDrawdown` | `0.15` | Max drawdown threshold for pause |
+| `winRateWindow` | `20` | Rolling window for win rate |
+| `minWinRate` | `0.4` | Minimum win rate to continue |
+| `filteredSizeFactor` | `0` | Size factor when filtered (0 = skip) |
+
+### `equityCurveHealth(result, options?)`
+
+Assess the current health of a strategy's equity curve.
+
+```typescript
+import { equityCurveHealth } from "trendcraft";
+
+const health = equityCurveHealth(result, { maPeriod: 10 });
+// health.aboveMa: boolean
+// health.currentDrawdown: 0-1
+// health.rollingWinRate: 0-1
+// health.healthScore: 0-100
+```
+
+### `rotateStrategies(results, options?)`
+
+Rank multiple strategies by recent performance and allocate capital.
+
+```typescript
+import { rotateStrategies } from "trendcraft";
+
+const rotation = rotateStrategies([resultA, resultB, resultC], {
+  lookbackTrades: 20,
+  rankingMetric: 'returnPercent',
+  allocationMethod: 'proportional',
+});
+// rotation.allocations: [{ strategyIndex, weight, metricValue }]
+// rotation.rankings: [bestIdx, ..., worstIdx]
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `lookbackTrades` | `20` | Recent trades for ranking |
+| `rankingMetric` | `'returnPercent'` | `'returnPercent'`, `'sharpeRatio'`, `'profitFactor'`, `'winRate'` |
+| `maxActiveStrategies` | all | Max strategies to allocate to |
+| `minAllocation` | `0.05` | Minimum allocation per strategy |
+| `allocationMethod` | `'proportional'` | `'equal'`, `'proportional'`, `'topN'` |
+
+---
+
+## Risk Analytics (VaR / CVaR / Risk Parity)
+
+### `calculateVaR(returns, options?)`
+
+Calculate Value at Risk and Conditional VaR (Expected Shortfall).
+
+```typescript
+import { calculateVaR } from "trendcraft";
+
+const result = calculateVaR(dailyReturns, {
+  confidence: 0.95,
+  method: 'historical', // 'historical' | 'parametric' | 'cornishFisher'
+});
+// result.var: 0.025 (2.5% potential loss)
+// result.cvar: 0.035 (3.5% average loss beyond VaR)
+// result.skewness, result.kurtosis
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `confidence` | `0.95` | Confidence level |
+| `method` | `'historical'` | `'historical'`, `'parametric'`, `'cornishFisher'` |
+
+### `rollingVaR(returns, options?)`
+
+Rolling window VaR/CVaR calculation.
+
+```typescript
+import { rollingVaR } from "trendcraft";
+
+const rolling = rollingVaR(dailyReturns, { window: 60, confidence: 0.95 });
+// rolling[i]: { var: number, cvar: number }
+```
+
+### `riskParityAllocation(returnsSeries, options?)`
+
+Calculate risk parity allocation weights that equalize risk contribution across assets.
+
+```typescript
+import { riskParityAllocation } from "trendcraft";
+
+const result = riskParityAllocation({
+  SPY: spyReturns,
+  TLT: tltReturns,
+  GLD: gldReturns,
+});
+// result.weights: { SPY: 0.20, TLT: 0.45, GLD: 0.35 }
+// result.riskContributions: approximately equal
+// result.portfolioVolatility: number
+// result.correlationMatrix: number[][]
+```
+
+### `correlationAdjustedSize(currentReturns, portfolioReturns, options)`
+
+Adjust position size based on correlation with existing portfolio holdings.
+
+```typescript
+import { correlationAdjustedSize } from "trendcraft";
+
+const result = correlationAdjustedSize(stockReturns, [pos1Returns, pos2Returns], {
+  baseSize: 10000,
+  lowCorrelationThreshold: 0.3,
+  highCorrelationThreshold: 0.7,
+  minSizeFactor: 0.25,
+});
+// result.adjustedSize: 7500
+// result.sizeFactor: 0.75
+// result.averageCorrelation: 0.5
+```
 - **Internal / performance-critical code**: Use throw versions directly

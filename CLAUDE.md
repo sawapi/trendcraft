@@ -21,6 +21,7 @@ src/
 │   ├── price/           # Swing Points, Pivot, FVG, BOS, CHoCH, ORB, Gap Analysis, S/R Zone Clustering
 │   ├── session/         # ICT Kill Zones, Session Analytics, Session Breakout
 │   ├── regime/          # HMM Regime Detection (Baum-Welch, Viterbi)
+│   ├── wyckoff/         # VSA (Volume Spread Analysis), Wyckoff Phase Detection
 │   ├── relative-strength/
 │   └── smc/             # Order Block, Liquidity Sweep
 ├── signals/        # Signal detection (crosses, divergence, patterns)
@@ -29,6 +30,8 @@ src/
 ├── scoring/        # Signal scoring system
 ├── screening/      # Stock screening
 ├── position-sizing/# Position sizing (Kelly, ATR-based, etc.)
+├── meta-strategy/  # Equity Curve Trading, Strategy Rotation
+├── risk/           # VaR, CVaR, Risk Parity, Correlation-Adjusted Sizing
 └── types/          # Type definitions
 ```
 
@@ -94,6 +97,15 @@ import { detectSessions, killZones, sessionBreakout, sessionStats } from "trendc
 
 // HMM Regime Detection
 import { hmmRegimes, fitHmm, regimeTransitionMatrix } from "trendcraft";
+
+// Wyckoff Analysis (VSA + Phase Detection)
+import { vsa, wyckoffPhases } from "trendcraft";
+
+// Meta-Strategy (Equity Curve Trading, Strategy Rotation)
+import { applyEquityCurveFilter, equityCurveHealth, rotateStrategies } from "trendcraft";
+
+// Risk Analytics (VaR / CVaR / Risk Parity)
+import { calculateVaR, rollingVaR, riskParityAllocation, correlationAdjustedSize } from "trendcraft";
 ```
 
 ## examples/

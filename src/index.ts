@@ -285,6 +285,9 @@ export {
   hmmRegimes,
   fitHmm,
   regimeTransitionMatrix,
+  // Wyckoff (VSA + Phase Detection)
+  vsa,
+  wyckoffPhases,
 } from "./indicators";
 
 export type {
@@ -450,6 +453,14 @@ export type {
   HmmRegimeValue,
   RegimeTransitionInfo,
   HmmFeatureOptions,
+  // Wyckoff types
+  VsaBarType,
+  VsaValue,
+  VsaOptions,
+  WyckoffPhase,
+  WyckoffEvent,
+  WyckoffValue,
+  WyckoffPhaseOptions,
 } from "./indicators";
 
 // Indicator Plugins (namespace)
@@ -1203,6 +1214,42 @@ export type {
   QuickRobustnessOptions,
   QuickRobustnessResult,
 } from "./types";
+
+// Risk Analytics (VaR / CVaR / Risk Parity)
+export {
+  calculateVaR,
+  rollingVaR,
+  riskParityAllocation,
+  correlationAdjustedSize,
+} from "./risk";
+export type {
+  VarMethod,
+  VarOptions,
+  VarResult,
+  RollingVarOptions,
+  RollingVarValue,
+  RiskParityOptions,
+  RiskParityResult,
+  CorrelationAdjustedSizeOptions,
+  CorrelationAdjustedSizeResult,
+} from "./risk";
+
+// Meta-Strategy (Equity Curve Trading, Strategy Rotation)
+export {
+  applyEquityCurveFilter,
+  equityCurveHealth,
+  rotateStrategies,
+} from "./meta-strategy";
+export type {
+  EquityCurveFilterType,
+  EquityCurveFilterOptions,
+  EquityCurveAnalysis,
+  EquityCurveHealthResult,
+  StrategyPerformanceMetric,
+  StrategyRotationOptions,
+  StrategyAllocation,
+  StrategyRotationResult,
+} from "./meta-strategy";
 
 // CandleFormer - ML-based candlestick prediction
 export {

@@ -356,6 +356,18 @@ export type {
   LiquiditySweepOptions,
 } from "./smc";
 
+// Wyckoff (VSA + Phase Detection)
+export { vsa, wyckoffPhases } from "./wyckoff";
+export type {
+  VsaBarType,
+  VsaValue,
+  VsaOptions,
+  WyckoffPhase,
+  WyckoffEvent,
+  WyckoffValue,
+  WyckoffPhaseOptions,
+} from "./wyckoff";
+
 // Regime Detection
 export {
   hmmRegimes,
