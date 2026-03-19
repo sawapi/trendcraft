@@ -599,6 +599,7 @@ export {
   detectWedge,
   detectChannel,
   detectFlag,
+  detectHarmonicPatterns,
   filterPatterns,
   fitTrendline,
   fitTrendlinePair,
@@ -660,6 +661,8 @@ export type {
   WedgeOptions,
   ChannelOptions,
   FlagOptions,
+  HarmonicPatternType,
+  HarmonicPatternOptions,
   PatternFilterOptions,
   TrendlineFit,
   TrendlinePairType,
@@ -787,6 +790,9 @@ export {
   flagDetected,
   bullFlagDetected,
   bearFlagDetected,
+  harmonicPatternDetected,
+  bullishHarmonicDetected,
+  bearishHarmonicDetected,
 } from "./backtest";
 
 export type { PatternConditionOptions } from "./backtest";
@@ -975,6 +981,12 @@ export {
   summarizeAWFResult,
   formatAWFResult,
   getAWFEquityCurve,
+  // Pareto (Multi-Objective) Optimization
+  paretoOptimization,
+  paretoOptimizationSafe,
+  fastNonDominatedSort,
+  crowdingDistance,
+  summarizeParetoResult,
 } from "./optimization";
 
 export type {
@@ -1002,6 +1014,11 @@ export type {
   AnchoredWalkForwardOptions,
   AWFPeriod,
   AWFResult,
+  // Pareto types
+  ParetoObjective,
+  ParetoOptions,
+  ParetoResultEntry,
+  ParetoResult,
 } from "./optimization";
 
 // Screening (browser-compatible exports only - no fs dependency)

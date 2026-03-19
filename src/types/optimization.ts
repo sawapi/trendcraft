@@ -247,6 +247,60 @@ export type MonteCarloResult = {
 // Anchored Walk-Forward Types
 // ============================================
 
+// ============================================
+// Pareto (Multi-Objective) Optimization Types
+// ============================================
+
+/**
+ * Single objective for Pareto optimization
+ */
+export type ParetoObjective = {
+  /** Metric to optimize */
+  metric: OptimizationMetric;
+  /** Direction of optimization */
+  direction: "maximize" | "minimize";
+};
+
+/**
+ * Options for Pareto optimization
+ */
+export type ParetoOptions = {
+  /** Objectives to optimize (2-4) */
+  objectives: ParetoObjective[];
+  /** Constraints to filter results */
+  constraints?: OptimizationConstraint[];
+  /** Maximum combinations to test (default: 10000) */
+  maxCombinations?: number;
+  /** Progress callback */
+  progressCallback?: (current: number, total: number) => void;
+};
+
+/**
+ * Single result entry with Pareto front information
+ */
+export type ParetoResultEntry = OptimizationResultEntry & {
+  /** Pareto front index (0 = first front / non-dominated) */
+  frontIndex: number;
+  /** Crowding distance for diversity preservation */
+  crowdingDistance: number;
+};
+
+/**
+ * Pareto optimization result
+ */
+export type ParetoResult = {
+  /** Solutions on the first Pareto front (non-dominated) */
+  paretoFront: ParetoResultEntry[];
+  /** All evaluated solutions with front assignments */
+  allResults: ParetoResultEntry[];
+  /** Objectives used */
+  objectives: ParetoObjective[];
+  /** Total parameter combinations evaluated */
+  totalCombinations: number;
+  /** Combinations that passed constraints */
+  validCombinations: number;
+};
+
 /**
  * Anchored Walk-Forward options
  */

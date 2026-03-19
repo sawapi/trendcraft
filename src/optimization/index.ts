@@ -24,6 +24,11 @@ export type {
   AnchoredWalkForwardOptions,
   AWFPeriod,
   AWFResult,
+  // Pareto
+  ParetoObjective,
+  ParetoOptions,
+  ParetoResultEntry,
+  ParetoResult,
 } from "../types/optimization";
 
 // Metrics
@@ -105,3 +110,12 @@ export {
   formatAWFResult,
   getAWFEquityCurve,
 } from "./anchored-walkforward";
+
+// Pareto (Multi-Objective) Optimization
+export {
+  paretoOptimization,
+  paretoOptimizationSafe,
+  fastNonDominatedSort,
+  crowdingDistance,
+  summarizeParetoResult,
+} from "./pareto";
