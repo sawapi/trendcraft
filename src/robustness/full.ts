@@ -15,6 +15,14 @@ import type { ParameterRange } from "../types/optimization";
 import type { DimensionScore, RobustnessOptions, RobustnessResult } from "../types/robustness";
 import { scoreToGrade } from "./grade";
 
+function isIntegerRange(range: ParameterRange): boolean {
+  return Number.isInteger(range.min) && Number.isInteger(range.max) && Number.isInteger(range.step);
+}
+
+function clampToRange(value: number, range: ParameterRange): number {
+  return Math.min(range.max, Math.max(range.min, value));
+}
+
 /**
  * Full strategy robustness analysis.
  * Requires candles, strategy definition, and parameter ranges for complete analysis.
@@ -69,10 +77,17 @@ export function calculateRobustnessScore(
 
   // Normalize weights
   const totalWeight = weights.mc + weights.ps + weights.wf + weights.rc;
-  weights.mc /= totalWeight;
-  weights.ps /= totalWeight;
-  weights.wf /= totalWeight;
-  weights.rc /= totalWeight;
+  if (totalWeight <= 0) {
+    weights.mc = 0.25;
+    weights.ps = 0.25;
+    weights.wf = 0.25;
+    weights.rc = 0.25;
+  } else {
+    weights.mc /= totalWeight;
+    weights.ps /= totalWeight;
+    weights.wf /= totalWeight;
+    weights.rc /= totalWeight;
+  }
 
   const progress = options.progressCallback;
 
@@ -188,10 +203,22 @@ function scoreParameterSensitivity(
     const narrowRanges = ranges.map((r) => {
       const mid = (r.min + r.max) / 2;
       const range = (r.max - r.min) * perturbPct;
+      const min = Math.max(r.min, mid - range / 2);
+      const max = Math.min(r.max, mid + range / 2);
+
+      if (isIntegerRange(r)) {
+        return {
+          name: r.name,
+          min: clampToRange(Math.round(min), r),
+          max: clampToRange(Math.round(max), r),
+          step: r.step,
+        };
+      }
+
       return {
         name: r.name,
-        min: Math.max(r.min, mid - range / 2),
-        max: Math.min(r.max, mid + range / 2),
+        min,
+        max,
         step: r.step,
       };
     });

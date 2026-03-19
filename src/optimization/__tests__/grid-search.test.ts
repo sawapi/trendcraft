@@ -88,6 +88,13 @@ describe("Grid Search Optimization", () => {
       expect(combinations[1].threshold).toBeCloseTo(0.2, 5);
       expect(combinations[2].threshold).toBeCloseTo(0.3, 5);
     });
+
+    it("should not generate values above max when step does not divide range evenly", () => {
+      const ranges = [param("threshold", 0, 1, 0.4)];
+      const combinations = generateParameterCombinations(ranges);
+
+      expect(combinations).toEqual([{ threshold: 0 }, { threshold: 0.4 }, { threshold: 0.8 }]);
+    });
   });
 
   describe("countCombinations", () => {
@@ -106,6 +113,11 @@ describe("Grid Search Optimization", () => {
         param("b", 10, 20, 5), // 3 values
       ];
       expect(countCombinations(ranges)).toBe(9);
+    });
+
+    it("should match generated combinations when range is not evenly divisible by step", () => {
+      const ranges = [param("threshold", 0, 1, 0.4)];
+      expect(countCombinations(ranges)).toBe(generateParameterCombinations(ranges).length);
     });
   });
 

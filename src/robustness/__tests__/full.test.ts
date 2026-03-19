@@ -1,7 +1,7 @@
-import { describe, expect, it } from "vitest";
-import { runBacktest } from "../../backtest/engine";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { and } from "../../backtest/conditions/core";
-import { goldenCross, deadCross } from "../../backtest/conditions/ma-cross";
+import { deadCross, goldenCross } from "../../backtest/conditions/ma-cross";
+import { runBacktest } from "../../backtest/engine";
 import type { BacktestResult, NormalizedCandle, Trade } from "../../types";
 import type { RobustnessGrade } from "../../types/robustness";
 import { calculateRobustnessScore } from "../full";
@@ -82,6 +82,10 @@ function mockBacktestResult(overrides: Partial<BacktestResult> = {}): BacktestRe
 }
 
 describe("calculateRobustnessScore", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("returns valid structure with all dimensions", () => {
     const candles = generateCandles(200, 42);
 
@@ -98,12 +102,9 @@ describe("calculateRobustnessScore", () => {
     ];
 
     // Run original backtest
-    const original = runBacktest(
-      candles,
-      and(goldenCross(5, 20)),
-      and(deadCross(5, 20)),
-      { capital: 100000 },
-    );
+    const original = runBacktest(candles, and(goldenCross(5, 20)), and(deadCross(5, 20)), {
+      capital: 100000,
+    });
 
     const result = calculateRobustnessScore(candles, original, createStrategy, paramRanges, {
       monteCarloSimulations: 10,
@@ -163,12 +164,9 @@ describe("calculateRobustnessScore", () => {
       { name: "longMA", min: 15, max: 25, step: 5 },
     ];
 
-    const original = runBacktest(
-      candles,
-      and(goldenCross(5, 20)),
-      and(deadCross(5, 20)),
-      { capital: 100000 },
-    );
+    const original = runBacktest(candles, and(goldenCross(5, 20)), and(deadCross(5, 20)), {
+      capital: 100000,
+    });
 
     const progressCalls: Array<{ phase: string; pct: number }> = [];
 
@@ -243,12 +241,9 @@ describe("calculateRobustnessScore", () => {
       { name: "longMA", min: 15, max: 25, step: 5 },
     ];
 
-    const original = runBacktest(
-      candles,
-      and(goldenCross(5, 20)),
-      and(deadCross(5, 20)),
-      { capital: 100000 },
-    );
+    const original = runBacktest(candles, and(goldenCross(5, 20)), and(deadCross(5, 20)), {
+      capital: 100000,
+    });
 
     const result = calculateRobustnessScore(candles, original, createStrategy, paramRanges, {
       monteCarloSimulations: 10,
@@ -320,12 +315,9 @@ describe("calculateRobustnessScore", () => {
       { name: "longMA", min: 15, max: 25, step: 5 },
     ];
 
-    const original = runBacktest(
-      candles,
-      and(goldenCross(5, 20)),
-      and(deadCross(5, 20)),
-      { capital: 100000 },
-    );
+    const original = runBacktest(candles, and(goldenCross(5, 20)), and(deadCross(5, 20)), {
+      capital: 100000,
+    });
 
     const result = calculateRobustnessScore(candles, original, createStrategy, paramRanges, {
       monteCarloSimulations: 10,
@@ -343,5 +335,76 @@ describe("calculateRobustnessScore", () => {
 
     // With all weight on MC, composite should equal MC score
     expect(result.compositeScore).toBeCloseTo(result.dimensions.monteCarlo.score, 0);
+  });
+
+  it("falls back to equal weights when all custom weights are zero", () => {
+    const candles = generateCandles(200, 21);
+    const neverCondition = {
+      type: "preset" as const,
+      name: "never",
+      evaluate: () => false,
+    };
+    const createStrategy = () => ({
+      entry: neverCondition,
+      exit: neverCondition,
+      options: { capital: 100000 as const },
+    });
+
+    const original = mockBacktestResult({
+      trades: Array.from({ length: 20 }, (_, i) =>
+        mockTrade({ returnPercent: i % 2 === 0 ? 3 : -1 }),
+      ),
+      tradeCount: 20,
+    });
+
+    const result = calculateRobustnessScore(candles, original, createStrategy, [], {
+      monteCarloSimulations: 10,
+      walkForwardWindowSize: 80,
+      walkForwardStepSize: 40,
+      walkForwardTestSize: 30,
+      weights: {
+        monteCarlo: 0,
+        parameterSensitivity: 0,
+        walkForward: 0,
+        regimeConsistency: 0,
+      },
+    });
+
+    expect(result.compositeScore).not.toBeNaN();
+    expect(result.compositeScore).toBeGreaterThanOrEqual(0);
+    expect(result.compositeScore).toBeLessThanOrEqual(100);
+  });
+
+  it("does not skip integer parameter neighborhoods during sensitivity analysis", () => {
+    const candles = generateCandles(200, 42);
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const createStrategy = (params: Record<string, number>) => ({
+      entry: and(goldenCross(params.shortMA, params.longMA)),
+      exit: and(deadCross(params.shortMA, params.longMA)),
+      options: { capital: 100000 as const },
+    });
+
+    const paramRanges = [
+      { name: "shortMA", min: 3, max: 7, step: 2 },
+      { name: "longMA", min: 15, max: 25, step: 5 },
+    ];
+
+    const original = runBacktest(candles, and(goldenCross(5, 20)), and(deadCross(5, 20)), {
+      capital: 100000,
+    });
+
+    calculateRobustnessScore(candles, original, createStrategy, paramRanges, {
+      monteCarloSimulations: 10,
+      walkForwardWindowSize: 80,
+      walkForwardStepSize: 40,
+      walkForwardTestSize: 30,
+      seed: 42,
+    });
+
+    expect(warnSpy).not.toHaveBeenCalledWith(
+      expect.stringContaining('Skipping parameters {"shortMA":4.6,"longMA":19}'),
+    );
+    expect(warnSpy).not.toHaveBeenCalled();
   });
 });

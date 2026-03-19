@@ -19,6 +19,11 @@ describe("sma", () => {
     expect(() => sma(candles, { period: 0 })).toThrow("SMA period must be at least 1");
   });
 
+  it("should throw if period is not an integer", () => {
+    const candles = makeCandles([100, 101, 102]);
+    expect(() => sma(candles, { period: 2.5 })).toThrow("SMA period must be an integer");
+  });
+
   it("should return null for insufficient data", () => {
     const candles = makeCandles([100, 101, 102]);
     const result = sma(candles, { period: 5 });

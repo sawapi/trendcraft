@@ -27,6 +27,27 @@ export type StrategyFactory = (params: Record<string, number>) => {
   options?: BacktestOptions;
 };
 
+function getParameterValues(range: ParameterRange): number[] {
+  if (range.step <= 0) {
+    throw new Error(`Parameter "${range.name}" step must be positive`);
+  }
+  if (range.max < range.min) {
+    throw new Error(`Parameter "${range.name}" max must be greater than or equal to min`);
+  }
+
+  const values: number[] = [];
+  const epsilon = Math.abs(range.step) / 1_000_000;
+
+  for (let value = range.min; value <= range.max + epsilon; value += range.step) {
+    const roundedValue = Math.round(value * 1_000_000) / 1_000_000;
+    if (roundedValue <= range.max + epsilon) {
+      values.push(roundedValue);
+    }
+  }
+
+  return values;
+}
+
 /**
  * Generate all parameter combinations from ranges
  * @param ranges Parameter ranges to combine
@@ -44,14 +65,8 @@ export function generateParameterCombinations(ranges: ParameterRange[]): Record<
     }
 
     const range = ranges[index];
-    // Calculate number of steps to avoid floating point issues
-    const numSteps = Math.round((range.max - range.min) / range.step) + 1;
-    for (let i = 0; i < numSteps; i++) {
-      // Calculate value from index to avoid cumulative floating point errors
-      const value = range.min + i * range.step;
-      // Round to avoid floating point precision issues
-      const roundedValue = Math.round(value * 1000000) / 1000000;
-      current[range.name] = roundedValue;
+    for (const value of getParameterValues(range)) {
+      current[range.name] = value;
       generate(index + 1, current);
     }
   }
@@ -69,8 +84,7 @@ export function countCombinations(ranges: ParameterRange[]): number {
   if (ranges.length === 0) return 1;
 
   return ranges.reduce((total, range) => {
-    const count = Math.floor((range.max - range.min) / range.step) + 1;
-    return total * count;
+    return total * getParameterValues(range).length;
   }, 1);
 }
 
