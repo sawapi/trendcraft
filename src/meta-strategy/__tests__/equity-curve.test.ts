@@ -42,7 +42,7 @@ function makeResult(trades: Trade[]): BacktestResult {
       ? trades.reduce((s, t) => s + t.holdingDays, 0) / trades.length
       : 0,
     trades,
-    settings: { capital: initial },
+    settings: { fillMode: "next-bar-open", slTpMode: "close-only", slippage: 0, commission: 0, commissionRate: 0, taxRate: 0 },
     drawdownPeriods: [],
   };
 }

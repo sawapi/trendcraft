@@ -29,7 +29,7 @@ function makeResult(tradeReturns: number[]): BacktestResult {
     profitFactor: 1.5,
     avgHoldingDays: 1,
     trades,
-    settings: { capital: 10000 },
+    settings: { fillMode: "next-bar-open", slTpMode: "close-only", slippage: 0, commission: 0, commissionRate: 0, taxRate: 0 },
     drawdownPeriods: [],
   };
 }
