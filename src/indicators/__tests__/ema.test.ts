@@ -87,4 +87,9 @@ describe("ema", () => {
   it("should handle empty array", () => {
     expect(ema([], { period: 5 })).toEqual([]);
   });
+
+  it("should throw on non-integer period", () => {
+    const candles = makeCandles([100, 101, 102]);
+    expect(() => ema(candles, { period: 5.5 })).toThrow("EMA period must be an integer");
+  });
 });

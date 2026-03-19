@@ -44,6 +44,9 @@ export function dema(
   if (period < 1) {
     throw new Error("DEMA period must be at least 1");
   }
+  if (!Number.isInteger(period)) {
+    throw new Error("DEMA period must be an integer");
+  }
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
   const multiplier = 2 / (period + 1);

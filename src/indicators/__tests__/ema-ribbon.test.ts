@@ -78,4 +78,11 @@ describe("emaRibbon", () => {
       expect(result[i].time).toBe(candles[i].time);
     }
   });
+
+  it("should throw on non-integer periods", () => {
+    const candles = makeCandles([100, 101, 102]);
+    expect(() => emaRibbon(candles, { periods: [8, 13.5, 21] })).toThrow(
+      "EMA Ribbon periods must be integers",
+    );
+  });
 });

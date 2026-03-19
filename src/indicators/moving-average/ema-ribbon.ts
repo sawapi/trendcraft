@@ -58,6 +58,11 @@ export function emaRibbon(
   if (periods.length < 2) {
     throw new Error("EMA Ribbon requires at least 2 periods");
   }
+  for (const p of periods) {
+    if (!Number.isInteger(p)) {
+      throw new Error("EMA Ribbon periods must be integers");
+    }
+  }
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
 

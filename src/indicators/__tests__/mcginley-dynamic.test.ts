@@ -65,4 +65,11 @@ describe("mcginleyDynamic", () => {
       expect(result[i].time).toBe(candles[i].time);
     }
   });
+
+  it("should throw on non-integer period", () => {
+    const candles = makeCandles([100, 101, 102]);
+    expect(() => mcginleyDynamic(candles, { period: 14.5 })).toThrow(
+      "McGinley Dynamic period must be an integer",
+    );
+  });
 });

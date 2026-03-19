@@ -87,4 +87,9 @@ describe("wma", () => {
   it("should handle empty array", () => {
     expect(wma([], { period: 5 })).toEqual([]);
   });
+
+  it("should throw on non-integer period", () => {
+    const candles = makeCandles([100, 101, 102]);
+    expect(() => wma(candles, { period: 5.5 })).toThrow("WMA period must be an integer");
+  });
 });

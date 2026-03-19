@@ -115,4 +115,19 @@ describe("kama", () => {
     // KAMA = 100 + (4/9) * (110 - 100) = 100 + 4.444... = 104.444...
     expect(result[10].value).toBeCloseTo(104.4444, 2);
   });
+
+  it("should throw on non-integer period", () => {
+    const candles = makeCandles([100, 101, 102]);
+    expect(() => kama(candles, { period: 10.5 })).toThrow("KAMA period must be an integer");
+  });
+
+  it("should throw on non-integer fastPeriod", () => {
+    const candles = makeCandles([100, 101, 102]);
+    expect(() => kama(candles, { fastPeriod: 2.5 })).toThrow("KAMA fastPeriod must be an integer");
+  });
+
+  it("should throw on non-integer slowPeriod", () => {
+    const candles = makeCandles([100, 101, 102]);
+    expect(() => kama(candles, { slowPeriod: 30.5 })).toThrow("KAMA slowPeriod must be an integer");
+  });
 });

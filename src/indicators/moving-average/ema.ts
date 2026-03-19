@@ -31,6 +31,9 @@ export function ema(
   if (period < 1) {
     throw new Error("EMA period must be at least 1");
   }
+  if (!Number.isInteger(period)) {
+    throw new Error("EMA period must be an integer");
+  }
 
   // Normalize if needed
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);

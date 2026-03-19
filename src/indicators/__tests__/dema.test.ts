@@ -80,4 +80,9 @@ describe("dema", () => {
     expect(lastVal).toBeLessThanOrEqual(lastClose);
     expect(lastVal).toBeGreaterThan(lastClose - 10);
   });
+
+  it("should throw on non-integer period", () => {
+    const candles = makeCandles([100, 101, 102]);
+    expect(() => dema(candles, { period: 20.5 })).toThrow("DEMA period must be an integer");
+  });
 });

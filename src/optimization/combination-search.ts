@@ -269,15 +269,41 @@ export function combinationSearch(
       }
 
       try {
-        // Create combined conditions (always use AND for combining with required)
-        const allEntryConditions = fullEntryCombo.map((c) => c.create());
-        const allExitConditions = fullExitCombo.map((c) => c.create());
+        // Search conditions: combine with useOr setting (and/or)
+        const searchEntryConditions = entryCombo.map((c) => c.create());
+        const searchExitConditions = exitCombo.map((c) => c.create());
 
+        const searchEntry =
+          searchEntryConditions.length === 0
+            ? null
+            : searchEntryConditions.length === 1
+              ? searchEntryConditions[0]
+              : combiner(...searchEntryConditions);
+        const searchExit =
+          searchExitConditions.length === 0
+            ? null
+            : searchExitConditions.length === 1
+              ? searchExitConditions[0]
+              : combiner(...searchExitConditions);
+
+        // Required conditions: always AND
+        const requiredEntry = requiredEntryDefs.map((c) => c.create());
+        const requiredExit = requiredExitDefs.map((c) => c.create());
+
+        // Final: required AND search
         const entryCondition =
-          allEntryConditions.length === 1 ? allEntryConditions[0] : and(...allEntryConditions);
+          searchEntry === null
+            ? and(...requiredEntry)
+            : requiredEntry.length > 0
+              ? and(...requiredEntry, searchEntry)
+              : searchEntry;
 
         const exitCondition =
-          allExitConditions.length === 1 ? allExitConditions[0] : and(...allExitConditions);
+          searchExit === null
+            ? and(...requiredExit)
+            : requiredExit.length > 0
+              ? and(...requiredExit, searchExit)
+              : searchExit;
 
         // Run backtest with shared cache
         const backtest = runBacktest(

@@ -47,6 +47,9 @@ export function frama(
   if (period < 4) {
     throw new Error("FRAMA period must be at least 4");
   }
+  if (!Number.isInteger(period)) {
+    throw new Error("FRAMA period must be an integer");
+  }
 
   // Period must be even
   const effectivePeriod = period % 2 === 0 ? period : period + 1;

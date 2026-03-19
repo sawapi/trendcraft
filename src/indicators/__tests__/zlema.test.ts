@@ -66,4 +66,9 @@ describe("zlema", () => {
       expect(result[i].time).toBe(candles[i].time);
     }
   });
+
+  it("should throw on non-integer period", () => {
+    const candles = makeCandles([100, 101, 102]);
+    expect(() => zlema(candles, { period: 20.5 })).toThrow("ZLEMA period must be an integer");
+  });
 });

@@ -49,6 +49,9 @@ export function hma(
   if (period < 2) {
     throw new Error("HMA period must be at least 2");
   }
+  if (!Number.isInteger(period)) {
+    throw new Error("HMA period must be an integer");
+  }
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
 

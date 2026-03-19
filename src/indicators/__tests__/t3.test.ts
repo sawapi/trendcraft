@@ -152,4 +152,9 @@ describe("t3", () => {
       expect(result[i].value).not.toBeNull();
     }
   });
+
+  it("should throw on non-integer period", () => {
+    const candles = makeCandles([100, 101, 102]);
+    expect(() => t3(candles, { period: 5.5 })).toThrow("T3 period must be an integer");
+  });
 });

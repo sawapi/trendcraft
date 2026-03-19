@@ -80,4 +80,9 @@ describe("alma", () => {
       expect(result[i].time).toBe(candles[i].time);
     }
   });
+
+  it("should throw on non-integer period", () => {
+    const candles = makeCandles([100, 101, 102]);
+    expect(() => alma(candles, { period: 9.5 })).toThrow("ALMA period must be an integer");
+  });
 });

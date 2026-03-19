@@ -74,4 +74,9 @@ describe("hma", () => {
       expect(result[i].time).toBe(candles[i].time);
     }
   });
+
+  it("should throw on non-integer period", () => {
+    const candles = makeCandles([100, 101, 102, 103, 104]);
+    expect(() => hma(candles, { period: 9.5 })).toThrow("HMA period must be an integer");
+  });
 });

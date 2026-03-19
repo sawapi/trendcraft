@@ -53,11 +53,20 @@ export function kama(
   if (period < 1) {
     throw new Error("KAMA period must be at least 1");
   }
+  if (!Number.isInteger(period)) {
+    throw new Error("KAMA period must be an integer");
+  }
   if (fastPeriod < 1) {
     throw new Error("KAMA fastPeriod must be at least 1");
   }
+  if (!Number.isInteger(fastPeriod)) {
+    throw new Error("KAMA fastPeriod must be an integer");
+  }
   if (slowPeriod < 1) {
     throw new Error("KAMA slowPeriod must be at least 1");
+  }
+  if (!Number.isInteger(slowPeriod)) {
+    throw new Error("KAMA slowPeriod must be an integer");
   }
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
