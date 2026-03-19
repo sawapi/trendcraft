@@ -1234,6 +1234,79 @@ export type {
   CorrelationAdjustedSizeResult,
 } from "./risk";
 
+// Stress Testing / Scenario Analysis
+export {
+  stressTest,
+  runAllStressTests,
+  generateShockedReturns,
+  calculateMetricsFromReturns,
+  PRESET_SCENARIOS,
+} from "./risk";
+export type {
+  ReturnShock,
+  StressScenario,
+  StressTestResult,
+  StressTestSummary,
+} from "./risk";
+
+// Deep Drawdown Analysis
+export {
+  drawdownDistribution,
+  conditionalDrawdown,
+  estimateRecoveryTime,
+  ulcerPerformanceIndex,
+} from "./risk";
+export type {
+  DrawdownBin,
+  DrawdownDistribution,
+  ConditionalDrawdownResult,
+  RecoveryEstimate,
+} from "./risk";
+
+// Dynamic Slippage Model
+export { calculateDynamicSlippage, resolveSlippageModel } from "./backtest";
+export type {
+  SlippageModel,
+  FixedSlippageModel,
+  VolatilitySlippageModel,
+  VolumeSlippageModel,
+  CompositeSlippageModel,
+} from "./backtest";
+
+// Order Types (Limit/Stop)
+export {
+  tryFillOrder,
+  // Preset limit/stop strategies
+  limitBelowClose,
+  limitAboveClose,
+  limitAtrBelow,
+  limitAtrAbove,
+  limitAtLow,
+  limitAtHigh,
+  stopAboveHigh,
+  stopBelowLow,
+  stopAtrAbove,
+  stopAtrBelow,
+} from "./backtest";
+export type {
+  OrderType,
+  LimitOrder,
+  StopOrder,
+  StopLimitOrder,
+  PendingOrder,
+  LimitPriceFunc,
+  StopPriceFunc,
+  TimeInForce,
+} from "./backtest";
+
+// Margin/Leverage
+export { createMarginState, calculateBuyingPower, updateMarginState, accrueInterest, checkMarginCall } from "./backtest";
+export type { MarginConfig, MarginState } from "./backtest";
+
+// GARCH / EWMA Volatility
+export { garch, ewmaVolatility } from "./indicators/volatility";
+export type { GarchOptions, GarchResult, EwmaVolatilityOptions } from "./indicators/volatility";
+
 // Meta-Strategy (Equity Curve Trading, Strategy Rotation)
 export {
   applyEquityCurveFilter,

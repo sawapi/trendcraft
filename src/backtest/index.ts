@@ -197,6 +197,36 @@ export { runBacktest } from "./engine";
 export { runBacktestScaled } from "./scaled-entry";
 export type { ScaledBacktestOptions } from "./scaled-entry";
 
+// Dynamic Slippage Model
+export { calculateDynamicSlippage, resolveSlippageModel } from "./slippage-model";
+export type { SlippageModel, FixedSlippageModel, VolatilitySlippageModel, VolumeSlippageModel, CompositeSlippageModel } from "./slippage-model";
+
+// Order Types (Limit/Stop)
+export {
+  tryFillOrder,
+  resolvePrice,
+  resolveTimeInForce,
+  // Preset limit/stop strategies
+  limitBelowClose,
+  limitAboveClose,
+  limitAtrBelow,
+  limitAtrAbove,
+  limitAtLow,
+  limitAtHigh,
+  stopAboveHigh,
+  stopBelowLow,
+  stopAtrAbove,
+  stopAtrBelow,
+} from "./order-types";
+export type { OrderType, MarketOrder, LimitOrder, StopOrder, StopLimitOrder, PendingOrder, FillResult, LimitPriceFunc, StopPriceFunc, TimeInForce } from "./order-types";
+
+// Margin/Leverage
+export { createMarginState, calculateBuyingPower, updateMarginState, accrueInterest, checkMarginCall } from "./margin";
+export type { MarginConfig, MarginState } from "./margin";
+
+// Volume Constraint (re-export from engine-utils)
+export { applyVolumeConstraint } from "./engine-utils";
+
 // Portfolio / Multi-Asset Backtest
 export { batchBacktest, portfolioBacktest } from "./portfolio";
 

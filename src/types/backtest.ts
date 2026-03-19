@@ -3,6 +3,9 @@
  */
 
 import type { NormalizedCandle, TimeframeShorthand } from "./candle";
+import type { SlippageModel } from "../backtest/slippage-model";
+import type { OrderType, TimeInForce } from "../backtest/order-types";
+import type { MarginConfig } from "../backtest/margin";
 
 /**
  * Position direction for long/short trading
@@ -26,6 +29,7 @@ export type ExitReason =
   | "scaleOut" // Scale-out partial exit
   | "partialTakeProfit" // Partial take profit exit
   | "timeExit" // Time-based exit (maxHoldDays)
+  | "marginCall" // Margin call forced liquidation
   | "endOfData"; // Position closed at end of backtest data
 
 /**
@@ -238,6 +242,37 @@ export type BacktestOptions = {
   scaleOut?: ScaleOutConfig;
   /** Time-based exit config (exit after N days) */
   timeExit?: TimeExitConfig;
+  /** Dynamic slippage model (overrides fixed `slippage` when provided) */
+  slippageModel?: SlippageModel;
+  /** Order type for entry execution (default: market) */
+  orderType?: OrderType;
+  /** Order TTL in bars — pending orders expire after this many bars (default: Infinity). Used with "gtc" TIF. */
+  orderTTL?: number;
+  /**
+   * Time in Force — controls order duration and fill behavior (default: "gtc")
+   * - "day": Valid for 1 bar only
+   * - "gtc": Good Till Cancel (uses orderTTL, default Infinity)
+   * - "ioc": Immediate or Cancel (1 bar, partial fill OK)
+   * - "fok": Fill or Kill (1 bar, all-or-nothing — rejects if volume-constrained)
+   * - "opg": At the Open (fills at next bar's open regardless of order type)
+   * - "cls": At the Close (fills at next bar's close)
+   */
+  timeInForce?: TimeInForce;
+  /** Volume constraint — limit position size to a fraction of bar volume */
+  volumeConstraint?: VolumeConstraint;
+  /** Margin/leverage configuration */
+  margin?: MarginConfig;
+};
+
+/**
+ * Volume constraint for position sizing
+ * Limits order size to a percentage of the bar's traded volume
+ */
+export type VolumeConstraint = {
+  /** Maximum percentage of bar volume to consume (e.g., 10 = 10%) */
+  maxVolumePercent: number;
+  /** If true, partially fill when constrained; if false, cancel the order (default: true) */
+  partialFill?: boolean;
 };
 
 /**

@@ -12,6 +12,7 @@ import type {
   PositionDirection,
   SlTpMode,
   Trade,
+  VolumeConstraint,
 } from "../types";
 
 export const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -280,6 +281,44 @@ export function calculateStats(
     settings,
     drawdownPeriods,
   };
+}
+
+/**
+ * Apply volume constraint to limit position size based on bar volume.
+ * Returns adjusted shares (may be less than requested, or 0 if partialFill is false).
+ *
+ * @param requestedShares - Number of shares the strategy wants to buy
+ * @param price - Entry price per share
+ * @param candle - Current candle (for volume data)
+ * @param constraint - Volume constraint configuration
+ * @returns Adjusted number of shares
+ *
+ * @example
+ * ```ts
+ * const shares = applyVolumeConstraint(1000, 50, candle, { maxVolumePercent: 10 });
+ * // If candle.volume * 10% * price < 1000 * 50, shares will be reduced
+ * ```
+ */
+export function applyVolumeConstraint(
+  requestedShares: number,
+  price: number,
+  candle: NormalizedCandle,
+  constraint: VolumeConstraint,
+): number {
+  if (!candle.volume || candle.volume <= 0 || price <= 0) {
+    return constraint.partialFill !== false ? requestedShares : 0;
+  }
+
+  const maxShares = candle.volume * (constraint.maxVolumePercent / 100);
+  if (requestedShares <= maxShares) {
+    return requestedShares;
+  }
+
+  // Constrained
+  if (constraint.partialFill === false) {
+    return 0; // Cancel order
+  }
+  return maxShares;
 }
 
 /**

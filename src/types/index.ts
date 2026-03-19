@@ -67,6 +67,7 @@ export type {
   MtfContext,
   MtfConditionFn,
   MtfPresetCondition,
+  VolumeConstraint,
 } from "./backtest";
 
 // ============================================

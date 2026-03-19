@@ -32,6 +32,7 @@ import { createDrawdownTracker } from "./drawdown-tracker";
 import {
   MS_PER_DAY,
   applySlippage,
+  applyVolumeConstraint,
   calculateStats,
   calculateTradeClose,
   checkProfitTriggerDirectional,
@@ -39,6 +40,18 @@ import {
   emptyResult,
 } from "./engine-utils";
 import type { Position } from "./engine-utils";
+import { calculateDynamicSlippage, resolveSlippageModel } from "./slippage-model";
+import type { SlippageModel } from "./slippage-model";
+import { tryFillOrder, resolveTimeInForce } from "./order-types";
+import type { PendingOrder } from "./order-types";
+import {
+  createMarginState,
+  calculateBuyingPower,
+  updateMarginState,
+  accrueInterest,
+  checkMarginCall,
+} from "./margin";
+import type { MarginState } from "./margin";
 
 /**
  * Extended backtest options with MTF, ATR risk, and fundamentals support
@@ -99,10 +112,22 @@ export function runBacktest(
     taxRate = 0,
     fillMode = "next-bar-open" as FillMode,
     slTpMode = "close-only" as SlTpMode,
+    slippageModel: slippageModelOpt,
+    orderType: orderTypeOpt,
+    orderTTL = Infinity,
+    timeInForce: tifOpt,
+    volumeConstraint,
+    margin: marginConfig,
   } = options;
 
   const isShort = dir === "short";
   const entrySide = isShort ? "sell" : "buy";
+
+  // Resolve slippage model (explicit model takes precedence over legacy numeric)
+  const slippageModel: SlippageModel | undefined = resolveSlippageModel(slippage, slippageModelOpt);
+
+  // Whether we use order types (non-market orders need pending order handling)
+  const useOrderTypes = orderTypeOpt !== undefined && orderTypeOpt.type !== "market";
 
   // Extract MTF timeframes, ATR risk options, and fundamentals if provided
   const mtfTimeframes = (options as MtfBacktestOptions).mtfTimeframes;
@@ -152,7 +177,12 @@ export function runBacktest(
     mtfIndexMap = buildMtfIndexMap(candles, mtfContext);
   }
 
-  // Pre-calculate ATR if ATR risk management or ATR trailing stop is enabled
+  // Pre-calculate ATR if ATR risk management, ATR trailing stop, or dynamic slippage is enabled
+  const needsAtr = !!(
+    atrRisk ||
+    atrTrailingStop ||
+    (slippageModel && (slippageModel.type === "volatility" || slippageModel.type === "composite"))
+  );
   let atrSeries: { time: number; value: number | null }[] | null = null;
   if (atrRisk) {
     const atrPeriod = atrRisk.atrPeriod ?? 14;
@@ -160,6 +190,8 @@ export function runBacktest(
   } else if (atrTrailingStop) {
     const atrPeriod = atrTrailingStop.period ?? 14;
     atrSeries = atr(candles, { period: atrPeriod });
+  } else if (needsAtr) {
+    atrSeries = atr(candles, { period: 14 });
   }
 
   // Build fundamentals map for fast lookup if provided
@@ -167,12 +199,15 @@ export function runBacktest(
 
   let position: Position | null = null;
 
-  // Pending entry for next-bar-open mode
+  // Pending entry for next-bar-open mode (legacy simple or order-type based)
   let pendingEntry: {
     signalTime: number;
     signalIndex: number;
     entryAtr: number | null;
   } | null = null;
+
+  // Pending order for limit/stop order types
+  let pendingOrder: PendingOrder | null = null;
 
   // Pending exit for next-bar-open mode
   let pendingExit: {
@@ -187,6 +222,31 @@ export function runBacktest(
   let maxDrawdown = 0;
   const returns: number[] = [];
   const ddTracker = createDrawdownTracker(capital);
+
+  // Margin state tracking
+  let marginState: MarginState | null = null;
+  if (marginConfig) {
+    marginState = createMarginState(capital, marginConfig.leverage);
+  }
+
+  /**
+   * Resolve slippage for a given candle (dynamic or fixed)
+   */
+  function getSlippage(candle: NormalizedCandle, barIndex: number): number {
+    if (!slippageModel) return slippage;
+    const atrVal = atrSeries ? (atrSeries[barIndex]?.value ?? undefined) : undefined;
+    return calculateDynamicSlippage(slippageModel, candle, atrVal);
+  }
+
+  /**
+   * Get effective buying power (accounts for margin/leverage)
+   */
+  function getAvailableCapital(): number {
+    if (marginConfig) {
+      return calculateBuyingPower(currentCapital, marginConfig.leverage);
+    }
+    return currentCapital;
+  }
 
   /**
    * Create a position from entry parameters
@@ -293,6 +353,69 @@ export function runBacktest(
       : ((price - pos.entryPrice) / pos.entryPrice) * 100;
   }
 
+  /**
+   * Track drawdown after capital changes
+   */
+  function trackDrawdown(time: number, barIndex: number): void {
+    if (currentCapital > peakCapital) {
+      peakCapital = currentCapital;
+    }
+    const drawdown = ((peakCapital - currentCapital) / peakCapital) * 100;
+    if (drawdown > maxDrawdown) {
+      maxDrawdown = drawdown;
+    }
+    ddTracker.update(currentCapital, time, barIndex);
+  }
+
+  /**
+   * Deduct margin interest when closing a position
+   */
+  function deductMarginInterest(entryTime: number, exitTime: number): void {
+    if (marginConfig && marginState && marginConfig.interestRate) {
+      const holdDays = Math.max(1, Math.round((exitTime - entryTime) / MS_PER_DAY));
+      const interest = accrueInterest(marginState, marginConfig.interestRate / 365, holdDays);
+      currentCapital -= interest;
+      marginState.accumulatedInterest += interest;
+    }
+  }
+
+  /**
+   * Open a position given entry price and ATR. Returns the created position or null
+   * if volume constraint prevents the trade.
+   */
+  function openPositionFromEntry(
+    entryPrice: number,
+    entryTime: number,
+    entryAtr: number | null,
+    initialHigh: number,
+    initialLow: number,
+    candle: NormalizedCandle,
+    allowPartialFill?: boolean,
+  ): Position | null {
+    const availCap = getAvailableCapital();
+    const entryCommission = commission + availCap * (commissionRate / 100);
+    let shares = (availCap - entryCommission) / entryPrice;
+
+    if (volumeConstraint) {
+      const originalShares = shares;
+      shares = applyVolumeConstraint(shares, entryPrice, candle, volumeConstraint);
+
+      // FOK: reject if volume-constrained (partial not allowed)
+      if (allowPartialFill === false && shares < originalShares) {
+        shares = 0;
+      }
+    }
+
+    if (shares <= 0) return null;
+
+    const pos = createPosition(entryTime, entryPrice, shares, entryAtr, initialHigh, initialLow);
+    if (marginConfig && marginState) {
+      marginState.borrowedAmount = currentCapital * (marginConfig.leverage - 1);
+    }
+    currentCapital = 0;
+    return pos;
+  }
+
   for (let i = 1; i < candles.length; i++) {
     const candle = candles[i];
 
@@ -308,33 +431,47 @@ export function runBacktest(
       indicators.pbr = fund?.pbr ?? null;
     }
 
+    // === Handle pending order (limit/stop order types) ===
+    if (pendingOrder !== null && position === null) {
+      // Decrement TTL
+      pendingOrder.barsRemaining--;
+      if (pendingOrder.barsRemaining < 0) {
+        pendingOrder = null; // Order expired
+      } else {
+        const fillResult = tryFillOrder(pendingOrder, candle);
+        if (fillResult) {
+          const currentSlip = getSlippage(candle, i);
+          const fillPrice = applySlippage(fillResult.fillPrice, currentSlip, entrySide);
+          const opened = openPositionFromEntry(
+            fillPrice, candle.time, pendingOrder.entryAtr,
+            candle.high, candle.low, candle,
+            pendingOrder.allowPartialFill,
+          );
+          if (opened) {
+            position = opened;
+          }
+          pendingOrder = null;
+        }
+      }
+    }
+
     // === Handle pending entry (next-bar-open mode) ===
     if (pendingEntry !== null && position === null) {
-      const entryPrice = applySlippage(candle.open, slippage, entrySide);
-
-      // Calculate commission (fixed + rate-based)
-      const tradeValue = currentCapital;
-      const entryCommission = commission + tradeValue * (commissionRate / 100);
-
-      // Calculate shares after commission
-      const shares = (currentCapital - entryCommission) / entryPrice;
-
-      position = createPosition(
-        candle.time,
-        entryPrice,
-        shares,
-        pendingEntry.entryAtr,
-        candle.high,
-        candle.low,
+      const currentSlip = getSlippage(candle, i);
+      const entryPrice = applySlippage(candle.open, currentSlip, entrySide);
+      const opened = openPositionFromEntry(
+        entryPrice, candle.time, pendingEntry.entryAtr,
+        candle.high, candle.low, candle,
       );
-
-      // Capital is now invested in position
-      currentCapital = 0;
+      if (opened) {
+        position = opened;
+      }
       pendingEntry = null;
     }
 
     // === Handle pending exit (next-bar-open mode) ===
     if (pendingExit !== null && position !== null) {
+      const currentSlip = getSlippage(candle, i);
       const result = calculateTradeClose({
         position,
         exitTime: candle.time,
@@ -344,29 +481,21 @@ export function runBacktest(
         commission,
         commissionRate,
         taxRate,
-        slippage,
+        slippage: currentSlip,
       });
 
       trades.push(result.trade);
       currentCapital += result.netProceeds;
+      deductMarginInterest(position.entryTime, candle.time);
       returns.push(result.returnPercent / 100);
-
-      // Track drawdown
-      if (currentCapital > peakCapital) {
-        peakCapital = currentCapital;
-      }
-      const drawdown = ((peakCapital - currentCapital) / peakCapital) * 100;
-      if (drawdown > maxDrawdown) {
-        maxDrawdown = drawdown;
-      }
-      ddTracker.update(currentCapital, candle.time, i);
+      trackDrawdown(candle.time, i);
 
       position = null;
       pendingExit = null;
     }
 
     // === Check for new entry ===
-    if (position === null && pendingEntry === null) {
+    if (position === null && pendingEntry === null && pendingOrder === null) {
       // Check entry condition
       if (
         evaluateCondition(
@@ -381,28 +510,31 @@ export function runBacktest(
         // Store entry ATR for useEntryAtr mode
         const entryAtr = atrSeries ? atrSeries[i].value : null;
 
-        if (fillMode === "same-bar-close") {
-          // Legacy mode: enter at this bar's close
-          const entryPrice = applySlippage(candle.close, slippage, entrySide);
-
-          // Calculate commission (fixed + rate-based)
-          const tradeValue = currentCapital;
-          const entryCommission = commission + tradeValue * (commissionRate / 100);
-
-          // Calculate shares after commission
-          const shares = (currentCapital - entryCommission) / entryPrice;
-
-          position = createPosition(
-            candle.time,
-            entryPrice,
-            shares,
+        // If using limit/stop order types, create a pending order
+        if (useOrderTypes && orderTypeOpt) {
+          // Resolve TIF to effective TTL and fill behavior
+          const tif = tifOpt ?? "gtc";
+          const tifResolved = resolveTimeInForce(tif, orderTTL);
+          pendingOrder = {
+            orderType: orderTypeOpt,
+            direction: dir,
+            signalTime: candle.time,
+            signalIndex: i,
             entryAtr,
-            entryPrice,
-            entryPrice,
+            barsRemaining: tifResolved.ttlBars,
+            allowPartialFill: tifResolved.allowPartialFill,
+            fillPriceOverride: tifResolved.fillPriceOverride,
+          };
+        } else if (fillMode === "same-bar-close") {
+          const currentSlip = getSlippage(candle, i);
+          const entryPrice = applySlippage(candle.close, currentSlip, entrySide);
+          const opened = openPositionFromEntry(
+            entryPrice, candle.time, entryAtr,
+            entryPrice, entryPrice, candle,
           );
-
-          // Capital is now invested in position
-          currentCapital = 0;
+          if (opened) {
+            position = opened;
+          }
         } else {
           // next-bar-open mode: queue entry for next bar
           pendingEntry = {
@@ -429,6 +561,21 @@ export function runBacktest(
       let shouldExit = false;
       let exitPrice = candle.close;
       let exitReason: ExitReason = "signal";
+
+      // === Margin call check ===
+      if (marginConfig && marginState) {
+        const positionValue = candle.close * position.shares;
+        const entryValue = position.entryPrice * position.shares;
+        marginState = updateMarginState(marginState, positionValue, entryValue);
+        if (checkMarginCall(marginState, marginConfig.maintenanceMargin)) {
+          marginState.isMarginCall = true;
+          if (marginConfig.marginCallAction === "liquidate") {
+            shouldExit = true;
+            exitPrice = candle.close;
+            exitReason = "marginCall";
+          }
+        }
+      }
 
       // Get current ATR value for ATR-based risk management
       let currentAtr: number | null = null;
@@ -508,6 +655,7 @@ export function runBacktest(
           const partialExitPrice = partialTrigger.price;
           const sharesToSell = position.shares * (partialTakeProfit.sellPercent / 100);
 
+          const partialSlip = getSlippage(candle, i);
           const result = calculateTradeClose({
             position,
             exitTime: candle.time,
@@ -519,24 +667,14 @@ export function runBacktest(
             commission,
             commissionRate,
             taxRate,
-            slippage,
+            slippage: partialSlip,
           });
 
           trades.push(result.trade);
           currentCapital += result.netProceeds;
           returns.push(result.returnPercent / 100);
+          trackDrawdown(candle.time, i);
 
-          // Track drawdown
-          if (currentCapital > peakCapital) {
-            peakCapital = currentCapital;
-          }
-          const drawdown = ((peakCapital - currentCapital) / peakCapital) * 100;
-          if (drawdown > maxDrawdown) {
-            maxDrawdown = drawdown;
-          }
-          ddTracker.update(currentCapital, candle.time, i);
-
-          // Update position (keep remaining shares)
           position.shares -= sharesToSell;
           position.partialTaken = true;
         }
@@ -561,6 +699,7 @@ export function runBacktest(
             const sharesToSell = position.shares * (level.sellPercent / 100);
             const sharesRemaining = position.shares - sharesToSell;
 
+            const scaleOutSlip = getSlippage(candle, i);
             const result = calculateTradeClose({
               position,
               exitTime: candle.time,
@@ -572,22 +711,13 @@ export function runBacktest(
               commission,
               commissionRate,
               taxRate,
-              slippage,
+              slippage: scaleOutSlip,
             });
 
             trades.push(result.trade);
             currentCapital += result.netProceeds;
             returns.push(result.returnPercent / 100);
-
-            // Track drawdown
-            if (currentCapital > peakCapital) {
-              peakCapital = currentCapital;
-            }
-            const drawdown = ((peakCapital - currentCapital) / peakCapital) * 100;
-            if (drawdown > maxDrawdown) {
-              maxDrawdown = drawdown;
-            }
-            ddTracker.update(currentCapital, candle.time, i);
+            trackDrawdown(candle.time, i);
 
             position.shares = sharesRemaining;
             position.scaleOutLevelsTaken[levelIndex] = true;
@@ -721,6 +851,7 @@ export function runBacktest(
       // Handle exit based on fillMode
       if (shouldExit) {
         if (fillMode === "same-bar-close") {
+          const currentSlip = getSlippage(candle, i);
           const result = calculateTradeClose({
             position,
             exitTime: candle.time,
@@ -730,22 +861,14 @@ export function runBacktest(
             commission,
             commissionRate,
             taxRate,
-            slippage,
+            slippage: currentSlip,
           });
 
           trades.push(result.trade);
           currentCapital += result.netProceeds;
+          deductMarginInterest(position.entryTime, candle.time);
           returns.push(result.returnPercent / 100);
-
-          // Track drawdown
-          if (currentCapital > peakCapital) {
-            peakCapital = currentCapital;
-          }
-          const drawdown = ((peakCapital - currentCapital) / peakCapital) * 100;
-          if (drawdown > maxDrawdown) {
-            maxDrawdown = drawdown;
-          }
-          ddTracker.update(currentCapital, candle.time, i);
+          trackDrawdown(candle.time, i);
 
           position = null;
         } else {
@@ -779,9 +902,13 @@ export function runBacktest(
 
     trades.push(result.trade);
     currentCapital += result.netProceeds;
+    deductMarginInterest(position.entryTime, lastCandle.time);
     returns.push(result.returnPercent / 100);
     ddTracker.update(currentCapital, lastCandle.time, candles.length - 1);
   }
+
+  // Cancel any unfilled pending order at end of data
+  pendingOrder = null;
 
   ddTracker.finalize(candles[candles.length - 1].time, candles.length - 1);
 
