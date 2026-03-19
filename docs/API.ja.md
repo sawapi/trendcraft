@@ -83,6 +83,20 @@
 - [戦略堅牢性スコア](#戦略堅牢性スコア)
 - [ペアトレーディング](#ペアトレーディング)
 - [クロスアセット相関分析](#クロスアセット相関分析)
+- [ワイコフ / VSA](#ワイコフ--vsa)
+- [リスク分析](#リスク分析)
+  - [VaR / CVaR](#calculatevarreturns-options)
+  - [ローリングVaR](#rollingvarreturns-options)
+  - [リスクパリティ](#riskparityallocationreturnsseries-options)
+  - [相関調整サイジング](#correlationadjustedsizecurrentreturns-portfolioreturns-options)
+- [メタ戦略](#メタ戦略)
+  - [エクイティカーブフィルター](#applyequitycurvefilterresult-options)
+  - [戦略ローテーション](#rotatestrategiesresults-options)
+- [ハーモニックパターン検出](#ハーモニックパターン検出)
+- [GARCHボラティリティ](#garchボラティリティ)
+- [パレート多目的最適化 (NSGA-II)](#パレート多目的最適化-nsga-ii)
+- [バックテストリアリズム](#バックテストリアリズム)
+- [ストレステスト](#ストレステスト)
 - [型定義](#型定義)
 
 ---
@@ -5632,3 +5646,296 @@ const result = toResult(() => someThrowingFunction(), "INDICATOR_ERROR");
 
 - **ライブラリ利用者**: 堅牢性のためSafeバージョンを推奨
 - **内部 / パフォーマンス重視のコード**: Throwバージョンを直接使用
+
+---
+
+## ワイコフ / VSA
+
+### `vsa(candles, options?)`
+
+ボリュームスプレッド分析 — スプレッド（値幅）、バー内のクローズ位置、相対出来高の関係に基づいて各バーを分類します。
+
+```typescript
+import { vsa } from "trendcraft";
+
+const result = vsa(candles, {
+  volumeMaPeriod: 20,
+  atrPeriod: 14,
+  highVolumeThreshold: 1.5,
+  lowVolumeThreshold: 0.7,
+  wideSpreadThreshold: 1.2,
+  narrowSpreadThreshold: 0.7,
+});
+// result[]: { time, value: { barType, spreadRelative, closePosition, volumeRelative, isEffortDivergence } }
+```
+
+| オプション | デフォルト | 説明 |
+|--------|---------|-------------|
+| `volumeMaPeriod` | `20` | 出来高移動平均の期間 |
+| `atrPeriod` | `14` | ATR期間（スプレッド正規化用） |
+| `highVolumeThreshold` | `1.5` | この比率以上 = 高出来高 |
+| `lowVolumeThreshold` | `0.7` | この比率以下 = 低出来高 |
+| `wideSpreadThreshold` | `1.2` | この比率以上 = 広いスプレッド |
+| `narrowSpreadThreshold` | `0.7` | この比率以下 = 狭いスプレッド |
+
+**バータイプ:** `noSupply`（供給なし）, `noDemand`（需要なし）, `stoppingVolume`（停止出来高）, `climacticAction`（クライマックス）, `test`（テスト）, `upthrust`（アップスラスト）, `spring`（スプリング）, `absorption`（吸収）, `effortUp`（上昇エフォート）, `effortDown`（下降エフォート）, `normal`（通常）
+
+`Series<VsaValue>` を返します。
+
+### `wyckoffPhases(candles, options?)`
+
+ワイコフフェーズ検出 — アキュムレーション/ディストリビューションサイクル内のマーケットフェーズとキーイベントを識別します。
+
+```typescript
+import { wyckoffPhases } from "trendcraft";
+
+const phases = wyckoffPhases(candles, {
+  swingPeriod: 5,
+  minRangeBars: 20,
+  atrPeriod: 14,
+  volumeMaPeriod: 20,
+  rangeTolerance: 0.5,
+});
+// phases[]: { time, value: { phase, subPhase, event, confidence, rangeHigh, rangeLow, eventsDetected } }
+```
+
+| オプション | デフォルト | 説明 |
+|--------|---------|-------------|
+| `swingPeriod` | `5` | スイングポイント検出のルックバック |
+| `minRangeBars` | `20` | レンジ検出の最小バー数 |
+| `atrPeriod` | `14` | ATR期間 |
+| `volumeMaPeriod` | `20` | 出来高MA期間 |
+| `rangeTolerance` | `0.5` | レンジ境界の許容誤差（ATR倍率） |
+
+**フェーズ:** `accumulation`（蓄積）, `markup`（上昇）, `distribution`（分配）, `markdown`（下落）, `unknown`（不明）
+
+**イベント:** `PS`（予備的サポート/供給）, `SC`（セリングクライマックス）, `AR`（自動的な反発）, `ST`（二次テスト）, `spring`（スプリング）, `test`（テスト）, `SOS`（強さの兆候）, `LPS`（最後のサポートポイント）, `BU`（バックアップ）, `PSY`（予備的供給）, `BC`（バイイングクライマックス）, `SOW`（弱さの兆候）, `LPSY`, `UT`（アップスラスト）, `UTAD`
+
+`Series<WyckoffValue>` を返します。
+
+---
+
+## ハーモニックパターン検出
+
+### `detectHarmonicPatterns(candles, options?)`
+
+XABCDハーモニックパターンをフィボナッチ比率検証で検出します。Gartley、Butterfly、Bat、Crab、Sharkパターンの強気/弱気バリアントに対応。
+
+```typescript
+import { detectHarmonicPatterns } from "trendcraft";
+
+const patterns = detectHarmonicPatterns(candles, {
+  swingLookback: 5,
+  tolerance: 0.05,
+  minSwingPoints: 50,
+  patterns: ["gartley", "butterfly", "bat", "crab", "shark"],
+});
+// patterns[]: PatternSignal（type, confidence, pattern.keyPoints (X, A, B, C, D), target, stopLoss）
+```
+
+| オプション | デフォルト | 説明 |
+|--------|---------|-------------|
+| `swingLookback` | `5` | スイングポイント検出期間 |
+| `tolerance` | `0.05` | フィボナッチ比率の許容誤差（5%） |
+| `minSwingPoints` | `50` | スイング検出の最小バー数 |
+| `patterns` | すべて | 検出するパターンタイプ |
+
+**パターンタイプ:** `gartley_bullish`, `gartley_bearish`, `butterfly_bullish`, `butterfly_bearish`, `bat_bullish`, `bat_bearish`, `crab_bullish`, `crab_bearish`, `shark_bullish`, `shark_bearish`
+
+`PatternSignal[]` を返します（`confidence` (0-100), `confirmed`, `pattern.target`, `pattern.stopLoss`, `pattern.keyPoints` (X, A, B, C, Dポイント)）。
+
+---
+
+## GARCHボラティリティ
+
+### `garch(returns, options?)`
+
+GARCH(1,1)ボラティリティモデル — 最尤推定（MLE）により条件付き分散の時系列を推定します。ボラティリティ予測とリスク管理に有用です。
+
+```typescript
+import { garch, returns } from "trendcraft";
+
+const dailyReturns = returns(candles).map((s) => s.value ?? 0);
+const result = garch(dailyReturns, {
+  p: 1,
+  q: 1,
+  maxIterations: 100,
+  tolerance: 1e-6,
+});
+// result.volatilityForecast — 次期間の年率ボラティリティ（%）
+// result.conditionalVariance — Series<number> 条件付き分散の時系列
+// result.params — { omega, alpha, beta }
+// result.logLikelihood — モデル適合度
+// result.converged — 最適化が収束したか
+```
+
+| オプション | デフォルト | 説明 |
+|--------|---------|-------------|
+| `p` | `1` | GARCHラグ次数 |
+| `q` | `1` | ARCHラグ次数 |
+| `maxIterations` | `100` | MLE最大反復回数 |
+| `tolerance` | `1e-6` | 収束許容誤差 |
+
+`GarchResult` を返します。
+
+### `ewmaVolatility(returns, options?)`
+
+EWMA（指数加重移動平均）ボラティリティ — RiskMetrics標準のリアルタイムボラティリティ推定手法。
+
+```typescript
+import { ewmaVolatility } from "trendcraft";
+
+const vol = ewmaVolatility(dailyReturns, { lambda: 0.94 });
+// vol: 年率ボラティリティ推定値（number）
+```
+
+| オプション | デフォルト | 説明 |
+|--------|---------|-------------|
+| `lambda` | `0.94` | 減衰係数（RiskMetrics標準） |
+
+`number`（年率ボラティリティ）を返します。
+
+---
+
+## パレート多目的最適化 (NSGA-II)
+
+### `paretoOptimization(candles, strategyFactory, paramRanges, options)`
+
+NSGA-II多目的最適化 — 競合する目的関数をバランスするパレート最適なパラメータセットを発見します（例：シャープレシオ最大化とドローダウン最小化の両立）。高速非支配ソートとクラウディングディスタンスで多様性を維持。
+
+```typescript
+import { paretoOptimization, param, constraint, summarizeParetoResult } from "trendcraft";
+
+const result = paretoOptimization(
+  candles,
+  (params) => ({
+    entry: goldenCross(params.short, params.long),
+    exit: deadCross(params.short, params.long),
+  }),
+  [param("short", [5, 10, 15, 20]), param("long", [25, 50, 75, 100])],
+  {
+    objectives: [
+      { metric: "sharpe", direction: "maximize" },
+      { metric: "maxDrawdown", direction: "minimize" },
+    ],
+    constraints: [constraint("winRate", ">=", 35)],
+    maxCombinations: 10000,
+  },
+);
+// result.paretoFront — 効率的フロンティア上の非支配解
+// result.allResults — 全評価済み組み合わせ
+// result.totalCombinations, result.validCombinations
+
+console.log(summarizeParetoResult(result));
+```
+
+| オプション | デフォルト | 説明 |
+|--------|---------|-------------|
+| `objectives` | 必須 | 2-4個の目的関数（metricとdirection） |
+| `constraints` | `[]` | メトリクス制約 |
+| `maxCombinations` | `10000` | 評価するパラメータ組み合わせの最大数 |
+| `progressCallback` | - | 進捗報告コールバック |
+
+**利用可能なメトリクス:** `sharpe`, `returnPercent`, `maxDrawdown`, `profitFactor`, `winRate`, `calmar`, `recoveryFactor`, `avgHoldingDays`
+
+`ParetoResult` を返します（`paretoFront: ParetoResultEntry[]`、各エントリに `frontIndex`, `crowdingDistance` 付き）。
+
+**ヘルパー関数:**
+- `fastNonDominatedSort(entries, objectives)` — NSGA-II非支配ソート
+- `crowdingDistance(entries, frontIndices, objectives)` — クラウディングディスタンス計算
+- `summarizeParetoResult(result)` — 人間が読みやすいサマリー文字列
+
+---
+
+## バックテストリアリズム
+
+### `calculateDynamicSlippage(model, candle, atr?)`
+
+市場状況に基づくコンテキストアウェアなスリッページを計算します。リアルなバックテストシミュレーションのための複数モデルに対応。
+
+```typescript
+import { runBacktest, calculateDynamicSlippage } from "trendcraft";
+
+// バックテストオプションで使用
+const result = runBacktest(candles, entry, exit, {
+  capital: 1000000,
+  slippageModel: {
+    type: "composite",
+    atrMultiplier: 0.1,
+    impactCoeff: 0.1,
+    volatilityWeight: 0.7,
+  },
+});
+
+// スタンドアロンで使用
+const slippage = calculateDynamicSlippage(
+  { type: "volatility", atrMultiplier: 0.1 },
+  candle,
+  atrValue,
+);
+```
+
+**スリッページモデルタイプ:**
+
+| タイプ | パラメータ | 説明 |
+|------|-----------|-------------|
+| `fixed` | `percent` | 固定パーセンテージスリッページ |
+| `volatility` | `atrMultiplier` | ATR比例スリッページ（ボラティリティが高い市場で拡大） |
+| `volume` | `impactCoeff` | 出来高ベースのマーケットインパクト |
+| `composite` | `atrMultiplier`, `impactCoeff`, `volatilityWeight?` | ボラティリティ＋出来高の複合モデル |
+
+### `resolveSlippageModel(slippage?, model?)`
+
+固定パーセンテージまたはモデル設定から `SlippageModel` を解決します。`SlippageModel | undefined` を返します。
+
+---
+
+## ストレステスト
+
+### `stressTest(returns, scenario, initialCapital?)`
+
+単一のストレスシナリオに対する戦略のレジリエンスをテストします。リターン系列に合成的なショックを適用し、主要メトリクスへの影響を測定します。
+
+```typescript
+import { stressTest, runAllStressTests, PRESET_SCENARIOS } from "trendcraft";
+
+const result = stressTest(dailyReturns, PRESET_SCENARIOS.lehman2008, 1_000_000);
+// result.scenario — シナリオ名
+// result.originalMetrics — { totalReturn, maxDrawdown, sharpe }
+// result.stressedMetrics — { totalReturn, maxDrawdown, sharpe }
+// result.worstCase — { drawdown, duration, recoveryDays }
+// result.survivalRate — 資本生存率
+// result.capitalAtRisk — リスク資本額
+// result.stressedVaR, result.stressedCVaR
+```
+
+### `runAllStressTests(returns, initialCapital?)`
+
+すべてのプリセットストレスシナリオを一括実行します。
+
+```typescript
+const summary = runAllStressTests(dailyReturns, 1_000_000);
+// summary.results — 各シナリオのStressTestResult[]
+// summary.worstScenario — 最悪パフォーマンスのシナリオ名
+// summary.overallSurvivalRate — 全シナリオ中の最低生存率
+// summary.maxStressedDrawdown — 全シナリオ中の最大ドローダウン
+```
+
+### `generateShockedReturns(baseReturns, shock)`
+
+ショックを適用してストレスリターン系列を生成します。
+
+**ショックタイプ:**
+
+| タイプ | パラメータ | 説明 |
+|------|-----------|-------------|
+| `drawdown` | `magnitude`, `days`, `recoveryDays` | シミュレートされたドローダウンイベント |
+| `volatilitySpike` | `multiplier`, `days` | ボラティリティ倍率 |
+| `correlationBreakdown` | `targetCorrelation` | 相関レジーム変化 |
+| `absolute` | `returns` | 特定のリターン系列を注入 |
+
+**プリセットシナリオ:** `lehman2008`, `covidCrash2020`, `flashCrash2010`, `volmageddon2018`, `blackMonday1987`, `svbCrisis2023`
+
+### `calculateMetricsFromReturns(returns)`
+
+リターン系列から基本的なパフォーマンスメトリクスを計算します。`{ totalReturn, maxDrawdown, sharpe }` を返します。

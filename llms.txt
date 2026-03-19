@@ -2,7 +2,7 @@
 
 > A TypeScript library for technical analysis of financial data. Calculate indicators, detect signals, backtest strategies, and analyze market trends.
 
-TrendCraft provides 100+ technical indicators, signal detection, backtesting with 50+ preset conditions, strategy optimization, real-time streaming pipelines, position sizing, adaptive indicators, pairs trading, cross-asset correlation, signal explainability, and strategy robustness scoring — all with a consistent `Series<T>` return type.
+TrendCraft provides 130+ technical indicators, signal detection, backtesting with 191 preset conditions, strategy optimization (Grid Search, Walk-Forward, NSGA-II Pareto, Monte Carlo), real-time streaming pipelines, position sizing, adaptive indicators, pairs trading, cross-asset correlation, signal explainability, strategy robustness scoring, risk analytics (VaR/CVaR/Risk Parity), meta-strategy management (Equity Curve Trading, Strategy Rotation), stress testing, and backtest realism — all with a consistent `Series<T>` return type.
 
 ## Installation
 
@@ -53,6 +53,8 @@ const bt = TrendCraft.from(candles)
 - `kama(candles, { period, fastPeriod, slowPeriod })` — Kaufman Adaptive Moving Average
 - `t3(candles, { period, vFactor })` — Tillson T3 (6-fold cascaded EMA)
 - `hma(candles, { period })` — Hull Moving Average (reduced lag)
+- `mcginleyDynamic(candles, { period, k })` — McGinley Dynamic (auto-adjusts to market speed)
+- `emaRibbon(candles, { periods })` — EMA Ribbon (multiple EMAs with trend/expansion detection)
 
 ### Trend
 - `ichimoku(candles, opts?)` — Ichimoku Cloud (tenkan, kijun, senkouA, senkouB, chikou)
@@ -75,6 +77,8 @@ const bt = TrendCraft.from(candles)
 - `dpo(candles, { period })` — Detrended Price Oscillator
 - `hurst(candles, { minWindow, maxWindow })` — Hurst Exponent (R/S analysis, 0-1 range)
 - `connorsRsi(candles, { rsiPeriod, streakPeriod, rocPeriod })` — Connors RSI (RSI + Streak RSI + ROC Percentile)
+- `imi(candles, { period })` — Intraday Momentum Index
+- `adxr(candles, { period })` — Average Directional Movement Index Rating
 
 ### Volatility
 - `bollingerBands(candles, { period, stdDev })` — Bollinger Bands (upper, middle, lower, %B, bandwidth)
@@ -84,6 +88,8 @@ const bt = TrendCraft.from(candles)
 - `chandelierExit(candles, { period, multiplier })` — Chandelier Exit trailing stops
 - `volatilityRegime(candles, opts?)` — Classify volatility (low/normal/high/extreme)
 - `choppinessIndex(candles, { period })` — Choppiness Index (0-100: >61.8 choppy, <38.2 trending)
+- `garch(returns, opts?)` — GARCH(1,1) volatility model (conditional variance, forecast)
+- `ewmaVolatility(returns, opts?)` — EWMA volatility (RiskMetrics standard, lambda=0.94)
 
 ### Volume
 - `obv(candles)` — On Balance Volume
@@ -97,6 +103,14 @@ const bt = TrendCraft.from(candles)
 - `volumeTrend(candles)` — Volume trend confirmation
 - `adl(candles)` — Accumulation/Distribution Line
 - `anchoredVwap(candles, { anchorTime, bands? })` — Anchored VWAP from specific timestamp
+- `cvd(candles)` — Cumulative Volume Delta (order flow approximation from OHLCV)
+- `cvdWithSignal(candles, opts?)` — CVD with signal line and histogram
+- `elderForceIndex(candles, { period })` — Elder's Force Index
+- `easeOfMovement(candles, { period })` — Ease of Movement (EMV)
+- `klinger(candles, opts?)` — Klinger Volume Oscillator (KVO, signal, histogram)
+- `twap(candles, opts?)` — Time-Weighted Average Price
+- `weisWave(candles, opts?)` — Weis Wave Volume (wave volume + direction)
+- `marketProfile(candles, opts?)` — Market Profile / TPO (POC, VAH, VAL)
 
 ### Price
 - `highest(candles, { period })` / `lowest(candles, { period })` — Highest/Lowest values
@@ -108,6 +122,8 @@ const bt = TrendCraft.from(candles)
 - `zigzag(candles, opts?)` — Zigzag indicator (significant swing point connection)
 - `openingRange(candles, { minutes?, sessionResetPeriod? })` — Opening Range Breakout (ORB)
 - `gapAnalysis(candles, { minGapPercent? })` — Gap detection, classification, and fill tracking
+- `srZones(candles, opts?)` — S/R Zone Clustering (K-means++ from swing/pivot/VWAP/volume profile/round/custom)
+- `srZonesSeries(candles, opts?)` — Rolling S/R zones as time series
 
 ### Smart Money Concepts (SMC)
 - `orderBlock(candles, opts?)` — Order Block detection
@@ -115,6 +131,22 @@ const bt = TrendCraft.from(candles)
 - `breakOfStructure(candles, opts?)` — Break of Structure (BOS)
 - `changeOfCharacter(candles, opts?)` — Change of Character (CHoCH)
 - `fairValueGap(candles, opts?)` — Fair Value Gap (FVG)
+
+### Session / Kill Zones
+- `detectSessions(candles, opts?)` — Detect trading sessions (Tokyo, London, New York)
+- `killZones(candles, opts?)` — ICT Kill Zone detection with high-probability windows
+- `sessionBreakout(candles, opts?)` — Session high/low breakout signals
+- `sessionStats(candles, opts?)` — Session performance analytics
+- `getIctSessions()` / `getIctKillZones()` — ICT session/kill zone presets
+
+### HMM Regime Detection
+- `hmmRegimes(candles, opts?)` — Hidden Markov Model regime detection (bull/bear/sideways)
+- `fitHmm(observations, opts?)` — Fit HMM with Baum-Welch algorithm
+- `regimeTransitionMatrix(candles, opts?)` — Regime transition probability matrix
+
+### Wyckoff / VSA
+- `vsa(candles, opts?)` — Volume Spread Analysis (noSupply, noDemand, stoppingVolume, climactic, spring, upthrust, etc.)
+- `wyckoffPhases(candles, opts?)` — Wyckoff Phase Detection (accumulation, markup, distribution, markdown + events)
 
 ### Drawing Tools
 - `autoTrendLine(candles, opts?)` — Auto trend line detection
@@ -147,6 +179,7 @@ const bt = TrendCraft.from(candles)
 - `macdDivergence(candles, opts?)` — MACD divergence
 - `obvDivergence(candles, opts?)` — OBV divergence
 - `detectDivergence(candles, indicator, opts?)` — Generic divergence detection
+- `cvdDivergence(candles, opts?)` — CVD divergence (order flow vs price)
 
 ### Pattern Detection
 - `bollingerSqueeze(candles, opts?)` — Low volatility squeeze
@@ -164,6 +197,9 @@ const bt = TrendCraft.from(candles)
 - `detectFlag(candles, opts?)` — Bull/bear flags and pennants
 - `filterPatterns(patterns, candles, opts?)` — Context filter (ATR ratio, trend, volume)
 - `candlestickPatterns(candles, opts?)` — Candlestick pattern recognition
+
+### Harmonic Patterns
+- `detectHarmonicPatterns(candles, opts?)` — Harmonic pattern detection (Gartley, Butterfly, Bat, Crab, Shark) with Fibonacci ratio validation, target/stopLoss levels, and confidence scoring
 
 ### TradeSignal (Unified Format)
 - `fromCrossSignal(signal, opts?)` — Convert cross signal to TradeSignal
@@ -201,7 +237,7 @@ const result = runBacktest(candles, {
 ### Condition Combinators
 - `and(...conditions)` / `or(...conditions)` / `not(condition)` — Combine conditions
 
-### Preset Conditions (50+)
+### Preset Conditions (191)
 - **MA**: `goldenCrossCondition()`, `deadCrossCondition()`, `priceAboveSma(period)`, `priceBelowSma(period)`
 - **RSI**: `rsiBelow(threshold)`, `rsiAbove(threshold)`
 - **MACD**: `macdCrossUp()`, `macdCrossDown()`
@@ -209,16 +245,21 @@ const result = runBacktest(candles, {
 - **Stochastics**: `stochBelow(val)`, `stochAbove(val)`, `stochCrossUp()`, `stochCrossDown()`
 - **DMI/ADX**: `dmiBullish()`, `dmiBearish()`, `adxStrong(threshold?)`
 - **Perfect Order**: `perfectOrderBullish()`, `perfectOrderBearish()`, `perfectOrderActiveBullish()`, `poPlusEntry()`, `pbEntry()`
-- **Volume**: `volumeAboveAvg(multiplier)`, `volumeAnomalyCondition()`, `volumeConfirmsTrend()`
+- **Volume**: `volumeAboveAvg(multiplier)`, `volumeAnomalyCondition()`, `volumeConfirmsTrend()`, `cmfAbove()`, `cmfBelow()`, `obvRising()`, `obvFalling()`
 - **Range**: `rangeBreakout()`, `rangeConfirmed()`, `inRangeBound()`, `tightRange()`
 - **Volatility Regime**: `regimeIs('low'|'normal'|'high')`, `volatilityAbove(val)`, `volatilityBelow(val)`
 - **MTF**: `weeklyRsiAbove(val)`, `weeklyPriceAboveSma(period)`, `mtfCondition(timeframe, fn)`
-- **Patterns**: `doubleTopDetected()`, `doubleBottomDetected()`, `headShouldersDetected()`, `triangleDetected()`, `wedgeDetected()`, `channelDetected()`, `flagDetected()`, `bullFlagDetected()`, `bearFlagDetected()`, `anyBullishPattern()`, `anyBearishPattern()`
+- **Patterns**: `doubleTopDetected()`, `doubleBottomDetected()`, `headShouldersDetected()`, `triangleDetected()`, `wedgeDetected()`, `channelDetected()`, `flagDetected()`, `anyBullishPattern()`, `anyBearishPattern()`
+- **SMC**: `orderBlockBullish()`, `orderBlockBearish()`, `liquiditySweepBullish()`, `liquiditySweepBearish()`, `bosDetected()`, `chochDetected()`, `fvgDetected()`
 - **RS**: `rsAbove(val)`, `rsRising()`, `rsRatingAbove(val)`
 - **Fundamentals**: `perBelow(val)`, `pbrBelow(val)`
 
 ### Short Selling
 Set `direction: 'short'` in backtest options for short selling with direction-aware P&L.
+
+### Backtest Realism
+- `slippageModel` — Dynamic slippage models: `fixed`, `volatility` (ATR-based), `volume` (market impact), `composite`
+- `calculateDynamicSlippage(model, candle, atr?)` — Calculate context-aware slippage
 
 ### Risk Management Options
 - `stopLoss` / `takeProfit` — Percentage-based
@@ -232,8 +273,30 @@ Set `direction: 'short'` in backtest options for short selling with direction-aw
 - `anchoredWalkForwardAnalysis(candles, ...)` — Anchored variant (expanding in-sample window)
 - `combinationSearch(candles, entryPool, exitPool, opts?)` — Find optimal entry/exit combinations
 - `runMonteCarloSimulation(result, opts?)` — Monte Carlo simulation on backtest results
+- `paretoOptimization(candles, strategyFactory, paramRanges, opts)` — NSGA-II multi-objective optimization (2-4 objectives, Pareto front, crowding distance)
 
-Helper: `param(name, min, max, step)`, `constraint(fn)`, `getTopResults(result, n)`
+Helper: `param(name, min, max, step)`, `constraint(fn)`, `getTopResults(result, n)`, `fastNonDominatedSort()`, `crowdingDistance()`, `summarizeParetoResult()`
+
+## Risk Analytics
+
+- `calculateVaR(returns, opts?)` — Value at Risk (historical, parametric, Cornish-Fisher methods)
+- `rollingVaR(returns, opts?)` — Rolling window VaR/CVaR calculation
+- `riskParityAllocation(returnsSeries, opts?)` — Risk parity allocation weights (equalize risk contribution)
+- `correlationAdjustedSize(returns, portfolioReturns, opts)` — Adjust position size by portfolio correlation
+
+## Meta-Strategy
+
+- `applyEquityCurveFilter(result, opts?)` — Filter trades based on equity curve health (MA, drawdown, win rate, combined)
+- `equityCurveHealth(result, opts?)` — Equity curve health assessment (aboveMa, drawdown, rollingWinRate, healthScore)
+- `rotateStrategies(results, opts?)` — Strategy rotation with allocation (equal, proportional, topN)
+
+## Stress Testing
+
+- `stressTest(returns, scenario, initialCapital?)` — Run a single stress scenario
+- `runAllStressTests(returns, initialCapital?)` — Run all preset scenarios
+- `generateShockedReturns(baseReturns, shock)` — Generate stressed return series
+
+Preset scenarios: `lehman2008`, `covidCrash2020`, `flashCrash2010`, `volmageddon2018`, `blackMonday1987`, `svbCrisis2023`
 
 ## Streaming
 
@@ -260,14 +323,14 @@ const session = streaming.createGuardedSession({
   timeGuard: { tradingWindows: [{ start: '09:00', end: '15:00' }] },
 });
 
-// Layer 6: Position Management
+// Layer 6: Position Management (with Partial TP / Break-Even Stop)
 const managed = streaming.createManagedSession({
   capital: 1000000,
   positionSizing: { method: 'riskBased', riskPercent: 1 },
 });
 ```
 
-**Layers**: 1) Candle Aggregation → 2) Signal Detectors (cross, threshold, squeeze, divergence) → 3) Conditions (combinators) → 4) Pipeline & MTF → 5) Session & Guards → 6) Position Management
+**Layers**: 1) Candle Aggregation → 2) Signal Detectors (cross, threshold, squeeze, divergence) → 3) Conditions (combinators) → 4) Pipeline & MTF → 5) Session & Guards → 6) Position Management (SL/TP/trailing/partial TP/break-even stop)
 
 ## Scoring and Sizing
 
@@ -321,10 +384,6 @@ const result = batchBacktest(
   goldenCrossCondition(5, 25), deadCrossCondition(5, 25),
   { capital: 2_000_000, stopLoss: 5 }
 );
-// result.portfolio — aggregated PortfolioMetrics
-// result.symbols — per-symbol BacktestResult[]
-// result.equityCurve — merged EquityPoint[]
-// result.allTrades — all trades with symbol tags, sorted by entry time
 
 // Phase 2: Shared capital with allocation + position limits
 const portResult = portfolioBacktest(datasets, entry, exit, {
@@ -340,16 +399,9 @@ const portResult = portfolioBacktest(datasets, entry, exit, {
 ```typescript
 import { zipSeries, mapSeries, filterSeries, alignSeries } from 'trendcraft';
 
-// Combine two series by aligned timestamps
 const spread = zipSeries(sma5, sma25, (fast, slow) => fast - slow);
-
-// Transform values
 const normalized = mapSeries(rsi14, val => val / 100);
-
-// Filter by predicate
 const oversold = filterSeries(rsi14, val => val < 30);
-
-// Align higher-TF indicator to lower-TF timestamps
 const aligned = alignSeries(weeklySma, dailySma);
 ```
 
@@ -427,6 +479,6 @@ All indicators support `Result<Series<T>, TrendCraftError>` via safe variants fo
 
 ## Types
 
-Key types: `Candle`, `NormalizedCandle`, `Series<T>`, `IndicatorValue<T>`, `TradeSignal`, `BacktestResult`, `BacktestOptions`, `Condition`, `DrawdownPeriod`, `DrawdownSummary`, `PatternProjection`, `ScoringConfig`, `PipelineOptions`, `PipelineResult`, `SymbolData`, `BatchBacktestResult`, `PortfolioMetrics`, `EquityPoint`, `BatchBacktestOptions`, `PortfolioBacktestOptions`, `PortfolioBacktestResult`, `SignalExplanation`, `ConditionTrace`, `ExplainOptions`, `AlphaDecayResult`, `DecayObservation`, `DecayAssessment`, `QuickRobustnessResult`, `RobustnessResult`, `RobustnessGrade`, `PairsAnalysisResult`, `SpreadPoint`, `MeanReversionResult`, `CorrelationAnalysisResult`, `CorrelationPoint`, `LeadLagResult`, `DivergencePoint`, `AdaptiveRsiValue`, `AdaptiveBollingerValue`, `AdaptiveMaValue`, `AdaptiveStochasticsValue`
+Key types: `Candle`, `NormalizedCandle`, `Series<T>`, `IndicatorValue<T>`, `TradeSignal`, `BacktestResult`, `BacktestOptions`, `Condition`, `DrawdownPeriod`, `DrawdownSummary`, `PatternProjection`, `ScoringConfig`, `PipelineOptions`, `PipelineResult`, `SymbolData`, `BatchBacktestResult`, `PortfolioMetrics`, `EquityPoint`, `BatchBacktestOptions`, `PortfolioBacktestOptions`, `PortfolioBacktestResult`, `SignalExplanation`, `ConditionTrace`, `ExplainOptions`, `AlphaDecayResult`, `DecayObservation`, `DecayAssessment`, `QuickRobustnessResult`, `RobustnessResult`, `RobustnessGrade`, `PairsAnalysisResult`, `SpreadPoint`, `MeanReversionResult`, `CorrelationAnalysisResult`, `CorrelationPoint`, `LeadLagResult`, `DivergencePoint`, `AdaptiveRsiValue`, `AdaptiveBollingerValue`, `AdaptiveMaValue`, `AdaptiveStochasticsValue`, `VarResult`, `RiskParityResult`, `EquityCurveAnalysis`, `EquityCurveHealthResult`, `StrategyRotationResult`, `StressTestResult`, `StressTestSummary`, `ParetoResult`, `ParetoObjective`, `GarchResult`, `HarmonicPatternOptions`, `SlippageModel`, `VsaValue`, `WyckoffValue`
 
 See [API Reference](https://github.com/sawapi/trendcraft/blob/main/docs/API.md) for complete type definitions.

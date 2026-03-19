@@ -87,6 +87,20 @@
 - [Strategy Robustness Score](#strategy-robustness-score)
 - [Pairs Trading](#pairs-trading)
 - [Cross-Asset Correlation](#cross-asset-correlation)
+- [Wyckoff / VSA](#wyckoff--vsa)
+- [Risk Analytics](#risk-analytics)
+  - [VaR / CVaR](#calculatevarreturns-options)
+  - [Rolling VaR](#rollingvarreturns-options)
+  - [Risk Parity](#riskparityallocationreturnsseries-options)
+  - [Correlation-Adjusted Sizing](#correlationadjustedsizecurrentreturns-portfolioreturns-options)
+- [Meta-Strategy](#meta-strategy)
+  - [Equity Curve Filter](#applyequitycurvefilterresult-options)
+  - [Strategy Rotation](#rotatestrategiesresults-options)
+- [Harmonic Pattern Detection](#harmonic-pattern-detection)
+- [GARCH Volatility](#garch-volatility)
+- [Pareto Multi-Objective Optimization (NSGA-II)](#pareto-multi-objective-optimization-nsga-ii)
+- [Backtest Realism](#backtest-realism)
+- [Stress Testing](#stress-testing)
 - [Types](#types)
 
 ---
@@ -6403,4 +6417,296 @@ const result = correlationAdjustedSize(stockReturns, [pos1Returns, pos2Returns],
 // result.sizeFactor: 0.75
 // result.averageCorrelation: 0.5
 ```
-- **Internal / performance-critical code**: Use throw versions directly
+
+---
+
+## Wyckoff / VSA
+
+### `vsa(candles, options?)`
+
+Volume Spread Analysis — classifies each bar based on the relationship between spread (range), close position within the bar, and relative volume.
+
+```typescript
+import { vsa } from "trendcraft";
+
+const result = vsa(candles, {
+  volumeMaPeriod: 20,
+  atrPeriod: 14,
+  highVolumeThreshold: 1.5,
+  lowVolumeThreshold: 0.7,
+  wideSpreadThreshold: 1.2,
+  narrowSpreadThreshold: 0.7,
+});
+// result[]: { time, value: { barType, spreadRelative, closePosition, volumeRelative, isEffortDivergence } }
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `volumeMaPeriod` | `20` | Period for volume moving average |
+| `atrPeriod` | `14` | Period for ATR (spread normalization) |
+| `highVolumeThreshold` | `1.5` | Volume ratio above this = high volume |
+| `lowVolumeThreshold` | `0.7` | Volume ratio below this = low volume |
+| `wideSpreadThreshold` | `1.2` | Spread ratio above this = wide spread |
+| `narrowSpreadThreshold` | `0.7` | Spread ratio below this = narrow spread |
+
+**Bar types:** `noSupply`, `noDemand`, `stoppingVolume`, `climacticAction`, `test`, `upthrust`, `spring`, `absorption`, `effortUp`, `effortDown`, `normal`.
+
+Returns `Series<VsaValue>`.
+
+### `wyckoffPhases(candles, options?)`
+
+Wyckoff Phase Detection — identifies market phases and key events within accumulation/distribution cycles.
+
+```typescript
+import { wyckoffPhases } from "trendcraft";
+
+const phases = wyckoffPhases(candles, {
+  swingPeriod: 5,
+  minRangeBars: 20,
+  atrPeriod: 14,
+  volumeMaPeriod: 20,
+  rangeTolerance: 0.5,
+});
+// phases[]: { time, value: { phase, subPhase, event, confidence, rangeHigh, rangeLow, eventsDetected } }
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `swingPeriod` | `5` | Swing point detection lookback |
+| `minRangeBars` | `20` | Minimum bars for range detection |
+| `atrPeriod` | `14` | ATR period for range tolerance |
+| `volumeMaPeriod` | `20` | Volume MA period |
+| `rangeTolerance` | `0.5` | Range boundary tolerance (ATR multiplier) |
+
+**Phases:** `accumulation`, `markup`, `distribution`, `markdown`, `unknown`.
+
+**Events:** `PS` (Preliminary Supply/Support), `SC` (Selling Climax), `AR` (Automatic Rally), `ST` (Secondary Test), `spring`, `test`, `SOS` (Sign of Strength), `LPS` (Last Point of Support), `BU` (Back-Up), `PSY` (Preliminary Supply), `BC` (Buying Climax), `SOW` (Sign of Weakness), `LPSY`, `UT` (Upthrust), `UTAD`.
+
+Returns `Series<WyckoffValue>`.
+
+---
+
+## Harmonic Pattern Detection
+
+### `detectHarmonicPatterns(candles, options?)`
+
+Detects XABCD harmonic patterns using Fibonacci ratio validation. Supports Gartley, Butterfly, Bat, Crab, and Shark patterns in both bullish and bearish variants.
+
+```typescript
+import { detectHarmonicPatterns } from "trendcraft";
+
+const patterns = detectHarmonicPatterns(candles, {
+  swingLookback: 5,
+  tolerance: 0.05,
+  minSwingPoints: 50,
+  patterns: ["gartley", "butterfly", "bat", "crab", "shark"],
+});
+// patterns[]: PatternSignal with type, confidence, pattern.keyPoints (X, A, B, C, D), target, stopLoss
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `swingLookback` | `5` | Swing point detection period |
+| `tolerance` | `0.05` | Fibonacci ratio matching tolerance (5%) |
+| `minSwingPoints` | `50` | Minimum bars for swing detection |
+| `patterns` | all | Pattern types to detect |
+
+**Pattern types:** `gartley_bullish`, `gartley_bearish`, `butterfly_bullish`, `butterfly_bearish`, `bat_bullish`, `bat_bearish`, `crab_bullish`, `crab_bearish`, `shark_bullish`, `shark_bearish`.
+
+Returns `PatternSignal[]` with `confidence` (0-100), `confirmed`, `pattern.target`, `pattern.stopLoss`, `pattern.keyPoints` (X, A, B, C, D points).
+
+---
+
+## GARCH Volatility
+
+### `garch(returns, options?)`
+
+GARCH(1,1) volatility model — estimates conditional variance time series via Maximum Likelihood Estimation. Useful for volatility forecasting and risk management.
+
+```typescript
+import { garch, returns } from "trendcraft";
+
+const dailyReturns = returns(candles).map((s) => s.value ?? 0);
+const result = garch(dailyReturns, {
+  p: 1,
+  q: 1,
+  maxIterations: 100,
+  tolerance: 1e-6,
+});
+// result.volatilityForecast — next period annualized volatility (%)
+// result.conditionalVariance — Series<number> time series
+// result.params — { omega, alpha, beta }
+// result.logLikelihood — model fit quality
+// result.converged — whether optimization converged
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `p` | `1` | GARCH lag order |
+| `q` | `1` | ARCH lag order |
+| `maxIterations` | `100` | Max MLE iterations |
+| `tolerance` | `1e-6` | Convergence tolerance |
+
+Returns `GarchResult`.
+
+### `ewmaVolatility(returns, options?)`
+
+EWMA (Exponentially Weighted Moving Average) volatility — RiskMetrics standard method for real-time volatility estimation.
+
+```typescript
+import { ewmaVolatility } from "trendcraft";
+
+const vol = ewmaVolatility(dailyReturns, { lambda: 0.94 });
+// vol: annualized volatility estimate (number)
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `lambda` | `0.94` | Decay factor (RiskMetrics standard) |
+
+Returns `number` (annualized volatility).
+
+---
+
+## Pareto Multi-Objective Optimization (NSGA-II)
+
+### `paretoOptimization(candles, strategyFactory, paramRanges, options)`
+
+NSGA-II multi-objective optimization — finds Pareto-optimal parameter sets that balance competing objectives (e.g., maximize Sharpe ratio while minimizing drawdown). Uses fast non-dominated sorting and crowding distance for diversity.
+
+```typescript
+import { paretoOptimization, param, constraint, summarizeParetoResult } from "trendcraft";
+
+const result = paretoOptimization(
+  candles,
+  (params) => ({
+    entry: goldenCross(params.short, params.long),
+    exit: deadCross(params.short, params.long),
+  }),
+  [param("short", [5, 10, 15, 20]), param("long", [25, 50, 75, 100])],
+  {
+    objectives: [
+      { metric: "sharpe", direction: "maximize" },
+      { metric: "maxDrawdown", direction: "minimize" },
+    ],
+    constraints: [constraint("winRate", ">=", 35)],
+    maxCombinations: 10000,
+  },
+);
+// result.paretoFront — non-dominated solutions on the efficient frontier
+// result.allResults — all evaluated combinations
+// result.totalCombinations, result.validCombinations
+
+console.log(summarizeParetoResult(result));
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `objectives` | required | 2-4 objectives with metric and direction |
+| `constraints` | `[]` | Metric constraints |
+| `maxCombinations` | `10000` | Maximum parameter combinations to evaluate |
+| `progressCallback` | - | Progress reporting callback |
+
+**Available metrics:** `sharpe`, `returnPercent`, `maxDrawdown`, `profitFactor`, `winRate`, `calmar`, `recoveryFactor`, `avgHoldingDays`.
+
+Returns `ParetoResult` with `paretoFront: ParetoResultEntry[]` (each with `frontIndex`, `crowdingDistance`).
+
+**Helper functions:**
+- `fastNonDominatedSort(entries, objectives)` — NSGA-II non-dominated sorting
+- `crowdingDistance(entries, frontIndices, objectives)` — Crowding distance calculation
+- `summarizeParetoResult(result)` — Human-readable summary string
+
+---
+
+## Backtest Realism
+
+### `calculateDynamicSlippage(model, candle, atr?)`
+
+Calculate context-aware slippage based on market conditions. Supports multiple models for realistic backtest simulation.
+
+```typescript
+import { runBacktest, calculateDynamicSlippage } from "trendcraft";
+
+// Use in backtest options
+const result = runBacktest(candles, entry, exit, {
+  capital: 1000000,
+  slippageModel: {
+    type: "composite",
+    atrMultiplier: 0.1,
+    impactCoeff: 0.1,
+    volatilityWeight: 0.7,
+  },
+});
+
+// Standalone usage
+const slippage = calculateDynamicSlippage(
+  { type: "volatility", atrMultiplier: 0.1 },
+  candle,
+  atrValue,
+);
+```
+
+**Slippage model types:**
+
+| Type | Parameters | Description |
+|------|-----------|-------------|
+| `fixed` | `percent` | Fixed percentage slippage |
+| `volatility` | `atrMultiplier` | ATR-proportional slippage (wider in volatile markets) |
+| `volume` | `impactCoeff` | Market impact based on volume |
+| `composite` | `atrMultiplier`, `impactCoeff`, `volatilityWeight?` | Combined volatility + volume model |
+
+### `resolveSlippageModel(slippage?, model?)`
+
+Resolves a `SlippageModel` from either a fixed percentage or a model config. Returns `SlippageModel | undefined`.
+
+---
+
+## Stress Testing
+
+### `stressTest(returns, scenario, initialCapital?)`
+
+Test strategy resilience against a single stress scenario. Applies synthetic shocks to the return series and measures impact on key metrics.
+
+```typescript
+import { stressTest, runAllStressTests, PRESET_SCENARIOS } from "trendcraft";
+
+const result = stressTest(dailyReturns, PRESET_SCENARIOS.lehman2008, 1_000_000);
+// result.scenario — scenario name
+// result.originalMetrics — { totalReturn, maxDrawdown, sharpe }
+// result.stressedMetrics — { totalReturn, maxDrawdown, sharpe }
+// result.worstCase — { drawdown, duration, recoveryDays }
+// result.survivalRate — percentage of capital surviving
+// result.capitalAtRisk — capital at risk amount
+// result.stressedVaR, result.stressedCVaR
+```
+
+### `runAllStressTests(returns, initialCapital?)`
+
+Run all preset stress scenarios at once.
+
+```typescript
+const summary = runAllStressTests(dailyReturns, 1_000_000);
+// summary.results — StressTestResult[] for each scenario
+// summary.worstScenario — name of the worst-performing scenario
+// summary.overallSurvivalRate — minimum survival across all scenarios
+// summary.maxStressedDrawdown — maximum drawdown across all scenarios
+```
+
+### `generateShockedReturns(baseReturns, shock)`
+
+Generate a stressed return series by applying a shock.
+
+**Shock types:**
+
+| Type | Parameters | Description |
+|------|-----------|-------------|
+| `drawdown` | `magnitude`, `days`, `recoveryDays` | Simulated drawdown event |
+| `volatilitySpike` | `multiplier`, `days` | Volatility multiplier |
+| `correlationBreakdown` | `targetCorrelation` | Correlation regime shift |
+| `absolute` | `returns` | Inject a specific return sequence |
+
+**Preset scenarios:** `lehman2008`, `covidCrash2020`, `flashCrash2010`, `volmageddon2018`, `blackMonday1987`, `svbCrisis2023`.
+
+### `calculateMetricsFromReturns(returns)`
+
+Calculate basic performance metrics from a return series. Returns `{ totalReturn, maxDrawdown, sharpe }`.
