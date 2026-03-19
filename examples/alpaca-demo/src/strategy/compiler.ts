@@ -10,31 +10,59 @@ import {
   type NormalizedCandle,
   type SignalManagerOptions,
   type StrategyDefinition,
+  aroon,
   atr,
+  adxStrong as backtestAdxStrong,
   and as backtestAnd,
+  atrPercentAbove as backtestAtrPercentAbove,
+  atrPercentBelow as backtestAtrPercentBelow,
+  bollingerBreakout as backtestBollingerBreakout,
+  bollingerTouch as backtestBollingerTouch,
+  cmfAbove as backtestCmfAbove,
+  cmfBelow as backtestCmfBelow,
   deadCrossCondition as backtestDeadCross,
   dmiBearish as backtestDmiBearish,
   dmiBullish as backtestDmiBullish,
   goldenCrossCondition as backtestGoldenCross,
   liquiditySweepRecovered as backtestLiquiditySweepRecovered,
+  obvFalling as backtestObvFalling,
+  obvRising as backtestObvRising,
   or as backtestOr,
   priceAtBullishOrderBlock as backtestPriceAtBullishOB,
   rsiAbove as backtestRsiAbove,
   rsiBelow as backtestRsiBelow,
+  stochAbove as backtestStochAbove,
+  stochBelow as backtestStochBelow,
+  stochCrossDown as backtestStochCrossDown,
+  stochCrossUp as backtestStochCrossUp,
+  volatilityContracting as backtestVolatilityContracting,
+  volatilityExpanding as backtestVolatilityExpanding,
+  volumeAboveAvg as backtestVolumeAboveAvg,
   bollingerBands,
+  cmf,
+  cmo,
+  connorsRsi,
   dmi,
   ema,
+  hma,
   incremental,
+  kama,
   keltnerChannel,
   liquiditySweep,
   macdCrossDown,
   macdCrossUp,
+  obv,
   orderBlock,
   rsi,
   sma,
   stochastics,
   streaming,
+  supertrend,
+  t3,
+  trix,
+  vortex,
   vwap,
+  vwma,
 } from "trendcraft";
 import { US_MARKET_HOURS } from "../config/market-hours.js";
 import { DEFAULT_TRADING_COSTS } from "../config/trading-costs.js";
@@ -131,6 +159,78 @@ const INDICATOR_REGISTRY: Record<string, IndicatorDef> = {
         lookback: p.lookback ?? 100,
       }),
     computeBatch: (_c, _p) => null, // regime is streaming-only
+  },
+  hma: {
+    createIncremental: (p) => () => incremental.createHma({ period: p.period ?? 9 }),
+    computeBatch: (c, p) => hma(c, { period: p.period ?? 9 }),
+  },
+  kama: {
+    createIncremental: (p) => () =>
+      incremental.createKama({
+        period: p.period ?? 10,
+        fastPeriod: p.fastPeriod ?? 2,
+        slowPeriod: p.slowPeriod ?? 30,
+      }),
+    computeBatch: (c, p) =>
+      kama(c, {
+        period: p.period ?? 10,
+        fastPeriod: p.fastPeriod ?? 2,
+        slowPeriod: p.slowPeriod ?? 30,
+      }),
+  },
+  t3: {
+    createIncremental: (p) => () =>
+      incremental.createT3({ period: p.period ?? 5, vFactor: p.vFactor ?? 0.7 }),
+    computeBatch: (c, p) => t3(c, { period: p.period ?? 5, vFactor: p.vFactor ?? 0.7 }),
+  },
+  vwma: {
+    createIncremental: (p) => () => incremental.createVwma({ period: p.period ?? 20 }),
+    computeBatch: (c, p) => vwma(c, { period: p.period ?? 20 }),
+  },
+  connorsRsi: {
+    createIncremental: (p) => () =>
+      incremental.createConnorsRsi({
+        rsiPeriod: p.rsiPeriod ?? 3,
+        streakPeriod: p.streakPeriod ?? 2,
+        rocPeriod: p.rocPeriod ?? 100,
+      }),
+    computeBatch: (c, p) =>
+      connorsRsi(c, {
+        rsiPeriod: p.rsiPeriod ?? 3,
+        streakPeriod: p.streakPeriod ?? 2,
+        rocPeriod: p.rocPeriod ?? 100,
+      }),
+  },
+  trix: {
+    createIncremental: (p) => () =>
+      incremental.createTrix({ period: p.period ?? 15, signalPeriod: p.signalPeriod ?? 9 }),
+    computeBatch: (c, p) => trix(c, { period: p.period ?? 15, signalPeriod: p.signalPeriod ?? 9 }),
+  },
+  aroon: {
+    createIncremental: (p) => () => incremental.createAroon({ period: p.period ?? 25 }),
+    computeBatch: (c, p) => aroon(c, { period: p.period ?? 25 }),
+  },
+  vortexIndicator: {
+    createIncremental: (p) => () => incremental.createVortex({ period: p.period ?? 14 }),
+    computeBatch: (c, p) => vortex(c, { period: p.period ?? 14 }),
+  },
+  cmo: {
+    createIncremental: (p) => () => incremental.createCmo({ period: p.period ?? 14 }),
+    computeBatch: (c, p) => cmo(c, { period: p.period ?? 14 }),
+  },
+  obv: {
+    createIncremental: (_p) => () => incremental.createObv(),
+    computeBatch: (c, _p) => obv(c),
+  },
+  cmfIndicator: {
+    createIncremental: (p) => () => incremental.createCmf({ period: p.period ?? 20 }),
+    computeBatch: (c, p) => cmf(c, { period: p.period ?? 20 }),
+  },
+  supertrend: {
+    createIncremental: (p) => () =>
+      incremental.createSupertrend({ period: p.period ?? 10, multiplier: p.multiplier ?? 3 }),
+    computeBatch: (c, p) =>
+      supertrend(c, { period: p.period ?? 10, multiplier: p.multiplier ?? 3 }),
   },
 };
 
@@ -501,6 +601,188 @@ const CONDITION_REGISTRY: Record<string, ConditionDef> = {
     backtest: (_ref, _inds) => {
       // regimeFilter is streaming-only; always pass in backtest
       return () => true;
+    },
+  },
+  // --- Bollinger Bands conditions ---
+  bollingerUpperTouch: {
+    streaming: (_ref, inds) =>
+      streaming.bollingerTouch("upper", 0.1, findIndicatorName(inds, "bollinger")),
+    backtest: (_ref, _inds) => backtestBollingerTouch("upper"),
+  },
+  bollingerLowerTouch: {
+    streaming: (_ref, inds) =>
+      streaming.bollingerTouch("lower", 0.1, findIndicatorName(inds, "bollinger")),
+    backtest: (_ref, _inds) => backtestBollingerTouch("lower"),
+  },
+  bollingerBreakoutUp: {
+    streaming: (_ref, inds) =>
+      streaming.bollingerBreakout("upper", findIndicatorName(inds, "bollinger")),
+    backtest: (_ref, _inds) => backtestBollingerBreakout("upper"),
+  },
+  priceAboveBollingerMiddle: {
+    streaming: (_ref, inds) => priceVsField(inds, "bollinger", "middle", "above"),
+    backtest: (_ref, inds) => buildBacktestBandCondition("bollinger", "middle", "above", inds),
+  },
+  priceBelowBollingerMiddle: {
+    streaming: (_ref, inds) => priceVsField(inds, "bollinger", "middle", "below"),
+    backtest: (_ref, inds) => buildBacktestBandCondition("bollinger", "middle", "below", inds),
+  },
+  // --- Stochastic conditions ---
+  stochBelow: {
+    streaming: (ref, inds) =>
+      streaming.stochBelow(
+        (ref.params?.threshold as number) ?? 20,
+        findIndicatorName(inds, "stochastics"),
+      ),
+    backtest: (ref, inds) => {
+      const s = inds.find((i) => i.type === "stochastics");
+      return backtestStochBelow(
+        (ref.params?.threshold as number) ?? 20,
+        s?.params.kPeriod ?? 14,
+        s?.params.dPeriod ?? 3,
+      );
+    },
+  },
+  stochAbove: {
+    streaming: (ref, inds) =>
+      streaming.stochAbove(
+        (ref.params?.threshold as number) ?? 80,
+        findIndicatorName(inds, "stochastics"),
+      ),
+    backtest: (ref, inds) => {
+      const s = inds.find((i) => i.type === "stochastics");
+      return backtestStochAbove(
+        (ref.params?.threshold as number) ?? 80,
+        s?.params.kPeriod ?? 14,
+        s?.params.dPeriod ?? 3,
+      );
+    },
+  },
+  stochCrossDown: {
+    streaming: (_ref, inds) => streaming.stochCrossDown(findIndicatorName(inds, "stochastics")),
+    backtest: (_ref, inds) => {
+      const s = inds.find((i) => i.type === "stochastics");
+      return backtestStochCrossDown(s?.params.kPeriod ?? 14, s?.params.dPeriod ?? 3);
+    },
+  },
+  // --- MACD histogram conditions ---
+  macdHistogramRising: {
+    streaming: (_ref, inds) => streaming.macdHistogramRising(findIndicatorName(inds, "macd")),
+    backtest: (_ref, inds) => {
+      const m = inds.find((i) => i.type === "macd");
+      return macdCrossUp(
+        m?.params.fastPeriod ?? 12,
+        m?.params.slowPeriod ?? 26,
+        m?.params.signalPeriod ?? 9,
+      );
+    },
+  },
+  macdHistogramFalling: {
+    streaming: (_ref, inds) => streaming.macdHistogramFalling(findIndicatorName(inds, "macd")),
+    backtest: (_ref, inds) => {
+      const m = inds.find((i) => i.type === "macd");
+      return macdCrossDown(
+        m?.params.fastPeriod ?? 12,
+        m?.params.slowPeriod ?? 26,
+        m?.params.signalPeriod ?? 9,
+      );
+    },
+  },
+  // --- DMI/ADX conditions ---
+  adxStrong: {
+    streaming: (ref, inds) =>
+      streaming.adxStrong((ref.params?.threshold as number) ?? 25, findIndicatorName(inds, "dmi")),
+    backtest: (ref, inds) => {
+      const d = inds.find((i) => i.type === "dmi");
+      return backtestAdxStrong((ref.params?.threshold as number) ?? 25, d?.params.period ?? 14);
+    },
+  },
+  dmiCrossUp: {
+    streaming: (_ref, inds) => streaming.dmiCrossUp(findIndicatorName(inds, "dmi")),
+    backtest: (_ref, inds) => {
+      const d = inds.find((i) => i.type === "dmi");
+      return backtestDmiBullish(20, d?.params.period ?? 14);
+    },
+  },
+  // --- Volume conditions ---
+  cmfAbove: {
+    streaming: (ref, inds) =>
+      streaming.cmfAbove(
+        (ref.params?.threshold as number) ?? 0,
+        findIndicatorName(inds, "cmfIndicator"),
+      ),
+    backtest: (ref, _inds) => backtestCmfAbove((ref.params?.threshold as number) ?? 0),
+  },
+  cmfBelow: {
+    streaming: (ref, inds) =>
+      streaming.cmfBelow(
+        (ref.params?.threshold as number) ?? 0,
+        findIndicatorName(inds, "cmfIndicator"),
+      ),
+    backtest: (ref, _inds) => backtestCmfBelow((ref.params?.threshold as number) ?? 0),
+  },
+  obvRising: {
+    streaming: (_ref, inds) => streaming.obvRising(findIndicatorName(inds, "obv")),
+    backtest: (_ref, _inds) => backtestObvRising(),
+  },
+  obvFalling: {
+    streaming: (_ref, inds) => streaming.obvFalling(findIndicatorName(inds, "obv")),
+    backtest: (_ref, _inds) => backtestObvFalling(),
+  },
+  volumeAboveAvg: {
+    streaming: (ref, _inds) => streaming.volumeAboveAvg((ref.params?.multiplier as number) ?? 1.5),
+    backtest: (ref, _inds) => backtestVolumeAboveAvg((ref.params?.multiplier as number) ?? 1.5),
+  },
+  // --- Volatility conditions ---
+  atrPercentAbove: {
+    streaming: (ref, inds) =>
+      streaming.atrPercentAbove(
+        (ref.params?.threshold as number) ?? 2.3,
+        findIndicatorName(inds, "atr"),
+      ),
+    backtest: (ref, _inds) => backtestAtrPercentAbove((ref.params?.threshold as number) ?? 2.3),
+  },
+  atrPercentBelow: {
+    streaming: (ref, inds) =>
+      streaming.atrPercentBelow(
+        (ref.params?.threshold as number) ?? 1.0,
+        findIndicatorName(inds, "atr"),
+      ),
+    backtest: (ref, _inds) => backtestAtrPercentBelow((ref.params?.threshold as number) ?? 1.0),
+  },
+  volatilityExpanding: {
+    streaming: (_ref, inds) => streaming.volatilityExpanding(findIndicatorName(inds, "atr")),
+    backtest: (_ref, _inds) => backtestVolatilityExpanding(),
+  },
+  volatilityContracting: {
+    streaming: (_ref, inds) => streaming.volatilityContracting(findIndicatorName(inds, "atr")),
+    backtest: (_ref, _inds) => backtestVolatilityContracting(),
+  },
+  // --- Supertrend conditions ---
+  supertrendBullish: {
+    streaming: (_ref, inds) => streaming.supertrendBullish(findIndicatorName(inds, "supertrend")),
+    backtest: (_ref, inds) => {
+      const name = findIndicatorName(inds, "supertrend");
+      return (indicators, _candle, index, candles) => {
+        ensureIndicator(indicators, name, inds, candles);
+        const series = indicators[name] as
+          | { time: number; value: { direction: string } }[]
+          | undefined;
+        return series?.[index]?.value?.direction === "up";
+      };
+    },
+  },
+  supertrendBearish: {
+    streaming: (_ref, inds) => streaming.supertrendBearish(findIndicatorName(inds, "supertrend")),
+    backtest: (_ref, inds) => {
+      const name = findIndicatorName(inds, "supertrend");
+      return (indicators, _candle, index, candles) => {
+        ensureIndicator(indicators, name, inds, candles);
+        const series = indicators[name] as
+          | { time: number; value: { direction: string } }[]
+          | undefined;
+        return series?.[index]?.value?.direction === "down";
+      };
     },
   },
 };

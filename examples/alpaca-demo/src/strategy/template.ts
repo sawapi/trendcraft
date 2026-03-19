@@ -1007,6 +1007,131 @@ export const PRESET_TEMPLATES: StrategyTemplate[] = [
       "Gap downs often reverse intraday, especially on large caps. " +
       "RSI < 30 confirms oversold before fading the gap.",
   },
+  // --- New strategy presets (Phase 1 expansion) ---
+  {
+    id: "hma-connors-momentum",
+    name: "HMA + Connors RSI Momentum",
+    description:
+      "Buy when HMA(9) turning up + Connors RSI < 20 (extreme oversold), exit when Connors RSI > 80",
+    intervalMs: 3_600_000,
+    symbols: ["SPY", "QQQ", "AAPL", "MSFT", "NVDA"],
+    indicators: [
+      { type: "hma", name: "hma9", params: { period: 9 } },
+      {
+        type: "connorsRsi",
+        name: "crsi",
+        params: { rsiPeriod: 3, streakPeriod: 2, rocPeriod: 100 },
+      },
+      { type: "atr", name: "atr", params: { period: 14 } },
+    ],
+    entry: {
+      operator: "and",
+      conditions: [
+        { type: "priceAbove", params: { indicatorKey: "hma9" } },
+        { type: "indicatorBelow", params: { indicatorKey: "crsi", threshold: 20 } },
+      ],
+    },
+    exit: {
+      operator: "or",
+      conditions: [
+        { type: "indicatorAbove", params: { indicatorKey: "crsi", threshold: 80 } },
+        { type: "priceBelow", params: { indicatorKey: "hma9" } },
+      ],
+    },
+    guards: { maxDailyLoss: -5_000, maxDailyTrades: 8, timeGuard: null },
+    position: {
+      capital: 100_000,
+      sizingMethod: "risk-based",
+      riskPercent: 1,
+      stopLoss: 2,
+      takeProfit: 4,
+      atrTrailingStop: { period: 14, multiplier: 2 },
+      slippage: 0.05,
+    },
+    signalLifecycle: { cooldownBars: 3 },
+    backtestTimeframe: "1Hour",
+    backtestPeriodDays: 90,
+    source: "preset",
+    reasoning:
+      "HMA gives fast trend direction with minimal lag. " +
+      "Connors RSI is a short-term mean-reversion signal — buying dips in an HMA uptrend.",
+  },
+  {
+    id: "supertrend-adx-trend",
+    name: "Supertrend + ADX Trend",
+    description:
+      "Enter on Supertrend bullish + ADX >= 25 (strong trend), exit on Supertrend bearish",
+    intervalMs: 3_600_000,
+    symbols: ["SPY", "QQQ", "AAPL", "MSFT", "NVDA"],
+    indicators: [
+      { type: "supertrend", name: "supertrend", params: { period: 10, multiplier: 3 } },
+      { type: "dmi", name: "dmi", params: { period: 14 } },
+      { type: "atr", name: "atr", params: { period: 14 } },
+    ],
+    entry: {
+      operator: "and",
+      conditions: [{ type: "supertrendBullish" }, { type: "adxStrong", params: { threshold: 25 } }],
+    },
+    exit: { type: "supertrendBearish" },
+    guards: { maxDailyLoss: -5_000, maxDailyTrades: 6, timeGuard: null },
+    position: {
+      capital: 100_000,
+      sizingMethod: "risk-based",
+      riskPercent: 1,
+      stopLoss: 3,
+      atrTrailingStop: { period: 14, multiplier: 2.5 },
+      slippage: 0.05,
+    },
+    signalLifecycle: { cooldownBars: 3 },
+    backtestTimeframe: "1Hour",
+    backtestPeriodDays: 90,
+    source: "preset",
+    reasoning:
+      "Supertrend provides clear trend direction with ATR-based bands. " +
+      "ADX filter ensures we only enter when trend strength is significant.",
+  },
+  {
+    id: "obv-cmf-volume",
+    name: "OBV + CMF Volume Confirmation",
+    description: "Buy when OBV rising + CMF > 0.05 + price > EMA(50) — volume-confirmed uptrend",
+    intervalMs: 3_600_000,
+    symbols: ["SPY", "QQQ", "AAPL", "MSFT", "NVDA"],
+    indicators: [
+      { type: "obv", name: "obv", params: {} },
+      { type: "cmfIndicator", name: "cmf", params: { period: 20 } },
+      { type: "ema", name: "ema50", params: { period: 50 } },
+      { type: "atr", name: "atr", params: { period: 14 } },
+    ],
+    entry: {
+      operator: "and",
+      conditions: [
+        { type: "obvRising" },
+        { type: "cmfAbove", params: { threshold: 0.05 } },
+        { type: "priceAbove", params: { indicatorKey: "ema50" } },
+      ],
+    },
+    exit: {
+      operator: "or",
+      conditions: [{ type: "obvFalling" }, { type: "cmfBelow", params: { threshold: -0.05 } }],
+    },
+    guards: { maxDailyLoss: -5_000, maxDailyTrades: 6, timeGuard: null },
+    position: {
+      capital: 100_000,
+      sizingMethod: "risk-based",
+      riskPercent: 1,
+      stopLoss: 3,
+      takeProfit: 6,
+      atrTrailingStop: { period: 14, multiplier: 2 },
+      slippage: 0.05,
+    },
+    signalLifecycle: { cooldownBars: 5 },
+    backtestTimeframe: "1Hour",
+    backtestPeriodDays: 90,
+    source: "preset",
+    reasoning:
+      "Dual volume confirmation: OBV shows net buying pressure, CMF shows institutional flow. " +
+      "EMA(50) filter ensures we trade in the direction of the major trend.",
+  },
 ];
 
 /**

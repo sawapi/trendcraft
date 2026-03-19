@@ -1,7 +1,7 @@
 {
   "name": "trendcraft",
-  "version": "1.0.0",
-  "description": "Financial data analysis library for technical indicators, signals, and backtesting",
+  "version": "0.1.0",
+  "description": "Technical analysis library for TypeScript — 130+ indicators, backtesting, optimization, streaming, and zero dependencies",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -35,7 +35,12 @@
   },
   "sideEffects": false,
   "files": [
-    "dist"
+    "dist",
+    "!dist/**/__tests__",
+    "!dist/**/*.test.d.ts",
+    "!dist/**/*.test.d.ts.map",
+    "!dist/__benchmarks__",
+    "LICENSE"
   ],
   "scripts": {
     "dev": "vite",
@@ -55,16 +60,31 @@
     "trading",
     "technical-analysis",
     "indicators",
+    "backtesting",
+    "optimization",
+    "streaming",
     "sma",
     "ema",
     "rsi",
     "macd",
     "bollinger-bands",
-    "backtesting",
+    "ichimoku",
+    "vwap",
+    "smart-money",
     "screening",
-    "finance"
+    "finance",
+    "stocks",
+    "crypto"
   ],
-  "author": "",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sawapi/trendcraft.git"
+  },
+  "homepage": "https://github.com/sawapi/trendcraft#readme",
+  "bugs": {
+    "url": "https://github.com/sawapi/trendcraft/issues"
+  },
+  "author": "sawapi",
   "license": "MIT",
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
@@ -79,9 +99,7 @@
     "vitest": "^2.1.8"
   },
   "lint-staged": {
-    "*.{ts,tsx,js,jsx,json}": [
-      "biome check --write --no-errors-on-unmatched"
-    ]
+    "*.{ts,tsx,js,jsx,json}": ["biome check --write --no-errors-on-unmatched"]
   },
   "engines": {
     "node": ">=18.0.0"

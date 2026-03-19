@@ -140,22 +140,31 @@ npm install trendcraft
 ## Quick Start
 
 ```typescript
-import { sma, rsi, bollingerBands, goldenCross } from 'trendcraft';
+import { sma, rsi, macd, bollingerBands } from 'trendcraft';
 
-// Your candle data
 const candles = [
   { time: 1700000000000, open: 100, high: 105, low: 99, close: 104, volume: 1000 },
-  // ... more candles
+  // ... more candles (OHLCV format)
 ];
 
-// Calculate indicators
+// Calculate indicators — each returns Series<T> = { time, value }[]
 const sma20 = sma(candles, { period: 20 });
 const rsi14 = rsi(candles, { period: 14 });
-const bb = bollingerBands(candles, { period: 20, stdDev: 2 });
+const bb    = bollingerBands(candles, { period: 20, stdDev: 2 });
 
-// Detect signals
-const crosses = goldenCross(candles, { short: 5, long: 25 });
+// Backtest a strategy
+import { TrendCraft, goldenCrossCondition, deadCrossCondition, and, rsiBelow } from 'trendcraft';
+
+const result = TrendCraft.from(candles)
+  .strategy()
+  .entry(and(goldenCrossCondition(), rsiBelow(50)))
+  .exit(deadCrossCondition())
+  .backtest({ capital: 1_000_000, stopLoss: 5, takeProfit: 15 });
+
+console.log(`Return: ${result.totalReturnPercent.toFixed(2)}%  Sharpe: ${result.sharpeRatio.toFixed(3)}`);
 ```
+
+> **Runnable examples** — see [`examples/quick-start/`](./examples/quick-start/) for 5 self-contained scripts covering indicators, backtesting, optimization, screening, and streaming.
 
 ## Usage Examples
 

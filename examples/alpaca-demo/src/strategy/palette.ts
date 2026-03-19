@@ -102,6 +102,83 @@ export const INDICATOR_PALETTE: Record<string, IndicatorDef> = {
       lookback: { min: 30, max: 200, default: 100 },
     },
   },
+  hma: {
+    description: "Hull Moving Average — fast, low-lag trend following",
+    params: {
+      period: { min: 5, max: 100, default: 9 },
+    },
+  },
+  kama: {
+    description: "Kaufman Adaptive Moving Average — adapts to volatility",
+    params: {
+      period: { min: 5, max: 50, default: 10 },
+      fastPeriod: { min: 2, max: 10, default: 2 },
+      slowPeriod: { min: 20, max: 50, default: 30 },
+    },
+  },
+  t3: {
+    description: "Tillson T3 — ultra-smooth moving average with minimal lag",
+    params: {
+      period: { min: 3, max: 30, default: 5 },
+      vFactor: { min: 0.5, max: 1.0, default: 0.7, step: 0.1 },
+    },
+  },
+  vwma: {
+    description: "Volume-Weighted Moving Average — volume-weighted SMA",
+    params: {
+      period: { min: 5, max: 100, default: 20 },
+    },
+  },
+  connorsRsi: {
+    description: "Connors RSI — composite RSI + streak RSI + ROC percentile (0-100)",
+    params: {
+      rsiPeriod: { min: 2, max: 10, default: 3 },
+      streakPeriod: { min: 2, max: 5, default: 2 },
+      rocPeriod: { min: 50, max: 200, default: 100 },
+    },
+  },
+  trix: {
+    description: "TRIX — triple-smoothed EMA rate of change (momentum oscillator)",
+    params: {
+      period: { min: 5, max: 30, default: 15 },
+      signalPeriod: { min: 5, max: 15, default: 9 },
+    },
+  },
+  aroon: {
+    description: "Aroon — trend strength via time since high/low (up, down, oscillator)",
+    params: {
+      period: { min: 10, max: 50, default: 25 },
+    },
+  },
+  vortexIndicator: {
+    description: "Vortex Indicator — trend direction via VI+ and VI- crossovers",
+    params: {
+      period: { min: 7, max: 30, default: 14 },
+    },
+  },
+  cmo: {
+    description: "Chande Momentum Oscillator — momentum (-100 to +100)",
+    params: {
+      period: { min: 5, max: 30, default: 14 },
+    },
+  },
+  obv: {
+    description: "On-Balance Volume — cumulative volume flow",
+    params: {},
+  },
+  cmfIndicator: {
+    description: "Chaikin Money Flow — buying/selling pressure (-1 to +1)",
+    params: {
+      period: { min: 10, max: 30, default: 20 },
+    },
+  },
+  supertrend: {
+    description: "Supertrend — ATR-based trend direction (bullish/bearish)",
+    params: {
+      period: { min: 5, max: 30, default: 10 },
+      multiplier: { min: 1, max: 5, default: 3, step: 0.5 },
+    },
+  },
 };
 
 /**
@@ -223,6 +300,131 @@ export const CONDITION_PALETTE: Record<string, ConditionDef> = {
     params: {
       key: "indicatorKey",
     },
+  },
+  // --- Bollinger Bands ---
+  bollingerUpperTouch: {
+    description: "Price touches or exceeds upper Bollinger Band",
+    requiredIndicators: ["bollinger"],
+  },
+  bollingerLowerTouch: {
+    description: "Price touches or drops below lower Bollinger Band",
+    requiredIndicators: ["bollinger"],
+  },
+  bollingerBreakoutUp: {
+    description: "Price breaks above upper Bollinger Band (breakout)",
+    requiredIndicators: ["bollinger"],
+  },
+  priceAboveBollingerMiddle: {
+    description: "Price is above Bollinger Bands middle (SMA)",
+    requiredIndicators: ["bollinger"],
+  },
+  priceBelowBollingerMiddle: {
+    description: "Price is below Bollinger Bands middle (SMA)",
+    requiredIndicators: ["bollinger"],
+  },
+  // --- Stochastics ---
+  stochBelow: {
+    description: "Stochastic K is below threshold (oversold zone)",
+    requiredIndicators: ["stochastics"],
+    params: {
+      threshold: { min: 10, max: 40, default: 20 },
+    },
+  },
+  stochAbove: {
+    description: "Stochastic K is above threshold (overbought zone)",
+    requiredIndicators: ["stochastics"],
+    params: {
+      threshold: { min: 60, max: 95, default: 80 },
+    },
+  },
+  stochCrossDown: {
+    description: "Stochastic K crosses below D in overbought zone",
+    requiredIndicators: ["stochastics"],
+    params: {
+      threshold: { min: 60, max: 95, default: 80 },
+    },
+  },
+  // --- MACD ---
+  macdHistogramRising: {
+    description: "MACD histogram is rising (bullish momentum increasing)",
+    requiredIndicators: ["macd"],
+  },
+  macdHistogramFalling: {
+    description: "MACD histogram is falling (bearish momentum increasing)",
+    requiredIndicators: ["macd"],
+  },
+  // --- DMI/ADX ---
+  adxStrong: {
+    description: "ADX above threshold (strong trend regardless of direction)",
+    requiredIndicators: ["dmi"],
+    params: {
+      threshold: { min: 15, max: 50, default: 25 },
+    },
+  },
+  dmiCrossUp: {
+    description: "+DI crosses above -DI (bullish directional change)",
+    requiredIndicators: ["dmi"],
+  },
+  // --- Volume ---
+  cmfAbove: {
+    description: "Chaikin Money Flow above threshold (buying pressure)",
+    requiredIndicators: ["cmfIndicator"],
+    params: {
+      threshold: { min: -0.5, max: 0.5, default: 0 },
+    },
+  },
+  cmfBelow: {
+    description: "Chaikin Money Flow below threshold (selling pressure)",
+    requiredIndicators: ["cmfIndicator"],
+    params: {
+      threshold: { min: -0.5, max: 0.5, default: 0 },
+    },
+  },
+  obvRising: {
+    description: "On-Balance Volume is trending up (accumulation)",
+    requiredIndicators: ["obv"],
+  },
+  obvFalling: {
+    description: "On-Balance Volume is trending down (distribution)",
+    requiredIndicators: ["obv"],
+  },
+  volumeAboveAvg: {
+    description: "Volume is above N times its moving average",
+    params: {
+      multiplier: { min: 1, max: 5, default: 1.5, step: 0.5 },
+    },
+  },
+  // --- Volatility ---
+  atrPercentAbove: {
+    description: "ATR as % of price is above threshold (high volatility)",
+    requiredIndicators: ["atr"],
+    params: {
+      threshold: { min: 0.5, max: 10, default: 2.3, step: 0.1 },
+    },
+  },
+  atrPercentBelow: {
+    description: "ATR as % of price is below threshold (low volatility)",
+    requiredIndicators: ["atr"],
+    params: {
+      threshold: { min: 0.5, max: 10, default: 1.0, step: 0.1 },
+    },
+  },
+  volatilityExpanding: {
+    description: "ATR is expanding (volatility increasing)",
+    requiredIndicators: ["atr"],
+  },
+  volatilityContracting: {
+    description: "ATR is contracting (volatility decreasing)",
+    requiredIndicators: ["atr"],
+  },
+  // --- Supertrend ---
+  supertrendBullish: {
+    description: "Supertrend direction is bullish (uptrend)",
+    requiredIndicators: ["supertrend"],
+  },
+  supertrendBearish: {
+    description: "Supertrend direction is bearish (downtrend)",
+    requiredIndicators: ["supertrend"],
   },
 };
 
