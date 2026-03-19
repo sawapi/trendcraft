@@ -11,6 +11,8 @@ export type {
   WedgeOptions,
   ChannelOptions,
   FlagOptions,
+  HarmonicPatternType,
+  HarmonicPatternOptions,
 } from "./types";
 
 // Double Top/Bottom
@@ -33,6 +35,9 @@ export { detectChannel } from "./channel";
 
 // Flag/Pennant
 export { detectFlag } from "./flag";
+
+// Harmonic Patterns
+export { detectHarmonicPatterns } from "./harmonic-patterns";
 
 // Pattern Filter
 export { filterPatterns, type PatternFilterOptions } from "./pattern-filter";

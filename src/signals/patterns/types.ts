@@ -22,7 +22,36 @@ export type PatternType =
   | "bull_flag"
   | "bear_flag"
   | "bull_pennant"
-  | "bear_pennant";
+  | "bear_pennant"
+  | "gartley_bullish"
+  | "gartley_bearish"
+  | "butterfly_bullish"
+  | "butterfly_bearish"
+  | "bat_bullish"
+  | "bat_bearish"
+  | "crab_bullish"
+  | "crab_bearish"
+  | "shark_bullish"
+  | "shark_bearish";
+
+/**
+ * Harmonic pattern type identifiers
+ */
+export type HarmonicPatternType = "gartley" | "butterfly" | "bat" | "crab" | "shark";
+
+/**
+ * Harmonic pattern detection options
+ */
+export interface HarmonicPatternOptions {
+  /** Swing point detection lookback (default: 5) */
+  swingLookback?: number;
+  /** Fibonacci ratio tolerance as fraction (default: 0.05 = 5%) */
+  tolerance?: number;
+  /** Minimum number of swing points to scan (default: 50) */
+  minSwingPoints?: number;
+  /** Which patterns to detect (default: all) */
+  patterns?: HarmonicPatternType[];
+}
 
 /**
  * Key point in a pattern (peak, trough, neckline point, etc.)

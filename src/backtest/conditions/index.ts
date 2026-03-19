@@ -190,6 +190,9 @@ export {
   flagDetected,
   bullFlagDetected,
   bearFlagDetected,
+  harmonicPatternDetected,
+  bullishHarmonicDetected,
+  bearishHarmonicDetected,
   type PatternConditionOptions,
 } from "./patterns";
 

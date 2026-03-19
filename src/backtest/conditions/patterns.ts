@@ -12,6 +12,7 @@ import {
   doubleBottom as detectDoubleBottom,
   doubleTop as detectDoubleTop,
   detectFlag,
+  detectHarmonicPatterns,
   headAndShoulders as detectHeadShoulders,
   inverseHeadAndShoulders as detectInverseHeadShoulders,
   detectTriangle,
@@ -30,6 +31,11 @@ const BULLISH_PATTERNS: PatternType[] = [
   "triangle_ascending",
   "bull_flag",
   "bull_pennant",
+  "gartley_bullish",
+  "butterfly_bullish",
+  "bat_bullish",
+  "crab_bullish",
+  "shark_bullish",
 ];
 const BEARISH_PATTERNS: PatternType[] = [
   "double_top",
@@ -38,6 +44,11 @@ const BEARISH_PATTERNS: PatternType[] = [
   "triangle_descending",
   "bear_flag",
   "bear_pennant",
+  "gartley_bearish",
+  "butterfly_bearish",
+  "bat_bearish",
+  "crab_bearish",
+  "shark_bearish",
 ];
 const ALL_PATTERNS: PatternType[] = [...BULLISH_PATTERNS, ...BEARISH_PATTERNS];
 
@@ -64,6 +75,16 @@ const PATTERN_DETECTORS: Record<
   bear_flag: (c, o) => detectFlag(c, { swingLookback: o.swingLookback }),
   bull_pennant: (c, o) => detectFlag(c, { swingLookback: o.swingLookback }),
   bear_pennant: (c, o) => detectFlag(c, { swingLookback: o.swingLookback }),
+  gartley_bullish: (c, o) => detectHarmonicPatterns(c, { swingLookback: o.swingLookback, patterns: ["gartley"] }),
+  gartley_bearish: (c, o) => detectHarmonicPatterns(c, { swingLookback: o.swingLookback, patterns: ["gartley"] }),
+  butterfly_bullish: (c, o) => detectHarmonicPatterns(c, { swingLookback: o.swingLookback, patterns: ["butterfly"] }),
+  butterfly_bearish: (c, o) => detectHarmonicPatterns(c, { swingLookback: o.swingLookback, patterns: ["butterfly"] }),
+  bat_bullish: (c, o) => detectHarmonicPatterns(c, { swingLookback: o.swingLookback, patterns: ["bat"] }),
+  bat_bearish: (c, o) => detectHarmonicPatterns(c, { swingLookback: o.swingLookback, patterns: ["bat"] }),
+  crab_bullish: (c, o) => detectHarmonicPatterns(c, { swingLookback: o.swingLookback, patterns: ["crab"] }),
+  crab_bearish: (c, o) => detectHarmonicPatterns(c, { swingLookback: o.swingLookback, patterns: ["crab"] }),
+  shark_bullish: (c, o) => detectHarmonicPatterns(c, { swingLookback: o.swingLookback, patterns: ["shark"] }),
+  shark_bearish: (c, o) => detectHarmonicPatterns(c, { swingLookback: o.swingLookback, patterns: ["shark"] }),
 };
 
 /**
@@ -473,4 +494,100 @@ export function bullFlagDetected(options: PatternConditionOptions = {}): PresetC
  */
 export function bearFlagDetected(options: PatternConditionOptions = {}): PresetCondition {
   return patternDetected("bear_flag", options);
+}
+
+// ============================================
+// Harmonic Pattern Conditions
+// ============================================
+
+/**
+ * Any harmonic pattern detected (optionally filtered by subtype)
+ *
+ * @param subtype - Specific harmonic pattern type (optional)
+ * @param options - Pattern detection options
+ *
+ * @example
+ * ```ts
+ * // Detect any harmonic pattern
+ * const entry = harmonicPatternDetected();
+ *
+ * // Detect specific harmonic pattern
+ * const gartley = harmonicPatternDetected("gartley_bullish");
+ * ```
+ */
+export function harmonicPatternDetected(
+  subtype?: PatternType,
+  options: PatternConditionOptions = {},
+): PresetCondition {
+  if (subtype) return patternDetected(subtype, options);
+  const types: PatternType[] = [
+    "gartley_bullish",
+    "gartley_bearish",
+    "butterfly_bullish",
+    "butterfly_bearish",
+    "bat_bullish",
+    "bat_bearish",
+    "crab_bullish",
+    "crab_bearish",
+    "shark_bullish",
+    "shark_bearish",
+  ];
+  return {
+    type: "preset",
+    name: "harmonicPatternDetected()",
+    evaluate: (indicators, candle, _index, candles) =>
+      hasMatchingPattern(indicators, candles, candle, types, options),
+  };
+}
+
+/**
+ * Any bullish harmonic pattern detected
+ *
+ * @param options - Pattern detection options
+ *
+ * @example
+ * ```ts
+ * const entry = bullishHarmonicDetected();
+ * ```
+ */
+export function bullishHarmonicDetected(options: PatternConditionOptions = {}): PresetCondition {
+  const types: PatternType[] = [
+    "gartley_bullish",
+    "butterfly_bullish",
+    "bat_bullish",
+    "crab_bullish",
+    "shark_bullish",
+  ];
+  return {
+    type: "preset",
+    name: "bullishHarmonicDetected()",
+    evaluate: (indicators, candle, _index, candles) =>
+      hasMatchingPattern(indicators, candles, candle, types, options),
+  };
+}
+
+/**
+ * Any bearish harmonic pattern detected
+ *
+ * @param options - Pattern detection options
+ *
+ * @example
+ * ```ts
+ * const exit = bearishHarmonicDetected();
+ * ```
+ */
+export function bearishHarmonicDetected(options: PatternConditionOptions = {}): PresetCondition {
+  const types: PatternType[] = [
+    "gartley_bearish",
+    "butterfly_bearish",
+    "bat_bearish",
+    "crab_bearish",
+    "shark_bearish",
+  ];
+  return {
+    type: "preset",
+    name: "bearishHarmonicDetected()",
+    evaluate: (indicators, candle, _index, candles) =>
+      hasMatchingPattern(indicators, candles, candle, types, options),
+  };
 }

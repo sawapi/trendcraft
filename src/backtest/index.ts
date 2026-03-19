@@ -161,6 +161,9 @@ export {
   flagDetected,
   bullFlagDetected,
   bearFlagDetected,
+  harmonicPatternDetected,
+  bullishHarmonicDetected,
+  bearishHarmonicDetected,
   // Fundamental conditions (PER/PBR)
   perBelow,
   perAbove,
