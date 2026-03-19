@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest";
-import { detectHarmonicPatterns } from "../harmonic-patterns";
+import { describe, expect, it } from "vitest";
 import type { NormalizedCandle } from "../../../types";
+import { detectHarmonicPatterns } from "../harmonic-patterns";
 import type { HarmonicPatternOptions } from "../types";
 
 /**
@@ -265,7 +265,7 @@ describe("detectHarmonicPatterns", () => {
     const candles = generateCandlesFromWaypoints([500, 600, 545, 625, 475]);
     const result = detectHarmonicPatterns(candles, {
       ...DEFAULT_OPTIONS,
-      tolerance: 0.10,
+      tolerance: 0.1,
       patterns: ["shark"],
     });
     expect(Array.isArray(result)).toBe(true);
@@ -402,7 +402,7 @@ describe("detectHarmonicPatterns", () => {
 
     const looseResult = detectHarmonicPatterns(candles, {
       ...DEFAULT_OPTIONS,
-      tolerance: 0.20,
+      tolerance: 0.2,
     });
 
     expect(looseResult.length).toBeGreaterThanOrEqual(tightResult.length);
@@ -436,12 +436,12 @@ describe("detectHarmonicPatterns", () => {
 
     const smallLookback = detectHarmonicPatterns(candles, {
       swingLookback: 2,
-      tolerance: 0.10,
+      tolerance: 0.1,
     });
 
     const largeLookback = detectHarmonicPatterns(candles, {
       swingLookback: 8,
-      tolerance: 0.10,
+      tolerance: 0.1,
     });
 
     expect(Array.isArray(smallLookback)).toBe(true);
@@ -501,10 +501,14 @@ describe("detectHarmonicPatterns", () => {
   // ============================================
 
   it("handles unnormalized candles (auto-normalizes)", () => {
-    const candles = buildBullishGartley().map(
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      ({ _normalized, ...rest }) => rest,
-    );
+    const candles = buildBullishGartley().map(({ time, open, high, low, close, volume }) => ({
+      time,
+      open,
+      high,
+      low,
+      close,
+      volume,
+    }));
     const result = detectHarmonicPatterns(candles);
     expect(Array.isArray(result)).toBe(true);
   });

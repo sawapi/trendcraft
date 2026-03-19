@@ -36,19 +36,16 @@ const pipeline = streaming.createPipeline({
     { name: "ema21", create: () => incremental.createEma({ period: 21 }) },
     { name: "bb", create: () => incremental.createBollingerBands({ period: 20, stdDev: 2 }) },
   ],
-  entry: streaming.and(
-    streaming.rsiBelow(35, "rsi"),
-    streaming.crossOver(
-      (snapshot) => streaming.getNumber(snapshot, "ema9"),
-      (snapshot) => streaming.getNumber(snapshot, "ema21"),
-    ),
+  // Simple crossover entry — easy to trigger with 100 candles.
+  // For stricter filtering, combine with RSI:
+  //   streaming.and(streaming.rsiBelow(35, "rsi"), streaming.crossOver(...))
+  entry: streaming.crossOver(
+    (snapshot) => streaming.getNumber(snapshot, "ema9"),
+    (snapshot) => streaming.getNumber(snapshot, "ema21"),
   ),
-  exit: streaming.or(
-    streaming.rsiAbove(70, "rsi"),
-    streaming.crossUnder(
-      (snapshot) => streaming.getNumber(snapshot, "ema9"),
-      (snapshot) => streaming.getNumber(snapshot, "ema21"),
-    ),
+  exit: streaming.crossUnder(
+    (snapshot) => streaming.getNumber(snapshot, "ema9"),
+    (snapshot) => streaming.getNumber(snapshot, "ema21"),
   ),
 });
 
@@ -62,7 +59,7 @@ console.log("=== Streaming Pipeline ===\n");
 for (const candle of candles) {
   const result = pipeline.next(candle);
 
-  if (result.entry) {
+  if (result.entrySignal) {
     entryCount++;
     const time = new Date(candle.time).toISOString().slice(11, 19);
     const rsiVal = result.snapshot.rsi;
@@ -71,7 +68,7 @@ for (const candle of candles) {
     );
   }
 
-  if (result.exit) {
+  if (result.exitSignal) {
     exitCount++;
     const time = new Date(candle.time).toISOString().slice(11, 19);
     const rsiVal = result.snapshot.rsi;

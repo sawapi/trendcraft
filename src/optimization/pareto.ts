@@ -11,18 +11,15 @@ import type { BacktestOptions, NormalizedCandle } from "../types";
 import type {
   OptimizationMetric,
   OptimizationResultEntry,
+  ParameterRange,
   ParetoObjective,
   ParetoOptions,
   ParetoResult,
   ParetoResultEntry,
-  ParameterRange,
 } from "../types/optimization";
 import { type Result, err, ok, tcError } from "../types/result";
+import { type StrategyFactory, generateParameterCombinations } from "./grid-search";
 import { calculateAllMetrics, checkConstraint, getMetricValue } from "./metrics";
-import {
-  type StrategyFactory,
-  generateParameterCombinations,
-} from "./grid-search";
 
 /**
  * Get the objective value, flipping sign for minimize objectives
@@ -157,7 +154,7 @@ export function crowdingDistance(
   if (n <= 2) {
     // Boundary solutions get infinite distance
     for (const idx of frontIndices) {
-      distances.set(idx, Infinity);
+      distances.set(idx, Number.POSITIVE_INFINITY);
     }
     return distances;
   }
@@ -172,8 +169,8 @@ export function crowdingDistance(
     });
 
     // Boundary solutions get infinite distance
-    distances.set(sorted[0], Infinity);
-    distances.set(sorted[n - 1], Infinity);
+    distances.set(sorted[0], Number.POSITIVE_INFINITY);
+    distances.set(sorted[n - 1], Number.POSITIVE_INFINITY);
 
     // Calculate range for normalization
     const minVal = getObjectiveValue(entries[sorted[0]].metrics, obj);
@@ -186,7 +183,7 @@ export function crowdingDistance(
       const prev = getObjectiveValue(entries[sorted[i - 1]].metrics, obj);
       const next = getObjectiveValue(entries[sorted[i + 1]].metrics, obj);
       const current = distances.get(sorted[i])!;
-      if (current === Infinity) continue;
+      if (current === Number.POSITIVE_INFINITY) continue;
       distances.set(sorted[i], current + (next - prev) / range);
     }
   }
@@ -228,12 +225,7 @@ export function paretoOptimization(
   paramRanges: ParameterRange[],
   options: ParetoOptions,
 ): ParetoResult {
-  const {
-    objectives,
-    constraints = [],
-    maxCombinations = 10000,
-    progressCallback,
-  } = options;
+  const { objectives, constraints = [], maxCombinations = 10000, progressCallback } = options;
 
   if (objectives.length < 2 || objectives.length > 4) {
     throw new Error("Pareto optimization requires 2-4 objectives");
@@ -328,8 +320,7 @@ export function paretoOptimization(
   paretoEntries.sort((a, b) => {
     if (a.frontIndex !== b.frontIndex) return a.frontIndex - b.frontIndex;
     // Higher crowding distance is preferred (more diverse)
-    if (b.crowdingDistance !== a.crowdingDistance)
-      return b.crowdingDistance - a.crowdingDistance;
+    if (b.crowdingDistance !== a.crowdingDistance) return b.crowdingDistance - a.crowdingDistance;
     return 0;
   });
 
@@ -365,13 +356,11 @@ export function paretoOptimizationSafe(
   options: ParetoOptions,
 ): Result<ParetoResult> {
   try {
-    return ok(
-      paretoOptimization(candles, createStrategy, paramRanges, options),
-    );
+    return ok(paretoOptimization(candles, createStrategy, paramRanges, options));
   } catch (e) {
     return err(
       tcError(
-        "INVALID_PARAMS",
+        "INVALID_PARAMETER",
         e instanceof Error ? e.message : String(e),
         {},
         e instanceof Error ? e : undefined,
@@ -408,16 +397,13 @@ export function summarizeParetoResult(result: ParetoResult): string {
     for (let i = 0; i < top.length; i++) {
       const entry = top[i];
       const objValues = result.objectives
-        .map(
-          (o) =>
-            `${o.metric}=${getMetricValue(entry.metrics, o.metric).toFixed(4)}`,
-        )
+        .map((o) => `${o.metric}=${getMetricValue(entry.metrics, o.metric).toFixed(4)}`)
         .join(", ");
       const paramStr = Object.entries(entry.params)
         .map(([k, v]) => `${k}=${v}`)
         .join(", ");
       lines.push(
-        `  #${i + 1}: ${objValues} | params: {${paramStr}} | crowding: ${entry.crowdingDistance === Infinity ? "\u221E" : entry.crowdingDistance.toFixed(4)}`,
+        `  #${i + 1}: ${objValues} | params: {${paramStr}} | crowding: ${entry.crowdingDistance === Number.POSITIVE_INFINITY ? "\u221E" : entry.crowdingDistance.toFixed(4)}`,
       );
     }
   }

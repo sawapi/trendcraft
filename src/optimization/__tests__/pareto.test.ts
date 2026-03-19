@@ -47,10 +47,7 @@ function mockEntry(
 /**
  * Generate test candles with an upward trend
  */
-function generateUpTrendCandles(
-  count: number,
-  startPrice = 100,
-): NormalizedCandle[] {
+function generateUpTrendCandles(count: number, startPrice = 100): NormalizedCandle[] {
   const candles: NormalizedCandle[] = [];
   const baseTime = Date.now() - count * 24 * 60 * 60 * 1000;
   let price = startPrice;
@@ -66,7 +63,6 @@ function generateUpTrendCandles(
       low: price - dailyRange * 0.5,
       close: price,
       volume: 1000000,
-      _normalized: true as const,
     });
   }
 
@@ -168,7 +164,7 @@ describe("Pareto Optimization", () => {
     it("should return Infinity for a single solution", () => {
       const entries = [mockEntry({ sharpe: 1.5, maxDrawdown: 10 })];
       const distances = crowdingDistance(entries, [0], twoObjectives);
-      expect(distances.get(0)).toBe(Infinity);
+      expect(distances.get(0)).toBe(Number.POSITIVE_INFINITY);
     });
 
     it("should return Infinity for two solutions", () => {
@@ -177,8 +173,8 @@ describe("Pareto Optimization", () => {
         mockEntry({ sharpe: 2.0, maxDrawdown: 15 }),
       ];
       const distances = crowdingDistance(entries, [0, 1], twoObjectives);
-      expect(distances.get(0)).toBe(Infinity);
-      expect(distances.get(1)).toBe(Infinity);
+      expect(distances.get(0)).toBe(Number.POSITIVE_INFINITY);
+      expect(distances.get(1)).toBe(Number.POSITIVE_INFINITY);
     });
 
     it("should assign Infinity to boundary solutions and finite to interior", () => {
@@ -190,8 +186,8 @@ describe("Pareto Optimization", () => {
       const distances = crowdingDistance(entries, [0, 1, 2], twoObjectives);
 
       // Boundaries should be Infinity
-      expect(distances.get(0)).toBe(Infinity);
-      expect(distances.get(2)).toBe(Infinity);
+      expect(distances.get(0)).toBe(Number.POSITIVE_INFINITY);
+      expect(distances.get(2)).toBe(Number.POSITIVE_INFINITY);
 
       // Interior should be finite and positive
       const interiorDist = distances.get(1)!;
@@ -209,8 +205,8 @@ describe("Pareto Optimization", () => {
       const distances = crowdingDistance(entries, [0, 1, 2], twoObjectives);
 
       // Boundaries still get Infinity
-      expect(distances.get(0)).toBe(Infinity);
-      expect(distances.get(2)).toBe(Infinity);
+      expect(distances.get(0)).toBe(Number.POSITIVE_INFINITY);
+      expect(distances.get(2)).toBe(Number.POSITIVE_INFINITY);
 
       // Interior should be finite
       const interiorDist = distances.get(1)!;
@@ -222,7 +218,7 @@ describe("Pareto Optimization", () => {
     it("should throw for fewer than 2 objectives", () => {
       const candles = generateUpTrendCandles(100);
       expect(() =>
-        paretoOptimization(candles, () => ({} as any), [], {
+        paretoOptimization(candles, () => ({}) as any, [], {
           objectives: [{ metric: "sharpe", direction: "maximize" }],
         }),
       ).toThrow("Pareto optimization requires 2-4 objectives");
@@ -238,7 +234,7 @@ describe("Pareto Optimization", () => {
         { metric: "maxDrawdown", direction: "minimize" },
       ];
       expect(() =>
-        paretoOptimization(candles, () => ({} as any), [], {
+        paretoOptimization(candles, () => ({}) as any, [], {
           objectives: fiveObjectives,
         }),
       ).toThrow("Pareto optimization requires 2-4 objectives");
@@ -247,15 +243,10 @@ describe("Pareto Optimization", () => {
     it("should throw when too many combinations exceed maxCombinations", () => {
       const candles = generateUpTrendCandles(100);
       expect(() =>
-        paretoOptimization(
-          candles,
-          () => ({} as any),
-          [{ name: "p", min: 1, max: 100, step: 1 }],
-          {
-            objectives: twoObjectives,
-            maxCombinations: 10,
-          },
-        ),
+        paretoOptimization(candles, () => ({}) as any, [{ name: "p", min: 1, max: 100, step: 1 }], {
+          objectives: twoObjectives,
+          maxCombinations: 10,
+        }),
       ).toThrow("Too many combinations");
     });
 
@@ -282,9 +273,7 @@ describe("Pareto Optimization", () => {
 
       const createStrategy = (params: Record<string, number>) => ({
         entry: createEnterCondition(Math.floor(params.enterAt)),
-        exit: createExitCondition(
-          Math.floor(params.enterAt) + Math.floor(params.holdBars),
-        ),
+        exit: createExitCondition(Math.floor(params.enterAt) + Math.floor(params.holdBars)),
       });
 
       const result = paretoOptimization(
@@ -340,17 +329,12 @@ describe("Pareto Optimization", () => {
         exit: createExitCondition(Math.floor(params.enterAt) + 10),
       });
 
-      paretoOptimization(
-        candles,
-        createStrategy,
-        [{ name: "enterAt", min: 5, max: 15, step: 5 }],
-        {
-          objectives: twoObjectives,
-          progressCallback: (current, total) => {
-            progressCalls.push([current, total]);
-          },
+      paretoOptimization(candles, createStrategy, [{ name: "enterAt", min: 5, max: 15, step: 5 }], {
+        objectives: twoObjectives,
+        progressCallback: (current, total) => {
+          progressCalls.push([current, total]);
         },
-      );
+      });
 
       expect(progressCalls).toHaveLength(3);
       expect(progressCalls[0]).toEqual([1, 3]);
@@ -382,25 +366,13 @@ describe("Pareto Optimization", () => {
           // Check a does not dominate b
           const aDominatesB =
             twoObjectives.every((obj) => {
-              const va =
-                obj.direction === "maximize"
-                  ? a[obj.metric]
-                  : -a[obj.metric];
-              const vb =
-                obj.direction === "maximize"
-                  ? b[obj.metric]
-                  : -b[obj.metric];
+              const va = obj.direction === "maximize" ? a[obj.metric] : -a[obj.metric];
+              const vb = obj.direction === "maximize" ? b[obj.metric] : -b[obj.metric];
               return va >= vb;
             }) &&
             twoObjectives.some((obj) => {
-              const va =
-                obj.direction === "maximize"
-                  ? a[obj.metric]
-                  : -a[obj.metric];
-              const vb =
-                obj.direction === "maximize"
-                  ? b[obj.metric]
-                  : -b[obj.metric];
+              const va = obj.direction === "maximize" ? a[obj.metric] : -a[obj.metric];
+              const vb = obj.direction === "maximize" ? b[obj.metric] : -b[obj.metric];
               return va > vb;
             });
 
@@ -430,9 +402,7 @@ describe("Pareto Optimization", () => {
         const curr = result.allResults[i];
         if (prev.frontIndex === curr.frontIndex) {
           // Within same front, crowding distance should be descending
-          expect(prev.crowdingDistance).toBeGreaterThanOrEqual(
-            curr.crowdingDistance,
-          );
+          expect(prev.crowdingDistance).toBeGreaterThanOrEqual(curr.crowdingDistance);
         } else {
           expect(prev.frontIndex).toBeLessThan(curr.frontIndex);
         }
@@ -443,7 +413,7 @@ describe("Pareto Optimization", () => {
   describe("paretoOptimizationSafe", () => {
     it("should return err for invalid objectives count", () => {
       const candles = generateUpTrendCandles(50);
-      const result = paretoOptimizationSafe(candles, () => ({} as any), [], {
+      const result = paretoOptimizationSafe(candles, () => ({}) as any, [], {
         objectives: [{ metric: "sharpe", direction: "maximize" }],
       });
       expect(result.ok).toBe(false);
@@ -488,7 +458,7 @@ describe("Pareto Optimization", () => {
       const entry = {
         ...mockEntry({ sharpe: 1.5, maxDrawdown: 8 }, { rsiPeriod: 14 }),
         frontIndex: 0,
-        crowdingDistance: Infinity,
+        crowdingDistance: Number.POSITIVE_INFINITY,
       };
       const summary = summarizeParetoResult({
         paretoFront: [entry],
