@@ -1132,6 +1132,23 @@ export * as strategy from "./strategy";
 export type { StrategyDefinition, SessionOverrides } from "./strategy";
 export { createSessionFromStrategy } from "./strategy";
 
+// Strategy JSON Serialization
+export type {
+  ConditionSpec,
+  StrategyJSON,
+  ParamDef,
+  ConditionParamSchema,
+  ConditionCategory,
+  ConditionRegistryEntry,
+  ValidationResult as StrategyValidationResult,
+} from "./strategy";
+export { ConditionRegistry } from "./strategy";
+export { backtestRegistry } from "./strategy";
+export { streamingRegistry } from "./strategy";
+export { hydrateCondition, loadStrategy } from "./strategy";
+export { serializeStrategy, parseStrategy } from "./strategy";
+export { validateConditionSpec, validateStrategyJSON } from "./strategy";
+
 // Execution utilities (resilient order execution)
 export * as execution from "./execution";
 
@@ -1317,7 +1334,13 @@ export type {
 } from "./backtest";
 
 // Margin/Leverage
-export { createMarginState, calculateBuyingPower, updateMarginState, accrueInterest, checkMarginCall } from "./backtest";
+export {
+  createMarginState,
+  calculateBuyingPower,
+  updateMarginState,
+  accrueInterest,
+  checkMarginCall,
+} from "./backtest";
 export type { MarginConfig, MarginState } from "./backtest";
 
 // GARCH / EWMA Volatility

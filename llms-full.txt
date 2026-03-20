@@ -1588,6 +1588,134 @@ const divs = detectIntermarketDivergence(pricesA, pricesB, times);
 
 Types: `CorrelationAnalysisResult`, `CorrelationPoint`, `CorrelationRegimePoint`, `LeadLagResult`, `DivergencePoint`.
 
+## Strategy JSON Serialization
+
+Declarative JSON representation for strategies — save, share, and version-control trading strategies. Conditions are represented as `ConditionSpec` (leaf `{ name, params }` or combinator `{ op, conditions }`).
+
+### Registries
+
+Two pre-built registries map condition names → factory functions + parameter schemas:
+
+- **`backtestRegistry`** — 105+ backtest conditions across 8 categories
+- **`streamingRegistry`** — 65+ streaming conditions for real-time pipelines
+
+```typescript
+import { backtestRegistry } from "trendcraft";
+
+// List all, or filter by category: "trend" | "momentum" | "volume" | "volatility" | "pattern" | "smc" | "range" | "fundamental"
+const all = backtestRegistry.list();
+const trend = backtestRegistry.list("trend");
+
+// Get entry with param schema (for dynamic UI generation)
+const entry = backtestRegistry.get("rsiBelow");
+// { name: "rsiBelow", displayName: "RSI Below", category: "momentum",
+//   params: { threshold: { type: "number", default: 30, min: 0, max: 100 }, period: { type: "number", default: 14, min: 1 } },
+//   create: (p) => ... }
+```
+
+### Custom Registry
+
+```typescript
+import { ConditionRegistry } from "trendcraft";
+
+const registry = new ConditionRegistry<Condition>();
+registry.register({
+  name: "myCondition",
+  displayName: "My Condition",
+  category: "trend",
+  params: { period: { type: "number", default: 14, min: 1 } },
+  create: (p) => myFactory((p.period as number) ?? 14),
+});
+// Methods: register, get, has, list, names, size, hydrate
+```
+
+### Serialize / Parse
+
+```typescript
+import { serializeStrategy, parseStrategy } from "trendcraft";
+import type { StrategyJSON } from "trendcraft";
+
+const strategy: StrategyJSON = {
+  $schema: "trendcraft/strategy",
+  version: 1,
+  id: "golden-cross-rsi",
+  name: "Golden Cross + RSI",
+  entry: {
+    op: "and",
+    conditions: [
+      { name: "goldenCross", params: { shortPeriod: 5, longPeriod: 25 } },
+      { name: "rsiBelow", params: { threshold: 30 } },
+    ],
+  },
+  exit: { name: "rsiAbove", params: { threshold: 70 } },
+  backtest: {
+    capital: 1_000_000,
+    stopLoss: 5,
+    takeProfit: 15,
+    fillMode: "next-bar-open",
+  },
+};
+
+const jsonString = serializeStrategy(strategy); // → formatted JSON string
+const restored = parseStrategy(jsonString);      // → StrategyJSON (validates schema/version)
+```
+
+### Hydrate / Load
+
+```typescript
+import { hydrateCondition, loadStrategy, backtestRegistry, runBacktest } from "trendcraft";
+
+// Single condition
+const cond = hydrateCondition({ name: "goldenCross", params: { shortPeriod: 10 } }, backtestRegistry);
+
+// Full strategy → executable
+const { entry, exit, backtestOptions, metadata } = loadStrategy(strategyJson, backtestRegistry);
+const result = runBacktest(candles, entry, exit, { capital: 1_000_000, ...backtestOptions });
+```
+
+### Validate
+
+```typescript
+import { validateConditionSpec, validateStrategyJSON, backtestRegistry } from "trendcraft";
+
+// Condition spec validation (checks: name exists, param types, min/max, enum, required)
+validateConditionSpec({ name: "rsiBelow", params: { threshold: "string" } }, backtestRegistry);
+// { valid: false, errors: ["rsiBelow.threshold: expected number, got string"] }
+
+// Strategy structure validation
+validateStrategyJSON(strategyJson);
+// { valid: boolean, errors: string[] }
+```
+
+### StrategyJSON Schema
+
+```typescript
+type StrategyJSON = {
+  $schema: "trendcraft/strategy";
+  version: 1;
+  id: string;
+  name: string;
+  description?: string;
+  tags?: string[];
+  entry: ConditionSpec;
+  exit: ConditionSpec;
+  backtest?: {
+    capital?: number;
+    direction?: "long" | "short";
+    stopLoss?: number; takeProfit?: number; trailingStop?: number;
+    commission?: number; commissionRate?: number; slippage?: number;
+    fillMode?: "same-bar-close" | "next-bar-open";
+  };
+  metadata?: Record<string, unknown>;
+};
+
+type ConditionSpec =
+  | { name: string; params?: Record<string, unknown> }
+  | { op: "and" | "or" | "not"; conditions: ConditionSpec[] };
+```
+
+Types: `ConditionSpec`, `StrategyJSON`, `ParamDef`, `ConditionParamSchema`, `ConditionCategory`, `ConditionRegistryEntry`, `StrategyValidationResult`.
+
 ## CLI Tools
 
 ```bash

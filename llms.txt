@@ -454,6 +454,45 @@ const aligned = alignSeries(weeklySma, dailySma);
 - `analyzeLeadLag(returnsA, returnsB, opts?)` — Cross-correlation lead-lag analysis
 - `detectIntermarketDivergence(pricesA, pricesB, times, opts?)` — Intermarket divergence detection
 
+## Strategy JSON Serialization
+
+Declarative JSON representation for strategies — save, share, and version-control trading strategies.
+
+- `backtestRegistry` — Pre-built registry with 105+ backtest conditions (trend, momentum, volume, volatility, pattern, smc, range, fundamental)
+- `streamingRegistry` — Pre-built registry with 65+ streaming conditions
+- `backtestRegistry.list(category?)` — List conditions, optionally by category
+- `backtestRegistry.get(name)` — Get condition entry with param schema (for UI generation)
+- `serializeStrategy(strategy)` — Serialize StrategyJSON to formatted JSON string
+- `parseStrategy(json)` — Parse JSON string to StrategyJSON (validates schema/version)
+- `hydrateCondition(spec, registry)` — Convert ConditionSpec JSON to executable Condition
+- `loadStrategy(json, registry)` — Load StrategyJSON → `{ entry, exit, backtestOptions }`
+- `validateConditionSpec(spec, registry)` — Validate condition spec (type/range/enum/required checks)
+- `validateStrategyJSON(json)` — Validate strategy JSON structure
+
+```typescript
+import { serializeStrategy, parseStrategy, loadStrategy, backtestRegistry, runBacktest } from "trendcraft";
+import type { StrategyJSON } from "trendcraft";
+
+const strategy: StrategyJSON = {
+  $schema: "trendcraft/strategy", version: 1,
+  id: "gc-rsi", name: "Golden Cross + RSI",
+  entry: { op: "and", conditions: [
+    { name: "goldenCross", params: { shortPeriod: 5, longPeriod: 25 } },
+    { name: "rsiBelow", params: { threshold: 30 } },
+  ]},
+  exit: { name: "rsiAbove", params: { threshold: 70 } },
+  backtest: { capital: 1_000_000, stopLoss: 5 },
+};
+
+// Round-trip: serialize → parse → load → backtest
+const json = serializeStrategy(strategy);
+const parsed = parseStrategy(json);
+const { entry, exit, backtestOptions } = loadStrategy(parsed, backtestRegistry);
+const result = runBacktest(candles, entry, exit, { capital: 1_000_000, ...backtestOptions });
+```
+
+Types: `ConditionSpec`, `StrategyJSON`, `ParamDef`, `ConditionParamSchema`, `ConditionCategory`, `ConditionRegistryEntry`, `StrategyValidationResult`
+
 ## Optional
 
 ### CLI Tools

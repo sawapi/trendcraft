@@ -31,6 +31,7 @@ src/
 ├── screening/      # Stock screening
 ├── position-sizing/# Position sizing (Kelly, ATR-based, etc.)
 ├── meta-strategy/  # Equity Curve Trading, Strategy Rotation
+├── strategy/       # Strategy definition, JSON serialization, condition registry
 ├── risk/           # VaR, CVaR, Risk Parity, Correlation-Adjusted Sizing
 └── types/          # Type definitions
 ```
@@ -106,6 +107,14 @@ import { applyEquityCurveFilter, equityCurveHealth, rotateStrategies } from "tre
 
 // Risk Analytics (VaR / CVaR / Risk Parity)
 import { calculateVaR, rollingVaR, riskParityAllocation, correlationAdjustedSize } from "trendcraft";
+
+// Strategy JSON Serialization (condition registry + serialize/hydrate)
+import {
+  backtestRegistry, streamingRegistry,
+  serializeStrategy, parseStrategy,
+  loadStrategy, hydrateCondition,
+  validateConditionSpec, validateStrategyJSON,
+} from "trendcraft";
 ```
 
 ## examples/

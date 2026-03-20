@@ -97,6 +97,12 @@
 - [パレート多目的最適化 (NSGA-II)](#パレート多目的最適化-nsga-ii)
 - [バックテストリアリズム](#バックテストリアリズム)
 - [ストレステスト](#ストレステスト)
+- [戦略JSONシリアライゼーション](#戦略jsonシリアライゼーション)
+  - [ビルトインレジストリ](#ビルトインレジストリ)
+  - [ConditionRegistry](#conditionregistry)
+  - [シリアライズ / パース](#serializestrategystrategy--parsestratejson)
+  - [ハイドレーション / ロード](#hydrateconditionspec-registry--loadstrategyjson-registry)
+  - [バリデーション](#validateconditionspecspec-registry--validatestrategyjsonjson)
 - [型定義](#型定義)
 
 ---
@@ -5939,3 +5945,180 @@ const summary = runAllStressTests(dailyReturns, 1_000_000);
 ### `calculateMetricsFromReturns(returns)`
 
 リターン系列から基本的なパフォーマンスメトリクスを計算します。`{ totalReturn, maxDrawdown, sharpe }` を返します。
+
+---
+
+## 戦略JSONシリアライゼーション
+
+戦略を宣言的なJSONで表現し、保存・共有・バージョン管理を可能にする層です。
+
+### 概念
+
+- **`ConditionSpec`** — JSONで安全な条件表現（`{ name, params }` または `{ op: "and"|"or"|"not", conditions }`）
+- **`ConditionRegistry`** — 条件名 → ファクトリ関数 + パラメータスキーマのマッピング
+- **`StrategyJSON`** — バージョン付き戦略スキーマ（entry/exit条件 + バックテスト設定）
+
+### ビルトインレジストリ
+
+- **`backtestRegistry`** — 105+個のバックテスト条件（trend, momentum, volume, volatility, pattern, smc, range, fundamental）
+- **`streamingRegistry`** — 65+個のストリーミング条件（リアルタイムスナップショット用）
+
+### `backtestRegistry` / `streamingRegistry`
+
+```typescript
+import { backtestRegistry, streamingRegistry } from "trendcraft";
+
+// 全条件一覧
+const all = backtestRegistry.list();
+
+// カテゴリ別フィルタ
+const trendConditions = backtestRegistry.list("trend");
+
+// 条件の存在確認
+backtestRegistry.has("goldenCross"); // true
+
+// パラメータスキーマ取得（UI構築用）
+const entry = backtestRegistry.get("rsiBelow");
+// entry.params = { threshold: { type: "number", default: 30, min: 0, max: 100 }, ... }
+```
+
+**カテゴリ:** `trend`, `momentum`, `volume`, `volatility`, `pattern`, `smc`, `range`, `fundamental`
+
+### `ConditionRegistry`
+
+```typescript
+import { ConditionRegistry } from "trendcraft";
+
+const registry = new ConditionRegistry<Condition>();
+registry.register({
+  name: "myCondition",
+  displayName: "My Condition",
+  category: "trend",
+  params: {
+    period: { type: "number", default: 14, min: 1, max: 200 },
+  },
+  create: (p) => myConditionFactory((p.period as number) ?? 14),
+});
+```
+
+**メソッド:**
+- `register(entry)` — 条件を登録（重複名はエラー）
+- `get(name)` → `ConditionRegistryEntry | undefined`
+- `has(name)` → `boolean`
+- `list(category?)` → `ConditionRegistryEntry[]`
+- `names()` → `string[]`
+- `size` → `number`
+- `hydrate(spec, combinators)` → `T` — ConditionSpecを実行可能な条件に変換
+
+### `serializeStrategy(strategy)` / `parseStrategy(json)`
+
+```typescript
+import { serializeStrategy, parseStrategy } from "trendcraft";
+import type { StrategyJSON } from "trendcraft";
+
+const strategy: StrategyJSON = {
+  $schema: "trendcraft/strategy",
+  version: 1,
+  id: "golden-cross-rsi",
+  name: "Golden Cross + RSI",
+  entry: {
+    op: "and",
+    conditions: [
+      { name: "goldenCross", params: { shortPeriod: 5, longPeriod: 25 } },
+      { name: "rsiBelow", params: { threshold: 30 } },
+    ],
+  },
+  exit: { name: "rsiAbove", params: { threshold: 70 } },
+  backtest: { capital: 1_000_000, stopLoss: 5, fillMode: "next-bar-open" },
+};
+
+// JSON文字列にシリアライズ
+const jsonString = serializeStrategy(strategy);
+
+// パースして復元
+const restored = parseStrategy(jsonString);
+```
+
+`parseStrategy`は`$schema`と`version`フィールドを検証し、不一致の場合はエラーをスローします。
+
+### `hydrateCondition(spec, registry)` / `loadStrategy(json, registry)`
+
+```typescript
+import { hydrateCondition, loadStrategy, backtestRegistry, runBacktest } from "trendcraft";
+
+// 単一条件のハイドレーション
+const condition = hydrateCondition(
+  { name: "goldenCross", params: { shortPeriod: 10 } },
+  backtestRegistry,
+);
+
+// 戦略全体を読み込み → 実行可能なentry/exit + オプション
+const { entry, exit, backtestOptions } = loadStrategy(strategyJson, backtestRegistry);
+const result = runBacktest(candles, entry, exit, { capital: 1_000_000, ...backtestOptions });
+```
+
+### `validateConditionSpec(spec, registry)` / `validateStrategyJSON(json)`
+
+```typescript
+import { validateConditionSpec, validateStrategyJSON, backtestRegistry } from "trendcraft";
+
+// 条件スペックをレジストリに対してバリデーション（型・範囲・enum・必須チェック）
+const result = validateConditionSpec(
+  { name: "rsiBelow", params: { threshold: "文字列" } },
+  backtestRegistry,
+);
+// { valid: false, errors: ["rsiBelow.threshold: expected number, got string"] }
+
+// 戦略JSON構造のバリデーション
+const structResult = validateStrategyJSON(strategyJson);
+// { valid: boolean, errors: string[] }
+```
+
+### StrategyJSON スキーマ
+
+```typescript
+type StrategyJSON = {
+  $schema: "trendcraft/strategy";
+  version: 1;
+  id: string;
+  name: string;
+  description?: string;
+  tags?: string[];
+  entry: ConditionSpec;
+  exit: ConditionSpec;
+  backtest?: {
+    capital?: number;
+    direction?: "long" | "short";
+    stopLoss?: number;
+    takeProfit?: number;
+    trailingStop?: number;
+    commission?: number;
+    commissionRate?: number;
+    slippage?: number;
+    fillMode?: "same-bar-close" | "next-bar-open";
+  };
+  metadata?: Record<string, unknown>;
+};
+```
+
+### ConditionSpec
+
+```typescript
+// 葉条件
+type ConditionSpec =
+  | { name: string; params?: Record<string, unknown> }
+  | { op: "and" | "or" | "not"; conditions: ConditionSpec[] };
+
+// 例: and(goldenCross(5,25), rsiBelow(30))
+{
+  "op": "and",
+  "conditions": [
+    { "name": "goldenCross", "params": { "shortPeriod": 5, "longPeriod": 25 } },
+    { "name": "rsiBelow", "params": { "threshold": 30 } }
+  ]
+}
+```
+
+### 型
+
+`ConditionSpec`, `StrategyJSON`, `ParamDef`, `ConditionParamSchema`, `ConditionCategory`, `ConditionRegistryEntry`, `StrategyValidationResult`

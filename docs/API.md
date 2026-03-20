@@ -101,6 +101,12 @@
 - [Pareto Multi-Objective Optimization (NSGA-II)](#pareto-multi-objective-optimization-nsga-ii)
 - [Backtest Realism](#backtest-realism)
 - [Stress Testing](#stress-testing)
+- [Strategy JSON Serialization](#strategy-json-serialization)
+  - [Pre-built Registries](#pre-built-registries)
+  - [ConditionRegistry](#conditionregistry)
+  - [Serialize / Parse](#serializestrategystrategy--parsestratejson)
+  - [Hydrate / Load](#hydrateconditionspec-registry--loadstrategyjson-registry)
+  - [Validate](#validateconditionspecspec-registry--validatestrategyjsonjson)
 - [Types](#types)
 
 ---
@@ -6710,3 +6716,182 @@ Generate a stressed return series by applying a shock.
 ### `calculateMetricsFromReturns(returns)`
 
 Calculate basic performance metrics from a return series. Returns `{ totalReturn, maxDrawdown, sharpe }`.
+
+---
+
+## Strategy JSON Serialization
+
+Declarative JSON representation for strategies, enabling save/share/version control of trading strategies.
+
+### Concepts
+
+- **`ConditionSpec`** — JSON-safe condition representation (`{ name, params }` or `{ op: "and"|"or"|"not", conditions }`)
+- **`ConditionRegistry`** — Maps condition names to factory functions + parameter schemas
+- **`StrategyJSON`** — Version-stamped strategy schema with entry/exit specs and backtest config
+
+### Pre-built Registries
+
+Two pre-built registries are available:
+
+- **`backtestRegistry`** — 105+ backtest conditions (trend, momentum, volume, volatility, pattern, smc, range, fundamental)
+- **`streamingRegistry`** — 65+ streaming conditions (same categories, adapted for real-time snapshots)
+
+### `backtestRegistry` / `streamingRegistry`
+
+```typescript
+import { backtestRegistry, streamingRegistry } from "trendcraft";
+
+// List all conditions
+const all = backtestRegistry.list();
+
+// Filter by category
+const trendConditions = backtestRegistry.list("trend");
+
+// Check if condition exists
+backtestRegistry.has("goldenCross"); // true
+
+// Get entry with param schema (for UI generation)
+const entry = backtestRegistry.get("rsiBelow");
+// entry.params = { threshold: { type: "number", default: 30, min: 0, max: 100 }, ... }
+```
+
+**Categories:** `trend`, `momentum`, `volume`, `volatility`, `pattern`, `smc`, `range`, `fundamental`
+
+### `ConditionRegistry`
+
+```typescript
+import { ConditionRegistry } from "trendcraft";
+
+const registry = new ConditionRegistry<Condition>();
+registry.register({
+  name: "myCondition",
+  displayName: "My Condition",
+  category: "trend",
+  params: {
+    period: { type: "number", default: 14, min: 1, max: 200 },
+  },
+  create: (p) => myConditionFactory((p.period as number) ?? 14),
+});
+```
+
+**Methods:**
+- `register(entry)` — Register a condition (throws on duplicate name)
+- `get(name)` → `ConditionRegistryEntry | undefined`
+- `has(name)` → `boolean`
+- `list(category?)` → `ConditionRegistryEntry[]`
+- `names()` → `string[]`
+- `size` → `number`
+- `hydrate(spec, combinators)` → `T` — Resolve ConditionSpec to executable condition
+
+### `serializeStrategy(strategy)` / `parseStrategy(json)`
+
+```typescript
+import { serializeStrategy, parseStrategy } from "trendcraft";
+import type { StrategyJSON } from "trendcraft";
+
+const strategy: StrategyJSON = {
+  $schema: "trendcraft/strategy",
+  version: 1,
+  id: "golden-cross-rsi",
+  name: "Golden Cross + RSI",
+  entry: {
+    op: "and",
+    conditions: [
+      { name: "goldenCross", params: { shortPeriod: 5, longPeriod: 25 } },
+      { name: "rsiBelow", params: { threshold: 30 } },
+    ],
+  },
+  exit: { name: "rsiAbove", params: { threshold: 70 } },
+  backtest: { capital: 1_000_000, stopLoss: 5, fillMode: "next-bar-open" },
+};
+
+// Serialize to JSON string
+const jsonString = serializeStrategy(strategy);
+
+// Parse back
+const restored = parseStrategy(jsonString);
+```
+
+`parseStrategy` validates `$schema` and `version` fields, throwing on mismatch.
+
+### `hydrateCondition(spec, registry)` / `loadStrategy(json, registry)`
+
+```typescript
+import { hydrateCondition, loadStrategy, backtestRegistry, runBacktest } from "trendcraft";
+
+// Hydrate a single condition
+const condition = hydrateCondition(
+  { name: "goldenCross", params: { shortPeriod: 10 } },
+  backtestRegistry,
+);
+
+// Load a full strategy → executable entry/exit + options
+const { entry, exit, backtestOptions } = loadStrategy(strategyJson, backtestRegistry);
+const result = runBacktest(candles, entry, exit, { capital: 1_000_000, ...backtestOptions });
+```
+
+### `validateConditionSpec(spec, registry)` / `validateStrategyJSON(json)`
+
+```typescript
+import { validateConditionSpec, validateStrategyJSON, backtestRegistry } from "trendcraft";
+
+// Validate condition spec against registry (type/range/enum/required checks)
+const result = validateConditionSpec(
+  { name: "rsiBelow", params: { threshold: "not-a-number" } },
+  backtestRegistry,
+);
+// { valid: false, errors: ["rsiBelow.threshold: expected number, got string"] }
+
+// Validate strategy JSON structure
+const structResult = validateStrategyJSON(strategyJson);
+// { valid: boolean, errors: string[] }
+```
+
+### StrategyJSON Schema
+
+```typescript
+type StrategyJSON = {
+  $schema: "trendcraft/strategy";
+  version: 1;
+  id: string;
+  name: string;
+  description?: string;
+  tags?: string[];
+  entry: ConditionSpec;
+  exit: ConditionSpec;
+  backtest?: {
+    capital?: number;
+    direction?: "long" | "short";
+    stopLoss?: number;
+    takeProfit?: number;
+    trailingStop?: number;
+    commission?: number;
+    commissionRate?: number;
+    slippage?: number;
+    fillMode?: "same-bar-close" | "next-bar-open";
+  };
+  metadata?: Record<string, unknown>;
+};
+```
+
+### ConditionSpec
+
+```typescript
+// Leaf condition
+type ConditionSpec =
+  | { name: string; params?: Record<string, unknown> }
+  | { op: "and" | "or" | "not"; conditions: ConditionSpec[] };
+
+// Example: and(goldenCross(5,25), rsiBelow(30))
+{
+  "op": "and",
+  "conditions": [
+    { "name": "goldenCross", "params": { "shortPeriod": 5, "longPeriod": 25 } },
+    { "name": "rsiBelow", "params": { "threshold": 30 } }
+  ]
+}
+```
+
+### Types
+
+`ConditionSpec`, `StrategyJSON`, `ParamDef`, `ConditionParamSchema`, `ConditionCategory`, `ConditionRegistryEntry`, `StrategyValidationResult`
