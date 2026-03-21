@@ -97,6 +97,27 @@ const SUBCHART_INDICATORS = INDICATOR_DEFINITIONS.filter((ind) => ind.chartType 
 );
 
 /**
+ * Calculate the chart container height (in px) based on enabled subcharts.
+ * Must match the pixel constants in buildChartOption.
+ *
+ * Layout:
+ *   mainChartTop(40) + mainChartHeight(300) + volumeGap(10) + volumeHeight(80)
+ *   + dataZoomGap(10) + dataZoomHeight(30) + subChartGap(20)
+ *   + subCount * (labelHeight(26) + subHeight(70) + subChartGap(20))
+ */
+export function getChartMinHeight(enabledIndicators: string[], hasEquityCurve: boolean): number {
+  const hasVolume = enabledIndicators.includes("volume");
+  const subCount =
+    enabledIndicators.filter((ind) => ind !== "volume" && SUBCHART_INDICATORS.includes(ind))
+      .length + (hasEquityCurve ? 1 : 0);
+
+  // Base: main(40+300) + volume area(60+80 if enabled) + dataZoom(10+30) + bottom padding(20)
+  const base = 40 + 300 + (hasVolume ? 60 + 80 : 0) + 10 + 30 + 20;
+  const perSub = 26 + 70 + 20; // 116px per subchart
+  return base + subCount * perSub;
+}
+
+/**
  * Subchart configuration options
  */
 interface SubchartConfig {
@@ -118,10 +139,16 @@ interface SubchartContext {
   xAxes: SeriesItem[];
   yAxes: SeriesItem[];
   dates: string[];
+  /** Current top position in pixels */
   currentTop: number;
+  /** Label height in pixels */
   labelHeight: number;
+  /** Subchart height in pixels */
   subHeight: number;
+  /** Gap between subcharts in pixels */
   subChartGap: number;
+  /** Theme colors */
+  themeColors: (typeof THEME_COLORS)[ChartTheme];
 }
 
 /**
@@ -134,15 +161,15 @@ function createSubchart(ctx: SubchartContext, config: SubchartConfig): number {
   ctx.titles.push({
     text: config.title,
     left: 5,
-    top: `${ctx.currentTop}%`,
+    top: ctx.currentTop,
     textStyle: { color: config.titleColor, fontSize: 10, fontWeight: "normal" },
   });
 
   ctx.grids.push({
     left: 60,
     right: 40,
-    top: `${ctx.currentTop + ctx.labelHeight}%`,
-    height: `${ctx.subHeight}%`,
+    top: ctx.currentTop + ctx.labelHeight,
+    height: ctx.subHeight,
   });
 
   ctx.xAxes.push({
@@ -161,14 +188,14 @@ function createSubchart(ctx: SubchartContext, config: SubchartConfig): number {
   if (config.yAxisMax !== undefined) yAxisConfig.max = config.yAxisMax;
 
   if (config.showSplitLine !== false) {
-    yAxisConfig.splitLine = { lineStyle: { color: "#333" } };
+    yAxisConfig.splitLine = { lineStyle: { color: ctx.themeColors.gridLine } };
   } else {
     yAxisConfig.splitLine = { show: false };
   }
 
   if (config.showYAxisLabel !== false) {
     yAxisConfig.axisLabel = {
-      color: "#a0a0a0",
+      color: ctx.themeColors.axisLabel,
       fontSize: config.yAxisLabelFormatter ? 9 : 10,
       ...(config.yAxisLabelFormatter && { formatter: config.yAxisLabelFormatter }),
     };
@@ -177,7 +204,7 @@ function createSubchart(ctx: SubchartContext, config: SubchartConfig): number {
   }
 
   ctx.yAxes.push(yAxisConfig);
-  ctx.currentTop += ctx.subHeight + ctx.subChartGap;
+  ctx.currentTop += ctx.labelHeight + ctx.subHeight + ctx.subChartGap;
 
   return gridIndex;
 }
@@ -190,6 +217,27 @@ export interface PositionLine {
   trailingStopPrice?: number; // Trailing stop price
 }
 
+export type ChartTheme = "dark" | "light";
+
+const THEME_COLORS = {
+  dark: {
+    bg: "#1a1a24",
+    tooltipBg: "#22222e",
+    gridLine: "#333",
+    axisLabel: "#a0a0a0",
+    textPrimary: "#eaeaea",
+    labelBg: "#1a1a24",
+  },
+  light: {
+    bg: "#fafafa",
+    tooltipBg: "#ffffff",
+    gridLine: "#e0e0e0",
+    axisLabel: "#666",
+    textPrimary: "#1a1a2e",
+    labelBg: "#fafafa",
+  },
+} as const;
+
 export function buildChartOption(
   candles: NormalizedCandle[],
   indicators: IndicatorData,
@@ -198,7 +246,9 @@ export function buildChartOption(
   positionLines?: PositionLine,
   equityCurve?: EquityPoint[],
   volumeSpikeMarkers: DetectedVolumeSpike[] = [],
+  theme: ChartTheme = "dark",
 ): EChartsOption {
+  const tc = THEME_COLORS[theme];
   const dates = candles.map((c) => formatDate(c.time));
   const ohlc = candles.map((c) => [c.open, c.close, c.low, c.high]);
   const volumes = candles.map((c, i) => {
@@ -221,7 +271,7 @@ export function buildChartOption(
         borderColor0: COLORS.down,
       },
       markPoint: buildTradeMarkers(candles, tradeMarkers),
-      markLine: buildPositionLines(positionLines, candles.length),
+      markLine: buildPositionLines(positionLines, candles.length, tc.labelBg),
     },
   ];
 
@@ -773,23 +823,37 @@ export function buildChartOption(
   }
 
   // ========== Dynamic subchart calculation ==========
+  //
+  // Layout stack (pixel-based, matching chart-viewer):
+  //   Main chart (top: 40px, height: 300px)
+  //   Volume     (gap 10px, height: 80px)         — always reserved
+  //   DataZoom   (gap 10px, height: 30px)
+  //   Subcharts  (gap 20px each, height: 70px each)
+  //
 
-  // Identify enabled subchart indicators
-  const enabledSubcharts = enabledIndicators.filter((ind) => SUBCHART_INDICATORS.includes(ind));
-  // +1 if Equity Curve is present
+  // Identify enabled subchart indicators (excluding volume — it has its own grid)
   const hasEquityCurve = equityCurve && equityCurve.length > 1;
-  const subChartCount = enabledSubcharts.length + (hasEquityCurve ? 1 : 0);
+  const hasVolume = enabledIndicators.includes("volume");
 
-  // Calculate grid heights (reserve space between subcharts, add 2% for labels)
-  const subChartGap = 5; // Gap between subcharts (%) - includes label space
-  const labelHeight = 2; // Label height (%)
-  const mainHeight = subChartCount === 0 ? 90 : Math.max(30, 65 - subChartCount * 9);
-  const subHeight =
-    subChartCount > 0
-      ? Math.min(10, (85 - mainHeight - subChartCount * subChartGap) / subChartCount)
-      : 0;
+  // Pixel constants
+  const mainChartTop = 40;
+  const mainChartHeight = 300;
+  const volumeGap = 60;
+  const volumeHeight = 80;
+  const dataZoomGap = 10;
+  const dataZoomHeight = 30;
+  const labelHeight = 26; // subchart title label
+  const subHeight = 70; // each subchart
+  const subChartGap = 20; // gap between subcharts
 
-  const grids: SeriesItem[] = [{ left: 60, right: 40, top: 40, height: `${mainHeight}%` }];
+  // Volume grid position
+  const volumeTop = mainChartTop + mainChartHeight + volumeGap;
+  // DataZoom position (right after volume)
+  const dataZoomTop = volumeTop + (hasVolume ? volumeHeight : 0) + dataZoomGap;
+  // Subcharts start after dataZoom
+  const subchartsStart = dataZoomTop + dataZoomHeight + subChartGap;
+
+  const grids: SeriesItem[] = [{ left: 60, right: 40, top: mainChartTop, height: mainChartHeight }];
 
   // Title array (for subchart labels)
   const titles: SeriesItem[] = [];
@@ -809,8 +873,8 @@ export function buildChartOption(
     {
       type: "category",
       data: dates,
-      axisLine: { lineStyle: { color: "#333" } },
-      axisLabel: { color: "#a0a0a0" },
+      axisLine: { lineStyle: { color: tc.gridLine } },
+      axisLabel: { color: tc.axisLabel },
     },
   ];
 
@@ -818,8 +882,8 @@ export function buildChartOption(
     {
       type: "value",
       scale: true,
-      splitLine: { lineStyle: { color: "#333" } },
-      axisLabel: { color: "#a0a0a0" },
+      splitLine: { lineStyle: { color: tc.gridLine } },
+      axisLabel: { color: tc.axisLabel },
     },
   ];
 
@@ -830,21 +894,40 @@ export function buildChartOption(
     xAxes,
     yAxes,
     dates,
-    currentTop: mainHeight + 5,
+    currentTop: subchartsStart,
     labelHeight,
     subHeight,
     subChartGap,
+    themeColors: tc,
   };
 
-  // ========== Subchart indicators ==========
+  // ========== Volume (dedicated grid below main chart) ==========
 
-  // Volume
-  if (enabledIndicators.includes("volume")) {
-    const gridIndex = createSubchart(subchartCtx, {
-      title: "Volume",
-      titleColor: "#a0a0a0",
-      showSplitLine: false,
-      showYAxisLabel: false,
+  if (hasVolume) {
+    // Volume gets its own grid, separate from the subchart stack
+    const gridIndex = grids.length;
+
+    grids.push({ left: 60, right: 40, top: volumeTop, height: volumeHeight });
+
+    xAxes.push({
+      type: "category",
+      gridIndex,
+      data: dates,
+      show: false,
+    });
+
+    yAxes.push({
+      type: "value",
+      gridIndex,
+      show: false,
+      splitLine: { show: false },
+    });
+
+    titles.push({
+      text: "Volume",
+      left: 5,
+      top: volumeTop - 2,
+      textStyle: { color: "#a0a0a0", fontSize: 10, fontWeight: "normal" },
     });
     // Generate volume spike markers
     const volumeSpikeMarkPointData = volumeSpikeMarkers
@@ -1258,7 +1341,7 @@ export function buildChartOption(
   }
 
   return {
-    backgroundColor: "#1a1a2e",
+    backgroundColor: tc.bg,
     animation: false,
     title: titles,
     grid: grids,
@@ -1267,16 +1350,16 @@ export function buildChartOption(
     series,
     axisPointer: {
       link: [{ xAxisIndex: "all" }],
-      label: { backgroundColor: "#16213e" },
+      label: { backgroundColor: tc.tooltipBg },
     },
     tooltip: {
       trigger: "axis",
       axisPointer: {
         type: "cross",
       },
-      backgroundColor: "#16213e",
-      borderColor: "#333",
-      textStyle: { color: "#eaeaea" },
+      backgroundColor: tc.tooltipBg,
+      borderColor: tc.gridLine,
+      textStyle: { color: tc.textPrimary },
     },
     dataZoom: [
       {
@@ -1288,8 +1371,8 @@ export function buildChartOption(
       {
         type: "slider",
         xAxisIndex: xAxes.map((_: SeriesItem, i: number) => i),
-        top: "95%",
-        height: 20,
+        top: dataZoomTop,
+        height: dataZoomHeight,
         start: Math.max(0, 100 - (100 / candles.length) * 100),
         end: 100,
       },
@@ -1353,6 +1436,7 @@ function buildTradeMarkers(
 function buildPositionLines(
   positionLines: PositionLine | undefined,
   _candleCount: number,
+  labelBg = "#0d0d0f",
 ): SeriesItem | undefined {
   if (!positionLines) return undefined;
 
@@ -1374,7 +1458,7 @@ function buildPositionLines(
       formatter: `Entry: ${entryPrice.toLocaleString()}`,
       color: "#4ade80",
       fontSize: 10,
-      backgroundColor: "#1a1a2e",
+      backgroundColor: labelBg,
       padding: [2, 4],
     },
   });
@@ -1396,7 +1480,7 @@ function buildPositionLines(
         formatter: `TP +${takeProfitPercent}%`,
         color: "#22d3ee",
         fontSize: 10,
-        backgroundColor: "#1a1a2e",
+        backgroundColor: labelBg,
         padding: [2, 4],
       },
     });
@@ -1419,7 +1503,7 @@ function buildPositionLines(
         formatter: `SL -${stopLossPercent}%`,
         color: "#ef4444",
         fontSize: 10,
-        backgroundColor: "#1a1a2e",
+        backgroundColor: labelBg,
         padding: [2, 4],
       },
     });
@@ -1442,7 +1526,7 @@ function buildPositionLines(
         formatter: `TS ${trailingStopPrice.toLocaleString(undefined, { maximumFractionDigits: 0 })} (-${trailingPct}%)`,
         color: "#f59e0b",
         fontSize: 10,
-        backgroundColor: "#1a1a2e",
+        backgroundColor: labelBg,
         padding: [2, 4],
       },
     });

@@ -1,5 +1,5 @@
 import type { EquityPoint, VolumeSpikeSettings } from "../../types";
-import { DEFAULT_VOLUME_SPIKE_SETTINGS } from "../../types";
+import { DEFAULT_INDICATOR_PARAMS, DEFAULT_VOLUME_SPIKE_SETTINGS } from "../../types";
 import { calculateCommonDateRange, getSymbolCurrentIndex } from "../helpers";
 import type { ConfigSlice, SliceCreator } from "../types";
 
@@ -20,6 +20,30 @@ export const createConfigSlice: SliceCreator<ConfigSlice> = (set, get) => ({
     set((state) => ({
       volumeSpikeSettings: { ...state.volumeSpikeSettings, ...settings },
     }));
+  },
+
+  quickStart: () => {
+    const { symbols } = get();
+    if (symbols.length === 0) return;
+
+    const allDates = symbols[0].allCandles.map((c) => c.time);
+    const defaultStartIdx = Math.max(0, allDates.length - 250);
+    const startDate = allDates[defaultStartIdx];
+
+    get().startSimulation({
+      startDate,
+      initialCandleCount: 250,
+      initialCapital: 1_000_000,
+      enabledIndicators: ["sma25", "sma75", "volume"],
+      indicatorParams: { ...DEFAULT_INDICATOR_PARAMS },
+      commissionRate: 0,
+      slippageBps: 0,
+      taxRate: 20.315,
+      stopLossPercent: 5,
+      takeProfitPercent: 10,
+      trailingStopEnabled: false,
+      trailingStopPercent: 5,
+    });
   },
 
   startSimulation: (config) => {

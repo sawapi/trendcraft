@@ -1,0 +1,549 @@
+/* ============================================
+   Session Manager
+   ============================================ */
+
+.session-manager-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.session-manager-modal {
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 400px;
+  width: 90%;
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+.session-manager-modal h3 {
+  color: var(--accent);
+  margin-bottom: 16px;
+  font-size: var(--font-lg);
+}
+
+.session-info {
+  background: var(--bg-primary);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+
+.session-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  font-size: var(--font-md);
+}
+
+.session-row .label {
+  color: var(--text-secondary);
+}
+
+.session-row .value {
+  font-weight: 500;
+}
+
+.session-note {
+  font-size: var(--font-md);
+  color: var(--text-secondary);
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
+
+.session-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.session-actions button {
+  flex: 1;
+}
+
+/* ============================================
+   File Drop Dialog
+   ============================================ */
+
+.file-drop-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.file-drop-dialog {
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 400px;
+  width: 90%;
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+.dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.dialog-header h3 {
+  font-size: var(--font-lg);
+  color: var(--text-primary);
+}
+
+.close-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.close-btn:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.dialog-drop-zone {
+  border: 2px dashed var(--border);
+  border-radius: 8px;
+  padding: 40px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.dialog-drop-zone:hover,
+.dialog-drop-zone.dragging {
+  border-color: var(--accent);
+  background: var(--bg-tertiary);
+}
+
+.dialog-drop-zone p {
+  color: var(--text-primary);
+  font-size: var(--font-base);
+  margin-bottom: 4px;
+}
+
+.dialog-drop-zone .sub {
+  color: var(--text-secondary);
+  font-size: var(--font-md);
+}
+
+.file-drop-dialog .error {
+  color: var(--danger);
+  font-size: var(--font-md);
+  margin-top: 12px;
+  text-align: center;
+}
+
+/* ============================================
+   Indicator Settings Dialog
+   ============================================ */
+
+.indicator-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.indicator-dialog {
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  padding: 20px;
+  max-width: 500px;
+  width: 90%;
+  max-height: 80vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+.indicator-dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.indicator-dialog-header h3 {
+  font-size: var(--font-lg);
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.dialog-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.2s;
+  line-height: 1;
+}
+
+.dialog-close-btn:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.indicator-dialog-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.volume-spike-settings.in-dialog {
+  background: transparent;
+  padding: 0;
+}
+
+.volume-spike-settings.in-dialog .settings-content {
+  padding: 0;
+}
+
+/* Indicator Settings Button */
+.indicator-settings-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: var(--font-md);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.indicator-settings-btn:hover {
+  background: var(--bg-tertiary);
+  border-color: var(--accent);
+}
+
+.indicator-settings-btn .settings-icon {
+  font-size: var(--font-lg);
+  opacity: 0.8;
+}
+
+/* Dialog Tabs */
+.dialog-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.dialog-tab {
+  flex: 1;
+  padding: 8px 16px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: var(--font-md);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.dialog-tab:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.dialog-tab.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+/* Indicator Selector in Dialog */
+.indicator-selector.in-dialog {
+  padding: 0;
+}
+
+.indicator-selector.in-dialog .indicator-category {
+  margin-bottom: 16px;
+}
+
+.indicator-selector.in-dialog .category-header {
+  font-size: var(--font-md);
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.indicator-selector.in-dialog .indicator-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.indicator-selector.in-dialog .indicator-item {
+  padding: 4px 0;
+}
+
+.indicator-selector.in-dialog .checkbox-label {
+  font-size: var(--font-md);
+}
+
+.indicator-selector.in-dialog .param-panel {
+  margin-top: 8px;
+  margin-left: 24px;
+  padding: 8px;
+  background: var(--bg-primary);
+  border-radius: 4px;
+}
+
+.indicator-selector.in-dialog .param-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.indicator-selector.in-dialog .param-row:last-child {
+  margin-bottom: 0;
+}
+
+.indicator-selector.in-dialog .param-row label {
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+}
+
+.indicator-selector.in-dialog .param-row input {
+  width: 70px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: var(--font-md);
+}
+
+/* ============================================
+   Simulation Settings Dialog
+   ============================================ */
+
+.sim-settings-dialog {
+  max-width: 520px;
+}
+
+.sim-settings-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sim-settings-section {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  padding: var(--spacing-md);
+}
+
+.sim-settings-section-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-md);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-md);
+  padding-bottom: var(--spacing-xs);
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.sim-settings-section-title .material-icons {
+  font-size: 18px;
+  color: var(--accent);
+}
+
+.sim-settings-section .form-group {
+  margin-bottom: 10px;
+}
+
+.sim-settings-section .form-group:last-child {
+  margin-bottom: 0;
+}
+
+.sim-settings-section .form-group label {
+  font-size: var(--font-md);
+  font-weight: 500;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.sim-settings-section .form-group input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: var(--font-md);
+}
+
+.sim-settings-section .form-group input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.sim-settings-section .form-group .hint {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.sim-settings-actions {
+  margin-top: 4px;
+}
+
+.sim-settings-confirm .confirm-warning {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: rgba(var(--warning-rgb, 255, 183, 77), 0.15);
+  border: 1px solid var(--warning);
+  border-radius: 6px;
+  color: var(--warning);
+  font-size: var(--font-md);
+  margin-bottom: 12px;
+}
+
+.sim-settings-confirm .confirm-warning .material-icons {
+  font-size: 20px;
+}
+
+.confirm-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.confirm-buttons .btn-secondary,
+.confirm-buttons .btn-primary {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 16px;
+  font-size: var(--font-md);
+}
+
+.confirm-buttons .btn-primary .material-icons {
+  font-size: 18px;
+}
+
+/* Shortcuts Help */
+.shortcuts-help {
+  position: relative;
+}
+
+.shortcuts-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.shortcuts-toggle:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.shortcuts-toggle .material-icons {
+  font-size: 20px;
+}
+
+.shortcuts-popup {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 8px;
+  padding: 16px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  min-width: 200px;
+  z-index: 100;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.shortcuts-popup h4 {
+  font-size: var(--font-md);
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+}
+
+.shortcuts-popup ul {
+  list-style: none;
+}
+
+.shortcuts-popup li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  font-size: var(--font-md);
+}
+
+.shortcuts-popup kbd {
+  display: inline-block;
+  padding: 2px 8px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: var(--font-sm);
+  color: var(--text-primary);
+}
+
+.shortcuts-popup span {
+  color: var(--text-secondary);
+}

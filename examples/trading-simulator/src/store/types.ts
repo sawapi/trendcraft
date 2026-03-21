@@ -115,6 +115,7 @@ export interface ConfigSlice {
   volumeSpikeSettings: VolumeSpikeSettings;
 
   setVolumeSpikeSettings: (settings: Partial<VolumeSpikeSettings>) => void;
+  quickStart: () => void;
   startSimulation: (config: SimulationConfig) => void;
   finishSimulation: () => void;
   reset: () => void;

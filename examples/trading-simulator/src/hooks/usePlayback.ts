@@ -10,7 +10,7 @@ const INTERVALS: Record<PlaybackSpeed, number> = {
 };
 
 export function usePlayback() {
-  const { isPlaying, playbackSpeed, stepForward, pause, allCandles, currentIndex } =
+  const { isPlaying, playbackSpeed, stepForward, pause, commonDateRange, currentDateIndex } =
     useSimulatorStore();
 
   const intervalRef = useRef<number | null>(null);
@@ -39,8 +39,8 @@ export function usePlayback() {
     };
   }, [isPlaying, playbackSpeed, stepForward, pause]);
 
-  // Check if at end
-  const isAtEnd = currentIndex >= allCandles.length - 1;
+  // Check if at end (use commonDateRange — the global playback boundary)
+  const isAtEnd = !commonDateRange || currentDateIndex >= commonDateRange.dates.length - 1;
 
   return { isAtEnd };
 }

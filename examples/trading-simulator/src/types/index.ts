@@ -354,7 +354,7 @@ export const DEFAULT_VOLUME_SPIKE_SETTINGS: VolumeSpikeSettings = {
   cmfThreshold: 0,
   obvEnabled: true,
   obvPeriod: 10,
-  showRealtimeAlerts: true,
+  showRealtimeAlerts: false,
   showChartMarkers: true,
 };
 

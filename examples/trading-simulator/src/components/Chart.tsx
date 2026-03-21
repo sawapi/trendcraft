@@ -1,10 +1,36 @@
 import ReactECharts from "echarts-for-react";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSimulatorStore } from "../store/simulatorStore";
-import { type PositionLine, buildChartOption } from "../utils/chartConfig";
+import {
+  type ChartTheme,
+  type PositionLine,
+  buildChartOption,
+  getChartMinHeight,
+} from "../utils/chartConfig";
 import { calculateIndicators } from "../utils/indicators";
 
+function useDocumentTheme(): ChartTheme {
+  const [theme, setTheme] = useState<ChartTheme>(
+    () => (document.documentElement.getAttribute("data-theme") as ChartTheme) || "dark",
+  );
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      const t = document.documentElement.getAttribute("data-theme") as ChartTheme;
+      setTheme(t || "dark");
+    });
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-theme"],
+    });
+    return () => observer.disconnect();
+  }, []);
+
+  return theme;
+}
+
 export function Chart() {
+  const theme = useDocumentTheme();
   const {
     symbols,
     activeSymbolId,
@@ -96,6 +122,7 @@ export function Chart() {
       positionLines,
       equityCurve,
       volumeSpikeMarkers,
+      theme,
     );
   }, [
     visibleCandles,
@@ -105,7 +132,15 @@ export function Chart() {
     positionLines,
     equityCurve,
     volumeSpikeMarkers,
+    theme,
   ]);
+
+  // Calculate minimum height so subcharts don't squeeze the main chart
+  const hasEquityCurve = equityCurve.length > 1;
+  const minHeight = useMemo(
+    () => getChartMinHeight(enabledIndicators, hasEquityCurve),
+    [enabledIndicators, hasEquityCurve],
+  );
 
   // Don't render chart when no data (avoids ECharts cleanup errors)
   if (visibleCandles.length === 0) {
@@ -117,8 +152,9 @@ export function Chart() {
   }
 
   return (
-    <div className="chart-container">
+    <div className="chart-container" style={{ height: minHeight }}>
       <ReactECharts
+        key={theme}
         option={option}
         style={{ height: "100%", width: "100%" }}
         notMerge={true}
