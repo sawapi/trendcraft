@@ -14,9 +14,9 @@
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import type { Candle, NormalizedCandle, Series } from "../../types";
-import { atr } from "../volatility/atr";
-import { swingPoints } from "../price/swing-points";
 import { breakOfStructure } from "../price/break-of-structure";
+import { swingPoints } from "../price/swing-points";
+import { atr } from "../volatility/atr";
 import { vsa } from "./vsa";
 import type { VsaBarType } from "./vsa";
 
@@ -25,12 +25,7 @@ import type { VsaBarType } from "./vsa";
 // ---------------------------------------------------------------------------
 
 /** Wyckoff market phase */
-export type WyckoffPhase =
-  | "accumulation"
-  | "markup"
-  | "distribution"
-  | "markdown"
-  | "unknown";
+export type WyckoffPhase = "accumulation" | "markup" | "distribution" | "markdown" | "unknown";
 
 /** Wyckoff schematic events */
 export type WyckoffEvent =
@@ -86,24 +81,8 @@ export type WyckoffPhaseOptions = {
 // Constants
 // ---------------------------------------------------------------------------
 
-const ACCUMULATION_EVENTS: WyckoffEvent[] = [
-  "PS",
-  "SC",
-  "AR",
-  "ST",
-  "spring",
-  "SOS",
-  "LPS",
-];
-const DISTRIBUTION_EVENTS: WyckoffEvent[] = [
-  "PSY",
-  "BC",
-  "AR",
-  "ST",
-  "UT",
-  "SOW",
-  "LPSY",
-];
+const ACCUMULATION_EVENTS: WyckoffEvent[] = ["PS", "SC", "AR", "ST", "spring", "SOS", "LPS"];
+const DISTRIBUTION_EVENTS: WyckoffEvent[] = ["PSY", "BC", "AR", "ST", "UT", "SOW", "LPSY"];
 
 // ---------------------------------------------------------------------------
 // Internal state machine
@@ -183,11 +162,7 @@ function getSubPhase(state: DetectorState): string | null {
   return null;
 }
 
-function isNearLevel(
-  price: number,
-  level: number,
-  tolerance: number,
-): boolean {
+function isNearLevel(price: number, level: number, tolerance: number): boolean {
   return Math.abs(price - level) <= tolerance;
 }
 
@@ -267,22 +242,14 @@ export function wyckoffPhases(
 
     if (state.phase === "unknown") {
       // Look for potential phase start based on trend + swing + volume
-      if (
-        isSwingLow &&
-        state.prevTrend === "bearish" &&
-        isHighVolumeBar(barType)
-      ) {
+      if (isSwingLow && state.prevTrend === "bearish" && isHighVolumeBar(barType)) {
         // Preliminary Support after downtrend
         state.phase = "accumulation";
         state.rangeStartIndex = i;
         state.rangeLow = c.low;
         addEvent(state, "PS");
         currentEvent = "PS";
-      } else if (
-        isSwingHigh &&
-        state.prevTrend === "bullish" &&
-        isHighVolumeBar(barType)
-      ) {
+      } else if (isSwingHigh && state.prevTrend === "bullish" && isHighVolumeBar(barType)) {
         // Preliminary Supply after uptrend
         state.phase = "distribution";
         state.rangeStartIndex = i;
@@ -322,11 +289,7 @@ export function wyckoffPhases(
       }
     } else if (state.phase === "markup") {
       // Look for distribution start
-      if (
-        isSwingHigh &&
-        isHighVolumeBar(barType) &&
-        i - state.rangeStartIndex > minRangeBars
-      ) {
+      if (isSwingHigh && isHighVolumeBar(barType) && i - state.rangeStartIndex > minRangeBars) {
         // Reset to potential distribution
         resetState(state, "distribution", i, null, c.high);
         addEvent(state, "PSY");
@@ -334,11 +297,7 @@ export function wyckoffPhases(
       }
     } else if (state.phase === "markdown") {
       // Look for accumulation start
-      if (
-        isSwingLow &&
-        isHighVolumeBar(barType) &&
-        i - state.rangeStartIndex > minRangeBars
-      ) {
+      if (isSwingLow && isHighVolumeBar(barType) && i - state.rangeStartIndex > minRangeBars) {
         resetState(state, "accumulation", i, c.low, null);
         addEvent(state, "PS");
         currentEvent = "PS";
@@ -554,7 +513,12 @@ function detectDistributionEvent(
       state.rangeLow != null && state.rangeHigh != null
         ? (state.rangeLow + state.rangeHigh) / 2
         : null;
-    if (midpoint != null && state.rangeHigh != null && c.high <= state.rangeHigh && c.high < midpoint + (state.rangeHigh - midpoint) * 0.5) {
+    if (
+      midpoint != null &&
+      state.rangeHigh != null &&
+      c.high <= state.rangeHigh &&
+      c.high < midpoint + (state.rangeHigh - midpoint) * 0.5
+    ) {
       addEvent(state, "LPSY");
       return "LPSY";
     }

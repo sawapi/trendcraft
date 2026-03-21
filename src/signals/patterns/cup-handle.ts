@@ -121,7 +121,7 @@ export function cupWithHandle(
 
       // Volume validation on breakout
       const volumeValid = confirmed
-        ? validateBreakoutVolume(normalized, breakoutIndex!, 10, 1.2)
+        ? validateBreakoutVolume(normalized, breakoutIndex ?? 0, 10, 1.2)
         : true;
 
       // Calculate confidence

@@ -1,12 +1,8 @@
-import { describe, it, expect } from "vitest";
-import { applyEquityCurveFilter, equityCurveHealth } from "../equity-curve";
+import { describe, expect, it } from "vitest";
 import type { BacktestResult, Trade } from "../../types";
+import { applyEquityCurveFilter, equityCurveHealth } from "../equity-curve";
 
-function makeTrade(
-  i: number,
-  returnAmt: number,
-  holdingDays = 1,
-): Trade {
+function makeTrade(i: number, returnAmt: number, holdingDays = 1): Trade {
   const entryPrice = 100;
   const exitPrice = entryPrice + returnAmt / 100;
   return {
@@ -37,12 +33,19 @@ function makeResult(trades: Trade[]): BacktestResult {
     winRate: trades.length > 0 ? wins.length / trades.length : 0,
     maxDrawdown: 0.1,
     sharpeRatio: 1.0,
-    profitFactor: grossLoss > 0 ? grossProfit / grossLoss : (grossProfit > 0 ? Infinity : 0),
-    avgHoldingDays: trades.length > 0
-      ? trades.reduce((s, t) => s + t.holdingDays, 0) / trades.length
-      : 0,
+    profitFactor:
+      grossLoss > 0 ? grossProfit / grossLoss : grossProfit > 0 ? Number.POSITIVE_INFINITY : 0,
+    avgHoldingDays:
+      trades.length > 0 ? trades.reduce((s, t) => s + t.holdingDays, 0) / trades.length : 0,
     trades,
-    settings: { fillMode: "next-bar-open", slTpMode: "close-only", slippage: 0, commission: 0, commissionRate: 0, taxRate: 0 },
+    settings: {
+      fillMode: "next-bar-open",
+      slTpMode: "close-only",
+      slippage: 0,
+      commission: 0,
+      commissionRate: 0,
+      taxRate: 0,
+    },
     drawdownPeriods: [],
   };
 }
@@ -178,9 +181,7 @@ describe("equityCurveHealth", () => {
   });
 
   it("health score stays between 0 and 100", () => {
-    const trades = Array.from({ length: 20 }, (_, i) =>
-      makeTrade(i, i % 3 === 0 ? -300 : 100),
-    );
+    const trades = Array.from({ length: 20 }, (_, i) => makeTrade(i, i % 3 === 0 ? -300 : 100));
     const result = makeResult(trades);
     const health = equityCurveHealth(result);
 

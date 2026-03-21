@@ -65,7 +65,7 @@ describe("train-coverage", () => {
 
     it("warmup > totalEpochs: all epochs are warmup", () => {
       const lr = getLearningRate(5, 10, 0.01, 20);
-      expect(lr).toBeCloseTo(0.01 * 6 / 20, 6);
+      expect(lr).toBeCloseTo((0.01 * 6) / 20, 6);
     });
 
     it("warmup equals totalEpochs: cosine denominator max(1,...)", () => {
@@ -82,9 +82,7 @@ describe("train-coverage", () => {
   describe("data validation", () => {
     it("throws on too few candles", () => {
       const candles = genCandles(5);
-      expect(() =>
-        trainCandleFormer(candles, { seqLen: 16 }),
-      ).toThrow(/Need at least/);
+      expect(() => trainCandleFormer(candles, { seqLen: 16 })).toThrow(/Need at least/);
     });
 
     it("minimal dataset still trains (2 samples, 1 val, 1 train)", () => {
@@ -132,9 +130,7 @@ describe("train-coverage", () => {
     it("throws when one stock in multi array has insufficient data", () => {
       const good = genCandles(60, 1);
       const bad = genCandles(3, 2); // too short
-      expect(() =>
-        trainCandleFormer([good, bad], { ...TINY, epochs: 1 }),
-      ).toThrow(/Need at least/);
+      expect(() => trainCandleFormer([good, bad], { ...TINY, epochs: 1 })).toThrow(/Need at least/);
     });
   });
 

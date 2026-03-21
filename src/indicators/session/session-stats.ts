@@ -139,7 +139,7 @@ export function sessionStats(
   for (const session of sessionDefs) {
     const occ = currentOcc.get(session.name);
     if (occ) {
-      occurrences.get(session.name)!.push(occ);
+      occurrences.get(session.name)?.push(occ);
     }
   }
 

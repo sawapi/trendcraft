@@ -1,10 +1,10 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
-  createMarginState,
-  calculateBuyingPower,
-  updateMarginState,
   accrueInterest,
+  calculateBuyingPower,
   checkMarginCall,
+  createMarginState,
+  updateMarginState,
 } from "../margin";
 
 describe("createMarginState", () => {

@@ -73,20 +73,15 @@ function computeMetric(
       return trades.filter((t) => t.return > 0).length / trades.length;
     }
     case "profitFactor": {
-      const gross = trades
-        .filter((t) => t.return > 0)
-        .reduce((s, t) => s + t.return, 0);
-      const loss = Math.abs(
-        trades.filter((t) => t.return <= 0).reduce((s, t) => s + t.return, 0),
-      );
+      const gross = trades.filter((t) => t.return > 0).reduce((s, t) => s + t.return, 0);
+      const loss = Math.abs(trades.filter((t) => t.return <= 0).reduce((s, t) => s + t.return, 0));
       if (loss > 0) return gross / loss;
-      return gross > 0 ? Infinity : 0;
+      return gross > 0 ? Number.POSITIVE_INFINITY : 0;
     }
     case "sharpeRatio": {
       const rets = trades.map((t) => t.returnPercent / 100);
       const mean = rets.reduce((s, r) => s + r, 0) / rets.length;
-      const variance =
-        rets.reduce((s, r) => s + (r - mean) ** 2, 0) / rets.length;
+      const variance = rets.reduce((s, r) => s + (r - mean) ** 2, 0) / rets.length;
       const std = Math.sqrt(variance);
       return std > 0 ? mean / std : 0;
     }
@@ -139,12 +134,10 @@ export function rotateStrategies(
   }
 
   // Calculate metric for each strategy using recent trades
-  const metrics: { index: number; value: number }[] = results.map(
-    (r, index) => {
-      const recent = r.trades.slice(-lookbackTrades);
-      return { index, value: computeMetric(recent, rankingMetric) };
-    },
-  );
+  const metrics: { index: number; value: number }[] = results.map((r, index) => {
+    const recent = r.trades.slice(-lookbackTrades);
+    return { index, value: computeMetric(recent, rankingMetric) };
+  });
 
   // Sort by metric descending
   metrics.sort((a, b) => b.value - a.value);

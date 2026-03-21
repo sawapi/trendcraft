@@ -259,8 +259,7 @@ describe("calculator-coverage", () => {
             requiredIndicators: ["macd", "stoch", "sma", "ema", "volumeMa20"],
             evaluate: (_c, _i, _ctx, pre) => {
               // Verify all 5 indicator types are populated
-              const allPresent =
-                pre?.macd && pre?.stoch && pre?.sma && pre?.ema && pre?.volumeMa20;
+              const allPresent = pre?.macd && pre?.stoch && pre?.sma && pre?.ema && pre?.volumeMa20;
               return allPresent ? 0.8 : 0;
             },
           },

@@ -52,7 +52,7 @@ function computeEma(values: number[], period: number): (number | null)[] {
       emaValue = sum / period;
       result.push(emaValue);
     } else {
-      emaValue = values[i] * k + emaValue! * (1 - k);
+      emaValue = values[i] * k + (emaValue as number) * (1 - k);
       result.push(emaValue);
     }
   }

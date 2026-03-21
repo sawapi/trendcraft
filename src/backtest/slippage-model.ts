@@ -162,11 +162,7 @@ export function resolveSlippageModel(
  * Volatility component: slippage% = (ATR / close) * 100 * atrMultiplier.
  * Returns 0 if ATR is not provided.
  */
-function calculateVolatilitySlippage(
-  atrMultiplier: number,
-  close: number,
-  atr?: number,
-): number {
+function calculateVolatilitySlippage(atrMultiplier: number, close: number, atr?: number): number {
   if (atr === undefined || atr === 0) {
     return 0;
   }

@@ -40,18 +40,18 @@ import {
   emptyResult,
 } from "./engine-utils";
 import type { Position } from "./engine-utils";
-import { calculateDynamicSlippage, resolveSlippageModel } from "./slippage-model";
-import type { SlippageModel } from "./slippage-model";
-import { tryFillOrder, resolveTimeInForce } from "./order-types";
-import type { PendingOrder } from "./order-types";
 import {
-  createMarginState,
-  calculateBuyingPower,
-  updateMarginState,
   accrueInterest,
+  calculateBuyingPower,
   checkMarginCall,
+  createMarginState,
+  updateMarginState,
 } from "./margin";
 import type { MarginState } from "./margin";
+import { resolveTimeInForce, tryFillOrder } from "./order-types";
+import type { PendingOrder } from "./order-types";
+import { calculateDynamicSlippage, resolveSlippageModel } from "./slippage-model";
+import type { SlippageModel } from "./slippage-model";
 
 /**
  * Extended backtest options with MTF, ATR risk, and fundamentals support
@@ -114,7 +114,7 @@ export function runBacktest(
     slTpMode = "close-only" as SlTpMode,
     slippageModel: slippageModelOpt,
     orderType: orderTypeOpt,
-    orderTTL = Infinity,
+    orderTTL = Number.POSITIVE_INFINITY,
     timeInForce: tifOpt,
     volumeConstraint,
     margin: marginConfig,
@@ -443,8 +443,12 @@ export function runBacktest(
           const currentSlip = getSlippage(candle, i);
           const fillPrice = applySlippage(fillResult.fillPrice, currentSlip, entrySide);
           const opened = openPositionFromEntry(
-            fillPrice, candle.time, pendingOrder.entryAtr,
-            candle.high, candle.low, candle,
+            fillPrice,
+            candle.time,
+            pendingOrder.entryAtr,
+            candle.high,
+            candle.low,
+            candle,
             pendingOrder.allowPartialFill,
           );
           if (opened) {
@@ -460,8 +464,12 @@ export function runBacktest(
       const currentSlip = getSlippage(candle, i);
       const entryPrice = applySlippage(candle.open, currentSlip, entrySide);
       const opened = openPositionFromEntry(
-        entryPrice, candle.time, pendingEntry.entryAtr,
-        candle.high, candle.low, candle,
+        entryPrice,
+        candle.time,
+        pendingEntry.entryAtr,
+        candle.high,
+        candle.low,
+        candle,
       );
       if (opened) {
         position = opened;
@@ -529,8 +537,12 @@ export function runBacktest(
           const currentSlip = getSlippage(candle, i);
           const entryPrice = applySlippage(candle.close, currentSlip, entrySide);
           const opened = openPositionFromEntry(
-            entryPrice, candle.time, entryAtr,
-            entryPrice, entryPrice, candle,
+            entryPrice,
+            candle.time,
+            entryAtr,
+            entryPrice,
+            entryPrice,
+            candle,
           );
           if (opened) {
             position = opened;

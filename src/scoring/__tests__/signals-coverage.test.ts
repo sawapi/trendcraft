@@ -8,16 +8,6 @@
 import { describe, expect, it } from "vitest";
 import type { NormalizedCandle, PrecomputedIndicators } from "../../types";
 import {
-  createDeathCrossEvaluator,
-  createGoldenCrossEvaluator,
-  createPOConfirmationEvaluator,
-  createPerfectOrderBearishEvaluator,
-  createPerfectOrderBullishEvaluator,
-  createPriceAboveEmaEvaluator,
-  createPriceBelowEmaEvaluator,
-  createPullbackEntryEvaluator,
-} from "../signals/trend";
-import {
   createMacdBearishEvaluator,
   createMacdBullishEvaluator,
   createRsiNeutralEvaluator,
@@ -27,6 +17,16 @@ import {
   createStochOverboughtEvaluator,
   createStochOversoldEvaluator,
 } from "../signals/momentum";
+import {
+  createDeathCrossEvaluator,
+  createGoldenCrossEvaluator,
+  createPOConfirmationEvaluator,
+  createPerfectOrderBearishEvaluator,
+  createPerfectOrderBullishEvaluator,
+  createPriceAboveEmaEvaluator,
+  createPriceBelowEmaEvaluator,
+  createPullbackEntryEvaluator,
+} from "../signals/trend";
 import {
   createBearishVolumeTrendEvaluator,
   createBullishVolumeTrendEvaluator,

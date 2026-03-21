@@ -11,16 +11,10 @@ import type { NormalizedCandle, PositionDirection } from "../types";
 // ---------------------------------------------------------------------------
 
 /** A function that computes a limit price from the signal candle and ATR. */
-export type LimitPriceFunc = (
-  entryCandle: NormalizedCandle,
-  atr: number,
-) => number;
+export type LimitPriceFunc = (entryCandle: NormalizedCandle, atr: number) => number;
 
 /** A function that computes a stop price from the signal candle and ATR. */
-export type StopPriceFunc = (
-  entryCandle: NormalizedCandle,
-  atr: number,
-) => number;
+export type StopPriceFunc = (entryCandle: NormalizedCandle, atr: number) => number;
 
 // ---------------------------------------------------------------------------
 // Time in Force (TIF)
@@ -59,7 +53,7 @@ export type TimeInForce = "day" | "gtc" | "ioc" | "fok" | "opg" | "cls";
  */
 export function resolveTimeInForce(
   tif: TimeInForce,
-  orderTTL: number = Infinity,
+  orderTTL: number = Number.POSITIVE_INFINITY,
 ): {
   ttlBars: number;
   allowPartialFill: boolean;
@@ -167,7 +161,7 @@ export function limitAtrAbove(atrMultiplier: number): LimitPriceFunc {
  * const order2: OrderType = { type: "limit", price: limitAtLow(0.1) };
  * ```
  */
-export function limitAtLow(buffer: number = 0): LimitPriceFunc {
+export function limitAtLow(buffer = 0): LimitPriceFunc {
   return (candle) => candle.low * (1 - buffer / 100);
 }
 
@@ -183,7 +177,7 @@ export function limitAtLow(buffer: number = 0): LimitPriceFunc {
  * const order: OrderType = { type: "limit", price: limitAtHigh() };
  * ```
  */
-export function limitAtHigh(buffer: number = 0): LimitPriceFunc {
+export function limitAtHigh(buffer = 0): LimitPriceFunc {
   return (candle) => candle.high * (1 + buffer / 100);
 }
 
@@ -203,7 +197,7 @@ export function limitAtHigh(buffer: number = 0): LimitPriceFunc {
  * const order2: OrderType = { type: "stop", price: stopAboveHigh(0.1) };
  * ```
  */
-export function stopAboveHigh(buffer: number = 0): StopPriceFunc {
+export function stopAboveHigh(buffer = 0): StopPriceFunc {
   return (candle) => candle.high * (1 + buffer / 100);
 }
 
@@ -219,7 +213,7 @@ export function stopAboveHigh(buffer: number = 0): StopPriceFunc {
  * const order: OrderType = { type: "stop", price: stopBelowLow() };
  * ```
  */
-export function stopBelowLow(buffer: number = 0): StopPriceFunc {
+export function stopBelowLow(buffer = 0): StopPriceFunc {
   return (candle) => candle.low * (1 - buffer / 100);
 }
 
@@ -418,10 +412,7 @@ export function resolvePrice(
  * }
  * ```
  */
-export function tryFillOrder(
-  order: PendingOrder,
-  candle: NormalizedCandle,
-): FillResult | null {
+export function tryFillOrder(order: PendingOrder, candle: NormalizedCandle): FillResult | null {
   // Handle fill-price overrides from TIF (opg/cls)
   if (order.fillPriceOverride === "open") {
     return { filled: true, fillPrice: candle.open };

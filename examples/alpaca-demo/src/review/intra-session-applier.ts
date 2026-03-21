@@ -62,7 +62,8 @@ export async function applyIntraSessionActions(
         // Hot-swap: recompile template and replace agent strategy
         const baseTemplate = getPresetTemplate(action.strategyId);
         if (baseTemplate) {
-          const finalOverride = currentOverrides.find((o) => o.strategyId === action.strategyId)!;
+          const finalOverride = currentOverrides.find((o) => o.strategyId === action.strategyId);
+          if (!finalOverride) continue;
           const modified = applyTemplateOverrides(baseTemplate, finalOverride);
           const compiled = compileTemplate(modified);
           if (compiled.ok) {

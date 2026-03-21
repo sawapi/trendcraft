@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { calculateVaR, rollingVaR } from "../var";
 
 describe("calculateVaR", () => {
@@ -7,7 +7,7 @@ describe("calculateVaR", () => {
       // 100 returns from -0.10 to +0.10 (step 0.002)
       const returns: number[] = [];
       for (let i = 0; i < 100; i++) {
-        returns.push(-0.10 + (i * 0.20) / 99);
+        returns.push(-0.1 + (i * 0.2) / 99);
       }
       // 5th percentile index = floor(0.05 * 100) = 5 => sorted[5]
       // sorted[5] = -0.10 + (5 * 0.20 / 99) ≈ -0.0899
@@ -16,7 +16,7 @@ describe("calculateVaR", () => {
         method: "historical",
       });
       expect(result.var).toBeGreaterThan(0.08);
-      expect(result.var).toBeLessThan(0.10);
+      expect(result.var).toBeLessThan(0.1);
       expect(result.method).toBe("historical");
       expect(result.confidence).toBe(0.95);
       expect(result.observations).toBe(100);
@@ -25,7 +25,7 @@ describe("calculateVaR", () => {
     it("should calculate CVaR >= VaR", () => {
       const returns: number[] = [];
       for (let i = 0; i < 100; i++) {
-        returns.push(-0.10 + (i * 0.20) / 99);
+        returns.push(-0.1 + (i * 0.2) / 99);
       }
       const result = calculateVaR(returns, {
         confidence: 0.95,
@@ -38,14 +38,14 @@ describe("calculateVaR", () => {
       // 20 returns from -0.10 to +0.09 (step 0.01)
       const returns: number[] = [];
       for (let i = 0; i < 20; i++) {
-        returns.push(-0.10 + i * 0.01);
+        returns.push(-0.1 + i * 0.01);
       }
       // sorted = [-0.10, -0.09, ..., 0.09]
       // At 90% confidence: index = round(0.1 * 20) = 2 => sorted[2] = -0.08
       // VaR = 0.08
       // Tail: sorted[0]=-0.10, sorted[1]=-0.09, sorted[2]=-0.08 => avg = -0.09 => CVaR = 0.09
       const result = calculateVaR(returns, {
-        confidence: 0.90,
+        confidence: 0.9,
         method: "historical",
       });
       expect(result.var).toBeCloseTo(0.08, 6);

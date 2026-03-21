@@ -75,16 +75,26 @@ const PATTERN_DETECTORS: Record<
   bear_flag: (c, o) => detectFlag(c, { swingLookback: o.swingLookback }),
   bull_pennant: (c, o) => detectFlag(c, { swingLookback: o.swingLookback }),
   bear_pennant: (c, o) => detectFlag(c, { swingLookback: o.swingLookback }),
-  gartley_bullish: (c, o) => detectHarmonicPatterns(c, { swingLookback: o.swingLookback, patterns: ["gartley"] }),
-  gartley_bearish: (c, o) => detectHarmonicPatterns(c, { swingLookback: o.swingLookback, patterns: ["gartley"] }),
-  butterfly_bullish: (c, o) => detectHarmonicPatterns(c, { swingLookback: o.swingLookback, patterns: ["butterfly"] }),
-  butterfly_bearish: (c, o) => detectHarmonicPatterns(c, { swingLookback: o.swingLookback, patterns: ["butterfly"] }),
-  bat_bullish: (c, o) => detectHarmonicPatterns(c, { swingLookback: o.swingLookback, patterns: ["bat"] }),
-  bat_bearish: (c, o) => detectHarmonicPatterns(c, { swingLookback: o.swingLookback, patterns: ["bat"] }),
-  crab_bullish: (c, o) => detectHarmonicPatterns(c, { swingLookback: o.swingLookback, patterns: ["crab"] }),
-  crab_bearish: (c, o) => detectHarmonicPatterns(c, { swingLookback: o.swingLookback, patterns: ["crab"] }),
-  shark_bullish: (c, o) => detectHarmonicPatterns(c, { swingLookback: o.swingLookback, patterns: ["shark"] }),
-  shark_bearish: (c, o) => detectHarmonicPatterns(c, { swingLookback: o.swingLookback, patterns: ["shark"] }),
+  gartley_bullish: (c, o) =>
+    detectHarmonicPatterns(c, { swingLookback: o.swingLookback, patterns: ["gartley"] }),
+  gartley_bearish: (c, o) =>
+    detectHarmonicPatterns(c, { swingLookback: o.swingLookback, patterns: ["gartley"] }),
+  butterfly_bullish: (c, o) =>
+    detectHarmonicPatterns(c, { swingLookback: o.swingLookback, patterns: ["butterfly"] }),
+  butterfly_bearish: (c, o) =>
+    detectHarmonicPatterns(c, { swingLookback: o.swingLookback, patterns: ["butterfly"] }),
+  bat_bullish: (c, o) =>
+    detectHarmonicPatterns(c, { swingLookback: o.swingLookback, patterns: ["bat"] }),
+  bat_bearish: (c, o) =>
+    detectHarmonicPatterns(c, { swingLookback: o.swingLookback, patterns: ["bat"] }),
+  crab_bullish: (c, o) =>
+    detectHarmonicPatterns(c, { swingLookback: o.swingLookback, patterns: ["crab"] }),
+  crab_bearish: (c, o) =>
+    detectHarmonicPatterns(c, { swingLookback: o.swingLookback, patterns: ["crab"] }),
+  shark_bullish: (c, o) =>
+    detectHarmonicPatterns(c, { swingLookback: o.swingLookback, patterns: ["shark"] }),
+  shark_bearish: (c, o) =>
+    detectHarmonicPatterns(c, { swingLookback: o.swingLookback, patterns: ["shark"] }),
 };
 
 /**

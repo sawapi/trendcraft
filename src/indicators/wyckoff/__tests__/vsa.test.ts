@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest";
-import { vsa } from "../vsa";
+import { describe, expect, it } from "vitest";
 import type { NormalizedCandle } from "../../../types";
+import { vsa } from "../vsa";
 
 function makeCandle(
   i: number,
@@ -33,12 +33,9 @@ function withWarmup(extra: NormalizedCandle[]): NormalizedCandle[] {
     const l = price - 1;
     const c = price + (i % 2 === 0 ? 0.5 : -0.5);
     base.push(makeCandle(i, o, h, l, c, 1000));
-    price += (i % 2 === 0 ? 0.3 : -0.3);
+    price += i % 2 === 0 ? 0.3 : -0.3;
   }
-  return [
-    ...base,
-    ...extra.map((c, idx) => ({ ...c, time: 1000000 + (30 + idx) * 86400000 })),
-  ];
+  return [...base, ...extra.map((c, idx) => ({ ...c, time: 1000000 + (30 + idx) * 86400000 }))];
 }
 
 describe("vsa", () => {
@@ -112,9 +109,7 @@ describe("vsa", () => {
   });
 
   it("handles zero-range bar gracefully", () => {
-    const extra: NormalizedCandle[] = [
-      makeCandle(30, 100, 100, 100, 100, 1000),
-    ];
+    const extra: NormalizedCandle[] = [makeCandle(30, 100, 100, 100, 100, 1000)];
     const candles = withWarmup(extra);
     const result = vsa(candles);
     const last = result[result.length - 1].value;
@@ -143,9 +138,7 @@ describe("vsa", () => {
   });
 
   it("provides numeric values for all fields", () => {
-    const extra: NormalizedCandle[] = [
-      makeCandle(30, 100, 102, 98, 101, 1500),
-    ];
+    const extra: NormalizedCandle[] = [makeCandle(30, 100, 102, 98, 101, 1500)];
     const candles = withWarmup(extra);
     const result = vsa(candles);
     const last = result[result.length - 1].value;

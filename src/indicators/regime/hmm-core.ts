@@ -484,7 +484,10 @@ export function baumWelch(observations: number[][], options?: HmmOptions): HmmMo
     }
   }
 
-  return bestModel!;
+  if (!bestModel) {
+    throw new Error("fitHmm: no model produced (numRestarts must be >= 1)");
+  }
+  return bestModel;
 }
 
 // ============================================

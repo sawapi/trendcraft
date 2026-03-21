@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest";
-import { rotateStrategies } from "../strategy-rotation";
+import { describe, expect, it } from "vitest";
 import type { BacktestResult, Trade } from "../../types";
+import { rotateStrategies } from "../strategy-rotation";
 
 function makeTrade(i: number, returnAmt: number): Trade {
   return {
@@ -29,7 +29,14 @@ function makeResult(tradeReturns: number[]): BacktestResult {
     profitFactor: 1.5,
     avgHoldingDays: 1,
     trades,
-    settings: { fillMode: "next-bar-open", slTpMode: "close-only", slippage: 0, commission: 0, commissionRate: 0, taxRate: 0 },
+    settings: {
+      fillMode: "next-bar-open",
+      slTpMode: "close-only",
+      slippage: 0,
+      commission: 0,
+      commissionRate: 0,
+      taxRate: 0,
+    },
     drawdownPeriods: [],
   };
 }
@@ -43,9 +50,7 @@ describe("rotateStrategies", () => {
   });
 
   it("gives 100% to single strategy", () => {
-    const result = rotateStrategies([
-      makeResult([100, 200, 100]),
-    ]);
+    const result = rotateStrategies([makeResult([100, 200, 100])]);
     expect(result.allocations).toHaveLength(1);
     expect(result.allocations[0].weight).toBeCloseTo(1);
   });
@@ -129,10 +134,10 @@ describe("rotateStrategies", () => {
       ...Array.from({ length: 10 }, () => 300),
     ];
 
-    const result = rotateStrategies(
-      [makeResult(aReturns), makeResult(bReturns)],
-      { lookbackTrades: 10, allocationMethod: "proportional" },
-    );
+    const result = rotateStrategies([makeResult(aReturns), makeResult(bReturns)], {
+      lookbackTrades: 10,
+      allocationMethod: "proportional",
+    });
 
     // B should rank higher based on recent performance
     expect(result.rankings[0]).toBe(1);

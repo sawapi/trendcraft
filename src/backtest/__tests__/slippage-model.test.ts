@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest";
-import { calculateDynamicSlippage, resolveSlippageModel } from "../slippage-model";
+import { describe, expect, it } from "vitest";
 import type { NormalizedCandle } from "../../types";
+import { calculateDynamicSlippage, resolveSlippageModel } from "../slippage-model";
 
 const candle = {
   time: 1000,
@@ -31,10 +31,7 @@ describe("calculateDynamicSlippage", () => {
     });
 
     it("returns 0 if no ATR provided", () => {
-      const result = calculateDynamicSlippage(
-        { type: "volatility", atrMultiplier: 1 },
-        candle,
-      );
+      const result = calculateDynamicSlippage({ type: "volatility", atrMultiplier: 1 }, candle);
       expect(result).toBe(0);
     });
   });
@@ -42,19 +39,13 @@ describe("calculateDynamicSlippage", () => {
   describe("volume model", () => {
     it("returns impactCoeff/sqrt(volume)*100", () => {
       // impactCoeff=0.1, volume=10000 → 0.1/sqrt(10000)*100 = 0.1/100*100 = 0.1
-      const result = calculateDynamicSlippage(
-        { type: "volume", impactCoeff: 0.1 },
-        candle,
-      );
+      const result = calculateDynamicSlippage({ type: "volume", impactCoeff: 0.1 }, candle);
       expect(result).toBeCloseTo(0.1, 10);
     });
 
     it("falls back to impactCoeff*100 when volume is 0", () => {
       const zeroVolCandle = { ...candle, volume: 0 } as NormalizedCandle;
-      const result = calculateDynamicSlippage(
-        { type: "volume", impactCoeff: 0.1 },
-        zeroVolCandle,
-      );
+      const result = calculateDynamicSlippage({ type: "volume", impactCoeff: 0.1 }, zeroVolCandle);
       expect(result).toBe(10);
     });
   });

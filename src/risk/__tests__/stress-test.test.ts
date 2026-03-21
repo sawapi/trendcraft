@@ -1,10 +1,10 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
+  PRESET_SCENARIOS,
   calculateMetricsFromReturns,
   generateShockedReturns,
-  stressTest,
   runAllStressTests,
-  PRESET_SCENARIOS,
+  stressTest,
 } from "../stress-test";
 
 // ---------------------------------------------------------------------------
@@ -122,9 +122,7 @@ describe("generateShockedReturns", () => {
 
 describe("stressTest", () => {
   // Generate a moderate positive return series
-  const returns = Array.from({ length: 100 }, (_, i) =>
-    i % 3 === 0 ? 0.005 : -0.002,
-  );
+  const returns = Array.from({ length: 100 }, (_, i) => (i % 3 === 0 ? 0.005 : -0.002));
 
   it("returns a valid StressTestResult structure", () => {
     const scenario = PRESET_SCENARIOS.flashCrash2010;
@@ -205,9 +203,7 @@ describe("stressTest", () => {
 // ---------------------------------------------------------------------------
 
 describe("runAllStressTests", () => {
-  const returns = Array.from({ length: 100 }, (_, i) =>
-    i % 3 === 0 ? 0.005 : -0.002,
-  );
+  const returns = Array.from({ length: 100 }, (_, i) => (i % 3 === 0 ? 0.005 : -0.002));
 
   it("returns results for all 6 preset scenarios", () => {
     const summary = runAllStressTests(returns);
@@ -224,9 +220,7 @@ describe("runAllStressTests", () => {
 
   it("maxStressedDrawdown is the largest among all results", () => {
     const summary = runAllStressTests(returns);
-    const maxDd = Math.max(
-      ...summary.results.map((r) => r.stressedMetrics.maxDrawdown),
-    );
+    const maxDd = Math.max(...summary.results.map((r) => r.stressedMetrics.maxDrawdown));
     expect(summary.maxStressedDrawdown).toBeCloseTo(maxDd, 10);
   });
 

@@ -5,10 +5,10 @@
  * Candle sequences are carefully crafted so swing highs/lows, BOS, and VSA
  * classifications land exactly where needed to exercise all event-detection branches.
  */
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
+import type { NormalizedCandle } from "../../types";
 import { wyckoffPhases } from "../wyckoff/wyckoff-phases";
 import type { WyckoffEvent } from "../wyckoff/wyckoff-phases";
-import type { NormalizedCandle } from "../../types";
 
 function mc(
   i: number,
@@ -49,33 +49,33 @@ function accumCandles(): NormalizedCandle[] {
   c.push(mc(idx++, 120, 121, 110, 111, 1000)); // 10 bearishBos
   // PS: swing low + stoppingVolume + bearish prevTrend
   c.push(mc(idx++, 111, 113, 108, 108.5, 5000)); // 11: PS
-  c.push(mc(idx++, 109, 111, 109, 110, 700));    // 12
-  c.push(mc(idx++, 111, 112, 110, 111, 800));    // 13 swing high
+  c.push(mc(idx++, 109, 111, 109, 110, 700)); // 12
+  c.push(mc(idx++, 111, 112, 110, 111, 800)); // 13 swing high
   // SC: swing low <= rangeLow(108), climactic volume
   c.push(mc(idx++, 110, 111, 103, 103.5, 8000)); // 14: SC
-  c.push(mc(idx++, 104, 106, 104, 105, 500));    // 15
+  c.push(mc(idx++, 104, 106, 104, 105, 500)); // 15
   // AR: first swing high after SC
-  c.push(mc(idx++, 106, 108, 105, 107, 1200));   // 16
-  c.push(mc(idx++, 108, 116, 107, 115, 1500));   // 17: AR (swing high, rangeHigh=116)
-  c.push(mc(idx++, 114, 115, 112, 113, 800));    // 18
+  c.push(mc(idx++, 106, 108, 105, 107, 1200)); // 16
+  c.push(mc(idx++, 108, 116, 107, 115, 1500)); // 17: AR (swing high, rangeHigh=116)
+  c.push(mc(idx++, 114, 115, 112, 113, 800)); // 18
   // ST: swing low near scPrice(103), vol < climaxVol(8000)
-  c.push(mc(idx++, 112, 113, 111, 112, 700));    // 19
-  c.push(mc(idx++, 111, 112, 104, 105, 2000));   // 20: ST
-  c.push(mc(idx++, 106, 108, 105, 107, 800));    // 21: also "test" event
+  c.push(mc(idx++, 112, 113, 111, 112, 700)); // 19
+  c.push(mc(idx++, 111, 112, 104, 105, 2000)); // 20: ST
+  c.push(mc(idx++, 106, 108, 105, 107, 800)); // 21: also "test" event
   // Spring: low < rangeLow(103), close > rangeLow, barType=spring
-  c.push(mc(idx++, 107, 108, 106, 107, 700));    // 22
-  c.push(mc(idx++, 105, 108, 100, 107.5, 400));  // 23: spring
-  c.push(mc(idx++, 108, 110, 107, 109, 1000));   // 24
+  c.push(mc(idx++, 107, 108, 106, 107, 700)); // 22
+  c.push(mc(idx++, 105, 108, 100, 107.5, 400)); // 23: spring
+  c.push(mc(idx++, 108, 110, 107, 109, 1000)); // 24
   // SOS: bullishBos + close > rangeHigh(116)
-  c.push(mc(idx++, 110, 113, 109, 112, 1500));   // 25
-  c.push(mc(idx++, 113, 118, 112, 117, 3000));   // 26: SOS
+  c.push(mc(idx++, 110, 113, 109, 112, 1500)); // 25
+  c.push(mc(idx++, 113, 118, 112, 117, 3000)); // 26: SOS
   // LPS: swing low above midpoint(109.5)
-  c.push(mc(idx++, 116, 117, 115, 116, 800));    // 27
-  c.push(mc(idx++, 115, 116, 111, 112, 700));    // 28: LPS (swing low, L=111 >= 109.5)
-  c.push(mc(idx++, 113, 115, 112, 114, 1000));   // 29
+  c.push(mc(idx++, 116, 117, 115, 116, 800)); // 27
+  c.push(mc(idx++, 115, 116, 111, 112, 700)); // 28: LPS (swing low, L=111 >= 109.5)
+  c.push(mc(idx++, 113, 115, 112, 114, 1000)); // 29
   // Markup continuation
-  c.push(mc(idx++, 115, 118, 114, 117, 1200));   // 30
-  c.push(mc(idx++, 118, 121, 117, 120, 1500));   // 31
+  c.push(mc(idx++, 115, 118, 114, 117, 1200)); // 30
+  c.push(mc(idx++, 118, 121, 117, 120, 1500)); // 31
   return c;
 }
 
@@ -86,52 +86,52 @@ function distribCandles(): NormalizedCandle[] {
   const c: NormalizedCandle[] = [];
   let idx = 0;
   // Uptrend establishing bullish BOS
-  c.push(mc(idx++, 80, 82, 78, 81, 1000));   // 0
-  c.push(mc(idx++, 81, 83, 80, 82, 1000));   // 1
-  c.push(mc(idx++, 82, 83, 80, 81, 1000));   // 2
-  c.push(mc(idx++, 82, 85, 81, 84, 1000));   // 3
-  c.push(mc(idx++, 84, 86, 83, 85, 1000));   // 4
-  c.push(mc(idx++, 85, 88, 84, 87, 1000));   // 5 swing high
-  c.push(mc(idx++, 87, 87, 84, 85, 1000));   // 6
-  c.push(mc(idx++, 86, 90, 85, 89, 1000));   // 7
-  c.push(mc(idx++, 89, 95, 88, 94, 1000));   // 8 bullishBos
-  c.push(mc(idx++, 94, 96, 93, 95, 1000));   // 9
-  c.push(mc(idx++, 95, 97, 94, 96, 1000));   // 10
-  c.push(mc(idx++, 96, 100, 95, 99, 1000));  // 11 bullishBos
+  c.push(mc(idx++, 80, 82, 78, 81, 1000)); // 0
+  c.push(mc(idx++, 81, 83, 80, 82, 1000)); // 1
+  c.push(mc(idx++, 82, 83, 80, 81, 1000)); // 2
+  c.push(mc(idx++, 82, 85, 81, 84, 1000)); // 3
+  c.push(mc(idx++, 84, 86, 83, 85, 1000)); // 4
+  c.push(mc(idx++, 85, 88, 84, 87, 1000)); // 5 swing high
+  c.push(mc(idx++, 87, 87, 84, 85, 1000)); // 6
+  c.push(mc(idx++, 86, 90, 85, 89, 1000)); // 7
+  c.push(mc(idx++, 89, 95, 88, 94, 1000)); // 8 bullishBos
+  c.push(mc(idx++, 94, 96, 93, 95, 1000)); // 9
+  c.push(mc(idx++, 95, 97, 94, 96, 1000)); // 10
+  c.push(mc(idx++, 96, 100, 95, 99, 1000)); // 11 bullishBos
   // PSY: swing high + stoppingVolume + bullish prevTrend
-  c.push(mc(idx++, 100, 101, 99, 100, 800));   // 12
+  c.push(mc(idx++, 100, 101, 99, 100, 800)); // 12
   c.push(mc(idx++, 101, 108, 100, 100.5, 5000)); // 13: PSY
-  c.push(mc(idx++, 101, 102, 100, 101, 700));   // 14
+  c.push(mc(idx++, 101, 102, 100, 101, 700)); // 14
   // BC: swing high >= rangeHigh(108), climactic volume
-  c.push(mc(idx++, 102, 103, 101, 102, 700));   // 15
+  c.push(mc(idx++, 102, 103, 101, 102, 700)); // 15
   c.push(mc(idx++, 103, 114, 102, 113.5, 10000)); // 16: BC
-  c.push(mc(idx++, 112, 113, 110, 111, 700));   // 17
+  c.push(mc(idx++, 112, 113, 110, 111, 700)); // 17
   // AR: first swing low after BC
-  c.push(mc(idx++, 110, 111, 109, 110, 800));   // 18
-  c.push(mc(idx++, 109, 110, 100, 101, 1500));  // 19: AR (rangeLow=100)
-  c.push(mc(idx++, 102, 104, 101, 103, 800));   // 20
+  c.push(mc(idx++, 110, 111, 109, 110, 800)); // 18
+  c.push(mc(idx++, 109, 110, 100, 101, 1500)); // 19: AR (rangeLow=100)
+  c.push(mc(idx++, 102, 104, 101, 103, 800)); // 20
   // ST: swing high near bcPrice(114), vol < 10000
-  c.push(mc(idx++, 104, 106, 103, 105, 800));   // 21
+  c.push(mc(idx++, 104, 106, 103, 105, 800)); // 21
   c.push(mc(idx++, 106, 113.5, 105, 112, 2500)); // 22: ST
-  c.push(mc(idx++, 111, 112, 109, 110, 700));   // 23
+  c.push(mc(idx++, 111, 112, 109, 110, 700)); // 23
   // UT: high > rangeHigh(114), close < rangeHigh, close < open
-  c.push(mc(idx++, 111, 112, 110, 111, 700));   // 24
-  c.push(mc(idx++, 113, 116, 111, 112, 1000));  // 25: UT
-  c.push(mc(idx++, 111, 112, 110, 111, 700));   // 26
+  c.push(mc(idx++, 111, 112, 110, 111, 700)); // 24
+  c.push(mc(idx++, 113, 116, 111, 112, 1000)); // 25: UT
+  c.push(mc(idx++, 111, 112, 110, 111, 700)); // 26
   // UTAD: high > rangeHigh, close < rangeHigh
-  c.push(mc(idx++, 112, 117, 111, 113, 900));   // 27: UTAD
-  c.push(mc(idx++, 112, 113, 110, 111, 700));   // 28
+  c.push(mc(idx++, 112, 117, 111, 113, 900)); // 27: UTAD
+  c.push(mc(idx++, 112, 113, 110, 111, 700)); // 28
   // SOW: bearishBos + close < rangeLow(100)
-  c.push(mc(idx++, 110, 111, 109, 110, 800));   // 29
-  c.push(mc(idx++, 109, 110, 97, 98, 3000));    // 30: SOW
-  c.push(mc(idx++, 99, 101, 98, 100, 800));     // 31
+  c.push(mc(idx++, 110, 111, 109, 110, 800)); // 29
+  c.push(mc(idx++, 109, 110, 97, 98, 3000)); // 30: SOW
+  c.push(mc(idx++, 99, 101, 98, 100, 800)); // 31
   // LPSY: swing high <= rangeHigh, high < threshold
-  c.push(mc(idx++, 101, 102, 100, 101, 700));   // 32
-  c.push(mc(idx++, 102, 106, 101, 105, 800));   // 33: LPSY
-  c.push(mc(idx++, 104, 105, 103, 104, 700));   // 34
+  c.push(mc(idx++, 101, 102, 100, 101, 700)); // 32
+  c.push(mc(idx++, 102, 106, 101, 105, 800)); // 33: LPSY
+  c.push(mc(idx++, 104, 105, 103, 104, 700)); // 34
   // Markdown
-  c.push(mc(idx++, 103, 104, 101, 102, 800));   // 35
-  c.push(mc(idx++, 101, 102, 99, 100, 900));    // 36
+  c.push(mc(idx++, 103, 104, 101, 102, 800)); // 35
+  c.push(mc(idx++, 101, 102, 99, 100, 900)); // 36
   return c;
 }
 
@@ -152,9 +152,11 @@ describe("wyckoffPhases – edge cases", () => {
   });
 
   it("3 bars", () => {
-    const r = wyckoffPhases(
-      [mc(0, 100, 101, 99, 100, 1000), mc(1, 100, 102, 99, 101, 1000), mc(2, 101, 103, 100, 102, 1000)],
-    );
+    const r = wyckoffPhases([
+      mc(0, 100, 101, 99, 100, 1000),
+      mc(1, 100, 102, 99, 101, 1000),
+      mc(2, 101, 103, 100, 102, 1000),
+    ]);
     expect(r).toHaveLength(3);
     r.forEach((b) => expect(b.value.phase).toBe("unknown"));
   });
@@ -175,7 +177,11 @@ describe("wyckoffPhases – edge cases", () => {
   it("raw (non-normalized) candles", () => {
     const c = Array.from({ length: 15 }, (_, i) => ({
       time: 1000000 + i * 86400000,
-      open: 100, high: 102, low: 98, close: 101, volume: 1000,
+      open: 100,
+      high: 102,
+      low: 98,
+      close: 101,
+      volume: 1000,
     }));
     expect(wyckoffPhases(c as any, OPTS)).toHaveLength(15);
   });
@@ -212,7 +218,11 @@ describe("wyckoffPhases – accumulation (full path)", () => {
     const result = wyckoffPhases(accumCandles(), OPTS);
     const subPhases: string[] = [];
     for (const r of result) {
-      if (r.value.phase === "accumulation" && r.value.subPhase && !subPhases.includes(r.value.subPhase)) {
+      if (
+        r.value.phase === "accumulation" &&
+        r.value.subPhase &&
+        !subPhases.includes(r.value.subPhase)
+      ) {
         subPhases.push(r.value.subPhase);
       }
     }
@@ -275,7 +285,11 @@ describe("wyckoffPhases – distribution (full path)", () => {
     const result = wyckoffPhases(distribCandles(), OPTS);
     const subPhases: string[] = [];
     for (const r of result) {
-      if (r.value.phase === "distribution" && r.value.subPhase && !subPhases.includes(r.value.subPhase)) {
+      if (
+        r.value.phase === "distribution" &&
+        r.value.subPhase &&
+        !subPhases.includes(r.value.subPhase)
+      ) {
         subPhases.push(r.value.subPhase);
       }
     }
@@ -447,7 +461,7 @@ describe("wyckoffPhases – SOS without spring", () => {
     c.push(mc(idx++, 111, 112, 104, 105, 2000));
     // Skip test/spring — go straight to bars leading to SOS
     // Need to NOT trigger test or spring. Use bars that are not low-vol near rangeLow
-    c.push(mc(idx++, 106, 109, 105, 108, 1500));  // normal vol, not near rangeLow
+    c.push(mc(idx++, 106, 109, 105, 108, 1500)); // normal vol, not near rangeLow
     c.push(mc(idx++, 109, 112, 108, 111, 1800));
     c.push(mc(idx++, 112, 115, 111, 114, 2000));
     // SOS: bullishBos + close > rangeHigh(116)

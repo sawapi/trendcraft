@@ -39,10 +39,7 @@ export type MarginState = {
  * // state.marginRatio === 1.0
  * ```
  */
-export function createMarginState(
-  capital: number,
-  leverage: number,
-): MarginState {
+export function createMarginState(capital: number, leverage: number): MarginState {
   return {
     equity: capital,
     borrowedAmount: capital * (leverage - 1),
@@ -65,10 +62,7 @@ export function createMarginState(
  * // power === 30000
  * ```
  */
-export function calculateBuyingPower(
-  capital: number,
-  leverage: number,
-): number {
+export function calculateBuyingPower(capital: number, leverage: number): number {
   return capital * leverage;
 }
 
@@ -98,8 +92,7 @@ export function updateMarginState(
   positionValue: number,
   capital: number,
 ): MarginState {
-  const equity =
-    capital + positionValue - state.borrowedAmount - state.accumulatedInterest;
+  const equity = capital + positionValue - state.borrowedAmount - state.accumulatedInterest;
   const marginRatio = positionValue > 0 ? equity / positionValue : 1.0;
 
   return {
@@ -125,11 +118,7 @@ export function updateMarginState(
  * // interest ≈ 10000 * 0.000137 * 1 ≈ 1.37
  * ```
  */
-export function accrueInterest(
-  state: MarginState,
-  dailyRate: number,
-  days: number,
-): number {
+export function accrueInterest(state: MarginState, dailyRate: number, days: number): number {
   return state.borrowedAmount * dailyRate * days;
 }
 
@@ -158,9 +147,6 @@ export function accrueInterest(
  * // marginRatio = 2500/2500 = 1.0 → still false
  * ```
  */
-export function checkMarginCall(
-  state: MarginState,
-  maintenanceMargin: number,
-): boolean {
+export function checkMarginCall(state: MarginState, maintenanceMargin: number): boolean {
   return state.marginRatio < maintenanceMargin;
 }

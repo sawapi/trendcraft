@@ -1,19 +1,19 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { NormalizedCandle } from "../../types";
 import {
-  resolvePrice,
-  tryFillOrder,
-  resolveTimeInForce,
-  limitBelowClose,
   limitAboveClose,
-  limitAtrBelow,
-  limitAtrAbove,
-  limitAtLow,
   limitAtHigh,
+  limitAtLow,
+  limitAtrAbove,
+  limitAtrBelow,
+  limitBelowClose,
+  resolvePrice,
+  resolveTimeInForce,
   stopAboveHigh,
-  stopBelowLow,
   stopAtrAbove,
   stopAtrBelow,
+  stopBelowLow,
+  tryFillOrder,
 } from "../order-types";
 import type { PendingOrder } from "../order-types";
 
@@ -392,7 +392,7 @@ describe("resolveTimeInForce", () => {
 
   it("gtc: defaults to Infinity", () => {
     const r = resolveTimeInForce("gtc");
-    expect(r.ttlBars).toBe(Infinity);
+    expect(r.ttlBars).toBe(Number.POSITIVE_INFINITY);
   });
 
   it("ioc: TTL=1, partial OK", () => {

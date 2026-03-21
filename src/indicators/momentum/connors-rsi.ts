@@ -119,9 +119,10 @@ export function connorsRsi(
     let count = 0;
     let lessOrEqual = 0;
     for (let j = lookbackStart; j < i; j++) {
-      if (roc1[j] !== null) {
+      const rocJ = roc1[j];
+      if (rocJ !== null) {
         count++;
-        if (roc1[j]! <= currentRoc) {
+        if (rocJ <= currentRoc) {
           lessOrEqual++;
         }
       }

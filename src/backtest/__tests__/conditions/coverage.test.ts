@@ -16,7 +16,13 @@
 
 import { describe, expect, it } from "vitest";
 import type { MtfContext, NormalizedCandle } from "../../../types";
+import type { PresetCondition } from "../../../types";
 import {
+  monthlyPriceAboveSma,
+  monthlyPriceBelowSma,
+  monthlyRsiAbove,
+  monthlyRsiBelow,
+  monthlyTrendStrong,
   mtfCondition,
   mtfDowntrend,
   mtfPriceAboveEma,
@@ -26,11 +32,6 @@ import {
   mtfRsiBelow,
   mtfTrendStrong,
   mtfUptrend,
-  monthlyPriceAboveSma,
-  monthlyPriceBelowSma,
-  monthlyRsiAbove,
-  monthlyRsiBelow,
-  monthlyTrendStrong,
   weeklyDowntrend,
   weeklyPriceAboveEma,
   weeklyPriceAboveSma,
@@ -40,18 +41,6 @@ import {
   weeklyTrendStrong,
   weeklyUptrend,
 } from "../../conditions/mtf";
-import {
-  hasActiveOrderBlocks,
-  hasRecentSweeps,
-  liquiditySweepDetected,
-  liquiditySweepRecovered,
-  orderBlockCreated,
-  orderBlockMitigated,
-  priceAtBearishOrderBlock,
-  priceAtBullishOrderBlock,
-  priceAtOrderBlock,
-  sweepDepthAbove,
-} from "../../conditions/smc";
 import {
   mansfieldRSAbove,
   mansfieldRSBelow,
@@ -68,6 +57,18 @@ import {
   setBenchmark,
 } from "../../conditions/relative-strength";
 import {
+  hasActiveOrderBlocks,
+  hasRecentSweeps,
+  liquiditySweepDetected,
+  liquiditySweepRecovered,
+  orderBlockCreated,
+  orderBlockMitigated,
+  priceAtBearishOrderBlock,
+  priceAtBullishOrderBlock,
+  priceAtOrderBlock,
+  sweepDepthAbove,
+} from "../../conditions/smc";
+import {
   atrPercentAbove,
   atrPercentBelow,
   atrPercentileAbove,
@@ -81,6 +82,17 @@ import {
   volatilityExpanding,
 } from "../../conditions/volatility";
 import {
+  breakdownVal,
+  breakoutVah,
+  inValueArea,
+  nearPoc,
+  priceAbovePoc,
+  priceBelowPoc,
+  volumeAnomalyCondition,
+  volumeExtreme,
+  volumeRatioAbove,
+} from "../../conditions/volume-anomaly-profile";
+import {
   bearishVolumeDivergence,
   bullishVolumeDivergence,
   cmfAbove,
@@ -93,19 +105,7 @@ import {
   volumeDivergence,
   volumeTrendConfidence,
 } from "../../conditions/volume-trend-obv";
-import {
-  breakdownVal,
-  breakoutVah,
-  inValueArea,
-  nearPoc,
-  priceAbovePoc,
-  priceBelowPoc,
-  volumeAnomalyCondition,
-  volumeExtreme,
-  volumeRatioAbove,
-} from "../../conditions/volume-anomaly-profile";
 import { runBacktestScaled } from "../../scaled-entry";
-import type { PresetCondition } from "../../../types";
 
 // ============================================
 // Helpers
@@ -354,9 +354,15 @@ describe("MTF conditions - behavior verification", () => {
     const emptyCtx = emptyMtf();
     expect(monthlyRsiAbove(50).evaluate(emptyCtx, {}, dummyCandle, 0, uptrendCandles)).toBe(false);
     expect(monthlyRsiBelow(50).evaluate(emptyCtx, {}, dummyCandle, 0, uptrendCandles)).toBe(false);
-    expect(monthlyPriceAboveSma(20).evaluate(emptyCtx, {}, dummyCandle, 0, uptrendCandles)).toBe(false);
-    expect(monthlyPriceBelowSma(20).evaluate(emptyCtx, {}, dummyCandle, 0, uptrendCandles)).toBe(false);
-    expect(monthlyTrendStrong(25).evaluate(emptyCtx, {}, dummyCandle, 0, uptrendCandles)).toBe(false);
+    expect(monthlyPriceAboveSma(20).evaluate(emptyCtx, {}, dummyCandle, 0, uptrendCandles)).toBe(
+      false,
+    );
+    expect(monthlyPriceBelowSma(20).evaluate(emptyCtx, {}, dummyCandle, 0, uptrendCandles)).toBe(
+      false,
+    );
+    expect(monthlyTrendStrong(25).evaluate(emptyCtx, {}, dummyCandle, 0, uptrendCandles)).toBe(
+      false,
+    );
   });
 
   it("monthly RSI above returns true with monthly uptrend data", () => {
@@ -382,7 +388,10 @@ describe("SMC conditions - behavior verification", () => {
     for (let i = 0; i < 20; i++) {
       candles.push({
         time: t0 + i * DAY,
-        open: 100, high: 101, low: 99, close: 100,
+        open: 100,
+        high: 101,
+        low: 99,
+        close: 100,
         volume: 1_000_000,
       });
     }
@@ -391,7 +400,10 @@ describe("SMC conditions - behavior verification", () => {
       const base = 100 + (i - 20) * 4;
       candles.push({
         time: t0 + i * DAY,
-        open: base, high: base + 5, low: base - 1, close: base + 4,
+        open: base,
+        high: base + 5,
+        low: base - 1,
+        close: base + 4,
         volume: 3_000_000,
       });
     }
@@ -399,7 +411,10 @@ describe("SMC conditions - behavior verification", () => {
     for (let i = 25; i < 45; i++) {
       candles.push({
         time: t0 + i * DAY,
-        open: 120, high: 122, low: 118, close: 120,
+        open: 120,
+        high: 122,
+        low: 118,
+        close: 120,
         volume: 1_000_000,
       });
     }
@@ -408,7 +423,10 @@ describe("SMC conditions - behavior verification", () => {
       const base = 120 - (i - 45) * 4;
       candles.push({
         time: t0 + i * DAY,
-        open: base, high: base + 1, low: base - 5, close: base - 4,
+        open: base,
+        high: base + 1,
+        low: base - 5,
+        close: base - 4,
         volume: 3_000_000,
       });
     }
@@ -416,7 +434,10 @@ describe("SMC conditions - behavior verification", () => {
     for (let i = 50; i < 70; i++) {
       candles.push({
         time: t0 + i * DAY,
-        open: 100, high: 102, low: 98, close: 100,
+        open: 100,
+        high: 102,
+        low: 98,
+        close: 100,
         volume: 1_000_000,
       });
     }
@@ -424,7 +445,10 @@ describe("SMC conditions - behavior verification", () => {
     for (let i = 70; i < 100; i++) {
       candles.push({
         time: t0 + i * DAY,
-        open: 100, high: 103, low: 97, close: 101,
+        open: 100,
+        high: 103,
+        low: 97,
+        close: 101,
         volume: 1_000_000,
       });
     }
@@ -535,7 +559,10 @@ describe("SMC conditions - behavior verification", () => {
     const cond = sweepDepthAbove(50); // 50% depth - extremely unlikely
     let found = false;
     for (let i = 0; i < candles.length; i++) {
-      if (evalPreset(cond, candles, i)) { found = true; break; }
+      if (evalPreset(cond, candles, i)) {
+        found = true;
+        break;
+      }
     }
     expect(found).toBe(false);
   });
@@ -876,7 +903,10 @@ describe("Volume Trend / OBV conditions - behavior verification", () => {
   // Price up but volume declining (bearish divergence)
   const bearishDivCandles = makeCandles(60, { base: 100, trend: 0.8 });
   for (let i = 30; i < 60; i++) {
-    bearishDivCandles[i] = { ...bearishDivCandles[i], volume: Math.max(100_000, 2_000_000 - i * 50_000) };
+    bearishDivCandles[i] = {
+      ...bearishDivCandles[i],
+      volume: Math.max(100_000, 2_000_000 - i * 50_000),
+    };
   }
 
   it("volumeConfirmsTrend is a boolean at any valid index", () => {

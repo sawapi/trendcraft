@@ -96,7 +96,7 @@ describe("quickRobustnessScore (edge cases & branch coverage)", () => {
       tradeCount: 20,
       winRate: 100,
       maxDrawdown: 0,
-      profitFactor: Infinity,
+      profitFactor: Number.POSITIVE_INFINITY,
       totalReturnPercent: 60,
       sharpeRatio: 3,
     });
@@ -130,9 +130,7 @@ describe("quickRobustnessScore (edge cases & branch coverage)", () => {
   });
 
   it("handles negative totalReturnPercent with maxDrawdown > 0 (recoveryFactor negative)", () => {
-    const trades = Array.from({ length: 10 }, () =>
-      mockTrade({ returnPercent: -3, return: -300 }),
-    );
+    const trades = Array.from({ length: 10 }, () => mockTrade({ returnPercent: -3, return: -300 }));
     const result = mockBacktestResult({
       trades,
       tradeCount: 10,
@@ -179,9 +177,7 @@ describe("quickRobustnessScore (edge cases & branch coverage)", () => {
   });
 
   it("handles maxDrawdown=0 with negative returns (recoveryFactor else branch)", () => {
-    const trades = Array.from({ length: 10 }, () =>
-      mockTrade({ returnPercent: -1, return: -100 }),
-    );
+    const trades = Array.from({ length: 10 }, () => mockTrade({ returnPercent: -1, return: -100 }));
     const result = mockBacktestResult({
       trades,
       tradeCount: 10,

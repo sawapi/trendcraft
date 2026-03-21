@@ -5,8 +5,8 @@
  * Fibonacci ratio validation on XABCD swing point structures.
  */
 
-import { getAlternatingSwingPoints } from "../../indicators/price/swing-points";
 import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { getAlternatingSwingPoints } from "../../indicators/price/swing-points";
 import type { Candle, NormalizedCandle } from "../../types";
 import type {
   HarmonicPatternOptions,
@@ -189,9 +189,17 @@ export function detectHarmonicPatterns(
 
     // Determine direction
     const isBullish =
-      X.type === "low" && A.type === "high" && B.type === "low" && C.type === "high" && D.type === "low";
+      X.type === "low" &&
+      A.type === "high" &&
+      B.type === "low" &&
+      C.type === "high" &&
+      D.type === "low";
     const isBearish =
-      X.type === "high" && A.type === "low" && B.type === "high" && C.type === "low" && D.type === "high";
+      X.type === "high" &&
+      A.type === "low" &&
+      B.type === "high" &&
+      C.type === "low" &&
+      D.type === "high";
 
     if (!isBullish && !isBearish) continue;
 

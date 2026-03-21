@@ -286,14 +286,17 @@ export function createManagedSession(
     // Emit partial fill events
     for (const pf of partialFills) {
       reportToRiskGuard(pf.trade, event.candle.time);
-      events.push({
-        type: "position-partial-close",
-        trade: pf.trade,
-        fill: pf.fill,
-        remainingPosition: tracker.getPosition()!,
-        account: tracker.getAccount(),
-        candle: event.candle,
-      });
+      const remaining = tracker.getPosition();
+      if (remaining) {
+        events.push({
+          type: "position-partial-close",
+          trade: pf.trade,
+          fill: pf.fill,
+          remainingPosition: remaining,
+          account: tracker.getAccount(),
+          candle: event.candle,
+        });
+      }
     }
 
     if (triggered) {

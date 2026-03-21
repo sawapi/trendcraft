@@ -302,14 +302,14 @@ export function detectFlag(
     const volumeValid = confirmed
       ? checkBreakoutVolume(
           normalized,
-          breakout!.index,
+          breakout?.index ?? consEnd,
           validateVolume,
           volumeLookback,
           minVolumeIncrease,
         )
       : true;
 
-    const detectionIndex = confirmed ? breakout!.index : consEnd;
+    const detectionIndex = confirmed ? (breakout?.index ?? consEnd) : consEnd;
 
     const confidence = calculateFlagConfidence(
       upper,

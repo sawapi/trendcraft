@@ -197,10 +197,7 @@ function sampleVariance(values: number[]): number {
  * console.log(result.volatilityForecast); // annualised vol forecast (%)
  * ```
  */
-export function garch(
-  returns: number[],
-  options?: GarchOptions,
-): GarchResult {
+export function garch(returns: number[], options?: GarchOptions): GarchResult {
   const maxIterations = options?.maxIterations ?? 100;
   const tolerance = options?.tolerance ?? 1e-6;
 
@@ -212,7 +209,7 @@ export function garch(
       conditionalVariance: returns.map((_, i) => ({ time: i, value: v })),
       volatilityForecast: Math.sqrt(v) * Math.sqrt(252) * 100,
       params: { omega: v, alpha: 0, beta: 0 },
-      logLikelihood: -Infinity,
+      logLikelihood: Number.NEGATIVE_INFINITY,
       converged: false,
     };
   }
@@ -235,9 +232,9 @@ export function garch(
 
     for (let t = 0; t < T; t++) {
       if (sigma2 < 1e-20) sigma2 = 1e-20; // numerical floor
-      ll += Math.log(sigma2) + (returns[t] ** 2) / sigma2;
+      ll += Math.log(sigma2) + returns[t] ** 2 / sigma2;
       // Update for next period
-      sigma2 = omega + alpha * (returns[t] ** 2) + beta * sigma2;
+      sigma2 = omega + alpha * returns[t] ** 2 + beta * sigma2;
     }
 
     return 0.5 * ll;
@@ -248,11 +245,10 @@ export function garch(
   const initAlpha = 0.1;
   const initBeta = 0.8;
 
-  const result = nelderMead(
-    negLogLikelihood,
-    [initOmega, initAlpha, initBeta],
-    { maxIter: maxIterations, tol: tolerance },
-  );
+  const result = nelderMead(negLogLikelihood, [initOmega, initAlpha, initBeta], {
+    maxIter: maxIterations,
+    tol: tolerance,
+  });
 
   let [omega, alpha, beta] = result.x;
 
@@ -272,7 +268,7 @@ export function garch(
 
   for (let t = 0; t < T; t++) {
     condVar.push({ time: t, value: sigma2 });
-    sigma2 = omega + alpha * (returns[t] ** 2) + beta * sigma2;
+    sigma2 = omega + alpha * returns[t] ** 2 + beta * sigma2;
   }
 
   // One-step-ahead forecast
@@ -312,10 +308,7 @@ export function garch(
  * // vol[0].value ~ annualised vol (%) at time 0
  * ```
  */
-export function ewmaVolatility(
-  returns: number[],
-  options?: EwmaVolatilityOptions,
-): Series<number> {
+export function ewmaVolatility(returns: number[], options?: EwmaVolatilityOptions): Series<number> {
   const lambda = options?.lambda ?? 0.94;
   const T = returns.length;
 
@@ -330,7 +323,7 @@ export function ewmaVolatility(
   const result: Series<number> = [];
 
   for (let t = 0; t < T; t++) {
-    sigma2 = lambda * sigma2 + (1 - lambda) * (returns[t] ** 2);
+    sigma2 = lambda * sigma2 + (1 - lambda) * returns[t] ** 2;
     result.push({ time: t, value: Math.sqrt(sigma2) * SQRT_252 * 100 });
   }
 

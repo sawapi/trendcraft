@@ -41,11 +41,7 @@ function c(
   };
 }
 
-function fromPrices(
-  prices: number[],
-  volume = 1000,
-  baseTime = 1_000_000_000,
-): NormalizedCandle[] {
+function fromPrices(prices: number[], volume = 1000, baseTime = 1_000_000_000): NormalizedCandle[] {
   return prices.map((p, i) => c(i, p, volume, baseTime));
 }
 
@@ -87,13 +83,13 @@ describe("doubleTop – branch coverage extras", () => {
   it("covers neckline crosses > maxNecklineCrosses branch", () => {
     // Build double top with messy price action around the neckline
     const prices: number[] = [];
-    for (let i = 0; i < 8; i++) prices.push(90 + i * 2.5);  // ramp up
-    for (let i = 0; i < 3; i++) prices.push(110 - i * 0.5);  // first peak ~110
-    for (let i = 0; i < 5; i++) prices.push(109 - i * 3);    // drop to ~94
+    for (let i = 0; i < 8; i++) prices.push(90 + i * 2.5); // ramp up
+    for (let i = 0; i < 3; i++) prices.push(110 - i * 0.5); // first peak ~110
+    for (let i = 0; i < 5; i++) prices.push(109 - i * 3); // drop to ~94
     // Messy neckline area - cross back and forth over 94 many times
     for (let i = 0; i < 8; i++) prices.push(94 + (i % 2 === 0 ? 2 : -2));
-    for (let i = 0; i < 5; i++) prices.push(95 + i * 3);     // rise to second peak ~110
-    for (let i = 0; i < 10; i++) prices.push(110 - i * 2);   // decay
+    for (let i = 0; i < 5; i++) prices.push(95 + i * 3); // rise to second peak ~110
+    for (let i = 0; i < 10; i++) prices.push(110 - i * 2); // decay
 
     const candles = fromPrices(prices);
     const result = doubleTop(candles, {
@@ -198,7 +194,7 @@ describe("doubleTop – branch coverage extras", () => {
 
     const candles = fromPrices(prices);
     const result = doubleTop(candles, {
-      minMiddleDepth: 0.10, // require 10% depth, but trough is only ~2% deep
+      minMiddleDepth: 0.1, // require 10% depth, but trough is only ~2% deep
       validateProminence: false,
       validateVolume: false,
       validateNeckline: false,
@@ -288,7 +284,7 @@ describe("doubleBottom – branch coverage extras", () => {
     // Second trough is significantly higher than first -> rejected
     const prices: number[] = [];
     for (let i = 0; i < 10; i++) prices.push(110 - i * 2); // decline to 92
-    for (let i = 0; i < 8; i++) prices.push(92 + i * 2);   // rally to 106
+    for (let i = 0; i < 8; i++) prices.push(92 + i * 2); // rally to 106
     // Second trough is much higher than first (92 vs 100)
     for (let i = 0; i < 8; i++) prices.push(106 - i * 0.75); // only to 100
     for (let i = 0; i < 10; i++) prices.push(100 + i);
@@ -319,7 +315,7 @@ describe("doubleBottom – branch coverage extras", () => {
     const candles = fromPrices(prices);
     const result = doubleBottom(candles, {
       validateProminence: true,
-      minProminence: 0.10, // very high requirement
+      minProminence: 0.1, // very high requirement
       swingLookback: 2,
       minDistance: 5,
       maxDistance: 40,
@@ -339,7 +335,7 @@ describe("doubleBottom – branch coverage extras", () => {
 
     const candles = fromPrices(prices);
     const result = doubleBottom(candles, {
-      minMiddleDepth: 0.10,
+      minMiddleDepth: 0.1,
       validateProminence: false,
       validateVolume: false,
       validateNeckline: false,
@@ -419,13 +415,13 @@ describe("headAndShoulders – branch coverage extras", () => {
     // Build monotonic rises and falls so swing lows don't appear between the swing highs
     const prices: number[] = [];
     // Create 3 peaks with monotonic transitions (no intermediate troughs)
-    for (let i = 0; i < 4; i++) prices.push(90 + i * 5);          // ramp to 105
-    prices.push(110, 111, 110);                                      // peak 1
-    for (let i = 0; i < 2; i++) prices.push(109 - i);               // tiny dip
-    prices.push(130, 131, 130);                                      // peak 2 (head)
-    for (let i = 0; i < 2; i++) prices.push(129 - i);               // tiny dip
-    prices.push(110, 111, 110);                                      // peak 3
-    for (let i = 0; i < 10; i++) prices.push(110 - i * 2);          // decline
+    for (let i = 0; i < 4; i++) prices.push(90 + i * 5); // ramp to 105
+    prices.push(110, 111, 110); // peak 1
+    for (let i = 0; i < 2; i++) prices.push(109 - i); // tiny dip
+    prices.push(130, 131, 130); // peak 2 (head)
+    for (let i = 0; i < 2; i++) prices.push(129 - i); // tiny dip
+    prices.push(110, 111, 110); // peak 3
+    for (let i = 0; i < 10; i++) prices.push(110 - i * 2); // decline
 
     const candles = fromPrices(prices);
     const result = headAndShoulders(candles, { swingLookback: 2, minHeadHeight: 0.01 });
@@ -485,7 +481,7 @@ describe("headAndShoulders – branch coverage extras", () => {
     if (result.length > 0) {
       expect(result[0].type).toBe("head_shoulders");
       expect(result[0].pattern.keyPoints.length).toBe(5);
-      const labels = result[0].pattern.keyPoints.map(kp => kp.label);
+      const labels = result[0].pattern.keyPoints.map((kp) => kp.label);
       expect(labels).toContain("Head");
       expect(labels).toContain("Left Shoulder");
       expect(labels).toContain("Right Shoulder");
@@ -527,11 +523,11 @@ describe("inverseHeadAndShoulders – branch coverage extras", () => {
     // Troughs without clear peaks between them
     const prices: number[] = [];
     for (let i = 0; i < 4; i++) prices.push(110 - i * 5);
-    prices.push(90, 89, 90);                                        // trough 1
+    prices.push(90, 89, 90); // trough 1
     for (let i = 0; i < 2; i++) prices.push(91 + i);
-    prices.push(70, 69, 70);                                        // trough 2 (head)
+    prices.push(70, 69, 70); // trough 2 (head)
     for (let i = 0; i < 2; i++) prices.push(71 + i);
-    prices.push(90, 89, 90);                                        // trough 3
+    prices.push(90, 89, 90); // trough 3
     for (let i = 0; i < 10; i++) prices.push(90 + i * 2);
 
     const candles = fromPrices(prices);
@@ -590,7 +586,7 @@ describe("detectChannel – branch coverage extras", () => {
     // Near-zero price data (will make avgPrice very small/zero)
     const candles: NormalizedCandle[] = [];
     for (let i = 0; i < 50; i++) {
-      const price = 0.01 + Math.sin(i * Math.PI / 5) * 0.005;
+      const price = 0.01 + Math.sin((i * Math.PI) / 5) * 0.005;
       candles.push({
         time: 1_000_000_000 + i * DAY,
         open: price - 0.001,
@@ -610,8 +606,8 @@ describe("detectChannel – branch coverage extras", () => {
     const candles: NormalizedCandle[] = [];
     for (let i = 0; i < 60; i++) {
       // Expanding range: highs go up, lows go down -> diverging
-      const high = 100 + i * 0.5 + Math.sin(i * Math.PI / 4) * 2;
-      const low = 100 - i * 0.5 - Math.sin(i * Math.PI / 4) * 2;
+      const high = 100 + i * 0.5 + Math.sin((i * Math.PI) / 4) * 2;
+      const low = 100 - i * 0.5 - Math.sin((i * Math.PI) / 4) * 2;
       const close = (high + low) / 2;
       candles.push({
         time: 1_000_000_000 + i * DAY,
@@ -635,7 +631,7 @@ describe("detectChannel – branch coverage extras", () => {
     const candles: NormalizedCandle[] = [];
     for (let i = 0; i < 60; i++) {
       const trend = -i * 0.5;
-      const cycle = Math.sin(i * Math.PI / 5) * 3;
+      const cycle = Math.sin((i * Math.PI) / 5) * 3;
       const price = 100 + trend + cycle;
       candles.push({
         time: 1_000_000_000 + i * DAY,
@@ -647,7 +643,7 @@ describe("detectChannel – branch coverage extras", () => {
       });
     }
     const result = detectChannel(candles, { swingLookback: 3, minBars: 20 });
-    const descending = result.filter(p => p.type === "channel_descending");
+    const descending = result.filter((p) => p.type === "channel_descending");
     if (descending.length > 0) {
       expect(descending[0].type).toBe("channel_descending");
       expect(descending[0].pattern.height).toBeGreaterThan(0);
@@ -658,7 +654,7 @@ describe("detectChannel – branch coverage extras", () => {
     // Long channel (60+ bars) for higher confidence bonus
     const candles: NormalizedCandle[] = [];
     for (let i = 0; i < 80; i++) {
-      const cycle = Math.sin(i * Math.PI / 6) * 4;
+      const cycle = Math.sin((i * Math.PI) / 6) * 4;
       const price = 100 + cycle;
       candles.push({
         time: 1_000_000_000 + i * DAY,
@@ -683,7 +679,7 @@ describe("detectChannel – branch coverage extras", () => {
     const candles: NormalizedCandle[] = [];
     // Horizontal channel for 40 bars
     for (let i = 0; i < 40; i++) {
-      const cycle = Math.sin(i * Math.PI / 5) * 3;
+      const cycle = Math.sin((i * Math.PI) / 5) * 3;
       const price = 100 + cycle;
       candles.push({
         time: 1_000_000_000 + i * DAY,
@@ -712,7 +708,7 @@ describe("detectChannel – branch coverage extras", () => {
       validateVolume: true,
     });
     if (result.length > 0) {
-      const confirmed = result.filter(p => p.confirmed);
+      const confirmed = result.filter((p) => p.confirmed);
       if (confirmed.length > 0) {
         expect(confirmed[0].pattern.target).toBeDefined();
       }
@@ -772,8 +768,8 @@ describe("cupWithHandle – branch coverage extras", () => {
     for (let i = 0; i < 5; i++) candles.push(c(candles.length, 96 + i * 1.5));
 
     const result = cupWithHandle(candles, {
-      minCupDepth: 0.10,
-      maxCupDepth: 0.40,
+      minCupDepth: 0.1,
+      maxCupDepth: 0.4,
       minCupLength: 25,
       swingLookback: 3,
     });
@@ -794,8 +790,8 @@ describe("cupWithHandle – branch coverage extras", () => {
     for (let i = 0; i < 5; i++) candles.push(c(candles.length, 96 + i * 1.5));
 
     const result = cupWithHandle(candles, {
-      minCupDepth: 0.10,
-      maxCupDepth: 0.40,
+      minCupDepth: 0.1,
+      maxCupDepth: 0.4,
       minCupLength: 30,
       swingLookback: 3,
     });
@@ -880,12 +876,18 @@ describe("cupWithHandle – branch coverage extras", () => {
     const candles2 = makeCupCandlesWithRims(100, 102.5); // rimDiff ~0.025
 
     const r1 = cupWithHandle(candles1, {
-      minCupDepth: 0.10, maxCupDepth: 0.40, minCupLength: 20,
-      swingLookback: 3, minHandleLength: 3,
+      minCupDepth: 0.1,
+      maxCupDepth: 0.4,
+      minCupLength: 20,
+      swingLookback: 3,
+      minHandleLength: 3,
     });
     const r2 = cupWithHandle(candles2, {
-      minCupDepth: 0.10, maxCupDepth: 0.40, minCupLength: 20,
-      swingLookback: 3, minHandleLength: 3,
+      minCupDepth: 0.1,
+      maxCupDepth: 0.4,
+      minCupLength: 20,
+      swingLookback: 3,
+      minHandleLength: 3,
     });
 
     // Better rim alignment should yield higher or equal confidence
@@ -922,7 +924,7 @@ describe("detectFlag – branch coverage extras", () => {
       minAtrMultiple: 1.5,
       minRSquared: 0.3,
     });
-    const bearFlags = result.filter(p => p.type === "bear_flag");
+    const bearFlags = result.filter((p) => p.type === "bear_flag");
     if (bearFlags.length > 0) {
       expect(bearFlags[0].type).toBe("bear_flag");
       expect(bearFlags[0].pattern.height).toBeGreaterThan(0);
@@ -938,7 +940,11 @@ describe("detectFlag – branch coverage extras", () => {
     for (let i = 0; i < 15; i++) {
       candles.push({
         time: 1_000_000_000 + candles.length * DAY,
-        open: price, high: price + 1, low: price - 1, close: price, volume: 1000,
+        open: price,
+        high: price + 1,
+        low: price - 1,
+        close: price,
+        volume: 1000,
       });
     }
     // Sharp up move (pole)
@@ -946,7 +952,11 @@ describe("detectFlag – branch coverage extras", () => {
       price += 5;
       candles.push({
         time: 1_000_000_000 + candles.length * DAY,
-        open: price - 4, high: price + 1, low: price - 5, close: price, volume: 2000,
+        open: price - 4,
+        high: price + 1,
+        low: price - 5,
+        close: price,
+        volume: 2000,
       });
     }
     // Expanding consolidation: highs go up, lows go down
@@ -957,15 +967,22 @@ describe("detectFlag – branch coverage extras", () => {
       const cl = (h + l) / 2;
       candles.push({
         time: 1_000_000_000 + candles.length * DAY,
-        open: cl, high: h, low: l, close: cl, volume: 500,
+        open: cl,
+        high: h,
+        low: l,
+        close: cl,
+        volume: 500,
       });
     }
     const result = detectFlag(candles, {
-      swingLookback: 2, minConsolidationBars: 5, maxPoleBars: 8,
-      minAtrMultiple: 1.0, minRSquared: 0.1,
+      swingLookback: 2,
+      minConsolidationBars: 5,
+      maxPoleBars: 8,
+      minAtrMultiple: 1.0,
+      minRSquared: 0.1,
     });
     // Should not classify as flag or pennant
-    const flags = result.filter(p => p.type.includes("flag") || p.type.includes("pennant"));
+    const flags = result.filter((p) => p.type.includes("flag") || p.type.includes("pennant"));
     // If somehow classified, still valid output
     for (const f of flags) {
       expect(f.confidence).toBeGreaterThan(0);
@@ -981,7 +998,7 @@ describe("detectFlag – branch coverage extras", () => {
       minRSquared: 0.3,
       minAtrMultiple: 1.5,
     });
-    const bearPatterns = result.filter(p => p.type === "bear_flag" || p.type === "bear_pennant");
+    const bearPatterns = result.filter((p) => p.type === "bear_flag" || p.type === "bear_pennant");
     for (const p of bearPatterns) {
       if (p.confirmed) {
         // Confirmed bear flag should have target below current price
@@ -1010,7 +1027,10 @@ describe("detectFlag – branch coverage extras", () => {
       price += 4;
       candles.push({
         time: 1_000_000_000 + candles.length * DAY,
-        open: price - 3, high: price + 1, low: price - 3.5, close: price,
+        open: price - 3,
+        high: price + 1,
+        low: price - 3.5,
+        close: price,
         volume: 200, // low pole volume
       });
     }
@@ -1018,17 +1038,23 @@ describe("detectFlag – branch coverage extras", () => {
     // Consolidation with HIGH volume
     for (let i = 0; i < 10; i++) {
       const drift = -i * 0.3;
-      const cycle = Math.sin(i * Math.PI / 3) * 1.5;
+      const cycle = Math.sin((i * Math.PI) / 3) * 1.5;
       const p = top + drift + cycle;
       candles.push({
         time: 1_000_000_000 + candles.length * DAY,
-        open: p - 0.3, high: p + 1, low: p - 1, close: p,
+        open: p - 0.3,
+        high: p + 1,
+        low: p - 1,
+        close: p,
         volume: 5000, // very high consolidation volume
       });
     }
     const result = detectFlag(candles, {
-      swingLookback: 2, minConsolidationBars: 5, maxPoleBars: 8,
-      minAtrMultiple: 1.5, minRSquared: 0.3,
+      swingLookback: 2,
+      minConsolidationBars: 5,
+      maxPoleBars: 8,
+      minAtrMultiple: 1.5,
+      minRSquared: 0.3,
     });
     // Should reject because consolidation volume > pole volume * 1.2
     expect(result.length).toBe(0);
@@ -1043,7 +1069,7 @@ describe("detectFlag – branch coverage extras", () => {
       validateVolume: true,
       minVolumeIncrease: 1.2,
     });
-    const confirmed = result.filter(p => p.confirmed);
+    const confirmed = result.filter((p) => p.confirmed);
     for (const p of confirmed) {
       expect(p.pattern.target).toBeDefined();
       expect(p.pattern.stopLoss).toBeDefined();
@@ -1057,7 +1083,11 @@ describe("detectFlag – branch coverage extras", () => {
     for (let i = 0; i < 15; i++) {
       candles.push({
         time: 1_000_000_000 + candles.length * DAY,
-        open: price, high: price + 1, low: price - 1, close: price, volume: 1000,
+        open: price,
+        high: price + 1,
+        low: price - 1,
+        close: price,
+        volume: 1000,
       });
     }
     // Short sharp pole
@@ -1065,7 +1095,11 @@ describe("detectFlag – branch coverage extras", () => {
       price += 3;
       candles.push({
         time: 1_000_000_000 + candles.length * DAY,
-        open: price - 2, high: price + 1, low: price - 3, close: price, volume: 2000,
+        open: price - 2,
+        high: price + 1,
+        low: price - 3,
+        close: price,
+        volume: 2000,
       });
     }
     // Very deep consolidation (> 50% of pole)
@@ -1074,12 +1108,19 @@ describe("detectFlag – branch coverage extras", () => {
       const p = top - i * 1.5 + Math.sin(i) * 3; // drops ~15 from 112, pole was 12
       candles.push({
         time: 1_000_000_000 + candles.length * DAY,
-        open: p, high: p + 2, low: p - 2, close: p, volume: 500,
+        open: p,
+        high: p + 2,
+        low: p - 2,
+        close: p,
+        volume: 500,
       });
     }
     const result = detectFlag(candles, {
-      swingLookback: 2, minConsolidationBars: 5, maxPoleBars: 6,
-      minAtrMultiple: 1.0, minRSquared: 0.1,
+      swingLookback: 2,
+      minConsolidationBars: 5,
+      maxPoleBars: 6,
+      minAtrMultiple: 1.0,
+      minRSquared: 0.1,
     });
     // Deep consolidation should be rejected
     expect(result.length).toBe(0);
@@ -1095,8 +1136,8 @@ describe("cupWithHandle – additional branch targets", () => {
     // Cup depth of ~33% (between 0.30 and 0.35, hitting the else-if at L358)
     const candles = makeCupCandles(0.33);
     const result = cupWithHandle(candles, {
-      minCupDepth: 0.10,
-      maxCupDepth: 0.40,
+      minCupDepth: 0.1,
+      maxCupDepth: 0.4,
       minCupLength: 20,
       swingLookback: 3,
       minHandleLength: 3,
@@ -1111,8 +1152,8 @@ describe("cupWithHandle – additional branch targets", () => {
     // Cup depth of ~13% (between 0.12 and 0.15, hitting the else-if branch)
     const candles = makeCupCandles(0.13);
     const result = cupWithHandle(candles, {
-      minCupDepth: 0.10,
-      maxCupDepth: 0.40,
+      minCupDepth: 0.1,
+      maxCupDepth: 0.4,
       minCupLength: 20,
       swingLookback: 3,
       minHandleLength: 3,
@@ -1139,8 +1180,8 @@ describe("cupWithHandle – additional branch targets", () => {
     for (let i = 0; i < 5; i++) candles.push(c(candles.length, 102 + i * 2));
 
     const result = cupWithHandle(candles, {
-      minCupDepth: 0.10,
-      maxCupDepth: 0.40,
+      minCupDepth: 0.1,
+      maxCupDepth: 0.4,
       minCupLength: 30,
       swingLookback: 3,
       minHandleLength: 3,
@@ -1164,8 +1205,8 @@ describe("cupWithHandle – additional branch targets", () => {
     for (let i = 0; i < 4; i++) candles.push(c(candles.length, 94 + i * 2)); // recovers to ~100
 
     const result = cupWithHandle(candles, {
-      minCupDepth: 0.10,
-      maxCupDepth: 0.40,
+      minCupDepth: 0.1,
+      maxCupDepth: 0.4,
       minCupLength: 20,
       maxHandleDepth: 0.12,
       minHandleLength: 3,
@@ -1191,7 +1232,7 @@ describe("cupWithHandle – additional branch targets", () => {
 
     const result = cupWithHandle(candles, {
       minCupDepth: 0.03,
-      maxCupDepth: 0.40,
+      maxCupDepth: 0.4,
       minCupLength: 20,
       maxHandleDepth: 0.15,
       minHandleLength: 3,
@@ -1207,7 +1248,7 @@ describe("detectChannel – additional branch targets", () => {
     // Create a range-bound market with very flat upper and lower bounds
     const candles: NormalizedCandle[] = [];
     for (let i = 0; i < 60; i++) {
-      const cycle = Math.sin(i * Math.PI / 5) * 5;
+      const cycle = Math.sin((i * Math.PI) / 5) * 5;
       const price = 100 + cycle;
       candles.push({
         time: 1_000_000_000 + i * DAY,
@@ -1224,7 +1265,7 @@ describe("detectChannel – additional branch targets", () => {
       flatTolerance: 0.001,
       parallelTolerance: 0.001,
     });
-    const horizontal = result.filter(p => p.type === "channel_horizontal");
+    const horizontal = result.filter((p) => p.type === "channel_horizontal");
     if (horizontal.length > 0) {
       expect(horizontal[0].pattern.height).toBeGreaterThan(0);
     }
@@ -1235,7 +1276,7 @@ describe("detectChannel – additional branch targets", () => {
     // Channel with uniform low volume
     for (let i = 0; i < 40; i++) {
       const trend = i * 0.3;
-      const cycle = Math.sin(i * Math.PI / 5) * 3;
+      const cycle = Math.sin((i * Math.PI) / 5) * 3;
       const price = 100 + trend + cycle;
       candles.push({
         time: 1_000_000_000 + i * DAY,
@@ -1378,7 +1419,11 @@ describe("detectFlag – additional branch targets", () => {
     for (let i = 0; i < 15; i++) {
       candles.push({
         time: 1_000_000_000 + candles.length * DAY,
-        open: price, high: price + 1, low: price - 1, close: price, volume: 1000,
+        open: price,
+        high: price + 1,
+        low: price - 1,
+        close: price,
+        volume: 1000,
       });
     }
     // Sharp down pole
@@ -1386,33 +1431,47 @@ describe("detectFlag – additional branch targets", () => {
       price -= 5;
       candles.push({
         time: 1_000_000_000 + candles.length * DAY,
-        open: price + 4, high: price + 5, low: price - 1, close: price, volume: 2000,
+        open: price + 4,
+        high: price + 5,
+        low: price - 1,
+        close: price,
+        volume: 2000,
       });
     }
     // Converging consolidation (upper descending, lower ascending)
     const bottom = price;
     for (let i = 0; i < 12; i++) {
       const amplitude = 3 * (1 - i / 12);
-      const cycle = Math.sin(i * Math.PI / 3) * amplitude;
+      const cycle = Math.sin((i * Math.PI) / 3) * amplitude;
       const p = bottom + cycle;
       candles.push({
         time: 1_000_000_000 + candles.length * DAY,
-        open: p, high: p + amplitude * 0.5, low: p - amplitude * 0.5, close: p, volume: 400,
+        open: p,
+        high: p + amplitude * 0.5,
+        low: p - amplitude * 0.5,
+        close: p,
+        volume: 400,
       });
     }
     // Breakout down
     for (let i = 0; i < 5; i++) {
       candles.push({
         time: 1_000_000_000 + candles.length * DAY,
-        open: bottom - 1 - i * 2, high: bottom - i * 2,
-        low: bottom - 3 - i * 2, close: bottom - 2 - i * 2, volume: 2500,
+        open: bottom - 1 - i * 2,
+        high: bottom - i * 2,
+        low: bottom - 3 - i * 2,
+        close: bottom - 2 - i * 2,
+        volume: 2500,
       });
     }
     const result = detectFlag(candles, {
-      swingLookback: 2, minConsolidationBars: 5, maxPoleBars: 8,
-      minAtrMultiple: 1.5, minRSquared: 0.2,
+      swingLookback: 2,
+      minConsolidationBars: 5,
+      maxPoleBars: 8,
+      minAtrMultiple: 1.5,
+      minRSquared: 0.2,
     });
-    const pennants = result.filter(p => p.type === "bear_pennant");
+    const pennants = result.filter((p) => p.type === "bear_pennant");
     for (const p of pennants) {
       expect(p.pattern.height).toBeGreaterThan(0);
     }
@@ -1425,7 +1484,11 @@ describe("detectFlag – additional branch targets", () => {
     for (let i = 0; i < 15; i++) {
       candles.push({
         time: 1_000_000_000 + candles.length * DAY,
-        open: price, high: price + 1, low: price - 1, close: price, volume: 1000,
+        open: price,
+        high: price + 1,
+        low: price - 1,
+        close: price,
+        volume: 1000,
       });
     }
     // Slight up move (not enough for bull flag ATR threshold)
@@ -1433,7 +1496,11 @@ describe("detectFlag – additional branch targets", () => {
       price += 0.5;
       candles.push({
         time: 1_000_000_000 + candles.length * DAY,
-        open: price - 0.3, high: price + 0.5, low: price - 0.5, close: price, volume: 1000,
+        open: price - 0.3,
+        high: price + 0.5,
+        low: price - 0.5,
+        close: price,
+        volume: 1000,
       });
     }
     // Slight consolidation
@@ -1441,11 +1508,17 @@ describe("detectFlag – additional branch targets", () => {
       const p = price - i * 0.1 + Math.sin(i) * 0.5;
       candles.push({
         time: 1_000_000_000 + candles.length * DAY,
-        open: p, high: p + 0.5, low: p - 0.5, close: p, volume: 500,
+        open: p,
+        high: p + 0.5,
+        low: p - 0.5,
+        close: p,
+        volume: 500,
       });
     }
     const result = detectFlag(candles, {
-      swingLookback: 2, minConsolidationBars: 5, maxPoleBars: 8,
+      swingLookback: 2,
+      minConsolidationBars: 5,
+      maxPoleBars: 8,
       minAtrMultiple: 5.0, // very high threshold so no pole qualifies
     });
     expect(result.length).toBe(0);
@@ -1482,7 +1555,7 @@ describe("isNormalized truthy branch – channel and cup-handle", () => {
     // channel.ts L131: isNormalized truthy branch
     const candles: NormalizedCandle[] = [];
     for (let i = 0; i < 40; i++) {
-      const cycle = Math.sin(i * Math.PI / 5) * 4;
+      const cycle = Math.sin((i * Math.PI) / 5) * 4;
       const price = 100 + cycle;
       candles.push({
         time: 1_000_000_000 + i * DAY,
@@ -1500,10 +1573,13 @@ describe("isNormalized truthy branch – channel and cup-handle", () => {
 
   it("cupWithHandle accepts already-normalized candles directly", () => {
     // cup-handle.ts L55: isNormalized truthy branch
-    const candles = makeCupCandles(0.20);
+    const candles = makeCupCandles(0.2);
     const result = cupWithHandle(candles as NormalizedCandle[], {
-      minCupDepth: 0.10, maxCupDepth: 0.40, minCupLength: 20,
-      swingLookback: 3, minHandleLength: 3,
+      minCupDepth: 0.1,
+      maxCupDepth: 0.4,
+      minCupLength: 20,
+      swingLookback: 3,
+      minHandleLength: 3,
     });
     expect(Array.isArray(result)).toBe(true);
   });
@@ -1534,14 +1610,18 @@ describe("isNormalized truthy branch – channel and cup-handle", () => {
 
   it("doubleTop accepts already-normalized candles directly", () => {
     // double-top-bottom.ts L72: isNormalized truthy branch
-    const candles = fromPrices(Array.from({ length: 30 }, (_, i) => 100 + Math.sin(i * 0.3) * 10)) as NormalizedCandle[];
+    const candles = fromPrices(
+      Array.from({ length: 30 }, (_, i) => 100 + Math.sin(i * 0.3) * 10),
+    ) as NormalizedCandle[];
     const result = doubleTop(candles, { swingLookback: 2, minDistance: 5 });
     expect(Array.isArray(result)).toBe(true);
   });
 
   it("doubleBottom accepts already-normalized candles directly", () => {
     // double-top-bottom.ts L419: isNormalized truthy branch
-    const candles = fromPrices(Array.from({ length: 30 }, (_, i) => 100 - Math.sin(i * 0.3) * 10)) as NormalizedCandle[];
+    const candles = fromPrices(
+      Array.from({ length: 30 }, (_, i) => 100 - Math.sin(i * 0.3) * 10),
+    ) as NormalizedCandle[];
     const result = doubleBottom(candles, { swingLookback: 2, minDistance: 5 });
     expect(Array.isArray(result)).toBe(true);
   });
@@ -1556,11 +1636,7 @@ describe("isNormalized truthy branch – channel and cup-handle", () => {
  * Creates: ramp up → left shoulder peak → dip → head peak → dip → right shoulder peak → decline
  * Uses step-like moves with clear peaks/troughs visible to swing detection with lookback=3.
  */
-function makeHSPricesCustom(
-  leftShoulder: number,
-  head: number,
-  rightShoulder: number,
-): number[] {
+function makeHSPricesCustom(leftShoulder: number, head: number, rightShoulder: number): number[] {
   const prices: number[] = [];
   const base = Math.min(leftShoulder, rightShoulder, head) - 20;
   const troughLevel = Math.min(leftShoulder, rightShoulder) - 15;
@@ -1570,7 +1646,8 @@ function makeHSPricesCustom(
   // Left shoulder peak (hold for visibility)
   prices.push(leftShoulder, leftShoulder + 0.5, leftShoulder);
   // Dip to left trough
-  for (let i = 0; i < 4; i++) prices.push(leftShoulder - ((leftShoulder - troughLevel) * (i + 1)) / 4);
+  for (let i = 0; i < 4; i++)
+    prices.push(leftShoulder - ((leftShoulder - troughLevel) * (i + 1)) / 4);
   // Hold at trough
   prices.push(troughLevel, troughLevel + 0.5, troughLevel);
   // Rise to head
@@ -1582,7 +1659,8 @@ function makeHSPricesCustom(
   // Hold at trough
   prices.push(troughLevel, troughLevel + 0.5, troughLevel);
   // Rise to right shoulder
-  for (let i = 0; i < 4; i++) prices.push(troughLevel + ((rightShoulder - troughLevel) * (i + 1)) / 4);
+  for (let i = 0; i < 4; i++)
+    prices.push(troughLevel + ((rightShoulder - troughLevel) * (i + 1)) / 4);
   // Right shoulder peak
   prices.push(rightShoulder, rightShoulder + 0.5, rightShoulder);
   // Decline
@@ -1608,7 +1686,8 @@ function makeInvHSPricesCustom(
   // Left shoulder trough
   prices.push(leftShoulder, leftShoulder - 0.5, leftShoulder);
   // Rally to left peak
-  for (let i = 0; i < 4; i++) prices.push(leftShoulder + ((peakLevel - leftShoulder) * (i + 1)) / 4);
+  for (let i = 0; i < 4; i++)
+    prices.push(leftShoulder + ((peakLevel - leftShoulder) * (i + 1)) / 4);
   // Hold at peak
   prices.push(peakLevel, peakLevel - 0.5, peakLevel);
   // Drop to head
@@ -1782,10 +1861,7 @@ function makeCupCandles(depth: number): NormalizedCandle[] {
   return candles;
 }
 
-function makeCupCandlesWithRims(
-  leftRim: number,
-  rightRim: number,
-): NormalizedCandle[] {
+function makeCupCandlesWithRims(leftRim: number, rightRim: number): NormalizedCandle[] {
   const candles: NormalizedCandle[] = [];
   const avgRim = (leftRim + rightRim) / 2;
   const bottomPrice = avgRim * 0.8;

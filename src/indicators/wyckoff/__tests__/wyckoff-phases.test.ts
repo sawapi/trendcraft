@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest";
-import { wyckoffPhases } from "../wyckoff-phases";
+import { describe, expect, it } from "vitest";
 import type { NormalizedCandle } from "../../../types";
+import { wyckoffPhases } from "../wyckoff-phases";
 import type { WyckoffEvent } from "../wyckoff-phases";
 
 function mc(
@@ -77,8 +77,7 @@ function buildFullAccumulation(): NormalizedCandle[] {
   candles.push(mc(idx++, 96, 97, 91, 92, 3000));
   for (let i = 0; i < 3; i++)
     candles.push(mc(idx++, 92 + i * 0.5, 93 + i * 0.5, 91.5 + i * 0.5, 92.5 + i * 0.5, 800));
-  for (let i = 0; i < 3; i++)
-    candles.push(mc(idx++, 94 + i, 95 + i, 93 + i, 94.5 + i, 900));
+  for (let i = 0; i < 3; i++) candles.push(mc(idx++, 94 + i, 95 + i, 93 + i, 94.5 + i, 900));
 
   // SC: deeper swing low with extreme volume
   candles.push(mc(idx++, 91, 92, 85, 86, 8000));
@@ -89,15 +88,13 @@ function buildFullAccumulation(): NormalizedCandle[] {
   for (let i = 0; i < 3; i++)
     candles.push(mc(idx++, 87 + i * 3, 88 + i * 3, 86 + i * 3, 88.5 + i * 3, 1500));
   candles.push(mc(idx++, 96, 99, 95, 98, 2000));
-  for (let i = 0; i < 3; i++)
-    candles.push(mc(idx++, 97 - i, 98 - i, 96 - i, 96.5 - i, 800));
+  for (let i = 0; i < 3; i++) candles.push(mc(idx++, 97 - i, 98 - i, 96 - i, 96.5 - i, 800));
 
   // ST: swing low near SC(85) with lower volume
   for (let i = 0; i < 3; i++)
     candles.push(mc(idx++, 93 - i * 2, 94 - i * 2, 92 - i * 2, 92.5 - i * 2, 900));
   candles.push(mc(idx++, 87, 88, 85.5, 86, 2000));
-  for (let i = 0; i < 3; i++)
-    candles.push(mc(idx++, 87 + i, 88 + i, 86 + i, 87.5 + i, 900));
+  for (let i = 0; i < 3; i++) candles.push(mc(idx++, 87 + i, 88 + i, 86 + i, 87.5 + i, 900));
 
   // Range bars
   for (let i = 0; i < 5; i++)
@@ -110,14 +107,12 @@ function buildFullAccumulation(): NormalizedCandle[] {
   for (let i = 0; i < 3; i++)
     candles.push(mc(idx++, 84 + i * 2, 85 + i * 2, 83 + i * 2, 84.5 + i * 2, 1500));
   candles.push(mc(idx++, 90, 93, 89, 92, 2000));
-  for (let i = 0; i < 3; i++)
-    candles.push(mc(idx++, 91 - i, 92 - i, 90 - i, 90.5 - i, 800));
+  for (let i = 0; i < 3; i++) candles.push(mc(idx++, 91 - i, 92 - i, 90 - i, 90.5 - i, 800));
   candles.push(mc(idx++, 88, 89, 87, 87.5, 900));
   for (let i = 0; i < 3; i++)
     candles.push(mc(idx++, 88 + i * 3, 89 + i * 3, 87 + i * 3, 89.5 + i * 3, 1500));
   candles.push(mc(idx++, 97, 99, 96, 98, 2500));
-  for (let i = 0; i < 3; i++)
-    candles.push(mc(idx++, 97 - i, 98 - i, 96 - i, 96.5 - i, 800));
+  for (let i = 0; i < 3; i++) candles.push(mc(idx++, 97 - i, 98 - i, 96 - i, 96.5 - i, 800));
   candles.push(mc(idx++, 94, 95, 93, 93.5, 900));
   for (let i = 0; i < 3; i++)
     candles.push(mc(idx++, 94 + i * 3, 95 + i * 3, 93 + i * 3, 95.5 + i * 3, 2000));
@@ -126,13 +121,11 @@ function buildFullAccumulation(): NormalizedCandle[] {
   candles.push(mc(idx++, 100, 105, 99, 104, 3500));
 
   // LPS pullback above midpoint (85+99)/2 = 92
-  for (let i = 0; i < 3; i++)
-    candles.push(mc(idx++, 103 - i, 104 - i, 102 - i, 102.5 - i, 1000));
+  for (let i = 0; i < 3; i++) candles.push(mc(idx++, 103 - i, 104 - i, 102 - i, 102.5 - i, 1000));
   candles.push(mc(idx++, 97, 98, 94, 95, 800));
 
   // Markup continuation
-  for (let i = 0; i < 5; i++)
-    candles.push(mc(idx++, 96 + i, 97 + i, 95 + i, 96.5 + i, 1200));
+  for (let i = 0; i < 5; i++) candles.push(mc(idx++, 96 + i, 97 + i, 95 + i, 96.5 + i, 1200));
 
   return candles;
 }
@@ -154,22 +147,18 @@ function buildFullDistribution(): NormalizedCandle[] {
 
   // PSY: swing high with high volume
   candles.push(mc(idx++, 104, 110, 103, 109, 4000));
-  for (let i = 0; i < 3; i++)
-    candles.push(mc(idx++, 108 - i, 109 - i, 107 - i, 107.5 - i, 700));
-  for (let i = 0; i < 3; i++)
-    candles.push(mc(idx++, 106 - i, 107 - i, 105 - i, 105.5 - i, 800));
+  for (let i = 0; i < 3; i++) candles.push(mc(idx++, 108 - i, 109 - i, 107 - i, 107.5 - i, 700));
+  for (let i = 0; i < 3; i++) candles.push(mc(idx++, 106 - i, 107 - i, 105 - i, 105.5 - i, 800));
 
   // BC: extreme volume swing high
   candles.push(mc(idx++, 108, 115, 107, 108, 9000));
-  for (let i = 0; i < 3; i++)
-    candles.push(mc(idx++, 109 - i, 110 - i, 108 - i, 108.5 - i, 500));
+  for (let i = 0; i < 3; i++) candles.push(mc(idx++, 109 - i, 110 - i, 108 - i, 108.5 - i, 500));
 
   // AR: swing low establishing range low (~95)
   for (let i = 0; i < 3; i++)
     candles.push(mc(idx++, 107 - i * 3, 108 - i * 3, 106 - i * 3, 106.5 - i * 3, 1500));
   candles.push(mc(idx++, 98, 99, 95, 96, 2000));
-  for (let i = 0; i < 3; i++)
-    candles.push(mc(idx++, 97 + i, 98 + i, 96 + i, 97.5 + i, 800));
+  for (let i = 0; i < 3; i++) candles.push(mc(idx++, 97 + i, 98 + i, 96 + i, 97.5 + i, 800));
 
   // ST: swing high near BC(115) with lower volume
   for (let i = 0; i < 3; i++)
@@ -180,8 +169,7 @@ function buildFullDistribution(): NormalizedCandle[] {
 
   // UT: Upthrust — high > rangeHigh(115), close < rangeHigh, close < open
   candles.push(mc(idx++, 113, 117, 108, 109, 1800));
-  for (let i = 0; i < 3; i++)
-    candles.push(mc(idx++, 108 - i, 109 - i, 107 - i, 107.5 - i, 900));
+  for (let i = 0; i < 3; i++) candles.push(mc(idx++, 108 - i, 109 - i, 107 - i, 107.5 - i, 900));
 
   // UTAD: another push above range high
   candles.push(mc(idx++, 110, 116, 107, 108, 1500));
@@ -192,11 +180,9 @@ function buildFullDistribution(): NormalizedCandle[] {
   for (let i = 0; i < 3; i++)
     candles.push(mc(idx++, 100 - i * 3, 101 - i * 3, 99 - i * 3, 99.5 - i * 3, 1500));
   candles.push(mc(idx++, 92, 93, 91, 91.5, 1500));
-  for (let i = 0; i < 3; i++)
-    candles.push(mc(idx++, 92 + i, 93 + i, 91 + i, 92.5 + i, 800));
+  for (let i = 0; i < 3; i++) candles.push(mc(idx++, 92 + i, 93 + i, 91 + i, 92.5 + i, 800));
   candles.push(mc(idx++, 96, 97, 95, 96.5, 800));
-  for (let i = 0; i < 3; i++)
-    candles.push(mc(idx++, 96 - i, 97 - i, 95 - i, 95.5 - i, 900));
+  for (let i = 0; i < 3; i++) candles.push(mc(idx++, 96 - i, 97 - i, 95 - i, 95.5 - i, 900));
 
   // SOW: close below rangeLow(95)
   candles.push(mc(idx++, 93, 94, 90, 91, 3500));
@@ -261,9 +247,7 @@ describe("wyckoffPhases", () => {
       const candles = buildFullAccumulation();
       const result = wyckoffPhases(candles, { swingPeriod: 3, minRangeBars: 5 });
 
-      const events = result
-        .filter((r) => r.value.event !== null)
-        .map((r) => r.value.event!);
+      const events = result.filter((r) => r.value.event !== null).map((r) => r.value.event!);
 
       // Should contain all core accumulation events
       expect(events).toContain("PS");
@@ -395,9 +379,7 @@ describe("wyckoffPhases", () => {
       const candles = buildFullDistribution();
       const result = wyckoffPhases(candles, { swingPeriod: 3, minRangeBars: 5 });
 
-      const events = result
-        .filter((r) => r.value.event !== null)
-        .map((r) => r.value.event!);
+      const events = result.filter((r) => r.value.event !== null).map((r) => r.value.event!);
 
       expect(events).toContain("PSY");
       expect(events).toContain("BC");
@@ -715,9 +697,7 @@ describe("wyckoffPhases", () => {
       const resultNorm = wyckoffPhases(normalized, { swingPeriod: 3, minRangeBars: 5 });
 
       expect(resultRaw).toHaveLength(resultNorm.length);
-      expect(resultRaw.map((r) => r.value.phase)).toEqual(
-        resultNorm.map((r) => r.value.phase),
-      );
+      expect(resultRaw.map((r) => r.value.phase)).toEqual(resultNorm.map((r) => r.value.phase));
     });
   });
 });

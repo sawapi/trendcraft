@@ -202,7 +202,13 @@ export type { ScaledBacktestOptions } from "./scaled-entry";
 
 // Dynamic Slippage Model
 export { calculateDynamicSlippage, resolveSlippageModel } from "./slippage-model";
-export type { SlippageModel, FixedSlippageModel, VolatilitySlippageModel, VolumeSlippageModel, CompositeSlippageModel } from "./slippage-model";
+export type {
+  SlippageModel,
+  FixedSlippageModel,
+  VolatilitySlippageModel,
+  VolumeSlippageModel,
+  CompositeSlippageModel,
+} from "./slippage-model";
 
 // Order Types (Limit/Stop)
 export {
@@ -221,10 +227,27 @@ export {
   stopAtrAbove,
   stopAtrBelow,
 } from "./order-types";
-export type { OrderType, MarketOrder, LimitOrder, StopOrder, StopLimitOrder, PendingOrder, FillResult, LimitPriceFunc, StopPriceFunc, TimeInForce } from "./order-types";
+export type {
+  OrderType,
+  MarketOrder,
+  LimitOrder,
+  StopOrder,
+  StopLimitOrder,
+  PendingOrder,
+  FillResult,
+  LimitPriceFunc,
+  StopPriceFunc,
+  TimeInForce,
+} from "./order-types";
 
 // Margin/Leverage
-export { createMarginState, calculateBuyingPower, updateMarginState, accrueInterest, checkMarginCall } from "./margin";
+export {
+  createMarginState,
+  calculateBuyingPower,
+  updateMarginState,
+  accrueInterest,
+  checkMarginCall,
+} from "./margin";
 export type { MarginConfig, MarginState } from "./margin";
 
 // Volume Constraint (re-export from engine-utils)

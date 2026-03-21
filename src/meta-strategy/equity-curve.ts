@@ -8,7 +8,7 @@
  * @packageDocumentation
  */
 
-import type { BacktestResult, Trade, EquityPoint } from "../types";
+import type { BacktestResult, EquityPoint, Trade } from "../types";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -72,10 +72,7 @@ export type EquityCurveHealthResult = {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function buildEquityCurve(
-  trades: Trade[],
-  initialCapital: number,
-): number[] {
+function buildEquityCurve(trades: Trade[], initialCapital: number): number[] {
   const curve: number[] = [initialCapital];
   let equity = initialCapital;
   for (const trade of trades) {
@@ -135,11 +132,7 @@ function getDrawdownAt(equityCurve: number[], index: number): number {
   return peak > 0 ? (peak - equityCurve[index]) / peak : 0;
 }
 
-function getRollingWinRate(
-  trades: Trade[],
-  endIndex: number,
-  window: number,
-): number {
+function getRollingWinRate(trades: Trade[], endIndex: number, window: number): number {
   const start = Math.max(0, endIndex - window + 1);
   const slice = trades.slice(start, endIndex + 1);
   if (slice.length === 0) return 1;
@@ -149,13 +142,10 @@ function getRollingWinRate(
 
 function computeProfitFactor(grossProfit: number, grossLoss: number): number {
   if (grossLoss > 0) return grossProfit / grossLoss;
-  return grossProfit > 0 ? Infinity : 0;
+  return grossProfit > 0 ? Number.POSITIVE_INFINITY : 0;
 }
 
-function rebuildResult(
-  trades: Trade[],
-  original: BacktestResult,
-): BacktestResult {
+function rebuildResult(trades: Trade[], original: BacktestResult): BacktestResult {
   const initialCapital = original.initialCapital;
   if (trades.length === 0) {
     return {
@@ -193,11 +183,8 @@ function rebuildResult(
 
   // Simple Sharpe from trade returns
   const tradeReturns = trades.map((t) => t.returnPercent / 100);
-  const meanRet =
-    tradeReturns.reduce((s, r) => s + r, 0) / tradeReturns.length;
-  const variance =
-    tradeReturns.reduce((s, r) => s + (r - meanRet) ** 2, 0) /
-    tradeReturns.length;
+  const meanRet = tradeReturns.reduce((s, r) => s + r, 0) / tradeReturns.length;
+  const variance = tradeReturns.reduce((s, r) => s + (r - meanRet) ** 2, 0) / tradeReturns.length;
   const stdDev = Math.sqrt(variance);
   const sharpe = stdDev > 0 ? (meanRet / stdDev) * Math.sqrt(252) : 0;
 
@@ -211,8 +198,7 @@ function rebuildResult(
     maxDrawdown: maxDd,
     sharpeRatio: sharpe,
     profitFactor: computeProfitFactor(grossProfit, grossLoss),
-    avgHoldingDays:
-      trades.reduce((sum, t) => sum + t.holdingDays, 0) / trades.length,
+    avgHoldingDays: trades.reduce((sum, t) => sum + t.holdingDays, 0) / trades.length,
     trades,
     settings: original.settings,
     drawdownPeriods: [],
@@ -389,10 +375,7 @@ export function applyEquityCurveFilter(
  */
 export function equityCurveHealth(
   result: BacktestResult,
-  options: Pick<
-    EquityCurveFilterOptions,
-    "maPeriod" | "maType" | "winRateWindow"
-  > = {},
+  options: Pick<EquityCurveFilterOptions, "maPeriod" | "maType" | "winRateWindow"> = {},
 ): EquityCurveHealthResult {
   const { maPeriod = 20, maType = "sma", winRateWindow = 20 } = options;
 
@@ -415,9 +398,7 @@ export function equityCurveHealth(
   const currentDrawdown = getCurrentDrawdown(curve);
 
   const rollingWinRate =
-    trades.length > 0
-      ? getRollingWinRate(trades, trades.length - 1, winRateWindow)
-      : 1;
+    trades.length > 0 ? getRollingWinRate(trades, trades.length - 1, winRateWindow) : 1;
 
   // Health score: weighted composite
   const maScore = aboveMa ? 100 : 0;

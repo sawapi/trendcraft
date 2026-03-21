@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { garch, ewmaVolatility, nelderMead } from "../volatility/garch";
+import { describe, expect, it } from "vitest";
+import { ewmaVolatility, garch, nelderMead } from "../volatility/garch";
 
 // Synthetic returns: first half low vol, second half high vol (volatility clustering)
 const returns = Array.from({ length: 100 }, (_, i) => {
@@ -11,7 +11,7 @@ describe("garch", () => {
   it("returns degenerate result with < 3 returns", () => {
     const result = garch([0.01, -0.02]);
     expect(result.converged).toBe(false);
-    expect(result.logLikelihood).toBe(-Infinity);
+    expect(result.logLikelihood).toBe(Number.NEGATIVE_INFINITY);
     expect(result.conditionalVariance).toHaveLength(2);
     expect(result.params.alpha).toBe(0);
     expect(result.params.beta).toBe(0);
@@ -72,9 +72,7 @@ describe("garch", () => {
 
   it("clamps parameters to valid range", () => {
     // Very noisy data that may produce edge-case parameters
-    const noisy = Array.from({ length: 50 }, (_, i) =>
-      i % 2 === 0 ? 0.15 : -0.15,
-    );
+    const noisy = Array.from({ length: 50 }, (_, i) => (i % 2 === 0 ? 0.15 : -0.15));
     const result = garch(noisy);
     // Params should be clamped to valid range
     expect(result.params.omega).toBeGreaterThan(0);
@@ -141,8 +139,7 @@ describe("ewmaVolatility", () => {
     const stdDev = (series: { value: number }[]) => {
       const vals = series.map((s) => s.value);
       const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
-      const variance =
-        vals.reduce((s, v) => s + (v - mean) ** 2, 0) / vals.length;
+      const variance = vals.reduce((s, v) => s + (v - mean) ** 2, 0) / vals.length;
       return Math.sqrt(variance);
     };
 
@@ -199,8 +196,7 @@ describe("nelderMead", () => {
 
   it("triggers shrink operation on pathological function", () => {
     // Rosenbrock function is difficult for simplex and often triggers shrink
-    const rosenbrock = (x: number[]) =>
-      100 * (x[1] - x[0] ** 2) ** 2 + (1 - x[0]) ** 2;
+    const rosenbrock = (x: number[]) => 100 * (x[1] - x[0] ** 2) ** 2 + (1 - x[0]) ** 2;
     const result = nelderMead(rosenbrock, [-1, 1], { maxIter: 500, tol: 1e-10 });
     // Just verify it runs without error and produces a result
     expect(result.x).toHaveLength(2);

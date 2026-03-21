@@ -209,14 +209,14 @@ export function detectTriangle(
         const volumeValid = confirmed
           ? checkBreakoutVolume(
               normalized,
-              breakout!.index,
+              breakout?.index ?? endIndex,
               validateVolume,
               volumeLookback,
               minVolumeIncrease,
             )
           : true;
 
-        const detectionIndex = confirmed ? breakout!.index : endIndex;
+        const detectionIndex = confirmed ? (breakout?.index ?? endIndex) : endIndex;
 
         let confidence = calculateTriangleConfidence(
           upper,

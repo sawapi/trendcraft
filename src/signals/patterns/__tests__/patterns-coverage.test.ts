@@ -26,7 +26,12 @@ import { detectTriangle } from "../triangle";
 const DAY = 86_400_000;
 
 /** Build a NormalizedCandle from a close price. Spread = 2, volume configurable. */
-function c(index: number, close: number, volume = 1000, baseTime = 1_000_000_000): NormalizedCandle {
+function c(
+  index: number,
+  close: number,
+  volume = 1000,
+  baseTime = 1_000_000_000,
+): NormalizedCandle {
   return {
     time: baseTime + index * DAY,
     open: close - 0.5,
@@ -534,7 +539,8 @@ describe("detectChannel – behavioral tests", () => {
     const result = detectChannel(candles, { minBars: 10, swingLookback: 2 });
     // Check that no two patterns have the same approximate key
     const keys = result.map(
-      (p) => `${p.type}_${Math.round(p.pattern.startTime / (10 * DAY))}_${Math.round(p.pattern.endTime / (10 * DAY))}`,
+      (p) =>
+        `${p.type}_${Math.round(p.pattern.startTime / (10 * DAY))}_${Math.round(p.pattern.endTime / (10 * DAY))}`,
     );
     // While exact dedup uses different key, all results should have unique time+type combos
     for (const p of result) {
@@ -745,7 +751,9 @@ describe("headAndShoulders – behavioral tests", () => {
     // Both should detect patterns; confidence may differ due to volume
     if (resultLowVol.length > 0) {
       expect(resultLowVol[0].type).toBe("head_shoulders");
-      expect(resultLowVol[0].pattern.target).toBeLessThan(resultLowVol[0].pattern.neckline!.currentPrice);
+      expect(resultLowVol[0].pattern.target).toBeLessThan(
+        resultLowVol[0].pattern.neckline!.currentPrice,
+      );
     }
     if (resultHighVol.length > 0) {
       expect(resultHighVol[0].type).toBe("head_shoulders");
@@ -1022,7 +1030,10 @@ describe("detectFlag – behavioral tests", () => {
   });
 
   it("returns empty when ATR is zero (flat data, no flagpole possible)", () => {
-    const candles = fromPrices(Array.from({ length: 30 }, () => 100), 1000);
+    const candles = fromPrices(
+      Array.from({ length: 30 }, () => 100),
+      1000,
+    );
     const result = detectFlag(candles, { swingLookback: 1 });
     expect(result.length).toBe(0);
   });
@@ -1084,61 +1095,49 @@ describe("detectFlag – behavioral tests", () => {
 
 function buildDoubleTopPrices(): number[] {
   return [
-    100, 98, 95, 92, 90, 92,
-    95, 98, 101, 104, 107, 110, 112, 114, 116, 118,
-    116, 113, 110, 107, 104, 101, 99, 97, 96, 95,
-    97, 100, 103, 106, 109, 112, 115, 117, 118, 119,
-    116, 113, 110, 107, 104, 101, 98, 95, 92, 90,
+    100, 98, 95, 92, 90, 92, 95, 98, 101, 104, 107, 110, 112, 114, 116, 118, 116, 113, 110, 107,
+    104, 101, 99, 97, 96, 95, 97, 100, 103, 106, 109, 112, 115, 117, 118, 119, 116, 113, 110, 107,
+    104, 101, 98, 95, 92, 90,
   ];
 }
 
 function buildDoubleTopWithBreakdown(): number[] {
   return [
-    100, 98, 95, 92, 90, 92,
-    95, 98, 101, 104, 107, 110, 112, 114, 116, 118,
-    116, 113, 110, 107, 104, 101, 99, 97, 96, 95,
-    97, 100, 103, 106, 109, 112, 115, 117, 118, 119,
-    116, 113, 110, 107, 104, 101, 98, 95, 92, 89, 86, 83, 80, 77, 75,
+    100, 98, 95, 92, 90, 92, 95, 98, 101, 104, 107, 110, 112, 114, 116, 118, 116, 113, 110, 107,
+    104, 101, 99, 97, 96, 95, 97, 100, 103, 106, 109, 112, 115, 117, 118, 119, 116, 113, 110, 107,
+    104, 101, 98, 95, 92, 89, 86, 83, 80, 77, 75,
   ];
 }
 
 function buildDoubleTopNoBrk(): number[] {
   return [
-    100, 98, 95, 92, 90, 92,
-    95, 98, 101, 104, 107, 110, 112, 114, 116, 118,
-    116, 113, 110, 107, 104, 101, 99, 97, 96, 95,
-    97, 100, 103, 106, 109, 112, 115, 117, 118, 119,
-    118, 117, 116, 115, 114, 113, 112, 111, 110, 109,
+    100, 98, 95, 92, 90, 92, 95, 98, 101, 104, 107, 110, 112, 114, 116, 118, 116, 113, 110, 107,
+    104, 101, 99, 97, 96, 95, 97, 100, 103, 106, 109, 112, 115, 117, 118, 119, 118, 117, 116, 115,
+    114, 113, 112, 111, 110, 109,
   ];
 }
 
 function buildDoubleBottomPrices(): number[] {
   return [
-    100, 102, 105, 108, 110, 108,
-    105, 102, 99, 96, 93, 90, 88, 86, 84, 82,
-    84, 87, 90, 93, 96, 99, 101, 103, 104, 105,
-    103, 100, 97, 94, 91, 88, 85, 83, 82, 81,
-    84, 87, 90, 93, 96, 99, 102, 105, 108, 110,
+    100, 102, 105, 108, 110, 108, 105, 102, 99, 96, 93, 90, 88, 86, 84, 82, 84, 87, 90, 93, 96, 99,
+    101, 103, 104, 105, 103, 100, 97, 94, 91, 88, 85, 83, 82, 81, 84, 87, 90, 93, 96, 99, 102, 105,
+    108, 110,
   ];
 }
 
 function buildDoubleBottomWithBreakout(): number[] {
   return [
-    100, 102, 105, 108, 110, 108,
-    105, 102, 99, 96, 93, 90, 88, 86, 84, 82,
-    84, 87, 90, 93, 96, 99, 101, 103, 104, 105,
-    103, 100, 97, 94, 91, 88, 85, 83, 82, 81,
-    84, 87, 90, 93, 96, 99, 102, 105, 108, 111, 114, 117, 120, 123, 126,
+    100, 102, 105, 108, 110, 108, 105, 102, 99, 96, 93, 90, 88, 86, 84, 82, 84, 87, 90, 93, 96, 99,
+    101, 103, 104, 105, 103, 100, 97, 94, 91, 88, 85, 83, 82, 81, 84, 87, 90, 93, 96, 99, 102, 105,
+    108, 111, 114, 117, 120, 123, 126,
   ];
 }
 
 function buildDoubleBottomNoBrk(): number[] {
   return [
-    100, 102, 105, 108, 110, 108,
-    105, 102, 99, 96, 93, 90, 88, 86, 84, 82,
-    84, 87, 90, 93, 96, 99, 101, 103, 104, 105,
-    103, 100, 97, 94, 91, 88, 85, 83, 82, 81,
-    82, 83, 84, 85, 86, 87, 88, 89, 90, 91,
+    100, 102, 105, 108, 110, 108, 105, 102, 99, 96, 93, 90, 88, 86, 84, 82, 84, 87, 90, 93, 96, 99,
+    101, 103, 104, 105, 103, 100, 97, 94, 91, 88, 85, 83, 82, 81, 82, 83, 84, 85, 86, 87, 88, 89,
+    90, 91,
   ];
 }
 

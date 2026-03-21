@@ -117,9 +117,7 @@ function covarianceMatrix(series: number[][]): number[][] {
  */
 function correlationFromCov(covMatrix: number[][]): number[][] {
   const n = covMatrix.length;
-  const corr: number[][] = Array.from({ length: n }, () =>
-    new Array(n).fill(0),
-  );
+  const corr: number[][] = Array.from({ length: n }, () => new Array(n).fill(0));
   const stddevs = covMatrix.map((_, i) => Math.sqrt(covMatrix[i][i]));
 
   for (let i = 0; i < n; i++) {
@@ -363,8 +361,7 @@ export function correlationAdjustedSize(
   } else {
     // Linear interpolation
     const t =
-      (avgCorr - lowCorrelationThreshold) /
-      (highCorrelationThreshold - lowCorrelationThreshold);
+      (avgCorr - lowCorrelationThreshold) / (highCorrelationThreshold - lowCorrelationThreshold);
     sizeFactor = 1 - t * (1 - minSizeFactor);
   }
 

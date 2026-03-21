@@ -69,26 +69,18 @@ export type StressTestSummary = {
 export const PRESET_SCENARIOS: Record<string, StressScenario> = {
   lehman2008: {
     name: "Lehman Crisis 2008",
-    description:
-      "Global financial crisis: -38% over 6 months with slow recovery",
-    shocks: [
-      { type: "drawdown", magnitude: 0.38, days: 126, recoveryDays: 756 },
-    ],
+    description: "Global financial crisis: -38% over 6 months with slow recovery",
+    shocks: [{ type: "drawdown", magnitude: 0.38, days: 126, recoveryDays: 756 }],
   },
   covidCrash2020: {
     name: "COVID Crash 2020",
-    description:
-      "Pandemic panic: -34% in 23 trading days, V-shaped recovery",
-    shocks: [
-      { type: "drawdown", magnitude: 0.34, days: 23, recoveryDays: 100 },
-    ],
+    description: "Pandemic panic: -34% in 23 trading days, V-shaped recovery",
+    shocks: [{ type: "drawdown", magnitude: 0.34, days: 23, recoveryDays: 100 }],
   },
   flashCrash2010: {
     name: "Flash Crash 2010",
     description: "Algorithmic cascade: -9% intraday, immediate recovery",
-    shocks: [
-      { type: "drawdown", magnitude: 0.09, days: 1, recoveryDays: 1 },
-    ],
+    shocks: [{ type: "drawdown", magnitude: 0.09, days: 1, recoveryDays: 1 }],
   },
   volmageddon2018: {
     name: "Volmageddon 2018",
@@ -98,9 +90,7 @@ export const PRESET_SCENARIOS: Record<string, StressScenario> = {
   blackMonday1987: {
     name: "Black Monday 1987",
     description: "Single-day crash: -22.6% in one day",
-    shocks: [
-      { type: "drawdown", magnitude: 0.226, days: 1, recoveryDays: 400 },
-    ],
+    shocks: [{ type: "drawdown", magnitude: 0.226, days: 1, recoveryDays: 400 }],
   },
   svbCrisis2023: {
     name: "SVB Crisis 2023",
@@ -129,8 +119,7 @@ function gaussianRandom(): number {
 function stddev(values: number[]): number {
   if (values.length === 0) return 0;
   const mean = values.reduce((s, v) => s + v, 0) / values.length;
-  const variance =
-    values.reduce((s, v) => s + (v - mean) ** 2, 0) / values.length;
+  const variance = values.reduce((s, v) => s + (v - mean) ** 2, 0) / values.length;
   return Math.sqrt(variance);
 }
 
@@ -156,10 +145,7 @@ function stddev(values: number[]): number {
  * });
  * ```
  */
-export function generateShockedReturns(
-  baseReturns: number[],
-  shock: ReturnShock,
-): number[] {
+export function generateShockedReturns(baseReturns: number[], shock: ReturnShock): number[] {
   switch (shock.type) {
     case "absolute": {
       return [...baseReturns, ...shock.returns];
@@ -269,7 +255,7 @@ export function calculateMetricsFromReturns(returns: number[]): {
 export function stressTest(
   returns: number[],
   scenario: StressScenario,
-  initialCapital: number = 100_000,
+  initialCapital = 100_000,
 ): StressTestResult {
   // Original metrics
   const originalMetrics = calculateMetricsFromReturns(returns);
@@ -374,10 +360,7 @@ export function stressTest(
  * console.log(`Max stressed drawdown: ${(summary.maxStressedDrawdown * 100).toFixed(1)}%`);
  * ```
  */
-export function runAllStressTests(
-  returns: number[],
-  initialCapital: number = 100_000,
-): StressTestSummary {
+export function runAllStressTests(returns: number[], initialCapital = 100_000): StressTestSummary {
   const results: StressTestResult[] = [];
 
   for (const scenario of Object.values(PRESET_SCENARIOS)) {
@@ -397,9 +380,7 @@ export function runAllStressTests(
 
   // Overall survival rate: proportion of scenarios that survive
   const overallSurvivalRate =
-    results.length > 0
-      ? results.reduce((s, r) => s + r.survivalRate, 0) / results.length
-      : 1.0;
+    results.length > 0 ? results.reduce((s, r) => s + r.survivalRate, 0) / results.length : 1.0;
 
   return {
     results,

@@ -182,7 +182,7 @@ export function crowdingDistance(
     for (let i = 1; i < n - 1; i++) {
       const prev = getObjectiveValue(entries[sorted[i - 1]].metrics, obj);
       const next = getObjectiveValue(entries[sorted[i + 1]].metrics, obj);
-      const current = distances.get(sorted[i])!;
+      const current = distances.get(sorted[i]) ?? 0;
       if (current === Number.POSITIVE_INFINITY) continue;
       distances.set(sorted[i], current + (next - prev) / range);
     }

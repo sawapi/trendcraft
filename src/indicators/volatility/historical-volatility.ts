@@ -75,7 +75,7 @@ export function historicalVolatility(
         valid = false;
         break;
       }
-      sum += logReturns[j]!;
+      sum += logReturns[j] as number;
     }
 
     if (!valid) {
@@ -88,7 +88,7 @@ export function historicalVolatility(
     // Calculate variance
     let sumSqDiff = 0;
     for (let j = i - period + 1; j <= i; j++) {
-      const diff = logReturns[j]! - mean;
+      const diff = (logReturns[j] as number) - mean;
       sumSqDiff += diff * diff;
     }
 

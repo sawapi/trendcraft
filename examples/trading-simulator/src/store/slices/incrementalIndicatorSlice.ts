@@ -311,7 +311,7 @@ function makeSma(key: "sma5" | "sma25" | "sma75", period: number): IndicatorEntr
     append: (data, candle) => {
       const r = inst.next(candle);
       if (!data[key]) data[key] = [];
-      data[key]!.push(r.value);
+      data[key]?.push(r.value);
     },
   };
 }
@@ -323,7 +323,7 @@ function makeEma(key: "ema12" | "ema26", period: number): IndicatorEntry {
     append: (data, candle) => {
       const r = inst.next(candle);
       if (!data[key]) data[key] = [];
-      data[key]!.push(r.value);
+      data[key]?.push(r.value);
     },
   };
 }

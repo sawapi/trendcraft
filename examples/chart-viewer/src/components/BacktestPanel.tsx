@@ -21,7 +21,7 @@ export function renderGroupedOptions(
   const groups = new Map<string, { key: string; label: string }[]>();
   for (const [key, { label, group }] of Object.entries(conditions)) {
     if (!groups.has(group)) groups.set(group, []);
-    groups.get(group)!.push({ key, label });
+    groups.get(group)?.push({ key, label });
   }
   return Array.from(groups.entries()).map(([group, items]) => (
     <optgroup key={group} label={group}>

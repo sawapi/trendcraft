@@ -186,14 +186,14 @@ export function detectWedge(
         const volumeValid = confirmed
           ? checkBreakoutVolume(
               normalized,
-              breakout!.index,
+              breakout?.index ?? endIndex,
               validateVolume,
               volumeLookback,
               minVolumeIncrease,
             )
           : true;
 
-        const detectionIndex = confirmed ? breakout!.index : endIndex;
+        const detectionIndex = confirmed ? (breakout?.index ?? endIndex) : endIndex;
 
         // Volume typically decreases as the wedge forms
         const wedgeLen = endIndex - startIndex;
