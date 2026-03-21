@@ -71,6 +71,8 @@ export function TradeForm() {
   const [priceType, setPriceType] = useState<PriceType>("nextOpen");
   const [exitReason, setExitReason] = useState<ExitReason>("MANUAL");
   const [exitTrigger, setExitTrigger] = useState<ExitTrigger | undefined>(undefined);
+  const [useLimitOrder, setUseLimitOrder] = useState(false);
+  const [limitPrice, setLimitPrice] = useState<number>(0);
   const [showSizingCalc, setShowSizingCalc] = useState(false);
   const [showJournal, setShowJournal] = useState(false);
   const [_bracket, setBracket] = useState<BracketOrder | null>(null);
@@ -104,13 +106,25 @@ export function TradeForm() {
         orderType: "BUY",
         shares: buyShares,
         memo,
+        limitPrice: useLimitOrder && limitPrice > 0 ? limitPrice : undefined,
       });
     } else {
       executeBuy(buyShares, memo, priceType);
     }
     setMemo("");
     setPendingJournal(null);
-  }, [isPlaying, pause, executeBuy, placePendingOrder, buyShares, memo, priceType, activeSymbol]);
+  }, [
+    isPlaying,
+    pause,
+    executeBuy,
+    placePendingOrder,
+    buyShares,
+    memo,
+    priceType,
+    activeSymbol,
+    useLimitOrder,
+    limitPrice,
+  ]);
 
   const handleSell = useCallback(() => {
     if (isPlaying) pause();
@@ -123,6 +137,7 @@ export function TradeForm() {
         memo,
         exitReason,
         exitTrigger,
+        limitPrice: useLimitOrder && limitPrice > 0 ? limitPrice : undefined,
       });
     } else {
       executeSell(sellShares, memo, priceType, exitReason, exitTrigger);
@@ -141,6 +156,8 @@ export function TradeForm() {
     exitReason,
     exitTrigger,
     activeSymbol,
+    useLimitOrder,
+    limitPrice,
   ]);
 
   const handleSellAll = useCallback(() => {
@@ -154,6 +171,7 @@ export function TradeForm() {
         memo,
         exitReason,
         exitTrigger,
+        limitPrice: useLimitOrder && limitPrice > 0 ? limitPrice : undefined,
       });
     } else {
       executeSellAll(memo, priceType, exitReason, exitTrigger);
@@ -171,6 +189,8 @@ export function TradeForm() {
     exitReason,
     exitTrigger,
     activeSymbol,
+    useLimitOrder,
+    limitPrice,
   ]);
 
   const hasPosition = positions.length > 0;
@@ -342,6 +362,41 @@ export function TradeForm() {
               {((totalBuyCost / initialCapital) * 100).toFixed(1)}%)
             </span>
           </div>
+
+          {/* Limit Order Option (Next Open only) */}
+          {priceType === "nextOpen" && (
+            <div className="limit-order-section">
+              <label className="checkbox-label limit-checkbox">
+                <input
+                  type="checkbox"
+                  checked={useLimitOrder}
+                  onChange={(e) => {
+                    setUseLimitOrder(e.target.checked);
+                    if (e.target.checked && limitPrice === 0) {
+                      setLimitPrice(currentCandle?.close || 0);
+                    }
+                  }}
+                />
+                Limit Order
+              </label>
+              {useLimitOrder && (
+                <div className="limit-price-input">
+                  <label>Limit Price</label>
+                  <input
+                    type="number"
+                    value={limitPrice}
+                    min={0}
+                    step={1}
+                    onChange={(e) => setLimitPrice(Number(e.target.value))}
+                  />
+                  <p className="hint">
+                    Buy: fills if low &le; limit. Sell: fills if high &ge; limit. Unfilled orders
+                    stay pending.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Exit Reason */}
@@ -439,7 +494,7 @@ export function TradeForm() {
         {/* Pending Orders */}
         {symbolPendingOrders.length > 0 && (
           <div className="pending-orders">
-            <h4>Pending Orders (fill at next open)</h4>
+            <h4>Pending Orders</h4>
             <ul className="pending-orders-list">
               {symbolPendingOrders.map((order) => (
                 <li key={order.id} className={`pending-order ${order.orderType.toLowerCase()}`}>
@@ -449,6 +504,9 @@ export function TradeForm() {
                     </span>
                     {order.orderType !== "SELL_ALL" && (
                       <span className="order-shares">{order.shares} sh</span>
+                    )}
+                    {order.limitPrice != null && (
+                      <span className="order-limit">@¥{order.limitPrice.toLocaleString()}</span>
                     )}
                     {order.memo && (
                       <span className="order-memo" title={order.memo}>

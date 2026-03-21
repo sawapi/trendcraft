@@ -266,6 +266,8 @@ export interface PendingOrder {
   shares: number;
   memo: string;
   createdAt: number; // Order creation date (current chart date)
+  // Limit price — if set, order only fills when price condition is met
+  limitPrice?: number;
   // SELL only
   exitReason?: ExitReason;
   exitTrigger?: ExitTrigger;

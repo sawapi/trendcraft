@@ -228,6 +228,62 @@
   color: var(--text-secondary);
 }
 
+/* Limit Order */
+.limit-order-section {
+  margin-top: 8px;
+  padding: 8px 10px;
+  background: var(--bg-tertiary);
+  border-radius: 6px;
+}
+
+.limit-checkbox {
+  font-size: var(--font-md);
+  cursor: pointer;
+}
+
+.limit-checkbox input {
+  accent-color: var(--accent);
+}
+
+.limit-price-input {
+  margin-top: 8px;
+}
+
+.limit-price-input label {
+  display: block;
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.limit-price-input input {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: var(--font-md);
+}
+
+.limit-price-input input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.limit-price-input .hint {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+.order-limit {
+  font-size: var(--font-xs);
+  color: var(--warning);
+  font-weight: 500;
+}
+
 /* Trade Buttons */
 .trade-buttons {
   display: flex;

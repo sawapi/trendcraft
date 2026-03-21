@@ -77,7 +77,22 @@ export const createOrderSlice: SliceCreator<OrderSlice> = (set, get) => ({
       const currentCandle = symbol.allCandles[currentIdx];
       if (!currentCandle) continue;
 
-      const price = currentCandle.open;
+      // Determine execution price — limit orders fill at limit price if the
+      // candle's range touches it, otherwise the order stays pending.
+      let price: number;
+      if (order.limitPrice != null) {
+        if (order.orderType === "BUY") {
+          // Buy limit: fill only if low <= limitPrice (price came down to our level)
+          if (currentCandle.low > order.limitPrice) continue; // not filled
+          price = order.limitPrice;
+        } else {
+          // Sell limit: fill only if high >= limitPrice (price came up to our level)
+          if (currentCandle.high < order.limitPrice) continue; // not filled
+          price = order.limitPrice;
+        }
+      } else {
+        price = currentCandle.open;
+      }
 
       if (order.orderType === "BUY") {
         const slippage = price * (slippageBps / 10000);
