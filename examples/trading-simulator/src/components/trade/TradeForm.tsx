@@ -9,6 +9,7 @@ import type {
   TradeJournalEntry,
 } from "../../types";
 import { EXIT_REASON_LABELS, EXIT_TRIGGER_LABELS, PRICE_TYPE_LABELS } from "../../types";
+import { CollapsiblePanel } from "../CollapsiblePanel";
 import { BracketOrderForm } from "./BracketOrderForm";
 import { JournalEntry } from "./JournalEntry";
 import { PositionSizer } from "./PositionSizer";
@@ -25,8 +26,6 @@ const EXIT_TRIGGERS: ExitTrigger[] = [
   "TRAILING_STOP",
   "TIME_LIMIT",
 ];
-
-const SHARE_STEPS = [-100, -10, -1, 1, 10, 100];
 
 export function TradeForm() {
   const {
@@ -190,250 +189,286 @@ export function TradeForm() {
 
   return (
     <div className="trade-panel">
-      <h3>Trade Actions</h3>
-
-      {/* Buy Section */}
-      <div className="shares-input">
-        <div className="shares-header">
-          <label>Buy Shares</label>
-          <button
-            className="sizing-calc-toggle"
-            onClick={() => setShowSizingCalc(!showSizingCalc)}
-            title="Position Sizing Calculator"
-          >
-            {showSizingCalc ? "✕ Close" : "Calculator"}
-          </button>
-        </div>
-        <input
-          type="number"
-          value={buyShares}
-          onChange={(e) => setBuyShares(Math.max(1, Number(e.target.value)))}
-          min={1}
-          className="shares-input-field"
-        />
-        <div className="shares-step-buttons">
-          {SHARE_STEPS.map((step) => (
-            <button
-              key={step}
-              className={`shares-step-btn ${step > 0 ? "plus" : "minus"}`}
-              onClick={() => setBuyShares((prev) => Math.max(1, prev + step))}
-              disabled={step < 0 && buyShares + step < 1}
-            >
-              {step > 0 ? `+${step}` : step}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Position Sizing Calculator */}
-      {showSizingCalc && (
-        <PositionSizer
-          estimatedPrice={estimatedPrice}
-          initialCapital={initialCapital}
-          stopLossPercent={stopLossPercent}
-          currentAtr={currentAtr}
-          onApply={(shares) => {
-            setBuyShares(shares);
-            setShowSizingCalc(false);
-          }}
-        />
-      )}
-
-      {/* Bracket Order */}
-      <BracketOrderForm
-        entryPrice={estimatedPrice}
-        defaultStopLossPercent={stopLossPercent}
-        defaultTakeProfitPercent={takeProfitPercent}
-        onChange={setBracket}
-      />
-
-      {/* Sell Section */}
-      {hasPosition && positionSummary && (
+      <CollapsiblePanel title="Trade Actions" storageKey="trade-actions">
+        {/* Buy Section */}
         <div className="shares-input">
-          <label>Sell Shares (held: {positionSummary.totalShares})</label>
-          <input
-            type="number"
-            value={Math.min(sellShares, positionSummary.totalShares)}
-            onChange={(e) => {
-              const maxShares = positionSummary?.totalShares || 1;
-              setSellShares(Math.max(1, Math.min(maxShares, Number(e.target.value))));
-            }}
-            min={1}
-            max={positionSummary.totalShares}
-            className="shares-input-field"
-          />
-          <div className="shares-step-buttons">
-            {SHARE_STEPS.map((step) => (
+          <div className="shares-header">
+            <label>Buy Shares</label>
+            <button
+              className="sizing-calc-toggle"
+              onClick={() => setShowSizingCalc(!showSizingCalc)}
+              title="Position Sizing Calculator"
+            >
+              {showSizingCalc ? "✕ Close" : "Calculator"}
+            </button>
+          </div>
+          <div className="shares-stepper">
+            <button
+              type="button"
+              className="stepper-btn"
+              onClick={() => setBuyShares((prev) => Math.max(1, prev - 1))}
+              disabled={buyShares <= 1}
+            >
+              <span className="material-icons">remove</span>
+            </button>
+            <input
+              type="number"
+              value={buyShares}
+              onChange={(e) => setBuyShares(Math.max(1, Number(e.target.value)))}
+              min={1}
+              className="shares-input-field"
+            />
+            <button
+              type="button"
+              className="stepper-btn"
+              onClick={() => setBuyShares((prev) => prev + 1)}
+            >
+              <span className="material-icons">add</span>
+            </button>
+          </div>
+          <div className="shares-presets">
+            {[10, 50, 100, 500].map((qty) => (
               <button
-                key={step}
-                className={`shares-step-btn ${step > 0 ? "plus" : "minus"}`}
+                key={qty}
+                type="button"
+                className={`preset-btn ${buyShares === qty ? "active" : ""}`}
+                onClick={() => setBuyShares(qty)}
+              >
+                {qty}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Position Sizing Calculator */}
+        {showSizingCalc && (
+          <PositionSizer
+            estimatedPrice={estimatedPrice}
+            initialCapital={initialCapital}
+            stopLossPercent={stopLossPercent}
+            currentAtr={currentAtr}
+            onApply={(shares) => {
+              setBuyShares(shares);
+              setShowSizingCalc(false);
+            }}
+          />
+        )}
+
+        {/* Bracket Order */}
+        <BracketOrderForm
+          entryPrice={estimatedPrice}
+          defaultStopLossPercent={stopLossPercent}
+          defaultTakeProfitPercent={takeProfitPercent}
+          onChange={setBracket}
+        />
+
+        {/* Sell Section */}
+        {hasPosition && positionSummary && (
+          <div className="shares-input">
+            <label>Sell Shares (held: {positionSummary.totalShares})</label>
+            <div className="shares-stepper">
+              <button
+                type="button"
+                className="stepper-btn"
+                onClick={() => {
+                  setSellShares((prev) => Math.max(1, prev - 1));
+                }}
+                disabled={sellShares <= 1}
+              >
+                <span className="material-icons">remove</span>
+              </button>
+              <input
+                type="number"
+                value={Math.min(sellShares, positionSummary.totalShares)}
+                onChange={(e) => {
+                  const maxShares = positionSummary?.totalShares || 1;
+                  setSellShares(Math.max(1, Math.min(maxShares, Number(e.target.value))));
+                }}
+                min={1}
+                max={positionSummary.totalShares}
+                className="shares-input-field"
+              />
+              <button
+                type="button"
+                className="stepper-btn"
                 onClick={() => {
                   const maxShares = positionSummary?.totalShares || 1;
-                  setSellShares((prev) => Math.max(1, Math.min(maxShares, prev + step)));
+                  setSellShares((prev) => Math.min(maxShares, prev + 1));
                 }}
-                disabled={
-                  (step < 0 && sellShares + step < 1) ||
-                  (step > 0 && sellShares >= positionSummary.totalShares)
+                disabled={sellShares >= positionSummary.totalShares}
+              >
+                <span className="material-icons">add</span>
+              </button>
+            </div>
+            <div className="shares-presets">
+              {[10, 50, 100, 500]
+                .filter((qty) => qty <= positionSummary.totalShares)
+                .map((qty) => (
+                  <button
+                    key={qty}
+                    type="button"
+                    className={`preset-btn ${sellShares === qty ? "active" : ""}`}
+                    onClick={() => setSellShares(qty)}
+                  >
+                    {qty}
+                  </button>
+                ))}
+            </div>
+          </div>
+        )}
+
+        <div className="price-type-selector">
+          <label>Execution Price</label>
+          <div className="price-type-buttons">
+            {PRICE_TYPES.map((type) => (
+              <button
+                key={type}
+                className={`price-type-btn ${priceType === type ? "active" : ""}`}
+                onClick={() => setPriceType(type)}
+                disabled={type === "nextOpen" && !canUseNextOpen}
+                title={
+                  type === "nextOpen" && !canUseNextOpen ? "Next open unavailable on last day" : ""
                 }
               >
-                {step > 0 ? `+${step}` : step}
+                {PRICE_TYPE_LABELS[type]}
               </button>
             ))}
           </div>
+          <div className="price-estimate">
+            {priceType === "nextOpen" ? "Next Open" : PRICE_TYPE_LABELS[priceType]}: ¥
+            {estimatedPrice.toLocaleString()}
+            <span className="capital-ratio">
+              (est. cost: ¥{totalBuyCost.toLocaleString()} /{" "}
+              {((totalBuyCost / initialCapital) * 100).toFixed(1)}%)
+            </span>
+          </div>
         </div>
-      )}
 
-      <div className="price-type-selector">
-        <label>Execution Price</label>
-        <div className="price-type-buttons">
-          {PRICE_TYPES.map((type) => (
-            <button
-              key={type}
-              className={`price-type-btn ${priceType === type ? "active" : ""}`}
-              onClick={() => setPriceType(type)}
-              disabled={type === "nextOpen" && !canUseNextOpen}
-              title={
-                type === "nextOpen" && !canUseNextOpen ? "Next open unavailable on last day" : ""
-              }
+        {/* Exit Reason */}
+        {hasPosition && (
+          <div className="exit-reason-selector">
+            <label>Exit Reason</label>
+            <div className="exit-reason-buttons">
+              {EXIT_REASONS.map((reason) => (
+                <button
+                  key={reason}
+                  className={`exit-reason-btn ${exitReason === reason ? "active" : ""}`}
+                  onClick={() => setExitReason(reason)}
+                >
+                  {EXIT_REASON_LABELS[reason]}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Exit Trigger */}
+        {hasPosition && exitReason !== "MANUAL" && (
+          <div className="exit-trigger-selector">
+            <label>Exit Trigger (optional)</label>
+            <select
+              value={exitTrigger || ""}
+              onChange={(e) => setExitTrigger((e.target.value as ExitTrigger) || undefined)}
             >
-              {PRICE_TYPE_LABELS[type]}
-            </button>
-          ))}
-        </div>
-        <div className="price-estimate">
-          {priceType === "nextOpen" ? "Next Open" : PRICE_TYPE_LABELS[priceType]}: ¥
-          {estimatedPrice.toLocaleString()}
-          <span className="capital-ratio">
-            (est. cost: ¥{totalBuyCost.toLocaleString()} /{" "}
-            {((totalBuyCost / initialCapital) * 100).toFixed(1)}%)
-          </span>
-        </div>
-      </div>
-
-      {/* Exit Reason */}
-      {hasPosition && (
-        <div className="exit-reason-selector">
-          <label>Exit Reason</label>
-          <div className="exit-reason-buttons">
-            {EXIT_REASONS.map((reason) => (
-              <button
-                key={reason}
-                className={`exit-reason-btn ${exitReason === reason ? "active" : ""}`}
-                onClick={() => setExitReason(reason)}
-              >
-                {EXIT_REASON_LABELS[reason]}
-              </button>
-            ))}
+              <option value="">None</option>
+              {EXIT_TRIGGERS.map((trigger) => (
+                <option key={trigger} value={trigger}>
+                  {EXIT_TRIGGER_LABELS[trigger]}
+                </option>
+              ))}
+            </select>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Exit Trigger */}
-      {hasPosition && exitReason !== "MANUAL" && (
-        <div className="exit-trigger-selector">
-          <label>Exit Trigger (optional)</label>
-          <select
-            value={exitTrigger || ""}
-            onChange={(e) => setExitTrigger((e.target.value as ExitTrigger) || undefined)}
+        <div className="trade-buttons">
+          <button
+            className="buy-btn"
+            onClick={handleBuy}
+            disabled={priceType === "nextOpen" && !canUseNextOpen}
+            title={hasPosition ? "Add to position" : "New position"}
           >
-            <option value="">None</option>
-            {EXIT_TRIGGERS.map((trigger) => (
-              <option key={trigger} value={trigger}>
-                {EXIT_TRIGGER_LABELS[trigger]}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
-
-      <div className="trade-buttons">
-        <button
-          className="buy-btn"
-          onClick={handleBuy}
-          disabled={priceType === "nextOpen" && !canUseNextOpen}
-          title={hasPosition ? "Add to position" : "New position"}
-        >
-          {hasPosition ? "ADD" : "BUY"}
-        </button>
-        <button
-          className="sell-btn"
-          onClick={handleSell}
-          disabled={!hasPosition || (priceType === "nextOpen" && !canUseNextOpen)}
-          title={!hasPosition ? "No position" : "Partial sell"}
-        >
-          SELL
-        </button>
-        <button
-          className="sell-btn sell-all"
-          onClick={handleSellAll}
-          disabled={!hasPosition || (priceType === "nextOpen" && !canUseNextOpen)}
-          title={!hasPosition ? "No position" : "Sell all"}
-        >
-          ALL
-        </button>
-      </div>
-
-      {/* Memo */}
-      <div className="memo-input">
-        <div className="memo-header">
-          <label>Memo (record your reasoning)</label>
-          <button className="journal-toggle-btn" onClick={() => setShowJournal(!showJournal)}>
-            {showJournal ? "Simple" : "Journal"}
+            {hasPosition ? "ADD" : "BUY"}
+          </button>
+          <button
+            className="sell-btn"
+            onClick={handleSell}
+            disabled={!hasPosition || (priceType === "nextOpen" && !canUseNextOpen)}
+            title={!hasPosition ? "No position" : "Partial sell"}
+          >
+            SELL
+          </button>
+          <button
+            className="sell-btn sell-all"
+            onClick={handleSellAll}
+            disabled={!hasPosition || (priceType === "nextOpen" && !canUseNextOpen)}
+            title={!hasPosition ? "No position" : "Sell all"}
+          >
+            ALL
           </button>
         </div>
-        {!showJournal ? (
-          <textarea
-            value={memo}
-            onChange={(e) => setMemo(e.target.value)}
-            placeholder="e.g. RSI below 30, touching support line — buying"
-          />
-        ) : (
-          <JournalEntry
-            onSubmit={(journal) => {
-              setPendingJournal(journal);
-              setMemo(journal.thesis);
-            }}
-          />
-        )}
-        {pendingJournal && (
-          <div className="journal-saved-indicator">
-            Journal saved (confidence: {pendingJournal.confidence}/5)
+
+        {/* Memo */}
+        <div className="memo-input">
+          <div className="memo-header">
+            <label>Memo (record your reasoning)</label>
+            <button className="journal-toggle-btn" onClick={() => setShowJournal(!showJournal)}>
+              {showJournal ? "Simple" : "Journal"}
+            </button>
+          </div>
+          {!showJournal ? (
+            <textarea
+              value={memo}
+              onChange={(e) => setMemo(e.target.value)}
+              placeholder="e.g. RSI below 30, touching support line — buying"
+            />
+          ) : (
+            <JournalEntry
+              onSubmit={(journal) => {
+                setPendingJournal(journal);
+                setMemo(journal.thesis);
+              }}
+            />
+          )}
+          {pendingJournal && (
+            <div className="journal-saved-indicator">
+              Journal saved (confidence: {pendingJournal.confidence}/5)
+            </div>
+          )}
+        </div>
+
+        {/* Pending Orders */}
+        {symbolPendingOrders.length > 0 && (
+          <div className="pending-orders">
+            <h4>Pending Orders (fill at next open)</h4>
+            <ul className="pending-orders-list">
+              {symbolPendingOrders.map((order) => (
+                <li key={order.id} className={`pending-order ${order.orderType.toLowerCase()}`}>
+                  <div className="pending-order-info">
+                    <span className={`order-type ${order.orderType === "BUY" ? "buy" : "sell"}`}>
+                      {ORDER_TYPE_LABELS[order.orderType]}
+                    </span>
+                    {order.orderType !== "SELL_ALL" && (
+                      <span className="order-shares">{order.shares} sh</span>
+                    )}
+                    {order.memo && (
+                      <span className="order-memo" title={order.memo}>
+                        {order.memo.length > 20 ? `${order.memo.slice(0, 20)}...` : order.memo}
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    className="cancel-order-btn"
+                    onClick={() => cancelPendingOrder(order.id)}
+                    title="Cancel order"
+                  >
+                    ×
+                  </button>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
-      </div>
-
-      {/* Pending Orders */}
-      {symbolPendingOrders.length > 0 && (
-        <div className="pending-orders">
-          <h4>Pending Orders (fill at next open)</h4>
-          <ul className="pending-orders-list">
-            {symbolPendingOrders.map((order) => (
-              <li key={order.id} className={`pending-order ${order.orderType.toLowerCase()}`}>
-                <div className="pending-order-info">
-                  <span className={`order-type ${order.orderType === "BUY" ? "buy" : "sell"}`}>
-                    {ORDER_TYPE_LABELS[order.orderType]}
-                  </span>
-                  {order.orderType !== "SELL_ALL" && (
-                    <span className="order-shares">{order.shares} sh</span>
-                  )}
-                  {order.memo && (
-                    <span className="order-memo" title={order.memo}>
-                      {order.memo.length > 20 ? `${order.memo.slice(0, 20)}...` : order.memo}
-                    </span>
-                  )}
-                </div>
-                <button
-                  className="cancel-order-btn"
-                  onClick={() => cancelPendingOrder(order.id)}
-                  title="Cancel order"
-                >
-                  ×
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+      </CollapsiblePanel>
     </div>
   );
 }

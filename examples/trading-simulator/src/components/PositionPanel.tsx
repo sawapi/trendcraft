@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useSimulatorStore } from "../store/simulatorStore";
 import { formatDate } from "../utils/fileParser";
+import { CollapsiblePanel } from "./CollapsiblePanel";
 
 export function PositionPanel() {
   const {
@@ -32,115 +33,115 @@ export function PositionPanel() {
 
   return (
     <div className="position-panel">
-      <h3>Position</h3>
+      <CollapsiblePanel title="Position" storageKey="position">
+        {positions.length > 0 && positionSummary ? (
+          <div className="position-status long">
+            <div className="status-label">
+              Long ({positions.length} entries)
+              {holdingDays !== null && <span className="holding-days">Day {holdingDays}</span>}
+            </div>
+            <div className="position-summary">
+              <div className="summary-row">
+                <span className="label">Shares</span>
+                <span className="value">{positionSummary.totalShares}</span>
+              </div>
+              <div className="summary-row">
+                <span className="label">Avg Entry</span>
+                <span className="value">
+                  {positionSummary.avgEntryPrice.toLocaleString(undefined, {
+                    maximumFractionDigits: 0,
+                  })}
+                </span>
+              </div>
+              <div className="summary-row">
+                <span className="label">Total Cost</span>
+                <span className="value">
+                  {positionSummary.totalCost.toLocaleString(undefined, {
+                    maximumFractionDigits: 0,
+                  })}
+                </span>
+              </div>
+            </div>
+            {unrealizedPnl && (
+              <div className={`pnl ${unrealizedPnl.pnl >= 0 ? "positive" : "negative"}`}>
+                Unrealized: {unrealizedPnl.pnl >= 0 ? "+" : ""}
+                {unrealizedPnl.pnl.toLocaleString(undefined, { maximumFractionDigits: 0 })} (
+                {unrealizedPnl.pnlPercent >= 0 ? "+" : ""}
+                {unrealizedPnl.pnlPercent.toFixed(2)}%)
+              </div>
+            )}
 
-      {positions.length > 0 && positionSummary ? (
-        <div className="position-status long">
-          <div className="status-label">
-            Long ({positions.length} entries)
-            {holdingDays !== null && <span className="holding-days">Day {holdingDays}</span>}
-          </div>
-          <div className="position-summary">
-            <div className="summary-row">
-              <span className="label">Shares</span>
-              <span className="value">{positionSummary.totalShares}</span>
-            </div>
-            <div className="summary-row">
-              <span className="label">Avg Entry</span>
-              <span className="value">
-                {positionSummary.avgEntryPrice.toLocaleString(undefined, {
-                  maximumFractionDigits: 0,
-                })}
-              </span>
-            </div>
-            <div className="summary-row">
-              <span className="label">Total Cost</span>
-              <span className="value">
-                {positionSummary.totalCost.toLocaleString(undefined, {
-                  maximumFractionDigits: 0,
-                })}
-              </span>
-            </div>
-          </div>
-          {unrealizedPnl && (
-            <div className={`pnl ${unrealizedPnl.pnl >= 0 ? "positive" : "negative"}`}>
-              Unrealized: {unrealizedPnl.pnl >= 0 ? "+" : ""}
-              {unrealizedPnl.pnl.toLocaleString(undefined, { maximumFractionDigits: 0 })} (
-              {unrealizedPnl.pnlPercent >= 0 ? "+" : ""}
-              {unrealizedPnl.pnlPercent.toFixed(2)}%)
-            </div>
-          )}
+            {trailingStopEnabled && positions.some((p) => p.trailingStopPrice) && (
+              <div className="trailing-stop-info">
+                <span className="label">Trailing Stop</span>
+                <span className="value">
+                  ¥
+                  {Math.max(
+                    ...positions
+                      .filter((p) => p.trailingStopPrice)
+                      .map((p) => p.trailingStopPrice as number),
+                  ).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                </span>
+              </div>
+            )}
 
-          {trailingStopEnabled && positions.some((p) => p.trailingStopPrice) && (
-            <div className="trailing-stop-info">
-              <span className="label">Trailing Stop</span>
-              <span className="value">
-                ¥
-                {Math.max(
-                  ...positions
-                    .filter((p) => p.trailingStopPrice)
-                    .map((p) => p.trailingStopPrice as number),
-                ).toLocaleString(undefined, { maximumFractionDigits: 0 })}
-              </span>
-            </div>
-          )}
-
-          {positions.length > 1 && (
-            <div className="position-list">
-              <div className="list-header">Entry History</div>
-              {positions.map((pos, idx) => (
-                <div key={pos.id} className="position-item">
-                  <span className="item-num">#{idx + 1}</span>
-                  <span className="item-shares">{pos.shares}</span>
-                  <span className="item-price">@{pos.entryPrice.toLocaleString()}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      ) : (
-        <div className="no-position">No position</div>
-      )}
-
-      {tradeCount > 0 && (
-        <div className="total-pnl">
-          <span className="label">Realized ({tradeCount})</span>
-          <span className={`value ${totalPnl >= 0 ? "positive" : "negative"}`}>
-            {totalPnl >= 0 ? "+" : ""}
-            {totalPnl.toLocaleString()}
-          </span>
-        </div>
-      )}
-
-      {yearHighLow && (
-        <div className="year-high-low">
-          <h3>YTD Range</h3>
-          <div className="year-stat">
-            <span className="label">High</span>
-            <span className="value high">{yearHighLow.yearHigh.toLocaleString()}</span>
-            <span className="date">({formatDate(yearHighLow.yearHighDate)})</span>
+            {positions.length > 1 && (
+              <div className="position-list">
+                <div className="list-header">Entry History</div>
+                {positions.map((pos, idx) => (
+                  <div key={pos.id} className="position-item">
+                    <span className="item-num">#{idx + 1}</span>
+                    <span className="item-shares">{pos.shares}</span>
+                    <span className="item-price">@{pos.entryPrice.toLocaleString()}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-          <div className="year-stat">
-            <span className="label">Low</span>
-            <span className="value low">{yearHighLow.yearLow.toLocaleString()}</span>
-            <span className="date">({formatDate(yearHighLow.yearLowDate)})</span>
-          </div>
-          <div className="year-stat current">
-            <span className="label">Current</span>
-            <span className="value">{yearHighLow.currentPrice.toLocaleString()}</span>
-          </div>
-          <div className="year-position">
-            <span className={`from-value ${yearHighLow.fromHigh >= 0 ? "positive" : "negative"}`}>
-              From High {yearHighLow.fromHigh >= 0 ? "+" : ""}
-              {yearHighLow.fromHigh.toFixed(1)}%
-            </span>
-            <span className={`from-value ${yearHighLow.fromLow >= 0 ? "positive" : "negative"}`}>
-              From Low {yearHighLow.fromLow >= 0 ? "+" : ""}
-              {yearHighLow.fromLow.toFixed(1)}%
+        ) : (
+          <div className="no-position">No position</div>
+        )}
+
+        {tradeCount > 0 && (
+          <div className="total-pnl">
+            <span className="label">Realized ({tradeCount})</span>
+            <span className={`value ${totalPnl >= 0 ? "positive" : "negative"}`}>
+              {totalPnl >= 0 ? "+" : ""}
+              {totalPnl.toLocaleString()}
             </span>
           </div>
-        </div>
-      )}
+        )}
+
+        {yearHighLow && (
+          <div className="year-high-low">
+            <h3>YTD Range</h3>
+            <div className="year-stat">
+              <span className="label">High</span>
+              <span className="value high">{yearHighLow.yearHigh.toLocaleString()}</span>
+              <span className="date">({formatDate(yearHighLow.yearHighDate)})</span>
+            </div>
+            <div className="year-stat">
+              <span className="label">Low</span>
+              <span className="value low">{yearHighLow.yearLow.toLocaleString()}</span>
+              <span className="date">({formatDate(yearHighLow.yearLowDate)})</span>
+            </div>
+            <div className="year-stat current">
+              <span className="label">Current</span>
+              <span className="value">{yearHighLow.currentPrice.toLocaleString()}</span>
+            </div>
+            <div className="year-position">
+              <span className={`from-value ${yearHighLow.fromHigh >= 0 ? "positive" : "negative"}`}>
+                From High {yearHighLow.fromHigh >= 0 ? "+" : ""}
+                {yearHighLow.fromHigh.toFixed(1)}%
+              </span>
+              <span className={`from-value ${yearHighLow.fromLow >= 0 ? "positive" : "negative"}`}>
+                From Low {yearHighLow.fromLow >= 0 ? "+" : ""}
+                {yearHighLow.fromLow.toFixed(1)}%
+              </span>
+            </div>
+          </div>
+        )}
+      </CollapsiblePanel>
     </div>
   );
 }

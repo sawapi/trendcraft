@@ -3,6 +3,7 @@ import { usePlayback } from "../hooks/usePlayback";
 import { useSimulatorStore } from "../store/simulatorStore";
 import type { PlaybackSpeed } from "../types";
 import { formatDate } from "../utils/fileParser";
+import { CollapsiblePanel } from "./CollapsiblePanel";
 
 export function ControlPanel() {
   const {
@@ -71,10 +72,6 @@ export function ControlPanel() {
     }
   }, [seekValue, jumpToIndex]);
 
-  const handleSpeedChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSpeed(Number(e.target.value) as PlaybackSpeed);
-  };
-
   const handleFinish = () => {
     pause();
     finishSimulation();
@@ -82,69 +79,70 @@ export function ControlPanel() {
 
   return (
     <div className="control-panel">
-      <h3>Playback</h3>
+      <CollapsiblePanel title="Playback" storageKey="playback">
+        <div className="playback-controls">
+          <button
+            type="button"
+            onClick={stepBackward}
+            disabled={currentIndex <= minIndex}
+            title="Previous day"
+          >
+            <span className="material-icons">skip_previous</span>
+          </button>
+          <button
+            type="button"
+            onClick={togglePlay}
+            className={`play-btn ${isPlaying ? "active" : ""}`}
+            disabled={isAtEnd}
+            title={isPlaying ? "Pause" : "Play"}
+          >
+            <span className="material-icons">{isPlaying ? "pause" : "play_arrow"}</span>
+          </button>
+          <button type="button" onClick={handleFinish} title="Stop">
+            <span className="material-icons">stop</span>
+          </button>
+          <button type="button" onClick={stepForward} disabled={isAtEnd} title="Next day">
+            <span className="material-icons">skip_next</span>
+          </button>
+        </div>
 
-      <div className="playback-controls">
-        <button
-          type="button"
-          onClick={stepBackward}
-          disabled={currentIndex <= minIndex}
-          title="Previous day"
-        >
-          <span className="material-icons">skip_previous</span>
-        </button>
-        <button
-          type="button"
-          onClick={togglePlay}
-          className={isPlaying ? "active" : ""}
-          disabled={isAtEnd}
-          title={isPlaying ? "Pause" : "Play"}
-        >
-          <span className="material-icons">{isPlaying ? "pause" : "play_arrow"}</span>
-        </button>
-        <button type="button" onClick={handleFinish} title="Stop">
-          <span className="material-icons">stop</span>
-        </button>
-        <button type="button" onClick={stepForward} disabled={isAtEnd} title="Next day">
-          <span className="material-icons">skip_next</span>
-        </button>
-      </div>
+        <div className="speed-pills">
+          {([0.5, 1, 2, 4] as PlaybackSpeed[]).map((speed) => (
+            <button
+              key={speed}
+              type="button"
+              className={`speed-pill ${playbackSpeed === speed ? "active" : ""}`}
+              onClick={() => setSpeed(speed)}
+            >
+              {speed}x
+            </button>
+          ))}
+        </div>
 
-      <div className="speed-select">
-        <label>
-          Speed:
-          <select value={playbackSpeed} onChange={handleSpeedChange}>
-            <option value={0.5}>0.5x</option>
-            <option value={1}>1x</option>
-            <option value={2}>2x</option>
-            <option value={4}>4x</option>
-          </select>
-        </label>
-      </div>
+        <div className="progress-info">
+          <span className="date">{currentCandle ? formatDate(currentCandle.time) : "-"}</span>
+          <span className="count">
+            {progress} / {total}
+          </span>
+        </div>
 
-      <div className="progress-info">
-        <span className="date">{currentCandle ? formatDate(currentCandle.time) : "-"}</span>
-        <span className="count">
-          {progress} / {total}
-        </span>
-      </div>
-
-      {/* Time Seek Bar */}
-      <div className="seek-bar-container">
-        <input
-          type="range"
-          className="seek-bar"
-          min={minIndex}
-          max={maxIndex}
-          value={sliderValue}
-          onChange={handleSeekChange}
-          onMouseUp={handleSeekCommit}
-          onTouchEnd={handleSeekCommit}
-        />
-        {seekValue !== null && previewCandle && (
-          <div className="seek-preview">{formatDate(previewCandle.time)}</div>
-        )}
-      </div>
+        {/* Time Seek Bar */}
+        <div className="seek-bar-container">
+          <input
+            type="range"
+            className="seek-bar"
+            min={minIndex}
+            max={maxIndex}
+            value={sliderValue}
+            onChange={handleSeekChange}
+            onMouseUp={handleSeekCommit}
+            onTouchEnd={handleSeekCommit}
+          />
+          {seekValue !== null && previewCandle && (
+            <div className="seek-preview">{formatDate(previewCandle.time)}</div>
+          )}
+        </div>
+      </CollapsiblePanel>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useSimulatorStore } from "../store/simulatorStore";
 import type { PortfolioStats, Trade } from "../types";
+import { CollapsiblePanel } from "./CollapsiblePanel";
 
 interface RealtimeStats {
   totalPnl: number;
@@ -184,172 +185,175 @@ export function StatsPanel() {
 
   return (
     <div className="stats-panel">
-      <h3>Live Stats</h3>
-
-      <div className="stats-section">
-        <div className="stats-row highlight">
-          <span className="label">P&L</span>
-          <span className={`value ${totalWithUnrealized >= 0 ? "positive" : "negative"}`}>
-            {totalWithUnrealized >= 0 ? "+" : ""}¥{Math.round(totalWithUnrealized).toLocaleString()}
-            <span className="percent">
-              ({totalPercentWithUnrealized >= 0 ? "+" : ""}
-              {totalPercentWithUnrealized.toFixed(2)}%)
-            </span>
-          </span>
-        </div>
-
-        {hasPosition && unrealizedPnl && (
-          <div className="stats-row sub">
-            <span className="label">Unrealized</span>
-            <span className={`value ${unrealizedPnl.pnl >= 0 ? "positive" : "negative"}`}>
-              {unrealizedPnl.pnl >= 0 ? "+" : ""}¥{Math.round(unrealizedPnl.pnl).toLocaleString()}
+      <CollapsiblePanel title="Live Stats" storageKey="stats">
+        <div className="stats-section">
+          <div
+            className={`stats-row highlight ${totalWithUnrealized >= 0 ? "pnl-positive" : "pnl-negative"}`}
+          >
+            <span className="label">P&L</span>
+            <span className={`value ${totalWithUnrealized >= 0 ? "positive" : "negative"}`}>
+              {totalWithUnrealized >= 0 ? "+" : ""}¥
+              {Math.round(totalWithUnrealized).toLocaleString()}
+              <span className="percent">
+                ({totalPercentWithUnrealized >= 0 ? "+" : ""}
+                {totalPercentWithUnrealized.toFixed(2)}%)
+              </span>
             </span>
           </div>
-        )}
 
-        {hasTrades && (
-          <div className="stats-row sub">
-            <span className="label">Realized</span>
-            <span className={`value ${stats.totalPnl >= 0 ? "positive" : "negative"}`}>
-              {stats.totalPnl >= 0 ? "+" : ""}¥{Math.round(stats.totalPnl).toLocaleString()}
-            </span>
-          </div>
-        )}
-      </div>
-
-      {hasTrades && (
-        <>
-          <div className="stats-divider" />
-
-          <div className="stats-section">
-            <div className="stats-row">
-              <span className="label">Win Rate</span>
-              <span className="value">
-                {stats.winRate.toFixed(1)}%
-                <span className="sub-value">
-                  ({stats.winCount}W/{stats.lossCount}L)
-                </span>
-              </span>
-            </div>
-
-            {stats.currentStreak !== 0 && (
-              <div className="stats-row">
-                <span className="label">
-                  {stats.currentStreak > 0 ? "Win Streak" : "Lose Streak"}
-                </span>
-                <span className={`value ${stats.currentStreak > 0 ? "positive" : "negative"}`}>
-                  {Math.abs(stats.currentStreak)}
-                </span>
-              </div>
-            )}
-          </div>
-
-          <div className="stats-divider" />
-
-          <div className="stats-section">
-            <div className="stats-row">
-              <span className="label">PF</span>
-              <span className={`value ${stats.profitFactor >= 1 ? "positive" : "negative"}`}>
-                {stats.profitFactor.toFixed(2)}
-              </span>
-            </div>
-
-            <div className="stats-row">
-              <span className="label">Max DD</span>
-              <span className="value negative">-{stats.maxDrawdown.toFixed(2)}%</span>
-            </div>
-
-            <div className="stats-row">
-              <span className="label">Avg Hold</span>
-              <span className="value">{stats.avgHoldingDays.toFixed(1)}d</span>
-            </div>
-
-            {stats.avgMfeUtilization > 0 && (
-              <div className="stats-row">
-                <span className="label">MFE Util</span>
-                <span className="value">{stats.avgMfeUtilization.toFixed(1)}%</span>
-              </div>
-            )}
-          </div>
-        </>
-      )}
-
-      {stats.buyHoldReturn !== null && (
-        <>
-          <div className="stats-divider" />
-
-          <div className="stats-section benchmark">
-            <div className="stats-row">
-              <span className="label">vs B&H</span>
-              <span className={`value ${(stats.alpha || 0) >= 0 ? "positive" : "negative"}`}>
-                {(stats.alpha || 0) >= 0 ? "+" : ""}
-                {(stats.alpha || 0).toFixed(2)}%
-              </span>
-            </div>
+          {hasPosition && unrealizedPnl && (
             <div className="stats-row sub">
-              <span className="label">B&H</span>
-              <span className={`value ${stats.buyHoldReturn >= 0 ? "positive" : "negative"}`}>
-                {stats.buyHoldReturn >= 0 ? "+" : ""}
-                {stats.buyHoldReturn.toFixed(2)}%
+              <span className="label">Unrealized</span>
+              <span className={`value ${unrealizedPnl.pnl >= 0 ? "positive" : "negative"}`}>
+                {unrealizedPnl.pnl >= 0 ? "+" : ""}¥{Math.round(unrealizedPnl.pnl).toLocaleString()}
               </span>
-            </div>
-          </div>
-        </>
-      )}
-
-      {!hasTrades && !hasPosition && <div className="no-stats">No trades yet</div>}
-
-      {/* Portfolio stats (only for multiple symbols) */}
-      {hasMultipleSymbols && portfolioStats && (
-        <>
-          <div className="stats-divider" />
-          <h3>Portfolio</h3>
-
-          <div className="stats-section">
-            <div className="stats-row highlight">
-              <span className="label">Total P&L</span>
-              <span className={`value ${portfolioStats.totalPnl >= 0 ? "positive" : "negative"}`}>
-                {portfolioStats.totalPnl >= 0 ? "+" : ""}¥
-                {Math.round(portfolioStats.totalPnl).toLocaleString()}
-                <span className="percent">
-                  ({portfolioStats.totalPnlPercent >= 0 ? "+" : ""}
-                  {portfolioStats.totalPnlPercent.toFixed(2)}%)
-                </span>
-              </span>
-            </div>
-          </div>
-
-          <div className="stats-section">
-            <div className="portfolio-symbols">
-              {portfolioStats.symbolStats.map((symbolStat) => (
-                <div key={symbolStat.symbolId} className="stats-row sub">
-                  <span className="label">{symbolStat.fileName}</span>
-                  <span className={`value ${symbolStat.pnl >= 0 ? "positive" : "negative"}`}>
-                    {symbolStat.pnl >= 0 ? "+" : ""}
-                    {symbolStat.pnlPercent.toFixed(1)}%
-                    <span className="sub-value">({symbolStat.allocation.toFixed(0)}%)</span>
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {portfolioStats.aggregatedStats.totalTradeCount > 0 && (
-            <div className="stats-section">
-              <div className="stats-row">
-                <span className="label">Overall Win Rate</span>
-                <span className="value">
-                  {portfolioStats.aggregatedStats.overallWinRate.toFixed(1)}%
-                </span>
-              </div>
-              <div className="stats-row">
-                <span className="label">Total Trades</span>
-                <span className="value">{portfolioStats.aggregatedStats.totalTradeCount}</span>
-              </div>
             </div>
           )}
-        </>
-      )}
+
+          {hasTrades && (
+            <div className="stats-row sub">
+              <span className="label">Realized</span>
+              <span className={`value ${stats.totalPnl >= 0 ? "positive" : "negative"}`}>
+                {stats.totalPnl >= 0 ? "+" : ""}¥{Math.round(stats.totalPnl).toLocaleString()}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {hasTrades && (
+          <>
+            <div className="stats-divider" />
+
+            <div className="stats-section">
+              <div className="stats-row">
+                <span className="label">Win Rate</span>
+                <span className="value">
+                  {stats.winRate.toFixed(1)}%
+                  <span className="sub-value">
+                    ({stats.winCount}W/{stats.lossCount}L)
+                  </span>
+                </span>
+              </div>
+
+              {stats.currentStreak !== 0 && (
+                <div className="stats-row">
+                  <span className="label">
+                    {stats.currentStreak > 0 ? "Win Streak" : "Lose Streak"}
+                  </span>
+                  <span className={`value ${stats.currentStreak > 0 ? "positive" : "negative"}`}>
+                    {Math.abs(stats.currentStreak)}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div className="stats-divider" />
+
+            <div className="stats-grid">
+              <div className="stats-row">
+                <span className="label">PF</span>
+                <span className={`value ${stats.profitFactor >= 1 ? "positive" : "negative"}`}>
+                  {stats.profitFactor.toFixed(2)}
+                </span>
+              </div>
+
+              <div className="stats-row">
+                <span className="label">Max DD</span>
+                <span className="value negative">-{stats.maxDrawdown.toFixed(2)}%</span>
+              </div>
+
+              <div className="stats-row">
+                <span className="label">Avg Hold</span>
+                <span className="value">{stats.avgHoldingDays.toFixed(1)}d</span>
+              </div>
+
+              {stats.avgMfeUtilization > 0 && (
+                <div className="stats-row">
+                  <span className="label">MFE Util</span>
+                  <span className="value">{stats.avgMfeUtilization.toFixed(1)}%</span>
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
+        {stats.buyHoldReturn !== null && (
+          <>
+            <div className="stats-divider" />
+
+            <div className="stats-section benchmark">
+              <div className="stats-row">
+                <span className="label">vs B&H</span>
+                <span className={`value ${(stats.alpha || 0) >= 0 ? "positive" : "negative"}`}>
+                  {(stats.alpha || 0) >= 0 ? "+" : ""}
+                  {(stats.alpha || 0).toFixed(2)}%
+                </span>
+              </div>
+              <div className="stats-row sub">
+                <span className="label">B&H</span>
+                <span className={`value ${stats.buyHoldReturn >= 0 ? "positive" : "negative"}`}>
+                  {stats.buyHoldReturn >= 0 ? "+" : ""}
+                  {stats.buyHoldReturn.toFixed(2)}%
+                </span>
+              </div>
+            </div>
+          </>
+        )}
+
+        {!hasTrades && !hasPosition && <div className="no-stats">No trades yet</div>}
+
+        {/* Portfolio stats (only for multiple symbols) */}
+        {hasMultipleSymbols && portfolioStats && (
+          <>
+            <div className="stats-divider" />
+            <h3>Portfolio</h3>
+
+            <div className="stats-section">
+              <div className="stats-row highlight">
+                <span className="label">Total P&L</span>
+                <span className={`value ${portfolioStats.totalPnl >= 0 ? "positive" : "negative"}`}>
+                  {portfolioStats.totalPnl >= 0 ? "+" : ""}¥
+                  {Math.round(portfolioStats.totalPnl).toLocaleString()}
+                  <span className="percent">
+                    ({portfolioStats.totalPnlPercent >= 0 ? "+" : ""}
+                    {portfolioStats.totalPnlPercent.toFixed(2)}%)
+                  </span>
+                </span>
+              </div>
+            </div>
+
+            <div className="stats-section">
+              <div className="portfolio-symbols">
+                {portfolioStats.symbolStats.map((symbolStat) => (
+                  <div key={symbolStat.symbolId} className="stats-row sub">
+                    <span className="label">{symbolStat.fileName}</span>
+                    <span className={`value ${symbolStat.pnl >= 0 ? "positive" : "negative"}`}>
+                      {symbolStat.pnl >= 0 ? "+" : ""}
+                      {symbolStat.pnlPercent.toFixed(1)}%
+                      <span className="sub-value">({symbolStat.allocation.toFixed(0)}%)</span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {portfolioStats.aggregatedStats.totalTradeCount > 0 && (
+              <div className="stats-section">
+                <div className="stats-row">
+                  <span className="label">Overall Win Rate</span>
+                  <span className="value">
+                    {portfolioStats.aggregatedStats.overallWinRate.toFixed(1)}%
+                  </span>
+                </div>
+                <div className="stats-row">
+                  <span className="label">Total Trades</span>
+                  <span className="value">{portfolioStats.aggregatedStats.totalTradeCount}</span>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </CollapsiblePanel>
     </div>
   );
 }

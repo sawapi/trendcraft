@@ -156,34 +156,43 @@ export function FileDropZone({ pendingSession }: FileDropZoneProps) {
   }, [handleFiles]);
 
   return (
-    <div
-      className={`drop-zone ${isDragging ? "dragging" : ""}`}
-      onDrop={handleDrop}
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onClick={handleClick}
-      onKeyDown={(e) => e.key === "Enter" && handleClick()}
-      role="button"
-      tabIndex={0}
-    >
-      {hasSession ? (
-        <>
-          <p>To restore your session, drop</p>
-          <p className="highlight">{pendingSession?.fileName}</p>
-          <p className="sub">or click to select it</p>
-        </>
-      ) : (
-        <>
-          <p>Drop CSV file here</p>
-          <p className="sub">or click to select (multiple OK)</p>
-        </>
-      )}
-      {loadedFiles.length > 0 && (
-        <div className="loaded-files">
-          <p className="sub">Loaded: {loadedFiles.join(", ")}</p>
-        </div>
-      )}
-      {error && <p className="error">{error}</p>}
+    <div className="drop-zone-wrapper">
+      <div className="drop-zone-brand">
+        <h2 className="brand-title">
+          <span className="brand-gradient">TrendCraft</span> Simulator
+        </h2>
+        <p className="brand-subtitle">Practice trading with real market data</p>
+      </div>
+      <div
+        className={`drop-zone ${isDragging ? "dragging" : ""}`}
+        onDrop={handleDrop}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onClick={handleClick}
+        onKeyDown={(e) => e.key === "Enter" && handleClick()}
+        role="button"
+        tabIndex={0}
+      >
+        <span className="material-icons drop-zone-icon">cloud_upload</span>
+        {hasSession ? (
+          <>
+            <p>To restore your session, drop</p>
+            <p className="highlight">{pendingSession?.fileName}</p>
+            <p className="sub">or click to select it</p>
+          </>
+        ) : (
+          <>
+            <p>Drop CSV file here</p>
+            <p className="sub">or click to select (multiple OK)</p>
+          </>
+        )}
+        {loadedFiles.length > 0 && (
+          <div className="loaded-files">
+            <p className="sub">Loaded: {loadedFiles.join(", ")}</p>
+          </div>
+        )}
+        {error && <p className="error">{error}</p>}
+      </div>
     </div>
   );
 }

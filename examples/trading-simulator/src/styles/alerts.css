@@ -1,0 +1,101 @@
+/* ============================================
+   Alert Banners
+   ============================================ */
+
+.alert-banner-container {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 400px;
+}
+
+.alert-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  animation: slideIn 0.3s ease-out;
+  position: relative;
+  overflow: hidden;
+}
+
+.alert-banner.warning {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+}
+
+.alert-banner.info {
+  background: linear-gradient(135deg, #22d3ee 0%, #0891b2 100%);
+  color: white;
+}
+
+.alert-banner.volume-avg {
+  background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+  color: white;
+}
+
+.alert-banner.volume-breakout {
+  background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%);
+  color: white;
+}
+
+.alert-banner.volume-accumulation {
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  color: white;
+}
+
+.alert-banner.volume-ma-cross {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: white;
+}
+
+.alert-icon {
+  font-size: var(--font-lg);
+}
+
+.alert-message {
+  flex: 1;
+  font-size: var(--font-md);
+  font-weight: 500;
+}
+
+.alert-dismiss {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  border-radius: 4px;
+  padding: 4px 8px;
+  color: white;
+  cursor: pointer;
+  font-size: var(--font-md);
+  transition: background 0.2s;
+}
+
+.alert-dismiss:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Auto-dismiss progress bar */
+.alert-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 0 0 8px 8px;
+  animation: alertProgress 5s linear forwards;
+}
+
+@keyframes alertProgress {
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0%;
+  }
+}

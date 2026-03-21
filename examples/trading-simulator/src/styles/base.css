@@ -1,0 +1,79 @@
+/* ============================================
+   Reset
+   ============================================ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+/* ============================================
+   Base Styles
+   ============================================ */
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    sans-serif;
+  font-size: var(--font-base);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.5;
+  letter-spacing: -0.01em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Focus accessibility */
+:focus-visible {
+  outline: 2px solid var(--accent-secondary);
+  outline-offset: 2px;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--accent-secondary);
+  outline-offset: 1px;
+}
+
+/* Tabular numbers utility */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Global positive/negative */
+.positive {
+  color: var(--success);
+}
+
+.negative {
+  color: var(--danger);
+}

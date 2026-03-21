@@ -43,6 +43,15 @@ export function PerformanceReview() {
     return activeSymbol.tradeHistory.filter((t) => t.type === "SELL");
   }, [activeSymbol]);
 
+  const profitFactor = useMemo(() => {
+    const wins = sellTrades.filter((t) => (t.pnlPercent || 0) > 0);
+    const losses = sellTrades.filter((t) => (t.pnlPercent || 0) <= 0);
+    const grossProfit = wins.reduce((s, t) => s + (t.pnl || 0), 0);
+    const grossLoss = Math.abs(losses.reduce((s, t) => s + (t.pnl || 0), 0));
+    if (grossLoss === 0) return grossProfit > 0 ? 999.99 : 0;
+    return grossProfit / grossLoss;
+  }, [sellTrades]);
+
   if (!activeSymbol) {
     return (
       <div className="performance-review">
@@ -88,6 +97,12 @@ export function PerformanceReview() {
             {sellTrades
               .reduce((s, t) => s + (t.pnl || 0), 0)
               .toLocaleString(undefined, { maximumFractionDigits: 0 })}
+          </span>
+        </div>
+        <div className="summary-stat">
+          <span className="summary-label">Profit Factor</span>
+          <span className={`summary-value ${profitFactor >= 1 ? "positive" : "negative"}`}>
+            {profitFactor.toFixed(2)}
           </span>
         </div>
       </div>

@@ -129,145 +129,164 @@ export function SetupPanel() {
       )}
 
       <div className="setup-form">
-        <div className="form-group">
-          <label>Simulation Start Date</label>
-          <input
-            type="date"
-            value={startDate}
-            min={commonDateRange.min}
-            max={commonDateRange.max}
-            onChange={(e) => setStartDate(e.target.value)}
-          />
-          <p className="hint">Simulation advances one day at a time from this date</p>
-        </div>
-
-        <div className="form-group">
-          <label>Initial Chart Bars</label>
-          <input
-            type="number"
-            value={initialCandleCount}
-            min={20}
-            max={500}
-            onChange={(e) => setInitialCandleCount(Number(e.target.value))}
-          />
-          <p className="hint">Candles shown before start date (~1 year = 250)</p>
-        </div>
-
-        <div className="form-group">
-          <label>Initial Capital</label>
-          <input
-            type="number"
-            value={initialCapital}
-            min={10000}
-            step={10000}
-            onChange={(e) => setInitialCapital(Number(e.target.value))}
-          />
-        </div>
-
-        <div className="form-group cost-settings">
-          <label>Cost & Tax Settings</label>
-          <div className="cost-inputs">
-            <div className="cost-input">
-              <label>Commission (%)</label>
-              <input
-                type="number"
-                value={commissionRate}
-                min={0}
-                max={1}
-                step={0.01}
-                onChange={(e) => setCommissionRate(Number(e.target.value))}
-              />
-              <p className="hint">e.g. 0.1% = ¥100 on ¥100K trade</p>
-            </div>
-            <div className="cost-input">
-              <label>Slippage (bps)</label>
-              <input
-                type="number"
-                value={slippageBps}
-                min={0}
-                max={100}
-                step={1}
-                onChange={(e) => setSlippageBps(Number(e.target.value))}
-              />
-              <p className="hint">e.g. 10 bps = 0.1% price impact</p>
-            </div>
-            <div className="cost-input">
-              <label>Capital Gains Tax (%)</label>
-              <input
-                type="number"
-                value={taxRate}
-                min={0}
-                max={50}
-                step={0.001}
-                onChange={(e) => setTaxRate(Number(e.target.value))}
-              />
-              <p className="hint">Tax on gains (Japan: 20.315%)</p>
-            </div>
+        {/* Date Range Section */}
+        <div className="setup-section">
+          <h4 className="setup-section-title">
+            <span className="material-icons">date_range</span>
+            Date Range
+          </h4>
+          <div className="form-group">
+            <label>Simulation Start Date</label>
+            <input
+              type="date"
+              value={startDate}
+              min={commonDateRange.min}
+              max={commonDateRange.max}
+              onChange={(e) => setStartDate(e.target.value)}
+            />
+            <p className="hint">Simulation advances one day at a time from this date</p>
+          </div>
+          <div className="form-group">
+            <label>Initial Chart Bars</label>
+            <input
+              type="number"
+              value={initialCandleCount}
+              min={20}
+              max={500}
+              onChange={(e) => setInitialCandleCount(Number(e.target.value))}
+            />
+            <p className="hint">Candles shown before start date (~1 year = 250)</p>
           </div>
         </div>
 
-        <div className="form-group chart-settings">
-          <label>Chart Display Settings</label>
-          <div className="chart-setting-inputs">
-            <div className="chart-setting-input">
-              <label>Stop Loss Line (%)</label>
-              <input
-                type="number"
-                value={stopLossPercent}
-                min={1}
-                max={50}
-                step={0.5}
-                onChange={(e) => setStopLossPercent(Number(e.target.value))}
-              />
-              <p className="hint">Shows stop loss line N% below entry price</p>
-            </div>
-            <div className="chart-setting-input">
-              <label>Take Profit Line (%)</label>
-              <input
-                type="number"
-                value={takeProfitPercent}
-                min={1}
-                max={100}
-                step={0.5}
-                onChange={(e) => setTakeProfitPercent(Number(e.target.value))}
-              />
-              <p className="hint">Shows take profit line N% above entry price</p>
-            </div>
+        {/* Capital & Risk Section */}
+        <div className="setup-section">
+          <h4 className="setup-section-title">
+            <span className="material-icons">account_balance</span>
+            Capital & Risk
+          </h4>
+          <div className="form-group">
+            <label>Initial Capital</label>
+            <input
+              type="number"
+              value={initialCapital}
+              min={10000}
+              step={10000}
+              onChange={(e) => setInitialCapital(Number(e.target.value))}
+            />
           </div>
-          <div className="trailing-stop-settings">
-            <label className="checkbox-label">
-              <input
-                type="checkbox"
-                checked={trailingStopEnabled}
-                onChange={(e) => setTrailingStopEnabled(e.target.checked)}
-              />
-              Enable Trailing Stop
-            </label>
-            {trailingStopEnabled && (
-              <div className="trailing-stop-input">
-                <label>Trailing Stop Width (%)</label>
+          <div className="form-group cost-settings">
+            <label>Cost & Tax Settings</label>
+            <div className="cost-inputs">
+              <div className="cost-input">
+                <label>Commission (%)</label>
                 <input
                   type="number"
-                  value={trailingStopPercent}
+                  value={commissionRate}
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  onChange={(e) => setCommissionRate(Number(e.target.value))}
+                />
+                <p className="hint">e.g. 0.1% = ¥100 on ¥100K trade</p>
+              </div>
+              <div className="cost-input">
+                <label>Slippage (bps)</label>
+                <input
+                  type="number"
+                  value={slippageBps}
+                  min={0}
+                  max={100}
+                  step={1}
+                  onChange={(e) => setSlippageBps(Number(e.target.value))}
+                />
+                <p className="hint">e.g. 10 bps = 0.1% price impact</p>
+              </div>
+              <div className="cost-input">
+                <label>Capital Gains Tax (%)</label>
+                <input
+                  type="number"
+                  value={taxRate}
+                  min={0}
+                  max={50}
+                  step={0.001}
+                  onChange={(e) => setTaxRate(Number(e.target.value))}
+                />
+                <p className="hint">Tax on gains (Japan: 20.315%)</p>
+              </div>
+            </div>
+          </div>
+          <div className="form-group chart-settings">
+            <label>Chart Display Settings</label>
+            <div className="chart-setting-inputs">
+              <div className="chart-setting-input">
+                <label>Stop Loss Line (%)</label>
+                <input
+                  type="number"
+                  value={stopLossPercent}
                   min={1}
                   max={50}
                   step={0.5}
-                  onChange={(e) => setTrailingStopPercent(Number(e.target.value))}
+                  onChange={(e) => setStopLossPercent(Number(e.target.value))}
                 />
-                <p className="hint">Stops N% below high (follows price up)</p>
+                <p className="hint">Shows stop loss line N% below entry price</p>
               </div>
-            )}
+              <div className="chart-setting-input">
+                <label>Take Profit Line (%)</label>
+                <input
+                  type="number"
+                  value={takeProfitPercent}
+                  min={1}
+                  max={100}
+                  step={0.5}
+                  onChange={(e) => setTakeProfitPercent(Number(e.target.value))}
+                />
+                <p className="hint">Shows take profit line N% above entry price</p>
+              </div>
+            </div>
+            <div className="trailing-stop-settings">
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={trailingStopEnabled}
+                  onChange={(e) => setTrailingStopEnabled(e.target.checked)}
+                />
+                Enable Trailing Stop
+              </label>
+              {trailingStopEnabled && (
+                <div className="trailing-stop-input">
+                  <label>Trailing Stop Width (%)</label>
+                  <input
+                    type="number"
+                    value={trailingStopPercent}
+                    min={1}
+                    max={50}
+                    step={0.5}
+                    onChange={(e) => setTrailingStopPercent(Number(e.target.value))}
+                  />
+                  <p className="hint">Stops N% below high (follows price up)</p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
-        <IndicatorSelector
-          selected={enabledIndicators}
-          onChange={setEnabledIndicators}
-          params={indicatorParams}
-          onParamsChange={setIndicatorParams}
-        />
+        {/* Indicators Section */}
+        <div className="setup-section">
+          <h4 className="setup-section-title">
+            <span className="material-icons">show_chart</span>
+            Indicators
+          </h4>
+          <IndicatorSelector
+            selected={enabledIndicators}
+            onChange={setEnabledIndicators}
+            params={indicatorParams}
+            onParamsChange={setIndicatorParams}
+          />
+        </div>
 
-        <button className="btn-primary" onClick={handleStart}>
+        <button className="btn-primary start-btn" onClick={handleStart}>
+          <span className="material-icons">play_arrow</span>
           Start Simulation
         </button>
       </div>

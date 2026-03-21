@@ -1,0 +1,303 @@
+/* ============================================
+   Stats Panel
+   ============================================ */
+
+.stats-panel h3 {
+  font-size: var(--font-md);
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.stats-panel h3::before {
+  content: "";
+  display: inline-block;
+  width: 4px;
+  height: 14px;
+  background: var(--accent);
+  border-radius: 2px;
+}
+
+.stats-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.stats-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 6px 0;
+}
+
+.stats-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: var(--font-md);
+}
+
+.stats-row.highlight {
+  font-size: var(--font-lg);
+  padding: 12px;
+  background: var(--bg-primary);
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+.stats-row.sub {
+  font-size: var(--font-md);
+  opacity: 0.9;
+  padding-left: 8px;
+}
+
+.stats-row .label {
+  color: var(--text-secondary);
+}
+
+.stats-row .value {
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.stats-row .value .percent {
+  font-weight: 400;
+  font-size: 0.85em;
+  opacity: 0.8;
+}
+
+.stats-row .value .sub-value {
+  font-weight: 400;
+  font-size: 0.85em;
+  color: var(--text-secondary);
+  margin-left: 4px;
+}
+
+.stats-row .value.positive {
+  color: var(--success);
+}
+
+.stats-row .value.negative {
+  color: var(--danger);
+}
+
+.stats-row.highlight.pnl-positive {
+  background: rgba(74, 222, 128, 0.08);
+  border: 1px solid rgba(74, 222, 128, 0.15);
+}
+.stats-row.highlight.pnl-negative {
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.15);
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.stats-grid .stats-row {
+  padding: 6px 8px;
+  background: var(--bg-primary);
+  border-radius: 6px;
+}
+
+.stats-section.benchmark {
+  padding: 8px;
+  background: var(--bg-tertiary);
+  border-radius: 6px;
+}
+
+.stats-panel .no-stats {
+  color: var(--text-secondary);
+  font-style: italic;
+  font-size: var(--font-md);
+  text-align: center;
+  padding: 12px;
+}
+
+/* ============================================
+   Trade Analysis
+   ============================================ */
+
+.trade-analysis {
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.analysis-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 16px;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-size: var(--font-md);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.analysis-toggle:hover {
+  background: var(--bg-tertiary);
+}
+
+.analysis-toggle .material-icons {
+  font-size: 20px;
+  color: var(--accent);
+}
+
+.analysis-toggle .toggle-icon {
+  margin-left: auto;
+  color: var(--text-secondary);
+}
+
+.analysis-content {
+  padding: 0 16px 16px;
+}
+
+.analysis-section {
+  margin-bottom: 16px;
+}
+
+.analysis-section:last-child {
+  margin-bottom: 0;
+}
+
+.analysis-section h4 {
+  font-size: var(--font-md);
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+  padding-left: 8px;
+  border-left: 2px solid var(--accent);
+}
+
+.analysis-table {
+  background: var(--bg-primary);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.analysis-row {
+  display: grid;
+  grid-template-columns: 1fr 50px 50px 60px;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: var(--font-md);
+  border-bottom: 1px solid var(--border);
+}
+
+.analysis-row:last-child {
+  border-bottom: none;
+}
+
+.analysis-row .label {
+  color: var(--text-primary);
+}
+
+.analysis-row .count {
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+.analysis-row .win-rate,
+.analysis-row .avg-pnl {
+  text-align: right;
+  font-weight: 600;
+}
+
+.analysis-row .positive {
+  color: var(--success);
+}
+
+.analysis-row .negative {
+  color: var(--danger);
+}
+
+/* Day of Week Analysis */
+.day-of-week .dow-header {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.day-of-week .dow-header .label {
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+}
+
+.day-of-week .header-group {
+  display: flex;
+  gap: 24px;
+}
+
+.day-of-week .sub-header {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+  min-width: 80px;
+  text-align: center;
+}
+
+.dow-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.dow-stats {
+  display: flex;
+  gap: 24px;
+}
+
+.dow-entry,
+.dow-exit {
+  display: flex;
+  gap: 8px;
+  min-width: 80px;
+  justify-content: flex-end;
+}
+
+.dow-entry .count,
+.dow-exit .count {
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+}
+
+/* Month Analysis */
+.month-table {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+}
+
+.month-table .analysis-row {
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 6px 8px;
+  background: var(--bg-primary);
+  border-radius: 4px;
+}
+
+.month-table .analysis-row .label {
+  font-weight: 500;
+  margin-bottom: 2px;
+}
+
+.month-table .analysis-row .count {
+  font-size: var(--font-xs);
+}
+
+.analysis-table .no-data {
+  padding: 12px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-style: italic;
+}

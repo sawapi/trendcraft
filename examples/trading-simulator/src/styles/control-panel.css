@@ -1,0 +1,199 @@
+/* ============================================
+   Control Panel
+   ============================================ */
+
+.control-panel h3 {
+  font-size: var(--font-md);
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-md);
+}
+
+.playback-controls {
+  display: flex;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+}
+
+.playback-controls button {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  border-radius: 6px;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  font-size: var(--font-lg);
+  cursor: pointer;
+  transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.playback-controls .play-btn {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--accent-gradient);
+  color: white;
+}
+.playback-controls .play-btn:hover:not(:disabled) {
+  background: var(--accent-gradient);
+  filter: brightness(1.15);
+  box-shadow: 0 0 12px rgba(233, 69, 96, 0.4);
+}
+.playback-controls .play-btn.active {
+  background: var(--accent-gradient);
+}
+
+.playback-controls button:not(.play-btn) {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+}
+
+.playback-controls button .material-icons {
+  font-size: 24px;
+}
+
+.playback-controls button:not(.play-btn):hover {
+  background: var(--accent);
+}
+
+.playback-controls button.active:not(.play-btn) {
+  background: var(--accent);
+}
+
+.playback-controls button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Speed Pills */
+.speed-pills {
+  display: flex;
+  gap: 2px;
+  background: var(--bg-primary);
+  border-radius: 20px;
+  padding: 2px;
+}
+
+.speed-pill {
+  padding: 4px 10px;
+  border: none;
+  border-radius: 18px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: var(--font-xs);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.speed-pill.active {
+  background: var(--accent);
+  color: white;
+}
+
+.speed-pill:hover:not(.active) {
+  color: var(--text-primary);
+}
+
+/* Progress Info */
+.progress-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--font-md);
+}
+
+.progress-info .date {
+  font-weight: 500;
+}
+
+.progress-info .count {
+  color: var(--text-secondary);
+}
+
+/* Time Seek Bar */
+.seek-bar-container {
+  margin-top: 12px;
+  position: relative;
+}
+
+.seek-bar {
+  width: 100%;
+  height: 8px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.seek-bar::-webkit-slider-runnable-track {
+  height: 8px;
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+}
+
+.seek-bar::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  margin-top: -5px;
+  background: var(--accent);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+
+.seek-bar::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+.seek-bar::-moz-range-track {
+  height: 8px;
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+}
+
+.seek-bar::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  background: var(--accent);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.seek-bar:focus {
+  outline: none;
+}
+
+.seek-preview {
+  position: absolute;
+  top: -28px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 10px;
+  background: var(--accent);
+  color: white;
+  font-size: var(--font-sm);
+  font-weight: 500;
+  border-radius: 4px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.seek-preview::after {
+  content: "";
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 5px solid var(--accent);
+}
