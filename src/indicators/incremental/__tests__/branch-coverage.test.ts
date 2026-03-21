@@ -8,45 +8,45 @@
 import { describe, expect, it } from "vitest";
 import type { NormalizedCandle } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
-import { createAdl } from "../volume/adl";
-import { createRoc } from "../momentum/roc";
-import { createHma } from "../moving-average/hma";
-import { createVwma } from "../moving-average/vwma";
-import { createVolumeAnomaly } from "../volume/volume-anomaly";
-import { createElderForceIndex } from "../volume/elder-force-index";
-import { createVortex } from "../momentum/vortex";
+import { createAdxr } from "../momentum/adxr";
 import { createAroon } from "../momentum/aroon";
+import { createCci } from "../momentum/cci";
+import { createConnorsRsi } from "../momentum/connors-rsi";
+import { createDmi } from "../momentum/dmi";
 import { createImi } from "../momentum/imi";
-import { createAtr } from "../volatility/atr";
-import { createBollingerBands } from "../volatility/bollinger-bands";
 import { createMacd } from "../momentum/macd";
-import { createDonchianChannel } from "../volatility/donchian-channel";
-import { createParabolicSar } from "../trend/parabolic-sar";
-import { createChoppinessIndex } from "../volatility/choppiness-index";
+import { createRoc } from "../momentum/roc";
+import { createRsi } from "../momentum/rsi";
+import { createStochRsi } from "../momentum/stoch-rsi";
+import { createStochastics } from "../momentum/stochastics";
+import { createTrix } from "../momentum/trix";
+import { createVortex } from "../momentum/vortex";
+import { createWilliamsR } from "../momentum/williams-r";
+import { createEma } from "../moving-average/ema";
+import { createEmaRibbon } from "../moving-average/ema-ribbon";
+import { createHma } from "../moving-average/hma";
 import { createKama } from "../moving-average/kama";
 import { createMcGinleyDynamic } from "../moving-average/mcginley-dynamic";
-import { createCmf } from "../volume/cmf";
-import { createCci } from "../momentum/cci";
-import { createWilliamsR } from "../momentum/williams-r";
-import { createConnorsRsi } from "../momentum/connors-rsi";
-import { createRsi } from "../momentum/rsi";
-import { createStochastics } from "../momentum/stochastics";
-import { createKeltnerChannel } from "../volatility/keltner-channel";
-import { createTwap } from "../volume/twap";
-import { createMfi } from "../volume/mfi";
-import { createAdxr } from "../momentum/adxr";
-import { createTrix } from "../momentum/trix";
-import { createChandelierExit } from "../volatility/chandelier-exit";
-import { createDmi } from "../momentum/dmi";
-import { createIchimoku } from "../trend/ichimoku";
-import { createSupertrend } from "../trend/supertrend";
-import { createStochRsi } from "../momentum/stoch-rsi";
-import { createEmaRibbon } from "../moving-average/ema-ribbon";
-import { createObv } from "../volume/obv";
 import { createSma } from "../moving-average/sma";
-import { createEma } from "../moving-average/ema";
+import { createVwma } from "../moving-average/vwma";
 import { createWma } from "../moving-average/wma";
+import { createIchimoku } from "../trend/ichimoku";
+import { createParabolicSar } from "../trend/parabolic-sar";
+import { createSupertrend } from "../trend/supertrend";
 import { getSourcePrice } from "../utils";
+import { createAtr } from "../volatility/atr";
+import { createBollingerBands } from "../volatility/bollinger-bands";
+import { createChandelierExit } from "../volatility/chandelier-exit";
+import { createChoppinessIndex } from "../volatility/choppiness-index";
+import { createDonchianChannel } from "../volatility/donchian-channel";
+import { createKeltnerChannel } from "../volatility/keltner-channel";
+import { createAdl } from "../volume/adl";
+import { createCmf } from "../volume/cmf";
+import { createElderForceIndex } from "../volume/elder-force-index";
+import { createMfi } from "../volume/mfi";
+import { createObv } from "../volume/obv";
+import { createTwap } from "../volume/twap";
+import { createVolumeAnomaly } from "../volume/volume-anomaly";
 
 // --- Helpers ---
 
@@ -867,10 +867,7 @@ describe("MACD line and signal computation", () => {
 
   it("warmUp option works correctly", () => {
     const candles = generateCandles(15);
-    const macd = createMacd(
-      { fastPeriod: 3, slowPeriod: 5, signalPeriod: 3 },
-      { warmUp: candles },
-    );
+    const macd = createMacd({ fastPeriod: 3, slowPeriod: 5, signalPeriod: 3 }, { warmUp: candles });
     expect(macd.isWarmedUp).toBe(true);
   });
 });
@@ -1413,10 +1410,7 @@ describe("Stochastics %K and %D behavior", () => {
 
   it("warmUp option works correctly", () => {
     const candles = generateCandles(10);
-    const stoch = createStochastics(
-      { kPeriod: 3, dPeriod: 2, slowing: 2 },
-      { warmUp: candles },
-    );
+    const stoch = createStochastics({ kPeriod: 3, dPeriod: 2, slowing: 2 }, { warmUp: candles });
     expect(stoch.isWarmedUp).toBe(true);
   });
 });
@@ -1648,10 +1642,7 @@ describe("ADXR requires many candles to produce values", () => {
 
   it("warmUp option works correctly", () => {
     const candles = generateCandles(15);
-    const adxr = createAdxr(
-      { period: 3, dmiPeriod: 3, adxPeriod: 3 },
-      { warmUp: candles },
-    );
+    const adxr = createAdxr({ period: 3, dmiPeriod: 3, adxPeriod: 3 }, { warmUp: candles });
     expect(adxr.isWarmedUp).toBe(true);
   });
 });
@@ -1679,10 +1670,7 @@ describe("TRIX triple-smoothed EMA momentum", () => {
     const state = t1.getState();
 
     const t2 = createTrix({ period: 3, signalPeriod: 2 }, { fromState: state });
-    expect(t2.next(makeCandle(15)).value.trix).toBeCloseTo(
-      t1.next(makeCandle(15)).value.trix!,
-      10,
-    );
+    expect(t2.next(makeCandle(15)).value.trix).toBeCloseTo(t1.next(makeCandle(15)).value.trix!, 10);
   });
 
   it("warmUp option works correctly", () => {
@@ -1888,7 +1876,7 @@ describe("Supertrend direction changes and band computation", () => {
   it("supertrend = lower band in uptrend (direction=1)", () => {
     const st = createSupertrend({ period: 3, multiplier: 2 });
     const candles = makeRisingCandles(10);
-    let lastResult;
+    let lastResult: ReturnType<typeof st.next> | undefined;
     for (const c of candles) lastResult = st.next(c);
     if (lastResult!.value.direction === 1) {
       expect(lastResult!.value.supertrend).toBe(lastResult!.value.lowerBand);
@@ -1898,7 +1886,7 @@ describe("Supertrend direction changes and band computation", () => {
   it("supertrend = upper band in downtrend (direction=-1)", () => {
     const st = createSupertrend({ period: 3, multiplier: 2 });
     const candles = makeFallingCandles(10);
-    let lastResult;
+    let lastResult: ReturnType<typeof st.next> | undefined;
     for (const c of candles) lastResult = st.next(c);
     if (lastResult!.value.direction === -1) {
       expect(lastResult!.value.supertrend).toBe(lastResult!.value.upperBand);
@@ -1922,7 +1910,12 @@ describe("Supertrend direction changes and band computation", () => {
 
 describe("Ichimoku cloud components", () => {
   it("tenkan appears first (shortest period), kijun later (longer period)", () => {
-    const ichi = createIchimoku({ tenkanPeriod: 3, kijunPeriod: 5, senkouBPeriod: 10, displacement: 3 });
+    const ichi = createIchimoku({
+      tenkanPeriod: 3,
+      kijunPeriod: 5,
+      senkouBPeriod: 10,
+      displacement: 3,
+    });
     // After 3 candles: tenkan available, kijun not yet
     for (let i = 0; i < 3; i++) ichi.next(makeCandle(i));
     const r3 = ichi.next(makeCandle(3));
@@ -1932,7 +1925,12 @@ describe("Ichimoku cloud components", () => {
   });
 
   it("senkou A/B appear after displacement bars", () => {
-    const ichi = createIchimoku({ tenkanPeriod: 3, kijunPeriod: 5, senkouBPeriod: 10, displacement: 3 });
+    const ichi = createIchimoku({
+      tenkanPeriod: 3,
+      kijunPeriod: 5,
+      senkouBPeriod: 10,
+      displacement: 3,
+    });
     // Feed enough data: kijun+displacement = 5+3 = 8
     for (let i = 0; i < 10; i++) ichi.next(makeCandle(i));
     const r = ichi.next(makeCandle(10));
@@ -1942,7 +1940,12 @@ describe("Ichimoku cloud components", () => {
   });
 
   it("chikou is always null in incremental mode (requires future data)", () => {
-    const ichi = createIchimoku({ tenkanPeriod: 3, kijunPeriod: 5, senkouBPeriod: 10, displacement: 3 });
+    const ichi = createIchimoku({
+      tenkanPeriod: 3,
+      kijunPeriod: 5,
+      senkouBPeriod: 10,
+      displacement: 3,
+    });
     for (let i = 0; i < 20; i++) ichi.next(makeCandle(i));
     const r = ichi.next(makeCandle(20));
     expect(r.value.chikou).toBe(null);
@@ -1961,7 +1964,10 @@ describe("Ichimoku cloud components", () => {
     for (let i = 0; i < 15; i++) i1.next(makeCandle(i));
     const state = i1.getState();
 
-    const i2 = createIchimoku({ tenkanPeriod: 3, kijunPeriod: 5, displacement: 3 }, { fromState: state });
+    const i2 = createIchimoku(
+      { tenkanPeriod: 3, kijunPeriod: 5, displacement: 3 },
+      { fromState: state },
+    );
     const r1 = i1.next(makeCandle(15));
     const r2 = i2.next(makeCandle(15));
     if (r1.value.tenkan !== null) {
@@ -2089,7 +2095,7 @@ describe("EMA Ribbon bullish alignment and expanding detection", () => {
     const ribbon = createEmaRibbon({ periods: [3, 5, 8] });
     // Very strong uptrend should make shorter EMA > longer EMA
     const candles = makeRisingCandles(20, 100, 10);
-    let lastResult;
+    let lastResult: ReturnType<typeof ribbon.next> | undefined;
     for (const c of candles) lastResult = ribbon.next(c);
     // With strong consistent uptrend, shorter EMAs react faster -> bullish alignment
     if (lastResult!.value.bullish !== null) {

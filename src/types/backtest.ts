@@ -2,10 +2,10 @@
  * Backtest and Multi-Timeframe (MTF) type definitions for TrendCraft
  */
 
-import type { NormalizedCandle, TimeframeShorthand } from "./candle";
-import type { SlippageModel } from "../backtest/slippage-model";
-import type { OrderType, TimeInForce } from "../backtest/order-types";
 import type { MarginConfig } from "../backtest/margin";
+import type { OrderType, TimeInForce } from "../backtest/order-types";
+import type { SlippageModel } from "../backtest/slippage-model";
+import type { NormalizedCandle, TimeframeShorthand } from "./candle";
 
 /**
  * Position direction for long/short trading

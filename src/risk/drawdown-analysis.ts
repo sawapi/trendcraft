@@ -107,10 +107,7 @@ function conditionStats(depths: number[]): {
  * console.log(`95th percentile: ${dist.percentile95}%`);
  * ```
  */
-export function drawdownDistribution(
-  drawdownDepths: number[],
-  numBins: number = 10,
-): DrawdownDistribution {
+export function drawdownDistribution(drawdownDepths: number[], numBins = 10): DrawdownDistribution {
   if (drawdownDepths.length === 0) {
     return {
       bins: [],
@@ -268,9 +265,7 @@ export function estimateRecoveryTime(
   const lowerBound = currentDrawdown * 0.5;
   const upperBound = currentDrawdown * 1.5;
 
-  const matches = historicalDrawdowns.filter(
-    (d) => d.depth >= lowerBound && d.depth <= upperBound,
-  );
+  const matches = historicalDrawdowns.filter((d) => d.depth >= lowerBound && d.depth <= upperBound);
 
   if (matches.length > 0) {
     const recoveries = matches.map((m) => m.recoveryBars);
@@ -285,11 +280,9 @@ export function estimateRecoveryTime(
   // Fallback: use all drawdowns scaled by depth ratio
   const allRecoveries = historicalDrawdowns.map((d) => d.recoveryBars);
   const avgDepth =
-    historicalDrawdowns.reduce((s, d) => s + d.depth, 0) /
-    historicalDrawdowns.length;
+    historicalDrawdowns.reduce((s, d) => s + d.depth, 0) / historicalDrawdowns.length;
   const depthRatio = avgDepth > 0 ? currentDrawdown / avgDepth : 1;
-  const avgBars =
-    allRecoveries.reduce((a, b) => a + b, 0) / allRecoveries.length;
+  const avgBars = allRecoveries.reduce((a, b) => a + b, 0) / allRecoveries.length;
   const scaled = Math.round(avgBars * depthRatio);
 
   return {
@@ -320,10 +313,7 @@ export function estimateRecoveryTime(
  * console.log(`UPI: ${upi.toFixed(2)}`);
  * ```
  */
-export function ulcerPerformanceIndex(
-  equityCurve: number[],
-  riskFreeRate: number = 0,
-): number {
+export function ulcerPerformanceIndex(equityCurve: number[], riskFreeRate = 0): number {
   if (equityCurve.length < 2) return 0;
 
   // Calculate percentage drawdowns from running peak
@@ -340,10 +330,9 @@ export function ulcerPerformanceIndex(
   if (ulcerIndex === 0) return 0;
 
   // Annualised return (assume 252 trading days)
-  const totalReturn =
-    equityCurve[equityCurve.length - 1] / equityCurve[0] - 1;
+  const totalReturn = equityCurve[equityCurve.length - 1] / equityCurve[0] - 1;
   const n = equityCurve.length;
-  const annualReturn = Math.pow(1 + totalReturn, 252 / n) - 1;
+  const annualReturn = (1 + totalReturn) ** (252 / n) - 1;
 
   return (annualReturn - riskFreeRate) / (ulcerIndex / 100);
 }

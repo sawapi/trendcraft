@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { riskParityAllocation, correlationAdjustedSize } from "../risk-parity";
+import { describe, expect, it } from "vitest";
+import { correlationAdjustedSize, riskParityAllocation } from "../risk-parity";
 
 describe("riskParityAllocation", () => {
   it("should assign inverse-vol-like weights to uncorrelated assets", () => {
@@ -18,11 +18,10 @@ describe("riskParityAllocation", () => {
     const result = riskParityAllocation({ A: returnsA, B: returnsB });
 
     // Higher volatility asset should get lower weight
-    expect(result.weights["A"]).toBeGreaterThan(result.weights["B"]);
+    expect(result.weights.A).toBeGreaterThan(result.weights.B);
 
     // Weights should sum to 1
-    const totalWeight =
-      Object.values(result.weights).reduce((s, w) => s + w, 0);
+    const totalWeight = Object.values(result.weights).reduce((s, w) => s + w, 0);
     expect(totalWeight).toBeCloseTo(1, 8);
   });
 
@@ -54,36 +53,30 @@ describe("riskParityAllocation", () => {
   });
 
   it("should return equal weights for identical assets", () => {
-    const returns = Array.from({ length: 100 }, (_, i) =>
-      Math.sin(i * 0.1) * 0.01,
-    );
+    const returns = Array.from({ length: 100 }, (_, i) => Math.sin(i * 0.1) * 0.01);
 
     const result = riskParityAllocation({
       A: [...returns],
       B: [...returns],
     });
 
-    expect(result.weights["A"]).toBeCloseTo(0.5, 2);
-    expect(result.weights["B"]).toBeCloseTo(0.5, 2);
+    expect(result.weights.A).toBeCloseTo(0.5, 2);
+    expect(result.weights.B).toBeCloseTo(0.5, 2);
   });
 
   it("should return 100% weight for single asset", () => {
     const returns = Array.from({ length: 100 }, (_, i) => i * 0.001);
     const result = riskParityAllocation({ SPY: returns });
 
-    expect(result.weights["SPY"]).toBe(1);
-    expect(result.riskContributions["SPY"]).toBe(1);
+    expect(result.weights.SPY).toBe(1);
+    expect(result.riskContributions.SPY).toBe(1);
     expect(result.correlationMatrix).toEqual([[1]]);
   });
 
   it("should return positive portfolio volatility", () => {
     const n = 100;
-    const returnsA = Array.from({ length: n }, (_, i) =>
-      Math.sin(i * 0.1) * 0.02,
-    );
-    const returnsB = Array.from({ length: n }, (_, i) =>
-      Math.cos(i * 0.15) * 0.015,
-    );
+    const returnsA = Array.from({ length: n }, (_, i) => Math.sin(i * 0.1) * 0.02);
+    const returnsB = Array.from({ length: n }, (_, i) => Math.cos(i * 0.15) * 0.015);
 
     const result = riskParityAllocation({ A: returnsA, B: returnsB });
     expect(result.portfolioVolatility).toBeGreaterThan(0);
@@ -93,8 +86,9 @@ describe("riskParityAllocation", () => {
     const n = 100;
     const series: Record<string, number[]> = {};
     for (let a = 0; a < 3; a++) {
-      series[`asset${a}`] = Array.from({ length: n }, (_, i) =>
-        Math.sin(i * (0.1 + a * 0.05)) * 0.01,
+      series[`asset${a}`] = Array.from(
+        { length: n },
+        (_, i) => Math.sin(i * (0.1 + a * 0.05)) * 0.01,
       );
     }
 
@@ -110,10 +104,7 @@ describe("riskParityAllocation", () => {
     // Symmetric
     for (let i = 0; i < 3; i++) {
       for (let j = i + 1; j < 3; j++) {
-        expect(result.correlationMatrix[i][j]).toBeCloseTo(
-          result.correlationMatrix[j][i],
-          10,
-        );
+        expect(result.correlationMatrix[i][j]).toBeCloseTo(result.correlationMatrix[j][i], 10);
       }
     }
   });
@@ -133,9 +124,7 @@ describe("correlationAdjustedSize", () => {
 
   it("should reduce size for highly correlated asset", () => {
     const n = 100;
-    const returns = Array.from({ length: n }, (_, i) =>
-      Math.sin(i * 0.1) * 0.02,
-    );
+    const returns = Array.from({ length: n }, (_, i) => Math.sin(i * 0.1) * 0.02);
     // Identical returns => correlation = 1
     const result = correlationAdjustedSize(returns, [returns], {
       baseSize: 10000,
@@ -149,12 +138,8 @@ describe("correlationAdjustedSize", () => {
   it("should keep full size for uncorrelated asset", () => {
     const n = 200;
     // sin and cos with different frequencies are nearly uncorrelated
-    const currentReturns = Array.from({ length: n }, (_, i) =>
-      Math.sin(i * 0.1) * 0.02,
-    );
-    const existingReturns = Array.from({ length: n }, (_, i) =>
-      Math.cos(i * 1.7) * 0.02,
-    );
+    const currentReturns = Array.from({ length: n }, (_, i) => Math.sin(i * 0.1) * 0.02);
+    const existingReturns = Array.from({ length: n }, (_, i) => Math.cos(i * 1.7) * 0.02);
 
     const result = correlationAdjustedSize(currentReturns, [existingReturns], {
       baseSize: 10000,
@@ -170,13 +155,9 @@ describe("correlationAdjustedSize", () => {
   it("should linearly interpolate between thresholds", () => {
     // Construct returns with known moderate correlation (~0.5)
     const n = 1000;
-    const base = Array.from({ length: n }, (_, i) =>
-      Math.sin(i * 0.1) * 0.02,
-    );
+    const base = Array.from({ length: n }, (_, i) => Math.sin(i * 0.1) * 0.02);
     // Use independent noise with a small fraction of the base to get ~0.5 correlation
-    const noise = Array.from({ length: n }, (_, i) =>
-      Math.cos(i * 1.7 + 3.14) * 0.02,
-    );
+    const noise = Array.from({ length: n }, (_, i) => Math.cos(i * 1.7 + 3.14) * 0.02);
     const mixed = base.map((v, i) => v * 0.5 + noise[i] * 0.866);
 
     const result = correlationAdjustedSize(mixed, [base], {
@@ -196,9 +177,7 @@ describe("correlationAdjustedSize", () => {
 
   it("should respect custom minSizeFactor", () => {
     const n = 100;
-    const returns = Array.from({ length: n }, (_, i) =>
-      Math.sin(i * 0.1) * 0.02,
-    );
+    const returns = Array.from({ length: n }, (_, i) => Math.sin(i * 0.1) * 0.02);
 
     const result = correlationAdjustedSize(returns, [returns], {
       baseSize: 10000,
