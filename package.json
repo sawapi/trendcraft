@@ -54,6 +54,7 @@
     "test:crossval": "vitest run cross-validation",
     "generate:fixtures": "cd cross-validation/python && uv run python generate_fixtures.py",
     "bench": "vitest bench",
+    "prepublishOnly": "pnpm build",
     "prepare": "husky"
   },
   "keywords": [
