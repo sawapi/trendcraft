@@ -5,7 +5,7 @@
  * shows projection stats, and lists past instances.
  */
 
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import type { PatternProjection, PatternSignal } from "trendcraft";
 import { projectFromPatterns } from "trendcraft";
 import { usePatternReplay } from "../hooks/usePatternReplay";
@@ -75,7 +75,8 @@ export function PatternReplayPanel() {
 
   const signals = useSignals(currentCandles, enabledSignals, indicatorParams);
 
-  const replay = usePatternReplay(replayPattern, currentCandles);
+  const handleExit = useCallback(() => setReplayPattern(null), [setReplayPattern]);
+  const replay = usePatternReplay(replayPattern, currentCandles, handleExit);
 
   // Compute projection for the same pattern type
   const projection: PatternProjection | null = useMemo(() => {

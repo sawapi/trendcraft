@@ -45,6 +45,7 @@ const BASE_INTERVAL_MS = 500;
 export function usePatternReplay(
   pattern: PatternSignal | null,
   candles: NormalizedCandle[],
+  onExit?: () => void,
 ): PatternReplayState {
   const setReplayEndIndex = useChartStore((s) => s.setReplayEndIndex);
   const setZoomRange = useChartStore((s) => s.setZoomRange);
@@ -187,6 +188,46 @@ export function usePatternReplay(
     },
     [patternStartIndex, maxIndex],
   );
+
+  // Keyboard shortcuts: Space=play/pause, ←/→=step, Escape=exit
+  useEffect(() => {
+    if (!pattern) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore when typing in input fields
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      switch (e.key) {
+        case " ":
+          e.preventDefault();
+          if (isPlaying) {
+            pause();
+          } else {
+            play();
+          }
+          break;
+        case "ArrowRight":
+          e.preventDefault();
+          stepForward();
+          break;
+        case "ArrowLeft":
+          e.preventDefault();
+          stepBackward();
+          break;
+        case "Escape":
+          e.preventDefault();
+          if (onExit) {
+            onExit();
+          } else {
+            reset();
+          }
+          break;
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [pattern, isPlaying, play, pause, stepForward, stepBackward, reset, onExit]);
 
   return {
     replayIndex,
