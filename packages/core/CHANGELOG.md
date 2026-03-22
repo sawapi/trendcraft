@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.1.0 (2026-03-20)
+## v0.1.0 (2026-03-23)
 
 Initial public release.
 
@@ -19,7 +19,7 @@ Initial public release.
 
 ### Backtesting
 
-- 191 preset conditions (entry/exit)
+- 155 preset conditions (entry/exit)
 - Stop-loss, take-profit, trailing stop, ATR trailing stop
 - Partial take-profit, break-even stop
 - Commission, slippage, and tax simulation
@@ -39,7 +39,7 @@ Initial public release.
 
 ### Streaming
 
-- Incremental indicators (41 factories) for bar-by-bar processing
+- Incremental indicators (43 factories) for bar-by-bar processing
 - Streaming conditions with full combinator support (and/or/not)
 - Position management with partial TP and break-even stops
 - Regime-aware position sizing
@@ -55,7 +55,7 @@ Initial public release.
 - Cross-Asset Correlation
 - Harmonic Pattern Detection (Gartley, Butterfly, Bat, Crab, Shark)
 - Chart Pattern Detection (Double Top/Bottom, H&S, Cup & Handle, Triangles, Wedges, Flags)
-- 36 indicators cross-validated against TA-Lib
+- 37 indicators cross-validated against TA-Lib
 - Zero runtime dependencies
 - ESM + CJS dual output
 - Full TypeScript types
