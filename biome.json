@@ -33,11 +33,11 @@
     }
   },
   "files": {
-    "ignore": ["dist", "node_modules", "*.config.ts", "examples/alpaca-demo/data"]
+    "ignore": ["dist", "node_modules", "*.config.ts", "packages/core/examples/alpaca-demo/data"]
   },
   "overrides": [
     {
-      "include": ["examples/**"],
+      "include": ["**/examples/**"],
       "linter": {
         "rules": {
           "a11y": {

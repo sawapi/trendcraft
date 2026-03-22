@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-TrendCraft - Technical analysis library for TypeScript
+TrendCraft - Technical analysis library for TypeScript (pnpm workspace monorepo)
 
 ## Project Overview
 
@@ -10,40 +10,58 @@ Provides technical indicators, signal detection, backtesting, and optimization.
 ## Directory Structure
 
 ```
-src/
-├── core/           # Data normalization, MTF context
-├── indicators/     # Technical indicators (80+)
-│   ├── moving-average/  # SMA, EMA, WMA, VWMA, KAMA, T3, HMA, McGinley Dynamic, EMA Ribbon
-│   ├── momentum/        # RSI, MACD, Stochastics, DMI/ADX, CCI, ROC, Connors RSI, IMI, ADXR
-│   ├── trend/           # Ichimoku, Supertrend, Parabolic SAR
-│   ├── volatility/      # Bollinger Bands, ATR, Keltner, Donchian, Choppiness Index
-│   ├── volume/          # OBV, MFI, VWAP (Bands), CMF, Volume Profile, Anchored VWAP, Elder Force Index, EMV, Klinger, TWAP, Weis Wave, Market Profile, CVD
-│   ├── price/           # Swing Points, Pivot, FVG, BOS, CHoCH, ORB, Gap Analysis, S/R Zone Clustering
-│   ├── session/         # ICT Kill Zones, Session Analytics, Session Breakout
-│   ├── regime/          # HMM Regime Detection (Baum-Welch, Viterbi)
-│   ├── wyckoff/         # VSA (Volume Spread Analysis), Wyckoff Phase Detection
-│   ├── relative-strength/
-│   └── smc/             # Order Block, Liquidity Sweep
-├── signals/        # Signal detection (crosses, divergence, patterns)
-├── backtest/       # Backtest engine
-├── optimization/   # Grid Search, Walk-Forward, Monte Carlo
-├── scoring/        # Signal scoring system
-├── screening/      # Stock screening
-├── position-sizing/# Position sizing (Kelly, ATR-based, etc.)
-├── meta-strategy/  # Equity Curve Trading, Strategy Rotation
-├── strategy/       # Strategy definition, JSON serialization, condition registry
-├── risk/           # VaR, CVaR, Risk Parity, Correlation-Adjusted Sizing
-└── types/          # Type definitions
+packages/
+└── core/               # npm package "trendcraft"
+    ├── src/
+    │   ├── core/           # Data normalization, MTF context
+    │   ├── indicators/     # Technical indicators (130+)
+    │   │   ├── moving-average/  # SMA, EMA, WMA, VWMA, KAMA, T3, HMA, McGinley Dynamic, EMA Ribbon
+    │   │   ├── momentum/        # RSI, MACD, Stochastics, DMI/ADX, CCI, ROC, Connors RSI, IMI, ADXR
+    │   │   ├── trend/           # Ichimoku, Supertrend, Parabolic SAR
+    │   │   ├── volatility/      # Bollinger Bands, ATR, Keltner, Donchian, Choppiness Index
+    │   │   ├── volume/          # OBV, MFI, VWAP (Bands), CMF, Volume Profile, Anchored VWAP, Elder Force Index, EMV, Klinger, TWAP, Weis Wave, Market Profile, CVD
+    │   │   ├── price/           # Swing Points, Pivot, FVG, BOS, CHoCH, ORB, Gap Analysis, S/R Zone Clustering
+    │   │   ├── session/         # ICT Kill Zones, Session Analytics, Session Breakout
+    │   │   ├── regime/          # HMM Regime Detection (Baum-Welch, Viterbi)
+    │   │   ├── wyckoff/         # VSA (Volume Spread Analysis), Wyckoff Phase Detection
+    │   │   ├── relative-strength/
+    │   │   └── smc/             # Order Block, Liquidity Sweep
+    │   ├── signals/        # Signal detection (crosses, divergence, patterns)
+    │   ├── backtest/       # Backtest engine
+    │   ├── optimization/   # Grid Search, Walk-Forward, Monte Carlo
+    │   ├── scoring/        # Signal scoring system
+    │   ├── screening/      # Stock screening
+    │   ├── position-sizing/# Position sizing (Kelly, ATR-based, etc.)
+    │   ├── meta-strategy/  # Equity Curve Trading, Strategy Rotation
+    │   ├── strategy/       # Strategy definition, JSON serialization, condition registry
+    │   ├── risk/           # VaR, CVaR, Risk Parity, Correlation-Adjusted Sizing
+    │   └── types/          # Type definitions
+    ├── bin/             # CLI tools
+    ├── docs/            # API docs, guide, cookbook
+    ├── cross-validation/ # TA-Lib cross-validation tests
+    └── examples/
+        ├── chart-viewer/        # Simple chart visualization tool
+        ├── trading-simulator/   # React-based trading simulator with backtesting
+        ├── alpaca-demo/         # Multi-agent paper trading system (Alpaca API)
+        └── candle-former-demo/  # CandleFormer demo
 ```
 
 ## Development Commands
 
 ```bash
-pnpm install      # Install dependencies
-pnpm test         # Run tests (vitest)
-pnpm build        # Build (vite)
-pnpm lint         # ESLint
-pnpm format       # Prettier
+pnpm install      # Install dependencies (workspace)
+pnpm test         # Run tests (all packages)
+pnpm build        # Build (all packages)
+pnpm lint         # Biome lint
+pnpm format       # Biome format
+```
+
+### Package-level commands
+
+```bash
+cd packages/core
+pnpm test         # Run core tests (vitest)
+pnpm build        # Build core (vite)
 ```
 
 ## General Rules
@@ -61,7 +79,7 @@ pnpm format       # Prettier
 ## Testing & Validation
 
 - Always run `pnpm build` (or the equivalent type-check command) after making changes to verify the build passes before reporting completion
-- For chart-viewer changes: `cd examples/chart-viewer && npx tsc --noEmit`
+- For chart-viewer changes: `cd packages/core/examples/chart-viewer && npx tsc --noEmit`
 
 ## Chart-Viewer Development
 
@@ -119,11 +137,12 @@ import {
 
 ## examples/
 
-- `trading-simulator/` - React-based trading simulator with backtesting
 - `chart-viewer/` - Simple chart visualization tool
+- `trading-simulator/` - React-based trading simulator with backtesting
 - `alpaca-demo/` - Multi-agent paper trading system (Alpaca API)
+- `candle-former-demo/` - CandleFormer demo
 
 ## Alpaca Demo
 
-- Type check: `cd examples/alpaca-demo && npx tsc --noEmit`
+- Type check: `cd packages/core/examples/alpaca-demo && npx tsc --noEmit`
 - **pnpm 7+ does NOT need `--` to pass arguments to scripts.** Use `pnpm run dev <command> [options]` directly, not `pnpm run dev -- <command>`. The `--` gets forwarded literally and breaks commander's subcommand parsing.

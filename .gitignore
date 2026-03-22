@@ -3,6 +3,7 @@ node_modules/
 
 # Build output
 dist/
+packages/*/dist/
 
 # IDE
 .idea/
@@ -31,14 +32,15 @@ coverage/
 **/.vitepress/cache/
 *.tsbuildinfo
 
+.claude/projects/
 .plans/
-examples/data/
-examples/scratch/
-examples/demo/
-examples/reports/
-docs/analysis/
+packages/core/examples/data/
+packages/core/examples/alpaca-demo/
+packages/core/examples/candle-former-demo/
+packages/core/examples/scratch/
+packages/core/examples/demo/
+packages/core/docs/analysis/
 docs-site/
-output/
 
 # Python
-cross-validation/python/.venv/
+packages/core/cross-validation/python/.venv/
