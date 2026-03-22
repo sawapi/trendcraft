@@ -103,7 +103,7 @@ h1 {
 
 .sidebar-tab:hover {
   color: var(--text-primary);
-  background: rgba(255,255,255,0.04);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .sidebar-tab.active {
@@ -350,7 +350,7 @@ h1 {
 
 /* Drop Zone */
 .drop-zone {
-  border: 2px dashed rgba(255,255,255,0.12);
+  border: 2px dashed rgba(255, 255, 255, 0.12);
   border-radius: 16px;
   padding: 60px 40px;
   text-align: center;
