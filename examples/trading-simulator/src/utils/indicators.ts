@@ -1,10 +1,19 @@
 import * as TrendCraft from "trendcraft";
 import type {
+  BosValue,
+  FractalValue,
+  FvgValue,
+  HeikinAshiValue,
   LiquiditySweepValue,
   NormalizedCandle,
   OrderBlockValue,
   PatternSignal,
+  PivotPointsValue,
   Series,
+  SwingPointValue,
+  VolumeAnomalyValue,
+  VolumeTrendValue,
+  ZigzagValue,
 } from "trendcraft";
 import {
   DEFAULT_INDICATOR_PARAMS,
@@ -20,6 +29,14 @@ export interface IndicatorData {
   sma75?: (number | null)[];
   ema12?: (number | null)[];
   ema26?: (number | null)[];
+  wma?: (number | null)[];
+  vwma?: (number | null)[];
+  kama?: (number | null)[];
+  t3?: (number | null)[];
+  hma?: (number | null)[];
+  mcginley?: (number | null)[];
+  emaRibbonValues?: (number | null)[][]; // array of EMA lines
+  emaRibbonPeriods?: number[];
 
   // Bollinger Bands
   bbUpper?: (number | null)[];
@@ -36,6 +53,22 @@ export interface IndicatorData {
   donchianMiddle?: (number | null)[];
   donchianLower?: (number | null)[];
 
+  // Chandelier Exit
+  chandelierLongExit?: (number | null)[];
+  chandelierShortExit?: (number | null)[];
+
+  // VWAP
+  vwapLine?: (number | null)[];
+  vwapUpper?: (number | null)[];
+  vwapLower?: (number | null)[];
+
+  // ATR Stops
+  atrStopsLong?: (number | null)[];
+  atrStopsShort?: (number | null)[];
+
+  // Super Smoother
+  superSmootherLine?: (number | null)[];
+
   // Ichimoku
   ichimokuTenkan?: (number | null)[];
   ichimokuKijun?: (number | null)[];
@@ -45,11 +78,11 @@ export interface IndicatorData {
 
   // Supertrend
   supertrendLine?: (number | null)[];
-  supertrendDirection?: (number | null)[]; // 1: up, -1: down
+  supertrendDirection?: (number | null)[];
 
   // Parabolic SAR
   parabolicSar?: (number | null)[];
-  parabolicSarDirection?: (number | null)[]; // 1: up, -1: down
+  parabolicSarDirection?: (number | null)[];
 
   // RSI
   rsi?: (number | null)[];
@@ -78,17 +111,107 @@ export interface IndicatorData {
   // ATR
   atr?: (number | null)[];
 
+  // Williams %R
+  williams?: (number | null)[];
+
+  // ROC
+  rocData?: (number | null)[];
+
+  // Connors RSI
+  connorsRsiLine?: (number | null)[];
+
+  // CMO
+  cmoData?: (number | null)[];
+
+  // IMI
+  imiData?: (number | null)[];
+
+  // TRIX
+  trixLine?: (number | null)[];
+  trixSignal?: (number | null)[];
+
+  // Aroon
+  aroonUp?: (number | null)[];
+  aroonDown?: (number | null)[];
+
+  // DPO
+  dpoData?: (number | null)[];
+
+  // Hurst
+  hurstData?: (number | null)[];
+
+  // ADXR
+  adxrData?: (number | null)[];
+
+  // Vortex
+  vortexPlus?: (number | null)[];
+  vortexMinus?: (number | null)[];
+
+  // Roofing Filter
+  roofingFilterData?: (number | null)[];
+
+  // Choppiness Index
+  choppinessData?: (number | null)[];
+
+  // Volatility Regime (HMM)
+  volatilityRegimeData?: { regime: number; label: string }[];
+
   // OBV
   obv?: (number | null)[];
 
   // MFI
   mfi?: (number | null)[];
 
-  // SMC Order Block
-  orderBlockData?: OrderBlockValue[];
+  // CMF
+  cmfData?: (number | null)[];
 
-  // SMC Liquidity Sweep
+  // ADL
+  adlData?: (number | null)[];
+
+  // Klinger
+  klingerLine?: (number | null)[];
+  klingerSignal?: (number | null)[];
+
+  // Elder Force Index
+  elderForceData?: (number | null)[];
+
+  // Volume Anomaly
+  volumeAnomalyData?: VolumeAnomalyValue[];
+
+  // Volume Profile
+  volumeProfileData?: { poc: number; vah: number; val: number };
+  volumeProfilePocLine?: (number | null)[];
+
+  // Volume Trend
+  volumeTrendData?: VolumeTrendValue[];
+
+  // Price overlays
+  swingPointData?: SwingPointValue[];
+  pivotData?: PivotPointsValue[];
+  fibRetracementData?: { levels: Record<string, number> | null }[];
+  fibExtensionData?: { levels: Record<string, number> | null }[];
+  highestLine?: (number | null)[];
+  lowestLine?: (number | null)[];
+  autoTrendResistance?: (number | null)[];
+  autoTrendSupport?: (number | null)[];
+  channelUpper?: (number | null)[];
+  channelMiddle?: (number | null)[];
+  channelLower?: (number | null)[];
+  pitchforkMedian?: (number | null)[];
+  pitchforkUpper?: (number | null)[];
+  pitchforkLower?: (number | null)[];
+  heikinAshiData?: HeikinAshiValue[];
+
+  // Patterns
+  fractalData?: FractalValue[];
+  zigzagData?: ZigzagValue[];
+
+  // SMC
+  orderBlockData?: OrderBlockValue[];
   liquiditySweepData?: LiquiditySweepValue[];
+  fvgData?: FvgValue[];
+  bosData?: BosValue[];
+  chochData?: BosValue[];
 
   // Price Patterns
   detectedPatterns?: PatternSignal[];
@@ -133,6 +256,45 @@ export function calculateIndicators(
   calculateSma("sma75", "sma75Period");
   calculateEma("ema12", "ema12Period");
   calculateEma("ema26", "ema26Period");
+
+  if (enabledIndicators.includes("wma")) {
+    result.wma = extractValues(TrendCraft.wma(candles, { period: p.wmaPeriod }));
+  }
+
+  if (enabledIndicators.includes("vwma")) {
+    result.vwma = extractValues(TrendCraft.vwma(candles, { period: p.vwmaPeriod }));
+  }
+
+  if (enabledIndicators.includes("kama")) {
+    result.kama = extractValues(TrendCraft.kama(candles, { period: p.kamaPeriod }));
+  }
+
+  if (enabledIndicators.includes("t3")) {
+    result.t3 = extractValues(TrendCraft.t3(candles, { period: p.t3Period, vFactor: p.t3VFactor }));
+  }
+
+  if (enabledIndicators.includes("hma")) {
+    result.hma = extractValues(TrendCraft.hma(candles, { period: p.hmaPeriod }));
+  }
+
+  if (enabledIndicators.includes("mcginley")) {
+    result.mcginley = extractValues(
+      TrendCraft.mcginleyDynamic(candles, { period: p.mcginleyPeriod }),
+    );
+  }
+
+  if (enabledIndicators.includes("emaRibbon")) {
+    const periods = (p.emaRibbonPeriods as string)
+      .split(",")
+      .map((s: string) => Number.parseInt(s.trim(), 10))
+      .filter((n: number) => !Number.isNaN(n) && n > 0);
+    const series = TrendCraft.emaRibbon(candles, { periods });
+    result.emaRibbonPeriods = periods;
+    // Extract each EMA line from the ribbon values
+    result.emaRibbonValues = periods.map((_, idx) =>
+      series.map((item) => item.value?.values?.[idx] ?? null),
+    );
+  }
 
   if (enabledIndicators.includes("ichimoku")) {
     const series = TrendCraft.ichimoku(candles);
@@ -188,9 +350,60 @@ export function calculateIndicators(
     result.donchianLower = series.map((item) => item.value?.lower ?? null);
   }
 
+  if (enabledIndicators.includes("chandelierExit")) {
+    const series = TrendCraft.chandelierExit(candles, {
+      period: p.chandelierPeriod,
+      multiplier: p.chandelierMultiplier,
+    });
+    result.chandelierLongExit = series.map((item) => item.value?.longExit ?? null);
+    result.chandelierShortExit = series.map((item) => item.value?.shortExit ?? null);
+  }
+
+  if (enabledIndicators.includes("vwap")) {
+    const options: { period?: number } = {};
+    if (p.vwapPeriod > 0) options.period = p.vwapPeriod;
+    const series = TrendCraft.vwap(candles, options);
+    result.vwapLine = series.map((item) => item.value?.vwap ?? null);
+    result.vwapUpper = series.map((item) => item.value?.upper ?? null);
+    result.vwapLower = series.map((item) => item.value?.lower ?? null);
+  }
+
+  if (enabledIndicators.includes("atrStops")) {
+    const series = TrendCraft.atrStops(candles, {
+      period: p.atrStopsPeriod,
+      stopMultiplier: p.atrStopsMultiplier,
+    });
+    result.atrStopsLong = series.map((item) => item.value?.longStopLevel ?? null);
+    result.atrStopsShort = series.map((item) => item.value?.shortStopLevel ?? null);
+  }
+
+  if (enabledIndicators.includes("superSmoother")) {
+    result.superSmootherLine = extractValues(
+      TrendCraft.superSmoother(candles, { period: p.superSmootherPeriod }),
+    );
+  }
+
   if (enabledIndicators.includes("atr")) {
     const series = TrendCraft.atr(candles, { period: p.atrPeriod });
     result.atr = extractValues(series);
+  }
+
+  if (enabledIndicators.includes("choppiness")) {
+    result.choppinessData = extractValues(
+      TrendCraft.choppinessIndex(candles, { period: p.choppinessPeriod }),
+    );
+  }
+
+  if (enabledIndicators.includes("volatilityRegime")) {
+    try {
+      const series = TrendCraft.hmmRegimes(candles, { numStates: p.hmmNumStates });
+      result.volatilityRegimeData = series.map((item) => ({
+        regime: item.value?.regime ?? 0,
+        label: item.value?.label ?? "",
+      }));
+    } catch {
+      // HMM may fail with insufficient data
+    }
   }
 
   // ========== Momentum ==========
@@ -243,6 +456,77 @@ export function calculateIndicators(
     result.cci = extractValues(series);
   }
 
+  if (enabledIndicators.includes("williams")) {
+    result.williams = extractValues(TrendCraft.williamsR(candles, { period: p.williamsPeriod }));
+  }
+
+  if (enabledIndicators.includes("roc")) {
+    result.rocData = extractValues(TrendCraft.roc(candles, { period: p.rocPeriod }));
+  }
+
+  if (enabledIndicators.includes("connorsRsi")) {
+    const series = TrendCraft.connorsRsi(candles, {
+      rsiPeriod: p.connorsRsiPeriod,
+      streakPeriod: p.connorsStreakPeriod,
+      rocPeriod: p.connorsRocPeriod,
+    });
+    result.connorsRsiLine = series.map((item) => item.value?.crsi ?? null);
+  }
+
+  if (enabledIndicators.includes("cmo")) {
+    result.cmoData = extractValues(TrendCraft.cmo(candles, { period: p.cmoPeriod }));
+  }
+
+  if (enabledIndicators.includes("imi")) {
+    result.imiData = extractValues(TrendCraft.imi(candles, { period: p.imiPeriod }));
+  }
+
+  if (enabledIndicators.includes("trix")) {
+    const series = TrendCraft.trix(candles, {
+      period: p.trixPeriod,
+      signalPeriod: p.trixSignalPeriod,
+    });
+    result.trixLine = series.map((item) => item.value?.trix ?? null);
+    result.trixSignal = series.map((item) => item.value?.signal ?? null);
+  }
+
+  if (enabledIndicators.includes("aroon")) {
+    const series = TrendCraft.aroon(candles, { period: p.aroonPeriod });
+    result.aroonUp = series.map((item) => item.value?.up ?? null);
+    result.aroonDown = series.map((item) => item.value?.down ?? null);
+  }
+
+  if (enabledIndicators.includes("dpo")) {
+    result.dpoData = extractValues(TrendCraft.dpo(candles, { period: p.dpoPeriod }));
+  }
+
+  if (enabledIndicators.includes("hurst")) {
+    result.hurstData = extractValues(
+      TrendCraft.hurst(candles, { minWindow: p.hurstMinWindow, maxWindow: p.hurstMaxWindow }),
+    );
+  }
+
+  if (enabledIndicators.includes("adxr")) {
+    result.adxrData = extractValues(TrendCraft.adxr(candles, { period: p.adxrPeriod }));
+  }
+
+  if (enabledIndicators.includes("vortex")) {
+    const series = TrendCraft.vortex(candles, { period: p.vortexPeriod });
+    result.vortexPlus = series.map((item) => item.value?.viPlus ?? null);
+    result.vortexMinus = series.map((item) => item.value?.viMinus ?? null);
+  }
+
+  // ========== Filter ==========
+
+  if (enabledIndicators.includes("roofingFilter")) {
+    result.roofingFilterData = extractValues(
+      TrendCraft.roofingFilter(candles, {
+        highPassPeriod: p.roofingHighPassPeriod,
+        lowPassPeriod: p.roofingLowPassPeriod,
+      }),
+    );
+  }
+
   // ========== Volume ==========
 
   if (enabledIndicators.includes("obv")) {
@@ -253,6 +537,136 @@ export function calculateIndicators(
   if (enabledIndicators.includes("mfi")) {
     const series = TrendCraft.mfi(candles, { period: p.mfiPeriod });
     result.mfi = extractValues(series);
+  }
+
+  if (enabledIndicators.includes("cmf")) {
+    result.cmfData = extractValues(TrendCraft.cmf(candles, { period: p.cmfPeriod }));
+  }
+
+  if (enabledIndicators.includes("adl")) {
+    result.adlData = extractValues(TrendCraft.adl(candles));
+  }
+
+  if (enabledIndicators.includes("klinger")) {
+    const series = TrendCraft.klinger(candles, {
+      shortPeriod: p.klingerShortPeriod,
+      longPeriod: p.klingerLongPeriod,
+      signalPeriod: p.klingerSignalPeriod,
+    });
+    result.klingerLine = series.map((item) => item.value?.kvo ?? null);
+    result.klingerSignal = series.map((item) => item.value?.signal ?? null);
+  }
+
+  if (enabledIndicators.includes("elderForce")) {
+    result.elderForceData = extractValues(
+      TrendCraft.elderForceIndex(candles, { period: p.elderForcePeriod }),
+    );
+  }
+
+  if (enabledIndicators.includes("volumeAnomaly")) {
+    const series = TrendCraft.volumeAnomaly(candles, {
+      period: p.volumeAnomalyPeriod,
+      highThreshold: p.volumeAnomalyThreshold,
+    });
+    result.volumeAnomalyData = extractValues(series);
+  }
+
+  if (enabledIndicators.includes("volumeProfile")) {
+    try {
+      const vp = TrendCraft.volumeProfile(candles, {
+        levels: p.volumeProfileLevels,
+        period: p.volumeProfilePeriod,
+      });
+      result.volumeProfileData = { poc: vp.poc, vah: vp.vah, val: vp.val };
+      // Create a constant line for POC reference
+      result.volumeProfilePocLine = new Array(candles.length).fill(null);
+    } catch {
+      // Volume profile may fail with too few candles
+    }
+  }
+
+  if (enabledIndicators.includes("volumeTrend")) {
+    const series = TrendCraft.volumeTrend(candles, {
+      pricePeriod: p.volumeTrendPricePeriod,
+      volumePeriod: p.volumeTrendVolumePeriod,
+    });
+    result.volumeTrendData = extractValues(series);
+  }
+
+  // ========== Price Overlays ==========
+
+  if (enabledIndicators.includes("swingPoints")) {
+    const series = TrendCraft.swingPoints(candles, {
+      leftBars: p.swingLeftBars,
+      rightBars: p.swingRightBars,
+    });
+    result.swingPointData = extractValues(series);
+  }
+
+  if (enabledIndicators.includes("pivotPoints")) {
+    const series = TrendCraft.pivotPoints(candles, {
+      method:
+        (p.pivotMethod as "standard" | "fibonacci" | "woodie" | "camarilla" | "demark") ||
+        "standard",
+    });
+    result.pivotData = extractValues(series);
+  }
+
+  if (enabledIndicators.includes("fibonacci")) {
+    const series = TrendCraft.fibonacciRetracement(candles);
+    result.fibRetracementData = series.map((item) => ({
+      levels: item.value?.levels ?? null,
+    }));
+  }
+
+  if (enabledIndicators.includes("fibExtension")) {
+    const series = TrendCraft.fibonacciExtension(candles);
+    result.fibExtensionData = series.map((item) => ({
+      levels: item.value?.levels ?? null,
+    }));
+  }
+
+  if (enabledIndicators.includes("highestLowest")) {
+    const series = TrendCraft.highestLowest(candles, { period: p.highestLowestPeriod });
+    result.highestLine = series.map((item) => item.value?.highest ?? null);
+    result.lowestLine = series.map((item) => item.value?.lowest ?? null);
+  }
+
+  if (enabledIndicators.includes("autoTrendLine")) {
+    const series = TrendCraft.autoTrendLine(candles);
+    result.autoTrendResistance = series.map((item) => item.value?.resistance ?? null);
+    result.autoTrendSupport = series.map((item) => item.value?.support ?? null);
+  }
+
+  if (enabledIndicators.includes("channelLine")) {
+    const series = TrendCraft.channelLine(candles);
+    result.channelUpper = series.map((item) => item.value?.upper ?? null);
+    result.channelMiddle = series.map((item) => item.value?.middle ?? null);
+    result.channelLower = series.map((item) => item.value?.lower ?? null);
+  }
+
+  if (enabledIndicators.includes("andrewsPitchfork")) {
+    const series = TrendCraft.andrewsPitchfork(candles);
+    result.pitchforkMedian = series.map((item) => item.value?.median ?? null);
+    result.pitchforkUpper = series.map((item) => item.value?.upper ?? null);
+    result.pitchforkLower = series.map((item) => item.value?.lower ?? null);
+  }
+
+  if (enabledIndicators.includes("heikinAshi")) {
+    const series = TrendCraft.heikinAshi(candles);
+    result.heikinAshiData = extractValues(series);
+  }
+
+  // ========== Patterns ==========
+
+  if (enabledIndicators.includes("fractals")) {
+    const series = TrendCraft.fractals(candles, { period: p.fractalPeriod });
+    result.fractalData = extractValues(series);
+  }
+
+  if (enabledIndicators.includes("zigzag")) {
+    const series = TrendCraft.zigzag(candles, { deviation: p.zigzagDeviation });
+    result.zigzagData = extractValues(series);
   }
 
   // ========== SMC ==========
@@ -275,12 +689,32 @@ export function calculateIndicators(
     result.liquiditySweepData = series.map((item) => item.value);
   }
 
+  if (enabledIndicators.includes("fvg")) {
+    const series = TrendCraft.fairValueGap(candles, {
+      minGapPercent: p.fvgMinGapPercent,
+    });
+    result.fvgData = extractValues(series);
+  }
+
+  if (enabledIndicators.includes("bos")) {
+    const series = TrendCraft.breakOfStructure(candles, {
+      swingPeriod: p.bosSwingPeriod,
+    });
+    result.bosData = extractValues(series);
+  }
+
+  if (enabledIndicators.includes("choch")) {
+    const series = TrendCraft.changeOfCharacter(candles, {
+      swingPeriod: p.bosSwingPeriod,
+    });
+    result.chochData = extractValues(series);
+  }
+
   // ========== Pattern Recognition ==========
 
   const patterns: PatternSignal[] = [];
 
   if (enabledIndicators.includes("doubleTopBottom")) {
-    // Convert to boolean for strictMode (UI may pass 0/1 or true/false)
     const strictMode = Boolean(p.dtStrictMode);
 
     const tops = TrendCraft.doubleTop(candles, {
@@ -376,7 +810,6 @@ export function analyzeMarketContext(
   const currentCandle = candles[index];
   const price = currentCandle.close;
 
-  // Get SMA values
   const sma25 = indicatorData.sma25?.[index];
   const sma75 = indicatorData.sma75?.[index];
   const rsi = indicatorData.rsi?.[index];
@@ -385,7 +818,6 @@ export function analyzeMarketContext(
   const bbLower = indicatorData.bbLower?.[index];
   const bbMiddle = indicatorData.bbMiddle?.[index];
 
-  // Price vs SMA25
   let priceVsSma25: "above" | "below" | "at" = "at";
   if (sma25 != null) {
     const diff = ((price - sma25) / sma25) * 100;
@@ -393,7 +825,6 @@ export function analyzeMarketContext(
     else if (diff < -0.5) priceVsSma25 = "below";
   }
 
-  // Price vs SMA75
   let priceVsSma75: "above" | "below" | "at" = "at";
   if (sma75 != null) {
     const diff = ((price - sma75) / sma75) * 100;
@@ -401,14 +832,12 @@ export function analyzeMarketContext(
     else if (diff < -0.5) priceVsSma75 = "below";
   }
 
-  // SMA25 vs SMA75 (golden cross / death cross detection)
   let sma25VsSma75: "golden_cross" | "death_cross" | "above" | "below" = "above";
   if (sma25 != null && sma75 != null) {
     const prevSma25 = indicatorData.sma25?.[index - 1];
     const prevSma75 = indicatorData.sma75?.[index - 1];
 
     if (prevSma25 != null && prevSma75 != null) {
-      // Cross detection (did a cross just occur?)
       if (prevSma25 < prevSma75 && sma25 > sma75) {
         sma25VsSma75 = "golden_cross";
       } else if (prevSma25 > prevSma75 && sma25 < sma75) {
@@ -421,10 +850,8 @@ export function analyzeMarketContext(
     }
   }
 
-  // ADX (for confidence calculation)
   const adx = indicatorData.dmiAdx?.[index];
 
-  // Trend detection (based on SMA25 slope)
   let trend: "uptrend" | "downtrend" | "range" = "range";
   let trendStrength: "strong" | "moderate" | "weak" = "weak";
 
@@ -448,7 +875,6 @@ export function analyzeMarketContext(
     }
   }
 
-  // regime (machine-readable enum)
   const regimeMap: Record<typeof trend, "TREND_UP" | "TREND_DOWN" | "RANGE"> = {
     uptrend: "TREND_UP",
     downtrend: "TREND_DOWN",
@@ -456,7 +882,6 @@ export function analyzeMarketContext(
   };
   const regime = regimeMap[trend];
 
-  // confidence (0-1, based on ADX or estimated from trendStrength)
   const strengthConfidence: Record<typeof trendStrength, number> = {
     strong: 0.8,
     moderate: 0.5,
@@ -464,7 +889,6 @@ export function analyzeMarketContext(
   };
   const confidence = adx != null ? Math.min(adx / 50, 1) : strengthConfidence[trendStrength];
 
-  // RSI zone
   let rsiZone: "overbought" | "oversold" | "neutral" | undefined;
   if (rsi != null) {
     if (rsi >= 70) rsiZone = "overbought";
@@ -472,7 +896,6 @@ export function analyzeMarketContext(
     else rsiZone = "neutral";
   }
 
-  // MACD signal
   let macdSignal: "bullish" | "bearish" | "neutral" | undefined;
   if (macdHist != null) {
     const prevMacdHist = indicatorData.macdHist?.[index - 1];
@@ -483,7 +906,6 @@ export function analyzeMarketContext(
     }
   }
 
-  // BB position
   let bbPosition: "upper" | "middle" | "lower" | undefined;
   if (bbUpper != null && bbLower != null && bbMiddle != null) {
     const totalRange = bbUpper - bbLower;
@@ -496,10 +918,8 @@ export function analyzeMarketContext(
     }
   }
 
-  // Generate description text
   const descParts: string[] = [];
 
-  // Trend
   const trendLabel = {
     uptrend: "Uptrend",
     downtrend: "Downtrend",
@@ -512,7 +932,6 @@ export function analyzeMarketContext(
   }[trendStrength];
   descParts.push(`${strengthLabel}${trendLabel}`);
 
-  // MA relationship
   if (sma25VsSma75 === "golden_cross") {
     descParts.push("Golden cross");
   } else if (sma25VsSma75 === "death_cross") {
@@ -521,19 +940,16 @@ export function analyzeMarketContext(
     descParts.push(sma25 > sma75 ? "MA25>MA75" : "MA25<MA75");
   }
 
-  // Price position
   if (priceVsSma25 !== "at") {
     descParts.push(`Price ${priceVsSma25 === "above" ? "above" : "below"} MA25`);
   }
 
-  // RSI
   if (rsiZone === "overbought") {
     descParts.push("RSI overbought");
   } else if (rsiZone === "oversold") {
     descParts.push("RSI oversold");
   }
 
-  // BB
   if (bbPosition === "upper") {
     descParts.push("Near BB upper");
   } else if (bbPosition === "lower") {

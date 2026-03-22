@@ -353,6 +353,8 @@ const INCREMENTAL_KEYS = new Set([
 ]);
 
 // Keys that require batch calculation (SMC, patterns)
+// Note: New indicators added in Batch 1-5 are handled by Chart.tsx's
+// direct calculateIndicators() call, so they don't need to be here.
 const BATCH_ONLY_KEYS = new Set([
   "orderBlock",
   "liquiditySweep",
@@ -406,12 +408,16 @@ export const createIncrementalIndicatorSlice: SliceCreator<IncrementalIndicatorS
     // These are computed once over all candles and don't need incremental updates
     const batchKeys = enabledIndicators.filter((k) => BATCH_ONLY_KEYS.has(k));
     if (batchKeys.length > 0) {
-      // Import dynamically to avoid circular deps — batch calc is only needed here
-      const { calculateIndicators } = require("../../utils/indicators");
-      const batchData = calculateIndicators(candles, batchKeys, params);
-      if (batchData.orderBlockData) data.orderBlockData = batchData.orderBlockData;
-      if (batchData.liquiditySweepData) data.liquiditySweepData = batchData.liquiditySweepData;
-      if (batchData.detectedPatterns) data.detectedPatterns = batchData.detectedPatterns;
+      try {
+        // Import dynamically to avoid circular deps — batch calc is only needed here
+        const { calculateIndicators } = require("../../utils/indicators");
+        const batchData = calculateIndicators(candles, batchKeys, params);
+        if (batchData.orderBlockData) data.orderBlockData = batchData.orderBlockData;
+        if (batchData.liquiditySweepData) data.liquiditySweepData = batchData.liquiditySweepData;
+        if (batchData.detectedPatterns) data.detectedPatterns = batchData.detectedPatterns;
+      } catch {
+        // Batch calculation may fail — indicators will still be computed by Chart.tsx
+      }
     }
 
     return data;

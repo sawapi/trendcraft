@@ -417,7 +417,15 @@ export const AVAILABLE_INDICATORS = [
 export type IndicatorKey = (typeof AVAILABLE_INDICATORS)[number]["key"];
 
 // Indicator definitions by category
-export type IndicatorCategory = "trend" | "volatility" | "momentum" | "volume" | "smc" | "patterns";
+export type IndicatorCategory =
+  | "trend"
+  | "volatility"
+  | "momentum"
+  | "volume"
+  | "smc"
+  | "patterns"
+  | "price"
+  | "filter";
 export type ChartType = "overlay" | "subchart";
 
 // Indicator parameter type definitions
@@ -488,6 +496,96 @@ export interface IndicatorParams {
   chMinCupDepth?: number;
   chMaxCupDepth?: number;
   chMinCupLength?: number;
+  // WMA
+  wmaPeriod?: number;
+  // VWMA
+  vwmaPeriod?: number;
+  // KAMA
+  kamaPeriod?: number;
+  // T3
+  t3Period?: number;
+  t3VFactor?: number;
+  // HMA
+  hmaPeriod?: number;
+  // McGinley Dynamic
+  mcginleyPeriod?: number;
+  // EMA Ribbon
+  emaRibbonPeriods?: string; // comma-separated, e.g. "8,13,21,34,55,89"
+  // Williams %R
+  williamsPeriod?: number;
+  // ROC
+  rocPeriod?: number;
+  // Connors RSI
+  connorsRsiPeriod?: number;
+  connorsStreakPeriod?: number;
+  connorsRocPeriod?: number;
+  // CMO
+  cmoPeriod?: number;
+  // IMI
+  imiPeriod?: number;
+  // TRIX
+  trixPeriod?: number;
+  trixSignalPeriod?: number;
+  // Aroon
+  aroonPeriod?: number;
+  // DPO
+  dpoPeriod?: number;
+  // Hurst
+  hurstMinWindow?: number;
+  hurstMaxWindow?: number;
+  // ADXR
+  adxrPeriod?: number;
+  // Vortex
+  vortexPeriod?: number;
+  // Chandelier Exit
+  chandelierPeriod?: number;
+  chandelierMultiplier?: number;
+  // VWAP
+  vwapPeriod?: number;
+  // ATR Stops
+  atrStopsPeriod?: number;
+  atrStopsMultiplier?: number;
+  // Super Smoother
+  superSmootherPeriod?: number;
+  // CMF
+  cmfPeriod?: number;
+  // Klinger
+  klingerShortPeriod?: number;
+  klingerLongPeriod?: number;
+  klingerSignalPeriod?: number;
+  // Elder Force Index
+  elderForcePeriod?: number;
+  // Volume Anomaly
+  volumeAnomalyPeriod?: number;
+  volumeAnomalyThreshold?: number;
+  // Volume Profile
+  volumeProfileLevels?: number;
+  volumeProfilePeriod?: number;
+  // Volume Trend
+  volumeTrendPricePeriod?: number;
+  volumeTrendVolumePeriod?: number;
+  // Roofing Filter
+  roofingHighPassPeriod?: number;
+  roofingLowPassPeriod?: number;
+  // Choppiness Index
+  choppinessPeriod?: number;
+  // HMM Regime
+  hmmNumStates?: number;
+  // Swing Points
+  swingLeftBars?: number;
+  swingRightBars?: number;
+  // Pivot Points
+  pivotMethod?: string; // "standard" | "fibonacci" | "woodie" | "camarilla" | "demark"
+  // Highest/Lowest
+  highestLowestPeriod?: number;
+  // Zigzag
+  zigzagDeviation?: number;
+  // Fractals
+  fractalPeriod?: number;
+  // FVG
+  fvgMinGapPercent?: number;
+  // BOS/CHoCH
+  bosSwingPeriod?: number;
 }
 
 export const DEFAULT_INDICATOR_PARAMS: IndicatorParams = {
@@ -543,6 +641,70 @@ export const DEFAULT_INDICATOR_PARAMS: IndicatorParams = {
   chMinCupDepth: 0.12,
   chMaxCupDepth: 0.35,
   chMinCupLength: 30,
+  // New MA
+  wmaPeriod: 20,
+  vwmaPeriod: 20,
+  kamaPeriod: 10,
+  t3Period: 5,
+  t3VFactor: 0.7,
+  hmaPeriod: 9,
+  mcginleyPeriod: 14,
+  emaRibbonPeriods: "8,13,21,34,55,89",
+  // New Momentum
+  williamsPeriod: 14,
+  rocPeriod: 12,
+  connorsRsiPeriod: 3,
+  connorsStreakPeriod: 2,
+  connorsRocPeriod: 100,
+  cmoPeriod: 14,
+  imiPeriod: 14,
+  trixPeriod: 15,
+  trixSignalPeriod: 9,
+  aroonPeriod: 25,
+  dpoPeriod: 20,
+  hurstMinWindow: 10,
+  hurstMaxWindow: 100,
+  // New Trend
+  adxrPeriod: 14,
+  vortexPeriod: 14,
+  // Chandelier Exit
+  chandelierPeriod: 22,
+  chandelierMultiplier: 3,
+  // VWAP
+  vwapPeriod: 0,
+  // ATR Stops
+  atrStopsPeriod: 14,
+  atrStopsMultiplier: 2,
+  // Super Smoother
+  superSmootherPeriod: 10,
+  // New Volume
+  cmfPeriod: 20,
+  klingerShortPeriod: 34,
+  klingerLongPeriod: 55,
+  klingerSignalPeriod: 13,
+  elderForcePeriod: 13,
+  volumeAnomalyPeriod: 20,
+  volumeAnomalyThreshold: 2,
+  volumeProfileLevels: 24,
+  volumeProfilePeriod: 50,
+  volumeTrendPricePeriod: 14,
+  volumeTrendVolumePeriod: 14,
+  // Filter
+  roofingHighPassPeriod: 48,
+  roofingLowPassPeriod: 10,
+  // Volatility
+  choppinessPeriod: 14,
+  hmmNumStates: 3,
+  // Price
+  swingLeftBars: 5,
+  swingRightBars: 5,
+  pivotMethod: "standard",
+  highestLowestPeriod: 20,
+  zigzagDeviation: 5,
+  fractalPeriod: 2,
+  // SMC
+  fvgMinGapPercent: 0.1,
+  bosSwingPeriod: 5,
 };
 
 // Configurable indicator parameter definitions
@@ -631,6 +793,93 @@ export const INDICATOR_PARAM_CONFIGS: Record<string, ParamConfig[]> = {
     { key: "chMaxCupDepth", label: "Max Depth", min: 0.2, max: 0.5, step: 0.01 },
     { key: "chMinCupLength", label: "Min Length", min: 15, max: 60, step: 5 },
   ],
+  // New MAs
+  wma: [{ key: "wmaPeriod", label: "Period", min: 2, max: 200, step: 1 }],
+  vwma: [{ key: "vwmaPeriod", label: "Period", min: 2, max: 200, step: 1 }],
+  kama: [{ key: "kamaPeriod", label: "Period", min: 2, max: 100, step: 1 }],
+  t3: [
+    { key: "t3Period", label: "Period", min: 2, max: 50, step: 1 },
+    { key: "t3VFactor", label: "V Factor", min: 0, max: 1, step: 0.1 },
+  ],
+  hma: [{ key: "hmaPeriod", label: "Period", min: 2, max: 200, step: 1 }],
+  mcginley: [{ key: "mcginleyPeriod", label: "Period", min: 2, max: 100, step: 1 }],
+  // New Momentum
+  williams: [{ key: "williamsPeriod", label: "Period", min: 2, max: 50, step: 1 }],
+  roc: [{ key: "rocPeriod", label: "Period", min: 1, max: 100, step: 1 }],
+  connorsRsi: [
+    { key: "connorsRsiPeriod", label: "RSI Period", min: 2, max: 20, step: 1 },
+    { key: "connorsStreakPeriod", label: "Streak Period", min: 2, max: 10, step: 1 },
+    { key: "connorsRocPeriod", label: "ROC Period", min: 10, max: 200, step: 10 },
+  ],
+  cmo: [{ key: "cmoPeriod", label: "Period", min: 2, max: 50, step: 1 }],
+  imi: [{ key: "imiPeriod", label: "Period", min: 2, max: 50, step: 1 }],
+  trix: [
+    { key: "trixPeriod", label: "Period", min: 2, max: 50, step: 1 },
+    { key: "trixSignalPeriod", label: "Signal", min: 2, max: 30, step: 1 },
+  ],
+  aroon: [{ key: "aroonPeriod", label: "Period", min: 2, max: 100, step: 1 }],
+  dpo: [{ key: "dpoPeriod", label: "Period", min: 2, max: 100, step: 1 }],
+  hurst: [
+    { key: "hurstMinWindow", label: "Min Window", min: 5, max: 50, step: 5 },
+    { key: "hurstMaxWindow", label: "Max Window", min: 50, max: 500, step: 10 },
+  ],
+  // New Trend
+  adxr: [{ key: "adxrPeriod", label: "Period", min: 2, max: 50, step: 1 }],
+  vortex: [{ key: "vortexPeriod", label: "Period", min: 2, max: 50, step: 1 }],
+  // Chandelier Exit
+  chandelierExit: [
+    { key: "chandelierPeriod", label: "Period", min: 2, max: 50, step: 1 },
+    { key: "chandelierMultiplier", label: "Multiplier", min: 1, max: 5, step: 0.5 },
+  ],
+  // VWAP
+  vwap: [{ key: "vwapPeriod", label: "Period (0=full)", min: 0, max: 200, step: 1 }],
+  // ATR Stops
+  atrStops: [
+    { key: "atrStopsPeriod", label: "Period", min: 2, max: 50, step: 1 },
+    { key: "atrStopsMultiplier", label: "Multiplier", min: 0.5, max: 5, step: 0.5 },
+  ],
+  // Super Smoother
+  superSmoother: [{ key: "superSmootherPeriod", label: "Period", min: 2, max: 100, step: 1 }],
+  // New Volume
+  cmf: [{ key: "cmfPeriod", label: "Period", min: 2, max: 50, step: 1 }],
+  klinger: [
+    { key: "klingerShortPeriod", label: "Short", min: 2, max: 100, step: 1 },
+    { key: "klingerLongPeriod", label: "Long", min: 2, max: 200, step: 1 },
+    { key: "klingerSignalPeriod", label: "Signal", min: 2, max: 50, step: 1 },
+  ],
+  elderForce: [{ key: "elderForcePeriod", label: "Period", min: 2, max: 50, step: 1 }],
+  volumeAnomaly: [
+    { key: "volumeAnomalyPeriod", label: "Period", min: 5, max: 50, step: 1 },
+    { key: "volumeAnomalyThreshold", label: "Threshold", min: 1, max: 5, step: 0.5 },
+  ],
+  volumeProfile: [
+    { key: "volumeProfileLevels", label: "Levels", min: 10, max: 50, step: 1 },
+    { key: "volumeProfilePeriod", label: "Period", min: 10, max: 200, step: 10 },
+  ],
+  volumeTrend: [
+    { key: "volumeTrendPricePeriod", label: "Price Period", min: 5, max: 50, step: 1 },
+    { key: "volumeTrendVolumePeriod", label: "Vol Period", min: 5, max: 50, step: 1 },
+  ],
+  // Filter
+  roofingFilter: [
+    { key: "roofingHighPassPeriod", label: "HP Period", min: 10, max: 100, step: 1 },
+    { key: "roofingLowPassPeriod", label: "LP Period", min: 2, max: 50, step: 1 },
+  ],
+  // Volatility
+  choppiness: [{ key: "choppinessPeriod", label: "Period", min: 2, max: 50, step: 1 }],
+  volatilityRegime: [{ key: "hmmNumStates", label: "States", min: 2, max: 5, step: 1 }],
+  // Price
+  swingPoints: [
+    { key: "swingLeftBars", label: "Left Bars", min: 1, max: 20, step: 1 },
+    { key: "swingRightBars", label: "Right Bars", min: 1, max: 20, step: 1 },
+  ],
+  highestLowest: [{ key: "highestLowestPeriod", label: "Period", min: 5, max: 200, step: 1 }],
+  zigzag: [{ key: "zigzagDeviation", label: "Deviation %", min: 1, max: 20, step: 0.5 }],
+  fractals: [{ key: "fractalPeriod", label: "Period", min: 2, max: 10, step: 1 }],
+  // SMC
+  fvg: [{ key: "fvgMinGapPercent", label: "Min Gap %", min: 0, max: 1, step: 0.05 }],
+  bos: [{ key: "bosSwingPeriod", label: "Swing Period", min: 2, max: 20, step: 1 }],
+  choch: [{ key: "bosSwingPeriod", label: "Swing Period", min: 2, max: 20, step: 1 }],
 };
 
 export interface IndicatorDefinition {
@@ -647,6 +896,13 @@ export const INDICATOR_DEFINITIONS: IndicatorDefinition[] = [
   { key: "sma75", label: "SMA 75", category: "trend", chartType: "overlay" },
   { key: "ema12", label: "EMA 12", category: "trend", chartType: "overlay" },
   { key: "ema26", label: "EMA 26", category: "trend", chartType: "overlay" },
+  { key: "wma", label: "WMA", category: "trend", chartType: "overlay" },
+  { key: "vwma", label: "VWMA", category: "trend", chartType: "overlay" },
+  { key: "kama", label: "KAMA", category: "trend", chartType: "overlay" },
+  { key: "t3", label: "T3", category: "trend", chartType: "overlay" },
+  { key: "hma", label: "HMA", category: "trend", chartType: "overlay" },
+  { key: "mcginley", label: "McGinley Dynamic", category: "trend", chartType: "overlay" },
+  { key: "emaRibbon", label: "EMA Ribbon", category: "trend", chartType: "overlay" },
   { key: "ichimoku", label: "Ichimoku", category: "trend", chartType: "overlay" },
   { key: "supertrend", label: "Supertrend", category: "trend", chartType: "overlay" },
   { key: "parabolicSar", label: "Parabolic SAR", category: "trend", chartType: "overlay" },
@@ -655,7 +911,18 @@ export const INDICATOR_DEFINITIONS: IndicatorDefinition[] = [
   { key: "bb", label: "Bollinger Bands", category: "volatility", chartType: "overlay" },
   { key: "keltner", label: "Keltner Channel", category: "volatility", chartType: "overlay" },
   { key: "donchian", label: "Donchian Channel", category: "volatility", chartType: "overlay" },
+  { key: "chandelierExit", label: "Chandelier Exit", category: "volatility", chartType: "overlay" },
+  { key: "vwap", label: "VWAP", category: "volatility", chartType: "overlay" },
+  { key: "atrStops", label: "ATR Stops", category: "volatility", chartType: "overlay" },
+  { key: "superSmoother", label: "Super Smoother", category: "volatility", chartType: "overlay" },
   { key: "atr", label: "ATR", category: "volatility", chartType: "subchart" },
+  { key: "choppiness", label: "Choppiness Index", category: "volatility", chartType: "subchart" },
+  {
+    key: "volatilityRegime",
+    label: "Vol Regime (HMM)",
+    category: "volatility",
+    chartType: "subchart",
+  },
 
   // Momentum (subchart)
   { key: "rsi", label: "RSI", category: "momentum", chartType: "subchart" },
@@ -664,15 +931,50 @@ export const INDICATOR_DEFINITIONS: IndicatorDefinition[] = [
   { key: "stochRsi", label: "Stochastic RSI", category: "momentum", chartType: "subchart" },
   { key: "dmi", label: "DMI/ADX", category: "momentum", chartType: "subchart" },
   { key: "cci", label: "CCI", category: "momentum", chartType: "subchart" },
+  { key: "williams", label: "Williams %R", category: "momentum", chartType: "subchart" },
+  { key: "roc", label: "ROC", category: "momentum", chartType: "subchart" },
+  { key: "connorsRsi", label: "Connors RSI", category: "momentum", chartType: "subchart" },
+  { key: "cmo", label: "CMO", category: "momentum", chartType: "subchart" },
+  { key: "imi", label: "IMI", category: "momentum", chartType: "subchart" },
+  { key: "trix", label: "TRIX", category: "momentum", chartType: "subchart" },
+  { key: "aroon", label: "Aroon", category: "momentum", chartType: "subchart" },
+  { key: "dpo", label: "DPO", category: "momentum", chartType: "subchart" },
+  { key: "hurst", label: "Hurst Exponent", category: "momentum", chartType: "subchart" },
+  { key: "adxr", label: "ADXR", category: "momentum", chartType: "subchart" },
+  { key: "vortex", label: "Vortex", category: "momentum", chartType: "subchart" },
+
+  // Filter
+  { key: "roofingFilter", label: "Roofing Filter", category: "filter", chartType: "subchart" },
 
   // Volume (subchart)
   { key: "volume", label: "Volume", category: "volume", chartType: "subchart" },
   { key: "obv", label: "OBV", category: "volume", chartType: "subchart" },
   { key: "mfi", label: "MFI", category: "volume", chartType: "subchart" },
+  { key: "cmf", label: "CMF", category: "volume", chartType: "subchart" },
+  { key: "adl", label: "ADL", category: "volume", chartType: "subchart" },
+  { key: "klinger", label: "Klinger", category: "volume", chartType: "subchart" },
+  { key: "elderForce", label: "Elder Force", category: "volume", chartType: "subchart" },
+  { key: "volumeAnomaly", label: "Vol Anomaly", category: "volume", chartType: "subchart" },
+  { key: "volumeProfile", label: "Vol Profile", category: "volume", chartType: "subchart" },
+  { key: "volumeTrend", label: "Vol Trend", category: "volume", chartType: "subchart" },
+
+  // Price (overlay)
+  { key: "swingPoints", label: "Swing Points", category: "price", chartType: "overlay" },
+  { key: "pivotPoints", label: "Pivot Points", category: "price", chartType: "overlay" },
+  { key: "fibonacci", label: "Fibonacci", category: "price", chartType: "overlay" },
+  { key: "fibExtension", label: "Fib Extension", category: "price", chartType: "overlay" },
+  { key: "highestLowest", label: "Highest/Lowest", category: "price", chartType: "overlay" },
+  { key: "autoTrendLine", label: "Auto Trend Line", category: "price", chartType: "overlay" },
+  { key: "channelLine", label: "Channel Line", category: "price", chartType: "overlay" },
+  { key: "andrewsPitchfork", label: "Andrews Pitchfork", category: "price", chartType: "overlay" },
+  { key: "heikinAshi", label: "Heikin-Ashi", category: "price", chartType: "overlay" },
 
   // SMC (overlay)
   { key: "orderBlock", label: "Order Block", category: "smc", chartType: "overlay" },
   { key: "liquiditySweep", label: "Liquidity Sweep", category: "smc", chartType: "overlay" },
+  { key: "fvg", label: "Fair Value Gap", category: "smc", chartType: "overlay" },
+  { key: "bos", label: "Break of Structure", category: "smc", chartType: "overlay" },
+  { key: "choch", label: "Change of Character", category: "smc", chartType: "overlay" },
 
   // Pattern recognition (overlay)
   {
@@ -688,6 +990,8 @@ export const INDICATOR_DEFINITIONS: IndicatorDefinition[] = [
     chartType: "overlay",
   },
   { key: "cupHandle", label: "Cup with Handle", category: "patterns", chartType: "overlay" },
+  { key: "fractals", label: "Fractals", category: "patterns", chartType: "overlay" },
+  { key: "zigzag", label: "Zigzag", category: "patterns", chartType: "overlay" },
 ];
 
 export const CATEGORY_LABELS: Record<IndicatorCategory, string> = {
@@ -695,6 +999,8 @@ export const CATEGORY_LABELS: Record<IndicatorCategory, string> = {
   volatility: "Volatility",
   momentum: "Momentum",
   volume: "Volume",
+  price: "Price",
+  filter: "Filter",
   smc: "SMC",
   patterns: "Patterns",
 };
@@ -705,6 +1011,8 @@ export const CATEGORY_ORDER: IndicatorCategory[] = [
   "volatility",
   "momentum",
   "volume",
+  "price",
+  "filter",
   "smc",
   "patterns",
 ];
