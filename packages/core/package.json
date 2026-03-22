@@ -40,6 +40,8 @@
     "!dist/**/*.test.d.ts",
     "!dist/**/*.test.d.ts.map",
     "!dist/__benchmarks__",
+    "!dist/**/*.js.map",
+    "!dist/**/*.cjs.map",
     "LICENSE"
   ],
   "scripts": {
@@ -52,7 +54,9 @@
     "format": "biome format --write .",
     "analyze": "npx tsx bin/trendcraft-analyze.ts",
     "test:crossval": "vitest run cross-validation",
-    "bench": "vitest bench"
+    "bench": "vitest bench",
+    "size": "size-limit",
+    "prepublishOnly": "pnpm build && pnpm test"
   },
   "keywords": [
     "trading",
@@ -85,11 +89,26 @@
   },
   "author": "sawapi",
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "size-limit": [
+    {
+      "path": "dist/index.js",
+      "limit": "500 kB"
+    },
+    {
+      "path": "dist/index.cjs",
+      "limit": "400 kB"
+    }
+  ],
   "devDependencies": {
+    "@size-limit/file": "^12.0.1",
+    "@vitest/coverage-v8": "^2.1.9",
+    "size-limit": "^12.0.1",
     "vite": "^6.0.3",
     "vite-plugin-dts": "^4.3.0",
-    "vitest": "^2.1.8",
-    "@vitest/coverage-v8": "^2.1.9"
+    "vitest": "^2.1.8"
   },
   "engines": {
     "node": ">=18.0.0"

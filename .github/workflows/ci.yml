@@ -35,3 +35,11 @@ jobs:
       - run: pnpm build
 
       - run: pnpm test
+
+      - name: Cross-validation (TA-Lib compatibility)
+        if: matrix.node-version == 22
+        run: cd packages/core && pnpm test:crossval
+
+      - name: Bundle size check
+        if: matrix.node-version == 22
+        run: cd packages/core && npx size-limit
