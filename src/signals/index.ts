@@ -139,6 +139,15 @@ export {
   type TrendlinePairType,
 } from "./patterns";
 
+// Coaching
+export {
+  detectCoachingSignals,
+  type CoachingSignal,
+  type CoachingDirection,
+  type CoachingSeverity,
+  type CoachingOptions,
+} from "./coaching";
+
 // Signal Lifecycle
 export {
   createSignalManager,

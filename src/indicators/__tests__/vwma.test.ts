@@ -109,7 +109,11 @@ describe("vwma", () => {
   });
 
   it("should throw on non-integer period", () => {
-    const candles = makeCandles([100, 101, 102]);
+    const candles = makeCandles([
+      { close: 100, volume: 1000 },
+      { close: 101, volume: 1000 },
+      { close: 102, volume: 1000 },
+    ]);
     expect(() => vwma(candles, { period: 5.5 })).toThrow("VWMA period must be an integer");
   });
 });

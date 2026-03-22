@@ -39,18 +39,18 @@ export type ValidationResult = {
  * @param registry - The registry to validate against
  * @returns Validation result with any errors found
  */
-export function validateConditionSpec(
+export function validateConditionSpec<T = unknown>(
   spec: ConditionSpec,
-  registry: ConditionRegistry<unknown>,
+  registry: ConditionRegistry<T>,
 ): ValidationResult {
   const errors: string[] = [];
   validateSpecRecursive(spec, registry, errors, "");
   return { valid: errors.length === 0, errors };
 }
 
-function validateSpecRecursive(
+function validateSpecRecursive<T>(
   spec: ConditionSpec,
-  registry: ConditionRegistry<unknown>,
+  registry: ConditionRegistry<T>,
   errors: string[],
   path: string,
 ): void {

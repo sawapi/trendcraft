@@ -35,6 +35,14 @@ export type { MarketRegimeResult, MarketRegimeOptions } from "./market-regime";
 export { analyzeDrawdowns } from "./drawdown-analysis";
 export type { DrawdownSummary } from "./drawdown-analysis";
 
+// Market Context
+export { analyzeMarketContext } from "./market-context";
+export type { MarketContext, MarketContextOptions } from "./market-context";
+
+// Behavior Insights
+export { generateBehaviorInsights } from "./behavior-insights";
+export type { BehaviorInsight, BehaviorEquityPoint } from "./behavior-insights";
+
 // Pattern Projection Analysis
 export {
   projectPatternOutcome,

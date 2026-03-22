@@ -607,6 +607,8 @@ export {
   // Signal Lifecycle
   createSignalManager,
   processSignalsBatch,
+  // Coaching
+  detectCoachingSignals,
 } from "./signals";
 export type {
   // Signal Lifecycle types
@@ -666,6 +668,11 @@ export type {
   PatternFilterOptions,
   TrendlineFit,
   TrendlinePairType,
+  // Coaching types
+  CoachingSignal,
+  CoachingDirection,
+  CoachingSeverity,
+  CoachingOptions,
 } from "./signals";
 
 // Range-Bound backtest conditions
@@ -1061,6 +1068,10 @@ export {
   projectPatternOutcome,
   projectFromSeries,
   projectFromPatterns,
+  // Market Context
+  analyzeMarketContext,
+  // Behavior Insights
+  generateBehaviorInsights,
 } from "./analysis";
 
 export type {
@@ -1080,6 +1091,12 @@ export type {
   HitRate,
   PatternProjection,
   EventExtractor,
+  // Market Context types
+  MarketContext,
+  MarketContextOptions,
+  // Behavior Insights types
+  BehaviorInsight,
+  BehaviorEquityPoint,
 } from "./analysis";
 
 // Validation
