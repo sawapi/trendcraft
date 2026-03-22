@@ -128,6 +128,64 @@ export const createConfigSlice: SliceCreator<ConfigSlice> = (set, get) => ({
     });
   },
 
+  resetFunds: () => {
+    const {
+      symbols,
+      commonDateRange,
+      initialCandleCount,
+      initialCapital,
+      enabledIndicators,
+      indicatorParams,
+    } = get();
+    if (symbols.length === 0 || !commonDateRange) return;
+
+    // Re-initialize from the simulation start point
+    const simStartDateIdx = initialCandleCount;
+    const simStartGlobalDate = commonDateRange.dates[simStartDateIdx];
+
+    const updatedSymbols = symbols.map((symbol) => {
+      // Re-initialize incremental indicators
+      const symbolCurrentIdx = getSymbolCurrentIndex(symbol, simStartGlobalDate);
+      const warmUpEnd = symbolCurrentIdx >= 0 ? symbolCurrentIdx : 0;
+
+      const indicatorData = get().initIncrementalIndicators(
+        symbol.id,
+        symbol.allCandles,
+        warmUpEnd,
+        enabledIndicators,
+        indicatorParams,
+      );
+
+      const simStartCandle = symbol.allCandles.find((c) => c.time === simStartGlobalDate);
+
+      const initialEquityPoint: EquityPoint = {
+        time: simStartCandle?.time || 0,
+        equity: initialCapital,
+        buyHoldEquity: initialCapital,
+        drawdown: 0,
+      };
+
+      return {
+        ...symbol,
+        indicatorData,
+        positions: [],
+        tradeHistory: [],
+        equityCurve: [initialEquityPoint],
+      };
+    });
+
+    set({
+      symbols: updatedSymbols,
+      currentDateIndex: simStartDateIdx,
+      globalDate: simStartGlobalDate,
+      isPlaying: false,
+      alerts: [],
+      pendingOrders: [],
+      _undoStack: [],
+      _redoStack: [],
+    });
+  },
+
   reset: () => {
     // Clear all incremental registries
     const { symbols } = get();

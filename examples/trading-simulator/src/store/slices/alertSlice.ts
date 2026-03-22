@@ -34,59 +34,108 @@ export const createAlertSlice: SliceCreator<AlertSlice> = (set, get) => ({
     if (!activeSymbol || activeSymbol.positions.length === 0) return;
 
     const summary = get().getPositionSummary();
+    const shortSummary = get().getShortPositionSummary();
     const currentIdx = getSymbolCurrentIndex(activeSymbol, globalDate);
     const candle = activeSymbol.allCandles[currentIdx];
 
-    if (!summary || !candle) return;
+    if (!candle) return;
 
-    const avgEntry = summary.avgEntryPrice;
-    const stopLossPrice = avgEntry * (1 - stopLossPercent / 100);
-    const takeProfitPrice = avgEntry * (1 + takeProfitPercent / 100);
+    // Long position alerts
+    if (summary) {
+      const avgEntry = summary.avgEntryPrice;
+      const stopLossPrice = avgEntry * (1 - stopLossPercent / 100);
+      const takeProfitPrice = avgEntry * (1 + takeProfitPercent / 100);
 
-    // Stop loss alert
-    if (candle.low <= stopLossPrice) {
-      const existingAlert = alerts.find((a) => a.type === "STOP_LOSS_WARNING");
-      if (!existingAlert) {
-        set({
-          alerts: [
-            ...alerts,
-            {
-              id: generateId(),
-              type: "STOP_LOSS_WARNING",
-              message: `Stop loss line hit (${stopLossPrice.toLocaleString()}, -${stopLossPercent}%)`,
-              timestamp: Date.now(),
-            },
-          ],
-        });
+      if (candle.low <= stopLossPrice) {
+        const existingAlert = alerts.find((a) => a.type === "STOP_LOSS_WARNING");
+        if (!existingAlert) {
+          set({
+            alerts: [
+              ...alerts,
+              {
+                id: generateId(),
+                type: "STOP_LOSS_WARNING",
+                message: `Stop loss line hit (${stopLossPrice.toLocaleString()}, -${stopLossPercent}%)`,
+                timestamp: Date.now(),
+              },
+            ],
+          });
+        }
+      }
+
+      if (candle.high >= takeProfitPrice) {
+        const existingAlert = alerts.find((a) => a.type === "TAKE_PROFIT_REACHED");
+        if (!existingAlert) {
+          set({
+            alerts: [
+              ...get().alerts,
+              {
+                id: generateId(),
+                type: "TAKE_PROFIT_REACHED",
+                message: `Take profit line reached (${takeProfitPrice.toLocaleString()}, +${takeProfitPercent}%)`,
+                timestamp: Date.now(),
+              },
+            ],
+          });
+        }
       }
     }
 
-    // Take profit alert
-    if (candle.high >= takeProfitPrice) {
-      const existingAlert = alerts.find((a) => a.type === "TAKE_PROFIT_REACHED");
-      if (!existingAlert) {
-        set({
-          alerts: [
-            ...get().alerts,
-            {
-              id: generateId(),
-              type: "TAKE_PROFIT_REACHED",
-              message: `Take profit line reached (${takeProfitPrice.toLocaleString()}, +${takeProfitPercent}%)`,
-              timestamp: Date.now(),
-            },
-          ],
-        });
+    // Short position alerts (inverted: SL is above entry, TP is below entry)
+    if (shortSummary) {
+      const avgEntry = shortSummary.avgEntryPrice;
+      const stopLossPrice = avgEntry * (1 + stopLossPercent / 100);
+      const takeProfitPrice = avgEntry * (1 - takeProfitPercent / 100);
+
+      if (candle.high >= stopLossPrice) {
+        const existingAlert = alerts.find((a) => a.type === "STOP_LOSS_WARNING");
+        if (!existingAlert) {
+          set({
+            alerts: [
+              ...get().alerts,
+              {
+                id: generateId(),
+                type: "STOP_LOSS_WARNING",
+                message: `Short stop loss hit (${stopLossPrice.toLocaleString()}, +${stopLossPercent}%)`,
+                timestamp: Date.now(),
+              },
+            ],
+          });
+        }
+      }
+
+      if (candle.low <= takeProfitPrice) {
+        const existingAlert = alerts.find((a) => a.type === "TAKE_PROFIT_REACHED");
+        if (!existingAlert) {
+          set({
+            alerts: [
+              ...get().alerts,
+              {
+                id: generateId(),
+                type: "TAKE_PROFIT_REACHED",
+                message: `Short take profit reached (${takeProfitPrice.toLocaleString()}, -${takeProfitPercent}%)`,
+                timestamp: Date.now(),
+              },
+            ],
+          });
+        }
       }
     }
 
     // Trailing stop alert
     if (trailingStopEnabled) {
-      const trailingStopPrices = activeSymbol.positions
-        .filter((p) => p.trailingStopPrice !== undefined)
-        .map((p) => p.trailingStopPrice as number);
+      const longPositions = activeSymbol.positions.filter(
+        (p) => p.direction !== "short" && p.trailingStopPrice !== undefined,
+      );
+      const shortPositions = activeSymbol.positions.filter(
+        (p) => p.direction === "short" && p.trailingStopPrice !== undefined,
+      );
 
-      if (trailingStopPrices.length > 0) {
-        const minTrailingStop = Math.min(...trailingStopPrices);
+      // Long trailing stop: price drops below
+      if (longPositions.length > 0) {
+        const minTrailingStop = Math.min(
+          ...longPositions.map((p) => p.trailingStopPrice as number),
+        );
         if (candle.low <= minTrailingStop) {
           const existingAlert = get().alerts.find((a) => a.type === "TRAILING_STOP_HIT");
           if (!existingAlert) {
@@ -97,6 +146,29 @@ export const createAlertSlice: SliceCreator<AlertSlice> = (set, get) => ({
                   id: generateId(),
                   type: "TRAILING_STOP_HIT",
                   message: `Trailing stop hit (${minTrailingStop.toLocaleString()})`,
+                  timestamp: Date.now(),
+                },
+              ],
+            });
+          }
+        }
+      }
+
+      // Short trailing stop: price rises above
+      if (shortPositions.length > 0) {
+        const maxTrailingStop = Math.max(
+          ...shortPositions.map((p) => p.trailingStopPrice as number),
+        );
+        if (candle.high >= maxTrailingStop) {
+          const existingAlert = get().alerts.find((a) => a.type === "TRAILING_STOP_HIT");
+          if (!existingAlert) {
+            set({
+              alerts: [
+                ...get().alerts,
+                {
+                  id: generateId(),
+                  type: "TRAILING_STOP_HIT",
+                  message: `Short trailing stop hit (${maxTrailingStop.toLocaleString()})`,
                   timestamp: Date.now(),
                 },
               ],

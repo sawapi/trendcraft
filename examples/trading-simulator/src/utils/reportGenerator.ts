@@ -308,7 +308,9 @@ function calculateExtendedStats(
   initialCapital: number,
   totalTradingDays?: number,
 ): ExtendedStats {
-  const sellTrades = trades.filter((t) => t.type === "SELL" && t.pnlPercent !== undefined);
+  const sellTrades = trades.filter(
+    (t) => (t.type === "SELL" || t.type === "BUY_TO_COVER") && t.pnlPercent !== undefined,
+  );
 
   if (sellTrades.length === 0) {
     return {
@@ -734,7 +736,12 @@ export function generatePortfolioMarkdownReport(data: PortfolioReportData): stri
   const totalPnlPercent = (totalPnl / data.initialCapital) * 100;
   const totalTrades = symbolSummaries.reduce((sum, s) => sum + s.totalTrades, 0);
   const totalWins = data.symbols.reduce((sum, s) => {
-    return sum + s.tradeHistory.filter((t) => t.type === "SELL" && (t.pnl || 0) > 0).length;
+    return (
+      sum +
+      s.tradeHistory.filter(
+        (t) => (t.type === "SELL" || t.type === "BUY_TO_COVER") && (t.pnl || 0) > 0,
+      ).length
+    );
   }, 0);
   const overallWinRate = totalTrades > 0 ? (totalWins / totalTrades) * 100 : 0;
 

@@ -1,6 +1,6 @@
 import type { EChartsOption } from "echarts";
 import type { NormalizedCandle } from "trendcraft";
-import type { DetectedVolumeSpike, EquityPoint } from "../types";
+import type { DetectedVolumeSpike, Drawing, EquityPoint, SavedSession } from "../types";
 import {
   COLORS,
   type ChartTheme,
@@ -55,11 +55,17 @@ export function buildChartOption(
   candles: NormalizedCandle[],
   indicators: IndicatorData,
   enabledIndicators: string[],
-  tradeMarkers: { date: number; type: "BUY" | "SELL"; price: number }[] = [],
+  tradeMarkers: {
+    date: number;
+    type: "BUY" | "SELL" | "SHORT_SELL" | "BUY_TO_COVER";
+    price: number;
+  }[] = [],
   positionLines?: PositionLine,
   equityCurve?: EquityPoint[],
   volumeSpikeMarkers: DetectedVolumeSpike[] = [],
   theme: ChartTheme = "dark",
+  drawings: Drawing[] = [],
+  savedSessions: SavedSession[] = [],
 ): EChartsOption {
   const tc = THEME_COLORS[theme];
   const dates = candles.map((c) => formatDate(c.time));
@@ -97,6 +103,45 @@ export function buildChartOption(
       markLine: buildPositionLines(positionLines, candles.length, tc.labelBg),
     },
   ];
+
+  // ========== User drawings ==========
+  if (drawings.length > 0) {
+    const drawingLines = drawings
+      .filter((d) => d.type === "horizontal" && d.price != null)
+      .map((d) => ({
+        yAxis: d.price,
+        lineStyle: {
+          color: d.color,
+          width: 1.5,
+          type: "dashed" as const,
+        },
+        label: {
+          show: !!d.label,
+          formatter: d.label || "",
+          position: "insideEndTop" as const,
+          color: d.color,
+          fontSize: 10,
+          backgroundColor: tc.labelBg,
+          padding: [2, 4],
+          borderRadius: 2,
+        },
+      }));
+
+    if (drawingLines.length > 0) {
+      series.push({
+        name: "Drawings",
+        type: "line",
+        data: [],
+        xAxisIndex: 0,
+        yAxisIndex: 0,
+        markLine: {
+          silent: true,
+          symbol: "none",
+          data: drawingLines,
+        },
+      });
+    }
+  }
 
   // ========== Overlay indicators ==========
   buildMovingAverageOverlays(series, indicators, enabledIndicators);
@@ -181,7 +226,7 @@ export function buildChartOption(
 
   // Equity Curve
   if (hasEquityCurveData && equityCurve) {
-    buildEquityCurve(series, subchartCtx, candles, equityCurve);
+    buildEquityCurve(series, subchartCtx, candles, equityCurve, savedSessions);
   }
 
   return {
@@ -224,26 +269,38 @@ export function buildChartOption(
 
 function buildTradeMarkers(
   candles: NormalizedCandle[],
-  trades: { date: number; type: "BUY" | "SELL"; price: number }[],
+  trades: { date: number; type: "BUY" | "SELL" | "SHORT_SELL" | "BUY_TO_COVER"; price: number }[],
 ): SeriesItem | undefined {
   if (trades.length === 0) return undefined;
+
+  const markerConfig: Record<
+    string,
+    { symbol: string; size: number; rotate: number; color: string; label: string }
+  > = {
+    BUY: { symbol: "triangle", size: 15, rotate: 0, color: "#4ade80", label: "B" },
+    SELL: { symbol: "pin", size: 20, rotate: 180, color: "#ef4444", label: "S" },
+    SHORT_SELL: { symbol: "triangle", size: 15, rotate: 180, color: "#f97316", label: "SS" },
+    BUY_TO_COVER: { symbol: "pin", size: 20, rotate: 0, color: "#38bdf8", label: "BC" },
+  };
 
   const data = trades
     .map((trade) => {
       const idx = candles.findIndex((c) => c.time === trade.date);
       if (idx === -1) return null;
 
+      const cfg = markerConfig[trade.type] || markerConfig.BUY;
+
       return {
         name: trade.type,
         value: trade.type,
         coord: [idx, trade.price],
-        symbol: trade.type === "BUY" ? "triangle" : "pin",
-        symbolSize: trade.type === "BUY" ? 15 : 20,
-        symbolRotate: trade.type === "BUY" ? 0 : 180,
-        itemStyle: { color: trade.type === "BUY" ? "#4ade80" : "#ef4444" },
+        symbol: cfg.symbol,
+        symbolSize: cfg.size,
+        symbolRotate: cfg.rotate,
+        itemStyle: { color: cfg.color },
         label: {
           show: true,
-          formatter: trade.type === "BUY" ? "B" : "S",
+          formatter: cfg.label,
           color: "#fff",
           fontSize: 10,
         },

@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useSimulatorStore } from "../store/simulatorStore";
 import type { PortfolioStats, Trade } from "../types";
+import { formatPrice } from "../types";
 import { CollapsiblePanel } from "./CollapsiblePanel";
 
 interface RealtimeStats {
@@ -25,7 +26,9 @@ function calculateRealtimeStats(
   startPrice: number | undefined,
   currentPrice: number | undefined,
 ): RealtimeStats {
-  const sellTrades = tradeHistory.filter((t) => t.type === "SELL" && t.pnlPercent !== undefined);
+  const sellTrades = tradeHistory.filter(
+    (t) => (t.type === "SELL" || t.type === "BUY_TO_COVER") && t.pnlPercent !== undefined,
+  );
 
   const emptyStats: RealtimeStats = {
     totalPnl: 0,
@@ -78,13 +81,13 @@ function calculateRealtimeStats(
 
   // Average Holding Days
   const pairs: [Trade, Trade][] = [];
-  let currentBuy: Trade | null = null;
+  let currentEntry: Trade | null = null;
   for (const trade of tradeHistory) {
-    if (trade.type === "BUY") {
-      currentBuy = trade;
-    } else if (trade.type === "SELL" && currentBuy) {
-      pairs.push([currentBuy, trade]);
-      currentBuy = null;
+    if (trade.type === "BUY" || trade.type === "SHORT_SELL") {
+      currentEntry = trade;
+    } else if ((trade.type === "SELL" || trade.type === "BUY_TO_COVER") && currentEntry) {
+      pairs.push([currentEntry, trade]);
+      currentEntry = null;
     }
   }
 
@@ -156,6 +159,7 @@ export function StatsPanel() {
     positions,
     getUnrealizedPnl,
     symbols,
+    activeSymbolId,
     getPortfolioStats,
   } = useSimulatorStore();
 
@@ -165,6 +169,12 @@ export function StatsPanel() {
     const currentPrice = allCandles[currentIndex]?.close;
     return calculateRealtimeStats(tradeHistory, initialCapital, startPrice, currentPrice);
   }, [tradeHistory, initialCapital, allCandles, startIndex, initialCandleCount, currentIndex]);
+
+  const activeSymbol = useMemo(() => {
+    if (!activeSymbolId) return symbols[0] || null;
+    return symbols.find((s) => s.id === activeSymbolId) || null;
+  }, [symbols, activeSymbolId]);
+  const activeCurrency = activeSymbol?.currency ?? "JPY";
 
   const unrealizedPnl = getUnrealizedPnl();
 
@@ -192,8 +202,8 @@ export function StatsPanel() {
           >
             <span className="label">P&L</span>
             <span className={`value ${totalWithUnrealized >= 0 ? "positive" : "negative"}`}>
-              {totalWithUnrealized >= 0 ? "+" : ""}¥
-              {Math.round(totalWithUnrealized).toLocaleString()}
+              {totalWithUnrealized >= 0 ? "+" : ""}
+              {formatPrice(Math.round(totalWithUnrealized), activeCurrency)}
               <span className="percent">
                 ({totalPercentWithUnrealized >= 0 ? "+" : ""}
                 {totalPercentWithUnrealized.toFixed(2)}%)
@@ -205,7 +215,8 @@ export function StatsPanel() {
             <div className="stats-row sub">
               <span className="label">Unrealized</span>
               <span className={`value ${unrealizedPnl.pnl >= 0 ? "positive" : "negative"}`}>
-                {unrealizedPnl.pnl >= 0 ? "+" : ""}¥{Math.round(unrealizedPnl.pnl).toLocaleString()}
+                {unrealizedPnl.pnl >= 0 ? "+" : ""}
+                {formatPrice(Math.round(unrealizedPnl.pnl), activeCurrency)}
               </span>
             </div>
           )}
@@ -214,7 +225,8 @@ export function StatsPanel() {
             <div className="stats-row sub">
               <span className="label">Realized</span>
               <span className={`value ${stats.totalPnl >= 0 ? "positive" : "negative"}`}>
-                {stats.totalPnl >= 0 ? "+" : ""}¥{Math.round(stats.totalPnl).toLocaleString()}
+                {stats.totalPnl >= 0 ? "+" : ""}
+                {formatPrice(Math.round(stats.totalPnl), activeCurrency)}
               </span>
             </div>
           )}
@@ -312,8 +324,8 @@ export function StatsPanel() {
               <div className="stats-row highlight">
                 <span className="label">Total P&L</span>
                 <span className={`value ${portfolioStats.totalPnl >= 0 ? "positive" : "negative"}`}>
-                  {portfolioStats.totalPnl >= 0 ? "+" : ""}¥
-                  {Math.round(portfolioStats.totalPnl).toLocaleString()}
+                  {portfolioStats.totalPnl >= 0 ? "+" : ""}
+                  {formatPrice(Math.round(portfolioStats.totalPnl), activeCurrency)}
                   <span className="percent">
                     ({portfolioStats.totalPnlPercent >= 0 ? "+" : ""}
                     {portfolioStats.totalPnlPercent.toFixed(2)}%)

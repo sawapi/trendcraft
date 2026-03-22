@@ -26,6 +26,7 @@ export function ReportButton() {
     enabledIndicators,
     phase,
     reset,
+    resetFunds,
     commissionRate,
     slippageBps,
     taxRate,
@@ -188,6 +189,19 @@ export function ReportButton() {
     [reportScope, getReportData, getPortfolioReportData, fileName],
   );
 
+  const handleResetFunds = useCallback(() => {
+    const totalTrades = symbols.reduce((sum, s) => sum + s.tradeHistory.length, 0);
+    if (
+      totalTrades > 0 &&
+      !confirm(
+        "Reset funds? All trades and positions will be cleared, but data and settings are preserved.",
+      )
+    ) {
+      return;
+    }
+    resetFunds();
+  }, [symbols, resetFunds]);
+
   const handleReset = useCallback(() => {
     const totalTrades = symbols.reduce((sum, s) => sum + s.tradeHistory.length, 0);
     if (totalTrades > 0 && !confirm("Reset simulation? Trade history will be lost.")) {
@@ -249,6 +263,16 @@ export function ReportButton() {
           </div>
         )}
       </div>
+      {phase !== "finished" && (
+        <button
+          type="button"
+          className="btn-secondary"
+          onClick={handleResetFunds}
+          title="Clear all trades and positions, restart from beginning"
+        >
+          Reset Funds
+        </button>
+      )}
       <button type="button" className="btn-secondary" onClick={handleReset}>
         {phase === "finished" ? "New Simulation" : "Reset"}
       </button>

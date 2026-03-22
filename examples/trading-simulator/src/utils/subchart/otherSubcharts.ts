@@ -1,5 +1,5 @@
 import type { NormalizedCandle } from "trendcraft";
-import type { EquityPoint } from "../../types";
+import type { EquityPoint, SavedSession } from "../../types";
 import {
   COLORS,
   type SeriesItem,
@@ -201,11 +201,14 @@ export function buildOtherSubcharts(
 /**
  * Build equity curve subchart
  */
+const SESSION_COLORS = ["#4ade80", "#38bdf8", "#f472b6", "#a78bfa", "#fbbf24", "#fb923c"];
+
 export function buildEquityCurve(
   series: SeriesItem[],
   ctx: SubchartContext,
   candles: NormalizedCandle[],
   equityCurve: EquityPoint[],
+  savedSessions: SavedSession[] = [],
 ): void {
   const gridIndex = createSubchart(ctx, {
     title: "Equity",
@@ -282,6 +285,27 @@ export function buildEquityCurve(
       yAxisIndex: gridIndex,
       data: [],
       markPoint: { data: tradePoints },
+    });
+  }
+
+  // Saved session equity curves (for strategy comparison)
+  for (let i = 0; i < savedSessions.length; i++) {
+    const session = savedSessions[i];
+    const sessionByTime = new Map(session.equityCurve.map((p) => [p.time, p]));
+    const sessionData = candles.map((c) => {
+      const point = sessionByTime.get(c.time);
+      return point ? point.equity : null;
+    });
+    const color = SESSION_COLORS[i % SESSION_COLORS.length];
+
+    series.push({
+      name: session.name,
+      type: "line",
+      xAxisIndex: gridIndex,
+      yAxisIndex: gridIndex,
+      data: sessionData,
+      symbol: "none",
+      lineStyle: { color, width: 1.5, type: "dashed" },
     });
   }
 }

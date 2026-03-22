@@ -8,7 +8,13 @@ import type {
   PriceType,
   TradeJournalEntry,
 } from "../../types";
-import { EXIT_REASON_LABELS, EXIT_TRIGGER_LABELS, PRICE_TYPE_LABELS } from "../../types";
+import {
+  CURRENCY_CONFIG,
+  EXIT_REASON_LABELS,
+  EXIT_TRIGGER_LABELS,
+  PRICE_TYPE_LABELS,
+  formatPrice,
+} from "../../types";
 import { CollapsiblePanel } from "../CollapsiblePanel";
 import { BracketOrderForm } from "./BracketOrderForm";
 import { JournalEntry } from "./JournalEntry";
@@ -38,6 +44,10 @@ export function TradeForm() {
     executeBuy,
     executeSell,
     executeSellAll,
+    executeShortSell,
+    executeBuyCover,
+    executeBuyCoverAll,
+    getShortPositionSummary,
     placePendingOrder,
     cancelPendingOrder,
     pendingOrders,
@@ -53,6 +63,8 @@ export function TradeForm() {
     if (!activeSymbolId) return symbols[0] || null;
     return symbols.find((s) => s.id === activeSymbolId) || null;
   }, [symbols, activeSymbolId]);
+
+  const activeCurrency = activeSymbol?.currency ?? "JPY";
 
   const currentIndex = useMemo(() => {
     if (!activeSymbol || !commonDateRange || currentDateIndex < 0) return 0;
@@ -193,6 +205,107 @@ export function TradeForm() {
     limitPrice,
   ]);
 
+  const shortSummary = getShortPositionSummary();
+  const longPositions = positions.filter((p) => p.direction !== "short");
+  const shortPositions = positions.filter((p) => p.direction === "short");
+  const hasLongPosition = longPositions.length > 0;
+  const hasShortPosition = shortPositions.length > 0;
+  const handleShortSell = useCallback(() => {
+    if (isPlaying) pause();
+
+    if (priceType === "nextOpen" && activeSymbol) {
+      placePendingOrder({
+        symbolId: activeSymbol.id,
+        orderType: "SHORT_SELL",
+        shares: buyShares,
+        memo,
+        limitPrice: useLimitOrder && limitPrice > 0 ? limitPrice : undefined,
+      });
+    } else {
+      executeShortSell(buyShares, memo, priceType);
+    }
+    setMemo("");
+    setPendingJournal(null);
+  }, [
+    isPlaying,
+    pause,
+    executeShortSell,
+    placePendingOrder,
+    buyShares,
+    memo,
+    priceType,
+    activeSymbol,
+    useLimitOrder,
+    limitPrice,
+  ]);
+
+  const handleBuyCover = useCallback(() => {
+    if (isPlaying) pause();
+
+    if (priceType === "nextOpen" && activeSymbol) {
+      placePendingOrder({
+        symbolId: activeSymbol.id,
+        orderType: "BUY_TO_COVER",
+        shares: sellShares,
+        memo,
+        exitReason,
+        exitTrigger,
+        limitPrice: useLimitOrder && limitPrice > 0 ? limitPrice : undefined,
+      });
+    } else {
+      executeBuyCover(sellShares, memo, priceType, exitReason, exitTrigger);
+    }
+    setMemo("");
+    setExitTrigger(undefined);
+    setPendingJournal(null);
+  }, [
+    isPlaying,
+    pause,
+    executeBuyCover,
+    placePendingOrder,
+    sellShares,
+    memo,
+    priceType,
+    exitReason,
+    exitTrigger,
+    activeSymbol,
+    useLimitOrder,
+    limitPrice,
+  ]);
+
+  const handleCoverAll = useCallback(() => {
+    if (isPlaying) pause();
+
+    if (priceType === "nextOpen" && activeSymbol) {
+      placePendingOrder({
+        symbolId: activeSymbol.id,
+        orderType: "COVER_ALL",
+        shares: 0,
+        memo,
+        exitReason,
+        exitTrigger,
+        limitPrice: useLimitOrder && limitPrice > 0 ? limitPrice : undefined,
+      });
+    } else {
+      executeBuyCoverAll(memo, priceType, exitReason, exitTrigger);
+    }
+    setMemo("");
+    setExitTrigger(undefined);
+    setPendingJournal(null);
+  }, [
+    isPlaying,
+    pause,
+    executeBuyCoverAll,
+    placePendingOrder,
+    memo,
+    priceType,
+    exitReason,
+    exitTrigger,
+    activeSymbol,
+    useLimitOrder,
+    limitPrice,
+  ]);
+
   const hasPosition = positions.length > 0;
   const canUseNextOpen = nextCandle !== null;
 
@@ -205,6 +318,9 @@ export function TradeForm() {
     BUY: "Buy",
     SELL: "Partial Sell",
     SELL_ALL: "Sell All",
+    SHORT_SELL: "Short Sell",
+    BUY_TO_COVER: "Cover",
+    COVER_ALL: "Cover All",
   };
 
   return (
@@ -247,7 +363,7 @@ export function TradeForm() {
             </button>
           </div>
           <div className="shares-presets">
-            {[10, 50, 100, 500].map((qty) => (
+            {CURRENCY_CONFIG[activeCurrency].defaultLotPresets.map((qty) => (
               <button
                 key={qty}
                 type="button"
@@ -266,6 +382,7 @@ export function TradeForm() {
             estimatedPrice={estimatedPrice}
             initialCapital={initialCapital}
             stopLossPercent={stopLossPercent}
+            currency={activeCurrency}
             currentAtr={currentAtr}
             onApply={(shares) => {
               setBuyShares(shares);
@@ -282,10 +399,14 @@ export function TradeForm() {
           onChange={setBracket}
         />
 
-        {/* Sell Section */}
-        {hasPosition && positionSummary && (
+        {/* Sell / Cover Section */}
+        {((hasLongPosition && positionSummary) || (hasShortPosition && shortSummary)) && (
           <div className="shares-input">
-            <label>Sell Shares (held: {positionSummary.totalShares})</label>
+            <label>
+              {hasShortPosition && shortSummary
+                ? `Cover Shares (short: ${shortSummary.totalShares})`
+                : `Sell Shares (held: ${positionSummary?.totalShares})`}
+            </label>
             <div className="shares-stepper">
               <button
                 type="button"
@@ -299,30 +420,37 @@ export function TradeForm() {
               </button>
               <input
                 type="number"
-                value={Math.min(sellShares, positionSummary.totalShares)}
+                value={Math.min(
+                  sellShares,
+                  shortSummary?.totalShares || positionSummary?.totalShares || 1,
+                )}
                 onChange={(e) => {
-                  const maxShares = positionSummary?.totalShares || 1;
+                  const maxShares = shortSummary?.totalShares || positionSummary?.totalShares || 1;
                   setSellShares(Math.max(1, Math.min(maxShares, Number(e.target.value))));
                 }}
                 min={1}
-                max={positionSummary.totalShares}
+                max={shortSummary?.totalShares || positionSummary?.totalShares || 1}
                 className="shares-input-field"
               />
               <button
                 type="button"
                 className="stepper-btn"
                 onClick={() => {
-                  const maxShares = positionSummary?.totalShares || 1;
+                  const maxShares = shortSummary?.totalShares || positionSummary?.totalShares || 1;
                   setSellShares((prev) => Math.min(maxShares, prev + 1));
                 }}
-                disabled={sellShares >= positionSummary.totalShares}
+                disabled={
+                  sellShares >= (shortSummary?.totalShares || positionSummary?.totalShares || 0)
+                }
               >
                 <span className="material-icons">add</span>
               </button>
             </div>
             <div className="shares-presets">
-              {[10, 50, 100, 500]
-                .filter((qty) => qty <= positionSummary.totalShares)
+              {CURRENCY_CONFIG[activeCurrency].defaultLotPresets
+                .filter(
+                  (qty) => qty <= (shortSummary?.totalShares || positionSummary?.totalShares || 0),
+                )
                 .map((qty) => (
                   <button
                     key={qty}
@@ -355,10 +483,10 @@ export function TradeForm() {
             ))}
           </div>
           <div className="price-estimate">
-            {priceType === "nextOpen" ? "Next Open" : PRICE_TYPE_LABELS[priceType]}: ¥
-            {estimatedPrice.toLocaleString()}
+            {priceType === "nextOpen" ? "Next Open" : PRICE_TYPE_LABELS[priceType]}:{" "}
+            {formatPrice(estimatedPrice, activeCurrency)}
             <span className="capital-ratio">
-              (est. cost: ¥{totalBuyCost.toLocaleString()} /{" "}
+              (est. cost: {formatPrice(totalBuyCost, activeCurrency)} /{" "}
               {((totalBuyCost / initialCapital) * 100).toFixed(1)}%)
             </span>
           </div>
@@ -435,28 +563,69 @@ export function TradeForm() {
           </div>
         )}
 
+        {/* Long buttons */}
         <div className="trade-buttons">
           <button
             className="buy-btn"
             onClick={handleBuy}
-            disabled={priceType === "nextOpen" && !canUseNextOpen}
-            title={hasPosition ? "Add to position" : "New position"}
+            disabled={(priceType === "nextOpen" && !canUseNextOpen) || hasShortPosition}
+            title={
+              hasShortPosition
+                ? "Close short first"
+                : hasLongPosition
+                  ? "Add to position"
+                  : "New long position"
+            }
           >
-            {hasPosition ? "ADD" : "BUY"}
+            {hasLongPosition ? "ADD" : "BUY"}
           </button>
           <button
             className="sell-btn"
             onClick={handleSell}
-            disabled={!hasPosition || (priceType === "nextOpen" && !canUseNextOpen)}
-            title={!hasPosition ? "No position" : "Partial sell"}
+            disabled={!hasLongPosition || (priceType === "nextOpen" && !canUseNextOpen)}
+            title={!hasLongPosition ? "No long position" : "Partial sell"}
           >
             SELL
           </button>
           <button
             className="sell-btn sell-all"
             onClick={handleSellAll}
-            disabled={!hasPosition || (priceType === "nextOpen" && !canUseNextOpen)}
-            title={!hasPosition ? "No position" : "Sell all"}
+            disabled={!hasLongPosition || (priceType === "nextOpen" && !canUseNextOpen)}
+            title={!hasLongPosition ? "No long position" : "Sell all"}
+          >
+            ALL
+          </button>
+        </div>
+
+        {/* Short buttons */}
+        <div className="trade-buttons short-buttons">
+          <button
+            className="short-btn"
+            onClick={handleShortSell}
+            disabled={(priceType === "nextOpen" && !canUseNextOpen) || hasLongPosition}
+            title={
+              hasLongPosition
+                ? "Close long first"
+                : hasShortPosition
+                  ? "Add to short"
+                  : "New short position"
+            }
+          >
+            {hasShortPosition ? "ADD SHORT" : "SHORT"}
+          </button>
+          <button
+            className="cover-btn"
+            onClick={handleBuyCover}
+            disabled={!hasShortPosition || (priceType === "nextOpen" && !canUseNextOpen)}
+            title={!hasShortPosition ? "No short position" : "Partial cover"}
+          >
+            COVER
+          </button>
+          <button
+            className="cover-btn cover-all"
+            onClick={handleCoverAll}
+            disabled={!hasShortPosition || (priceType === "nextOpen" && !canUseNextOpen)}
+            title={!hasShortPosition ? "No short position" : "Cover all"}
           >
             ALL
           </button>
@@ -491,6 +660,8 @@ export function TradeForm() {
           )}
         </div>
 
+        {/* Pending order type label for short orders */}
+
         {/* Pending Orders */}
         {symbolPendingOrders.length > 0 && (
           <div className="pending-orders">
@@ -499,14 +670,18 @@ export function TradeForm() {
               {symbolPendingOrders.map((order) => (
                 <li key={order.id} className={`pending-order ${order.orderType.toLowerCase()}`}>
                   <div className="pending-order-info">
-                    <span className={`order-type ${order.orderType === "BUY" ? "buy" : "sell"}`}>
+                    <span
+                      className={`order-type ${order.orderType === "BUY" || order.orderType === "BUY_TO_COVER" ? "buy" : "sell"}`}
+                    >
                       {ORDER_TYPE_LABELS[order.orderType]}
                     </span>
-                    {order.orderType !== "SELL_ALL" && (
+                    {order.orderType !== "SELL_ALL" && order.orderType !== "COVER_ALL" && (
                       <span className="order-shares">{order.shares} sh</span>
                     )}
                     {order.limitPrice != null && (
-                      <span className="order-limit">@¥{order.limitPrice.toLocaleString()}</span>
+                      <span className="order-limit">
+                        @{formatPrice(order.limitPrice, activeCurrency)}
+                      </span>
                     )}
                     {order.memo && (
                       <span className="order-memo" title={order.memo}>

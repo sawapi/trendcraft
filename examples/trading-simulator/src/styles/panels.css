@@ -93,6 +93,11 @@
   border-left: 3px solid var(--success);
 }
 
+.position-status.short {
+  border-left: 3px solid #f97316;
+  margin-top: 8px;
+}
+
 .position-status .status-label {
   font-size: var(--font-md);
   color: var(--text-secondary);
@@ -669,4 +674,239 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* ============================================
+   Drawing Tools Panel
+   ============================================ */
+
+.drawing-section {
+  margin-bottom: 12px;
+}
+
+.drawing-section label {
+  display: block;
+  font-size: var(--font-md);
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.drawing-input-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.drawing-price-input,
+.drawing-label-input {
+  flex: 1;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: var(--font-md);
+}
+
+.drawing-price-input:focus,
+.drawing-label-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.drawing-color-row {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.color-swatch {
+  width: 24px;
+  height: 24px;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.color-swatch.active {
+  border-color: var(--text-primary);
+}
+
+.color-swatch:hover {
+  border-color: var(--text-secondary);
+}
+
+.drawing-btn-row {
+  display: flex;
+  gap: 6px;
+}
+
+.btn-small {
+  flex: 1;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  background: var(--accent);
+  color: white;
+  font-size: var(--font-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 0.15s;
+}
+
+.btn-small:hover {
+  filter: brightness(1.1);
+}
+
+.btn-small.btn-secondary {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.drawing-list {
+  margin-top: 12px;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+
+.drawing-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.btn-tiny {
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: var(--font-xs);
+  cursor: pointer;
+}
+
+.btn-tiny:hover {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.drawing-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: var(--font-sm);
+}
+
+.drawing-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.drawing-info {
+  flex: 1;
+  color: var(--text-primary);
+}
+
+.drawing-item-label {
+  color: var(--text-secondary);
+}
+
+.drawing-remove {
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.drawing-remove:hover {
+  color: var(--danger);
+}
+
+/* ============================================
+   Comparison Panel
+   ============================================ */
+
+.comparison-save {
+  margin-bottom: 12px;
+}
+
+.comparison-save-row {
+  display: flex;
+  gap: 6px;
+}
+
+.comparison-name-input {
+  flex: 1;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: var(--font-md);
+}
+
+.comparison-name-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.comparison-list {
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+
+.comparison-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.comparison-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+}
+
+.comparison-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.comparison-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.comparison-name {
+  font-size: var(--font-md);
+  font-weight: 500;
+}
+
+.comparison-stats {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+}
+
+.comparison-hint {
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  font-style: italic;
 }

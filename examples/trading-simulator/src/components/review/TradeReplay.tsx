@@ -1,12 +1,13 @@
 import { useMemo, useState } from "react";
-import type { Trade } from "../../types";
-import { EXIT_REASON_LABELS } from "../../types";
+import type { Currency, Trade } from "../../types";
+import { EXIT_REASON_LABELS, formatPrice } from "../../types";
 
 interface TradeReplayProps {
   trades: Trade[];
+  currency?: Currency;
 }
 
-export function TradeReplay({ trades }: TradeReplayProps) {
+export function TradeReplay({ trades, currency = "JPY" }: TradeReplayProps) {
   const [selectedTradeId, setSelectedTradeId] = useState<string | null>(null);
 
   const tradePairs = useMemo(() => {
@@ -14,9 +15,9 @@ export function TradeReplay({ trades }: TradeReplayProps) {
     let lastBuy: Trade | null = null;
 
     for (const t of trades) {
-      if (t.type === "BUY") {
+      if (t.type === "BUY" || t.type === "SHORT_SELL") {
         lastBuy = t;
-      } else if (t.type === "SELL" && lastBuy) {
+      } else if ((t.type === "SELL" || t.type === "BUY_TO_COVER") && lastBuy) {
         pairs.push({ buy: lastBuy, sell: t });
         lastBuy = null;
       }
@@ -59,26 +60,23 @@ export function TradeReplay({ trades }: TradeReplayProps) {
           <div className="replay-detail-row">
             <span className="replay-label">Entry</span>
             <span>
-              {new Date(selectedPair.buy.date).toLocaleDateString()} @ ¥
-              {selectedPair.buy.price.toLocaleString()} × {selectedPair.buy.shares}
+              {new Date(selectedPair.buy.date).toLocaleDateString()} @{" "}
+              {formatPrice(selectedPair.buy.price, currency)} × {selectedPair.buy.shares}
             </span>
           </div>
           <div className="replay-detail-row">
             <span className="replay-label">Exit</span>
             <span>
-              {new Date(selectedPair.sell.date).toLocaleDateString()} @ ¥
-              {selectedPair.sell.price.toLocaleString()} × {selectedPair.sell.shares}
+              {new Date(selectedPair.sell.date).toLocaleDateString()} @{" "}
+              {formatPrice(selectedPair.sell.price, currency)} × {selectedPair.sell.shares}
             </span>
           </div>
           <div className="replay-detail-row">
             <span className="replay-label">P&L</span>
             <span className={(selectedPair.sell.pnlPercent || 0) >= 0 ? "positive" : "negative"}>
               {(selectedPair.sell.pnlPercent || 0) >= 0 ? "+" : ""}
-              {(selectedPair.sell.pnlPercent || 0).toFixed(2)}% (¥
-              {(selectedPair.sell.pnl || 0).toLocaleString(undefined, {
-                maximumFractionDigits: 0,
-              })}
-              )
+              {(selectedPair.sell.pnlPercent || 0).toFixed(2)}% (
+              {formatPrice(selectedPair.sell.pnl || 0, currency)})
             </span>
           </div>
           {selectedPair.sell.mfe != null && (

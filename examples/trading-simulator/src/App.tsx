@@ -2,15 +2,19 @@ import { useCallback, useEffect, useState } from "react";
 import { AlertBanner } from "./components/AlertBanner";
 import { Chart } from "./components/Chart";
 import { CoachingPanel } from "./components/CoachingPanel";
+import { ComparisonPanel } from "./components/ComparisonPanel";
 import { ControlPanel } from "./components/ControlPanel";
+import { DrawingToolsPanel } from "./components/DrawingToolsPanel";
 import { FileDropZone } from "./components/FileDropZone";
 import { IndicatorSettingsDialog } from "./components/IndicatorSettingsDialog";
 import { PositionPanel } from "./components/PositionPanel";
 import { ReportButton } from "./components/ReportButton";
+import { SecondaryChart } from "./components/SecondaryChart";
 import { SessionManager } from "./components/SessionManager";
 import { ShortcutsHelp } from "./components/ShortcutsHelp";
 import { SimulationSettingsDialog } from "./components/SimulationSettingsDialog";
 import { StatsPanel } from "./components/StatsPanel";
+import { SymbolSearch } from "./components/SymbolSearch";
 import { SymbolTabs } from "./components/SymbolTabs";
 import { ThemeToggle } from "./components/ThemeToggle";
 import { TradeAnalysis } from "./components/TradeAnalysis";
@@ -71,6 +75,7 @@ export default function App() {
         {showSessionManager && pendingSession && (
           <SessionManager onRestore={handleSessionRestore} onDiscard={handleSessionDiscard} />
         )}
+        <SymbolSearch />
         <FileDropZone pendingSession={pendingSession} />
       </div>
     );
@@ -169,6 +174,8 @@ export default function App() {
                   <span className="material-icons">show_chart</span>
                   <span>Indicator Settings</span>
                 </button>
+                <DrawingToolsPanel />
+                <ComparisonPanel />
                 <CoachingPanel />
                 <ReportButton />
               </>
@@ -179,6 +186,7 @@ export default function App() {
           <SymbolTabs />
           <div className="chart-scroll-area">
             <Chart />
+            <SecondaryChart />
           </div>
         </div>
       </div>

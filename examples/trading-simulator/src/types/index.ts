@@ -15,6 +15,27 @@ export type SimulatorPhase = "setup" | "running" | "finished";
  * Per-symbol session data
  * Each symbol has its own candle data, positions, and trade history
  */
+export type Currency = "JPY" | "USD";
+
+export const CURRENCY_CONFIG: Record<
+  Currency,
+  {
+    symbol: string;
+    locale: string;
+    fractionDigits: number;
+    defaultLotPresets: number[];
+  }
+> = {
+  JPY: { symbol: "¥", locale: "ja-JP", fractionDigits: 0, defaultLotPresets: [10, 50, 100, 500] },
+  USD: { symbol: "$", locale: "en-US", fractionDigits: 2, defaultLotPresets: [1, 5, 10, 50] },
+};
+
+/** Format a price value with currency symbol */
+export function formatPrice(value: number, currency: Currency = "JPY"): string {
+  const cfg = CURRENCY_CONFIG[currency];
+  return `${cfg.symbol}${value.toLocaleString(cfg.locale, { maximumFractionDigits: cfg.fractionDigits })}`;
+}
+
 export interface SymbolSession {
   id: string; // UUID
   fileName: string;
@@ -25,6 +46,8 @@ export interface SymbolSession {
   equityCurve: EquityPoint[];
   // Symbol-specific start index (position within common date range)
   startIndex: number;
+  // Market context
+  currency: Currency;
 }
 
 /**
@@ -74,8 +97,11 @@ export const PRICE_TYPE_LABELS: Record<PriceType, string> = {
   close: "Close",
 };
 
+export type PositionDirection = "long" | "short";
+
 export interface Position {
   id: string;
+  direction: PositionDirection;
   entryPrice: number;
   entryDate: number;
   entryIndex: number;
@@ -96,6 +122,7 @@ export interface PositionSummary {
   totalShares: number;
   avgEntryPrice: number;
   totalCost: number;
+  direction: PositionDirection;
 }
 
 // Indicator snapshot at time of trade
@@ -200,7 +227,7 @@ export interface BracketOrder {
 
 export interface Trade {
   id: string;
-  type: "BUY" | "SELL";
+  type: "BUY" | "SELL" | "SHORT_SELL" | "BUY_TO_COVER";
   date: number;
   price: number;
   shares: number;
@@ -257,7 +284,7 @@ export interface SimulationConfig {
 // Pending orders (next-open execution)
 // ===========================================
 
-export type OrderType = "BUY" | "SELL" | "SELL_ALL";
+export type OrderType = "BUY" | "SELL" | "SELL_ALL" | "SHORT_SELL" | "BUY_TO_COVER" | "COVER_ALL";
 
 export interface PendingOrder {
   id: string;
@@ -268,6 +295,11 @@ export interface PendingOrder {
   createdAt: number; // Order creation date (current chart date)
   // Limit price — if set, order only fills when price condition is met
   limitPrice?: number;
+  // Stop-Limit: order becomes active when stopTrigger is hit, then fills at limitPrice
+  stopTrigger?: number;
+  stopTriggered?: boolean;
+  // OCO group — when one order in a group fills, others are cancelled
+  ocoGroupId?: string;
   // SELL only
   exitReason?: ExitReason;
   exitTrigger?: ExitTrigger;
@@ -398,7 +430,45 @@ export interface EquityPoint {
   equity: number; // Current equity
   buyHoldEquity: number; // B&H comparison
   drawdown: number; // Drawdown from peak (%)
-  tradeType?: "BUY" | "SELL"; // Trade marker
+  tradeType?: "BUY" | "SELL" | "SHORT_SELL" | "BUY_TO_COVER"; // Trade marker
+}
+
+// ===========================================
+// Drawing tools
+// ===========================================
+
+export type DrawingType = "horizontal" | "trendline";
+
+export interface Drawing {
+  id: string;
+  type: DrawingType;
+  color: string;
+  label?: string;
+  // Horizontal line
+  price?: number;
+  // Trendline (two points)
+  startDate?: number;
+  startPrice?: number;
+  endDate?: number;
+  endPrice?: number;
+}
+
+// ===========================================
+// Strategy comparison
+// ===========================================
+
+export interface SavedSession {
+  id: string;
+  name: string;
+  savedAt: number;
+  equityCurve: EquityPoint[];
+  stats: {
+    totalPnl: number;
+    totalPnlPercent: number;
+    winRate: number;
+    maxDrawdown: number;
+    tradeCount: number;
+  };
 }
 
 // Legacy - kept for backward compatibility

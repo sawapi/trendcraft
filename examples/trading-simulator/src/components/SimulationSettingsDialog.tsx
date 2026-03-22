@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSimulatorStore } from "../store/simulatorStore";
+import type { Currency } from "../types";
 
 interface SimulationSettingsDialogProps {
   isOpen: boolean;
@@ -180,6 +181,31 @@ export function SimulationSettingsDialog({ isOpen, onClose }: SimulationSettings
               />
               <p className="hint">Candles shown before start date (~1 year = 250)</p>
             </div>
+          </div>
+
+          {/* Currency */}
+          <div className="sim-settings-section">
+            <h4 className="sim-settings-section-title">
+              <span className="material-icons">language</span>
+              Currency
+            </h4>
+            {symbols.map((sym) => (
+              <div key={sym.id} className="form-group currency-row">
+                <label>{sym.fileName}</label>
+                <div className="currency-toggle">
+                  {(["JPY", "USD"] as Currency[]).map((cur) => (
+                    <button
+                      key={cur}
+                      type="button"
+                      className={`currency-btn ${sym.currency === cur ? "active" : ""}`}
+                      onClick={() => store.setSymbolCurrency(sym.id, cur)}
+                    >
+                      {cur === "JPY" ? "¥ JPY" : "$ USD"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
 
           {/* Capital & Cost */}

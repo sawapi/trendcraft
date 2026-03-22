@@ -1,4 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
+import type { Currency } from "../../types";
+import { formatPrice } from "../../types";
 
 type SizingMethod = "risk" | "atr";
 
@@ -13,6 +15,7 @@ interface PositionSizerProps {
   initialCapital: number;
   stopLossPercent: number;
   currentAtr: number | null;
+  currency?: Currency;
   onApply: (shares: number) => void;
 }
 
@@ -21,6 +24,7 @@ export function PositionSizer({
   initialCapital,
   stopLossPercent,
   currentAtr,
+  currency = "JPY",
   onApply,
 }: PositionSizerProps) {
   const [sizingMethod, setSizingMethod] = useState<SizingMethod>("risk");
@@ -109,8 +113,8 @@ export function PositionSizer({
             step={0.5}
           />
           <span className="sizing-hint">
-            Capital ¥{initialCapital.toLocaleString()} × {riskPercent}% = ¥
-            {((initialCapital * riskPercent) / 100).toLocaleString()}
+            Capital {formatPrice(initialCapital, currency)} × {riskPercent}% ={" "}
+            {formatPrice((initialCapital * riskPercent) / 100, currency)}
           </span>
         </div>
 
@@ -139,8 +143,8 @@ export function PositionSizer({
               step={0.5}
             />
             <span className="sizing-hint">
-              ATR: {currentAtr.toFixed(2)} × {atrMultiplier} = ¥
-              {(currentAtr * atrMultiplier).toFixed(2)}
+              ATR: {currentAtr.toFixed(2)} × {atrMultiplier} ={" "}
+              {formatPrice(currentAtr * atrMultiplier, currency)}
             </span>
           </div>
         )}
@@ -154,9 +158,7 @@ export function PositionSizer({
           </div>
           <div className="result-row">
             <span className="result-label">Risk Amount</span>
-            <span className="result-value">
-              ¥{sizingResult.riskAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-            </span>
+            <span className="result-value">{formatPrice(sizingResult.riskAmount, currency)}</span>
           </div>
           <div className="result-row">
             <span className="result-label">Risk %</span>

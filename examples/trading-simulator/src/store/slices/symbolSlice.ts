@@ -1,4 +1,4 @@
-import type { NormalizedCandle, SymbolSession } from "../../types";
+import type { Currency, NormalizedCandle, SymbolSession } from "../../types";
 import { calculateCommonDateRange, generateId, getActiveSymbolFromState } from "../helpers";
 import type { SliceCreator, SymbolSlice } from "../types";
 
@@ -7,7 +7,11 @@ export const createSymbolSlice: SliceCreator<SymbolSlice> = (set, get) => ({
   activeSymbolId: null,
   commonDateRange: null,
 
-  createSymbolSession: (candles: NormalizedCandle[], fileName: string) => {
+  createSymbolSession: (
+    candles: NormalizedCandle[],
+    fileName: string,
+    currency: Currency = "JPY",
+  ) => {
     const id = generateId();
     const newSession: SymbolSession = {
       id,
@@ -18,6 +22,7 @@ export const createSymbolSlice: SliceCreator<SymbolSlice> = (set, get) => ({
       indicatorData: null,
       equityCurve: [],
       startIndex: 0,
+      currency,
     };
 
     set((state) => {
@@ -80,7 +85,13 @@ export const createSymbolSlice: SliceCreator<SymbolSlice> = (set, get) => ({
 
   getAllSymbols: () => get().symbols,
 
-  loadCandles: (candles: NormalizedCandle[], fileName: string) => {
+  setSymbolCurrency: (symbolId: string, currency: Currency) => {
+    set((state) => ({
+      symbols: state.symbols.map((s) => (s.id === symbolId ? { ...s, currency } : s)),
+    }));
+  },
+
+  loadCandles: (candles: NormalizedCandle[], fileName: string, currency: Currency = "JPY") => {
     const id = generateId();
     const newSession: SymbolSession = {
       id,
@@ -91,6 +102,7 @@ export const createSymbolSlice: SliceCreator<SymbolSlice> = (set, get) => ({
       indicatorData: null,
       equityCurve: [],
       startIndex: 0,
+      currency,
     };
 
     set({

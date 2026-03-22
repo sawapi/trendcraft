@@ -42,6 +42,8 @@ export function Chart() {
     takeProfitPercent,
     trailingStopEnabled,
     getDetectedVolumeSpikes,
+    drawings,
+    savedSessions,
   } = useSimulatorStore();
 
   // Get active symbol
@@ -123,6 +125,8 @@ export function Chart() {
       equityCurve,
       volumeSpikeMarkers,
       theme,
+      drawings,
+      savedSessions,
     );
   }, [
     visibleCandles,
@@ -133,6 +137,8 @@ export function Chart() {
     equityCurve,
     volumeSpikeMarkers,
     theme,
+    drawings,
+    savedSessions,
   ]);
 
   // Calculate minimum height so subcharts don't squeeze the main chart

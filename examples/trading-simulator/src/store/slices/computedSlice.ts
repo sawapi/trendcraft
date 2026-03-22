@@ -55,25 +55,37 @@ export const createComputedSlice: SliceCreator<ComputedSlice> = (set, get) => {
       const currentCandle = symbol.allCandles[currentIdx];
       if (!currentCandle) return null;
 
-      const summary = get().getPositionSummary();
-      if (!summary) return null;
+      let totalPnl = 0;
+      let totalCost = 0;
 
-      const pnl = (currentCandle.close - summary.avgEntryPrice) * summary.totalShares;
-      const pnlPercent =
-        ((currentCandle.close - summary.avgEntryPrice) / summary.avgEntryPrice) * 100;
+      for (const pos of symbol.positions) {
+        if (pos.direction === "short") {
+          // Short: profit when price goes down
+          totalPnl += (pos.entryPrice - currentCandle.close) * pos.shares;
+        } else {
+          // Long: profit when price goes up
+          totalPnl += (currentCandle.close - pos.entryPrice) * pos.shares;
+        }
+        totalCost += pos.entryPrice * pos.shares;
+      }
 
-      return { pnl, pnlPercent };
+      const pnlPercent = totalCost > 0 ? (totalPnl / totalCost) * 100 : 0;
+      return { pnl: totalPnl, pnlPercent };
     },
 
     getPositionSummary: () => {
       const symbol = getActiveSymbol();
       if (!symbol || symbol.positions.length === 0) return null;
 
-      const totalShares = symbol.positions.reduce((sum, p) => sum + p.shares, 0);
-      const totalCost = symbol.positions.reduce((sum, p) => sum + p.entryPrice * p.shares, 0);
+      // Return summary for long positions only (legacy behavior)
+      const longPositions = symbol.positions.filter((p) => p.direction !== "short");
+      if (longPositions.length === 0) return null;
+
+      const totalShares = longPositions.reduce((sum, p) => sum + p.shares, 0);
+      const totalCost = longPositions.reduce((sum, p) => sum + p.entryPrice * p.shares, 0);
       const avgEntryPrice = totalCost / totalShares;
 
-      return { totalShares, avgEntryPrice, totalCost };
+      return { totalShares, avgEntryPrice, totalCost, direction: "long" as const };
     },
 
     getTotalPnl: () => {
@@ -81,7 +93,7 @@ export const createComputedSlice: SliceCreator<ComputedSlice> = (set, get) => {
       if (!symbol) return 0;
 
       return symbol.tradeHistory
-        .filter((t) => t.type === "SELL" && t.pnl !== undefined)
+        .filter((t) => (t.type === "SELL" || t.type === "BUY_TO_COVER") && t.pnl !== undefined)
         .reduce((sum, t) => sum + (t.pnl || 0), 0);
     },
 
@@ -151,15 +163,18 @@ export const createComputedSlice: SliceCreator<ComputedSlice> = (set, get) => {
         if (!currentCandle) return symbol;
 
         const realizedPnl = symbol.tradeHistory
-          .filter((t) => t.type === "SELL" && t.pnl !== undefined)
+          .filter((t) => (t.type === "SELL" || t.type === "BUY_TO_COVER") && t.pnl !== undefined)
           .reduce((sum, t) => sum + (t.pnl || 0), 0);
 
         let unrealizedPnl = 0;
         if (symbol.positions.length > 0) {
-          const totalShares = symbol.positions.reduce((sum, p) => sum + p.shares, 0);
-          const totalCost = symbol.positions.reduce((sum, p) => sum + p.entryPrice * p.shares, 0);
-          const avgEntryPrice = totalCost / totalShares;
-          unrealizedPnl = (currentCandle.close - avgEntryPrice) * totalShares;
+          for (const pos of symbol.positions) {
+            if (pos.direction === "short") {
+              unrealizedPnl += (pos.entryPrice - currentCandle.close) * pos.shares;
+            } else {
+              unrealizedPnl += (currentCandle.close - pos.entryPrice) * pos.shares;
+            }
+          }
         }
 
         const equity = initialCapital + realizedPnl + unrealizedPnl;
@@ -209,21 +224,26 @@ export const createComputedSlice: SliceCreator<ComputedSlice> = (set, get) => {
         const currentCandle = symbol.allCandles[currentIdx];
 
         const realizedPnl = symbol.tradeHistory
-          .filter((t) => t.type === "SELL" && t.pnl !== undefined)
+          .filter((t) => (t.type === "SELL" || t.type === "BUY_TO_COVER") && t.pnl !== undefined)
           .reduce((sum, t) => sum + (t.pnl || 0), 0);
 
         let unrealizedPnl = 0;
         if (symbol.positions.length > 0 && currentCandle) {
-          const totalShares = symbol.positions.reduce((sum, p) => sum + p.shares, 0);
-          const totalCost = symbol.positions.reduce((sum, p) => sum + p.entryPrice * p.shares, 0);
-          const avgEntryPrice = totalCost / totalShares;
-          unrealizedPnl = (currentCandle.close - avgEntryPrice) * totalShares;
+          for (const pos of symbol.positions) {
+            if (pos.direction === "short") {
+              unrealizedPnl += (pos.entryPrice - currentCandle.close) * pos.shares;
+            } else {
+              unrealizedPnl += (currentCandle.close - pos.entryPrice) * pos.shares;
+            }
+          }
         }
 
         const pnl = realizedPnl + unrealizedPnl;
         const pnlPercent = (pnl / initialCapital) * 100;
 
-        const sellTrades = symbol.tradeHistory.filter((t) => t.type === "SELL");
+        const sellTrades = symbol.tradeHistory.filter(
+          (t) => t.type === "SELL" || t.type === "BUY_TO_COVER",
+        );
         const tradeCount = sellTrades.length;
         const winCount = sellTrades.filter((t) => (t.pnl || 0) > 0).length;
         const winRate = tradeCount > 0 ? (winCount / tradeCount) * 100 : 0;

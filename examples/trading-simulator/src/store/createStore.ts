@@ -2,8 +2,10 @@ import { create } from "zustand";
 import { getActiveCurrentIndex, getActiveSymbolFromState } from "./helpers";
 import { createAlertSlice } from "./slices/alertSlice";
 import { createCoachingSlice } from "./slices/coachingSlice";
+import { createComparisonSlice } from "./slices/comparisonSlice";
 import { createComputedSlice } from "./slices/computedSlice";
 import { createConfigSlice } from "./slices/configSlice";
+import { createDrawingSlice } from "./slices/drawingSlice";
 import { createHistorySlice } from "./slices/historySlice";
 import { createIncrementalIndicatorSlice } from "./slices/incrementalIndicatorSlice";
 import { createIndicatorSlice } from "./slices/indicatorSlice";
@@ -28,6 +30,8 @@ export const useSimulatorStore = create<SimulatorState>((...a) => {
     ...createIncrementalIndicatorSlice(...a),
     ...createCoachingSlice(...a),
     ...createHistorySlice(...a),
+    ...createDrawingSlice(...a),
+    ...createComparisonSlice(...a),
   };
 
   // Backward compatibility getters — must use Object.defineProperties

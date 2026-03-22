@@ -27,6 +27,7 @@ export function ControlPanel() {
 
   // Temporary value while dragging the seek bar
   const [seekValue, setSeekValue] = useState<number | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   // Get active symbol
   const activeSymbol = useMemo(() => {
@@ -71,6 +72,45 @@ export function ControlPanel() {
       setSeekValue(null);
     }
   }, [seekValue, jumpToIndex]);
+
+  const handleJumpToDate = useCallback(
+    (dateStr: string) => {
+      if (!activeSymbol || !commonDateRange) return;
+      // Parse YYYY-MM-DD input
+      const targetTime = new Date(dateStr).getTime();
+      if (Number.isNaN(targetTime)) return;
+
+      // Find the closest common date at or after the target
+      let bestIdx = -1;
+      for (let i = 0; i < commonDateRange.dates.length; i++) {
+        if (commonDateRange.dates[i] >= targetTime) {
+          bestIdx = i;
+          break;
+        }
+      }
+      if (bestIdx === -1) bestIdx = commonDateRange.dates.length - 1;
+
+      // Clamp to valid range
+      const minDateIndex = initialCandleCount;
+      const clampedIdx = Math.max(
+        minDateIndex,
+        Math.min(bestIdx, commonDateRange.dates.length - 1),
+      );
+      jumpToIndex(clampedIdx);
+      setShowDatePicker(false);
+    },
+    [activeSymbol, commonDateRange, initialCandleCount, jumpToIndex],
+  );
+
+  // Date range for the picker
+  const dateRange = useMemo(() => {
+    if (!commonDateRange) return { min: "", max: "" };
+    const minIdx = initialCandleCount;
+    const minDate = commonDateRange.dates[minIdx];
+    const maxDate = commonDateRange.dates[commonDateRange.dates.length - 1];
+    const toISO = (t: number) => new Date(t).toISOString().split("T")[0];
+    return { min: minDate ? toISO(minDate) : "", max: maxDate ? toISO(maxDate) : "" };
+  }, [commonDateRange, initialCandleCount]);
 
   const handleFinish = () => {
     pause();
@@ -140,6 +180,33 @@ export function ControlPanel() {
           />
           {seekValue !== null && previewCandle && (
             <div className="seek-preview">{formatDate(previewCandle.time)}</div>
+          )}
+        </div>
+
+        {/* Jump to Date */}
+        <div className="jump-to-date">
+          <button
+            type="button"
+            className="jump-date-btn"
+            onClick={() => setShowDatePicker(!showDatePicker)}
+            title="Jump to specific date"
+          >
+            <span className="material-icons">calendar_today</span>
+            <span>Jump to Date</span>
+          </button>
+          {showDatePicker && (
+            <div className="date-picker-row">
+              <input
+                type="date"
+                className="date-picker-input"
+                min={dateRange.min}
+                max={dateRange.max}
+                defaultValue={
+                  currentCandle ? new Date(currentCandle.time).toISOString().split("T")[0] : ""
+                }
+                onChange={(e) => handleJumpToDate(e.target.value)}
+              />
+            </div>
           )}
         </div>
       </CollapsiblePanel>

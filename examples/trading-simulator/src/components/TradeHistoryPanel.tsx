@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useSimulatorStore } from "../store/simulatorStore";
-import { PRICE_TYPE_LABELS } from "../types";
+import { PRICE_TYPE_LABELS, formatPrice } from "../types";
 import { formatDate } from "../utils/fileParser";
 import { CollapsiblePanel } from "./CollapsiblePanel";
 
@@ -13,6 +13,7 @@ export function TradeHistoryPanel() {
     return symbols.find((s) => s.id === activeSymbolId) || null;
   }, [symbols, activeSymbolId]);
 
+  const activeCurrency = activeSymbol?.currency ?? "JPY";
   const tradeHistory = activeSymbol?.tradeHistory || [];
   const allCandles = activeSymbol?.allCandles || [];
 
@@ -56,24 +57,25 @@ export function TradeHistoryPanel() {
                   <span className="trade-date">{formatDate(trade.date)}</span>
                 </div>
                 <div className="trade-details">
-                  <span className="trade-price">¥{trade.price.toLocaleString()}</span>
+                  <span className="trade-price">{formatPrice(trade.price, activeCurrency)}</span>
                   <span className="trade-shares">×{trade.shares}</span>
                   <span className="trade-price-type">({PRICE_TYPE_LABELS[trade.priceType]})</span>
                 </div>
-                {trade.type === "SELL" && trade.pnlPercent !== undefined && (
-                  <div className={`trade-pnl ${trade.pnlPercent >= 0 ? "positive" : "negative"}`}>
-                    {trade.pnlPercent >= 0 ? "+" : ""}
-                    {trade.pnlPercent.toFixed(2)}%
-                    {trade.tax && trade.tax > 0 ? (
-                      <span className="trade-tax-info">
-                        {" "}
-                        (after tax: ¥{trade.afterTaxPnl?.toLocaleString()})
-                      </span>
-                    ) : (
-                      <span> (¥{trade.pnl?.toLocaleString()})</span>
-                    )}
-                  </div>
-                )}
+                {(trade.type === "SELL" || trade.type === "BUY_TO_COVER") &&
+                  trade.pnlPercent !== undefined && (
+                    <div className={`trade-pnl ${trade.pnlPercent >= 0 ? "positive" : "negative"}`}>
+                      {trade.pnlPercent >= 0 ? "+" : ""}
+                      {trade.pnlPercent.toFixed(2)}%
+                      {trade.tax && trade.tax > 0 ? (
+                        <span className="trade-tax-info">
+                          {" "}
+                          (after tax: {formatPrice(trade.afterTaxPnl || 0, activeCurrency)})
+                        </span>
+                      ) : (
+                        <span> ({formatPrice(trade.pnl || 0, activeCurrency)})</span>
+                      )}
+                    </div>
+                  )}
                 {trade.memo && <div className="trade-memo">{trade.memo}</div>}
               </div>
             ))}

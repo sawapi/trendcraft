@@ -435,3 +435,32 @@ h1 {
     padding: var(--spacing-md);
   }
 }
+
+/* ============================================
+   Secondary Chart (MTF)
+   ============================================ */
+
+.secondary-chart {
+  margin-top: 8px;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.secondary-chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.secondary-chart-title {
+  font-size: var(--font-md);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.secondary-chart-container {
+  height: 200px;
+}

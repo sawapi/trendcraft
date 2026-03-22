@@ -1,7 +1,9 @@
 import type {
   Alert,
   CommonDateRange,
+  Currency,
   DetectedVolumeSpike,
+  Drawing,
   EquityPoint,
   ExitReason,
   ExitTrigger,
@@ -13,6 +15,7 @@ import type {
   Position,
   PositionSummary,
   PriceType,
+  SavedSession,
   SimulationConfig,
   SimulatorPhase,
   SymbolSession,
@@ -31,14 +34,19 @@ export interface SymbolSlice {
   activeSymbolId: string | null;
   commonDateRange: CommonDateRange | null;
 
-  createSymbolSession: (candles: NormalizedCandle[], fileName: string) => string;
+  createSymbolSession: (
+    candles: NormalizedCandle[],
+    fileName: string,
+    currency?: Currency,
+  ) => string;
   closeSymbolSession: (symbolId: string) => void;
   switchSymbol: (symbolId: string) => void;
   nextSymbol: () => void;
   previousSymbol: () => void;
   getActiveSymbol: () => SymbolSession | null;
   getAllSymbols: () => SymbolSession[];
-  loadCandles: (candles: NormalizedCandle[], fileName: string) => void;
+  setSymbolCurrency: (symbolId: string, currency: Currency) => void;
+  loadCandles: (candles: NormalizedCandle[], fileName: string, currency?: Currency) => void;
 }
 
 export interface PlaybackSlice {
@@ -72,14 +80,30 @@ export interface TradingSlice {
     exitReason: ExitReason,
     exitTrigger?: ExitTrigger,
   ) => void;
+  executeShortSell: (shares: number, memo: string, priceType: PriceType) => void;
+  executeBuyCover: (
+    shares: number,
+    memo: string,
+    priceType: PriceType,
+    exitReason: ExitReason,
+    exitTrigger?: ExitTrigger,
+  ) => void;
+  executeBuyCoverAll: (
+    memo: string,
+    priceType: PriceType,
+    exitReason: ExitReason,
+    exitTrigger?: ExitTrigger,
+  ) => void;
   getNextCandle: () => NormalizedCandle | null;
   updatePositionMFEMAE: () => void;
+  getShortPositionSummary: () => PositionSummary | null;
 }
 
 export interface OrderSlice {
   pendingOrders: PendingOrder[];
 
   placePendingOrder: (order: Omit<PendingOrder, "id" | "createdAt">) => void;
+  placeOcoOrders: (orders: Omit<PendingOrder, "id" | "createdAt" | "ocoGroupId">[]) => void;
   cancelPendingOrder: (orderId: string) => void;
   getPendingOrdersForSymbol: (symbolId: string) => PendingOrder[];
   executePendingOrders: () => void;
@@ -119,6 +143,7 @@ export interface ConfigSlice {
   startSimulation: (config: SimulationConfig) => void;
   finishSimulation: () => void;
   reset: () => void;
+  resetFunds: () => void;
 }
 
 export interface ComputedSlice {
@@ -186,6 +211,22 @@ export interface IncrementalIndicatorSlice {
   clearIncrementalIndicators: (symbolId: string) => void;
 }
 
+export interface ComparisonSlice {
+  savedSessions: SavedSession[];
+
+  saveCurrentSession: (name: string) => void;
+  removeSavedSession: (id: string) => void;
+  clearSavedSessions: () => void;
+}
+
+export interface DrawingSlice {
+  drawings: Drawing[];
+
+  addDrawing: (drawing: Omit<Drawing, "id">) => void;
+  removeDrawing: (id: string) => void;
+  clearDrawings: () => void;
+}
+
 // =============================================
 // Composed State
 // =============================================
@@ -200,7 +241,9 @@ export type SimulatorState = SymbolSlice &
   ComputedSlice &
   IncrementalIndicatorSlice &
   CoachingSlice &
-  HistorySlice;
+  HistorySlice &
+  DrawingSlice &
+  ComparisonSlice;
 
 // Slice creator type for Zustand v5
 export type SliceCreator<T> = (

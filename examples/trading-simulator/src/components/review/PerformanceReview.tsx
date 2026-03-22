@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { type BehaviorInsight, analyzeBehavior } from "../../engine/behaviorAnalyzer";
 import { useSimulatorStore } from "../../store/simulatorStore";
+import { formatPrice } from "../../types";
 import { TradeReplay } from "./TradeReplay";
 
 const TYPE_STYLES: Record<BehaviorInsight["type"], { icon: string; borderColor: string }> = {
@@ -38,9 +39,11 @@ export function PerformanceReview() {
     return analyzeBehavior(activeSymbol.tradeHistory, activeSymbol.equityCurve);
   }, [activeSymbol]);
 
+  const activeCurrency = activeSymbol?.currency ?? "JPY";
+
   const sellTrades = useMemo(() => {
     if (!activeSymbol) return [];
-    return activeSymbol.tradeHistory.filter((t) => t.type === "SELL");
+    return activeSymbol.tradeHistory.filter((t) => t.type === "SELL" || t.type === "BUY_TO_COVER");
   }, [activeSymbol]);
 
   const profitFactor = useMemo(() => {
@@ -93,10 +96,10 @@ export function PerformanceReview() {
               sellTrades.reduce((s, t) => s + (t.pnl || 0), 0) >= 0 ? "positive" : "negative"
             }`}
           >
-            ¥
-            {sellTrades
-              .reduce((s, t) => s + (t.pnl || 0), 0)
-              .toLocaleString(undefined, { maximumFractionDigits: 0 })}
+            {formatPrice(
+              sellTrades.reduce((s, t) => s + (t.pnl || 0), 0),
+              activeCurrency,
+            )}
           </span>
         </div>
         <div className="summary-stat">
@@ -144,7 +147,7 @@ export function PerformanceReview() {
       {sellTrades.length > 0 && (
         <div className="review-section">
           <h3>Trade Replay</h3>
-          <TradeReplay trades={activeSymbol.tradeHistory} />
+          <TradeReplay trades={activeSymbol.tradeHistory} currency={activeCurrency} />
         </div>
       )}
     </div>

@@ -197,3 +197,54 @@
   border-right: 5px solid transparent;
   border-top: 5px solid var(--accent);
 }
+
+/* Jump to Date */
+.jump-to-date {
+  margin-top: 10px;
+}
+
+.jump-date-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  font-size: var(--font-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  width: 100%;
+  justify-content: center;
+}
+
+.jump-date-btn:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border-color: var(--accent);
+}
+
+.jump-date-btn .material-icons {
+  font-size: 16px;
+}
+
+.date-picker-row {
+  margin-top: 8px;
+}
+
+.date-picker-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: var(--font-md);
+  font-family: inherit;
+}
+
+.date-picker-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
