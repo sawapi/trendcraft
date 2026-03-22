@@ -11,14 +11,6 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "outDir": "./dist",
-    "rootDir": "./src",
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["./src/*"]
-    },
-    "types": ["vitest/globals"]
-  },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
+    "forceConsistentCasingInFileNames": true
+  }
 }

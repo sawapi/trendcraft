@@ -1,0 +1,97 @@
+{
+  "name": "trendcraft",
+  "version": "0.1.0",
+  "description": "Technical analysis library for TypeScript — 130+ indicators, backtesting, optimization, streaming, and zero dependencies",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "trendcraft-screen": "./dist/bin/trendcraft-screen.js",
+    "trendcraft-backtest": "./dist/bin/trendcraft-backtest.js",
+    "trendcraft-analyze": "./dist/bin/trendcraft-analyze.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./screening": {
+      "types": "./dist/screening/index.d.ts",
+      "import": "./dist/screening/index.js",
+      "require": "./dist/screening/index.cjs"
+    },
+    "./incremental": {
+      "types": "./dist/indicators/incremental/index.d.ts",
+      "import": "./dist/indicators/incremental/index.js",
+      "require": "./dist/indicators/incremental/index.cjs"
+    },
+    "./safe": {
+      "types": "./dist/indicators/safe/index.d.ts",
+      "import": "./dist/indicators/safe/index.js",
+      "require": "./dist/indicators/safe/index.cjs"
+    }
+  },
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "!dist/**/__tests__",
+    "!dist/**/*.test.d.ts",
+    "!dist/**/*.test.d.ts.map",
+    "!dist/__benchmarks__",
+    "LICENSE"
+  ],
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "analyze": "npx tsx bin/trendcraft-analyze.ts",
+    "test:crossval": "vitest run cross-validation",
+    "bench": "vitest bench"
+  },
+  "keywords": [
+    "trading",
+    "technical-analysis",
+    "indicators",
+    "backtesting",
+    "optimization",
+    "streaming",
+    "sma",
+    "ema",
+    "rsi",
+    "macd",
+    "bollinger-bands",
+    "ichimoku",
+    "vwap",
+    "smart-money",
+    "screening",
+    "finance",
+    "stocks",
+    "crypto"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sawapi/trendcraft.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://github.com/sawapi/trendcraft#readme",
+  "bugs": {
+    "url": "https://github.com/sawapi/trendcraft/issues"
+  },
+  "author": "sawapi",
+  "license": "MIT",
+  "devDependencies": {
+    "vite": "^6.0.3",
+    "vite-plugin-dts": "^4.3.0",
+    "vitest": "^2.1.8",
+    "@vitest/coverage-v8": "^2.1.9"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
