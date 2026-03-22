@@ -122,7 +122,7 @@ function makeCandles(
   opts: { base?: number; trend?: number; volume?: number; volatility?: number } = {},
 ): NormalizedCandle[] {
   const { base = 100, trend = 0.5, volume = 1_000_000, volatility = 2 } = opts;
-  const t0 = Date.now() - count * DAY;
+  const t0 = 1_700_000_000_000 - count * DAY;
   return Array.from({ length: count }, (_, i) => {
     const price = base + i * trend;
     return {
