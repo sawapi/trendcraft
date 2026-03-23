@@ -36,7 +36,7 @@ import { renderMarkers } from "../series/marker";
 import { renderGrid, renderPriceAxis, renderReferenceLines, renderTimeAxis } from "./axis-renderer";
 import { renderCrosshair } from "./crosshair-renderer";
 import { InfoOverlay } from "./info-overlay";
-import { renderScrollbar, scrollbarHitTest } from "./scrollbar-renderer";
+import { renderScrollbar } from "./scrollbar-renderer";
 
 // ============================================
 // Default Options
@@ -137,6 +137,15 @@ export class CanvasChart implements ChartInstance {
       this._canvas,
       this._timeScale,
       () => this._layout.paneRects as PaneRect[],
+      () =>
+        this._layout.scrollbarHeight > 0
+          ? {
+              x: 0,
+              y: this._layout.scrollbarY,
+              width: this._layout.dataAreaWidth,
+              height: this._layout.scrollbarHeight,
+            }
+          : null,
     );
 
     // Auto-resize
@@ -272,6 +281,48 @@ export class CanvasChart implements ChartInstance {
     }
     this._infoOverlay?.setTheme(this._theme);
     this._needsRender = true;
+  }
+
+  // ---- Public API: Series Query ----
+
+  getAllSeries(): import("../core/types").SeriesInfo[] {
+    return this._data.getAllSeries().map((s) => ({
+      id: s.id,
+      paneId: s.paneId,
+      type: s.type,
+      label: s.config.label ?? "",
+      visible: s.visible,
+    }));
+  }
+
+  getVisibleRange(): import("../core/types").VisibleRangeChangeData | null {
+    const candles = this._data.candles;
+    if (candles.length === 0) return null;
+    const startIdx = this._timeScale.startIndex;
+    const endIdx = Math.min(this._timeScale.endIndex, candles.length - 1);
+    return {
+      startTime: candles[Math.max(0, startIdx)]?.time ?? 0,
+      endTime: candles[endIdx]?.time ?? 0,
+      startIndex: startIdx,
+      endIndex: endIdx,
+    };
+  }
+
+  // ---- Public API: Export ----
+
+  async toImage(type = "image/png", quality = 1): Promise<Blob> {
+    // Force a synchronous render
+    this._render();
+    return new Promise((resolve, reject) => {
+      this._canvas.toBlob(
+        (blob) => {
+          if (blob) resolve(blob);
+          else reject(new Error("Failed to export chart image"));
+        },
+        type,
+        quality,
+      );
+    });
   }
 
   // ---- Public API: Lifecycle ----
@@ -491,6 +542,9 @@ export class CanvasChart implements ChartInstance {
       );
     }
 
+    // Current price line on main pane
+    this._renderPriceLine(ctx, paneRects);
+
     // Signal markers on main pane
     this._renderSignals(ctx, paneRects);
 
@@ -692,6 +746,54 @@ export class CanvasChart implements ChartInstance {
       });
       colorIdx++;
     }
+  }
+
+  // ---- Internal: Current Price Line ----
+
+  private _renderPriceLine(ctx: CanvasRenderingContext2D, paneRects: readonly PaneRect[]): void {
+    const candles = this._data.candles;
+    if (candles.length === 0) return;
+
+    const mainPane = paneRects.find((p) => p.id === "main");
+    if (!mainPane) return;
+
+    const ps = this._priceScales.get("main");
+    if (!ps) return;
+
+    const lastCandle = candles[candles.length - 1];
+    const price = lastCandle.close;
+    const y = ps.priceToY(price) + mainPane.y;
+    const isUp = lastCandle.close >= lastCandle.open;
+    const color = isUp ? this._theme.upColor : this._theme.downColor;
+
+    // Dashed line across main pane
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 3]);
+    ctx.globalAlpha = 0.7;
+    ctx.beginPath();
+    ctx.moveTo(mainPane.x, Math.round(y) + 0.5);
+    ctx.lineTo(mainPane.x + mainPane.width, Math.round(y) + 0.5);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 1;
+
+    // Price label on right axis
+    const label = price.toFixed(2);
+    ctx.font = `${this._fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+    const metrics = ctx.measureText(label);
+    const padX = 6;
+    const padY = 3;
+    const labelW = metrics.width + padX * 2;
+    const labelH = this._fontSize + padY * 2;
+    const labelX = mainPane.x + mainPane.width;
+
+    ctx.fillStyle = color;
+    ctx.fillRect(labelX, y - labelH / 2, labelW, labelH);
+    ctx.fillStyle = "#fff";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillText(label, labelX + padX, y);
   }
 
   // ---- Internal: Signal Rendering ----

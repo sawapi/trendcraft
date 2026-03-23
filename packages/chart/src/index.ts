@@ -60,6 +60,7 @@ export type {
   ScaleMode,
   CrosshairMoveData,
   VisibleRangeChangeData,
+  SeriesInfo,
 } from "./core/types";
 
 export { DARK_THEME, LIGHT_THEME } from "./core/types";

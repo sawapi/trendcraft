@@ -8,6 +8,7 @@ export default defineConfig({
       entry: {
         index: resolve(__dirname, "src/index.ts"),
         headless: resolve(__dirname, "src/headless.ts"),
+        "react/TrendChart": resolve(__dirname, "react/TrendChart.tsx"),
       },
       formats: ["es", "cjs"],
       fileName: (format, entryName) => {
@@ -18,7 +19,7 @@ export default defineConfig({
     sourcemap: true,
     minify: "esbuild",
     rollupOptions: {
-      external: ["trendcraft"],
+      external: ["trendcraft", "react", "react/jsx-runtime"],
     },
   },
   plugins: [

@@ -16,6 +16,11 @@
       "types": "./dist/headless.d.ts",
       "import": "./dist/headless.js",
       "require": "./dist/headless.cjs"
+    },
+    "./react": {
+      "types": "./dist/react/TrendChart.d.ts",
+      "import": "./dist/react/TrendChart.js",
+      "require": "./dist/react/TrendChart.cjs"
     }
   },
   "sideEffects": false,
@@ -56,14 +61,20 @@
     "access": "public"
   },
   "peerDependencies": {
-    "trendcraft": ">=0.1.0"
+    "trendcraft": ">=0.1.0",
+    "react": ">=18.0.0"
   },
   "peerDependenciesMeta": {
     "trendcraft": {
       "optional": true
+    },
+    "react": {
+      "optional": true
     }
   },
   "devDependencies": {
+    "@types/react": "^18.3.12",
+    "react": "^18.3.1",
     "trendcraft": "workspace:*",
     "vite": "^6.0.3",
     "vite-plugin-dts": "^4.3.0",

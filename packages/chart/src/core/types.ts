@@ -219,6 +219,15 @@ export type VisibleRangeChangeData = {
 // Chart Instance Interface
 // ============================================
 
+/** Summary info for a series */
+export type SeriesInfo = {
+  id: string;
+  paneId: string;
+  type: SeriesType;
+  label: string;
+  visible: boolean;
+};
+
 export type ChartInstance = {
   // Data
   setCandles(candles: CandleData[]): void;
@@ -226,6 +235,10 @@ export type ChartInstance = {
 
   // Indicators (Series<T> native)
   addIndicator<T>(series: DataPoint<T>[], config?: SeriesConfig): SeriesHandle;
+
+  // Series query
+  getAllSeries(): SeriesInfo[];
+  getVisibleRange(): VisibleRangeChangeData | null;
 
   // Signals & Trades
   addSignals(signals: SignalMarker[]): void;
@@ -244,6 +257,9 @@ export type ChartInstance = {
 
   // Theme
   setTheme(theme: "dark" | "light" | ThemeColors): void;
+
+  // Export
+  toImage(type?: string, quality?: number): Promise<Blob>;
 
   // Lifecycle
   resize(width: number, height: number): void;

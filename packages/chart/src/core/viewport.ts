@@ -4,7 +4,14 @@
  */
 
 import type { TimeScale } from "./scale";
-import type { PaneRect, TimeValue } from "./types";
+import type { PaneRect } from "./types";
+
+export type ScrollbarRect = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
 
 export type ViewportState = {
   /** Is user currently dragging */
@@ -29,6 +36,7 @@ export class Viewport {
 
   private _dragStartX = 0;
   private _dragStartIndex = 0;
+  private _scrollbarDragging = false;
   private _onUpdate: (() => void) | null = null;
 
   get state(): Readonly<ViewportState> {
@@ -40,8 +48,34 @@ export class Viewport {
   }
 
   /** Attach DOM event listeners to the canvas container */
-  attach(el: HTMLElement, timeScale: TimeScale, panes: () => PaneRect[]): () => void {
+  attach(
+    el: HTMLElement,
+    timeScale: TimeScale,
+    panes: () => PaneRect[],
+    scrollbar: () => ScrollbarRect | null,
+  ): () => void {
+    // Make focusable for keyboard events
+    el.tabIndex = 0;
+    el.style.outline = "none";
+
     const onMouseDown = (e: MouseEvent) => {
+      el.focus();
+      const rect = el.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+
+      // Check scrollbar hit
+      const sb = scrollbar();
+      if (sb && my >= sb.y && my <= sb.y + sb.height) {
+        this._scrollbarDragging = true;
+        const frac = (mx - sb.x) / sb.width;
+        const targetCenter = Math.round(frac * timeScale.totalCount);
+        const newStart = Math.max(0, targetCenter - Math.floor(timeScale.visibleCount / 2));
+        timeScale.setVisibleRange(newStart, newStart + timeScale.visibleCount);
+        this._onUpdate?.();
+        return;
+      }
+
       this._state.isDragging = true;
       this._dragStartX = e.clientX;
       this._dragStartIndex = timeScale.startIndex;
@@ -51,6 +85,19 @@ export class Viewport {
       const rect = el.getBoundingClientRect();
       this._state.mouseX = e.clientX - rect.left;
       this._state.mouseY = e.clientY - rect.top;
+
+      // Scrollbar drag
+      if (this._scrollbarDragging) {
+        const sb = scrollbar();
+        if (sb && sb.width > 0) {
+          const frac = (this._state.mouseX - sb.x) / sb.width;
+          const targetCenter = Math.round(frac * timeScale.totalCount);
+          const newStart = Math.max(0, targetCenter - Math.floor(timeScale.visibleCount / 2));
+          timeScale.setVisibleRange(newStart, newStart + timeScale.visibleCount);
+        }
+        this._onUpdate?.();
+        return;
+      }
 
       // Find active pane
       const currentPanes = panes();
@@ -77,10 +124,12 @@ export class Viewport {
 
     const onMouseUp = () => {
       this._state.isDragging = false;
+      this._scrollbarDragging = false;
     };
 
     const onMouseLeave = () => {
       this._state.isDragging = false;
+      this._scrollbarDragging = false;
       this._state.crosshairIndex = null;
       this._state.activePaneId = null;
       this._onUpdate?.();
@@ -89,11 +138,9 @@ export class Viewport {
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
       if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
-        // Horizontal scroll → pan
         const deltaBars = Math.round(e.deltaX / timeScale.barSpacing);
         timeScale.scrollBy(deltaBars);
       } else {
-        // Vertical scroll → zoom
         const factor = e.deltaY > 0 ? 0.9 : 1.1;
         const rect = el.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
@@ -102,11 +149,44 @@ export class Viewport {
       this._onUpdate?.();
     };
 
+    // Keyboard shortcuts
+    const onKeyDown = (e: KeyboardEvent) => {
+      switch (e.key) {
+        case "ArrowLeft":
+          timeScale.scrollBy(e.shiftKey ? -10 : -1);
+          break;
+        case "ArrowRight":
+          timeScale.scrollBy(e.shiftKey ? 10 : 1);
+          break;
+        case "+":
+        case "=":
+          timeScale.zoom(1.15);
+          break;
+        case "-":
+          timeScale.zoom(0.87);
+          break;
+        case "Home":
+          timeScale.setVisibleRange(0, timeScale.visibleCount);
+          break;
+        case "End":
+          timeScale.scrollToEnd();
+          break;
+        case "f":
+          timeScale.fitContent();
+          break;
+        default:
+          return; // Don't prevent default for unhandled keys
+      }
+      e.preventDefault();
+      this._onUpdate?.();
+    };
+
     el.addEventListener("mousedown", onMouseDown);
     el.addEventListener("mousemove", onMouseMove);
     el.addEventListener("mouseup", onMouseUp);
     el.addEventListener("mouseleave", onMouseLeave);
     el.addEventListener("wheel", onWheel, { passive: false });
+    el.addEventListener("keydown", onKeyDown);
 
     // Touch support
     let lastTouchX = 0;
@@ -153,13 +233,13 @@ export class Viewport {
     el.addEventListener("touchmove", onTouchMove, { passive: false });
     el.addEventListener("touchend", onTouchEnd);
 
-    // Return cleanup function
     return () => {
       el.removeEventListener("mousedown", onMouseDown);
       el.removeEventListener("mousemove", onMouseMove);
       el.removeEventListener("mouseup", onMouseUp);
       el.removeEventListener("mouseleave", onMouseLeave);
       el.removeEventListener("wheel", onWheel);
+      el.removeEventListener("keydown", onKeyDown);
       el.removeEventListener("touchstart", onTouchStart);
       el.removeEventListener("touchmove", onTouchMove);
       el.removeEventListener("touchend", onTouchEnd);
