@@ -6,6 +6,7 @@
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 
 /**
@@ -86,5 +87,10 @@ export function imi(
     }
   }
 
-  return result;
+  return tagSeries(result, {
+    pane: "sub",
+    label: "IMI",
+    yRange: [0, 100],
+    referenceLines: [30, 70],
+  });
 }

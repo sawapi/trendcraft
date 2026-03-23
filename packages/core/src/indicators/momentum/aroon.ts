@@ -10,6 +10,7 @@
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 
 /**
@@ -101,5 +102,5 @@ export function aroon(
     });
   }
 
-  return result;
+  return tagSeries(result, { pane: "sub", label: "Aroon", yRange: [0, 100] });
 }

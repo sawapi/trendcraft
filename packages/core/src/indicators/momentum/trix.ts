@@ -12,6 +12,7 @@
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { ema } from "../moving-average/ema";
 
@@ -143,5 +144,5 @@ export function trix(
     });
   }
 
-  return result;
+  return tagSeries(result, { pane: "sub", label: "TRIX", referenceLines: [0] });
 }

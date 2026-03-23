@@ -7,6 +7,7 @@
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { swingPoints } from "./swing-points";
 
@@ -142,5 +143,5 @@ export function fibonacciRetracement(
     });
   }
 
-  return result;
+  return tagSeries(result, { pane: "main", label: "Fib" });
 }

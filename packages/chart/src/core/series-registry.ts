@@ -68,7 +68,7 @@ const BUILTIN_RULES: IntrospectionRule[] = [
     name: "macd",
     test: (v) => hasKeys(v, ["macd", "signal", "histogram"]),
     seriesType: "histogram",
-    defaultPane: "new",
+    defaultPane: "sub",
     decompose: (v) => {
       const val = v as Record<string, number | null>;
       return { macd: val.macd, signal: val.signal, histogram: val.histogram };
@@ -80,7 +80,7 @@ const BUILTIN_RULES: IntrospectionRule[] = [
     name: "dmi",
     test: (v) => hasKeys(v, ["adx", "plusDi", "minusDi"]),
     seriesType: "line",
-    defaultPane: "new",
+    defaultPane: "sub",
     decompose: (v) => {
       const val = v as Record<string, number | null>;
       return { adx: val.adx, plusDi: val.plusDi, minusDi: val.minusDi };
@@ -92,7 +92,7 @@ const BUILTIN_RULES: IntrospectionRule[] = [
     name: "oscillator",
     test: (v) => hasKeys(v, ["k", "d"]) && !hasKeys(v, ["macd"]),
     seriesType: "line",
-    defaultPane: "new",
+    defaultPane: "sub",
     decompose: (v) => {
       const val = v as Record<string, number | null>;
       return { k: val.k, d: val.d };
@@ -104,7 +104,7 @@ const BUILTIN_RULES: IntrospectionRule[] = [
     name: "aroon",
     test: (v) => hasKeys(v, ["up", "down"]) && !hasKeys(v, ["open"]),
     seriesType: "line",
-    defaultPane: "new",
+    defaultPane: "sub",
     decompose: (v) => {
       const val = v as Record<string, number | null>;
       return { up: val.up, down: val.down };
@@ -164,7 +164,7 @@ const BUILTIN_RULES: IntrospectionRule[] = [
     name: "hmmRegime",
     test: (v) => hasKeys(v, ["regime", "confidence"]),
     seriesType: "area",
-    defaultPane: "new",
+    defaultPane: "sub",
     decompose: (v) => {
       const val = v as Record<string, number | null>;
       return { regime: val.regime, confidence: val.confidence };
@@ -200,7 +200,7 @@ const BUILTIN_RULES: IntrospectionRule[] = [
     name: "number",
     test: (v) => typeof v === "number",
     seriesType: "line",
-    defaultPane: "new",
+    defaultPane: "sub",
     decompose: (v) => ({ value: v as number }),
   },
 ];

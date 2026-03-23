@@ -4,6 +4,7 @@
 
 import { getPrice, isNormalized } from "../../core/normalize";
 import { normalizeCandles } from "../../core/normalize";
+import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series, SmaOptions } from "../../types";
 
 /**
@@ -46,7 +47,7 @@ export function sma(
   }
 
   if (normalized.length < period) {
-    return result;
+    return tagSeries(result, { pane: "main", label: "SMA" });
   }
 
   // Calculate initial window sum
@@ -63,5 +64,5 @@ export function sma(
     result.push({ time: normalized[i].time, value: sum / period });
   }
 
-  return result;
+  return tagSeries(result, { pane: "main", label: "SMA" });
 }

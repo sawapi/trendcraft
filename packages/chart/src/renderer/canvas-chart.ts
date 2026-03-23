@@ -166,18 +166,23 @@ export class CanvasChart implements ChartInstance {
 
     // Resolve pane
     let paneId = result.pane;
-    if (paneId === "new") {
+    if (paneId === "sub") {
+      // Auto-generate a new subchart pane
       paneId = `sub_${this._autoSubchartId++}`;
-      const preset = result.preset;
       const paneConfig: PaneConfig = {
         id: paneId,
         flex: 1,
-        yRange: preset?.yRange,
-        referenceLines: preset?.referenceLines,
+        yRange: result.yRange,
+        referenceLines: result.referenceLines,
       };
       this._layout.addPane(paneConfig);
     } else if (paneId !== "main" && !this._layout.hasPane(paneId)) {
-      this._layout.addPane({ id: paneId, flex: 1 });
+      this._layout.addPane({
+        id: paneId,
+        flex: 1,
+        yRange: result.yRange,
+        referenceLines: result.referenceLines,
+      });
     }
 
     // Align series data to candle indices for efficient rendering

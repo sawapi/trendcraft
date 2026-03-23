@@ -6,6 +6,7 @@
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { tagSeries } from "../../core/tag-series";
 import type {
   Candle,
   NormalizedCandle,
@@ -228,7 +229,7 @@ export function volumeProfileSeries(
     result[i] = { time: normalized[i].time, value: profile };
   }
 
-  return result;
+  return tagSeries(result, { pane: "main", label: "Vol Profile" });
 }
 
 /**

@@ -3,6 +3,7 @@
  */
 
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
+import { tagSeries } from "../../core/tag-series";
 import type {
   BollingerBandsOptions,
   BollingerBandsValue,
@@ -67,7 +68,7 @@ export function bollingerBands(
   }
 
   if (normalized.length < period) {
-    return result;
+    return tagSeries(result, { pane: "main", label: "BB" });
   }
 
   // Calculate initial window statistics
@@ -117,5 +118,5 @@ export function bollingerBands(
     result.push(computeResult(i, sum, sumSquares));
   }
 
-  return result;
+  return tagSeries(result, { pane: "main", label: "BB" });
 }

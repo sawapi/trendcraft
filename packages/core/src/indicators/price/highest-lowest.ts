@@ -3,6 +3,7 @@
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { tagSeries } from "../../core/tag-series";
 import type { Candle, HighestLowestOptions, NormalizedCandle, Series } from "../../types";
 
 /**
@@ -91,7 +92,7 @@ export function highestLowest(
     }
   }
 
-  return result;
+  return tagSeries(result, { pane: "main", label: "HiLo" });
 }
 
 /**

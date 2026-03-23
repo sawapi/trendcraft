@@ -7,6 +7,7 @@
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { swingPoints } from "./swing-points";
 
@@ -119,5 +120,5 @@ export function autoTrendLine(
     });
   }
 
-  return result;
+  return tagSeries(result, { pane: "main", label: "Trend Lines" });
 }

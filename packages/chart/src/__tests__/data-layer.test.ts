@@ -51,7 +51,7 @@ describe("DataLayer", () => {
       { time: 2, value: 60 },
     ];
 
-    const handle = dl.addSeries(data, { pane: "new" }, "line");
+    const handle = dl.addSeries(data, { pane: "sub" }, "line");
     expect(dl.getAllSeries().length).toBe(1);
 
     handle.setVisible(false);

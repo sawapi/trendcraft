@@ -13,6 +13,7 @@
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { tagSeries } from "../../core/tag-series";
 import type {
   Candle,
   ChandelierExitOptions,
@@ -158,5 +159,5 @@ export function chandelierExit(
     prevShortExit = shortExit;
   }
 
-  return result;
+  return tagSeries(result, { pane: "main", label: "Chandelier Exit" });
 }

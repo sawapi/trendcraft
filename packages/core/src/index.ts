@@ -1123,6 +1123,10 @@ export type {
 } from "./validation";
 export { normalizeAndValidate } from "./core/normalize";
 
+// Series tagging (chart rendering metadata)
+export { tagSeries } from "./core/tag-series";
+export type { SeriesMeta, TaggedSeries } from "./types/candle";
+
 // Streaming (real-time trading pipeline)
 export * as streaming from "./streaming";
 

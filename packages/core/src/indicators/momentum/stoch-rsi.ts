@@ -5,6 +5,7 @@
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { rsi } from "./rsi";
 
@@ -148,7 +149,12 @@ export function stochRsi(
     });
   }
 
-  return result;
+  return tagSeries(result, {
+    pane: "sub",
+    label: "StochRSI",
+    yRange: [0, 100],
+    referenceLines: [20, 80],
+  });
 }
 
 /**

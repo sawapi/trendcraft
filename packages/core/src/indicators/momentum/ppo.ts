@@ -6,6 +6,7 @@
  */
 
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
+import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 
 /**
@@ -132,5 +133,5 @@ export function ppo(
     }
   }
 
-  return result;
+  return tagSeries(result, { pane: "sub", label: "PPO", referenceLines: [0] });
 }

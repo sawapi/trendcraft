@@ -4,6 +4,7 @@
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, RsiOptions, Series } from "../../types";
 
 /**
@@ -89,7 +90,12 @@ export function rsi(
     }
   }
 
-  return result;
+  return tagSeries(result, {
+    pane: "sub",
+    label: "RSI",
+    yRange: [0, 100],
+    referenceLines: [30, 70],
+  });
 }
 
 /**

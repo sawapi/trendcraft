@@ -6,6 +6,7 @@
  */
 
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
+import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 
 /**
@@ -81,5 +82,5 @@ export function mcginleyDynamic(
     }
   }
 
-  return result;
+  return tagSeries(result, { pane: "main", label: "McGinley" });
 }

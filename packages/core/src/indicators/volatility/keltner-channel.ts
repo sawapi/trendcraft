@@ -6,6 +6,7 @@
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { ema } from "../moving-average/ema";
 import { atr } from "./atr";
@@ -119,5 +120,5 @@ export function keltnerChannel(
     }
   }
 
-  return result;
+  return tagSeries(result, { pane: "main", label: "Keltner" });
 }

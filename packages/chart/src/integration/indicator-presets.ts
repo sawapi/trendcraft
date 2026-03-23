@@ -12,7 +12,7 @@ export type IndicatorPreset = {
   /** Visual series type override */
   seriesType?: SeriesType;
   /** Default pane placement */
-  pane?: "main" | "new";
+  pane?: "main" | "sub";
   /** Primary color */
   color?: string;
   /** Line width */
@@ -65,7 +65,7 @@ export const INDICATOR_PRESETS = new Map<string, IndicatorPreset>([
   [
     "macd",
     {
-      pane: "new",
+      pane: "sub",
       label: "MACD",
       channelColors: {
         macd: "#2196F3",
@@ -79,7 +79,7 @@ export const INDICATOR_PRESETS = new Map<string, IndicatorPreset>([
   [
     "dmi",
     {
-      pane: "new",
+      pane: "sub",
       label: "DMI",
       channelColors: {
         adx: "#FF9800",
@@ -94,7 +94,7 @@ export const INDICATOR_PRESETS = new Map<string, IndicatorPreset>([
   [
     "oscillator",
     {
-      pane: "new",
+      pane: "sub",
       label: "Stochastics",
       channelColors: {
         k: "#2196F3",
@@ -109,7 +109,7 @@ export const INDICATOR_PRESETS = new Map<string, IndicatorPreset>([
   [
     "aroon",
     {
-      pane: "new",
+      pane: "sub",
       label: "Aroon",
       channelColors: {
         up: "#26a69a",
@@ -163,7 +163,7 @@ export const INDICATOR_PRESETS = new Map<string, IndicatorPreset>([
   [
     "hmmRegime",
     {
-      pane: "new",
+      pane: "sub",
       label: "Regime",
       color: "#9c27b0",
     },
@@ -173,7 +173,7 @@ export const INDICATOR_PRESETS = new Map<string, IndicatorPreset>([
   [
     "number",
     {
-      pane: "new",
+      pane: "sub",
       label: "Indicator",
       color: "#2196F3",
       lineWidth: 1.5,

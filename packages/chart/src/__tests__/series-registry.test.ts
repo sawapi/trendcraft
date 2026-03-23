@@ -32,7 +32,7 @@ describe("SeriesRegistry", () => {
     ];
     const rule = registry.detect(data);
     expect(rule!.name).toBe("macd");
-    expect(rule!.defaultPane).toBe("new");
+    expect(rule!.defaultPane).toBe("sub");
   });
 
   it("detects Ichimoku shape", () => {
@@ -112,7 +112,7 @@ describe("SeriesRegistry", () => {
       name: "myCustom",
       test: (v) => typeof v === "object" && v !== null && "custom" in v,
       seriesType: "area",
-      defaultPane: "new",
+      defaultPane: "sub",
       decompose: (v) => ({ custom: (v as { custom: number }).custom }),
     });
 

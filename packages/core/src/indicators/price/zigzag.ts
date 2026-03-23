@@ -7,6 +7,7 @@
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { atr as calculateAtr } from "../volatility/atr";
 
@@ -80,7 +81,7 @@ export function zigzag(
   }));
 
   if (normalized.length < 2) {
-    return result;
+    return tagSeries(result, { pane: "main", label: "Zigzag" });
   }
 
   // Calculate ATR if needed using the existing atr() indicator
@@ -232,5 +233,5 @@ export function zigzag(
     }
   }
 
-  return result;
+  return tagSeries(result, { pane: "main", label: "Zigzag" });
 }

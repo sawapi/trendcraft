@@ -11,6 +11,7 @@
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { tagSeries } from "../../core/tag-series";
 import type { AtrStopsOptions, AtrStopsValue, Candle, NormalizedCandle, Series } from "../../types";
 import { atr } from "./atr";
 
@@ -113,7 +114,7 @@ export function atrStops(
     }
   }
 
-  return result;
+  return tagSeries(result, { pane: "main", label: "ATR Stops" });
 }
 
 /**

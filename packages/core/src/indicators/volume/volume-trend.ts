@@ -6,6 +6,7 @@
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series, VolumeTrendValue } from "../../types";
 
 /**
@@ -133,7 +134,7 @@ export function volumeTrend(
     });
   }
 
-  return result;
+  return tagSeries(result, { pane: "sub", label: "Vol Trend" });
 }
 
 type TrendInfo = {

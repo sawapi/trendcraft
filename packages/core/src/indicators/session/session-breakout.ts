@@ -7,6 +7,7 @@
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { type SessionDefinition, getIctSessions, isInSession } from "./session-definition";
 
@@ -138,5 +139,5 @@ export function sessionBreakout(
     });
   }
 
-  return result;
+  return tagSeries(result, { pane: "main", label: "Session BO" });
 }

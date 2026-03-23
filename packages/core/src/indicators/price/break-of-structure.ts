@@ -6,6 +6,7 @@
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 
 /**
@@ -169,7 +170,7 @@ export function breakOfStructure(
     });
   }
 
-  return result;
+  return tagSeries(result, { pane: "main", label: "BOS" });
 }
 
 /**
@@ -191,7 +192,7 @@ export function changeOfCharacter(
   // Track the trend before BOS
   let prevTrend: "bullish" | "bearish" | "neutral" = "neutral";
 
-  return bos.map((item) => {
+  const result = bos.map((item) => {
     const { bullishBos, bearishBos, trend } = item.value;
 
     // CHoCH is a BOS in the opposite direction of the previous trend
@@ -212,4 +213,6 @@ export function changeOfCharacter(
       },
     };
   });
+
+  return tagSeries(result, { pane: "main", label: "CHoCH" });
 }

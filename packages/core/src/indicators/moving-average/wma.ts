@@ -7,6 +7,7 @@
 
 import { getPrice, isNormalized } from "../../core/normalize";
 import { normalizeCandles } from "../../core/normalize";
+import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 
 /**
@@ -71,7 +72,7 @@ export function wma(
   }
 
   if (normalized.length < period) {
-    return result;
+    return tagSeries(result, { pane: "main", label: "WMA" });
   }
 
   // Calculate initial weighted sum and simple sum
@@ -103,5 +104,5 @@ export function wma(
     result.push({ time: normalized[i].time, value: weightedSum / weightSum });
   }
 
-  return result;
+  return tagSeries(result, { pane: "main", label: "WMA" });
 }

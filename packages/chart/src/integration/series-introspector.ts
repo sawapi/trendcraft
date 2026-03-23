@@ -1,11 +1,20 @@
 /**
  * Series Introspector — Resolves Series<T> to rendering configuration.
- * Uses the SeriesRegistry for type detection and applies indicator presets.
+ * Uses __meta from trendcraft, then SeriesRegistry for type detection,
+ * and applies indicator presets as fallback.
  */
 
 import { type IntrospectionRule, defaultRegistry } from "../core/series-registry";
 import type { DataPoint, SeriesConfig, SeriesType } from "../core/types";
 import { INDICATOR_PRESETS, type IndicatorPreset } from "./indicator-presets";
+
+/** Shape of trendcraft's SeriesMeta (read without importing trendcraft) */
+type SeriesMeta = {
+  pane: "main" | "sub";
+  label: string;
+  yRange?: [number, number];
+  referenceLines?: number[];
+};
 
 export type IntrospectionResult = {
   /** Detected visual series type */
@@ -18,21 +27,37 @@ export type IntrospectionResult = {
   pane: string;
   /** Resolved config (merged user config + preset defaults) */
   config: SeriesConfig;
+  /** Y-axis range hint from __meta (e.g., [0, 100] for RSI) */
+  yRange?: [number, number];
+  /** Reference lines hint from __meta (e.g., [30, 70] for RSI) */
+  referenceLines?: number[];
 };
+
+/**
+ * Extract __meta from a Series if present (trendcraft TaggedSeries).
+ */
+function extractMeta(data: unknown): SeriesMeta | undefined {
+  if (data && typeof data === "object" && "__meta" in data) {
+    return (data as { __meta?: SeriesMeta }).__meta;
+  }
+  return undefined;
+}
 
 /**
  * Introspect a Series<T> and resolve its rendering configuration.
  *
  * Priority:
  * 1. User-provided config values (explicit overrides)
- * 2. Indicator preset defaults (known indicators)
- * 3. Introspection rule defaults (shape-based detection)
- * 4. Fallback: 'line' on 'new' pane
+ * 2. __meta from trendcraft TaggedSeries
+ * 3. Indicator preset defaults (known indicators)
+ * 4. Introspection rule defaults (shape-based detection)
+ * 5. Fallback: 'line' on 'sub' pane
  */
 export function introspect<T>(
   data: DataPoint<T>[],
   userConfig?: SeriesConfig,
 ): IntrospectionResult {
+  const meta = extractMeta(data);
   const rule = defaultRegistry.detect(data);
 
   // Try to match a preset by rule name
@@ -42,8 +67,11 @@ export function introspect<T>(
   const seriesType: SeriesType =
     userConfig?.type ?? preset?.seriesType ?? rule?.seriesType ?? "line";
 
-  // Resolve pane
-  const pane: string = userConfig?.pane ?? preset?.pane ?? rule?.defaultPane ?? "new";
+  // Resolve pane: user config > __meta > preset > rule > fallback
+  const pane: string = userConfig?.pane ?? meta?.pane ?? preset?.pane ?? rule?.defaultPane ?? "sub";
+
+  // Resolve label: user config > __meta > preset > rule name
+  const label: string = userConfig?.label ?? meta?.label ?? preset?.label ?? rule?.name ?? "Series";
 
   // Merge config
   const config: SeriesConfig = {
@@ -51,9 +79,17 @@ export function introspect<T>(
     type: seriesType,
     color: userConfig?.color ?? preset?.color,
     lineWidth: userConfig?.lineWidth ?? preset?.lineWidth,
-    label: userConfig?.label ?? preset?.label ?? rule?.name ?? "Series",
+    label,
     visible: userConfig?.visible,
   };
 
-  return { seriesType, rule, preset, pane, config };
+  return {
+    seriesType,
+    rule,
+    preset,
+    pane,
+    config,
+    yRange: meta?.yRange ?? preset?.yRange,
+    referenceLines: meta?.referenceLines ?? preset?.referenceLines,
+  };
 }

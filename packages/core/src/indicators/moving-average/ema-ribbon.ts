@@ -6,6 +6,7 @@
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 import { ema } from "./ema";
 
@@ -113,5 +114,5 @@ export function emaRibbon(
     });
   }
 
-  return result;
+  return tagSeries(result, { pane: "main", label: "EMA Ribbon" });
 }

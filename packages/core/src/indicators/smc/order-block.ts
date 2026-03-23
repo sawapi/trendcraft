@@ -9,6 +9,7 @@
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { breakOfStructure } from "../price/break-of-structure";
 import { atr as calcAtr } from "../volatility/atr";
@@ -262,7 +263,7 @@ export function orderBlock(
     });
   }
 
-  return result;
+  return tagSeries(result, { pane: "main", label: "Order Block" });
 }
 
 /**

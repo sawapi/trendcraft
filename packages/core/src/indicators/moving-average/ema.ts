@@ -3,6 +3,7 @@
  */
 
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
+import { tagSeries } from "../../core/tag-series";
 import type { Candle, EmaOptions, NormalizedCandle, Series } from "../../types";
 
 /**
@@ -64,5 +65,5 @@ export function ema(
     }
   }
 
-  return result;
+  return tagSeries(result, { pane: "main", label: "EMA" });
 }

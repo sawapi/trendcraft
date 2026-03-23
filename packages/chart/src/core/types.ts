@@ -143,8 +143,8 @@ export type SeriesType =
   | "heatmap";
 
 export type SeriesConfig = {
-  /** Target pane: 'main', 'new', or an existing pane id */
-  pane?: "main" | "new" | string;
+  /** Target pane: 'main' (overlay) or a specific pane id. Omit for auto-detection via __meta. */
+  pane?: "main" | string;
   /** Override auto-detected series type */
   type?: SeriesType;
   /** Primary color */

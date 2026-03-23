@@ -50,6 +50,33 @@ export type IndicatorValue<T> = {
 export type Series<T> = IndicatorValue<T>[];
 
 /**
+ * Metadata attached to indicator Series for chart rendering hints.
+ * Used by @trendcraft/chart to auto-determine pane placement and display options.
+ */
+export type SeriesMeta = {
+  /** Pane placement: 'main' (overlay on price chart) or 'sub' (separate subchart) */
+  pane: "main" | "sub";
+  /** Display label (e.g., 'SMA 20', 'RSI 14') */
+  label: string;
+  /** Fixed Y-axis range (e.g., [0, 100] for RSI) */
+  yRange?: [number, number];
+  /** Reference lines (e.g., [30, 70] for RSI) */
+  referenceLines?: number[];
+};
+
+/**
+ * Series with optional chart rendering metadata.
+ * Backward-compatible: still a plain array, with an optional __meta property.
+ *
+ * @example
+ * ```ts
+ * const result = sma(candles, { period: 20 });
+ * result.__meta // { pane: 'main', label: 'SMA 20' }
+ * ```
+ */
+export type TaggedSeries<T> = Series<T> & { __meta?: SeriesMeta };
+
+/**
  * Price source for indicator calculations
  */
 export type PriceSource = "open" | "high" | "low" | "close" | "hl2" | "hlc3" | "ohlc4" | "volume";

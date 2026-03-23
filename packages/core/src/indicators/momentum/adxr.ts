@@ -4,6 +4,7 @@
  * Smoothed version of ADX: (ADX[i] + ADX[i-period]) / 2
  */
 
+import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { dmi } from "./dmi";
 
@@ -69,5 +70,5 @@ export function adxr(
     }
   }
 
-  return result;
+  return tagSeries(result, { pane: "sub", label: "ADXR", yRange: [0, 100] });
 }

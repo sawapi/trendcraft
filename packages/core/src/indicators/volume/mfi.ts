@@ -4,6 +4,7 @@
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 
 /**
@@ -106,5 +107,10 @@ export function mfi(
     result.push({ time: normalized[i].time, value: mfiValue });
   }
 
-  return result;
+  return tagSeries(result, {
+    pane: "sub",
+    label: "MFI",
+    yRange: [0, 100],
+    referenceLines: [20, 80],
+  });
 }
