@@ -1,0 +1,75 @@
+{
+  "name": "@trendcraft/chart",
+  "version": "0.1.0",
+  "description": "Finance-specialized charting library with native TrendCraft Series<T> support",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./headless": {
+      "types": "./dist/headless.d.ts",
+      "import": "./dist/headless.js",
+      "require": "./dist/headless.cjs"
+    }
+  },
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "!dist/**/__tests__",
+    "!dist/**/*.test.d.ts",
+    "!dist/**/*.js.map",
+    "!dist/**/*.cjs.map",
+    "LICENSE"
+  ],
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write ."
+  },
+  "keywords": [
+    "chart",
+    "candlestick",
+    "finance",
+    "trading",
+    "technical-analysis",
+    "canvas",
+    "trendcraft"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sawapi/trendcraft.git",
+    "directory": "packages/chart"
+  },
+  "author": "sawapi",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "peerDependencies": {
+    "trendcraft": ">=0.1.0"
+  },
+  "peerDependenciesMeta": {
+    "trendcraft": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "trendcraft": "workspace:*",
+    "vite": "^6.0.3",
+    "vite-plugin-dts": "^4.3.0",
+    "vitest": "^2.1.8"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
