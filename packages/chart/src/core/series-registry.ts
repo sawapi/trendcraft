@@ -16,8 +16,8 @@ export type IntrospectionRule = {
   test: (value: unknown) => boolean;
   /** Visual series type to use */
   seriesType: SeriesType;
-  /** Default pane placement: 'main' for overlays, 'new' for subcharts */
-  defaultPane: "main" | "new";
+  /** Default pane placement: 'main' for overlays, 'sub' for subcharts */
+  defaultPane: "main" | "sub";
   /** Extract named numeric channels from the value */
   decompose: (value: unknown) => Record<string, number | null>;
 };

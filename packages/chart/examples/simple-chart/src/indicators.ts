@@ -3,8 +3,10 @@
  * In production, use `import { sma, rsi, macd, bollingerBands } from 'trendcraft'` instead.
  */
 
-export function computeSMA(candles, period) {
-  const result = [];
+import type { CandleData, DataPoint } from "@trendcraft/chart";
+
+export function computeSMA(candles: CandleData[], period: number): DataPoint<number | null>[] {
+  const result: DataPoint<number | null>[] = [];
   for (let i = 0; i < candles.length; i++) {
     if (i < period - 1) {
       result.push({ time: candles[i].time, value: null });
@@ -17,10 +19,10 @@ export function computeSMA(candles, period) {
   return result;
 }
 
-export function computeEMA(candles, period) {
-  const result = [];
+function computeEMA(candles: CandleData[], period: number): DataPoint<number | null>[] {
+  const result: DataPoint<number | null>[] = [];
   const k = 2 / (period + 1);
-  let ema = null;
+  let ema: number | null = null;
   for (let i = 0; i < candles.length; i++) {
     if (i < period - 1) {
       result.push({ time: candles[i].time, value: null });
@@ -38,8 +40,8 @@ export function computeEMA(candles, period) {
   return result;
 }
 
-export function computeRSI(candles, period = 14) {
-  const result = [];
+export function computeRSI(candles: CandleData[], period = 14): DataPoint<number | null>[] {
+  const result: DataPoint<number | null>[] = [];
   let avgGain = 0;
   let avgLoss = 0;
   for (let i = 0; i < candles.length; i++) {
@@ -71,10 +73,12 @@ export function computeRSI(candles, period = 14) {
   return result;
 }
 
-export function computeMACD(candles) {
+type MacdValue = { macd: number | null; signal: number | null; histogram: number | null };
+
+export function computeMACD(candles: CandleData[]): DataPoint<MacdValue>[] {
   const ema12 = computeEMA(candles, 12);
   const ema26 = computeEMA(candles, 26);
-  const macdLine = [];
+  const macdLine: (number | null)[] = [];
   for (let i = 0; i < candles.length; i++) {
     const e12 = ema12[i]?.value;
     const e26 = ema26[i]?.value;
@@ -82,9 +86,9 @@ export function computeMACD(candles) {
   }
   const signalPeriod = 9;
   const k = 2 / (signalPeriod + 1);
-  let signalEma = null;
+  let signalEma: number | null = null;
   let count = 0;
-  const result = [];
+  const result: DataPoint<MacdValue>[] = [];
   for (let i = 0; i < candles.length; i++) {
     const m = macdLine[i];
     if (m === null) {
@@ -101,7 +105,7 @@ export function computeMACD(candles) {
       let cnt = 0;
       for (let j = 0; j <= i; j++) {
         if (macdLine[j] !== null) {
-          sum += macdLine[j];
+          sum += macdLine[j] as number;
           cnt++;
           if (cnt === signalPeriod) break;
         }
@@ -118,9 +122,11 @@ export function computeMACD(candles) {
   return result;
 }
 
-export function computeBB(candles, period = 20, mult = 2) {
+type BbValue = { upper: number | null; middle: number | null; lower: number | null };
+
+export function computeBB(candles: CandleData[], period = 20, mult = 2): DataPoint<BbValue>[] {
   const sma = computeSMA(candles, period);
-  const result = [];
+  const result: DataPoint<BbValue>[] = [];
   for (let i = 0; i < candles.length; i++) {
     const m = sma[i]?.value;
     if (m === null || m === undefined) {
