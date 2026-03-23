@@ -4,9 +4,8 @@
  */
 
 import { DataLayer, type InternalSeries } from "../core/data-layer";
-import { DEFAULT_LAYOUT, LayoutEngine } from "../core/layout";
+import { LayoutEngine } from "../core/layout";
 import { PriceScale, TimeScale } from "../core/scale";
-import { defaultRegistry } from "../core/series-registry";
 import type {
   CandleData,
   ChartEvent,
@@ -26,17 +25,15 @@ import type {
 import { DARK_THEME, LIGHT_THEME } from "../core/types";
 import { Viewport } from "../core/viewport";
 import { introspect } from "../integration/series-introspector";
-import { renderArea } from "../series/area";
-import { bandPriceRange, renderBand } from "../series/band";
-import { candlePriceRange, renderCandlesticks } from "../series/candlestick";
-import { cloudPriceRange, renderCloud } from "../series/cloud";
-import { histogramRange, renderHistogram, renderVolume, volumeRange } from "../series/histogram";
-import { channelPriceRange, linePriceRange, renderChannelLine, renderLine } from "../series/line";
-import { renderMarkers } from "../series/marker";
+import { renderCandlesticks } from "../series/candlestick";
+import { renderVolume } from "../series/histogram";
 import { renderGrid, renderPriceAxis, renderReferenceLines, renderTimeAxis } from "./axis-renderer";
 import { renderCrosshair } from "./crosshair-renderer";
 import { InfoOverlay } from "./info-overlay";
+import { renderPriceLine, renderSignals, renderTrades } from "./overlay-renderer";
+import { computePaneRange } from "./range-calculator";
 import { renderScrollbar } from "./scrollbar-renderer";
+import { dispatchSeries } from "./series-dispatcher";
 
 // ============================================
 // Default Options
@@ -431,7 +428,8 @@ export class CanvasChart implements ChartInstance {
       if (pane.config.yScale) ps.setMode(pane.config.yScale);
       if (pane.config.yRange) ps.setFixedRange(pane.config.yRange);
 
-      const [min, max] = this._computePaneRange(pane, visibleStart, visibleEnd);
+      const paneSeries = this._data.getSeriesForPane(pane.id);
+      const [min, max] = computePaneRange(pane, visibleStart, visibleEnd, candles, paneSeries);
       ps.setDataRange(min, max);
     }
 
@@ -446,7 +444,7 @@ export class CanvasChart implements ChartInstance {
       ctx.clip();
 
       // Grid
-      renderGrid(ctx, ps, pane.x, pane.y, pane.width, pane.height, this._theme);
+      renderGrid(ctx, ps, pane.x, pane.y, pane.width, pane.height, this._theme, timeScale, candles);
 
       // Reference lines
       if (pane.config.referenceLines?.length) {
@@ -476,9 +474,9 @@ export class CanvasChart implements ChartInstance {
       }
 
       // Render indicator series for this pane
-      const paneSeries = this._data.getSeriesForPane(pane.id);
-      for (const s of paneSeries) {
-        this._renderSeries(ctx, s, timeScale, ps);
+      const paneSeriesForRender = this._data.getSeriesForPane(pane.id);
+      for (const s of paneSeriesForRender) {
+        dispatchSeries(ctx, s, timeScale, ps);
       }
 
       ctx.restore();
@@ -542,14 +540,18 @@ export class CanvasChart implements ChartInstance {
       );
     }
 
-    // Current price line on main pane
-    this._renderPriceLine(ctx, paneRects);
-
-    // Signal markers on main pane
-    this._renderSignals(ctx, paneRects);
-
-    // Trade markers on main pane
-    this._renderTrades(ctx, paneRects);
+    // Overlays: price line, signals, trades
+    renderPriceLine(ctx, candles, paneRects, this._priceScales, this._theme, this._fontSize);
+    renderSignals(
+      ctx,
+      this._data.signals,
+      candles,
+      this._data,
+      paneRects,
+      this._priceScales,
+      timeScale,
+    );
+    renderTrades(ctx, this._data.trades, this._data, paneRects, this._priceScales, timeScale);
 
     // Crosshair (on top of everything)
     renderCrosshair(
@@ -576,333 +578,5 @@ export class CanvasChart implements ChartInstance {
       paneRects,
       seriesByPane,
     );
-  }
-
-  // ---- Internal: Compute pane price range ----
-
-  private _computePaneRange(pane: PaneRect, start: number, end: number): [number, number] {
-    let min = Number.POSITIVE_INFINITY;
-    let max = Number.NEGATIVE_INFINITY;
-
-    if (pane.id === "main") {
-      const [cMin, cMax] = candlePriceRange(this._data.candles, start, end);
-      if (cMin < min) min = cMin;
-      if (cMax > max) max = cMax;
-    }
-
-    if (pane.id === "volume") {
-      const [vMin, vMax] = volumeRange(this._data.candles, start, end);
-      return [vMin, vMax];
-    }
-
-    // Include series assigned to this pane
-    const paneSeries = this._data.getSeriesForPane(pane.id);
-    for (const s of paneSeries) {
-      const [sMin, sMax] = this._seriesPriceRange(s, start, end);
-      if (sMin < min) min = sMin;
-      if (sMax > max) max = sMax;
-    }
-
-    return min <= max ? [min, max] : [0, 100];
-  }
-
-  private _seriesPriceRange(s: InternalSeries, start: number, end: number): [number, number] {
-    const rule = defaultRegistry.detect(s.data);
-    if (!rule) return [Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY];
-
-    if (rule.name === "number") {
-      return linePriceRange(s.data as DataPoint<number | null>[], start, end);
-    }
-
-    if (rule.name === "band") {
-      const channels = defaultRegistry.decomposeAll(s.data, rule);
-      const upper = channels.get("upper") ?? [];
-      const lower = channels.get("lower") ?? [];
-      return bandPriceRange(upper, lower, start, end);
-    }
-
-    if (rule.name === "ichimoku") {
-      const channels = defaultRegistry.decomposeAll(s.data, rule);
-      return cloudPriceRange(channels, start, end);
-    }
-
-    if (rule.name === "macd") {
-      const channels = defaultRegistry.decomposeAll(s.data, rule);
-      let min = Number.POSITIVE_INFINITY;
-      let max = Number.NEGATIVE_INFINITY;
-      for (const [, vals] of channels) {
-        const [cMin, cMax] = channelPriceRange(vals, start, end);
-        if (cMin < min) min = cMin;
-        if (cMax > max) max = cMax;
-      }
-      return [min, max];
-    }
-
-    // Generic: decompose and find range across all channels
-    const channels = defaultRegistry.decomposeAll(s.data, rule);
-    let min = Number.POSITIVE_INFINITY;
-    let max = Number.NEGATIVE_INFINITY;
-    for (const [, vals] of channels) {
-      const [cMin, cMax] = channelPriceRange(vals, start, end);
-      if (cMin < min) min = cMin;
-      if (cMax > max) max = cMax;
-    }
-    return [min, max];
-  }
-
-  // ---- Internal: Series Rendering ----
-
-  private _renderSeries(
-    ctx: CanvasRenderingContext2D,
-    s: InternalSeries,
-    timeScale: TimeScale,
-    priceScale: PriceScale,
-  ): void {
-    const rule = defaultRegistry.detect(s.data);
-    if (!rule) return;
-
-    const preset = s.config;
-    const color = preset.color ?? "#2196F3";
-    const lineWidth = preset.lineWidth ?? 1.5;
-
-    if (rule.name === "number") {
-      renderLine(
-        ctx,
-        s.data as DataPoint<number | null>[],
-        timeScale,
-        priceScale,
-        timeScale.startIndex,
-        {
-          color,
-          lineWidth,
-        },
-      );
-      return;
-    }
-
-    if (rule.name === "band") {
-      const channels = defaultRegistry.decomposeAll(s.data, rule);
-      renderBand(
-        ctx,
-        channels.get("upper") ?? [],
-        channels.get("middle") ?? [],
-        channels.get("lower") ?? [],
-        timeScale,
-        priceScale,
-      );
-      return;
-    }
-
-    if (rule.name === "macd") {
-      const channels = defaultRegistry.decomposeAll(s.data, rule);
-      const histogramVals = channels.get("histogram") ?? [];
-      renderHistogram(ctx, histogramVals, timeScale, priceScale, {
-        upColor: "rgba(38,166,154,0.6)",
-        downColor: "rgba(239,83,80,0.6)",
-      });
-      renderChannelLine(ctx, channels.get("macd") ?? [], timeScale, priceScale, {
-        color: "#2196F3",
-        lineWidth: 1.5,
-      });
-      renderChannelLine(ctx, channels.get("signal") ?? [], timeScale, priceScale, {
-        color: "#FF9800",
-        lineWidth: 1.5,
-      });
-      return;
-    }
-
-    // Ichimoku cloud
-    if (rule.name === "ichimoku") {
-      const channels = defaultRegistry.decomposeAll(s.data, rule);
-      renderCloud(ctx, channels, timeScale, priceScale);
-      return;
-    }
-
-    // Parabolic SAR dots
-    if (rule.name === "parabolicSar") {
-      const channels = defaultRegistry.decomposeAll(s.data, rule);
-      const sarVals = channels.get("sar") ?? [];
-      renderMarkers(ctx, sarVals, timeScale, priceScale, { color: color ?? "#FF9800", radius: 2 });
-      return;
-    }
-
-    // Area (HMM Regime etc.)
-    if (rule.name === "hmmRegime") {
-      renderArea(ctx, s.data as DataPoint<number | null>[], timeScale, priceScale, {
-        lineColor: color,
-        fillColor: `${color}26`,
-      });
-      return;
-    }
-
-    // Generic multi-channel: render each channel as a line
-    const channels = defaultRegistry.decomposeAll(s.data, rule);
-    const colors = ["#2196F3", "#FF9800", "#26a69a", "#ef5350", "#9c27b0", "#FF5722"];
-    let colorIdx = 0;
-    for (const [, vals] of channels) {
-      renderChannelLine(ctx, vals, timeScale, priceScale, {
-        color: colors[colorIdx % colors.length],
-        lineWidth,
-      });
-      colorIdx++;
-    }
-  }
-
-  // ---- Internal: Current Price Line ----
-
-  private _renderPriceLine(ctx: CanvasRenderingContext2D, paneRects: readonly PaneRect[]): void {
-    const candles = this._data.candles;
-    if (candles.length === 0) return;
-
-    const mainPane = paneRects.find((p) => p.id === "main");
-    if (!mainPane) return;
-
-    const ps = this._priceScales.get("main");
-    if (!ps) return;
-
-    const lastCandle = candles[candles.length - 1];
-    const price = lastCandle.close;
-    const y = ps.priceToY(price) + mainPane.y;
-    const isUp = lastCandle.close >= lastCandle.open;
-    const color = isUp ? this._theme.upColor : this._theme.downColor;
-
-    // Dashed line across main pane
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 1;
-    ctx.setLineDash([4, 3]);
-    ctx.globalAlpha = 0.7;
-    ctx.beginPath();
-    ctx.moveTo(mainPane.x, Math.round(y) + 0.5);
-    ctx.lineTo(mainPane.x + mainPane.width, Math.round(y) + 0.5);
-    ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.globalAlpha = 1;
-
-    // Price label on right axis
-    const label = price.toFixed(2);
-    ctx.font = `${this._fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
-    const metrics = ctx.measureText(label);
-    const padX = 6;
-    const padY = 3;
-    const labelW = metrics.width + padX * 2;
-    const labelH = this._fontSize + padY * 2;
-    const labelX = mainPane.x + mainPane.width;
-
-    ctx.fillStyle = color;
-    ctx.fillRect(labelX, y - labelH / 2, labelW, labelH);
-    ctx.fillStyle = "#fff";
-    ctx.textAlign = "left";
-    ctx.textBaseline = "middle";
-    ctx.fillText(label, labelX + padX, y);
-  }
-
-  // ---- Internal: Signal Rendering ----
-
-  private _renderSignals(ctx: CanvasRenderingContext2D, paneRects: readonly PaneRect[]): void {
-    const signals = this._data.signals;
-    if (signals.length === 0) return;
-
-    const mainPane = paneRects.find((p) => p.id === "main");
-    if (!mainPane) return;
-
-    const ps = this._priceScales.get("main");
-    if (!ps) return;
-
-    const timeScale = this._timeScale;
-    const candles = this._data.candles;
-
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(mainPane.x, mainPane.y, mainPane.width, mainPane.height);
-    ctx.clip();
-
-    for (const signal of signals) {
-      const idx = this._data.indexAtTime(signal.time);
-      if (idx < timeScale.startIndex || idx >= timeScale.endIndex) continue;
-
-      const candle = candles[idx];
-      if (!candle) continue;
-
-      const x = timeScale.indexToX(idx);
-      const isBuy = signal.type === "buy";
-      const price = isBuy ? candle.low : candle.high;
-      const y = ps.priceToY(price) + mainPane.y;
-      const offset = isBuy ? 12 : -12;
-
-      // Arrow
-      ctx.fillStyle = isBuy ? "#26a69a" : "#ef5350";
-      ctx.beginPath();
-      if (isBuy) {
-        ctx.moveTo(x, y + offset - 8);
-        ctx.lineTo(x - 5, y + offset);
-        ctx.lineTo(x + 5, y + offset);
-      } else {
-        ctx.moveTo(x, y + offset + 8);
-        ctx.lineTo(x - 5, y + offset);
-        ctx.lineTo(x + 5, y + offset);
-      }
-      ctx.closePath();
-      ctx.fill();
-    }
-
-    ctx.restore();
-  }
-
-  // ---- Internal: Trade Rendering ----
-
-  private _renderTrades(ctx: CanvasRenderingContext2D, paneRects: readonly PaneRect[]): void {
-    const trades = this._data.trades;
-    if (trades.length === 0) return;
-
-    const mainPane = paneRects.find((p) => p.id === "main");
-    if (!mainPane) return;
-
-    const ps = this._priceScales.get("main");
-    if (!ps) return;
-
-    const timeScale = this._timeScale;
-
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(mainPane.x, mainPane.y, mainPane.width, mainPane.height);
-    ctx.clip();
-
-    for (const trade of trades) {
-      const entryIdx = this._data.indexAtTime(trade.entryTime);
-      const exitIdx = this._data.indexAtTime(trade.exitTime);
-
-      // Holding period shading
-      const isWin = (trade.returnPercent ?? 0) >= 0;
-      const x1 = timeScale.indexToX(entryIdx);
-      const x2 = timeScale.indexToX(exitIdx);
-      ctx.fillStyle = isWin ? "rgba(38,166,154,0.08)" : "rgba(239,83,80,0.08)";
-      ctx.fillRect(x1, mainPane.y, x2 - x1, mainPane.height);
-
-      // Entry marker
-      const entryY = ps.priceToY(trade.entryPrice) + mainPane.y;
-      ctx.fillStyle = "#2196F3";
-      ctx.beginPath();
-      ctx.arc(x1, entryY, 4, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Exit marker
-      const exitY = ps.priceToY(trade.exitPrice) + mainPane.y;
-      ctx.fillStyle = isWin ? "#26a69a" : "#ef5350";
-      ctx.beginPath();
-      ctx.arc(x2, exitY, 4, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Connection line
-      ctx.strokeStyle = isWin ? "rgba(38,166,154,0.3)" : "rgba(239,83,80,0.3)";
-      ctx.lineWidth = 1;
-      ctx.setLineDash([2, 2]);
-      ctx.beginPath();
-      ctx.moveTo(x1, entryY);
-      ctx.lineTo(x2, exitY);
-      ctx.stroke();
-      ctx.setLineDash([]);
-    }
-
-    ctx.restore();
   }
 }

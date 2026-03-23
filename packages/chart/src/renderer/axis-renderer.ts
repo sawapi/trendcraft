@@ -96,6 +96,7 @@ export function renderTimeAxis(
 
 /**
  * Render horizontal grid lines for a pane.
+ * Optionally renders vertical grid lines aligned with time axis ticks.
  */
 export function renderGrid(
   ctx: CanvasRenderingContext2D,
@@ -105,12 +106,15 @@ export function renderGrid(
   width: number,
   height: number,
   theme: ThemeColors,
+  timeScale?: TimeScale,
+  candles?: readonly CandleData[],
 ): void {
   const ticks = priceScale.getTicks();
 
   ctx.strokeStyle = theme.grid;
   ctx.lineWidth = 1;
 
+  // Horizontal grid lines
   for (const tick of ticks) {
     const tickY = Math.round(priceScale.priceToY(tick) + y) + 0.5;
     if (tickY < y || tickY > y + height) continue;
@@ -118,6 +122,23 @@ export function renderGrid(
     ctx.moveTo(x, tickY);
     ctx.lineTo(x + width, tickY);
     ctx.stroke();
+  }
+
+  // Vertical grid lines (aligned with time axis labels)
+  if (timeScale && candles) {
+    const minLabelSpacing = 80;
+    const labelInterval = Math.max(1, Math.ceil(minLabelSpacing / timeScale.barSpacing));
+    const start = timeScale.startIndex;
+    const end = timeScale.endIndex;
+
+    for (let i = start; i < end && i < candles.length; i++) {
+      if ((i - start) % labelInterval !== 0) continue;
+      const gridX = Math.round(timeScale.indexToX(i)) + 0.5;
+      ctx.beginPath();
+      ctx.moveTo(gridX, y);
+      ctx.lineTo(gridX, y + height);
+      ctx.stroke();
+    }
   }
 }
 
