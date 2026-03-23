@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>@trendcraft/chart — Simple Chart</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0a0e17;
+      color: #d1d4dc;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+    header {
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: #131722;
+      border-bottom: 1px solid #2a2e39;
+    }
+    header h1 { font-size: 16px; font-weight: 600; }
+    header .tag {
+      font-size: 11px;
+      background: #2196F3;
+      color: #fff;
+      padding: 2px 8px;
+      border-radius: 3px;
+    }
+    .controls {
+      display: flex;
+      gap: 8px;
+      margin-left: auto;
+    }
+    button {
+      padding: 6px 12px;
+      font-size: 12px;
+      background: #1e222d;
+      color: #d1d4dc;
+      border: 1px solid #2a2e39;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover { background: #2a2e39; }
+    button.active { background: #2196F3; color: #fff; border-color: #2196F3; }
+    #chart-container {
+      flex: 1;
+      min-height: 0;
+    }
+    .status {
+      padding: 8px 20px;
+      font-size: 11px;
+      color: #787b86;
+      background: #131722;
+      border-top: 1px solid #2a2e39;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>@trendcraft/chart</h1>
+    <span class="tag">Simple Chart Example</span>
+    <div class="controls">
+      <button id="btn-sma" class="active">SMA 20</button>
+      <button id="btn-bb">Bollinger Bands</button>
+      <button id="btn-rsi">RSI</button>
+      <button id="btn-macd">MACD</button>
+      <button id="btn-fit">Fit All</button>
+      <button id="btn-theme">Light Theme</button>
+    </div>
+  </header>
+  <div id="chart-container"></div>
+  <div class="status" id="status">Loading data...</div>
+
+  <script type="module">
+    import { createChart } from '../../dist/index.js';
+    import { computeSMA, computeBB, computeRSI, computeMACD } from './indicators.js';
+
+    // Load sample data
+    const resp = await fetch('./data.json');
+    const candles = await resp.json();
+
+    const container = document.getElementById('chart-container');
+    const statusEl = document.getElementById('status');
+
+    // Create chart
+    const chart = createChart(container, { theme: 'dark' });
+    chart.setCandles(candles);
+    chart.fitContent();
+
+    statusEl.textContent = `Sample Daily — ${candles.length} candles loaded`;
+
+    // Indicator state
+    let smaHandle = null;
+    let bbHandle = null;
+    let rsiHandle = null;
+    let macdHandle = null;
+
+    // Add SMA by default
+    smaHandle = chart.addIndicator(
+      computeSMA(candles, 20),
+      { color: '#FF9800', label: 'SMA 20', lineWidth: 1.5 },
+    );
+
+    // Toggle buttons
+    function toggle(btnId, handleRef, create) {
+      const btn = document.getElementById(btnId);
+      btn.addEventListener('click', () => {
+        if (handleRef.value) {
+          handleRef.value.remove();
+          handleRef.value = null;
+          btn.classList.remove('active');
+        } else {
+          handleRef.value = create();
+          btn.classList.add('active');
+        }
+      });
+    }
+
+    const smaRef = { value: smaHandle };
+    const bbRef = { value: null };
+    const rsiRef = { value: null };
+    const macdRef = { value: null };
+
+    toggle('btn-sma', smaRef, () =>
+      chart.addIndicator(computeSMA(candles, 20), { color: '#FF9800', label: 'SMA 20', lineWidth: 1.5 }),
+    );
+    toggle('btn-bb', bbRef, () =>
+      chart.addIndicator(computeBB(candles)),
+    );
+    toggle('btn-rsi', rsiRef, () =>
+      chart.addIndicator(computeRSI(candles), { pane: 'rsi', color: '#9c27b0', label: 'RSI 14' }),
+    );
+    toggle('btn-macd', macdRef, () =>
+      chart.addIndicator(computeMACD(candles)),
+    );
+
+    document.getElementById('btn-fit').addEventListener('click', () => chart.fitContent());
+
+    let isDark = true;
+    document.getElementById('btn-theme').addEventListener('click', (e) => {
+      isDark = !isDark;
+      chart.setTheme(isDark ? 'dark' : 'light');
+      document.body.style.background = isDark ? '#0a0e17' : '#f5f5f5';
+      document.body.style.color = isDark ? '#d1d4dc' : '#131722';
+      e.target.textContent = isDark ? 'Light Theme' : 'Dark Theme';
+    });
+  </script>
+</body>
+</html>
