@@ -9,7 +9,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@trendcraft/chart": "link:../.."
+    "@trendcraft/chart": "link:../..",
+    "trendcraft": "link:../../../../core"
   },
   "devDependencies": {
     "typescript": "^5.7.2",

@@ -23,15 +23,30 @@ export class DataLayer {
   private _trades: TradeMarker[] = [];
   private _dirty = true;
   private _onChange: (() => void) | null = null;
+  private _onPaneEmpty: ((paneId: string) => void) | null = null;
 
   /** Register a callback for data changes */
   setOnChange(cb: () => void): void {
     this._onChange = cb;
   }
 
+  /** Register a callback when a pane has no more visible series */
+  setOnPaneEmpty(cb: (paneId: string) => void): void {
+    this._onPaneEmpty = cb;
+  }
+
   private markDirty(): void {
     this._dirty = true;
     this._onChange?.();
+  }
+
+  private checkPaneEmpty(paneId: string): void {
+    const hasVisibleSeries = [...this._series.values()].some(
+      (s) => s.paneId === paneId && s.visible,
+    );
+    if (!hasVisibleSeries) {
+      this._onPaneEmpty?.(paneId);
+    }
   }
 
   get dirty(): boolean {
@@ -129,8 +144,11 @@ export class DataLayer {
         this.markDirty();
       },
       remove: () => {
+        const s = this._series.get(id);
+        const paneId = s?.paneId;
         this._series.delete(id);
         this.markDirty();
+        if (paneId) this.checkPaneEmpty(paneId);
       },
     };
     return handle;

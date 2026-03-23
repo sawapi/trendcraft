@@ -1,6 +1,6 @@
 import { createChart } from "@trendcraft/chart";
+import { bollingerBands, ichimoku, macd, rsi, sma } from "trendcraft";
 import sampleData from "../data.json";
-import { computeBB, computeMACD, computeRSI, computeSMA } from "./indicators";
 
 const candles = sampleData;
 const container = document.getElementById("chart-container");
@@ -18,14 +18,10 @@ statusEl.textContent = `Sample Daily — ${candles.length} candles loaded`;
 type HandleRef = { value: ReturnType<typeof chart.addIndicator> | null };
 
 const smaRef: HandleRef = {
-  value: chart.addIndicator(computeSMA(candles, 20), {
-    pane: "main",
-    color: "#FF9800",
-    label: "SMA 20",
-    lineWidth: 1.5,
-  }),
+  value: chart.addIndicator(sma(candles, { period: 20 })),
 };
 const bbRef: HandleRef = { value: null };
+const ichimokuRef: HandleRef = { value: null };
 const rsiRef: HandleRef = { value: null };
 const macdRef: HandleRef = { value: null };
 
@@ -48,21 +44,11 @@ function toggle(
   });
 }
 
-toggle("btn-sma", smaRef, () =>
-  chart.addIndicator(computeSMA(candles, 20), {
-    pane: "main",
-    color: "#FF9800",
-    label: "SMA 20",
-    lineWidth: 1.5,
-  }),
-);
-toggle("btn-bb", bbRef, () => chart.addIndicator(computeBB(candles)));
-toggle("btn-rsi", rsiRef, () =>
-  chart.addIndicator(computeRSI(candles), { pane: "rsi", color: "#9c27b0", label: "RSI 14" }),
-);
-toggle("btn-macd", macdRef, () =>
-  chart.addIndicator(computeMACD(candles), { pane: "macd", label: "MACD" }),
-);
+toggle("btn-sma", smaRef, () => chart.addIndicator(sma(candles, { period: 20 })));
+toggle("btn-bb", bbRef, () => chart.addIndicator(bollingerBands(candles)));
+toggle("btn-ichimoku", ichimokuRef, () => chart.addIndicator(ichimoku(candles)));
+toggle("btn-rsi", rsiRef, () => chart.addIndicator(rsi(candles)));
+toggle("btn-macd", macdRef, () => chart.addIndicator(macd(candles)));
 
 document.getElementById("btn-fit")?.addEventListener("click", () => chart.fitContent());
 

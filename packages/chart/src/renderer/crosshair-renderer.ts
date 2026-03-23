@@ -1,9 +1,9 @@
 /**
- * Crosshair Renderer — Draws crosshair lines and price/time labels.
+ * Crosshair Renderer — Draws crosshair lines, price label, and time label.
  */
 
 import type { PriceScale, TimeScale } from "../core/scale";
-import type { PaneRect, ThemeColors } from "../core/types";
+import type { CandleData, PaneRect, ThemeColors } from "../core/types";
 import type { ViewportState } from "../core/viewport";
 
 /**
@@ -19,6 +19,7 @@ export function renderCrosshair(
   timeAxisY: number,
   theme: ThemeColors,
   fontSize: number,
+  candles?: readonly CandleData[],
 ): void {
   if (viewportState.crosshairIndex === null) return;
 
@@ -55,6 +56,18 @@ export function renderCrosshair(
   }
 
   ctx.setLineDash([]);
+
+  // Time label on time axis
+  if (
+    candles &&
+    viewportState.crosshairIndex >= 0 &&
+    viewportState.crosshairIndex < candles.length
+  ) {
+    const candle = candles[viewportState.crosshairIndex];
+    if (candle) {
+      drawTimeLabel(ctx, candle.time, x, timeAxisY, theme, fontSize);
+    }
+  }
 }
 
 function drawPriceLabel(
@@ -73,19 +86,56 @@ function drawPriceLabel(
   const labelWidth = metrics.width + padX * 2;
   const labelHeight = fontSize + padY * 2;
 
-  // Background
   ctx.fillStyle = theme.crosshair;
   ctx.fillRect(x, y - labelHeight / 2, labelWidth, labelHeight);
 
-  // Text
   ctx.fillStyle = theme.background;
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
   ctx.fillText(label, x + padX, y);
 }
 
+function drawTimeLabel(
+  ctx: CanvasRenderingContext2D,
+  time: number,
+  x: number,
+  y: number,
+  theme: ThemeColors,
+  fontSize: number,
+): void {
+  const label = formatCrosshairTime(time);
+  ctx.font = `${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+  const metrics = ctx.measureText(label);
+  const padX = 6;
+  const padY = 3;
+  const labelWidth = metrics.width + padX * 2;
+  const labelHeight = fontSize + padY * 2;
+
+  ctx.fillStyle = theme.crosshair;
+  ctx.fillRect(x - labelWidth / 2, y, labelWidth, labelHeight);
+
+  ctx.fillStyle = theme.background;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  ctx.fillText(label, x, y + padY);
+}
+
 function formatCrosshairPrice(price: number): string {
   if (Math.abs(price) >= 100) return price.toFixed(2);
   if (Math.abs(price) >= 1) return price.toFixed(3);
   return price.toFixed(6);
+}
+
+function formatCrosshairTime(epoch: number): string {
+  const d = new Date(epoch);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  const h = d.getHours();
+  const min = d.getMinutes();
+
+  if (h === 0 && min === 0) {
+    return `${y}-${m}-${day}`;
+  }
+  return `${y}-${m}-${day} ${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
 }

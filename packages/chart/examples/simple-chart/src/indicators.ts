@@ -146,3 +146,57 @@ export function computeBB(candles: CandleData[], period = 20, mult = 2): DataPoi
   }
   return result;
 }
+
+type IchimokuValue = {
+  tenkan: number | null;
+  kijun: number | null;
+  senkouA: number | null;
+  senkouB: number | null;
+  chikou: number | null;
+};
+
+function highestHigh(candles: CandleData[], end: number, period: number): number | null {
+  if (end - period + 1 < 0) return null;
+  let max = Number.NEGATIVE_INFINITY;
+  for (let i = end - period + 1; i <= end; i++) max = Math.max(max, candles[i].high);
+  return max;
+}
+
+function lowestLow(candles: CandleData[], end: number, period: number): number | null {
+  if (end - period + 1 < 0) return null;
+  let min = Number.POSITIVE_INFINITY;
+  for (let i = end - period + 1; i <= end; i++) min = Math.min(min, candles[i].low);
+  return min;
+}
+
+export function computeIchimoku(
+  candles: CandleData[],
+  tenkanPeriod = 9,
+  kijunPeriod = 26,
+  senkouBPeriod = 52,
+): DataPoint<IchimokuValue>[] {
+  const result: DataPoint<IchimokuValue>[] = [];
+  for (let i = 0; i < candles.length; i++) {
+    const hh9 = highestHigh(candles, i, tenkanPeriod);
+    const ll9 = lowestLow(candles, i, tenkanPeriod);
+    const tenkan = hh9 !== null && ll9 !== null ? (hh9 + ll9) / 2 : null;
+
+    const hh26 = highestHigh(candles, i, kijunPeriod);
+    const ll26 = lowestLow(candles, i, kijunPeriod);
+    const kijun = hh26 !== null && ll26 !== null ? (hh26 + ll26) / 2 : null;
+
+    const senkouA = tenkan !== null && kijun !== null ? (tenkan + kijun) / 2 : null;
+
+    const hh52 = highestHigh(candles, i, senkouBPeriod);
+    const ll52 = lowestLow(candles, i, senkouBPeriod);
+    const senkouB = hh52 !== null && ll52 !== null ? (hh52 + ll52) / 2 : null;
+
+    const chikou = candles[i].close;
+
+    result.push({
+      time: candles[i].time,
+      value: { tenkan, kijun, senkouA, senkouB, chikou },
+    });
+  }
+  return result;
+}

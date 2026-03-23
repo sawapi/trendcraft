@@ -10,7 +10,8 @@
     "skipLibCheck": true,
     "lib": ["ES2022", "DOM"],
     "paths": {
-      "@trendcraft/chart": ["../../src/index.ts"]
+      "@trendcraft/chart": ["../../src/index.ts"],
+      "trendcraft": ["../../../../core/src/index.ts"]
     }
   },
   "include": ["src/**/*"]

@@ -87,10 +87,20 @@ export class LayoutEngine {
     this.recompute();
   }
 
-  /** Add a new pane dynamically (for addIndicator with pane: 'new') */
+  /** Add a new pane dynamically */
   addPane(paneConfig: PaneConfig): void {
     this._config.panes.push(paneConfig);
     this.recompute();
+  }
+
+  /** Remove a pane by id (does not remove 'main' or 'volume') */
+  removePane(id: string): boolean {
+    if (id === "main" || id === "volume") return false;
+    const idx = this._config.panes.findIndex((p) => p.id === id);
+    if (idx === -1) return false;
+    this._config.panes.splice(idx, 1);
+    this.recompute();
+    return true;
   }
 
   /** Check if a pane id already exists */

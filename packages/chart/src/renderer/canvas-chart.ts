@@ -26,12 +26,17 @@ import type {
 import { DARK_THEME, LIGHT_THEME } from "../core/types";
 import { Viewport } from "../core/viewport";
 import { introspect } from "../integration/series-introspector";
+import { renderArea } from "../series/area";
 import { bandPriceRange, renderBand } from "../series/band";
 import { candlePriceRange, renderCandlesticks } from "../series/candlestick";
+import { cloudPriceRange, renderCloud } from "../series/cloud";
 import { histogramRange, renderHistogram, renderVolume, volumeRange } from "../series/histogram";
 import { channelPriceRange, linePriceRange, renderChannelLine, renderLine } from "../series/line";
+import { renderMarkers } from "../series/marker";
 import { renderGrid, renderPriceAxis, renderReferenceLines, renderTimeAxis } from "./axis-renderer";
 import { renderCrosshair } from "./crosshair-renderer";
+import { InfoOverlay } from "./info-overlay";
+import { renderScrollbar, scrollbarHitTest } from "./scrollbar-renderer";
 
 // ============================================
 // Default Options
@@ -63,6 +68,7 @@ export class CanvasChart implements ChartInstance {
   private _timeScale = new TimeScale();
   private _viewport = new Viewport();
   private _priceScales = new Map<string, PriceScale>();
+  private _infoOverlay: InfoOverlay | null = null;
 
   private _rafId: number | null = null;
   private _needsRender = true;
@@ -115,6 +121,14 @@ export class CanvasChart implements ChartInstance {
       this._needsRender = true;
     });
 
+    // Auto-remove empty panes when last series is removed
+    this._data.setOnPaneEmpty((paneId) => {
+      if (this._layout.removePane(paneId)) {
+        this._priceScales.delete(paneId);
+        this._needsRender = true;
+      }
+    });
+
     // Viewport interaction
     this._viewport.setOnUpdate(() => {
       this._needsRender = true;
@@ -138,6 +152,9 @@ export class CanvasChart implements ChartInstance {
       });
       this._resizeObserver.observe(container);
     }
+
+    // Info overlay (DOM-based OHLCV + indicator values)
+    this._infoOverlay = new InfoOverlay(container, this._theme);
 
     // Start render loop
     this._renderLoop();
@@ -253,6 +270,7 @@ export class CanvasChart implements ChartInstance {
     } else {
       this._theme = theme === "light" ? LIGHT_THEME : DARK_THEME;
     }
+    this._infoOverlay?.setTheme(this._theme);
     this._needsRender = true;
   }
 
@@ -267,6 +285,7 @@ export class CanvasChart implements ChartInstance {
     if (this._rafId !== null) cancelAnimationFrame(this._rafId);
     this._detachViewport?.();
     this._resizeObserver?.disconnect();
+    this._infoOverlay?.destroy();
     this._canvas.remove();
   }
 
@@ -439,6 +458,39 @@ export class CanvasChart implements ChartInstance {
       this._fontSize,
     );
 
+    // Pane titles
+    for (const pane of paneRects) {
+      if (pane.id === "main") continue;
+      const paneSeries = this._data.getSeriesForPane(pane.id);
+      const title =
+        pane.id === "volume"
+          ? "Volume"
+          : paneSeries
+              .map((s) => s.config.label ?? "")
+              .filter(Boolean)
+              .join(", ");
+      if (title) {
+        ctx.fillStyle = this._theme.textSecondary;
+        ctx.font = `${this._fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+        ctx.textAlign = "left";
+        ctx.textBaseline = "top";
+        ctx.fillText(title, 4, pane.y + 4);
+      }
+    }
+
+    // Scrollbar
+    if (this._layout.scrollbarHeight > 0) {
+      renderScrollbar(
+        ctx,
+        timeScale,
+        0,
+        this._layout.scrollbarY,
+        this._layout.dataAreaWidth,
+        this._layout.scrollbarHeight,
+        this._theme,
+      );
+    }
+
     // Signal markers on main pane
     this._renderSignals(ctx, paneRects);
 
@@ -456,6 +508,19 @@ export class CanvasChart implements ChartInstance {
       this._layout.timeAxisY,
       this._theme,
       this._fontSize,
+      candles,
+    );
+
+    // Info overlay (DOM) — update with crosshair position
+    const seriesByPane = new Map<string, InternalSeries[]>();
+    for (const pane of paneRects) {
+      seriesByPane.set(pane.id, this._data.getSeriesForPane(pane.id));
+    }
+    this._infoOverlay?.update(
+      this._viewport.state.crosshairIndex,
+      candles,
+      paneRects,
+      seriesByPane,
     );
   }
 
@@ -500,6 +565,11 @@ export class CanvasChart implements ChartInstance {
       const upper = channels.get("upper") ?? [];
       const lower = channels.get("lower") ?? [];
       return bandPriceRange(upper, lower, start, end);
+    }
+
+    if (rule.name === "ichimoku") {
+      const channels = defaultRegistry.decomposeAll(s.data, rule);
+      return cloudPriceRange(channels, start, end);
     }
 
     if (rule.name === "macd") {
@@ -583,6 +653,30 @@ export class CanvasChart implements ChartInstance {
       renderChannelLine(ctx, channels.get("signal") ?? [], timeScale, priceScale, {
         color: "#FF9800",
         lineWidth: 1.5,
+      });
+      return;
+    }
+
+    // Ichimoku cloud
+    if (rule.name === "ichimoku") {
+      const channels = defaultRegistry.decomposeAll(s.data, rule);
+      renderCloud(ctx, channels, timeScale, priceScale);
+      return;
+    }
+
+    // Parabolic SAR dots
+    if (rule.name === "parabolicSar") {
+      const channels = defaultRegistry.decomposeAll(s.data, rule);
+      const sarVals = channels.get("sar") ?? [];
+      renderMarkers(ctx, sarVals, timeScale, priceScale, { color: color ?? "#FF9800", radius: 2 });
+      return;
+    }
+
+    // Area (HMM Regime etc.)
+    if (rule.name === "hmmRegime") {
+      renderArea(ctx, s.data as DataPoint<number | null>[], timeScale, priceScale, {
+        lineColor: color,
+        fillColor: `${color}26`,
       });
       return;
     }
