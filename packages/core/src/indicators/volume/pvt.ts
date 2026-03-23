@@ -50,5 +50,5 @@ export function pvt(candles: Candle[] | NormalizedCandle[]): Series<number | nul
     result.push({ time: normalized[i].time, value: cumPvt });
   }
 
-  return tagSeries(result, { pane: "sub", label: "PVT" });
+  return tagSeries(result, { overlay: false, label: "PVT" });
 }

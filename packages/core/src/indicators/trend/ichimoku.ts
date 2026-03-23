@@ -149,7 +149,7 @@ export function ichimoku(
     });
   }
 
-  return tagSeries(result, { pane: "main", label: "Ichimoku" });
+  return tagSeries(result, { overlay: true, label: "Ichimoku" });
 }
 
 /**

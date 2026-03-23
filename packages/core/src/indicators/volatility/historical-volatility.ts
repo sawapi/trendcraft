@@ -100,5 +100,5 @@ export function historicalVolatility(
     result.push({ time: normalized[i].time, value: hv });
   }
 
-  return tagSeries(result, { pane: "sub", label: "HV" });
+  return tagSeries(result, { overlay: false, label: "HV" });
 }

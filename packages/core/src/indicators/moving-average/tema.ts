@@ -108,5 +108,5 @@ export function tema(
     }
   }
 
-  return tagSeries(result, { pane: "main", label: "TEMA" });
+  return tagSeries(result, { overlay: true, label: "TEMA" });
 }

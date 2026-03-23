@@ -158,7 +158,7 @@ export function connorsRsi(
   }
 
   return tagSeries(result, {
-    pane: "sub",
+    overlay: false,
     label: "CRSI",
     yRange: [0, 100],
     referenceLines: [30, 70],

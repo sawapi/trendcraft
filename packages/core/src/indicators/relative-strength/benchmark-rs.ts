@@ -169,7 +169,7 @@ export function benchmarkRS(
     });
   }
 
-  return tagSeries(results, { pane: "sub", label: "RS" });
+  return tagSeries(results, { overlay: false, label: "RS" });
 }
 
 /**

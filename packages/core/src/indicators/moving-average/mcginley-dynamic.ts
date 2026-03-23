@@ -82,5 +82,5 @@ export function mcginleyDynamic(
     }
   }
 
-  return tagSeries(result, { pane: "main", label: "McGinley" });
+  return tagSeries(result, { overlay: true, label: "McGinley" });
 }

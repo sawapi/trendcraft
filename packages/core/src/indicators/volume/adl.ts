@@ -60,5 +60,5 @@ export function adl(candles: Candle[] | NormalizedCandle[]): Series<number> {
     result.push({ time: normalized[i].time, value: cumulativeAdl });
   }
 
-  return tagSeries(result, { pane: "sub", label: "ADL" });
+  return tagSeries(result, { overlay: false, label: "ADL" });
 }

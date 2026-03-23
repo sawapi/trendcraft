@@ -321,7 +321,7 @@ export function wyckoffPhases(
     });
   }
 
-  return tagSeries(result, { pane: "sub", label: "Wyckoff" });
+  return tagSeries(result, { overlay: false, label: "Wyckoff" });
 }
 
 // ---------------------------------------------------------------------------

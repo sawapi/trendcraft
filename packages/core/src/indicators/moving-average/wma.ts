@@ -72,7 +72,7 @@ export function wma(
   }
 
   if (normalized.length < period) {
-    return tagSeries(result, { pane: "main", label: "WMA" });
+    return tagSeries(result, { overlay: true, label: "WMA" });
   }
 
   // Calculate initial weighted sum and simple sum
@@ -104,5 +104,5 @@ export function wma(
     result.push({ time: normalized[i].time, value: weightedSum / weightSum });
   }
 
-  return tagSeries(result, { pane: "main", label: "WMA" });
+  return tagSeries(result, { overlay: true, label: "WMA" });
 }

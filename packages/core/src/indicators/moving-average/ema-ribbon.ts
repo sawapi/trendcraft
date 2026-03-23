@@ -114,5 +114,5 @@ export function emaRibbon(
     });
   }
 
-  return tagSeries(result, { pane: "main", label: "EMA Ribbon" });
+  return tagSeries(result, { overlay: true, label: "EMA Ribbon" });
 }

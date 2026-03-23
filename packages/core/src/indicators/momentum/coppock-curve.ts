@@ -111,5 +111,5 @@ export function coppockCurve(
     result.push({ time: normalized[i].time, value: weightedSum / weightTotal });
   }
 
-  return tagSeries(result, { pane: "sub", label: "Coppock", referenceLines: [0] });
+  return tagSeries(result, { overlay: false, label: "Coppock", referenceLines: [0] });
 }

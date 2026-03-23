@@ -170,7 +170,7 @@ export function breakOfStructure(
     });
   }
 
-  return tagSeries(result, { pane: "main", label: "BOS" });
+  return tagSeries(result, { overlay: true, label: "BOS" });
 }
 
 /**
@@ -214,5 +214,5 @@ export function changeOfCharacter(
     };
   });
 
-  return tagSeries(result, { pane: "main", label: "CHoCH" });
+  return tagSeries(result, { overlay: true, label: "CHoCH" });
 }

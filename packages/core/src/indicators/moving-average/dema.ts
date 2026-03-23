@@ -100,5 +100,5 @@ export function dema(
     }
   }
 
-  return tagSeries(result, { pane: "main", label: "DEMA" });
+  return tagSeries(result, { overlay: true, label: "DEMA" });
 }

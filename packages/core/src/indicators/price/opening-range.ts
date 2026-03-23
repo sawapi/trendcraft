@@ -151,5 +151,5 @@ export function openingRange(
     }
   }
 
-  return tagSeries(result, { pane: "main", label: "ORB" });
+  return tagSeries(result, { overlay: true, label: "ORB" });
 }

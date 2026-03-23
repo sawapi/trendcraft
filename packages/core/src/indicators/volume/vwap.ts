@@ -211,5 +211,5 @@ export function vwap(
     }
   }
 
-  return tagSeries(result, { pane: "main", label: "VWAP" });
+  return tagSeries(result, { overlay: true, label: "VWAP" });
 }

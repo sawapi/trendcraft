@@ -121,5 +121,5 @@ export function massIndex(
     result.push({ time: normalized[i].time, value: valid ? sum : null });
   }
 
-  return tagSeries(result, { pane: "sub", label: "Mass Index", referenceLines: [27, 26.5] });
+  return tagSeries(result, { overlay: false, label: "Mass Index", referenceLines: [27, 26.5] });
 }

@@ -120,5 +120,5 @@ export function autoTrendLine(
     });
   }
 
-  return tagSeries(result, { pane: "main", label: "Trend Lines" });
+  return tagSeries(result, { overlay: true, label: "Trend Lines" });
 }

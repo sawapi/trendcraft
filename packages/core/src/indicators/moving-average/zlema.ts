@@ -86,5 +86,5 @@ export function zlema(
     }
   }
 
-  return tagSeries(result, { pane: "main", label: "ZLEMA" });
+  return tagSeries(result, { overlay: true, label: "ZLEMA" });
 }

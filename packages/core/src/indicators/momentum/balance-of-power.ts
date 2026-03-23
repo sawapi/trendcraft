@@ -72,5 +72,5 @@ export function balanceOfPower(
     result.push({ time: normalized[i].time, value: sum / smoothPeriod });
   }
 
-  return tagSeries(result, { pane: "sub", label: "BOP", yRange: [-1, 1], referenceLines: [0] });
+  return tagSeries(result, { overlay: false, label: "BOP", yRange: [-1, 1], referenceLines: [0] });
 }

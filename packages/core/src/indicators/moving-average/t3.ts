@@ -90,7 +90,7 @@ export function t3(
     }
   }
 
-  return tagSeries(result, { pane: "main", label: "T3" });
+  return tagSeries(result, { overlay: true, label: "T3" });
 }
 
 /**

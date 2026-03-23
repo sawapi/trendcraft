@@ -77,5 +77,5 @@ export function roc(
     result.push({ time: normalized[i].time, value: rocValue });
   }
 
-  return tagSeries(result, { pane: "sub", label: "ROC", referenceLines: [0] });
+  return tagSeries(result, { overlay: false, label: "ROC", referenceLines: [0] });
 }

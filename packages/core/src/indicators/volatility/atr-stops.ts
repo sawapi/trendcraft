@@ -114,7 +114,7 @@ export function atrStops(
     }
   }
 
-  return tagSeries(result, { pane: "main", label: "ATR Stops" });
+  return tagSeries(result, { overlay: true, label: "ATR Stops" });
 }
 
 /**

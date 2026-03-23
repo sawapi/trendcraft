@@ -86,5 +86,5 @@ export function alma(
     result.push({ time: normalized[i].time, value: almaValue });
   }
 
-  return tagSeries(result, { pane: "main", label: "ALMA" });
+  return tagSeries(result, { overlay: true, label: "ALMA" });
 }

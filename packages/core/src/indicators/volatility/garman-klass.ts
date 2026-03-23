@@ -83,5 +83,5 @@ export function garmanKlass(
     result.push({ time: normalized[i].time, value: gk });
   }
 
-  return tagSeries(result, { pane: "sub", label: "GK Vol" });
+  return tagSeries(result, { overlay: false, label: "GK Vol" });
 }

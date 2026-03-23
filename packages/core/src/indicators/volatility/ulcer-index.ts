@@ -78,5 +78,5 @@ export function ulcerIndex(
     result.push({ time: normalized[i].time, value: ui });
   }
 
-  return tagSeries(result, { pane: "sub", label: "Ulcer" });
+  return tagSeries(result, { overlay: false, label: "Ulcer" });
 }

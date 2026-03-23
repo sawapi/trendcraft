@@ -108,5 +108,5 @@ export function cmf(
     }
   }
 
-  return tagSeries(result, { pane: "sub", label: "CMF", yRange: [-1, 1], referenceLines: [0] });
+  return tagSeries(result, { overlay: false, label: "CMF", yRange: [-1, 1], referenceLines: [0] });
 }

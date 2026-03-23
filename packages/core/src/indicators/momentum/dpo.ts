@@ -86,5 +86,5 @@ export function dpo(
     }
   }
 
-  return tagSeries(result, { pane: "sub", label: "DPO", referenceLines: [0] });
+  return tagSeries(result, { overlay: false, label: "DPO", referenceLines: [0] });
 }

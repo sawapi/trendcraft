@@ -138,7 +138,7 @@ export function stochastics(
   }
 
   return tagSeries(result, {
-    pane: "sub",
+    overlay: false,
     label: "Stoch",
     yRange: [0, 100],
     referenceLines: [20, 80],

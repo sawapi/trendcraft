@@ -134,7 +134,7 @@ export function volumeTrend(
     });
   }
 
-  return tagSeries(result, { pane: "sub", label: "Vol Trend" });
+  return tagSeries(result, { overlay: false, label: "Vol Trend" });
 }
 
 type TrendInfo = {

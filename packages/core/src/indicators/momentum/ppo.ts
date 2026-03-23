@@ -133,5 +133,5 @@ export function ppo(
     }
   }
 
-  return tagSeries(result, { pane: "sub", label: "PPO", referenceLines: [0] });
+  return tagSeries(result, { overlay: false, label: "PPO", referenceLines: [0] });
 }

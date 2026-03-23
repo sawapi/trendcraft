@@ -179,5 +179,5 @@ export function supertrend(
     });
   }
 
-  return tagSeries(result, { pane: "main", label: "Supertrend" });
+  return tagSeries(result, { overlay: true, label: "Supertrend" });
 }

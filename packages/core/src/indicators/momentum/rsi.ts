@@ -91,7 +91,7 @@ export function rsi(
   }
 
   return tagSeries(result, {
-    pane: "sub",
+    overlay: false,
     label: "RSI",
     yRange: [0, 100],
     referenceLines: [30, 70],

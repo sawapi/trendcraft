@@ -86,5 +86,5 @@ export function atr(
     }
   }
 
-  return tagSeries(result, { pane: "sub", label: "ATR" });
+  return tagSeries(result, { overlay: false, label: "ATR" });
 }

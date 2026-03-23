@@ -102,5 +102,5 @@ export function aroon(
     });
   }
 
-  return tagSeries(result, { pane: "sub", label: "Aroon", yRange: [0, 100] });
+  return tagSeries(result, { overlay: false, label: "Aroon", yRange: [0, 100] });
 }

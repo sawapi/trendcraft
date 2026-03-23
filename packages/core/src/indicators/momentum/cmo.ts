@@ -102,7 +102,7 @@ export function cmo(
   }
 
   return tagSeries(result, {
-    pane: "sub",
+    overlay: false,
     label: "CMO",
     yRange: [-100, 100],
     referenceLines: [50, -50],

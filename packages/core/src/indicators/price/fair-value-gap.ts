@@ -226,7 +226,7 @@ export function fairValueGap(
     });
   }
 
-  return tagSeries(result, { pane: "main", label: "FVG" });
+  return tagSeries(result, { overlay: true, label: "FVG" });
 }
 
 /**

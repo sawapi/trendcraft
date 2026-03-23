@@ -93,5 +93,5 @@ export function cci(
     result.push({ time: normalized[i].time, value: cciValue });
   }
 
-  return tagSeries(result, { pane: "sub", label: "CCI", referenceLines: [100, -100] });
+  return tagSeries(result, { overlay: false, label: "CCI", referenceLines: [100, -100] });
 }

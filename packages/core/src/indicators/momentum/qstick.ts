@@ -67,5 +67,5 @@ export function qstick(
     result.push({ time: normalized[i].time, value: sum / period });
   }
 
-  return tagSeries(result, { pane: "sub", label: "QStick", referenceLines: [0] });
+  return tagSeries(result, { overlay: false, label: "QStick", referenceLines: [0] });
 }

@@ -65,5 +65,5 @@ export function ema(
     }
   }
 
-  return tagSeries(result, { pane: "main", label: "EMA" });
+  return tagSeries(result, { overlay: true, label: "EMA" });
 }

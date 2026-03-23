@@ -75,5 +75,5 @@ export function elderForceIndex(
     }
   }
 
-  return tagSeries(result, { pane: "sub", label: "EFI", referenceLines: [0] });
+  return tagSeries(result, { overlay: false, label: "EFI", referenceLines: [0] });
 }

@@ -137,5 +137,5 @@ export function anchoredVwap(
     result.push({ time: candle.time, value });
   }
 
-  return tagSeries(result, { pane: "main", label: "AVWAP" });
+  return tagSeries(result, { overlay: true, label: "AVWAP" });
 }

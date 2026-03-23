@@ -105,7 +105,7 @@ export function choppinessIndex(
   }
 
   return tagSeries(result, {
-    pane: "sub",
+    overlay: false,
     label: "Chop",
     yRange: [0, 100],
     referenceLines: [38.2, 61.8],

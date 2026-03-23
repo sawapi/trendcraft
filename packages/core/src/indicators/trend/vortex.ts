@@ -121,5 +121,5 @@ export function vortex(
     });
   }
 
-  return tagSeries(result, { pane: "sub", label: "Vortex" });
+  return tagSeries(result, { overlay: false, label: "Vortex" });
 }

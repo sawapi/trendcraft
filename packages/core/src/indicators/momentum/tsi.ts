@@ -149,5 +149,5 @@ export function tsi(
     }
   }
 
-  return tagSeries(result, { pane: "sub", label: "TSI", referenceLines: [0] });
+  return tagSeries(result, { overlay: false, label: "TSI", referenceLines: [0] });
 }

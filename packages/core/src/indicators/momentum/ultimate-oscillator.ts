@@ -114,7 +114,7 @@ export function ultimateOscillator(
   }
 
   return tagSeries(result, {
-    pane: "sub",
+    overlay: false,
     label: "UO",
     yRange: [0, 100],
     referenceLines: [30, 70],

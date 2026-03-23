@@ -143,5 +143,5 @@ export function fibonacciRetracement(
     });
   }
 
-  return tagSeries(result, { pane: "main", label: "Fib" });
+  return tagSeries(result, { overlay: true, label: "Fib" });
 }

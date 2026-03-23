@@ -88,7 +88,7 @@ export function imi(
   }
 
   return tagSeries(result, {
-    pane: "sub",
+    overlay: false,
     label: "IMI",
     yRange: [0, 100],
     referenceLines: [30, 70],

@@ -159,5 +159,5 @@ export function chandelierExit(
     prevShortExit = shortExit;
   }
 
-  return tagSeries(result, { pane: "main", label: "Chandelier Exit" });
+  return tagSeries(result, { overlay: true, label: "Chandelier Exit" });
 }

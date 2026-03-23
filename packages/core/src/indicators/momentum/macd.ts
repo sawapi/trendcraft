@@ -81,7 +81,7 @@ export function macd(
     });
   }
 
-  return tagSeries(result, { pane: "sub", label: "MACD" });
+  return tagSeries(result, { overlay: false, label: "MACD" });
 }
 
 /**

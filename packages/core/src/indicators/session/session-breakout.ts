@@ -139,5 +139,5 @@ export function sessionBreakout(
     });
   }
 
-  return tagSeries(result, { pane: "main", label: "Session BO" });
+  return tagSeries(result, { overlay: true, label: "Session BO" });
 }

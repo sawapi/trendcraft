@@ -119,5 +119,5 @@ export function linearRegression(
     });
   }
 
-  return tagSeries(result, { pane: "main", label: "LinReg" });
+  return tagSeries(result, { overlay: true, label: "LinReg" });
 }

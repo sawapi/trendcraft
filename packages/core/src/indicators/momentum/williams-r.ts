@@ -106,7 +106,7 @@ export function williamsR(
   }
 
   return tagSeries(result, {
-    pane: "sub",
+    overlay: false,
     label: "Williams %R",
     yRange: [-100, 0],
     referenceLines: [-20, -80],

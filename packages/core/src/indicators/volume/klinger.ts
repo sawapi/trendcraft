@@ -128,7 +128,7 @@ export function klinger(
     };
   }
 
-  return tagSeries(result, { pane: "sub", label: "Klinger", referenceLines: [0] });
+  return tagSeries(result, { overlay: false, label: "Klinger", referenceLines: [0] });
 }
 
 /**

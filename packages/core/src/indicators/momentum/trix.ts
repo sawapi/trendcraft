@@ -144,5 +144,5 @@ export function trix(
     });
   }
 
-  return tagSeries(result, { pane: "sub", label: "TRIX", referenceLines: [0] });
+  return tagSeries(result, { overlay: false, label: "TRIX", referenceLines: [0] });
 }

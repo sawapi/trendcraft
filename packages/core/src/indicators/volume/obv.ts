@@ -69,5 +69,5 @@ export function obv(candles: Candle[] | NormalizedCandle[]): Series<number> {
     result.push({ time: current.time, value: currentObv });
   }
 
-  return tagSeries(result, { pane: "sub", label: "OBV" });
+  return tagSeries(result, { overlay: false, label: "OBV" });
 }

@@ -118,5 +118,5 @@ export function frama(
     result.push({ time: normalized[i].time, value: prevFrama });
   }
 
-  return tagSeries(result, { pane: "main", label: "FRAMA" });
+  return tagSeries(result, { overlay: true, label: "FRAMA" });
 }

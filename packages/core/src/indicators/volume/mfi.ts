@@ -108,7 +108,7 @@ export function mfi(
   }
 
   return tagSeries(result, {
-    pane: "sub",
+    overlay: false,
     label: "MFI",
     yRange: [0, 100],
     referenceLines: [20, 80],

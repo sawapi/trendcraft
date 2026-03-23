@@ -151,7 +151,7 @@ export function vsa(
     });
   }
 
-  return tagSeries(result, { pane: "sub", label: "VSA" });
+  return tagSeries(result, { overlay: false, label: "VSA" });
 }
 
 /**

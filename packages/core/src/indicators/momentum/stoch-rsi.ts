@@ -150,7 +150,7 @@ export function stochRsi(
   }
 
   return tagSeries(result, {
-    pane: "sub",
+    overlay: false,
     label: "StochRSI",
     yRange: [0, 100],
     referenceLines: [20, 80],

@@ -131,5 +131,5 @@ export function donchianChannel(
     }
   }
 
-  return tagSeries(result, { pane: "main", label: "Donchian" });
+  return tagSeries(result, { overlay: true, label: "Donchian" });
 }

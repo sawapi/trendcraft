@@ -151,5 +151,5 @@ export function kst(
     });
   }
 
-  return tagSeries(result, { pane: "sub", label: "KST", referenceLines: [0] });
+  return tagSeries(result, { overlay: false, label: "KST", referenceLines: [0] });
 }

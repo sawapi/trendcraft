@@ -82,5 +82,5 @@ export function awesomeOscillator(
     result.push({ time: normalized[i].time, value: fastSma - slowSma });
   }
 
-  return tagSeries(result, { pane: "sub", label: "AO", referenceLines: [0] });
+  return tagSeries(result, { overlay: false, label: "AO", referenceLines: [0] });
 }

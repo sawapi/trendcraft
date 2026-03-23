@@ -153,5 +153,5 @@ export function volumeAnomaly(
     });
   }
 
-  return tagSeries(result, { pane: "sub", label: "Vol Anomaly" });
+  return tagSeries(result, { overlay: false, label: "Vol Anomaly" });
 }

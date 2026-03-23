@@ -229,7 +229,7 @@ export function volumeProfileSeries(
     result[i] = { time: normalized[i].time, value: profile };
   }
 
-  return tagSeries(result, { pane: "main", label: "Vol Profile" });
+  return tagSeries(result, { overlay: true, label: "Vol Profile" });
 }
 
 /**

@@ -107,5 +107,5 @@ export function hma(
     }
   }
 
-  return tagSeries(result, { pane: "main", label: "HMA" });
+  return tagSeries(result, { overlay: true, label: "HMA" });
 }

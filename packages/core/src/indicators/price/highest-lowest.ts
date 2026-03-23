@@ -92,7 +92,7 @@ export function highestLowest(
     }
   }
 
-  return tagSeries(result, { pane: "main", label: "HiLo" });
+  return tagSeries(result, { overlay: true, label: "HiLo" });
 }
 
 /**

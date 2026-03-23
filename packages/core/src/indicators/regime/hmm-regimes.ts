@@ -176,7 +176,7 @@ export function hmmRegimes(candles: Candle[], options?: HmmRegimeOptions): Serie
     };
   }
 
-  return tagSeries(result, { pane: "sub", label: "HMM Regime" });
+  return tagSeries(result, { overlay: false, label: "HMM Regime" });
 }
 
 /**

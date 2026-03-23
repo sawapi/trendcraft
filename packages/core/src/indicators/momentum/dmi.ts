@@ -164,7 +164,7 @@ export function dmi(
     });
   }
 
-  return tagSeries(result, { pane: "sub", label: "DMI", yRange: [0, 100] });
+  return tagSeries(result, { overlay: false, label: "DMI", yRange: [0, 100] });
 }
 
 /**

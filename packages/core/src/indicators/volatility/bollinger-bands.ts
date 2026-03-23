@@ -68,7 +68,7 @@ export function bollingerBands(
   }
 
   if (normalized.length < period) {
-    return tagSeries(result, { pane: "main", label: "BB" });
+    return tagSeries(result, { overlay: true, label: "BB" });
   }
 
   // Calculate initial window statistics
@@ -118,5 +118,5 @@ export function bollingerBands(
     result.push(computeResult(i, sum, sumSquares));
   }
 
-  return tagSeries(result, { pane: "main", label: "BB" });
+  return tagSeries(result, { overlay: true, label: "BB" });
 }

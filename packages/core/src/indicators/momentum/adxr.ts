@@ -70,5 +70,5 @@ export function adxr(
     }
   }
 
-  return tagSeries(result, { pane: "sub", label: "ADXR", yRange: [0, 100] });
+  return tagSeries(result, { overlay: false, label: "ADXR", yRange: [0, 100] });
 }

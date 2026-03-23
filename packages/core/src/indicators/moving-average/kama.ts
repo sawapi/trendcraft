@@ -113,5 +113,5 @@ export function kama(
     result.push({ time: normalized[i].time, value: kamaValue });
   }
 
-  return tagSeries(result, { pane: "main", label: "KAMA" });
+  return tagSeries(result, { overlay: true, label: "KAMA" });
 }

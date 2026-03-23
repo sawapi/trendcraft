@@ -94,5 +94,5 @@ export function easeOfMovement(
     });
   }
 
-  return tagSeries(result, { pane: "sub", label: "EMV", referenceLines: [0] });
+  return tagSeries(result, { overlay: false, label: "EMV", referenceLines: [0] });
 }

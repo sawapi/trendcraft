@@ -153,7 +153,7 @@ export function swingPoints(
     });
   }
 
-  return tagSeries(result, { pane: "main", label: "Swing Points" });
+  return tagSeries(result, { overlay: true, label: "Swing Points" });
 }
 
 /**

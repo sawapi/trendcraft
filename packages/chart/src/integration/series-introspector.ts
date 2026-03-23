@@ -10,7 +10,7 @@ import { INDICATOR_PRESETS, type IndicatorPreset } from "./indicator-presets";
 
 /** Shape of trendcraft's SeriesMeta (read without importing trendcraft) */
 type SeriesMeta = {
-  pane: "main" | "sub";
+  overlay: boolean;
   label: string;
   yRange?: [number, number];
   referenceLines?: number[];
@@ -67,8 +67,9 @@ export function introspect<T>(
   const seriesType: SeriesType =
     userConfig?.type ?? preset?.seriesType ?? rule?.seriesType ?? "line";
 
-  // Resolve pane: user config > __meta > preset > rule > fallback
-  const pane: string = userConfig?.pane ?? meta?.pane ?? preset?.pane ?? rule?.defaultPane ?? "sub";
+  // Resolve pane: user config > __meta.overlay > preset > rule > fallback
+  const metaPane = meta ? (meta.overlay ? "main" : "sub") : undefined;
+  const pane: string = userConfig?.pane ?? metaPane ?? preset?.pane ?? rule?.defaultPane ?? "sub";
 
   // Resolve label: user config > __meta > preset > rule name
   const label: string = userConfig?.label ?? meta?.label ?? preset?.label ?? rule?.name ?? "Series";

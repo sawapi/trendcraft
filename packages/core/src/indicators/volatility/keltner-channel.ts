@@ -120,5 +120,5 @@ export function keltnerChannel(
     }
   }
 
-  return tagSeries(result, { pane: "main", label: "Keltner" });
+  return tagSeries(result, { overlay: true, label: "Keltner" });
 }

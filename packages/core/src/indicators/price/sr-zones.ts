@@ -483,5 +483,5 @@ export function srZonesSeries(
     result.push({ time: normalized[i].time, value: zones });
   }
 
-  return tagSeries(result, { pane: "main", label: "S/R Zones" });
+  return tagSeries(result, { overlay: true, label: "S/R Zones" });
 }

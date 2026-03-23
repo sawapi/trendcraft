@@ -275,7 +275,7 @@ export function liquiditySweep(
     });
   }
 
-  return tagSeries(result, { pane: "main", label: "Liq Sweep" });
+  return tagSeries(result, { overlay: true, label: "Liq Sweep" });
 }
 
 /**

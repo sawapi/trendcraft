@@ -256,5 +256,5 @@ export function parabolicSar(
     });
   }
 
-  return tagSeries(result, { pane: "main", label: "Parabolic SAR" });
+  return tagSeries(result, { overlay: true, label: "Parabolic SAR" });
 }

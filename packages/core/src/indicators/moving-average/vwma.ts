@@ -60,7 +60,7 @@ export function vwma(
   }
 
   if (normalized.length < period) {
-    return tagSeries(result, { pane: "main", label: "VWMA" });
+    return tagSeries(result, { overlay: true, label: "VWMA" });
   }
 
   // Calculate initial window sums
@@ -93,5 +93,5 @@ export function vwma(
     });
   }
 
-  return tagSeries(result, { pane: "main", label: "VWMA" });
+  return tagSeries(result, { overlay: true, label: "VWMA" });
 }

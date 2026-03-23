@@ -50,12 +50,12 @@ export type IndicatorValue<T> = {
 export type Series<T> = IndicatorValue<T>[];
 
 /**
- * Metadata attached to indicator Series for chart rendering hints.
- * Used by @trendcraft/chart to auto-determine pane placement and display options.
+ * Metadata describing indicator characteristics.
+ * Used by @trendcraft/chart for automatic pane placement and display options.
  */
 export type SeriesMeta = {
-  /** Pane placement: 'main' (overlay on price chart) or 'sub' (separate subchart) */
-  pane: "main" | "sub";
+  /** Whether this indicator shares the price scale (true) or needs its own scale (false) */
+  overlay: boolean;
   /** Display label (e.g., 'SMA 20', 'RSI 14') */
   label: string;
   /** Fixed Y-axis range (e.g., [0, 100] for RSI) */
@@ -65,13 +65,13 @@ export type SeriesMeta = {
 };
 
 /**
- * Series with optional chart rendering metadata.
+ * Series with optional indicator metadata.
  * Backward-compatible: still a plain array, with an optional __meta property.
  *
  * @example
  * ```ts
  * const result = sma(candles, { period: 20 });
- * result.__meta // { pane: 'main', label: 'SMA 20' }
+ * result.__meta // { overlay: true, label: 'SMA 20' }
  * ```
  */
 export type TaggedSeries<T> = Series<T> & { __meta?: SeriesMeta };

@@ -47,7 +47,7 @@ export function sma(
   }
 
   if (normalized.length < period) {
-    return tagSeries(result, { pane: "main", label: "SMA" });
+    return tagSeries(result, { overlay: true, label: "SMA" });
   }
 
   // Calculate initial window sum
@@ -64,5 +64,5 @@ export function sma(
     result.push({ time: normalized[i].time, value: sum / period });
   }
 
-  return tagSeries(result, { pane: "main", label: "SMA" });
+  return tagSeries(result, { overlay: true, label: "SMA" });
 }

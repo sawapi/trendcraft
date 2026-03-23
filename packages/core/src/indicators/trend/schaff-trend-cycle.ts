@@ -139,7 +139,7 @@ export function schaffTrendCycle(
   }
 
   return tagSeries(result, {
-    pane: "sub",
+    overlay: false,
     label: "STC",
     yRange: [0, 100],
     referenceLines: [25, 75],
