@@ -14,6 +14,8 @@ import type {
   ChartInstance,
   ChartOptions,
   DataPoint,
+  Drawing,
+  DrawingType,
   LayoutConfig,
   PaneConfig,
   PaneRect,
@@ -31,6 +33,7 @@ import { renderCandlesticks } from "../series/candlestick";
 import { renderVolume } from "../series/histogram";
 import { renderGrid, renderPriceAxis, renderReferenceLines, renderTimeAxis } from "./axis-renderer";
 import { renderCrosshair } from "./crosshair-renderer";
+import { renderDrawings } from "./drawing-renderer";
 import { InfoOverlay } from "./info-overlay";
 import { renderPriceLine, renderSignals, renderTrades } from "./overlay-renderer";
 import { computePaneRange } from "./range-calculator";
@@ -70,6 +73,8 @@ export class CanvasChart implements ChartInstance {
   private _viewport = new Viewport();
   private _priceScales = new Map<string, PriceScale>();
   private _infoOverlay: InfoOverlay | null = null;
+  private _activeDrawingTool: DrawingType | null = null;
+  private _drawingInProgress: { startTime: number; startPrice: number } | null = null;
 
   private _rafId: number | null = null;
   private _needsRender = true;
@@ -266,6 +271,28 @@ export class CanvasChart implements ChartInstance {
   addTrades(trades: TradeMarker[]): void {
     this._data.setTrades(trades);
     this._needsRender = true;
+  }
+
+  // ---- Public API: Drawings ----
+
+  addDrawing(drawing: Drawing): void {
+    this._data.addDrawing(drawing);
+    this._needsRender = true;
+  }
+
+  removeDrawing(id: string): void {
+    this._data.removeDrawing(id);
+    this._needsRender = true;
+  }
+
+  getDrawings(): Drawing[] {
+    return this._data.getDrawings();
+  }
+
+  setDrawingTool(tool: DrawingType | null): void {
+    this._activeDrawingTool = tool;
+    this._drawingInProgress = null;
+    this._canvas.style.cursor = tool ? "crosshair" : "crosshair";
   }
 
   // ---- Public API: Layout ----
@@ -583,6 +610,18 @@ export class CanvasChart implements ChartInstance {
         this._theme,
       );
     }
+
+    // Drawings (under overlays)
+    renderDrawings(
+      ctx,
+      this._data.drawings,
+      paneRects,
+      this._priceScales,
+      timeScale,
+      this._data,
+      this._theme,
+      this._fontSize,
+    );
 
     // Overlays: price line, signals, trades
     renderPriceLine(ctx, candles, paneRects, this._priceScales, this._theme, this._fontSize);

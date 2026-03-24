@@ -50,6 +50,57 @@ toggle("btn-ichimoku", ichimokuRef, () => chart.addIndicator(ichimoku(candles)))
 toggle("btn-rsi", rsiRef, () => chart.addIndicator(rsi(candles)));
 toggle("btn-macd", macdRef, () => chart.addIndicator(macd(candles)));
 
+// Drawing tools
+let hlineId = 0;
+document.getElementById("btn-hline")?.addEventListener("click", () => {
+  // Add horizontal line at the median visible price
+  const range = chart.getVisibleRange();
+  if (!range) return;
+  const midIdx = Math.floor((range.startIndex + range.endIndex) / 2);
+  const midCandle = candles[midIdx];
+  if (!midCandle) return;
+  chart.addDrawing({
+    id: `hline_${hlineId++}`,
+    type: "hline",
+    price: midCandle.close,
+    color: "#FF9800",
+  });
+});
+
+let currentFibId: string | null = null;
+document.getElementById("btn-fib")?.addEventListener("click", () => {
+  // Remove previous fib before adding new one
+  if (currentFibId) chart.removeDrawing(currentFibId);
+
+  const range = chart.getVisibleRange();
+  if (!range) return;
+  const start = Math.max(0, range.startIndex);
+  const end = Math.min(candles.length - 1, range.endIndex);
+  let low = Number.POSITIVE_INFINITY;
+  let high = Number.NEGATIVE_INFINITY;
+  let lowTime = candles[start].time;
+  let highTime = candles[end].time;
+  for (let i = start; i <= end; i++) {
+    if (candles[i].low < low) {
+      low = candles[i].low;
+      lowTime = candles[i].time;
+    }
+    if (candles[i].high > high) {
+      high = candles[i].high;
+      highTime = candles[i].time;
+    }
+  }
+  currentFibId = `fib_${Date.now()}`;
+  chart.addDrawing({
+    id: currentFibId,
+    type: "fibRetracement",
+    startTime: lowTime,
+    startPrice: low,
+    endTime: highTime,
+    endPrice: high,
+  });
+});
+
 document.getElementById("btn-fit")?.addEventListener("click", () => chart.fitContent());
 
 let isDark = true;

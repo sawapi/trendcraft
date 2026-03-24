@@ -61,6 +61,11 @@ export type {
   CrosshairMoveData,
   VisibleRangeChangeData,
   SeriesInfo,
+  Drawing,
+  DrawingType,
+  HLineDrawing,
+  TrendLineDrawing,
+  FibRetracementDrawing,
 } from "./core/types";
 
 export { DARK_THEME, LIGHT_THEME } from "./core/types";

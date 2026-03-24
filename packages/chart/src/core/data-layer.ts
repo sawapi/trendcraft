@@ -6,6 +6,7 @@
 import type {
   CandleData,
   DataPoint,
+  Drawing,
   ResolvedSeries,
   SeriesConfig,
   SeriesHandle,
@@ -21,6 +22,7 @@ export class DataLayer {
   private _series: Map<string, InternalSeries> = new Map();
   private _signals: SignalMarker[] = [];
   private _trades: TradeMarker[] = [];
+  private _drawings: Map<string, Drawing> = new Map();
   private _dirty = true;
   private _onChange: (() => void) | null = null;
   private _onPaneEmpty: ((paneId: string) => void) | null = null;
@@ -187,6 +189,26 @@ export class DataLayer {
   setTrades(trades: TradeMarker[]): void {
     this._trades = trades;
     this.markDirty();
+  }
+
+  // ---- Drawings ----
+
+  get drawings(): readonly Drawing[] {
+    return [...this._drawings.values()];
+  }
+
+  addDrawing(drawing: Drawing): void {
+    this._drawings.set(drawing.id, drawing);
+    this.markDirty();
+  }
+
+  removeDrawing(id: string): void {
+    this._drawings.delete(id);
+    this.markDirty();
+  }
+
+  getDrawings(): Drawing[] {
+    return [...this._drawings.values()];
   }
 }
 

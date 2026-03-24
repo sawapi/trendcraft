@@ -179,6 +179,43 @@ export type SeriesHandle = {
 };
 
 // ============================================
+// Drawing Types
+// ============================================
+
+export type DrawingType = "hline" | "trendline" | "fibRetracement";
+
+export type DrawingBase = {
+  id: string;
+  type: DrawingType;
+  color?: string;
+  lineWidth?: number;
+};
+
+export type HLineDrawing = DrawingBase & {
+  type: "hline";
+  price: number;
+};
+
+export type TrendLineDrawing = DrawingBase & {
+  type: "trendline";
+  startTime: TimeValue;
+  startPrice: number;
+  endTime: TimeValue;
+  endPrice: number;
+};
+
+export type FibRetracementDrawing = DrawingBase & {
+  type: "fibRetracement";
+  startTime: TimeValue;
+  startPrice: number;
+  endTime: TimeValue;
+  endPrice: number;
+  levels?: number[];
+};
+
+export type Drawing = HLineDrawing | TrendLineDrawing | FibRetracementDrawing;
+
+// ============================================
 // Signal / Trade overlay types
 // ============================================
 
@@ -247,6 +284,14 @@ export type ChartInstance = {
   // Signals & Trades
   addSignals(signals: SignalMarker[]): void;
   addTrades(trades: TradeMarker[]): void;
+
+  // Drawings
+  addDrawing(drawing: Drawing): void;
+  removeDrawing(id: string): void;
+  getDrawings(): Drawing[];
+
+  // Drawing tool mode
+  setDrawingTool(tool: DrawingType | null): void;
 
   // Layout
   setLayout(layout: LayoutConfig): void;
