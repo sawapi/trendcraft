@@ -3,14 +3,16 @@
  * Extracted from canvas-chart.ts for maintainability.
  */
 
-import type { InternalSeries } from "../core/data-layer";
+import type { DataLayer, InternalSeries } from "../core/data-layer";
 import { getDecimationTarget, lttb } from "../core/decimation";
 import type { PriceScale, TimeScale } from "../core/scale";
 import { defaultRegistry } from "../core/series-registry";
 import type { DataPoint } from "../core/types";
 import { renderArea } from "../series/area";
 import { renderBand } from "../series/band";
+import { renderBoxes } from "../series/box";
 import { renderCloud } from "../series/cloud";
+import { renderHeatmap } from "../series/heatmap";
 import { renderHistogram } from "../series/histogram";
 import { renderChannelLine, renderLine } from "../series/line";
 import { renderMarkers } from "../series/marker";
@@ -23,6 +25,8 @@ export function dispatchSeries(
   s: InternalSeries,
   timeScale: TimeScale,
   priceScale: PriceScale,
+  dataLayer?: DataLayer,
+  paneWidth?: number,
 ): void {
   const rule = defaultRegistry.detect(s.data);
   if (!rule) return;
@@ -91,6 +95,19 @@ export function dispatchSeries(
       lineColor: color,
       fillColor: `${color}26`,
     });
+    return;
+  }
+
+  // Volume Profile heatmap
+  if (rule.name === "volumeProfile") {
+    const channels = defaultRegistry.decomposeAll(s.data, rule);
+    renderHeatmap(ctx, channels, timeScale, priceScale, paneWidth ?? timeScale.width);
+    return;
+  }
+
+  // Box zones (Order Block, FVG)
+  if (rule.seriesType === "box" && dataLayer) {
+    renderBoxes(ctx, s.data as { value: unknown }[], timeScale, priceScale, dataLayer);
     return;
   }
 

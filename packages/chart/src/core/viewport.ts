@@ -53,16 +53,31 @@ export class Viewport {
     timeScale: TimeScale,
     panes: () => PaneRect[],
     scrollbar: () => ScrollbarRect | null,
+    gapAtY?: (y: number) => number | null,
+    resizePanes?: (gapIndex: number, deltaY: number) => void,
   ): () => void {
     // Make focusable for keyboard events
     el.tabIndex = 0;
     el.style.outline = "none";
+
+    let paneResizeGap: number | null = null;
+    let paneResizeStartY = 0;
 
     const onMouseDown = (e: MouseEvent) => {
       el.focus();
       const rect = el.getBoundingClientRect();
       const mx = e.clientX - rect.left;
       const my = e.clientY - rect.top;
+
+      // Check pane gap hit (resize)
+      if (gapAtY) {
+        const gap = gapAtY(my);
+        if (gap !== null) {
+          paneResizeGap = gap;
+          paneResizeStartY = e.clientY;
+          return;
+        }
+      }
 
       // Check scrollbar hit
       const sb = scrollbar();
@@ -85,6 +100,21 @@ export class Viewport {
       const rect = el.getBoundingClientRect();
       this._state.mouseX = e.clientX - rect.left;
       this._state.mouseY = e.clientY - rect.top;
+
+      // Pane resize drag
+      if (paneResizeGap !== null && resizePanes) {
+        const delta = e.clientY - paneResizeStartY;
+        resizePanes(paneResizeGap, delta);
+        paneResizeStartY = e.clientY;
+        this._onUpdate?.();
+        return;
+      }
+
+      // Cursor style for gap hover
+      if (gapAtY) {
+        const gap = gapAtY(this._state.mouseY);
+        el.style.cursor = gap !== null ? "ns-resize" : "crosshair";
+      }
 
       // Scrollbar drag
       if (this._scrollbarDragging) {
@@ -125,6 +155,7 @@ export class Viewport {
     const onMouseUp = () => {
       this._state.isDragging = false;
       this._scrollbarDragging = false;
+      paneResizeGap = null;
     };
 
     const onMouseLeave = () => {

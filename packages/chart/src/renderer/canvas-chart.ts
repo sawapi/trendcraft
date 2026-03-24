@@ -118,6 +118,12 @@ export class CanvasChart implements ChartInstance {
     this._canvas.style.width = "100%";
     this._canvas.style.height = "100%";
     this._canvas.style.cursor = "crosshair";
+
+    // Accessibility
+    this._canvas.setAttribute("role", "img");
+    this._canvas.setAttribute("aria-label", "Financial chart");
+    container.style.position = "relative";
+
     container.appendChild(this._canvas);
 
     const ctx = this._canvas.getContext("2d");
@@ -164,6 +170,11 @@ export class CanvasChart implements ChartInstance {
               height: this._layout.scrollbarHeight,
             }
           : null,
+      (y) => this._layout.gapAtY(y),
+      (gapIdx, delta) => {
+        this._layout.resizePanes(gapIdx, delta);
+        this._needsRender = true;
+      },
     );
 
     // Auto-resize
@@ -585,7 +596,7 @@ export class CanvasChart implements ChartInstance {
       // Render indicator series for this pane
       const paneSeriesForRender = this._data.getSeriesForPane(pane.id);
       for (const s of paneSeriesForRender) {
-        dispatchSeries(ctx, s, timeScale, ps);
+        dispatchSeries(ctx, s, timeScale, ps, this._data, pane.width);
       }
 
       ctx.restore();

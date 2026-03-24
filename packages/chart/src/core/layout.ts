@@ -118,6 +118,34 @@ export class LayoutEngine {
     return this._paneRects.find((p) => y >= p.y && y < p.y + p.height);
   }
 
+  /** Check if y coordinate is on a gap between panes. Returns index of gap (pane above). */
+  gapAtY(y: number): number | null {
+    const gap = this._config.gap ?? 4;
+    for (let i = 0; i < this._paneRects.length - 1; i++) {
+      const bottom = this._paneRects[i].y + this._paneRects[i].height;
+      if (y >= bottom && y < bottom + gap) return i;
+    }
+    return null;
+  }
+
+  /** Resize two adjacent panes by moving the divider. Delta in pixels. */
+  resizePanes(gapIndex: number, deltaY: number): void {
+    const panes = this._config.panes;
+    if (gapIndex < 0 || gapIndex >= panes.length - 1) return;
+
+    const totalFlex = panes[gapIndex].flex + panes[gapIndex + 1].flex;
+    const totalHeight = this._paneRects[gapIndex].height + this._paneRects[gapIndex + 1].height;
+    if (totalHeight <= 0) return;
+
+    const newTopHeight = Math.max(30, this._paneRects[gapIndex].height + deltaY);
+    const newBottomHeight = Math.max(30, totalHeight - newTopHeight);
+    const ratio = newTopHeight / (newTopHeight + newBottomHeight);
+
+    panes[gapIndex].flex = totalFlex * ratio;
+    panes[gapIndex + 1].flex = totalFlex * (1 - ratio);
+    this.recompute();
+  }
+
   private recompute(): void {
     const panes = this._config.panes;
     if (panes.length === 0) {
