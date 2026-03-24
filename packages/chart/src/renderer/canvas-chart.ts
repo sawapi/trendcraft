@@ -33,6 +33,12 @@ import { introspect } from "../integration/series-introspector";
 import { renderCandlesticks } from "../series/candlestick";
 import { renderVolume } from "../series/histogram";
 import { renderGrid, renderPriceAxis, renderReferenceLines, renderTimeAxis } from "./axis-renderer";
+import {
+  type BacktestResultData,
+  renderBacktestSummary,
+  renderBacktestTrades,
+  renderEquityCurve,
+} from "./backtest-renderer";
 import { renderCrosshair } from "./crosshair-renderer";
 import { renderDrawings } from "./drawing-renderer";
 import { InfoOverlay } from "./info-overlay";
@@ -43,7 +49,9 @@ import {
   renderTimeframeOverlays,
   renderTrades,
 } from "./overlay-renderer";
+import { type ChartPatternSignal, renderPatterns } from "./pattern-renderer";
 import { computePaneRange } from "./range-calculator";
+import { renderScoreHeatmap } from "./score-renderer";
 import { renderScrollbar } from "./scrollbar-renderer";
 import { dispatchSeries } from "./series-dispatcher";
 
@@ -353,6 +361,27 @@ export class CanvasChart implements ChartInstance {
     this._needsRender = true;
   }
 
+  // ---- Public API: Backtest Visualization ----
+
+  addBacktest(result: unknown): void {
+    this._data.setBacktestResult(result);
+    // Add equity curve subchart pane
+    if (!this._layout.hasPane("equity")) {
+      this._layout.addPane({ id: "equity", flex: 0.8 });
+    }
+    this._needsRender = true;
+  }
+
+  addPatterns(patterns: unknown[]): void {
+    this._data.setPatterns(patterns);
+    this._needsRender = true;
+  }
+
+  addScores(scores: import("../core/types").DataPoint<number | null>[]): void {
+    this._data.setScores(scores);
+    this._needsRender = true;
+  }
+
   // ---- Public API: Layout ----
 
   setLayout(layout: LayoutConfig): void {
@@ -563,8 +592,23 @@ export class CanvasChart implements ChartInstance {
       if (pane.config.yRange) ps.setFixedRange(pane.config.yRange);
 
       const paneSeries = this._data.getSeriesForPane(pane.id);
-      const [min, max] = computePaneRange(pane, visibleStart, visibleEnd, candles, paneSeries);
-      ps.setDataRange(min, max);
+
+      // Equity pane: compute range from backtest result
+      if (pane.id === "equity" && this._data.backtestResult) {
+        const bt = this._data.backtestResult as BacktestResultData;
+        let eqMin = bt.initialCapital;
+        let eqMax = bt.initialCapital;
+        let equity = bt.initialCapital;
+        for (const trade of bt.trades) {
+          equity *= 1 + trade.returnPercent / 100;
+          if (equity < eqMin) eqMin = equity;
+          if (equity > eqMax) eqMax = equity;
+        }
+        ps.setDataRange(eqMin * 0.99, eqMax * 1.01);
+      } else {
+        const [min, max] = computePaneRange(pane, visibleStart, visibleEnd, candles, paneSeries);
+        ps.setDataRange(min, max);
+      }
     }
 
     // Render each pane
@@ -595,6 +639,11 @@ export class CanvasChart implements ChartInstance {
 
       // Translate so series renderers use y=0 as pane top
       ctx.translate(0, pane.y);
+
+      // Score heatmap (behind candles)
+      if (pane.id === "main" && this._data.scores.length > 0) {
+        renderScoreHeatmap(ctx, this._data.scores, timeScale, { ...pane, y: 0 });
+      }
 
       // Render pane content
       if (pane.id === "main") {
@@ -691,6 +740,47 @@ export class CanvasChart implements ChartInstance {
       this._data,
       this._theme,
     );
+
+    // Backtest visualization
+    const btResult = this._data.backtestResult as BacktestResultData | null;
+    if (btResult) {
+      renderBacktestTrades(ctx, btResult, paneRects, this._priceScales, timeScale, this._data);
+      const equityPane = paneRects.find((p) => p.id === "equity");
+      const equityScale = this._priceScales.get("equity");
+      if (equityPane && equityScale) {
+        renderEquityCurve(
+          ctx,
+          btResult,
+          equityPane,
+          equityScale,
+          timeScale,
+          this._data,
+          this._theme,
+        );
+        renderBacktestSummary(
+          ctx,
+          btResult,
+          equityPane.x,
+          equityPane.y,
+          this._theme,
+          this._fontSize,
+        );
+      }
+    }
+
+    // Pattern signals
+    if (this._data.patterns.length > 0) {
+      renderPatterns(
+        ctx,
+        this._data.patterns as ChartPatternSignal[],
+        paneRects,
+        this._priceScales,
+        timeScale,
+        this._data,
+        this._theme,
+        this._fontSize,
+      );
+    }
 
     // Drawings (under overlays)
     renderDrawings(

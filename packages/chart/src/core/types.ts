@@ -325,6 +325,15 @@ export type ChartInstance = {
   addTimeframe(overlay: TimeframeOverlay): void;
   removeTimeframe(id: string): void;
 
+  // Backtest visualization (trendcraft integration)
+  addBacktest(result: unknown): void;
+
+  // Pattern visualization
+  addPatterns(patterns: unknown[]): void;
+
+  // Score heatmap
+  addScores(scores: DataPoint<number | null>[]): void;
+
   // Layout
   setLayout(layout: LayoutConfig): void;
 

@@ -1,5 +1,15 @@
 import { createChart } from "@trendcraft/chart";
-import { bollingerBands, ichimoku, macd, rsi, sma } from "trendcraft";
+import {
+  bollingerBands,
+  goldenCrossCondition,
+  ichimoku,
+  macd,
+  normalizeCandles,
+  rsi,
+  rsiBelow,
+  runBacktest,
+  sma,
+} from "trendcraft";
 import sampleData from "../data.json";
 
 const candles = sampleData;
@@ -99,6 +109,23 @@ document.getElementById("btn-fib")?.addEventListener("click", () => {
     endTime: highTime,
     endPrice: high,
   });
+});
+
+// Backtest — 1 line visualization
+document.getElementById("btn-backtest")?.addEventListener("click", () => {
+  const normalized = normalizeCandles(candles);
+  const result = runBacktest(normalized, goldenCrossCondition(), rsiBelow(70), { capital: 100000 });
+  chart.addBacktest(result);
+  const statusEl = document.getElementById("status");
+  if (statusEl) {
+    statusEl.textContent = `Backtest: ${result.tradeCount} trades, ${result.winRate.toFixed(0)}% win, ${result.totalReturnPercent.toFixed(1)}% return`;
+  }
+});
+
+// Score heatmap — RSI as score (0-100)
+document.getElementById("btn-score")?.addEventListener("click", () => {
+  const rsiData = rsi(candles);
+  chart.addScores(rsiData as { time: number; value: number | null }[]);
 });
 
 document.getElementById("btn-fit")?.addEventListener("click", () => chart.fitContent());

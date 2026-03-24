@@ -25,6 +25,9 @@ export class DataLayer {
   private _trades: TradeMarker[] = [];
   private _drawings: Map<string, Drawing> = new Map();
   private _timeframes: Map<string, TimeframeOverlay> = new Map();
+  private _backtestResult: unknown = null;
+  private _patterns: unknown[] = [];
+  private _scores: DataPoint<number | null>[] = [];
   private _dirty = true;
   private _onChange: (() => void) | null = null;
   private _onPaneEmpty: ((paneId: string) => void) | null = null;
@@ -226,6 +229,39 @@ export class DataLayer {
 
   removeTimeframe(id: string): void {
     this._timeframes.delete(id);
+    this.markDirty();
+  }
+
+  // ---- Backtest Result ----
+
+  get backtestResult(): unknown {
+    return this._backtestResult;
+  }
+
+  setBacktestResult(result: unknown): void {
+    this._backtestResult = result;
+    this.markDirty();
+  }
+
+  // ---- Patterns ----
+
+  get patterns(): readonly unknown[] {
+    return this._patterns;
+  }
+
+  setPatterns(patterns: unknown[]): void {
+    this._patterns = patterns;
+    this.markDirty();
+  }
+
+  // ---- Scores ----
+
+  get scores(): readonly DataPoint<number | null>[] {
+    return this._scores;
+  }
+
+  setScores(scores: DataPoint<number | null>[]): void {
+    this._scores = scores;
     this.markDirty();
   }
 }
