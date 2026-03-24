@@ -12,6 +12,7 @@ import type {
   SeriesHandle,
   SeriesType,
   SignalMarker,
+  TimeframeOverlay,
   TradeMarker,
 } from "./types";
 
@@ -23,6 +24,7 @@ export class DataLayer {
   private _signals: SignalMarker[] = [];
   private _trades: TradeMarker[] = [];
   private _drawings: Map<string, Drawing> = new Map();
+  private _timeframes: Map<string, TimeframeOverlay> = new Map();
   private _dirty = true;
   private _onChange: (() => void) | null = null;
   private _onPaneEmpty: ((paneId: string) => void) | null = null;
@@ -209,6 +211,22 @@ export class DataLayer {
 
   getDrawings(): Drawing[] {
     return [...this._drawings.values()];
+  }
+
+  // ---- Timeframe Overlays ----
+
+  get timeframes(): readonly TimeframeOverlay[] {
+    return [...this._timeframes.values()];
+  }
+
+  addTimeframe(overlay: TimeframeOverlay): void {
+    this._timeframes.set(overlay.id, overlay);
+    this.markDirty();
+  }
+
+  removeTimeframe(id: string): void {
+    this._timeframes.delete(id);
+    this.markDirty();
   }
 }
 

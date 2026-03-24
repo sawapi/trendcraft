@@ -24,6 +24,7 @@ import type {
   SignalMarker,
   ThemeColors,
   TimeValue,
+  TimeframeOverlay,
   TradeMarker,
 } from "../core/types";
 import { DARK_THEME, LIGHT_THEME } from "../core/types";
@@ -36,7 +37,12 @@ import { renderCrosshair } from "./crosshair-renderer";
 import { renderDrawings } from "./drawing-renderer";
 import { InfoOverlay } from "./info-overlay";
 import { LegendOverlay } from "./legend-overlay";
-import { renderPriceLine, renderSignals, renderTrades } from "./overlay-renderer";
+import {
+  renderPriceLine,
+  renderSignals,
+  renderTimeframeOverlays,
+  renderTrades,
+} from "./overlay-renderer";
 import { computePaneRange } from "./range-calculator";
 import { renderScrollbar } from "./scrollbar-renderer";
 import { dispatchSeries } from "./series-dispatcher";
@@ -118,6 +124,8 @@ export class CanvasChart implements ChartInstance {
     this._canvas.style.width = "100%";
     this._canvas.style.height = "100%";
     this._canvas.style.cursor = "crosshair";
+    this._canvas.style.touchAction = "none";
+    this._canvas.style.userSelect = "none";
 
     // Accessibility
     this._canvas.setAttribute("role", "img");
@@ -331,6 +339,18 @@ export class CanvasChart implements ChartInstance {
     this._activeDrawingTool = tool;
     this._drawingInProgress = null;
     this._canvas.style.cursor = tool ? "crosshair" : "crosshair";
+  }
+
+  // ---- Public API: Multi-timeframe ----
+
+  addTimeframe(overlay: TimeframeOverlay): void {
+    this._data.addTimeframe(overlay);
+    this._needsRender = true;
+  }
+
+  removeTimeframe(id: string): void {
+    this._data.removeTimeframe(id);
+    this._needsRender = true;
   }
 
   // ---- Public API: Layout ----
@@ -661,6 +681,16 @@ export class CanvasChart implements ChartInstance {
         this._theme,
       );
     }
+
+    // Multi-timeframe overlays (behind drawings)
+    renderTimeframeOverlays(
+      ctx,
+      this._data.timeframes,
+      paneRects,
+      this._priceScales,
+      this._data,
+      this._theme,
+    );
 
     // Drawings (under overlays)
     renderDrawings(

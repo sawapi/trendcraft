@@ -66,6 +66,7 @@ export type {
   HLineDrawing,
   TrendLineDrawing,
   FibRetracementDrawing,
+  TimeframeOverlay,
 } from "./core/types";
 
 export { DARK_THEME, LIGHT_THEME } from "./core/types";

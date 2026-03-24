@@ -220,6 +220,23 @@ export type FibRetracementDrawing = DrawingBase & {
 export type Drawing = HLineDrawing | TrendLineDrawing | FibRetracementDrawing;
 
 // ============================================
+// Multi-Timeframe Types
+// ============================================
+
+export type TimeframeOverlay = {
+  /** Identifier for this timeframe overlay */
+  id: string;
+  /** Higher timeframe candle data */
+  candles: CandleData[];
+  /** Timeframe label (e.g., '1W', '1M') */
+  timeframe: string;
+  /** Candle body color (default: semi-transparent) */
+  color?: string;
+  /** Opacity (default: 0.15) */
+  opacity?: number;
+};
+
+// ============================================
 // Signal / Trade overlay types
 // ============================================
 
@@ -303,6 +320,10 @@ export type ChartInstance = {
 
   // Drawing tool mode
   setDrawingTool(tool: DrawingType | null): void;
+
+  // Multi-timeframe
+  addTimeframe(overlay: TimeframeOverlay): void;
+  removeTimeframe(id: string): void;
 
   // Layout
   setLayout(layout: LayoutConfig): void;

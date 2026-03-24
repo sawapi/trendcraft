@@ -6,7 +6,14 @@
 import type { DataLayer } from "../core/data-layer";
 import { autoFormatPrice } from "../core/format";
 import type { PriceScale, TimeScale } from "../core/scale";
-import type { CandleData, PaneRect, SignalMarker, ThemeColors, TradeMarker } from "../core/types";
+import type {
+  CandleData,
+  PaneRect,
+  SignalMarker,
+  ThemeColors,
+  TimeframeOverlay,
+  TradeMarker,
+} from "../core/types";
 
 /**
  * Render current price line (dashed horizontal line at latest close).
@@ -171,6 +178,79 @@ export function renderTrades(
     ctx.lineTo(x2, exitY);
     ctx.stroke();
     ctx.setLineDash([]);
+  }
+
+  ctx.restore();
+}
+
+/**
+ * Render multi-timeframe candles as semi-transparent overlays.
+ */
+export function renderTimeframeOverlays(
+  ctx: CanvasRenderingContext2D,
+  overlays: readonly TimeframeOverlay[],
+  paneRects: readonly PaneRect[],
+  priceScales: Map<string, PriceScale>,
+  dataLayer: DataLayer,
+  theme: ThemeColors,
+): void {
+  if (overlays.length === 0) return;
+
+  const mainPane = paneRects.find((p) => p.id === "main");
+  if (!mainPane) return;
+
+  const ps = priceScales.get("main");
+  if (!ps) return;
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(mainPane.x, mainPane.y, mainPane.width, mainPane.height);
+  ctx.clip();
+
+  for (const overlay of overlays) {
+    const opacity = overlay.opacity ?? 0.15;
+    ctx.globalAlpha = opacity;
+
+    for (const candle of overlay.candles) {
+      const startIdx = dataLayer.indexAtTime(candle.time);
+      const nextIdx = overlay.candles.indexOf(candle) + 1;
+      const endTime =
+        nextIdx < overlay.candles.length
+          ? overlay.candles[nextIdx].time
+          : candle.time + 7 * 86400000;
+      const endIdx = dataLayer.indexAtTime(endTime);
+
+      if (endIdx < 0 || startIdx >= dataLayer.candleCount) continue;
+
+      const x1 = mainPane.x + (startIdx / dataLayer.candleCount) * mainPane.width;
+      const x2 = mainPane.x + (endIdx / dataLayer.candleCount) * mainPane.width;
+      if (x2 - x1 < 1) continue;
+
+      const isUp = candle.close >= candle.open;
+      const openY = ps.priceToY(candle.open) + mainPane.y;
+      const closeY = ps.priceToY(candle.close) + mainPane.y;
+      const highY = ps.priceToY(candle.high) + mainPane.y;
+      const lowY = ps.priceToY(candle.low) + mainPane.y;
+
+      const color = overlay.color ?? (isUp ? theme.upColor : theme.downColor);
+      const bodyTop = Math.min(openY, closeY);
+      const bodyHeight = Math.max(1, Math.abs(closeY - openY));
+      const midX = (x1 + x2) / 2;
+
+      // Wick
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(midX, highY);
+      ctx.lineTo(midX, lowY);
+      ctx.stroke();
+
+      // Body
+      ctx.fillStyle = color;
+      ctx.fillRect(x1, bodyTop, x2 - x1, bodyHeight);
+    }
+
+    ctx.globalAlpha = 1;
   }
 
   ctx.restore();

@@ -219,25 +219,101 @@ export class Viewport {
     el.addEventListener("wheel", onWheel, { passive: false });
     el.addEventListener("keydown", onKeyDown);
 
-    // Touch support
+    // Touch support with inertia, double-tap, and long-press
     let lastTouchX = 0;
     let lastTouchDist = 0;
+    let touchVelocity = 0;
+    let lastTouchTime = 0;
+    let lastTouchMoveTime = 0;
+    let inertiaRaf: number | null = null;
+    let lastTapTime = 0;
+    let longPressTimer: ReturnType<typeof setTimeout> | null = null;
+    let longPressCrosshairLocked = false;
+
+    const stopInertia = () => {
+      if (inertiaRaf !== null) {
+        cancelAnimationFrame(inertiaRaf);
+        inertiaRaf = null;
+      }
+    };
+
+    const runInertia = () => {
+      if (Math.abs(touchVelocity) < 0.5) {
+        inertiaRaf = null;
+        return;
+      }
+      const deltaBars = -touchVelocity / timeScale.barSpacing;
+      timeScale.scrollBy(Math.round(deltaBars));
+      touchVelocity *= 0.95; // Friction
+      this._onUpdate?.();
+      inertiaRaf = requestAnimationFrame(runInertia);
+    };
 
     const onTouchStart = (e: TouchEvent) => {
+      stopInertia();
+
       if (e.touches.length === 1) {
+        const now = Date.now();
+        const touch = e.touches[0];
+
+        // Double-tap detection
+        if (now - lastTapTime < 300) {
+          timeScale.fitContent();
+          this._onUpdate?.();
+          lastTapTime = 0;
+          return;
+        }
+        lastTapTime = now;
+
+        // Long-press detection
+        longPressTimer = setTimeout(() => {
+          longPressCrosshairLocked = true;
+          const rect = el.getBoundingClientRect();
+          this._state.crosshairIndex = timeScale.xToIndex(touch.clientX - rect.left);
+          this._onUpdate?.();
+        }, 500);
+
         this._state.isDragging = true;
-        lastTouchX = e.touches[0].clientX;
+        lastTouchX = touch.clientX;
+        lastTouchTime = now;
+        lastTouchMoveTime = now;
+        touchVelocity = 0;
         this._dragStartX = lastTouchX;
         this._dragStartIndex = timeScale.startIndex;
       } else if (e.touches.length === 2) {
+        if (longPressTimer) clearTimeout(longPressTimer);
         lastTouchDist = Math.abs(e.touches[0].clientX - e.touches[1].clientX);
       }
     };
 
     const onTouchMove = (e: TouchEvent) => {
       e.preventDefault();
+      if (longPressTimer) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
+
       if (e.touches.length === 1 && this._state.isDragging) {
-        const dx = e.touches[0].clientX - this._dragStartX;
+        const now = Date.now();
+        const currentX = e.touches[0].clientX;
+
+        // Track velocity for inertia
+        const dt = now - lastTouchMoveTime;
+        if (dt > 0) {
+          touchVelocity = ((currentX - lastTouchX) / dt) * 16; // Normalize to ~60fps
+        }
+        lastTouchX = currentX;
+        lastTouchMoveTime = now;
+
+        // Long-press crosshair tracking
+        if (longPressCrosshairLocked) {
+          const rect = el.getBoundingClientRect();
+          this._state.crosshairIndex = timeScale.xToIndex(currentX - rect.left);
+          this._onUpdate?.();
+          return;
+        }
+
+        const dx = currentX - this._dragStartX;
         const deltaBars = -Math.round(dx / timeScale.barSpacing);
         const newStart = this._dragStartIndex + deltaBars;
         timeScale.setVisibleRange(newStart, newStart + timeScale.visibleCount);
@@ -256,7 +332,18 @@ export class Viewport {
     };
 
     const onTouchEnd = () => {
+      if (longPressTimer) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
+
+      // Start inertia if swiped fast enough
+      if (this._state.isDragging && !longPressCrosshairLocked && Math.abs(touchVelocity) > 2) {
+        inertiaRaf = requestAnimationFrame(runInertia);
+      }
+
       this._state.isDragging = false;
+      longPressCrosshairLocked = false;
       lastTouchDist = 0;
     };
 
