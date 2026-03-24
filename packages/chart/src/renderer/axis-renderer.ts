@@ -2,6 +2,7 @@
  * Axis Renderer — Draws price (Y) and time (X) axes.
  */
 
+import { autoFormatPrice, autoFormatTime } from "../core/format";
 import type { PriceScale, TimeScale } from "../core/scale";
 import type { CandleData, ThemeColors } from "../core/types";
 
@@ -17,6 +18,7 @@ export function renderPriceAxis(
   height: number,
   theme: ThemeColors,
   fontSize: number,
+  priceFormatter: (price: number) => string = autoFormatPrice,
 ): void {
   const ticks = priceScale.getTicks();
 
@@ -40,7 +42,7 @@ export function renderPriceAxis(
   for (const tick of ticks) {
     const tickY = priceScale.priceToY(tick) + y;
     if (tickY < y || tickY > y + height) continue;
-    ctx.fillText(formatPrice(tick), x + 6, tickY);
+    ctx.fillText(priceFormatter(tick), x + 6, tickY);
   }
 }
 
@@ -57,6 +59,7 @@ export function renderTimeAxis(
   height: number,
   theme: ThemeColors,
   fontSize: number,
+  timeFormatter?: (time: number) => string,
 ): void {
   ctx.fillStyle = theme.background;
   ctx.fillRect(x, y, width + 100, height);
@@ -81,6 +84,7 @@ export function renderTimeAxis(
 
   const start = timeScale.startIndex;
   const end = timeScale.endIndex;
+  let prevLabelTime: number | null = null;
 
   for (let i = start; i < end && i < candles.length; i++) {
     if ((i - start) % labelInterval !== 0) continue;
@@ -88,7 +92,10 @@ export function renderTimeAxis(
     if (!candle) continue;
 
     const labelX = timeScale.indexToX(i);
-    const label = formatTime(candle.time);
+    const label = timeFormatter
+      ? timeFormatter(candle.time)
+      : autoFormatTime(candle.time, prevLabelTime);
+    prevLabelTime = candle.time;
 
     ctx.fillText(label, labelX, y + 6);
   }
@@ -169,26 +176,4 @@ export function renderReferenceLines(
   ctx.setLineDash([]);
 }
 
-// ---- Formatting Helpers ----
-
-function formatPrice(price: number): string {
-  if (Math.abs(price) >= 1_000_000) return `${(price / 1_000_000).toFixed(1)}M`;
-  if (Math.abs(price) >= 10_000) return `${(price / 1_000).toFixed(1)}K`;
-  if (Math.abs(price) >= 100) return price.toFixed(1);
-  if (Math.abs(price) >= 1) return price.toFixed(2);
-  if (Math.abs(price) >= 0.01) return price.toFixed(4);
-  return price.toFixed(6);
-}
-
-function formatTime(epoch: number): string {
-  const d = new Date(epoch);
-  const month = d.getMonth() + 1;
-  const day = d.getDate();
-  const hours = d.getHours();
-  const minutes = d.getMinutes();
-
-  if (hours === 0 && minutes === 0) {
-    return `${month}/${day}`;
-  }
-  return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
-}
+// Formatting delegated to core/format.ts

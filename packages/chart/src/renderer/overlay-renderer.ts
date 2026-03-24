@@ -4,6 +4,7 @@
  */
 
 import type { DataLayer } from "../core/data-layer";
+import { autoFormatPrice } from "../core/format";
 import type { PriceScale, TimeScale } from "../core/scale";
 import type { CandleData, PaneRect, SignalMarker, ThemeColors, TradeMarker } from "../core/types";
 
@@ -43,7 +44,7 @@ export function renderPriceLine(
   ctx.setLineDash([]);
   ctx.globalAlpha = 1;
 
-  const label = price.toFixed(2);
+  const label = autoFormatPrice(price);
   ctx.font = `${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
   const metrics = ctx.measureText(label);
   const padX = 6;

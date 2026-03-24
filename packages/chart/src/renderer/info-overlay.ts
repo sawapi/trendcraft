@@ -4,6 +4,7 @@
  */
 
 import type { InternalSeries } from "../core/data-layer";
+import { autoFormatPrice, formatVolume } from "../core/format";
 import { defaultRegistry } from "../core/series-registry";
 import type { CandleData, PaneRect, ThemeColors } from "../core/types";
 
@@ -131,14 +132,6 @@ export class InfoOverlay {
   }
 }
 
-function fmt(n: number): string {
-  if (Math.abs(n) >= 100) return n.toFixed(2);
-  if (Math.abs(n) >= 1) return n.toFixed(3);
-  return n.toFixed(4);
-}
-
-function fmtVol(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-  return n.toFixed(0);
-}
+// Aliases for imported format functions
+const fmt = autoFormatPrice;
+const fmtVol = formatVolume;

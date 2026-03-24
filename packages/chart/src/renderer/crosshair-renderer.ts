@@ -2,6 +2,7 @@
  * Crosshair Renderer — Draws crosshair lines, price label, and time label.
  */
 
+import { autoFormatPrice, formatCrosshairTime } from "../core/format";
 import type { PriceScale, TimeScale } from "../core/scale";
 import type { CandleData, PaneRect, ThemeColors } from "../core/types";
 import type { ViewportState } from "../core/viewport";
@@ -78,7 +79,7 @@ function drawPriceLabel(
   theme: ThemeColors,
   fontSize: number,
 ): void {
-  const label = formatCrosshairPrice(price);
+  const label = autoFormatPrice(price);
   ctx.font = `${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
   const metrics = ctx.measureText(label);
   const padX = 6;
@@ -120,22 +121,4 @@ function drawTimeLabel(
   ctx.fillText(label, x, y + padY);
 }
 
-function formatCrosshairPrice(price: number): string {
-  if (Math.abs(price) >= 100) return price.toFixed(2);
-  if (Math.abs(price) >= 1) return price.toFixed(3);
-  return price.toFixed(6);
-}
-
-function formatCrosshairTime(epoch: number): string {
-  const d = new Date(epoch);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  const h = d.getHours();
-  const min = d.getMinutes();
-
-  if (h === 0 && min === 0) {
-    return `${y}-${m}-${day}`;
-  }
-  return `${y}-${m}-${day} ${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
-}
+// Price and time formatting delegated to core/format.ts

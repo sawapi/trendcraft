@@ -95,6 +95,10 @@ export type ChartOptions = {
   fontFamily?: string;
   /** Font size in pixels (default: 11) */
   fontSize?: number;
+  /** Custom price formatter (default: auto-precision) */
+  priceFormatter?: (price: number) => string;
+  /** Custom time formatter (default: smart date/time) */
+  timeFormatter?: (time: number) => string;
 };
 
 // ============================================

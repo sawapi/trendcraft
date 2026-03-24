@@ -5,6 +5,7 @@
 
 import { DataLayer, type InternalSeries } from "../core/data-layer";
 import { decimateCandles, getDecimationTarget } from "../core/decimation";
+import { autoFormatPrice } from "../core/format";
 import { LayoutEngine } from "../core/layout";
 import { PriceScale, TimeScale } from "../core/scale";
 import type {
@@ -60,6 +61,8 @@ export class CanvasChart implements ChartInstance {
   private _pixelRatio: number;
   private _theme: ThemeColors;
   private _fontSize: number;
+  private _priceFormatter: (price: number) => string;
+  private _timeFormatter: ((time: number) => string) | undefined;
 
   private _data = new DataLayer();
   private _layout = new LayoutEngine();
@@ -82,6 +85,8 @@ export class CanvasChart implements ChartInstance {
   constructor(container: HTMLElement, options?: ChartOptions) {
     this._container = container;
     this._fontSize = options?.fontSize ?? DEFAULT_OPTIONS.fontSize;
+    this._priceFormatter = options?.priceFormatter ?? autoFormatPrice;
+    this._timeFormatter = options?.timeFormatter;
     this._pixelRatio =
       options?.pixelRatio ?? (typeof window !== "undefined" ? window.devicePixelRatio : 1);
 
@@ -528,6 +533,7 @@ export class CanvasChart implements ChartInstance {
         pane.height,
         this._theme,
         this._fontSize,
+        this._priceFormatter,
       );
     }
 
@@ -542,6 +548,7 @@ export class CanvasChart implements ChartInstance {
       this._layout.timeAxisHeight,
       this._theme,
       this._fontSize,
+      this._timeFormatter,
     );
 
     // Pane titles
