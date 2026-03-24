@@ -4,6 +4,7 @@
  */
 
 import { DataLayer, type InternalSeries } from "../core/data-layer";
+import { decimateCandles, getDecimationTarget } from "../core/decimation";
 import { LayoutEngine } from "../core/layout";
 import { PriceScale, TimeScale } from "../core/scale";
 import type {
@@ -169,13 +170,32 @@ export class CanvasChart implements ChartInstance {
   // ---- Public API: Data ----
 
   setCandles(candles: CandleData[]): void {
-    this._data.setCandles(candles);
+    if (!Array.isArray(candles)) return;
+    // Filter invalid candles (NaN, missing fields)
+    const valid = candles.filter(
+      (c) =>
+        c &&
+        typeof c.time === "number" &&
+        Number.isFinite(c.open) &&
+        Number.isFinite(c.high) &&
+        Number.isFinite(c.low) &&
+        Number.isFinite(c.close) &&
+        Number.isFinite(c.volume),
+    );
+    this._data.setCandles(valid);
     this._timeScale.setTotalCount(this._data.candleCount);
     this._timeScale.scrollToEnd();
     this._needsRender = true;
   }
 
   updateCandle(candle: CandleData): void {
+    if (
+      !candle ||
+      typeof candle.time !== "number" ||
+      !Number.isFinite(candle.open) ||
+      !Number.isFinite(candle.close)
+    )
+      return;
     this._data.updateCandle(candle);
     this._timeScale.setTotalCount(this._data.candleCount);
     this._needsRender = true;
@@ -184,6 +204,17 @@ export class CanvasChart implements ChartInstance {
   // ---- Public API: Indicators ----
 
   addIndicator<T>(series: DataPoint<T>[], config?: SeriesConfig): SeriesHandle {
+    if (!Array.isArray(series)) {
+      // Return a no-op handle for invalid input
+      return {
+        id: "",
+        update: () => {},
+        setData: () => {},
+        setVisible: () => {},
+        remove: () => {},
+      };
+    }
+
     // Introspect the series
     const result = introspect(series, config);
 
@@ -464,12 +495,18 @@ export class CanvasChart implements ChartInstance {
 
       // Render pane content
       if (pane.id === "main") {
-        // Candlesticks on main pane
-        renderCandlesticks(ctx, candles, timeScale, ps, this._theme);
+        const decimTarget = getDecimationTarget(
+          timeScale.endIndex - timeScale.startIndex,
+          timeScale.width,
+        );
+        const visibleCandles =
+          decimTarget > 0
+            ? decimateCandles(candles, timeScale.startIndex, timeScale.endIndex, decimTarget)
+            : candles;
+        renderCandlesticks(ctx, visibleCandles, timeScale, ps, this._theme);
       }
 
       if (pane.id === "volume") {
-        // Volume on volume pane
         renderVolume(ctx, candles, timeScale, ps, this._theme);
       }
 

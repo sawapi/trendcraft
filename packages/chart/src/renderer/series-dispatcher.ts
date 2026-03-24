@@ -4,6 +4,7 @@
  */
 
 import type { InternalSeries } from "../core/data-layer";
+import { getDecimationTarget, lttb } from "../core/decimation";
 import type { PriceScale, TimeScale } from "../core/scale";
 import { defaultRegistry } from "../core/series-registry";
 import type { DataPoint } from "../core/types";
@@ -30,17 +31,15 @@ export function dispatchSeries(
   const lineWidth = s.config.lineWidth ?? 1.5;
 
   if (rule.name === "number") {
-    renderLine(
-      ctx,
-      s.data as DataPoint<number | null>[],
-      timeScale,
-      priceScale,
-      timeScale.startIndex,
-      {
-        color,
-        lineWidth,
-      },
-    );
+    let data = s.data as DataPoint<number | null>[];
+    const target = getDecimationTarget(timeScale.endIndex - timeScale.startIndex, timeScale.width);
+    if (target > 0) {
+      data = lttb(data.slice(timeScale.startIndex, timeScale.endIndex), target);
+    }
+    renderLine(ctx, data, timeScale, priceScale, timeScale.startIndex, {
+      color,
+      lineWidth,
+    });
     return;
   }
 
