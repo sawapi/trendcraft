@@ -99,6 +99,10 @@ export type ChartOptions = {
   priceFormatter?: (price: number) => string;
   /** Custom time formatter (default: smart date/time) */
   timeFormatter?: (time: number) => string;
+  /** Watermark text displayed in chart background */
+  watermark?: string;
+  /** Show legend widget (default: true) */
+  legend?: boolean;
 };
 
 // ============================================
@@ -239,7 +243,14 @@ export type TradeMarker = {
 // Event Types
 // ============================================
 
-export type ChartEvent = "crosshairMove" | "visibleRangeChange" | "click" | "resize" | "paneResize";
+export type ChartEvent =
+  | "crosshairMove"
+  | "visibleRangeChange"
+  | "click"
+  | "resize"
+  | "paneResize"
+  | "seriesAdded"
+  | "seriesRemoved";
 
 export type CrosshairMoveData = {
   time: TimeValue | null;

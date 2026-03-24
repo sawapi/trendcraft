@@ -157,7 +157,7 @@ export function bandPriceRange(
       if (u < min) min = u;
     }
     if (l !== null && l !== undefined) {
-      if (l < max) max = l;
+      if (l > max) max = l;
       if (l < min) min = l;
     }
   }

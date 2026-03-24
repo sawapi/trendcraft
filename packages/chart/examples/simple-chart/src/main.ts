@@ -8,7 +8,7 @@ const statusEl = document.getElementById("status");
 if (!container || !statusEl) throw new Error("Missing DOM elements");
 
 // Create chart
-const chart = createChart(container, { theme: "dark" });
+const chart = createChart(container, { theme: "dark", watermark: "SAMPLE" });
 chart.setCandles(candles);
 chart.fitContent();
 

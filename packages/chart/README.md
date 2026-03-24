@@ -122,6 +122,77 @@ The library inspects the first value in a Series\<T\> to determine rendering:
 
 TrendCraft indicators also carry `__meta` with `overlay`, `label`, `yRange`, and `referenceLines` for zero-config rendering.
 
+## Drawings
+
+```typescript
+// Horizontal line
+chart.addDrawing({ id: 'h1', type: 'hline', price: 150, color: '#FF9800' });
+
+// Trend line
+chart.addDrawing({
+  id: 'tl1', type: 'trendline',
+  startTime: t1, startPrice: 140,
+  endTime: t2, endPrice: 160,
+});
+
+// Fibonacci retracement
+chart.addDrawing({
+  id: 'fib1', type: 'fibRetracement',
+  startTime: t1, startPrice: 130,
+  endTime: t2, endPrice: 170,
+});
+
+// Remove
+chart.removeDrawing('h1');
+```
+
+## Events
+
+```typescript
+chart.on('crosshairMove', (data) => {
+  // { time, index, ohlcv: { open, high, low, close, volume }, paneId }
+});
+
+chart.on('seriesAdded', (data) => {
+  // { id, label }
+});
+```
+
+## Options
+
+```typescript
+createChart(container, {
+  theme: 'dark',
+  watermark: 'DEMO',       // Background watermark text
+  legend: true,             // Show series legend (default: true)
+  priceFormatter: (p) => p.toFixed(2),  // Custom price format
+  timeFormatter: (t) => new Date(t).toLocaleDateString(),
+});
+```
+
+## Headless API
+
+For server-side processing, custom renderers, or testing:
+
+```typescript
+import { DataLayer, TimeScale, PriceScale, LayoutEngine } from '@trendcraft/chart/headless';
+import { introspect } from '@trendcraft/chart/headless';
+
+const data = new DataLayer();
+data.setCandles(candles);
+
+const result = introspect(myIndicatorData);
+// { seriesType: 'band', pane: 'main', ... }
+```
+
+## Troubleshooting
+
+**Chart is blank**: Ensure container has a non-zero height. Set `height` in options or use CSS.
+
+**Indicator on wrong pane**: Without trendcraft, number series default to subchart. Use `{ pane: 'main' }` for overlays.
+
+**Performance with large datasets**: The library auto-decimates at high zoom levels. For 10K+ candles, this should maintain 60fps.
+
 ## License
 
 MIT

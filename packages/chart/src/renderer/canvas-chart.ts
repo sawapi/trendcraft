@@ -35,6 +35,7 @@ import { renderGrid, renderPriceAxis, renderReferenceLines, renderTimeAxis } fro
 import { renderCrosshair } from "./crosshair-renderer";
 import { renderDrawings } from "./drawing-renderer";
 import { InfoOverlay } from "./info-overlay";
+import { LegendOverlay } from "./legend-overlay";
 import { renderPriceLine, renderSignals, renderTrades } from "./overlay-renderer";
 import { computePaneRange } from "./range-calculator";
 import { renderScrollbar } from "./scrollbar-renderer";
@@ -73,6 +74,8 @@ export class CanvasChart implements ChartInstance {
   private _viewport = new Viewport();
   private _priceScales = new Map<string, PriceScale>();
   private _infoOverlay: InfoOverlay | null = null;
+  private _legendOverlay: LegendOverlay | null = null;
+  private _watermark: string | undefined;
   private _activeDrawingTool: DrawingType | null = null;
   private _drawingInProgress: { startTime: number; startPrice: number } | null = null;
 
@@ -83,6 +86,13 @@ export class CanvasChart implements ChartInstance {
 
   // Event listeners
   private _listeners = new Map<ChartEvent, Set<(data: unknown) => void>>();
+
+  private _emit(event: ChartEvent, data: unknown): void {
+    const handlers = this._listeners.get(event);
+    if (handlers) {
+      for (const h of handlers) h(data);
+    }
+  }
 
   // Auto-generated pane counter
   private _autoSubchartId = 0;
@@ -173,6 +183,21 @@ export class CanvasChart implements ChartInstance {
     // Info overlay (DOM-based OHLCV + indicator values)
     this._infoOverlay = new InfoOverlay(container, this._theme);
 
+    // Legend overlay
+    if (options?.legend !== false) {
+      this._legendOverlay = new LegendOverlay(container, this._theme);
+      this._legendOverlay.setOnToggle((seriesId, visible) => {
+        const series = this._data.getAllSeries().find((s) => s.id === seriesId);
+        if (series) {
+          series.visible = visible;
+          this._needsRender = true;
+        }
+      });
+    }
+
+    // Watermark
+    this._watermark = options?.watermark;
+
     // Start render loop
     this._renderLoop();
   }
@@ -258,6 +283,8 @@ export class CanvasChart implements ChartInstance {
       result.seriesType,
     );
     this._needsRender = true;
+    this._emit("seriesAdded", { id: handle.id, label: result.config.label });
+    this._legendOverlay?.update(this._data.getAllSeries());
     return handle;
   }
 
@@ -397,6 +424,7 @@ export class CanvasChart implements ChartInstance {
     this._detachViewport?.();
     this._resizeObserver?.disconnect();
     this._infoOverlay?.destroy();
+    this._legendOverlay?.destroy();
     this._canvas.remove();
   }
 
@@ -469,6 +497,18 @@ export class CanvasChart implements ChartInstance {
     // Clear
     ctx.fillStyle = this._theme.background;
     ctx.fillRect(0, 0, width, height);
+
+    // Watermark
+    if (this._watermark) {
+      ctx.save();
+      ctx.fillStyle = this._theme.textSecondary;
+      ctx.globalAlpha = 0.07;
+      ctx.font = `bold ${Math.min(width * 0.08, 48)}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(this._watermark, width / 2, height / 2);
+      ctx.restore();
+    }
 
     const paneRects = this._layout.paneRects;
     const candles = this._data.candles;
@@ -661,5 +701,28 @@ export class CanvasChart implements ChartInstance {
       paneRects,
       seriesByPane,
     );
+
+    // Legend
+    this._legendOverlay?.update(this._data.getAllSeries());
+
+    // Emit crosshair event
+    if (this._viewport.state.crosshairIndex !== null) {
+      const idx = this._viewport.state.crosshairIndex;
+      const candle = candles[idx];
+      if (candle) {
+        this._emit("crosshairMove", {
+          time: candle.time,
+          index: idx,
+          ohlcv: {
+            open: candle.open,
+            high: candle.high,
+            low: candle.low,
+            close: candle.close,
+            volume: candle.volume,
+          },
+          paneId: this._viewport.state.activePaneId,
+        });
+      }
+    }
   }
 }
