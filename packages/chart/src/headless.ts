@@ -8,6 +8,15 @@
 
 // Core
 export { DataLayer } from "./core/data-layer";
+export { lttb, decimateCandles, getDecimationTarget } from "./core/decimation";
+export {
+  autoFormatPrice,
+  autoFormatTime,
+  formatCrosshairTime,
+  formatVolume,
+  detectPrecision,
+  fixedPriceFormatter,
+} from "./core/format";
 export { TimeScale, PriceScale } from "./core/scale";
 export { LayoutEngine, DEFAULT_LAYOUT } from "./core/layout";
 export { SeriesRegistry, defaultRegistry } from "./core/series-registry";

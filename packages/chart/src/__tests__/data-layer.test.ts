@@ -109,4 +109,42 @@ describe("DataLayer", () => {
     expect(series.data.length).toBe(2);
     expect((series.data[1] as DataPoint<number>).value).toBe(25);
   });
+
+  it("manages drawings via DataLayer", () => {
+    const dl = new DataLayer();
+    dl.addDrawing({ id: "h1", type: "hline", price: 100 });
+    expect(dl.getDrawings().length).toBe(1);
+    dl.removeDrawing("h1");
+    expect(dl.getDrawings().length).toBe(0);
+  });
+
+  it("onPaneEmpty fires after last series removed", () => {
+    const dl = new DataLayer();
+    const events: string[] = [];
+    dl.setOnPaneEmpty((id) => events.push(id));
+
+    const h1 = dl.addSeries([{ time: 1, value: 1 }], { pane: "test" }, "line");
+    const h2 = dl.addSeries([{ time: 1, value: 2 }], { pane: "test" }, "line");
+
+    h1.remove();
+    expect(events.length).toBe(0); // h2 still in pane
+
+    h2.remove();
+    expect(events).toEqual(["test"]);
+  });
+
+  it("onChange fires on every mutation", () => {
+    const dl = new DataLayer();
+    let count = 0;
+    dl.setOnChange(() => count++);
+
+    dl.setCandles([makeCandle(1, 100)]);
+    expect(count).toBe(1);
+
+    dl.updateCandle(makeCandle(2, 101));
+    expect(count).toBe(2);
+
+    dl.addDrawing({ id: "h1", type: "hline", price: 100 });
+    expect(count).toBe(3);
+  });
 });

@@ -26,12 +26,18 @@ importers:
 
   packages/chart:
     devDependencies:
+      '@size-limit/file':
+        specifier: ^12.0.1
+        version: 12.0.1(size-limit@12.0.1)
       '@types/react':
         specifier: ^18.3.12
         version: 18.3.28
       react:
         specifier: ^18.3.1
         version: 18.3.1
+      size-limit:
+        specifier: ^12.0.1
+        version: 12.0.1
       trendcraft:
         specifier: workspace:*
         version: link:../core

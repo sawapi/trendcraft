@@ -114,4 +114,30 @@ describe("detectPrecision", () => {
   it("defaults to 2 for empty input", () => {
     expect(detectPrecision([])).toBe(2);
   });
+
+  it("detects high-value assets (0 decimals)", () => {
+    expect(detectPrecision([50000, 55000, 48000])).toBe(0);
+  });
+
+  it("detects FX prices (4 decimals)", () => {
+    expect(detectPrecision([0.85, 0.86, 0.84])).toBe(4);
+  });
+
+  it("handles single-element array", () => {
+    expect(detectPrecision([250])).toBe(2);
+  });
+});
+
+describe("autoFormatPrice edge cases", () => {
+  it("formats very large negative number", () => {
+    expect(autoFormatPrice(-99999)).toBe("-99999");
+  });
+
+  it("formats exactly 1", () => {
+    expect(autoFormatPrice(1)).toBe("1.000");
+  });
+
+  it("formats exactly 0.01", () => {
+    expect(autoFormatPrice(0.01)).toBe("0.0100");
+  });
 });

@@ -95,4 +95,36 @@ describe("Drawings", () => {
     expect(drawings.length).toBe(3);
     expect(drawings.map((d) => d.type).sort()).toEqual(["fibRetracement", "hline", "trendline"]);
   });
+
+  it("overwrites drawing with same id", () => {
+    const dl = new DataLayer();
+    dl.addDrawing({ id: "h1", type: "hline", price: 100 });
+    dl.addDrawing({ id: "h1", type: "hline", price: 200 });
+
+    const drawings = dl.getDrawings();
+    expect(drawings.length).toBe(1);
+    expect((drawings[0] as HLineDrawing).price).toBe(200);
+  });
+
+  it("returns empty array when no drawings", () => {
+    const dl = new DataLayer();
+    expect(dl.getDrawings()).toEqual([]);
+    expect(dl.drawings.length).toBe(0);
+  });
+
+  it("fib retracement supports custom levels", () => {
+    const dl = new DataLayer();
+    const fib: FibRetracementDrawing = {
+      id: "fib1",
+      type: "fibRetracement",
+      startTime: 1000,
+      startPrice: 100,
+      endTime: 2000,
+      endPrice: 200,
+      levels: [0, 0.5, 1],
+    };
+    dl.addDrawing(fib);
+    const drawing = dl.getDrawings()[0] as FibRetracementDrawing;
+    expect(drawing.levels).toEqual([0, 0.5, 1]);
+  });
 });

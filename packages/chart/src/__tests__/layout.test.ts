@@ -82,4 +82,28 @@ describe("LayoutEngine", () => {
     expect(rsiPane?.yRange).toEqual([0, 100]);
     expect(rsiPane?.referenceLines).toEqual([30, 70]);
   });
+
+  it("gapAtY with 3 panes", () => {
+    const le = new LayoutEngine();
+    le.setDimensions(800, 600, 60, 24);
+    le.addPane({ id: "rsi", flex: 1 });
+
+    // Should have 2 gaps (main-volume, volume-rsi)
+    const mainBottom = le.paneRects[0].y + le.paneRects[0].height;
+    const volBottom = le.paneRects[1].y + le.paneRects[1].height;
+
+    expect(le.gapAtY(mainBottom + 1)).toBe(0);
+    expect(le.gapAtY(volBottom + 1)).toBe(1);
+  });
+
+  it("resizePanes with 3 panes resizes correct pair", () => {
+    const le = new LayoutEngine();
+    le.setDimensions(800, 600, 60, 24);
+    le.addPane({ id: "rsi", flex: 1 });
+
+    const rsiFlex = le.config.panes[2].flex;
+    le.resizePanes(1, -20); // Shrink volume, expand rsi
+
+    expect(le.config.panes[2].flex).toBeGreaterThan(rsiFlex);
+  });
 });
