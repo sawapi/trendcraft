@@ -4,6 +4,7 @@
  */
 
 import type { InternalSeries } from "../core/data-layer";
+import type { RendererRegistry } from "../core/renderer-registry";
 import { defaultRegistry } from "../core/series-registry";
 import type { CandleData, DataPoint, PaneRect } from "../core/types";
 import { bandPriceRange } from "../series/band";
@@ -21,6 +22,7 @@ export function computePaneRange(
   end: number,
   candles: readonly CandleData[],
   paneSeries: InternalSeries[],
+  rendererRegistry?: RendererRegistry,
 ): [number, number] {
   let min = Number.POSITIVE_INFINITY;
   let max = Number.NEGATIVE_INFINITY;
@@ -37,7 +39,7 @@ export function computePaneRange(
   }
 
   for (const s of paneSeries) {
-    const [sMin, sMax] = computeSeriesRange(s, start, end);
+    const [sMin, sMax] = computeSeriesRange(s, start, end, rendererRegistry);
     if (sMin < min) min = sMin;
     if (sMax > max) max = sMax;
   }
@@ -52,7 +54,16 @@ export function computeSeriesRange(
   s: InternalSeries,
   start: number,
   end: number,
+  rendererRegistry?: RendererRegistry,
 ): [number, number] {
+  // Check custom renderer for priceRange
+  if (rendererRegistry) {
+    const custom = rendererRegistry.getRenderer(s.type);
+    if (custom?.priceRange) {
+      return custom.priceRange(s, start, end);
+    }
+  }
+
   const rule = defaultRegistry.detect(s.data);
   if (!rule) return [Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY];
 

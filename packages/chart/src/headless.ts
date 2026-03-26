@@ -26,6 +26,16 @@ export { Viewport } from "./core/viewport";
 export { introspect, type IntrospectionResult } from "./integration/series-introspector";
 export { INDICATOR_PRESETS, type IndicatorPreset } from "./integration/indicator-presets";
 
+// Plugin types
+export type {
+  SeriesRendererPlugin,
+  PrimitivePlugin,
+  SeriesRenderContext,
+  PrimitiveRenderContext,
+} from "./core/plugin-types";
+export { defineSeriesRenderer, definePrimitive } from "./core/plugin-types";
+export { RendererRegistry } from "./core/renderer-registry";
+
 // Types
 export type {
   ChartOptions,
@@ -38,6 +48,7 @@ export type {
   LayoutConfig,
   SeriesConfig,
   SeriesType,
+  BuiltinSeriesType,
   SeriesHandle,
   SignalMarker,
   TradeMarker,

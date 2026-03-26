@@ -16,6 +16,7 @@
  */
 
 import { type CSSProperties, forwardRef, useEffect, useImperativeHandle, useRef } from "react";
+import type { PrimitivePlugin, SeriesRendererPlugin } from "../src/core/plugin-types";
 import type {
   CandleData,
   ChartInstance,
@@ -55,6 +56,11 @@ export type TrendChartProps = {
   patterns?: unknown[];
   /** Score heatmap data (0-100 per bar) */
   scores?: DataPoint<number | null>[];
+  /** Custom plugins (series renderers and/or primitives) */
+  plugins?: {
+    renderers?: SeriesRendererPlugin<unknown>[];
+    primitives?: PrimitivePlugin<unknown>[];
+  };
   /** Layout configuration */
   layout?: LayoutConfig;
   /** Theme: 'dark', 'light', or custom ThemeColors */
@@ -91,6 +97,7 @@ export const TrendChart = forwardRef<TrendChartRef, TrendChartProps>(function Tr
     backtest,
     patterns,
     scores,
+    plugins,
     layout,
     theme = "dark",
     options,
@@ -212,6 +219,19 @@ export const TrendChart = forwardRef<TrendChartRef, TrendChartProps>(function Tr
   useEffect(() => {
     if (scores) chartRef.current?.addScores(scores);
   }, [scores]);
+
+  // Update plugins
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart || !plugins) return;
+
+    for (const r of plugins.renderers ?? []) chart.registerRenderer(r);
+    for (const p of plugins.primitives ?? []) chart.registerPrimitive(p);
+
+    return () => {
+      for (const p of plugins.primitives ?? []) chart.removePrimitive(p.name);
+    };
+  }, [plugins]);
 
   // Event: crosshairMove
   useEffect(() => {

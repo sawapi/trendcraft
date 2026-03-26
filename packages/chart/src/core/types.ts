@@ -139,8 +139,8 @@ export type LayoutConfig = {
 // Series Configuration
 // ============================================
 
-/** Visual series types */
-export type SeriesType =
+/** Built-in visual series types */
+export type BuiltinSeriesType =
   | "line"
   | "area"
   | "histogram"
@@ -149,6 +149,9 @@ export type SeriesType =
   | "marker"
   | "box"
   | "heatmap";
+
+/** Visual series types (extensible via plugins) */
+export type SeriesType = BuiltinSeriesType | (string & {});
 
 export type SeriesConfig = {
   /** Target pane: 'main' (overlay) or a specific pane id. Omit for auto-detection via __meta. */
@@ -347,6 +350,14 @@ export type ChartInstance = {
 
   // Theme
   setTheme(theme: "dark" | "light" | ThemeColors): void;
+
+  // Plugins
+  /** Register a custom series renderer plugin */
+  registerRenderer<TConfig>(plugin: import("./plugin-types").SeriesRendererPlugin<TConfig>): void;
+  /** Register a pane primitive plugin */
+  registerPrimitive<TState>(plugin: import("./plugin-types").PrimitivePlugin<TState>): void;
+  /** Remove a primitive by name */
+  removePrimitive(name: string): void;
 
   // Export
   toImage(type?: string, quality?: number): Promise<Blob>;

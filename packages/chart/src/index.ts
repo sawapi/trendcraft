@@ -54,6 +54,7 @@ export type {
   LayoutConfig,
   SeriesConfig,
   SeriesType,
+  BuiltinSeriesType,
   SeriesHandle,
   SignalMarker,
   TradeMarker,
@@ -73,3 +74,14 @@ export { DARK_THEME, LIGHT_THEME } from "./core/types";
 
 // Series registry (for custom rules)
 export { SeriesRegistry, type IntrospectionRule } from "./core/series-registry";
+
+// Plugin system
+export {
+  defineSeriesRenderer,
+  definePrimitive,
+  type SeriesRendererPlugin,
+  type PrimitivePlugin,
+  type SeriesRenderContext,
+  type PrimitiveRenderContext,
+} from "./core/plugin-types";
+export { RendererRegistry } from "./core/renderer-registry";

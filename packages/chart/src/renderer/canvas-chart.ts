@@ -7,6 +7,8 @@ import { DataLayer, type InternalSeries } from "../core/data-layer";
 import { decimateCandles, getDecimationTarget } from "../core/decimation";
 import { autoFormatPrice } from "../core/format";
 import { LayoutEngine } from "../core/layout";
+import type { PrimitivePlugin, SeriesRendererPlugin } from "../core/plugin-types";
+import { RendererRegistry } from "../core/renderer-registry";
 import { PriceScale, TimeScale } from "../core/scale";
 import type {
   CandleData,
@@ -92,6 +94,8 @@ export class CanvasChart implements ChartInstance {
   private _watermark: string | undefined;
   private _activeDrawingTool: DrawingType | null = null;
   private _drawingInProgress: { startTime: number; startPrice: number } | null = null;
+
+  private _rendererRegistry = new RendererRegistry();
 
   private _rafId: number | null = null;
   private _needsRender = true;
@@ -209,6 +213,7 @@ export class CanvasChart implements ChartInstance {
 
     // Info overlay (DOM-based OHLCV + indicator values)
     this._infoOverlay = new InfoOverlay(container, this._theme);
+    this._infoOverlay.setRendererRegistry(this._rendererRegistry);
 
     // Legend overlay
     if (options?.legend !== false) {
@@ -455,6 +460,23 @@ export class CanvasChart implements ChartInstance {
     };
   }
 
+  // ---- Public API: Plugins ----
+
+  registerRenderer<TConfig>(plugin: SeriesRendererPlugin<TConfig>): void {
+    this._rendererRegistry.registerRenderer(plugin);
+    this._needsRender = true;
+  }
+
+  registerPrimitive<TState>(plugin: PrimitivePlugin<TState>): void {
+    this._rendererRegistry.registerPrimitive(plugin);
+    this._needsRender = true;
+  }
+
+  removePrimitive(name: string): void {
+    this._rendererRegistry.removePrimitive(name);
+    this._needsRender = true;
+  }
+
   // ---- Public API: Export ----
 
   async toImage(type = "image/png", quality = 1): Promise<Blob> {
@@ -485,6 +507,7 @@ export class CanvasChart implements ChartInstance {
     this._resizeObserver?.disconnect();
     this._infoOverlay?.destroy();
     this._legendOverlay?.destroy();
+    this._rendererRegistry.destroyAll();
     this._canvas.remove();
   }
 
@@ -606,7 +629,14 @@ export class CanvasChart implements ChartInstance {
         }
         ps.setDataRange(eqMin * 0.99, eqMax * 1.01);
       } else {
-        const [min, max] = computePaneRange(pane, visibleStart, visibleEnd, candles, paneSeries);
+        const [min, max] = computePaneRange(
+          pane,
+          visibleStart,
+          visibleEnd,
+          candles,
+          paneSeries,
+          this._rendererRegistry,
+        );
         ps.setDataRange(min, max);
       }
     }
@@ -662,10 +692,49 @@ export class CanvasChart implements ChartInstance {
         renderVolume(ctx, candles, timeScale, ps, this._theme);
       }
 
+      // Render 'below' primitives (before series)
+      for (const prim of this._rendererRegistry.getPrimitives(pane.id, "below")) {
+        prim.plugin.render(
+          {
+            ctx,
+            pane: { ...pane, y: 0 },
+            timeScale,
+            priceScale: ps,
+            dataLayer: this._data,
+            theme: this._theme,
+          },
+          prim.state,
+        );
+      }
+
       // Render indicator series for this pane
       const paneSeriesForRender = this._data.getSeriesForPane(pane.id);
       for (const s of paneSeriesForRender) {
-        dispatchSeries(ctx, s, timeScale, ps, this._data, pane.width);
+        dispatchSeries(
+          ctx,
+          s,
+          timeScale,
+          ps,
+          this._data,
+          pane.width,
+          this._theme,
+          this._rendererRegistry,
+        );
+      }
+
+      // Render 'above' primitives (after series)
+      for (const prim of this._rendererRegistry.getPrimitives(pane.id, "above")) {
+        prim.plugin.render(
+          {
+            ctx,
+            pane: { ...pane, y: 0 },
+            timeScale,
+            priceScale: ps,
+            dataLayer: this._data,
+            theme: this._theme,
+          },
+          prim.state,
+        );
       }
 
       ctx.restore();

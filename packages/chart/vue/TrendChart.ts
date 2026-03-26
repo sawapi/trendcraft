@@ -18,6 +18,7 @@
  */
 
 import { type PropType, defineComponent, h, onMounted, onUnmounted, ref, watch } from "vue";
+import type { PrimitivePlugin, SeriesRendererPlugin } from "../src/core/plugin-types";
 import type {
   CandleData,
   ChartInstance,
@@ -53,6 +54,13 @@ export const TrendChart = defineComponent({
     backtest: { type: Object as PropType<unknown>, default: undefined },
     patterns: { type: Array as PropType<unknown[]>, default: undefined },
     scores: { type: Array as PropType<DataPoint<number | null>[]>, default: undefined },
+    plugins: {
+      type: Object as PropType<{
+        renderers?: SeriesRendererPlugin<unknown>[];
+        primitives?: PrimitivePlugin<unknown>[];
+      }>,
+      default: undefined,
+    },
     layout: { type: Object as PropType<LayoutConfig>, default: undefined },
     theme: { type: [String, Object] as PropType<"dark" | "light" | ThemeColors>, default: "dark" },
     options: { type: Object as PropType<Omit<ChartOptions, "theme">>, default: undefined },
@@ -87,6 +95,7 @@ export const TrendChart = defineComponent({
       if (props.backtest) chart.addBacktest(props.backtest);
       if (props.patterns) chart.addPatterns(props.patterns);
       if (props.scores) chart.addScores(props.scores);
+      applyPlugins();
       if (props.layout) chart.setLayout(props.layout);
     });
 
@@ -118,6 +127,12 @@ export const TrendChart = defineComponent({
     function applyTimeframes() {
       if (!chart || !props.timeframes) return;
       for (const tf of props.timeframes) chart.addTimeframe(tf);
+    }
+
+    function applyPlugins() {
+      if (!chart || !props.plugins) return;
+      for (const r of props.plugins.renderers ?? []) chart.registerRenderer(r);
+      for (const p of props.plugins.primitives ?? []) chart.registerPrimitive(p);
     }
 
     // Watchers
@@ -209,6 +224,22 @@ export const TrendChart = defineComponent({
       () => props.scores,
       (val) => {
         if (val) chart?.addScores(val);
+      },
+    );
+
+    watch(
+      () => props.plugins,
+      (newVal, oldVal) => {
+        if (!chart) return;
+        // Remove old primitives
+        if (oldVal?.primitives) {
+          for (const p of oldVal.primitives) chart.removePrimitive(p.name);
+        }
+        // Apply new plugins
+        if (newVal) {
+          for (const r of newVal.renderers ?? []) chart.registerRenderer(r);
+          for (const p of newVal.primitives ?? []) chart.registerPrimitive(p);
+        }
       },
     );
 

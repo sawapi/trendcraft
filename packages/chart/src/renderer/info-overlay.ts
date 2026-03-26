@@ -5,6 +5,7 @@
 
 import type { InternalSeries } from "../core/data-layer";
 import { autoFormatPrice, formatVolume } from "../core/format";
+import type { RendererRegistry } from "../core/renderer-registry";
 import { defaultRegistry } from "../core/series-registry";
 import type { CandleData, PaneRect, ThemeColors } from "../core/types";
 
@@ -13,6 +14,7 @@ export class InfoOverlay {
   private _mainInfo: HTMLElement;
   private _paneInfos = new Map<string, HTMLElement>();
   private _theme: ThemeColors;
+  private _rendererRegistry: RendererRegistry | null = null;
 
   constructor(container: HTMLElement, theme: ThemeColors) {
     this._container = container;
@@ -40,6 +42,10 @@ export class InfoOverlay {
 
   setTheme(theme: ThemeColors): void {
     this._theme = theme;
+  }
+
+  setRendererRegistry(registry: RendererRegistry): void {
+    this._rendererRegistry = registry;
   }
 
   /**
@@ -107,6 +113,16 @@ export class InfoOverlay {
 
     const label = s.config.label ?? "?";
     const color = s.config.color ?? this._theme.text;
+
+    // Check custom renderer formatValue first
+    if (this._rendererRegistry) {
+      const custom = this._rendererRegistry.getRenderer(s.type);
+      if (custom?.formatValue) {
+        const formatted = custom.formatValue(s, index);
+        if (formatted !== null) return formatted;
+      }
+    }
+
     const rule = defaultRegistry.detect(s.data);
 
     if (rule?.name === "number") {

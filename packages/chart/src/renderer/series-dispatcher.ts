@@ -5,9 +5,10 @@
 
 import type { DataLayer, InternalSeries } from "../core/data-layer";
 import { getDecimationTarget, lttb } from "../core/decimation";
+import type { RendererRegistry } from "../core/renderer-registry";
 import type { PriceScale, TimeScale } from "../core/scale";
 import { defaultRegistry } from "../core/series-registry";
-import type { DataPoint } from "../core/types";
+import type { DataPoint, ThemeColors } from "../core/types";
 import { renderArea } from "../series/area";
 import { renderBand } from "../series/band";
 import { renderBoxes } from "../series/box";
@@ -27,7 +28,32 @@ export function dispatchSeries(
   priceScale: PriceScale,
   dataLayer?: DataLayer,
   paneWidth?: number,
+  theme?: ThemeColors,
+  rendererRegistry?: RendererRegistry,
 ): void {
+  // Check custom renderer registry first (plugins take priority)
+  if (rendererRegistry && dataLayer && theme) {
+    const rule = defaultRegistry.detect(s.data);
+    const custom =
+      rendererRegistry.getRenderer(s.type) ??
+      (rule ? rendererRegistry.getRenderer(rule.name) : undefined);
+    if (custom) {
+      custom.render(
+        {
+          ctx,
+          series: s,
+          timeScale,
+          priceScale,
+          dataLayer,
+          paneWidth: paneWidth ?? timeScale.width,
+          theme,
+        },
+        s.config,
+      );
+      return;
+    }
+  }
+
   const rule = defaultRegistry.detect(s.data);
   if (!rule) return;
 
