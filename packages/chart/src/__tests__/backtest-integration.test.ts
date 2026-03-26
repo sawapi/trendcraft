@@ -59,7 +59,18 @@ describe("Backtest Integration", () => {
     const dl = new DataLayer();
     dl.clearDirty();
 
-    dl.setBacktestResult({});
+    dl.setBacktestResult({
+      initialCapital: 0,
+      finalCapital: 0,
+      totalReturnPercent: 0,
+      tradeCount: 0,
+      winRate: 0,
+      maxDrawdown: 0,
+      sharpeRatio: 0,
+      profitFactor: 0,
+      trades: [],
+      drawdownPeriods: [],
+    });
     expect(dl.dirty).toBe(true);
     dl.clearDirty();
 

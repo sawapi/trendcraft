@@ -18,15 +18,16 @@ export type IntrospectionRule = {
   seriesType: SeriesType;
   /** Default pane placement: 'main' for overlays, 'sub' for subcharts */
   defaultPane: "main" | "sub";
-  /** Extract named numeric channels from the value */
-  decompose: (value: unknown) => Record<string, number | null>;
+  /** Extract named numeric channels from the value (called only after test() passes) */
+  decompose: (value: Record<string, number | null>) => Record<string, number | null>;
 };
 
 // ============================================
 // Built-in Rules
 // ============================================
 
-function hasKeys(value: unknown, keys: string[]): boolean {
+/** Type guard: narrows unknown to record with specified keys */
+function hasKeys(value: unknown, keys: string[]): value is Record<string, number | null> {
   if (typeof value !== "object" || value === null) return false;
   return keys.every((k) => k in value);
 }
@@ -40,8 +41,7 @@ const BUILTIN_RULES: IntrospectionRule[] = [
     seriesType: "band",
     defaultPane: "main",
     decompose: (v) => {
-      const val = v as Record<string, number | null>;
-      return { upper: val.upper, middle: val.middle, lower: val.lower };
+      return { upper: v.upper, middle: v.middle, lower: v.lower };
     },
   },
 
@@ -52,13 +52,12 @@ const BUILTIN_RULES: IntrospectionRule[] = [
     seriesType: "cloud",
     defaultPane: "main",
     decompose: (v) => {
-      const val = v as Record<string, number | null>;
       return {
-        tenkan: val.tenkan,
-        kijun: val.kijun,
-        senkouA: val.senkouA,
-        senkouB: val.senkouB,
-        chikou: val.chikou ?? null,
+        tenkan: v.tenkan,
+        kijun: v.kijun,
+        senkouA: v.senkouA,
+        senkouB: v.senkouB,
+        chikou: v.chikou ?? null,
       };
     },
   },
@@ -70,8 +69,7 @@ const BUILTIN_RULES: IntrospectionRule[] = [
     seriesType: "histogram",
     defaultPane: "sub",
     decompose: (v) => {
-      const val = v as Record<string, number | null>;
-      return { macd: val.macd, signal: val.signal, histogram: val.histogram };
+      return { macd: v.macd, signal: v.signal, histogram: v.histogram };
     },
   },
 
@@ -82,8 +80,7 @@ const BUILTIN_RULES: IntrospectionRule[] = [
     seriesType: "line",
     defaultPane: "sub",
     decompose: (v) => {
-      const val = v as Record<string, number | null>;
-      return { adx: val.adx, plusDi: val.plusDi, minusDi: val.minusDi };
+      return { adx: v.adx, plusDi: v.plusDi, minusDi: v.minusDi };
     },
   },
 
@@ -94,8 +91,7 @@ const BUILTIN_RULES: IntrospectionRule[] = [
     seriesType: "line",
     defaultPane: "sub",
     decompose: (v) => {
-      const val = v as Record<string, number | null>;
-      return { k: val.k, d: val.d };
+      return { k: v.k, d: v.d };
     },
   },
 
@@ -106,8 +102,7 @@ const BUILTIN_RULES: IntrospectionRule[] = [
     seriesType: "line",
     defaultPane: "sub",
     decompose: (v) => {
-      const val = v as Record<string, number | null>;
-      return { up: val.up, down: val.down };
+      return { up: v.up, down: v.down };
     },
   },
 
@@ -118,8 +113,7 @@ const BUILTIN_RULES: IntrospectionRule[] = [
     seriesType: "line",
     defaultPane: "main",
     decompose: (v) => {
-      const val = v as Record<string, number | null>;
-      return { upperBand: val.upperBand, lowerBand: val.lowerBand, trend: val.trend };
+      return { upperBand: v.upperBand, lowerBand: v.lowerBand, trend: v.trend };
     },
   },
 
@@ -130,8 +124,7 @@ const BUILTIN_RULES: IntrospectionRule[] = [
     seriesType: "marker",
     defaultPane: "main",
     decompose: (v) => {
-      const val = v as Record<string, number | null>;
-      return { sar: val.sar };
+      return { sar: v.sar };
     },
   },
 
@@ -142,8 +135,7 @@ const BUILTIN_RULES: IntrospectionRule[] = [
     seriesType: "line",
     defaultPane: "main",
     decompose: (v) => {
-      const val = v as Record<string, number | null>;
-      return { pivot: val.pivot, r1: val.r1, r2: val.r2, s1: val.s1, s2: val.s2 };
+      return { pivot: v.pivot, r1: v.r1, r2: v.r2, s1: v.s1, s2: v.s2 };
     },
   },
 
@@ -154,8 +146,7 @@ const BUILTIN_RULES: IntrospectionRule[] = [
     seriesType: "heatmap",
     defaultPane: "main",
     decompose: (v) => {
-      const val = v as Record<string, number | null>;
-      return { poc: val.poc, vah: val.vah, val: val.val };
+      return { poc: v.poc, vah: v.vah, val: v.val };
     },
   },
 
@@ -166,8 +157,7 @@ const BUILTIN_RULES: IntrospectionRule[] = [
     seriesType: "area",
     defaultPane: "sub",
     decompose: (v) => {
-      const val = v as Record<string, number | null>;
-      return { regime: val.regime, confidence: val.confidence };
+      return { regime: v.regime, confidence: v.confidence };
     },
   },
 
@@ -178,8 +168,7 @@ const BUILTIN_RULES: IntrospectionRule[] = [
     seriesType: "line",
     defaultPane: "main",
     decompose: (v) => {
-      const val = v as Record<string, number | null>;
-      return { longExit: val.longExit, shortExit: val.shortExit };
+      return { longExit: v.longExit, shortExit: v.shortExit };
     },
   },
 
@@ -190,8 +179,7 @@ const BUILTIN_RULES: IntrospectionRule[] = [
     seriesType: "line",
     defaultPane: "main",
     decompose: (v) => {
-      const val = v as Record<string, number | null>;
-      return { highest: val.highest, lowest: val.lowest };
+      return { highest: v.highest, lowest: v.lowest };
     },
   },
 
@@ -201,7 +189,7 @@ const BUILTIN_RULES: IntrospectionRule[] = [
     test: (v) => typeof v === "number",
     seriesType: "line",
     defaultPane: "sub",
-    decompose: (v) => ({ value: v as number }),
+    decompose: (v) => ({ value: v as unknown as number }),
   },
 ];
 
@@ -244,7 +232,9 @@ export class SeriesRegistry {
 
     for (const point of data) {
       const decomposed =
-        point.value !== null && point.value !== undefined ? rule.decompose(point.value) : {};
+        point.value !== null && point.value !== undefined
+          ? rule.decompose(point.value as Record<string, number | null>)
+          : {};
 
       for (const [key, val] of Object.entries(decomposed)) {
         let arr = channels.get(key);

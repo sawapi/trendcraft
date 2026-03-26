@@ -245,6 +245,58 @@ export type TimeframeOverlay = {
 };
 
 // ============================================
+// Backtest Result (compatible with trendcraft BacktestResult)
+// ============================================
+
+export type BacktestResultData = {
+  initialCapital: number;
+  finalCapital: number;
+  totalReturnPercent: number;
+  tradeCount: number;
+  winRate: number;
+  maxDrawdown: number;
+  sharpeRatio: number;
+  profitFactor: number;
+  trades: {
+    entryTime: number;
+    entryPrice: number;
+    exitTime: number;
+    exitPrice: number;
+    returnPercent: number;
+    direction?: string;
+    exitReason?: string;
+  }[];
+  drawdownPeriods: {
+    startTime: number;
+    troughTime: number;
+    recoveryTime?: number;
+    maxDepthPercent: number;
+    peakEquity: number;
+    troughEquity: number;
+  }[];
+};
+
+// ============================================
+// Pattern Signal (compatible with trendcraft PatternSignal)
+// ============================================
+
+export type ChartPatternSignal = {
+  time: number;
+  type: string;
+  pattern: {
+    startTime: number;
+    endTime: number;
+    keyPoints: { time: number; index: number; price: number; label: string }[];
+    neckline?: { startPrice: number; endPrice: number; slope: number; currentPrice: number };
+    target?: number;
+    stopLoss?: number;
+    height?: number;
+  };
+  confidence: number;
+  confirmed: boolean;
+};
+
+// ============================================
 // Signal / Trade overlay types
 // ============================================
 
@@ -334,10 +386,10 @@ export type ChartInstance = {
   removeTimeframe(id: string): void;
 
   // Backtest visualization (trendcraft integration)
-  addBacktest(result: unknown): void;
+  addBacktest(result: BacktestResultData): void;
 
   // Pattern visualization
-  addPatterns(patterns: unknown[]): void;
+  addPatterns(patterns: ChartPatternSignal[]): void;
 
   // Score heatmap
   addScores(scores: DataPoint<number | null>[]): void;

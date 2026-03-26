@@ -40,7 +40,6 @@ import { renderOhlcBars } from "../series/ohlc-bar";
 import { renderPriceLineChart } from "../series/price-line";
 import { renderGrid, renderPriceAxis, renderReferenceLines, renderTimeAxis } from "./axis-renderer";
 import {
-  type BacktestResultData,
   renderBacktestSummary,
   renderBacktestTrades,
   renderEquityCurve,
@@ -55,7 +54,7 @@ import {
   renderTimeframeOverlays,
   renderTrades,
 } from "./overlay-renderer";
-import { type ChartPatternSignal, renderPatterns } from "./pattern-renderer";
+import { renderPatterns } from "./pattern-renderer";
 import { computePaneRange } from "./range-calculator";
 import { renderScoreHeatmap } from "./score-renderer";
 import { renderScrollbar } from "./scrollbar-renderer";
@@ -374,7 +373,7 @@ export class CanvasChart implements ChartInstance {
 
   // ---- Public API: Backtest Visualization ----
 
-  addBacktest(result: unknown): void {
+  addBacktest(result: import("../core/types").BacktestResultData): void {
     this._data.setBacktestResult(result);
     // Add equity curve subchart pane
     if (!this._layout.hasPane("equity")) {
@@ -383,7 +382,7 @@ export class CanvasChart implements ChartInstance {
     this._needsRender = true;
   }
 
-  addPatterns(patterns: unknown[]): void {
+  addPatterns(patterns: import("../core/types").ChartPatternSignal[]): void {
     this._data.setPatterns(patterns);
     this._needsRender = true;
   }
@@ -543,7 +542,7 @@ export class CanvasChart implements ChartInstance {
 
   // ---- Internal: Align series to candle indices ----
 
-  private _alignToCandles<T>(series: DataPoint<T>[]): DataPoint<T>[] {
+  private _alignToCandles<T>(series: DataPoint<T>[]): DataPoint<T | null>[] {
     const candles = this._data.candles;
     if (candles.length === 0 || series.length === 0) return series;
 
@@ -554,9 +553,9 @@ export class CanvasChart implements ChartInstance {
     }
 
     // Create aligned array (same length as candles, null-padded)
-    const aligned: DataPoint<T>[] = new Array(candles.length);
+    const aligned: DataPoint<T | null>[] = new Array(candles.length);
     for (let i = 0; i < candles.length; i++) {
-      aligned[i] = { time: candles[i].time, value: null as unknown as T };
+      aligned[i] = { time: candles[i].time, value: null };
     }
 
     for (const point of series) {
@@ -629,7 +628,7 @@ export class CanvasChart implements ChartInstance {
 
       // Equity pane: compute range from backtest result
       if (pane.id === "equity" && this._data.backtestResult) {
-        const bt = this._data.backtestResult as BacktestResultData;
+        const bt = this._data.backtestResult;
         let eqMin = bt.initialCapital;
         let eqMax = bt.initialCapital;
         let equity = bt.initialCapital;
@@ -837,7 +836,7 @@ export class CanvasChart implements ChartInstance {
     );
 
     // Backtest visualization
-    const btResult = this._data.backtestResult as BacktestResultData | null;
+    const btResult = this._data.backtestResult;
     if (btResult) {
       renderBacktestTrades(ctx, btResult, paneRects, this._priceScales, timeScale, this._data);
       const equityPane = paneRects.find((p) => p.id === "equity");
@@ -867,7 +866,7 @@ export class CanvasChart implements ChartInstance {
     if (this._data.patterns.length > 0) {
       renderPatterns(
         ctx,
-        this._data.patterns as ChartPatternSignal[],
+        this._data.patterns,
         paneRects,
         this._priceScales,
         timeScale,

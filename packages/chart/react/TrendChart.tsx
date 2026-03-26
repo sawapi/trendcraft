@@ -23,9 +23,11 @@ import type {
   SeriesRendererPlugin,
 } from "../src/core/plugin-types";
 import type {
+  BacktestResultData,
   CandleData,
   ChartInstance,
   ChartOptions,
+  ChartPatternSignal,
   DataPoint,
   Drawing,
   LayoutConfig,
@@ -56,9 +58,9 @@ export type TrendChartProps = {
   /** Multi-timeframe overlays */
   timeframes?: TimeframeOverlay[];
   /** Backtest result (trendcraft BacktestResult compatible) */
-  backtest?: unknown;
+  backtest?: BacktestResultData;
   /** Pattern signals (trendcraft PatternSignal[] compatible) */
-  patterns?: unknown[];
+  patterns?: ChartPatternSignal[];
   /** Score heatmap data (0-100 per bar) */
   scores?: DataPoint<number | null>[];
   /** Custom plugins (series renderers and/or primitives) */

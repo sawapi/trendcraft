@@ -130,7 +130,7 @@ export class InfoOverlay {
     }
 
     if (rule) {
-      const decomposed = rule.decompose(point.value);
+      const decomposed = rule.decompose(point.value as Record<string, number | null>);
       const parts = Object.entries(decomposed)
         .filter(([, v]) => v !== null && v !== undefined)
         .map(([k, v]) => `${k}:${fmt(v as number)}`)

@@ -25,9 +25,11 @@ import type {
   SeriesRendererPlugin,
 } from "../src/core/plugin-types";
 import type {
+  BacktestResultData,
   CandleData,
   ChartInstance,
   ChartOptions,
+  ChartPatternSignal,
   DataPoint,
   Drawing,
   LayoutConfig,
@@ -56,8 +58,8 @@ export const TrendChart = defineComponent({
     trades: { type: Array as PropType<TradeMarker[]>, default: undefined },
     drawings: { type: Array as PropType<Drawing[]>, default: undefined },
     timeframes: { type: Array as PropType<TimeframeOverlay[]>, default: undefined },
-    backtest: { type: Object as PropType<unknown>, default: undefined },
-    patterns: { type: Array as PropType<unknown[]>, default: undefined },
+    backtest: { type: Object as PropType<BacktestResultData>, default: undefined },
+    patterns: { type: Array as PropType<ChartPatternSignal[]>, default: undefined },
     scores: { type: Array as PropType<DataPoint<number | null>[]>, default: undefined },
     plugins: {
       type: Object as PropType<{

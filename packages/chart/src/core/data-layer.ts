@@ -25,8 +25,8 @@ export class DataLayer {
   private _trades: TradeMarker[] = [];
   private _drawings: Map<string, Drawing> = new Map();
   private _timeframes: Map<string, TimeframeOverlay> = new Map();
-  private _backtestResult: unknown = null;
-  private _patterns: unknown[] = [];
+  private _backtestResult: import("./types").BacktestResultData | null = null;
+  private _patterns: import("./types").ChartPatternSignal[] = [];
   private _scores: DataPoint<number | null>[] = [];
   private _dirty = true;
   private _onChange: (() => void) | null = null;
@@ -234,22 +234,22 @@ export class DataLayer {
 
   // ---- Backtest Result ----
 
-  get backtestResult(): unknown {
+  get backtestResult(): import("./types").BacktestResultData | null {
     return this._backtestResult;
   }
 
-  setBacktestResult(result: unknown): void {
+  setBacktestResult(result: import("./types").BacktestResultData): void {
     this._backtestResult = result;
     this.markDirty();
   }
 
   // ---- Patterns ----
 
-  get patterns(): readonly unknown[] {
+  get patterns(): readonly import("./types").ChartPatternSignal[] {
     return this._patterns;
   }
 
-  setPatterns(patterns: unknown[]): void {
+  setPatterns(patterns: import("./types").ChartPatternSignal[]): void {
     this._patterns = patterns;
     this.markDirty();
   }
