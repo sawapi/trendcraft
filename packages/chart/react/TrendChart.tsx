@@ -61,6 +61,8 @@ export type TrendChartProps = {
     renderers?: SeriesRendererPlugin<unknown>[];
     primitives?: PrimitivePlugin<unknown>[];
   };
+  /** Base chart type (default: 'candlestick') */
+  chartType?: import("../src/core/types").ChartType;
   /** Layout configuration */
   layout?: LayoutConfig;
   /** Theme: 'dark', 'light', or custom ThemeColors */
@@ -98,6 +100,7 @@ export const TrendChart = forwardRef<TrendChartRef, TrendChartProps>(function Tr
     patterns,
     scores,
     plugins,
+    chartType,
     layout,
     theme = "dark",
     options,
@@ -140,6 +143,11 @@ export const TrendChart = forwardRef<TrendChartRef, TrendChartProps>(function Tr
   useEffect(() => {
     chartRef.current?.setTheme(theme);
   }, [theme]);
+
+  // Update chart type
+  useEffect(() => {
+    if (chartType) chartRef.current?.setChartType(chartType);
+  }, [chartType]);
 
   // Update layout
   useEffect(() => {

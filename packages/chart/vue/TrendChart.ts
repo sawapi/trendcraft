@@ -61,6 +61,10 @@ export const TrendChart = defineComponent({
       }>,
       default: undefined,
     },
+    chartType: {
+      type: String as PropType<"candlestick" | "line" | "mountain" | "ohlc">,
+      default: undefined,
+    },
     layout: { type: Object as PropType<LayoutConfig>, default: undefined },
     theme: { type: [String, Object] as PropType<"dark" | "light" | ThemeColors>, default: "dark" },
     options: { type: Object as PropType<Omit<ChartOptions, "theme">>, default: undefined },
@@ -149,6 +153,13 @@ export const TrendChart = defineComponent({
       () => props.theme,
       (val) => {
         chart?.setTheme(val);
+      },
+    );
+
+    watch(
+      () => props.chartType,
+      (val) => {
+        if (val) chart?.setChartType(val);
       },
     );
 

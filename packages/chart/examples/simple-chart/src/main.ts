@@ -129,6 +129,22 @@ document.getElementById("btn-score")?.addEventListener("click", () => {
   chart.addScores(rsiData as { time: number; value: number | null }[]);
 });
 
+// Chart type toggle
+const chartTypes = ["candlestick", "line", "mountain", "ohlc"] as const;
+let chartTypeIdx = 0;
+document.getElementById("btn-chart-type")?.addEventListener("click", (e) => {
+  chartTypeIdx = (chartTypeIdx + 1) % chartTypes.length;
+  const type = chartTypes[chartTypeIdx];
+  chart.setChartType(type);
+  const labels: Record<string, string> = {
+    candlestick: "Candle",
+    line: "Line",
+    mountain: "Mountain",
+    ohlc: "OHLC",
+  };
+  (e.target as HTMLButtonElement).textContent = `Chart: ${labels[type]}`;
+});
+
 document.getElementById("btn-fit")?.addEventListener("click", () => chart.fitContent());
 
 let isDark = true;

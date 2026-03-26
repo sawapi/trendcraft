@@ -27,6 +27,24 @@ chart.addIndicator(macd(candles));                      // subchart, histogram +
 
 No `pane`, `color`, `yRange`, or `label` config needed — the library reads `__meta` from TrendCraft's 130+ indicators.
 
+### Chart Types
+
+Switch between different price rendering styles:
+
+```typescript
+const chart = createChart(el, { chartType: 'mountain' }); // or 'candlestick', 'line', 'ohlc'
+
+// Change at runtime
+chart.setChartType('line');
+```
+
+| Type | Description |
+|---|---|
+| `candlestick` | OHLC candles with wicks (default) |
+| `line` | Close price line |
+| `mountain` | Close price with gradient fill |
+| `ohlc` | Traditional OHLC bars |
+
 ### Without TrendCraft
 
 Works with any `{ time, value }[]` data:
@@ -94,6 +112,7 @@ Creates a chart instance attached to a DOM element.
 | `timeFormatter` | `(time: number) => string` | smart date/time | Custom time format |
 | `watermark` | `string` | — | Background watermark text |
 | `legend` | `boolean` | `true` | Show series legend |
+| `chartType` | `'candlestick' \| 'line' \| 'mountain' \| 'ohlc'` | `'candlestick'` | Base chart type |
 
 ### ChartInstance Methods
 
@@ -163,6 +182,7 @@ Creates a chart instance attached to a DOM element.
 | Method | Description |
 |---|---|
 | `setTheme(theme)` | Change color theme |
+| `setChartType(type)` | Switch base chart type (candlestick/line/mountain/ohlc) |
 | `toImage(type?, quality?)` | Export chart as image `Blob` |
 | `resize(width, height)` | Resize chart |
 | `destroy()` | Clean up all resources |

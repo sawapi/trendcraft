@@ -34,6 +34,9 @@ import { Viewport } from "../core/viewport";
 import { introspect } from "../integration/series-introspector";
 import { renderCandlesticks } from "../series/candlestick";
 import { renderVolume } from "../series/histogram";
+import { renderMountainChart } from "../series/mountain";
+import { renderOhlcBars } from "../series/ohlc-bar";
+import { renderPriceLineChart } from "../series/price-line";
 import { renderGrid, renderPriceAxis, renderReferenceLines, renderTimeAxis } from "./axis-renderer";
 import {
   type BacktestResultData,
@@ -92,6 +95,7 @@ export class CanvasChart implements ChartInstance {
   private _infoOverlay: InfoOverlay | null = null;
   private _legendOverlay: LegendOverlay | null = null;
   private _watermark: string | undefined;
+  private _chartType: import("../core/types").ChartType;
   private _activeDrawingTool: DrawingType | null = null;
   private _drawingInProgress: { startTime: number; startPrice: number } | null = null;
 
@@ -229,6 +233,7 @@ export class CanvasChart implements ChartInstance {
 
     // Watermark
     this._watermark = options?.watermark;
+    this._chartType = options?.chartType ?? "candlestick";
 
     // Start render loop
     this._renderLoop();
@@ -432,6 +437,11 @@ export class CanvasChart implements ChartInstance {
       this._theme = theme === "light" ? LIGHT_THEME : DARK_THEME;
     }
     this._infoOverlay?.setTheme(this._theme);
+    this._needsRender = true;
+  }
+
+  setChartType(type: import("../core/types").ChartType): void {
+    this._chartType = type;
     this._needsRender = true;
   }
 
@@ -685,7 +695,20 @@ export class CanvasChart implements ChartInstance {
           decimTarget > 0
             ? decimateCandles(candles, timeScale.startIndex, timeScale.endIndex, decimTarget)
             : candles;
-        renderCandlesticks(ctx, visibleCandles, timeScale, ps, this._theme);
+        switch (this._chartType) {
+          case "line":
+            renderPriceLineChart(ctx, visibleCandles, timeScale, ps, this._theme);
+            break;
+          case "mountain":
+            renderMountainChart(ctx, visibleCandles, timeScale, ps, this._theme);
+            break;
+          case "ohlc":
+            renderOhlcBars(ctx, visibleCandles, timeScale, ps, this._theme);
+            break;
+          default:
+            renderCandlesticks(ctx, visibleCandles, timeScale, ps, this._theme);
+            break;
+        }
       }
 
       if (pane.id === "volume") {

@@ -68,6 +68,7 @@ export type {
   TrendLineDrawing,
   FibRetracementDrawing,
   TimeframeOverlay,
+  ChartType,
 } from "./core/types";
 
 export { DARK_THEME, LIGHT_THEME } from "./core/types";

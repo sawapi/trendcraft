@@ -103,7 +103,12 @@ export type ChartOptions = {
   watermark?: string;
   /** Show legend widget (default: true) */
   legend?: boolean;
+  /** Base chart type for price data (default: 'candlestick') */
+  chartType?: ChartType;
 };
+
+/** Base chart rendering type */
+export type ChartType = "candlestick" | "line" | "mountain" | "ohlc";
 
 // ============================================
 // Pane Configuration
@@ -348,8 +353,9 @@ export type ChartInstance = {
   on<E extends ChartEvent>(event: E, handler: (data: unknown) => void): void;
   off<E extends ChartEvent>(event: E, handler: (data: unknown) => void): void;
 
-  // Theme
+  // Theme & Chart Type
   setTheme(theme: "dark" | "light" | ThemeColors): void;
+  setChartType(type: ChartType): void;
 
   // Plugins
   /** Register a custom series renderer plugin */
