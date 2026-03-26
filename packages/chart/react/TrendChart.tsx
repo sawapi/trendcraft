@@ -4,11 +4,12 @@
  * @example
  * ```tsx
  * import { TrendChart } from '@trendcraft/chart/react';
- * import { sma, rsi } from 'trendcraft';
+ * import { sma, rsi, runBacktest, goldenCrossCondition, rsiBelow } from 'trendcraft';
  *
  * <TrendChart
  *   candles={candles}
  *   indicators={[sma(candles, { period: 20 }), rsi(candles)]}
+ *   backtest={runBacktest(candles, goldenCrossCondition(), rsiBelow(70), { capital: 100000 })}
  *   theme="dark"
  * />
  * ```
@@ -20,10 +21,12 @@ import type {
   ChartInstance,
   ChartOptions,
   DataPoint,
+  Drawing,
   LayoutConfig,
   SeriesConfig,
   SignalMarker,
   ThemeColors,
+  TimeframeOverlay,
   TradeMarker,
 } from "../src/core/types";
 import { createChart } from "../src/index";
@@ -42,11 +45,21 @@ export type TrendChartProps = {
   signals?: SignalMarker[];
   /** Trade markers */
   trades?: TradeMarker[];
+  /** Drawing elements (hline, trendline, fibonacci) */
+  drawings?: Drawing[];
+  /** Multi-timeframe overlays */
+  timeframes?: TimeframeOverlay[];
+  /** Backtest result (trendcraft BacktestResult compatible) */
+  backtest?: unknown;
+  /** Pattern signals (trendcraft PatternSignal[] compatible) */
+  patterns?: unknown[];
+  /** Score heatmap data (0-100 per bar) */
+  scores?: DataPoint<number | null>[];
   /** Layout configuration */
   layout?: LayoutConfig;
   /** Theme: 'dark', 'light', or custom ThemeColors */
   theme?: "dark" | "light" | ThemeColors;
-  /** Chart options (width, height, fontSize, etc.) */
+  /** Chart options (width, height, fontSize, watermark, etc.) */
   options?: Omit<ChartOptions, "theme">;
   /** Container CSS style */
   style?: CSSProperties;
@@ -54,6 +67,12 @@ export type TrendChartProps = {
   className?: string;
   /** Fit all candles on initial render (default: true) */
   fitOnLoad?: boolean;
+  /** Crosshair move event handler */
+  onCrosshairMove?: (data: unknown) => void;
+  /** Series added event handler */
+  onSeriesAdded?: (data: unknown) => void;
+  /** Series removed event handler */
+  onSeriesRemoved?: (data: unknown) => void;
 };
 
 export type TrendChartRef = {
@@ -67,12 +86,20 @@ export const TrendChart = forwardRef<TrendChartRef, TrendChartProps>(function Tr
     indicators,
     signals,
     trades,
+    drawings,
+    timeframes,
+    backtest,
+    patterns,
+    scores,
     layout,
     theme = "dark",
     options,
     style,
     className,
     fitOnLoad = true,
+    onCrosshairMove,
+    onSeriesAdded,
+    onSeriesRemoved,
   },
   ref,
 ) {
@@ -83,7 +110,7 @@ export const TrendChart = forwardRef<TrendChartRef, TrendChartProps>(function Tr
   useImperativeHandle(ref, () => ({ chart: chartRef.current }), []);
 
   // Init chart — intentionally empty deps: only create/destroy on mount/unmount
-  // biome-ignore lint/correctness/useExhaustiveDependencies: chart recreation is expensive; theme/options changes handled by separate effects
+  // biome-ignore lint/correctness/useExhaustiveDependencies: chart recreation is expensive; prop changes handled by separate effects
   useEffect(() => {
     if (!containerRef.current) return;
     const chart = createChart(containerRef.current, { ...options, theme });
@@ -138,6 +165,77 @@ export const TrendChart = forwardRef<TrendChartRef, TrendChartProps>(function Tr
   useEffect(() => {
     if (trades) chartRef.current?.addTrades(trades);
   }, [trades]);
+
+  // Update drawings
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart) return;
+
+    if (drawings) {
+      for (const d of drawings) chart.addDrawing(d);
+    }
+
+    return () => {
+      if (drawings) {
+        for (const d of drawings) chart.removeDrawing(d.id);
+      }
+    };
+  }, [drawings]);
+
+  // Update timeframes
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart) return;
+
+    if (timeframes) {
+      for (const tf of timeframes) chart.addTimeframe(tf);
+    }
+
+    return () => {
+      if (timeframes) {
+        for (const tf of timeframes) chart.removeTimeframe(tf.id);
+      }
+    };
+  }, [timeframes]);
+
+  // Update backtest
+  useEffect(() => {
+    if (backtest) chartRef.current?.addBacktest(backtest);
+  }, [backtest]);
+
+  // Update patterns
+  useEffect(() => {
+    if (patterns) chartRef.current?.addPatterns(patterns);
+  }, [patterns]);
+
+  // Update scores
+  useEffect(() => {
+    if (scores) chartRef.current?.addScores(scores);
+  }, [scores]);
+
+  // Event: crosshairMove
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart || !onCrosshairMove) return;
+    chart.on("crosshairMove", onCrosshairMove);
+    return () => chart.off("crosshairMove", onCrosshairMove);
+  }, [onCrosshairMove]);
+
+  // Event: seriesAdded
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart || !onSeriesAdded) return;
+    chart.on("seriesAdded", onSeriesAdded);
+    return () => chart.off("seriesAdded", onSeriesAdded);
+  }, [onSeriesAdded]);
+
+  // Event: seriesRemoved
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart || !onSeriesRemoved) return;
+    chart.on("seriesRemoved", onSeriesRemoved);
+    return () => chart.off("seriesRemoved", onSeriesRemoved);
+  }, [onSeriesRemoved]);
 
   return (
     <div

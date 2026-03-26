@@ -9,6 +9,7 @@ export default defineConfig({
         index: resolve(__dirname, "src/index.ts"),
         headless: resolve(__dirname, "src/headless.ts"),
         "react/TrendChart": resolve(__dirname, "react/TrendChart.tsx"),
+        "vue/TrendChart": resolve(__dirname, "vue/TrendChart.ts"),
       },
       formats: ["es", "cjs"],
       fileName: (format, entryName) => {
@@ -19,7 +20,7 @@ export default defineConfig({
     sourcemap: true,
     minify: "esbuild",
     rollupOptions: {
-      external: ["trendcraft", "react", "react/jsx-runtime"],
+      external: ["trendcraft", "react", "react/jsx-runtime", "vue"],
     },
   },
   plugins: [
