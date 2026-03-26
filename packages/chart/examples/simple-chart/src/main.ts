@@ -1,5 +1,4 @@
 import { createChart, definePrimitive, defineSeriesRenderer } from "@trendcraft/chart";
-import type { SeriesRenderContext } from "@trendcraft/chart";
 import {
   bollingerBands,
   goldenCrossCondition,
@@ -168,12 +167,16 @@ const srZonePrimitive = definePrimitive({
   pane: "main",
   zOrder: "below",
   defaultState: { zones: [] as { price: number; height: number; color: string }[] },
-  render: ({ ctx, pane, priceScale }, state) => {
+  render: ({ draw }, state) => {
     for (const zone of state.zones) {
-      const y = priceScale.priceToY(zone.price);
-      const halfH = Math.abs(priceScale.priceToY(zone.price - zone.height) - y) / 2;
-      ctx.fillStyle = zone.color;
-      ctx.fillRect(0, y - halfH, pane.width, halfH * 2);
+      // rect(index, priceTop, widthBars, priceBottom, fill)
+      draw.rect(
+        draw.startIndex,
+        zone.price + zone.height / 2,
+        draw.endIndex - draw.startIndex,
+        zone.price - zone.height / 2,
+        { color: zone.color },
+      );
     }
   },
 });
@@ -212,36 +215,29 @@ document.getElementById("btn-plugin-sr")?.addEventListener("click", (e) => {
 
 const trailRenderer = defineSeriesRenderer({
   type: "trailingStop",
-  render: ({ ctx, series, timeScale, priceScale }: SeriesRenderContext) => {
-    const start = timeScale.startIndex;
-    const end = Math.min(timeScale.endIndex, series.data.length - 1);
+  render: ({ draw, series }) => {
+    // Step-style trailing stop using draw.scope() for auto save/restore
+    draw.scope((ctx) => {
+      ctx.strokeStyle = series.config.color ?? "#FF9800";
+      ctx.lineWidth = 2;
+      ctx.setLineDash([4, 2]);
+      ctx.beginPath();
 
-    ctx.beginPath();
-    ctx.strokeStyle = series.config.color ?? "#FF9800";
-    ctx.lineWidth = 2;
-    ctx.setLineDash([4, 2]);
-
-    let moved = false;
-    for (let i = start; i <= end; i++) {
-      const point = series.data[i];
-      if (!point || point.value === null) continue;
-      const x = timeScale.indexToX(i);
-      const y = priceScale.priceToY(point.value as number);
-      if (!moved) {
-        ctx.moveTo(x, y);
-        moved = true;
-      } else {
-        // Step-style: horizontal then vertical
-        const prevX = timeScale.indexToX(i - 1);
-        ctx.lineTo(
-          x,
-          priceScale.priceToY((series.data[i - 1]?.value as number) ?? (point.value as number)),
-        );
-        ctx.lineTo(x, y);
+      let moved = false;
+      for (let i = draw.startIndex; i < draw.endIndex && i < series.data.length; i++) {
+        const val = series.data[i]?.value as number | null;
+        if (val === null || val === undefined) continue;
+        if (!moved) {
+          ctx.moveTo(draw.x(i), draw.y(val));
+          moved = true;
+        } else {
+          const prev = (series.data[i - 1]?.value as number) ?? val;
+          ctx.lineTo(draw.x(i), draw.y(prev)); // horizontal step
+          ctx.lineTo(draw.x(i), draw.y(val)); // vertical step
+        }
       }
-    }
-    ctx.stroke();
-    ctx.setLineDash([]);
+      ctx.stroke();
+    }); // setLineDash auto-reset by save/restore
   },
   priceRange: (series, start, end) => {
     let min = Number.POSITIVE_INFINITY;

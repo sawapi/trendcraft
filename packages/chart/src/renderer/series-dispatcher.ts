@@ -5,6 +5,7 @@
 
 import type { DataLayer, InternalSeries } from "../core/data-layer";
 import { getDecimationTarget, lttb } from "../core/decimation";
+import { DrawHelper } from "../core/draw-helper";
 import type { RendererRegistry } from "../core/renderer-registry";
 import type { PriceScale, TimeScale } from "../core/scale";
 import { defaultRegistry } from "../core/series-registry";
@@ -47,6 +48,7 @@ export function dispatchSeries(
           dataLayer,
           paneWidth: paneWidth ?? timeScale.width,
           theme,
+          draw: new DrawHelper(ctx, timeScale, priceScale),
         },
         s.config,
       );

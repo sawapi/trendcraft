@@ -18,7 +18,12 @@
  */
 
 import { type PropType, defineComponent, h, onMounted, onUnmounted, ref, watch } from "vue";
-import type { PrimitivePlugin, SeriesRendererPlugin } from "../src/core/plugin-types";
+import type {
+  AnyPrimitivePlugin,
+  AnySeriesRendererPlugin,
+  PrimitivePlugin,
+  SeriesRendererPlugin,
+} from "../src/core/plugin-types";
 import type {
   CandleData,
   ChartInstance,
@@ -56,8 +61,8 @@ export const TrendChart = defineComponent({
     scores: { type: Array as PropType<DataPoint<number | null>[]>, default: undefined },
     plugins: {
       type: Object as PropType<{
-        renderers?: SeriesRendererPlugin<unknown>[];
-        primitives?: PrimitivePlugin<unknown>[];
+        renderers?: AnySeriesRendererPlugin[];
+        primitives?: AnyPrimitivePlugin[];
       }>,
       default: undefined,
     },
@@ -135,8 +140,9 @@ export const TrendChart = defineComponent({
 
     function applyPlugins() {
       if (!chart || !props.plugins) return;
-      for (const r of props.plugins.renderers ?? []) chart.registerRenderer(r);
-      for (const p of props.plugins.primitives ?? []) chart.registerPrimitive(p);
+      for (const r of props.plugins.renderers ?? [])
+        chart.registerRenderer(r as SeriesRendererPlugin);
+      for (const p of props.plugins.primitives ?? []) chart.registerPrimitive(p as PrimitivePlugin);
     }
 
     // Watchers
@@ -248,8 +254,8 @@ export const TrendChart = defineComponent({
         }
         // Apply new plugins
         if (newVal) {
-          for (const r of newVal.renderers ?? []) chart.registerRenderer(r);
-          for (const p of newVal.primitives ?? []) chart.registerPrimitive(p);
+          for (const r of newVal.renderers ?? []) chart.registerRenderer(r as SeriesRendererPlugin);
+          for (const p of newVal.primitives ?? []) chart.registerPrimitive(p as PrimitivePlugin);
         }
       },
     );

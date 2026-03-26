@@ -36,6 +36,9 @@ export type {
 export { defineSeriesRenderer, definePrimitive } from "./core/plugin-types";
 export { RendererRegistry } from "./core/renderer-registry";
 
+// Drawing helper
+export { DrawHelper, type StrokeStyle, type FillStyle } from "./core/draw-helper";
+
 // Types
 export type {
   ChartOptions,

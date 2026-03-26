@@ -25,6 +25,7 @@
  */
 
 import type { DataLayer, InternalSeries } from "./data-layer";
+import type { DrawHelper } from "./draw-helper";
 import type { PriceScale, TimeScale } from "./scale";
 import type { PaneRect, ThemeColors } from "./types";
 
@@ -37,6 +38,8 @@ export type SeriesRenderContext = {
   dataLayer: DataLayer;
   paneWidth: number;
   theme: ThemeColors;
+  /** Drawing helper — wraps common canvas operations with coordinate conversion */
+  draw: DrawHelper;
 };
 
 /** Context passed to primitive renderers */
@@ -47,6 +50,8 @@ export type PrimitiveRenderContext = {
   priceScale: PriceScale;
   dataLayer: DataLayer;
   theme: ThemeColors;
+  /** Drawing helper — wraps common canvas operations with coordinate conversion */
+  draw: DrawHelper;
 };
 
 /** Custom series renderer plugin */
@@ -81,6 +86,23 @@ export type PrimitivePlugin<TState = unknown> = {
   defaultState: TState;
   /** Called on chart.destroy() (optional) */
   destroy?: () => void;
+};
+
+/**
+ * Type-erased plugin base for framework wrapper props.
+ * Only structural fields (no generic render signature) so any
+ * SeriesRendererPlugin<T> / PrimitivePlugin<T> is assignable.
+ */
+export type AnySeriesRendererPlugin = {
+  readonly type: string;
+  [key: string]: unknown;
+};
+
+export type AnyPrimitivePlugin = {
+  readonly name: string;
+  pane: string;
+  zOrder: "below" | "above";
+  [key: string]: unknown;
 };
 
 /**

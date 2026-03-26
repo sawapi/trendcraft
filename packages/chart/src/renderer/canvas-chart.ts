@@ -5,6 +5,7 @@
 
 import { DataLayer, type InternalSeries } from "../core/data-layer";
 import { decimateCandles, getDecimationTarget } from "../core/decimation";
+import { DrawHelper } from "../core/draw-helper";
 import { autoFormatPrice } from "../core/format";
 import { LayoutEngine } from "../core/layout";
 import type { PrimitivePlugin, SeriesRendererPlugin } from "../core/plugin-types";
@@ -725,6 +726,7 @@ export class CanvasChart implements ChartInstance {
             priceScale: ps,
             dataLayer: this._data,
             theme: this._theme,
+            draw: new DrawHelper(ctx, timeScale, ps),
           },
           prim.state,
         );
@@ -755,6 +757,7 @@ export class CanvasChart implements ChartInstance {
             priceScale: ps,
             dataLayer: this._data,
             theme: this._theme,
+            draw: new DrawHelper(ctx, timeScale, ps),
           },
           prim.state,
         );

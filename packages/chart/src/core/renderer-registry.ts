@@ -12,8 +12,12 @@ export type PrimitiveEntry = {
   state: unknown;
 };
 
+// Internal storage type — erases the generic to allow heterogeneous plugins
+type AnyRendererPlugin = SeriesRendererPlugin<never>;
+type AnyPrimitivePlugin = PrimitivePlugin<never>;
+
 export class RendererRegistry {
-  private _renderers = new Map<string, SeriesRendererPlugin>();
+  private _renderers = new Map<string, AnyRendererPlugin>();
   private _primitives = new Map<string, PrimitiveEntry>();
 
   /** Register a custom series renderer */
@@ -22,12 +26,12 @@ export class RendererRegistry {
       console.warn(`[trendcraft/chart] Renderer "${plugin.type}" already registered, overwriting.`);
     }
     plugin.init?.();
-    this._renderers.set(plugin.type, plugin);
+    this._renderers.set(plugin.type, plugin as unknown as AnyRendererPlugin);
   }
 
   /** Get a renderer by type name */
   getRenderer(type: string): SeriesRendererPlugin | undefined {
-    return this._renderers.get(type);
+    return this._renderers.get(type) as SeriesRendererPlugin | undefined;
   }
 
   /** Register a pane primitive */
@@ -38,7 +42,7 @@ export class RendererRegistry {
       existing.plugin.destroy?.();
     }
     this._primitives.set(plugin.name, {
-      plugin,
+      plugin: plugin as PrimitivePlugin,
       state: structuredClone(plugin.defaultState),
     });
   }
