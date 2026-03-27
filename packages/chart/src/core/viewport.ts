@@ -172,14 +172,18 @@ export class Viewport {
     // keep using it during trackpad inertia (macOS sends wheel events after finger lift)
     let zoomAnchorX: number | null = null;
     let zoomAnchorTimer: ReturnType<typeof setTimeout> | null = null;
+    // Accumulate sub-bar fractional scroll for smooth trackpad inertia
+    let panRemainder = 0;
 
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
       if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
-        // Horizontal scroll (pan)
-        zoomAnchorX = null; // Reset zoom anchor on pan
-        const deltaBars = Math.round((e.deltaX * sens) / timeScale.barSpacing);
-        timeScale.scrollBy(deltaBars);
+        // Horizontal scroll (pan) — accumulate fractional pixels for smooth inertia
+        zoomAnchorX = null;
+        panRemainder += e.deltaX / timeScale.barSpacing;
+        const deltaBars = Math.trunc(panRemainder);
+        panRemainder -= deltaBars;
+        if (deltaBars !== 0) timeScale.scrollBy(deltaBars);
       } else {
         // Zoom: proportional to deltaY magnitude for smooth trackpad support
         const clampedDelta = Math.max(-50, Math.min(50, e.deltaY));
