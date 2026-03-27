@@ -33,11 +33,11 @@ export class TimeScale {
   private readonly _maxBarSpacing = 50;
 
   get startIndex(): number {
-    return this._startIndex;
+    return Math.floor(this._startIndex);
   }
 
   get endIndex(): number {
-    return Math.min(this._startIndex + this._visibleCount, this._totalCount);
+    return Math.min(Math.floor(this._startIndex) + this._visibleCount, this._totalCount);
   }
 
   get visibleCount(): number {
@@ -87,10 +87,13 @@ export class TimeScale {
     this._startIndex = Math.max(0, this._totalCount - this._visibleCount);
   }
 
-  /** Zoom around a pixel position */
+  /** Zoom around a pixel position (Google Maps style — anchor stays under cursor) */
   zoom(factor: number, anchorX?: number): void {
-    const anchor =
-      anchorX !== undefined ? this.xToIndex(anchorX) : this._startIndex + this._visibleCount / 2;
+    // Compute anchor as a fractional index before zoom
+    // indexToX: x = (index - startIndex + 0.5) * barSpacing
+    // → index = x / barSpacing - 0.5 + startIndex
+    const ax = anchorX ?? this._width / 2;
+    const anchorIndex = ax / this._barSpacing - 0.5 + this._startIndex;
 
     const newSpacing = Math.max(
       this._minBarSpacing,
@@ -101,9 +104,10 @@ export class TimeScale {
     this._barSpacing = newSpacing;
     this.recalcVisibleCount();
 
-    // Keep anchor index at the same screen position
-    const anchorFraction = anchorX !== undefined ? anchorX / this._width : 0.5;
-    this._startIndex = Math.round(anchor - this._visibleCount * anchorFraction);
+    // After zoom, place startIndex so anchorIndex maps back to the same pixel ax
+    // ax = (anchorIndex - newStart + 0.5) * newSpacing
+    // → newStart = anchorIndex + 0.5 - ax / newSpacing
+    this._startIndex = anchorIndex + 0.5 - ax / newSpacing;
     this.clamp();
   }
 
@@ -147,7 +151,7 @@ export class TimeScale {
     }
     // Allow some right padding (can scroll past end by 20%)
     const maxStart = Math.max(0, this._totalCount - Math.floor(this._visibleCount * 0.8));
-    this._startIndex = Math.max(0, Math.min(maxStart, Math.round(this._startIndex)));
+    this._startIndex = Math.max(0, Math.min(maxStart, this._startIndex));
   }
 }
 

@@ -105,6 +105,8 @@ export type ChartOptions = {
   legend?: boolean;
   /** Show volume pane (default: true) */
   volume?: boolean;
+  /** Scroll/pan sensitivity multiplier (default: 0.3, lower = slower) */
+  scrollSensitivity?: number;
   /** Base chart type for price data (default: 'candlestick') */
   chartType?: ChartType;
 };

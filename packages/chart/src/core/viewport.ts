@@ -55,7 +55,9 @@ export class Viewport {
     scrollbar: () => ScrollbarRect | null,
     gapAtY?: (y: number) => number | null,
     resizePanes?: (gapIndex: number, deltaY: number) => void,
+    scrollSensitivity = 0.3,
   ): () => void {
+    const sens = Math.max(0.1, scrollSensitivity);
     // Make focusable for keyboard events
     el.tabIndex = 0;
     el.style.outline = "none";
@@ -166,16 +168,33 @@ export class Viewport {
       this._onUpdate?.();
     };
 
+    // Zoom anchor lock: remember mouse position when zoom gesture starts,
+    // keep using it during trackpad inertia (macOS sends wheel events after finger lift)
+    let zoomAnchorX: number | null = null;
+    let zoomAnchorTimer: ReturnType<typeof setTimeout> | null = null;
+
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
       if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
-        const deltaBars = Math.round(e.deltaX / timeScale.barSpacing);
+        // Horizontal scroll (pan)
+        zoomAnchorX = null; // Reset zoom anchor on pan
+        const deltaBars = Math.round((e.deltaX * sens) / timeScale.barSpacing);
         timeScale.scrollBy(deltaBars);
       } else {
-        const factor = e.deltaY > 0 ? 0.9 : 1.1;
+        // Zoom: proportional to deltaY magnitude for smooth trackpad support
+        const clampedDelta = Math.max(-50, Math.min(50, e.deltaY));
+        const factor = 1 - (clampedDelta / 500) * sens;
         const rect = el.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
-        timeScale.zoom(factor, mouseX);
+
+        // Lock anchor on first zoom event, keep it during inertia
+        if (zoomAnchorX === null) zoomAnchorX = mouseX;
+        if (zoomAnchorTimer) clearTimeout(zoomAnchorTimer);
+        zoomAnchorTimer = setTimeout(() => {
+          zoomAnchorX = null;
+        }, 150);
+
+        timeScale.zoom(factor, zoomAnchorX);
       }
       this._onUpdate?.();
     };
@@ -244,7 +263,7 @@ export class Viewport {
       }
       const deltaBars = -touchVelocity / timeScale.barSpacing;
       timeScale.scrollBy(Math.round(deltaBars));
-      touchVelocity *= 0.95; // Friction
+      touchVelocity *= 0.92; // Friction (stronger damping for less floaty feel)
       this._onUpdate?.();
       inertiaRaf = requestAnimationFrame(runInertia);
     };
@@ -300,7 +319,7 @@ export class Viewport {
         // Track velocity for inertia
         const dt = now - lastTouchMoveTime;
         if (dt > 0) {
-          touchVelocity = ((currentX - lastTouchX) / dt) * 16; // Normalize to ~60fps
+          touchVelocity = ((currentX - lastTouchX) / dt) * 16 * sens; // Normalize to ~60fps + sensitivity
         }
         lastTouchX = currentX;
         lastTouchMoveTime = now;
@@ -338,7 +357,7 @@ export class Viewport {
       }
 
       // Start inertia if swiped fast enough
-      if (this._state.isDragging && !longPressCrosshairLocked && Math.abs(touchVelocity) > 2) {
+      if (this._state.isDragging && !longPressCrosshairLocked && Math.abs(touchVelocity) > 3) {
         inertiaRaf = requestAnimationFrame(runInertia);
       }
 

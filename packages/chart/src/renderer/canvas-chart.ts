@@ -177,6 +177,7 @@ export class CanvasChart implements ChartInstance {
         this._layout.resizePanes(gapIdx, delta);
         this._needsRender = true;
       },
+      options?.scrollSensitivity,
     );
 
     // Auto-resize
