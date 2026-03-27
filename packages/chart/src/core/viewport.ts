@@ -168,8 +168,8 @@ export class Viewport {
       this._onUpdate?.();
     };
 
-    // Gesture direction lock: once a pan or zoom gesture starts, lock to that
-    // axis until the gesture ends (no wheel events for 150ms)
+    // Gesture direction lock: holds current direction, but re-evaluates
+    // when the dominant axis changes (allows quick pan↔zoom switching)
     let gestureDir: "pan" | "zoom" | null = null;
     let gestureTimer: ReturnType<typeof setTimeout> | null = null;
     let zoomAnchorX: number | null = null;
@@ -177,10 +177,16 @@ export class Viewport {
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
 
-      // Determine direction on first event, then lock
-      if (gestureDir === null) {
-        gestureDir = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? "pan" : "zoom";
+      // Determine direction from this event
+      const eventDir: "pan" | "zoom" = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? "pan" : "zoom";
+
+      // If direction changed, reset lock immediately
+      if (gestureDir !== null && gestureDir !== eventDir) {
+        gestureDir = null;
+        zoomAnchorX = null;
       }
+
+      if (gestureDir === null) gestureDir = eventDir;
 
       // Reset lock after 150ms of no wheel events (gesture ended)
       if (gestureTimer) clearTimeout(gestureTimer);
