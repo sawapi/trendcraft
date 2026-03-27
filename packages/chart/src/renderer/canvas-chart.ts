@@ -92,7 +92,7 @@ export class CanvasChart implements ChartInstance {
   private _layout = new LayoutEngine();
   private _timeScale = new TimeScale();
   private _viewport = new Viewport();
-  private _priceScales = new Map<string, PriceScale>();
+  private _priceScales = new Map<string, { left: PriceScale; right: PriceScale }>();
   private _infoOverlay: InfoOverlay | null = null;
   private _legendOverlay: LegendOverlay | null = null;
   private _watermark: string | undefined;
@@ -635,22 +635,27 @@ export class CanvasChart implements ChartInstance {
     const visibleStart = timeScale.startIndex;
     const visibleEnd = timeScale.endIndex;
 
-    // Ensure price scales exist for each pane
+    // Ensure price scales exist for each pane (left + right)
     for (const pane of paneRects) {
       if (!this._priceScales.has(pane.id)) {
-        this._priceScales.set(pane.id, new PriceScale());
+        this._priceScales.set(pane.id, { left: new PriceScale(), right: new PriceScale() });
       }
     }
 
     // Update price scales with visible data ranges
     for (const pane of paneRects) {
-      const ps = this._priceScales.get(pane.id);
-      if (!ps) continue;
-      ps.setHeight(pane.height);
-      if (pane.config.yScale) ps.setMode(pane.config.yScale);
-      if (pane.config.yRange) ps.setFixedRange(pane.config.yRange);
+      const scales = this._priceScales.get(pane.id);
+      if (!scales) continue;
 
-      const paneSeries = this._data.getSeriesForPane(pane.id);
+      // Right scale (default — backward compatible with yScale/yRange)
+      scales.right.setHeight(pane.height);
+      if (pane.config.yScale) scales.right.setMode(pane.config.yScale);
+      if (pane.config.yRange) scales.right.setFixedRange(pane.config.yRange);
+
+      // Left scale
+      scales.left.setHeight(pane.height);
+      if (pane.config.leftScale?.mode) scales.left.setMode(pane.config.leftScale.mode);
+      if (pane.config.leftScale?.range) scales.left.setFixedRange(pane.config.leftScale.range);
 
       // Equity pane: compute range from backtest result
       if (pane.id === "equity" && this._data.backtestResult) {
@@ -663,34 +668,52 @@ export class CanvasChart implements ChartInstance {
           if (equity < eqMin) eqMin = equity;
           if (equity > eqMax) eqMax = equity;
         }
-        ps.setDataRange(eqMin * 0.99, eqMax * 1.01);
+        scales.right.setDataRange(eqMin * 0.99, eqMax * 1.01);
       } else {
-        const [min, max] = computePaneRange(
+        // Right scale range
+        const rightSeries = this._data.getSeriesForScale(pane.id, "right");
+        const [rMin, rMax] = computePaneRange(
           pane,
           visibleStart,
           visibleEnd,
           candles,
-          paneSeries,
+          rightSeries,
           this._rendererRegistry,
         );
-        ps.setDataRange(min, max);
+        scales.right.setDataRange(rMin, rMax);
+
+        // Left scale range (only if there are series on it)
+        const leftSeries = this._data.getSeriesForScale(pane.id, "left");
+        if (leftSeries.length > 0) {
+          const [lMin, lMax] = computePaneRange(
+            pane,
+            visibleStart,
+            visibleEnd,
+            candles,
+            leftSeries,
+            this._rendererRegistry,
+          );
+          scales.left.setDataRange(lMin, lMax);
+        }
       }
     }
 
     // Render each pane
     for (const pane of paneRects) {
-      const ps = this._priceScales.get(pane.id);
-      if (!ps) continue;
+      const scales = this._priceScales.get(pane.id);
+      if (!scales) continue;
+      const ps = scales.right; // Primary scale (backward compat)
+      const hasLeftScale = this._data.hasSeriesOnScale(pane.id, "left");
 
       ctx.save();
       ctx.beginPath();
       ctx.rect(pane.x, pane.y, pane.width, pane.height);
       ctx.clip();
 
-      // Grid
+      // Grid (use right scale for grid lines)
       renderGrid(ctx, ps, pane.x, pane.y, pane.width, pane.height, this._theme, timeScale, candles);
 
-      // Reference lines
+      // Reference lines (right scale)
       if (pane.config.referenceLines?.length) {
         renderReferenceLines(
           ctx,
@@ -703,6 +726,19 @@ export class CanvasChart implements ChartInstance {
         );
       }
 
+      // Reference lines (left scale)
+      if (hasLeftScale && pane.config.leftScale?.referenceLines?.length) {
+        renderReferenceLines(
+          ctx,
+          pane.config.leftScale.referenceLines,
+          scales.left,
+          pane.x,
+          pane.y,
+          pane.width,
+          pane.config.leftScale.referenceLineColor ?? this._theme.textSecondary,
+        );
+      }
+
       // Translate so series renderers use y=0 as pane top
       ctx.translate(0, pane.y);
 
@@ -711,7 +747,7 @@ export class CanvasChart implements ChartInstance {
         renderScoreHeatmap(ctx, this._data.scores, timeScale, { ...pane, y: 0 });
       }
 
-      // Render pane content
+      // Render pane content (candles on right scale)
       if (pane.id === "main") {
         const decimTarget = getDecimationTarget(
           timeScale.endIndex - timeScale.startIndex,
@@ -757,14 +793,15 @@ export class CanvasChart implements ChartInstance {
         );
       }
 
-      // Render indicator series for this pane
+      // Render indicator series for this pane (dispatch to correct scale)
       const paneSeriesForRender = this._data.getSeriesForPane(pane.id);
       for (const s of paneSeriesForRender) {
+        const seriesScale = scales[s.scaleId];
         dispatchSeries(
           ctx,
           s,
           timeScale,
-          ps,
+          seriesScale,
           this._data,
           pane.width,
           this._theme,
@@ -790,7 +827,23 @@ export class CanvasChart implements ChartInstance {
 
       ctx.restore();
 
-      // Price axis
+      // Left price axis (only if there are series on left scale)
+      if (hasLeftScale) {
+        renderPriceAxis(
+          ctx,
+          scales.left,
+          pane.x,
+          pane.y,
+          this._layout.priceAxisWidth,
+          pane.height,
+          this._theme,
+          this._fontSize,
+          this._priceFormatter,
+          "left",
+        );
+      }
+
+      // Right price axis
       renderPriceAxis(
         ctx,
         ps,
@@ -801,6 +854,7 @@ export class CanvasChart implements ChartInstance {
         this._theme,
         this._fontSize,
         this._priceFormatter,
+        "right",
       );
     }
 
@@ -834,12 +888,16 @@ export class CanvasChart implements ChartInstance {
       );
     }
 
+    // Build flat right-scale map for renderers that expect Map<string, PriceScale>
+    const rightScaleMap = new Map<string, PriceScale>();
+    for (const [id, s] of this._priceScales) rightScaleMap.set(id, s.right);
+
     // Multi-timeframe overlays (behind drawings)
     renderTimeframeOverlays(
       ctx,
       this._data.timeframes,
       paneRects,
-      this._priceScales,
+      rightScaleMap,
       this._data,
       this._theme,
     );
@@ -847,9 +905,9 @@ export class CanvasChart implements ChartInstance {
     // Backtest visualization
     const btResult = this._data.backtestResult;
     if (btResult) {
-      renderBacktestTrades(ctx, btResult, paneRects, this._priceScales, timeScale, this._data);
+      renderBacktestTrades(ctx, btResult, paneRects, rightScaleMap, timeScale, this._data);
       const equityPane = paneRects.find((p) => p.id === "equity");
-      const equityScale = this._priceScales.get("equity");
+      const equityScale = this._priceScales.get("equity")?.right;
       if (equityPane && equityScale) {
         renderEquityCurve(
           ctx,
@@ -877,7 +935,7 @@ export class CanvasChart implements ChartInstance {
         ctx,
         this._data.patterns,
         paneRects,
-        this._priceScales,
+        rightScaleMap,
         timeScale,
         this._data,
         this._theme,
@@ -890,7 +948,7 @@ export class CanvasChart implements ChartInstance {
       ctx,
       this._data.drawings,
       paneRects,
-      this._priceScales,
+      rightScaleMap,
       timeScale,
       this._data,
       this._theme,
@@ -898,30 +956,37 @@ export class CanvasChart implements ChartInstance {
     );
 
     // Overlays: price line, signals, trades
-    renderPriceLine(ctx, candles, paneRects, this._priceScales, this._theme, this._fontSize);
+    renderPriceLine(ctx, candles, paneRects, rightScaleMap, this._theme, this._fontSize);
     renderSignals(
       ctx,
       this._data.signals,
       candles,
       this._data,
       paneRects,
-      this._priceScales,
+      rightScaleMap,
       timeScale,
     );
-    renderTrades(ctx, this._data.trades, this._data, paneRects, this._priceScales, timeScale);
+    renderTrades(ctx, this._data.trades, this._data, paneRects, rightScaleMap, timeScale);
+
+    // Build left scale map for crosshair (only panes that have left series)
+    const leftScaleMap = new Map<string, PriceScale>();
+    for (const [id, s] of this._priceScales) {
+      if (this._data.hasSeriesOnScale(id, "left")) leftScaleMap.set(id, s.left);
+    }
 
     // Crosshair (on top of everything)
     renderCrosshair(
       ctx,
       this._viewport.state,
       paneRects,
-      this._priceScales,
+      rightScaleMap,
       timeScale,
       this._layout.dataAreaWidth,
       this._layout.timeAxisY,
       this._theme,
       this._fontSize,
       candles,
+      leftScaleMap.size > 0 ? leftScaleMap : undefined,
     );
 
     // Info overlay (DOM) — update with crosshair position

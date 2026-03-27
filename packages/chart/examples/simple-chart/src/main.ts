@@ -305,3 +305,24 @@ document.getElementById("btn-plugin-trail")?.addEventListener("click", (e) => {
     btn.classList.add("active");
   }
 });
+
+// --- Dual Scale Demo: RSI on left scale (0-100) overlaid on main pane ---
+
+let dualScaleHandle: ReturnType<typeof chart.addIndicator> | null = null;
+document.getElementById("btn-dual-scale")?.addEventListener("click", (e) => {
+  const btn = e.target as HTMLButtonElement;
+  if (dualScaleHandle) {
+    dualScaleHandle.remove();
+    dualScaleHandle = null;
+    btn.classList.remove("active");
+  } else {
+    const rsiData = rsi(candles, { period: 14 });
+    dualScaleHandle = chart.addIndicator(rsiData, {
+      pane: "main",
+      scaleId: "left",
+      color: "#AB47BC",
+      label: "RSI(14)",
+    });
+    btn.classList.add("active");
+  }
+});

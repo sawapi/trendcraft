@@ -18,6 +18,7 @@ function makeSeries(data: DataPoint<unknown>[], paneId = "main"): InternalSeries
   return {
     id: "s1",
     paneId,
+    scaleId: "right",
     type: "line",
     config: {},
     data,

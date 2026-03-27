@@ -175,6 +175,7 @@ describe("Custom renderer priceRange", () => {
     const series: InternalSeries = {
       id: "s1",
       paneId: "main",
+      scaleId: "right",
       type: "custom",
       config: {},
       data: [{ time: 1, value: 15 }],
@@ -202,6 +203,7 @@ describe("Custom renderer formatValue", () => {
     const series: InternalSeries = {
       id: "s1",
       paneId: "main",
+      scaleId: "right",
       type: "custom",
       config: {},
       data: [{ time: 1, value: 42 }],

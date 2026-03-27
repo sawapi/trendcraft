@@ -9,6 +9,7 @@ import type { ViewportState } from "../core/viewport";
 
 /**
  * Render crosshair lines across all panes.
+ * Supports optional left scale labels for dual-scale panes.
  */
 export function renderCrosshair(
   ctx: CanvasRenderingContext2D,
@@ -21,6 +22,7 @@ export function renderCrosshair(
   theme: ThemeColors,
   fontSize: number,
   candles?: readonly CandleData[],
+  leftPriceScales?: Map<string, PriceScale>,
 ): void {
   if (viewportState.crosshairIndex === null) return;
 
@@ -52,7 +54,14 @@ export function renderCrosshair(
     const ps = priceScales.get(activePane.id);
     if (ps) {
       const price = ps.yToPrice(clampedY - activePane.y);
-      drawPriceLabel(ctx, price, priceAxisX, clampedY, theme, fontSize);
+      drawPriceLabel(ctx, price, priceAxisX, clampedY, theme, fontSize, "right");
+    }
+
+    // Price label on left axis (if left scale has series)
+    const leftPs = leftPriceScales?.get(activePane.id);
+    if (leftPs) {
+      const leftPrice = leftPs.yToPrice(clampedY - activePane.y);
+      drawPriceLabel(ctx, leftPrice, activePane.x, clampedY, theme, fontSize, "left");
     }
   }
 
@@ -78,6 +87,7 @@ function drawPriceLabel(
   y: number,
   theme: ThemeColors,
   fontSize: number,
+  position: "left" | "right" = "right",
 ): void {
   const label = autoFormatPrice(price);
   ctx.font = `${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
@@ -88,12 +98,19 @@ function drawPriceLabel(
   const labelHeight = fontSize + padY * 2;
 
   ctx.fillStyle = theme.crosshair;
-  ctx.fillRect(x, y - labelHeight / 2, labelWidth, labelHeight);
-
-  ctx.fillStyle = theme.background;
-  ctx.textAlign = "left";
-  ctx.textBaseline = "middle";
-  ctx.fillText(label, x + padX, y);
+  if (position === "left") {
+    ctx.fillRect(x - labelWidth, y - labelHeight / 2, labelWidth, labelHeight);
+    ctx.fillStyle = theme.background;
+    ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
+    ctx.fillText(label, x - padX, y);
+  } else {
+    ctx.fillRect(x, y - labelHeight / 2, labelWidth, labelHeight);
+    ctx.fillStyle = theme.background;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillText(label, x + padX, y);
+  }
 }
 
 function drawTimeLabel(

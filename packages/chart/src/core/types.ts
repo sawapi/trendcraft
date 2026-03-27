@@ -121,14 +121,21 @@ export type PaneConfig = {
   id: string;
   /** Flex proportion for height allocation */
   flex: number;
-  /** Y-axis scale mode (default: "linear") */
+  /** Y-axis scale mode for right scale (default: "linear") */
   yScale?: ScaleMode;
-  /** Fixed Y-axis range (e.g., [0, 100] for RSI) */
+  /** Fixed Y-axis range for right scale (e.g., [0, 100] for RSI) */
   yRange?: [number, number];
   /** Horizontal reference lines (e.g., [30, 70] for RSI) */
   referenceLines?: number[];
   /** Reference line color */
   referenceLineColor?: string;
+  /** Left scale configuration (enables dual-scale mode when present) */
+  leftScale?: {
+    mode?: ScaleMode;
+    range?: [number, number];
+    referenceLines?: number[];
+    referenceLineColor?: string;
+  };
 };
 
 export type LayoutConfig = {
@@ -161,6 +168,8 @@ export type SeriesType = BuiltinSeriesType | (string & {});
 export type SeriesConfig = {
   /** Target pane: 'main' (overlay) or a specific pane id. Omit for auto-detection via __meta. */
   pane?: "main" | string;
+  /** Scale assignment: 'right' (default) or 'left' for dual-scale panes */
+  scaleId?: "left" | "right";
   /** Override auto-detected series type */
   type?: SeriesType;
   /** Primary color */

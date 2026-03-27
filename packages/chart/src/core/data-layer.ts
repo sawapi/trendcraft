@@ -121,6 +121,7 @@ export class DataLayer {
     const internal: InternalSeries = {
       id,
       paneId: config.pane ?? "main",
+      scaleId: config.scaleId ?? "right",
       type: resolvedType,
       config: { ...config },
       data: data as DataPoint<unknown>[],
@@ -176,6 +177,20 @@ export class DataLayer {
   /** Get all series assigned to a specific pane */
   getSeriesForPane(paneId: string): InternalSeries[] {
     return [...this._series.values()].filter((s) => s.visible && s.paneId === paneId);
+  }
+
+  /** Get series assigned to a specific pane and scale */
+  getSeriesForScale(paneId: string, scaleId: "left" | "right"): InternalSeries[] {
+    return [...this._series.values()].filter(
+      (s) => s.visible && s.paneId === paneId && s.scaleId === scaleId,
+    );
+  }
+
+  /** Check if a pane has any series on a given scale */
+  hasSeriesOnScale(paneId: string, scaleId: "left" | "right"): boolean {
+    return [...this._series.values()].some(
+      (s) => s.visible && s.paneId === paneId && s.scaleId === scaleId,
+    );
   }
 
   // ---- Signals ----
@@ -281,6 +296,8 @@ function isSorted(candles: CandleData[]): boolean {
 export type InternalSeries = {
   id: string;
   paneId: string;
+  /** Scale assignment: 'right' (default) or 'left' for dual-scale panes */
+  scaleId: "left" | "right";
   type: SeriesType;
   config: SeriesConfig;
   data: DataPoint<unknown>[];

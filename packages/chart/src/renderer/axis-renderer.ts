@@ -7,7 +7,8 @@ import type { PriceScale, TimeScale } from "../core/scale";
 import type { CandleData, ThemeColors } from "../core/types";
 
 /**
- * Render the price axis (right side) for a pane.
+ * Render the price axis for a pane.
+ * Supports both left and right positioning for dual-scale panes.
  */
 export function renderPriceAxis(
   ctx: CanvasRenderingContext2D,
@@ -19,30 +20,50 @@ export function renderPriceAxis(
   theme: ThemeColors,
   fontSize: number,
   priceFormatter: (price: number) => string = autoFormatPrice,
+  position: "left" | "right" = "right",
 ): void {
   const ticks = priceScale.getTicks();
 
   ctx.fillStyle = theme.background;
-  ctx.fillRect(x, y, width, height);
+  if (position === "left") {
+    ctx.fillRect(x - width, y, width, height);
+  } else {
+    ctx.fillRect(x, y, width, height);
+  }
 
   // Border line
   ctx.strokeStyle = theme.border;
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(x, y);
-  ctx.lineTo(x, y + height);
+  if (position === "left") {
+    ctx.moveTo(x, y);
+    ctx.lineTo(x, y + height);
+  } else {
+    ctx.moveTo(x, y);
+    ctx.lineTo(x, y + height);
+  }
   ctx.stroke();
 
   // Tick labels
   ctx.fillStyle = theme.textSecondary;
   ctx.font = `${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
-  ctx.textAlign = "left";
-  ctx.textBaseline = "middle";
 
-  for (const tick of ticks) {
-    const tickY = priceScale.priceToY(tick) + y;
-    if (tickY < y || tickY > y + height) continue;
-    ctx.fillText(priceFormatter(tick), x + 6, tickY);
+  if (position === "left") {
+    ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
+    for (const tick of ticks) {
+      const tickY = priceScale.priceToY(tick) + y;
+      if (tickY < y || tickY > y + height) continue;
+      ctx.fillText(priceFormatter(tick), x - 6, tickY);
+    }
+  } else {
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    for (const tick of ticks) {
+      const tickY = priceScale.priceToY(tick) + y;
+      if (tickY < y || tickY > y + height) continue;
+      ctx.fillText(priceFormatter(tick), x + 6, tickY);
+    }
   }
 }
 
