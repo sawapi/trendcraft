@@ -103,17 +103,37 @@ export function App() {
   const [showBacktest, setShowBacktest] = useState(false);
   const [showSrZones, setShowSrZones] = useState(false);
   const [showTrail, setShowTrail] = useState(false);
+  const [showVolOverlay, setShowVolOverlay] = useState(false);
   const [theme, setTheme] = useState<"dark" | "light">("dark");
 
   const indicators = useMemo(() => {
-    const list: { time: number; value: unknown }[][] = [];
+    const list: (
+      | { time: number; value: unknown }[]
+      | {
+          data: { time: number; value: unknown }[];
+          config: import("@trendcraft/chart").SeriesConfig;
+        }
+    )[] = [];
     if (showSma) list.push(sma(candles, { period: 20 }));
     if (showBb) list.push(bollingerBands(candles));
     if (showRsi) list.push(rsi(candles));
     if (showMacd) list.push(macd(candles));
     if (showTrail) list.push(computeTrailingStop(candles));
+    if (showVolOverlay) {
+      list.push({
+        data: candles.map((c) => ({ time: c.time, value: c.volume })),
+        config: {
+          pane: "main",
+          scaleId: "left",
+          type: "histogram",
+          maxHeightRatio: 0.2,
+          color: "rgba(100,181,246,0.3)",
+          label: "Volume",
+        },
+      });
+    }
     return list;
-  }, [showSma, showBb, showRsi, showMacd, showTrail, candles]);
+  }, [showSma, showBb, showRsi, showMacd, showTrail, showVolOverlay, candles]);
 
   const backtestResult = useMemo(() => {
     if (!showBacktest) return undefined;
@@ -188,6 +208,9 @@ export function App() {
           <Btn active={showTrail} onClick={() => setShowTrail(!showTrail)}>
             Trail Stop
           </Btn>
+          <Btn active={showVolOverlay} onClick={() => setShowVolOverlay(!showVolOverlay)}>
+            Vol Overlay
+          </Btn>
           <Btn active={false} onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
             {theme === "dark" ? "Light" : "Dark"}
           </Btn>
@@ -200,7 +223,7 @@ export function App() {
           backtest={backtestResult}
           plugins={plugins}
           theme={theme}
-          options={{ watermark: "REACT" }}
+          options={{ watermark: "REACT", volume: !showVolOverlay }}
         />
       </div>
     </>

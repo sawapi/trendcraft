@@ -13,6 +13,7 @@ const showMacd = ref(false);
 const showBacktest = ref(false);
 const showSrZones = ref(false);
 const showTrail = ref(false);
+const showVolOverlay = ref(false);
 const theme = ref<"dark" | "light">("dark");
 
 // --- Plugin: S/R Zone Primitive ---
@@ -84,12 +85,18 @@ function computeTrailingStop() {
 }
 
 const indicators = computed(() => {
-  const list: unknown[][] = [];
+  const list: unknown[] = [];
   if (showSma.value) list.push(sma(candles, { period: 20 }));
   if (showBb.value) list.push(bollingerBands(candles));
   if (showRsi.value) list.push(rsi(candles));
   if (showMacd.value) list.push(macd(candles));
   if (showTrail.value) list.push(computeTrailingStop());
+  if (showVolOverlay.value) {
+    list.push({
+      data: candles.map((c: { time: number; volume: number }) => ({ time: c.time, value: c.volume })),
+      config: { pane: "main", scaleId: "left", type: "histogram", maxHeightRatio: 0.2, color: "rgba(100,181,246,0.3)", label: "Volume" },
+    });
+  }
   return list;
 });
 
@@ -131,6 +138,7 @@ function toggleTheme() {
       <button :class="{ active: showBacktest }" @click="showBacktest = !showBacktest">Backtest</button>
       <button :class="{ active: showSrZones }" @click="showSrZones = !showSrZones">S/R Zones</button>
       <button :class="{ active: showTrail }" @click="showTrail = !showTrail">Trail Stop</button>
+      <button :class="{ active: showVolOverlay }" @click="showVolOverlay = !showVolOverlay">Vol Overlay</button>
       <button @click="toggleTheme">{{ theme === 'dark' ? 'Light' : 'Dark' }}</button>
     </div>
   </header>
@@ -141,7 +149,7 @@ function toggleTheme() {
       :backtest="backtestResult"
       :plugins="plugins"
       :theme="theme"
-      :options="{ watermark: 'VUE' }"
+      :options="{ watermark: 'VUE', volume: !showVolOverlay }"
     />
   </div>
 </template>

@@ -314,8 +314,10 @@ document.getElementById("btn-vol-overlay")?.addEventListener("click", (e) => {
   if (volOverlayHandle) {
     volOverlayHandle.remove();
     volOverlayHandle = null;
+    chart.setShowVolume(true); // Restore separate volume pane
     btn.classList.remove("active");
   } else {
+    chart.setShowVolume(false); // Hide separate volume pane
     // Convert candle volume to series data
     const volumeSeries = candles.map((c) => ({ time: c.time, value: c.volume }));
     volOverlayHandle = chart.addIndicator(volumeSeries, {
