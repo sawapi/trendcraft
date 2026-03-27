@@ -255,3 +255,34 @@ export function renderTimeframeOverlays(
 
   ctx.restore();
 }
+
+/**
+ * Render pane titles (label text in top-left of each subchart pane).
+ */
+export function renderPaneTitles(
+  ctx: CanvasRenderingContext2D,
+  paneRects: readonly PaneRect[],
+  dataLayer: DataLayer,
+  theme: ThemeColors,
+  fontSize: number,
+): void {
+  ctx.fillStyle = theme.textSecondary;
+  ctx.font = `${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+  ctx.textAlign = "left";
+  ctx.textBaseline = "top";
+
+  for (const pane of paneRects) {
+    if (pane.id === "main") continue;
+    const paneSeries = dataLayer.getSeriesForPane(pane.id);
+    const title =
+      pane.id === "volume"
+        ? "Volume"
+        : paneSeries
+            .map((s) => s.config.label ?? "")
+            .filter(Boolean)
+            .join(", ");
+    if (title) {
+      ctx.fillText(title, 4, pane.y + 4);
+    }
+  }
+}

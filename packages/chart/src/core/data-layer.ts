@@ -74,7 +74,12 @@ export class DataLayer {
   }
 
   setCandles(candles: CandleData[]): void {
-    this._candles = candles.slice().sort((a, b) => a.time - b.time);
+    const copy = candles.slice();
+    // Only sort if not already sorted (O(n) check vs O(n log n) sort)
+    if (!isSorted(copy)) {
+      copy.sort((a, b) => a.time - b.time);
+    }
+    this._candles = copy;
     this.markDirty();
   }
 
@@ -263,6 +268,13 @@ export class DataLayer {
     this._scores = scores;
     this.markDirty();
   }
+}
+
+function isSorted(candles: CandleData[]): boolean {
+  for (let i = 1; i < candles.length; i++) {
+    if (candles[i].time < candles[i - 1].time) return false;
+  }
+  return true;
 }
 
 /** Internal series representation */

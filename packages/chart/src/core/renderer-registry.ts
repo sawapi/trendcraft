@@ -43,7 +43,10 @@ export class RendererRegistry {
     }
     this._primitives.set(plugin.name, {
       plugin: plugin as PrimitivePlugin,
-      state: structuredClone(plugin.defaultState),
+      state:
+        typeof plugin.defaultState === "object" && plugin.defaultState !== null
+          ? { ...plugin.defaultState }
+          : plugin.defaultState,
     });
   }
 

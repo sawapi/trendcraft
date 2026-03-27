@@ -49,6 +49,7 @@ import { renderDrawings } from "./drawing-renderer";
 import { InfoOverlay } from "./info-overlay";
 import { LegendOverlay } from "./legend-overlay";
 import {
+  renderPaneTitles,
   renderPriceLine,
   renderSignals,
   renderTimeframeOverlays,
@@ -256,11 +257,15 @@ export class CanvasChart implements ChartInstance {
         Number.isFinite(c.close) &&
         Number.isFinite(c.volume),
     );
+    const removed = candles.length - valid.length;
     this._data.setCandles(valid);
     this._rebuildTimeIndex();
     this._timeScale.setTotalCount(this._data.candleCount);
     this._timeScale.scrollToEnd();
     this._needsRender = true;
+    if (removed > 0) {
+      this._emit("dataFiltered", { total: candles.length, valid: valid.length, removed });
+    }
   }
 
   updateCandle(candle: CandleData): void {
@@ -814,24 +819,7 @@ export class CanvasChart implements ChartInstance {
     );
 
     // Pane titles
-    for (const pane of paneRects) {
-      if (pane.id === "main") continue;
-      const paneSeries = this._data.getSeriesForPane(pane.id);
-      const title =
-        pane.id === "volume"
-          ? "Volume"
-          : paneSeries
-              .map((s) => s.config.label ?? "")
-              .filter(Boolean)
-              .join(", ");
-      if (title) {
-        ctx.fillStyle = this._theme.textSecondary;
-        ctx.font = `${this._fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
-        ctx.textAlign = "left";
-        ctx.textBaseline = "top";
-        ctx.fillText(title, 4, pane.y + 4);
-      }
-    }
+    renderPaneTitles(ctx, paneRects, this._data, this._theme, this._fontSize);
 
     // Scrollbar
     if (this._layout.scrollbarHeight > 0) {
