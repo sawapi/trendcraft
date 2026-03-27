@@ -1,8 +1,17 @@
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { definePrimitive, defineSeriesRenderer } from "@trendcraft/chart";
 import { TrendChart } from "@trendcraft/chart/vue";
-import { defineSeriesRenderer, definePrimitive } from "@trendcraft/chart";
-import { sma, rsi, bollingerBands, macd, runBacktest, goldenCrossCondition, rsiBelow, normalizeCandles } from "trendcraft";
+import {
+  bollingerBands,
+  goldenCrossCondition,
+  macd,
+  normalizeCandles,
+  rsi,
+  rsiBelow,
+  runBacktest,
+  sma,
+} from "trendcraft";
+import { computed, ref } from "vue";
 import sampleData from "../../simple-chart/data.json";
 
 const candles = sampleData;
@@ -25,8 +34,10 @@ const srZonePrimitive = definePrimitive({
   render: ({ draw }, state) => {
     for (const zone of state.zones) {
       draw.rect(
-        draw.startIndex, zone.price + zone.height / 2,
-        draw.endIndex - draw.startIndex, zone.price - zone.height / 2,
+        draw.startIndex,
+        zone.price + zone.height / 2,
+        draw.endIndex - draw.startIndex,
+        zone.price - zone.height / 2,
         { color: zone.color },
       );
     }
@@ -46,8 +57,10 @@ const trailRenderer = defineSeriesRenderer({
       for (let i = draw.startIndex; i < draw.endIndex && i < series.data.length; i++) {
         const val = series.data[i]?.value as number | null;
         if (val === null || val === undefined) continue;
-        if (!moved) { ctx.moveTo(draw.x(i), draw.y(val)); moved = true; }
-        else {
+        if (!moved) {
+          ctx.moveTo(draw.x(i), draw.y(val));
+          moved = true;
+        } else {
           const prev = (series.data[i - 1]?.value as number) ?? val;
           ctx.lineTo(draw.x(i), draw.y(prev));
           ctx.lineTo(draw.x(i), draw.y(val));
@@ -57,10 +70,14 @@ const trailRenderer = defineSeriesRenderer({
     });
   },
   priceRange: (series, start, end) => {
-    let min = Infinity, max = -Infinity;
+    let min = Number.POSITIVE_INFINITY;
+    let max = Number.NEGATIVE_INFINITY;
     for (let i = start; i <= end && i < series.data.length; i++) {
       const v = series.data[i]?.value as number | null;
-      if (v != null) { if (v < min) min = v; if (v > max) max = v; }
+      if (v != null) {
+        if (v < min) min = v;
+        if (v > max) max = v;
+      }
     }
     return [min, max];
   },
@@ -71,14 +88,19 @@ const trailRenderer = defineSeriesRenderer({
 });
 
 function computeTrailingStop() {
-  const period = 20, atrPeriod = 14;
+  const period = 20;
+  const atrPeriod = 14;
   return candles.map((c, i) => {
     if (i < Math.max(period, atrPeriod)) return { time: c.time, value: null };
-    let hh = -Infinity;
+    let hh = Number.NEGATIVE_INFINITY;
     for (let j = i - period + 1; j <= i; j++) if (candles[j].high > hh) hh = candles[j].high;
     let atrSum = 0;
     for (let j = i - atrPeriod + 1; j <= i; j++) {
-      atrSum += Math.max(candles[j].high - candles[j].low, Math.abs(candles[j].high - candles[j - 1].close), Math.abs(candles[j].low - candles[j - 1].close));
+      atrSum += Math.max(
+        candles[j].high - candles[j].low,
+        Math.abs(candles[j].high - candles[j - 1].close),
+        Math.abs(candles[j].low - candles[j - 1].close),
+      );
     }
     return { time: c.time, value: hh - 2 * (atrSum / atrPeriod) };
   });
@@ -93,8 +115,18 @@ const indicators = computed(() => {
   if (showTrail.value) list.push(computeTrailingStop());
   if (showVolOverlay.value) {
     list.push({
-      data: candles.map((c: { time: number; volume: number }) => ({ time: c.time, value: c.volume })),
-      config: { pane: "main", scaleId: "left", type: "histogram", maxHeightRatio: 0.2, color: "rgba(100,181,246,0.3)", label: "Volume" },
+      data: candles.map((c: { time: number; volume: number }) => ({
+        time: c.time,
+        value: c.volume,
+      })),
+      config: {
+        pane: "main",
+        scaleId: "left",
+        type: "histogram",
+        maxHeightRatio: 0.2,
+        color: "rgba(100,181,246,0.3)",
+        label: "Volume",
+      },
     });
   }
   return list;
@@ -109,8 +141,12 @@ const backtestResult = computed(() => {
 const plugins = computed(() => {
   if (!showSrZones.value) return { renderers: [trailRenderer] };
   const recent = candles.slice(-60);
-  let high = -Infinity, low = Infinity;
-  for (const c of recent) { if (c.high > high) high = c.high; if (c.low < low) low = c.low; }
+  let high = Number.NEGATIVE_INFINITY;
+  let low = Number.POSITIVE_INFINITY;
+  for (const c of recent) {
+    if (c.high > high) high = c.high;
+    if (c.low < low) low = c.low;
+  }
   const h = (high - low) * 0.02;
   srZonePrimitive.defaultState = {
     zones: [
