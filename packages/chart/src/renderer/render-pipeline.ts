@@ -137,14 +137,39 @@ export function renderFrame(rc: RenderContext): RenderResult {
     } else {
       // Right scale range
       const rightSeries = data.getSeriesForScale(pane.id, "right");
-      const [rMin, rMax] = computePaneRange(pane, visibleStart, visibleEnd, candles, rightSeries);
+      const [rMin, rMax] = computePaneRange(
+        pane,
+        visibleStart,
+        visibleEnd,
+        candles,
+        rightSeries,
+        undefined,
+        "right",
+      );
       scales.right.setDataRange(rMin, rMax);
 
       // Left scale range
       const leftSeries = data.getSeriesForScale(pane.id, "left");
       if (leftSeries.length > 0) {
-        const [lMin, lMax] = computePaneRange(pane, visibleStart, visibleEnd, candles, leftSeries);
-        scales.left.setDataRange(lMin, lMax);
+        const [lMin, lMax] = computePaneRange(
+          pane,
+          visibleStart,
+          visibleEnd,
+          candles,
+          leftSeries,
+          undefined,
+          "left",
+        );
+        // Apply maxHeightRatio: expand range so data occupies at most ratio of pane height
+        const ratio = Math.min(
+          ...leftSeries.map((s) => s.config.maxHeightRatio ?? 1).filter((r) => r > 0),
+        );
+        if (ratio < 1) {
+          const dataRange = lMax - lMin;
+          scales.left.setDataRange(lMin, lMin + dataRange / ratio);
+        } else {
+          scales.left.setDataRange(lMin, lMax);
+        }
       }
     }
   }

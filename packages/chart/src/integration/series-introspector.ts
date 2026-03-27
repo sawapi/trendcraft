@@ -77,11 +77,13 @@ export function introspect<T>(
   // Merge config
   const config: SeriesConfig = {
     pane,
+    scaleId: userConfig?.scaleId,
     type: seriesType,
     color: userConfig?.color ?? preset?.color,
     lineWidth: userConfig?.lineWidth ?? preset?.lineWidth,
     label,
     visible: userConfig?.visible,
+    maxHeightRatio: userConfig?.maxHeightRatio,
   };
 
   return {

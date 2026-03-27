@@ -63,6 +63,41 @@ export function dispatchSeries(
   const lineWidth = s.config.lineWidth ?? 1.5;
 
   if (rule.name === "number") {
+    // Honor explicit type override (e.g., volume as histogram)
+    if (s.config.type === "histogram") {
+      const values = (s.data as DataPoint<number | null>[]).map((p) => p?.value ?? null);
+      // Use candle direction for up/down coloring (volume overlay style)
+      const candles = dataLayer?.candles;
+      const upColor = theme?.volumeUp ?? color;
+      const downColor = theme?.volumeDown ?? color;
+      if (candles && candles.length > 0) {
+        // Per-bar coloring based on candle direction
+        const start = timeScale.startIndex;
+        const end = timeScale.endIndex;
+        const widthFraction = 0.6;
+        const barWidth = Math.max(1, timeScale.barSpacing * widthFraction);
+        const halfBar = barWidth / 2;
+        const zeroY = priceScale.priceToY(0);
+        for (let i = start; i < end && i < values.length; i++) {
+          const val = values[i];
+          if (val === null || val === undefined) continue;
+          const x = timeScale.indexToX(i);
+          const valY = priceScale.priceToY(val);
+          const isUp = candles[i] ? candles[i].close >= candles[i].open : true;
+          ctx.fillStyle = isUp ? upColor : downColor;
+          const top = Math.min(valY, zeroY);
+          const height = Math.max(1, Math.abs(valY - zeroY));
+          ctx.fillRect(x - halfBar, top, barWidth, height);
+        }
+      } else {
+        renderHistogram(ctx, values, timeScale, priceScale, {
+          upColor: color,
+          downColor: color,
+        });
+      }
+      return;
+    }
+
     let data = s.data as DataPoint<number | null>[];
     const target = getDecimationTarget(timeScale.endIndex - timeScale.startIndex, timeScale.width);
     if (target > 0) {

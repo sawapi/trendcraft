@@ -180,6 +180,8 @@ export type SeriesConfig = {
   label?: string;
   /** Initial visibility (default: true) */
   visible?: boolean;
+  /** Max height as fraction of pane (0-1). Expands scale range so data occupies at most this ratio of pane height. Useful for volume overlay. */
+  maxHeightRatio?: number;
 };
 
 // ============================================

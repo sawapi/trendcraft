@@ -23,11 +23,13 @@ export function computePaneRange(
   candles: readonly CandleData[],
   paneSeries: InternalSeries[],
   rendererRegistry?: RendererRegistry,
+  scaleId?: "left" | "right",
 ): [number, number] {
   let min = Number.POSITIVE_INFINITY;
   let max = Number.NEGATIVE_INFINITY;
 
-  if (pane.id === "main") {
+  // Include candle price range only for main pane's right scale (or unspecified)
+  if (pane.id === "main" && scaleId !== "left") {
     const [cMin, cMax] = candlePriceRange(candles, start, end);
     if (cMin < min) min = cMin;
     if (cMax > max) max = cMax;

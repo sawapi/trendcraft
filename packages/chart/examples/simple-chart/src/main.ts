@@ -306,22 +306,25 @@ document.getElementById("btn-plugin-trail")?.addEventListener("click", (e) => {
   }
 });
 
-// --- Dual Scale Demo: RSI on left scale (0-100) overlaid on main pane ---
+// --- Volume Overlay Demo: Yahoo Finance style volume on main pane ---
 
-let dualScaleHandle: ReturnType<typeof chart.addIndicator> | null = null;
-document.getElementById("btn-dual-scale")?.addEventListener("click", (e) => {
+let volOverlayHandle: ReturnType<typeof chart.addIndicator> | null = null;
+document.getElementById("btn-vol-overlay")?.addEventListener("click", (e) => {
   const btn = e.target as HTMLButtonElement;
-  if (dualScaleHandle) {
-    dualScaleHandle.remove();
-    dualScaleHandle = null;
+  if (volOverlayHandle) {
+    volOverlayHandle.remove();
+    volOverlayHandle = null;
     btn.classList.remove("active");
   } else {
-    const rsiData = rsi(candles, { period: 14 });
-    dualScaleHandle = chart.addIndicator(rsiData, {
+    // Convert candle volume to series data
+    const volumeSeries = candles.map((c) => ({ time: c.time, value: c.volume }));
+    volOverlayHandle = chart.addIndicator(volumeSeries, {
       pane: "main",
       scaleId: "left",
-      color: "#AB47BC",
-      label: "RSI(14)",
+      type: "histogram",
+      maxHeightRatio: 0.2, // volume bars occupy at most 20% of pane height
+      color: "rgba(100,181,246,0.3)",
+      label: "Volume",
     });
     btn.classList.add("active");
   }

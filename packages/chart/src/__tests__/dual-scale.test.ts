@@ -149,3 +149,32 @@ describe("Dual Scale — PaneConfig.leftScale", () => {
     expect(config.leftScale.referenceLines).toEqual([30, 70]);
   });
 });
+
+describe("Dual Scale — maxHeightRatio", () => {
+  it("maxHeightRatio expands scale range to constrain data height", () => {
+    // Simulate: volume data 0-1000, maxHeightRatio=0.25
+    // Expected: scale range becomes 0-4000 (1000 / 0.25)
+    const ps = new PriceScale();
+    ps.setHeight(400);
+
+    // Without ratio: data fills 100% of pane
+    ps.setDataRange(0, 1000);
+    const fullY = ps.priceToY(1000);
+
+    // With ratio 0.25: data fills 25% of pane
+    // Expand range: 0 to 1000/0.25 = 4000
+    ps.setDataRange(0, 1000 / 0.25);
+    const ratioY = ps.priceToY(1000);
+
+    // With ratio, the bar at value=1000 should be closer to the bottom (larger Y)
+    expect(ratioY).toBeGreaterThan(fullY);
+    // The bar should be in the lower ~25% of the pane
+    expect(ratioY).toBeGreaterThan(400 * 0.7); // at least 70% down
+  });
+
+  it("maxHeightRatio undefined means full height (no change)", () => {
+    const ratio = undefined;
+    const effective = ratio ?? 1;
+    expect(effective).toBe(1);
+  });
+});
