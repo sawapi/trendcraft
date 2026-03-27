@@ -32,9 +32,11 @@ export function dispatchSeries(
   theme?: ThemeColors,
   rendererRegistry?: RendererRegistry,
 ): void {
+  // Detect rule once (avoid duplicate calls)
+  const rule = defaultRegistry.detect(s.data);
+
   // Check custom renderer registry first (plugins take priority)
   if (rendererRegistry && dataLayer && theme) {
-    const rule = defaultRegistry.detect(s.data);
     const custom =
       rendererRegistry.getRenderer(s.type) ??
       (rule ? rendererRegistry.getRenderer(rule.name) : undefined);
@@ -56,7 +58,6 @@ export function dispatchSeries(
     }
   }
 
-  const rule = defaultRegistry.detect(s.data);
   if (!rule) return;
 
   const color = s.config.color ?? "#2196F3";
@@ -65,35 +66,25 @@ export function dispatchSeries(
   if (rule.name === "number") {
     // Honor explicit type override (e.g., volume as histogram)
     if (s.config.type === "histogram") {
-      const values = (s.data as DataPoint<number | null>[]).map((p) => p?.value ?? null);
-      // Use candle direction for up/down coloring (volume overlay style)
+      // Render histogram inline without .map() allocation
       const candles = dataLayer?.candles;
       const upColor = theme?.volumeUp ?? color;
       const downColor = theme?.volumeDown ?? color;
-      if (candles && candles.length > 0) {
-        // Per-bar coloring based on candle direction
-        const start = timeScale.startIndex;
-        const end = timeScale.endIndex;
-        const widthFraction = 0.6;
-        const barWidth = Math.max(1, timeScale.barSpacing * widthFraction);
-        const halfBar = barWidth / 2;
-        const zeroY = priceScale.priceToY(0);
-        for (let i = start; i < end && i < values.length; i++) {
-          const val = values[i];
-          if (val === null || val === undefined) continue;
-          const x = timeScale.indexToX(i);
-          const valY = priceScale.priceToY(val);
-          const isUp = candles[i] ? candles[i].close >= candles[i].open : true;
-          ctx.fillStyle = isUp ? upColor : downColor;
-          const top = Math.min(valY, zeroY);
-          const height = Math.max(1, Math.abs(valY - zeroY));
-          ctx.fillRect(x - halfBar, top, barWidth, height);
-        }
-      } else {
-        renderHistogram(ctx, values, timeScale, priceScale, {
-          upColor: color,
-          downColor: color,
-        });
+      const start = timeScale.startIndex;
+      const end = timeScale.endIndex;
+      const barWidth = Math.max(1, timeScale.barSpacing * 0.6);
+      const halfBar = barWidth / 2;
+      const zeroY = priceScale.priceToY(0);
+      for (let i = start; i < end && i < s.data.length; i++) {
+        const val = (s.data[i] as DataPoint<number | null>)?.value;
+        if (val === null || val === undefined) continue;
+        const x = timeScale.indexToX(i);
+        const valY = priceScale.priceToY(val);
+        const isUp = candles?.[i] ? candles[i].close >= candles[i].open : true;
+        ctx.fillStyle = isUp ? upColor : downColor;
+        const top = Math.min(valY, zeroY);
+        const height = Math.max(1, Math.abs(valY - zeroY));
+        ctx.fillRect(x - halfBar, top, barWidth, height);
       }
       return;
     }

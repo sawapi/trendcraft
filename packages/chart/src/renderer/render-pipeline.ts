@@ -161,9 +161,11 @@ export function renderFrame(rc: RenderContext): RenderResult {
           "left",
         );
         // Apply maxHeightRatio: expand range so data occupies at most ratio of pane height
-        const ratio = Math.min(
-          ...leftSeries.map((s) => s.config.maxHeightRatio ?? 1).filter((r) => r > 0),
-        );
+        let ratio = 1;
+        for (const s of leftSeries) {
+          const r = s.config.maxHeightRatio;
+          if (r !== undefined && r > 0 && r < ratio) ratio = r;
+        }
         if (ratio < 1) {
           const dataRange = lMax - lMin;
           scales.left.setDataRange(lMin, lMin + dataRange / ratio);
@@ -178,6 +180,7 @@ export function renderFrame(rc: RenderContext): RenderResult {
   let drawHelper = rc.drawHelper;
   const rightScaleMap = new Map<string, PriceScale>();
   for (const [id, dual] of rc.priceScales) rightScaleMap.set(id, dual.right);
+  const seriesByPane = new Map<string, InternalSeries[]>();
 
   for (const pane of paneRects) {
     const scales = rc.priceScales.get(pane.id);
@@ -271,8 +274,9 @@ export function renderFrame(rc: RenderContext): RenderResult {
       );
     }
 
-    // Series — dispatch to correct scale
+    // Series — dispatch to correct scale (cache for later info overlay use)
     const paneSeriesForRender = data.getSeriesForPane(pane.id);
+    seriesByPane.set(pane.id, paneSeriesForRender);
     for (const s of paneSeriesForRender) {
       const seriesScale = s.scaleId === "left" ? scales.left : ps;
       dispatchSeries(ctx, s, timeScale, seriesScale, data, pane.width, theme, rc.rendererRegistry);
@@ -426,12 +430,6 @@ export function renderFrame(rc: RenderContext): RenderResult {
         paneId: rc.viewportState.activePaneId,
       });
     }
-  }
-
-  // Build series-by-pane map for DOM overlays
-  const seriesByPane = new Map<string, InternalSeries[]>();
-  for (const pane of paneRects) {
-    seriesByPane.set(pane.id, data.getSeriesForPane(pane.id));
   }
 
   return { crosshairIndex: rc.viewportState.crosshairIndex, paneRects, seriesByPane, drawHelper };

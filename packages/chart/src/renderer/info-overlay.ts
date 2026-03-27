@@ -15,6 +15,8 @@ export class InfoOverlay {
   private _paneInfos = new Map<string, HTMLElement>();
   private _theme: ThemeColors;
   private _rendererRegistry: RendererRegistry | null = null;
+  private _lastMainHtml = "";
+  private _lastPaneHtml = new Map<string, string>();
 
   constructor(container: HTMLElement, theme: ThemeColors) {
     this._container = container;
@@ -71,7 +73,7 @@ export class InfoOverlay {
     const mainSeries = seriesByPane.get("main") ?? [];
     const indicatorParts = mainSeries.map((s) => this.formatSeriesValue(s, index)).filter(Boolean);
 
-    this._mainInfo.innerHTML = [
+    const mainHtml = [
       `<span style="color:${this._theme.textSecondary}">O</span> <span style="color:${color}">${fmt(candle.open)}</span>`,
       `<span style="color:${this._theme.textSecondary}">H</span> <span style="color:${color}">${fmt(candle.high)}</span>`,
       `<span style="color:${this._theme.textSecondary}">L</span> <span style="color:${color}">${fmt(candle.low)}</span>`,
@@ -79,6 +81,10 @@ export class InfoOverlay {
       `<span style="color:${this._theme.textSecondary}">V</span> <span style="color:${this._theme.text}">${fmtVol(candle.volume)}</span>`,
       ...indicatorParts,
     ].join("&nbsp;&nbsp;");
+    if (mainHtml !== this._lastMainHtml) {
+      this._mainInfo.innerHTML = mainHtml;
+      this._lastMainHtml = mainHtml;
+    }
 
     // Sub panes: indicator values
     for (const pane of paneRects) {
@@ -95,7 +101,11 @@ export class InfoOverlay {
 
       const paneSeries = seriesByPane.get(pane.id) ?? [];
       const parts = paneSeries.map((s) => this.formatSeriesValue(s, index)).filter(Boolean);
-      el.innerHTML = parts.join("&nbsp;&nbsp;");
+      const paneHtml = parts.join("&nbsp;&nbsp;");
+      if (paneHtml !== this._lastPaneHtml.get(pane.id)) {
+        el.innerHTML = paneHtml;
+        this._lastPaneHtml.set(pane.id, paneHtml);
+      }
     }
 
     // Clean up removed panes

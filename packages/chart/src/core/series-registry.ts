@@ -229,6 +229,7 @@ export class SeriesRegistry {
    */
   decomposeAll<T>(data: DataPoint<T>[], rule: IntrospectionRule): Map<string, (number | null)[]> {
     const channels = new Map<string, (number | null)[]>();
+    let pointIndex = 0;
 
     for (const point of data) {
       const decomposed =
@@ -239,20 +240,20 @@ export class SeriesRegistry {
       for (const [key, val] of Object.entries(decomposed)) {
         let arr = channels.get(key);
         if (!arr) {
-          arr = [];
+          // Back-fill nulls for points before this channel first appeared
+          arr = new Array(pointIndex).fill(null);
           channels.set(key, arr);
         }
         arr.push(val);
       }
 
       // Ensure all channels have same length (fill nulls for missing keys)
-      for (const [key, arr] of channels) {
-        if (arr.length < data.indexOf(point) + 1) {
-          while (arr.length < data.indexOf(point) + 1) {
-            arr.push(null);
-          }
-        }
+      const expectedLen = pointIndex + 1;
+      for (const [, arr] of channels) {
+        if (arr.length < expectedLen) arr.push(null);
       }
+
+      pointIndex++;
     }
 
     return channels;

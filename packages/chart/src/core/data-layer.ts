@@ -167,7 +167,11 @@ export class DataLayer {
   }
 
   getVisibleSeries(): InternalSeries[] {
-    return [...this._series.values()].filter((s) => s.visible);
+    const result: InternalSeries[] = [];
+    for (const s of this._series.values()) {
+      if (s.visible) result.push(s);
+    }
+    return result;
   }
 
   getAllSeries(): InternalSeries[] {
@@ -176,21 +180,28 @@ export class DataLayer {
 
   /** Get all series assigned to a specific pane */
   getSeriesForPane(paneId: string): InternalSeries[] {
-    return [...this._series.values()].filter((s) => s.visible && s.paneId === paneId);
+    const result: InternalSeries[] = [];
+    for (const s of this._series.values()) {
+      if (s.visible && s.paneId === paneId) result.push(s);
+    }
+    return result;
   }
 
   /** Get series assigned to a specific pane and scale */
   getSeriesForScale(paneId: string, scaleId: "left" | "right"): InternalSeries[] {
-    return [...this._series.values()].filter(
-      (s) => s.visible && s.paneId === paneId && s.scaleId === scaleId,
-    );
+    const result: InternalSeries[] = [];
+    for (const s of this._series.values()) {
+      if (s.visible && s.paneId === paneId && s.scaleId === scaleId) result.push(s);
+    }
+    return result;
   }
 
   /** Check if a pane has any series on a given scale */
   hasSeriesOnScale(paneId: string, scaleId: "left" | "right"): boolean {
-    return [...this._series.values()].some(
-      (s) => s.visible && s.paneId === paneId && s.scaleId === scaleId,
-    );
+    for (const s of this._series.values()) {
+      if (s.visible && s.paneId === paneId && s.scaleId === scaleId) return true;
+    }
+    return false;
   }
 
   // ---- Signals ----
