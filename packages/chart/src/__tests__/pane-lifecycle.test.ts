@@ -22,12 +22,12 @@ describe("Pane Lifecycle", () => {
     expect(layout.hasPane("main")).toBe(true);
   });
 
-  it("removePane refuses to remove volume pane", () => {
+  it("removePane allows removing volume pane", () => {
     const layout = new LayoutEngine();
     layout.setDimensions(800, 600, 60, 24);
 
-    expect(layout.removePane("volume")).toBe(false);
-    expect(layout.hasPane("volume")).toBe(true);
+    expect(layout.removePane("volume")).toBe(true);
+    expect(layout.hasPane("volume")).toBe(false);
   });
 
   it("fires onPaneEmpty when last series is removed", () => {

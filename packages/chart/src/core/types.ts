@@ -103,6 +103,8 @@ export type ChartOptions = {
   watermark?: string;
   /** Show legend widget (default: true) */
   legend?: boolean;
+  /** Show volume pane (default: true) */
+  volume?: boolean;
   /** Base chart type for price data (default: 'candlestick') */
   chartType?: ChartType;
 };
@@ -420,6 +422,10 @@ export type ChartInstance = {
   // Theme & Chart Type
   setTheme(theme: "dark" | "light" | ThemeColors): void;
   setChartType(type: ChartType): void;
+
+  // Volume pane visibility
+  /** Show or hide the volume pane */
+  setShowVolume(show: boolean): void;
 
   // Plugins
   /** Register a custom series renderer plugin */

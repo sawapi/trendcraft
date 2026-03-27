@@ -6,7 +6,7 @@
 import { DataLayer } from "../core/data-layer";
 import type { DrawHelper } from "../core/draw-helper";
 import { autoFormatPrice } from "../core/format";
-import { LayoutEngine } from "../core/layout";
+import { DEFAULT_LAYOUT, DEFAULT_LAYOUT_NO_VOLUME, LayoutEngine } from "../core/layout";
 import type { PrimitivePlugin, SeriesRendererPlugin } from "../core/plugin-types";
 import { RendererRegistry } from "../core/renderer-registry";
 import { type PriceScale, TimeScale } from "../core/scale";
@@ -212,6 +212,11 @@ export class CanvasChart implements ChartInstance {
     // Watermark
     this._watermark = options?.watermark;
     this._chartType = options?.chartType ?? "candlestick";
+
+    // Volume pane visibility
+    if (options?.volume === false) {
+      this._layout.setLayout(DEFAULT_LAYOUT_NO_VOLUME);
+    }
 
     // Start render loop
     this._renderLoop();
@@ -425,6 +430,16 @@ export class CanvasChart implements ChartInstance {
 
   setChartType(type: import("../core/types").ChartType): void {
     this._chartType = type;
+    this._needsRender = true;
+  }
+
+  setShowVolume(show: boolean): void {
+    if (show && !this._layout.hasPane("volume")) {
+      this._layout.addPane({ id: "volume", flex: 0.7 });
+    } else if (!show && this._layout.hasPane("volume")) {
+      this._layout.removePane("volume");
+      this._priceScales.delete("volume");
+    }
     this._needsRender = true;
   }
 

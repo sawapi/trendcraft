@@ -18,6 +18,13 @@ export const DEFAULT_LAYOUT: LayoutConfig = {
   scrollbar: true,
 };
 
+/** Default layout without volume pane */
+export const DEFAULT_LAYOUT_NO_VOLUME: LayoutConfig = {
+  panes: [{ id: "main", flex: 3 }],
+  gap: DEFAULT_GAP,
+  scrollbar: true,
+};
+
 export class LayoutEngine {
   private _config: LayoutConfig = DEFAULT_LAYOUT;
   private _totalWidth = 0;
@@ -93,9 +100,9 @@ export class LayoutEngine {
     this.recompute();
   }
 
-  /** Remove a pane by id (does not remove 'main' or 'volume') */
+  /** Remove a pane by id (does not remove 'main') */
   removePane(id: string): boolean {
-    if (id === "main" || id === "volume") return false;
+    if (id === "main") return false;
     const idx = this._config.panes.findIndex((p) => p.id === id);
     if (idx === -1) return false;
     this._config.panes.splice(idx, 1);
