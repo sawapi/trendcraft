@@ -9,7 +9,7 @@ import { DrawHelper } from "../core/draw-helper";
 import type { LayoutEngine } from "../core/layout";
 import type { RendererRegistry } from "../core/renderer-registry";
 import { PriceScale, type TimeScale } from "../core/scale";
-import type { BacktestResultData, ChartType, PaneRect, ThemeColors } from "../core/types";
+import type { ChartType, PaneRect, ThemeColors } from "../core/types";
 import type { ViewportState } from "../core/viewport";
 import { renderCandlesticks } from "../series/candlestick";
 import { renderVolume } from "../series/histogram";
@@ -37,6 +37,8 @@ import { renderScoreHeatmap } from "./score-renderer";
 import { renderScrollbar } from "./scrollbar-renderer";
 import { dispatchSeries } from "./series-dispatcher";
 
+type DualScale = { left: PriceScale; right: PriceScale };
+
 /** Everything the render pipeline needs from CanvasChart */
 export type RenderContext = {
   ctx: CanvasRenderingContext2D;
@@ -52,7 +54,7 @@ export type RenderContext = {
   data: DataLayer;
   layout: LayoutEngine;
   timeScale: TimeScale;
-  priceScales: Map<string, PriceScale>;
+  priceScales: Map<string, DualScale>;
   viewportState: Readonly<ViewportState>;
   rendererRegistry: RendererRegistry;
   drawHelper: DrawHelper | null;
@@ -69,7 +71,6 @@ export type RenderResult = {
 
 /**
  * Execute one render frame. Pure rendering — no DOM mutations.
- * DOM overlays (info, legend) are updated by the caller using the result.
  */
 export function renderFrame(rc: RenderContext): RenderResult {
   const { ctx, pixelRatio: pr, theme, data, layout, timeScale } = rc;
@@ -99,23 +100,29 @@ export function renderFrame(rc: RenderContext): RenderResult {
   const visibleStart = timeScale.startIndex;
   const visibleEnd = timeScale.endIndex;
 
-  // Ensure price scales exist
+  // Ensure price scales exist (left + right per pane)
   for (const pane of paneRects) {
     if (!rc.priceScales.has(pane.id)) {
-      rc.priceScales.set(pane.id, new PriceScale());
+      rc.priceScales.set(pane.id, { left: new PriceScale(), right: new PriceScale() });
     }
   }
 
   // Update price scales
   for (const pane of paneRects) {
-    const ps = rc.priceScales.get(pane.id);
-    if (!ps) continue;
-    ps.setHeight(pane.height);
-    if (pane.config.yScale) ps.setMode(pane.config.yScale);
-    if (pane.config.yRange) ps.setFixedRange(pane.config.yRange);
+    const scales = rc.priceScales.get(pane.id);
+    if (!scales) continue;
 
-    const paneSeries = data.getSeriesForPane(pane.id);
+    // Right scale
+    scales.right.setHeight(pane.height);
+    if (pane.config.yScale) scales.right.setMode(pane.config.yScale);
+    if (pane.config.yRange) scales.right.setFixedRange(pane.config.yRange);
 
+    // Left scale
+    scales.left.setHeight(pane.height);
+    if (pane.config.leftScale?.mode) scales.left.setMode(pane.config.leftScale.mode);
+    if (pane.config.leftScale?.range) scales.left.setFixedRange(pane.config.leftScale.range);
+
+    // Equity pane: backtest range
     if (pane.id === "equity" && data.backtestResult) {
       const bt = data.backtestResult;
       let eqMin = bt.initialCapital;
@@ -126,19 +133,31 @@ export function renderFrame(rc: RenderContext): RenderResult {
         if (equity < eqMin) eqMin = equity;
         if (equity > eqMax) eqMax = equity;
       }
-      ps.setDataRange(eqMin * 0.99, eqMax * 1.01);
+      scales.right.setDataRange(eqMin * 0.99, eqMax * 1.01);
     } else {
-      const [min, max] = computePaneRange(pane, visibleStart, visibleEnd, candles, paneSeries);
-      ps.setDataRange(min, max);
+      // Right scale range
+      const rightSeries = data.getSeriesForScale(pane.id, "right");
+      const [rMin, rMax] = computePaneRange(pane, visibleStart, visibleEnd, candles, rightSeries);
+      scales.right.setDataRange(rMin, rMax);
+
+      // Left scale range
+      const leftSeries = data.getSeriesForScale(pane.id, "left");
+      if (leftSeries.length > 0) {
+        const [lMin, lMax] = computePaneRange(pane, visibleStart, visibleEnd, candles, leftSeries);
+        scales.left.setDataRange(lMin, lMax);
+      }
     }
   }
 
   // Render panes
   let drawHelper = rc.drawHelper;
+  const rightScaleMap = new Map<string, PriceScale>();
+  for (const [id, dual] of rc.priceScales) rightScaleMap.set(id, dual.right);
 
   for (const pane of paneRects) {
-    const ps = rc.priceScales.get(pane.id);
-    if (!ps) continue;
+    const scales = rc.priceScales.get(pane.id);
+    if (!scales) continue;
+    const ps = scales.right; // Primary scale for most rendering
 
     ctx.save();
     ctx.beginPath();
@@ -160,6 +179,17 @@ export function renderFrame(rc: RenderContext): RenderResult {
         pane.config.referenceLineColor ?? theme.textSecondary,
       );
     }
+    if (pane.config.leftScale?.referenceLines?.length) {
+      renderReferenceLines(
+        ctx,
+        pane.config.leftScale.referenceLines,
+        scales.left,
+        pane.x,
+        pane.y,
+        pane.width,
+        pane.config.leftScale.referenceLineColor ?? theme.textSecondary,
+      );
+    }
 
     ctx.translate(0, pane.y);
 
@@ -178,7 +208,6 @@ export function renderFrame(rc: RenderContext): RenderResult {
         decimTarget > 0
           ? decimateCandles(candles, timeScale.startIndex, timeScale.endIndex, decimTarget)
           : candles;
-
       switch (rc.chartType) {
         case "line":
           renderPriceLineChart(ctx, visibleCandles, timeScale, ps, theme);
@@ -217,10 +246,11 @@ export function renderFrame(rc: RenderContext): RenderResult {
       );
     }
 
-    // Series (dispatch to correct scale)
+    // Series — dispatch to correct scale
     const paneSeriesForRender = data.getSeriesForPane(pane.id);
     for (const s of paneSeriesForRender) {
-      dispatchSeries(ctx, s, timeScale, ps, data, pane.width, theme, rc.rendererRegistry);
+      const seriesScale = s.scaleId === "left" ? scales.left : ps;
+      dispatchSeries(ctx, s, timeScale, seriesScale, data, pane.width, theme, rc.rendererRegistry);
     }
 
     // 'above' primitives
@@ -243,7 +273,7 @@ export function renderFrame(rc: RenderContext): RenderResult {
 
     ctx.restore();
 
-    // Price axis
+    // Right price axis
     renderPriceAxis(
       ctx,
       ps,
@@ -255,6 +285,21 @@ export function renderFrame(rc: RenderContext): RenderResult {
       rc.fontSize,
       rc.priceFormatter,
     );
+
+    // Left price axis (if pane has left-scale series)
+    if (data.hasSeriesOnScale(pane.id, "left")) {
+      renderPriceAxis(
+        ctx,
+        scales.left,
+        pane.x - layout.priceAxisWidth,
+        pane.y,
+        layout.priceAxisWidth,
+        pane.height,
+        theme,
+        rc.fontSize,
+        rc.priceFormatter,
+      );
+    }
   }
 
   // Pane titles
@@ -288,16 +333,16 @@ export function renderFrame(rc: RenderContext): RenderResult {
   );
 
   // MTF overlays
-  renderTimeframeOverlays(ctx, data.timeframes, paneRects, rc.priceScales, data, theme);
+  renderTimeframeOverlays(ctx, data.timeframes, paneRects, rightScaleMap, data, theme);
 
   // Backtest
   const btResult = data.backtestResult;
   if (btResult) {
-    renderBacktestTrades(ctx, btResult, paneRects, rc.priceScales, timeScale, data);
+    renderBacktestTrades(ctx, btResult, paneRects, rightScaleMap, timeScale, data);
     const equityPane = paneRects.find((p) => p.id === "equity");
     const equityScale = rc.priceScales.get("equity");
     if (equityPane && equityScale) {
-      renderEquityCurve(ctx, btResult, equityPane, equityScale, timeScale, data, theme);
+      renderEquityCurve(ctx, btResult, equityPane, equityScale.right, timeScale, data, theme);
       renderBacktestSummary(ctx, btResult, equityPane.x, equityPane.y, theme, rc.fontSize);
     }
   }
@@ -308,7 +353,7 @@ export function renderFrame(rc: RenderContext): RenderResult {
       ctx,
       data.patterns,
       paneRects,
-      rc.priceScales,
+      rightScaleMap,
       timeScale,
       data,
       theme,
@@ -317,28 +362,19 @@ export function renderFrame(rc: RenderContext): RenderResult {
   }
 
   // Drawings
-  renderDrawings(
-    ctx,
-    data.drawings,
-    paneRects,
-    rc.priceScales,
-    timeScale,
-    data,
-    theme,
-    rc.fontSize,
-  );
+  renderDrawings(ctx, data.drawings, paneRects, rightScaleMap, timeScale, data, theme, rc.fontSize);
 
   // Overlays
-  renderPriceLine(ctx, candles, paneRects, rc.priceScales, theme, rc.fontSize);
-  renderSignals(ctx, data.signals, candles, data, paneRects, rc.priceScales, timeScale);
-  renderTrades(ctx, data.trades, data, paneRects, rc.priceScales, timeScale);
+  renderPriceLine(ctx, candles, paneRects, rightScaleMap, theme, rc.fontSize);
+  renderSignals(ctx, data.signals, candles, data, paneRects, rightScaleMap, timeScale);
+  renderTrades(ctx, data.trades, data, paneRects, rightScaleMap, timeScale);
 
   // Crosshair
   renderCrosshair(
     ctx,
     rc.viewportState,
     paneRects,
-    rc.priceScales,
+    rightScaleMap,
     timeScale,
     layout.dataAreaWidth,
     layout.timeAxisY,

@@ -3,14 +3,13 @@
  * Orchestrates data layer, layout, scales, viewport, and rendering.
  */
 
-import { DataLayer, type InternalSeries } from "../core/data-layer";
-import { decimateCandles, getDecimationTarget } from "../core/decimation";
-import { DrawHelper } from "../core/draw-helper";
+import { DataLayer } from "../core/data-layer";
+import type { DrawHelper } from "../core/draw-helper";
 import { autoFormatPrice } from "../core/format";
 import { LayoutEngine } from "../core/layout";
 import type { PrimitivePlugin, SeriesRendererPlugin } from "../core/plugin-types";
 import { RendererRegistry } from "../core/renderer-registry";
-import { PriceScale, TimeScale } from "../core/scale";
+import { type PriceScale, TimeScale } from "../core/scale";
 import type {
   CandleData,
   ChartEvent,
@@ -33,33 +32,9 @@ import type {
 import { DARK_THEME, LIGHT_THEME } from "../core/types";
 import { Viewport } from "../core/viewport";
 import { introspect } from "../integration/series-introspector";
-import { renderCandlesticks } from "../series/candlestick";
-import { renderVolume } from "../series/histogram";
-import { renderMountainChart } from "../series/mountain";
-import { renderOhlcBars } from "../series/ohlc-bar";
-import { renderPriceLineChart } from "../series/price-line";
-import { renderGrid, renderPriceAxis, renderReferenceLines, renderTimeAxis } from "./axis-renderer";
-import {
-  renderBacktestSummary,
-  renderBacktestTrades,
-  renderEquityCurve,
-} from "./backtest-renderer";
-import { renderCrosshair } from "./crosshair-renderer";
-import { renderDrawings } from "./drawing-renderer";
 import { InfoOverlay } from "./info-overlay";
 import { LegendOverlay } from "./legend-overlay";
-import {
-  renderPaneTitles,
-  renderPriceLine,
-  renderSignals,
-  renderTimeframeOverlays,
-  renderTrades,
-} from "./overlay-renderer";
-import { renderPatterns } from "./pattern-renderer";
-import { computePaneRange } from "./range-calculator";
-import { renderScoreHeatmap } from "./score-renderer";
-import { renderScrollbar } from "./scrollbar-renderer";
-import { dispatchSeries } from "./series-dispatcher";
+import { renderFrame } from "./render-pipeline";
 
 // ============================================
 // Default Options
@@ -580,20 +555,6 @@ export class CanvasChart implements ChartInstance {
     return aligned;
   }
 
-  /** Reuse DrawHelper instance to avoid per-frame allocation */
-  private _getDrawHelper(
-    ctx: CanvasRenderingContext2D,
-    timeScale: import("../core/scale").TimeScale,
-    priceScale: import("../core/scale").PriceScale,
-  ): DrawHelper {
-    if (this._drawHelper) {
-      this._drawHelper.reset(ctx, timeScale, priceScale);
-      return this._drawHelper;
-    }
-    this._drawHelper = new DrawHelper(ctx, timeScale, priceScale);
-    return this._drawHelper;
-  }
-
   // ---- Internal: Render Loop ----
 
   private _renderLoop = (): void => {
@@ -605,423 +566,37 @@ export class CanvasChart implements ChartInstance {
   };
 
   private _render(): void {
-    const ctx = this._ctx;
-    const pr = this._pixelRatio;
-    const width = this._canvas.width / pr;
-    const height = this._canvas.height / pr;
+    const result = renderFrame({
+      ctx: this._ctx,
+      pixelRatio: this._pixelRatio,
+      canvasWidth: this._canvas.width,
+      canvasHeight: this._canvas.height,
+      theme: this._theme,
+      fontSize: this._fontSize,
+      chartType: this._chartType,
+      watermark: this._watermark,
+      priceFormatter: this._priceFormatter,
+      timeFormatter: this._timeFormatter,
+      data: this._data,
+      layout: this._layout,
+      timeScale: this._timeScale,
+      priceScales: this._priceScales,
+      viewportState: this._viewport.state,
+      rendererRegistry: this._rendererRegistry,
+      drawHelper: this._drawHelper,
+      emit: (event, data) => this._emit(event as ChartEvent, data),
+    });
 
-    // Reset transform for clearing
-    ctx.setTransform(pr, 0, 0, pr, 0, 0);
+    // Cache drawHelper for reuse
+    this._drawHelper = result.drawHelper;
 
-    // Clear
-    ctx.fillStyle = this._theme.background;
-    ctx.fillRect(0, 0, width, height);
-
-    // Watermark
-    if (this._watermark) {
-      ctx.save();
-      ctx.fillStyle = this._theme.textSecondary;
-      ctx.globalAlpha = 0.07;
-      ctx.font = `bold ${Math.min(width * 0.08, 48)}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText(this._watermark, width / 2, height / 2);
-      ctx.restore();
-    }
-
-    const paneRects = this._layout.paneRects;
-    const candles = this._data.candles;
-    const timeScale = this._timeScale;
-    const visibleStart = timeScale.startIndex;
-    const visibleEnd = timeScale.endIndex;
-
-    // Ensure price scales exist for each pane (left + right)
-    for (const pane of paneRects) {
-      if (!this._priceScales.has(pane.id)) {
-        this._priceScales.set(pane.id, { left: new PriceScale(), right: new PriceScale() });
-      }
-    }
-
-    // Update price scales with visible data ranges
-    for (const pane of paneRects) {
-      const scales = this._priceScales.get(pane.id);
-      if (!scales) continue;
-
-      // Right scale (default — backward compatible with yScale/yRange)
-      scales.right.setHeight(pane.height);
-      if (pane.config.yScale) scales.right.setMode(pane.config.yScale);
-      if (pane.config.yRange) scales.right.setFixedRange(pane.config.yRange);
-
-      // Left scale
-      scales.left.setHeight(pane.height);
-      if (pane.config.leftScale?.mode) scales.left.setMode(pane.config.leftScale.mode);
-      if (pane.config.leftScale?.range) scales.left.setFixedRange(pane.config.leftScale.range);
-
-      // Equity pane: compute range from backtest result
-      if (pane.id === "equity" && this._data.backtestResult) {
-        const bt = this._data.backtestResult;
-        let eqMin = bt.initialCapital;
-        let eqMax = bt.initialCapital;
-        let equity = bt.initialCapital;
-        for (const trade of bt.trades) {
-          equity *= 1 + trade.returnPercent / 100;
-          if (equity < eqMin) eqMin = equity;
-          if (equity > eqMax) eqMax = equity;
-        }
-        scales.right.setDataRange(eqMin * 0.99, eqMax * 1.01);
-      } else {
-        // Right scale range
-        const rightSeries = this._data.getSeriesForScale(pane.id, "right");
-        const [rMin, rMax] = computePaneRange(
-          pane,
-          visibleStart,
-          visibleEnd,
-          candles,
-          rightSeries,
-          this._rendererRegistry,
-        );
-        scales.right.setDataRange(rMin, rMax);
-
-        // Left scale range (only if there are series on it)
-        const leftSeries = this._data.getSeriesForScale(pane.id, "left");
-        if (leftSeries.length > 0) {
-          const [lMin, lMax] = computePaneRange(
-            pane,
-            visibleStart,
-            visibleEnd,
-            candles,
-            leftSeries,
-            this._rendererRegistry,
-          );
-          scales.left.setDataRange(lMin, lMax);
-        }
-      }
-    }
-
-    // Render each pane
-    for (const pane of paneRects) {
-      const scales = this._priceScales.get(pane.id);
-      if (!scales) continue;
-      const ps = scales.right; // Primary scale (backward compat)
-      const hasLeftScale = this._data.hasSeriesOnScale(pane.id, "left");
-
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(pane.x, pane.y, pane.width, pane.height);
-      ctx.clip();
-
-      // Grid (use right scale for grid lines)
-      renderGrid(ctx, ps, pane.x, pane.y, pane.width, pane.height, this._theme, timeScale, candles);
-
-      // Reference lines (right scale)
-      if (pane.config.referenceLines?.length) {
-        renderReferenceLines(
-          ctx,
-          pane.config.referenceLines,
-          ps,
-          pane.x,
-          pane.y,
-          pane.width,
-          pane.config.referenceLineColor ?? this._theme.textSecondary,
-        );
-      }
-
-      // Reference lines (left scale)
-      if (hasLeftScale && pane.config.leftScale?.referenceLines?.length) {
-        renderReferenceLines(
-          ctx,
-          pane.config.leftScale.referenceLines,
-          scales.left,
-          pane.x,
-          pane.y,
-          pane.width,
-          pane.config.leftScale.referenceLineColor ?? this._theme.textSecondary,
-        );
-      }
-
-      // Translate so series renderers use y=0 as pane top
-      ctx.translate(0, pane.y);
-
-      // Score heatmap (behind candles)
-      if (pane.id === "main" && this._data.scores.length > 0) {
-        renderScoreHeatmap(ctx, this._data.scores, timeScale, { ...pane, y: 0 });
-      }
-
-      // Render pane content (candles on right scale)
-      if (pane.id === "main") {
-        const decimTarget = getDecimationTarget(
-          timeScale.endIndex - timeScale.startIndex,
-          timeScale.width,
-        );
-        const visibleCandles =
-          decimTarget > 0
-            ? decimateCandles(candles, timeScale.startIndex, timeScale.endIndex, decimTarget)
-            : candles;
-        switch (this._chartType) {
-          case "line":
-            renderPriceLineChart(ctx, visibleCandles, timeScale, ps, this._theme);
-            break;
-          case "mountain":
-            renderMountainChart(ctx, visibleCandles, timeScale, ps, this._theme);
-            break;
-          case "ohlc":
-            renderOhlcBars(ctx, visibleCandles, timeScale, ps, this._theme);
-            break;
-          default:
-            renderCandlesticks(ctx, visibleCandles, timeScale, ps, this._theme);
-            break;
-        }
-      }
-
-      if (pane.id === "volume") {
-        renderVolume(ctx, candles, timeScale, ps, this._theme);
-      }
-
-      // Render 'below' primitives (before series)
-      for (const prim of this._rendererRegistry.getPrimitives(pane.id, "below")) {
-        prim.plugin.render(
-          {
-            ctx,
-            pane: { ...pane, y: 0 },
-            timeScale,
-            priceScale: ps,
-            dataLayer: this._data,
-            theme: this._theme,
-            draw: this._getDrawHelper(ctx, timeScale, ps),
-          },
-          prim.state,
-        );
-      }
-
-      // Render indicator series for this pane (dispatch to correct scale)
-      const paneSeriesForRender = this._data.getSeriesForPane(pane.id);
-      for (const s of paneSeriesForRender) {
-        const seriesScale = scales[s.scaleId];
-        dispatchSeries(
-          ctx,
-          s,
-          timeScale,
-          seriesScale,
-          this._data,
-          pane.width,
-          this._theme,
-          this._rendererRegistry,
-        );
-      }
-
-      // Render 'above' primitives (after series)
-      for (const prim of this._rendererRegistry.getPrimitives(pane.id, "above")) {
-        prim.plugin.render(
-          {
-            ctx,
-            pane: { ...pane, y: 0 },
-            timeScale,
-            priceScale: ps,
-            dataLayer: this._data,
-            theme: this._theme,
-            draw: this._getDrawHelper(ctx, timeScale, ps),
-          },
-          prim.state,
-        );
-      }
-
-      ctx.restore();
-
-      // Left price axis (only if there are series on left scale)
-      if (hasLeftScale) {
-        renderPriceAxis(
-          ctx,
-          scales.left,
-          pane.x,
-          pane.y,
-          this._layout.priceAxisWidth,
-          pane.height,
-          this._theme,
-          this._fontSize,
-          this._priceFormatter,
-          "left",
-        );
-      }
-
-      // Right price axis
-      renderPriceAxis(
-        ctx,
-        ps,
-        pane.x + pane.width,
-        pane.y,
-        this._layout.priceAxisWidth,
-        pane.height,
-        this._theme,
-        this._fontSize,
-        this._priceFormatter,
-        "right",
-      );
-    }
-
-    // Time axis
-    renderTimeAxis(
-      ctx,
-      candles,
-      timeScale,
-      0,
-      this._layout.timeAxisY,
-      this._layout.dataAreaWidth,
-      this._layout.timeAxisHeight,
-      this._theme,
-      this._fontSize,
-      this._timeFormatter,
-    );
-
-    // Pane titles
-    renderPaneTitles(ctx, paneRects, this._data, this._theme, this._fontSize);
-
-    // Scrollbar
-    if (this._layout.scrollbarHeight > 0) {
-      renderScrollbar(
-        ctx,
-        timeScale,
-        0,
-        this._layout.scrollbarY,
-        this._layout.dataAreaWidth,
-        this._layout.scrollbarHeight,
-        this._theme,
-      );
-    }
-
-    // Build flat right-scale map for renderers that expect Map<string, PriceScale>
-    const rightScaleMap = new Map<string, PriceScale>();
-    for (const [id, s] of this._priceScales) rightScaleMap.set(id, s.right);
-
-    // Multi-timeframe overlays (behind drawings)
-    renderTimeframeOverlays(
-      ctx,
-      this._data.timeframes,
-      paneRects,
-      rightScaleMap,
-      this._data,
-      this._theme,
-    );
-
-    // Backtest visualization
-    const btResult = this._data.backtestResult;
-    if (btResult) {
-      renderBacktestTrades(ctx, btResult, paneRects, rightScaleMap, timeScale, this._data);
-      const equityPane = paneRects.find((p) => p.id === "equity");
-      const equityScale = this._priceScales.get("equity")?.right;
-      if (equityPane && equityScale) {
-        renderEquityCurve(
-          ctx,
-          btResult,
-          equityPane,
-          equityScale,
-          timeScale,
-          this._data,
-          this._theme,
-        );
-        renderBacktestSummary(
-          ctx,
-          btResult,
-          equityPane.x,
-          equityPane.y,
-          this._theme,
-          this._fontSize,
-        );
-      }
-    }
-
-    // Pattern signals
-    if (this._data.patterns.length > 0) {
-      renderPatterns(
-        ctx,
-        this._data.patterns,
-        paneRects,
-        rightScaleMap,
-        timeScale,
-        this._data,
-        this._theme,
-        this._fontSize,
-      );
-    }
-
-    // Drawings (under overlays)
-    renderDrawings(
-      ctx,
-      this._data.drawings,
-      paneRects,
-      rightScaleMap,
-      timeScale,
-      this._data,
-      this._theme,
-      this._fontSize,
-    );
-
-    // Overlays: price line, signals, trades
-    renderPriceLine(ctx, candles, paneRects, rightScaleMap, this._theme, this._fontSize);
-    renderSignals(
-      ctx,
-      this._data.signals,
-      candles,
-      this._data,
-      paneRects,
-      rightScaleMap,
-      timeScale,
-    );
-    renderTrades(ctx, this._data.trades, this._data, paneRects, rightScaleMap, timeScale);
-
-    // Build left scale map for crosshair (only panes that have left series)
-    const leftScaleMap = new Map<string, PriceScale>();
-    for (const [id, s] of this._priceScales) {
-      if (this._data.hasSeriesOnScale(id, "left")) leftScaleMap.set(id, s.left);
-    }
-
-    // Crosshair (on top of everything)
-    renderCrosshair(
-      ctx,
-      this._viewport.state,
-      paneRects,
-      rightScaleMap,
-      timeScale,
-      this._layout.dataAreaWidth,
-      this._layout.timeAxisY,
-      this._theme,
-      this._fontSize,
-      candles,
-      leftScaleMap.size > 0 ? leftScaleMap : undefined,
-    );
-
-    // Info overlay (DOM) — update with crosshair position
-    const seriesByPane = new Map<string, InternalSeries[]>();
-    for (const pane of paneRects) {
-      seriesByPane.set(pane.id, this._data.getSeriesForPane(pane.id));
-    }
+    // Update DOM overlays
     this._infoOverlay?.update(
-      this._viewport.state.crosshairIndex,
-      candles,
-      paneRects,
-      seriesByPane,
+      result.crosshairIndex,
+      this._data.candles,
+      result.paneRects,
+      result.seriesByPane,
     );
-
-    // Legend
     this._legendOverlay?.update(this._data.getAllSeries());
-
-    // Emit crosshair event
-    if (this._viewport.state.crosshairIndex !== null) {
-      const idx = this._viewport.state.crosshairIndex;
-      const candle = candles[idx];
-      if (candle) {
-        this._emit("crosshairMove", {
-          time: candle.time,
-          index: idx,
-          ohlcv: {
-            open: candle.open,
-            high: candle.high,
-            low: candle.low,
-            close: candle.close,
-            volume: candle.volume,
-          },
-          paneId: this._viewport.state.activePaneId,
-        });
-      }
-    }
   }
 }
