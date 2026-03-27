@@ -29,11 +29,22 @@ export type FillStyle = {
 };
 
 export class DrawHelper {
-  constructor(
-    public readonly ctx: CanvasRenderingContext2D,
-    public readonly timeScale: TimeScale,
-    public readonly priceScale: PriceScale,
-  ) {}
+  public ctx: CanvasRenderingContext2D;
+  public timeScale: TimeScale;
+  public priceScale: PriceScale;
+
+  constructor(ctx: CanvasRenderingContext2D, timeScale: TimeScale, priceScale: PriceScale) {
+    this.ctx = ctx;
+    this.timeScale = timeScale;
+    this.priceScale = priceScale;
+  }
+
+  /** Update references for reuse across frames (avoids re-allocation) */
+  reset(ctx: CanvasRenderingContext2D, timeScale: TimeScale, priceScale: PriceScale): void {
+    this.ctx = ctx;
+    this.timeScale = timeScale;
+    this.priceScale = priceScale;
+  }
 
   // ---- Coordinate conversion ----
 

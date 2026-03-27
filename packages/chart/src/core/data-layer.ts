@@ -16,9 +16,8 @@ import type {
   TradeMarker,
 } from "./types";
 
-let nextSeriesId = 1;
-
 export class DataLayer {
+  private _nextSeriesId = 1;
   private _candles: CandleData[] = [];
   private _series: Map<string, InternalSeries> = new Map();
   private _signals: SignalMarker[] = [];
@@ -113,7 +112,7 @@ export class DataLayer {
   // ---- Indicator Series ----
 
   addSeries<T>(data: DataPoint<T>[], config: SeriesConfig, resolvedType: SeriesType): SeriesHandle {
-    const id = `s${nextSeriesId++}`;
+    const id = `s${this._nextSeriesId++}`;
     const internal: InternalSeries = {
       id,
       paneId: config.pane ?? "main",

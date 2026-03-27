@@ -1,5 +1,6 @@
 /**
  * Legend Overlay — DOM-based series list with visibility toggles.
+ * Uses event delegation to avoid listener leaks on frequent updates.
  */
 
 import type { InternalSeries } from "../core/data-layer";
@@ -10,6 +11,8 @@ export class LegendOverlay {
   private _el: HTMLElement;
   private _theme: ThemeColors;
   private _onToggle: ((seriesId: string, visible: boolean) => void) | null = null;
+  private _currentSeries: InternalSeries[] = [];
+  private _handleClick: (e: MouseEvent) => void;
 
   constructor(container: HTMLElement, theme: ThemeColors) {
     this._container = container;
@@ -18,7 +21,7 @@ export class LegendOverlay {
     this._el = document.createElement("div");
     this._el.style.position = "absolute";
     this._el.style.top = "4px";
-    this._el.style.right = "68px"; // Right of price axis
+    this._el.style.right = "68px";
     this._el.style.zIndex = "10";
     this._el.style.display = "flex";
     this._el.style.gap = "8px";
@@ -26,6 +29,18 @@ export class LegendOverlay {
     this._el.style.fontSize = "11px";
     this._el.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
     container.appendChild(this._el);
+
+    // Single delegated click handler — never leaked
+    this._handleClick = (e: MouseEvent) => {
+      const target = (e.target as HTMLElement).closest("[data-series-id]") as HTMLElement | null;
+      if (!target) return;
+      const id = target.dataset.seriesId;
+      if (!id) return;
+      const series = this._currentSeries.find((s) => s.id === id);
+      if (!series) return;
+      this._onToggle?.(id, !series.visible);
+    };
+    this._el.addEventListener("click", this._handleClick);
   }
 
   setOnToggle(cb: (seriesId: string, visible: boolean) => void): void {
@@ -37,7 +52,8 @@ export class LegendOverlay {
   }
 
   update(allSeries: InternalSeries[]): void {
-    // Only show series that have labels
+    this._currentSeries = allSeries;
+
     const labeled = allSeries.filter((s) => s.config.label);
     if (labeled.length === 0) {
       this._el.innerHTML = "";
@@ -55,22 +71,11 @@ export class LegendOverlay {
         ><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color};margin-right:3px;vertical-align:middle"></span>${s.config.label}</span>`;
       })
       .join("");
-
-    // Attach click handlers
-    const spans = this._el.querySelectorAll<HTMLSpanElement>("[data-series-id]");
-    for (let i = 0; i < spans.length; i++) {
-      const span = spans[i];
-      span.addEventListener("click", () => {
-        const id = span.dataset.seriesId;
-        if (!id) return;
-        const series = allSeries.find((s) => s.id === id);
-        if (!series) return;
-        this._onToggle?.(id, !series.visible);
-      });
-    }
+    // No per-element listeners — parent handles all clicks via delegation
   }
 
   destroy(): void {
+    this._el.removeEventListener("click", this._handleClick);
     this._el.remove();
   }
 }

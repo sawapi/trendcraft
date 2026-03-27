@@ -149,5 +149,19 @@ export class InfoOverlay {
 }
 
 // Aliases for imported format functions
-const fmt = autoFormatPrice;
-const fmtVol = formatVolume;
+const fmt = (n: number) => escapeHtml(autoFormatPrice(n));
+const fmtVol = (n: number) => escapeHtml(formatVolume(n));
+
+/** Prevent XSS from custom formatters */
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (c) => {
+    const map: Record<string, string> = {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;",
+    };
+    return map[c] ?? c;
+  });
+}

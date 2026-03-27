@@ -100,6 +100,8 @@ export class CanvasChart implements ChartInstance {
   private _drawingInProgress: { startTime: number; startPrice: number } | null = null;
 
   private _rendererRegistry = new RendererRegistry();
+  private _drawHelper: DrawHelper | null = null;
+  private _timeToIndex: Map<number, number> = new Map();
 
   private _rafId: number | null = null;
   private _needsRender = true;
@@ -255,6 +257,7 @@ export class CanvasChart implements ChartInstance {
         Number.isFinite(c.volume),
     );
     this._data.setCandles(valid);
+    this._rebuildTimeIndex();
     this._timeScale.setTotalCount(this._data.candleCount);
     this._timeScale.scrollToEnd();
     this._needsRender = true;
@@ -356,7 +359,7 @@ export class CanvasChart implements ChartInstance {
   setDrawingTool(tool: DrawingType | null): void {
     this._activeDrawingTool = tool;
     this._drawingInProgress = null;
-    this._canvas.style.cursor = tool ? "crosshair" : "crosshair";
+    this._canvas.style.cursor = tool ? "cell" : "crosshair";
   }
 
   // ---- Public API: Multi-timeframe ----
@@ -540,17 +543,21 @@ export class CanvasChart implements ChartInstance {
     this._timeScale.setWidth(this._layout.dataAreaWidth);
   }
 
+  // ---- Internal: Time index cache ----
+
+  private _rebuildTimeIndex(): void {
+    this._timeToIndex.clear();
+    const candles = this._data.candles;
+    for (let i = 0; i < candles.length; i++) {
+      this._timeToIndex.set(candles[i].time, i);
+    }
+  }
+
   // ---- Internal: Align series to candle indices ----
 
   private _alignToCandles<T>(series: DataPoint<T>[]): DataPoint<T | null>[] {
     const candles = this._data.candles;
     if (candles.length === 0 || series.length === 0) return series;
-
-    // Build time → index map for candles
-    const timeToIndex = new Map<number, number>();
-    for (let i = 0; i < candles.length; i++) {
-      timeToIndex.set(candles[i].time, i);
-    }
 
     // Create aligned array (same length as candles, null-padded)
     const aligned: DataPoint<T | null>[] = new Array(candles.length);
@@ -559,13 +566,27 @@ export class CanvasChart implements ChartInstance {
     }
 
     for (const point of series) {
-      const idx = timeToIndex.get(point.time);
+      const idx = this._timeToIndex.get(point.time);
       if (idx !== undefined) {
         aligned[idx] = point;
       }
     }
 
     return aligned;
+  }
+
+  /** Reuse DrawHelper instance to avoid per-frame allocation */
+  private _getDrawHelper(
+    ctx: CanvasRenderingContext2D,
+    timeScale: import("../core/scale").TimeScale,
+    priceScale: import("../core/scale").PriceScale,
+  ): DrawHelper {
+    if (this._drawHelper) {
+      this._drawHelper.reset(ctx, timeScale, priceScale);
+      return this._drawHelper;
+    }
+    this._drawHelper = new DrawHelper(ctx, timeScale, priceScale);
+    return this._drawHelper;
   }
 
   // ---- Internal: Render Loop ----
@@ -725,7 +746,7 @@ export class CanvasChart implements ChartInstance {
             priceScale: ps,
             dataLayer: this._data,
             theme: this._theme,
-            draw: new DrawHelper(ctx, timeScale, ps),
+            draw: this._getDrawHelper(ctx, timeScale, ps),
           },
           prim.state,
         );
@@ -756,7 +777,7 @@ export class CanvasChart implements ChartInstance {
             priceScale: ps,
             dataLayer: this._data,
             theme: this._theme,
-            draw: new DrawHelper(ctx, timeScale, ps),
+            draw: this._getDrawHelper(ctx, timeScale, ps),
           },
           prim.state,
         );
