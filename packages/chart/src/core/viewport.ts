@@ -168,22 +168,31 @@ export class Viewport {
       this._onUpdate?.();
     };
 
-    // Zoom anchor lock: remember mouse position when zoom gesture starts,
-    // keep using it during trackpad inertia (macOS sends wheel events after finger lift)
+    // Gesture direction lock: once a pan or zoom gesture starts, lock to that
+    // axis until the gesture ends (no wheel events for 150ms)
+    let gestureDir: "pan" | "zoom" | null = null;
+    let gestureTimer: ReturnType<typeof setTimeout> | null = null;
     let zoomAnchorX: number | null = null;
-    let zoomAnchorTimer: ReturnType<typeof setTimeout> | null = null;
-    // Accumulate sub-bar fractional scroll for smooth trackpad inertia
-    let panRemainder = 0;
 
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
-      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
-        // Horizontal scroll (pan) — accumulate fractional pixels for smooth inertia
+
+      // Determine direction on first event, then lock
+      if (gestureDir === null) {
+        gestureDir = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? "pan" : "zoom";
+      }
+
+      // Reset lock after 150ms of no wheel events (gesture ended)
+      if (gestureTimer) clearTimeout(gestureTimer);
+      gestureTimer = setTimeout(() => {
+        gestureDir = null;
         zoomAnchorX = null;
-        panRemainder += e.deltaX / timeScale.barSpacing;
-        const deltaBars = Math.trunc(panRemainder);
-        panRemainder -= deltaBars;
-        if (deltaBars !== 0) timeScale.scrollBy(deltaBars);
+      }, 150);
+
+      if (gestureDir === "pan") {
+        // Horizontal scroll (pan) — sub-pixel smooth scrolling
+        const deltaBars = e.deltaX / timeScale.barSpacing;
+        timeScale.scrollBy(deltaBars);
       } else {
         // Zoom: proportional to deltaY magnitude for smooth trackpad support
         const clampedDelta = Math.max(-50, Math.min(50, e.deltaY));
@@ -191,13 +200,8 @@ export class Viewport {
         const rect = el.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
 
-        // Lock anchor on first zoom event, keep it during inertia
+        // Lock anchor on first zoom event
         if (zoomAnchorX === null) zoomAnchorX = mouseX;
-        if (zoomAnchorTimer) clearTimeout(zoomAnchorTimer);
-        zoomAnchorTimer = setTimeout(() => {
-          zoomAnchorX = null;
-        }, 150);
-
         timeScale.zoom(factor, zoomAnchorX);
       }
       this._onUpdate?.();
