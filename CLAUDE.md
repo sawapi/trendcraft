@@ -6,11 +6,21 @@ TrendCraft - Technical analysis library for TypeScript (pnpm workspace monorepo)
 
 A library for analyzing financial data (stocks, crypto, etc.).
 Provides technical indicators, signal detection, backtesting, and optimization.
+`@trendcraft/chart` provides a Canvas-based charting library with auto-detection of TrendCraft indicator series, framework bindings (React/Vue), and a headless API.
 
 ## Directory Structure
 
 ```
 packages/
+├── chart/              # npm package "@trendcraft/chart"
+│   ├── src/
+│   │   ├── core/           # Data layer, scales, layout, viewport, plugin types
+│   │   ├── renderer/       # Canvas render pipeline, overlays, axis
+│   │   ├── series/         # Series type renderers (candlestick, line, band, cloud, etc.)
+│   │   └── integration/    # Series introspection, indicator presets, live feed
+│   ├── react/              # React wrapper (TrendChart)
+│   ├── vue/                # Vue wrapper (TrendChart)
+│   └── examples/           # Vanilla, React, Vue examples
 └── core/               # npm package "trendcraft"
     ├── src/
     │   ├── core/           # Data normalization, MTF context
@@ -64,6 +74,14 @@ pnpm test         # Run core tests (vitest)
 pnpm build        # Build core (vite)
 ```
 
+```bash
+cd packages/chart
+pnpm test         # Run chart tests (vitest, 19 test files)
+pnpm build        # Build chart (vite)
+pnpm dev          # Dev server with examples
+pnpm size         # Check bundle size limits (index.js 35kB, headless.js 15kB)
+```
+
 ## General Rules
 
 - Always use English for all code comments, labels, UI text, README files, and documentation unless explicitly told otherwise
@@ -75,13 +93,16 @@ pnpm build        # Build core (vite)
 - All indicators return `Series<T>` type (`{ time: number, value: T }[]`)
 - Uses Wilder's smoothing method (RSI, ATR, etc.)
 - Functions should have JSDoc comments with @example
+- `@trendcraft/chart`: Bundle size limits enforced via `size-limit` — `index.js` ≤ 35 kB, `headless.js` ≤ 15 kB. Zero runtime dependencies; `trendcraft`, `react`, `vue` are optional peer deps
 
 ## Testing & Validation
 
 - Always run `pnpm build` (or the equivalent type-check command) after making changes to verify the build passes before reporting completion
 - For chart-viewer changes: `cd packages/core/examples/chart-viewer && npx tsc --noEmit`
 
-## Chart-Viewer Development
+## Chart-Viewer Development (packages/core/examples/chart-viewer/)
+
+> **Note:** This section refers to `packages/core/examples/chart-viewer/` (ECharts-based demo app), not the `@trendcraft/chart` package.
 
 - After implementing new indicators or features that have UI settings, always check and update the Indicator Settings UI groups/panels (`IndicatorSettingsDialog.tsx`) to include the new entries. Never assume the UI will auto-discover new indicators
 - When implementing chart/ECharts features, be careful with layout calculations: always account for labelHeight, title heights, margins, and dataZoom positioning. Test visual elements don't overlap. Overlay indicators go on the main chart (not as subcharts) unless explicitly specified otherwise
@@ -135,12 +156,39 @@ import {
 } from "trendcraft";
 ```
 
+## Chart Entry Points
+
+```typescript
+// Main (DOM)
+import { createChart, connectLiveFeed } from "@trendcraft/chart";
+
+// Plugin system
+import { defineSeriesRenderer, definePrimitive } from "@trendcraft/chart";
+
+// Headless (no DOM)
+import { DataLayer, TimeScale, PriceScale, introspect, lttb } from "@trendcraft/chart/headless";
+
+// React
+import { TrendChart } from "@trendcraft/chart/react";
+
+// Vue
+import { TrendChart } from "@trendcraft/chart/vue";
+```
+
 ## examples/
 
-- `chart-viewer/` - Simple chart visualization tool
+### packages/core/examples/
+
+- `chart-viewer/` - Simple chart visualization tool (ECharts-based)
 - `trading-simulator/` - React-based trading simulator with backtesting
 - `alpaca-demo/` - Multi-agent paper trading system (Alpaca API)
 - `candle-former-demo/` - CandleFormer demo
+
+### packages/chart/examples/
+
+- `simple-chart/` - Vanilla TypeScript chart with indicators, drawings, plugins
+- `simple-react-chart/` - React wrapper usage
+- `simple-vue-chart/` - Vue wrapper usage
 
 ## Alpaca Demo
 

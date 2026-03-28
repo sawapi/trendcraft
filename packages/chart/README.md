@@ -187,6 +187,13 @@ Creates a chart instance attached to a DOM element.
 | `resize(width, height)` | Resize chart |
 | `destroy()` | Clean up all resources |
 
+#### Plugins
+
+| Method | Description |
+|---|---|
+| `registerRenderer(plugin)` | Register a custom series renderer plugin |
+| `registerPrimitive(plugin)` | Register a pane primitive plugin |
+
 ### Keyboard Shortcuts
 
 | Key | Action |
@@ -274,6 +281,127 @@ chart.on('seriesAdded', (data) => { /* { id, label } */ });
 chart.on('seriesRemoved', (data) => { /* { id } */ });
 chart.on('visibleRangeChange', (data) => { /* { startTime, endTime } */ });
 ```
+
+## Plugin System
+
+Extend the chart with custom renderers and pane-level overlays.
+
+### Custom Series Renderer
+
+Define a new series type with `defineSeriesRenderer()`:
+
+```typescript
+import { defineSeriesRenderer } from '@trendcraft/chart';
+
+const renkoRenderer = defineSeriesRenderer({
+  type: 'renko',
+  render: ({ ctx, series, timeScale, priceScale, draw }) => {
+    // draw.x(index) and draw.y(price) handle coordinate conversion
+    for (let i = timeScale.startIndex; i <= timeScale.endIndex; i++) {
+      const dp = series.data[i];
+      if (!dp) continue;
+      // Custom rendering logic...
+    }
+  },
+  priceRange: (series, start, end) => [minPrice, maxPrice], // optional
+  formatValue: (series, index) => `${series.data[index]?.value}`, // optional
+});
+
+chart.registerRenderer(renkoRenderer);
+chart.addIndicator(renkoData, { type: 'renko', pane: 'main' });
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `type` | `string` | Yes | Unique type name (must not collide with built-in types) |
+| `render` | `(context, config) => void` | Yes | Render the series onto the canvas |
+| `priceRange` | `(series, start, end) => [min, max]` | No | Custom Y-axis auto-scaling |
+| `formatValue` | `(series, index) => string \| null` | No | Custom tooltip formatting |
+| `init` | `() => void` | No | Called once when plugin is registered |
+| `destroy` | `() => void` | No | Called on `chart.destroy()` |
+
+### Pane Primitives
+
+Add custom overlays that render below or above series:
+
+```typescript
+import { definePrimitive } from '@trendcraft/chart';
+
+const srZones = definePrimitive({
+  name: 'srZones',
+  pane: 'main',
+  zOrder: 'below',
+  defaultState: { zones: [{ price: 150, strength: 0.8 }] },
+  render: ({ ctx, priceScale, draw }, state) => {
+    for (const zone of state.zones) {
+      draw.hline(zone.price, { color: `rgba(255,152,0,${zone.strength})` });
+    }
+  },
+});
+
+chart.registerPrimitive(srZones);
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `name` | `string` | Yes | Unique identifier |
+| `pane` | `string` | Yes | Target pane: `'main'`, a pane id, or `'all'` |
+| `zOrder` | `'below' \| 'above'` | Yes | Render order relative to series |
+| `render` | `(context, state) => void` | Yes | Render the primitive |
+| `defaultState` | `TState` | Yes | Initial state |
+| `update` | `(state) => state` | No | Called before each render frame |
+| `destroy` | `() => void` | No | Called on `chart.destroy()` |
+
+Both `SeriesRenderContext` and `PrimitiveRenderContext` include a `draw: DrawHelper` object with convenient methods: `x()`, `y()`, `line()`, `hline()`, `vline()`, `circle()`, `rect()`, `polygon()`, `text()`.
+
+## Live Feed
+
+Connect a `LiveCandle`-compatible data source for real-time chart updates. The interface is duck-typed — no hard `trendcraft` dependency required.
+
+```typescript
+import { createChart, connectLiveFeed } from '@trendcraft/chart';
+import { createLiveCandle, createSma } from 'trendcraft';
+
+const chart = createChart(container, { theme: 'dark' });
+const live = createLiveCandle({
+  intervalMs: 60_000,
+  indicators: [
+    { name: 'sma20', create: (s) => createSma({ period: 20 }, { fromState: s }) },
+  ],
+});
+
+const conn = connectLiveFeed(chart, live, {
+  indicators: {
+    sma:   { snapshotPath: 'sma20',    series: { color: '#2196F3', label: 'SMA 20' } },
+    rsi:   { snapshotPath: 'rsi14',    series: { pane: 'rsi' } },
+    bbUp:  { snapshotPath: 'bb.upper', series: { color: '#9C27B0' } },
+  },
+});
+
+// Feed ticks from a WebSocket
+ws.on('trade', (t) => live.addTick(t));
+
+// Cleanup
+conn.disconnect();
+```
+
+### ConnectLiveFeedOptions
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `indicators` | `Record<string, LiveFeedIndicatorConfig>` | — | Indicator mappings (id → config) |
+| `initHistory` | `boolean` | `true` | Initialize chart with `source.completedCandles` |
+
+### LiveFeedConnection
+
+| Method / Property | Description |
+|---|---|
+| `addIndicator(id, config)` | Add an indicator series after initial connection |
+| `removeIndicator(id)` | Remove an indicator series |
+| `disconnect()` | Unsubscribe all events and remove all indicator handles |
+| `connected` (readonly) | Whether the connection is still active |
+
+Snapshot paths support dot notation: `"bb.upper"` resolves to `snapshot.bb.upper`.
 
 ## Headless API
 
