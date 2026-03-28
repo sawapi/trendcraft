@@ -169,6 +169,10 @@ export { createTradingSession } from "./session";
 // LiveCandle (lightweight live candle + indicator manager)
 export { createLiveCandle } from "./live-candle";
 
+// Live indicator presets (zero-config for connectLiveFeed)
+export { livePresets } from "./live-presets";
+export type { LivePreset } from "./live-presets";
+
 // Phase 5: Guards (Risk Management & Time Control)
 export {
   createRiskGuard,

@@ -1129,6 +1129,8 @@ export type { SeriesMeta, TaggedSeries } from "./types/candle";
 
 // Streaming (real-time trading pipeline)
 export * as streaming from "./streaming";
+export { livePresets } from "./streaming";
+export type { LivePreset } from "./streaming";
 
 // Unified Conditions (define once, use in backtest & streaming)
 export {
