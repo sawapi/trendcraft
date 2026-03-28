@@ -8,6 +8,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { CMF_META } from "../indicator-meta";
 
 /**
  * CMF options
@@ -108,5 +109,5 @@ export function cmf(
     }
   }
 
-  return tagSeries(result, { overlay: false, label: "CMF", yRange: [-1, 1], referenceLines: [0] });
+  return tagSeries(result, CMF_META);
 }

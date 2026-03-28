@@ -8,6 +8,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { SUPERTREND_META } from "../indicator-meta";
 import { atr } from "../volatility/atr";
 
 /**
@@ -179,5 +180,5 @@ export function supertrend(
     });
   }
 
-  return tagSeries(result, { overlay: true, label: "Supertrend" });
+  return tagSeries(result, SUPERTREND_META);
 }

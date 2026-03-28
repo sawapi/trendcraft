@@ -11,6 +11,7 @@ import type {
   NormalizedCandle,
   Series,
 } from "../../types";
+import { BB_META } from "../indicator-meta";
 
 /**
  * Calculate Bollinger Bands
@@ -68,7 +69,7 @@ export function bollingerBands(
   }
 
   if (normalized.length < period) {
-    return tagSeries(result, { overlay: true, label: "BB" });
+    return tagSeries(result, BB_META);
   }
 
   // Calculate initial window statistics
@@ -118,5 +119,5 @@ export function bollingerBands(
     result.push(computeResult(i, sum, sumSquares));
   }
 
-  return tagSeries(result, { overlay: true, label: "BB" });
+  return tagSeries(result, BB_META);
 }

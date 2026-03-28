@@ -9,6 +9,7 @@ import { getPrice, isNormalized } from "../../core/normalize";
 import { normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
+import { WMA_META } from "../indicator-meta";
 
 /**
  * WMA options
@@ -72,7 +73,7 @@ export function wma(
   }
 
   if (normalized.length < period) {
-    return tagSeries(result, { overlay: true, label: "WMA" });
+    return tagSeries(result, WMA_META);
   }
 
   // Calculate initial weighted sum and simple sum
@@ -104,5 +105,5 @@ export function wma(
     result.push({ time: normalized[i].time, value: weightedSum / weightSum });
   }
 
-  return tagSeries(result, { overlay: true, label: "WMA" });
+  return tagSeries(result, WMA_META);
 }

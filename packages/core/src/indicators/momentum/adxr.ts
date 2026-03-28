@@ -6,6 +6,7 @@
 
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { ADXR_META } from "../indicator-meta";
 import { dmi } from "./dmi";
 
 /**
@@ -70,5 +71,5 @@ export function adxr(
     }
   }
 
-  return tagSeries(result, { overlay: false, label: "ADXR", yRange: [0, 100] });
+  return tagSeries(result, ADXR_META);
 }

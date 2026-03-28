@@ -11,6 +11,7 @@
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
+import { CMO_META } from "../indicator-meta";
 
 /**
  * CMO options
@@ -101,10 +102,5 @@ export function cmo(
     });
   }
 
-  return tagSeries(result, {
-    overlay: false,
-    label: "CMO",
-    yRange: [-100, 100],
-    referenceLines: [50, -50],
-  });
+  return tagSeries(result, CMO_META);
 }

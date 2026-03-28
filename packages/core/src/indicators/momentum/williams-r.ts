@@ -8,6 +8,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { WILLIAMS_R_META } from "../indicator-meta";
 
 /**
  * Williams %R options
@@ -105,10 +106,5 @@ export function williamsR(
     }
   }
 
-  return tagSeries(result, {
-    overlay: false,
-    label: "Williams %R",
-    yRange: [-100, 0],
-    referenceLines: [-20, -80],
-  });
+  return tagSeries(result, WILLIAMS_R_META);
 }

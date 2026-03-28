@@ -6,6 +6,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { OBV_META } from "../indicator-meta";
 
 /**
  * Calculate OBV (On Balance Volume)
@@ -69,5 +70,5 @@ export function obv(candles: Candle[] | NormalizedCandle[]): Series<number> {
     result.push({ time: current.time, value: currentObv });
   }
 
-  return tagSeries(result, { overlay: false, label: "OBV" });
+  return tagSeries(result, OBV_META);
 }

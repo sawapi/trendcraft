@@ -13,6 +13,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { ADL_META } from "../indicator-meta";
 
 /**
  * Calculate Accumulation/Distribution Line
@@ -60,5 +61,5 @@ export function adl(candles: Candle[] | NormalizedCandle[]): Series<number> {
     result.push({ time: normalized[i].time, value: cumulativeAdl });
   }
 
-  return tagSeries(result, { overlay: false, label: "ADL" });
+  return tagSeries(result, ADL_META);
 }

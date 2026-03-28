@@ -5,6 +5,7 @@
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, EmaOptions, NormalizedCandle, Series } from "../../types";
+import { EMA_META } from "../indicator-meta";
 
 /**
  * Calculate Exponential Moving Average
@@ -65,5 +66,5 @@ export function ema(
     }
   }
 
-  return tagSeries(result, { overlay: true, label: "EMA" });
+  return tagSeries(result, EMA_META);
 }

@@ -6,6 +6,7 @@ import { getPrice, isNormalized } from "../../core/normalize";
 import { normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series, SmaOptions } from "../../types";
+import { SMA_META } from "../indicator-meta";
 
 /**
  * Calculate Simple Moving Average
@@ -47,7 +48,7 @@ export function sma(
   }
 
   if (normalized.length < period) {
-    return tagSeries(result, { overlay: true, label: "SMA" });
+    return tagSeries(result, SMA_META);
   }
 
   // Calculate initial window sum
@@ -64,5 +65,5 @@ export function sma(
     result.push({ time: normalized[i].time, value: sum / period });
   }
 
-  return tagSeries(result, { overlay: true, label: "SMA" });
+  return tagSeries(result, SMA_META);
 }

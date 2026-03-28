@@ -8,6 +8,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series, VolumeAnomalyValue } from "../../types";
+import { VOLUME_ANOMALY_META } from "../indicator-meta";
 
 /**
  * Volume anomaly detection options
@@ -153,5 +154,5 @@ export function volumeAnomaly(
     });
   }
 
-  return tagSeries(result, { overlay: false, label: "Vol Anomaly" });
+  return tagSeries(result, VOLUME_ANOMALY_META);
 }

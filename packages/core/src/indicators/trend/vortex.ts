@@ -15,6 +15,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { VORTEX_META } from "../indicator-meta";
 
 /**
  * Vortex options
@@ -121,5 +122,5 @@ export function vortex(
     });
   }
 
-  return tagSeries(result, { overlay: false, label: "Vortex" });
+  return tagSeries(result, VORTEX_META);
 }

@@ -8,6 +8,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { IMI_META } from "../indicator-meta";
 
 /**
  * IMI options
@@ -87,10 +88,5 @@ export function imi(
     }
   }
 
-  return tagSeries(result, {
-    overlay: false,
-    label: "IMI",
-    yRange: [0, 100],
-    referenceLines: [30, 70],
-  });
+  return tagSeries(result, IMI_META);
 }

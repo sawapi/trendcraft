@@ -8,6 +8,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { ELDER_FORCE_INDEX_META } from "../indicator-meta";
 
 /**
  * Elder's Force Index options
@@ -75,5 +76,5 @@ export function elderForceIndex(
     }
   }
 
-  return tagSeries(result, { overlay: false, label: "EFI", referenceLines: [0] });
+  return tagSeries(result, ELDER_FORCE_INDEX_META);
 }

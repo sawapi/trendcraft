@@ -6,6 +6,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { STOCHASTICS_META } from "../indicator-meta";
 
 /**
  * Stochastic oscillator result
@@ -137,12 +138,7 @@ export function stochastics(
     });
   }
 
-  return tagSeries(result, {
-    overlay: false,
-    label: "Stoch",
-    yRange: [0, 100],
-    referenceLines: [20, 80],
-  });
+  return tagSeries(result, STOCHASTICS_META);
 }
 
 /**

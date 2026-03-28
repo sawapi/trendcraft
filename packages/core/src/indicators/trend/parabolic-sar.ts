@@ -8,6 +8,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { PARABOLIC_SAR_META } from "../indicator-meta";
 
 /**
  * Parabolic SAR options
@@ -256,5 +257,5 @@ export function parabolicSar(
     });
   }
 
-  return tagSeries(result, { overlay: true, label: "Parabolic SAR" });
+  return tagSeries(result, PARABOLIC_SAR_META);
 }

@@ -6,6 +6,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, RsiOptions, Series } from "../../types";
+import { RSI_META } from "../indicator-meta";
 
 /**
  * Calculate Relative Strength Index using Wilder's method
@@ -90,12 +91,7 @@ export function rsi(
     }
   }
 
-  return tagSeries(result, {
-    overlay: false,
-    label: "RSI",
-    yRange: [0, 100],
-    referenceLines: [30, 70],
-  });
+  return tagSeries(result, RSI_META);
 }
 
 /**
