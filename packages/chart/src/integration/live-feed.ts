@@ -4,27 +4,26 @@
  * Connects a LiveCandle-compatible data source to a chart instance,
  * automatically updating candle data and indicator series.
  *
+ * Supports two modes:
+ * - **Zero-config**: `conn.addIndicator("rsi")` — uses preset registry
+ * - **Full config**: `conn.addIndicator("id", { snapshotPath, series })` — manual
+ *
  * @example
  * ```ts
  * import { createChart, connectLiveFeed } from '@trendcraft/chart';
- * import { createLiveCandle, createSma } from 'trendcraft';
+ * import { createLiveCandle, incremental } from 'trendcraft';
  *
- * const chart = createChart(container, { theme: 'dark' });
- * const live = createLiveCandle({
- *   intervalMs: 60_000,
- *   indicators: [
- *     { name: 'sma20', create: (s) => createSma({ period: 20 }, { fromState: s }) },
- *   ],
- * });
+ * import { livePresets } from 'trendcraft';
  *
  * const conn = connectLiveFeed(chart, live, {
- *   indicators: {
- *     sma: { snapshotPath: 'sma20', series: { color: '#2196F3', label: 'SMA 20' } },
- *   },
+ *   presets: livePresets,
+ *   history: candles,
  * });
  *
- * ws.on('trade', (t) => live.addTick(t));
- * conn.disconnect(); // cleanup
+ * conn.addIndicator("rsi");               // zero config
+ * conn.addIndicator("sma", { period: 50 }); // custom params
+ * conn.removeIndicator("rsi");
+ * conn.disconnect();
  * ```
  */
 
@@ -35,6 +34,37 @@ import type {
   SeriesConfig,
   SeriesHandle,
 } from "../core/types";
+// ============================================
+// Preset Types (duck-typed, matches LivePreset from core)
+// ============================================
+
+/** Indicator metadata (duck-typed, matches SeriesMeta from core) */
+type PresetMeta = {
+  overlay: boolean;
+  label: string;
+  yRange?: [number, number];
+  referenceLines?: number[];
+};
+
+/** A live indicator preset (duck-typed, matches LivePreset from core) */
+export type LivePresetEntry = {
+  meta: PresetMeta;
+  defaultParams: Record<string, unknown>;
+  snapshotName: string | ((params: Record<string, unknown>) => string);
+  createFactory: (params: Record<string, unknown>) => (fromState?: unknown) => {
+    next(candle: SourceCandle): { value: unknown };
+    peek(candle: SourceCandle): { value: unknown };
+    getState(): unknown;
+    readonly count: number;
+    readonly isWarmedUp: boolean;
+  };
+};
+
+/** User-facing shorthand for addIndicator("rsi", options?) */
+export type AddIndicatorShorthand = {
+  series?: SeriesConfig;
+  [key: string]: unknown;
+};
 
 // ============================================
 // Duck-typed Source Interface
@@ -73,6 +103,20 @@ export type LiveFeedSource = {
       snapshot: Record<string, unknown>;
     }) => void,
   ): () => void;
+  /** Optional: register an indicator on the source (used by zero-config mode) */
+  addIndicator?(
+    name: string,
+    factory: (fromState?: unknown) => {
+      next(candle: SourceCandle): { value: unknown };
+      peek(candle: SourceCandle): { value: unknown };
+      getState(): unknown;
+      readonly count: number;
+      readonly isWarmedUp: boolean;
+    },
+    state?: unknown,
+  ): void;
+  /** Optional: remove an indicator from the source */
+  removeIndicator?(name: string): void;
 };
 
 // ============================================
@@ -102,14 +146,22 @@ export type ConnectLiveFeedOptions = {
   indicators?: Record<string, LiveFeedIndicatorConfig>;
   /** Initialize chart with source.completedCandles on connect (default: true) */
   initHistory?: boolean;
+  /** Live indicator presets for zero-config addIndicator (e.g., livePresets from trendcraft) */
+  presets?: Record<string, LivePresetEntry>;
+  /** Historical candles for back-fill computation (used by zero-config addIndicator) */
+  history?: readonly SourceCandle[];
 };
 
 /**
  * Handle for managing a live feed connection
  */
 export type LiveFeedConnection = {
-  /** Add an indicator series after initial connection */
-  addIndicator(id: string, config: LiveFeedIndicatorConfig): void;
+  /**
+   * Add an indicator.
+   * - Zero-config: `addIndicator("rsi")` or `addIndicator("rsi", { period: 7 })`
+   * - Full config: `addIndicator("id", { snapshotPath: "rsi14", series: {...} })`
+   */
+  addIndicator(id: string, config?: LiveFeedIndicatorConfig | AddIndicatorShorthand): void;
   /** Remove an indicator series from the chart */
   removeIndicator(id: string): void;
   /** Disconnect: unsubscribe all events and remove all indicator handles */
@@ -146,6 +198,55 @@ function resolveValue(snapshot: Record<string, unknown>, path: string): unknown 
   return typeof v === "number" ? v : null;
 }
 
+/** Check if a config object is a LiveFeedIndicatorConfig (has snapshotPath or candleField) */
+function isExplicitConfig(
+  config: LiveFeedIndicatorConfig | AddIndicatorShorthand | undefined,
+): config is LiveFeedIndicatorConfig {
+  if (!config) return false;
+  return "snapshotPath" in config || "candleField" in config || "historyData" in config;
+}
+
+/** Compute back-fill data by running a factory over candle history */
+function computeBackfill(
+  createFactory: LivePresetEntry["createFactory"],
+  params: Record<string, unknown>,
+  candles: readonly SourceCandle[],
+): DataPoint<unknown>[] {
+  const instance = createFactory(params)();
+  const points: DataPoint<unknown>[] = [];
+  for (const candle of candles) {
+    points.push({ time: candle.time, value: instance.next(candle).value });
+  }
+  return points;
+}
+
+/** Resolve the snapshot name from a preset */
+function resolveSnapshotName(preset: LivePresetEntry, params: Record<string, unknown>): string {
+  return typeof preset.snapshotName === "function"
+    ? preset.snapshotName(params)
+    : preset.snapshotName;
+}
+
+/** Build series config from preset meta + user overrides */
+function buildSeriesConfig(
+  meta: PresetMeta,
+  snapshotName: string,
+  params: Record<string, unknown>,
+  overrides?: SeriesConfig,
+): SeriesConfig {
+  return {
+    pane: overrides?.pane ?? (meta.overlay ? "main" : snapshotName),
+    color: overrides?.color,
+    lineWidth: overrides?.lineWidth,
+    label: overrides?.label ?? `${meta.label}(${params.period ?? ""})`.replace(/\(\)$/, ""),
+    yRange: overrides?.yRange ?? meta.yRange,
+    referenceLines: overrides?.referenceLines ?? meta.referenceLines,
+    type: overrides?.type,
+    scaleId: overrides?.scaleId,
+    maxHeightRatio: overrides?.maxHeightRatio,
+  };
+}
+
 // ============================================
 // Main Function
 // ============================================
@@ -158,19 +259,21 @@ function resolveValue(snapshot: Record<string, unknown>, path: string): unknown 
  *
  * @param chart - A ChartInstance (from createChart)
  * @param source - A LiveCandle-compatible object (duck-typed)
- * @param options - Indicator mappings and initialization options
+ * @param options - Indicator mappings, factories, and initialization options
  * @returns A LiveFeedConnection for managing the connection lifecycle
  *
  * @example
  * ```ts
- * const conn = connectLiveFeed(chart, liveCandle, {
- *   indicators: {
- *     sma:   { snapshotPath: "sma20",    series: { color: "#2196F3" } },
- *     rsi:   { snapshotPath: "rsi14",    series: { pane: "rsi" } },
- *     bbUp:  { snapshotPath: "bb.upper", series: { color: "#9C27B0" } },
- *     bbLow: { snapshotPath: "bb.lower", series: { color: "#9C27B0" } },
- *   },
+ * // Zero-config mode
+ * const conn = connectLiveFeed(chart, live, {
+ *   factories: { rsi: (p) => (s) => createRsi(p, restoreState(s)) },
+ *   history: candles,
  * });
+ * conn.addIndicator("rsi");
+ *
+ * // Full config mode (no factories needed)
+ * const conn2 = connectLiveFeed(chart, live);
+ * conn2.addIndicator("myRsi", { snapshotPath: "rsi14", series: { pane: "rsi" } });
  * ```
  */
 export function connectLiveFeed(
@@ -179,9 +282,11 @@ export function connectLiveFeed(
   options?: ConnectLiveFeedOptions,
 ): LiveFeedConnection {
   let _connected = true;
+  const presets = options?.presets ?? {};
+  const historyCandles = options?.history ?? [];
   const activeIndicators = new Map<
     string,
-    { handle: SeriesHandle; config: LiveFeedIndicatorConfig }
+    { handle: SeriesHandle; config: LiveFeedIndicatorConfig; presetSnapshotName?: string }
   >();
 
   function assertConnected(): void {
@@ -201,9 +306,13 @@ export function connectLiveFeed(
     return config.snapshotPath ? resolveValue(snapshot, config.snapshotPath) : null;
   }
 
-  function mountIndicator(id: string, config: LiveFeedIndicatorConfig): void {
+  function mountIndicator(
+    id: string,
+    config: LiveFeedIndicatorConfig,
+    presetSnapshotName?: string,
+  ): void {
     const handle = chart.addIndicator(config.historyData ?? [], config.series);
-    activeIndicators.set(id, { handle, config });
+    activeIndicators.set(id, { handle, config, presetSnapshotName });
 
     // If source already has a forming candle, push initial value
     if (source.candle) {
@@ -217,6 +326,43 @@ export function connectLiveFeed(
       const value = resolveEntry(entry.config, snapshot, candle);
       entry.handle.update({ time: candle.time, value });
     }
+  }
+
+  /** Zero-config: resolve preset, register on source, compute back-fill, mount */
+  function addPresetIndicator(id: string, overrides?: AddIndicatorShorthand): void {
+    const preset = presets[id];
+    if (!preset) {
+      throw new Error(
+        `Unknown indicator preset: "${id}". Pass it via connectLiveFeed({ presets: livePresets })`,
+      );
+    }
+
+    // Merge params
+    const { series: seriesOverrides, ...paramOverrides } = overrides ?? {};
+    const params = { ...preset.defaultParams, ...paramOverrides };
+    const snapshotName = resolveSnapshotName(preset, params);
+
+    // Build factory and register on source
+    const factory = preset.createFactory(params);
+    if (source.addIndicator) {
+      source.addIndicator(snapshotName, factory);
+    }
+
+    // Compute back-fill
+    const allCandles = [...historyCandles, ...source.completedCandles];
+    const historyData =
+      allCandles.length > 0 ? computeBackfill(preset.createFactory, params, allCandles) : [];
+
+    // Build series config
+    const series = buildSeriesConfig(preset.meta, snapshotName, params, seriesOverrides);
+
+    const config: LiveFeedIndicatorConfig = {
+      snapshotPath: snapshotName,
+      series,
+      historyData: historyData as DataPoint[],
+    };
+
+    mountIndicator(id, config, snapshotName);
   }
 
   // --- Step 1: Initialize chart with history ---
@@ -250,12 +396,19 @@ export function connectLiveFeed(
   // --- Step 4: Build connection handle ---
 
   return {
-    addIndicator(id: string, config: LiveFeedIndicatorConfig): void {
+    addIndicator(id: string, config?: LiveFeedIndicatorConfig | AddIndicatorShorthand): void {
       assertConnected();
       if (activeIndicators.has(id)) {
         throw new Error(`Indicator "${id}" already exists`);
       }
-      mountIndicator(id, config);
+
+      if (isExplicitConfig(config)) {
+        // Full config mode (backward compatible)
+        mountIndicator(id, config);
+      } else {
+        // Zero-config / shorthand mode
+        addPresetIndicator(id, config as AddIndicatorShorthand | undefined);
+      }
     },
 
     removeIndicator(id: string): void {
@@ -263,6 +416,10 @@ export function connectLiveFeed(
       const entry = activeIndicators.get(id);
       if (!entry) return;
       entry.handle.remove();
+      // Also remove from source if it was a preset indicator
+      if (entry.presetSnapshotName && source.removeIndicator) {
+        source.removeIndicator(entry.presetSnapshotName);
+      }
       activeIndicators.delete(id);
     },
 
@@ -272,6 +429,9 @@ export function connectLiveFeed(
       unsubTick();
       for (const [, entry] of activeIndicators) {
         entry.handle.remove();
+        if (entry.presetSnapshotName && source.removeIndicator) {
+          source.removeIndicator(entry.presetSnapshotName);
+        }
       }
       activeIndicators.clear();
       _connected = false;

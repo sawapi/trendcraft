@@ -69,3 +69,7 @@ export type {
   ConnectLiveFeedOptions,
   LiveFeedConnection,
 } from "./integration/live-feed";
+export type {
+  LivePresetEntry,
+  AddIndicatorShorthand,
+} from "./integration/live-feed";

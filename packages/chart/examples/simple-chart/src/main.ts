@@ -9,7 +9,7 @@ import {
   bollingerBands,
   goldenCrossCondition,
   ichimoku,
-  incremental,
+  livePresets,
   macd,
   normalizeCandles,
   rsi,
@@ -18,6 +18,7 @@ import {
   sma,
   streaming,
 } from "trendcraft";
+// Note: `incremental` no longer needed — livePresets bundles factories
 import sampleData from "../data.json";
 
 const candles = sampleData;
@@ -36,65 +37,12 @@ statusEl.textContent = `Sample Daily — ${candles.length} candles loaded`;
 let liveCandle: ReturnType<typeof streaming.createLiveCandle> | null = null;
 let liveFeedConn: LiveFeedConnection | null = null;
 
-// Live indicator configs: LiveCandle name → incremental factory + connectLiveFeed series
-type SeriesMapping = {
-  id: string;
-  snapshotPath: string;
-  config: Parameters<typeof chart.addIndicator>[1];
-};
-
-type LiveIndicatorDef = {
-  liveName: string;
-  factory: streaming.LiveIndicatorFactory;
-  series: SeriesMapping[];
-};
-
-const LIVE_INDICATORS: Record<string, LiveIndicatorDef> = {
-  sma: {
-    liveName: "sma20",
-    factory: (s) => incremental.createSma({ period: 20 }, incremental.restoreState(s)),
-    series: [
-      {
-        id: "sma",
-        snapshotPath: "sma20",
-        config: { pane: "main", color: "#2196F3", label: "SMA 20" },
-      },
-    ],
-  },
-  bb: {
-    liveName: "bb",
-    factory: (s) => incremental.createBollingerBands({ period: 20 }, incremental.restoreState(s)),
-    series: [{ id: "bb", snapshotPath: "bb", config: { label: "BB(20)" } }],
-  },
-  rsi: {
-    liveName: "rsi14",
-    factory: (s) => incremental.createRsi({ period: 14 }, incremental.restoreState(s)),
-    series: [
-      {
-        id: "rsi",
-        snapshotPath: "rsi14",
-        config: { pane: "rsi", label: "RSI(14)", yRange: [0, 100], referenceLines: [30, 70] },
-      },
-    ],
-  },
-  macd: {
-    liveName: "macd",
-    factory: (s) => incremental.createMacd({}, incremental.restoreState(s)),
-    series: [{ id: "macd", snapshotPath: "macd", config: { label: "MACD" } }],
-  },
-  ichimoku: {
-    liveName: "ichimoku",
-    factory: (s) => incremental.createIchimoku({}, incremental.restoreState(s)),
-    series: [{ id: "ichimoku", snapshotPath: "ichimoku", config: { label: "Ichimoku" } }],
-  },
-};
-
 // Track which live indicators are currently active
 const activeLiveIndicators = new Set<string>();
-// Stored simulation history for back-fill calculations
+// Stored simulation history for vol overlay back-fill
 let simHistoryRef: typeof sampleData = [];
 
-// Indicator state
+// Indicator state (static mode)
 type HandleRef = { value: ReturnType<typeof chart.addIndicator> | null };
 
 const smaRef: HandleRef = {
@@ -114,36 +62,14 @@ function toggle(
   const btn = document.getElementById(btnId);
   if (!btn) return;
   btn.addEventListener("click", () => {
-    // Live simulation mode
-    if (liveCandle && liveFeedConn) {
-      const def = LIVE_INDICATORS[key];
-      if (!def) return;
-
+    // Live simulation mode — zero-config via preset registry
+    if (liveFeedConn) {
       if (activeLiveIndicators.has(key)) {
-        // Remove
-        liveCandle.removeIndicator(def.liveName);
-        for (const s of def.series) liveFeedConn.removeIndicator(s.id);
+        liveFeedConn.removeIndicator(key);
         activeLiveIndicators.delete(key);
         btn.classList.remove("active");
       } else {
-        // Add with historical back-fill via incremental computation
-        liveCandle.addIndicator(def.liveName, def.factory);
-
-        // Run a temporary incremental indicator over all candles to build history
-        const allCandles = [...simHistoryRef, ...liveCandle.completedCandles];
-        const tempInd = def.factory(undefined);
-        const fullHistory: { time: number; value: unknown }[] = [];
-        for (const c of allCandles) {
-          fullHistory.push({ time: c.time, value: tempInd.next(c).value });
-        }
-
-        for (const s of def.series) {
-          liveFeedConn.addIndicator(s.id, {
-            snapshotPath: s.snapshotPath,
-            series: s.config,
-            historyData: fullHistory as { time: number; value: number | null }[],
-          });
-        }
+        liveFeedConn.addIndicator(key);
         activeLiveIndicators.add(key);
         btn.classList.add("active");
       }
@@ -323,37 +249,24 @@ document.getElementById("btn-simulate")?.addEventListener("click", (e) => {
     });
   }
 
-  // Store history for back-fill when indicators are added later
   simHistoryRef = simHistory;
 
-  // Create LiveCandle with history (no indicators yet — added via buttons)
+  // Create LiveCandle with history
   liveCandle = streaming.createLiveCandle({
     intervalMs: 60_000,
     history: simHistory,
   });
 
-  // Initialize chart with history candles manually
-  // (LiveCandle.completedCandles doesn't include warm-up history)
+  // Initialize chart with history + connect LiveCandle
   chart.setCandles(simHistory);
-
-  // Connect LiveCandle → chart (skip initHistory — already set above)
-  liveFeedConn = connectLiveFeed(chart, liveCandle, { initHistory: false });
+  liveFeedConn = connectLiveFeed(chart, liveCandle, {
+    initHistory: false,
+    presets: livePresets,
+    history: simHistory,
+  });
 
   // Auto-enable SMA (was active by default)
-  const smaDef = LIVE_INDICATORS.sma;
-  liveCandle.addIndicator(smaDef.liveName, smaDef.factory);
-  const tempSma = smaDef.factory(undefined);
-  const smaBackfill: { time: number; value: unknown }[] = [];
-  for (const c of simHistory) {
-    smaBackfill.push({ time: c.time, value: tempSma.next(c).value });
-  }
-  for (const s of smaDef.series) {
-    liveFeedConn.addIndicator(s.id, {
-      snapshotPath: s.snapshotPath,
-      series: s.config,
-      historyData: smaBackfill as { time: number; value: number | null }[],
-    });
-  }
+  liveFeedConn.addIndicator("sma");
   activeLiveIndicators.add("sma");
 
   // Random walk state
