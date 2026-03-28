@@ -32,6 +32,138 @@ chart.fitContent();
 
 statusEl.textContent = `Sample Daily — ${candles.length} candles loaded`;
 
+// Simulation state (module-scoped for toggle access)
+let liveCandle: ReturnType<typeof streaming.createLiveCandle> | null = null;
+let liveFeedConn: LiveFeedConnection | null = null;
+
+// Live indicator configs: LiveCandle name → incremental factory + connectLiveFeed series
+type SeriesMapping = {
+  id: string;
+  snapshotPath: string;
+  field?: string;
+  config: Parameters<typeof chart.addIndicator>[1];
+};
+
+type LiveIndicatorDef = {
+  liveName: string;
+  factory: streaming.LiveIndicatorFactory;
+  series: SeriesMapping[];
+};
+
+/** Extract a nested field from an incremental result */
+function extractField(
+  data: { time: number; value: unknown }[],
+  field: string,
+): { time: number; value: number | null }[] {
+  return data.map((d) => {
+    if (d.value == null || typeof d.value !== "object") return { time: d.time, value: null };
+    const v = (d.value as Record<string, unknown>)[field];
+    return { time: d.time, value: typeof v === "number" ? v : null };
+  });
+}
+
+const LIVE_INDICATORS: Record<string, LiveIndicatorDef> = {
+  sma: {
+    liveName: "sma20",
+    factory: (s) => incremental.createSma({ period: 20 }, incremental.restoreState(s)),
+    series: [
+      {
+        id: "sma",
+        snapshotPath: "sma20",
+        config: { pane: "main", color: "#2196F3", label: "SMA 20" },
+      },
+    ],
+  },
+  bb: {
+    liveName: "bb",
+    factory: (s) => incremental.createBollingerBands({ period: 20 }, incremental.restoreState(s)),
+    series: [
+      {
+        id: "bb_upper",
+        snapshotPath: "bb.upper",
+        field: "upper",
+        config: { pane: "main", color: "#9C27B0", label: "BB Upper" },
+      },
+      {
+        id: "bb_middle",
+        snapshotPath: "bb.middle",
+        field: "middle",
+        config: { pane: "main", color: "#9C27B0", label: "BB Mid" },
+      },
+      {
+        id: "bb_lower",
+        snapshotPath: "bb.lower",
+        field: "lower",
+        config: { pane: "main", color: "#9C27B0", label: "BB Lower" },
+      },
+    ],
+  },
+  rsi: {
+    liveName: "rsi14",
+    factory: (s) => incremental.createRsi({ period: 14 }, incremental.restoreState(s)),
+    series: [{ id: "rsi", snapshotPath: "rsi14", config: { pane: "rsi", label: "RSI(14)" } }],
+  },
+  macd: {
+    liveName: "macd",
+    factory: (s) => incremental.createMacd({}, incremental.restoreState(s)),
+    series: [
+      {
+        id: "macd_line",
+        snapshotPath: "macd.macd",
+        field: "macd",
+        config: { pane: "macd", color: "#2196F3", label: "MACD" },
+      },
+      {
+        id: "macd_signal",
+        snapshotPath: "macd.signal",
+        field: "signal",
+        config: { pane: "macd", color: "#FF9800", label: "Signal" },
+      },
+      {
+        id: "macd_hist",
+        snapshotPath: "macd.histogram",
+        field: "histogram",
+        config: { pane: "macd", type: "histogram", label: "Histogram" },
+      },
+    ],
+  },
+  ichimoku: {
+    liveName: "ichimoku",
+    factory: (s) => incremental.createIchimoku({}, incremental.restoreState(s)),
+    series: [
+      {
+        id: "ich_tenkan",
+        snapshotPath: "ichimoku.tenkan",
+        field: "tenkan",
+        config: { pane: "main", color: "#2196F3", label: "Tenkan" },
+      },
+      {
+        id: "ich_kijun",
+        snapshotPath: "ichimoku.kijun",
+        field: "kijun",
+        config: { pane: "main", color: "#FF5722", label: "Kijun" },
+      },
+      {
+        id: "ich_senkouA",
+        snapshotPath: "ichimoku.senkouA",
+        field: "senkouA",
+        config: { pane: "main", color: "#4CAF50", label: "Senkou A" },
+      },
+      {
+        id: "ich_senkouB",
+        snapshotPath: "ichimoku.senkouB",
+        field: "senkouB",
+        config: { pane: "main", color: "#F44336", label: "Senkou B" },
+      },
+    ],
+  },
+};
+
+// Track which live indicators are currently active
+const activeLiveIndicators = new Set<string>();
+// Stored simulation history for back-fill calculations
+let simHistoryRef: typeof sampleData = [];
+
 // Indicator state
 type HandleRef = { value: ReturnType<typeof chart.addIndicator> | null };
 
@@ -45,12 +177,51 @@ const macdRef: HandleRef = { value: null };
 
 function toggle(
   btnId: string,
+  key: string,
   ref: HandleRef,
   create: () => ReturnType<typeof chart.addIndicator>,
 ) {
   const btn = document.getElementById(btnId);
   if (!btn) return;
   btn.addEventListener("click", () => {
+    // Live simulation mode
+    if (liveCandle && liveFeedConn) {
+      const def = LIVE_INDICATORS[key];
+      if (!def) return;
+
+      if (activeLiveIndicators.has(key)) {
+        // Remove
+        liveCandle.removeIndicator(def.liveName);
+        for (const s of def.series) liveFeedConn.removeIndicator(s.id);
+        activeLiveIndicators.delete(key);
+        btn.classList.remove("active");
+      } else {
+        // Add with historical back-fill via incremental computation
+        liveCandle.addIndicator(def.liveName, def.factory);
+
+        // Run a temporary incremental indicator over all candles to build history
+        const allCandles = [...simHistoryRef, ...liveCandle.completedCandles];
+        const tempInd = def.factory(undefined);
+        const fullHistory: { time: number; value: unknown }[] = [];
+        for (const c of allCandles) {
+          fullHistory.push({ time: c.time, value: tempInd.next(c).value });
+        }
+
+        for (const s of def.series) {
+          const historyData = s.field ? extractField(fullHistory, s.field) : fullHistory;
+          liveFeedConn.addIndicator(s.id, {
+            snapshotPath: s.snapshotPath,
+            series: s.config,
+            historyData: historyData as { time: number; value: number | null }[],
+          });
+        }
+        activeLiveIndicators.add(key);
+        btn.classList.add("active");
+      }
+      return;
+    }
+
+    // Static mode (batch data)
     if (ref.value) {
       ref.value.remove();
       ref.value = null;
@@ -62,11 +233,11 @@ function toggle(
   });
 }
 
-toggle("btn-sma", smaRef, () => chart.addIndicator(sma(candles, { period: 20 })));
-toggle("btn-bb", bbRef, () => chart.addIndicator(bollingerBands(candles)));
-toggle("btn-ichimoku", ichimokuRef, () => chart.addIndicator(ichimoku(candles)));
-toggle("btn-rsi", rsiRef, () => chart.addIndicator(rsi(candles)));
-toggle("btn-macd", macdRef, () => chart.addIndicator(macd(candles)));
+toggle("btn-sma", "sma", smaRef, () => chart.addIndicator(sma(candles, { period: 20 })));
+toggle("btn-bb", "bb", bbRef, () => chart.addIndicator(bollingerBands(candles)));
+toggle("btn-ichimoku", "ichimoku", ichimokuRef, () => chart.addIndicator(ichimoku(candles)));
+toggle("btn-rsi", "rsi", rsiRef, () => chart.addIndicator(rsi(candles)));
+toggle("btn-macd", "macd", macdRef, () => chart.addIndicator(macd(candles)));
 
 // Drawing tools
 let hlineId = 0;
@@ -154,9 +325,9 @@ document.getElementById("btn-chart-type")?.addEventListener("click", (e) => {
 
 // --- Tick Simulation: LiveCandle + connectLiveFeed ---
 const allIndicatorRefs: HandleRef[] = [smaRef, bbRef, ichimokuRef, rsiRef, macdRef];
+const allIndicatorBtns = ["btn-sma", "btn-bb", "btn-ichimoku", "btn-rsi", "btn-macd"];
 
 let simTimer: ReturnType<typeof setInterval> | null = null;
-let liveFeedConn: LiveFeedConnection | null = null;
 
 document.getElementById("btn-simulate")?.addEventListener("click", (e) => {
   const btn = e.target as HTMLButtonElement;
@@ -166,11 +337,25 @@ document.getElementById("btn-simulate")?.addEventListener("click", (e) => {
     simTimer = null;
     liveFeedConn?.disconnect();
     liveFeedConn = null;
-    // Restore full data + re-add indicators
+    liveCandle?.dispose();
+    liveCandle = null;
+    activeLiveIndicators.clear();
+
+    // Restore full data + re-add active indicators
     chart.setCandles(candles);
     chart.fitContent();
-    if (document.getElementById("btn-sma")?.classList.contains("active")) {
-      smaRef.value = chart.addIndicator(sma(candles, { period: 20 }));
+    for (let i = 0; i < allIndicatorBtns.length; i++) {
+      const wasActive = document.getElementById(allIndicatorBtns[i])?.classList.contains("active");
+      if (wasActive) {
+        const creators = [
+          () => chart.addIndicator(sma(candles, { period: 20 })),
+          () => chart.addIndicator(bollingerBands(candles)),
+          () => chart.addIndicator(ichimoku(candles)),
+          () => chart.addIndicator(rsi(candles)),
+          () => chart.addIndicator(macd(candles)),
+        ];
+        allIndicatorRefs[i].value = creators[i]();
+      }
     }
     statusEl.textContent = `Sample Daily — ${candles.length} candles loaded`;
     btn.classList.remove("active");
@@ -178,7 +363,7 @@ document.getElementById("btn-simulate")?.addEventListener("click", (e) => {
     return;
   }
 
-  // Remove all indicators before switching to simulation data
+  // Remove all static indicators before switching to simulation data
   for (const ref of allIndicatorRefs) {
     if (ref.value) {
       ref.value.remove();
@@ -186,9 +371,9 @@ document.getElementById("btn-simulate")?.addEventListener("click", (e) => {
     }
   }
 
-  // Pre-generate 50 candles of 1-min history
+  // Pre-generate 50 candles of 1-min history (epoch-aligned times)
   const startPrice = candles[candles.length - 1].close;
-  const simStartTime = Date.now() - 50 * 60_000;
+  const simStartTime = Math.floor((Date.now() - 50 * 60_000) / 60_000) * 60_000;
   const simHistory: typeof candles = [];
   let initPrice = startPrice;
   for (let i = 0; i < 50; i++) {
@@ -208,38 +393,45 @@ document.getElementById("btn-simulate")?.addEventListener("click", (e) => {
     });
   }
 
-  // Create LiveCandle with history + SMA indicator
-  const live = streaming.createLiveCandle({
+  // Store history for back-fill when indicators are added later
+  simHistoryRef = simHistory;
+
+  // Create LiveCandle with history (no indicators yet — added via buttons)
+  liveCandle = streaming.createLiveCandle({
     intervalMs: 60_000,
     history: simHistory,
-    indicators: [
-      {
-        name: "sma20",
-        create: (s) => incremental.createSma({ period: 20 }, incremental.restoreState(s)),
-      },
-    ],
   });
 
-  // Pre-compute historical SMA for back-fill
-  const smaHistory = sma(simHistory, { period: 20 });
+  // Initialize chart with history candles manually
+  // (LiveCandle.completedCandles doesn't include warm-up history)
+  chart.setCandles(simHistory);
 
-  // Connect LiveCandle → chart (auto handles updateCandle + indicator series)
-  liveFeedConn = connectLiveFeed(chart, live, {
-    indicators: {
-      sma: {
-        snapshotPath: "sma20",
-        series: { pane: "main", color: "#2196F3", label: "SMA 20" },
-        historyData: smaHistory,
-      },
-    },
-  });
+  // Connect LiveCandle → chart (skip initHistory — already set above)
+  liveFeedConn = connectLiveFeed(chart, liveCandle, { initHistory: false });
+
+  // Auto-enable SMA (was active by default)
+  const smaDef = LIVE_INDICATORS.sma;
+  liveCandle.addIndicator(smaDef.liveName, smaDef.factory);
+  const tempSma = smaDef.factory(undefined);
+  const smaBackfill: { time: number; value: unknown }[] = [];
+  for (const c of simHistory) {
+    smaBackfill.push({ time: c.time, value: tempSma.next(c).value });
+  }
+  for (const s of smaDef.series) {
+    liveFeedConn.addIndicator(s.id, {
+      snapshotPath: s.snapshotPath,
+      series: s.config,
+      historyData: smaBackfill as { time: number; value: number | null }[],
+    });
+  }
+  activeLiveIndicators.add("sma");
 
   // Random walk state
   let price = simHistory[simHistory.length - 1].close;
   let simTime = simHistory[simHistory.length - 1].time + 60_000;
   let completedCount = 0;
 
-  live.on("candleComplete", () => {
+  liveCandle.on("candleComplete", () => {
     completedCount++;
   });
 
@@ -253,7 +445,7 @@ document.getElementById("btn-simulate")?.addEventListener("click", (e) => {
     simTime += 1000 + Math.random() * 2000;
     const volume = Math.round(100 + Math.random() * 900);
 
-    live.addTick({ time: simTime, price, volume });
+    liveCandle?.addTick({ time: simTime, price, volume });
 
     statusEl.textContent = `Live Simulation — ${completedCount} candles | Price: ${price.toFixed(2)}`;
   }, 100);

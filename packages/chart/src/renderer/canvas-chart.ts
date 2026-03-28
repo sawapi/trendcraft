@@ -260,7 +260,14 @@ export class CanvasChart implements ChartInstance {
     // Auto-follow: if last candle is visible before update, keep following
     const wasAtEnd = this._timeScale.endIndex >= this._data.candleCount - 1;
 
+    const prevCount = this._data.candleCount;
     this._data.updateCandle(candle);
+
+    // Keep time→index map in sync for addIndicator alignment
+    if (this._data.candleCount > prevCount) {
+      this._timeToIndex.set(candle.time, this._data.candleCount - 1);
+    }
+
     this._timeScale.setTotalCount(this._data.candleCount);
 
     if (wasAtEnd) {
