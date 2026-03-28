@@ -190,6 +190,8 @@ export type SeriesConfig = {
   yRange?: [number, number];
   /** Horizontal reference lines (e.g., [30, 70] for RSI). Applied when a new pane is created. */
   referenceLines?: number[];
+  /** Per-channel colors for multi-channel series (e.g., { upper: "#2196F3", lower: "#2196F3" } for bands) */
+  channelColors?: Record<string, string>;
 };
 
 // ============================================

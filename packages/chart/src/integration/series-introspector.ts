@@ -58,23 +58,28 @@ export function introspect<T>(
   userConfig?: SeriesConfig,
 ): IntrospectionResult {
   const meta = extractMeta(data);
+  // Shape detection is always needed for decompose (channel extraction),
+  // but when __meta is present, we prefer __meta for pane/type decisions.
   const rule = defaultRegistry.detect(data);
 
   // Try to match a preset by rule name
   const preset = rule ? (INDICATOR_PRESETS.get(rule.name) ?? null) : null;
 
-  // Resolve series type
+  // Resolve series type:
+  // When __meta exists, skip rule's seriesType (meta is authoritative).
+  // Rule's seriesType is only used as fallback when no meta/preset/user override.
   const seriesType: SeriesType =
-    userConfig?.type ?? preset?.seriesType ?? rule?.seriesType ?? "line";
+    userConfig?.type ?? preset?.seriesType ?? (meta ? "line" : (rule?.seriesType ?? "line"));
 
   // Resolve pane: user config > __meta.overlay > preset > rule > fallback
+  // When __meta exists, it takes priority over rule's defaultPane.
   const metaPane = meta ? (meta.overlay ? "main" : "sub") : undefined;
   const pane: string = userConfig?.pane ?? metaPane ?? preset?.pane ?? rule?.defaultPane ?? "sub";
 
   // Resolve label: user config > __meta > preset > rule name
   const label: string = userConfig?.label ?? meta?.label ?? preset?.label ?? rule?.name ?? "Series";
 
-  // Merge config
+  // Merge config (including channelColors from preset)
   const config: SeriesConfig = {
     pane,
     scaleId: userConfig?.scaleId,
@@ -84,6 +89,7 @@ export function introspect<T>(
     label,
     visible: userConfig?.visible,
     maxHeightRatio: userConfig?.maxHeightRatio,
+    channelColors: userConfig?.channelColors ?? preset?.channelColors,
   };
 
   return {

@@ -103,6 +103,7 @@ export function dispatchSeries(
 
   if (rule.name === "band") {
     const channels = defaultRegistry.decomposeAll(s.data, rule);
+    const cc = s.config.channelColors;
     renderBand(
       ctx,
       channels.get("upper") ?? [],
@@ -110,22 +111,24 @@ export function dispatchSeries(
       channels.get("lower") ?? [],
       timeScale,
       priceScale,
+      cc ? { upperColor: cc.upper, middleColor: cc.middle, lowerColor: cc.lower } : undefined,
     );
     return;
   }
 
   if (rule.name === "macd") {
     const channels = defaultRegistry.decomposeAll(s.data, rule);
+    const cc = s.config.channelColors;
     renderHistogram(ctx, channels.get("histogram") ?? [], timeScale, priceScale, {
-      upColor: "rgba(38,166,154,0.6)",
-      downColor: "rgba(239,83,80,0.6)",
+      upColor: cc?.histogram ?? "rgba(38,166,154,0.6)",
+      downColor: cc?.histogram ? `${cc.histogram}99` : "rgba(239,83,80,0.6)",
     });
     renderChannelLine(ctx, channels.get("macd") ?? [], timeScale, priceScale, {
-      color: "#2196F3",
+      color: cc?.macd ?? "#2196F3",
       lineWidth: 1.5,
     });
     renderChannelLine(ctx, channels.get("signal") ?? [], timeScale, priceScale, {
-      color: "#FF9800",
+      color: cc?.signal ?? "#FF9800",
       lineWidth: 1.5,
     });
     return;
@@ -167,11 +170,12 @@ export function dispatchSeries(
 
   // Generic multi-channel: render each channel as a line
   const channels = defaultRegistry.decomposeAll(s.data, rule);
-  const colors = ["#2196F3", "#FF9800", "#26a69a", "#ef5350", "#9c27b0", "#FF5722"];
+  const cc = s.config.channelColors;
+  const fallbackColors = ["#2196F3", "#FF9800", "#26a69a", "#ef5350", "#9c27b0", "#FF5722"];
   let colorIdx = 0;
-  for (const [, vals] of channels) {
+  for (const [name, vals] of channels) {
     renderChannelLine(ctx, vals, timeScale, priceScale, {
-      color: colors[colorIdx % colors.length],
+      color: cc?.[name] ?? fallbackColors[colorIdx % fallbackColors.length],
       lineWidth,
     });
     colorIdx++;
