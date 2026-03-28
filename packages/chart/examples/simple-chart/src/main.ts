@@ -69,7 +69,13 @@ const LIVE_INDICATORS: Record<string, LiveIndicatorDef> = {
   rsi: {
     liveName: "rsi14",
     factory: (s) => incremental.createRsi({ period: 14 }, incremental.restoreState(s)),
-    series: [{ id: "rsi", snapshotPath: "rsi14", config: { pane: "rsi", label: "RSI(14)" } }],
+    series: [
+      {
+        id: "rsi",
+        snapshotPath: "rsi14",
+        config: { pane: "rsi", label: "RSI(14)", yRange: [0, 100], referenceLines: [30, 70] },
+      },
+    ],
   },
   macd: {
     liveName: "macd",

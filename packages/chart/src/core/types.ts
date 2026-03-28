@@ -186,6 +186,10 @@ export type SeriesConfig = {
   visible?: boolean;
   /** Max height as fraction of pane (0-1). Expands scale range so data occupies at most this ratio of pane height. Useful for volume overlay. */
   maxHeightRatio?: number;
+  /** Fixed Y-axis range for the pane (e.g., [0, 100] for RSI). Applied when a new pane is created. */
+  yRange?: [number, number];
+  /** Horizontal reference lines (e.g., [30, 70] for RSI). Applied when a new pane is created. */
+  referenceLines?: number[];
 };
 
 // ============================================

@@ -92,7 +92,7 @@ export function introspect<T>(
     preset,
     pane,
     config,
-    yRange: meta?.yRange ?? preset?.yRange,
-    referenceLines: meta?.referenceLines ?? preset?.referenceLines,
+    yRange: userConfig?.yRange ?? meta?.yRange ?? preset?.yRange,
+    referenceLines: userConfig?.referenceLines ?? meta?.referenceLines ?? preset?.referenceLines,
   };
 }
