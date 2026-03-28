@@ -45,3 +45,22 @@ export type WarmUpOptions<TState> = {
   /** Process these candles on creation to warm up the indicator */
   warmUp?: NormalizedCandle[];
 };
+
+/**
+ * Convert an unknown saved state into WarmUpOptions for any indicator.
+ * Bridges the type gap between generic factories (e.g., LiveIndicatorFactory)
+ * that pass `unknown` and concrete create functions that expect typed state.
+ *
+ * @example
+ * ```ts
+ * const live = createLiveCandle({
+ *   indicators: [
+ *     { name: "sma20", create: (s) => createSma({ period: 20 }, restoreState(s)) },
+ *     { name: "rsi14", create: (s) => createRsi({ period: 14 }, restoreState(s)) },
+ *   ],
+ * });
+ * ```
+ */
+export function restoreState<TState = unknown>(state: unknown): WarmUpOptions<TState> | undefined {
+  return state != null ? ({ fromState: state } as WarmUpOptions<TState>) : undefined;
+}

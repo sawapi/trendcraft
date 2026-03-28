@@ -215,10 +215,7 @@ document.getElementById("btn-simulate")?.addEventListener("click", (e) => {
     indicators: [
       {
         name: "sma20",
-        create: (s) => {
-          type S = Parameters<typeof incremental.createSma>[1];
-          return incremental.createSma({ period: 20 }, s ? ({ fromState: s } as S) : undefined);
-        },
+        create: (s) => incremental.createSma({ period: 20 }, incremental.restoreState(s)),
       },
     ],
   });
