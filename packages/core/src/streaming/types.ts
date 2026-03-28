@@ -420,3 +420,132 @@ export type TradingSession = {
   /** Serialize internal state */
   getState(): SessionState;
 };
+
+// ============================================
+// LiveCandle Types
+// ============================================
+
+/**
+ * Factory function that creates an incremental indicator instance.
+ * Accepts optional saved state for restoration.
+ */
+export type LiveIndicatorFactory = (fromState?: unknown) => {
+  next(candle: NormalizedCandle): { value: unknown };
+  peek(candle: NormalizedCandle): { value: unknown };
+  getState(): unknown;
+  readonly count: number;
+  readonly isWarmedUp: boolean;
+};
+
+/**
+ * Options for creating a LiveCandle instance
+ */
+export type LiveCandleOptions = {
+  /** Candle interval in ms — required for addTick mode, omit for addCandle-only mode */
+  intervalMs?: number;
+  /** Initial indicators to register */
+  indicators?: { name: string; create: LiveIndicatorFactory; state?: unknown }[];
+  /** Historical candles for warming up indicators */
+  history?: NormalizedCandle[];
+  /** Max completed candles to retain (unbounded if omitted) */
+  maxHistory?: number;
+};
+
+/**
+ * Payload for the "tick" event — fires on every addTick / addCandle call
+ */
+export type LiveTickEvent = {
+  /** Current candle (forming or just-confirmed) */
+  candle: NormalizedCandle;
+  /** All indicator values at this point */
+  snapshot: IndicatorSnapshot;
+  /** True when a candle just completed on this tick */
+  isNewCandle: boolean;
+};
+
+/**
+ * Payload for the "candleComplete" event — fires when a candle is confirmed
+ */
+export type LiveCandleCompleteEvent = {
+  /** The completed candle */
+  candle: NormalizedCandle;
+  /** All indicator values after advancing (next) */
+  snapshot: IndicatorSnapshot;
+};
+
+/**
+ * Event map for type-safe LiveCandle.on()
+ */
+export type LiveCandleEventMap = {
+  tick: LiveTickEvent;
+  candleComplete: LiveCandleCompleteEvent;
+};
+
+/**
+ * Serializable state for LiveCandle pause/resume
+ */
+export type LiveCandleState = {
+  /** Aggregator state (null for candle-only mode) */
+  aggregatorState: CandleAggregatorState | null;
+  /** Saved state for each registered indicator */
+  indicatorEntries: { name: string; state: unknown }[];
+  /** Completed candles history */
+  completedCandles: NormalizedCandle[];
+};
+
+/**
+ * Lightweight live candle manager.
+ * Unifies candle aggregation and incremental indicator computation
+ * with a simple event-driven API.
+ *
+ * Supports two input modes:
+ * - **Tick mode**: `addTick(trade)` — aggregates ticks into candles
+ * - **Candle mode**: `addCandle(candle)` — feeds pre-formed candles directly
+ *
+ * @example
+ * ```ts
+ * const live = createLiveCandle({
+ *   intervalMs: 60_000,
+ *   indicators: [
+ *     { name: "sma20", create: (s) => createSma({ period: 20 }, { fromState: s }) },
+ *   ],
+ * });
+ * live.on("candleComplete", ({ candle, snapshot }) => {
+ *   console.log(candle.close, snapshot.sma20);
+ * });
+ * live.addTick({ time: Date.now(), price: 150.25, volume: 100 });
+ * ```
+ */
+export type LiveCandle = {
+  /** Feed a raw trade tick. Requires intervalMs to be set. */
+  addTick(trade: Trade): void;
+  /**
+   * Feed a pre-formed candle.
+   * By default treats it as a confirmed candle (advances indicators via next).
+   * Pass `{ partial: true }` for forming candles (uses peek, no state advancement).
+   */
+  addCandle(candle: NormalizedCandle, options?: { partial?: boolean }): void;
+  /** Register a new indicator. Catches up via history + completedCandles if no state provided. */
+  addIndicator(name: string, create: LiveIndicatorFactory, state?: unknown): void;
+  /** Remove a registered indicator by name */
+  removeIndicator(name: string): void;
+  /** Current forming candle (null if no ticks/candles received yet) */
+  readonly candle: NormalizedCandle | null;
+  /** All completed candles (bounded by maxHistory if set) */
+  readonly completedCandles: readonly NormalizedCandle[];
+  /** Get the latest value for a named indicator */
+  getIndicator(name: string): unknown;
+  /** Snapshot of all indicator latest values */
+  readonly snapshot: IndicatorSnapshot;
+  /** Subscribe to events; returns an unsubscribe function */
+  on<K extends keyof LiveCandleEventMap>(
+    event: K,
+    cb: (payload: LiveCandleEventMap[K]) => void,
+  ): () => void;
+  /** Force-complete the current candle (tick mode only). Returns null if no forming candle. */
+  flush(): NormalizedCandle | null;
+  /** Serialize full state for persistence */
+  getState(): LiveCandleState;
+  /** Clean up: clear all listeners and internal references */
+  dispose(): void;
+};
