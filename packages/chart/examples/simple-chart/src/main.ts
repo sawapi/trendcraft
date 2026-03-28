@@ -3,12 +3,14 @@ import {
   bollingerBands,
   goldenCrossCondition,
   ichimoku,
+  incremental,
   macd,
   normalizeCandles,
   rsi,
   rsiBelow,
   runBacktest,
   sma,
+  streaming,
 } from "trendcraft";
 import sampleData from "../data.json";
 
@@ -142,6 +144,120 @@ document.getElementById("btn-chart-type")?.addEventListener("click", (e) => {
     ohlc: "OHLC",
   };
   (e.target as HTMLButtonElement).textContent = `Chart: ${labels[type]}`;
+});
+
+// --- Tick Simulation: random ticks → CandleAggregator → live chart ---
+const allIndicatorRefs: HandleRef[] = [smaRef, bbRef, ichimokuRef, rsiRef, macdRef];
+
+let simTimer: ReturnType<typeof setInterval> | null = null;
+let liveSmaHandle: ReturnType<typeof chart.addIndicator> | null = null;
+
+document.getElementById("btn-simulate")?.addEventListener("click", (e) => {
+  const btn = e.target as HTMLButtonElement;
+  if (simTimer) {
+    // Stop simulation
+    clearInterval(simTimer);
+    simTimer = null;
+    if (liveSmaHandle) {
+      liveSmaHandle.remove();
+      liveSmaHandle = null;
+    }
+    // Restore full data + re-add indicators
+    chart.setCandles(candles);
+    chart.fitContent();
+    if (document.getElementById("btn-sma")?.classList.contains("active")) {
+      smaRef.value = chart.addIndicator(sma(candles, { period: 20 }));
+    }
+    statusEl.textContent = `Sample Daily — ${candles.length} candles loaded`;
+    btn.classList.remove("active");
+    btn.textContent = "Simulate";
+    return;
+  }
+
+  // Remove all indicators before switching to simulation data
+  for (const ref of allIndicatorRefs) {
+    if (ref.value) {
+      ref.value.remove();
+      ref.value = null;
+    }
+  }
+
+  // Start fresh — no historical data (pure 1-min chart)
+  const startPrice = candles[candles.length - 1].close;
+  const simStartTime = Date.now() - 50 * 60_000; // pretend 50 mins ago
+
+  // Pre-generate 50 candles of 1-min history so chart isn't empty
+  const simHistory: typeof candles = [];
+  let initPrice = startPrice;
+  for (let i = 0; i < 50; i++) {
+    const t = simStartTime + i * 60_000;
+    const open = initPrice;
+    initPrice += (Math.random() - 0.498) * initPrice * 0.003;
+    const close = initPrice;
+    const high = Math.max(open, close) + Math.random() * Math.abs(close - open) * 0.5;
+    const low = Math.min(open, close) - Math.random() * Math.abs(close - open) * 0.5;
+    simHistory.push({
+      time: t,
+      open: +open.toFixed(3),
+      high: +high.toFixed(3),
+      low: +low.toFixed(3),
+      close: +close.toFixed(3),
+      volume: Math.round(500 + Math.random() * 5000),
+    });
+  }
+  chart.setCandles(simHistory);
+
+  // Create incremental SMA(20) and warm it up with history
+  const incSma = incremental.createSma({ period: 20 });
+  for (const c of simHistory) incSma.next(c);
+
+  // Add SMA series handle for live updates
+  liveSmaHandle = chart.addIndicator(
+    simHistory.map((c) => ({ time: c.time, value: incSma.peek(c).value })),
+    { pane: "main", color: "#2196F3", label: "SMA 20" },
+  );
+
+  // Create 1-minute candle aggregator
+  const agg = streaming.createCandleAggregator({ intervalMs: 60_000 });
+
+  // Random walk state starting from last candle
+  let price = simHistory[simHistory.length - 1].close;
+  let simTime = simHistory[simHistory.length - 1].time + 60_000;
+  let completedCount = 0;
+
+  btn.classList.add("active");
+  btn.textContent = "Stop";
+
+  // Generate ~10 ticks per second
+  simTimer = setInterval(() => {
+    // Random walk tick
+    price += (Math.random() - 0.498) * price * 0.001; // slight upward drift
+    price = Math.max(1, price);
+    simTime += 1000 + Math.random() * 2000; // 1-3 sec between ticks
+    const volume = Math.round(100 + Math.random() * 900);
+
+    const completed = agg.addTrade({ time: simTime, price, volume });
+
+    if (completed) {
+      // Previous candle finalized
+      chart.updateCandle(completed);
+      // Advance SMA state with the confirmed candle
+      const smaResult = incSma.next(completed);
+      liveSmaHandle?.update({ time: completed.time, value: smaResult.value });
+      completedCount++;
+    }
+
+    // Always show the forming candle + preview SMA
+    const current = agg.getCurrentCandle();
+    if (current) {
+      chart.updateCandle(current);
+      // peek() previews the SMA value without advancing state
+      const smaPeek = incSma.peek(current);
+      liveSmaHandle?.update({ time: current.time, value: smaPeek.value });
+    }
+
+    statusEl.textContent = `Live Simulation — ${completedCount} candles | Price: ${price.toFixed(2)}`;
+  }, 100); // 10 ticks/sec
 });
 
 document.getElementById("btn-fit")?.addEventListener("click", () => chart.fitContent());

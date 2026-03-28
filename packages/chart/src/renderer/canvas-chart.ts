@@ -257,8 +257,15 @@ export class CanvasChart implements ChartInstance {
       !Number.isFinite(candle.close)
     )
       return;
+    // Auto-follow: if last candle is visible before update, keep following
+    const wasAtEnd = this._timeScale.endIndex >= this._data.candleCount - 1;
+
     this._data.updateCandle(candle);
     this._timeScale.setTotalCount(this._data.candleCount);
+
+    if (wasAtEnd) {
+      this._timeScale.scrollToEnd();
+    }
     this._needsRender = true;
   }
 
