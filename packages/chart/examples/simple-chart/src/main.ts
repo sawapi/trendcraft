@@ -40,7 +40,6 @@ let liveFeedConn: LiveFeedConnection | null = null;
 type SeriesMapping = {
   id: string;
   snapshotPath: string;
-  field?: string;
   config: Parameters<typeof chart.addIndicator>[1];
 };
 
@@ -49,18 +48,6 @@ type LiveIndicatorDef = {
   factory: streaming.LiveIndicatorFactory;
   series: SeriesMapping[];
 };
-
-/** Extract a nested field from an incremental result */
-function extractField(
-  data: { time: number; value: unknown }[],
-  field: string,
-): { time: number; value: number | null }[] {
-  return data.map((d) => {
-    if (d.value == null || typeof d.value !== "object") return { time: d.time, value: null };
-    const v = (d.value as Record<string, unknown>)[field];
-    return { time: d.time, value: typeof v === "number" ? v : null };
-  });
-}
 
 const LIVE_INDICATORS: Record<string, LiveIndicatorDef> = {
   sma: {
@@ -77,26 +64,7 @@ const LIVE_INDICATORS: Record<string, LiveIndicatorDef> = {
   bb: {
     liveName: "bb",
     factory: (s) => incremental.createBollingerBands({ period: 20 }, incremental.restoreState(s)),
-    series: [
-      {
-        id: "bb_upper",
-        snapshotPath: "bb.upper",
-        field: "upper",
-        config: { pane: "main", color: "#9C27B0", label: "BB Upper" },
-      },
-      {
-        id: "bb_middle",
-        snapshotPath: "bb.middle",
-        field: "middle",
-        config: { pane: "main", color: "#9C27B0", label: "BB Mid" },
-      },
-      {
-        id: "bb_lower",
-        snapshotPath: "bb.lower",
-        field: "lower",
-        config: { pane: "main", color: "#9C27B0", label: "BB Lower" },
-      },
-    ],
+    series: [{ id: "bb", snapshotPath: "bb", config: { label: "BB(20)" } }],
   },
   rsi: {
     liveName: "rsi14",
@@ -106,56 +74,12 @@ const LIVE_INDICATORS: Record<string, LiveIndicatorDef> = {
   macd: {
     liveName: "macd",
     factory: (s) => incremental.createMacd({}, incremental.restoreState(s)),
-    series: [
-      {
-        id: "macd_line",
-        snapshotPath: "macd.macd",
-        field: "macd",
-        config: { pane: "macd", color: "#2196F3", label: "MACD" },
-      },
-      {
-        id: "macd_signal",
-        snapshotPath: "macd.signal",
-        field: "signal",
-        config: { pane: "macd", color: "#FF9800", label: "Signal" },
-      },
-      {
-        id: "macd_hist",
-        snapshotPath: "macd.histogram",
-        field: "histogram",
-        config: { pane: "macd", type: "histogram", label: "Histogram" },
-      },
-    ],
+    series: [{ id: "macd", snapshotPath: "macd", config: { label: "MACD" } }],
   },
   ichimoku: {
     liveName: "ichimoku",
     factory: (s) => incremental.createIchimoku({}, incremental.restoreState(s)),
-    series: [
-      {
-        id: "ich_tenkan",
-        snapshotPath: "ichimoku.tenkan",
-        field: "tenkan",
-        config: { pane: "main", color: "#2196F3", label: "Tenkan" },
-      },
-      {
-        id: "ich_kijun",
-        snapshotPath: "ichimoku.kijun",
-        field: "kijun",
-        config: { pane: "main", color: "#FF5722", label: "Kijun" },
-      },
-      {
-        id: "ich_senkouA",
-        snapshotPath: "ichimoku.senkouA",
-        field: "senkouA",
-        config: { pane: "main", color: "#4CAF50", label: "Senkou A" },
-      },
-      {
-        id: "ich_senkouB",
-        snapshotPath: "ichimoku.senkouB",
-        field: "senkouB",
-        config: { pane: "main", color: "#F44336", label: "Senkou B" },
-      },
-    ],
+    series: [{ id: "ichimoku", snapshotPath: "ichimoku", config: { label: "Ichimoku" } }],
   },
 };
 
@@ -208,11 +132,10 @@ function toggle(
         }
 
         for (const s of def.series) {
-          const historyData = s.field ? extractField(fullHistory, s.field) : fullHistory;
           liveFeedConn.addIndicator(s.id, {
             snapshotPath: s.snapshotPath,
             series: s.config,
-            historyData: historyData as { time: number; value: number | null }[],
+            historyData: fullHistory as { time: number; value: number | null }[],
           });
         }
         activeLiveIndicators.add(key);

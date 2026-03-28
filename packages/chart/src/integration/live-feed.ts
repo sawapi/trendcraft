@@ -120,15 +120,21 @@ export type LiveFeedConnection = {
 // ============================================
 
 /**
- * Resolve a dot-path value from a snapshot.
- * Supports one level of nesting: "bb.upper" → snapshot.bb.upper
+ * Resolve a snapshot value by path.
+ *
+ * - Simple key (`"rsi14"`) → returns the value as-is (number, object, or null)
+ * - Dot-path (`"bb.upper"`) → drills into object and returns the nested scalar
+ *
+ * Compound objects (e.g., `{ upper, middle, lower }`) are returned whole
+ * so the chart's introspector can auto-detect band/channel types.
  */
-function resolveValue(snapshot: Record<string, unknown>, path: string): number | null {
+function resolveValue(snapshot: Record<string, unknown>, path: string): unknown {
   const dot = path.indexOf(".");
   if (dot === -1) {
     const v = snapshot[path];
-    return typeof v === "number" ? v : null;
+    return v ?? null;
   }
+  // Dot-path: extract nested scalar
   const key = path.slice(0, dot);
   const field = path.slice(dot + 1);
   const obj = snapshot[key];

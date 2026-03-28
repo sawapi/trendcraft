@@ -202,6 +202,23 @@ describe("connectLiveFeed", () => {
     expect(handles[1].value.update).toHaveBeenCalledWith({ time: 1000, value: 88 });
   });
 
+  it("should pass compound object when snapshotPath points to an object", () => {
+    const { chart } = createMockChart();
+    const { source, emitTick } = createMockSource();
+
+    connectLiveFeed(chart, source, {
+      indicators: {
+        bb: { snapshotPath: "bb" },
+      },
+    });
+
+    const bbValue = { upper: 112, middle: 100, lower: 88 };
+    emitTick(candle(1000, 100), { bb: bbValue });
+
+    const handle = (chart.addIndicator as ReturnType<typeof vi.fn>).mock.results[0].value;
+    expect(handle.update).toHaveBeenCalledWith({ time: 1000, value: bbValue });
+  });
+
   it("should pass null when snapshot path resolves to non-number", () => {
     const { chart } = createMockChart();
     const { source, emitTick } = createMockSource();

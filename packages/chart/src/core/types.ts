@@ -195,8 +195,8 @@ export type SeriesConfig = {
 export type SeriesHandle = {
   /** Unique series id */
   readonly id: string;
-  /** Push a single data point (streaming) */
-  update(point: DataPoint): void;
+  /** Push a single data point (streaming). Accepts scalar or compound values. */
+  update(point: DataPoint<unknown>): void;
   /** Replace all data */
   setData<T>(data: DataPoint<T>[]): void;
   /** Toggle visibility */
