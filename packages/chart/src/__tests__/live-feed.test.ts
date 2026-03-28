@@ -219,6 +219,23 @@ describe("connectLiveFeed", () => {
     expect(handle.update).toHaveBeenCalledWith({ time: 1000, value: bbValue });
   });
 
+  it("should extract candle field when candleField is set", () => {
+    const { chart } = createMockChart();
+    const { source, emitTick } = createMockSource();
+
+    connectLiveFeed(chart, source, {
+      indicators: {
+        vol: { candleField: "volume", series: { type: "histogram" } },
+      },
+    });
+
+    const c = candle(1000, 100); // volume = 100
+    emitTick(c, {});
+
+    const handle = (chart.addIndicator as ReturnType<typeof vi.fn>).mock.results[0].value;
+    expect(handle.update).toHaveBeenCalledWith({ time: 1000, value: 100 });
+  });
+
   it("should pass null when snapshot path resolves to non-number", () => {
     const { chart } = createMockChart();
     const { source, emitTick } = createMockSource();

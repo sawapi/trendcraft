@@ -80,11 +80,14 @@ export type LiveFeedSource = {
 // ============================================
 
 /**
- * Configuration for mapping a snapshot value to a chart series
+ * Configuration for mapping a value to a chart series.
+ * Use `snapshotPath` for indicator values or `candleField` for raw OHLCV fields.
  */
 export type LiveFeedIndicatorConfig = {
-  /** Dot-path into snapshot (e.g., "rsi14", "bb.upper") */
-  snapshotPath: string;
+  /** Dot-path into snapshot (e.g., "rsi14", "bb.upper", "bb") */
+  snapshotPath?: string;
+  /** Extract a field directly from the candle (e.g., "volume", "close") */
+  candleField?: "open" | "high" | "low" | "close" | "volume";
   /** Chart series visual config (color, pane, label, etc.) */
   series?: SeriesConfig;
   /** Pre-computed historical data points for back-fill */
@@ -187,21 +190,32 @@ export function connectLiveFeed(
     }
   }
 
+  function resolveEntry(
+    config: LiveFeedIndicatorConfig,
+    snapshot: Record<string, unknown>,
+    candle: SourceCandle,
+  ): unknown {
+    if (config.candleField) {
+      return candle[config.candleField];
+    }
+    return config.snapshotPath ? resolveValue(snapshot, config.snapshotPath) : null;
+  }
+
   function mountIndicator(id: string, config: LiveFeedIndicatorConfig): void {
     const handle = chart.addIndicator(config.historyData ?? [], config.series);
     activeIndicators.set(id, { handle, config });
 
     // If source already has a forming candle, push initial value
     if (source.candle) {
-      const value = resolveValue(source.snapshot, config.snapshotPath);
+      const value = resolveEntry(config, source.snapshot, source.candle);
       handle.update({ time: source.candle.time, value });
     }
   }
 
-  function updateIndicators(snapshot: Record<string, unknown>, time: number): void {
+  function updateIndicators(snapshot: Record<string, unknown>, candle: SourceCandle): void {
     for (const [, entry] of activeIndicators) {
-      const value = resolveValue(snapshot, entry.config.snapshotPath);
-      entry.handle.update({ time, value });
+      const value = resolveEntry(entry.config, snapshot, candle);
+      entry.handle.update({ time: candle.time, value });
     }
   }
 
@@ -225,12 +239,12 @@ export function connectLiveFeed(
   // --- Step 3: Subscribe to events ---
 
   const unsubComplete = source.on("candleComplete", ({ candle, snapshot }) => {
-    updateIndicators(snapshot, candle.time);
+    updateIndicators(snapshot, candle);
   });
 
   const unsubTick = source.on("tick", ({ candle, snapshot }) => {
     chart.updateCandle(candle as CandleData);
-    updateIndicators(snapshot, candle.time);
+    updateIndicators(snapshot, candle);
   });
 
   // --- Step 4: Build connection handle ---

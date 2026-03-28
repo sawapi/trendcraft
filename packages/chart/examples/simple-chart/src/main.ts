@@ -263,6 +263,7 @@ document.getElementById("btn-simulate")?.addEventListener("click", (e) => {
     liveCandle?.dispose();
     liveCandle = null;
     activeLiveIndicators.clear();
+    volOverlayLive = false;
 
     // Restore full data + re-add active indicators
     chart.setCandles(candles);
@@ -538,26 +539,51 @@ document.getElementById("btn-plugin-trail")?.addEventListener("click", (e) => {
 
 // --- Volume Overlay Demo: Yahoo Finance style volume on main pane ---
 
+const VOL_OVERLAY_CONFIG = {
+  pane: "main" as const,
+  scaleId: "left" as const,
+  type: "histogram" as const,
+  maxHeightRatio: 0.2,
+  color: "rgba(100,181,246,0.3)",
+  label: "Volume",
+};
+
 let volOverlayHandle: ReturnType<typeof chart.addIndicator> | null = null;
+let volOverlayLive = false;
 document.getElementById("btn-vol-overlay")?.addEventListener("click", (e) => {
   const btn = e.target as HTMLButtonElement;
-  if (volOverlayHandle) {
-    volOverlayHandle.remove();
-    volOverlayHandle = null;
-    chart.setShowVolume(true); // Restore separate volume pane
+
+  // Remove existing
+  if (volOverlayHandle || volOverlayLive) {
+    if (volOverlayHandle) {
+      volOverlayHandle.remove();
+      volOverlayHandle = null;
+    }
+    if (volOverlayLive && liveFeedConn) {
+      liveFeedConn.removeIndicator("vol_overlay");
+      volOverlayLive = false;
+    }
+    chart.setShowVolume(true);
     btn.classList.remove("active");
-  } else {
-    chart.setShowVolume(false); // Hide separate volume pane
-    // Convert candle volume to series data
-    const volumeSeries = candles.map((c) => ({ time: c.time, value: c.volume }));
-    volOverlayHandle = chart.addIndicator(volumeSeries, {
-      pane: "main",
-      scaleId: "left",
-      type: "histogram",
-      maxHeightRatio: 0.2, // volume bars occupy at most 20% of pane height
-      color: "rgba(100,181,246,0.3)",
-      label: "Volume",
-    });
-    btn.classList.add("active");
+    return;
   }
+
+  // Add
+  chart.setShowVolume(false);
+  if (liveCandle && liveFeedConn) {
+    // Live mode: use candleField
+    const allCandles = [...simHistoryRef, ...liveCandle.completedCandles];
+    const historyData = allCandles.map((c) => ({ time: c.time, value: c.volume }));
+    liveFeedConn.addIndicator("vol_overlay", {
+      candleField: "volume",
+      series: VOL_OVERLAY_CONFIG,
+      historyData,
+    });
+    volOverlayLive = true;
+  } else {
+    // Static mode
+    const volumeSeries = candles.map((c) => ({ time: c.time, value: c.volume }));
+    volOverlayHandle = chart.addIndicator(volumeSeries, VOL_OVERLAY_CONFIG);
+  }
+  btn.classList.add("active");
 });
