@@ -60,3 +60,12 @@ export type {
 } from "./core/types";
 
 export { DARK_THEME, LIGHT_THEME } from "./core/types";
+
+// Live feed integration
+export { connectLiveFeed } from "./integration/live-feed";
+export type {
+  LiveFeedSource,
+  LiveFeedIndicatorConfig,
+  ConnectLiveFeedOptions,
+  LiveFeedConnection,
+} from "./integration/live-feed";

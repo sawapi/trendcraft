@@ -91,3 +91,12 @@ export { RendererRegistry } from "./core/renderer-registry";
 
 // Drawing helper
 export { DrawHelper, type StrokeStyle, type FillStyle } from "./core/draw-helper";
+
+// Live feed integration
+export { connectLiveFeed } from "./integration/live-feed";
+export type {
+  LiveFeedSource,
+  LiveFeedIndicatorConfig,
+  ConnectLiveFeedOptions,
+  LiveFeedConnection,
+} from "./integration/live-feed";
