@@ -40,7 +40,7 @@ describe("autoFormatPrice", () => {
   });
 
   it("handles zero", () => {
-    expect(autoFormatPrice(0)).toBe("0.00000000");
+    expect(autoFormatPrice(0)).toBe("0");
   });
 });
 

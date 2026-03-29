@@ -18,6 +18,7 @@
 export function autoFormatPrice(price: number): string {
   const abs = Math.abs(price);
   if (!Number.isFinite(price)) return "—";
+  if (abs === 0) return "0";
   if (abs >= 10000) return price.toFixed(0);
   if (abs >= 100) return price.toFixed(2);
   if (abs >= 1) return price.toFixed(3);
