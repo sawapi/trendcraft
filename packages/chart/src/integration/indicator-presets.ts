@@ -106,6 +106,21 @@ export const INDICATOR_PRESETS = new Map<string, IndicatorPreset>([
     },
   ],
 
+  // Stochastics (alias for live preset name "stochastics" → rule name "oscillator")
+  [
+    "stochastics",
+    {
+      pane: "sub",
+      label: "Stochastics",
+      channelColors: {
+        k: "#2196F3",
+        d: "#FF9800",
+      },
+      yRange: [0, 100],
+      referenceLines: [20, 80],
+    },
+  ],
+
   // Aroon
   [
     "aroon",

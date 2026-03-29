@@ -147,6 +147,51 @@ export function dispatchSeries(
     return;
   }
 
+  // Supertrend: draw active band colored by trend direction
+  if (rule.name === "supertrend") {
+    const channels = defaultRegistry.decomposeAll(s.data, rule);
+    const upper = channels.get("upperBand") ?? [];
+    const lower = channels.get("lowerBand") ?? [];
+    const trend = channels.get("trend") ?? [];
+    const cc = s.config.channelColors;
+    const upColor = cc?.lowerBand ?? "#26a69a";
+    const downColor = cc?.upperBand ?? "#ef5350";
+    const start = timeScale.startIndex;
+    const end = timeScale.endIndex;
+
+    ctx.lineWidth = s.config.lineWidth ?? 1.5;
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+    ctx.setLineDash([]);
+
+    // Draw segments, switching color on trend change
+    let prevTrend: number | null = null;
+    let drawing = false;
+    for (let i = start; i < end && i < trend.length; i++) {
+      const t = trend[i];
+      const val = t === 1 ? lower[i] : upper[i];
+      if (val === null || val === undefined || t === null || t === undefined) {
+        drawing = false;
+        prevTrend = null;
+        continue;
+      }
+      const x = timeScale.indexToX(i);
+      const y = priceScale.priceToY(val);
+      if (!drawing || t !== prevTrend) {
+        if (drawing) ctx.stroke();
+        ctx.beginPath();
+        ctx.strokeStyle = t === 1 ? upColor : downColor;
+        ctx.moveTo(x, y);
+        drawing = true;
+      } else {
+        ctx.lineTo(x, y);
+      }
+      prevTrend = t;
+    }
+    if (drawing) ctx.stroke();
+    return;
+  }
+
   if (rule.name === "hmmRegime") {
     renderArea(ctx, s.data as DataPoint<number | null>[], timeScale, priceScale, {
       lineColor: color,
