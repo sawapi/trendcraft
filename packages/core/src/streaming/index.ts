@@ -173,6 +173,10 @@ export { createLiveCandle } from "./live-candle";
 export { livePresets } from "./live-presets";
 export type { LivePreset } from "./live-presets";
 
+// Unified indicator presets (static + live, for connectIndicators)
+export { indicatorPresets } from "./indicator-presets";
+export type { IndicatorPreset } from "./indicator-presets";
+
 // Phase 5: Guards (Risk Management & Time Control)
 export {
   createRiskGuard,

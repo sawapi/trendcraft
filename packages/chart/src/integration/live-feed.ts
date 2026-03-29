@@ -34,31 +34,26 @@ import type {
   SeriesConfig,
   SeriesHandle,
 } from "../core/types";
-import { INDICATOR_PRESETS } from "./indicator-presets";
+import {
+  type LiveIndicatorFactoryFn,
+  type PresetMeta,
+  type SourceCandle,
+  buildSeriesConfig,
+  computeBackfill,
+  resolveSnapshotName,
+  resolveValue,
+} from "./helpers";
+
 // ============================================
 // Preset Types (duck-typed, matches LivePreset from core)
 // ============================================
-
-/** Indicator metadata (duck-typed, matches SeriesMeta from core) */
-type PresetMeta = {
-  overlay: boolean;
-  label: string;
-  yRange?: [number, number];
-  referenceLines?: number[];
-};
 
 /** A live indicator preset (duck-typed, matches LivePreset from core) */
 export type LivePresetEntry = {
   meta: PresetMeta;
   defaultParams: Record<string, unknown>;
   snapshotName: string | ((params: Record<string, unknown>) => string);
-  createFactory: (params: Record<string, unknown>) => (fromState?: unknown) => {
-    next(candle: SourceCandle): { value: unknown };
-    peek(candle: SourceCandle): { value: unknown };
-    getState(): unknown;
-    readonly count: number;
-    readonly isWarmedUp: boolean;
-  };
+  createFactory: (params: Record<string, unknown>) => LiveIndicatorFactoryFn;
 };
 
 /** User-facing shorthand for addIndicator("rsi", options?) */
@@ -70,16 +65,6 @@ export type AddIndicatorShorthand = {
 // ============================================
 // Duck-typed Source Interface
 // ============================================
-
-/** OHLCV candle shape (duck-typed, matches NormalizedCandle from core) */
-type SourceCandle = {
-  time: number;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume: number;
-};
 
 /**
  * Duck-typed interface for a LiveCandle-compatible data source.
@@ -175,81 +160,12 @@ export type LiveFeedConnection = {
 // Helpers
 // ============================================
 
-/**
- * Resolve a snapshot value by path.
- *
- * - Simple key (`"rsi14"`) → returns the value as-is (number, object, or null)
- * - Dot-path (`"bb.upper"`) → drills into object and returns the nested scalar
- *
- * Compound objects (e.g., `{ upper, middle, lower }`) are returned whole
- * so the chart's introspector can auto-detect band/channel types.
- */
-function resolveValue(snapshot: Record<string, unknown>, path: string): unknown {
-  const dot = path.indexOf(".");
-  if (dot === -1) {
-    const v = snapshot[path];
-    return v ?? null;
-  }
-  // Dot-path: extract nested scalar
-  const key = path.slice(0, dot);
-  const field = path.slice(dot + 1);
-  const obj = snapshot[key];
-  if (obj == null || typeof obj !== "object") return null;
-  const v = (obj as Record<string, unknown>)[field];
-  return typeof v === "number" ? v : null;
-}
-
 /** Check if a config object is a LiveFeedIndicatorConfig (has snapshotPath or candleField) */
 function isExplicitConfig(
   config: LiveFeedIndicatorConfig | AddIndicatorShorthand | undefined,
 ): config is LiveFeedIndicatorConfig {
   if (!config) return false;
   return "snapshotPath" in config || "candleField" in config || "historyData" in config;
-}
-
-/** Compute back-fill data by running a factory over candle history */
-function computeBackfill(
-  createFactory: LivePresetEntry["createFactory"],
-  params: Record<string, unknown>,
-  candles: readonly SourceCandle[],
-): DataPoint<unknown>[] {
-  const instance = createFactory(params)();
-  const points: DataPoint<unknown>[] = [];
-  for (const candle of candles) {
-    points.push({ time: candle.time, value: instance.next(candle).value });
-  }
-  return points;
-}
-
-/** Resolve the snapshot name from a preset */
-function resolveSnapshotName(preset: LivePresetEntry, params: Record<string, unknown>): string {
-  return typeof preset.snapshotName === "function"
-    ? preset.snapshotName(params)
-    : preset.snapshotName;
-}
-
-/** Build series config from preset meta + user overrides */
-function buildSeriesConfig(
-  meta: PresetMeta,
-  snapshotName: string,
-  params: Record<string, unknown>,
-  overrides?: SeriesConfig,
-  presetId?: string,
-): SeriesConfig {
-  // Resolve channelColors: user overrides > INDICATOR_PRESETS > undefined
-  const chartPreset = presetId ? INDICATOR_PRESETS.get(presetId) : undefined;
-  return {
-    pane: overrides?.pane ?? (meta.overlay ? "main" : snapshotName),
-    color: overrides?.color ?? chartPreset?.color,
-    lineWidth: overrides?.lineWidth ?? chartPreset?.lineWidth,
-    label: overrides?.label ?? `${meta.label}(${params.period ?? ""})`.replace(/\(\)$/, ""),
-    yRange: overrides?.yRange ?? meta.yRange,
-    referenceLines: overrides?.referenceLines ?? meta.referenceLines,
-    type: overrides?.type,
-    scaleId: overrides?.scaleId,
-    maxHeightRatio: overrides?.maxHeightRatio,
-    channelColors: overrides?.channelColors ?? chartPreset?.channelColors,
-  };
 }
 
 // ============================================
@@ -261,6 +177,9 @@ function buildSeriesConfig(
  *
  * Subscribes to the source's events and automatically updates
  * candle data and indicator series on the chart.
+ *
+ * @deprecated Use `connectIndicators(chart, { presets, candles, live: source })` instead.
+ * `connectIndicators` supports both static and live modes with a unified API.
  *
  * @param chart - A ChartInstance (from createChart)
  * @param source - A LiveCandle-compatible object (duck-typed)

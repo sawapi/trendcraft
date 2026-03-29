@@ -92,7 +92,15 @@ export { RendererRegistry } from "./core/renderer-registry";
 // Drawing helper
 export { DrawHelper, type StrokeStyle, type FillStyle } from "./core/draw-helper";
 
-// Live feed integration
+// Unified indicator connection
+export { connectIndicators } from "./integration/connect-indicators";
+export type {
+  ConnectIndicatorsOptions,
+  IndicatorConnection,
+  IndicatorPresetEntry,
+} from "./integration/connect-indicators";
+
+// Live feed integration (legacy — prefer connectIndicators)
 export { connectLiveFeed } from "./integration/live-feed";
 export type {
   LiveFeedSource,
