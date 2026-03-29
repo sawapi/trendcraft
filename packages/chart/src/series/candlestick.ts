@@ -24,6 +24,7 @@ export function renderCandlesticks(
     if (!candle) continue;
 
     const x = timeScale.indexToX(i);
+    const sx = Math.round(x) + 0.5; // snap to pixel grid for crisp 1px lines
     const isUp = candle.close >= candle.open;
 
     const openY = priceScale.priceToY(candle.open);
@@ -38,21 +39,21 @@ export function renderCandlesticks(
     ctx.strokeStyle = isUp ? theme.upWick : theme.downWick;
     ctx.lineWidth = wickWidth;
     ctx.beginPath();
-    ctx.moveTo(x, highY);
-    ctx.lineTo(x, lowY);
+    ctx.moveTo(sx, highY);
+    ctx.lineTo(sx, lowY);
     ctx.stroke();
 
     // Body
     ctx.fillStyle = isUp ? theme.upColor : theme.downColor;
-    ctx.fillRect(x - halfCandle, bodyTop, candleWidth, bodyHeight);
+    ctx.fillRect(Math.round(x - halfCandle), bodyTop, Math.round(candleWidth), bodyHeight);
 
     // Body border for very small candles
     if (bodyHeight <= 1) {
       ctx.strokeStyle = isUp ? theme.upColor : theme.downColor;
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(x - halfCandle, bodyTop);
-      ctx.lineTo(x + halfCandle, bodyTop);
+      ctx.moveTo(sx - halfCandle, bodyTop);
+      ctx.lineTo(sx + halfCandle, bodyTop);
       ctx.stroke();
     }
   }

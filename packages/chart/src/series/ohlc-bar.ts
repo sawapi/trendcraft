@@ -21,33 +21,34 @@ export function renderOhlcBars(
     if (!candle) continue;
 
     const x = timeScale.indexToX(i);
+    const sx = Math.round(x) + 0.5; // snap to pixel grid
     const isUp = candle.close >= candle.open;
     const color = isUp ? theme.upColor : theme.downColor;
 
     const highY = priceScale.priceToY(candle.high);
     const lowY = priceScale.priceToY(candle.low);
-    const openY = priceScale.priceToY(candle.open);
-    const closeY = priceScale.priceToY(candle.close);
+    const openY = Math.round(priceScale.priceToY(candle.open)) + 0.5;
+    const closeY = Math.round(priceScale.priceToY(candle.close)) + 0.5;
 
     ctx.strokeStyle = color;
     ctx.lineWidth = Math.max(1, timeScale.candleWidth * 0.15);
 
     // Vertical line (high to low)
     ctx.beginPath();
-    ctx.moveTo(x, highY);
-    ctx.lineTo(x, lowY);
+    ctx.moveTo(sx, highY);
+    ctx.lineTo(sx, lowY);
     ctx.stroke();
 
     // Left tick (open)
     ctx.beginPath();
-    ctx.moveTo(x - tickWidth, openY);
-    ctx.lineTo(x, openY);
+    ctx.moveTo(sx - tickWidth, openY);
+    ctx.lineTo(sx, openY);
     ctx.stroke();
 
     // Right tick (close)
     ctx.beginPath();
-    ctx.moveTo(x, closeY);
-    ctx.lineTo(x + tickWidth, closeY);
+    ctx.moveTo(sx, closeY);
+    ctx.lineTo(sx + tickWidth, closeY);
     ctx.stroke();
   }
 }

@@ -71,14 +71,20 @@ export class TimeScale {
     return (index - this._startIndex + 0.5) * this._barSpacing;
   }
 
-  /** X pixel to nearest index */
+  /** X pixel to candle index at that position */
   xToIndex(x: number): number {
-    return Math.round(x / this._barSpacing - 0.5 + this._startIndex);
+    return Math.floor(x / this._barSpacing + this._startIndex);
   }
 
   /** Scroll by delta candles (positive = scroll right) */
   scrollBy(deltaBars: number): void {
     this._startIndex += deltaBars;
+    this.clamp();
+  }
+
+  /** Scroll to absolute index without changing barSpacing or visibleCount */
+  scrollTo(index: number): void {
+    this._startIndex = index;
     this.clamp();
   }
 

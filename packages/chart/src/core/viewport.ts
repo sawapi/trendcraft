@@ -146,9 +146,8 @@ export class Viewport {
 
       if (this._state.isDragging) {
         const dx = e.clientX - this._dragStartX;
-        const deltaBars = -Math.round(dx / timeScale.barSpacing);
-        const newStart = this._dragStartIndex + deltaBars;
-        timeScale.setVisibleRange(newStart, newStart + timeScale.visibleCount);
+        const deltaBars = -(dx / timeScale.barSpacing);
+        timeScale.scrollTo(this._dragStartIndex + deltaBars);
       }
 
       this._onUpdate?.();
@@ -347,9 +346,8 @@ export class Viewport {
         }
 
         const dx = currentX - this._dragStartX;
-        const deltaBars = -Math.round(dx / timeScale.barSpacing);
-        const newStart = this._dragStartIndex + deltaBars;
-        timeScale.setVisibleRange(newStart, newStart + timeScale.visibleCount);
+        const deltaBars = -(dx / timeScale.barSpacing);
+        timeScale.scrollTo(this._dragStartIndex + deltaBars);
         this._onUpdate?.();
       } else if (e.touches.length === 2) {
         const dist = Math.abs(e.touches[0].clientX - e.touches[1].clientX);
