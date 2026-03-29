@@ -70,7 +70,8 @@ export const INDICATOR_PRESETS = new Map<string, IndicatorPreset>([
       channelColors: {
         macd: "#2196F3",
         signal: "#FF9800",
-        histogram: "#26a69a",
+        histogramUp: "#26a69a",
+        histogramDown: "#ef5350",
       },
     },
   ],

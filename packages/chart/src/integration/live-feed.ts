@@ -34,6 +34,7 @@ import type {
   SeriesConfig,
   SeriesHandle,
 } from "../core/types";
+import { INDICATOR_PRESETS } from "./indicator-presets";
 // ============================================
 // Preset Types (duck-typed, matches LivePreset from core)
 // ============================================
@@ -233,17 +234,21 @@ function buildSeriesConfig(
   snapshotName: string,
   params: Record<string, unknown>,
   overrides?: SeriesConfig,
+  presetId?: string,
 ): SeriesConfig {
+  // Resolve channelColors: user overrides > INDICATOR_PRESETS > undefined
+  const chartPreset = presetId ? INDICATOR_PRESETS.get(presetId) : undefined;
   return {
     pane: overrides?.pane ?? (meta.overlay ? "main" : snapshotName),
-    color: overrides?.color,
-    lineWidth: overrides?.lineWidth,
+    color: overrides?.color ?? chartPreset?.color,
+    lineWidth: overrides?.lineWidth ?? chartPreset?.lineWidth,
     label: overrides?.label ?? `${meta.label}(${params.period ?? ""})`.replace(/\(\)$/, ""),
     yRange: overrides?.yRange ?? meta.yRange,
     referenceLines: overrides?.referenceLines ?? meta.referenceLines,
     type: overrides?.type,
     scaleId: overrides?.scaleId,
     maxHeightRatio: overrides?.maxHeightRatio,
+    channelColors: overrides?.channelColors ?? chartPreset?.channelColors,
   };
 }
 
@@ -353,8 +358,8 @@ export function connectLiveFeed(
     const historyData =
       allCandles.length > 0 ? computeBackfill(preset.createFactory, params, allCandles) : [];
 
-    // Build series config
-    const series = buildSeriesConfig(preset.meta, snapshotName, params, seriesOverrides);
+    // Build series config (pass preset id for INDICATOR_PRESETS lookup)
+    const series = buildSeriesConfig(preset.meta, snapshotName, params, seriesOverrides, id);
 
     const config: LiveFeedIndicatorConfig = {
       snapshotPath: snapshotName,

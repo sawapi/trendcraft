@@ -66,10 +66,9 @@ export function introspect<T>(
   const preset = rule ? (INDICATOR_PRESETS.get(rule.name) ?? null) : null;
 
   // Resolve series type:
-  // When __meta exists, skip rule's seriesType (meta is authoritative).
-  // Rule's seriesType is only used as fallback when no meta/preset/user override.
+  // user config > preset > rule > fallback "line"
   const seriesType: SeriesType =
-    userConfig?.type ?? preset?.seriesType ?? (meta ? "line" : (rule?.seriesType ?? "line"));
+    userConfig?.type ?? preset?.seriesType ?? rule?.seriesType ?? "line";
 
   // Resolve pane: user config > __meta.overlay > preset > rule > fallback
   // When __meta exists, it takes priority over rule's defaultPane.

@@ -120,8 +120,8 @@ export function dispatchSeries(
     const channels = defaultRegistry.decomposeAll(s.data, rule);
     const cc = s.config.channelColors;
     renderHistogram(ctx, channels.get("histogram") ?? [], timeScale, priceScale, {
-      upColor: cc?.histogram ?? "rgba(38,166,154,0.6)",
-      downColor: cc?.histogram ? `${cc.histogram}99` : "rgba(239,83,80,0.6)",
+      upColor: cc?.histogramUp ?? "rgba(38,166,154,0.6)",
+      downColor: cc?.histogramDown ?? "rgba(239,83,80,0.6)",
     });
     renderChannelLine(ctx, channels.get("macd") ?? [], timeScale, priceScale, {
       color: cc?.macd ?? "#2196F3",
