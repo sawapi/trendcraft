@@ -36,6 +36,12 @@ import { CanvasChart } from "./renderer/canvas-chart";
  * ```
  */
 export function createChart(container: HTMLElement, options?: ChartOptions): ChartInstance {
+  if (typeof document === "undefined") {
+    throw new Error(
+      "@trendcraft/chart: createChart() requires a browser environment. " +
+        "Use @trendcraft/chart/headless for server-side usage.",
+    );
+  }
   return new CanvasChart(container, options);
 }
 

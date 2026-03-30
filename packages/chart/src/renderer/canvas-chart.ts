@@ -83,6 +83,8 @@ export class CanvasChart implements ChartInstance {
   private _needsRender = true;
   private _detachViewport: (() => void) | null = null;
   private _resizeObserver: ResizeObserver | null = null;
+  private _ariaLiveEl: HTMLElement | null = null;
+  private _ariaLiveTimer: ReturnType<typeof setTimeout> | null = null;
 
   // Event listeners
   private _listeners = new Map<ChartEvent, Set<(data: unknown) => void>>();
@@ -98,6 +100,13 @@ export class CanvasChart implements ChartInstance {
   private _autoSubchartId = 0;
 
   constructor(container: HTMLElement, options?: ChartOptions) {
+    if (typeof document === "undefined") {
+      throw new Error(
+        "@trendcraft/chart: CanvasChart requires a browser environment (document is not defined). " +
+          "Use @trendcraft/chart/headless for server-side usage.",
+      );
+    }
+
     this._container = container;
     this._fontSize = options?.fontSize ?? DEFAULT_OPTIONS.fontSize;
     this._priceFormatter = options?.priceFormatter ?? autoFormatPrice;
@@ -122,11 +131,36 @@ export class CanvasChart implements ChartInstance {
     this._canvas.style.userSelect = "none";
 
     // Accessibility
-    this._canvas.setAttribute("role", "img");
-    this._canvas.setAttribute("aria-label", "Financial chart");
+    this._canvas.setAttribute("role", "application");
+    this._canvas.setAttribute("aria-roledescription", "interactive financial chart");
+    this._canvas.setAttribute("tabindex", "0");
+    this._canvas.setAttribute(
+      "aria-description",
+      "Keyboard: Arrow left/right to pan, Up/Down or +/- to zoom, Home/End to jump, F to fit all data",
+    );
+    this._updateAriaLabel();
+
+    // Visually-hidden live region for screen reader announcements
+    this._ariaLiveEl = document.createElement("div");
+    this._ariaLiveEl.setAttribute("role", "status");
+    this._ariaLiveEl.setAttribute("aria-live", "polite");
+    this._ariaLiveEl.setAttribute("aria-atomic", "true");
+    Object.assign(this._ariaLiveEl.style, {
+      position: "absolute",
+      width: "1px",
+      height: "1px",
+      padding: "0",
+      margin: "-1px",
+      overflow: "hidden",
+      clip: "rect(0,0,0,0)",
+      whiteSpace: "nowrap",
+      border: "0",
+    });
+
     container.style.position = "relative";
 
     container.appendChild(this._canvas);
+    container.appendChild(this._ariaLiveEl);
 
     const ctx = this._canvas.getContext("2d");
     if (!ctx) throw new Error("Canvas 2D context not available");
@@ -247,6 +281,7 @@ export class CanvasChart implements ChartInstance {
     if (removed > 0) {
       this._emit("dataFiltered", { total: candles.length, valid: valid.length, removed });
     }
+    this._updateAriaLabel();
   }
 
   updateCandle(candle: CandleData): void {
@@ -325,6 +360,7 @@ export class CanvasChart implements ChartInstance {
     this._needsRender = true;
     this._emit("seriesAdded", { id: handle.id, label: result.config.label });
     this._legendOverlay?.update(this._data.getAllSeries());
+    this._updateAriaLabel();
     return handle;
   }
 
@@ -446,6 +482,7 @@ export class CanvasChart implements ChartInstance {
   setChartType(type: import("../core/types").ChartType): void {
     this._chartType = type;
     this._needsRender = true;
+    this._updateAriaLabel();
   }
 
   setShowVolume(show: boolean): void {
@@ -532,6 +569,9 @@ export class CanvasChart implements ChartInstance {
     this._legendOverlay?.destroy();
     this._rendererRegistry.destroyAll();
     this._canvas.remove();
+    if (this._ariaLiveTimer !== null) clearTimeout(this._ariaLiveTimer);
+    this._ariaLiveEl?.remove();
+    this._ariaLiveEl = null;
 
     // Release retained references to prevent memory leaks
     this._priceScales.clear();
@@ -638,5 +678,38 @@ export class CanvasChart implements ChartInstance {
       result.seriesByPane,
     );
     this._legendOverlay?.update(this._data.getAllSeries());
+
+    // Debounced aria-live announcement for crosshair data
+    this._updateAriaLive(result.crosshairIndex);
+  }
+
+  /** Update the canvas aria-label with current chart description */
+  private _updateAriaLabel(): void {
+    const candleCount = this._data.candleCount;
+    const indicatorCount = this._data.getAllSeries().length;
+    const parts = [`${this._chartType} chart`];
+    if (candleCount > 0) parts.push(`${candleCount} data points`);
+    if (indicatorCount > 0)
+      parts.push(`${indicatorCount} indicator${indicatorCount > 1 ? "s" : ""}`);
+    this._canvas.setAttribute("aria-label", parts.join(", "));
+  }
+
+  /** Debounced update to aria-live region with OHLCV at crosshair */
+  private _updateAriaLive(crosshairIndex: number | null): void {
+    if (!this._ariaLiveEl) return;
+    if (crosshairIndex === null) return;
+
+    const idx = crosshairIndex;
+    if (this._ariaLiveTimer !== null) clearTimeout(this._ariaLiveTimer);
+    this._ariaLiveTimer = setTimeout(() => {
+      const candle = this._data.candles[idx];
+      if (!candle || !this._ariaLiveEl) return;
+      this._ariaLiveEl.textContent =
+        `Open ${this._priceFormatter(candle.open)}, ` +
+        `High ${this._priceFormatter(candle.high)}, ` +
+        `Low ${this._priceFormatter(candle.low)}, ` +
+        `Close ${this._priceFormatter(candle.close)}, ` +
+        `Volume ${candle.volume.toLocaleString()}`;
+    }, 300);
   }
 }

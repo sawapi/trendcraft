@@ -69,10 +69,14 @@ export class LegendOverlay {
         const color = s.config.color ?? this._theme.text;
         const opacity = s.visible ? "1" : "0.35";
         const textDecoration = s.visible ? "none" : "line-through";
-        return `<span
+        const label = escapeHtml(s.config.label ?? "");
+        return `<button
+          type="button"
           data-series-id="${escapeHtml(s.id)}"
-          style="cursor:pointer;opacity:${opacity};text-decoration:${textDecoration};color:${this._theme.text};white-space:nowrap"
-        ><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${escapeHtml(color)};margin-right:3px;vertical-align:middle"></span>${escapeHtml(s.config.label ?? "")}</span>`;
+          aria-pressed="${s.visible}"
+          aria-label="Toggle ${label} visibility"
+          style="cursor:pointer;opacity:${opacity};text-decoration:${textDecoration};color:${this._theme.text};white-space:nowrap;background:none;border:none;padding:2px 4px;font:inherit;line-height:inherit"
+        ><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${escapeHtml(color)};margin-right:3px;vertical-align:middle"></span>${label}</button>`;
       })
       .join("");
 
