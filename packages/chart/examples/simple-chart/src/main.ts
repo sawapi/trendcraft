@@ -94,55 +94,67 @@ toggle("btn-ichimoku", "ichimoku", ichimokuRef, () => chart.addIndicator(ichimok
 toggle("btn-rsi", "rsi", rsiRef, () => chart.addIndicator(rsi(candles)));
 toggle("btn-macd", "macd", macdRef, () => chart.addIndicator(macd(candles)));
 
-// Drawing tools
-let hlineId = 0;
-document.getElementById("btn-hline")?.addEventListener("click", () => {
-  // Add horizontal line at the median visible price
-  const range = chart.getVisibleRange();
-  if (!range) return;
-  const midIdx = Math.floor((range.startIndex + range.endIndex) / 2);
-  const midCandle = candles[midIdx];
-  if (!midCandle) return;
-  chart.addDrawing({
-    id: `hline_${hlineId++}`,
-    type: "hline",
-    price: midCandle.close,
-    color: "#FF9800",
-  });
-});
+// Drawing tools — interactive mode via setDrawingTool()
+// Click a tool button to activate, then click on chart to place
+const drawingTools = [
+  "btn-hline",
+  "btn-vline",
+  "btn-hray",
+  "btn-ray",
+  "btn-arrow",
+  "btn-rect",
+  "btn-channel",
+  "btn-fib",
+  "btn-fib-ext",
+  "btn-text",
+] as const;
+const toolMap: Record<string, import("@trendcraft/chart").DrawingType> = {
+  "btn-hline": "hline",
+  "btn-vline": "vline",
+  "btn-hray": "hray",
+  "btn-ray": "ray",
+  "btn-arrow": "arrow",
+  "btn-rect": "rectangle",
+  "btn-channel": "channel",
+  "btn-fib": "fibRetracement",
+  "btn-fib-ext": "fibExtension",
+  "btn-text": "textLabel",
+};
 
-let currentFibId: string | null = null;
-document.getElementById("btn-fib")?.addEventListener("click", () => {
-  // Remove previous fib before adding new one
-  if (currentFibId) chart.removeDrawing(currentFibId);
+let activeDrawBtn: HTMLElement | null = null;
 
-  const range = chart.getVisibleRange();
-  if (!range) return;
-  const start = Math.max(0, range.startIndex);
-  const end = Math.min(candles.length - 1, range.endIndex);
-  let low = Number.POSITIVE_INFINITY;
-  let high = Number.NEGATIVE_INFINITY;
-  let lowTime = candles[start].time;
-  let highTime = candles[end].time;
-  for (let i = start; i <= end; i++) {
-    if (candles[i].low < low) {
-      low = candles[i].low;
-      lowTime = candles[i].time;
+for (const btnId of drawingTools) {
+  document.getElementById(btnId)?.addEventListener("click", () => {
+    const btn = document.getElementById(btnId);
+    const tool = toolMap[btnId];
+    if (!tool || !btn) return;
+
+    // Toggle off if same tool clicked again
+    if (activeDrawBtn === btn) {
+      chart.setDrawingTool(null);
+      btn.classList.remove("active");
+      activeDrawBtn = null;
+      statusEl.textContent = "Drawing tool deactivated";
+      return;
     }
-    if (candles[i].high > high) {
-      high = candles[i].high;
-      highTime = candles[i].time;
-    }
-  }
-  currentFibId = `fib_${Date.now()}`;
-  chart.addDrawing({
-    id: currentFibId,
-    type: "fibRetracement",
-    startTime: lowTime,
-    startPrice: low,
-    endTime: highTime,
-    endPrice: high,
+
+    // Deactivate previous
+    activeDrawBtn?.classList.remove("active");
+
+    chart.setDrawingTool(tool);
+    btn.classList.add("active");
+    activeDrawBtn = btn;
+    statusEl.textContent = `Drawing: ${tool} — click on chart to place`;
   });
+}
+
+// Listen for drawing completion
+chart.on("drawingComplete", (data) => {
+  const d = data as { id: string; type: string };
+  statusEl.textContent = `Drawing placed: ${d.type} (${d.id})`;
+  // Deactivate button
+  activeDrawBtn?.classList.remove("active");
+  activeDrawBtn = null;
 });
 
 // Backtest — 1 line visualization
