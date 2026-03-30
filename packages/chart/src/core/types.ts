@@ -215,7 +215,18 @@ export type SeriesHandle = {
 // Drawing Types
 // ============================================
 
-export type DrawingType = "hline" | "trendline" | "fibRetracement";
+export type DrawingType =
+  | "hline"
+  | "trendline"
+  | "fibRetracement"
+  | "ray"
+  | "hray"
+  | "vline"
+  | "rectangle"
+  | "channel"
+  | "fibExtension"
+  | "textLabel"
+  | "arrow";
 
 export type DrawingBase = {
   id: string;
@@ -246,7 +257,83 @@ export type FibRetracementDrawing = DrawingBase & {
   levels?: number[];
 };
 
-export type Drawing = HLineDrawing | TrendLineDrawing | FibRetracementDrawing;
+export type RayDrawing = DrawingBase & {
+  type: "ray";
+  startTime: TimeValue;
+  startPrice: number;
+  endTime: TimeValue;
+  endPrice: number;
+};
+
+export type HRayDrawing = DrawingBase & {
+  type: "hray";
+  time: TimeValue;
+  price: number;
+};
+
+export type VLineDrawing = DrawingBase & {
+  type: "vline";
+  time: TimeValue;
+};
+
+export type RectangleDrawing = DrawingBase & {
+  type: "rectangle";
+  startTime: TimeValue;
+  startPrice: number;
+  endTime: TimeValue;
+  endPrice: number;
+  fillColor?: string;
+};
+
+export type ChannelDrawing = DrawingBase & {
+  type: "channel";
+  startTime: TimeValue;
+  startPrice: number;
+  endTime: TimeValue;
+  endPrice: number;
+  /** Price offset from the main line (positive = above) */
+  channelWidth: number;
+  fillColor?: string;
+};
+
+export type FibExtensionDrawing = DrawingBase & {
+  type: "fibExtension";
+  startTime: TimeValue;
+  startPrice: number;
+  endTime: TimeValue;
+  endPrice: number;
+  levels?: number[];
+};
+
+export type TextLabelDrawing = DrawingBase & {
+  type: "textLabel";
+  time: TimeValue;
+  price: number;
+  text: string;
+  fontSize?: number;
+  backgroundColor?: string;
+};
+
+export type ArrowDrawing = DrawingBase & {
+  type: "arrow";
+  startTime: TimeValue;
+  startPrice: number;
+  endTime: TimeValue;
+  endPrice: number;
+};
+
+export type Drawing =
+  | HLineDrawing
+  | TrendLineDrawing
+  | FibRetracementDrawing
+  | RayDrawing
+  | HRayDrawing
+  | VLineDrawing
+  | RectangleDrawing
+  | ChannelDrawing
+  | FibExtensionDrawing
+  | TextLabelDrawing
+  | ArrowDrawing;
 
 // ============================================
 // Multi-Timeframe Types
