@@ -437,6 +437,7 @@ export type ChartEvent =
   | "seriesAdded"
   | "seriesRemoved"
   | "dataFiltered"
+  | "drawingComplete"
   | "error";
 
 export type CrosshairMoveData = {

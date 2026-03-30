@@ -59,6 +59,8 @@ export type RenderContext = {
   rendererRegistry: RendererRegistry;
   drawHelper: DrawHelper | null;
   emit: (event: string, data: unknown) => void;
+  /** Temporary drawing being placed interactively (shown as preview) */
+  drawingPreview?: import("../core/types").Drawing;
 };
 
 /** Result returned to canvas-chart for DOM overlay updates */
@@ -411,8 +413,9 @@ export function renderFrame(rc: RenderContext): RenderResult {
     );
   }
 
-  // Drawings
-  renderDrawings(ctx, data.drawings, paneRects, rightScaleMap, timeScale, data, theme, rc.fontSize);
+  // Drawings (include interactive preview if present)
+  const allDrawings = rc.drawingPreview ? [...data.drawings, rc.drawingPreview] : data.drawings;
+  renderDrawings(ctx, allDrawings, paneRects, rightScaleMap, timeScale, data, theme, rc.fontSize);
 
   // Overlays
   renderPriceLine(ctx, candles, paneRects, rightScaleMap, theme, rc.fontSize);

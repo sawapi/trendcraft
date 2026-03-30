@@ -74,6 +74,8 @@ export class CanvasChart implements ChartInstance {
   private _chartType: import("../core/types").ChartType;
   private _activeDrawingTool: DrawingType | null = null;
   private _drawingInProgress: { startTime: number; startPrice: number } | null = null;
+  private _drawingIdCounter = 0;
+  private _mouseDownPos: { x: number; y: number } | null = null;
 
   private _rendererRegistry = new RendererRegistry();
   private _drawHelper: DrawHelper | null = null;
@@ -253,6 +255,10 @@ export class CanvasChart implements ChartInstance {
       this._layout.setLayout(DEFAULT_LAYOUT_NO_VOLUME);
     }
 
+    // Interactive drawing: track mousedown position to distinguish click vs drag
+    this._canvas.addEventListener("mousedown", this._onDrawMouseDown);
+    this._canvas.addEventListener("click", this._onDrawClick);
+
     // Start render loop
     this._renderLoop();
   }
@@ -396,6 +402,136 @@ export class CanvasChart implements ChartInstance {
     this._activeDrawingTool = tool;
     this._drawingInProgress = null;
     this._canvas.style.cursor = tool ? "cell" : "crosshair";
+    this._needsRender = true;
+  }
+
+  // ---- Interactive Drawing ----
+
+  private _onDrawMouseDown = (e: MouseEvent): void => {
+    const rect = this._canvas.getBoundingClientRect();
+    this._mouseDownPos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  };
+
+  private _onDrawClick = (e: MouseEvent): void => {
+    if (!this._activeDrawingTool) return;
+
+    // Distinguish click from drag: ignore if mouse moved > 5px
+    const rect = this._canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    if (this._mouseDownPos) {
+      const dx = mx - this._mouseDownPos.x;
+      const dy = my - this._mouseDownPos.y;
+      if (dx * dx + dy * dy > 25) return; // 5px threshold
+    }
+
+    // Convert pixel to time/price
+    const idx = this._timeScale.xToIndex(mx);
+    const candle = this._data.candles[idx];
+    if (!candle) return;
+    const time = candle.time;
+
+    // Find main pane price scale
+    const mainPane = this._layout.paneRects.find((p) => p.id === "main");
+    if (!mainPane) return;
+    const scales = this._priceScales.get("main");
+    if (!scales) return;
+    const price = scales.right.yToPrice(my - mainPane.y);
+
+    const tool = this._activeDrawingTool;
+    const oneClick =
+      tool === "hline" || tool === "vline" || tool === "hray" || tool === "textLabel";
+
+    if (oneClick) {
+      this._completeDrawing(time, price, time, price);
+      return;
+    }
+
+    // Two-click tools
+    if (!this._drawingInProgress) {
+      this._drawingInProgress = { startTime: time, startPrice: price };
+      this._needsRender = true;
+    } else {
+      this._completeDrawing(
+        this._drawingInProgress.startTime,
+        this._drawingInProgress.startPrice,
+        time,
+        price,
+      );
+    }
+  };
+
+  private _completeDrawing(
+    startTime: number,
+    startPrice: number,
+    endTime: number,
+    endPrice: number,
+  ): void {
+    const tool = this._activeDrawingTool;
+    if (!tool) return;
+
+    const id = `draw_${++this._drawingIdCounter}`;
+    let drawing: Drawing;
+
+    switch (tool) {
+      case "hline":
+        drawing = { id, type: "hline", price: startPrice };
+        break;
+      case "vline":
+        drawing = { id, type: "vline", time: startTime };
+        break;
+      case "hray":
+        drawing = { id, type: "hray", time: startTime, price: startPrice };
+        break;
+      case "textLabel":
+        drawing = { id, type: "textLabel", time: startTime, price: startPrice, text: "Label" };
+        break;
+      case "trendline":
+        drawing = { id, type: "trendline", startTime, startPrice, endTime, endPrice };
+        break;
+      case "ray":
+        drawing = { id, type: "ray", startTime, startPrice, endTime, endPrice };
+        break;
+      case "arrow":
+        drawing = { id, type: "arrow", startTime, startPrice, endTime, endPrice };
+        break;
+      case "rectangle":
+        drawing = { id, type: "rectangle", startTime, startPrice, endTime, endPrice };
+        break;
+      case "fibRetracement":
+        drawing = { id, type: "fibRetracement", startTime, startPrice, endTime, endPrice };
+        break;
+      case "fibExtension":
+        drawing = { id, type: "fibExtension", startTime, startPrice, endTime, endPrice };
+        break;
+      case "channel": {
+        // Auto-compute channel width from recent candle range
+        const visStart = this._timeScale.startIndex;
+        const visEnd = this._timeScale.endIndex;
+        let avgRange = 0;
+        let count = 0;
+        for (let i = visStart; i < visEnd && i < this._data.candleCount; i++) {
+          const c = this._data.candles[i];
+          if (c) {
+            avgRange += c.high - c.low;
+            count++;
+          }
+        }
+        const channelWidth =
+          count > 0 ? (avgRange / count) * 2 : Math.abs(endPrice - startPrice) * 0.5;
+        drawing = { id, type: "channel", startTime, startPrice, endTime, endPrice, channelWidth };
+        break;
+      }
+      default:
+        return;
+    }
+
+    this.addDrawing(drawing);
+    this._emit("drawingComplete", drawing);
+    this._activeDrawingTool = null;
+    this._drawingInProgress = null;
+    this._canvas.style.cursor = "crosshair";
+    this._needsRender = true;
   }
 
   // ---- Public API: Multi-timeframe ----
@@ -568,6 +704,8 @@ export class CanvasChart implements ChartInstance {
     this._infoOverlay?.destroy();
     this._legendOverlay?.destroy();
     this._rendererRegistry.destroyAll();
+    this._canvas.removeEventListener("mousedown", this._onDrawMouseDown);
+    this._canvas.removeEventListener("click", this._onDrawClick);
     this._canvas.remove();
     if (this._ariaLiveTimer !== null) clearTimeout(this._ariaLiveTimer);
     this._ariaLiveEl?.remove();
@@ -665,6 +803,7 @@ export class CanvasChart implements ChartInstance {
       rendererRegistry: this._rendererRegistry,
       drawHelper: this._drawHelper,
       emit: (event, data) => this._emit(event as ChartEvent, data),
+      drawingPreview: this._buildDrawingPreview(),
     });
 
     // Cache drawHelper for reuse
@@ -711,5 +850,67 @@ export class CanvasChart implements ChartInstance {
         `Close ${this._priceFormatter(candle.close)}, ` +
         `Volume ${candle.volume.toLocaleString()}`;
     }, 300);
+  }
+
+  /** Build a temporary Drawing for preview while user is placing a 2-click drawing */
+  private _buildDrawingPreview(): Drawing | undefined {
+    if (!this._activeDrawingTool || !this._drawingInProgress) return undefined;
+
+    const vs = this._viewport.state;
+    if (vs.crosshairIndex === null) return undefined;
+
+    const endCandle = this._data.candles[vs.crosshairIndex];
+    if (!endCandle) return undefined;
+
+    const mainPane = this._layout.paneRects.find((p) => p.id === "main");
+    if (!mainPane) return undefined;
+    const scales = this._priceScales.get("main");
+    if (!scales) return undefined;
+
+    const endTime = endCandle.time;
+    const endPrice = scales.right.yToPrice(vs.mouseY - mainPane.y);
+    const { startTime, startPrice } = this._drawingInProgress;
+    const tool = this._activeDrawingTool;
+
+    switch (tool) {
+      case "trendline":
+        return { id: "__preview__", type: "trendline", startTime, startPrice, endTime, endPrice };
+      case "ray":
+        return { id: "__preview__", type: "ray", startTime, startPrice, endTime, endPrice };
+      case "arrow":
+        return { id: "__preview__", type: "arrow", startTime, startPrice, endTime, endPrice };
+      case "rectangle":
+        return { id: "__preview__", type: "rectangle", startTime, startPrice, endTime, endPrice };
+      case "fibRetracement":
+        return {
+          id: "__preview__",
+          type: "fibRetracement",
+          startTime,
+          startPrice,
+          endTime,
+          endPrice,
+        };
+      case "fibExtension":
+        return {
+          id: "__preview__",
+          type: "fibExtension",
+          startTime,
+          startPrice,
+          endTime,
+          endPrice,
+        };
+      case "channel":
+        return {
+          id: "__preview__",
+          type: "channel",
+          startTime,
+          startPrice,
+          endTime,
+          endPrice,
+          channelWidth: Math.abs(endPrice - startPrice) * 0.3,
+        };
+      default:
+        return undefined;
+    }
   }
 }
