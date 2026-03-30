@@ -349,7 +349,8 @@ export type ChartEvent =
   | "paneResize"
   | "seriesAdded"
   | "seriesRemoved"
-  | "dataFiltered";
+  | "dataFiltered"
+  | "error";
 
 export type CrosshairMoveData = {
   time: TimeValue | null;

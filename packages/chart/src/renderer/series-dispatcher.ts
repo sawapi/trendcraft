@@ -19,6 +19,9 @@ import { renderHistogram } from "../series/histogram";
 import { renderChannelLine, renderLine } from "../series/line";
 import { renderMarkers } from "../series/marker";
 
+/** Cached DrawHelper for custom plugin renderers — avoids per-frame allocation */
+let _pluginDrawHelper: DrawHelper | null = null;
+
 /**
  * Dispatch a series to its appropriate renderer based on introspection.
  */
@@ -41,6 +44,8 @@ export function dispatchSeries(
       rendererRegistry.getRenderer(s.type) ??
       (rule ? rendererRegistry.getRenderer(rule.name) : undefined);
     if (custom) {
+      if (!_pluginDrawHelper) _pluginDrawHelper = new DrawHelper(ctx, timeScale, priceScale);
+      else _pluginDrawHelper.reset(ctx, timeScale, priceScale);
       custom.render(
         {
           ctx,
@@ -50,7 +55,7 @@ export function dispatchSeries(
           dataLayer,
           paneWidth: paneWidth ?? timeScale.width,
           theme,
-          draw: new DrawHelper(ctx, timeScale, priceScale),
+          draw: _pluginDrawHelper,
         },
         s.config,
       );

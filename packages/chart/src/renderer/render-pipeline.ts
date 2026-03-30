@@ -258,46 +258,67 @@ export function renderFrame(rc: RenderContext): RenderResult {
 
     // 'below' primitives
     for (const prim of rc.rendererRegistry.getPrimitives(pane.id, "below")) {
-      if (!drawHelper) drawHelper = new DrawHelper(ctx, timeScale, ps);
-      else drawHelper.reset(ctx, timeScale, ps);
-      prim.plugin.render(
-        {
-          ctx,
-          pane: { ...pane, y: 0 },
-          timeScale,
-          priceScale: ps,
-          dataLayer: data,
-          theme,
-          draw: drawHelper,
-        },
-        prim.state,
-      );
+      try {
+        if (!drawHelper) drawHelper = new DrawHelper(ctx, timeScale, ps);
+        else drawHelper.reset(ctx, timeScale, ps);
+        prim.plugin.render(
+          {
+            ctx,
+            pane: { ...pane, y: 0 },
+            timeScale,
+            priceScale: ps,
+            dataLayer: data,
+            theme,
+            draw: drawHelper,
+          },
+          prim.state,
+        );
+      } catch (err) {
+        rc.emit("error", { source: `primitive:${prim.plugin.name}`, error: err });
+      }
     }
 
     // Series — dispatch to correct scale (cache for later info overlay use)
     const paneSeriesForRender = data.getSeriesForPane(pane.id);
     seriesByPane.set(pane.id, paneSeriesForRender);
     for (const s of paneSeriesForRender) {
-      const seriesScale = s.scaleId === "left" ? scales.left : ps;
-      dispatchSeries(ctx, s, timeScale, seriesScale, data, pane.width, theme, rc.rendererRegistry);
+      try {
+        const seriesScale = s.scaleId === "left" ? scales.left : ps;
+        dispatchSeries(
+          ctx,
+          s,
+          timeScale,
+          seriesScale,
+          data,
+          pane.width,
+          theme,
+          rc.rendererRegistry,
+        );
+      } catch (err) {
+        rc.emit("error", { source: `series:${s.id}`, error: err });
+      }
     }
 
     // 'above' primitives
     for (const prim of rc.rendererRegistry.getPrimitives(pane.id, "above")) {
-      if (!drawHelper) drawHelper = new DrawHelper(ctx, timeScale, ps);
-      else drawHelper.reset(ctx, timeScale, ps);
-      prim.plugin.render(
-        {
-          ctx,
-          pane: { ...pane, y: 0 },
-          timeScale,
-          priceScale: ps,
-          dataLayer: data,
-          theme,
-          draw: drawHelper,
-        },
-        prim.state,
-      );
+      try {
+        if (!drawHelper) drawHelper = new DrawHelper(ctx, timeScale, ps);
+        else drawHelper.reset(ctx, timeScale, ps);
+        prim.plugin.render(
+          {
+            ctx,
+            pane: { ...pane, y: 0 },
+            timeScale,
+            priceScale: ps,
+            dataLayer: data,
+            theme,
+            draw: drawHelper,
+          },
+          prim.state,
+        );
+      } catch (err) {
+        rc.emit("error", { source: `primitive:${prim.plugin.name}`, error: err });
+      }
     }
 
     ctx.restore();

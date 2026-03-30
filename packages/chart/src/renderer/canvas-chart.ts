@@ -532,6 +532,13 @@ export class CanvasChart implements ChartInstance {
     this._legendOverlay?.destroy();
     this._rendererRegistry.destroyAll();
     this._canvas.remove();
+
+    // Release retained references to prevent memory leaks
+    this._priceScales.clear();
+    this._listeners.clear();
+    this._timeToIndex.clear();
+    this._drawHelper = null;
+    this._rafId = null;
   }
 
   // ---- Internal: Sizing ----
@@ -542,14 +549,17 @@ export class CanvasChart implements ChartInstance {
     priceAxisWidth?: number,
     timeAxisHeight?: number,
   ): void {
+    // Guard against zero/negative dimensions to prevent Infinity in layout math
+    const w = Math.max(1, width);
+    const h = Math.max(1, height);
     const pr = this._pixelRatio;
-    this._canvas.width = width * pr;
-    this._canvas.height = height * pr;
-    this._canvas.style.width = `${width}px`;
-    this._canvas.style.height = `${height}px`;
+    this._canvas.width = w * pr;
+    this._canvas.height = h * pr;
+    this._canvas.style.width = `${w}px`;
+    this._canvas.style.height = `${h}px`;
     this._ctx.scale(pr, pr);
 
-    this._layout.setDimensions(width, height, priceAxisWidth, timeAxisHeight);
+    this._layout.setDimensions(w, h, priceAxisWidth, timeAxisHeight);
     this._timeScale.setWidth(this._layout.dataAreaWidth);
   }
 

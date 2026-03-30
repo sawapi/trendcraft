@@ -13,6 +13,7 @@ export class LegendOverlay {
   private _onToggle: ((seriesId: string, visible: boolean) => void) | null = null;
   private _currentSeries: InternalSeries[] = [];
   private _handleClick: (e: MouseEvent) => void;
+  private _lastHtml = "";
 
   constructor(container: HTMLElement, theme: ThemeColors) {
     this._container = container;
@@ -56,26 +57,48 @@ export class LegendOverlay {
 
     const labeled = allSeries.filter((s) => s.config.label);
     if (labeled.length === 0) {
-      this._el.innerHTML = "";
+      if (this._lastHtml !== "") {
+        this._el.innerHTML = "";
+        this._lastHtml = "";
+      }
       return;
     }
 
-    this._el.innerHTML = labeled
+    const html = labeled
       .map((s) => {
         const color = s.config.color ?? this._theme.text;
         const opacity = s.visible ? "1" : "0.35";
         const textDecoration = s.visible ? "none" : "line-through";
         return `<span
-          data-series-id="${s.id}"
+          data-series-id="${escapeHtml(s.id)}"
           style="cursor:pointer;opacity:${opacity};text-decoration:${textDecoration};color:${this._theme.text};white-space:nowrap"
-        ><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color};margin-right:3px;vertical-align:middle"></span>${s.config.label}</span>`;
+        ><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${escapeHtml(color)};margin-right:3px;vertical-align:middle"></span>${escapeHtml(s.config.label ?? "")}</span>`;
       })
       .join("");
-    // No per-element listeners — parent handles all clicks via delegation
+
+    // Only update DOM when content actually changed
+    if (html !== this._lastHtml) {
+      this._el.innerHTML = html;
+      this._lastHtml = html;
+    }
   }
 
   destroy(): void {
     this._el.removeEventListener("click", this._handleClick);
     this._el.remove();
   }
+}
+
+/** Prevent XSS from user-supplied labels/colors */
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (c) => {
+    const map: Record<string, string> = {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;",
+    };
+    return map[c] ?? c;
+  });
 }
