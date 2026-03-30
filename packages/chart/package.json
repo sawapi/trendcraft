@@ -90,6 +90,14 @@
     {
       "path": "dist/headless.js",
       "limit": "15 kB"
+    },
+    {
+      "path": "dist/react/TrendChart.js",
+      "limit": "5 kB"
+    },
+    {
+      "path": "dist/vue/TrendChart.js",
+      "limit": "5 kB"
     }
   ],
   "devDependencies": {

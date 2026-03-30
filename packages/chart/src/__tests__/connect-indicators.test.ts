@@ -38,8 +38,8 @@ function createMockChart() {
         update: vi.fn((point: DataPoint) => {
           record.updates.push(point);
         }),
-        setData: vi.fn((newData: DataPoint[]) => {
-          record.setDataCalls.push([...newData]);
+        setData: vi.fn(<T>(newData: DataPoint<T>[]) => {
+          record.setDataCalls.push([...newData] as DataPoint[]);
         }),
         setVisible: vi.fn(),
         remove: vi.fn(() => {

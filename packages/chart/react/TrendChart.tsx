@@ -28,10 +28,12 @@ import type {
   ChartInstance,
   ChartOptions,
   ChartPatternSignal,
+  CrosshairMoveData,
   DataPoint,
   Drawing,
   LayoutConfig,
   SeriesConfig,
+  SeriesInfo,
   SignalMarker,
   ThemeColors,
   TimeframeOverlay,
@@ -83,11 +85,13 @@ export type TrendChartProps = {
   /** Fit all candles on initial render (default: true) */
   fitOnLoad?: boolean;
   /** Crosshair move event handler */
-  onCrosshairMove?: (data: unknown) => void;
+  onCrosshairMove?: (data: CrosshairMoveData) => void;
   /** Series added event handler */
-  onSeriesAdded?: (data: unknown) => void;
+  onSeriesAdded?: (data: SeriesInfo) => void;
   /** Series removed event handler */
-  onSeriesRemoved?: (data: unknown) => void;
+  onSeriesRemoved?: (data: SeriesInfo) => void;
+  /** Error event handler (e.g. plugin rendering failures) */
+  onError?: (data: { source: string; error: unknown }) => void;
 };
 
 export type TrendChartRef = {
@@ -117,6 +121,7 @@ export const TrendChart = forwardRef<TrendChartRef, TrendChartProps>(function Tr
     onCrosshairMove,
     onSeriesAdded,
     onSeriesRemoved,
+    onError,
   },
   ref,
 ) {
@@ -252,25 +257,37 @@ export const TrendChart = forwardRef<TrendChartRef, TrendChartProps>(function Tr
   useEffect(() => {
     const chart = chartRef.current;
     if (!chart || !onCrosshairMove) return;
-    chart.on("crosshairMove", onCrosshairMove);
-    return () => chart.off("crosshairMove", onCrosshairMove);
+    const handler = onCrosshairMove as (data: unknown) => void;
+    chart.on("crosshairMove", handler);
+    return () => chart.off("crosshairMove", handler);
   }, [onCrosshairMove]);
 
   // Event: seriesAdded
   useEffect(() => {
     const chart = chartRef.current;
     if (!chart || !onSeriesAdded) return;
-    chart.on("seriesAdded", onSeriesAdded);
-    return () => chart.off("seriesAdded", onSeriesAdded);
+    const handler = onSeriesAdded as (data: unknown) => void;
+    chart.on("seriesAdded", handler);
+    return () => chart.off("seriesAdded", handler);
   }, [onSeriesAdded]);
 
   // Event: seriesRemoved
   useEffect(() => {
     const chart = chartRef.current;
     if (!chart || !onSeriesRemoved) return;
-    chart.on("seriesRemoved", onSeriesRemoved);
-    return () => chart.off("seriesRemoved", onSeriesRemoved);
+    const handler = onSeriesRemoved as (data: unknown) => void;
+    chart.on("seriesRemoved", handler);
+    return () => chart.off("seriesRemoved", handler);
   }, [onSeriesRemoved]);
+
+  // Event: error
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart || !onError) return;
+    const handler = onError as (data: unknown) => void;
+    chart.on("error", handler);
+    return () => chart.off("error", handler);
+  }, [onError]);
 
   return (
     <div
@@ -280,5 +297,3 @@ export const TrendChart = forwardRef<TrendChartRef, TrendChartProps>(function Tr
     />
   );
 });
-
-export default TrendChart;

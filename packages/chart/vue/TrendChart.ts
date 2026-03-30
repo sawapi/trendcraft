@@ -77,7 +77,7 @@ export const TrendChart = defineComponent({
     options: { type: Object as PropType<Omit<ChartOptions, "theme">>, default: undefined },
     fitOnLoad: { type: Boolean, default: true },
   },
-  emits: ["crosshairMove", "seriesAdded", "seriesRemoved"],
+  emits: ["crosshairMove", "seriesAdded", "seriesRemoved", "error"],
   setup(props, { emit, expose }) {
     const containerRef = ref<HTMLElement | null>(null);
     let chart: ChartInstance | null = null;
@@ -91,9 +91,10 @@ export const TrendChart = defineComponent({
       chart = createChart(containerRef.value, { ...props.options, theme: props.theme });
 
       // Events
-      chart.on("crosshairMove", (data: unknown) => emit("crosshairMove", data));
-      chart.on("seriesAdded", (data: unknown) => emit("seriesAdded", data));
-      chart.on("seriesRemoved", (data: unknown) => emit("seriesRemoved", data));
+      chart.on("crosshairMove", (data) => emit("crosshairMove", data));
+      chart.on("seriesAdded", (data) => emit("seriesAdded", data));
+      chart.on("seriesRemoved", (data) => emit("seriesRemoved", data));
+      chart.on("error", (data) => emit("error", data));
 
       // Initial data
       chart.setCandles(props.candles);
@@ -269,5 +270,3 @@ export const TrendChart = defineComponent({
       });
   },
 });
-
-export default TrendChart;

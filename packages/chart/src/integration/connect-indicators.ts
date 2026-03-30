@@ -230,7 +230,7 @@ export function connectIndicators(
     // Register on live source
     if (canStream && liveSource?.addIndicator) {
       const factory = preset.createFactory?.(params);
-      liveSource.addIndicator(snapshotName, factory);
+      if (factory) liveSource.addIndicator(snapshotName, factory);
     }
 
     // Compute initial data (backfill)
