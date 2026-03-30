@@ -101,8 +101,14 @@ export class TimeScale {
     const ax = anchorX ?? this._width / 2;
     const anchorIndex = ax / this._barSpacing - 0.5 + this._startIndex;
 
+    // Use the minimum of _minBarSpacing and the "fit all" spacing so that
+    // zoom-out can reach the fitContent level even when _minBarSpacing is larger.
+    const paddedCount = this._totalCount > 0 ? Math.ceil(this._totalCount * 1.2) : 1;
+    const fitSpacing = this._width / paddedCount;
+    const effectiveMin = Math.max(0.1, Math.min(this._minBarSpacing, fitSpacing));
+
     const newSpacing = Math.max(
-      this._minBarSpacing,
+      effectiveMin,
       Math.min(this._maxBarSpacing, this._barSpacing * factor),
     );
     if (newSpacing === this._barSpacing) return;
@@ -130,13 +136,13 @@ export class TimeScale {
     this.clamp();
   }
 
-  /** Fit all candles in view */
+  /** Fit all candles in view, including 20% right padding for readability */
   fitContent(): void {
     if (this._totalCount <= 0 || this._width <= 0) return;
-    this._barSpacing = Math.max(
-      this._minBarSpacing,
-      Math.min(this._maxBarSpacing, this._width / this._totalCount),
-    );
+    // Include 20% right padding so the last candle doesn't hug the edge
+    const paddedCount = Math.ceil(this._totalCount * 1.2);
+    this._barSpacing = Math.min(this._maxBarSpacing, this._width / paddedCount);
+    this._barSpacing = Math.max(0.1, this._barSpacing);
     this.recalcVisibleCount();
     this._startIndex = 0;
   }
@@ -152,6 +158,12 @@ export class TimeScale {
 
   private clamp(): void {
     if (this._totalCount <= 0) {
+      this._startIndex = 0;
+      return;
+    }
+    // If all data + right padding fits in view, lock to start (no panning needed)
+    const paddedCount = Math.ceil(this._totalCount * 1.2);
+    if (this._visibleCount >= paddedCount) {
       this._startIndex = 0;
       return;
     }

@@ -317,16 +317,29 @@ const rangeButtons = {
   "btn-range-1y": "1Y" as const,
   "btn-range-all": "ALL" as const,
 };
+function clearRangeActive() {
+  for (const id of Object.keys(rangeButtons)) {
+    document.getElementById(id)?.classList.remove("active");
+  }
+}
+let rangeChangeFromButton = false;
 for (const [btnId, duration] of Object.entries(rangeButtons)) {
   document.getElementById(btnId)?.addEventListener("click", () => {
+    rangeChangeFromButton = true;
     chart.setVisibleRangeByDuration(duration);
-    // Update active state
-    for (const id of Object.keys(rangeButtons)) {
-      document.getElementById(id)?.classList.remove("active");
-    }
+    clearRangeActive();
     document.getElementById(btnId)?.classList.add("active");
+    // Reset flag after event loop settles
+    requestAnimationFrame(() => {
+      rangeChangeFromButton = false;
+    });
   });
 }
+
+// Clear range active state when user manually pans/zooms
+chart.on("visibleRangeChange", () => {
+  if (!rangeChangeFromButton) clearRangeActive();
+});
 
 let isDark = true;
 document.getElementById("btn-theme")?.addEventListener("click", (e) => {
