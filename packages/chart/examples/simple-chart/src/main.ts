@@ -308,6 +308,26 @@ document.getElementById("btn-simulate")?.addEventListener("click", (e) => {
 
 document.getElementById("btn-fit")?.addEventListener("click", () => chart.fitContent());
 
+// Range selector
+const rangeButtons = {
+  "btn-range-1m": "1M" as const,
+  "btn-range-3m": "3M" as const,
+  "btn-range-6m": "6M" as const,
+  "btn-range-ytd": "YTD" as const,
+  "btn-range-1y": "1Y" as const,
+  "btn-range-all": "ALL" as const,
+};
+for (const [btnId, duration] of Object.entries(rangeButtons)) {
+  document.getElementById(btnId)?.addEventListener("click", () => {
+    chart.setVisibleRangeByDuration(duration);
+    // Update active state
+    for (const id of Object.keys(rangeButtons)) {
+      document.getElementById(id)?.classList.remove("active");
+    }
+    document.getElementById(btnId)?.classList.add("active");
+  });
+}
+
 let isDark = true;
 document.getElementById("btn-theme")?.addEventListener("click", (e) => {
   isDark = !isDark;
