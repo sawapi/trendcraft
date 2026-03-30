@@ -231,7 +231,12 @@ export class CanvasChart implements ChartInstance {
     }
 
     // Info overlay (DOM-based OHLCV + indicator values)
-    this._infoOverlay = new InfoOverlay(container, this._theme);
+    this._infoOverlay = new InfoOverlay(
+      container,
+      this._theme,
+      this._priceFormatter,
+      options?.formatInfoOverlay,
+    );
     this._infoOverlay.setRendererRegistry(this._rendererRegistry);
 
     // Legend overlay
@@ -581,6 +586,47 @@ export class CanvasChart implements ChartInstance {
     const endIdx = this._data.indexAtTime(end);
     this._timeScale.setVisibleRange(startIdx, endIdx);
     this._needsRender = true;
+  }
+
+  setVisibleRangeByDuration(duration: import("../core/types").RangeDuration): void {
+    if (duration === "ALL") {
+      this.fitContent();
+      return;
+    }
+
+    const candles = this._data.candles;
+    if (candles.length === 0) return;
+
+    const lastTime = candles[candles.length - 1].time;
+    let startTime: number;
+
+    switch (duration) {
+      case "1D":
+        startTime = lastTime - 86_400_000;
+        break;
+      case "1W":
+        startTime = lastTime - 7 * 86_400_000;
+        break;
+      case "1M":
+        startTime = lastTime - 30 * 86_400_000;
+        break;
+      case "3M":
+        startTime = lastTime - 90 * 86_400_000;
+        break;
+      case "6M":
+        startTime = lastTime - 180 * 86_400_000;
+        break;
+      case "1Y":
+        startTime = lastTime - 365 * 86_400_000;
+        break;
+      case "YTD": {
+        const d = new Date(lastTime);
+        startTime = new Date(d.getFullYear(), 0, 1).getTime();
+        break;
+      }
+    }
+
+    this.setVisibleRange(startTime, lastTime);
   }
 
   fitContent(): void {

@@ -109,10 +109,23 @@ export type ChartOptions = {
   scrollSensitivity?: number;
   /** Base chart type for price data (default: 'candlestick') */
   chartType?: ChartType;
+  /** Custom info overlay formatter. Return HTML string or null to use default. */
+  formatInfoOverlay?: (data: InfoOverlayData) => string | null;
 };
 
 /** Base chart rendering type */
 export type ChartType = "candlestick" | "line" | "mountain" | "ohlc";
+
+/** Data passed to the formatInfoOverlay callback */
+export type InfoOverlayData = {
+  candle: CandleData;
+  index: number;
+  paneId: string;
+  series: { label: string; color: string; value: unknown }[];
+};
+
+/** Duration presets for range selector */
+export type RangeDuration = "1D" | "1W" | "1M" | "3M" | "6M" | "YTD" | "1Y" | "ALL";
 
 // ============================================
 // Pane Configuration
@@ -510,6 +523,7 @@ export type ChartInstance = {
 
   // Viewport
   setVisibleRange(start: TimeValue, end: TimeValue): void;
+  setVisibleRangeByDuration(duration: RangeDuration): void;
   fitContent(): void;
 
   // Events

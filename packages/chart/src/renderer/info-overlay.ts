@@ -7,7 +7,7 @@ import type { InternalSeries } from "../core/data-layer";
 import { autoFormatPrice, formatVolume } from "../core/format";
 import type { RendererRegistry } from "../core/renderer-registry";
 import { defaultRegistry } from "../core/series-registry";
-import type { CandleData, PaneRect, ThemeColors } from "../core/types";
+import type { CandleData, InfoOverlayData, PaneRect, ThemeColors } from "../core/types";
 
 export class InfoOverlay {
   private _container: HTMLElement;
@@ -17,11 +17,20 @@ export class InfoOverlay {
   private _rendererRegistry: RendererRegistry | null = null;
   private _lastMainHtml = "";
   private _lastPaneHtml = new Map<string, string>();
+  private _priceFormatter: (price: number) => string;
+  private _formatInfoOverlay: ((data: InfoOverlayData) => string | null) | null;
 
-  constructor(container: HTMLElement, theme: ThemeColors) {
+  constructor(
+    container: HTMLElement,
+    theme: ThemeColors,
+    priceFormatter?: (price: number) => string,
+    formatInfoOverlay?: (data: InfoOverlayData) => string | null,
+  ) {
     this._container = container;
     this._container.style.position = "relative";
     this._theme = theme;
+    this._priceFormatter = priceFormatter ?? autoFormatPrice;
+    this._formatInfoOverlay = formatInfoOverlay ?? null;
 
     // Main pane OHLCV info
     this._mainInfo = this.createInfoElement();
@@ -68,19 +77,36 @@ export class InfoOverlay {
     const candle = candles[index];
     const isUp = candle.close >= candle.open;
     const color = isUp ? this._theme.upColor : this._theme.downColor;
+    const fmtP = (n: number) => escapeHtml(this._priceFormatter(n));
 
     // Main pane: OHLCV
     const mainSeries = seriesByPane.get("main") ?? [];
-    const indicatorParts = mainSeries.map((s) => this.formatSeriesValue(s, index)).filter(Boolean);
 
-    const mainHtml = [
-      `<span style="color:${this._theme.textSecondary}">O</span> <span style="color:${color}">${fmt(candle.open)}</span>`,
-      `<span style="color:${this._theme.textSecondary}">H</span> <span style="color:${color}">${fmt(candle.high)}</span>`,
-      `<span style="color:${this._theme.textSecondary}">L</span> <span style="color:${color}">${fmt(candle.low)}</span>`,
-      `<span style="color:${this._theme.textSecondary}">C</span> <span style="color:${color}">${fmt(candle.close)}</span>`,
-      `<span style="color:${this._theme.textSecondary}">V</span> <span style="color:${this._theme.text}">${fmtVol(candle.volume)}</span>`,
-      ...indicatorParts,
-    ].join("&nbsp;&nbsp;");
+    // Try custom formatter first
+    let mainHtml: string | null = null;
+    if (this._formatInfoOverlay) {
+      const seriesData = mainSeries.map((s) => ({
+        label: s.config.label ?? "",
+        color: s.config.color ?? this._theme.text,
+        value: s.data[index]?.value ?? null,
+      }));
+      mainHtml = this._formatInfoOverlay({ candle, index, paneId: "main", series: seriesData });
+    }
+
+    if (mainHtml === null) {
+      const indicatorParts = mainSeries
+        .map((s) => this.formatSeriesValue(s, index))
+        .filter(Boolean);
+      mainHtml = [
+        `<span style="color:${this._theme.textSecondary}">O</span> <span style="color:${color}">${fmtP(candle.open)}</span>`,
+        `<span style="color:${this._theme.textSecondary}">H</span> <span style="color:${color}">${fmtP(candle.high)}</span>`,
+        `<span style="color:${this._theme.textSecondary}">L</span> <span style="color:${color}">${fmtP(candle.low)}</span>`,
+        `<span style="color:${this._theme.textSecondary}">C</span> <span style="color:${color}">${fmtP(candle.close)}</span>`,
+        `<span style="color:${this._theme.textSecondary}">V</span> <span style="color:${this._theme.text}">${fmtVol(candle.volume)}</span>`,
+        ...indicatorParts,
+      ].join("&nbsp;&nbsp;");
+    }
+
     if (mainHtml !== this._lastMainHtml) {
       this._mainInfo.innerHTML = mainHtml;
       this._lastMainHtml = mainHtml;
@@ -135,15 +161,17 @@ export class InfoOverlay {
 
     const rule = defaultRegistry.detect(s.data);
 
+    const fmtP = (n: number) => escapeHtml(this._priceFormatter(n));
+
     if (rule?.name === "number") {
-      return `<span style="color:${color}">${label} ${fmt(point.value as number)}</span>`;
+      return `<span style="color:${color}">${label} ${fmtP(point.value as number)}</span>`;
     }
 
     if (rule) {
       const decomposed = rule.decompose(point.value as Record<string, number | null>);
       const parts = Object.entries(decomposed)
         .filter(([, v]) => v !== null && v !== undefined)
-        .map(([k, v]) => `${escapeHtml(k)}:${fmt(v as number)}`)
+        .map(([k, v]) => `${escapeHtml(k)}:${fmtP(v as number)}`)
         .join(" ");
       return `<span style="color:${color}">${label}</span> <span style="color:${this._theme.text}">${parts}</span>`;
     }
@@ -158,8 +186,6 @@ export class InfoOverlay {
   }
 }
 
-// Aliases for imported format functions
-const fmt = (n: number) => escapeHtml(autoFormatPrice(n));
 const fmtVol = (n: number) => escapeHtml(formatVolume(n));
 
 /** Prevent XSS from custom formatters */
