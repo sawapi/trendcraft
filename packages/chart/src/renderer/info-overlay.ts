@@ -121,15 +121,15 @@ export class InfoOverlay {
     const point = s.data[index];
     if (!point || point.value === null || point.value === undefined) return "";
 
-    const label = s.config.label ?? "?";
-    const color = s.config.color ?? this._theme.text;
+    const label = escapeHtml(s.config.label ?? "?");
+    const color = escapeHtml(s.config.color ?? this._theme.text);
 
     // Check custom renderer formatValue first
     if (this._rendererRegistry) {
       const custom = this._rendererRegistry.getRenderer(s.type);
       if (custom?.formatValue) {
         const formatted = custom.formatValue(s, index);
-        if (formatted !== null) return formatted;
+        if (formatted !== null) return escapeHtml(formatted);
       }
     }
 
@@ -143,7 +143,7 @@ export class InfoOverlay {
       const decomposed = rule.decompose(point.value as Record<string, number | null>);
       const parts = Object.entries(decomposed)
         .filter(([, v]) => v !== null && v !== undefined)
-        .map(([k, v]) => `${k}:${fmt(v as number)}`)
+        .map(([k, v]) => `${escapeHtml(k)}:${fmt(v as number)}`)
         .join(" ");
       return `<span style="color:${color}">${label}</span> <span style="color:${this._theme.text}">${parts}</span>`;
     }
