@@ -33,19 +33,29 @@ function generateLineData(count: number): DataPoint<number>[] {
   }));
 }
 
+/** Run fn multiple times and return the median elapsed ms (avoids JIT warm-up outliers) */
+function medianMs(fn: () => void, runs = 5): number {
+  const times: number[] = [];
+  for (let i = 0; i < runs; i++) {
+    const start = performance.now();
+    fn();
+    times.push(performance.now() - start);
+  }
+  times.sort((a, b) => a - b);
+  return times[Math.floor(times.length / 2)];
+}
+
 describe("Performance", () => {
   const SIZE = 10_000;
 
-  it(`DataLayer.setCandles with ${SIZE} candles < 16ms`, () => {
+  it(`DataLayer.setCandles with ${SIZE} candles < 16ms (median of 5 runs)`, () => {
     const candles = generateCandles(SIZE);
     const dl = new DataLayer();
 
-    const start = performance.now();
-    dl.setCandles(candles);
-    const elapsed = performance.now() - start;
+    const median = medianMs(() => dl.setCandles(candles));
 
     expect(dl.candleCount).toBe(SIZE);
-    expect(elapsed).toBeLessThan(16);
+    expect(median).toBeLessThan(16);
   });
 
   it(`TimeScale scroll with ${SIZE} candles < 1ms`, () => {
