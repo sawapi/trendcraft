@@ -173,16 +173,47 @@ export class Viewport {
     let gestureTimer: ReturnType<typeof setTimeout> | null = null;
     let zoomAnchorX: number | null = null;
 
+    // Zoom inertia state
+    let zoomVelocity = 0;
+    let zoomInertiaRaf: number | null = null;
+    let lastZoomTime = 0;
+
+    const stopZoomInertia = () => {
+      if (zoomInertiaRaf !== null) {
+        cancelAnimationFrame(zoomInertiaRaf);
+        zoomInertiaRaf = null;
+      }
+      zoomVelocity = 0;
+    };
+
+    const runZoomInertia = () => {
+      if (Math.abs(zoomVelocity) < 0.0005) {
+        zoomInertiaRaf = null;
+        zoomAnchorX = null;
+        return;
+      }
+      const factor = 1 - zoomVelocity;
+      timeScale.zoom(factor, zoomAnchorX ?? undefined);
+      zoomVelocity *= 0.9; // Friction
+      this._onUpdate?.();
+      zoomInertiaRaf = requestAnimationFrame(runZoomInertia);
+    };
+
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
-
       // Determine direction from this event
-      const eventDir: "pan" | "zoom" = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? "pan" : "zoom";
+      // ctrlKey indicates trackpad pinch — always treat as zoom
+      const eventDir: "pan" | "zoom" = e.ctrlKey
+        ? "zoom"
+        : Math.abs(e.deltaX) > Math.abs(e.deltaY)
+          ? "pan"
+          : "zoom";
 
       // If direction changed, reset lock immediately
       if (gestureDir !== null && gestureDir !== eventDir) {
         gestureDir = null;
         zoomAnchorX = null;
+        stopZoomInertia();
       }
 
       if (gestureDir === null) gestureDir = eventDir;
@@ -191,7 +222,6 @@ export class Viewport {
       if (gestureTimer) clearTimeout(gestureTimer);
       gestureTimer = setTimeout(() => {
         gestureDir = null;
-        zoomAnchorX = null;
       }, 150);
 
       if (gestureDir === "pan") {
@@ -201,13 +231,39 @@ export class Viewport {
       } else {
         // Zoom: proportional to deltaY magnitude for smooth trackpad support
         const clampedDelta = Math.max(-50, Math.min(50, e.deltaY));
-        const factor = 1 - (clampedDelta / 500) * sens;
+        const zoomDelta = e.ctrlKey ? clampedDelta * 0.01 : (clampedDelta / 500) * sens;
+        const factor = 1 - zoomDelta;
+
         const rect = el.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
 
         // Lock anchor on first zoom event
         if (zoomAnchorX === null) zoomAnchorX = mouseX;
+
+        const now = performance.now();
+
+        // If inertia is running, absorb its velocity and stop it
+        if (zoomInertiaRaf !== null) {
+          cancelAnimationFrame(zoomInertiaRaf);
+          zoomInertiaRaf = null;
+        }
+
         timeScale.zoom(factor, zoomAnchorX);
+
+        // Blend velocity: smooth transition between active zoom and inertia
+        const dt = now - lastZoomTime;
+        if (dt < 50) {
+          // Events arriving quickly — blend with previous velocity
+          zoomVelocity = zoomVelocity * 0.3 + zoomDelta * 0.7;
+        } else {
+          zoomVelocity = zoomDelta;
+        }
+        lastZoomTime = now;
+
+        // Start inertia immediately on each frame — it will be cancelled
+        // by the next wheel event if the gesture is still active.
+        // This eliminates the pause between last event and inertia start.
+        zoomInertiaRaf = requestAnimationFrame(runZoomInertia);
       }
       this._onUpdate?.();
     };
@@ -255,7 +311,6 @@ export class Viewport {
     let lastTouchX = 0;
     let lastTouchDist = 0;
     let touchVelocity = 0;
-    let lastTouchTime = 0;
     let lastTouchMoveTime = 0;
     let inertiaRaf: number | null = null;
     let lastTapTime = 0;
@@ -283,10 +338,24 @@ export class Viewport {
 
     const onTouchStart = (e: TouchEvent) => {
       stopInertia();
-
       if (e.touches.length === 1) {
         const now = Date.now();
         const touch = e.touches[0];
+
+        // Check scrollbar hit on touch
+        const rect = el.getBoundingClientRect();
+        const touchLocalX = touch.clientX - rect.left;
+        const touchLocalY = touch.clientY - rect.top;
+        const sb = scrollbar();
+        if (sb && touchLocalY >= sb.y && touchLocalY <= sb.y + sb.height) {
+          this._scrollbarDragging = true;
+          const frac = (touchLocalX - sb.x) / sb.width;
+          const targetCenter = Math.round(frac * timeScale.totalCount);
+          const newStart = Math.max(0, targetCenter - Math.floor(timeScale.visibleCount / 2));
+          timeScale.setVisibleRange(newStart, newStart + timeScale.visibleCount);
+          this._onUpdate?.();
+          return;
+        }
 
         // Double-tap detection
         if (now - lastTapTime < 300) {
@@ -307,14 +376,18 @@ export class Viewport {
 
         this._state.isDragging = true;
         lastTouchX = touch.clientX;
-        lastTouchTime = now;
         lastTouchMoveTime = now;
         touchVelocity = 0;
         this._dragStartX = lastTouchX;
         this._dragStartIndex = timeScale.startIndex;
       } else if (e.touches.length === 2) {
+        // Switch from pan to pinch: cancel drag state
         if (longPressTimer) clearTimeout(longPressTimer);
-        lastTouchDist = Math.abs(e.touches[0].clientX - e.touches[1].clientX);
+        this._state.isDragging = false;
+        longPressCrosshairLocked = false;
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        lastTouchDist = Math.sqrt(dx * dx + dy * dy);
       }
     };
 
@@ -323,6 +396,22 @@ export class Viewport {
       if (longPressTimer) {
         clearTimeout(longPressTimer);
         longPressTimer = null;
+      }
+
+      // Scrollbar drag (touch)
+      if (this._scrollbarDragging && e.touches.length === 1) {
+        const sbTouch = e.touches[0];
+        const rect = el.getBoundingClientRect();
+        const localX = sbTouch.clientX - rect.left;
+        const sb = scrollbar();
+        if (sb && sb.width > 0) {
+          const frac = (localX - sb.x) / sb.width;
+          const targetCenter = Math.round(frac * timeScale.totalCount);
+          const newStart = Math.max(0, targetCenter - Math.floor(timeScale.visibleCount / 2));
+          timeScale.setVisibleRange(newStart, newStart + timeScale.visibleCount);
+        }
+        this._onUpdate?.();
+        return;
       }
 
       if (e.touches.length === 1 && this._state.isDragging) {
@@ -350,12 +439,16 @@ export class Viewport {
         timeScale.scrollTo(this._dragStartIndex + deltaBars);
         this._onUpdate?.();
       } else if (e.touches.length === 2) {
-        const dist = Math.abs(e.touches[0].clientX - e.touches[1].clientX);
-        if (lastTouchDist > 0) {
-          const factor = dist / lastTouchDist;
+        const tdx = e.touches[0].clientX - e.touches[1].clientX;
+        const tdy = e.touches[0].clientY - e.touches[1].clientY;
+        const dist = Math.sqrt(tdx * tdx + tdy * tdy);
+        if (lastTouchDist > 0 && dist > 0) {
+          // Amplify pinch: double the zoom delta for responsive feel
+          const rawFactor = dist / lastTouchDist;
+          const amplified = 1 + (rawFactor - 1) * 2.5;
           const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
           const rect = el.getBoundingClientRect();
-          timeScale.zoom(factor, midX - rect.left);
+          timeScale.zoom(amplified, midX - rect.left);
           this._onUpdate?.();
         }
         lastTouchDist = dist;

@@ -101,17 +101,12 @@ export class TimeScale {
     const ax = anchorX ?? this._width / 2;
     const anchorIndex = ax / this._barSpacing - 0.5 + this._startIndex;
 
-    // Use the minimum of _minBarSpacing and the "fit all" spacing so that
-    // zoom-out can reach the fitContent level even when _minBarSpacing is larger.
-    const paddedCount = this._totalCount > 0 ? Math.ceil(this._totalCount * 1.2) : 1;
-    const fitSpacing = this._width / paddedCount;
-    const effectiveMin = Math.max(0.1, Math.min(this._minBarSpacing, fitSpacing));
-
-    const newSpacing = Math.max(
-      effectiveMin,
-      Math.min(this._maxBarSpacing, this._barSpacing * factor),
-    );
-    if (newSpacing === this._barSpacing) return;
+    // Allow zoom-out to 1px bar spacing (matches fitContent minimum).
+    // Note: setVisibleRange uses _minBarSpacing (2px) because explicit range
+    // requests should maintain readable candles, whereas interactive zoom
+    // allows finer granularity down to 1px.
+    const newSpacing = Math.max(1, Math.min(this._maxBarSpacing, this._barSpacing * factor));
+    if (Math.abs(newSpacing - this._barSpacing) < 0.01) return;
 
     this._barSpacing = newSpacing;
     this.recalcVisibleCount();
@@ -136,15 +131,23 @@ export class TimeScale {
     this.clamp();
   }
 
-  /** Fit all candles in view, including 20% right padding for readability */
+  /** Fit all candles in view, including 20% right padding for readability.
+   *  barSpacing is clamped to at least 1px so candlestick rendering remains correct
+   *  (decimation assumes index-based coordinates). When data exceeds screen width,
+   *  the chart shows as many candles as fit and scrolls to the end. */
   fitContent(): void {
     if (this._totalCount <= 0 || this._width <= 0) return;
-    // Include 20% right padding so the last candle doesn't hug the edge
     const paddedCount = Math.ceil(this._totalCount * 1.2);
     this._barSpacing = Math.min(this._maxBarSpacing, this._width / paddedCount);
-    this._barSpacing = Math.max(0.1, this._barSpacing);
+    // Clamp to 1px minimum — below this, decimated candles don't fill the canvas correctly
+    this._barSpacing = Math.max(1, this._barSpacing);
     this.recalcVisibleCount();
-    this._startIndex = 0;
+    // If all data fits, start from 0; otherwise show the end (most recent data)
+    if (this._visibleCount >= paddedCount) {
+      this._startIndex = 0;
+    } else {
+      this._startIndex = Math.max(0, this._totalCount - Math.floor(this._visibleCount * 0.8));
+    }
   }
 
   /** Candle body width (fraction of bar spacing) */
@@ -162,8 +165,7 @@ export class TimeScale {
       return;
     }
     // If all data + right padding fits in view, lock to start (no panning needed)
-    const paddedCount = Math.ceil(this._totalCount * 1.2);
-    if (this._visibleCount >= paddedCount) {
+    if (this._visibleCount >= Math.ceil(this._totalCount * 1.2)) {
       this._startIndex = 0;
       return;
     }

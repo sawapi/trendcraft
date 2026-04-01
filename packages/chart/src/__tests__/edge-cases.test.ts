@@ -93,7 +93,7 @@ describe("Edge Cases", () => {
       ts.setTotalCount(100);
       // Zoom out excessively
       for (let i = 0; i < 50; i++) ts.zoom(0.5);
-      expect(ts.barSpacing).toBeGreaterThanOrEqual(2);
+      expect(ts.barSpacing).toBeGreaterThanOrEqual(1);
     });
 
     it("TimeScale clamps bar spacing to max", () => {
