@@ -8,6 +8,7 @@ import type { DrawHelper } from "../core/draw-helper";
 import { autoFormatPrice } from "../core/format";
 import { DEFAULT_LAYOUT, DEFAULT_LAYOUT_NO_VOLUME, LayoutEngine } from "../core/layout";
 import type { PrimitivePlugin, SeriesRendererPlugin } from "../core/plugin-types";
+import { type PointerInfo, onTap } from "../core/pointer";
 import { RendererRegistry } from "../core/renderer-registry";
 import { type PriceScale, TimeScale } from "../core/scale";
 import type {
@@ -75,7 +76,7 @@ export class CanvasChart implements ChartInstance {
   private _activeDrawingTool: DrawingType | null = null;
   private _drawingInProgress: { startTime: number; startPrice: number } | null = null;
   private _drawingIdCounter = 0;
-  private _mouseDownPos: { x: number; y: number } | null = null;
+  private _detachDrawTap: (() => void) | null = null;
 
   private _rendererRegistry = new RendererRegistry();
   private _drawHelper: DrawHelper | null = null;
@@ -260,9 +261,8 @@ export class CanvasChart implements ChartInstance {
       this._layout.setLayout(DEFAULT_LAYOUT_NO_VOLUME);
     }
 
-    // Interactive drawing: track mousedown position to distinguish click vs drag
-    this._canvas.addEventListener("mousedown", this._onDrawMouseDown);
-    this._canvas.addEventListener("click", this._onDrawClick);
+    // Interactive drawing: unified mouse + touch tap handler
+    this._detachDrawTap = onTap(this._canvas, this._handleDrawTap);
 
     // Start render loop
     this._renderLoop();
@@ -412,36 +412,20 @@ export class CanvasChart implements ChartInstance {
 
   // ---- Interactive Drawing ----
 
-  private _onDrawMouseDown = (e: MouseEvent): void => {
-    const rect = this._canvas.getBoundingClientRect();
-    this._mouseDownPos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-  };
-
-  private _onDrawClick = (e: MouseEvent): void => {
+  private _handleDrawTap = (pos: PointerInfo): void => {
     if (!this._activeDrawingTool) return;
 
-    // Distinguish click from drag: ignore if mouse moved > 5px
-    const rect = this._canvas.getBoundingClientRect();
-    const mx = e.clientX - rect.left;
-    const my = e.clientY - rect.top;
-    if (this._mouseDownPos) {
-      const dx = mx - this._mouseDownPos.x;
-      const dy = my - this._mouseDownPos.y;
-      if (dx * dx + dy * dy > 25) return; // 5px threshold
-    }
-
     // Convert pixel to time/price
-    const idx = this._timeScale.xToIndex(mx);
+    const idx = this._timeScale.xToIndex(pos.x);
     const candle = this._data.candles[idx];
     if (!candle) return;
     const time = candle.time;
 
-    // Find main pane price scale
     const mainPane = this._layout.paneRects.find((p) => p.id === "main");
     if (!mainPane) return;
     const scales = this._priceScales.get("main");
     if (!scales) return;
-    const price = scales.right.yToPrice(my - mainPane.y);
+    const price = scales.right.yToPrice(pos.y - mainPane.y);
 
     const tool = this._activeDrawingTool;
     const oneClick =
@@ -750,8 +734,7 @@ export class CanvasChart implements ChartInstance {
     this._infoOverlay?.destroy();
     this._legendOverlay?.destroy();
     this._rendererRegistry.destroyAll();
-    this._canvas.removeEventListener("mousedown", this._onDrawMouseDown);
-    this._canvas.removeEventListener("click", this._onDrawClick);
+    this._detachDrawTap?.();
     this._canvas.remove();
     if (this._ariaLiveTimer !== null) clearTimeout(this._ariaLiveTimer);
     this._ariaLiveEl?.remove();

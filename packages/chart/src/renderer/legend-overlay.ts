@@ -15,20 +15,24 @@ export class LegendOverlay {
   private _handleClick: (e: MouseEvent) => void;
   private _lastHtml = "";
 
+  private _styleEl: HTMLStyleElement | null = null;
+
   constructor(container: HTMLElement, theme: ThemeColors) {
     this._container = container;
     this._theme = theme;
 
+    // Inject responsive styles once
+    this._styleEl = document.createElement("style");
+    this._styleEl.textContent = `
+      .tc-legend { position:absolute; top:4px; right:68px; z-index:10; display:flex; gap:8px; flex-wrap:wrap; font-size:11px; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+      .tc-legend-btn { cursor:pointer; white-space:nowrap; background:none; border:none; padding:2px 4px; font:inherit; line-height:inherit; min-height:24px; }
+      @media (pointer:coarse) { .tc-legend-btn { min-height:36px; padding:6px 10px; font-size:13px; } }
+      @media (max-width:480px) { .tc-legend { right:4px; top:2px; gap:4px; font-size:10px; } }
+    `;
+    container.appendChild(this._styleEl);
+
     this._el = document.createElement("div");
-    this._el.style.position = "absolute";
-    this._el.style.top = "4px";
-    this._el.style.right = "68px";
-    this._el.style.zIndex = "10";
-    this._el.style.display = "flex";
-    this._el.style.gap = "8px";
-    this._el.style.flexWrap = "wrap";
-    this._el.style.fontSize = "11px";
-    this._el.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    this._el.className = "tc-legend";
     container.appendChild(this._el);
 
     // Single delegated click handler — never leaked
@@ -72,10 +76,11 @@ export class LegendOverlay {
         const label = escapeHtml(s.config.label ?? "");
         return `<button
           type="button"
+          class="tc-legend-btn"
           data-series-id="${escapeHtml(s.id)}"
           aria-pressed="${s.visible}"
           aria-label="Toggle ${label} visibility"
-          style="cursor:pointer;opacity:${opacity};text-decoration:${textDecoration};color:${this._theme.text};white-space:nowrap;background:none;border:none;padding:2px 4px;font:inherit;line-height:inherit"
+          style="opacity:${opacity};text-decoration:${textDecoration};color:${this._theme.text}"
         ><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${escapeHtml(color)};margin-right:3px;vertical-align:middle"></span>${label}</button>`;
       })
       .join("");
@@ -90,6 +95,7 @@ export class LegendOverlay {
   destroy(): void {
     this._el.removeEventListener("click", this._handleClick);
     this._el.remove();
+    this._styleEl?.remove();
   }
 }
 

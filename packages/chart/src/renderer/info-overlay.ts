@@ -20,6 +20,8 @@ export class InfoOverlay {
   private _priceFormatter: (price: number) => string;
   private _formatInfoOverlay: ((data: InfoOverlayData) => string | null) | null;
 
+  private _styleEl: HTMLStyleElement | null = null;
+
   constructor(
     container: HTMLElement,
     theme: ThemeColors,
@@ -32,6 +34,14 @@ export class InfoOverlay {
     this._priceFormatter = priceFormatter ?? autoFormatPrice;
     this._formatInfoOverlay = formatInfoOverlay ?? null;
 
+    // Inject responsive styles once
+    this._styleEl = document.createElement("style");
+    this._styleEl.textContent = `
+      .tc-info { position:absolute; z-index:10; pointer-events:none; font-size:11px; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; line-height:1.4; white-space:nowrap; }
+      @media (max-width:480px) { .tc-info { white-space:normal; font-size:10px; max-width:90vw; } }
+    `;
+    container.appendChild(this._styleEl);
+
     // Main pane OHLCV info
     this._mainInfo = this.createInfoElement();
     this._mainInfo.style.top = "4px";
@@ -41,13 +51,7 @@ export class InfoOverlay {
 
   private createInfoElement(): HTMLElement {
     const el = document.createElement("div");
-    el.style.position = "absolute";
-    el.style.zIndex = "10";
-    el.style.pointerEvents = "none";
-    el.style.fontSize = "11px";
-    el.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    el.style.lineHeight = "1.4";
-    el.style.whiteSpace = "nowrap";
+    el.className = "tc-info";
     return el;
   }
 
@@ -183,6 +187,7 @@ export class InfoOverlay {
     this._mainInfo.remove();
     for (const el of this._paneInfos.values()) el.remove();
     this._paneInfos.clear();
+    this._styleEl?.remove();
   }
 }
 

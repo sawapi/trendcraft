@@ -76,11 +76,21 @@
       background: #131722;
       border-top: 1px solid #2a2e39;
     }
+    @media (max-width: 768px) {
+      .btn-group + .btn-group { padding-left: 4px; margin-left: 2px; }
+    }
     @media (max-width: 600px) {
       header h1 { font-size: 12px; }
       header .tag { display: none; }
       .controls { margin-left: 0; width: 100%; justify-content: center; }
       button { padding: 6px 10px; font-size: 12px; }
+      .btn-group-label { display: none; }
+      .btn-group + .btn-group { border-left: none; padding-left: 0; margin-left: 0; }
+    }
+    @media (max-width: 480px) {
+      button { padding: 8px 12px; font-size: 13px; min-height: 44px; }
+      .btn-group { gap: 2px; }
+      .controls { gap: 2px; }
     }
   </style>
 </head>
