@@ -1,4 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
+import type { PrimitiveRenderContext } from "../core/plugin-types";
+import type { PriceScale, TimeScale } from "../core/scale";
+import type { ChartInstance, PaneRect, ThemeColors } from "../core/types";
 import { type SmcState, connectSmcLayer, createSmcLayer } from "../plugins/smc-layer";
 
 const EMPTY_STATE: SmcState = {
@@ -39,19 +42,17 @@ function mockTimeScale(startIndex = 0, endIndex = 50) {
     endIndex,
     barSpacing: 8,
     indexToX: (i: number) => i * 8 + 4,
-  } as import("../core/scale").TimeScale;
+  } as TimeScale;
 }
 
 function mockPriceScale() {
   return {
     priceToY: (price: number) => 400 - price * 2,
-  } as import("../core/scale").PriceScale;
+  } as PriceScale;
 }
 
-const mockPane = { id: "main", x: 0, y: 0, width: 800, height: 400 } as import(
-  "../core/types",
-).PaneRect;
-const mockTheme = { text: "#fff", textSecondary: "#888" } as import("../core/types").ThemeColors;
+const mockPane = { id: "main", x: 0, y: 0, width: 800, height: 400 } as PaneRect;
+const mockTheme = { text: "#fff", textSecondary: "#888" } as ThemeColors;
 
 function makeRenderContext(ctx: CanvasRenderingContext2D) {
   return {
@@ -60,7 +61,7 @@ function makeRenderContext(ctx: CanvasRenderingContext2D) {
     timeScale: mockTimeScale(),
     priceScale: mockPriceScale(),
     theme: mockTheme,
-  } as import("../core/plugin-types").PrimitiveRenderContext;
+  } as PrimitiveRenderContext;
 }
 
 describe("createSmcLayer", () => {
@@ -200,7 +201,7 @@ describe("connectSmcLayer", () => {
     const chart = {
       registerPrimitive: vi.fn(),
       removePrimitive: vi.fn(),
-    } as unknown as import("../core/types").ChartInstance;
+    } as unknown as ChartInstance;
 
     const handle = connectSmcLayer(chart, {});
 
@@ -213,7 +214,7 @@ describe("connectSmcLayer", () => {
     const chart = {
       registerPrimitive: vi.fn(),
       removePrimitive: vi.fn(),
-    } as unknown as import("../core/types").ChartInstance;
+    } as unknown as ChartInstance;
 
     const handle = connectSmcLayer(chart, {});
     handle.remove();
@@ -225,7 +226,7 @@ describe("connectSmcLayer", () => {
     const chart = {
       registerPrimitive: vi.fn(),
       removePrimitive: vi.fn(),
-    } as unknown as import("../core/types").ChartInstance;
+    } as unknown as ChartInstance;
 
     const handle = connectSmcLayer(chart, {});
     handle.update({ bos: [] });

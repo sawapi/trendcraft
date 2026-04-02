@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
+import type { PrimitiveRenderContext } from "../core/plugin-types";
+import type { TimeScale } from "../core/scale";
+import type { PaneRect } from "../core/types";
 import type { DataPoint } from "../core/types";
+import type { ChartInstance } from "../core/types";
 import { connectRegimeHeatmap, createRegimeHeatmap } from "../plugins/regime-heatmap";
 
 function makeRegimeData(
@@ -26,12 +30,10 @@ function mockTimeScale(startIndex = 0, endIndex = 5) {
     endIndex,
     barSpacing: 8,
     indexToX: (i: number) => i * 8 + 4,
-  } as import("../core/scale").TimeScale;
+  } as TimeScale;
 }
 
-const mockPaneRect = { id: "main", x: 0, y: 0, width: 800, height: 400 } as import(
-  "../core/types",
-).PaneRect;
+const mockPaneRect = { id: "main", x: 0, y: 0, width: 800, height: 400 } as PaneRect;
 
 describe("createRegimeHeatmap", () => {
   it("returns a valid PrimitivePlugin", () => {
@@ -55,9 +57,7 @@ describe("createRegimeHeatmap", () => {
     const ts = mockTimeScale(0, 3);
 
     plugin.render(
-      { ctx, pane: mockPaneRect, timeScale: ts } as import(
-        "../core/plugin-types",
-      ).PrimitiveRenderContext,
+      { ctx, pane: mockPaneRect, timeScale: ts } as PrimitiveRenderContext,
       plugin.defaultState,
     );
 
@@ -79,9 +79,7 @@ describe("createRegimeHeatmap", () => {
     // Re-render to capture fillStyle
     fillStyles.length = 0;
     plugin.render(
-      { ctx, pane: mockPaneRect, timeScale: ts } as import(
-        "../core/plugin-types",
-      ).PrimitiveRenderContext,
+      { ctx, pane: mockPaneRect, timeScale: ts } as PrimitiveRenderContext,
       plugin.defaultState,
     );
 
@@ -107,9 +105,7 @@ describe("createRegimeHeatmap", () => {
     });
 
     plugin.render(
-      { ctx, pane: mockPaneRect, timeScale: ts } as import(
-        "../core/plugin-types",
-      ).PrimitiveRenderContext,
+      { ctx, pane: mockPaneRect, timeScale: ts } as PrimitiveRenderContext,
       plugin.defaultState,
     );
 
@@ -123,9 +119,7 @@ describe("createRegimeHeatmap", () => {
     const ts = mockTimeScale(0, 5);
 
     plugin.render(
-      { ctx, pane: mockPaneRect, timeScale: ts } as import(
-        "../core/plugin-types",
-      ).PrimitiveRenderContext,
+      { ctx, pane: mockPaneRect, timeScale: ts } as PrimitiveRenderContext,
       plugin.defaultState,
     );
 
@@ -152,9 +146,7 @@ describe("createRegimeHeatmap", () => {
     });
 
     plugin.render(
-      { ctx, pane: mockPaneRect, timeScale: ts } as import(
-        "../core/plugin-types",
-      ).PrimitiveRenderContext,
+      { ctx, pane: mockPaneRect, timeScale: ts } as PrimitiveRenderContext,
       plugin.defaultState,
     );
 
@@ -169,7 +161,7 @@ describe("connectRegimeHeatmap", () => {
     const chart = {
       registerPrimitive: vi.fn(),
       removePrimitive: vi.fn(),
-    } as unknown as import("../core/types").ChartInstance;
+    } as unknown as ChartInstance;
 
     const data = makeRegimeData([{ regime: 1, label: "ranging" }]);
     const handle = connectRegimeHeatmap(chart, data);
@@ -183,7 +175,7 @@ describe("connectRegimeHeatmap", () => {
     const chart = {
       registerPrimitive: vi.fn(),
       removePrimitive: vi.fn(),
-    } as unknown as import("../core/types").ChartInstance;
+    } as unknown as ChartInstance;
 
     const handle = connectRegimeHeatmap(chart, []);
     handle.remove();
@@ -195,7 +187,7 @@ describe("connectRegimeHeatmap", () => {
     const chart = {
       registerPrimitive: vi.fn(),
       removePrimitive: vi.fn(),
-    } as unknown as import("../core/types").ChartInstance;
+    } as unknown as ChartInstance;
 
     const handle = connectRegimeHeatmap(chart, []);
     const newData = makeRegimeData([{ regime: 2, label: "trending-up" }]);
