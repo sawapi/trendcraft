@@ -132,3 +132,8 @@ export type {
   LivePresetEntry,
   AddIndicatorShorthand,
 } from "./integration/live-feed";
+
+// Plugins — tree-shakeable visualization primitives
+export { createRegimeHeatmap, connectRegimeHeatmap } from "./plugins/regime-heatmap";
+export { createSmcLayer, connectSmcLayer } from "./plugins/smc-layer";
+export type { SmcState, SmcZone, SmcMarker, SmcLevel } from "./plugins/smc-layer";

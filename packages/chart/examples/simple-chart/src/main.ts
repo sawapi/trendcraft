@@ -1,5 +1,7 @@
 import {
   connectLiveFeed,
+  connectRegimeHeatmap,
+  connectSmcLayer,
   createChart,
   definePrimitive,
   defineSeriesRenderer,
@@ -7,11 +9,16 @@ import {
 import type { LiveFeedConnection } from "@trendcraft/chart";
 import {
   bollingerBands,
+  breakOfStructure,
+  fairValueGap,
   goldenCrossCondition,
+  hmmRegimes,
   ichimoku,
+  liquiditySweep,
   livePresets,
   macd,
   normalizeCandles,
+  orderBlock,
   rsi,
   rsiBelow,
   runBacktest,
@@ -550,4 +557,40 @@ document.getElementById("btn-vol-overlay")?.addEventListener("click", (e) => {
     volOverlayHandle = chart.addIndicator(volumeSeries, VOL_OVERLAY_CONFIG);
   }
   btn.classList.add("active");
+});
+
+// --- Regime Heatmap: HMM regime detection as background coloring ---
+let regimeHandle: ReturnType<typeof connectRegimeHeatmap> | null = null;
+document.getElementById("btn-regime")?.addEventListener("click", (e) => {
+  const btn = e.target as HTMLButtonElement;
+  if (regimeHandle) {
+    regimeHandle.remove();
+    regimeHandle = null;
+    btn.classList.remove("active");
+  } else {
+    const normalized = normalizeCandles(candles);
+    const regimes = hmmRegimes(normalized, { maxIterations: 30, numRestarts: 2 });
+    regimeHandle = connectRegimeHeatmap(chart, regimes);
+    btn.classList.add("active");
+  }
+});
+
+// --- SMC Visual Layer: Order Blocks, FVG, Liquidity Sweep, BOS ---
+let smcHandle: ReturnType<typeof connectSmcLayer> | null = null;
+document.getElementById("btn-smc")?.addEventListener("click", (e) => {
+  const btn = e.target as HTMLButtonElement;
+  if (smcHandle) {
+    smcHandle.remove();
+    smcHandle = null;
+    btn.classList.remove("active");
+  } else {
+    const normalized = normalizeCandles(candles);
+    smcHandle = connectSmcLayer(chart, {
+      orderBlocks: orderBlock(normalized),
+      fvgs: fairValueGap(normalized),
+      sweeps: liquiditySweep(normalized),
+      bos: breakOfStructure(normalized),
+    });
+    btn.classList.add("active");
+  }
 });
