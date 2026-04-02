@@ -5,6 +5,7 @@
 
 import type { InternalSeries } from "../core/data-layer";
 import { autoFormatPrice, formatVolume } from "../core/format";
+import { type ChartLocale, DEFAULT_LOCALE } from "../core/i18n";
 import type { RendererRegistry } from "../core/renderer-registry";
 import { defaultRegistry } from "../core/series-registry";
 import type { CandleData, InfoOverlayData, PaneRect, ThemeColors } from "../core/types";
@@ -19,6 +20,7 @@ export class InfoOverlay {
   private _lastPaneHtml = new Map<string, string>();
   private _priceFormatter: (price: number) => string;
   private _formatInfoOverlay: ((data: InfoOverlayData) => string | null) | null;
+  private _locale: ChartLocale;
 
   private _styleEl: HTMLStyleElement | null = null;
 
@@ -27,12 +29,14 @@ export class InfoOverlay {
     theme: ThemeColors,
     priceFormatter?: (price: number) => string,
     formatInfoOverlay?: (data: InfoOverlayData) => string | null,
+    locale?: ChartLocale,
   ) {
     this._container = container;
     this._container.style.position = "relative";
     this._theme = theme;
     this._priceFormatter = priceFormatter ?? autoFormatPrice;
     this._formatInfoOverlay = formatInfoOverlay ?? null;
+    this._locale = locale ?? DEFAULT_LOCALE;
 
     // Inject responsive styles once
     this._styleEl = document.createElement("style");
@@ -101,12 +105,13 @@ export class InfoOverlay {
       const indicatorParts = mainSeries
         .map((s) => this.formatSeriesValue(s, index))
         .filter(Boolean);
+      const l = this._locale;
       mainHtml = [
-        `<span style="color:${this._theme.textSecondary}">O</span> <span style="color:${color}">${fmtP(candle.open)}</span>`,
-        `<span style="color:${this._theme.textSecondary}">H</span> <span style="color:${color}">${fmtP(candle.high)}</span>`,
-        `<span style="color:${this._theme.textSecondary}">L</span> <span style="color:${color}">${fmtP(candle.low)}</span>`,
-        `<span style="color:${this._theme.textSecondary}">C</span> <span style="color:${color}">${fmtP(candle.close)}</span>`,
-        `<span style="color:${this._theme.textSecondary}">V</span> <span style="color:${this._theme.text}">${fmtVol(candle.volume)}</span>`,
+        `<span style="color:${this._theme.textSecondary}">${escapeHtml(l.open)}</span> <span style="color:${color}">${fmtP(candle.open)}</span>`,
+        `<span style="color:${this._theme.textSecondary}">${escapeHtml(l.high)}</span> <span style="color:${color}">${fmtP(candle.high)}</span>`,
+        `<span style="color:${this._theme.textSecondary}">${escapeHtml(l.low)}</span> <span style="color:${color}">${fmtP(candle.low)}</span>`,
+        `<span style="color:${this._theme.textSecondary}">${escapeHtml(l.close)}</span> <span style="color:${color}">${fmtP(candle.close)}</span>`,
+        `<span style="color:${this._theme.textSecondary}">${escapeHtml(l.volume)}</span> <span style="color:${this._theme.text}">${fmtVol(candle.volume)}</span>`,
         ...indicatorParts,
       ].join("&nbsp;&nbsp;");
     }

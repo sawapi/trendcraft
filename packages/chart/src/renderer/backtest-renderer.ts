@@ -205,6 +205,7 @@ export function renderBacktestSummary(
   y: number,
   theme: ThemeColors,
   fontSize: number,
+  locale?: import("../core/i18n").ChartLocale,
 ): void {
   const isPositive = result.totalReturnPercent >= 0;
   const color = isPositive ? theme.upColor : theme.downColor;
@@ -215,15 +216,19 @@ export function renderBacktestSummary(
 
   const parts = [
     {
-      label: "Return",
+      label: locale?.return_ ?? "Return",
       value: `${isPositive ? "+" : ""}${result.totalReturnPercent.toFixed(1)}%`,
       color,
     },
-    { label: "Win", value: `${result.winRate.toFixed(0)}%`, color: theme.text },
-    { label: "Sharpe", value: result.sharpeRatio.toFixed(2), color: theme.text },
-    { label: "MaxDD", value: `${result.maxDrawdown.toFixed(1)}%`, color: theme.downColor },
-    { label: "PF", value: result.profitFactor.toFixed(2), color: theme.text },
-    { label: "Trades", value: `${result.tradeCount}`, color: theme.text },
+    { label: locale?.win ?? "Win", value: `${result.winRate.toFixed(0)}%`, color: theme.text },
+    { label: locale?.sharpe ?? "Sharpe", value: result.sharpeRatio.toFixed(2), color: theme.text },
+    {
+      label: locale?.maxDD ?? "MaxDD",
+      value: `${result.maxDrawdown.toFixed(1)}%`,
+      color: theme.downColor,
+    },
+    { label: locale?.pf ?? "PF", value: result.profitFactor.toFixed(2), color: theme.text },
+    { label: locale?.trades ?? "Trades", value: `${result.tradeCount}`, color: theme.text },
   ];
 
   let currentX = x + 4;

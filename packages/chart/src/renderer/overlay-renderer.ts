@@ -265,6 +265,7 @@ export function renderPaneTitles(
   dataLayer: DataLayer,
   theme: ThemeColors,
   fontSize: number,
+  locale?: import("../core/i18n").ChartLocale,
 ): void {
   ctx.fillStyle = theme.textSecondary;
   ctx.font = `${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
@@ -276,7 +277,7 @@ export function renderPaneTitles(
     const paneSeries = dataLayer.getSeriesForPane(pane.id);
     const title =
       pane.id === "volume"
-        ? "Volume"
+        ? (locale?.volume ?? "Volume")
         : paneSeries
             .map((s) => s.config.label ?? "")
             .filter(Boolean)

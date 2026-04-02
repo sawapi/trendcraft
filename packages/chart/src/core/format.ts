@@ -57,7 +57,7 @@ export function fixedPriceFormatter(decimals: number): (price: number) => string
 // Time Formatting
 // ============================================
 
-const MONTH_NAMES = [
+let MONTH_NAMES = [
   "Jan",
   "Feb",
   "Mar",
@@ -71,6 +71,11 @@ const MONTH_NAMES = [
   "Nov",
   "Dec",
 ];
+
+/** Override month abbreviations for i18n */
+export function setMonthNames(names: readonly string[]): void {
+  if (names.length === 12) MONTH_NAMES = [...names];
+}
 
 /**
  * Smart time label formatting.

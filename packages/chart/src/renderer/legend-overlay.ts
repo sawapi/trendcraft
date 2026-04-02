@@ -4,6 +4,7 @@
  */
 
 import type { InternalSeries } from "../core/data-layer";
+import { type ChartLocale, DEFAULT_LOCALE } from "../core/i18n";
 import type { ThemeColors } from "../core/types";
 
 export class LegendOverlay {
@@ -14,12 +15,14 @@ export class LegendOverlay {
   private _currentSeries: InternalSeries[] = [];
   private _handleClick: (e: MouseEvent) => void;
   private _lastHtml = "";
+  private _locale: ChartLocale;
 
   private _styleEl: HTMLStyleElement | null = null;
 
-  constructor(container: HTMLElement, theme: ThemeColors) {
+  constructor(container: HTMLElement, theme: ThemeColors, locale?: ChartLocale) {
     this._container = container;
     this._theme = theme;
+    this._locale = locale ?? DEFAULT_LOCALE;
 
     // Inject responsive styles once
     this._styleEl = document.createElement("style");
@@ -79,7 +82,7 @@ export class LegendOverlay {
           class="tc-legend-btn"
           data-series-id="${escapeHtml(s.id)}"
           aria-pressed="${s.visible}"
-          aria-label="Toggle ${label} visibility"
+          aria-label="${escapeHtml(this._locale.toggleVisibility(s.config.label ?? ""))}"
           style="opacity:${opacity};text-decoration:${textDecoration};color:${this._theme.text}"
         ><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${escapeHtml(color)};margin-right:3px;vertical-align:middle"></span>${label}</button>`;
       })

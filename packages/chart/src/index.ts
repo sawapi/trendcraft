@@ -87,6 +87,10 @@ export type {
   RangeDuration,
 } from "./core/types";
 
+// i18n
+export type { ChartLocale } from "./core/i18n";
+export { DEFAULT_LOCALE, mergeLocale } from "./core/i18n";
+
 export { DARK_THEME, LIGHT_THEME } from "./core/types";
 
 // Series registry (for custom rules)
