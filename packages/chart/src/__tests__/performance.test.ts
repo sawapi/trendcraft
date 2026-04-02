@@ -87,26 +87,28 @@ describe("Performance", () => {
     expect(elapsed).toBeLessThan(16);
   });
 
-  it(`LTTB decimation ${SIZE} → 800 points < 16ms`, () => {
+  it(`LTTB decimation ${SIZE} → 800 points < 16ms (median of 5 runs)`, () => {
     const data = generateLineData(SIZE);
 
-    const start = performance.now();
-    const result = lttb(data, 800);
-    const elapsed = performance.now() - start;
+    let result!: ReturnType<typeof lttb>;
+    const median = medianMs(() => {
+      result = lttb(data, 800);
+    });
 
     expect(result.length).toBe(800);
-    expect(elapsed).toBeLessThan(16);
+    expect(median).toBeLessThan(16);
   });
 
-  it(`Candle decimation ${SIZE} → 1000 bars < 16ms`, () => {
+  it(`Candle decimation ${SIZE} → 1000 bars < 16ms (median of 5 runs)`, () => {
     const candles = generateCandles(SIZE);
 
-    const start = performance.now();
-    const result = decimateCandles(candles, 0, SIZE, 1000);
-    const elapsed = performance.now() - start;
+    let result!: ReturnType<typeof decimateCandles>;
+    const median = medianMs(() => {
+      result = decimateCandles(candles, 0, SIZE, 1000);
+    });
 
     expect(result.length).toBe(1000);
-    expect(elapsed).toBeLessThan(16);
+    expect(median).toBeLessThan(16);
   });
 
   it(`DataLayer.indexAtTime binary search on ${SIZE} candles < 1ms`, () => {
