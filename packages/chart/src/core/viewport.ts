@@ -25,6 +25,16 @@ export type ViewportState = {
   crosshairIndex: number | null;
 };
 
+/** Apply rubber-band dampening: diminishing returns past the edge. */
+function rubberBandDampen(timeScale: TimeScale): void {
+  const over = timeScale.overscroll;
+  if (over === 0) return;
+  const maxStretch = timeScale.visibleCount * 0.15;
+  const sign = over > 0 ? 1 : -1;
+  const dampened = maxStretch * (1 - 1 / (1 + Math.abs(over) / maxStretch));
+  timeScale.setStartIndexUnclamped(timeScale.clampedStartIndex + sign * dampened);
+}
+
 export class Viewport {
   private _state: ViewportState = {
     isDragging: false,
@@ -147,13 +157,21 @@ export class Viewport {
       if (this._state.isDragging) {
         const dx = e.clientX - this._dragStartX;
         const deltaBars = -(dx / timeScale.barSpacing);
-        timeScale.scrollTo(this._dragStartIndex + deltaBars);
+        const rawStart = this._dragStartIndex + deltaBars;
+        timeScale.setStartIndexUnclamped(rawStart);
+        rubberBandDampen(timeScale);
       }
 
       this._onUpdate?.();
     };
 
     const onMouseUp = () => {
+      // Bounce-back if overscrolled via mouse drag
+      if (this._state.isDragging && Math.abs(timeScale.overscroll) > 0.1) {
+        stopInertia();
+        touchVelocity = 0;
+        inertiaRaf = requestAnimationFrame(runInertia);
+      }
       this._state.isDragging = false;
       this._scrollbarDragging = false;
       paneResizeGap = null;
@@ -222,12 +240,18 @@ export class Viewport {
       if (gestureTimer) clearTimeout(gestureTimer);
       gestureTimer = setTimeout(() => {
         gestureDir = null;
+        // Bounce-back if overscrolled when wheel gesture ends
+        if (Math.abs(timeScale.overscroll) > 0.1) {
+          stopInertia();
+          touchVelocity = 0;
+          inertiaRaf = requestAnimationFrame(runInertia);
+        }
       }, 150);
 
       if (gestureDir === "pan") {
-        // Horizontal scroll (pan) — sub-pixel smooth scrolling
+        // Horizontal scroll (pan) with rubber-band at edges
         const deltaBars = e.deltaX / timeScale.barSpacing;
-        timeScale.scrollBy(deltaBars);
+        timeScale.scrollByUnclamped(deltaBars);
       } else {
         // Zoom: proportional to deltaY magnitude for smooth trackpad support
         const clampedDelta = Math.max(-50, Math.min(50, e.deltaY));
@@ -325,13 +349,35 @@ export class Viewport {
     };
 
     const runInertia = () => {
+      const over = timeScale.overscroll;
+
+      if (Math.abs(over) > 0.1) {
+        // Bounce-back: spring toward clamped position (use raw float index)
+        const target = timeScale.clampedStartIndex;
+        const raw = timeScale.rawStartIndex;
+        const springForce = (target - raw) * 0.2;
+        timeScale.setStartIndexUnclamped(raw + springForce);
+        touchVelocity = 0;
+
+        if (Math.abs(timeScale.overscroll) < 0.5) {
+          // Close enough — snap exactly to clamped position
+          timeScale.setStartIndexUnclamped(timeScale.clampedStartIndex);
+          inertiaRaf = null;
+          this._onUpdate?.();
+          return;
+        }
+        this._onUpdate?.();
+        inertiaRaf = requestAnimationFrame(runInertia);
+        return;
+      }
+
       if (Math.abs(touchVelocity) < 0.5) {
         inertiaRaf = null;
         return;
       }
       const deltaBars = -touchVelocity / timeScale.barSpacing;
-      timeScale.scrollBy(Math.round(deltaBars));
-      touchVelocity *= 0.92; // Friction (stronger damping for less floaty feel)
+      timeScale.scrollByUnclamped(deltaBars);
+      touchVelocity *= 0.92;
       this._onUpdate?.();
       inertiaRaf = requestAnimationFrame(runInertia);
     };
@@ -436,7 +482,9 @@ export class Viewport {
 
         const dx = currentX - this._dragStartX;
         const deltaBars = -(dx / timeScale.barSpacing);
-        timeScale.scrollTo(this._dragStartIndex + deltaBars);
+        const rawStart = this._dragStartIndex + deltaBars;
+        timeScale.setStartIndexUnclamped(rawStart);
+        rubberBandDampen(timeScale);
         this._onUpdate?.();
       } else if (e.touches.length === 2) {
         const tdx = e.touches[0].clientX - e.touches[1].clientX;
@@ -461,9 +509,11 @@ export class Viewport {
         longPressTimer = null;
       }
 
-      // Start inertia if swiped fast enough
-      if (this._state.isDragging && !longPressCrosshairLocked && Math.abs(touchVelocity) > 3) {
-        inertiaRaf = requestAnimationFrame(runInertia);
+      // Start inertia if swiped fast enough, or bounce-back if overscrolled
+      if (this._state.isDragging && !longPressCrosshairLocked) {
+        if (Math.abs(touchVelocity) > 3 || Math.abs(timeScale.overscroll) > 0.1) {
+          inertiaRaf = requestAnimationFrame(runInertia);
+        }
       }
 
       this._state.isDragging = false;
