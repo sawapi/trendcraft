@@ -42,4 +42,4 @@ jobs:
 
       - name: Bundle size check
         if: matrix.node-version == 22
-        run: cd packages/core && npx size-limit
+        run: cd packages/core && pnpm exec size-limit
