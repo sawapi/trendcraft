@@ -137,3 +137,7 @@ export type {
 export { createRegimeHeatmap, connectRegimeHeatmap } from "./plugins/regime-heatmap";
 export { createSmcLayer, connectSmcLayer } from "./plugins/smc-layer";
 export type { SmcState, SmcZone, SmcMarker, SmcLevel } from "./plugins/smc-layer";
+export { createWyckoffPhase, connectWyckoffPhase } from "./plugins/wyckoff-phase";
+export { createSrConfluence, connectSrConfluence } from "./plugins/sr-confluence";
+export { createTradeAnalysis, connectTradeAnalysis } from "./plugins/trade-analysis";
+export { createSessionZones, connectSessionZones } from "./plugins/session-zones";

@@ -1,7 +1,11 @@
 import {
   connectLiveFeed,
   connectRegimeHeatmap,
+  connectSessionZones,
   connectSmcLayer,
+  connectSrConfluence,
+  connectTradeAnalysis,
+  connectWyckoffPhase,
   createChart,
   definePrimitive,
   defineSeriesRenderer,
@@ -14,6 +18,7 @@ import {
   goldenCrossCondition,
   hmmRegimes,
   ichimoku,
+  killZones,
   liquiditySweep,
   livePresets,
   macd,
@@ -23,7 +28,10 @@ import {
   rsiBelow,
   runBacktest,
   sma,
+  srZones,
   streaming,
+  vsa,
+  wyckoffPhases,
 } from "trendcraft";
 // Note: `incremental` no longer needed — livePresets bundles factories
 import sampleData from "../data.json";
@@ -165,13 +173,39 @@ chart.on("drawingComplete", (data) => {
 });
 
 // Backtest — 1 line visualization
+// Store last backtest result for MFE/MAE overlay
+let lastBacktestResult: ReturnType<typeof runBacktest> | null = null;
+
 document.getElementById("btn-backtest")?.addEventListener("click", () => {
   const normalized = normalizeCandles(candles);
   const result = runBacktest(normalized, goldenCrossCondition(), rsiBelow(70), { capital: 100000 });
+  lastBacktestResult = result;
   chart.addBacktest(result);
   const statusEl = document.getElementById("status");
   if (statusEl) {
     statusEl.textContent = `Backtest: ${result.tradeCount} trades, ${result.winRate.toFixed(0)}% win, ${result.totalReturnPercent.toFixed(1)}% return`;
+  }
+});
+
+// --- MFE/MAE Trade Analysis: visualize max favorable/adverse excursion ---
+let tradeAnalysisHandle: ReturnType<typeof connectTradeAnalysis> | null = null;
+document.getElementById("btn-mfe-mae")?.addEventListener("click", (e) => {
+  const btn = e.target as HTMLButtonElement;
+  if (tradeAnalysisHandle) {
+    tradeAnalysisHandle.remove();
+    tradeAnalysisHandle = null;
+    btn.classList.remove("active");
+  } else {
+    if (!lastBacktestResult) {
+      // Run backtest first if not done yet
+      const normalized = normalizeCandles(candles);
+      lastBacktestResult = runBacktest(normalized, goldenCrossCondition(), rsiBelow(70), {
+        capital: 100000,
+      });
+      chart.addBacktest(lastBacktestResult);
+    }
+    tradeAnalysisHandle = connectTradeAnalysis(chart, lastBacktestResult.trades, candles);
+    btn.classList.add("active");
   }
 });
 
@@ -591,6 +625,55 @@ document.getElementById("btn-smc")?.addEventListener("click", (e) => {
       sweeps: liquiditySweep(normalized),
       bos: breakOfStructure(normalized),
     });
+    btn.classList.add("active");
+  }
+});
+
+// --- Wyckoff Phase Timeline: phase bar + VSA markers ---
+let wyckoffHandle: ReturnType<typeof connectWyckoffPhase> | null = null;
+document.getElementById("btn-wyckoff")?.addEventListener("click", (e) => {
+  const btn = e.target as HTMLButtonElement;
+  if (wyckoffHandle) {
+    wyckoffHandle.remove();
+    wyckoffHandle = null;
+    btn.classList.remove("active");
+  } else {
+    const normalized = normalizeCandles(candles);
+    wyckoffHandle = connectWyckoffPhase(chart, {
+      phases: wyckoffPhases(normalized),
+      vsa: vsa(normalized),
+    });
+    btn.classList.add("active");
+  }
+});
+
+// --- S/R Zone Confluence: multi-source strength-colored bands ---
+let srConfHandle: ReturnType<typeof connectSrConfluence> | null = null;
+document.getElementById("btn-sr-confluence")?.addEventListener("click", (e) => {
+  const btn = e.target as HTMLButtonElement;
+  if (srConfHandle) {
+    srConfHandle.remove();
+    srConfHandle = null;
+    btn.classList.remove("active");
+  } else {
+    const normalized = normalizeCandles(candles);
+    const result = srZones(normalized);
+    srConfHandle = connectSrConfluence(chart, result.zones);
+    btn.classList.add("active");
+  }
+});
+
+// --- Session Kill Zones: time-based background shading ---
+let sessionHandle: ReturnType<typeof connectSessionZones> | null = null;
+document.getElementById("btn-sessions")?.addEventListener("click", (e) => {
+  const btn = e.target as HTMLButtonElement;
+  if (sessionHandle) {
+    sessionHandle.remove();
+    sessionHandle = null;
+    btn.classList.remove("active");
+  } else {
+    const normalized = normalizeCandles(candles);
+    sessionHandle = connectSessionZones(chart, killZones(normalized));
     btn.classList.add("active");
   }
 });
