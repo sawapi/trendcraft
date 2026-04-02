@@ -9,7 +9,7 @@ import { DrawHelper } from "../core/draw-helper";
 import type { LayoutEngine } from "../core/layout";
 import type { RendererRegistry } from "../core/renderer-registry";
 import { PriceScale, type TimeScale } from "../core/scale";
-import type { ChartType, PaneRect, ThemeColors } from "../core/types";
+import type { CandleData, ChartType, PaneRect, ThemeColors } from "../core/types";
 import type { ViewportState } from "../core/viewport";
 import { renderCandlesticks } from "../series/candlestick";
 import { renderVolume } from "../series/histogram";
@@ -61,6 +61,8 @@ export type RenderContext = {
   emit: (event: string, data: unknown) => void;
   /** Temporary drawing being placed interactively (shown as preview) */
   drawingPreview?: import("../core/types").Drawing;
+  /** Locale strings for i18n */
+  locale: import("../core/i18n").ChartLocale;
 };
 
 /** Result returned to canvas-chart for DOM overlay updates */
@@ -234,10 +236,21 @@ export function renderFrame(rc: RenderContext): RenderResult {
         timeScale.endIndex - timeScale.startIndex,
         timeScale.width,
       );
-      const visibleCandles =
-        decimTarget > 0
-          ? decimateCandles(candles, timeScale.startIndex, timeScale.endIndex, decimTarget)
-          : candles;
+      let visibleCandles: readonly CandleData[];
+      // When decimated, remap barSpacing so candles fill the full canvas width
+      const savedStart = timeScale.startIndex;
+      const savedSpacing = timeScale.barSpacing;
+      if (decimTarget > 0) {
+        visibleCandles = decimateCandles(
+          candles,
+          timeScale.startIndex,
+          timeScale.endIndex,
+          decimTarget,
+        );
+        timeScale.setImmediate(0, timeScale.width / visibleCandles.length);
+      } else {
+        visibleCandles = candles;
+      }
       switch (rc.chartType) {
         case "line":
           renderPriceLineChart(ctx, visibleCandles, timeScale, ps, theme);
@@ -251,6 +264,10 @@ export function renderFrame(rc: RenderContext): RenderResult {
         default:
           renderCandlesticks(ctx, visibleCandles, timeScale, ps, theme);
           break;
+      }
+      // Restore timeScale after decimated rendering
+      if (decimTarget > 0) {
+        timeScale.setImmediate(savedStart, savedSpacing);
       }
     }
 
@@ -355,7 +372,7 @@ export function renderFrame(rc: RenderContext): RenderResult {
   }
 
   // Pane titles
-  renderPaneTitles(ctx, paneRects, data, theme, rc.fontSize);
+  renderPaneTitles(ctx, paneRects, data, theme, rc.fontSize, rc.locale);
 
   // Scrollbar
   if (layout.scrollbarHeight > 0) {
@@ -395,7 +412,15 @@ export function renderFrame(rc: RenderContext): RenderResult {
     const equityScale = rc.priceScales.get("equity");
     if (equityPane && equityScale) {
       renderEquityCurve(ctx, btResult, equityPane, equityScale.right, timeScale, data, theme);
-      renderBacktestSummary(ctx, btResult, equityPane.x, equityPane.y, theme, rc.fontSize);
+      renderBacktestSummary(
+        ctx,
+        btResult,
+        equityPane.x,
+        equityPane.y,
+        theme,
+        rc.fontSize,
+        rc.locale,
+      );
     }
   }
 

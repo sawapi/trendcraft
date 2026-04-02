@@ -111,6 +111,10 @@ export type ChartOptions = {
   chartType?: ChartType;
   /** Custom info overlay formatter. Return HTML string or null to use default. */
   formatInfoOverlay?: (data: InfoOverlayData) => string | null;
+  /** Animation duration in ms for range transitions (default: 300, 0 to disable) */
+  animationDuration?: number;
+  /** Locale strings for i18n (partial override of defaults) */
+  locale?: Partial<import("./i18n").ChartLocale>;
 };
 
 /** Base chart rendering type */

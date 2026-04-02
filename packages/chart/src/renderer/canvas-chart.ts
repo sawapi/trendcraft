@@ -3,9 +3,11 @@
  * Orchestrates data layer, layout, scales, viewport, and rendering.
  */
 
+import { ViewTransition } from "../core/animation";
 import { DataLayer } from "../core/data-layer";
 import type { DrawHelper } from "../core/draw-helper";
-import { autoFormatPrice } from "../core/format";
+import { autoFormatPrice, setMonthNames } from "../core/format";
+import { type ChartLocale, mergeLocale } from "../core/i18n";
 import { DEFAULT_LAYOUT, DEFAULT_LAYOUT_NO_VOLUME, LayoutEngine } from "../core/layout";
 import type { PrimitivePlugin, SeriesRendererPlugin } from "../core/plugin-types";
 import { type PointerInfo, onTap } from "../core/pointer";
@@ -88,6 +90,9 @@ export class CanvasChart implements ChartInstance {
   private _resizeObserver: ResizeObserver | null = null;
   private _ariaLiveEl: HTMLElement | null = null;
   private _ariaLiveTimer: ReturnType<typeof setTimeout> | null = null;
+  private _transition = new ViewTransition();
+  private _animationDuration: number;
+  private _locale: ChartLocale;
 
   // Event listeners
   private _listeners = new Map<ChartEvent, Set<(data: unknown) => void>>();
@@ -114,6 +119,9 @@ export class CanvasChart implements ChartInstance {
     this._fontSize = options?.fontSize ?? DEFAULT_OPTIONS.fontSize;
     this._priceFormatter = options?.priceFormatter ?? autoFormatPrice;
     this._timeFormatter = options?.timeFormatter;
+    this._animationDuration = options?.animationDuration ?? 300;
+    this._locale = mergeLocale(options?.locale);
+    setMonthNames(this._locale.months);
     this._pixelRatio =
       options?.pixelRatio ?? (typeof window !== "undefined" ? window.devicePixelRatio : 1);
 
@@ -135,12 +143,9 @@ export class CanvasChart implements ChartInstance {
 
     // Accessibility
     this._canvas.setAttribute("role", "application");
-    this._canvas.setAttribute("aria-roledescription", "interactive financial chart");
+    this._canvas.setAttribute("aria-roledescription", this._locale.chartDescription);
     this._canvas.setAttribute("tabindex", "0");
-    this._canvas.setAttribute(
-      "aria-description",
-      "Keyboard: Arrow left/right to pan, Up/Down or +/- to zoom, Home/End to jump, F to fit all data",
-    );
+    this._canvas.setAttribute("aria-description", this._locale.keyboardShortcuts);
     this._updateAriaLabel();
 
     // Visually-hidden live region for screen reader announcements
@@ -194,6 +199,7 @@ export class CanvasChart implements ChartInstance {
 
     // Viewport interaction
     this._viewport.setOnUpdate(() => {
+      this._transition.cancel(); // User interaction cancels animation
       this._needsRender = true;
     });
     this._detachViewport = this._viewport.attach(
@@ -237,12 +243,13 @@ export class CanvasChart implements ChartInstance {
       this._theme,
       this._priceFormatter,
       options?.formatInfoOverlay,
+      this._locale,
     );
     this._infoOverlay.setRendererRegistry(this._rendererRegistry);
 
     // Legend overlay
     if (options?.legend !== false) {
-      this._legendOverlay = new LegendOverlay(container, this._theme);
+      this._legendOverlay = new LegendOverlay(container, this._theme, this._locale);
       this._legendOverlay.setOnToggle((seriesId, visible) => {
         const series = this._data.getAllSeries().find((s) => s.id === seriesId);
         if (series) {
@@ -473,7 +480,13 @@ export class CanvasChart implements ChartInstance {
         drawing = { id, type: "hray", time: startTime, price: startPrice };
         break;
       case "textLabel":
-        drawing = { id, type: "textLabel", time: startTime, price: startPrice, text: "Label" };
+        drawing = {
+          id,
+          type: "textLabel",
+          time: startTime,
+          price: startPrice,
+          text: this._locale.defaultLabel,
+        };
         break;
       case "trendline":
         drawing = { id, type: "trendline", startTime, startPrice, endTime, endPrice };
@@ -568,8 +581,7 @@ export class CanvasChart implements ChartInstance {
   setVisibleRange(start: TimeValue, end: TimeValue): void {
     const startIdx = this._data.indexAtTime(start);
     const endIdx = this._data.indexAtTime(end);
-    this._timeScale.setVisibleRange(startIdx, endIdx);
-    this._needsRender = true;
+    this._animateToRange(() => this._timeScale.setVisibleRange(startIdx, endIdx));
   }
 
   setVisibleRangeByDuration(duration: import("../core/types").RangeDuration): void {
@@ -614,8 +626,36 @@ export class CanvasChart implements ChartInstance {
   }
 
   fitContent(): void {
-    this._timeScale.fitContent();
-    this._needsRender = true;
+    this._animateToRange(() => this._timeScale.fitContent());
+  }
+
+  /** Animate from current viewport state to the state produced by `applyTarget()` */
+  private _animateToRange(applyTarget: () => void): void {
+    this._transition.cancel();
+
+    const fromStart = this._timeScale.startIndex;
+    const fromSpacing = this._timeScale.barSpacing;
+
+    // Apply target state to get the destination values
+    applyTarget();
+    const toStart = this._timeScale.startIndex;
+    const toSpacing = this._timeScale.barSpacing;
+
+    // Restore original state before animating
+    this._timeScale.setImmediate(fromStart, fromSpacing);
+
+    this._transition.animate(
+      fromStart,
+      fromSpacing,
+      toStart,
+      toSpacing,
+      this._timeScale.width,
+      this._animationDuration,
+      (startIndex, barSpacing) => {
+        this._timeScale.setImmediate(startIndex, barSpacing);
+        this._needsRender = true;
+      },
+    );
   }
 
   // ---- Public API: Events ----
@@ -729,6 +769,7 @@ export class CanvasChart implements ChartInstance {
 
   destroy(): void {
     if (this._rafId !== null) cancelAnimationFrame(this._rafId);
+    this._transition.cancel();
     this._detachViewport?.();
     this._resizeObserver?.disconnect();
     this._infoOverlay?.destroy();
@@ -767,7 +808,12 @@ export class CanvasChart implements ChartInstance {
     this._ctx.scale(pr, pr);
 
     this._layout.setDimensions(w, h, priceAxisWidth, timeAxisHeight);
+    const wasFit = this._timeScale.visibleCount >= this._timeScale.totalCount;
     this._timeScale.setWidth(this._layout.dataAreaWidth);
+    // Re-fit if all data was visible before resize
+    if (wasFit && this._timeScale.totalCount > 0) {
+      this._timeScale.fitContent();
+    }
   }
 
   // ---- Internal: Time index cache ----
@@ -833,6 +879,7 @@ export class CanvasChart implements ChartInstance {
       drawHelper: this._drawHelper,
       emit: (event, data) => this._emit(event as ChartEvent, data),
       drawingPreview: this._buildDrawingPreview(),
+      locale: this._locale,
     });
 
     // Cache drawHelper for reuse
@@ -855,10 +902,11 @@ export class CanvasChart implements ChartInstance {
   private _updateAriaLabel(): void {
     const candleCount = this._data.candleCount;
     const indicatorCount = this._data.getAllSeries().length;
+    const l = this._locale;
     const parts = [`${this._chartType} chart`];
-    if (candleCount > 0) parts.push(`${candleCount} data points`);
+    if (candleCount > 0) parts.push(`${candleCount} ${l.dataPoints}`);
     if (indicatorCount > 0)
-      parts.push(`${indicatorCount} indicator${indicatorCount > 1 ? "s" : ""}`);
+      parts.push(`${indicatorCount} ${indicatorCount > 1 ? l.indicators : l.indicator}`);
     this._canvas.setAttribute("aria-label", parts.join(", "));
   }
 
@@ -872,12 +920,13 @@ export class CanvasChart implements ChartInstance {
     this._ariaLiveTimer = setTimeout(() => {
       const candle = this._data.candles[idx];
       if (!candle || !this._ariaLiveEl) return;
+      const l = this._locale;
       this._ariaLiveEl.textContent =
-        `Open ${this._priceFormatter(candle.open)}, ` +
-        `High ${this._priceFormatter(candle.high)}, ` +
-        `Low ${this._priceFormatter(candle.low)}, ` +
-        `Close ${this._priceFormatter(candle.close)}, ` +
-        `Volume ${candle.volume.toLocaleString()}`;
+        `${l.open} ${this._priceFormatter(candle.open)}, ` +
+        `${l.high} ${this._priceFormatter(candle.high)}, ` +
+        `${l.low} ${this._priceFormatter(candle.low)}, ` +
+        `${l.close} ${this._priceFormatter(candle.close)}, ` +
+        `${l.volume} ${candle.volume.toLocaleString()}`;
     }, 300);
   }
 

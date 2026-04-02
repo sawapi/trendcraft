@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { DataLayer } from "../core/data-layer";
+import { DEFAULT_LOCALE } from "../core/i18n";
 import { LayoutEngine } from "../core/layout";
 import { RendererRegistry } from "../core/renderer-registry";
 import { TimeScale } from "../core/scale";
@@ -43,6 +44,7 @@ function makeRenderContext(overrides?: Partial<RenderContext>): RenderContext {
     rendererRegistry,
     drawHelper: null,
     emit: vi.fn(),
+    locale: DEFAULT_LOCALE,
     ...overrides,
   };
 }

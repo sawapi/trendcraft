@@ -36,6 +36,11 @@ export class TimeScale {
     return Math.floor(this._startIndex);
   }
 
+  /** Raw (non-floored) startIndex for smooth animation/bounce calculations */
+  get rawStartIndex(): number {
+    return this._startIndex;
+  }
+
   get endIndex(): number {
     return Math.min(Math.floor(this._startIndex) + this._visibleCount, this._totalCount);
   }
@@ -101,10 +106,8 @@ export class TimeScale {
     const ax = anchorX ?? this._width / 2;
     const anchorIndex = ax / this._barSpacing - 0.5 + this._startIndex;
 
-    // Allow zoom-out to 1px bar spacing (matches fitContent minimum).
-    // Note: setVisibleRange uses _minBarSpacing (2px) because explicit range
-    // requests should maintain readable candles, whereas interactive zoom
-    // allows finer granularity down to 1px.
+    // Zoom-out minimum: 1px per bar. This ensures decimated candles render correctly.
+    // fitContent() can go below 1px internally but interactive zoom stops here.
     const newSpacing = Math.max(1, Math.min(this._maxBarSpacing, this._barSpacing * factor));
     if (Math.abs(newSpacing - this._barSpacing) < 0.01) return;
 
@@ -131,23 +134,28 @@ export class TimeScale {
     this.clamp();
   }
 
-  /** Fit all candles in view, including 20% right padding for readability.
-   *  barSpacing is clamped to at least 1px so candlestick rendering remains correct
-   *  (decimation assumes index-based coordinates). When data exceeds screen width,
-   *  the chart shows as many candles as fit and scrolls to the end. */
+  /** Fit all candles in view.
+   *  barSpacing may go below 1px; the render pipeline remaps decimated
+   *  candles to fill the canvas correctly in that case. */
   fitContent(): void {
     if (this._totalCount <= 0 || this._width <= 0) return;
-    const paddedCount = Math.ceil(this._totalCount * 1.2);
-    this._barSpacing = Math.min(this._maxBarSpacing, this._width / paddedCount);
-    // Clamp to 1px minimum — below this, decimated candles don't fill the canvas correctly
-    this._barSpacing = Math.max(1, this._barSpacing);
+    this._barSpacing = Math.min(this._maxBarSpacing, this._width / this._totalCount);
+    this._barSpacing = Math.max(0.1, this._barSpacing);
     this.recalcVisibleCount();
-    // If all data fits, start from 0; otherwise show the end (most recent data)
-    if (this._visibleCount >= paddedCount) {
-      this._startIndex = 0;
-    } else {
-      this._startIndex = Math.max(0, this._totalCount - Math.floor(this._visibleCount * 0.8));
-    }
+    this._startIndex = 0;
+  }
+
+  /** Set startIndex and barSpacing directly (used by animation frames) */
+  setImmediate(startIndex: number, barSpacing: number): void {
+    this._barSpacing = Math.max(0.1, barSpacing);
+    this.recalcVisibleCount();
+    this._startIndex = startIndex;
+    this.clamp();
+  }
+
+  /** Set startIndex without clamping (used for rubber-band overscroll) */
+  setStartIndexUnclamped(startIndex: number): void {
+    this._startIndex = startIndex;
   }
 
   /** Candle body width (fraction of bar spacing) */
@@ -159,18 +167,57 @@ export class TimeScale {
     this._visibleCount = this._width > 0 ? Math.ceil(this._width / this._barSpacing) : 0;
   }
 
+  /** Returns how far past the edge the viewport is (0 = within bounds).
+   *  Negative = past left edge, positive = past right edge. */
+  get overscroll(): number {
+    const maxStart = this.maxStartIndex;
+    if (maxStart === null) return 0;
+    if (this._startIndex < 0) return this._startIndex;
+    if (this._startIndex > maxStart) return this._startIndex - maxStart;
+    return 0;
+  }
+
+  /** Scroll without clamping (allows overscroll for bounce effect) */
+  scrollByUnclamped(deltaBars: number): void {
+    this._startIndex += deltaBars;
+    // Soft clamp: allow overscroll but with increasing resistance
+    const maxStart = this.maxStartIndex;
+    if (maxStart === null) {
+      this.clamp();
+      return;
+    }
+    if (this._startIndex < 0) {
+      this._startIndex *= 0.4; // Rubber-band resistance
+    } else if (this._startIndex > maxStart) {
+      const over = this._startIndex - maxStart;
+      this._startIndex = maxStart + over * 0.4;
+    }
+  }
+
+  /** Snap back to the nearest edge (for bounce-back after overscroll) */
+  get clampedStartIndex(): number {
+    const maxStart = this.maxStartIndex;
+    if (maxStart === null) return 0;
+    return Math.max(0, Math.min(maxStart, this._startIndex));
+  }
+
+  /** Maximum allowed startIndex, or null if all data fits in view */
+  private get maxStartIndex(): number | null {
+    if (this._totalCount <= 0 || this._visibleCount >= this._totalCount) return null;
+    const rightPad = Math.ceil(this._visibleCount * 0.2);
+    return Math.max(0, this._totalCount + rightPad - this._visibleCount);
+  }
+
   private clamp(): void {
     if (this._totalCount <= 0) {
       this._startIndex = 0;
       return;
     }
-    // If all data + right padding fits in view, lock to start (no panning needed)
-    if (this._visibleCount >= Math.ceil(this._totalCount * 1.2)) {
+    if (this._visibleCount >= this._totalCount) {
       this._startIndex = 0;
       return;
     }
-    // Allow some right padding (can scroll past end by 20%)
-    const maxStart = Math.max(0, this._totalCount - Math.floor(this._visibleCount * 0.8));
+    const maxStart = this.maxStartIndex ?? 0;
     this._startIndex = Math.max(0, Math.min(maxStart, this._startIndex));
   }
 }
