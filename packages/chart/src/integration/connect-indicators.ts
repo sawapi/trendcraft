@@ -193,12 +193,20 @@ export function connectIndicators(
     }
 
     unsubTick = liveSource.on("tick", ({ candle, snapshot }) => {
-      chart.updateCandle(candle as import("../core/types").CandleData);
-      updateLiveIndicators(snapshot, candle);
+      try {
+        chart.updateCandle(candle as import("../core/types").CandleData);
+        updateLiveIndicators(snapshot, candle);
+      } catch (e) {
+        console.error("[@trendcraft/chart] connect-indicators tick error:", e);
+      }
     });
 
     unsubComplete = liveSource.on("candleComplete", ({ candle, snapshot }) => {
-      updateLiveIndicators(snapshot, candle);
+      try {
+        updateLiveIndicators(snapshot, candle);
+      } catch (e) {
+        console.error("[@trendcraft/chart] connect-indicators candleComplete error:", e);
+      }
     });
   }
 

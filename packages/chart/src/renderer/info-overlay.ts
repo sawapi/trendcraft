@@ -92,6 +92,7 @@ export class InfoOverlay {
 
     // Try custom formatter first
     let mainHtml: string | null = null;
+    let mainCustom = false;
     if (this._formatInfoOverlay) {
       const seriesData = mainSeries.map((s) => ({
         label: s.config.label ?? "",
@@ -99,6 +100,7 @@ export class InfoOverlay {
         value: s.data[index]?.value ?? null,
       }));
       mainHtml = this._formatInfoOverlay({ candle, index, paneId: "main", series: seriesData });
+      mainCustom = mainHtml !== null;
     }
 
     if (mainHtml === null) {
@@ -117,7 +119,13 @@ export class InfoOverlay {
     }
 
     if (mainHtml !== this._lastMainHtml) {
-      this._mainInfo.innerHTML = mainHtml;
+      if (mainCustom) {
+        // Custom formatter output is treated as plain text to prevent XSS
+        this._mainInfo.textContent = mainHtml;
+      } else {
+        // Internal builder produces pre-escaped HTML
+        this._mainInfo.innerHTML = mainHtml;
+      }
       this._lastMainHtml = mainHtml;
     }
 

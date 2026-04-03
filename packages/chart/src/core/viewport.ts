@@ -526,6 +526,12 @@ export class Viewport {
     el.addEventListener("touchend", onTouchEnd);
 
     return () => {
+      // Cancel pending animations and timers to prevent memory leaks
+      stopInertia();
+      stopZoomInertia();
+      if (gestureTimer) clearTimeout(gestureTimer);
+      if (longPressTimer) clearTimeout(longPressTimer);
+
       el.removeEventListener("mousedown", onMouseDown);
       el.removeEventListener("mousemove", onMouseMove);
       el.removeEventListener("mouseup", onMouseUp);

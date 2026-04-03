@@ -654,7 +654,7 @@ export class CanvasChart implements ChartInstance {
         break;
       case "YTD": {
         const d = new Date(lastTime);
-        startTime = new Date(d.getFullYear(), 0, 1).getTime();
+        startTime = Date.UTC(d.getUTCFullYear(), 0, 1);
         break;
       }
     }

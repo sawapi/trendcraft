@@ -309,12 +309,20 @@ export function connectLiveFeed(
   // --- Step 3: Subscribe to events ---
 
   const unsubComplete = source.on("candleComplete", ({ candle, snapshot }) => {
-    updateIndicators(snapshot, candle);
+    try {
+      updateIndicators(snapshot, candle);
+    } catch (e) {
+      console.error("[@trendcraft/chart] live-feed candleComplete error:", e);
+    }
   });
 
   const unsubTick = source.on("tick", ({ candle, snapshot }) => {
-    chart.updateCandle(candle as CandleData);
-    updateIndicators(snapshot, candle);
+    try {
+      chart.updateCandle(candle as CandleData);
+      updateIndicators(snapshot, candle);
+    } catch (e) {
+      console.error("[@trendcraft/chart] live-feed tick error:", e);
+    }
   });
 
   // --- Step 4: Build connection handle ---
