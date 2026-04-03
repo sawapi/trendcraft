@@ -489,6 +489,9 @@ export type ChartInstance = {
   // Data
   setCandles(candles: CandleData[]): void;
   updateCandle(candle: CandleData): void;
+  /** Batch multiple updates into a single render frame.
+   *  All mutations inside `fn` are deferred until the batch ends. */
+  batchUpdates(fn: () => void): void;
 
   // Indicators (Series<T> native)
   addIndicator<T>(series: DataPoint<T>[], config?: SeriesConfig): SeriesHandle;

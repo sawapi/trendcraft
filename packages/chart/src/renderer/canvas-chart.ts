@@ -86,6 +86,8 @@ export class CanvasChart implements ChartInstance {
 
   private _rafId: number | null = null;
   private _needsRender = true;
+  private _batching = false;
+  private _batchScrollToEnd = false;
   private _detachViewport: (() => void) | null = null;
   private _resizeObserver: ResizeObserver | null = null;
   private _ariaLiveEl: HTMLElement | null = null;
@@ -102,6 +104,15 @@ export class CanvasChart implements ChartInstance {
     if (handlers) {
       for (const h of handlers) h(data);
     }
+  }
+
+  /** Emit a warning via console and the 'error' event */
+  private _warn(message: string, detail?: unknown): void {
+    const payload = { message, detail };
+    if (typeof console !== "undefined") {
+      console.warn(`[@trendcraft/chart] ${message}`, detail ?? "");
+    }
+    this._emit("error", payload);
   }
 
   // Auto-generated pane counter
@@ -278,7 +289,10 @@ export class CanvasChart implements ChartInstance {
   // ---- Public API: Data ----
 
   setCandles(candles: CandleData[]): void {
-    if (!Array.isArray(candles)) return;
+    if (!Array.isArray(candles)) {
+      this._warn("setCandles: expected an array", typeof candles);
+      return;
+    }
     // Filter invalid candles (NaN, missing fields)
     const valid = candles.filter(
       (c) =>
@@ -308,8 +322,10 @@ export class CanvasChart implements ChartInstance {
       typeof candle.time !== "number" ||
       !Number.isFinite(candle.open) ||
       !Number.isFinite(candle.close)
-    )
+    ) {
+      this._warn("updateCandle: invalid candle data ignored", candle);
       return;
+    }
     // Auto-follow: if last candle is visible before update, keep following
     const wasAtEnd = this._timeScale.endIndex >= this._data.candleCount - 1;
 
@@ -324,16 +340,34 @@ export class CanvasChart implements ChartInstance {
     this._timeScale.setTotalCount(this._data.candleCount);
 
     if (wasAtEnd) {
-      this._timeScale.scrollToEnd();
+      if (this._batching) {
+        this._batchScrollToEnd = true;
+      } else {
+        this._timeScale.scrollToEnd();
+      }
     }
     this._needsRender = true;
+  }
+
+  batchUpdates(fn: () => void): void {
+    this._batching = true;
+    this._batchScrollToEnd = false;
+    try {
+      fn();
+    } finally {
+      this._batching = false;
+      if (this._batchScrollToEnd) {
+        this._timeScale.scrollToEnd();
+      }
+      this._needsRender = true;
+    }
   }
 
   // ---- Public API: Indicators ----
 
   addIndicator<T>(series: DataPoint<T>[], config?: SeriesConfig): SeriesHandle {
     if (!Array.isArray(series)) {
-      // Return a no-op handle for invalid input
+      this._warn("addIndicator: expected an array", typeof series);
       return {
         id: "",
         update: () => {},
@@ -341,6 +375,9 @@ export class CanvasChart implements ChartInstance {
         setVisible: () => {},
         remove: () => {},
       };
+    }
+    if (series.length === 0) {
+      this._warn("addIndicator: empty series array — indicator will not be visible");
     }
 
     // Introspect the series
