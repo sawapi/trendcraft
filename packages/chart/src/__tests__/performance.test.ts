@@ -47,6 +47,8 @@ function medianMs(fn: () => void, runs = 5): number {
 
 describe("Performance", () => {
   const SIZE = 10_000;
+  const LARGE = 100_000;
+  const XLARGE = 500_000;
 
   it(`DataLayer.setCandles with ${SIZE} candles < 16ms (median of 5 runs)`, () => {
     const candles = generateCandles(SIZE);
@@ -125,5 +127,117 @@ describe("Performance", () => {
     const elapsed = performance.now() - start;
 
     expect(elapsed).toBeLessThan(16); // 10K lookups < 16ms
+  });
+
+  // ---- Large-scale benchmarks (100k+) ----
+
+  it(`DataLayer.setCandles with ${LARGE} candles < 100ms`, () => {
+    const candles = generateCandles(LARGE);
+    const dl = new DataLayer();
+
+    const median = medianMs(() => dl.setCandles(candles), 3);
+
+    expect(dl.candleCount).toBe(LARGE);
+    expect(median).toBeLessThan(100);
+  });
+
+  it(`LTTB decimation ${LARGE} → 1000 points < 50ms`, () => {
+    const data = generateLineData(LARGE);
+
+    let result!: ReturnType<typeof lttb>;
+    const median = medianMs(() => {
+      result = lttb(data, 1000);
+    }, 3);
+
+    expect(result.length).toBe(1000);
+    expect(median).toBeLessThan(50);
+  });
+
+  it(`Candle decimation ${LARGE} → 1000 bars < 50ms`, () => {
+    const candles = generateCandles(LARGE);
+
+    let result!: ReturnType<typeof decimateCandles>;
+    const median = medianMs(() => {
+      result = decimateCandles(candles, 0, LARGE, 1000);
+    }, 3);
+
+    expect(result.length).toBe(1000);
+    expect(median).toBeLessThan(50);
+  });
+
+  it(`DataLayer.indexAtTime binary search on ${LARGE} candles < 1ms (10K lookups)`, () => {
+    const candles = generateCandles(LARGE);
+    const dl = new DataLayer();
+    dl.setCandles(candles);
+
+    const midTime = candles[Math.floor(LARGE / 2)].time;
+
+    const start = performance.now();
+    for (let i = 0; i < 10_000; i++) {
+      dl.indexAtTime(midTime);
+    }
+    const elapsed = performance.now() - start;
+
+    expect(elapsed).toBeLessThan(16);
+  });
+
+  it(`TimeScale operations with ${LARGE} candles < 16ms`, () => {
+    const ts = new TimeScale();
+    ts.setWidth(1920);
+    ts.setTotalCount(LARGE);
+    ts.scrollToEnd();
+
+    const start = performance.now();
+    for (let i = 0; i < 1000; i++) {
+      ts.scrollBy(10);
+      ts.zoom(i % 2 === 0 ? 1.01 : 0.99);
+    }
+    const elapsed = performance.now() - start;
+
+    expect(elapsed).toBeLessThan(16);
+  });
+
+  it(`DataLayer.setCandles with ${XLARGE} candles < 500ms`, () => {
+    const candles = generateCandles(XLARGE);
+    const dl = new DataLayer();
+
+    const median = medianMs(() => dl.setCandles(candles), 3);
+
+    expect(dl.candleCount).toBe(XLARGE);
+    expect(median).toBeLessThan(500);
+  });
+
+  it(`LTTB decimation ${XLARGE} → 2000 points < 200ms`, () => {
+    const data = generateLineData(XLARGE);
+
+    let result!: ReturnType<typeof lttb>;
+    const median = medianMs(() => {
+      result = lttb(data, 2000);
+    }, 3);
+
+    expect(result.length).toBe(2000);
+    expect(median).toBeLessThan(200);
+  });
+
+  it(`updateCandle throughput: 1000 updates < 16ms (${SIZE} base)`, () => {
+    const candles = generateCandles(SIZE);
+    const dl = new DataLayer();
+    dl.setCandles(candles);
+
+    const lastTime = candles[candles.length - 1].time;
+    const start = performance.now();
+    for (let i = 0; i < 1000; i++) {
+      dl.updateCandle({
+        time: lastTime,
+        open: 100 + i,
+        high: 110 + i,
+        low: 90,
+        close: 105 + i,
+        volume: 5000 + i,
+      });
+    }
+    const elapsed = performance.now() - start;
+
+    expect(elapsed).toBeLessThan(16);
   });
 });
