@@ -6,7 +6,9 @@
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { CCI_META } from "../indicator-meta";
 
 /**
  * CCI options
@@ -92,5 +94,5 @@ export function cci(
     result.push({ time: normalized[i].time, value: cciValue });
   }
 
-  return result;
+  return tagSeries(result, CCI_META);
 }

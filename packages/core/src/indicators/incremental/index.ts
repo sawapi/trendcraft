@@ -7,6 +7,7 @@
 
 // Types
 export type { IncrementalIndicator, WarmUpOptions } from "./types";
+export { restoreState } from "./types";
 
 // Utilities
 export { CircularBuffer } from "./circular-buffer";

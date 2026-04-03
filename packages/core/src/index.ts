@@ -1123,8 +1123,16 @@ export type {
 } from "./validation";
 export { normalizeAndValidate } from "./core/normalize";
 
+// Series tagging (chart rendering metadata)
+export { tagSeries } from "./core/tag-series";
+export type { SeriesMeta, TaggedSeries } from "./types/candle";
+
 // Streaming (real-time trading pipeline)
 export * as streaming from "./streaming";
+export { livePresets } from "./streaming";
+export type { LivePreset } from "./streaming";
+export { indicatorPresets } from "./streaming";
+export type { IndicatorPreset } from "./streaming";
 
 // Unified Conditions (define once, use in backtest & streaming)
 export {

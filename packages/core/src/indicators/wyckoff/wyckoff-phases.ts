@@ -13,6 +13,7 @@
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { breakOfStructure } from "../price/break-of-structure";
 import { swingPoints } from "../price/swing-points";
@@ -320,7 +321,7 @@ export function wyckoffPhases(
     });
   }
 
-  return result;
+  return tagSeries(result, { overlay: false, label: "Wyckoff" });
 }
 
 // ---------------------------------------------------------------------------

@@ -6,7 +6,9 @@
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { KLINGER_META } from "../indicator-meta";
 
 /**
  * Klinger value
@@ -127,7 +129,7 @@ export function klinger(
     };
   }
 
-  return result;
+  return tagSeries(result, KLINGER_META);
 }
 
 /**

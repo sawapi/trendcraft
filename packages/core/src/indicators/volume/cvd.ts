@@ -13,6 +13,7 @@
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 
 /**
@@ -107,7 +108,7 @@ export function cvd(candles: Candle[] | NormalizedCandle[]): Series<number> {
     result.push({ time: normalized[i].time, value: cumulative });
   }
 
-  return result;
+  return tagSeries(result, { overlay: false, label: "CVD" });
 }
 
 /**
@@ -148,11 +149,12 @@ export function cvdWithSignal(
   // Compute signal line (EMA of CVD values)
   const signalValues = computeEma(cvdValues, signalPeriod);
 
-  return cvdData.map((d, i) => ({
+  const result = cvdData.map((d, i) => ({
     time: d.time,
     value: {
       cvd: cvdValues[i],
       signal: signalValues[i],
     },
   }));
+  return tagSeries(result, { overlay: false, label: "CVD" });
 }

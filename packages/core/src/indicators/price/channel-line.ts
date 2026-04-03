@@ -9,6 +9,7 @@
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { swingPoints } from "./swing-points";
 
@@ -217,5 +218,5 @@ export function channelLine(
     }
   }
 
-  return result;
+  return tagSeries(result, { overlay: true, label: "Channel" });
 }

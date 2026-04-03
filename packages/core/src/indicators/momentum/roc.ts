@@ -6,7 +6,9 @@
  */
 
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
+import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
+import { ROC_META } from "../indicator-meta";
 
 /**
  * ROC options
@@ -76,5 +78,5 @@ export function roc(
     result.push({ time: normalized[i].time, value: rocValue });
   }
 
-  return result;
+  return tagSeries(result, ROC_META);
 }

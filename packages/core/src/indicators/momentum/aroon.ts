@@ -10,7 +10,9 @@
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { AROON_META } from "../indicator-meta";
 
 /**
  * Aroon options
@@ -101,5 +103,5 @@ export function aroon(
     });
   }
 
-  return result;
+  return tagSeries(result, AROON_META);
 }

@@ -13,6 +13,7 @@
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { tagSeries } from "../../core/tag-series";
 import type {
   Candle,
   ChandelierExitOptions,
@@ -20,6 +21,7 @@ import type {
   NormalizedCandle,
   Series,
 } from "../../types";
+import { CHANDELIER_EXIT_META } from "../indicator-meta";
 import { highest, lowest } from "../price/highest-lowest";
 import { atr } from "./atr";
 
@@ -158,5 +160,5 @@ export function chandelierExit(
     prevShortExit = shortExit;
   }
 
-  return result;
+  return tagSeries(result, CHANDELIER_EXIT_META);
 }

@@ -6,7 +6,9 @@
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { VWAP_META } from "../indicator-meta";
 
 /**
  * VWAP options
@@ -210,5 +212,5 @@ export function vwap(
     }
   }
 
-  return result;
+  return tagSeries(result, VWAP_META);
 }

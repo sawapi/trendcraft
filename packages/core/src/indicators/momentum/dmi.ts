@@ -4,7 +4,9 @@
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { DMI_META } from "../indicator-meta";
 
 /**
  * DMI result values
@@ -163,7 +165,7 @@ export function dmi(
     });
   }
 
-  return result;
+  return tagSeries(result, DMI_META);
 }
 
 /**

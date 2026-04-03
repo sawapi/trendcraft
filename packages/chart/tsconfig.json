@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "./dist",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+    "jsx": "react-jsx",
+    "types": ["vitest/globals"]
+  },
+  "include": ["src/**/*", "react/**/*", "vue/**/*"],
+  "exclude": ["node_modules", "dist"]
+}

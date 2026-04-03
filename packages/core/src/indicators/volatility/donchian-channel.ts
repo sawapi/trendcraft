@@ -5,7 +5,9 @@
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { DONCHIAN_META } from "../indicator-meta";
 
 /**
  * Donchian Channel values
@@ -130,5 +132,5 @@ export function donchianChannel(
     }
   }
 
-  return result;
+  return tagSeries(result, DONCHIAN_META);
 }

@@ -4,7 +4,9 @@
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { tagSeries } from "../../core/tag-series";
 import type { AtrOptions, Candle, NormalizedCandle, Series } from "../../types";
+import { ATR_META } from "../indicator-meta";
 
 /**
  * Calculate Average True Range using Wilder's method
@@ -85,5 +87,5 @@ export function atr(
     }
   }
 
-  return result;
+  return tagSeries(result, ATR_META);
 }

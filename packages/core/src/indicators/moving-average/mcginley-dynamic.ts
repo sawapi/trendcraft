@@ -6,7 +6,9 @@
  */
 
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
+import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
+import { MCGINLEY_META } from "../indicator-meta";
 
 /**
  * McGinley Dynamic options
@@ -81,5 +83,5 @@ export function mcginleyDynamic(
     }
   }
 
-  return result;
+  return tagSeries(result, MCGINLEY_META);
 }

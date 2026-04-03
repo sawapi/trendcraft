@@ -4,7 +4,9 @@
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { MFI_META } from "../indicator-meta";
 
 /**
  * Options for MFI calculation
@@ -106,5 +108,5 @@ export function mfi(
     result.push({ time: normalized[i].time, value: mfiValue });
   }
 
-  return result;
+  return tagSeries(result, MFI_META);
 }

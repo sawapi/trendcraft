@@ -6,6 +6,7 @@
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 
 /**
@@ -49,5 +50,5 @@ export function pvt(candles: Candle[] | NormalizedCandle[]): Series<number | nul
     result.push({ time: normalized[i].time, value: cumPvt });
   }
 
-  return result;
+  return tagSeries(result, { overlay: false, label: "PVT" });
 }

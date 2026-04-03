@@ -8,6 +8,7 @@
  * @module
  */
 
+import { tagSeries } from "../../core/tag-series";
 import type { Series } from "../../types";
 
 // ---------------------------------------------------------------------------
@@ -327,5 +328,5 @@ export function ewmaVolatility(returns: number[], options?: EwmaVolatilityOption
     result.push({ time: t, value: Math.sqrt(sigma2) * SQRT_252 * 100 });
   }
 
-  return result;
+  return tagSeries(result, { overlay: false, label: "GARCH" });
 }

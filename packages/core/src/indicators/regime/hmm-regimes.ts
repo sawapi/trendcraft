@@ -8,7 +8,9 @@
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { tagSeries } from "../../core/tag-series";
 import type { Candle, Series } from "../../types";
+import { HMM_REGIME_META } from "../indicator-meta";
 import { baumWelch, forward, viterbi } from "./hmm-core";
 import type { HmmModel, HmmOptions } from "./hmm-core";
 import { extractFeatures } from "./hmm-features";
@@ -175,7 +177,7 @@ export function hmmRegimes(candles: Candle[], options?: HmmRegimeOptions): Serie
     };
   }
 
-  return result;
+  return tagSeries(result, HMM_REGIME_META);
 }
 
 /**

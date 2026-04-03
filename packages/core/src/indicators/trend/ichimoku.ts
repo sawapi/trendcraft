@@ -6,7 +6,9 @@
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { ICHIMOKU_META } from "../indicator-meta";
 
 /**
  * Ichimoku options
@@ -148,7 +150,7 @@ export function ichimoku(
     });
   }
 
-  return result;
+  return tagSeries(result, ICHIMOKU_META);
 }
 
 /**

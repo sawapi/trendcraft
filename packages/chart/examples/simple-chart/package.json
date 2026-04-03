@@ -1,0 +1,19 @@
+{
+  "name": "trendcraft-chart-simple",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@trendcraft/chart": "link:../..",
+    "trendcraft": "link:../../../../core"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2",
+    "vite": "^6.0.3"
+  }
+}

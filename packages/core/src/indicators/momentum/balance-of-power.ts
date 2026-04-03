@@ -6,6 +6,7 @@
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 
 /**
@@ -71,5 +72,5 @@ export function balanceOfPower(
     result.push({ time: normalized[i].time, value: sum / smoothPeriod });
   }
 
-  return result;
+  return tagSeries(result, { overlay: false, label: "BOP", yRange: [-1, 1], referenceLines: [0] });
 }

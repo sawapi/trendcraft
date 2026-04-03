@@ -7,6 +7,7 @@
  */
 
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
+import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 
 /**
@@ -86,7 +87,12 @@ export function hurst(
     result.push({ time: normalized[i].time, value: h });
   }
 
-  return result;
+  return tagSeries(result, {
+    overlay: false,
+    label: "Hurst",
+    yRange: [0, 1],
+    referenceLines: [0.5],
+  });
 }
 
 /**

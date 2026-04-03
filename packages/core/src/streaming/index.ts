@@ -42,6 +42,13 @@ export type {
   SessionOptions,
   SessionState,
   TradingSession,
+  LiveIndicatorFactory,
+  LiveCandleOptions,
+  LiveTickEvent,
+  LiveCandleCompleteEvent,
+  LiveCandleEventMap,
+  LiveCandleState,
+  LiveCandle,
 } from "./types";
 
 // Phase 1: Candle aggregation
@@ -158,6 +165,17 @@ export type { StreamingMtfOptions } from "./mtf";
 
 // Phase 4: Session
 export { createTradingSession } from "./session";
+
+// LiveCandle (lightweight live candle + indicator manager)
+export { createLiveCandle } from "./live-candle";
+
+// Live indicator presets (zero-config for connectLiveFeed)
+export { livePresets } from "./live-presets";
+export type { LivePreset } from "./live-presets";
+
+// Unified indicator presets (static + live, for connectIndicators)
+export { indicatorPresets } from "./indicator-presets";
+export type { IndicatorPreset } from "./indicator-presets";
 
 // Phase 5: Guards (Risk Management & Time Control)
 export {

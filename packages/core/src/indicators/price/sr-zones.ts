@@ -10,6 +10,7 @@
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { volumeProfile } from "../volume/volume-profile";
 import { vwap } from "../volume/vwap";
@@ -482,5 +483,5 @@ export function srZonesSeries(
     result.push({ time: normalized[i].time, value: zones });
   }
 
-  return result;
+  return tagSeries(result, { overlay: true, label: "S/R Zones" });
 }
