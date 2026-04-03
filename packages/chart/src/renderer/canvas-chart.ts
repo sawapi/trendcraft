@@ -10,7 +10,8 @@ import { autoFormatPrice, setMonthNames } from "../core/format";
 import { type ChartLocale, mergeLocale } from "../core/i18n";
 import { DEFAULT_LAYOUT, DEFAULT_LAYOUT_NO_VOLUME, LayoutEngine } from "../core/layout";
 import type { PrimitivePlugin, SeriesRendererPlugin } from "../core/plugin-types";
-import { type PointerInfo, onTap } from "../core/pointer";
+import { onTap } from "../core/pointer";
+import { resolveRangeDuration } from "../core/range-utils";
 import { RendererRegistry } from "../core/renderer-registry";
 import { type PriceScale, TimeScale } from "../core/scale";
 import type {
@@ -35,6 +36,8 @@ import type {
 import { DARK_THEME, LIGHT_THEME } from "../core/types";
 import { Viewport } from "../core/viewport";
 import { introspect } from "../integration/series-introspector";
+import { ChartAria } from "./chart-aria";
+import { DrawingTool } from "./drawing-tool";
 import { InfoOverlay } from "./info-overlay";
 import { LegendOverlay } from "./legend-overlay";
 import { renderFrame } from "./render-pipeline";
@@ -75,14 +78,11 @@ export class CanvasChart implements ChartInstance {
   private _legendOverlay: LegendOverlay | null = null;
   private _watermark: string | undefined;
   private _chartType: import("../core/types").ChartType;
-  private _activeDrawingTool: DrawingType | null = null;
-  private _drawingInProgress: { startTime: number; startPrice: number } | null = null;
-  private _drawingIdCounter = 0;
+  private _drawingTool: DrawingTool | null = null;
   private _detachDrawTap: (() => void) | null = null;
 
   private _rendererRegistry = new RendererRegistry();
   private _drawHelper: DrawHelper | null = null;
-  private _timeToIndex: Map<number, number> = new Map();
 
   private _rafId: number | null = null;
   private _needsRender = true;
@@ -90,8 +90,7 @@ export class CanvasChart implements ChartInstance {
   private _batchScrollToEnd = false;
   private _detachViewport: (() => void) | null = null;
   private _resizeObserver: ResizeObserver | null = null;
-  private _ariaLiveEl: HTMLElement | null = null;
-  private _ariaLiveTimer: ReturnType<typeof setTimeout> | null = null;
+  private _aria: ChartAria | null = null;
   private _transition = new ViewTransition();
   private _animationDuration: number;
   private _locale: ChartLocale;
@@ -153,33 +152,13 @@ export class CanvasChart implements ChartInstance {
     this._canvas.style.userSelect = "none";
 
     // Accessibility
-    this._canvas.setAttribute("role", "application");
-    this._canvas.setAttribute("aria-roledescription", this._locale.chartDescription);
-    this._canvas.setAttribute("tabindex", "0");
-    this._canvas.setAttribute("aria-description", this._locale.keyboardShortcuts);
+    this._aria = new ChartAria(container, this._locale);
+    this._aria.initCanvas(this._canvas);
     this._updateAriaLabel();
-
-    // Visually-hidden live region for screen reader announcements
-    this._ariaLiveEl = document.createElement("div");
-    this._ariaLiveEl.setAttribute("role", "status");
-    this._ariaLiveEl.setAttribute("aria-live", "polite");
-    this._ariaLiveEl.setAttribute("aria-atomic", "true");
-    Object.assign(this._ariaLiveEl.style, {
-      position: "absolute",
-      width: "1px",
-      height: "1px",
-      padding: "0",
-      margin: "-1px",
-      overflow: "hidden",
-      clip: "rect(0,0,0,0)",
-      whiteSpace: "nowrap",
-      border: "0",
-    });
 
     container.style.position = "relative";
 
     container.appendChild(this._canvas);
-    container.appendChild(this._ariaLiveEl);
 
     const ctx = this._canvas.getContext("2d");
     if (!ctx) throw new Error("Canvas 2D context not available");
@@ -199,6 +178,9 @@ export class CanvasChart implements ChartInstance {
     this._data.setOnChange(() => {
       this._needsRender = true;
     });
+
+    // Forward data layer warnings
+    this._data.setOnWarn((msg) => this._warn(msg));
 
     // Auto-remove empty panes when last series is removed
     this._data.setOnPaneEmpty((paneId) => {
@@ -280,7 +262,20 @@ export class CanvasChart implements ChartInstance {
     }
 
     // Interactive drawing: unified mouse + touch tap handler
-    this._detachDrawTap = onTap(this._canvas, this._handleDrawTap);
+    this._drawingTool = new DrawingTool({
+      getCandles: () => this._data.candles,
+      getTimeScale: () => this._timeScale,
+      getLayout: () => this._layout,
+      getPriceScales: () => this._priceScales,
+      getViewportState: () => this._viewport.state,
+      addDrawing: (d) => this.addDrawing(d),
+      emit: (event, data) => this._emit(event as ChartEvent, data),
+      requestRender: () => {
+        this._needsRender = true;
+      },
+      locale: this._locale,
+    });
+    this._detachDrawTap = onTap(this._canvas, (pos) => this._drawingTool?.handleTap(pos));
 
     // Start render loop
     this._renderLoop();
@@ -306,7 +301,6 @@ export class CanvasChart implements ChartInstance {
     );
     const removed = candles.length - valid.length;
     this._data.setCandles(valid);
-    this._rebuildTimeIndex();
     this._timeScale.setTotalCount(this._data.candleCount);
     this._timeScale.scrollToEnd();
     this._needsRender = true;
@@ -329,14 +323,7 @@ export class CanvasChart implements ChartInstance {
     // Auto-follow: if last candle is visible before update, keep following
     const wasAtEnd = this._timeScale.endIndex >= this._data.candleCount - 1;
 
-    const prevCount = this._data.candleCount;
     this._data.updateCandle(candle);
-
-    // Keep time→index map in sync for addIndicator alignment
-    if (this._data.candleCount > prevCount) {
-      this._timeToIndex.set(candle.time, this._data.candleCount - 1);
-    }
-
     this._timeScale.setTotalCount(this._data.candleCount);
 
     if (wasAtEnd) {
@@ -405,7 +392,7 @@ export class CanvasChart implements ChartInstance {
     }
 
     // Align series data to candle indices for efficient rendering
-    const aligned = this._alignToCandles(series);
+    const aligned = this._data.alignToCandles(series);
 
     const handle = this._data.addSeries(
       aligned,
@@ -448,128 +435,8 @@ export class CanvasChart implements ChartInstance {
   }
 
   setDrawingTool(tool: DrawingType | null): void {
-    this._activeDrawingTool = tool;
-    this._drawingInProgress = null;
+    this._drawingTool?.setTool(tool);
     this._canvas.style.cursor = tool ? "cell" : "crosshair";
-    this._needsRender = true;
-  }
-
-  // ---- Interactive Drawing ----
-
-  private _handleDrawTap = (pos: PointerInfo): void => {
-    if (!this._activeDrawingTool) return;
-
-    // Convert pixel to time/price
-    const idx = this._timeScale.xToIndex(pos.x);
-    const candle = this._data.candles[idx];
-    if (!candle) return;
-    const time = candle.time;
-
-    const mainPane = this._layout.paneRects.find((p) => p.id === "main");
-    if (!mainPane) return;
-    const scales = this._priceScales.get("main");
-    if (!scales) return;
-    const price = scales.right.yToPrice(pos.y - mainPane.y);
-
-    const tool = this._activeDrawingTool;
-    const oneClick =
-      tool === "hline" || tool === "vline" || tool === "hray" || tool === "textLabel";
-
-    if (oneClick) {
-      this._completeDrawing(time, price, time, price);
-      return;
-    }
-
-    // Two-click tools
-    if (!this._drawingInProgress) {
-      this._drawingInProgress = { startTime: time, startPrice: price };
-      this._needsRender = true;
-    } else {
-      this._completeDrawing(
-        this._drawingInProgress.startTime,
-        this._drawingInProgress.startPrice,
-        time,
-        price,
-      );
-    }
-  };
-
-  private _completeDrawing(
-    startTime: number,
-    startPrice: number,
-    endTime: number,
-    endPrice: number,
-  ): void {
-    const tool = this._activeDrawingTool;
-    if (!tool) return;
-
-    const id = `draw_${++this._drawingIdCounter}`;
-    let drawing: Drawing;
-
-    switch (tool) {
-      case "hline":
-        drawing = { id, type: "hline", price: startPrice };
-        break;
-      case "vline":
-        drawing = { id, type: "vline", time: startTime };
-        break;
-      case "hray":
-        drawing = { id, type: "hray", time: startTime, price: startPrice };
-        break;
-      case "textLabel":
-        drawing = {
-          id,
-          type: "textLabel",
-          time: startTime,
-          price: startPrice,
-          text: this._locale.defaultLabel,
-        };
-        break;
-      case "trendline":
-        drawing = { id, type: "trendline", startTime, startPrice, endTime, endPrice };
-        break;
-      case "ray":
-        drawing = { id, type: "ray", startTime, startPrice, endTime, endPrice };
-        break;
-      case "arrow":
-        drawing = { id, type: "arrow", startTime, startPrice, endTime, endPrice };
-        break;
-      case "rectangle":
-        drawing = { id, type: "rectangle", startTime, startPrice, endTime, endPrice };
-        break;
-      case "fibRetracement":
-        drawing = { id, type: "fibRetracement", startTime, startPrice, endTime, endPrice };
-        break;
-      case "fibExtension":
-        drawing = { id, type: "fibExtension", startTime, startPrice, endTime, endPrice };
-        break;
-      case "channel": {
-        // Auto-compute channel width from recent candle range
-        const visStart = this._timeScale.startIndex;
-        const visEnd = this._timeScale.endIndex;
-        let avgRange = 0;
-        let count = 0;
-        for (let i = visStart; i < visEnd && i < this._data.candleCount; i++) {
-          const c = this._data.candles[i];
-          if (c) {
-            avgRange += c.high - c.low;
-            count++;
-          }
-        }
-        const channelWidth =
-          count > 0 ? (avgRange / count) * 2 : Math.abs(endPrice - startPrice) * 0.5;
-        drawing = { id, type: "channel", startTime, startPrice, endTime, endPrice, channelWidth };
-        break;
-      }
-      default:
-        return;
-    }
-
-    this.addDrawing(drawing);
-    this._emit("drawingComplete", drawing);
-    this._activeDrawingTool = null;
-    this._drawingInProgress = null;
-    this._canvas.style.cursor = "crosshair";
     this._needsRender = true;
   }
 
@@ -622,43 +489,15 @@ export class CanvasChart implements ChartInstance {
   }
 
   setVisibleRangeByDuration(duration: import("../core/types").RangeDuration): void {
-    if (duration === "ALL") {
-      this.fitContent();
-      return;
-    }
-
     const candles = this._data.candles;
     if (candles.length === 0) return;
 
     const lastTime = candles[candles.length - 1].time;
-    let startTime: number;
-
-    switch (duration) {
-      case "1D":
-        startTime = lastTime - 86_400_000;
-        break;
-      case "1W":
-        startTime = lastTime - 7 * 86_400_000;
-        break;
-      case "1M":
-        startTime = lastTime - 30 * 86_400_000;
-        break;
-      case "3M":
-        startTime = lastTime - 90 * 86_400_000;
-        break;
-      case "6M":
-        startTime = lastTime - 180 * 86_400_000;
-        break;
-      case "1Y":
-        startTime = lastTime - 365 * 86_400_000;
-        break;
-      case "YTD": {
-        const d = new Date(lastTime);
-        startTime = Date.UTC(d.getUTCFullYear(), 0, 1);
-        break;
-      }
+    const startTime = resolveRangeDuration(duration, lastTime);
+    if (startTime === null) {
+      this.fitContent();
+      return;
     }
-
     this.setVisibleRange(startTime, lastTime);
   }
 
@@ -813,15 +652,15 @@ export class CanvasChart implements ChartInstance {
     this._legendOverlay?.destroy();
     this._rendererRegistry.destroyAll();
     this._detachDrawTap?.();
+    this._drawingTool?.reset();
+    this._drawingTool = null;
     this._canvas.remove();
-    if (this._ariaLiveTimer !== null) clearTimeout(this._ariaLiveTimer);
-    this._ariaLiveEl?.remove();
-    this._ariaLiveEl = null;
+    this._aria?.destroy();
+    this._aria = null;
 
     // Release retained references to prevent memory leaks
     this._priceScales.clear();
     this._listeners.clear();
-    this._timeToIndex.clear();
     this._drawHelper = null;
     this._rafId = null;
   }
@@ -851,38 +690,6 @@ export class CanvasChart implements ChartInstance {
     if (wasFit && this._timeScale.totalCount > 0) {
       this._timeScale.fitContent();
     }
-  }
-
-  // ---- Internal: Time index cache ----
-
-  private _rebuildTimeIndex(): void {
-    this._timeToIndex.clear();
-    const candles = this._data.candles;
-    for (let i = 0; i < candles.length; i++) {
-      this._timeToIndex.set(candles[i].time, i);
-    }
-  }
-
-  // ---- Internal: Align series to candle indices ----
-
-  private _alignToCandles<T>(series: DataPoint<T>[]): DataPoint<T | null>[] {
-    const candles = this._data.candles;
-    if (candles.length === 0 || series.length === 0) return series;
-
-    // Create aligned array (same length as candles, null-padded)
-    const aligned: DataPoint<T | null>[] = new Array(candles.length);
-    for (let i = 0; i < candles.length; i++) {
-      aligned[i] = { time: candles[i].time, value: null };
-    }
-
-    for (const point of series) {
-      const idx = this._timeToIndex.get(point.time);
-      if (idx !== undefined) {
-        aligned[idx] = point;
-      }
-    }
-
-    return aligned;
   }
 
   // ---- Internal: Render Loop ----
@@ -915,7 +722,7 @@ export class CanvasChart implements ChartInstance {
       rendererRegistry: this._rendererRegistry,
       drawHelper: this._drawHelper,
       emit: (event, data) => this._emit(event as ChartEvent, data),
-      drawingPreview: this._buildDrawingPreview(),
+      drawingPreview: this._drawingTool?.buildPreview(),
       locale: this._locale,
     });
 
@@ -932,100 +739,15 @@ export class CanvasChart implements ChartInstance {
     this._legendOverlay?.update(this._data.getAllSeries());
 
     // Debounced aria-live announcement for crosshair data
-    this._updateAriaLive(result.crosshairIndex);
+    this._aria?.updateLive(result.crosshairIndex, this._data.candles, this._priceFormatter);
   }
 
-  /** Update the canvas aria-label with current chart description */
   private _updateAriaLabel(): void {
-    const candleCount = this._data.candleCount;
-    const indicatorCount = this._data.getAllSeries().length;
-    const l = this._locale;
-    const parts = [`${this._chartType} chart`];
-    if (candleCount > 0) parts.push(`${candleCount} ${l.dataPoints}`);
-    if (indicatorCount > 0)
-      parts.push(`${indicatorCount} ${indicatorCount > 1 ? l.indicators : l.indicator}`);
-    this._canvas.setAttribute("aria-label", parts.join(", "));
-  }
-
-  /** Debounced update to aria-live region with OHLCV at crosshair */
-  private _updateAriaLive(crosshairIndex: number | null): void {
-    if (!this._ariaLiveEl) return;
-    if (crosshairIndex === null) return;
-
-    const idx = crosshairIndex;
-    if (this._ariaLiveTimer !== null) clearTimeout(this._ariaLiveTimer);
-    this._ariaLiveTimer = setTimeout(() => {
-      const candle = this._data.candles[idx];
-      if (!candle || !this._ariaLiveEl) return;
-      const l = this._locale;
-      this._ariaLiveEl.textContent =
-        `${l.open} ${this._priceFormatter(candle.open)}, ` +
-        `${l.high} ${this._priceFormatter(candle.high)}, ` +
-        `${l.low} ${this._priceFormatter(candle.low)}, ` +
-        `${l.close} ${this._priceFormatter(candle.close)}, ` +
-        `${l.volume} ${candle.volume.toLocaleString()}`;
-    }, 300);
-  }
-
-  /** Build a temporary Drawing for preview while user is placing a 2-click drawing */
-  private _buildDrawingPreview(): Drawing | undefined {
-    if (!this._activeDrawingTool || !this._drawingInProgress) return undefined;
-
-    const vs = this._viewport.state;
-    if (vs.crosshairIndex === null) return undefined;
-
-    const endCandle = this._data.candles[vs.crosshairIndex];
-    if (!endCandle) return undefined;
-
-    const mainPane = this._layout.paneRects.find((p) => p.id === "main");
-    if (!mainPane) return undefined;
-    const scales = this._priceScales.get("main");
-    if (!scales) return undefined;
-
-    const endTime = endCandle.time;
-    const endPrice = scales.right.yToPrice(vs.mouseY - mainPane.y);
-    const { startTime, startPrice } = this._drawingInProgress;
-    const tool = this._activeDrawingTool;
-
-    switch (tool) {
-      case "trendline":
-        return { id: "__preview__", type: "trendline", startTime, startPrice, endTime, endPrice };
-      case "ray":
-        return { id: "__preview__", type: "ray", startTime, startPrice, endTime, endPrice };
-      case "arrow":
-        return { id: "__preview__", type: "arrow", startTime, startPrice, endTime, endPrice };
-      case "rectangle":
-        return { id: "__preview__", type: "rectangle", startTime, startPrice, endTime, endPrice };
-      case "fibRetracement":
-        return {
-          id: "__preview__",
-          type: "fibRetracement",
-          startTime,
-          startPrice,
-          endTime,
-          endPrice,
-        };
-      case "fibExtension":
-        return {
-          id: "__preview__",
-          type: "fibExtension",
-          startTime,
-          startPrice,
-          endTime,
-          endPrice,
-        };
-      case "channel":
-        return {
-          id: "__preview__",
-          type: "channel",
-          startTime,
-          startPrice,
-          endTime,
-          endPrice,
-          channelWidth: Math.abs(endPrice - startPrice) * 0.3,
-        };
-      default:
-        return undefined;
-    }
+    this._aria?.updateLabel(
+      this._canvas,
+      this._chartType,
+      this._data.candleCount,
+      this._data.getAllSeries().length,
+    );
   }
 }

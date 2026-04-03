@@ -27,9 +27,11 @@ export class DataLayer {
   private _backtestResult: import("./types").BacktestResultData | null = null;
   private _patterns: import("./types").ChartPatternSignal[] = [];
   private _scores: DataPoint<number | null>[] = [];
+  private _timeToIndex = new Map<number, number>();
   private _dirty = true;
   private _onChange: (() => void) | null = null;
   private _onPaneEmpty: ((paneId: string) => void) | null = null;
+  private _onWarn: ((message: string) => void) | null = null;
 
   /** Register a callback for data changes */
   setOnChange(cb: () => void): void {
@@ -39,6 +41,11 @@ export class DataLayer {
   /** Register a callback when a pane has no more visible series */
   setOnPaneEmpty(cb: (paneId: string) => void): void {
     this._onPaneEmpty = cb;
+  }
+
+  /** Register a callback for diagnostic warnings (e.g. duplicate timestamps) */
+  setOnWarn(cb: (message: string) => void): void {
+    this._onWarn = cb;
   }
 
   private markDirty(): void {
@@ -80,6 +87,7 @@ export class DataLayer {
       copy.sort((a, b) => a.time - b.time);
     }
     this._candles = copy;
+    this._rebuildTimeIndex();
     this.markDirty();
   }
 
@@ -91,6 +99,7 @@ export class DataLayer {
     } else {
       // Append new candle
       this._candles.push(candle);
+      this._timeToIndex.set(candle.time, this._candles.length - 1);
     }
     this.markDirty();
   }
@@ -293,6 +302,41 @@ export class DataLayer {
   setScores(scores: DataPoint<number | null>[]): void {
     this._scores = scores;
     this.markDirty();
+  }
+  // ---- Time Index ----
+
+  private _rebuildTimeIndex(): void {
+    this._timeToIndex.clear();
+    const candles = this._candles;
+    for (let i = 0; i < candles.length; i++) {
+      const time = candles[i].time;
+      if (this._timeToIndex.has(time)) {
+        this._onWarn?.(
+          `Duplicate timestamp ${time} at index ${i} (overwrites index ${this._timeToIndex.get(time)})`,
+        );
+      }
+      this._timeToIndex.set(time, i);
+    }
+  }
+
+  /** Align indicator series to candle indices (null-padded to candle length) */
+  alignToCandles<T>(series: DataPoint<T>[]): DataPoint<T | null>[] {
+    const candles = this._candles;
+    if (candles.length === 0 || series.length === 0) return series;
+
+    const aligned: DataPoint<T | null>[] = new Array(candles.length);
+    for (let i = 0; i < candles.length; i++) {
+      aligned[i] = { time: candles[i].time, value: null };
+    }
+
+    for (const point of series) {
+      const idx = this._timeToIndex.get(point.time);
+      if (idx !== undefined) {
+        aligned[idx] = point;
+      }
+    }
+
+    return aligned;
   }
 }
 
