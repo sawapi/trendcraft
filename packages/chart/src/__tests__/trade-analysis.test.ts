@@ -1,4 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
+import type { PrimitiveRenderContext } from "../core/plugin-types";
+import type { PriceScale, TimeScale } from "../core/scale";
+import type { ChartInstance, PaneRect } from "../core/types";
 import { connectTradeAnalysis, createTradeAnalysis } from "../plugins/trade-analysis";
 
 const mockCtx = () =>
@@ -27,21 +30,14 @@ const candles = Array.from({ length: 50 }, (_, i) => ({
 }));
 
 const mockTs = () =>
-  ({ startIndex: 0, endIndex: 50, barSpacing: 8, indexToX: (i: number) => i * 8 + 4 }) as import(
-    "../core/scale",
-  ).TimeScale;
+  ({ startIndex: 0, endIndex: 50, barSpacing: 8, indexToX: (i: number) => i * 8 + 4 }) as TimeScale;
 
-const mockPs = () =>
-  ({ priceToY: (p: number) => 400 - p * 2 }) as import("../core/scale").PriceScale;
+const mockPs = () => ({ priceToY: (p: number) => 400 - p * 2 }) as PriceScale;
 
-const mockPane = { id: "main", x: 0, y: 0, width: 800, height: 400 } as import(
-  "../core/types",
-).PaneRect;
+const mockPane = { id: "main", x: 0, y: 0, width: 800, height: 400 } as PaneRect;
 
 const makeCtx = (ctx: CanvasRenderingContext2D) =>
-  ({ ctx, pane: mockPane, timeScale: mockTs(), priceScale: mockPs() }) as import(
-    "../core/plugin-types",
-  ).PrimitiveRenderContext;
+  ({ ctx, pane: mockPane, timeScale: mockTs(), priceScale: mockPs() }) as PrimitiveRenderContext;
 
 describe("createTradeAnalysis", () => {
   it("returns a valid PrimitivePlugin", () => {
@@ -102,18 +98,20 @@ describe("createTradeAnalysis", () => {
 
 describe("connectTradeAnalysis", () => {
   it("registers primitive and returns handle", () => {
-    const chart = { registerPrimitive: vi.fn(), removePrimitive: vi.fn() } as unknown as import(
-      "../core/types",
-    ).ChartInstance;
+    const chart = {
+      registerPrimitive: vi.fn(),
+      removePrimitive: vi.fn(),
+    } as unknown as ChartInstance;
     const handle = connectTradeAnalysis(chart, [], []);
     expect(chart.registerPrimitive).toHaveBeenCalledOnce();
     expect(typeof handle.remove).toBe("function");
   });
 
   it("remove() calls chart.removePrimitive", () => {
-    const chart = { registerPrimitive: vi.fn(), removePrimitive: vi.fn() } as unknown as import(
-      "../core/types",
-    ).ChartInstance;
+    const chart = {
+      registerPrimitive: vi.fn(),
+      removePrimitive: vi.fn(),
+    } as unknown as ChartInstance;
     connectTradeAnalysis(chart, [], []).remove();
     expect(chart.removePrimitive).toHaveBeenCalledWith("tradeAnalysis");
   });

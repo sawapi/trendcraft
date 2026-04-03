@@ -1,4 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
+import type { PrimitiveRenderContext } from "../core/plugin-types";
+import type { TimeScale } from "../core/scale";
+import type { ChartInstance, PaneRect } from "../core/types";
 import { connectSessionZones, createSessionZones } from "../plugins/session-zones";
 
 const mockCtx = () =>
@@ -22,14 +25,12 @@ const mockTs = (start = 0, end = 5) =>
     endIndex: end,
     barSpacing: 8,
     indexToX: (i: number) => i * 8 + 4,
-  }) as import("../core/scale").TimeScale;
+  }) as TimeScale;
 
-const mockPane = { id: "main", x: 0, y: 0, width: 800, height: 400 } as import(
-  "../core/types",
-).PaneRect;
+const mockPane = { id: "main", x: 0, y: 0, width: 800, height: 400 } as PaneRect;
 
 const makeCtx = (ctx: CanvasRenderingContext2D, ts = mockTs()) =>
-  ({ ctx, pane: mockPane, timeScale: ts }) as import("../core/plugin-types").PrimitiveRenderContext;
+  ({ ctx, pane: mockPane, timeScale: ts }) as PrimitiveRenderContext;
 
 describe("createSessionZones", () => {
   it("returns a valid PrimitivePlugin", () => {
@@ -88,18 +89,20 @@ describe("createSessionZones", () => {
 
 describe("connectSessionZones", () => {
   it("registers primitive and returns handle", () => {
-    const chart = { registerPrimitive: vi.fn(), removePrimitive: vi.fn() } as unknown as import(
-      "../core/types",
-    ).ChartInstance;
+    const chart = {
+      registerPrimitive: vi.fn(),
+      removePrimitive: vi.fn(),
+    } as unknown as ChartInstance;
     const handle = connectSessionZones(chart, []);
     expect(chart.registerPrimitive).toHaveBeenCalledOnce();
     expect(typeof handle.remove).toBe("function");
   });
 
   it("remove() calls chart.removePrimitive", () => {
-    const chart = { registerPrimitive: vi.fn(), removePrimitive: vi.fn() } as unknown as import(
-      "../core/types",
-    ).ChartInstance;
+    const chart = {
+      registerPrimitive: vi.fn(),
+      removePrimitive: vi.fn(),
+    } as unknown as ChartInstance;
     connectSessionZones(chart, []).remove();
     expect(chart.removePrimitive).toHaveBeenCalledWith("sessionZones");
   });
