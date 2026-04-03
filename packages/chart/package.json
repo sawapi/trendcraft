@@ -32,7 +32,7 @@
   "files": [
     "dist",
     "!dist/**/__tests__",
-    "!dist/**/*.test.d.ts",
+    "!dist/**/*.test.*",
     "!dist/**/*.js.map",
     "!dist/**/*.cjs.map",
     "LICENSE"
@@ -60,6 +60,9 @@
     "type": "git",
     "url": "https://github.com/sawapi/trendcraft.git",
     "directory": "packages/chart"
+  },
+  "bugs": {
+    "url": "https://github.com/sawapi/trendcraft/issues"
   },
   "author": "sawapi",
   "license": "MIT",

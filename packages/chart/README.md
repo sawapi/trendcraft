@@ -12,9 +12,11 @@ npm install @trendcraft/chart trendcraft
 
 ```typescript
 import { createChart } from '@trendcraft/chart';
-import { sma, rsi, bollingerBands, ichimoku, macd } from 'trendcraft';
+import { sma, rsi, bollingerBands, ichimoku, macd } from 'trendcraft'; // optional peer dep
 
-const chart = createChart(document.getElementById('chart'), { theme: 'dark' });
+const container = document.getElementById('chart');
+if (!container) throw new Error('Chart container not found');
+const chart = createChart(container, { theme: 'dark' });
 chart.setCandles(candles);
 
 // Indicators auto-detect pane placement, colors, and rendering style
@@ -122,6 +124,7 @@ Creates a chart instance attached to a DOM element.
 |---|---|
 | `setCandles(candles)` | Set OHLCV candle data |
 | `updateCandle(candle)` | Update last candle or append new one |
+| `batchUpdates(fn)` | Batch multiple mutations into a single render frame |
 
 #### Indicators
 
