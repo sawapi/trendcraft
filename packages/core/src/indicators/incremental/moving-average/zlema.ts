@@ -134,31 +134,32 @@ export function createZlema(
 
     peek(candle: NormalizedCandle) {
       const price = getSourcePrice(candle, source);
+      const nextCount = count + 1;
 
-      if (count < lag) {
+      // Not enough data yet for lag lookback
+      if (nextCount <= lag) {
         return { time: candle.time, value: null };
       }
 
-      // Simulate buffer state after push
+      // Compute lag price from simulated buffer state after push
       let lagPrice: number;
-      if (count < lag + 1) {
-        // Buffer won't be full enough after this push
-        // At count=lag, buffer has lag items, we're adding 1 more = lag+1
-        // lag price = buffer.get(0) = oldest
-        lagPrice = buffer.get(0);
+      if (lag === 0) {
+        // No lag: adjusted price = 2*price - price = price
+        lagPrice = price;
+      } else if (buffer.length < lag) {
+        // Buffer doesn't have enough items even after push
+        return { time: candle.time, value: null };
+      } else if (buffer.length < buffer.capacity) {
+        // Buffer not yet full: after push, lag price is at index (length - lag)
+        lagPrice = buffer.get(buffer.length - lag);
       } else {
-        // Buffer is already full, push would evict oldest
-        // After push: new oldest = buffer.get(1), lag price = buffer.get(1)
+        // Buffer full: push evicts oldest, lag price shifts by 1
         lagPrice = buffer.get(buffer.length - lag);
       }
 
       const adjustedPrice = price + (price - lagPrice);
       const nextSeedCount = seedCount + 1;
       const seedTarget = period - lag;
-
-      if (count + 1 <= lag) {
-        return { time: candle.time, value: null };
-      }
 
       if (nextSeedCount < seedTarget) {
         return { time: candle.time, value: null };

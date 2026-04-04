@@ -219,35 +219,48 @@ export const livePresets: Record<string, LivePreset> = {
     meta: DEMA_META,
     defaultParams: { period: 20 },
     snapshotName: (p) => `dema${p.period}`,
-    createFactory: factory(createDema, (p) => ({ period: (p.period as number) ?? 20 })),
+    createFactory: factory(createDema, (p) => ({
+      period: (p.period as number) ?? 20,
+      source: p.source as "close" | undefined,
+    })),
   },
   tema: {
     meta: TEMA_META,
     defaultParams: { period: 20 },
     snapshotName: (p) => `tema${p.period}`,
-    createFactory: factory(createTema, (p) => ({ period: (p.period as number) ?? 20 })),
+    createFactory: factory(createTema, (p) => ({
+      period: (p.period as number) ?? 20,
+      source: p.source as "close" | undefined,
+    })),
   },
   zlema: {
     meta: ZLEMA_META,
     defaultParams: { period: 20 },
     snapshotName: (p) => `zlema${p.period}`,
-    createFactory: factory(createZlema, (p) => ({ period: (p.period as number) ?? 20 })),
+    createFactory: factory(createZlema, (p) => ({
+      period: (p.period as number) ?? 20,
+      source: p.source as "close" | undefined,
+    })),
   },
   alma: {
     meta: ALMA_META,
     defaultParams: { period: 9, offset: 0.85, sigma: 6 },
-    snapshotName: (p) => `alma${p.period}`,
+    snapshotName: (p) => `alma${p.period}_${p.offset ?? 0.85}_${p.sigma ?? 6}`,
     createFactory: factory(createAlma, (p) => ({
       period: (p.period as number) ?? 9,
       offset: (p.offset as number) ?? 0.85,
       sigma: (p.sigma as number) ?? 6,
+      source: p.source as "close" | undefined,
     })),
   },
   frama: {
     meta: FRAMA_META,
     defaultParams: { period: 16 },
     snapshotName: (p) => `frama${p.period}`,
-    createFactory: factory(createFrama, (p) => ({ period: (p.period as number) ?? 16 })),
+    createFactory: factory(createFrama, (p) => ({
+      period: (p.period as number) ?? 16,
+      source: p.source as "close" | undefined,
+    })),
   },
 
   // Momentum
