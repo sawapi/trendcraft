@@ -24,6 +24,11 @@ export const HMA_META: SeriesMeta = { overlay: true, label: "HMA" };
 export const T3_META: SeriesMeta = { overlay: true, label: "T3" };
 export const MCGINLEY_META: SeriesMeta = { overlay: true, label: "McGinley" };
 export const EMA_RIBBON_META: SeriesMeta = { overlay: true, label: "EMA Ribbon" };
+export const DEMA_META: SeriesMeta = { overlay: true, label: "DEMA" };
+export const TEMA_META: SeriesMeta = { overlay: true, label: "TEMA" };
+export const ZLEMA_META: SeriesMeta = { overlay: true, label: "ZLEMA" };
+export const ALMA_META: SeriesMeta = { overlay: true, label: "ALMA" };
+export const FRAMA_META: SeriesMeta = { overlay: true, label: "FRAMA" };
 
 // ============================================
 // Momentum

@@ -22,6 +22,7 @@
 import {
   adl,
   adxr,
+  alma,
   aroon,
   atr,
   bollingerBands,
@@ -31,11 +32,13 @@ import {
   cmf,
   cmo,
   connorsRsi,
+  dema,
   dmi,
   donchianChannel,
   elderForceIndex,
   ema,
   emaRibbon,
+  frama,
   hma,
   ichimoku,
   imi,
@@ -54,6 +57,7 @@ import {
   stochastics,
   supertrend,
   t3,
+  tema,
   trix,
   twap,
   volumeAnomaly,
@@ -62,6 +66,7 @@ import {
   vwma,
   williamsR,
   wma,
+  zlema,
 } from "../indicators";
 import type { NormalizedCandle, Series } from "../types";
 import type { SeriesMeta } from "../types/candle";
@@ -114,6 +119,18 @@ export const indicatorPresets: Record<string, IndicatorPreset> = {
   t3: withCompute("t3", (c, p) => t3(c, { period: p.period ?? 5 })),
   mcginley: withCompute("mcginley", (c, p) => mcginleyDynamic(c, { period: p.period ?? 14 })),
   emaRibbon: withCompute("emaRibbon", (c, p) => emaRibbon(c, { periods: p.periods })),
+  dema: withCompute("dema", (c, p) => dema(c, { period: p.period ?? 20, source: p.source })),
+  tema: withCompute("tema", (c, p) => tema(c, { period: p.period ?? 20, source: p.source })),
+  zlema: withCompute("zlema", (c, p) => zlema(c, { period: p.period ?? 20, source: p.source })),
+  alma: withCompute("alma", (c, p) =>
+    alma(c, {
+      period: p.period ?? 9,
+      offset: p.offset ?? 0.85,
+      sigma: p.sigma ?? 6,
+      source: p.source,
+    }),
+  ),
+  frama: withCompute("frama", (c, p) => frama(c, { period: p.period ?? 16, source: p.source })),
 
   // ============================================
   // Momentum
