@@ -33,6 +33,16 @@ export { createMcGinleyDynamic } from "./moving-average/mcginley-dynamic";
 export type { McGinleyDynamicState } from "./moving-average/mcginley-dynamic";
 export { createEmaRibbon } from "./moving-average/ema-ribbon";
 export type { EmaRibbonState, EmaRibbonValue } from "./moving-average/ema-ribbon";
+export { createDema } from "./moving-average/dema";
+export type { DemaState } from "./moving-average/dema";
+export { createTema } from "./moving-average/tema";
+export type { TemaState } from "./moving-average/tema";
+export { createZlema } from "./moving-average/zlema";
+export type { ZlemaState } from "./moving-average/zlema";
+export { createAlma } from "./moving-average/alma";
+export type { AlmaState } from "./moving-average/alma";
+export { createFrama } from "./moving-average/frama";
+export type { FramaState } from "./moving-average/frama";
 
 // Momentum (includes TRIX)
 export { createRsi } from "./momentum/rsi";

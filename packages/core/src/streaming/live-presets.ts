@@ -21,6 +21,7 @@
 import {
   createAdl,
   createAdxr,
+  createAlma,
   createAroon,
   createAtr,
   createBollingerBands,
@@ -30,11 +31,13 @@ import {
   createCmf,
   createCmo,
   createConnorsRsi,
+  createDema,
   createDmi,
   createDonchianChannel,
   createElderForceIndex,
   createEma,
   createEmaRibbon,
+  createFrama,
   createHma,
   createIchimoku,
   createImi,
@@ -53,6 +56,7 @@ import {
   createStochastics,
   createSupertrend,
   createT3,
+  createTema,
   createTrix,
   createTwap,
   createVolumeAnomaly,
@@ -61,11 +65,13 @@ import {
   createVwma,
   createWilliamsR,
   createWma,
+  createZlema,
   restoreState,
 } from "../indicators/incremental";
 import {
   ADL_META,
   ADXR_META,
+  ALMA_META,
   AROON_META,
   ATR_META,
   BB_META,
@@ -75,11 +81,13 @@ import {
   CMF_META,
   CMO_META,
   CONNORS_RSI_META,
+  DEMA_META,
   DMI_META,
   DONCHIAN_META,
   ELDER_FORCE_INDEX_META,
   EMA_META,
   EMA_RIBBON_META,
+  FRAMA_META,
   HMA_META,
   HMM_REGIME_META,
   ICHIMOKU_META,
@@ -99,6 +107,7 @@ import {
   STOCH_RSI_META,
   SUPERTREND_META,
   T3_META,
+  TEMA_META,
   TRIX_META,
   TWAP_META,
   VOLUME_ANOMALY_META,
@@ -107,6 +116,7 @@ import {
   VWMA_META,
   WILLIAMS_R_META,
   WMA_META,
+  ZLEMA_META,
 } from "../indicators/indicator-meta";
 import type { SeriesMeta } from "../types/candle";
 import type { LiveIndicatorFactory } from "./types";
@@ -203,6 +213,53 @@ export const livePresets: Record<string, LivePreset> = {
     snapshotName: "emaRibbon",
     createFactory: factory(createEmaRibbon, (p) => ({
       periods: p.periods as number[] | undefined,
+    })),
+  },
+  dema: {
+    meta: DEMA_META,
+    defaultParams: { period: 20 },
+    snapshotName: (p) => `dema${p.period}`,
+    createFactory: factory(createDema, (p) => ({
+      period: (p.period as number) ?? 20,
+      source: p.source as "close" | undefined,
+    })),
+  },
+  tema: {
+    meta: TEMA_META,
+    defaultParams: { period: 20 },
+    snapshotName: (p) => `tema${p.period}`,
+    createFactory: factory(createTema, (p) => ({
+      period: (p.period as number) ?? 20,
+      source: p.source as "close" | undefined,
+    })),
+  },
+  zlema: {
+    meta: ZLEMA_META,
+    defaultParams: { period: 20 },
+    snapshotName: (p) => `zlema${p.period}`,
+    createFactory: factory(createZlema, (p) => ({
+      period: (p.period as number) ?? 20,
+      source: p.source as "close" | undefined,
+    })),
+  },
+  alma: {
+    meta: ALMA_META,
+    defaultParams: { period: 9, offset: 0.85, sigma: 6 },
+    snapshotName: (p) => `alma${p.period}_${p.offset ?? 0.85}_${p.sigma ?? 6}`,
+    createFactory: factory(createAlma, (p) => ({
+      period: (p.period as number) ?? 9,
+      offset: (p.offset as number) ?? 0.85,
+      sigma: (p.sigma as number) ?? 6,
+      source: p.source as "close" | undefined,
+    })),
+  },
+  frama: {
+    meta: FRAMA_META,
+    defaultParams: { period: 16 },
+    snapshotName: (p) => `frama${p.period}`,
+    createFactory: factory(createFrama, (p) => ({
+      period: (p.period as number) ?? 16,
+      source: p.source as "close" | undefined,
     })),
   },
 

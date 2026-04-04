@@ -12,14 +12,24 @@ import { alignAndNormalize, normalizeToPercent } from "../../../utils/series";
 import { adxr } from "../../momentum/adxr";
 import { cmo } from "../../momentum/cmo";
 import { imi } from "../../momentum/imi";
+import { alma } from "../../moving-average/alma";
+import { dema } from "../../moving-average/dema";
+import { frama } from "../../moving-average/frama";
 import { t3 } from "../../moving-average/t3";
+import { tema } from "../../moving-average/tema";
+import { zlema } from "../../moving-average/zlema";
 import { klinger } from "../../volume/klinger";
 import type { KlingerValue } from "../../volume/klinger";
 import { processAll } from "../bridge";
 import { createAdxr } from "../momentum/adxr";
 import { createCmo } from "../momentum/cmo";
 import { createImi } from "../momentum/imi";
+import { createAlma } from "../moving-average/alma";
+import { createDema } from "../moving-average/dema";
+import { createFrama } from "../moving-average/frama";
 import { createT3 } from "../moving-average/t3";
+import { createTema } from "../moving-average/tema";
+import { createZlema } from "../moving-average/zlema";
 import { createKlinger } from "../volume/klinger";
 
 /**
@@ -296,6 +306,201 @@ describe("Klinger incremental", () => {
       } else {
         expect(v2.kvo).not.toBeNull();
         expect(Math.abs(v1.kvo - v2.kvo!)).toBeLessThan(1e-10);
+      }
+    }
+  });
+});
+
+// ---- DEMA ----
+
+describe("DEMA incremental", () => {
+  it("matches batch output", () => {
+    const batch = dema(candles, { period: 20 });
+    const incremental = processAll(createDema({ period: 20 }), candles);
+    assertConsistency(batch, incremental, 1e-8);
+  });
+
+  it("peek does not mutate state", () => {
+    const ind = createDema({ period: 20 });
+    for (let i = 0; i < 50; i++) ind.next(candles[i]);
+
+    const stateBefore = JSON.stringify(ind.getState());
+    ind.peek(candles[50]);
+    const stateAfter = JSON.stringify(ind.getState());
+    expect(stateAfter).toBe(stateBefore);
+  });
+
+  it("getState/fromState restores correctly", () => {
+    const ind1 = createDema({ period: 20 });
+    for (let i = 0; i < 50; i++) ind1.next(candles[i]);
+
+    const state = ind1.getState();
+    const ind2 = createDema({ period: 20 }, { fromState: state });
+
+    for (let i = 50; i < 100; i++) {
+      const v1 = ind1.next(candles[i]).value;
+      const v2 = ind2.next(candles[i]).value;
+      if (v1 === null) {
+        expect(v2).toBeNull();
+      } else {
+        expect(v2).not.toBeNull();
+        expect(Math.abs(v1 - v2!)).toBeLessThan(1e-10);
+      }
+    }
+  });
+});
+
+// ---- TEMA ----
+
+describe("TEMA incremental", () => {
+  it("matches batch output", () => {
+    const batch = tema(candles, { period: 20 });
+    const incremental = processAll(createTema({ period: 20 }), candles);
+    assertConsistency(batch, incremental, 1e-8);
+  });
+
+  it("peek does not mutate state", () => {
+    const ind = createTema({ period: 20 });
+    for (let i = 0; i < 70; i++) ind.next(candles[i]);
+
+    const stateBefore = JSON.stringify(ind.getState());
+    ind.peek(candles[70]);
+    const stateAfter = JSON.stringify(ind.getState());
+    expect(stateAfter).toBe(stateBefore);
+  });
+
+  it("getState/fromState restores correctly", () => {
+    const ind1 = createTema({ period: 20 });
+    for (let i = 0; i < 70; i++) ind1.next(candles[i]);
+
+    const state = ind1.getState();
+    const ind2 = createTema({ period: 20 }, { fromState: state });
+
+    for (let i = 70; i < 150; i++) {
+      const v1 = ind1.next(candles[i]).value;
+      const v2 = ind2.next(candles[i]).value;
+      if (v1 === null) {
+        expect(v2).toBeNull();
+      } else {
+        expect(v2).not.toBeNull();
+        expect(Math.abs(v1 - v2!)).toBeLessThan(1e-10);
+      }
+    }
+  });
+});
+
+// ---- ZLEMA ----
+
+describe("ZLEMA incremental", () => {
+  it("matches batch output", () => {
+    const batch = zlema(candles, { period: 20 });
+    const incremental = processAll(createZlema({ period: 20 }), candles);
+    assertConsistency(batch, incremental, 1e-8);
+  });
+
+  it("peek does not mutate state", () => {
+    const ind = createZlema({ period: 20 });
+    for (let i = 0; i < 30; i++) ind.next(candles[i]);
+
+    const stateBefore = JSON.stringify(ind.getState());
+    ind.peek(candles[30]);
+    const stateAfter = JSON.stringify(ind.getState());
+    expect(stateAfter).toBe(stateBefore);
+  });
+
+  it("getState/fromState restores correctly", () => {
+    const ind1 = createZlema({ period: 20 });
+    for (let i = 0; i < 50; i++) ind1.next(candles[i]);
+
+    const state = ind1.getState();
+    const ind2 = createZlema({ period: 20 }, { fromState: state });
+
+    for (let i = 50; i < 100; i++) {
+      const v1 = ind1.next(candles[i]).value;
+      const v2 = ind2.next(candles[i]).value;
+      if (v1 === null) {
+        expect(v2).toBeNull();
+      } else {
+        expect(v2).not.toBeNull();
+        expect(Math.abs(v1 - v2!)).toBeLessThan(1e-10);
+      }
+    }
+  });
+});
+
+// ---- ALMA ----
+
+describe("ALMA incremental", () => {
+  it("matches batch output", () => {
+    const batch = alma(candles, { period: 9, offset: 0.85, sigma: 6 });
+    const incremental = processAll(createAlma({ period: 9, offset: 0.85, sigma: 6 }), candles);
+    assertConsistency(batch, incremental, 1e-8);
+  });
+
+  it("peek does not mutate state", () => {
+    const ind = createAlma({ period: 9 });
+    for (let i = 0; i < 20; i++) ind.next(candles[i]);
+
+    const stateBefore = JSON.stringify(ind.getState());
+    ind.peek(candles[20]);
+    const stateAfter = JSON.stringify(ind.getState());
+    expect(stateAfter).toBe(stateBefore);
+  });
+
+  it("getState/fromState restores correctly", () => {
+    const ind1 = createAlma({ period: 9 });
+    for (let i = 0; i < 30; i++) ind1.next(candles[i]);
+
+    const state = ind1.getState();
+    const ind2 = createAlma({ period: 9 }, { fromState: state });
+
+    for (let i = 30; i < 100; i++) {
+      const v1 = ind1.next(candles[i]).value;
+      const v2 = ind2.next(candles[i]).value;
+      if (v1 === null) {
+        expect(v2).toBeNull();
+      } else {
+        expect(v2).not.toBeNull();
+        expect(Math.abs(v1 - v2!)).toBeLessThan(1e-10);
+      }
+    }
+  });
+});
+
+// ---- FRAMA ----
+
+describe("FRAMA incremental", () => {
+  it("matches batch output", () => {
+    const batch = frama(candles, { period: 16 });
+    const incremental = processAll(createFrama({ period: 16 }), candles);
+    assertConsistency(batch, incremental, 1e-8);
+  });
+
+  it("peek does not mutate state", () => {
+    const ind = createFrama({ period: 16 });
+    for (let i = 0; i < 30; i++) ind.next(candles[i]);
+
+    const stateBefore = JSON.stringify(ind.getState());
+    ind.peek(candles[30]);
+    const stateAfter = JSON.stringify(ind.getState());
+    expect(stateAfter).toBe(stateBefore);
+  });
+
+  it("getState/fromState restores correctly", () => {
+    const ind1 = createFrama({ period: 16 });
+    for (let i = 0; i < 50; i++) ind1.next(candles[i]);
+
+    const state = ind1.getState();
+    const ind2 = createFrama({ period: 16 }, { fromState: state });
+
+    for (let i = 50; i < 100; i++) {
+      const v1 = ind1.next(candles[i]).value;
+      const v2 = ind2.next(candles[i]).value;
+      if (v1 === null) {
+        expect(v2).toBeNull();
+      } else {
+        expect(v2).not.toBeNull();
+        expect(Math.abs(v1 - v2!)).toBeLessThan(1e-10);
       }
     }
   });
