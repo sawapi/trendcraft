@@ -25,6 +25,8 @@ import {
   alma,
   aroon,
   atr,
+  awesomeOscillator,
+  balanceOfPower,
   bollingerBands,
   cci,
   chandelierExit,
@@ -32,26 +34,34 @@ import {
   cmf,
   cmo,
   connorsRsi,
+  coppockCurve,
   dema,
   dmi,
   donchianChannel,
+  dpo,
   elderForceIndex,
   ema,
   emaRibbon,
   frama,
   hma,
+  hurst,
   ichimoku,
   imi,
   kama,
   keltnerChannel,
   klinger,
+  kst,
   macd,
+  massIndex,
   mcginleyDynamic,
   mfi,
   obv,
   parabolicSar,
+  ppo,
+  qstick,
   roc,
   rsi,
+  schaffTrendCycle,
   sma,
   stochRsi,
   stochastics,
@@ -59,7 +69,9 @@ import {
   t3,
   tema,
   trix,
+  tsi,
   twap,
+  ultimateOscillator,
   volumeAnomaly,
   vortex,
   vwap,
@@ -68,6 +80,7 @@ import {
   wma,
   zlema,
 } from "../indicators";
+import { DPO_META } from "../indicators/indicator-meta";
 import type { NormalizedCandle, Series } from "../types";
 import type { SeriesMeta } from "../types/candle";
 import { livePresets } from "./live-presets";
@@ -175,6 +188,66 @@ export const indicatorPresets: Record<string, IndicatorPreset> = {
   adxr: withCompute("adxr", (c, p) => adxr(c, { period: p.period ?? 14 })),
   imi: withCompute("imi", (c, p) => imi(c, { period: p.period ?? 14 })),
   vortex: withCompute("vortex", (c, p) => vortex(c, { period: p.period ?? 14 })),
+  ao: withCompute("ao", (c, p) =>
+    awesomeOscillator(c, { fastPeriod: p.fastPeriod ?? 5, slowPeriod: p.slowPeriod ?? 34 }),
+  ),
+  bop: withCompute("bop", (c, p) => balanceOfPower(c, { smoothPeriod: p.smoothPeriod ?? 14 })),
+  qstick: withCompute("qstick", (c, p) => qstick(c, { period: p.period ?? 14 })),
+  ppo: withCompute("ppo", (c, p) =>
+    ppo(c, {
+      fastPeriod: p.fastPeriod ?? 12,
+      slowPeriod: p.slowPeriod ?? 26,
+      signalPeriod: p.signalPeriod ?? 9,
+      source: p.source,
+    }),
+  ),
+  coppock: withCompute("coppock", (c, p) =>
+    coppockCurve(c, {
+      wmaPeriod: p.wmaPeriod ?? 10,
+      longRocPeriod: p.longRocPeriod ?? 14,
+      shortRocPeriod: p.shortRocPeriod ?? 11,
+      source: p.source,
+    }),
+  ),
+  massIndex: withCompute("massIndex", (c, p) =>
+    massIndex(c, { emaPeriod: p.emaPeriod ?? 9, sumPeriod: p.sumPeriod ?? 25 }),
+  ),
+  // DPO is batch-only (lookahead dependency incompatible with live mode)
+  dpo: {
+    meta: DPO_META,
+    defaultParams: { period: 20 },
+    snapshotName: (p: Record<string, unknown>) => `dpo${p.period}`,
+    compute: (c, p) => dpo(c, { period: p.period ?? 20, source: p.source }),
+  },
+  ultimateOscillator: withCompute("ultimateOscillator", (c, p) =>
+    ultimateOscillator(c, {
+      period1: p.period1 ?? 7,
+      period2: p.period2 ?? 14,
+      period3: p.period3 ?? 28,
+    }),
+  ),
+  tsi: withCompute("tsi", (c, p) =>
+    tsi(c, {
+      longPeriod: p.longPeriod ?? 25,
+      shortPeriod: p.shortPeriod ?? 13,
+      signalPeriod: p.signalPeriod ?? 7,
+      source: p.source,
+    }),
+  ),
+  kst: withCompute("kst", (c, p) =>
+    kst(c, { signalPeriod: p.signalPeriod ?? 9, source: p.source }),
+  ),
+  hurst: withCompute("hurst", (c, p) =>
+    hurst(c, { minWindow: p.minWindow ?? 20, maxWindow: p.maxWindow ?? 100, source: p.source }),
+  ),
+  stc: withCompute("stc", (c, p) =>
+    schaffTrendCycle(c, {
+      fastPeriod: p.fastPeriod ?? 23,
+      slowPeriod: p.slowPeriod ?? 50,
+      cyclePeriod: p.cyclePeriod ?? 10,
+      source: p.source,
+    }),
+  ),
 
   // ============================================
   // Volatility
