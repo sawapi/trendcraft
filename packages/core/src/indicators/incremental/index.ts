@@ -118,6 +118,16 @@ export { createChandelierExit } from "./volatility/chandelier-exit";
 export type { ChandelierExitState } from "./volatility/chandelier-exit";
 export { createChoppinessIndex } from "./volatility/choppiness-index";
 export type { ChoppinessIndexState } from "./volatility/choppiness-index";
+export { createEwmaVolatility } from "./volatility/ewma-volatility";
+export type { EwmaVolatilityState } from "./volatility/ewma-volatility";
+export { createGarmanKlass } from "./volatility/garman-klass";
+export type { GarmanKlassState } from "./volatility/garman-klass";
+export { createHistoricalVolatility } from "./volatility/historical-volatility";
+export type { HistoricalVolatilityState } from "./volatility/historical-volatility";
+export { createAtrStops } from "./volatility/atr-stops";
+export type { AtrStopsState } from "./volatility/atr-stops";
+export { createUlcerIndex } from "./volatility/ulcer-index";
+export type { UlcerIndexState } from "./volatility/ulcer-index";
 
 // Trend
 export { createSupertrend } from "./trend/supertrend";

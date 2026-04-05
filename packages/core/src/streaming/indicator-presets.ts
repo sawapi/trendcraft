@@ -25,6 +25,7 @@ import {
   alma,
   aroon,
   atr,
+  atrStops,
   awesomeOscillator,
   balanceOfPower,
   bollingerBands,
@@ -43,6 +44,8 @@ import {
   ema,
   emaRibbon,
   frama,
+  garmanKlass,
+  historicalVolatility,
   hma,
   hurst,
   ichimoku,
@@ -71,6 +74,7 @@ import {
   trix,
   tsi,
   twap,
+  ulcerIndex,
   ultimateOscillator,
   volumeAnomaly,
   vortex,
@@ -217,7 +221,8 @@ export const indicatorPresets: Record<string, IndicatorPreset> = {
     meta: DPO_META,
     defaultParams: { period: 20 },
     snapshotName: (p: Record<string, unknown>) => `dpo${p.period}`,
-    compute: (c, p) => dpo(c, { period: p.period ?? 20, source: p.source }),
+    compute: (c, p) =>
+      dpo(c, { period: (p.period as number) ?? 20, source: p.source as "close" | undefined }),
   },
   ultimateOscillator: withCompute("ultimateOscillator", (c, p) =>
     ultimateOscillator(c, {
@@ -266,6 +271,26 @@ export const indicatorPresets: Record<string, IndicatorPreset> = {
     chandelierExit(c, { period: p.period ?? 22, multiplier: p.multiplier ?? 3 }),
   ),
   choppiness: withCompute("choppiness", (c, p) => choppinessIndex(c, { period: p.period ?? 14 })),
+  garmanKlass: withCompute("garmanKlass", (c, p) =>
+    garmanKlass(c, { period: p.period ?? 20, annualFactor: p.annualFactor ?? 252 }),
+  ),
+  hv: withCompute("hv", (c, p) =>
+    historicalVolatility(c, {
+      period: p.period ?? 20,
+      annualFactor: p.annualFactor ?? 252,
+      source: p.source,
+    }),
+  ),
+  atrStops: withCompute("atrStops", (c, p) =>
+    atrStops(c, {
+      period: p.period ?? 14,
+      stopMultiplier: p.stopMultiplier ?? 2,
+      takeProfitMultiplier: p.takeProfitMultiplier ?? 3,
+    }),
+  ),
+  ulcer: withCompute("ulcer", (c, p) =>
+    ulcerIndex(c, { period: p.period ?? 14, source: p.source }),
+  ),
 
   // ============================================
   // Trend
