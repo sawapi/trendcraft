@@ -84,6 +84,42 @@ export const IMI_META: SeriesMeta = {
   referenceLines: [30, 70],
 };
 export const VORTEX_META: SeriesMeta = { overlay: false, label: "Vortex" };
+export const AO_META: SeriesMeta = { overlay: false, label: "AO", referenceLines: [0] };
+export const BOP_META: SeriesMeta = {
+  overlay: false,
+  label: "BOP",
+  yRange: [-1, 1],
+  referenceLines: [0],
+};
+export const COPPOCK_META: SeriesMeta = { overlay: false, label: "Coppock", referenceLines: [0] };
+export const DPO_META: SeriesMeta = { overlay: false, label: "DPO", referenceLines: [0] };
+export const HURST_META: SeriesMeta = {
+  overlay: false,
+  label: "Hurst",
+  yRange: [0, 1],
+  referenceLines: [0.5],
+};
+export const KST_META: SeriesMeta = { overlay: false, label: "KST", referenceLines: [0] };
+export const MASS_INDEX_META: SeriesMeta = {
+  overlay: false,
+  label: "Mass Index",
+  referenceLines: [27, 26.5],
+};
+export const PPO_META: SeriesMeta = { overlay: false, label: "PPO", referenceLines: [0] };
+export const QSTICK_META: SeriesMeta = { overlay: false, label: "QStick", referenceLines: [0] };
+export const TSI_META: SeriesMeta = { overlay: false, label: "TSI", referenceLines: [0] };
+export const UO_META: SeriesMeta = {
+  overlay: false,
+  label: "UO",
+  yRange: [0, 100],
+  referenceLines: [30, 70],
+};
+export const STC_META: SeriesMeta = {
+  overlay: false,
+  label: "STC",
+  yRange: [0, 100],
+  referenceLines: [25, 75],
+};
 
 // ============================================
 // Volatility

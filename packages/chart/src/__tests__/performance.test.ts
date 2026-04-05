@@ -113,20 +113,20 @@ describe("Performance", () => {
     expect(median).toBeLessThan(16);
   });
 
-  it(`DataLayer.indexAtTime binary search on ${SIZE} candles < 1ms`, () => {
+  it(`DataLayer.indexAtTime binary search on ${SIZE} candles < 1ms (median of 5 runs)`, () => {
     const candles = generateCandles(SIZE);
     const dl = new DataLayer();
     dl.setCandles(candles);
 
     const midTime = candles[Math.floor(SIZE / 2)].time;
 
-    const start = performance.now();
-    for (let i = 0; i < 10000; i++) {
-      dl.indexAtTime(midTime);
-    }
-    const elapsed = performance.now() - start;
+    const median = medianMs(() => {
+      for (let i = 0; i < 10000; i++) {
+        dl.indexAtTime(midTime);
+      }
+    });
 
-    expect(elapsed).toBeLessThan(16); // 10K lookups < 16ms
+    expect(median).toBeLessThan(16); // 10K lookups < 16ms
   });
 
   // ---- Large-scale benchmarks (100k+) ----
