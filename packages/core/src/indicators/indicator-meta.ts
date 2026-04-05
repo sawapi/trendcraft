@@ -136,6 +136,11 @@ export const CHOPPINESS_META: SeriesMeta = {
   yRange: [0, 100],
   referenceLines: [38.2, 61.8],
 };
+export const EWMA_VOL_META: SeriesMeta = { overlay: false, label: "EWMA Vol" };
+export const GARMAN_KLASS_META: SeriesMeta = { overlay: false, label: "GK Vol" };
+export const HV_META: SeriesMeta = { overlay: false, label: "HV" };
+export const ATR_STOPS_META: SeriesMeta = { overlay: true, label: "ATR Stops" };
+export const ULCER_META: SeriesMeta = { overlay: false, label: "Ulcer" };
 
 // ============================================
 // Trend
