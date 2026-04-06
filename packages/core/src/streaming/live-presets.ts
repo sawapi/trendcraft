@@ -45,8 +45,12 @@ import {
   createEmaRibbon,
   createEmv,
   createEwmaVolatility,
+  createFairValueGap,
+  createFractals,
   createFrama,
+  createGapAnalysis,
   createGarmanKlass,
+  createHighestLowest,
   createHistoricalVolatility,
   createHma,
   createHurst,
@@ -62,7 +66,9 @@ import {
   createMfi,
   createNvi,
   createObv,
+  createOpeningRange,
   createParabolicSar,
+  createPivotPoints,
   createPpo,
   createPvt,
   createQStick,
@@ -83,6 +89,7 @@ import {
   createVolumeAnomaly,
   createVolumeTrend,
   createVortex,
+  createVsa,
   createVwap,
   createVwma,
   createWeisWave,
@@ -118,8 +125,12 @@ import {
   EMA_RIBBON_META,
   EMV_META,
   EWMA_VOL_META,
+  FRACTALS_META,
   FRAMA_META,
+  FVG_META,
+  GAP_ANALYSIS_META,
   GARMAN_KLASS_META,
+  HIGHEST_LOWEST_META,
   HMA_META,
   HMM_REGIME_META,
   HURST_META,
@@ -136,7 +147,9 @@ import {
   MFI_META,
   NVI_META,
   OBV_META,
+  ORB_META,
   PARABOLIC_SAR_META,
+  PIVOT_POINTS_META,
   PPO_META,
   PVT_META,
   QSTICK_META,
@@ -157,6 +170,7 @@ import {
   VOLUME_ANOMALY_META,
   VOLUME_TREND_META,
   VORTEX_META,
+  VSA_META,
   VWAP_META,
   VWMA_META,
   WEIS_WAVE_META,
@@ -771,6 +785,70 @@ export const livePresets: Record<string, LivePreset> = {
       volumePeriod: (p.volumePeriod as number) ?? 10,
       maPeriod: (p.maPeriod as number) ?? 20,
       minPriceChange: (p.minPriceChange as number) ?? 2.0,
+    })),
+  },
+
+  // Price
+  highestLowest: {
+    meta: HIGHEST_LOWEST_META,
+    defaultParams: { period: 20 },
+    snapshotName: (p) => `hilo${p.period}`,
+    createFactory: factory(createHighestLowest, (p) => ({
+      period: (p.period as number) ?? 20,
+    })),
+  },
+  pivotPoints: {
+    meta: PIVOT_POINTS_META,
+    defaultParams: { method: "standard" },
+    snapshotName: (p) => `pivot_${p.method}`,
+    createFactory: factory(createPivotPoints, (p) => ({
+      method: (p.method as "standard") ?? "standard",
+    })),
+  },
+  fractals: {
+    meta: FRACTALS_META,
+    defaultParams: { period: 2 },
+    snapshotName: (p) => `frac${p.period}`,
+    createFactory: factory(createFractals, (p) => ({
+      period: (p.period as number) ?? 2,
+    })),
+  },
+  gapAnalysis: {
+    meta: GAP_ANALYSIS_META,
+    defaultParams: { minGapPercent: 0.5 },
+    snapshotName: "gap",
+    createFactory: factory(createGapAnalysis, (p) => ({
+      minGapPercent: (p.minGapPercent as number) ?? 0.5,
+    })),
+  },
+  orb: {
+    meta: ORB_META,
+    defaultParams: { minutes: 30 },
+    snapshotName: "orb",
+    createFactory: factory(createOpeningRange, (p) => ({
+      minutes: (p.minutes as number) ?? 30,
+      sessionResetPeriod: (p.sessionResetPeriod as "day" | number) ?? "day",
+    })),
+  },
+  fvg: {
+    meta: FVG_META,
+    defaultParams: { minGapPercent: 0, maxActiveFvgs: 10 },
+    snapshotName: "fvg",
+    createFactory: factory(createFairValueGap, (p) => ({
+      minGapPercent: (p.minGapPercent as number) ?? 0,
+      maxActiveFvgs: (p.maxActiveFvgs as number) ?? 10,
+      partialFill: (p.partialFill as boolean) ?? true,
+    })),
+  },
+
+  // Wyckoff
+  vsa: {
+    meta: VSA_META,
+    defaultParams: { volumeMaPeriod: 20, atrPeriod: 14 },
+    snapshotName: "vsa",
+    createFactory: factory(createVsa, (p) => ({
+      volumeMaPeriod: (p.volumeMaPeriod as number) ?? 20,
+      atrPeriod: (p.atrPeriod as number) ?? 14,
     })),
   },
 };

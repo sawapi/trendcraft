@@ -46,8 +46,12 @@ import {
   elderForceIndex,
   ema,
   emaRibbon,
+  fairValueGap,
+  fractals,
   frama,
+  gapAnalysis,
   garmanKlass,
+  highestLowest,
   historicalVolatility,
   hma,
   hurst,
@@ -63,7 +67,9 @@ import {
   mfi,
   nvi,
   obv,
+  openingRange,
   parabolicSar,
+  pivotPoints,
   ppo,
   pvt,
   qstick,
@@ -84,6 +90,7 @@ import {
   volumeAnomaly,
   volumeTrend,
   vortex,
+  vsa as vsaBatch,
   vwap,
   vwma,
   weisWave,
@@ -362,5 +369,39 @@ export const indicatorPresets: Record<string, IndicatorPreset> = {
       maPeriod: p.maPeriod ?? 20,
       minPriceChange: p.minPriceChange ?? 2.0,
     }),
+  ),
+
+  // ============================================
+  // Price
+  // ============================================
+  highestLowest: withCompute("highestLowest", (c, p) =>
+    highestLowest(c, { period: p.period ?? 20 }),
+  ),
+  pivotPoints: withCompute("pivotPoints", (c, p) =>
+    pivotPoints(c, { method: p.method ?? "standard" }),
+  ),
+  fractals: withCompute("fractals", (c, p) => fractals(c, { period: p.period ?? 2 })),
+  gapAnalysis: withCompute("gapAnalysis", (c, p) =>
+    gapAnalysis(c, { minGapPercent: p.minGapPercent ?? 0.5 }),
+  ),
+  orb: withCompute("orb", (c, p) =>
+    openingRange(c, {
+      minutes: p.minutes ?? 30,
+      sessionResetPeriod: p.sessionResetPeriod ?? "day",
+    }),
+  ),
+  fvg: withCompute("fvg", (c, p) =>
+    fairValueGap(c, {
+      minGapPercent: p.minGapPercent ?? 0,
+      maxActiveFvgs: p.maxActiveFvgs ?? 10,
+      partialFill: p.partialFill ?? true,
+    }),
+  ),
+
+  // ============================================
+  // Wyckoff
+  // ============================================
+  vsa: withCompute("vsa", (c, p) =>
+    vsaBatch(c, { volumeMaPeriod: p.volumeMaPeriod ?? 20, atrPeriod: p.atrPeriod ?? 14 }),
   ),
 };
