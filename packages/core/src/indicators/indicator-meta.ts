@@ -177,6 +177,13 @@ export const ELDER_FORCE_INDEX_META: SeriesMeta = {
 };
 export const VOLUME_ANOMALY_META: SeriesMeta = { overlay: false, label: "Vol Anomaly" };
 export const KLINGER_META: SeriesMeta = { overlay: false, label: "Klinger", referenceLines: [0] };
+export const PVT_META: SeriesMeta = { overlay: false, label: "PVT" };
+export const NVI_META: SeriesMeta = { overlay: false, label: "NVI" };
+export const CVD_META: SeriesMeta = { overlay: false, label: "CVD" };
+export const WEIS_WAVE_META: SeriesMeta = { overlay: false, label: "Weis Wave" };
+export const ANCHORED_VWAP_META: SeriesMeta = { overlay: true, label: "AVWAP" };
+export const EMV_META: SeriesMeta = { overlay: false, label: "EMV", referenceLines: [0] };
+export const VOLUME_TREND_META: SeriesMeta = { overlay: false, label: "Vol Trend" };
 
 // ============================================
 // Regime

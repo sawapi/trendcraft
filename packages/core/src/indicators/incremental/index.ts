@@ -156,3 +156,20 @@ export { createVolumeAnomaly } from "./volume/volume-anomaly";
 export type { VolumeAnomalyState } from "./volume/volume-anomaly";
 export { createKlinger } from "./volume/klinger";
 export type { KlingerState, KlingerValue as IncrementalKlingerValue } from "./volume/klinger";
+export { createPvt } from "./volume/pvt";
+export type { PvtState } from "./volume/pvt";
+export { createNvi } from "./volume/nvi";
+export type { NviState } from "./volume/nvi";
+export { createCvd } from "./volume/cvd";
+export type { CvdState } from "./volume/cvd";
+export { createWeisWave } from "./volume/weis-wave";
+export type { WeisWaveState, WeisWaveValue as IncrementalWeisWaveValue } from "./volume/weis-wave";
+export { createAnchoredVwap } from "./volume/anchored-vwap";
+export type {
+  AnchoredVwapState,
+  AnchoredVwapValue as IncrementalAnchoredVwapValue,
+} from "./volume/anchored-vwap";
+export { createEmv } from "./volume/ease-of-movement";
+export type { EmvState } from "./volume/ease-of-movement";
+export { createVolumeTrend } from "./volume/volume-trend";
+export type { VolumeTrendState } from "./volume/volume-trend";
