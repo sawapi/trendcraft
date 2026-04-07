@@ -98,6 +98,7 @@ import {
   createZlema,
   restoreState,
 } from "../indicators/incremental";
+import type { WarmUpOptions } from "../indicators/incremental/types";
 import {
   ADL_META,
   ADXR_META,
@@ -196,13 +197,14 @@ export type LivePreset = {
   createFactory: (params: Record<string, unknown>) => LiveIndicatorFactory;
 };
 
-/** Helper to create a factory builder with restoreState wiring */
-function factory<T>(
-  // biome-ignore lint/suspicious/noExplicitAny: bridging generic create functions with unknown state
-  create: (params: T, warmUp?: any) => ReturnType<LiveIndicatorFactory>,
+/** Helper to create a factory builder with restoreState wiring.
+ *  S is inferred from the create function's WarmUpOptions<S> parameter,
+ *  allowing restoreState<S>() to produce the correctly-typed state. */
+function factory<T, S>(
+  create: (params: T, warmUp?: WarmUpOptions<S>) => ReturnType<LiveIndicatorFactory>,
   mapParams: (p: Record<string, unknown>) => T,
 ): (params: Record<string, unknown>) => LiveIndicatorFactory {
-  return (params) => (state) => create(mapParams(params), restoreState(state));
+  return (params) => (state) => create(mapParams(params), restoreState<S>(state));
 }
 
 /**

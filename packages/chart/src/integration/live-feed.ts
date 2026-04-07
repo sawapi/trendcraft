@@ -136,6 +136,8 @@ export type ConnectLiveFeedOptions = {
   presets?: Record<string, LivePresetEntry>;
   /** Historical candles for back-fill computation (used by zero-config addIndicator) */
   history?: readonly SourceCandle[];
+  /** Error callback invoked when live-feed event handlers encounter errors */
+  onError?: (error: Error) => void;
 };
 
 /**
@@ -207,6 +209,7 @@ export function connectLiveFeed(
 ): LiveFeedConnection {
   let _connected = true;
   const presets = options?.presets ?? {};
+  const onError = options?.onError;
   const historyCandles = options?.history ?? [];
   const activeIndicators = new Map<
     string,
@@ -312,7 +315,9 @@ export function connectLiveFeed(
     try {
       updateIndicators(snapshot, candle);
     } catch (e) {
+      const error = e instanceof Error ? e : new Error(String(e));
       console.error("[@trendcraft/chart] live-feed candleComplete error:", e);
+      onError?.(error);
     }
   });
 
@@ -321,7 +326,9 @@ export function connectLiveFeed(
       chart.updateCandle(candle as CandleData);
       updateIndicators(snapshot, candle);
     } catch (e) {
+      const error = e instanceof Error ? e : new Error(String(e));
       console.error("[@trendcraft/chart] live-feed tick error:", e);
+      onError?.(error);
     }
   });
 

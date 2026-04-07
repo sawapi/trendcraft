@@ -554,7 +554,7 @@ export type ChartInstance = {
   removePrimitive(name: string): void;
 
   // Export
-  toImage(type?: string, quality?: number): Promise<Blob>;
+  toImage(type?: string, quality?: number, timeoutMs?: number): Promise<Blob>;
 
   // Lifecycle
   resize(width: number, height: number): void;

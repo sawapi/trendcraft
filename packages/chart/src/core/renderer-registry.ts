@@ -12,9 +12,11 @@ export type PrimitiveEntry = {
   state: unknown;
 };
 
-// Internal storage type — erases the generic to allow heterogeneous plugins
-type AnyRendererPlugin = SeriesRendererPlugin<never>;
-type AnyPrimitivePlugin = PrimitivePlugin<never>;
+// Internal storage type — erases the config generic to allow heterogeneous plugins
+// biome-ignore lint/suspicious/noExplicitAny: Required for heterogeneous plugin storage
+type AnyRendererPlugin = SeriesRendererPlugin<any>;
+// biome-ignore lint/suspicious/noExplicitAny: Required for heterogeneous plugin storage
+type AnyPrimitivePlugin = PrimitivePlugin<any>;
 
 export class RendererRegistry {
   private _renderers = new Map<string, AnyRendererPlugin>();
@@ -26,7 +28,7 @@ export class RendererRegistry {
       console.warn(`[trendcraft/chart] Renderer "${plugin.type}" already registered, overwriting.`);
     }
     plugin.init?.();
-    this._renderers.set(plugin.type, plugin as unknown as AnyRendererPlugin);
+    this._renderers.set(plugin.type, plugin);
   }
 
   /** Get a renderer by type name */
