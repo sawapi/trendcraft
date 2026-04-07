@@ -234,6 +234,8 @@ export class PriceScale {
   private _mode: ScaleMode = "linear";
   private _min = 0;
   private _max = 100;
+  private _ticksCacheKey = "";
+  private _ticksCache: number[] = [];
   private _height = 0;
   /** Padding fraction for auto-range (e.g., 0.05 = 5% padding) */
   private _padding = 0.05;
@@ -323,10 +325,17 @@ export class PriceScale {
     return this._min + normalized * (this._max - this._min);
   }
 
-  /** Generate nice tick values for the y-axis */
+  /** Generate nice tick values for the y-axis (memoized per min/max/maxTicks) */
   getTicks(maxTicks = 6): number[] {
+    const key = `${this._min}:${this._max}:${maxTicks}`;
+    if (key === this._ticksCacheKey) return this._ticksCache;
+
     const range = this._max - this._min;
-    if (range <= 0) return [];
+    if (range <= 0) {
+      this._ticksCacheKey = key;
+      this._ticksCache = [];
+      return [];
+    }
 
     const rawStep = range / maxTicks;
     const magnitude = 10 ** Math.floor(Math.log10(rawStep));
@@ -344,6 +353,9 @@ export class PriceScale {
     for (let v = start; v <= this._max; v += niceStep) {
       ticks.push(v);
     }
-    return ticks;
+
+    this._ticksCacheKey = key;
+    this._ticksCache = ticks;
+    return [...ticks];
   }
 }

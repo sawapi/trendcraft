@@ -25,6 +25,7 @@ import type {
 import type {
   BacktestResultData,
   CandleData,
+  ChartEvent,
   ChartInstance,
   ChartOptions,
   ChartPatternSignal,
@@ -253,41 +254,40 @@ export const TrendChart = forwardRef<TrendChartRef, TrendChartProps>(function Tr
     };
   }, [plugins]);
 
-  // Event: crosshairMove
+  // Event handlers — wrap typed callbacks to match ChartInstance.on() signature
   useEffect(() => {
     const chart = chartRef.current;
-    if (!chart || !onCrosshairMove) return;
-    const handler = onCrosshairMove as (data: unknown) => void;
-    chart.on("crosshairMove", handler);
-    return () => chart.off("crosshairMove", handler);
-  }, [onCrosshairMove]);
+    if (!chart) return;
 
-  // Event: seriesAdded
-  useEffect(() => {
-    const chart = chartRef.current;
-    if (!chart || !onSeriesAdded) return;
-    const handler = onSeriesAdded as (data: unknown) => void;
-    chart.on("seriesAdded", handler);
-    return () => chart.off("seriesAdded", handler);
-  }, [onSeriesAdded]);
+    const handlers: Array<[string, (data: unknown) => void]> = [];
 
-  // Event: seriesRemoved
-  useEffect(() => {
-    const chart = chartRef.current;
-    if (!chart || !onSeriesRemoved) return;
-    const handler = onSeriesRemoved as (data: unknown) => void;
-    chart.on("seriesRemoved", handler);
-    return () => chart.off("seriesRemoved", handler);
-  }, [onSeriesRemoved]);
+    if (onCrosshairMove) {
+      const h = (d: unknown) => onCrosshairMove(d as CrosshairMoveData);
+      chart.on("crosshairMove", h);
+      handlers.push(["crosshairMove", h]);
+    }
+    if (onSeriesAdded) {
+      const h = (d: unknown) => onSeriesAdded(d as SeriesInfo);
+      chart.on("seriesAdded", h);
+      handlers.push(["seriesAdded", h]);
+    }
+    if (onSeriesRemoved) {
+      const h = (d: unknown) => onSeriesRemoved(d as SeriesInfo);
+      chart.on("seriesRemoved", h);
+      handlers.push(["seriesRemoved", h]);
+    }
+    if (onError) {
+      const h = (d: unknown) => onError(d as { source: string; error: unknown });
+      chart.on("error", h);
+      handlers.push(["error", h]);
+    }
 
-  // Event: error
-  useEffect(() => {
-    const chart = chartRef.current;
-    if (!chart || !onError) return;
-    const handler = onError as (data: unknown) => void;
-    chart.on("error", handler);
-    return () => chart.off("error", handler);
-  }, [onError]);
+    return () => {
+      for (const [event, handler] of handlers) {
+        chart.off(event as ChartEvent, handler);
+      }
+    };
+  }, [onCrosshairMove, onSeriesAdded, onSeriesRemoved, onError]);
 
   return (
     <div

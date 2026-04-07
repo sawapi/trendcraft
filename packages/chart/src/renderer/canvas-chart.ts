@@ -306,6 +306,9 @@ export class CanvasChart implements ChartInstance {
     this._needsRender = true;
     if (removed > 0) {
       this._emit("dataFiltered", { total: candles.length, valid: valid.length, removed });
+      console.warn(
+        `[@trendcraft/chart] ${removed} invalid candle(s) filtered from ${candles.length} total. Candles must have finite numeric time, open, high, low, close, and volume fields.`,
+      );
     }
     this._updateAriaLabel();
   }
