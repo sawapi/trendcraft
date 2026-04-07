@@ -61,8 +61,11 @@ export class RendererRegistry {
     }
   }
 
+  private static readonly _emptyPrimitives: PrimitiveEntry[] = [];
+
   /** Get all primitives for a given pane and z-order */
   getPrimitives(paneId: string, zOrder: "below" | "above"): PrimitiveEntry[] {
+    if (this._primitives.size === 0) return RendererRegistry._emptyPrimitives;
     const result: PrimitiveEntry[] = [];
     for (const entry of this._primitives.values()) {
       if (

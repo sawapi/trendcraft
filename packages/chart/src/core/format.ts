@@ -156,6 +156,29 @@ export function formatVolume(vol: number): string {
 }
 
 // ============================================
+// Text Measurement Cache
+// ============================================
+
+const _textWidthCache = new Map<string, number>();
+const TEXT_CACHE_MAX = 500;
+
+/**
+ * Cached version of ctx.measureText().width.
+ * Avoids expensive synchronous text measurement on repeated calls
+ * with the same font + text combination (common in per-frame rendering).
+ */
+export function measureTextWidth(ctx: CanvasRenderingContext2D, text: string): number {
+  // Use ctx.font as part of the cache key
+  const key = `${ctx.font}\t${text}`;
+  const cached = _textWidthCache.get(key);
+  if (cached !== undefined) return cached;
+  const width = ctx.measureText(text).width;
+  if (_textWidthCache.size >= TEXT_CACHE_MAX) _textWidthCache.clear();
+  _textWidthCache.set(key, width);
+  return width;
+}
+
+// ============================================
 // Helpers
 // ============================================
 

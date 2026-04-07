@@ -2,7 +2,7 @@
  * Crosshair Renderer — Draws crosshair lines, price label, and time label.
  */
 
-import { autoFormatPrice, formatCrosshairTime } from "../core/format";
+import { autoFormatPrice, formatCrosshairTime, measureTextWidth } from "../core/format";
 import type { PriceScale, TimeScale } from "../core/scale";
 import type { CandleData, PaneRect, ThemeColors } from "../core/types";
 import type { ViewportState } from "../core/viewport";
@@ -91,10 +91,9 @@ function drawPriceLabel(
 ): void {
   const label = autoFormatPrice(price);
   ctx.font = `${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
-  const metrics = ctx.measureText(label);
   const padX = 6;
   const padY = 4;
-  const labelWidth = metrics.width + padX * 2;
+  const labelWidth = measureTextWidth(ctx, label) + padX * 2;
   const labelHeight = fontSize + padY * 2;
 
   ctx.fillStyle = theme.crosshair;
@@ -123,10 +122,9 @@ function drawTimeLabel(
 ): void {
   const label = formatCrosshairTime(time);
   ctx.font = `${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
-  const metrics = ctx.measureText(label);
   const padX = 6;
   const padY = 3;
-  const labelWidth = metrics.width + padX * 2;
+  const labelWidth = measureTextWidth(ctx, label) + padX * 2;
   const labelHeight = fontSize + padY * 2;
 
   ctx.fillStyle = theme.crosshair;

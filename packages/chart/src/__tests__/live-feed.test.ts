@@ -34,6 +34,7 @@ function createMockChart() {
         }),
       };
     }),
+    batchUpdates: vi.fn((fn: () => void) => fn()),
     // Satisfy ChartInstance with minimal stubs
     getAllSeries: vi.fn(() => []),
     getVisibleRange: vi.fn(() => null),
