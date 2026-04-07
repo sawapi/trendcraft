@@ -621,14 +621,32 @@ export class CanvasChart implements ChartInstance {
 
   // ---- Public API: Export ----
 
-  async toImage(type = "image/png", quality = 1): Promise<Blob> {
+  async toImage(type = "image/png", quality = 1, timeoutMs = 0): Promise<Blob> {
     // Force a synchronous render
     this._render();
     return new Promise((resolve, reject) => {
+      let settled = false;
+      const timer =
+        timeoutMs > 0
+          ? setTimeout(() => {
+              if (!settled) {
+                settled = true;
+                reject(new Error("toImage() timed out"));
+              }
+            }, timeoutMs)
+          : undefined;
+
       this._canvas.toBlob(
         (blob) => {
-          if (blob) resolve(blob);
-          else reject(new Error("Failed to export chart image"));
+          if (settled) return;
+          settled = true;
+          if (timer) clearTimeout(timer);
+
+          if (!blob || blob.size === 0) {
+            reject(new Error("Failed to export chart image: empty or null blob"));
+          } else {
+            resolve(blob);
+          }
         },
         type,
         quality,

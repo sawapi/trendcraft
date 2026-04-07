@@ -18,8 +18,10 @@ export type IntrospectionRule = {
   seriesType: SeriesType;
   /** Default pane placement: 'main' for overlays, 'sub' for subcharts */
   defaultPane: "main" | "sub";
-  /** Extract named numeric channels from the value (called only after test() passes) */
-  decompose: (value: Record<string, number | null>) => Record<string, number | null>;
+  /** Extract named numeric channels from the value (called only after test() passes).
+   *  For primitive types (e.g. number), the value may not be a Record. */
+  // biome-ignore lint/suspicious/noExplicitAny: value type depends on what test() matched
+  decompose: (value: any) => Record<string, number | null>;
 };
 
 // ============================================
@@ -189,7 +191,7 @@ const BUILTIN_RULES: IntrospectionRule[] = [
     test: (v) => typeof v === "number",
     seriesType: "line",
     defaultPane: "sub",
-    decompose: (v) => ({ value: v as unknown as number }),
+    decompose: (v) => ({ value: v as number }),
   },
 ];
 
