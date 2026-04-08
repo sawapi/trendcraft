@@ -33,6 +33,8 @@ export class DataLayer {
   private _dirty = true;
   /** Monotonic counter incremented on every data mutation — used by render caches */
   private _version = 0;
+  /** Maximum candles to retain (null = unlimited) */
+  private _maxCandles: number | null = null;
   private _onChange: (() => void) | null = null;
   private _onPaneEmpty: ((paneId: string) => void) | null = null;
   private _onWarn: ((message: string) => void) | null = null;
@@ -50,6 +52,11 @@ export class DataLayer {
   /** Register a callback for diagnostic warnings (e.g. duplicate timestamps) */
   setOnWarn(cb: (message: string) => void): void {
     this._onWarn = cb;
+  }
+
+  /** Set maximum candle count. Older candles are trimmed when exceeded. */
+  setMaxCandles(max: number | null): void {
+    this._maxCandles = max;
   }
 
   private markDirty(): void {
@@ -96,6 +103,10 @@ export class DataLayer {
     if (!isSorted(copy)) {
       copy.sort((a, b) => a.time - b.time);
     }
+    // Trim to maxCandles (keep newest)
+    if (this._maxCandles && copy.length > this._maxCandles) {
+      copy.splice(0, copy.length - this._maxCandles);
+    }
     this._candles = copy;
     this._rebuildTimeIndex();
     this.markDirty();
@@ -110,6 +121,12 @@ export class DataLayer {
       // Append new candle
       this._candles.push(candle);
       this._timeToIndex.set(candle.time, this._candles.length - 1);
+      // Trim oldest candles if exceeding maxCandles
+      if (this._maxCandles && this._candles.length > this._maxCandles) {
+        const excess = this._candles.length - this._maxCandles;
+        this._candles.splice(0, excess);
+        this._rebuildTimeIndex();
+      }
     }
     this.markDirty();
   }
@@ -137,15 +154,19 @@ export class DataLayer {
 
   addSeries<T>(data: DataPoint<T>[], config: SeriesConfig, resolvedType: SeriesType): SeriesHandle {
     const id = `s${this._nextSeriesId++}`;
+    let seriesData = data as DataPoint<unknown>[];
+    if (this._maxCandles && seriesData.length > this._maxCandles) {
+      seriesData = seriesData.slice(-this._maxCandles);
+    }
     const internal: InternalSeries = {
       id,
       paneId: config.pane ?? "main",
       scaleId: config.scaleId ?? "right",
       type: resolvedType,
       config: { ...config },
-      data: data as DataPoint<unknown>[],
+      data: seriesData,
       visible: config.visible !== false,
-      _rule: defaultRegistry.detect(data),
+      _rule: defaultRegistry.detect(seriesData),
     };
     this._series.set(id, internal);
     this.markDirty();
@@ -160,6 +181,9 @@ export class DataLayer {
           arr[arr.length - 1] = point;
         } else {
           arr.push(point);
+          if (this._maxCandles && arr.length > this._maxCandles) {
+            arr.splice(0, arr.length - this._maxCandles);
+          }
         }
         // Re-detect rule if initially null (e.g. series created with [])
         if (s._rule === null && point.value != null) {
@@ -172,8 +196,12 @@ export class DataLayer {
       setData: <U>(newData: DataPoint<U>[]) => {
         const s = this._series.get(id);
         if (!s) return;
-        s.data = newData as DataPoint<unknown>[];
-        s._rule = defaultRegistry.detect(newData);
+        let trimmed = newData as DataPoint<unknown>[];
+        if (this._maxCandles && trimmed.length > this._maxCandles) {
+          trimmed = trimmed.slice(-this._maxCandles);
+        }
+        s.data = trimmed;
+        s._rule = defaultRegistry.detect(trimmed);
         s._channels = undefined;
         s._dataVersion = (s._dataVersion ?? 0) + 1;
         this.markDirty();

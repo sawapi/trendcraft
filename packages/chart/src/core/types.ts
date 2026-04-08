@@ -115,6 +115,8 @@ export type ChartOptions = {
   animationDuration?: number;
   /** Locale strings for i18n (partial override of defaults) */
   locale?: Partial<import("./i18n").ChartLocale>;
+  /** Maximum number of candles to retain in live mode. Older candles are trimmed when exceeded. */
+  maxCandles?: number;
 };
 
 /** Base chart rendering type */

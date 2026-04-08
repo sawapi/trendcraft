@@ -126,6 +126,7 @@ export class CanvasChart implements ChartInstance {
     }
 
     this._container = container;
+    if (options?.maxCandles) this._data.setMaxCandles(options.maxCandles);
     this._fontSize = options?.fontSize ?? DEFAULT_OPTIONS.fontSize;
     this._priceFormatter = options?.priceFormatter ?? autoFormatPrice;
     this._timeFormatter = options?.timeFormatter;
