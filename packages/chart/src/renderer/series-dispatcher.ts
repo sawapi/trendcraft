@@ -8,6 +8,7 @@ import { getDecimationTarget, lttb } from "../core/decimation";
 import { DrawHelper } from "../core/draw-helper";
 import type { RendererRegistry } from "../core/renderer-registry";
 import type { PriceScale, TimeScale } from "../core/scale";
+import type { IntrospectionRule } from "../core/series-registry";
 import { defaultRegistry } from "../core/series-registry";
 import type { DataPoint, ThemeColors } from "../core/types";
 import { renderArea } from "../series/area";
@@ -22,6 +23,32 @@ import { renderMarkers } from "../series/marker";
 /** Cached DrawHelper for custom plugin renderers — avoids per-frame allocation */
 let _pluginDrawHelper: DrawHelper | null = null;
 
+/** LTTB decimation cache per series — avoids re-decimating every frame */
+const _lttbCache = new WeakMap<
+  DataPoint<number | null>[],
+  {
+    start: number;
+    end: number;
+    target: number;
+    version: number;
+    result: DataPoint<number | null>[];
+  }
+>();
+
+/** Return cached decomposed channels, recomputing only when data changes */
+function getCachedChannels(
+  s: InternalSeries,
+  rule: IntrospectionRule,
+): Map<string, (number | null)[]> {
+  // _channels is cleared to undefined by handle.update() and setData(),
+  // so in-place mutations always trigger recomputation.
+  if (s._channels && s._channelsLen === s.data.length) return s._channels;
+  const channels = defaultRegistry.decomposeAll(s.data, rule);
+  s._channels = channels;
+  s._channelsLen = s.data.length;
+  return channels;
+}
+
 /**
  * Dispatch a series to its appropriate renderer based on introspection.
  */
@@ -35,8 +62,8 @@ export function dispatchSeries(
   theme?: ThemeColors,
   rendererRegistry?: RendererRegistry,
 ): void {
-  // Detect rule once (avoid duplicate calls)
-  const rule = defaultRegistry.detect(s.data);
+  // Use cached rule from addSeries() — avoids per-frame data scan
+  const rule = s._rule !== undefined ? s._rule : defaultRegistry.detect(s.data);
 
   // Check custom renderer registry first (plugins take priority)
   if (rendererRegistry && dataLayer && theme) {
@@ -97,7 +124,27 @@ export function dispatchSeries(
     let data = s.data as DataPoint<number | null>[];
     const target = getDecimationTarget(timeScale.endIndex - timeScale.startIndex, timeScale.width);
     if (target > 0) {
-      data = lttb(data.slice(timeScale.startIndex, timeScale.endIndex), target);
+      const ver = s._dataVersion ?? 0;
+      const cached = _lttbCache.get(data);
+      if (
+        cached &&
+        cached.start === timeScale.startIndex &&
+        cached.end === timeScale.endIndex &&
+        cached.target === target &&
+        cached.version === ver
+      ) {
+        data = cached.result;
+      } else {
+        const decimated = lttb(data.slice(timeScale.startIndex, timeScale.endIndex), target);
+        _lttbCache.set(data, {
+          start: timeScale.startIndex,
+          end: timeScale.endIndex,
+          target,
+          version: ver,
+          result: decimated,
+        });
+        data = decimated;
+      }
     }
     renderLine(ctx, data, timeScale, priceScale, timeScale.startIndex, {
       color,
@@ -107,7 +154,7 @@ export function dispatchSeries(
   }
 
   if (rule.name === "band") {
-    const channels = defaultRegistry.decomposeAll(s.data, rule);
+    const channels = getCachedChannels(s, rule);
     const cc = s.config.channelColors;
     renderBand(
       ctx,
@@ -122,7 +169,7 @@ export function dispatchSeries(
   }
 
   if (rule.name === "macd") {
-    const channels = defaultRegistry.decomposeAll(s.data, rule);
+    const channels = getCachedChannels(s, rule);
     const cc = s.config.channelColors;
     renderHistogram(ctx, channels.get("histogram") ?? [], timeScale, priceScale, {
       upColor: cc?.histogramUp ?? "rgba(38,166,154,0.6)",
@@ -140,13 +187,13 @@ export function dispatchSeries(
   }
 
   if (rule.name === "ichimoku") {
-    const channels = defaultRegistry.decomposeAll(s.data, rule);
+    const channels = getCachedChannels(s, rule);
     renderCloud(ctx, channels, timeScale, priceScale);
     return;
   }
 
   if (rule.name === "parabolicSar") {
-    const channels = defaultRegistry.decomposeAll(s.data, rule);
+    const channels = getCachedChannels(s, rule);
     const sarVals = channels.get("sar") ?? [];
     renderMarkers(ctx, sarVals, timeScale, priceScale, { color: color ?? "#FF9800", radius: 2 });
     return;
@@ -154,7 +201,7 @@ export function dispatchSeries(
 
   // Supertrend: draw active band colored by trend direction
   if (rule.name === "supertrend") {
-    const channels = defaultRegistry.decomposeAll(s.data, rule);
+    const channels = getCachedChannels(s, rule);
     const upper = channels.get("upperBand") ?? [];
     const lower = channels.get("lowerBand") ?? [];
     const trend = channels.get("trend") ?? [];
@@ -207,7 +254,7 @@ export function dispatchSeries(
 
   // Volume Profile heatmap
   if (rule.name === "volumeProfile") {
-    const channels = defaultRegistry.decomposeAll(s.data, rule);
+    const channels = getCachedChannels(s, rule);
     renderHeatmap(ctx, channels, timeScale, priceScale, paneWidth ?? timeScale.width);
     return;
   }
@@ -219,7 +266,7 @@ export function dispatchSeries(
   }
 
   // Generic multi-channel: render each channel as a line
-  const channels = defaultRegistry.decomposeAll(s.data, rule);
+  const channels = getCachedChannels(s, rule);
   const cc = s.config.channelColors;
   const fallbackColors = ["#2196F3", "#FF9800", "#26a69a", "#ef5350", "#9c27b0", "#FF5722"];
   let colorIdx = 0;

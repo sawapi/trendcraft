@@ -3,7 +3,7 @@
  */
 
 import type { DataLayer } from "../core/data-layer";
-import { autoFormatPrice } from "../core/format";
+import { autoFormatPrice, measureTextWidth } from "../core/format";
 import type { PriceScale, TimeScale } from "../core/scale";
 import type {
   ArrowDrawing,
@@ -123,10 +123,9 @@ function renderHLine(
   // Price label
   const label = autoFormatPrice(drawing.price);
   ctx.font = `${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
-  const metrics = ctx.measureText(label);
   const padX = 4;
   const padY = 2;
-  const labelW = metrics.width + padX * 2;
+  const labelW = measureTextWidth(ctx, label) + padX * 2;
   const labelH = fontSize + padY * 2;
 
   ctx.fillStyle = color;
@@ -507,10 +506,9 @@ function renderTextLabel(
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
 
-  const metrics = ctx.measureText(drawing.text);
   const padX = 4;
   const padY = 2;
-  const labelW = metrics.width + padX * 2;
+  const labelW = measureTextWidth(ctx, drawing.text) + padX * 2;
   const labelH = size + padY * 2;
 
   // Background

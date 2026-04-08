@@ -323,8 +323,10 @@ export function connectLiveFeed(
 
   const unsubTick = source.on("tick", ({ candle, snapshot }) => {
     try {
-      chart.updateCandle(candle as CandleData);
-      updateIndicators(snapshot, candle);
+      chart.batchUpdates(() => {
+        chart.updateCandle(candle as CandleData);
+        updateIndicators(snapshot, candle);
+      });
     } catch (e) {
       const error = e instanceof Error ? e : new Error(String(e));
       console.error("[@trendcraft/chart] live-feed tick error:", e);

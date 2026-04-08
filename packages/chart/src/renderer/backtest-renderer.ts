@@ -4,7 +4,7 @@
  */
 
 import type { DataLayer } from "../core/data-layer";
-import { autoFormatPrice } from "../core/format";
+import { autoFormatPrice, measureTextWidth } from "../core/format";
 import type { PriceScale, TimeScale } from "../core/scale";
 import type { PaneRect, ThemeColors } from "../core/types";
 
@@ -235,9 +235,9 @@ export function renderBacktestSummary(
   for (const part of parts) {
     ctx.fillStyle = theme.textSecondary;
     ctx.fillText(`${part.label}: `, currentX, y + 4);
-    currentX += ctx.measureText(`${part.label}: `).width;
+    currentX += measureTextWidth(ctx, `${part.label}: `);
     ctx.fillStyle = part.color;
     ctx.fillText(part.value, currentX, y + 4);
-    currentX += ctx.measureText(part.value).width + 12;
+    currentX += measureTextWidth(ctx, part.value) + 12;
   }
 }

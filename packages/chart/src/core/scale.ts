@@ -237,6 +237,9 @@ export class PriceScale {
   private _ticksCacheKey = "";
   private _ticksCache: number[] = [];
   private _height = 0;
+  /** Cached log values — recomputed only when _min/_max change */
+  private _logMin = 0;
+  private _logMax = 0;
   /** Padding fraction for auto-range (e.g., 0.05 = 5% padding) */
   private _padding = 0.05;
   /** Fixed range override */
@@ -260,6 +263,7 @@ export class PriceScale {
 
   setMode(mode: ScaleMode): void {
     this._mode = mode;
+    this._updateLogCache();
   }
 
   setHeight(height: number): void {
@@ -275,6 +279,7 @@ export class PriceScale {
     if (this._fixedRange) {
       this._min = this._fixedRange[0];
       this._max = this._fixedRange[1];
+      this._updateLogCache();
       return;
     }
 
@@ -290,6 +295,14 @@ export class PriceScale {
     const pad = range * this._padding;
     this._min = lo - pad;
     this._max = hi + pad;
+    this._updateLogCache();
+  }
+
+  private _updateLogCache(): void {
+    if (this._mode === "log") {
+      this._logMin = Math.log(Math.max(this._min, 1e-10));
+      this._logMax = Math.log(Math.max(this._max, 1e-10));
+    }
   }
 
   /** Price to y pixel (0 = top of pane) */
@@ -298,10 +311,8 @@ export class PriceScale {
 
     let normalized: number;
     if (this._mode === "log") {
-      const logMin = Math.log(Math.max(this._min, 1e-10));
-      const logMax = Math.log(Math.max(this._max, 1e-10));
       const logPrice = Math.log(Math.max(price, 1e-10));
-      normalized = (logPrice - logMin) / (logMax - logMin || 1);
+      normalized = (logPrice - this._logMin) / (this._logMax - this._logMin || 1);
     } else {
       normalized = (price - this._min) / (this._max - this._min || 1);
     }
@@ -317,9 +328,7 @@ export class PriceScale {
     const normalized = 1 - y / this._height;
 
     if (this._mode === "log") {
-      const logMin = Math.log(Math.max(this._min, 1e-10));
-      const logMax = Math.log(Math.max(this._max, 1e-10));
-      return Math.exp(logMin + normalized * (logMax - logMin));
+      return Math.exp(this._logMin + normalized * (this._logMax - this._logMin));
     }
 
     return this._min + normalized * (this._max - this._min);

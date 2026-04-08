@@ -39,6 +39,23 @@ import { dispatchSeries } from "./series-dispatcher";
 
 type DualScale = { left: PriceScale; right: PriceScale };
 
+/** Cached watermark font string — avoids per-frame template literal */
+let _watermarkFontWidth = 0;
+let _watermarkFont = "";
+
+/** Reused Maps — avoids per-frame allocation */
+const _rightScaleMap = new Map<string, PriceScale>();
+const _seriesByPane = new Map<string, InternalSeries[]>();
+
+/** Candle decimation cache — avoids re-decimating every frame when viewport hasn't changed */
+let _decimCache: {
+  start: number;
+  end: number;
+  target: number;
+  dataVersion: number;
+  result: readonly CandleData[];
+} | null = null;
+
 /** Everything the render pipeline needs from CanvasChart */
 export type RenderContext = {
   ctx: CanvasRenderingContext2D;
@@ -89,10 +106,14 @@ export function renderFrame(rc: RenderContext): RenderResult {
 
   // Watermark
   if (rc.watermark) {
+    if (_watermarkFontWidth !== width) {
+      _watermarkFontWidth = width;
+      _watermarkFont = `bold ${Math.min(width * 0.08, 48)}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+    }
     ctx.save();
     ctx.fillStyle = theme.textSecondary;
     ctx.globalAlpha = 0.07;
-    ctx.font = `bold ${Math.min(width * 0.08, 48)}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+    ctx.font = _watermarkFont;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(rc.watermark, width / 2, height / 2);
@@ -182,9 +203,10 @@ export function renderFrame(rc: RenderContext): RenderResult {
 
   // Render panes
   let drawHelper = rc.drawHelper;
-  const rightScaleMap = new Map<string, PriceScale>();
-  for (const [id, dual] of rc.priceScales) rightScaleMap.set(id, dual.right);
-  const seriesByPane = new Map<string, InternalSeries[]>();
+  // Reuse Maps across frames — clear + repopulate to avoid allocation
+  _rightScaleMap.clear();
+  for (const [id, dual] of rc.priceScales) _rightScaleMap.set(id, dual.right);
+  _seriesByPane.clear();
 
   for (const pane of paneRects) {
     const scales = rc.priceScales.get(pane.id);
@@ -241,12 +263,31 @@ export function renderFrame(rc: RenderContext): RenderResult {
       const savedStart = timeScale.startIndex;
       const savedSpacing = timeScale.barSpacing;
       if (decimTarget > 0) {
-        visibleCandles = decimateCandles(
-          candles,
-          timeScale.startIndex,
-          timeScale.endIndex,
-          decimTarget,
-        );
+        // Use cached decimation result when viewport hasn't changed
+        const dataVer = data.version;
+        if (
+          _decimCache &&
+          _decimCache.start === timeScale.startIndex &&
+          _decimCache.end === timeScale.endIndex &&
+          _decimCache.target === decimTarget &&
+          _decimCache.dataVersion === dataVer
+        ) {
+          visibleCandles = _decimCache.result;
+        } else {
+          visibleCandles = decimateCandles(
+            candles,
+            timeScale.startIndex,
+            timeScale.endIndex,
+            decimTarget,
+          );
+          _decimCache = {
+            start: timeScale.startIndex,
+            end: timeScale.endIndex,
+            target: decimTarget,
+            dataVersion: dataVer,
+            result: visibleCandles,
+          };
+        }
         timeScale.setImmediate(0, timeScale.width / visibleCandles.length);
       } else {
         visibleCandles = candles;
@@ -275,6 +316,9 @@ export function renderFrame(rc: RenderContext): RenderResult {
       renderVolume(ctx, candles, timeScale, ps, theme);
     }
 
+    // Pre-compute translated pane object once (avoids spread per primitive)
+    const translatedPane = { ...pane, y: 0 };
+
     // 'below' primitives
     for (const prim of rc.rendererRegistry.getPrimitives(pane.id, "below")) {
       try {
@@ -283,7 +327,7 @@ export function renderFrame(rc: RenderContext): RenderResult {
         prim.plugin.render(
           {
             ctx,
-            pane: { ...pane, y: 0 },
+            pane: translatedPane,
             timeScale,
             priceScale: ps,
             dataLayer: data,
@@ -299,7 +343,7 @@ export function renderFrame(rc: RenderContext): RenderResult {
 
     // Series — dispatch to correct scale (cache for later info overlay use)
     const paneSeriesForRender = data.getSeriesForPane(pane.id);
-    seriesByPane.set(pane.id, paneSeriesForRender);
+    _seriesByPane.set(pane.id, paneSeriesForRender);
     for (const s of paneSeriesForRender) {
       try {
         const seriesScale = s.scaleId === "left" ? scales.left : ps;
@@ -326,7 +370,7 @@ export function renderFrame(rc: RenderContext): RenderResult {
         prim.plugin.render(
           {
             ctx,
-            pane: { ...pane, y: 0 },
+            pane: translatedPane,
             timeScale,
             priceScale: ps,
             dataLayer: data,
@@ -402,12 +446,12 @@ export function renderFrame(rc: RenderContext): RenderResult {
   );
 
   // MTF overlays
-  renderTimeframeOverlays(ctx, data.timeframes, paneRects, rightScaleMap, data, theme);
+  renderTimeframeOverlays(ctx, data.timeframes, paneRects, _rightScaleMap, data, theme);
 
   // Backtest
   const btResult = data.backtestResult;
   if (btResult) {
-    renderBacktestTrades(ctx, btResult, paneRects, rightScaleMap, timeScale, data);
+    renderBacktestTrades(ctx, btResult, paneRects, _rightScaleMap, timeScale, data);
     const equityPane = paneRects.find((p) => p.id === "equity");
     const equityScale = rc.priceScales.get("equity");
     if (equityPane && equityScale) {
@@ -430,7 +474,7 @@ export function renderFrame(rc: RenderContext): RenderResult {
       ctx,
       data.patterns,
       paneRects,
-      rightScaleMap,
+      _rightScaleMap,
       timeScale,
       data,
       theme,
@@ -440,19 +484,19 @@ export function renderFrame(rc: RenderContext): RenderResult {
 
   // Drawings (include interactive preview if present)
   const allDrawings = rc.drawingPreview ? [...data.drawings, rc.drawingPreview] : data.drawings;
-  renderDrawings(ctx, allDrawings, paneRects, rightScaleMap, timeScale, data, theme, rc.fontSize);
+  renderDrawings(ctx, allDrawings, paneRects, _rightScaleMap, timeScale, data, theme, rc.fontSize);
 
   // Overlays
-  renderPriceLine(ctx, candles, paneRects, rightScaleMap, theme, rc.fontSize);
-  renderSignals(ctx, data.signals, candles, data, paneRects, rightScaleMap, timeScale);
-  renderTrades(ctx, data.trades, data, paneRects, rightScaleMap, timeScale);
+  renderPriceLine(ctx, candles, paneRects, _rightScaleMap, theme, rc.fontSize);
+  renderSignals(ctx, data.signals, candles, data, paneRects, _rightScaleMap, timeScale);
+  renderTrades(ctx, data.trades, data, paneRects, _rightScaleMap, timeScale);
 
   // Crosshair
   renderCrosshair(
     ctx,
     rc.viewportState,
     paneRects,
-    rightScaleMap,
+    _rightScaleMap,
     timeScale,
     layout.dataAreaWidth,
     layout.timeAxisY,
@@ -481,5 +525,10 @@ export function renderFrame(rc: RenderContext): RenderResult {
     }
   }
 
-  return { crosshairIndex: rc.viewportState.crosshairIndex, paneRects, seriesByPane, drawHelper };
+  return {
+    crosshairIndex: rc.viewportState.crosshairIndex,
+    paneRects,
+    seriesByPane: _seriesByPane,
+    drawHelper,
+  };
 }

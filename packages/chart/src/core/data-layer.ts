@@ -3,6 +3,8 @@
  * Manages candles, indicator series, signals, and trades.
  */
 
+import type { IntrospectionRule } from "./series-registry";
+import { defaultRegistry } from "./series-registry";
 import type {
   CandleData,
   DataPoint,
@@ -29,6 +31,8 @@ export class DataLayer {
   private _scores: DataPoint<number | null>[] = [];
   private _timeToIndex = new Map<number, number>();
   private _dirty = true;
+  /** Monotonic counter incremented on every data mutation — used by render caches */
+  private _version = 0;
   private _onChange: (() => void) | null = null;
   private _onPaneEmpty: ((paneId: string) => void) | null = null;
   private _onWarn: ((message: string) => void) | null = null;
@@ -50,7 +54,13 @@ export class DataLayer {
 
   private markDirty(): void {
     this._dirty = true;
+    this._version++;
     this._onChange?.();
+  }
+
+  /** Current data version — incremented on every mutation */
+  get version(): number {
+    return this._version;
   }
 
   private checkPaneEmpty(paneId: string): void {
@@ -135,6 +145,7 @@ export class DataLayer {
       config: { ...config },
       data: data as DataPoint<unknown>[],
       visible: config.visible !== false,
+      _rule: defaultRegistry.detect(data),
     };
     this._series.set(id, internal);
     this.markDirty();
@@ -150,12 +161,21 @@ export class DataLayer {
         } else {
           arr.push(point);
         }
+        // Re-detect rule if initially null (e.g. series created with [])
+        if (s._rule === null && point.value != null) {
+          s._rule = defaultRegistry.detect(s.data);
+        }
+        s._channels = undefined;
+        s._dataVersion = (s._dataVersion ?? 0) + 1;
         this.markDirty();
       },
       setData: <U>(newData: DataPoint<U>[]) => {
         const s = this._series.get(id);
         if (!s) return;
         s.data = newData as DataPoint<unknown>[];
+        s._rule = defaultRegistry.detect(newData);
+        s._channels = undefined;
+        s._dataVersion = (s._dataVersion ?? 0) + 1;
         this.markDirty();
       },
       setVisible: (v: boolean) => {
@@ -357,4 +377,12 @@ export type InternalSeries = {
   config: SeriesConfig;
   data: DataPoint<unknown>[];
   visible: boolean;
+  /** Cached introspection rule (set once at addSeries, avoids per-frame detect) */
+  _rule?: IntrospectionRule | null;
+  /** Cached decomposed channels (invalidated on data change) */
+  _channels?: Map<string, (number | null)[]>;
+  /** Data length when _channels was computed — used to detect staleness */
+  _channelsLen?: number;
+  /** Monotonic counter incremented on every data mutation — used by render caches */
+  _dataVersion?: number;
 };
