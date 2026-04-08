@@ -44,7 +44,7 @@
     "test:watch": "vitest",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
-    "size": "size-limit",
+    "size-check": "size-limit",
     "format": "biome format --write ."
   },
   "keywords": [
@@ -87,23 +87,28 @@
   },
   "size-limit": [
     {
+      "name": "Main (createChart + all exports)",
       "path": "dist/index.js",
-      "limit": "35 kB"
+      "limit": "31 kB"
     },
     {
+      "name": "Headless API",
       "path": "dist/headless.js",
-      "limit": "15 kB"
+      "limit": "11 kB"
     },
     {
+      "name": "React wrapper",
       "path": "dist/react/TrendChart.js",
-      "limit": "5 kB"
+      "limit": "27 kB"
     },
     {
+      "name": "Vue wrapper",
       "path": "dist/vue/TrendChart.js",
-      "limit": "5 kB"
+      "limit": "27 kB"
     }
   ],
   "devDependencies": {
+    "@size-limit/esbuild": "^12.0.1",
     "@size-limit/file": "^12.0.1",
     "@types/react": "^19.2.14",
     "react": "^19.2.4",
