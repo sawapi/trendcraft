@@ -38,6 +38,10 @@ jobs:
         if: matrix.node-version == 22
         run: cd packages/core && pnpm test:crossval
 
-      - name: Bundle size check
+      - name: Bundle size check (core)
         if: matrix.node-version == 22
         run: cd packages/core && pnpm exec size-limit
+
+      - name: Bundle size check (chart)
+        if: matrix.node-version == 22
+        run: cd packages/chart && pnpm size-check
