@@ -181,20 +181,20 @@ describe("Performance", () => {
     expect(elapsed).toBeLessThan(16);
   });
 
-  it(`TimeScale operations with ${LARGE} candles < 16ms`, () => {
+  it(`TimeScale operations with ${LARGE} candles < 16ms (median of 5 runs)`, () => {
     const ts = new TimeScale();
     ts.setWidth(1920);
     ts.setTotalCount(LARGE);
     ts.scrollToEnd();
 
-    const start = performance.now();
-    for (let i = 0; i < 1000; i++) {
-      ts.scrollBy(10);
-      ts.zoom(i % 2 === 0 ? 1.01 : 0.99);
-    }
-    const elapsed = performance.now() - start;
+    const median = medianMs(() => {
+      for (let i = 0; i < 1000; i++) {
+        ts.scrollBy(10);
+        ts.zoom(i % 2 === 0 ? 1.01 : 0.99);
+      }
+    });
 
-    expect(elapsed).toBeLessThan(16);
+    expect(median).toBeLessThan(16);
   });
 
   it(`DataLayer.setCandles with ${XLARGE} candles < 500ms`, () => {

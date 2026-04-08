@@ -79,7 +79,7 @@ cd packages/chart
 pnpm test         # Run chart tests (vitest, 19 test files)
 pnpm build        # Build chart (vite)
 pnpm dev          # Dev server with examples
-pnpm size         # Check bundle size limits (index.js 35kB, headless.js 15kB)
+pnpm size-check   # Check bundle size limits (esbuild, brotli-compressed)
 ```
 
 ## General Rules
@@ -93,7 +93,7 @@ pnpm size         # Check bundle size limits (index.js 35kB, headless.js 15kB)
 - All indicators return `Series<T>` type (`{ time: number, value: T }[]`)
 - Uses Wilder's smoothing method (RSI, ATR, etc.)
 - Functions should have JSDoc comments with @example
-- `@trendcraft/chart`: Bundle size limits enforced via `size-limit` — `index.js` ≤ 35 kB, `headless.js` ≤ 15 kB. Zero runtime dependencies; `trendcraft`, `react`, `vue` are optional peer deps
+- `@trendcraft/chart`: Bundle size limits enforced via `size-limit` + `@size-limit/esbuild` (brotli-compressed). Main ≤ 31 kB, Headless ≤ 11 kB, React/Vue ≤ 27 kB. Zero runtime dependencies; `trendcraft`, `react`, `vue` are optional peer deps
 
 ## Testing & Validation
 
