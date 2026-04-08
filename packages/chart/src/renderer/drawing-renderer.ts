@@ -499,7 +499,7 @@ function renderTextLabel(
 ): void {
   const x = timeScale.indexToX(dataLayer.indexAtTime(drawing.time));
   const y = ps.priceToY(drawing.price) + pane.y;
-  const size = drawing.fontSize ?? defaultFontSize;
+  const size = Math.min(Math.max(drawing.fontSize ?? defaultFontSize, 8), 200);
   const color = drawing.color ?? theme.text;
 
   ctx.font = `${size}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;

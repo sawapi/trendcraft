@@ -204,4 +204,32 @@ describe("renderDrawings", () => {
     expect(ctx.stroke).toHaveBeenCalled(); // line
     expect(ctx.fill).toHaveBeenCalled(); // arrowhead triangle
   });
+
+  it("clamps textLabel fontSize to [8, 200] (no crash on extreme values)", () => {
+    const { ctx, paneRects, priceScales, ts, dl } = setup();
+
+    // Extremely large fontSize — should not crash
+    const huge: TextLabelDrawing = {
+      id: "12",
+      type: "textLabel",
+      time: 2000,
+      price: 105,
+      text: "Huge",
+      fontSize: 999999,
+    };
+    renderDrawings(ctx, [huge], paneRects, priceScales, ts, dl, theme, 11);
+    expect(ctx.fillText).toHaveBeenCalled();
+
+    // Negative fontSize — should not crash
+    const tiny: TextLabelDrawing = {
+      id: "13",
+      type: "textLabel",
+      time: 2000,
+      price: 105,
+      text: "Tiny",
+      fontSize: -10,
+    };
+    renderDrawings(ctx, [tiny], paneRects, priceScales, ts, dl, theme, 11);
+    expect(ctx.fillText).toHaveBeenCalled();
+  });
 });
