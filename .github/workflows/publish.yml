@@ -29,9 +29,17 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - run: pnpm lint
+
       - run: pnpm build
 
       - run: pnpm test
+
+      - name: Bundle size check (core)
+        run: cd packages/core && pnpm exec size-limit
+
+      - name: Bundle size check (chart)
+        run: cd packages/chart && pnpm size-check
 
   publish-core:
     needs: build-and-test
