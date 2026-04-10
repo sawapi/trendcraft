@@ -48,4 +48,17 @@ describe("SSR safety", () => {
     expect(headless.TimeScale).toBeDefined();
     expect(headless.PriceScale).toBeDefined();
   });
+
+  it("react wrapper can be imported in node environment without crashing", async () => {
+    // Import should not throw — component is a function, not auto-rendering
+    const mod = await import("../../react/TrendChart");
+    expect(mod.TrendChart).toBeDefined();
+    expect(typeof mod.TrendChart).toBe("object"); // forwardRef wraps as object
+  });
+
+  it("vue wrapper can be imported in node environment without crashing", async () => {
+    const mod = await import("../../vue/TrendChart");
+    expect(mod.TrendChart).toBeDefined();
+    expect(typeof mod.TrendChart).toBe("object"); // defineComponent returns object
+  });
 });
