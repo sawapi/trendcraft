@@ -85,6 +85,14 @@ export function computeSeriesRange(
     return cloudPriceRange(channels, start, end);
   }
 
+  // Supertrend: only use upperBand/lowerBand for range (exclude trend direction channel)
+  if (rule.name === "supertrend") {
+    const channels = defaultRegistry.decomposeAll(s.data, rule);
+    const upper = channels.get("upperBand") ?? [];
+    const lower = channels.get("lowerBand") ?? [];
+    return bandPriceRange(upper, lower, start, end);
+  }
+
   // Generic: decompose and find range across all channels
   const channels = defaultRegistry.decomposeAll(s.data, rule);
   let min = Number.POSITIVE_INFINITY;

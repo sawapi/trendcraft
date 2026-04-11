@@ -192,9 +192,9 @@ export const VOLUME_TREND_META: SeriesMeta = { overlay: false, label: "Vol Trend
 export const HIGHEST_LOWEST_META: SeriesMeta = { overlay: true, label: "HiLo" };
 export const PIVOT_POINTS_META: SeriesMeta = { overlay: true, label: "Pivot" };
 export const FRACTALS_META: SeriesMeta = { overlay: true, label: "Fractals" };
-export const GAP_ANALYSIS_META: SeriesMeta = { overlay: true, label: "Gap" };
+export const GAP_ANALYSIS_META: SeriesMeta = { overlay: false, label: "Gap" };
 export const ORB_META: SeriesMeta = { overlay: true, label: "ORB" };
-export const FVG_META: SeriesMeta = { overlay: true, label: "FVG" };
+export const FVG_META: SeriesMeta = { overlay: false, label: "FVG" };
 
 // ============================================
 // Wyckoff

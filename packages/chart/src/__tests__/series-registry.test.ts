@@ -63,17 +63,20 @@ describe("SeriesRegistry", () => {
   });
 
   it("detects Supertrend shape", () => {
-    const data: DataPoint<{ upperBand: number; lowerBand: number; trend: number }>[] = [
-      { time: 1, value: { upperBand: 105, lowerBand: 95, trend: 1 } },
-    ];
+    const data: DataPoint<{
+      supertrend: number;
+      upperBand: number;
+      lowerBand: number;
+      direction: number;
+    }>[] = [{ time: 1, value: { supertrend: 95, upperBand: 105, lowerBand: 95, direction: 1 } }];
     const rule = registry.detect(data);
     expect(rule!.name).toBe("supertrend");
     expect(rule!.defaultPane).toBe("main");
   });
 
   it("detects Parabolic SAR shape", () => {
-    const data: DataPoint<{ sar: number; trend: number }>[] = [
-      { time: 1, value: { sar: 100, trend: 1 } },
+    const data: DataPoint<{ sar: number; direction: number }>[] = [
+      { time: 1, value: { sar: 100, direction: 1 } },
     ];
     const rule = registry.detect(data);
     expect(rule!.name).toBe("parabolicSar");
