@@ -175,7 +175,7 @@ export type { LivePreset } from "./live-presets";
 
 // Unified indicator presets (static + live, for connectIndicators)
 export { indicatorPresets } from "./indicator-presets";
-export type { IndicatorPreset } from "./indicator-presets";
+export type { IndicatorPreset, IndicatorCategory, ParamSchema } from "./indicator-presets";
 
 // Phase 5: Guards (Risk Management & Time Control)
 export {
