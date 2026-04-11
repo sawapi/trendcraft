@@ -85,8 +85,8 @@ export function computeSeriesRange(
     return cloudPriceRange(channels, start, end);
   }
 
-  // FVG zones are within candle price range — don't affect Y-axis scaling
-  if (rule.name === "fairValueGap") {
+  // FVG/Order Block zones are within candle price range — don't affect Y-axis scaling
+  if (rule.name === "fairValueGap" || rule.name === "orderBlock") {
     return [Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY];
   }
 

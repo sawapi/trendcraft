@@ -20,6 +20,11 @@
  */
 
 import {
+  adaptiveBollinger,
+  adaptiveMa,
+  // Additional indicators
+  adaptiveRsi,
+  adaptiveStochastics,
   adl,
   adxr,
   alma,
@@ -38,6 +43,7 @@ import {
   connorsRsi,
   coppockCurve,
   cvd,
+  cvdWithSignal,
   dema,
   dmi,
   donchianChannel,
@@ -46,11 +52,14 @@ import {
   elderForceIndex,
   ema,
   emaRibbon,
+  ewmaVolatility,
   fairValueGap,
+  fastStochastics,
   fractals,
   frama,
   gapAnalysis,
   garmanKlass,
+  heikinAshi,
   highestLowest,
   historicalVolatility,
   hma,
@@ -61,13 +70,17 @@ import {
   keltnerChannel,
   klinger,
   kst,
+  linearRegression,
+  liquiditySweep,
   macd,
+  marketProfile,
   massIndex,
   mcginleyDynamic,
   mfi,
   nvi,
   obv,
   openingRange,
+  orderBlock,
   parabolicSar,
   pivotPoints,
   ppo,
@@ -76,10 +89,14 @@ import {
   roc,
   rsi,
   schaffTrendCycle,
+  sessionBreakout,
+  slowStochastics,
   sma,
+  standardDeviation,
   stochRsi,
   stochastics,
   supertrend,
+  swingPoints,
   t3,
   tema,
   trix,
@@ -87,7 +104,9 @@ import {
   twap,
   ulcerIndex,
   ultimateOscillator,
+  volatilityRegime,
   volumeAnomaly,
+  volumeMa,
   volumeTrend,
   vortex,
   vsa as vsaBatch,
@@ -96,9 +115,30 @@ import {
   weisWave,
   williamsR,
   wma,
+  zigzag,
   zlema,
 } from "../indicators";
-import { DPO_META } from "../indicators/indicator-meta";
+import {
+  ADAPTIVE_BB_META,
+  ADAPTIVE_MA_META,
+  ADAPTIVE_RSI_META,
+  ADAPTIVE_STOCH_META,
+  CVD_SIGNAL_META,
+  DPO_META,
+  FAST_STOCH_META,
+  HEIKIN_ASHI_META,
+  LINEAR_REG_META,
+  LIQUIDITY_SWEEP_META,
+  MARKET_PROFILE_META,
+  ORDER_BLOCK_META,
+  SESSION_BREAKOUT_META,
+  SLOW_STOCH_META,
+  STD_DEV_META,
+  SWING_POINTS_META,
+  VOLUME_MA_META,
+  VOL_REGIME_META,
+  ZIGZAG_META,
+} from "../indicators/indicator-meta";
 import type { NormalizedCandle, Series } from "../types";
 import type { SeriesMeta } from "../types/candle";
 import { livePresets } from "./live-presets";
@@ -116,7 +156,10 @@ export type IndicatorCategory =
   | "Trend"
   | "Volume"
   | "Price"
-  | "Wyckoff";
+  | "Wyckoff"
+  | "Adaptive"
+  | "Session"
+  | "SMC";
 
 /** Parameter schema for UI controls */
 export type ParamSchema = {
@@ -1340,12 +1383,34 @@ export const indicatorPresets: Record<string, IndicatorPreset> = {
       description: "Classic support/resistance levels calculated from prior period's OHLC.",
     },
   ),
-  fractals: withCompute("fractals", (c, p) => fractals(c, { period: p.period ?? 2 }), {
-    category: "Price",
-    name: "Williams Fractals",
-    description: "Marks local highs and lows using surrounding bar comparison.",
-    paramSchema: [period(2, 1, 10)],
-  }),
+  fractals: withCompute(
+    "fractals",
+    (c, p) => {
+      const raw = fractals(c, { period: (p.period as number) ?? 2 });
+      // Forward-fill swing prices for continuous line rendering
+      let lastHigh: number | null = null;
+      let lastLow: number | null = null;
+      return raw.map((d) => {
+        if (d.value?.upPrice != null) lastHigh = d.value.upPrice;
+        if (d.value?.downPrice != null) lastLow = d.value.downPrice;
+        return {
+          time: d.time,
+          value: {
+            upFractal: d.value?.upFractal ?? false,
+            downFractal: d.value?.downFractal ?? false,
+            upPrice: lastHigh,
+            downPrice: lastLow,
+          },
+        };
+      });
+    },
+    {
+      category: "Price",
+      name: "Williams Fractals",
+      description: "Marks local highs and lows using surrounding bar comparison.",
+      paramSchema: [period(2, 1, 10)],
+    },
+  ),
   gapAnalysis: withCompute(
     "gapAnalysis",
     (c, p) => gapAnalysis(c, { minGapPercent: p.minGapPercent ?? 0.5 }),
@@ -1459,4 +1524,407 @@ export const indicatorPresets: Record<string, IndicatorPreset> = {
       ],
     },
   ),
+
+  // ============================================
+  // Adaptive
+  // ============================================
+  adaptiveRsi: {
+    meta: ADAPTIVE_RSI_META,
+    defaultParams: { basePeriod: 14, minPeriod: 6, maxPeriod: 28 },
+    snapshotName: "adaptiveRsi",
+    compute: (c, p) =>
+      adaptiveRsi(c, {
+        basePeriod: (p.basePeriod as number) ?? 14,
+        minPeriod: (p.minPeriod as number) ?? 6,
+        maxPeriod: (p.maxPeriod as number) ?? 28,
+      }),
+    category: "Adaptive",
+    name: "Adaptive RSI",
+    description: "RSI with period that adjusts based on market volatility.",
+    paramSchema: [
+      period(14),
+      { key: "minPeriod", label: "Min", type: "number", default: 6, min: 2, max: 20, step: 1 },
+      { key: "maxPeriod", label: "Max", type: "number", default: 28, min: 10, max: 100, step: 1 },
+    ],
+  },
+  adaptiveMa: {
+    meta: ADAPTIVE_MA_META,
+    defaultParams: { erPeriod: 10 },
+    snapshotName: "adaptiveMa",
+    compute: (c, p) => adaptiveMa(c, { erPeriod: (p.erPeriod as number) ?? 10 }),
+    category: "Adaptive",
+    name: "Adaptive Moving Average",
+    description: "EMA with speed adapting to Kaufman efficiency ratio.",
+    paramSchema: [
+      {
+        key: "erPeriod",
+        label: "ER Period",
+        type: "number",
+        default: 10,
+        min: 2,
+        max: 50,
+        step: 1,
+      },
+    ],
+  },
+  adaptiveBollinger: {
+    meta: ADAPTIVE_BB_META,
+    defaultParams: { period: 20, baseStdDev: 2 },
+    snapshotName: "adaptiveBb",
+    compute: (c, p) =>
+      adaptiveBollinger(c, {
+        period: (p.period as number) ?? 20,
+        baseStdDev: (p.baseStdDev as number) ?? 2,
+      }),
+    category: "Adaptive",
+    name: "Adaptive Bollinger Bands",
+    description: "Bollinger Bands with multiplier adapting to kurtosis.",
+    paramSchema: [
+      period(20),
+      {
+        key: "baseStdDev",
+        label: "Base StdDev",
+        type: "number",
+        default: 2,
+        min: 0.5,
+        max: 5,
+        step: 0.5,
+      },
+    ],
+  },
+  adaptiveStochastics: {
+    meta: ADAPTIVE_STOCH_META,
+    defaultParams: { basePeriod: 14 },
+    snapshotName: "adaptiveStoch",
+    compute: (c, p) => adaptiveStochastics(c, { basePeriod: (p.basePeriod as number) ?? 14 }),
+    category: "Adaptive",
+    name: "Adaptive Stochastics",
+    description: "Stochastic oscillator with period adapting to ADX-based trend strength.",
+    paramSchema: [
+      {
+        key: "basePeriod",
+        label: "Base Period",
+        type: "number",
+        default: 14,
+        min: 5,
+        max: 50,
+        step: 1,
+      },
+    ],
+  },
+
+  // ============================================
+  // Additional Volatility
+  // ============================================
+  standardDeviation: {
+    meta: STD_DEV_META,
+    defaultParams: { period: 20 },
+    snapshotName: "stdDev",
+    compute: (c, p) => standardDeviation(c, { period: (p.period as number) ?? 20 }),
+    category: "Volatility",
+    name: "Standard Deviation",
+    description: "Raw standard deviation of closing prices over a rolling window.",
+    paramSchema: [period(20)],
+  },
+  ewmaVol: withCompute(
+    "ewmaVol",
+    (c, p) => {
+      const returns = c.slice(1).map((bar, i) => Math.log(bar.close / c[i].close));
+      const raw = ewmaVolatility(returns, { lambda: (p.lambda as number) ?? 0.94 });
+      // Map index-based time back to candle timestamps (offset by 1 for returns)
+      return raw.map((pt, i) => ({ time: c[i + 1].time, value: pt.value }));
+    },
+    {
+      category: "Volatility",
+      name: "EWMA Volatility",
+      description: "Exponentially weighted moving average volatility estimator.",
+      paramSchema: [
+        {
+          key: "lambda",
+          label: "Lambda",
+          type: "number",
+          default: 0.94,
+          min: 0.5,
+          max: 0.99,
+          step: 0.01,
+        },
+      ],
+    },
+  ),
+  volatilityRegime: {
+    meta: VOL_REGIME_META,
+    defaultParams: { atrPeriod: 14, lookbackPeriod: 100 },
+    snapshotName: "volRegime",
+    compute: (c, p) =>
+      volatilityRegime(c, {
+        atrPeriod: (p.atrPeriod as number) ?? 14,
+        lookbackPeriod: (p.lookbackPeriod as number) ?? 100,
+      }),
+    category: "Volatility",
+    name: "Volatility Regime",
+    description: "Classifies market volatility as low, normal, high, or extreme.",
+    paramSchema: [
+      {
+        key: "atrPeriod",
+        label: "ATR Period",
+        type: "number",
+        default: 14,
+        min: 5,
+        max: 50,
+        step: 1,
+      },
+      {
+        key: "lookbackPeriod",
+        label: "Lookback",
+        type: "number",
+        default: 100,
+        min: 20,
+        max: 500,
+        step: 10,
+      },
+    ],
+  },
+
+  // ============================================
+  // Additional Trend
+  // ============================================
+  linearRegression: {
+    meta: LINEAR_REG_META,
+    defaultParams: { period: 20 },
+    snapshotName: "linReg",
+    compute: (c, p) => linearRegression(c, { period: (p.period as number) ?? 20 }),
+    category: "Trend",
+    name: "Linear Regression",
+    description: "Least squares regression line with slope and R-squared.",
+    paramSchema: [period(20)],
+  },
+
+  // ============================================
+  // Additional Volume
+  // ============================================
+  volumeMa: {
+    meta: VOLUME_MA_META,
+    defaultParams: { period: 20 },
+    snapshotName: "volMa",
+    compute: (c, p) => volumeMa(c, { period: (p.period as number) ?? 20 }),
+    category: "Volume",
+    name: "Volume Moving Average",
+    description: "Simple moving average of volume.",
+    paramSchema: [period(20)],
+  },
+  cvdWithSignal: {
+    meta: CVD_SIGNAL_META,
+    defaultParams: { signalPeriod: 9 },
+    snapshotName: "cvdSignal",
+    compute: (c, p) => cvdWithSignal(c, { signalPeriod: (p.signalPeriod as number) ?? 9 }),
+    category: "Volume",
+    name: "CVD with Signal",
+    description: "Cumulative Volume Delta with EMA signal line for crossover detection.",
+    paramSchema: [
+      {
+        key: "signalPeriod",
+        label: "Signal",
+        type: "number",
+        default: 9,
+        min: 2,
+        max: 30,
+        step: 1,
+      },
+    ],
+  },
+  marketProfile: {
+    meta: MARKET_PROFILE_META,
+    defaultParams: { tickSize: 0.5 },
+    snapshotName: "mktProfile",
+    compute: (c, p) => marketProfile(c, { tickSize: (p.tickSize as number) ?? 0.5 }),
+    category: "Volume",
+    name: "Market Profile",
+    description: "TPO-based profile showing POC, value area high/low.",
+    paramSchema: [
+      {
+        key: "tickSize",
+        label: "Tick Size",
+        type: "number",
+        default: 0.5,
+        min: 0.01,
+        max: 10,
+        step: 0.1,
+      },
+    ],
+  },
+
+  // ============================================
+  // Additional Momentum
+  // ============================================
+  fastStochastics: {
+    meta: FAST_STOCH_META,
+    defaultParams: { kPeriod: 14, dPeriod: 3 },
+    snapshotName: "fastStoch",
+    compute: (c, p) =>
+      fastStochastics(c, {
+        kPeriod: (p.kPeriod as number) ?? 14,
+        dPeriod: (p.dPeriod as number) ?? 3,
+      }),
+    category: "Momentum",
+    name: "Fast Stochastics",
+    description: "Stochastic oscillator without smoothing (slowing=1).",
+    paramSchema: [
+      { key: "kPeriod", label: "%K", type: "number", default: 14, min: 2, max: 100, step: 1 },
+      { key: "dPeriod", label: "%D", type: "number", default: 3, min: 1, max: 20, step: 1 },
+    ],
+  },
+  slowStochastics: {
+    meta: SLOW_STOCH_META,
+    defaultParams: { kPeriod: 14, dPeriod: 3 },
+    snapshotName: "slowStoch",
+    compute: (c, p) =>
+      slowStochastics(c, {
+        kPeriod: (p.kPeriod as number) ?? 14,
+        dPeriod: (p.dPeriod as number) ?? 3,
+      }),
+    category: "Momentum",
+    name: "Slow Stochastics",
+    description: "Stochastic oscillator with extra smoothing (slowing=3).",
+    paramSchema: [
+      { key: "kPeriod", label: "%K", type: "number", default: 14, min: 2, max: 100, step: 1 },
+      { key: "dPeriod", label: "%D", type: "number", default: 3, min: 1, max: 20, step: 1 },
+    ],
+  },
+
+  // ============================================
+  // Additional Price
+  // ============================================
+  heikinAshi: {
+    meta: HEIKIN_ASHI_META,
+    defaultParams: {},
+    snapshotName: "ha",
+    compute: (c) => heikinAshi(c),
+    category: "Price",
+    name: "Heikin-Ashi",
+    description: "Smoothed candlestick transformation for clearer trend visualization.",
+  },
+  swingPoints: {
+    meta: SWING_POINTS_META,
+    defaultParams: { leftBars: 5, rightBars: 5 },
+    snapshotName: "swing",
+    compute: (c, p) =>
+      swingPoints(c, {
+        leftBars: (p.leftBars as number) ?? 5,
+        rightBars: (p.rightBars as number) ?? 5,
+      }),
+    category: "Price",
+    name: "Swing Points",
+    description: "Confirmed swing highs and lows using surrounding bar comparison.",
+    paramSchema: [
+      { key: "leftBars", label: "Left Bars", type: "number", default: 5, min: 1, max: 20, step: 1 },
+      {
+        key: "rightBars",
+        label: "Right Bars",
+        type: "number",
+        default: 5,
+        min: 1,
+        max: 20,
+        step: 1,
+      },
+    ],
+  },
+  zigzag: {
+    meta: ZIGZAG_META,
+    defaultParams: { deviation: 5 },
+    snapshotName: "zigzag",
+    compute: (c, p) => {
+      const raw = zigzag(c, { deviation: (p.deviation as number) ?? 5 });
+      // Interpolate between pivot points for line rendering
+      const result: Series<number | null> = raw.map((d) => ({
+        time: d.time,
+        value: d.value?.price ?? null,
+      }));
+      const pivotIndices: number[] = [];
+      for (let i = 0; i < result.length; i++) {
+        if (result[i].value !== null) pivotIndices.push(i);
+      }
+      for (let p = 0; p < pivotIndices.length - 1; p++) {
+        const si = pivotIndices[p];
+        const ei = pivotIndices[p + 1];
+        const sv = result[si].value as number;
+        const ev = result[ei].value as number;
+        for (let i = si + 1; i < ei; i++) {
+          const t = (i - si) / (ei - si);
+          result[i] = { time: result[i].time, value: sv + (ev - sv) * t };
+        }
+      }
+      return result;
+    },
+    category: "Price",
+    name: "Zigzag",
+    description: "Connects significant swing points, filtering minor price movements.",
+    paramSchema: [
+      {
+        key: "deviation",
+        label: "Deviation %",
+        type: "number",
+        default: 5,
+        min: 1,
+        max: 20,
+        step: 0.5,
+      },
+    ],
+  },
+
+  // ============================================
+  // Session
+  // ============================================
+  sessionBreakout: {
+    meta: SESSION_BREAKOUT_META,
+    defaultParams: {},
+    snapshotName: "sessBO",
+    compute: (c) => sessionBreakout(c),
+    category: "Session",
+    name: "Session Breakout",
+    description: "Detects breakouts from previous session high/low range. Requires intraday data.",
+  },
+
+  // ============================================
+  // SMC
+  // ============================================
+  orderBlock: {
+    meta: ORDER_BLOCK_META,
+    defaultParams: { swingPeriod: 5 },
+    snapshotName: "ob",
+    compute: (c, p) => orderBlock(c, { swingPeriod: (p.swingPeriod as number) ?? 5 }),
+    category: "SMC",
+    name: "Order Block",
+    description: "Detects institutional order blocks — supply and demand zones.",
+    paramSchema: [
+      {
+        key: "swingPeriod",
+        label: "Swing Period",
+        type: "number",
+        default: 5,
+        min: 2,
+        max: 20,
+        step: 1,
+      },
+    ],
+  },
+  liquiditySweep: {
+    meta: LIQUIDITY_SWEEP_META,
+    defaultParams: { swingPeriod: 5 },
+    snapshotName: "liqSweep",
+    compute: (c, p) => liquiditySweep(c, { swingPeriod: (p.swingPeriod as number) ?? 5 }),
+    category: "SMC",
+    name: "Liquidity Sweep",
+    description: "Detects stop-hunt sweeps beyond swing highs/lows that quickly reverse.",
+    paramSchema: [
+      {
+        key: "swingPeriod",
+        label: "Swing Period",
+        type: "number",
+        default: 5,
+        min: 2,
+        max: 20,
+        step: 1,
+      },
+    ],
+  },
 };

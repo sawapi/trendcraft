@@ -223,6 +223,117 @@ const TRENDCRAFT_RULES: IntrospectionRule[] = [
     defaultPane: "main",
     decompose: (v) => ({ value: v.vwap }),
   },
+
+  // CVD with Signal ({cvd, signal} without histogram)
+  {
+    name: "cvdSignal",
+    test: (v) =>
+      hasKeys(v, ["cvd", "signal"]) && !hasKeys(v, ["histogram"]) && !hasKeys(v, ["kvo"]),
+    seriesType: "line",
+    defaultPane: "sub",
+    decompose: (v) => ({ cvd: v.cvd, signal: v.signal }),
+  },
+
+  // Linear Regression ({value, slope, rSquared})
+  {
+    name: "linearRegression",
+    test: (v) => hasKeys(v, ["value", "slope", "rSquared"]),
+    seriesType: "line",
+    defaultPane: "main",
+    decompose: (v) => ({ value: v.value }),
+  },
+
+  // Adaptive RSI ({rsi, effectivePeriod, volatilityPercentile})
+  {
+    name: "adaptiveRsi",
+    test: (v) => hasKeys(v, ["rsi", "effectivePeriod", "volatilityPercentile"]),
+    seriesType: "line",
+    defaultPane: "sub",
+    decompose: (v) => ({ value: v.rsi }),
+  },
+
+  // Adaptive MA ({value, efficiencyRatio, smoothingConstant})
+  {
+    name: "adaptiveMa",
+    test: (v) => hasKeys(v, ["efficiencyRatio", "smoothingConstant"]),
+    seriesType: "line",
+    defaultPane: "main",
+    decompose: (v) => ({ value: v.value }),
+  },
+
+  // Heikin-Ashi ({open, high, low, close, trend}) — distinguish from candles by trend key
+  {
+    name: "heikinAshi",
+    test: (v) => hasKeys(v, ["open", "high", "low", "close", "trend"]),
+    seriesType: "line",
+    defaultPane: "main",
+    decompose: (v) => ({ value: v.close }),
+  },
+
+  // Swing Points ({isSwingHigh, isSwingLow, swingHighPrice, swingLowPrice})
+  {
+    name: "swingPoints",
+    test: (v) => hasKeys(v, ["isSwingHigh", "isSwingLow", "swingHighPrice"]),
+    seriesType: "line",
+    defaultPane: "main",
+    decompose: (v) => ({ high: v.swingHighPrice, low: v.swingLowPrice }),
+  },
+
+  // Zigzag ({point, price, changePercent})
+  {
+    name: "zigzag",
+    test: (v) => hasKeys(v, ["point", "price", "changePercent"]),
+    seriesType: "line",
+    defaultPane: "main",
+    decompose: (v) => ({ value: v.price }),
+  },
+
+  // Session Breakout ({fromSession, breakout, rangeHigh, rangeLow})
+  {
+    name: "sessionBreakout",
+    test: (v) => hasKeys(v, ["fromSession", "rangeHigh", "rangeLow"]),
+    seriesType: "line",
+    defaultPane: "main",
+    decompose: (v) => ({ high: v.rangeHigh, low: v.rangeLow }),
+  },
+
+  // Order Block ({newOrderBlock, activeOrderBlocks}) — box zones like FVG
+  {
+    name: "orderBlock",
+    test: (v) => hasKeys(v, ["newOrderBlock", "activeOrderBlocks"]),
+    seriesType: "box",
+    defaultPane: "main",
+    decompose: () => ({}),
+  },
+
+  // Liquidity Sweep ({isSweep, recentSweeps})
+  {
+    name: "liquiditySweep",
+    test: (v) => hasKeys(v, ["isSweep", "recentSweeps"]),
+    seriesType: "line",
+    defaultPane: "sub",
+    decompose: (v) => ({
+      value: Array.isArray(v.recentSweeps) ? v.recentSweeps.length : 0,
+    }),
+  },
+
+  // Volatility Regime ({regime, atrPercentile, bandwidthPercentile})
+  {
+    name: "volatilityRegime",
+    test: (v) => hasKeys(v, ["regime", "atrPercentile", "bandwidthPercentile"]),
+    seriesType: "line",
+    defaultPane: "sub",
+    decompose: (v) => ({ value: v.atrPercentile }),
+  },
+
+  // Market Profile ({poc, valueAreaHigh, valueAreaLow, profile})
+  {
+    name: "marketProfile",
+    test: (v) => hasKeys(v, ["poc", "valueAreaHigh", "valueAreaLow"]),
+    seriesType: "line",
+    defaultPane: "main",
+    decompose: (v) => ({ poc: v.poc, vah: v.valueAreaHigh, val: v.valueAreaLow }),
+  },
 ];
 
 // ============================================
@@ -389,6 +500,39 @@ const TRENDCRAFT_PRESETS: [string, IndicatorPreset][] = [
   ["zlema", { color: "#607d8b" }],
   ["alma", { color: "#795548" }],
   ["frama", { color: "#3f51b5" }],
+
+  // Adaptive
+  ["adaptiveRsi", { color: "#ff9800" }],
+  ["adaptiveMa", { color: "#00bcd4" }],
+  ["adaptiveStochastics", { color: "#9c27b0" }],
+
+  // Additional Volatility
+  ["standardDeviation", { color: "#795548" }],
+  ["ewmaVol", { color: "#607d8b" }],
+  ["volatilityRegime", { color: "#9c27b0" }],
+
+  // Additional Trend
+  ["linearRegression", { color: "#ff5722" }],
+
+  // Additional Volume
+  ["volumeMa", { color: "#26a69a" }],
+  ["cvdWithSignal", { channelColors: { cvd: "#2196F3", signal: "#FF9800" } }],
+  ["marketProfile", { channelColors: { poc: "#FF9800", vah: "#ef5350", val: "#26a69a" } }],
+
+  // Additional Momentum
+  ["fastStochastics", { color: "#2196F3" }],
+  ["slowStochastics", { color: "#FF9800" }],
+
+  // Additional Price
+  ["heikinAshi", { color: "#8bc34a" }],
+  ["swingPoints", { channelColors: { high: "#ef5350", low: "#26a69a" } }],
+  ["zigzag", { color: "#FF9800" }],
+
+  // Session
+  ["sessionBreakout", { channelColors: { high: "#ef5350", low: "#26a69a" } }],
+
+  // SMC
+  ["liquiditySweep", { color: "#e91e63" }],
 ];
 
 // ============================================

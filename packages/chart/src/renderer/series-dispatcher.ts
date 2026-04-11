@@ -323,7 +323,13 @@ export function dispatchSeries(
     return;
   }
 
-  // Box zones (Order Block, etc.)
+  // Order Block: render active OB zones as overlaid boxes
+  if (rule.name === "orderBlock") {
+    renderOrderBlockZones(ctx, s.data as { value: unknown }[], timeScale, priceScale);
+    return;
+  }
+
+  // Box zones (generic)
   if (rule.seriesType === "box" && dataLayer) {
     renderBoxes(ctx, s.data as { value: unknown }[], timeScale, priceScale, dataLayer);
     return;
@@ -405,5 +411,48 @@ function renderFvgZones(
     if (zone.filled) {
       ctx.setLineDash([]);
     }
+  }
+}
+
+// ============================================
+// Order Block Zone Renderer
+// ============================================
+
+function renderOrderBlockZones(
+  ctx: CanvasRenderingContext2D,
+  data: readonly { value: unknown }[],
+  timeScale: TimeScale,
+  priceScale: PriceScale,
+): void {
+  const lastIdx = Math.min(timeScale.endIndex - 1, data.length - 1);
+  if (lastIdx < 0) return;
+
+  const val = data[lastIdx]?.value as {
+    activeOrderBlocks?: {
+      type: "bullish" | "bearish";
+      high: number;
+      low: number;
+      startIndex: number;
+      mitigated?: boolean;
+    }[];
+  } | null;
+  if (!val?.activeOrderBlocks) return;
+
+  for (const ob of val.activeOrderBlocks) {
+    const startX = timeScale.indexToX(ob.startIndex);
+    const endX = timeScale.indexToX(timeScale.endIndex);
+    const topY = priceScale.priceToY(ob.high);
+    const bottomY = priceScale.priceToY(ob.low);
+    const w = endX - startX;
+    const h = bottomY - topY;
+
+    const rgb = ob.type === "bullish" ? "38,166,154" : "239,83,80";
+
+    ctx.fillStyle = `rgba(${rgb},0.12)`;
+    ctx.fillRect(startX, topY, w, h);
+
+    ctx.strokeStyle = `rgba(${rgb},0.5)`;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(startX, topY, w, h);
   }
 }

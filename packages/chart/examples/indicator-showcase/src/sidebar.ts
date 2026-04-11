@@ -24,6 +24,9 @@ const CATEGORIES: IndicatorCategory[] = [
   "Trend",
   "Volume",
   "Price",
+  "Adaptive",
+  "Session",
+  "SMC",
   "Wyckoff",
 ];
 

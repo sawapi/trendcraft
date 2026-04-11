@@ -203,7 +203,85 @@ export const FVG_META: SeriesMeta = { overlay: true, label: "FVG" };
 export const VSA_META: SeriesMeta = { overlay: false, label: "VSA" };
 
 // ============================================
+// SMC
+// ============================================
+
+export const ORDER_BLOCK_META: SeriesMeta = { overlay: true, label: "Order Block" };
+export const LIQUIDITY_SWEEP_META: SeriesMeta = { overlay: false, label: "Liq Sweep" };
+
+// ============================================
 // Regime
 // ============================================
 
 export const HMM_REGIME_META: SeriesMeta = { overlay: false, label: "HMM Regime" };
+
+// ============================================
+// Adaptive
+// ============================================
+
+export const ADAPTIVE_RSI_META: SeriesMeta = {
+  overlay: false,
+  label: "Adaptive RSI",
+  yRange: [0, 100],
+  referenceLines: [30, 70],
+};
+export const ADAPTIVE_MA_META: SeriesMeta = { overlay: true, label: "Adaptive MA" };
+export const ADAPTIVE_BB_META: SeriesMeta = { overlay: true, label: "Adaptive BB" };
+export const ADAPTIVE_STOCH_META: SeriesMeta = {
+  overlay: false,
+  label: "Adaptive Stoch",
+  yRange: [0, 100],
+  referenceLines: [20, 80],
+};
+
+// ============================================
+// Additional Volatility
+// ============================================
+
+export const STD_DEV_META: SeriesMeta = { overlay: false, label: "StdDev" };
+export const VOL_REGIME_META: SeriesMeta = { overlay: false, label: "Vol Regime" };
+
+// ============================================
+// Additional Trend
+// ============================================
+
+export const LINEAR_REG_META: SeriesMeta = { overlay: true, label: "LinReg" };
+
+// ============================================
+// Additional Volume
+// ============================================
+
+export const VOLUME_MA_META: SeriesMeta = { overlay: false, label: "Vol MA" };
+export const CVD_SIGNAL_META: SeriesMeta = { overlay: false, label: "CVD Signal" };
+export const MARKET_PROFILE_META: SeriesMeta = { overlay: true, label: "Market Profile" };
+
+// ============================================
+// Additional Momentum
+// ============================================
+
+export const FAST_STOCH_META: SeriesMeta = {
+  overlay: false,
+  label: "Fast Stoch",
+  yRange: [0, 100],
+  referenceLines: [20, 80],
+};
+export const SLOW_STOCH_META: SeriesMeta = {
+  overlay: false,
+  label: "Slow Stoch",
+  yRange: [0, 100],
+  referenceLines: [20, 80],
+};
+
+// ============================================
+// Additional Price
+// ============================================
+
+export const HEIKIN_ASHI_META: SeriesMeta = { overlay: true, label: "Heikin-Ashi" };
+export const SWING_POINTS_META: SeriesMeta = { overlay: true, label: "Swing Points" };
+export const ZIGZAG_META: SeriesMeta = { overlay: true, label: "Zigzag" };
+
+// ============================================
+// Session
+// ============================================
+
+export const SESSION_BREAKOUT_META: SeriesMeta = { overlay: true, label: "Session BO" };
