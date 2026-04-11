@@ -1383,34 +1383,12 @@ export const indicatorPresets: Record<string, IndicatorPreset> = {
       description: "Classic support/resistance levels calculated from prior period's OHLC.",
     },
   ),
-  fractals: withCompute(
-    "fractals",
-    (c, p) => {
-      const raw = fractals(c, { period: (p.period as number) ?? 2 });
-      // Forward-fill swing prices for continuous line rendering
-      let lastHigh: number | null = null;
-      let lastLow: number | null = null;
-      return raw.map((d) => {
-        if (d.value?.upPrice != null) lastHigh = d.value.upPrice;
-        if (d.value?.downPrice != null) lastLow = d.value.downPrice;
-        return {
-          time: d.time,
-          value: {
-            upFractal: d.value?.upFractal ?? false,
-            downFractal: d.value?.downFractal ?? false,
-            upPrice: lastHigh,
-            downPrice: lastLow,
-          },
-        };
-      });
-    },
-    {
-      category: "Price",
-      name: "Williams Fractals",
-      description: "Marks local highs and lows using surrounding bar comparison.",
-      paramSchema: [period(2, 1, 10)],
-    },
-  ),
+  fractals: withCompute("fractals", (c, p) => fractals(c, { period: (p.period as number) ?? 2 }), {
+    category: "Price",
+    name: "Williams Fractals",
+    description: "Marks local highs and lows using surrounding bar comparison.",
+    paramSchema: [period(2, 1, 10)],
+  }),
   gapAnalysis: withCompute(
     "gapAnalysis",
     (c, p) => gapAnalysis(c, { minGapPercent: p.minGapPercent ?? 0.5 }),
@@ -1692,10 +1670,35 @@ export const indicatorPresets: Record<string, IndicatorPreset> = {
     meta: LINEAR_REG_META,
     defaultParams: { period: 20 },
     snapshotName: "linReg",
-    compute: (c, p) => linearRegression(c, { period: (p.period as number) ?? 20 }),
+    compute: (c, p) => {
+      const raw = linearRegression(c, { period: (p.period as number) ?? 20 });
+      // Convert to band format: regression line ± standard deviation
+      const per = (p.period as number) ?? 20;
+      // Calculate residual stdDev for channel bands
+      const values: (number | null)[] = raw.map((d) => d.value?.value ?? null);
+      const closes = c.map((bar) => bar.close);
+      return raw.map((d, i) => {
+        const v = d.value?.value;
+        if (v == null || i < per - 1)
+          return { time: d.time, value: { upper: null, middle: null, lower: null } };
+        // Compute residual stddev over the regression window
+        let sumSq = 0;
+        let count = 0;
+        for (let j = Math.max(0, i - per + 1); j <= i; j++) {
+          const rv = values[j];
+          if (rv != null) {
+            const residual = closes[j] - rv;
+            sumSq += residual * residual;
+            count++;
+          }
+        }
+        const stdDev = count > 0 ? Math.sqrt(sumSq / count) : 0;
+        return { time: d.time, value: { upper: v + stdDev, middle: v, lower: v - stdDev } };
+      });
+    },
     category: "Trend",
-    name: "Linear Regression",
-    description: "Least squares regression line with slope and R-squared.",
+    name: "Linear Regression Channel",
+    description: "Regression line with standard deviation channel bands.",
     paramSchema: [period(20)],
   },
 
@@ -1734,21 +1737,27 @@ export const indicatorPresets: Record<string, IndicatorPreset> = {
   },
   marketProfile: {
     meta: MARKET_PROFILE_META,
-    defaultParams: { tickSize: 0.5 },
+    defaultParams: { tickSize: 0, sessionResetPeriod: 0 },
     snapshotName: "mktProfile",
-    compute: (c, p) => marketProfile(c, { tickSize: (p.tickSize as number) ?? 0.5 }),
+    compute: (c, p) => {
+      const reset = (p.sessionResetPeriod as number) ?? 0;
+      return marketProfile(c, {
+        tickSize: (p.tickSize as number) ?? 0,
+        sessionResetPeriod: reset > 0 ? reset : c.length + 1,
+      });
+    },
     category: "Volume",
     name: "Market Profile",
     description: "TPO-based profile showing POC, value area high/low.",
     paramSchema: [
       {
-        key: "tickSize",
-        label: "Tick Size",
+        key: "sessionResetPeriod",
+        label: "Reset Bars",
         type: "number",
-        default: 0.5,
-        min: 0.01,
-        max: 10,
-        step: 0.1,
+        default: 0,
+        min: 0,
+        max: 500,
+        step: 10,
       },
     ],
   },

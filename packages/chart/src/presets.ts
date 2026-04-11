@@ -129,7 +129,7 @@ const TRENDCRAFT_RULES: IntrospectionRule[] = [
   {
     name: "fractals",
     test: (v) => hasKeys(v, ["upFractal", "downFractal", "upPrice", "downPrice"]),
-    seriesType: "line",
+    seriesType: "marker",
     defaultPane: "main",
     decompose: (v) => ({ upPrice: v.upPrice, downPrice: v.downPrice }),
   },
@@ -234,15 +234,6 @@ const TRENDCRAFT_RULES: IntrospectionRule[] = [
     decompose: (v) => ({ cvd: v.cvd, signal: v.signal }),
   },
 
-  // Linear Regression ({value, slope, rSquared})
-  {
-    name: "linearRegression",
-    test: (v) => hasKeys(v, ["value", "slope", "rSquared"]),
-    seriesType: "line",
-    defaultPane: "main",
-    decompose: (v) => ({ value: v.value }),
-  },
-
   // Adaptive RSI ({rsi, effectivePeriod, volatilityPercentile})
   {
     name: "adaptiveRsi",
@@ -267,7 +258,8 @@ const TRENDCRAFT_RULES: IntrospectionRule[] = [
     test: (v) => hasKeys(v, ["open", "high", "low", "close", "trend"]),
     seriesType: "line",
     defaultPane: "main",
-    decompose: (v) => ({ value: v.close }),
+    // Decompose unused — heikinAshi renderer reads s.data directly
+    decompose: () => ({}),
   },
 
   // Swing Points ({isSwingHigh, isSwingLow, swingHighPrice, swingLowPrice})
@@ -329,10 +321,11 @@ const TRENDCRAFT_RULES: IntrospectionRule[] = [
   // Market Profile ({poc, valueAreaHigh, valueAreaLow, profile})
   {
     name: "marketProfile",
-    test: (v) => hasKeys(v, ["poc", "valueAreaHigh", "valueAreaLow"]),
-    seriesType: "line",
+    test: (v) => hasKeys(v, ["poc", "valueAreaHigh", "valueAreaLow", "profile"]),
+    seriesType: "heatmap",
     defaultPane: "main",
-    decompose: (v) => ({ poc: v.poc, vah: v.valueAreaHigh, val: v.valueAreaLow }),
+    // Heatmap renderer reads s.data directly
+    decompose: () => ({}),
   },
 ];
 
@@ -556,4 +549,271 @@ export function registerTrendCraftPresets(chart: ChartInstance): void {
   for (const [name, preset] of TRENDCRAFT_PRESETS) {
     chart.addPreset(name, preset);
   }
+  // Register custom renderers for TrendCraft-specific visualizations
+  for (const renderer of TRENDCRAFT_RENDERERS) {
+    chart.registerRenderer(renderer);
+  }
 }
+
+// ============================================
+// TrendCraft Custom Renderers
+// ============================================
+
+import { defineSeriesRenderer } from "./core/plugin-types";
+import type { SeriesRenderContext } from "./core/plugin-types";
+import type { SeriesRendererPlugin } from "./core/plugin-types";
+
+const TRENDCRAFT_RENDERERS: SeriesRendererPlugin[] = [
+  // FVG Zone Renderer
+  defineSeriesRenderer({
+    type: "fairValueGap",
+    render: ({ ctx, series, timeScale, priceScale }: SeriesRenderContext) => {
+      const data = series.data as { value: unknown }[];
+      const lastIdx = Math.min(timeScale.endIndex - 1, data.length - 1);
+      if (lastIdx < 0) return;
+      const val = data[lastIdx]?.value as {
+        activeBullishFvgs?: {
+          high: number;
+          low: number;
+          startIndex: number;
+          filled: boolean;
+          filledIndex: number | null;
+        }[];
+        activeBearishFvgs?: {
+          high: number;
+          low: number;
+          startIndex: number;
+          filled: boolean;
+          filledIndex: number | null;
+        }[];
+      } | null;
+      if (!val) return;
+      const allZones = [
+        ...(val.activeBullishFvgs ?? []).map((z) => ({ ...z, type: "bullish" as const })),
+        ...(val.activeBearishFvgs ?? []).map((z) => ({ ...z, type: "bearish" as const })),
+      ];
+      for (const zone of allZones) {
+        const startX = timeScale.indexToX(zone.startIndex);
+        const endX = timeScale.indexToX(
+          zone.filled && zone.filledIndex != null ? zone.filledIndex : timeScale.endIndex,
+        );
+        const topY = priceScale.priceToY(zone.high);
+        const bottomY = priceScale.priceToY(zone.low);
+        const rgb = zone.type === "bullish" ? "38,166,154" : "239,83,80";
+        const fillA = zone.filled ? 0.08 : 0.18;
+        const borderA = zone.filled ? 0.25 : 0.6;
+        ctx.fillStyle = `rgba(${rgb},${fillA})`;
+        ctx.fillRect(startX, topY, endX - startX, bottomY - topY);
+        ctx.strokeStyle = `rgba(${rgb},${borderA})`;
+        ctx.lineWidth = 1;
+        if (zone.filled) ctx.setLineDash([4, 3]);
+        ctx.strokeRect(startX, topY, endX - startX, bottomY - topY);
+        if (zone.filled) ctx.setLineDash([]);
+      }
+    },
+    priceRange: () => [Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY],
+  }),
+
+  // Order Block Zone Renderer
+  defineSeriesRenderer({
+    type: "orderBlock",
+    render: ({ ctx, series, timeScale, priceScale }: SeriesRenderContext) => {
+      const data = series.data as { value: unknown }[];
+      const lastIdx = Math.min(timeScale.endIndex - 1, data.length - 1);
+      if (lastIdx < 0) return;
+      const val = data[lastIdx]?.value as {
+        activeOrderBlocks?: {
+          type: "bullish" | "bearish";
+          high: number;
+          low: number;
+          startIndex: number;
+        }[];
+      } | null;
+      if (!val?.activeOrderBlocks) return;
+      for (const ob of val.activeOrderBlocks) {
+        const startX = timeScale.indexToX(ob.startIndex);
+        const endX = timeScale.indexToX(timeScale.endIndex);
+        const topY = priceScale.priceToY(ob.high);
+        const bottomY = priceScale.priceToY(ob.low);
+        const rgb = ob.type === "bullish" ? "38,166,154" : "239,83,80";
+        ctx.fillStyle = `rgba(${rgb},0.12)`;
+        ctx.fillRect(startX, topY, endX - startX, bottomY - topY);
+        ctx.strokeStyle = `rgba(${rgb},0.5)`;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(startX, topY, endX - startX, bottomY - topY);
+      }
+    },
+    priceRange: () => [Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY],
+  }),
+
+  // Fractal ▲▼ Markers
+  defineSeriesRenderer({
+    type: "fractals",
+    render: ({ ctx, series, timeScale, priceScale }: SeriesRenderContext) => {
+      const data = series.data as { value: unknown }[];
+      const start = timeScale.startIndex;
+      const end = timeScale.endIndex;
+      const size = 5;
+      const offset = 8;
+      for (let i = start; i < end && i < data.length; i++) {
+        const v = data[i]?.value as { upPrice?: number | null; downPrice?: number | null } | null;
+        if (!v) continue;
+        const x = timeScale.indexToX(i);
+        if (v.upPrice != null) {
+          const y = priceScale.priceToY(v.upPrice) - offset;
+          ctx.fillStyle = "#ef5350";
+          ctx.beginPath();
+          ctx.moveTo(x, y + size);
+          ctx.lineTo(x - size, y - size);
+          ctx.lineTo(x + size, y - size);
+          ctx.closePath();
+          ctx.fill();
+        }
+        if (v.downPrice != null) {
+          const y = priceScale.priceToY(v.downPrice) + offset;
+          ctx.fillStyle = "#26a69a";
+          ctx.beginPath();
+          ctx.moveTo(x, y - size);
+          ctx.lineTo(x - size, y + size);
+          ctx.lineTo(x + size, y + size);
+          ctx.closePath();
+          ctx.fill();
+        }
+      }
+    },
+    priceRange: () => [Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY],
+  }),
+
+  // Heikin-Ashi Candle Overlay
+  defineSeriesRenderer({
+    type: "heikinAshi",
+    render: ({ ctx, series, timeScale, priceScale, theme }: SeriesRenderContext) => {
+      const data = series.data as { value: unknown }[];
+      const start = timeScale.startIndex;
+      const end = timeScale.endIndex;
+      const bodyWidth = Math.max(1, timeScale.barSpacing * 0.6);
+      const halfBody = bodyWidth / 2;
+      const upColor = theme?.candleUp ?? "#26a69a";
+      const downColor = theme?.candleDown ?? "#ef5350";
+      ctx.save();
+      ctx.globalAlpha = 0.5;
+      for (let i = start; i < end && i < data.length; i++) {
+        const v = data[i]?.value as {
+          open?: number;
+          high?: number;
+          low?: number;
+          close?: number;
+        } | null;
+        if (!v?.open || !v.high || !v.low || !v.close) continue;
+        const x = timeScale.indexToX(i);
+        const oY = priceScale.priceToY(v.open);
+        const cY = priceScale.priceToY(v.close);
+        const hY = priceScale.priceToY(v.high);
+        const lY = priceScale.priceToY(v.low);
+        const color = v.close >= v.open ? upColor : downColor;
+        const bodyTop = Math.min(oY, cY);
+        const bodyH = Math.max(1, Math.abs(oY - cY));
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x, hY);
+        ctx.lineTo(x, lY);
+        ctx.stroke();
+        ctx.fillStyle = color;
+        ctx.fillRect(x - halfBody, bodyTop, bodyWidth, bodyH);
+      }
+      ctx.restore();
+    },
+    priceRange: () => [Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY],
+  }),
+
+  // Market Profile TPO Histogram
+  defineSeriesRenderer({
+    type: "marketProfile",
+    render: ({ ctx, series, timeScale, priceScale, paneWidth }: SeriesRenderContext) => {
+      const data = series.data as { value: unknown }[];
+      const lastIdx = Math.min(timeScale.endIndex - 1, data.length - 1);
+      if (lastIdx < 0) return;
+      const val = data[lastIdx]?.value as {
+        poc?: number | null;
+        valueAreaHigh?: number | null;
+        valueAreaLow?: number | null;
+        profile?: Map<number, number> | null;
+      } | null;
+      if (!val?.profile || val.profile.size === 0) return;
+      const { poc, valueAreaHigh, valueAreaLow, profile } = val;
+      let maxCount = 0;
+      for (const count of profile.values()) if (count > maxCount) maxCount = count;
+      if (maxCount === 0) return;
+
+      const maxBarWidth = paneWidth * 0.15;
+      const barLeft = 8;
+      const profileRight = barLeft + maxBarWidth;
+      const prices = [...profile.keys()].sort((a, b) => a - b);
+      const tickSize = prices.length > 1 ? prices[1] - prices[0] : 1;
+      const barH = Math.max(
+        2,
+        Math.abs(priceScale.priceToY(0) - priceScale.priceToY(tickSize)) - 1,
+      );
+
+      for (const [price, count] of profile) {
+        const y = priceScale.priceToY(price);
+        const barW = (count / maxCount) * maxBarWidth;
+        const isPoc = price === poc;
+        const inVA =
+          valueAreaLow != null &&
+          valueAreaHigh != null &&
+          price >= valueAreaLow &&
+          price <= valueAreaHigh;
+        ctx.fillStyle = isPoc
+          ? "rgba(255,152,0,0.35)"
+          : inVA
+            ? "rgba(33,150,243,0.18)"
+            : "rgba(33,150,243,0.07)";
+        ctx.fillRect(barLeft, y - barH / 2, barW, barH);
+        if (isPoc) {
+          ctx.strokeStyle = "rgba(255,152,0,0.6)";
+          ctx.lineWidth = 1;
+          ctx.strokeRect(barLeft, y - barH / 2, barW, barH);
+        }
+      }
+      // VAH/VAL lines + labels
+      ctx.save();
+      ctx.font = "10px sans-serif";
+      ctx.textBaseline = "bottom";
+      for (const [label, price] of [
+        ["VAH", valueAreaHigh],
+        ["VAL", valueAreaLow],
+      ] as const) {
+        if (price == null) continue;
+        const y = Math.round(priceScale.priceToY(price)) + 0.5;
+        ctx.strokeStyle = "rgba(255,152,0,0.4)";
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 3]);
+        ctx.beginPath();
+        ctx.moveTo(barLeft, y);
+        ctx.lineTo(profileRight + 20, y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = "rgba(255,152,0,0.7)";
+        ctx.fillText(label, profileRight + 4, y - 2);
+      }
+      // POC line + label
+      if (poc != null) {
+        const y = Math.round(priceScale.priceToY(poc)) + 0.5;
+        ctx.strokeStyle = "rgba(255,152,0,0.7)";
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        ctx.moveTo(barLeft, y);
+        ctx.lineTo(profileRight + 20, y);
+        ctx.stroke();
+        ctx.fillStyle = "rgba(255,152,0,0.9)";
+        ctx.font = "bold 10px sans-serif";
+        ctx.fillText("POC", profileRight + 4, y - 2);
+      }
+      ctx.restore();
+    },
+    priceRange: () => [Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY],
+  }),
+];

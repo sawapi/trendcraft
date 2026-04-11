@@ -58,9 +58,12 @@ export function computeSeriesRange(
   end: number,
   rendererRegistry?: RendererRegistry,
 ): [number, number] {
-  // Check custom renderer for priceRange
+  // Check custom renderer for priceRange (by series type or rule name)
   if (rendererRegistry) {
-    const custom = rendererRegistry.getRenderer(s.type);
+    const rule0 = defaultRegistry.detect(s.data);
+    const custom =
+      rendererRegistry.getRenderer(s.type) ??
+      (rule0 ? rendererRegistry.getRenderer(rule0.name) : undefined);
     if (custom?.priceRange) {
       return custom.priceRange(s, start, end);
     }
@@ -83,11 +86,6 @@ export function computeSeriesRange(
   if (rule.name === "ichimoku") {
     const channels = defaultRegistry.decomposeAll(s.data, rule);
     return cloudPriceRange(channels, start, end);
-  }
-
-  // FVG/Order Block zones are within candle price range — don't affect Y-axis scaling
-  if (rule.name === "fairValueGap" || rule.name === "orderBlock") {
-    return [Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY];
   }
 
   // Supertrend: only use upperBand/lowerBand for range (exclude trend direction channel)
