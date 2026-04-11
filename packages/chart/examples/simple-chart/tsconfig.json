@@ -11,6 +11,7 @@
     "lib": ["ES2022", "DOM"],
     "paths": {
       "@trendcraft/chart": ["../../src/index.ts"],
+      "@trendcraft/chart/presets": ["../../src/presets.ts"],
       "trendcraft": ["../../../core/src/index.ts"]
     }
   },

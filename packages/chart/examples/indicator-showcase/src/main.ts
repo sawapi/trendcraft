@@ -2,14 +2,16 @@
  * Indicator Showcase — Main Entry
  *
  * Demonstrates all 77 indicators available in indicatorPresets
- * with a categorized sidebar UI and parameter controls.
+ * with a categorized sidebar UI, search, parameter controls, and active
+ * indicator bar. The sidebar is auto-generated from indicatorPresets metadata.
  */
 
 import { connectIndicators, createChart } from "@trendcraft/chart";
+import { registerTrendCraftPresets } from "@trendcraft/chart/presets";
 import { indicatorPresets } from "trendcraft";
 import type { NormalizedCandle } from "trendcraft";
 import sampleData from "../../simple-chart/data.json";
-import { CATALOG } from "./indicator-catalog";
+import type { SidebarEntry } from "./sidebar";
 import { createSidebar } from "./sidebar";
 
 // ============================================
@@ -19,11 +21,30 @@ import { createSidebar } from "./sidebar";
 const candles = sampleData as NormalizedCandle[];
 
 // ============================================
+// Build sidebar catalog from indicatorPresets
+// ============================================
+
+const catalog: SidebarEntry[] = [];
+for (const [id, preset] of Object.entries(indicatorPresets)) {
+  if (!preset.category) continue;
+  catalog.push({
+    id,
+    shortName: preset.meta.label,
+    name: preset.name ?? preset.meta.label,
+    description: preset.description ?? "",
+    category: preset.category,
+    overlay: preset.meta.overlay,
+    params: preset.paramSchema ?? [],
+  });
+}
+
+// ============================================
 // Chart
 // ============================================
 
 const chartEl = document.getElementById("chart") as HTMLElement;
 const chart = createChart(chartEl, { theme: "dark" });
+registerTrendCraftPresets(chart);
 chart.setCandles(candles);
 
 // ============================================
@@ -38,7 +59,7 @@ const conn = connectIndicators(chart, { presets: indicatorPresets, candles });
 
 const sidebarEl = document.getElementById("sidebar") as HTMLElement;
 
-const sidebar = createSidebar(sidebarEl, CATALOG, {
+const sidebar = createSidebar(sidebarEl, catalog, {
   onToggle(id, active, params) {
     if (active) {
       const finalParams = resolveParams(id, params);
@@ -112,7 +133,3 @@ chartEl.addEventListener("click", () => {
 
 // Suppress unused variable warning
 void sidebar;
-
-// ============================================
-// Default state — start clean, user clicks to add
-// ============================================

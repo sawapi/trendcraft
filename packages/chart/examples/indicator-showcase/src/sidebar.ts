@@ -4,8 +4,28 @@
  * Renders a categorized, searchable indicator panel with parameter controls.
  */
 
-import type { Category, IndicatorEntry, ParamDef } from "./indicator-catalog";
-import { CATEGORIES } from "./indicator-catalog";
+import type { IndicatorCategory, ParamSchema } from "trendcraft";
+
+/** Sidebar entry derived from IndicatorPreset */
+export type SidebarEntry = {
+  id: string;
+  shortName: string;
+  name: string;
+  description: string;
+  category: IndicatorCategory;
+  overlay: boolean;
+  params: ParamSchema[];
+};
+
+const CATEGORIES: IndicatorCategory[] = [
+  "Moving Averages",
+  "Momentum",
+  "Volatility",
+  "Trend",
+  "Volume",
+  "Price",
+  "Wyckoff",
+];
 
 export type SidebarCallbacks = {
   onToggle: (id: string, active: boolean, params: Record<string, unknown>) => void;
@@ -18,7 +38,7 @@ export type SidebarAPI = {
 
 export function createSidebar(
   container: HTMLElement,
-  catalog: IndicatorEntry[],
+  catalog: SidebarEntry[],
   callbacks: SidebarCallbacks,
 ): SidebarAPI {
   const activeIds = new Set<string>();
@@ -35,7 +55,7 @@ export function createSidebar(
   }
 
   // Group by category
-  const grouped = new Map<Category, IndicatorEntry[]>();
+  const grouped = new Map<IndicatorCategory, SidebarEntry[]>();
   for (const cat of CATEGORIES) {
     grouped.set(cat, []);
   }
@@ -44,7 +64,7 @@ export function createSidebar(
   }
 
   // Expanded categories
-  const expandedCats = new Set<Category>([CATEGORIES[0]]);
+  const expandedCats = new Set<IndicatorCategory>([CATEGORIES[0]]);
 
   // Search state
   let searchQuery = "";
@@ -82,7 +102,7 @@ export function createSidebar(
     "padding:8px 12px;border-top:1px solid #2a2e39;flex-shrink:0;display:flex;flex-wrap:wrap;gap:4px;align-items:center;min-height:36px;";
   container.appendChild(activeBar);
 
-  function matchesSearch(entry: IndicatorEntry): boolean {
+  function matchesSearch(entry: SidebarEntry): boolean {
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
     return (
@@ -261,7 +281,7 @@ export function createSidebar(
     }
   }
 
-  function createParamInput(p: ParamDef, value: number): HTMLInputElement {
+  function createParamInput(p: ParamSchema, value: number): HTMLInputElement {
     const input = document.createElement("input");
     input.type = "number";
     input.value = String(value);

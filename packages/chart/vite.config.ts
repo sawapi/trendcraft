@@ -8,6 +8,7 @@ export default defineConfig({
       entry: {
         index: resolve(__dirname, "src/index.ts"),
         headless: resolve(__dirname, "src/headless.ts"),
+        presets: resolve(__dirname, "src/presets.ts"),
         "react/TrendChart": resolve(__dirname, "react/TrendChart.tsx"),
         "vue/TrendChart": resolve(__dirname, "vue/TrendChart.ts"),
       },

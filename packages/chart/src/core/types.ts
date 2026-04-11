@@ -555,6 +555,12 @@ export type ChartInstance = {
   /** Remove a primitive by name */
   removePrimitive(name: string): void;
 
+  // Extensibility
+  /** Register a custom introspection rule for shape detection */
+  addRule(rule: import("./series-registry").IntrospectionRule): void;
+  /** Register a visual preset (colors, lineWidth, etc.) for a rule name */
+  addPreset(name: string, preset: import("../integration/indicator-presets").IndicatorPreset): void;
+
   // Export
   toImage(type?: string, quality?: number, timeoutMs?: number): Promise<Blob>;
 

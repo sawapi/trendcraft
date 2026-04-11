@@ -14,6 +14,7 @@ import { onTap } from "../core/pointer";
 import { resolveRangeDuration } from "../core/range-utils";
 import { RendererRegistry } from "../core/renderer-registry";
 import { type PriceScale, TimeScale } from "../core/scale";
+import { type IntrospectionRule, defaultRegistry } from "../core/series-registry";
 import type {
   CandleData,
   ChartEvent,
@@ -35,6 +36,7 @@ import type {
 } from "../core/types";
 import { DARK_THEME, LIGHT_THEME } from "../core/types";
 import { Viewport } from "../core/viewport";
+import { INDICATOR_PRESETS, type IndicatorPreset } from "../integration/indicator-presets";
 import { introspect } from "../integration/series-introspector";
 import { ChartAria } from "./chart-aria";
 import { DrawingTool } from "./drawing-tool";
@@ -621,6 +623,16 @@ export class CanvasChart implements ChartInstance {
   removePrimitive(name: string): void {
     this._rendererRegistry.removePrimitive(name);
     this._needsRender = true;
+  }
+
+  // ---- Public API: Extensibility ----
+
+  addRule(rule: IntrospectionRule): void {
+    defaultRegistry.addRule(rule);
+  }
+
+  addPreset(name: string, preset: IndicatorPreset): void {
+    INDICATOR_PRESETS.set(name, preset);
   }
 
   // ---- Public API: Export ----
