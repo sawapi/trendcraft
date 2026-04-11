@@ -67,12 +67,7 @@ const TRENDCRAFT_RULES: IntrospectionRule[] = [
     test: (v) => hasKeys(v, ["crsi", "streakRsi", "rocPercentile"]),
     seriesType: "line",
     defaultPane: "sub",
-    decompose: (v) => ({
-      crsi: v.crsi,
-      rsi: v.rsi,
-      streakRsi: v.streakRsi,
-      rocPercentile: v.rocPercentile,
-    }),
+    decompose: (v) => ({ value: v.crsi }),
   },
 
   // Vortex (viPlus + viMinus)
@@ -383,12 +378,7 @@ const TRENDCRAFT_PRESETS: [string, IndicatorPreset][] = [
     {
       pane: "sub",
       label: "Connors RSI",
-      channelColors: {
-        crsi: "#2196F3",
-        rsi: "#FF9800",
-        streakRsi: "#26a69a",
-        rocPercentile: "#9c27b0",
-      },
+      color: "#2196F3",
       yRange: [0, 100],
       referenceLines: [20, 80],
     },
