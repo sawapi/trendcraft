@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Indicator Showcase — @trendcraft/chart</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { height: 100%; overflow: hidden; background: #131722; color: #d1d4dc;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+
+      .app { display: flex; flex-direction: column; height: 100vh; }
+
+      /* Toolbar */
+      .toolbar {
+        display: flex; align-items: center; gap: 12px;
+        padding: 8px 16px; background: #1e222d; border-bottom: 1px solid #2a2e39;
+        flex-shrink: 0; z-index: 10;
+      }
+      .toolbar-title {
+        font-size: 14px; font-weight: 700; color: #d1d4dc; white-space: nowrap;
+      }
+      .toolbar-tag {
+        font-size: 10px; padding: 2px 8px; border-radius: 10px;
+        background: #2196F3; color: #fff; white-space: nowrap;
+      }
+      .toolbar-spacer { flex: 1; }
+      .toolbar-btn {
+        padding: 5px 12px; font-size: 12px; background: #2a2e39;
+        border: 1px solid #363a45; border-radius: 4px; color: #d1d4dc;
+        cursor: pointer; white-space: nowrap;
+      }
+      .toolbar-btn:hover { background: #363a45; }
+      #btn-menu { display: none; font-size: 18px; line-height: 1; }
+
+      /* Main layout */
+      .main { display: flex; flex: 1; overflow: hidden; }
+
+      /* Sidebar */
+      #sidebar {
+        width: 280px; flex-shrink: 0; border-right: 1px solid #2a2e39;
+        display: flex; flex-direction: column; overflow: hidden;
+      }
+
+      /* Chart */
+      #chart { flex: 1; min-width: 0; }
+
+      /* Responsive */
+      @media (max-width: 767px) {
+        #btn-menu { display: block; }
+        #sidebar {
+          position: fixed; top: 0; left: 0; bottom: 0; width: 300px;
+          z-index: 100; transform: translateX(-100%);
+          transition: transform 0.25s ease;
+          box-shadow: none;
+        }
+        #sidebar.open {
+          transform: translateX(0);
+          box-shadow: 4px 0 20px rgba(0,0,0,0.5);
+        }
+      }
+
+      /* Scrollbar styling */
+      ::-webkit-scrollbar { width: 6px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background: #2a2e39; border-radius: 3px; }
+      ::-webkit-scrollbar-thumb:hover { background: #363a45; }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <div class="toolbar">
+        <button class="toolbar-btn" id="btn-menu">&#9776;</button>
+        <span class="toolbar-title">@trendcraft/chart</span>
+        <span class="toolbar-tag">Indicator Showcase</span>
+        <span class="toolbar-spacer"></span>
+        <button class="toolbar-btn" id="btn-type">Candle</button>
+        <button class="toolbar-btn" id="btn-fit">Fit</button>
+        <button class="toolbar-btn" id="btn-theme">Light</button>
+      </div>
+      <div class="main">
+        <div id="sidebar"></div>
+        <div id="chart"></div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
