@@ -337,6 +337,58 @@ const TRENDCRAFT_PRESETS: [string, IndicatorPreset][] = [
       },
     },
   ],
+  // ---- Single-value indicator colors (keyed by indicator ID for connectIndicators) ----
+
+  // Momentum
+  ["rsi", { color: "#FF9800" }],
+  ["cci", { color: "#e91e63" }],
+  ["roc", { color: "#9c27b0" }],
+  ["williamsR", { color: "#673ab7" }],
+  ["cmo", { color: "#ff5722" }],
+  ["adxr", { color: "#ff9800" }],
+  ["imi", { color: "#f44336" }],
+  ["hurst", { color: "#795548" }],
+  ["stc", { color: "#607d8b" }],
+  ["ao", { color: "#00bcd4" }],
+  ["bop", { color: "#8bc34a" }],
+  ["qstick", { color: "#3f51b5" }],
+  ["coppock", { color: "#009688" }],
+  ["massIndex", { color: "#795548" }],
+  ["dpo", { color: "#607d8b" }],
+  ["ultimateOscillator", { color: "#e91e63" }],
+
+  // Volatility
+  ["atr", { color: "#ff5722" }],
+  ["choppiness", { color: "#9c27b0" }],
+  ["hv", { color: "#607d8b" }],
+  ["garmanKlass", { color: "#795548" }],
+  ["ulcer", { color: "#e91e63" }],
+
+  // Volume
+  ["obv", { color: "#26a69a" }],
+  ["cmf", { color: "#00bcd4" }],
+  ["mfi", { color: "#ff9800" }],
+  ["adl", { color: "#8bc34a" }],
+  ["elderForceIndex", { color: "#673ab7" }],
+  ["pvt", { color: "#009688" }],
+  ["nvi", { color: "#3f51b5" }],
+  ["cvd", { color: "#e91e63" }],
+  ["emv", { color: "#ff5722" }],
+
+  // Moving Averages (distinct colors for common overlay combinations)
+  ["sma", { color: "#2196F3" }],
+  ["ema", { color: "#FF9800" }],
+  ["wma", { color: "#26a69a" }],
+  ["vwma", { color: "#9c27b0" }],
+  ["kama", { color: "#ef5350" }],
+  ["hma", { color: "#00bcd4" }],
+  ["t3", { color: "#8bc34a" }],
+  ["mcginley", { color: "#ff5722" }],
+  ["dema", { color: "#e91e63" }],
+  ["tema", { color: "#673ab7" }],
+  ["zlema", { color: "#607d8b" }],
+  ["alma", { color: "#795548" }],
+  ["frama", { color: "#3f51b5" }],
 ];
 
 // ============================================
