@@ -43,4 +43,4 @@ packages/core/docs/analysis/
 docs-site/
 
 # Python
-packages/core/cross-validation/python/.venv/packages/chart/examples/*/pnpm-lock.yaml
+packages/core/cross-validation/python/.venv/
