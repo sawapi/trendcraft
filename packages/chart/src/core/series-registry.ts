@@ -302,17 +302,14 @@ const BUILTIN_RULES: IntrospectionRule[] = [
     decompose: (v) => ({ high: v.high, low: v.low }),
   },
 
-  // Fair Value Gap (count of active FVGs as visual proxy)
+  // Fair Value Gap — rendered as box zones on main chart
   {
     name: "fairValueGap",
     test: (v) => hasKeys(v, ["newBullishFvg", "activeBullishFvgs"]),
-    seriesType: "line",
-    defaultPane: "sub",
-    decompose: (v) => {
-      const bulls = Array.isArray(v.activeBullishFvgs) ? v.activeBullishFvgs.length : 0;
-      const bears = Array.isArray(v.activeBearishFvgs) ? v.activeBearishFvgs.length : 0;
-      return { bullish: bulls, bearish: -bears };
-    },
+    seriesType: "box",
+    defaultPane: "main",
+    // Box rendering reads s.data directly; decompose is not used
+    decompose: () => ({}),
   },
 
   // VSA (spread + volume relative analysis)

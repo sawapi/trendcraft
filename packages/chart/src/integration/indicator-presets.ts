@@ -119,20 +119,6 @@ export const INDICATOR_PRESETS = new Map<string, IndicatorPreset>([
     },
   ],
 
-  // Fair Value Gap
-  [
-    "fairValueGap",
-    {
-      pane: "sub",
-      label: "FVG",
-      channelColors: {
-        bullish: "#26a69a",
-        bearish: "#ef5350",
-      },
-      referenceLines: [0],
-    },
-  ],
-
   // PPO (MACD-like)
   [
     "ppo",

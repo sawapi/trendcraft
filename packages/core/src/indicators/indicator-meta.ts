@@ -194,7 +194,7 @@ export const PIVOT_POINTS_META: SeriesMeta = { overlay: true, label: "Pivot" };
 export const FRACTALS_META: SeriesMeta = { overlay: true, label: "Fractals" };
 export const GAP_ANALYSIS_META: SeriesMeta = { overlay: false, label: "Gap" };
 export const ORB_META: SeriesMeta = { overlay: true, label: "ORB" };
-export const FVG_META: SeriesMeta = { overlay: false, label: "FVG" };
+export const FVG_META: SeriesMeta = { overlay: true, label: "FVG" };
 
 // ============================================
 // Wyckoff

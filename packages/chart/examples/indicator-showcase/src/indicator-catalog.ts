@@ -1153,7 +1153,7 @@ export const CATALOG: IndicatorEntry[] = [
     shortName: "FVG",
     description: "Detects imbalance zones where price moved too fast, leaving unfilled gaps.",
     category: "Price",
-    overlay: false,
+    overlay: true,
     params: [
       {
         key: "minGapPercent",

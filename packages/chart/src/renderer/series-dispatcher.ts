@@ -317,7 +317,13 @@ export function dispatchSeries(
     return;
   }
 
-  // Box zones (Order Block, FVG)
+  // FVG: render fair value gap zones as overlaid boxes
+  if (rule.name === "fairValueGap") {
+    renderFvgZones(ctx, s.data as { value: unknown }[], timeScale, priceScale);
+    return;
+  }
+
+  // Box zones (Order Block, etc.)
   if (rule.seriesType === "box" && dataLayer) {
     renderBoxes(ctx, s.data as { value: unknown }[], timeScale, priceScale, dataLayer);
     return;
@@ -334,5 +340,70 @@ export function dispatchSeries(
       lineWidth,
     });
     colorIdx++;
+  }
+}
+
+// ============================================
+// FVG Zone Renderer
+// ============================================
+
+type FvgZone = {
+  high: number;
+  low: number;
+  startIndex: number;
+  filled: boolean;
+  filledIndex: number | null;
+  type: "bullish" | "bearish";
+};
+
+function renderFvgZones(
+  ctx: CanvasRenderingContext2D,
+  data: readonly { value: unknown }[],
+  timeScale: TimeScale,
+  priceScale: PriceScale,
+): void {
+  // Use the last visible data point to get the current set of active FVGs
+  const lastIdx = Math.min(timeScale.endIndex - 1, data.length - 1);
+  if (lastIdx < 0) return;
+
+  const val = data[lastIdx]?.value as {
+    activeBullishFvgs?: FvgZone[];
+    activeBearishFvgs?: FvgZone[];
+  } | null;
+  if (!val) return;
+
+  const allZones: FvgZone[] = [
+    ...(val.activeBullishFvgs ?? []).map((z) => ({ ...z, type: "bullish" as const })),
+    ...(val.activeBearishFvgs ?? []).map((z) => ({ ...z, type: "bearish" as const })),
+  ];
+
+  for (const zone of allZones) {
+    const startX = timeScale.indexToX(zone.startIndex);
+    const endX = timeScale.indexToX(
+      zone.filled && zone.filledIndex != null ? zone.filledIndex : timeScale.endIndex,
+    );
+    const topY = priceScale.priceToY(zone.high);
+    const bottomY = priceScale.priceToY(zone.low);
+    const w = endX - startX;
+    const h = bottomY - topY;
+
+    const rgb = zone.type === "bullish" ? "38,166,154" : "239,83,80";
+    const fillAlpha = zone.filled ? 0.08 : 0.18;
+    const borderAlpha = zone.filled ? 0.25 : 0.6;
+
+    // Fill
+    ctx.fillStyle = `rgba(${rgb},${fillAlpha})`;
+    ctx.fillRect(startX, topY, w, h);
+
+    // Border
+    ctx.strokeStyle = `rgba(${rgb},${borderAlpha})`;
+    ctx.lineWidth = 1;
+    if (zone.filled) {
+      ctx.setLineDash([4, 3]);
+    }
+    ctx.strokeRect(startX, topY, w, h);
+    if (zone.filled) {
+      ctx.setLineDash([]);
+    }
   }
 }

@@ -85,6 +85,11 @@ export function computeSeriesRange(
     return cloudPriceRange(channels, start, end);
   }
 
+  // FVG zones are within candle price range — don't affect Y-axis scaling
+  if (rule.name === "fairValueGap") {
+    return [Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY];
+  }
+
   // Supertrend: only use upperBand/lowerBand for range (exclude trend direction channel)
   if (rule.name === "supertrend") {
     const channels = defaultRegistry.decomposeAll(s.data, rule);
