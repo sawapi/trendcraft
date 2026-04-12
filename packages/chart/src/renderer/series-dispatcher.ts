@@ -199,7 +199,7 @@ export function dispatchSeries(
     return;
   }
 
-  // Supertrend: draw active band colored by trend direction
+  // Supertrend: draw cloud between price and supertrend line, then the line
   if (rule.name === "supertrend") {
     const channels = getCachedChannels(s, rule);
     const upper = channels.get("upperBand") ?? [];
@@ -210,13 +210,71 @@ export function dispatchSeries(
     const downColor = cc?.upperBand ?? "#ef5350";
     const start = timeScale.startIndex;
     const end = timeScale.endIndex;
+    const candles = dataLayer?.candles;
 
+    // Pass 1: Fill cloud between candle close and supertrend line
+    if (candles) {
+      let fillDir: number | null = null;
+      let xBuf: number[] = [];
+      let closeBuf: number[] = [];
+      let stBuf: number[] = [];
+
+      const flushFill = () => {
+        if (xBuf.length < 2 || fillDir === null) {
+          xBuf = [];
+          closeBuf = [];
+          stBuf = [];
+          return;
+        }
+        ctx.beginPath();
+        // Forward along close prices
+        for (let j = 0; j < xBuf.length; j++) {
+          j === 0 ? ctx.moveTo(xBuf[j], closeBuf[j]) : ctx.lineTo(xBuf[j], closeBuf[j]);
+        }
+        // Backward along supertrend line
+        for (let j = xBuf.length - 1; j >= 0; j--) {
+          ctx.lineTo(xBuf[j], stBuf[j]);
+        }
+        ctx.closePath();
+        ctx.fillStyle = fillDir === 1 ? `${upColor}20` : `${downColor}20`;
+        ctx.fill();
+        xBuf = [];
+        closeBuf = [];
+        stBuf = [];
+      };
+
+      for (let i = start; i < end && i < trend.length; i++) {
+        const t = trend[i];
+        const stVal = t === 1 ? lower[i] : upper[i];
+        const close = candles[i]?.close;
+        if (
+          t === null ||
+          t === undefined ||
+          stVal === null ||
+          stVal === undefined ||
+          close === undefined
+        ) {
+          flushFill();
+          fillDir = null;
+          continue;
+        }
+        if (t !== fillDir) {
+          flushFill();
+          fillDir = t;
+        }
+        xBuf.push(timeScale.indexToX(i));
+        closeBuf.push(priceScale.priceToY(close));
+        stBuf.push(priceScale.priceToY(stVal));
+      }
+      flushFill();
+    }
+
+    // Pass 2: Draw the supertrend line with color switching
     ctx.lineWidth = s.config.lineWidth ?? 1.5;
     ctx.lineJoin = "round";
     ctx.lineCap = "round";
     ctx.setLineDash([]);
 
-    // Draw segments, switching color on trend change
     let prevTrend: number | null = null;
     let drawing = false;
     for (let i = start; i < end && i < trend.length; i++) {
@@ -259,7 +317,7 @@ export function dispatchSeries(
     return;
   }
 
-  // Box zones (Order Block, FVG)
+  // Box zones (generic)
   if (rule.seriesType === "box" && dataLayer) {
     renderBoxes(ctx, s.data as { value: unknown }[], timeScale, priceScale, dataLayer);
     return;

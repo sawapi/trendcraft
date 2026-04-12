@@ -1132,7 +1132,7 @@ export * as streaming from "./streaming";
 export { livePresets } from "./streaming";
 export type { LivePreset } from "./streaming";
 export { indicatorPresets } from "./streaming";
-export type { IndicatorPreset } from "./streaming";
+export type { IndicatorPreset, IndicatorCategory, ParamSchema } from "./streaming";
 
 // Unified Conditions (define once, use in backtest & streaming)
 export {

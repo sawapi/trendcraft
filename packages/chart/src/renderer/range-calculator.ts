@@ -58,9 +58,12 @@ export function computeSeriesRange(
   end: number,
   rendererRegistry?: RendererRegistry,
 ): [number, number] {
-  // Check custom renderer for priceRange
+  // Check custom renderer for priceRange (by series type or rule name)
   if (rendererRegistry) {
-    const custom = rendererRegistry.getRenderer(s.type);
+    const rule0 = defaultRegistry.detect(s.data);
+    const custom =
+      rendererRegistry.getRenderer(s.type) ??
+      (rule0 ? rendererRegistry.getRenderer(rule0.name) : undefined);
     if (custom?.priceRange) {
       return custom.priceRange(s, start, end);
     }
@@ -83,6 +86,14 @@ export function computeSeriesRange(
   if (rule.name === "ichimoku") {
     const channels = defaultRegistry.decomposeAll(s.data, rule);
     return cloudPriceRange(channels, start, end);
+  }
+
+  // Supertrend: only use upperBand/lowerBand for range (exclude trend direction channel)
+  if (rule.name === "supertrend") {
+    const channels = defaultRegistry.decomposeAll(s.data, rule);
+    const upper = channels.get("upperBand") ?? [];
+    const lower = channels.get("lowerBand") ?? [];
+    return bandPriceRange(upper, lower, start, end);
   }
 
   // Generic: decompose and find range across all channels

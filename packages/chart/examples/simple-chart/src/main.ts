@@ -11,6 +11,7 @@ import {
   defineSeriesRenderer,
 } from "@trendcraft/chart";
 import type { LiveFeedConnection } from "@trendcraft/chart";
+import { registerTrendCraftPresets } from "@trendcraft/chart/presets";
 import {
   bollingerBands,
   breakOfStructure,
@@ -43,6 +44,7 @@ if (!container || !statusEl) throw new Error("Missing DOM elements");
 
 // Create chart
 const chart = createChart(container, { theme: "dark", watermark: "SAMPLE" });
+registerTrendCraftPresets(chart);
 chart.setCandles(candles);
 chart.fitContent();
 

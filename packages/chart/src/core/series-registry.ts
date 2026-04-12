@@ -111,18 +111,18 @@ const BUILTIN_RULES: IntrospectionRule[] = [
   // Supertrend
   {
     name: "supertrend",
-    test: (v) => hasKeys(v, ["upperBand", "lowerBand", "trend"]),
+    test: (v) => hasKeys(v, ["upperBand", "lowerBand", "direction"]) && hasKeys(v, ["supertrend"]),
     seriesType: "line",
     defaultPane: "main",
     decompose: (v) => {
-      return { upperBand: v.upperBand, lowerBand: v.lowerBand, trend: v.trend };
+      return { upperBand: v.upperBand, lowerBand: v.lowerBand, trend: v.direction };
     },
   },
 
   // Parabolic SAR
   {
     name: "parabolicSar",
-    test: (v) => hasKeys(v, ["sar", "trend"]) && !hasKeys(v, ["upperBand"]),
+    test: (v) => hasKeys(v, ["sar", "direction"]) && !hasKeys(v, ["upperBand"]),
     seriesType: "marker",
     defaultPane: "main",
     decompose: (v) => {

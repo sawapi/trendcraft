@@ -14,6 +14,7 @@ import { onTap } from "../core/pointer";
 import { resolveRangeDuration } from "../core/range-utils";
 import { RendererRegistry } from "../core/renderer-registry";
 import { type PriceScale, TimeScale } from "../core/scale";
+import { type IntrospectionRule, defaultRegistry } from "../core/series-registry";
 import type {
   CandleData,
   ChartEvent,
@@ -35,6 +36,7 @@ import type {
 } from "../core/types";
 import { DARK_THEME, LIGHT_THEME } from "../core/types";
 import { Viewport } from "../core/viewport";
+import { INDICATOR_PRESETS, type IndicatorPreset } from "../integration/indicator-presets";
 import { introspect } from "../integration/series-introspector";
 import { ChartAria } from "./chart-aria";
 import { DrawingTool } from "./drawing-tool";
@@ -94,6 +96,23 @@ export class CanvasChart implements ChartInstance {
   private _transition = new ViewTransition();
   private _animationDuration: number;
   private _locale: ChartLocale;
+
+  // Auto-color cycling palette for indicators without explicit color
+  private _colorIndex = 0;
+  private static readonly _COLOR_PALETTE = [
+    "#2196F3",
+    "#FF9800",
+    "#26a69a",
+    "#ef5350",
+    "#9c27b0",
+    "#FF5722",
+    "#00bcd4",
+    "#8bc34a",
+    "#e91e63",
+    "#607d8b",
+    "#ffc107",
+    "#3f51b5",
+  ];
 
   // Event listeners
   private _listeners = new Map<ChartEvent, Set<(data: unknown) => void>>();
@@ -374,6 +393,13 @@ export class CanvasChart implements ChartInstance {
     // Introspect the series
     const result = introspect(series, config);
 
+    // Auto-assign color if not explicitly set (cycle through palette)
+    if (!result.config.color && !result.config.channelColors) {
+      const palette = CanvasChart._COLOR_PALETTE;
+      result.config.color = palette[this._colorIndex % palette.length];
+      this._colorIndex++;
+    }
+
     // Resolve pane
     let paneId = result.pane;
     if (paneId === "sub") {
@@ -621,6 +647,16 @@ export class CanvasChart implements ChartInstance {
   removePrimitive(name: string): void {
     this._rendererRegistry.removePrimitive(name);
     this._needsRender = true;
+  }
+
+  // ---- Public API: Extensibility ----
+
+  addRule(rule: IntrospectionRule): void {
+    defaultRegistry.addRule(rule);
+  }
+
+  addPreset(name: string, preset: IndicatorPreset): void {
+    INDICATOR_PRESETS.set(name, preset);
   }
 
   // ---- Public API: Export ----
