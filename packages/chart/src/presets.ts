@@ -683,8 +683,8 @@ const TRENDCRAFT_RENDERERS: SeriesRendererPlugin[] = [
       const end = timeScale.endIndex;
       const bodyWidth = Math.max(1, timeScale.barSpacing * 0.6);
       const halfBody = bodyWidth / 2;
-      const upColor = theme?.candleUp ?? "#26a69a";
-      const downColor = theme?.candleDown ?? "#ef5350";
+      const upColor = theme?.upColor ?? "#26a69a";
+      const downColor = theme?.downColor ?? "#ef5350";
       ctx.save();
       ctx.globalAlpha = 0.5;
       for (let i = start; i < end && i < data.length; i++) {
