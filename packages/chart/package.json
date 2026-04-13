@@ -75,8 +75,8 @@
     "access": "public"
   },
   "peerDependencies": {
-    "trendcraft": ">=0.1.0",
     "react": ">=18.0.0",
+    "trendcraft": ">=0.1.0",
     "vue": ">=3.3.0"
   },
   "peerDependenciesMeta": {
@@ -115,14 +115,17 @@
   "devDependencies": {
     "@size-limit/esbuild": "^12.0.1",
     "@size-limit/file": "^12.0.1",
+    "@testing-library/react": "^16.3.2",
     "@types/react": "^19.2.14",
+    "@vue/test-utils": "^2.4.6",
+    "happy-dom": "^20.8.9",
     "react": "^19.2.4",
-    "vue": "^3.5.0",
     "size-limit": "^12.0.1",
     "trendcraft": "workspace:*",
     "vite": "^8.0.3",
     "vite-plugin-dts": "^4.3.0",
-    "vitest": "^4.1.2"
+    "vitest": "^4.1.2",
+    "vue": "^3.5.0"
   },
   "engines": {
     "node": ">=18.0.0"

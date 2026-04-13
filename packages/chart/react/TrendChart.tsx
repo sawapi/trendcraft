@@ -129,8 +129,18 @@ export const TrendChart = forwardRef<TrendChartRef, TrendChartProps>(function Tr
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<ChartInstance | null>(null);
 
-  // Expose chart instance via ref
-  useImperativeHandle(ref, () => ({ chart: chartRef.current }), []);
+  // Expose chart instance via ref — use a getter so the ref sees the live chart
+  // after the mount effect populates chartRef (useImperativeHandle with a static
+  // snapshot would capture `null` before the effect runs).
+  useImperativeHandle(
+    ref,
+    () => ({
+      get chart() {
+        return chartRef.current;
+      },
+    }),
+    [],
+  );
 
   // Init chart — intentionally empty deps: only create/destroy on mount/unmount
   // biome-ignore lint/correctness/useExhaustiveDependencies: chart recreation is expensive; prop changes handled by separate effects
