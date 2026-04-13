@@ -75,7 +75,7 @@
     "access": "public"
   },
   "peerDependencies": {
-    "react": ">=18.0.0",
+    "react": ">=19.0.0",
     "trendcraft": ">=0.1.0",
     "vue": ">=3.3.0"
   },
