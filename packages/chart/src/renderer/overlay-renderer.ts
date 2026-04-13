@@ -266,23 +266,33 @@ export function renderPaneTitles(
   fontSize: number,
   locale?: import("../core/i18n").ChartLocale,
 ): void {
-  ctx.fillStyle = theme.textSecondary;
   ctx.font = `${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
   ctx.textAlign = "left";
   ctx.textBaseline = "top";
 
+  // Gap between adjacent labels, matching the DOM InfoOverlay which joins
+  // entries with two non-breaking spaces.
+  const GAP = 8;
+
   for (const pane of paneRects) {
     if (pane.id === "main") continue;
+    const y = pane.y + 6;
+
+    if (pane.id === "volume") {
+      ctx.fillStyle = theme.textSecondary;
+      ctx.fillText(locale?.volumePaneTitle ?? "Volume", 4, y);
+      continue;
+    }
+
+    // Render each series label in its own color, matching the DOM InfoOverlay.
     const paneSeries = dataLayer.getSeriesForPane(pane.id);
-    const title =
-      pane.id === "volume"
-        ? (locale?.volume ?? "Volume")
-        : paneSeries
-            .map((s) => s.config.label ?? "")
-            .filter(Boolean)
-            .join(", ");
-    if (title) {
-      ctx.fillText(title, 4, pane.y + 4);
+    let x = 4;
+    for (const s of paneSeries) {
+      const label = s.config.label;
+      if (!label) continue;
+      ctx.fillStyle = s.config.color ?? theme.text;
+      ctx.fillText(label, x, y);
+      x += ctx.measureText(label).width + GAP;
     }
   }
 }

@@ -4,12 +4,14 @@
  */
 
 export type ChartLocale = {
-  // OHLCV labels
+  // OHLCV labels (short, used inline in the OHLCV overlay)
   open: string;
   high: string;
   low: string;
   close: string;
   volume: string;
+  // Full label for the volume pane title (longer form)
+  volumePaneTitle: string;
 
   // Month abbreviations (12)
   months: readonly string[];
@@ -40,6 +42,7 @@ export const DEFAULT_LOCALE: ChartLocale = {
   low: "L",
   close: "C",
   volume: "V",
+  volumePaneTitle: "Volume",
 
   months: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
 

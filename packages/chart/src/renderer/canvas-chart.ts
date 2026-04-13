@@ -42,6 +42,7 @@ import { ChartAria } from "./chart-aria";
 import { DrawingTool } from "./drawing-tool";
 import { InfoOverlay } from "./info-overlay";
 import { LegendOverlay } from "./legend-overlay";
+import { renderPaneTitles } from "./overlay-renderer";
 import { renderFrame } from "./render-pipeline";
 
 // ============================================
@@ -664,6 +665,12 @@ export class CanvasChart implements ChartInstance {
   async toImage(type = "image/png", quality = 1, timeoutMs = 0): Promise<Blob> {
     // Force a synchronous render
     this._render();
+
+    // Composite pane titles onto an offscreen canvas so the on-screen DOM
+    // InfoOverlay (which is not captured by toBlob) does not leave exports
+    // without sub-pane labels. The on-screen canvas is never mutated.
+    const exportCanvas = this._composeExportCanvas();
+
     return new Promise((resolve, reject) => {
       let settled = false;
       const timer =
@@ -676,7 +683,7 @@ export class CanvasChart implements ChartInstance {
             }, timeoutMs)
           : undefined;
 
-      this._canvas.toBlob(
+      exportCanvas.toBlob(
         (blob) => {
           if (settled) return;
           settled = true;
@@ -692,6 +699,32 @@ export class CanvasChart implements ChartInstance {
         quality,
       );
     });
+  }
+
+  /**
+   * Build an offscreen canvas containing the current frame plus Canvas-drawn
+   * pane titles. Used by toImage() to embed labels that are normally rendered
+   * via the DOM InfoOverlay and therefore excluded from toBlob captures.
+   */
+  private _composeExportCanvas(): HTMLCanvasElement {
+    const src = this._canvas;
+    const off = document.createElement("canvas");
+    off.width = src.width;
+    off.height = src.height;
+    const ctx = off.getContext("2d");
+    if (!ctx) return src;
+
+    ctx.drawImage(src, 0, 0);
+    ctx.setTransform(this._pixelRatio, 0, 0, this._pixelRatio, 0, 0);
+    renderPaneTitles(
+      ctx,
+      this._layout.paneRects,
+      this._data,
+      this._theme,
+      this._fontSize,
+      this._locale,
+    );
+    return off;
   }
 
   // ---- Public API: Lifecycle ----
