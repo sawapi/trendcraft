@@ -1,5 +1,11 @@
 /**
- * Vue wrapper for @trendcraft/chart.
+ * Vue wrapper component for @trendcraft/chart.
+ *
+ * Thin component built on top of the `useTrendChart` composable. Covers
+ * the common case where you want to drop a chart into a template with a
+ * few data props. For imperative control (connectLiveFeed, setDrawingTool,
+ * custom plugins), use `useTrendChart` directly and operate on the
+ * returned `chart` shallow ref.
  *
  * @example
  * ```vue
@@ -17,34 +23,25 @@
  * ```
  */
 
-import { type PropType, defineComponent, h, onMounted, onUnmounted, ref, watch } from "vue";
-import type {
-  AnyPrimitivePlugin,
-  AnySeriesRendererPlugin,
-  PrimitivePlugin,
-  SeriesRendererPlugin,
-} from "../src/core/plugin-types";
+import { type PropType, defineComponent, h } from "vue";
+import type { AnyPrimitivePlugin, AnySeriesRendererPlugin } from "../src/core/plugin-types";
 import type {
   BacktestResultData,
   CandleData,
-  ChartInstance,
   ChartOptions,
   ChartPatternSignal,
   DataPoint,
   Drawing,
   LayoutConfig,
-  SeriesConfig,
   SignalMarker,
   ThemeColors,
   TimeframeOverlay,
   TradeMarker,
 } from "../src/core/types";
-import { createChart } from "../src/index";
+import { type IndicatorInput, useTrendChart } from "./useTrendChart";
 
-export type IndicatorInput<T = unknown> = {
-  data: DataPoint<T>[];
-  config?: SeriesConfig;
-};
+export type { IndicatorInput, UseTrendChartOptions, UseTrendChartResult } from "./useTrendChart";
+export { useTrendChart } from "./useTrendChart";
 
 export const TrendChart = defineComponent({
   name: "TrendChart",
@@ -79,189 +76,29 @@ export const TrendChart = defineComponent({
   },
   emits: ["crosshairMove", "seriesAdded", "seriesRemoved", "error"],
   setup(props, { emit, expose }) {
-    const containerRef = ref<HTMLElement | null>(null);
-    let chart: ChartInstance | null = null;
-    let indicatorHandles: { remove(): void }[] = [];
-
-    // Expose chart instance
-    expose({ chart: () => chart });
-
-    onMounted(() => {
-      if (!containerRef.value) return;
-      chart = createChart(containerRef.value, { ...props.options, theme: props.theme });
-
-      // Events
-      chart.on("crosshairMove", (data) => emit("crosshairMove", data));
-      chart.on("seriesAdded", (data) => emit("seriesAdded", data));
-      chart.on("seriesRemoved", (data) => emit("seriesRemoved", data));
-      chart.on("error", (data) => emit("error", data));
-
-      // Initial data
-      chart.setCandles(props.candles);
-      if (props.fitOnLoad) chart.fitContent();
-      applyIndicators();
-      if (props.signals) chart.addSignals(props.signals);
-      if (props.trades) chart.addTrades(props.trades);
-      applyDrawings();
-      applyTimeframes();
-      if (props.backtest) chart.addBacktest(props.backtest);
-      if (props.patterns) chart.addPatterns(props.patterns);
-      if (props.scores) chart.addScores(props.scores);
-      applyPlugins();
-      if (props.layout) chart.setLayout(props.layout);
+    const { containerRef, chart } = useTrendChart({
+      candles: () => props.candles,
+      indicators: () => props.indicators,
+      signals: () => props.signals,
+      trades: () => props.trades,
+      drawings: () => props.drawings,
+      timeframes: () => props.timeframes,
+      backtest: () => props.backtest,
+      patterns: () => props.patterns,
+      scores: () => props.scores,
+      plugins: () => props.plugins,
+      chartType: () => props.chartType,
+      layout: () => props.layout,
+      theme: () => props.theme,
+      options: props.options,
+      fitOnLoad: () => props.fitOnLoad,
+      onCrosshairMove: (data) => emit("crosshairMove", data),
+      onSeriesAdded: (data) => emit("seriesAdded", data),
+      onSeriesRemoved: (data) => emit("seriesRemoved", data),
+      onError: (data) => emit("error", data),
     });
 
-    onUnmounted(() => {
-      chart?.destroy();
-      chart = null;
-    });
-
-    function applyIndicators() {
-      if (!chart) return;
-      // Remove previous
-      for (const h of indicatorHandles) h.remove();
-      indicatorHandles = [];
-      // Add new
-      for (const ind of props.indicators ?? []) {
-        if (Array.isArray(ind)) {
-          indicatorHandles.push(chart.addIndicator(ind));
-        } else {
-          indicatorHandles.push(chart.addIndicator(ind.data, ind.config));
-        }
-      }
-    }
-
-    function applyDrawings() {
-      if (!chart || !props.drawings) return;
-      for (const d of props.drawings) chart.addDrawing(d);
-    }
-
-    function applyTimeframes() {
-      if (!chart || !props.timeframes) return;
-      for (const tf of props.timeframes) chart.addTimeframe(tf);
-    }
-
-    function applyPlugins() {
-      if (!chart || !props.plugins) return;
-      for (const r of props.plugins.renderers ?? [])
-        chart.registerRenderer(r as SeriesRendererPlugin);
-      for (const p of props.plugins.primitives ?? []) chart.registerPrimitive(p as PrimitivePlugin);
-    }
-
-    // Watchers
-    watch(
-      () => props.candles,
-      (val) => {
-        if (!chart) return;
-        chart.setCandles(val);
-        if (props.fitOnLoad) chart.fitContent();
-      },
-    );
-
-    watch(
-      () => props.theme,
-      (val) => {
-        chart?.setTheme(val);
-      },
-    );
-
-    watch(
-      () => props.chartType,
-      (val) => {
-        if (val) chart?.setChartType(val);
-      },
-    );
-
-    watch(
-      () => props.layout,
-      (val) => {
-        if (val) chart?.setLayout(val);
-      },
-    );
-
-    watch(
-      () => props.indicators,
-      () => {
-        applyIndicators();
-      },
-    );
-
-    watch(
-      () => props.signals,
-      (val) => {
-        if (val) chart?.addSignals(val);
-      },
-    );
-
-    watch(
-      () => props.trades,
-      (val) => {
-        if (val) chart?.addTrades(val);
-      },
-    );
-
-    watch(
-      () => props.drawings,
-      (newVal, oldVal) => {
-        if (!chart) return;
-        if (oldVal) {
-          for (const d of oldVal) chart.removeDrawing(d.id);
-        }
-        if (newVal) {
-          for (const d of newVal) chart.addDrawing(d);
-        }
-      },
-    );
-
-    watch(
-      () => props.timeframes,
-      (newVal, oldVal) => {
-        if (!chart) return;
-        if (oldVal) {
-          for (const tf of oldVal) chart.removeTimeframe(tf.id);
-        }
-        if (newVal) {
-          for (const tf of newVal) chart.addTimeframe(tf);
-        }
-      },
-    );
-
-    watch(
-      () => props.backtest,
-      (val) => {
-        if (val) chart?.addBacktest(val);
-      },
-    );
-
-    watch(
-      () => props.patterns,
-      (val) => {
-        if (val) chart?.addPatterns(val);
-      },
-    );
-
-    watch(
-      () => props.scores,
-      (val) => {
-        if (val) chart?.addScores(val);
-      },
-    );
-
-    watch(
-      () => props.plugins,
-      (newVal, oldVal) => {
-        if (!chart) return;
-        // Remove old primitives
-        if (oldVal?.primitives) {
-          for (const p of oldVal.primitives) chart.removePrimitive(p.name);
-        }
-        // Apply new plugins
-        if (newVal) {
-          for (const r of newVal.renderers ?? []) chart.registerRenderer(r as SeriesRendererPlugin);
-          for (const p of newVal.primitives ?? []) chart.registerPrimitive(p as PrimitivePlugin);
-        }
-      },
-    );
+    expose({ chart: () => chart.value });
 
     return () =>
       h("div", {
