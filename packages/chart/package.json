@@ -23,14 +23,14 @@
       "require": "./dist/headless.cjs"
     },
     "./react": {
-      "types": "./dist/react/TrendChart.d.ts",
-      "import": "./dist/react/TrendChart.js",
-      "require": "./dist/react/TrendChart.cjs"
+      "types": "./dist/react/index.d.ts",
+      "import": "./dist/react/index.js",
+      "require": "./dist/react/index.cjs"
     },
     "./vue": {
-      "types": "./dist/vue/TrendChart.d.ts",
-      "import": "./dist/vue/TrendChart.js",
-      "require": "./dist/vue/TrendChart.cjs"
+      "types": "./dist/vue/index.d.ts",
+      "import": "./dist/vue/index.js",
+      "require": "./dist/vue/index.cjs"
     }
   },
   "sideEffects": false,

@@ -9,8 +9,12 @@ export default defineConfig({
         index: resolve(__dirname, "src/index.ts"),
         headless: resolve(__dirname, "src/headless.ts"),
         presets: resolve(__dirname, "src/presets.ts"),
+        "react/index": resolve(__dirname, "react/index.ts"),
         "react/TrendChart": resolve(__dirname, "react/TrendChart.tsx"),
+        "react/useTrendChart": resolve(__dirname, "react/useTrendChart.ts"),
+        "vue/index": resolve(__dirname, "vue/index.ts"),
         "vue/TrendChart": resolve(__dirname, "vue/TrendChart.ts"),
+        "vue/useTrendChart": resolve(__dirname, "vue/useTrendChart.ts"),
       },
       formats: ["es", "cjs"],
       fileName: (format, entryName) => {
