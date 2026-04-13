@@ -14,7 +14,7 @@ describe("React TrendChart wrapper", () => {
   it("is a valid React forwardRef component", () => {
     expect(TrendChart).toBeDefined();
     // forwardRef components have $$typeof and render properties
-    expect((TrendChart as Record<string, unknown>).$$typeof).toBeDefined();
+    expect((TrendChart as unknown as Record<string, unknown>).$$typeof).toBeDefined();
   });
 
   it("accepts expected prop types (compile-time check)", () => {
