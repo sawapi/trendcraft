@@ -76,62 +76,63 @@ export class InfoOverlay {
     paneRects: readonly PaneRect[],
     seriesByPane: Map<string, InternalSeries[]>,
   ): void {
-    if (index === null || index < 0 || index >= candles.length) {
-      this._mainInfo.textContent = "";
-      for (const el of this._paneInfos.values()) el.textContent = "";
-      return;
-    }
+    const hasIndex = index !== null && index >= 0 && index < candles.length;
 
-    const candle = candles[index];
-    const isUp = candle.close >= candle.open;
-    const color = isUp ? this._theme.upColor : this._theme.downColor;
-    const fmtP = (n: number) => escapeHtml(this._priceFormatter(n));
-
-    // Main pane: OHLCV
-    const mainSeries = seriesByPane.get("main") ?? [];
-
-    // Try custom formatter first
-    let mainHtml: string | null = null;
+    // Main pane: OHLCV + indicators (only when crosshair is active)
+    let mainHtml = "";
     let mainCustom = false;
-    if (this._formatInfoOverlay) {
-      const seriesData = mainSeries.map((s) => ({
-        label: s.config.label ?? "",
-        color: s.config.color ?? this._theme.text,
-        value: s.data[index]?.value ?? null,
-      }));
-      mainHtml = this._formatInfoOverlay({ candle, index, paneId: "main", series: seriesData });
-      mainCustom = mainHtml !== null;
-    }
+    if (hasIndex) {
+      const i = index as number;
+      const candle = candles[i];
+      const isUp = candle.close >= candle.open;
+      const color = isUp ? this._theme.upColor : this._theme.downColor;
+      const fmtP = (n: number) => escapeHtml(this._priceFormatter(n));
+      const mainSeries = seriesByPane.get("main") ?? [];
 
-    if (mainHtml === null) {
-      const indicatorParts = mainSeries
-        .map((s) => this.formatSeriesValue(s, index))
-        .filter(Boolean);
-      const l = this._locale;
-      mainHtml = [
-        `<span style="color:${this._theme.textSecondary}">${escapeHtml(l.open)}</span> <span style="color:${color}">${fmtP(candle.open)}</span>`,
-        `<span style="color:${this._theme.textSecondary}">${escapeHtml(l.high)}</span> <span style="color:${color}">${fmtP(candle.high)}</span>`,
-        `<span style="color:${this._theme.textSecondary}">${escapeHtml(l.low)}</span> <span style="color:${color}">${fmtP(candle.low)}</span>`,
-        `<span style="color:${this._theme.textSecondary}">${escapeHtml(l.close)}</span> <span style="color:${color}">${fmtP(candle.close)}</span>`,
-        `<span style="color:${this._theme.textSecondary}">${escapeHtml(l.volume)}</span> <span style="color:${this._theme.text}">${fmtVol(candle.volume)}</span>`,
-        ...indicatorParts,
-      ].join("&nbsp;&nbsp;");
+      let customHtml: string | null = null;
+      if (this._formatInfoOverlay) {
+        const seriesData = mainSeries.map((s) => ({
+          label: s.config.label ?? "",
+          color: s.config.color ?? this._theme.text,
+          value: s.data[i]?.value ?? null,
+        }));
+        customHtml = this._formatInfoOverlay({
+          candle,
+          index: i,
+          paneId: "main",
+          series: seriesData,
+        });
+        mainCustom = customHtml !== null;
+      }
+
+      if (customHtml !== null) {
+        mainHtml = customHtml;
+      } else {
+        const indicatorParts = mainSeries.map((s) => this.formatSeriesValue(s, i)).filter(Boolean);
+        const l = this._locale;
+        mainHtml = [
+          `<span style="color:${this._theme.textSecondary}">${escapeHtml(l.open)}</span> <span style="color:${color}">${fmtP(candle.open)}</span>`,
+          `<span style="color:${this._theme.textSecondary}">${escapeHtml(l.high)}</span> <span style="color:${color}">${fmtP(candle.high)}</span>`,
+          `<span style="color:${this._theme.textSecondary}">${escapeHtml(l.low)}</span> <span style="color:${color}">${fmtP(candle.low)}</span>`,
+          `<span style="color:${this._theme.textSecondary}">${escapeHtml(l.close)}</span> <span style="color:${color}">${fmtP(candle.close)}</span>`,
+          `<span style="color:${this._theme.textSecondary}">${escapeHtml(l.volume)}</span> <span style="color:${this._theme.text}">${fmtVol(candle.volume)}</span>`,
+          ...indicatorParts,
+        ].join("&nbsp;&nbsp;");
+      }
     }
 
     if (mainHtml !== this._lastMainHtml) {
       if (mainCustom) {
-        // Custom formatter output is treated as plain text to prevent XSS
         this._mainInfo.textContent = mainHtml;
       } else {
-        // Internal builder produces pre-escaped HTML
         this._mainInfo.innerHTML = mainHtml;
       }
       this._lastMainHtml = mainHtml;
     }
 
-    // Sub panes: indicator values
+    // Sub panes (+ volume): always show labels; add values when crosshair is active
     for (const pane of paneRects) {
-      if (pane.id === "main" || pane.id === "volume") continue;
+      if (pane.id === "main") continue;
 
       let el = this._paneInfos.get(pane.id);
       if (!el) {
@@ -139,12 +140,15 @@ export class InfoOverlay {
         this._container.appendChild(el);
         this._paneInfos.set(pane.id, el);
       }
-      el.style.top = `${pane.y + 4}px`;
+      el.style.top = `${pane.y + 6}px`;
       el.style.left = "4px";
 
-      const paneSeries = seriesByPane.get(pane.id) ?? [];
-      const parts = paneSeries.map((s) => this.formatSeriesValue(s, index)).filter(Boolean);
-      const paneHtml = parts.join("&nbsp;&nbsp;");
+      const paneHtml = this.buildPaneHtml(
+        pane.id,
+        seriesByPane,
+        hasIndex ? (index as number) : null,
+        candles,
+      );
       if (paneHtml !== this._lastPaneHtml.get(pane.id)) {
         el.innerHTML = paneHtml;
         this._lastPaneHtml.set(pane.id, paneHtml);
@@ -156,8 +160,47 @@ export class InfoOverlay {
       if (!paneRects.some((p) => p.id === id)) {
         el.remove();
         this._paneInfos.delete(id);
+        this._lastPaneHtml.delete(id);
       }
     }
+  }
+
+  /**
+   * Build the HTML for a sub-pane label (and values when crosshair is active).
+   * Volume pane uses the localized "Volume" title; other panes join series labels.
+   */
+  private buildPaneHtml(
+    paneId: string,
+    seriesByPane: Map<string, InternalSeries[]>,
+    index: number | null,
+    candles: readonly CandleData[],
+  ): string {
+    if (paneId === "volume") {
+      const title = `<span style="color:${escapeHtml(this._theme.textSecondary)}">${escapeHtml(this._locale.volumePaneTitle)}</span>`;
+      if (index === null) return title;
+      const vol = candles[index]?.volume;
+      if (vol === undefined || vol === null) return title;
+      return `${title}&nbsp;&nbsp;<span style="color:${escapeHtml(this._theme.text)}">${escapeHtml(formatVolume(vol))}</span>`;
+    }
+
+    const paneSeries = seriesByPane.get(paneId) ?? [];
+    if (index === null) {
+      // Labels only
+      return paneSeries
+        .map((s) => {
+          const label = s.config.label;
+          if (!label) return "";
+          const color = escapeHtml(s.config.color ?? this._theme.text);
+          return `<span style="color:${color}">${escapeHtml(label)}</span>`;
+        })
+        .filter(Boolean)
+        .join("&nbsp;&nbsp;");
+    }
+    // Labels + values
+    return paneSeries
+      .map((s) => this.formatSeriesValue(s, index))
+      .filter(Boolean)
+      .join("&nbsp;&nbsp;");
   }
 
   private formatSeriesValue(s: InternalSeries, index: number): string {

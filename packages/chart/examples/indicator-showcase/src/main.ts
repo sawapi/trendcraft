@@ -115,6 +115,25 @@ fitBtn.addEventListener("click", () => {
   chart.fitContent();
 });
 
+// Export PNG button — demonstrates toImage() with pane titles composited
+const exportBtn = document.getElementById("btn-export") as HTMLElement;
+exportBtn.addEventListener("click", async () => {
+  try {
+    const blob = await chart.toImage("image/png");
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `chart-${Date.now()}.png`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    console.error("Export failed:", err);
+    alert(`Export failed: ${(err as Error).message}`);
+  }
+});
+
 // ============================================
 // Responsive sidebar toggle
 // ============================================

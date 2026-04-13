@@ -25,7 +25,6 @@ import {
 import { renderCrosshair } from "./crosshair-renderer";
 import { renderDrawings } from "./drawing-renderer";
 import {
-  renderPaneTitles,
   renderPriceLine,
   renderSignals,
   renderTimeframeOverlays,
@@ -415,8 +414,8 @@ export function renderFrame(rc: RenderContext): RenderResult {
     }
   }
 
-  // Pane titles
-  renderPaneTitles(ctx, paneRects, data, theme, rc.fontSize, rc.locale);
+  // Pane titles are rendered by InfoOverlay (DOM) to keep a single source of
+  // truth and avoid Canvas/DOM alignment drift.
 
   // Scrollbar
   if (layout.scrollbarHeight > 0) {
