@@ -58,6 +58,12 @@ chart.addIndicator(myData, { pane: 'main', color: '#FF9800', label: 'My Line' })
 
 ## React
 
+Requires **React 19+**.
+
+Two entry points share the same underlying lifecycle: the `<TrendChart>` component for simple drop-in use, and the `useTrendChart` hook for composing the live `ChartInstance` into your own effects.
+
+### Component
+
 ```tsx
 import { TrendChart } from '@trendcraft/chart/react';
 import { sma, rsi } from 'trendcraft';
@@ -71,9 +77,43 @@ import { sma, rsi } from 'trendcraft';
 />
 ```
 
-All chart features are available as props: `indicators`, `signals`, `trades`, `drawings`, `timeframes`, `backtest`, `patterns`, `scores`. Access the underlying `ChartInstance` via ref.
+All chart features are available as props: `indicators`, `signals`, `trades`, `drawings`, `timeframes`, `backtest`, `patterns`, `scores`. The underlying `ChartInstance` is reachable via ref.
+
+### Hook
+
+Use the hook when you need imperative access — drawing tools, live feeds, custom plugins, or anything that takes a `ChartInstance` as input. `chart` is `null` before mount and the live instance after, so it drops straight into `useEffect` deps.
+
+```tsx
+import { useTrendChart } from '@trendcraft/chart/react';
+import { connectIndicators, connectLiveFeed } from '@trendcraft/chart';
+import { indicatorPresets } from 'trendcraft';
+
+function MyChart({ candles, liveSource }) {
+  const { containerRef, chart } = useTrendChart({ candles, theme: 'dark' });
+
+  useEffect(() => {
+    if (!chart) return;
+    const conn = connectIndicators(chart, {
+      presets: indicatorPresets,
+      candles,
+      live: liveSource,
+    });
+    conn.add('rsi');
+    chart.setDrawingTool('hline');
+    return () => conn.disconnect();
+  }, [chart, liveSource]);
+
+  return <div ref={containerRef} style={{ width: '100%', height: 400 }} />;
+}
+```
 
 ## Vue
+
+Requires **Vue 3.3+**.
+
+Same dual API: a `<TrendChart>` component and a `useTrendChart` composable.
+
+### Component
 
 ```vue
 <script setup>
@@ -92,7 +132,39 @@ import { sma, rsi } from 'trendcraft';
 </template>
 ```
 
-Same full prop set as React. Reactive updates via Vue's `watch`.
+### Composable
+
+`chart` is a `ShallowRef<ChartInstance | null>` — do **not** wrap it in `ref()`, which would trigger Vue's deep-reactivity proxy and corrupt the chart's internal state.
+
+```vue
+<script setup>
+import { watchEffect } from 'vue';
+import { useTrendChart } from '@trendcraft/chart/vue';
+import { connectIndicators } from '@trendcraft/chart';
+import { indicatorPresets } from 'trendcraft';
+
+const { containerRef, chart } = useTrendChart({
+  candles: () => props.candles,
+  theme: 'dark',
+});
+
+watchEffect((onCleanup) => {
+  if (!chart.value) return;
+  const conn = connectIndicators(chart.value, {
+    presets: indicatorPresets,
+    candles: props.candles,
+  });
+  conn.add('rsi');
+  onCleanup(() => conn.disconnect());
+});
+</script>
+
+<template>
+  <div ref="containerRef" style="width: 100%; height: 400px" />
+</template>
+```
+
+Option values accept plain values, refs, or getters — use a getter (`() => props.candles`) to make a prop reactive inside the composable.
 
 ## API Reference
 
