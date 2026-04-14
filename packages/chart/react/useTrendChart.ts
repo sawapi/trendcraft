@@ -131,6 +131,14 @@ export function useTrendChart(opts: UseTrendChartOptions): UseTrendChartResult {
     };
   }, []);
 
+  // Options — apply runtime-capable option changes after mount. Initial values
+  // were already consumed at chart creation, so this is a no-op on the first
+  // run but picks up any subsequent `options` prop change.
+  useEffect(() => {
+    if (!chart || !options) return;
+    chart.applyOptions(options);
+  }, [chart, options]);
+
   // Candles + fit
   useEffect(() => {
     if (!chart) return;

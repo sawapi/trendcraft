@@ -99,8 +99,8 @@ export type UseTrendChartOptions = {
   chartType?: Reactive<ChartType | undefined>;
   layout?: Reactive<LayoutConfig | undefined>;
   theme?: Reactive<"dark" | "light" | ThemeColors | undefined>;
-  /** Chart options consumed only at creation time (width, height, fontSize, ...) */
-  options?: Omit<ChartOptions, "theme">;
+  /** Chart options — runtime-capable fields (volume, watermark, fontSize, ...) are applied via applyOptions on change */
+  options?: Reactive<Omit<ChartOptions, "theme"> | undefined>;
   fitOnLoad?: Reactive<boolean | undefined>;
   onCrosshairMove?: (data: CrosshairMoveData) => void;
   onSeriesAdded?: (data: SeriesInfo) => void;
@@ -129,7 +129,7 @@ export function useTrendChart(opts: UseTrendChartOptions): UseTrendChartResult {
   onMounted(() => {
     if (!containerRef.value) return;
     const instance = createChart(containerRef.value, {
-      ...opts.options,
+      ...toValue(opts.options),
       theme: toValue(opts.theme) ?? "dark",
     });
 
@@ -183,6 +183,14 @@ export function useTrendChart(opts: UseTrendChartOptions): UseTrendChartResult {
   });
 
   // Reactive bindings — only fire after mount because `chart.value` is null until then
+  watch(
+    () => toValue(opts.options),
+    (val) => {
+      if (val) chart.value?.applyOptions(val);
+    },
+    { deep: true },
+  );
+
   watch(
     () => toValue(opts.candles),
     (val) => {

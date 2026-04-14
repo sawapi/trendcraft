@@ -547,6 +547,17 @@ export type ChartInstance = {
   /** Show or hide the volume pane */
   setShowVolume(show: boolean): void;
 
+  /**
+   * Apply a partial options update at runtime.
+   *
+   * Accepts the same shape as `createChart`'s options, but applies only the
+   * provided fields. Use this from reactive wrappers to propagate option
+   * changes after chart creation. Fields that cannot be changed at runtime
+   * (e.g. `pixelRatio`, `fontFamily`, `scrollSensitivity`, `locale`,
+   * `formatInfoOverlay`) emit a warning via the `error` event and are ignored.
+   */
+  applyOptions(options: Partial<ChartOptions>): void;
+
   // Plugins
   /** Register a custom series renderer plugin */
   registerRenderer<TConfig>(plugin: import("./plugin-types").SeriesRendererPlugin<TConfig>): void;

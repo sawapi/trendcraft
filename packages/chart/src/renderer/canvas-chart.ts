@@ -71,6 +71,13 @@ export class CanvasChart implements ChartInstance {
   private _fontSize: number;
   private _priceFormatter: (price: number) => string;
   private _timeFormatter: ((time: number) => string) | undefined;
+  /** Last applied layout size — tracked so applyOptions() can compose partial size changes. */
+  private _sizeState: {
+    width: number;
+    height: number;
+    priceAxisWidth: number;
+    timeAxisHeight: number;
+  };
 
   private _data = new DataLayer();
   private _layout = new LayoutEngine();
@@ -188,11 +195,17 @@ export class CanvasChart implements ChartInstance {
     // Initial sizing
     const width = options?.width ?? container.clientWidth;
     const height = options?.height ?? DEFAULT_OPTIONS.height;
-    this._setSize(
+    this._sizeState = {
       width,
       height,
-      options?.priceAxisWidth ?? DEFAULT_OPTIONS.priceAxisWidth,
-      options?.timeAxisHeight ?? DEFAULT_OPTIONS.timeAxisHeight,
+      priceAxisWidth: options?.priceAxisWidth ?? DEFAULT_OPTIONS.priceAxisWidth,
+      timeAxisHeight: options?.timeAxisHeight ?? DEFAULT_OPTIONS.timeAxisHeight,
+    };
+    this._setSize(
+      this._sizeState.width,
+      this._sizeState.height,
+      this._sizeState.priceAxisWidth,
+      this._sizeState.timeAxisHeight,
     );
 
     // Data change listener
@@ -608,6 +621,95 @@ export class CanvasChart implements ChartInstance {
     this._needsRender = true;
   }
 
+  /**
+   * Apply a partial options update at runtime.
+   *
+   * Diffs each provided field against the chart's current state and routes to
+   * the appropriate internal setter. Fields not listed in `opts` are left alone.
+   *
+   * Runtime-capable fields: theme, chartType, volume, fontSize, watermark,
+   * animationDuration, maxCandles, legend, priceFormatter, timeFormatter,
+   * width, height, priceAxisWidth, timeAxisHeight.
+   *
+   * Fields that require re-creating the chart emit a warning and are ignored:
+   * pixelRatio, fontFamily, scrollSensitivity, locale, formatInfoOverlay.
+   */
+  applyOptions(opts: Partial<ChartOptions>): void {
+    if (opts.theme !== undefined) this.setTheme(opts.theme);
+    if (opts.chartType !== undefined) this.setChartType(opts.chartType);
+    if (opts.volume !== undefined) this.setShowVolume(opts.volume);
+
+    if (opts.fontSize !== undefined) {
+      this._fontSize = opts.fontSize;
+      this._needsRender = true;
+    }
+    if (opts.watermark !== undefined) {
+      this._watermark = opts.watermark;
+      this._needsRender = true;
+    }
+    if (opts.animationDuration !== undefined) {
+      this._animationDuration = opts.animationDuration;
+    }
+    if (opts.maxCandles !== undefined) {
+      this._data.setMaxCandles(opts.maxCandles);
+    }
+    if (opts.priceFormatter !== undefined) {
+      this._priceFormatter = opts.priceFormatter;
+      this._needsRender = true;
+    }
+    if (opts.timeFormatter !== undefined) {
+      this._timeFormatter = opts.timeFormatter;
+      this._needsRender = true;
+    }
+
+    // Legend overlay — create/destroy
+    if (opts.legend !== undefined) {
+      if (opts.legend === false && this._legendOverlay) {
+        this._legendOverlay.destroy();
+        this._legendOverlay = null;
+      } else if (opts.legend !== false && !this._legendOverlay) {
+        this._legendOverlay = new LegendOverlay(this._container, this._theme, this._locale);
+        this._legendOverlay.setOnToggle((seriesId, visible) => {
+          const series = this._data.getAllSeries().find((s) => s.id === seriesId);
+          if (series) {
+            series.visible = visible;
+            this._needsRender = true;
+          }
+        });
+      }
+      this._needsRender = true;
+    }
+
+    // Size — compose partial width/height/axis changes against stored state
+    if (
+      opts.width !== undefined ||
+      opts.height !== undefined ||
+      opts.priceAxisWidth !== undefined ||
+      opts.timeAxisHeight !== undefined
+    ) {
+      this._setSize(
+        opts.width ?? this._sizeState.width,
+        opts.height ?? this._sizeState.height,
+        opts.priceAxisWidth ?? this._sizeState.priceAxisWidth,
+        opts.timeAxisHeight ?? this._sizeState.timeAxisHeight,
+      );
+      this._needsRender = true;
+    }
+
+    // Unsupported at runtime — these bind to sub-components at construction
+    const unsupported: (keyof ChartOptions)[] = [];
+    if (opts.pixelRatio !== undefined) unsupported.push("pixelRatio");
+    if (opts.fontFamily !== undefined) unsupported.push("fontFamily");
+    if (opts.scrollSensitivity !== undefined) unsupported.push("scrollSensitivity");
+    if (opts.locale !== undefined) unsupported.push("locale");
+    if (opts.formatInfoOverlay !== undefined) unsupported.push("formatInfoOverlay");
+    if (unsupported.length > 0) {
+      this._warn(
+        `applyOptions: [${unsupported.join(", ")}] cannot be changed at runtime; re-create the chart to update them`,
+      );
+    }
+  }
+
   // ---- Public API: Series Query ----
 
   getAllSeries(): import("../core/types").SeriesInfo[] {
@@ -775,6 +877,16 @@ export class CanvasChart implements ChartInstance {
     this._ctx.scale(pr, pr);
 
     this._layout.setDimensions(w, h, priceAxisWidth, timeAxisHeight);
+
+    // Keep last-applied size so applyOptions() can compose partial changes
+    this._sizeState = {
+      width: w,
+      height: h,
+      priceAxisWidth:
+        priceAxisWidth ?? this._sizeState?.priceAxisWidth ?? DEFAULT_OPTIONS.priceAxisWidth,
+      timeAxisHeight:
+        timeAxisHeight ?? this._sizeState?.timeAxisHeight ?? DEFAULT_OPTIONS.timeAxisHeight,
+    };
     const wasFit = this._timeScale.visibleCount >= this._timeScale.totalCount;
     this._timeScale.setWidth(this._layout.dataAreaWidth);
     // Re-fit if all data was visible before resize
