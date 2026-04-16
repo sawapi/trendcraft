@@ -3,7 +3,7 @@
  *
  * Thin component built on top of the `useTrendChart` hook. Covers the
  * common case where you want to drop a chart into a JSX tree with a few
- * data props. For imperative control (connectLiveFeed, setDrawingTool,
+ * data props. For imperative control (connectIndicators, setDrawingTool,
  * custom plugins), use `useTrendChart` directly and operate on the
  * returned `chart` value.
  *

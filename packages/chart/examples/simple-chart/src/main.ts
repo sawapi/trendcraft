@@ -1,5 +1,5 @@
 import {
-  connectLiveFeed,
+  connectIndicators,
   connectRegimeHeatmap,
   connectSessionZones,
   connectSmcLayer,
@@ -10,7 +10,7 @@ import {
   definePrimitive,
   defineSeriesRenderer,
 } from "@trendcraft/chart";
-import type { LiveFeedConnection } from "@trendcraft/chart";
+import type { IndicatorConnection, IndicatorPresetEntry } from "@trendcraft/chart";
 import { registerTrendCraftPresets } from "@trendcraft/chart/presets";
 import {
   bollingerBands,
@@ -52,12 +52,10 @@ statusEl.textContent = `Sample Daily — ${candles.length} candles loaded`;
 
 // Simulation state (module-scoped for toggle access)
 let liveCandle: ReturnType<typeof streaming.createLiveCandle> | null = null;
-let liveFeedConn: LiveFeedConnection | null = null;
+let liveFeedConn: IndicatorConnection | null = null;
 
 // Track which live indicators are currently active
 const activeLiveIndicators = new Set<string>();
-// Stored simulation history for vol overlay back-fill
-let simHistoryRef: typeof sampleData = [];
 
 // Indicator state (static mode)
 type HandleRef = { value: ReturnType<typeof chart.addIndicator> | null };
@@ -82,11 +80,11 @@ function toggle(
     // Live simulation mode — zero-config via preset registry
     if (liveFeedConn) {
       if (activeLiveIndicators.has(key)) {
-        liveFeedConn.removeIndicator(key);
+        liveFeedConn.remove(key);
         activeLiveIndicators.delete(key);
         btn.classList.remove("active");
       } else {
-        liveFeedConn.addIndicator(key);
+        liveFeedConn.add(key);
         activeLiveIndicators.add(key);
         btn.classList.add("active");
       }
@@ -233,7 +231,7 @@ document.getElementById("btn-chart-type")?.addEventListener("click", (e) => {
   (e.target as HTMLButtonElement).textContent = `Chart: ${labels[type]}`;
 });
 
-// --- Tick Simulation: LiveCandle + connectLiveFeed ---
+// --- Tick Simulation: LiveCandle + connectIndicators ---
 const allIndicatorRefs: HandleRef[] = [smaRef, bbRef, ichimokuRef, rsiRef, macdRef];
 const allIndicatorBtns = ["btn-sma", "btn-bb", "btn-ichimoku", "btn-rsi", "btn-macd"];
 
@@ -304,8 +302,6 @@ document.getElementById("btn-simulate")?.addEventListener("click", (e) => {
     });
   }
 
-  simHistoryRef = simHistory;
-
   // Create LiveCandle with history
   liveCandle = streaming.createLiveCandle({
     intervalMs: 60_000,
@@ -314,14 +310,15 @@ document.getElementById("btn-simulate")?.addEventListener("click", (e) => {
 
   // Initialize chart with history + connect LiveCandle
   chart.setCandles(simHistory);
-  liveFeedConn = connectLiveFeed(chart, liveCandle, {
+  liveFeedConn = connectIndicators(chart, {
+    presets: { ...livePresets, vol_overlay: VOL_OVERLAY_PRESET },
+    live: liveCandle,
+    candles: simHistory,
     initHistory: false,
-    presets: livePresets,
-    history: simHistory,
   });
 
   // Auto-enable SMA (was active by default)
-  liveFeedConn.addIndicator("sma");
+  liveFeedConn.add("sma");
   activeLiveIndicators.add("sma");
 
   // Random walk state
@@ -555,6 +552,22 @@ const VOL_OVERLAY_CONFIG = {
   label: "Volume",
 };
 
+// Ad-hoc preset: surface the candle volume as an indicator so connectIndicators
+// can mount/unmount it in live mode just like any other preset-based indicator.
+const VOL_OVERLAY_PRESET: IndicatorPresetEntry = {
+  meta: { overlay: true, label: "Volume" },
+  defaultParams: {},
+  snapshotName: "vol_overlay",
+  compute: (cs) => cs.map((c) => ({ time: c.time, value: c.volume })),
+  createFactory: () => () => ({
+    next: (c) => ({ value: c.volume }),
+    peek: (c) => ({ value: c.volume }),
+    getState: () => undefined,
+    count: 0,
+    isWarmedUp: true,
+  }),
+};
+
 let volOverlayHandle: ReturnType<typeof chart.addIndicator> | null = null;
 let volOverlayLive = false;
 document.getElementById("btn-vol-overlay")?.addEventListener("click", (e) => {
@@ -567,7 +580,7 @@ document.getElementById("btn-vol-overlay")?.addEventListener("click", (e) => {
       volOverlayHandle = null;
     }
     if (volOverlayLive && liveFeedConn) {
-      liveFeedConn.removeIndicator("vol_overlay");
+      liveFeedConn.remove("vol_overlay");
       volOverlayLive = false;
     }
     chart.setShowVolume(true);
@@ -578,14 +591,8 @@ document.getElementById("btn-vol-overlay")?.addEventListener("click", (e) => {
   // Add
   chart.setShowVolume(false);
   if (liveCandle && liveFeedConn) {
-    // Live mode: use candleField
-    const allCandles = [...simHistoryRef, ...liveCandle.completedCandles];
-    const historyData = allCandles.map((c) => ({ time: c.time, value: c.volume }));
-    liveFeedConn.addIndicator("vol_overlay", {
-      candleField: "volume",
-      series: VOL_OVERLAY_CONFIG,
-      historyData,
-    });
+    // Live mode: mount via ad-hoc VOL_OVERLAY_PRESET (registered at connect time)
+    liveFeedConn.add("vol_overlay", { series: VOL_OVERLAY_CONFIG });
     volOverlayLive = true;
   } else {
     // Static mode

@@ -85,7 +85,7 @@ Use the hook when you need imperative access — drawing tools, live feeds, cust
 
 ```tsx
 import { useTrendChart } from '@trendcraft/chart/react';
-import { connectIndicators, connectLiveFeed } from '@trendcraft/chart';
+import { connectIndicators } from '@trendcraft/chart';
 import { indicatorPresets } from 'trendcraft';
 
 function MyChart({ candles, liveSource }) {
@@ -429,52 +429,112 @@ chart.registerPrimitive(srZones);
 
 Both `SeriesRenderContext` and `PrimitiveRenderContext` include a `draw: DrawHelper` object with convenient methods: `x()`, `y()`, `line()`, `hline()`, `vline()`, `circle()`, `rect()`, `polygon()`, `text()`.
 
-## Live Feed
+## Indicators
 
-Connect a `LiveCandle`-compatible data source for real-time chart updates. The interface is duck-typed — no hard `trendcraft` dependency required.
+Use `connectIndicators` to attach indicators to a chart — with automatic backfill, optional live streaming, and a handle-based API. The interface is duck-typed — no hard `trendcraft` dependency required.
 
 ```typescript
-import { createChart, connectLiveFeed } from '@trendcraft/chart';
-import { createLiveCandle, createSma } from 'trendcraft';
+import { createChart, connectIndicators, defineIndicator } from '@trendcraft/chart';
+import { indicatorPresets } from 'trendcraft';
 
 const chart = createChart(container, { theme: 'dark' });
-const live = createLiveCandle({
-  intervalMs: 60_000,
-  indicators: [
-    { name: 'sma20', create: (s) => createSma({ period: 20 }, { fromState: s }) },
-  ],
-});
+chart.setCandles(candles);
 
-const conn = connectLiveFeed(chart, live, {
-  indicators: {
-    sma:   { snapshotPath: 'sma20',    series: { color: '#2196F3', label: 'SMA 20' } },
-    rsi:   { snapshotPath: 'rsi14',    series: { pane: 'rsi' } },
-    bbUp:  { snapshotPath: 'bb.upper', series: { color: '#9C27B0' } },
-  },
+const conn = connectIndicators(chart, { presets: indicatorPresets, candles });
+
+// Add by preset id (returns an IndicatorHandle)
+conn.add('rsi');
+const h = conn.add('sma', { period: 20 });
+h.setVisible(false);
+h.remove();
+
+// Multiple instances of the same preset
+conn.add('sma', { period: 5 });
+conn.add('sma', { period: 20 });
+conn.add('sma', { period: 60 });
+
+// Pre-defined specs are reusable across connections
+const sma5 = defineIndicator('sma', { period: 5 });
+conn.add(sma5);
+```
+
+### Live streaming
+
+Pass a `LiveCandle`-compatible source to stream values in real time. Indicators are back-filled from `candles` + `live.completedCandles`, then updated on each tick:
+
+```typescript
+import { createLiveCandle, livePresets } from 'trendcraft';
+
+const live = createLiveCandle({ intervalMs: 60_000, history });
+const conn = connectIndicators(chart, {
+  presets: livePresets,
+  candles: history,
+  live,
 });
+conn.add('rsi');
+conn.add('sma', { period: 20 });
 
 // Feed ticks from a WebSocket
 ws.on('trade', (t) => live.addTick(t));
 
-// Cleanup
 conn.disconnect();
 ```
 
-### ConnectLiveFeedOptions
+### Multiple instances of the same preset
+
+`connectIndicators` keys internal state by each instance's `snapshotName`, so dynamic-name presets (`(p) => \`sma${p.period}\``) can be mounted multiple times. For static-name presets (e.g. `emaRibbon`), pass an explicit name:
+
+```typescript
+conn.add('emaRibbon', { periods: [8, 13, 21], snapshotName: 'ribbon-short' });
+conn.add('emaRibbon', { periods: [34, 55, 89], snapshotName: 'ribbon-long' });
+```
+
+### Removing
+
+`remove()` accepts a snapshot name, a preset id (removes all matching), or a handle:
+
+```typescript
+conn.remove('sma5');     // single instance (snapshot name match)
+conn.remove('sma');      // all sma instances (preset id fallback)
+conn.remove(myHandle);   // handle directly
+myHandle.remove();       // or via the handle
+```
+
+### ConnectIndicatorsOptions
 
 | Option | Type | Default | Description |
 |---|---|---|---|
-| `indicators` | `Record<string, LiveFeedIndicatorConfig>` | — | Indicator mappings (id → config) |
-| `initHistory` | `boolean` | `true` | Initialize chart with `source.completedCandles` |
+| `presets` | `Record<string, IndicatorPresetEntry>` | `{}` | Indicator preset registry |
+| `candles` | `readonly SourceCandle[]` | `[]` | Static candles (static mode / backfill) |
+| `live` | `LiveSource` | — | Live data source; enables streaming mode |
+| `initHistory` | `boolean` | `true` | Initialize chart with `live.completedCandles` when in live mode |
 
-### LiveFeedConnection
+### IndicatorConnection
 
 | Method / Property | Description |
 |---|---|
-| `addIndicator(id, config)` | Add an indicator series after initial connection |
-| `removeIndicator(id)` | Remove an indicator series |
-| `disconnect()` | Unsubscribe all events and remove all indicator handles |
-| `connected` (readonly) | Whether the connection is still active |
+| `add(presetId, options?)` | Add an indicator. Returns `IndicatorHandle`. |
+| `add(spec)` | Add using a pre-defined `IndicatorSpec` from `defineIndicator()`. |
+| `remove(target)` | Remove by snapshot name, preset id (all instances), or handle. |
+| `list()` | All active handles. |
+| `listByPreset(id)` | Handles for a given preset. |
+| `get(snapshotName)` | Look up a single handle. |
+| `recompute(candles)` | Re-run all indicators with new candle data. |
+| `disconnect()` | Unsubscribe events and remove all indicators. |
+| `connected` (readonly) | Whether the connection is still active. |
+| `mode` (readonly) | `"static"` or `"live"`. |
+
+### IndicatorHandle
+
+| Member | Description |
+|---|---|
+| `snapshotName` | This instance's unique key (e.g. `"sma5"`). |
+| `presetId` | The preset id used to build this instance. |
+| `params` | Effective parameters (defaults merged with overrides). |
+| `series` | Underlying `SeriesHandle` (escape hatch). |
+| `removed` | `true` once removed. |
+| `setVisible(visible)` | Toggle visibility. |
+| `remove()` | Remove this instance (idempotent). |
 
 Snapshot paths support dot notation: `"bb.upper"` resolves to `snapshot.bb.upper`.
 

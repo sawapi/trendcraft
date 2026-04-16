@@ -4,6 +4,7 @@ import {
   type IndicatorPresetEntry,
   type LiveSource,
   connectIndicators,
+  defineIndicator,
 } from "../integration/connect-indicators";
 
 // ============================================
@@ -143,22 +144,26 @@ function candle(time: number, close: number): CandleData {
 }
 
 // Mock presets
-function makeComputePreset(name: string, overlay = false): IndicatorPresetEntry {
+type PresetOpts = { overlay?: boolean; paramKeyedSnapshot?: boolean };
+
+function makeComputePreset(name: string, opts: PresetOpts = {}): IndicatorPresetEntry {
+  const { overlay = false, paramKeyedSnapshot = false } = opts;
   return {
     meta: { overlay, label: name },
     defaultParams: { period: 14 },
-    snapshotName: name,
+    snapshotName: paramKeyedSnapshot ? (p: Record<string, unknown>) => `${name}${p.period}` : name,
     compute: vi.fn((candles, _params) =>
       candles.map((c: CandleData) => ({ time: c.time, value: c.close })),
     ),
   };
 }
 
-function makeFactoryPreset(name: string, overlay = false): IndicatorPresetEntry {
+function makeFactoryPreset(name: string, opts: PresetOpts = {}): IndicatorPresetEntry {
+  const { overlay = false, paramKeyedSnapshot = false } = opts;
   return {
     meta: { overlay, label: name },
     defaultParams: { period: 14 },
-    snapshotName: name,
+    snapshotName: paramKeyedSnapshot ? (p: Record<string, unknown>) => `${name}${p.period}` : name,
     compute: vi.fn((candles, _params) =>
       candles.map((c: CandleData) => ({ time: c.time, value: c.close })),
     ),
@@ -275,7 +280,7 @@ describe("connectIndicators", () => {
     it("should merge params with defaults", () => {
       const { chart } = createMockChart();
       const candles = [candle(1, 100)];
-      const presets = { sma: makeComputePreset("sma") };
+      const presets = { sma: makeComputePreset("sma", { paramKeyedSnapshot: true }) };
 
       const conn = connectIndicators(chart, { presets, candles });
       conn.add("sma", { period: 50 });
@@ -390,13 +395,271 @@ describe("connectIndicators", () => {
       expect(() => conn.add("nonexistent")).toThrow("Unknown indicator preset");
     });
 
-    it("should throw on duplicate add", () => {
+    it("should throw on duplicate snapshotName (static snapshotName preset)", () => {
       const { chart } = createMockChart();
       const presets = { rsi: makeComputePreset("rsi") };
       const conn = connectIndicators(chart, { presets, candles: [candle(1, 100)] });
 
       conn.add("rsi");
-      expect(() => conn.add("rsi")).toThrow("already added");
+      expect(() => conn.add("rsi")).toThrow(/already added/);
+    });
+  });
+
+  // ============================================
+  // Multiple instances of the same preset
+  // ============================================
+  describe("multiple instances", () => {
+    it("should allow multiple instances of the same preset with different params (static)", () => {
+      const { chart, handles } = createMockChart();
+      const candles = [candle(1, 100), candle(2, 101)];
+      const presets = { sma: makeComputePreset("sma", { paramKeyedSnapshot: true }) };
+
+      const conn = connectIndicators(chart, { presets, candles });
+      const sma5 = conn.add("sma", { period: 5 });
+      const sma20 = conn.add("sma", { period: 20 });
+      const sma60 = conn.add("sma", { period: 60 });
+
+      expect(handles).toHaveLength(3);
+      expect(conn.list()).toHaveLength(3);
+      expect(conn.listByPreset("sma")).toHaveLength(3);
+      expect(sma5.snapshotName).toBe("sma5");
+      expect(sma20.snapshotName).toBe("sma20");
+      expect(sma60.snapshotName).toBe("sma60");
+      expect(conn.get("sma5")).toBe(sma5);
+      expect(conn.get("sma20")).toBe(sma20);
+      expect(conn.get("sma60")).toBe(sma60);
+    });
+
+    it("should allow multiple instances of the same preset in live mode", () => {
+      const { chart, handles } = createMockChart();
+      const { source, emitTick, registeredIndicators } = createMockLiveSource([candle(1, 100)]);
+      const presets = { sma: makeFactoryPreset("sma", { paramKeyedSnapshot: true }) };
+
+      const conn = connectIndicators(chart, { presets, candles: [], live: source });
+      conn.add("sma", { period: 5 });
+      conn.add("sma", { period: 20 });
+      conn.add("sma", { period: 60 });
+
+      expect(registeredIndicators.has("sma5")).toBe(true);
+      expect(registeredIndicators.has("sma20")).toBe(true);
+      expect(registeredIndicators.has("sma60")).toBe(true);
+
+      // Emit tick; all three should receive their own values from the snapshot
+      emitTick(candle(2, 105), { sma5: 102, sma20: 99, sma60: 95 });
+      expect(handles[0].updates[0]).toEqual({ time: 2, value: 102 });
+      expect(handles[1].updates[0]).toEqual({ time: 2, value: 99 });
+      expect(handles[2].updates[0]).toEqual({ time: 2, value: 95 });
+    });
+
+    it("should throw on same snapshotName collision (same params)", () => {
+      const { chart } = createMockChart();
+      const presets = { sma: makeComputePreset("sma", { paramKeyedSnapshot: true }) };
+      const conn = connectIndicators(chart, { presets, candles: [candle(1, 100)] });
+
+      conn.add("sma", { period: 5 });
+      expect(() => conn.add("sma", { period: 5 })).toThrow(/already added/);
+    });
+
+    it("should recompute all instances with their own params", () => {
+      const { chart, handles } = createMockChart();
+      const presets = { sma: makeComputePreset("sma", { paramKeyedSnapshot: true }) };
+      const conn = connectIndicators(chart, { presets, candles: [candle(1, 100)] });
+
+      conn.add("sma", { period: 5 });
+      conn.add("sma", { period: 20 });
+
+      const newCandles = [candle(1, 100), candle(2, 101), candle(3, 102)];
+      conn.recompute(newCandles);
+
+      expect(handles[0].setDataCalls).toHaveLength(1);
+      expect(handles[1].setDataCalls).toHaveLength(1);
+      // compute was called with each instance's params
+      expect(presets.sma.compute).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ period: 5 }),
+      );
+      expect(presets.sma.compute).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ period: 20 }),
+      );
+    });
+  });
+
+  // ============================================
+  // snapshotName override
+  // ============================================
+  describe("snapshotName override", () => {
+    it("should use override to mount multiple instances of a static-snapshotName preset", () => {
+      const { chart, handles } = createMockChart();
+      const presets = { emaRibbon: makeComputePreset("emaRibbon") }; // static snapshotName
+      const conn = connectIndicators(chart, { presets, candles: [candle(1, 100)] });
+
+      const a = conn.add("emaRibbon", { snapshotName: "ribbon-short" });
+      const b = conn.add("emaRibbon", { snapshotName: "ribbon-long" });
+
+      expect(handles).toHaveLength(2);
+      expect(a.snapshotName).toBe("ribbon-short");
+      expect(b.snapshotName).toBe("ribbon-long");
+      expect(conn.get("ribbon-short")).toBe(a);
+      expect(conn.get("ribbon-long")).toBe(b);
+    });
+
+    it("should use override name as LiveCandle registration key", () => {
+      const { chart } = createMockChart();
+      const { source, registeredIndicators } = createMockLiveSource([candle(1, 100)]);
+      const presets = { sma: makeFactoryPreset("sma", { paramKeyedSnapshot: true }) };
+
+      const conn = connectIndicators(chart, { presets, candles: [], live: source });
+      conn.add("sma", { period: 5, snapshotName: "my-sma" });
+
+      expect(registeredIndicators.has("my-sma")).toBe(true);
+      expect(registeredIndicators.has("sma5")).toBe(false);
+    });
+  });
+
+  // ============================================
+  // Indicator handle lifecycle
+  // ============================================
+  describe("indicator handle", () => {
+    it("should expose snapshotName / presetId / params / series on the handle", () => {
+      const { chart } = createMockChart();
+      const presets = { sma: makeComputePreset("sma", { paramKeyedSnapshot: true }) };
+      const conn = connectIndicators(chart, { presets, candles: [candle(1, 100)] });
+
+      const h = conn.add("sma", { period: 5 });
+      expect(h.snapshotName).toBe("sma5");
+      expect(h.presetId).toBe("sma");
+      expect(h.params).toMatchObject({ period: 5 });
+      expect(h.series).toBeDefined();
+      expect(h.removed).toBe(false);
+    });
+
+    it("handle.remove() should be idempotent", () => {
+      const { chart, handles } = createMockChart();
+      const presets = { rsi: makeComputePreset("rsi") };
+      const conn = connectIndicators(chart, { presets, candles: [candle(1, 100)] });
+
+      const h = conn.add("rsi");
+      h.remove();
+      expect(h.removed).toBe(true);
+      expect(handles[0].removed).toBe(true);
+
+      // Second remove is a no-op; series.remove should not be called again
+      const removeSpy = handles[0].removed;
+      h.remove();
+      expect(removeSpy).toBe(true); // still true, no error
+    });
+
+    it("handle.setVisible() should forward to the series when not removed", () => {
+      const { chart } = createMockChart();
+      const presets = { rsi: makeComputePreset("rsi") };
+      const conn = connectIndicators(chart, { presets, candles: [candle(1, 100)] });
+
+      const h = conn.add("rsi");
+      h.setVisible(false);
+      expect(h.series.setVisible).toHaveBeenCalledWith(false);
+
+      h.remove();
+      h.setVisible(true); // no-op after remove
+      // setVisible should still be called only once
+      expect(h.series.setVisible).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // ============================================
+  // remove() dispatch
+  // ============================================
+  describe("remove() dispatch", () => {
+    it("should remove by snapshotName (single instance)", () => {
+      const { chart, handles } = createMockChart();
+      const presets = { sma: makeComputePreset("sma", { paramKeyedSnapshot: true }) };
+      const conn = connectIndicators(chart, { presets, candles: [candle(1, 100)] });
+
+      conn.add("sma", { period: 5 });
+      conn.add("sma", { period: 20 });
+
+      conn.remove("sma5");
+      expect(handles[0].removed).toBe(true);
+      expect(handles[1].removed).toBe(false);
+      expect(conn.list()).toHaveLength(1);
+      expect(conn.get("sma5")).toBeUndefined();
+      expect(conn.get("sma20")).toBeDefined();
+    });
+
+    it("should remove all instances by preset id (fallback when snapshotName misses)", () => {
+      const { chart, handles } = createMockChart();
+      const presets = { sma: makeComputePreset("sma", { paramKeyedSnapshot: true }) };
+      const conn = connectIndicators(chart, { presets, candles: [candle(1, 100)] });
+
+      conn.add("sma", { period: 5 });
+      conn.add("sma", { period: 20 });
+      conn.add("sma", { period: 60 });
+
+      conn.remove("sma"); // preset id fallback
+      expect(handles[0].removed).toBe(true);
+      expect(handles[1].removed).toBe(true);
+      expect(handles[2].removed).toBe(true);
+      expect(conn.list()).toHaveLength(0);
+    });
+
+    it("should accept handle directly", () => {
+      const { chart, handles } = createMockChart();
+      const presets = { rsi: makeComputePreset("rsi") };
+      const conn = connectIndicators(chart, { presets, candles: [candle(1, 100)] });
+
+      const h = conn.add("rsi");
+      conn.remove(h);
+      expect(handles[0].removed).toBe(true);
+      expect(h.removed).toBe(true);
+    });
+
+    it("should be a silent no-op for unknown target", () => {
+      const { chart } = createMockChart();
+      const conn = connectIndicators(chart, { presets: {}, candles: [] });
+      expect(() => conn.remove("nonexistent")).not.toThrow();
+    });
+  });
+
+  // ============================================
+  // defineIndicator / spec reuse
+  // ============================================
+  describe("defineIndicator / IndicatorSpec", () => {
+    it("should add via pre-defined spec and be equivalent to direct form", () => {
+      const { chart, handles } = createMockChart();
+      const presets = { sma: makeComputePreset("sma", { paramKeyedSnapshot: true }) };
+      const conn = connectIndicators(chart, { presets, candles: [candle(1, 100)] });
+
+      const spec = defineIndicator("sma", { period: 5 });
+      const h = conn.add(spec);
+
+      expect(h.snapshotName).toBe("sma5");
+      expect(h.presetId).toBe("sma");
+      expect(handles).toHaveLength(1);
+    });
+
+    it("should allow reusing the same spec across multiple connections", () => {
+      const mockA = createMockChart();
+      const mockB = createMockChart();
+      const presetsA = { sma: makeComputePreset("sma", { paramKeyedSnapshot: true }) };
+      const presetsB = { sma: makeComputePreset("sma", { paramKeyedSnapshot: true }) };
+
+      const connA = connectIndicators(mockA.chart, {
+        presets: presetsA,
+        candles: [candle(1, 100)],
+      });
+      const connB = connectIndicators(mockB.chart, {
+        presets: presetsB,
+        candles: [candle(1, 100)],
+      });
+
+      const spec = defineIndicator("sma", { period: 5 });
+      const hA = connA.add(spec);
+      const hB = connB.add(spec);
+
+      expect(hA).not.toBe(hB);
+      expect(hA.series).not.toBe(hB.series);
+      expect(mockA.handles).toHaveLength(1);
+      expect(mockB.handles).toHaveLength(1);
     });
   });
 });

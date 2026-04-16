@@ -59,12 +59,14 @@ packages/
 ## Development Commands
 
 ```bash
-pnpm install      # Install dependencies (workspace)
-pnpm test         # Run tests (all packages)
-pnpm build        # Build (all packages)
-pnpm lint         # Biome lint
-pnpm format       # Biome format
+pnpm install --frozen-lockfile   # Install dependencies (workspace)
+pnpm test                        # Run tests (all packages)
+pnpm build                       # Build (all packages)
+pnpm lint                        # Biome lint
+pnpm format                      # Biome format
 ```
+
+**Install note**: Prefer `pnpm install --frozen-lockfile` over a plain `pnpm install`, especially in a fresh `git worktree`. A plain install has in practice produced an incomplete dependency graph in a new worktree — vue/react types failed to resolve inside vite-plugin-dts (TS2305 errors during `pnpm build`) — even though the lockfile was reported as "up to date". `--frozen-lockfile` refuses to modify the lockfile and in that situation produced a clean, consistent install.
 
 ### Package-level commands
 

@@ -29,10 +29,10 @@ describe("Export verification", () => {
       expect(typeof mod.DrawHelper).toBe("function");
     });
 
-    it("exports live feed integration", async () => {
+    it("exports indicator connection", async () => {
       const mod = await import("../index");
-      expect(typeof mod.connectLiveFeed).toBe("function");
       expect(typeof mod.connectIndicators).toBe("function");
+      expect(typeof mod.defineIndicator).toBe("function");
     });
 
     it("exports i18n utilities", async () => {
@@ -91,11 +91,6 @@ describe("Export verification", () => {
       const mod = await import("../headless");
       expect(mod.DARK_THEME).toBeDefined();
       expect(mod.LIGHT_THEME).toBeDefined();
-    });
-
-    it("exports live feed integration", async () => {
-      const mod = await import("../headless");
-      expect(typeof mod.connectLiveFeed).toBe("function");
     });
   });
 
