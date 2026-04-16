@@ -40,7 +40,8 @@
     "!dist/**/*.test.*",
     "!dist/**/*.js.map",
     "!dist/**/*.cjs.map",
-    "LICENSE"
+    "LICENSE",
+    "CHANGELOG.md"
   ],
   "scripts": {
     "dev": "vite",
@@ -50,7 +51,8 @@
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "size-check": "size-limit",
-    "format": "biome format --write ."
+    "format": "biome format --write .",
+    "prepublishOnly": "pnpm build && pnpm test"
   },
   "keywords": [
     "chart",

@@ -45,3 +45,11 @@ jobs:
       - name: Bundle size check (chart)
         if: matrix.node-version == 22
         run: cd packages/chart && pnpm size-check
+
+      - name: Build chart examples
+        if: matrix.node-version == 22
+        run: |
+          cd packages/chart/examples/simple-chart && pnpm install --ignore-workspace && pnpm build
+          cd ../simple-react-chart && pnpm install --ignore-workspace && pnpm build
+          cd ../simple-vue-chart && pnpm install --ignore-workspace && pnpm build
+          cd ../indicator-showcase && pnpm install --ignore-workspace && pnpm build
