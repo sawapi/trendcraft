@@ -105,4 +105,20 @@ describe("garmanKlass", () => {
       expect(result[i].time).toBe(candles[i].time);
     }
   });
+
+  it("should return null when any candle in window has non-positive high/close", () => {
+    const base = makeOHLCCandles([
+      { open: 100, high: 110, low: 90, close: 105 },
+      { open: 105, high: 115, low: 95, close: 110 },
+      { open: 110, high: 120, low: 100, close: 115 },
+    ]);
+
+    const withBadHigh = [...base];
+    withBadHigh[1] = { ...base[1], high: 0 };
+    expect(garmanKlass(withBadHigh, { period: 3 })[2].value).toBeNull();
+
+    const withBadClose = [...base];
+    withBadClose[2] = { ...base[2], close: 0 };
+    expect(garmanKlass(withBadClose, { period: 3 })[2].value).toBeNull();
+  });
 });

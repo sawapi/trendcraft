@@ -63,7 +63,7 @@ export function garmanKlass(
     for (let j = i - period + 1; j <= i; j++) {
       const { open, high, low, close } = normalized[j];
 
-      if (low <= 0 || open <= 0) {
+      if (low <= 0 || open <= 0 || high <= 0 || close <= 0) {
         valid = false;
         break;
       }

@@ -42,6 +42,9 @@ export function createZlema(
   warmUpOptions?: WarmUpOptions<ZlemaState>,
 ): IncrementalIndicator<number | null, ZlemaState> {
   const period = options.period ?? 20;
+  if (period < 1) {
+    throw new Error("ZLEMA period must be at least 1");
+  }
   const source: PriceSource = options.source ?? "close";
   const lag = Math.floor((period - 1) / 2);
   const multiplier = 2 / (period + 1);

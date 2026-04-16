@@ -426,6 +426,11 @@ describe("ZLEMA incremental", () => {
       }
     }
   });
+
+  it("throws on non-positive period", () => {
+    expect(() => createZlema({ period: 0 })).toThrow("ZLEMA period must be at least 1");
+    expect(() => createZlema({ period: -1 })).toThrow("ZLEMA period must be at least 1");
+  });
 });
 
 // ---- ALMA ----
