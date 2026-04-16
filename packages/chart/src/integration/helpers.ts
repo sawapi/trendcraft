@@ -1,5 +1,5 @@
 /**
- * Shared helpers for indicator integration (live-feed, connect-indicators).
+ * Shared helpers for indicator integration (connect-indicators).
  */
 
 import type { DataPoint, SeriesConfig } from "../core/types";

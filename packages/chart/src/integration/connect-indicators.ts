@@ -7,20 +7,28 @@
  *
  * @example
  * ```ts
- * import { createChart, connectIndicators } from "@trendcraft/chart";
+ * import { createChart, connectIndicators, defineIndicator } from "@trendcraft/chart";
  * import { indicatorPresets } from "trendcraft";
  *
  * // Static mode
  * const conn = connectIndicators(chart, { presets: indicatorPresets, candles });
  * conn.add("rsi");
- * conn.add("sma", { period: 50 });
+ * conn.add("sma", { period: 5 });
+ * conn.add("sma", { period: 20 });
+ * conn.add("sma", { period: 60 });
  *
  * // Live mode
  * const conn = connectIndicators(chart, { presets: indicatorPresets, candles, live: source });
- * conn.add("rsi");   // backfill + live streaming
+ * conn.add("rsi");  // backfill + live streaming
  *
- * conn.remove("rsi");
- * conn.recompute(newCandles);
+ * // Pre-defined specs (reusable across connections)
+ * const sma5 = defineIndicator("sma", { period: 5 });
+ * conn.add(sma5);
+ *
+ * // Individual and bulk removal
+ * conn.remove("sma5");  // remove just one instance (snapshotName match)
+ * conn.remove("sma");   // remove all remaining sma instances (preset id fallback)
+ *
  * conn.disconnect();
  * ```
  */
@@ -51,7 +59,7 @@ export type IndicatorPresetEntry = {
   createFactory?: (params: Record<string, unknown>) => LiveIndicatorFactoryFn;
 };
 
-/** Duck-typed LiveCandle-compatible data source (same shape as LiveFeedSource) */
+/** Duck-typed LiveCandle-compatible data source */
 export type LiveSource = {
   readonly completedCandles: readonly SourceCandle[];
   readonly candle: SourceCandle | null;
@@ -91,12 +99,70 @@ export type ConnectIndicatorsOptions = {
   initHistory?: boolean;
 };
 
+/**
+ * Options accepted by `add()`.
+ *
+ * - `series`: visual overrides (color, pane, lineWidth, etc.)
+ * - `snapshotName`: override the computed snapshot name. Use this to mount multiple
+ *   instances of a preset whose snapshotName is a static string (e.g. `"emaRibbon"`).
+ * - Any other key is treated as a parameter override for the preset.
+ */
+export type AddIndicatorOptions = {
+  series?: SeriesConfig;
+  snapshotName?: string;
+  [paramKey: string]: unknown;
+};
+
+/**
+ * Pre-defined indicator specification. A plain object (no runtime behavior) that
+ * pairs a preset id with its options, so the same config can be reused across
+ * multiple `add()` calls or connections.
+ */
+export type IndicatorSpec = {
+  readonly presetId: string;
+  readonly options?: AddIndicatorOptions;
+};
+
+/** Handle returned from `add()`. Represents a single mounted indicator instance. */
+export type IndicatorHandle = {
+  /** The resolved snapshot name (also the key used by LiveCandle and this connection) */
+  readonly snapshotName: string;
+  /** The preset id this instance was created from */
+  readonly presetId: string;
+  /** Effective parameters (defaultParams merged with overrides) */
+  readonly params: Readonly<Record<string, unknown>>;
+  /** Underlying chart series handle. Escape hatch for advanced use cases. */
+  readonly series: SeriesHandle;
+  /** True once this instance has been removed */
+  readonly removed: boolean;
+  /** Toggle visibility */
+  setVisible(visible: boolean): void;
+  /** Remove this instance. Idempotent — calling a second time is a no-op. */
+  remove(): void;
+};
+
 /** Handle for managing an indicator connection */
 export type IndicatorConnection = {
-  /** Add an indicator by preset name, with optional parameter overrides */
-  add(id: string, params?: Record<string, unknown> & { series?: SeriesConfig }): void;
-  /** Remove an indicator by id */
-  remove(id: string): void;
+  /** Add an indicator using a pre-defined spec */
+  add(spec: IndicatorSpec): IndicatorHandle;
+  /** Add an indicator by preset id, with optional parameter and series overrides */
+  add(presetId: string, options?: AddIndicatorOptions): IndicatorHandle;
+
+  /**
+   * Remove indicator(s). Accepts:
+   * - an `IndicatorHandle` → removes that instance
+   * - a snapshot name (e.g. `"sma5"`) → removes that single instance
+   * - a preset id (e.g. `"sma"`) with no matching snapshot name → removes all instances of that preset
+   */
+  remove(target: string | IndicatorHandle): void;
+
+  /** All currently active indicator handles */
+  list(): ReadonlyArray<IndicatorHandle>;
+  /** Handles for all instances of a given preset */
+  listByPreset(presetId: string): ReadonlyArray<IndicatorHandle>;
+  /** Look up a single handle by snapshot name */
+  get(snapshotName: string): IndicatorHandle | undefined;
+
   /** Recompute all static indicators with new candle data */
   recompute(candles: readonly SourceCandle[]): void;
   /** Disconnect: remove all indicators and unsubscribe events */
@@ -108,16 +174,32 @@ export type IndicatorConnection = {
 };
 
 // ============================================
+// Helpers
+// ============================================
+
+/**
+ * Build a reusable indicator spec. The returned object is just `{ presetId, options }`;
+ * this helper exists for readability and type inference.
+ */
+export function defineIndicator(presetId: string, options?: AddIndicatorOptions): IndicatorSpec {
+  return { presetId, options };
+}
+
+// ============================================
 // Internal Types
 // ============================================
 
-type ActiveIndicator = {
-  handle: SeriesHandle;
+type ActiveEntry = {
+  /** Underlying chart series handle */
+  series: SeriesHandle;
   presetId: string;
   params: Record<string, unknown>;
   snapshotName: string;
   /** True when preset has no createFactory (static-only even in live mode) */
   staticOnly: boolean;
+  /** User-facing wrapper, lazily assigned after creation */
+  handle: IndicatorHandle;
+  removed: boolean;
 };
 
 // ============================================
@@ -144,7 +226,8 @@ export function connectIndicators(
   const initialCandles = options.candles ?? [];
   const liveSource = options.live ?? null;
   const mode = liveSource ? ("live" as const) : ("static" as const);
-  const active = new Map<string, ActiveIndicator>();
+  /** Keyed by snapshotName (single source of truth, matches LiveCandle's indicator map) */
+  const active = new Map<string, ActiveEntry>();
   let _candles: readonly SourceCandle[] = initialCandles;
 
   // Unsub handles for live events
@@ -176,10 +259,10 @@ export function connectIndicators(
   // ------ Live event handlers ------
 
   function updateLiveIndicators(snapshot: Record<string, unknown>, candle: SourceCandle): void {
-    for (const [, entry] of active) {
+    for (const entry of active.values()) {
       if (entry.staticOnly) continue;
       const value = resolveValue(snapshot, entry.snapshotName);
-      entry.handle.update({ time: candle.time, value });
+      entry.series.update({ time: candle.time, value });
     }
   }
 
@@ -210,26 +293,78 @@ export function connectIndicators(
     });
   }
 
+  // ------ Internal mutation helpers ------
+
+  function removeEntry(entry: ActiveEntry): void {
+    if (entry.removed) return;
+    entry.removed = true;
+    entry.series.remove();
+    if (!entry.staticOnly && liveSource?.removeIndicator) {
+      liveSource.removeIndicator(entry.snapshotName);
+    }
+    active.delete(entry.snapshotName);
+  }
+
+  function createHandle(entry: ActiveEntry): IndicatorHandle {
+    return {
+      get snapshotName() {
+        return entry.snapshotName;
+      },
+      get presetId() {
+        return entry.presetId;
+      },
+      get params() {
+        return entry.params;
+      },
+      get series() {
+        return entry.series;
+      },
+      get removed() {
+        return entry.removed;
+      },
+      setVisible(visible: boolean) {
+        if (!entry.removed) entry.series.setVisible(visible);
+      },
+      remove() {
+        removeEntry(entry);
+      },
+    };
+  }
+
   // ------ Public API ------
 
-  function add(id: string, overrides?: Record<string, unknown> & { series?: SeriesConfig }): void {
+  function add(
+    specOrId: string | IndicatorSpec,
+    maybeOptions?: AddIndicatorOptions,
+  ): IndicatorHandle {
     assertConnected();
 
-    if (active.has(id)) {
-      throw new Error(`Indicator "${id}" is already added. Remove it first.`);
-    }
+    // Normalize overloaded arguments
+    const presetId = typeof specOrId === "string" ? specOrId : specOrId.presetId;
+    const options = typeof specOrId === "string" ? maybeOptions : specOrId.options;
 
-    const preset = presets[id];
+    const preset = presets[presetId];
     if (!preset) {
       throw new Error(
-        `Unknown indicator preset: "${id}". Pass it via connectIndicators({ presets: indicatorPresets }).`,
+        `Unknown indicator preset: "${presetId}". Pass it via connectIndicators({ presets: indicatorPresets }).`,
       );
     }
 
-    // Split series config from param overrides
-    const { series: seriesOverrides, ...paramOverrides } = overrides ?? {};
+    // Split series / snapshotName override from param overrides
+    const {
+      series: seriesOverrides,
+      snapshotName: userSnapshotName,
+      ...paramOverrides
+    } = options ?? {};
     const params = { ...preset.defaultParams, ...paramOverrides };
-    const snapshotName = resolveSnapshotName(preset, params);
+    const snapshotName = userSnapshotName ?? resolveSnapshotName(preset, params);
+
+    if (active.has(snapshotName)) {
+      const existing = active.get(snapshotName);
+      throw new Error(
+        `Indicator snapshotName "${snapshotName}" is already added (preset="${existing?.presetId}"). Either the params produce the same snapshotName as an existing one, or this preset uses a static snapshotName. Pass { snapshotName: "custom-id" } to disambiguate, or remove the existing one first.`,
+      );
+    }
 
     // Determine if this indicator can stream
     const canStream = mode === "live" && !!preset.createFactory;
@@ -246,42 +381,102 @@ export function connectIndicators(
     const historyData = allCandles.length > 0 ? computeData(preset, params, allCandles) : [];
 
     // Build series config
-    const series = buildSeriesConfig(preset.meta, snapshotName, params, seriesOverrides, id);
+    const series = buildSeriesConfig(preset.meta, snapshotName, params, seriesOverrides, presetId);
 
     // Mount on chart
-    const handle = chart.addIndicator(historyData, series);
+    const seriesHandle = chart.addIndicator(historyData, series);
 
     // Push current forming candle value in live mode
     if (canStream && liveSource?.candle) {
       const value = resolveValue(liveSource.snapshot, snapshotName);
-      handle.update({ time: liveSource.candle.time, value });
+      seriesHandle.update({ time: liveSource.candle.time, value });
     }
 
-    active.set(id, { handle, presetId: id, params, snapshotName, staticOnly });
+    const entry: ActiveEntry = {
+      series: seriesHandle,
+      presetId,
+      params,
+      snapshotName,
+      staticOnly,
+      handle: null as unknown as IndicatorHandle,
+      removed: false,
+    };
+    entry.handle = createHandle(entry);
+
+    active.set(snapshotName, entry);
+    return entry.handle;
   }
 
-  function remove(id: string): void {
+  function remove(target: string | IndicatorHandle): void {
     assertConnected();
-    const entry = active.get(id);
-    if (!entry) return;
 
-    entry.handle.remove();
-    if (!entry.staticOnly && liveSource?.removeIndicator) {
-      liveSource.removeIndicator(entry.snapshotName);
+    // Handle direct pass-through
+    if (typeof target !== "string") {
+      removeEntry(findEntryByHandle(target));
+      return;
     }
-    active.delete(id);
+
+    // 1. snapshotName match → single instance
+    const bySnap = active.get(target);
+    if (bySnap) {
+      removeEntry(bySnap);
+      return;
+    }
+
+    // 2. preset id fallback → remove ALL matching instances
+    const matching: ActiveEntry[] = [];
+    for (const entry of active.values()) {
+      if (entry.presetId === target) matching.push(entry);
+    }
+    for (const entry of matching) removeEntry(entry);
+    // Silent no-op if nothing matched (preserves previous behavior)
+  }
+
+  function findEntryByHandle(handle: IndicatorHandle): ActiveEntry {
+    // Look up by snapshotName (O(1)) and verify handle identity
+    const entry = active.get(handle.snapshotName);
+    if (entry && entry.handle === handle) return entry;
+    // Handle may have been removed, or belongs to a different connection.
+    // Return a sentinel disposed entry so removeEntry is a no-op.
+    return {
+      series: handle.series,
+      presetId: handle.presetId,
+      params: handle.params as Record<string, unknown>,
+      snapshotName: handle.snapshotName,
+      staticOnly: false,
+      handle,
+      removed: true,
+    };
+  }
+
+  function list(): ReadonlyArray<IndicatorHandle> {
+    const out: IndicatorHandle[] = [];
+    for (const entry of active.values()) out.push(entry.handle);
+    return out;
+  }
+
+  function listByPreset(presetId: string): ReadonlyArray<IndicatorHandle> {
+    const out: IndicatorHandle[] = [];
+    for (const entry of active.values()) {
+      if (entry.presetId === presetId) out.push(entry.handle);
+    }
+    return out;
+  }
+
+  function get(snapshotName: string): IndicatorHandle | undefined {
+    return active.get(snapshotName)?.handle;
   }
 
   function recompute(candles: readonly SourceCandle[]): void {
     assertConnected();
     _candles = candles;
 
-    for (const [id, entry] of active) {
-      const preset = presets[id];
+    for (const entry of active.values()) {
+      const preset = presets[entry.presetId];
       if (!preset) continue;
 
       const newData = computeData(preset, entry.params, candles);
-      entry.handle.setData(newData);
+      entry.series.setData(newData);
     }
   }
 
@@ -291,8 +486,10 @@ export function connectIndicators(
     unsubTick?.();
     unsubComplete?.();
 
-    for (const [, entry] of active) {
-      entry.handle.remove();
+    for (const entry of active.values()) {
+      if (entry.removed) continue;
+      entry.removed = true;
+      entry.series.remove();
       if (!entry.staticOnly && liveSource?.removeIndicator) {
         liveSource.removeIndicator(entry.snapshotName);
       }
@@ -304,6 +501,9 @@ export function connectIndicators(
   return {
     add,
     remove,
+    list,
+    listByPreset,
+    get,
     recompute,
     disconnect,
     get connected() {

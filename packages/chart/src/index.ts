@@ -113,25 +113,16 @@ export { RendererRegistry } from "./core/renderer-registry";
 export { DrawHelper, type StrokeStyle, type FillStyle } from "./core/draw-helper";
 
 // Unified indicator connection
-export { connectIndicators } from "./integration/connect-indicators";
+export { connectIndicators, defineIndicator } from "./integration/connect-indicators";
 export type {
   ConnectIndicatorsOptions,
   IndicatorConnection,
   IndicatorPresetEntry,
+  IndicatorHandle,
+  IndicatorSpec,
+  AddIndicatorOptions,
+  LiveSource,
 } from "./integration/connect-indicators";
-
-// Live feed integration (legacy — prefer connectIndicators)
-export { connectLiveFeed } from "./integration/live-feed";
-export type {
-  LiveFeedSource,
-  LiveFeedIndicatorConfig,
-  ConnectLiveFeedOptions,
-  LiveFeedConnection,
-} from "./integration/live-feed";
-export type {
-  LivePresetEntry,
-  AddIndicatorShorthand,
-} from "./integration/live-feed";
 
 // Plugins — tree-shakeable visualization primitives
 export { createRegimeHeatmap, connectRegimeHeatmap } from "./plugins/regime-heatmap";

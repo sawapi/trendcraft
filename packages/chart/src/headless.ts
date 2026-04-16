@@ -61,15 +61,4 @@ export type {
 
 export { DARK_THEME, LIGHT_THEME } from "./core/types";
 
-// Live feed integration
-export { connectLiveFeed } from "./integration/live-feed";
-export type {
-  LiveFeedSource,
-  LiveFeedIndicatorConfig,
-  ConnectLiveFeedOptions,
-  LiveFeedConnection,
-} from "./integration/live-feed";
-export type {
-  LivePresetEntry,
-  AddIndicatorShorthand,
-} from "./integration/live-feed";
+// Indicator connection (connectIndicators is DOM-dependent; use the main entry for it)
