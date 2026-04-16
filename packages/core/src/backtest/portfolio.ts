@@ -186,7 +186,6 @@ export function portfolioBacktest(
   // Run independent backtests per symbol with allocated capital
   // (Phase 2 simplified: independent runs with weight-based allocation + position limits)
   const symbolResults: SymbolBacktestResult[] = [];
-  const currentOpenPositions = 0;
   let peakConcurrentPositions = 0;
   let rebalanceCount = 0;
 
