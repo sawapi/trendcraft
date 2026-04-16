@@ -105,10 +105,10 @@ export function renderTimeAxis(
 
   const start = timeScale.startIndex;
   const end = timeScale.endIndex;
+  const firstAnchor = Math.ceil(start / labelInterval) * labelInterval;
   let prevLabelTime: number | null = null;
 
-  for (let i = start; i < end && i < candles.length; i++) {
-    if ((i - start) % labelInterval !== 0) continue;
+  for (let i = firstAnchor; i < end && i < candles.length; i += labelInterval) {
     const candle = candles[i];
     if (!candle) continue;
 
@@ -158,9 +158,9 @@ export function renderGrid(
     const labelInterval = Math.max(1, Math.ceil(minLabelSpacing / timeScale.barSpacing));
     const start = timeScale.startIndex;
     const end = timeScale.endIndex;
+    const firstAnchor = Math.ceil(start / labelInterval) * labelInterval;
 
-    for (let i = start; i < end && i < candles.length; i++) {
-      if ((i - start) % labelInterval !== 0) continue;
+    for (let i = firstAnchor; i < end && i < candles.length; i += labelInterval) {
       const gridX = Math.round(timeScale.indexToX(i)) + 0.5;
       ctx.beginPath();
       ctx.moveTo(gridX, y);
