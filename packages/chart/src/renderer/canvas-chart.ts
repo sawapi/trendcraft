@@ -96,6 +96,7 @@ export class CanvasChart implements ChartInstance {
 
   private _rafId: number | null = null;
   private _needsRender = true;
+  private _destroyed = false;
   private _batching = false;
   private _batchScrollToEnd = false;
   private _detachViewport: (() => void) | null = null;
@@ -837,6 +838,8 @@ export class CanvasChart implements ChartInstance {
   }
 
   destroy(): void {
+    if (this._destroyed) return;
+    this._destroyed = true;
     if (this._rafId !== null) cancelAnimationFrame(this._rafId);
     this._transition.cancel();
     this._detachViewport?.();
@@ -898,10 +901,12 @@ export class CanvasChart implements ChartInstance {
   // ---- Internal: Render Loop ----
 
   private _renderLoop = (): void => {
+    if (this._destroyed) return;
     if (this._needsRender) {
       this._needsRender = false;
       this._render();
     }
+    if (this._destroyed) return;
     this._rafId = requestAnimationFrame(this._renderLoop);
   };
 
