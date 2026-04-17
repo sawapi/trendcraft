@@ -2,7 +2,7 @@
 
 A conceptual walkthrough of `@trendcraft/chart`. If you just want to get pixels on screen, the README's Quick Start is the place to start. This guide is for when you need to understand _why_ the chart behaves the way it does, or you're reaching for a less-common feature.
 
-![NVDA daily with Bollinger Bands, SMA 20, RSI, and MACD](./assets/hero.png)
+![NVDA daily with a 5/20/60 SMA ribbon, RSI, and MACD](./assets/hero-candle.png)
 
 ## Table of Contents
 
@@ -138,7 +138,7 @@ chart.addIndicator(mySecondarySeries, { pane: 'main', scaleId: 'left' });
 
 ## Auto-detection from `__meta`
 
-![Five indicators auto-placed from their metadata](./assets/auto-detection.png)
+![Five indicators auto-placed from their metadata — SMA, Bollinger Bands, RSI, Stochastics, MACD](./assets/auto-detection.png)
 
 When you pass an indicator series to `addIndicator()`, the chart does two things:
 

@@ -2,7 +2,7 @@
 
 Finance-specialized charting library with native [TrendCraft](https://github.com/sawapi/trendcraft) integration. Pass indicator data, get a chart — no manual series decomposition needed.
 
-![NVDA daily with Bollinger Bands, SMA 20, RSI, and MACD — all rendered from a single chart.addIndicator call per indicator](./docs/assets/hero.png)
+![NVDA daily with a 5/20/60 SMA ribbon, RSI, and MACD — rendered with one chart.addIndicator call per indicator](./docs/assets/hero.png)
 
 ## Documentation
 
@@ -52,7 +52,7 @@ chart.addIndicator(macd(candles));                      // subchart, histogram +
 
 No `pane`, `color`, `yRange`, or `label` config needed — the library reads `__meta` from TrendCraft's 130+ indicators.
 
-![Five indicators auto-placed from their own metadata: SMA, Bollinger Bands, Ichimoku on the price pane; RSI and MACD in sub-panes](./docs/assets/auto-detection.png)
+![Five indicators auto-placed from their own metadata: SMA and Bollinger Bands on the price pane; RSI, Stochastics, and MACD in sub-panes](./docs/assets/auto-detection.png)
 
 ### Chart Types
 
