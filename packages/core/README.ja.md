@@ -119,6 +119,17 @@
 - 複数ラグでのクロス相関によるリードラグ分析
 - zスコア有意性によるインターマーケット・ダイバージェンス検出
 
+### ライブストリーミングパイプライン
+- `createLiveCandle()` — ティック/ローソク足アグリゲーターとインクリメンタル指標を統合
+- 160+ のインクリメンタル指標ファクトリでバーごとに更新
+- イベント駆動API（`tick`, `candleComplete`）でライブフィードに対応
+- state の保存/復元でセッション再開が可能
+
+### チャート統合メタデータ
+- `tagSeries()` / `SeriesMeta` — インジケーター出力にドメインメタデータ（ペイン配置、Y軸レンジ、参照線）を付与
+- `livePresets` / `indicatorPresets` — [`@trendcraft/chart`](../chart) が消費するゼロコンフィグ指標レジストリ
+- チャートライブラリなしでも動作する設計 — メタデータはオプトインで非列挙プロパティ
+
 ## TA-Lib クロスバリデーション
 
 36個のインジケーターを [TA-Lib](https://ta-lib.org/)（Python ta-lib 0.6.8）と照合検証しています。4つのマーケットフェーズ（上昇トレンド → 高ボラティリティ → レンジ → 下降トレンド）をカバーする200本の合成OHLCVデータを使用。テストコードとフィクスチャは `cross-validation/` ディレクトリにあります。
@@ -575,6 +586,78 @@ const analysis = analyzeCorrelation(
 console.log(`Current regime: ${analysis.summary.currentRegime}`);
 console.log(`Lead-lag: ${analysis.leadLag.assessment}`);
 console.log(`Divergences: ${analysis.divergences.length}`);
+```
+
+### `createLiveCandle` によるライブストリーミング
+
+```typescript
+import { createLiveCandle, incremental } from 'trendcraft';
+
+const live = createLiveCandle({
+  intervalMs: 60_000,
+  indicators: [
+    { name: 'sma20', create: (s) => incremental.createSma({ period: 20 }, { fromState: s }) },
+    { name: 'rsi14', create: (s) => incremental.createRsi({ period: 14 }, { fromState: s }) },
+  ],
+  history: historicalCandles,
+});
+
+live.on('candleComplete', ({ candle, snapshot }) => {
+  console.log('終値:', candle.close, 'SMA20:', snapshot.sma20, 'RSI14:', snapshot.rsi14);
+});
+
+// ティックモード — WebSocket からトレードを流し込む
+ws.on('trade', (t) => live.addTick(t));
+
+// またはローソク足モード — 形成済みのバーを流し込む
+live.addCandle(bar);
+```
+
+`livePresets` と `indicatorPresets` は、これらのファクトリの 76 / 95 個をメタデータとバンドルしたレジストリで、チャートライブラリからゼロコンフィグで登録できます:
+
+```typescript
+import { livePresets, indicatorPresets } from 'trendcraft';
+
+const sma = livePresets.sma;  // { meta, defaultParams, snapshotName, createFactory }
+const rsi = indicatorPresets.rsi; // 静的モード用の .compute() も持つ
+```
+
+### チャート統合メタデータ
+
+組み込みインジケーターの出力はすべて、描画方法（ペイン、Y軸レンジ、参照線）を示す非列挙の `__meta` プロパティを持ちます。[`@trendcraft/chart`](../chart) はこれを読むことで、明示的な設定なしで正しいペインにインジケーターを自動配置します。
+
+```typescript
+import { tagSeries, rsi } from 'trendcraft';
+
+const r = rsi(candles, { period: 14 });
+r.__meta; // { label: 'RSI', overlay: false, yRange: [0, 100], referenceLines: [30, 70] }
+
+// カスタム Series にメタデータを付与
+const my = tagSeries(myData, {
+  label: 'Custom Score',
+  overlay: false,
+  yRange: [0, 1],
+  referenceLines: [0.5],
+});
+```
+
+チャートライブラリと組み合わせる:
+
+```typescript
+import { indicatorPresets, rsi, sma, bollingerBands } from 'trendcraft';
+import { createChart, connectIndicators } from '@trendcraft/chart';
+
+const chart = createChart(container, { theme: 'dark' });
+chart.setCandles(candles);
+
+// Option 1 — インジケーター出力を直接渡す（__meta を利用）
+chart.addIndicator(rsi(candles));
+chart.addIndicator(bollingerBands(candles));
+
+// Option 2 — presets 経由で接続（バックフィル + オプションのライブストリーミング対応）
+const conn = connectIndicators(chart, { presets: indicatorPresets, candles });
+conn.add('rsi');
+conn.add('sma', { period: 20 });
 ```
 
 ## CLIツール
