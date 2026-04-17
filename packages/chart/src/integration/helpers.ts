@@ -97,7 +97,11 @@ export function buildSeriesConfig(
     pane: overrides?.pane ?? (meta.overlay ? "main" : snapshotName),
     color: overrides?.color ?? chartPreset?.color,
     lineWidth: overrides?.lineWidth ?? chartPreset?.lineWidth,
-    label: overrides?.label ?? `${meta.label}(${params.period ?? ""})`.replace(/\(\)$/, ""),
+    // meta.label already carries any parameter suffix (e.g. "SMA(20)") because
+    // trendcraft's indicators emit a fully-formed label via withLabelParams.
+    // Use it directly; fall back to the legacy (period)-wrap only when meta
+    // was produced by older callers that didn't include the period.
+    label: overrides?.label ?? meta.label,
     yRange: overrides?.yRange ?? meta.yRange,
     referenceLines: overrides?.referenceLines ?? meta.referenceLines,
     type: overrides?.type,
