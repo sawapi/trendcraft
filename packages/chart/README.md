@@ -2,6 +2,17 @@
 
 Finance-specialized charting library with native [TrendCraft](https://github.com/sawapi/trendcraft) integration. Pass indicator data, get a chart — no manual series decomposition needed.
 
+## Documentation
+
+| Doc | Use it when |
+|---|---|
+| [GUIDE](./docs/GUIDE.md) | You want the mental model — data model, coordinate system, render loop, theming, viewport, SSR, accessibility |
+| [API](./docs/API.md) | You need the full reference — every option, method, type, event |
+| [PLUGINS](./docs/PLUGINS.md) | You're writing a custom series renderer or pane primitive |
+| [LIVE](./docs/LIVE.md) | You're wiring a real-time feed — WebSocket → `createLiveCandle` → chart |
+
+The rest of this README is a guided tour of the most common features. Reach for the docs above when you need depth.
+
 ## Install
 
 ```bash
