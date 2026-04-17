@@ -2,19 +2,16 @@
  * Live Indicator Presets
  *
  * Bundles incremental indicator factories with their domain metadata.
- * Used by chart's `connectLiveFeed` for zero-config indicator registration.
+ * Any consumer that wants to register indicators by string id (UIs, screeners,
+ * renderers, etc.) can read this registry without further configuration.
  *
  * @example
  * ```ts
- * import { livePresets, streaming } from "trendcraft";
- * import { connectLiveFeed } from "@trendcraft/chart";
+ * import { livePresets } from "trendcraft";
  *
- * const conn = connectLiveFeed(chart, live, {
- *   presets: livePresets,
- *   history: candles,
- * });
- * conn.addIndicator("rsi");             // zero config
- * conn.addIndicator("sma", { period: 50 }); // custom params
+ * const preset = livePresets.sma;
+ * const factory = preset.createFactory({ period: 50 });
+ * const indicator = factory(undefined); // no prior state
  * ```
  */
 
@@ -184,7 +181,8 @@ import type { LiveIndicatorFactory } from "./types";
 
 /**
  * A live indicator preset: factory + metadata + defaults.
- * Consumed by chart's connectLiveFeed for zero-config indicator management.
+ * Any registry consumer can instantiate an incremental indicator from an
+ * entry without knowing the underlying factory signatures.
  */
 export type LivePreset = {
   /** Domain metadata (label, overlay, yRange, referenceLines) */

@@ -7,15 +7,14 @@
  * @example
  * ```ts
  * import { indicatorPresets } from "trendcraft";
- * import { connectIndicators } from "@trendcraft/chart";
  *
- * // Static mode
- * const conn = connectIndicators(chart, { presets: indicatorPresets, candles });
- * conn.add("rsi");
+ * const rsi = indicatorPresets.rsi;
  *
- * // Live mode
- * const conn = connectIndicators(chart, { presets: indicatorPresets, candles, live: source });
- * conn.add("rsi");
+ * // Static mode — one-shot batch computation
+ * const series = rsi.compute(candles, { period: 14 });
+ *
+ * // Streaming mode — build an incremental indicator from the same entry
+ * const factory = rsi.createFactory({ period: 14 });
  * ```
  */
 

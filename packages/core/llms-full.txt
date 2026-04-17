@@ -1420,9 +1420,9 @@ const restored = createLiveCandle(options, state);
 
 Events: `tick`, `candleComplete`. Types: `LiveCandle`, `LiveCandleOptions`, `LiveCandleState`, `IndicatorSnapshot`, `LiveIndicatorFactory`, `Trade`.
 
-## Chart Integration (SeriesMeta / tagSeries / livePresets / indicatorPresets)
+## Series Metadata & Indicator Registries (SeriesMeta / tagSeries / livePresets / indicatorPresets)
 
-Every built-in indicator output carries a non-enumerable `__meta` describing how to render it. `@trendcraft/chart` reads this for zero-config pane placement; chart-agnostic code can simply ignore it.
+Every built-in indicator output carries a non-enumerable `__meta` describing domain characteristics (label, overlay vs sub-pane, Y-range, reference lines). Any consumer may read the metadata; consumers that don't care can ignore it.
 
 ```typescript
 import { tagSeries, rsi, type SeriesMeta } from 'trendcraft';
@@ -1444,14 +1444,14 @@ const my = tagSeries(myData, {
 
 ### livePresets (76 entries)
 
-Registry of incremental indicator presets for zero-config live streaming.
+Registry of incremental indicator presets. Each entry bundles a metadata object, default params, a snapshot-name derivation, and a factory that produces an incremental indicator from those params.
 
 ```typescript
 import { livePresets } from 'trendcraft';
-import { connectLiveFeed } from '@trendcraft/chart';
 
-// Chart reads the registry and registers indicators by string id
-connectLiveFeed(chart, live, { presets: livePresets, history: candles });
+const preset = livePresets.sma;
+const factory = preset.createFactory({ period: 50 });
+const indicator = factory(undefined); // no prior state
 ```
 
 Each preset: `{ meta: SeriesMeta, defaultParams, snapshotName: (p) => string, createFactory: (p) => LiveIndicatorFactory }`.
@@ -1462,16 +1462,17 @@ Extends `livePresets` with a batch `compute` function, giving one registry that 
 
 ```typescript
 import { indicatorPresets } from 'trendcraft';
-import { connectIndicators } from '@trendcraft/chart';
 
-// Static
-connectIndicators(chart, { presets: indicatorPresets, candles }).add('rsi');
+const preset = indicatorPresets.rsi;
 
-// Live (same registry, automatic back-fill + streaming updates)
-connectIndicators(chart, { presets: indicatorPresets, candles, live }).add('rsi');
+// Static — one-shot batch computation
+const series = preset.compute(candles, { period: 14 });
+
+// Streaming — build an incremental indicator from the same registry entry
+const factory = preset.createFactory({ period: 14 });
 ```
 
-Additional per-entry fields: `compute(candles, params) -> Series<T>`, `category` (UI grouping), `paramSchema` (for UI form generation).
+Additional per-entry fields: `compute(candles, params) -> Series<T>`, `category` (grouping hint), `paramSchema` (for form/UI generation).
 
 ## Result Type
 

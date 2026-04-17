@@ -103,7 +103,7 @@
   - [シリアライズ / パース](#serializestrategystrategy--parsestratejson)
   - [ハイドレーション / ロード](#hydrateconditionspec-registry--loadstrategyjson-registry)
   - [バリデーション](#validateconditionspecspec-registry--validatestrategyjsonjson)
-- [チャート統合 & ライブインジケーター](#チャート統合--ライブインジケーター)
+- [ライブストリーミング & シリーズメタデータ](#ライブストリーミング--シリーズメタデータ)
   - [createLiveCandle](#createlivecandleoptions-fromstate)
   - [livePresets](#livepresets)
   - [indicatorPresets](#indicatorpresets)
@@ -5539,9 +5539,9 @@ Spearman順位相関係数。
 
 ---
 
-## チャート統合 & ライブインジケーター
+## ライブストリーミング & シリーズメタデータ
 
-[`@trendcraft/chart`](https://www.npmjs.com/package/@trendcraft/chart)（および任意のカスタムチャートコード）が、TrendCraft の出力を手動配線ゼロで消費できるようにする API 群です。すべてオプトインで、これらのシンボルを使わなくてもライブラリは完全に動作します。
+リアルタイムのローソク足 / 指標処理、およびインジケーター出力にドメインメタデータを付与するためのインフラ API 群です。すべてオプトインで、これらのシンボルを使わなくてもライブラリは完全に動作します。
 
 ### `createLiveCandle(options, fromState?)`
 
@@ -5598,7 +5598,7 @@ live.addCandle(partialCandle, { partial: true });
 
 ### `livePresets`
 
-76 個のインクリメンタル指標プリセット（factory + メタデータ + デフォルトパラメータ + snapshot-name 規約）のレジストリ。チャートライブラリ（`@trendcraft/chart` の `connectLiveFeed` / `connectIndicators`）からの利用を想定しています。
+76 個のインクリメンタル指標プリセット（factory + メタデータ + デフォルトパラメータ + snapshot-name 規約）のレジストリ。文字列 ID で指標をゼロコンフィグに登録したい任意の利用者（UI フォーム、レンダラー、スクリーナー等）から利用できます。
 
 ```typescript
 import { livePresets } from "trendcraft";
@@ -5611,8 +5611,9 @@ const sma = livePresets.sma;
 //   createFactory: (params) => (fromState) => IncrementalIndicator,
 // }
 
-// 典型的な利用 — チャートにレジストリ全体を渡す
-connectLiveFeed(chart, live, { presets: livePresets, history: candles });
+// レジストリから指標をインスタンス化
+const factory = sma.createFactory({ period: 50 });
+const indicator = factory(undefined); // 既存 state なし
 ```
 
 **エントリー形式 (`LivePreset`):**
@@ -5630,16 +5631,14 @@ connectLiveFeed(chart, live, { presets: livePresets, history: candles });
 
 ```typescript
 import { indicatorPresets } from "trendcraft";
-import { connectIndicators } from "@trendcraft/chart";
+
+const rsi = indicatorPresets.rsi;
 
 // 静的モード — 一括計算
-const conn1 = connectIndicators(chart, { presets: indicatorPresets, candles });
-conn1.add("rsi");
+const series = rsi.compute(candles, { period: 14 });
 
-// ライブモード — 同じレジストリで自動バックフィル + ストリーミング更新
-const conn2 = connectIndicators(chart, { presets: indicatorPresets, candles, live });
-conn2.add("rsi");
-conn2.add("bollingerBands", { period: 20 });
+// ストリーミングモード — 同じレジストリから createFactory でインクリメンタル指標を生成
+const factory = rsi.createFactory({ period: 14 });
 ```
 
 **エントリー形式 (`IndicatorPreset extends LivePreset`):**
@@ -5653,7 +5652,7 @@ conn2.add("bollingerBands", { period: 20 });
 
 ### `tagSeries` / `SeriesMeta`
 
-任意の `Series<T>` に非列挙の `__meta` プロパティを付与して描画メタデータを載せます。組み込み指標はすべて既に tag 済み。自作指標でも `@trendcraft/chart` にペイン配置を自動判別してほしい場合に `tagSeries` を使います。
+任意の `Series<T>` に非列挙の `__meta` プロパティを付与してドメインメタデータを載せます。組み込み指標はすべて既に tag 済み。自作指標でも下流の利用者（レンダラー、UI ジェネレーター等）に同じ規約で解釈させたい場合に `tagSeries` を使います。
 
 ```typescript
 import { tagSeries, rsi, type SeriesMeta } from "trendcraft";
@@ -5684,7 +5683,7 @@ const myCustom = tagSeries(myData, {
 | `yRange` | `[min, max]?` | Y 軸の固定レンジ（オシレーターなら例えば `[0, 100]`）。 |
 | `referenceLines` | `number[]?` | 水平参照線の値（RSI なら `[30, 70]` など）。 |
 
-チャート側は `overlay` をペイン配置に翻訳します。チャートに依存しないコードは単にメタデータを無視できます。
+レンダラーは `overlay` をペイン配置に、`yRange` を軸設定に翻訳できます。描画を行わない利用者はメタデータを無視できます。
 
 ---
 

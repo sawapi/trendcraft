@@ -51,7 +51,9 @@ export type Series<T> = IndicatorValue<T>[];
 
 /**
  * Metadata describing indicator characteristics.
- * Used by @trendcraft/chart for automatic pane placement and display options.
+ * Attached to indicator output via a non-enumerable `__meta` property;
+ * readable by any renderer or UI that wants conventions for pane placement,
+ * axis range, and reference lines.
  */
 export type SeriesMeta = {
   /** Whether this indicator shares the price scale (true) or needs its own scale (false) */

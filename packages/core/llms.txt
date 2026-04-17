@@ -532,14 +532,14 @@ live.addTick({ time: Date.now(), price: 150.25, volume: 100 }); // tick mode
 live.addCandle(bar);                                             // candle mode
 ```
 
-### Chart Integration Metadata (SeriesMeta, tagSeries, livePresets, indicatorPresets)
-All built-in indicators tag their output with `__meta` (`SeriesMeta`) describing pane placement, Y-range, and reference lines. Used by `@trendcraft/chart` for zero-config auto-rendering.
+### Series Metadata & Indicator Registries (SeriesMeta, tagSeries, livePresets, indicatorPresets)
+All built-in indicators tag their output with `__meta` (`SeriesMeta`) describing label, whether the series shares the price scale, Y-range, and reference lines. Any consumer may read the metadata; consumers that don't care can ignore it.
 ```typescript
 import { tagSeries, rsi, livePresets, indicatorPresets } from 'trendcraft';
 
 rsi(candles).__meta; // { label: 'RSI', overlay: false, yRange: [0, 100], referenceLines: [30, 70] }
 
-// livePresets: 76 incremental indicator presets for live/streaming chart registration
+// livePresets: 76 incremental indicator presets (factory + metadata + default params + snapshot-name)
 // indicatorPresets: 95 unified presets with both batch compute and incremental createFactory
 const sma = livePresets.sma;          // { meta, defaultParams, snapshotName, createFactory }
 const rsiP = indicatorPresets.rsi;    // adds .compute(candles, params) for static mode

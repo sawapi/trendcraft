@@ -107,7 +107,7 @@
   - [Serialize / Parse](#serializestrategystrategy--parsestratejson)
   - [Hydrate / Load](#hydrateconditionspec-registry--loadstrategyjson-registry)
   - [Validate](#validateconditionspecspec-registry--validatestrategyjsonjson)
-- [Chart Integration & Live Indicators](#chart-integration--live-indicators)
+- [Live Streaming & Series Metadata](#live-streaming--series-metadata)
   - [createLiveCandle](#createlivecandleoptions-fromstate)
   - [livePresets](#livepresets)
   - [indicatorPresets](#indicatorpresets)
@@ -6115,9 +6115,9 @@ Detect intermarket divergences where one asset moves up while a correlated asset
 
 ---
 
-## Chart Integration & Live Indicators
+## Live Streaming & Series Metadata
 
-APIs that let [`@trendcraft/chart`](https://www.npmjs.com/package/@trendcraft/chart) (and any custom chart code) consume TrendCraft output with zero manual wiring. All symbols are optional — the library works end-to-end without touching them.
+Infrastructure for real-time candle/indicator processing and for attaching domain metadata to indicator output. All symbols are optional — the library works end-to-end without touching them.
 
 ### `createLiveCandle(options, fromState?)`
 
@@ -6174,7 +6174,7 @@ live.addCandle(partialCandle, { partial: true });
 
 ### `livePresets`
 
-A registry of 76 incremental indicator presets bundling factory + metadata + default params + snapshot-name convention. Intended for consumption by chart libraries (`@trendcraft/chart`'s `connectLiveFeed` / `connectIndicators`).
+A registry of 76 incremental indicator presets bundling factory + metadata + default params + snapshot-name convention. Usable by any consumer that wants to register indicators by string id with zero config (UI forms, renderers, screeners, etc.).
 
 ```typescript
 import { livePresets } from "trendcraft";
@@ -6187,8 +6187,9 @@ const sma = livePresets.sma;
 //   createFactory: (params) => (fromState) => IncrementalIndicator,
 // }
 
-// Typical usage — pass the whole registry to a chart
-connectLiveFeed(chart, live, { presets: livePresets, history: candles });
+// Instantiate an indicator from the registry
+const factory = sma.createFactory({ period: 50 });
+const rsiIndicator = factory(undefined); // no prior state
 ```
 
 **Entry shape (`LivePreset`):**
@@ -6206,16 +6207,14 @@ Extends `livePresets` with batch `compute(candles, params)` functions, giving a 
 
 ```typescript
 import { indicatorPresets } from "trendcraft";
-import { connectIndicators } from "@trendcraft/chart";
+
+const rsi = indicatorPresets.rsi;
 
 // Static mode — one-shot computation
-const conn1 = connectIndicators(chart, { presets: indicatorPresets, candles });
-conn1.add("rsi");
+const series = rsi.compute(candles, { period: 14 });
 
-// Live mode — same registry, automatic back-fill + streaming updates
-const conn2 = connectIndicators(chart, { presets: indicatorPresets, candles, live });
-conn2.add("rsi");
-conn2.add("bollingerBands", { period: 20 });
+// Streaming mode — use createFactory for incremental updates
+const factory = rsi.createFactory({ period: 14 });
 ```
 
 **Entry shape (`IndicatorPreset` extends `LivePreset`):**
@@ -6229,7 +6228,7 @@ conn2.add("bollingerBands", { period: 20 });
 
 ### `tagSeries` / `SeriesMeta`
 
-Attach rendering metadata to any `Series<T>` via a non-enumerable `__meta` property. Every built-in indicator already tags its output; use `tagSeries` for your own indicators if you want `@trendcraft/chart` to auto-detect pane placement.
+Attach domain metadata to any `Series<T>` via a non-enumerable `__meta` property. Every built-in indicator already tags its output. Use `tagSeries` on your own indicators if you want downstream consumers (renderers, UI generators, etc.) to pick up the same conventions.
 
 ```typescript
 import { tagSeries, rsi, type SeriesMeta } from "trendcraft";
@@ -6260,7 +6259,7 @@ const myCustom = tagSeries(myData, {
 | `yRange` | `[min, max]?` | Fixed Y-axis range (e.g. `[0, 100]` for oscillators). |
 | `referenceLines` | `number[]?` | Horizontal reference line values (e.g. `[30, 70]` for RSI). |
 
-Chart consumers translate `overlay` to pane placement; chart-agnostic consumers can simply ignore the metadata.
+A renderer may translate `overlay` to pane placement and `yRange` to an axis config; non-rendering consumers can ignore the metadata entirely.
 
 ---
 

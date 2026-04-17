@@ -2,17 +2,17 @@
 
 ## Unreleased
 
-Target: **v0.2.0** — additive-only minor bump introducing the APIs that back `@trendcraft/chart`'s indicator integration and live-streaming pipeline.
+Target: **v0.2.0** — additive-only minor bump introducing live-streaming, indicator-registry, and series-metadata APIs.
 
 ### Added — Live Streaming
 
 - `createLiveCandle(options, fromState?)` — unified tick/candle aggregator with dynamically registered incremental indicators and an event bus (`tick`, `candleComplete`). Supports both tick mode (`addTick`) and candle mode (`addCandle`), with state save/restore for resumable sessions.
 - `livePresets` — registry of 76 incremental indicator presets (factory + metadata + default params + snapshot-name) for zero-config registration in live mode.
-- `indicatorPresets` — unified registry of 95 indicator presets with both batch `compute` and incremental `createFactory`, usable from both static and streaming chart flows.
+- `indicatorPresets` — unified registry of 95 indicator presets with both batch `compute` and incremental `createFactory`, usable from both static and streaming flows.
 
-### Added — Chart Integration Metadata
+### Added — Series Metadata
 
-- `SeriesMeta` type and `tagSeries(series, meta)` helper — attach domain metadata (`label`, `overlay`, `yRange`, `referenceLines`, `channelColors`) to indicator output via a non-enumerable `__meta` property. Consumed by `@trendcraft/chart` for zero-config pane placement and rendering.
+- `SeriesMeta` type and `tagSeries(series, meta)` helper — attach domain metadata (`label`, `overlay`, `yRange`, `referenceLines`) to indicator output via a non-enumerable `__meta` property. Any renderer or UI can read it; indicator consumers that do not care can ignore it.
 - `indicator-meta` constants — shared single-source-of-truth metadata used by 42+ batch indicators (SMA, EMA, RSI, MACD, BB, Ichimoku, etc.).
 
 ### Added — Incremental Indicators (+73 exports)

@@ -125,10 +125,10 @@
 - イベント駆動API（`tick`, `candleComplete`）でライブフィードに対応
 - state の保存/復元でセッション再開が可能
 
-### チャート統合メタデータ
-- `tagSeries()` / `SeriesMeta` — インジケーター出力にドメインメタデータ（ペイン配置、Y軸レンジ、参照線）を付与
-- `livePresets` / `indicatorPresets` — [`@trendcraft/chart`](../chart) が消費するゼロコンフィグ指標レジストリ
-- チャートライブラリなしでも動作する設計 — メタデータはオプトインで非列挙プロパティ
+### シリーズメタデータ
+- `tagSeries()` / `SeriesMeta` — インジケーター出力に非列挙の `__meta` プロパティでドメインメタデータ（ラベル、overlay、Y軸レンジ、参照線）を付与
+- `livePresets` / `indicatorPresets` — メタデータ・デフォルトパラメータ・ファクトリ/compute のペアを束ねたインジケーターレジストリ。UI・スクリーナー・レンダラー等へのゼロコンフィグ配線に利用可能
+- 完全にオプトイン: メタデータを使わない利用者は単に無視できる
 
 ## TA-Lib クロスバリデーション
 
@@ -613,7 +613,7 @@ ws.on('trade', (t) => live.addTick(t));
 live.addCandle(bar);
 ```
 
-`livePresets` と `indicatorPresets` は、これらのファクトリの 76 / 95 個をメタデータとバンドルしたレジストリで、チャートライブラリからゼロコンフィグで登録できます:
+`livePresets` と `indicatorPresets` は、これらのファクトリの 76 / 95 個をメタデータとバンドルしたレジストリで、任意の利用者（UI・スクリーナー・レンダラーなど）がゼロコンフィグで指標を登録できます:
 
 ```typescript
 import { livePresets, indicatorPresets } from 'trendcraft';
@@ -622,9 +622,9 @@ const sma = livePresets.sma;  // { meta, defaultParams, snapshotName, createFact
 const rsi = indicatorPresets.rsi; // 静的モード用の .compute() も持つ
 ```
 
-### チャート統合メタデータ
+### シリーズメタデータ
 
-組み込みインジケーターの出力はすべて、描画方法（ペイン、Y軸レンジ、参照線）を示す非列挙の `__meta` プロパティを持ちます。[`@trendcraft/chart`](../chart) はこれを読むことで、明示的な設定なしで正しいペインにインジケーターを自動配置します。
+組み込みインジケーターの出力はすべて、ドメイン特性（ラベル、価格スケールを共有するか、固定 Y 軸レンジ、参照線）を示す非列挙の `__meta` プロパティを持ちます。データとしてのプレーンなオブジェクトなので、利用者は必要なら読めばよく、不要なら無視すれば済みます。
 
 ```typescript
 import { tagSeries, rsi } from 'trendcraft';
@@ -632,32 +632,13 @@ import { tagSeries, rsi } from 'trendcraft';
 const r = rsi(candles, { period: 14 });
 r.__meta; // { label: 'RSI', overlay: false, yRange: [0, 100], referenceLines: [30, 70] }
 
-// カスタム Series にメタデータを付与
+// 自作 Series に同じ形式でメタデータを付与
 const my = tagSeries(myData, {
   label: 'Custom Score',
   overlay: false,
   yRange: [0, 1],
   referenceLines: [0.5],
 });
-```
-
-チャートライブラリと組み合わせる:
-
-```typescript
-import { indicatorPresets, rsi, sma, bollingerBands } from 'trendcraft';
-import { createChart, connectIndicators } from '@trendcraft/chart';
-
-const chart = createChart(container, { theme: 'dark' });
-chart.setCandles(candles);
-
-// Option 1 — インジケーター出力を直接渡す（__meta を利用）
-chart.addIndicator(rsi(candles));
-chart.addIndicator(bollingerBands(candles));
-
-// Option 2 — presets 経由で接続（バックフィル + オプションのライブストリーミング対応）
-const conn = connectIndicators(chart, { presets: indicatorPresets, candles });
-conn.add('rsi');
-conn.add('sma', { period: 20 });
 ```
 
 ## CLIツール
