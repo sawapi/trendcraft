@@ -2,6 +2,8 @@
 
 Finance-specialized charting library with native [TrendCraft](https://github.com/sawapi/trendcraft) integration. Pass indicator data, get a chart — no manual series decomposition needed.
 
+![NVDA daily with Bollinger Bands, SMA 20, RSI, and MACD — all rendered from a single chart.addIndicator call per indicator](./docs/assets/hero.png)
+
 ## Documentation
 
 | Doc | Use it when |
@@ -50,6 +52,8 @@ chart.addIndicator(macd(candles));                      // subchart, histogram +
 
 No `pane`, `color`, `yRange`, or `label` config needed — the library reads `__meta` from TrendCraft's 130+ indicators.
 
+![Five indicators auto-placed from their own metadata: SMA, Bollinger Bands, Ichimoku on the price pane; RSI and MACD in sub-panes](./docs/assets/auto-detection.png)
+
 ### Chart Types
 
 Switch between different price rendering styles:
@@ -67,6 +71,8 @@ chart.setChartType('line');
 | `line` | Close price line |
 | `mountain` | Close price with gradient fill |
 | `ohlc` | Traditional OHLC bars |
+
+![The same NVDA series rendered in four chart types side by side](./docs/assets/chart-types.png)
 
 ### Without TrendCraft
 
@@ -347,6 +353,8 @@ chart.addBacktest(result);
 // → Summary bar (Return, Win%, Sharpe, MaxDD, PF, Trades)
 ```
 
+![Backtest output on NVDA: trade entry/exit markers on the price pane with an equity curve sub-pane and summary bar](./docs/assets/backtest.png)
+
 ## Pattern Visualization
 
 ```typescript
@@ -381,6 +389,8 @@ chart.on('visibleRangeChange', (data) => { /* { startTime, endTime } */ });
 ## Plugin System
 
 Extend the chart with custom renderers and pane-level overlays.
+
+![HMM regime heatmap plugin painting background bands across the price pane based on detected market regime](./docs/assets/plugin-regime.png)
 
 ### Custom Series Renderer
 
