@@ -8,6 +8,16 @@ Finance-specialized charting library with native [TrendCraft](https://github.com
 npm install @trendcraft/chart trendcraft
 ```
 
+**Peer dependencies (all optional):**
+
+| Peer | Required version | When needed |
+|---|---|---|
+| `trendcraft` | `>=0.2.0` | For indicator auto-detection, `connectIndicators`, `connectLiveFeed`. Chart works without it on plain `{ time, value }[]` data. |
+| `react` | `>=19.0.0` | Only when importing from `@trendcraft/chart/react`. |
+| `vue` | `>=3.3.0` | Only when importing from `@trendcraft/chart/vue`. |
+
+> The chart's TrendCraft integration relies on `livePresets` / `indicatorPresets` / `createLiveCandle` added in `trendcraft@0.2.0`. Earlier core versions will compile but lose auto-pane-placement and the `connectIndicators` / `connectLiveFeed` presets.
+
 ## Quick Start
 
 ```typescript
