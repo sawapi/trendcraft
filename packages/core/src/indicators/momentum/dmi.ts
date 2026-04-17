@@ -4,7 +4,7 @@
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
-import { tagSeries } from "../../core/tag-series";
+import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { DMI_META } from "../indicator-meta";
 
@@ -165,7 +165,7 @@ export function dmi(
     });
   }
 
-  return tagSeries(result, DMI_META);
+  return tagSeries(result, withLabelParams(DMI_META, [period]));
 }
 
 /**

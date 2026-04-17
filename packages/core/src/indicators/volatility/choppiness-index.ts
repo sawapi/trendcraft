@@ -7,7 +7,7 @@
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
-import { tagSeries } from "../../core/tag-series";
+import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { CHOPPINESS_META } from "../indicator-meta";
 
@@ -105,5 +105,5 @@ export function choppinessIndex(
     result.push({ time: normalized[i].time, value: chopValue });
   }
 
-  return tagSeries(result, CHOPPINESS_META);
+  return tagSeries(result, withLabelParams(CHOPPINESS_META, [period]));
 }

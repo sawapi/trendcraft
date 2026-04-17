@@ -4,7 +4,7 @@
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
-import { tagSeries } from "../../core/tag-series";
+import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { MFI_META } from "../indicator-meta";
 
@@ -108,5 +108,5 @@ export function mfi(
     result.push({ time: normalized[i].time, value: mfiValue });
   }
 
-  return tagSeries(result, MFI_META);
+  return tagSeries(result, withLabelParams(MFI_META, [period]));
 }

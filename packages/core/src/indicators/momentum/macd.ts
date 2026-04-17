@@ -3,7 +3,7 @@
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
-import { tagSeries } from "../../core/tag-series";
+import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, MacdOptions, MacdValue, NormalizedCandle, Series } from "../../types";
 import { MACD_META } from "../indicator-meta";
 import { ema } from "../moving-average/ema";
@@ -82,7 +82,7 @@ export function macd(
     });
   }
 
-  return tagSeries(result, MACD_META);
+  return tagSeries(result, withLabelParams(MACD_META, [fastPeriod, slowPeriod, signalPeriod]));
 }
 
 /**

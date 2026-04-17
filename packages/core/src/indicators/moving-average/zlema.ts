@@ -6,8 +6,9 @@
  */
 
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
-import { tagSeries } from "../../core/tag-series";
+import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
+import { ZLEMA_META } from "../indicator-meta";
 
 /**
  * ZLEMA options
@@ -86,5 +87,5 @@ export function zlema(
     }
   }
 
-  return tagSeries(result, { overlay: true, label: "ZLEMA" });
+  return tagSeries(result, withLabelParams(ZLEMA_META, [period]));
 }

@@ -6,7 +6,7 @@
  */
 
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
-import { tagSeries } from "../../core/tag-series";
+import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 
 /**
@@ -100,5 +100,5 @@ export function historicalVolatility(
     result.push({ time: normalized[i].time, value: hv });
   }
 
-  return tagSeries(result, { overlay: false, label: "HV" });
+  return tagSeries(result, withLabelParams({ overlay: false, label: "HV" }, [period]));
 }

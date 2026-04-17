@@ -13,7 +13,7 @@
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
-import { tagSeries } from "../../core/tag-series";
+import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type {
   Candle,
   ChandelierExitOptions,
@@ -160,5 +160,5 @@ export function chandelierExit(
     prevShortExit = shortExit;
   }
 
-  return tagSeries(result, CHANDELIER_EXIT_META);
+  return tagSeries(result, withLabelParams(CHANDELIER_EXIT_META, [period, multiplier]));
 }

@@ -6,7 +6,7 @@
  */
 
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
-import { tagSeries } from "../../core/tag-series";
+import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 import { VWMA_META } from "../indicator-meta";
 
@@ -61,7 +61,7 @@ export function vwma(
   }
 
   if (normalized.length < period) {
-    return tagSeries(result, VWMA_META);
+    return tagSeries(result, withLabelParams(VWMA_META, [period]));
   }
 
   // Calculate initial window sums
@@ -94,5 +94,5 @@ export function vwma(
     });
   }
 
-  return tagSeries(result, VWMA_META);
+  return tagSeries(result, withLabelParams(VWMA_META, [period]));
 }

@@ -6,8 +6,9 @@
  */
 
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
-import { tagSeries } from "../../core/tag-series";
+import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
+import { DEMA_META } from "../indicator-meta";
 
 /**
  * DEMA options
@@ -100,5 +101,5 @@ export function dema(
     }
   }
 
-  return tagSeries(result, { overlay: true, label: "DEMA" });
+  return tagSeries(result, withLabelParams(DEMA_META, [period]));
 }

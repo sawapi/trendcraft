@@ -8,7 +8,7 @@
  */
 
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
-import { tagSeries } from "../../core/tag-series";
+import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 import { KAMA_META } from "../indicator-meta";
 
@@ -114,5 +114,5 @@ export function kama(
     result.push({ time: normalized[i].time, value: kamaValue });
   }
 
-  return tagSeries(result, KAMA_META);
+  return tagSeries(result, withLabelParams(KAMA_META, [period]));
 }

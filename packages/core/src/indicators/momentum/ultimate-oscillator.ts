@@ -6,7 +6,7 @@
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
-import { tagSeries } from "../../core/tag-series";
+import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 
 /**
@@ -113,10 +113,12 @@ export function ultimateOscillator(
     result.push({ time: normalized[i].time, value: uo });
   }
 
-  return tagSeries(result, {
-    overlay: false,
-    label: "UO",
-    yRange: [0, 100],
-    referenceLines: [30, 70],
-  });
+  return tagSeries(
+    result,
+    withLabelParams({ overlay: false, label: "UO", yRange: [0, 100], referenceLines: [30, 70] }, [
+      period1,
+      period2,
+      period3,
+    ]),
+  );
 }

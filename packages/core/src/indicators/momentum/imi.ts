@@ -6,7 +6,7 @@
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
-import { tagSeries } from "../../core/tag-series";
+import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { IMI_META } from "../indicator-meta";
 
@@ -88,5 +88,5 @@ export function imi(
     }
   }
 
-  return tagSeries(result, IMI_META);
+  return tagSeries(result, withLabelParams(IMI_META, [period]));
 }

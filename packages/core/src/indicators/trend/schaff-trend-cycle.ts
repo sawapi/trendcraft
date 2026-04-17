@@ -6,7 +6,7 @@
  */
 
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
-import { tagSeries } from "../../core/tag-series";
+import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 
 /**
@@ -138,10 +138,12 @@ export function schaffTrendCycle(
     });
   }
 
-  return tagSeries(result, {
-    overlay: false,
-    label: "STC",
-    yRange: [0, 100],
-    referenceLines: [25, 75],
-  });
+  return tagSeries(
+    result,
+    withLabelParams({ overlay: false, label: "STC", yRange: [0, 100], referenceLines: [25, 75] }, [
+      fastPeriod,
+      slowPeriod,
+      cyclePeriod,
+    ]),
+  );
 }

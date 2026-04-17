@@ -6,8 +6,9 @@
  */
 
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
-import { tagSeries } from "../../core/tag-series";
+import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
+import { ALMA_META } from "../indicator-meta";
 
 /**
  * ALMA options
@@ -86,5 +87,5 @@ export function alma(
     result.push({ time: normalized[i].time, value: almaValue });
   }
 
-  return tagSeries(result, { overlay: true, label: "ALMA" });
+  return tagSeries(result, withLabelParams(ALMA_META, [period]));
 }

@@ -6,7 +6,7 @@
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
-import { tagSeries } from "../../core/tag-series";
+import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { WILLIAMS_R_META } from "../indicator-meta";
 
@@ -106,5 +106,5 @@ export function williamsR(
     }
   }
 
-  return tagSeries(result, WILLIAMS_R_META);
+  return tagSeries(result, withLabelParams(WILLIAMS_R_META, [period]));
 }
