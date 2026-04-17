@@ -1,3 +1,4 @@
-# Screenshot/demo playground — not part of the published example set.
-# Used to capture images for docs/assets/. See docs/assets/README.md for details.
-examples/_screenshots/
+# Market data used by examples/docs-screenshots/ is not redistributed via git.
+# The scene code and capture tooling ARE committed; only the fetched JSON stays local.
+examples/docs-screenshots/data/*.json
+examples/docs-screenshots/node_modules/

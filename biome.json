@@ -38,7 +38,7 @@
       "node_modules",
       "*.config.ts",
       "packages/core/examples/alpaca-demo/data",
-      "packages/chart/examples/_screenshots"
+      "packages/chart/examples/docs-screenshots/data"
     ]
   },
   "overrides": [
