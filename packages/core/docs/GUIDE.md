@@ -32,6 +32,7 @@ A practical guide to understanding technical indicators and trading signals.
 - [Volatility Regime](#volatility-regime)
 - [Strategy Optimization](#strategy-optimization)
 - [Scaled Entry Strategies](#scaled-entry-strategies)
+- [Real-Time Streaming](#real-time-streaming)
 
 ---
 
@@ -2205,6 +2206,95 @@ const result2 = runBacktestScaled(candles, goldenCross(), deadCross(), {
 - **Price-based intervals** work well in volatile markets
 - **Signal-based intervals** work well for trend-following strategies
 - Consider partial take-profit to lock in gains as position builds
+
+---
+
+## Real-Time Streaming
+
+Batch indicators (`sma(candles, ...)`, `rsi(candles, ...)`, etc.) recompute from scratch every call. For live data — WebSocket ticks, paper-trading bots, alert dashboards — use the **incremental indicators** and the **live candle pipeline** introduced in v0.2.0.
+
+### Incremental indicators
+
+Every incremental factory keeps O(1) internal state and updates bar-by-bar:
+
+```typescript
+import { incremental } from 'trendcraft';
+
+const rsi = incremental.createRsi({ period: 14 });
+rsi.next(candle);      // advance state, returns { time, value }
+rsi.peek(candle);      // preview without advancing (useful for forming bars)
+const snap = rsi.getState();  // serialize for persistence
+
+// Later: resume from the serialized state
+const resumed = incremental.createRsi({ period: 14 }, { fromState: snap });
+```
+
+v0.2.0 ships 160+ factories across moving-average, momentum, trend, volatility, volume, price, and Wyckoff categories.
+
+### `createLiveCandle` — one object for ticks, bars, and indicator snapshots
+
+Writing your own candle aggregator and wiring it to a dozen indicators by hand is tedious. `createLiveCandle` bundles both:
+
+```typescript
+import { createLiveCandle, incremental } from 'trendcraft';
+
+const live = createLiveCandle({
+  intervalMs: 60_000,
+  indicators: [
+    { name: 'sma20', create: (s) => incremental.createSma({ period: 20 }, { fromState: s }) },
+    { name: 'rsi14', create: (s) => incremental.createRsi({ period: 14 }, { fromState: s }) },
+  ],
+  history: historicalCandles,  // optional warm-up context
+});
+
+live.on('candleComplete', ({ candle, snapshot }) => {
+  console.log('Closed:', candle.close, 'SMA20:', snapshot.sma20, 'RSI14:', snapshot.rsi14);
+});
+
+// Tick mode — feed raw trades
+ws.on('trade', (t) => live.addTick(t));
+
+// Or candle mode — feed formed bars from a data vendor
+live.addCandle(bar);
+live.addCandle(formingBar, { partial: true });
+```
+
+Events:
+
+- `tick` fires on every ingested trade/bar with `{ candle, snapshot, isNewCandle }`
+- `candleComplete` fires when a bar closes with `{ candle, snapshot }`
+
+State is fully serializable via `live.getState()` so you can resume after a process restart.
+
+### Indicator registries (`livePresets`, `indicatorPresets`)
+
+If you're building something like an interactive dashboard or screener where users pick indicators by name, the preset registries save you from hard-coding a switch statement:
+
+```typescript
+import { livePresets, indicatorPresets } from 'trendcraft';
+
+// Instantiate by string id
+const smaFactory = livePresets.sma.createFactory({ period: 50 });
+const smaIndicator = smaFactory(undefined);
+
+// `indicatorPresets` adds a batch `compute` for one-shot static calculation
+const rsiSeries = indicatorPresets.rsi.compute(candles, { period: 14 });
+```
+
+`livePresets` ships 76 entries (streaming-focused); `indicatorPresets` ships 95 with both streaming and batch paths.
+
+### Series metadata (`SeriesMeta` / `tagSeries`)
+
+Every built-in indicator output carries a non-enumerable `__meta` with display conventions — label, whether it belongs on the price scale, Y-range, reference lines:
+
+```typescript
+import { rsi } from 'trendcraft';
+
+const r = rsi(candles, { period: 14 });
+r.__meta; // { label: 'RSI', overlay: false, yRange: [0, 100], referenceLines: [30, 70] }
+```
+
+Use `tagSeries` on your own indicators if you want the same conventions to flow downstream (into UIs, dashboards, renderers). Consumers that don't care about metadata can ignore it — the series is still a plain `{ time, value }[]`.
 
 ---
 

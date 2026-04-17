@@ -32,6 +32,7 @@
 - [ボラティリティレジーム](#ボラティリティレジーム)
 - [戦略最適化](#戦略最適化)
 - [分割エントリー戦略](#分割エントリー戦略)
+- [リアルタイムストリーミング](#リアルタイムストリーミング)
 
 ---
 
@@ -2192,6 +2193,95 @@ const result2 = runBacktestScaled(candles, goldenCross(), deadCross(), {
 - **価格ベースのインターバル**はボラタイルな相場で効果的
 - **シグナルベースのインターバル**はトレンドフォロー戦略で効果的
 - ポジションが構築されるにつれて利益を確保するために部分利確を検討
+
+---
+
+## リアルタイムストリーミング
+
+バッチ指標（`sma(candles, ...)`、`rsi(candles, ...)` など）は呼ぶたびに全体を再計算します。WebSocket ティック、ペーパートレード Bot、アラートダッシュボードなどのライブデータを扱うときは、v0.2.0 で導入した**インクリメンタル指標**と**ライブローソク足パイプライン**を使います。
+
+### インクリメンタル指標
+
+各インクリメンタルファクトリは O(1) の内部 state を保持し、バーごとに更新します:
+
+```typescript
+import { incremental } from 'trendcraft';
+
+const rsi = incremental.createRsi({ period: 14 });
+rsi.next(candle);      // state を進めて { time, value } を返す
+rsi.peek(candle);      // state を進めずにプレビュー（形成中バーに便利）
+const snap = rsi.getState();  // 永続化用にシリアライズ
+
+// あとから復元
+const resumed = incremental.createRsi({ period: 14 }, { fromState: snap });
+```
+
+v0.2.0 では moving-average / momentum / trend / volatility / volume / price / Wyckoff 等にわたり 160+ のファクトリを提供しています。
+
+### `createLiveCandle` — ティック・バー・指標スナップショットを1つにまとめる
+
+自前でローソク足アグリゲーターを書き、指標を手動で配線するのは面倒です。`createLiveCandle` は両方を束ねます:
+
+```typescript
+import { createLiveCandle, incremental } from 'trendcraft';
+
+const live = createLiveCandle({
+  intervalMs: 60_000,
+  indicators: [
+    { name: 'sma20', create: (s) => incremental.createSma({ period: 20 }, { fromState: s }) },
+    { name: 'rsi14', create: (s) => incremental.createRsi({ period: 14 }, { fromState: s }) },
+  ],
+  history: historicalCandles,  // 任意の warm-up コンテキスト
+});
+
+live.on('candleComplete', ({ candle, snapshot }) => {
+  console.log('終値:', candle.close, 'SMA20:', snapshot.sma20, 'RSI14:', snapshot.rsi14);
+});
+
+// ティックモード — 生のトレードを流し込む
+ws.on('trade', (t) => live.addTick(t));
+
+// またはローソク足モード — データベンダーから形成済みバーを流し込む
+live.addCandle(bar);
+live.addCandle(formingBar, { partial: true });
+```
+
+イベント:
+
+- `tick` はティック / バー取り込みごとに `{ candle, snapshot, isNewCandle }` で発火
+- `candleComplete` はバーが閉じたときに `{ candle, snapshot }` で発火
+
+`live.getState()` で state は完全にシリアライズ可能なので、プロセス再起動後も復元できます。
+
+### 指標レジストリ（`livePresets` / `indicatorPresets`）
+
+ユーザーが指標を名前で選ぶ対話的なダッシュボードやスクリーナーを作っている場合、プリセットレジストリを使えば switch 文のハードコードを省けます:
+
+```typescript
+import { livePresets, indicatorPresets } from 'trendcraft';
+
+// 文字列 ID でインスタンス化
+const smaFactory = livePresets.sma.createFactory({ period: 50 });
+const smaIndicator = smaFactory(undefined);
+
+// `indicatorPresets` は一括計算用の `compute` も持つ
+const rsiSeries = indicatorPresets.rsi.compute(candles, { period: 14 });
+```
+
+`livePresets` はストリーミング向け 76 エントリー、`indicatorPresets` はストリーミング + バッチ両対応の 95 エントリーです。
+
+### シリーズメタデータ（`SeriesMeta` / `tagSeries`）
+
+組み込み指標の出力はすべて、表示規約（ラベル、価格スケールに重ねるか、Y 軸レンジ、参照線）を示す非列挙の `__meta` を持ちます:
+
+```typescript
+import { rsi } from 'trendcraft';
+
+const r = rsi(candles, { period: 14 });
+r.__meta; // { label: 'RSI', overlay: false, yRange: [0, 100], referenceLines: [30, 70] }
+```
+
+自作指標にも同じ規約を下流（UI、ダッシュボード、レンダラー）に伝えたい場合に `tagSeries` を使います。メタデータを使わない利用者は無視すれば済みます — Series は相変わらず `{ time, value }[]` のプレーンな配列です。
 
 ---
 
