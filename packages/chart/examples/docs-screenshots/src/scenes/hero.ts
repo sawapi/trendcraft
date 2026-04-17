@@ -23,11 +23,11 @@ export function run(stage: HTMLElement, candles: CandleData[]): void {
   chart.setCandles(candles);
 
   const conn = connectIndicators(chart, { presets: indicatorPresets, candles });
-  // Override SMA colors per instance — the registered TrendCraft preset assigns
-  // all SMAs the same blue, so we force a ribbon palette here.
-  conn.add("sma", { period: 5, series: { color: "#EF5350" } });
-  conn.add("sma", { period: 20, series: { color: "#FFC107" } });
-  conn.add("sma", { period: 60, series: { color: "#9C27B0" } });
+  // Core v0.2.0+ emits parameterized labels and the chart auto-cycles colors
+  // across multi-instance presets, so no manual overrides are needed here.
+  conn.add("sma", { period: 5 });
+  conn.add("sma", { period: 20 });
+  conn.add("sma", { period: 60 });
   conn.add("rsi", { period: 14 });
   conn.add("macd");
 
