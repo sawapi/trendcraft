@@ -17,12 +17,14 @@ Each image is 2560×1440 (2x Retina-class), dark theme, pinned font (`"Helvetica
 
 ## How to (re)generate
 
-The scenes live in the gitignored playground at `packages/chart/examples/_screenshots/`. See [its README](../../examples/_screenshots/README.md) for setup. Once installed:
+The scenes live at [`packages/chart/examples/docs-screenshots/`](../../examples/docs-screenshots/). The scene code is committed; the underlying market data (`data/*.json`) is gitignored — pull it via the [`fetch-data.ts`](../../examples/docs-screenshots/fetch-data.ts) helper before capturing. See [the README there](../../examples/docs-screenshots/README.md) for full setup.
 
 ```bash
-cd packages/chart/examples/_screenshots
-pnpm capture           # writes every PNG into this directory
-pnpm capture hero      # one scene
+cd packages/chart/examples/docs-screenshots
+pnpm install --ignore-workspace
+npx tsx fetch-data.ts   # first time only — fetches NVDA bars from Alpaca
+pnpm capture            # writes every PNG into this directory
+pnpm capture hero       # one scene
 ```
 
 Requires the [`agent-browser`](https://www.npmjs.com/package/agent-browser) CLI on PATH.

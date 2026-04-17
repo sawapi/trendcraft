@@ -1,0 +1,21 @@
+{
+  "name": "trendcraft-chart-screenshots",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Internal playground for generating screenshots used in docs/assets/. Not committed to git.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "capture": "bash ./capture.sh"
+  },
+  "dependencies": {
+    "@trendcraft/chart": "link:../..",
+    "trendcraft": "link:../../../../core"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2",
+    "vite": "^6.0.3"
+  }
+}
