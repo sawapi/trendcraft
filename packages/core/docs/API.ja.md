@@ -103,6 +103,11 @@
   - [シリアライズ / パース](#serializestrategystrategy--parsestratejson)
   - [ハイドレーション / ロード](#hydrateconditionspec-registry--loadstrategyjson-registry)
   - [バリデーション](#validateconditionspecspec-registry--validatestrategyjsonjson)
+- [ライブストリーミング & シリーズメタデータ](#ライブストリーミング--シリーズメタデータ)
+  - [createLiveCandle](#createlivecandleoptions-fromstate)
+  - [livePresets](#livepresets)
+  - [indicatorPresets](#indicatorpresets)
+  - [tagSeries / SeriesMeta](#tagseries--seriesmeta)
 - [型定義](#型定義)
 
 ---
@@ -5531,6 +5536,154 @@ Spearman順位相関係数。
 インターマーケットダイバージェンスを検出します。相関するアセットの一方が上昇し他方が下降する場合にシグナルを発します。
 
 **戻り値:** `DivergencePoint[]`（`time`、`type`（`'bullish'` | `'bearish'`）、`returnA`、`returnB`、`returnSpread`、`significance` を含む）
+
+---
+
+## ライブストリーミング & シリーズメタデータ
+
+リアルタイムのローソク足 / 指標処理、およびインジケーター出力にドメインメタデータを付与するためのインフラ API 群です。すべてオプトインで、これらのシンボルを使わなくてもライブラリは完全に動作します。
+
+### `createLiveCandle(options, fromState?)`
+
+プラグイン可能なインクリメンタル指標とイベントバスを持つ、統合型のティック/ローソク足アグリゲーター。**ティックモード**（生トレードを集約）と**ローソク足モード**（形成済みバーを受け付け）の両方をサポート。`getState()` / `fromState` で state は完全にシリアライズ可能。
+
+```typescript
+import { createLiveCandle, incremental } from "trendcraft";
+
+const live = createLiveCandle({
+  intervalMs: 60_000,
+  indicators: [
+    { name: "sma20", create: (s) => incremental.createSma({ period: 20 }, { fromState: s }) },
+    { name: "rsi14", create: (s) => incremental.createRsi({ period: 14 }, { fromState: s }) },
+  ],
+  history: historicalCandles,
+  maxHistory: 500,
+});
+
+live.on("tick", ({ candle, snapshot, isNewCandle }) => updateChart(candle, snapshot));
+live.on("candleComplete", ({ candle, snapshot }) => {
+  console.log("終値:", candle.close, "SMA20:", snapshot.sma20);
+});
+
+// ティックモード
+ws.on("trade", (t) => live.addTick(t));
+
+// ローソク足モード
+live.addCandle(formedCandle);
+live.addCandle(partialCandle, { partial: true });
+```
+
+**オプション:**
+
+| オプション | 型 | 説明 |
+|---|---|---|
+| `intervalMs` | `number?` | ローソク足の間隔（ms）。ティックモードでは必須、ローソク足モードでは省略。 |
+| `indicators` | `LiveIndicatorFactory[]?` | 初期登録する指標（`addIndicator` で後から追加可能）。 |
+| `history` | `NormalizedCandle[]?` | コンテキストのみに使う過去ローソク足（emit されない）。 |
+| `maxHistory` | `number?` | メモリに保持する完了ローソク足の上限。 |
+
+**メソッド:**
+
+| メソッド | 説明 |
+|---|---|
+| `addTick(trade)` | トレードを流し込む（ティックモード）。 |
+| `addCandle(candle, opts?)` | ローソク足を流し込む。`opts.partial = true` で形成中バー。 |
+| `addIndicator({ name, create })` | 構築後に指標ファクトリを登録。 |
+| `removeIndicator(name)` | 指標を削除。 |
+| `snapshot()` | 現在の指標スナップショット（登録名キー）。 |
+| `completedCandles` | 開始以降の完了ローソク足配列（read-only）。 |
+| `formingCandle` | 進行中のローソク足、または `null`。 |
+| `on(event, handler)` / `off(event, handler)` | イベント購読。events: `tick`, `candleComplete`。 |
+| `getState()` | state をシリアライズ（aggregator + 指標 + 完了ローソク足）。 |
+
+### `livePresets`
+
+76 個のインクリメンタル指標プリセット（factory + メタデータ + デフォルトパラメータ + snapshot-name 規約）のレジストリ。文字列 ID で指標をゼロコンフィグに登録したい任意の利用者（UI フォーム、レンダラー、スクリーナー等）から利用できます。
+
+```typescript
+import { livePresets } from "trendcraft";
+
+const sma = livePresets.sma;
+// {
+//   meta: { label: 'SMA', overlay: true, ... },
+//   defaultParams: { period: 20 },
+//   snapshotName: (p) => `sma${p.period}`,
+//   createFactory: (params) => (fromState) => IncrementalIndicator,
+// }
+
+// レジストリから指標をインスタンス化
+const factory = sma.createFactory({ period: 50 });
+const indicator = factory(undefined); // 既存 state なし
+```
+
+**エントリー形式 (`LivePreset`):**
+
+| フィールド | 型 | 説明 |
+|---|---|---|
+| `meta` | `SeriesMeta` | 描画メタデータ（label, overlay, yRange, referenceLines）。 |
+| `defaultParams` | `Record<string, unknown>` | ユーザーが `{}` を渡したときのデフォルトパラメータ。 |
+| `snapshotName` | `(params) => string` | このインスタンスの snapshot キーを生成（例: `"sma20"`）。 |
+| `createFactory` | `(params) => LiveIndicatorFactory` | 指定パラメータで closure したインクリメンタルファクトリを生成。 |
+
+### `indicatorPresets`
+
+`livePresets` に `compute(candles, params)` バッチ関数を加えた拡張版。95 エントリー。単一のレジストリで静的（一括計算）と ストリーミング（バーごと）の両モードに対応します。
+
+```typescript
+import { indicatorPresets } from "trendcraft";
+
+const rsi = indicatorPresets.rsi;
+
+// 静的モード — 一括計算
+const series = rsi.compute(candles, { period: 14 });
+
+// ストリーミングモード — 同じレジストリから createFactory でインクリメンタル指標を生成
+const factory = rsi.createFactory({ period: 14 });
+```
+
+**エントリー形式 (`IndicatorPreset extends LivePreset`):**
+
+| フィールド | 型 | 説明 |
+|---|---|---|
+| ...`LivePreset` の全フィールド | — | — |
+| `compute` | `(candles, params) => Series<T>` | 静的モード用のバッチ計算。 |
+| `category` | `IndicatorCategory` | UI 用グルーピング（`"momentum"`、`"trend"` など）。 |
+| `paramSchema` | `ParamSchema?` | UI フォーム自動生成用のパラメータスキーマ。 |
+
+### `tagSeries` / `SeriesMeta`
+
+任意の `Series<T>` に非列挙の `__meta` プロパティを付与してドメインメタデータを載せます。組み込み指標はすべて既に tag 済み。自作指標でも下流の利用者（レンダラー、UI ジェネレーター等）に同じ規約で解釈させたい場合に `tagSeries` を使います。
+
+```typescript
+import { tagSeries, rsi, type SeriesMeta } from "trendcraft";
+
+const r = rsi(candles, { period: 14 });
+r.__meta;
+// {
+//   label: "RSI",
+//   overlay: false,
+//   yRange: [0, 100],
+//   referenceLines: [30, 70],
+// }
+
+const myCustom = tagSeries(myData, {
+  label: "Custom Score",
+  overlay: false,
+  yRange: [0, 1],
+  referenceLines: [0.5],
+});
+```
+
+**`SeriesMeta` のフィールド:**
+
+| フィールド | 型 | 説明 |
+|---|---|---|
+| `label` | `string` | 表示ラベル（例 `"SMA 20"`）。 |
+| `overlay` | `boolean` | `true` = 価格スケールを共有（メインペインに重ね描画）。`false` = 独立スケール（サブペイン）が必要。 |
+| `yRange` | `[min, max]?` | Y 軸の固定レンジ（オシレーターなら例えば `[0, 100]`）。 |
+| `referenceLines` | `number[]?` | 水平参照線の値（RSI なら `[30, 70]` など）。 |
+
+レンダラーは `overlay` をペイン配置に、`yRange` を軸設定に翻訳できます。描画を行わない利用者はメタデータを無視できます。
 
 ---
 

@@ -1,5 +1,44 @@
 # Changelog
 
+## Unreleased
+
+Target: **v0.2.0** — additive-only minor bump introducing live-streaming, indicator-registry, and series-metadata APIs.
+
+### Added — Live Streaming
+
+- `createLiveCandle(options, fromState?)` — unified tick/candle aggregator with dynamically registered incremental indicators and an event bus (`tick`, `candleComplete`). Supports both tick mode (`addTick`) and candle mode (`addCandle`), with state save/restore for resumable sessions.
+- `livePresets` — registry of 76 incremental indicator presets (factory + metadata + default params + snapshot-name) for zero-config registration in live mode.
+- `indicatorPresets` — unified registry of 95 indicator presets with both batch `compute` and incremental `createFactory`, usable from both static and streaming flows.
+
+### Added — Series Metadata
+
+- `SeriesMeta` type and `tagSeries(series, meta)` helper — attach domain metadata (`label`, `overlay`, `yRange`, `referenceLines`) to indicator output via a non-enumerable `__meta` property. Any renderer or UI can read it; indicator consumers that do not care can ignore it.
+- `indicator-meta` constants — shared single-source-of-truth metadata used by 42+ batch indicators (SMA, EMA, RSI, MACD, BB, Ichimoku, etc.).
+
+### Added — Incremental Indicators (+73 exports)
+
+Incremental exports grew from 90 to 163 across:
+
+- **Moving Averages (+5)**: `createDema`, `createTema`, `createZlema`, `createAlma`, `createFrama`
+- **Momentum (+12)**: Connors RSI, IMI, Ultimate Oscillator, Awesome Oscillator, Mass Index, KST, Coppock Curve, TSI, PPO, CMO, Balance of Power, QStick
+- **Volatility (+5)**: Choppiness Index, Ulcer Index, Historical Volatility, Garman-Klass, Standard Deviation
+- **Volume (+7)**: Anchored VWAP, Elder Force Index, Ease of Movement, Klinger, TWAP, Weis Wave, Market Profile additions (full list in `packages/core/src/indicators/incremental/volume`)
+- **Price & Wyckoff (+7)**: Fair Value Gap, Fractals, Gap Analysis, Highest/Lowest, Opening Range, Pivot Points, VSA
+
+All new factories support `restoreState` for session resumption.
+
+### Fixed
+
+- `garmanKlass`: guard non-positive high/close values to avoid `NaN` propagation.
+- `zlema`: validate `period` parameter (throws on <= 0).
+- `portfolioBacktest`: remove dead `currentOpenPositions` variable.
+
+### Notes
+
+- No breaking changes for `trendcraft@0.1.0` users — all additions are net-new surface area. `SeriesMeta.pane` → `overlay` rename affects only internal code; the symbol was not exported in v0.1.0.
+
+---
+
 ## v0.1.0 (2026-03-23)
 
 Initial public release.

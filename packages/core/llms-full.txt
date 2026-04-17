@@ -1372,7 +1372,8 @@ Built-in plugins: `plugins.sma`, `plugins.ema`, `plugins.rsi`, `plugins.macd`, `
 ```typescript
 import { incremental } from 'trendcraft';
 
-// Stateful indicators for streaming (O(1) per candle)
+// 160+ stateful indicators for streaming (O(1) per candle)
+// Categories: moving-average, momentum, trend, volatility, volume, price, wyckoff
 const rsi = incremental.createRsi({ period: 14 });
 const sma = incremental.createSma({ period: 20 });
 const atr = incremental.createAtr({ period: 14 });
@@ -1380,7 +1381,98 @@ const atr = incremental.createAtr({ period: 14 });
 const result = rsi.next(candle); // { time, value }
 const preview = rsi.peek(candle); // Preview without advancing state
 const state = rsi.getState(); // Serialize for persistence
+// All factories accept { fromState } for session resumption
 ```
+
+## Live Candle (Unified Live Pipeline)
+
+`createLiveCandle` unifies tick aggregation with dynamically registered incremental indicators and an event bus. Supports tick mode (raw trades) and candle mode (pre-formed candles).
+
+```typescript
+import { createLiveCandle, incremental } from 'trendcraft';
+
+const live = createLiveCandle({
+  intervalMs: 60_000,
+  indicators: [
+    { name: 'sma20', create: (s) => incremental.createSma({ period: 20 }, { fromState: s }) },
+    { name: 'rsi14', create: (s) => incremental.createRsi({ period: 14 }, { fromState: s }) },
+  ],
+  history: historicalCandles,
+  maxHistory: 500,
+});
+
+live.on('tick', ({ candle, snapshot, isNewCandle }) => updateChart(candle, snapshot));
+live.on('candleComplete', ({ candle, snapshot }) => {
+  console.log('Closed:', candle.close, 'SMA20:', snapshot.sma20);
+});
+
+// Tick mode
+ws.on('trade', (t) => live.addTick(t));
+
+// Candle mode
+live.addCandle(formedCandle);
+live.addCandle(partialCandle, { partial: true });
+
+// Persist / restore
+const state = live.getState();
+const restored = createLiveCandle(options, state);
+```
+
+Events: `tick`, `candleComplete`. Types: `LiveCandle`, `LiveCandleOptions`, `LiveCandleState`, `IndicatorSnapshot`, `LiveIndicatorFactory`, `Trade`.
+
+## Series Metadata & Indicator Registries (SeriesMeta / tagSeries / livePresets / indicatorPresets)
+
+Every built-in indicator output carries a non-enumerable `__meta` describing domain characteristics (label, overlay vs sub-pane, Y-range, reference lines). Any consumer may read the metadata; consumers that don't care can ignore it.
+
+```typescript
+import { tagSeries, rsi, type SeriesMeta } from 'trendcraft';
+
+const r = rsi(candles, { period: 14 });
+r.__meta;
+// { label: 'RSI', overlay: false, yRange: [0, 100], referenceLines: [30, 70] }
+
+// Tag a custom series
+const my = tagSeries(myData, {
+  label: 'Custom Score',
+  overlay: false,
+  yRange: [0, 1],
+  referenceLines: [0.5],
+});
+```
+
+`SeriesMeta` fields: `overlay` (boolean — shares price scale if true), `label`, `yRange?` ([min, max]), `referenceLines?` (number[]).
+
+### livePresets (76 entries)
+
+Registry of incremental indicator presets. Each entry bundles a metadata object, default params, a snapshot-name derivation, and a factory that produces an incremental indicator from those params.
+
+```typescript
+import { livePresets } from 'trendcraft';
+
+const preset = livePresets.sma;
+const factory = preset.createFactory({ period: 50 });
+const indicator = factory(undefined); // no prior state
+```
+
+Each preset: `{ meta: SeriesMeta, defaultParams, snapshotName: (p) => string, createFactory: (p) => LiveIndicatorFactory }`.
+
+### indicatorPresets (95 entries)
+
+Extends `livePresets` with a batch `compute` function, giving one registry that works in both static and streaming modes.
+
+```typescript
+import { indicatorPresets } from 'trendcraft';
+
+const preset = indicatorPresets.rsi;
+
+// Static — one-shot batch computation
+const series = preset.compute(candles, { period: 14 });
+
+// Streaming — build an incremental indicator from the same registry entry
+const factory = preset.createFactory({ period: 14 });
+```
+
+Additional per-entry fields: `compute(candles, params) -> Series<T>`, `category` (grouping hint), `paramSchema` (for form/UI generation).
 
 ## Result Type
 

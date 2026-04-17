@@ -169,11 +169,11 @@ export { createTradingSession } from "./session";
 // LiveCandle (lightweight live candle + indicator manager)
 export { createLiveCandle } from "./live-candle";
 
-// Live indicator presets (zero-config for connectLiveFeed)
+// Live indicator presets (factory + metadata + defaults)
 export { livePresets } from "./live-presets";
 export type { LivePreset } from "./live-presets";
 
-// Unified indicator presets (static + live, for connectIndicators)
+// Unified indicator presets (static compute + incremental factory)
 export { indicatorPresets } from "./indicator-presets";
 export type { IndicatorPreset, IndicatorCategory, ParamSchema } from "./indicator-presets";
 

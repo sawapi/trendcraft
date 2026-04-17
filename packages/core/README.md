@@ -119,6 +119,17 @@ A TypeScript library for technical analysis of financial data. Calculate indicat
 - Lead-lag analysis via cross-correlation at multiple lags
 - Intermarket divergence detection with z-score significance
 
+### Live Streaming Pipeline
+- `createLiveCandle()` — unified tick/candle aggregator with pluggable incremental indicators
+- 160+ incremental indicator factories for bar-by-bar updates
+- Event-driven API (`tick`, `candleComplete`) for live feeds
+- State save/restore for resumable sessions
+
+### Series Metadata
+- `tagSeries()` / `SeriesMeta` — attach domain metadata (label, overlay, Y-range, reference lines) to indicator output via a non-enumerable `__meta` property
+- `livePresets` / `indicatorPresets` — indicator registries with metadata, default params, and factory/compute pairs for zero-config wiring into UIs, screeners, or renderers
+- Fully opt-in: consumers that don't care about metadata can ignore it
+
 ## TA-Lib Cross-Validation
 
 36 indicators are cross-validated against [TA-Lib](https://ta-lib.org/) (Python ta-lib 0.6.8) using 200-bar synthetic OHLCV data covering 4 market phases (uptrend → high volatility → range → downtrend). Test code and fixtures are in the `cross-validation/` directory.
@@ -584,6 +595,59 @@ const analysis = analyzeCorrelation(
 console.log(`Current regime: ${analysis.summary.currentRegime}`);
 console.log(`Lead-lag: ${analysis.leadLag.assessment}`);
 console.log(`Divergences: ${analysis.divergences.length}`);
+```
+
+### Live Streaming with `createLiveCandle`
+
+```typescript
+import { createLiveCandle, incremental } from 'trendcraft';
+
+const live = createLiveCandle({
+  intervalMs: 60_000,
+  indicators: [
+    { name: 'sma20', create: (s) => incremental.createSma({ period: 20 }, { fromState: s }) },
+    { name: 'rsi14', create: (s) => incremental.createRsi({ period: 14 }, { fromState: s }) },
+  ],
+  history: historicalCandles,
+});
+
+live.on('candleComplete', ({ candle, snapshot }) => {
+  console.log('Close:', candle.close, 'SMA20:', snapshot.sma20, 'RSI14:', snapshot.rsi14);
+});
+
+// Tick mode — feed trades from a WebSocket
+ws.on('trade', (t) => live.addTick(t));
+
+// Or candle mode — feed pre-formed candles
+live.addCandle(bar);
+```
+
+`livePresets` and `indicatorPresets` bundle 76/95 of these factories with metadata for zero-config registration from arbitrary consumers (UIs, screeners, renderers):
+
+```typescript
+import { livePresets, indicatorPresets } from 'trendcraft';
+
+const sma = livePresets.sma;  // { meta, defaultParams, snapshotName, createFactory }
+const rsi = indicatorPresets.rsi; // also exposes .compute() for static mode
+```
+
+### Series Metadata
+
+Every built-in indicator output carries a non-enumerable `__meta` describing its domain characteristics (label, whether it shares the price scale, fixed Y-range, reference lines). The field is plain data — any consumer can read it, and consumers that don't care can ignore it.
+
+```typescript
+import { tagSeries, rsi } from 'trendcraft';
+
+const r = rsi(candles, { period: 14 });
+r.__meta; // { label: 'RSI', overlay: false, yRange: [0, 100], referenceLines: [30, 70] }
+
+// Tag a custom series with the same shape
+const my = tagSeries(myData, {
+  label: 'Custom Score',
+  overlay: false,
+  yRange: [0, 1],
+  referenceLines: [0.5],
+});
 ```
 
 ## CLI Tools

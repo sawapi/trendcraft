@@ -2,11 +2,34 @@
 
 Finance-specialized charting library with native [TrendCraft](https://github.com/sawapi/trendcraft) integration. Pass indicator data, get a chart — no manual series decomposition needed.
 
+![NVDA daily with a 5/20/60 SMA ribbon, RSI, and MACD — rendered with one chart.addIndicator call per indicator](./docs/assets/hero.png)
+
+## Documentation
+
+| Doc | Use it when |
+|---|---|
+| [GUIDE](./docs/GUIDE.md) | You want the mental model — data model, coordinate system, render loop, theming, viewport, SSR, accessibility |
+| [API](./docs/API.md) | You need the full reference — every option, method, type, event |
+| [PLUGINS](./docs/PLUGINS.md) | You're writing a custom series renderer or pane primitive |
+| [LIVE](./docs/LIVE.md) | You're wiring a real-time feed — WebSocket → `createLiveCandle` → chart |
+
+The rest of this README is a guided tour of the most common features. Reach for the docs above when you need depth.
+
 ## Install
 
 ```bash
 npm install @trendcraft/chart trendcraft
 ```
+
+**Peer dependencies (all optional):**
+
+| Peer | Required version | When needed |
+|---|---|---|
+| `trendcraft` | `>=0.2.0` | For indicator auto-detection, `connectIndicators`, `connectLiveFeed`. Chart works without it on plain `{ time, value }[]` data. |
+| `react` | `>=19.0.0` | Only when importing from `@trendcraft/chart/react`. |
+| `vue` | `>=3.3.0` | Only when importing from `@trendcraft/chart/vue`. |
+
+> The chart's TrendCraft integration relies on `livePresets` / `indicatorPresets` / `createLiveCandle` added in `trendcraft@0.2.0`. Earlier core versions will compile but lose auto-pane-placement and the `connectIndicators` / `connectLiveFeed` presets.
 
 ## Quick Start
 
@@ -29,6 +52,8 @@ chart.addIndicator(macd(candles));                      // subchart, histogram +
 
 No `pane`, `color`, `yRange`, or `label` config needed — the library reads `__meta` from TrendCraft's 130+ indicators.
 
+![Five indicators auto-placed from their own metadata: SMA and Bollinger Bands on the price pane; RSI, Stochastics, and MACD in sub-panes](./docs/assets/auto-detection.png)
+
 ### Chart Types
 
 Switch between different price rendering styles:
@@ -46,6 +71,8 @@ chart.setChartType('line');
 | `line` | Close price line |
 | `mountain` | Close price with gradient fill |
 | `ohlc` | Traditional OHLC bars |
+
+![The same NVDA series rendered in four chart types side by side](./docs/assets/chart-types.png)
 
 ### Without TrendCraft
 
@@ -326,6 +353,8 @@ chart.addBacktest(result);
 // → Summary bar (Return, Win%, Sharpe, MaxDD, PF, Trades)
 ```
 
+![Backtest output on NVDA: trade entry/exit markers on the price pane with an equity curve sub-pane and summary bar](./docs/assets/backtest.png)
+
 ## Pattern Visualization
 
 ```typescript
@@ -360,6 +389,8 @@ chart.on('visibleRangeChange', (data) => { /* { startTime, endTime } */ });
 ## Plugin System
 
 Extend the chart with custom renderers and pane-level overlays.
+
+![HMM regime heatmap plugin painting background bands across the price pane based on detected market regime](./docs/assets/plugin-regime.png)
 
 ### Custom Series Renderer
 

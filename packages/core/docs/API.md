@@ -107,6 +107,11 @@
   - [Serialize / Parse](#serializestrategystrategy--parsestratejson)
   - [Hydrate / Load](#hydrateconditionspec-registry--loadstrategyjson-registry)
   - [Validate](#validateconditionspecspec-registry--validatestrategyjsonjson)
+- [Live Streaming & Series Metadata](#live-streaming--series-metadata)
+  - [createLiveCandle](#createlivecandleoptions-fromstate)
+  - [livePresets](#livepresets)
+  - [indicatorPresets](#indicatorpresets)
+  - [tagSeries / SeriesMeta](#tagseries--seriesmeta)
 - [Types](#types)
 
 ---
@@ -6107,6 +6112,154 @@ console.log(`Optimal lag: ${result.optimalLag}`);
 Detect intermarket divergences where one asset moves up while a correlated asset moves down. Uses z-score of the rolling return spread.
 
 **Returns:** `DivergencePoint[]` with `time`, `type` (`'bullish'` | `'bearish'`), `returnA`, `returnB`, `returnSpread`, `significance`.
+
+---
+
+## Live Streaming & Series Metadata
+
+Infrastructure for real-time candle/indicator processing and for attaching domain metadata to indicator output. All symbols are optional — the library works end-to-end without touching them.
+
+### `createLiveCandle(options, fromState?)`
+
+Unified tick/candle aggregator with pluggable incremental indicators and an event bus. Supports both **tick mode** (aggregates raw trades) and **candle mode** (accepts pre-formed candles). State is fully serializable via `getState()` / `fromState`.
+
+```typescript
+import { createLiveCandle, incremental } from "trendcraft";
+
+const live = createLiveCandle({
+  intervalMs: 60_000,
+  indicators: [
+    { name: "sma20", create: (s) => incremental.createSma({ period: 20 }, { fromState: s }) },
+    { name: "rsi14", create: (s) => incremental.createRsi({ period: 14 }, { fromState: s }) },
+  ],
+  history: historicalCandles,
+  maxHistory: 500,
+});
+
+live.on("tick", ({ candle, snapshot, isNewCandle }) => updateChart(candle, snapshot));
+live.on("candleComplete", ({ candle, snapshot }) => {
+  console.log("Closed:", candle.close, "SMA20:", snapshot.sma20);
+});
+
+// Tick mode
+ws.on("trade", (t) => live.addTick(t));
+
+// Candle mode
+live.addCandle(formedCandle);
+live.addCandle(partialCandle, { partial: true });
+```
+
+**Options:**
+
+| Option | Type | Description |
+|---|---|---|
+| `intervalMs` | `number?` | Candle interval in ms. Required for tick mode; omit for candle mode. |
+| `indicators` | `LiveIndicatorFactory[]?` | Initial indicators to register (can also add dynamically via `addIndicator`). |
+| `history` | `NormalizedCandle[]?` | Historical candles used only for context (not emitted). |
+| `maxHistory` | `number?` | Cap on the number of completed candles kept in memory. |
+
+**Methods:**
+
+| Method | Description |
+|---|---|
+| `addTick(trade)` | Feed a trade tick (tick mode). |
+| `addCandle(candle, opts?)` | Feed a candle. `opts.partial = true` for forming candles. |
+| `addIndicator({ name, create })` | Register an indicator factory after construction. |
+| `removeIndicator(name)` | Remove an indicator. |
+| `snapshot()` | Get the current indicator snapshot (keyed by registered name). |
+| `completedCandles` | Readonly array of closed candles since start. |
+| `formingCandle` | The in-progress candle, or `null`. |
+| `on(event, handler)` / `off(event, handler)` | Event subscription. Events: `tick`, `candleComplete`. |
+| `getState()` | Serialize state (aggregator + indicators + completed candles). |
+
+### `livePresets`
+
+A registry of 76 incremental indicator presets bundling factory + metadata + default params + snapshot-name convention. Usable by any consumer that wants to register indicators by string id with zero config (UI forms, renderers, screeners, etc.).
+
+```typescript
+import { livePresets } from "trendcraft";
+
+const sma = livePresets.sma;
+// {
+//   meta: { label: 'SMA', overlay: true, ... },
+//   defaultParams: { period: 20 },
+//   snapshotName: (p) => `sma${p.period}`,
+//   createFactory: (params) => (fromState) => IncrementalIndicator,
+// }
+
+// Instantiate an indicator from the registry
+const factory = sma.createFactory({ period: 50 });
+const rsiIndicator = factory(undefined); // no prior state
+```
+
+**Entry shape (`LivePreset`):**
+
+| Field | Type | Description |
+|---|---|---|
+| `meta` | `SeriesMeta` | Rendering metadata (label, overlay, yRange, referenceLines). |
+| `defaultParams` | `Record<string, unknown>` | Default parameters when user passes `{}`. |
+| `snapshotName` | `(params) => string` | Derive the snapshot key (e.g. `"sma20"`) for this instance. |
+| `createFactory` | `(params) => LiveIndicatorFactory` | Build the incremental factory closed over the given params. |
+
+### `indicatorPresets`
+
+Extends `livePresets` with batch `compute(candles, params)` functions, giving a single registry that supports both static (snapshot-at-a-time) and streaming (bar-by-bar) modes. 95 entries.
+
+```typescript
+import { indicatorPresets } from "trendcraft";
+
+const rsi = indicatorPresets.rsi;
+
+// Static mode — one-shot computation
+const series = rsi.compute(candles, { period: 14 });
+
+// Streaming mode — use createFactory for incremental updates
+const factory = rsi.createFactory({ period: 14 });
+```
+
+**Entry shape (`IndicatorPreset` extends `LivePreset`):**
+
+| Field | Type | Description |
+|---|---|---|
+| ...all `LivePreset` fields | — | — |
+| `compute` | `(candles, params) => Series<T>` | Batch compute for static mode. |
+| `category` | `IndicatorCategory` | Grouping hint for UI (`"momentum"`, `"trend"`, etc.). |
+| `paramSchema` | `ParamSchema?` | Parameter schema for automatic UI form generation. |
+
+### `tagSeries` / `SeriesMeta`
+
+Attach domain metadata to any `Series<T>` via a non-enumerable `__meta` property. Every built-in indicator already tags its output. Use `tagSeries` on your own indicators if you want downstream consumers (renderers, UI generators, etc.) to pick up the same conventions.
+
+```typescript
+import { tagSeries, rsi, type SeriesMeta } from "trendcraft";
+
+const r = rsi(candles, { period: 14 });
+r.__meta;
+// {
+//   label: "RSI",
+//   overlay: false,
+//   yRange: [0, 100],
+//   referenceLines: [30, 70],
+// }
+
+const myCustom = tagSeries(myData, {
+  label: "Custom Score",
+  overlay: false,
+  yRange: [0, 1],
+  referenceLines: [0.5],
+});
+```
+
+**`SeriesMeta` fields:**
+
+| Field | Type | Description |
+|---|---|---|
+| `label` | `string` | Display label (e.g. `"SMA 20"`). |
+| `overlay` | `boolean` | `true` = share the price scale (overlay on main pane). `false` = needs its own scale (sub-pane). |
+| `yRange` | `[min, max]?` | Fixed Y-axis range (e.g. `[0, 100]` for oscillators). |
+| `referenceLines` | `number[]?` | Horizontal reference line values (e.g. `[30, 70]` for RSI). |
+
+A renderer may translate `overlay` to pane placement and `yRange` to an axis config; non-rendering consumers can ignore the metadata entirely.
 
 ---
 
