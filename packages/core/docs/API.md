@@ -107,6 +107,11 @@
   - [Serialize / Parse](#serializestrategystrategy--parsestratejson)
   - [Hydrate / Load](#hydrateconditionspec-registry--loadstrategyjson-registry)
   - [Validate](#validateconditionspecspec-registry--validatestrategyjsonjson)
+- [Chart Integration & Live Indicators](#chart-integration--live-indicators)
+  - [createLiveCandle](#createlivecandleoptions-fromstate)
+  - [livePresets](#livepresets)
+  - [indicatorPresets](#indicatorpresets)
+  - [tagSeries / SeriesMeta](#tagseries--seriesmeta)
 - [Types](#types)
 
 ---
@@ -6107,6 +6112,155 @@ console.log(`Optimal lag: ${result.optimalLag}`);
 Detect intermarket divergences where one asset moves up while a correlated asset moves down. Uses z-score of the rolling return spread.
 
 **Returns:** `DivergencePoint[]` with `time`, `type` (`'bullish'` | `'bearish'`), `returnA`, `returnB`, `returnSpread`, `significance`.
+
+---
+
+## Chart Integration & Live Indicators
+
+APIs that let [`@trendcraft/chart`](https://www.npmjs.com/package/@trendcraft/chart) (and any custom chart code) consume TrendCraft output with zero manual wiring. All symbols are optional — the library works end-to-end without touching them.
+
+### `createLiveCandle(options, fromState?)`
+
+Unified tick/candle aggregator with pluggable incremental indicators and an event bus. Supports both **tick mode** (aggregates raw trades) and **candle mode** (accepts pre-formed candles). State is fully serializable via `getState()` / `fromState`.
+
+```typescript
+import { createLiveCandle, incremental } from "trendcraft";
+
+const live = createLiveCandle({
+  intervalMs: 60_000,
+  indicators: [
+    { name: "sma20", create: (s) => incremental.createSma({ period: 20 }, { fromState: s }) },
+    { name: "rsi14", create: (s) => incremental.createRsi({ period: 14 }, { fromState: s }) },
+  ],
+  history: historicalCandles,
+  maxHistory: 500,
+});
+
+live.on("tick", ({ candle, snapshot, isNewCandle }) => updateChart(candle, snapshot));
+live.on("candleComplete", ({ candle, snapshot }) => {
+  console.log("Closed:", candle.close, "SMA20:", snapshot.sma20);
+});
+
+// Tick mode
+ws.on("trade", (t) => live.addTick(t));
+
+// Candle mode
+live.addCandle(formedCandle);
+live.addCandle(partialCandle, { partial: true });
+```
+
+**Options:**
+
+| Option | Type | Description |
+|---|---|---|
+| `intervalMs` | `number?` | Candle interval in ms. Required for tick mode; omit for candle mode. |
+| `indicators` | `LiveIndicatorFactory[]?` | Initial indicators to register (can also add dynamically via `addIndicator`). |
+| `history` | `NormalizedCandle[]?` | Historical candles used only for context (not emitted). |
+| `maxHistory` | `number?` | Cap on the number of completed candles kept in memory. |
+
+**Methods:**
+
+| Method | Description |
+|---|---|
+| `addTick(trade)` | Feed a trade tick (tick mode). |
+| `addCandle(candle, opts?)` | Feed a candle. `opts.partial = true` for forming candles. |
+| `addIndicator({ name, create })` | Register an indicator factory after construction. |
+| `removeIndicator(name)` | Remove an indicator. |
+| `snapshot()` | Get the current indicator snapshot (keyed by registered name). |
+| `completedCandles` | Readonly array of closed candles since start. |
+| `formingCandle` | The in-progress candle, or `null`. |
+| `on(event, handler)` / `off(event, handler)` | Event subscription. Events: `tick`, `candleComplete`. |
+| `getState()` | Serialize state (aggregator + indicators + completed candles). |
+
+### `livePresets`
+
+A registry of 76 incremental indicator presets bundling factory + metadata + default params + snapshot-name convention. Intended for consumption by chart libraries (`@trendcraft/chart`'s `connectLiveFeed` / `connectIndicators`).
+
+```typescript
+import { livePresets } from "trendcraft";
+
+const sma = livePresets.sma;
+// {
+//   meta: { label: 'SMA', overlay: true, ... },
+//   defaultParams: { period: 20 },
+//   snapshotName: (p) => `sma${p.period}`,
+//   createFactory: (params) => (fromState) => IncrementalIndicator,
+// }
+
+// Typical usage — pass the whole registry to a chart
+connectLiveFeed(chart, live, { presets: livePresets, history: candles });
+```
+
+**Entry shape (`LivePreset`):**
+
+| Field | Type | Description |
+|---|---|---|
+| `meta` | `SeriesMeta` | Rendering metadata (label, overlay, yRange, referenceLines). |
+| `defaultParams` | `Record<string, unknown>` | Default parameters when user passes `{}`. |
+| `snapshotName` | `(params) => string` | Derive the snapshot key (e.g. `"sma20"`) for this instance. |
+| `createFactory` | `(params) => LiveIndicatorFactory` | Build the incremental factory closed over the given params. |
+
+### `indicatorPresets`
+
+Extends `livePresets` with batch `compute(candles, params)` functions, giving a single registry that supports both static (snapshot-at-a-time) and streaming (bar-by-bar) modes. 95 entries.
+
+```typescript
+import { indicatorPresets } from "trendcraft";
+import { connectIndicators } from "@trendcraft/chart";
+
+// Static mode — one-shot computation
+const conn1 = connectIndicators(chart, { presets: indicatorPresets, candles });
+conn1.add("rsi");
+
+// Live mode — same registry, automatic back-fill + streaming updates
+const conn2 = connectIndicators(chart, { presets: indicatorPresets, candles, live });
+conn2.add("rsi");
+conn2.add("bollingerBands", { period: 20 });
+```
+
+**Entry shape (`IndicatorPreset` extends `LivePreset`):**
+
+| Field | Type | Description |
+|---|---|---|
+| ...all `LivePreset` fields | — | — |
+| `compute` | `(candles, params) => Series<T>` | Batch compute for static mode. |
+| `category` | `IndicatorCategory` | Grouping hint for UI (`"momentum"`, `"trend"`, etc.). |
+| `paramSchema` | `ParamSchema?` | Parameter schema for automatic UI form generation. |
+
+### `tagSeries` / `SeriesMeta`
+
+Attach rendering metadata to any `Series<T>` via a non-enumerable `__meta` property. Every built-in indicator already tags its output; use `tagSeries` for your own indicators if you want `@trendcraft/chart` to auto-detect pane placement.
+
+```typescript
+import { tagSeries, rsi, type SeriesMeta } from "trendcraft";
+
+const r = rsi(candles, { period: 14 });
+r.__meta;
+// {
+//   label: "RSI",
+//   overlay: false,
+//   yRange: [0, 100],
+//   referenceLines: [30, 70],
+// }
+
+const myCustom = tagSeries(myData, {
+  label: "Custom Score",
+  overlay: false,
+  yRange: [0, 1],
+  referenceLines: [0.5],
+});
+```
+
+**`SeriesMeta` fields:**
+
+| Field | Type | Description |
+|---|---|---|
+| `label` | `string` | Display label (e.g. `"SMA 20"`). |
+| `overlay` | `boolean` | `true` = share the price scale (overlay on main pane). `false` = needs its own scale (sub-pane). |
+| `yRange` | `[min, max]?` | Fixed Y-axis range (e.g. `[0, 100]` for oscillators). |
+| `referenceLines` | `number[]?` | Horizontal reference line values (e.g. `[30, 70]` for RSI). |
+
+Chart consumers translate `overlay` to pane placement; chart-agnostic consumers can simply ignore the metadata.
 
 ---
 

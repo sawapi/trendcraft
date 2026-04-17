@@ -119,6 +119,17 @@ A TypeScript library for technical analysis of financial data. Calculate indicat
 - Lead-lag analysis via cross-correlation at multiple lags
 - Intermarket divergence detection with z-score significance
 
+### Live Streaming Pipeline
+- `createLiveCandle()` — unified tick/candle aggregator with pluggable incremental indicators
+- 160+ incremental indicator factories for bar-by-bar updates
+- Event-driven API (`tick`, `candleComplete`) for live feeds
+- State save/restore for resumable sessions
+
+### Chart Integration Metadata
+- `tagSeries()` / `SeriesMeta` — attach domain metadata (pane placement, Y-range, reference lines) to indicator output
+- `livePresets` / `indicatorPresets` — zero-config indicator registries consumed by [`@trendcraft/chart`](../chart)
+- Works without a chart library — the metadata is opt-in and non-enumerable
+
 ## TA-Lib Cross-Validation
 
 36 indicators are cross-validated against [TA-Lib](https://ta-lib.org/) (Python ta-lib 0.6.8) using 200-bar synthetic OHLCV data covering 4 market phases (uptrend → high volatility → range → downtrend). Test code and fixtures are in the `cross-validation/` directory.
@@ -584,6 +595,78 @@ const analysis = analyzeCorrelation(
 console.log(`Current regime: ${analysis.summary.currentRegime}`);
 console.log(`Lead-lag: ${analysis.leadLag.assessment}`);
 console.log(`Divergences: ${analysis.divergences.length}`);
+```
+
+### Live Streaming with `createLiveCandle`
+
+```typescript
+import { createLiveCandle, incremental } from 'trendcraft';
+
+const live = createLiveCandle({
+  intervalMs: 60_000,
+  indicators: [
+    { name: 'sma20', create: (s) => incremental.createSma({ period: 20 }, { fromState: s }) },
+    { name: 'rsi14', create: (s) => incremental.createRsi({ period: 14 }, { fromState: s }) },
+  ],
+  history: historicalCandles,
+});
+
+live.on('candleComplete', ({ candle, snapshot }) => {
+  console.log('Close:', candle.close, 'SMA20:', snapshot.sma20, 'RSI14:', snapshot.rsi14);
+});
+
+// Tick mode — feed trades from a WebSocket
+ws.on('trade', (t) => live.addTick(t));
+
+// Or candle mode — feed pre-formed candles
+live.addCandle(bar);
+```
+
+`livePresets` and `indicatorPresets` bundle 76/95 of these factories with metadata for zero-config registration from chart libraries:
+
+```typescript
+import { livePresets, indicatorPresets } from 'trendcraft';
+
+const sma = livePresets.sma;  // { meta, defaultParams, snapshotName, createFactory }
+const rsi = indicatorPresets.rsi; // also exposes .compute() for static mode
+```
+
+### Chart Integration Metadata
+
+Every built-in indicator output carries a non-enumerable `__meta` describing how it should render (pane, Y-range, reference lines). [`@trendcraft/chart`](../chart) reads this to auto-place indicators on the correct pane without explicit config.
+
+```typescript
+import { tagSeries, rsi } from 'trendcraft';
+
+const r = rsi(candles, { period: 14 });
+r.__meta; // { label: 'RSI', overlay: false, yRange: [0, 100], referenceLines: [30, 70] }
+
+// Tag a custom series for chart integration
+const my = tagSeries(myData, {
+  label: 'Custom Score',
+  overlay: false,
+  yRange: [0, 1],
+  referenceLines: [0.5],
+});
+```
+
+Using with the chart library:
+
+```typescript
+import { indicatorPresets, rsi, sma, bollingerBands } from 'trendcraft';
+import { createChart, connectIndicators } from '@trendcraft/chart';
+
+const chart = createChart(container, { theme: 'dark' });
+chart.setCandles(candles);
+
+// Option 1 — pass indicator output directly (uses __meta)
+chart.addIndicator(rsi(candles));
+chart.addIndicator(bollingerBands(candles));
+
+// Option 2 — connect via presets (handles backfill + optional live streaming)
+const conn = connectIndicators(chart, { presets: indicatorPresets, candles });
+conn.add('rsi');
+conn.add('sma', { period: 20 });
 ```
 
 ## CLI Tools

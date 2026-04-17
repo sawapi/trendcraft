@@ -510,8 +510,42 @@ TrendCraft.from(candles).use(myIndicator, opts).compute();
 ### Incremental Indicators
 ```typescript
 import { incremental } from 'trendcraft';
-// Stateful, update-one-candle-at-a-time indicators for streaming use
+// 160+ stateful, update-one-candle-at-a-time indicators for streaming use
+// Categories: moving-average, momentum, trend, volatility, volume, price, wyckoff
 ```
+
+### Live Streaming (createLiveCandle)
+Unified tick/candle aggregator with pluggable incremental indicators and an event bus.
+```typescript
+import { createLiveCandle, incremental } from 'trendcraft';
+
+const live = createLiveCandle({
+  intervalMs: 60_000,
+  indicators: [
+    { name: 'sma20', create: (s) => incremental.createSma({ period: 20 }, { fromState: s }) },
+    { name: 'rsi14', create: (s) => incremental.createRsi({ period: 14 }, { fromState: s }) },
+  ],
+  history: historicalCandles,
+});
+live.on('candleComplete', ({ candle, snapshot }) => { /* ... */ });
+live.addTick({ time: Date.now(), price: 150.25, volume: 100 }); // tick mode
+live.addCandle(bar);                                             // candle mode
+```
+
+### Chart Integration Metadata (SeriesMeta, tagSeries, livePresets, indicatorPresets)
+All built-in indicators tag their output with `__meta` (`SeriesMeta`) describing pane placement, Y-range, and reference lines. Used by `@trendcraft/chart` for zero-config auto-rendering.
+```typescript
+import { tagSeries, rsi, livePresets, indicatorPresets } from 'trendcraft';
+
+rsi(candles).__meta; // { label: 'RSI', overlay: false, yRange: [0, 100], referenceLines: [30, 70] }
+
+// livePresets: 76 incremental indicator presets for live/streaming chart registration
+// indicatorPresets: 95 unified presets with both batch compute and incremental createFactory
+const sma = livePresets.sma;          // { meta, defaultParams, snapshotName, createFactory }
+const rsiP = indicatorPresets.rsi;    // adds .compute(candles, params) for static mode
+```
+
+Types: `SeriesMeta`, `TaggedSeries<T>`, `LivePreset`, `IndicatorPreset`, `IndicatorCategory`, `ParamSchema`, `LiveCandle`, `LiveCandleOptions`, `LiveCandleState`, `IndicatorSnapshot`
 
 ### Result Type
 All indicators support `Result<Series<T>, TrendCraftError>` via safe variants for robust error handling.

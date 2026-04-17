@@ -1372,7 +1372,8 @@ Built-in plugins: `plugins.sma`, `plugins.ema`, `plugins.rsi`, `plugins.macd`, `
 ```typescript
 import { incremental } from 'trendcraft';
 
-// Stateful indicators for streaming (O(1) per candle)
+// 160+ stateful indicators for streaming (O(1) per candle)
+// Categories: moving-average, momentum, trend, volatility, volume, price, wyckoff
 const rsi = incremental.createRsi({ period: 14 });
 const sma = incremental.createSma({ period: 20 });
 const atr = incremental.createAtr({ period: 14 });
@@ -1380,7 +1381,97 @@ const atr = incremental.createAtr({ period: 14 });
 const result = rsi.next(candle); // { time, value }
 const preview = rsi.peek(candle); // Preview without advancing state
 const state = rsi.getState(); // Serialize for persistence
+// All factories accept { fromState } for session resumption
 ```
+
+## Live Candle (Unified Live Pipeline)
+
+`createLiveCandle` unifies tick aggregation with dynamically registered incremental indicators and an event bus. Supports tick mode (raw trades) and candle mode (pre-formed candles).
+
+```typescript
+import { createLiveCandle, incremental } from 'trendcraft';
+
+const live = createLiveCandle({
+  intervalMs: 60_000,
+  indicators: [
+    { name: 'sma20', create: (s) => incremental.createSma({ period: 20 }, { fromState: s }) },
+    { name: 'rsi14', create: (s) => incremental.createRsi({ period: 14 }, { fromState: s }) },
+  ],
+  history: historicalCandles,
+  maxHistory: 500,
+});
+
+live.on('tick', ({ candle, snapshot, isNewCandle }) => updateChart(candle, snapshot));
+live.on('candleComplete', ({ candle, snapshot }) => {
+  console.log('Closed:', candle.close, 'SMA20:', snapshot.sma20);
+});
+
+// Tick mode
+ws.on('trade', (t) => live.addTick(t));
+
+// Candle mode
+live.addCandle(formedCandle);
+live.addCandle(partialCandle, { partial: true });
+
+// Persist / restore
+const state = live.getState();
+const restored = createLiveCandle(options, state);
+```
+
+Events: `tick`, `candleComplete`. Types: `LiveCandle`, `LiveCandleOptions`, `LiveCandleState`, `IndicatorSnapshot`, `LiveIndicatorFactory`, `Trade`.
+
+## Chart Integration (SeriesMeta / tagSeries / livePresets / indicatorPresets)
+
+Every built-in indicator output carries a non-enumerable `__meta` describing how to render it. `@trendcraft/chart` reads this for zero-config pane placement; chart-agnostic code can simply ignore it.
+
+```typescript
+import { tagSeries, rsi, type SeriesMeta } from 'trendcraft';
+
+const r = rsi(candles, { period: 14 });
+r.__meta;
+// { label: 'RSI', overlay: false, yRange: [0, 100], referenceLines: [30, 70] }
+
+// Tag a custom series
+const my = tagSeries(myData, {
+  label: 'Custom Score',
+  overlay: false,
+  yRange: [0, 1],
+  referenceLines: [0.5],
+});
+```
+
+`SeriesMeta` fields: `overlay` (boolean — shares price scale if true), `label`, `yRange?` ([min, max]), `referenceLines?` (number[]).
+
+### livePresets (76 entries)
+
+Registry of incremental indicator presets for zero-config live streaming.
+
+```typescript
+import { livePresets } from 'trendcraft';
+import { connectLiveFeed } from '@trendcraft/chart';
+
+// Chart reads the registry and registers indicators by string id
+connectLiveFeed(chart, live, { presets: livePresets, history: candles });
+```
+
+Each preset: `{ meta: SeriesMeta, defaultParams, snapshotName: (p) => string, createFactory: (p) => LiveIndicatorFactory }`.
+
+### indicatorPresets (95 entries)
+
+Extends `livePresets` with a batch `compute` function, giving one registry that works in both static and streaming modes.
+
+```typescript
+import { indicatorPresets } from 'trendcraft';
+import { connectIndicators } from '@trendcraft/chart';
+
+// Static
+connectIndicators(chart, { presets: indicatorPresets, candles }).add('rsi');
+
+// Live (same registry, automatic back-fill + streaming updates)
+connectIndicators(chart, { presets: indicatorPresets, candles, live }).add('rsi');
+```
+
+Additional per-entry fields: `compute(candles, params) -> Series<T>`, `category` (UI grouping), `paramSchema` (for UI form generation).
 
 ## Result Type
 
