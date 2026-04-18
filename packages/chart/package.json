@@ -54,7 +54,8 @@
     "lint:fix": "biome check --write .",
     "size-check": "size-limit",
     "format": "biome format --write .",
-    "prepublishOnly": "pnpm build && pnpm test"
+    "verify:publish": "node scripts/verify-publish.mjs",
+    "prepublishOnly": "pnpm build && pnpm test && pnpm verify:publish"
   },
   "keywords": [
     "chart",
