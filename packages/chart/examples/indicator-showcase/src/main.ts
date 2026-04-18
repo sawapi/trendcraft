@@ -1,9 +1,10 @@
 /**
  * Indicator Showcase — Main Entry
  *
- * Demonstrates all 77 indicators available in indicatorPresets
- * with a categorized sidebar UI, search, parameter controls, and active
- * indicator bar. The sidebar is auto-generated from indicatorPresets metadata.
+ * Demonstrates every preset available in `indicatorPresets` (96 as of 2026-04-18)
+ * with a categorized sidebar UI, search, parameter controls, and active indicator
+ * bar. The sidebar is auto-generated from indicatorPresets metadata, so the count
+ * stays accurate as the preset registry grows.
  */
 
 import { connectIndicators, createChart } from "@trendcraft/chart";
@@ -11,6 +12,7 @@ import { registerTrendCraftPresets } from "@trendcraft/chart/presets";
 import { indicatorPresets } from "trendcraft";
 import type { NormalizedCandle } from "trendcraft";
 import sampleData from "../../simple-chart/data.json";
+import { createPluginsPanel } from "./plugins-panel";
 import type { SidebarEntry } from "./sidebar";
 import { createSidebar } from "./sidebar";
 
@@ -149,6 +151,9 @@ chartEl.addEventListener("click", () => {
     sidebarEl.classList.remove("open");
   }
 });
+
+// Plugins panel (appended below the indicator list)
+createPluginsPanel(sidebarEl, candles, chart);
 
 // Suppress unused variable warning
 void sidebar;

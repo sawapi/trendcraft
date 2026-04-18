@@ -7,7 +7,7 @@
  * @example
  * ```typescript
  * import { createChart, connectSmcLayer } from '@trendcraft/chart';
- * import { orderBlock, fairValueGap, liquiditySweep, breakOfStructure } from 'trendcraft';
+ * import { orderBlock, fairValueGap, liquiditySweep, breakOfStructure, changeOfCharacter } from 'trendcraft';
  *
  * const chart = createChart(el);
  * chart.setCandles(candles);
@@ -16,6 +16,7 @@
  *   fvgs: fairValueGap(candles),
  *   sweeps: liquiditySweep(candles),
  *   bos: breakOfStructure(candles),
+ *   choch: changeOfCharacter(candles),  // optional — trend-reversing breaks only
  * });
  * // Later: handle.remove();
  * ```
@@ -273,6 +274,8 @@ type SmcLayerSources = {
   fvgs?: readonly DataPoint<unknown>[];
   sweeps?: readonly DataPoint<unknown>[];
   bos?: readonly DataPoint<unknown>[];
+  /** Change of Character — same shape as `bos` but rendered with a "CHoCH" label. */
+  choch?: readonly DataPoint<unknown>[];
 };
 
 type SmcLayerHandle = {

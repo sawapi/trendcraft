@@ -12,6 +12,7 @@ A conceptual walkthrough of `@trendcraft/chart`. If you just want to get pixels 
 - [Render loop](#render-loop)
 - [Panes and layout](#panes-and-layout)
 - [Auto-detection from `__meta`](#auto-detection-from-__meta)
+- [Extra visualization layers](#extra-visualization-layers)
 - [Theming](#theming)
 - [Viewport and navigation](#viewport-and-navigation)
 - [Events](#events)
@@ -177,6 +178,27 @@ SeriesRegistry.addRule({
 ```
 
 Rules are consulted in registration order, with built-in rules last. Useful when you want to share conventions across a team without each caller configuring the chart.
+
+## Extra visualization layers
+
+Some indicators produce output that doesn't fit the `Series<T>` line/band model — S/R zones, regime backgrounds, Andrew's Pitchforks, volume-by-price histograms, structural breaks. These ship as **primitive plugins** instead of presets, and stay tree-shakeable.
+
+```typescript
+import {
+  connectRegimeHeatmap,
+  connectSmcLayer,
+  connectWyckoffPhase,
+  connectSrConfluence,
+  connectTradeAnalysis,
+  connectSessionZones,
+  connectAndrewsPitchfork,
+  connectVolumeProfile,
+} from '@trendcraft/chart';
+```
+
+See [API.md#built-in-plugins](./API.md#built-in-plugins) for the full list. Each `connect*` returns an update handle (`update()`, `remove()`) so the layer can refresh when new data arrives.
+
+Four indicators (`autoTrendLine`, `channelLine`, `fibonacciRetracement`, `fibonacciExtension`) have an even lighter delivery: their shape maps directly to the chart's built-in drawing types, so small helpers (`addAutoFibRetracement` etc.) convert swing anchors into `Drawing` objects you manage via `chart.addDrawing` / `removeDrawing`. See [API.md#drawing-auto-injection-helpers](./API.md#drawing-auto-injection-helpers).
 
 ## Theming
 

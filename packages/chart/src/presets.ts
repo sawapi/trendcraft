@@ -506,6 +506,22 @@ const TRENDCRAFT_PRESETS: [string, IndicatorPreset][] = [
 
   // SMC
   ["liquiditySweep", { color: "#e91e63" }],
+
+  // Filter (Ehlers)
+  ["superSmoother", { pane: "main", color: "#4dd0e1", lineWidth: 1.5 }],
+  ["roofingFilter", { pane: "sub", color: "#4dd0e1", referenceLines: [0] }],
+
+  // Price utilities
+  ["highest", { pane: "main", color: "#ef5350", lineWidth: 1 }],
+  ["lowest", { pane: "main", color: "#26a69a", lineWidth: 1 }],
+  ["returns", { pane: "sub", color: "#9575cd", referenceLines: [0] }],
+  ["cumulativeReturns", { pane: "sub", color: "#7986cb" }],
+  ["medianPrice", { pane: "main", color: "#ffb74d", lineWidth: 1 }],
+  ["typicalPrice", { pane: "main", color: "#ba68c8", lineWidth: 1 }],
+  ["weightedClose", { pane: "main", color: "#f06292", lineWidth: 1 }],
+
+  // Volatility (additional)
+  ["atrPercent", { pane: "sub", color: "#ff8a65" }],
 ];
 
 // ============================================

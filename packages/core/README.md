@@ -10,12 +10,16 @@ A TypeScript library for technical analysis of financial data. Calculate indicat
 - **Moving Averages**: SMA, EMA, WMA, VWMA, KAMA, T3, HMA (Hull), McGinley Dynamic, EMA Ribbon, DEMA, TEMA, ZLEMA, FRAMA, ALMA
 - **Trend**: Ichimoku Cloud, Supertrend, Parabolic SAR, Vortex, Schaff Trend Cycle, Linear Regression
 - **Momentum**: RSI, MACD, Stochastics (Fast/Slow), DMI/ADX, ADXR, Stoch RSI, CCI, Williams %R, ROC, TRIX, Aroon, DPO, Hurst Exponent, Connors RSI, IMI, Ultimate Oscillator, Awesome Oscillator, Mass Index, KST, Coppock Curve, TSI, PPO, CMO, Balance of Power, QStick
-- **Volatility**: Bollinger Bands, ATR, Donchian Channel, Keltner Channel, Chandelier Exit, Volatility Regime, Choppiness Index, Ulcer Index, Historical Volatility, Garman-Klass, Standard Deviation
-- **Volume**: OBV, MFI, VWAP (with Bands), Volume MA, CMF, Volume Anomaly, Volume Profile, Volume Trend, ADL, Anchored VWAP, Elder Force Index, Ease of Movement, Klinger, TWAP, Weis Wave, Market Profile, PVT, NVI
-- **Price**: Highest/Lowest, Returns, Pivot Points, Swing Points, Fractals, Zigzag, Fibonacci Retracement/Extension, Heikin-Ashi, Opening Range Breakout, Gap Analysis, Median Price, Typical Price, Weighted Close
+- **Volatility**: Bollinger Bands, ATR, Donchian Channel, Keltner Channel, Chandelier Exit, Volatility Regime, Choppiness Index, Ulcer Index, Historical Volatility, Garman-Klass, Standard Deviation, ATR Stops, ATR Percent, EWMA Volatility
+- **Volume**: OBV, MFI, VWAP (with Bands), Volume MA, CMF, Volume Anomaly, Volume Profile, Volume Trend, ADL, Anchored VWAP, Elder Force Index, Ease of Movement, Klinger, TWAP, Weis Wave, Market Profile, PVT, NVI, CVD (+ signal / divergence)
+- **Price**: Highest/Lowest, Highest, Lowest, Returns, Cumulative Returns, Pivot Points, Swing Points, Fractals, Zigzag, Fibonacci Retracement/Extension, Andrews Pitchfork, Auto Trend Line, Channel Line, Heikin-Ashi, Opening Range Breakout, Gap Analysis, Median Price, Typical Price, Weighted Close, BOS / CHoCH, FVG, S/R Zone Clustering
 - **Smart Money Concepts (SMC)**: Order Block, Liquidity Sweep
-- **Filter**: Super Smoother, Roofing Filter (Ehlers)
-- **Relative Strength**: Benchmark RS, RS Rating, RS Ranking
+- **Filter (Ehlers)**: Super Smoother, Roofing Filter
+- **Adaptive**: Adaptive RSI, Adaptive Bollinger, Adaptive MA (ER-based), Adaptive Stochastics (ADX-based)
+- **Session / ICT**: Session Detection, Kill Zones (Asia / London / NY), Session Stats, Session Breakout
+- **Wyckoff**: VSA (Volume Spread Analysis), Wyckoff Phase Detection
+- **Regime**: HMM Regime Detection (Baum-Welch / Viterbi), Regime Transition Matrix
+- **Relative Strength**: Benchmark RS, RS Rating, RS Ranking, Multi-symbol RS (`rankByRS` / `topByRS` / `filterByRSPercentile` / `compareRS`)
 
 ### Signal Detection
 - **Cross Detection**: Golden Cross, Dead Cross, custom crossovers

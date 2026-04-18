@@ -165,10 +165,15 @@ export function extractSweepMarkers(data: readonly DataPoint<unknown>[]): SmcMar
 // ---- Break of Structure ----
 
 /**
- * Extract SmcLevel[] from breakOfStructure() output.
- * Creates levels at bars where bullishBos or bearishBos is true.
+ * Extract SmcLevel[] from breakOfStructure() or changeOfCharacter() output.
+ * Creates levels at bars where bullishBos or bearishBos is true. Both indicators
+ * return the same `BosValue` shape — `changeOfCharacter` only emits on trend-
+ * reversing breaks, so the caller chooses which feed to pass in.
  */
-export function extractBosLevels(data: readonly DataPoint<unknown>[]): SmcLevel[] {
+export function extractBosLevels(
+  data: readonly DataPoint<unknown>[],
+  label: "BOS" | "CHoCH" = "BOS",
+): SmcLevel[] {
   const levels: SmcLevel[] = [];
 
   for (let i = 0; i < data.length; i++) {
@@ -187,7 +192,7 @@ export function extractBosLevels(data: readonly DataPoint<unknown>[]): SmcLevel[
       price: rec.brokenLevel as number,
       startIndex: i,
       endIndex: null,
-      label: "BOS",
+      label,
     });
   }
 
@@ -198,17 +203,22 @@ export function extractBosLevels(data: readonly DataPoint<unknown>[]): SmcLevel[
 
 /**
  * Build SmcState from multiple indicator outputs.
+ * `bos` and `choch` levels are merged in the output; they share a render
+ * path but are labeled differently ("BOS" vs "CHoCH") for visual clarity.
  */
 export function buildSmcState(sources: {
   orderBlocks?: readonly DataPoint<unknown>[];
   fvgs?: readonly DataPoint<unknown>[];
   sweeps?: readonly DataPoint<unknown>[];
   bos?: readonly DataPoint<unknown>[];
+  choch?: readonly DataPoint<unknown>[];
 }): SmcState {
+  const bosLevels = sources.bos ? extractBosLevels(sources.bos, "BOS") : [];
+  const chochLevels = sources.choch ? extractBosLevels(sources.choch, "CHoCH") : [];
   return {
     orderBlocks: sources.orderBlocks ? extractOrderBlocks(sources.orderBlocks) : [],
     fvgZones: sources.fvgs ? extractFvgZones(sources.fvgs) : [],
     sweepMarkers: sources.sweeps ? extractSweepMarkers(sources.sweeps) : [],
-    bosLevels: sources.bos ? extractBosLevels(sources.bos) : [],
+    bosLevels: [...bosLevels, ...chochLevels],
   };
 }

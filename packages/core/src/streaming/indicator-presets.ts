@@ -30,6 +30,8 @@ import {
   anchoredVwap,
   aroon,
   atr,
+  // 10 previously un-presetified batch indicators (added 2026-04-18)
+  atrPercentSeries,
   atrStops,
   awesomeOscillator,
   balanceOfPower,
@@ -41,6 +43,7 @@ import {
   cmo,
   connorsRsi,
   coppockCurve,
+  cumulativeReturns,
   cvd,
   cvdWithSignal,
   dema,
@@ -59,6 +62,7 @@ import {
   gapAnalysis,
   garmanKlass,
   heikinAshi,
+  highest,
   highestLowest,
   historicalVolatility,
   hma,
@@ -71,10 +75,12 @@ import {
   kst,
   linearRegression,
   liquiditySweep,
+  lowest,
   macd,
   marketProfile,
   massIndex,
   mcginleyDynamic,
+  medianPrice,
   mfi,
   nvi,
   obv,
@@ -85,7 +91,9 @@ import {
   ppo,
   pvt,
   qstick,
+  returns,
   roc,
+  roofingFilter,
   rsi,
   schaffTrendCycle,
   sessionBreakout,
@@ -94,6 +102,7 @@ import {
   standardDeviation,
   stochRsi,
   stochastics,
+  superSmoother,
   supertrend,
   swingPoints,
   t3,
@@ -101,6 +110,7 @@ import {
   trix,
   tsi,
   twap,
+  typicalPrice,
   ulcerIndex,
   ultimateOscillator,
   volatilityRegime,
@@ -111,6 +121,7 @@ import {
   vsa as vsaBatch,
   vwap,
   vwma,
+  weightedClose,
   weisWave,
   williamsR,
   wma,
@@ -158,7 +169,8 @@ export type IndicatorCategory =
   | "Wyckoff"
   | "Adaptive"
   | "Session"
-  | "SMC";
+  | "SMC"
+  | "Filter";
 
 /** Parameter schema for UI controls */
 export type ParamSchema = {
@@ -1934,5 +1946,140 @@ export const indicatorPresets: Record<string, IndicatorPreset> = {
         step: 1,
       },
     ],
+  },
+
+  // ============================================
+  // Filter (Ehlers)
+  // ============================================
+  superSmoother: {
+    meta: { kind: "superSmoother", overlay: true, label: "SuperSmoother" },
+    defaultParams: { period: 10 },
+    snapshotName: (p: Record<string, unknown>) => `ss${p.period}`,
+    compute: (c, p) => superSmoother(c, { period: (p.period as number) ?? 10 }),
+    category: "Filter",
+    name: "Super Smoother (Ehlers)",
+    description: "Low-pass filter that smooths price with minimal lag via 2-pole IIR.",
+    paramSchema: [period(10, 2, 100)],
+  },
+  roofingFilter: {
+    meta: { kind: "roofingFilter", overlay: false, label: "Roofing" },
+    defaultParams: { highPassPeriod: 48, lowPassPeriod: 10 },
+    snapshotName: (p: Record<string, unknown>) => `roof${p.highPassPeriod}-${p.lowPassPeriod}`,
+    compute: (c, p) =>
+      roofingFilter(c, {
+        highPassPeriod: (p.highPassPeriod as number) ?? 48,
+        lowPassPeriod: (p.lowPassPeriod as number) ?? 10,
+      }),
+    category: "Filter",
+    name: "Roofing Filter (Ehlers)",
+    description: "Bandpass that isolates medium-frequency cycles by removing trend and noise.",
+    paramSchema: [
+      {
+        key: "highPassPeriod",
+        label: "High-Pass Period",
+        type: "number",
+        default: 48,
+        min: 10,
+        max: 200,
+        step: 1,
+      },
+      {
+        key: "lowPassPeriod",
+        label: "Low-Pass Period",
+        type: "number",
+        default: 10,
+        min: 2,
+        max: 50,
+        step: 1,
+      },
+    ],
+  },
+
+  // ============================================
+  // Additional Price utilities
+  // ============================================
+  highest: {
+    meta: { kind: "highest", overlay: true, label: "Highest" },
+    defaultParams: { period: 20 },
+    snapshotName: (p: Record<string, unknown>) => `hi${p.period}`,
+    compute: (c, p) => highest(c, (p.period as number) ?? 20),
+    category: "Price",
+    name: "Highest High",
+    description: "Rolling maximum of candle highs over N bars.",
+    paramSchema: [period(20, 2, 500)],
+  },
+  lowest: {
+    meta: { kind: "lowest", overlay: true, label: "Lowest" },
+    defaultParams: { period: 20 },
+    snapshotName: (p: Record<string, unknown>) => `lo${p.period}`,
+    compute: (c, p) => lowest(c, (p.period as number) ?? 20),
+    category: "Price",
+    name: "Lowest Low",
+    description: "Rolling minimum of candle lows over N bars.",
+    paramSchema: [period(20, 2, 500)],
+  },
+  returns: {
+    meta: { kind: "returns", overlay: false, label: "Returns" },
+    defaultParams: { period: 1, type: "simple" },
+    snapshotName: (p: Record<string, unknown>) => `ret${p.period}-${p.type ?? "simple"}`,
+    compute: (c, p) =>
+      returns(c, {
+        period: (p.period as number) ?? 1,
+        type: (p.type as "simple" | "log") ?? "simple",
+      }),
+    category: "Price",
+    name: "Returns",
+    description: "Bar-over-bar percentage or log returns of close prices.",
+    paramSchema: [period(1, 1, 100)],
+  },
+  cumulativeReturns: {
+    meta: { kind: "cumulativeReturns", overlay: false, label: "Cum. Returns" },
+    defaultParams: { type: "simple" },
+    snapshotName: (p: Record<string, unknown>) => `cumret-${p.type ?? "simple"}`,
+    compute: (c, p) => cumulativeReturns(c, (p.type as "simple" | "log") ?? "simple"),
+    category: "Price",
+    name: "Cumulative Returns",
+    description: "Growth of $1 invested at the first bar's close.",
+  },
+  medianPrice: {
+    meta: { kind: "medianPrice", overlay: true, label: "Median Price" },
+    defaultParams: {},
+    snapshotName: "median",
+    compute: (c) => medianPrice(c),
+    category: "Price",
+    name: "Median Price",
+    description: "(High + Low) / 2, a common MA source.",
+  },
+  typicalPrice: {
+    meta: { kind: "typicalPrice", overlay: true, label: "Typical Price" },
+    defaultParams: {},
+    snapshotName: "typical",
+    compute: (c) => typicalPrice(c),
+    category: "Price",
+    name: "Typical Price",
+    description: "(High + Low + Close) / 3, used as input to CCI and volume-weighted studies.",
+  },
+  weightedClose: {
+    meta: { kind: "weightedClose", overlay: true, label: "Weighted Close" },
+    defaultParams: {},
+    snapshotName: "wclose",
+    compute: (c) => weightedClose(c),
+    category: "Price",
+    name: "Weighted Close",
+    description: "(High + Low + 2 × Close) / 4, gives extra weight to the close.",
+  },
+
+  // ============================================
+  // Additional Volatility utilities
+  // ============================================
+  atrPercent: {
+    meta: { kind: "atrPercent", overlay: false, label: "ATR%" },
+    defaultParams: { period: 14 },
+    snapshotName: (p: Record<string, unknown>) => `atrpct${p.period}`,
+    compute: (c, p) => atrPercentSeries(c, (p.period as number) ?? 14),
+    category: "Volatility",
+    name: "ATR Percent",
+    description: "ATR expressed as a percentage of price — normalized volatility metric.",
+    paramSchema: [period(14, 2, 100)],
   },
 };

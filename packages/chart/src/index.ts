@@ -114,6 +114,21 @@ export { DrawHelper, type StrokeStyle, type FillStyle } from "./core/draw-helper
 
 // Unified indicator connection
 export { connectIndicators, defineIndicator } from "./integration/connect-indicators";
+
+// Drawing auto-injection helpers — convert indicator output (fibs / trendlines / channels)
+// into built-in Drawing objects without needing a dedicated primitive plugin.
+export {
+  addAutoFibRetracement,
+  addAutoFibExtension,
+  addAutoTrendLine,
+  addAutoChannelLine,
+  DEFAULT_FIB_RETRACEMENT_LEVELS,
+  DEFAULT_FIB_EXTENSION_LEVELS,
+  type SwingAnchor,
+  type AddFibOptions,
+  type AddTrendLineOptions,
+  type AddChannelLineOptions,
+} from "./integration/drawing-helpers";
 export type {
   ConnectIndicatorsOptions,
   IndicatorConnection,
@@ -132,3 +147,17 @@ export { createWyckoffPhase, connectWyckoffPhase } from "./plugins/wyckoff-phase
 export { createSrConfluence, connectSrConfluence } from "./plugins/sr-confluence";
 export { createTradeAnalysis, connectTradeAnalysis } from "./plugins/trade-analysis";
 export { createSessionZones, connectSessionZones } from "./plugins/session-zones";
+export {
+  createAndrewsPitchfork,
+  connectAndrewsPitchfork,
+  type AndrewsPitchforkState,
+  type PitchforkAnchor,
+  type PitchforkAnchors,
+} from "./plugins/andrews-pitchfork";
+export {
+  createVolumeProfile,
+  connectVolumeProfile,
+  type VolumeProfileData,
+  type VolumeProfileLevel,
+  type VolumeProfileState,
+} from "./plugins/volume-profile";
