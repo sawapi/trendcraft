@@ -56,6 +56,7 @@
     "test:crossval": "vitest run cross-validation",
     "bench": "vitest bench",
     "size": "size-limit",
+    "qa:indicators": "node scripts/qa-sweep.mjs",
     "prepublishOnly": "pnpm build && pnpm test"
   },
   "keywords": [

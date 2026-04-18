@@ -32,6 +32,9 @@ coverage/
 **/.vitepress/cache/
 *.tsbuildinfo
 
+# QA sweep output
+packages/core/qa-report.json
+
 .claude/projects/
 .plans/
 packages/core/examples/data/

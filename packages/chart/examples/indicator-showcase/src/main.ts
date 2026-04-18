@@ -1,9 +1,10 @@
 /**
  * Indicator Showcase — Main Entry
  *
- * Demonstrates all 77 indicators available in indicatorPresets
- * with a categorized sidebar UI, search, parameter controls, and active
- * indicator bar. The sidebar is auto-generated from indicatorPresets metadata.
+ * Demonstrates every preset available in `indicatorPresets` (96 as of 2026-04-18)
+ * with a categorized sidebar UI, search, parameter controls, and active indicator
+ * bar. The sidebar is auto-generated from indicatorPresets metadata, so the count
+ * stays accurate as the preset registry grows.
  */
 
 import { connectIndicators, createChart } from "@trendcraft/chart";
