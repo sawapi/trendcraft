@@ -1,0 +1,33 @@
+# @trendcraft/chart
+
+> Canvas-based financial charting library for TypeScript. Zero runtime dependencies, native support for TrendCraft `Series<T>` indicators, optional React/Vue wrappers, and a DOM-free headless API for SSR and tests.
+
+Key facts for understanding the library:
+
+- **Entry points**: `@trendcraft/chart` (DOM), `@trendcraft/chart/headless` (no DOM), `@trendcraft/chart/presets` (bundled TrendCraft indicator presets), `@trendcraft/chart/react`, `@trendcraft/chart/vue`.
+- **Peer deps (all optional)**: `trendcraft >=0.2.0` (indicator math, presets, `createLiveCandle`), `react >=19.0.0`, `vue >=3.3.0`. The chart also works with plain `{ time, value }[]` data and zero peers.
+- **Static vs live**: `createChart()` returns a `ChartInstance`. Add data via `setCandles()` + `addIndicator()`, or use `connectIndicators(chart, { presets, candles, live? })` as a single API for both static and live modes.
+- **No `connectLiveFeed`**: live wiring is unified into `connectIndicators({ live })`. Earlier drafts mentioned a separate `connectLiveFeed` — it does not exist.
+- **Plugins**: `defineSeriesRenderer` / `definePrimitive` for custom visual layers. Built-in plugins cover regime heatmap, SMC, Wyckoff phases, S/R confluence, trade analysis, and session zones.
+- **Bundle sizes** (brotli, enforced via size-limit): main ≤ 31 kB, headless ≤ 11 kB, React ≤ 27 kB, Vue ≤ 27 kB.
+- **Framework components**: both React and Vue wrappers export a component named `TrendChart` plus a `useTrendChart` hook/composable.
+
+## Docs
+
+- [README](./README.md): quick start, feature list, peer-dep matrix.
+- [docs/GUIDE.md](./docs/GUIDE.md): conceptual walkthrough — panes, series types, drawings, live data overview.
+- [docs/API.md](./docs/API.md): complete API reference (every exported symbol and type).
+- [docs/LIVE.md](./docs/LIVE.md): live-data pipeline — `createLiveCandle` + `connectIndicators({ live })`, backfill, reconnect, pitfalls.
+- [docs/PLUGINS.md](./docs/PLUGINS.md): custom series renderers and primitives.
+- [CHANGELOG.md](./CHANGELOG.md): version history.
+
+## Source
+
+- Library: `src/` (core + renderer + series + integration + plugins)
+- React wrapper: `react/`
+- Vue wrapper: `vue/`
+- Examples: `examples/simple-chart`, `examples/simple-react-chart`, `examples/simple-vue-chart`, `examples/indicator-showcase`.
+
+## Optional
+
+- [llms-full.txt](./llms-full.txt): flattened full documentation for LLM ingestion.

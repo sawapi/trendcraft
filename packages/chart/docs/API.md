@@ -6,7 +6,7 @@ Complete API surface for `@trendcraft/chart`. This is the reference; for concept
 
 | Import from | Contents | Environment |
 |---|---|---|
-| `@trendcraft/chart` | `createChart`, `connectIndicators`, `connectLiveFeed`, plugin helpers, plugins, all types | Browser only — throws in SSR |
+| `@trendcraft/chart` | `createChart`, `connectIndicators`, plugin helpers, plugins, all types | Browser only — throws in SSR |
 | `@trendcraft/chart/headless` | `DataLayer`, `TimeScale`, `PriceScale`, `LayoutEngine`, `introspect`, `lttb`, formatters | Any (Node / SSR / tests) |
 | `@trendcraft/chart/presets` | Bundled indicator presets | Browser only |
 | `@trendcraft/chart/react` | `TrendChart` component, `useTrendChart` hook | React 19+, browser only |
@@ -32,7 +32,6 @@ Complete API surface for `@trendcraft/chart`. This is the reference; for concept
 - [Event payloads](#event-payloads)
 - [Connection APIs](#connection-apis)
   - [`connectIndicators`](#connectindicatorschart-options)
-  - [`connectLiveFeed`](#connectlivefeedchart-live-options)
   - [`defineIndicator`](#defineindicatorpresetid-options)
 - [Plugin helpers](#plugin-helpers)
 - [Built-in plugins](#built-in-plugins)
@@ -328,10 +327,6 @@ Unified indicator wiring for both static and live modes. See [LIVE.md](./LIVE.md
 | `setVisible(visible)` | Toggle visibility. |
 | `remove()` | Remove this instance. Idempotent. |
 
-### `connectLiveFeed(chart, live, options?)`
-
-Lower-level wiring: pipe `LiveCandle` events directly to chart candles and pre-registered series. Used internally by `connectIndicators`; most apps don't need it directly.
-
 ### `defineIndicator(presetId, options?)`
 
 Pre-define a reusable indicator spec:
@@ -471,7 +466,7 @@ import {
 } from '@trendcraft/chart/headless';
 ```
 
-`connectIndicators` and `connectLiveFeed` are **not** available in the headless entry — they orchestrate a live chart instance, which requires DOM.
+`connectIndicators` is **not** available in the headless entry — it orchestrates a live chart instance, which requires DOM.
 
 ### Key headless classes
 
