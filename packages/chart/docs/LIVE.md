@@ -9,7 +9,6 @@ Wiring the chart to a real-time data source. Covers the full pipeline from a Web
 - [Tick mode: trades in, candles and indicators out](#tick-mode-trades-in-candles-and-indicators-out)
 - [Candle mode: pre-formed bars from a vendor](#candle-mode-pre-formed-bars-from-a-vendor)
 - [`connectIndicators` — one API for static and live](#connectindicators--one-api-for-static-and-live)
-- [`connectLiveFeed` — lower-level alternative](#connectlivefeed--lower-level-alternative)
 - [Backfill and history](#backfill-and-history)
 - [Dynamic indicator add / remove](#dynamic-indicator-add--remove)
 - [Reconnect, pause, resume](#reconnect-pause-resume)
@@ -52,10 +51,9 @@ The split is intentional: `trendcraft` owns the data math (aggregation, stateful
 | `livePresets` / `indicatorPresets` | `trendcraft` | Registries of incremental factories + metadata |
 | `incremental.create*` | `trendcraft` | 160+ incremental indicator factories |
 | `connectIndicators` | `@trendcraft/chart` | Wires a preset registry to a chart; handles backfill + live updates |
-| `connectLiveFeed` | `@trendcraft/chart` | Lower-level: pipe raw `LiveCandle` events into chart series |
 | `ChartInstance.updateCandle` | `@trendcraft/chart` | Append or patch the last candle |
 
-You typically use `connectIndicators` and leave `connectLiveFeed` to framework authors.
+`connectIndicators` is the single entry point for both static and live wiring. If you need to bypass it entirely (custom pipeline), drive `chart.updateCandle()` and your own series patches directly from `live.on('tick')`.
 
 ## Tick mode: trades in, candles and indicators out
 
@@ -209,28 +207,6 @@ Each `add` call:
 | `remove()` | Remove this instance. Idempotent. |
 
 Snapshot paths support dot notation: `'bb.upper'` resolves to `snapshot.bb.upper` inside the live event payload.
-
-## `connectLiveFeed` — lower-level alternative
-
-For cases where you already have your own indicator wiring and just want `LiveCandle` events to drive the chart's candles and pre-registered series:
-
-```typescript
-import { createChart, connectLiveFeed } from '@trendcraft/chart';
-
-const chart = createChart(container);
-chart.setCandles(history);
-const rsi = chart.addIndicator(rsiBatch, { label: 'RSI' });
-
-const disconnect = connectLiveFeed(chart, live, {
-  presets: livePresets,
-  // seriesMap: { rsi }, // optional explicit mapping
-});
-
-// Later
-disconnect();
-```
-
-`connectLiveFeed` is what `connectIndicators` uses under the hood. Most apps don't need it directly.
 
 ## Backfill and history
 

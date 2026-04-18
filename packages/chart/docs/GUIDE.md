@@ -245,7 +245,7 @@ Subscribe via `chart.on(event, handler)`. Unsubscribe via `chart.off`. Events ar
 
 ## Live data
 
-For live feeds, combine `trendcraft`'s `createLiveCandle` with `connectLiveFeed` or `connectIndicators`. Full walkthrough in [LIVE.md](./LIVE.md).
+For live feeds, combine `trendcraft`'s `createLiveCandle` with `connectIndicators`. Full walkthrough in [LIVE.md](./LIVE.md).
 
 At a glance:
 

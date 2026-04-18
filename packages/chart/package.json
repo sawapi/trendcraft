@@ -41,7 +41,9 @@
     "!dist/**/*.js.map",
     "!dist/**/*.cjs.map",
     "LICENSE",
-    "CHANGELOG.md"
+    "CHANGELOG.md",
+    "llms.txt",
+    "llms-full.txt"
   ],
   "scripts": {
     "dev": "vite",

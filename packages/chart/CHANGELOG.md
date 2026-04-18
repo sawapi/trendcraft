@@ -12,7 +12,7 @@ Draft for the initial public release. Date and final version are set at release 
 ### Added
 
 - Canvas-based financial charting library with zero runtime dependencies.
-- Main entry (`@trendcraft/chart`): `createChart`, `connectLiveFeed`, `connectIndicators`.
+- Main entry (`@trendcraft/chart`): `createChart`, `connectIndicators` (unified static + live wiring).
 - Headless entry (`@trendcraft/chart/headless`): `DataLayer`, `TimeScale`, `PriceScale`, `introspect`, `lttb`.
 - React wrapper (`@trendcraft/chart/react`): `TrendChart` component and `useTrendChart` hook.
 - Vue wrapper (`@trendcraft/chart/vue`): `TrendChart` component and `useTrendChart` composable.
@@ -31,7 +31,7 @@ Draft for the initial public release. Date and final version are set at release 
 
 ### Peer dependencies
 
-- `trendcraft` (optional, `>=0.2.0`) — enables auto-detection of indicator series and powers `connectIndicators` / `connectLiveFeed` via `livePresets` / `indicatorPresets` / `createLiveCandle`.
+- `trendcraft` (optional, `>=0.2.0`) — enables auto-detection of indicator series and powers `connectIndicators` via `livePresets` / `indicatorPresets` / `createLiveCandle`.
 - `react` (optional, `>=19.0.0`) — required only when using the React wrapper.
 - `vue` (optional, `>=3.3.0`) — required only when using the Vue wrapper.
 
