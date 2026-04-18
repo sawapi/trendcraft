@@ -154,3 +154,10 @@ export {
   type PitchforkAnchor,
   type PitchforkAnchors,
 } from "./plugins/andrews-pitchfork";
+export {
+  createVolumeProfile,
+  connectVolumeProfile,
+  type VolumeProfileData,
+  type VolumeProfileLevel,
+  type VolumeProfileState,
+} from "./plugins/volume-profile";
