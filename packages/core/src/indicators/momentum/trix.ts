@@ -12,7 +12,7 @@
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
-import { tagSeries } from "../../core/tag-series";
+import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { TRIX_META } from "../indicator-meta";
 import { ema } from "../moving-average/ema";
@@ -145,5 +145,5 @@ export function trix(
     });
   }
 
-  return tagSeries(result, TRIX_META);
+  return tagSeries(result, withLabelParams(TRIX_META, [period]));
 }

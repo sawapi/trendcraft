@@ -124,7 +124,7 @@ export function pivotPoints(
     });
   }
 
-  return tagSeries(result, { overlay: true, label: "Pivot" });
+  return tagSeries(result, { kind: "pivotPoints", overlay: true, label: "Pivot" });
 }
 
 /**

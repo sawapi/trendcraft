@@ -111,5 +111,5 @@ export function fractals(
     });
   }
 
-  return tagSeries(result, { overlay: true, label: "Fractals" });
+  return tagSeries(result, { kind: "fractals", overlay: true, label: "Fractals" });
 }

@@ -6,7 +6,7 @@
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
-import { tagSeries } from "../../core/tag-series";
+import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 import { HMA_META } from "../indicator-meta";
 import { wma } from "./wma";
@@ -108,5 +108,5 @@ export function hma(
     }
   }
 
-  return tagSeries(result, HMA_META);
+  return tagSeries(result, withLabelParams(HMA_META, [period]));
 }

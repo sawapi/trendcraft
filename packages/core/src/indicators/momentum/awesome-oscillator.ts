@@ -6,7 +6,7 @@
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
-import { tagSeries } from "../../core/tag-series";
+import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 
 /**
@@ -82,5 +82,8 @@ export function awesomeOscillator(
     result.push({ time: normalized[i].time, value: fastSma - slowSma });
   }
 
-  return tagSeries(result, { overlay: false, label: "AO", referenceLines: [0] });
+  return tagSeries(
+    result,
+    withLabelParams({ overlay: false, label: "AO", referenceLines: [0] }, [fastPeriod, slowPeriod]),
+  );
 }

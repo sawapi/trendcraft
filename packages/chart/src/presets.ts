@@ -469,20 +469,10 @@ const TRENDCRAFT_PRESETS: [string, IndicatorPreset][] = [
   ["cvd", { color: "#e91e63" }],
   ["emv", { color: "#ff5722" }],
 
-  // Moving Averages (distinct colors for common overlay combinations)
-  ["sma", { color: "#2196F3" }],
-  ["ema", { color: "#FF9800" }],
-  ["wma", { color: "#26a69a" }],
-  ["vwma", { color: "#9c27b0" }],
-  ["kama", { color: "#ef5350" }],
-  ["hma", { color: "#00bcd4" }],
-  ["t3", { color: "#8bc34a" }],
-  ["mcginley", { color: "#ff5722" }],
-  ["dema", { color: "#e91e63" }],
-  ["tema", { color: "#673ab7" }],
-  ["zlema", { color: "#607d8b" }],
-  ["alma", { color: "#795548" }],
-  ["frama", { color: "#3f51b5" }],
+  // Moving Averages — no fixed preset color. Multiple instances of the same
+  // MA (e.g. SMA 5/20/60 as a ribbon) rely on the chart's auto-cycle palette
+  // so each instance gets a distinct color. Users can always override via
+  // SeriesConfig.color when they want a specific palette.
 
   // Adaptive
   ["adaptiveRsi", { color: "#ff9800" }],

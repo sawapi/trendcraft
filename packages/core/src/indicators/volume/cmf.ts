@@ -6,7 +6,7 @@
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
-import { tagSeries } from "../../core/tag-series";
+import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { CMF_META } from "../indicator-meta";
 
@@ -109,5 +109,5 @@ export function cmf(
     }
   }
 
-  return tagSeries(result, CMF_META);
+  return tagSeries(result, withLabelParams(CMF_META, [period]));
 }

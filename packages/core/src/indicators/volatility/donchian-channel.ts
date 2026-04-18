@@ -5,7 +5,7 @@
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
-import { tagSeries } from "../../core/tag-series";
+import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { DONCHIAN_META } from "../indicator-meta";
 
@@ -132,5 +132,5 @@ export function donchianChannel(
     }
   }
 
-  return tagSeries(result, DONCHIAN_META);
+  return tagSeries(result, withLabelParams(DONCHIAN_META, [period]));
 }

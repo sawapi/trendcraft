@@ -6,7 +6,7 @@
  */
 
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
-import { tagSeries } from "../../core/tag-series";
+import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 
 /**
@@ -78,5 +78,5 @@ export function ulcerIndex(
     result.push({ time: normalized[i].time, value: ui });
   }
 
-  return tagSeries(result, { overlay: false, label: "Ulcer" });
+  return tagSeries(result, withLabelParams({ overlay: false, label: "Ulcer" }, [period]));
 }

@@ -4,7 +4,7 @@
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
-import { tagSeries } from "../../core/tag-series";
+import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { STOCHASTICS_META } from "../indicator-meta";
 
@@ -138,7 +138,7 @@ export function stochastics(
     });
   }
 
-  return tagSeries(result, STOCHASTICS_META);
+  return tagSeries(result, withLabelParams(STOCHASTICS_META, [kPeriod, dPeriod]));
 }
 
 /**

@@ -6,7 +6,7 @@
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
-import { tagSeries } from "../../core/tag-series";
+import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { KELTNER_META } from "../indicator-meta";
 import { ema } from "../moving-average/ema";
@@ -121,5 +121,5 @@ export function keltnerChannel(
     }
   }
 
-  return tagSeries(result, KELTNER_META);
+  return tagSeries(result, withLabelParams(KELTNER_META, [emaPeriod, atrPeriod, multiplier]));
 }

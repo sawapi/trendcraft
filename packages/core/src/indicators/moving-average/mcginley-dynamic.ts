@@ -6,7 +6,7 @@
  */
 
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
-import { tagSeries } from "../../core/tag-series";
+import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 import { MCGINLEY_META } from "../indicator-meta";
 
@@ -83,5 +83,5 @@ export function mcginleyDynamic(
     }
   }
 
-  return tagSeries(result, MCGINLEY_META);
+  return tagSeries(result, withLabelParams(MCGINLEY_META, [period]));
 }

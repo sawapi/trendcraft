@@ -321,7 +321,7 @@ export function wyckoffPhases(
     });
   }
 
-  return tagSeries(result, { overlay: false, label: "Wyckoff" });
+  return tagSeries(result, { kind: "wyckoffPhases", overlay: false, label: "Wyckoff" });
 }
 
 // ---------------------------------------------------------------------------

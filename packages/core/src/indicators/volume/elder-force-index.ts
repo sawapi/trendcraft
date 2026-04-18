@@ -6,7 +6,7 @@
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
-import { tagSeries } from "../../core/tag-series";
+import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { ELDER_FORCE_INDEX_META } from "../indicator-meta";
 
@@ -76,5 +76,5 @@ export function elderForceIndex(
     }
   }
 
-  return tagSeries(result, ELDER_FORCE_INDEX_META);
+  return tagSeries(result, withLabelParams(ELDER_FORCE_INDEX_META, [period]));
 }

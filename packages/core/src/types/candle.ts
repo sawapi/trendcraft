@@ -56,9 +56,16 @@ export type Series<T> = IndicatorValue<T>[];
  * axis range, and reference lines.
  */
 export type SeriesMeta = {
+  /**
+   * Parameter-independent identifier for the indicator that produced this
+   * series (e.g. `"sma"`, `"rsi"`, `"macd"`). Matches the key used in
+   * `livePresets` / `indicatorPresets`. Use this for identity matching —
+   * `label` is for display and changes with parameters.
+   */
+  kind?: string;
   /** Whether this indicator shares the price scale (true) or needs its own scale (false) */
   overlay: boolean;
-  /** Display label (e.g., 'SMA 20', 'RSI 14') */
+  /** Display label, typically parameterized (e.g. 'SMA(20)', 'RSI(14)', 'MACD(12, 26, 9)') */
   label: string;
   /** Fixed Y-axis range (e.g., [0, 100] for RSI) */
   yRange?: [number, number];

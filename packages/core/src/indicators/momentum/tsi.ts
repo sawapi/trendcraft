@@ -6,7 +6,7 @@
  */
 
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
-import { tagSeries } from "../../core/tag-series";
+import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 
 /**
@@ -149,5 +149,12 @@ export function tsi(
     }
   }
 
-  return tagSeries(result, { overlay: false, label: "TSI", referenceLines: [0] });
+  return tagSeries(
+    result,
+    withLabelParams({ overlay: false, label: "TSI", referenceLines: [0] }, [
+      longPeriod,
+      shortPeriod,
+      signalPeriod,
+    ]),
+  );
 }

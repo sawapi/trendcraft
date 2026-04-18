@@ -92,7 +92,7 @@ export function highestLowest(
     }
   }
 
-  return tagSeries(result, { overlay: true, label: "HiLo" });
+  return tagSeries(result, { kind: "highestLowest", overlay: true, label: "HiLo" });
 }
 
 /**

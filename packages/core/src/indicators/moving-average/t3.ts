@@ -8,7 +8,7 @@
  */
 
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
-import { tagSeries } from "../../core/tag-series";
+import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 import { T3_META } from "../indicator-meta";
 
@@ -91,7 +91,7 @@ export function t3(
     }
   }
 
-  return tagSeries(result, T3_META);
+  return tagSeries(result, withLabelParams(T3_META, [period]));
 }
 
 /**

@@ -146,5 +146,5 @@ export function gapAnalysis(
     }
   }
 
-  return tagSeries(result, { overlay: true, label: "Gap" });
+  return tagSeries(result, { kind: "gapAnalysis", overlay: true, label: "Gap" });
 }

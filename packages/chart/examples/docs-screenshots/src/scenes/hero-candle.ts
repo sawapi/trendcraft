@@ -20,9 +20,9 @@ export function run(stage: HTMLElement, candles: CandleData[]): void {
   chart.setCandles(candles);
 
   const conn = connectIndicators(chart, { presets: indicatorPresets, candles });
-  conn.add("sma", { period: 5, series: { color: "#EF5350" } });
-  conn.add("sma", { period: 20, series: { color: "#FFC107" } });
-  conn.add("sma", { period: 60, series: { color: "#9C27B0" } });
+  conn.add("sma", { period: 5 });
+  conn.add("sma", { period: 20 });
+  conn.add("sma", { period: 60 });
   conn.add("rsi", { period: 14 });
   conn.add("macd");
 

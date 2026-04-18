@@ -6,8 +6,9 @@
  */
 
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
-import { tagSeries } from "../../core/tag-series";
+import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
+import { FRAMA_META } from "../indicator-meta";
 
 /**
  * FRAMA options
@@ -118,5 +119,5 @@ export function frama(
     result.push({ time: normalized[i].time, value: prevFrama });
   }
 
-  return tagSeries(result, { overlay: true, label: "FRAMA" });
+  return tagSeries(result, withLabelParams(FRAMA_META, [period]));
 }

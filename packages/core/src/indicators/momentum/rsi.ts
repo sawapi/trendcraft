@@ -4,7 +4,7 @@
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
-import { tagSeries } from "../../core/tag-series";
+import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, RsiOptions, Series } from "../../types";
 import { RSI_META } from "../indicator-meta";
 
@@ -91,7 +91,7 @@ export function rsi(
     }
   }
 
-  return tagSeries(result, RSI_META);
+  return tagSeries(result, withLabelParams(RSI_META, [period]));
 }
 
 /**

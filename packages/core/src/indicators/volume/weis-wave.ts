@@ -92,7 +92,7 @@ export function weisWave(
     });
   }
 
-  return tagSeries(result, { overlay: false, label: "Weis Wave" });
+  return tagSeries(result, { kind: "weisWave", overlay: false, label: "Weis Wave" });
 }
 
 /**

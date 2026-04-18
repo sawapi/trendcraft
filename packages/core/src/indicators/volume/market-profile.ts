@@ -134,7 +134,7 @@ export function marketProfile(
     });
   }
 
-  return tagSeries(result, { overlay: true, label: "Market Profile" });
+  return tagSeries(result, { kind: "marketProfile", overlay: true, label: "Market Profile" });
 }
 
 /**

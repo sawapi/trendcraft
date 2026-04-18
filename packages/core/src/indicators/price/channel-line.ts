@@ -218,5 +218,5 @@ export function channelLine(
     }
   }
 
-  return tagSeries(result, { overlay: true, label: "Channel" });
+  return tagSeries(result, { kind: "channelLine", overlay: true, label: "Channel" });
 }

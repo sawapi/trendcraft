@@ -4,7 +4,7 @@
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
-import { tagSeries } from "../../core/tag-series";
+import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { AtrOptions, Candle, NormalizedCandle, Series } from "../../types";
 import { ATR_META } from "../indicator-meta";
 
@@ -87,5 +87,5 @@ export function atr(
     }
   }
 
-  return tagSeries(result, ATR_META);
+  return tagSeries(result, withLabelParams(ATR_META, [period]));
 }

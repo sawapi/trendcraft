@@ -2,7 +2,25 @@
 
 ## Unreleased
 
-Target: **v0.2.0** — additive-only minor bump introducing live-streaming, indicator-registry, and series-metadata APIs.
+Target: **v0.2.0** — minor bump introducing live-streaming, indicator-registry, and series-metadata APIs, plus parameterized indicator labels.
+
+### Changed (Breaking in practice)
+
+- **Parameterized `__meta.label` on every parametric indicator.** Previously every SMA emitted `__meta.label = "SMA"` regardless of its period. Now the label includes the identifying parameters: `"SMA(20)"`, `"MACD(12, 26, 9)"`, `"BB(20, 2)"`, etc. This is done through a new `withLabelParams(meta, params)` helper (also exported) so callers building custom indicators can adopt the same convention.
+  - Fixes the ergonomic gap where three SMAs on one chart collapsed to three identical `"SMA"` legend entries.
+  - Code that compared `__meta.label` to a hard-coded string like `"RSI"` should migrate to `__meta.kind === "rsi"` (see below), or use `meta.label.startsWith("RSI")` if kind is unavailable. Consumers that just render the label see no behavioural change other than the displayed string.
+  - ~50 indicators updated: all moving averages, the momentum/oscillator set (RSI, MACD, Stochastics, Aroon, CCI, Williams %R, ROC, TRIX, DPO, Hurst, Ultimate Oscillator, Awesome Oscillator, Mass Index, KST, Coppock, TSI, PPO, StochRSI, Connors RSI, CMO, Balance of Power, QStick, ADXR, DMI, IMI), volatility (BB, ATR, Donchian, Keltner, Chandelier Exit, Choppiness, Ulcer, HV, Garman-Klass), trend (Supertrend, Parabolic SAR, Vortex, STC, Linear Regression), and the parametric volume indicators (MFI, CMF, Klinger, Elder Force Index, EMV, Volume Anomaly).
+
+### Added
+
+- `SeriesMeta.kind?: string` — parameter-independent identifier for the indicator that produced a series. Matches the key used in `livePresets` / `indicatorPresets` (`"sma"`, `"rsi"`, `"macd"`, `"bollingerBands"`, etc.). Use this for identity matching — `label` is for display and changes with parameters.
+  ```typescript
+  const series = rsi(candles, { period: 14 });
+  series.__meta.kind;    // "rsi"     ← stable across periods
+  series.__meta.label;   // "RSI(14)" ← changes with params
+  ```
+  All ~95 built-in indicators now emit a `kind`.
+- `withLabelParams(meta, params)` helper in `tag-series` for building parameterized labels when authoring custom indicators.
 
 ### Added — Live Streaming
 
