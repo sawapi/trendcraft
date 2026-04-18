@@ -1422,17 +1422,21 @@ Events: `tick`, `candleComplete`. Types: `LiveCandle`, `LiveCandleOptions`, `Liv
 
 ## Series Metadata & Indicator Registries (SeriesMeta / tagSeries / livePresets / indicatorPresets)
 
-Every built-in indicator output carries a non-enumerable `__meta` describing domain characteristics (label, overlay vs sub-pane, Y-range, reference lines). Any consumer may read the metadata; consumers that don't care can ignore it.
+Every built-in indicator output carries a non-enumerable `__meta` describing domain characteristics (kind, label, overlay vs sub-pane, Y-range, reference lines). Any consumer may read the metadata; consumers that don't care can ignore it.
 
 ```typescript
 import { tagSeries, rsi, type SeriesMeta } from 'trendcraft';
 
 const r = rsi(candles, { period: 14 });
 r.__meta;
-// { label: 'RSI', overlay: false, yRange: [0, 100], referenceLines: [30, 70] }
+// { kind: 'rsi', label: 'RSI(14)', overlay: false, yRange: [0, 100], referenceLines: [30, 70] }
+
+// Match by stable identity (params-independent):
+allSeries.filter(s => s.__meta?.kind === 'rsi');
 
 // Tag a custom series
 const my = tagSeries(myData, {
+  kind: 'customScore',
   label: 'Custom Score',
   overlay: false,
   yRange: [0, 1],
@@ -1440,7 +1444,7 @@ const my = tagSeries(myData, {
 });
 ```
 
-`SeriesMeta` fields: `overlay` (boolean — shares price scale if true), `label`, `yRange?` ([min, max]), `referenceLines?` (number[]).
+`SeriesMeta` fields: `kind?` (parameter-independent identifier matching `indicatorPresets` keys — use for identity matching), `overlay` (boolean — shares price scale if true), `label` (parameterized display string), `yRange?` ([min, max]), `referenceLines?` (number[]).
 
 ### livePresets (76 entries)
 

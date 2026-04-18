@@ -2278,8 +2278,10 @@ const rsiSeries = indicatorPresets.rsi.compute(candles, { period: 14 });
 import { rsi } from 'trendcraft';
 
 const r = rsi(candles, { period: 14 });
-r.__meta; // { label: 'RSI', overlay: false, yRange: [0, 100], referenceLines: [30, 70] }
+r.__meta; // { kind: 'rsi', label: 'RSI(14)', overlay: false, yRange: [0, 100], referenceLines: [30, 70] }
 ```
+
+`kind` はパラメータ非依存の安定した識別子（`indicatorPresets` のキーと一致）— フィルタ用に `s.__meta?.kind === 'rsi'` のように使います。`label` は表示用で、パラメータで変化します。
 
 自作指標にも同じ規約を下流（UI、ダッシュボード、レンダラー）に伝えたい場合に `tagSeries` を使います。メタデータを使わない利用者は無視すれば済みます — Series は相変わらず `{ time, value }[]` のプレーンな配列です。
 

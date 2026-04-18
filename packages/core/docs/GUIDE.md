@@ -2291,8 +2291,10 @@ Every built-in indicator output carries a non-enumerable `__meta` with display c
 import { rsi } from 'trendcraft';
 
 const r = rsi(candles, { period: 14 });
-r.__meta; // { label: 'RSI', overlay: false, yRange: [0, 100], referenceLines: [30, 70] }
+r.__meta; // { kind: 'rsi', label: 'RSI(14)', overlay: false, yRange: [0, 100], referenceLines: [30, 70] }
 ```
+
+`kind` is the stable, parameter-independent identifier (matches `indicatorPresets` keys) — use it for filtering (`s.__meta?.kind === 'rsi'`). `label` is for display and changes with parameters.
 
 Use `tagSeries` on your own indicators if you want the same conventions to flow downstream (into UIs, dashboards, renderers). Consumers that don't care about metadata can ignore it — the series is still a plain `{ time, value }[]`.
 
