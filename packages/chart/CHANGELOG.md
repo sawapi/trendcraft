@@ -20,6 +20,7 @@ Draft for the initial public release. Date and final version are set at release 
 - 13 series types: candlestick, line, area, histogram, band, cloud, marker, heatmap, arrow, signal, zone, labels, shapes.
 - Plugin system: `defineSeriesRenderer`, `definePrimitive`.
 - Auto-detection of TrendCraft `Series<T>` indicators via `introspect` (reads `__meta` set by core's `tagSeries`).
+- Drawing auto-injection helpers: `addAutoFibRetracement`, `addAutoFibExtension`, `addAutoTrendLine`, `addAutoChannelLine`. Consume pre-computed swing anchors and emit the chart's built-in drawing types — no primitive plugin required. Keeps the chart package runtime-free of `trendcraft`.
 - SSR safety: headless exports work without a DOM; DOM exports throw a clear error in non-browser environments.
 - ARIA accessibility support via `ChartAria`.
 - Bundle size limits enforced via `size-limit` (brotli): main ≤ 31 kB, headless ≤ 11 kB, React ≤ 27 kB, Vue ≤ 27 kB.
