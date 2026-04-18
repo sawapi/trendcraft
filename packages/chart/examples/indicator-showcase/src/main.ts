@@ -12,6 +12,7 @@ import { registerTrendCraftPresets } from "@trendcraft/chart/presets";
 import { indicatorPresets } from "trendcraft";
 import type { NormalizedCandle } from "trendcraft";
 import sampleData from "../../simple-chart/data.json";
+import { createPluginsPanel } from "./plugins-panel";
 import type { SidebarEntry } from "./sidebar";
 import { createSidebar } from "./sidebar";
 
@@ -150,6 +151,9 @@ chartEl.addEventListener("click", () => {
     sidebarEl.classList.remove("open");
   }
 });
+
+// Plugins panel (appended below the indicator list)
+createPluginsPanel(sidebarEl, candles, chart);
 
 // Suppress unused variable warning
 void sidebar;

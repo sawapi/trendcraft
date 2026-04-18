@@ -16,8 +16,8 @@
  * import { getAlternatingSwingPoints } from "trendcraft";
  * import { addAutoFibRetracement } from "@trendcraft/chart";
  *
- * const raw = getAlternatingSwingPoints(candles, { leftBars: 10, rightBars: 10 });
- * const anchors = raw.map(p => ({ time: p.time, price: p.value.price, type: p.value.type }));
+ * // getAlternatingSwingPoints already returns { time, price, type, index }[]
+ * const anchors = getAlternatingSwingPoints(candles, 6, { leftBars: 10, rightBars: 10 });
  * const drawingId = addAutoFibRetracement(chart, anchors);
  * ```
  */

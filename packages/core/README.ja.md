@@ -10,12 +10,16 @@
 - **移動平均**: SMA, EMA, WMA, VWMA, KAMA, T3, HMA（ハル移動平均）, McGinley Dynamic, EMA Ribbon, DEMA, TEMA, ZLEMA, FRAMA, ALMA
 - **トレンド**: 一目均衡表, Supertrend, パラボリックSAR, Vortex, Schaff Trend Cycle, Linear Regression
 - **モメンタム**: RSI, MACD, ストキャスティクス (Fast/Slow), DMI/ADX, ADXR, Stoch RSI, CCI, Williams %R, ROC, TRIX, Aroon, DPO, Hurst Exponent, コナーズRSI, IMI, Ultimate Oscillator, Awesome Oscillator, Mass Index, KST, Coppock Curve, TSI, PPO, CMO, Balance of Power, QStick
-- **ボラティリティ**: ボリンジャーバンド, ATR, ドンチャンチャネル, ケルトナーチャネル, シャンデリアイグジット, ボラティリティレジーム, チョッピネスインデックス, Ulcer Index, Historical Volatility, Garman-Klass, Standard Deviation
-- **出来高**: OBV, MFI, VWAP（バンド対応）, 出来高移動平均, CMF, 出来高異常検出, Volume Profile, 出来高トレンド確認, ADL, アンカードVWAP, Elder Force Index, Ease of Movement, Klinger, TWAP, Weis Wave, Market Profile, PVT, NVI
-- **価格**: 最高値/最安値, リターン, ピボットポイント, スイングポイント, フラクタル, Zigzag, フィボナッチリトレースメント/エクステンション, 平均足, オープニングレンジブレイクアウト, ギャップ分析, Median Price, Typical Price, Weighted Close
+- **ボラティリティ**: ボリンジャーバンド, ATR, ドンチャンチャネル, ケルトナーチャネル, シャンデリアイグジット, ボラティリティレジーム, チョッピネスインデックス, Ulcer Index, Historical Volatility, Garman-Klass, Standard Deviation, ATR Stops, ATR Percent, EWMA Volatility
+- **出来高**: OBV, MFI, VWAP（バンド対応）, 出来高移動平均, CMF, 出来高異常検出, Volume Profile, 出来高トレンド確認, ADL, アンカードVWAP, Elder Force Index, Ease of Movement, Klinger, TWAP, Weis Wave, Market Profile, PVT, NVI, CVD（+ シグナル / ダイバージェンス）
+- **価格**: Highest/Lowest, 最高値, 最安値, リターン, 累積リターン, ピボットポイント, スイングポイント, フラクタル, Zigzag, フィボナッチリトレースメント/エクステンション, アンドリュースピッチフォーク, オートトレンドライン, チャネルライン, 平均足, オープニングレンジブレイクアウト, ギャップ分析, Median Price, Typical Price, Weighted Close, BOS / CHoCH, FVG, S/Rゾーンクラスタリング
 - **スマートマネーコンセプト (SMC)**: Order Block, Liquidity Sweep
-- **フィルター**: Super Smoother, Roofing Filter (Ehlers)
-- **相対力**: Benchmark RS, RS Rating, RS Ranking
+- **フィルター (Ehlers)**: Super Smoother, Roofing Filter
+- **適応型**: Adaptive RSI, Adaptive Bollinger, Adaptive MA (ER連動), Adaptive Stochastics (ADX連動)
+- **セッション / ICT**: セッション検出, キルゾーン（アジア / ロンドン / NY）, セッション統計, セッションブレイクアウト
+- **Wyckoff**: VSA (Volume Spread Analysis), Wyckoffフェーズ検出
+- **レジーム**: HMMレジーム検出 (Baum-Welch / Viterbi), レジーム遷移行列
+- **相対力**: Benchmark RS, RS Rating, RS Ranking, マルチシンボルRS (`rankByRS` / `topByRS` / `filterByRSPercentile` / `compareRS`)
 
 ### シグナル検出
 - **クロス検出**: ゴールデンクロス、デッドクロス、カスタムクロスオーバー

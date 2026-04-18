@@ -635,6 +635,10 @@ Draft for the initial public release. Date and final version are set at release 
 - 13 series types: candlestick, line, area, histogram, band, cloud, marker, heatmap, arrow, signal, zone, labels, shapes.
 - Plugin system: `defineSeriesRenderer`, `definePrimitive`.
 - Auto-detection of TrendCraft `Series<T>` indicators via `introspect` (reads `__meta` set by core's `tagSeries`).
+- Drawing auto-injection helpers: `addAutoFibRetracement`, `addAutoFibExtension`, `addAutoTrendLine`, `addAutoChannelLine`. Consume pre-computed swing anchors and emit the chart's built-in drawing types — no primitive plugin required. Keeps the chart package runtime-free of `trendcraft`.
+- `createAndrewsPitchfork` / `connectAndrewsPitchfork` — primitive plugin that renders the three parallel pitchfork lines from three swing anchors (P0 + P1 + P2). Extends forward indefinitely across the visible range.
+- `connectSmcLayer` now accepts an optional `choch` source alongside `bos`. Both use the same per-bar shape but render with separate labels ("BOS" vs "CHoCH"), so you can feed `breakOfStructure()` and `changeOfCharacter()` simultaneously to distinguish structural breaks from trend-reversing ones.
+- `createVolumeProfile` / `connectVolumeProfile` — primitive plugin that renders a horizontal volume-by-price histogram along the right edge of the chart, with separate fills for the Value Area and a dashed POC line spanning the pane. Configurable strip width (fractional or pixel), highlight toggle, and color overrides.
 - SSR safety: headless exports work without a DOM; DOM exports throw a clear error in non-browser environments.
 - ARIA accessibility support via `ChartAria`.
 - Bundle size limits enforced via `size-limit` (brotli): main ≤ 31 kB, headless ≤ 11 kB, React ≤ 27 kB, Vue ≤ 27 kB.
@@ -670,6 +674,7 @@ A conceptual walkthrough of `@trendcraft/chart`. If you just want to get pixels 
 - [Render loop](#render-loop)
 - [Panes and layout](#panes-and-layout)
 - [Auto-detection from `__meta`](#auto-detection-from-__meta)
+- [Extra visualization layers](#extra-visualization-layers)
 - [Theming](#theming)
 - [Viewport and navigation](#viewport-and-navigation)
 - [Events](#events)
@@ -835,6 +840,27 @@ SeriesRegistry.addRule({
 ```
 
 Rules are consulted in registration order, with built-in rules last. Useful when you want to share conventions across a team without each caller configuring the chart.
+
+## Extra visualization layers
+
+Some indicators produce output that doesn't fit the `Series<T>` line/band model — S/R zones, regime backgrounds, Andrew's Pitchforks, volume-by-price histograms, structural breaks. These ship as **primitive plugins** instead of presets, and stay tree-shakeable.
+
+```typescript
+import {
+  connectRegimeHeatmap,
+  connectSmcLayer,
+  connectWyckoffPhase,
+  connectSrConfluence,
+  connectTradeAnalysis,
+  connectSessionZones,
+  connectAndrewsPitchfork,
+  connectVolumeProfile,
+} from '@trendcraft/chart';
+```
+
+See [API.md#built-in-plugins](./API.md#built-in-plugins) for the full list. Each `connect*` returns an update handle (`update()`, `remove()`) so the layer can refresh when new data arrives.
+
+Four indicators (`autoTrendLine`, `channelLine`, `fibonacciRetracement`, `fibonacciExtension`) have an even lighter delivery: their shape maps directly to the chart's built-in drawing types, so small helpers (`addAutoFibRetracement` etc.) convert swing anchors into `Drawing` objects you manage via `chart.addDrawing` / `removeDrawing`. See [API.md#drawing-auto-injection-helpers](./API.md#drawing-auto-injection-helpers).
 
 ## Theming
 
@@ -1033,6 +1059,7 @@ Complete API surface for `@trendcraft/chart`. This is the reference; for concept
 - [Connection APIs](#connection-apis)
   - [`connectIndicators`](#connectindicatorschart-options)
   - [`defineIndicator`](#defineindicatorpresetid-options)
+- [Drawing auto-injection helpers](#drawing-auto-injection-helpers)
 - [Plugin helpers](#plugin-helpers)
 - [Built-in plugins](#built-in-plugins)
 - [Framework wrappers](#framework-wrappers)
@@ -1338,6 +1365,47 @@ conn.add(sma5);
 
 Useful when you want to pass indicator configurations around your app without coupling to a specific chart connection.
 
+## Drawing auto-injection helpers
+
+Four TrendCraft indicators (`autoTrendLine`, `channelLine`, `fibonacciRetracement`, `fibonacciExtension`) produce shape data the chart already renders via its built-in drawing types. These helpers convert raw swing anchors into `Drawing` objects and attach them — no primitive plugin required.
+
+Every helper takes pre-computed **swing anchors**, so the chart package stays runtime-free of `trendcraft`. Compose with `getAlternatingSwingPoints` (or any equivalent) on the caller side:
+
+```typescript
+import { getAlternatingSwingPoints } from 'trendcraft';
+import {
+  addAutoFibRetracement,
+  addAutoFibExtension,
+  addAutoTrendLine,
+  addAutoChannelLine,
+  type SwingAnchor,
+} from '@trendcraft/chart';
+
+// getAlternatingSwingPoints returns the SwingAnchor shape directly.
+const anchors: SwingAnchor[] = getAlternatingSwingPoints(
+  candles,
+  10,  // last N alternating swings
+  { leftBars: 10, rightBars: 10 },
+);
+
+addAutoFibRetracement(chart, anchors);              // picks latest high + latest low
+addAutoFibExtension(chart, anchors);                // picks the last three alternating
+addAutoTrendLine(chart, anchors, { line: 'resistance' });
+addAutoTrendLine(chart, anchors, { line: 'support', extendToTime: nowMs });
+addAutoChannelLine(chart, anchors, { extendToTime: nowMs });
+```
+
+| Helper | Drawing emitted | Anchors consumed |
+|---|---|---|
+| `addAutoFibRetracement` | `fibRetracement` | latest swing high + latest swing low |
+| `addAutoFibExtension` | `fibExtension` | last three alternating swings (A→B projected, C ignored by chart) |
+| `addAutoTrendLine` | `trendline` | last two same-type swings (highs → resistance, lows → support) |
+| `addAutoChannelLine` | `channel` | last three alternating swings (two same-type as base, opposite for width) |
+
+All helpers return the drawing id (so you can later `chart.removeDrawing(id)`), or `null` if insufficient anchors were supplied. `extendToTime` projects the line endpoint forward using the slope of the two base anchors.
+
+Exported constants: `DEFAULT_FIB_RETRACEMENT_LEVELS`, `DEFAULT_FIB_EXTENSION_LEVELS`.
+
 ## Plugin helpers
 
 ```typescript
@@ -1372,11 +1440,13 @@ Tree-shakeable visualization primitives bundled with the library:
 | Function | Description |
 |---|---|
 | `createRegimeHeatmap` / `connectRegimeHeatmap` | Background heatmap for market regimes (`trending`, `volatile`, etc.) |
-| `createSmcLayer` / `connectSmcLayer` | Smart Money Concepts: order blocks, FVG, liquidity sweeps |
+| `createSmcLayer` / `connectSmcLayer` | Smart Money Concepts: order blocks, FVG, liquidity sweeps, BOS, CHoCH |
 | `createWyckoffPhase` / `connectWyckoffPhase` | Wyckoff phase bands (accumulation, markup, etc.) |
 | `createSrConfluence` / `connectSrConfluence` | Support/resistance confluence zones |
 | `createTradeAnalysis` / `connectTradeAnalysis` | MFE/MAE, holding period, streak annotations for backtest results |
 | `createSessionZones` / `connectSessionZones` | Session backgrounds (Asian/London/NY) |
+| `createAndrewsPitchfork` / `connectAndrewsPitchfork` | Andrew's Pitchfork — median line + upper/lower handles from three swing anchors, extending forward |
+| `createVolumeProfile` / `connectVolumeProfile` | Horizontal volume-by-price histogram along the right edge, with highlighted Value Area and dashed POC line |
 
 Each `create*` returns a `PrimitivePlugin`; each `connect*` registers it and returns an update handle.
 

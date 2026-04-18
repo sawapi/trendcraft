@@ -17,14 +17,13 @@
  * const chart = createChart(el);
  * chart.setCandles(candles);
  *
- * const timeToIndex = new Map(candles.map((c, i) => [c.time, i]));
- * const swings = getAlternatingSwingPoints(candles, { leftBars: 10, rightBars: 10 });
- * if (swings.length >= 3) {
- *   const last3 = swings.slice(-3);
- *   const handle = connectAndrewsPitchfork(chart, {
- *     p0: { index: timeToIndex.get(last3[0].time)!, price: last3[0].value.price },
- *     p1: { index: timeToIndex.get(last3[1].time)!, price: last3[1].value.price },
- *     p2: { index: timeToIndex.get(last3[2].time)!, price: last3[2].value.price },
+ * // getAlternatingSwingPoints already carries `index` for every swing.
+ * const last3 = getAlternatingSwingPoints(candles, 3, { leftBars: 10, rightBars: 10 });
+ * if (last3.length === 3) {
+ *   connectAndrewsPitchfork(chart, {
+ *     p0: { index: last3[0].index, price: last3[0].price },
+ *     p1: { index: last3[1].index, price: last3[1].price },
+ *     p2: { index: last3[2].index, price: last3[2].price },
  *   });
  * }
  * ```

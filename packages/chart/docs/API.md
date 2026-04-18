@@ -33,6 +33,7 @@ Complete API surface for `@trendcraft/chart`. This is the reference; for concept
 - [Connection APIs](#connection-apis)
   - [`connectIndicators`](#connectindicatorschart-options)
   - [`defineIndicator`](#defineindicatorpresetid-options)
+- [Drawing auto-injection helpers](#drawing-auto-injection-helpers)
 - [Plugin helpers](#plugin-helpers)
 - [Built-in plugins](#built-in-plugins)
 - [Framework wrappers](#framework-wrappers)
@@ -338,6 +339,47 @@ conn.add(sma5);
 
 Useful when you want to pass indicator configurations around your app without coupling to a specific chart connection.
 
+## Drawing auto-injection helpers
+
+Four TrendCraft indicators (`autoTrendLine`, `channelLine`, `fibonacciRetracement`, `fibonacciExtension`) produce shape data the chart already renders via its built-in drawing types. These helpers convert raw swing anchors into `Drawing` objects and attach them — no primitive plugin required.
+
+Every helper takes pre-computed **swing anchors**, so the chart package stays runtime-free of `trendcraft`. Compose with `getAlternatingSwingPoints` (or any equivalent) on the caller side:
+
+```typescript
+import { getAlternatingSwingPoints } from 'trendcraft';
+import {
+  addAutoFibRetracement,
+  addAutoFibExtension,
+  addAutoTrendLine,
+  addAutoChannelLine,
+  type SwingAnchor,
+} from '@trendcraft/chart';
+
+// getAlternatingSwingPoints returns the SwingAnchor shape directly.
+const anchors: SwingAnchor[] = getAlternatingSwingPoints(
+  candles,
+  10,  // last N alternating swings
+  { leftBars: 10, rightBars: 10 },
+);
+
+addAutoFibRetracement(chart, anchors);              // picks latest high + latest low
+addAutoFibExtension(chart, anchors);                // picks the last three alternating
+addAutoTrendLine(chart, anchors, { line: 'resistance' });
+addAutoTrendLine(chart, anchors, { line: 'support', extendToTime: nowMs });
+addAutoChannelLine(chart, anchors, { extendToTime: nowMs });
+```
+
+| Helper | Drawing emitted | Anchors consumed |
+|---|---|---|
+| `addAutoFibRetracement` | `fibRetracement` | latest swing high + latest swing low |
+| `addAutoFibExtension` | `fibExtension` | last three alternating swings (A→B projected, C ignored by chart) |
+| `addAutoTrendLine` | `trendline` | last two same-type swings (highs → resistance, lows → support) |
+| `addAutoChannelLine` | `channel` | last three alternating swings (two same-type as base, opposite for width) |
+
+All helpers return the drawing id (so you can later `chart.removeDrawing(id)`), or `null` if insufficient anchors were supplied. `extendToTime` projects the line endpoint forward using the slope of the two base anchors.
+
+Exported constants: `DEFAULT_FIB_RETRACEMENT_LEVELS`, `DEFAULT_FIB_EXTENSION_LEVELS`.
+
 ## Plugin helpers
 
 ```typescript
@@ -372,11 +414,13 @@ Tree-shakeable visualization primitives bundled with the library:
 | Function | Description |
 |---|---|
 | `createRegimeHeatmap` / `connectRegimeHeatmap` | Background heatmap for market regimes (`trending`, `volatile`, etc.) |
-| `createSmcLayer` / `connectSmcLayer` | Smart Money Concepts: order blocks, FVG, liquidity sweeps |
+| `createSmcLayer` / `connectSmcLayer` | Smart Money Concepts: order blocks, FVG, liquidity sweeps, BOS, CHoCH |
 | `createWyckoffPhase` / `connectWyckoffPhase` | Wyckoff phase bands (accumulation, markup, etc.) |
 | `createSrConfluence` / `connectSrConfluence` | Support/resistance confluence zones |
 | `createTradeAnalysis` / `connectTradeAnalysis` | MFE/MAE, holding period, streak annotations for backtest results |
 | `createSessionZones` / `connectSessionZones` | Session backgrounds (Asian/London/NY) |
+| `createAndrewsPitchfork` / `connectAndrewsPitchfork` | Andrew's Pitchfork — median line + upper/lower handles from three swing anchors, extending forward |
+| `createVolumeProfile` / `connectVolumeProfile` | Horizontal volume-by-price histogram along the right edge, with highlighted Value Area and dashed POC line |
 
 Each `create*` returns a `PrimitivePlugin`; each `connect*` registers it and returns an update handle.
 
