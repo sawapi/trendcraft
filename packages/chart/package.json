@@ -126,7 +126,7 @@
     "trendcraft": "workspace:*",
     "vite": "^8.0.3",
     "vite-plugin-dts": "^4.3.0",
-    "vitest": "^4.1.2",
+    "vitest": "^4.1.4",
     "vue": "^3.5.32"
   },
   "engines": {
