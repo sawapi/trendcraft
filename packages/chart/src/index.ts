@@ -147,3 +147,10 @@ export { createWyckoffPhase, connectWyckoffPhase } from "./plugins/wyckoff-phase
 export { createSrConfluence, connectSrConfluence } from "./plugins/sr-confluence";
 export { createTradeAnalysis, connectTradeAnalysis } from "./plugins/trade-analysis";
 export { createSessionZones, connectSessionZones } from "./plugins/session-zones";
+export {
+  createAndrewsPitchfork,
+  connectAndrewsPitchfork,
+  type AndrewsPitchforkState,
+  type PitchforkAnchor,
+  type PitchforkAnchors,
+} from "./plugins/andrews-pitchfork";

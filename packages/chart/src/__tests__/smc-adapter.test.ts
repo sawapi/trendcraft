@@ -234,6 +234,23 @@ describe("extractBosLevels", () => {
   it("returns empty for empty input", () => {
     expect(extractBosLevels([])).toEqual([]);
   });
+
+  it("honors a custom label (e.g. CHoCH)", () => {
+    const data = [
+      dp({
+        bullishBos: true,
+        bearishBos: false,
+        brokenLevel: 130,
+        trend: "bullish",
+        swingHighLevel: 130,
+        swingLowLevel: 100,
+      }),
+    ];
+
+    const levels = extractBosLevels(data, "CHoCH");
+    expect(levels).toHaveLength(1);
+    expect(levels[0].label).toBe("CHoCH");
+  });
 });
 
 describe("buildSmcState", () => {
@@ -272,5 +289,34 @@ describe("buildSmcState", () => {
     expect(state.fvgZones).toEqual([]);
     expect(state.sweepMarkers).toEqual([]);
     expect(state.bosLevels).toEqual([]);
+  });
+
+  it("merges bos and choch levels into bosLevels with separate labels", () => {
+    const state = buildSmcState({
+      bos: [
+        dp({
+          bullishBos: true,
+          bearishBos: false,
+          brokenLevel: 120,
+          trend: "bullish",
+          swingHighLevel: 120,
+          swingLowLevel: 100,
+        }),
+      ],
+      choch: [
+        dp({
+          bullishBos: false,
+          bearishBos: true,
+          brokenLevel: 95,
+          trend: "bearish",
+          swingHighLevel: 120,
+          swingLowLevel: 95,
+        }),
+      ],
+    });
+
+    expect(state.bosLevels).toHaveLength(2);
+    const labels = state.bosLevels.map((l) => l.label).sort();
+    expect(labels).toEqual(["BOS", "CHoCH"]);
   });
 });
