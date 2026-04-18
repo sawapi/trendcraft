@@ -108,7 +108,7 @@ export function cvd(candles: Candle[] | NormalizedCandle[]): Series<number> {
     result.push({ time: normalized[i].time, value: cumulative });
   }
 
-  return tagSeries(result, { overlay: false, label: "CVD" });
+  return tagSeries(result, { kind: "cvd", overlay: false, label: "CVD" });
 }
 
 /**
@@ -156,5 +156,5 @@ export function cvdWithSignal(
       signal: signalValues[i],
     },
   }));
-  return tagSeries(result, { overlay: false, label: "CVD" });
+  return tagSeries(result, { kind: "cvdWithSignal", overlay: false, label: "CVD" });
 }

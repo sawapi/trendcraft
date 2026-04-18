@@ -81,7 +81,7 @@ export function zigzag(
   }));
 
   if (normalized.length < 2) {
-    return tagSeries(result, { overlay: true, label: "Zigzag" });
+    return tagSeries(result, { kind: "zigzag", overlay: true, label: "Zigzag" });
   }
 
   // Calculate ATR if needed using the existing atr() indicator
@@ -233,5 +233,5 @@ export function zigzag(
     }
   }
 
-  return tagSeries(result, { overlay: true, label: "Zigzag" });
+  return tagSeries(result, { kind: "zigzag", overlay: true, label: "Zigzag" });
 }

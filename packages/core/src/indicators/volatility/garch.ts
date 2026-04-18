@@ -328,5 +328,5 @@ export function ewmaVolatility(returns: number[], options?: EwmaVolatilityOption
     result.push({ time: t, value: Math.sqrt(sigma2) * SQRT_252 * 100 });
   }
 
-  return tagSeries(result, { overlay: false, label: "GARCH" });
+  return tagSeries(result, { kind: "garch", overlay: false, label: "GARCH" });
 }

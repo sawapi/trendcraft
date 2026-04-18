@@ -139,5 +139,5 @@ export function sessionBreakout(
     });
   }
 
-  return tagSeries(result, { overlay: true, label: "Session BO" });
+  return tagSeries(result, { kind: "sessionBreakout", overlay: true, label: "Session BO" });
 }

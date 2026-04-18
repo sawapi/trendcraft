@@ -64,5 +64,5 @@ export function nvi(
     result.push({ time: normalized[i].time, value: currentNvi });
   }
 
-  return tagSeries(result, { overlay: false, label: "NVI" });
+  return tagSeries(result, { kind: "nvi", overlay: false, label: "NVI" });
 }

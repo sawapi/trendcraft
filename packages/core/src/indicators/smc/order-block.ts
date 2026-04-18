@@ -263,7 +263,7 @@ export function orderBlock(
     });
   }
 
-  return tagSeries(result, { overlay: true, label: "Order Block" });
+  return tagSeries(result, { kind: "orderBlock", overlay: true, label: "Order Block" });
 }
 
 /**
