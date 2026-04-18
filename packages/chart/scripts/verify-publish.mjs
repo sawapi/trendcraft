@@ -13,8 +13,8 @@
  *  - Any listed entry that doesn't actually expose its advertised symbols
  */
 
-import { createRequire } from "node:module";
 import { existsSync, readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -60,11 +60,10 @@ async function verifyEntry(subpath, entry) {
 
   // React/Vue entries import their peer deps — skip runtime evaluation if they're not installed.
   const skipRuntime =
-    (subpath === "./react" && !canRequire("react")) ||
-    (subpath === "./vue" && !canRequire("vue"));
+    (subpath === "./react" && !canRequire("react")) || (subpath === "./vue" && !canRequire("vue"));
 
   if (skipRuntime) {
-    pass(`skipping runtime eval (peer dep not installed; file checks above cover surface)`);
+    pass("skipping runtime eval (peer dep not installed; file checks above cover surface)");
     return;
   }
 

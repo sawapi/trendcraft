@@ -28,7 +28,10 @@ function makeCandles(n = 400) {
   const out = [];
   let price = 100;
   let seed = 42;
-  const rng = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+  const rng = () => {
+    seed = (seed * 9301 + 49297) % 233280;
+    return seed / 233280;
+  };
   for (let i = 0; i < n; i++) {
     price += Math.sin(i / 20) * 1.5 + (rng() - 0.5) * 1.2;
     const o = price;
@@ -37,8 +40,11 @@ function makeCandles(n = 400) {
     const l = Math.min(o, c) - rng() * 1.5;
     out.push({
       time: Date.UTC(2024, 0, 1) + i * 86_400_000,
-      open: o, high: h, low: l, close: c,
-      volume: 1000 + (rng() * 5000 | 0),
+      open: o,
+      high: h,
+      low: l,
+      close: c,
+      volume: 1000 + ((rng() * 5000) | 0),
     });
   }
   return out;
@@ -48,11 +54,15 @@ function parseIndicatorList() {
   const src = readFileSync(INDICATOR_BARREL, "utf8");
   const names = [];
   const re = /export\s+\{([^}]+)\}\s+from\s+"\.\/[a-z-]+"/g;
-  let m;
-  while ((m = re.exec(src)) !== null) {
+  while (true) {
+    const m = re.exec(src);
+    if (m === null) break;
     // Strip line comments inside the block
     const body = m[1].replace(/\/\/[^\n]*/g, "");
-    const entries = body.split(",").map((s) => s.trim()).filter(Boolean);
+    const entries = body
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
     for (const e of entries) {
       const name = e.split(/\s+as\s+/)[0].trim();
       if (name && /^[a-zA-Z_$][\w$]*$/.test(name)) names.push(name);
@@ -64,15 +74,26 @@ function parseIndicatorList() {
 // Minimal sensible options for indicators that require a second argument.
 // Anything NOT listed gets `undefined` — expected to work with candles only.
 const DEFAULT_OPTS = {
-  sma: { period: 20 }, ema: { period: 20 }, wma: { period: 20 }, vwma: { period: 20 },
-  volumeMa: { period: 20 }, highestLowest: { period: 20 }, superSmoother: { period: 20 },
+  sma: { period: 20 },
+  ema: { period: 20 },
+  wma: { period: 20 },
+  vwma: { period: 20 },
+  volumeMa: { period: 20 },
+  highestLowest: { period: 20 },
+  superSmoother: { period: 20 },
   anchoredVwap: { anchorTime: Date.UTC(2024, 0, 1) },
 };
 
 // Indicators that take TWO series args. For these we synthesize a benchmark.
 const NEEDS_BENCHMARK = new Set([
-  "benchmarkRS", "calculateRSRating", "isOutperforming", "rankByRS", "topByRS",
-  "bottomByRS", "filterByRSPercentile", "compareRS",
+  "benchmarkRS",
+  "calculateRSRating",
+  "isOutperforming",
+  "rankByRS",
+  "topByRS",
+  "bottomByRS",
+  "filterByRSPercentile",
+  "compareRS",
 ]);
 // regimeTransitionMatrix takes a regime-labeled series, not candles.
 const SPECIAL = new Set(["regimeTransitionMatrix", "filterStocksByAtr"]);
@@ -88,7 +109,13 @@ async function runOne(name) {
   }
   const candles = makeCandles();
   if (SPECIAL.has(name)) {
-    console.log(JSON.stringify({ name, status: "skipped", reason: "requires specialized input (not candles)" }));
+    console.log(
+      JSON.stringify({
+        name,
+        status: "skipped",
+        reason: "requires specialized input (not candles)",
+      }),
+    );
     return;
   }
   let args;
@@ -106,7 +133,9 @@ async function runOne(name) {
   try {
     res = fn(...args);
   } catch (err) {
-    console.log(JSON.stringify({ name, status: "throw", error: err.message, ms: performance.now() - t0 }));
+    console.log(
+      JSON.stringify({ name, status: "throw", error: err.message, ms: performance.now() - t0 }),
+    );
     return;
   }
   const ms = performance.now() - t0;
@@ -134,8 +163,12 @@ function sweepOne(name, scriptPath) {
     });
     let out = "";
     let err = "";
-    child.stdout.on("data", (d) => { out += d; });
-    child.stderr.on("data", (d) => { err += d; });
+    child.stdout.on("data", (d) => {
+      out += d;
+    });
+    child.stderr.on("data", (d) => {
+      err += d;
+    });
 
     const timer = setTimeout(() => {
       child.kill("SIGKILL");
@@ -151,7 +184,12 @@ function sweepOne(name, scriptPath) {
       try {
         resolve(JSON.parse(line));
       } catch {
-        resolve({ name, status: "crash", error: err.trim().split("\n").slice(-3).join(" | "), exitCode: code });
+        resolve({
+          name,
+          status: "crash",
+          error: err.trim().split("\n").slice(-3).join(" | "),
+          exitCode: code,
+        });
       }
     });
   });
@@ -176,7 +214,7 @@ async function main() {
     const r = await sweepOne(name, scriptPath);
     results.push(r);
   }
-  process.stdout.write("\r".padEnd(80) + "\r");
+  process.stdout.write(`${"\r".padEnd(80)}\r`);
 
   writeFileSync(REPORT_PATH, JSON.stringify(results, null, 2));
 
@@ -195,4 +233,7 @@ async function main() {
   }
 }
 
-main().catch((err) => { console.error(err); process.exit(1); });
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
