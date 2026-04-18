@@ -6181,7 +6181,7 @@ import { livePresets } from "trendcraft";
 
 const sma = livePresets.sma;
 // {
-//   meta: { label: 'SMA', overlay: true, ... },
+//   meta: { kind: 'sma', label: 'SMA', overlay: true, ... },
 //   defaultParams: { period: 20 },
 //   snapshotName: (p) => `sma${p.period}`,
 //   createFactory: (params) => (fromState) => IncrementalIndicator,
@@ -6196,7 +6196,7 @@ const rsiIndicator = factory(undefined); // no prior state
 
 | Field | Type | Description |
 |---|---|---|
-| `meta` | `SeriesMeta` | Rendering metadata (label, overlay, yRange, referenceLines). |
+| `meta` | `SeriesMeta` | Rendering metadata (kind, label, overlay, yRange, referenceLines). |
 | `defaultParams` | `Record<string, unknown>` | Default parameters when user passes `{}`. |
 | `snapshotName` | `(params) => string` | Derive the snapshot key (e.g. `"sma20"`) for this instance. |
 | `createFactory` | `(params) => LiveIndicatorFactory` | Build the incremental factory closed over the given params. |
@@ -6236,7 +6236,8 @@ import { tagSeries, rsi, type SeriesMeta } from "trendcraft";
 const r = rsi(candles, { period: 14 });
 r.__meta;
 // {
-//   label: "RSI",
+//   kind: "rsi",
+//   label: "RSI(14)",
 //   overlay: false,
 //   yRange: [0, 100],
 //   referenceLines: [30, 70],
@@ -6254,7 +6255,8 @@ const myCustom = tagSeries(myData, {
 
 | Field | Type | Description |
 |---|---|---|
-| `label` | `string` | Display label (e.g. `"SMA 20"`). |
+| `kind` | `string?` | Parameter-independent identifier (e.g. `"sma"`, `"rsi"`, `"macd"`). Matches `indicatorPresets` keys. Use for identity matching. |
+| `label` | `string` | Display label, typically parameterized (e.g. `"SMA(20)"`, `"MACD(12, 26, 9)"`). Changes with parameter values. |
 | `overlay` | `boolean` | `true` = share the price scale (overlay on main pane). `false` = needs its own scale (sub-pane). |
 | `yRange` | `[min, max]?` | Fixed Y-axis range (e.g. `[0, 100]` for oscillators). |
 | `referenceLines` | `number[]?` | Horizontal reference line values (e.g. `[30, 70]` for RSI). |

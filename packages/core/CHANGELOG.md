@@ -22,6 +22,27 @@ Target: **v0.2.0** — minor bump introducing live-streaming, indicator-registry
   All ~95 built-in indicators now emit a `kind`.
 - `withLabelParams(meta, params)` helper in `tag-series` for building parameterized labels when authoring custom indicators.
 
+### Migration from v0.1.0
+
+Most code doesn't need changes — passing indicators to charts, computing values, or displaying labels works the same. The only realistic breakage is code that string-compared `__meta.label`:
+
+```typescript
+// ❌ v0.1.0 style (breaks in v0.2.0 — label is now "RSI(14)")
+if (series.__meta.label === "RSI") { ... }
+
+// ✅ v0.2.0 — match by stable kind instead
+if (series.__meta?.kind === "rsi") { ... }
+
+// ✅ alternative — prefix match if you don't have kind yet
+if (series.__meta?.label.startsWith("RSI")) { ... }
+```
+
+Useful for filtering multiple-instance series by indicator type (e.g. "show me all SMAs regardless of period"):
+
+```typescript
+const smas = allSeries.filter((s) => s.__meta?.kind === "sma");
+```
+
 ### Added — Live Streaming
 
 - `createLiveCandle(options, fromState?)` — unified tick/candle aggregator with dynamically registered incremental indicators and an event bus (`tick`, `candleComplete`). Supports both tick mode (`addTick`) and candle mode (`addCandle`), with state save/restore for resumable sessions.

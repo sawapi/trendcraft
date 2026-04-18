@@ -639,7 +639,7 @@ Every built-in indicator output carries a non-enumerable `__meta` describing its
 import { tagSeries, rsi } from 'trendcraft';
 
 const r = rsi(candles, { period: 14 });
-r.__meta; // { label: 'RSI', overlay: false, yRange: [0, 100], referenceLines: [30, 70] }
+r.__meta; // { kind: 'rsi', label: 'RSI(14)', overlay: false, yRange: [0, 100], referenceLines: [30, 70] }
 
 // Tag a custom series with the same shape
 const my = tagSeries(myData, {

@@ -5605,7 +5605,7 @@ import { livePresets } from "trendcraft";
 
 const sma = livePresets.sma;
 // {
-//   meta: { label: 'SMA', overlay: true, ... },
+//   meta: { kind: 'sma', label: 'SMA', overlay: true, ... },
 //   defaultParams: { period: 20 },
 //   snapshotName: (p) => `sma${p.period}`,
 //   createFactory: (params) => (fromState) => IncrementalIndicator,
@@ -5620,7 +5620,7 @@ const indicator = factory(undefined); // 既存 state なし
 
 | フィールド | 型 | 説明 |
 |---|---|---|
-| `meta` | `SeriesMeta` | 描画メタデータ（label, overlay, yRange, referenceLines）。 |
+| `meta` | `SeriesMeta` | 描画メタデータ（kind, label, overlay, yRange, referenceLines）。 |
 | `defaultParams` | `Record<string, unknown>` | ユーザーが `{}` を渡したときのデフォルトパラメータ。 |
 | `snapshotName` | `(params) => string` | このインスタンスの snapshot キーを生成（例: `"sma20"`）。 |
 | `createFactory` | `(params) => LiveIndicatorFactory` | 指定パラメータで closure したインクリメンタルファクトリを生成。 |
@@ -5660,7 +5660,8 @@ import { tagSeries, rsi, type SeriesMeta } from "trendcraft";
 const r = rsi(candles, { period: 14 });
 r.__meta;
 // {
-//   label: "RSI",
+//   kind: "rsi",
+//   label: "RSI(14)",
 //   overlay: false,
 //   yRange: [0, 100],
 //   referenceLines: [30, 70],
@@ -5678,7 +5679,8 @@ const myCustom = tagSeries(myData, {
 
 | フィールド | 型 | 説明 |
 |---|---|---|
-| `label` | `string` | 表示ラベル（例 `"SMA 20"`）。 |
+| `kind` | `string?` | パラメータ非依存の識別子（例 `"sma"`, `"rsi"`, `"macd"`）。`indicatorPresets` のキーと一致。identity match に使う。 |
+| `label` | `string` | 表示ラベル、通常はパラメータ化される（例 `"SMA(20)"`, `"MACD(12, 26, 9)"`）。パラメータ値で変化する。 |
 | `overlay` | `boolean` | `true` = 価格スケールを共有（メインペインに重ね描画）。`false` = 独立スケール（サブペイン）が必要。 |
 | `yRange` | `[min, max]?` | Y 軸の固定レンジ（オシレーターなら例えば `[0, 100]`）。 |
 | `referenceLines` | `number[]?` | 水平参照線の値（RSI なら `[30, 70]` など）。 |

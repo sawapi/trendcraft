@@ -533,11 +533,15 @@ live.addCandle(bar);                                             // candle mode
 ```
 
 ### Series Metadata & Indicator Registries (SeriesMeta, tagSeries, livePresets, indicatorPresets)
-All built-in indicators tag their output with `__meta` (`SeriesMeta`) describing label, whether the series shares the price scale, Y-range, and reference lines. Any consumer may read the metadata; consumers that don't care can ignore it.
+All built-in indicators tag their output with `__meta` (`SeriesMeta`) describing its `kind` (parameter-independent identifier like `"sma"`, `"rsi"`), parameterized `label`, overlay flag, Y-range, and reference lines. Any consumer may read the metadata; consumers that don't care can ignore it.
 ```typescript
 import { tagSeries, rsi, livePresets, indicatorPresets } from 'trendcraft';
 
-rsi(candles).__meta; // { label: 'RSI', overlay: false, yRange: [0, 100], referenceLines: [30, 70] }
+rsi(candles, { period: 14 }).__meta;
+// { kind: 'rsi', label: 'RSI(14)', overlay: false, yRange: [0, 100], referenceLines: [30, 70] }
+
+// Match by stable identity (kind), not the display label:
+allSeries.filter(s => s.__meta?.kind === 'rsi');
 
 // livePresets: 76 incremental indicator presets (factory + metadata + default params + snapshot-name)
 // indicatorPresets: 95 unified presets with both batch compute and incremental createFactory
