@@ -126,7 +126,7 @@
     "react": "^19.2.4",
     "size-limit": "^12.0.1",
     "trendcraft": "workspace:*",
-    "vite": "^8.0.3",
+    "vite": "^8.0.8",
     "vite-plugin-dts": "^4.3.0",
     "vitest": "^4.1.4",
     "vue": "^3.5.32"
