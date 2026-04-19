@@ -59,8 +59,9 @@ const SPECS: PluginSpec[] = [
   },
   {
     id: "smcLayer",
-    label: "SMC Layer",
-    description: "Order Blocks + FVG + Liquidity Sweeps",
+    label: "SMC Layer (bundle)",
+    description:
+      "OB + FVG + Sweeps in one pass — use the individual SMC presets for per-indicator params",
     connect: (candles) =>
       connectSmcLayer(chartRef, {
         orderBlocks: orderBlock(candles),
