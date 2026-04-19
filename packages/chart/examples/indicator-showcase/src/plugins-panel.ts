@@ -30,6 +30,7 @@ import {
   orderBlock,
   srZones,
   volumeProfile,
+  vsa,
   wyckoffPhases,
 } from "trendcraft";
 
@@ -78,8 +79,13 @@ const SPECS: PluginSpec[] = [
   {
     id: "wyckoffPhase",
     label: "Wyckoff Phase",
-    description: "Phase timeline bar at pane bottom",
-    connect: (candles) => connectWyckoffPhase(chartRef, { phases: wyckoffPhases(candles) }),
+    description: "Range boxes + PS/SC/SOS/... event labels + phase badge",
+    connect: (candles) =>
+      connectWyckoffPhase(chartRef, {
+        phases: wyckoffPhases(candles),
+        vsa: vsa(candles),
+        candles,
+      }),
   },
   {
     id: "sessionZones",
