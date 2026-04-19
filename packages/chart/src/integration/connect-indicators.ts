@@ -131,6 +131,13 @@ export type IndicatorHandle = {
   readonly presetId: string;
   /** Effective parameters (defaultParams merged with overrides) */
   readonly params: Readonly<Record<string, unknown>>;
+  /**
+   * The assigned line color (either explicit or palette-rotated). Useful for
+   * preserving an instance's color across a remove+add params-change cycle.
+   * `undefined` when the indicator uses `channelColors` (multi-channel series)
+   * or when no color has been resolved yet.
+   */
+  readonly color: string | undefined;
   /** Underlying chart series handle. Escape hatch for advanced use cases. */
   readonly series: SeriesHandle;
   /** True once this instance has been removed */
@@ -199,6 +206,8 @@ type ActiveEntry = {
   staticOnly: boolean;
   /** User-facing wrapper, lazily assigned after creation */
   handle: IndicatorHandle;
+  /** Snapshot of the resolved primary color at creation time */
+  color: string | undefined;
   removed: boolean;
 };
 
@@ -319,6 +328,9 @@ export function connectIndicators(
       get series() {
         return entry.series;
       },
+      get color() {
+        return entry.color;
+      },
       get removed() {
         return entry.removed;
       },
@@ -399,6 +411,7 @@ export function connectIndicators(
       snapshotName,
       staticOnly,
       handle: null as unknown as IndicatorHandle,
+      color: seriesHandle.config?.color,
       removed: false,
     };
     entry.handle = createHandle(entry);

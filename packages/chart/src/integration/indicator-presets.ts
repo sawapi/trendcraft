@@ -13,8 +13,17 @@ export type IndicatorPreset = {
   seriesType?: SeriesType;
   /** Default pane placement */
   pane?: "main" | "sub";
-  /** Primary color */
-  color?: string;
+  /**
+   * Primary color. Accepts either:
+   * - a single string → used as the fixed color for every instance of this
+   *   preset (appropriate for single-purpose indicators).
+   * - an array of colors → treated as a palette. The first instance uses
+   *   `color[0]`, the next `color[1]`, etc., wrapping at the array length.
+   *   Useful for catch-all presets (e.g. the `"number"` preset) so that
+   *   stacking multiple plain scalar indicators (SMA, RSI, ...) doesn't
+   *   collapse into one color.
+   */
+  color?: string | readonly string[];
   /** Line width */
   lineWidth?: number;
   /** Display label */
@@ -185,13 +194,29 @@ export const INDICATOR_PRESETS = new Map<string, IndicatorPreset>([
     },
   ],
 
-  // Simple number (RSI, CCI, ATR, etc.) — default for scalar series
+  // Simple number (RSI, CCI, ATR, etc.) — default for scalar series.
+  // `color` here is an array palette: the first instance of any scalar
+  // indicator picks #2196F3, the next #FF9800, and so on. Stacking multiple
+  // SMAs / RSIs produces distinct colors instead of collapsing into one.
   [
     "number",
     {
       pane: "sub",
       label: "Indicator",
-      color: "#2196F3",
+      color: [
+        "#2196F3",
+        "#FF9800",
+        "#26a69a",
+        "#ef5350",
+        "#9c27b0",
+        "#FF5722",
+        "#00bcd4",
+        "#8bc34a",
+        "#e91e63",
+        "#607d8b",
+        "#ffc107",
+        "#3f51b5",
+      ],
       lineWidth: 1.5,
     },
   ],

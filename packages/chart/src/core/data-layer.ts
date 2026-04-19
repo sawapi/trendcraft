@@ -173,6 +173,13 @@ export class DataLayer {
 
     const handle: SeriesHandle = {
       id,
+      // `internal.config` is mutated in-place by the chart after this handle
+      // is returned (notably by the palette-rotation pass in canvas-chart).
+      // Using a getter + closure keeps the handle in sync without snapshotting
+      // stale values.
+      get config() {
+        return internal.config;
+      },
       update: (point: DataPoint) => {
         const s = this._series.get(id);
         if (!s) return;

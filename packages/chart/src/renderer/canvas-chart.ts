@@ -108,7 +108,14 @@ export class CanvasChart implements ChartInstance {
 
   // Auto-color cycling palette for indicators without explicit color
   private _colorIndex = 0;
-  private static readonly _COLOR_PALETTE = [
+  /**
+   * Per-palette counters so that a preset's palette (e.g. the `"number"`
+   * catch-all palette) rotates independently of the default palette and of
+   * other presets' palettes. Keyed by the palette array identity so the same
+   * array always resolves to the same counter.
+   */
+  private _paletteIndices = new WeakMap<readonly string[], number>();
+  private static readonly _COLOR_PALETTE: readonly string[] = [
     "#2196F3",
     "#FF9800",
     "#26a69a",
@@ -408,11 +415,22 @@ export class CanvasChart implements ChartInstance {
     // Introspect the series
     const result = introspect(series, config);
 
-    // Auto-assign color if not explicitly set (cycle through palette)
+    // Auto-assign color if not explicitly set (cycle through palette).
+    // Preset palettes are rotated per-palette (so multiple SMAs using the
+    // "number" palette pick blue/orange/teal/... in order); indicators with
+    // no preset palette fall back to the default palette with its own
+    // shared counter.
     if (!result.config.color && !result.config.channelColors) {
-      const palette = CanvasChart._COLOR_PALETTE;
-      result.config.color = palette[this._colorIndex % palette.length];
-      this._colorIndex++;
+      const presetPalette = result.config.colorPalette;
+      if (presetPalette && presetPalette.length > 0) {
+        const idx = this._paletteIndices.get(presetPalette) ?? 0;
+        result.config.color = presetPalette[idx % presetPalette.length];
+        this._paletteIndices.set(presetPalette, idx + 1);
+      } else {
+        const palette = CanvasChart._COLOR_PALETTE;
+        result.config.color = palette[this._colorIndex % palette.length];
+        this._colorIndex++;
+      }
     }
 
     // Resolve pane

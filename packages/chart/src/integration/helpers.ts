@@ -93,15 +93,22 @@ export function buildSeriesConfig(
   presetId?: string,
 ): SeriesConfig {
   const chartPreset = presetId ? INDICATOR_PRESETS.get(presetId) : undefined;
+  // preset.color may be a palette array. Split it so the chart's auto-color
+  // rotation (canvas-chart.addIndicator) can cycle through it per-series.
+  const presetColor = chartPreset?.color;
+  const presetPalette = Array.isArray(presetColor) ? presetColor : undefined;
+  const presetColorString = typeof presetColor === "string" ? presetColor : undefined;
   return {
     pane: overrides?.pane ?? (meta.overlay ? "main" : snapshotName),
-    color: overrides?.color ?? chartPreset?.color,
+    color: overrides?.color ?? presetColorString,
+    colorPalette: overrides?.color ? undefined : presetPalette,
     lineWidth: overrides?.lineWidth ?? chartPreset?.lineWidth,
-    // meta.label already carries any parameter suffix (e.g. "SMA(20)") because
-    // trendcraft's indicators emit a fully-formed label via withLabelParams.
-    // Use it directly; fall back to the legacy (period)-wrap only when meta
-    // was produced by older callers that didn't include the period.
-    label: overrides?.label ?? meta.label,
+    // Deliberately leave `label` undefined here: the chart's `introspect()`
+    // reads the data array's own `__meta.label` (set by `withLabelParams`),
+    // which already carries the parametric suffix (e.g. `"SMA(20)"`). If we
+    // passed `meta.label` from the static preset meta (`"SMA"`) it would win
+    // in the user-config precedence and erase the parametric suffix.
+    label: overrides?.label,
     yRange: overrides?.yRange ?? meta.yRange,
     referenceLines: overrides?.referenceLines ?? meta.referenceLines,
     type: overrides?.type,
