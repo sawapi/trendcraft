@@ -168,3 +168,8 @@ export {
   type MarketProfileSeries,
   type MarketProfileOptions,
 } from "./plugins/market-profile";
+export {
+  createSqueezeDots,
+  connectSqueezeDots,
+  type SqueezeDotsOptions,
+} from "./plugins/squeeze-dots";
