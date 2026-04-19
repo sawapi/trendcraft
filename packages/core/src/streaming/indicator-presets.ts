@@ -77,7 +77,6 @@ import {
   liquiditySweep,
   lowest,
   macd,
-  marketProfile,
   massIndex,
   mcginleyDynamic,
   medianPrice,
@@ -139,7 +138,6 @@ import {
   HEIKIN_ASHI_META,
   LINEAR_REG_META,
   LIQUIDITY_SWEEP_META,
-  MARKET_PROFILE_META,
   ORDER_BLOCK_META,
   SESSION_BREAKOUT_META,
   SLOW_STOCH_META,
@@ -1746,33 +1744,6 @@ export const indicatorPresets: Record<string, IndicatorPreset> = {
       },
     ],
   },
-  marketProfile: {
-    meta: MARKET_PROFILE_META,
-    defaultParams: { tickSize: 0, sessionResetPeriod: 0 },
-    snapshotName: "mktProfile",
-    compute: (c, p) => {
-      const reset = (p.sessionResetPeriod as number) ?? 0;
-      return marketProfile(c, {
-        tickSize: (p.tickSize as number) ?? 0,
-        sessionResetPeriod: reset > 0 ? reset : c.length + 1,
-      });
-    },
-    category: "Volume",
-    name: "Market Profile",
-    description: "TPO-based profile showing POC, value area high/low.",
-    paramSchema: [
-      {
-        key: "sessionResetPeriod",
-        label: "Reset Bars",
-        type: "number",
-        default: 0,
-        min: 0,
-        max: 500,
-        step: 10,
-      },
-    ],
-  },
-
   // ============================================
   // Additional Momentum
   // ============================================

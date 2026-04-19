@@ -13,6 +13,7 @@ const mockCtx = () =>
     clip: vi.fn(),
     fillRect: vi.fn(),
     fillText: vi.fn(),
+    measureText: vi.fn((text: string) => ({ width: text.length * 5.5 })),
     fillStyle: "",
     font: "",
     textAlign: "" as CanvasTextAlign,
@@ -66,7 +67,35 @@ describe("createSessionZones", () => {
     expect(ctx.fillRect).not.toHaveBeenCalled();
   });
 
-  it("renders labels for different zone spans", () => {
+  it("uses short labels (Asia, LON, NY, Close)", () => {
+    const data = [{ time: 1000, value: { zone: "Asian KZ", inKillZone: true } }];
+    const plugin = createSessionZones(data);
+    const ctx = mockCtx();
+    plugin.render(makeCtx(ctx, mockTs(0, 1)), plugin.defaultState);
+
+    const call = (ctx.fillText as unknown as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(call?.[0]).toBe("Asia");
+  });
+
+  it("renders labels for well-separated spans", () => {
+    // Two 1-bar spans 50 bars apart (barSpacing=8 → 400px gap) so both fit.
+    const data: Array<{ time: number; value: { zone: string | null; inKillZone: boolean } }> = [];
+    data.push({ time: 0, value: { zone: "Asian KZ", inKillZone: true } });
+    for (let i = 1; i < 50; i++) {
+      data.push({ time: i * 60, value: { zone: null, inKillZone: false } });
+    }
+    data.push({ time: 50 * 60, value: { zone: "NY Open KZ", inKillZone: true } });
+
+    const plugin = createSessionZones(data);
+    const ctx = mockCtx();
+    plugin.render(makeCtx(ctx, mockTs(0, data.length)), plugin.defaultState);
+
+    expect(ctx.fillText).toHaveBeenCalledTimes(2);
+  });
+
+  it("skips overlapping labels when spans are too dense", () => {
+    // Two adjacent 1-bar spans: midX 4 and 12 (barSpacing=8). "Asia" width ≈ 22,
+    // so label halves overlap and the second label must be skipped.
     const data = [
       { time: 1000, value: { zone: "Asian KZ", inKillZone: true } },
       { time: 1060, value: { zone: "London Open KZ", inKillZone: true } },
@@ -75,8 +104,7 @@ describe("createSessionZones", () => {
     const ctx = mockCtx();
     plugin.render(makeCtx(ctx, mockTs(0, 2)), plugin.defaultState);
 
-    // 2 different zones → 2 labels (1 at transition + 1 at end)
-    expect(ctx.fillText).toHaveBeenCalledTimes(2);
+    expect(ctx.fillText).toHaveBeenCalledTimes(1);
   });
 
   it("handles empty data", () => {

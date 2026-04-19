@@ -58,7 +58,7 @@ function strengthToRgb(strength: number): string {
 // ---- Render ----
 
 function renderSrConfluence(
-  { ctx, pane, timeScale, priceScale }: PrimitiveRenderContext,
+  { ctx, pane, priceScale }: PrimitiveRenderContext,
   state: SrConfluenceState,
 ): void {
   const { zones } = state;
@@ -69,9 +69,12 @@ function renderSrConfluence(
   ctx.rect(pane.x, pane.y, pane.width, pane.height);
   ctx.clip();
 
-  const startX = timeScale.indexToX(timeScale.startIndex);
-  const endX = timeScale.indexToX(timeScale.endIndex);
-  const width = endX - startX;
+  // Bands fill the entire pane horizontally and labels pin to the right
+  // edge of the pane — both are independent of the visible index range so
+  // they don't flicker as the user pans/zooms.
+  const left = pane.x;
+  const right = pane.x + pane.width;
+  const width = pane.width;
 
   for (const zone of zones) {
     const topY = priceScale.priceToY(zone.high);
@@ -82,28 +85,24 @@ function renderSrConfluence(
     const rgb = strengthToRgb(zone.strength);
     const alpha = 0.06 + (zone.strength / 100) * 0.12;
 
-    // Filled band
     ctx.fillStyle = `rgba(${rgb},${alpha.toFixed(3)})`;
-    ctx.fillRect(startX, topY, width, h);
+    ctx.fillRect(left, topY, width, h);
 
-    // Border lines at top and bottom
     ctx.strokeStyle = `rgba(${rgb},${(alpha * 2.5).toFixed(3)})`;
     ctx.lineWidth = 0.5;
     ctx.beginPath();
-    ctx.moveTo(startX, topY);
-    ctx.lineTo(startX + width, topY);
-    ctx.moveTo(startX, bottomY);
-    ctx.lineTo(startX + width, bottomY);
+    ctx.moveTo(left, topY);
+    ctx.lineTo(right, topY);
+    ctx.moveTo(left, bottomY);
+    ctx.lineTo(right, bottomY);
     ctx.stroke();
 
-    // Strength label on the right
     const centerY = (topY + bottomY) / 2;
     ctx.fillStyle = `rgba(${rgb},0.7)`;
     ctx.font = "9px -apple-system, BlinkMacSystemFont, sans-serif";
     ctx.textAlign = "right";
     ctx.textBaseline = "middle";
-    const label = `S${zone.strength.toFixed(0)}`;
-    ctx.fillText(label, startX + width - 4, centerY);
+    ctx.fillText(`S${zone.strength.toFixed(0)}`, right - 4, centerY);
   }
 
   ctx.restore();

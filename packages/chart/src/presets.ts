@@ -312,16 +312,6 @@ const TRENDCRAFT_RULES: IntrospectionRule[] = [
     defaultPane: "sub",
     decompose: (v) => ({ value: v.atrPercentile }),
   },
-
-  // Market Profile ({poc, valueAreaHigh, valueAreaLow, profile})
-  {
-    name: "marketProfile",
-    test: (v) => hasKeys(v, ["poc", "valueAreaHigh", "valueAreaLow", "profile"]),
-    seriesType: "heatmap",
-    defaultPane: "main",
-    // Heatmap renderer reads s.data directly
-    decompose: () => ({}),
-  },
 ];
 
 // ============================================
@@ -490,8 +480,6 @@ const TRENDCRAFT_PRESETS: [string, IndicatorPreset][] = [
   // Additional Volume
   ["volumeMa", { color: "#26a69a" }],
   ["cvdWithSignal", { channelColors: { cvd: "#2196F3", signal: "#FF9800" } }],
-  ["marketProfile", { channelColors: { poc: "#FF9800", vah: "#ef5350", val: "#26a69a" } }],
-
   // Additional Momentum
   ["fastStochastics", { color: "#2196F3" }],
   ["slowStochastics", { color: "#FF9800" }],
@@ -717,96 +705,6 @@ const TRENDCRAFT_RENDERERS: SeriesRendererPlugin[] = [
         ctx.stroke();
         ctx.fillStyle = color;
         ctx.fillRect(x - halfBody, bodyTop, bodyWidth, bodyH);
-      }
-      ctx.restore();
-    },
-    priceRange: () => [Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY],
-  }),
-
-  // Market Profile TPO Histogram
-  defineSeriesRenderer({
-    type: "marketProfile",
-    render: ({ ctx, series, timeScale, priceScale, paneWidth }: SeriesRenderContext) => {
-      const data = series.data as { value: unknown }[];
-      const lastIdx = Math.min(timeScale.endIndex - 1, data.length - 1);
-      if (lastIdx < 0) return;
-      const val = data[lastIdx]?.value as {
-        poc?: number | null;
-        valueAreaHigh?: number | null;
-        valueAreaLow?: number | null;
-        profile?: Map<number, number> | null;
-      } | null;
-      if (!val?.profile || val.profile.size === 0) return;
-      const { poc, valueAreaHigh, valueAreaLow, profile } = val;
-      let maxCount = 0;
-      for (const count of profile.values()) if (count > maxCount) maxCount = count;
-      if (maxCount === 0) return;
-
-      const maxBarWidth = paneWidth * 0.15;
-      const barLeft = 8;
-      const profileRight = barLeft + maxBarWidth;
-      const prices = [...profile.keys()].sort((a, b) => a - b);
-      const tickSize = prices.length > 1 ? prices[1] - prices[0] : 1;
-      const barH = Math.max(
-        2,
-        Math.abs(priceScale.priceToY(0) - priceScale.priceToY(tickSize)) - 1,
-      );
-
-      for (const [price, count] of profile) {
-        const y = priceScale.priceToY(price);
-        const barW = (count / maxCount) * maxBarWidth;
-        const isPoc = price === poc;
-        const inVA =
-          valueAreaLow != null &&
-          valueAreaHigh != null &&
-          price >= valueAreaLow &&
-          price <= valueAreaHigh;
-        ctx.fillStyle = isPoc
-          ? "rgba(255,152,0,0.35)"
-          : inVA
-            ? "rgba(33,150,243,0.18)"
-            : "rgba(33,150,243,0.07)";
-        ctx.fillRect(barLeft, y - barH / 2, barW, barH);
-        if (isPoc) {
-          ctx.strokeStyle = "rgba(255,152,0,0.6)";
-          ctx.lineWidth = 1;
-          ctx.strokeRect(barLeft, y - barH / 2, barW, barH);
-        }
-      }
-      // VAH/VAL lines + labels
-      ctx.save();
-      ctx.font = "10px sans-serif";
-      ctx.textBaseline = "bottom";
-      for (const [label, price] of [
-        ["VAH", valueAreaHigh],
-        ["VAL", valueAreaLow],
-      ] as const) {
-        if (price == null) continue;
-        const y = Math.round(priceScale.priceToY(price)) + 0.5;
-        ctx.strokeStyle = "rgba(255,152,0,0.4)";
-        ctx.lineWidth = 1;
-        ctx.setLineDash([4, 3]);
-        ctx.beginPath();
-        ctx.moveTo(barLeft, y);
-        ctx.lineTo(profileRight + 20, y);
-        ctx.stroke();
-        ctx.setLineDash([]);
-        ctx.fillStyle = "rgba(255,152,0,0.7)";
-        ctx.fillText(label, profileRight + 4, y - 2);
-      }
-      // POC line + label
-      if (poc != null) {
-        const y = Math.round(priceScale.priceToY(poc)) + 0.5;
-        ctx.strokeStyle = "rgba(255,152,0,0.7)";
-        ctx.lineWidth = 1.5;
-        ctx.setLineDash([]);
-        ctx.beginPath();
-        ctx.moveTo(barLeft, y);
-        ctx.lineTo(profileRight + 20, y);
-        ctx.stroke();
-        ctx.fillStyle = "rgba(255,152,0,0.9)";
-        ctx.font = "bold 10px sans-serif";
-        ctx.fillText("POC", profileRight + 4, y - 2);
       }
       ctx.restore();
     },

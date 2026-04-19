@@ -77,7 +77,7 @@ function renderRegimeHeatmap(
 
     const { regime, label, confidence } = point.value;
     const rgb = regimeToRgb(regime, label);
-    const alpha = 0.06 + (confidence ?? 0.5) * 0.12;
+    const alpha = 0.15 + (confidence ?? 0.5) * 0.25;
     const x = timeScale.indexToX(i);
 
     ctx.fillStyle = `rgba(${rgb},${alpha.toFixed(3)})`;

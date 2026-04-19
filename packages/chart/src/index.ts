@@ -161,3 +161,10 @@ export {
   type VolumeProfileLevel,
   type VolumeProfileState,
 } from "./plugins/volume-profile";
+export {
+  createMarketProfile,
+  connectMarketProfile,
+  type MarketProfileValue,
+  type MarketProfileSeries,
+  type MarketProfileOptions,
+} from "./plugins/market-profile";
