@@ -332,8 +332,9 @@ function renderWyckoffPhase(
     const padY = 4;
     const boxW = textWidth + padX * 2;
     const boxH = 18;
+    // Offset below the chart's OHLC legend row (typically ~22 px from top).
     const boxX = pane.x + 8;
-    const boxY = pane.y + 8;
+    const boxY = pane.y + 32;
 
     ctx.fillStyle = "rgba(22,26,37,0.85)";
     ctx.fillRect(boxX, boxY, boxW, boxH);
