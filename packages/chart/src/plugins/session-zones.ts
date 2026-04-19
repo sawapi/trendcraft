@@ -49,8 +49,24 @@ const ZONE_COLORS: Record<string, string> = {
   "NY PM": "255,152,0",
 };
 
+/** Shortened display forms — keeps intraday timelines readable when every
+ * day repeats the same four zones. */
+const ZONE_SHORT_LABELS: Record<string, string> = {
+  "Asian KZ": "Asia",
+  "London Open KZ": "LON",
+  "NY Open KZ": "NY",
+  "London Close KZ": "Close",
+};
+
+/** Horizontal padding between consecutive labels before the next one is skipped. */
+const LABEL_GAP_PX = 6;
+
 function zoneToRgb(zone: string): string {
   return ZONE_COLORS[zone] ?? "120,123,134";
+}
+
+function zoneToShortLabel(zone: string): string {
+  return ZONE_SHORT_LABELS[zone] ?? zone;
 }
 
 // ---- Render ----
@@ -71,7 +87,10 @@ function renderSessionZones(
   ctx.rect(pane.x, pane.y, pane.width, pane.height);
   ctx.clip();
 
-  // Track zone spans for label placement
+  // Collect spans first, then render labels with collision avoidance so
+  // dense intraday ranges don't produce an unreadable wall of text.
+  type Span = { zone: string; startIndex: number; endIndex: number };
+  const spans: Span[] = [];
   let spanStart = -1;
   let spanZone = "";
 
@@ -88,61 +107,60 @@ function renderSessionZones(
       ctx.fillStyle = `rgba(${rgb},0.18)`;
       ctx.fillRect(x - barWidth / 2, pane.y, barWidth, pane.height);
 
-      // Track span for label
       if (zone !== spanZone) {
-        // Render label for previous span
         if (spanStart >= 0 && spanZone) {
-          renderZoneLabel(ctx, spanZone, spanStart, timeScale.indexToX(i - 1), pane.y);
+          spans.push({ zone: spanZone, startIndex: spanStart, endIndex: i - 1 });
         }
         spanStart = i;
         spanZone = zone;
       }
-    } else {
-      // End of span
-      if (spanStart >= 0 && spanZone) {
-        renderZoneLabel(
-          ctx,
-          spanZone,
-          timeScale.indexToX(spanStart),
-          timeScale.indexToX(i - 1),
-          pane.y,
-        );
-        spanStart = -1;
-        spanZone = "";
-      }
+    } else if (spanStart >= 0 && spanZone) {
+      spans.push({ zone: spanZone, startIndex: spanStart, endIndex: i - 1 });
+      spanStart = -1;
+      spanZone = "";
     }
   }
-
-  // Render label for last span if still open
   if (spanStart >= 0 && spanZone) {
     const lastIdx = Math.min(end - 1, data.length - 1);
-    renderZoneLabel(
-      ctx,
-      spanZone,
-      timeScale.indexToX(spanStart),
-      timeScale.indexToX(lastIdx),
-      pane.y,
-    );
+    spans.push({ zone: spanZone, startIndex: spanStart, endIndex: lastIdx });
   }
+
+  renderZoneLabels(ctx, spans, timeScale, pane.y);
 
   ctx.restore();
 }
 
-function renderZoneLabel(
+function renderZoneLabels(
   ctx: CanvasRenderingContext2D,
-  zone: string,
-  startX: number,
-  endX: number,
+  spans: Array<{ zone: string; startIndex: number; endIndex: number }>,
+  timeScale: { indexToX: (i: number) => number },
   paneY: number,
 ): void {
-  const midX = (startX + endX) / 2;
-  const rgb = zoneToRgb(zone);
+  if (spans.length === 0) return;
 
-  ctx.fillStyle = `rgba(${rgb},0.4)`;
   ctx.font = "9px -apple-system, BlinkMacSystemFont, sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
-  ctx.fillText(zone, midX, paneY + 3);
+
+  let lastLabelRight = Number.NEGATIVE_INFINITY;
+
+  for (const span of spans) {
+    const startX = timeScale.indexToX(span.startIndex);
+    const endX = timeScale.indexToX(span.endIndex);
+    const midX = (startX + endX) / 2;
+    const text = zoneToShortLabel(span.zone);
+    const width = ctx.measureText(text).width;
+    const leftEdge = midX - width / 2;
+    const rightEdge = midX + width / 2;
+
+    // Skip if this label would overlap the previously drawn one.
+    if (leftEdge < lastLabelRight + LABEL_GAP_PX) continue;
+
+    const rgb = zoneToRgb(span.zone);
+    ctx.fillStyle = `rgba(${rgb},0.4)`;
+    ctx.fillText(text, midX, paneY + 3);
+    lastLabelRight = rightEdge;
+  }
 }
 
 // ---- Factory ----
