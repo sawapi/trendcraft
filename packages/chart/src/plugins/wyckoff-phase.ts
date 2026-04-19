@@ -27,6 +27,7 @@
  * ```
  */
 
+import { withPaneClip } from "../core/draw-helper";
 import { definePrimitive } from "../core/plugin-types";
 import type { PrimitivePlugin, PrimitiveRenderContext } from "../core/plugin-types";
 import type { ChartInstance, DataPoint } from "../core/types";
@@ -210,143 +211,138 @@ function renderWyckoffPhase(
   const barWidth = Math.max(1, timeScale.barSpacing);
   const last = phases[phases.length - 1]?.value;
 
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(pane.x, pane.y, pane.width, pane.height);
-  ctx.clip();
+  withPaneClip(ctx, pane, () => {
+    // ----- 1. Range boxes -----
+    if (options.showRangeBox) {
+      const spans = collectPhaseSpans(phases);
+      for (const span of spans) {
+        if (span.endIndex < start || span.startIndex >= end) continue;
+        const rgb = PHASE_COLORS[span.phase] ?? PHASE_COLORS.unknown;
+        const x1 = timeScale.indexToX(span.startIndex);
+        const x2 = timeScale.indexToX(span.endIndex);
+        const y1 = priceScale.priceToY(span.rangeHigh);
+        const y2 = priceScale.priceToY(span.rangeLow);
+        const w = x2 - x1;
+        const h = y2 - y1;
+        if (w <= 0 || h <= 0) continue;
 
-  // ----- 1. Range boxes -----
-  if (options.showRangeBox) {
-    const spans = collectPhaseSpans(phases);
-    for (const span of spans) {
-      if (span.endIndex < start || span.startIndex >= end) continue;
-      const rgb = PHASE_COLORS[span.phase] ?? PHASE_COLORS.unknown;
-      const x1 = timeScale.indexToX(span.startIndex);
-      const x2 = timeScale.indexToX(span.endIndex);
-      const y1 = priceScale.priceToY(span.rangeHigh);
-      const y2 = priceScale.priceToY(span.rangeLow);
-      const w = x2 - x1;
-      const h = y2 - y1;
-      if (w <= 0 || h <= 0) continue;
+        ctx.fillStyle = `rgba(${rgb},0.08)`;
+        ctx.fillRect(x1, y1, w, h);
 
-      ctx.fillStyle = `rgba(${rgb},0.08)`;
-      ctx.fillRect(x1, y1, w, h);
-
-      ctx.strokeStyle = `rgba(${rgb},0.55)`;
-      ctx.lineWidth = 1;
-      ctx.setLineDash([4, 3]);
-      ctx.strokeRect(x1, y1, w, h);
-      ctx.setLineDash([]);
-    }
-  }
-
-  // ----- 2. Event labels -----
-  if (options.showEventLabels) {
-    ctx.font = "10px -apple-system, BlinkMacSystemFont, sans-serif";
-    ctx.textAlign = "center";
-    for (let i = start; i < end && i < phases.length; i++) {
-      const point = phases[i];
-      const event = point?.value?.event;
-      if (!event) continue;
-
-      const placement = EVENT_PLACEMENT[event] ?? "above";
-      const x = timeScale.indexToX(i);
-
-      // Prefer candle high/low for precise placement; fall back to the
-      // phase's range boundaries when candles weren't provided.
-      const candle = candles[i];
-      const rangeHigh = point.value?.rangeHigh ?? null;
-      const rangeLow = point.value?.rangeLow ?? null;
-      const anchorPrice =
-        placement === "above"
-          ? (candle?.high ?? rangeHigh ?? rangeLow)
-          : (candle?.low ?? rangeLow ?? rangeHigh);
-      if (anchorPrice == null) continue;
-
-      const anchorY = priceScale.priceToY(anchorPrice);
-      const y = placement === "above" ? anchorY - 4 : anchorY + 12;
-
-      const phaseKey =
-        point.value?.phase && PHASE_COLORS[point.value.phase] ? point.value.phase : "unknown";
-      const rgb = PHASE_COLORS[phaseKey];
-
-      // Small dot at the anchor price
-      ctx.fillStyle = `rgba(${rgb},0.9)`;
-      ctx.beginPath();
-      ctx.arc(x, anchorY, 2, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Text label
-      ctx.fillStyle = `rgba(${rgb},0.95)`;
-      ctx.textBaseline = placement === "above" ? "bottom" : "top";
-      ctx.fillText(event, x, y);
-    }
-  }
-
-  // ----- 3. Bottom timeline bar -----
-  if (options.showTimelineBar) {
-    const barY = pane.y + pane.height - PHASE_BAR_HEIGHT;
-    for (let i = start; i < end && i < phases.length; i++) {
-      const point = phases[i];
-      if (!point?.value) continue;
-      const { phase, confidence } = point.value;
-      const rgb = PHASE_COLORS[phase] ?? PHASE_COLORS.unknown;
-      const alpha = 0.4 + ((confidence ?? 50) / 100) * 0.5;
-      const x = timeScale.indexToX(i);
-      ctx.fillStyle = `rgba(${rgb},${alpha.toFixed(3)})`;
-      ctx.fillRect(x - barWidth / 2, barY, barWidth, PHASE_BAR_HEIGHT);
-    }
-
-    // VSA event dots just above the timeline bar
-    if (vsa.length > 0) {
-      const markerY = barY - 4;
-      for (let i = start; i < end && i < vsa.length; i++) {
-        const point = vsa[i];
-        if (!point?.value) continue;
-        const { barType } = point.value;
-        if (barType === "normal") continue;
-        const rgb = VSA_MARKER_COLORS[barType];
-        if (!rgb) continue;
-        const x = timeScale.indexToX(i);
-        ctx.fillStyle = `rgba(${rgb},0.8)`;
-        ctx.beginPath();
-        ctx.arc(x, markerY, 2, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.strokeStyle = `rgba(${rgb},0.55)`;
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 3]);
+        ctx.strokeRect(x1, y1, w, h);
+        ctx.setLineDash([]);
       }
     }
-  }
 
-  // ----- 4. Corner badge (top-left) -----
-  if (options.showPhaseBadge && last) {
-    const label = PHASE_LABELS[last.phase] ?? last.phase;
-    const conf = last.confidence ?? 0;
-    const subPhase = last.subPhase ? ` · ${last.subPhase}` : "";
-    const text = `Wyckoff: ${label} (${conf.toFixed(0)})${subPhase}`;
-    const rgb = PHASE_COLORS[last.phase] ?? PHASE_COLORS.unknown;
+    // ----- 2. Event labels -----
+    if (options.showEventLabels) {
+      ctx.font = "10px -apple-system, BlinkMacSystemFont, sans-serif";
+      ctx.textAlign = "center";
+      for (let i = start; i < end && i < phases.length; i++) {
+        const point = phases[i];
+        const event = point?.value?.event;
+        if (!event) continue;
 
-    ctx.font = "bold 11px -apple-system, BlinkMacSystemFont, sans-serif";
-    ctx.textAlign = "left";
-    ctx.textBaseline = "top";
-    const textWidth = ctx.measureText(text).width;
-    const padX = 8;
-    const padY = 4;
-    const boxW = textWidth + padX * 2;
-    const boxH = 18;
-    // Offset below the chart's OHLC legend row (typically ~22 px from top).
-    const boxX = pane.x + 8;
-    const boxY = pane.y + 32;
+        const placement = EVENT_PLACEMENT[event] ?? "above";
+        const x = timeScale.indexToX(i);
 
-    ctx.fillStyle = "rgba(22,26,37,0.85)";
-    ctx.fillRect(boxX, boxY, boxW, boxH);
-    ctx.strokeStyle = `rgba(${rgb},0.7)`;
-    ctx.lineWidth = 1;
-    ctx.strokeRect(boxX, boxY, boxW, boxH);
+        // Prefer candle high/low for precise placement; fall back to the
+        // phase's range boundaries when candles weren't provided.
+        const candle = candles[i];
+        const rangeHigh = point.value?.rangeHigh ?? null;
+        const rangeLow = point.value?.rangeLow ?? null;
+        const anchorPrice =
+          placement === "above"
+            ? (candle?.high ?? rangeHigh ?? rangeLow)
+            : (candle?.low ?? rangeLow ?? rangeHigh);
+        if (anchorPrice == null) continue;
 
-    ctx.fillStyle = `rgba(${rgb},0.95)`;
-    ctx.fillText(text, boxX + padX, boxY + padY);
-  }
+        const anchorY = priceScale.priceToY(anchorPrice);
+        const y = placement === "above" ? anchorY - 4 : anchorY + 12;
 
-  ctx.restore();
+        const phaseKey =
+          point.value?.phase && PHASE_COLORS[point.value.phase] ? point.value.phase : "unknown";
+        const rgb = PHASE_COLORS[phaseKey];
+
+        // Small dot at the anchor price
+        ctx.fillStyle = `rgba(${rgb},0.9)`;
+        ctx.beginPath();
+        ctx.arc(x, anchorY, 2, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Text label
+        ctx.fillStyle = `rgba(${rgb},0.95)`;
+        ctx.textBaseline = placement === "above" ? "bottom" : "top";
+        ctx.fillText(event, x, y);
+      }
+    }
+
+    // ----- 3. Bottom timeline bar -----
+    if (options.showTimelineBar) {
+      const barY = pane.y + pane.height - PHASE_BAR_HEIGHT;
+      for (let i = start; i < end && i < phases.length; i++) {
+        const point = phases[i];
+        if (!point?.value) continue;
+        const { phase, confidence } = point.value;
+        const rgb = PHASE_COLORS[phase] ?? PHASE_COLORS.unknown;
+        const alpha = 0.4 + ((confidence ?? 50) / 100) * 0.5;
+        const x = timeScale.indexToX(i);
+        ctx.fillStyle = `rgba(${rgb},${alpha.toFixed(3)})`;
+        ctx.fillRect(x - barWidth / 2, barY, barWidth, PHASE_BAR_HEIGHT);
+      }
+
+      // VSA event dots just above the timeline bar
+      if (vsa.length > 0) {
+        const markerY = barY - 4;
+        for (let i = start; i < end && i < vsa.length; i++) {
+          const point = vsa[i];
+          if (!point?.value) continue;
+          const { barType } = point.value;
+          if (barType === "normal") continue;
+          const rgb = VSA_MARKER_COLORS[barType];
+          if (!rgb) continue;
+          const x = timeScale.indexToX(i);
+          ctx.fillStyle = `rgba(${rgb},0.8)`;
+          ctx.beginPath();
+          ctx.arc(x, markerY, 2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
+
+    // ----- 4. Corner badge (top-left) -----
+    if (options.showPhaseBadge && last) {
+      const label = PHASE_LABELS[last.phase] ?? last.phase;
+      const conf = last.confidence ?? 0;
+      const subPhase = last.subPhase ? ` · ${last.subPhase}` : "";
+      const text = `Wyckoff: ${label} (${conf.toFixed(0)})${subPhase}`;
+      const rgb = PHASE_COLORS[last.phase] ?? PHASE_COLORS.unknown;
+
+      ctx.font = "bold 11px -apple-system, BlinkMacSystemFont, sans-serif";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "top";
+      const textWidth = ctx.measureText(text).width;
+      const padX = 8;
+      const padY = 4;
+      const boxW = textWidth + padX * 2;
+      const boxH = 18;
+      // Offset below the chart's OHLC legend row (typically ~22 px from top).
+      const boxX = pane.x + 8;
+      const boxY = pane.y + 32;
+
+      ctx.fillStyle = "rgba(22,26,37,0.85)";
+      ctx.fillRect(boxX, boxY, boxW, boxH);
+      ctx.strokeStyle = `rgba(${rgb},0.7)`;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(boxX, boxY, boxW, boxH);
+
+      ctx.fillStyle = `rgba(${rgb},0.95)`;
+      ctx.fillText(text, boxX + padX, boxY + padY);
+    }
+  });
 }
 
 // ---- Factory ----

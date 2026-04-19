@@ -22,6 +22,7 @@
  * ```
  */
 
+import { withPaneClip } from "../core/draw-helper";
 import { definePrimitive } from "../core/plugin-types";
 import type { PrimitivePlugin, PrimitiveRenderContext } from "../core/plugin-types";
 import type { ChartInstance, DataPoint } from "../core/types";
@@ -221,32 +222,27 @@ function renderBosLevels(
 function renderSmcLayer(context: PrimitiveRenderContext, state: SmcState): void {
   const { ctx, pane, timeScale, priceScale, theme } = context;
 
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(pane.x, pane.y, pane.width, pane.height);
-  ctx.clip();
+  withPaneClip(ctx, pane, () => {
+    // Order blocks (lowest visual priority)
+    if (state.orderBlocks.length > 0) {
+      renderOrderBlocks(ctx, state.orderBlocks, timeScale, priceScale);
+    }
 
-  // Order blocks (lowest visual priority)
-  if (state.orderBlocks.length > 0) {
-    renderOrderBlocks(ctx, state.orderBlocks, timeScale, priceScale);
-  }
+    // FVG zones
+    if (state.fvgZones.length > 0) {
+      renderFvgZones(ctx, state.fvgZones, timeScale, priceScale);
+    }
 
-  // FVG zones
-  if (state.fvgZones.length > 0) {
-    renderFvgZones(ctx, state.fvgZones, timeScale, priceScale);
-  }
+    // BOS levels
+    if (state.bosLevels.length > 0) {
+      renderBosLevels(ctx, state.bosLevels, timeScale, priceScale, theme);
+    }
 
-  // BOS levels
-  if (state.bosLevels.length > 0) {
-    renderBosLevels(ctx, state.bosLevels, timeScale, priceScale, theme);
-  }
-
-  // Sweep markers (highest visual priority)
-  if (state.sweepMarkers.length > 0) {
-    renderSweepMarkers(ctx, state.sweepMarkers, timeScale, priceScale);
-  }
-
-  ctx.restore();
+    // Sweep markers (highest visual priority)
+    if (state.sweepMarkers.length > 0) {
+      renderSweepMarkers(ctx, state.sweepMarkers, timeScale, priceScale);
+    }
+  });
 }
 
 // ---- Factory ----

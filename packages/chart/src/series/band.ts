@@ -3,7 +3,9 @@
  * Renders upper/middle/lower bands with filled area (BB, KC, Donchian).
  */
 
+import { strokeNullableLine } from "../core/draw-helper";
 import type { PriceScale, TimeScale } from "../core/scale";
+import { reduceRange } from "../core/value-range";
 
 export type BandRenderOptions = {
   upperColor: string;
@@ -41,44 +43,13 @@ export function renderBand(
   renderFillBetween(ctx, upper, lower, start, end, timeScale, priceScale, opts.fillColor);
 
   // Lines
-  renderBandLine(ctx, upper, start, end, timeScale, priceScale, opts.upperColor, opts.lineWidth);
-  renderBandLine(ctx, middle, start, end, timeScale, priceScale, opts.middleColor, opts.lineWidth);
-  renderBandLine(ctx, lower, start, end, timeScale, priceScale, opts.lowerColor, opts.lineWidth);
-}
-
-function renderBandLine(
-  ctx: CanvasRenderingContext2D,
-  values: readonly (number | null)[],
-  start: number,
-  end: number,
-  timeScale: TimeScale,
-  priceScale: PriceScale,
-  color: string,
-  lineWidth: number,
-): void {
-  ctx.strokeStyle = color;
-  ctx.lineWidth = lineWidth;
-  ctx.lineJoin = "round";
-  ctx.setLineDash([]);
-
-  let drawing = false;
-  ctx.beginPath();
-  for (let i = start; i < end && i < values.length; i++) {
-    const val = values[i];
-    if (val === null || val === undefined) {
-      drawing = false;
-      continue;
-    }
-    const x = timeScale.indexToX(i);
-    const y = priceScale.priceToY(val);
-    if (!drawing) {
-      ctx.moveTo(x, y);
-      drawing = true;
-    } else {
-      ctx.lineTo(x, y);
-    }
-  }
-  ctx.stroke();
+  const lw = opts.lineWidth;
+  strokeNullableLine(ctx, upper, timeScale, priceScale, { color: opts.upperColor, lineWidth: lw });
+  strokeNullableLine(ctx, middle, timeScale, priceScale, {
+    color: opts.middleColor,
+    lineWidth: lw,
+  });
+  strokeNullableLine(ctx, lower, timeScale, priceScale, { color: opts.lowerColor, lineWidth: lw });
 }
 
 function renderFillBetween(
@@ -147,19 +118,5 @@ export function bandPriceRange(
   startIndex: number,
   endIndex: number,
 ): [number, number] {
-  let min = Number.POSITIVE_INFINITY;
-  let max = Number.NEGATIVE_INFINITY;
-  for (let i = startIndex; i < endIndex; i++) {
-    const u = i < upper.length ? upper[i] : null;
-    const l = i < lower.length ? lower[i] : null;
-    if (u !== null && u !== undefined) {
-      if (u > max) max = u;
-      if (u < min) min = u;
-    }
-    if (l !== null && l !== undefined) {
-      if (l > max) max = l;
-      if (l < min) min = l;
-    }
-  }
-  return [min, max];
+  return reduceRange(lower, startIndex, endIndex, reduceRange(upper, startIndex, endIndex));
 }

@@ -21,6 +21,7 @@
  * ```
  */
 
+import { withPaneClip } from "../core/draw-helper";
 import { definePrimitive } from "../core/plugin-types";
 import type { PrimitivePlugin, PrimitiveRenderContext } from "../core/plugin-types";
 import type { ChartInstance } from "../core/types";
@@ -106,55 +107,50 @@ function renderVolumeProfile(
   const rightEdge = pane.x + pane.width;
   const stripLeft = rightEdge - reservedWidth;
 
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(pane.x, pane.y, pane.width, pane.height);
-  ctx.clip();
+  withPaneClip(ctx, pane, () => {
+    for (const level of profile.levels) {
+      const topY = priceScale.priceToY(level.priceHigh);
+      const bottomY = priceScale.priceToY(level.priceLow);
+      const barHeight = Math.max(1, bottomY - topY);
 
-  for (const level of profile.levels) {
-    const topY = priceScale.priceToY(level.priceHigh);
-    const bottomY = priceScale.priceToY(level.priceLow);
-    const barHeight = Math.max(1, bottomY - topY);
+      const barLen = (level.volumePercent / maxPercent) * reservedWidth;
+      if (barLen <= 0) continue;
 
-    const barLen = (level.volumePercent / maxPercent) * reservedWidth;
-    if (barLen <= 0) continue;
+      const inValueArea = level.priceMid >= profile.val && level.priceMid <= profile.vah;
+      ctx.fillStyle = highlightValueArea && inValueArea ? valueAreaColor : barColor;
 
-    const inValueArea = level.priceMid >= profile.val && level.priceMid <= profile.vah;
-    ctx.fillStyle = highlightValueArea && inValueArea ? valueAreaColor : barColor;
+      // Bar extends leftward from the right edge.
+      ctx.fillRect(rightEdge - barLen, topY, barLen, barHeight);
+    }
 
-    // Bar extends leftward from the right edge.
-    ctx.fillRect(rightEdge - barLen, topY, barLen, barHeight);
-  }
+    // POC line — thin horizontal line across the entire pane width.
+    if (showPoc) {
+      const pocY = priceScale.priceToY(profile.poc);
+      ctx.strokeStyle = pocColor;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 3]);
+      ctx.beginPath();
+      ctx.moveTo(pane.x, pocY);
+      ctx.lineTo(rightEdge, pocY);
+      ctx.stroke();
+      ctx.setLineDash([]);
 
-  // POC line — thin horizontal line across the entire pane width.
-  if (showPoc) {
-    const pocY = priceScale.priceToY(profile.poc);
-    ctx.strokeStyle = pocColor;
-    ctx.lineWidth = 1;
-    ctx.setLineDash([4, 3]);
+      // POC label
+      ctx.fillStyle = pocColor;
+      ctx.font = "10px -apple-system, BlinkMacSystemFont, sans-serif";
+      ctx.textAlign = "right";
+      ctx.textBaseline = "bottom";
+      ctx.fillText("POC", rightEdge - 4, pocY - 2);
+    }
+
+    // Subtle divider between chart and histogram strip.
+    ctx.strokeStyle = "rgba(128,128,128,0.2)";
+    ctx.lineWidth = 0.5;
     ctx.beginPath();
-    ctx.moveTo(pane.x, pocY);
-    ctx.lineTo(rightEdge, pocY);
+    ctx.moveTo(stripLeft, pane.y);
+    ctx.lineTo(stripLeft, pane.y + pane.height);
     ctx.stroke();
-    ctx.setLineDash([]);
-
-    // POC label
-    ctx.fillStyle = pocColor;
-    ctx.font = "10px -apple-system, BlinkMacSystemFont, sans-serif";
-    ctx.textAlign = "right";
-    ctx.textBaseline = "bottom";
-    ctx.fillText("POC", rightEdge - 4, pocY - 2);
-  }
-
-  // Subtle divider between chart and histogram strip.
-  ctx.strokeStyle = "rgba(128,128,128,0.2)";
-  ctx.lineWidth = 0.5;
-  ctx.beginPath();
-  ctx.moveTo(stripLeft, pane.y);
-  ctx.lineTo(stripLeft, pane.y + pane.height);
-  ctx.stroke();
-
-  ctx.restore();
+  });
 }
 
 // ---- Factory ----

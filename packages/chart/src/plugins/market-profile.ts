@@ -20,6 +20,7 @@
  * ```
  */
 
+import { withPaneClip } from "../core/draw-helper";
 import { definePrimitive } from "../core/plugin-types";
 import type { PrimitivePlugin, PrimitiveRenderContext } from "../core/plugin-types";
 import type { ChartInstance } from "../core/types";
@@ -102,71 +103,66 @@ function renderMarketProfile(
   const barLeft = pane.x + 8;
   const profileRight = barLeft + reservedWidth;
 
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(pane.x, pane.y, pane.width, pane.height);
-  ctx.clip();
+  withPaneClip(ctx, pane, () => {
+    const prices = [...profile.keys()].sort((a, b) => a - b);
+    const tickSize = prices.length > 1 ? prices[1] - prices[0] : 1;
+    const barH = Math.max(2, Math.abs(priceScale.priceToY(0) - priceScale.priceToY(tickSize)) - 1);
 
-  const prices = [...profile.keys()].sort((a, b) => a - b);
-  const tickSize = prices.length > 1 ? prices[1] - prices[0] : 1;
-  const barH = Math.max(2, Math.abs(priceScale.priceToY(0) - priceScale.priceToY(tickSize)) - 1);
+    for (const [price, count] of profile) {
+      const y = priceScale.priceToY(price);
+      const barW = (count / maxCount) * reservedWidth;
+      const isPoc = price === poc;
+      const inVA =
+        valueAreaLow != null &&
+        valueAreaHigh != null &&
+        price >= valueAreaLow &&
+        price <= valueAreaHigh;
 
-  for (const [price, count] of profile) {
-    const y = priceScale.priceToY(price);
-    const barW = (count / maxCount) * reservedWidth;
-    const isPoc = price === poc;
-    const inVA =
-      valueAreaLow != null &&
-      valueAreaHigh != null &&
-      price >= valueAreaLow &&
-      price <= valueAreaHigh;
+      ctx.fillStyle = isPoc ? options.pocColor : inVA ? options.valueAreaColor : options.barColor;
+      ctx.fillRect(barLeft, y - barH / 2, barW, barH);
 
-    ctx.fillStyle = isPoc ? options.pocColor : inVA ? options.valueAreaColor : options.barColor;
-    ctx.fillRect(barLeft, y - barH / 2, barW, barH);
-
-    if (isPoc) {
-      ctx.strokeStyle = options.pocColor;
-      ctx.lineWidth = 1;
-      ctx.strokeRect(barLeft, y - barH / 2, barW, barH);
+      if (isPoc) {
+        ctx.strokeStyle = options.pocColor;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(barLeft, y - barH / 2, barW, barH);
+      }
     }
-  }
 
-  // VAH / VAL dashed lines + labels
-  ctx.font = "10px -apple-system, BlinkMacSystemFont, sans-serif";
-  ctx.textBaseline = "bottom";
-  for (const [label, price] of [
-    ["VAH", valueAreaHigh],
-    ["VAL", valueAreaLow],
-  ] as const) {
-    if (price == null) continue;
-    const y = Math.round(priceScale.priceToY(price)) + 0.5;
-    ctx.strokeStyle = options.vaEdgeColor;
-    ctx.lineWidth = 1;
-    ctx.setLineDash([4, 3]);
-    ctx.beginPath();
-    ctx.moveTo(barLeft, y);
-    ctx.lineTo(profileRight + 20, y);
-    ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.fillStyle = options.vaEdgeColor;
-    ctx.fillText(label, profileRight + 4, y - 2);
-  }
+    // VAH / VAL dashed lines + labels
+    ctx.font = "10px -apple-system, BlinkMacSystemFont, sans-serif";
+    ctx.textBaseline = "bottom";
+    for (const [label, price] of [
+      ["VAH", valueAreaHigh],
+      ["VAL", valueAreaLow],
+    ] as const) {
+      if (price == null) continue;
+      const y = Math.round(priceScale.priceToY(price)) + 0.5;
+      ctx.strokeStyle = options.vaEdgeColor;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 3]);
+      ctx.beginPath();
+      ctx.moveTo(barLeft, y);
+      ctx.lineTo(profileRight + 20, y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = options.vaEdgeColor;
+      ctx.fillText(label, profileRight + 4, y - 2);
+    }
 
-  // POC solid line + label
-  if (poc != null) {
-    const y = Math.round(priceScale.priceToY(poc)) + 0.5;
-    ctx.strokeStyle = options.pocColor;
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.moveTo(barLeft, y);
-    ctx.lineTo(profileRight + 20, y);
-    ctx.stroke();
-    ctx.fillStyle = options.pocColor;
-    ctx.font = "bold 10px -apple-system, BlinkMacSystemFont, sans-serif";
-    ctx.fillText("POC", profileRight + 4, y - 2);
-  }
-
-  ctx.restore();
+    // POC solid line + label
+    if (poc != null) {
+      const y = Math.round(priceScale.priceToY(poc)) + 0.5;
+      ctx.strokeStyle = options.pocColor;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(barLeft, y);
+      ctx.lineTo(profileRight + 20, y);
+      ctx.stroke();
+      ctx.fillStyle = options.pocColor;
+      ctx.font = "bold 10px -apple-system, BlinkMacSystemFont, sans-serif";
+      ctx.fillText("POC", profileRight + 4, y - 2);
+    }
+  });
 }
 
 // ---- Factory ----

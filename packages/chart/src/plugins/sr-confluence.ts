@@ -17,6 +17,7 @@
  * ```
  */
 
+import { withPaneClip } from "../core/draw-helper";
 import { definePrimitive } from "../core/plugin-types";
 import type { PrimitivePlugin, PrimitiveRenderContext } from "../core/plugin-types";
 import type { ChartInstance } from "../core/types";
@@ -64,11 +65,6 @@ function renderSrConfluence(
   const { zones } = state;
   if (zones.length === 0) return;
 
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(pane.x, pane.y, pane.width, pane.height);
-  ctx.clip();
-
   // Bands fill the entire pane horizontally and labels pin to the right
   // edge of the pane — both are independent of the visible index range so
   // they don't flicker as the user pans/zooms.
@@ -76,36 +72,36 @@ function renderSrConfluence(
   const right = pane.x + pane.width;
   const width = pane.width;
 
-  for (const zone of zones) {
-    const topY = priceScale.priceToY(zone.high);
-    const bottomY = priceScale.priceToY(zone.low);
-    const h = bottomY - topY;
-    if (h <= 0) continue;
+  withPaneClip(ctx, pane, () => {
+    for (const zone of zones) {
+      const topY = priceScale.priceToY(zone.high);
+      const bottomY = priceScale.priceToY(zone.low);
+      const h = bottomY - topY;
+      if (h <= 0) continue;
 
-    const rgb = strengthToRgb(zone.strength);
-    const alpha = 0.06 + (zone.strength / 100) * 0.12;
+      const rgb = strengthToRgb(zone.strength);
+      const alpha = 0.06 + (zone.strength / 100) * 0.12;
 
-    ctx.fillStyle = `rgba(${rgb},${alpha.toFixed(3)})`;
-    ctx.fillRect(left, topY, width, h);
+      ctx.fillStyle = `rgba(${rgb},${alpha.toFixed(3)})`;
+      ctx.fillRect(left, topY, width, h);
 
-    ctx.strokeStyle = `rgba(${rgb},${(alpha * 2.5).toFixed(3)})`;
-    ctx.lineWidth = 0.5;
-    ctx.beginPath();
-    ctx.moveTo(left, topY);
-    ctx.lineTo(right, topY);
-    ctx.moveTo(left, bottomY);
-    ctx.lineTo(right, bottomY);
-    ctx.stroke();
+      ctx.strokeStyle = `rgba(${rgb},${(alpha * 2.5).toFixed(3)})`;
+      ctx.lineWidth = 0.5;
+      ctx.beginPath();
+      ctx.moveTo(left, topY);
+      ctx.lineTo(right, topY);
+      ctx.moveTo(left, bottomY);
+      ctx.lineTo(right, bottomY);
+      ctx.stroke();
 
-    const centerY = (topY + bottomY) / 2;
-    ctx.fillStyle = `rgba(${rgb},0.7)`;
-    ctx.font = "9px -apple-system, BlinkMacSystemFont, sans-serif";
-    ctx.textAlign = "right";
-    ctx.textBaseline = "middle";
-    ctx.fillText(`S${zone.strength.toFixed(0)}`, right - 4, centerY);
-  }
-
-  ctx.restore();
+      const centerY = (topY + bottomY) / 2;
+      ctx.fillStyle = `rgba(${rgb},0.7)`;
+      ctx.font = "9px -apple-system, BlinkMacSystemFont, sans-serif";
+      ctx.textAlign = "right";
+      ctx.textBaseline = "middle";
+      ctx.fillText(`S${zone.strength.toFixed(0)}`, right - 4, centerY);
+    }
+  });
 }
 
 // ---- Factory ----

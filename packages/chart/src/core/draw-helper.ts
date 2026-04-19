@@ -77,35 +77,7 @@ export class DrawHelper {
    * Values are indexed by candle index (values[startIndex..endIndex]).
    */
   line(values: readonly (number | null)[], style: StrokeStyle): void {
-    const { ctx, timeScale, priceScale } = this;
-    const start = timeScale.startIndex;
-    const end = timeScale.endIndex;
-
-    ctx.strokeStyle = style.color;
-    ctx.lineWidth = style.lineWidth ?? 1.5;
-    ctx.lineJoin = "round";
-    ctx.lineCap = "round";
-    ctx.setLineDash(style.dash ?? []);
-
-    let drawing = false;
-    ctx.beginPath();
-    for (let i = start; i < end && i < values.length; i++) {
-      const val = values[i];
-      if (val === null || val === undefined) {
-        drawing = false;
-        continue;
-      }
-      const px = timeScale.indexToX(i);
-      const py = priceScale.priceToY(val);
-      if (!drawing) {
-        ctx.moveTo(px, py);
-        drawing = true;
-      } else {
-        ctx.lineTo(px, py);
-      }
-    }
-    ctx.stroke();
-    ctx.setLineDash([]);
+    strokeNullableLine(this.ctx, values, this.timeScale, this.priceScale, style);
   }
 
   /**
@@ -258,4 +230,66 @@ export class DrawHelper {
     fn(this.ctx);
     this.ctx.restore();
   }
+}
+
+/**
+ * Stroke a polyline over the currently-visible bar range, breaking the path
+ * at any null/undefined sample (so indicators with warm-up gaps render as
+ * disconnected segments rather than a line back to the origin).
+ *
+ * Shared by {@link DrawHelper.line} and the series renderers (band, line,
+ * cloud) so the null-gap rule lives in exactly one place.
+ */
+export function strokeNullableLine(
+  ctx: CanvasRenderingContext2D,
+  values: readonly (number | null | undefined)[],
+  timeScale: { startIndex: number; endIndex: number; indexToX: (i: number) => number },
+  priceScale: { priceToY: (p: number) => number },
+  style: StrokeStyle,
+): void {
+  const start = timeScale.startIndex;
+  const end = Math.min(timeScale.endIndex, values.length);
+
+  ctx.strokeStyle = style.color;
+  ctx.lineWidth = style.lineWidth ?? 1.5;
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
+  ctx.setLineDash(style.dash ?? []);
+
+  let drawing = false;
+  ctx.beginPath();
+  for (let i = start; i < end; i++) {
+    const val = values[i];
+    if (val === null || val === undefined) {
+      drawing = false;
+      continue;
+    }
+    const px = timeScale.indexToX(i);
+    const py = priceScale.priceToY(val);
+    if (!drawing) {
+      ctx.moveTo(px, py);
+      drawing = true;
+    } else {
+      ctx.lineTo(px, py);
+    }
+  }
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+/**
+ * Clip the given canvas to a pane rect for the duration of `fn`.
+ * Always pairs save/restore, even if `fn` throws.
+ */
+export function withPaneClip(
+  ctx: CanvasRenderingContext2D,
+  pane: { x: number; y: number; width: number; height: number },
+  fn: () => void,
+): void {
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(pane.x, pane.y, pane.width, pane.height);
+  ctx.clip();
+  fn();
+  ctx.restore();
 }

@@ -19,6 +19,7 @@
  * ```
  */
 
+import { withPaneClip } from "../core/draw-helper";
 import { definePrimitive } from "../core/plugin-types";
 import type { PrimitivePlugin, PrimitiveRenderContext } from "../core/plugin-types";
 import type { ChartInstance, DataPoint } from "../core/types";
@@ -82,52 +83,47 @@ function renderSessionZones(
   const end = timeScale.endIndex;
   const barWidth = Math.max(1, timeScale.barSpacing);
 
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(pane.x, pane.y, pane.width, pane.height);
-  ctx.clip();
+  withPaneClip(ctx, pane, () => {
+    // Collect spans first, then render labels with collision avoidance so
+    // dense intraday ranges don't produce an unreadable wall of text.
+    type Span = { zone: string; startIndex: number; endIndex: number };
+    const spans: Span[] = [];
+    let spanStart = -1;
+    let spanZone = "";
 
-  // Collect spans first, then render labels with collision avoidance so
-  // dense intraday ranges don't produce an unreadable wall of text.
-  type Span = { zone: string; startIndex: number; endIndex: number };
-  const spans: Span[] = [];
-  let spanStart = -1;
-  let spanZone = "";
+    for (let i = start; i < end && i < data.length; i++) {
+      const point = data[i];
+      if (!point?.value) continue;
 
-  for (let i = start; i < end && i < data.length; i++) {
-    const point = data[i];
-    if (!point?.value) continue;
+      const { zone, inKillZone } = point.value;
 
-    const { zone, inKillZone } = point.value;
+      if (inKillZone && zone) {
+        const rgb = zoneToRgb(zone);
+        const x = timeScale.indexToX(i);
 
-    if (inKillZone && zone) {
-      const rgb = zoneToRgb(zone);
-      const x = timeScale.indexToX(i);
+        ctx.fillStyle = `rgba(${rgb},0.18)`;
+        ctx.fillRect(x - barWidth / 2, pane.y, barWidth, pane.height);
 
-      ctx.fillStyle = `rgba(${rgb},0.18)`;
-      ctx.fillRect(x - barWidth / 2, pane.y, barWidth, pane.height);
-
-      if (zone !== spanZone) {
-        if (spanStart >= 0 && spanZone) {
-          spans.push({ zone: spanZone, startIndex: spanStart, endIndex: i - 1 });
+        if (zone !== spanZone) {
+          if (spanStart >= 0 && spanZone) {
+            spans.push({ zone: spanZone, startIndex: spanStart, endIndex: i - 1 });
+          }
+          spanStart = i;
+          spanZone = zone;
         }
-        spanStart = i;
-        spanZone = zone;
+      } else if (spanStart >= 0 && spanZone) {
+        spans.push({ zone: spanZone, startIndex: spanStart, endIndex: i - 1 });
+        spanStart = -1;
+        spanZone = "";
       }
-    } else if (spanStart >= 0 && spanZone) {
-      spans.push({ zone: spanZone, startIndex: spanStart, endIndex: i - 1 });
-      spanStart = -1;
-      spanZone = "";
     }
-  }
-  if (spanStart >= 0 && spanZone) {
-    const lastIdx = Math.min(end - 1, data.length - 1);
-    spans.push({ zone: spanZone, startIndex: spanStart, endIndex: lastIdx });
-  }
+    if (spanStart >= 0 && spanZone) {
+      const lastIdx = Math.min(end - 1, data.length - 1);
+      spans.push({ zone: spanZone, startIndex: spanStart, endIndex: lastIdx });
+    }
 
-  renderZoneLabels(ctx, spans, timeScale, pane.y);
-
-  ctx.restore();
+    renderZoneLabels(ctx, spans, timeScale, pane.y);
+  });
 }
 
 function renderZoneLabels(

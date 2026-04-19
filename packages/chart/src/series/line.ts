@@ -3,8 +3,10 @@
  * Renders a continuous line from Series<number> or decomposed channels.
  */
 
+import { strokeNullableLine } from "../core/draw-helper";
 import type { PriceScale, TimeScale } from "../core/scale";
 import type { DataPoint } from "../core/types";
+import { reduceRange } from "../core/value-range";
 
 export type LineRenderOptions = {
   color: string;
@@ -68,37 +70,11 @@ export function renderChannelLine(
   priceScale: PriceScale,
   options: LineRenderOptions,
 ): void {
-  ctx.strokeStyle = options.color;
-  ctx.lineWidth = options.lineWidth;
-  ctx.lineJoin = "round";
-  ctx.lineCap = "round";
-  if (options.dash) ctx.setLineDash(options.dash);
-  else ctx.setLineDash([]);
-
-  const start = timeScale.startIndex;
-  const end = timeScale.endIndex;
-  let drawing = false;
-
-  ctx.beginPath();
-  for (let i = start; i < end && i < values.length; i++) {
-    const val = values[i];
-    if (val === null || val === undefined) {
-      drawing = false;
-      continue;
-    }
-
-    const x = timeScale.indexToX(i);
-    const y = priceScale.priceToY(val);
-
-    if (!drawing) {
-      ctx.moveTo(x, y);
-      drawing = true;
-    } else {
-      ctx.lineTo(x, y);
-    }
-  }
-  ctx.stroke();
-  ctx.setLineDash([]);
+  strokeNullableLine(ctx, values, timeScale, priceScale, {
+    color: options.color,
+    lineWidth: options.lineWidth,
+    dash: options.dash,
+  });
 }
 
 /** Compute min/max of visible data for auto-ranging */
@@ -109,7 +85,8 @@ export function linePriceRange(
 ): [number, number] {
   let min = Number.POSITIVE_INFINITY;
   let max = Number.NEGATIVE_INFINITY;
-  for (let i = startIndex; i < endIndex && i < data.length; i++) {
+  const lim = Math.min(endIndex, data.length);
+  for (let i = startIndex; i < lim; i++) {
     const val = data[i]?.value;
     if (val === null || val === undefined) continue;
     if (val < min) min = val;
@@ -124,13 +101,5 @@ export function channelPriceRange(
   startIndex: number,
   endIndex: number,
 ): [number, number] {
-  let min = Number.POSITIVE_INFINITY;
-  let max = Number.NEGATIVE_INFINITY;
-  for (let i = startIndex; i < endIndex && i < values.length; i++) {
-    const val = values[i];
-    if (val === null || val === undefined) continue;
-    if (val < min) min = val;
-    if (val > max) max = val;
-  }
-  return [min, max];
+  return reduceRange(values, startIndex, endIndex);
 }
