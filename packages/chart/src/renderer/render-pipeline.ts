@@ -5,7 +5,7 @@
 
 import type { DataLayer, InternalSeries } from "../core/data-layer";
 import { decimateCandles, getDecimationTarget } from "../core/decimation";
-import { DrawHelper } from "../core/draw-helper";
+import { DrawHelper, withPaneClip } from "../core/draw-helper";
 import type { LayoutEngine } from "../core/layout";
 import type { RendererRegistry } from "../core/renderer-registry";
 import { PriceScale, type TimeScale } from "../core/scale";
@@ -212,178 +212,173 @@ export function renderFrame(rc: RenderContext): RenderResult {
     if (!scales) continue;
     const ps = scales.right; // Primary scale for most rendering
 
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(pane.x, pane.y, pane.width, pane.height);
-    ctx.clip();
+    withPaneClip(ctx, pane, () => {
+      // Grid
+      renderGrid(ctx, ps, pane.x, pane.y, pane.width, pane.height, theme, timeScale, candles);
 
-    // Grid
-    renderGrid(ctx, ps, pane.x, pane.y, pane.width, pane.height, theme, timeScale, candles);
-
-    // Reference lines
-    if (pane.config.referenceLines?.length) {
-      renderReferenceLines(
-        ctx,
-        pane.config.referenceLines,
-        ps,
-        pane.x,
-        pane.y,
-        pane.width,
-        pane.config.referenceLineColor ?? theme.textSecondary,
-      );
-    }
-    if (pane.config.leftScale?.referenceLines?.length) {
-      renderReferenceLines(
-        ctx,
-        pane.config.leftScale.referenceLines,
-        scales.left,
-        pane.x,
-        pane.y,
-        pane.width,
-        pane.config.leftScale.referenceLineColor ?? theme.textSecondary,
-      );
-    }
-
-    ctx.translate(0, pane.y);
-
-    // Score heatmap
-    if (pane.id === "main" && data.scores.length > 0) {
-      renderScoreHeatmap(ctx, data.scores, timeScale, { ...pane, y: 0 });
-    }
-
-    // Price data
-    if (pane.id === "main") {
-      const decimTarget = getDecimationTarget(
-        timeScale.endIndex - timeScale.startIndex,
-        timeScale.width,
-      );
-      let visibleCandles: readonly CandleData[];
-      // When decimated, remap barSpacing so candles fill the full canvas width
-      const savedStart = timeScale.startIndex;
-      const savedSpacing = timeScale.barSpacing;
-      if (decimTarget > 0) {
-        // Use cached decimation result when viewport hasn't changed
-        const dataVer = data.version;
-        if (
-          _decimCache &&
-          _decimCache.start === timeScale.startIndex &&
-          _decimCache.end === timeScale.endIndex &&
-          _decimCache.target === decimTarget &&
-          _decimCache.dataVersion === dataVer
-        ) {
-          visibleCandles = _decimCache.result;
-        } else {
-          visibleCandles = decimateCandles(
-            candles,
-            timeScale.startIndex,
-            timeScale.endIndex,
-            decimTarget,
-          );
-          _decimCache = {
-            start: timeScale.startIndex,
-            end: timeScale.endIndex,
-            target: decimTarget,
-            dataVersion: dataVer,
-            result: visibleCandles,
-          };
-        }
-        timeScale.setImmediate(0, timeScale.width / visibleCandles.length);
-      } else {
-        visibleCandles = candles;
-      }
-      switch (rc.chartType) {
-        case "line":
-          renderPriceLineChart(ctx, visibleCandles, timeScale, ps, theme);
-          break;
-        case "mountain":
-          renderMountainChart(ctx, visibleCandles, timeScale, ps, theme);
-          break;
-        case "ohlc":
-          renderOhlcBars(ctx, visibleCandles, timeScale, ps, theme);
-          break;
-        default:
-          renderCandlesticks(ctx, visibleCandles, timeScale, ps, theme);
-          break;
-      }
-      // Restore timeScale after decimated rendering
-      if (decimTarget > 0) {
-        timeScale.setImmediate(savedStart, savedSpacing);
-      }
-    }
-
-    if (pane.id === "volume") {
-      renderVolume(ctx, candles, timeScale, ps, theme);
-    }
-
-    // Pre-compute translated pane object once (avoids spread per primitive)
-    const translatedPane = { ...pane, y: 0 };
-
-    // 'below' primitives
-    for (const prim of rc.rendererRegistry.getPrimitives(pane.id, "below")) {
-      try {
-        if (!drawHelper) drawHelper = new DrawHelper(ctx, timeScale, ps);
-        else drawHelper.reset(ctx, timeScale, ps);
-        prim.plugin.render(
-          {
-            ctx,
-            pane: translatedPane,
-            timeScale,
-            priceScale: ps,
-            dataLayer: data,
-            theme,
-            draw: drawHelper,
-          },
-          prim.state,
-        );
-      } catch (err) {
-        rc.emit("error", { source: `primitive:${prim.plugin.name}`, error: err });
-      }
-    }
-
-    // Series — dispatch to correct scale (cache for later info overlay use)
-    const paneSeriesForRender = data.getSeriesForPane(pane.id);
-    _seriesByPane.set(pane.id, paneSeriesForRender);
-    for (const s of paneSeriesForRender) {
-      try {
-        const seriesScale = s.scaleId === "left" ? scales.left : ps;
-        dispatchSeries(
+      // Reference lines
+      if (pane.config.referenceLines?.length) {
+        renderReferenceLines(
           ctx,
-          s,
-          timeScale,
-          seriesScale,
-          data,
+          pane.config.referenceLines,
+          ps,
+          pane.x,
+          pane.y,
           pane.width,
-          theme,
-          rc.rendererRegistry,
+          pane.config.referenceLineColor ?? theme.textSecondary,
         );
-      } catch (err) {
-        rc.emit("error", { source: `series:${s.id}`, error: err });
       }
-    }
+      if (pane.config.leftScale?.referenceLines?.length) {
+        renderReferenceLines(
+          ctx,
+          pane.config.leftScale.referenceLines,
+          scales.left,
+          pane.x,
+          pane.y,
+          pane.width,
+          pane.config.leftScale.referenceLineColor ?? theme.textSecondary,
+        );
+      }
 
-    // 'above' primitives
-    for (const prim of rc.rendererRegistry.getPrimitives(pane.id, "above")) {
-      try {
-        if (!drawHelper) drawHelper = new DrawHelper(ctx, timeScale, ps);
-        else drawHelper.reset(ctx, timeScale, ps);
-        prim.plugin.render(
-          {
+      ctx.translate(0, pane.y);
+
+      // Score heatmap
+      if (pane.id === "main" && data.scores.length > 0) {
+        renderScoreHeatmap(ctx, data.scores, timeScale, { ...pane, y: 0 });
+      }
+
+      // Price data
+      if (pane.id === "main") {
+        const decimTarget = getDecimationTarget(
+          timeScale.endIndex - timeScale.startIndex,
+          timeScale.width,
+        );
+        let visibleCandles: readonly CandleData[];
+        // When decimated, remap barSpacing so candles fill the full canvas width
+        const savedStart = timeScale.startIndex;
+        const savedSpacing = timeScale.barSpacing;
+        if (decimTarget > 0) {
+          // Use cached decimation result when viewport hasn't changed
+          const dataVer = data.version;
+          if (
+            _decimCache &&
+            _decimCache.start === timeScale.startIndex &&
+            _decimCache.end === timeScale.endIndex &&
+            _decimCache.target === decimTarget &&
+            _decimCache.dataVersion === dataVer
+          ) {
+            visibleCandles = _decimCache.result;
+          } else {
+            visibleCandles = decimateCandles(
+              candles,
+              timeScale.startIndex,
+              timeScale.endIndex,
+              decimTarget,
+            );
+            _decimCache = {
+              start: timeScale.startIndex,
+              end: timeScale.endIndex,
+              target: decimTarget,
+              dataVersion: dataVer,
+              result: visibleCandles,
+            };
+          }
+          timeScale.setImmediate(0, timeScale.width / visibleCandles.length);
+        } else {
+          visibleCandles = candles;
+        }
+        switch (rc.chartType) {
+          case "line":
+            renderPriceLineChart(ctx, visibleCandles, timeScale, ps, theme);
+            break;
+          case "mountain":
+            renderMountainChart(ctx, visibleCandles, timeScale, ps, theme);
+            break;
+          case "ohlc":
+            renderOhlcBars(ctx, visibleCandles, timeScale, ps, theme);
+            break;
+          default:
+            renderCandlesticks(ctx, visibleCandles, timeScale, ps, theme);
+            break;
+        }
+        // Restore timeScale after decimated rendering
+        if (decimTarget > 0) {
+          timeScale.setImmediate(savedStart, savedSpacing);
+        }
+      }
+
+      if (pane.id === "volume") {
+        renderVolume(ctx, candles, timeScale, ps, theme);
+      }
+
+      // Pre-compute translated pane object once (avoids spread per primitive)
+      const translatedPane = { ...pane, y: 0 };
+
+      // 'below' primitives
+      for (const prim of rc.rendererRegistry.getPrimitives(pane.id, "below")) {
+        try {
+          if (!drawHelper) drawHelper = new DrawHelper(ctx, timeScale, ps);
+          else drawHelper.reset(ctx, timeScale, ps);
+          prim.plugin.render(
+            {
+              ctx,
+              pane: translatedPane,
+              timeScale,
+              priceScale: ps,
+              dataLayer: data,
+              theme,
+              draw: drawHelper,
+            },
+            prim.state,
+          );
+        } catch (err) {
+          rc.emit("error", { source: `primitive:${prim.plugin.name}`, error: err });
+        }
+      }
+
+      // Series — dispatch to correct scale (cache for later info overlay use)
+      const paneSeriesForRender = data.getSeriesForPane(pane.id);
+      _seriesByPane.set(pane.id, paneSeriesForRender);
+      for (const s of paneSeriesForRender) {
+        try {
+          const seriesScale = s.scaleId === "left" ? scales.left : ps;
+          dispatchSeries(
             ctx,
-            pane: translatedPane,
+            s,
             timeScale,
-            priceScale: ps,
-            dataLayer: data,
+            seriesScale,
+            data,
+            pane.width,
             theme,
-            draw: drawHelper,
-          },
-          prim.state,
-        );
-      } catch (err) {
-        rc.emit("error", { source: `primitive:${prim.plugin.name}`, error: err });
+            rc.rendererRegistry,
+          );
+        } catch (err) {
+          rc.emit("error", { source: `series:${s.id}`, error: err });
+        }
       }
-    }
 
-    ctx.restore();
+      // 'above' primitives
+      for (const prim of rc.rendererRegistry.getPrimitives(pane.id, "above")) {
+        try {
+          if (!drawHelper) drawHelper = new DrawHelper(ctx, timeScale, ps);
+          else drawHelper.reset(ctx, timeScale, ps);
+          prim.plugin.render(
+            {
+              ctx,
+              pane: translatedPane,
+              timeScale,
+              priceScale: ps,
+              dataLayer: data,
+              theme,
+              draw: drawHelper,
+            },
+            prim.state,
+          );
+        } catch (err) {
+          rc.emit("error", { source: `primitive:${prim.plugin.name}`, error: err });
+        }
+      }
+    });
 
     // Right price axis
     renderPriceAxis(

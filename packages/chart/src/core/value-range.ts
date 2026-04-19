@@ -7,8 +7,10 @@
 /** Running min/max accumulator. Pass between calls to accumulate across sources. */
 export type MinMax = [min: number, max: number];
 
-/** Identity element for {@link MinMax}. */
-export const EMPTY_RANGE: MinMax = [Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY];
+/** Fresh identity accumulator — always allocate, never share (tuples are mutable). */
+export function emptyRange(): MinMax {
+  return [Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY];
+}
 
 /**
  * Reduce a numeric array (with null/undefined gaps) into its min/max over
@@ -18,7 +20,7 @@ export function reduceRange(
   values: readonly (number | null | undefined)[],
   startIndex: number,
   endIndex: number,
-  acc: MinMax = [Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY],
+  acc: MinMax = emptyRange(),
 ): MinMax {
   let [min, max] = acc;
   const lim = Math.min(endIndex, values.length);

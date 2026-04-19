@@ -5,7 +5,7 @@
 
 import { strokeNullableLine } from "../core/draw-helper";
 import type { PriceScale, TimeScale } from "../core/scale";
-import { type MinMax, reduceRange } from "../core/value-range";
+import { type MinMax, emptyRange, reduceRange } from "../core/value-range";
 
 export type CloudRenderOptions = {
   lineColors: Record<string, string>;
@@ -116,7 +116,7 @@ export function cloudPriceRange(
   startIndex: number,
   endIndex: number,
 ): [number, number] {
-  let acc: MinMax = [Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY];
+  let acc: MinMax = emptyRange();
   for (const [, vals] of channels) {
     acc = reduceRange(vals, startIndex, endIndex, acc);
   }

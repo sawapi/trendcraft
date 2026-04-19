@@ -223,12 +223,16 @@ export class DrawHelper {
 
   /**
    * Scoped block with automatic save/restore.
-   * Ensures all canvas state changes (lineDash, transforms, etc.) are cleaned up.
+   * Ensures all canvas state changes (lineDash, transforms, etc.) are cleaned
+   * up even if `fn` throws.
    */
   scope(fn: (ctx: CanvasRenderingContext2D) => void): void {
     this.ctx.save();
-    fn(this.ctx);
-    this.ctx.restore();
+    try {
+      fn(this.ctx);
+    } finally {
+      this.ctx.restore();
+    }
   }
 }
 
@@ -290,6 +294,9 @@ export function withPaneClip(
   ctx.beginPath();
   ctx.rect(pane.x, pane.y, pane.width, pane.height);
   ctx.clip();
-  fn();
-  ctx.restore();
+  try {
+    fn();
+  } finally {
+    ctx.restore();
+  }
 }
