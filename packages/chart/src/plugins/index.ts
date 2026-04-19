@@ -7,3 +7,4 @@ export { createWyckoffPhase, connectWyckoffPhase } from "./wyckoff-phase";
 export { createSrConfluence, connectSrConfluence } from "./sr-confluence";
 export { createTradeAnalysis, connectTradeAnalysis } from "./trade-analysis";
 export { createSessionZones, connectSessionZones } from "./session-zones";
+export { createMarketProfile, connectMarketProfile } from "./market-profile";

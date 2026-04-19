@@ -451,11 +451,6 @@ export const CVD_SIGNAL_META: SeriesMeta = {
   overlay: false,
   label: "CVD Signal",
 };
-export const MARKET_PROFILE_META: SeriesMeta = {
-  kind: "marketProfile",
-  overlay: true,
-  label: "Market Profile",
-};
 
 // ============================================
 // Additional Momentum

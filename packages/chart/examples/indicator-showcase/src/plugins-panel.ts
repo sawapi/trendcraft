@@ -11,6 +11,7 @@
 import type { ChartInstance } from "@trendcraft/chart";
 import {
   connectAndrewsPitchfork,
+  connectMarketProfile,
   connectRegimeHeatmap,
   connectSessionZones,
   connectSmcLayer,
@@ -25,6 +26,7 @@ import {
   hmmRegimes,
   killZones,
   liquiditySweep,
+  marketProfile,
   orderBlock,
   srZones,
   volumeProfile,
@@ -103,6 +105,12 @@ const SPECS: PluginSpec[] = [
     label: "Volume Profile",
     description: "Horizontal volume-by-price histogram + POC",
     connect: (candles) => connectVolumeProfile(chartRef, volumeProfile(candles, { levels: 30 })),
+  },
+  {
+    id: "marketProfile",
+    label: "Market Profile",
+    description: "TPO-based time-at-price + POC / VAH / VAL",
+    connect: (candles) => connectMarketProfile(chartRef, marketProfile(candles)),
   },
 ];
 
