@@ -5,22 +5,26 @@
  * with a categorized sidebar UI, search, parameter controls, and active indicator
  * bar. The sidebar is auto-generated from indicatorPresets metadata, so the count
  * stays accurate as the preset registry grows.
+ *
+ * A Daily / 1H timeframe toggle swaps between the bundled daily sample data and
+ * a synthetic intraday dataset (see `data-intraday.ts`) so intraday-only plugins
+ * such as Session Zones can be demo'd meaningfully.
  */
 
-import { connectIndicators, createChart } from "@trendcraft/chart";
+import { type IndicatorConnection, connectIndicators, createChart } from "@trendcraft/chart";
 import { registerTrendCraftPresets } from "@trendcraft/chart/presets";
 import { indicatorPresets } from "trendcraft";
 import type { NormalizedCandle } from "trendcraft";
-import sampleData from "../../simple-chart/data.json";
-import { createPluginsPanel } from "./plugins-panel";
+import dailySampleData from "../../simple-chart/data.json";
+import { generateIntradayCandles } from "./data-intraday";
+import { type PluginsPanelHandle, createPluginsPanel } from "./plugins-panel";
 import type { SidebarEntry } from "./sidebar";
 import { createSidebar } from "./sidebar";
 
-// ============================================
-// Data
-// ============================================
+type Timeframe = "daily" | "intraday";
 
-const candles = sampleData as NormalizedCandle[];
+const dailyCandles = dailySampleData as NormalizedCandle[];
+const intradayCandles = generateIntradayCandles();
 
 // ============================================
 // Build sidebar catalog from indicatorPresets
@@ -45,49 +49,78 @@ for (const [id, preset] of Object.entries(indicatorPresets)) {
 // ============================================
 
 const chartEl = document.getElementById("chart") as HTMLElement;
+const sidebarEl = document.getElementById("sidebar") as HTMLElement;
 const chart = createChart(chartEl, { theme: "dark" });
 registerTrendCraftPresets(chart);
-chart.setCandles(candles);
 
 // ============================================
-// Indicator Connection
+// Timeframe-scoped state (re-created on switch)
 // ============================================
 
-const conn = connectIndicators(chart, { presets: indicatorPresets, candles });
+let currentTimeframe: Timeframe = "daily";
+let currentCandles: NormalizedCandle[] = dailyCandles;
+let conn: IndicatorConnection;
+let pluginsPanel: PluginsPanelHandle;
 
-// ============================================
-// Sidebar
-// ============================================
+function mount(timeframe: Timeframe): void {
+  currentTimeframe = timeframe;
+  currentCandles = timeframe === "daily" ? dailyCandles : intradayCandles;
 
-const sidebarEl = document.getElementById("sidebar") as HTMLElement;
+  chart.setCandles(currentCandles);
+  conn = connectIndicators(chart, { presets: indicatorPresets, candles: currentCandles });
 
-const sidebar = createSidebar(sidebarEl, catalog, {
-  onToggle(id, active, params) {
-    if (active) {
+  // Sidebar is rebuilt from scratch — its DOM/state are reset by createSidebar.
+  // We still need to wipe the container because the plugins panel is a sibling
+  // appended below it.
+  sidebarEl.innerHTML = "";
+
+  createSidebar(sidebarEl, catalog, {
+    onToggle(id, active, params) {
+      if (active) {
+        const finalParams = resolveParams(id, params);
+        conn.add(id, finalParams);
+      } else {
+        conn.remove(id);
+      }
+    },
+    onParamChange(id, params) {
+      conn.remove(id);
       const finalParams = resolveParams(id, params);
       conn.add(id, finalParams);
-    } else {
-      conn.remove(id);
-    }
-  },
-  onParamChange(id, params) {
-    conn.remove(id);
-    const finalParams = resolveParams(id, params);
-    conn.add(id, finalParams);
-  },
-});
+    },
+  });
+
+  pluginsPanel = createPluginsPanel(sidebarEl, currentCandles, chart);
+  chart.fitContent();
+}
+
+function unmount(): void {
+  pluginsPanel?.destroy();
+  conn?.disconnect();
+}
 
 /** Resolve special-case params for specific indicators */
 function resolveParams(id: string, params: Record<string, unknown>): Record<string, unknown> {
-  if (id === "anchoredVwap" && candles.length > 100) {
-    return { ...params, anchorTime: candles[100].time };
+  if (id === "anchoredVwap" && currentCandles.length > 100) {
+    return { ...params, anchorTime: currentCandles[100].time };
   }
   return params;
 }
 
+mount("daily");
+
 // ============================================
 // Toolbar Controls
 // ============================================
+
+// Timeframe toggle
+const timeframeBtn = document.getElementById("btn-timeframe") as HTMLElement;
+timeframeBtn.addEventListener("click", () => {
+  const next: Timeframe = currentTimeframe === "daily" ? "intraday" : "daily";
+  unmount();
+  mount(next);
+  timeframeBtn.textContent = next === "daily" ? "Daily" : "1H";
+});
 
 // Theme toggle
 const themeBtn = document.getElementById("btn-theme") as HTMLElement;
@@ -151,9 +184,3 @@ chartEl.addEventListener("click", () => {
     sidebarEl.classList.remove("open");
   }
 });
-
-// Plugins panel (appended below the indicator list)
-createPluginsPanel(sidebarEl, candles, chart);
-
-// Suppress unused variable warning
-void sidebar;

@@ -3,9 +3,9 @@
  * the `indicatorPresets` series-line model (background heatmaps, zones,
  * pitchfork, volume profile, etc.).
  *
- * Each entry computes its data from the current candles once and connects
- * the plugin on toggle. Tuned for demo data (200 daily bars) — production
- * callers would feed their own options/ranges.
+ * Each entry computes its data from the current candles on toggle and
+ * connects the plugin. The panel can be rebuilt against a new candle set
+ * (e.g. daily ↔ intraday switch) via `destroy()` + re-create.
  */
 
 import type { ChartInstance } from "@trendcraft/chart";
@@ -37,85 +37,98 @@ type PluginSpec = {
   id: string;
   label: string;
   description: string;
-  connect: () => PluginHandle | null;
+  connect: (candles: NormalizedCandle[]) => PluginHandle | null;
 };
+
+export type PluginsPanelHandle = {
+  /** Remove the panel DOM + detach every active plugin from the chart. */
+  destroy(): void;
+};
+
+const SPECS: PluginSpec[] = [
+  {
+    id: "srConfluence",
+    label: "S/R Confluence",
+    description: "Multi-source support/resistance zones",
+    connect: (candles) => {
+      const { zones } = srZones(candles);
+      return connectSrConfluence(chartRef, zones);
+    },
+  },
+  {
+    id: "smcLayer",
+    label: "SMC Layer",
+    description: "Order Blocks + FVG + Liquidity Sweeps",
+    connect: (candles) =>
+      connectSmcLayer(chartRef, {
+        orderBlocks: orderBlock(candles),
+        fvgs: fairValueGap(candles),
+        sweeps: liquiditySweep(candles),
+      }),
+  },
+  {
+    id: "regimeHeatmap",
+    label: "Regime Heatmap",
+    description: "HMM-classified market regime background",
+    connect: (candles) => connectRegimeHeatmap(chartRef, hmmRegimes(candles)),
+  },
+  {
+    id: "wyckoffPhase",
+    label: "Wyckoff Phase",
+    description: "Phase timeline bar at pane bottom",
+    connect: (candles) => connectWyckoffPhase(chartRef, { phases: wyckoffPhases(candles) }),
+  },
+  {
+    id: "sessionZones",
+    label: "Session Zones",
+    description: "ICT kill-zone backgrounds (needs intraday data)",
+    connect: (candles) => connectSessionZones(chartRef, killZones(candles)),
+  },
+  {
+    id: "andrewsPitchfork",
+    label: "Andrew's Pitchfork",
+    description: "Median + handles from the last 3 swing anchors",
+    connect: (candles) => {
+      const last3 = getAlternatingSwingPoints(candles, 3, { leftBars: 10, rightBars: 10 });
+      if (last3.length < 3) return null;
+      return connectAndrewsPitchfork(chartRef, {
+        p0: { index: last3[0].index, price: last3[0].price },
+        p1: { index: last3[1].index, price: last3[1].price },
+        p2: { index: last3[2].index, price: last3[2].price },
+      });
+    },
+  },
+  {
+    id: "volumeProfile",
+    label: "Volume Profile",
+    description: "Horizontal volume-by-price histogram + POC",
+    connect: (candles) => connectVolumeProfile(chartRef, volumeProfile(candles, { levels: 30 })),
+  },
+];
+
+// The specs above close over a mutable `chartRef`. The panel factory sets it
+// on every mount so SPECS can stay a single module-level list.
+let chartRef: ChartInstance = null as unknown as ChartInstance;
 
 export function createPluginsPanel(
   container: HTMLElement,
   candles: NormalizedCandle[],
   chart: ChartInstance,
-): void {
+): PluginsPanelHandle {
+  chartRef = chart;
   const active = new Map<string, PluginHandle>();
-
-  const specs: PluginSpec[] = [
-    {
-      id: "srConfluence",
-      label: "S/R Confluence",
-      description: "Multi-source support/resistance zones",
-      connect: () => {
-        const { zones } = srZones(candles);
-        return connectSrConfluence(chart, zones);
-      },
-    },
-    {
-      id: "smcLayer",
-      label: "SMC Layer",
-      description: "Order Blocks + FVG + Liquidity Sweeps",
-      connect: () =>
-        connectSmcLayer(chart, {
-          orderBlocks: orderBlock(candles),
-          fvgs: fairValueGap(candles),
-          sweeps: liquiditySweep(candles),
-        }),
-    },
-    {
-      id: "regimeHeatmap",
-      label: "Regime Heatmap",
-      description: "HMM-classified market regime background",
-      connect: () => connectRegimeHeatmap(chart, hmmRegimes(candles)),
-    },
-    {
-      id: "wyckoffPhase",
-      label: "Wyckoff Phase",
-      description: "Accumulation / markup / distribution bands",
-      connect: () => connectWyckoffPhase(chart, { phases: wyckoffPhases(candles) }),
-    },
-    {
-      id: "sessionZones",
-      label: "Session Zones",
-      description: "ICT kill-zone backgrounds (Asia / London / NY)",
-      connect: () => connectSessionZones(chart, killZones(candles)),
-    },
-    {
-      id: "andrewsPitchfork",
-      label: "Andrew's Pitchfork",
-      description: "Median + handles from the last 3 swing anchors",
-      connect: () => {
-        const last3 = getAlternatingSwingPoints(candles, 3, { leftBars: 10, rightBars: 10 });
-        if (last3.length < 3) return null;
-        return connectAndrewsPitchfork(chart, {
-          p0: { index: last3[0].index, price: last3[0].price },
-          p1: { index: last3[1].index, price: last3[1].price },
-          p2: { index: last3[2].index, price: last3[2].price },
-        });
-      },
-    },
-    {
-      id: "volumeProfile",
-      label: "Volume Profile",
-      description: "Horizontal volume-by-price histogram + POC",
-      connect: () => connectVolumeProfile(chart, volumeProfile(candles, { levels: 30 })),
-    },
-  ];
+  const panelRoot = document.createElement("div");
+  panelRoot.dataset.role = "plugins-panel";
+  container.appendChild(panelRoot);
 
   // Header
   const header = document.createElement("div");
   header.style.cssText =
     "padding:10px 12px;background:#181c27;border-top:1px solid #2a2e39;border-bottom:1px solid #1e222d;font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;";
-  header.textContent = "▼ Plugins";
-  container.appendChild(header);
+  header.textContent = "\u25BC Plugins";
+  panelRoot.appendChild(header);
 
-  for (const spec of specs) {
+  for (const spec of SPECS) {
     const row = document.createElement("div");
     row.style.cssText =
       "padding:8px 12px 8px 24px;cursor:pointer;border-bottom:1px solid #1e222d;display:flex;align-items:flex-start;gap:10px;user-select:none;";
@@ -137,7 +150,7 @@ export function createPluginsPanel(
 
     row.appendChild(checkbox);
     row.appendChild(text);
-    container.appendChild(row);
+    panelRoot.appendChild(row);
 
     const applyActive = (isActive: boolean) => {
       if (isActive) {
@@ -158,7 +171,7 @@ export function createPluginsPanel(
         active.delete(spec.id);
         applyActive(false);
       } else {
-        const handle = spec.connect();
+        const handle = spec.connect(candles);
         if (!handle) {
           console.warn(`Plugin ${spec.id} could not be connected (insufficient data)`);
           return;
@@ -168,4 +181,12 @@ export function createPluginsPanel(
       }
     });
   }
+
+  return {
+    destroy() {
+      for (const h of active.values()) h.remove();
+      active.clear();
+      panelRoot.remove();
+    },
+  };
 }

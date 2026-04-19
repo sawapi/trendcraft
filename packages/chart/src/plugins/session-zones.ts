@@ -85,7 +85,7 @@ function renderSessionZones(
       const rgb = zoneToRgb(zone);
       const x = timeScale.indexToX(i);
 
-      ctx.fillStyle = `rgba(${rgb},0.06)`;
+      ctx.fillStyle = `rgba(${rgb},0.18)`;
       ctx.fillRect(x - barWidth / 2, pane.y, barWidth, pane.height);
 
       // Track span for label

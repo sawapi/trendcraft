@@ -150,9 +150,9 @@ describe("createRegimeHeatmap", () => {
       plugin.defaultState,
     );
 
-    // confidence=0 → alpha=0.06, confidence=1 → alpha=0.18
-    expect(fillStyles[0]).toContain("0.060");
-    expect(fillStyles[1]).toContain("0.180");
+    // confidence=0 → alpha=0.15, confidence=1 → alpha=0.40
+    expect(fillStyles[0]).toContain("0.150");
+    expect(fillStyles[1]).toContain("0.400");
   });
 });
 
