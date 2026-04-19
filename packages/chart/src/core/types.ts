@@ -211,6 +211,13 @@ export type SeriesConfig = {
   referenceLines?: number[];
   /** Per-channel colors for multi-channel series (e.g., { upper: "#2196F3", lower: "#2196F3" } for bands) */
   channelColors?: Record<string, string>;
+  /**
+   * Palette hint used by the auto-color rotation when `color` is not set.
+   * Populated from an indicator preset's `color` field when it's an array.
+   * Each new series using this same palette instance picks the next entry
+   * (wrapping), so stacking e.g. multiple SMAs produces distinct colors.
+   */
+  colorPalette?: readonly string[];
 };
 
 // ============================================
@@ -220,6 +227,11 @@ export type SeriesConfig = {
 export type SeriesHandle = {
   /** Unique series id */
   readonly id: string;
+  /**
+   * Resolved series config (after preset defaults, palette rotation, and
+   * introspection). Useful for reading back the auto-assigned color.
+   */
+  readonly config: Readonly<SeriesConfig>;
   /** Push a single data point (streaming). Accepts scalar or compound values. */
   update(point: DataPoint<unknown>): void;
   /** Replace all data */

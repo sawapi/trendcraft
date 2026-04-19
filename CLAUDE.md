@@ -95,7 +95,7 @@ pnpm size-check   # Check bundle size limits (esbuild, brotli-compressed)
 - All indicators return `Series<T>` type (`{ time: number, value: T }[]`)
 - Uses Wilder's smoothing method (RSI, ATR, etc.)
 - Functions should have JSDoc comments with @example
-- `@trendcraft/chart`: Bundle size limits enforced via `size-limit` + `@size-limit/esbuild` (brotli-compressed). Main ≤ 31 kB, Headless ≤ 11 kB, React/Vue ≤ 27 kB. Zero runtime dependencies; `trendcraft`, `react`, `vue` are optional peer deps
+- `@trendcraft/chart`: Bundle size limits enforced via `size-limit` + `@size-limit/esbuild` (brotli-compressed). Main ≤ 32 kB, Headless ≤ 11 kB, React/Vue ≤ 27 kB. Zero runtime dependencies; `trendcraft`, `react`, `vue` are optional peer deps
 
 ## Testing & Validation
 

@@ -2,6 +2,14 @@
  * Sidebar UI Component
  *
  * Renders a categorized, searchable indicator panel with parameter controls.
+ *
+ * Multi-instance support:
+ * - Primary instance: created by row click. Its snapshotName matches the
+ *   preset's own default (e.g. `"sma20"`). Toggles on/off like before.
+ * - Extra instances: created via the "+" button next to each row. Each extra
+ *   gets an auto-generated snapshotName (`${presetId}#${n}`) so the chart can
+ *   hold SMA(5) and SMA(25) simultaneously. Extras are removed via their own
+ *   pill in the active bar (independent lifecycle from the primary).
  */
 
 import type { IndicatorCategory, ParamSchema } from "trendcraft";
@@ -31,13 +39,31 @@ const CATEGORIES: IndicatorCategory[] = [
   "Wyckoff",
 ];
 
+/** Params change for the primary instance (no explicit snapshotName). */
+type ExtraInstance = {
+  presetId: string;
+  snapshotName: string;
+  params: Record<string, unknown>;
+};
+
 export type SidebarCallbacks = {
+  /** Toggle the primary (default-snapshotName) instance for this preset. */
   onToggle: (id: string, active: boolean, params: Record<string, unknown>) => void;
+  /** Change params for the primary instance (only fires if active). */
   onParamChange: (id: string, params: Record<string, unknown>) => void;
+  /** Add an extra instance with an explicit snapshotName. */
+  onAddExtra: (extra: ExtraInstance) => void;
+  /** Remove an extra instance by its snapshotName. */
+  onRemoveExtra: (snapshotName: string) => void;
+  /** Change params of an extra instance by its snapshotName. */
+  onChangeExtraParams: (extra: ExtraInstance) => void;
 };
 
 export type SidebarAPI = {
   updateActive: (activeIds: Set<string>) => void;
+  /** Element that auxiliary panels (plugins, signals) should be appended into
+   * so they share the sidebar's single scroll viewport. */
+  getScrollSlot: () => HTMLElement;
 };
 
 export function createSidebar(
@@ -48,6 +74,8 @@ export function createSidebar(
   const activeIds = new Set<string>();
   const expandedParams = new Set<string>();
   const currentParams = new Map<string, Record<string, unknown>>();
+  const extraInstances = new Map<string, ExtraInstance>();
+  const extraCounters = new Map<string, number>();
 
   // Initialize default params
   for (const entry of catalog) {
@@ -95,15 +123,22 @@ export function createSidebar(
   searchBox.appendChild(searchInput);
   container.appendChild(searchBox);
 
-  // Scrollable list
+  // Scroll wrapper: contains the indicator list AND any panels appended by
+  // the caller (plugins / signals). main.ts appends those panels to this
+  // wrapper via `getScrollSlot()` so the three share one scroll context and
+  // the active bar below can stay pinned.
+  const scrollSlot = document.createElement("div");
+  scrollSlot.dataset.role = "sidebar-scroll";
+  scrollSlot.style.cssText = "flex:1 1 auto;overflow-y:auto;overflow-x:hidden;";
+  container.appendChild(scrollSlot);
   const listEl = document.createElement("div");
-  listEl.style.cssText = "flex:1;overflow-y:auto;overflow-x:hidden;";
-  container.appendChild(listEl);
+  listEl.style.cssText = "flex:0 0 auto;";
+  scrollSlot.appendChild(listEl);
 
-  // Active bar (bottom)
+  // Active bar — pinned at the bottom of the sidebar (outside the scroll area)
   const activeBar = document.createElement("div");
   activeBar.style.cssText =
-    "padding:8px 12px;border-top:1px solid #2a2e39;flex-shrink:0;display:flex;flex-wrap:wrap;gap:4px;align-items:center;min-height:36px;";
+    "padding:8px 12px;border-top:1px solid #2a2e39;flex-shrink:0;display:flex;flex-wrap:wrap;gap:4px;align-items:center;min-height:36px;background:#131722;";
   container.appendChild(activeBar);
 
   function matchesSearch(entry: SidebarEntry): boolean {
@@ -119,6 +154,44 @@ export function createSidebar(
 
   function getParams(id: string): Record<string, unknown> {
     return { ...(currentParams.get(id) ?? {}) };
+  }
+
+  function nextExtraKey(presetId: string): string {
+    const n = (extraCounters.get(presetId) ?? 1) + 1;
+    extraCounters.set(presetId, n);
+    return `${presetId}#${n}`;
+  }
+
+  /**
+   * When the user clicks "+" repeatedly without editing params, we'd end up
+   * with identical overlapping instances. Auto-bump the first numeric param
+   * until the resulting param tuple doesn't collide with any existing
+   * instance (primary or extra) for this preset.
+   */
+  function differentiateParams(
+    entry: SidebarEntry,
+    params: Record<string, unknown>,
+  ): Record<string, unknown> {
+    const used: string[] = [];
+    if (activeIds.has(entry.id)) used.push(JSON.stringify(getParams(entry.id)));
+    for (const ex of extraInstances.values()) {
+      if (ex.presetId === entry.id) used.push(JSON.stringify(ex.params));
+    }
+    const firstNumericKey = entry.params.find((p) => typeof p.default === "number")?.key;
+    if (!firstNumericKey) return params;
+
+    const result = { ...params };
+    const schema = entry.params.find((p) => p.key === firstNumericKey);
+    const step = typeof schema?.step === "number" ? schema.step : 1;
+    const max = typeof schema?.max === "number" ? schema.max : Number.POSITIVE_INFINITY;
+    for (let i = 0; i < 50; i++) {
+      if (!used.includes(JSON.stringify(result))) return result;
+      const cur = Number(result[firstNumericKey] ?? 0);
+      const next = cur + Math.max(step, Math.round(cur * 0.5));
+      if (next > max) break;
+      result[firstNumericKey] = next;
+    }
+    return result;
   }
 
   function renderList() {
@@ -213,6 +286,33 @@ export function createSidebar(
           row.appendChild(badge);
         }
 
+        // "+" button: add another instance with current form params
+        if (hasParams) {
+          const addBtn = document.createElement("span");
+          addBtn.style.cssText =
+            "font-size:14px;color:#787b86;flex-shrink:0;padding:2px 6px;border:1px solid #2a2e39;border-radius:4px;line-height:1;";
+          addBtn.textContent = "+";
+          addBtn.title = "Add another instance with the current parameters";
+          addBtn.addEventListener("mouseenter", () => {
+            addBtn.style.color = "#2196F3";
+            addBtn.style.borderColor = "#2196F3";
+          });
+          addBtn.addEventListener("mouseleave", () => {
+            addBtn.style.color = "#787b86";
+            addBtn.style.borderColor = "#2a2e39";
+          });
+          addBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const params = differentiateParams(entry, getParams(entry.id));
+            const snapshotName = nextExtraKey(entry.id);
+            const extra: ExtraInstance = { presetId: entry.id, snapshotName, params };
+            extraInstances.set(snapshotName, extra);
+            callbacks.onAddExtra(extra);
+            renderActiveBar();
+          });
+          row.appendChild(addBtn);
+        }
+
         // Params expand button
         if (hasParams) {
           const expandBtn = document.createElement("span");
@@ -303,9 +403,104 @@ export function createSidebar(
     return input;
   }
 
+  /**
+   * Render an active-indicator pill. The shortName prefix is static; the
+   * first numeric param is editable inline — click the number to turn it
+   * into an input, then press Enter or blur to apply via `onEditNumeric`.
+   * The × on the right removes the instance.
+   */
+  function makePill(
+    shortName: string,
+    currentParams: Record<string, unknown>,
+    editableKey: string | null,
+    onEditNumeric: (newValue: number) => void,
+    onRemove: () => void,
+  ): HTMLSpanElement {
+    const pill = document.createElement("span");
+    pill.style.cssText =
+      "display:inline-flex;align-items:center;gap:4px;padding:2px 4px 2px 8px;background:#1a2332;border:1px solid #2196F3;border-radius:12px;font-size:11px;color:#2196F3;white-space:nowrap;";
+
+    const prefix = document.createElement("span");
+    prefix.textContent = shortName;
+    pill.appendChild(prefix);
+
+    if (editableKey !== null) {
+      const open = document.createElement("span");
+      open.textContent = "(";
+      pill.appendChild(open);
+
+      const numericEl = document.createElement("span");
+      numericEl.textContent = String(currentParams[editableKey] ?? "");
+      numericEl.title = "Click to edit";
+      numericEl.style.cssText =
+        "cursor:text;padding:0 2px;border-radius:2px;background:rgba(33,150,243,0.12);";
+      numericEl.addEventListener("click", (e) => {
+        e.stopPropagation();
+        // Swap span → input for inline editing
+        const input = document.createElement("input");
+        input.type = "number";
+        input.value = numericEl.textContent ?? "";
+        input.style.cssText =
+          "width:40px;padding:0 2px;background:#0f1421;border:1px solid #2196F3;border-radius:2px;color:#2196F3;font-size:11px;text-align:center;outline:none;";
+        numericEl.replaceWith(input);
+        input.focus();
+        input.select();
+        const commit = () => {
+          const v = Number.parseFloat(input.value);
+          if (!Number.isNaN(v)) onEditNumeric(v);
+          else renderActiveBar();
+        };
+        input.addEventListener("blur", commit);
+        input.addEventListener("keydown", (ev) => {
+          if (ev.key === "Enter") input.blur();
+          else if (ev.key === "Escape") {
+            input.value = numericEl.textContent ?? "";
+            renderActiveBar();
+          }
+        });
+      });
+      pill.appendChild(numericEl);
+
+      const close = document.createElement("span");
+      close.textContent = ")";
+      pill.appendChild(close);
+    } else {
+      const summary = paramsSummaryRaw(currentParams);
+      if (summary) {
+        const s = document.createElement("span");
+        s.textContent = summary;
+        pill.appendChild(s);
+      }
+    }
+
+    const removeBtn = document.createElement("span");
+    removeBtn.textContent = "\u00D7";
+    removeBtn.style.cssText =
+      "font-size:14px;line-height:1;opacity:0.7;cursor:pointer;padding:0 4px;margin-left:2px;";
+    removeBtn.addEventListener("mouseenter", () => {
+      removeBtn.style.opacity = "1";
+    });
+    removeBtn.addEventListener("mouseleave", () => {
+      removeBtn.style.opacity = "0.7";
+    });
+    removeBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      onRemove();
+    });
+    pill.appendChild(removeBtn);
+
+    return pill;
+  }
+
+  function paramsSummaryRaw(params: Record<string, unknown>): string {
+    const vals = Object.values(params);
+    if (vals.length === 0) return "";
+    return `(${vals.join(", ")})`;
+  }
+
   function renderActiveBar() {
     activeBar.innerHTML = "";
-    if (activeIds.size === 0) {
+    if (activeIds.size === 0 && extraInstances.size === 0) {
       const hint = document.createElement("span");
       hint.style.cssText = "font-size:11px;color:#787b86;";
       hint.textContent = "Click an indicator to add it to the chart";
@@ -313,42 +508,59 @@ export function createSidebar(
       return;
     }
 
+    // Primary instances first
     for (const id of activeIds) {
       const entry = catalog.find((e) => e.id === id);
       if (!entry) continue;
-
-      const pill = document.createElement("span");
-      pill.style.cssText =
-        "display:inline-flex;align-items:center;gap:4px;padding:2px 8px;background:#1a2332;border:1px solid #2196F3;border-radius:12px;font-size:11px;color:#2196F3;cursor:pointer;white-space:nowrap;";
-
-      const pillLabel = document.createElement("span");
-      pillLabel.textContent = entry.shortName;
-      pill.appendChild(pillLabel);
-
-      const removeBtn = document.createElement("span");
-      removeBtn.textContent = "\u00D7";
-      removeBtn.style.cssText = "font-size:14px;line-height:1;opacity:0.7;";
-      removeBtn.addEventListener("mouseenter", () => {
-        removeBtn.style.opacity = "1";
-      });
-      removeBtn.addEventListener("mouseleave", () => {
-        removeBtn.style.opacity = "0.7";
-      });
-      pill.appendChild(removeBtn);
-
-      pill.addEventListener("click", () => {
-        activeIds.delete(id);
-        callbacks.onToggle(id, false, getParams(id));
-        renderList();
-        renderActiveBar();
-      });
-
+      const editKey = entry.params.find((p) => typeof p.default === "number")?.key ?? null;
+      const pill = makePill(
+        entry.shortName,
+        getParams(id),
+        editKey,
+        (newVal) => {
+          const paramMap = currentParams.get(id);
+          if (paramMap && editKey) paramMap[editKey] = newVal;
+          callbacks.onParamChange(id, getParams(id));
+          renderList();
+          renderActiveBar();
+        },
+        () => {
+          activeIds.delete(id);
+          callbacks.onToggle(id, false, getParams(id));
+          renderList();
+          renderActiveBar();
+        },
+      );
       activeBar.appendChild(pill);
     }
 
+    // Extra instances
+    for (const extra of extraInstances.values()) {
+      const entry = catalog.find((e) => e.id === extra.presetId);
+      if (!entry) continue;
+      const editKey = entry.params.find((p) => typeof p.default === "number")?.key ?? null;
+      const pill = makePill(
+        entry.shortName,
+        extra.params,
+        editKey,
+        (newVal) => {
+          if (editKey) extra.params = { ...extra.params, [editKey]: newVal };
+          callbacks.onChangeExtraParams(extra);
+          renderActiveBar();
+        },
+        () => {
+          extraInstances.delete(extra.snapshotName);
+          callbacks.onRemoveExtra(extra.snapshotName);
+          renderActiveBar();
+        },
+      );
+      activeBar.appendChild(pill);
+    }
+
+    const total = activeIds.size + extraInstances.size;
     const count = document.createElement("span");
     count.style.cssText = "font-size:11px;color:#787b86;margin-left:auto;";
-    count.textContent = `${activeIds.size} active`;
+    count.textContent = `${total} active`;
     activeBar.appendChild(count);
   }
 
@@ -372,6 +584,9 @@ export function createSidebar(
       for (const id of ids) activeIds.add(id);
       renderList();
       renderActiveBar();
+    },
+    getScrollSlot() {
+      return scrollSlot;
     },
   };
 }

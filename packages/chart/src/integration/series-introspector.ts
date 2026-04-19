@@ -78,12 +78,20 @@ export function introspect<T>(
   // Resolve label: user config > __meta > preset > rule name
   const label: string = userConfig?.label ?? meta?.label ?? preset?.label ?? rule?.name ?? "Series";
 
+  // Resolve color. preset.color may be a string (fixed) or an array (palette).
+  // A palette array flows through as `colorPalette`; the chart's auto-color
+  // rotation in canvas-chart picks the next entry per-palette.
+  const presetColor = preset?.color;
+  const presetPalette = Array.isArray(presetColor) ? presetColor : undefined;
+  const presetColorString = typeof presetColor === "string" ? presetColor : undefined;
+
   // Merge config (including channelColors from preset)
   const config: SeriesConfig = {
     pane,
     scaleId: userConfig?.scaleId,
     type: seriesType,
-    color: userConfig?.color ?? preset?.color,
+    color: userConfig?.color ?? presetColorString,
+    colorPalette: userConfig?.color ? undefined : presetPalette,
     lineWidth: userConfig?.lineWidth ?? preset?.lineWidth,
     label,
     visible: userConfig?.visible,

@@ -20,6 +20,7 @@ import { generateIntradayCandles } from "./data-intraday";
 import { type PluginsPanelHandle, createPluginsPanel } from "./plugins-panel";
 import type { SidebarEntry } from "./sidebar";
 import { createSidebar } from "./sidebar";
+import { type SignalsPanelHandle, createSignalsPanel } from "./signals-panel";
 
 type Timeframe = "daily" | "intraday";
 
@@ -61,6 +62,7 @@ let currentTimeframe: Timeframe = "daily";
 let currentCandles: NormalizedCandle[] = dailyCandles;
 let conn: IndicatorConnection;
 let pluginsPanel: PluginsPanelHandle;
+let signalsPanel: SignalsPanelHandle;
 
 function mount(timeframe: Timeframe): void {
   currentTimeframe = timeframe;
@@ -74,27 +76,53 @@ function mount(timeframe: Timeframe): void {
   // appended below it.
   sidebarEl.innerHTML = "";
 
-  createSidebar(sidebarEl, catalog, {
+  const sidebarAPI = createSidebar(sidebarEl, catalog, {
     onToggle(id, active, params) {
       if (active) {
         const finalParams = resolveParams(id, params);
-        conn.add(id, finalParams);
+        // Force the primary's snapshotName = presetId so editing params
+        // later removes just this instance (not every SMA, etc.).
+        conn.add(id, { ...finalParams, snapshotName: id });
       } else {
         conn.remove(id);
       }
     },
     onParamChange(id, params) {
+      // Preserve the current color across the remove+add round-trip so
+      // editing a period in the active-bar pill doesn't re-roll the palette
+      // and hand the same instance a different color mid-session.
+      const oldColor = conn.get(id)?.color;
       conn.remove(id);
       const finalParams = resolveParams(id, params);
-      conn.add(id, finalParams);
+      const overrides: Record<string, unknown> = { ...finalParams, snapshotName: id };
+      if (oldColor) overrides.series = { color: oldColor };
+      conn.add(id, overrides);
+    },
+    onAddExtra({ presetId, snapshotName, params }) {
+      const finalParams = resolveParams(presetId, params);
+      conn.add(presetId, { ...finalParams, snapshotName });
+    },
+    onRemoveExtra(snapshotName) {
+      conn.remove(snapshotName);
+    },
+    onChangeExtraParams({ presetId, snapshotName, params }) {
+      const oldColor = conn.get(snapshotName)?.color;
+      conn.remove(snapshotName);
+      const finalParams = resolveParams(presetId, params);
+      const overrides: Record<string, unknown> = { ...finalParams, snapshotName };
+      if (oldColor) overrides.series = { color: oldColor };
+      conn.add(presetId, overrides);
     },
   });
 
-  pluginsPanel = createPluginsPanel(sidebarEl, currentCandles, chart);
+  const scrollSlot = sidebarAPI.getScrollSlot();
+  pluginsPanel = createPluginsPanel(scrollSlot, currentCandles, chart);
+  signalsPanel = createSignalsPanel(scrollSlot, currentCandles, chart);
   chart.fitContent();
 }
 
 function unmount(): void {
+  signalsPanel?.destroy();
   pluginsPanel?.destroy();
   conn?.disconnect();
 }

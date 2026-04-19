@@ -8,3 +8,4 @@ export { createSrConfluence, connectSrConfluence } from "./sr-confluence";
 export { createTradeAnalysis, connectTradeAnalysis } from "./trade-analysis";
 export { createSessionZones, connectSessionZones } from "./session-zones";
 export { createMarketProfile, connectMarketProfile } from "./market-profile";
+export { createSqueezeDots, connectSqueezeDots, type SqueezeDotsOptions } from "./squeeze-dots";
