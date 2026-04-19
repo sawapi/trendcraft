@@ -402,6 +402,7 @@ export class CanvasChart implements ChartInstance {
       this._warn("addIndicator: expected an array", typeof series);
       return {
         id: "",
+        config: {},
         update: () => {},
         setData: () => {},
         setVisible: () => {},

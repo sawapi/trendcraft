@@ -458,6 +458,7 @@ export function connectIndicators(
       snapshotName: handle.snapshotName,
       staticOnly: false,
       handle,
+      color: handle.color,
       removed: true,
     };
   }
