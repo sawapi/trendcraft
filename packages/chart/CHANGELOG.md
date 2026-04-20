@@ -5,9 +5,9 @@ All notable changes to `@trendcraft/chart` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.1.0] - 2026-04-20
 
-Draft for the initial public release. Date and final version are set at release time.
+Initial public release.
 
 ### Added
 
@@ -40,4 +40,4 @@ Draft for the initial public release. Date and final version are set at release 
 - `react` (optional, `>=19.0.0`) — required only when using the React wrapper.
 - `vue` (optional, `>=3.3.0`) — required only when using the Vue wrapper.
 
-[Unreleased]: https://github.com/sawapi/trendcraft/compare/chart-v0.0.0...HEAD
+[0.1.0]: https://github.com/sawapi/trendcraft/releases/tag/chart-v0.1.0
