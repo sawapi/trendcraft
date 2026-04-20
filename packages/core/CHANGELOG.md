@@ -1,8 +1,8 @@
 # Changelog
 
-## Unreleased
+## v0.2.0 (2026-04-20)
 
-Target: **v0.2.0** — minor bump introducing live-streaming, indicator-registry, and series-metadata APIs, plus parameterized indicator labels.
+Minor bump introducing live-streaming, indicator-registry, and series-metadata APIs, plus parameterized indicator labels.
 
 ### Added — Series Metadata
 
