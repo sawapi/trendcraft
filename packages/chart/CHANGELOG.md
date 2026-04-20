@@ -27,7 +27,7 @@ Draft for the initial public release. Date and final version are set at release 
 - `createSqueezeDots` / `connectSqueezeDots` — primitive plugin that renders TTM-style squeeze dots along the bottom of the price pane: red dot per active-squeeze bar, green dot at each release. Consumes `bollingerSqueeze()` output (or any compatible `{ time }`-keyed signal list).
 - SSR safety: headless exports work without a DOM; DOM exports throw a clear error in non-browser environments.
 - ARIA accessibility support via `ChartAria`.
-- Bundle size limits enforced via `size-limit` (brotli): main ≤ 32 kB, headless ≤ 11 kB, React ≤ 27 kB, Vue ≤ 27 kB.
+- Bundle size limits enforced via `size-limit` (brotli): main ≤ 31 kB, headless ≤ 11 kB, React ≤ 27 kB, Vue ≤ 27 kB.
 
 ### Changed
 
