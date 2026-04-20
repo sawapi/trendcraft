@@ -7,11 +7,12 @@ import type { InternalSeries } from "../core/data-layer";
 import type { RendererRegistry } from "../core/renderer-registry";
 import { defaultRegistry } from "../core/series-registry";
 import type { CandleData, DataPoint, PaneRect } from "../core/types";
+import { type MinMax, emptyRange, reduceRange } from "../core/value-range";
 import { bandPriceRange } from "../series/band";
 import { candlePriceRange } from "../series/candlestick";
 import { cloudPriceRange } from "../series/cloud";
 import { volumeRange } from "../series/histogram";
-import { channelPriceRange, linePriceRange } from "../series/line";
+import { linePriceRange } from "../series/line";
 
 /**
  * Compute the price range for a pane based on candles and assigned series.
@@ -98,12 +99,9 @@ export function computeSeriesRange(
 
   // Generic: decompose and find range across all channels
   const channels = defaultRegistry.decomposeAll(s.data, rule);
-  let min = Number.POSITIVE_INFINITY;
-  let max = Number.NEGATIVE_INFINITY;
+  let acc: MinMax = emptyRange();
   for (const [, vals] of channels) {
-    const [cMin, cMax] = channelPriceRange(vals, start, end);
-    if (cMin < min) min = cMin;
-    if (cMax > max) max = cMax;
+    acc = reduceRange(vals, start, end, acc);
   }
-  return [min, max];
+  return acc;
 }

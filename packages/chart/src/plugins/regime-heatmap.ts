@@ -21,6 +21,7 @@
  * ```
  */
 
+import { withPaneClip } from "../core/draw-helper";
 import { definePrimitive } from "../core/plugin-types";
 import type { PrimitivePlugin, PrimitiveRenderContext } from "../core/plugin-types";
 import type { ChartInstance, DataPoint } from "../core/types";
@@ -66,25 +67,20 @@ function renderRegimeHeatmap(
   const end = timeScale.endIndex;
   const barWidth = Math.max(1, timeScale.barSpacing);
 
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(pane.x, pane.y, pane.width, pane.height);
-  ctx.clip();
+  withPaneClip(ctx, pane, () => {
+    for (let i = start; i < end && i < data.length; i++) {
+      const point = data[i];
+      if (!point?.value) continue;
 
-  for (let i = start; i < end && i < data.length; i++) {
-    const point = data[i];
-    if (!point?.value) continue;
+      const { regime, label, confidence } = point.value;
+      const rgb = regimeToRgb(regime, label);
+      const alpha = 0.15 + (confidence ?? 0.5) * 0.25;
+      const x = timeScale.indexToX(i);
 
-    const { regime, label, confidence } = point.value;
-    const rgb = regimeToRgb(regime, label);
-    const alpha = 0.15 + (confidence ?? 0.5) * 0.25;
-    const x = timeScale.indexToX(i);
-
-    ctx.fillStyle = `rgba(${rgb},${alpha.toFixed(3)})`;
-    ctx.fillRect(x - barWidth / 2, pane.y, barWidth, pane.height);
-  }
-
-  ctx.restore();
+      ctx.fillStyle = `rgba(${rgb},${alpha.toFixed(3)})`;
+      ctx.fillRect(x - barWidth / 2, pane.y, barWidth, pane.height);
+    }
+  });
 }
 
 // ---- Factory ----

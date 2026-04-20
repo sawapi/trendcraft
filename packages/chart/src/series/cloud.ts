@@ -3,7 +3,9 @@
  * Renders Ichimoku-style cloud (filled area between two lines) + additional lines.
  */
 
+import { strokeNullableLine } from "../core/draw-helper";
 import type { PriceScale, TimeScale } from "../core/scale";
+import { type MinMax, emptyRange, reduceRange } from "../core/value-range";
 
 export type CloudRenderOptions = {
   lineColors: Record<string, string>;
@@ -49,7 +51,7 @@ export function renderCloud(
   for (const [key, color] of Object.entries(opts.lineColors)) {
     const values = channels.get(key);
     if (!values) continue;
-    renderCloudLine(ctx, values, start, end, timeScale, priceScale, color, opts.lineWidth);
+    strokeNullableLine(ctx, values, timeScale, priceScale, { color, lineWidth: opts.lineWidth });
   }
 }
 
@@ -108,56 +110,15 @@ function drawCloudSegment(
   }
 }
 
-function renderCloudLine(
-  ctx: CanvasRenderingContext2D,
-  values: readonly (number | null)[],
-  start: number,
-  end: number,
-  timeScale: TimeScale,
-  priceScale: PriceScale,
-  color: string,
-  lineWidth: number,
-): void {
-  ctx.strokeStyle = color;
-  ctx.lineWidth = lineWidth;
-  ctx.lineJoin = "round";
-  ctx.setLineDash([]);
-
-  let drawing = false;
-  ctx.beginPath();
-  for (let i = start; i < end && i < values.length; i++) {
-    const val = values[i];
-    if (val === null || val === undefined) {
-      drawing = false;
-      continue;
-    }
-    const x = timeScale.indexToX(i);
-    const y = priceScale.priceToY(val);
-    if (!drawing) {
-      ctx.moveTo(x, y);
-      drawing = true;
-    } else {
-      ctx.lineTo(x, y);
-    }
-  }
-  ctx.stroke();
-}
-
 /** Compute price range across all cloud channels */
 export function cloudPriceRange(
   channels: Map<string, (number | null)[]>,
   startIndex: number,
   endIndex: number,
 ): [number, number] {
-  let min = Number.POSITIVE_INFINITY;
-  let max = Number.NEGATIVE_INFINITY;
+  let acc: MinMax = emptyRange();
   for (const [, vals] of channels) {
-    for (let i = startIndex; i < endIndex && i < vals.length; i++) {
-      const v = vals[i];
-      if (v === null || v === undefined) continue;
-      if (v < min) min = v;
-      if (v > max) max = v;
-    }
+    acc = reduceRange(vals, startIndex, endIndex, acc);
   }
-  return [min, max];
+  return acc;
 }

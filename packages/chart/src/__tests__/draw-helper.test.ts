@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { DrawHelper } from "../core/draw-helper";
+import { DrawHelper, strokeNullableLine, withPaneClip } from "../core/draw-helper";
 import { PriceScale, TimeScale } from "../core/scale";
 
 /** Create a minimal mock CanvasRenderingContext2D */
@@ -11,6 +11,8 @@ function mockCtx(): CanvasRenderingContext2D {
     stroke: vi.fn(),
     fill: vi.fn(),
     arc: vi.fn(),
+    rect: vi.fn(),
+    clip: vi.fn(),
     closePath: vi.fn(),
     fillRect: vi.fn(),
     strokeRect: vi.fn(),
@@ -223,8 +225,86 @@ describe("DrawHelper.scope()", () => {
       }),
     ).toThrow("test");
 
-    // save was called but restore may not be — let's verify scope handles this
-    // Actually our current implementation doesn't try/catch. Let's accept this behavior.
     expect(ctx.save).toHaveBeenCalledOnce();
+    expect(ctx.restore).toHaveBeenCalledOnce();
+  });
+});
+
+describe("withPaneClip()", () => {
+  const pane = { x: 10, y: 20, width: 800, height: 400 };
+
+  it("establishes a clip rect and restores after the callback", () => {
+    const ctx = mockCtx();
+    const order: string[] = [];
+    (ctx.save as ReturnType<typeof vi.fn>).mockImplementation(() => order.push("save"));
+    (ctx.beginPath as ReturnType<typeof vi.fn>).mockImplementation(() => order.push("beginPath"));
+    (ctx.rect as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => order.push("rect"));
+    (ctx.clip as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => order.push("clip"));
+    (ctx.restore as ReturnType<typeof vi.fn>).mockImplementation(() => order.push("restore"));
+
+    withPaneClip(ctx, pane, () => order.push("inner"));
+
+    expect(order).toEqual(["save", "beginPath", "rect", "clip", "inner", "restore"]);
+    expect(ctx.rect).toHaveBeenCalledWith(10, 20, 800, 400);
+  });
+
+  it("restores even if the callback throws", () => {
+    const ctx = mockCtx();
+
+    expect(() =>
+      withPaneClip(ctx, pane, () => {
+        throw new Error("boom");
+      }),
+    ).toThrow("boom");
+
+    expect(ctx.save).toHaveBeenCalledOnce();
+    expect(ctx.restore).toHaveBeenCalledOnce();
+  });
+});
+
+describe("strokeNullableLine()", () => {
+  it("breaks the path at null gaps (moveTo after each gap)", () => {
+    const { ctx, ts, ps } = makeHelper();
+    const start = ts.startIndex;
+    const values: (number | null)[] = new Array(100).fill(null);
+    values[start] = 100;
+    values[start + 1] = 110;
+    // gap at start + 2
+    values[start + 3] = 120;
+    values[start + 4] = 130;
+
+    strokeNullableLine(ctx, values, ts, ps, { color: "#0f0", lineWidth: 2 });
+
+    expect(ctx.strokeStyle).toBe("#0f0");
+    expect(ctx.lineWidth).toBe(2);
+    // 2 segments → 2 moveTo calls, plus 2 lineTo (one per continuation)
+    expect(ctx.moveTo).toHaveBeenCalledTimes(2);
+    expect(ctx.lineTo).toHaveBeenCalledTimes(2);
+    expect(ctx.stroke).toHaveBeenCalledOnce();
+  });
+
+  it("clears the line-dash it set on exit", () => {
+    const { ctx, ts, ps } = makeHelper();
+    const start = ts.startIndex;
+    const values: (number | null)[] = new Array(100).fill(null);
+    values[start] = 100;
+    values[start + 1] = 110;
+
+    strokeNullableLine(ctx, values, ts, ps, { color: "#f00", dash: [4, 2] });
+
+    const calls = (ctx.setLineDash as ReturnType<typeof vi.fn>).mock.calls;
+    expect(calls[0][0]).toEqual([4, 2]);
+    expect(calls[calls.length - 1][0]).toEqual([]);
+  });
+
+  it("is a no-op on an all-null array (beginPath+stroke only, no path commands)", () => {
+    const { ctx, ts, ps } = makeHelper();
+    const values: (number | null)[] = new Array(100).fill(null);
+
+    strokeNullableLine(ctx, values, ts, ps, { color: "#000" });
+
+    expect(ctx.moveTo).not.toHaveBeenCalled();
+    expect(ctx.lineTo).not.toHaveBeenCalled();
+    expect(ctx.stroke).toHaveBeenCalledOnce();
   });
 });

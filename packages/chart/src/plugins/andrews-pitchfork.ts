@@ -29,6 +29,7 @@
  * ```
  */
 
+import { withPaneClip } from "../core/draw-helper";
 import { definePrimitive } from "../core/plugin-types";
 import type { PrimitivePlugin, PrimitiveRenderContext } from "../core/plugin-types";
 import type { ChartInstance } from "../core/types";
@@ -99,63 +100,58 @@ function renderAndrewsPitchfork(
   const lowerEndX = rightEdgeX;
   const lowerEndY = lowerAnchorY + (dyMed / dxMed) * (rightEdgeX - lowerAnchorX);
 
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(pane.x, pane.y, pane.width, pane.height);
-  ctx.clip();
+  withPaneClip(ctx, pane, () => {
+    const stroke = state.color ?? "rgba(100,149,237,0.9)";
+    const fill = state.fillColor ?? "rgba(100,149,237,0.08)";
 
-  const stroke = state.color ?? "rgba(100,149,237,0.9)";
-  const fill = state.fillColor ?? "rgba(100,149,237,0.08)";
-
-  // Fill the region between upper and lower handles (from their anchor points forward).
-  ctx.fillStyle = fill;
-  ctx.beginPath();
-  ctx.moveTo(upperAnchorX, upperAnchorY);
-  ctx.lineTo(upperEndX, upperEndY);
-  ctx.lineTo(lowerEndX, lowerEndY);
-  ctx.lineTo(lowerAnchorX, lowerAnchorY);
-  ctx.closePath();
-  ctx.fill();
-
-  // Handle connector (P1 ↔ P2 short dashed segment)
-  ctx.strokeStyle = stroke;
-  ctx.lineWidth = 1;
-  ctx.setLineDash([3, 3]);
-  ctx.beginPath();
-  ctx.moveTo(x1, y1);
-  ctx.lineTo(x2, y2);
-  ctx.stroke();
-  ctx.setLineDash([]);
-
-  // Median line (solid)
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.moveTo(x0, y0);
-  ctx.lineTo(medianEndX, medianEndY);
-  ctx.stroke();
-
-  // Upper + lower handle lines (solid, thinner)
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(upperAnchorX, upperAnchorY);
-  ctx.lineTo(upperEndX, upperEndY);
-  ctx.moveTo(lowerAnchorX, lowerAnchorY);
-  ctx.lineTo(lowerEndX, lowerEndY);
-  ctx.stroke();
-
-  // Small anchor dots
-  ctx.fillStyle = stroke;
-  for (const [ax, ay] of [
-    [x0, y0],
-    [x1, y1],
-    [x2, y2],
-  ]) {
+    // Fill the region between upper and lower handles (from their anchor points forward).
+    ctx.fillStyle = fill;
     ctx.beginPath();
-    ctx.arc(ax, ay, 2.5, 0, Math.PI * 2);
+    ctx.moveTo(upperAnchorX, upperAnchorY);
+    ctx.lineTo(upperEndX, upperEndY);
+    ctx.lineTo(lowerEndX, lowerEndY);
+    ctx.lineTo(lowerAnchorX, lowerAnchorY);
+    ctx.closePath();
     ctx.fill();
-  }
 
-  ctx.restore();
+    // Handle connector (P1 ↔ P2 short dashed segment)
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Median line (solid)
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(x0, y0);
+    ctx.lineTo(medianEndX, medianEndY);
+    ctx.stroke();
+
+    // Upper + lower handle lines (solid, thinner)
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(upperAnchorX, upperAnchorY);
+    ctx.lineTo(upperEndX, upperEndY);
+    ctx.moveTo(lowerAnchorX, lowerAnchorY);
+    ctx.lineTo(lowerEndX, lowerEndY);
+    ctx.stroke();
+
+    // Small anchor dots
+    ctx.fillStyle = stroke;
+    for (const [ax, ay] of [
+      [x0, y0],
+      [x1, y1],
+      [x2, y2],
+    ]) {
+      ctx.beginPath();
+      ctx.arc(ax, ay, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  });
 }
 
 // ---- Factory ----

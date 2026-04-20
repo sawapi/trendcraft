@@ -18,6 +18,7 @@
  * ```
  */
 
+import { withPaneClip } from "../core/draw-helper";
 import { definePrimitive } from "../core/plugin-types";
 import type { PrimitivePlugin, PrimitiveRenderContext } from "../core/plugin-types";
 import type { ChartInstance } from "../core/types";
@@ -100,85 +101,80 @@ function renderTradeAnalysis(
   const { trades, candles } = state;
   if (trades.length === 0 || candles.length === 0) return;
 
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(pane.x, pane.y, pane.width, pane.height);
-  ctx.clip();
+  withPaneClip(ctx, pane, () => {
+    for (const trade of trades) {
+      const entryIdx = findIndex(candles, trade.entryTime);
+      const exitIdx = findIndex(candles, trade.exitTime);
+      if (entryIdx >= candles.length || exitIdx >= candles.length) continue;
 
-  for (const trade of trades) {
-    const entryIdx = findIndex(candles, trade.entryTime);
-    const exitIdx = findIndex(candles, trade.exitTime);
-    if (entryIdx >= candles.length || exitIdx >= candles.length) continue;
+      const direction = trade.direction ?? (trade.returnPercent >= 0 ? "long" : "short");
+      const entryX = timeScale.indexToX(entryIdx);
+      const exitX = timeScale.indexToX(exitIdx);
+      const entryY = priceScale.priceToY(trade.entryPrice);
+      const exitY = priceScale.priceToY(trade.exitPrice);
 
-    const direction = trade.direction ?? (trade.returnPercent >= 0 ? "long" : "short");
-    const entryX = timeScale.indexToX(entryIdx);
-    const exitX = timeScale.indexToX(exitIdx);
-    const entryY = priceScale.priceToY(trade.entryPrice);
-    const exitY = priceScale.priceToY(trade.exitPrice);
+      // Compute MFE/MAE price levels from candles
+      const { mfePrice, maePrice } = computeMfeMaePrice(
+        candles,
+        entryIdx,
+        exitIdx,
+        trade.entryPrice,
+        direction,
+      );
 
-    // Compute MFE/MAE price levels from candles
-    const { mfePrice, maePrice } = computeMfeMaePrice(
-      candles,
-      entryIdx,
-      exitIdx,
-      trade.entryPrice,
-      direction,
-    );
+      const mfeY = priceScale.priceToY(mfePrice);
+      const maeY = priceScale.priceToY(maePrice);
 
-    const mfeY = priceScale.priceToY(mfePrice);
-    const maeY = priceScale.priceToY(maePrice);
+      // MFE dashed line
+      ctx.save();
+      ctx.setLineDash([3, 2]);
+      ctx.strokeStyle = `rgba(${MFE_COLOR},0.5)`;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(entryX, mfeY);
+      ctx.lineTo(exitX, mfeY);
+      ctx.stroke();
+      ctx.restore();
 
-    // MFE dashed line
-    ctx.save();
-    ctx.setLineDash([3, 2]);
-    ctx.strokeStyle = `rgba(${MFE_COLOR},0.5)`;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(entryX, mfeY);
-    ctx.lineTo(exitX, mfeY);
-    ctx.stroke();
-    ctx.restore();
+      // MAE dashed line
+      ctx.save();
+      ctx.setLineDash([3, 2]);
+      ctx.strokeStyle = `rgba(${MAE_COLOR},0.5)`;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(entryX, maeY);
+      ctx.lineTo(exitX, maeY);
+      ctx.stroke();
+      ctx.restore();
 
-    // MAE dashed line
-    ctx.save();
-    ctx.setLineDash([3, 2]);
-    ctx.strokeStyle = `rgba(${MAE_COLOR},0.5)`;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(entryX, maeY);
-    ctx.lineTo(exitX, maeY);
-    ctx.stroke();
-    ctx.restore();
+      // Shaded area between MFE and MAE
+      const topY = Math.min(mfeY, maeY);
+      const bottomY = Math.max(mfeY, maeY);
+      ctx.fillStyle = "rgba(120,123,134,0.03)";
+      ctx.fillRect(entryX, topY, exitX - entryX, bottomY - topY);
 
-    // Shaded area between MFE and MAE
-    const topY = Math.min(mfeY, maeY);
-    const bottomY = Math.max(mfeY, maeY);
-    ctx.fillStyle = "rgba(120,123,134,0.03)";
-    ctx.fillRect(entryX, topY, exitX - entryX, bottomY - topY);
+      // Trade line (entry → exit)
+      const isWin = trade.returnPercent >= 0;
+      ctx.strokeStyle = `rgba(${isWin ? TRADE_WIN_COLOR : TRADE_LOSS_COLOR},0.6)`;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(entryX, entryY);
+      ctx.lineTo(exitX, exitY);
+      ctx.stroke();
 
-    // Trade line (entry → exit)
-    const isWin = trade.returnPercent >= 0;
-    ctx.strokeStyle = `rgba(${isWin ? TRADE_WIN_COLOR : TRADE_LOSS_COLOR},0.6)`;
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.moveTo(entryX, entryY);
-    ctx.lineTo(exitX, exitY);
-    ctx.stroke();
+      // Entry dot
+      ctx.fillStyle = "rgba(33,150,243,0.8)";
+      ctx.beginPath();
+      ctx.arc(entryX, entryY, 3, 0, Math.PI * 2);
+      ctx.fill();
 
-    // Entry dot
-    ctx.fillStyle = "rgba(33,150,243,0.8)";
-    ctx.beginPath();
-    ctx.arc(entryX, entryY, 3, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Exit dot
-    ctx.fillStyle = `rgba(${isWin ? TRADE_WIN_COLOR : TRADE_LOSS_COLOR},0.8)`;
-    ctx.beginPath();
-    ctx.arc(exitX, exitY, 3, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  ctx.restore();
+      // Exit dot
+      ctx.fillStyle = `rgba(${isWin ? TRADE_WIN_COLOR : TRADE_LOSS_COLOR},0.8)`;
+      ctx.beginPath();
+      ctx.arc(exitX, exitY, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  });
 }
 
 // ---- Factory ----
