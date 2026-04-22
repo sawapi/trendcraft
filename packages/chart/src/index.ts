@@ -85,7 +85,13 @@ export type {
   ChartType,
   InfoOverlayData,
   RangeDuration,
+  CrosshairMode,
+  CrosshairOptions,
+  InteractionOptions,
+  HotkeyAction,
 } from "./core/types";
+
+export { DEFAULT_HOTKEYS, type HotkeyMap } from "./core/hotkeys";
 
 // i18n
 export type { ChartLocale } from "./core/i18n";

@@ -99,7 +99,7 @@
     {
       "name": "Main (createChart + all exports)",
       "path": "dist/index.js",
-      "limit": "31 kB"
+      "limit": "32 kB"
     },
     {
       "name": "Headless API",

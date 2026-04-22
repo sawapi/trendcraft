@@ -79,6 +79,8 @@ export type RenderContext = {
   drawingPreview?: import("../core/types").Drawing;
   /** Locale strings for i18n */
   locale: import("../core/i18n").ChartLocale;
+  /** Crosshair snap behavior */
+  crosshair?: import("../core/types").CrosshairOptions;
 };
 
 /** Result returned to canvas-chart for DOM overlay updates */
@@ -497,27 +499,15 @@ export function renderFrame(rc: RenderContext): RenderResult {
     theme,
     rc.fontSize,
     candles,
+    undefined,
+    rc.crosshair,
   );
 
-  // Emit crosshair event
-  if (rc.viewportState.crosshairIndex !== null) {
-    const idx = rc.viewportState.crosshairIndex;
-    const candle = candles[idx];
-    if (candle) {
-      rc.emit("crosshairMove", {
-        time: candle.time,
-        index: idx,
-        ohlcv: {
-          open: candle.open,
-          high: candle.high,
-          low: candle.low,
-          close: candle.close,
-          volume: candle.volume,
-        },
-        paneId: rc.viewportState.activePaneId,
-      });
-    }
-  }
+  // Crosshair event emission is handled by CanvasChart._render() with
+  // change-detection so it only fires when the index actually moves.
+  // Emitting every frame (as this used to) broke syncCharts: the
+  // round-trip A→B→A crosses a requestAnimationFrame boundary, so the
+  // synchronous re-entry guard can't stop the echo.
 
   return {
     crosshairIndex: rc.viewportState.crosshairIndex,

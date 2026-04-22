@@ -10,7 +10,8 @@ Key facts for understanding the library:
 - **No `connectLiveFeed`**: live wiring is unified into `connectIndicators({ live })`. Earlier drafts mentioned a separate `connectLiveFeed` — it does not exist.
 - **Plugins**: `defineSeriesRenderer` / `definePrimitive` for custom visual layers. Built-in plugins cover regime heatmap, SMC (including BOS/CHoCH), Wyckoff phases, S/R confluence, trade analysis, session zones, Andrew's Pitchfork, and Volume Profile.
 - **Drawing auto-injection helpers**: `addAutoFibRetracement` / `addAutoFibExtension` / `addAutoTrendLine` / `addAutoChannelLine` convert pre-computed swing anchors into the chart's built-in drawing types.
-- **Bundle sizes** (brotli, enforced via size-limit): main ≤ 31 kB, headless ≤ 11 kB, React ≤ 27 kB, Vue ≤ 27 kB.
+- **Bundle sizes** (brotli, enforced via size-limit): main ≤ 32 kB, headless ≤ 11 kB, React ≤ 27 kB, Vue ≤ 27 kB.
+- **UX**: crosshair snap modes (`normal` / `magnet` / `magnetOHLC`) via `ChartOptions.crosshair`; keyboard shortcuts (`Alt+H/V/T/F/C` drawing tools, `Ctrl+Alt+H` blank chart, `Esc` cancel) configurable via `ChartOptions.hotkeys`; wheel pan inertia; `chart.setCrosshair(time)` for programmatic control.
 - **Framework components**: both React and Vue wrappers export a component named `TrendChart` plus a `useTrendChart` hook/composable.
 
 ## Docs

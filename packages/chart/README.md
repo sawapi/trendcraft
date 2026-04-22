@@ -304,6 +304,27 @@ Creates a chart instance attached to a DOM element.
 | + / - | Zoom in/out |
 | Home / End | Jump to start/end |
 | F | Fit all content |
+| Alt + H / V / T / F / C | Activate horizontal line / vertical line / trendline / fib retracement / channel |
+| Ctrl + Alt + H | Hide/show every series (blank chart) |
+| Escape | Cancel active drawing, drag, long-press crosshair lock, or inertia |
+
+Alt is treated the same as Option on macOS; Ctrl and Cmd are interchangeable. Customize or disable via `ChartOptions.hotkeys` — pass `hotkeys: false` to turn off **every** keyboard shortcut (including the viewport nav keys above), or a partial `HotkeyMap` to override individual bindings. Matching uses `KeyboardEvent.code`, so Option+letter on macOS resolves correctly despite the altered character output.
+
+### Crosshair Modes
+
+Snap behavior is configurable via `ChartOptions.crosshair.mode`:
+
+| Mode | y-axis behavior |
+|---|---|
+| `"normal"` (default) | Follows the pointer freely |
+| `"magnet"` | Snaps to the active bar's close |
+| `"magnetOHLC"` | Snaps to the nearest of O/H/L/C within `snapThreshold` pixels (default 12) |
+
+```ts
+createChart(el, { crosshair: { mode: "magnetOHLC", snapThreshold: 15 } });
+```
+
+`lockOnLongPress: false` disables the touch-only long-press crosshair lock.
 
 ## Series Auto-Detection
 
