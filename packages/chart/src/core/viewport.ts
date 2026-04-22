@@ -341,9 +341,12 @@ export class Viewport {
         lastZoomTime = now;
 
         // Start inertia immediately on each frame — it will be cancelled
-        // by the next wheel event if the gesture is still active.
-        // This eliminates the pause between last event and inertia start.
-        zoomInertiaRaf = requestAnimationFrame(runZoomInertia);
+        // by the next wheel event if the gesture is still active. Skipped
+        // entirely when `wheelInertia` is opted out so the zoom stops the
+        // moment the user lifts their fingers.
+        if (wheelInertiaEnabled) {
+          zoomInertiaRaf = requestAnimationFrame(runZoomInertia);
+        }
       }
       this._onUpdate?.();
     };

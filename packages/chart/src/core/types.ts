@@ -144,7 +144,18 @@ export type CrosshairOptions = {
 };
 
 export type InteractionOptions = {
-  /** Enable wheel/trackpad pan inertia after gesture end (default: true) */
+  /**
+   * Enable the chart's own inertia tail after a wheel/trackpad gesture ends
+   * (default: true). Applies to both horizontal pan and zoom via the wheel.
+   *
+   * **Platform note:** on macOS, trackpads generate an OS-level momentum
+   * scroll that continues sending wheel events for a few hundred ms after
+   * the user lifts their fingers. Those are indistinguishable from user
+   * input and are always processed; this option only gates the synthetic
+   * inertia the chart adds on top once OS momentum has finished. On
+   * platforms without OS momentum (Windows mouse wheel, most Linux
+   * setups) the gesture stops immediately when this is false.
+   */
   wheelInertia?: boolean;
 };
 
