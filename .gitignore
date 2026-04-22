@@ -44,6 +44,9 @@ packages/core/examples/candle-former-demo/
 packages/core/examples/scratch/
 packages/core/examples/demo/
 packages/chart/examples/multi-chart-sync/
+# Convention: `_`-prefixed example dirs are local scratch / spot-check
+# playgrounds that never ship.
+packages/chart/examples/_*/
 packages/core/docs/analysis/
 docs-site/
 
