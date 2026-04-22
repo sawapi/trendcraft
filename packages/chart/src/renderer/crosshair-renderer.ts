@@ -1,11 +1,23 @@
 /**
  * Crosshair Renderer — Draws crosshair lines, price label, and time label.
+ *
+ * Supports three snap modes (see CrosshairMode):
+ * - "normal": free y, time-index snap only
+ * - "magnet": y snaps to the active bar's close
+ * - "magnetOHLC": y snaps to the nearest of O/H/L/C on the active bar, within a pixel threshold
  */
 
+import { pickReadableTextColor } from "../core/color-utils";
 import { autoFormatPrice, formatCrosshairTime, measureTextWidth } from "../core/format";
 import type { PriceScale, TimeScale } from "../core/scale";
-import type { CandleData, PaneRect, ThemeColors } from "../core/types";
+import type { CandleData, CrosshairMode, PaneRect, ThemeColors } from "../core/types";
 import type { ViewportState } from "../core/viewport";
+
+export type CrosshairRenderOptions = {
+  mode?: CrosshairMode;
+  /** Pixel threshold for magnetOHLC snapping (default 12). */
+  snapThreshold?: number;
+};
 
 /**
  * Render crosshair lines across all panes.
@@ -23,6 +35,7 @@ export function renderCrosshair(
   fontSize: number,
   candles?: readonly CandleData[],
   leftPriceScales?: Map<string, PriceScale>,
+  options?: CrosshairRenderOptions,
 ): void {
   if (viewportState.crosshairIndex === null) return;
 
@@ -44,24 +57,43 @@ export function renderCrosshair(
   // Horizontal line in active pane only
   const activePane = paneRects.find((p) => p.id === viewportState.activePaneId);
   if (activePane) {
-    const clampedY = Math.max(activePane.y, Math.min(mouseY, activePane.y + activePane.height));
+    const rawY = Math.max(activePane.y, Math.min(mouseY, activePane.y + activePane.height));
+
+    // Apply magnet snap (main pane only — OHLC is meaningless elsewhere).
+    // magnetOHLC falls back to the raw y when no candidate is within threshold.
+    const ps = priceScales.get(activePane.id);
+    let snappedY = rawY;
+    const mode = options?.mode ?? "normal";
+    if (mode !== "normal" && ps && candles && activePane.id === "main") {
+      const candle = candles[viewportState.crosshairIndex];
+      if (candle) {
+        snappedY = snapCrosshairY(
+          rawY,
+          candle,
+          ps,
+          activePane.y,
+          mode,
+          options?.snapThreshold ?? 12,
+        );
+      }
+    }
+
     ctx.beginPath();
-    ctx.moveTo(0, Math.round(clampedY) + 0.5);
-    ctx.lineTo(priceAxisX, Math.round(clampedY) + 0.5);
+    ctx.moveTo(0, Math.round(snappedY) + 0.5);
+    ctx.lineTo(priceAxisX, Math.round(snappedY) + 0.5);
     ctx.stroke();
 
     // Price label on right axis
-    const ps = priceScales.get(activePane.id);
     if (ps) {
-      const price = ps.yToPrice(clampedY - activePane.y);
-      drawPriceLabel(ctx, price, priceAxisX, clampedY, theme, fontSize, "right");
+      const price = ps.yToPrice(snappedY - activePane.y);
+      drawPriceLabel(ctx, price, priceAxisX, snappedY, theme, fontSize, "right");
     }
 
     // Price label on left axis (if left scale has series)
     const leftPs = leftPriceScales?.get(activePane.id);
     if (leftPs) {
-      const leftPrice = leftPs.yToPrice(clampedY - activePane.y);
-      drawPriceLabel(ctx, leftPrice, activePane.x, clampedY, theme, fontSize, "left");
+      const leftPrice = leftPs.yToPrice(snappedY - activePane.y);
+      drawPriceLabel(ctx, leftPrice, activePane.x, snappedY, theme, fontSize, "left");
     }
   }
 
@@ -78,6 +110,41 @@ export function renderCrosshair(
       drawTimeLabel(ctx, candle.time, x, timeAxisY, theme, fontSize);
     }
   }
+}
+
+/**
+ * Snap the crosshair y-coordinate based on mode.
+ * - "magnet"     → always snap to close
+ * - "magnetOHLC" → nearest of O/H/L/C within `thresholdPx`, else raw y
+ */
+function snapCrosshairY(
+  rawY: number,
+  candle: CandleData,
+  ps: PriceScale,
+  paneY: number,
+  mode: CrosshairMode,
+  thresholdPx: number,
+): number {
+  if (mode === "magnet") {
+    return paneY + ps.priceToY(candle.close);
+  }
+  // magnetOHLC — pick closest of the four within threshold
+  const candidates: number[] = [
+    paneY + ps.priceToY(candle.open),
+    paneY + ps.priceToY(candle.high),
+    paneY + ps.priceToY(candle.low),
+    paneY + ps.priceToY(candle.close),
+  ];
+  let best = rawY;
+  let bestDist = thresholdPx;
+  for (const y of candidates) {
+    const d = Math.abs(y - rawY);
+    if (d < bestDist) {
+      bestDist = d;
+      best = y;
+    }
+  }
+  return best;
 }
 
 function drawPriceLabel(
@@ -97,15 +164,16 @@ function drawPriceLabel(
   const labelHeight = fontSize + padY * 2;
 
   ctx.fillStyle = theme.crosshair;
+  const textColor = pickReadableTextColor(theme.crosshair, theme.background);
   if (position === "left") {
     ctx.fillRect(x - labelWidth, y - labelHeight / 2, labelWidth, labelHeight);
-    ctx.fillStyle = theme.background;
+    ctx.fillStyle = textColor;
     ctx.textAlign = "right";
     ctx.textBaseline = "middle";
     ctx.fillText(label, x - padX, y);
   } else {
     ctx.fillRect(x, y - labelHeight / 2, labelWidth, labelHeight);
-    ctx.fillStyle = theme.background;
+    ctx.fillStyle = textColor;
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
     ctx.fillText(label, x + padX, y);
@@ -130,7 +198,7 @@ function drawTimeLabel(
   ctx.fillStyle = theme.crosshair;
   ctx.fillRect(x - labelWidth / 2, y, labelWidth, labelHeight);
 
-  ctx.fillStyle = theme.background;
+  ctx.fillStyle = pickReadableTextColor(theme.crosshair, theme.background);
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
   ctx.fillText(label, x, y + padY);

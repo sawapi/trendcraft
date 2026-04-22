@@ -117,7 +117,42 @@ export type ChartOptions = {
   locale?: Partial<import("./i18n").ChartLocale>;
   /** Maximum number of candles to retain in live mode. Older candles are trimmed when exceeded. */
   maxCandles?: number;
+  /** Crosshair behavior */
+  crosshair?: CrosshairOptions;
+  /** Keyboard shortcut overrides. Pass `false` to disable all shortcuts (including Escape cancel). */
+  hotkeys?: Partial<Record<string, HotkeyAction>> | false;
+  /** Interaction behavior */
+  interaction?: InteractionOptions;
 };
+
+/**
+ * Crosshair modes:
+ * - `"normal"` — snaps only to the time axis (x), y follows the pointer (default)
+ * - `"magnet"` — snaps x to the nearest bar and y to that bar's close
+ * - `"magnetOHLC"` — snaps x to the nearest bar and y to the nearest of the bar's O/H/L/C values
+ *   (within `snapThreshold` pixels; falls back to pointer y beyond the threshold)
+ */
+export type CrosshairMode = "normal" | "magnet" | "magnetOHLC";
+
+export type CrosshairOptions = {
+  /** Snap mode (default: "normal") */
+  mode?: CrosshairMode;
+  /** Pixel distance within which OHLC snapping engages for `magnetOHLC` (default: 12) */
+  snapThreshold?: number;
+  /** Enable long-press crosshair lock on touch devices (default: true) */
+  lockOnLongPress?: boolean;
+};
+
+export type InteractionOptions = {
+  /** Enable wheel/trackpad pan inertia after gesture end (default: true) */
+  wheelInertia?: boolean;
+};
+
+/**
+ * Hotkey actions. Either a drawing tool to activate (via Alt+letter),
+ * `"cancel"` (Escape), or `"toggleOverlays"` (Ctrl+Alt+H — temporarily hide/show every series).
+ */
+export type HotkeyAction = DrawingType | "cancel" | "toggleOverlays";
 
 /** Base chart rendering type */
 export type ChartType = "candlestick" | "line" | "mountain" | "ohlc";
@@ -546,6 +581,13 @@ export type ChartInstance = {
   setVisibleRange(start: TimeValue, end: TimeValue): void;
   setVisibleRangeByDuration(duration: RangeDuration): void;
   fitContent(): void;
+
+  /**
+   * Programmatically set or clear the crosshair position by time value.
+   * Used by `syncCharts()` to mirror the crosshair across multiple chart instances.
+   * Pass `null` to hide the crosshair.
+   */
+  setCrosshair(time: TimeValue | null): void;
 
   // Events
   on<E extends ChartEvent>(event: E, handler: (data: unknown) => void): void;

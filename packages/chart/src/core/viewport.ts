@@ -3,14 +3,26 @@
  * Translates DOM events into TimeScale/PriceScale operations.
  */
 
+import { type HotkeyMap, resolveHotkey } from "./hotkeys";
 import type { TimeScale } from "./scale";
-import type { PaneRect } from "./types";
+import type { HotkeyAction, PaneRect } from "./types";
 
 export type ScrollbarRect = {
   x: number;
   y: number;
   width: number;
   height: number;
+};
+
+export type ViewportAttachOptions = {
+  /** Enable long-press crosshair lock on touch devices (default: true) */
+  lockOnLongPress?: boolean;
+  /** Enable wheel pan inertia (default: true) */
+  wheelInertia?: boolean;
+  /** Hotkey map override; pass `false` to disable keyboard shortcuts entirely. */
+  hotkeys?: HotkeyMap | false;
+  /** Called when a hotkey fires (drawing tool, 'cancel', 'toggleOverlays'). */
+  onAction?: (action: HotkeyAction) => void;
 };
 
 export type ViewportState = {
@@ -57,6 +69,20 @@ export class Viewport {
     this._onUpdate = cb;
   }
 
+  /**
+   * Programmatic crosshair control for host code that wants to drive the
+   * crosshair without a DOM pointer event (e.g. remote-driven playback).
+   * Only touches `crosshairIndex` — mouseX/mouseY/activePaneId stay as the
+   * user last left them. Pass `null` to hide.
+   */
+  setCrosshairByIndex(index: number | null, timeScale: TimeScale): void {
+    if (index === null || index < 0 || index >= timeScale.totalCount) {
+      this._state.crosshairIndex = null;
+      return;
+    }
+    this._state.crosshairIndex = index;
+  }
+
   /** Attach DOM event listeners to the canvas container */
   attach(
     el: HTMLElement,
@@ -66,8 +92,18 @@ export class Viewport {
     gapAtY?: (y: number) => number | null,
     resizePanes?: (gapIndex: number, deltaY: number) => void,
     scrollSensitivity = 0.3,
+    opts?: ViewportAttachOptions,
   ): () => void {
     const sens = Math.max(0.1, scrollSensitivity);
+    const longPressEnabled = opts?.lockOnLongPress ?? true;
+    const wheelInertiaEnabled = opts?.wheelInertia ?? true;
+    const hotkeyMap = opts?.hotkeys;
+    const hotkeyDisabled = hotkeyMap === false;
+    const resolveAction = (e: KeyboardEvent): HotkeyAction | undefined => {
+      if (hotkeyDisabled) return undefined;
+      return resolveHotkey(e, hotkeyMap || undefined);
+    };
+    const dispatch = opts?.onAction;
     // Make focusable for keyboard events
     el.tabIndex = 0;
     el.style.outline = "none";
@@ -196,6 +232,11 @@ export class Viewport {
     let zoomInertiaRaf: number | null = null;
     let lastZoomTime = 0;
 
+    // Wheel pan velocity — fed into the shared touchVelocity inertia loop when
+    // the wheel gesture ends, so trackpad flicks decelerate instead of stopping dead.
+    let wheelPanVelocity = 0;
+    let lastWheelPanTime = 0;
+
     const stopZoomInertia = () => {
       if (zoomInertiaRaf !== null) {
         cancelAnimationFrame(zoomInertiaRaf);
@@ -240,18 +281,33 @@ export class Viewport {
       if (gestureTimer) clearTimeout(gestureTimer);
       gestureTimer = setTimeout(() => {
         gestureDir = null;
-        // Bounce-back if overscrolled when wheel gesture ends
-        if (Math.abs(timeScale.overscroll) > 0.1) {
+        // Hand off residual wheel velocity to the shared inertia loop.
+        // Falls back to bounce-back when overscrolled but not flicking.
+        const flick = wheelInertiaEnabled && Math.abs(wheelPanVelocity) > 3;
+        if (flick || Math.abs(timeScale.overscroll) > 0.1) {
           stopInertia();
-          touchVelocity = 0;
+          touchVelocity = flick ? wheelPanVelocity : 0;
           inertiaRaf = requestAnimationFrame(runInertia);
         }
+        wheelPanVelocity = 0;
       }, 150);
 
       if (gestureDir === "pan") {
         // Horizontal scroll (pan) with rubber-band at edges
         const deltaBars = e.deltaX / timeScale.barSpacing;
         timeScale.scrollByUnclamped(deltaBars);
+        // Track velocity for inertia handoff when the gesture ends.
+        const now = performance.now();
+        const dt = now - lastWheelPanTime;
+        // touchVelocity convention: positive = reveal past (finger/content moves right),
+        // so invert deltaX which is positive when scrolling forward in time.
+        const sample = dt > 0 && dt < 100 ? (-e.deltaX / dt) * 16 * sens : 0;
+        if (dt > 0 && dt < 100) {
+          wheelPanVelocity = wheelPanVelocity * 0.5 + sample * 0.5;
+        } else {
+          wheelPanVelocity = sample;
+        }
+        lastWheelPanTime = now;
       } else {
         // Zoom: proportional to deltaY magnitude for smooth trackpad support
         const clampedDelta = Math.max(-50, Math.min(50, e.deltaY));
@@ -294,6 +350,32 @@ export class Viewport {
 
     // Keyboard shortcuts
     const onKeyDown = (e: KeyboardEvent) => {
+      // Configurable hotkeys (drawing tools, cancel, toggleOverlays).
+      // Resolved first so users can override the built-in Escape/Alt bindings.
+      const action = resolveAction(e);
+      if (action === "cancel") {
+        // Esc cancels every transient interaction: drag, both inertia loops,
+        // the long-press crosshair lock, and any in-progress drawing tool
+        // (delegated to the host via `dispatch`).
+        this._state.isDragging = false;
+        this._scrollbarDragging = false;
+        stopInertia();
+        stopZoomInertia();
+        touchVelocity = 0;
+        wheelPanVelocity = 0;
+        longPressCrosshairLocked = false;
+        dispatch?.("cancel");
+        e.preventDefault();
+        this._onUpdate?.();
+        return;
+      }
+      if (action !== undefined) {
+        dispatch?.(action);
+        e.preventDefault();
+        this._onUpdate?.();
+        return;
+      }
+
       switch (e.key) {
         case "ArrowLeft":
           timeScale.scrollBy(e.shiftKey ? -10 : -1);
@@ -412,13 +494,15 @@ export class Viewport {
         }
         lastTapTime = now;
 
-        // Long-press detection
-        longPressTimer = setTimeout(() => {
-          longPressCrosshairLocked = true;
-          const rect = el.getBoundingClientRect();
-          this._state.crosshairIndex = timeScale.xToIndex(touch.clientX - rect.left);
-          this._onUpdate?.();
-        }, 500);
+        // Long-press detection (disabled when option is off)
+        if (longPressEnabled) {
+          longPressTimer = setTimeout(() => {
+            longPressCrosshairLocked = true;
+            const rect = el.getBoundingClientRect();
+            this._state.crosshairIndex = timeScale.xToIndex(touch.clientX - rect.left);
+            this._onUpdate?.();
+          }, 500);
+        }
 
         this._state.isDragging = true;
         lastTouchX = touch.clientX;

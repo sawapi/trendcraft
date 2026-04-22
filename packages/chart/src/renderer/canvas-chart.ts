@@ -105,7 +105,23 @@ export class CanvasChart implements ChartInstance {
   private _transition = new ViewTransition();
   private _animationDuration: number;
   private _locale: ChartLocale;
-
+  private _crosshairOpts: import("../core/types").CrosshairOptions;
+  private _overlaysHidden = false;
+  private _overlaySavedVisibility: Map<string, boolean> | null = null;
+  // Cached visible range for change-detection in the render loop — the public
+  // `visibleRangeChange` event fires only when the indices actually move.
+  private _lastVisibleStart = -1;
+  private _lastVisibleEnd = -1;
+  // Last crosshair index that was emitted via crosshairMove, kept so user
+  // interaction only fires the event on real changes. Only user-driven
+  // transitions go through _maybeEmitCrosshair(); programmatic setCrosshair()
+  // updates state silently, so no pending-echo tracking is needed.
+  private _lastCrosshairIndex: number | null | undefined = undefined;
+  // True while a programmatic range animation (setVisibleRange, fitContent,
+  // setVisibleRangeByDuration) is in flight. Gates visibleRangeChange emission
+  // so viewport sync between mismatched timeframes doesn't oscillate forever
+  // on the per-frame range tween.
+  private _animatingRange = false;
   // Auto-color cycling palette for indicators without explicit color
   private _colorIndex = 0;
   /**
@@ -140,6 +156,37 @@ export class CanvasChart implements ChartInstance {
     }
   }
 
+  /**
+   * Fire `crosshairMove` when the user's interaction has moved the snapped
+   * index relative to the last emit. Called synchronously from the viewport's
+   * onUpdate hook (mouse/wheel/keyboard) so syncCharts can propagate to peers
+   * inside the same tick. Programmatic `setCrosshair()` bypasses this path
+   * entirely and never emits — no echo to worry about.
+   */
+  private _maybeEmitCrosshair(): void {
+    const idx = this._viewport.state.crosshairIndex;
+    if (idx === this._lastCrosshairIndex) return;
+    this._lastCrosshairIndex = idx;
+    if (idx === null) {
+      this._emit("crosshairMove", { time: null, index: null, paneId: null });
+      return;
+    }
+    const candle = this._data.candles[idx];
+    if (!candle) return;
+    this._emit("crosshairMove", {
+      time: candle.time,
+      index: idx,
+      ohlcv: {
+        open: candle.open,
+        high: candle.high,
+        low: candle.low,
+        close: candle.close,
+        volume: candle.volume,
+      },
+      paneId: this._viewport.state.activePaneId,
+    });
+  }
+
   /** Emit a warning via console and the 'error' event */
   private _warn(message: string, detail?: unknown): void {
     const payload = { message, detail };
@@ -166,6 +213,11 @@ export class CanvasChart implements ChartInstance {
     this._priceFormatter = options?.priceFormatter ?? autoFormatPrice;
     this._timeFormatter = options?.timeFormatter;
     this._animationDuration = options?.animationDuration ?? 300;
+    this._crosshairOpts = {
+      mode: options?.crosshair?.mode ?? "normal",
+      snapThreshold: options?.crosshair?.snapThreshold ?? 12,
+      lockOnLongPress: options?.crosshair?.lockOnLongPress ?? true,
+    };
     this._locale = mergeLocale(options?.locale);
     setMonthNames(this._locale.months);
     this._pixelRatio =
@@ -234,8 +286,20 @@ export class CanvasChart implements ChartInstance {
 
     // Viewport interaction
     this._viewport.setOnUpdate(() => {
-      this._transition.cancel(); // User interaction cancels animation
+      // User interaction cancels any running range transition. Clear the
+      // `_animatingRange` flag too: ViewTransition.cancel() nulls the onDone
+      // callback, so without this reset the flag would stay true forever and
+      // silently swallow every subsequent visibleRangeChange emit — which
+      // showed up as "sync stops following after you scroll mid-animation".
+      this._transition.cancel();
+      this._animatingRange = false;
       this._needsRender = true;
+      // Emit crosshairMove synchronously from the interaction event rather
+      // than from the render that comes on the next rAF. Letting sync fan
+      // out immediately means the peer chart's setCrosshair() runs in the
+      // same synchronous tick, so both charts' next rAF paints share the
+      // same frame — no visible 1-frame lag on the mirrored crosshair.
+      this._maybeEmitCrosshair();
     });
     this._detachViewport = this._viewport.attach(
       this._canvas,
@@ -256,6 +320,12 @@ export class CanvasChart implements ChartInstance {
         this._needsRender = true;
       },
       options?.scrollSensitivity,
+      {
+        lockOnLongPress: this._crosshairOpts.lockOnLongPress,
+        wheelInertia: options?.interaction?.wheelInertia ?? true,
+        hotkeys: options?.hotkeys,
+        onAction: (action) => this._handleHotkeyAction(action),
+      },
     );
 
     // Auto-resize
@@ -504,6 +574,41 @@ export class CanvasChart implements ChartInstance {
     this._needsRender = true;
   }
 
+  /**
+   * Route a hotkey dispatch from the viewport. `"cancel"` clears the active
+   * drawing tool; `"toggleOverlays"` hides/restores every series' visibility
+   * (used by Ctrl+Alt+H for a "blank chart" view); otherwise the
+   * action names a drawing tool to activate.
+   */
+  private _handleHotkeyAction(action: import("../core/types").HotkeyAction): void {
+    if (action === "cancel") {
+      this.setDrawingTool(null);
+      return;
+    }
+    if (action === "toggleOverlays") {
+      this._toggleAllOverlays();
+      return;
+    }
+    this.setDrawingTool(action);
+  }
+
+  private _toggleAllOverlays(): void {
+    const series = this._data.getAllSeries();
+    if (!this._overlaysHidden) {
+      // Snapshot current visibility so a second toggle restores the exact state.
+      this._overlaySavedVisibility = new Map(series.map((s) => [s.id, s.visible]));
+      for (const s of series) s.visible = false;
+      this._overlaysHidden = true;
+    } else {
+      const saved = this._overlaySavedVisibility;
+      for (const s of series) s.visible = saved?.get(s.id) ?? true;
+      this._overlaySavedVisibility = null;
+      this._overlaysHidden = false;
+    }
+    this._legendOverlay?.update(this._data.getAllSeries());
+    this._needsRender = true;
+  }
+
   // ---- Public API: Multi-timeframe ----
 
   addTimeframe(overlay: TimeframeOverlay): void {
@@ -569,6 +674,17 @@ export class CanvasChart implements ChartInstance {
     this._animateToRange(() => this._timeScale.fitContent());
   }
 
+  setCrosshair(time: TimeValue | null): void {
+    this._viewport.setCrosshairByIndex(
+      time === null ? null : this._data.indexAtTime(time),
+      this._timeScale,
+    );
+    // Programmatic changes never emit crosshairMove (emission is driven by
+    // user interaction in _maybeEmitCrosshair), so external drivers don't
+    // echo back through any listener chain.
+    this._needsRender = true;
+  }
+
   /** Animate from current viewport state to the state produced by `applyTarget()` */
   private _animateToRange(applyTarget: () => void): void {
     this._transition.cancel();
@@ -584,6 +700,7 @@ export class CanvasChart implements ChartInstance {
     // Restore original state before animating
     this._timeScale.setImmediate(fromStart, fromSpacing);
 
+    this._animatingRange = true;
     this._transition.animate(
       fromStart,
       fromSpacing,
@@ -594,6 +711,9 @@ export class CanvasChart implements ChartInstance {
       (startIndex, barSpacing) => {
         this._timeScale.setImmediate(startIndex, barSpacing);
         this._needsRender = true;
+      },
+      () => {
+        this._animatingRange = false;
       },
     );
   }
@@ -679,6 +799,15 @@ export class CanvasChart implements ChartInstance {
     }
     if (opts.timeFormatter !== undefined) {
       this._timeFormatter = opts.timeFormatter;
+      this._needsRender = true;
+    }
+
+    if (opts.crosshair !== undefined) {
+      this._crosshairOpts = {
+        mode: opts.crosshair.mode ?? this._crosshairOpts.mode,
+        snapThreshold: opts.crosshair.snapThreshold ?? this._crosshairOpts.snapThreshold,
+        lockOnLongPress: opts.crosshair.lockOnLongPress ?? this._crosshairOpts.lockOnLongPress,
+      };
       this._needsRender = true;
     }
 
@@ -951,6 +1080,7 @@ export class CanvasChart implements ChartInstance {
       emit: (event, data) => this._emit(event as ChartEvent, data),
       drawingPreview: this._drawingTool?.buildPreview(),
       locale: this._locale,
+      crosshair: this._crosshairOpts,
     });
 
     // Cache drawHelper for reuse
@@ -967,6 +1097,24 @@ export class CanvasChart implements ChartInstance {
 
     // Debounced aria-live announcement for crosshair data
     this._aria?.updateLive(result.crosshairIndex, this._data.candles, this._priceFormatter);
+
+    // crosshairMove is emitted from the interaction callback rather than
+    // here, so mirrored charts pick up the change inside the same rAF tick
+    // and repaint without a one-frame lag. See _maybeEmitCrosshair().
+
+    // Emit visibleRangeChange on actual index movement. Suppressed while
+    // `_animatingRange` is true so programmatic setVisibleRange / fitContent
+    // tweens don't flood listeners on every frame of the transition.
+    const startIdx = this._timeScale.startIndex;
+    const endIdx = this._timeScale.endIndex;
+    if (startIdx !== this._lastVisibleStart || endIdx !== this._lastVisibleEnd) {
+      this._lastVisibleStart = startIdx;
+      this._lastVisibleEnd = endIdx;
+      if (!this._animatingRange) {
+        const range = this.getVisibleRange();
+        if (range) this._emit("visibleRangeChange", range);
+      }
+    }
   }
 
   private _updateAriaLabel(): void {

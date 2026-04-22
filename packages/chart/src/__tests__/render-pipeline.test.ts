@@ -119,7 +119,9 @@ describe("renderFrame", () => {
 
     const result = renderFrame(rc);
 
+    // crosshairMove is now emitted by CanvasChart._render() with change
+    // detection, not by the render pipeline. The renderFrame result still
+    // carries the resolved index for the host to act on.
     expect(result.crosshairIndex).toBe(5);
-    expect(rc.emit).toHaveBeenCalledWith("crosshairMove", expect.any(Object));
   });
 });
