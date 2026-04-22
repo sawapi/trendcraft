@@ -36,12 +36,14 @@ coverage/
 packages/core/qa-report.json
 
 .claude/projects/
+.claude/commands/release.md
 .plans/
 packages/core/examples/data/
 packages/core/examples/alpaca-demo/
 packages/core/examples/candle-former-demo/
 packages/core/examples/scratch/
 packages/core/examples/demo/
+packages/chart/examples/multi-chart-sync/
 packages/core/docs/analysis/
 docs-site/
 

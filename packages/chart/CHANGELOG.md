@@ -5,6 +5,29 @@ All notable changes to `@trendcraft/chart` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added — UX pass
+
+- **Crosshair snap modes** via `ChartOptions.crosshair`:
+  - `"normal"` (default) — current behavior, time-index snap only
+  - `"magnet"` — y snaps to the active bar's close
+  - `"magnetOHLC"` — y snaps to the nearest of O/H/L/C within `snapThreshold` pixels
+- **Readable crosshair labels** — price/time label text color is now chosen via WCAG relative luminance of the crosshair background, so custom themes remain legible without manual tuning. New helper `pickReadableTextColor` exposed internally.
+- **Wheel/trackpad pan inertia** — flick gestures decelerate via the shared inertia loop instead of stopping dead on the last event. Opt out with `interaction: { wheelInertia: false }`.
+- **Escape cancels** every transient interaction (drag, both inertia loops, long-press crosshair lock, and any in-progress drawing tool) in one press.
+- **Keyboard shortcuts** on focused canvases: `Alt+H` hline, `Alt+V` vline, `Alt+T` trendline, `Alt+F` fib retracement, `Alt+C` channel, `Ctrl+Alt+H` hide/show every series, `Escape` cancel. Customize or disable via `ChartOptions.hotkeys`. Matching uses `KeyboardEvent.code` so Option+letter combos on macOS resolve correctly despite the altered character output.
+- **`chart.setCrosshair(time)`** — programmatic crosshair control for external consumers that want to drive the crosshair without a DOM pointer event.
+- **`visibleRangeChange` event** is now actually emitted (was declared but unused). Fires when the visible range changes.
+
+### Changed
+
+- Bundle size budget for the main entry raised from 31 kB → 32 kB (brotli). The raise reflects the intentional UX additions above and is expected to hold through the 0.2.x line — future feature work either lives on a sub-path or compensates with equivalent reductions elsewhere.
+
+### Internal
+
+- Seed infrastructure for multi-chart synchronization (`ViewportState.crosshairFractional` / `crosshairTime`, fractional time emission on `visibleRangeChange`, programmatic `setCrosshair(time)`). Not exported from any public entry point yet — cross-timeframe viewport sync proved trickier than the surface API suggests, so it's held back until the UX is tuned.
+
 ## [0.1.0] - 2026-04-20
 
 Initial public release.
