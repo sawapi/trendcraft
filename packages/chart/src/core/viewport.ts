@@ -350,6 +350,12 @@ export class Viewport {
 
     // Keyboard shortcuts
     const onKeyDown = (e: KeyboardEvent) => {
+      // `hotkeys: false` disables every keyboard interaction — including the
+      // built-in viewport nav (arrows, +/-, Home/End, F) and the v0.2.0
+      // drawing-tool bindings. Hosts that take over key handling themselves
+      // opt out with this single flag.
+      if (hotkeyDisabled) return;
+
       // Configurable hotkeys (drawing tools, cancel, toggleOverlays).
       // Resolved first so users can override the built-in Escape/Alt bindings.
       const action = resolveAction(e);

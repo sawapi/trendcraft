@@ -308,7 +308,7 @@ Creates a chart instance attached to a DOM element.
 | Ctrl + Alt + H | Hide/show every series (blank chart) |
 | Escape | Cancel active drawing, drag, long-press crosshair lock, or inertia |
 
-Alt is treated the same as Option on macOS; Ctrl and Cmd are interchangeable. Customize or disable via `ChartOptions.hotkeys` — pass `hotkeys: false` to turn the feature off entirely, or a partial `HotkeyMap` to override individual bindings. Matching uses `KeyboardEvent.code`, so Option+letter on macOS resolves correctly despite the altered character output.
+Alt is treated the same as Option on macOS; Ctrl and Cmd are interchangeable. Customize or disable via `ChartOptions.hotkeys` — pass `hotkeys: false` to turn off **every** keyboard shortcut (including the viewport nav keys above), or a partial `HotkeyMap` to override individual bindings. Matching uses `KeyboardEvent.code`, so Option+letter on macOS resolves correctly despite the altered character output.
 
 ### Crosshair Modes
 
