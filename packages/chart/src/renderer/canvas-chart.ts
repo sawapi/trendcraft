@@ -28,6 +28,7 @@ import type {
   PaneRect,
   SeriesConfig,
   SeriesHandle,
+  SessionGapsOptions,
   SignalMarker,
   ThemeColors,
   TimeValue,
@@ -54,7 +55,7 @@ const DEFAULT_OPTIONS: Required<
 > = {
   height: 400,
   priceAxisWidth: 60,
-  timeAxisHeight: 24,
+  timeAxisHeight: 32,
   fontSize: 11,
 };
 
@@ -106,6 +107,7 @@ export class CanvasChart implements ChartInstance {
   private _animationDuration: number;
   private _locale: ChartLocale;
   private _crosshairOpts: import("../core/types").CrosshairOptions;
+  private _sessionGapsOpts: ResolvedSessionGapsOptions;
   private _overlaysHidden = false;
   private _overlaySavedVisibility: Map<string, boolean> | null = null;
   // Cached visible range for change-detection in the render loop — the public
@@ -218,6 +220,7 @@ export class CanvasChart implements ChartInstance {
       snapThreshold: options?.crosshair?.snapThreshold ?? 12,
       lockOnLongPress: options?.crosshair?.lockOnLongPress ?? true,
     };
+    this._sessionGapsOpts = resolveSessionGapsOptions(options?.timeScale?.sessionGaps);
     this._locale = mergeLocale(options?.locale);
     setMonthNames(this._locale.months);
     this._pixelRatio =
@@ -414,6 +417,7 @@ export class CanvasChart implements ChartInstance {
     const removed = candles.length - valid.length;
     this._data.setCandles(valid);
     this._timeScale.setTotalCount(this._data.candleCount);
+    this._applySessionGaps();
     this._timeScale.scrollToEnd();
     this._needsRender = true;
     if (removed > 0) {
@@ -437,9 +441,18 @@ export class CanvasChart implements ChartInstance {
     }
     // Auto-follow: if last candle is visible before update, keep following
     const wasAtEnd = this._timeScale.endIndex >= this._data.candleCount - 1;
+    const prevCount = this._data.candleCount;
 
     this._data.updateCandle(candle);
-    this._timeScale.setTotalCount(this._data.candleCount);
+    const newCount = this._data.candleCount;
+    this._timeScale.setTotalCount(newCount);
+
+    // If a new bar was appended (count grew) and we had a virtual/time layout,
+    // `setTotalCount` cleared it to avoid stale arrays. Re-apply so streaming
+    // charts keep their session-gap layout and two-row time axis.
+    if (newCount !== prevCount && this._sessionGapsOpts.mode !== "off") {
+      this._applySessionGaps();
+    }
 
     if (wasAtEnd) {
       if (this._batching) {
@@ -811,6 +824,12 @@ export class CanvasChart implements ChartInstance {
       this._needsRender = true;
     }
 
+    if (opts.timeScale !== undefined && opts.timeScale.sessionGaps !== undefined) {
+      this._sessionGapsOpts = resolveSessionGapsOptions(opts.timeScale.sessionGaps);
+      this._applySessionGaps();
+      this._needsRender = true;
+    }
+
     // Legend overlay — create/destroy
     if (opts.legend !== undefined) {
       if (opts.legend === false && this._legendOverlay) {
@@ -1125,4 +1144,120 @@ export class CanvasChart implements ChartInstance {
       this._data.getAllSeries().length,
     );
   }
+
+  /**
+   * Recompute and apply the time-scale layout (virtual coords + session gaps)
+   * based on the currently-loaded candles and the resolved `sessionGaps`
+   * options. Called automatically after `setCandles`.
+   *
+   * - `mode: "timeGap"` (default): time-proportional layout via
+   *   `setTimeProportional` — bars sit at their wall-clock positions within a
+   *   session and session breaks compress to `sizeBars` bar-widths.
+   * - `mode: "dayBoundary"`: legacy fixed gap at each UTC day change via
+   *   `setGapsBefore` (no time-proportional within-session spacing).
+   * - `mode: "off"`: disable virtual coords (index-based layout).
+   */
+  private _applySessionGaps(): void {
+    const opts = this._sessionGapsOpts;
+    if (opts.mode === "off") {
+      this._timeScale.clearGaps();
+      return;
+    }
+    const candles = this._data.candles;
+    if (candles.length < 3) {
+      this._timeScale.clearGaps();
+      return;
+    }
+    const median = medianBarInterval(candles);
+    if (median > opts.intradayThresholdMs) {
+      this._timeScale.clearGaps();
+      return;
+    }
+    if (opts.mode === "timeGap") {
+      // Time-proportional layout. Threshold for compressing a large delta:
+      // explicit gapThresholdMs wins; otherwise 4h (well above any intra-session
+      // gap like a 1h lunch break, well below overnight).
+      const threshold = opts.gapThresholdMs > 0 ? opts.gapThresholdMs : 4 * 60 * 60 * 1000;
+      const times: number[] = new Array(candles.length);
+      for (let i = 0; i < candles.length; i++) times[i] = candles[i].time;
+      this._timeScale.setTimeProportional(times, {
+        medianMs: median,
+        sessionThresholdMs: threshold,
+        sessionGapBars: opts.sizeBars,
+      });
+      return;
+    }
+    // Legacy dayBoundary path.
+    const gaps = computeSessionGaps(candles, median, opts);
+    this._timeScale.setGapsBefore(gaps);
+  }
+}
+
+// ============================================
+// Session gap helpers
+// ============================================
+
+type ResolvedSessionGapsOptions = Required<SessionGapsOptions>;
+
+function resolveSessionGapsOptions(
+  input: boolean | SessionGapsOptions | undefined,
+): ResolvedSessionGapsOptions {
+  if (!input) {
+    return {
+      mode: "off",
+      sizeBars: 1,
+      intradayThresholdMs: 6 * 60 * 60 * 1000,
+      gapThresholdMs: 0,
+    };
+  }
+  const opts: SessionGapsOptions = input === true ? {} : input;
+  return {
+    mode: opts.mode ?? "timeGap",
+    sizeBars: opts.sizeBars ?? 1,
+    intradayThresholdMs: opts.intradayThresholdMs ?? 6 * 60 * 60 * 1000,
+    gapThresholdMs: opts.gapThresholdMs ?? 0,
+  };
+}
+
+function medianBarInterval(candles: readonly CandleData[]): number {
+  const deltas: number[] = [];
+  const stride = Math.max(1, Math.floor(candles.length / 64));
+  for (let i = stride; i < candles.length; i += stride) {
+    const d = candles[i].time - candles[i - stride].time;
+    if (d > 0) deltas.push(d / stride);
+  }
+  if (deltas.length === 0) return Number.POSITIVE_INFINITY;
+  deltas.sort((a, b) => a - b);
+  return deltas[Math.floor(deltas.length / 2)];
+}
+
+function computeSessionGaps(
+  candles: readonly CandleData[],
+  medianMs: number,
+  opts: ResolvedSessionGapsOptions,
+): Array<{ index: number; size: number }> {
+  const gaps: Array<{ index: number; size: number }> = [];
+  if (opts.mode === "timeGap") {
+    const threshold = opts.gapThresholdMs > 0 ? opts.gapThresholdMs : medianMs * 2;
+    for (let i = 1; i < candles.length; i++) {
+      const delta = candles[i].time - candles[i - 1].time;
+      if (delta > threshold) {
+        gaps.push({ index: i, size: opts.sizeBars });
+      }
+    }
+  } else if (opts.mode === "dayBoundary") {
+    // Compare UTC calendar day between consecutive bars so cross-timezone
+    // data (e.g. US stocks viewed from Asia) still gets sensible boundaries
+    // — US/Asian/EU sessions all fit within a single UTC day.
+    let prevDay = -1;
+    for (let i = 0; i < candles.length; i++) {
+      const d = new Date(candles[i].time);
+      const day = d.getUTCFullYear() * 10000 + d.getUTCMonth() * 100 + d.getUTCDate();
+      if (prevDay >= 0 && day !== prevDay) {
+        gaps.push({ index: i, size: opts.sizeBars });
+      }
+      prevDay = day;
+    }
+  }
+  return gaps;
 }

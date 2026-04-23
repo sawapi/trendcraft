@@ -2,7 +2,13 @@
  * Axis Renderer — Draws price (Y) and time (X) axes.
  */
 
-import { autoFormatPrice, autoFormatTime } from "../core/format";
+import {
+  autoFormatPrice,
+  autoFormatTime,
+  formatShortDate,
+  formatShortTime,
+  pickNiceStep,
+} from "../core/format";
 import type { PriceScale, TimeScale } from "../core/scale";
 import type { CandleData, ThemeColors } from "../core/types";
 
@@ -93,15 +99,26 @@ export function renderTimeAxis(
   ctx.lineTo(x + width, y);
   ctx.stroke();
 
-  // Compute label interval
-  const minLabelSpacing = 80;
-  const barSpacing = timeScale.barSpacing;
-  const labelInterval = Math.max(1, Math.ceil(minLabelSpacing / barSpacing));
-
   ctx.fillStyle = theme.textSecondary;
   ctx.font = `${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
+
+  // --- Two-row mode: wall-clock time ticks + date anchors (requires time data) ---
+  const intradayThresholdMs = 6 * 60 * 60 * 1000;
+  const medianMs = timeScale.medianBarIntervalMs;
+  const twoRow =
+    !timeFormatter && timeScale.hasTimeData && medianMs > 0 && medianMs <= intradayThresholdMs;
+
+  if (twoRow && height >= 28) {
+    renderTwoRowAxis(ctx, timeScale, x, y, width, height);
+    return;
+  }
+
+  // --- Legacy single-row mode: labels at fixed pixel spacing ---
+  const minLabelSpacing = 80;
+  const barSpacing = timeScale.barSpacing;
+  const labelInterval = Math.max(1, Math.ceil(minLabelSpacing / barSpacing));
 
   const start = timeScale.startIndex;
   const end = timeScale.endIndex;
@@ -119,6 +136,48 @@ export function renderTimeAxis(
     prevLabelTime = candle.time;
 
     ctx.fillText(label, labelX, y + 6);
+  }
+}
+
+/**
+ * Render a two-row time axis: upper = wall-clock HH:MM ticks at regular
+ * intervals, lower = date anchors at local-TZ day boundaries.
+ */
+function renderTwoRowAxis(
+  ctx: CanvasRenderingContext2D,
+  timeScale: TimeScale,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+): void {
+  // Pick tick step based on visible time span and target label density.
+  const range = timeScale.getVisibleTimeRange();
+  if (!range) return;
+  const [t0, t1] = range;
+  const minLabelPx = 70;
+  const maxTicks = Math.max(2, Math.floor(width / minLabelPx));
+  const step = pickNiceStep(t1 - t0, maxTicks);
+
+  const timeTicks = timeScale.getTimeTicks(step);
+  const dateTicks = timeScale.getDateTicks();
+
+  // Upper row: HH:MM at time ticks. Show date when HH:MM is 00:00 to avoid a
+  // confusing "naked 00:00" that in 24h format might look like a tick near
+  // midnight but without date context (the date row will anchor it below).
+  const topY = y + 4;
+  for (const t of timeTicks) {
+    ctx.fillText(formatShortTime(t.time), x + t.x, topY);
+  }
+
+  // Lower row: date at day boundaries. Skip the first tick if it would collide
+  // with the very-left edge (likely a partial view).
+  const bottomY = y + Math.max(18, height / 2);
+  let prevDateTime: number | null = null;
+  for (const d of dateTicks) {
+    const label = formatShortDate(d.time, prevDateTime);
+    ctx.fillText(label, x + d.x, bottomY);
+    prevDateTime = d.time;
   }
 }
 

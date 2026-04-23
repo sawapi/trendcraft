@@ -29,7 +29,7 @@ export function macd(
   candles: Candle[] | NormalizedCandle[],
   options: MacdOptions = {},
 ): Series<MacdValue> {
-  const { fastPeriod = 12, slowPeriod = 26, signalPeriod = 9 } = options;
+  const { fastPeriod = 12, slowPeriod = 26, signalPeriod = 9, source = "close" } = options;
 
   if (fastPeriod < 1 || slowPeriod < 1 || signalPeriod < 1) {
     throw new Error("MACD periods must be at least 1");
@@ -47,8 +47,8 @@ export function macd(
   }
 
   // Calculate fast and slow EMAs
-  const fastEma = ema(normalized, { period: fastPeriod });
-  const slowEma = ema(normalized, { period: slowPeriod });
+  const fastEma = ema(normalized, { period: fastPeriod, source });
+  const slowEma = ema(normalized, { period: slowPeriod, source });
 
   // Calculate MACD line
   const macdLine: (number | null)[] = [];

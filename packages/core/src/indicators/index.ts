@@ -322,14 +322,20 @@ export type {
 export {
   defineSession,
   getIctSessions,
+  getJpxSessions,
+  getHkexSessions,
   detectSessions,
   sessionStats,
   killZones,
   getIctKillZones,
   sessionBreakout,
+  isInSessionWindow,
+  isInAnyBreak,
+  getTzHourMinute,
 } from "./session";
 export type {
   SessionDefinition,
+  SessionBreak,
   SessionInfo,
   SessionStatsOptions,
   SessionStatsValue,

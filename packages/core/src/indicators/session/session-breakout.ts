@@ -9,7 +9,13 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
-import { type SessionDefinition, getIctSessions, isInSession } from "./session-definition";
+import {
+  type SessionDefinition,
+  getIctSessions,
+  isInAnyBreak,
+  isInSessionWindow,
+} from "./session-definition";
+import { getTzHourMinute } from "./tz-utils";
 
 /**
  * Options for sessionBreakout
@@ -80,21 +86,29 @@ export function sessionBreakout(
   let rangeLow: number | null = null;
 
   for (const candle of normalized) {
-    const date = new Date(candle.time);
-    const hour = date.getUTCHours();
-    const minute = date.getUTCMinutes();
-
-    // Find which session this candle belongs to
-    let matchedSession: string | null = null;
+    // Determine session using the outer window; bars inside a break remain
+    // attached to the session but do not update its range. Each session's
+    // own timezone is honored.
+    let matchedSession: SessionDefinition | null = null;
+    let matchedHour = 0;
+    let matchedMinute = 0;
     for (const session of sessionDefs) {
-      if (isInSession(hour, minute, session)) {
-        matchedSession = session.name;
+      const { hour, minute } = getTzHourMinute(candle.time, session.timezone);
+      if (isInSessionWindow(hour, minute, session)) {
+        matchedSession = session;
+        matchedHour = hour;
+        matchedMinute = minute;
         break;
       }
     }
+    const matchedName = matchedSession?.name ?? null;
+    const inBreak =
+      matchedSession !== null &&
+      matchedSession.breaks !== undefined &&
+      isInAnyBreak(matchedHour, matchedMinute, matchedSession.breaks);
 
     // Handle session transitions
-    if (matchedSession !== activeSessionName) {
+    if (matchedName !== activeSessionName) {
       // If we had an active session and it just ended, save its range
       if (activeSessionName !== null && activeHigh !== Number.NEGATIVE_INFINITY) {
         completedSessionName = activeSessionName;
@@ -103,17 +117,22 @@ export function sessionBreakout(
       }
 
       // Start tracking new session
-      if (matchedSession !== null) {
-        activeSessionName = matchedSession;
-        activeHigh = candle.high;
-        activeLow = candle.low;
+      if (matchedName !== null) {
+        activeSessionName = matchedName;
+        if (inBreak) {
+          activeHigh = Number.NEGATIVE_INFINITY;
+          activeLow = Number.POSITIVE_INFINITY;
+        } else {
+          activeHigh = candle.high;
+          activeLow = candle.low;
+        }
       } else {
         activeSessionName = null;
         activeHigh = Number.NEGATIVE_INFINITY;
         activeLow = Number.POSITIVE_INFINITY;
       }
-    } else if (matchedSession !== null) {
-      // Continue tracking current session
+    } else if (matchedName !== null && !inBreak) {
+      // Continue tracking current session — skip break bars.
       activeHigh = Math.max(activeHigh, candle.high);
       activeLow = Math.min(activeLow, candle.low);
     }

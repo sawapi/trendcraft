@@ -4,8 +4,9 @@
  * Composite indicator using three EMA layers: fast, slow, signal.
  */
 
-import type { MacdValue, NormalizedCandle } from "../../../types";
+import type { MacdValue, NormalizedCandle, PriceSource } from "../../../types";
 import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import { getSourcePrice } from "../utils";
 
 export type MacdState = {
   fastPeriod: number;
@@ -37,12 +38,18 @@ export type MacdState = {
  * ```
  */
 export function createMacd(
-  options: { fastPeriod?: number; slowPeriod?: number; signalPeriod?: number } = {},
+  options: {
+    fastPeriod?: number;
+    slowPeriod?: number;
+    signalPeriod?: number;
+    source?: PriceSource;
+  } = {},
   warmUpOptions?: WarmUpOptions<MacdState>,
 ): IncrementalIndicator<MacdValue, MacdState> {
   const fastPeriod = options.fastPeriod ?? 12;
   const slowPeriod = options.slowPeriod ?? 26;
   const signalPeriod = options.signalPeriod ?? 9;
+  const source = options.source ?? "close";
   const fastMult = 2 / (fastPeriod + 1);
   const slowMult = 2 / (slowPeriod + 1);
   const signalMult = 2 / (signalPeriod + 1);
@@ -100,7 +107,7 @@ export function createMacd(
   const indicator: IncrementalIndicator<MacdValue, MacdState> = {
     next(candle: NormalizedCandle) {
       count++;
-      const price = candle.close;
+      const price = getSourcePrice(candle, source);
 
       // Update fast EMA
       const fastResult = updateEma(price, fastEma, fastSum, fastPeriod, fastMult, count);
@@ -145,7 +152,7 @@ export function createMacd(
     },
 
     peek(candle: NormalizedCandle) {
-      const price = candle.close;
+      const price = getSourcePrice(candle, source);
       const peekCount = count + 1;
 
       // Preview fast EMA

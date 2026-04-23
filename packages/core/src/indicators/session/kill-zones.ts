@@ -13,6 +13,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { isInSession } from "./session-definition";
+import { getTzHourMinute } from "./tz-utils";
 
 /**
  * Definition of a kill zone with expected behavior
@@ -30,6 +31,8 @@ export type KillZoneDefinition = {
   endMinute: number;
   /** Expected behavior in this zone */
   characteristic: string;
+  /** Optional IANA timezone (default: "UTC") */
+  timezone?: string;
 };
 
 /**
@@ -133,12 +136,9 @@ export function killZones(
   const result: Series<KillZoneValue> = [];
 
   for (const candle of normalized) {
-    const date = new Date(candle.time);
-    const hour = date.getUTCHours();
-    const minute = date.getUTCMinutes();
-
     let matched: KillZoneDefinition | null = null;
     for (const zone of zoneDefs) {
+      const { hour, minute } = getTzHourMinute(candle.time, zone.timezone);
       if (isInSession(hour, minute, zone)) {
         matched = zone;
         break;

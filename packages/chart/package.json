@@ -99,7 +99,7 @@
     {
       "name": "Main (createChart + all exports)",
       "path": "dist/index.js",
-      "limit": "32 kB"
+      "limit": "35 kB"
     },
     {
       "name": "Headless API",
@@ -109,12 +109,12 @@
     {
       "name": "React wrapper",
       "path": "dist/react/TrendChart.js",
-      "limit": "27 kB"
+      "limit": "29 kB"
     },
     {
       "name": "Vue wrapper",
       "path": "dist/vue/TrendChart.js",
-      "limit": "27 kB"
+      "limit": "29 kB"
     }
   ],
   "devDependencies": {

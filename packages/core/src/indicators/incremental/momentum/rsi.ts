@@ -4,8 +4,9 @@
  * Uses Wilder's smoothing method for consistency with batch implementation.
  */
 
-import type { NormalizedCandle } from "../../../types";
+import type { NormalizedCandle, PriceSource } from "../../../types";
 import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import { getSourcePrice } from "../utils";
 
 export type RsiState = {
   period: number;
@@ -30,10 +31,11 @@ export type RsiState = {
  * ```
  */
 export function createRsi(
-  options: { period?: number } = {},
+  options: { period?: number; source?: PriceSource } = {},
   warmUpOptions?: WarmUpOptions<RsiState>,
 ): IncrementalIndicator<number | null, RsiState> {
   const period = options.period ?? 14;
+  const source = options.source ?? "close";
 
   let prevClose: number | null;
   let avgGain: number;
@@ -69,18 +71,19 @@ export function createRsi(
   const indicator: IncrementalIndicator<number | null, RsiState> = {
     next(candle: NormalizedCandle) {
       count++;
+      const price = getSourcePrice(candle, source);
 
       if (prevClose === null) {
         // First candle: no change to compute
-        prevClose = candle.close;
+        prevClose = price;
         return { time: candle.time, value: null };
       }
 
-      const change = candle.close - prevClose;
+      const change = price - prevClose;
       const gain = change > 0 ? change : 0;
       const loss = change < 0 ? -change : 0;
 
-      prevClose = candle.close;
+      prevClose = price;
 
       // count includes current candle. We need period+1 candles to produce first RSI.
       // Candle 1: no change (null), candles 2..period: collect gains/losses, candle period+1: first RSI
@@ -120,7 +123,8 @@ export function createRsi(
         return { time: candle.time, value: null };
       }
 
-      const change = candle.close - prevClose;
+      const price = getSourcePrice(candle, source);
+      const change = price - prevClose;
       const gain = change > 0 ? change : 0;
       const loss = change < 0 ? -change : 0;
 
