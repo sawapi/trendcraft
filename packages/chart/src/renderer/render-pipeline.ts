@@ -6,6 +6,7 @@
 import type { DataLayer, InternalSeries } from "../core/data-layer";
 import { decimateCandles, getDecimationTarget } from "../core/decimation";
 import { DrawHelper, withPaneClip } from "../core/draw-helper";
+import { formatVolume } from "../core/format";
 import type { LayoutEngine } from "../core/layout";
 import type { RendererRegistry } from "../core/renderer-registry";
 import { PriceScale, type TimeScale } from "../core/scale";
@@ -407,6 +408,10 @@ export function renderFrame(rc: RenderContext): RenderResult {
       }
     });
 
+    // Volume axis uses compact K/M/B notation; other panes use the user-
+    // supplied price formatter.
+    const axisFormatter = pane.id === "volume" ? formatVolume : rc.priceFormatter;
+
     // Right price axis
     renderPriceAxis(
       ctx,
@@ -417,7 +422,7 @@ export function renderFrame(rc: RenderContext): RenderResult {
       pane.height,
       theme,
       rc.fontSize,
-      rc.priceFormatter,
+      axisFormatter,
       {
         position: "right",
         maxTicks: paneMaxTicks,
@@ -437,7 +442,7 @@ export function renderFrame(rc: RenderContext): RenderResult {
         pane.height,
         theme,
         rc.fontSize,
-        rc.priceFormatter,
+        axisFormatter,
         { position: "left", maxTicks: paneMaxTicks },
       );
     }
