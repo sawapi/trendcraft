@@ -1,11 +1,15 @@
 // Session Definition & Detection
 export {
   getIctSessions,
+  getJpxSessions,
+  getHkexSessions,
   defineSession,
   detectSessions,
   isInSession,
+  isInSessionWindow,
+  isInAnyBreak,
 } from "./session-definition";
-export type { SessionDefinition, SessionInfo } from "./session-definition";
+export type { SessionBreak, SessionDefinition, SessionInfo } from "./session-definition";
 
 // Session Statistics
 export { sessionStats } from "./session-stats";
@@ -21,3 +25,6 @@ export type {
   SessionBreakoutOptions,
   SessionBreakoutValue,
 } from "./session-breakout";
+
+// Timezone utilities
+export { getTzHourMinute } from "./tz-utils";

@@ -7,7 +7,13 @@
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import type { Candle, NormalizedCandle } from "../../types";
-import { type SessionDefinition, getIctSessions, isInSession } from "./session-definition";
+import {
+  type SessionDefinition,
+  getIctSessions,
+  isInAnyBreak,
+  isInSessionWindow,
+} from "./session-definition";
+import { getTzHourMinute } from "./tz-utils";
 
 /**
  * Options for sessionStats
@@ -93,27 +99,36 @@ export function sessionStats(
   }
 
   for (const candle of normalized) {
-    const date = new Date(candle.time);
-    const hour = date.getUTCHours();
-    const minute = date.getUTCMinutes();
-
     for (const session of sessionDefs) {
-      const inSess = isInSession(hour, minute, session);
-      const wasInSess = prevSession.get(session.name) ?? false;
+      const { hour, minute } = getTzHourMinute(candle.time, session.timezone);
+      // Use the outer window for occurrence boundary detection, so a lunch break
+      // does not split one session into two occurrences.
+      const inWindow = isInSessionWindow(hour, minute, session);
+      const inBreak =
+        inWindow && session.breaks !== undefined && isInAnyBreak(hour, minute, session.breaks);
+      const wasInWindow = prevSession.get(session.name) ?? false;
 
-      if (inSess) {
-        if (!wasInSess) {
-          // New session occurrence
-          const occ: SessionOccurrence = {
-            high: candle.high,
-            low: candle.low,
-            totalVolume: candle.volume,
-            bullishBars: candle.close > candle.open ? 1 : 0,
-            totalBars: 1,
-          };
+      if (inWindow) {
+        if (!wasInWindow) {
+          // New session occurrence starts. Seed with this bar unless it is in a break.
+          const occ: SessionOccurrence = inBreak
+            ? {
+                high: Number.NEGATIVE_INFINITY,
+                low: Number.POSITIVE_INFINITY,
+                totalVolume: 0,
+                bullishBars: 0,
+                totalBars: 0,
+              }
+            : {
+                high: candle.high,
+                low: candle.low,
+                totalVolume: candle.volume,
+                bullishBars: candle.close > candle.open ? 1 : 0,
+                totalBars: 1,
+              };
           currentOcc.set(session.name, occ);
-        } else {
-          // Continue current occurrence
+        } else if (!inBreak) {
+          // Continue current occurrence — skip break bars entirely.
           const occ = currentOcc.get(session.name);
           if (!occ) continue;
           occ.high = Math.max(occ.high, candle.high);
@@ -122,23 +137,24 @@ export function sessionStats(
           if (candle.close > candle.open) occ.bullishBars++;
           occ.totalBars++;
         }
-      } else if (wasInSess) {
-        // Session just ended — finalize occurrence
+        // if inBreak && wasInWindow: do nothing (preserve occurrence through break)
+      } else if (wasInWindow) {
+        // Session window just ended — finalize occurrence if any real bars collected.
         const occ = currentOcc.get(session.name);
-        if (occ) {
+        if (occ && occ.totalBars > 0) {
           occurrences.get(session.name)?.push(occ);
-          currentOcc.set(session.name, null);
         }
+        currentOcc.set(session.name, null);
       }
 
-      prevSession.set(session.name, inSess);
+      prevSession.set(session.name, inWindow);
     }
   }
 
   // Finalize any still-open sessions
   for (const session of sessionDefs) {
     const occ = currentOcc.get(session.name);
-    if (occ) {
+    if (occ && occ.totalBars > 0) {
       occurrences.get(session.name)?.push(occ);
     }
   }

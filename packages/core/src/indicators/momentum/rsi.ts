@@ -3,7 +3,7 @@
  * Uses Wilder's smoothing method
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { getPriceSeries, isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, RsiOptions, Series } from "../../types";
 import { RSI_META } from "../indicator-meta";
@@ -32,7 +32,7 @@ export function rsi(
   candles: Candle[] | NormalizedCandle[],
   options: RsiOptions = {},
 ): Series<number | null> {
-  const { period = 14 } = options;
+  const { period = 14, source = "close" } = options;
 
   if (period < 1) {
     throw new Error("RSI period must be at least 1");
@@ -40,6 +40,7 @@ export function rsi(
 
   // Normalize if needed
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  const prices = getPriceSeries(normalized, source);
 
   const result: Series<number | null> = [];
 
@@ -51,7 +52,7 @@ export function rsi(
   // Calculate price changes
   const changes: number[] = [];
   for (let i = 1; i < normalized.length; i++) {
-    changes.push(normalized[i].close - normalized[i - 1].close);
+    changes.push(prices[i] - prices[i - 1]);
   }
 
   // First candle has no RSI (no previous price)

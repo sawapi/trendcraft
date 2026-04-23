@@ -268,11 +268,16 @@ export {
   // Session / Kill Zones
   defineSession,
   getIctSessions,
+  getJpxSessions,
+  getHkexSessions,
   detectSessions,
   sessionStats,
   killZones,
   getIctKillZones,
   sessionBreakout,
+  isInSessionWindow,
+  isInAnyBreak,
+  getTzHourMinute,
   // Filter (Ehlers)
   superSmoother,
   roofingFilter,

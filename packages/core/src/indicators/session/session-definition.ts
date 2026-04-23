@@ -10,6 +10,18 @@
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { getTzHourMinute } from "./tz-utils";
+
+/**
+ * An intra-session break (e.g. lunch break on JPX/HKEX).
+ * Start/end times are interpreted in the same timezone as the parent session.
+ */
+export type SessionBreak = {
+  startHour: number;
+  startMinute: number;
+  endHour: number;
+  endMinute: number;
+};
 
 /**
  * Definition of a trading session with start/end times in UTC
@@ -24,6 +36,18 @@ export type SessionDefinition = {
   endHour: number;
   /** End minute (0-59) */
   endMinute: number;
+  /**
+   * Optional intra-session breaks (e.g. JPX lunch 11:30-12:30).
+   * Bars falling inside a break are considered out-of-session:
+   * `inSession=false`, `barIndex` does not advance, and session O/H/L are preserved.
+   */
+  breaks?: SessionBreak[];
+  /**
+   * Optional IANA timezone for interpreting startHour/startMinute/endHour/endMinute
+   * and any breaks (e.g. "America/New_York", "Asia/Tokyo"). Defaults to "UTC".
+   * When set, DST is handled automatically by the runtime's tzdata.
+   */
+  timezone?: string;
 };
 
 /**
@@ -90,6 +114,54 @@ export function getIctSessions(): SessionDefinition[] {
 }
 
 /**
+ * Returns the JPX (Tokyo Stock Exchange) session in UTC with a lunch break.
+ *
+ * JPX regular hours (effective 2024-11-05): 09:00–11:30 / 12:30–15:30 JST
+ * (UTC+9, no DST). In UTC: 00:00–06:30 with a break at 02:30–03:30.
+ *
+ * Note: Real JPX market data has no bars during the lunch break; the `breaks`
+ * field is for 24×7 data sources (crypto / FX) or synthetic bars that cross
+ * the lunch hour and need to be excluded from session statistics.
+ *
+ * @example
+ * ```ts
+ * const sessions = getJpxSessions();
+ * const info = detectSessions(candles, sessions);
+ * ```
+ */
+export function getJpxSessions(): SessionDefinition[] {
+  return [
+    {
+      name: "JPX",
+      startHour: 0,
+      startMinute: 0,
+      endHour: 6,
+      endMinute: 30,
+      breaks: [{ startHour: 2, startMinute: 30, endHour: 3, endMinute: 30 }],
+    },
+  ];
+}
+
+/**
+ * Returns the HKEX (Hong Kong) session in UTC with a lunch break.
+ *
+ * HKEX regular hours: 09:30-12:00 / 13:00-16:00 HKT (UTC+8, no DST).
+ * In UTC: 01:30-08:00 with a break at 04:00-05:00.
+ */
+export function getHkexSessions(): SessionDefinition[] {
+  return [
+    {
+      name: "HKEX",
+      startHour: 1,
+      startMinute: 30,
+      endHour: 8,
+      endMinute: 0,
+      breaks: [{ startHour: 4, startMinute: 0, endHour: 5, endMinute: 0 }],
+    },
+  ];
+}
+
+/**
  * Factory function to create a custom session definition.
  *
  * @param name - Session name
@@ -119,15 +191,71 @@ export function defineSession(
  * Handles both normal sessions (start < end) and midnight-crossing sessions.
  */
 export function isInSession(hour: number, minute: number, session: SessionDefinition): boolean {
+  if (
+    !isInTimeWindow(
+      hour,
+      minute,
+      session.startHour,
+      session.startMinute,
+      session.endHour,
+      session.endMinute,
+    )
+  ) {
+    return false;
+  }
+  if (session.breaks && isInAnyBreak(hour, minute, session.breaks)) {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Check if (hour, minute) matches the session's start/end window, ignoring breaks.
+ * Used to keep the "anchor" session state through breaks.
+ */
+export function isInSessionWindow(
+  hour: number,
+  minute: number,
+  session: SessionDefinition,
+): boolean {
+  return isInTimeWindow(
+    hour,
+    minute,
+    session.startHour,
+    session.startMinute,
+    session.endHour,
+    session.endMinute,
+  );
+}
+
+/**
+ * Check if (hour, minute) falls inside any of the given breaks.
+ */
+export function isInAnyBreak(hour: number, minute: number, breaks: SessionBreak[]): boolean {
+  for (const br of breaks) {
+    if (isInTimeWindow(hour, minute, br.startHour, br.startMinute, br.endHour, br.endMinute)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function isInTimeWindow(
+  hour: number,
+  minute: number,
+  startHour: number,
+  startMinute: number,
+  endHour: number,
+  endMinute: number,
+): boolean {
   const timeMinutes = hour * 60 + minute;
-  const startMinutes = session.startHour * 60 + session.startMinute;
-  const endMinutes = session.endHour * 60 + session.endMinute;
+  const startMinutes = startHour * 60 + startMinute;
+  const endMinutes = endHour * 60 + endMinute;
 
   if (startMinutes <= endMinutes) {
-    // Normal session (no midnight crossing)
     return timeMinutes >= startMinutes && timeMinutes < endMinutes;
   }
-  // Session crosses midnight (e.g., 22:00 - 05:00)
+  // Window crosses midnight (e.g., 22:00 - 05:00)
   return timeMinutes >= startMinutes || timeMinutes < endMinutes;
 }
 
@@ -172,25 +300,37 @@ export function detectSessions(
   let sessionLow: number | null = null;
 
   for (const candle of normalized) {
-    // candle.time is in milliseconds after normalization
-    const date = new Date(candle.time);
-    const hour = date.getUTCHours();
-    const minute = date.getUTCMinutes();
-
-    // Find which session this candle belongs to
-    let matchedSession: string | null = null;
+    // Find the session whose outer window contains this candle (break-agnostic),
+    // evaluating each session in its own configured timezone.
+    let anchorSession: SessionDefinition | null = null;
+    let anchorHour = 0;
+    let anchorMinute = 0;
     for (const session of sessionDefs) {
-      if (isInSession(hour, minute, session)) {
-        matchedSession = session.name;
+      const { hour, minute } = getTzHourMinute(candle.time, session.timezone);
+      if (isInSessionWindow(hour, minute, session)) {
+        anchorSession = session;
+        anchorHour = hour;
+        anchorMinute = minute;
         break;
       }
     }
+    const inBreak =
+      anchorSession !== null &&
+      anchorSession.breaks !== undefined &&
+      isInAnyBreak(anchorHour, anchorMinute, anchorSession.breaks);
+    const anchorName = anchorSession?.name ?? null;
 
-    // Check if session changed
-    if (matchedSession !== currentSessionName) {
-      currentSessionName = matchedSession;
+    // Session anchor changed (new session entered, or fell outside everything)
+    if (anchorName !== currentSessionName) {
+      currentSessionName = anchorName;
       barIndex = 0;
-      if (matchedSession !== null) {
+      if (anchorName !== null && !inBreak) {
+        sessionOpen = candle.open;
+        sessionHigh = candle.high;
+        sessionLow = candle.low;
+      } else if (anchorName !== null && inBreak) {
+        // Entered a session for the first time during its own break (unusual but handle gracefully).
+        // Treat as session started, but this bar does not advance the session.
         sessionOpen = candle.open;
         sessionHigh = candle.high;
         sessionLow = candle.low;
@@ -199,17 +339,18 @@ export function detectSessions(
         sessionHigh = null;
         sessionLow = null;
       }
-    } else if (matchedSession !== null) {
+    } else if (anchorName !== null && !inBreak) {
       barIndex++;
       sessionHigh = Math.max(sessionHigh ?? candle.high, candle.high);
       sessionLow = Math.min(sessionLow ?? candle.low, candle.low);
     }
+    // if anchorName !== null && inBreak: preserve everything, don't advance barIndex.
 
     result.push({
       time: candle.time,
       value: {
-        session: matchedSession,
-        inSession: matchedSession !== null,
+        session: anchorName,
+        inSession: anchorName !== null && !inBreak,
         barIndex,
         sessionOpen,
         sessionHigh,

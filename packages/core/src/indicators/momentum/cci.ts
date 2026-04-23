@@ -5,9 +5,9 @@
  * over a given period. Used to identify overbought/oversold conditions.
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { getPriceSeries, isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
-import type { Candle, NormalizedCandle, Series } from "../../types";
+import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 import { CCI_META } from "../indicator-meta";
 
 /**
@@ -18,6 +18,8 @@ export type CciOptions = {
   period?: number;
   /** Constant multiplier (default: 0.015) */
   constant?: number;
+  /** Price source (default: 'hlc3' — typical price) */
+  source?: PriceSource;
 };
 
 /**
@@ -49,7 +51,7 @@ export function cci(
   candles: Candle[] | NormalizedCandle[],
   options: CciOptions = {},
 ): Series<number | null> {
-  const { period = 20, constant = 0.015 } = options;
+  const { period = 20, constant = 0.015, source = "hlc3" } = options;
 
   if (period < 1) {
     throw new Error("CCI period must be at least 1");
@@ -60,8 +62,8 @@ export function cci(
 
   const result: Series<number | null> = [];
 
-  // Calculate typical prices
-  const typicalPrices: number[] = normalized.map((c) => (c.high + c.low + c.close) / 3);
+  // Calculate source prices (default: typical price hlc3)
+  const typicalPrices: number[] = getPriceSeries(normalized, source);
 
   for (let i = 0; i < normalized.length; i++) {
     if (i < period - 1) {

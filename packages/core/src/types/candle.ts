@@ -194,6 +194,7 @@ export type EmaOptions = {
  */
 export type RsiOptions = {
   period?: number;
+  source?: PriceSource;
 };
 
 /**
@@ -203,6 +204,7 @@ export type MacdOptions = {
   fastPeriod?: number;
   slowPeriod?: number;
   signalPeriod?: number;
+  source?: PriceSource;
 };
 
 /**

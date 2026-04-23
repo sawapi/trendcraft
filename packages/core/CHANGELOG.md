@@ -1,5 +1,30 @@
 # Changelog
 
+## Unreleased
+
+### Added — Price Source Coverage
+
+- `RsiOptions.source`, `MacdOptions.source`, `CciOptions.source` — `rsi()` / `macd()` / `cci()` and their incremental counterparts (`createRsi` / `createMacd` / `createCci`) now accept a `PriceSource` (`"close" | "hl2" | "hlc3" | "ohlc4" | ...`). Defaults preserve current behavior (`"close"` for RSI/MACD, `"hlc3"` for CCI), so existing call sites are unaffected.
+  ```typescript
+  // Use typical price (HLC3) as RSI input
+  const rsiTypical = rsi(candles, { period: 14, source: "hlc3" });
+  ```
+
+### Added — Session: Lunch Breaks & Timezone Awareness
+
+- `SessionDefinition.breaks?: SessionBreak[]` — sessions can now define one or more intra-session breaks (e.g. JPX/HKEX lunch). Bars inside a break report `inSession: false`, the session anchor (name, open, high, low) is preserved, and `barIndex` does not advance. `sessionStats` and `sessionBreakout` skip break bars but still treat the surrounding session as a single occurrence.
+- `SessionDefinition.timezone?: string` — interpret session and break times in any IANA timezone (e.g. `"America/New_York"`, `"Asia/Tokyo"`). DST transitions are handled automatically via the runtime's built-in `Intl.DateTimeFormat` (zero new dependencies). `KillZoneDefinition` accepts the same field.
+  ```typescript
+  // Define NYSE in ET — DST follows automatically
+  const nyse = [{ name: "NYSE", startHour: 9, startMinute: 30, endHour: 16, endMinute: 0,
+                  timezone: "America/New_York" }];
+  ```
+- New session presets and helpers: `getJpxSessions()`, `getHkexSessions()`, `isInSessionWindow()`, `isInAnyBreak()`, `getTzHourMinute()`. New exported types: `SessionBreak`.
+
+### Notes
+
+- All additions are optional; omitting `source`, `breaks`, and `timezone` produces byte-identical results to v0.2.0.
+
 ## v0.2.0 (2026-04-20)
 
 Minor bump introducing live-streaming, indicator-registry, and series-metadata APIs, plus parameterized indicator labels.

@@ -7,9 +7,10 @@
  * Uses CircularBuffer for the lookback window of typical prices.
  */
 
-import type { NormalizedCandle } from "../../../types";
+import type { NormalizedCandle, PriceSource } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
 import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import { getSourcePrice } from "../utils";
 
 /**
  * State for incremental CCI
@@ -35,11 +36,12 @@ export type CciState = {
  * ```
  */
 export function createCci(
-  options: { period: number; constant?: number },
+  options: { period: number; constant?: number; source?: PriceSource },
   warmUpOptions?: WarmUpOptions<CciState>,
 ): IncrementalIndicator<number | null, CciState> {
   const period = options.period;
   const constant = options.constant ?? 0.015;
+  const source = options.source ?? "hlc3";
 
   let buffer: CircularBuffer<number>;
   let sum: number;
@@ -73,7 +75,7 @@ export function createCci(
 
   const indicator: IncrementalIndicator<number | null, CciState> = {
     next(candle: NormalizedCandle) {
-      const tp = (candle.high + candle.low + candle.close) / 3;
+      const tp = getSourcePrice(candle, source);
 
       if (buffer.isFull) {
         sum = sum - buffer.oldest() + tp;
@@ -88,7 +90,7 @@ export function createCci(
     },
 
     peek(candle: NormalizedCandle) {
-      const tp = (candle.high + candle.low + candle.close) / 3;
+      const tp = getSourcePrice(candle, source);
 
       let newSum: number;
       if (buffer.isFull) {
