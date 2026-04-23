@@ -209,14 +209,41 @@ export function renderFrame(rc: RenderContext): RenderResult {
   for (const [id, dual] of rc.priceScales) _rightScaleMap.set(id, dual.right);
   _seriesByPane.clear();
 
+  // Current-price label Y (main pane) — tick labels that would overlap it
+  // are suppressed by the main-pane axis renderer below.
+  let mainPriceExcludeY: number | undefined;
+  let mainPriceExcludeHalf: number | undefined;
+  if (candles.length > 0) {
+    const mainPane = paneRects.find((p) => p.id === "main");
+    const mainScales = mainPane ? rc.priceScales.get("main") : undefined;
+    if (mainPane && mainScales) {
+      mainPriceExcludeY = mainScales.right.priceToY(candles[candles.length - 1].close) + mainPane.y;
+      mainPriceExcludeHalf = rc.fontSize / 2 + 3; // fontSize + padY(3) — matches overlay-renderer
+    }
+  }
+
   for (const pane of paneRects) {
     const scales = rc.priceScales.get(pane.id);
     if (!scales) continue;
     const ps = scales.right; // Primary scale for most rendering
 
+    // Density-aware tick count — short sub-panes would otherwise crowd labels.
+    const paneMaxTicks = Math.max(2, Math.floor(pane.height / 32));
+
     withPaneClip(ctx, pane, () => {
       // Grid
-      renderGrid(ctx, ps, pane.x, pane.y, pane.width, pane.height, theme, timeScale, candles);
+      renderGrid(
+        ctx,
+        ps,
+        pane.x,
+        pane.y,
+        pane.width,
+        pane.height,
+        theme,
+        timeScale,
+        candles,
+        paneMaxTicks,
+      );
 
       // Reference lines
       if (pane.config.referenceLines?.length) {
@@ -393,6 +420,12 @@ export function renderFrame(rc: RenderContext): RenderResult {
       theme,
       rc.fontSize,
       rc.priceFormatter,
+      {
+        position: "right",
+        maxTicks: paneMaxTicks,
+        excludeY: pane.id === "main" ? mainPriceExcludeY : undefined,
+        excludeHalfHeight: pane.id === "main" ? mainPriceExcludeHalf : undefined,
+      },
     );
 
     // Left price axis (if pane has left-scale series)
@@ -407,6 +440,7 @@ export function renderFrame(rc: RenderContext): RenderResult {
         theme,
         rc.fontSize,
         rc.priceFormatter,
+        { position: "left", maxTicks: paneMaxTicks },
       );
     }
   }
