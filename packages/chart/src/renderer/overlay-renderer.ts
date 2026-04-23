@@ -3,17 +3,20 @@
  * Extracted from canvas-chart.ts for maintainability.
  */
 
-import type { DataLayer } from "../core/data-layer";
+import type { DataLayer, InternalSeries } from "../core/data-layer";
 import { autoFormatPrice, measureTextWidth } from "../core/format";
 import type { PriceScale, TimeScale } from "../core/scale";
+import { defaultRegistry } from "../core/series-registry";
 import type {
   CandleData,
+  DataPoint,
   PaneRect,
   SignalMarker,
   ThemeColors,
   TimeframeOverlay,
   TradeMarker,
 } from "../core/types";
+import type { AxisExcludeRange } from "./axis-renderer";
 
 /**
  * Render current price line (dashed horizontal line at latest close).
@@ -25,6 +28,12 @@ export function renderPriceLine(
   priceScales: Map<string, PriceScale>,
   theme: ThemeColors,
   fontSize: number,
+  /**
+   * Which candle to anchor the badge + dashed line on. Defaults to the last
+   * bar in the array. Passing `min(candles.length, timeScale.endIndex) - 1`
+   * makes the badge follow the right edge of the viewport (visible-mode).
+   */
+  candleIndex?: number,
 ): void {
   if (candles.length === 0) return;
 
@@ -34,7 +43,9 @@ export function renderPriceLine(
   const ps = priceScales.get("main");
   if (!ps) return;
 
-  const lastCandle = candles[candles.length - 1];
+  const idx = candleIndex !== undefined ? candleIndex : candles.length - 1;
+  if (idx < 0 || idx >= candles.length) return;
+  const lastCandle = candles[idx];
   const price = lastCandle.close;
   const y = ps.priceToY(price) + mainPane.y;
   const isUp = lastCandle.close >= lastCandle.open;
@@ -295,4 +306,197 @@ export function renderPaneTitles(
       x += ctx.measureText(label).width + GAP;
     }
   }
+}
+
+/**
+ * A pre-laid-out last-value badge ready to be drawn. Returned by
+ * {@link computeSeriesBadges} so the caller can hand the occupied Y ranges
+ * to {@link renderPriceAxis} (via `excludeYRanges`) before the badge is
+ * actually painted — that way tick labels under a badge are suppressed.
+ */
+export type ComputedBadge = {
+  /** Canvas-space center Y of the badge. */
+  y: number;
+  /** Half the badge height (fontSize/2 + padY). */
+  half: number;
+  /** Canvas-space x where the badge starts (right axis origin). */
+  x: number;
+  /** Badge width in pixels. */
+  w: number;
+  /** Fill color (pill background) and text color (derived as white / black if needed). */
+  color: string;
+  /** Rendered label text (already formatted). */
+  label: string;
+};
+
+/**
+ * Compute last-value badges for a pane. Does not paint — returns the list so
+ * the caller can pass the occupied Y ranges into {@link renderPriceAxis} as
+ * `excludeYRanges` and then call {@link drawSeriesBadges}.
+ *
+ * Collision strategy: walk badges sorted by descending Y; if a candidate's
+ * range overlaps one already placed (including `preoccupied`), shift it
+ * upward just enough to clear. If shifting would push it off the pane, the
+ * candidate is skipped.
+ */
+export function computeSeriesBadges(
+  ctx: CanvasRenderingContext2D,
+  pane: PaneRect,
+  priceScale: PriceScale,
+  seriesOnPane: readonly InternalSeries[],
+  theme: ThemeColors,
+  fontSize: number,
+  valueFormatter: (value: number) => string,
+  preoccupied: readonly AxisExcludeRange[] = [],
+  /**
+   * Inclusive upper-bound index for the "latest value" search. `undefined`
+   * means "search from end of data" (absolute-last mode). Pass the visible
+   * endIndex − 1 for visible-range mode.
+   */
+  searchUpTo?: number,
+  /** Optional extra badges (e.g. synthetic volume pill) to fold into layout. */
+  extras: readonly { value: number; color: string }[] = [],
+): ComputedBadge[] {
+  const padX = 6;
+  const padY = 3;
+  const half = fontSize / 2 + padY;
+
+  ctx.font = `${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+
+  type Candidate = { y: number; color: string; label: string; w: number };
+  const candidates: Candidate[] = [];
+
+  for (const s of seriesOnPane) {
+    if (!s.config.label) continue; // Only labeled series get a badge
+    const rule = s._rule ?? defaultRegistry.detect(s.data);
+    if (!rule) continue;
+
+    if (rule.name === "number") {
+      const val = latestNumber(s.data as DataPoint<number | null>[], searchUpTo);
+      if (val === null) continue;
+      candidates.push({
+        y: priceScale.priceToY(val) + pane.y,
+        color: s.config.color ?? theme.text,
+        label: valueFormatter(val),
+        w: 0,
+      });
+      continue;
+    }
+
+    // Multi-channel: one badge per channel with a defined latest value.
+    if (!s._channels || s._channelsLen !== s.data.length) {
+      s._channels = defaultRegistry.decomposeAll(s.data, rule);
+      s._channelsLen = s.data.length;
+    }
+    const channelColors = s.config.channelColors;
+    for (const [channelName, values] of s._channels) {
+      const val = latestInArray(values, searchUpTo);
+      if (val === null) continue;
+      const color = channelColors?.[channelName] ?? s.config.color ?? theme.text;
+      candidates.push({
+        y: priceScale.priceToY(val) + pane.y,
+        color,
+        label: valueFormatter(val),
+        w: 0,
+      });
+    }
+  }
+
+  // Extras (e.g. synthetic volume pill at the right edge).
+  for (const ex of extras) {
+    candidates.push({
+      y: priceScale.priceToY(ex.value) + pane.y,
+      color: ex.color,
+      label: valueFormatter(ex.value),
+      w: 0,
+    });
+  }
+
+  // Measure and drop candidates whose center is outside the pane.
+  for (const c of candidates) {
+    c.w = measureTextWidth(ctx, c.label) + padX * 2;
+  }
+  const inside = candidates.filter((c) => c.y >= pane.y && c.y <= pane.y + pane.height);
+
+  // Collision-resolve with descending Y so the lowest badge anchors first.
+  inside.sort((a, b) => b.y - a.y);
+
+  const placed: ComputedBadge[] = [];
+  // Include preoccupied ranges as immovable anchors.
+  const reserved: AxisExcludeRange[] = preoccupied.map((r) => ({ y: r.y, half: r.half }));
+
+  const paneTop = pane.y;
+  const paneBottom = pane.y + pane.height;
+
+  for (const c of inside) {
+    let y = c.y;
+    // Shift up while overlapping any reserved range. Cap iterations to avoid
+    // pathological loops on degenerate input.
+    for (let iter = 0; iter < reserved.length + placed.length + 4; iter++) {
+      let moved = false;
+      for (const r of reserved) {
+        const minDist = half + r.half;
+        const delta = y - r.y;
+        if (Math.abs(delta) < minDist) {
+          // Move upward (negative Y) to stay above r.
+          y = r.y - minDist;
+          moved = true;
+        }
+      }
+      if (!moved) break;
+    }
+    // Skip if shifted out of the pane.
+    if (y - half < paneTop || y + half > paneBottom) continue;
+
+    placed.push({
+      y,
+      half,
+      x: pane.x + pane.width,
+      w: c.w,
+      color: c.color,
+      label: c.label,
+    });
+    reserved.push({ y, half });
+  }
+
+  // Restore placement order to descending Y (for consistent draw order).
+  placed.sort((a, b) => b.y - a.y);
+  return placed;
+}
+
+/** Paint the badges produced by {@link computeSeriesBadges}. */
+export function drawSeriesBadges(
+  ctx: CanvasRenderingContext2D,
+  badges: readonly ComputedBadge[],
+  fontSize: number,
+): void {
+  if (badges.length === 0) return;
+  const padX = 6;
+  ctx.font = `${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  for (const b of badges) {
+    ctx.fillStyle = b.color;
+    ctx.fillRect(b.x, b.y - b.half, b.w, b.half * 2);
+    ctx.fillStyle = "#fff";
+    ctx.fillText(b.label, b.x + padX, b.y);
+  }
+}
+
+function latestNumber(data: readonly DataPoint<number | null>[], upTo?: number): number | null {
+  const start = upTo !== undefined ? Math.min(upTo, data.length - 1) : data.length - 1;
+  for (let i = start; i >= 0; i--) {
+    const v = data[i]?.value;
+    if (v !== null && v !== undefined) return v;
+  }
+  return null;
+}
+
+function latestInArray(values: readonly (number | null)[], upTo?: number): number | null {
+  const start = upTo !== undefined ? Math.min(upTo, values.length - 1) : values.length - 1;
+  for (let i = start; i >= 0; i--) {
+    const v = values[i];
+    if (v !== null && v !== undefined) return v;
+  }
+  return null;
 }

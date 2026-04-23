@@ -24,6 +24,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`chart.setCrosshair(time)`** — programmatic crosshair control for external consumers that want to drive the crosshair without a DOM pointer event.
 - **`visibleRangeChange` event** is now actually emitted (was declared but unused). Fires when the visible range changes.
 
+### Added — last-value badges
+
+- **`ChartOptions.showSeriesBadges`** — opt-in. When enabled, every labeled series gets a colored pill on the right price axis showing its latest value, mirroring the existing candle current-price badge. Multi-channel series (Bollinger Bands / MACD / etc.) get one pill per decomposed channel, each in its own `channelColors[channel]`. The volume pane also gets a pill colored by the last bar direction. Tick labels that would collide with a pill are suppressed; pills stacked on the same axis are shifted upward to clear each other and skipped if a shift would push them off the pane. Default: `false`.
+- **`ChartOptions.seriesBadgeMode`** — `"absolute"` (default) shows the data array's latest non-null value (live / streaming "current" value). `"visible"` shows the latest non-null value within the current visible range — useful when scrolling back through history.
+- **`PriceAxisOptions.excludeYRanges`** (headless) — a list replaces the singular `excludeY` / `excludeHalfHeight` fields so multiple foreground labels can be avoided by the tick placer. The old single-range fields remain supported for back-compat.
+
 ### Fixed
 
 - **Decimation alignment** — at low zoom (`barSpacing < 1 px`, e.g. Fit-content on a large dataset) candles and number-series indicators used three different decimation paths that disagreed on x-coordinates, so overlays (SMA / RSI / EMA / …) drifted left of the bars they were supposed to annotate. All three paths now share the original `timeScale` coordinate space via bucket-origin indices carried through the render pipeline.
@@ -40,6 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bundle size budget for the main entry raised from 31 kB → 32 kB (brotli). The raise reflects the intentional UX additions above and is expected to hold through the 0.2.x line — future feature work either lives on a sub-path or compensates with equivalent reductions elsewhere.
+- React / Vue wrapper budgets raised from 29 kB → 30 kB (brotli) to accommodate the new exports surfaced by the polish and badge features. Main budget raised 35 kB → 36 kB for the last-value badge feature.
 
 ### Internal
 

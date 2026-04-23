@@ -178,6 +178,24 @@ fitBtn.addEventListener("click", () => {
   chart.fitContent();
 });
 
+// Last-value badges toggle
+const badgesBtn = document.getElementById("btn-badges") as HTMLElement;
+let badgesOn = false;
+badgesBtn.addEventListener("click", () => {
+  badgesOn = !badgesOn;
+  chart.applyOptions({ showSeriesBadges: badgesOn });
+  badgesBtn.textContent = `Badges: ${badgesOn ? "on" : "off"}`;
+});
+
+// Badge mode toggle: absolute (live / latest) ⇄ visible (right-edge of viewport)
+const badgeModeBtn = document.getElementById("btn-badge-mode") as HTMLElement;
+let badgeMode: "absolute" | "visible" = "absolute";
+badgeModeBtn.addEventListener("click", () => {
+  badgeMode = badgeMode === "absolute" ? "visible" : "absolute";
+  chart.applyOptions({ seriesBadgeMode: badgeMode });
+  badgeModeBtn.textContent = `Mode: ${badgeMode}`;
+});
+
 // Export PNG button — demonstrates toImage() with pane titles composited
 const exportBtn = document.getElementById("btn-export") as HTMLElement;
 exportBtn.addEventListener("click", async () => {

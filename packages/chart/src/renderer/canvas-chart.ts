@@ -88,6 +88,8 @@ export class CanvasChart implements ChartInstance {
   private _infoOverlay: InfoOverlay | null = null;
   private _legendOverlay: LegendOverlay | null = null;
   private _watermark: string | undefined;
+  private _showSeriesBadges = false;
+  private _seriesBadgeMode: "absolute" | "visible" = "absolute";
   private _chartType: import("../core/types").ChartType;
   private _drawingTool: DrawingTool | null = null;
   private _detachDrawTap: (() => void) | null = null;
@@ -369,6 +371,8 @@ export class CanvasChart implements ChartInstance {
 
     // Watermark
     this._watermark = options?.watermark;
+    this._showSeriesBadges = options?.showSeriesBadges === true;
+    this._seriesBadgeMode = options?.seriesBadgeMode ?? "absolute";
     this._chartType = options?.chartType ?? "candlestick";
 
     // Volume pane visibility
@@ -809,6 +813,14 @@ export class CanvasChart implements ChartInstance {
       this._watermark = opts.watermark;
       this._needsRender = true;
     }
+    if (opts.showSeriesBadges !== undefined) {
+      this._showSeriesBadges = opts.showSeriesBadges === true;
+      this._needsRender = true;
+    }
+    if (opts.seriesBadgeMode !== undefined) {
+      this._seriesBadgeMode = opts.seriesBadgeMode;
+      this._needsRender = true;
+    }
     if (opts.animationDuration !== undefined) {
       this._animationDuration = opts.animationDuration;
     }
@@ -1096,6 +1108,8 @@ export class CanvasChart implements ChartInstance {
       fontSize: this._fontSize,
       chartType: this._chartType,
       watermark: this._watermark,
+      showSeriesBadges: this._showSeriesBadges,
+      seriesBadgeMode: this._seriesBadgeMode,
       priceFormatter: this._priceFormatter,
       timeFormatter: this._timeFormatter,
       data: this._data,
