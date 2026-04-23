@@ -184,8 +184,8 @@ describe("Cache invalidation", () => {
       const result2 = decimateCandles(candles2, 0, 100, 10);
 
       // Same structure but different values
-      expect(result1.length).toBe(result2.length);
-      expect(result1[0].close).not.toBe(result2[0].close);
+      expect(result1.candles.length).toBe(result2.candles.length);
+      expect(result1.candles[0].close).not.toBe(result2.candles[0].close);
     });
 
     it("getDecimationTarget returns 0 when data fits", () => {

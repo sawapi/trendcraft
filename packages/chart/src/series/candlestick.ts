@@ -12,9 +12,16 @@ export function renderCandlesticks(
   timeScale: TimeScale,
   priceScale: PriceScale,
   theme: ThemeColors,
+  /**
+   * When provided, iterates `0..candles.length` and reads the screen x for
+   * each from `indexToX(originalIndices[i])`. Used by the decimation path so
+   * bucketed candles line up with non-decimated overlays on the same
+   * timeScale.
+   */
+  originalIndices?: readonly number[] | Int32Array,
 ): void {
-  const start = timeScale.startIndex;
-  const end = timeScale.endIndex;
+  const start = originalIndices ? 0 : timeScale.startIndex;
+  const end = originalIndices ? candles.length : timeScale.endIndex;
   const candleWidth = timeScale.candleWidth;
   const halfCandle = candleWidth / 2;
   const wickWidth = Math.max(1, candleWidth * 0.1);
@@ -23,7 +30,7 @@ export function renderCandlesticks(
     const candle = candles[i];
     if (!candle) continue;
 
-    const x = timeScale.indexToX(i);
+    const x = timeScale.indexToX(originalIndices ? originalIndices[i] : i);
     const sx = Math.round(x) + 0.5; // snap to pixel grid for crisp 1px lines
     const isUp = candle.close >= candle.open;
 

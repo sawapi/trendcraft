@@ -11,16 +11,17 @@ export function renderMountainChart(
   timeScale: TimeScale,
   priceScale: PriceScale,
   theme: ThemeColors,
+  originalIndices?: readonly number[] | Int32Array,
 ): void {
-  const start = timeScale.startIndex;
-  const end = timeScale.endIndex;
+  const start = originalIndices ? 0 : timeScale.startIndex;
+  const end = originalIndices ? candles.length : timeScale.endIndex;
   const points: { x: number; y: number }[] = [];
 
   for (let i = start; i < end && i < candles.length; i++) {
     const candle = candles[i];
     if (!candle) continue;
     points.push({
-      x: timeScale.indexToX(i),
+      x: timeScale.indexToX(originalIndices ? originalIndices[i] : i),
       y: priceScale.priceToY(candle.close),
     });
   }

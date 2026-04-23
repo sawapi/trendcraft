@@ -11,9 +11,10 @@ export function renderPriceLineChart(
   timeScale: TimeScale,
   priceScale: PriceScale,
   theme: ThemeColors,
+  originalIndices?: readonly number[] | Int32Array,
 ): void {
-  const start = timeScale.startIndex;
-  const end = timeScale.endIndex;
+  const start = originalIndices ? 0 : timeScale.startIndex;
+  const end = originalIndices ? candles.length : timeScale.endIndex;
 
   ctx.strokeStyle = theme.upColor;
   ctx.lineWidth = 1.5;
@@ -26,7 +27,7 @@ export function renderPriceLineChart(
     const candle = candles[i];
     if (!candle) continue;
 
-    const x = timeScale.indexToX(i);
+    const x = timeScale.indexToX(originalIndices ? originalIndices[i] : i);
     const y = priceScale.priceToY(candle.close);
 
     if (!drawing) {

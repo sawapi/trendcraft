@@ -52,7 +52,8 @@ let _decimCache: {
   end: number;
   target: number;
   dataVersion: number;
-  result: readonly CandleData[];
+  candles: readonly CandleData[];
+  originalIndices: Int32Array;
 } | null = null;
 
 /** Everything the render pipeline needs from CanvasChart */
@@ -283,9 +284,7 @@ export function renderFrame(rc: RenderContext): RenderResult {
           timeScale.width,
         );
         let visibleCandles: readonly CandleData[];
-        // When decimated, remap barSpacing so candles fill the full canvas width
-        const savedStart = timeScale.startIndex;
-        const savedSpacing = timeScale.barSpacing;
+        let origIndices: Int32Array | undefined;
         if (decimTarget > 0) {
           // Use cached decimation result when viewport hasn't changed
           const dataVer = data.version;
@@ -296,43 +295,42 @@ export function renderFrame(rc: RenderContext): RenderResult {
             _decimCache.target === decimTarget &&
             _decimCache.dataVersion === dataVer
           ) {
-            visibleCandles = _decimCache.result;
+            visibleCandles = _decimCache.candles;
+            origIndices = _decimCache.originalIndices;
           } else {
-            visibleCandles = decimateCandles(
+            const decimated = decimateCandles(
               candles,
               timeScale.startIndex,
               timeScale.endIndex,
               decimTarget,
             );
+            visibleCandles = decimated.candles;
+            origIndices = decimated.originalIndices;
             _decimCache = {
               start: timeScale.startIndex,
               end: timeScale.endIndex,
               target: decimTarget,
               dataVersion: dataVer,
-              result: visibleCandles,
+              candles: visibleCandles,
+              originalIndices: origIndices,
             };
           }
-          timeScale.setImmediate(0, timeScale.width / visibleCandles.length);
         } else {
           visibleCandles = candles;
         }
         switch (rc.chartType) {
           case "line":
-            renderPriceLineChart(ctx, visibleCandles, timeScale, ps, theme);
+            renderPriceLineChart(ctx, visibleCandles, timeScale, ps, theme, origIndices);
             break;
           case "mountain":
-            renderMountainChart(ctx, visibleCandles, timeScale, ps, theme);
+            renderMountainChart(ctx, visibleCandles, timeScale, ps, theme, origIndices);
             break;
           case "ohlc":
-            renderOhlcBars(ctx, visibleCandles, timeScale, ps, theme);
+            renderOhlcBars(ctx, visibleCandles, timeScale, ps, theme, origIndices);
             break;
           default:
-            renderCandlesticks(ctx, visibleCandles, timeScale, ps, theme);
+            renderCandlesticks(ctx, visibleCandles, timeScale, ps, theme, origIndices);
             break;
-        }
-        // Restore timeScale after decimated rendering
-        if (decimTarget > 0) {
-          timeScale.setImmediate(savedStart, savedSpacing);
         }
       }
 

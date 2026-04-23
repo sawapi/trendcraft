@@ -31,7 +31,8 @@ const _lttbCache = new WeakMap<
     end: number;
     target: number;
     version: number;
-    result: DataPoint<number | null>[];
+    points: readonly DataPoint<number | null>[];
+    originalIndices: Int32Array;
   }
 >();
 
@@ -121,8 +122,10 @@ export function dispatchSeries(
       return;
     }
 
-    let data = s.data as DataPoint<number | null>[];
+    const data = s.data as DataPoint<number | null>[];
     const target = getDecimationTarget(timeScale.endIndex - timeScale.startIndex, timeScale.width);
+    let points: readonly DataPoint<number | null>[] = data;
+    let origIndices: Int32Array | undefined;
     if (target > 0) {
       const ver = s._dataVersion ?? 0;
       const cached = _lttbCache.get(data);
@@ -133,23 +136,35 @@ export function dispatchSeries(
         cached.target === target &&
         cached.version === ver
       ) {
-        data = cached.result;
+        points = cached.points;
+        origIndices = cached.originalIndices;
       } else {
-        const decimated = lttb(data.slice(timeScale.startIndex, timeScale.endIndex), target);
+        const decimated = lttb(
+          data.slice(timeScale.startIndex, timeScale.endIndex),
+          target,
+          timeScale.startIndex,
+        );
+        points = decimated.points;
+        origIndices = decimated.originalIndices;
         _lttbCache.set(data, {
           start: timeScale.startIndex,
           end: timeScale.endIndex,
           target,
           version: ver,
-          result: decimated,
+          points,
+          originalIndices: origIndices,
         });
-        data = decimated;
       }
     }
-    renderLine(ctx, data, timeScale, priceScale, timeScale.startIndex, {
-      color,
-      lineWidth,
-    });
+    renderLine(
+      ctx,
+      points,
+      timeScale,
+      priceScale,
+      timeScale.startIndex,
+      { color, lineWidth },
+      origIndices,
+    );
     return;
   }
 
