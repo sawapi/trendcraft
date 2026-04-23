@@ -28,6 +28,12 @@ export function renderPriceLine(
   priceScales: Map<string, PriceScale>,
   theme: ThemeColors,
   fontSize: number,
+  /**
+   * Which candle to anchor the badge + dashed line on. Defaults to the last
+   * bar in the array. Passing `min(candles.length, timeScale.endIndex) - 1`
+   * makes the badge follow the right edge of the viewport (visible-mode).
+   */
+  candleIndex?: number,
 ): void {
   if (candles.length === 0) return;
 
@@ -37,7 +43,9 @@ export function renderPriceLine(
   const ps = priceScales.get("main");
   if (!ps) return;
 
-  const lastCandle = candles[candles.length - 1];
+  const idx = candleIndex !== undefined ? candleIndex : candles.length - 1;
+  if (idx < 0 || idx >= candles.length) return;
+  const lastCandle = candles[idx];
   const price = lastCandle.close;
   const y = ps.priceToY(price) + mainPane.y;
   const isUp = lastCandle.close >= lastCandle.open;

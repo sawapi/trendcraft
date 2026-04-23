@@ -218,15 +218,24 @@ export function renderFrame(rc: RenderContext): RenderResult {
   for (const [id, dual] of rc.priceScales) _rightScaleMap.set(id, dual.right);
   _seriesByPane.clear();
 
+  // Resolve which candle the current-price badge points at. In "visible"
+  // badge mode it follows the right edge of the viewport so all badges share
+  // the same semantics; otherwise it tracks the data array's last bar
+  // (live / streaming price).
+  const currentPriceIndex =
+    rc.seriesBadgeMode === "visible"
+      ? Math.max(0, Math.min(candles.length, timeScale.endIndex) - 1)
+      : candles.length - 1;
+
   // Current-price label Y (main pane) — tick labels that would overlap it
   // are suppressed by the main-pane axis renderer below.
   let mainPriceExcludeY: number | undefined;
   let mainPriceExcludeHalf: number | undefined;
-  if (candles.length > 0) {
+  if (candles.length > 0 && currentPriceIndex >= 0) {
     const mainPane = paneRects.find((p) => p.id === "main");
     const mainScales = mainPane ? rc.priceScales.get("main") : undefined;
     if (mainPane && mainScales) {
-      mainPriceExcludeY = mainScales.right.priceToY(candles[candles.length - 1].close) + mainPane.y;
+      mainPriceExcludeY = mainScales.right.priceToY(candles[currentPriceIndex].close) + mainPane.y;
       mainPriceExcludeHalf = rc.fontSize / 2 + 3; // fontSize + padY(3) — matches overlay-renderer
     }
   }
@@ -576,7 +585,7 @@ export function renderFrame(rc: RenderContext): RenderResult {
   renderDrawings(ctx, allDrawings, paneRects, _rightScaleMap, timeScale, data, theme, rc.fontSize);
 
   // Overlays
-  renderPriceLine(ctx, candles, paneRects, _rightScaleMap, theme, rc.fontSize);
+  renderPriceLine(ctx, candles, paneRects, _rightScaleMap, theme, rc.fontSize, currentPriceIndex);
   // Last-value series badges (opt-in). Drawn after renderPriceLine so the
   // candle current-price badge stays on top visually, and above the axis so
   // pills aren't obscured by tick labels.
