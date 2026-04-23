@@ -113,13 +113,93 @@ export function autoFormatTime(time: number, prevTime: number | null): string {
     return `${MONTH_NAMES[month]}`;
   }
 
-  // Day changed
+  // Anchor a time label when the jump is "big" AND the destination bar is at
+  // a different time-of-day than the previous one. Daily / weekly data keeps
+  // bars at a consistent hour (e.g. 00:00 or 09:30), so the hour is noise.
+  // Session gaps (overnight, weekend) move between different times-of-day.
+  const bigJump = time - prevTime > 4 * 60 * 60 * 1000;
+  const prevTod = prev.getHours() * 60 + prev.getMinutes();
+  const curTod = hours * 60 + minutes;
+  const sameTimeOfDay = Math.abs(prevTod - curTod) < 60;
+  const nearMidnight = hours === 0 && minutes < 30;
+  const anchorTime = bigJump && !nearMidnight && !sameTimeOfDay;
+
+  // Day changed (local TZ)
   if (prev.getDate() !== day) {
-    return `${MONTH_NAMES[month]} ${day}`;
+    return anchorTime
+      ? `${MONTH_NAMES[month]} ${day} ${pad2(hours)}:${pad2(minutes)}`
+      : `${MONTH_NAMES[month]} ${day}`;
+  }
+
+  // Same local day, but a big time jump — likely a session gap (e.g. AAPL
+  // overnight viewed from Japan, where Mon ET 16:00 and Tue ET 09:30 both
+  // fall on the same JST day). Surface the date to anchor the viewer.
+  if (anchorTime) {
+    return `${MONTH_NAMES[month]} ${day} ${pad2(hours)}:${pad2(minutes)}`;
   }
 
   // Same day: show time
   return `${pad2(hours)}:${pad2(minutes)}`;
+}
+
+/**
+ * Format a wall-clock time as a short axis label (HH:MM).
+ * Uses 24-hour format in browser local TZ.
+ */
+export function formatShortTime(time: number): string {
+  const d = new Date(time);
+  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+
+/**
+ * Format a date as a short axis anchor ("Mar 16" or "2026" at year boundaries).
+ * Locale-aware via the MONTH_NAMES table.
+ */
+export function formatShortDate(time: number, prevTime: number | null = null): string {
+  const d = new Date(time);
+  if (prevTime !== null) {
+    const prev = new Date(prevTime);
+    if (prev.getFullYear() !== d.getFullYear()) return `${d.getFullYear()}`;
+    if (prev.getMonth() !== d.getMonth()) return `${MONTH_NAMES[d.getMonth()]} ${d.getDate()}`;
+  }
+  return `${MONTH_NAMES[d.getMonth()]} ${d.getDate()}`;
+}
+
+/**
+ * Nice tick-step candidates in ms. Used by {@link pickNiceStep} to choose a
+ * readable wall-clock spacing (5 min, 15 min, 1 hour, 1 day, etc.) that fits
+ * the visible span and target tick count.
+ */
+const NICE_STEPS_MS: readonly number[] = [
+  60_000, // 1 min
+  5 * 60_000, // 5 min
+  10 * 60_000, // 10 min
+  15 * 60_000, // 15 min
+  30 * 60_000, // 30 min
+  60 * 60_000, // 1 hour
+  2 * 60 * 60_000, // 2 hours
+  4 * 60 * 60_000, // 4 hours
+  6 * 60 * 60_000, // 6 hours
+  12 * 60 * 60_000, // 12 hours
+  24 * 60 * 60_000, // 1 day
+  2 * 24 * 60 * 60_000, // 2 days
+  7 * 24 * 60 * 60_000, // 1 week
+  30 * 24 * 60 * 60_000, // ~1 month
+  90 * 24 * 60 * 60_000, // ~1 quarter
+  365 * 24 * 60 * 60_000, // ~1 year
+];
+
+/**
+ * Pick a readable wall-clock tick step for a time-axis spanning `rangeMs`
+ * with at most `maxTicks` labels visible.
+ */
+export function pickNiceStep(rangeMs: number, maxTicks: number): number {
+  if (rangeMs <= 0 || maxTicks <= 0) return NICE_STEPS_MS[0];
+  const target = rangeMs / maxTicks;
+  for (const step of NICE_STEPS_MS) {
+    if (step >= target) return step;
+  }
+  return NICE_STEPS_MS[NICE_STEPS_MS.length - 1];
 }
 
 /**

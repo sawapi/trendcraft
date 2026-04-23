@@ -89,6 +89,8 @@ export type {
   CrosshairOptions,
   InteractionOptions,
   HotkeyAction,
+  TimeScaleOptions,
+  SessionGapsOptions,
 } from "./core/types";
 
 export { DEFAULT_HOTKEYS, type HotkeyMap } from "./core/hotkeys";

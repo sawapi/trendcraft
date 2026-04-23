@@ -30,7 +30,7 @@ export class LayoutEngine {
   private _totalWidth = 0;
   private _totalHeight = 0;
   private _priceAxisWidth = 60;
-  private _timeAxisHeight = 24;
+  private _timeAxisHeight = 32;
   private _scrollbarHeight = 16;
   private _paneRects: PaneRect[] = [];
 

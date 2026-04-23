@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+<!-- draft: polish before release -->
+<!-- - session gap rendering (ChartOptions.timeScale.sessionGaps, TimeScale.setGapsBefore) -->
+<!-- - autoFormatTime shows date anchor after large time jumps within the same local day -->
+
 ### Added — UX pass
 
 - **Crosshair snap modes** via `ChartOptions.crosshair`:

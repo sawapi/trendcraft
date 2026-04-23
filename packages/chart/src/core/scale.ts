@@ -12,9 +12,30 @@ import type { ScaleMode } from "./types";
 // ============================================
 
 /**
- * Maps candle indices to x-pixel positions.
- * Uses index-based positioning (not continuous time) to avoid gaps
- * from non-trading hours.
+ * Time-proportional config for {@link TimeScale.setTimeProportional}.
+ */
+export type TimeProportionalOptions = {
+  /** Typical bar interval in ms. Default: auto (median of consecutive deltas). */
+  medianMs?: number;
+  /** Deltas exceeding this compress to `sessionGapBars` instead of proportional. Default: 4h. */
+  sessionThresholdMs?: number;
+  /** Width (in bar-units) of a compressed session gap. Default: 1.5. */
+  sessionGapBars?: number;
+};
+
+/**
+ * Maps candle indices (and optionally wall-clock time) to x-pixel positions.
+ *
+ * - **Index mode** (default): bars are laid out at uniform `barSpacing`;
+ *   `indexToX(i) = (i - startIndex + 0.5) * barSpacing`. Fast and cheap.
+ * - **Virtual mode**: each bar has an explicit virtual position in `_virt`,
+ *   enabling:
+ *     - {@link setGapsBefore} — fixed extra space before specific indices
+ *       (legacy day-boundary gap API).
+ *     - {@link setTimeProportional} — spacing within a session proportional
+ *       to the bar's wall-clock delta, with long session breaks compressed
+ *       to a fixed visual gap. Enables {@link timeToX}, {@link getTimeTicks},
+ *       {@link getDateTicks} for a Yahoo / TradingView style time axis.
  */
 export class TimeScale {
   /** First visible candle index */
@@ -32,6 +53,18 @@ export class TimeScale {
   /** Maximum bar spacing */
   private readonly _maxBarSpacing = 50;
 
+  /**
+   * Virtual position of each bar (length = totalCount when populated).
+   * `_virt[i]` is the virtual x-coordinate (in bar-units) of real bar i.
+   * Empty = index mode (fast path: virtual = real index).
+   */
+  private _virt: Float64Array = new Float64Array(0);
+  /**
+   * Wall-clock timestamps of each bar — populated by setTimeProportional only.
+   * Used by timeToX / getTimeTicks / getDateTicks. Empty in other modes.
+   */
+  private _candleTimes: Float64Array = new Float64Array(0);
+
   get startIndex(): number {
     return Math.floor(this._startIndex);
   }
@@ -42,7 +75,12 @@ export class TimeScale {
   }
 
   get endIndex(): number {
-    return Math.min(Math.floor(this._startIndex) + this._visibleCount, this._totalCount);
+    if (this._virt.length === 0) {
+      return Math.min(Math.floor(this._startIndex) + this._visibleCount, this._totalCount);
+    }
+    const startV = this.virtAt(this._startIndex);
+    const end = Math.ceil(this.realAtVirt(startV + this._visibleCount));
+    return Math.min(end, this._totalCount);
   }
 
   get visibleCount(): number {
@@ -63,7 +101,155 @@ export class TimeScale {
 
   setTotalCount(count: number): void {
     this._totalCount = count;
+    // Reset virtual/time mode — caller must re-apply if needed.
+    if (this._virt.length !== 0 && this._virt.length !== count) {
+      this._virt = new Float64Array(0);
+      this._candleTimes = new Float64Array(0);
+    }
     this.clamp();
+  }
+
+  /**
+   * Install visual gaps at specific real indices. Each entry reserves `size`
+   * bar-widths of empty space strictly before that real index. Pass an empty
+   * array to clear all gaps. Legacy API — prefer {@link setTimeProportional}
+   * for wall-clock-aware spacing.
+   *
+   * @example
+   * ```ts
+   * // Insert a half-bar gap before indices 390 (Mon open) and 780 (Tue open)
+   * timeScale.setGapsBefore([
+   *   { index: 390, size: 0.5 },
+   *   { index: 780, size: 0.5 },
+   * ]);
+   * ```
+   */
+  setGapsBefore(gaps: ReadonlyArray<{ index: number; size: number }>): void {
+    const n = this._totalCount;
+    if (n === 0 || gaps.length === 0) {
+      this._virt = new Float64Array(0);
+      this._candleTimes = new Float64Array(0);
+      this.clamp();
+      return;
+    }
+    const gapMap = new Map<number, number>();
+    for (const g of gaps) {
+      if (g.size <= 0) continue;
+      gapMap.set(g.index, (gapMap.get(g.index) ?? 0) + g.size);
+    }
+    const virt = new Float64Array(n);
+    virt[0] = gapMap.get(0) ?? 0;
+    for (let i = 1; i < n; i++) {
+      virt[i] = virt[i - 1] + 1 + (gapMap.get(i) ?? 0);
+    }
+    this._virt = virt;
+    this._candleTimes = new Float64Array(0);
+    this.clamp();
+  }
+
+  /**
+   * Configure the axis to lay bars out proportionally to their wall-clock
+   * time deltas, compressing long session breaks to a fixed gap.
+   *
+   * @param candleTimes - Per-bar epoch-ms timestamps (length must equal totalCount).
+   * @param options     - see {@link TimeProportionalOptions}.
+   */
+  setTimeProportional(candleTimes: ArrayLike<number>, options: TimeProportionalOptions = {}): void {
+    const n = candleTimes.length;
+    if (n !== this._totalCount || n === 0) {
+      this._virt = new Float64Array(0);
+      this._candleTimes = new Float64Array(0);
+      this.clamp();
+      return;
+    }
+    const median = options.medianMs ?? TimeScale.computeMedianInterval(candleTimes);
+    const sessionThreshold = options.sessionThresholdMs ?? 4 * 60 * 60 * 1000;
+    const sessionGapBars = options.sessionGapBars ?? 1.5;
+
+    const times = new Float64Array(n);
+    for (let i = 0; i < n; i++) times[i] = candleTimes[i];
+
+    const virt = new Float64Array(n);
+    virt[0] = 0;
+    for (let i = 1; i < n; i++) {
+      const delta = times[i] - times[i - 1];
+      let gap: number;
+      if (delta > sessionThreshold) {
+        gap = sessionGapBars;
+      } else if (median > 0 && delta > 0) {
+        gap = Math.max(0.001, delta / median);
+      } else {
+        gap = 1;
+      }
+      virt[i] = virt[i - 1] + gap;
+    }
+    this._virt = virt;
+    this._candleTimes = times;
+    this._cachedMedian = median;
+    this.clamp();
+  }
+
+  clearGaps(): void {
+    if (this._virt.length === 0) return;
+    this._virt = new Float64Array(0);
+    this._candleTimes = new Float64Array(0);
+    this._cachedMedian = 0;
+    this.clamp();
+  }
+
+  get hasGaps(): boolean {
+    return this._virt.length > 0;
+  }
+
+  /** True when setTimeProportional has been applied and time-based APIs work. */
+  get hasTimeData(): boolean {
+    return this._candleTimes.length > 0;
+  }
+
+  private static computeMedianInterval(times: ArrayLike<number>): number {
+    const n = times.length;
+    if (n < 2) return 60_000;
+    const deltas: number[] = [];
+    const stride = Math.max(1, Math.floor(n / 64));
+    for (let i = stride; i < n; i += stride) {
+      const d = (times[i] - times[i - stride]) / stride;
+      if (d > 0) deltas.push(d);
+    }
+    if (deltas.length === 0) return 60_000;
+    deltas.sort((a, b) => a - b);
+    return deltas[Math.floor(deltas.length / 2)];
+  }
+
+  /** Virtual position of a (possibly fractional) real index. */
+  private virtAt(i: number): number {
+    const virt = this._virt;
+    if (virt.length === 0) return i;
+    const n = virt.length;
+    if (i <= 0) return virt[0] + i;
+    if (i >= n - 1) return virt[n - 1] + (i - (n - 1));
+    const lo = Math.floor(i);
+    const frac = i - lo;
+    return virt[lo] + (virt[lo + 1] - virt[lo]) * frac;
+  }
+
+  /** Inverse of virtAt: map virtual coord back to (possibly fractional) real index. */
+  private realAtVirt(v: number): number {
+    const virt = this._virt;
+    if (virt.length === 0) return v;
+    const n = virt.length;
+    if (v <= virt[0]) return v - virt[0];
+    if (v >= virt[n - 1]) return n - 1 + (v - virt[n - 1]);
+    // Binary search for largest i with virt[i] <= v
+    let lo = 0;
+    let hi = n - 1;
+    while (lo < hi - 1) {
+      const mid = (lo + hi) >> 1;
+      if (virt[mid] <= v) lo = mid;
+      else hi = mid;
+    }
+    const span = virt[hi] - virt[lo];
+    if (span <= 0) return lo;
+    return lo + (v - virt[lo]) / span;
   }
 
   setWidth(width: number): void {
@@ -73,12 +259,79 @@ export class TimeScale {
 
   /** Index to center-x pixel position within data area */
   indexToX(index: number): number {
-    return (index - this._startIndex + 0.5) * this._barSpacing;
+    if (this._virt.length === 0) {
+      return (index - this._startIndex + 0.5) * this._barSpacing;
+    }
+    const vi = this.virtAt(index);
+    const vs = this.virtAt(this._startIndex);
+    return (vi - vs + 0.5) * this._barSpacing;
   }
 
   /** X pixel to candle index at that position */
   xToIndex(x: number): number {
-    return Math.floor(x / this._barSpacing + this._startIndex);
+    if (this._virt.length === 0) {
+      return Math.floor(x / this._barSpacing + this._startIndex);
+    }
+    const vs = this.virtAt(this._startIndex);
+    const vTarget = vs + x / this._barSpacing;
+    return Math.floor(this.realAtVirt(vTarget));
+  }
+
+  /**
+   * Convert a wall-clock time (epoch ms) to an x pixel position.
+   * Returns `null` if the time falls inside a compressed session gap
+   * (no bar to position against).
+   * Only usable after {@link setTimeProportional} has been called.
+   */
+  timeToX(time: number): number | null {
+    const times = this._candleTimes;
+    const n = times.length;
+    if (n === 0) return null;
+    if (time <= times[0]) return this.indexToX(0) + (time - times[0]) * this.pxPerMsAt(0);
+    if (time >= times[n - 1])
+      return this.indexToX(n - 1) + (time - times[n - 1]) * this.pxPerMsAt(n - 2);
+
+    // Binary search: largest i with times[i] <= time
+    let lo = 0;
+    let hi = n - 1;
+    while (lo < hi - 1) {
+      const mid = (lo + hi) >> 1;
+      if (times[mid] <= time) lo = mid;
+      else hi = mid;
+    }
+    // Exact bar match — always place at the bar's index position,
+    // even if the following segment is a compressed session gap.
+    if (times[lo] === time) return this.indexToX(lo);
+    if (times[lo + 1] === time) return this.indexToX(lo + 1);
+
+    const dt = times[lo + 1] - times[lo];
+    if (dt <= 0) return this.indexToX(lo);
+    // Detect compressed gap: much larger spacing than virtual spacing suggests.
+    const virtSpan = this._virt[lo + 1] - this._virt[lo];
+    if (virtSpan < dt / this.medianMsHeuristic() / 2) {
+      return null; // inside a compressed session gap
+    }
+    const frac = (time - times[lo]) / dt;
+    const virtI = this._virt[lo] + frac * virtSpan;
+    const vs = this.virtAt(this._startIndex);
+    return (virtI - vs + 0.5) * this._barSpacing;
+  }
+
+  private pxPerMsAt(segmentStart: number): number {
+    const times = this._candleTimes;
+    const virt = this._virt;
+    if (segmentStart < 0 || segmentStart >= times.length - 1) return 0;
+    const dt = times[segmentStart + 1] - times[segmentStart];
+    if (dt <= 0) return 0;
+    const dv = virt[segmentStart + 1] - virt[segmentStart];
+    return (dv / dt) * this._barSpacing;
+  }
+
+  private _cachedMedian = 0;
+  private medianMsHeuristic(): number {
+    if (this._cachedMedian > 0) return this._cachedMedian;
+    this._cachedMedian = TimeScale.computeMedianInterval(this._candleTimes);
+    return this._cachedMedian;
   }
 
   /** Scroll by delta candles (positive = scroll right) */
@@ -95,7 +348,13 @@ export class TimeScale {
 
   /** Scroll to show last candles */
   scrollToEnd(): void {
-    this._startIndex = Math.max(0, this._totalCount - this._visibleCount);
+    if (this._virt.length === 0) {
+      this._startIndex = Math.max(0, this._totalCount - this._visibleCount);
+      return;
+    }
+    const virtEnd = this._virt[this._virt.length - 1] + 1; // last bar + 1 slot for padding
+    const targetVirt = Math.max(0, virtEnd - this._visibleCount);
+    this._startIndex = Math.max(0, this.realAtVirt(targetVirt));
   }
 
   /** Zoom around a pixel position (Google Maps style — anchor stays under cursor) */
@@ -203,9 +462,75 @@ export class TimeScale {
 
   /** Maximum allowed startIndex, or null if all data fits in view */
   private get maxStartIndex(): number | null {
-    if (this._totalCount <= 0 || this._visibleCount >= this._totalCount) return null;
+    if (this._totalCount <= 0) return null;
+    const virtTotal =
+      this._virt.length > 0 ? this._virt[this._virt.length - 1] + 1 : this._totalCount;
+    if (this._visibleCount >= virtTotal) return null;
     const rightPad = Math.ceil(this._visibleCount * 0.2);
-    return Math.max(0, this._totalCount + rightPad - this._visibleCount);
+    const maxStartVirt = Math.max(0, virtTotal + rightPad - this._visibleCount);
+    if (this._virt.length === 0) return maxStartVirt;
+    return this.realAtVirt(maxStartVirt);
+  }
+
+  /**
+   * Get visible time range [t0, t1] if time data is available.
+   */
+  getVisibleTimeRange(): readonly [number, number] | null {
+    if (this._candleTimes.length === 0) return null;
+    const n = this._candleTimes.length;
+    const start = Math.max(0, Math.min(n - 1, this.startIndex));
+    const end = Math.max(0, Math.min(n - 1, this.endIndex - 1));
+    if (end < start) return null;
+    return [this._candleTimes[start], this._candleTimes[end]];
+  }
+
+  /**
+   * Generate time ticks at wall-clock regular intervals. Requires prior
+   * {@link setTimeProportional}. Tick times falling inside compressed session
+   * gaps are skipped. Returns empty array when no time data is available.
+   */
+  getTimeTicks(stepMs: number): Array<{ time: number; x: number }> {
+    if (this._candleTimes.length === 0 || stepMs <= 0) return [];
+    const range = this.getVisibleTimeRange();
+    if (!range) return [];
+    const [t0, t1] = range;
+    const out: Array<{ time: number; x: number }> = [];
+    const first = Math.ceil(t0 / stepMs) * stepMs;
+    for (let t = first; t <= t1; t += stepMs) {
+      const x = this.timeToX(t);
+      if (x !== null && x >= 0 && x <= this._width) {
+        out.push({ time: t, x });
+      }
+    }
+    return out;
+  }
+
+  /**
+   * Generate date ticks at local-TZ calendar-day boundaries within the
+   * visible range. Requires prior {@link setTimeProportional}.
+   */
+  getDateTicks(): Array<{ time: number; x: number }> {
+    if (this._candleTimes.length === 0) return [];
+    const times = this._candleTimes;
+    const start = Math.max(0, this.startIndex);
+    const end = Math.min(times.length - 1, this.endIndex - 1);
+    if (end < start) return [];
+    const out: Array<{ time: number; x: number }> = [];
+    let prevKey = start > 0 ? localDayKey(times[start - 1]) : -1;
+    for (let i = start; i <= end; i++) {
+      const key = localDayKey(times[i]);
+      if (key !== prevKey) {
+        out.push({ time: times[i], x: this.indexToX(i) });
+        prevKey = key;
+      }
+    }
+    return out;
+  }
+
+  /** Median bar interval in ms (0 if time data not available). */
+  get medianBarIntervalMs(): number {
+    if (this._candleTimes.length === 0) return 0;
+    return this.medianMsHeuristic();
   }
 
   private clamp(): void {
@@ -220,6 +545,12 @@ export class TimeScale {
     const maxStart = this.maxStartIndex ?? 0;
     this._startIndex = Math.max(0, Math.min(maxStart, this._startIndex));
   }
+}
+
+/** Local-TZ calendar day key (year*10000 + month*100 + date) */
+function localDayKey(time: number): number {
+  const d = new Date(time);
+  return d.getFullYear() * 10000 + d.getMonth() * 100 + d.getDate();
 }
 
 // ============================================

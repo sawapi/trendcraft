@@ -123,6 +123,47 @@ export type ChartOptions = {
   hotkeys?: Partial<Record<string, HotkeyAction>> | false;
   /** Interaction behavior */
   interaction?: InteractionOptions;
+  /** Time scale behavior (session gaps, etc.) */
+  timeScale?: TimeScaleOptions;
+};
+
+/**
+ * Options for the time scale. Currently controls whether visual gaps are
+ * inserted between trading sessions when the data is intraday.
+ */
+export type TimeScaleOptions = {
+  /**
+   * Insert visual gaps between trading sessions (e.g. overnight breaks in
+   * intraday data) so the x-axis shows empty space rather than compressing
+   * non-trading hours to a zero-width seam.
+   *
+   * - `false` / omitted (default): index-based layout with no gaps (legacy).
+   * - `true`: auto-detect intraday (median bar interval < 6h) and insert a
+   *   gap wherever consecutive bars have a time delta significantly larger
+   *   than the median (e.g. overnight, weekends). TZ-agnostic.
+   * - object form: fine-grained control.
+   */
+  sessionGaps?: boolean | SessionGapsOptions;
+};
+
+export type SessionGapsOptions = {
+  /**
+   * Detection mode:
+   * - `"timeGap"` (default): insert a gap whenever the time delta between
+   *   consecutive bars exceeds `gapThresholdMs` (or 2 × median when unset).
+   *   Works correctly regardless of data timezone.
+   * - `"dayBoundary"`: insert a gap whenever the UTC calendar day changes
+   *   between consecutive bars. Useful for 24×7 data (crypto / FX) where
+   *   time deltas are uniform but you still want a daily divider.
+   * - `"off"`: disabled.
+   */
+  mode?: "timeGap" | "dayBoundary" | "off";
+  /** Gap size in bar-widths (default: 1.0). */
+  sizeBars?: number;
+  /** Only enable if median bar interval ≤ this many ms (default: 6h). */
+  intradayThresholdMs?: number;
+  /** For `"timeGap"` mode: the minimum delta to count as a session gap (default: 2 × median). */
+  gapThresholdMs?: number;
 };
 
 /**
