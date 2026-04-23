@@ -8,17 +8,43 @@
 import type { CandleData, DataPoint } from "./types";
 
 /**
+ * LTTB decimation result. `originalIndices[i]` is the input-array index the
+ * selected point at `points[i]` came from — callers use it to compute screen
+ * x coordinates against the unmodified timeScale so the line aligns with
+ * non-decimated overlays.
+ */
+export type DecimatedPoints<T> = {
+  readonly points: readonly DataPoint<T>[];
+  readonly originalIndices: Int32Array;
+};
+
+/**
+ * Candle bucketing result. `originalIndices[i]` is the center original-array
+ * index that bucket `i` represents. Used for screen-x alignment with
+ * non-decimated indicators.
+ */
+export type DecimatedCandles = {
+  readonly candles: readonly CandleData[];
+  readonly originalIndices: Int32Array;
+};
+
+/**
  * LTTB (Largest Triangle Three Buckets) algorithm.
  * Reduces a series of points to `targetCount` while preserving visual shape.
  *
  * @param data - Input data points (must be sorted by time)
  * @param targetCount - Desired number of output points
- * @returns Decimated data (or original if already small enough)
+ * @param indexOffset - Added to every `originalIndices` entry so callers who
+ *        pass a slice can recover the absolute index in their coordinate
+ *        space. Defaults to 0.
+ * @returns Decimated points and a parallel array of their original indices
+ *        (shifted by `indexOffset`).
  */
 export function lttb(
   data: readonly DataPoint<number | null>[],
   targetCount: number,
-): DataPoint<number | null>[] {
+  indexOffset = 0,
+): DecimatedPoints<number | null> {
   const validPoints: { index: number; value: number }[] = [];
   for (let i = 0; i < data.length; i++) {
     const v = data[i]?.value;
@@ -28,14 +54,19 @@ export function lttb(
   }
 
   if (validPoints.length <= targetCount || targetCount < 3) {
-    return data.slice() as DataPoint<number | null>[];
+    const points = data.slice() as DataPoint<number | null>[];
+    const originalIndices = new Int32Array(points.length);
+    for (let i = 0; i < points.length; i++) originalIndices[i] = i + indexOffset;
+    return { points, originalIndices };
   }
 
   const bucketSize = (validPoints.length - 2) / (targetCount - 2);
-  const result: DataPoint<number | null>[] = [];
+  const points: DataPoint<number | null>[] = [];
+  const selectedIndices: number[] = [];
 
   // Always keep first point
-  result.push(data[validPoints[0].index]);
+  points.push(data[validPoints[0].index]);
+  selectedIndices.push(validPoints[0].index);
 
   let prevSelectedIdx = 0;
 
@@ -77,14 +108,21 @@ export function lttb(
       }
     }
 
-    result.push(data[validPoints[maxIdx].index]);
+    points.push(data[validPoints[maxIdx].index]);
+    selectedIndices.push(validPoints[maxIdx].index);
     prevSelectedIdx = maxIdx;
   }
 
   // Always keep last point
-  result.push(data[validPoints[validPoints.length - 1].index]);
+  const lastIdx = validPoints[validPoints.length - 1].index;
+  points.push(data[lastIdx]);
+  selectedIndices.push(lastIdx);
 
-  return result;
+  const originalIndices = new Int32Array(selectedIndices.length);
+  for (let i = 0; i < selectedIndices.length; i++) {
+    originalIndices[i] = selectedIndices[i] + indexOffset;
+  }
+  return { points, originalIndices };
 }
 
 /**
@@ -102,14 +140,18 @@ export function decimateCandles(
   startIndex: number,
   endIndex: number,
   maxBars: number,
-): CandleData[] {
+): DecimatedCandles {
   const count = endIndex - startIndex;
   if (count <= maxBars || maxBars <= 0) {
-    return candles.slice(startIndex, endIndex) as CandleData[];
+    const result = candles.slice(startIndex, endIndex) as CandleData[];
+    const originalIndices = new Int32Array(result.length);
+    for (let i = 0; i < result.length; i++) originalIndices[i] = startIndex + i;
+    return { candles: result, originalIndices };
   }
 
   const bucketSize = count / maxBars;
   const result: CandleData[] = [];
+  const originalIndices = new Int32Array(maxBars);
 
   for (let b = 0; b < maxBars; b++) {
     const bStart = startIndex + Math.floor(b * bucketSize);
@@ -130,9 +172,12 @@ export function decimateCandles(
     }
 
     result.push({ time, open, high, low, close, volume });
+    // Bucket center — anchors the rendered candle at the visual midpoint of
+    // the bars it summarizes.
+    originalIndices[b] = Math.floor((bStart + bEnd - 1) / 2);
   }
 
-  return result;
+  return { candles: result, originalIndices };
 }
 
 /**

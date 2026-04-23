@@ -29,6 +29,38 @@ describe("renderPriceAxis", () => {
     expect(ctx.textAlign).toBe("right");
     expect(ctx.fillText).toHaveBeenCalled();
   });
+
+  it("honors maxTicks — fewer labels on a short pane", () => {
+    const ctx1 = mockCtx();
+    const ctx2 = mockCtx();
+    const ps1 = makePriceScale(400, 100, 200);
+    const ps2 = makePriceScale(400, 100, 200);
+    renderPriceAxis(ctx1, ps1, 740, 0, 60, 400, theme, 11, undefined, {
+      maxTicks: 6,
+    });
+    renderPriceAxis(ctx2, ps2, 740, 0, 60, 400, theme, 11, undefined, {
+      maxTicks: 2,
+    });
+    const calls6 = (ctx1.fillText as unknown as { mock: { calls: unknown[] } }).mock.calls.length;
+    const calls2 = (ctx2.fillText as unknown as { mock: { calls: unknown[] } }).mock.calls.length;
+    expect(calls2).toBeLessThanOrEqual(calls6);
+  });
+
+  it("skips tick labels inside excludeY ± excludeHalfHeight (current-price badge)", () => {
+    const ctx = mockCtx();
+    const ps = makePriceScale(400, 100, 200);
+    // Current price 150 maps to y = 200 on a 400px scale with range 100..200.
+    const excludeY = ps.priceToY(150);
+    renderPriceAxis(ctx, ps, 740, 0, 60, 400, theme, 11, undefined, {
+      maxTicks: 6,
+      excludeY,
+      excludeHalfHeight: 8,
+    });
+    const calls = (ctx.fillText as unknown as { mock: { calls: unknown[][] } }).mock.calls;
+    for (const [, , yArg] of calls) {
+      expect(Math.abs((yArg as number) - excludeY)).toBeGreaterThanOrEqual(10);
+    }
+  });
 });
 
 describe("renderTimeAxis", () => {

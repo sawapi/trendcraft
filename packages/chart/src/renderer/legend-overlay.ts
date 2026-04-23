@@ -27,10 +27,10 @@ export class LegendOverlay {
     // Inject responsive styles once
     this._styleEl = document.createElement("style");
     this._styleEl.textContent = `
-      .tc-legend { position:absolute; top:4px; right:68px; z-index:10; display:flex; gap:8px; flex-wrap:wrap; font-size:11px; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
-      .tc-legend-btn { cursor:pointer; white-space:nowrap; background:none; border:none; padding:2px 4px; font:inherit; line-height:inherit; min-height:24px; }
+      .tc-legend { position:absolute; top:22px; right:68px; left:4px; z-index:10; display:flex; justify-content:flex-end; gap:8px; flex-wrap:wrap; font-size:11px; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; pointer-events:none; }
+      .tc-legend-btn { cursor:pointer; white-space:nowrap; background:none; border:none; padding:2px 4px; font:inherit; line-height:inherit; min-height:24px; pointer-events:auto; }
       @media (pointer:coarse) { .tc-legend-btn { min-height:36px; padding:6px 10px; font-size:13px; } }
-      @media (max-width:480px) { .tc-legend { right:4px; top:2px; gap:4px; font-size:10px; } }
+      @media (max-width:480px) { .tc-legend { right:4px; top:auto; bottom:4px; gap:4px; font-size:10px; justify-content:flex-start; } }
     `;
     container.appendChild(this._styleEl);
 

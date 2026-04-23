@@ -6,6 +6,7 @@
 import type { DataLayer, InternalSeries } from "../core/data-layer";
 import { decimateCandles, getDecimationTarget } from "../core/decimation";
 import { DrawHelper, withPaneClip } from "../core/draw-helper";
+import { formatVolume } from "../core/format";
 import type { LayoutEngine } from "../core/layout";
 import type { RendererRegistry } from "../core/renderer-registry";
 import { PriceScale, type TimeScale } from "../core/scale";
@@ -52,7 +53,8 @@ let _decimCache: {
   end: number;
   target: number;
   dataVersion: number;
-  result: readonly CandleData[];
+  candles: readonly CandleData[];
+  originalIndices: Int32Array;
 } | null = null;
 
 /** Everything the render pipeline needs from CanvasChart */
@@ -209,14 +211,41 @@ export function renderFrame(rc: RenderContext): RenderResult {
   for (const [id, dual] of rc.priceScales) _rightScaleMap.set(id, dual.right);
   _seriesByPane.clear();
 
+  // Current-price label Y (main pane) — tick labels that would overlap it
+  // are suppressed by the main-pane axis renderer below.
+  let mainPriceExcludeY: number | undefined;
+  let mainPriceExcludeHalf: number | undefined;
+  if (candles.length > 0) {
+    const mainPane = paneRects.find((p) => p.id === "main");
+    const mainScales = mainPane ? rc.priceScales.get("main") : undefined;
+    if (mainPane && mainScales) {
+      mainPriceExcludeY = mainScales.right.priceToY(candles[candles.length - 1].close) + mainPane.y;
+      mainPriceExcludeHalf = rc.fontSize / 2 + 3; // fontSize + padY(3) — matches overlay-renderer
+    }
+  }
+
   for (const pane of paneRects) {
     const scales = rc.priceScales.get(pane.id);
     if (!scales) continue;
     const ps = scales.right; // Primary scale for most rendering
 
+    // Density-aware tick count — short sub-panes would otherwise crowd labels.
+    const paneMaxTicks = Math.max(2, Math.floor(pane.height / 32));
+
     withPaneClip(ctx, pane, () => {
       // Grid
-      renderGrid(ctx, ps, pane.x, pane.y, pane.width, pane.height, theme, timeScale, candles);
+      renderGrid(
+        ctx,
+        ps,
+        pane.x,
+        pane.y,
+        pane.width,
+        pane.height,
+        theme,
+        timeScale,
+        candles,
+        paneMaxTicks,
+      );
 
       // Reference lines
       if (pane.config.referenceLines?.length) {
@@ -256,9 +285,7 @@ export function renderFrame(rc: RenderContext): RenderResult {
           timeScale.width,
         );
         let visibleCandles: readonly CandleData[];
-        // When decimated, remap barSpacing so candles fill the full canvas width
-        const savedStart = timeScale.startIndex;
-        const savedSpacing = timeScale.barSpacing;
+        let origIndices: Int32Array | undefined;
         if (decimTarget > 0) {
           // Use cached decimation result when viewport hasn't changed
           const dataVer = data.version;
@@ -269,43 +296,42 @@ export function renderFrame(rc: RenderContext): RenderResult {
             _decimCache.target === decimTarget &&
             _decimCache.dataVersion === dataVer
           ) {
-            visibleCandles = _decimCache.result;
+            visibleCandles = _decimCache.candles;
+            origIndices = _decimCache.originalIndices;
           } else {
-            visibleCandles = decimateCandles(
+            const decimated = decimateCandles(
               candles,
               timeScale.startIndex,
               timeScale.endIndex,
               decimTarget,
             );
+            visibleCandles = decimated.candles;
+            origIndices = decimated.originalIndices;
             _decimCache = {
               start: timeScale.startIndex,
               end: timeScale.endIndex,
               target: decimTarget,
               dataVersion: dataVer,
-              result: visibleCandles,
+              candles: visibleCandles,
+              originalIndices: origIndices,
             };
           }
-          timeScale.setImmediate(0, timeScale.width / visibleCandles.length);
         } else {
           visibleCandles = candles;
         }
         switch (rc.chartType) {
           case "line":
-            renderPriceLineChart(ctx, visibleCandles, timeScale, ps, theme);
+            renderPriceLineChart(ctx, visibleCandles, timeScale, ps, theme, origIndices);
             break;
           case "mountain":
-            renderMountainChart(ctx, visibleCandles, timeScale, ps, theme);
+            renderMountainChart(ctx, visibleCandles, timeScale, ps, theme, origIndices);
             break;
           case "ohlc":
-            renderOhlcBars(ctx, visibleCandles, timeScale, ps, theme);
+            renderOhlcBars(ctx, visibleCandles, timeScale, ps, theme, origIndices);
             break;
           default:
-            renderCandlesticks(ctx, visibleCandles, timeScale, ps, theme);
+            renderCandlesticks(ctx, visibleCandles, timeScale, ps, theme, origIndices);
             break;
-        }
-        // Restore timeScale after decimated rendering
-        if (decimTarget > 0) {
-          timeScale.setImmediate(savedStart, savedSpacing);
         }
       }
 
@@ -382,6 +408,10 @@ export function renderFrame(rc: RenderContext): RenderResult {
       }
     });
 
+    // Volume axis uses compact K/M/B notation; other panes use the user-
+    // supplied price formatter.
+    const axisFormatter = pane.id === "volume" ? formatVolume : rc.priceFormatter;
+
     // Right price axis
     renderPriceAxis(
       ctx,
@@ -392,7 +422,13 @@ export function renderFrame(rc: RenderContext): RenderResult {
       pane.height,
       theme,
       rc.fontSize,
-      rc.priceFormatter,
+      axisFormatter,
+      {
+        position: "right",
+        maxTicks: paneMaxTicks,
+        excludeY: pane.id === "main" ? mainPriceExcludeY : undefined,
+        excludeHalfHeight: pane.id === "main" ? mainPriceExcludeHalf : undefined,
+      },
     );
 
     // Left price axis (if pane has left-scale series)
@@ -406,7 +442,8 @@ export function renderFrame(rc: RenderContext): RenderResult {
         pane.height,
         theme,
         rc.fontSize,
-        rc.priceFormatter,
+        axisFormatter,
+        { position: "left", maxTicks: paneMaxTicks },
       );
     }
   }

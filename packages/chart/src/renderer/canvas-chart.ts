@@ -499,20 +499,29 @@ export class CanvasChart implements ChartInstance {
     // Introspect the series
     const result = introspect(series, config);
 
-    // Auto-assign color if not explicitly set (cycle through palette).
-    // Preset palettes are rotated per-palette (so multiple SMAs using the
-    // "number" palette pick blue/orange/teal/... in order); indicators with
-    // no preset palette fall back to the default palette with its own
-    // shared counter.
+    // Auto-assign color if not explicitly set. Prefer the first palette entry
+    // not already in use by another live series — this keeps the
+    // remove→re-add (e.g. param-change) cycle stable so the same indicator
+    // usually comes back with the same color. Fall back to the per-palette
+    // counter when every palette entry is taken.
     if (!result.config.color && !result.config.channelColors) {
       const presetPalette = result.config.colorPalette;
-      if (presetPalette && presetPalette.length > 0) {
+      const palette =
+        presetPalette && presetPalette.length > 0 ? presetPalette : CanvasChart._COLOR_PALETTE;
+      const usedColors = new Set<string>();
+      for (const s of this._data.getAllSeries()) {
+        if (s.config.color) usedColors.add(s.config.color);
+      }
+      const freeColor = palette.find((c) => !usedColors.has(c));
+      if (freeColor) {
+        result.config.color = freeColor;
+      } else if (presetPalette && presetPalette.length > 0) {
         const idx = this._paletteIndices.get(presetPalette) ?? 0;
         result.config.color = presetPalette[idx % presetPalette.length];
         this._paletteIndices.set(presetPalette, idx + 1);
       } else {
-        const palette = CanvasChart._COLOR_PALETTE;
-        result.config.color = palette[this._colorIndex % palette.length];
+        result.config.color =
+          CanvasChart._COLOR_PALETTE[this._colorIndex % CanvasChart._COLOR_PALETTE.length];
         this._colorIndex++;
       }
     }

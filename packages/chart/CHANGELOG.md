@@ -24,6 +24,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`chart.setCrosshair(time)`** — programmatic crosshair control for external consumers that want to drive the crosshair without a DOM pointer event.
 - **`visibleRangeChange` event** is now actually emitted (was declared but unused). Fires when the visible range changes.
 
+### Fixed
+
+- **Decimation alignment** — at low zoom (`barSpacing < 1 px`, e.g. Fit-content on a large dataset) candles and number-series indicators used three different decimation paths that disagreed on x-coordinates, so overlays (SMA / RSI / EMA / …) drifted left of the bars they were supposed to annotate. All three paths now share the original `timeScale` coordinate space via bucket-origin indices carried through the render pipeline.
+- **Right price-axis label overlap** — with many stacked panes the right-side tick labels crowded together and the current-price badge could overlap neighboring ticks. The axis now picks a tick density from pane height, suppresses labels within a half-label of pane edges, and skips ticks that would collide with the current-price badge Y on the main pane.
+- **Info + legend overlap** — when many indicators were active the top-left OHLC/indicator readout grew past the top-right legend button row. The legend is now placed on its own second row, and the info strip gets a max-width + ellipsis safety net.
+- **Indicator color cycling on re-add** — removing and re-adding an indicator (for example when a showcase / alpaca-demo panel applies a parameter change) would assign the next palette slot instead of the one just vacated, so colors appeared to "change on events". Auto-assigned colors now prefer the first palette entry not currently in use.
+- **Scrollbar thumb jumps to cursor on grab** — pressing anywhere on the thumb recentered the visible range on the pointer; now press-on-thumb records the grab offset so the thumb stays pinned where grabbed, while press-on-track still page-jumps.
+
+### Breaking
+
+- `decimateCandles(candles, start, end, maxBars)` now returns `{ candles, originalIndices: Int32Array }` instead of `CandleData[]`. Exposed via `@trendcraft/chart/headless`.
+- `lttb(data, targetCount)` now returns `{ points, originalIndices: Int32Array }` instead of `DataPoint[]`, and accepts an optional 3rd `indexOffset` argument to shift `originalIndices` into the caller's coordinate space. Exposed via `@trendcraft/chart/headless`.
+
 ### Changed
 
 - Bundle size budget for the main entry raised from 31 kB → 32 kB (brotli). The raise reflects the intentional UX additions above and is expected to hold through the 0.2.x line — future feature work either lives on a sub-path or compensates with equivalent reductions elsewhere.

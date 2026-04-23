@@ -26,6 +26,13 @@ export function renderLine(
   priceScale: PriceScale,
   startIndex: number,
   options: LineRenderOptions,
+  /**
+   * When provided, iterates `0..data.length` and uses
+   * `indexToX(originalIndices[i])` for screen x — letting LTTB-decimated
+   * arrays share the timeScale coordinate space with non-decimated series.
+   * `startIndex` is ignored in this mode.
+   */
+  originalIndices?: readonly number[] | Int32Array,
 ): void {
   ctx.strokeStyle = options.color;
   ctx.lineWidth = options.lineWidth;
@@ -34,18 +41,21 @@ export function renderLine(
   if (options.dash) ctx.setLineDash(options.dash);
   else ctx.setLineDash([]);
 
-  const end = timeScale.endIndex;
   let drawing = false;
-
   ctx.beginPath();
-  for (let i = timeScale.startIndex; i < end && i < data.length; i++) {
+
+  const bucketed = !!originalIndices;
+  const iStart = bucketed ? 0 : startIndex;
+  const iEnd = bucketed ? data.length : Math.min(timeScale.endIndex, data.length);
+
+  for (let i = iStart; i < iEnd; i++) {
     const point = data[i];
     if (!point || point.value === null || point.value === undefined) {
       drawing = false;
       continue;
     }
 
-    const x = timeScale.indexToX(i);
+    const x = timeScale.indexToX(bucketed ? originalIndices[i] : i);
     const y = priceScale.priceToY(point.value);
 
     if (!drawing) {

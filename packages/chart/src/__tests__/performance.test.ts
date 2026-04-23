@@ -97,7 +97,7 @@ describe("Performance", () => {
       result = lttb(data, 800);
     });
 
-    expect(result.length).toBe(800);
+    expect(result.points.length).toBe(800);
     expect(median).toBeLessThan(16);
   });
 
@@ -109,7 +109,7 @@ describe("Performance", () => {
       result = decimateCandles(candles, 0, SIZE, 1000);
     });
 
-    expect(result.length).toBe(1000);
+    expect(result.candles.length).toBe(1000);
     expect(median).toBeLessThan(16);
   });
 
@@ -149,7 +149,7 @@ describe("Performance", () => {
       result = lttb(data, 1000);
     }, 3);
 
-    expect(result.length).toBe(1000);
+    expect(result.points.length).toBe(1000);
     expect(median).toBeLessThan(50);
   });
 
@@ -161,7 +161,7 @@ describe("Performance", () => {
       result = decimateCandles(candles, 0, LARGE, 1000);
     }, 3);
 
-    expect(result.length).toBe(1000);
+    expect(result.candles.length).toBe(1000);
     expect(median).toBeLessThan(50);
   });
 
@@ -215,7 +215,7 @@ describe("Performance", () => {
       result = lttb(data, 2000);
     }, 3);
 
-    expect(result.length).toBe(2000);
+    expect(result.points.length).toBe(2000);
     expect(median).toBeLessThan(200);
   });
 

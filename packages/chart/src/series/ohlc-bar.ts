@@ -11,16 +11,17 @@ export function renderOhlcBars(
   timeScale: TimeScale,
   priceScale: PriceScale,
   theme: ThemeColors,
+  originalIndices?: readonly number[] | Int32Array,
 ): void {
-  const start = timeScale.startIndex;
-  const end = timeScale.endIndex;
+  const start = originalIndices ? 0 : timeScale.startIndex;
+  const end = originalIndices ? candles.length : timeScale.endIndex;
   const tickWidth = Math.max(2, timeScale.candleWidth * 0.4);
 
   for (let i = start; i < end && i < candles.length; i++) {
     const candle = candles[i];
     if (!candle) continue;
 
-    const x = timeScale.indexToX(i);
+    const x = timeScale.indexToX(originalIndices ? originalIndices[i] : i);
     const sx = Math.round(x) + 0.5; // snap to pixel grid
     const isUp = candle.close >= candle.open;
     const color = isUp ? theme.upColor : theme.downColor;

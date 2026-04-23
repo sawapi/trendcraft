@@ -41,8 +41,8 @@ export class InfoOverlay {
     // Inject responsive styles once
     this._styleEl = document.createElement("style");
     this._styleEl.textContent = `
-      .tc-info { position:absolute; z-index:10; pointer-events:none; font-size:11px; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; line-height:1.4; white-space:nowrap; }
-      @media (max-width:480px) { .tc-info { white-space:normal; font-size:10px; max-width:90vw; } }
+      .tc-info { position:absolute; z-index:10; pointer-events:none; font-size:11px; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; line-height:1.4; white-space:nowrap; max-width:calc(100% - 8px); overflow:hidden; text-overflow:ellipsis; }
+      @media (max-width:480px) { .tc-info { white-space:normal; font-size:10px; max-width:90vw; overflow:visible; text-overflow:clip; } }
     `;
     container.appendChild(this._styleEl);
 

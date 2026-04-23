@@ -12,6 +12,24 @@ import {
 import type { PriceScale, TimeScale } from "../core/scale";
 import type { CandleData, ThemeColors } from "../core/types";
 
+/** Options for {@link renderPriceAxis}. All fields are optional. */
+export type PriceAxisOptions = {
+  position?: "left" | "right";
+  /**
+   * Max number of tick labels. Defaults to 6 for back-compat, but callers
+   * should pass a value computed from pane height (≈ `height / 32`) to avoid
+   * label crowding on short sub-panes.
+   */
+  maxTicks?: number;
+  /**
+   * Vertical center (canvas coords) of a foreground label that tick labels
+   * should avoid (e.g. the current-price badge on the main pane). Ticks whose
+   * Y falls within `excludeY ± excludeHalfHeight` are skipped.
+   */
+  excludeY?: number;
+  excludeHalfHeight?: number;
+};
+
 /**
  * Render the price axis for a pane.
  * Supports both left and right positioning for dual-scale panes.
@@ -26,9 +44,19 @@ export function renderPriceAxis(
   theme: ThemeColors,
   fontSize: number,
   priceFormatter: (price: number) => string = autoFormatPrice,
-  position: "left" | "right" = "right",
+  options: PriceAxisOptions | "left" | "right" = {},
 ): void {
-  const ticks = priceScale.getTicks();
+  // Back-compat: position can be passed as a bare string.
+  const opts: PriceAxisOptions = typeof options === "string" ? { position: options } : options;
+  const position = opts.position ?? "right";
+  const maxTicks = Math.max(2, opts.maxTicks ?? 6);
+  const ticks = priceScale.getTicks(maxTicks);
+
+  // Suppress labels too close to pane edges (avoids visual collision with the
+  // adjacent pane's edge label) or overlapping the current-price badge.
+  const EDGE_PAD = Math.min(8, fontSize); // ~one label half-height
+  const excludeY = opts.excludeY;
+  const excludeHalf = opts.excludeHalfHeight ?? 0;
 
   ctx.fillStyle = theme.background;
   if (position === "left") {
@@ -50,25 +78,32 @@ export function renderPriceAxis(
   }
   ctx.stroke();
 
-  // Tick labels
+  // Tick labels. Near pane edges, flip the baseline to "top" / "bottom" so
+  // the label nudges inward instead of being clipped or hidden — important
+  // for short panes (e.g. a volume pane where the nice-step tick generator
+  // lands ticks at exactly the min/max of the range).
   ctx.fillStyle = theme.textSecondary;
   ctx.font = `${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+  ctx.textAlign = position === "left" ? "right" : "left";
+  const labelX = position === "left" ? x - 6 : x + 6;
 
-  if (position === "left") {
-    ctx.textAlign = "right";
-    ctx.textBaseline = "middle";
-    for (const tick of ticks) {
-      const tickY = priceScale.priceToY(tick) + y;
-      if (tickY < y || tickY > y + height) continue;
-      ctx.fillText(priceFormatter(tick), x - 6, tickY);
+  for (const tick of ticks) {
+    const tickY = priceScale.priceToY(tick) + y;
+    if (tickY < y || tickY > y + height) continue;
+    if (excludeY !== undefined && Math.abs(tickY - excludeY) < excludeHalf + 2) {
+      continue;
     }
-  } else {
-    ctx.textAlign = "left";
-    ctx.textBaseline = "middle";
-    for (const tick of ticks) {
-      const tickY = priceScale.priceToY(tick) + y;
-      if (tickY < y || tickY > y + height) continue;
-      ctx.fillText(priceFormatter(tick), x + 6, tickY);
+
+    // Flip baseline near edges so labels stay within the pane.
+    if (tickY < y + EDGE_PAD) {
+      ctx.textBaseline = "top";
+      ctx.fillText(priceFormatter(tick), labelX, y + 1);
+    } else if (tickY > y + height - EDGE_PAD) {
+      ctx.textBaseline = "bottom";
+      ctx.fillText(priceFormatter(tick), labelX, y + height - 1);
+    } else {
+      ctx.textBaseline = "middle";
+      ctx.fillText(priceFormatter(tick), labelX, tickY);
     }
   }
 }
@@ -195,8 +230,9 @@ export function renderGrid(
   theme: ThemeColors,
   timeScale?: TimeScale,
   candles?: readonly CandleData[],
+  maxTicks?: number,
 ): void {
-  const ticks = priceScale.getTicks();
+  const ticks = priceScale.getTicks(Math.max(2, maxTicks ?? 6));
 
   ctx.strokeStyle = theme.grid;
   ctx.lineWidth = 1;
