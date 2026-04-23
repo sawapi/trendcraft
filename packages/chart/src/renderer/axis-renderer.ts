@@ -78,20 +78,33 @@ export function renderPriceAxis(
   }
   ctx.stroke();
 
-  // Tick labels
+  // Tick labels. Near pane edges, flip the baseline to "top" / "bottom" so
+  // the label nudges inward instead of being clipped or hidden — important
+  // for short panes (e.g. a volume pane where the nice-step tick generator
+  // lands ticks at exactly the min/max of the range).
   ctx.fillStyle = theme.textSecondary;
   ctx.font = `${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
   ctx.textAlign = position === "left" ? "right" : "left";
-  ctx.textBaseline = "middle";
   const labelX = position === "left" ? x - 6 : x + 6;
 
   for (const tick of ticks) {
     const tickY = priceScale.priceToY(tick) + y;
-    if (tickY < y + EDGE_PAD || tickY > y + height - EDGE_PAD) continue;
+    if (tickY < y || tickY > y + height) continue;
     if (excludeY !== undefined && Math.abs(tickY - excludeY) < excludeHalf + 2) {
       continue;
     }
-    ctx.fillText(priceFormatter(tick), labelX, tickY);
+
+    // Flip baseline near edges so labels stay within the pane.
+    if (tickY < y + EDGE_PAD) {
+      ctx.textBaseline = "top";
+      ctx.fillText(priceFormatter(tick), labelX, y + 1);
+    } else if (tickY > y + height - EDGE_PAD) {
+      ctx.textBaseline = "bottom";
+      ctx.fillText(priceFormatter(tick), labelX, y + height - 1);
+    } else {
+      ctx.textBaseline = "middle";
+      ctx.fillText(priceFormatter(tick), labelX, tickY);
+    }
   }
 }
 
