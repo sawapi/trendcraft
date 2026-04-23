@@ -59,6 +59,14 @@ export class Viewport {
   private _dragStartX = 0;
   private _dragStartIndex = 0;
   private _scrollbarDragging = false;
+  /**
+   * When grabbing the scrollbar thumb, this holds the fraction (of scrollbar
+   * width) between the pointer and the thumb's left edge at press-time — so
+   * subsequent drag positions preserve that offset instead of centering the
+   * visible range on the pointer. `null` when the press was on the track
+   * (outside the thumb); in that case we page-jump to center on the cursor.
+   */
+  private _scrollbarGrabOffsetFrac: number | null = null;
   private _onUpdate: (() => void) | null = null;
 
   get state(): Readonly<ViewportState> {
@@ -67,6 +75,56 @@ export class Viewport {
 
   setOnUpdate(cb: () => void): void {
     this._onUpdate = cb;
+  }
+
+  /**
+   * Update the visible range from a scrollbar pointer position, honoring the
+   * stored grab offset so the thumb stays pinned under the pointer where it
+   * was first grabbed. Pass `null` grab offset for a center-on-cursor jump.
+   */
+  private _applyScrollbarDrag(mouseX: number, sb: ScrollbarRect, timeScale: TimeScale): void {
+    if (sb.width <= 0) return;
+    const total = timeScale.totalCount;
+    if (total <= 0) return;
+    const visible = timeScale.visibleCount;
+    const maxStart = Math.max(0, total - visible);
+    const pointerFrac = (mouseX - sb.x) / sb.width;
+
+    let newStart: number;
+    if (this._scrollbarGrabOffsetFrac !== null) {
+      const startFrac = pointerFrac - this._scrollbarGrabOffsetFrac;
+      newStart = Math.round(startFrac * total);
+    } else {
+      const targetCenter = Math.round(pointerFrac * total);
+      newStart = targetCenter - Math.floor(visible / 2);
+    }
+    newStart = Math.max(0, Math.min(maxStart, newStart));
+    timeScale.setVisibleRange(newStart, newStart + visible);
+  }
+
+  /**
+   * On scrollbar press, determine whether the pointer landed on the thumb.
+   * If yes, remember the grab offset so subsequent moves preserve it.
+   * If no (track click), clear the offset so the drag behaves as
+   * page-to-cursor (the legacy behavior).
+   */
+  private _beginScrollbarDrag(mouseX: number, sb: ScrollbarRect, timeScale: TimeScale): void {
+    this._scrollbarDragging = true;
+    const total = timeScale.totalCount;
+    if (sb.width <= 0 || total <= 0) {
+      this._scrollbarGrabOffsetFrac = null;
+      return;
+    }
+    const startFrac = Math.max(0, timeScale.startIndex / total);
+    const endFrac = Math.min(1, timeScale.endIndex / total);
+    const thumbX = sb.x + startFrac * sb.width;
+    const thumbW = Math.max(8, (endFrac - startFrac) * sb.width);
+    if (mouseX >= thumbX && mouseX <= thumbX + thumbW) {
+      this._scrollbarGrabOffsetFrac = (mouseX - sb.x) / sb.width - startFrac;
+    } else {
+      this._scrollbarGrabOffsetFrac = null;
+      this._applyScrollbarDrag(mouseX, sb, timeScale);
+    }
   }
 
   /**
@@ -130,11 +188,7 @@ export class Viewport {
       // Check scrollbar hit
       const sb = scrollbar();
       if (sb && my >= sb.y && my <= sb.y + sb.height) {
-        this._scrollbarDragging = true;
-        const frac = (mx - sb.x) / sb.width;
-        const targetCenter = Math.round(frac * timeScale.totalCount);
-        const newStart = Math.max(0, targetCenter - Math.floor(timeScale.visibleCount / 2));
-        timeScale.setVisibleRange(newStart, newStart + timeScale.visibleCount);
+        this._beginScrollbarDrag(mx, sb, timeScale);
         this._onUpdate?.();
         return;
       }
@@ -167,12 +221,7 @@ export class Viewport {
       // Scrollbar drag
       if (this._scrollbarDragging) {
         const sb = scrollbar();
-        if (sb && sb.width > 0) {
-          const frac = (this._state.mouseX - sb.x) / sb.width;
-          const targetCenter = Math.round(frac * timeScale.totalCount);
-          const newStart = Math.max(0, targetCenter - Math.floor(timeScale.visibleCount / 2));
-          timeScale.setVisibleRange(newStart, newStart + timeScale.visibleCount);
-        }
+        if (sb) this._applyScrollbarDrag(this._state.mouseX, sb, timeScale);
         this._onUpdate?.();
         return;
       }
@@ -210,12 +259,14 @@ export class Viewport {
       }
       this._state.isDragging = false;
       this._scrollbarDragging = false;
+      this._scrollbarGrabOffsetFrac = null;
       paneResizeGap = null;
     };
 
     const onMouseLeave = () => {
       this._state.isDragging = false;
       this._scrollbarDragging = false;
+      this._scrollbarGrabOffsetFrac = null;
       this._state.crosshairIndex = null;
       this._state.activePaneId = null;
       this._onUpdate?.();
@@ -368,6 +419,7 @@ export class Viewport {
         // (delegated to the host via `dispatch`).
         this._state.isDragging = false;
         this._scrollbarDragging = false;
+        this._scrollbarGrabOffsetFrac = null;
         stopInertia();
         stopZoomInertia();
         touchVelocity = 0;
@@ -485,11 +537,7 @@ export class Viewport {
         const touchLocalY = touch.clientY - rect.top;
         const sb = scrollbar();
         if (sb && touchLocalY >= sb.y && touchLocalY <= sb.y + sb.height) {
-          this._scrollbarDragging = true;
-          const frac = (touchLocalX - sb.x) / sb.width;
-          const targetCenter = Math.round(frac * timeScale.totalCount);
-          const newStart = Math.max(0, targetCenter - Math.floor(timeScale.visibleCount / 2));
-          timeScale.setVisibleRange(newStart, newStart + timeScale.visibleCount);
+          this._beginScrollbarDrag(touchLocalX, sb, timeScale);
           this._onUpdate?.();
           return;
         }
@@ -543,12 +591,7 @@ export class Viewport {
         const rect = el.getBoundingClientRect();
         const localX = sbTouch.clientX - rect.left;
         const sb = scrollbar();
-        if (sb && sb.width > 0) {
-          const frac = (localX - sb.x) / sb.width;
-          const targetCenter = Math.round(frac * timeScale.totalCount);
-          const newStart = Math.max(0, targetCenter - Math.floor(timeScale.visibleCount / 2));
-          timeScale.setVisibleRange(newStart, newStart + timeScale.visibleCount);
-        }
+        if (sb) this._applyScrollbarDrag(localX, sb, timeScale);
         this._onUpdate?.();
         return;
       }
