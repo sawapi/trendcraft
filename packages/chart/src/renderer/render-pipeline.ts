@@ -26,6 +26,9 @@ import {
 import { renderCrosshair } from "./crosshair-renderer";
 import { renderDrawings } from "./drawing-renderer";
 import {
+  type ComputedBadge,
+  computeSeriesBadges,
+  drawSeriesBadges,
   renderPriceLine,
   renderSignals,
   renderTimeframeOverlays,
@@ -67,6 +70,10 @@ export type RenderContext = {
   fontSize: number;
   chartType: ChartType;
   watermark: string | undefined;
+  /** When true, draw last-value pills on each pane's right axis */
+  showSeriesBadges?: boolean;
+  /** Which value to show in series badges: "absolute" (default) or "visible". */
+  seriesBadgeMode?: "absolute" | "visible";
   priceFormatter: (price: number) => string;
   timeFormatter: ((time: number) => string) | undefined;
   data: DataLayer;
@@ -223,6 +230,10 @@ export function renderFrame(rc: RenderContext): RenderResult {
       mainPriceExcludeHalf = rc.fontSize / 2 + 3; // fontSize + padY(3) — matches overlay-renderer
     }
   }
+
+  // Last-value badges per pane, collected during the pane loop and drawn
+  // after renderPriceLine so they layer above the axis but below crosshair.
+  const pendingBadges: { badges: ComputedBadge[] }[] = [];
 
   for (const pane of paneRects) {
     const scales = rc.priceScales.get(pane.id);
@@ -412,6 +423,52 @@ export function renderFrame(rc: RenderContext): RenderResult {
     // supplied price formatter.
     const axisFormatter = pane.id === "volume" ? formatVolume : rc.priceFormatter;
 
+    // Compute last-value badges (if enabled) before the axis so we can tell
+    // the axis which Y ranges are occupied. The candle current-price badge
+    // is seeded as a preoccupied slot so series badges shift around it.
+    const excludeYRanges: { y: number; half: number }[] = [];
+    if (pane.id === "main" && mainPriceExcludeY !== undefined) {
+      excludeYRanges.push({ y: mainPriceExcludeY, half: mainPriceExcludeHalf ?? 0 });
+    }
+    let computedBadges: ComputedBadge[] = [];
+    if (rc.showSeriesBadges) {
+      const seriesOnPane = data.getSeriesForScale(pane.id, "right");
+      // Visible-range mode: search up to the last visible candle index.
+      const searchUpTo =
+        rc.seriesBadgeMode === "visible"
+          ? Math.max(0, Math.min(candles.length, timeScale.endIndex) - 1)
+          : undefined;
+      // Volume pane: the "volume" value isn't stored as a series — synthesize
+      // a badge from the candle array so it lives next to indicator pills.
+      const extras: { value: number; color: string }[] = [];
+      if (pane.id === "volume") {
+        const idx = searchUpTo ?? candles.length - 1;
+        const c = candles[idx];
+        if (c && Number.isFinite(c.volume)) {
+          const isUp = c.close >= c.open;
+          // Use solid up/down color (not translucent volumeUp/Down) so the
+          // white pill text stays readable.
+          extras.push({ value: c.volume, color: isUp ? theme.upColor : theme.downColor });
+        }
+      }
+      if (seriesOnPane.length > 0 || extras.length > 0) {
+        computedBadges = computeSeriesBadges(
+          ctx,
+          pane,
+          ps,
+          seriesOnPane,
+          theme,
+          rc.fontSize,
+          axisFormatter,
+          excludeYRanges,
+          searchUpTo,
+          extras,
+        );
+        for (const b of computedBadges) excludeYRanges.push({ y: b.y, half: b.half });
+        if (computedBadges.length > 0) pendingBadges.push({ badges: computedBadges });
+      }
+    }
+
     // Right price axis
     renderPriceAxis(
       ctx,
@@ -426,8 +483,7 @@ export function renderFrame(rc: RenderContext): RenderResult {
       {
         position: "right",
         maxTicks: paneMaxTicks,
-        excludeY: pane.id === "main" ? mainPriceExcludeY : undefined,
-        excludeHalfHeight: pane.id === "main" ? mainPriceExcludeHalf : undefined,
+        excludeYRanges: excludeYRanges.length > 0 ? excludeYRanges : undefined,
       },
     );
 
@@ -521,6 +577,12 @@ export function renderFrame(rc: RenderContext): RenderResult {
 
   // Overlays
   renderPriceLine(ctx, candles, paneRects, _rightScaleMap, theme, rc.fontSize);
+  // Last-value series badges (opt-in). Drawn after renderPriceLine so the
+  // candle current-price badge stays on top visually, and above the axis so
+  // pills aren't obscured by tick labels.
+  for (const { badges } of pendingBadges) {
+    drawSeriesBadges(ctx, badges, rc.fontSize);
+  }
   renderSignals(ctx, data.signals, candles, data, paneRects, _rightScaleMap, timeScale);
   renderTrades(ctx, data.trades, data, paneRects, _rightScaleMap, timeScale);
 

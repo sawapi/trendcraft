@@ -12,6 +12,9 @@ import {
 import type { PriceScale, TimeScale } from "../core/scale";
 import type { CandleData, ThemeColors } from "../core/types";
 
+/** A Y range (canvas coordinates) that tick labels must not overlap. */
+export type AxisExcludeRange = { y: number; half: number };
+
 /** Options for {@link renderPriceAxis}. All fields are optional. */
 export type PriceAxisOptions = {
   position?: "left" | "right";
@@ -22,12 +25,18 @@ export type PriceAxisOptions = {
    */
   maxTicks?: number;
   /**
-   * Vertical center (canvas coords) of a foreground label that tick labels
-   * should avoid (e.g. the current-price badge on the main pane). Ticks whose
-   * Y falls within `excludeY ± excludeHalfHeight` are skipped.
+   * @deprecated Use {@link excludeYRanges}. Kept for back-compat with the
+   * single current-price-badge exclusion the main pane originally needed.
    */
   excludeY?: number;
+  /** @deprecated Use {@link excludeYRanges}. */
   excludeHalfHeight?: number;
+  /**
+   * Y ranges tick labels must avoid (e.g. current-price badge + every
+   * series last-value badge). Tick labels whose Y falls inside any
+   * `y ± (half + 2)` are skipped.
+   */
+  excludeYRanges?: readonly AxisExcludeRange[];
 };
 
 /**
@@ -53,10 +62,12 @@ export function renderPriceAxis(
   const ticks = priceScale.getTicks(maxTicks);
 
   // Suppress labels too close to pane edges (avoids visual collision with the
-  // adjacent pane's edge label) or overlapping the current-price badge.
+  // adjacent pane's edge label) or overlapping foreground labels like the
+  // current-price badge or last-value series badges.
   const EDGE_PAD = Math.min(8, fontSize); // ~one label half-height
-  const excludeY = opts.excludeY;
-  const excludeHalf = opts.excludeHalfHeight ?? 0;
+  const excludeRanges: readonly AxisExcludeRange[] =
+    opts.excludeYRanges ??
+    (opts.excludeY !== undefined ? [{ y: opts.excludeY, half: opts.excludeHalfHeight ?? 0 }] : []);
 
   ctx.fillStyle = theme.background;
   if (position === "left") {
@@ -87,11 +98,11 @@ export function renderPriceAxis(
   ctx.textAlign = position === "left" ? "right" : "left";
   const labelX = position === "left" ? x - 6 : x + 6;
 
-  for (const tick of ticks) {
+  outer: for (const tick of ticks) {
     const tickY = priceScale.priceToY(tick) + y;
     if (tickY < y || tickY > y + height) continue;
-    if (excludeY !== undefined && Math.abs(tickY - excludeY) < excludeHalf + 2) {
-      continue;
+    for (const r of excludeRanges) {
+      if (Math.abs(tickY - r.y) < r.half + 2) continue outer;
     }
 
     // Flip baseline near edges so labels stay within the pane.

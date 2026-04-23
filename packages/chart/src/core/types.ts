@@ -105,6 +105,22 @@ export type ChartOptions = {
   legend?: boolean;
   /** Show volume pane (default: true) */
   volume?: boolean;
+  /**
+   * Show a colored last-value pill on the right price axis for every labeled
+   * series (including each channel of multi-channel series like Bollinger
+   * Bands / MACD) and for the volume pane. Default: false. The candle
+   * current-price badge is always shown regardless of this setting.
+   */
+  showSeriesBadges?: boolean;
+  /**
+   * Which "last value" to show in series badges:
+   * - `"absolute"` (default): the last non-null value in the underlying data
+   *   array — i.e. the live / latest known value, even if the viewport has
+   *   scrolled back.
+   * - `"visible"`: the last non-null value within the current visible range
+   *   — what the user sees at the right edge of the chart.
+   */
+  seriesBadgeMode?: "absolute" | "visible";
   /** Scroll/pan sensitivity multiplier (default: 0.3, lower = slower) */
   scrollSensitivity?: number;
   /** Base chart type for price data (default: 'candlestick') */

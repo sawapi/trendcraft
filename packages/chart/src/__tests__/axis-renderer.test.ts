@@ -46,6 +46,25 @@ describe("renderPriceAxis", () => {
     expect(calls2).toBeLessThanOrEqual(calls6);
   });
 
+  it("skips tick labels inside any excludeYRanges entry (multi-badge case)", () => {
+    const ctx = mockCtx();
+    const ps = makePriceScale(400, 100, 200);
+    const y150 = ps.priceToY(150);
+    const y125 = ps.priceToY(125);
+    renderPriceAxis(ctx, ps, 740, 0, 60, 400, theme, 11, undefined, {
+      maxTicks: 6,
+      excludeYRanges: [
+        { y: y150, half: 8 },
+        { y: y125, half: 8 },
+      ],
+    });
+    const calls = (ctx.fillText as unknown as { mock: { calls: unknown[][] } }).mock.calls;
+    for (const [, , yArg] of calls) {
+      expect(Math.abs((yArg as number) - y150)).toBeGreaterThanOrEqual(10);
+      expect(Math.abs((yArg as number) - y125)).toBeGreaterThanOrEqual(10);
+    }
+  });
+
   it("skips tick labels inside excludeY ± excludeHalfHeight (current-price badge)", () => {
     const ctx = mockCtx();
     const ps = makePriceScale(400, 100, 200);
