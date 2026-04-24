@@ -196,6 +196,13 @@ export type {
 } from "./price/opening-range";
 export { createFairValueGap } from "./price/fair-value-gap";
 export type { FairValueGapState, FvgValue as IncrementalFvgValue } from "./price/fair-value-gap";
+export { createHeikinAshi } from "./price/heikin-ashi";
+export type {
+  HeikinAshiState,
+  HeikinAshiValue as IncrementalHeikinAshiValue,
+} from "./price/heikin-ashi";
+export { createReturns } from "./price/returns";
+export type { ReturnsState } from "./price/returns";
 
 // Wyckoff
 export { createVsa } from "./wyckoff/vsa";
