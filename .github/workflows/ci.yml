@@ -48,20 +48,20 @@ jobs:
 
       - name: Build chart examples
         if: matrix.node-version == 22
-        # Each example is installed with `pnpm install --ignore-workspace`,
-        # which doesn't honor the root workspace's
-        # `pnpm.onlyBuiltDependencies`. Per-example package.json and .npmrc
-        # allowlists were added in PRs #79 and #86 but pnpm 10.33 on the CI
-        # runner still fails with ERR_PNPM_IGNORED_BUILDS; only env-level
-        # config appears to take effect reliably in this invocation path.
+        # Each example installs with `pnpm install --ignore-workspace`, which
+        # skips pnpm-workspace.yaml entirely. Previous fix attempts (pnpm
+        # field in each package.json, .npmrc in each example, uppercase
+        # NPM_CONFIG env var) all proved ineffective against pnpm 10.33's
+        # strict-dep-builds enforcement on GH Actions runners.
         #
-        # Keep strict-dep-builds ENABLED (default) and declare the allowlist
-        # via env so that a new postinstall-bearing package sneaking into an
-        # example still fails the build — instead of just warning and being
-        # missed.
+        # Use the lowercase env var form that pnpm docs actually prescribe
+        # AND write to the pnpm global config as a prep step — global config
+        # is read even under --ignore-workspace. Keep strict enabled so a
+        # new postinstall-bearing package in an example still fails CI.
         env:
-          NPM_CONFIG_ONLY_BUILT_DEPENDENCIES: esbuild
+          npm_config_only_built_dependencies: esbuild
         run: |
+          pnpm config set --global --json onlyBuiltDependencies '["esbuild"]'
           cd packages/chart/examples/simple-chart && pnpm install --ignore-workspace && pnpm build
           cd ../simple-react-chart && pnpm install --ignore-workspace && pnpm build
           cd ../simple-vue-chart && pnpm install --ignore-workspace && pnpm build
