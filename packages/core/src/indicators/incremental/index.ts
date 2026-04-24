@@ -203,6 +203,25 @@ export type {
 } from "./price/heikin-ashi";
 export { createReturns } from "./price/returns";
 export type { ReturnsState } from "./price/returns";
+export { createSwingPoints } from "./price/swing-points";
+export type {
+  SwingPointsState,
+  SwingPointValue as IncrementalSwingPointValue,
+} from "./price/swing-points";
+export { createZigzag } from "./price/zigzag";
+export type {
+  ZigzagState,
+  ZigzagValue as IncrementalZigzagValue,
+} from "./price/zigzag";
+export {
+  createBreakOfStructure,
+  createChangeOfCharacter,
+} from "./price/break-of-structure";
+export type {
+  BosState,
+  ChochState,
+  BosValue as IncrementalBosValue,
+} from "./price/break-of-structure";
 
 // Wyckoff
 export { createVsa } from "./wyckoff/vsa";
