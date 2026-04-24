@@ -48,6 +48,19 @@ jobs:
 
       - name: Build chart examples
         if: matrix.node-version == 22
+        # Each example is installed with `pnpm install --ignore-workspace`,
+        # which doesn't honor the root workspace's
+        # `pnpm.onlyBuiltDependencies`. Per-example package.json and .npmrc
+        # allowlists were added in PRs #79 and #86 but pnpm 10.33 on the CI
+        # runner still fails with ERR_PNPM_IGNORED_BUILDS; only env-level
+        # config appears to take effect reliably in this invocation path.
+        #
+        # Keep strict-dep-builds ENABLED (default) and declare the allowlist
+        # via env so that a new postinstall-bearing package sneaking into an
+        # example still fails the build — instead of just warning and being
+        # missed.
+        env:
+          NPM_CONFIG_ONLY_BUILT_DEPENDENCIES: esbuild
         run: |
           cd packages/chart/examples/simple-chart && pnpm install --ignore-workspace && pnpm build
           cd ../simple-react-chart && pnpm install --ignore-workspace && pnpm build
