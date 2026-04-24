@@ -157,4 +157,43 @@ describe("stochRsi", () => {
     expect(result[0].time).toBe(candles[0].time);
     expect(result[4].time).toBe(candles[4].time);
   });
+
+  it("should accept a price source and pass it through to the underlying RSI", () => {
+    // Wicks that vary per bar, so hlc3 != close + constant offset.
+    // This ensures the first-differences (which drive RSI) actually differ.
+    const base: NormalizedCandle[] = [];
+    for (let i = 0; i < 60; i++) {
+      const close = 100 + Math.sin(i * 0.4) * 10;
+      const upperWick = 1 + Math.abs(Math.cos(i * 0.7)) * 4;
+      const lowerWick = 0.5 + Math.abs(Math.sin(i * 0.9)) * 2;
+      base.push({
+        time: 1700000000000 + i * 86400000,
+        open: close - 0.5,
+        high: close + upperWick,
+        low: close - lowerWick,
+        close,
+        volume: 1000,
+      });
+    }
+    const defaulted = stochRsi(base, { rsiPeriod: 14, stochPeriod: 14 });
+    const explicitClose = stochRsi(base, {
+      rsiPeriod: 14,
+      stochPeriod: 14,
+      source: "close",
+    });
+    const viaHlc3 = stochRsi(base, { rsiPeriod: 14, stochPeriod: 14, source: "hlc3" });
+
+    // Default === close
+    for (let i = 0; i < defaulted.length; i++) {
+      expect(defaulted[i].value.stochRsi).toEqual(explicitClose[i].value.stochRsi);
+    }
+
+    // hlc3 must differ at least once
+    const diverged = defaulted.some((r, i) => {
+      const a = r.value.stochRsi;
+      const b = viaHlc3[i].value.stochRsi;
+      return a !== null && b !== null && Math.abs(a - b) > 1e-6;
+    });
+    expect(diverged).toBe(true);
+  });
 });

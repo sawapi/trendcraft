@@ -9,6 +9,12 @@
   // Use typical price (HLC3) as RSI input
   const rsiTypical = rsi(candles, { period: 14, source: "hlc3" });
   ```
+- `StochRsiOptions.source`, `ConnorsRsiOptions.source` — derived RSI indicators now thread the price source through every internal component. `stochRsi()` / `createStochRsi()` pass `source` to the inner RSI. `connorsRsi()` / `createConnorsRsi()` use the same `source` for the price RSI, the streak comparison, and the 1-period ROC used by `rocPercentile`. Defaults remain `"close"`.
+  ```typescript
+  // Compute StochRSI / Connors RSI on the typical price
+  const srsi = stochRsi(candles, { rsiPeriod: 14, stochPeriod: 14, source: "hlc3" });
+  const crsi = connorsRsi(candles, { rsiPeriod: 3, streakPeriod: 2, rocPeriod: 100, source: "hlc3" });
+  ```
 
 ### Added — Session: Lunch Breaks & Timezone Awareness
 

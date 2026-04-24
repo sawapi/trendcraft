@@ -87,4 +87,50 @@ describe("connorsRsi", () => {
     const nonNullValues = result.filter((r) => r.value.crsi !== null);
     expect(nonNullValues.length).toBeGreaterThan(0);
   });
+
+  it("should thread source through to all components", () => {
+    // Varying wicks per bar — a constant offset would leave RSI/ROC unchanged,
+    // so we make both wicks depend on i.
+    const base: NormalizedCandle[] = [];
+    for (let i = 0; i < 120; i++) {
+      const close = 100 + Math.sin(i * 0.3) * 20 + i * 0.1;
+      const upperWick = 1 + Math.abs(Math.cos(i * 0.7)) * 4;
+      const lowerWick = 0.5 + Math.abs(Math.sin(i * 0.9)) * 2;
+      base.push({
+        time: 1700000000000 + i * 86400000,
+        open: close - 0.5,
+        high: close + upperWick,
+        low: close - lowerWick,
+        close,
+        volume: 1000,
+      });
+    }
+    const asClose = connorsRsi(base, { rsiPeriod: 3, streakPeriod: 2, rocPeriod: 100 });
+    const asHlc3 = connorsRsi(base, {
+      rsiPeriod: 3,
+      streakPeriod: 2,
+      rocPeriod: 100,
+      source: "hlc3",
+    });
+
+    // Pick a point where both are non-null and check they differ
+    const i = asClose.findIndex(
+      (r, idx) => r.value.crsi !== null && asHlc3[idx].value.crsi !== null,
+    );
+    expect(i).toBeGreaterThan(-1);
+    expect(asClose[i].value.crsi).not.toBeCloseTo(asHlc3[i].value.crsi!, 4);
+  });
+
+  it("should match previous behavior when source is omitted (close)", () => {
+    const closes: number[] = [];
+    for (let i = 0; i < 120; i++) closes.push(100 + Math.sin(i * 0.3) * 20);
+    const candles = makeCandles(closes);
+
+    const withoutOpt = connorsRsi(candles);
+    const withClose = connorsRsi(candles, { source: "close" });
+
+    for (let i = 0; i < withoutOpt.length; i++) {
+      expect(withoutOpt[i].value.crsi).toEqual(withClose[i].value.crsi);
+    }
+  });
 });

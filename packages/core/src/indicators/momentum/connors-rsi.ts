@@ -9,9 +9,9 @@
  * CRSI = (RSI(close, rsiPeriod) + RSI(streak, streakPeriod) + PercentRank(ROC(1), rocPeriod)) / 3
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
-import type { Candle, NormalizedCandle, Series } from "../../types";
+import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 import { CONNORS_RSI_META } from "../indicator-meta";
 import { rsi } from "./rsi";
 
@@ -25,6 +25,8 @@ export type ConnorsRsiOptions = {
   streakPeriod?: number;
   /** Lookback period for ROC percent rank (default: 100) */
   rocPeriod?: number;
+  /** Price source used for all three components (default: "close") */
+  source?: PriceSource;
 };
 
 /**
@@ -65,7 +67,7 @@ export function connorsRsi(
   candles: Candle[] | NormalizedCandle[],
   options: ConnorsRsiOptions = {},
 ): Series<ConnorsRsiValue> {
-  const { rsiPeriod = 3, streakPeriod = 2, rocPeriod = 100 } = options;
+  const { rsiPeriod = 3, streakPeriod = 2, rocPeriod = 100, source = "close" } = options;
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
 
@@ -73,16 +75,18 @@ export function connorsRsi(
     return [];
   }
 
+  const sourcePrices = normalized.map((c) => getPrice(c, source));
+
   // Component 1: RSI of price
-  const priceRsi = rsi(normalized, { period: rsiPeriod });
+  const priceRsi = rsi(normalized, { period: rsiPeriod, source });
 
   // Component 2: Calculate streak and RSI of streak
   // Streak: consecutive up days = positive count, consecutive down days = negative count
   const streaks: number[] = new Array(normalized.length).fill(0);
   for (let i = 1; i < normalized.length; i++) {
-    if (normalized[i].close > normalized[i - 1].close) {
+    if (sourcePrices[i] > sourcePrices[i - 1]) {
       streaks[i] = streaks[i - 1] > 0 ? streaks[i - 1] + 1 : 1;
-    } else if (normalized[i].close < normalized[i - 1].close) {
+    } else if (sourcePrices[i] < sourcePrices[i - 1]) {
       streaks[i] = streaks[i - 1] < 0 ? streaks[i - 1] - 1 : -1;
     } else {
       streaks[i] = 0;
@@ -101,12 +105,12 @@ export function connorsRsi(
   const streakRsiResult = rsi(streakCandles, { period: streakPeriod });
 
   // Component 3: Percent rank of 1-period ROC
-  // ROC(1) = (close - prevClose) / prevClose * 100
+  // ROC(1) = (price - prevPrice) / prevPrice * 100
   const roc1: (number | null)[] = new Array(normalized.length).fill(null);
   for (let i = 1; i < normalized.length; i++) {
-    const prevClose = normalized[i - 1].close;
-    if (prevClose !== 0) {
-      roc1[i] = ((normalized[i].close - prevClose) / prevClose) * 100;
+    const prev = sourcePrices[i - 1];
+    if (prev !== 0) {
+      roc1[i] = ((sourcePrices[i] - prev) / prev) * 100;
     }
   }
 

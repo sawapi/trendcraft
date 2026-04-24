@@ -4,10 +4,10 @@
  * CRSI = (RSI(close, rsiPeriod) + RSI(streak, streakPeriod) + PercentRank(ROC(1), rocPeriod)) / 3
  */
 
-import type { NormalizedCandle } from "../../../types";
+import type { NormalizedCandle, PriceSource } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
 import type { IncrementalIndicator, WarmUpOptions } from "../types";
-import { makeCandle } from "../utils";
+import { getSourcePrice, makeCandle } from "../utils";
 import { createRsi } from "./rsi";
 import type { RsiState } from "./rsi";
 
@@ -43,12 +43,18 @@ export type ConnorsRsiState = {
  * ```
  */
 export function createConnorsRsi(
-  options: { rsiPeriod?: number; streakPeriod?: number; rocPeriod?: number } = {},
+  options: {
+    rsiPeriod?: number;
+    streakPeriod?: number;
+    rocPeriod?: number;
+    source?: PriceSource;
+  } = {},
   warmUpOptions?: WarmUpOptions<ConnorsRsiState>,
 ): IncrementalIndicator<ConnorsRsiValue, ConnorsRsiState> {
   const rsiPeriod = options.rsiPeriod ?? 3;
   const streakPeriod = options.streakPeriod ?? 2;
   const rocPeriod = options.rocPeriod ?? 100;
+  const source: PriceSource = options.source ?? "close";
 
   let priceRsi: ReturnType<typeof createRsi>;
   let streakRsi: ReturnType<typeof createRsi>;
@@ -59,14 +65,14 @@ export function createConnorsRsi(
 
   if (warmUpOptions?.fromState) {
     const s = warmUpOptions.fromState;
-    priceRsi = createRsi({ period: rsiPeriod }, { fromState: s.priceRsiState });
+    priceRsi = createRsi({ period: rsiPeriod, source }, { fromState: s.priceRsiState });
     streakRsi = createRsi({ period: streakPeriod }, { fromState: s.streakRsiState });
     rocBuffer = CircularBuffer.fromSnapshot(s.rocBuffer);
     prevClose = s.prevClose;
     streak = s.streak;
     count = s.count;
   } else {
-    priceRsi = createRsi({ period: rsiPeriod });
+    priceRsi = createRsi({ period: rsiPeriod, source });
     streakRsi = createRsi({ period: streakPeriod });
     rocBuffer = new CircularBuffer<number>(rocPeriod);
     prevClose = null;
@@ -77,6 +83,7 @@ export function createConnorsRsi(
   const indicator: IncrementalIndicator<ConnorsRsiValue, ConnorsRsiState> = {
     next(candle: NormalizedCandle) {
       count++;
+      const price = getSourcePrice(candle, source);
 
       // Component 1: RSI of price
       const priceRsiResult = priceRsi.next(candle);
@@ -84,9 +91,9 @@ export function createConnorsRsi(
 
       // Component 2: Streak + RSI of streak
       if (prevClose !== null) {
-        if (candle.close > prevClose) {
+        if (price > prevClose) {
           streak = streak > 0 ? streak + 1 : 1;
-        } else if (candle.close < prevClose) {
+        } else if (price < prevClose) {
           streak = streak < 0 ? streak - 1 : -1;
         } else {
           streak = 0;
@@ -99,7 +106,7 @@ export function createConnorsRsi(
       // Component 3: Percent rank of 1-period ROC
       let rocPercentile: number | null = null;
       if (prevClose !== null && prevClose !== 0) {
-        const roc1 = ((candle.close - prevClose) / prevClose) * 100;
+        const roc1 = ((price - prevClose) / prevClose) * 100;
 
         // Calculate percent rank from buffer
         if (rocBuffer.length > 0) {
@@ -115,7 +122,7 @@ export function createConnorsRsi(
         rocBuffer.push(roc1);
       }
 
-      prevClose = candle.close;
+      prevClose = price;
 
       // Combine
       let crsi: number | null = null;
@@ -130,14 +137,15 @@ export function createConnorsRsi(
     },
 
     peek(candle: NormalizedCandle) {
+      const price = getSourcePrice(candle, source);
       const rsiVal = priceRsi.peek(candle).value;
 
       // Peek streak
       let peekStreak = streak;
       if (prevClose !== null) {
-        if (candle.close > prevClose) {
+        if (price > prevClose) {
           peekStreak = streak > 0 ? streak + 1 : 1;
-        } else if (candle.close < prevClose) {
+        } else if (price < prevClose) {
           peekStreak = streak < 0 ? streak - 1 : -1;
         } else {
           peekStreak = 0;
@@ -147,7 +155,7 @@ export function createConnorsRsi(
 
       let rocPercentile: number | null = null;
       if (prevClose !== null && prevClose !== 0) {
-        const roc1 = ((candle.close - prevClose) / prevClose) * 100;
+        const roc1 = ((price - prevClose) / prevClose) * 100;
         if (rocBuffer.length > 0) {
           let lessOrEqual = 0;
           for (let i = 0; i < rocBuffer.length; i++) {

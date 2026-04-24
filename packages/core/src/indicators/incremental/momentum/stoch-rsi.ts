@@ -10,9 +10,10 @@
  * 4. Smooth %K with SMA for %D
  */
 
-import type { NormalizedCandle } from "../../../types";
+import type { NormalizedCandle, PriceSource } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
 import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import { getSourcePrice } from "../utils";
 
 /**
  * StochRSI output value
@@ -70,6 +71,7 @@ export function createStochRsi(
     stochPeriod?: number;
     kPeriod?: number;
     dPeriod?: number;
+    source?: PriceSource;
   } = {},
   warmUpOptions?: WarmUpOptions<StochRsiState>,
 ): IncrementalIndicator<StochRsiValue, StochRsiState> {
@@ -77,6 +79,7 @@ export function createStochRsi(
   const stochPeriod = options.stochPeriod ?? 14;
   const kPeriod = options.kPeriod ?? 3;
   const dPeriod = options.dPeriod ?? 3;
+  const source: PriceSource = options.source ?? "close";
 
   let count: number;
   let prevClose: number | null;
@@ -235,7 +238,7 @@ export function createStochRsi(
   const indicator: IncrementalIndicator<StochRsiValue, StochRsiState> = {
     next(candle: NormalizedCandle) {
       count++;
-      const rsiVal = computeRsi(candle.close);
+      const rsiVal = computeRsi(getSourcePrice(candle, source));
       const value = processRsi(rsiVal);
       return { time: candle.time, value };
     },
