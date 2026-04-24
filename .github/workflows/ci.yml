@@ -48,6 +48,18 @@ jobs:
 
       - name: Build chart examples
         if: matrix.node-version == 22
+        # Each example runs `pnpm install --ignore-workspace`, which does
+        # not honor the workspace root's pnpm.onlyBuiltDependencies. Both
+        # per-example package.json `pnpm.onlyBuiltDependencies` and
+        # per-example `.npmrc only-built-dependencies[]=esbuild` were tried
+        # and still produced ERR_PNPM_IGNORED_BUILDS on CI (pnpm 10.33 +
+        # pnpm/action-setup v6), while the same configuration emits only a
+        # warning locally. Disable strict-dep-builds for this step only so
+        # the install completes — we trust vite's transitive esbuild here
+        # because this step is a smoke test of example builds, not a
+        # security-sensitive path.
+        env:
+          NPM_CONFIG_STRICT_DEP_BUILDS: "false"
         run: |
           cd packages/chart/examples/simple-chart && pnpm install --ignore-workspace && pnpm build
           cd ../simple-react-chart && pnpm install --ignore-workspace && pnpm build
