@@ -4,6 +4,15 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      # react and react-dom must move in lockstep — @testing-library/react
+      # refuses to run when their versions disagree.
+      react:
+        patterns:
+          - "react"
+          - "react-dom"
+          - "@types/react"
+          - "@types/react-dom"
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
