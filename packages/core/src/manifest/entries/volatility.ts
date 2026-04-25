@@ -172,4 +172,220 @@ export const VOLATILITY_MANIFESTS: IndicatorManifest[] = [
       takeProfitMultiplier: "3.0 default — produces 1.5x stop distance for 1:1.5 RR",
     },
   },
+  {
+    kind: "chandelierExit",
+    displayName: "Chandelier Exit",
+    category: "volatility",
+    oneLiner:
+      "Charles Le Beau's ATR-based trailing stop that 'hangs' from the period high (long) or low (short).",
+    whenToUse: [
+      "Trailing stop placement on trend trades — stays loose in volatile periods, tightens in calm",
+      "Letting winners run while protecting profits in established trends",
+    ],
+    signals: [
+      "Long exit: close below long Chandelier (period-high - 3×ATR by default)",
+      "Short exit: close above short Chandelier (period-low + 3×ATR)",
+      "Trend direction: price above long Chandelier = bullish; below short Chandelier = bearish",
+    ],
+    pitfalls: [
+      "Late on trend reversals — by the time price closes through the chandelier the trend is well over",
+      "On choppy ranges, chandelier oscillates and offers no protection",
+      "Period and multiplier need recalibration across instruments / timeframes",
+    ],
+    synergy: [
+      "ADX or Choppiness regime filter to disable chandelier in chop",
+      "Use as an exit stop, not entry trigger",
+    ],
+    marketRegime: ["trending"],
+    timeframe: ["swing", "position"],
+    paramHints: {
+      period: "22 default (Le Beau's classic)",
+      multiplier: "3.0 default ATR multiplier (Le Beau's classic)",
+      lookback:
+        "Optional separate lookback for the high/low; defaults to `period` if not specified",
+    },
+  },
+  {
+    kind: "ulcerIndex",
+    displayName: "Ulcer Index",
+    category: "volatility",
+    oneLiner:
+      "Peter Martin's downside-only volatility measure (developed 1987, first published with Byron McCann in 1989) — depth and duration of drawdowns from period highs.",
+    whenToUse: [
+      "Risk-adjusted performance metrics (Ulcer Performance Index = (return - rf) / Ulcer Index)",
+      "Comparing strategies/funds on downside risk rather than total volatility",
+      "Long-only equity portfolio risk monitoring",
+    ],
+    signals: [
+      "Lower UI = less drawdown stress (better for risk-averse investors)",
+      "Higher UI = more drawdown stress",
+      "Trend-following systems: UI rising during a position is a warning sign",
+    ],
+    pitfalls: [
+      "Direction-specific: only measures DOWNSIDE volatility, ignores upside",
+      "Useless for short strategies (would need an inverted version)",
+      "Magnitude is instrument-dependent; only meaningful in relative comparison",
+    ],
+    synergy: ["Pair with Sharpe ratio as a downside-risk-aware alternative (Martin Ratio / UPI)"],
+    marketRegime: ["trending", "volatile"],
+    timeframe: ["swing", "position"],
+    paramHints: {
+      period: "14 default lookback",
+    },
+  },
+  {
+    kind: "historicalVolatility",
+    displayName: "Historical Volatility",
+    category: "volatility",
+    oneLiner:
+      "Annualized standard deviation of log returns — the textbook close-to-close volatility estimator.",
+    whenToUse: [
+      "Annualized volatility for options pricing, risk metrics, position sizing",
+      "Comparing volatility across instruments at different price levels (returns are scale-invariant)",
+      "Detecting volatility regime shifts when paired with rolling percentile",
+    ],
+    signals: [
+      "Rising HV = volatility expanding (often near trend changes or news)",
+      "Falling HV = volatility contracting (consolidation / coiling)",
+      "Mean-reverting tendency on most equity instruments",
+    ],
+    pitfalls: [
+      "Uses ONLY closes — ignores intra-bar information (Garman-Klass uses OHLC for ~7.4× more efficiency under its assumptions)",
+      "Annualization assumes 252 trading days — adjust for crypto (365) or other markets",
+      "trendcraft uses sample stddev (/N-1); some platforms use population stddev (/N) yielding slightly smaller values. Document this when comparing across platforms",
+      "Past volatility ≠ future volatility — HV is descriptive, not predictive",
+    ],
+    marketRegime: ["volatile", "low-volatility"],
+    timeframe: ["swing", "position"],
+    paramHints: {
+      period: "20 default — short-term volatility window (10-30 typical)",
+      annualFactor:
+        "252 default for daily US equity. Use 365 for 24/7 crypto, 256 for some intraday conventions",
+    },
+  },
+  {
+    kind: "garmanKlass",
+    displayName: "Garman-Klass Volatility",
+    category: "volatility",
+    oneLiner:
+      "Mark Garman & Michael Klass's OHLC-based volatility estimator — ~7.4× more efficient than close-to-close HV.",
+    whenToUse: [
+      "Volatility estimation when fewer bars are available (small-sample efficiency)",
+      "Option pricing models needing tighter volatility estimates",
+      "Replacing HV when intraday range information matters",
+    ],
+    signals: [
+      "Same regime interpretation as HV (rising = expansion, falling = contraction)",
+      "Spread vs HV (close-to-close) reveals intra-bar volatility content",
+    ],
+    pitfalls: [
+      "Assumes Brownian motion with ZERO drift — biased when drift is non-zero (e.g. sustained directional moves)",
+      "Assumes NO opening jumps (overnight gaps) — biased on instruments with weekend/overnight gaps",
+      "Less battle-tested in trader workflows than HV; many platforms don't expose it",
+    ],
+    synergy: [
+      "Cross-check with HV — large divergence indicates intraday range vs close-to-close mismatch",
+    ],
+    marketRegime: ["volatile", "low-volatility"],
+    timeframe: ["swing"],
+    paramHints: {
+      period: "20 default — same convention as HV",
+      annualFactor: "252 default for daily US equity",
+    },
+  },
+  {
+    kind: "ewmaVolatility",
+    displayName: "EWMA Volatility (RiskMetrics)",
+    category: "volatility",
+    oneLiner:
+      "Exponentially weighted moving average of squared returns — JP Morgan's RiskMetrics 1994 standard.",
+    whenToUse: [
+      "Risk management: VaR, position sizing, regulatory capital",
+      "Volatility forecasting where recent observations should weigh more than equal-weight HV",
+      "Daily portfolio variance updates without storing the full window",
+    ],
+    signals: [
+      "Rising EWMA volatility = recent returns more dispersed than recent baseline",
+      "Falling EWMA volatility = recent returns concentrating",
+    ],
+    pitfalls: [
+      "API differs from other indicators: takes `returns: number[]`, NOT candles. Compute returns yourself first",
+      "Single-parameter (λ) — convenient but inflexible compared to GARCH",
+      "λ = 0.94 is RiskMetrics' daily standard; 0.97 is canonical for monthly. Don't change without reason",
+      "Exponential weighting means very old returns still carry tiny weight — no clean cutoff window",
+    ],
+    synergy: ["GARCH for richer volatility modeling when EWMA's single λ isn't sufficient"],
+    marketRegime: ["volatile", "low-volatility"],
+    timeframe: ["swing", "position"],
+    paramHints: {
+      lambda:
+        "0.94 default (RiskMetrics 1994 recommendation for 1-day forecast horizon). 0.97 for 1-month horizon. Range 0 < λ < 1",
+    },
+  },
+  {
+    kind: "standardDeviation",
+    displayName: "Standard Deviation",
+    category: "volatility",
+    oneLiner: "Rolling standard deviation of price (not returns) — direct dispersion measure.",
+    whenToUse: [
+      "Building block for Bollinger Bands and other volatility envelopes",
+      "Z-score-style normalization of price relative to its rolling mean",
+      "Cross-check with HV (which operates on log returns instead of raw price)",
+    ],
+    signals: [
+      "Rising stddev = price dispersion expanding",
+      "Falling stddev = price dispersion contracting (squeeze)",
+    ],
+    pitfalls: [
+      "Operates on RAW PRICE, not returns — values scale with price level (compare HV for price-level-independent volatility)",
+      "Population stddev (/N) used by trendcraft to match TA-Lib and Bollinger Bands convention; sample stddev (/N-1) yields slightly larger values",
+      "Direction-agnostic — never use alone for entries",
+    ],
+    synergy: [
+      "Bollinger Bands (uses this internally as the band-width source)",
+      "HV when scale-independent volatility is needed",
+    ],
+    marketRegime: ["volatile", "low-volatility"],
+    timeframe: ["intraday", "swing", "position"],
+    paramHints: {
+      period: "20 default — Bollinger Bands convention",
+    },
+  },
+  {
+    kind: "volatilityRegime",
+    displayName: "Volatility Regime",
+    category: "volatility",
+    oneLiner:
+      "Volatility-regime classifier averaging ATR percentile and Bollinger Bandwidth percentile into 'low' / 'normal' / 'high' / 'extreme'. Historical volatility is reported as metadata but does NOT enter the classification.",
+    whenToUse: [
+      "Strategy gating: enable/disable systems based on regime (mean-reversion in low, trend in high)",
+      "Position sizing: scale size inversely with regime severity",
+      "Risk management dashboards: at-a-glance current vol regime",
+    ],
+    signals: [
+      "regime === 'low' (avg of ATR + BB percentile <= 25) — favor range / mean-reversion strategies",
+      "regime === 'normal' — favor trend-following with standard sizing",
+      "regime === 'high' (avg percentile >= 75) — wider stops, smaller positions",
+      "regime === 'extreme' (avg percentile >= 95) — defensive, consider standing aside",
+      "HV value emitted as `historicalVol` metadata for context but is NOT in the regime classification",
+    ],
+    pitfalls: [
+      "Classification averages ATR + BB Bandwidth percentiles — large disagreement between them is masked by the average. Inspect individual percentiles when `confidence` is low",
+      "Long warmup: needs `lookbackPeriod` (default 100) bars to establish percentile baseline",
+      "Percentile thresholds (25/75/95) are heuristic — recalibrate per instrument if needed",
+      "'Regime' is a categorical signal — implies stability that doesn't always hold (regimes flip fast around events)",
+    ],
+    synergy: [
+      "Pair with HMM regime detection for cross-confirmation of regime classification",
+      "Choppiness Index for trend-vs-range orthogonal axis",
+    ],
+    marketRegime: ["volatile", "low-volatility"],
+    timeframe: ["swing", "position"],
+    paramHints: {
+      atrPeriod: "14 default — ATR window for regime input",
+      bbPeriod: "20 default — Bollinger Bandwidth window",
+      lookbackPeriod: "100 default — historical window for percentile ranking",
+      thresholds: "{ low: 25, high: 75, extreme: 95 } percentiles by default",
+    },
+  },
 ];
