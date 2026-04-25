@@ -514,6 +514,263 @@ export const MOMENTUM_MANIFESTS: IndicatorManifest[] = [
     },
   },
   {
+    kind: "imi",
+    displayName: "Intraday Momentum Index",
+    category: "momentum",
+    oneLiner:
+      "Tushar Chande's RSI-style oscillator using open-to-close moves instead of close-to-close.",
+    whenToUse: [
+      "Day trading where intraday open-to-close conviction matters more than overnight gaps",
+      "Filtering RSI signals on instruments where close-to-close changes are dominated by overnight moves",
+    ],
+    signals: [
+      "IMI > 70 = overbought intraday (common default; some traders use stricter 80/20)",
+      "IMI < 30 = oversold intraday",
+      "Crosses through 50 with volume confirmation = intraday momentum shift",
+    ],
+    pitfalls: [
+      "Sums of raw gains/losses (no Wilder smoothing) — values are jumpier than RSI",
+      "On instruments with frequent gaps, results differ markedly from RSI; don't treat them as interchangeable",
+      "Less battle-tested than RSI; fewer canonical reference values to cross-check against",
+    ],
+    marketRegime: ["ranging"],
+    timeframe: ["intraday"],
+    paramHints: {
+      period: "14 default rolling-sum window",
+    },
+  },
+  {
+    kind: "vortex",
+    displayName: "Vortex Indicator",
+    category: "momentum",
+    oneLiner:
+      "Etienne Botes & Douglas Siepman's VI+/VI- pair (S&C Jan 2010) — trend ignition via crossovers.",
+    whenToUse: [
+      "Identifying the start of a new trend",
+      "Confirming an existing trend's continuation",
+      "Alternative to DMI/+DI/-DI with a different formulation (uses cross-bar high-low distances)",
+    ],
+    signals: [
+      "VI+ > VI- = uptrend",
+      "VI- > VI+ = downtrend",
+      "VI+ crosses above VI- = bullish trend ignition",
+      "VI- crosses above VI+ = bearish trend ignition",
+      "Botes/Siepman canonical entry: enter at the crossing bar's extreme high (long) or low (short), not at the close",
+    ],
+    pitfalls: [
+      "Crossovers are frequent in chop — needs a regime filter (ADX or Choppiness) for clean signals",
+      "Less well-known than ADX/DMI; tools and reference values are sparser",
+      "TR-normalized denominator can produce extreme readings in low-volatility periods",
+    ],
+    synergy: [
+      "ADX/Choppiness Index regime filter",
+      "DMI for cross-confirmation when both indicators agree on trend direction",
+    ],
+    marketRegime: ["trending"],
+    timeframe: ["swing", "position"],
+    paramHints: {
+      period:
+        "14 is the common default used across most platforms and in Botes/Siepman's original tests. Common range: 14-30",
+    },
+  },
+  {
+    kind: "dpo",
+    displayName: "Detrended Price Oscillator",
+    category: "momentum",
+    oneLiner:
+      "Removes the trend component to isolate price cycles by comparing price to a backshifted SMA.",
+    whenToUse: [
+      "Cycle analysis — finding rhythmic peaks and troughs independent of trend",
+      "Building a regime-aware system that needs cycle phase as a separate input",
+      "Estimating typical cycle length when paired with peak/trough detection",
+    ],
+    signals: [
+      "DPO > 0 = price above its detrended baseline (cycle high)",
+      "DPO < 0 = price below baseline (cycle low)",
+      "Zero crossings = cycle turning points",
+    ],
+    pitfalls: [
+      "DPO is plotted displaced into the past — the last `period/2 + 1` bars are simply undefined on a centered chart. Does NOT require future market data; it is just not aligned to the latest bar",
+      "Cycle detection assumes the period roughly matches the dominant cycle length; mismatched periods produce noise rather than signal",
+      "Don't use as an entry trigger by itself — it's a context indicator",
+    ],
+    marketRegime: ["ranging"],
+    timeframe: ["swing", "position"],
+    paramHints: {
+      period: "20 default — half-cycle lookback for the SMA, shifted back period/2+1 = 11 bars",
+    },
+  },
+  {
+    kind: "kst",
+    displayName: "Know Sure Thing",
+    category: "momentum",
+    oneLiner:
+      "Martin Pring's weighted sum of four smoothed ROCs (1992) — multi-timeframe momentum oscillator.",
+    whenToUse: [
+      "Long-term trend confirmation across multiple ROC timeframes",
+      "Signal-line crossover systems that smooth out single-timeframe noise",
+      "Trend-line breaks on the KST line itself (Pring's preferred technique)",
+    ],
+    signals: [
+      "KST > 0 = bullish; KST < 0 = bearish",
+      "KST crosses above signal = bullish entry cue",
+      "KST crosses below signal = bearish entry cue",
+      "Trend-line breaks on KST line itself (Pring's signature method)",
+    ],
+    pitfalls: [
+      "Many parameters (4 ROC + 4 SMA + weights + signal) — easy to overfit",
+      "Defaults are tuned for daily charts; intraday or longer timeframes need re-tuning",
+      "Signal-line crossovers can be late on fast moves due to multi-timeframe smoothing",
+    ],
+    marketRegime: ["trending"],
+    timeframe: ["swing", "position"],
+    paramHints: {
+      rocPeriods:
+        "[10, 15, 20, 30] default — four ROC timeframes from short to long (Pring's original)",
+      smaPeriods: "[10, 10, 10, 15] default — SMA smoothing on each ROC",
+      weights: "[1, 2, 3, 4] default — shortest ROC gets weight 1, longest gets 4",
+      signalPeriod: "9 default — SMA of KST for signal line",
+    },
+  },
+  {
+    kind: "massIndex",
+    displayName: "Mass Index",
+    category: "momentum",
+    oneLiner:
+      "Donald Dorsey's range-expansion-based reversal indicator using nested EMAs of (high - low).",
+    whenToUse: [
+      "Predicting trend reversals when the high-low range expands then contracts",
+      "Confirming reversal signals from other indicators with a non-price-direction lens",
+    ],
+    signals: [
+      "Reversal Bulge: Mass Index rises above 27, then drops below 26.5 = potential reversal imminent",
+      "Direction NOT given by Mass Index — use 9-period EMA trend/slope as the directional filter: a reversal bulge in a downtrend suggests a buy setup; in an uptrend, a sell setup (Dorsey's canonical procedure)",
+    ],
+    pitfalls: [
+      "Direction-agnostic — Mass Index alone cannot tell you bullish vs bearish",
+      "27/26.5 thresholds are Dorsey's empirical levels — they don't transfer cleanly to all instruments/timeframes",
+      "Long warmup: nested 9-period EMAs plus 25-bar sum require ~50+ bars before stable",
+    ],
+    synergy: ["EMA(9) of price as the directional companion (Dorsey's recommended pairing)"],
+    marketRegime: ["volatile"],
+    timeframe: ["swing", "position"],
+    paramHints: {
+      emaPeriod: "9 default — single and double EMA of (high - low) range",
+      sumPeriod: "25 default — summation window for the EMA ratio",
+    },
+  },
+  {
+    kind: "qstick",
+    displayName: "QStick",
+    category: "momentum",
+    oneLiner:
+      "Tushar Chande's moving average of (close - open) — measures aggregate buying vs selling pressure within bars.",
+    whenToUse: [
+      "Detecting bar-by-bar buying/selling pressure when intra-bar action matters",
+      "Confirming trend direction with a complementary lens to close-to-close oscillators",
+    ],
+    signals: [
+      "QStick > 0 = closes above opens on average (buying pressure)",
+      "QStick < 0 = closes below opens on average (selling pressure)",
+      "Zero-line crossover = sentiment shift",
+    ],
+    pitfalls: [
+      "Uses ONLY open/close — ignores high/low and intra-bar range",
+      "On instruments where opens are unreliable (some FX, after-hours), QStick is noisy",
+      "Less name-recognition; sparse reference data for cross-validation",
+    ],
+    marketRegime: ["trending"],
+    timeframe: ["intraday", "swing"],
+    paramHints: {
+      period: "14 default SMA window",
+    },
+  },
+  {
+    kind: "coppockCurve",
+    displayName: "Coppock Curve",
+    category: "momentum",
+    oneLiner:
+      "Edwin Coppock's 1962 long-term buy-signal indicator originally designed for monthly S&P 500 / DJIA.",
+    whenToUse: [
+      "Long-term position-trade entries on broad equity indexes (Coppock's original use case)",
+      "Identifying major bottoms after bear markets when curve turns up from below zero",
+    ],
+    signals: [
+      "Buy signal: curve turns upward from below zero (Coppock's canonical signal)",
+      "Sell signal NOT given by Coppock — he treated this as a buy-only system",
+    ],
+    pitfalls: [
+      "Originally designed for MONTHLY data — applying to daily/intraday materially changes its character",
+      "14- and 11-month ROC periods come from a commonly-repeated anecdotal origin story (the '11-14 month grief period' that Coppock supposedly used); not a quantitatively-derived choice",
+      "Pure long signal — doesn't tell you when to exit",
+      "Lagging: turns up well after the bottom prints",
+    ],
+    marketRegime: ["trending"],
+    timeframe: ["position"],
+    paramHints: {
+      wmaPeriod: "10 default — WMA smoothing on combined ROC sum (Coppock's original)",
+      longRocPeriod: "14 default — long ROC period",
+      shortRocPeriod: "11 default — short ROC period",
+    },
+  },
+  {
+    kind: "balanceOfPower",
+    displayName: "Balance of Power",
+    category: "momentum",
+    oneLiner:
+      "Igor Levshin's bar-shape oscillator: (close - open) / (high - low), smoothed by SMA. Range -1 to +1.",
+    whenToUse: [
+      "Detecting buyer/seller dominance from bar shape",
+      "Cross-confirming trend direction with a non-momentum, non-volume signal",
+    ],
+    signals: [
+      "BOP > 0 = buyers in charge (close above open within range)",
+      "BOP < 0 = sellers in charge",
+      "Reading near zero = balance / indecision, sometimes precedes trend reversal",
+    ],
+    pitfalls: [
+      "Bars with high=low (range=0) are undefined — trendcraft handles via fallback",
+      "Single-bar BOP (smoothing=1) is very noisy; default 14-period smoothing is the canonical",
+      "Doesn't capture volume or close-to-close moves — combine with OBV/CMF for fuller picture",
+    ],
+    marketRegime: ["trending", "ranging"],
+    timeframe: ["intraday", "swing"],
+    paramHints: {
+      smoothPeriod:
+        "14 default SMA smoothing (canonical for daily charts). Set to 1 for raw, unsmoothed BOP",
+    },
+  },
+  {
+    kind: "hurst",
+    displayName: "Hurst Exponent",
+    category: "momentum",
+    oneLiner:
+      "Rescaled Range (R/S) analysis estimator of long-term memory: H>0.5 trending, H<0.5 mean-reverting, H≈0.5 random walk.",
+    whenToUse: [
+      "Regime classification: deciding whether to deploy a trend-following or mean-reversion strategy",
+      "Quantifying market efficiency / persistence of returns",
+      "Long-term portfolio analytics (returns persistence)",
+    ],
+    signals: [
+      "H > 0.5 = trending / persistent — favor trend-following strategies",
+      "H < 0.5 = mean-reverting / anti-persistent — favor mean-reversion strategies",
+      "H ≈ 0.5 = random walk — markets behave efficiently, edge is hard",
+      "H ≈ 1.0 = strong trend persistence; H ≈ 0.0 = strong mean reversion",
+    ],
+    pitfalls: [
+      "R/S analysis is sensitive to short-term outliers and the chosen window range",
+      "Estimation noise is high on small samples; 100+ bars is a practical minimum",
+      "Hurst is a STATISTIC, not a tradeable signal — don't enter trades because H crossed 0.5",
+      "Different estimation methods (R/S vs DFA vs Whittle) yield different H values; trendcraft uses R/S",
+    ],
+    marketRegime: ["trending", "ranging"],
+    timeframe: ["swing", "position"],
+    paramHints: {
+      minWindow: "20 default — smallest sub-window in R/S analysis",
+      maxWindow: "100 default — largest sub-window / total lookback",
+    },
+  },
+  {
     kind: "adxr",
     displayName: "ADX Rating (ADXR)",
     category: "momentum",
