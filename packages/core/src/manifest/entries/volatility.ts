@@ -18,6 +18,8 @@ export const VOLATILITY_MANIFESTS: IndicatorManifest[] = [
     pitfalls: [
       "Direction-agnostic — never use alone for entries",
       "Absolute ATR varies by instrument; normalize as ATR%/price for cross-asset comparison",
+      "Switching the period frequently introduces inconsistency in stop placement and position sizing — pick a value and stick with it",
+      "Common stop multiplier ranges 1.5-3 — too tight = stopped out by noise, too loose = giving up too much per trade",
     ],
     synergy: ["Bollinger Bands or Keltner for volatility-based bands", "Supertrend (ATR-based)"],
     marketRegime: ["volatile", "low-volatility"],

@@ -18,8 +18,9 @@ export const MOVING_AVERAGE_MANIFESTS: IndicatorManifest[] = [
     ],
     pitfalls: [
       "Lags strongly — turning points are visible only after the move",
+      "Crossover signals print well after the move began; the lag is instrument- and regime-dependent",
       "Equal weighting means stale prices distort the signal as much as recent prices",
-      "Whipsaws often in ranging markets",
+      "Whipsaws repeatedly when 50/200 weave around each other in ranging markets",
     ],
     synergy: [
       "ATR for volatility-adjusted stop placement around the SMA",
@@ -49,7 +50,7 @@ export const MOVING_AVERAGE_MANIFESTS: IndicatorManifest[] = [
     pitfalls: [
       "Still lags on sharp reversals",
       "More whipsaws than SMA in choppy conditions",
-      "Initial values are sensitive to seed method (SMA seed vs first-value seed)",
+      "Initial values are sensitive to seed method — trendcraft's impl uses SMA-of-period seed (TA-Lib style)",
     ],
     synergy: [
       "MACD for momentum confirmation (it is built from EMAs)",
@@ -102,11 +103,14 @@ export const MOVING_AVERAGE_MANIFESTS: IndicatorManifest[] = [
     pitfalls: [
       "Adaptive nature can mask genuine trend changes if the efficiency ratio collapses",
       "Less intuitive to tune than fixed-period MAs",
+      "Impl detail: trendcraft seeds the recursion at index `period` with the input price at `period-1` (TA-Lib compatible). First non-null output is at index `period`, not `period-1`. Variants that SMA-seed differ slightly in early bars",
     ],
     marketRegime: ["trending", "ranging"],
     timeframe: ["swing", "position"],
     paramHints: {
-      period: "10 default; fastPeriod=2 and slowPeriod=30 are standard",
+      period: "10 default ER lookback (Perry Kaufman recommendation)",
+      fastPeriod: "2 default — fastest EMA constant, hardcoded in TA-Lib",
+      slowPeriod: "30 default — slowest EMA constant, hardcoded in TA-Lib",
     },
   },
   {
@@ -123,8 +127,9 @@ export const MOVING_AVERAGE_MANIFESTS: IndicatorManifest[] = [
       "Price holding above a rising T3 = strong trend integrity",
     ],
     pitfalls: [
-      "Long warmup (6×(period-1) bars before first value)",
-      "vFactor tuning is non-obvious",
+      "Long warmup: 6×(period-1) bars before first non-null value (e.g. period=5 → first value at index 24)",
+      "Higher vFactor = faster signals but less smooth; lower = smoother but more lag",
+      "Six cascaded EMAs amplify any seed-method differences across implementations",
     ],
     marketRegime: ["trending"],
     timeframe: ["swing", "position"],
@@ -142,12 +147,14 @@ export const MOVING_AVERAGE_MANIFESTS: IndicatorManifest[] = [
       "Detecting divergence between price MA and volume-weighted MA",
     ],
     signals: [
-      "VWMA above SMA = volume is concentrating on up-bars (bullish)",
-      "VWMA below SMA = volume is concentrating on down-bars (bearish)",
+      "VWMA above SMA = within the window, higher-volume bars closed at relatively higher prices (bullish skew)",
+      "VWMA below SMA = within the window, higher-volume bars closed at relatively lower prices (bearish skew)",
+      "Larger spread between VWMA and SMA = stronger volume-confirmed trend",
     ],
     pitfalls: [
-      "Useless on instruments with unreliable volume (some FX)",
-      "Sensitive to volume spikes from news events",
+      "Useless on instruments with unreliable volume (some FX, OTC)",
+      "Sensitive to volume spikes from news events — a single huge bar can drag VWMA",
+      "trendcraft impl returns null when all volumes in the window are 0",
     ],
     synergy: [
       "OBV for cumulative volume flow context",

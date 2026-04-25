@@ -35,6 +35,9 @@ coverage/
 # QA sweep output
 packages/core/qa-report.json
 
+# Manifest verification sidecar (web search sources, spot-check scripts)
+packages/core/src/manifest/sources/
+
 .claude/projects/
 .claude/commands/release.md
 .plans/
