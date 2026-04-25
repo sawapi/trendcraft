@@ -4,6 +4,14 @@
 
 ### Added — More Incremental Indicators
 
+- `createLinearRegression()` — incremental rolling least-squares linear
+  regression. Maintains O(1)-updateable running sums (`sumY` / `sumY²` /
+  `sumXY`) plus a `period`-sized CircularBuffer; the four-field output
+  (`value`, `slope`, `intercept`, `rSquared`) matches batch
+  `linearRegression()` to 6 decimal places. R² is computed via the
+  Pearson form (`(n·sumXY − sumX·sumY)² / ((n·sumXX − sumX²)·(n·sumYY − sumY²))`)
+  rather than iterating ssRes / ssTot. Exposed via
+  `incremental.createLinearRegression`.
 - `createStandardDeviation()` — incremental rolling population standard
   deviation. Maintains `sum` / `sumSq` running totals plus a `period`-sized
   CircularBuffer for O(1) per-bar updates. Matches batch `standardDeviation()`

@@ -94,6 +94,17 @@ describe("createStandardDeviation", () => {
   it("throws on invalid period", () => {
     expect(() => createStandardDeviation({ period: 0 })).toThrow();
   });
+
+  it("restoring from snapshot uses saved period/source even if options omit them", () => {
+    const a = createStandardDeviation({ period: 30, source: "hlc3" });
+    for (let i = 0; i < 80; i++) a.next(candles[i]);
+    const b = createStandardDeviation({}, { fromState: a.getState() });
+    const batch = standardDeviation(candles, { period: 30, source: "hlc3" });
+    for (let i = 80; i < candles.length; i++) {
+      const v = b.next(candles[i]).value;
+      expect(v as number).toBeCloseTo(batch[i].value as number, 8);
+    }
+  });
 });
 
 describe("createSuperSmoother", () => {
@@ -149,6 +160,17 @@ describe("createSuperSmoother", () => {
     const c = ss.next(candles[2]); // first real value
     expect(c.value).not.toBeNull();
     expect(ss.isWarmedUp).toBe(true);
+  });
+
+  it("restoring from snapshot uses saved period/source even if options omit them", () => {
+    const a = createSuperSmoother({ period: 25, source: "hlc3" });
+    for (let i = 0; i < 60; i++) a.next(candles[i]);
+    const b = createSuperSmoother({}, { fromState: a.getState() });
+    const batch = superSmoother(candles, { period: 25, source: "hlc3" });
+    for (let i = 60; i < candles.length; i++) {
+      const v = b.next(candles[i]).value;
+      expect(v as number).toBeCloseTo(batch[i].value as number, 10);
+    }
   });
 });
 
@@ -208,5 +230,17 @@ describe("createRoofingFilter", () => {
     const c = rf.next(candles[2]); // first real value
     expect(c.value).not.toBeNull();
     expect(rf.isWarmedUp).toBe(true);
+  });
+
+  it("restoring from snapshot uses saved highPass/lowPass/source even if options omit them", () => {
+    const opts = { highPassPeriod: 30, lowPassPeriod: 8, source: "hlc3" as const };
+    const a = createRoofingFilter(opts);
+    for (let i = 0; i < 70; i++) a.next(candles[i]);
+    const b = createRoofingFilter({}, { fromState: a.getState() });
+    const batch = roofingFilter(candles, opts);
+    for (let i = 70; i < candles.length; i++) {
+      const v = b.next(candles[i]).value;
+      expect(v as number).toBeCloseTo(batch[i].value as number, 10);
+    }
   });
 });

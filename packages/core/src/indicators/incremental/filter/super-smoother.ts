@@ -51,8 +51,10 @@ export function createSuperSmoother(
   options: { period?: number; source?: PriceSource } = {},
   warmUpOptions?: WarmUpOptions<SuperSmootherState>,
 ): IncrementalIndicator<number | null, SuperSmootherState> {
-  const period = options.period ?? 10;
-  const source: PriceSource = options.source ?? "close";
+  // Saved snapshot wins so the IIR memories (outPrev1/outPrev2) keep being
+  // applied with the coefficients they were computed under.
+  const period = warmUpOptions?.fromState?.period ?? options.period ?? 10;
+  const source: PriceSource = warmUpOptions?.fromState?.source ?? options.source ?? "close";
 
   if (period < 1) {
     throw new Error("Super Smoother period must be at least 1");

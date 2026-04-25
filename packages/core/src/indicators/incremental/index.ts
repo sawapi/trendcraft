@@ -144,6 +144,11 @@ export { createParabolicSar } from "./trend/parabolic-sar";
 export type { ParabolicSarState, ParabolicSarValue } from "./trend/parabolic-sar";
 export { createIchimoku } from "./trend/ichimoku";
 export type { IchimokuState, IchimokuValue as IncrementalIchimokuValue } from "./trend/ichimoku";
+export { createLinearRegression } from "./trend/linear-regression";
+export type {
+  LinearRegressionState,
+  LinearRegressionValue as IncrementalLinearRegressionValue,
+} from "./trend/linear-regression";
 
 // Volume
 export { createObv } from "./volume/obv";

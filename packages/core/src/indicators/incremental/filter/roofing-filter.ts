@@ -65,9 +65,11 @@ export function createRoofingFilter(
   options: { highPassPeriod?: number; lowPassPeriod?: number; source?: PriceSource } = {},
   warmUpOptions?: WarmUpOptions<RoofingFilterState>,
 ): IncrementalIndicator<number | null, RoofingFilterState> {
-  const highPassPeriod = options.highPassPeriod ?? 48;
-  const lowPassPeriod = options.lowPassPeriod ?? 10;
-  const source: PriceSource = options.source ?? "close";
+  // Saved snapshot wins so the cascaded HP / SS memories keep being applied
+  // with the coefficients they were computed under.
+  const highPassPeriod = warmUpOptions?.fromState?.highPassPeriod ?? options.highPassPeriod ?? 48;
+  const lowPassPeriod = warmUpOptions?.fromState?.lowPassPeriod ?? options.lowPassPeriod ?? 10;
+  const source: PriceSource = warmUpOptions?.fromState?.source ?? options.source ?? "close";
 
   if (highPassPeriod < 1) throw new Error("Roofing filter highPassPeriod must be at least 1");
   if (lowPassPeriod < 1) throw new Error("Roofing filter lowPassPeriod must be at least 1");

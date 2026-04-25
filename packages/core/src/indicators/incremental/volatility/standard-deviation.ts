@@ -37,8 +37,10 @@ export function createStandardDeviation(
   options: { period?: number; source?: PriceSource } = {},
   warmUpOptions?: WarmUpOptions<StandardDeviationState>,
 ): IncrementalIndicator<number | null, StandardDeviationState> {
-  const period = options.period ?? 20;
-  const source: PriceSource = options.source ?? "close";
+  // Saved snapshot wins so resumed sums match the configuration they were
+  // computed under, even if the caller forgets to pass period / source again.
+  const period = warmUpOptions?.fromState?.period ?? options.period ?? 20;
+  const source: PriceSource = warmUpOptions?.fromState?.source ?? options.source ?? "close";
 
   if (period < 1) {
     throw new Error("Standard Deviation period must be at least 1");
