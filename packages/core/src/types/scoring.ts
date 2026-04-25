@@ -181,6 +181,10 @@ export type VolatilityRegimeOptions = {
     /** Extreme volatility threshold (default: 95) */
     extreme?: number;
   };
+  /** Calendar preset for annualizing historical volatility (default: US equity, 252) */
+  calendar?: import("../calendar").TradingCalendar;
+  /** Raw override for periods per year when no calendar is supplied */
+  periodsPerYear?: number;
 };
 
 /**

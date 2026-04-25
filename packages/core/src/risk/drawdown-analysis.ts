@@ -8,6 +8,8 @@
  * - Ulcer Performance Index (risk-adjusted return metric)
  */
 
+import { type AnnualizationOptions, annualizationFactor } from "../calendar";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -313,7 +315,11 @@ export function estimateRecoveryTime(
  * console.log(`UPI: ${upi.toFixed(2)}`);
  * ```
  */
-export function ulcerPerformanceIndex(equityCurve: number[], riskFreeRate = 0): number {
+export function ulcerPerformanceIndex(
+  equityCurve: number[],
+  riskFreeRate = 0,
+  annualizationOpts: AnnualizationOptions = {},
+): number {
   if (equityCurve.length < 2) return 0;
 
   // Calculate percentage drawdowns from running peak
@@ -329,10 +335,11 @@ export function ulcerPerformanceIndex(equityCurve: number[], riskFreeRate = 0): 
   const ulcerIndex = Math.sqrt(sumSqDD / equityCurve.length);
   if (ulcerIndex === 0) return 0;
 
-  // Annualised return (assume 252 trading days)
+  // Annualised return using the configured trading-days-per-year (default: 252)
   const totalReturn = equityCurve[equityCurve.length - 1] / equityCurve[0] - 1;
   const n = equityCurve.length;
-  const annualReturn = (1 + totalReturn) ** (252 / n) - 1;
+  const periodsPerYear = annualizationFactor(annualizationOpts);
+  const annualReturn = (1 + totalReturn) ** (periodsPerYear / n) - 1;
 
   return (annualReturn - riskFreeRate) / (ulcerIndex / 100);
 }

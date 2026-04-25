@@ -5,6 +5,7 @@
  * using ATR percentile, Bollinger Bandwidth percentile, and historical volatility.
  */
 
+import { annualizationFactor } from "../../calendar";
 import { normalizeCandles } from "../../core/normalize";
 import type {
   Candle,
@@ -95,7 +96,11 @@ export function volatilityRegime(
   const bbSeries = bollingerBands(normalized, { period: opts.bbPeriod });
 
   // Calculate historical volatility (rolling standard deviation of log returns)
-  const hvSeries = calculateHistoricalVolatility(normalized, opts.lookbackPeriod);
+  const periodsPerYear = annualizationFactor({
+    calendar: options.calendar,
+    periodsPerYear: options.periodsPerYear,
+  });
+  const hvSeries = calculateHistoricalVolatility(normalized, opts.lookbackPeriod, periodsPerYear);
 
   const result: Series<VolatilityRegimeValue> = [];
 
@@ -217,9 +222,9 @@ function calculateBandwidthPercentile(
 function calculateHistoricalVolatility(
   candles: NormalizedCandle[],
   lookbackPeriod: number,
+  tradingDaysPerYear: number,
 ): (number | null)[] {
   const result: (number | null)[] = [];
-  const tradingDaysPerYear = 252;
 
   for (let i = 0; i < candles.length; i++) {
     if (i < lookbackPeriod) {

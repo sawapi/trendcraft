@@ -1426,3 +1426,14 @@ export type {
   CandleFormerValue,
   PredictionDirection,
 } from "./ml";
+
+// Trading calendar (market-specific annualization)
+export {
+  annualizationFactor,
+  CRYPTO_CALENDAR,
+  FX_CALENDAR,
+  HKEX_CALENDAR,
+  JPX_CALENDAR,
+  US_EQUITY_CALENDAR,
+} from "./calendar";
+export type { AnnualizationOptions, TradingCalendar } from "./calendar";

@@ -59,6 +59,8 @@ export type RuntimeMetricsOptions = {
   riskFreeRate?: number;
   /** Number of trading periods per year (default: 252 for daily) */
   annualizationFactor?: number;
+  /** Calendar preset supplying tradingDaysPerYear. Overrides annualizationFactor when provided. */
+  calendar?: import("../calendar").TradingCalendar;
 };
 
 /**
@@ -87,7 +89,10 @@ export function calculateRuntimeMetrics(
   trades: Trade[],
   options: RuntimeMetricsOptions = {},
 ): RuntimeMetrics {
-  const { initialCapital = 100_000, riskFreeRate = 0, annualizationFactor = 252 } = options;
+  const { initialCapital = 100_000, riskFreeRate = 0 } = options;
+  // Calendar takes precedence over the legacy annualizationFactor number
+  const annualizationFactor =
+    options.calendar?.tradingDaysPerYear ?? options.annualizationFactor ?? 252;
 
   const stats = calculateTradeStats(trades);
 

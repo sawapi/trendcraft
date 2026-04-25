@@ -2,6 +2,35 @@
 
 ## Unreleased
 
+### Added — Trading Calendar (market-specific annualization)
+
+- New `src/calendar/` module exposes a minimal `TradingCalendar` interface plus five presets:
+  `US_EQUITY_CALENDAR` (252), `JPX_CALENDAR` (245), `HKEX_CALENDAR` (247),
+  `CRYPTO_CALENDAR` (365), `FX_CALENDAR` (260). The presets carry only
+  `name` + `tradingDaysPerYear`; they do **not** ship holiday tables. Users
+  who need bar-level holiday gap detection can attach their own
+  `isTradingDay(date)` predicate.
+- `annualizationFactor({ calendar?, periodsPerYear? })` helper — single source
+  of truth for annualization across risk / volatility / runtime-metrics.
+- Wired into existing sites (all additive, defaults unchanged):
+  - `calculateMetricsFromReturns`, `stressTest`, `runAllStressTests` now accept
+    an `AnnualizationOptions` bag — Sharpe scales by `sqrt(periodsPerYear)`.
+  - `ulcerPerformanceIndex` accepts `AnnualizationOptions` — the annualized
+    return exponent `(1 + r) ** (N / n)` uses the configured `N`.
+  - `garch` / `ewmaVolatility` option types extend `AnnualizationOptions` —
+    the annualized volatility forecast uses `sqrt(N)` from the calendar.
+  - `volatilityRegime` accepts `calendar` / `periodsPerYear` through
+    `VolatilityRegimeOptions` — historical volatility annualization follows.
+  - `calculateRuntimeMetrics` gains a `calendar` field on `RuntimeMetricsOptions`;
+    it takes precedence over the legacy numeric `annualizationFactor`.
+  ```typescript
+  import { stressTest, PRESET_SCENARIOS, JPX_CALENDAR } from "trendcraft";
+  // Sharpe on a Japanese-equity strategy uses 245 bars/year, not 252
+  const result = stressTest(dailyReturns, PRESET_SCENARIOS.covidCrash2020, 100_000, {
+    calendar: JPX_CALENDAR,
+  });
+  ```
+
 ### Added — Price Source Coverage
 
 - `RsiOptions.source`, `MacdOptions.source`, `CciOptions.source` — `rsi()` / `macd()` / `cci()` and their incremental counterparts (`createRsi` / `createMacd` / `createCci`) now accept a `PriceSource` (`"close" | "hl2" | "hlc3" | "ohlc4" | ...`). Defaults preserve current behavior (`"close"` for RSI/MACD, `"hlc3"` for CCI), so existing call sites are unaffected.
