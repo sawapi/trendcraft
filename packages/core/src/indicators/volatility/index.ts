@@ -45,9 +45,10 @@ export { garmanKlass } from "./garman-klass";
 export type { GarmanKlassOptions } from "./garman-klass";
 export { standardDeviation } from "./standard-deviation";
 export type { StandardDeviationOptions } from "./standard-deviation";
-export { garch, ewmaVolatility } from "./garch";
+export { garch, ewmaVolatility, ewmaVolatilityFromCandles } from "./garch";
 export type {
   GarchOptions,
   GarchResult,
   EwmaVolatilityOptions,
+  EwmaVolatilityFromCandlesOptions,
 } from "./garch";

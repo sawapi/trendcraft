@@ -9,8 +9,9 @@
  */
 
 import { type AnnualizationOptions, annualizationFactor } from "../../calendar";
+import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
-import type { Series } from "../../types";
+import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -331,4 +332,53 @@ export function ewmaVolatility(returns: number[], options?: EwmaVolatilityOption
   }
 
   return tagSeries(result, { kind: "garch", overlay: false, label: "GARCH" });
+}
+
+/** Options for `ewmaVolatilityFromCandles` */
+export type EwmaVolatilityFromCandlesOptions = EwmaVolatilityOptions & {
+  /** Price source for log returns (default: "close") */
+  source?: PriceSource;
+};
+
+/**
+ * Convenience wrapper around `ewmaVolatility()` that accepts candles
+ * directly and computes log returns internally. Each output point uses
+ * the corresponding candle's `time`, so the result aligns with other
+ * candle-based indicators on the same timeline.
+ *
+ * The first candle has no preceding return and is therefore omitted
+ * from the output (matching how `ewmaVolatility(returns)` would be
+ * called with `returns.length === candles.length - 1`).
+ *
+ * @example
+ * ```ts
+ * // Same series, two equivalent forms
+ * const vol = ewmaVolatilityFromCandles(candles, { lambda: 0.94 });
+ * const returns = candles.slice(1).map((c, i) =>
+ *   Math.log(c.close / candles[i].close),
+ * );
+ * const vol2 = ewmaVolatility(returns, { lambda: 0.94 });
+ * ```
+ */
+export function ewmaVolatilityFromCandles(
+  candles: Candle[] | NormalizedCandle[],
+  options?: EwmaVolatilityFromCandlesOptions,
+): Series<number> {
+  const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+  if (normalized.length < 2) return [];
+
+  const source = options?.source ?? "close";
+  const returns: number[] = new Array(normalized.length - 1);
+  for (let i = 1; i < normalized.length; i++) {
+    const prev = getPrice(normalized[i - 1], source);
+    const cur = getPrice(normalized[i], source);
+    returns[i - 1] = prev > 0 && cur > 0 ? Math.log(cur / prev) : 0;
+  }
+
+  const vol = ewmaVolatility(returns, options);
+  // Realign onto candle times (returns[i] corresponds to candles[i+1])
+  for (let i = 0; i < vol.length; i++) {
+    vol[i] = { time: normalized[i + 1].time, value: vol[i].value };
+  }
+  return vol;
 }

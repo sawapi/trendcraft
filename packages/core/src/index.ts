@@ -1134,6 +1134,7 @@ export type { SeriesMeta, TaggedSeries } from "./types/candle";
 
 // Streaming (real-time trading pipeline)
 export * as streaming from "./streaming";
+export { createLiveCandle } from "./streaming";
 export { livePresets } from "./streaming";
 export type { LivePreset } from "./streaming";
 export { indicatorPresets } from "./streaming";
@@ -1374,8 +1375,13 @@ export {
 export type { MarginConfig, MarginState } from "./backtest";
 
 // GARCH / EWMA Volatility
-export { garch, ewmaVolatility } from "./indicators/volatility";
-export type { GarchOptions, GarchResult, EwmaVolatilityOptions } from "./indicators/volatility";
+export { garch, ewmaVolatility, ewmaVolatilityFromCandles } from "./indicators/volatility";
+export type {
+  GarchOptions,
+  GarchResult,
+  EwmaVolatilityOptions,
+  EwmaVolatilityFromCandlesOptions,
+} from "./indicators/volatility";
 
 // Meta-Strategy (Equity Curve Trading, Strategy Rotation)
 export {
