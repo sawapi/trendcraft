@@ -62,7 +62,8 @@
     "bench": "vitest bench",
     "size": "size-limit",
     "qa:indicators": "node scripts/qa-sweep.mjs",
-    "prepublishOnly": "pnpm build && pnpm test"
+    "verify:publish": "node scripts/verify-publish.mjs",
+    "prepublishOnly": "pnpm build && pnpm test && pnpm verify:publish"
   },
   "keywords": [
     "trading",

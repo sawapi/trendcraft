@@ -5994,8 +5994,56 @@ const vol = ewmaVolatility(dailyReturns, { lambda: 0.94 });
 | オプション | デフォルト | 説明 |
 |--------|---------|-------------|
 | `lambda` | `0.94` | 減衰係数（RiskMetrics標準） |
+| `calendar` | `US_EQUITY_CALENDAR` | 年率化に用いる取引カレンダープリセット |
+| `periodsPerYear` | `252` | 年率化期間の直接指定（`calendar` より優先） |
 
-`number`（年率ボラティリティ）を返します。
+`Series<number>`（年率ボラティリティ、%）を返します。
+
+### `ewmaVolatilityFromCandles(candles, options?)`
+
+`ewmaVolatility` のキャンドル受け取り版。内部でログリターンを計算し、各出力点をキャンドルの `time` に揃えるため、他のキャンドルベースのインジケーターと同一タイムライン上で合成可能です。先頭キャンドルには直前リターンが無いため出力から除外されます（長さは `candles.length - 1`）。
+
+```typescript
+import { ewmaVolatilityFromCandles, JPX_CALENDAR } from "trendcraft";
+
+const vol = ewmaVolatilityFromCandles(candles, {
+  lambda: 0.94,
+  source: "close",
+  calendar: JPX_CALENDAR,
+});
+// vol[i].time === candles[i + 1].time
+```
+
+| オプション | デフォルト | 説明 |
+|--------|---------|-------------|
+| `lambda` | `0.94` | 減衰係数 |
+| `source` | `"close"` | ログリターンの価格ソース（`"close" \| "hl2" \| "hlc3" \| "ohlc4"` 等） |
+| `calendar` | `US_EQUITY_CALENDAR` | 年率化カレンダー |
+| `periodsPerYear` | `252` | 年率化期間の直接指定 |
+
+`Series<number>`（年率ボラティリティ、%）を返します。
+
+---
+
+## 取引カレンダー (Trading Calendar)
+
+市場別の年率化ヘルパー。プリセットは `name` と `tradingDaysPerYear` のみを保持し、休場テーブルは内蔵しません。バー単位の休場ギャップ検出が必要な場合は独自の `isTradingDay(date)` 述語を渡してください。
+
+```typescript
+import {
+  US_EQUITY_CALENDAR, // 252
+  JPX_CALENDAR,        // 245
+  HKEX_CALENDAR,       // 247
+  CRYPTO_CALENDAR,     // 365
+  FX_CALENDAR,         // 260
+  annualizationFactor,
+} from "trendcraft";
+
+const N = annualizationFactor({ calendar: JPX_CALENDAR }); // 245
+```
+
+`AnnualizationOptions`（`{ calendar?, periodsPerYear? }`）は次の API が受け付けます：
+`calculateMetricsFromReturns`, `stressTest`, `runAllStressTests`, `ulcerPerformanceIndex`, `garch`, `ewmaVolatility`, `ewmaVolatilityFromCandles`, `volatilityRegime`, `calculateRuntimeMetrics`。デフォルト動作は従来と互換です。
 
 ---
 

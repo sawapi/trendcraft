@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { ewmaVolatility, garch, nelderMead } from "../volatility/garch";
+import type { NormalizedCandle } from "../../types";
+import { ewmaVolatility, ewmaVolatilityFromCandles, garch, nelderMead } from "../volatility/garch";
 
 // Synthetic returns: first half low vol, second half high vol (volatility clustering)
 const returns = Array.from({ length: 100 }, (_, i) => {
@@ -201,5 +202,38 @@ describe("nelderMead", () => {
     // Just verify it runs without error and produces a result
     expect(result.x).toHaveLength(2);
     expect(Number.isFinite(result.fx)).toBe(true);
+  });
+});
+
+describe("ewmaVolatilityFromCandles", () => {
+  const makeCandles = (closes: number[]): NormalizedCandle[] =>
+    closes.map((close, i) => ({
+      time: 1700000000000 + i * 86400000,
+      open: close,
+      high: close,
+      low: close,
+      close,
+      volume: 1000,
+    }));
+
+  it("returns empty for fewer than 2 candles", () => {
+    expect(ewmaVolatilityFromCandles([])).toEqual([]);
+    expect(ewmaVolatilityFromCandles(makeCandles([100]))).toEqual([]);
+  });
+
+  it("matches ewmaVolatility(returns) value-for-value", () => {
+    const closes = Array.from({ length: 60 }, (_, i) => 100 + Math.sin(i * 0.3) * 5 + i * 0.1);
+    const candles = makeCandles(closes);
+    const fromCandles = ewmaVolatilityFromCandles(candles, { lambda: 0.94 });
+
+    const returns = closes.slice(1).map((c, i) => Math.log(c / closes[i]));
+    const fromReturns = ewmaVolatility(returns, { lambda: 0.94 });
+
+    expect(fromCandles).toHaveLength(fromReturns.length);
+    for (let i = 0; i < fromCandles.length; i++) {
+      expect(fromCandles[i].value).toBeCloseTo(fromReturns[i].value, 12);
+      // Times come from the candle stream, not return-index
+      expect(fromCandles[i].time).toBe(candles[i + 1].time);
+    }
   });
 });

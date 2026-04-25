@@ -120,6 +120,7 @@ export {
   garmanKlass,
   standardDeviation,
   ewmaVolatility,
+  ewmaVolatilityFromCandles,
 } from "./volatility";
 export type {
   DonchianValue,

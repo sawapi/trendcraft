@@ -2,10 +2,13 @@
  * Incremental TRIX (Triple Exponential Average)
  *
  * 1. EMA1 = EMA(close, period)
- * 2. EMA2 = EMA(EMA1, period)
- * 3. EMA3 = EMA(EMA2, period)
+ * 2. EMA2 = EMA(EMA1, period)         — null-propagating
+ * 3. EMA3 = EMA(EMA2, period)         — null-propagating
  * 4. TRIX = (EMA3 - prevEMA3) / prevEMA3 × 100
- * 5. Signal = EMA(TRIX, signalPeriod)
+ * 5. Signal = EMA(TRIX, signalPeriod) — null-propagating
+ *
+ * The non-leading EMA stages skip null inputs and seed from the first
+ * `period` consecutive non-null upstream samples (matches batch trix()).
  */
 
 import type { NormalizedCandle } from "../../../types";
@@ -19,15 +22,68 @@ export type TrixValue = {
   signal: number | null;
 };
 
+type NullEmaState = {
+  period: number;
+  prev: number | null;
+  consec: number;
+  buffer: number[];
+};
+
+function makeNullEma(period: number, fromState?: NullEmaState) {
+  const multiplier = 2 / (period + 1);
+  let prev: number | null = fromState?.prev ?? null;
+  let consec = fromState?.consec ?? 0;
+  let buffer: number[] = fromState ? [...fromState.buffer] : [];
+
+  return {
+    next(v: number | null): number | null {
+      if (v === null) {
+        prev = null;
+        consec = 0;
+        buffer = [];
+        return null;
+      }
+      if (prev === null) {
+        consec++;
+        buffer.push(v);
+        if (buffer.length > period) buffer.shift();
+        if (consec >= period) {
+          let sum = 0;
+          for (const x of buffer) sum += x;
+          prev = sum / period;
+          return prev;
+        }
+        return null;
+      }
+      prev = v * multiplier + prev * (1 - multiplier);
+      return prev;
+    },
+    peek(v: number | null): number | null {
+      if (v === null) return null;
+      if (prev === null) {
+        if (consec + 1 < period) return null;
+        const tail = [...buffer, v];
+        if (tail.length > period) tail.shift();
+        let sum = 0;
+        for (const x of tail) sum += x;
+        return sum / period;
+      }
+      return v * multiplier + prev * (1 - multiplier);
+    },
+    getState(): NullEmaState {
+      return { period, prev, consec, buffer: [...buffer] };
+    },
+  };
+}
+
 export type TrixState = {
   period: number;
   signalPeriod: number;
   ema1State: EmaState;
-  ema2State: EmaState;
-  ema3State: EmaState;
-  signalEmaState: EmaState;
+  ema2State: NullEmaState;
+  ema3State: NullEmaState;
+  signalState: NullEmaState;
   prevEma3: number | null;
-  trixCount: number;
   count: number;
 };
 
@@ -51,29 +107,26 @@ export function createTrix(
   const signalPeriod = options.signalPeriod ?? 9;
 
   let ema1: ReturnType<typeof createEma>;
-  let ema2: ReturnType<typeof createEma>;
-  let ema3: ReturnType<typeof createEma>;
-  let signalEma: ReturnType<typeof createEma>;
+  let ema2: ReturnType<typeof makeNullEma>;
+  let ema3: ReturnType<typeof makeNullEma>;
+  let signalEma: ReturnType<typeof makeNullEma>;
   let prevEma3: number | null;
-  let trixCount: number;
   let count: number;
 
   if (warmUpOptions?.fromState) {
     const s = warmUpOptions.fromState;
     ema1 = createEma({ period }, { fromState: s.ema1State });
-    ema2 = createEma({ period }, { fromState: s.ema2State });
-    ema3 = createEma({ period }, { fromState: s.ema3State });
-    signalEma = createEma({ period: signalPeriod }, { fromState: s.signalEmaState });
+    ema2 = makeNullEma(period, s.ema2State);
+    ema3 = makeNullEma(period, s.ema3State);
+    signalEma = makeNullEma(signalPeriod, s.signalState);
     prevEma3 = s.prevEma3;
-    trixCount = s.trixCount;
     count = s.count;
   } else {
     ema1 = createEma({ period });
-    ema2 = createEma({ period });
-    ema3 = createEma({ period });
-    signalEma = createEma({ period: signalPeriod });
+    ema2 = makeNullEma(period);
+    ema3 = makeNullEma(period);
+    signalEma = makeNullEma(signalPeriod);
     prevEma3 = null;
-    trixCount = 0;
     count = 0;
   }
 
@@ -81,37 +134,16 @@ export function createTrix(
     next(candle: NormalizedCandle) {
       count++;
 
-      // Pass through triple EMA (batch maps null → 0 for synthetic candles)
-      const e1 = ema1.next(candle);
-      const e1Val = e1.value;
-      const e2 = ema2.next(makeCandle(candle.time, e1Val ?? 0));
-      const e2Val = e2.value;
-      const e3 = ema3.next(makeCandle(candle.time, e2Val ?? 0));
-      const e3Val = e3.value;
+      const e1Val = ema1.next(candle).value;
+      const e2Val = ema2.next(e1Val);
+      const e3Val = ema3.next(e2Val);
 
-      // TRIX = ROC of EMA3
       let trixVal: number | null = null;
       if (e3Val !== null && prevEma3 !== null) {
-        if (prevEma3 === 0) {
-          trixVal = 0;
-        } else {
-          trixVal = ((e3Val - prevEma3) / prevEma3) * 100;
-        }
+        trixVal = prevEma3 === 0 ? 0 : ((e3Val - prevEma3) / prevEma3) * 100;
       }
 
-      // Signal line = EMA of TRIX values
-      // Batch feeds ALL candles to signal EMA (using 0 for null trix values)
-      const signalInput = trixVal ?? 0;
-      const sigResult = signalEma.next(makeCandle(candle.time, signalInput));
-
-      // Signal is only valid after firstValidTrix + signalPeriod - 1
-      let signalVal: number | null = null;
-      if (trixVal !== null) {
-        trixCount++;
-        if (trixCount >= signalPeriod) {
-          signalVal = sigResult.value;
-        }
-      }
+      const signalVal = signalEma.next(trixVal);
 
       if (e3Val !== null) {
         prevEma3 = e3Val;
@@ -122,24 +154,15 @@ export function createTrix(
 
     peek(candle: NormalizedCandle) {
       const e1Val = ema1.peek(candle).value;
-      if (e1Val === null) return { time: candle.time, value: { trix: null, signal: null } };
-
-      const e2Val = ema2.peek(makeCandle(candle.time, e1Val)).value;
-      if (e2Val === null) return { time: candle.time, value: { trix: null, signal: null } };
-
-      const e3Val = ema3.peek(makeCandle(candle.time, e2Val)).value;
-      if (e3Val === null) return { time: candle.time, value: { trix: null, signal: null } };
+      const e2Val = ema2.peek(e1Val);
+      const e3Val = ema3.peek(e2Val);
 
       let trixVal: number | null = null;
-      if (prevEma3 !== null) {
+      if (e3Val !== null && prevEma3 !== null) {
         trixVal = prevEma3 === 0 ? 0 : ((e3Val - prevEma3) / prevEma3) * 100;
       }
 
-      let signalVal: number | null = null;
-      if (trixVal !== null && trixCount >= signalPeriod - 1) {
-        signalVal = signalEma.peek(makeCandle(candle.time, trixVal)).value;
-      }
-
+      const signalVal = signalEma.peek(trixVal);
       return { time: candle.time, value: { trix: trixVal, signal: signalVal } };
     },
 
@@ -150,9 +173,8 @@ export function createTrix(
         ema1State: ema1.getState(),
         ema2State: ema2.getState(),
         ema3State: ema3.getState(),
-        signalEmaState: signalEma.getState(),
+        signalState: signalEma.getState(),
         prevEma3,
-        trixCount,
         count,
       };
     },
@@ -162,8 +184,7 @@ export function createTrix(
     },
 
     get isWarmedUp() {
-      // First valid TRIX requires 3*(period-1)+1 candles, then +1 for ROC
-      return prevEma3 !== null && ema3.isWarmedUp;
+      return prevEma3 !== null;
     },
   };
 

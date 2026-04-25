@@ -38,7 +38,12 @@
       "node_modules",
       "*.config.ts",
       "packages/core/examples/alpaca-demo/data",
-      "packages/chart/examples/docs-screenshots/data"
+      "packages/chart/examples/docs-screenshots/data",
+      "**/examples/alpaca-demo/data/**",
+      "**/examples/docs-screenshots/data/**",
+      "qa-report.json",
+      "**/qa-report.json",
+      "**/manifest/sources/**"
     ]
   },
   "overrides": [

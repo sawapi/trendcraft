@@ -9,6 +9,11 @@
  * 2. EMA2 = EMA(EMA1, period)
  * 3. EMA3 = EMA(EMA2, period)
  * 4. TRIX = (EMA3 - prev EMA3) / prev EMA3 × 100
+ *
+ * Warmup: nulls from each EMA stage propagate; downstream stages do not
+ * begin until they have `period` consecutive non-null upstream samples.
+ * First valid TRIX therefore appears at `index = 3 * (period - 1) + 1`,
+ * matching StockCharts canonical TRIX (no zero-padding seed contamination).
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
@@ -16,6 +21,39 @@ import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { TRIX_META } from "../indicator-meta";
 import { ema } from "../moving-average/ema";
+
+/**
+ * EMA over a nullable input series. Nulls do not advance the running EMA;
+ * the SMA seed is taken from the first `period` consecutive non-null
+ * inputs. A null input mid-stream resets the chain.
+ */
+function emaOfNullable(values: (number | null)[], period: number): (number | null)[] {
+  const result: (number | null)[] = new Array(values.length).fill(null);
+  const multiplier = 2 / (period + 1);
+  let prev: number | null = null;
+  let consec = 0;
+  for (let i = 0; i < values.length; i++) {
+    const v = values[i];
+    if (v === null) {
+      prev = null;
+      consec = 0;
+      continue;
+    }
+    if (prev === null) {
+      consec++;
+      if (consec === period) {
+        let sum = 0;
+        for (let j = i - period + 1; j <= i; j++) sum += values[j] as number;
+        prev = sum / period;
+        result[i] = prev;
+      }
+    } else {
+      prev = v * multiplier + prev * (1 - multiplier);
+      result[i] = prev;
+    }
+  }
+  return result;
+}
 
 /**
  * TRIX options
@@ -73,76 +111,31 @@ export function trix(
 
   if (normalized.length === 0) return [];
 
-  // Triple EMA smoothing
-  const ema1 = ema(normalized, { period, source: "close" });
+  // EMA1 over close prices (already null-aware via ema())
+  const ema1Values = ema(normalized, { period, source: "close" }).map((e) => e.value);
+  // EMA2 / EMA3: null-propagating cascade
+  const ema2Values = emaOfNullable(ema1Values, period);
+  const ema3Values = emaOfNullable(ema2Values, period);
 
-  // Build synthetic candles from ema1 for second EMA pass
-  const ema1Candles: NormalizedCandle[] = ema1.map((e) => ({
-    time: e.time,
-    open: e.value ?? 0,
-    high: e.value ?? 0,
-    low: e.value ?? 0,
-    close: e.value ?? 0,
-    volume: 0,
-  }));
-  const ema2 = ema(ema1Candles, { period, source: "close" });
-
-  const ema2Candles: NormalizedCandle[] = ema2.map((e) => ({
-    time: e.time,
-    open: e.value ?? 0,
-    high: e.value ?? 0,
-    low: e.value ?? 0,
-    close: e.value ?? 0,
-    volume: 0,
-  }));
-  const ema3 = ema(ema2Candles, { period, source: "close" });
-
-  // Calculate TRIX: rate of change of ema3
-  const trixValues: (number | null)[] = [];
-  for (let i = 0; i < ema3.length; i++) {
-    if (i === 0 || ema3[i].value === null || ema3[i - 1].value === null) {
-      trixValues.push(null);
-      continue;
-    }
-    const prev = ema3[i - 1].value ?? 0;
-    if (prev === 0) {
-      trixValues.push(0);
-    } else {
-      trixValues.push((((ema3[i].value ?? 0) - prev) / prev) * 100);
-    }
+  // TRIX = 1-period ROC of EMA3
+  const trixValues: (number | null)[] = new Array(normalized.length).fill(null);
+  for (let i = 1; i < ema3Values.length; i++) {
+    const cur = ema3Values[i];
+    const prev = ema3Values[i - 1];
+    if (cur === null || prev === null) continue;
+    trixValues[i] = prev === 0 ? 0 : ((cur - prev) / prev) * 100;
   }
 
-  // Calculate signal line (EMA of TRIX)
-  const trixCandles: NormalizedCandle[] = trixValues.map((v, i) => ({
-    time: normalized[i].time,
-    open: v ?? 0,
-    high: v ?? 0,
-    low: v ?? 0,
-    close: v ?? 0,
-    volume: 0,
-  }));
-  const signalEma = ema(trixCandles, { period: signalPeriod, source: "close" });
+  // Signal = EMA(TRIX) — null-propagating so leading null TRIX bars do not
+  // contaminate the SMA seed of the signal line.
+  const signalValues = emaOfNullable(trixValues, signalPeriod);
 
-  // Find the index where TRIX first becomes valid
-  let firstValidTrix = -1;
-  for (let i = 0; i < trixValues.length; i++) {
-    if (trixValues[i] !== null) {
-      firstValidTrix = i;
-      break;
-    }
-  }
-
-  const result: Series<TrixValue> = [];
+  const result: Series<TrixValue> = new Array(normalized.length);
   for (let i = 0; i < normalized.length; i++) {
-    const trixVal = trixValues[i];
-    // Signal is only valid after firstValidTrix + signalPeriod - 1
-    const signalVal =
-      firstValidTrix >= 0 && i >= firstValidTrix + signalPeriod - 1 ? signalEma[i].value : null;
-
-    result.push({
+    result[i] = {
       time: normalized[i].time,
-      value: { trix: trixVal, signal: signalVal },
-    });
+      value: { trix: trixValues[i], signal: signalValues[i] },
+    };
   }
 
   return tagSeries(result, withLabelParams(TRIX_META, [period]));

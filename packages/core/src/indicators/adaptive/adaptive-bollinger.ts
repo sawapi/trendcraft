@@ -2,9 +2,14 @@
  * Adaptive Bollinger Bands indicator
  *
  * Bollinger Bands where the standard deviation multiplier adapts based on
- * rolling kurtosis (tail risk):
- * - High kurtosis (fat tails) -> wider bands
+ * rolling excess kurtosis of log returns (fat-tail risk):
+ * - High return kurtosis (fat tails) -> wider bands
  * - Normal kurtosis -> standard bands
+ *
+ * Note: rolling kurtosis is computed on log returns (`ln(p_t / p_{t-1})`),
+ * not on raw close prices. This matches the canonical financial definition
+ * of fat-tail risk. Prior to v0.3.0 the rolling kurtosis was computed on
+ * close prices directly, which conflated trend with tail risk.
  */
 
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
@@ -154,13 +159,18 @@ export function adaptiveBollinger(
     variance /= period; // population variance (same as standard BB)
     const sd = Math.sqrt(variance);
 
-    // Calculate kurtosis from a longer lookback
-    const kurtStart = Math.max(0, i - kurtosisLookback + 1);
-    const kurtValues: number[] = [];
+    // Calculate kurtosis on log returns (canonical fat-tail measure).
+    // Need at least 5 candles → 4 log returns for kurtosis to be defined.
+    const kurtStart = Math.max(1, i - kurtosisLookback + 1);
+    const kurtReturns: number[] = [];
     for (let j = kurtStart; j <= i; j++) {
-      kurtValues.push(getPrice(normalized[j], "close"));
+      const cur = getPrice(normalized[j], "close");
+      const prev = getPrice(normalized[j - 1], "close");
+      if (prev > 0 && cur > 0) {
+        kurtReturns.push(Math.log(cur / prev));
+      }
     }
-    const kurt = calculateKurtosis(kurtValues);
+    const kurt = calculateKurtosis(kurtReturns);
 
     // Determine effective multiplier
     let effectiveMultiplier = baseStdDev;

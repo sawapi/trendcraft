@@ -90,6 +90,7 @@ const bt = TrendCraft.from(candles)
 - `choppinessIndex(candles, { period })` — Choppiness Index (0-100: >61.8 choppy, <38.2 trending)
 - `garch(returns, opts?)` — GARCH(1,1) volatility model (conditional variance, forecast)
 - `ewmaVolatility(returns, opts?)` — EWMA volatility (RiskMetrics standard, lambda=0.94)
+- `ewmaVolatilityFromCandles(candles, opts?)` — same as `ewmaVolatility` but takes candles; computes log returns internally and aligns output to candle times
 
 ### Volume
 - `obv(candles)` — On Balance Volume
@@ -138,6 +139,13 @@ const bt = TrendCraft.from(candles)
 - `sessionBreakout(candles, opts?)` — Session high/low breakout signals
 - `sessionStats(candles, opts?)` — Session performance analytics
 - `getIctSessions()` / `getIctKillZones()` — ICT session/kill zone presets
+- `getJpxSessions()` / `getHkexSessions()` — Asia-market session presets with lunch breaks
+- `SessionDefinition.breaks?: SessionBreak[]` — intra-session breaks (e.g. JPX/HKEX lunch). Bars inside a break report `inSession: false`; `barIndex` does not advance
+- `SessionDefinition.timezone?: string` — IANA timezone (e.g. `"America/New_York"`, `"Asia/Tokyo"`); DST handled via `Intl.DateTimeFormat`. `KillZoneDefinition.timezone` accepts the same field
+
+### Trading Calendar (market-specific annualization)
+- `US_EQUITY_CALENDAR` (252) / `JPX_CALENDAR` (245) / `HKEX_CALENDAR` (247) / `CRYPTO_CALENDAR` (365) / `FX_CALENDAR` (260) — `TradingCalendar` presets
+- `annualizationFactor({ calendar?, periodsPerYear? })` — single source of truth used across `calculateMetricsFromReturns`, `stressTest`, `runAllStressTests`, `ulcerPerformanceIndex`, `garch`, `ewmaVolatility`, `volatilityRegime`, `calculateRuntimeMetrics`. All accept an `AnnualizationOptions` bag — defaults unchanged
 
 ### HMM Regime Detection
 - `hmmRegimes(candles, opts?)` — Hidden Markov Model regime detection (bull/bear/sideways)
@@ -513,8 +521,14 @@ TrendCraft.from(candles).use(myIndicator, opts).compute();
 ### Incremental Indicators
 ```typescript
 import { incremental } from 'trendcraft';
-// 160+ stateful, update-one-candle-at-a-time indicators for streaming use
+// 170+ stateful, update-one-candle-at-a-time indicators for streaming use
 // Categories: moving-average, momentum, trend, volatility, volume, price, wyckoff
+// All factories support { warmUp, fromState } for resumable sessions
+//   getState() / fromState — snapshot save/restore (same params required)
+//   peek(candle) — what next() would emit, without mutating state
+// 0.3.0 additions: createStandardDeviation, createSuperSmoother, createRoofingFilter,
+//   createLinearRegression, createHeikinAshi, createReturns, createSwingPoints,
+//   createZigzag, createBreakOfStructure, createChangeOfCharacter
 ```
 
 ### Live Streaming (createLiveCandle)
