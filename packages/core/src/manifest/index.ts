@@ -18,6 +18,8 @@
 
 import { MOMENTUM_MANIFESTS } from "./entries/momentum";
 import { MOVING_AVERAGE_MANIFESTS } from "./entries/moving-average";
+import { PRICE_MANIFESTS } from "./entries/price";
+import { SPECIALIZED_MANIFESTS } from "./entries/specialized";
 import { TREND_MANIFESTS } from "./entries/trend";
 import { VOLATILITY_MANIFESTS } from "./entries/volatility";
 import { VOLUME_MANIFESTS } from "./entries/volume";
@@ -31,6 +33,8 @@ const ALL_MANIFESTS: readonly IndicatorManifest[] = [
   ...VOLATILITY_MANIFESTS,
   ...TREND_MANIFESTS,
   ...VOLUME_MANIFESTS,
+  ...PRICE_MANIFESTS,
+  ...SPECIALIZED_MANIFESTS,
 ];
 
 const MANIFEST_BY_KIND: ReadonlyMap<string, IndicatorManifest> = new Map(
