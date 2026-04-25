@@ -148,7 +148,7 @@ import {
   ZIGZAG_META,
 } from "../indicators/indicator-meta";
 import type { NormalizedCandle, Series } from "../types";
-import type { SeriesMeta } from "../types/candle";
+import type { PriceSource, SeriesMeta } from "../types/candle";
 import { livePresets } from "./live-presets";
 import type { LiveIndicatorFactory } from "./types";
 
@@ -225,15 +225,43 @@ const period = (def = 14, min = 2, max = 200): ParamSchema => ({
   step: 1,
 });
 
-/** Helper to extend a livePreset entry with a batch compute function + catalog metadata */
-function withCompute(
+/** Type-only helper for bare `compute:` properties on manually-assembled entries
+ *  (ones that don't go through `withCompute`). Lets the author declare a
+ *  `Partial<TParams>` shape for `params` while the returned function is still
+ *  assignable to `IndicatorPreset.compute`'s erased signature. */
+function typedCompute<TParams extends Record<string, unknown> = Record<string, unknown>>(
+  // biome-ignore lint/suspicious/noExplicitAny: Series<unknown> output is narrowed per-indicator
+  fn: (candles: NormalizedCandle[], params: Partial<TParams>) => Series<any>,
+): IndicatorPreset["compute"] {
+  return fn as IndicatorPreset["compute"];
+}
+
+/** Helper to extend a livePreset entry with a batch compute function + catalog metadata.
+ *
+ *  `TParams` is optional: when supplied, `params` inside `computeFn` is narrowed
+ *  to `Partial<TParams>` so callers can write `p.period ?? 20` without
+ *  `as number` casts. When omitted, `params` falls back to the permissive
+ *  `any` used by pre-0.3.0 call sites — preserves compatibility for entries
+ *  that haven't been migrated. Mirrors the `factory<TParams>()` pattern in
+ *  live-presets.ts. */
+function withCompute<TParams extends Record<string, unknown> | undefined = undefined>(
   key: string,
-  // biome-ignore lint/suspicious/noExplicitAny: bridging typed batch fns with generic params
-  computeFn: (candles: NormalizedCandle[], params: any) => Series<any>,
+  computeFn: TParams extends Record<string, unknown>
+    ? // biome-ignore lint/suspicious/noExplicitAny: Series<unknown> output is narrowed per-indicator
+      (candles: NormalizedCandle[], params: Partial<TParams>) => Series<any>
+    : // biome-ignore lint/suspicious/noExplicitAny: untyped fallback preserves pre-0.3.0 call sites
+      (candles: NormalizedCandle[], params: any) => Series<any>,
   catalog?: CatalogInfo,
 ): IndicatorPreset {
   const live = livePresets[key];
-  return { ...live, compute: computeFn, ...catalog };
+  return {
+    ...live,
+    compute: computeFn as (
+      candles: NormalizedCandle[],
+      params: Record<string, unknown>,
+    ) => Series<unknown>,
+    ...catalog,
+  };
 }
 
 /**
@@ -731,8 +759,9 @@ export const indicatorPresets: Record<string, IndicatorPreset> = {
     meta: DPO_META,
     defaultParams: { period: 20 },
     snapshotName: (p: Record<string, unknown>) => `dpo${p.period}`,
-    compute: (c, p) =>
-      dpo(c, { period: (p.period as number) ?? 20, source: p.source as "close" | undefined }),
+    compute: typedCompute<{ period?: number; source?: PriceSource }>((c, p) =>
+      dpo(c, { period: p.period ?? 20, source: p.source }),
+    ),
     category: "Momentum",
     name: "Detrended Price Oscillator",
     description: "Removes trend to identify cycles by comparing price to a displaced MA.",
@@ -1392,12 +1421,16 @@ export const indicatorPresets: Record<string, IndicatorPreset> = {
       description: "Classic support/resistance levels calculated from prior period's OHLC.",
     },
   ),
-  fractals: withCompute("fractals", (c, p) => fractals(c, { period: (p.period as number) ?? 2 }), {
-    category: "Price",
-    name: "Williams Fractals",
-    description: "Marks local highs and lows using surrounding bar comparison.",
-    paramSchema: [period(2, 1, 10)],
-  }),
+  fractals: withCompute<{ period?: number }>(
+    "fractals",
+    (c, p) => fractals(c, { period: p.period ?? 2 }),
+    {
+      category: "Price",
+      name: "Williams Fractals",
+      description: "Marks local highs and lows using surrounding bar comparison.",
+      paramSchema: [period(2, 1, 10)],
+    },
+  ),
   gapAnalysis: withCompute(
     "gapAnalysis",
     (c, p) => gapAnalysis(c, { minGapPercent: p.minGapPercent ?? 0.5 }),
@@ -1519,12 +1552,13 @@ export const indicatorPresets: Record<string, IndicatorPreset> = {
     meta: ADAPTIVE_RSI_META,
     defaultParams: { basePeriod: 14, minPeriod: 6, maxPeriod: 28 },
     snapshotName: "adaptiveRsi",
-    compute: (c, p) =>
+    compute: typedCompute<{ basePeriod?: number; minPeriod?: number; maxPeriod?: number }>((c, p) =>
       adaptiveRsi(c, {
-        basePeriod: (p.basePeriod as number) ?? 14,
-        minPeriod: (p.minPeriod as number) ?? 6,
-        maxPeriod: (p.maxPeriod as number) ?? 28,
+        basePeriod: p.basePeriod ?? 14,
+        minPeriod: p.minPeriod ?? 6,
+        maxPeriod: p.maxPeriod ?? 28,
       }),
+    ),
     category: "Adaptive",
     name: "Adaptive RSI",
     description: "RSI with period that adjusts based on market volatility.",
@@ -1538,7 +1572,9 @@ export const indicatorPresets: Record<string, IndicatorPreset> = {
     meta: ADAPTIVE_MA_META,
     defaultParams: { erPeriod: 10 },
     snapshotName: "adaptiveMa",
-    compute: (c, p) => adaptiveMa(c, { erPeriod: (p.erPeriod as number) ?? 10 }),
+    compute: typedCompute<{ erPeriod?: number }>((c, p) =>
+      adaptiveMa(c, { erPeriod: p.erPeriod ?? 10 }),
+    ),
     category: "Adaptive",
     name: "Adaptive Moving Average",
     description: "EMA with speed adapting to Kaufman efficiency ratio.",
@@ -1558,11 +1594,12 @@ export const indicatorPresets: Record<string, IndicatorPreset> = {
     meta: ADAPTIVE_BB_META,
     defaultParams: { period: 20, baseStdDev: 2 },
     snapshotName: "adaptiveBb",
-    compute: (c, p) =>
+    compute: typedCompute<{ period?: number; baseStdDev?: number }>((c, p) =>
       adaptiveBollinger(c, {
-        period: (p.period as number) ?? 20,
-        baseStdDev: (p.baseStdDev as number) ?? 2,
+        period: p.period ?? 20,
+        baseStdDev: p.baseStdDev ?? 2,
       }),
+    ),
     category: "Adaptive",
     name: "Adaptive Bollinger Bands",
     description: "Bollinger Bands with multiplier adapting to kurtosis.",
@@ -1583,7 +1620,9 @@ export const indicatorPresets: Record<string, IndicatorPreset> = {
     meta: ADAPTIVE_STOCH_META,
     defaultParams: { basePeriod: 14 },
     snapshotName: "adaptiveStoch",
-    compute: (c, p) => adaptiveStochastics(c, { basePeriod: (p.basePeriod as number) ?? 14 }),
+    compute: typedCompute<{ basePeriod?: number }>((c, p) =>
+      adaptiveStochastics(c, { basePeriod: p.basePeriod ?? 14 }),
+    ),
     category: "Adaptive",
     name: "Adaptive Stochastics",
     description: "Stochastic oscillator with period adapting to ADX-based trend strength.",
@@ -1607,17 +1646,19 @@ export const indicatorPresets: Record<string, IndicatorPreset> = {
     meta: STD_DEV_META,
     defaultParams: { period: 20 },
     snapshotName: "stdDev",
-    compute: (c, p) => standardDeviation(c, { period: (p.period as number) ?? 20 }),
+    compute: typedCompute<{ period?: number }>((c, p) =>
+      standardDeviation(c, { period: p.period ?? 20 }),
+    ),
     category: "Volatility",
     name: "Standard Deviation",
     description: "Raw standard deviation of closing prices over a rolling window.",
     paramSchema: [period(20)],
   },
-  ewmaVol: withCompute(
+  ewmaVol: withCompute<{ lambda?: number }>(
     "ewmaVol",
     (c, p) => {
       const returns = c.slice(1).map((bar, i) => Math.log(bar.close / c[i].close));
-      const raw = ewmaVolatility(returns, { lambda: (p.lambda as number) ?? 0.94 });
+      const raw = ewmaVolatility(returns, { lambda: p.lambda ?? 0.94 });
       // Map index-based time back to candle timestamps (offset by 1 for returns)
       return raw.map((pt, i) => ({ time: c[i + 1].time, value: pt.value }));
     },
@@ -1642,11 +1683,12 @@ export const indicatorPresets: Record<string, IndicatorPreset> = {
     meta: VOL_REGIME_META,
     defaultParams: { atrPeriod: 14, lookbackPeriod: 100 },
     snapshotName: "volRegime",
-    compute: (c, p) =>
+    compute: typedCompute<{ atrPeriod?: number; lookbackPeriod?: number }>((c, p) =>
       volatilityRegime(c, {
-        atrPeriod: (p.atrPeriod as number) ?? 14,
-        lookbackPeriod: (p.lookbackPeriod as number) ?? 100,
+        atrPeriod: p.atrPeriod ?? 14,
+        lookbackPeriod: p.lookbackPeriod ?? 100,
       }),
+    ),
     category: "Volatility",
     name: "Volatility Regime",
     description: "Classifies market volatility as low, normal, high, or extreme.",
@@ -1679,10 +1721,10 @@ export const indicatorPresets: Record<string, IndicatorPreset> = {
     meta: LINEAR_REG_META,
     defaultParams: { period: 20 },
     snapshotName: "linReg",
-    compute: (c, p) => {
-      const raw = linearRegression(c, { period: (p.period as number) ?? 20 });
+    compute: typedCompute<{ period?: number }>((c, p) => {
+      const raw = linearRegression(c, { period: p.period ?? 20 });
       // Convert to band format: regression line ± standard deviation
-      const per = (p.period as number) ?? 20;
+      const per = p.period ?? 20;
       // Calculate residual stdDev for channel bands
       const values: (number | null)[] = raw.map((d) => d.value?.value ?? null);
       const closes = c.map((bar) => bar.close);
@@ -1704,7 +1746,7 @@ export const indicatorPresets: Record<string, IndicatorPreset> = {
         const stdDev = count > 0 ? Math.sqrt(sumSq / count) : 0;
         return { time: d.time, value: { upper: v + stdDev, middle: v, lower: v - stdDev } };
       });
-    },
+    }),
     category: "Trend",
     name: "Linear Regression Channel",
     description: "Regression line with standard deviation channel bands.",
@@ -1718,7 +1760,7 @@ export const indicatorPresets: Record<string, IndicatorPreset> = {
     meta: VOLUME_MA_META,
     defaultParams: { period: 20 },
     snapshotName: "volMa",
-    compute: (c, p) => volumeMa(c, { period: (p.period as number) ?? 20 }),
+    compute: typedCompute<{ period?: number }>((c, p) => volumeMa(c, { period: p.period ?? 20 })),
     category: "Volume",
     name: "Volume Moving Average",
     description: "Simple moving average of volume.",
@@ -1728,7 +1770,9 @@ export const indicatorPresets: Record<string, IndicatorPreset> = {
     meta: CVD_SIGNAL_META,
     defaultParams: { signalPeriod: 9 },
     snapshotName: "cvdSignal",
-    compute: (c, p) => cvdWithSignal(c, { signalPeriod: (p.signalPeriod as number) ?? 9 }),
+    compute: typedCompute<{ signalPeriod?: number }>((c, p) =>
+      cvdWithSignal(c, { signalPeriod: p.signalPeriod ?? 9 }),
+    ),
     category: "Volume",
     name: "CVD with Signal",
     description: "Cumulative Volume Delta with EMA signal line for crossover detection.",
@@ -1751,11 +1795,12 @@ export const indicatorPresets: Record<string, IndicatorPreset> = {
     meta: FAST_STOCH_META,
     defaultParams: { kPeriod: 14, dPeriod: 3 },
     snapshotName: "fastStoch",
-    compute: (c, p) =>
+    compute: typedCompute<{ kPeriod?: number; dPeriod?: number }>((c, p) =>
       fastStochastics(c, {
-        kPeriod: (p.kPeriod as number) ?? 14,
-        dPeriod: (p.dPeriod as number) ?? 3,
+        kPeriod: p.kPeriod ?? 14,
+        dPeriod: p.dPeriod ?? 3,
       }),
+    ),
     category: "Momentum",
     name: "Fast Stochastics",
     description: "Stochastic oscillator without smoothing (slowing=1).",
@@ -1768,11 +1813,12 @@ export const indicatorPresets: Record<string, IndicatorPreset> = {
     meta: SLOW_STOCH_META,
     defaultParams: { kPeriod: 14, dPeriod: 3 },
     snapshotName: "slowStoch",
-    compute: (c, p) =>
+    compute: typedCompute<{ kPeriod?: number; dPeriod?: number }>((c, p) =>
       slowStochastics(c, {
-        kPeriod: (p.kPeriod as number) ?? 14,
-        dPeriod: (p.dPeriod as number) ?? 3,
+        kPeriod: p.kPeriod ?? 14,
+        dPeriod: p.dPeriod ?? 3,
       }),
+    ),
     category: "Momentum",
     name: "Slow Stochastics",
     description: "Stochastic oscillator with extra smoothing (slowing=3).",
@@ -1798,11 +1844,12 @@ export const indicatorPresets: Record<string, IndicatorPreset> = {
     meta: SWING_POINTS_META,
     defaultParams: { leftBars: 5, rightBars: 5 },
     snapshotName: "swing",
-    compute: (c, p) =>
+    compute: typedCompute<{ leftBars?: number; rightBars?: number }>((c, p) =>
       swingPoints(c, {
-        leftBars: (p.leftBars as number) ?? 5,
-        rightBars: (p.rightBars as number) ?? 5,
+        leftBars: p.leftBars ?? 5,
+        rightBars: p.rightBars ?? 5,
       }),
+    ),
     category: "Price",
     name: "Swing Points",
     description: "Confirmed swing highs and lows using surrounding bar comparison.",
@@ -1823,8 +1870,8 @@ export const indicatorPresets: Record<string, IndicatorPreset> = {
     meta: ZIGZAG_META,
     defaultParams: { deviation: 5 },
     snapshotName: "zigzag",
-    compute: (c, p) => {
-      const raw = zigzag(c, { deviation: (p.deviation as number) ?? 5 });
+    compute: typedCompute<{ deviation?: number }>((c, p) => {
+      const raw = zigzag(c, { deviation: p.deviation ?? 5 });
       // Interpolate between pivot points for line rendering
       const result: Series<number | null> = raw.map((d) => ({
         time: d.time,
@@ -1845,7 +1892,7 @@ export const indicatorPresets: Record<string, IndicatorPreset> = {
         }
       }
       return result;
-    },
+    }),
     category: "Price",
     name: "Zigzag",
     description: "Connects significant swing points, filtering minor price movements.",
@@ -1882,7 +1929,9 @@ export const indicatorPresets: Record<string, IndicatorPreset> = {
     meta: ORDER_BLOCK_META,
     defaultParams: { swingPeriod: 5 },
     snapshotName: "ob",
-    compute: (c, p) => orderBlock(c, { swingPeriod: (p.swingPeriod as number) ?? 5 }),
+    compute: typedCompute<{ swingPeriod?: number }>((c, p) =>
+      orderBlock(c, { swingPeriod: p.swingPeriod ?? 5 }),
+    ),
     category: "SMC",
     name: "Order Block",
     description: "Detects institutional order blocks — supply and demand zones.",
@@ -1902,7 +1951,9 @@ export const indicatorPresets: Record<string, IndicatorPreset> = {
     meta: LIQUIDITY_SWEEP_META,
     defaultParams: { swingPeriod: 5 },
     snapshotName: "liqSweep",
-    compute: (c, p) => liquiditySweep(c, { swingPeriod: (p.swingPeriod as number) ?? 5 }),
+    compute: typedCompute<{ swingPeriod?: number }>((c, p) =>
+      liquiditySweep(c, { swingPeriod: p.swingPeriod ?? 5 }),
+    ),
     category: "SMC",
     name: "Liquidity Sweep",
     description: "Detects stop-hunt sweeps beyond swing highs/lows that quickly reverse.",
@@ -1926,7 +1977,9 @@ export const indicatorPresets: Record<string, IndicatorPreset> = {
     meta: { kind: "superSmoother", overlay: true, label: "SuperSmoother" },
     defaultParams: { period: 10 },
     snapshotName: (p: Record<string, unknown>) => `ss${p.period}`,
-    compute: (c, p) => superSmoother(c, { period: (p.period as number) ?? 10 }),
+    compute: typedCompute<{ period?: number }>((c, p) =>
+      superSmoother(c, { period: p.period ?? 10 }),
+    ),
     category: "Filter",
     name: "Super Smoother (Ehlers)",
     description: "Low-pass filter that smooths price with minimal lag via 2-pole IIR.",
@@ -1936,11 +1989,12 @@ export const indicatorPresets: Record<string, IndicatorPreset> = {
     meta: { kind: "roofingFilter", overlay: false, label: "Roofing" },
     defaultParams: { highPassPeriod: 48, lowPassPeriod: 10 },
     snapshotName: (p: Record<string, unknown>) => `roof${p.highPassPeriod}-${p.lowPassPeriod}`,
-    compute: (c, p) =>
+    compute: typedCompute<{ highPassPeriod?: number; lowPassPeriod?: number }>((c, p) =>
       roofingFilter(c, {
-        highPassPeriod: (p.highPassPeriod as number) ?? 48,
-        lowPassPeriod: (p.lowPassPeriod as number) ?? 10,
+        highPassPeriod: p.highPassPeriod ?? 48,
+        lowPassPeriod: p.lowPassPeriod ?? 10,
       }),
+    ),
     category: "Filter",
     name: "Roofing Filter (Ehlers)",
     description: "Bandpass that isolates medium-frequency cycles by removing trend and noise.",
@@ -1973,7 +2027,7 @@ export const indicatorPresets: Record<string, IndicatorPreset> = {
     meta: { kind: "highest", overlay: true, label: "Highest" },
     defaultParams: { period: 20 },
     snapshotName: (p: Record<string, unknown>) => `hi${p.period}`,
-    compute: (c, p) => highest(c, (p.period as number) ?? 20),
+    compute: typedCompute<{ period?: number }>((c, p) => highest(c, p.period ?? 20)),
     category: "Price",
     name: "Highest High",
     description: "Rolling maximum of candle highs over N bars.",
@@ -1983,7 +2037,7 @@ export const indicatorPresets: Record<string, IndicatorPreset> = {
     meta: { kind: "lowest", overlay: true, label: "Lowest" },
     defaultParams: { period: 20 },
     snapshotName: (p: Record<string, unknown>) => `lo${p.period}`,
-    compute: (c, p) => lowest(c, (p.period as number) ?? 20),
+    compute: typedCompute<{ period?: number }>((c, p) => lowest(c, p.period ?? 20)),
     category: "Price",
     name: "Lowest Low",
     description: "Rolling minimum of candle lows over N bars.",
@@ -1993,11 +2047,12 @@ export const indicatorPresets: Record<string, IndicatorPreset> = {
     meta: { kind: "returns", overlay: false, label: "Returns" },
     defaultParams: { period: 1, type: "simple" },
     snapshotName: (p: Record<string, unknown>) => `ret${p.period}-${p.type ?? "simple"}`,
-    compute: (c, p) =>
+    compute: typedCompute<{ period?: number; type?: "simple" | "log" }>((c, p) =>
       returns(c, {
-        period: (p.period as number) ?? 1,
-        type: (p.type as "simple" | "log") ?? "simple",
+        period: p.period ?? 1,
+        type: p.type ?? "simple",
       }),
+    ),
     category: "Price",
     name: "Returns",
     description: "Bar-over-bar percentage or log returns of close prices.",
@@ -2007,7 +2062,9 @@ export const indicatorPresets: Record<string, IndicatorPreset> = {
     meta: { kind: "cumulativeReturns", overlay: false, label: "Cum. Returns" },
     defaultParams: { type: "simple" },
     snapshotName: (p: Record<string, unknown>) => `cumret-${p.type ?? "simple"}`,
-    compute: (c, p) => cumulativeReturns(c, (p.type as "simple" | "log") ?? "simple"),
+    compute: typedCompute<{ type?: "simple" | "log" }>((c, p) =>
+      cumulativeReturns(c, p.type ?? "simple"),
+    ),
     category: "Price",
     name: "Cumulative Returns",
     description: "Growth of $1 invested at the first bar's close.",
@@ -2047,7 +2104,7 @@ export const indicatorPresets: Record<string, IndicatorPreset> = {
     meta: { kind: "atrPercent", overlay: false, label: "ATR%" },
     defaultParams: { period: 14 },
     snapshotName: (p: Record<string, unknown>) => `atrpct${p.period}`,
-    compute: (c, p) => atrPercentSeries(c, (p.period as number) ?? 14),
+    compute: typedCompute<{ period?: number }>((c, p) => atrPercentSeries(c, p.period ?? 14)),
     category: "Volatility",
     name: "ATR Percent",
     description: "ATR expressed as a percentage of price — normalized volatility metric.",

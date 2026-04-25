@@ -7,6 +7,8 @@
  * @packageDocumentation
  */
 
+import { type AnnualizationOptions, annualizationFactor } from "../calendar";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -200,7 +202,10 @@ export function generateShockedReturns(baseReturns: number[], shock: ReturnShock
  * // metrics.sharpe ≈ annualised risk-adjusted return
  * ```
  */
-export function calculateMetricsFromReturns(returns: number[]): {
+export function calculateMetricsFromReturns(
+  returns: number[],
+  annualizationOpts: AnnualizationOptions = {},
+): {
   totalReturn: number;
   maxDrawdown: number;
   sharpe: number;
@@ -226,7 +231,7 @@ export function calculateMetricsFromReturns(returns: number[]): {
   // Annualized Sharpe ratio
   const mean = returns.reduce((s, v) => s + v, 0) / returns.length;
   const sd = stddev(returns);
-  const sharpe = sd === 0 ? 0 : (mean / sd) * Math.sqrt(252);
+  const sharpe = sd === 0 ? 0 : (mean / sd) * Math.sqrt(annualizationFactor(annualizationOpts));
 
   return { totalReturn, maxDrawdown: maxDd, sharpe };
 }
@@ -256,9 +261,10 @@ export function stressTest(
   returns: number[],
   scenario: StressScenario,
   initialCapital = 100_000,
+  annualizationOpts: AnnualizationOptions = {},
 ): StressTestResult {
   // Original metrics
-  const originalMetrics = calculateMetricsFromReturns(returns);
+  const originalMetrics = calculateMetricsFromReturns(returns, annualizationOpts);
 
   // Apply shocks sequentially
   let stressed = [...returns];
@@ -267,7 +273,7 @@ export function stressTest(
   }
 
   // Stressed metrics
-  const stressedMetrics = calculateMetricsFromReturns(stressed);
+  const stressedMetrics = calculateMetricsFromReturns(stressed, annualizationOpts);
 
   // Build equity curve for worst-case analysis
   const equityCurve: number[] = [1];
@@ -360,11 +366,15 @@ export function stressTest(
  * console.log(`Max stressed drawdown: ${(summary.maxStressedDrawdown * 100).toFixed(1)}%`);
  * ```
  */
-export function runAllStressTests(returns: number[], initialCapital = 100_000): StressTestSummary {
+export function runAllStressTests(
+  returns: number[],
+  initialCapital = 100_000,
+  annualizationOpts: AnnualizationOptions = {},
+): StressTestSummary {
   const results: StressTestResult[] = [];
 
   for (const scenario of Object.values(PRESET_SCENARIOS)) {
-    results.push(stressTest(returns, scenario, initialCapital));
+    results.push(stressTest(returns, scenario, initialCapital, annualizationOpts));
   }
 
   // Find worst scenario by maxDrawdown

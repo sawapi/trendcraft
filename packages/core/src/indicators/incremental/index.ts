@@ -128,6 +128,14 @@ export { createAtrStops } from "./volatility/atr-stops";
 export type { AtrStopsState } from "./volatility/atr-stops";
 export { createUlcerIndex } from "./volatility/ulcer-index";
 export type { UlcerIndexState } from "./volatility/ulcer-index";
+export { createStandardDeviation } from "./volatility/standard-deviation";
+export type { StandardDeviationState } from "./volatility/standard-deviation";
+
+// Filter (Ehlers)
+export { createSuperSmoother } from "./filter/super-smoother";
+export type { SuperSmootherState } from "./filter/super-smoother";
+export { createRoofingFilter } from "./filter/roofing-filter";
+export type { RoofingFilterState } from "./filter/roofing-filter";
 
 // Trend
 export { createSupertrend } from "./trend/supertrend";
@@ -136,6 +144,11 @@ export { createParabolicSar } from "./trend/parabolic-sar";
 export type { ParabolicSarState, ParabolicSarValue } from "./trend/parabolic-sar";
 export { createIchimoku } from "./trend/ichimoku";
 export type { IchimokuState, IchimokuValue as IncrementalIchimokuValue } from "./trend/ichimoku";
+export { createLinearRegression } from "./trend/linear-regression";
+export type {
+  LinearRegressionState,
+  LinearRegressionValue as IncrementalLinearRegressionValue,
+} from "./trend/linear-regression";
 
 // Volume
 export { createObv } from "./volume/obv";
@@ -196,6 +209,32 @@ export type {
 } from "./price/opening-range";
 export { createFairValueGap } from "./price/fair-value-gap";
 export type { FairValueGapState, FvgValue as IncrementalFvgValue } from "./price/fair-value-gap";
+export { createHeikinAshi } from "./price/heikin-ashi";
+export type {
+  HeikinAshiState,
+  HeikinAshiValue as IncrementalHeikinAshiValue,
+} from "./price/heikin-ashi";
+export { createReturns } from "./price/returns";
+export type { ReturnsState } from "./price/returns";
+export { createSwingPoints } from "./price/swing-points";
+export type {
+  SwingPointsState,
+  SwingPointValue as IncrementalSwingPointValue,
+} from "./price/swing-points";
+export { createZigzag } from "./price/zigzag";
+export type {
+  ZigzagState,
+  ZigzagValue as IncrementalZigzagValue,
+} from "./price/zigzag";
+export {
+  createBreakOfStructure,
+  createChangeOfCharacter,
+} from "./price/break-of-structure";
+export type {
+  BosState,
+  ChochState,
+  BosValue as IncrementalBosValue,
+} from "./price/break-of-structure";
 
 // Wyckoff
 export { createVsa } from "./wyckoff/vsa";

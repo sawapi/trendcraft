@@ -28,6 +28,7 @@
   - [Combining Conditions](#combining-conditions)
 - [Utilities](#utilities)
   - [Data Normalization](#data-normalization)
+  - [Price Source Helpers](#price-source-helpers)
   - [Resampling](#resampling)
 - [Signal Scoring](#signal-scoring)
   - [ScoreBuilder](#scorebuilder)
@@ -3312,6 +3313,46 @@ const normalized = normalizeCandles(candles);
 
 ---
 
+### Price Source Helpers
+
+Pure helpers for extracting a specific price field from a normalized candle. Most indicators that accept a `source?: PriceSource` option call these internally; you only need them when feeding price data into a non-`source`-aware function (e.g. computing returns, plotting a derived series, or composing indicators yourself).
+
+#### `getPrice(candle, source)`
+
+Extract a single price value from one normalized candle.
+
+```typescript
+import { normalizeCandle, getPrice } from 'trendcraft';
+
+const c = normalizeCandle({ time: '2024-01-01', open: 99, high: 102, low: 98, close: 101, volume: 1000 });
+getPrice(c, 'close');  // 101
+getPrice(c, 'hl2');    // 100        ((102 + 98) / 2)
+getPrice(c, 'hlc3');   // 100.333... ((102 + 98 + 101) / 3)
+getPrice(c, 'ohlc4');  // 100        ((99 + 102 + 98 + 101) / 4)
+getPrice(c, 'volume'); // 1000
+```
+
+#### `getPriceSeries(candles, source)`
+
+Extract a price series (`number[]`) from an array of normalized candles. Equivalent to `candles.map((c) => getPrice(c, source))`.
+
+```typescript
+import { normalizeCandles, getPriceSeries } from 'trendcraft';
+
+const normalized = normalizeCandles(candles);
+const closes = getPriceSeries(normalized, 'close');
+const typical = getPriceSeries(normalized, 'hlc3');
+```
+
+**When to reach for these vs. `source` options:**
+- Indicator with a `source` option → pass `source: 'hlc3'` directly. No need to pre-extract.
+- Custom math on prices (returns, regressions, your own filters) → use `getPriceSeries` to get a clean `number[]`.
+- One-off price extraction inside a callback → use `getPrice`.
+
+For the streaming/incremental side, the equivalent helper is `incremental.getSourcePrice(candle, source)`, which is what `createSma`, `createRsi`, etc. call internally when their `source` option is set.
+
+---
+
 ### Resampling
 
 #### `resample(candles, timeframe)`
@@ -6301,7 +6342,7 @@ interface IndicatorValue<T> {
 
 type Series<T> = IndicatorValue<T>[];
 
-type PriceSource = 'open' | 'high' | 'low' | 'close' | 'hl2' | 'hlc3' | 'ohlc4';
+type PriceSource = 'open' | 'high' | 'low' | 'close' | 'hl2' | 'hlc3' | 'ohlc4' | 'volume';
 ```
 
 ### Signal Types

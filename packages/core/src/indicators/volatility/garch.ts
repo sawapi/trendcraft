@@ -8,6 +8,7 @@
  * @module
  */
 
+import { type AnnualizationOptions, annualizationFactor } from "../../calendar";
 import { tagSeries } from "../../core/tag-series";
 import type { Series } from "../../types";
 
@@ -16,7 +17,7 @@ import type { Series } from "../../types";
 // ---------------------------------------------------------------------------
 
 /** GARCH model options */
-export type GarchOptions = {
+export type GarchOptions = AnnualizationOptions & {
   /** GARCH lag order (default: 1) */
   p?: number;
   /** ARCH lag order (default: 1) */
@@ -42,7 +43,7 @@ export type GarchResult = {
 };
 
 /** EWMA volatility options */
-export type EwmaVolatilityOptions = {
+export type EwmaVolatilityOptions = AnnualizationOptions & {
   /** Decay factor (default: 0.94, RiskMetrics standard) */
   lambda?: number;
 };
@@ -201,6 +202,7 @@ function sampleVariance(values: number[]): number {
 export function garch(returns: number[], options?: GarchOptions): GarchResult {
   const maxIterations = options?.maxIterations ?? 100;
   const tolerance = options?.tolerance ?? 1e-6;
+  const sqrtAnnualization = Math.sqrt(annualizationFactor(options));
 
   const T = returns.length;
   if (T < 3) {
@@ -208,7 +210,7 @@ export function garch(returns: number[], options?: GarchOptions): GarchResult {
     const v = sampleVariance(returns);
     return {
       conditionalVariance: returns.map((_, i) => ({ time: i, value: v })),
-      volatilityForecast: Math.sqrt(v) * Math.sqrt(252) * 100,
+      volatilityForecast: Math.sqrt(v) * sqrtAnnualization * 100,
       params: { omega: v, alpha: 0, beta: 0 },
       logLikelihood: Number.NEGATIVE_INFINITY,
       converged: false,
@@ -274,7 +276,7 @@ export function garch(returns: number[], options?: GarchOptions): GarchResult {
 
   // One-step-ahead forecast
   const forecastVar = sigma2; // already computed for t = T
-  const volatilityForecast = Math.sqrt(forecastVar) * Math.sqrt(252) * 100;
+  const volatilityForecast = Math.sqrt(forecastVar) * sqrtAnnualization * 100;
 
   return {
     conditionalVariance: condVar,
@@ -320,12 +322,12 @@ export function ewmaVolatility(returns: number[], options?: EwmaVolatilityOption
   let sigma2 = sampleVariance(returns.slice(0, seedCount));
   if (sigma2 === 0) sigma2 = 1e-10; // prevent zero variance
 
-  const SQRT_252 = Math.sqrt(252);
+  const sqrtAnnualization = Math.sqrt(annualizationFactor(options));
   const result: Series<number> = [];
 
   for (let t = 0; t < T; t++) {
     sigma2 = lambda * sigma2 + (1 - lambda) * returns[t] ** 2;
-    result.push({ time: t, value: Math.sqrt(sigma2) * SQRT_252 * 100 });
+    result.push({ time: t, value: Math.sqrt(sigma2) * sqrtAnnualization * 100 });
   }
 
   return tagSeries(result, { kind: "garch", overlay: false, label: "GARCH" });

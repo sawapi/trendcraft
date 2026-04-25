@@ -2,6 +2,75 @@
 
 ## Unreleased
 
+### Added — More Incremental Indicators
+
+- `createLinearRegression()` — incremental rolling least-squares linear
+  regression. Maintains O(1)-updateable running sums (`sumY` / `sumY²` /
+  `sumXY`) plus a `period`-sized CircularBuffer; the four-field output
+  (`value`, `slope`, `intercept`, `rSquared`) matches batch
+  `linearRegression()` to 6 decimal places. R² is computed via the
+  Pearson form (`(n·sumXY − sumX·sumY)² / ((n·sumXX − sumX²)·(n·sumYY − sumY²))`)
+  rather than iterating ssRes / ssTot. Exposed via
+  `incremental.createLinearRegression`.
+- `createStandardDeviation()` — incremental rolling population standard
+  deviation. Maintains `sum` / `sumSq` running totals plus a `period`-sized
+  CircularBuffer for O(1) per-bar updates. Matches batch `standardDeviation()`
+  to 8 decimal places. Exposed via `incremental.createStandardDeviation`.
+- `createSuperSmoother()` — incremental Ehlers 2-pole Super Smoother filter.
+  State carries `prevPrice` and the last two outputs; first 2 bars emit
+  `null` (matches the batch IIR seeding). Exposed via
+  `incremental.createSuperSmoother`.
+- `createRoofingFilter()` — incremental Ehlers Roofing Filter (2-pole
+  high-pass cascaded into a Super Smoother). State carries the last two
+  inputs, last two high-pass outputs, and last two filter outputs. Matches
+  batch `roofingFilter()` to 10 decimal places. Exposed via
+  `incremental.createRoofingFilter`.
+
+Parity with the batch versions is covered by 18 new tests in
+`src/indicators/incremental/__tests__/stddev-ehlers.test.ts`, including
+default + custom params, multiple price sources, snapshot resume, and
+`peek` non-mutation.
+
+### Added — Trading Calendar (market-specific annualization)
+
+- New `src/calendar/` module exposes a minimal `TradingCalendar` interface plus five presets:
+  `US_EQUITY_CALENDAR` (252), `JPX_CALENDAR` (245), `HKEX_CALENDAR` (247),
+  `CRYPTO_CALENDAR` (365), `FX_CALENDAR` (260). The presets carry only
+  `name` + `tradingDaysPerYear`; they do **not** ship holiday tables. Users
+  who need bar-level holiday gap detection can attach their own
+  `isTradingDay(date)` predicate.
+- `annualizationFactor({ calendar?, periodsPerYear? })` helper — single source
+  of truth for annualization across risk / volatility / runtime-metrics.
+- Wired into existing sites (all additive, defaults unchanged):
+  - `calculateMetricsFromReturns`, `stressTest`, `runAllStressTests` now accept
+    an `AnnualizationOptions` bag — Sharpe scales by `sqrt(periodsPerYear)`.
+  - `ulcerPerformanceIndex` accepts `AnnualizationOptions` — the annualized
+    return exponent `(1 + r) ** (N / n)` uses the configured `N`.
+  - `garch` / `ewmaVolatility` option types extend `AnnualizationOptions` —
+    the annualized volatility forecast uses `sqrt(N)` from the calendar.
+  - `volatilityRegime` accepts `calendar` / `periodsPerYear` through
+    `VolatilityRegimeOptions` — historical volatility annualization follows.
+  - `calculateRuntimeMetrics` gains a `calendar` field on `RuntimeMetricsOptions`;
+    it takes precedence over the legacy numeric `annualizationFactor`.
+  ```typescript
+  import { stressTest, PRESET_SCENARIOS, JPX_CALENDAR } from "trendcraft";
+  // Sharpe on a Japanese-equity strategy uses 245 bars/year, not 252
+  const result = stressTest(dailyReturns, PRESET_SCENARIOS.covidCrash2020, 100_000, {
+    calendar: JPX_CALENDAR,
+  });
+  ```
+
+### Documented — Price Source Helpers
+
+- The pure helpers `getPrice(candle, source)` and `getPriceSeries(candles, source)`
+  (already exported since v0.1.0) are now covered in `docs/API.md` /
+  `docs/API.ja.md` under a new **Price Source Helpers** subsection. The
+  streaming equivalent `incremental.getSourcePrice` is cross-referenced.
+- `PriceSource` type listing in the API docs corrected to include the
+  `"volume"` variant that has always been part of the implementation.
+- `llms.txt` Data Utilities section enumerates `getPrice`,
+  `getPriceSeries`, and `incremental.getSourcePrice`.
+
 ### Added — Price Source Coverage
 
 - `RsiOptions.source`, `MacdOptions.source`, `CciOptions.source` — `rsi()` / `macd()` / `cci()` and their incremental counterparts (`createRsi` / `createMacd` / `createCci`) now accept a `PriceSource` (`"close" | "hl2" | "hlc3" | "ohlc4" | ...`). Defaults preserve current behavior (`"close"` for RSI/MACD, `"hlc3"` for CCI), so existing call sites are unaffected.
@@ -9,6 +78,22 @@
   // Use typical price (HLC3) as RSI input
   const rsiTypical = rsi(candles, { period: 14, source: "hlc3" });
   ```
+- `StochRsiOptions.source`, `ConnorsRsiOptions.source` — derived RSI indicators now thread the price source through every internal component. `stochRsi()` / `createStochRsi()` pass `source` to the inner RSI. `connorsRsi()` / `createConnorsRsi()` use the same `source` for the price RSI, the streak comparison, and the 1-period ROC used by `rocPercentile`. Defaults remain `"close"`.
+  ```typescript
+  // Compute StochRSI / Connors RSI on the typical price
+  const srsi = stochRsi(candles, { rsiPeriod: 14, stochPeriod: 14, source: "hlc3" });
+  const crsi = connorsRsi(candles, { rsiPeriod: 3, streakPeriod: 2, rocPeriod: 100, source: "hlc3" });
+  ```
+
+### Added — Incremental Price Indicators
+
+- `createHeikinAshi()` — incremental Heikin-Ashi. Emits the same `{open, high, low, close, trend}` shape as `heikinAshi()` and supports `getState()` / `fromState` snapshot resumption for live sessions. Exposed via `incremental.createHeikinAshi`.
+- `createReturns()` — incremental simple or log returns of close prices. `{ period?: number; type?: "simple" | "log" }`; emits `null` until `period + 1` candles have been seen. Exposed via `incremental.createReturns`.
+- `createSwingPoints()` — incremental Swing Points (leftBars/rightBars window). Confirmation lags by `rightBars` bars; the emitted `time` is the swing candidate bar's original time. The set of confirmed swing-high / swing-low bar times matches batch `swingPoints()` exactly on the same input.
+- `createZigzag()` — incremental Zigzag with percent-deviation or ATR-based thresholds. Pivots are emitted at the pivot bar's original time as reversals confirm; the collapsed-by-time pivot sequence matches batch `zigzag()` on the same input. Uses `createAtr` internally for ATR mode (state snapshot includes the nested ATR state).
+- `createBreakOfStructure()` / `createChangeOfCharacter()` — incremental BOS and CHoCH. Each emits per-candle `BosValue` at the current candle's time and matches batch `breakOfStructure()` / `changeOfCharacter()` value-by-value, including the running `trend` and the trailing `swingHighLevel` / `swingLowLevel`.
+
+Parity with batch is covered by `heikin-ashi-returns.test.ts`, `swing-points.test.ts`, `zigzag.test.ts`, and `break-of-structure.test.ts` under `src/indicators/incremental/__tests__/`.
 
 ### Added — Session: Lunch Breaks & Timezone Awareness
 

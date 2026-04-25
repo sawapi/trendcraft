@@ -6,7 +6,7 @@
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
-import type { Candle, NormalizedCandle, Series } from "../../types";
+import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 import { STOCH_RSI_META } from "../indicator-meta";
 import { rsi } from "./rsi";
 
@@ -34,6 +34,8 @@ export type StochRsiOptions = {
   kPeriod?: number;
   /** Period for %D (signal line) smoothing (default: 3) */
   dPeriod?: number;
+  /** Price source for the underlying RSI input (default: "close") */
+  source?: PriceSource;
 };
 
 /**
@@ -73,7 +75,7 @@ export function stochRsi(
   candles: Candle[] | NormalizedCandle[],
   options: StochRsiOptions = {},
 ): Series<StochRsiValue> {
-  const { rsiPeriod = 14, stochPeriod = 14, kPeriod = 3, dPeriod = 3 } = options;
+  const { rsiPeriod = 14, stochPeriod = 14, kPeriod = 3, dPeriod = 3, source = "close" } = options;
 
   if (rsiPeriod < 1) throw new Error("RSI period must be at least 1");
   if (stochPeriod < 1) throw new Error("Stoch period must be at least 1");
@@ -87,7 +89,7 @@ export function stochRsi(
   }
 
   // Step 1: Calculate RSI
-  const rsiData = rsi(normalized, { period: rsiPeriod });
+  const rsiData = rsi(normalized, { period: rsiPeriod, source });
   const rsiValues = rsiData.map((d) => d.value);
 
   // Step 2: Calculate raw StochRSI
