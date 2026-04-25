@@ -239,4 +239,308 @@ export const MOMENTUM_MANIFESTS: IndicatorManifest[] = [
       rocPeriod: "100 default — percentile lookback over 1-day ROC",
     },
   },
+  {
+    kind: "stochRsi",
+    displayName: "Stochastic RSI",
+    category: "momentum",
+    oneLiner:
+      "Tushar Chande & Stanley Kroll's stochastic applied to RSI values — more sensitive than plain RSI.",
+    whenToUse: [
+      "When plain RSI rarely reaches extremes and you want more frequent OB/OS signals",
+      "Short-term mean reversion in ranges",
+      "Confirming RSI reversals with %K/%D crossovers",
+    ],
+    signals: [
+      "StochRSI > 80 = overbought (Chande/Kroll's threshold, stricter than RSI's 70)",
+      "StochRSI < 20 = oversold (stricter than RSI's 30)",
+      "Above 0.5 (50%) sustained = uptrend bias; below 0.5 = downtrend bias",
+      "%K crosses above %D in <20 zone = oversold reversal cue",
+    ],
+    pitfalls: [
+      "Indicator-of-an-indicator — amplifies noise as well as signal",
+      "Spends extended time pinned at 0 or 100 in strong trends",
+      "Output scale depends on platform: trendcraft outputs 0-100, some platforms use 0-1",
+    ],
+    synergy: [
+      "Plain RSI for divergence cross-check",
+      "Higher-timeframe trend filter (200 MA) to gate signals",
+    ],
+    marketRegime: ["ranging"],
+    timeframe: ["intraday", "swing"],
+    paramHints: {
+      rsiPeriod: "14 default — RSI lookback (Chande/Kroll's original)",
+      stochPeriod: "14 default — high/low window applied to RSI",
+      kPeriod: "3 default — %K smoothing",
+      dPeriod: "3 default — %D (signal) smoothing",
+    },
+  },
+  {
+    kind: "trix",
+    displayName: "TRIX",
+    category: "momentum",
+    oneLiner:
+      "Jack Hutson's 1-period rate of change of a triple-smoothed EMA; filters noise to expose the underlying trend.",
+    whenToUse: [
+      "Trend-following with built-in noise filtering",
+      "Signal-line crossover systems where MACD whipsaws too much",
+      "Divergence detection against price",
+    ],
+    signals: [
+      "TRIX > 0 = uptrend; TRIX < 0 = downtrend",
+      "TRIX crosses above signal line = bullish",
+      "TRIX crosses below signal line = bearish",
+      "Divergence with price = trend exhaustion warning",
+    ],
+    pitfalls: [
+      "Triple-smoothing means significant lag at trend turns",
+      "trendcraft impl is more permissive about warmup than canonical TRIX: null EMA values are treated as 0 inside the nested EMA passes, so TRIX becomes non-null around index `period` rather than after a strict 3-stage EMA warmup. Early values may differ from references like StockCharts until all three EMAs are fully populated",
+      "Crossovers in flat/zero-line areas produce whipsaws",
+    ],
+    marketRegime: ["trending"],
+    timeframe: ["swing", "position"],
+    paramHints: {
+      period: "15 default for the triple-EMA smoothing (Hutson's original)",
+      signalPeriod: "9 default for the EMA-based signal line",
+    },
+  },
+  {
+    kind: "aroon",
+    displayName: "Aroon",
+    category: "momentum",
+    oneLiner:
+      "Tushar Chande's time-since-high/low indicator — measures how recently the period's extremes printed.",
+    whenToUse: [
+      "Detecting whether a market is trending or ranging",
+      "Identifying the start of a new trend (Aroon-Up or -Down crossing 70)",
+      "Confirming ADX-style trend strength with a complementary lens (time vs price)",
+    ],
+    signals: [
+      "Aroon-Up > 70 with Aroon-Down < 30 = strong uptrend underway",
+      "Aroon-Down > 70 with Aroon-Up < 30 = strong downtrend underway",
+      "Aroon-Up crosses above Aroon-Down = bullish trend ignition",
+      "Oscillator (Up - Down) > 0 = bullish bias; < 0 = bearish; near 0 = ranging",
+    ],
+    pitfalls: [
+      "Lags the trend — confirms after the high/low has printed",
+      "Best used as confirmation, not entry trigger; a single Aroon reading is rarely tradeable alone",
+      "On 25-period default, requires 25+ bars before first non-null reading",
+    ],
+    synergy: ["ADX/DMI to cross-confirm trend strength from a price-momentum angle"],
+    marketRegime: ["trending", "ranging"],
+    timeframe: ["swing", "position"],
+    paramHints: {
+      period: "25 default (Chande's original recommendation)",
+    },
+  },
+  {
+    kind: "awesomeOscillator",
+    displayName: "Awesome Oscillator",
+    category: "momentum",
+    oneLiner:
+      "Bill Williams' SMA(median, 5) - SMA(median, 34) histogram — momentum from median (high+low)/2 prices.",
+    whenToUse: [
+      "Visual momentum gauge alongside Bill Williams' broader trading system",
+      "Bill Williams' 'Saucer' and 'Twin Peaks' patterns for entries",
+      "Zero-line crossovers as trend direction shifts",
+    ],
+    signals: [
+      "AO > 0 = bullish momentum; AO < 0 = bearish momentum",
+      "Saucer (bullish): 3-bar reversal above zero where bar 2 is red (lower than bar 1) and bar 3 is green (higher than bar 2)",
+      "Twin Peaks (bullish): two troughs below zero with the second trough higher than the first, while the bars between stay below zero, followed by a green bar",
+      "Zero-line crossover = trend direction shift",
+    ],
+    pitfalls: [
+      "Median-price input ignores close, which discards intra-bar information",
+      "Default 5/34 has a long warmup (34 bars before first non-null)",
+      "Saucer/Twin Peaks are pattern-based — coding them reliably is non-trivial",
+    ],
+    marketRegime: ["trending"],
+    timeframe: ["swing"],
+    paramHints: {
+      fastPeriod: "5 default (Bill Williams' original)",
+      slowPeriod: "34 default (Bill Williams' original)",
+    },
+  },
+  {
+    kind: "ppo",
+    displayName: "Percentage Price Oscillator",
+    category: "momentum",
+    oneLiner:
+      "MACD-equivalent expressed as percentage — comparable across instruments with different price levels.",
+    whenToUse: [
+      "Cross-asset momentum comparison (where MACD's absolute units fail)",
+      "Divergence detection with price-level-independent magnitude",
+      "Replacement for MACD in long-history backtests where price scale changes significantly",
+    ],
+    signals: [
+      "PPO crosses above signal = bullish momentum shift",
+      "PPO crosses below signal = bearish momentum shift",
+      "Histogram peaks/troughs = momentum acceleration/deceleration",
+      "Zero-line crossovers = longer-term trend direction change",
+    ],
+    pitfalls: [
+      "Same lag/whipsaw issues as MACD in chop or low-volatility regimes",
+      "Less name-recognition than MACD — harder to communicate signals to non-quant audiences",
+      "Default 12/26/9 inherited from MACD; same daily-bar convention caveats apply",
+      "PPO normalizes before the signal EMA, so PPO signal/histogram timing can diverge from MACD's — not a strict cosmetic rescale",
+    ],
+    synergy: [
+      "Use PPO instead of MACD when comparing momentum across stocks at different price levels",
+      "Higher-timeframe trend filter for direction bias",
+    ],
+    marketRegime: ["trending"],
+    timeframe: ["swing", "position"],
+    paramHints: {
+      fastPeriod: "12 standard (MACD parity)",
+      slowPeriod: "26 standard",
+      signalPeriod: "9 standard",
+    },
+  },
+  {
+    kind: "tsi",
+    displayName: "True Strength Index",
+    category: "momentum",
+    oneLiner:
+      "William Blau's double-smoothed momentum oscillator — momentum filtered by two nested EMAs.",
+    whenToUse: [
+      "Trend-following with smoother momentum than MACD/PPO",
+      "Divergence detection on swing/position timeframes",
+      "Zero-line crossovers as longer-term trend cues",
+    ],
+    signals: [
+      "TSI > 0 = bullish momentum; TSI < 0 = bearish momentum",
+      "TSI crosses above signal line = bullish entry cue",
+      "TSI crosses below signal line = bearish entry cue",
+      "Divergence with price = trend exhaustion",
+    ],
+    pitfalls: [
+      "Double smoothing creates significant lag at sharp turns",
+      "Signal-line crossovers are 'quite frequent' (StockCharts) — require additional filtering",
+      "Blau's defaults (25/13/7) tuned for daily charts; intraday/longer needs adjustment",
+    ],
+    marketRegime: ["trending"],
+    timeframe: ["swing", "position"],
+    paramHints: {
+      longPeriod: "25 default — first (long) EMA of momentum",
+      shortPeriod: "13 default — second (short) EMA of long-smoothed momentum",
+      signalPeriod: "7 default — EMA of TSI for the signal line",
+    },
+  },
+  {
+    kind: "ultimateOscillator",
+    displayName: "Ultimate Oscillator",
+    category: "momentum",
+    oneLiner:
+      "Larry Williams' weighted average of buying-pressure ratios across three timeframes (4:2:1).",
+    whenToUse: [
+      "OB/OS detection that's more robust than single-timeframe oscillators",
+      "Divergence-based entry systems (Williams' canonical use)",
+    ],
+    signals: [
+      "UO > 70 = overbought; UO < 30 = oversold",
+      "Bullish divergence formed below 30, then UO rises above the divergence high = buy signal (Williams' three-step setup)",
+      "Bearish divergence formed above 70, then UO falls below the divergence low = sell signal",
+    ],
+    pitfalls: [
+      "Three-period weighting (4:2:1) is fixed by Williams' design — alternatives are non-canonical",
+      "Multi-timeframe averaging dampens reaction speed — late entries on fast moves",
+      "Long warmup: needs `period3` bars (28 default) before first non-null",
+    ],
+    marketRegime: ["ranging", "trending"],
+    timeframe: ["swing"],
+    paramHints: {
+      period1: "7 default — short timeframe (highest weight in 4:2:1)",
+      period2: "14 default — medium timeframe",
+      period3: "28 default — long timeframe (lowest weight)",
+    },
+  },
+  {
+    kind: "stc",
+    displayName: "Schaff Trend Cycle",
+    category: "momentum",
+    oneLiner:
+      "Doug Schaff's (publicly released ~2008) double-smoothed Stochastic of MACD — bounded 0-100 trend cycle indicator.",
+    whenToUse: [
+      "Faster reversal cues than MACD with built-in OB/OS bounds",
+      "Trend cycle identification across instruments where MACD lags",
+    ],
+    signals: [
+      "STC > 75 = overbought zone (uptrend likely tiring)",
+      "STC < 25 = oversold zone",
+      "STC crosses up through 25 = end of oversold, potential long entry",
+      "STC crosses down through 75 = end of overbought, potential short entry",
+    ],
+    pitfalls: [
+      "Combines MACD lag with double-smoothed Stochastic — interpretation requires understanding both layers",
+      "Whipsaws hard in chop despite the smoothing, especially on shorter timeframes",
+      "Default 23/50/10 differs from MACD's 12/26/9 — not a direct drop-in replacement",
+      "Long warmup: needs `slowPeriod` (50) bars for the inner MACD plus the two Stochastic passes — first non-null is well past 60 bars on defaults",
+    ],
+    marketRegime: ["trending"],
+    timeframe: ["swing", "position"],
+    paramHints: {
+      fastPeriod: "23 default — fast EMA for the underlying MACD (Schaff's original)",
+      slowPeriod: "50 default — slow EMA",
+      cyclePeriod: "10 default — Stochastic cycle length applied to MACD values",
+    },
+  },
+  {
+    kind: "cmo",
+    displayName: "Chande Momentum Oscillator",
+    category: "momentum",
+    oneLiner:
+      "Tushar Chande's pure momentum oscillator using both up and down moves; bounded -100 to +100.",
+    whenToUse: [
+      "OB/OS detection without RSI's denominator-asymmetry issues",
+      "Zero-line crossovers as trend direction shifts",
+      "Divergence with price",
+    ],
+    signals: [
+      "CMO > +50 = overbought",
+      "CMO < -50 = oversold",
+      "Zero-line crossover = trend direction change",
+      "Divergence with price = trend exhaustion warning",
+    ],
+    pitfalls: [
+      "Tushar Chande's original CMO used raw sums (no smoothing); trendcraft impl uses Wilder's smoothing to match TA-Lib — values differ from the strict-original CMO",
+      "Stays at extremes during strong trends like RSI",
+      "Chande's recommended period: 9 for daily (high sensitivity); trendcraft default 14 favors swing-style stability",
+    ],
+    marketRegime: ["ranging"],
+    timeframe: ["swing"],
+    paramHints: {
+      period:
+        "14 default in trendcraft (TA-Lib parity). Chande's original recommended 9 for daily charts",
+    },
+  },
+  {
+    kind: "adxr",
+    displayName: "ADX Rating (ADXR)",
+    category: "momentum",
+    oneLiner: "Wilder's smoothed ADX: average of current ADX and ADX from `period - 1` bars ago.",
+    whenToUse: [
+      "Smoother trend-strength filter than raw ADX for slower systems",
+      "Wilder's original Directional Movement system entry filter (ADXR > 25)",
+    ],
+    signals: [
+      "ADXR > 25 = strong trend (Wilder's threshold to enable trend-following entries)",
+      "ADXR < 20 = weak trend / range — Wilder's rule: do NOT trade trend-following systems",
+    ],
+    pitfalls: [
+      "Direction-agnostic — never use alone for entries (use +DI/-DI for direction)",
+      "Smoothing makes ADXR slightly less responsive than ADX — late on fresh trend ignition",
+      "Long warmup: requires DMI/ADX warmup PLUS the `period` lookback for the rating average",
+    ],
+    synergy: [
+      "+DI / -DI from DMI for direction once ADXR > 25",
+      "Higher-timeframe ADXR for regime confirmation",
+    ],
+    marketRegime: ["trending", "ranging"],
+    timeframe: ["swing", "position"],
+    paramHints: {
+      period: "14 default — ADXR rating lookback (Wilder's original)",
+      dmiPeriod: "14 default — DMI/ATR smoothing",
+      adxPeriod: "14 default — ADX smoothing window",
+    },
+  },
 ];
