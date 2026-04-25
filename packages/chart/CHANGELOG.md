@@ -7,9 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-<!-- draft: polish before release -->
+<!-- draft -->
 <!-- - session gap rendering (ChartOptions.timeScale.sessionGaps, TimeScale.setGapsBefore) -->
 <!-- - autoFormatTime shows date anchor after large time jumps within the same local day -->
+
+### Not in this release
+
+- Intraday session gap rendering (weekend/overnight visual gaps for minute data) — tracked for v0.3.
+- C1 coverage 90% target — viewport / canvas-chart / drawing-tool DOM integration tests have low ROI; addressed incrementally.
+- Plugin live-mode integration — the six differentiation plugins remain static-only until incrementalization lands.
+
+## [0.2.0] - 2026-04-26
 
 ### Added — UX pass
 
@@ -45,8 +53,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bundle size budget for the main entry raised from 31 kB → 32 kB (brotli). The raise reflects the intentional UX additions above and is expected to hold through the 0.2.x line — future feature work either lives on a sub-path or compensates with equivalent reductions elsewhere.
-- React / Vue wrapper budgets raised from 29 kB → 30 kB (brotli) to accommodate the new exports surfaced by the polish and badge features. Main budget raised 35 kB → 36 kB for the last-value badge feature.
+- Bundle size budgets raised (brotli) to absorb the UX pass and last-value badges. The new limits are expected to hold through the 0.2.x line; future feature work either lives on a sub-path or compensates with equivalent reductions elsewhere.
+
+  | Entry | 0.1.0 limit | 0.2.0 limit |
+  | --- | --- | --- |
+  | Main (`@trendcraft/chart`) | 31 kB | **36 kB** |
+  | Headless (`@trendcraft/chart/headless`) | 11 kB | 11 kB |
+  | React (`@trendcraft/chart/react`) | 27 kB | **30 kB** |
+  | Vue (`@trendcraft/chart/vue`) | 27 kB | **30 kB** |
 
 ### Internal
 
@@ -87,4 +101,5 @@ Initial public release.
 - `react` (optional, `>=19.0.0`) — required only when using the React wrapper.
 - `vue` (optional, `>=3.3.0`) — required only when using the Vue wrapper.
 
+[0.2.0]: https://github.com/sawapi/trendcraft/releases/tag/chart-v0.2.0
 [0.1.0]: https://github.com/sawapi/trendcraft/releases/tag/chart-v0.1.0
