@@ -25,6 +25,22 @@ export type EaseOfMovementOptions = {
  * EMV = ((H+L)/2 - (prevH+prevL)/2) / ((Volume/divisor) / (H-L))
  * Then smoothed with SMA.
  *
+ * Note on `volumeDivisor`: trendcraft's default is `10000`, which makes
+ * EMV values comparable across small-volume instruments. The canonical
+ * StockCharts / ChartSchool reference uses `100_000_000` (100M), which
+ * scales EMV down by ~10000× and is the value to pass when comparing
+ * directly to charting platform references:
+ *
+ * ```ts
+ * // Match StockCharts / ChartSchool reference values
+ * const emv = easeOfMovement(candles, { period: 14, volumeDivisor: 100_000_000 });
+ * ```
+ *
+ * For trading-decision use cases the **sign** and **slope** of EMV are
+ * what matters, and both are invariant to `volumeDivisor`. The default
+ * is preserved for backward compatibility through the 0.x line; a future
+ * major bump may switch to the canonical 100M.
+ *
  * @param candles - Array of candles (raw or normalized)
  * @param options - Options
  * @returns Series of EMV values

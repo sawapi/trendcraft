@@ -2,6 +2,43 @@
 
 ## Unreleased
 
+### Breaking — Indicator Quality Fixes
+
+- **TRIX warmup**: nested EMA stages no longer treat `null` upstream values
+  as `0`. Each EMA stage now waits for `period` consecutive non-null
+  upstream samples before seeding its SMA, so the first valid TRIX
+  appears at `index = 3 * (period - 1) + 1` and the early-bar values
+  match StockCharts canonical TRIX. Late-bar values were already correct;
+  only warmup-region values change. The same fix is applied to the
+  signal line so it is no longer contaminated by zero-padded TRIX inputs.
+  Affects both `trix()` (batch) and `createTrix()` (incremental).
+- **`adaptiveBollinger` kurtosis input**: rolling excess kurtosis is now
+  computed on log returns (`ln(p_t / p_{t-1})`), not on raw close prices.
+  This matches the canonical financial definition of fat-tail risk; the
+  prior behavior conflated trend (price level distribution) with tail
+  risk. The `effectiveMultiplier` and `kurtosis` outputs change for
+  trending series. Band shape interpretation is unchanged: high return
+  kurtosis still produces wider bands.
+
+### Added — ewmaVolatilityFromCandles
+
+- `ewmaVolatilityFromCandles(candles, options)` — candle-shaped wrapper
+  around `ewmaVolatility(returns)`. Computes log returns internally and
+  realigns the output onto candle times so the result composes with
+  other candle-based indicators on the same timeline. Accepts the same
+  `lambda` / `calendar` / `periodsPerYear` options as `ewmaVolatility`,
+  plus an optional `source` (default `"close"`). Resolves the long-
+  standing API outlier where every other indicator takes
+  `(candles, options)` but `ewmaVolatility` took `(returns, options)`.
+
+### Documented — Volatility stddev conventions
+
+- `historicalVolatility()` JSDoc now explicitly notes it uses **sample**
+  stddev (`/ (N - 1)`) on log returns; `standardDeviation()` JSDoc notes
+  it uses **population** stddev (`/ N`) for TA-Lib / Bollinger Band
+  parity. The two conventions are intentional and not interchangeable —
+  pick by use case.
+
 ### Added — More Incremental Indicators
 
 - `createLinearRegression()` — incremental rolling least-squares linear

@@ -6765,8 +6765,64 @@ const vol = ewmaVolatility(dailyReturns, { lambda: 0.94 });
 | Option | Default | Description |
 |--------|---------|-------------|
 | `lambda` | `0.94` | Decay factor (RiskMetrics standard) |
+| `calendar` | `US_EQUITY_CALENDAR` | Trading calendar preset for annualization |
+| `periodsPerYear` | `252` | Override annualization (takes precedence over `calendar`) |
 
-Returns `number` (annualized volatility).
+Returns `Series<number>` (annualized volatility, percent).
+
+### `ewmaVolatilityFromCandles(candles, options?)`
+
+Candle-shaped wrapper around `ewmaVolatility`. Computes log returns internally and aligns each output point to a candle's `time`, so the result composes with other candle-based indicators on the same timeline. The first candle has no preceding return and is omitted from the output (length is `candles.length - 1`).
+
+```typescript
+import { ewmaVolatilityFromCandles, JPX_CALENDAR } from "trendcraft";
+
+const vol = ewmaVolatilityFromCandles(candles, {
+  lambda: 0.94,
+  source: "close",
+  calendar: JPX_CALENDAR,
+});
+// vol[i].time === candles[i + 1].time
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `lambda` | `0.94` | Decay factor (RiskMetrics standard) |
+| `source` | `"close"` | Price source for log returns (`"close" \| "hl2" \| "hlc3" \| "ohlc4"` etc.) |
+| `calendar` | `US_EQUITY_CALENDAR` | Trading calendar preset for annualization |
+| `periodsPerYear` | `252` | Override annualization |
+
+Returns `Series<number>` (annualized volatility, percent), aligned to candle times.
+
+---
+
+## Trading Calendar
+
+Market-specific annualization helpers. Calendar presets carry only `name` and `tradingDaysPerYear`; they do not ship holiday tables. If you need bar-level holiday gap detection, attach your own `isTradingDay(date)` predicate.
+
+```typescript
+import {
+  US_EQUITY_CALENDAR, // 252
+  JPX_CALENDAR,        // 245
+  HKEX_CALENDAR,       // 247
+  CRYPTO_CALENDAR,     // 365
+  FX_CALENDAR,         // 260
+  annualizationFactor,
+  stressTest,
+  PRESET_SCENARIOS,
+} from "trendcraft";
+
+// Sharpe on a Japanese-equity strategy uses 245 bars/year
+const result = stressTest(dailyReturns, PRESET_SCENARIOS.covidCrash2020, 100_000, {
+  calendar: JPX_CALENDAR,
+});
+
+// Single source of truth — sqrt(N) for vol, N for return-exponent
+const N = annualizationFactor({ calendar: JPX_CALENDAR }); // 245
+```
+
+The `AnnualizationOptions` bag (`{ calendar?, periodsPerYear? }`) is accepted by:
+`calculateMetricsFromReturns`, `stressTest`, `runAllStressTests`, `ulcerPerformanceIndex`, `garch`, `ewmaVolatility`, `ewmaVolatilityFromCandles`, `volatilityRegime`, `calculateRuntimeMetrics`. Defaults are unchanged from prior versions.
 
 ---
 

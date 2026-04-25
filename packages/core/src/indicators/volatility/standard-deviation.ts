@@ -23,8 +23,13 @@ export type StandardDeviationOptions = {
  *
  * StdDev = sqrt(sum((price - mean)^2) / N)
  *
- * Uses population standard deviation (dividing by N, not N-1) to match
- * the convention used by most charting platforms and TA-Lib.
+ * Uses **population** standard deviation (dividing by N, not N-1) to match
+ * the convention used by most charting platforms, TA-Lib, and Bollinger
+ * Bands. For statistical return-volatility analysis where the unbiased
+ * **sample** estimator (`/ (N - 1)`) is required, use
+ * `historicalVolatility()` instead — it operates on log returns and
+ * returns an annualized percentage. The choice between the two
+ * conventions is intentional and not interchangeable.
  *
  * @param candles - Array of candles (raw or normalized)
  * @param options - Standard Deviation options

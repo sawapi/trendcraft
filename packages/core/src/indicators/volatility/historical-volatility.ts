@@ -28,6 +28,13 @@ export type HistoricalVolatilityOptions = {
  * 2. Calculate standard deviation of log returns over period
  * 3. Annualize: HV = StdDev × sqrt(annualFactor) × 100
  *
+ * Note: HV uses **sample** standard deviation (`/ (period - 1)`) — this is
+ * the unbiased statistical estimator and the convention used in finance
+ * for return volatility. The plain `standardDeviation()` indicator
+ * (under `volatility/standard-deviation.ts`) uses **population** stddev
+ * (`/ period`) to match TA-Lib's Bollinger Band semantics. The two
+ * conventions are intentional and not interchangeable; pick by use case.
+ *
  * @param candles - Array of candles (raw or normalized)
  * @param options - Historical Volatility options
  * @returns Series of HV values (percentage, null for insufficient data)
