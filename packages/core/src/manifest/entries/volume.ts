@@ -17,12 +17,22 @@ export const VOLUME_MANIFESTS: IndicatorManifest[] = [
       "Pullback to VWAP in trend = continuation entry zone",
     ],
     pitfalls: [
-      "Resets daily — meaningless on multi-day timeframes",
+      "Session-reset VWAP loses most of its intended relevance across multiple days; trendcraft offers `resetPeriod: 'rolling' | number` for non-session use",
       "Less useful pre-market or in low-volume sessions",
+      "Anchored variants (anchoredVwap) are often more meaningful for multi-day context",
     ],
-    synergy: ["VWAP bands (stddev-scaled) for overshoot/undershoot detection"],
+    synergy: [
+      "VWAP ±1σ bands always emitted by trendcraft impl; pass `bandMultipliers: [2, 3]` for ±2σ/±3σ overshoot detection",
+    ],
     marketRegime: ["trending", "ranging"],
     timeframe: ["intraday"],
+    paramHints: {
+      resetPeriod:
+        "'session' default (resets per trading day). 'rolling' for windowed VWAP, or number for fixed N-bar reset",
+      period: "Used only when resetPeriod='rolling' — sets the rolling window length",
+      bandMultipliers:
+        "Extra ±N σ band pairs beyond the default ±1σ (e.g. [2, 3] adds ±2σ and ±3σ)",
+    },
   },
   {
     kind: "anchoredVwap",
@@ -38,9 +48,20 @@ export const VOLUME_MANIFESTS: IndicatorManifest[] = [
       "Price holding above anchored VWAP from a low = bullish accumulation",
       "Rejection at anchored VWAP from a high = sellers defending",
     ],
-    pitfalls: ["Anchor choice is subjective — bad anchors give meaningless levels"],
+    pitfalls: [
+      "Anchor choice is subjective — bad anchors give meaningless levels",
+      "Anchored to a major high → declining VWAP can act as resistance for trapped buyers selling to break even",
+      "Anchored to a major low → rising VWAP can act as support for the accumulation crowd",
+    ],
+    synergy: [
+      "trendcraft impl emits optional ±1σ and ±2σ bands when `bands: 1` or `bands: 2` is set — use for overshoot/mean-reversion zones",
+    ],
     marketRegime: ["trending", "ranging"],
     timeframe: ["intraday", "swing"],
+    paramHints: {
+      anchorTime: "Unix ms timestamp of the anchor bar — earnings, swing high/low, breakout bar",
+      bands: "0 (default) = no bands. 1 = ±1σ. 2 = ±1σ and ±2σ",
+    },
   },
   {
     kind: "obv",
@@ -56,8 +77,12 @@ export const VOLUME_MANIFESTS: IndicatorManifest[] = [
       "Price new high but OBV does not = bearish divergence",
     ],
     pitfalls: [
-      "Treats every up-day equally regardless of close magnitude",
-      "Cumulative absolute value is meaningless — only changes/divergences matter",
+      "Treats every up-day equally regardless of close magnitude — adds full bar volume even on tiny up-moves",
+      "Cumulative absolute value is meaningless — only slope and divergences matter",
+      "Misleading during gaps or when intraday action contradicts the close direction",
+      "Can oscillate in sideways markets without offering clear direction",
+      "Volume spikes can disrupt the indicator and require a settling period",
+      "trendcraft impl seeds OBV at 0 on the first bar (some implementations seed at first-bar volume — values differ by a constant offset only)",
     ],
     synergy: ["Price chart for divergence comparison"],
     marketRegime: ["trending"],
@@ -75,10 +100,12 @@ export const VOLUME_MANIFESTS: IndicatorManifest[] = [
     signals: [
       "MFI < 20 = oversold with volume confirmation",
       "MFI > 80 = overbought with volume confirmation",
+      "Bullish divergence (price LL, MFI HL) — stronger than plain RSI divergence due to volume weighting",
     ],
     pitfalls: [
       "Same as RSI — gets stuck in extremes during strong trends",
       "Useless on instruments with unreliable volume",
+      "'Squat' pattern (MFI drops while volume rises) signals indecision, not direction",
     ],
     marketRegime: ["ranging"],
     timeframe: ["swing"],
@@ -90,28 +117,39 @@ export const VOLUME_MANIFESTS: IndicatorManifest[] = [
     kind: "cmf",
     displayName: "Chaikin Money Flow",
     category: "volume",
-    oneLiner: "Volume-weighted accumulation/distribution oscillator (-1 to +1).",
+    oneLiner: "Marc Chaikin's volume-weighted accumulation/distribution oscillator (-1 to +1).",
     whenToUse: ["Detecting buying vs selling pressure", "Confirming trend with money flow"],
     signals: [
       "CMF > 0 sustained = accumulation",
       "CMF < 0 sustained = distribution",
       "Divergence with price = trend weakness",
     ],
-    pitfalls: ["Lagging — confirms but rarely leads", "Sensitive to closing range within bar"],
+    pitfalls: [
+      "Lagging — confirms but rarely leads",
+      "Sensitive to closing range within bar (close-location-value)",
+      "Doji bars (close near midrange) contribute near-zero money flow regardless of volume",
+    ],
     marketRegime: ["trending", "ranging"],
     timeframe: ["swing"],
+    paramHints: {
+      period: "20 default lookback",
+    },
   },
   {
     kind: "adl",
     displayName: "Accumulation/Distribution Line",
     category: "volume",
-    oneLiner: "Cumulative volume × close-location-value.",
+    oneLiner: "Marc Chaikin's cumulative running sum of (close-location-value × volume).",
     whenToUse: ["Long-term accumulation/distribution divergence with price"],
     signals: [
       "ADL rising while price flat = stealth accumulation",
       "ADL falling while price holds = stealth distribution",
     ],
-    pitfalls: ["Cumulative value irrelevant — slope and divergence matter"],
+    pitfalls: [
+      "Cumulative absolute value is irrelevant — only slope and divergence with price matter",
+      "Doji bars (close at midrange, CLV ≈ 0) contribute near-zero regardless of volume",
+      "Range=0 bars (high=low) trendcraft impl assigns CLV=0 to avoid div-by-zero",
+    ],
     marketRegime: ["trending"],
     timeframe: ["swing", "position"],
   },
@@ -130,8 +168,10 @@ export const VOLUME_MANIFESTS: IndicatorManifest[] = [
       "Price up + CVD flat or down = bearish divergence (sellers absorbing)",
     ],
     pitfalls: [
-      "Approximation only — real CVD needs tick-level bid/ask data",
+      "Approximation only — real CVD requires tick-level aggressor data (executed-at-bid vs executed-at-ask)",
+      "trendcraft impl uses bar-position approximation: buyVolume = volume × (close-low) / (high-low). Does NOT drill down into lower-timeframe bars",
       "Cumulative scale not directly comparable across instruments",
+      "Bars with high=low (no range) fall back gracefully but contribute zero delta",
     ],
     marketRegime: ["trending", "ranging"],
     timeframe: ["intraday", "swing"],

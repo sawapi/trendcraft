@@ -18,14 +18,19 @@ export const TREND_MANIFESTS: IndicatorManifest[] = [
     ],
     pitfalls: [
       "Whipsaws hard in choppy ranges (this is its main weakness)",
-      "Multiplier tuning matters more than period",
+      "Late entries: the flip requires a close beyond the band — by which point price has already moved an ATR-chunk",
+      "Smaller multiplier flips more often (more whipsaws); larger multiplier holds longer but reacts later",
     ],
-    synergy: ["ADX/Choppiness to disable Supertrend entries during chop"],
+    synergy: [
+      "ADX > 20 or Choppiness Index regime filter to disable Supertrend entries in chop",
+      "VWMA / volume confirmation on flip signals",
+    ],
     marketRegime: ["trending"],
     timeframe: ["intraday", "swing"],
     paramHints: {
-      period: "10 default ATR period",
-      multiplier: "3 default; 2 tighter, 4 wider",
+      period:
+        "10 default ATR period. Heuristic examples (not canonical): intraday 7/3; swing 14/2 or 20/3",
+      multiplier: "3 default. 2 = tighter / more flips, 4 = wider / fewer flips",
     },
   },
   {
@@ -39,11 +44,17 @@ export const TREND_MANIFESTS: IndicatorManifest[] = [
       "Dots flip from above to below price = trend reversal to up",
     ],
     pitfalls: [
-      "Reverses prematurely in ranges or pullbacks",
-      "Acceleration factor tuning is finicky",
+      "Reverses prematurely in ranges or pullbacks — the indicator only works well in clearly trending markets",
+      "Lagging indicator: follows price action, useful only when a strong trend is established",
+      "Too tight an acceleration factor causes premature reversals; too loose lets stops drift far from price",
     ],
+    synergy: ["ADX or Choppiness regime filter to disable PSAR entries during chop"],
     marketRegime: ["trending"],
     timeframe: ["intraday", "swing"],
+    paramHints: {
+      step: "0.02 default acceleration step (Wilder's classic)",
+      max: "0.20 default acceleration cap (Wilder's classic)",
+    },
   },
   {
     kind: "ichimoku",
@@ -64,9 +75,21 @@ export const TREND_MANIFESTS: IndicatorManifest[] = [
     pitfalls: [
       "Many components — risk of overfitting interpretations",
       "Lagging on fast reversals",
-      "Originally designed for daily Japanese equities; tuning needed elsewhere",
+      "Originally designed for daily Japanese equities; default 9/26/52 is widely cited as reflecting Japan's historical 6-day trading week — tuning needed elsewhere",
+      "Cross signals inside the cloud are weak/neutral; treat thin clouds as weak S/R",
+      "Ignoring the Chikou span often leads to false-confidence entries against the longer-term picture",
+    ],
+    synergy: [
+      "Use Kijun-sen as a dynamic trailing stop rather than Tenkan (less noisy)",
+      "Wait for retest entries on Kumo breakouts to reduce false signals",
     ],
     marketRegime: ["trending"],
     timeframe: ["swing", "position"],
+    paramHints: {
+      tenkanPeriod: "9 default (short-term)",
+      kijunPeriod: "26 default (medium-term, also used as displacement)",
+      senkouBPeriod: "52 default (long-term, drives second cloud boundary)",
+      displacement: "26 default — Kumo and Chikou shift",
+    },
   },
 ];
