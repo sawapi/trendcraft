@@ -370,4 +370,39 @@ export const MOVING_AVERAGE_MANIFESTS: IndicatorManifest[] = [
         "[8, 13, 21, 34, 55] Fibonacci default. Common alternatives: [5, 8, 13, 21, 34] (faster) or [10, 20, 30, 40, 50] (uniform)",
     },
   },
+  {
+    kind: "adaptiveMa",
+    displayName: "Adaptive Moving Average",
+    category: "moving-average",
+    oneLiner:
+      "MA whose smoothing speed adapts to the Efficiency Ratio (Perry Kaufman style); exposes ER and SC for analysis vs KAMA's hidden internals.",
+    whenToUse: [
+      "Mixed-regime markets where a fixed-period MA over- or under-reacts",
+      "Trend following that auto-tightens in clean trends and loosens in chop",
+      "Diagnostic studies where the efficiency ratio itself is needed (KAMA hides it)",
+    ],
+    signals: [
+      "Price above rising AMA = bullish bias with regime-aware smoothing",
+      "Flat AMA + low efficiencyRatio = noise regime, avoid trend trades",
+      "Rising efficiencyRatio toward 1 = trend cleaning up — AMA tightens to follow",
+    ],
+    pitfalls: [
+      "Functionally similar to KAMA — choose AMA when you need ER/SC exposed, KAMA when you don't",
+      "Defaults `fastConstant=0.6667` (≈ EMA(2)) and `slowConstant=0.0645` (≈ EMA(30)) match Kaufman's original setup",
+      "Adaptive smoothing can mask genuine trend changes when efficiency ratio collapses",
+    ],
+    synergy: [
+      "Plot efficiencyRatio alongside AMA as a regime indicator",
+      "KAMA when only the smoothed price is needed (less computation)",
+    ],
+    marketRegime: ["trending", "ranging"],
+    timeframe: ["swing", "position"],
+    paramHints: {
+      erPeriod: "10 default — efficiency ratio lookback (Kaufman's recommendation)",
+      fastConstant:
+        "2/(2+1) ≈ 0.6667 — fast-bound smoothing constant (EMA(2)-equivalent constant; AMA approaches but does not equal EMA(2) at full ER)",
+      slowConstant:
+        "2/(30+1) ≈ 0.0645 — slow-bound smoothing constant (EMA(30)-equivalent constant)",
+    },
+  },
 ];

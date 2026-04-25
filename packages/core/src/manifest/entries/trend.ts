@@ -92,4 +92,36 @@ export const TREND_MANIFESTS: IndicatorManifest[] = [
       displacement: "26 default — Kumo and Chikou shift",
     },
   },
+  {
+    kind: "linearRegression",
+    displayName: "Linear Regression",
+    category: "trend",
+    oneLiner:
+      "Least-squares regression line over a rolling window — emits regression value, slope, intercept, and R-squared.",
+    whenToUse: [
+      "Quantifying trend direction (slope sign) and strength (R²) statistically",
+      "Replacing visual trend lines with an objective best-fit line",
+      "Building block for regression-channel strategies and statistical arbitrage",
+    ],
+    signals: [
+      "slope > 0 = uptrend; slope < 0 = downtrend",
+      "Steeper slope = stronger trend (compare relative slope, not absolute)",
+      "R² close to 1 = trend is statistically clean / linear",
+      "R² close to 0 = chop / noisy price action",
+      "Some practitioners use ~0.7 as a heuristic for a relatively clean linear trend — not a standard statistical cutoff",
+    ],
+    pitfalls: [
+      "R² measures goodness-of-fit to a straight line over the window — correlates with trend 'cleanliness', not economic/trading strength",
+      "R² measures linearity — a curved (parabolic) trend can have low R² yet strong directional bias",
+      "Slope is in price-units-per-bar, not directly comparable across instruments without normalization",
+      "Linear regression assumes a linear relationship — useless on highly cyclical or mean-reverting series",
+      "Sensitive to outliers (least-squares minimizes squared error, amplifying outlier influence)",
+    ],
+    synergy: ["ADX or Choppiness Index for cross-confirmation of trend strength"],
+    marketRegime: ["trending"],
+    timeframe: ["intraday", "swing", "position"],
+    paramHints: {
+      period: "14 default rolling window",
+    },
+  },
 ];

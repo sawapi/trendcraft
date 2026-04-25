@@ -800,4 +800,72 @@ export const MOMENTUM_MANIFESTS: IndicatorManifest[] = [
       adxPeriod: "14 default — ADX smoothing window",
     },
   },
+  {
+    kind: "adaptiveRsi",
+    displayName: "Adaptive RSI",
+    category: "momentum",
+    oneLiner:
+      "RSI whose lookback period adapts to ATR-based volatility regime; emits effective period and volatility percentile for transparency.",
+    whenToUse: [
+      "Single RSI input across volatility regimes — auto-shortens in volatile periods, lengthens in calm",
+      "Strategies sensitive to RSI period choice that need automated tuning",
+    ],
+    signals: [
+      "Standard RSI signals apply (30/70 OB/OS) — interpretation matches plain RSI",
+      "effectivePeriod < basePeriod = high-volatility regime detected",
+      "effectivePeriod > basePeriod = low-volatility regime detected",
+    ],
+    pitfalls: [
+      "trendcraft custom variant — values are not directly comparable to fixed-period RSI",
+      "Adapting period creates a 'moving target' that can mask divergences",
+      "ATR-based volatility regime detection has its own warmup (`volLookback` = 100 default)",
+    ],
+    synergy: ["Plot `volatilityPercentile` alongside RSI to see why the period adapted at any bar"],
+    marketRegime: ["volatile", "low-volatility"],
+    timeframe: ["intraday", "swing"],
+    paramHints: {
+      basePeriod: "14 default — anchor RSI period",
+      minPeriod: "6 default — period in high-volatility regime (faster response)",
+      maxPeriod: "28 default — period in low-volatility regime (smoother)",
+      atrPeriod: "14 default — ATR period for volatility measurement",
+      volLookback: "100 default — lookback for ATR percentile normalization",
+    },
+  },
+  {
+    kind: "adaptiveStochastics",
+    displayName: "Adaptive Stochastics",
+    category: "momentum",
+    oneLiner:
+      "Stochastic oscillator whose lookback adapts to ADX trend strength; longer in trends (avoid whipsaws), shorter in ranges.",
+    whenToUse: [
+      "Mixed-regime markets where fixed-period Stochastics misfires",
+      "Trend-following strategies that need a smoother Stoch in clean trends",
+      "Range strategies that need responsive Stoch in chop",
+    ],
+    signals: [
+      "Standard Stochastics signals apply (20/80 OB/OS) — interpretation matches plain Stoch",
+      "effectivePeriod increases as ADX rises (longer = avoids trend whipsaws)",
+      "effectivePeriod decreases as ADX falls (shorter = catches range moves)",
+    ],
+    pitfalls: [
+      "trendcraft custom variant — values are not directly comparable to fixed-period Stochastics",
+      "ADX-driven adaptation lags actual regime changes (ADX itself is laggy)",
+      "Long warmup: needs DMI/ADX warmup (~28 bars) before adaptation engages",
+    ],
+    synergy: [
+      "Plot `adx` alongside to see why the period adapted",
+      "DMI for trend direction context",
+    ],
+    marketRegime: ["trending", "ranging"],
+    timeframe: ["swing"],
+    paramHints: {
+      basePeriod: "14 default — anchor stochastic lookback",
+      minPeriod: "5 default — period for low-ADX (range) regime",
+      maxPeriod: "21 default — period for high-ADX (trend) regime",
+      adxPeriod: "14 default — ADX smoothing window",
+      adxThreshold: "40 default — ADX value at which adaptation reaches full extension",
+      kSmoothing: "3 default — %K smoothing",
+      dSmoothing: "3 default — %D smoothing",
+    },
+  },
 ];
