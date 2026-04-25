@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+### Added — More Incremental Indicators
+
+- `createStandardDeviation()` — incremental rolling population standard
+  deviation. Maintains `sum` / `sumSq` running totals plus a `period`-sized
+  CircularBuffer for O(1) per-bar updates. Matches batch `standardDeviation()`
+  to 8 decimal places. Exposed via `incremental.createStandardDeviation`.
+- `createSuperSmoother()` — incremental Ehlers 2-pole Super Smoother filter.
+  State carries `prevPrice` and the last two outputs; first 2 bars emit
+  `null` (matches the batch IIR seeding). Exposed via
+  `incremental.createSuperSmoother`.
+- `createRoofingFilter()` — incremental Ehlers Roofing Filter (2-pole
+  high-pass cascaded into a Super Smoother). State carries the last two
+  inputs, last two high-pass outputs, and last two filter outputs. Matches
+  batch `roofingFilter()` to 10 decimal places. Exposed via
+  `incremental.createRoofingFilter`.
+
+Parity with the batch versions is covered by 18 new tests in
+`src/indicators/incremental/__tests__/stddev-ehlers.test.ts`, including
+default + custom params, multiple price sources, snapshot resume, and
+`peek` non-mutation.
+
 ### Added — Trading Calendar (market-specific annualization)
 
 - New `src/calendar/` module exposes a minimal `TradingCalendar` interface plus five presets:

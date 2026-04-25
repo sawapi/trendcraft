@@ -128,6 +128,14 @@ export { createAtrStops } from "./volatility/atr-stops";
 export type { AtrStopsState } from "./volatility/atr-stops";
 export { createUlcerIndex } from "./volatility/ulcer-index";
 export type { UlcerIndexState } from "./volatility/ulcer-index";
+export { createStandardDeviation } from "./volatility/standard-deviation";
+export type { StandardDeviationState } from "./volatility/standard-deviation";
+
+// Filter (Ehlers)
+export { createSuperSmoother } from "./filter/super-smoother";
+export type { SuperSmootherState } from "./filter/super-smoother";
+export { createRoofingFilter } from "./filter/roofing-filter";
+export type { RoofingFilterState } from "./filter/roofing-filter";
 
 // Trend
 export { createSupertrend } from "./trend/supertrend";
