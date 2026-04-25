@@ -1105,8 +1105,21 @@ All fields optional.
 | `animationDuration` | `number` | `300` | Range transition duration (ms). `0` disables |
 | `locale` | `Partial<ChartLocale>` | — | i18n string overrides (one-time) |
 | `maxCandles` | `number` | — | Cap on retained candles in live mode |
+| `crosshair` | `CrosshairOptions` | `{ mode: 'normal' }` | Crosshair snap behavior. `mode`: `'normal'` (time-index snap only) / `'magnet'` (y snaps to active bar's close) / `'magnetOHLC'` (y snaps to nearest of O/H/L/C within `snapThreshold` px, default 12). |
+| `hotkeys` | `HotkeyMap \| false` | built-in defaults | Keyboard shortcut bindings. Defaults: `Alt+H` hline, `Alt+V` vline, `Alt+T` trendline, `Alt+F` fib retracement, `Alt+C` channel, `Ctrl+Alt+H` hide/show all, `Escape` cancel. Pass `false` to disable **every** keyboard shortcut, including viewport nav (arrows / `+` / `-` / `Home` / `End` / `F`). Matching uses `KeyboardEvent.code`. |
+| `interaction` | `{ wheelInertia?: boolean }` | `{ wheelInertia: true }` | Trackpad/wheel inertia for pan + zoom. Disable to remove the synthetic deceleration tail (macOS OS-level momentum is independent and always processed). |
+| `showSeriesBadges` | `boolean` | `false` | Render a colored pill on the right price axis for each labeled series, mirroring the candle current-price badge. Multi-channel series get one pill per decomposed channel; the volume pane gets one colored by the last bar direction. Tick labels colliding with a pill are suppressed. |
+| `seriesBadgeMode` | `'absolute' \| 'visible'` | `'absolute'` | `'absolute'` shows the latest non-null value in the data array (live "current" value). `'visible'` shows the latest non-null value within the current visible range — useful when scrolling back through history. |
 
 Options marked "one-time" cannot be changed via `applyOptions()` — a warning is emitted via the `error` event if you try.
+
+### Programmatic crosshair
+
+```typescript
+chart.setCrosshair(time: number | null): void
+```
+
+Drives the crosshair from outside DOM events (e.g. multi-chart sync). Pass an epoch-ms time to position; pass `null` to clear.
 
 ## `ChartInstance`
 

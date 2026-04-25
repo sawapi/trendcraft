@@ -1,6 +1,6 @@
 {
   "name": "@trendcraft/chart",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Finance-specialized charting library with native TrendCraft Series<T> support",
   "type": "module",
   "main": "./dist/index.cjs",

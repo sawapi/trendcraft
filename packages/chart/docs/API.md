@@ -79,8 +79,46 @@ All fields optional.
 | `animationDuration` | `number` | `300` | Range transition duration (ms). `0` disables |
 | `locale` | `Partial<ChartLocale>` | — | i18n string overrides (one-time) |
 | `maxCandles` | `number` | — | Cap on retained candles in live mode |
+| `crosshair` | `CrosshairOptions` | `{ mode: 'normal' }` | Crosshair snap behavior — see [Crosshair](#crosshair) |
+| `hotkeys` | `HotkeyMap \| false` | built-in defaults | Keyboard shortcut bindings — see [Hotkeys](#hotkeys). Pass `false` to disable **all** keyboard handling (including viewport nav keys). |
+| `interaction` | `{ wheelInertia?: boolean }` | `{ wheelInertia: true }` | Trackpad/wheel inertia for pan + zoom. Disable to stop the synthetic deceleration tail (macOS OS-level momentum is independent and always processed). |
+| `showSeriesBadges` | `boolean` | `false` | Render a colored pill on the right price axis for each labeled series, mirroring the candle current-price badge. Multi-channel series get one pill per channel. |
+| `seriesBadgeMode` | `'absolute' \| 'visible'` | `'absolute'` | `'absolute'` shows the latest non-null value in the data array (live "current" value). `'visible'` shows the latest non-null value within the current visible range. |
 
 Options marked "one-time" cannot be changed via `applyOptions()` — a warning is emitted via the `error` event if you try.
+
+### Crosshair
+
+```typescript
+type CrosshairOptions = {
+  mode?: 'normal' | 'magnet' | 'magnetOHLC';
+  snapThreshold?: number; // px, default 12, only used by 'magnetOHLC'
+};
+```
+
+| Mode | Behavior |
+|---|---|
+| `'normal'` | Snaps to the bar time-index only; y follows the pointer. |
+| `'magnet'` | y also snaps to the active bar's `close`. |
+| `'magnetOHLC'` | y snaps to the nearest of `O`/`H`/`L`/`C` within `snapThreshold` pixels; otherwise y follows the pointer. |
+
+The price/time label text color is chosen via WCAG relative luminance of the crosshair background, so custom themes remain legible.
+
+### Hotkeys
+
+```typescript
+type HotkeyMap = Partial<{
+  hline: string;        // default 'Alt+H'
+  vline: string;        // default 'Alt+V'
+  trendline: string;    // default 'Alt+T'
+  fibRetracement: string; // default 'Alt+F'
+  channel: string;      // default 'Alt+C'
+  hideAllSeries: string; // default 'Ctrl+Alt+H'
+  cancel: string;       // default 'Escape'
+}>;
+```
+
+Matching uses `KeyboardEvent.code`, so Option+letter on macOS resolves correctly despite the altered character output. `Alt` is treated the same as `Option`; `Ctrl` and `Cmd` are interchangeable. Pass `hotkeys: false` to disable every keyboard shortcut, including the pre-existing viewport nav keys (arrows / `+` / `-` / `Home` / `End` / `F`).
 
 ## `ChartInstance`
 
@@ -162,6 +200,12 @@ setLayout(config: LayoutConfig): void
 ```
 
 `RangeDuration = '1D' | '1W' | '1M' | '3M' | '6M' | 'YTD' | '1Y' | 'ALL'`
+
+```typescript
+setCrosshair(time: number | null): void
+```
+
+Programmatic crosshair control. Pass an epoch-ms time to drive the crosshair from outside (e.g. multi-chart sync); pass `null` to clear.
 
 ### Multi-timeframe methods
 
