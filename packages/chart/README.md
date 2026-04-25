@@ -607,6 +607,24 @@ const result = introspect(myIndicatorData);
 // { seriesType: 'band', pane: 'main', rule, preset, yRange, referenceLines }
 ```
 
+## Migrating from 0.1.x
+
+Two headless helpers changed shape in 0.2.0. If your code only uses `createChart` / `connectIndicators` / the React or Vue wrappers, no migration is needed.
+
+```typescript
+// 0.1.x
+const candles: CandleData[] = decimateCandles(src, start, end, maxBars);
+const points: DataPoint[] = lttb(data, 2000);
+
+// 0.2.0
+const { candles, originalIndices } = decimateCandles(src, start, end, maxBars);
+const { points, originalIndices } = lttb(data, 2000);
+// `originalIndices` is an Int32Array mapping each output sample back to its
+// position in the input — used internally to keep candles and overlays
+// aligned at low zoom. `lttb` also accepts an optional 3rd `indexOffset`
+// argument to shift `originalIndices` into the caller's coordinate space.
+```
+
 ## Troubleshooting
 
 **Chart is blank** — Ensure container has a non-zero height. Set `height` in options or use CSS `height: 100%`.
