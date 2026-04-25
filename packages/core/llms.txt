@@ -361,6 +361,9 @@ Presets: `"momentum"`, `"meanReversion"`, `"trendFollowing"`, `"balanced"`, `"ag
 
 ### Normalization and Resampling
 - `normalizeCandles(candles)` — Normalize various date formats to Unix timestamps
+- `getPrice(candle, source)` — Extract one price field (`'close' | 'hl2' | 'hlc3' | 'ohlc4' | 'open' | 'high' | 'low' | 'volume'`) from a normalized candle
+- `getPriceSeries(candles, source)` — `number[]` of the chosen price field across all candles; pre-extract for math that doesn't take a `source` option
+- `incremental.getSourcePrice(candle, source)` — same helper for streaming pipelines (used internally by `createSma` / `createRsi` etc. when a `source` option is set)
 - `resample(candles, 'weekly' | 'monthly')` — Timeframe resampling
 - `parseCsv(csvString)` — Parse CSV data to candles
 

@@ -52,6 +52,17 @@ default + custom params, multiple price sources, snapshot resume, and
   });
   ```
 
+### Documented — Price Source Helpers
+
+- The pure helpers `getPrice(candle, source)` and `getPriceSeries(candles, source)`
+  (already exported since v0.1.0) are now covered in `docs/API.md` /
+  `docs/API.ja.md` under a new **Price Source Helpers** subsection. The
+  streaming equivalent `incremental.getSourcePrice` is cross-referenced.
+- `PriceSource` type listing in the API docs corrected to include the
+  `"volume"` variant that has always been part of the implementation.
+- `llms.txt` Data Utilities section enumerates `getPrice`,
+  `getPriceSeries`, and `incremental.getSourcePrice`.
+
 ### Added — Price Source Coverage
 
 - `RsiOptions.source`, `MacdOptions.source`, `CciOptions.source` — `rsi()` / `macd()` / `cci()` and their incremental counterparts (`createRsi` / `createMacd` / `createCci`) now accept a `PriceSource` (`"close" | "hl2" | "hlc3" | "ohlc4" | ...`). Defaults preserve current behavior (`"close"` for RSI/MACD, `"hlc3"` for CCI), so existing call sites are unaffected.

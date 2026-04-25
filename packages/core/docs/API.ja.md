@@ -24,6 +24,7 @@
   - [条件の組み合わせ](#条件の組み合わせ)
 - [ユーティリティ](#ユーティリティ)
   - [データ正規化](#データ正規化)
+  - [価格ソースヘルパー](#価格ソースヘルパー)
   - [リサンプリング](#リサンプリング)
 - [シグナルスコアリング](#シグナルスコアリング)
   - [ScoreBuilder](#scorebuilder)
@@ -2882,6 +2883,46 @@ const normalized = normalizeCandles(candles);
 
 ---
 
+### 価格ソースヘルパー
+
+正規化済みローソク足から特定の価格フィールドを取り出す純関数。`source?: PriceSource` オプションを持つインジケーターは内部でこれらを呼んでいるため、自前のリターン計算・回帰・フィルタなど **`source` を受け付けない処理に価格列を渡すとき** にだけ直接使う。
+
+#### `getPrice(candle, source)`
+
+1本の正規化済みローソク足から1つの価格値を取り出す。
+
+```typescript
+import { normalizeCandle, getPrice } from 'trendcraft';
+
+const c = normalizeCandle({ time: '2024-01-01', open: 99, high: 102, low: 98, close: 101, volume: 1000 });
+getPrice(c, 'close');  // 101
+getPrice(c, 'hl2');    // 100        ((102 + 98) / 2)
+getPrice(c, 'hlc3');   // 100.333... ((102 + 98 + 101) / 3)
+getPrice(c, 'ohlc4');  // 100        ((99 + 102 + 98 + 101) / 4)
+getPrice(c, 'volume'); // 1000
+```
+
+#### `getPriceSeries(candles, source)`
+
+正規化済みローソク足配列から価格系列(`number[]`)を取り出す。実装は `candles.map((c) => getPrice(c, source))` と同等。
+
+```typescript
+import { normalizeCandles, getPriceSeries } from 'trendcraft';
+
+const normalized = normalizeCandles(candles);
+const closes = getPriceSeries(normalized, 'close');
+const typical = getPriceSeries(normalized, 'hlc3');
+```
+
+**`source` オプションとの使い分け:**
+- `source` オプションを持つインジケーター → 直接 `source: 'hlc3'` を渡す。事前抽出は不要
+- 価格に対する自前計算（リターン、回帰、独自フィルタ等）→ `getPriceSeries` で `number[]` を取得
+- コールバック内で1点だけ価格を取り出したい → `getPrice`
+
+ストリーミング(incremental)側では `incremental.getSourcePrice(candle, source)` が同等の役割を果たす。`createSma` / `createRsi` などの `source` オプションが内部で呼んでいる。
+
+---
+
 ### リサンプリング
 
 #### `resample(candles, timeframe)`
@@ -5725,7 +5766,7 @@ interface IndicatorValue<T> {
 
 type Series<T> = IndicatorValue<T>[];
 
-type PriceSource = 'open' | 'high' | 'low' | 'close' | 'hl2' | 'hlc3' | 'ohlc4';
+type PriceSource = 'open' | 'high' | 'low' | 'close' | 'hl2' | 'hlc3' | 'ohlc4' | 'volume';
 ```
 
 ### シグナル型
