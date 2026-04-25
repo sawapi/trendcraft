@@ -868,4 +868,63 @@ export const MOMENTUM_MANIFESTS: IndicatorManifest[] = [
       dSmoothing: "3 default — %D smoothing",
     },
   },
+  {
+    kind: "fastStochastics",
+    displayName: "Fast Stochastics",
+    category: "momentum",
+    oneLiner:
+      "Convenience wrapper for `stochastics({ slowing: 1 })` — the original Lane formulation, more responsive than slow stochastics.",
+    whenToUse: [
+      "Short-term mean reversion where slow stochastic's smoothing is too laggy",
+      "Quick OB/OS reads on intraday timeframes",
+      "Confirming faster momentum shifts than slow stochastics catches",
+    ],
+    signals: [
+      "%K crosses above %D in <20 zone = oversold reversal cue",
+      "%K crosses below %D in >80 zone = overbought reversal cue",
+      "Standard Stochastics signals apply — see `stochastics` for full guidance",
+    ],
+    pitfalls: [
+      "Commonly described as noisier than slow stochastics — more whipsaws. Slow stochastic is the more commonly used variant in modern trading",
+      "Same trend-pinning issue as standard stochastics: stays at extremes during strong trends",
+      "trendcraft impl: %K = raw %K (no SMA smoothing applied since slowing=1). Compare to slowStochastics which applies SMA(raw %K, 3)",
+    ],
+    synergy: ["See `stochastics` entry — same synergies (higher-timeframe trend filter, etc.)"],
+    marketRegime: ["ranging"],
+    timeframe: ["intraday"],
+    paramHints: {
+      kPeriod: "14 default — %K lookback",
+      dPeriod: "3 default — %D smoothing",
+    },
+  },
+  {
+    kind: "slowStochastics",
+    displayName: "Slow Stochastics",
+    category: "momentum",
+    oneLiner:
+      "Convenience wrapper for `stochastics({ slowing: 3 })` — modern default; smoother than fast stochastics, less noise.",
+    whenToUse: [
+      "Standard stochastic OB/OS detection on swing timeframes",
+      "Range-bound mean reversion with reduced false signals vs fast stochastics",
+      "The default modern interpretation when 'stochastic' is mentioned",
+    ],
+    signals: [
+      "%K crosses above %D in <20 zone = oversold reversal cue",
+      "%K crosses below %D in >80 zone = overbought reversal cue",
+      "Standard Stochastics signals apply — see `stochastics` for full guidance",
+    ],
+    pitfalls: [
+      "Smoothing introduces lag — can be late on sharp reversals",
+      "Functionally identical to `stochastics` with default options (slowing=3 is the trendcraft default), differing only in that `slowing` is fixed to 3 here. Wrapper exists primarily for explicit naming",
+      "trendcraft impl: %K = SMA(raw %K, 3) — extra SMA applied to raw %K vs fastStochastics",
+      "Stays pinned at extremes during strong trends — same caveat as standard stochastics",
+    ],
+    synergy: ["See `stochastics` entry — same synergies (higher-timeframe trend filter, etc.)"],
+    marketRegime: ["ranging"],
+    timeframe: ["intraday", "swing"],
+    paramHints: {
+      kPeriod: "14 default — %K lookback",
+      dPeriod: "3 default — %D smoothing",
+    },
+  },
 ];
