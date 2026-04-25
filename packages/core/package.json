@@ -31,6 +31,11 @@
       "types": "./dist/indicators/safe/index.d.ts",
       "import": "./dist/indicators/safe/index.js",
       "require": "./dist/indicators/safe/index.cjs"
+    },
+    "./manifest": {
+      "types": "./dist/manifest/index.d.ts",
+      "import": "./dist/manifest/index.js",
+      "require": "./dist/manifest/index.cjs"
     }
   },
   "sideEffects": false,
