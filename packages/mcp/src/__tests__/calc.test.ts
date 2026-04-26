@@ -37,10 +37,10 @@ describe("calcIndicatorHandler", () => {
     expect(result.truncated).toBe(false);
   });
 
-  it("surfaces UNSUPPORTED_KIND for unknown / non-safe kinds", () => {
+  it("surfaces UNSUPPORTED_KIND for unknown / non-safe kinds and points to discovery", () => {
     const candles = makeCandles(10);
     expect(() => calcIndicatorHandler({ kind: "no-such-indicator", candles })).toThrow(
-      /UNSUPPORTED_KIND/,
+      /UNSUPPORTED_KIND.*list_indicators.*calcSupported/s,
     );
   });
 
@@ -51,9 +51,31 @@ describe("calcIndicatorHandler", () => {
 
   it("propagates safe-wrapper errors with their canonical code", () => {
     const candles = makeCandles(50);
-    // period=0 is invalid → safe wrapper surfaces INVALID_PARAMETER (or INDICATOR_ERROR).
     expect(() => calcIndicatorHandler({ kind: "rsi", candles, params: { period: 0 } })).toThrow(
       /INVALID_PARAMETER|INDICATOR_ERROR|INSUFFICIENT_DATA/,
+    );
+  });
+
+  it("rewraps missing-params destructure errors as INVALID_PARAMETER with paramHints guidance", () => {
+    const candles = makeCandles(50);
+    // sma() destructures `period` from options — calling without params crashes
+    // with a TypeError that previously surfaced as opaque INDICATOR_ERROR.
+    expect(() => calcIndicatorHandler({ kind: "sma", candles })).toThrow(
+      /INVALID_PARAMETER.*requires a params object.*get_indicator_manifest/s,
+    );
+  });
+
+  it.each(["ema", "wma", "vwma", "volumeMa", "highestLowest", "volatilityRegime"])(
+    "rewraps missing-params for %s",
+    (kind) => {
+      const candles = makeCandles(50);
+      expect(() => calcIndicatorHandler({ kind, candles })).toThrow(/INVALID_PARAMETER/);
+    },
+  );
+
+  it("rejects empty candles with canonical INVALID_INPUT", () => {
+    expect(() => calcIndicatorHandler({ kind: "rsi", candles: [] })).toThrow(
+      /INVALID_INPUT.*at least 1/,
     );
   });
 });

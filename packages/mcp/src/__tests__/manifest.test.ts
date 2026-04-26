@@ -17,6 +17,7 @@ describe("manifest tools", () => {
         displayName: expect.any(String),
         oneLiner: expect.any(String),
         category: expect.any(String),
+        calcSupported: expect.any(Boolean),
       });
       // Confirm we are not leaking the full manifest fields.
       expect(sample).not.toHaveProperty("whenToUse");
@@ -26,6 +27,25 @@ describe("manifest tools", () => {
       const momentum = listIndicatorsHandler({ category: "momentum" });
       expect(momentum.length).toBeGreaterThan(0);
       for (const m of momentum) expect(m.category).toBe("momentum");
+    });
+
+    it("filters by calcSupported=true to only computable kinds", () => {
+      const all = listIndicatorsHandler({});
+      const computable = listIndicatorsHandler({ calcSupported: true });
+      const manifestOnly = listIndicatorsHandler({ calcSupported: false });
+      expect(computable.length).toBeGreaterThan(0);
+      expect(manifestOnly.length).toBeGreaterThan(0);
+      expect(computable.length + manifestOnly.length).toBe(all.length);
+      for (const s of computable) expect(s.calcSupported).toBe(true);
+      for (const s of manifestOnly) expect(s.calcSupported).toBe(false);
+    });
+
+    it("marks well-known kinds as computable", () => {
+      const all = listIndicatorsHandler({});
+      const byKind = new Map(all.map((s) => [s.kind, s]));
+      expect(byKind.get("rsi")?.calcSupported).toBe(true);
+      expect(byKind.get("ema")?.calcSupported).toBe(true);
+      expect(byKind.get("bollingerBands")?.calcSupported).toBe(true);
     });
   });
 

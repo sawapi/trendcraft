@@ -34,22 +34,33 @@ function isResultLike(x: unknown): x is ResultLike {
   return typeof x === "object" && x !== null && "ok" in x;
 }
 
+/**
+ * `Cannot destructure property 'X' of 'Y' as it is undefined` and
+ * `Cannot read properties of undefined (reading 'X')` both indicate the
+ * indicator was called without a required `params` object. Reclassify these
+ * from the generic INDICATOR_ERROR bucket into INVALID_PARAMETER so callers
+ * (LLMs) can react sensibly.
+ */
+const MISSING_PARAMS_RE = /Cannot (destructure property|read propert(?:y|ies))/i;
+
 export function calcIndicatorHandler(input: {
   kind: string;
   candles: Candle[];
   params?: Record<string, unknown>;
   lastN?: number;
 }): CalcResult {
+  if (!input.candles || input.candles.length === 0) {
+    throw new Error("INVALID_INPUT: candles must contain at least 1 entry");
+  }
+
   const fn = getSafeIndicator(input.kind);
   if (!fn) {
-    const supported = listSupportedKinds();
-    const ellipsis = supported.length > 20 ? ", ..." : "";
+    const total = listSupportedKinds().length;
     throw new Error(
-      `UNSUPPORTED_KIND: "${input.kind}" is not available via calc_indicator. Supported kinds (${supported.length}): ${supported.slice(0, 20).join(", ")}${ellipsis}. Use list_indicators to discover all manifest-described indicators (some have no safe-wrapped calc path yet).`,
+      `UNSUPPORTED_KIND: "${input.kind}" has no calc wrapper. Call list_indicators({ calcSupported: true }) to discover all ${total} computable kinds, or get_indicator_manifest("${input.kind}") to confirm whether the kind exists at all.`,
     );
   }
 
-  // Safe wrappers accept (candles, options?) and return Result<Series<T>>.
   const raw = (fn as (c: Candle[], p?: unknown) => unknown)(input.candles, input.params);
 
   if (!isResultLike(raw)) {
@@ -57,8 +68,14 @@ export function calcIndicatorHandler(input: {
   }
 
   if (!raw.ok) {
-    const code = raw.error?.code ?? "INDICATOR_ERROR";
-    const message = raw.error?.message ?? "indicator failed without message";
+    let code = raw.error?.code ?? "INDICATOR_ERROR";
+    let message = raw.error?.message ?? "indicator failed without message";
+
+    if (code === "INDICATOR_ERROR" && MISSING_PARAMS_RE.test(message)) {
+      code = "INVALID_PARAMETER";
+      message = `indicator "${input.kind}" requires a params object — call get_indicator_manifest("${input.kind}") for the paramHints. (underlying: ${message})`;
+    }
+
     throw new Error(`${code}: ${message}`);
   }
 

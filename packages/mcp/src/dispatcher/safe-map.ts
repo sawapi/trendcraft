@@ -32,9 +32,20 @@ export function getSafeIndicator(kind: string): AnyResultFn | undefined {
   return typeof fn === "function" ? (fn as AnyResultFn) : undefined;
 }
 
+let _supportedKindsCache: string[] | null = null;
+let _supportedKindsSetCache: Set<string> | null = null;
+
 export function listSupportedKinds(): string[] {
-  return Object.keys(SAFE_LOOKUP)
+  if (_supportedKindsCache) return _supportedKindsCache;
+  _supportedKindsCache = Object.keys(SAFE_LOOKUP)
     .filter((k) => !NON_INDICATOR_KEYS.has(k))
     .filter((k) => typeof SAFE_LOOKUP[k] === "function")
     .sort();
+  return _supportedKindsCache;
+}
+
+export function supportedKindsSet(): Set<string> {
+  if (_supportedKindsSetCache) return _supportedKindsSetCache;
+  _supportedKindsSetCache = new Set(listSupportedKinds());
+  return _supportedKindsSetCache;
 }

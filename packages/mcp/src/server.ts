@@ -44,8 +44,10 @@ export function createServer(): McpServer {
     "list_indicators",
     {
       description:
-        "List indicator manifest summaries (kind, displayName, oneLiner, category). " +
-        "Optional filters: category, regime, timeframe. Use this to discover what indicators exist before calling get_indicator_manifest.",
+        "List indicator manifest summaries (kind, displayName, oneLiner, category, calcSupported). " +
+        "Each entry's `calcSupported` flag tells you whether calc_indicator can actually compute that kind. " +
+        "Optional filters: category, regime, timeframe, calcSupported. " +
+        "Use `{ calcSupported: true }` to restrict to computable kinds before calling calc_indicator.",
       inputSchema: listIndicatorsInputShape,
     },
     async (args) => {
@@ -62,7 +64,8 @@ export function createServer(): McpServer {
     {
       description:
         "Return the full IndicatorManifest for a single kind: whenToUse, signals, pitfalls, synergy, marketRegime, timeframe, paramHints. " +
-        "Use this to decide whether an indicator fits the user's situation.",
+        "Use this to decide whether an indicator fits the user's situation, or to look up paramHints before calling calc_indicator. " +
+        "Throws UNKNOWN_KIND if no manifest entry exists (distinct from UNSUPPORTED_KIND, which means the manifest entry exists but no calc wrapper is available).",
       inputSchema: getManifestInputShape,
     },
     async (args) => {
@@ -112,9 +115,9 @@ export function createServer(): McpServer {
     {
       description:
         "Compute a single indicator on caller-supplied OHLCV candles. " +
-        "Inputs: kind (e.g. 'rsi', 'ema', 'ichimoku'), candles ([{time,open,high,low,close,volume?}]), optional params, optional lastN (default 200, 0 = full series). " +
-        "Returns Result envelope. Errors surface canonical codes like INVALID_PARAMETER, INSUFFICIENT_DATA, UNSUPPORTED_KIND. " +
-        "Note: only ~60 indicators have safe-calc wrappers; the rest exist as manifest entries only — use list_indicators to explore.",
+        "Inputs: kind (e.g. 'rsi', 'ema', 'ichimoku'), candles ([{time,open,high,low,close,volume?}], must be non-empty), optional params, optional lastN (default 200, 0 = full series). " +
+        "Returns Result envelope. Errors use canonical codes: INVALID_INPUT (bad candles), INVALID_PARAMETER (bad/missing params — most indicators require a params object; consult get_indicator_manifest for paramHints), INSUFFICIENT_DATA, UNSUPPORTED_KIND (no calc wrapper for this kind). " +
+        "Discover computable kinds via list_indicators({ calcSupported: true }).",
       inputSchema: calcIndicatorInputShape,
     },
     async (args) => {

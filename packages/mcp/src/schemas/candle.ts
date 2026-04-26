@@ -9,6 +9,8 @@ export const candleSchema = z.object({
   volume: z.number().optional(),
 });
 
-export const candlesArraySchema = z.array(candleSchema).min(1);
+// Length validation is handled by calcIndicatorHandler so that the surfaced
+// error follows the canonical INVALID_INPUT envelope instead of a raw zod blob.
+export const candlesArraySchema = z.array(candleSchema);
 
 export type Candle = z.infer<typeof candleSchema>;
