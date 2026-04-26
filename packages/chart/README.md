@@ -635,6 +635,10 @@ const { points, originalIndices } = lttb(data, 2000);
 
 **Pane won't disappear after removing indicator** — Panes auto-remove when their last series is removed. If using `addTrades`/`addBacktest`, the equity pane persists.
 
+## Disclaimer
+
+`@trendcraft/chart` is a charting library — the candle, overlay, and signal visualizations it renders are derived from technical analysis primitives provided for informational and educational purposes only. Visualizations are not investment advice and do not constitute a recommendation to buy, sell, or hold any financial instrument. You are solely responsible for any trading decisions made using this software.
+
 ## License
 
 MIT
