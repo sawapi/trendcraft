@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## [0.3.0] - 2026-04-26
 
 ### Breaking — Indicator Quality Fixes
 
