@@ -34,6 +34,7 @@ export default defineConfig({
   plugins: [
     dts({
       insertTypesEntry: true,
+      exclude: ["**/__tests__/**", "**/__benchmarks__/**"],
     }),
   ],
   test: {

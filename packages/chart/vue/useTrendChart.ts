@@ -272,21 +272,23 @@ export function useTrendChart(opts: UseTrendChartOptions): UseTrendChartResult {
 
   watch(
     () => toValue(opts.patterns),
-    (val) => {
+    (val: ChartPatternSignal[] | undefined) => {
       if (val) chart.value?.addPatterns(val);
     },
   );
 
   watch(
     () => toValue(opts.scores),
-    (val) => {
+    (val: DataPoint<number | null>[] | undefined) => {
       if (val) chart.value?.addScores(val);
     },
   );
 
   watch(
     () => toValue(opts.plugins),
-    (val) => {
+    (
+      val: { renderers?: AnySeriesRendererPlugin[]; primitives?: AnyPrimitivePlugin[] } | undefined,
+    ) => {
       const c = chart.value;
       if (!c) return;
       applyPlugins(c, val);

@@ -8,7 +8,7 @@
       "@/*": ["./src/*"]
     },
     "jsx": "react-jsx",
-    "types": ["vitest/globals"]
+    "types": ["vitest/globals", "node", "react", "react-dom"]
   },
   "include": ["src/**/*", "react/**/*", "vue/**/*"],
   "exclude": ["node_modules", "dist"]
