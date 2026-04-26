@@ -89,4 +89,24 @@ describe("detectSignalHandler", () => {
     expect(tail.count).toBe(10);
     expect(tail.truncated).toBe(true);
   });
+
+  it("computes candlestickPatterns and lifts pattern-bearing bars into firedAt", () => {
+    const candles = trendingCandles(60);
+    const result = detectSignalHandler({ kind: "candlestickPatterns", candles, lastN: 0 });
+    expect(result.shape).toBe("series");
+    expect(result.totalLength).toBe(60);
+    // firedAt for candlestickPatterns must only contain bars where
+    // `value.patterns.length > 0` (custom firesAt predicate). Verify by
+    // recomputing the predicate over the output series.
+    const expectedFiredAt: number[] = [];
+    for (const point of result.output as Array<{
+      time: number;
+      value: { patterns: unknown[] };
+    }>) {
+      if (Array.isArray(point.value?.patterns) && point.value.patterns.length > 0) {
+        expectedFiredAt.push(point.time);
+      }
+    }
+    expect(result.firedAt).toEqual(expectedFiredAt);
+  });
 });

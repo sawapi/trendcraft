@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { getSignalDescriptor, listSupportedSignals } from "../dispatcher/signal-map";
+import {
+  defaultFiresAt,
+  getSignalDescriptor,
+  listSupportedSignals,
+} from "../dispatcher/signal-map";
 import { type Candle, candlesArraySchema } from "../schemas/candle";
 
 export const detectSignalInputShape = {
@@ -79,17 +83,11 @@ export function detectSignalHandler(input: {
 
   let firedAt: number[];
   if (desc.shape === "series") {
+    const firesAt = desc.firesAt ?? defaultFiresAt;
     firedAt = [];
     for (const point of sliced as Array<{ time: number; value: unknown }>) {
       if (!point || typeof point !== "object") continue;
-      const v = point.value;
-      // Boolean Series<boolean> (e.g. goldenCross): fired iff value === true.
-      // Object Series with `formed: true` (e.g. perfectOrder): fired iff just-formed.
-      // Other object/scalar values are not surfaced in firedAt — callers should
-      // inspect `output` for stateful signals.
-      if (v === true) firedAt.push(point.time);
-      else if (v && typeof v === "object" && (v as { formed?: unknown }).formed === true)
-        firedAt.push(point.time);
+      if (firesAt(point.value)) firedAt.push(point.time);
     }
   } else {
     firedAt = [];

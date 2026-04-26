@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { calcIndicatorHandler, calcIndicatorInputShape } from "./tools/calc";
 import { detectSignalHandler, detectSignalInputShape } from "./tools/detect-signal";
+import { listSignalsHandler, listSignalsInputShape } from "./tools/list-signals";
 import {
   formatMarkdownHandler,
   formatMarkdownInputShape,
@@ -105,6 +106,22 @@ export function createServer(): McpServer {
     async (args) => {
       try {
         return textResult(formatMarkdownHandler(args));
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    "list_signals",
+    {
+      description:
+        "List signal kinds supported by detect_signal. Each summary includes `kind`, `shape` (`series` for per-bar boolean/state signals; `events` for sparse event arrays), `oneLiner`, and `paramsHint` so the caller can build a detect_signal request without a round-trip. Optional `shape` filter narrows to one output type.",
+      inputSchema: listSignalsInputShape,
+    },
+    async (args) => {
+      try {
+        return jsonResult(listSignalsHandler(args));
       } catch (err) {
         return errorResult(err);
       }

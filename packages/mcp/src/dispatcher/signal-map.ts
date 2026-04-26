@@ -13,6 +13,7 @@
 
 import {
   bollingerSqueeze,
+  candlestickPatterns,
   deadCross,
   goldenCross,
   macdDivergence,
@@ -35,7 +36,21 @@ export interface SignalDescriptor {
   oneLiner: string;
   /** Default param hint string for callers. */
   paramsHint: string;
+  /**
+   * Predicate that decides whether a `series`-shape value counts as "fired"
+   * for the `firedAt` summary. Ignored for `events` shape. Defaults to
+   * `value === true || value.formed === true`.
+   */
+  firesAt?: (value: unknown) => boolean;
   fn: (candles: Candle[], options?: Record<string, unknown>) => unknown;
+}
+
+export function defaultFiresAt(value: unknown): boolean {
+  if (value === true) return true;
+  if (value && typeof value === "object") {
+    return (value as { formed?: unknown }).formed === true;
+  }
+  return false;
 }
 
 const REGISTRY: Record<string, SignalDescriptor> = {
@@ -110,14 +125,39 @@ const REGISTRY: Record<string, SignalDescriptor> = {
       "{ period?: number = 20, minRatio?: number = 1.0, minConsecutiveDays?: number = 3 }",
     fn: (c, o) => volumeAboveAverage(c, o as Parameters<typeof volumeAboveAverage>[1]),
   },
+  candlestickPatterns: {
+    shape: "series",
+    oneLiner:
+      "Per-bar candlestick pattern detection (doji, hammer, engulfing, ...). Value carries `patterns[]`, `hasBullish`, `hasBearish`.",
+    paramsHint:
+      "{ dojiThreshold?: number = 0.05, marubozuThreshold?: number = 0.95, hammerShadowRatio?: number = 2, requireTrend?: boolean = true, trendLookback?: number = 5, patterns?: CandlestickPatternName[] }",
+    firesAt: (value) => {
+      if (!value || typeof value !== "object") return false;
+      const v = value as { patterns?: unknown[] };
+      return Array.isArray(v.patterns) && v.patterns.length > 0;
+    },
+    fn: (c, o) => candlestickPatterns(c, o as Parameters<typeof candlestickPatterns>[1]),
+  },
 };
 
 export function getSignalDescriptor(kind: string): SignalDescriptor | undefined {
   return Object.hasOwn(REGISTRY, kind) ? REGISTRY[kind] : undefined;
 }
 
-export function listSupportedSignals(): { kind: string; shape: SignalShape; oneLiner: string }[] {
+export interface SignalSummary {
+  kind: string;
+  shape: SignalShape;
+  oneLiner: string;
+  paramsHint: string;
+}
+
+export function listSupportedSignals(): SignalSummary[] {
   return Object.entries(REGISTRY)
-    .map(([kind, d]) => ({ kind, shape: d.shape, oneLiner: d.oneLiner }))
+    .map(([kind, d]) => ({
+      kind,
+      shape: d.shape,
+      oneLiner: d.oneLiner,
+      paramsHint: d.paramsHint,
+    }))
     .sort((a, b) => a.kind.localeCompare(b.kind));
 }
