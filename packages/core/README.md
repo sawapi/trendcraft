@@ -855,6 +855,10 @@ interface IndicatorValue<T> {
 type Series<T> = IndicatorValue<T>[];
 ```
 
+## Disclaimer
+
+`trendcraft` provides technical analysis primitives for informational and educational purposes only. Outputs — including indicator values, signals, and backtest results — are not investment advice and do not constitute a recommendation to buy, sell, or hold any financial instrument. You are solely responsible for any trading decisions made using this software.
+
 ## License
 
 MIT

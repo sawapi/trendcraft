@@ -166,6 +166,10 @@ echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' \
   | node packages/mcp/dist/bin/trendcraft-mcp.js
 ```
 
+## Disclaimer
+
+`@trendcraft/mcp` and the underlying `trendcraft` library provide technical analysis primitives for informational and educational purposes only. Outputs — including indicator values, signal triggers, and manifest interpretive notes — are not investment advice and do not constitute a recommendation to buy, sell, or hold any financial instrument. You are solely responsible for any trading decisions made using this software.
+
 ## License
 
 MIT
