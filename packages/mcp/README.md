@@ -38,10 +38,11 @@ Restart Claude Desktop. The five tools below appear in the tool picker.
 | `suggest_indicators_for_regime` | Indicators well-suited to a given market regime (`trending` / `ranging` / `volatile` / `low-volatility`). |
 | `format_manifest_markdown` | Render one indicator's manifest as Markdown for embedding in agent prompts. |
 | `calc_indicator` | Compute one indicator on caller-supplied OHLCV candles. Currently ~60 kinds have safe-calc wrappers. Errors use canonical codes: `INVALID_INPUT` (bad candles), `INVALID_PARAMETER` (bad/missing params), `INSUFFICIENT_DATA`, `UNSUPPORTED_KIND` (no calc wrapper for this kind, distinct from `UNKNOWN_KIND`). `lastN` param (default 200) keeps responses inside MCP token budgets. |
+| `detect_signal` | Detect a trading signal from candles — crossovers (`goldenCross`/`deadCross`), MA alignment (`perfectOrder`), divergences (`rsiDivergence`/`macdDivergence`/`obvDivergence`), squeeze (`bollingerSqueeze`), and volume signals (`volumeBreakout`/`volumeAccumulation`/`volumeMaCross`/`volumeAboveAverage`). Returns `{ output, firedAt, ... }` — `firedAt` is a sparse list of trigger times that makes screening (\"did the signal fire in the last N bars?\") cheap on tokens. |
 
 ### Data sourcing
 
-`calc_indicator` expects candles supplied by the caller. The server has **no built-in data connector** — pair it with another MCP server (Yahoo / Alpaca / your broker) when you need live data.
+`calc_indicator` and `detect_signal` both expect candles supplied by the caller. The server has **no built-in data connector** — pair it with another MCP server (Yahoo / Alpaca / your broker) when you need live data.
 
 ## Development
 

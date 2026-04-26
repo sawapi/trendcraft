@@ -1,5 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { calcIndicatorHandler, calcIndicatorInputShape } from "./tools/calc";
+import { detectSignalHandler, detectSignalInputShape } from "./tools/detect-signal";
 import {
   formatMarkdownHandler,
   formatMarkdownInputShape,
@@ -104,6 +105,25 @@ export function createServer(): McpServer {
     async (args) => {
       try {
         return textResult(formatMarkdownHandler(args));
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    "detect_signal",
+    {
+      description:
+        "Detect a trading signal from caller-supplied OHLCV candles. Single-tool dispatcher across crossovers (goldenCross, deadCross), multi-MA alignment (perfectOrder), divergence (rsiDivergence, macdDivergence, obvDivergence), volatility squeeze (bollingerSqueeze), and volume signals (volumeBreakout, volumeAccumulation, volumeMaCross, volumeAboveAverage). " +
+        'Output envelope: `{ kind, shape, output, firedAt, count, totalLength, truncated }`. `firedAt` is a token-cheap list of times where the signal triggered — ideal for screening ("did goldenCross fire in the last 5 bars on this symbol?"). `shape` is `series` (boolean per bar) or `events` (sparse event objects). ' +
+        "Errors: INVALID_INPUT, INVALID_PARAMETER, INSUFFICIENT_DATA, UNSUPPORTED_SIGNAL, SIGNAL_ERROR. " +
+        "Note: signal kinds are NOT the same set as calc_indicator kinds — call detect_signal with an unknown kind to see the supported list.",
+      inputSchema: detectSignalInputShape,
+    },
+    async (args) => {
+      try {
+        return jsonResult(detectSignalHandler(args as Parameters<typeof detectSignalHandler>[0]));
       } catch (err) {
         return errorResult(err);
       }
