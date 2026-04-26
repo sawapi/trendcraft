@@ -25,7 +25,8 @@
     "!dist/**/*.cjs.map",
     "LICENSE",
     "README.md",
-    "CHANGELOG.md"
+    "CHANGELOG.md",
+    "EXAMPLES.md"
   ],
   "scripts": {
     "dev": "vite build --watch",
