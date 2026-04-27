@@ -56,7 +56,7 @@ Or edit `~/.claude.json` directly under the `mcpServers` key with the same confi
 
 ### Verify
 
-After connecting, the seven tools below should appear in the client's tool picker. To smoke-test the binary directly without an MCP client:
+After connecting, the eight tools below should appear in the client's tool picker. To smoke-test the binary directly without an MCP client:
 
 ```bash
 echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' \
@@ -74,6 +74,19 @@ echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' \
 | `calc_indicator` | Compute one indicator on caller-supplied OHLCV candles. ~60 kinds have safe-calc wrappers. `lastN` (default 200) trims response size. |
 | `list_signals` | Discover signal kinds supported by `detect_signal`. Returns `kind`, `shape` (`series` or `events`), `oneLiner`, and `paramsHint`. Optional `shape` filter. |
 | `detect_signal` | Detect a trading signal — crossovers, MA alignment, candlestick patterns, divergences, squeeze, and volume signals. Returns `{ output, firedAt, ... }` where `firedAt` is a sparse list of trigger times — designed for cheap screening (*"did the signal fire in the last N bars?"*). |
+| `load_candles` | Cache OHLCV candles in the session and return an opaque `handle`. Pass that handle as `candlesRef` on subsequent `calc_indicator` / `detect_signal` calls instead of re-sending the array. Designed for multi-tool screens. Session-ephemeral, capacity 50, oldest evicted silently. |
+
+### Candle input forms (v0.2.0+)
+
+`calc_indicator` and `detect_signal` accept exactly one of:
+
+| Form | Shape | Use when |
+|---|---|---|
+| `candles` | `[{time, open, high, low, close, volume?}, ...]` | Single-call, simplest. The canonical form. |
+| `candlesArray` | `[[time, open, high, low, close, volume?], ...]` | ~40% smaller payload — field names not repeated per row. |
+| `candlesRef` | string handle from `load_candles` | Cheapest for multi-tool calls — bars transmitted once total. |
+
+A stale or evicted `candlesRef` returns `INVALID_HANDLE`; just call `load_candles` again.
 
 ## Designed for screening
 
@@ -128,13 +141,46 @@ detect_signal({
 // → { firedAt: [...timestamps], output: [...] }
 ```
 
+### Multi-indicator screen with `load_candles`
+
+When you want to fan out 5+ tools against the same candle series, send the bars
+once and reuse the handle:
+
+```ts
+// 1. Cache the candles in the session.
+const { handle } = load_candles({ candles, symbol: "BTC" })
+// → { handle: "cdl_3_8a2c1f", count: 124, span: { from, to } }
+
+// 2. Fan out — `candlesRef` replaces `candles` on every subsequent call.
+calc_indicator  ({ kind: "rsi",         candlesRef: handle, params: { period: 14 } })
+calc_indicator  ({ kind: "atr",         candlesRef: handle, params: { period: 14 } })
+calc_indicator  ({ kind: "macd",        candlesRef: handle, params: { fast: 12, slow: 26, signal: 9 } })
+detect_signal   ({ kind: "goldenCross", candlesRef: handle, params: { short: 5, long: 25 } })
+detect_signal   ({ kind: "bollingerSqueeze", candlesRef: handle })
+```
+
+Or send the bars in compact tuple form once-shot to a single tool:
+
+```ts
+calc_indicator({
+  kind: "rsi",
+  candlesArray: [
+    [1714000000000, 100, 101, 99, 100.5, 1200],
+    [1714003600000, 100.5, 102, 100, 101.5, 1300],
+    // ...
+  ],
+  params: { period: 14 },
+})
+```
+
 ## Errors
 
 All tool errors return `isError: true` with the message body in the form `<CODE>: <message>`. Codes:
 
 | Code | Meaning | Surface |
 |---|---|---|
-| `INVALID_INPUT` | Empty / malformed candles array | calc, detect_signal |
+| `INVALID_INPUT` | Empty / malformed candles array, or zero/multiple of `candles` / `candlesArray` / `candlesRef` provided | calc, detect_signal, load_candles |
+| `INVALID_HANDLE` | `candlesRef` is unknown / evicted / never loaded — call `load_candles` again | calc, detect_signal |
 | `INVALID_PARAMETER` | Missing or invalid params (negative period, missing required `params` object, etc.) | calc, detect_signal |
 | `INSUFFICIENT_DATA` | Candles count below the indicator/signal's minimum required window | calc, detect_signal |
 | `INDICATOR_ERROR` | Underlying indicator raised an unclassified runtime error | calc |

@@ -1,6 +1,6 @@
 # @trendcraft/mcp — Recipes
 
-Concrete patterns for using the seven tools together. Examples assume an MCP client (Claude Desktop, Claude Code, Cursor, ...) with `trendcraft` configured per the [README](./README.md). Candles are illustrative — supply real OHLCV from your data source.
+Concrete patterns for using the eight tools together. Examples assume an MCP client (Claude Desktop, Claude Code, Cursor, ...) with `trendcraft` configured per the [README](./README.md). Candles are illustrative — supply real OHLCV from your data source.
 
 ## Conventions
 
@@ -208,6 +208,45 @@ detect_signal({ kind: "volumeAccumulation", candles, lastN: 10 })
 
 ---
 
+## 6.5. Multi-indicator screen with `load_candles` (v0.2.0+)
+
+When you fan out 5+ tools against the same candles, sending the bars inline on every call dominates token cost. `load_candles` caches the array in the session and returns an opaque `handle`; subsequent calls reference it via `candlesRef`.
+
+```ts
+// 1. Cache once.
+const { handle } = load_candles({ candles, symbol: "BTC" })
+// → { handle: "cdl_1_a8f2c1", count: 124, span: { from: ..., to: ... } }
+
+// 2. Fan out — bars are transmitted exactly once total.
+calc_indicator  ({ kind: "rsi",          candlesRef: handle, params: { period: 14 } })
+calc_indicator  ({ kind: "atr",          candlesRef: handle, params: { period: 14 } })
+calc_indicator  ({ kind: "macd",         candlesRef: handle, params: { fast: 12, slow: 26, signal: 9 } })
+detect_signal   ({ kind: "goldenCross",  candlesRef: handle, params: { short: 5, long: 25 } })
+detect_signal   ({ kind: "bollingerSqueeze", candlesRef: handle })
+```
+
+**Lifetime & limits.** Handles live for the duration of the stdio MCP process only — they are not persisted across restarts and not shared across sessions. Capacity is 50 handles per process; the oldest is silently evicted. If a `candlesRef` is stale you'll see `INVALID_HANDLE`; just call `load_candles` again — reload is cheap.
+
+### Compact tuple form
+
+When you'd rather inline the candles but want a smaller payload, use `candlesArray` (~40% smaller than the canonical object form because field names are not repeated per row):
+
+```ts
+calc_indicator({
+  kind: "rsi",
+  candlesArray: [
+    [1714000000000, 100,   101, 99,  100.5, 1200],
+    [1714003600000, 100.5, 102, 100, 101.5, 1300],
+    // [time, open, high, low, close, volume?]
+  ],
+  params: { period: 14 },
+})
+```
+
+`candlesArray` works on `load_candles`, `calc_indicator`, and `detect_signal`. You can also feed it into `load_candles` to obtain a handle without paying the object-form overhead first.
+
+---
+
 ## 7. Token budgets
 
 `detect_signal` and `calc_indicator` both default to `lastN: 200`. Tune by use case:
@@ -230,7 +269,8 @@ Every tool returns canonical `<CODE>: <message>` strings on failure. Common reco
 | Error | Action |
 |---|---|
 | `INVALID_INPUT: candles must contain at least 1 entry` | Verify the data source returned candles. |
-| `INVALID_PARAMETER: indicator "sma" requires a params object` | Always pass `params: { period: ... }`. Use `get_indicator_manifest` for `paramHints`. |
+| `INVALID_PARAMETER: indicator "sma" requires a params object — paramHints: ...` | Always pass `params: { period: ... }`. The error message inlines the manifest's `paramHints` in v0.2.0+; older clients can still call `get_indicator_manifest` for the same content. |
+| `INVALID_HANDLE: candlesRef "cdl_..." is not in the session cache` | The handle was evicted (capacity 50, LRU) or the process restarted. Call `load_candles` again — it's cheap. |
 | `INSUFFICIENT_DATA` | Increase the candles window — typical minimum is 2× the indicator's longest lookback. |
 | `UNSUPPORTED_KIND` (calc) | The kind is documented but no calc wrapper yet. Use `list_indicators({ calcSupported: true })` to enumerate the calc-ready set. |
 | `UNSUPPORTED_SIGNAL` (detect_signal) | Call `list_signals({})` to see registered kinds — the set is smaller than `calc_indicator`'s. |
