@@ -1,5 +1,51 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **`load_candles` tool + `candlesRef` input** — cache OHLCV candles in the
+  session and pass an opaque `handle` as `candlesRef` on subsequent
+  `calc_indicator` / `detect_signal` calls. Designed for multi-tool screens:
+  five parallel indicator calls against the same 124-bar series transmit the
+  bars **once** instead of five times. Handles are session-ephemeral (live
+  only for the stdio process), capacity 50, oldest evicted silently. Reload
+  is cheap.
+- **Compact tuple input via `candlesArray`** — `calc_indicator`,
+  `detect_signal`, and `load_candles` now accept
+  `[[time, open, high, low, close, volume?], ...]` as an alternative to the
+  canonical object-per-bar form. ~40% smaller payload because field names
+  are not repeated per row.
+- **`paramHints` inlined in `calc_indicator` `INVALID_PARAMETER` errors** — when
+  a missing-params destructure error fires, the message now embeds the
+  manifest's `paramHints` directly (e.g.
+  `paramHints: period: 20 for short-term, 50 for medium, 200 for primary trend`)
+  instead of pointing to `get_indicator_manifest`. Matches the parity that
+  `detect_signal` already had.
+- **`INVALID_HANDLE` canonical error** — surfaced when a `candlesRef` is
+  unknown / evicted / never loaded; the message instructs the caller to
+  re-run `load_candles`.
+- **`processedBars` on `detect_signal` output** — number of input candle bars
+  the signal was evaluated against. Resolves the ambiguity on `events`-shape
+  results between *"no events fired"* and *"no data was processed"* (the
+  existing `totalLength` field counts events for events-shape outputs, not
+  bars).
+- **`symbol` echoed on `calc_indicator` / `detect_signal` output** — when the
+  caller used `candlesRef`, the `symbol` recorded on the handle at
+  `load_candles` time is included on the response so the LLM can correlate
+  handle → symbol without keeping a side-table. Omitted when no symbol was
+  set or when inline `candles` / `candlesArray` was used.
+- **`storeSize` and `capacity` on `load_candles` output** — number of handles
+  currently held by the session-scoped store and its LRU capacity. Lets the
+  caller spot impending eviction without trial-and-error.
+
+### Changed
+
+- `calc_indicator` and `detect_signal` candle input is now exactly-one-of
+  `candles` / `candlesArray` / `candlesRef`. Existing inline `candles`
+  callers are unaffected.
+- Bumped the advertised server version to `0.2.0`.
+
 ## 0.1.0 (2026-04-26)
 
 ### Added

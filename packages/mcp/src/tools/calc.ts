@@ -1,10 +1,17 @@
+import { getManifest } from "trendcraft/manifest";
 import { z } from "zod";
+import { type CandleStore, defaultCandleStore } from "../dispatcher/candle-store";
 import { getSafeIndicator, listSupportedKinds } from "../dispatcher/safe-map";
-import { type Candle, candlesArraySchema } from "../schemas/candle";
+import {
+  type Candle,
+  type CandlesInput,
+  candlesInputShape,
+  resolveCandlesInput,
+} from "../schemas/candle";
 
 export const calcIndicatorInputShape = {
   kind: z.string().min(1),
-  candles: candlesArraySchema,
+  ...candlesInputShape,
   params: z.record(z.string(), z.unknown()).optional(),
   /**
    * Slice the trailing N entries of the result series. Defaults to 200 to
@@ -20,6 +27,8 @@ export interface CalcResult {
   truncated: boolean;
   totalLength: number;
   series: unknown[];
+  /** Echoed from the handle when the caller used `candlesRef`. Omitted otherwise. */
+  symbol?: string;
 }
 
 const DEFAULT_LAST_N = 200;
@@ -43,15 +52,16 @@ function isResultLike(x: unknown): x is ResultLike {
  */
 const MISSING_PARAMS_RE = /Cannot (destructure property|read propert(?:y|ies))/i;
 
-export function calcIndicatorHandler(input: {
-  kind: string;
-  candles: Candle[];
-  params?: Record<string, unknown>;
-  lastN?: number;
-}): CalcResult {
-  if (!input.candles || input.candles.length === 0) {
-    throw new Error("INVALID_INPUT: candles must contain at least 1 entry");
-  }
+export function calcIndicatorHandler(
+  input: CandlesInput & {
+    kind: string;
+    params?: Record<string, unknown>;
+    lastN?: number;
+  },
+  store: CandleStore = defaultCandleStore,
+): CalcResult {
+  const resolved = resolveCandlesInput(input, store);
+  const { candles } = resolved;
 
   const fn = getSafeIndicator(input.kind);
   if (!fn) {
@@ -61,7 +71,7 @@ export function calcIndicatorHandler(input: {
     );
   }
 
-  const raw = (fn as (c: Candle[], p?: unknown) => unknown)(input.candles, input.params);
+  const raw = (fn as (c: Candle[], p?: unknown) => unknown)(candles, input.params);
 
   if (!isResultLike(raw)) {
     throw new Error(`INTERNAL_ERROR: indicator "${input.kind}" did not return a Result envelope`);
@@ -73,7 +83,10 @@ export function calcIndicatorHandler(input: {
 
     if (code === "INDICATOR_ERROR" && MISSING_PARAMS_RE.test(message)) {
       code = "INVALID_PARAMETER";
-      message = `indicator "${input.kind}" requires a params object — call get_indicator_manifest("${input.kind}") for the paramHints. (underlying: ${message})`;
+      const hint = paramHintFor(input.kind);
+      message = hint
+        ? `indicator "${input.kind}" requires a params object — paramHints: ${hint}. (underlying: ${message})`
+        : `indicator "${input.kind}" requires a params object — call get_indicator_manifest("${input.kind}") for paramHints. (underlying: ${message})`;
     }
 
     throw new Error(`${code}: ${message}`);
@@ -90,5 +103,20 @@ export function calcIndicatorHandler(input: {
     totalLength,
     truncated: sliced.length < totalLength,
     series: sliced,
+    ...(resolved.symbol !== undefined ? { symbol: resolved.symbol } : {}),
   };
+}
+
+function paramHintFor(kind: string): string | undefined {
+  try {
+    const m = getManifest(kind);
+    const hints = m?.paramHints;
+    if (!hints) return undefined;
+    const parts = Object.entries(hints)
+      .filter(([, v]) => typeof v === "string" && v.length > 0)
+      .map(([k, v]) => `${k}: ${v}`);
+    return parts.length > 0 ? parts.join("; ") : undefined;
+  } catch {
+    return undefined;
+  }
 }

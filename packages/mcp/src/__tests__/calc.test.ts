@@ -60,8 +60,9 @@ describe("calcIndicatorHandler", () => {
     const candles = makeCandles(50);
     // sma() destructures `period` from options — calling without params crashes
     // with a TypeError that previously surfaced as opaque INDICATOR_ERROR.
+    // v0.2.0: the manifest's paramHints are inlined in the error message.
     expect(() => calcIndicatorHandler({ kind: "sma", candles })).toThrow(
-      /INVALID_PARAMETER.*requires a params object.*get_indicator_manifest/s,
+      /INVALID_PARAMETER.*requires a params object.*paramHints:.*period/s,
     );
   });
 

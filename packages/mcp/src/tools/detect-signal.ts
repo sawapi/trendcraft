@@ -1,14 +1,15 @@
 import { z } from "zod";
+import { type CandleStore, defaultCandleStore } from "../dispatcher/candle-store";
 import {
   defaultFiresAt,
   getSignalDescriptor,
   listSupportedSignals,
 } from "../dispatcher/signal-map";
-import { type Candle, candlesArraySchema } from "../schemas/candle";
+import { type CandlesInput, candlesInputShape, resolveCandlesInput } from "../schemas/candle";
 
 export const detectSignalInputShape = {
   kind: z.string().min(1),
-  candles: candlesArraySchema,
+  ...candlesInputShape,
   params: z.record(z.string(), z.unknown()).optional(),
   /**
    * Slice the trailing N entries of the output. Defaults to 200 to stay
@@ -30,21 +31,31 @@ export interface DetectSignalResult {
    * Provided as a token-cheap screening summary.
    */
   firedAt: number[];
+  /**
+   * Number of input candle bars the signal was evaluated against. Lets the
+   * caller distinguish "no events fired" from "no data was processed" — the
+   * two are indistinguishable on `events`-shape outputs from `totalLength`
+   * alone (which counts events, not bars).
+   */
+  processedBars: number;
+  /** Echoed from the handle when the caller used `candlesRef`. Omitted otherwise. */
+  symbol?: string;
 }
 
 const DEFAULT_LAST_N = 200;
 
 const MISSING_PARAMS_RE = /Cannot (destructure property|read propert(?:y|ies))/i;
 
-export function detectSignalHandler(input: {
-  kind: string;
-  candles: Candle[];
-  params?: Record<string, unknown>;
-  lastN?: number;
-}): DetectSignalResult {
-  if (!input.candles || input.candles.length === 0) {
-    throw new Error("INVALID_INPUT: candles must contain at least 1 entry");
-  }
+export function detectSignalHandler(
+  input: CandlesInput & {
+    kind: string;
+    params?: Record<string, unknown>;
+    lastN?: number;
+  },
+  store: CandleStore = defaultCandleStore,
+): DetectSignalResult {
+  const resolved = resolveCandlesInput(input, store);
+  const { candles } = resolved;
 
   const desc = getSignalDescriptor(input.kind);
   if (!desc) {
@@ -56,7 +67,7 @@ export function detectSignalHandler(input: {
 
   let raw: unknown;
   try {
-    raw = desc.fn(input.candles, input.params);
+    raw = desc.fn(candles, input.params);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     if (MISSING_PARAMS_RE.test(message)) {
@@ -106,5 +117,7 @@ export function detectSignalHandler(input: {
     truncated: sliced.length < totalLength,
     output: sliced,
     firedAt,
+    processedBars: candles.length,
+    ...(resolved.symbol !== undefined ? { symbol: resolved.symbol } : {}),
   };
 }
