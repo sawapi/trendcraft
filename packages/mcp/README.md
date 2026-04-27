@@ -88,6 +88,12 @@ echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' \
 
 A stale or evicted `candlesRef` returns `INVALID_HANDLE`; just call `load_candles` again.
 
+### Response envelope additions (v0.2.0+)
+
+- `load_candles` returns `storeSize` (handles currently held) and `capacity` (LRU max). Watch `storeSize` approach `capacity` to anticipate eviction.
+- `detect_signal` returns `processedBars` — the number of input bars the signal was evaluated against. Use this to distinguish *"no events fired"* from *"no data processed"* on `events`-shape outputs (where `totalLength` counts events, not bars).
+- `calc_indicator` and `detect_signal` echo `symbol` when the caller used `candlesRef` and the handle was loaded with a `symbol`. Omitted otherwise — handy for fan-out screens to correlate handle → symbol without a side-table.
+
 ## Designed for screening
 
 The output shape is tuned for two LLM-driven workflows: **single-symbol analysis** (call a few indicators + signals on one symbol's candles) and **multi-symbol screening** (loop over many symbols, ask one yes/no per signal). For screening, `detect_signal` returns a `firedAt: number[]` summary so the caller doesn't have to scan the full series — typically 100x cheaper on tokens than reading the boolean output array.

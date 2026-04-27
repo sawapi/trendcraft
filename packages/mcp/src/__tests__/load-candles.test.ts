@@ -77,4 +77,20 @@ describe("loadCandlesHandler", () => {
     const store = new CandleStore();
     expect(() => loadCandlesHandler({ candles: [] }, store)).toThrow(/INVALID_INPUT.*at least 1/);
   });
+
+  it("reports storeSize and capacity so the caller can spot eviction risk", () => {
+    const store = new CandleStore(3);
+    const a = loadCandlesHandler({ candles: makeCandles(2) }, store);
+    expect(a.storeSize).toBe(1);
+    expect(a.capacity).toBe(3);
+
+    const b = loadCandlesHandler({ candles: makeCandles(2) }, store);
+    expect(b.storeSize).toBe(2);
+
+    loadCandlesHandler({ candles: makeCandles(2) }, store);
+    const d = loadCandlesHandler({ candles: makeCandles(2) }, store);
+    // capacity 3, four puts → storeSize stays at 3 (oldest evicted)
+    expect(d.storeSize).toBe(3);
+    expect(d.capacity).toBe(3);
+  });
 });

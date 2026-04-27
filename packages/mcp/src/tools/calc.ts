@@ -27,6 +27,8 @@ export interface CalcResult {
   truncated: boolean;
   totalLength: number;
   series: unknown[];
+  /** Echoed from the handle when the caller used `candlesRef`. Omitted otherwise. */
+  symbol?: string;
 }
 
 const DEFAULT_LAST_N = 200;
@@ -58,7 +60,8 @@ export function calcIndicatorHandler(
   },
   store: CandleStore = defaultCandleStore,
 ): CalcResult {
-  const candles = resolveCandlesInput(input, store);
+  const resolved = resolveCandlesInput(input, store);
+  const { candles } = resolved;
 
   const fn = getSafeIndicator(input.kind);
   if (!fn) {
@@ -100,6 +103,7 @@ export function calcIndicatorHandler(
     totalLength,
     truncated: sliced.length < totalLength,
     series: sliced,
+    ...(resolved.symbol !== undefined ? { symbol: resolved.symbol } : {}),
   };
 }
 

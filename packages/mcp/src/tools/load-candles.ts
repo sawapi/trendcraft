@@ -20,6 +20,10 @@ export interface LoadCandlesResult {
   span: { from: number; to: number };
   symbol?: string;
   hint?: string;
+  /** Number of handles currently held by the session-scoped store, including this one. */
+  storeSize: number;
+  /** LRU capacity — when storeSize would exceed this, the oldest handle is silently evicted. */
+  capacity: number;
 }
 
 function tupleToCandle(t: CandleTuple): Candle {
@@ -62,5 +66,7 @@ export function loadCandlesHandler(
     span: meta.span,
     ...(meta.symbol !== undefined ? { symbol: meta.symbol } : {}),
     ...(meta.hint !== undefined ? { hint: meta.hint } : {}),
+    storeSize: store.size(),
+    capacity: store.getCapacity(),
   };
 }

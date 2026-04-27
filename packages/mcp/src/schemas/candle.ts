@@ -52,6 +52,16 @@ export interface CandlesInput {
   candlesRef?: string;
 }
 
+export interface ResolvedCandles {
+  candles: Candle[];
+  /** Source the candles came from. `ref` means a `candlesRef` handle was used. */
+  source: "inline" | "tuple" | "ref";
+  /** Stored on the handle at `load_candles` time. Only ever set when `source === "ref"`. */
+  symbol?: string;
+  /** Stored on the handle at `load_candles` time. Only ever set when `source === "ref"`. */
+  hint?: string;
+}
+
 function tupleToCandle(t: CandleTuple): Candle {
   const [time, open, high, low, close, volume] = t;
   return volume === undefined
@@ -61,9 +71,14 @@ function tupleToCandle(t: CandleTuple): Candle {
 
 /**
  * Resolve the three accepted candle input forms to a single canonical
- * `Candle[]`. Throws canonical INVALID_INPUT / INVALID_HANDLE on disagreement.
+ * `Candle[]` plus source metadata. Throws canonical INVALID_INPUT /
+ * INVALID_HANDLE on disagreement.
+ *
+ * When the caller supplies `candlesRef`, the handle's `symbol` / `hint` are
+ * surfaced on the result so tool handlers can echo them back into their own
+ * response (helps the LLM correlate handle → symbol without a side-table).
  */
-export function resolveCandlesInput(input: CandlesInput, store: CandleStore): Candle[] {
+export function resolveCandlesInput(input: CandlesInput, store: CandleStore): ResolvedCandles {
   const provided = [input.candles, input.candlesArray, input.candlesRef].filter(
     (v) => v !== undefined,
   ).length;
@@ -80,22 +95,31 @@ export function resolveCandlesInput(input: CandlesInput, store: CandleStore): Ca
   }
 
   let candles: Candle[];
+  let source: ResolvedCandles["source"];
+  let symbol: string | undefined;
+  let hint: string | undefined;
+
   if (input.candlesRef !== undefined) {
-    const cached = store.get(input.candlesRef);
-    if (!cached) {
+    const entry = store.getEntry(input.candlesRef);
+    if (!entry) {
       throw new Error(
         `INVALID_HANDLE: candlesRef "${input.candlesRef}" is not in the session cache (evicted, expired, or never loaded). Call load_candles to obtain a fresh handle.`,
       );
     }
-    candles = cached;
+    candles = entry.candles;
+    source = "ref";
+    symbol = entry.symbol;
+    hint = entry.hint;
   } else if (input.candlesArray !== undefined) {
     candles = input.candlesArray.map(tupleToCandle);
+    source = "tuple";
   } else {
     candles = input.candles as Candle[];
+    source = "inline";
   }
 
   if (candles.length === 0) {
     throw new Error("INVALID_INPUT: candles must contain at least 1 entry");
   }
-  return candles;
+  return { candles, source, ...(symbol ? { symbol } : {}), ...(hint ? { hint } : {}) };
 }

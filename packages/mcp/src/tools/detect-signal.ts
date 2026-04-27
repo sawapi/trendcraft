@@ -31,6 +31,15 @@ export interface DetectSignalResult {
    * Provided as a token-cheap screening summary.
    */
   firedAt: number[];
+  /**
+   * Number of input candle bars the signal was evaluated against. Lets the
+   * caller distinguish "no events fired" from "no data was processed" — the
+   * two are indistinguishable on `events`-shape outputs from `totalLength`
+   * alone (which counts events, not bars).
+   */
+  processedBars: number;
+  /** Echoed from the handle when the caller used `candlesRef`. Omitted otherwise. */
+  symbol?: string;
 }
 
 const DEFAULT_LAST_N = 200;
@@ -45,7 +54,8 @@ export function detectSignalHandler(
   },
   store: CandleStore = defaultCandleStore,
 ): DetectSignalResult {
-  const candles = resolveCandlesInput(input, store);
+  const resolved = resolveCandlesInput(input, store);
+  const { candles } = resolved;
 
   const desc = getSignalDescriptor(input.kind);
   if (!desc) {
@@ -107,5 +117,7 @@ export function detectSignalHandler(
     truncated: sliced.length < totalLength,
     output: sliced,
     firedAt,
+    processedBars: candles.length,
+    ...(resolved.symbol !== undefined ? { symbol: resolved.symbol } : {}),
   };
 }

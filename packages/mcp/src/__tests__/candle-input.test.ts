@@ -136,3 +136,72 @@ describe("detect_signal with new candle input forms", () => {
     ).toThrow(/INVALID_HANDLE/);
   });
 });
+
+describe("response envelope additions (v0.2.0+)", () => {
+  function makeCandles(n: number): Candle[] {
+    const out: Candle[] = [];
+    for (let i = 0; i < n; i++) {
+      const close = 100 + i * 0.3;
+      out.push({
+        time: i * 86_400_000,
+        open: close - 0.4,
+        high: close + 0.6,
+        low: close - 0.6,
+        close,
+        volume: 1000 + i,
+      });
+    }
+    return out;
+  }
+
+  it("calc_indicator echoes `symbol` only when candlesRef was used and the handle had one", () => {
+    const store = new CandleStore();
+    const candles = makeCandles(40);
+    const { handle } = loadCandlesHandler({ candles, symbol: "AAPL" }, store);
+
+    const viaRef = calcIndicatorHandler(
+      { kind: "rsi", candlesRef: handle, params: { period: 14 } },
+      store,
+    );
+    expect(viaRef.symbol).toBe("AAPL");
+
+    const inline = calcIndicatorHandler({ kind: "rsi", candles, params: { period: 14 } }, store);
+    expect(inline.symbol).toBeUndefined();
+  });
+
+  it("calc_indicator omits `symbol` when handle was loaded without one", () => {
+    const store = new CandleStore();
+    const candles = makeCandles(40);
+    const { handle } = loadCandlesHandler({ candles }, store);
+    const result = calcIndicatorHandler(
+      { kind: "rsi", candlesRef: handle, params: { period: 14 } },
+      store,
+    );
+    expect(result.symbol).toBeUndefined();
+  });
+
+  it("detect_signal exposes processedBars and echoes symbol via candlesRef", () => {
+    const store = new CandleStore();
+    const candles = makeCandles(80);
+    const { handle } = loadCandlesHandler({ candles, symbol: "BTC" }, store);
+
+    const viaRef = detectSignalHandler({ kind: "bollingerSqueeze", candlesRef: handle }, store);
+    expect(viaRef.processedBars).toBe(80);
+    expect(viaRef.symbol).toBe("BTC");
+
+    const inline = detectSignalHandler({ kind: "bollingerSqueeze", candles }, store);
+    expect(inline.processedBars).toBe(80);
+    expect(inline.symbol).toBeUndefined();
+  });
+
+  it("detect_signal processedBars distinguishes 'no events' from 'no data'", () => {
+    const store = new CandleStore();
+    // 80 bars in, 0 events out — the ambiguity #1 was supposed to fix.
+    const result = detectSignalHandler(
+      { kind: "bollingerSqueeze", candles: makeCandles(80) },
+      store,
+    );
+    expect(result.totalLength).toBe(0);
+    expect(result.processedBars).toBe(80);
+  });
+});

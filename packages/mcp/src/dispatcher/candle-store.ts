@@ -54,12 +54,21 @@ export class CandleStore {
   }
 
   get(handle: string): Candle[] | undefined {
+    return this.getEntry(handle)?.candles;
+  }
+
+  /**
+   * Like `get`, but also exposes the metadata stored at `put` time. Used when
+   * callers want to echo `symbol` / `hint` back in their own response so the
+   * LLM can correlate handle → symbol without keeping a side-table.
+   */
+  getEntry(handle: string): Entry | undefined {
     const entry = this.entries.get(handle);
     if (!entry) return undefined;
     // Touch: move to most-recently-used position
     this.entries.delete(handle);
     this.entries.set(handle, entry);
-    return entry.candles;
+    return entry;
   }
 
   has(handle: string): boolean {
@@ -68,6 +77,10 @@ export class CandleStore {
 
   size(): number {
     return this.entries.size;
+  }
+
+  getCapacity(): number {
+    return this.capacity;
   }
 
   clear(): void {
