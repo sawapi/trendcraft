@@ -123,6 +123,15 @@ export { DrawHelper, type StrokeStyle, type FillStyle } from "./core/draw-helper
 // Unified indicator connection
 export { connectIndicators, defineIndicator } from "./integration/connect-indicators";
 
+// Live mode for primitive plugins (S/R Zones, SMC, Wyckoff, Kill Zones, Regime
+// Heatmap, etc.) — recompute on candleComplete and push to handle.update().
+export { connectLivePrimitives } from "./integration/connect-live-primitives";
+export type {
+  LivePrimitiveSpec,
+  LivePrimitiveHandle,
+  LivePrimitivesConnection,
+} from "./integration/connect-live-primitives";
+
 // Drawing auto-injection helpers — convert indicator output (fibs / trendlines / channels)
 // into built-in Drawing objects without needing a dedicated primitive plugin.
 export {
