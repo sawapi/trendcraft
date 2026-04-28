@@ -17,6 +17,8 @@ import { indicatorPresets } from "trendcraft";
 import type { NormalizedCandle } from "trendcraft";
 import dailySampleData from "../../simple-chart/data.json";
 import { generateIntradayCandles } from "./data-intraday";
+import { type LivePanelHandle, type Mode, createLivePanel } from "./live-panel";
+import { type SimulatorHandle, createLiveSimulator } from "./live-simulator";
 import { type PluginsPanelHandle, createPluginsPanel } from "./plugins-panel";
 import type { SidebarEntry } from "./sidebar";
 import { createSidebar } from "./sidebar";
@@ -59,17 +61,32 @@ registerTrendCraftPresets(chart);
 // ============================================
 
 let currentTimeframe: Timeframe = "daily";
+let currentMode: Mode = "static";
 let currentCandles: NormalizedCandle[] = dailyCandles;
 let conn: IndicatorConnection;
 let pluginsPanel: PluginsPanelHandle;
 let signalsPanel: SignalsPanelHandle;
+let livePanel: LivePanelHandle | null = null;
+let simulator: SimulatorHandle | null = null;
 
-function mount(timeframe: Timeframe): void {
+function mount(timeframe: Timeframe, mode: Mode): void {
   currentTimeframe = timeframe;
+  currentMode = mode;
   currentCandles = timeframe === "daily" ? dailyCandles : intradayCandles;
 
-  chart.setCandles(currentCandles);
-  conn = connectIndicators(chart, { presets: indicatorPresets, candles: currentCandles });
+  if (mode === "live") {
+    simulator = createLiveSimulator({ candles: currentCandles });
+    chart.setCandles(simulator.seedCandles as NormalizedCandle[]);
+    conn = connectIndicators(chart, {
+      presets: indicatorPresets,
+      candles: simulator.seedCandles,
+      live: simulator.live,
+    });
+  } else {
+    simulator = null;
+    chart.setCandles(currentCandles);
+    conn = connectIndicators(chart, { presets: indicatorPresets, candles: currentCandles });
+  }
 
   // Sidebar is rebuilt from scratch — its DOM/state are reset by createSidebar.
   // We still need to wipe the container because the plugins panel is a sibling
@@ -116,15 +133,50 @@ function mount(timeframe: Timeframe): void {
   });
 
   const scrollSlot = sidebarAPI.getScrollSlot();
-  pluginsPanel = createPluginsPanel(scrollSlot, currentCandles, chart);
+  // Live panel goes ABOVE the indicator list and other panels (mounted before
+  // the scroll slot's existing children so it's always visible at the top).
+  livePanel = createLivePanel(scrollSlot, {
+    onModeChange(next) {
+      if (next === currentMode) return;
+      const tf = currentTimeframe;
+      unmount();
+      mount(tf, next);
+    },
+    onReset() {
+      // Rebuild the entire live pipeline. simulator.reset() alone would strand
+      // the chart at its streamed state and leave conn/livePrimsConn subscribed
+      // to the disposed LiveCandle.
+      const tf = currentTimeframe;
+      unmount();
+      mount(tf, "live");
+    },
+  });
+  livePanel.setMode(currentMode);
+  // Re-attach the live panel root as the first child of scrollSlot so it sits
+  // above the (later-appended) plugins / signals panels and the indicator list.
+  // (The list itself was inserted before the panel was created, so prepending
+  // here puts the live panel at the top of the scroll viewport.)
+  if (scrollSlot.firstChild && scrollSlot.firstChild !== scrollSlot.lastChild) {
+    scrollSlot.prepend(scrollSlot.lastChild as Node);
+  }
+  pluginsPanel = createPluginsPanel(scrollSlot, currentCandles, chart, {
+    live: simulator?.live,
+  });
   signalsPanel = createSignalsPanel(scrollSlot, currentCandles, chart);
+  if (mode === "live" && simulator) {
+    livePanel.bindSimulator(simulator);
+  }
   chart.fitContent();
 }
 
 function unmount(): void {
   signalsPanel?.destroy();
   pluginsPanel?.destroy();
+  livePanel?.destroy();
+  livePanel = null;
   conn?.disconnect();
+  simulator?.dispose();
+  simulator = null;
 }
 
 /** Resolve special-case params for specific indicators */
@@ -135,7 +187,7 @@ function resolveParams(id: string, params: Record<string, unknown>): Record<stri
   return params;
 }
 
-mount("daily");
+mount("daily", "static");
 
 // ============================================
 // Toolbar Controls
@@ -145,8 +197,9 @@ mount("daily");
 const timeframeBtn = document.getElementById("btn-timeframe") as HTMLElement;
 timeframeBtn.addEventListener("click", () => {
   const next: Timeframe = currentTimeframe === "daily" ? "intraday" : "daily";
+  const mode = currentMode;
   unmount();
-  mount(next);
+  mount(next, mode);
   timeframeBtn.textContent = next === "daily" ? "Daily" : "1H";
 });
 
