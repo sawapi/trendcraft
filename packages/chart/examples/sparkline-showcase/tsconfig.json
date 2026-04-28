@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022", "DOM"],
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "resolveJsonModule": true,
+    "paths": {
+      "@trendcraft/chart/sparkline": ["../../src/sparkline/index.ts"],
+      "@trendcraft/chart": ["../../src/index.ts"]
+    }
+  },
+  "include": ["src/**/*.ts"]
+}
