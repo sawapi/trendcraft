@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 <!-- - session gap rendering (ChartOptions.timeScale.sessionGaps, TimeScale.setGapsBefore) -->
 <!-- - autoFormatTime shows date anchor after large time jumps within the same local day -->
 
+### Added
+
+- **`@trendcraft/chart/sparkline` subpath** — ultra-lightweight mini chart for watchlist-style UIs (200+ instances on a single page). Vanilla `createSparkline` / `createSparklineGroup`, plus `@trendcraft/chart/react/sparkline` and `@trendcraft/chart/vue/sparkline` thin wrappers. Supports both `line` (with optional fill) and `candle` modes, four color presets (`first-vs-last`, `open-vs-close`, `baseline`, `fixed` / per-candle `up`/`down`), and a single-listener delegated hover with a shared tooltip across all sparklines in a group. Vanilla bundle ≈ 2.5 kB brotli; React/Vue ≈ 3 kB. New example at `examples/sparkline-showcase/`.
+
 ### Not in this release
 
 - Intraday session gap rendering (weekend/overnight visual gaps for minute data) — tracked for v0.3.

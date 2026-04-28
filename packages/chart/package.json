@@ -22,15 +22,30 @@
       "import": "./dist/headless.js",
       "require": "./dist/headless.cjs"
     },
+    "./sparkline": {
+      "types": "./dist/sparkline.d.ts",
+      "import": "./dist/sparkline.js",
+      "require": "./dist/sparkline.cjs"
+    },
     "./react": {
       "types": "./dist/react/index.d.ts",
       "import": "./dist/react/index.js",
       "require": "./dist/react/index.cjs"
     },
+    "./react/sparkline": {
+      "types": "./dist/react/sparkline.d.ts",
+      "import": "./dist/react/sparkline.js",
+      "require": "./dist/react/sparkline.cjs"
+    },
     "./vue": {
       "types": "./dist/vue/index.d.ts",
       "import": "./dist/vue/index.js",
       "require": "./dist/vue/index.cjs"
+    },
+    "./vue/sparkline": {
+      "types": "./dist/vue/sparkline.d.ts",
+      "import": "./dist/vue/sparkline.js",
+      "require": "./dist/vue/sparkline.cjs"
     }
   },
   "sideEffects": false,
@@ -105,6 +120,21 @@
       "name": "Headless API",
       "path": "dist/headless.js",
       "limit": "11 kB"
+    },
+    {
+      "name": "Sparkline (vanilla)",
+      "path": "dist/sparkline.js",
+      "limit": "5 kB"
+    },
+    {
+      "name": "Sparkline (React)",
+      "path": "dist/react/sparkline.js",
+      "limit": "7 kB"
+    },
+    {
+      "name": "Sparkline (Vue)",
+      "path": "dist/vue/sparkline.js",
+      "limit": "7 kB"
     },
     {
       "name": "React wrapper",
