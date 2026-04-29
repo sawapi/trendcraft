@@ -43,6 +43,7 @@ import {
   createEmv,
   createEwmaVolatility,
   createFairValueGap,
+  createFibonacciRetracement,
   createFractals,
   createFrama,
   createGapAnalysis,
@@ -124,6 +125,7 @@ import {
   EMA_RIBBON_META,
   EMV_META,
   EWMA_VOL_META,
+  FIBONACCI_RETRACEMENT_META,
   FRACTALS_META,
   FRAMA_META,
   FVG_META,
@@ -973,6 +975,20 @@ export const livePresets: Record<string, LivePreset> = {
       minGapPercent: p.minGapPercent ?? 0,
       maxActiveFvgs: p.maxActiveFvgs ?? 10,
       partialFill: p.partialFill ?? true,
+    })),
+  },
+  fibonacciRetracement: {
+    meta: FIBONACCI_RETRACEMENT_META,
+    defaultParams: { leftBars: 10, rightBars: 10 },
+    snapshotName: "fibRet",
+    createFactory: factory<{
+      leftBars?: number;
+      rightBars?: number;
+      levels?: number[];
+    }>()(createFibonacciRetracement, (p) => ({
+      leftBars: p.leftBars ?? 10,
+      rightBars: p.rightBars ?? 10,
+      levels: p.levels,
     })),
   },
 

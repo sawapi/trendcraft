@@ -230,6 +230,12 @@ export {
   createBreakOfStructure,
   createChangeOfCharacter,
 } from "./price/break-of-structure";
+export { createFibonacciRetracement } from "./price/fibonacci-retracement";
+export type {
+  FibonacciRetracementState,
+  FibonacciRetracementOptions,
+  FibonacciRetracementValue as IncrementalFibonacciRetracementValue,
+} from "./price/fibonacci-retracement";
 export type {
   BosState,
   ChochState,
