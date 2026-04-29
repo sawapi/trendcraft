@@ -33,6 +33,29 @@ const FIB_COLORS = [
   "#787b86", // 1
 ];
 
+interface DrawCtx {
+  pane: PaneRect;
+  ps: PriceScale;
+  timeScale: TimeScale;
+  dataLayer: DataLayer;
+  theme: ThemeColors;
+}
+
+function toScreenXY(time: number, price: number, c: DrawCtx): { x: number; y: number } {
+  return {
+    x: c.timeScale.indexToX(c.dataLayer.indexAtTime(time)),
+    y: c.ps.priceToY(price) + c.pane.y,
+  };
+}
+
+function toScreenX(time: number, c: DrawCtx): number {
+  return c.timeScale.indexToX(c.dataLayer.indexAtTime(time));
+}
+
+function toScreenY(price: number, c: DrawCtx): number {
+  return c.ps.priceToY(price) + c.pane.y;
+}
+
 /**
  * Render all drawings on the main pane.
  */
@@ -54,6 +77,8 @@ export function renderDrawings(
   const ps = priceScales.get("main");
   if (!ps) return;
 
+  const c: DrawCtx = { pane: mainPane, ps, timeScale, dataLayer, theme };
+
   ctx.save();
   ctx.beginPath();
   ctx.rect(mainPane.x, mainPane.y, mainPane.width + 60, mainPane.height);
@@ -62,37 +87,37 @@ export function renderDrawings(
   for (const drawing of drawings) {
     switch (drawing.type) {
       case "hline":
-        renderHLine(ctx, drawing, mainPane, ps, theme, fontSize);
+        renderHLine(ctx, drawing, c, fontSize);
         break;
       case "trendline":
-        renderTrendLine(ctx, drawing, mainPane, ps, timeScale, dataLayer, theme);
+        renderTrendLine(ctx, drawing, c);
         break;
       case "fibRetracement":
-        renderFibRetracement(ctx, drawing, mainPane, ps, timeScale, dataLayer, theme, fontSize);
+        renderFibRetracement(ctx, drawing, c, fontSize);
         break;
       case "ray":
-        renderRay(ctx, drawing, mainPane, ps, timeScale, dataLayer, theme);
+        renderRay(ctx, drawing, c);
         break;
       case "hray":
-        renderHRay(ctx, drawing, mainPane, ps, timeScale, dataLayer, theme);
+        renderHRay(ctx, drawing, c);
         break;
       case "vline":
-        renderVLine(ctx, drawing, mainPane, timeScale, dataLayer, theme);
+        renderVLine(ctx, drawing, c);
         break;
       case "rectangle":
-        renderRectangle(ctx, drawing, mainPane, ps, timeScale, dataLayer, theme);
+        renderRectangle(ctx, drawing, c);
         break;
       case "channel":
-        renderChannel(ctx, drawing, mainPane, ps, timeScale, dataLayer, theme);
+        renderChannel(ctx, drawing, c);
         break;
       case "fibExtension":
-        renderFibExtension(ctx, drawing, mainPane, ps, timeScale, dataLayer, theme, fontSize);
+        renderFibExtension(ctx, drawing, c, fontSize);
         break;
       case "textLabel":
-        renderTextLabel(ctx, drawing, mainPane, ps, timeScale, dataLayer, theme, fontSize);
+        renderTextLabel(ctx, drawing, c, fontSize);
         break;
       case "arrow":
-        renderArrow(ctx, drawing, mainPane, ps, timeScale, dataLayer, theme);
+        renderArrow(ctx, drawing, c);
         break;
     }
   }
@@ -103,12 +128,11 @@ export function renderDrawings(
 function renderHLine(
   ctx: CanvasRenderingContext2D,
   drawing: HLineDrawing,
-  pane: PaneRect,
-  ps: PriceScale,
-  theme: ThemeColors,
+  c: DrawCtx,
   fontSize: number,
 ): void {
-  const y = ps.priceToY(drawing.price) + pane.y;
+  const { pane } = c;
+  const y = toScreenY(drawing.price, c);
   const color = drawing.color ?? "#FF9800";
 
   ctx.strokeStyle = color;
@@ -141,19 +165,10 @@ function renderHLine(
 function renderTrendLine(
   ctx: CanvasRenderingContext2D,
   drawing: TrendLineDrawing,
-  pane: PaneRect,
-  ps: PriceScale,
-  timeScale: TimeScale,
-  dataLayer: DataLayer,
-  theme: ThemeColors,
+  c: DrawCtx,
 ): void {
-  const startIdx = dataLayer.indexAtTime(drawing.startTime);
-  const endIdx = dataLayer.indexAtTime(drawing.endTime);
-
-  const x1 = timeScale.indexToX(startIdx);
-  const y1 = ps.priceToY(drawing.startPrice) + pane.y;
-  const x2 = timeScale.indexToX(endIdx);
-  const y2 = ps.priceToY(drawing.endPrice) + pane.y;
+  const { x: x1, y: y1 } = toScreenXY(drawing.startTime, drawing.startPrice, c);
+  const { x: x2, y: y2 } = toScreenXY(drawing.endTime, drawing.endPrice, c);
 
   const color = drawing.color ?? "#2196F3";
   ctx.strokeStyle = color;
@@ -177,13 +192,10 @@ function renderTrendLine(
 function renderFibRetracement(
   ctx: CanvasRenderingContext2D,
   drawing: FibRetracementDrawing,
-  pane: PaneRect,
-  ps: PriceScale,
-  timeScale: TimeScale,
-  dataLayer: DataLayer,
-  theme: ThemeColors,
+  c: DrawCtx,
   fontSize: number,
 ): void {
+  const { pane } = c;
   const levels = drawing.levels ?? DEFAULT_FIB_LEVELS;
   const priceRange = drawing.endPrice - drawing.startPrice;
 
@@ -194,7 +206,7 @@ function renderFibRetracement(
   for (let i = 0; i < levels.length; i++) {
     const level = levels[i];
     const price = drawing.endPrice - priceRange * level;
-    const y = ps.priceToY(price) + pane.y;
+    const y = toScreenY(price, c);
     const color = FIB_COLORS[i % FIB_COLORS.length];
 
     // Horizontal line
@@ -210,7 +222,7 @@ function renderFibRetracement(
     // Fill between levels
     if (i < levels.length - 1) {
       const nextPrice = drawing.endPrice - priceRange * levels[i + 1];
-      const nextY = ps.priceToY(nextPrice) + pane.y;
+      const nextY = toScreenY(nextPrice, c);
       ctx.fillStyle = color;
       ctx.globalAlpha = 0.04;
       ctx.fillRect(pane.x, Math.min(y, nextY), pane.width, Math.abs(nextY - y));
@@ -227,19 +239,10 @@ function renderFibRetracement(
   }
 }
 
-function renderRay(
-  ctx: CanvasRenderingContext2D,
-  drawing: RayDrawing,
-  pane: PaneRect,
-  ps: PriceScale,
-  timeScale: TimeScale,
-  dataLayer: DataLayer,
-  theme: ThemeColors,
-): void {
-  const x1 = timeScale.indexToX(dataLayer.indexAtTime(drawing.startTime));
-  const y1 = ps.priceToY(drawing.startPrice) + pane.y;
-  const x2 = timeScale.indexToX(dataLayer.indexAtTime(drawing.endTime));
-  const y2 = ps.priceToY(drawing.endPrice) + pane.y;
+function renderRay(ctx: CanvasRenderingContext2D, drawing: RayDrawing, c: DrawCtx): void {
+  const { pane } = c;
+  const { x: x1, y: y1 } = toScreenXY(drawing.startTime, drawing.startPrice, c);
+  const { x: x2, y: y2 } = toScreenXY(drawing.endTime, drawing.endPrice, c);
 
   const color = drawing.color ?? "#2196F3";
   ctx.strokeStyle = color;
@@ -287,17 +290,9 @@ function renderRay(
   ctx.fill();
 }
 
-function renderHRay(
-  ctx: CanvasRenderingContext2D,
-  drawing: HRayDrawing,
-  pane: PaneRect,
-  ps: PriceScale,
-  timeScale: TimeScale,
-  dataLayer: DataLayer,
-  _theme: ThemeColors,
-): void {
-  const x = timeScale.indexToX(dataLayer.indexAtTime(drawing.time));
-  const y = ps.priceToY(drawing.price) + pane.y;
+function renderHRay(ctx: CanvasRenderingContext2D, drawing: HRayDrawing, c: DrawCtx): void {
+  const { pane } = c;
+  const { x, y } = toScreenXY(drawing.time, drawing.price, c);
   const color = drawing.color ?? "#FF9800";
 
   ctx.strokeStyle = color;
@@ -316,15 +311,9 @@ function renderHRay(
   ctx.fill();
 }
 
-function renderVLine(
-  ctx: CanvasRenderingContext2D,
-  drawing: VLineDrawing,
-  pane: PaneRect,
-  timeScale: TimeScale,
-  dataLayer: DataLayer,
-  theme: ThemeColors,
-): void {
-  const x = timeScale.indexToX(dataLayer.indexAtTime(drawing.time));
+function renderVLine(ctx: CanvasRenderingContext2D, drawing: VLineDrawing, c: DrawCtx): void {
+  const { pane } = c;
+  const x = toScreenX(drawing.time, c);
   const color = drawing.color ?? "#9C27B0";
 
   ctx.strokeStyle = color;
@@ -340,16 +329,10 @@ function renderVLine(
 function renderRectangle(
   ctx: CanvasRenderingContext2D,
   drawing: RectangleDrawing,
-  pane: PaneRect,
-  ps: PriceScale,
-  timeScale: TimeScale,
-  dataLayer: DataLayer,
-  _theme: ThemeColors,
+  c: DrawCtx,
 ): void {
-  const x1 = timeScale.indexToX(dataLayer.indexAtTime(drawing.startTime));
-  const y1 = ps.priceToY(drawing.startPrice) + pane.y;
-  const x2 = timeScale.indexToX(dataLayer.indexAtTime(drawing.endTime));
-  const y2 = ps.priceToY(drawing.endPrice) + pane.y;
+  const { x: x1, y: y1 } = toScreenXY(drawing.startTime, drawing.startPrice, c);
+  const { x: x2, y: y2 } = toScreenXY(drawing.endTime, drawing.endPrice, c);
 
   const left = Math.min(x1, x2);
   const top = Math.min(y1, y2);
@@ -371,23 +354,13 @@ function renderRectangle(
   ctx.strokeRect(left, top, w, h);
 }
 
-function renderChannel(
-  ctx: CanvasRenderingContext2D,
-  drawing: ChannelDrawing,
-  pane: PaneRect,
-  ps: PriceScale,
-  timeScale: TimeScale,
-  dataLayer: DataLayer,
-  _theme: ThemeColors,
-): void {
-  const x1 = timeScale.indexToX(dataLayer.indexAtTime(drawing.startTime));
-  const y1 = ps.priceToY(drawing.startPrice) + pane.y;
-  const x2 = timeScale.indexToX(dataLayer.indexAtTime(drawing.endTime));
-  const y2 = ps.priceToY(drawing.endPrice) + pane.y;
+function renderChannel(ctx: CanvasRenderingContext2D, drawing: ChannelDrawing, c: DrawCtx): void {
+  const { x: x1, y: y1 } = toScreenXY(drawing.startTime, drawing.startPrice, c);
+  const { x: x2, y: y2 } = toScreenXY(drawing.endTime, drawing.endPrice, c);
 
   // Offset line (parallel)
-  const y1o = ps.priceToY(drawing.startPrice + drawing.channelWidth) + pane.y;
-  const y2o = ps.priceToY(drawing.endPrice + drawing.channelWidth) + pane.y;
+  const y1o = toScreenY(drawing.startPrice + drawing.channelWidth, c);
+  const y2o = toScreenY(drawing.endPrice + drawing.channelWidth, c);
 
   const color = drawing.color ?? "#26a69a";
 
@@ -437,13 +410,10 @@ const FIB_EXT_COLORS = [
 function renderFibExtension(
   ctx: CanvasRenderingContext2D,
   drawing: FibExtensionDrawing,
-  pane: PaneRect,
-  ps: PriceScale,
-  _timeScale: TimeScale,
-  _dataLayer: DataLayer,
-  _theme: ThemeColors,
+  c: DrawCtx,
   fontSize: number,
 ): void {
+  const { pane } = c;
   const levels = drawing.levels ?? DEFAULT_FIB_EXT_LEVELS;
   const priceRange = drawing.endPrice - drawing.startPrice;
 
@@ -454,7 +424,7 @@ function renderFibExtension(
   for (let i = 0; i < levels.length; i++) {
     const level = levels[i];
     const price = drawing.startPrice + priceRange * level;
-    const y = ps.priceToY(price) + pane.y;
+    const y = toScreenY(price, c);
     const color = FIB_EXT_COLORS[i % FIB_EXT_COLORS.length];
 
     // Horizontal line
@@ -470,7 +440,7 @@ function renderFibExtension(
     // Fill between levels
     if (i < levels.length - 1) {
       const nextPrice = drawing.startPrice + priceRange * levels[i + 1];
-      const nextY = ps.priceToY(nextPrice) + pane.y;
+      const nextY = toScreenY(nextPrice, c);
       ctx.fillStyle = color;
       ctx.globalAlpha = 0.04;
       ctx.fillRect(pane.x, Math.min(y, nextY), pane.width, Math.abs(nextY - y));
@@ -490,17 +460,12 @@ function renderFibExtension(
 function renderTextLabel(
   ctx: CanvasRenderingContext2D,
   drawing: TextLabelDrawing,
-  pane: PaneRect,
-  ps: PriceScale,
-  timeScale: TimeScale,
-  dataLayer: DataLayer,
-  theme: ThemeColors,
+  c: DrawCtx,
   defaultFontSize: number,
 ): void {
-  const x = timeScale.indexToX(dataLayer.indexAtTime(drawing.time));
-  const y = ps.priceToY(drawing.price) + pane.y;
+  const { x, y } = toScreenXY(drawing.time, drawing.price, c);
   const size = Math.min(Math.max(drawing.fontSize ?? defaultFontSize, 8), 200);
-  const color = drawing.color ?? theme.text;
+  const color = drawing.color ?? c.theme.text;
 
   ctx.font = `${size}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
   ctx.textAlign = "left";
@@ -522,19 +487,9 @@ function renderTextLabel(
   ctx.fillText(drawing.text, x, y);
 }
 
-function renderArrow(
-  ctx: CanvasRenderingContext2D,
-  drawing: ArrowDrawing,
-  pane: PaneRect,
-  ps: PriceScale,
-  timeScale: TimeScale,
-  dataLayer: DataLayer,
-  _theme: ThemeColors,
-): void {
-  const x1 = timeScale.indexToX(dataLayer.indexAtTime(drawing.startTime));
-  const y1 = ps.priceToY(drawing.startPrice) + pane.y;
-  const x2 = timeScale.indexToX(dataLayer.indexAtTime(drawing.endTime));
-  const y2 = ps.priceToY(drawing.endPrice) + pane.y;
+function renderArrow(ctx: CanvasRenderingContext2D, drawing: ArrowDrawing, c: DrawCtx): void {
+  const { x: x1, y: y1 } = toScreenXY(drawing.startTime, drawing.startPrice, c);
+  const { x: x2, y: y2 } = toScreenXY(drawing.endTime, drawing.endPrice, c);
 
   const color = drawing.color ?? "#2196F3";
   ctx.strokeStyle = color;
