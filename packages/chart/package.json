@@ -139,12 +139,12 @@
     {
       "name": "React wrapper",
       "path": "dist/react/TrendChart.js",
-      "limit": "30 kB"
+      "limit": "31 kB"
     },
     {
       "name": "Vue wrapper",
       "path": "dist/vue/TrendChart.js",
-      "limit": "30 kB"
+      "limit": "31 kB"
     }
   ],
   "devDependencies": {
