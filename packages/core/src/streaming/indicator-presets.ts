@@ -74,7 +74,6 @@ import {
   klinger,
   kst,
   linearRegression,
-  liquiditySweep,
   lowest,
   macd,
   massIndex,
@@ -137,7 +136,6 @@ import {
   FAST_STOCH_META,
   HEIKIN_ASHI_META,
   LINEAR_REG_META,
-  LIQUIDITY_SWEEP_META,
   ORDER_BLOCK_META,
   SESSION_BREAKOUT_META,
   SLOW_STOCH_META,
@@ -1947,28 +1945,13 @@ export const indicatorPresets: Record<string, IndicatorPreset> = {
       },
     ],
   },
-  liquiditySweep: {
-    meta: LIQUIDITY_SWEEP_META,
-    defaultParams: { swingPeriod: 5 },
-    snapshotName: "liqSweep",
-    compute: typedCompute<{ swingPeriod?: number }>((c, p) =>
-      liquiditySweep(c, { swingPeriod: p.swingPeriod ?? 5 }),
-    ),
-    category: "SMC",
-    name: "Liquidity Sweep",
-    description: "Detects stop-hunt sweeps beyond swing highs/lows that quickly reverse.",
-    paramSchema: [
-      {
-        key: "swingPeriod",
-        label: "Swing Period",
-        type: "number",
-        default: 5,
-        min: 2,
-        max: 20,
-        step: 1,
-      },
-    ],
-  },
+  // Note: `liquiditySweep` is intentionally NOT exposed as a series preset.
+  // Its native rendering is via the SMC Layer plugin (markers + swept levels +
+  // recovery arrows on the price pane), not as a sub-pane scalar — a
+  // `recentSweeps.length`-style line saturates at `maxTrackedSweeps` and
+  // carries no useful trader signal. Programmatic incremental users can still
+  // reach `livePresets.liquiditySweep`, and `liquiditySweep()` (batch) is
+  // exported directly from `trendcraft`.
 
   // ============================================
   // Filter (Ehlers)

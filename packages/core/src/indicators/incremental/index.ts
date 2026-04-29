@@ -239,3 +239,12 @@ export type {
 // Wyckoff
 export { createVsa } from "./wyckoff/vsa";
 export type { VsaState, VsaValue as IncrementalVsaValue } from "./wyckoff/vsa";
+
+// SMC
+export { createLiquiditySweep } from "./smc/liquidity-sweep";
+export type {
+  LiquiditySweepState,
+  LiquiditySweepOptions,
+  LiquiditySweepValue as IncrementalLiquiditySweepValue,
+  LiquiditySweep as IncrementalLiquiditySweep,
+} from "./smc/liquidity-sweep";

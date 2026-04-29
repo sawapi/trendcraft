@@ -57,6 +57,7 @@ import {
   createKeltnerChannel,
   createKlinger,
   createKst,
+  createLiquiditySweep,
   createMacd,
   createMassIndex,
   createMcGinleyDynamic,
@@ -139,6 +140,7 @@ import {
   KELTNER_META,
   KLINGER_META,
   KST_META,
+  LIQUIDITY_SWEEP_META,
   MACD_META,
   MASS_INDEX_META,
   MCGINLEY_META,
@@ -982,6 +984,29 @@ export const livePresets: Record<string, LivePreset> = {
     createFactory: factory<{ volumeMaPeriod?: number; atrPeriod?: number }>()(createVsa, (p) => ({
       volumeMaPeriod: p.volumeMaPeriod ?? 20,
       atrPeriod: p.atrPeriod ?? 14,
+    })),
+  },
+
+  // SMC
+  liquiditySweep: {
+    meta: LIQUIDITY_SWEEP_META,
+    defaultParams: {
+      swingPeriod: 5,
+      maxRecoveryBars: 3,
+      maxTrackedSweeps: 10,
+      minSweepDepth: 0,
+    },
+    snapshotName: "liqSweep",
+    createFactory: factory<{
+      swingPeriod?: number;
+      maxRecoveryBars?: number;
+      maxTrackedSweeps?: number;
+      minSweepDepth?: number;
+    }>()(createLiquiditySweep, (p) => ({
+      swingPeriod: p.swingPeriod ?? 5,
+      maxRecoveryBars: p.maxRecoveryBars ?? 3,
+      maxTrackedSweeps: p.maxTrackedSweeps ?? 10,
+      minSweepDepth: p.minSweepDepth ?? 0,
     })),
   },
 };
