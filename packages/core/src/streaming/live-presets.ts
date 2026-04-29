@@ -43,6 +43,7 @@ import {
   createEmv,
   createEwmaVolatility,
   createFairValueGap,
+  createFibonacciExtension,
   createFibonacciRetracement,
   createFractals,
   createFrama,
@@ -125,6 +126,7 @@ import {
   EMA_RIBBON_META,
   EMV_META,
   EWMA_VOL_META,
+  FIBONACCI_EXTENSION_META,
   FIBONACCI_RETRACEMENT_META,
   FRACTALS_META,
   FRAMA_META,
@@ -986,6 +988,20 @@ export const livePresets: Record<string, LivePreset> = {
       rightBars?: number;
       levels?: number[];
     }>()(createFibonacciRetracement, (p) => ({
+      leftBars: p.leftBars ?? 10,
+      rightBars: p.rightBars ?? 10,
+      levels: p.levels,
+    })),
+  },
+  fibonacciExtension: {
+    meta: FIBONACCI_EXTENSION_META,
+    defaultParams: { leftBars: 10, rightBars: 10 },
+    snapshotName: "fibExt",
+    createFactory: factory<{
+      leftBars?: number;
+      rightBars?: number;
+      levels?: number[];
+    }>()(createFibonacciExtension, (p) => ({
       leftBars: p.leftBars ?? 10,
       rightBars: p.rightBars ?? 10,
       levels: p.levels,
