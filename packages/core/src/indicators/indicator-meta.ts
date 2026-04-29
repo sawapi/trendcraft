@@ -348,6 +348,11 @@ export const PIVOT_POINTS_META: SeriesMeta = {
   label: "Pivot",
 };
 export const FRACTALS_META: SeriesMeta = { kind: "fractals", overlay: true, label: "Fractals" };
+export const FIBONACCI_RETRACEMENT_META: SeriesMeta = {
+  kind: "fibonacciRetracement",
+  overlay: true,
+  label: "Fib Retracement",
+};
 export const GAP_ANALYSIS_META: SeriesMeta = {
   kind: "gapAnalysis",
   overlay: false,
