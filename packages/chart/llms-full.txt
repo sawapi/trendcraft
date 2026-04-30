@@ -21,6 +21,7 @@ Finance-specialized charting library with native [TrendCraft](https://github.com
 | [API](./docs/API.md) | You need the full reference — every option, method, type, event |
 | [PLUGINS](./docs/PLUGINS.md) | You're writing a custom series renderer or pane primitive |
 | [LIVE](./docs/LIVE.md) | You're wiring a real-time feed — WebSocket → `createLiveCandle` → chart |
+| [COOKBOOK](./docs/COOKBOOK.md) | You want copy-paste recipes for common tasks — minimal chart, theming, live data, React/Vue, sparklines, custom plugins, PNG export, headless / SSR |
 
 The rest of this README is a guided tour of the most common features. Reach for the docs above when you need depth.
 
@@ -313,6 +314,27 @@ Creates a chart instance attached to a DOM element.
 | + / - | Zoom in/out |
 | Home / End | Jump to start/end |
 | F | Fit all content |
+| Alt + H / V / T / F / C | Activate horizontal line / vertical line / trendline / fib retracement / channel |
+| Ctrl + Alt + H | Hide/show every series (blank chart) |
+| Escape | Cancel active drawing, drag, long-press crosshair lock, or inertia |
+
+Alt is treated the same as Option on macOS; Ctrl and Cmd are interchangeable. Customize or disable via `ChartOptions.hotkeys` — pass `hotkeys: false` to turn off **every** keyboard shortcut (including the viewport nav keys above), or a partial `HotkeyMap` to override individual bindings. Matching uses `KeyboardEvent.code`, so Option+letter on macOS resolves correctly despite the altered character output.
+
+### Crosshair Modes
+
+Snap behavior is configurable via `ChartOptions.crosshair.mode`:
+
+| Mode | y-axis behavior |
+|---|---|
+| `"normal"` (default) | Follows the pointer freely |
+| `"magnet"` | Snaps to the active bar's close |
+| `"magnetOHLC"` | Snaps to the nearest of O/H/L/C within `snapThreshold` pixels (default 12) |
+
+```ts
+createChart(el, { crosshair: { mode: "magnetOHLC", snapThreshold: 15 } });
+```
+
+`lockOnLongPress: false` disables the touch-only long-press crosshair lock.
 
 ## Series Auto-Detection
 
@@ -595,6 +617,24 @@ const result = introspect(myIndicatorData);
 // { seriesType: 'band', pane: 'main', rule, preset, yRange, referenceLines }
 ```
 
+## Migrating from 0.1.x
+
+Two headless helpers changed shape in 0.2.0. If your code only uses `createChart` / `connectIndicators` / the React or Vue wrappers, no migration is needed.
+
+```typescript
+// 0.1.x
+const candles: CandleData[] = decimateCandles(src, start, end, maxBars);
+const points: DataPoint[] = lttb(data, 2000);
+
+// 0.2.0
+const { candles, originalIndices } = decimateCandles(src, start, end, maxBars);
+const { points, originalIndices } = lttb(data, 2000);
+// `originalIndices` is an Int32Array mapping each output sample back to its
+// position in the input — used internally to keep candles and overlays
+// aligned at low zoom. `lttb` also accepts an optional 3rd `indexOffset`
+// argument to shift `originalIndices` into the caller's coordinate space.
+```
+
 ## Troubleshooting
 
 **Chart is blank** — Ensure container has a non-zero height. Set `height` in options or use CSS `height: 100%`.
@@ -604,6 +644,10 @@ const result = introspect(myIndicatorData);
 **Performance with large datasets** — The library auto-decimates via LTTB at high zoom levels. 10K+ candles should maintain 60fps.
 
 **Pane won't disappear after removing indicator** — Panes auto-remove when their last series is removed. If using `addTrades`/`addBacktest`, the equity pane persists.
+
+## Disclaimer
+
+`@trendcraft/chart` is a charting library — the candle, overlay, and signal visualizations it renders are derived from technical analysis primitives provided for informational and educational purposes only. Visualizations are not investment advice and do not constitute a recommendation to buy, sell, or hold any financial instrument. You are solely responsible for any trading decisions made using this software.
 
 ## License
 
@@ -622,7 +666,72 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Draft for the initial public release. Date and final version are set at release time.
+<!-- draft -->
+<!-- - session gap rendering (ChartOptions.timeScale.sessionGaps, TimeScale.setGapsBefore) -->
+<!-- - autoFormatTime shows date anchor after large time jumps within the same local day -->
+
+### Added
+
+- **`@trendcraft/chart/sparkline` subpath** — ultra-lightweight mini chart for watchlist-style UIs (200+ instances on a single page). Vanilla `createSparkline` / `createSparklineGroup`, plus `@trendcraft/chart/react/sparkline` and `@trendcraft/chart/vue/sparkline` thin wrappers. Supports both `line` (with optional fill) and `candle` modes, four color presets (`first-vs-last`, `open-vs-close`, `baseline`, `fixed` / per-candle `up`/`down`), and a single-listener delegated hover with a shared tooltip across all sparklines in a group. Vanilla bundle ≈ 2.5 kB brotli; React/Vue ≈ 3 kB. New example at `examples/sparkline-showcase/`.
+
+### Not in this release
+
+- Intraday session gap rendering (weekend/overnight visual gaps for minute data) — tracked for v0.3.
+- C1 coverage 90% target — viewport / canvas-chart / drawing-tool DOM integration tests have low ROI; addressed incrementally.
+- Plugin live-mode integration — the six differentiation plugins remain static-only until incrementalization lands.
+
+## [0.2.0] - 2026-04-26
+
+### Added — UX pass
+
+- **Crosshair snap modes** via `ChartOptions.crosshair`:
+  - `"normal"` (default) — current behavior, time-index snap only
+  - `"magnet"` — y snaps to the active bar's close
+  - `"magnetOHLC"` — y snaps to the nearest of O/H/L/C within `snapThreshold` pixels
+- **Readable crosshair labels** — price/time label text color is now chosen via WCAG relative luminance of the crosshair background, so custom themes remain legible without manual tuning. New helper `pickReadableTextColor` exposed internally.
+- **Wheel/trackpad pan inertia** — flick gestures decelerate via the shared inertia loop instead of stopping dead on the last event. Opt out with `interaction: { wheelInertia: false }`. Note: on macOS the trackpad has its own OS-level momentum scroll that keeps sending wheel events for a few hundred ms after the user lifts their fingers — those are indistinguishable from user input and are always processed; this option only governs the synthetic tail we add once OS momentum is done.
+- **Escape cancels** every transient interaction (drag, both inertia loops, long-press crosshair lock, and any in-progress drawing tool) in one press.
+- **Keyboard shortcuts** on focused canvases: `Alt+H` hline, `Alt+V` vline, `Alt+T` trendline, `Alt+F` fib retracement, `Alt+C` channel, `Ctrl+Alt+H` hide/show every series, `Escape` cancel. Customize or disable via `ChartOptions.hotkeys`. Matching uses `KeyboardEvent.code` so Option+letter combos on macOS resolve correctly despite the altered character output. Passing `hotkeys: false` now disables every keyboard interaction — including the pre-existing viewport nav keys (arrows / `+` / `-` / `Home` / `End` / `F`) — so a single flag hands all keyboard handling back to the host.
+- **`chart.setCrosshair(time)`** — programmatic crosshair control for external consumers that want to drive the crosshair without a DOM pointer event.
+- **`visibleRangeChange` event** is now actually emitted (was declared but unused). Fires when the visible range changes.
+
+### Added — last-value badges
+
+- **`ChartOptions.showSeriesBadges`** — opt-in. When enabled, every labeled series gets a colored pill on the right price axis showing its latest value, mirroring the existing candle current-price badge. Multi-channel series (Bollinger Bands / MACD / etc.) get one pill per decomposed channel, each in its own `channelColors[channel]`. The volume pane also gets a pill colored by the last bar direction. Tick labels that would collide with a pill are suppressed; pills stacked on the same axis are shifted upward to clear each other and skipped if a shift would push them off the pane. Default: `false`.
+- **`ChartOptions.seriesBadgeMode`** — `"absolute"` (default) shows the data array's latest non-null value (live / streaming "current" value). `"visible"` shows the latest non-null value within the current visible range — useful when scrolling back through history.
+- **`PriceAxisOptions.excludeYRanges`** (headless) — a list replaces the singular `excludeY` / `excludeHalfHeight` fields so multiple foreground labels can be avoided by the tick placer. The old single-range fields remain supported for back-compat.
+
+### Fixed
+
+- **Decimation alignment** — at low zoom (`barSpacing < 1 px`, e.g. Fit-content on a large dataset) candles and number-series indicators used three different decimation paths that disagreed on x-coordinates, so overlays (SMA / RSI / EMA / …) drifted left of the bars they were supposed to annotate. All three paths now share the original `timeScale` coordinate space via bucket-origin indices carried through the render pipeline.
+- **Right price-axis label overlap** — with many stacked panes the right-side tick labels crowded together and the current-price badge could overlap neighboring ticks. The axis now picks a tick density from pane height, suppresses labels within a half-label of pane edges, and skips ticks that would collide with the current-price badge Y on the main pane.
+- **Info + legend overlap** — when many indicators were active the top-left OHLC/indicator readout grew past the top-right legend button row. The legend is now placed on its own second row, and the info strip gets a max-width + ellipsis safety net.
+- **Indicator color cycling on re-add** — removing and re-adding an indicator (for example when a showcase / alpaca-demo panel applies a parameter change) would assign the next palette slot instead of the one just vacated, so colors appeared to "change on events". Auto-assigned colors now prefer the first palette entry not currently in use.
+- **Scrollbar thumb jumps to cursor on grab** — pressing anywhere on the thumb recentered the visible range on the pointer; now press-on-thumb records the grab offset so the thumb stays pinned where grabbed, while press-on-track still page-jumps.
+
+### Breaking
+
+- `decimateCandles(candles, start, end, maxBars)` now returns `{ candles, originalIndices: Int32Array }` instead of `CandleData[]`. Exposed via `@trendcraft/chart/headless`.
+- `lttb(data, targetCount)` now returns `{ points, originalIndices: Int32Array }` instead of `DataPoint[]`, and accepts an optional 3rd `indexOffset` argument to shift `originalIndices` into the caller's coordinate space. Exposed via `@trendcraft/chart/headless`.
+
+### Changed
+
+- Bundle size budgets raised (brotli) to absorb the UX pass and last-value badges. The new limits are expected to hold through the 0.2.x line; future feature work either lives on a sub-path or compensates with equivalent reductions elsewhere.
+
+  | Entry | 0.1.0 limit | 0.2.0 limit |
+  | --- | --- | --- |
+  | Main (`@trendcraft/chart`) | 31 kB | **36 kB** |
+  | Headless (`@trendcraft/chart/headless`) | 11 kB | 11 kB |
+  | React (`@trendcraft/chart/react`) | 27 kB | **30 kB** |
+  | Vue (`@trendcraft/chart/vue`) | 27 kB | **30 kB** |
+
+### Internal
+
+- Seed infrastructure for multi-chart synchronization (`ViewportState.crosshairFractional` / `crosshairTime`, fractional time emission on `visibleRangeChange`, programmatic `setCrosshair(time)`). Not exported from any public entry point yet — cross-timeframe viewport sync proved trickier than the surface API suggests, so it's held back until the UX is tuned.
+
+## [0.1.0] - 2026-04-20
+
+Initial public release.
 
 ### Added
 
@@ -639,6 +748,7 @@ Draft for the initial public release. Date and final version are set at release 
 - `createAndrewsPitchfork` / `connectAndrewsPitchfork` — primitive plugin that renders the three parallel pitchfork lines from three swing anchors (P0 + P1 + P2). Extends forward indefinitely across the visible range.
 - `connectSmcLayer` now accepts an optional `choch` source alongside `bos`. Both use the same per-bar shape but render with separate labels ("BOS" vs "CHoCH"), so you can feed `breakOfStructure()` and `changeOfCharacter()` simultaneously to distinguish structural breaks from trend-reversing ones.
 - `createVolumeProfile` / `connectVolumeProfile` — primitive plugin that renders a horizontal volume-by-price histogram along the right edge of the chart, with separate fills for the Value Area and a dashed POC line spanning the pane. Configurable strip width (fractional or pixel), highlight toggle, and color overrides.
+- `createSqueezeDots` / `connectSqueezeDots` — primitive plugin that renders TTM-style squeeze dots along the bottom of the price pane: red dot per active-squeeze bar, green dot at each release. Consumes `bollingerSqueeze()` output (or any compatible `{ time }`-keyed signal list).
 - SSR safety: headless exports work without a DOM; DOM exports throw a clear error in non-browser environments.
 - ARIA accessibility support via `ChartAria`.
 - Bundle size limits enforced via `size-limit` (brotli): main ≤ 31 kB, headless ≤ 11 kB, React ≤ 27 kB, Vue ≤ 27 kB.
@@ -654,7 +764,8 @@ Draft for the initial public release. Date and final version are set at release 
 - `react` (optional, `>=19.0.0`) — required only when using the React wrapper.
 - `vue` (optional, `>=3.3.0`) — required only when using the Vue wrapper.
 
-[Unreleased]: https://github.com/sawapi/trendcraft/compare/chart-v0.0.0...HEAD
+[0.2.0]: https://github.com/sawapi/trendcraft/releases/tag/chart-v0.2.0
+[0.1.0]: https://github.com/sawapi/trendcraft/releases/tag/chart-v0.1.0
 
 ---
 
@@ -674,6 +785,7 @@ A conceptual walkthrough of `@trendcraft/chart`. If you just want to get pixels 
 - [Render loop](#render-loop)
 - [Panes and layout](#panes-and-layout)
 - [Auto-detection from `__meta`](#auto-detection-from-__meta)
+- [Adding indicators: which API?](#adding-indicators-which-api)
 - [Extra visualization layers](#extra-visualization-layers)
 - [Theming](#theming)
 - [Viewport and navigation](#viewport-and-navigation)
@@ -840,6 +952,56 @@ SeriesRegistry.addRule({
 ```
 
 Rules are consulted in registration order, with built-in rules last. Useful when you want to share conventions across a team without each caller configuring the chart.
+
+## Adding indicators: which API?
+
+The chart exposes two APIs that both attach indicator data to a chart. They are not redundant — they target different workflows.
+
+| API | Use it when |
+|---|---|
+| `chart.addIndicator(series, config?)` | You have one or two indicators, you compute them yourself, and you want imperative add/remove. Returns a `SeriesHandle` for `update`/`setData`/`setVisible`/`remove`. |
+| `connectIndicators(chart, opts)` | You want preset-driven setup (parameter schemas, palette, default panes), bulk add via id, and/or live-mode wiring through `createLiveCandle`. |
+
+Decision flow:
+
+```
+                     Are you adding indicators by preset id ("sma", "rsi", …)?
+                              │                            │
+                            yes                           no
+                              ▼                            ▼
+                  connectIndicators(chart, …)     chart.addIndicator(series)
+                              │
+                  ── live feed?  yes ──► pass `{ live }`. The connection
+                  │                       advances on `tick` /
+                  │                       `candleComplete`.
+                  └── static? pass `{ candles }`. Indicators are
+                              computed once.
+```
+
+`connectIndicators` is implemented on top of `addIndicator` — the two are layered, not exclusive. You can call `addIndicator` for ad-hoc series alongside an active connection (for example, a custom signal overlay) without conflict.
+
+### Glossary — series terminology
+
+These three terms appear throughout the API and look similar; they describe different stages of the same pipeline.
+
+| Term | Meaning |
+|---|---|
+| `Series<T>` | The input. A plain array `{ time: number, value: T }[]` returned by every `trendcraft` indicator, optionally tagged with a non-enumerable `__meta`. |
+| `ResolvedSeries` | An internal step. After introspection (auto-detection or your `SeriesConfig` overrides), the chart knows which pane, color, type, and channel layout to use. Not a public type, but referenced in error messages. |
+| `SeriesHandle` | The output of `addIndicator`. The handle you keep to mutate or remove the series later. Stable across `update()` calls; invalidated by `remove()`. |
+
+### Validation behavior
+
+Public-API methods (`addIndicator`, `addSignals`, `addTrades`, `addBacktest`, `setCandles`, `updateCandle`) **do not throw** on bad input. They log via `console.warn` and emit a typed `error` event with a stable {@link ChartErrorCode}:
+
+```typescript
+chart.on('error', (data) => {
+  const { code, message, detail } = data as ChartErrorPayload;
+  if (code === 'INVALID_SHAPE') { /* … */ }
+});
+```
+
+Top-level rejections (`INVALID_INPUT`) cause the call to be a no-op. Per-element rejections (`INVALID_SHAPE`) drop the offending entries and accept the rest, so a single bad row does not blank a whole signal overlay.
 
 ## Extra visualization layers
 
@@ -1105,21 +1267,46 @@ All fields optional.
 | `animationDuration` | `number` | `300` | Range transition duration (ms). `0` disables |
 | `locale` | `Partial<ChartLocale>` | — | i18n string overrides (one-time) |
 | `maxCandles` | `number` | — | Cap on retained candles in live mode |
-| `crosshair` | `CrosshairOptions` | `{ mode: 'normal' }` | Crosshair snap behavior. `mode`: `'normal'` (time-index snap only) / `'magnet'` (y snaps to active bar's close) / `'magnetOHLC'` (y snaps to nearest of O/H/L/C within `snapThreshold` px, default 12). |
-| `hotkeys` | `HotkeyMap \| false` | built-in defaults | Keyboard shortcut bindings. Defaults: `Alt+H` hline, `Alt+V` vline, `Alt+T` trendline, `Alt+F` fib retracement, `Alt+C` channel, `Ctrl+Alt+H` hide/show all, `Escape` cancel. Pass `false` to disable **every** keyboard shortcut, including viewport nav (arrows / `+` / `-` / `Home` / `End` / `F`). Matching uses `KeyboardEvent.code`. |
-| `interaction` | `{ wheelInertia?: boolean }` | `{ wheelInertia: true }` | Trackpad/wheel inertia for pan + zoom. Disable to remove the synthetic deceleration tail (macOS OS-level momentum is independent and always processed). |
-| `showSeriesBadges` | `boolean` | `false` | Render a colored pill on the right price axis for each labeled series, mirroring the candle current-price badge. Multi-channel series get one pill per decomposed channel; the volume pane gets one colored by the last bar direction. Tick labels colliding with a pill are suppressed. |
-| `seriesBadgeMode` | `'absolute' \| 'visible'` | `'absolute'` | `'absolute'` shows the latest non-null value in the data array (live "current" value). `'visible'` shows the latest non-null value within the current visible range — useful when scrolling back through history. |
+| `crosshair` | `CrosshairOptions` | `{ mode: 'normal' }` | Crosshair snap behavior — see [Crosshair](#crosshair) |
+| `hotkeys` | `HotkeyMap \| false` | built-in defaults | Keyboard shortcut bindings — see [Hotkeys](#hotkeys). Pass `false` to disable **all** keyboard handling (including viewport nav keys). |
+| `interaction` | `{ wheelInertia?: boolean }` | `{ wheelInertia: true }` | Trackpad/wheel inertia for pan + zoom. Disable to stop the synthetic deceleration tail (macOS OS-level momentum is independent and always processed). |
+| `showSeriesBadges` | `boolean` | `false` | Render a colored pill on the right price axis for each labeled series, mirroring the candle current-price badge. Multi-channel series get one pill per channel. |
+| `seriesBadgeMode` | `'absolute' \| 'visible'` | `'absolute'` | `'absolute'` shows the latest non-null value in the data array (live "current" value). `'visible'` shows the latest non-null value within the current visible range. |
 
 Options marked "one-time" cannot be changed via `applyOptions()` — a warning is emitted via the `error` event if you try.
 
-### Programmatic crosshair
+### Crosshair
 
 ```typescript
-chart.setCrosshair(time: number | null): void
+type CrosshairOptions = {
+  mode?: 'normal' | 'magnet' | 'magnetOHLC';
+  snapThreshold?: number; // px, default 12, only used by 'magnetOHLC'
+};
 ```
 
-Drives the crosshair from outside DOM events (e.g. multi-chart sync). Pass an epoch-ms time to position; pass `null` to clear.
+| Mode | Behavior |
+|---|---|
+| `'normal'` | Snaps to the bar time-index only; y follows the pointer. |
+| `'magnet'` | y also snaps to the active bar's `close`. |
+| `'magnetOHLC'` | y snaps to the nearest of `O`/`H`/`L`/`C` within `snapThreshold` pixels; otherwise y follows the pointer. |
+
+The price/time label text color is chosen via WCAG relative luminance of the crosshair background, so custom themes remain legible.
+
+### Hotkeys
+
+```typescript
+type HotkeyMap = Partial<{
+  hline: string;        // default 'Alt+H'
+  vline: string;        // default 'Alt+V'
+  trendline: string;    // default 'Alt+T'
+  fibRetracement: string; // default 'Alt+F'
+  channel: string;      // default 'Alt+C'
+  hideAllSeries: string; // default 'Ctrl+Alt+H'
+  cancel: string;       // default 'Escape'
+}>;
+```
+
+Matching uses `KeyboardEvent.code`, so Option+letter on macOS resolves correctly despite the altered character output. `Alt` is treated the same as `Option`; `Ctrl` and `Cmd` are interchangeable. Pass `hotkeys: false` to disable every keyboard shortcut, including the pre-existing viewport nav keys (arrows / `+` / `-` / `Home` / `End` / `F`).
 
 ## `ChartInstance`
 
@@ -1201,6 +1388,12 @@ setLayout(config: LayoutConfig): void
 ```
 
 `RangeDuration = '1D' | '1W' | '1M' | '3M' | '6M' | 'YTD' | '1Y' | 'ALL'`
+
+```typescript
+setCrosshair(time: number | null): void
+```
+
+Programmatic crosshair control. Pass an epoch-ms time to drive the crosshair from outside (e.g. multi-chart sync); pass `null` to clear.
 
 ### Multi-timeframe methods
 
@@ -2403,7 +2596,10 @@ export function createMyPlugin(): PrimitivePlugin<MyState> {
 
 For reference, TrendCraft's own shipped plugins (`regime-heatmap`, `smc-layer`, `wyckoff-phase`, `sr-confluence`, `trade-analysis`, `session-zones`) follow this pattern. They live in `packages/chart/src/plugins/` and export both the factory and connect helper from the main entry.
 
+---
+
 # Cookbook
+
 # @trendcraft/chart Cookbook
 
 Practical recipes for common charting tasks. Each recipe is self-contained and copy-paste ready. For the conceptual model see [GUIDE.md](./GUIDE.md); for the full reference see [API.md](./API.md); for live data see [LIVE.md](./LIVE.md); for custom rendering see [PLUGINS.md](./PLUGINS.md).

@@ -12,6 +12,7 @@ A conceptual walkthrough of `@trendcraft/chart`. If you just want to get pixels 
 - [Render loop](#render-loop)
 - [Panes and layout](#panes-and-layout)
 - [Auto-detection from `__meta`](#auto-detection-from-__meta)
+- [Adding indicators: which API?](#adding-indicators-which-api)
 - [Extra visualization layers](#extra-visualization-layers)
 - [Theming](#theming)
 - [Viewport and navigation](#viewport-and-navigation)
@@ -178,6 +179,56 @@ SeriesRegistry.addRule({
 ```
 
 Rules are consulted in registration order, with built-in rules last. Useful when you want to share conventions across a team without each caller configuring the chart.
+
+## Adding indicators: which API?
+
+The chart exposes two APIs that both attach indicator data to a chart. They are not redundant — they target different workflows.
+
+| API | Use it when |
+|---|---|
+| `chart.addIndicator(series, config?)` | You have one or two indicators, you compute them yourself, and you want imperative add/remove. Returns a `SeriesHandle` for `update`/`setData`/`setVisible`/`remove`. |
+| `connectIndicators(chart, opts)` | You want preset-driven setup (parameter schemas, palette, default panes), bulk add via id, and/or live-mode wiring through `createLiveCandle`. |
+
+Decision flow:
+
+```
+                     Are you adding indicators by preset id ("sma", "rsi", …)?
+                              │                            │
+                            yes                           no
+                              ▼                            ▼
+                  connectIndicators(chart, …)     chart.addIndicator(series)
+                              │
+                  ── live feed?  yes ──► pass `{ live }`. The connection
+                  │                       advances on `tick` /
+                  │                       `candleComplete`.
+                  └── static? pass `{ candles }`. Indicators are
+                              computed once.
+```
+
+`connectIndicators` is implemented on top of `addIndicator` — the two are layered, not exclusive. You can call `addIndicator` for ad-hoc series alongside an active connection (for example, a custom signal overlay) without conflict.
+
+### Glossary — series terminology
+
+These three terms appear throughout the API and look similar; they describe different stages of the same pipeline.
+
+| Term | Meaning |
+|---|---|
+| `Series<T>` | The input. A plain array `{ time: number, value: T }[]` returned by every `trendcraft` indicator, optionally tagged with a non-enumerable `__meta`. |
+| `ResolvedSeries` | An internal step. After introspection (auto-detection or your `SeriesConfig` overrides), the chart knows which pane, color, type, and channel layout to use. Not a public type, but referenced in error messages. |
+| `SeriesHandle` | The output of `addIndicator`. The handle you keep to mutate or remove the series later. Stable across `update()` calls; invalidated by `remove()`. |
+
+### Validation behavior
+
+Public-API methods (`addIndicator`, `addSignals`, `addTrades`, `addBacktest`, `setCandles`, `updateCandle`) **do not throw** on bad input. They log via `console.warn` and emit a typed `error` event with a stable {@link ChartErrorCode}:
+
+```typescript
+chart.on('error', (data) => {
+  const { code, message, detail } = data as ChartErrorPayload;
+  if (code === 'INVALID_SHAPE') { /* … */ }
+});
+```
+
+Top-level rejections (`INVALID_INPUT`) cause the call to be a no-op. Per-element rejections (`INVALID_SHAPE`) drop the offending entries and accept the rest, so a single bad row does not blank a whole signal overlay.
 
 ## Extra visualization layers
 
