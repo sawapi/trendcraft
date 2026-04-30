@@ -236,6 +236,12 @@ export type {
   FibonacciRetracementOptions,
   FibonacciRetracementValue as IncrementalFibonacciRetracementValue,
 } from "./price/fibonacci-retracement";
+export { createFibonacciExtension } from "./price/fibonacci-extension";
+export type {
+  FibonacciExtensionState,
+  FibonacciExtensionOptions,
+  FibonacciExtensionValue as IncrementalFibonacciExtensionValue,
+} from "./price/fibonacci-extension";
 export type {
   BosState,
   ChochState,

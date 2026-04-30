@@ -353,6 +353,11 @@ export const FIBONACCI_RETRACEMENT_META: SeriesMeta = {
   overlay: true,
   label: "Fib Retracement",
 };
+export const FIBONACCI_EXTENSION_META: SeriesMeta = {
+  kind: "fibonacciExtension",
+  overlay: true,
+  label: "Fib Extension",
+};
 export const GAP_ANALYSIS_META: SeriesMeta = {
   kind: "gapAnalysis",
   overlay: false,
