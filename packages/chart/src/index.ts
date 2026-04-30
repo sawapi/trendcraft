@@ -67,6 +67,8 @@ export type {
   ScaleMode,
   CrosshairMoveData,
   VisibleRangeChangeData,
+  ChartErrorCode,
+  ChartErrorPayload,
   SeriesInfo,
   Drawing,
   DrawingType,

@@ -17,6 +17,8 @@ import { type PriceScale, TimeScale } from "../core/scale";
 import { type IntrospectionRule, defaultRegistry } from "../core/series-registry";
 import type {
   CandleData,
+  ChartErrorCode,
+  ChartErrorPayload,
   ChartEvent,
   ChartInstance,
   ChartOptions,
@@ -36,6 +38,8 @@ import type {
   TradeMarker,
 } from "../core/types";
 import { DARK_THEME, LIGHT_THEME } from "../core/types";
+import type { ShapeCheck } from "../core/validation";
+import { checkBacktest, checkSignals, checkTrades, summarizeIssues } from "../core/validation";
 import { Viewport } from "../core/viewport";
 import { INDICATOR_PRESETS, type IndicatorPreset } from "../integration/indicator-presets";
 import { introspect } from "../integration/series-introspector";
@@ -191,9 +195,13 @@ export class CanvasChart implements ChartInstance {
     });
   }
 
-  /** Emit a warning via console and the 'error' event */
-  private _warn(message: string, detail?: unknown): void {
-    const payload = { message, detail };
+  /**
+   * Emit a warning via console and the `error` event. The optional `code`
+   * tags the payload with a stable {@link ChartErrorCode} so observers can
+   * react without parsing the message string.
+   */
+  private _warn(message: string, detail?: unknown, code?: ChartErrorCode): void {
+    const payload: ChartErrorPayload = code ? { message, code, detail } : { message, detail };
     if (typeof console !== "undefined") {
       console.warn(`[@trendcraft/chart] ${message}`, detail ?? "");
     }
@@ -404,7 +412,7 @@ export class CanvasChart implements ChartInstance {
 
   setCandles(candles: CandleData[]): void {
     if (!Array.isArray(candles)) {
-      this._warn("setCandles: expected an array", typeof candles);
+      this._warn("setCandles: expected an array", typeof candles, "INVALID_INPUT");
       return;
     }
     // Filter invalid candles (NaN, missing fields)
@@ -440,7 +448,7 @@ export class CanvasChart implements ChartInstance {
       !Number.isFinite(candle.open) ||
       !Number.isFinite(candle.close)
     ) {
-      this._warn("updateCandle: invalid candle data ignored", candle);
+      this._warn("updateCandle: invalid candle data ignored", candle, "BAD_CANDLE");
       return;
     }
     // Auto-follow: if last candle is visible before update, keep following
@@ -486,7 +494,7 @@ export class CanvasChart implements ChartInstance {
 
   addIndicator<T>(series: DataPoint<T>[], config?: SeriesConfig): SeriesHandle {
     if (!Array.isArray(series)) {
-      this._warn("addIndicator: expected an array", typeof series);
+      this._warn("addIndicator: expected an array", typeof series, "INVALID_INPUT");
       return {
         id: "",
         config: {},
@@ -497,7 +505,11 @@ export class CanvasChart implements ChartInstance {
       };
     }
     if (series.length === 0) {
-      this._warn("addIndicator: empty series array — indicator will not be visible");
+      this._warn(
+        "addIndicator: empty series array — indicator will not be visible",
+        undefined,
+        "EMPTY_INPUT",
+      );
     }
 
     // Introspect the series
@@ -568,13 +580,36 @@ export class CanvasChart implements ChartInstance {
 
   // ---- Public API: Signals & Trades ----
 
+  /**
+   * Apply a {@link ShapeCheck} result. Returns the validated array on success
+   * (warning about any per-element issues), or `null` on top-level rejection.
+   */
+  private _applyCheck<T>(method: string, raw: unknown, check: ShapeCheck<T>): T[] | null {
+    if (!check.ok) {
+      this._warn(`${method}: ${check.reason}`, raw, "INVALID_INPUT");
+      return null;
+    }
+    if (check.issues && check.issues.length > 0) {
+      this._warn(
+        `${method}: ${check.issues.length} ${check.issues.length === 1 ? "entry" : "entries"} rejected`,
+        summarizeIssues(check.issues),
+        "INVALID_SHAPE",
+      );
+    }
+    return check.value;
+  }
+
   addSignals(signals: SignalMarker[]): void {
-    this._data.setSignals(signals);
+    const value = this._applyCheck("addSignals", signals, checkSignals(signals));
+    if (value === null) return;
+    this._data.setSignals(value);
     this._needsRender = true;
   }
 
   addTrades(trades: TradeMarker[]): void {
-    this._data.setTrades(trades);
+    const value = this._applyCheck("addTrades", trades, checkTrades(trades));
+    if (value === null) return;
+    this._data.setTrades(value);
     this._needsRender = true;
   }
 
@@ -650,6 +685,11 @@ export class CanvasChart implements ChartInstance {
   // ---- Public API: Backtest Visualization ----
 
   addBacktest(result: import("../core/types").BacktestResultData): void {
+    const check = checkBacktest(result);
+    if (!check.ok) {
+      this._warn(`addBacktest: ${check.reason}`, result, "INVALID_INPUT");
+      return;
+    }
     this._data.setBacktestResult(result);
     // Add equity curve subchart pane
     if (!this._layout.hasPane("equity")) {
