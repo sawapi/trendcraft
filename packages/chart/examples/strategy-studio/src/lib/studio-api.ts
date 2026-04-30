@@ -1,7 +1,11 @@
 import {
   type BacktestResult,
+  type Condition,
+  type ConditionCategory,
+  type ConditionRegistryEntry,
   type IndicatorPreset,
   type MarketRegimeResult,
+  type StrategyJSON,
   backtestRegistry,
   detectMarketRegime,
   indicatorPresets,
@@ -80,7 +84,9 @@ export interface StudioAPI {
    * that intentionally have no series preset (e.g. `hmmRegimes`, `liquiditySweep`).
    */
   getIndicatorPreset(kind: string): IndicatorPreset | undefined;
-  runStrategy(json: unknown, candles: StudioCandle[]): StrategyRunResult;
+  /** All registered backtest conditions, optionally filtered by category. */
+  listConditions(category?: ConditionCategory): ConditionRegistryEntry<Condition>[];
+  runStrategy(json: StrategyJSON, candles: StudioCandle[]): StrategyRunResult;
 }
 
 /**
@@ -127,9 +133,12 @@ export const localStudioAPI: StudioAPI = {
     return indicatorPresets[KIND_TO_PRESET_KEY[kind] ?? kind];
   },
 
+  listConditions(category) {
+    return backtestRegistry.list(category);
+  },
+
   runStrategy(json, candles) {
-    // biome-ignore lint/suspicious/noExplicitAny: StrategyJSON typing belongs to PR3
-    const { entry, exit, backtestOptions } = loadStrategy(json as any, backtestRegistry);
+    const { entry, exit, backtestOptions } = loadStrategy(json, backtestRegistry);
     const normalized = normalizeCandles(candles);
     const result = runBacktest(normalized, entry, exit, {
       capital: 100_000,

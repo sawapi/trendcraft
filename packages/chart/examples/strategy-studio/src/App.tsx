@@ -1,12 +1,16 @@
 import { type IndicatorConnection, connectIndicators } from "@trendcraft/chart";
 import { registerTrendCraftPresets } from "@trendcraft/chart/presets";
 import { useTrendChart } from "@trendcraft/chart/react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { indicatorPresets } from "trendcraft";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { indicatorPresets, parseStrategy, validateStrategyJSON } from "trendcraft";
+import { useBacktestRunner } from "./hooks/useBacktestRunner";
 import { useRegime } from "./hooks/useRegime";
 import { sampleCandles } from "./lib/sample-data";
+import { builderReducer, initialBuilderState, strategyJSONToState } from "./lib/strategy-state";
 import { KIND_TO_PRESET_KEY, localStudioAPI } from "./lib/studio-api";
 import { PresetSelector } from "./panels/PresetSelector";
+import { ResultsSummary } from "./panels/ResultsSummary";
+import { StrategyBuilder } from "./panels/StrategyBuilder";
 
 function resolvePresetId(kind: string): string {
   return KIND_TO_PRESET_KEY[kind] ?? kind;
@@ -91,6 +95,38 @@ export function App() {
     [candles.length],
   );
 
+  // ---- PR3: strategy builder + backtest runner ----
+  const [builderState, builderDispatch] = useReducer(
+    builderReducer,
+    undefined,
+    initialBuilderState,
+  );
+  const [jsonText, setJsonText] = useState<string>("");
+  const [importError, setImportError] = useState<string | null>(null);
+  const runner = useBacktestRunner(chart, candles);
+
+  const handleImport = useCallback((raw: string) => {
+    if (!raw.trim()) {
+      setImportError(null);
+      return;
+    }
+    try {
+      // parseStrategy: JSON.parse + $schema/version checks. validateStrategyJSON:
+      // deep field/condition validation against backtestRegistry. Both run in
+      // sequence — parse first to get an object, then deep-validate that object.
+      const json = parseStrategy(raw);
+      const validation = validateStrategyJSON(json);
+      if (!validation.valid) {
+        setImportError(validation.errors.join("; "));
+        return;
+      }
+      builderDispatch({ type: "replace", state: strategyJSONToState(json) });
+      setImportError(null);
+    } catch (err) {
+      setImportError(err instanceof Error ? err.message : String(err));
+    }
+  }, []);
+
   return (
     <div className="studio-grid">
       <header className="studio-header">
@@ -108,17 +144,18 @@ export function App() {
       </main>
 
       <aside className="pane right">
-        <div className="pane-header">Strategy Builder</div>
-        <div className="placeholder-pane">
-          <p>
-            <strong>Coming in PR3.</strong> This panel will let you compose entry/exit conditions
-            from the 114 entries in <code>backtestRegistry</code>, run a backtest, and see the
-            resulting trades overlaid on the chart.
-          </p>
-          <p style={{ marginTop: 12 }}>
-            For now, click presets in the left panel to add them to the chart.
-          </p>
-        </div>
+        <StrategyBuilder
+          state={builderState}
+          dispatch={builderDispatch}
+          onRun={runner.run}
+          onImport={handleImport}
+          jsonText={jsonText}
+          onJsonTextChange={setJsonText}
+          importError={importError}
+          runError={runner.state.status === "error" ? runner.state.lastError : null}
+        />
+        <div className="pane-divider" />
+        <ResultsSummary result={runner.state.lastResult?.result} />
       </aside>
     </div>
   );
