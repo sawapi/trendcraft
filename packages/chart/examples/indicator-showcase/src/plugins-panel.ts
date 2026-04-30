@@ -12,8 +12,12 @@
  * event from the live source.
  */
 
-import type { ChartInstance, LivePrimitivesConnection } from "@trendcraft/chart";
+import type { ChartInstance, LivePrimitivesConnection, SwingAnchor } from "@trendcraft/chart";
 import {
+  addAutoChannelLine,
+  addAutoFibExtension,
+  addAutoFibRetracement,
+  addAutoTrendLine,
   connectAndrewsPitchfork,
   connectLivePrimitives,
   connectMarketProfile,
@@ -24,13 +28,14 @@ import {
   connectVolumeProfile,
   connectWyckoffPhase,
 } from "@trendcraft/chart";
-import type { NormalizedCandle } from "trendcraft";
+import type { NormalizedCandle, Series } from "trendcraft";
 import {
   fairValueGap,
   getAlternatingSwingPoints,
   hmmRegimes,
+  incremental,
   killZones,
-  liquiditySweep,
+  type liquiditySweep,
   marketProfile,
   orderBlock,
   srZones,
@@ -38,6 +43,8 @@ import {
   vsa,
   wyckoffPhases,
 } from "trendcraft";
+
+type LiquiditySweepValue = Awaited<ReturnType<typeof liquiditySweep>>[number]["value"];
 import type { LiveSource } from "./live-simulator";
 
 // Per-plugin update signatures vary (zones[], smc sources, regime data, etc.).
@@ -88,20 +95,30 @@ const SPECS: PluginSpec[] = [
     description:
       "OB + FVG + Sweeps in one pass — use the individual SMC presets for per-indicator params",
     build: (candles) => {
+      // Sweeps run incrementally — `recompute` only feeds new candles into
+      // the live indicator instead of reprocessing the full history.
+      // OB / FVG remain batch (no incremental versions in core).
+      const sweepLive = incremental.createLiquiditySweep({});
+      const sweepSeries: Series<LiquiditySweepValue> = [];
+      for (const c of candles) sweepSeries.push(sweepLive.next(c));
+
       const sources = {
         orderBlocks: orderBlock(candles),
         fvgs: fairValueGap(candles),
-        sweeps: liquiditySweep(candles),
+        sweeps: sweepSeries,
       };
       const handle = connectSmcLayer(chartRef, sources);
       return {
         handle: handle as PluginHandle,
         recompute: (cs) => {
           const arr = cs as NormalizedCandle[];
+          for (let i = sweepLive.count; i < arr.length; i++) {
+            sweepSeries.push(sweepLive.next(arr[i]));
+          }
           return {
             orderBlocks: orderBlock(arr),
             fvgs: fairValueGap(arr),
-            sweeps: liquiditySweep(arr),
+            sweeps: sweepSeries,
           };
         },
       };
@@ -192,7 +209,114 @@ const SPECS: PluginSpec[] = [
       };
     },
   },
+  // Auto-fib / channel / trend-line plugins — built on top of the chart's
+  // `addAutoXxx` drawing helpers. Each removes its previous drawing(s) before
+  // attaching new ones on `candleComplete`.
+  makeDrawingPluginSpec(
+    "autoFibRetracement",
+    "Auto Fib Retracement",
+    "Auto-anchored fib retracement levels between the latest swing high and low",
+    (chart, anchors) => {
+      const id = addAutoFibRetracement(chart, anchors);
+      return id ? [id] : [];
+    },
+  ),
+  makeDrawingPluginSpec(
+    "autoFibExtension",
+    "Auto Fib Extension",
+    "Auto-anchored fib extension projecting from the last 3 alternating swings",
+    (chart, anchors) => {
+      const id = addAutoFibExtension(chart, anchors);
+      return id ? [id] : [];
+    },
+  ),
+  makeDrawingPluginSpec(
+    "autoTrendLines",
+    "Auto Trend Lines",
+    "Resistance + support trend lines through the last 2 swing highs / lows",
+    (chart, anchors, extendToTime) => {
+      const ids: string[] = [];
+      const r = addAutoTrendLine(chart, anchors, { line: "resistance", extendToTime });
+      if (r) ids.push(r);
+      const s = addAutoTrendLine(chart, anchors, { line: "support", extendToTime });
+      if (s) ids.push(s);
+      return ids;
+    },
+  ),
+  makeDrawingPluginSpec(
+    "autoChannel",
+    "Auto Channel",
+    "Parallel channel through the last 2 same-type swings + opposing offset",
+    (chart, anchors, extendToTime) => {
+      const id = addAutoChannelLine(chart, anchors, { extendToTime });
+      return id ? [id] : [];
+    },
+  ),
 ];
+
+type DrawingPluginPayload = {
+  anchors: SwingAnchor[];
+  /** Last candle time, used to extend slope-based drawings to the right edge. */
+  extendToTime: number;
+};
+
+/**
+ * Build a plugin spec for indicators that render via the `addAutoXxx` drawing
+ * helpers. Each call replaces the previous drawing(s) so `connectLivePrimitives`
+ * can drive updates by passing fresh swing anchors plus the latest candle time
+ * (so slope-based drawings can extend to the right edge).
+ */
+function makeDrawingPluginSpec(
+  id: string,
+  label: string,
+  description: string,
+  applyDrawings: (chart: ChartInstance, anchors: SwingAnchor[], extendToTime: number) => string[],
+): PluginSpec {
+  const SWING_OPTS = { leftBars: 10, rightBars: 10 };
+  const NUM_ANCHORS = 6;
+  return {
+    id,
+    label,
+    description,
+    build: (candles) => {
+      // Capture the chart at construction time so a second panel mounted on
+      // a different chart does not redirect this plugin's removeDrawing /
+      // applyDrawings calls (matches the existing connect* primitive helpers
+      // which bind their chart at construction).
+      const ownChart = chartRef;
+      let currentIds: string[] = [];
+      const apply = (payload: DrawingPluginPayload): void => {
+        for (const drawingId of currentIds) ownChart.removeDrawing(drawingId);
+        currentIds = applyDrawings(ownChart, payload.anchors, payload.extendToTime);
+      };
+      const initial: DrawingPluginPayload = {
+        anchors: getAlternatingSwingPoints(candles, NUM_ANCHORS, SWING_OPTS),
+        extendToTime: candles[candles.length - 1]?.time ?? 0,
+      };
+      apply(initial);
+      // Match the documented `build()` contract: if the helpers couldn't
+      // produce any drawings on the initial history, treat the plugin as
+      // unavailable so the toggle row doesn't flip to active with no visual.
+      if (currentIds.length === 0) return null;
+      return {
+        handle: {
+          remove: () => {
+            for (const drawingId of currentIds) ownChart.removeDrawing(drawingId);
+            currentIds = [];
+          },
+          update: (payload: unknown) => apply(payload as DrawingPluginPayload),
+        } as PluginHandle,
+        recompute: (cs): DrawingPluginPayload => {
+          const arr = cs as NormalizedCandle[];
+          return {
+            anchors: getAlternatingSwingPoints(arr, NUM_ANCHORS, SWING_OPTS),
+            extendToTime: arr[arr.length - 1]?.time ?? 0,
+          };
+        },
+      };
+    },
+  };
+}
 
 function pitchforkPoints(candles: NormalizedCandle[]) {
   const last3 = getAlternatingSwingPoints(candles, 3, { leftBars: 10, rightBars: 10 });
