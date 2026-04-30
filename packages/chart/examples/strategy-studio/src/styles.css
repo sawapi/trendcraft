@@ -1,0 +1,245 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #0a0e17;
+  color: #d1d4dc;
+}
+
+.studio-grid {
+  display: grid;
+  grid-template-columns: 320px 1fr 360px;
+  grid-template-rows: 40px 1fr;
+  height: 100vh;
+  gap: 1px;
+  background: #2a2e39;
+}
+
+.studio-header {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+  background: #131722;
+  border-bottom: 1px solid #2a2e39;
+}
+
+.studio-title {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.studio-tag {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: #2196f3;
+  color: #fff;
+}
+
+.pane {
+  background: #131722;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.pane.center {
+  overflow: hidden;
+}
+
+.pane-header {
+  position: sticky;
+  top: 0;
+  padding: 10px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #787b86;
+  background: #131722;
+  border-bottom: 1px solid #2a2e39;
+  z-index: 1;
+}
+
+.regime-banner {
+  margin: 12px;
+  padding: 12px;
+  border: 1px solid #2a2e39;
+  border-radius: 6px;
+  background: #0e1320;
+}
+
+.regime-banner h3 {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #787b86;
+  margin-bottom: 8px;
+}
+
+.regime-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.regime-chip {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #1e222d;
+  border: 1px solid #2a2e39;
+}
+
+.regime-chip.trending {
+  background: rgba(38, 166, 154, 0.18);
+  border-color: rgba(38, 166, 154, 0.4);
+}
+.regime-chip.ranging {
+  background: rgba(255, 152, 0, 0.18);
+  border-color: rgba(255, 152, 0, 0.4);
+}
+.regime-chip.volatile {
+  background: rgba(239, 83, 80, 0.18);
+  border-color: rgba(239, 83, 80, 0.4);
+}
+.regime-chip.low-volatility {
+  background: rgba(33, 150, 243, 0.18);
+  border-color: rgba(33, 150, 243, 0.4);
+}
+
+.regime-detail {
+  font-size: 11px;
+  color: #787b86;
+  line-height: 1.5;
+}
+
+.section-title {
+  padding: 12px 12px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #787b86;
+}
+
+.preset-list {
+  list-style: none;
+  padding: 0 8px 12px;
+}
+
+.preset-item {
+  position: relative;
+  padding: 8px 10px;
+  font-size: 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.preset-item:hover {
+  background: #1e222d;
+}
+
+.preset-item.active {
+  background: rgba(33, 150, 243, 0.15);
+  color: #fff;
+}
+
+.preset-item.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.preset-item.disabled:hover {
+  background: transparent;
+}
+
+.preset-name {
+  font-weight: 500;
+}
+
+.preset-kind {
+  font-size: 10px;
+  color: #787b86;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+.preset-tooltip {
+  position: absolute;
+  left: calc(100% + 8px);
+  top: 0;
+  width: 320px;
+  padding: 10px 12px;
+  background: #1e222d;
+  border: 1px solid #2a2e39;
+  border-radius: 6px;
+  font-size: 11px;
+  color: #d1d4dc;
+  z-index: 10;
+  pointer-events: none;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+
+.preset-tooltip h4 {
+  font-size: 12px;
+  margin-bottom: 6px;
+  color: #fff;
+}
+
+.preset-tooltip-section {
+  margin-top: 6px;
+}
+
+.preset-tooltip-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #787b86;
+  margin-bottom: 2px;
+}
+
+.preset-tooltip ul {
+  margin: 0;
+  padding-left: 14px;
+  line-height: 1.5;
+}
+
+.category-select {
+  width: calc(100% - 24px);
+  margin: 0 12px 8px;
+  padding: 6px 8px;
+  background: #1e222d;
+  color: #d1d4dc;
+  border: 1px solid #2a2e39;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.empty {
+  padding: 12px;
+  font-size: 12px;
+  color: #787b86;
+}
+
+.placeholder-pane {
+  padding: 16px;
+  font-size: 12px;
+  color: #787b86;
+  line-height: 1.6;
+}
