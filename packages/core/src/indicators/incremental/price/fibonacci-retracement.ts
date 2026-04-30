@@ -21,6 +21,7 @@
 
 import type { NormalizedCandle } from "../../../types";
 import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import { resolveLevelsConfig, resolveSwingConfig } from "./swing-helpers";
 import { type SwingPointsState, createSwingPoints } from "./swing-points";
 
 export type FibonacciRetracementValue = {
@@ -61,24 +62,9 @@ export function createFibonacciRetracement(
   options: FibonacciRetracementOptions = {},
   warmUpOptions?: WarmUpOptions<FibonacciRetracementState>,
 ): IncrementalIndicator<FibonacciRetracementValue, FibonacciRetracementState> {
-  // Persisted state's config takes precedence over `options` so a stream
-  // resumed via `restoreState(savedState)` (no re-passed options) keeps its
-  // original leftBars / rightBars / levels. Falling back to options when
-  // `fromState` is omitted preserves the normal construction path.
   const fromState = warmUpOptions?.fromState;
-  const leftBars = fromState?.leftBars ?? options.leftBars ?? 10;
-  const rightBars = fromState?.rightBars ?? options.rightBars ?? 10;
-  const levels = (fromState?.levels ?? options.levels ?? DEFAULT_LEVELS).slice();
-
-  if (leftBars < 1) throw new Error("leftBars must be at least 1");
-  if (rightBars < 1) throw new Error("rightBars must be at least 1");
-  if (!Array.isArray(levels) || levels.length === 0) {
-    throw new Error("levels must be a non-empty array");
-  }
-
-  // Cache the level keys so the hot path skips repeated `String(ratio)` calls
-  // (default 7 ratios × every bar).
-  const ratioKeys = levels.map(String);
+  const { leftBars, rightBars } = resolveSwingConfig(options, fromState);
+  const { levels, ratioKeys } = resolveLevelsConfig(options, fromState, DEFAULT_LEVELS);
 
   let swings: ReturnType<typeof createSwingPoints>;
   let lastSwingHighPrice: number | null;

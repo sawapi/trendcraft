@@ -16,6 +16,7 @@
 
 import type { NormalizedCandle } from "../../../types";
 import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import { cloneShallow, pushBounded, resolveSwingConfig } from "./swing-helpers";
 import { type SwingPointsState, createSwingPoints } from "./swing-points";
 
 export type AutoTrendLineValue = {
@@ -59,11 +60,7 @@ export function createAutoTrendLine(
   warmUpOptions?: WarmUpOptions<AutoTrendLineState>,
 ): IncrementalIndicator<AutoTrendLineValue, AutoTrendLineState> {
   const fromState = warmUpOptions?.fromState;
-  const leftBars = fromState?.leftBars ?? options.leftBars ?? 10;
-  const rightBars = fromState?.rightBars ?? options.rightBars ?? 10;
-
-  if (leftBars < 1) throw new Error("leftBars must be at least 1");
-  if (rightBars < 1) throw new Error("rightBars must be at least 1");
+  const { leftBars, rightBars } = resolveSwingConfig(options, fromState);
 
   let swings: ReturnType<typeof createSwingPoints>;
   let lastTwoHighs: SwingPoint[];
@@ -80,8 +77,8 @@ export function createAutoTrendLine(
 
   if (fromState) {
     swings = createSwingPoints({ leftBars, rightBars }, { fromState: fromState.swings });
-    lastTwoHighs = fromState.lastTwoHighs.map((p) => ({ ...p }));
-    lastTwoLows = fromState.lastTwoLows.map((p) => ({ ...p }));
+    lastTwoHighs = cloneShallow(fromState.lastTwoHighs);
+    lastTwoLows = cloneShallow(fromState.lastTwoLows);
     hasResistance = fromState.hasResistance;
     resSlope = fromState.resSlope;
     resAnchorIdx = fromState.resAnchorIdx;
@@ -114,8 +111,7 @@ export function createAutoTrendLine(
       const confirmedIdx = count - 1 - rightBars;
 
       if (sv.isSwingHigh && sv.swingHighPrice !== null && confirmedIdx >= 0) {
-        lastTwoHighs.push({ index: confirmedIdx, price: sv.swingHighPrice });
-        if (lastTwoHighs.length > 2) lastTwoHighs.shift();
+        pushBounded(lastTwoHighs, { index: confirmedIdx, price: sv.swingHighPrice }, 2);
         if (lastTwoHighs.length === 2) {
           const p1 = lastTwoHighs[0];
           const p2 = lastTwoHighs[1];
@@ -127,8 +123,7 @@ export function createAutoTrendLine(
       }
 
       if (sv.isSwingLow && sv.swingLowPrice !== null && confirmedIdx >= 0) {
-        lastTwoLows.push({ index: confirmedIdx, price: sv.swingLowPrice });
-        if (lastTwoLows.length > 2) lastTwoLows.shift();
+        pushBounded(lastTwoLows, { index: confirmedIdx, price: sv.swingLowPrice }, 2);
         if (lastTwoLows.length === 2) {
           const p1 = lastTwoLows[0];
           const p2 = lastTwoLows[1];
@@ -159,8 +154,8 @@ export function createAutoTrendLine(
       const saved = indicator.getState();
       const result = indicator.next(candle);
       swings = createSwingPoints({ leftBars, rightBars }, { fromState: saved.swings });
-      lastTwoHighs = saved.lastTwoHighs.map((p) => ({ ...p }));
-      lastTwoLows = saved.lastTwoLows.map((p) => ({ ...p }));
+      lastTwoHighs = cloneShallow(saved.lastTwoHighs);
+      lastTwoLows = cloneShallow(saved.lastTwoLows);
       hasResistance = saved.hasResistance;
       resSlope = saved.resSlope;
       resAnchorIdx = saved.resAnchorIdx;
@@ -178,8 +173,8 @@ export function createAutoTrendLine(
         leftBars,
         rightBars,
         swings: swings.getState(),
-        lastTwoHighs: lastTwoHighs.map((p) => ({ ...p })),
-        lastTwoLows: lastTwoLows.map((p) => ({ ...p })),
+        lastTwoHighs: cloneShallow(lastTwoHighs),
+        lastTwoLows: cloneShallow(lastTwoLows),
         hasResistance,
         resSlope,
         resAnchorIdx,

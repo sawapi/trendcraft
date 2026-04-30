@@ -17,6 +17,12 @@
 
 import type { NormalizedCandle } from "../../../types";
 import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import {
+  cloneShallow,
+  pushBounded,
+  resolveLevelsConfig,
+  resolveSwingConfig,
+} from "./swing-helpers";
 import { type SwingPointsState, createSwingPoints } from "./swing-points";
 
 export type FibonacciExtensionValue = {
@@ -67,22 +73,9 @@ export function createFibonacciExtension(
   options: FibonacciExtensionOptions = {},
   warmUpOptions?: WarmUpOptions<FibonacciExtensionState>,
 ): IncrementalIndicator<FibonacciExtensionValue, FibonacciExtensionState> {
-  // Persisted state takes precedence over options so a stream resumed via
-  // `restoreState(savedState)` (no re-passed options) keeps its original
-  // configuration.
   const fromState = warmUpOptions?.fromState;
-  const leftBars = fromState?.leftBars ?? options.leftBars ?? 10;
-  const rightBars = fromState?.rightBars ?? options.rightBars ?? 10;
-  const levels = (fromState?.levels ?? options.levels ?? DEFAULT_LEVELS).slice();
-
-  if (leftBars < 1) throw new Error("leftBars must be at least 1");
-  if (rightBars < 1) throw new Error("rightBars must be at least 1");
-  if (!Array.isArray(levels) || levels.length === 0) {
-    throw new Error("levels must be a non-empty array");
-  }
-
-  // Cache the level keys so the hot path skips repeated `String(ratio)` calls.
-  const ratioKeys = levels.map(String);
+  const { leftBars, rightBars } = resolveSwingConfig(options, fromState);
+  const { levels, ratioKeys } = resolveLevelsConfig(options, fromState, DEFAULT_LEVELS);
 
   let swings: ReturnType<typeof createSwingPoints>;
   // The pattern only ever needs the last 3 alternating points. Trim to that
@@ -97,7 +90,7 @@ export function createFibonacciExtension(
 
   if (fromState) {
     swings = createSwingPoints({ leftBars, rightBars }, { fromState: fromState.swings });
-    alternating = fromState.alternating.map((p) => ({ ...p }));
+    alternating = cloneShallow(fromState.alternating);
     currentLevels = fromState.currentLevels ? { ...fromState.currentLevels } : null;
     currentPointA = fromState.currentPointA;
     currentPointB = fromState.currentPointB;
@@ -125,8 +118,7 @@ export function createFibonacciExtension(
     }
     const last = alternating[alternating.length - 1];
     if (last.type !== point.type) {
-      alternating.push(point);
-      if (alternating.length > 3) alternating.shift();
+      pushBounded(alternating, point, 3);
       return true;
     }
     // Same type consecutive: keep the more extreme.
@@ -214,7 +206,7 @@ export function createFibonacciExtension(
       const saved = indicator.getState();
       const result = indicator.next(candle);
       swings = createSwingPoints({ leftBars, rightBars }, { fromState: saved.swings });
-      alternating = saved.alternating.map((p) => ({ ...p }));
+      alternating = cloneShallow(saved.alternating);
       currentLevels = saved.currentLevels ? { ...saved.currentLevels } : null;
       currentPointA = saved.currentPointA;
       currentPointB = saved.currentPointB;
@@ -231,7 +223,7 @@ export function createFibonacciExtension(
         rightBars,
         levels: levels.slice(),
         swings: swings.getState(),
-        alternating: alternating.map((p) => ({ ...p })),
+        alternating: cloneShallow(alternating),
         currentLevels: currentLevels ? { ...currentLevels } : null,
         currentPointA,
         currentPointB,
