@@ -363,6 +363,11 @@ export const CHANNEL_LINE_META: SeriesMeta = {
   overlay: true,
   label: "Channel",
 };
+export const AUTO_TREND_LINE_META: SeriesMeta = {
+  kind: "autoTrendLine",
+  overlay: true,
+  label: "Trend Lines",
+};
 export const GAP_ANALYSIS_META: SeriesMeta = {
   kind: "gapAnalysis",
   overlay: false,

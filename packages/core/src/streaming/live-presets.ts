@@ -23,6 +23,7 @@ import {
   createAroon,
   createAtr,
   createAtrStops,
+  createAutoTrendLine,
   createAwesomeOscillator,
   createBalanceOfPower,
   createBollingerBands,
@@ -109,6 +110,7 @@ import {
   AROON_META,
   ATR_META,
   ATR_STOPS_META,
+  AUTO_TREND_LINE_META,
   BB_META,
   BOP_META,
   CCI_META,
@@ -1017,6 +1019,18 @@ export const livePresets: Record<string, LivePreset> = {
       leftBars: p.leftBars ?? 10,
       rightBars: p.rightBars ?? 10,
     })),
+  },
+  autoTrendLine: {
+    meta: AUTO_TREND_LINE_META,
+    defaultParams: { leftBars: 10, rightBars: 10 },
+    snapshotName: "atl",
+    createFactory: factory<{ leftBars?: number; rightBars?: number }>()(
+      createAutoTrendLine,
+      (p) => ({
+        leftBars: p.leftBars ?? 10,
+        rightBars: p.rightBars ?? 10,
+      }),
+    ),
   },
 
   // Wyckoff
