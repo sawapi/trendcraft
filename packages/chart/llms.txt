@@ -21,6 +21,7 @@ Key facts for understanding the library:
 - [docs/API.md](./docs/API.md): complete API reference (every exported symbol and type).
 - [docs/LIVE.md](./docs/LIVE.md): live-data pipeline — `createLiveCandle` + `connectIndicators({ live })`, backfill, reconnect, pitfalls.
 - [docs/PLUGINS.md](./docs/PLUGINS.md): custom series renderers and primitives.
+- [docs/COOKBOOK.md](./docs/COOKBOOK.md): copy-paste recipes for the most common tasks (minimal chart, multi-indicator setup, theming, live data, React/Vue, sparkline grid, custom plugin, PNG export, headless / SSR).
 - [CHANGELOG.md](./CHANGELOG.md): version history.
 
 ## Source
