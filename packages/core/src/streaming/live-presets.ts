@@ -28,6 +28,7 @@ import {
   createBollingerBands,
   createCci,
   createChandelierExit,
+  createChannelLine,
   createChoppinessIndex,
   createCmf,
   createCmo,
@@ -112,6 +113,7 @@ import {
   BOP_META,
   CCI_META,
   CHANDELIER_EXIT_META,
+  CHANNEL_LINE_META,
   CHOPPINESS_META,
   CMF_META,
   CMO_META,
@@ -1005,6 +1007,15 @@ export const livePresets: Record<string, LivePreset> = {
       leftBars: p.leftBars ?? 10,
       rightBars: p.rightBars ?? 10,
       levels: p.levels,
+    })),
+  },
+  channelLine: {
+    meta: CHANNEL_LINE_META,
+    defaultParams: { leftBars: 10, rightBars: 10 },
+    snapshotName: "channel",
+    createFactory: factory<{ leftBars?: number; rightBars?: number }>()(createChannelLine, (p) => ({
+      leftBars: p.leftBars ?? 10,
+      rightBars: p.rightBars ?? 10,
     })),
   },
 

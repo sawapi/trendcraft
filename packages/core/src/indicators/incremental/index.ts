@@ -242,6 +242,12 @@ export type {
   FibonacciExtensionOptions,
   FibonacciExtensionValue as IncrementalFibonacciExtensionValue,
 } from "./price/fibonacci-extension";
+export { createChannelLine } from "./price/channel-line";
+export type {
+  ChannelLineState,
+  ChannelLineOptions,
+  ChannelLineValue as IncrementalChannelLineValue,
+} from "./price/channel-line";
 export type {
   BosState,
   ChochState,
