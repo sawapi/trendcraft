@@ -12,6 +12,7 @@ Finance-specialized charting library with native [TrendCraft](https://github.com
 | [API](./docs/API.md) | You need the full reference — every option, method, type, event |
 | [PLUGINS](./docs/PLUGINS.md) | You're writing a custom series renderer or pane primitive |
 | [LIVE](./docs/LIVE.md) | You're wiring a real-time feed — WebSocket → `createLiveCandle` → chart |
+| [COOKBOOK](./docs/COOKBOOK.md) | You want copy-paste recipes for common tasks — minimal chart, theming, live data, React/Vue, sparklines, custom plugins, PNG export, headless / SSR |
 
 The rest of this README is a guided tour of the most common features. Reach for the docs above when you need depth.
 
