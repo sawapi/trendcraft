@@ -358,6 +358,11 @@ export const FIBONACCI_EXTENSION_META: SeriesMeta = {
   overlay: true,
   label: "Fib Extension",
 };
+export const CHANNEL_LINE_META: SeriesMeta = {
+  kind: "channelLine",
+  overlay: true,
+  label: "Channel",
+};
 export const GAP_ANALYSIS_META: SeriesMeta = {
   kind: "gapAnalysis",
   overlay: false,
