@@ -42,8 +42,6 @@ Each demo is a standalone Vite app — `cd` into it, `pnpm install --ignore-work
 - [`packages/core/examples/chart-viewer`](./packages/core/examples/chart-viewer) — comprehensive React + ECharts viewer (indicators, signals, backtest, optimization, pattern replay).
 - [`packages/core/examples/trading-simulator`](./packages/core/examples/trading-simulator) — bar-replay practice tool with order management and end-of-session review.
 - [`packages/core/examples/sp500-showcase`](./packages/core/examples/sp500-showcase) — screening across S&P 500 symbols.
-- [`packages/core/examples/alpaca-demo`](./packages/core/examples/alpaca-demo) — multi-agent paper-trading CLI on Alpaca.
-- [`packages/core/examples/candle-former-demo`](./packages/core/examples/candle-former-demo) — CandleFormer demo.
 
 ## Disclaimer
 
