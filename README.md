@@ -34,7 +34,6 @@ Each demo is a standalone Vite app — `cd` into it, `pnpm install --ignore-work
 **Charting (`@trendcraft/chart`)**
 - [`packages/chart/examples/simple-chart`](./packages/chart/examples/simple-chart) — start here. Vanilla TS, one chart, a handful of indicators.
 - [`packages/chart/examples/simple-react-chart`](./packages/chart/examples/simple-react-chart) / [`simple-vue-chart`](./packages/chart/examples/simple-vue-chart) — framework binding minimal demos.
-- [`packages/chart/examples/multi-chart-sync`](./packages/chart/examples/multi-chart-sync) — `syncCharts()` between two charts.
 - [`packages/chart/examples/indicator-showcase`](./packages/chart/examples/indicator-showcase) — every preset (96+) with live-replay, signal panel, plugin panel.
 - [`packages/chart/examples/sparkline-showcase`](./packages/chart/examples/sparkline-showcase) — the `@trendcraft/chart/sparkline` subpath on a 200-row ticker dashboard.
 
