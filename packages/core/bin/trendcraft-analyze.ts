@@ -3,7 +3,7 @@
  * TrendCraft Analysis CLI
  *
  * Browser-free analysis tool that generates structured text data
- * for LLM consumption. Uses trendcraft library directly (no chart-viewer needed).
+ * for LLM consumption. Uses trendcraft library directly (no chart UI needed).
  *
  * Usage:
  *   npx trendcraft-analyze <csv-file> [output-dir]
@@ -82,7 +82,7 @@ function printHelp(): void {
 TrendCraft Analysis CLI
 
 Generates structured analysis text files from CSV data.
-No browser or chart-viewer required.
+No browser or chart UI required.
 
 Usage:
   trendcraft-analyze <csv-file> [output-dir]
@@ -374,7 +374,7 @@ Score each factor +1 (bullish), -1 (bearish), or 0 (neutral):
 }
 
 // ---------------------------------------------------------------------------
-// CSV Parser (inline, supports PER/PBR - based on chart-viewer's parseCSV)
+// CSV Parser (inline, supports PER/PBR - based on echarts-viewer's parseCSV)
 // ---------------------------------------------------------------------------
 
 function parseCsvWithFundamentals(text: string): ParseResult {
