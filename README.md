@@ -39,7 +39,7 @@ Each demo is a standalone Vite app — `cd` into it, `pnpm install --ignore-work
 
 **Core (`trendcraft`)**
 - [`packages/core/examples/quick-start`](./packages/core/examples/quick-start) — the smallest "import and call an indicator" example.
-- [`packages/core/examples/chart-viewer`](./packages/core/examples/chart-viewer) — comprehensive React + ECharts viewer (indicators, signals, backtest, optimization, pattern replay).
+- [`packages/core/examples/echarts-viewer`](./packages/core/examples/echarts-viewer) — comprehensive React + ECharts viewer (indicators, signals, backtest, optimization, pattern replay). Demonstrates that the `trendcraft` core works with any chart library, not only `@trendcraft/chart`.
 - [`packages/core/examples/trading-simulator`](./packages/core/examples/trading-simulator) — bar-replay practice tool with order management and end-of-session review.
 - [`packages/core/examples/sp500-showcase`](./packages/core/examples/sp500-showcase) — screening across S&P 500 symbols.
 

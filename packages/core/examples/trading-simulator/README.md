@@ -6,7 +6,7 @@ practice entries / exits with the same indicators and incremental engine you
 would use in a backtest.
 
 This is a learning / journaling tool, not a backtest harness — for that, see
-the `backtest()` API in `trendcraft` and the `chart-viewer` example.
+the `backtest()` API in `trendcraft` and the `echarts-viewer` example.
 
 ## Setup
 

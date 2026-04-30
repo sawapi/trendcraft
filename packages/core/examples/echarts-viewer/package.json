@@ -1,5 +1,5 @@
 {
-  "name": "trendcraft-chart-viewer",
+  "name": "trendcraft-echarts-viewer",
   "private": true,
   "version": "0.0.0",
   "type": "module",

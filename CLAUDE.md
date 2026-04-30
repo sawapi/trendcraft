@@ -50,7 +50,7 @@ packages/
     ├── docs/            # API docs, guide, cookbook
     ├── cross-validation/ # TA-Lib cross-validation tests
     └── examples/
-        ├── chart-viewer/        # Simple chart visualization tool
+        ├── echarts-viewer/      # Comprehensive ECharts-based viewer (proves core works with any chart library)
         ├── trading-simulator/   # React-based trading simulator with backtesting
         ├── alpaca-demo/         # Multi-agent paper trading system (Alpaca API)
         └── candle-former-demo/  # CandleFormer demo
@@ -100,11 +100,11 @@ pnpm size-check   # Check bundle size limits (esbuild, brotli-compressed)
 ## Testing & Validation
 
 - Always run `pnpm build` (or the equivalent type-check command) after making changes to verify the build passes before reporting completion
-- For chart-viewer changes: `cd packages/core/examples/chart-viewer && npx tsc --noEmit`
+- For echarts-viewer changes: `cd packages/core/examples/echarts-viewer && npx tsc --noEmit`
 
-## Chart-Viewer Development (packages/core/examples/chart-viewer/)
+## echarts-viewer Development (packages/core/examples/echarts-viewer/)
 
-> **Note:** This section refers to `packages/core/examples/chart-viewer/` (ECharts-based demo app), not the `@trendcraft/chart` package.
+> **Note:** This section refers to `packages/core/examples/echarts-viewer/` (ECharts-based demo app, formerly `chart-viewer/`), not the `@trendcraft/chart` package.
 
 - After implementing new indicators or features that have UI settings, always check and update the Indicator Settings UI groups/panels (`IndicatorSettingsDialog.tsx`) to include the new entries. Never assume the UI will auto-discover new indicators
 - When implementing chart/ECharts features, be careful with layout calculations: always account for labelHeight, title heights, margins, and dataZoom positioning. Test visual elements don't overlap. Overlay indicators go on the main chart (not as subcharts) unless explicitly specified otherwise
@@ -231,7 +231,7 @@ import { TrendChart } from "@trendcraft/chart/vue";
 
 ### packages/core/examples/
 
-- `chart-viewer/` - Simple chart visualization tool (ECharts-based)
+- `echarts-viewer/` - Comprehensive ECharts-based viewer (proves core works with any chart library)
 - `trading-simulator/` - React-based trading simulator with backtesting
 - `alpaca-demo/` - Multi-agent paper trading system (Alpaca API)
 - `candle-former-demo/` - CandleFormer demo
