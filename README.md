@@ -27,6 +27,25 @@ See each package's README for full documentation:
 
 Release and versioning conventions for the monorepo are documented in [CLAUDE.md](./CLAUDE.md#release-workflow).
 
+## Demos
+
+Each demo is a standalone Vite app — `cd` into it, `pnpm install --ignore-workspace`, `pnpm dev`.
+
+**Charting (`@trendcraft/chart`)**
+- [`packages/chart/examples/simple-chart`](./packages/chart/examples/simple-chart) — start here. Vanilla TS, one chart, a handful of indicators.
+- [`packages/chart/examples/simple-react-chart`](./packages/chart/examples/simple-react-chart) / [`simple-vue-chart`](./packages/chart/examples/simple-vue-chart) — framework binding minimal demos.
+- [`packages/chart/examples/multi-chart-sync`](./packages/chart/examples/multi-chart-sync) — `syncCharts()` between two charts.
+- [`packages/chart/examples/indicator-showcase`](./packages/chart/examples/indicator-showcase) — every preset (96+) with live-replay, signal panel, plugin panel.
+- [`packages/chart/examples/sparkline-showcase`](./packages/chart/examples/sparkline-showcase) — the `@trendcraft/chart/sparkline` subpath on a 200-row ticker dashboard.
+
+**Core (`trendcraft`)**
+- [`packages/core/examples/quick-start`](./packages/core/examples/quick-start) — the smallest "import and call an indicator" example.
+- [`packages/core/examples/chart-viewer`](./packages/core/examples/chart-viewer) — comprehensive React + ECharts viewer (indicators, signals, backtest, optimization, pattern replay).
+- [`packages/core/examples/trading-simulator`](./packages/core/examples/trading-simulator) — bar-replay practice tool with order management and end-of-session review.
+- [`packages/core/examples/sp500-showcase`](./packages/core/examples/sp500-showcase) — screening across S&P 500 symbols.
+- [`packages/core/examples/alpaca-demo`](./packages/core/examples/alpaca-demo) — multi-agent paper-trading CLI on Alpaca.
+- [`packages/core/examples/candle-former-demo`](./packages/core/examples/candle-former-demo) — CandleFormer demo.
+
 ## Disclaimer
 
 TrendCraft is a technical analysis toolkit for informational and educational purposes only. Outputs — including indicator values, signals, backtest results, and chart visualizations — are not investment advice and do not constitute a recommendation to buy, sell, or hold any financial instrument. You are solely responsible for any trading decisions made using this software.
