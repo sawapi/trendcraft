@@ -25,6 +25,7 @@
 
 import type { NormalizedCandle } from "../../../types";
 import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import { cloneShallow, pushBounded, resolveSwingConfig } from "./swing-helpers";
 import { type SwingPointsState, createSwingPoints } from "./swing-points";
 
 export type ChannelLineValue = {
@@ -73,13 +74,8 @@ export function createChannelLine(
   options: ChannelLineOptions = {},
   warmUpOptions?: WarmUpOptions<ChannelLineState>,
 ): IncrementalIndicator<ChannelLineValue, ChannelLineState> {
-  // Persisted state takes precedence over options.
   const fromState = warmUpOptions?.fromState;
-  const leftBars = fromState?.leftBars ?? options.leftBars ?? 10;
-  const rightBars = fromState?.rightBars ?? options.rightBars ?? 10;
-
-  if (leftBars < 1) throw new Error("leftBars must be at least 1");
-  if (rightBars < 1) throw new Error("rightBars must be at least 1");
+  const { leftBars, rightBars } = resolveSwingConfig(options, fromState);
 
   let swings: ReturnType<typeof createSwingPoints>;
   let lastTwoHighs: SwingPoint[];
@@ -98,12 +94,12 @@ export function createChannelLine(
 
   if (fromState) {
     swings = createSwingPoints({ leftBars, rightBars }, { fromState: fromState.swings });
-    lastTwoHighs = fromState.lastTwoHighs.map((p) => ({ ...p }));
-    lastTwoLows = fromState.lastTwoLows.map((p) => ({ ...p }));
-    highsSinceLastSwingLow = fromState.highsSinceLastSwingLow.map((p) => ({ ...p }));
-    lowsSinceLastSwingHigh = fromState.lowsSinceLastSwingHigh.map((p) => ({ ...p }));
-    highsBetweenLastTwoLows = fromState.highsBetweenLastTwoLows.map((p) => ({ ...p }));
-    lowsBetweenLastTwoHighs = fromState.lowsBetweenLastTwoHighs.map((p) => ({ ...p }));
+    lastTwoHighs = cloneShallow(fromState.lastTwoHighs);
+    lastTwoLows = cloneShallow(fromState.lastTwoLows);
+    highsSinceLastSwingLow = cloneShallow(fromState.highsSinceLastSwingLow);
+    lowsSinceLastSwingHigh = cloneShallow(fromState.lowsSinceLastSwingHigh);
+    highsBetweenLastTwoLows = cloneShallow(fromState.highsBetweenLastTwoLows);
+    lowsBetweenLastTwoHighs = cloneShallow(fromState.lowsBetweenLastTwoHighs);
     channelDefined = fromState.channelDefined;
     channelDir = fromState.channelDir;
     primarySlope = fromState.primarySlope;
@@ -126,11 +122,6 @@ export function createChannelLine(
     primaryAnchorPrice = 0;
     parallelOffset = 0;
     count = 0;
-  }
-
-  function pushBounded(arr: SwingPoint[], p: SwingPoint, max: number): void {
-    arr.push(p);
-    if (arr.length > max) arr.shift();
   }
 
   /**
@@ -287,12 +278,12 @@ export function createChannelLine(
       const saved = indicator.getState();
       const result = indicator.next(candle);
       swings = createSwingPoints({ leftBars, rightBars }, { fromState: saved.swings });
-      lastTwoHighs = saved.lastTwoHighs.map((p) => ({ ...p }));
-      lastTwoLows = saved.lastTwoLows.map((p) => ({ ...p }));
-      highsSinceLastSwingLow = saved.highsSinceLastSwingLow.map((p) => ({ ...p }));
-      lowsSinceLastSwingHigh = saved.lowsSinceLastSwingHigh.map((p) => ({ ...p }));
-      highsBetweenLastTwoLows = saved.highsBetweenLastTwoLows.map((p) => ({ ...p }));
-      lowsBetweenLastTwoHighs = saved.lowsBetweenLastTwoHighs.map((p) => ({ ...p }));
+      lastTwoHighs = cloneShallow(saved.lastTwoHighs);
+      lastTwoLows = cloneShallow(saved.lastTwoLows);
+      highsSinceLastSwingLow = cloneShallow(saved.highsSinceLastSwingLow);
+      lowsSinceLastSwingHigh = cloneShallow(saved.lowsSinceLastSwingHigh);
+      highsBetweenLastTwoLows = cloneShallow(saved.highsBetweenLastTwoLows);
+      lowsBetweenLastTwoHighs = cloneShallow(saved.lowsBetweenLastTwoHighs);
       channelDefined = saved.channelDefined;
       channelDir = saved.channelDir;
       primarySlope = saved.primarySlope;
@@ -308,12 +299,12 @@ export function createChannelLine(
         leftBars,
         rightBars,
         swings: swings.getState(),
-        lastTwoHighs: lastTwoHighs.map((p) => ({ ...p })),
-        lastTwoLows: lastTwoLows.map((p) => ({ ...p })),
-        highsSinceLastSwingLow: highsSinceLastSwingLow.map((p) => ({ ...p })),
-        lowsSinceLastSwingHigh: lowsSinceLastSwingHigh.map((p) => ({ ...p })),
-        highsBetweenLastTwoLows: highsBetweenLastTwoLows.map((p) => ({ ...p })),
-        lowsBetweenLastTwoHighs: lowsBetweenLastTwoHighs.map((p) => ({ ...p })),
+        lastTwoHighs: cloneShallow(lastTwoHighs),
+        lastTwoLows: cloneShallow(lastTwoLows),
+        highsSinceLastSwingLow: cloneShallow(highsSinceLastSwingLow),
+        lowsSinceLastSwingHigh: cloneShallow(lowsSinceLastSwingHigh),
+        highsBetweenLastTwoLows: cloneShallow(highsBetweenLastTwoLows),
+        lowsBetweenLastTwoHighs: cloneShallow(lowsBetweenLastTwoHighs),
         channelDefined,
         channelDir,
         primarySlope,
