@@ -248,6 +248,12 @@ export type {
   ChannelLineOptions,
   ChannelLineValue as IncrementalChannelLineValue,
 } from "./price/channel-line";
+export { createAutoTrendLine } from "./price/auto-trend-line";
+export type {
+  AutoTrendLineState,
+  AutoTrendLineOptions,
+  AutoTrendLineValue as IncrementalAutoTrendLineValue,
+} from "./price/auto-trend-line";
 export type {
   BosState,
   ChochState,
