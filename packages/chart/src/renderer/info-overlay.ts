@@ -5,6 +5,7 @@
 
 import type { InternalSeries } from "../core/data-layer";
 import { autoFormatPrice, formatVolume } from "../core/format";
+import { escapeHtml } from "../core/html";
 import { type ChartLocale, DEFAULT_LOCALE } from "../core/i18n";
 import type { RendererRegistry } from "../core/renderer-registry";
 import { defaultRegistry } from "../core/series-registry";
@@ -250,15 +251,3 @@ export class InfoOverlay {
 const fmtVol = (n: number) => escapeHtml(formatVolume(n));
 
 /** Prevent XSS from custom formatters */
-function escapeHtml(s: string): string {
-  return s.replace(/[&<>"']/g, (c) => {
-    const map: Record<string, string> = {
-      "&": "&amp;",
-      "<": "&lt;",
-      ">": "&gt;",
-      '"': "&quot;",
-      "'": "&#39;",
-    };
-    return map[c] ?? c;
-  });
-}

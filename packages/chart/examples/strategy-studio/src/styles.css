@@ -142,14 +142,10 @@ body,
 
 .preset-item {
   position: relative;
-  padding: 8px 10px;
-  font-size: 12px;
   border-radius: 4px;
-  cursor: pointer;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  align-items: stretch;
+  gap: 4px;
 }
 
 .preset-item:hover {
@@ -158,16 +154,37 @@ body,
 
 .preset-item.active {
   background: rgba(33, 150, 243, 0.15);
-  color: #fff;
 }
 
-.preset-item.disabled {
+.preset-toggle {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.preset-toggle:focus-visible {
+  outline: 2px solid #2196f3;
+  outline-offset: -2px;
+}
+
+.preset-toggle:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
 
-.preset-item.disabled:hover {
-  background: transparent;
+.preset-item.active .preset-toggle {
+  color: #fff;
 }
 
 .preset-name {
@@ -178,6 +195,27 @@ body,
   font-size: 10px;
   color: #787b86;
   font-family: ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+.preset-count {
+  align-self: center;
+  margin-right: 6px;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  background: rgba(33, 150, 243, 0.35);
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.preset-count:hover,
+.preset-count:focus-visible {
+  background: #2196f3;
+  outline: none;
 }
 
 .preset-tooltip {
@@ -436,6 +474,152 @@ button.ghost.danger:hover {
 .pane-divider {
   border-top: 1px solid #2a2e39;
   margin: 0;
+}
+
+/* ============================================
+ * Parameter Editor (left pane)
+ * ============================================ */
+
+.param-card {
+  margin: 8px 12px;
+  border: 1px solid #2a2e39;
+  border-radius: 4px;
+  background: #0e1320;
+  transition: box-shadow 200ms ease, border-color 200ms ease;
+}
+
+.param-card--flash {
+  border-color: #2196f3;
+  box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.35);
+}
+
+.param-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 8px 10px;
+  border-bottom: 1px solid #2a2e39;
+}
+
+.param-card-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.param-card-title {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.param-card-summary {
+  font-weight: 400;
+  color: #787b86;
+  font-variant-numeric: tabular-nums;
+}
+
+.param-card-kind {
+  font-size: 10px;
+  color: #787b86;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+.param-card-body {
+  padding: 8px 10px;
+}
+
+.param-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-bottom: 8px;
+}
+
+.param-row-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #787b86;
+}
+
+.param-row-value {
+  font-variant-numeric: tabular-nums;
+  color: #d1d4dc;
+}
+
+.param-row input[type="range"] {
+  width: 100%;
+  accent-color: #2196f3;
+}
+
+.param-row input[type="number"] {
+  width: 100%;
+  background: #1e222d;
+  border: 1px solid #2a2e39;
+  border-radius: 3px;
+  color: #d1d4dc;
+  padding: 4px 6px;
+  font-size: 12px;
+  font-family: inherit;
+}
+
+.param-row input[type="number"]:focus {
+  outline: none;
+  border-color: #2196f3;
+}
+
+.param-card-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+.param-card-actions button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ============================================
+ * Param Popover (chart-anchored editor)
+ * ============================================ */
+
+.param-popover {
+  z-index: 100;
+  background: #131722;
+  border: 1px solid #2a2e39;
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+  font-family: inherit;
+  color: #d1d4dc;
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.param-popover-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  background: #131722;
+  border-bottom: 1px solid #2a2e39;
+}
+
+.param-popover-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.param-popover .param-card-body {
+  padding: 8px 10px;
 }
 
 /* ============================================

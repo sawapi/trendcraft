@@ -33,6 +33,14 @@ export type ChartInstance = {
   // Series query
   getAllSeries(): SeriesInfo[];
   getVisibleRange(): VisibleRangeChangeData | null;
+  /**
+   * Returns the legend row element for `seriesId`, or `null` if no labeled row
+   * is currently rendered for it. Useful as a live anchor for popovers/menus
+   * triggered from a `seriesEditRequest`/`seriesRemoveRequest` event — the
+   * payload's `anchorEl` is detached after a series remove+add cycle, so
+   * re-resolving via this method keeps the affordance attached.
+   */
+  getLegendRow(seriesId: string): HTMLElement | null;
 
   // Signals & Trades
   addSignals(signals: SignalMarker[]): void;

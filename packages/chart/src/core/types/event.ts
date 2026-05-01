@@ -12,9 +12,27 @@ export type ChartEvent =
   | "paneResize"
   | "seriesAdded"
   | "seriesRemoved"
+  | "seriesEditRequest"
+  | "seriesRemoveRequest"
   | "dataFiltered"
   | "drawingComplete"
   | "error";
+
+/**
+ * Payload for `seriesEditRequest` and `seriesRemoveRequest` events. Fired when
+ * the user clicks the edit / remove affordance on a legend row. The chart
+ * never edits or removes the series itself — it only delegates the intent
+ * back to the host application, which owns indicator parameters and lifecycle.
+ *
+ * `anchorEl` is the DOM element of the clicked legend row (or button), so the
+ * host can position a popover next to the user's cursor without having to
+ * query the chart's internal selectors. Same window only — for cross-frame
+ * use, derive a bounding rect from it on the host side.
+ */
+export type SeriesActionData = {
+  seriesId: string;
+  anchorEl: HTMLElement;
+};
 
 export type CrosshairMoveData = {
   time: TimeValue | null;
