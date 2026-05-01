@@ -39,20 +39,30 @@ export class DrawingTool {
     this._deps.requestRender();
   }
 
-  handleTap(pos: PointerInfo): void {
-    if (!this._activeTool) return;
+  /** True when a drawing tool is selected and waiting for taps. Used by the
+   *  chart to suppress the generic `click` event while drawing is engaged. */
+  isActive(): boolean {
+    return this._activeTool !== null;
+  }
+
+  /**
+   * Returns `true` when the tap was consumed (a drawing tool was active and
+   * processed it), so callers can skip emitting a generic `click` event.
+   */
+  handleTap(pos: PointerInfo): boolean {
+    if (!this._activeTool) return false;
 
     const ts = this._deps.getTimeScale();
     const candles = this._deps.getCandles();
     const idx = ts.xToIndex(pos.x);
     const candle = candles[idx];
-    if (!candle) return;
+    if (!candle) return false;
     const time = candle.time;
 
     const mainPane = this._deps.getLayout().paneRects.find((p) => p.id === "main");
-    if (!mainPane) return;
+    if (!mainPane) return false;
     const scales = this._deps.getPriceScales().get("main");
-    if (!scales) return;
+    if (!scales) return false;
     const price = scales.right.yToPrice(pos.y - mainPane.y);
 
     const tool = this._activeTool;
@@ -61,7 +71,7 @@ export class DrawingTool {
 
     if (oneClick) {
       this._complete(time, price, time, price);
-      return;
+      return true;
     }
 
     // Two-click tools
@@ -71,6 +81,7 @@ export class DrawingTool {
     } else {
       this._complete(this._inProgress.startTime, this._inProgress.startPrice, time, price);
     }
+    return true;
   }
 
   buildPreview(): Drawing | undefined {
