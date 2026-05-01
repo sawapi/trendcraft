@@ -33,6 +33,7 @@ The studio runs **fully offline with no LLM key**. It uses `detectMarketRegime` 
 | PR12 | OptimizationPanel — grid search + walk-forward UI | |
 | PR13 | StrategyDnaPanel — genome viz + sensitivity heatmap + robustness | |
 | PR14 | chart: live recompute for batch-only presets in Replay (carved out from PR5) | |
+| PR15 | chart: shared signal-pattern primitive (zigzag + neckline + target, extracted from indicator-showcase; carved out from PR6) | |
 | Phase 2 | Ask AI panel via `@trendcraft/mcp` tools (LLM tool-use) | future |
 
 When the full set lands, Studio will be a true superset of `echarts-viewer`'s analysis surface, all rendered through `@trendcraft/chart`.
