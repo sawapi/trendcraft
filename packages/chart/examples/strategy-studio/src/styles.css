@@ -55,6 +55,8 @@ body,
 
 .pane.center {
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .pane-header {
@@ -732,4 +734,182 @@ button.ghost.danger:hover {
   color: #787b86;
   text-align: center;
   border-top: 1px solid #2a2e39;
+}
+
+/* ============================================
+ * Replay Controls (top of chart pane)
+ * ============================================ */
+
+.replay-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 6px 12px;
+  background: #131722;
+  border-bottom: 1px solid #2a2e39;
+  font-size: 11px;
+  color: #d1d4dc;
+  flex-wrap: wrap;
+  min-height: 36px;
+}
+
+.replay-toolbar--ghost {
+  background: transparent;
+  color: #787b86;
+}
+
+.replay-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+}
+
+.replay-hint strong {
+  color: #d1d4dc;
+}
+
+.replay-hint-icon {
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgba(33, 150, 243, 0.25);
+  color: #fff;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+}
+
+.replay-cluster {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.replay-trailing {
+  margin-left: auto;
+}
+
+.replay-label {
+  font-size: 10px;
+  color: #787b86;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-right: 4px;
+}
+
+.replay-cursor {
+  font-variant-numeric: tabular-nums;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 11px;
+  color: #d1d4dc;
+}
+
+.replay-btn {
+  background: #1e222d;
+  border: 1px solid #2a2e39;
+  color: #d1d4dc;
+  border-radius: 3px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  min-width: 28px;
+  line-height: 1;
+}
+
+.replay-btn:hover {
+  background: #2a2e39;
+}
+
+.replay-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.replay-btn.primary {
+  background: #2196f3;
+  border-color: #2196f3;
+  color: #fff;
+  font-weight: 600;
+}
+
+.replay-btn.primary:hover {
+  background: #1976d2;
+}
+
+.replay-btn.primary:disabled {
+  background: #1e222d;
+  border-color: #2a2e39;
+  color: #787b86;
+}
+
+.replay-btn.small {
+  padding: 3px 7px;
+  font-size: 10px;
+  min-width: 0;
+}
+
+.replay-btn.small.active {
+  background: rgba(33, 150, 243, 0.25);
+  border-color: rgba(33, 150, 243, 0.6);
+  color: #fff;
+}
+
+.replay-btn.ghost {
+  background: transparent;
+  color: #787b86;
+}
+
+.replay-btn.ghost:hover {
+  background: rgba(239, 83, 80, 0.18);
+  color: #ef5350;
+}
+
+.replay-progress {
+  flex: 1 1 120px;
+  min-width: 80px;
+  height: 4px;
+  background: #1e222d;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.replay-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #2196f3, #4dabf5);
+  transition: width 100ms linear;
+}
+
+.replay-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  background: rgba(239, 83, 80, 0.2);
+  border: 1px solid rgba(239, 83, 80, 0.4);
+  color: #ef5350;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
+.replay-badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ef5350;
+  animation: replay-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes replay-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
 }

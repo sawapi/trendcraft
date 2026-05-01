@@ -5,11 +5,14 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "r
 import { indicatorPresets, parseStrategy, validateStrategyJSON } from "trendcraft";
 import { useBacktestRunner } from "./hooks/useBacktestRunner";
 import { useRegime } from "./hooks/useRegime";
+import { type SimulatorHandle, createLiveSimulator } from "./lib/live-simulator";
+import { clampedSeedEnd, lastEmittedIdx } from "./lib/replay";
 import { sampleCandles } from "./lib/sample-data";
 import { builderReducer, initialBuilderState, strategyJSONToState } from "./lib/strategy-state";
 import { KIND_TO_PRESET_KEY, localStudioAPI } from "./lib/studio-api";
 import { ParamPopover } from "./panels/ParamPopover";
 import { PresetSelector } from "./panels/PresetSelector";
+import { ReplayControls, type SpeedTier } from "./panels/ReplayControls";
 import { ResultsSummary } from "./panels/ResultsSummary";
 import { StrategyBuilder } from "./panels/StrategyBuilder";
 
@@ -27,6 +30,24 @@ export type IndicatorInstance = {
   params: Record<string, number>;
 };
 
+export type ReplayStatus = "idle" | "playing" | "paused" | "complete";
+
+export type ReplayState =
+  | { mode: "static" }
+  | {
+      mode: "live";
+      cursorIndex: number;
+      status: ReplayStatus;
+      speed: SpeedTier;
+    };
+
+export const SPEED_MS: Record<SpeedTier, number> = {
+  "1x": 250,
+  "2x": 125,
+  "5x": 50,
+  Max: 8,
+};
+
 export function App() {
   const candles = sampleCandles;
   const regime = useRegime(candles);
@@ -42,6 +63,11 @@ export function App() {
   const popoverStateRef = useRef(popoverState);
   popoverStateRef.current = popoverState;
   const nextIdRef = useRef(1);
+
+  const [replay, setReplay] = useState<ReplayState>({ mode: "static" });
+  const [progress, setProgress] = useState(0);
+  const replayRef = useRef(replay);
+  replayRef.current = replay;
 
   const newInstance = useCallback(
     (kind: string): IndicatorInstance => ({
@@ -110,29 +136,115 @@ export function App() {
   // user hasn't actually changed anything.
   const paramSigRef = useRef<Map<string, string>>(new Map());
   const seriesIdToInstanceIdRef = useRef<Map<string, string>>(new Map());
+  const simulatorRef = useRef<SimulatorHandle | null>(null);
 
+  // Connection sessions are keyed by mode + cursor so toggling Replay and
+  // re-anchoring both rebuild from scratch. Speed changes don't restart the
+  // session — they go through `setIntervalMs` in a separate effect.
+  const sessionKey = replay.mode === "live" ? `live-${replay.cursorIndex}` : "static";
+
+  // Register TrendCraft-specific introspection rules + presets so chart-side
+  // shapes like adaptiveRsi (`{rsi, effectivePeriod, ...}`), connorsRsi,
+  // klinger, vsa etc. are auto-detected and rendered. Must run only once per
+  // chart instance — `chart.addRule` appends to the process-wide registry,
+  // so calling this on every replay rebuild would duplicate every rule and
+  // slow down shape detection over time.
   useEffect(() => {
     if (!chart) return;
-    // Register TrendCraft-specific introspection rules + presets so chart-side
-    // shapes like adaptiveRsi (`{rsi, effectivePeriod, ...}`), connorsRsi,
-    // klinger, vsa etc. are auto-detected and rendered. Without this they fall
-    // through generic introspection and end up labelled "Indicator" / "Series"
-    // with no visible series.
     registerTrendCraftPresets(chart);
-    const conn = connectIndicators(chart, {
-      presets: indicatorPresets,
-      candles,
-    });
+  }, [chart]);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: sessionKey is the trigger key — speed is handled in a separate effect, replay is read via ref.
+  useEffect(() => {
+    if (!chart) return;
+    const r = replayRef.current;
+    let conn: IndicatorConnection;
+    if (r.mode === "live") {
+      const seedEnd = clampedSeedEnd(candles, r.cursorIndex);
+      const sim = createLiveSimulator({
+        candles,
+        seedRatio: seedEnd / candles.length,
+        intervalMs: SPEED_MS[r.speed],
+      });
+      simulatorRef.current = sim;
+      // Pass `[]` for backfill: the simulator's live.completedCandles already
+      // holds the seed, and connectIndicators concatenates `candles` +
+      // `live.completedCandles` for warm-up. Passing the full `candles` here
+      // would duplicate the seed AND warm indicators with future bars the
+      // replay hasn't reached — exactly the look-ahead leak Replay exists
+      // to prevent.
+      // KNOWN LIMITATION (PR14 follow-up): batch-only presets (no
+      // `createFactory`, e.g. adaptiveRsi, heikinAshi) freeze at the seed
+      // boundary in Replay mode. `connectIndicators` warms them up once
+      // and never re-computes on candleComplete. Fixing this needs a
+      // chart-side change so the host doesn't have to know which presets
+      // are batch-only — see PR14 in the Studio epic.
+      conn = connectIndicators(chart, {
+        presets: indicatorPresets,
+        candles: [],
+        live: sim.live,
+      });
+    } else {
+      simulatorRef.current = null;
+      // Restore the full candle history. Live mode replaces the chart's
+      // candles with `liveSource.completedCandles` (= seed only); without
+      // this reset, exiting Replay would leave the chart stuck on the seed
+      // slice — the `candles` prop reference to useTrendChart hasn't
+      // changed, so its own effect won't re-fire.
+      chart.setCandles(candles);
+      conn = connectIndicators(chart, { presets: indicatorPresets, candles });
+    }
     connectionRef.current = conn;
     handlesRef.current = new Map();
+    paramSigRef.current = new Map();
+    seriesIdToInstanceIdRef.current = new Map();
+
     return () => {
       conn.disconnect();
+      simulatorRef.current?.dispose();
+      simulatorRef.current = null;
       connectionRef.current = null;
       handlesRef.current.clear();
       paramSigRef.current.clear();
+      seriesIdToInstanceIdRef.current.clear();
     };
-  }, [chart, candles]);
+  }, [chart, candles, sessionKey]);
 
+  // Speed changes flip an existing simulator's interval without restarting.
+  useEffect(() => {
+    if (replay.mode !== "live") return;
+    simulatorRef.current?.setIntervalMs(SPEED_MS[replay.speed]);
+  }, [replay]);
+
+  // Mirror simulator state (play/idle/complete/progress) into React. rAF-coalesced
+  // so a Max-speed playback (~125 ticks/sec) doesn't flood React with renders.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: sessionKey re-binds the listener whenever the simulator instance is replaced.
+  useEffect(() => {
+    const sim = simulatorRef.current;
+    if (!sim || replay.mode !== "live") {
+      setProgress(0);
+      return;
+    }
+    let rafId: number | null = null;
+    const flush = () => {
+      rafId = null;
+      const s = sim.getState();
+      setProgress(sim.getProgress());
+      setReplay((prev) =>
+        prev.mode === "live" && prev.status !== s ? { ...prev, status: s } : prev,
+      );
+    };
+    const unsub = sim.onChange(() => {
+      if (rafId !== null) return;
+      rafId = requestAnimationFrame(flush);
+    });
+    return () => {
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      unsub();
+    };
+  }, [replay.mode, sessionKey]);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: sessionKey re-runs the mount sweep after every connection rebuild.
   useEffect(() => {
     const conn = connectionRef.current;
     if (!conn) return;
@@ -195,7 +307,7 @@ export function App() {
     for (const id of [...handles.keys()]) {
       if (!liveIds.has(id)) unmount(id);
     }
-  }, [instances, chart]);
+  }, [instances, chart, sessionKey]);
 
   // The chart announces lifecycle intent (⚙/✕ on legend rows) but never acts
   // on it — the host owns indicator lifecycle.
@@ -213,19 +325,96 @@ export function App() {
       const instId = seriesIdToInstanceIdRef.current.get(seriesId);
       if (instId) setInstances((prev) => prev.filter((i) => i.id !== instId));
     };
+    const onClick = (data: unknown) => {
+      const payload = data as { index: number | null } | null;
+      if (payload?.index == null) return;
+      // Static-mode click anchors Replay at the clicked bar (TradingView's
+      // signature UX). Live-mode clicks are ignored — re-anchoring mid-replay
+      // would surprise the user; use Exit ✕ first.
+      // `cursorIndex` becomes seedEnd downstream and the seed is
+      // `candles[0..seedEnd-1]`, so add 1 to include the clicked candle in
+      // the snapshot rather than treating it as the first queued bar.
+      if (replayRef.current.mode === "static") {
+        setReplay({
+          mode: "live",
+          cursorIndex: payload.index + 1,
+          status: "idle",
+          speed: "1x",
+        });
+      }
+    };
     chart.on("seriesEditRequest", onEdit);
     chart.on("seriesRemoveRequest", onRemove);
+    chart.on("click", onClick);
     return () => {
       chart.off("seriesEditRequest", onEdit);
       chart.off("seriesRemoveRequest", onRemove);
+      chart.off("click", onClick);
     };
   }, [chart]);
+
+  const replayPlay = useCallback(() => {
+    simulatorRef.current?.play();
+  }, []);
+  const replayPause = useCallback(() => {
+    simulatorRef.current?.pause();
+  }, []);
+  const replayStep = useCallback(() => {
+    simulatorRef.current?.stepOnce();
+  }, []);
+  const replaySetSpeed = useCallback((speed: SpeedTier) => {
+    setReplay((prev) => (prev.mode === "live" ? { ...prev, speed } : prev));
+  }, []);
+  const replayExit = useCallback(() => {
+    setReplay({ mode: "static" });
+  }, []);
+
+  // Hotkeys: Space = play/pause, → = step. Skip when typing in a form field.
+  useEffect(() => {
+    function isTyping(e: KeyboardEvent): boolean {
+      const t = e.target as HTMLElement | null;
+      if (!t) return false;
+      const tag = t.tagName;
+      return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || t.isContentEditable;
+    }
+    function onKey(e: KeyboardEvent) {
+      const r = replayRef.current;
+      if (r.mode !== "live") return;
+      if (isTyping(e)) return;
+      if (e.key === " " || e.code === "Space") {
+        e.preventDefault();
+        if (r.status === "playing") replayPause();
+        else replayPlay();
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        replayStep();
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [replayPlay, replayPause, replayStep]);
 
   // Close the popover if its instance was removed (or never existed).
   const popoverInstance = useMemo(() => {
     if (!popoverState) return null;
     return instances.find((i) => i.id === popoverState.instanceId) ?? null;
   }, [popoverState, instances]);
+
+  // Integer index of the *last emitted* candle in candle space. The simulator
+  // tracks "next to emit"; subtract 1 so the cursor and backtest slice never
+  // include a bar the user hasn't seen yet (the whole point of Replay).
+  // Recomputes whenever progress moves but returns the same number across
+  // most frames — downstream memos depending on it skip recompute via
+  // Object.is, so Max-speed playback doesn't churn the right pane.
+  const playheadIdx = useMemo(
+    () => (replay.mode !== "live" ? null : lastEmittedIdx(candles, replay.cursorIndex, progress)),
+    [replay, progress, candles],
+  );
+
+  const cursorCandle = useMemo(
+    () => (playheadIdx == null ? null : (candles[playheadIdx] ?? null)),
+    [candles, playheadIdx],
+  );
 
   const headerInfo = useMemo(
     () => `${candles.length} bars · LLM-free · regime-aware`,
@@ -240,7 +429,26 @@ export function App() {
   );
   const [jsonText, setJsonText] = useState<string>("");
   const [importError, setImportError] = useState<string | null>(null);
-  const runner = useBacktestRunner(chart, candles);
+
+  // Backtest snapshot against history up to the current playhead — what the
+  // user sees on chart matches what backtest sees.
+  const backtestCandles = useMemo(
+    () => (playheadIdx == null ? candles : candles.slice(0, playheadIdx + 1)),
+    [candles, playheadIdx],
+  );
+
+  const runner = useBacktestRunner(chart, backtestCandles);
+
+  // Stale-result guard: stepping or toggling Replay changes the slice the
+  // backtest *would* run against, but the cached result and chart trade
+  // markers are still from the previous slice. Drop the React state so the
+  // right pane prompts the user to re-run; chart-side trade markers persist
+  // until the next `addBacktest` call (no public clear API yet — accepted
+  // visual lag).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: only fires when the slice boundary moves; runner.reset/state are stable across renders.
+  useEffect(() => {
+    if (runner.state.lastResult) runner.reset();
+  }, [playheadIdx, replay.mode]);
 
   const handleImport = useCallback((raw: string) => {
     if (!raw.trim()) {
@@ -282,7 +490,17 @@ export function App() {
       </aside>
 
       <main className="pane center">
-        <div ref={containerRef} style={{ width: "100%", height: "100%" }} />
+        <ReplayControls
+          replay={replay}
+          progress={progress}
+          cursorTime={cursorCandle?.time ?? null}
+          onPlay={replayPlay}
+          onPause={replayPause}
+          onStep={replayStep}
+          onSpeed={replaySetSpeed}
+          onExit={replayExit}
+        />
+        <div ref={containerRef} style={{ flex: "1 1 auto", width: "100%", minHeight: 0 }} />
       </main>
 
       <aside className="pane right">
