@@ -507,23 +507,48 @@ export function App() {
 
   const runner = useBacktestRunner(chart, backtestCandles);
 
-  // Plugin lifecycle: each enabled kind reconnects when (a) the user toggles
-  // it, (b) the playhead moves (so plugins reflect the visible candle range
-  // without look-ahead), or (c) a new chart connection rebuilds (Replay
-  // anchor change). Failed builds — Andrews Pitchfork without three swings,
-  // Volume Profile under 20 bars — are recorded so the panel can dim the
-  // row instead of leaving the user wondering why nothing rendered.
+  // Plugins are heavyweight (SMC alone runs 5 sub-computations across the
+  // slice) — rebuilding 25× / sec at Max-speed Replay would block the main
+  // thread. Strategy: freeze the playhead trigger during playback so existing
+  // overlays stay on their last snapshot, AND diff add/remove on toggle so
+  // flipping a single plugin only computes that one — not the unchanged
+  // siblings. The user gets a fresh snapshot the moment they pause / step
+  // / exit, which matches how analysts actually use these overlays.
+  const skipPluginRebuild = replay.mode === "live" && replay.status === "playing";
+  const lastPluginPlayheadRef = useRef<number | null>(playheadIdx);
+  if (!skipPluginRebuild) lastPluginPlayheadRef.current = playheadIdx;
+  const pluginPlayheadDep = lastPluginPlayheadRef.current;
+
+  const prevPluginSliceKeyRef = useRef<string>("init");
+  const prevPluginChartRef = useRef<typeof chart | null>(null);
+  const pluginSliceKey = `${sessionKey}:${pluginPlayheadDep ?? "null"}`;
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: backtestCandles is read at build time; pluginSliceKey is the gated trigger and prevSliceKey/prevChart refs distinguish "slice or chart changed → rebuild all" from "toggle only → diff add/remove".
   useEffect(() => {
     if (!chart) return;
     const handles = pluginHandlesRef.current;
-    // Full teardown + rebuild on every change. backtestCandles shifts each
-    // playhead step in Replay, so plugins must recompute against the new
-    // slice; cheap enough at v1 catalog size that diffing is overkill.
-    for (const handle of handles.values()) handle.remove();
-    handles.clear();
+    // A new chart instance invalidates every primitive registration just
+    // like a slice move does — old handles point at the previous chart and
+    // would silently become orphans if we tried to diff against them.
+    const chartChanged = prevPluginChartRef.current !== chart;
+    const sliceMoved = prevPluginSliceKeyRef.current !== pluginSliceKey;
+    const fullRebuild = chartChanged || sliceMoved;
+
+    if (fullRebuild) {
+      for (const handle of handles.values()) handle.remove();
+      handles.clear();
+    } else {
+      for (const [kind, handle] of [...handles]) {
+        if (!enabledPlugins.has(kind)) {
+          handle.remove();
+          handles.delete(kind);
+        }
+      }
+    }
 
     const stillUnavailable = new Set<string>();
     for (const kind of enabledPlugins) {
+      if (handles.has(kind)) continue;
       const def = PLUGIN_BY_KIND.get(kind);
       if (!def) continue;
       try {
@@ -542,11 +567,22 @@ export function App() {
       return stillUnavailable;
     });
 
-    return () => {
+    prevPluginSliceKeyRef.current = pluginSliceKey;
+    prevPluginChartRef.current = chart;
+  }, [chart, enabledPlugins, pluginSliceKey]);
+
+  // Unmount-only cleanup: the build effect above manages add/remove
+  // imperatively (no per-run cleanup return), so primitives outlive each
+  // re-render. This `[]`-deps effect is the only place that tears down
+  // everything on App unmount.
+  useEffect(
+    () => () => {
+      const handles = pluginHandlesRef.current;
       for (const handle of handles.values()) handle.remove();
       handles.clear();
-    };
-  }, [chart, enabledPlugins, backtestCandles]);
+    },
+    [],
+  );
 
   // Stale-result guard: stepping or toggling Replay changes the slice the
   // backtest *would* run against, but the cached result and chart trade

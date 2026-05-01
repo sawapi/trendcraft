@@ -1,16 +1,9 @@
 /**
- * Plugin catalog for the Strategy Studio PluginsPanel. Each entry knows how
- * to compute its data sources from a candle slice and connect a chart-side
- * primitive plugin.
- *
- * The `build` function returns a `PluginHandle` (or `null` if there isn't
- * enough data for the plugin to render — e.g. Andrews Pitchfork needs three
- * alternating swings). The host owns lifecycle: it calls `build` on toggle
- * on, stashes the handle, and calls `handle.remove()` on toggle off / on
- * any session rebuild.
- *
- * Replay-aware: pass `candles` already sliced to the playhead so plugins
- * never compute over future bars.
+ * Plugin catalog for the Strategy Studio PluginsPanel. Each entry's `build`
+ * returns a `PluginHandle` or `null` when the slice is too short to render
+ * (Andrews Pitchfork needs 3 alternating swings, Volume Profile needs ≥20
+ * bars). Host owns lifecycle: build on toggle on, `handle.remove()` on
+ * toggle off or session rebuild.
  */
 
 import {
@@ -31,17 +24,14 @@ import {
   vsa,
   wyckoffPhases,
 } from "trendcraft";
+import type { CatalogEntry } from "../panels/ToggleCatalogPanel";
 import type { StudioCandle } from "./sample-data";
 
 export type PluginCategory = "smc" | "structure" | "volume";
 
 export type PluginHandle = { remove(): void };
 
-export type PluginDef = {
-  kind: string;
-  label: string;
-  category: PluginCategory;
-  description: string;
+export type PluginDef = CatalogEntry<PluginCategory> & {
   build: (chart: ChartInstance, candles: StudioCandle[]) => PluginHandle | null;
 };
 
