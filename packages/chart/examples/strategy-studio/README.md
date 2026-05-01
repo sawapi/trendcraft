@@ -23,8 +23,8 @@ The studio runs **fully offline with no LLM key**. It uses `detectMarketRegime` 
 | PR2 | scaffold + 3-pane layout + regime banner + manifest preset selector | done |
 | PR3 | StrategyBuilder (entry/exit dropdowns) + backtest + trade overlay + JSON I/O | done |
 | PR4 | ParamEditor — paramSchema-driven slider/input UI for the 96 presets | done |
-| PR5 | Replay mode — click-to-anchor, play/pause/step/speed, snapshot backtest | **this PR** |
-| PR6 | SignalsPanel — cross/divergence/pattern signal detection + markers | |
+| PR5 | Replay mode — click-to-anchor, play/pause/step/speed, snapshot backtest | done |
+| PR6 | SignalsPanel — cross/divergence/pattern signal detection + markers | **this PR** |
 | PR7 | PluginsPanel — SMC / Pitchfork / Volume Profile / Wyckoff plugin toggles | |
 | PR8 | RiskPanel — position sizing (Kelly/ATR) + VaR/CVaR/Risk Parity | |
 | PR9 | MetaStrategyPanel — equity curve trading + strategy rotation | |
