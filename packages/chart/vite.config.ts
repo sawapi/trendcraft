@@ -39,5 +39,10 @@ export default defineConfig({
   test: {
     globals: true,
     environment: "node",
+    include: [
+      "src/**/*.test.{ts,tsx}",
+      "react/**/*.test.{ts,tsx}",
+      "vue/**/*.test.{ts,tsx}",
+    ],
   },
 });
