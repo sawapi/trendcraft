@@ -17,6 +17,7 @@ import { PluginsPanel } from "./panels/PluginsPanel";
 import { PresetSelector } from "./panels/PresetSelector";
 import { ReplayControls, type SpeedTier } from "./panels/ReplayControls";
 import { ResultsSummary } from "./panels/ResultsSummary";
+import { RiskPanel } from "./panels/RiskPanel";
 import { SignalsPanel } from "./panels/SignalsPanel";
 import { StrategyBuilder } from "./panels/StrategyBuilder";
 
@@ -673,6 +674,8 @@ export function App() {
         />
         <div className="pane-divider" />
         <ResultsSummary result={runner.state.lastResult?.result} />
+        <div className="pane-divider" />
+        <RiskPanel candles={backtestCandles} lastBacktest={runner.state.lastResult?.result} />
       </aside>
 
       {popoverState && popoverInstance && (

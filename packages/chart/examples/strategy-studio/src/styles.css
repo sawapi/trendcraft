@@ -1000,3 +1000,127 @@ button.ghost.danger:hover {
 .signal-count.signal-count--warn {
   background: rgba(239, 83, 80, 0.35);
 }
+
+/* ---------- Risk panel ---------- */
+
+.risk-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.risk-section {
+  padding: 10px 12px 12px;
+  border-bottom: 1px solid #1e222d;
+}
+
+.risk-section:last-child {
+  border-bottom: none;
+}
+
+.risk-section-title {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #787b86;
+  margin-bottom: 8px;
+}
+
+.risk-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.risk-tab {
+  flex: 1;
+  padding: 4px 6px;
+  font-size: 11px;
+  background: #0e1320;
+  border: 1px solid #2a2e39;
+  color: #d1d4dc;
+  border-radius: 3px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.risk-tab:hover {
+  border-color: #3a3e49;
+}
+
+.risk-tab.active {
+  background: #2196f3;
+  border-color: #2196f3;
+  color: #fff;
+}
+
+.risk-inputs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.risk-input {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.risk-input span {
+  font-size: 10px;
+  color: #787b86;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.risk-input input {
+  background: #0a0e17;
+  border: 1px solid #2a2e39;
+  color: #d1d4dc;
+  border-radius: 3px;
+  padding: 4px 6px;
+  font-size: 12px;
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+  width: 100%;
+}
+
+.risk-input input:focus {
+  outline: none;
+  border-color: #2196f3;
+}
+
+.risk-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #d1d4dc;
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+
+.risk-checkbox input {
+  cursor: pointer;
+}
+
+.risk-hint {
+  color: #787b86;
+}
+
+.risk-result {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.risk-error {
+  grid-column: 1 / -1;
+  font-size: 11px;
+  color: #ef5350;
+  padding: 6px 8px;
+  border: 1px solid rgba(239, 83, 80, 0.3);
+  border-radius: 3px;
+  background: rgba(239, 83, 80, 0.08);
+}
