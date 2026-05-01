@@ -42,6 +42,19 @@ export type CrosshairMoveData = {
   paneId: string;
 };
 
+/**
+ * Payload for the chart-wide `click` event. Fires on any pointer tap that
+ * isn't consumed by the drawing tool. `index` and `time` resolve to the
+ * candle nearest the click; `null` when the click landed outside the
+ * data range.
+ */
+export type ChartClickData = {
+  x: number;
+  y: number;
+  index: number | null;
+  time: TimeValue | null;
+};
+
 export type VisibleRangeChangeData = {
   startTime: TimeValue;
   endTime: TimeValue;

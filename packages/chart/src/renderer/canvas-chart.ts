@@ -439,7 +439,25 @@ export class CanvasChart implements ChartInstance {
       },
       locale: this._locale,
     });
-    this._detachDrawTap = onTap(this._canvas, (pos) => this._drawingTool?.handleTap(pos));
+    this._detachDrawTap = onTap(this._canvas, (pos) => {
+      // Drawing mode owns every tap while engaged — even taps it can't place
+      // (volume pane, outside data range) must NOT fall through to the
+      // generic `click` event, or hosts watching for Replay anchors / marker
+      // placement will fire spuriously while the user is drawing.
+      if (this._drawingTool?.isActive()) {
+        this._drawingTool.handleTap(pos);
+        return;
+      }
+      const idx = this._timeScale.xToIndex(pos.x);
+      const candles = this._data.candles;
+      const inRange = idx >= 0 && idx < candles.length;
+      this._emit("click", {
+        x: pos.x,
+        y: pos.y,
+        index: inRange ? idx : null,
+        time: inRange ? candles[idx].time : null,
+      });
+    });
 
     // Start render loop
     this._renderLoop();
