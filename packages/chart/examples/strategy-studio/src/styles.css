@@ -992,3 +992,11 @@ button.ghost.danger:hover {
   background: rgba(38, 166, 154, 0.35);
   color: #fff;
 }
+
+.signal-item.unavailable .signal-name {
+  color: #787b86;
+}
+
+.signal-count.signal-count--warn {
+  background: rgba(239, 83, 80, 0.35);
+}

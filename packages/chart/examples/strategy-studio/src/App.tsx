@@ -6,12 +6,14 @@ import { indicatorPresets, parseStrategy, validateStrategyJSON } from "trendcraf
 import { useBacktestRunner } from "./hooks/useBacktestRunner";
 import { useRegime } from "./hooks/useRegime";
 import { type SimulatorHandle, createLiveSimulator } from "./lib/live-simulator";
+import { PLUGIN_BY_KIND, type PluginHandle } from "./lib/plugins";
 import { clampedSeedEnd, lastEmittedIdx } from "./lib/replay";
 import { sampleCandles } from "./lib/sample-data";
 import { SIGNAL_BY_KIND } from "./lib/signals";
 import { builderReducer, initialBuilderState, strategyJSONToState } from "./lib/strategy-state";
 import { KIND_TO_PRESET_KEY, localStudioAPI } from "./lib/studio-api";
 import { ParamPopover } from "./panels/ParamPopover";
+import { PluginsPanel } from "./panels/PluginsPanel";
 import { PresetSelector } from "./panels/PresetSelector";
 import { ReplayControls, type SpeedTier } from "./panels/ReplayControls";
 import { ResultsSummary } from "./panels/ResultsSummary";
@@ -131,6 +133,20 @@ export function App() {
       return next;
     });
   }, []);
+
+  const [enabledPlugins, setEnabledPlugins] = useState<ReadonlySet<string>>(() => new Set());
+  const togglePlugin = useCallback((kind: string) => {
+    setEnabledPlugins((prev) => {
+      const next = new Set(prev);
+      if (next.has(kind)) next.delete(kind);
+      else next.add(kind);
+      return next;
+    });
+  }, []);
+  const [unavailablePlugins, setUnavailablePlugins] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
+  const pluginHandlesRef = useRef<Map<string, PluginHandle>>(new Map());
 
   // Compute markers for each enabled signal once per (set + candles); the
   // result is referentially stable across Replay progress ticks so the
@@ -491,6 +507,47 @@ export function App() {
 
   const runner = useBacktestRunner(chart, backtestCandles);
 
+  // Plugin lifecycle: each enabled kind reconnects when (a) the user toggles
+  // it, (b) the playhead moves (so plugins reflect the visible candle range
+  // without look-ahead), or (c) a new chart connection rebuilds (Replay
+  // anchor change). Failed builds — Andrews Pitchfork without three swings,
+  // Volume Profile under 20 bars — are recorded so the panel can dim the
+  // row instead of leaving the user wondering why nothing rendered.
+  useEffect(() => {
+    if (!chart) return;
+    const handles = pluginHandlesRef.current;
+    // Full teardown + rebuild on every change. backtestCandles shifts each
+    // playhead step in Replay, so plugins must recompute against the new
+    // slice; cheap enough at v1 catalog size that diffing is overkill.
+    for (const handle of handles.values()) handle.remove();
+    handles.clear();
+
+    const stillUnavailable = new Set<string>();
+    for (const kind of enabledPlugins) {
+      const def = PLUGIN_BY_KIND.get(kind);
+      if (!def) continue;
+      try {
+        const handle = def.build(chart, backtestCandles);
+        if (handle) handles.set(kind, handle);
+        else stillUnavailable.add(kind);
+      } catch (err) {
+        console.warn(`[strategy-studio] Plugin ${kind} failed:`, err);
+        stillUnavailable.add(kind);
+      }
+    }
+    setUnavailablePlugins((prev) => {
+      if (prev.size === stillUnavailable.size && [...prev].every((k) => stillUnavailable.has(k))) {
+        return prev;
+      }
+      return stillUnavailable;
+    });
+
+    return () => {
+      for (const handle of handles.values()) handle.remove();
+      handles.clear();
+    };
+  }, [chart, enabledPlugins, backtestCandles]);
+
   // Stale-result guard: stepping or toggling Replay changes the slice the
   // backtest *would* run against, but the cached result and chart trade
   // markers are still from the previous slice. Drop the React state so the
@@ -544,6 +601,12 @@ export function App() {
           enabled={enabledSignals}
           countByKind={signalCountByKind}
           onToggle={toggleSignal}
+        />
+        <div className="pane-divider" />
+        <PluginsPanel
+          enabled={enabledPlugins}
+          unavailable={unavailablePlugins}
+          onToggle={togglePlugin}
         />
       </aside>
 
