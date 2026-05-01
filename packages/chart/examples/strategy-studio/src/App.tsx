@@ -1,4 +1,4 @@
-import { type IndicatorConnection, connectIndicators } from "@trendcraft/chart";
+import { type IndicatorConnection, type SignalMarker, connectIndicators } from "@trendcraft/chart";
 import { registerTrendCraftPresets } from "@trendcraft/chart/presets";
 import { useTrendChart } from "@trendcraft/chart/react";
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
@@ -8,12 +8,14 @@ import { useRegime } from "./hooks/useRegime";
 import { type SimulatorHandle, createLiveSimulator } from "./lib/live-simulator";
 import { clampedSeedEnd, lastEmittedIdx } from "./lib/replay";
 import { sampleCandles } from "./lib/sample-data";
+import { SIGNAL_BY_KIND } from "./lib/signals";
 import { builderReducer, initialBuilderState, strategyJSONToState } from "./lib/strategy-state";
 import { KIND_TO_PRESET_KEY, localStudioAPI } from "./lib/studio-api";
 import { ParamPopover } from "./panels/ParamPopover";
 import { PresetSelector } from "./panels/PresetSelector";
 import { ReplayControls, type SpeedTier } from "./panels/ReplayControls";
 import { ResultsSummary } from "./panels/ResultsSummary";
+import { SignalsPanel } from "./panels/SignalsPanel";
 import { StrategyBuilder } from "./panels/StrategyBuilder";
 
 function resolvePresetId(kind: string): string {
@@ -119,6 +121,42 @@ export function App() {
     for (const i of instances) counts[i.kind] = (counts[i.kind] ?? 0) + 1;
     return counts;
   }, [instances]);
+
+  const [enabledSignals, setEnabledSignals] = useState<ReadonlySet<string>>(() => new Set());
+  const toggleSignal = useCallback((kind: string) => {
+    setEnabledSignals((prev) => {
+      const next = new Set(prev);
+      if (next.has(kind)) next.delete(kind);
+      else next.add(kind);
+      return next;
+    });
+  }, []);
+
+  // Compute markers for each enabled signal once per (set + candles); the
+  // result is referentially stable across Replay progress ticks so the
+  // playhead-filter memo below skips recompute unless the playhead moves.
+  const signalMarkersByKind = useMemo(() => {
+    const out: Record<string, SignalMarker[]> = {};
+    for (const kind of enabledSignals) {
+      const def = SIGNAL_BY_KIND.get(kind);
+      if (!def) continue;
+      try {
+        out[kind] = def.compute(candles);
+      } catch (err) {
+        console.warn(`[strategy-studio] Signal ${kind} failed:`, err);
+        out[kind] = [];
+      }
+    }
+    return out;
+  }, [enabledSignals, candles]);
+
+  const signalCountByKind = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const [kind, markers] of Object.entries(signalMarkersByKind)) {
+      counts[kind] = markers.length;
+    }
+    return counts;
+  }, [signalMarkersByKind]);
 
   const { containerRef, chart } = useTrendChart({
     candles,
@@ -416,6 +454,20 @@ export function App() {
     [candles, playheadIdx],
   );
 
+  // Markers visible to the chart: in Replay mode, hide anything past the
+  // playhead so the user can't see signals that haven't "happened yet".
+  const visibleSignalMarkers = useMemo(() => {
+    const all: SignalMarker[] = [];
+    for (const markers of Object.values(signalMarkersByKind)) all.push(...markers);
+    if (playheadIdx == null) return all;
+    const cutoff = candles[playheadIdx]?.time;
+    return cutoff == null ? all : all.filter((m) => m.time <= cutoff);
+  }, [signalMarkersByKind, playheadIdx, candles]);
+
+  useEffect(() => {
+    chart?.addSignals(visibleSignalMarkers);
+  }, [chart, visibleSignalMarkers]);
+
   const headerInfo = useMemo(
     () => `${candles.length} bars · LLM-free · regime-aware`,
     [candles.length],
@@ -486,6 +538,12 @@ export function App() {
           instanceCountsByKind={instanceCountsByKind}
           onToggle={toggleKind}
           onAdd={addInstanceOfKind}
+        />
+        <div className="pane-divider" />
+        <SignalsPanel
+          enabled={enabledSignals}
+          countByKind={signalCountByKind}
+          onToggle={toggleSignal}
         />
       </aside>
 

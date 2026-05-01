@@ -913,3 +913,82 @@ button.ghost.danger:hover {
     opacity: 0.3;
   }
 }
+
+/* ============================================
+ * Signals Panel (left pane, below presets)
+ * ============================================ */
+
+.signals-list {
+  list-style: none;
+  padding: 0 8px 12px;
+}
+
+.signal-item {
+  border-radius: 4px;
+}
+
+.signal-item:hover {
+  background: #1e222d;
+}
+
+.signal-item.active {
+  background: rgba(38, 166, 154, 0.15);
+}
+
+.signal-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.signal-toggle:focus-visible {
+  outline: 2px solid #26a69a;
+  outline-offset: -2px;
+}
+
+.signal-check {
+  width: 14px;
+  height: 14px;
+  border: 1px solid #2a2e39;
+  border-radius: 3px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: #fff;
+  background: #1e222d;
+  flex-shrink: 0;
+}
+
+.signal-check.on {
+  background: #26a69a;
+  border-color: #26a69a;
+}
+
+.signal-name {
+  flex: 1 1 auto;
+  font-weight: 500;
+}
+
+.signal-item.active .signal-name {
+  color: #fff;
+}
+
+.signal-count {
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(38, 166, 154, 0.35);
+  color: #fff;
+}

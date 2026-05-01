@@ -23,8 +23,8 @@ The studio runs **fully offline with no LLM key**. It uses `detectMarketRegime` 
 | PR2 | scaffold + 3-pane layout + regime banner + manifest preset selector | done |
 | PR3 | StrategyBuilder (entry/exit dropdowns) + backtest + trade overlay + JSON I/O | done |
 | PR4 | ParamEditor — paramSchema-driven slider/input UI for the 96 presets | done |
-| PR5 | Replay mode — click-to-anchor, play/pause/step/speed, snapshot backtest | **this PR** |
-| PR6 | SignalsPanel — cross/divergence/pattern signal detection + markers | |
+| PR5 | Replay mode — click-to-anchor, play/pause/step/speed, snapshot backtest | done |
+| PR6 | SignalsPanel — cross/divergence/pattern signal detection + markers | **this PR** |
 | PR7 | PluginsPanel — SMC / Pitchfork / Volume Profile / Wyckoff plugin toggles | |
 | PR8 | RiskPanel — position sizing (Kelly/ATR) + VaR/CVaR/Risk Parity | |
 | PR9 | MetaStrategyPanel — equity curve trading + strategy rotation | |
@@ -33,6 +33,7 @@ The studio runs **fully offline with no LLM key**. It uses `detectMarketRegime` 
 | PR12 | OptimizationPanel — grid search + walk-forward UI | |
 | PR13 | StrategyDnaPanel — genome viz + sensitivity heatmap + robustness | |
 | PR14 | chart: live recompute for batch-only presets in Replay (carved out from PR5) | |
+| PR15 | chart: shared signal-pattern primitive (zigzag + neckline + target, extracted from indicator-showcase; carved out from PR6) | |
 | Phase 2 | Ask AI panel via `@trendcraft/mcp` tools (LLM tool-use) | future |
 
 When the full set lands, Studio will be a true superset of `echarts-viewer`'s analysis surface, all rendered through `@trendcraft/chart`.
