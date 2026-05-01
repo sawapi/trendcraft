@@ -20,9 +20,9 @@ The studio runs **fully offline with no LLM key**. It uses `detectMarketRegime` 
 
 | PR | Scope | Status |
 |---|---|---|
-| PR2 | scaffold + 3-pane layout + regime banner + manifest preset selector | **this PR** |
-| PR3 | StrategyBuilder (entry/exit dropdowns) + backtest + trade overlay + JSON I/O | next |
-| PR4 | ParamEditor — paramSchema-driven slider/input UI for the 96 presets | |
+| PR2 | scaffold + 3-pane layout + regime banner + manifest preset selector | done |
+| PR3 | StrategyBuilder (entry/exit dropdowns) + backtest + trade overlay + JSON I/O | done |
+| PR4 | ParamEditor — paramSchema-driven slider/input UI for the 96 presets | **this PR** |
 | PR5 | LiveControls — Static/Live toggle, speed presets, `createLiveCandle` integration | |
 | PR6 | SignalsPanel — cross/divergence/pattern signal detection + markers | |
 | PR7 | PluginsPanel — SMC / Pitchfork / Volume Profile / Wyckoff plugin toggles | |

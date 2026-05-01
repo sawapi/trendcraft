@@ -18,11 +18,15 @@ const CATEGORIES: IndicatorCategory[] = [
 
 type Props = {
   regime: RegimeSummary;
-  activeKinds: ReadonlySet<string>;
+  /** How many instances of each kind are currently mounted. */
+  instanceCountsByKind: Record<string, number>;
+  /** Row click — empty kind adds one, non-empty kind clears all. */
   onToggle: (kind: string) => void;
+  /** +N chip click — append another instance of the same kind. */
+  onAdd: (kind: string) => void;
 };
 
-export function PresetSelector({ regime, activeKinds, onToggle }: Props) {
+export function PresetSelector({ regime, instanceCountsByKind, onToggle, onAdd }: Props) {
   const [category, setCategory] = useState<IndicatorCategory | "all">("all");
   const [hovered, setHovered] = useState<string | null>(null);
 
@@ -55,10 +59,11 @@ export function PresetSelector({ regime, activeKinds, onToggle }: Props) {
       <div className="section-title">Suggested for this regime</div>
       <PresetList
         items={suggestions}
-        activeKinds={activeKinds}
+        instanceCountsByKind={instanceCountsByKind}
         hovered={hovered}
         onHover={setHovered}
         onToggle={onToggle}
+        onAdd={onAdd}
         emptyText="No manifest entries match this regime yet."
       />
 
@@ -77,10 +82,11 @@ export function PresetSelector({ regime, activeKinds, onToggle }: Props) {
       </select>
       <PresetList
         items={browse}
-        activeKinds={activeKinds}
+        instanceCountsByKind={instanceCountsByKind}
         hovered={hovered}
         onHover={setHovered}
         onToggle={onToggle}
+        onAdd={onAdd}
         emptyText="No indicators in this category."
       />
     </>
@@ -89,33 +95,65 @@ export function PresetSelector({ regime, activeKinds, onToggle }: Props) {
 
 type ListProps = {
   items: IndicatorManifest[];
-  activeKinds: ReadonlySet<string>;
+  instanceCountsByKind: Record<string, number>;
   hovered: string | null;
   onHover: (kind: string | null) => void;
   onToggle: (kind: string) => void;
+  onAdd: (kind: string) => void;
   emptyText: string;
 };
 
-function PresetList({ items, activeKinds, hovered, onHover, onToggle, emptyText }: ListProps) {
+function PresetList({
+  items,
+  instanceCountsByKind,
+  hovered,
+  onHover,
+  onToggle,
+  onAdd,
+  emptyText,
+}: ListProps) {
   if (items.length === 0) return <div className="empty">{emptyText}</div>;
 
   return (
     <ul className="preset-list">
       {items.map((m) => {
-        const active = activeKinds.has(m.kind);
+        const count = instanceCountsByKind[m.kind] ?? 0;
         const renderable = localStudioAPI.getIndicatorPreset(m.kind) !== undefined;
-        const className = `preset-item${active ? " active" : ""}${renderable ? "" : " disabled"}`;
+        const className = `preset-item${count > 0 ? " active" : ""}${renderable ? "" : " disabled"}`;
+        const tip = !renderable
+          ? "No chart preset (event-only or regime classifier)"
+          : count > 0
+            ? `Click to remove all ${m.displayName}; use +N to add another`
+            : `Click to add ${m.displayName}`;
         return (
           <li
             key={m.kind}
             className={className}
-            onClick={renderable ? () => onToggle(m.kind) : undefined}
             onMouseEnter={() => onHover(m.kind)}
             onMouseLeave={() => onHover(null)}
-            title={renderable ? undefined : "No chart preset (event-only or regime classifier)"}
           >
-            <span className="preset-name">{m.displayName}</span>
-            <span className="preset-kind">{m.kind}</span>
+            <button
+              type="button"
+              className="preset-toggle"
+              onClick={renderable ? () => onToggle(m.kind) : undefined}
+              disabled={!renderable}
+              aria-pressed={count > 0}
+              title={tip}
+            >
+              <span className="preset-name">{m.displayName}</span>
+              <span className="preset-kind">{m.kind}</span>
+            </button>
+            {renderable && count > 0 && (
+              <button
+                type="button"
+                className="preset-count"
+                onClick={() => onAdd(m.kind)}
+                aria-label={`Add another ${m.displayName}`}
+                title={`Add another ${m.displayName} instance`}
+              >
+                +{count}
+              </button>
+            )}
             {hovered === m.kind && <ManifestTooltip manifest={m} />}
           </li>
         );
