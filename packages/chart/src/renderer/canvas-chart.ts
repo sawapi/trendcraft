@@ -165,6 +165,49 @@ export class CanvasChart implements ChartInstance {
   }
 
   /**
+   * Wire a freshly created LegendOverlay to the chart's mutation/event surface.
+   * Toggle is handled internally (chart owns visibility); edit/remove are
+   * forwarded to host listeners as `seriesEditRequest` / `seriesRemoveRequest`
+   * so the host can run its own indicator pipeline. The chart never removes a
+   * series in response to the legend ✕ — that would orphan host-side state.
+   */
+  private _wireLegend(legend: LegendOverlay): void {
+    legend.setOnToggle((seriesId, visible) => {
+      const series = this._data.getAllSeries().find((s) => s.id === seriesId);
+      if (series) {
+        series.visible = visible;
+        this._needsRender = true;
+      }
+    });
+    // Edit / remove affordances are wired lazily from `on()` so the legend
+    // only renders ⚙ / ✕ when the host has actually subscribed.
+    this._syncLegendActions(legend);
+  }
+
+  private _syncLegendActions(legend: LegendOverlay = this._legendOverlay as LegendOverlay): void {
+    if (!legend) return;
+    legend.setOnEdit(
+      this._hasListener("seriesEditRequest")
+        ? (seriesId, anchorEl) => this._emit("seriesEditRequest", { seriesId, anchorEl })
+        : null,
+    );
+    legend.setOnRemove(
+      this._hasListener("seriesRemoveRequest")
+        ? (seriesId, anchorEl) => this._emit("seriesRemoveRequest", { seriesId, anchorEl })
+        : null,
+    );
+  }
+
+  private _hasListener(event: ChartEvent): boolean {
+    const set = this._listeners.get(event);
+    return !!set && set.size > 0;
+  }
+
+  getLegendRow(seriesId: string): HTMLElement | null {
+    return this._legendOverlay?.getRowAnchor(seriesId) ?? null;
+  }
+
+  /**
    * Fire `crosshairMove` when the user's interaction has moved the snapped
    * index relative to the last emit. Called synchronously from the viewport's
    * onUpdate hook (mouse/wheel/keyboard) so syncCharts can propagate to peers
@@ -368,13 +411,7 @@ export class CanvasChart implements ChartInstance {
     // Legend overlay
     if (options?.legend !== false) {
       this._legendOverlay = new LegendOverlay(container, this._theme, this._locale);
-      this._legendOverlay.setOnToggle((seriesId, visible) => {
-        const series = this._data.getAllSeries().find((s) => s.id === seriesId);
-        if (series) {
-          series.visible = visible;
-          this._needsRender = true;
-        }
-      });
+      this._wireLegend(this._legendOverlay);
     }
 
     // Watermark
@@ -792,11 +829,24 @@ export class CanvasChart implements ChartInstance {
       set = new Set();
       this._listeners.set(event, set);
     }
+    const wasEmpty = set.size === 0;
     set.add(handler);
+    if (wasEmpty && (event === "seriesEditRequest" || event === "seriesRemoveRequest")) {
+      this._syncLegendActions();
+    }
   }
 
   off<E extends ChartEvent>(event: E, handler: (data: unknown) => void): void {
-    this._listeners.get(event)?.delete(handler);
+    const set = this._listeners.get(event);
+    if (!set) return;
+    const removed = set.delete(handler);
+    if (
+      removed &&
+      set.size === 0 &&
+      (event === "seriesEditRequest" || event === "seriesRemoveRequest")
+    ) {
+      this._syncLegendActions();
+    }
   }
 
   // ---- Public API: Theme ----
@@ -898,13 +948,7 @@ export class CanvasChart implements ChartInstance {
         this._legendOverlay = null;
       } else if (opts.legend !== false && !this._legendOverlay) {
         this._legendOverlay = new LegendOverlay(this._container, this._theme, this._locale);
-        this._legendOverlay.setOnToggle((seriesId, visible) => {
-          const series = this._data.getAllSeries().find((s) => s.id === seriesId);
-          if (series) {
-            series.visible = visible;
-            this._needsRender = true;
-          }
-        });
+        this._wireLegend(this._legendOverlay);
       }
       this._needsRender = true;
     }
