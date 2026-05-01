@@ -21,16 +21,12 @@ import {
   macdDivergence,
   rsiDivergence,
 } from "trendcraft";
+import type { CatalogEntry } from "../panels/ToggleCatalogPanel";
 import type { StudioCandle } from "./sample-data";
 
 export type SignalCategory = "cross" | "divergence" | "pattern";
 
-export type SignalDef = {
-  kind: string;
-  label: string;
-  category: SignalCategory;
-  /** Short rationale shown in the row tooltip — what the signal means in trade terms. */
-  description: string;
+export type SignalDef = CatalogEntry<SignalCategory> & {
   compute: (candles: StudioCandle[]) => SignalMarker[];
 };
 

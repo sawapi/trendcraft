@@ -6,12 +6,14 @@ import { indicatorPresets, parseStrategy, validateStrategyJSON } from "trendcraf
 import { useBacktestRunner } from "./hooks/useBacktestRunner";
 import { useRegime } from "./hooks/useRegime";
 import { type SimulatorHandle, createLiveSimulator } from "./lib/live-simulator";
+import { PLUGIN_BY_KIND, type PluginHandle } from "./lib/plugins";
 import { clampedSeedEnd, lastEmittedIdx } from "./lib/replay";
 import { sampleCandles } from "./lib/sample-data";
 import { SIGNAL_BY_KIND } from "./lib/signals";
 import { builderReducer, initialBuilderState, strategyJSONToState } from "./lib/strategy-state";
 import { KIND_TO_PRESET_KEY, localStudioAPI } from "./lib/studio-api";
 import { ParamPopover } from "./panels/ParamPopover";
+import { PluginsPanel } from "./panels/PluginsPanel";
 import { PresetSelector } from "./panels/PresetSelector";
 import { ReplayControls, type SpeedTier } from "./panels/ReplayControls";
 import { ResultsSummary } from "./panels/ResultsSummary";
@@ -131,6 +133,20 @@ export function App() {
       return next;
     });
   }, []);
+
+  const [enabledPlugins, setEnabledPlugins] = useState<ReadonlySet<string>>(() => new Set());
+  const togglePlugin = useCallback((kind: string) => {
+    setEnabledPlugins((prev) => {
+      const next = new Set(prev);
+      if (next.has(kind)) next.delete(kind);
+      else next.add(kind);
+      return next;
+    });
+  }, []);
+  const [unavailablePlugins, setUnavailablePlugins] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
+  const pluginHandlesRef = useRef<Map<string, PluginHandle>>(new Map());
 
   // Compute markers for each enabled signal once per (set + candles); the
   // result is referentially stable across Replay progress ticks so the
@@ -491,6 +507,83 @@ export function App() {
 
   const runner = useBacktestRunner(chart, backtestCandles);
 
+  // Plugins are heavyweight (SMC alone runs 5 sub-computations across the
+  // slice) — rebuilding 25× / sec at Max-speed Replay would block the main
+  // thread. Strategy: freeze the playhead trigger during playback so existing
+  // overlays stay on their last snapshot, AND diff add/remove on toggle so
+  // flipping a single plugin only computes that one — not the unchanged
+  // siblings. The user gets a fresh snapshot the moment they pause / step
+  // / exit, which matches how analysts actually use these overlays.
+  const skipPluginRebuild = replay.mode === "live" && replay.status === "playing";
+  const lastPluginPlayheadRef = useRef<number | null>(playheadIdx);
+  if (!skipPluginRebuild) lastPluginPlayheadRef.current = playheadIdx;
+  const pluginPlayheadDep = lastPluginPlayheadRef.current;
+
+  const prevPluginSliceKeyRef = useRef<string>("init");
+  const prevPluginChartRef = useRef<typeof chart | null>(null);
+  const pluginSliceKey = `${sessionKey}:${pluginPlayheadDep ?? "null"}`;
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: backtestCandles is read at build time; pluginSliceKey is the gated trigger and prevSliceKey/prevChart refs distinguish "slice or chart changed → rebuild all" from "toggle only → diff add/remove".
+  useEffect(() => {
+    if (!chart) return;
+    const handles = pluginHandlesRef.current;
+    // A new chart instance invalidates every primitive registration just
+    // like a slice move does — old handles point at the previous chart and
+    // would silently become orphans if we tried to diff against them.
+    const chartChanged = prevPluginChartRef.current !== chart;
+    const sliceMoved = prevPluginSliceKeyRef.current !== pluginSliceKey;
+    const fullRebuild = chartChanged || sliceMoved;
+
+    if (fullRebuild) {
+      for (const handle of handles.values()) handle.remove();
+      handles.clear();
+    } else {
+      for (const [kind, handle] of [...handles]) {
+        if (!enabledPlugins.has(kind)) {
+          handle.remove();
+          handles.delete(kind);
+        }
+      }
+    }
+
+    const stillUnavailable = new Set<string>();
+    for (const kind of enabledPlugins) {
+      if (handles.has(kind)) continue;
+      const def = PLUGIN_BY_KIND.get(kind);
+      if (!def) continue;
+      try {
+        const handle = def.build(chart, backtestCandles);
+        if (handle) handles.set(kind, handle);
+        else stillUnavailable.add(kind);
+      } catch (err) {
+        console.warn(`[strategy-studio] Plugin ${kind} failed:`, err);
+        stillUnavailable.add(kind);
+      }
+    }
+    setUnavailablePlugins((prev) => {
+      if (prev.size === stillUnavailable.size && [...prev].every((k) => stillUnavailable.has(k))) {
+        return prev;
+      }
+      return stillUnavailable;
+    });
+
+    prevPluginSliceKeyRef.current = pluginSliceKey;
+    prevPluginChartRef.current = chart;
+  }, [chart, enabledPlugins, pluginSliceKey]);
+
+  // Unmount-only cleanup: the build effect above manages add/remove
+  // imperatively (no per-run cleanup return), so primitives outlive each
+  // re-render. This `[]`-deps effect is the only place that tears down
+  // everything on App unmount.
+  useEffect(
+    () => () => {
+      const handles = pluginHandlesRef.current;
+      for (const handle of handles.values()) handle.remove();
+      handles.clear();
+    },
+    [],
+  );
+
   // Stale-result guard: stepping or toggling Replay changes the slice the
   // backtest *would* run against, but the cached result and chart trade
   // markers are still from the previous slice. Drop the React state so the
@@ -544,6 +637,12 @@ export function App() {
           enabled={enabledSignals}
           countByKind={signalCountByKind}
           onToggle={toggleSignal}
+        />
+        <div className="pane-divider" />
+        <PluginsPanel
+          enabled={enabledPlugins}
+          unavailable={unavailablePlugins}
+          onToggle={togglePlugin}
         />
       </aside>
 
