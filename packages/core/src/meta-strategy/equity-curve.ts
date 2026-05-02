@@ -25,13 +25,13 @@ export type EquityCurveFilterOptions = {
   maPeriod?: number;
   /** MA type (default: 'sma') */
   maType?: "sma" | "ema";
-  /** Max drawdown threshold to pause trading (default: 0.15 = 15%) */
+  /** Max drawdown threshold to pause trading, in percent (default: 15 = 15%) */
   maxDrawdown?: number;
   /** Rolling window for win rate calculation (default: 20 trades) */
   winRateWindow?: number;
-  /** Minimum win rate to continue trading (default: 0.4) */
+  /** Minimum win rate to continue trading, in percent (default: 40 = 40%) */
   minWinRate?: number;
-  /** Position size factor when filtered (0 = skip trade, 0.5 = half size) (default: 0) */
+  /** Position size factor when filtered, as fraction (0 = skip trade, 0.5 = half size, default: 0) */
   filteredSizeFactor?: number;
 };
 
@@ -56,9 +56,9 @@ export type EquityCurveAnalysis = {
 export type EquityCurveHealthResult = {
   /** Whether equity is above its MA */
   aboveMa: boolean;
-  /** Current drawdown from peak (0-1) */
+  /** Current drawdown from peak as percentage (0-100), matching BacktestResult.maxDrawdown */
   currentDrawdown: number;
-  /** Rolling win rate (last N trades) */
+  /** Rolling win rate as percentage (0-100), matching BacktestResult.winRate */
   rollingWinRate: number;
   /** Overall health score (0-100) */
   healthScore: number;
@@ -113,6 +113,12 @@ function computeEma(values: number[], period: number): (number | null)[] {
   return result;
 }
 
+// All drawdown / win-rate helpers below report values as percent (0-100) to
+// stay consistent with `BacktestResult.{maxDrawdown,winRate}` and with the
+// public `EquityCurveFilterOptions.{maxDrawdown,minWinRate}` thresholds. A
+// single scale across the equity-curve API keeps health readings, filter
+// options, and rebuilt result fields directly comparable.
+
 function getCurrentDrawdown(equityCurve: number[]): number {
   if (equityCurve.length === 0) return 0;
   let peak = equityCurve[0];
@@ -120,7 +126,7 @@ function getCurrentDrawdown(equityCurve: number[]): number {
     if (e > peak) peak = e;
   }
   const current = equityCurve[equityCurve.length - 1];
-  return peak > 0 ? (peak - current) / peak : 0;
+  return peak > 0 ? ((peak - current) / peak) * 100 : 0;
 }
 
 function getDrawdownAt(equityCurve: number[], index: number): number {
@@ -129,15 +135,15 @@ function getDrawdownAt(equityCurve: number[], index: number): number {
   for (let i = 1; i <= index; i++) {
     if (equityCurve[i] > peak) peak = equityCurve[i];
   }
-  return peak > 0 ? (peak - equityCurve[index]) / peak : 0;
+  return peak > 0 ? ((peak - equityCurve[index]) / peak) * 100 : 0;
 }
 
 function getRollingWinRate(trades: Trade[], endIndex: number, window: number): number {
   const start = Math.max(0, endIndex - window + 1);
   const slice = trades.slice(start, endIndex + 1);
-  if (slice.length === 0) return 1;
+  if (slice.length === 0) return 100;
   const wins = slice.filter((t) => t.return > 0).length;
-  return wins / slice.length;
+  return (wins / slice.length) * 100;
 }
 
 function computeProfitFactor(grossProfit: number, grossLoss: number): number {
@@ -194,8 +200,11 @@ function rebuildResult(trades: Trade[], original: BacktestResult): BacktestResul
     totalReturn,
     totalReturnPercent: (totalReturn / initialCapital) * 100,
     tradeCount: trades.length,
-    winRate: wins.length / trades.length,
-    maxDrawdown: maxDd,
+    // winRate and maxDrawdown follow the BacktestResult contract: percentage
+    // (0-100), not fraction (0-1). Aligning with runBacktest so callers can
+    // compare both shapes directly (e.g. applyEquityCurveFilter.improvement).
+    winRate: (wins.length / trades.length) * 100,
+    maxDrawdown: maxDd * 100,
     sharpeRatio: sharpe,
     profitFactor: computeProfitFactor(grossProfit, grossLoss),
     avgHoldingDays: trades.reduce((sum, t) => sum + t.holdingDays, 0) / trades.length,
@@ -250,9 +259,9 @@ export function applyEquityCurveFilter(
     type = "ma",
     maPeriod = 20,
     maType = "sma",
-    maxDrawdown = 0.15,
+    maxDrawdown = 15,
     winRateWindow = 20,
-    minWinRate = 0.4,
+    minWinRate = 40,
     filteredSizeFactor = 0,
   } = options;
 
@@ -395,15 +404,17 @@ export function equityCurveHealth(
   const currentMa = maValues[maValues.length - 1];
   const aboveMa = currentMa !== null ? currentEquity >= currentMa : true;
 
+  // Drawdown / win-rate helpers already report percent (0-100); coefficients
+  // are scaled accordingly so the composite output stays numerically identical
+  // to the pre-fix version.
   const currentDrawdown = getCurrentDrawdown(curve);
 
   const rollingWinRate =
-    trades.length > 0 ? getRollingWinRate(trades, trades.length - 1, winRateWindow) : 1;
+    trades.length > 0 ? getRollingWinRate(trades, trades.length - 1, winRateWindow) : 100;
 
-  // Health score: weighted composite
   const maScore = aboveMa ? 100 : 0;
-  const ddScore = Math.max(0, 100 - currentDrawdown * 500); // 20% DD = 0
-  const wrScore = Math.min(100, (rollingWinRate / 0.6) * 100); // 60% WR = 100
+  const ddScore = Math.max(0, 100 - currentDrawdown * 5); // 20% DD = 0
+  const wrScore = Math.min(100, (rollingWinRate / 60) * 100); // 60% WR = 100
   const healthScore = Math.round(maScore * 0.4 + ddScore * 0.3 + wrScore * 0.3);
 
   const equityCurve: EquityPoint[] = [];
