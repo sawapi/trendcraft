@@ -28,6 +28,7 @@ import type { Condition } from "../types";
 import { ConditionRegistry } from "./registry";
 
 import { bollingerBreakout, bollingerTouch } from "../backtest/conditions/bollinger";
+import { alwaysFalse, alwaysTrue } from "../backtest/conditions/core";
 import { adxStrong, dmiBearish, dmiBullish } from "../backtest/conditions/dmi";
 import {
   pbrAbove,
@@ -1440,4 +1441,22 @@ backtestRegistry.register({
   },
   isFilter: true,
   create: (p) => pbrBetween(p.min as number, p.max as number),
+});
+
+// ============================================
+// Always-true / always-false primitives
+// ============================================
+
+backtestRegistry.register({
+  name: "alwaysTrue",
+  displayName: "Always True",
+  params: {},
+  create: () => alwaysTrue(),
+});
+
+backtestRegistry.register({
+  name: "alwaysFalse",
+  displayName: "Always False",
+  params: {},
+  create: () => alwaysFalse(),
 });
