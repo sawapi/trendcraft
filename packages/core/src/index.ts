@@ -485,6 +485,9 @@ export {
   and,
   or,
   not,
+  // Always-true / always-false primitives
+  alwaysTrue,
+  alwaysFalse,
   // Preset conditions
   goldenCross as goldenCrossCondition,
   deadCross as deadCrossCondition,
@@ -1137,7 +1140,7 @@ export * as streaming from "./streaming";
 export { createLiveCandle } from "./streaming";
 export { livePresets } from "./streaming";
 export type { LivePreset } from "./streaming";
-export { indicatorPresets } from "./streaming";
+export { indicatorPresets, getIndicatorPreset } from "./streaming";
 export type { IndicatorPreset, IndicatorCategory, ParamSchema } from "./streaming";
 
 // Unified Conditions (define once, use in backtest & streaming)
