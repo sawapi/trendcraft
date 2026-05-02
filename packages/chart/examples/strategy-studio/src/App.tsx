@@ -20,6 +20,7 @@ import { PresetSelector } from "./panels/PresetSelector";
 import { ReplayControls, type SpeedTier } from "./panels/ReplayControls";
 import { ResultsSummary } from "./panels/ResultsSummary";
 import { RiskPanel } from "./panels/RiskPanel";
+import { ScoringPanel } from "./panels/ScoringPanel";
 import { SignalsPanel } from "./panels/SignalsPanel";
 import { StrategyBuilder } from "./panels/StrategyBuilder";
 
@@ -689,6 +690,11 @@ export function App() {
           strategy={runner.state.lastResult?.json}
           lastResult={runner.state.lastResult?.result}
           sliceLength={backtestCandles.length}
+          isReplayPlaying={replay.mode === "live" && replay.status === "playing"}
+        />
+        <div className="pane-divider" />
+        <ScoringPanel
+          candles={backtestCandles}
           isReplayPlaying={replay.mode === "live" && replay.status === "playing"}
         />
       </aside>
