@@ -29,17 +29,13 @@ export const MEAN_REVERSION_STRATEGY: StrategyJSON = {
   backtest: { capital: 100_000 },
 };
 
-// `rsiBelow(100)` is true once RSI is defined and `rsiAbove(100)` never fires
-// — together they approximate "buy on first valid bar, never exit" without
-// needing an `alwaysTrue` condition (which isn't registered in the public
-// registry).
 export const BUY_AND_HOLD_STRATEGY: StrategyJSON = {
   $schema: "trendcraft/strategy",
   version: 1,
   id: "demo-buy-and-hold",
   name: "Buy and Hold",
-  entry: { name: "rsiBelow", params: { threshold: 100, period: 14 } },
-  exit: { name: "rsiAbove", params: { threshold: 100, period: 14 } },
+  entry: { name: "alwaysTrue" },
+  exit: { name: "alwaysFalse" },
   backtest: { capital: 100_000 },
 };
 

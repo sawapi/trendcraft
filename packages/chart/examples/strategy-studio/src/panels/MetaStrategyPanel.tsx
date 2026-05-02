@@ -137,21 +137,21 @@ export function MetaStrategyPanel({ lastResult, candles, isReplayPlaying }: Prop
           )}
           {(filter.type === "drawdown" || filter.type === "combined") && (
             <NumInput
-              label="Max DD"
+              label="Max DD %"
               value={filter.maxDrawdown}
-              min={0.01}
-              max={0.95}
-              step={0.01}
+              min={1}
+              max={95}
+              step={1}
               onChange={(v) => setFilter((prev) => ({ ...prev, maxDrawdown: v }))}
             />
           )}
           {(filter.type === "winRate" || filter.type === "combined") && (
             <NumInput
-              label="Min WR"
+              label="Min WR %"
               value={filter.minWinRate}
               min={0}
-              max={1}
-              step={0.05}
+              max={100}
+              step={5}
               onChange={(v) => setFilter((prev) => ({ ...prev, minWinRate: v }))}
             />
           )}
@@ -240,11 +240,6 @@ function FilterResult({ result }: { result: ReturnType<typeof computeFilter> }) 
     <>
       <div className="risk-result">
         <DeltaMetric label="Δ Sharpe" delta={analysis.improvement.sharpeRatio} digits={2} />
-        {/* `improvement.maxDrawdown` is already in the same units as
-            `original.maxDrawdown` (percent points from `runBacktest`); no
-            extra ×100. Note: `filtered.maxDrawdown` from core's rebuildResult
-            uses decimal units so the absolute filtered value is tiny here —
-            we display the delta, not the absolute filtered DD. */}
         <DeltaMetric label="Δ MaxDD" delta={analysis.improvement.maxDrawdown} digits={2} unit="%" />
         <DeltaMetric
           label="Δ Return"
@@ -257,8 +252,7 @@ function FilterResult({ result }: { result: ReturnType<typeof computeFilter> }) 
       <div className="meta-strategy-caption">
         Skipped {analysis.tradesSkipped}/{analysis.original.trades.length} trades · health{" "}
         {health.healthScore}/100
-        {health.aboveMa ? " · above MA" : " · below MA"} · DD{" "}
-        {(health.currentDrawdown * 100).toFixed(1)}%
+        {health.aboveMa ? " · above MA" : " · below MA"} · DD {health.currentDrawdown.toFixed(1)}%
       </div>
     </>
   );
