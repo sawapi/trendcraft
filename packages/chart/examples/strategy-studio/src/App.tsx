@@ -15,6 +15,7 @@ import { localStudioAPI } from "./lib/studio-api";
 import { MetaStrategyPanel } from "./panels/MetaStrategyPanel";
 import { ParamPopover } from "./panels/ParamPopover";
 import { PluginsPanel } from "./panels/PluginsPanel";
+import { PortfolioPanel } from "./panels/PortfolioPanel";
 import { PresetSelector } from "./panels/PresetSelector";
 import { ReplayControls, type SpeedTier } from "./panels/ReplayControls";
 import { ResultsSummary } from "./panels/ResultsSummary";
@@ -588,10 +589,10 @@ export function App() {
 
   // Stale-result guard: stepping or toggling Replay changes the slice the
   // backtest *would* run against, but the cached result and chart trade
-  // markers are still from the previous slice. Drop the React state so the
-  // right pane prompts the user to re-run; chart-side trade markers persist
-  // until the next `addBacktest` call (no public clear API yet — accepted
-  // visual lag).
+  // markers are still from the previous slice. Drop the runner state so
+  // every right-pane panel (including PortfolioPanel) prompts the user to
+  // re-run in lockstep — they all read from `runner.state.lastResult`,
+  // which now carries the executed JSON too.
   // biome-ignore lint/correctness/useExhaustiveDependencies: only fires when the slice boundary moves; runner.reset/state are stable across renders.
   useEffect(() => {
     if (runner.state.lastResult) runner.reset();
@@ -681,6 +682,13 @@ export function App() {
         <MetaStrategyPanel
           lastResult={runner.state.lastResult?.result}
           candles={backtestCandles}
+          isReplayPlaying={replay.mode === "live" && replay.status === "playing"}
+        />
+        <div className="pane-divider" />
+        <PortfolioPanel
+          strategy={runner.state.lastResult?.json}
+          lastResult={runner.state.lastResult?.result}
+          sliceLength={backtestCandles.length}
           isReplayPlaying={replay.mode === "live" && replay.status === "playing"}
         />
       </aside>

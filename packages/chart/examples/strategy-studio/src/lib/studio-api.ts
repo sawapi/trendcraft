@@ -64,6 +64,12 @@ function toManifestRegime(raw: MarketRegimeResult): {
 }
 
 export type StrategyRunResult = {
+  /** The JSON that was actually executed. Single source of truth for any
+   * downstream panel that needs to rerun the same strategy (PortfolioPanel,
+   * future PR12 OptimizationPanel) — keeps result + json bundled so the host
+   * can't accidentally show metrics for one strategy alongside settings from
+   * another. */
+  json: StrategyJSON;
   result: BacktestResult;
   trades: BacktestResult["trades"];
 };
@@ -138,6 +144,6 @@ export const localStudioAPI: StudioAPI = {
       capital: 100_000,
       ...backtestOptions,
     });
-    return { result, trades: result.trades };
+    return { json, result, trades: result.trades };
   },
 };

@@ -27,8 +27,8 @@ The studio runs **fully offline with no LLM key**. It uses `detectMarketRegime` 
 | PR6 | SignalsPanel — cross/divergence/pattern signal detection + markers | done |
 | PR7 | PluginsPanel — SMC / Pitchfork / Volume Profile / Wyckoff plugin toggles | done |
 | PR8 | RiskPanel — position sizing (Risk-%/ATR/Kelly) + VaR/CVaR | done |
-| PR9 | MetaStrategyPanel — equity curve filter + strategy rotation | **this PR** |
-| PR10 | PortfolioPanel — `batchBacktest` + multi-symbol allocation | |
+| PR9 | MetaStrategyPanel — equity curve filter + strategy rotation | done |
+| PR10 | PortfolioPanel — `batchBacktest` + 3 synthetic symbols + sparkline rows | **this PR** |
 | PR11 | ScoringPanel — signal scoring visualization | |
 | PR12 | OptimizationPanel — grid search + walk-forward UI | |
 | PR13 | StrategyDnaPanel — genome viz + sensitivity heatmap + robustness | |
