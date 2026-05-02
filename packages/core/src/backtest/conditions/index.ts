@@ -10,6 +10,8 @@ export {
   and,
   or,
   not,
+  alwaysTrue,
+  alwaysFalse,
   requiresMtf,
   getRequiredTimeframes,
   MtfContextRequiredError,

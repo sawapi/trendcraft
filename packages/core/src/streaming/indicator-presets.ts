@@ -2094,3 +2094,50 @@ export const indicatorPresets: Record<string, IndicatorPreset> = {
     paramSchema: [period(14, 2, 100)],
   },
 };
+
+/**
+ * Manifest `kind` (function-name canonical) → `indicatorPresets` short key.
+ *
+ * The two registries grew up with different naming conventions: `trendcraft/manifest`
+ * uses the long indicator function name (e.g. `bollingerBands`), while
+ * `indicatorPresets` uses display-friendly short keys (`bb`). Hosts that bridge
+ * the two — anything driving chart wiring from manifest output, including LLM
+ * tool callers — would otherwise need their own mapping table. Centralising
+ * the aliases here keeps the divergence in one place and makes the registries
+ * directly interoperable via `getIndicatorPreset`.
+ */
+const KIND_ALIASES: Record<string, string> = {
+  awesomeOscillator: "ao",
+  balanceOfPower: "bop",
+  bollingerBands: "bb",
+  choppinessIndex: "choppiness",
+  coppockCurve: "coppock",
+  donchianChannel: "donchian",
+  easeOfMovement: "emv",
+  ewmaVolatility: "ewmaVol",
+  fairValueGap: "fvg",
+  historicalVolatility: "hv",
+  keltnerChannel: "keltner",
+  openingRange: "orb",
+  ulcerIndex: "ulcer",
+};
+
+/**
+ * Resolve an indicator preset by `kind`, accepting either the manifest's
+ * canonical long name (e.g. `"bollingerBands"`) or `indicatorPresets`'s
+ * short key (e.g. `"bb"`). Returns `undefined` when the kind has no preset
+ * (regime classifiers, smc events, etc.).
+ *
+ * Prefer this helper over bracket access when the source of `kind` is the
+ * manifest registry — it absorbs the two registries' naming drift.
+ *
+ * @example
+ * ```ts
+ * getIndicatorPreset("bollingerBands"); // resolves via alias → presets.bb
+ * getIndicatorPreset("bb");             // direct hit
+ * getIndicatorPreset("hmmRegimes");     // undefined (no preset entry)
+ * ```
+ */
+export function getIndicatorPreset(kind: string): IndicatorPreset | undefined {
+  return indicatorPresets[KIND_ALIASES[kind] ?? kind];
+}

@@ -7,6 +7,9 @@ export {
   and,
   or,
   not,
+  // Always-true / always-false primitives
+  alwaysTrue,
+  alwaysFalse,
   // Preset conditions
   goldenCross,
   deadCross,
