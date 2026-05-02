@@ -8,6 +8,7 @@ import {
   type StrategyJSON,
   backtestRegistry,
   detectMarketRegime,
+  getIndicatorPreset,
   indicatorPresets,
   loadStrategy,
   normalizeCandles,
@@ -78,41 +79,24 @@ export interface StudioAPI {
   suggestPresets(regime: MarketRegime): IndicatorManifest[];
   listIndicators(filter?: { category?: IndicatorCategory }): IndicatorManifest[];
   /**
-   * Resolve a manifest `kind` to its `indicatorPresets` entry. Some manifest
-   * kinds use a different short key in the preset registry (`bollingerBands`
-   * vs `bb`, etc.) — see `KIND_TO_PRESET_KEY`. Returns `undefined` for kinds
-   * that intentionally have no series preset (e.g. `hmmRegimes`, `liquiditySweep`).
+   * Resolve a manifest `kind` to its `indicatorPresets` entry. Returns
+   * `undefined` for kinds that intentionally have no series preset (regime
+   * classifiers, smc events, etc.). Manifest long-name ↔ short-key drift is
+   * handled by core's `getIndicatorPreset`.
    */
   getIndicatorPreset(kind: string): IndicatorPreset | undefined;
+  /**
+   * Reverse-lookup: manifest `kind` → the canonical `indicatorPresets`
+   * registry key the chart's `connectIndicators({ presets }).add(key, ...)`
+   * expects. Needed because the chart's bracket lookup wants the short key
+   * (`bb`) while the host typically carries the manifest's long name
+   * (`bollingerBands`). Returns `undefined` for unresolved kinds.
+   */
+  resolvePresetKey(kind: string): string | undefined;
   /** All registered backtest conditions, optionally filtered by category. */
   listConditions(category?: ConditionCategory): ConditionRegistryEntry<Condition>[];
   runStrategy(json: StrategyJSON, candles: StudioCandle[]): StrategyRunResult;
 }
-
-/**
- * Manifest `kind` → `indicatorPresets` key for entries where the two registries
- * use different identifiers. Manifest kinds use the function name (e.g.
- * `bollingerBands`); the preset registry uses a shorter key (`bb`).
- *
- * Kinds not listed here use their manifest kind as the preset key directly.
- * Kinds with no preset entry at all (regime classifiers, smc events) resolve
- * to `undefined` from `getIndicatorPreset`.
- */
-export const KIND_TO_PRESET_KEY: Record<string, string> = {
-  awesomeOscillator: "ao",
-  balanceOfPower: "bop",
-  bollingerBands: "bb",
-  choppinessIndex: "choppiness",
-  coppockCurve: "coppock",
-  donchianChannel: "donchian",
-  easeOfMovement: "emv",
-  ewmaVolatility: "ewmaVol",
-  fairValueGap: "fvg",
-  historicalVolatility: "hv",
-  keltnerChannel: "keltner",
-  openingRange: "orb",
-  ulcerIndex: "ulcer",
-};
 
 export const localStudioAPI: StudioAPI = {
   detectRegime(candles) {
@@ -130,7 +114,17 @@ export const localStudioAPI: StudioAPI = {
   },
 
   getIndicatorPreset(kind) {
-    return indicatorPresets[KIND_TO_PRESET_KEY[kind] ?? kind];
+    return getIndicatorPreset(kind);
+  },
+
+  resolvePresetKey(kind) {
+    const preset = getIndicatorPreset(kind);
+    if (!preset) return undefined;
+    if (indicatorPresets[kind] === preset) return kind;
+    for (const [key, p] of Object.entries(indicatorPresets)) {
+      if (p === preset) return key;
+    }
+    return undefined;
   },
 
   listConditions(category) {

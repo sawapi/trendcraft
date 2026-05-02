@@ -54,8 +54,8 @@ export type FilterInputs = {
 export const DEFAULT_FILTER_INPUTS: FilterInputs = {
   type: "ma",
   maPeriod: 10,
-  maxDrawdown: 0.15,
-  minWinRate: 0.4,
+  maxDrawdown: 15,
+  minWinRate: 40,
   filteredSizeFactor: 0,
 };
 

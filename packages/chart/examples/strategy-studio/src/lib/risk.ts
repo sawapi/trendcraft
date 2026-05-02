@@ -37,14 +37,12 @@ export type SizingComputation =
 
 // Returns null if the slice is shorter than `period + 1`: TR[0] is undefined
 // because it depends on the previous close, so atr needs `period+1` candles.
+// Past warm-up, atr() guarantees a finite tail value — Wilder's smoothing
+// is fully defined from index `period` onward.
 export function latestAtr(candles: StudioCandle[], period: number): number | null {
   if (candles.length <= period) return null;
   const series = atr(candles, { period });
-  for (let i = series.length - 1; i >= 0; i--) {
-    const v = series[i].value;
-    if (Number.isFinite(v)) return v;
-  }
-  return null;
+  return series[series.length - 1]?.value ?? null;
 }
 
 // Use `returnPercent` (size-independent) rather than `return` (dollar P/L) so
