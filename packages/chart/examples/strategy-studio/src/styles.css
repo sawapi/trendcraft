@@ -1194,3 +1194,54 @@ button.ghost.danger:hover {
   min-width: 28px;
   text-align: right;
 }
+
+/* ---------- Portfolio panel ---------- */
+
+.symbol-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.symbol-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 4px;
+  border-bottom: 1px solid #1e222d;
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+}
+
+.symbol-row:last-child {
+  border-bottom: none;
+}
+
+.symbol-name {
+  color: #d1d4dc;
+  font-weight: 600;
+  width: 48px;
+  flex-shrink: 0;
+}
+
+.symbol-return {
+  margin-left: auto;
+  width: 56px;
+  text-align: right;
+}
+
+.symbol-return.good {
+  color: #26a69a;
+}
+
+.symbol-return.bad {
+  color: #ef5350;
+}
+
+.symbol-trades {
+  color: #787b86;
+  width: 32px;
+  text-align: right;
+  font-size: 10px;
+}

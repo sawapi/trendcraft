@@ -14,6 +14,7 @@
       "@trendcraft/chart": ["../../src/index.ts"],
       "@trendcraft/chart/presets": ["../../src/presets.ts"],
       "@trendcraft/chart/react": ["../../react/TrendChart.tsx"],
+      "@trendcraft/chart/react/sparkline": ["../../react/sparkline.tsx"],
       "trendcraft": ["../../../core/src/index.ts"],
       "trendcraft/manifest": ["../../../core/src/manifest/index.ts"]
     }
