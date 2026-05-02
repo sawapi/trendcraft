@@ -12,6 +12,7 @@ import { sampleCandles } from "./lib/sample-data";
 import { SIGNAL_BY_KIND } from "./lib/signals";
 import { builderReducer, initialBuilderState, strategyJSONToState } from "./lib/strategy-state";
 import { KIND_TO_PRESET_KEY, localStudioAPI } from "./lib/studio-api";
+import { MetaStrategyPanel } from "./panels/MetaStrategyPanel";
 import { ParamPopover } from "./panels/ParamPopover";
 import { PluginsPanel } from "./panels/PluginsPanel";
 import { PresetSelector } from "./panels/PresetSelector";
@@ -676,6 +677,12 @@ export function App() {
         <ResultsSummary result={runner.state.lastResult?.result} />
         <div className="pane-divider" />
         <RiskPanel candles={backtestCandles} lastBacktest={runner.state.lastResult?.result} />
+        <div className="pane-divider" />
+        <MetaStrategyPanel
+          lastResult={runner.state.lastResult?.result}
+          candles={backtestCandles}
+          isReplayPlaying={replay.mode === "live" && replay.status === "playing"}
+        />
       </aside>
 
       {popoverState && popoverInstance && (

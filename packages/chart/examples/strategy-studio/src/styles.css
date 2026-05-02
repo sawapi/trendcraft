@@ -1124,3 +1124,73 @@ button.ghost.danger:hover {
   border-radius: 3px;
   background: rgba(239, 83, 80, 0.08);
 }
+
+/* ---------- Meta-Strategy panel ---------- */
+
+.meta-strategy-caption {
+  font-size: 10px;
+  color: #787b86;
+  margin-top: 6px;
+  line-height: 1.4;
+}
+
+.rotation-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.rotation-table td {
+  padding: 4px 4px;
+  border-bottom: 1px solid #1e222d;
+  vertical-align: middle;
+}
+
+.rotation-table tr:last-child td {
+  border-bottom: none;
+}
+
+.rotation-name {
+  color: #d1d4dc;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 0;
+  width: 50%;
+}
+
+.rotation-metric {
+  color: #787b86;
+  text-align: right;
+  width: 50px;
+}
+
+.rotation-weight {
+  width: 40%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.weight-bar {
+  flex: 1;
+  height: 6px;
+  background: #0e1320;
+  border: 1px solid #2a2e39;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.weight-bar-fill {
+  height: 100%;
+  background: #2196f3;
+  transition: width 120ms ease-out;
+}
+
+.weight-label {
+  color: #d1d4dc;
+  font-size: 10px;
+  min-width: 28px;
+  text-align: right;
+}
