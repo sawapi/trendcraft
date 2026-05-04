@@ -151,9 +151,11 @@ export function walkForwardAnalysis(
       maxCombinations: 10000,
     });
 
-    // Use best parameters or fallback to first valid result
-    const bestParams =
-      gridResult.validCombinations > 0
+    // Use best parameters or fallback to range minima.
+    // When validCombinations > 0, gridSearch guarantees bestParams is non-null,
+    // but TypeScript can't infer that across the boundary, so assert here.
+    const bestParams: Record<string, number> =
+      gridResult.validCombinations > 0 && gridResult.bestParams !== null
         ? gridResult.bestParams
         : parameterRanges.reduce(
             (acc, r) => {

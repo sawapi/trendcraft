@@ -394,7 +394,10 @@ export function computeRecommendedParams(
   walkForward?: WalkForwardResult | null,
   sensitivityData?: SensitivityData | null,
 ): RecommendedParams {
-  const paramNames = Object.keys(gridSearch.bestParams);
+  // gridSearch.bestParams is null when no combination passed constraints.
+  // Use the candidate space (results[0]) as a fallback so we still recommend
+  // something based on the explored grid even when no result was "best".
+  const paramNames = Object.keys(gridSearch.bestParams ?? gridSearch.results[0]?.params ?? {});
   const sources: string[] = [];
 
   // Step 1: Safe Zone center (top 25% median)

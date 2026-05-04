@@ -3346,9 +3346,12 @@ console.log('シャープレシオ:', result.results[0].metrics.sharpeRatio);
 interface GridSearchResult {
   results: OptimizationResultEntry[];
   totalCombinations: number;
-  passedConstraints: number;
-  bestParameters: Record<string, number>;
-  bestMetrics: Record<string, number>;
+  validCombinations: number;
+  /** 制約を満たす組み合わせがない場合は null */
+  bestParams: Record<string, number> | null;
+  /** 制約を満たす組み合わせがない場合は null */
+  bestScore: number | null;
+  metric: OptimizationMetric;
 }
 ```
 
