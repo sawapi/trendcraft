@@ -27,6 +27,15 @@ export type StrategyFactory = (params: Record<string, number>) => {
   options?: BacktestOptions;
 };
 
+/**
+ * Epsilon divisor used by `getParameterValues` when comparing the loop
+ * variable against `range.max` (epsilon = step / FACTOR). Exposed so
+ * external tools (UIs deriving the same grid points, MCP callers
+ * pre-validating LLM output, etc.) can reproduce the comparison
+ * semantics without re-deriving the constant.
+ */
+export const GRID_SEARCH_EPSILON_FACTOR = 1_000_000;
+
 function getParameterValues(range: ParameterRange): number[] {
   if (range.step <= 0) {
     throw new Error(`Parameter "${range.name}" step must be positive`);
@@ -36,10 +45,11 @@ function getParameterValues(range: ParameterRange): number[] {
   }
 
   const values: number[] = [];
-  const epsilon = Math.abs(range.step) / 1_000_000;
+  const epsilon = Math.abs(range.step) / GRID_SEARCH_EPSILON_FACTOR;
 
   for (let value = range.min; value <= range.max + epsilon; value += range.step) {
-    const roundedValue = Math.round(value * 1_000_000) / 1_000_000;
+    const roundedValue =
+      Math.round(value * GRID_SEARCH_EPSILON_FACTOR) / GRID_SEARCH_EPSILON_FACTOR;
     if (roundedValue <= range.max + epsilon) {
       values.push(roundedValue);
     }
