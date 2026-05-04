@@ -39,3 +39,7 @@ export { serializeStrategy, parseStrategy } from "./serialize";
 // New: Validation
 export { validateConditionSpec, validateStrategyJSON } from "./validate";
 export type { ValidationResult } from "./validate";
+
+// New: Walker — pure utilities for inspecting / rewriting StrategyJSON shapes
+export { applyParamOverrides, flattenStrategyLeaves, parseLeafPath } from "./walker";
+export type { LeafInfo, ParsedLeafPath } from "./walker";
