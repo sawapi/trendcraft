@@ -37,7 +37,15 @@ export function useStrategyDna() {
 
   // Genome segments — lightweight, only uses bestParams + params from results
   const genomeSegments: GenomeSegment[] | null = useMemo(() => {
-    if (!gridSearchResult || Object.keys(gridSearchResult.bestParams).length === 0) return null;
+    // bestParams/bestScore are null when no combination passed constraints —
+    // there's no genome to render in that case.
+    if (
+      !gridSearchResult ||
+      gridSearchResult.bestParams === null ||
+      gridSearchResult.bestScore === null ||
+      Object.keys(gridSearchResult.bestParams).length === 0
+    )
+      return null;
     const paramNames = Object.keys(gridSearchResult.bestParams);
     // Extract min/max per param without creating intermediate arrays
     const ranges = paramNames.map((name) => {

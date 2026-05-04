@@ -1,5 +1,101 @@
 # Changelog
 
+## Unreleased
+
+### Added — `gridSearchFromJSON` + strategy walker primitives
+
+- `gridSearchFromJSON(candles, strategy, ranges, registry, options?)` —
+  JSON-first wrapper around `gridSearch`. Drives the engine directly
+  from a `StrategyJSON` plus path-addressed `PathParameterRange[]`
+  (`{ path: "entry.0.shortPeriod", min, max, step }`), so callers no
+  longer need to hand-write a strategy walker / param-injector. The
+  returned `bestParams` keys are paths, plug straight back into
+  `applyParamOverrides`. Companion `gridSearchFromJSONSafe` returns a
+  `Result<GridSearchResult>` with codes `INVALID_PARAMETER`,
+  `TOO_MANY_COMBINATIONS`, or `OPTIMIZATION_FAILED`.
+- `flattenStrategyLeaves(strategy)` — depth-first leaf enumeration
+  across `entry` and `exit`, tagged with `bucket`, `leafIndex`, `name`,
+  and `params`. Handles `and` / `or` / `not` combinators uniformly.
+- `applyParamOverrides(strategy, overrides)` — pure: returns a new
+  strategy with the addressed leaves' params updated. Throws on
+  out-of-range leaf indices, malformed paths, or paths that omit a
+  param name. Inputs are never mutated.
+- `parseLeafPath(path)` — exported parser for the
+  `<bucket>.<leafIndex>.<paramName>` syntax. Useful for tools that
+  want to surface or validate paths without invoking the optimization
+  engine (parameter editors, deep-link routes, MCP tools).
+- New types: `PathParameterRange`, `LeafInfo`, `ParsedLeafPath`.
+
+Path syntax constraint: `paramName` cannot contain `.` (consistent
+with all current registry param names). Paths are case-sensitive.
+
+### Breaking — `bestScore` / `bestParams` are now `number | null`
+
+- `GridSearchResult.bestScore` and `CombinationSearchResult.bestScore` are
+  now `number | null`. Previously they fell back to `0` when no parameter
+  combination satisfied all constraints (or no combination produced
+  trades), which callers mistook as "the optimum is zero" instead of
+  "no valid result". Update consumers to handle `null` explicitly:
+
+  ```ts
+  // Before
+  console.log(`Best Sharpe: ${result.bestScore.toFixed(3)}`);
+
+  // After (preserve prior behavior)
+  console.log(`Best Sharpe: ${(result.bestScore ?? 0).toFixed(3)}`);
+
+  // Or branch
+  if (result.bestScore !== null) {
+    console.log(`Best Sharpe: ${result.bestScore.toFixed(3)}`);
+  } else {
+    console.log("No combination passed constraints");
+  }
+  ```
+
+- `GridSearchResult.bestParams` is now `Record<string, number> | null`
+  for the same reason — the legacy `{}` fallback was indistinguishable
+  from the legitimate "no params to optimize" case (empty
+  `parameterRanges`). `result.validCombinations > 0` and
+  `result.bestParams !== null` are now equivalent guards.
+- `CombinationSearchResult.bestEntry` / `bestExit` keep their `string[]`
+  type (empty arrays unambiguously signal "no entry/exit conditions"),
+  so this breaking change is limited to `bestScore` and `bestParams`.
+
+### Added — `GRID_SEARCH_EPSILON_FACTOR`
+
+- Exported constant (`1_000_000`) used by `getParameterValues` for the
+  inclusive `<= max + ε` upper-bound comparison (epsilon = step / FACTOR).
+  Exposed so external tools (UIs deriving the same grid points, MCP
+  callers pre-validating LLM output) can reproduce the comparison
+  semantics without re-deriving the constant.
+
+### Added — ParamDef annotations (`integer`, `precision`, `suggestedMin/Max`)
+
+- `ParamDef` gains optional `integer?: boolean` and `precision?: number`
+  fields. UIs and optimization helpers that derive parameter ranges or
+  step inputs from a registry entry no longer need to heuristically
+  guess whether a param is integer-valued (period etc.) or what its
+  decimal grid is. The two fields are mutually exclusive: when
+  `integer: true`, `precision` is ignored.
+- `ParamDef` also gains optional `suggestedMin?` / `suggestedMax?` UI
+  hints. Unlike `min` / `max` these are **not** enforced by
+  `validateConditionSpec`, so adding them to a registry entry never
+  invalidates persisted strategy JSON. Use them for params where the
+  indicator mathematically accepts a wider range than is practical to
+  surface in a slider (e.g. periods accept any positive integer, but a
+  UI usually wants 1..200).
+- Representative entries in `backtestRegistry` now carry these
+  annotations as a starting set: `goldenCross` / `deadCross` periods
+  (`integer: true`, `suggestedMax`), `bollingerBreakout` /
+  `bollingerTouch` `stdDev` (`precision: 1`, existing `min: 0.1`
+  preserved as runtime contract, new `suggestedMax: 5` UI hint),
+  `bollingerBreakout` / `bollingerTouch` `period`
+  (`integer: true`, `suggestedMax: 200`), and `cmfAbove` / `cmfBelow`
+  `threshold` (`precision: 2`, `suggestedMin: -1`, `suggestedMax: 1`).
+  All bounds are UI hints, not validation limits, so adding them never
+  invalidates persisted strategy JSON. Remaining entries will be
+  annotated as needed.
+
 ## [0.3.0] - 2026-04-26
 
 ### Breaking — Indicator Quality Fixes

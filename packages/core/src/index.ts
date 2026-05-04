@@ -961,10 +961,13 @@ export {
   gridSearchSafe,
   generateParameterCombinations,
   countCombinations,
+  GRID_SEARCH_EPSILON_FACTOR,
   param,
   constraint,
   getTopResults,
   summarizeGridSearch,
+  gridSearchFromJSON,
+  gridSearchFromJSONSafe,
   // Walk-Forward Analysis
   walkForwardAnalysis,
   walkForwardAnalysisSafe,
@@ -1016,6 +1019,7 @@ export type {
   WalkForwardResult,
   WalkForwardOptions,
   StrategyFactory,
+  PathParameterRange,
   // Combination Search types
   ConditionDefinition,
   CombinationResultEntry,
@@ -1182,6 +1186,8 @@ export { streamingRegistry } from "./strategy";
 export { hydrateCondition, loadStrategy } from "./strategy";
 export { serializeStrategy, parseStrategy } from "./strategy";
 export { validateConditionSpec, validateStrategyJSON } from "./strategy";
+export { applyParamOverrides, flattenStrategyLeaves, parseLeafPath } from "./strategy";
+export type { LeafInfo, ParsedLeafPath } from "./strategy";
 
 // Execution utilities (resilient order execution)
 export * as execution from "./execution";
