@@ -8,7 +8,8 @@ import {
   type Tunable,
   autoDeriveRange,
   combinationCount,
-  extractTunableParams,
+  findIntegerRangeViolation,
+  listTunables,
   runGridSearch,
 } from "../lib/optimization";
 import type { StudioCandle } from "../lib/sample-data";
@@ -29,17 +30,14 @@ type RangeMap = Record<string, { min: number; max: number; step: number }>;
 function initRanges(tunables: Tunable[]): RangeMap {
   const out: RangeMap = {};
   for (const t of tunables) {
-    const r = autoDeriveRange(t.currentValue, t.registryMin, t.isInteger);
+    const r = autoDeriveRange(t.currentValue, t.registryMin, t.isInteger, t.schema);
     out[t.key] = { min: r.min, max: r.max, step: r.step };
   }
   return out;
 }
 
 export function OptimizationPanel({ strategy, candles, isReplayPlaying }: Props) {
-  const tunables = useMemo<Tunable[]>(
-    () => (strategy ? extractTunableParams(strategy) : []),
-    [strategy],
-  );
+  const tunables = useMemo<Tunable[]>(() => (strategy ? listTunables(strategy) : []), [strategy]);
 
   const [ranges, setRanges] = useState<RangeMap>(() => initRanges(tunables));
   const [metric, setMetric] = useState<OptimizationMetricUI>("returns");
@@ -88,7 +86,7 @@ export function OptimizationPanel({ strategy, candles, isReplayPlaying }: Props)
         // commits. registryMin can legitimately be NEGATIVE_INFINITY (CMF
         // threshold etc.) so we anchor on the current value's magnitude
         // instead of the sentinel.
-        const fallback = autoDeriveRange(t.currentValue, t.registryMin, t.isInteger);
+        const fallback = autoDeriveRange(t.currentValue, t.registryMin, t.isInteger, t.schema);
         const r = ranges[t.key] ?? { min: fallback.min, max: fallback.max, step: fallback.step };
         return { name: t.key, min: r.min, max: r.max, step: r.step };
       }),
@@ -102,11 +100,20 @@ export function OptimizationPanel({ strategy, candles, isReplayPlaying }: Props)
 
   const invalidRanges = totalCombinations < 0;
   const tooManyCombinations = totalCombinations > MAX_COMBINATIONS;
+  // schema.integer params reject fractional min/max/step inside
+  // gridSearchFromJSON. Catch the violation at edit time so the user
+  // sees an actionable inline warning before clicking Run, not a
+  // generic "press-then-error" surprise.
+  const integerViolation = useMemo(
+    () => findIntegerRangeViolation(tunables, rangeArray),
+    [tunables, rangeArray],
+  );
   const runDisabled =
     !strategy ||
     tunables.length === 0 ||
     invalidRanges ||
     tooManyCombinations ||
+    integerViolation !== null ||
     isReplayPlaying ||
     candles.length < 20;
 
@@ -233,6 +240,12 @@ export function OptimizationPanel({ strategy, candles, isReplayPlaying }: Props)
             step (max {MAX_COMBINATIONS.toLocaleString()}).
           </div>
         )}
+        {integerViolation && (
+          <div className="optimization-warning">
+            <strong>{integerViolation.paramName}</strong> requires integer values, but{" "}
+            {integerViolation.field}={integerViolation.value} is not an integer.
+          </div>
+        )}
 
         <ResultBody result={result} tunables={tunables} />
       </section>
@@ -261,7 +274,8 @@ function ResultBody({
     <>
       <div className="meta-strategy-caption">
         {result.result.validCombinations} of {result.result.totalCombinations} combos passed
-        constraints · best {result.metric}: {result.result.bestScore.toFixed(2)}
+        constraints · best {result.metric}:{" "}
+        {result.result.bestScore !== null ? result.result.bestScore.toFixed(2) : "—"}
       </div>
       <table className="optimization-result-table">
         <thead>
