@@ -2,6 +2,33 @@
 
 ## Unreleased
 
+### Added — `gridSearchFromJSON` + strategy walker primitives
+
+- `gridSearchFromJSON(candles, strategy, ranges, registry, options?)` —
+  JSON-first wrapper around `gridSearch`. Drives the engine directly
+  from a `StrategyJSON` plus path-addressed `PathParameterRange[]`
+  (`{ path: "entry.0.shortPeriod", min, max, step }`), so callers no
+  longer need to hand-write a strategy walker / param-injector. The
+  returned `bestParams` keys are paths, plug straight back into
+  `applyParamOverrides`. Companion `gridSearchFromJSONSafe` returns a
+  `Result<GridSearchResult>` with codes `INVALID_PARAMETER`,
+  `TOO_MANY_COMBINATIONS`, or `OPTIMIZATION_FAILED`.
+- `flattenStrategyLeaves(strategy)` — depth-first leaf enumeration
+  across `entry` and `exit`, tagged with `bucket`, `leafIndex`, `name`,
+  and `params`. Handles `and` / `or` / `not` combinators uniformly.
+- `applyParamOverrides(strategy, overrides)` — pure: returns a new
+  strategy with the addressed leaves' params updated. Throws on
+  out-of-range leaf indices, malformed paths, or paths that omit a
+  param name. Inputs are never mutated.
+- `parseLeafPath(path)` — exported parser for the
+  `<bucket>.<leafIndex>.<paramName>` syntax. Useful for tools that
+  want to surface or validate paths without invoking the optimization
+  engine (parameter editors, deep-link routes, MCP tools).
+- New types: `PathParameterRange`, `LeafInfo`, `ParsedLeafPath`.
+
+Path syntax constraint: `paramName` cannot contain `.` (consistent
+with all current registry param names). Paths are case-sensitive.
+
 ### Breaking — `bestScore` / `bestParams` are now `number | null`
 
 - `GridSearchResult.bestScore` and `CombinationSearchResult.bestScore` are
