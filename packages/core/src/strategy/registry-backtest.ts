@@ -171,8 +171,22 @@ backtestRegistry.register({
   displayName: "Golden Cross",
   category: "trend",
   params: {
-    shortPeriod: { type: "number", default: 5, min: 1, description: "Short MA period" },
-    longPeriod: { type: "number", default: 25, min: 1, description: "Long MA period" },
+    shortPeriod: {
+      type: "number",
+      default: 5,
+      min: 1,
+      suggestedMax: 200,
+      integer: true,
+      description: "Short MA period",
+    },
+    longPeriod: {
+      type: "number",
+      default: 25,
+      min: 1,
+      suggestedMax: 500,
+      integer: true,
+      description: "Long MA period",
+    },
   },
   create: (p) => goldenCross((p.shortPeriod as number) ?? 5, (p.longPeriod as number) ?? 25),
 });
@@ -182,8 +196,22 @@ backtestRegistry.register({
   displayName: "Dead Cross",
   category: "trend",
   params: {
-    shortPeriod: { type: "number", default: 5, min: 1, description: "Short MA period" },
-    longPeriod: { type: "number", default: 25, min: 1, description: "Long MA period" },
+    shortPeriod: {
+      type: "number",
+      default: 5,
+      min: 1,
+      suggestedMax: 200,
+      integer: true,
+      description: "Short MA period",
+    },
+    longPeriod: {
+      type: "number",
+      default: 25,
+      min: 1,
+      suggestedMax: 500,
+      integer: true,
+      description: "Long MA period",
+    },
   },
   create: (p) => deadCross((p.shortPeriod as number) ?? 5, (p.longPeriod as number) ?? 25),
 });
@@ -301,8 +329,8 @@ backtestRegistry.register({
       enum: ["upper", "lower"],
       description: "Band to check",
     },
-    period: { type: "number", default: 20, min: 1 },
-    stdDev: { type: "number", default: 2, min: 0.1 },
+    period: { type: "number", default: 20, min: 1, suggestedMax: 200, integer: true },
+    stdDev: { type: "number", default: 2, min: 0.1, suggestedMax: 5, precision: 1 },
   },
   create: (p) =>
     bollingerBreakout(
@@ -323,8 +351,8 @@ backtestRegistry.register({
       enum: ["upper", "lower"],
       description: "Band to check",
     },
-    period: { type: "number", default: 20, min: 1 },
-    stdDev: { type: "number", default: 2, min: 0.1 },
+    period: { type: "number", default: 20, min: 1, suggestedMax: 200, integer: true },
+    stdDev: { type: "number", default: 2, min: 0.1, suggestedMax: 5, precision: 1 },
   },
   create: (p) =>
     bollingerTouch(
@@ -791,8 +819,8 @@ backtestRegistry.register({
   displayName: "CMF Above",
   category: "volume",
   params: {
-    threshold: { type: "number", default: 0 },
-    period: { type: "number", default: 20, min: 1 },
+    threshold: { type: "number", default: 0, suggestedMin: -1, suggestedMax: 1, precision: 2 },
+    period: { type: "number", default: 20, min: 1, suggestedMax: 200, integer: true },
   },
   create: (p) => cmfAbove((p.threshold as number) ?? 0, (p.period as number) ?? 20),
 });
@@ -802,8 +830,8 @@ backtestRegistry.register({
   displayName: "CMF Below",
   category: "volume",
   params: {
-    threshold: { type: "number", default: 0 },
-    period: { type: "number", default: 20, min: 1 },
+    threshold: { type: "number", default: 0, suggestedMin: -1, suggestedMax: 1, precision: 2 },
+    period: { type: "number", default: 20, min: 1, suggestedMax: 200, integer: true },
   },
   create: (p) => cmfBelow((p.threshold as number) ?? 0, (p.period as number) ?? 20),
 });

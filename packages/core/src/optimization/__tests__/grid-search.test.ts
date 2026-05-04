@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { BacktestOptions, NormalizedCandle, PresetCondition } from "../../types";
 import {
+  GRID_SEARCH_EPSILON_FACTOR,
   constraint,
   countCombinations,
   generateParameterCombinations,
@@ -118,6 +119,14 @@ describe("Grid Search Optimization", () => {
     it("should match generated combinations when range is not evenly divisible by step", () => {
       const ranges = [param("threshold", 0, 1, 0.4)];
       expect(countCombinations(ranges)).toBe(generateParameterCombinations(ranges).length);
+    });
+  });
+
+  describe("GRID_SEARCH_EPSILON_FACTOR", () => {
+    it("is the same constant getParameterValues uses internally", () => {
+      // Documented as 1_000_000; check explicitly so callers reproducing
+      // grid points externally know the magic number.
+      expect(GRID_SEARCH_EPSILON_FACTOR).toBe(1_000_000);
     });
   });
 
@@ -322,6 +331,46 @@ describe("Grid Search Optimization", () => {
       expect(summary.metric).toBe("sharpe");
       expect(summary.bestParams).toBeDefined();
       expect(typeof summary.validPercent).toBe("number");
+    });
+  });
+
+  describe("null fallback when no valid combinations", () => {
+    // Documents the contract that bestScore / bestParams are `null`
+    // (not `0` / `{}`) when no combination satisfies the constraints.
+    // The legacy `0` fallback was indistinguishable from an actual
+    // optimum of zero — callers couldn't tell "no result" from "result
+    // is exactly zero". null is the explicit empty-state signal.
+    it("returns null bestScore and bestParams when no combination passes constraints", () => {
+      const candles = generateUpTrendCandles(50);
+      const createStrategy = (params: Record<string, number>) => ({
+        entry: createEnterCondition(Math.round(params.enterAt)),
+        exit: createExitCondition(10),
+        options: { capital: 100000 } as BacktestOptions,
+      });
+      const result = gridSearch(
+        candles,
+        createStrategy,
+        [param("enterAt", 5, 10, 5)],
+        // Impossible constraint — no combination will pass.
+        { constraints: [constraint("sharpe", ">=", 9999)] },
+      );
+      expect(result.validCombinations).toBe(0);
+      expect(result.bestScore).toBeNull();
+      expect(result.bestParams).toBeNull();
+    });
+
+    it("returns non-null bestScore and bestParams when at least one combination is valid", () => {
+      const candles = generateUpTrendCandles(50);
+      const createStrategy = (params: Record<string, number>) => ({
+        entry: createEnterCondition(Math.round(params.enterAt)),
+        exit: createExitCondition(10),
+        options: { capital: 100000 } as BacktestOptions,
+      });
+      const result = gridSearch(candles, createStrategy, [param("enterAt", 5, 10, 5)]);
+      // No constraints, so every combination "passes" trivially.
+      expect(result.validCombinations).toBeGreaterThan(0);
+      expect(result.bestScore).not.toBeNull();
+      expect(result.bestParams).not.toBeNull();
     });
   });
 

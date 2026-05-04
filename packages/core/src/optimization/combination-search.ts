@@ -54,10 +54,16 @@ export type CombinationResultEntry = {
  * Combination search result
  */
 export type CombinationSearchResult = {
-  /** Best combination found */
+  /** Best combination found (empty arrays when no valid combination) */
   bestEntry: string[];
   bestExit: string[];
-  bestScore: number;
+  /**
+   * Best score achieved, or `null` if no combination satisfied the
+   * configured constraints. Previously fell back to `0`, which callers
+   * mistook as "the optimum is zero". Use `result.bestScore ?? 0` to
+   * preserve the prior behavior.
+   */
+  bestScore: number | null;
   /** Metric used for optimization */
   metric: OptimizationMetric;
   /** Total combinations tested */
@@ -368,7 +374,7 @@ export function combinationSearch(
   return {
     bestEntry,
     bestExit,
-    bestScore: bestScore === Number.NEGATIVE_INFINITY ? 0 : bestScore,
+    bestScore: bestScore === Number.NEGATIVE_INFINITY ? null : bestScore,
     metric,
     totalCombinations,
     validCombinations,
