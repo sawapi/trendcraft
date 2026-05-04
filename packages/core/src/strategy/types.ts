@@ -125,6 +125,36 @@ export type ParamDef = {
   enum?: unknown[];
   /** Whether this parameter is required (default: false) */
   required?: boolean;
+  /**
+   * `true` when the param accepts only integer values (period, lookback,
+   * thresholdCount, etc.). Used by UIs that derive parameter ranges or
+   * input cadences. When `true`, `precision` is ignored (treated as 0).
+   * When omitted, callers shouldn't assume — the param may be either int
+   * or float depending on the indicator.
+   */
+  integer?: boolean;
+  /**
+   * Decimal places of valid resolution for numeric params. `1` = 0.1
+   * granularity (Bollinger stdDev), `2` = 0.01 (CMF threshold). Mutually
+   * exclusive with `integer: true`. UIs use this to seed step sizes for
+   * parameter range editors.
+   */
+  precision?: number;
+  /**
+   * UI-only suggested lower bound for editors / range pickers. Unlike
+   * `min`, this is **not** enforced by `validateConditionSpec` — it's a
+   * hint, not a contract. Use this for params where the indicator
+   * mathematically accepts a wider range than is practical to surface in
+   * a slider (e.g. periods accept any positive integer, but a UI usually
+   * wants to default to 1..200).
+   */
+  suggestedMin?: number;
+  /**
+   * UI-only suggested upper bound for editors / range pickers. Same
+   * non-enforcing semantics as `suggestedMin`. Adding this never breaks
+   * persisted strategy JSON, whereas tightening `max` would.
+   */
+  suggestedMax?: number;
 };
 
 /**

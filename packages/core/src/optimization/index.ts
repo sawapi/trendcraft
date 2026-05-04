@@ -51,6 +51,7 @@ export {
   gridSearchSafe,
   generateParameterCombinations,
   countCombinations,
+  GRID_SEARCH_EPSILON_FACTOR,
   param,
   constraint,
   getTopResults,

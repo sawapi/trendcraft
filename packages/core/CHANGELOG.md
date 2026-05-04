@@ -1,5 +1,42 @@
 # Changelog
 
+## Unreleased
+
+### Added — `GRID_SEARCH_EPSILON_FACTOR`
+
+- Exported constant (`1_000_000`) used by `getParameterValues` for the
+  inclusive `<= max + ε` upper-bound comparison (epsilon = step / FACTOR).
+  Exposed so external tools (UIs deriving the same grid points, MCP
+  callers pre-validating LLM output) can reproduce the comparison
+  semantics without re-deriving the constant.
+
+### Added — ParamDef annotations (`integer`, `precision`, `suggestedMin/Max`)
+
+- `ParamDef` gains optional `integer?: boolean` and `precision?: number`
+  fields. UIs and optimization helpers that derive parameter ranges or
+  step inputs from a registry entry no longer need to heuristically
+  guess whether a param is integer-valued (period etc.) or what its
+  decimal grid is. The two fields are mutually exclusive: when
+  `integer: true`, `precision` is ignored.
+- `ParamDef` also gains optional `suggestedMin?` / `suggestedMax?` UI
+  hints. Unlike `min` / `max` these are **not** enforced by
+  `validateConditionSpec`, so adding them to a registry entry never
+  invalidates persisted strategy JSON. Use them for params where the
+  indicator mathematically accepts a wider range than is practical to
+  surface in a slider (e.g. periods accept any positive integer, but a
+  UI usually wants 1..200).
+- Representative entries in `backtestRegistry` now carry these
+  annotations as a starting set: `goldenCross` / `deadCross` periods
+  (`integer: true`, `suggestedMax`), `bollingerBreakout` /
+  `bollingerTouch` `stdDev` (`precision: 1`, existing `min: 0.1`
+  preserved as runtime contract, new `suggestedMax: 5` UI hint),
+  `bollingerBreakout` / `bollingerTouch` `period`
+  (`integer: true`, `suggestedMax: 200`), and `cmfAbove` / `cmfBelow`
+  `threshold` (`precision: 2`, `suggestedMin: -1`, `suggestedMax: 1`).
+  All bounds are UI hints, not validation limits, so adding them never
+  invalidates persisted strategy JSON. Remaining entries will be
+  annotated as needed.
+
 ## [0.3.0] - 2026-04-26
 
 ### Breaking — Indicator Quality Fixes

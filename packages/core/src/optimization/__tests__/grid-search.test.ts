@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { BacktestOptions, NormalizedCandle, PresetCondition } from "../../types";
 import {
+  GRID_SEARCH_EPSILON_FACTOR,
   constraint,
   countCombinations,
   generateParameterCombinations,
@@ -118,6 +119,14 @@ describe("Grid Search Optimization", () => {
     it("should match generated combinations when range is not evenly divisible by step", () => {
       const ranges = [param("threshold", 0, 1, 0.4)];
       expect(countCombinations(ranges)).toBe(generateParameterCombinations(ranges).length);
+    });
+  });
+
+  describe("GRID_SEARCH_EPSILON_FACTOR", () => {
+    it("is the same constant getParameterValues uses internally", () => {
+      // Documented as 1_000_000; check explicitly so callers reproducing
+      // grid points externally know the magic number.
+      expect(GRID_SEARCH_EPSILON_FACTOR).toBe(1_000_000);
     });
   });
 
