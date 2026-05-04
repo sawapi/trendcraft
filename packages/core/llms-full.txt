@@ -811,7 +811,7 @@ const result = gridSearch(candles, (params) => ({
 });
 ```
 
-Returns `GridSearchResult` with `results[]`, `bestParameters`, `bestMetrics`.
+Returns `GridSearchResult` with `results[]`, `totalCombinations`, `validCombinations`, `bestParams: Record<string, number> | null`, `bestScore: number | null`, `metric`. `bestParams`/`bestScore` are `null` when no combination passed constraints — guard with `result.bestScore ?? 0` or `result.validCombinations > 0`.
 
 ### `walkForwardAnalysis(candles, strategyFactory, paramRanges, options?)`
 Out-of-sample validation. Options: `inSampleRatio` (0.7), `periods` (5), `metric`.

@@ -157,7 +157,7 @@ export function gridSearch(
   // Run backtests and collect results
   const results: OptimizationResultEntry[] = [];
   let bestScore = Number.NEGATIVE_INFINITY;
-  let bestParams: Record<string, number> = {};
+  let bestParams: Record<string, number> | null = null;
   let validCombinations = 0;
 
   for (let i = 0; i < combinations.length; i++) {
@@ -222,8 +222,8 @@ export function gridSearch(
   results.sort((a, b) => b.score - a.score);
 
   return {
-    bestParams,
-    bestScore: bestScore === Number.NEGATIVE_INFINITY ? 0 : bestScore,
+    bestParams: validCombinations > 0 ? bestParams : null,
+    bestScore: bestScore === Number.NEGATIVE_INFINITY ? null : bestScore,
     metric,
     totalCombinations,
     validCombinations,
@@ -284,8 +284,8 @@ export function summarizeGridSearch(result: GridSearchResult): {
   totalTested: number;
   validCount: number;
   validPercent: number;
-  bestParams: Record<string, number>;
-  bestScore: number;
+  bestParams: Record<string, number> | null;
+  bestScore: number | null;
   metric: OptimizationMetric;
 } {
   return {

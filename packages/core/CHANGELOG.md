@@ -2,6 +2,38 @@
 
 ## Unreleased
 
+### Breaking — `bestScore` / `bestParams` are now `number | null`
+
+- `GridSearchResult.bestScore` and `CombinationSearchResult.bestScore` are
+  now `number | null`. Previously they fell back to `0` when no parameter
+  combination satisfied all constraints (or no combination produced
+  trades), which callers mistook as "the optimum is zero" instead of
+  "no valid result". Update consumers to handle `null` explicitly:
+
+  ```ts
+  // Before
+  console.log(`Best Sharpe: ${result.bestScore.toFixed(3)}`);
+
+  // After (preserve prior behavior)
+  console.log(`Best Sharpe: ${(result.bestScore ?? 0).toFixed(3)}`);
+
+  // Or branch
+  if (result.bestScore !== null) {
+    console.log(`Best Sharpe: ${result.bestScore.toFixed(3)}`);
+  } else {
+    console.log("No combination passed constraints");
+  }
+  ```
+
+- `GridSearchResult.bestParams` is now `Record<string, number> | null`
+  for the same reason — the legacy `{}` fallback was indistinguishable
+  from the legitimate "no params to optimize" case (empty
+  `parameterRanges`). `result.validCombinations > 0` and
+  `result.bestParams !== null` are now equivalent guards.
+- `CombinationSearchResult.bestEntry` / `bestExit` keep their `string[]`
+  type (empty arrays unambiguously signal "no entry/exit conditions"),
+  so this breaking change is limited to `bestScore` and `bestParams`.
+
 ### Added — `GRID_SEARCH_EPSILON_FACTOR`
 
 - Exported constant (`1_000_000`) used by `getParameterValues` for the
