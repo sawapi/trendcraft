@@ -34,7 +34,7 @@ export { streamingRegistry } from "./registry-streaming";
 export { hydrateCondition, loadStrategy } from "./hydrate";
 
 // New: Serialization
-export { serializeStrategy, parseStrategy } from "./serialize";
+export { serializeStrategy, parseStrategy, parseStrategySafe } from "./serialize";
 
 // New: Validation
 export { validateConditionSpec, validateStrategyJSON } from "./validate";

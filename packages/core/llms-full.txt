@@ -1737,7 +1737,13 @@ registry.register({
 ### Serialize / Parse
 
 ```typescript
-import { serializeStrategy, parseStrategy } from "trendcraft";
+import {
+  serializeStrategy,
+  parseStrategy,
+  parseStrategySafe,
+  backtestRegistry,
+  loadStrategy,
+} from "trendcraft";
 import type { StrategyJSON } from "trendcraft";
 
 const strategy: StrategyJSON = {
@@ -1763,6 +1769,17 @@ const strategy: StrategyJSON = {
 
 const jsonString = serializeStrategy(strategy); // → formatted JSON string
 const restored = parseStrategy(jsonString);      // → StrategyJSON (validates schema/version)
+
+// Strict mode — pass the registry to validate structure + conditions upfront.
+// Catches unknown conditions / out-of-range params / malformed `not` arity at
+// parse time instead of deferring them to loadStrategy() / runtime.
+const strict = parseStrategy(jsonString, backtestRegistry);
+
+// Result variant for MCP / LLM tooling. Error codes:
+//   INVALID_JSON | INVALID_SCHEMA | UNSUPPORTED_VERSION | INVALID_STRUCTURE | INVALID_CONDITION
+const result = parseStrategySafe(jsonString, backtestRegistry);
+if (result.ok) loadStrategy(result.value, backtestRegistry);
+else console.error(result.error.code, result.error.message);
 ```
 
 ### Hydrate / Load

@@ -59,7 +59,12 @@ export type TrendCraftErrorCode =
   | "BACKTEST_FAILED"
   | "SCREENING_FAILED"
   | "COMPUTATION_FAILED"
-  | "INDICATOR_ERROR";
+  | "INDICATOR_ERROR"
+  | "INVALID_JSON"
+  | "INVALID_SCHEMA"
+  | "UNSUPPORTED_VERSION"
+  | "INVALID_STRUCTURE"
+  | "INVALID_CONDITION";
 
 /**
  * Structured error with code, message, and optional context

@@ -474,7 +474,8 @@ Declarative JSON representation for strategies — save, share, and version-cont
 - `backtestRegistry.list(category?)` — List conditions, optionally by category
 - `backtestRegistry.get(name)` — Get condition entry with param schema (for UI generation)
 - `serializeStrategy(strategy)` — Serialize StrategyJSON to formatted JSON string
-- `parseStrategy(json)` — Parse JSON string to StrategyJSON (validates schema/version)
+- `parseStrategy(json, registry?)` — Parse JSON string to StrategyJSON. Always checks `$schema` + `version`; pass a `ConditionRegistry` for full structure + condition validation upfront (catches unknown conditions / out-of-range params / malformed `not` arity at parse time).
+- `parseStrategySafe(json, registry?)` — Result variant. Error codes: `INVALID_JSON` / `INVALID_SCHEMA` / `UNSUPPORTED_VERSION` / `INVALID_STRUCTURE` / `INVALID_CONDITION`.
 - `hydrateCondition(spec, registry)` — Convert ConditionSpec JSON to executable Condition
 - `loadStrategy(json, registry)` — Load StrategyJSON → `{ entry, exit, backtestOptions }`
 - `validateConditionSpec(spec, registry)` — Validate condition spec (type/range/enum/required checks)
