@@ -924,6 +924,70 @@ def generate_all(ohlcv: dict) -> None:
         ],
     })
 
+    # Coppock Curve — pandas-ta default (length=10 WMA, fast=14 long ROC, slow=11 short ROC)
+    print("Generating Coppock Curve...")
+    save_fixture("coppock-curve", {
+        "indicator": "CoppockCurve",
+        "ground_truth": "pandas-ta",
+        "test_cases": [
+            {
+                "name": "coppock_default",
+                "params": {"wmaPeriod": 10, "longRocPeriod": 14, "shortRocPeriod": 11},
+                "values": to_json_safe(pta.coppock(df["close"]).to_numpy(), n),
+            },
+        ],
+    })
+
+    # Mass Index — pandas-ta default fast=9 / slow=25
+    print("Generating Mass Index...")
+    save_fixture("mass-index", {
+        "indicator": "MassIndex",
+        "ground_truth": "pandas-ta",
+        "test_cases": [
+            {
+                "name": "massi_9_25",
+                "params": {"emaPeriod": 9, "sumPeriod": 25},
+                "values": to_json_safe(pta.massi(df["high"], df["low"]).to_numpy(), n),
+            },
+        ],
+    })
+
+    # TSI — pandas-ta default fast=13 / slow=25 / signal=13
+    # We compare the TSI line only; the signal-line EMA seeding diverges
+    # by one bar between pandas-ta and TrendCraft (off-by-one warmup),
+    # which is documented but excluded from numeric parity here.
+    print("Generating TSI...")
+    tsi_df = pta.tsi(df["close"], fast=13, slow=25, signal=13)
+    save_fixture("tsi", {
+        "indicator": "TSI",
+        "ground_truth": "pandas-ta",
+        "note": "TSI line only — signal-line warmup differs by 1 bar between pandas-ta and TrendCraft.",
+        "test_cases": [
+            {
+                "name": "tsi_13_25_13",
+                "params": {"longPeriod": 25, "shortPeriod": 13, "signalPeriod": 13},
+                "values": to_json_safe(tsi_df.iloc[:, 0].to_numpy(), n),
+            },
+        ],
+    })
+
+    # Choppiness Index — pandas-ta default length=14 (atr_length=1, scalar=100)
+    print("Generating Choppiness Index...")
+    save_fixture("choppiness-index", {
+        "indicator": "ChoppinessIndex",
+        "ground_truth": "pandas-ta",
+        "test_cases": [
+            {
+                "name": "chop_14",
+                "params": {"period": 14},
+                "values": to_json_safe(
+                    pta.chop(df["high"], df["low"], df["close"], length=14).to_numpy(),
+                    n,
+                ),
+            },
+        ],
+    })
+
 
 def main() -> None:
     FIXTURES_DIR.mkdir(parents=True, exist_ok=True)
