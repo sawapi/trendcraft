@@ -48,41 +48,52 @@ export function calculateSharpeRatio(
 
 /**
  * Calculate Calmar Ratio (annualized return / max drawdown)
+ *
+ * Returns `NaN` when `maxDrawdownPercent <= 0` (i.e. there is no
+ * meaningful denominator). Matches the empyrical / pyfolio convention
+ * — a flat strategy with no observed drawdown does not have a defined
+ * Calmar ratio. Downstream consumers (gridSearch, walkforward) filter
+ * `Number.isFinite` to keep NaN strategies out of ranking.
+ *
  * @param annualizedReturnPercent Annualized return in percent
- * @param maxDrawdownPercent Maximum drawdown in percent
- * @returns Calmar Ratio
+ * @param maxDrawdownPercent Maximum drawdown in percent (positive number)
+ * @returns Calmar Ratio, or `NaN` when undefined
  */
 export function calculateCalmarRatio(
   annualizedReturnPercent: number,
   maxDrawdownPercent: number,
 ): number {
-  if (maxDrawdownPercent === 0) {
-    return annualizedReturnPercent > 0 ? Number.POSITIVE_INFINITY : 0;
-  }
+  if (!(maxDrawdownPercent > 0)) return Number.NaN;
   return annualizedReturnPercent / maxDrawdownPercent;
 }
 
 /**
  * Calculate Recovery Factor (net profit / max drawdown)
+ *
+ * Returns `NaN` when `maxDrawdown <= 0`. See `calculateCalmarRatio`
+ * for rationale.
+ *
  * @param netProfit Total net profit
- * @param maxDrawdown Maximum drawdown in absolute terms
- * @returns Recovery Factor
+ * @param maxDrawdown Maximum drawdown in absolute terms (positive number)
+ * @returns Recovery Factor, or `NaN` when undefined
  */
 export function calculateRecoveryFactor(netProfit: number, maxDrawdown: number): number {
-  if (maxDrawdown === 0) {
-    return netProfit > 0 ? Number.POSITIVE_INFINITY : 0;
-  }
+  if (!(maxDrawdown > 0)) return Number.NaN;
   return netProfit / maxDrawdown;
 }
 
 /**
  * Calculate MAR Ratio (Monthly Average Return / Max Drawdown)
- * Similar to Calmar but uses monthly returns instead of annualized
+ * Similar to Calmar but uses monthly returns instead of annualized.
+ *
+ * Returns `NaN` when the ratio is undefined (no drawdown or no
+ * trading days). See `calculateCalmarRatio` for rationale.
+ *
  * @param totalReturnPercent Total return in percent
  * @param tradingDays Number of trading days
- * @param maxDrawdownPercent Maximum drawdown in percent
+ * @param maxDrawdownPercent Maximum drawdown in percent (positive number)
  * @param tradingDaysPerMonth Trading days per month (default: 21)
- * @returns MAR Ratio
+ * @returns MAR Ratio, or `NaN` when undefined
  */
 export function calculateMAR(
   totalReturnPercent: number,
@@ -90,12 +101,9 @@ export function calculateMAR(
   maxDrawdownPercent: number,
   tradingDaysPerMonth = 21,
 ): number {
-  if (maxDrawdownPercent === 0) {
-    return totalReturnPercent > 0 ? Number.POSITIVE_INFINITY : 0;
-  }
-  if (tradingDays <= 0) return 0;
+  if (!(maxDrawdownPercent > 0)) return Number.NaN;
+  if (tradingDays <= 0) return Number.NaN;
 
-  // Calculate monthly average return
   const months = tradingDays / tradingDaysPerMonth;
   const monthlyAvgReturn = totalReturnPercent / months;
 

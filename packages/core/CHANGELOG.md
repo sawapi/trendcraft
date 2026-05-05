@@ -2,6 +2,43 @@
 
 ## Unreleased
 
+### Fixed — `+Infinity` scores leaking into grid search ranking
+
+- `calculateCalmarRatio` / `calculateRecoveryFactor` / `calculateMAR`
+  previously returned `Number.POSITIVE_INFINITY` when
+  `maxDrawdown === 0` and the return was positive. Combined with
+  `gridSearch`'s `if (score > bestScore)` ranking, this caused a
+  flat strategy with maxDD = 0 (e.g. one tiny coincidental winning
+  trade) to outrank legitimate strategies and become `bestScore =
+  Infinity`. Downstream (Strategy DNA, MCP recommendations) inherited
+  the bad ranking. The three functions now return `NaN` when the
+  ratio is undefined, matching the empyrical / pyfolio convention
+  (`np.nan` on `max_dd >= 0` or non-finite). **Breaking** for callers
+  that compared the result to `Number.POSITIVE_INFINITY` — branch on
+  `Number.isFinite(value)` instead.
+- `gridSearch` now filters NaN / ±Infinity scores out of `bestScore`
+  selection and out of the returned `results` array (default), so
+  downstream consumers like `strategy-dna`'s `computeRecommendedParams`
+  / `extractSensitivityData` no longer have to re-guard before sorting
+  or averaging. Pass `keepAllResults: true` to surface the rejected
+  combinations for inspection — they sink to the end of the sorted
+  list deterministically.
+- `walkforward.calculateAggregateMetrics` now averages only across
+  periods where the metric was actually defined, instead of coercing
+  NaN to 0. The earlier coercion silently collapsed the average to
+  0 when every period had an undefined primary metric (e.g. Calmar
+  on a flat strategy across all windows), which made
+  `stabilityRatio` look perfect (`avgIn === avgOut === 0` → 1) and
+  caused `generateRecommendation` to endorse params whose primary
+  metric was never measurable. The recommendation path now treats
+  "no finite samples on either side" as `stabilityRatio = 0`.
+- Length=0 guards added in `walkforward.generateRecommendation` for
+  `periods.length === 0` and empty `paramKeys`.
+- `risk/var.ts` internal `mean` / `stdDev` / `skewness` /
+  `excessKurtosis` helpers now return 0 on empty arrays; the public
+  `calculateVaR` was already guarded but the helpers themselves
+  could be reused (or accidentally wired) elsewhere.
+
 ### Added — `parseStrategy` opt-in registry validation + `parseStrategySafe`
 
 - `parseStrategy(json, registry?)` gains an optional second argument.
