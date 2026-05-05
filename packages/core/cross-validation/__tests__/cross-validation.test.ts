@@ -8,8 +8,10 @@ import {
   balanceOfPower,
   bollingerBands,
   cci,
+  choppinessIndex,
   cmf,
   cmo,
+  coppockCurve,
   dema,
   dmi,
   donchianChannel,
@@ -22,6 +24,7 @@ import {
   linearRegression,
   lowest,
   macd,
+  massIndex,
   medianPrice,
   mfi,
   obv,
@@ -36,6 +39,7 @@ import {
   t3,
   tema,
   trix,
+  tsi,
   typicalPrice,
   ultimateOscillator,
   vortex,
@@ -492,6 +496,65 @@ describe("Awesome Oscillator", () => {
     const result = awesomeOscillator(candles, { fastPeriod: 5, slowPeriod: 34 });
     assertNullAlignment(result, tc.values, "AO(5,34)");
     assertSeriesMatch(result, tc.values, 9, "AO(5,34)");
+  });
+});
+
+describe("Coppock Curve", () => {
+  it("coppockCurve(default) matches pandas-ta within 9 decimals", () => {
+    const fixture = loadFixture("coppock-curve");
+    const tc = fixture.test_cases[0];
+    if (!isSingleTestCase(tc)) throw new Error("Expected single test case");
+
+    const result = coppockCurve(candles, {
+      wmaPeriod: 10,
+      longRocPeriod: 14,
+      shortRocPeriod: 11,
+    });
+    assertNullAlignment(result, tc.values, "Coppock");
+    assertSeriesMatch(result, tc.values, 9, "Coppock");
+  });
+});
+
+describe("Mass Index", () => {
+  it("massIndex(9,25) matches pandas-ta within 9 decimals", () => {
+    const fixture = loadFixture("mass-index");
+    const tc = fixture.test_cases[0];
+    if (!isSingleTestCase(tc)) throw new Error("Expected single test case");
+
+    const result = massIndex(candles, { emaPeriod: 9, sumPeriod: 25 });
+    assertNullAlignment(result, tc.values, "Mass Index");
+    assertSeriesMatch(result, tc.values, 9, "Mass Index");
+  });
+});
+
+describe("TSI", () => {
+  it("tsi(13,25,13) line matches pandas-ta within 9 decimals", () => {
+    const fixture = loadFixture("tsi");
+    const tc = fixture.test_cases[0];
+    if (!isSingleTestCase(tc)) throw new Error("Expected single test case");
+
+    // TrendCraft TSI returns { tsi, signal }; pandas-ta fixture is the
+    // line only. The signal-line warmup differs by 1 bar between
+    // implementations (EMA seeding convention) — out of scope here.
+    const result = tsi(candles, { longPeriod: 25, shortPeriod: 13, signalPeriod: 13 });
+    const line: Series<number | null> = result.map((r) => ({
+      time: r.time,
+      value: r.value === null ? null : r.value.tsi,
+    }));
+    assertNullAlignment(line, tc.values, "TSI line");
+    assertSeriesMatch(line, tc.values, 9, "TSI line");
+  });
+});
+
+describe("Choppiness Index", () => {
+  it("choppinessIndex(14) matches pandas-ta within 9 decimals", () => {
+    const fixture = loadFixture("choppiness-index");
+    const tc = fixture.test_cases[0];
+    if (!isSingleTestCase(tc)) throw new Error("Expected single test case");
+
+    const result = choppinessIndex(candles, { period: 14 });
+    assertNullAlignment(result, tc.values, "Choppiness(14)");
+    assertSeriesMatch(result, tc.values, 9, "Choppiness(14)");
   });
 });
 

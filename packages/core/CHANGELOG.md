@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+### Added — pandas-ta cross-validation for Coppock / Mass Index / TSI / Choppiness
+
+- Four additional indicators with no TA-Lib counterpart now have
+  parity tests against `pandas-ta` at 9-decimal precision:
+  - `coppockCurve(close, { wmaPeriod: 10, longRocPeriod: 14, shortRocPeriod: 11 })`
+  - `massIndex(candles, { emaPeriod: 9, sumPeriod: 25 })`
+  - `tsi(close, { longPeriod: 25, shortPeriod: 13, signalPeriod: 13 })` — line only
+  - `choppinessIndex(candles, { period: 14 })`
+- TSI signal-line warmup differs by 1 bar between pandas-ta and
+  TrendCraft (EMA seeding convention), so only the line is compared.
+- Cross-validation suite: 43 → 47 indicators.
+
+Three Tier-2 candidates were probed and deferred:
+- `ulcerIndex` — pandas-ta warmup is 2× TrendCraft's; needs deeper
+  formula reconciliation.
+- `pvt` — TrendCraft output is 100× smaller than pandas-ta on the
+  same input; potential scaling bug, tracked separately.
+- `nvi` — values diverge significantly (1129 vs 1013), formula
+  variants need reconciliation.
+
 ### Added — pandas-ta cross-validation for HMA / VWMA / CMF / Vortex / Awesome Oscillator
 
 - Five indicators with no TA-Lib counterpart now have parity tests
