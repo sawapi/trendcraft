@@ -4,9 +4,11 @@ import {
   adxr,
   aroon,
   atr,
+  awesomeOscillator,
   balanceOfPower,
   bollingerBands,
   cci,
+  cmf,
   cmo,
   dema,
   dmi,
@@ -14,6 +16,7 @@ import {
   ema,
   fastStochastics,
   highest,
+  hma,
   kama,
   keltnerChannel,
   linearRegression,
@@ -35,6 +38,8 @@ import {
   trix,
   typicalPrice,
   ultimateOscillator,
+  vortex,
+  vwma,
   weightedClose,
   williamsR,
   wma,
@@ -411,6 +416,82 @@ describe("Balance of Power", () => {
     const result = balanceOfPower(candles, { smoothPeriod: 1 });
     assertNullAlignment(result, tc.values, "BOP(raw)");
     assertSeriesMatch(result, tc.values, 8, "BOP(raw)");
+  });
+});
+
+// --- pandas-ta ground-truth (no TA-Lib equivalent) ---
+
+// All five indicators below match pandas-ta to ~9 decimals on the
+// shared synthetic fixture. The remaining ~1e-9 drift is float64
+// summation order, not algorithmic difference — verified by
+// hand-tracing a few warmup values.
+describe("HMA", () => {
+  it.each([14, 9])("hma(%d) matches pandas-ta within 9 decimals", (period) => {
+    const fixture = loadFixture("hma");
+    const tc = fixture.test_cases.find((t) => t.params.period === period);
+    if (!tc || !isSingleTestCase(tc)) throw new Error(`Expected fixture for period=${period}`);
+
+    const result = hma(candles, { period });
+    assertNullAlignment(result, tc.values, `HMA(${period})`);
+    assertSeriesMatch(result, tc.values, 9, `HMA(${period})`);
+  });
+});
+
+describe("VWMA", () => {
+  it("vwma(20) matches pandas-ta within 9 decimals", () => {
+    const fixture = loadFixture("vwma");
+    const tc = fixture.test_cases[0];
+    if (!isSingleTestCase(tc)) throw new Error("Expected single test case");
+
+    const result = vwma(candles, { period: 20 });
+    assertNullAlignment(result, tc.values, "VWMA(20)");
+    assertSeriesMatch(result, tc.values, 9, "VWMA(20)");
+  });
+});
+
+describe("CMF", () => {
+  it("cmf(20) matches pandas-ta within 9 decimals", () => {
+    const fixture = loadFixture("cmf");
+    const tc = fixture.test_cases[0];
+    if (!isSingleTestCase(tc)) throw new Error("Expected single test case");
+
+    const result = cmf(candles, { period: 20 });
+    assertNullAlignment(result, tc.values, "CMF(20)");
+    assertSeriesMatch(result, tc.values, 9, "CMF(20)");
+  });
+});
+
+describe("Vortex", () => {
+  it("vortex(14) VI+ / VI- match pandas-ta within 9 decimals", () => {
+    const fixture = loadFixture("vortex");
+    const tc = fixture.test_cases[0];
+    if (isSingleTestCase(tc)) throw new Error("Expected composite test case");
+
+    const result = vortex(candles, { period: 14 });
+    const viPlus: Series<number | null> = result.map((r) => ({
+      time: r.time,
+      value: r.value === null ? null : r.value.viPlus,
+    }));
+    const viMinus: Series<number | null> = result.map((r) => ({
+      time: r.time,
+      value: r.value === null ? null : r.value.viMinus,
+    }));
+    assertNullAlignment(viPlus, tc.values.viPlus, "Vortex VI+");
+    assertSeriesMatch(viPlus, tc.values.viPlus, 9, "Vortex VI+");
+    assertNullAlignment(viMinus, tc.values.viMinus, "Vortex VI-");
+    assertSeriesMatch(viMinus, tc.values.viMinus, 9, "Vortex VI-");
+  });
+});
+
+describe("Awesome Oscillator", () => {
+  it("awesomeOscillator(5,34) matches pandas-ta within 9 decimals", () => {
+    const fixture = loadFixture("awesome-oscillator");
+    const tc = fixture.test_cases[0];
+    if (!isSingleTestCase(tc)) throw new Error("Expected single test case");
+
+    const result = awesomeOscillator(candles, { fastPeriod: 5, slowPeriod: 34 });
+    assertNullAlignment(result, tc.values, "AO(5,34)");
+    assertSeriesMatch(result, tc.values, 9, "AO(5,34)");
   });
 });
 
