@@ -1008,6 +1008,11 @@ export {
   fastNonDominatedSort,
   crowdingDistance,
   summarizeParetoResult,
+  // Strategy DNA — post-optimization analytics
+  buildGenomeSegments,
+  extractSensitivityData,
+  computeRecommendedParams,
+  computeDnaGrade,
 } from "./optimization";
 
 export type {
@@ -1041,6 +1046,16 @@ export type {
   ParetoOptions,
   ParetoResultEntry,
   ParetoResult,
+  // Strategy DNA types
+  GenomeSegment,
+  SensitivitySingle,
+  SensitivityPair,
+  SafeZone,
+  SensitivityData,
+  RecommendedParams,
+  DnaGrade,
+  DnaGradeItem,
+  DnaGradeReport,
 } from "./optimization";
 
 // Screening (browser-compatible exports only - no fs dependency)

@@ -2,6 +2,41 @@
 
 ## Unreleased
 
+### Added — Strategy DNA primitives (`optimization/strategy-dna`)
+
+- New `optimization/strategy-dna.ts` module exposing post-optimization
+  analytics that previously lived only as user-space helpers in
+  example apps:
+  - `buildGenomeSegments(bestParams, paramRanges, bestScore)` — maps
+    each best-param value onto a `[0, 1]` position within its declared
+    search range, for "where in the space did the optimizer land"
+    visualizations.
+  - `extractSensitivityData(results, metric)` — aggregates per-param
+    and pairwise mean-metric tables plus top-25% safe zones from a
+    grid search's `results[]`.
+  - `computeRecommendedParams(grid, walkForward?, sensitivity?)` —
+    three-step recommendation: safe-zone median → walk-forward
+    stable-period median override → sensitivity-peak penalty. Returns
+    `{ params, ranges, confidence, reason, sources }` with
+    `confidence: "high" | "medium" | "low"`. Handles
+    `gridSearch.bestParams === null` (PR-A2 contract) by falling back
+    to `results[0]?.params` so the explored grid still informs a
+    recommendation.
+  - `computeDnaGrade(grid?, walkForward?, monteCarlo?)` — A–F grade
+    across four dimensions (WF stability 30%, MC significance 30%,
+    parameter sensitivity 20%, win-rate stability 20%). Items whose
+    inputs are missing are marked `available: false` and excluded
+    from the renormalized weighted average — distinct from
+    `robustness/calculateRobustnessScore` which runs new backtests.
+- New types: `GenomeSegment`, `SensitivitySingle`, `SensitivityPair`,
+  `SafeZone`, `SensitivityData`, `RecommendedParams`, `DnaGrade`,
+  `DnaGradeItem`, `DnaGradeReport`. The `Dna` prefix avoids collision
+  with `robustness/RobustnessGrade`.
+- `core.examples.echarts-viewer` cleaned up: its
+  `utils/strategyDna.ts` (574 lines) is now an ~80-line shim that
+  re-exports the core APIs (with backwards-compatible aliases) plus
+  the viewer-specific URL codec.
+
 ### Added — `percentile` / `median` / `quartiles` statistics utilities
 
 - New `packages/core/src/core/statistics.ts` with three exported
