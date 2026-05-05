@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Added — TA-Lib cross-validation for TRIX and Balance of Power
+
+- `trix(close, period)` line is now compared against `talib.TRIX` at
+  6-decimal precision (period 9 and 15).
+- `balanceOfPower(candles, { smoothPeriod: 1 })` is compared against
+  `talib.BOP` at 8-decimal precision. The default `smoothPeriod = 14`
+  remains unchanged; the test pins `smoothPeriod = 1` so it can
+  match TA-Lib's raw `(close-open)/(high-low)` formula.
+- 36 → 38 indicators with TA-Lib-pinned numerical accuracy.
+
 ### Fixed — `+Infinity` scores leaking into grid search ranking
 
 - `calculateCalmarRatio` / `calculateRecoveryFactor` / `calculateMAR`

@@ -4,6 +4,7 @@ import {
   adxr,
   aroon,
   atr,
+  balanceOfPower,
   bollingerBands,
   cci,
   cmo,
@@ -31,6 +32,7 @@ import {
   stochastics,
   t3,
   tema,
+  trix,
   typicalPrice,
   ultimateOscillator,
   weightedClose,
@@ -38,7 +40,13 @@ import {
   wma,
 } from "../../src";
 import type { NormalizedCandle, Series } from "../../src/types";
-import { assertSeriesMatch, isSingleTestCase, loadFixture, loadOhlcv } from "./helpers";
+import {
+  assertNullAlignment,
+  assertSeriesMatch,
+  isSingleTestCase,
+  loadFixture,
+  loadOhlcv,
+} from "./helpers";
 
 let candles: NormalizedCandle[];
 
@@ -368,6 +376,41 @@ describe("ADXR", () => {
 
     const result = adxr(candles, { period: 14 });
     assertSeriesMatch(result, tc.values, 8, "ADXR(14)");
+  });
+});
+
+describe("TRIX", () => {
+  it.each([15, 9])("trix(%d) line matches TA-Lib within 6 decimals", (period) => {
+    const fixture = loadFixture("trix");
+    const tc = fixture.test_cases.find((t) => t.params.period === period);
+    if (!tc || !isSingleTestCase(tc)) throw new Error(`Expected fixture for period=${period}`);
+
+    const result = trix(candles, { period });
+    // TrendCraft TRIX returns { trix, signal }; TA-Lib returns the
+    // line only. Compare just the `trix` field.
+    const line: Series<number | null> = result.map((r) => ({
+      time: r.time,
+      value: r.value === null ? null : r.value.trix,
+    }));
+    // Warmup alignment is part of the TA-Lib parity contract for
+    // TRIX: a regression that shifts the first non-null sample would
+    // be silently hidden by `assertSeriesMatch`'s null-skip behavior.
+    assertNullAlignment(line, tc.values, `TRIX(${period}) line`);
+    assertSeriesMatch(line, tc.values, 6, `TRIX(${period}) line`);
+  });
+});
+
+describe("Balance of Power", () => {
+  it("balanceOfPower (smoothPeriod=1, raw) matches TA-Lib within 8 decimals", () => {
+    const fixture = loadFixture("bop");
+    const tc = fixture.test_cases[0];
+    if (!isSingleTestCase(tc)) throw new Error("Expected single test case");
+
+    // smoothPeriod: 1 disables the SMA smoothing layer so we compare
+    // against TA-Lib's raw `(close-open)/(high-low)` formula.
+    const result = balanceOfPower(candles, { smoothPeriod: 1 });
+    assertNullAlignment(result, tc.values, "BOP(raw)");
+    assertSeriesMatch(result, tc.values, 8, "BOP(raw)");
   });
 });
 

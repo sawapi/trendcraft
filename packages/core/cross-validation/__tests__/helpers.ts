@@ -76,3 +76,27 @@ export function assertSeriesMatch(
   // Ensure we actually compared something
   expect(compared).toBeGreaterThan(0);
 }
+
+/**
+ * Assert that the actual series has the same null / non-null pattern
+ * as the fixture (warmup alignment). `assertSeriesMatch` skips
+ * either-side-null indices, so without this guard a regression that
+ * shifts the first non-null sample by one bar would pass silently —
+ * useful when warmup parity is part of the contract being verified.
+ */
+export function assertNullAlignment(
+  actual: { time: number; value: number | null }[],
+  expected: (number | null)[],
+  label: string,
+): void {
+  expect(actual.length).toBe(expected.length);
+  for (let i = 0; i < expected.length; i++) {
+    const expIsNull = expected[i] === null;
+    const actIsNull = actual[i].value === null;
+    if (expIsNull !== actIsNull) {
+      throw new Error(
+        `${label}: warmup alignment mismatch at index ${i} (expected ${expIsNull ? "null" : "value"}, got ${actIsNull ? "null" : "value"})`,
+      );
+    }
+  }
+}

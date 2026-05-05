@@ -720,6 +720,47 @@ def generate_all(ohlcv: dict) -> None:
         ],
     })
 
+    # TRIX (Triple-smoothed exponential moving average rate-of-change)
+    print("Generating TRIX...")
+    open_arr = np.array([c["open"] for c in candles], dtype=np.float64)  # noqa: F841
+    save_fixture("trix", {
+        "indicator": "TRIX",
+        "talib_function": "TRIX",
+        "test_cases": [
+            {
+                "name": "trix_15",
+                "params": {"period": 15},
+                "values": to_json_safe(talib.TRIX(close, timeperiod=15), n),
+            },
+            {
+                "name": "trix_9",
+                "params": {"period": 9},
+                "values": to_json_safe(talib.TRIX(close, timeperiod=9), n),
+            },
+        ],
+    })
+
+    # BOP (Balance of Power)
+    # Note: TA-Lib BOP is the raw `(close-open)/(high-low)` per bar — no
+    # smoothing. TrendCraft optionally applies an EMA via `smoothPeriod`.
+    # The fixture is the raw form; the test passes `smoothPeriod: 1` (or
+    # equivalent) to compare apples-to-apples against TA-Lib's no-smooth
+    # output.
+    print("Generating BOP...")
+    bop_open = np.array([c["open"] for c in candles], dtype=np.float64)
+    save_fixture("bop", {
+        "indicator": "BalanceOfPower",
+        "talib_function": "BOP",
+        "note": "Raw BOP without smoothing. TrendCraft smoothPeriod=1 for parity.",
+        "test_cases": [
+            {
+                "name": "bop_raw",
+                "params": {"smoothPeriod": 1},
+                "values": to_json_safe(talib.BOP(bop_open, high, low, close), n),
+            },
+        ],
+    })
+
     # ULTOSC (Ultimate Oscillator)
     print("Generating ULTOSC...")
     save_fixture("ultosc", {
