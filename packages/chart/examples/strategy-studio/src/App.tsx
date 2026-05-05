@@ -6,6 +6,7 @@ import { indicatorPresets, parseStrategy, validateStrategyJSON } from "trendcraf
 import { useBacktestRunner } from "./hooks/useBacktestRunner";
 import { useRegime } from "./hooks/useRegime";
 import { type SimulatorHandle, createLiveSimulator } from "./lib/live-simulator";
+import type { OptimizationComputation } from "./lib/optimization";
 import { PLUGIN_BY_KIND, type PluginHandle } from "./lib/plugins";
 import { clampedSeedEnd, lastEmittedIdx } from "./lib/replay";
 import { sampleCandles } from "./lib/sample-data";
@@ -24,6 +25,7 @@ import { RiskPanel } from "./panels/RiskPanel";
 import { ScoringPanel } from "./panels/ScoringPanel";
 import { SignalsPanel } from "./panels/SignalsPanel";
 import { StrategyBuilder } from "./panels/StrategyBuilder";
+import { StrategyDnaPanel } from "./panels/StrategyDnaPanel";
 
 function resolvePresetId(kind: string): string {
   return localStudioAPI.resolvePresetKey(kind) ?? kind;
@@ -503,6 +505,15 @@ export function App() {
   const [jsonText, setJsonText] = useState<string>("");
   const [importError, setImportError] = useState<string | null>(null);
 
+  // Lifted from OptimizationPanel so StrategyDnaPanel can read the
+  // same computation state without duplicating the run trigger. Pass
+  // the full discriminated union — DNA panel surfaces empty/error
+  // states with their own messages instead of collapsing them to
+  // "Run a grid search...".
+  const [optimizationResult, setOptimizationResult] = useState<OptimizationComputation>({
+    kind: "idle",
+  });
+
   // Backtest snapshot against history up to the current playhead — what the
   // user sees on chart matches what backtest sees.
   const backtestCandles = useMemo(
@@ -703,7 +714,10 @@ export function App() {
           strategy={runner.state.lastResult?.json}
           candles={backtestCandles}
           isReplayPlaying={replay.mode === "live" && replay.status === "playing"}
+          onResult={setOptimizationResult}
         />
+        <div className="pane-divider" />
+        <StrategyDnaPanel optimizationResult={optimizationResult} />
       </aside>
 
       {popoverState && popoverInstance && (
