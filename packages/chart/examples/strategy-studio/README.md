@@ -29,8 +29,8 @@ The studio runs **fully offline with no LLM key**. It uses `detectMarketRegime` 
 | PR8 | RiskPanel — position sizing (Risk-%/ATR/Kelly) + VaR/CVaR | done |
 | PR9 | MetaStrategyPanel — equity curve filter + strategy rotation | done |
 | PR10 | PortfolioPanel — `batchBacktest` + 3 synthetic symbols + sparkline rows | done |
-| PR11 | ScoringPanel — composite scoring (6 presets, sparkline + breakdown) | **this PR** |
-| PR12 | OptimizationPanel — grid search + walk-forward UI | |
+| PR11 | ScoringPanel — composite scoring (6 presets, sparkline + breakdown) | done |
+| PR12 | OptimizationPanel — grid search (push-to-run, auto-derived ranges, top-10 table) | **this PR** |
 | PR13 | StrategyDnaPanel — genome viz + sensitivity heatmap + robustness | |
 | PR14 | chart: live recompute for batch-only presets in Replay (carved out from PR5) | |
 | PR15 | chart: shared signal-pattern primitive (zigzag + neckline + target, extracted from indicator-showcase; carved out from PR6) | |

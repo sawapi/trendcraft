@@ -13,6 +13,7 @@ import { SIGNAL_BY_KIND } from "./lib/signals";
 import { builderReducer, initialBuilderState, strategyJSONToState } from "./lib/strategy-state";
 import { localStudioAPI } from "./lib/studio-api";
 import { MetaStrategyPanel } from "./panels/MetaStrategyPanel";
+import { OptimizationPanel } from "./panels/OptimizationPanel";
 import { ParamPopover } from "./panels/ParamPopover";
 import { PluginsPanel } from "./panels/PluginsPanel";
 import { PortfolioPanel } from "./panels/PortfolioPanel";
@@ -694,6 +695,12 @@ export function App() {
         />
         <div className="pane-divider" />
         <ScoringPanel
+          candles={backtestCandles}
+          isReplayPlaying={replay.mode === "live" && replay.status === "playing"}
+        />
+        <div className="pane-divider" />
+        <OptimizationPanel
+          strategy={runner.state.lastResult?.json}
           candles={backtestCandles}
           isReplayPlaying={replay.mode === "live" && replay.status === "playing"}
         />
