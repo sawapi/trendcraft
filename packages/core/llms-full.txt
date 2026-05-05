@@ -816,6 +816,9 @@ Returns `GridSearchResult` with `results[]`, `totalCombinations`, `validCombinat
 ### `gridSearchFromJSON(candles, strategy, ranges, registry, options?)`
 JSON-first variant. `strategy: StrategyJSON`, `ranges: PathParameterRange[]` where each range is `{ path: "entry.0.shortPeriod", min, max, step }`. Path syntax is `<bucket>.<leafIndex>.<paramName>` — `bucket` is `"entry"` or `"exit"`, `leafIndex` is depth-first leaf order across AND/OR/NOT, `paramName` is the registry param key. Returns the same `GridSearchResult` shape, with `bestParams` keyed by path so callers plug it back into `applyParamOverrides(strategy, bestParams)` to get the tuned strategy. Throws on invalid paths (use `gridSearchFromJSONSafe` for `Result`-returning variant).
 
+### Strategy DNA — post-optimization analytics
+`buildGenomeSegments(bestParams, paramRanges, bestScore)` — values mapped to `[0, 1]` within ranges. `extractSensitivityData(results, metric)` — per-param + pairwise mean-metric tables + top-25% safe zones. `computeRecommendedParams(grid, walkForward?, sensitivity?)` — 3-step robust recommendation (safe-zone median → WF stable-period override → sensitivity-peak penalty), returns `{ params, ranges, confidence: "high" | "medium" | "low", reason, sources }`. `computeDnaGrade(grid?, walkForward?, monteCarlo?)` — A-F grade across WF stability / MC significance / parameter sensitivity / win-rate stability; missing inputs are excluded from the renormalized weighted overall. Distinct from `robustness/calculateRobustnessScore` which runs new backtests.
+
 ### `flattenStrategyLeaves(strategy)` / `applyParamOverrides(strategy, overrides)`
 Pure utilities for walking and rewriting `StrategyJSON`. `flattenStrategyLeaves` returns `LeafInfo[]` (depth-first), `applyParamOverrides` returns a new strategy with the addressed leaves' params updated. Both share the same path syntax as `gridSearchFromJSON`.
 

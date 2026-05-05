@@ -124,3 +124,22 @@ export {
   crowdingDistance,
   summarizeParetoResult,
 } from "./pareto";
+
+// Strategy DNA — post-optimization analytics
+export {
+  buildGenomeSegments,
+  extractSensitivityData,
+  computeRecommendedParams,
+  computeDnaGrade,
+} from "./strategy-dna";
+export type {
+  GenomeSegment,
+  SensitivitySingle,
+  SensitivityPair,
+  SafeZone,
+  SensitivityData,
+  RecommendedParams,
+  DnaGrade,
+  DnaGradeItem,
+  DnaGradeReport,
+} from "./strategy-dna";
