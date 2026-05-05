@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### Added — pandas-ta cross-validation for HMA / VWMA / CMF / Vortex / Awesome Oscillator
+
+- Five indicators with no TA-Lib counterpart now have parity tests
+  against `pandas-ta` at 9-decimal precision:
+  - `hma(close, period)` for periods 9 and 14
+  - `vwma(candles, { period: 20 })`
+  - `cmf(candles, { period: 20 })`
+  - `vortex(candles, { period: 14 })` — both VI+ and VI- legs
+  - `awesomeOscillator(candles, { fastPeriod: 5, slowPeriod: 34 })`
+- Each test pairs `assertNullAlignment` (warmup parity) with
+  `assertSeriesMatch` (numeric parity) to catch both shifts and drift.
+
 ### Added — TA-Lib cross-validation for TRIX and Balance of Power
 
 - `trix(close, period)` line is now compared against `talib.TRIX` at
@@ -10,7 +22,8 @@
   `talib.BOP` at 8-decimal precision. The default `smoothPeriod = 14`
   remains unchanged; the test pins `smoothPeriod = 1` so it can
   match TA-Lib's raw `(close-open)/(high-low)` formula.
-- 36 → 38 indicators with TA-Lib-pinned numerical accuracy.
+- Cross-validation suite: 36 → 43 indicators (38 with TA-Lib + 5 with
+  pandas-ta as ground truth).
 
 ### Fixed — `+Infinity` scores leaking into grid search ranking
 

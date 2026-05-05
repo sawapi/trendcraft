@@ -16,6 +16,8 @@ import random
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
+import pandas_ta as pta
 import talib
 
 FIXTURES_DIR = Path(__file__).resolve().parent.parent / "fixtures"
@@ -826,6 +828,98 @@ def generate_all(ohlcv: dict) -> None:
                 "name": "psar_002_02",
                 "params": {"step": 0.02, "max": 0.2},
                 "values": to_json_safe(sar_values, n),
+            },
+        ],
+    })
+
+    # --- Phase 4: pandas-ta ground-truth (no TA-Lib equivalent) ---
+
+    df = pd.DataFrame({
+        "open": np.array([c["open"] for c in candles], dtype=np.float64),
+        "high": high,
+        "low": low,
+        "close": close,
+        "volume": volume,
+    })
+
+    # HMA (Hull Moving Average)
+    print("Generating HMA...")
+    save_fixture("hma", {
+        "indicator": "HMA",
+        "ground_truth": "pandas-ta",
+        "test_cases": [
+            {
+                "name": "hma_14",
+                "params": {"period": 14},
+                "values": to_json_safe(pta.hma(df["close"], length=14).to_numpy(), n),
+            },
+            {
+                "name": "hma_9",
+                "params": {"period": 9},
+                "values": to_json_safe(pta.hma(df["close"], length=9).to_numpy(), n),
+            },
+        ],
+    })
+
+    # VWMA (Volume-Weighted Moving Average)
+    print("Generating VWMA...")
+    save_fixture("vwma", {
+        "indicator": "VWMA",
+        "ground_truth": "pandas-ta",
+        "test_cases": [
+            {
+                "name": "vwma_20",
+                "params": {"period": 20},
+                "values": to_json_safe(pta.vwma(df["close"], df["volume"], length=20).to_numpy(), n),
+            },
+        ],
+    })
+
+    # CMF (Chaikin Money Flow)
+    print("Generating CMF...")
+    save_fixture("cmf", {
+        "indicator": "CMF",
+        "ground_truth": "pandas-ta",
+        "test_cases": [
+            {
+                "name": "cmf_20",
+                "params": {"period": 20},
+                "values": to_json_safe(
+                    pta.cmf(df["high"], df["low"], df["close"], df["volume"], length=20).to_numpy(),
+                    n,
+                ),
+            },
+        ],
+    })
+
+    # Vortex
+    print("Generating Vortex...")
+    vortex_df = pta.vortex(df["high"], df["low"], df["close"], length=14)
+    save_fixture("vortex", {
+        "indicator": "Vortex",
+        "ground_truth": "pandas-ta",
+        "test_cases": [
+            {
+                "name": "vortex_14",
+                "params": {"period": 14},
+                "values": {
+                    "viPlus": to_json_safe(vortex_df["VTXP_14"].to_numpy(), n),
+                    "viMinus": to_json_safe(vortex_df["VTXM_14"].to_numpy(), n),
+                },
+            },
+        ],
+    })
+
+    # Awesome Oscillator (Bill Williams 5/34 SMA of median price)
+    print("Generating Awesome Oscillator...")
+    save_fixture("awesome-oscillator", {
+        "indicator": "AwesomeOscillator",
+        "ground_truth": "pandas-ta",
+        "test_cases": [
+            {
+                "name": "ao_5_34",
+                "params": {"fastPeriod": 5, "slowPeriod": 34},
+                "values": to_json_safe(pta.ao(df["high"], df["low"]).to_numpy(), n),
             },
         ],
     })
