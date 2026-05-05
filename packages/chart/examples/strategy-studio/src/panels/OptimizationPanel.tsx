@@ -23,6 +23,13 @@ type Props = {
   candles: StudioCandle[];
   /** True while Replay is actively playing — disables Run button. */
   isReplayPlaying: boolean;
+  /**
+   * Optional notifier for the latest optimization result. Lets sibling
+   * panels (e.g. StrategyDnaPanel) consume the same result without
+   * duplicating the run trigger. Result state stays panel-local; this
+   * is fire-and-forget broadcast on every change.
+   */
+  onResult?: (result: OptimizationComputation) => void;
 };
 
 type RangeMap = Record<string, { min: number; max: number; step: number }>;
@@ -36,12 +43,21 @@ function initRanges(tunables: Tunable[]): RangeMap {
   return out;
 }
 
-export function OptimizationPanel({ strategy, candles, isReplayPlaying }: Props) {
+export function OptimizationPanel({ strategy, candles, isReplayPlaying, onResult }: Props) {
   const tunables = useMemo<Tunable[]>(() => (strategy ? listTunables(strategy) : []), [strategy]);
 
   const [ranges, setRanges] = useState<RangeMap>(() => initRanges(tunables));
   const [metric, setMetric] = useState<OptimizationMetricUI>("returns");
   const [result, setResult] = useState<OptimizationComputation>({ kind: "idle" });
+
+  // Broadcast every result change so sibling panels (StrategyDnaPanel
+  // mounted in App) consume the same data without duplicating the
+  // run trigger. We fire on every change including idle so consumers
+  // see the empty/error state too and can clear their derived UI.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: onResult is a stable callback in practice; we don't want re-broadcasts when its identity changes.
+  useEffect(() => {
+    onResult?.(result);
+  }, [result]);
 
   // Anything that changes how `runGridSearch` would evaluate the strategy
   // must invalidate the panel state. Stringify the full entry/exit specs
