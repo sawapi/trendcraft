@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### Fixed — `detectOhlcErrors` now flags NaN / Infinity OHLCV fields
+
+- `detectOhlcErrors(candles)` previously only checked relational
+  invariants (`high < low`, etc.). Non-finite values silently slipped
+  through because every `NaN < x` comparison is `false`, so a candle
+  with `close: NaN` would pass validation and then propagate `NaN`
+  through every rolling indicator (Bollinger Bands, RSI, ATR, …).
+- Each non-finite OHLCV field is now reported as an error finding
+  with the field name and value (`"close (NaN) is not a finite
+  number at index 7"`). Once a candle has any non-finite field, the
+  relational checks for that candle are skipped to avoid confusingly-
+  passing follow-up findings.
+- Audit-driven (no specific bug report). Cheap belt-and-suspenders
+  guard for a class of debug black holes.
+
 ### Added — Strategy DNA primitives (`optimization/strategy-dna`)
 
 - New `optimization/strategy-dna.ts` module exposing post-optimization
