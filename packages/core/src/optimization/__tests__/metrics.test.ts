@@ -4,6 +4,7 @@ import {
   annualizeReturn,
   calculateAllMetrics,
   calculateCalmarRatio,
+  calculateMAR,
   calculateRecoveryFactor,
   calculateSharpeRatio,
   checkConstraint,
@@ -104,13 +105,14 @@ describe("Optimization Metrics", () => {
   });
 
   describe("calculateCalmarRatio", () => {
-    it("should return Infinity when drawdown is 0 and return is positive", () => {
-      expect(calculateCalmarRatio(10, 0)).toBe(Number.POSITIVE_INFINITY);
+    it("returns NaN when drawdown is 0 (matches empyrical / pyfolio convention)", () => {
+      expect(calculateCalmarRatio(10, 0)).toBeNaN();
+      expect(calculateCalmarRatio(0, 0)).toBeNaN();
+      expect(calculateCalmarRatio(-5, 0)).toBeNaN();
     });
 
-    it("should return 0 when drawdown is 0 and return is non-positive", () => {
-      expect(calculateCalmarRatio(0, 0)).toBe(0);
-      expect(calculateCalmarRatio(-5, 0)).toBe(0);
+    it("returns NaN for negative drawdown (defensive — invalid input)", () => {
+      expect(calculateCalmarRatio(10, -5)).toBeNaN();
     });
 
     it("should calculate correct ratio", () => {
@@ -125,18 +127,38 @@ describe("Optimization Metrics", () => {
   });
 
   describe("calculateRecoveryFactor", () => {
-    it("should return Infinity when drawdown is 0 and profit is positive", () => {
-      expect(calculateRecoveryFactor(1000, 0)).toBe(Number.POSITIVE_INFINITY);
+    it("returns NaN when drawdown is 0 (matches empyrical / pyfolio convention)", () => {
+      expect(calculateRecoveryFactor(1000, 0)).toBeNaN();
+      expect(calculateRecoveryFactor(0, 0)).toBeNaN();
+      expect(calculateRecoveryFactor(-100, 0)).toBeNaN();
     });
 
-    it("should return 0 when drawdown is 0 and profit is non-positive", () => {
-      expect(calculateRecoveryFactor(0, 0)).toBe(0);
-      expect(calculateRecoveryFactor(-100, 0)).toBe(0);
+    it("returns NaN for negative drawdown", () => {
+      expect(calculateRecoveryFactor(1000, -10)).toBeNaN();
     });
 
     it("should calculate correct ratio", () => {
       expect(calculateRecoveryFactor(10000, 5000)).toBe(2);
       expect(calculateRecoveryFactor(5000, 2500)).toBe(2);
+    });
+  });
+
+  describe("calculateMAR", () => {
+    it("returns NaN when drawdown is 0 (matches empyrical / pyfolio convention)", () => {
+      expect(calculateMAR(10, 252, 0)).toBeNaN();
+      expect(calculateMAR(0, 252, 0)).toBeNaN();
+      expect(calculateMAR(-5, 252, 0)).toBeNaN();
+    });
+
+    it("returns NaN when tradingDays <= 0", () => {
+      expect(calculateMAR(10, 0, 5)).toBeNaN();
+      expect(calculateMAR(10, -1, 5)).toBeNaN();
+    });
+
+    it("computes monthly return / drawdown", () => {
+      // 10% return over 252 trading days ≈ 12 months → 0.833% / month / 5% DD = 0.1667
+      const v = calculateMAR(10, 252, 5);
+      expect(v).toBeCloseTo(0.1667, 3);
     });
   });
 
@@ -270,13 +292,14 @@ describe("Optimization Metrics", () => {
       expect(metrics.sharpe).toBe(0); // Not enough data for returns
     });
 
-    it("should handle zero max drawdown", () => {
+    it("calmar / recoveryFactor are NaN when max drawdown is 0", () => {
       const candles = generateTestCandles(50);
       const result = createMockBacktestResult({ maxDrawdown: 0 });
 
       const metrics = calculateAllMetrics(result, candles);
-      expect(metrics.calmar).toBe(Number.POSITIVE_INFINITY);
-      expect(metrics.recoveryFactor).toBe(Number.POSITIVE_INFINITY);
+      expect(metrics.calmar).toBeNaN();
+      expect(metrics.recoveryFactor).toBeNaN();
+      expect(metrics.mar).toBeNaN();
     });
   });
 });

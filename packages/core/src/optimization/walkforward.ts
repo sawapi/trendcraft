@@ -215,6 +215,25 @@ export function walkForwardAnalysis(
 }
 
 /**
+ * Mean across only the finite entries; returns 0 when no finite
+ * value exists. This is the right behavior for averaging optimization
+ * metrics where NaN means "undefined for this period" (e.g. Calmar
+ * with maxDD=0): treating NaN as 0 would silently bias the average,
+ * dropping the period from the denominator preserves "no data" semantics.
+ */
+function averageFinite(values: number[]): number {
+  let sum = 0;
+  let count = 0;
+  for (const v of values) {
+    if (Number.isFinite(v)) {
+      sum += v;
+      count++;
+    }
+  }
+  return count > 0 ? sum / count : 0;
+}
+
+/**
  * Calculate aggregate metrics across all periods
  */
 function calculateAggregateMetrics(
@@ -240,21 +259,37 @@ function calculateAggregateMetrics(
     number
   >;
 
+  // Average only across periods where the metric was actually
+  // defined. Calmar / MAR / Recovery return NaN when a period had
+  // maxDD <= 0; coercing those to 0 collapses the average toward 0
+  // and makes `stabilityRatio` look perfect (avgIn === avgOut === 0
+  // → branch returns 1), letting `generateRecommendation` endorse
+  // params whose primary metric was never measurable. Excluding NaN
+  // periods from the denominator preserves "no data" semantics.
   for (const key of metricKeys) {
-    avgInSample[key] =
-      inSampleMetrics.reduce((sum, m) => sum + (Number.isFinite(m[key]) ? m[key] : 0), 0) /
-      inSampleMetrics.length;
-    avgOutOfSample[key] =
-      outOfSampleMetrics.reduce((sum, m) => sum + (Number.isFinite(m[key]) ? m[key] : 0), 0) /
-      outOfSampleMetrics.length;
+    avgInSample[key] = averageFinite(inSampleMetrics.map((m) => m[key]));
+    avgOutOfSample[key] = averageFinite(outOfSampleMetrics.map((m) => m[key]));
   }
 
-  // Calculate stability ratio for primary metric
+  // Calculate stability ratio for primary metric. If the primary
+  // metric was undefined (NaN) on every in-sample or out-of-sample
+  // period, `avgIn` / `avgOut` will be 0 (the "no data" sentinel
+  // from `averageFinite`) — but that 0 has different meaning from a
+  // measured 0. Distinguish by counting finite samples explicitly so
+  // the absence-of-data case yields stabilityRatio = 0 (no claim of
+  // stability) rather than the spurious 1 produced by the avgIn===0
+  // branch below.
+  const inFiniteCount = inSampleMetrics.filter((m) => Number.isFinite(m[primaryMetric])).length;
+  const outFiniteCount = outOfSampleMetrics.filter((m) => Number.isFinite(m[primaryMetric])).length;
   const avgIn = avgInSample[primaryMetric];
   const avgOut = avgOutOfSample[primaryMetric];
 
   let stabilityRatio: number;
-  if (avgIn === 0) {
+  if (inFiniteCount === 0 || outFiniteCount === 0) {
+    // Primary metric never measurable on at least one side — cannot
+    // make a stability claim either way.
+    stabilityRatio = 0;
+  } else if (avgIn === 0) {
     stabilityRatio = avgOut >= 0 ? 1 : 0;
   } else if (avgIn < 0 && avgOut < 0) {
     // Both negative: higher ratio is worse overfitting
@@ -286,7 +321,7 @@ function generateRecommendation(
 
   // Count profitable out-of-sample periods
   const profitablePeriods = periods.filter((p) => p.outOfSampleMetrics.returns > 0).length;
-  const profitableRatio = profitablePeriods / periods.length;
+  const profitableRatio = periods.length > 0 ? profitablePeriods / periods.length : 0;
 
   // Analyze parameter stability
   const paramKeys = Object.keys(periods[0]?.bestParams || {});
@@ -294,6 +329,10 @@ function generateRecommendation(
 
   for (const key of paramKeys) {
     const values = periods.map((p) => p.bestParams[key]);
+    if (values.length === 0) {
+      paramVariance[key] = 0;
+      continue;
+    }
     const mean = values.reduce((s, v) => s + v, 0) / values.length;
     const variance = values.reduce((s, v) => s + (v - mean) ** 2, 0) / values.length;
     paramVariance[key] = variance;
