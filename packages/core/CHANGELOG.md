@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### Added — `percentile` / `median` / `quartiles` statistics utilities
+
+- New `packages/core/src/core/statistics.ts` with three exported
+  helpers: `percentile(values, p)`, `median(values)`, and
+  `quartiles(values)` — all linear-interpolation, all empty-safe
+  (return `0` / `[0, 0, 0]` for empty input), all non-mutating.
+- Consolidates two private `getPercentile` / `percentile` copies
+  inside `optimization/monte-carlo.ts` and `risk/drawdown-analysis.ts`
+  into one canonical algorithm. Internal call sites that already
+  share a sorted array continue to use a local sorted-input variant
+  to avoid re-sorting on every percentile lookup.
+- Foundation for upcoming post-optimization analytics
+  (`computeParameterSensitivity`, `safeZoneFromResults`, etc.) that
+  need quartile filtering across many param/score arrays.
+
 ### Added — `gridSearchFromJSON` + strategy walker primitives
 
 - `gridSearchFromJSON(candles, strategy, ranges, registry, options?)` —
