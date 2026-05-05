@@ -94,6 +94,9 @@ export {
 
 export { resample, parseTimeframe, getPeriodStart } from "./core/resample";
 
+// Statistics utilities
+export { percentile, median, quartiles } from "./core/statistics";
+
 // Fundamentals utilities
 export {
   parseFundamentals,
