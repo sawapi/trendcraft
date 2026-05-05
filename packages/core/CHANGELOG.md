@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+### Added — `parseStrategy` opt-in registry validation + `parseStrategySafe`
+
+- `parseStrategy(json, registry?)` gains an optional second argument.
+  When a `ConditionRegistry` is passed, the parser runs
+  `validateStrategyJSON` (structural shape) plus
+  `validateConditionSpec` on the entry / exit trees and aggregates
+  every finding into the thrown error message. Without a registry,
+  behavior is unchanged (back-compat: only `$schema` and `version`
+  are checked).
+- New `parseStrategySafe(json, registry?)` returns
+  `Result<StrategyJSON>` with one of five error codes —
+  `INVALID_JSON`, `INVALID_SCHEMA`, `UNSUPPORTED_VERSION`,
+  `INVALID_STRUCTURE`, `INVALID_CONDITION` — letting MCP / LLM
+  consumers branch on the failure reason instead of pattern-matching
+  on a thrown error message.
+- Surfaces unknown conditions / out-of-range params / malformed
+  `not` arity at parse time instead of deferring them to
+  `loadStrategy()` or runtime; aligned with the existing
+  `gridSearch` / `gridSearchFromJSON` `*Safe` pattern.
+
 ### Fixed — `detectOhlcErrors` now flags NaN / Infinity OHLCV fields
 
 - `detectOhlcErrors(candles)` previously only checked relational
