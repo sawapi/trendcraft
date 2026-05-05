@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — `@trendcraft/chart/replay` subpath
+
+- New `createLiveSimulator(opts)` export at `@trendcraft/chart/replay`.
+  Drives a `createLiveCandle` instance from a static candle array on a
+  timer, splitting each pending candle into N intra-candle ticks
+  before the final `candleComplete`. Useful for any chart host that
+  wants to demo / dogfood `connectIndicators({ live })` and
+  `connectLivePrimitives` without a real market feed.
+- API: `play()`, `pause()`, `stepOnce({ wholeBar? })`,
+  `setIntervalMs(ms)`, `reset()`, `onChange(cb)`, `dispose()`. Plus
+  the `live` LiveSource that plugs straight into the connect APIs.
+- Lifted from `examples/indicator-showcase` and
+  `examples/strategy-studio`, where the same code was duplicated. Both
+  examples now re-export from the canonical location. ~3 kB
+  brotli-compressed.
+- **Note**: this subpath imports `createLiveCandle` from `trendcraft`,
+  so consumers using `@trendcraft/chart/replay` must install
+  `trendcraft` alongside `@trendcraft/chart`. The chart's main entry
+  stays standalone-capable; only `replay` (and existing `presets`)
+  need the optional peer.
+
 <!-- draft -->
 <!-- - session gap rendering (ChartOptions.timeScale.sessionGaps, TimeScale.setGapsBefore) -->
 <!-- - autoFormatTime shows date anchor after large time jumps within the same local day -->

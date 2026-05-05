@@ -10,6 +10,7 @@ export default defineConfig({
         headless: resolve(__dirname, "src/headless.ts"),
         presets: resolve(__dirname, "src/presets.ts"),
         sparkline: resolve(__dirname, "src/sparkline/index.ts"),
+        replay: resolve(__dirname, "src/replay.ts"),
         "react/index": resolve(__dirname, "react/index.ts"),
         "react/TrendChart": resolve(__dirname, "react/TrendChart.tsx"),
         "react/useTrendChart": resolve(__dirname, "react/useTrendChart.ts"),
