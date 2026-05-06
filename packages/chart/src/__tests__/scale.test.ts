@@ -124,6 +124,49 @@ describe("PriceScale", () => {
     }
   });
 
+  it("does not produce floating-point drift on symmetric-around-zero ranges (regression: '0.00000000' label)", () => {
+    // For oscillator-style indicators (QStick, CCI, etc.) the visible
+    // range is symmetric around zero and `start + niceStep * n` should
+    // land exactly on 0. Accumulating with `v += niceStep` in a loop
+    // drifts after several iterations — the "0" tick lands at ~1e-16
+    // and `autoFormatPrice` then renders it as "0.00000000".
+    const ps = new PriceScale();
+    ps.setHeight(400);
+    ps.setDataRange(-0.6, 0.6);
+
+    const ticks = ps.getTicks();
+    // The 0 tick should be exactly 0 (no drift).
+    const zeroTick = ticks.find((t) => Math.abs(t) < 1e-6);
+    expect(zeroTick).toBeDefined();
+    expect(zeroTick).toBe(0);
+  });
+
+  it("includes the top tick when max lands on a step boundary (regression: dropped last tick)", () => {
+    // `max - start` divided by `niceStep` is mathematically an integer
+    // here, but FP can represent it as `n - ε`. A naive
+    // `Math.floor + 1` count drops the final tick; an integer-multiple
+    // approach with a small epsilon tolerance keeps it.
+    const ps = new PriceScale();
+    ps.setHeight(400);
+    ps.setDataRange(-1, -0.4);
+
+    const ticks = ps.getTicks();
+    const topTick = ticks[ticks.length - 1];
+    expect(topTick).toBeCloseTo(-0.4, 9);
+  });
+
+  it("emitted ticks always lie within [min, max] (no out-of-range labels from FP drift)", () => {
+    const ps = new PriceScale();
+    ps.setHeight(400);
+    ps.setDataRange(-0.6, 0.6);
+
+    const ticks = ps.getTicks();
+    for (const t of ticks) {
+      expect(t).toBeGreaterThanOrEqual(ps.min - 1e-12);
+      expect(t).toBeLessThanOrEqual(ps.max + 1e-12);
+    }
+  });
+
   it("log mode maps correctly", () => {
     const ps = new PriceScale();
     ps.setMode("log");

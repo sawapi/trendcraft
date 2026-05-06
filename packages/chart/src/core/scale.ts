@@ -696,8 +696,26 @@ export class PriceScale {
     niceStep *= magnitude;
 
     const ticks: number[] = [];
-    const start = Math.ceil(this._min / niceStep) * niceStep;
-    for (let v = start; v <= this._max; v += niceStep) {
+    // Compute ticks as integer multiples of `niceStep` rather than
+    // accumulating `v += niceStep` in a loop. Accumulating drifts
+    // after several iterations — what should be exactly 0 lands at
+    // ~1e-16, which then formats as "0.00000000" because
+    // `autoFormatPrice` enters its smallest-magnitude branch.
+    //
+    // The ceil/floor handle the lower / upper boundary respectively.
+    // A small upward tolerance is applied only on the upper bound
+    // because `max - n*niceStep` can land at `n - ε` even when the
+    // mathematical answer is `n` exactly, and a naive `Math.floor`
+    // would then drop the visible top tick. The lower bound is NOT
+    // tolerated downward — that would generate ticks below `min`
+    // for ranges whose endpoints are only near a step boundary.
+    const startMul = Math.ceil(this._min / niceStep);
+    const maxMul = Math.floor(this._max / niceStep + 1e-9);
+    for (let m = startMul; m <= maxMul; m++) {
+      const v = m * niceStep;
+      // Defensive bounds: floating-point multiplication may push the
+      // computed value just outside the actual [min, max] range.
+      if (v < this._min - 1e-12 || v > this._max + 1e-12) continue;
       ticks.push(v);
     }
 

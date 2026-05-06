@@ -50,6 +50,11 @@ describe("autoFormatPrice", () => {
   it("handles zero", () => {
     expect(autoFormatPrice(0)).toBe("0");
   });
+
+  it("preserves genuinely tiny values (the formatter is reused outside axis ticks — crosshair / overlay / drawings — where rewriting them as 0 would lose data)", () => {
+    expect(autoFormatPrice(1e-12)).toBe("0.00000000");
+    expect(autoFormatPrice(1e-9)).toBe("0.00000000");
+  });
 });
 
 describe("autoFormatTime", () => {
