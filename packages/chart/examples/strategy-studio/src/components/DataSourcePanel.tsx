@@ -29,7 +29,11 @@ const buttonStyle: React.CSSProperties = {
   padding: "3px 8px",
   fontSize: 11,
   background: "#1e222d",
-  border: "1px solid #2a2e39",
+  // Long-hand border properties only — mixing `border` shorthand with
+  // `borderColor` overrides triggers a React rerender warning.
+  borderWidth: 1,
+  borderStyle: "solid",
+  borderColor: "#2a2e39",
   borderRadius: 3,
   color: "#d1d4dc",
   cursor: "pointer",
