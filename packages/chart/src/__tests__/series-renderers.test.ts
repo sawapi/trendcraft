@@ -40,6 +40,42 @@ describe("renderCandlesticks", () => {
     renderCandlesticks(ctx, [], ts, ps, theme);
     expect(ctx.fillRect).not.toHaveBeenCalled();
   });
+
+  it("skips candles with non-finite OHLC instead of issuing draw calls with NaN coords", () => {
+    const { ctx, ts, ps } = setup(3);
+    // Middle candle has NaN close — the canvas would silently swallow
+    // the resulting NaN coords; we want the renderer to skip it
+    // instead so adjacent candles don't share a corrupted state.
+    const candles = [
+      makeCandle(1, 100, 110, 90),
+      { time: 2, open: 105, high: 115, low: 95, close: Number.NaN, volume: 1000 },
+      makeCandle(3, 98, 108, 88),
+    ];
+    renderCandlesticks(ctx, candles, ts, ps, theme);
+
+    // Inspect the fillRect calls — each call's args should be finite.
+    const calls = (ctx.fillRect as unknown as { mock: { calls: number[][] } }).mock.calls;
+    for (const call of calls) {
+      for (const arg of call) {
+        expect(Number.isFinite(arg)).toBe(true);
+      }
+    }
+    // Two of three candles should have produced a fillRect call.
+    expect(calls.length).toBe(2);
+  });
+
+  it("skips candles with non-finite open / high / low individually", () => {
+    const { ctx, ts, ps } = setup(4);
+    const candles = [
+      makeCandle(1, 100, 110, 90),
+      { time: 2, open: Number.NaN, high: 115, low: 95, close: 102, volume: 1000 },
+      { time: 3, open: 100, high: Number.POSITIVE_INFINITY, low: 95, close: 102, volume: 1000 },
+      { time: 4, open: 100, high: 110, low: Number.NaN, close: 102, volume: 1000 },
+    ];
+    renderCandlesticks(ctx, candles, ts, ps, theme);
+    const calls = (ctx.fillRect as unknown as { mock: { calls: number[][] } }).mock.calls;
+    expect(calls.length).toBe(1);
+  });
 });
 
 describe("renderLine", () => {

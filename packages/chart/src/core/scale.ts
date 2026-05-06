@@ -639,6 +639,13 @@ export class PriceScale {
   /** Price to y pixel (0 = top of pane) */
   priceToY(price: number): number {
     if (this._height <= 0) return 0;
+    // `Math.max(NaN, x)` is `NaN`, so the existing 1e-10 floor doesn't
+    // protect against a non-finite input price — the resulting NaN
+    // would propagate through every downstream pixel coordinate.
+    // Return NaN explicitly so callers that already guard finite
+    // results keep their existing semantics; non-guarded callers
+    // would have produced NaN here regardless.
+    if (!Number.isFinite(price)) return Number.NaN;
 
     let normalized: number;
     if (this._mode === "log") {

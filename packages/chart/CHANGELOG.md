@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — non-finite value guards across render and layout paths
+
+Canvas silently swallows draw calls with `NaN` / `±Infinity`
+coordinates, which means a single contaminated value previously
+produced an invisible primitive with no error. A code audit
+surfaced four spots where non-finite inputs could leak through:
+
+- `series/candlestick.ts` — candles with `NaN` / `±Infinity` in
+  any of `open` / `high` / `low` / `close` are now skipped instead
+  of issuing draw calls with NaN coords. Adjacent candles are
+  unaffected.
+- `renderer/overlay-renderer.ts` — same guard applied to the
+  multi-timeframe candle overlay, plus `latestNumber` /
+  `latestInArray` (used by the last-value badge labels) now treat
+  `NaN` / `±Infinity` as missing. Previously these would have been
+  passed to `valueFormatter`, rendering the literal string "NaN"
+  inside a series badge.
+- `core/layout.ts` — when every pane has `flex: 0` (or any other
+  shape that sums to `0`), `recompute` now normalizes each pane's
+  flex to `1` in place so the layout both renders AND stays
+  interactive. The previous code produced `NaN` heights that
+  propagated through every downstream pixel coordinate; an
+  intermediate fix that only normalized the divisor would have
+  left `resizePanes()` unable to make progress (divider drag would
+  immediately revert because the underlying `flex` values were
+  still `0`).
+- `core/scale.ts` — `priceToY` now returns `NaN` explicitly when
+  `price` is non-finite, instead of relying on the `1e-10` floor
+  (which doesn't protect against `NaN` input because
+  `Math.max(NaN, x) === NaN`). The behavior change is documented;
+  callers that already guard the result are unaffected.
+
+Six new unit tests cover the guard paths.
+
 ### Added — `@trendcraft/chart/replay` subpath
 
 - New `createLiveSimulator(opts)` export at `@trendcraft/chart/replay`.
