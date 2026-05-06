@@ -205,6 +205,20 @@ export function garch(returns: number[], options?: GarchOptions): GarchResult {
   const tolerance = options?.tolerance ?? 1e-6;
   const sqrtAnnualization = Math.sqrt(annualizationFactor(options));
 
+  // Reject non-finite inputs upfront. A single NaN / Infinity in `returns`
+  // contaminates the unconditional variance, the negative log-likelihood,
+  // and every downstream `params` field — and the result silently reports
+  // `converged: result.converged` from the optimiser even though the
+  // numbers are meaningless. Fail loudly so the caller can clean the
+  // series before retrying.
+  for (let i = 0; i < returns.length; i++) {
+    if (!Number.isFinite(returns[i])) {
+      throw new Error(
+        `garch: returns[${i}] is ${returns[i]} (not a finite number). Clean NaN / Infinity values before fitting.`,
+      );
+    }
+  }
+
   const T = returns.length;
   if (T < 3) {
     // Not enough data — return degenerate result
@@ -256,14 +270,39 @@ export function garch(returns: number[], options?: GarchOptions): GarchResult {
 
   let [omega, alpha, beta] = result.x;
 
-  // Clamp to valid range
-  if (omega <= 0) omega = 1e-10;
-  if (alpha < 0) alpha = 0;
-  if (beta < 0) beta = 0;
+  // Clamp to valid range. Track whether any clamp had to fire — if so,
+  // the optimiser's `converged: true` is misleading because we're not
+  // returning the parameter set the optimiser actually settled on.
+  let clamped = false;
+  if (omega <= 0) {
+    omega = 1e-10;
+    clamped = true;
+  }
+  if (alpha < 0) {
+    alpha = 0;
+    clamped = true;
+  }
+  if (beta < 0) {
+    beta = 0;
+    clamped = true;
+  }
   if (alpha + beta >= 1) {
     const scale = 0.999 / (alpha + beta);
     alpha *= scale;
     beta *= scale;
+    clamped = true;
+  }
+  // Reject non-finite optimiser output entirely — the simplex can drift
+  // into NaN territory if the likelihood explodes; reporting those
+  // params downstream produces NaN forecasts that look like real numbers.
+  if (!Number.isFinite(omega) || !Number.isFinite(alpha) || !Number.isFinite(beta)) {
+    return {
+      conditionalVariance: returns.map((_, i) => ({ time: i, value: unconditionalVar })),
+      volatilityForecast: Math.sqrt(unconditionalVar) * sqrtAnnualization * 100,
+      params: { omega: unconditionalVar, alpha: 0, beta: 0 },
+      logLikelihood: Number.NEGATIVE_INFINITY,
+      converged: false,
+    };
   }
 
   // Reconstruct conditional variance series with fitted params
@@ -275,8 +314,13 @@ export function garch(returns: number[], options?: GarchOptions): GarchResult {
     sigma2 = omega + alpha * returns[t] ** 2 + beta * sigma2;
   }
 
-  // One-step-ahead forecast
-  const forecastVar = sigma2; // already computed for t = T
+  // One-step-ahead forecast. Defensive `isFinite` check: if any
+  // intermediate sigma2 went non-finite (shouldn't with finite inputs
+  // and clamped params, but the floor is paranoia for edge cases),
+  // fall back to the unconditional variance.
+  const forecastVarRaw = sigma2;
+  const forecastVar =
+    Number.isFinite(forecastVarRaw) && forecastVarRaw > 0 ? forecastVarRaw : unconditionalVar;
   const volatilityForecast = Math.sqrt(forecastVar) * sqrtAnnualization * 100;
 
   return {
@@ -284,7 +328,8 @@ export function garch(returns: number[], options?: GarchOptions): GarchResult {
     volatilityForecast,
     params: { omega, alpha, beta },
     logLikelihood: -result.fx,
-    converged: result.converged,
+    // A clamped result is not the optimiser's converged answer.
+    converged: result.converged && !clamped,
   };
 }
 
@@ -317,6 +362,17 @@ export function ewmaVolatility(returns: number[], options?: EwmaVolatilityOption
   const T = returns.length;
 
   if (T === 0) return [];
+
+  // Reject non-finite inputs so the recursive update does not
+  // permanently latch NaN / Infinity into sigma2 for the rest of
+  // the series.
+  for (let i = 0; i < T; i++) {
+    if (!Number.isFinite(returns[i])) {
+      throw new Error(
+        `ewmaVolatility: returns[${i}] is ${returns[i]} (not a finite number). Clean NaN / Infinity values before computing.`,
+      );
+    }
+  }
 
   // Seed variance: variance of first min(10, T) returns
   const seedCount = Math.min(10, T);
