@@ -95,6 +95,15 @@ export function dispatchSeries(
 
   const color = s.config.color ?? "#2196F3";
   const lineWidth = s.config.lineWidth ?? 1.5;
+  // Resolve `markers` config — `true` becomes default style, an object
+  // overrides; `undefined` / `false` skip marker rendering entirely.
+  const markersConfig = s.config.markers;
+  const markers =
+    markersConfig === true
+      ? { radius: 2.5, color }
+      : markersConfig && typeof markersConfig === "object"
+        ? { radius: markersConfig.radius ?? 2.5, color: markersConfig.color ?? color }
+        : undefined;
 
   if (rule.name === "number") {
     // Honor explicit type override (e.g., volume as histogram)
@@ -162,7 +171,7 @@ export function dispatchSeries(
       timeScale,
       priceScale,
       timeScale.startIndex,
-      { color, lineWidth },
+      { color, lineWidth, markers },
       origIndices,
     );
     return;

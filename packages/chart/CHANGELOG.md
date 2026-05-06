@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — `markers` option on scalar line series for "discrete-per-bar" affordance
+
+`SeriesConfig.markers?: boolean | { radius?: number; color?: string }`
+draws a filled circle at each bar's value point on **scalar line
+series** (i.e. `Series<number>` such as SMA, EMA, RSI, CCI). This
+makes it visually obvious that the underlying data is one value
+per bar and the line connecting consecutive points is just linear
+interpolation — particularly useful for backtest signal
+interpretation, where the cross's visual x-position can land
+mid-candle on slope-asymmetric crossings.
+
+- `markers: true` → default radius 2.5 px, filled with the series color
+- `markers: { radius: 4, color: "#fff" }` → custom override
+- Auto-skipped when `barSpacing < 5 px` to avoid the dots smearing
+  into a solid mass at high zoom-out
+- No-op on multi-channel series (`band`, MACD, Stochastics, etc.)
+  by design — those would clutter at high marker count and don't
+  share the "where does the line really cross?" ambiguity
+
 ### Fixed — chart now tracks `window.devicePixelRatio` across resizes
 
 The main `createChart` instance previously cached
