@@ -209,6 +209,22 @@ describe("Ulcer Index incremental", () => {
       }
     }
   });
+
+  it("legacy single-buffer state snapshot is rejected with a clear error", () => {
+    // Snapshot produced by the pre-canonical (single-buffer) code path
+    // that shipped in earlier versions. Restoring it under the new
+    // two-stage formula would silently produce wrong values, so the
+    // factory must throw a recognizable error instead.
+    const legacyState = {
+      period: 14,
+      source: "close" as const,
+      buffer: { capacity: 14, items: [100, 101, 102] },
+      count: 3,
+    };
+    expect(() => createUlcerIndex({ period: 14 }, { fromState: legacyState as never })).toThrow(
+      /legacy state snapshot/i,
+    );
+  });
 });
 
 // ---- EWMA Volatility ----

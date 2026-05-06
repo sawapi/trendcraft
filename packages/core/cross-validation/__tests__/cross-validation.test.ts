@@ -41,6 +41,7 @@ import {
   trix,
   tsi,
   typicalPrice,
+  ulcerIndex,
   ultimateOscillator,
   vortex,
   vwma,
@@ -555,6 +556,18 @@ describe("Choppiness Index", () => {
     const result = choppinessIndex(candles, { period: 14 });
     assertNullAlignment(result, tc.values, "Choppiness(14)");
     assertSeriesMatch(result, tc.values, 9, "Choppiness(14)");
+  });
+});
+
+describe("Ulcer Index", () => {
+  it("ulcerIndex(14) matches pandas-ta within 9 decimals (canonical Peter Martin)", () => {
+    const fixture = loadFixture("ulcer-index");
+    const tc = fixture.test_cases[0];
+    if (!isSingleTestCase(tc)) throw new Error("Expected single test case");
+
+    const result = ulcerIndex(candles, { period: 14 });
+    assertNullAlignment(result, tc.values, "Ulcer(14)");
+    assertSeriesMatch(result, tc.values, 9, "Ulcer(14)");
   });
 });
 
