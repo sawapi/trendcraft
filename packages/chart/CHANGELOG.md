@@ -26,6 +26,27 @@ mid-candle on slope-asymmetric crossings.
   by design — those would clutter at high marker count and don't
   share the "where does the line really cross?" ambiguity
 
+### Fixed — axis label "0.00000000" overflow on oscillator panes
+
+For oscillator-style indicators (QStick, CCI, ROC, etc.) the visible
+range is symmetric around zero. `PriceScale.getTicks` was generating
+the tick array by accumulating `v += niceStep` in a loop, which
+drifts after several iterations: what should be exactly 0 lands at
+~1e-16, and `autoFormatPrice` then renders that drifted value as
+"0.00000000" (8 decimals) — visibly overflowing the axis label area
+and colliding with neighbouring ticks.
+
+`PriceScale.getTicks` now computes ticks as integer multiples of
+`niceStep` (`m * niceStep` for each integer `m` in the visible
+range), so the 0 tick lands at exactly 0. A small upward tolerance
+on the upper-bound floor handles the case where the max lands
+exactly on a step boundary but the divided quotient lands at
+`n - ε`. The lower bound stays strict (no downward tolerance) so
+ranges whose endpoints are merely near a step boundary don't
+generate ticks outside the visible range. Each computed tick is
+also bounds-checked before being emitted as a final guard against
+multiplicative FP drift.
+
 ### Fixed — chart now tracks `window.devicePixelRatio` across resizes
 
 The main `createChart` instance previously cached
