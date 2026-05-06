@@ -54,6 +54,25 @@ pnpm dev
 
 Visit the URL Vite prints (typically <http://localhost:5173>).
 
+## Real data (Alpaca, optional)
+
+By default Studio runs on synthetic sample data. If you have an Alpaca account, you can switch to real OHLCV with timeframe selection (1m / 5m / 15m / 1H / 1D).
+
+1. Copy `.env.example` to `.env`
+2. Fill in your `ALPACA_API_KEY` and `ALPACA_API_SECRET` (paper account is enough — get them at <https://app.alpaca.markets/signup>)
+3. Restart `pnpm dev`
+
+A `Source · Symbol · TF` toolbar appears in the header. The Symbol field autocompletes against Alpaca's full US-equity asset list — search by ticker (`SPY`) or company name (`Apple`). Without the keys, the toolbar stays hidden and Studio behaves exactly as before.
+
+**Security**: keys live only in the dev server process. The vite proxy attaches them as request headers; client bundles never see the credentials.
+
+**Notes**:
+
+- Free-tier `feed=iex`. Intraday volume coverage is lower than SIP but bar shapes are accurate.
+- Adjustment is `split` to align with TradingView's default chart behaviour.
+- Lookback per timeframe is sized so all timeframes return ~2,000–2,500 bars (enough warmup for SMA(200) / Ichimoku).
+- Per-symbol/timeframe results are cached in memory for the session; use `Reload` to bust the cache.
+
 ## Current PR2 capabilities
 
 - **Regime detection**: live `detectMarketRegime` on the loaded candles → 4-bucket classification (`trending` / `ranging` / `volatile` / `low-volatility`)

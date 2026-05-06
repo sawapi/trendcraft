@@ -19,5 +19,5 @@
       "trendcraft/manifest": ["../../../core/src/manifest/index.ts"]
     }
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*", "vite-env.d.ts"]
 }
