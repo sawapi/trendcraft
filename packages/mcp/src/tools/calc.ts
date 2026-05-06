@@ -8,6 +8,7 @@ import {
   candlesInputShape,
   resolveCandlesInput,
 } from "../schemas/candle";
+import { validateIndicatorParams } from "../validation/params";
 
 export const calcIndicatorInputShape = {
   kind: z.string().min(1),
@@ -70,6 +71,11 @@ export function calcIndicatorHandler(
       `UNSUPPORTED_KIND: "${input.kind}" has no calc wrapper. Call list_indicators({ calcSupported: true }) to discover all ${total} computable kinds, or get_indicator_manifest("${input.kind}") to confirm whether the kind exists at all.`,
     );
   }
+
+  // Reject typo'd keys / wrong-type values upfront so the caller gets a
+  // clear `INVALID_PARAMETER` instead of a downstream NaN or default
+  // fallback that masquerades as a successful call.
+  validateIndicatorParams(input.kind, input.params);
 
   const raw = (fn as (c: Candle[], p?: unknown) => unknown)(candles, input.params);
 
