@@ -6,6 +6,7 @@ import {
   listSupportedSignals,
 } from "../dispatcher/signal-map";
 import { type CandlesInput, candlesInputShape, resolveCandlesInput } from "../schemas/candle";
+import { validateIndicatorParams } from "../validation/params";
 
 export const detectSignalInputShape = {
   kind: z.string().min(1),
@@ -64,6 +65,11 @@ export function detectSignalHandler(
       `UNSUPPORTED_SIGNAL: "${input.kind}" is not a supported detect_signal kind. Supported (${supported.length}): ${supported.join(", ")}.`,
     );
   }
+
+  // Structural / wrong-type check (NaN, nested object, string-where-
+  // number-expected). Per-signal contracts are still enforced by the
+  // underlying signal function.
+  validateIndicatorParams(input.kind, input.params);
 
   let raw: unknown;
   try {

@@ -7,6 +7,117 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — `markers` option on scalar line series for "discrete-per-bar" affordance
+
+`SeriesConfig.markers?: boolean | { radius?: number; color?: string }`
+draws a filled circle at each bar's value point on **scalar line
+series** (i.e. `Series<number>` such as SMA, EMA, RSI, CCI). This
+makes it visually obvious that the underlying data is one value
+per bar and the line connecting consecutive points is just linear
+interpolation — particularly useful for backtest signal
+interpretation, where the cross's visual x-position can land
+mid-candle on slope-asymmetric crossings.
+
+- `markers: true` → default radius 2.5 px, filled with the series color
+- `markers: { radius: 4, color: "#fff" }` → custom override
+- Auto-skipped when `barSpacing < 5 px` to avoid the dots smearing
+  into a solid mass at high zoom-out
+- No-op on multi-channel series (`band`, MACD, Stochastics, etc.)
+  by design — those would clutter at high marker count and don't
+  share the "where does the line really cross?" ambiguity
+
+### Fixed — axis label "0.00000000" overflow on oscillator panes
+
+For oscillator-style indicators (QStick, CCI, ROC, etc.) the visible
+range is symmetric around zero. `PriceScale.getTicks` was generating
+the tick array by accumulating `v += niceStep` in a loop, which
+drifts after several iterations: what should be exactly 0 lands at
+~1e-16, and `autoFormatPrice` then renders that drifted value as
+"0.00000000" (8 decimals) — visibly overflowing the axis label area
+and colliding with neighbouring ticks.
+
+`PriceScale.getTicks` now computes ticks as integer multiples of
+`niceStep` (`m * niceStep` for each integer `m` in the visible
+range), so the 0 tick lands at exactly 0. A small upward tolerance
+on the upper-bound floor handles the case where the max lands
+exactly on a step boundary but the divided quotient lands at
+`n - ε`. The lower bound stays strict (no downward tolerance) so
+ranges whose endpoints are merely near a step boundary don't
+generate ticks outside the visible range. Each computed tick is
+also bounds-checked before being emitted as a final guard against
+multiplicative FP drift.
+
+### Fixed — chart now tracks `window.devicePixelRatio` across resizes
+
+The main `createChart` instance previously cached
+`window.devicePixelRatio` once at construction and never refreshed it.
+When the user dragged the browser window between displays of
+different DPR (e.g. an external 1× monitor ↔ a 2× Retina laptop
+display) or changed OS scaling mid-session, the canvas internal
+resolution stayed at the original DPR — the chart kept rendering at
+1× resolution on a 2× display, producing visibly blurry output.
+
+`_setSize` now re-reads `window.devicePixelRatio` on every resize
+when no explicit `options.pixelRatio` was pinned at construction.
+The pinned override path is unchanged — callers that supply
+`pixelRatio` keep full control. Sparkline already re-read DPR each
+frame and is unaffected.
+
+### Fixed — non-finite value guards across render and layout paths
+
+Canvas silently swallows draw calls with `NaN` / `±Infinity`
+coordinates, which means a single contaminated value previously
+produced an invisible primitive with no error. A code audit
+surfaced four spots where non-finite inputs could leak through:
+
+- `series/candlestick.ts` — candles with `NaN` / `±Infinity` in
+  any of `open` / `high` / `low` / `close` are now skipped instead
+  of issuing draw calls with NaN coords. Adjacent candles are
+  unaffected.
+- `renderer/overlay-renderer.ts` — same guard applied to the
+  multi-timeframe candle overlay, plus `latestNumber` /
+  `latestInArray` (used by the last-value badge labels) now treat
+  `NaN` / `±Infinity` as missing. Previously these would have been
+  passed to `valueFormatter`, rendering the literal string "NaN"
+  inside a series badge.
+- `core/layout.ts` — when every pane has `flex: 0` (or any other
+  shape that sums to `0`), `recompute` now normalizes each pane's
+  flex to `1` in place so the layout both renders AND stays
+  interactive. The previous code produced `NaN` heights that
+  propagated through every downstream pixel coordinate; an
+  intermediate fix that only normalized the divisor would have
+  left `resizePanes()` unable to make progress (divider drag would
+  immediately revert because the underlying `flex` values were
+  still `0`).
+- `core/scale.ts` — `priceToY` now returns `NaN` explicitly when
+  `price` is non-finite, instead of relying on the `1e-10` floor
+  (which doesn't protect against `NaN` input because
+  `Math.max(NaN, x) === NaN`). The behavior change is documented;
+  callers that already guard the result are unaffected.
+
+Six new unit tests cover the guard paths.
+
+### Added — `@trendcraft/chart/replay` subpath
+
+- New `createLiveSimulator(opts)` export at `@trendcraft/chart/replay`.
+  Drives a `createLiveCandle` instance from a static candle array on a
+  timer, splitting each pending candle into N intra-candle ticks
+  before the final `candleComplete`. Useful for any chart host that
+  wants to demo / dogfood `connectIndicators({ live })` and
+  `connectLivePrimitives` without a real market feed.
+- API: `play()`, `pause()`, `stepOnce({ wholeBar? })`,
+  `setIntervalMs(ms)`, `reset()`, `onChange(cb)`, `dispose()`. Plus
+  the `live` LiveSource that plugs straight into the connect APIs.
+- Lifted from `examples/indicator-showcase` and
+  `examples/strategy-studio`, where the same code was duplicated. Both
+  examples now re-export from the canonical location. ~3 kB
+  brotli-compressed.
+- **Note**: this subpath imports `createLiveCandle` from `trendcraft`,
+  so consumers using `@trendcraft/chart/replay` must install
+  `trendcraft` alongside `@trendcraft/chart`. The chart's main entry
+  stays standalone-capable; only `replay` (and existing `presets`)
+  need the optional peer.
+
 <!-- draft -->
 <!-- - session gap rendering (ChartOptions.timeScale.sessionGaps, TimeScale.setGapsBefore) -->
 <!-- - autoFormatTime shows date anchor after large time jumps within the same local day -->

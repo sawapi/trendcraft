@@ -27,6 +27,11 @@
       "import": "./dist/sparkline.js",
       "require": "./dist/sparkline.cjs"
     },
+    "./replay": {
+      "types": "./dist/replay.d.ts",
+      "import": "./dist/replay.js",
+      "require": "./dist/replay.cjs"
+    },
     "./react": {
       "types": "./dist/react/index.d.ts",
       "import": "./dist/react/index.js",
@@ -125,6 +130,11 @@
       "name": "Sparkline (vanilla)",
       "path": "dist/sparkline.js",
       "limit": "5 kB"
+    },
+    {
+      "name": "Replay (live simulator)",
+      "path": "dist/replay.js",
+      "limit": "3 kB"
     },
     {
       "name": "Sparkline (React)",

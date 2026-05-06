@@ -63,6 +63,18 @@ const DEFAULT_OPTIONS: Required<
   fontSize: 11,
 };
 
+/**
+ * Read `window.devicePixelRatio` and clamp to a finite positive value.
+ * Falls back to 1 when running outside a browser, when DPR is 0 / NaN /
+ * negative, or when DPR is `±Infinity` (the last is rare in practice
+ * but breaks `canvas.width = w * dpr` if it slips through).
+ */
+function safeDevicePixelRatio(): number {
+  if (typeof window === "undefined") return 1;
+  const dpr = window.devicePixelRatio;
+  return Number.isFinite(dpr) && dpr > 0 ? dpr : 1;
+}
+
 // ============================================
 // CanvasChart Class
 // ============================================
@@ -72,6 +84,16 @@ export class CanvasChart implements ChartInstance {
   private _canvas: HTMLCanvasElement;
   private _ctx: CanvasRenderingContext2D;
   private _pixelRatio: number;
+  /**
+   * `true` when the caller pinned `pixelRatio` via constructor options
+   * (or `applyOptions`). When pinned, we honor the caller's value and
+   * never auto-track `window.devicePixelRatio`. When false, every
+   * `_setSize` call re-reads `window.devicePixelRatio` so dragging the
+   * window between displays of different DPR (e.g. Retina ↔ external
+   * monitor) re-renders the canvas at the correct resolution instead
+   * of staying blurry at the original DPR.
+   */
+  private _pixelRatioPinned: boolean;
   private _theme: ThemeColors;
   private _fontSize: number;
   private _priceFormatter: (price: number) => string;
@@ -276,8 +298,10 @@ export class CanvasChart implements ChartInstance {
     this._sessionGapsOpts = resolveSessionGapsOptions(options?.timeScale?.sessionGaps);
     this._locale = mergeLocale(options?.locale);
     setMonthNames(this._locale.months);
-    this._pixelRatio =
-      options?.pixelRatio ?? (typeof window !== "undefined" ? window.devicePixelRatio : 1);
+    this._pixelRatioPinned = options?.pixelRatio !== undefined;
+    this._pixelRatio = this._pixelRatioPinned
+      ? (options?.pixelRatio as number)
+      : safeDevicePixelRatio();
 
     // Resolve theme
     if (typeof options?.theme === "object") {
@@ -1162,6 +1186,15 @@ export class CanvasChart implements ChartInstance {
     // Guard against zero/negative dimensions to prevent Infinity in layout math
     const w = Math.max(1, width);
     const h = Math.max(1, height);
+    // Re-read `window.devicePixelRatio` on every resize so dragging the
+    // window between displays of different DPR (e.g. moving from a
+    // 1× external monitor to a 2× Retina screen) re-renders at the
+    // correct resolution instead of staying blurry at the original
+    // construction-time DPR. Honor an explicit `options.pixelRatio`
+    // override by leaving `_pixelRatio` untouched when pinned.
+    if (!this._pixelRatioPinned) {
+      this._pixelRatio = safeDevicePixelRatio();
+    }
     const pr = this._pixelRatio;
     this._canvas.width = w * pr;
     this._canvas.height = h * pr;

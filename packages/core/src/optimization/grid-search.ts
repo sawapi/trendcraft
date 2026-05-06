@@ -199,13 +199,19 @@ export function gridSearch(
         passedConstraints,
       };
 
-      // Only keep valid results unless keepAllResults is true
-      if (keepAllResults || passedConstraints) {
+      // Only keep valid, finite-scored results unless keepAllResults
+      // is true. Calmar / MAR / Recovery return NaN when maxDD <= 0
+      // (matches empyrical / pyfolio). Letting NaN / Infinity through
+      // would corrupt downstream consumers that re-sort or average
+      // `results` (e.g. strategy-dna's `computeRecommendedParams`,
+      // `extractSensitivityData`) without their own isFinite guard.
+      const finiteScore = Number.isFinite(score);
+      if (keepAllResults || (passedConstraints && finiteScore)) {
         results.push(entry);
       }
 
-      // Update best if passes constraints
-      if (passedConstraints) {
+      // Update best if passes constraints AND has a finite score.
+      if (passedConstraints && finiteScore) {
         validCombinations++;
         if (score > bestScore) {
           bestScore = score;
@@ -218,8 +224,17 @@ export function gridSearch(
     }
   }
 
-  // Sort results by score (descending)
-  results.sort((a, b) => b.score - a.score);
+  // Sort results by score (descending). NaN scores sink to the end:
+  // any comparison involving NaN returns false, so the comparator
+  // falls through, but explicit handling makes the order deterministic.
+  results.sort((a, b) => {
+    const aFinite = Number.isFinite(a.score);
+    const bFinite = Number.isFinite(b.score);
+    if (aFinite && bFinite) return b.score - a.score;
+    if (aFinite) return -1;
+    if (bFinite) return 1;
+    return 0;
+  });
 
   return {
     bestParams: validCombinations > 0 ? bestParams : null,

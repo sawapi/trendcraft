@@ -404,4 +404,101 @@ describe("Grid Search Optimization", () => {
       expect(result.totalCombinations).toBe(1);
     });
   });
+
+  describe("NaN / Infinity score handling", () => {
+    // Regression for an A6 audit finding: when `metric` is calmar /
+    // mar / recoveryFactor and a combination has maxDrawdown=0 (e.g.
+    // a single tiny winning trade), the metric returns NaN
+    // (empyrical / pyfolio convention). Without an isFinite guard,
+    // any combination producing such a result was eligible to win
+    // the ranking — flat strategies could outrank legitimate ones
+    // simply because they were lucky enough to never draw down.
+    it("excludes non-finite scores from default results array (without keepAllResults)", () => {
+      const candles = generateUpTrendCandles(50);
+
+      const createStrategy = (params: Record<string, number>) => ({
+        entry: createEnterCondition(Math.round(params.enterAt)),
+        exit: createExitCondition(1),
+        options: { capital: 100000 } as BacktestOptions,
+      });
+
+      const result = gridSearch(candles, createStrategy, [param("enterAt", 5, 10, 1)], {
+        metric: "calmar",
+      });
+
+      // Default behavior: NaN scores filtered out so downstream
+      // consumers (strategy-dna's computeRecommendedParams /
+      // extractSensitivityData) don't have to re-guard.
+      for (const r of result.results) {
+        expect(Number.isFinite(r.score)).toBe(true);
+      }
+    });
+
+    it("keeps non-finite scores at the end when keepAllResults is true", () => {
+      const candles = generateUpTrendCandles(50);
+
+      const createStrategy = (params: Record<string, number>) => ({
+        entry: createEnterCondition(Math.round(params.enterAt)),
+        exit: createExitCondition(1),
+        options: { capital: 100000 } as BacktestOptions,
+      });
+
+      const result = gridSearch(candles, createStrategy, [param("enterAt", 5, 10, 1)], {
+        metric: "calmar",
+        keepAllResults: true,
+      });
+
+      // With keepAllResults, NaN entries surface for inspection but
+      // sink to the end of the sorted array.
+      let firstNaNIdx = -1;
+      for (let i = 0; i < result.results.length; i++) {
+        if (!Number.isFinite(result.results[i].score)) {
+          firstNaNIdx = i;
+          break;
+        }
+      }
+      if (firstNaNIdx >= 0) {
+        for (let i = firstNaNIdx; i < result.results.length; i++) {
+          expect(Number.isFinite(result.results[i].score)).toBe(false);
+        }
+      }
+    });
+
+    it("rejects NaN score (Calmar with maxDD=0) from being treated as best", () => {
+      const candles = generateUpTrendCandles(50);
+
+      const createStrategy = (params: Record<string, number>) => ({
+        entry: createEnterCondition(Math.round(params.enterAt)),
+        exit: createExitCondition(1), // Exit one bar later — minimizes DD
+        options: { capital: 100000 } as BacktestOptions,
+      });
+
+      const result = gridSearch(candles, createStrategy, [param("enterAt", 5, 10, 1)], {
+        metric: "calmar",
+      });
+
+      // Either every score is finite (all combinations had a real DD)
+      // or, when some scored NaN, the bestScore is still finite (or
+      // null when no finite score existed). Specifically: NaN must
+      // never be reported as bestScore.
+      if (result.bestScore !== null) {
+        expect(Number.isFinite(result.bestScore)).toBe(true);
+      }
+
+      // Ranking is deterministic: NaN scores sink to the end of the
+      // sorted results list.
+      let firstNaNIdx = -1;
+      for (let i = 0; i < result.results.length; i++) {
+        if (!Number.isFinite(result.results[i].score)) {
+          firstNaNIdx = i;
+          break;
+        }
+      }
+      if (firstNaNIdx >= 0) {
+        for (let i = firstNaNIdx; i < result.results.length; i++) {
+          expect(Number.isFinite(result.results[i].score)).toBe(false);
+        }
+      }
+    });
+  });
 });
