@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — chart now tracks `window.devicePixelRatio` across resizes
+
+The main `createChart` instance previously cached
+`window.devicePixelRatio` once at construction and never refreshed it.
+When the user dragged the browser window between displays of
+different DPR (e.g. an external 1× monitor ↔ a 2× Retina laptop
+display) or changed OS scaling mid-session, the canvas internal
+resolution stayed at the original DPR — the chart kept rendering at
+1× resolution on a 2× display, producing visibly blurry output.
+
+`_setSize` now re-reads `window.devicePixelRatio` on every resize
+when no explicit `options.pixelRatio` was pinned at construction.
+The pinned override path is unchanged — callers that supply
+`pixelRatio` keep full control. Sparkline already re-read DPR each
+frame and is unaffected.
+
 ### Fixed — non-finite value guards across render and layout paths
 
 Canvas silently swallows draw calls with `NaN` / `±Infinity`
