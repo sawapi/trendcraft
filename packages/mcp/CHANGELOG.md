@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+### Added — upfront `params` shape guard for `calc_indicator` / `detect_signal`
+
+`validateIndicatorParams` rejects structurally broken `params`
+objects before the underlying function runs, returning
+`INVALID_PARAMETER` with actionable hints:
+
+- non-object / array / `null` `params` → reject with the actual type
+- nested-object values → reject (`{ period: { value: 14 } }`)
+- `NaN` / `±Infinity` numbers → reject
+- arrays containing nested arrays / `null` / `NaN` / non-primitive
+  elements → reject; flat `number[]` / `string[]` / `boolean[]` are
+  accepted (used by KST `rocPeriods`, candlestick `patterns`, etc.)
+- string-where-number-expected on numeric-style keys → reject
+  (`{ period: "14" }`); we deliberately do not auto-coerce because
+  the string form is more often a serialization bug than intent
+
+Per-parameter range and type contracts are still owned by the
+indicator itself; this guard only catches obvious wrong shapes that
+would otherwise turn into a downstream NaN or a silent default
+fallback.
+
 ### Added
 
 - **`load_candles` tool + `candlesRef` input** — cache OHLCV candles in the
