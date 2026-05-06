@@ -2,6 +2,40 @@
 
 ## Unreleased
 
+### Fixed — Ulcer Index uses the canonical Peter Martin two-stage formula
+
+`ulcerIndex` now matches Peter Martin & Byron McCann's original
+(1987) two-stage definition:
+
+1. For each bar `j`: `rolling_max[j] = max(close[j - N + 1 .. j])`
+2. For each bar `j`: `drawdown[j] = (close[j] - rolling_max[j]) / rolling_max[j] × 100`
+3. `UI[i] = sqrt(mean(drawdown[i - N + 1 .. i]^2))`
+
+Each per-bar drawdown is now measured against that bar's own rolling
+peak. The previous implementation used a single peak shared across
+the whole window, which the docstring already described in canonical
+terms; the code is now consistent with the docstring.
+
+**Breaking** for callers that depended on the prior numeric output:
+
+- Total warmup is now `2 × period - 1` bars (was `period`). First
+  non-null is at index `2 × period - 2` (was `period - 1`).
+- Numeric values change for every period combination.
+
+The same fix is applied to `createUlcerIndex` (incremental). The
+incremental version now keeps two `period`-sized buffers — rolling
+prices for stage 1 and rolling drawdowns for stage 2 — and warms up
+over `2 × period - 1` bars to match the batch output.
+
+`UlcerIndexState` schema changed accordingly: the previous single
+`buffer` field is replaced with `prices` and `drawdowns` buffers.
+Per-bar drawdowns aren't recoverable from the old shape, so
+`fromState` now throws a clear `"legacy state snapshot detected"`
+error when it sees the old format — re-warm from candles instead.
+
+A cross-validation regression test pins the new behavior at
+9-decimal precision against an independent reference fixture.
+
 ### Added — pandas-ta cross-validation for Coppock / Mass Index / TSI / Choppiness
 
 - Four additional indicators with no TA-Lib counterpart now have

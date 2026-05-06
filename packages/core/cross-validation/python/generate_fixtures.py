@@ -988,6 +988,20 @@ def generate_all(ohlcv: dict) -> None:
         ],
     })
 
+    # Ulcer Index (Peter Martin canonical, two-stage formula)
+    print("Generating Ulcer Index...")
+    save_fixture("ulcer-index", {
+        "indicator": "UlcerIndex",
+        "ground_truth": "pandas-ta",
+        "test_cases": [
+            {
+                "name": "ui_14",
+                "params": {"period": 14},
+                "values": to_json_safe(pta.ui(df["close"], length=14).to_numpy(), n),
+            },
+        ],
+    })
+
 
 def main() -> None:
     FIXTURES_DIR.mkdir(parents=True, exist_ok=True)
