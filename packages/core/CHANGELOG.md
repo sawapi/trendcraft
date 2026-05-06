@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+### Added — strategy JSON round-trip depth tests
+
+`serialize / parse` is now pinned across:
+
+- all condition shapes (preset leaf, `and`, `or`, `not`)
+- 3- and 4-level nesting
+- presence and absence of optional fields (`tags`, `metadata`,
+  `description`, `backtest.*`, `params`)
+- unicode / quotes / backslashes / newlines in `id` / `name` /
+  `description`; long descriptions; 20-element tag arrays
+- every entry in `backtestRegistry`: each preset's default-param
+  shape round-trips through `serialize → parse → serialize` to
+  byte-identical JSON
+
+The contract enforced is `serialize(parse(serialize(s))) === serialize(s)`
+plus structural equality after parse. No production behavior change;
+this is regression coverage for the JSON layer that downstream
+consumers (MCP, Strategy Studio, Strategy DNA) all build on.
+
 ### Fixed — GARCH / EWMA volatility input and stationarity guards
 
 - `garch(returns)` and `ewmaVolatility(returns)` now throw early when
