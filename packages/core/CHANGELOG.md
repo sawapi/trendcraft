@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+### Fixed — GARCH / EWMA volatility input and stationarity guards
+
+- `garch(returns)` and `ewmaVolatility(returns)` now throw early when
+  any input element is `NaN` / `±Infinity`. A single contaminated
+  return previously poisoned the negative log-likelihood and every
+  downstream parameter, returning a silently broken model with
+  `converged: result.converged` from the optimiser.
+- `garch` no longer reports `converged: true` when the optimiser's
+  output had to be clamped (`omega <= 0`, negative `alpha` / `beta`,
+  or `alpha + beta >= 1`). The returned params are not the optimiser's
+  settled answer in that case, so flagging convergence is misleading.
+- If the optimiser drifts to non-finite parameters, `garch` now
+  falls back to the unconditional-variance degenerate result with
+  `converged: false` instead of returning a `NaN` forecast.
+- `forecastVar` is `Number.isFinite`-checked before `sqrt`; falls back
+  to the unconditional variance on the rare case the recursive update
+  drifts non-finite under finite input.
+
 ### Fixed — Ulcer Index uses the canonical Peter Martin two-stage formula
 
 `ulcerIndex` now matches Peter Martin & Byron McCann's original
