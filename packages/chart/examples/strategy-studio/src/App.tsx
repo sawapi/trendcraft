@@ -3,13 +3,15 @@ import { registerTrendCraftPresets } from "@trendcraft/chart/presets";
 import { useTrendChart } from "@trendcraft/chart/react";
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { indicatorPresets, parseStrategy, validateStrategyJSON } from "trendcraft";
+import { DataSourcePanel } from "./components/DataSourcePanel";
 import { useBacktestRunner } from "./hooks/useBacktestRunner";
+import { useDataSource } from "./hooks/useDataSource";
 import { useRegime } from "./hooks/useRegime";
+import { dataSourceKey } from "./lib/data-sources";
 import { type SimulatorHandle, createLiveSimulator } from "./lib/live-simulator";
 import type { OptimizationComputation } from "./lib/optimization";
 import { PLUGIN_BY_KIND, type PluginHandle } from "./lib/plugins";
 import { clampedSeedEnd, lastEmittedIdx } from "./lib/replay";
-import { sampleCandles } from "./lib/sample-data";
 import { SIGNAL_BY_KIND } from "./lib/signals";
 import { builderReducer, initialBuilderState, strategyJSONToState } from "./lib/strategy-state";
 import { localStudioAPI } from "./lib/studio-api";
@@ -60,7 +62,14 @@ export const SPEED_MS: Record<SpeedTier, number> = {
 };
 
 export function App() {
-  const candles = sampleCandles;
+  const {
+    candles,
+    source: dataSource,
+    setSource: setDataSource,
+    reload: reloadDataSource,
+    loading: dataLoading,
+    error: dataError,
+  } = useDataSource();
   const regime = useRegime(candles);
 
   const [instances, setInstances] = useState<IndicatorInstance[]>([]);
@@ -79,6 +88,19 @@ export function App() {
   const [progress, setProgress] = useState(0);
   const replayRef = useRef(replay);
   replayRef.current = replay;
+
+  // Reset replay whenever the underlying candle series changes (different
+  // symbol / timeframe / source). A live cursorIndex against stale data
+  // would render bars from the previous series.
+  const dataKey = dataSourceKey(dataSource);
+  const lastDataKeyRef = useRef(dataKey);
+  useEffect(() => {
+    if (lastDataKeyRef.current !== dataKey) {
+      lastDataKeyRef.current = dataKey;
+      setReplay({ mode: "static" });
+      setProgress(0);
+    }
+  }, [dataKey]);
 
   const newInstance = useCallback(
     (kind: string): IndicatorInstance => ({
@@ -491,10 +513,13 @@ export function App() {
     chart?.addSignals(visibleSignalMarkers);
   }, [chart, visibleSignalMarkers]);
 
-  const headerInfo = useMemo(
-    () => `${candles.length} bars · LLM-free · regime-aware`,
-    [candles.length],
-  );
+  const headerInfo = useMemo(() => {
+    const base = `${candles.length} bars · LLM-free · regime-aware`;
+    if (dataSource.kind === "alpaca") {
+      return `${dataSource.symbol} ${dataSource.timeframe} · ${base}`;
+    }
+    return `synthetic · ${base}`;
+  }, [candles.length, dataSource]);
 
   // ---- PR3: strategy builder + backtest runner ----
   const [builderState, builderDispatch] = useReducer(
@@ -638,6 +663,13 @@ export function App() {
       <header className="studio-header">
         <span className="studio-title">TrendCraft — Strategy Studio</span>
         <span className="studio-tag">@trendcraft/chart</span>
+        <DataSourcePanel
+          source={dataSource}
+          loading={dataLoading}
+          error={dataError}
+          onChange={setDataSource}
+          onReload={reloadDataSource}
+        />
         <span style={{ marginLeft: "auto", fontSize: 11, color: "#787b86" }}>{headerInfo}</span>
       </header>
 
