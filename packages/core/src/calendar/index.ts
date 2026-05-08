@@ -7,7 +7,6 @@
  * with a custom `isTradingDay` predicate.
  */
 
-export type { TradingCalendar } from "./types";
 export type { AnnualizationOptions } from "./annualize";
 export { annualizationFactor } from "./annualize";
 export {
@@ -17,3 +16,4 @@ export {
   JPX_CALENDAR,
   US_EQUITY_CALENDAR,
 } from "./presets";
+export type { TradingCalendar } from "./types";

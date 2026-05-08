@@ -5,8 +5,7 @@
  * to price changes than SMA.
  */
 
-import { getPrice, isNormalized } from "../../core/normalize";
-import { normalizeCandles } from "../../core/normalize";
+import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 import { WMA_META } from "../indicator-meta";

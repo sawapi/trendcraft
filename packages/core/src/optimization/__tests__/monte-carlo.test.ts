@@ -10,7 +10,7 @@ import {
 /**
  * Create mock trades for testing
  */
-function createMockTrades(count: number, winRate = 0.6): Trade[] {
+function _createMockTrades(count: number, winRate = 0.6): Trade[] {
   const trades: Trade[] = [];
   const baseTime = Date.now() - count * 7 * 24 * 60 * 60 * 1000;
 

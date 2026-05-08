@@ -5,7 +5,6 @@
 import type {
   CombinedCondition,
   Condition,
-  ConditionFn,
   MtfContext,
   MtfPresetCondition,
   NormalizedCandle,

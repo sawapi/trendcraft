@@ -1,5 +1,5 @@
 import type { NormalizedCandle } from "trendcraft";
-import { COLORS, type SeriesItem, createLineSeries } from "../chartColors";
+import { COLORS, createLineSeries, type SeriesItem } from "../chartColors";
 import type { IndicatorData } from "../indicators";
 
 /**

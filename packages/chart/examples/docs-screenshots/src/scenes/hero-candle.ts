@@ -4,8 +4,8 @@
  * Same indicator stack as hero.ts.
  */
 
-import { connectIndicators, createChart } from "@trendcraft/chart";
 import type { CandleData } from "@trendcraft/chart";
+import { connectIndicators, createChart } from "@trendcraft/chart";
 import { registerTrendCraftPresets } from "@trendcraft/chart/presets";
 import { indicatorPresets } from "trendcraft";
 

@@ -8,7 +8,6 @@ import { type ChartLocale, DEFAULT_LOCALE } from "../core/i18n";
 import type { ThemeColors } from "../core/types";
 
 export class LegendOverlay {
-  private _container: HTMLElement;
   private _el: HTMLElement;
   private _theme: ThemeColors;
   private _onToggle: ((seriesId: string, visible: boolean) => void) | null = null;

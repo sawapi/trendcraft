@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { PrimitiveRenderContext } from "../core/plugin-types";
 import type { PriceScale, TimeScale } from "../core/scale";
 import type { ChartInstance, PaneRect, ThemeColors } from "../core/types";
-import { type SmcState, connectSmcLayer, createSmcLayer } from "../plugins/smc-layer";
+import { connectSmcLayer, createSmcLayer, type SmcState } from "../plugins/smc-layer";
 
 const EMPTY_STATE: SmcState = {
   orderBlocks: [],

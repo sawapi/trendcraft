@@ -741,7 +741,7 @@ describe("Backtest Conditions", () => {
 
   describe("scoreIncreasing", () => {
     it("should detect score increase from previous bar", () => {
-      const currentIndex = 0;
+      const _currentIndex = 0;
       const config: ScoringConfig = {
         signals: [
           {

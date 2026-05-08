@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { InternalSeries } from "../core/data-layer";
 import { dispatchSeries } from "../renderer/series-dispatcher";
 import { makePriceScale, makeTimeScale, mockCtx } from "./helpers/mock-ctx";

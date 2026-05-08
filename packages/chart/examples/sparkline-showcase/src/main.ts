@@ -1,9 +1,9 @@
 import {
   type ColorSpec,
+  createSparklineGroup,
   type SparklineCandle,
   type SparklineGroup,
   type SparklineOptions,
-  createSparklineGroup,
 } from "@trendcraft/chart/sparkline";
 
 type Ticker = {

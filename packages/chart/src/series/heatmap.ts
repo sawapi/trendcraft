@@ -59,7 +59,7 @@ export function renderHeatmap(
   }
 
   // Draw VAH/VAL lines
-  for (const [key, values] of [
+  for (const [_key, values] of [
     ["vah", vah],
     ["val", val],
   ] as const) {

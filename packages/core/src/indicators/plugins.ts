@@ -197,10 +197,10 @@ export const volumeTrend = defineIndicator({
 
 // Re-export value types used by plugins for convenience
 export type {
-  MacdValue,
   BollingerBandsValue,
-  ParabolicSarValue,
   KeltnerChannelValue,
+  MacdValue,
+  ParabolicSarValue,
   VolumeAnomalyValue,
   VolumeProfileValue,
   VolumeTrendValue,

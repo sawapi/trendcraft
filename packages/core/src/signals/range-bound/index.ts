@@ -85,7 +85,7 @@ import type { RangeBoundOptions, RangeBoundState, RangeBoundValue } from "./type
 import { DEFAULTS } from "./types";
 
 // Re-export types for backward compatibility
-export type { RangeBoundState, TrendReason, RangeBoundValue, RangeBoundOptions } from "./types";
+export type { RangeBoundOptions, RangeBoundState, RangeBoundValue, TrendReason } from "./types";
 
 /**
  * Detect range-bound (box range) market conditions

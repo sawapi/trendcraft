@@ -6,9 +6,9 @@ import {
   rsi as rsiPlugin,
   sma as smaPlugin,
 } from "../../indicators/plugins";
-import type { NormalizedCandle, Series } from "../../types";
-import { defineIndicator } from "../../types/plugin";
+import type { NormalizedCandle } from "../../types";
 import type { IndicatorPlugin } from "../../types/plugin";
+import { defineIndicator } from "../../types/plugin";
 import { TrendCraft, TrendCraftMtf } from "../trendcraft";
 
 // Helper to create simple candles

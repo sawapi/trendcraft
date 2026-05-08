@@ -22,13 +22,13 @@ import type {
   TimeframeShorthand,
   Trade,
 } from "../types";
-import { evaluateCondition } from "./conditions";
 import type { ExtendedCondition } from "./conditions";
+import { evaluateCondition } from "./conditions";
 import {
-  MS_PER_DAY,
   applySlippage,
   calculateStats,
   emptyResult,
+  MS_PER_DAY,
   runStandardBacktest,
 } from "./scaled-entry-utils";
 

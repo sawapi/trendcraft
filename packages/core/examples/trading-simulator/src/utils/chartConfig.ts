@@ -2,10 +2,10 @@ import type { EChartsOption } from "echarts";
 import type { NormalizedCandle } from "trendcraft";
 import type { DetectedVolumeSpike, Drawing, EquityPoint, SavedSession } from "../types";
 import {
-  COLORS,
   type ChartTheme,
-  SUBCHART_INDICATORS,
+  COLORS,
   type SeriesItem,
+  SUBCHART_INDICATORS,
   type SubchartContext,
   THEME_COLORS,
 } from "./chartColors";

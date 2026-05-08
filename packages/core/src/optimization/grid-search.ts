@@ -15,7 +15,7 @@ import type {
   OptimizationResultEntry,
   ParameterRange,
 } from "../types/optimization";
-import { type Result, err, ok, tcError } from "../types/result";
+import { err, ok, type Result, tcError } from "../types/result";
 import { calculateAllMetrics, checkConstraint, getMetricValue } from "./metrics";
 
 /**

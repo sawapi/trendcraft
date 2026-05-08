@@ -27,7 +27,7 @@ export function rsiBelow(threshold = 30, period = 14): PresetCondition {
   return {
     type: "preset",
     name: `rsiBelow(${threshold})`,
-    evaluate: (indicators, candle, index, candles) => {
+    evaluate: (indicators, _candle, index, candles) => {
       let rsiData = indicators[`rsi${period}`] as
         | { time: number; value: number | null }[]
         | undefined;
@@ -61,7 +61,7 @@ export function rsiAbove(threshold = 70, period = 14): PresetCondition {
   return {
     type: "preset",
     name: `rsiAbove(${threshold})`,
-    evaluate: (indicators, candle, index, candles) => {
+    evaluate: (indicators, _candle, index, candles) => {
       let rsiData = indicators[`rsi${period}`] as
         | { time: number; value: number | null }[]
         | undefined;

@@ -22,7 +22,7 @@
 import type { NormalizedCandle } from "../../../types";
 import type { IncrementalIndicator, WarmUpOptions } from "../types";
 import { resolveLevelsConfig, resolveSwingConfig } from "./swing-helpers";
-import { type SwingPointsState, createSwingPoints } from "./swing-points";
+import { createSwingPoints, type SwingPointsState } from "./swing-points";
 
 export type FibonacciRetracementValue = {
   /** Fibonacci levels mapped by ratio string to price value, null if not enough data */

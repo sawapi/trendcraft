@@ -6,8 +6,7 @@
  */
 
 import { runBacktest } from "../backtest";
-import { IndicatorCache } from "../core/indicator-cache";
-import type { BacktestOptions, Condition, NormalizedCandle } from "../types";
+import type { NormalizedCandle } from "../types";
 import type {
   OptimizationConstraint,
   OptimizationMetric,
@@ -16,9 +15,9 @@ import type {
   WalkForwardPeriod,
   WalkForwardResult,
 } from "../types/optimization";
-import { type Result, err, ok, tcError } from "../types/result";
-import { type StrategyFactory, gridSearch } from "./grid-search";
-import { calculateAllMetrics, getMetricValue } from "./metrics";
+import { err, ok, type Result, tcError } from "../types/result";
+import { gridSearch, type StrategyFactory } from "./grid-search";
+import { calculateAllMetrics } from "./metrics";
 
 /**
  * Default options for walk-forward analysis
@@ -346,7 +345,7 @@ function generateRecommendation(
   }
 
   // Decision logic
-  const inSampleValue = avgInSample[metric];
+  const _inSampleValue = avgInSample[metric];
   const outOfSampleValue = avgOutOfSample[metric];
 
   // Good: stability ratio > 0.5, profitable > 60%, out-of-sample positive

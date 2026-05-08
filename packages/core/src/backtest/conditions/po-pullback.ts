@@ -47,7 +47,7 @@ export function perfectOrderPullbackEntry(
   return {
     type: "preset",
     name: `perfectOrderPullbackEntry(${periods.join(",")})`,
-    evaluate: (indicators, candle, index, candles) => {
+    evaluate: (indicators, _candle, index, candles) => {
       // Need at least 2 bars to detect slope change
       if (index < 1) return false;
 
@@ -171,7 +171,7 @@ export function perfectOrderPullbackSellEntry(
   return {
     type: "preset",
     name: `perfectOrderPullbackSellEntry(${periods.join(",")})`,
-    evaluate: (indicators, candle, index, candles) => {
+    evaluate: (indicators, _candle, index, candles) => {
       if (index < 1) return false;
 
       let poData = indicators[cacheKey] as
@@ -297,7 +297,7 @@ export function poPlusEntry(options: PerfectOrderEnhancedConditionOptions = {}):
   return {
     type: "preset",
     name: `poPlusEntry(${periods.join(",")})`,
-    evaluate: (indicators, candle, index, candles) => {
+    evaluate: (indicators, _candle, index, candles) => {
       let poData = indicators[cacheKey] as
         | { time: number; value: PerfectOrderValueEnhanced }[]
         | undefined;
@@ -352,7 +352,7 @@ export function pbEntry(options: PerfectOrderEnhancedConditionOptions = {}): Pre
   return {
     type: "preset",
     name: `pbEntry(${periods.join(",")})`,
-    evaluate: (indicators, candle, index, candles) => {
+    evaluate: (indicators, _candle, index, candles) => {
       let poData = indicators[cacheKey] as
         | { time: number; value: PerfectOrderValueEnhanced }[]
         | undefined;
@@ -401,7 +401,7 @@ export function poPlusPbEntry(options: PerfectOrderEnhancedConditionOptions = {}
   return {
     type: "preset",
     name: `poPlusPbEntry(${periods.join(",")})`,
-    evaluate: (indicators, candle, index, candles) => {
+    evaluate: (indicators, _candle, index, candles) => {
       let poData = indicators[cacheKey] as
         | { time: number; value: PerfectOrderValueEnhanced }[]
         | undefined;

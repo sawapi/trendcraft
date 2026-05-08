@@ -9,12 +9,12 @@
  */
 
 import type { NormalizedCandle, PriceSource } from "../../../types";
-import { createSma } from "../moving-average/sma";
 import type { SmaState } from "../moving-average/sma";
+import { createSma } from "../moving-average/sma";
 import type { IncrementalIndicator, WarmUpOptions } from "../types";
-import { getSourcePrice, makeCandle } from "../utils";
-import { createRoc } from "./roc";
+import { makeCandle } from "../utils";
 import type { RocState } from "./roc";
+import { createRoc } from "./roc";
 
 export type KstValue = {
   kst: number;

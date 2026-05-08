@@ -14,151 +14,137 @@
  */
 
 export {
-  crossOver,
-  crossUnder,
-  goldenCross,
-  deadCross,
-  validateCrossSignals,
-  type CrossOptions,
-  type CrossValidationOptions,
-  type CrossSignalQuality,
-} from "./cross";
-
-export {
-  obvDivergence,
-  rsiDivergence,
-  macdDivergence,
-  detectDivergence,
-  type DivergenceSignal,
-  type DivergenceOptions,
-} from "./divergence";
-
-export { cvdDivergence } from "./cvd-divergence";
-
-export {
   bollingerSqueeze,
-  type SqueezeSignal,
   type SqueezeOptions,
+  type SqueezeSignal,
 } from "./bollinger-squeeze";
-
-export {
-  perfectOrder,
-  perfectOrderEnhanced,
-  type PerfectOrderType,
-  type PerfectOrderValue,
-  type PerfectOrderOptions,
-  // Enhanced mode types
-  type SlopeDirection,
-  type PerfectOrderState,
-  type PerfectOrderValueEnhanced,
-  type PerfectOrderOptionsEnhanced,
-} from "./perfect-order";
-
-export {
-  rangeBound,
-  type TrendReason,
-  type RangeBoundState,
-  type RangeBoundValue,
-  type RangeBoundOptions,
-} from "./range-bound";
-
-export {
-  volumeBreakout,
-  type VolumeBreakoutSignal,
-  type VolumeBreakoutOptions,
-} from "./volume-breakout";
-
-export {
-  volumeAccumulation,
-  type VolumeAccumulationSignal,
-  type VolumeAccumulationOptions,
-} from "./volume-accumulation";
-
-export {
-  volumeMaCross,
-  type VolumeMaCrossSignal,
-  type VolumeMaCrossOptions,
-} from "./volume-ma-cross";
-
-export {
-  volumeAboveAverage,
-  type VolumeAboveAverageSignal,
-  type VolumeAboveAverageOptions,
-} from "./volume-above-average";
-
 // Candlestick Patterns
 export {
-  candlestickPatterns,
   type CandlestickPattern,
   type CandlestickPatternName,
   type CandlestickPatternOptions,
   type CandlestickPatternValue,
+  candlestickPatterns,
 } from "./candlestick";
-
+// Coaching
+export {
+  type CoachingDirection,
+  type CoachingOptions,
+  type CoachingSeverity,
+  type CoachingSignal,
+  detectCoachingSignals,
+} from "./coaching";
+export {
+  type CrossOptions,
+  type CrossSignalQuality,
+  type CrossValidationOptions,
+  crossOver,
+  crossUnder,
+  deadCross,
+  goldenCross,
+  validateCrossSignals,
+} from "./cross";
+export { cvdDivergence } from "./cvd-divergence";
+export {
+  type DivergenceOptions,
+  type DivergenceSignal,
+  detectDivergence,
+  macdDivergence,
+  obvDivergence,
+  rsiDivergence,
+} from "./divergence";
+// Signal Lifecycle
+export {
+  type CooldownConfig,
+  createSignalManager,
+  type DebounceConfig,
+  type ExpiryConfig,
+  type ManagedSignal,
+  processSignalsBatch,
+  type SignalKeyFn,
+  type SignalManager,
+  type SignalManagerOptions,
+  type SignalManagerState,
+  type SignalState,
+} from "./lifecycle";
+// Price Pattern Recognition
+export {
+  type ChannelOptions,
+  type CupHandleOptions,
+  classifyTrendlinePair,
+  cupWithHandle,
+  type DoublePatternOptions,
+  detectChannel,
+  detectFlag,
+  detectHarmonicPatterns,
+  detectTriangle,
+  detectWedge,
+  doubleBottom,
+  doubleTop,
+  type FlagOptions,
+  filterPatterns,
+  fitTrendline,
+  fitTrendlinePair,
+  type HarmonicPatternOptions,
+  type HarmonicPatternType,
+  type HeadShouldersOptions,
+  headAndShoulders,
+  inverseHeadAndShoulders,
+  type PatternFilterOptions,
+  type PatternKeyPoint,
+  type PatternNeckline,
+  type PatternSignal,
+  type PatternType,
+  type TrendlineFit,
+  type TrendlinePairType,
+  type TriangleOptions,
+  type WedgeOptions,
+} from "./patterns";
+export {
+  type PerfectOrderOptions,
+  type PerfectOrderOptionsEnhanced,
+  type PerfectOrderState,
+  type PerfectOrderType,
+  type PerfectOrderValue,
+  type PerfectOrderValueEnhanced,
+  perfectOrder,
+  perfectOrderEnhanced,
+  // Enhanced mode types
+  type SlopeDirection,
+} from "./perfect-order";
+export {
+  type RangeBoundOptions,
+  type RangeBoundState,
+  type RangeBoundValue,
+  rangeBound,
+  type TrendReason,
+} from "./range-bound";
 // Trade Signal Converters
 export {
   fromCrossSignal,
   fromDivergenceSignal,
-  fromSqueezeSignal,
   fromPatternSignal,
-  fromScoreResult,
   fromPipelineResult,
+  fromScoreResult,
+  fromSqueezeSignal,
 } from "./trade-signal";
-
-// Price Pattern Recognition
 export {
-  doubleTop,
-  doubleBottom,
-  headAndShoulders,
-  inverseHeadAndShoulders,
-  cupWithHandle,
-  detectTriangle,
-  detectWedge,
-  detectChannel,
-  detectFlag,
-  detectHarmonicPatterns,
-  filterPatterns,
-  fitTrendline,
-  fitTrendlinePair,
-  classifyTrendlinePair,
-  type PatternType,
-  type PatternKeyPoint,
-  type PatternNeckline,
-  type PatternSignal,
-  type DoublePatternOptions,
-  type HeadShouldersOptions,
-  type CupHandleOptions,
-  type TriangleOptions,
-  type WedgeOptions,
-  type ChannelOptions,
-  type FlagOptions,
-  type HarmonicPatternType,
-  type HarmonicPatternOptions,
-  type PatternFilterOptions,
-  type TrendlineFit,
-  type TrendlinePairType,
-} from "./patterns";
-
-// Coaching
+  type VolumeAboveAverageOptions,
+  type VolumeAboveAverageSignal,
+  volumeAboveAverage,
+} from "./volume-above-average";
 export {
-  detectCoachingSignals,
-  type CoachingSignal,
-  type CoachingDirection,
-  type CoachingSeverity,
-  type CoachingOptions,
-} from "./coaching";
-
-// Signal Lifecycle
+  type VolumeAccumulationOptions,
+  type VolumeAccumulationSignal,
+  volumeAccumulation,
+} from "./volume-accumulation";
 export {
-  createSignalManager,
-  processSignalsBatch,
-  type SignalState,
-  type ManagedSignal,
-  type CooldownConfig,
-  type DebounceConfig,
-  type ExpiryConfig,
-  type SignalKeyFn,
-  type SignalManagerOptions,
-  type SignalManagerState,
-  type SignalManager,
-} from "./lifecycle";
+  type VolumeBreakoutOptions,
+  type VolumeBreakoutSignal,
+  volumeBreakout,
+} from "./volume-breakout";
+export {
+  type VolumeMaCrossOptions,
+  type VolumeMaCrossSignal,
+  volumeMaCross,
+} from "./volume-ma-cross";

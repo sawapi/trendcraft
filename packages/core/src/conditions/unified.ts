@@ -26,12 +26,8 @@
  * ```
  */
 
-import type {
-  IndicatorSnapshot,
-  StreamingCondition,
-  StreamingPresetCondition,
-} from "../streaming/types";
-import type { Condition, ConditionFn, NormalizedCandle, PresetCondition } from "../types";
+import type { StreamingPresetCondition } from "../streaming/types";
+import type { NormalizedCandle, PresetCondition } from "../types";
 
 /**
  * A unified indicator accessor.

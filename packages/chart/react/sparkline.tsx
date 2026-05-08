@@ -14,19 +14,19 @@
  */
 import {
   type CSSProperties,
-  type ReactNode,
   createContext,
+  type ReactNode,
   useContext,
   useEffect,
   useRef,
   useState,
 } from "react";
 import {
+  createSparkline,
+  createSparklineGroup,
   type SparklineGroup,
   type SparklineHandle,
   type SparklineOptions,
-  createSparkline,
-  createSparklineGroup,
 } from "../src/sparkline";
 
 export type {

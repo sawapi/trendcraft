@@ -12,7 +12,6 @@ import { getSwingHighs, getSwingLows } from "../../indicators/price/swing-points
 import { atr as calcAtr } from "../../indicators/volatility/atr";
 import type { Candle, NormalizedCandle } from "../../types";
 import {
-  type TrendlineFit,
   buildTouchKeyPoints,
   calculateBaseConfidence,
   calculateBreakoutLevels,
@@ -21,6 +20,7 @@ import {
   fitTrendlinePair,
   getPatternBounds,
   lookupAtr,
+  type TrendlineFit,
 } from "./trendline-utils";
 import type { PatternSignal, WedgeOptions } from "./types";
 

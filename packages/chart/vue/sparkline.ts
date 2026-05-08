@@ -15,28 +15,28 @@
  * ```
  */
 import {
-  type InjectionKey,
-  type PropType,
-  type ShallowRef,
   defineComponent,
   h,
+  type InjectionKey,
   inject,
   onBeforeUnmount,
   onMounted,
+  type PropType,
   provide,
   ref,
+  type ShallowRef,
   shallowRef,
   watch,
 } from "vue";
 import {
   type ColorSpec,
+  createSparkline,
+  createSparklineGroup,
   type HoverPayload,
   type SparklineCandle,
   type SparklineGroup,
   type SparklineHandle,
   type SparklineOptions,
-  createSparkline,
-  createSparklineGroup,
 } from "../src/sparkline";
 
 export type {

@@ -15,8 +15,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import type { MtfContext, NormalizedCandle } from "../../../types";
-import type { PresetCondition } from "../../../types";
+import type { MtfContext, NormalizedCandle, PresetCondition } from "../../../types";
 import {
   monthlyPriceAboveSma,
   monthlyPriceBelowSma,
@@ -741,9 +740,9 @@ describe("Relative Strength conditions - behavior verification", () => {
 
 describe("Volatility conditions - behavior verification", () => {
   // High volatility: large price swings
-  const highVolCandles = makeCandles(100, { base: 100, trend: 0, volatility: 15 });
+  const _highVolCandles = makeCandles(100, { base: 100, trend: 0, volatility: 15 });
   // Low volatility: tiny price swings
-  const lowVolCandles = makeCandles(100, { base: 100, trend: 0, volatility: 0.5 });
+  const _lowVolCandles = makeCandles(100, { base: 100, trend: 0, volatility: 0.5 });
   // Normal uptrend for ATR% testing
   const normalCandles = makeCandles(100, { base: 100, trend: 0.5, volatility: 2 });
 

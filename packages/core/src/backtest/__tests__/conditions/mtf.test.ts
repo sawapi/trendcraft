@@ -8,14 +8,8 @@ import type { MtfContext, NormalizedCandle, TimeframeShorthand } from "../../../
 import { evaluateCondition, getRequiredTimeframes, requiresMtf } from "../../conditions/core";
 import {
   monthlyRsiAbove,
-  monthlyRsiBelow,
   mtfCondition,
-  mtfDowntrend,
-  mtfPriceAboveSma,
   mtfRsiAbove,
-  mtfRsiBelow,
-  mtfTrendStrong,
-  mtfUptrend,
   weeklyDowntrend,
   weeklyPriceAboveSma,
   weeklyPriceBelowSma,
@@ -343,7 +337,7 @@ describe("MTF Trend Strength Conditions", () => {
 describe("Custom MTF Condition", () => {
   describe("mtfCondition", () => {
     it("should create custom MTF condition", () => {
-      const condition = mtfCondition(["weekly"], "customCondition", (mtf, indicators, candle) => {
+      const condition = mtfCondition(["weekly"], "customCondition", (mtf, _indicators, _candle) => {
         const weeklyIdx = mtf.indices.get("weekly");
         return weeklyIdx !== undefined && weeklyIdx > 0;
       });

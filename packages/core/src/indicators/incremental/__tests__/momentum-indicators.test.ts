@@ -239,7 +239,7 @@ describe("Mass Index incremental", () => {
 describe("DPO incremental", () => {
   it("matches batch output (delayed alignment)", () => {
     const period = 20;
-    const shift = Math.floor(period / 2) + 1; // 11
+    const _shift = Math.floor(period / 2) + 1; // 11
     const batch = dpo(candles, { period });
     const ind = createDpo({ period });
 

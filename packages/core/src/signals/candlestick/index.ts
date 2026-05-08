@@ -12,11 +12,7 @@ import type { Candle, NormalizedCandle, Series } from "../../types";
 import { detectDoublePatterns } from "./double";
 import { detectSinglePatterns } from "./single";
 import { detectTriplePatterns } from "./triple";
-import type {
-  CandlestickPatternName,
-  CandlestickPatternOptions,
-  CandlestickPatternValue,
-} from "./types";
+import type { CandlestickPatternOptions, CandlestickPatternValue } from "./types";
 
 export type {
   CandlestickPattern,

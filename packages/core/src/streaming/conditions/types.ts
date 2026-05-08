@@ -6,8 +6,8 @@
 
 export type {
   IndicatorSnapshot,
-  StreamingConditionFn,
-  StreamingPresetCondition,
   StreamingCombinedCondition,
   StreamingCondition,
+  StreamingConditionFn,
+  StreamingPresetCondition,
 } from "../types";

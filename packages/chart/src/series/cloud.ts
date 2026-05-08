@@ -5,7 +5,7 @@
 
 import { strokeNullableLine } from "../core/draw-helper";
 import type { PriceScale, TimeScale } from "../core/scale";
-import { type MinMax, emptyRange, reduceRange } from "../core/value-range";
+import { emptyRange, type MinMax, reduceRange } from "../core/value-range";
 
 export type CloudRenderOptions = {
   lineColors: Record<string, string>;

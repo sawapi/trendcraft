@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { NormalizedCandle } from "../../types";
-import { and, deadCross, goldenCross, rsiAbove, rsiBelow } from "../conditions";
+import { and, deadCross, goldenCross, rsiBelow } from "../conditions";
 import { runBacktest } from "../engine";
 
 // Generate trending candles for backtest

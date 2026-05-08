@@ -4,7 +4,6 @@
  * Detects when multiple moving averages are in "perfect order" alignment.
  */
 
-import { getField } from "../snapshot-utils";
 import type { StreamingPresetCondition } from "./types";
 
 /**

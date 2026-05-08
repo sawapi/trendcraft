@@ -44,7 +44,7 @@ export function perfectOrderBullish(options: PerfectOrderConditionOptions = {}):
   return {
     type: "preset",
     name: `perfectOrderBullish(${periods.join(",")})`,
-    evaluate: (indicators, candle, index, candles) => {
+    evaluate: (indicators, _candle, index, candles) => {
       let poData = indicators[cacheKey] as { time: number; value: PerfectOrderValue }[] | undefined;
 
       if (!poData) {
@@ -77,7 +77,7 @@ export function perfectOrderBearish(options: PerfectOrderConditionOptions = {}):
   return {
     type: "preset",
     name: `perfectOrderBearish(${periods.join(",")})`,
-    evaluate: (indicators, candle, index, candles) => {
+    evaluate: (indicators, _candle, index, candles) => {
       let poData = indicators[cacheKey] as { time: number; value: PerfectOrderValue }[] | undefined;
 
       if (!poData) {
@@ -112,7 +112,7 @@ export function perfectOrderCollapsed(options: PerfectOrderConditionOptions = {}
   return {
     type: "preset",
     name: `perfectOrderCollapsed(${periods.join(",")})`,
-    evaluate: (indicators, candle, index, candles) => {
+    evaluate: (indicators, _candle, index, candles) => {
       let poData = indicators[cacheKey] as { time: number; value: PerfectOrderValue }[] | undefined;
 
       if (!poData) {
@@ -147,7 +147,7 @@ export function perfectOrderActiveBullish(
   return {
     type: "preset",
     name: `perfectOrderActiveBullish(${periods.join(",")})`,
-    evaluate: (indicators, candle, index, candles) => {
+    evaluate: (indicators, _candle, index, candles) => {
       let poData = indicators[cacheKey] as { time: number; value: PerfectOrderValue }[] | undefined;
 
       if (!poData) {
@@ -176,7 +176,7 @@ export function perfectOrderActiveBearish(
   return {
     type: "preset",
     name: `perfectOrderActiveBearish(${periods.join(",")})`,
-    evaluate: (indicators, candle, index, candles) => {
+    evaluate: (indicators, _candle, index, candles) => {
       let poData = indicators[cacheKey] as { time: number; value: PerfectOrderValue }[] | undefined;
 
       if (!poData) {

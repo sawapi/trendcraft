@@ -543,9 +543,8 @@ export function registerTrendCraftPresets(chart: ChartInstance): void {
 // TrendCraft Custom Renderers
 // ============================================
 
+import type { SeriesRenderContext, SeriesRendererPlugin } from "./core/plugin-types";
 import { defineSeriesRenderer } from "./core/plugin-types";
-import type { SeriesRenderContext } from "./core/plugin-types";
-import type { SeriesRendererPlugin } from "./core/plugin-types";
 
 const TRENDCRAFT_RENDERERS: SeriesRendererPlugin[] = [
   // FVG Zone Renderer

@@ -16,9 +16,6 @@
  * ```
  */
 
-import type { StreamingCondition } from "../streaming/types";
-import { ConditionRegistry } from "./registry";
-
 import {
   bollingerBreakout,
   bollingerExpansion,
@@ -89,6 +86,8 @@ import {
   obvRising,
   volumeAboveAvg,
 } from "../streaming/conditions/volume";
+import type { StreamingCondition } from "../streaming/types";
+import { ConditionRegistry } from "./registry";
 
 /**
  * Pre-built registry containing all streaming conditions

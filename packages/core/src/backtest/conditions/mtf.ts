@@ -71,7 +71,7 @@ export function mtfRsiAbove(
     type: "mtf-preset",
     name: `${timeframe}RsiAbove(${threshold})`,
     requiredTimeframes: [timeframe],
-    evaluate: (mtf, indicators, candle, index, candles) => {
+    evaluate: (mtf, _indicators, _candle, _index, _candles) => {
       const dataset = mtf.datasets.get(timeframe);
       const mtfIndex = mtf.indices.get(timeframe);
 
@@ -109,7 +109,7 @@ export function mtfRsiBelow(
     type: "mtf-preset",
     name: `${timeframe}RsiBelow(${threshold})`,
     requiredTimeframes: [timeframe],
-    evaluate: (mtf, indicators, candle, index, candles) => {
+    evaluate: (mtf, _indicators, _candle, _index, _candles) => {
       const dataset = mtf.datasets.get(timeframe);
       const mtfIndex = mtf.indices.get(timeframe);
 
@@ -176,7 +176,7 @@ export function mtfPriceAboveSma(timeframe: TimeframeShorthand, period = 20): Mt
     type: "mtf-preset",
     name: `${timeframe}PriceAboveSma(${period})`,
     requiredTimeframes: [timeframe],
-    evaluate: (mtf, indicators, candle, index, candles) => {
+    evaluate: (mtf, _indicators, _candle, _index, _candles) => {
       const dataset = mtf.datasets.get(timeframe);
       const mtfIndex = mtf.indices.get(timeframe);
 
@@ -211,7 +211,7 @@ export function mtfPriceBelowSma(timeframe: TimeframeShorthand, period = 20): Mt
     type: "mtf-preset",
     name: `${timeframe}PriceBelowSma(${period})`,
     requiredTimeframes: [timeframe],
-    evaluate: (mtf, indicators, candle, index, candles) => {
+    evaluate: (mtf, _indicators, _candle, _index, _candles) => {
       const dataset = mtf.datasets.get(timeframe);
       const mtfIndex = mtf.indices.get(timeframe);
 
@@ -253,7 +253,7 @@ export function mtfPriceAboveEma(timeframe: TimeframeShorthand, period = 20): Mt
     type: "mtf-preset",
     name: `${timeframe}PriceAboveEma(${period})`,
     requiredTimeframes: [timeframe],
-    evaluate: (mtf, indicators, candle, index, candles) => {
+    evaluate: (mtf, _indicators, _candle, _index, _candles) => {
       const dataset = mtf.datasets.get(timeframe);
       const mtfIndex = mtf.indices.get(timeframe);
 
@@ -311,7 +311,7 @@ export function mtfTrendStrong(
     type: "mtf-preset",
     name: `${timeframe}TrendStrong(ADX>${adxThreshold})`,
     requiredTimeframes: [timeframe],
-    evaluate: (mtf, indicators, candle, index, candles) => {
+    evaluate: (mtf, _indicators, _candle, _index, _candles) => {
       const dataset = mtf.datasets.get(timeframe);
       const mtfIndex = mtf.indices.get(timeframe);
 
@@ -358,7 +358,7 @@ export function mtfUptrend(timeframe: TimeframeShorthand, adxThreshold = 20): Mt
     type: "mtf-preset",
     name: `${timeframe}Uptrend(ADX>${adxThreshold})`,
     requiredTimeframes: [timeframe],
-    evaluate: (mtf, indicators, candle, index, candles) => {
+    evaluate: (mtf, _indicators, _candle, _index, _candles) => {
       const dataset = mtf.datasets.get(timeframe);
       const mtfIndex = mtf.indices.get(timeframe);
 
@@ -400,7 +400,7 @@ export function mtfDowntrend(timeframe: TimeframeShorthand, adxThreshold = 20): 
     type: "mtf-preset",
     name: `${timeframe}Downtrend(ADX>${adxThreshold})`,
     requiredTimeframes: [timeframe],
-    evaluate: (mtf, indicators, candle, index, candles) => {
+    evaluate: (mtf, _indicators, _candle, _index, _candles) => {
       const dataset = mtf.datasets.get(timeframe);
       const mtfIndex = mtf.indices.get(timeframe);
 

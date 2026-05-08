@@ -243,7 +243,7 @@ describe("renderCloud", () => {
 
 describe("renderHistogram", () => {
   it("renders bars with up/down colors", () => {
-    const { ctx, ts, ps } = setup();
+    const { ctx, ts } = setup();
     const psHist = makePriceScale(400, -10, 10);
     renderHistogram(ctx, [5, -3, 8, null, -2], ts, psHist, {
       upColor: "#26a69a",
@@ -253,7 +253,7 @@ describe("renderHistogram", () => {
   });
 
   it("skips null values", () => {
-    const { ctx, ts, ps } = setup();
+    const { ctx, ts } = setup();
     const psHist = makePriceScale(400, -10, 10);
     renderHistogram(ctx, [null, null], ts, psHist, {
       upColor: "#26a69a",

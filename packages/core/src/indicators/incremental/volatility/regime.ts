@@ -9,8 +9,8 @@
  */
 
 import type { NormalizedCandle } from "../../../types";
-import { type DmiState, createDmi } from "../../incremental/momentum/dmi";
-import { type SmaState, createSma } from "../../incremental/moving-average/sma";
+import { createDmi, type DmiState } from "../../incremental/momentum/dmi";
+import { createSma, type SmaState } from "../../incremental/moving-average/sma";
 import { CircularBuffer } from "../circular-buffer";
 import type { IncrementalIndicator, WarmUpOptions } from "../types";
 import { type AtrState, createAtr } from "./atr";

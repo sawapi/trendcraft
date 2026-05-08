@@ -74,7 +74,7 @@ describe("massIndex", () => {
   it("should produce values around sumPeriod for stable range", () => {
     // When range is constant, single/double EMA ratio approaches 1,
     // so mass index approaches sumPeriod
-    const data = Array.from({ length: 60 }, (_, i) => ({
+    const data = Array.from({ length: 60 }, (_, _i) => ({
       high: 102,
       low: 98,
     }));

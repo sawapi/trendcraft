@@ -2,263 +2,257 @@
  * Backtest module
  */
 
+export type {
+  ExtendedCondition,
+  LiquiditySweepConditionOptions,
+  OrderBlockConditionOptions,
+  PatternConditionOptions,
+  PerfectOrderConditionOptions,
+  PerfectOrderEnhancedConditionOptions,
+  RangeBoundConditionOptions,
+  RSConditionOptions,
+  ValidatedCrossOptions,
+} from "./conditions";
 export {
-  // Condition combinators
-  and,
-  or,
-  not,
+  adxStrong,
+  alwaysFalse,
   // Always-true / always-false primitives
   alwaysTrue,
-  alwaysFalse,
-  // Preset conditions
-  goldenCross,
-  deadCross,
-  rsiBelow,
-  rsiAbove,
-  macdCrossUp,
-  macdCrossDown,
+  // Condition combinators
+  and,
+  anyBearishPattern,
+  anyBullishPattern,
+  anyPatternConfidenceAbove,
+  // ATR% Filter conditions
+  atrPercentAbove,
+  atrPercentBelow,
+  atrPercentileAbove,
+  atrPercentileBelow,
+  BENCHMARK_CACHE_KEY,
+  bearFlagDetected,
+  bearishHarmonicDetected,
+  bearishVolumeDivergence,
   bollingerBreakout,
   bollingerTouch,
-  priceAboveSma,
-  priceBelowSma,
-  priceDroppedAtr,
-  // Validated conditions (with damashi detection)
-  validatedGoldenCross,
-  validatedDeadCross,
+  breakdownVal,
+  breakoutRiskDown,
+  breakoutRiskUp,
+  breakoutVah,
+  bullFlagDetected,
+  bullishHarmonicDetected,
+  bullishVolumeDivergence,
+  channelDetected,
+  // CMF conditions
+  cmfAbove,
+  cmfBelow,
+  cupHandleDetected,
+  deadCross,
+  dmiBearish,
+  // DMI/ADX conditions
+  dmiBullish,
+  doubleBottomDetected,
+  doubleTopDetected,
+  // Evaluation helper
+  evaluateCondition,
+  flagDetected,
+  getRequiredTimeframes,
+  // Preset conditions
+  goldenCross,
+  harmonicPatternDetected,
+  hasActiveOrderBlocks,
+  hasRecentSweeps,
+  headShouldersDetected,
+  // Range-Bound (Box Range) conditions
+  inRangeBound,
+  inValueArea,
+  inverseHeadShouldersDetected,
+  liquiditySweepDetected,
+  liquiditySweepRecovered,
+  macdCrossDown,
+  macdCrossUp,
+  mansfieldRSAbove,
+  mansfieldRSBelow,
+  monthlyPriceAboveSma,
+  monthlyPriceBelowSma,
+  monthlyRsiAbove,
+  monthlyRsiBelow,
+  monthlyTrendStrong,
+  mtfCondition,
+  mtfDowntrend,
+  mtfPriceAboveEma,
+  mtfPriceAboveSma,
+  mtfPriceBelowSma,
+  mtfRsiAbove,
+  mtfRsiBelow,
+  mtfTrendStrong,
+  mtfUptrend,
+  nearPoc,
+  not,
+  obvCrossDown,
+  obvCrossUp,
+  obvFalling,
+  // OBV conditions
+  obvRising,
+  or,
+  orderBlockCreated,
+  orderBlockMitigated,
+  outperformanceAbove,
+  outperformanceBelow,
+  patternConfidenceAbove,
+  patternConfirmed,
+  // Price Pattern conditions
+  patternDetected,
+  patternWithinBars,
+  pbEntry,
+  pbrAbove,
+  pbrBelow,
+  pbrBetween,
+  perAbove,
+  // Fundamental conditions (PER/PBR)
+  perBelow,
+  perBetween,
+  perfectOrderActiveBearish,
+  perfectOrderActiveBullish,
+  perfectOrderBearish,
+  perfectOrderBearishConfirmed,
+  perfectOrderBreakdown,
   // Perfect Order conditions
   perfectOrderBullish,
-  perfectOrderBearish,
-  perfectOrderCollapsed,
-  perfectOrderActiveBullish,
-  perfectOrderActiveBearish,
   // Enhanced Perfect Order conditions
   perfectOrderBullishConfirmed,
-  perfectOrderBearishConfirmed,
+  perfectOrderCollapsed,
   perfectOrderConfirmationFormed,
-  perfectOrderBreakdown,
   perfectOrderMaCollapsed,
-  perfectOrderPreBullish,
   perfectOrderPreBearish,
+  perfectOrderPreBullish,
   // Perfect Order Pullback conditions
   perfectOrderPullbackEntry,
   perfectOrderPullbackSellEntry,
   // PO+ and PB entry conditions (using pre-computed flags)
   poPlusEntry,
-  pbEntry,
   poPlusPbEntry,
-  // Stochastics conditions
-  stochBelow,
-  stochAbove,
-  stochCrossUp,
-  stochCrossDown,
-  // DMI/ADX conditions
-  dmiBullish,
-  dmiBearish,
-  adxStrong,
-  // Volume conditions
-  volumeAboveAvg,
-  // Range-Bound (Box Range) conditions
-  inRangeBound,
-  rangeForming,
-  rangeConfirmed,
-  breakoutRiskUp,
-  breakoutRiskDown,
-  rangeBreakout,
-  tightRange,
-  rangeScoreAbove,
-  // Advanced Volume conditions
-  volumeAnomalyCondition,
-  volumeExtreme,
-  volumeRatioAbove,
-  nearPoc,
-  inValueArea,
-  breakoutVah,
-  breakdownVal,
   priceAbovePoc,
+  priceAboveSma,
+  priceAtBearishOrderBlock,
+  // Smart Money Concepts (SMC) conditions
+  priceAtBullishOrderBlock,
+  priceAtOrderBlock,
   priceBelowPoc,
-  volumeConfirmsTrend,
-  volumeDivergence,
-  bullishVolumeDivergence,
-  bearishVolumeDivergence,
-  volumeTrendConfidence,
-  // CMF conditions
-  cmfAbove,
-  cmfBelow,
-  // OBV conditions
-  obvRising,
-  obvFalling,
-  obvCrossUp,
-  obvCrossDown,
-  // Multi-Timeframe (MTF) conditions
-  weeklyRsiAbove,
-  weeklyRsiBelow,
-  monthlyRsiAbove,
-  monthlyRsiBelow,
-  mtfRsiAbove,
-  mtfRsiBelow,
-  weeklyPriceAboveSma,
-  weeklyPriceBelowSma,
-  monthlyPriceAboveSma,
-  monthlyPriceBelowSma,
-  mtfPriceAboveSma,
-  mtfPriceBelowSma,
-  weeklyPriceAboveEma,
-  mtfPriceAboveEma,
-  weeklyTrendStrong,
-  monthlyTrendStrong,
-  mtfTrendStrong,
-  weeklyUptrend,
-  weeklyDowntrend,
-  mtfUptrend,
-  mtfDowntrend,
-  mtfCondition,
-  // MTF helpers
-  requiresMtf,
-  getRequiredTimeframes,
-  // Evaluation helper
-  evaluateCondition,
+  priceBelowSma,
+  priceDroppedAtr,
+  rangeBreakout,
+  rangeConfirmed,
+  rangeForming,
+  rangeScoreAbove,
+  regimeConfidenceAbove,
   // Volatility Regime conditions
   regimeIs,
   regimeNot,
-  volatilityAbove,
-  volatilityBelow,
-  atrPercentileAbove,
-  atrPercentileBelow,
-  regimeConfidenceAbove,
-  volatilityExpanding,
-  volatilityContracting,
-  // ATR% Filter conditions
-  atrPercentAbove,
-  atrPercentBelow,
+  // MTF helpers
+  requiresMtf,
   // Relative Strength (RS) conditions
   rsAbove,
   rsBelow,
-  rsRising,
   rsFalling,
+  rsiAbove,
+  rsiBelow,
   rsNewHigh,
   rsNewLow,
   rsRatingAbove,
   rsRatingBelow,
-  mansfieldRSAbove,
-  mansfieldRSBelow,
-  outperformanceAbove,
-  outperformanceBelow,
+  rsRising,
   setBenchmark,
-  BENCHMARK_CACHE_KEY,
-  // Price Pattern conditions
-  patternDetected,
-  patternConfirmed,
-  anyBullishPattern,
-  anyBearishPattern,
-  patternConfidenceAbove,
-  anyPatternConfidenceAbove,
-  patternWithinBars,
-  doubleTopDetected,
-  doubleBottomDetected,
-  headShouldersDetected,
-  inverseHeadShouldersDetected,
-  cupHandleDetected,
-  triangleDetected,
-  wedgeDetected,
-  channelDetected,
-  flagDetected,
-  bullFlagDetected,
-  bearFlagDetected,
-  harmonicPatternDetected,
-  bullishHarmonicDetected,
-  bearishHarmonicDetected,
-  // Fundamental conditions (PER/PBR)
-  perBelow,
-  perAbove,
-  perBetween,
-  pbrBelow,
-  pbrAbove,
-  pbrBetween,
-  // Smart Money Concepts (SMC) conditions
-  priceAtBullishOrderBlock,
-  priceAtBearishOrderBlock,
-  priceAtOrderBlock,
-  orderBlockCreated,
-  orderBlockMitigated,
-  hasActiveOrderBlocks,
-  liquiditySweepDetected,
-  liquiditySweepRecovered,
-  hasRecentSweeps,
+  stochAbove,
+  // Stochastics conditions
+  stochBelow,
+  stochCrossDown,
+  stochCrossUp,
   sweepDepthAbove,
-} from "./conditions";
-
-export type {
-  ValidatedCrossOptions,
-  PerfectOrderConditionOptions,
-  PerfectOrderEnhancedConditionOptions,
-  RangeBoundConditionOptions,
-  ExtendedCondition,
-  RSConditionOptions,
-  PatternConditionOptions,
-  OrderBlockConditionOptions,
-  LiquiditySweepConditionOptions,
+  tightRange,
+  triangleDetected,
+  validatedDeadCross,
+  // Validated conditions (with damashi detection)
+  validatedGoldenCross,
+  volatilityAbove,
+  volatilityBelow,
+  volatilityContracting,
+  volatilityExpanding,
+  // Volume conditions
+  volumeAboveAvg,
+  // Advanced Volume conditions
+  volumeAnomalyCondition,
+  volumeConfirmsTrend,
+  volumeDivergence,
+  volumeExtreme,
+  volumeRatioAbove,
+  volumeTrendConfidence,
+  wedgeDetected,
+  weeklyDowntrend,
+  weeklyPriceAboveEma,
+  weeklyPriceAboveSma,
+  weeklyPriceBelowSma,
+  // Multi-Timeframe (MTF) conditions
+  weeklyRsiAbove,
+  weeklyRsiBelow,
+  weeklyTrendStrong,
+  weeklyUptrend,
 } from "./conditions";
 
 export { runBacktest } from "./engine";
-export { runBacktestScaled } from "./scaled-entry";
-export type { ScaledBacktestOptions } from "./scaled-entry";
-
-// Dynamic Slippage Model
-export { calculateDynamicSlippage, resolveSlippageModel } from "./slippage-model";
-export type {
-  SlippageModel,
-  FixedSlippageModel,
-  VolatilitySlippageModel,
-  VolumeSlippageModel,
-  CompositeSlippageModel,
-} from "./slippage-model";
-
-// Order Types (Limit/Stop)
+// Volume Constraint (re-export from engine-utils)
+export { applyVolumeConstraint } from "./engine-utils";
+export type { MarginConfig, MarginState } from "./margin";
+// Margin/Leverage
 export {
-  tryFillOrder,
-  resolvePrice,
-  resolveTimeInForce,
-  // Preset limit/stop strategies
-  limitBelowClose,
-  limitAboveClose,
-  limitAtrBelow,
-  limitAtrAbove,
-  limitAtLow,
-  limitAtHigh,
-  stopAboveHigh,
-  stopBelowLow,
-  stopAtrAbove,
-  stopAtrBelow,
-} from "./order-types";
+  accrueInterest,
+  calculateBuyingPower,
+  checkMarginCall,
+  createMarginState,
+  updateMarginState,
+} from "./margin";
 export type {
-  OrderType,
-  MarketOrder,
-  LimitOrder,
-  StopOrder,
-  StopLimitOrder,
-  PendingOrder,
   FillResult,
+  LimitOrder,
   LimitPriceFunc,
+  MarketOrder,
+  OrderType,
+  PendingOrder,
+  StopLimitOrder,
+  StopOrder,
   StopPriceFunc,
   TimeInForce,
 } from "./order-types";
 
-// Margin/Leverage
+// Order Types (Limit/Stop)
 export {
-  createMarginState,
-  calculateBuyingPower,
-  updateMarginState,
-  accrueInterest,
-  checkMarginCall,
-} from "./margin";
-export type { MarginConfig, MarginState } from "./margin";
-
-// Volume Constraint (re-export from engine-utils)
-export { applyVolumeConstraint } from "./engine-utils";
-
+  limitAboveClose,
+  limitAtHigh,
+  limitAtLow,
+  limitAtrAbove,
+  limitAtrBelow,
+  // Preset limit/stop strategies
+  limitBelowClose,
+  resolvePrice,
+  resolveTimeInForce,
+  stopAboveHigh,
+  stopAtrAbove,
+  stopAtrBelow,
+  stopBelowLow,
+  tryFillOrder,
+} from "./order-types";
 // Portfolio / Multi-Asset Backtest
 export { batchBacktest, portfolioBacktest } from "./portfolio";
-
+export type { ScaledBacktestOptions } from "./scaled-entry";
+export { runBacktestScaled } from "./scaled-entry";
+export type { BacktestScore, ScoreBreakdownEntry, ScoreOptions, ScoreWeights } from "./scoring";
 // Scoring
 export { scoreBacktestResult } from "./scoring";
-export type { BacktestScore, ScoreBreakdownEntry, ScoreWeights, ScoreOptions } from "./scoring";
+export type {
+  CompositeSlippageModel,
+  FixedSlippageModel,
+  SlippageModel,
+  VolatilitySlippageModel,
+  VolumeSlippageModel,
+} from "./slippage-model";
+// Dynamic Slippage Model
+export { calculateDynamicSlippage, resolveSlippageModel } from "./slippage-model";

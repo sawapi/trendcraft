@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { type BehaviorInsight, analyzeBehavior } from "../../engine/behaviorAnalyzer";
+import { analyzeBehavior, type BehaviorInsight } from "../../engine/behaviorAnalyzer";
 import { useSimulatorStore } from "../../store/simulatorStore";
 import { formatPrice } from "../../types";
 import { TradeReplay } from "./TradeReplay";

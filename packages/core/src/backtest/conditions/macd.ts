@@ -26,7 +26,7 @@ export function macdCrossUp(fast = 12, slow = 26, signal = 9): PresetCondition {
   return {
     type: "preset",
     name: "macdCrossUp()",
-    evaluate: (indicators, candle, index, candles) => {
+    evaluate: (indicators, _candle, index, candles) => {
       if (index < 1) return false;
 
       let macdData = indicators[key] as
@@ -74,7 +74,7 @@ export function macdCrossDown(fast = 12, slow = 26, signal = 9): PresetCondition
   return {
     type: "preset",
     name: "macdCrossDown()",
-    evaluate: (indicators, candle, index, candles) => {
+    evaluate: (indicators, _candle, index, candles) => {
       if (index < 1) return false;
 
       let macdData = indicators[key] as

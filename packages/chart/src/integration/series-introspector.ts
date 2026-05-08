@@ -4,7 +4,7 @@
  * and applies indicator presets as fallback.
  */
 
-import { type IntrospectionRule, defaultRegistry } from "../core/series-registry";
+import { defaultRegistry, type IntrospectionRule } from "../core/series-registry";
 import type { DataPoint, SeriesConfig, SeriesType } from "../core/types";
 import { INDICATOR_PRESETS, type IndicatorPreset } from "./indicator-presets";
 

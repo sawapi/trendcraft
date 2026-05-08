@@ -1,18 +1,17 @@
+export type {
+  EquityCurveAnalysis,
+  EquityCurveFilterOptions,
+  EquityCurveFilterType,
+  EquityCurveHealthResult,
+} from "./equity-curve";
 export {
   applyEquityCurveFilter,
   equityCurveHealth,
 } from "./equity-curve";
 export type {
-  EquityCurveFilterType,
-  EquityCurveFilterOptions,
-  EquityCurveAnalysis,
-  EquityCurveHealthResult,
-} from "./equity-curve";
-
-export { rotateStrategies } from "./strategy-rotation";
-export type {
+  StrategyAllocation,
   StrategyPerformanceMetric,
   StrategyRotationOptions,
-  StrategyAllocation,
   StrategyRotationResult,
 } from "./strategy-rotation";
+export { rotateStrategies } from "./strategy-rotation";

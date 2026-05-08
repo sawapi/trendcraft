@@ -6,26 +6,23 @@
  * - Liquidity Sweeps: False breakouts of swing levels
  */
 
-export {
-  orderBlock,
-  getActiveOrderBlocks,
-  getNearestOrderBlock,
-} from "./order-block";
-
-export type {
-  OrderBlock,
-  OrderBlockValue,
-  OrderBlockOptions,
-} from "./order-block";
-
-export {
-  liquiditySweep,
-  getRecoveredSweeps,
-  hasRecentSweepSignal,
-} from "./liquidity-sweep";
-
 export type {
   LiquiditySweep,
-  LiquiditySweepValue,
   LiquiditySweepOptions,
+  LiquiditySweepValue,
 } from "./liquidity-sweep";
+export {
+  getRecoveredSweeps,
+  hasRecentSweepSignal,
+  liquiditySweep,
+} from "./liquidity-sweep";
+export type {
+  OrderBlock,
+  OrderBlockOptions,
+  OrderBlockValue,
+} from "./order-block";
+export {
+  getActiveOrderBlocks,
+  getNearestOrderBlock,
+  orderBlock,
+} from "./order-block";

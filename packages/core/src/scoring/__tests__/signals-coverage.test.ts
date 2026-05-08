@@ -20,9 +20,9 @@ import {
 import {
   createDeathCrossEvaluator,
   createGoldenCrossEvaluator,
-  createPOConfirmationEvaluator,
   createPerfectOrderBearishEvaluator,
   createPerfectOrderBullishEvaluator,
+  createPOConfirmationEvaluator,
   createPriceAboveEmaEvaluator,
   createPriceBelowEmaEvaluator,
   createPullbackEntryEvaluator,

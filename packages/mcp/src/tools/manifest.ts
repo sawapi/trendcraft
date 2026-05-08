@@ -1,12 +1,12 @@
 import {
-  type IndicatorCategory,
-  type IndicatorManifest,
-  type MarketRegime,
-  type Timeframe,
   formatManifestMarkdown,
   getManifest,
+  type IndicatorCategory,
+  type IndicatorManifest,
   listManifests,
+  type MarketRegime,
   suggestForRegime,
+  type Timeframe,
 } from "trendcraft/manifest";
 import { z } from "zod";
 import { supportedKindsSet } from "../dispatcher/safe-map";

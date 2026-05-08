@@ -10,10 +10,10 @@ import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import {
-  type SessionDefinition,
   getIctSessions,
   isInAnyBreak,
   isInSessionWindow,
+  type SessionDefinition,
 } from "./session-definition";
 import { getTzHourMinute } from "./tz-utils";
 

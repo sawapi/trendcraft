@@ -41,7 +41,7 @@ export function useKeyboardShortcuts() {
 
       // Tab switching shortcuts (Ctrl/Cmd + number)
       if ((event.ctrlKey || event.metaKey) && !event.shiftKey) {
-        const num = Number.parseInt(event.key);
+        const num = Number.parseInt(event.key, 10);
         if (num >= 1 && num <= 9 && num <= symbols.length) {
           event.preventDefault();
           switchSymbol(symbols[num - 1].id);

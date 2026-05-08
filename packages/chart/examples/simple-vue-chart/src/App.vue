@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { definePrimitive, defineSeriesRenderer } from "@trendcraft/chart";
-import { TrendChart } from "@trendcraft/chart/vue";
 import {
   bollingerBands,
   goldenCrossCondition,
@@ -106,7 +105,7 @@ function computeTrailingStop() {
   });
 }
 
-const indicators = computed(() => {
+const _indicators = computed(() => {
   const list: unknown[] = [];
   if (showSma.value) list.push(sma(candles, { period: 20 }));
   if (showBb.value) list.push(bollingerBands(candles));
@@ -132,13 +131,13 @@ const indicators = computed(() => {
   return list;
 });
 
-const backtestResult = computed(() => {
+const _backtestResult = computed(() => {
   if (!showBacktest.value) return undefined;
   const normalized = normalizeCandles(candles);
   return runBacktest(normalized, goldenCrossCondition(), rsiBelow(70), { capital: 100000 });
 });
 
-const plugins = computed(() => {
+const _plugins = computed(() => {
   if (!showSrZones.value) return { renderers: [trailRenderer] };
   const recent = candles.slice(-60);
   let high = Number.NEGATIVE_INFINITY;
@@ -157,7 +156,7 @@ const plugins = computed(() => {
   return { renderers: [trailRenderer], primitives: [srZonePrimitive] };
 });
 
-function toggleTheme() {
+function _toggleTheme() {
   theme.value = theme.value === "dark" ? "light" : "dark";
 }
 </script>

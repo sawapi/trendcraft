@@ -8,8 +8,8 @@
 import type { NormalizedCandle, PriceSource } from "../../../types";
 import type { IncrementalIndicator, WarmUpOptions } from "../types";
 import { makeCandle } from "../utils";
-import { createEma } from "./ema";
 import type { EmaState } from "./ema";
+import { createEma } from "./ema";
 
 export type T3State = {
   period: number;

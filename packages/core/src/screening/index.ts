@@ -27,34 +27,30 @@
  * ```
  */
 
-// Types
-export type {
-  ScreeningCriteria,
-  ScreeningResult,
-  ScreeningOptions,
-  ScreeningSessionResult,
-  OutputFormat,
-  CsvLoadResult,
-  CsvLoadError,
-} from "./types";
-
-// Browser-compatible functions (no fs dependency)
-export {
-  screenStock,
-  screenStockSafe,
-  createCriteriaFromNames,
-  getAvailableConditions,
-  CONDITION_PRESETS,
-} from "./screen-stock";
-
-// Node.js-only functions (require fs)
-export { runScreening, runScreeningSafe } from "./screener";
-
+// These require Node.js fs (from csv-loader.ts)
+export { getCsvFiles, loadCsvDirectory, loadCsvFile } from "./csv-loader";
 // CSV utilities
 // parseCsv is browser-safe (from csv-parser.ts)
 export { parseCsv } from "./csv-parser";
-// These require Node.js fs (from csv-loader.ts)
-export { loadCsvFile, getCsvFiles, loadCsvDirectory } from "./csv-loader";
-
 // Formatters (browser-compatible)
-export { formatTable, formatJson, formatCsv } from "./formatters";
+export { formatCsv, formatJson, formatTable } from "./formatters";
+// Browser-compatible functions (no fs dependency)
+export {
+  CONDITION_PRESETS,
+  createCriteriaFromNames,
+  getAvailableConditions,
+  screenStock,
+  screenStockSafe,
+} from "./screen-stock";
+// Node.js-only functions (require fs)
+export { runScreening, runScreeningSafe } from "./screener";
+// Types
+export type {
+  CsvLoadError,
+  CsvLoadResult,
+  OutputFormat,
+  ScreeningCriteria,
+  ScreeningOptions,
+  ScreeningResult,
+  ScreeningSessionResult,
+} from "./types";

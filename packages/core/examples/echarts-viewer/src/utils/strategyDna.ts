@@ -19,16 +19,16 @@ import type { BacktestConfig } from "../types/chart";
 
 export type {
   GenomeSegment,
-  SensitivitySingle,
-  SensitivityPair,
+  RecommendedParams,
   SafeZone,
   SensitivityData,
-  RecommendedParams,
+  SensitivityPair,
+  SensitivitySingle,
 } from "trendcraft";
 export {
   buildGenomeSegments,
-  extractSensitivityData,
   computeRecommendedParams,
+  extractSensitivityData,
 } from "trendcraft";
 
 // Aliases preserving the viewer's prior local names.

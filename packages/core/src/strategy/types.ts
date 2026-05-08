@@ -34,7 +34,7 @@ import type {
   PositionManagerOptions,
   PositionSizingConfig,
 } from "../streaming/position-manager/types";
-import type { PipelineOptions, StreamingCondition } from "../streaming/types";
+import type { PipelineOptions } from "../streaming/types";
 import type { BacktestOptions, Condition } from "../types";
 
 /**

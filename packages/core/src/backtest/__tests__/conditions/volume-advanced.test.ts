@@ -23,7 +23,7 @@ import {
 } from "../../conditions/volume-advanced";
 
 // Helper to create test candles
-function createCandles(
+function _createCandles(
   data: Array<{ high: number; low: number; close: number; volume: number }>,
 ): NormalizedCandle[] {
   return data.map((d, i) => ({

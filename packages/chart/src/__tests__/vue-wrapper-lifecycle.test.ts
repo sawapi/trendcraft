@@ -11,7 +11,7 @@
 
 import { mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { type MockChartInstance, createMockChartInstance } from "./helpers/mock-chart-instance";
+import { createMockChartInstance, type MockChartInstance } from "./helpers/mock-chart-instance";
 
 const { createChartMock } = vi.hoisted(() => ({
   createChartMock: vi.fn(),

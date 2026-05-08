@@ -31,7 +31,7 @@ const makeCandles = (count: number, basePrice = 100): NormalizedCandle[] =>
 
 // Helper: simple always-true / always-false conditions
 const alwaysTrue: Condition = () => true;
-const alwaysFalse: Condition = () => false;
+const _alwaysFalse: Condition = () => false;
 
 // Helper: alternating entry condition (enters every N bars)
 const entryEveryN =

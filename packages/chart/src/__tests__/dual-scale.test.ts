@@ -56,7 +56,7 @@ describe("Dual Scale — DataLayer", () => {
 });
 
 describe("Dual Scale — Range computation", () => {
-  const pane: PaneRect = {
+  const _pane: PaneRect = {
     id: "main",
     x: 0,
     y: 0,

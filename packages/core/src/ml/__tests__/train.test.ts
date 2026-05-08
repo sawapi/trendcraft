@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { NormalizedCandle } from "../../types";
-import { backward, zeroGradients } from "../backprop";
+import { backward } from "../backprop";
 import { forward, initParams } from "../model";
-import { Tensor } from "../tensor";
 import { getLearningRate, trainCandleFormer } from "../train";
 import type { CandleFormerConfig } from "../types";
 import { DEFAULT_CONFIG } from "../types";

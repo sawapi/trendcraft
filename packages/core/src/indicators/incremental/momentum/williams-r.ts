@@ -79,8 +79,8 @@ export function createWilliamsR(
   }
 
   function compute(
-    high: number,
-    low: number,
+    _high: number,
+    _low: number,
     close: number,
     hBuf: CircularBuffer<number>,
     lBuf: CircularBuffer<number>,

@@ -11,18 +11,18 @@
  * such as Session Zones can be demo'd meaningfully.
  */
 
-import { type IndicatorConnection, connectIndicators, createChart } from "@trendcraft/chart";
+import { connectIndicators, createChart, type IndicatorConnection } from "@trendcraft/chart";
 import { registerTrendCraftPresets } from "@trendcraft/chart/presets";
-import { indicatorPresets } from "trendcraft";
 import type { NormalizedCandle } from "trendcraft";
+import { indicatorPresets } from "trendcraft";
 import dailySampleData from "../../simple-chart/data.json";
 import { generateIntradayCandles } from "./data-intraday";
-import { type LivePanelHandle, type Mode, createLivePanel } from "./live-panel";
-import { type SimulatorHandle, createLiveSimulator } from "./live-simulator";
-import { type PluginsPanelHandle, createPluginsPanel } from "./plugins-panel";
+import { createLivePanel, type LivePanelHandle, type Mode } from "./live-panel";
+import { createLiveSimulator, type SimulatorHandle } from "./live-simulator";
+import { createPluginsPanel, type PluginsPanelHandle } from "./plugins-panel";
 import type { SidebarEntry } from "./sidebar";
 import { createSidebar } from "./sidebar";
-import { type SignalsPanelHandle, createSignalsPanel } from "./signals-panel";
+import { createSignalsPanel, type SignalsPanelHandle } from "./signals-panel";
 
 type Timeframe = "daily" | "intraday";
 

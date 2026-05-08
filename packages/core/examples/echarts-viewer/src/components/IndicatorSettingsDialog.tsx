@@ -2,8 +2,8 @@
  * Indicator settings dialog component
  */
 
-import { useState } from "react";
 import type { ChangeEvent } from "react";
+import { useState } from "react";
 import { useChartStore } from "../store/chartStore";
 import type { IndicatorParams, OverlayType, ScoringPreset, SubChartType } from "../types";
 import { INDICATOR_PARAM_CONFIGS } from "../types";

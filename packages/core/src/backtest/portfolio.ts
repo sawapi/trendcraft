@@ -7,12 +7,10 @@
 
 import type { IndicatorCache } from "../core/indicator-cache";
 import type {
-  BacktestResult,
   BatchBacktestOptions,
   BatchBacktestResult,
   Condition,
   EquityPoint,
-  NormalizedCandle,
   PortfolioBacktestOptions,
   PortfolioBacktestResult,
   PortfolioMetrics,
@@ -21,8 +19,8 @@ import type {
   Trade,
 } from "../types";
 import type { ExtendedCondition } from "./conditions";
-import { runBacktest } from "./engine";
 import type { MtfBacktestOptions } from "./engine";
+import { runBacktest } from "./engine";
 
 // ============================================
 // Phase 1: Batch Backtest (Independent)
@@ -168,7 +166,11 @@ export function portfolioBacktest(
   const {
     capital,
     allocation,
-    maxPositions = datasets.length,
+    // `maxPositions` is documented on the option type but not yet wired
+    // through the backtest loop. Kept in the destructure so the field
+    // name remains discoverable when the limit lands; `_`-prefix tells
+    // the linter the omission is intentional.
+    maxPositions: _maxPositions = datasets.length,
     maxSymbolExposure = 100,
     maxPortfolioDrawdown,
     tradeOptions = {},

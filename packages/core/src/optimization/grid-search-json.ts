@@ -32,14 +32,14 @@ import type { ConditionRegistry } from "../strategy/registry";
 import type { StrategyJSON } from "../strategy/types";
 import { validateConditionSpec } from "../strategy/validate";
 import {
-  type LeafInfo,
   applyParamOverrides,
   flattenStrategyLeaves,
+  type LeafInfo,
   parseLeafPath,
 } from "../strategy/walker";
 import type { BacktestOptions, Condition, NormalizedCandle } from "../types";
 import type { GridSearchOptions, GridSearchResult, ParameterRange } from "../types/optimization";
-import { type Result, err, ok, tcError } from "../types/result";
+import { err, ok, type Result, tcError } from "../types/result";
 import { gridSearch } from "./grid-search";
 
 /**

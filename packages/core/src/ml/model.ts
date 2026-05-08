@@ -6,7 +6,7 @@
  * → LN2 → MLP (GELU) → Residual] × N → Output Head
  */
 
-import { Tensor, mulberry32 } from "./tensor";
+import { mulberry32, Tensor } from "./tensor";
 import type { CandleFormerConfig, CandleFormerWeights, TransformerLayerWeights } from "./types";
 import { DEFAULT_CONFIG } from "./types";
 
@@ -374,7 +374,7 @@ export function forward(
   patternTokens?: number[],
 ): { logits: Tensor; cache: ForwardCache } {
   const { config } = params;
-  const { seqLen, embedDim } = config;
+  const { seqLen } = config;
 
   // 1. Token + Position Embedding (+ optional Pattern Embedding)
   const tokenEmbedOut = Tensor.gather(params.tokenEmbed, tokens);

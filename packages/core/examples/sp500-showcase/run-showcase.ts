@@ -13,7 +13,7 @@
  * Output: ./reports/showcase-report.md
  */
 
-import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, readdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import {
@@ -23,7 +23,6 @@ import {
   analyzeCorrelation,
   // Pairs Trading
   analyzePair,
-  and,
   bollingerBreakout,
   createObservationsFromTrades,
   deadCrossCondition,

@@ -4,7 +4,7 @@
  * Screen multiple "stocks" against technical conditions.
  * Run: npx tsx examples/quick-start/04-screening.ts
  */
-import { type NormalizedCandle, bollingerBands, rsi, sma } from "../../src";
+import { bollingerBands, type NormalizedCandle, rsi, sma } from "../../src";
 
 // Generate synthetic data for multiple stocks
 function generateStock(

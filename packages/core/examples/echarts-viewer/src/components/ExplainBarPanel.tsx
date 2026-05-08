@@ -11,13 +11,7 @@ import { useChartStore } from "../store/chartStore";
 /**
  * Recursive condition trace tree node
  */
-function ConditionTraceNode({
-  trace,
-  depth,
-}: {
-  trace: ConditionTrace;
-  depth: number;
-}) {
+function ConditionTraceNode({ trace, depth }: { trace: ConditionTrace; depth: number }) {
   const [collapsed, setCollapsed] = useState(false);
   const hasChildren = trace.children && trace.children.length > 0;
 

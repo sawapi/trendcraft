@@ -92,21 +92,18 @@ describe("DPR tracking", () => {
     ["+Infinity", Number.POSITIVE_INFINITY],
     ["-Infinity", Number.NEGATIVE_INFINITY],
     ["negative", -2],
-  ])(
-    "rejects non-finite / negative DPR (%s) and falls back to 1 on subsequent resize",
-    (_label, badDpr) => {
-      Object.defineProperty(window, "devicePixelRatio", { configurable: true, value: 1 });
-      const chart = createChart(makeContainer(), { width: 800, height: 400 });
-      const canvas = document.querySelector("canvas") as HTMLCanvasElement;
+  ])("rejects non-finite / negative DPR (%s) and falls back to 1 on subsequent resize", (_label, badDpr) => {
+    Object.defineProperty(window, "devicePixelRatio", { configurable: true, value: 1 });
+    const chart = createChart(makeContainer(), { width: 800, height: 400 });
+    const canvas = document.querySelector("canvas") as HTMLCanvasElement;
 
-      Object.defineProperty(window, "devicePixelRatio", { configurable: true, value: badDpr });
-      chart.resize(800, 400);
+    Object.defineProperty(window, "devicePixelRatio", { configurable: true, value: badDpr });
+    chart.resize(800, 400);
 
-      expect(canvas.width).toBe(800); // 800 × 1 (clamped)
-      expect(canvas.height).toBe(400);
-      expect(Number.isFinite(canvas.width)).toBe(true);
+    expect(canvas.width).toBe(800); // 800 × 1 (clamped)
+    expect(canvas.height).toBe(400);
+    expect(Number.isFinite(canvas.width)).toBe(true);
 
-      chart.destroy();
-    },
-  );
+    chart.destroy();
+  });
 });

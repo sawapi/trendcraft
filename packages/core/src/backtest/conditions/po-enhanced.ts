@@ -54,7 +54,7 @@ export function perfectOrderBullishConfirmed(
   return {
     type: "preset",
     name: `perfectOrderBullishConfirmed(${periods.join(",")})`,
-    evaluate: (indicators, candle, index, candles) => {
+    evaluate: (indicators, _candle, index, candles) => {
       let poData = indicators[cacheKey] as
         | { time: number; value: PerfectOrderValueEnhanced }[]
         | undefined;
@@ -105,7 +105,7 @@ export function perfectOrderBearishConfirmed(
   return {
     type: "preset",
     name: `perfectOrderBearishConfirmed(${periods.join(",")})`,
-    evaluate: (indicators, candle, index, candles) => {
+    evaluate: (indicators, _candle, index, candles) => {
       let poData = indicators[cacheKey] as
         | { time: number; value: PerfectOrderValueEnhanced }[]
         | undefined;
@@ -156,7 +156,7 @@ export function perfectOrderConfirmationFormed(
   return {
     type: "preset",
     name: `perfectOrderConfirmationFormed(${periods.join(",")})`,
-    evaluate: (indicators, candle, index, candles) => {
+    evaluate: (indicators, _candle, index, candles) => {
       let poData = indicators[cacheKey] as
         | { time: number; value: PerfectOrderValueEnhanced }[]
         | undefined;
@@ -202,7 +202,7 @@ export function perfectOrderBreakdown(
   return {
     type: "preset",
     name: `perfectOrderBreakdown(${periods.join(",")})`,
-    evaluate: (indicators, candle, index, candles) => {
+    evaluate: (indicators, _candle, index, candles) => {
       let poData = indicators[cacheKey] as
         | { time: number; value: PerfectOrderValueEnhanced }[]
         | undefined;
@@ -248,7 +248,7 @@ export function perfectOrderMaCollapsed(
   return {
     type: "preset",
     name: `perfectOrderMaCollapsed(${periods.join(",")})`,
-    evaluate: (indicators, candle, index, candles) => {
+    evaluate: (indicators, _candle, index, candles) => {
       let poData = indicators[cacheKey] as
         | { time: number; value: PerfectOrderValueEnhanced }[]
         | undefined;
@@ -294,7 +294,7 @@ export function perfectOrderPreBullish(
   return {
     type: "preset",
     name: `perfectOrderPreBullish(${periods.join(",")})`,
-    evaluate: (indicators, candle, index, candles) => {
+    evaluate: (indicators, _candle, index, candles) => {
       let poData = indicators[cacheKey] as
         | { time: number; value: PerfectOrderValueEnhanced }[]
         | undefined;
@@ -338,7 +338,7 @@ export function perfectOrderPreBearish(
   return {
     type: "preset",
     name: `perfectOrderPreBearish(${periods.join(",")})`,
-    evaluate: (indicators, candle, index, candles) => {
+    evaluate: (indicators, _candle, index, candles) => {
       let poData = indicators[cacheKey] as
         | { time: number; value: PerfectOrderValueEnhanced }[]
         | undefined;

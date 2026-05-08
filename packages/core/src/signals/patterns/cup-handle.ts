@@ -227,7 +227,7 @@ function findCupBottom(
  * A U-shaped cup should have the bottom roughly in the middle third
  */
 function isUShapedCup(
-  candles: NormalizedCandle[],
+  _candles: NormalizedCandle[],
   leftIndex: number,
   bottomIndex: number,
   rightIndex: number,

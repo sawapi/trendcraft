@@ -7,8 +7,8 @@
  * own label (SMA(5), SMA(20), SMA(60)) and an auto-cycled color.
  */
 
-import { connectIndicators, createChart } from "@trendcraft/chart";
 import type { CandleData } from "@trendcraft/chart";
+import { connectIndicators, createChart } from "@trendcraft/chart";
 import { registerTrendCraftPresets } from "@trendcraft/chart/presets";
 import { indicatorPresets } from "trendcraft";
 

@@ -1,13 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChartInstance, Drawing } from "../core/types";
 import {
-  DEFAULT_FIB_EXTENSION_LEVELS,
-  DEFAULT_FIB_RETRACEMENT_LEVELS,
-  type SwingAnchor,
   addAutoChannelLine,
   addAutoFibExtension,
   addAutoFibRetracement,
   addAutoTrendLine,
+  DEFAULT_FIB_EXTENSION_LEVELS,
+  DEFAULT_FIB_RETRACEMENT_LEVELS,
+  type SwingAnchor,
 } from "../integration/drawing-helpers";
 
 function mockChart() {

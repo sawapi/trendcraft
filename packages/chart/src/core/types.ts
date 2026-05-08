@@ -6,12 +6,12 @@
  * `@trendcraft/chart`) — the split is internal.
  */
 
-export * from "./types/fundamental";
-export * from "./types/theme";
-export * from "./types/drawing";
-export * from "./types/series";
-export * from "./types/pane";
-export * from "./types/config";
-export * from "./types/event";
-export * from "./types/integration";
 export * from "./types/chart-instance";
+export * from "./types/config";
+export * from "./types/drawing";
+export * from "./types/event";
+export * from "./types/fundamental";
+export * from "./types/integration";
+export * from "./types/pane";
+export * from "./types/series";
+export * from "./types/theme";

@@ -43,9 +43,8 @@ import { fixedFractionalSize } from "../../position-sizing/fixed-fractional";
 import { riskBasedSize } from "../../position-sizing/risk-based";
 import type { Trade as BacktestTrade, NormalizedCandle } from "../../types";
 import { createGuardedSession } from "../guards/guarded-session";
-import type { GuardedSessionOptions, GuardedSessionState } from "../guards/types";
-import type { IndicatorSnapshot, SessionEvent, Trade as TickTrade } from "../types";
-import type { SessionOptions } from "../types";
+import type { GuardedSessionOptions } from "../guards/types";
+import type { IndicatorSnapshot, SessionEvent, SessionOptions, Trade as TickTrade } from "../types";
 import { createPositionTracker } from "./position-tracker";
 import type {
   FillRecord,
@@ -370,7 +369,7 @@ export function createManagedSession(
 
       // If position is still open after session close, force-close it
       if (tracker.getPosition()) {
-        const trades = tracker.getTrades();
+        const _trades = tracker.getTrades();
         // Use the last candle from events if available
         const candleEvent = events.find((e) => e.type === "candle") as
           | Extract<SessionEvent, { type: "candle" }>

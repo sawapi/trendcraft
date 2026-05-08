@@ -4,7 +4,6 @@ import { candleFormer } from "../candle-former";
 import { candleFormerBearish, candleFormerBullish } from "../conditions";
 import { trainCandleFormer } from "../train";
 import type { CandleFormerConfig } from "../types";
-import { DEFAULT_CONFIG } from "../types";
 
 const SMALL_CONFIG: Partial<CandleFormerConfig> = {
   seqLen: 4,

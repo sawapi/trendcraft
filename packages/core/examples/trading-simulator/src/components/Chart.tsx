@@ -2,10 +2,10 @@ import ReactECharts from "echarts-for-react";
 import { useEffect, useMemo, useState } from "react";
 import { useSimulatorStore } from "../store/simulatorStore";
 import {
-  type ChartTheme,
-  type PositionLine,
   buildChartOption,
+  type ChartTheme,
   getChartMinHeight,
+  type PositionLine,
 } from "../utils/chartConfig";
 import { calculateIndicators } from "../utils/indicators";
 

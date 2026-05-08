@@ -1,13 +1,11 @@
 {
-  "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.4.13/schema.json",
   "vcs": {
     "enabled": true,
     "clientKind": "git",
     "useIgnoreFile": true
   },
-  "organizeImports": {
-    "enabled": true
-  },
+  "assist": { "actions": { "source": { "organizeImports": "on" } } },
   "linter": {
     "enabled": true,
     "rules": {
@@ -16,7 +14,14 @@
         "noForEach": "off"
       },
       "style": {
-        "noNonNullAssertion": "warn"
+        "noNonNullAssertion": "warn",
+        "noDescendingSpecificity": "off"
+      },
+      "suspicious": {
+        "useIterableCallbackReturn": "off"
+      },
+      "correctness": {
+        "useHookAtTopLevel": "off"
       }
     }
   },
@@ -33,22 +38,23 @@
     }
   },
   "files": {
-    "ignore": [
-      "dist",
-      "node_modules",
-      "*.config.ts",
-      "packages/core/examples/alpaca-demo/data",
-      "packages/chart/examples/docs-screenshots/data",
-      "**/examples/alpaca-demo/data/**",
-      "**/examples/docs-screenshots/data/**",
-      "qa-report.json",
-      "**/qa-report.json",
-      "**/manifest/sources/**"
+    "includes": [
+      "**",
+      "!**/dist",
+      "!**/node_modules",
+      "!**/*.config.ts",
+      "!**/packages/core/examples/alpaca-demo/data",
+      "!**/packages/chart/examples/docs-screenshots/data",
+      "!**/examples/alpaca-demo/data",
+      "!**/examples/docs-screenshots/data",
+      "!**/qa-report.json",
+      "!**/qa-report.json",
+      "!**/manifest/sources"
     ]
   },
   "overrides": [
     {
-      "include": ["**/examples/**"],
+      "includes": ["**/examples/**"],
       "linter": {
         "rules": {
           "a11y": {
@@ -56,7 +62,8 @@
             "useKeyWithClickEvents": "off",
             "useButtonType": "off",
             "useSemanticElements": "off",
-            "useGenericFontNames": "off"
+            "useGenericFontNames": "off",
+            "noStaticElementInteractions": "off"
           },
           "suspicious": {
             "noArrayIndexKey": "off"
@@ -65,7 +72,7 @@
       }
     },
     {
-      "include": ["**/__tests__/**", "**/*.test.ts", "**/*.test.tsx", "**/*.bench.ts"],
+      "includes": ["**/__tests__/**", "**/*.test.ts", "**/*.test.tsx", "**/*.bench.ts"],
       "linter": {
         "rules": {
           "style": {

@@ -4,7 +4,7 @@
  * Find optimal RSI thresholds and stop-loss via parameter grid search.
  * Run: npx tsx examples/quick-start/03-optimization.ts
  */
-import { type NormalizedCandle, gridSearch, rsiAbove, rsiBelow } from "../../src";
+import { gridSearch, type NormalizedCandle, rsiAbove, rsiBelow } from "../../src";
 
 // Generate 300 bars of data with trends
 function generateCandles(count: number): NormalizedCandle[] {

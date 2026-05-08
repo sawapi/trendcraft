@@ -12,16 +12,16 @@
 
 import type { ExitReason, Trade } from "../types";
 import {
+  calculateStreaks,
   type ExitReasonAnalysis,
+  getHoldingPeriodLabel,
+  getPercentBucket,
   type HoldingPeriodAnalysis,
   type MfeMaeAnalysis,
   type StreakAnalysis,
   type TimeAnalysis,
   type TradeAnalysis,
   type TradeStats,
-  calculateStreaks,
-  getHoldingPeriodLabel,
-  getPercentBucket,
 } from "./edge-analysis-types";
 
 // Re-export types for public API

@@ -21,11 +21,11 @@ import type {
 import { createTradeAreas, createTradeMarkers } from "./backtestMarkers";
 import {
   COLORS,
+  calculateInitialZoom,
+  formatDate,
   type SeriesItem,
   type SubchartContext,
   type SubchartLegend,
-  calculateInitialZoom,
-  formatDate,
 } from "./chartColors";
 import { buildOverlaySeries } from "./overlaySeriesBuilder";
 import {

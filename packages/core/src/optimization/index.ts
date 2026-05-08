@@ -7,139 +7,131 @@
 
 // Types
 export type {
-  ParameterRange,
-  OptimizationMetric,
-  OptimizationConstraint,
-  OptimizationResultEntry,
-  GridSearchResult,
-  GridSearchOptions,
-  WalkForwardPeriod,
-  WalkForwardResult,
-  WalkForwardOptions,
-  // Monte Carlo
-  MonteCarloOptions,
-  MonteCarloResult,
-  MetricStatistics,
   // Anchored Walk-Forward
   AnchoredWalkForwardOptions,
   AWFPeriod,
   AWFResult,
+  GridSearchOptions,
+  GridSearchResult,
+  MetricStatistics,
+  // Monte Carlo
+  MonteCarloOptions,
+  MonteCarloResult,
+  OptimizationConstraint,
+  OptimizationMetric,
+  OptimizationResultEntry,
+  ParameterRange,
   // Pareto
   ParetoObjective,
   ParetoOptions,
-  ParetoResultEntry,
   ParetoResult,
+  ParetoResultEntry,
+  WalkForwardOptions,
+  WalkForwardPeriod,
+  WalkForwardResult,
 } from "../types/optimization";
-
-// Metrics
-export {
-  calculateSharpeRatio,
-  calculateCalmarRatio,
-  calculateMAR,
-  calculateRecoveryFactor,
-  annualizeReturn,
-  calculateAllMetrics,
-  calculateDailyReturns,
-  extractTradeReturns,
-  getMetricValue,
-  checkConstraint,
-} from "./metrics";
-
-// Grid Search
-export {
-  gridSearch,
-  gridSearchSafe,
-  generateParameterCombinations,
-  countCombinations,
-  GRID_SEARCH_EPSILON_FACTOR,
-  param,
-  constraint,
-  getTopResults,
-  summarizeGridSearch,
-} from "./grid-search";
-export type { StrategyFactory } from "./grid-search";
-
-// Grid Search — JSON-first wrapper
-export { gridSearchFromJSON, gridSearchFromJSONSafe } from "./grid-search-json";
-export type { PathParameterRange } from "./grid-search-json";
-
-// Walk-Forward Analysis
-export {
-  walkForwardAnalysis,
-  walkForwardAnalysisSafe,
-  calculatePeriodCount,
-  generatePeriodBoundaries,
-  summarizeWalkForward,
-  getOutOfSampleEquityCurve,
-} from "./walkforward";
-
-// Combination Search
-export {
-  combinationSearch,
-  generateCombinations,
-  countTotalCombinations,
-} from "./combination-search";
-export type {
-  ConditionDefinition,
-  CombinationResultEntry,
-  CombinationSearchResult,
-  CombinationSearchOptions,
-} from "./combination-search";
-
-// Condition Pools & Combination Search Utilities
-export {
-  combinationSearchSafe,
-  getTopCombinations,
-  formatCombinationResult,
-  summarizeCombinationSearch,
-  createEntryConditionPool,
-  createExitConditionPool,
-} from "./condition-pools";
-
-// Monte Carlo Simulation
-export {
-  runMonteCarloSimulation,
-  runMonteCarloSimulationSafe,
-  calculateStatistics,
-  formatMonteCarloResult,
-  summarizeMonteCarloResult,
-} from "./monte-carlo";
-
 // Anchored Walk-Forward Analysis
 export {
   anchoredWalkForwardAnalysis,
   anchoredWalkForwardAnalysisSafe,
-  generateAWFBoundaries,
   calculateAWFPeriodCount,
-  summarizeAWFResult,
   formatAWFResult,
+  generateAWFBoundaries,
   getAWFEquityCurve,
+  summarizeAWFResult,
 } from "./anchored-walkforward";
+export type {
+  CombinationResultEntry,
+  CombinationSearchOptions,
+  CombinationSearchResult,
+  ConditionDefinition,
+} from "./combination-search";
+// Combination Search
+export {
+  combinationSearch,
+  countTotalCombinations,
+  generateCombinations,
+} from "./combination-search";
+// Condition Pools & Combination Search Utilities
+export {
+  combinationSearchSafe,
+  createEntryConditionPool,
+  createExitConditionPool,
+  formatCombinationResult,
+  getTopCombinations,
+  summarizeCombinationSearch,
+} from "./condition-pools";
+export type { StrategyFactory } from "./grid-search";
+// Grid Search
+export {
+  constraint,
+  countCombinations,
+  GRID_SEARCH_EPSILON_FACTOR,
+  generateParameterCombinations,
+  getTopResults,
+  gridSearch,
+  gridSearchSafe,
+  param,
+  summarizeGridSearch,
+} from "./grid-search";
+export type { PathParameterRange } from "./grid-search-json";
+// Grid Search — JSON-first wrapper
+export { gridSearchFromJSON, gridSearchFromJSONSafe } from "./grid-search-json";
+// Metrics
+export {
+  annualizeReturn,
+  calculateAllMetrics,
+  calculateCalmarRatio,
+  calculateDailyReturns,
+  calculateMAR,
+  calculateRecoveryFactor,
+  calculateSharpeRatio,
+  checkConstraint,
+  extractTradeReturns,
+  getMetricValue,
+} from "./metrics";
 
+// Monte Carlo Simulation
+export {
+  calculateStatistics,
+  formatMonteCarloResult,
+  runMonteCarloSimulation,
+  runMonteCarloSimulationSafe,
+  summarizeMonteCarloResult,
+} from "./monte-carlo";
 // Pareto (Multi-Objective) Optimization
 export {
+  crowdingDistance,
+  fastNonDominatedSort,
   paretoOptimization,
   paretoOptimizationSafe,
-  fastNonDominatedSort,
-  crowdingDistance,
   summarizeParetoResult,
 } from "./pareto";
+export type {
+  DnaGrade,
+  DnaGradeItem,
+  DnaGradeReport,
+  GenomeSegment,
+  RecommendedParams,
+  SafeZone,
+  SensitivityData,
+  SensitivityPair,
+  SensitivitySingle,
+} from "./strategy-dna";
 
 // Strategy DNA — post-optimization analytics
 export {
   buildGenomeSegments,
-  extractSensitivityData,
-  computeRecommendedParams,
   computeDnaGrade,
+  computeRecommendedParams,
+  extractSensitivityData,
 } from "./strategy-dna";
-export type {
-  GenomeSegment,
-  SensitivitySingle,
-  SensitivityPair,
-  SafeZone,
-  SensitivityData,
-  RecommendedParams,
-  DnaGrade,
-  DnaGradeItem,
-  DnaGradeReport,
-} from "./strategy-dna";
+// Walk-Forward Analysis
+export {
+  calculatePeriodCount,
+  generatePeriodBoundaries,
+  getOutOfSampleEquityCurve,
+  summarizeWalkForward,
+  walkForwardAnalysis,
+  walkForwardAnalysisSafe,
+} from "./walkforward";

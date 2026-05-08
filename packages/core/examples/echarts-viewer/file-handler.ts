@@ -35,13 +35,13 @@ export function parseCSV(text: string): NormalizedCandle[] {
     const [dateStr, open, high, low, close, volume, adjClose] = parts;
 
     // Parse date (format: 2025/12/12 or 2025-12-12)
-    const dateParts = dateStr.split(/[\/\-]/);
+    const dateParts = dateStr.split(/[/-]/);
     if (dateParts.length !== 3) continue;
 
     const date = new Date(
-      Number.parseInt(dateParts[0]),
-      Number.parseInt(dateParts[1]) - 1,
-      Number.parseInt(dateParts[2]),
+      Number.parseInt(dateParts[0], 10),
+      Number.parseInt(dateParts[1], 10) - 1,
+      Number.parseInt(dateParts[2], 10),
     );
 
     if (Number.isNaN(date.getTime())) continue;

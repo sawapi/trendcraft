@@ -5,7 +5,7 @@
  * For browser-compatible CSV parsing, use csv-parser.ts instead.
  */
 
-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { basename, join } from "node:path";
 import { parseCsv } from "./csv-parser";
 import type { CsvLoadError, CsvLoadResult } from "./types";

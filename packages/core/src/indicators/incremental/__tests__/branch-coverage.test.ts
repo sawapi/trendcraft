@@ -889,7 +889,7 @@ describe("Donchian Channel tracks highest high and lowest low", () => {
       { ...makeFlatCandle(2), high: 102, low: 93 },
     ];
     for (const c of candles) dc.next(c);
-    const state = dc.getState();
+    const _state = dc.getState();
     // After 3 candles with period=3: upper=110, lower=90, middle=(110+90)/2
     const r = dc.next({ ...makeFlatCandle(3), high: 108, low: 92 });
     expect(r.value.upper).not.toBe(null);

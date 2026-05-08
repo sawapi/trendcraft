@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { NormalizedCandle } from "../../../types";
 import { rsiAbove, rsiBelow } from "../../conditions";
-import type { SessionEvent, Trade } from "../../types";
+import type { Trade } from "../../types";
 import { createGuardedSession } from "../guarded-session";
 
 const INTERVAL = 60_000; // 1 minute

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { awesomeOscillator } from "../../indicators";
 import type { NormalizedCandle } from "../../types";
 
-function makeCandles(
+function _makeCandles(
   data: { high: number; low: number }[],
   time0 = 1000,
   step = 86400,

@@ -1,8 +1,8 @@
 import { resolveColors } from "./color-resolve";
 import { drawMiniCandles } from "./draw-candle";
 import { drawMiniLine } from "./draw-line";
-import { type SessionLayout, buildSessionLayout, resolveBreakGapPx } from "./session";
-import { type Tooltip, createTooltip } from "./tooltip";
+import { buildSessionLayout, resolveBreakGapPx, type SessionLayout } from "./session";
+import { createTooltip, type Tooltip } from "./tooltip";
 import {
   DEFAULT_COLORS,
   type HoverPayload,

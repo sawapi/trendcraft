@@ -8,8 +8,8 @@
 import type { ChandelierExitValue, NormalizedCandle } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
 import type { IncrementalIndicator, WarmUpOptions } from "../types";
-import { createAtr } from "./atr";
 import type { AtrState } from "./atr";
+import { createAtr } from "./atr";
 
 export type ChandelierExitState = {
   period: number;
@@ -79,7 +79,7 @@ export function createChandelierExit(
     return min;
   }
 
-  function computeValue(
+  function _computeValue(
     candle: NormalizedCandle,
     atrVal: number | null,
     advance: boolean,

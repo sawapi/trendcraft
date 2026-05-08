@@ -9,7 +9,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { DataLayer } from "../core/data-layer";
 import { TimeScale } from "../core/scale";
-import type { CandleData, ChartInstance, DataPoint, SeriesHandle } from "../core/types";
+import type { CandleData, ChartInstance, DataPoint } from "../core/types";
 
 function makeCandles(count: number, startTime = 1000): CandleData[] {
   return Array.from({ length: count }, (_, i) => ({

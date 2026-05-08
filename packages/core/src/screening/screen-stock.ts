@@ -4,16 +4,15 @@
  * This module contains only browser-safe code without Node.js fs dependencies.
  */
 
+// Import all conditions for CLI name resolution
+import * as conditions from "../backtest/conditions";
 import { evaluateCondition } from "../backtest/conditions/core";
 import { rsi } from "../indicators/momentum/rsi";
 import { calculateAtrPercent } from "../indicators/volatility/atr-filter";
 import { volumeMa } from "../indicators/volume/volume-ma";
 import type { Condition, NormalizedCandle } from "../types";
-import { type Result, err, ok, tcError } from "../types/result";
+import { err, ok, type Result, tcError } from "../types/result";
 import type { ScreeningCriteria, ScreeningResult } from "./types";
-
-// Import all conditions for CLI name resolution
-import * as conditions from "../backtest/conditions";
 
 /**
  * Screen a single stock against criteria

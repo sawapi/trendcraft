@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { mulberry32, randNormal } from "../../../ml/tensor";
 import type { NormalizedCandle } from "../../../types";
-import { backward, baumWelch, forward, gaussianLogPdf, viterbi } from "../hmm-core";
 import type { HmmModel } from "../hmm-core";
+import { backward, baumWelch, forward, gaussianLogPdf, viterbi } from "../hmm-core";
 import { fitHmm, hmmRegimes, regimeTransitionMatrix } from "../hmm-regimes";
 
 // ============================================

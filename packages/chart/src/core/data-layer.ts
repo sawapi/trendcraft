@@ -9,7 +9,6 @@ import type {
   CandleData,
   DataPoint,
   Drawing,
-  ResolvedSeries,
   SeriesConfig,
   SeriesHandle,
   SeriesType,

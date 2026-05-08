@@ -32,6 +32,10 @@
 import { createSparklineGroup } from "./group";
 import type { SparklineHandle, SparklineOptions } from "./types";
 
+export { resolveColors } from "./color-resolve";
+export { drawMiniCandles } from "./draw-candle";
+export { drawMiniLine } from "./draw-line";
+export { createSparklineGroup } from "./group";
 export type {
   ColorSpec,
   HoverPayload,
@@ -43,12 +47,7 @@ export type {
   SparklineOptions,
   SparklineSession,
 } from "./types";
-
 export { DEFAULT_COLORS } from "./types";
-export { createSparklineGroup } from "./group";
-export { resolveColors } from "./color-resolve";
-export { drawMiniLine } from "./draw-line";
-export { drawMiniCandles } from "./draw-candle";
 
 /**
  * Create a single sparkline. For multiple instances on the same page, prefer

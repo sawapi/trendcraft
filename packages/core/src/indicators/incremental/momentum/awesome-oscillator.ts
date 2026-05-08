@@ -8,8 +8,8 @@
  */
 
 import type { NormalizedCandle } from "../../../types";
-import { createSma } from "../moving-average/sma";
 import type { SmaState } from "../moving-average/sma";
+import { createSma } from "../moving-average/sma";
 import type { IncrementalIndicator, WarmUpOptions } from "../types";
 import { makeCandle } from "../utils";
 

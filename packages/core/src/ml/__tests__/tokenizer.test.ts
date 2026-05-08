@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { NormalizedCandle } from "../../types";
 import {
+  classifyDirection,
+  classifyShape,
+  classToDirection,
+  computeVolumeRatios,
+  padTokens,
+  quantizeCandle,
+  quantizeVolume,
   SHAPE_BEAR_CLOSE_SHAVEN,
   SHAPE_BEAR_LONG_LOWER,
   SHAPE_BEAR_MARUBOZU,
@@ -19,13 +26,6 @@ import {
   SHAPE_LONG_LEGGED_DOJI,
   SHAPE_NAMES,
   SHAPE_STANDARD_DOJI,
-  classToDirection,
-  classifyDirection,
-  classifyShape,
-  computeVolumeRatios,
-  padTokens,
-  quantizeCandle,
-  quantizeVolume,
   tokenizeCandles,
 } from "../tokenizer";
 import { PAD_TOKEN, VOCAB_SIZE } from "../types";

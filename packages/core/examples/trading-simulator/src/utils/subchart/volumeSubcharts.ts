@@ -2,10 +2,10 @@ import type { NormalizedCandle } from "trendcraft";
 import type { DetectedVolumeSpike } from "../../types";
 import {
   COLORS,
-  type SeriesItem,
-  type SubchartContext,
   createSubchart,
   formatLargeNumber,
+  type SeriesItem,
+  type SubchartContext,
 } from "../chartColors";
 import type { IndicatorData } from "../indicators";
 

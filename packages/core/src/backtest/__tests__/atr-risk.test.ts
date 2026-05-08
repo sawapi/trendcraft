@@ -22,7 +22,7 @@ describe("ATR Risk Management in Backtest", () => {
   describe("ATR-based stop loss", () => {
     it("should exit when price hits ATR stop level", () => {
       // Create enough data for ATR calculation, then a drop
-      const steadyData = Array.from({ length: 20 }, (_, i) => ({
+      const steadyData = Array.from({ length: 20 }, (_, _i) => ({
         high: 102,
         low: 98,
         close: 100, // Steady at 100 with ATR ~4
@@ -50,7 +50,7 @@ describe("ATR Risk Management in Backtest", () => {
 
     it("should use entry ATR when useEntryAtr is true", () => {
       // Create data where ATR changes after entry
-      const lowVolData = Array.from({ length: 20 }, (_, i) => ({
+      const lowVolData = Array.from({ length: 20 }, (_, _i) => ({
         high: 101,
         low: 99,
         close: 100, // Low volatility, ATR ~2
@@ -80,7 +80,7 @@ describe("ATR Risk Management in Backtest", () => {
   describe("ATR-based take profit", () => {
     it("should exit when price hits ATR take profit level", () => {
       // Create data with ATR, then a rally
-      const steadyData = Array.from({ length: 20 }, (_, i) => ({
+      const steadyData = Array.from({ length: 20 }, (_, _i) => ({
         high: 102,
         low: 98,
         close: 100, // ATR ~4
@@ -114,7 +114,7 @@ describe("ATR Risk Management in Backtest", () => {
   describe("ATR-based trailing stop", () => {
     it("should trail by ATR distance from peak", () => {
       // Create data with rally then pullback
-      const steadyData = Array.from({ length: 20 }, (_, i) => ({
+      const steadyData = Array.from({ length: 20 }, (_, _i) => ({
         high: 102,
         low: 98,
         close: 100, // ATR ~4
@@ -143,7 +143,7 @@ describe("ATR Risk Management in Backtest", () => {
 
   describe("combined ATR risk options", () => {
     it("should work with all ATR options together", () => {
-      const steadyData = Array.from({ length: 20 }, (_, i) => ({
+      const steadyData = Array.from({ length: 20 }, (_, _i) => ({
         high: 102,
         low: 98,
         close: 100,
@@ -173,7 +173,7 @@ describe("ATR Risk Management in Backtest", () => {
     });
 
     it("should work alongside fixed percentage stops", () => {
-      const steadyData = Array.from({ length: 20 }, (_, i) => ({
+      const steadyData = Array.from({ length: 20 }, (_, _i) => ({
         high: 102,
         low: 98,
         close: 100,

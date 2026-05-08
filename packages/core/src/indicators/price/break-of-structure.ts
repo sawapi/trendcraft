@@ -79,9 +79,9 @@ export function breakOfStructure(
 
   // Track swing points
   let lastSwingHigh: number | null = null;
-  let lastSwingHighIdx: number | null = null;
+  let _lastSwingHighIdx: number | null = null;
   let lastSwingLow: number | null = null;
-  let lastSwingLowIdx: number | null = null;
+  let _lastSwingLowIdx: number | null = null;
 
   // Track trend
   let currentTrend: "bullish" | "bearish" | "neutral" = "neutral";
@@ -122,13 +122,13 @@ export function breakOfStructure(
     // Update confirmed swing points (confirmed after swingPeriod bars)
     while (swingHighPtr < swingHighs.length && swingHighs[swingHighPtr].idx + swingPeriod <= i) {
       lastSwingHigh = swingHighs[swingHighPtr].price;
-      lastSwingHighIdx = swingHighs[swingHighPtr].idx;
+      _lastSwingHighIdx = swingHighs[swingHighPtr].idx;
       swingHighPtr++;
     }
 
     while (swingLowPtr < swingLows.length && swingLows[swingLowPtr].idx + swingPeriod <= i) {
       lastSwingLow = swingLows[swingLowPtr].price;
-      lastSwingLowIdx = swingLows[swingLowPtr].idx;
+      _lastSwingLowIdx = swingLows[swingLowPtr].idx;
       swingLowPtr++;
     }
 
@@ -144,7 +144,7 @@ export function breakOfStructure(
       currentTrend = "bullish";
       // Reset swing high after break
       lastSwingHigh = null;
-      lastSwingHighIdx = null;
+      _lastSwingHighIdx = null;
     }
 
     // Bearish BOS: Close below swing low
@@ -154,7 +154,7 @@ export function breakOfStructure(
       currentTrend = "bearish";
       // Reset swing low after break
       lastSwingLow = null;
-      lastSwingLowIdx = null;
+      _lastSwingLowIdx = null;
     }
 
     result.push({

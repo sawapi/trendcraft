@@ -14,7 +14,7 @@ const makeCandles = (closes: number[]): NormalizedCandle[] =>
   }));
 
 // Helper to create candles with specific OHLC values for price position testing
-const makeCandlesWithOHLC = (
+const _makeCandlesWithOHLC = (
   data: { open: number; high: number; low: number; close: number }[],
 ): NormalizedCandle[] =>
   data.map((d, i) => ({
@@ -426,7 +426,7 @@ describe("perfectOrder", () => {
       const result = perfectOrder(candles, { periods: [5, 10, 20] });
 
       // At some point should collapse to none when price is too low
-      const collapses = result.filter((r) => r.value.collapsed);
+      const _collapses = result.filter((r) => r.value.collapsed);
       // Collapse might or might not happen depending on how MA catches up
       // The key is type becomes none when price << shortMA
       const lastResult = result[result.length - 1];
