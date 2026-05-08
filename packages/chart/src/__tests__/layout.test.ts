@@ -106,4 +106,33 @@ describe("LayoutEngine", () => {
 
     expect(le.config.panes[2].flex).toBeGreaterThan(rsiFlex);
   });
+
+  it("normalizes flex to 1 when every pane has flex 0 (no NaN heights, resize stays interactive)", () => {
+    // A misconfigured layout where every pane has `flex: 0` would
+    // otherwise produce `pane.flex / totalFlex = 0 / 0 = NaN` for
+    // every height. We normalize to flex=1 in place so the layout
+    // is both renderable AND remains interactive — a divider drag
+    // would otherwise compute totalFlex=0 again and revert.
+    const le = new LayoutEngine();
+    le.setLayout({
+      panes: [
+        { id: "a", flex: 0 },
+        { id: "b", flex: 0 },
+      ],
+    });
+    le.setDimensions(800, 600, 60, 24);
+
+    const rects = le.paneRects;
+    expect(rects.length).toBe(2);
+    for (const r of rects) {
+      expect(Number.isFinite(r.height)).toBe(true);
+      expect(r.height).toBeGreaterThan(0);
+    }
+    // Equal share: heights should be (roughly) equal.
+    expect(Math.abs(rects[0].height - rects[1].height)).toBeLessThanOrEqual(1);
+    // Flex values are normalized in place so subsequent resize
+    // operations have a non-zero baseline.
+    expect(le.config.panes[0].flex).toBeGreaterThan(0);
+    expect(le.config.panes[1].flex).toBeGreaterThan(0);
+  });
 });

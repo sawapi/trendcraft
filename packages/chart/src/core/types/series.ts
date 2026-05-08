@@ -48,6 +48,24 @@ export type SeriesConfig = {
    * (wrapping), so stacking e.g. multiple SMAs produces distinct colors.
    */
   colorPalette?: readonly string[];
+  /**
+   * Draw a small filled circle at each bar's value on **scalar
+   * line series** (i.e. `Series<number>`), making it visually
+   * obvious that the underlying data is one value per bar and the
+   * line between bars is just linear interpolation. Useful for
+   * SMA / EMA / RSI etc. where the exact bar position of a crossing
+   * matters more than the line shape.
+   *
+   * Pass `true` for default styling (radius 2.5 px, filled with the
+   * series color), or an object to customize. Markers are skipped
+   * when `barSpacing` is too tight to render them legibly (< 5 px).
+   *
+   * Currently a no-op on multi-channel series (`band`, MACD,
+   * Stochastics, etc.) — those would clutter at high marker count
+   * and don't share the "where does the line really cross?"
+   * ambiguity that motivates this option.
+   */
+  markers?: boolean | { radius?: number; color?: string };
 };
 
 export type SeriesHandle = {

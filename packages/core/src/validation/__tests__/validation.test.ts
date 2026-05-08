@@ -107,6 +107,61 @@ describe("outlier-detection", () => {
     expect(highLow).toBeDefined();
   });
 
+  it("detects NaN OHLCV fields (regression — NaN propagates silently through rolling indicators otherwise)", () => {
+    const candles: NormalizedCandle[] = [
+      { time: DAY, open: Number.NaN, high: 105, low: 95, close: 100, volume: 1000 },
+      { time: 2 * DAY, open: 100, high: 105, low: 95, close: Number.NaN, volume: 1000 },
+      { time: 3 * DAY, open: 100, high: 105, low: 95, close: 100, volume: Number.NaN },
+    ];
+    const findings = detectOhlcErrors(candles);
+    expect(findings.find((f) => f.message.includes("open") && f.index === 0)).toBeDefined();
+    expect(findings.find((f) => f.message.includes("close") && f.index === 1)).toBeDefined();
+    expect(findings.find((f) => f.message.includes("volume") && f.index === 2)).toBeDefined();
+  });
+
+  it("detects Infinity OHLCV fields", () => {
+    const candles: NormalizedCandle[] = [
+      {
+        time: DAY,
+        open: 100,
+        high: Number.POSITIVE_INFINITY,
+        low: 95,
+        close: 100,
+        volume: 1000,
+      },
+    ];
+    const findings = detectOhlcErrors(candles);
+    expect(
+      findings.find((f) => f.message.includes("high") && f.message.includes("Infinity")),
+    ).toBeDefined();
+  });
+
+  it("skips relational checks once a non-finite price field is found (avoids confusing NaN < x findings)", () => {
+    const candles: NormalizedCandle[] = [
+      { time: DAY, open: 100, high: Number.NaN, low: 95, close: 100, volume: 1000 },
+    ];
+    const findings = detectOhlcErrors(candles);
+    // Only the NaN finding, not also "High < Low" (which would be false anyway since NaN comparisons return false).
+    expect(findings).toHaveLength(1);
+    expect(findings[0].message).toContain("high");
+    expect(findings[0].message).toContain("NaN");
+  });
+
+  it("still reports OHLC inequalities when only `volume` is non-finite (regression)", () => {
+    // volume NaN alone shouldn't suppress the price-structure checks —
+    // the inequalities don't reference volume and stay meaningful.
+    const candles: NormalizedCandle[] = [
+      { time: DAY, open: 100, high: 90, low: 95, close: 92, volume: Number.NaN },
+    ];
+    const findings = detectOhlcErrors(candles);
+    expect(findings.find((f) => f.message.includes("volume"))).toBeDefined();
+    // The High < Low / High < max(O,C) / Low > min(O,C) findings must
+    // still surface even though volume failed.
+    expect(
+      findings.find((f) => f.message.includes("High") && f.message.includes("< Low")),
+    ).toBeDefined();
+  });
+
   it("detects price spikes", () => {
     const candles = [
       makeCandle(DAY, 100),

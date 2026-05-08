@@ -174,7 +174,7 @@ export { livePresets } from "./live-presets";
 export type { LivePreset } from "./live-presets";
 
 // Unified indicator presets (static compute + incremental factory)
-export { indicatorPresets } from "./indicator-presets";
+export { indicatorPresets, getIndicatorPreset } from "./indicator-presets";
 export type { IndicatorPreset, IndicatorCategory, ParamSchema } from "./indicator-presets";
 
 // Phase 5: Guards (Risk Management & Time Control)

@@ -71,6 +71,10 @@ top5.forEach((r, i) => {
   );
 });
 
-console.log(
-  `\nBest: RSI entry<${result.bestParams.entryThreshold}, exit>${result.bestParams.exitThreshold}, SL=${result.bestParams.stopLoss}%  (Sharpe: ${result.bestScore.toFixed(3)})`,
-);
+if (result.bestParams !== null && result.bestScore !== null) {
+  console.log(
+    `\nBest: RSI entry<${result.bestParams.entryThreshold}, exit>${result.bestParams.exitThreshold}, SL=${result.bestParams.stopLoss}%  (Sharpe: ${result.bestScore.toFixed(3)})`,
+  );
+} else {
+  console.log("\nNo parameter combination passed the configured constraints.");
+}

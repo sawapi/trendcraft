@@ -3876,9 +3876,12 @@ console.log('Sharpe ratio:', result.results[0].metrics.sharpeRatio);
 interface GridSearchResult {
   results: OptimizationResultEntry[];
   totalCombinations: number;
-  passedConstraints: number;
-  bestParameters: Record<string, number>;
-  bestMetrics: Record<string, number>;
+  validCombinations: number;
+  /** Best parameters found, or null if no combination passed constraints */
+  bestParams: Record<string, number> | null;
+  /** Best score achieved, or null if no combination passed constraints */
+  bestScore: number | null;
+  metric: OptimizationMetric;
 }
 ```
 

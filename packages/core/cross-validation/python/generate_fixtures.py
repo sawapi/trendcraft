@@ -16,6 +16,8 @@ import random
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
+import pandas_ta as pta
 import talib
 
 FIXTURES_DIR = Path(__file__).resolve().parent.parent / "fixtures"
@@ -720,6 +722,47 @@ def generate_all(ohlcv: dict) -> None:
         ],
     })
 
+    # TRIX (Triple-smoothed exponential moving average rate-of-change)
+    print("Generating TRIX...")
+    open_arr = np.array([c["open"] for c in candles], dtype=np.float64)  # noqa: F841
+    save_fixture("trix", {
+        "indicator": "TRIX",
+        "talib_function": "TRIX",
+        "test_cases": [
+            {
+                "name": "trix_15",
+                "params": {"period": 15},
+                "values": to_json_safe(talib.TRIX(close, timeperiod=15), n),
+            },
+            {
+                "name": "trix_9",
+                "params": {"period": 9},
+                "values": to_json_safe(talib.TRIX(close, timeperiod=9), n),
+            },
+        ],
+    })
+
+    # BOP (Balance of Power)
+    # Note: TA-Lib BOP is the raw `(close-open)/(high-low)` per bar — no
+    # smoothing. TrendCraft optionally applies an EMA via `smoothPeriod`.
+    # The fixture is the raw form; the test passes `smoothPeriod: 1` (or
+    # equivalent) to compare apples-to-apples against TA-Lib's no-smooth
+    # output.
+    print("Generating BOP...")
+    bop_open = np.array([c["open"] for c in candles], dtype=np.float64)
+    save_fixture("bop", {
+        "indicator": "BalanceOfPower",
+        "talib_function": "BOP",
+        "note": "Raw BOP without smoothing. TrendCraft smoothPeriod=1 for parity.",
+        "test_cases": [
+            {
+                "name": "bop_raw",
+                "params": {"smoothPeriod": 1},
+                "values": to_json_safe(talib.BOP(bop_open, high, low, close), n),
+            },
+        ],
+    })
+
     # ULTOSC (Ultimate Oscillator)
     print("Generating ULTOSC...")
     save_fixture("ultosc", {
@@ -785,6 +828,176 @@ def generate_all(ohlcv: dict) -> None:
                 "name": "psar_002_02",
                 "params": {"step": 0.02, "max": 0.2},
                 "values": to_json_safe(sar_values, n),
+            },
+        ],
+    })
+
+    # --- Phase 4: pandas-ta ground-truth (no TA-Lib equivalent) ---
+
+    df = pd.DataFrame({
+        "open": np.array([c["open"] for c in candles], dtype=np.float64),
+        "high": high,
+        "low": low,
+        "close": close,
+        "volume": volume,
+    })
+
+    # HMA (Hull Moving Average)
+    print("Generating HMA...")
+    save_fixture("hma", {
+        "indicator": "HMA",
+        "ground_truth": "pandas-ta",
+        "test_cases": [
+            {
+                "name": "hma_14",
+                "params": {"period": 14},
+                "values": to_json_safe(pta.hma(df["close"], length=14).to_numpy(), n),
+            },
+            {
+                "name": "hma_9",
+                "params": {"period": 9},
+                "values": to_json_safe(pta.hma(df["close"], length=9).to_numpy(), n),
+            },
+        ],
+    })
+
+    # VWMA (Volume-Weighted Moving Average)
+    print("Generating VWMA...")
+    save_fixture("vwma", {
+        "indicator": "VWMA",
+        "ground_truth": "pandas-ta",
+        "test_cases": [
+            {
+                "name": "vwma_20",
+                "params": {"period": 20},
+                "values": to_json_safe(pta.vwma(df["close"], df["volume"], length=20).to_numpy(), n),
+            },
+        ],
+    })
+
+    # CMF (Chaikin Money Flow)
+    print("Generating CMF...")
+    save_fixture("cmf", {
+        "indicator": "CMF",
+        "ground_truth": "pandas-ta",
+        "test_cases": [
+            {
+                "name": "cmf_20",
+                "params": {"period": 20},
+                "values": to_json_safe(
+                    pta.cmf(df["high"], df["low"], df["close"], df["volume"], length=20).to_numpy(),
+                    n,
+                ),
+            },
+        ],
+    })
+
+    # Vortex
+    print("Generating Vortex...")
+    vortex_df = pta.vortex(df["high"], df["low"], df["close"], length=14)
+    save_fixture("vortex", {
+        "indicator": "Vortex",
+        "ground_truth": "pandas-ta",
+        "test_cases": [
+            {
+                "name": "vortex_14",
+                "params": {"period": 14},
+                "values": {
+                    "viPlus": to_json_safe(vortex_df["VTXP_14"].to_numpy(), n),
+                    "viMinus": to_json_safe(vortex_df["VTXM_14"].to_numpy(), n),
+                },
+            },
+        ],
+    })
+
+    # Awesome Oscillator (Bill Williams 5/34 SMA of median price)
+    print("Generating Awesome Oscillator...")
+    save_fixture("awesome-oscillator", {
+        "indicator": "AwesomeOscillator",
+        "ground_truth": "pandas-ta",
+        "test_cases": [
+            {
+                "name": "ao_5_34",
+                "params": {"fastPeriod": 5, "slowPeriod": 34},
+                "values": to_json_safe(pta.ao(df["high"], df["low"]).to_numpy(), n),
+            },
+        ],
+    })
+
+    # Coppock Curve — pandas-ta default (length=10 WMA, fast=14 long ROC, slow=11 short ROC)
+    print("Generating Coppock Curve...")
+    save_fixture("coppock-curve", {
+        "indicator": "CoppockCurve",
+        "ground_truth": "pandas-ta",
+        "test_cases": [
+            {
+                "name": "coppock_default",
+                "params": {"wmaPeriod": 10, "longRocPeriod": 14, "shortRocPeriod": 11},
+                "values": to_json_safe(pta.coppock(df["close"]).to_numpy(), n),
+            },
+        ],
+    })
+
+    # Mass Index — pandas-ta default fast=9 / slow=25
+    print("Generating Mass Index...")
+    save_fixture("mass-index", {
+        "indicator": "MassIndex",
+        "ground_truth": "pandas-ta",
+        "test_cases": [
+            {
+                "name": "massi_9_25",
+                "params": {"emaPeriod": 9, "sumPeriod": 25},
+                "values": to_json_safe(pta.massi(df["high"], df["low"]).to_numpy(), n),
+            },
+        ],
+    })
+
+    # TSI — pandas-ta default fast=13 / slow=25 / signal=13
+    # We compare the TSI line only; the signal-line EMA seeding diverges
+    # by one bar between pandas-ta and TrendCraft (off-by-one warmup),
+    # which is documented but excluded from numeric parity here.
+    print("Generating TSI...")
+    tsi_df = pta.tsi(df["close"], fast=13, slow=25, signal=13)
+    save_fixture("tsi", {
+        "indicator": "TSI",
+        "ground_truth": "pandas-ta",
+        "note": "TSI line only — signal-line warmup differs by 1 bar between pandas-ta and TrendCraft.",
+        "test_cases": [
+            {
+                "name": "tsi_13_25_13",
+                "params": {"longPeriod": 25, "shortPeriod": 13, "signalPeriod": 13},
+                "values": to_json_safe(tsi_df.iloc[:, 0].to_numpy(), n),
+            },
+        ],
+    })
+
+    # Choppiness Index — pandas-ta default length=14 (atr_length=1, scalar=100)
+    print("Generating Choppiness Index...")
+    save_fixture("choppiness-index", {
+        "indicator": "ChoppinessIndex",
+        "ground_truth": "pandas-ta",
+        "test_cases": [
+            {
+                "name": "chop_14",
+                "params": {"period": 14},
+                "values": to_json_safe(
+                    pta.chop(df["high"], df["low"], df["close"], length=14).to_numpy(),
+                    n,
+                ),
+            },
+        ],
+    })
+
+    # Ulcer Index (Peter Martin canonical, two-stage formula)
+    print("Generating Ulcer Index...")
+    save_fixture("ulcer-index", {
+        "indicator": "UlcerIndex",
+        "ground_truth": "pandas-ta",
+        "test_cases": [
+            {
+                "name": "ui_14",
+                "params": {"period": 14},
+                "values": to_json_safe(pta.ui(df["close"], length=14).to_numpy(), n),
             },
         ],
     })

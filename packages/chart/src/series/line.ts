@@ -13,7 +13,21 @@ export type LineRenderOptions = {
   lineWidth: number;
   /** Dash pattern (e.g., [4, 2] for dashed) */
   dash?: number[];
+  /**
+   * Draw a filled circle at each bar's value point. Makes it explicit
+   * that the underlying data is discrete-per-bar and the line is just
+   * linear interpolation — useful for SMA / EMA / RSI etc. where the
+   * exact bar position of a crossing matters. Pass radius and color
+   * (default radius = 2.5 px, color = `options.color`).
+   *
+   * Skipped when `barSpacing < 5` to avoid the dots smearing into a
+   * solid mass at high zoom-out.
+   */
+  markers?: { radius: number; color: string };
 };
+
+/** Minimum bar spacing (px) at which marker dots are still drawn. */
+const MARKER_MIN_BAR_SPACING = 5;
 
 /**
  * Render a line series on the canvas.
@@ -67,6 +81,22 @@ export function renderLine(
   }
   ctx.stroke();
   ctx.setLineDash([]);
+
+  // Marker dots — drawn after the stroke so they sit on top of the line.
+  // Skipped at high zoom-out (small bar spacing) to avoid a solid smear.
+  if (options.markers && timeScale.barSpacing >= MARKER_MIN_BAR_SPACING) {
+    const radius = options.markers.radius;
+    ctx.fillStyle = options.markers.color;
+    for (let i = iStart; i < iEnd; i++) {
+      const point = data[i];
+      if (!point || point.value === null || point.value === undefined) continue;
+      const x = timeScale.indexToX(bucketed ? originalIndices[i] : i);
+      const y = priceScale.priceToY(point.value);
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
 }
 
 /**

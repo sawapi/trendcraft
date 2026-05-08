@@ -391,22 +391,29 @@ describe("Vortex Indicator", () => {
 });
 
 describe("Ulcer Index", () => {
-  it("matches sqrt(mean(drawdown%^2))", () => {
+  it("matches the canonical Peter Martin two-stage formula", () => {
+    // Stage 1: per-bar drawdown[j] against THAT bar's own rolling max.
+    // Stage 2: UI[i] = sqrt(mean(drawdown[i-N+1..i]^2)).
+    // Total warmup is 2*N - 1 (first non-null at index 2*N - 2).
     const period = 14;
     const result = ulcerIndex(candles, { period });
 
-    for (let i = period - 1; i < candles.length; i++) {
-      let highest = Number.NEGATIVE_INFINITY;
-      for (let j = i - period + 1; j <= i; j++) {
-        highest = Math.max(highest, candles[j].close);
+    // Pre-compute per-bar drawdowns against per-bar rolling max
+    const drawdowns: (number | null)[] = new Array(candles.length).fill(null);
+    for (let j = period - 1; j < candles.length; j++) {
+      let rmax = Number.NEGATIVE_INFINITY;
+      for (let k = j - period + 1; k <= j; k++) {
+        rmax = Math.max(rmax, candles[k].close);
       }
+      drawdowns[j] = ((candles[j].close - rmax) / rmax) * 100;
+    }
 
+    for (let i = 2 * period - 2; i < candles.length; i++) {
       let sumSq = 0;
       for (let j = i - period + 1; j <= i; j++) {
-        const pctDD = ((candles[j].close - highest) / highest) * 100;
-        sumSq += pctDD * pctDD;
+        const dd = drawdowns[j] as number;
+        sumSq += dd * dd;
       }
-
       const expected = Math.sqrt(sumSq / period);
       expect(result[i].value).toBeCloseTo(expected, 10);
     }

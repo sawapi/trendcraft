@@ -72,6 +72,33 @@ describe("computeSeriesBadges", () => {
     expect(result[0].label).toBe("20.00");
   });
 
+  it("treats NaN / Infinity as missing — falls back to nearest finite value", () => {
+    // A NaN slipping into the latest bar would otherwise be passed
+    // to `valueFormatter`, rendering the literal string "NaN" inside
+    // the badge. Treat non-finite values as if they were null.
+    const ctx = mockCtx();
+    const s = makeNumberSeries("a", "RSI", "#2196F3", [
+      10,
+      20,
+      Number.NaN,
+      Number.POSITIVE_INFINITY,
+    ]);
+    const result = computeSeriesBadges(ctx, pane, priceScale, [s], theme, 11, format);
+    expect(result.length).toBe(1);
+    expect(result[0].label).toBe("20.00");
+  });
+
+  it("skips badges entirely when every value is non-finite", () => {
+    const ctx = mockCtx();
+    const s = makeNumberSeries("a", "RSI", "#2196F3", [
+      Number.NaN,
+      Number.NaN,
+      Number.POSITIVE_INFINITY,
+    ]);
+    const result = computeSeriesBadges(ctx, pane, priceScale, [s], theme, 11, format);
+    expect(result.length).toBe(0);
+  });
+
   it("emits one badge per channel for multi-channel series", () => {
     const ctx = mockCtx();
     const bb = makeBandSeries(

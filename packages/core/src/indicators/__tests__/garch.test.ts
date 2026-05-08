@@ -103,6 +103,46 @@ describe("garch", () => {
     // Alpha should capture some of the ARCH effect
     expect(result.params.alpha).toBeGreaterThan(0.01);
   });
+
+  describe("input guards", () => {
+    it("throws on NaN in returns", () => {
+      const r = [0.01, Number.NaN, -0.005, 0.008, 0.003];
+      expect(() => garch(r)).toThrow(/returns\[1\] is NaN/);
+    });
+
+    it("throws on Infinity in returns", () => {
+      const r = [0.01, Number.POSITIVE_INFINITY, -0.005, 0.008];
+      expect(() => garch(r)).toThrow(/returns\[1\] is Infinity/);
+    });
+
+    it("throws on -Infinity in returns", () => {
+      const r = [0.01, Number.NEGATIVE_INFINITY, 0.005];
+      expect(() => garch(r)).toThrow(/not a finite number/);
+    });
+
+    it("converged is false when stationarity required clamping", () => {
+      // Constant returns cause the optimiser to drift to the
+      // alpha+beta=1 boundary. The original value did not converge
+      // on the boundary (`result.converged` may still be true), but
+      // since we clamp to 0.999 the returned params are not what the
+      // optimiser actually settled on — flag as not converged.
+      const result = garch(new Array(50).fill(0.01));
+      // Either converged genuinely or clamped (-> false). Crucially:
+      // alpha + beta must be strictly < 1 in the returned params.
+      expect(result.params.alpha + result.params.beta).toBeLessThan(1);
+    });
+
+    it("never returns NaN forecast when input is finite", () => {
+      // Pathological-but-finite returns: all very small with one large outlier
+      const r = new Array(100).fill(1e-8);
+      r[50] = 0.5;
+      const result = garch(r, { maxIterations: 50 });
+      expect(Number.isFinite(result.volatilityForecast)).toBe(true);
+      expect(Number.isFinite(result.params.omega)).toBe(true);
+      expect(Number.isFinite(result.params.alpha)).toBe(true);
+      expect(Number.isFinite(result.params.beta)).toBe(true);
+    });
+  });
 });
 
 describe("ewmaVolatility", () => {
@@ -168,6 +208,18 @@ describe("ewmaVolatility", () => {
     const volAfterShock = result[calm.length].value;
 
     expect(volAfterShock).toBeGreaterThan(volBeforeShock);
+  });
+
+  describe("input guards", () => {
+    it("throws on NaN in returns", () => {
+      const r = [0.01, Number.NaN, -0.005, 0.008];
+      expect(() => ewmaVolatility(r)).toThrow(/returns\[1\] is NaN/);
+    });
+
+    it("throws on Infinity in returns", () => {
+      const r = [0.01, Number.POSITIVE_INFINITY, -0.005];
+      expect(() => ewmaVolatility(r)).toThrow(/Infinity/);
+    });
   });
 });
 

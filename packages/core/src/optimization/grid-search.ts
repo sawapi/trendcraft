@@ -27,6 +27,15 @@ export type StrategyFactory = (params: Record<string, number>) => {
   options?: BacktestOptions;
 };
 
+/**
+ * Epsilon divisor used by `getParameterValues` when comparing the loop
+ * variable against `range.max` (epsilon = step / FACTOR). Exposed so
+ * external tools (UIs deriving the same grid points, MCP callers
+ * pre-validating LLM output, etc.) can reproduce the comparison
+ * semantics without re-deriving the constant.
+ */
+export const GRID_SEARCH_EPSILON_FACTOR = 1_000_000;
+
 function getParameterValues(range: ParameterRange): number[] {
   if (range.step <= 0) {
     throw new Error(`Parameter "${range.name}" step must be positive`);
@@ -36,10 +45,11 @@ function getParameterValues(range: ParameterRange): number[] {
   }
 
   const values: number[] = [];
-  const epsilon = Math.abs(range.step) / 1_000_000;
+  const epsilon = Math.abs(range.step) / GRID_SEARCH_EPSILON_FACTOR;
 
   for (let value = range.min; value <= range.max + epsilon; value += range.step) {
-    const roundedValue = Math.round(value * 1_000_000) / 1_000_000;
+    const roundedValue =
+      Math.round(value * GRID_SEARCH_EPSILON_FACTOR) / GRID_SEARCH_EPSILON_FACTOR;
     if (roundedValue <= range.max + epsilon) {
       values.push(roundedValue);
     }
@@ -147,7 +157,7 @@ export function gridSearch(
   // Run backtests and collect results
   const results: OptimizationResultEntry[] = [];
   let bestScore = Number.NEGATIVE_INFINITY;
-  let bestParams: Record<string, number> = {};
+  let bestParams: Record<string, number> | null = null;
   let validCombinations = 0;
 
   for (let i = 0; i < combinations.length; i++) {
@@ -189,13 +199,19 @@ export function gridSearch(
         passedConstraints,
       };
 
-      // Only keep valid results unless keepAllResults is true
-      if (keepAllResults || passedConstraints) {
+      // Only keep valid, finite-scored results unless keepAllResults
+      // is true. Calmar / MAR / Recovery return NaN when maxDD <= 0
+      // (matches empyrical / pyfolio). Letting NaN / Infinity through
+      // would corrupt downstream consumers that re-sort or average
+      // `results` (e.g. strategy-dna's `computeRecommendedParams`,
+      // `extractSensitivityData`) without their own isFinite guard.
+      const finiteScore = Number.isFinite(score);
+      if (keepAllResults || (passedConstraints && finiteScore)) {
         results.push(entry);
       }
 
-      // Update best if passes constraints
-      if (passedConstraints) {
+      // Update best if passes constraints AND has a finite score.
+      if (passedConstraints && finiteScore) {
         validCombinations++;
         if (score > bestScore) {
           bestScore = score;
@@ -208,12 +224,21 @@ export function gridSearch(
     }
   }
 
-  // Sort results by score (descending)
-  results.sort((a, b) => b.score - a.score);
+  // Sort results by score (descending). NaN scores sink to the end:
+  // any comparison involving NaN returns false, so the comparator
+  // falls through, but explicit handling makes the order deterministic.
+  results.sort((a, b) => {
+    const aFinite = Number.isFinite(a.score);
+    const bFinite = Number.isFinite(b.score);
+    if (aFinite && bFinite) return b.score - a.score;
+    if (aFinite) return -1;
+    if (bFinite) return 1;
+    return 0;
+  });
 
   return {
-    bestParams,
-    bestScore: bestScore === Number.NEGATIVE_INFINITY ? 0 : bestScore,
+    bestParams: validCombinations > 0 ? bestParams : null,
+    bestScore: bestScore === Number.NEGATIVE_INFINITY ? null : bestScore,
     metric,
     totalCombinations,
     validCombinations,
@@ -274,8 +299,8 @@ export function summarizeGridSearch(result: GridSearchResult): {
   totalTested: number;
   validCount: number;
   validPercent: number;
-  bestParams: Record<string, number>;
-  bestScore: number;
+  bestParams: Record<string, number> | null;
+  bestScore: number | null;
   metric: OptimizationMetric;
 } {
   return {
