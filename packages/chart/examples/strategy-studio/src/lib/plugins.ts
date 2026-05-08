@@ -9,17 +9,24 @@
 import {
   type ChartInstance,
   connectAndrewsPitchfork,
+  connectPricePatterns,
   connectSmcLayer,
   connectVolumeProfile,
   connectWyckoffPhase,
+  filterPricePatterns,
 } from "@trendcraft/chart";
 import {
   breakOfStructure,
   changeOfCharacter,
+  doubleBottom,
+  doubleTop,
   fairValueGap,
   getAlternatingSwingPoints,
+  headAndShoulders,
+  inverseHeadAndShoulders,
   liquiditySweep,
   orderBlock,
+  type PatternSignal,
   volumeProfile,
   vsa,
   wyckoffPhases,
@@ -27,7 +34,7 @@ import {
 import type { CatalogEntry } from "../panels/ToggleCatalogPanel";
 import type { StudioCandle } from "./sample-data";
 
-export type PluginCategory = "smc" | "structure" | "volume";
+export type PluginCategory = "smc" | "structure" | "volume" | "patterns";
 
 export type PluginHandle = { remove(): void };
 
@@ -94,6 +101,28 @@ export const PLUGIN_CATALOG: readonly PluginDef[] = [
       if (candles.length < 20) return null;
       const profile = volumeProfile(candles, { levels: 30 });
       return connectVolumeProfile(chart, profile);
+    },
+  },
+  {
+    kind: "pricePatterns",
+    label: "Price Patterns",
+    category: "patterns",
+    description:
+      "Double tops / bottoms and (inverse) head-and-shoulders with measured-move targets and necklines.",
+    build: (chart, candles) => {
+      if (candles.length < 30) return null;
+      const signals: PatternSignal[] = [
+        ...doubleBottom(candles),
+        ...doubleTop(candles),
+        ...inverseHeadAndShoulders(candles),
+        ...headAndShoulders(candles),
+      ];
+      // Pre-filter so the toggle stays "available" only when something
+      // would actually render — otherwise the user sees an empty overlay
+      // and can't tell whether the slice has no patterns or the plugin
+      // failed silently.
+      if (filterPricePatterns(signals).length === 0) return null;
+      return connectPricePatterns(chart, signals);
     },
   },
 ];
