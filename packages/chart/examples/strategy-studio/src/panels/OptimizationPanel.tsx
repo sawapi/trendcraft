@@ -293,37 +293,39 @@ function ResultBody({
         constraints · best {result.metric}:{" "}
         {result.result.bestScore !== null ? result.result.bestScore.toFixed(2) : "—"}
       </div>
-      <table className="optimization-result-table">
-        <thead>
-          <tr>
-            <th>#</th>
-            {tunables.map((t) => (
-              // Prefix the bucket so a strategy with the same param name on
-              // both legs (goldenCross.shortPeriod / deadCross.shortPeriod)
-              // doesn't collapse to two indistinguishable columns.
-              <th key={t.key} className="num">
-                {t.bucket === "entry" ? "in" : "out"}.{t.paramName}
-              </th>
-            ))}
-            <th className="num">Score</th>
-            <th className="num">Trades</th>
-          </tr>
-        </thead>
-        <tbody>
-          {top.map((entry, i) => (
-            <tr key={`${i}-${entry.score}`} className={i === 0 ? "optimization-best" : undefined}>
-              <td>{i + 1}</td>
+      <div className="optimization-result-scroll">
+        <table className="optimization-result-table">
+          <thead>
+            <tr>
+              <th>#</th>
               {tunables.map((t) => (
-                <td key={t.key} className="num">
-                  {entry.params[t.key] ?? "—"}
-                </td>
+                // Prefix the bucket so a strategy with the same param name on
+                // both legs (goldenCross.shortPeriod / deadCross.shortPeriod)
+                // doesn't collapse to two indistinguishable columns.
+                <th key={t.key} className="num">
+                  {t.bucket === "entry" ? "in" : "out"}.{t.paramName}
+                </th>
               ))}
-              <td className="num">{entry.score.toFixed(2)}</td>
-              <td className="num">{entry.backtest.trades.length}</td>
+              <th className="num">Score</th>
+              <th className="num">Trades</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {top.map((entry, i) => (
+              <tr key={`${i}-${entry.score}`} className={i === 0 ? "optimization-best" : undefined}>
+                <td>{i + 1}</td>
+                {tunables.map((t) => (
+                  <td key={t.key} className="num">
+                    {entry.params[t.key] ?? "—"}
+                  </td>
+                ))}
+                <td className="num">{entry.score.toFixed(2)}</td>
+                <td className="num">{entry.backtest.trades.length}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </>
   );
 }

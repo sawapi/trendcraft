@@ -30,17 +30,23 @@ export function attachTouchHandlers(
         return;
       }
 
+      // While a drawing tool is armed, suppress the gesture defaults so the
+      // second tap of a two-click drawing (rectangle, ray, channel, fib...)
+      // doesn't double-up as a viewport reset, and a long press doesn't
+      // lock the crosshair instead of placing the start point.
+      const drawingActive = ctx.isDrawingActive?.() ?? false;
+
       // Double-tap detection
-      if (now - ctx.touch.lastTapTime < 300) {
+      if (!drawingActive && now - ctx.touch.lastTapTime < 300) {
         timeScale.fitContent();
         ctx.onUpdate();
         ctx.touch.lastTapTime = 0;
         return;
       }
-      ctx.touch.lastTapTime = now;
+      ctx.touch.lastTapTime = drawingActive ? 0 : now;
 
-      // Long-press detection (disabled when option is off)
-      if (longPressEnabled) {
+      // Long-press detection (disabled when option is off, or while drawing).
+      if (longPressEnabled && !drawingActive) {
         ctx.touch.longPressTimer = setTimeout(() => {
           ctx.touch.longPressCrosshairLocked = true;
           const r = el.getBoundingClientRect();

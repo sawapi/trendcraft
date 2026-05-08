@@ -61,6 +61,7 @@ function setup(
     longPress?: boolean;
     wheelInertia?: boolean;
     total?: number;
+    isDrawingActive?: () => boolean;
   } = {},
 ): Setup {
   const el = makeEl();
@@ -89,6 +90,7 @@ function setup(
       wheelInertia: opts.wheelInertia ?? true,
       hotkeys: opts.hotkeys,
       onAction: dispatch,
+      isDrawingActive: opts.isDrawingActive,
     },
   );
   return { el, vp, ts, detach, resizePanes, dispatch, onUpdate };
@@ -349,6 +351,31 @@ describe("Viewport.attach() — touch", () => {
     vi.advanceTimersByTime(100);
     fireTouch(s.el, "touchstart", [makeTouch(400, 200)]);
     expect(s.ts.startIndex).toBe(0);
+  });
+
+  it("suppresses double-tap fitContent while a drawing tool is active", () => {
+    // Two-click drawings (rectangle / ray / channel / fib) on touch devices
+    // would otherwise fire the chart's built-in double-tap fit on the second
+    // tap. Hosts that arm a drawing tool expose `isDrawingActive: () => true`
+    // so the gesture default backs off and the drawing completes cleanly.
+    s.detach();
+    s = setup({ isDrawingActive: () => true });
+    // makeTimeScale defaults visible range to [100, 200] of 500 total — fit
+    // would snap startIndex to 0 if the guard didn't fire.
+    const startBefore = s.ts.startIndex;
+    fireTouch(s.el, "touchstart", [makeTouch(400, 200)]);
+    fireTouch(s.el, "touchend", []);
+    vi.advanceTimersByTime(100);
+    fireTouch(s.el, "touchstart", [makeTouch(400, 200)]);
+    expect(s.ts.startIndex).toBe(startBefore);
+  });
+
+  it("suppresses long-press crosshair lock while a drawing tool is active", () => {
+    s.detach();
+    s = setup({ isDrawingActive: () => true });
+    fireTouch(s.el, "touchstart", [makeTouch(400, 200)]);
+    vi.advanceTimersByTime(600);
+    expect(s.vp.state.crosshairIndex).toBe(null);
   });
 
   it("long-press locks crosshair after 500ms", () => {

@@ -7,6 +7,9 @@ type Props = {
   replay: ReplayState;
   progress: number;
   cursorTime: number | null;
+  /** Whether the host is in "anchor mode" (next chart click anchors Replay). */
+  anchorMode: boolean;
+  onToggleAnchor: () => void;
   onPlay: () => void;
   onPause: () => void;
   onStep: () => void;
@@ -15,14 +18,18 @@ type Props = {
 };
 
 /**
- * Toolbar pinned to the top of the chart pane. In static mode it shows a hint
- * inviting the user to click any candle to anchor a Replay. In live mode it
- * exposes Play/Pause/Step, speed presets, a progress bar, and a REPLAY badge.
+ * Toolbar pinned to the top of the chart pane. In static mode it exposes the
+ * Anchor button (clicking it arms anchor-mode; the next chart click starts
+ * Replay) and surfaces the Shift+click shortcut as a desktop accelerator. In
+ * live mode it exposes Play/Pause/Step, speed presets, a progress bar, and a
+ * REPLAY badge.
  */
 export function ReplayControls({
   replay,
   progress,
   cursorTime,
+  anchorMode,
+  onToggleAnchor,
   onPlay,
   onPause,
   onStep,
@@ -32,9 +39,29 @@ export function ReplayControls({
   if (replay.mode === "static") {
     return (
       <div className="replay-toolbar replay-toolbar--ghost">
+        <button
+          type="button"
+          className={`replay-btn small${anchorMode ? " active" : ""}`}
+          onClick={onToggleAnchor}
+          aria-pressed={anchorMode}
+          title="Arm anchor mode — next chart click starts Replay from that bar"
+        >
+          🎯 Anchor
+        </button>
         <span className="replay-hint">
-          <span className="replay-hint-icon">▶</span>
-          Click any candle to start <strong>Replay</strong> from there
+          {anchorMode ? (
+            <>
+              <span className="replay-hint-icon">▶</span>
+              Click any candle to start <strong>Replay</strong> from there
+              <span className="replay-hint-sub">(Esc to cancel)</span>
+            </>
+          ) : (
+            <>
+              <span className="replay-hint-icon">▶</span>
+              Press <strong>🎯 Anchor</strong> or <strong>Shift+click</strong> any candle to start
+              Replay
+            </>
+          )}
         </span>
       </div>
     );
@@ -111,14 +138,16 @@ export function ReplayControls({
   );
 }
 
-const FORMATTER = new Intl.DateTimeFormat(undefined, {
-  year: "numeric",
-  month: "short",
-  day: "numeric",
-  hour: "2-digit",
-  minute: "2-digit",
-});
-
+// Hand-rolled ISO-style formatter so the cursor label is fixed-width: every
+// component is zero-padded and locale-independent. Using `Intl.DateTimeFormat`
+// with month: "short" / hour12 made the label width jitter as the playhead
+// advanced (May vs September, 1 vs 12, AM vs PM), shifting the toolbar.
 function formatCursor(time: number): string {
-  return FORMATTER.format(new Date(time));
+  const d = new Date(time);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mi = String(d.getMinutes()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd} ${hh}:${mi}`;
 }

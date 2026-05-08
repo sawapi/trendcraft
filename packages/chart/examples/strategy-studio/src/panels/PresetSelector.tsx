@@ -16,6 +16,19 @@ const CATEGORIES: IndicatorCategory[] = [
   "wyckoff",
 ];
 
+const CATEGORY_LABEL: Record<IndicatorCategory, string> = {
+  "moving-average": "Moving Averages",
+  momentum: "Momentum",
+  volatility: "Volatility",
+  trend: "Trend",
+  volume: "Volume",
+  price: "Price",
+  session: "Session",
+  regime: "Regime",
+  smc: "SMC",
+  wyckoff: "Wyckoff",
+};
+
 type Props = {
   regime: RegimeSummary;
   /** How many instances of each kind are currently mounted. */
@@ -26,19 +39,71 @@ type Props = {
   onAdd: (kind: string) => void;
 };
 
+function matchesQuery(m: IndicatorManifest, q: string): boolean {
+  if (!q) return true;
+  const haystack = [m.displayName, m.kind, m.oneLiner, m.whenToUse.join(" "), m.signals.join(" ")]
+    .join(" ")
+    .toLowerCase();
+  return haystack.includes(q);
+}
+
 export function PresetSelector({ regime, instanceCountsByKind, onToggle, onAdd }: Props) {
-  const [category, setCategory] = useState<IndicatorCategory | "all">("all");
+  const [search, setSearch] = useState("");
   const [hovered, setHovered] = useState<string | null>(null);
+  // Default: regime suggestions expanded; browse categories collapsed (the
+  // user opens what they need). Search overrides — when active every
+  // category with a match is expanded.
+  const [expandedCats, setExpandedCats] = useState<Set<IndicatorCategory>>(() => new Set());
+  const [suggestionsOpen, setSuggestionsOpen] = useState(true);
 
   const suggestions = useMemo(
     () => localStudioAPI.suggestPresets(regime.manifestRegime),
     [regime.manifestRegime],
   );
 
-  const browse = useMemo(() => {
-    const filter = category === "all" ? undefined : { category };
-    return localStudioAPI.listIndicators(filter);
-  }, [category]);
+  const allByCategory = useMemo(() => {
+    const map = new Map<IndicatorCategory, IndicatorManifest[]>();
+    for (const cat of CATEGORIES) map.set(cat, []);
+    for (const m of localStudioAPI.listIndicators()) {
+      map.get(m.category)?.push(m);
+    }
+    return map;
+  }, []);
+
+  const q = search.trim().toLowerCase();
+  const isSearching = q.length > 0;
+
+  const filteredSuggestions = useMemo(
+    () => suggestions.filter((m) => matchesQuery(m, q)),
+    [suggestions, q],
+  );
+
+  const filteredByCategory = useMemo(() => {
+    const out = new Map<IndicatorCategory, IndicatorManifest[]>();
+    for (const cat of CATEGORIES) {
+      const items = allByCategory.get(cat) ?? [];
+      out.set(
+        cat,
+        items.filter((m) => matchesQuery(m, q)),
+      );
+    }
+    return out;
+  }, [allByCategory, q]);
+
+  const totalMatches = useMemo(() => {
+    let n = 0;
+    for (const items of filteredByCategory.values()) n += items.length;
+    return n;
+  }, [filteredByCategory]);
+
+  const toggleCat = (cat: IndicatorCategory) => {
+    setExpandedCats((prev) => {
+      const next = new Set(prev);
+      if (next.has(cat)) next.delete(cat);
+      else next.add(cat);
+      return next;
+    });
+  };
 
   return (
     <>
@@ -56,40 +121,89 @@ export function PresetSelector({ regime, instanceCountsByKind, onToggle, onAdd }
         </div>
       </div>
 
-      <div className="section-title">Suggested for this regime</div>
-      <PresetList
-        items={suggestions}
-        instanceCountsByKind={instanceCountsByKind}
-        hovered={hovered}
-        onHover={setHovered}
-        onToggle={onToggle}
-        onAdd={onAdd}
-        emptyText="No manifest entries match this regime yet."
-      />
+      <div className="preset-search">
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search indicators…"
+          aria-label="Search indicators"
+        />
+        {isSearching && (
+          <span className="preset-search-count">
+            {totalMatches} match{totalMatches === 1 ? "" : "es"}
+          </span>
+        )}
+      </div>
 
-      <div className="section-title">Browse all indicators</div>
-      <select
-        className="category-select"
-        value={category}
-        onChange={(e) => setCategory(e.target.value as IndicatorCategory | "all")}
-      >
-        <option value="all">All categories</option>
-        {CATEGORIES.map((c) => (
-          <option key={c} value={c}>
-            {c}
-          </option>
-        ))}
-      </select>
-      <PresetList
-        items={browse}
-        instanceCountsByKind={instanceCountsByKind}
-        hovered={hovered}
-        onHover={setHovered}
-        onToggle={onToggle}
-        onAdd={onAdd}
-        emptyText="No indicators in this category."
+      <CategoryHeader
+        label={`Suggested for ${regime.manifestRegime}`}
+        count={filteredSuggestions.length}
+        expanded={suggestionsOpen}
+        onToggle={() => setSuggestionsOpen((v) => !v)}
       />
+      {suggestionsOpen && (
+        <PresetList
+          items={filteredSuggestions}
+          instanceCountsByKind={instanceCountsByKind}
+          hovered={hovered}
+          onHover={setHovered}
+          onToggle={onToggle}
+          onAdd={onAdd}
+          emptyText={
+            isSearching
+              ? "No matches in regime suggestions."
+              : "No manifest entries match this regime yet."
+          }
+        />
+      )}
+
+      {CATEGORIES.map((cat) => {
+        const items = filteredByCategory.get(cat) ?? [];
+        if (isSearching && items.length === 0) return null;
+        const expanded = isSearching || expandedCats.has(cat);
+        return (
+          <div key={cat}>
+            <CategoryHeader
+              label={CATEGORY_LABEL[cat]}
+              count={items.length}
+              expanded={expanded}
+              onToggle={() => toggleCat(cat)}
+            />
+            {expanded && (
+              <PresetList
+                items={items}
+                instanceCountsByKind={instanceCountsByKind}
+                hovered={hovered}
+                onHover={setHovered}
+                onToggle={onToggle}
+                onAdd={onAdd}
+                emptyText="No indicators in this category."
+              />
+            )}
+          </div>
+        );
+      })}
     </>
+  );
+}
+
+type CategoryHeaderProps = {
+  label: string;
+  count: number;
+  expanded: boolean;
+  onToggle: () => void;
+};
+
+function CategoryHeader({ label, count, expanded, onToggle }: CategoryHeaderProps) {
+  return (
+    <button type="button" className="preset-cat-header" onClick={onToggle} aria-expanded={expanded}>
+      <span className="preset-cat-label">
+        <span className="preset-cat-chevron">{expanded ? "▼" : "▶"}</span>
+        {label}
+      </span>
+      <span className="preset-cat-count">{count}</span>
+    </button>
   );
 }
 
@@ -140,8 +254,11 @@ function PresetList({
               aria-pressed={count > 0}
               title={tip}
             >
-              <span className="preset-name">{m.displayName}</span>
-              <span className="preset-kind">{m.kind}</span>
+              <span className="preset-name-row">
+                <span className="preset-name">{m.displayName}</span>
+                <span className="preset-kind">{m.kind}</span>
+              </span>
+              <span className="preset-oneliner">{m.oneLiner}</span>
             </button>
             {renderable && count > 0 && (
               <button

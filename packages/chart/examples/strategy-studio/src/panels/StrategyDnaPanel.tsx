@@ -153,14 +153,42 @@ export function StrategyDnaPanel({ optimizationResult }: Props) {
 
         {activeTab === "genome" &&
           (genomeSegments && genomeSegments.length > 0 ? (
-            <GenomeVisualization
-              segments={genomeSegments}
-              onSegmentClick={(name) => {
-                setSelectedParam(name);
-                setSelectedParamPair(null);
-                setActiveTab("sensitivity");
-              }}
-            />
+            <>
+              <div className="meta-strategy-caption" style={{ marginBottom: 6 }}>
+                Each block is a tunable parameter at its best value. Color shows where that value
+                sits in the search range — hover for details, click to inspect sensitivity.
+              </div>
+              <GenomeVisualization
+                segments={genomeSegments}
+                onSegmentClick={(name) => {
+                  setSelectedParam(name);
+                  setSelectedParamPair(null);
+                  setActiveTab("sensitivity");
+                }}
+              />
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  marginTop: 6,
+                  fontSize: 10,
+                  color: "#787b86",
+                }}
+              >
+                <span>Range</span>
+                <span
+                  aria-hidden="true"
+                  style={{
+                    flex: 1,
+                    height: 6,
+                    borderRadius: 3,
+                    background: "linear-gradient(90deg, rgb(60,120,220), rgb(230,40,40))",
+                  }}
+                />
+                <span>low → high</span>
+              </div>
+            </>
           ) : (
             <div className="meta-strategy-caption">No tunable parameters in this grid search.</div>
           ))}

@@ -38,10 +38,45 @@ type Props = {
  * outer panel can react (e.g. switch to the sensitivity tab pre-
  * filtered to that param).
  */
+/**
+ * Compact label: keep the distinguishing parts of a dotted param path
+ * (`entry.0.shortPeriod` → `in.short`). Plain `slice(0, 5)` collapsed
+ * `entry.shortPeriod` and `entry.longPeriod` to the same `entry..`,
+ * which made the genome unreadable for multi-leg strategies.
+ *
+ * Drops the redundant `Period` suffix and the leg index (`0`) when the
+ * strategy only has a single leg per bucket — including it would just
+ * waste pixels. Multi-leg cases still surface the index so two `entry`
+ * legs don't collide.
+ */
+function compactLabel(name: string, max = 12): string {
+  if (name.length <= max) return name;
+  const parts = name.split(".");
+  const renameBucket = (b: string): string =>
+    b === "entry" ? "in" : b === "exit" ? "out" : b.slice(0, 3);
+  const trimParam = (p: string): string =>
+    p
+      .replace(/Period$/, "")
+      .replace(/^short/i, "short")
+      .replace(/^long/i, "long");
+
+  let compact = name;
+  if (parts.length === 2) {
+    compact = `${renameBucket(parts[0])}.${trimParam(parts[1])}`;
+  } else if (parts.length === 3) {
+    // `entry.0.shortPeriod` → `in.short` when leg index is 0; keep it
+    // otherwise so multi-leg strategies stay distinguishable.
+    const [bucket, leg, param] = parts;
+    const legSuffix = leg === "0" ? "" : `${leg}.`;
+    compact = `${renameBucket(bucket)}.${legSuffix}${trimParam(param)}`;
+  }
+  return compact.length <= max ? compact : `${compact.slice(0, max - 1)}…`;
+}
+
 export function GenomeVisualization({ segments, onSegmentClick }: Props) {
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
 
-  const segmentWidth = 36;
+  const segmentWidth = 52;
   const segmentHeight = 48;
   const gap = 4;
   const totalWidth = segments.length * (segmentWidth + gap) - gap;
@@ -86,7 +121,7 @@ export function GenomeVisualization({ segments, onSegmentClick }: Props) {
                 fill="var(--text-secondary, #888)"
                 fontSize={9}
               >
-                {seg.name.length > 6 ? `${seg.name.slice(0, 5)}..` : seg.name}
+                {compactLabel(seg.name)}
               </text>
               <text
                 x={x + segmentWidth / 2}

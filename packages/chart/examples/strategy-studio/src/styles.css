@@ -137,9 +137,88 @@ body,
   color: #787b86;
 }
 
+.preset-search {
+  position: relative;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid #2a2e39;
+}
+
+.preset-search input {
+  flex: 1 1 auto;
+  padding: 6px 10px;
+  background: #0e1320;
+  border: 1px solid #2a2e39;
+  border-radius: 4px;
+  color: #d1d4dc;
+  font: inherit;
+  font-size: 12px;
+  outline: none;
+}
+
+.preset-search input:focus {
+  border-color: #2196f3;
+}
+
+.preset-search-count {
+  font-size: 10px;
+  color: #787b86;
+  white-space: nowrap;
+}
+
+.preset-cat-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: #181c27;
+  border: none;
+  border-top: 1px solid #1e222d;
+  border-bottom: 1px solid #1e222d;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.preset-cat-header:hover {
+  background: #1e222d;
+}
+
+.preset-cat-header:focus-visible {
+  outline: 2px solid #2196f3;
+  outline-offset: -2px;
+}
+
+.preset-cat-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.preset-cat-chevron {
+  display: inline-block;
+  width: 10px;
+  font-size: 9px;
+  color: #787b86;
+}
+
+.preset-cat-count {
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: #787b86;
+}
+
 .preset-list {
   list-style: none;
-  padding: 0 8px 12px;
+  padding: 0 8px 8px;
 }
 
 .preset-item {
@@ -161,10 +240,10 @@ body,
 .preset-toggle {
   flex: 1 1 auto;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 8px 10px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  padding: 6px 10px;
   background: none;
   border: none;
   color: inherit;
@@ -173,6 +252,29 @@ body,
   text-align: left;
   cursor: pointer;
   border-radius: 4px;
+  min-width: 0;
+}
+
+.preset-name-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.preset-oneliner {
+  font-size: 11px;
+  color: #787b86;
+  line-height: 1.3;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.preset-item.active .preset-oneliner {
+  color: #a3a6af;
 }
 
 .preset-toggle:focus-visible {
@@ -753,6 +855,71 @@ button.ghost.danger:hover {
   min-height: 36px;
 }
 
+.chart-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: #131722;
+  border-bottom: 1px solid #2a2e39;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.chart-toolbar::-webkit-scrollbar {
+  height: 4px;
+}
+
+.chart-toolbar::-webkit-scrollbar-thumb {
+  background: #2a2e39;
+  border-radius: 2px;
+}
+
+.chart-toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.chart-toolbar-sep {
+  width: 1px;
+  height: 16px;
+  background: #2a2e39;
+  flex-shrink: 0;
+}
+
+.chart-toolbar-btn {
+  flex-shrink: 0;
+  padding: 3px 8px;
+  font-size: 11px;
+  background: #1e222d;
+  border-width: 1px;
+  border-style: solid;
+  border-color: #2a2e39;
+  border-radius: 3px;
+  color: #d1d4dc;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.chart-toolbar-btn:hover {
+  border-color: #3a3e49;
+}
+
+.chart-toolbar-btn:focus-visible {
+  outline: 2px solid #2196f3;
+  outline-offset: -2px;
+}
+
+.chart-toolbar-btn.active {
+  background: #2196f3;
+  border-color: #2196f3;
+  color: #fff;
+}
+
 .replay-toolbar--ghost {
   background: transparent;
   color: #787b86;
@@ -767,6 +934,11 @@ button.ghost.danger:hover {
 
 .replay-hint strong {
   color: #d1d4dc;
+}
+
+.replay-hint-sub {
+  color: #585b66;
+  font-size: 10px;
 }
 
 .replay-hint-icon {
@@ -1030,10 +1202,27 @@ button.ghost.danger:hover {
   display: flex;
   gap: 4px;
   margin-bottom: 8px;
+  /* Confine overflow to the row itself; otherwise wide rows (e.g. Scoring's
+   * 6 presets) push the whole right pane wider than its clientWidth and
+   * the rest of the panel content gets clipped on the left edge. */
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.risk-tabs::-webkit-scrollbar {
+  height: 4px;
+}
+
+.risk-tabs::-webkit-scrollbar-thumb {
+  background: #2a2e39;
+  border-radius: 2px;
 }
 
 .risk-tab {
-  flex: 1;
+  flex: 1 0 auto;
+  /* Never shrink below the natural label width — clipped tab labels are
+   * worse than horizontal scroll. */
+  min-width: max-content;
   padding: 4px 6px;
   font-size: 11px;
   background: #0e1320;
@@ -1444,12 +1633,31 @@ button.ghost.danger:hover {
   margin-bottom: 8px;
 }
 
+.optimization-result-scroll {
+  /* Many-column results (e.g. multi-leg strategies with `in.shortPeriod`,
+   * `out.longPeriod`, score, trades) overflow the right pane's width.
+   * Confine the overflow to this wrapper so the rest of the panel
+   * (caption, controls below) stays properly bounded. */
+  overflow-x: auto;
+  margin-top: 6px;
+  scrollbar-width: thin;
+}
+
+.optimization-result-scroll::-webkit-scrollbar {
+  height: 4px;
+}
+
+.optimization-result-scroll::-webkit-scrollbar-thumb {
+  background: #2a2e39;
+  border-radius: 2px;
+}
+
 .optimization-result-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 11px;
   font-variant-numeric: tabular-nums;
-  margin-top: 6px;
+  white-space: nowrap;
 }
 
 .optimization-result-table th,
