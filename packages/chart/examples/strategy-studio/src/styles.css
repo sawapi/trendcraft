@@ -1633,12 +1633,31 @@ button.ghost.danger:hover {
   margin-bottom: 8px;
 }
 
+.optimization-result-scroll {
+  /* Many-column results (e.g. multi-leg strategies with `in.shortPeriod`,
+   * `out.longPeriod`, score, trades) overflow the right pane's width.
+   * Confine the overflow to this wrapper so the rest of the panel
+   * (caption, controls below) stays properly bounded. */
+  overflow-x: auto;
+  margin-top: 6px;
+  scrollbar-width: thin;
+}
+
+.optimization-result-scroll::-webkit-scrollbar {
+  height: 4px;
+}
+
+.optimization-result-scroll::-webkit-scrollbar-thumb {
+  background: #2a2e39;
+  border-radius: 2px;
+}
+
 .optimization-result-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 11px;
   font-variant-numeric: tabular-nums;
-  margin-top: 6px;
+  white-space: nowrap;
 }
 
 .optimization-result-table th,
