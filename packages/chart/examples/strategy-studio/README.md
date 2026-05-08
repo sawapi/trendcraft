@@ -30,13 +30,15 @@ The studio runs **fully offline with no LLM key**. It uses `detectMarketRegime` 
 | PR9 | MetaStrategyPanel — equity curve filter + strategy rotation | done |
 | PR10 | PortfolioPanel — `batchBacktest` + 3 synthetic symbols + sparkline rows | done |
 | PR11 | ScoringPanel — composite scoring (6 presets, sparkline + breakdown) | done |
-| PR12 | OptimizationPanel — grid search (push-to-run, auto-derived ranges, top-10 table) | **this PR** |
-| PR13 | StrategyDnaPanel — genome viz + sensitivity heatmap + robustness | |
-| PR14 | chart: live recompute for batch-only presets in Replay (carved out from PR5) | |
-| PR15 | chart: shared signal-pattern primitive (zigzag + neckline + target, extracted from indicator-showcase; carved out from PR6) | |
-| Phase 2 | Ask AI panel via `@trendcraft/mcp` tools (LLM tool-use) | future |
+| PR12 | OptimizationPanel — grid search (push-to-run, auto-derived ranges, top-10 table) | done |
+| PR13 | StrategyDnaPanel — genome viz + sensitivity heatmap + robustness | done |
+| Real data | Alpaca-backed candles + symbol search + 1m/5m/15m/1H/1D timeframes (opt-in via `.env`) | done |
+| Polish | Anchor-mode + Shift+click Replay anchoring, indicator search w/ inline descriptions, ChartToolbar (chart type + drawing tools), Portfolio time-window slicing, Strategy DNA labels | done |
+| PR14 | chart: live recompute for batch-only presets in Replay (carved out from PR5) | open |
+| PR15 | chart: shared signal-pattern primitive (zigzag + neckline + target, extracted from indicator-showcase; carved out from PR6) | open |
+| Phase 2 | Ask AI panel via `@trendcraft/mcp` tools (conversational comprehension over generation — see project memory for the refined direction) | future |
 
-When the full set lands, Studio will be a true superset of `echarts-viewer`'s analysis surface, all rendered through `@trendcraft/chart`.
+The studio now spans every feature surface from the original plan; remaining roadmap items are chart-package upgrades that benefit other examples too. When PR14 + PR15 land, Studio will be a true superset of `echarts-viewer`'s analysis surface, all rendered through `@trendcraft/chart`.
 
 ## Architecture notes
 
@@ -73,9 +75,27 @@ A `Source · Symbol · TF` toolbar appears in the header. The Symbol field autoc
 - Lookback per timeframe is sized so all timeframes return ~2,000–2,500 bars (enough warmup for SMA(200) / Ichimoku).
 - Per-symbol/timeframe results are cached in memory for the session; use `Reload` to bust the cache.
 
-## Current PR2 capabilities
+## What's in the studio today
 
-- **Regime detection**: live `detectMarketRegime` on the loaded candles → 4-bucket classification (`trending` / `ranging` / `volatile` / `low-volatility`)
-- **Regime-aware preset suggestions**: `suggestForRegime(regime)` populates the top of the left panel
-- **Full manifest browser**: all 95 manifest entries by category, with `whenToUse` / `pitfalls` / regime tags on hover
-- **Click-to-toggle**: clicking a preset adds/removes it from the chart with proper labels and colors via `connectIndicators` + `registerTrendCraftPresets`
+Left pane — discovery / setup
+- **Regime detection**: live `detectMarketRegime` on the loaded candles → `trending` / `ranging` / `volatile` / `low-volatility`
+- **Indicator catalog**: searchable, collapsible categories, inline `oneLiner` descriptions; suggested presets surface at the top based on the detected regime
+- **Plugins panel**: SMC / Pitchfork / Volume Profile / Wyckoff phase toggles
+- **Signals panel**: cross / divergence / chart-pattern detectors with chart markers
+
+Center — chart
+- **ChartToolbar**: chart-type segmented control (Candle / Line / Mountain / OHLC), drawing tools (HLine / VLine / Trend / Arrow / Rect / Channel / Fib / Fib+ / Text / Clear), Fit
+- **Replay**: explicit Anchor mode + Shift+click to seed Replay; play / pause / step / 1×–Max speed; live snapshot backtest while scrubbing
+- **Real data (opt-in)**: Alpaca historical bars (1m / 5m / 15m / 1H / 1D) with symbol search; falls back to bundled synthetic when no `.env`
+
+Right pane — analytics
+- **StrategyBuilder**: entry/exit condition dropdowns, paramSchema-driven sliders, JSON import/export
+- **ResultsSummary**: backtest metrics + trade overlay
+- **RiskPanel**: position sizing (Risk-% / ATR / Kelly) + VaR / CVaR
+- **MetaStrategyPanel**: equity curve filter + strategy rotation
+- **PortfolioPanel**: `batchBacktest` across SPY / AAPL / NVDA (or 3 synthetic symbols), sparkline per symbol; sliced by the chart's calendar window
+- **ScoringPanel**: composite scoring (6 presets, sparkline + breakdown table)
+- **OptimizationPanel**: grid search with auto-derived ranges, top-10 table, push-to-run
+- **StrategyDnaPanel**: genome viz (best params on the search range) + sensitivity heatmap + robustness grade
+
+Everything renders through `@trendcraft/chart` and computes via `trendcraft` / `trendcraft/manifest` — no external dependencies, no LLM key required.
