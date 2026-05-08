@@ -40,6 +40,8 @@ packages/core/src/manifest/sources/
 
 .claude/projects/
 .claude/commands/release.md
+# Runtime lockfile created by Claude Code's scheduled-task runner.
+.claude/scheduled_tasks.lock
 .plans/
 packages/core/examples/data/
 packages/core/examples/alpaca-demo/

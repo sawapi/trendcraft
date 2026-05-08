@@ -165,6 +165,13 @@ export {
   type MarketProfileValue,
 } from "./plugins/market-profile";
 // Plugins — tree-shakeable visualization primitives
+export {
+  connectPricePatterns,
+  createPricePatterns,
+  filterPricePatterns,
+  type PricePatternSignal,
+  type PricePatternsOptions,
+} from "./plugins/price-patterns";
 export { connectRegimeHeatmap, createRegimeHeatmap } from "./plugins/regime-heatmap";
 export { connectSessionZones, createSessionZones } from "./plugins/session-zones";
 export type { SmcLevel, SmcMarker, SmcState, SmcZone } from "./plugins/smc-layer";
