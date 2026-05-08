@@ -275,13 +275,10 @@ export function App() {
       // `live.completedCandles` for warm-up. Passing the full `candles` here
       // would duplicate the seed AND warm indicators with future bars the
       // replay hasn't reached — exactly the look-ahead leak Replay exists
-      // to prevent.
-      // KNOWN LIMITATION (PR14 follow-up): batch-only presets (no
-      // `createFactory`, e.g. adaptiveRsi, heikinAshi) freeze at the seed
-      // boundary in Replay mode. `connectIndicators` warms them up once
-      // and never re-computes on candleComplete. Fixing this needs a
-      // chart-side change so the host doesn't have to know which presets
-      // are batch-only — see PR14 in the Studio epic.
+      // to prevent. Batch-only presets (no `createFactory`, e.g. adaptiveRsi,
+      // heikinAshi) are kept fresh by connectIndicators itself: it re-runs
+      // `compute` against the growing history on every candleComplete unless
+      // a preset opts out via `liveRecompute: false`.
       conn = connectIndicators(chart, {
         presets: indicatorPresets,
         candles: [],
