@@ -66,10 +66,22 @@ export type OptimizationResultEntry = {
  * Grid search result
  */
 export type GridSearchResult = {
-  /** Best parameters found */
-  bestParams: Record<string, number>;
-  /** Best score achieved */
-  bestScore: number;
+  /**
+   * Best parameters found, or `null` if no combination satisfied the
+   * configured constraints. Previously fell back to `{}`, which was
+   * indistinguishable from the legitimate "no params to optimize"
+   * case (empty `parameterRanges`). Use `result.bestParams ?? {}` to
+   * preserve the prior behavior in callers that don't care about the
+   * distinction.
+   */
+  bestParams: Record<string, number> | null;
+  /**
+   * Best score achieved, or `null` if no combination satisfied the
+   * configured constraints. Previously fell back to `0`, which callers
+   * mistook as "the optimum is zero". Use `result.bestScore ?? 0` to
+   * preserve the prior behavior.
+   */
+  bestScore: number | null;
   /** Metric used for optimization */
   metric: OptimizationMetric;
   /** Total number of parameter combinations */

@@ -811,7 +811,16 @@ const result = gridSearch(candles, (params) => ({
 });
 ```
 
-Returns `GridSearchResult` with `results[]`, `bestParameters`, `bestMetrics`.
+Returns `GridSearchResult` with `results[]`, `totalCombinations`, `validCombinations`, `bestParams: Record<string, number> | null`, `bestScore: number | null`, `metric`. `bestParams`/`bestScore` are `null` when no combination passed constraints — guard with `result.bestScore ?? 0` or `result.validCombinations > 0`.
+
+### `gridSearchFromJSON(candles, strategy, ranges, registry, options?)`
+JSON-first variant. `strategy: StrategyJSON`, `ranges: PathParameterRange[]` where each range is `{ path: "entry.0.shortPeriod", min, max, step }`. Path syntax is `<bucket>.<leafIndex>.<paramName>` — `bucket` is `"entry"` or `"exit"`, `leafIndex` is depth-first leaf order across AND/OR/NOT, `paramName` is the registry param key. Returns the same `GridSearchResult` shape, with `bestParams` keyed by path so callers plug it back into `applyParamOverrides(strategy, bestParams)` to get the tuned strategy. Throws on invalid paths (use `gridSearchFromJSONSafe` for `Result`-returning variant).
+
+### Strategy DNA — post-optimization analytics
+`buildGenomeSegments(bestParams, paramRanges, bestScore)` — values mapped to `[0, 1]` within ranges. `extractSensitivityData(results, metric)` — per-param + pairwise mean-metric tables + top-25% safe zones. `computeRecommendedParams(grid, walkForward?, sensitivity?)` — 3-step robust recommendation (safe-zone median → WF stable-period override → sensitivity-peak penalty), returns `{ params, ranges, confidence: "high" | "medium" | "low", reason, sources }`. `computeDnaGrade(grid?, walkForward?, monteCarlo?)` — A-F grade across WF stability / MC significance / parameter sensitivity / win-rate stability; missing inputs are excluded from the renormalized weighted overall. Distinct from `robustness/calculateRobustnessScore` which runs new backtests.
+
+### `flattenStrategyLeaves(strategy)` / `applyParamOverrides(strategy, overrides)`
+Pure utilities for walking and rewriting `StrategyJSON`. `flattenStrategyLeaves` returns `LeafInfo[]` (depth-first), `applyParamOverrides` returns a new strategy with the addressed leaves' params updated. Both share the same path syntax as `gridSearchFromJSON`.
 
 ### `walkForwardAnalysis(candles, strategyFactory, paramRanges, options?)`
 Out-of-sample validation. Options: `inSampleRatio` (0.7), `periods` (5), `metric`.
@@ -1728,7 +1737,13 @@ registry.register({
 ### Serialize / Parse
 
 ```typescript
-import { serializeStrategy, parseStrategy } from "trendcraft";
+import {
+  serializeStrategy,
+  parseStrategy,
+  parseStrategySafe,
+  backtestRegistry,
+  loadStrategy,
+} from "trendcraft";
 import type { StrategyJSON } from "trendcraft";
 
 const strategy: StrategyJSON = {
@@ -1754,6 +1769,17 @@ const strategy: StrategyJSON = {
 
 const jsonString = serializeStrategy(strategy); // → formatted JSON string
 const restored = parseStrategy(jsonString);      // → StrategyJSON (validates schema/version)
+
+// Strict mode — pass the registry to validate structure + conditions upfront.
+// Catches unknown conditions / out-of-range params / malformed `not` arity at
+// parse time instead of deferring them to loadStrategy() / runtime.
+const strict = parseStrategy(jsonString, backtestRegistry);
+
+// Result variant for MCP / LLM tooling. Error codes:
+//   INVALID_JSON | INVALID_SCHEMA | UNSUPPORTED_VERSION | INVALID_STRUCTURE | INVALID_CONDITION
+const result = parseStrategySafe(jsonString, backtestRegistry);
+if (result.ok) loadStrategy(result.value, backtestRegistry);
+else console.error(result.error.code, result.error.message);
 ```
 
 ### Hydrate / Load

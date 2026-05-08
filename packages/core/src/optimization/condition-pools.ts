@@ -56,7 +56,7 @@ export function summarizeCombinationSearch(result: CombinationSearchResult): {
   validPercent: number;
   bestEntry: string;
   bestExit: string;
-  bestScore: number;
+  bestScore: number | null;
   metric: OptimizationMetric;
 } {
   return {

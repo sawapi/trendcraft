@@ -29,6 +29,17 @@ export function renderCandlesticks(
   for (let i = start; i < end && i < candles.length; i++) {
     const candle = candles[i];
     if (!candle) continue;
+    // Skip candles with non-finite OHLC. Canvas silently swallows
+    // draw calls with NaN / Infinity coordinates, so a contaminated
+    // bar would otherwise produce an invisible gap with no error.
+    if (
+      !Number.isFinite(candle.open) ||
+      !Number.isFinite(candle.high) ||
+      !Number.isFinite(candle.low) ||
+      !Number.isFinite(candle.close)
+    ) {
+      continue;
+    }
 
     const x = timeScale.indexToX(originalIndices ? originalIndices[i] : i);
     const sx = Math.round(x) + 0.5; // snap to pixel grid for crisp 1px lines

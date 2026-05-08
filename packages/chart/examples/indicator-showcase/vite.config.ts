@@ -12,6 +12,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@trendcraft/chart/presets": resolve(__dirname, useDist ? "../../dist/presets.js" : "../../src/presets.ts"),
+      "@trendcraft/chart/replay": resolve(__dirname, useDist ? "../../dist/replay.js" : "../../src/replay.ts"),
       "@trendcraft/chart": resolve(__dirname, useDist ? "../../dist/index.js" : "../../src/index.ts"),
       "trendcraft": resolve(__dirname, useDist ? "../../../core/dist/index.js" : "../../../core/src/index.ts"),
     },

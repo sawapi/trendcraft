@@ -211,3 +211,38 @@ export function or(...conditions: Condition[]): CombinedCondition {
 export function not(condition: Condition): CombinedCondition {
   return { type: "not", conditions: [condition] };
 }
+
+// ============================================
+// Always-true / always-false primitives
+// ============================================
+
+/**
+ * Condition that always evaluates true. Useful as a buy-and-hold entry, a
+ * placeholder during prototyping, or a building block in test fixtures
+ * where you need an unconditional pass without contriving an indicator
+ * threshold.
+ *
+ * Pair with `alwaysFalse` as the exit to model "enter once, never exit"
+ * (buy-and-hold).
+ */
+export function alwaysTrue(): PresetCondition {
+  return {
+    type: "preset",
+    name: "alwaysTrue",
+    evaluate: () => true,
+  };
+}
+
+/**
+ * Condition that always evaluates false. Combined with `alwaysTrue` as the
+ * entry, models a buy-and-hold strategy (`enter on first valid bar, never
+ * exit`). Also useful in test fixtures and for disabling a leg of a
+ * combined condition without removing it from the JSON shape.
+ */
+export function alwaysFalse(): PresetCondition {
+  return {
+    type: "preset",
+    name: "alwaysFalse",
+    evaluate: () => false,
+  };
+}

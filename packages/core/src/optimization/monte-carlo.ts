@@ -43,9 +43,12 @@ function createSeededRandom(initialSeed: number): () => number {
   };
 }
 
-/**
- * Calculate percentile from sorted array using linear interpolation
- */
+// Local already-sorted variant of the shared `percentile` utility.
+// Callers here already sort once and reuse the sorted array across
+// many percentile lookups, so paying a second sort inside the public
+// `percentile()` would be wasteful. The interpolation algorithm
+// matches the public utility; consolidating into one canonical
+// algorithm so semantics stay aligned.
 function getPercentile(sorted: number[], p: number): number {
   const n = sorted.length;
   const index = (p / 100) * (n - 1);

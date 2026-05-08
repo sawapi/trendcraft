@@ -4,20 +4,27 @@ import {
   adxr,
   aroon,
   atr,
+  awesomeOscillator,
+  balanceOfPower,
   bollingerBands,
   cci,
+  choppinessIndex,
+  cmf,
   cmo,
+  coppockCurve,
   dema,
   dmi,
   donchianChannel,
   ema,
   fastStochastics,
   highest,
+  hma,
   kama,
   keltnerChannel,
   linearRegression,
   lowest,
   macd,
+  massIndex,
   medianPrice,
   mfi,
   obv,
@@ -31,14 +38,25 @@ import {
   stochastics,
   t3,
   tema,
+  trix,
+  tsi,
   typicalPrice,
+  ulcerIndex,
   ultimateOscillator,
+  vortex,
+  vwma,
   weightedClose,
   williamsR,
   wma,
 } from "../../src";
 import type { NormalizedCandle, Series } from "../../src/types";
-import { assertSeriesMatch, isSingleTestCase, loadFixture, loadOhlcv } from "./helpers";
+import {
+  assertNullAlignment,
+  assertSeriesMatch,
+  isSingleTestCase,
+  loadFixture,
+  loadOhlcv,
+} from "./helpers";
 
 let candles: NormalizedCandle[];
 
@@ -368,6 +386,188 @@ describe("ADXR", () => {
 
     const result = adxr(candles, { period: 14 });
     assertSeriesMatch(result, tc.values, 8, "ADXR(14)");
+  });
+});
+
+describe("TRIX", () => {
+  it.each([15, 9])("trix(%d) line matches TA-Lib within 6 decimals", (period) => {
+    const fixture = loadFixture("trix");
+    const tc = fixture.test_cases.find((t) => t.params.period === period);
+    if (!tc || !isSingleTestCase(tc)) throw new Error(`Expected fixture for period=${period}`);
+
+    const result = trix(candles, { period });
+    // TrendCraft TRIX returns { trix, signal }; TA-Lib returns the
+    // line only. Compare just the `trix` field.
+    const line: Series<number | null> = result.map((r) => ({
+      time: r.time,
+      value: r.value === null ? null : r.value.trix,
+    }));
+    // Warmup alignment is part of the TA-Lib parity contract for
+    // TRIX: a regression that shifts the first non-null sample would
+    // be silently hidden by `assertSeriesMatch`'s null-skip behavior.
+    assertNullAlignment(line, tc.values, `TRIX(${period}) line`);
+    assertSeriesMatch(line, tc.values, 6, `TRIX(${period}) line`);
+  });
+});
+
+describe("Balance of Power", () => {
+  it("balanceOfPower (smoothPeriod=1, raw) matches TA-Lib within 8 decimals", () => {
+    const fixture = loadFixture("bop");
+    const tc = fixture.test_cases[0];
+    if (!isSingleTestCase(tc)) throw new Error("Expected single test case");
+
+    // smoothPeriod: 1 disables the SMA smoothing layer so we compare
+    // against TA-Lib's raw `(close-open)/(high-low)` formula.
+    const result = balanceOfPower(candles, { smoothPeriod: 1 });
+    assertNullAlignment(result, tc.values, "BOP(raw)");
+    assertSeriesMatch(result, tc.values, 8, "BOP(raw)");
+  });
+});
+
+// --- pandas-ta ground-truth (no TA-Lib equivalent) ---
+
+// All five indicators below match pandas-ta to ~9 decimals on the
+// shared synthetic fixture. The remaining ~1e-9 drift is float64
+// summation order, not algorithmic difference — verified by
+// hand-tracing a few warmup values.
+describe("HMA", () => {
+  it.each([14, 9])("hma(%d) matches pandas-ta within 9 decimals", (period) => {
+    const fixture = loadFixture("hma");
+    const tc = fixture.test_cases.find((t) => t.params.period === period);
+    if (!tc || !isSingleTestCase(tc)) throw new Error(`Expected fixture for period=${period}`);
+
+    const result = hma(candles, { period });
+    assertNullAlignment(result, tc.values, `HMA(${period})`);
+    assertSeriesMatch(result, tc.values, 9, `HMA(${period})`);
+  });
+});
+
+describe("VWMA", () => {
+  it("vwma(20) matches pandas-ta within 9 decimals", () => {
+    const fixture = loadFixture("vwma");
+    const tc = fixture.test_cases[0];
+    if (!isSingleTestCase(tc)) throw new Error("Expected single test case");
+
+    const result = vwma(candles, { period: 20 });
+    assertNullAlignment(result, tc.values, "VWMA(20)");
+    assertSeriesMatch(result, tc.values, 9, "VWMA(20)");
+  });
+});
+
+describe("CMF", () => {
+  it("cmf(20) matches pandas-ta within 9 decimals", () => {
+    const fixture = loadFixture("cmf");
+    const tc = fixture.test_cases[0];
+    if (!isSingleTestCase(tc)) throw new Error("Expected single test case");
+
+    const result = cmf(candles, { period: 20 });
+    assertNullAlignment(result, tc.values, "CMF(20)");
+    assertSeriesMatch(result, tc.values, 9, "CMF(20)");
+  });
+});
+
+describe("Vortex", () => {
+  it("vortex(14) VI+ / VI- match pandas-ta within 9 decimals", () => {
+    const fixture = loadFixture("vortex");
+    const tc = fixture.test_cases[0];
+    if (isSingleTestCase(tc)) throw new Error("Expected composite test case");
+
+    const result = vortex(candles, { period: 14 });
+    const viPlus: Series<number | null> = result.map((r) => ({
+      time: r.time,
+      value: r.value === null ? null : r.value.viPlus,
+    }));
+    const viMinus: Series<number | null> = result.map((r) => ({
+      time: r.time,
+      value: r.value === null ? null : r.value.viMinus,
+    }));
+    assertNullAlignment(viPlus, tc.values.viPlus, "Vortex VI+");
+    assertSeriesMatch(viPlus, tc.values.viPlus, 9, "Vortex VI+");
+    assertNullAlignment(viMinus, tc.values.viMinus, "Vortex VI-");
+    assertSeriesMatch(viMinus, tc.values.viMinus, 9, "Vortex VI-");
+  });
+});
+
+describe("Awesome Oscillator", () => {
+  it("awesomeOscillator(5,34) matches pandas-ta within 9 decimals", () => {
+    const fixture = loadFixture("awesome-oscillator");
+    const tc = fixture.test_cases[0];
+    if (!isSingleTestCase(tc)) throw new Error("Expected single test case");
+
+    const result = awesomeOscillator(candles, { fastPeriod: 5, slowPeriod: 34 });
+    assertNullAlignment(result, tc.values, "AO(5,34)");
+    assertSeriesMatch(result, tc.values, 9, "AO(5,34)");
+  });
+});
+
+describe("Coppock Curve", () => {
+  it("coppockCurve(default) matches pandas-ta within 9 decimals", () => {
+    const fixture = loadFixture("coppock-curve");
+    const tc = fixture.test_cases[0];
+    if (!isSingleTestCase(tc)) throw new Error("Expected single test case");
+
+    const result = coppockCurve(candles, {
+      wmaPeriod: 10,
+      longRocPeriod: 14,
+      shortRocPeriod: 11,
+    });
+    assertNullAlignment(result, tc.values, "Coppock");
+    assertSeriesMatch(result, tc.values, 9, "Coppock");
+  });
+});
+
+describe("Mass Index", () => {
+  it("massIndex(9,25) matches pandas-ta within 9 decimals", () => {
+    const fixture = loadFixture("mass-index");
+    const tc = fixture.test_cases[0];
+    if (!isSingleTestCase(tc)) throw new Error("Expected single test case");
+
+    const result = massIndex(candles, { emaPeriod: 9, sumPeriod: 25 });
+    assertNullAlignment(result, tc.values, "Mass Index");
+    assertSeriesMatch(result, tc.values, 9, "Mass Index");
+  });
+});
+
+describe("TSI", () => {
+  it("tsi(13,25,13) line matches pandas-ta within 9 decimals", () => {
+    const fixture = loadFixture("tsi");
+    const tc = fixture.test_cases[0];
+    if (!isSingleTestCase(tc)) throw new Error("Expected single test case");
+
+    // TrendCraft TSI returns { tsi, signal }; pandas-ta fixture is the
+    // line only. The signal-line warmup differs by 1 bar between
+    // implementations (EMA seeding convention) — out of scope here.
+    const result = tsi(candles, { longPeriod: 25, shortPeriod: 13, signalPeriod: 13 });
+    const line: Series<number | null> = result.map((r) => ({
+      time: r.time,
+      value: r.value === null ? null : r.value.tsi,
+    }));
+    assertNullAlignment(line, tc.values, "TSI line");
+    assertSeriesMatch(line, tc.values, 9, "TSI line");
+  });
+});
+
+describe("Choppiness Index", () => {
+  it("choppinessIndex(14) matches pandas-ta within 9 decimals", () => {
+    const fixture = loadFixture("choppiness-index");
+    const tc = fixture.test_cases[0];
+    if (!isSingleTestCase(tc)) throw new Error("Expected single test case");
+
+    const result = choppinessIndex(candles, { period: 14 });
+    assertNullAlignment(result, tc.values, "Choppiness(14)");
+    assertSeriesMatch(result, tc.values, 9, "Choppiness(14)");
+  });
+});
+
+describe("Ulcer Index", () => {
+  it("ulcerIndex(14) matches pandas-ta within 9 decimals (canonical Peter Martin)", () => {
+    const fixture = loadFixture("ulcer-index");
+    const tc = fixture.test_cases[0];
+    if (!isSingleTestCase(tc)) throw new Error("Expected single test case");
+
+    const result = ulcerIndex(candles, { period: 14 });
+    assertNullAlignment(result, tc.values, "Ulcer(14)");
+    assertSeriesMatch(result, tc.values, 9, "Ulcer(14)");
   });
 });
 

@@ -51,12 +51,17 @@ export {
   gridSearchSafe,
   generateParameterCombinations,
   countCombinations,
+  GRID_SEARCH_EPSILON_FACTOR,
   param,
   constraint,
   getTopResults,
   summarizeGridSearch,
 } from "./grid-search";
 export type { StrategyFactory } from "./grid-search";
+
+// Grid Search — JSON-first wrapper
+export { gridSearchFromJSON, gridSearchFromJSONSafe } from "./grid-search-json";
+export type { PathParameterRange } from "./grid-search-json";
 
 // Walk-Forward Analysis
 export {
@@ -119,3 +124,22 @@ export {
   crowdingDistance,
   summarizeParetoResult,
 } from "./pareto";
+
+// Strategy DNA — post-optimization analytics
+export {
+  buildGenomeSegments,
+  extractSensitivityData,
+  computeRecommendedParams,
+  computeDnaGrade,
+} from "./strategy-dna";
+export type {
+  GenomeSegment,
+  SensitivitySingle,
+  SensitivityPair,
+  SafeZone,
+  SensitivityData,
+  RecommendedParams,
+  DnaGrade,
+  DnaGradeItem,
+  DnaGradeReport,
+} from "./strategy-dna";

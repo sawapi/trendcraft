@@ -40,6 +40,42 @@ describe("renderCandlesticks", () => {
     renderCandlesticks(ctx, [], ts, ps, theme);
     expect(ctx.fillRect).not.toHaveBeenCalled();
   });
+
+  it("skips candles with non-finite OHLC instead of issuing draw calls with NaN coords", () => {
+    const { ctx, ts, ps } = setup(3);
+    // Middle candle has NaN close — the canvas would silently swallow
+    // the resulting NaN coords; we want the renderer to skip it
+    // instead so adjacent candles don't share a corrupted state.
+    const candles = [
+      makeCandle(1, 100, 110, 90),
+      { time: 2, open: 105, high: 115, low: 95, close: Number.NaN, volume: 1000 },
+      makeCandle(3, 98, 108, 88),
+    ];
+    renderCandlesticks(ctx, candles, ts, ps, theme);
+
+    // Inspect the fillRect calls — each call's args should be finite.
+    const calls = (ctx.fillRect as unknown as { mock: { calls: number[][] } }).mock.calls;
+    for (const call of calls) {
+      for (const arg of call) {
+        expect(Number.isFinite(arg)).toBe(true);
+      }
+    }
+    // Two of three candles should have produced a fillRect call.
+    expect(calls.length).toBe(2);
+  });
+
+  it("skips candles with non-finite open / high / low individually", () => {
+    const { ctx, ts, ps } = setup(4);
+    const candles = [
+      makeCandle(1, 100, 110, 90),
+      { time: 2, open: Number.NaN, high: 115, low: 95, close: 102, volume: 1000 },
+      { time: 3, open: 100, high: Number.POSITIVE_INFINITY, low: 95, close: 102, volume: 1000 },
+      { time: 4, open: 100, high: 110, low: Number.NaN, close: 102, volume: 1000 },
+    ];
+    renderCandlesticks(ctx, candles, ts, ps, theme);
+    const calls = (ctx.fillRect as unknown as { mock: { calls: number[][] } }).mock.calls;
+    expect(calls.length).toBe(1);
+  });
 });
 
 describe("renderLine", () => {
@@ -74,6 +110,57 @@ describe("renderLine", () => {
     const data = [{ time: 1, value: 100 }];
     renderLine(ctx, data, ts, ps, ts.startIndex, { color: "#000", lineWidth: 1, dash: [4, 2] });
     expect(ctx.setLineDash).toHaveBeenCalledWith([4, 2]);
+  });
+
+  it("draws a marker dot at every non-null bar when markers option is set", () => {
+    const { ctx, ts, ps } = setup(5);
+    const data = [
+      { time: 1, value: 100 },
+      { time: 2, value: 105 },
+      { time: 3, value: null },
+      { time: 4, value: 102 },
+      { time: 5, value: 99 },
+    ];
+    renderLine(ctx, data, ts, ps, ts.startIndex, {
+      color: "#2196F3",
+      lineWidth: 1,
+      markers: { radius: 2.5, color: "#2196F3" },
+    });
+    // arc() called once per non-null point (4 of 5 here)
+    expect(ctx.arc).toHaveBeenCalledTimes(4);
+    // Each arc uses the configured radius
+    const arcCalls = (ctx.arc as unknown as { mock: { calls: number[][] } }).mock.calls;
+    for (const call of arcCalls) {
+      expect(call[2]).toBe(2.5); // 3rd arg is radius
+    }
+  });
+
+  it("does not draw markers when markers option is omitted", () => {
+    const { ctx, ts, ps } = setup(3);
+    const data = [
+      { time: 1, value: 100 },
+      { time: 2, value: 105 },
+      { time: 3, value: 98 },
+    ];
+    renderLine(ctx, data, ts, ps, ts.startIndex, { color: "#000", lineWidth: 1 });
+    expect(ctx.arc).not.toHaveBeenCalled();
+  });
+
+  it("skips markers when bar spacing is below the legibility threshold", () => {
+    const ctx = mockCtx();
+    // Tight bar spacing — 200 bars in 800 px → 4 px each, below the 5 px floor
+    const tightTs = makeTimeScale(200, 800);
+    const ps = makePriceScale(400, 90, 120);
+    const data = Array.from({ length: 200 }, (_, i) => ({ time: i, value: 100 + (i % 10) }));
+    renderLine(ctx, data, tightTs, ps, tightTs.startIndex, {
+      color: "#000",
+      lineWidth: 1,
+      markers: { radius: 2.5, color: "#000" },
+    });
+    // Smaller-than-threshold spacing → no markers drawn even though the
+    // line itself is still rendered.
+    expect(ctx.arc).not.toHaveBeenCalled();
+    expect(ctx.stroke).toHaveBeenCalled();
   });
 });
 

@@ -169,8 +169,19 @@ export class LayoutEngine {
       return;
     }
 
-    // Sum flex values
-    const totalFlex = panes.reduce((sum, p) => sum + p.flex, 0);
+    // If every pane is configured with `flex: 0` (or any other
+    // shape that sums to 0), normalize each pane's flex to 1 in
+    // place so the layout becomes interactive again. Without this
+    // normalisation the equal-share fallback would render the panes,
+    // but any subsequent `resizePanes()` would compute totalFlex = 0
+    // and immediately revert to equal share — divider drags would
+    // appear to do nothing.
+    let totalFlex = panes.reduce((sum, p) => sum + p.flex, 0);
+    if (totalFlex <= 0) {
+      for (const p of panes) p.flex = 1;
+      totalFlex = panes.length;
+    }
+
     const dataWidth = this.dataAreaWidth;
 
     let currentY = 0;

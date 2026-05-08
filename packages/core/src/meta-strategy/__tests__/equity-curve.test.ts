@@ -30,8 +30,9 @@ function makeResult(trades: Trade[]): BacktestResult {
     totalReturn,
     totalReturnPercent: (totalReturn / initial) * 100,
     tradeCount: trades.length,
-    winRate: trades.length > 0 ? wins.length / trades.length : 0,
-    maxDrawdown: 0.1,
+    // winRate and maxDrawdown follow the BacktestResult contract: 0-100 percent.
+    winRate: trades.length > 0 ? (wins.length / trades.length) * 100 : 0,
+    maxDrawdown: 10,
     sharpeRatio: 1.0,
     profitFactor:
       grossLoss > 0 ? grossProfit / grossLoss : grossProfit > 0 ? Number.POSITIVE_INFINITY : 0,
@@ -89,7 +90,7 @@ describe("applyEquityCurveFilter", () => {
     const result = makeResult(trades);
     const analysis = applyEquityCurveFilter(result, {
       type: "drawdown",
-      maxDrawdown: 0.1,
+      maxDrawdown: 10,
     });
     expect(analysis.tradesSkipped).toBeGreaterThan(0);
   });
@@ -120,7 +121,7 @@ describe("applyEquityCurveFilter", () => {
     }
   });
 
-  it("improvement shows correct direction for maxDrawdown", () => {
+  it("improvement.maxDrawdown follows the original − filtered convention", () => {
     const trades: Trade[] = [];
     for (let i = 0; i < 10; i++) trades.push(makeTrade(i, 200));
     for (let i = 10; i < 20; i++) trades.push(makeTrade(i, -300));
@@ -129,10 +130,13 @@ describe("applyEquityCurveFilter", () => {
     const result = makeResult(trades);
     const analysis = applyEquityCurveFilter(result, { type: "ma", maPeriod: 5 });
 
-    if (analysis.tradesSkipped > 0) {
-      // DD improvement should be non-negative (filtered DD <= original)
-      expect(analysis.improvement.maxDrawdown).toBeGreaterThanOrEqual(0);
-    }
+    // Sign convention: positive = filter improved the metric. For maxDrawdown
+    // (lower is better) the formula is `original − filtered`. This invariant
+    // holds regardless of whether the filter actually helped on this data.
+    expect(analysis.improvement.maxDrawdown).toBeCloseTo(
+      result.maxDrawdown - analysis.filtered.maxDrawdown,
+      10,
+    );
   });
 
   it("all losses → most trades skipped", () => {
@@ -155,7 +159,7 @@ describe("equityCurveHealth", () => {
 
     expect(health.aboveMa).toBe(true);
     expect(health.currentDrawdown).toBe(0);
-    expect(health.rollingWinRate).toBe(1);
+    expect(health.rollingWinRate).toBe(100);
     expect(health.healthScore).toBeGreaterThanOrEqual(80);
   });
 
@@ -168,7 +172,7 @@ describe("equityCurveHealth", () => {
     const health = equityCurveHealth(result, { maPeriod: 10 });
 
     expect(health.currentDrawdown).toBeGreaterThan(0);
-    expect(health.rollingWinRate).toBeLessThan(0.5);
+    expect(health.rollingWinRate).toBeLessThan(50);
   });
 
   it("equityCurve has correct length", () => {
@@ -187,5 +191,40 @@ describe("equityCurveHealth", () => {
 
     expect(health.healthScore).toBeGreaterThanOrEqual(0);
     expect(health.healthScore).toBeLessThanOrEqual(100);
+  });
+
+  it("currentDrawdown and rollingWinRate use the BacktestResult percent scale", () => {
+    // Mixed wins/losses → both fields land in the (0, 100] range, not (0, 1].
+    // Locks in unit alignment with runBacktest's BacktestResult contract so
+    // callers can compare equityCurveHealth output against backtest summary
+    // metrics without manual unit conversion.
+    const trades: Trade[] = [];
+    for (let i = 0; i < 5; i++) trades.push(makeTrade(i, 200));
+    for (let i = 5; i < 15; i++) trades.push(makeTrade(i, -300));
+    const result = makeResult(trades);
+    const health = equityCurveHealth(result);
+
+    expect(health.currentDrawdown).toBeGreaterThan(1);
+    expect(health.currentDrawdown).toBeLessThanOrEqual(100);
+    expect(health.rollingWinRate).toBeGreaterThanOrEqual(0);
+    expect(health.rollingWinRate).toBeLessThanOrEqual(100);
+  });
+});
+
+describe("rebuildResult unit alignment with runBacktest", () => {
+  it("filtered.winRate and filtered.maxDrawdown match BacktestResult contract", () => {
+    const trades: Trade[] = [];
+    for (let i = 0; i < 10; i++) trades.push(makeTrade(i, 200));
+    for (let i = 10; i < 20; i++) trades.push(makeTrade(i, -300));
+    const result = makeResult(trades);
+    const analysis = applyEquityCurveFilter(result, { type: "ma", maPeriod: 5 });
+
+    // Both fields documented as percent (0-100) on BacktestResult; the filter's
+    // rebuilt result must follow the same scale so improvement deltas have
+    // consistent units (was buggy pre-fix: rebuildResult emitted fractions).
+    expect(analysis.filtered.winRate).toBeGreaterThanOrEqual(0);
+    expect(analysis.filtered.winRate).toBeLessThanOrEqual(100);
+    expect(analysis.filtered.maxDrawdown).toBeGreaterThanOrEqual(0);
+    expect(analysis.filtered.maxDrawdown).toBeLessThanOrEqual(100);
   });
 });

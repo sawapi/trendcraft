@@ -20,11 +20,19 @@ export type UlcerIndexOptions = {
 };
 
 /**
- * Calculate Ulcer Index
+ * Calculate Ulcer Index (Peter Martin & Byron McCann, 1987 / 1989)
  *
- * 1. Percent Drawdown = ((Close - Highest Close over period) / Highest Close) × 100
- * 2. Squared Average = Average of (Percent Drawdown)^2 over period
- * 3. Ulcer Index = sqrt(Squared Average)
+ * The canonical two-stage formula:
+ *
+ *   1. For each bar j: rolling_max[j] = max(close[j-N+1..j])
+ *   2. For each bar j: drawdown[j] = (close[j] - rolling_max[j]) / rolling_max[j] × 100
+ *   3. UI[i] = sqrt(mean(drawdown[i-N+1..i]^2))
+ *
+ * Each per-bar drawdown is measured against THAT bar's own rolling
+ * peak — not against a single peak shared across the window. This
+ * matches the StockCharts / Wikipedia / pandas-ta interpretation of
+ * Peter Martin's original definition. Total warmup is therefore
+ * `2 * period - 1` bars (first non-null at index `2 * period - 2`).
  *
  * Interpretation:
  * - Lower values indicate less downside risk
@@ -55,27 +63,32 @@ export function ulcerIndex(
   const result: Series<number | null> = [];
   const prices = normalized.map((c) => getPrice(c, source));
 
+  // Stage 1: per-bar rolling max + per-bar drawdown
+  const drawdowns: (number | null)[] = new Array(normalized.length).fill(null);
+  for (let j = period - 1; j < normalized.length; j++) {
+    let rollingMax = Number.NEGATIVE_INFINITY;
+    for (let k = j - period + 1; k <= j; k++) {
+      if (prices[k] > rollingMax) rollingMax = prices[k];
+    }
+    drawdowns[j] = rollingMax !== 0 ? ((prices[j] - rollingMax) / rollingMax) * 100 : 0;
+  }
+
+  // Stage 2: rolling sum-of-squares of the drawdown series
   for (let i = 0; i < normalized.length; i++) {
-    if (i < period - 1) {
+    // Need a full window of valid drawdowns: drawdowns[i-N+1..i] all
+    // non-null, which requires i - N + 1 >= N - 1, i.e. i >= 2N - 2.
+    if (i < 2 * period - 2) {
       result.push({ time: normalized[i].time, value: null });
       continue;
     }
 
-    // Find highest close in the period
-    let highest = Number.NEGATIVE_INFINITY;
-    for (let j = i - period + 1; j <= i; j++) {
-      highest = Math.max(highest, prices[j]);
-    }
-
-    // Calculate sum of squared drawdowns
     let sumSquared = 0;
     for (let j = i - period + 1; j <= i; j++) {
-      const pctDrawdown = highest !== 0 ? ((prices[j] - highest) / highest) * 100 : 0;
-      sumSquared += pctDrawdown * pctDrawdown;
+      const dd = drawdowns[j] as number;
+      sumSquared += dd * dd;
     }
 
-    const ui = Math.sqrt(sumSquared / period);
-    result.push({ time: normalized[i].time, value: ui });
+    result.push({ time: normalized[i].time, value: Math.sqrt(sumSquared / period) });
   }
 
   return tagSeries(result, withLabelParams({ overlay: false, label: "Ulcer" }, [period]));
