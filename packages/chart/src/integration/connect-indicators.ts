@@ -35,13 +35,13 @@
 
 import type { ChartInstance, DataPoint, SeriesConfig, SeriesHandle } from "../core/types";
 import {
-  type LiveIndicatorFactoryFn,
-  type PresetMeta,
-  type SourceCandle,
   buildSeriesConfig,
   computeBackfill,
+  type LiveIndicatorFactoryFn,
+  type PresetMeta,
   resolveSnapshotName,
   resolveValue,
+  type SourceCandle,
 } from "./helpers";
 
 // ============================================
@@ -74,10 +74,7 @@ export type LiveSource = {
   ): () => void;
   on(
     event: "candleComplete",
-    cb: (payload: {
-      candle: SourceCandle;
-      snapshot: Record<string, unknown>;
-    }) => void,
+    cb: (payload: { candle: SourceCandle; snapshot: Record<string, unknown> }) => void,
   ): () => void;
   addIndicator?(name: string, factory: LiveIndicatorFactoryFn, state?: unknown): void;
   removeIndicator?(name: string): void;

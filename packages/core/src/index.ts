@@ -4,1462 +4,1121 @@
  * @packageDocumentation
  */
 
-// Types
 export type {
-  // Candle types
-  Candle,
-  NormalizedCandle,
-  // Indicator types
-  IndicatorValue,
-  Series,
-  PriceSource,
-  // Timeframe types
-  Timeframe,
-  TimeframeUnit,
-  TimeframeShorthand,
-  // Indicator result types
-  MacdValue,
-  BollingerBandsValue,
-  // Signal types
-  SignalType,
-  Signal,
-  // Option types
-  SmaOptions,
-  EmaOptions,
-  RsiOptions,
-  MacdOptions,
-  BollingerBandsOptions,
-  AtrOptions,
-  HighestLowestOptions,
-  ReturnsOptions,
-  CrossOptions,
-  // Trade Signal types
-  TradeAction,
-  TradeDirection,
-  SignalReason,
-  PriceLevels,
-  TradeSignal,
-  // Backtest types
-  PositionDirection,
-  Condition,
-  DrawdownPeriod,
-  ConditionFn,
-  PresetCondition,
-  CombinedCondition,
-  Trade,
-  ExitReason,
-  BacktestOptions,
-  BacktestResult,
-  BacktestSettings,
-  PartialTakeProfitConfig,
-  AtrTrailingStopConfig,
-  FillMode,
-  SlTpMode,
-  // MTF types
-  MtfContext,
-  MtfDataset,
-  MtfConditionFn,
-  MtfPresetCondition,
-  // Volume analysis types
-  VolumeAnomalyValue,
-  VolumeProfileValue,
-  VolumePriceLevel,
-  VolumeTrendValue,
-  // ATR risk management types
-  AtrRiskOptions,
-  ChandelierExitOptions,
-  ChandelierExitValue,
-  AtrStopsOptions,
-  AtrStopsValue,
-  // Volatility regime types
-  VolatilityRegime,
-  VolatilityRegimeOptions,
-  VolatilityRegimeValue,
-  // Scaled entry types
-  ScaledEntryStrategy,
-  ScaledEntryIntervalType,
-  ScaledEntryConfig,
-  // Fundamental metrics types
-  FundamentalMetrics,
-} from "./types";
-
-// Core utilities
+  LiquiditySweepConditionOptions,
+  OrderBlockConditionOptions,
+  PatternConditionOptions,
+  PerfectOrderConditionOptions,
+  PerfectOrderEnhancedConditionOptions,
+  RangeBoundConditionOptions,
+  RSConditionOptions,
+  ScaledBacktestOptions,
+  ValidatedCrossOptions,
+} from "./backtest";
+// Backtest conditions
+// Range-Bound backtest conditions
+// Advanced Volume conditions
+// Multi-Timeframe (MTF) conditions
+// Volatility Regime conditions
+// Relative Strength (RS) conditions
+// Price Pattern conditions
+// Smart Money Concepts (SMC) conditions
+// Perfect Order Pullback conditions
 export {
-  normalizeTime,
-  normalizeCandle,
-  normalizeCandles,
-  getPrice,
-  getPriceSeries,
-} from "./core/normalize";
-
-export { resample, parseTimeframe, getPeriodStart } from "./core/resample";
-
-// Statistics utilities
-export { percentile, median, quartiles } from "./core/statistics";
-
+  adxStrong,
+  alwaysFalse,
+  // Always-true / always-false primitives
+  alwaysTrue,
+  // Combinators
+  and,
+  anyBearishPattern,
+  anyBullishPattern,
+  anyPatternConfidenceAbove,
+  // ATR% Filter conditions
+  atrPercentAbove,
+  atrPercentBelow,
+  atrPercentileAbove,
+  atrPercentileBelow,
+  BENCHMARK_CACHE_KEY,
+  // Portfolio / Multi-Asset Backtest
+  batchBacktest,
+  bearFlagDetected,
+  bearishHarmonicDetected,
+  bearishVolumeDivergence,
+  bollingerBreakout,
+  bollingerTouch,
+  breakdownVal,
+  breakoutRiskDown,
+  breakoutRiskUp,
+  breakoutVah,
+  bullFlagDetected,
+  bullishHarmonicDetected,
+  bullishVolumeDivergence,
+  channelDetected,
+  // CMF conditions
+  cmfAbove,
+  cmfBelow,
+  cupHandleDetected,
+  deadCross as deadCrossCondition,
+  dmiBearish,
+  // DMI/ADX conditions
+  dmiBullish,
+  doubleBottomDetected,
+  doubleTopDetected,
+  flagDetected,
+  // Preset conditions
+  goldenCross as goldenCrossCondition,
+  harmonicPatternDetected,
+  hasActiveOrderBlocks,
+  hasRecentSweeps,
+  headShouldersDetected,
+  inRangeBound,
+  inValueArea,
+  inverseHeadShouldersDetected,
+  liquiditySweepDetected,
+  liquiditySweepRecovered,
+  macdCrossDown,
+  macdCrossUp,
+  mansfieldRSAbove,
+  mansfieldRSBelow,
+  monthlyPriceAboveSma,
+  monthlyPriceBelowSma,
+  monthlyRsiAbove,
+  monthlyRsiBelow,
+  monthlyTrendStrong,
+  mtfCondition,
+  mtfDowntrend,
+  mtfPriceAboveEma,
+  mtfPriceAboveSma,
+  mtfPriceBelowSma,
+  mtfRsiAbove,
+  mtfRsiBelow,
+  mtfTrendStrong,
+  mtfUptrend,
+  nearPoc,
+  not,
+  obvCrossDown,
+  obvCrossUp,
+  obvFalling,
+  // OBV conditions
+  obvRising,
+  or,
+  orderBlockCreated,
+  orderBlockMitigated,
+  outperformanceAbove,
+  outperformanceBelow,
+  patternConfidenceAbove,
+  patternConfirmed,
+  patternDetected,
+  patternWithinBars,
+  pbEntry,
+  pbrAbove,
+  pbrBelow,
+  pbrBetween,
+  perAbove,
+  // Fundamental conditions
+  perBelow,
+  perBetween,
+  perfectOrderActiveBearish,
+  perfectOrderActiveBullish,
+  perfectOrderBearish,
+  perfectOrderBearishConfirmed,
+  perfectOrderBreakdown,
+  // Perfect Order conditions
+  perfectOrderBullish,
+  // Enhanced Perfect Order conditions
+  perfectOrderBullishConfirmed,
+  perfectOrderCollapsed,
+  perfectOrderConfirmationFormed,
+  perfectOrderMaCollapsed,
+  perfectOrderPreBearish,
+  perfectOrderPreBullish,
+  perfectOrderPullbackEntry,
+  perfectOrderPullbackSellEntry,
+  // PO+ and PB entry conditions
+  poPlusEntry,
+  poPlusPbEntry,
+  portfolioBacktest,
+  priceAbovePoc,
+  priceAboveSma,
+  priceAtBearishOrderBlock,
+  priceAtBullishOrderBlock,
+  priceAtOrderBlock,
+  priceBelowPoc,
+  priceBelowSma,
+  priceDroppedAtr,
+  rangeBreakout,
+  rangeConfirmed,
+  rangeForming,
+  rangeScoreAbove,
+  regimeConfidenceAbove,
+  regimeIs,
+  regimeNot,
+  rsAbove,
+  rsBelow,
+  rsFalling,
+  rsiAbove,
+  rsiBelow,
+  rsNewHigh,
+  rsNewLow,
+  rsRatingAbove,
+  rsRatingBelow,
+  rsRising,
+  // Engine
+  runBacktest,
+  runBacktestScaled,
+  setBenchmark,
+  stochAbove,
+  // Stochastics conditions
+  stochBelow,
+  stochCrossDown,
+  stochCrossUp,
+  sweepDepthAbove,
+  tightRange,
+  triangleDetected,
+  validatedDeadCross,
+  // Validated conditions (with damashi detection)
+  validatedGoldenCross,
+  volatilityAbove,
+  volatilityBelow,
+  volatilityContracting,
+  volatilityExpanding,
+  // Volume conditions
+  volumeAboveAvg,
+  volumeAnomalyCondition,
+  volumeConfirmsTrend,
+  volumeDivergence,
+  volumeExtreme,
+  volumeRatioAbove,
+  volumeTrendConfidence,
+  wedgeDetected,
+  weeklyDowntrend,
+  weeklyPriceAboveEma,
+  weeklyPriceAboveSma,
+  weeklyPriceBelowSma,
+  weeklyRsiAbove,
+  weeklyRsiBelow,
+  weeklyTrendStrong,
+  weeklyUptrend,
+} from "./backtest";
+export type { ParseFundamentalsOptions } from "./core/fundamentals";
 // Fundamentals utilities
 export {
-  parseFundamentals,
   createFundamentalsMap,
   getFundamentalsAt,
+  parseFundamentals,
 } from "./core/fundamentals";
-export type { ParseFundamentalsOptions } from "./core/fundamentals";
-
+// Indicator Cache
+export { createCachedIndicators, IndicatorCache } from "./core/indicator-cache";
 // MTF context utilities
 export {
-  createMtfContext,
   buildMtfIndexMap,
-  updateMtfIndices,
+  createMtfContext,
+  getCurrentMtfIndicatorValue,
   getMtfCandle,
   getMtfIndicator,
-  setMtfIndicator,
-  getCurrentMtfIndicatorValue,
-  hasMtfTimeframe,
   getMtfTimeframes,
+  hasMtfTimeframe,
+  setMtfIndicator,
+  updateMtfIndices,
 } from "./core/mtf-context";
-
-// Indicators
+// Core utilities
 export {
-  // Moving Averages
-  sma,
-  ema,
-  wma,
-  vwma,
-  kama,
-  t3,
-  hma,
-  mcginleyDynamic,
-  emaRibbon,
-  dema,
-  tema,
-  zlema,
-  frama,
-  alma,
-  // Momentum
-  rsi,
-  macd,
-  stochastics,
-  fastStochastics,
-  slowStochastics,
-  dmi,
-  stochRsi,
-  cci,
-  williamsR,
-  roc,
-  trix,
-  aroon,
-  dpo,
-  hurst,
-  connorsRsi,
-  imi,
-  adxr,
-  ultimateOscillator,
-  awesomeOscillator,
-  massIndex,
-  kst,
-  coppockCurve,
-  tsi,
-  ppo,
-  cmo,
-  balanceOfPower,
-  qstick,
-  // Volatility
-  bollingerBands,
-  atr,
-  donchianChannel,
-  keltnerChannel,
-  chandelierExit,
-  atrStops,
-  calculateAtrStop,
-  calculateAtrTakeProfit,
-  calculateAtrTrailingStop,
-  choppinessIndex,
-  ulcerIndex,
-  historicalVolatility,
-  garmanKlass,
-  standardDeviation,
-  // Volume
-  volumeMa,
-  obv,
-  mfi,
-  vwap,
-  cmf,
-  volumeAnomaly,
-  volumeProfile,
-  volumeProfileSeries,
-  volumeTrend,
-  adl,
-  anchoredVwap,
-  elderForceIndex,
-  easeOfMovement,
-  klinger,
-  twap,
-  weisWave,
-  marketProfile,
-  pvt,
-  nvi,
-  cvd,
-  cvdWithSignal,
-  // Price
-  highestLowest,
-  highest,
-  lowest,
-  returns,
-  cumulativeReturns,
-  pivotPoints,
-  swingPoints,
-  getSwingHighs,
-  getSwingLows,
-  // Price transforms
-  medianPrice,
-  typicalPrice,
-  weightedClose,
-  // S/R Zone Clustering
-  srZones,
-  srZonesSeries,
-  // Trend
-  ichimoku,
-  supertrend,
-  parabolicSar,
-  vortex,
-  schaffTrendCycle,
-  linearRegression,
-  // ATR Filter (stock screening)
-  calculateAtrPercent,
-  atrPercentSeries,
-  passesAtrFilter,
-  filterStocksByAtr,
-  DEFAULT_ATR_THRESHOLD,
-  // Relative Strength
-  benchmarkRS,
-  calculateRSRating,
-  isOutperforming,
-  rankByRS,
-  topByRS,
-  bottomByRS,
-  filterByRSPercentile,
-  compareRS,
-  // SMC (Smart Money Concepts)
-  orderBlock,
-  getActiveOrderBlocks,
-  getNearestOrderBlock,
-  liquiditySweep,
-  getRecoveredSweeps,
-  hasRecentSweepSignal,
-  // BOS/CHoCH/FVG (SMC price structure)
-  breakOfStructure,
-  changeOfCharacter,
-  fairValueGap,
-  getUnfilledFvgs,
-  getNearestFvg,
-  // Fibonacci Retracement
-  fibonacciRetracement,
-  // Auto Trend Line / Channel / Fibonacci Extension / Pitchfork
-  autoTrendLine,
-  channelLine,
-  fibonacciExtension,
-  andrewsPitchfork,
-  getAlternatingSwingPoints,
-  // Fractals / Zigzag
-  fractals,
-  zigzag,
-  // Gap / Opening Range
-  openingRange,
-  gapAnalysis,
-  // Heikin-Ashi
-  heikinAshi,
-  // Session / Kill Zones
-  defineSession,
-  getIctSessions,
-  getJpxSessions,
-  getHkexSessions,
-  detectSessions,
-  sessionStats,
-  killZones,
-  getIctKillZones,
-  sessionBreakout,
-  isInSessionWindow,
-  isInAnyBreak,
-  getTzHourMinute,
-  // Filter (Ehlers)
-  superSmoother,
-  roofingFilter,
-  // Adaptive Indicators
-  adaptiveRsi,
-  adaptiveBollinger,
-  adaptiveMa,
-  adaptiveStochastics,
-  // HMM Regime Detection
-  hmmRegimes,
-  fitHmm,
-  regimeTransitionMatrix,
-  // Wyckoff (VSA + Phase Detection)
-  vsa,
-  wyckoffPhases,
-} from "./indicators";
-
+  getPrice,
+  getPriceSeries,
+  normalizeCandle,
+  normalizeCandles,
+  normalizeTime,
+} from "./core/normalize";
+export { getPeriodStart, parseTimeframe, resample } from "./core/resample";
+// Statistics utilities
+export { median, percentile, quartiles } from "./core/statistics";
+export type { AnalysisResult } from "./core/trendcraft";
+// Fluent API
+export { MtfStrategyBuilder, StrategyBuilder, TrendCraft, TrendCraftMtf } from "./core/trendcraft";
 export type {
-  VolumeMaOptions,
-  HighestLowestValue,
-  StochasticsValue,
-  StochasticsOptions,
-  DmiValue,
-  DmiOptions,
-  StochRsiValue,
-  StochRsiOptions,
-  DonchianValue,
-  DonchianOptions,
-  KeltnerChannelOptions,
-  KeltnerChannelValue,
-  MfiOptions,
-  CmfOptions,
-  WmaOptions,
-  VwmaOptions,
-  KamaOptions,
-  T3Options,
-  HmaOptions,
-  McGinleyDynamicOptions,
-  EmaRibbonOptions,
-  EmaRibbonValue,
-  DemaOptions,
-  TemaOptions,
-  ZlemaOptions,
-  FramaOptions,
-  AlmaOptions,
-  VwapOptions,
-  VwapValue,
-  VwapBand,
-  CciOptions,
-  WilliamsROptions,
-  RocOptions,
-  TrixOptions,
-  TrixValue,
-  AroonOptions,
-  AroonValue,
-  DpoOptions,
-  HurstOptions,
-  ConnorsRsiOptions,
-  ConnorsRsiValue,
-  ImiOptions,
-  AdxrOptions,
-  UltimateOscillatorOptions,
-  AwesomeOscillatorOptions,
-  MassIndexOptions,
-  KstOptions,
-  KstValue,
-  CoppockCurveOptions,
-  TsiOptions,
-  TsiValue,
-  PpoOptions,
-  PpoValue,
-  CmoOptions,
-  BalanceOfPowerOptions,
-  QstickOptions,
-  PivotPointsOptions,
-  PivotPointsValue,
-  SwingPointValue,
-  SwingPointOptions,
-  IchimokuOptions,
-  IchimokuValue,
-  SupertrendOptions,
-  SupertrendValue,
-  ParabolicSarOptions,
-  ParabolicSarValue,
-  VortexOptions,
-  VortexValue,
-  SchaffTrendCycleOptions,
-  LinearRegressionOptions,
-  LinearRegressionValue,
-  AtrFilterOptions,
-  AtrFilterResult,
-  ChoppinessIndexOptions,
-  UlcerIndexOptions,
-  HistoricalVolatilityOptions,
-  GarmanKlassOptions,
-  StandardDeviationOptions,
-  RSValue,
-  BenchmarkRSOptions,
-  SymbolRSRank,
-  MultiRSOptions,
-  // SMC types
-  OrderBlock,
-  OrderBlockValue,
-  OrderBlockOptions,
-  LiquiditySweep,
-  LiquiditySweepValue,
-  LiquiditySweepOptions,
-  // BOS/CHoCH/FVG types
-  BosValue,
-  BosOptions,
-  FvgValue,
-  FvgGap,
-  FvgOptions,
-  // Fibonacci Retracement types
-  FibonacciRetracementOptions,
-  FibonacciRetracementValue,
-  // Auto Trend Line / Channel / Fibonacci Extension / Pitchfork types
-  AutoTrendLineOptions,
-  AutoTrendLineValue,
-  ChannelLineOptions,
-  ChannelLineValue,
-  FibonacciExtensionOptions,
-  FibonacciExtensionValue,
-  AndrewsPitchforkOptions,
-  AndrewsPitchforkValue,
-  AlternatingSwingPoint,
-  HeikinAshiValue,
-  FractalValue,
-  FractalOptions,
-  ZigzagValue,
-  ZigzagOptions,
-  OpeningRangeOptions,
-  OpeningRangeValue,
-  GapAnalysisOptions,
-  GapValue,
-  PriceLevelSource,
-  SrZone,
-  SrZonesOptions,
-  SrZonesResult,
-  AnchoredVwapOptions,
-  AnchoredVwapValue,
-  ElderForceIndexOptions,
-  EaseOfMovementOptions,
-  KlingerOptions,
-  KlingerValue,
-  TwapOptions,
-  WeisWaveOptions,
-  WeisWaveValue,
-  MarketProfileOptions,
-  MarketProfileValue,
-  NviOptions,
-  CvdWithSignalOptions,
-  CvdWithSignalValue,
-  SuperSmootherOptions,
-  RoofingFilterOptions,
-  // Session / Kill Zone types
-  SessionDefinition,
-  SessionInfo,
-  SessionStatsOptions,
-  SessionStatsValue,
-  KillZoneDefinition,
-  KillZoneValue,
-  SessionBreakoutOptions,
-  SessionBreakoutValue,
-  // Adaptive Indicator types
-  AdaptiveRsiOptions,
-  AdaptiveRsiValue,
   AdaptiveBollingerOptions,
   AdaptiveBollingerValue,
   AdaptiveMaOptions,
   AdaptiveMaValue,
+  // Adaptive Indicator types
+  AdaptiveRsiOptions,
+  AdaptiveRsiValue,
   AdaptiveStochasticsOptions,
   AdaptiveStochasticsValue,
+  AdxrOptions,
+  AlmaOptions,
+  AlternatingSwingPoint,
+  AnchoredVwapOptions,
+  AnchoredVwapValue,
+  AndrewsPitchforkOptions,
+  AndrewsPitchforkValue,
+  AroonOptions,
+  AroonValue,
+  AtrFilterOptions,
+  AtrFilterResult,
+  // Auto Trend Line / Channel / Fibonacci Extension / Pitchfork types
+  AutoTrendLineOptions,
+  AutoTrendLineValue,
+  AwesomeOscillatorOptions,
+  BalanceOfPowerOptions,
+  BenchmarkRSOptions,
+  BosOptions,
+  // BOS/CHoCH/FVG types
+  BosValue,
+  CciOptions,
+  ChannelLineOptions,
+  ChannelLineValue,
+  ChoppinessIndexOptions,
+  CmfOptions,
+  CmoOptions,
+  ConnorsRsiOptions,
+  ConnorsRsiValue,
+  CoppockCurveOptions,
+  CvdWithSignalOptions,
+  CvdWithSignalValue,
+  DemaOptions,
+  DmiOptions,
+  DmiValue,
+  DonchianOptions,
+  DonchianValue,
+  DpoOptions,
+  EaseOfMovementOptions,
+  ElderForceIndexOptions,
+  EmaRibbonOptions,
+  EmaRibbonValue,
+  FibonacciExtensionOptions,
+  FibonacciExtensionValue,
+  // Fibonacci Retracement types
+  FibonacciRetracementOptions,
+  FibonacciRetracementValue,
+  FractalOptions,
+  FractalValue,
+  FramaOptions,
+  FvgGap,
+  FvgOptions,
+  FvgValue,
+  GapAnalysisOptions,
+  GapValue,
+  GarmanKlassOptions,
+  HeikinAshiValue,
+  HighestLowestValue,
+  HistoricalVolatilityOptions,
+  HmaOptions,
+  HmmFeatureOptions,
   // HMM Regime Detection types
   HmmModel,
   HmmOptions,
   HmmRegimeOptions,
   HmmRegimeValue,
+  HurstOptions,
+  IchimokuOptions,
+  IchimokuValue,
+  ImiOptions,
+  KamaOptions,
+  KeltnerChannelOptions,
+  KeltnerChannelValue,
+  KillZoneDefinition,
+  KillZoneValue,
+  KlingerOptions,
+  KlingerValue,
+  KstOptions,
+  KstValue,
+  LinearRegressionOptions,
+  LinearRegressionValue,
+  LiquiditySweep,
+  LiquiditySweepOptions,
+  LiquiditySweepValue,
+  MarketProfileOptions,
+  MarketProfileValue,
+  MassIndexOptions,
+  McGinleyDynamicOptions,
+  MfiOptions,
+  MultiRSOptions,
+  NviOptions,
+  OpeningRangeOptions,
+  OpeningRangeValue,
+  // SMC types
+  OrderBlock,
+  OrderBlockOptions,
+  OrderBlockValue,
+  ParabolicSarOptions,
+  ParabolicSarValue,
+  PivotPointsOptions,
+  PivotPointsValue,
+  PpoOptions,
+  PpoValue,
+  PriceLevelSource,
+  QstickOptions,
   RegimeTransitionInfo,
-  HmmFeatureOptions,
+  RocOptions,
+  RoofingFilterOptions,
+  RSValue,
+  SchaffTrendCycleOptions,
+  SessionBreakoutOptions,
+  SessionBreakoutValue,
+  // Session / Kill Zone types
+  SessionDefinition,
+  SessionInfo,
+  SessionStatsOptions,
+  SessionStatsValue,
+  SrZone,
+  SrZonesOptions,
+  SrZonesResult,
+  StandardDeviationOptions,
+  StochasticsOptions,
+  StochasticsValue,
+  StochRsiOptions,
+  StochRsiValue,
+  SuperSmootherOptions,
+  SupertrendOptions,
+  SupertrendValue,
+  SwingPointOptions,
+  SwingPointValue,
+  SymbolRSRank,
+  T3Options,
+  TemaOptions,
+  TrixOptions,
+  TrixValue,
+  TsiOptions,
+  TsiValue,
+  TwapOptions,
+  UlcerIndexOptions,
+  UltimateOscillatorOptions,
+  VolumeMaOptions,
+  VortexOptions,
+  VortexValue,
   // Wyckoff types
   VsaBarType,
-  VsaValue,
   VsaOptions,
-  WyckoffPhase,
+  VsaValue,
+  VwapBand,
+  VwapOptions,
+  VwapValue,
+  VwmaOptions,
+  WeisWaveOptions,
+  WeisWaveValue,
+  WilliamsROptions,
+  WmaOptions,
   WyckoffEvent,
-  WyckoffValue,
+  WyckoffPhase,
   WyckoffPhaseOptions,
+  WyckoffValue,
+  ZigzagOptions,
+  ZigzagValue,
+  ZlemaOptions,
 } from "./indicators";
-
+// Indicators
+// Volatility Regime indicator
+export {
+  adaptiveBollinger,
+  adaptiveMa,
+  // Adaptive Indicators
+  adaptiveRsi,
+  adaptiveStochastics,
+  adl,
+  adxr,
+  alma,
+  anchoredVwap,
+  andrewsPitchfork,
+  aroon,
+  atr,
+  atrPercentSeries,
+  atrStops,
+  // Auto Trend Line / Channel / Fibonacci Extension / Pitchfork
+  autoTrendLine,
+  awesomeOscillator,
+  balanceOfPower,
+  // Relative Strength
+  benchmarkRS,
+  // Volatility
+  bollingerBands,
+  bottomByRS,
+  // BOS/CHoCH/FVG (SMC price structure)
+  breakOfStructure,
+  // ATR Filter (stock screening)
+  calculateAtrPercent,
+  calculateAtrStop,
+  calculateAtrTakeProfit,
+  calculateAtrTrailingStop,
+  calculateRSRating,
+  cci,
+  chandelierExit,
+  changeOfCharacter,
+  channelLine,
+  choppinessIndex,
+  cmf,
+  cmo,
+  compareRS,
+  connorsRsi,
+  coppockCurve,
+  cumulativeReturns,
+  cvd,
+  cvdWithSignal,
+  DEFAULT_ATR_THRESHOLD,
+  // Session / Kill Zones
+  defineSession,
+  dema,
+  detectSessions,
+  dmi,
+  donchianChannel,
+  dpo,
+  easeOfMovement,
+  elderForceIndex,
+  ema,
+  emaRibbon,
+  fairValueGap,
+  fastStochastics,
+  fibonacciExtension,
+  // Fibonacci Retracement
+  fibonacciRetracement,
+  filterByRSPercentile,
+  filterStocksByAtr,
+  fitHmm,
+  // Fractals / Zigzag
+  fractals,
+  frama,
+  gapAnalysis,
+  garmanKlass,
+  getActiveOrderBlocks,
+  getAlternatingSwingPoints,
+  getHkexSessions,
+  getIctKillZones,
+  getIctSessions,
+  getJpxSessions,
+  getNearestFvg,
+  getNearestOrderBlock,
+  getRecoveredSweeps,
+  getSwingHighs,
+  getSwingLows,
+  getTzHourMinute,
+  getUnfilledFvgs,
+  hasRecentSweepSignal,
+  // Heikin-Ashi
+  heikinAshi,
+  highest,
+  // Price
+  highestLowest,
+  historicalVolatility,
+  hma,
+  // HMM Regime Detection
+  hmmRegimes,
+  hurst,
+  // Trend
+  ichimoku,
+  imi,
+  isInAnyBreak,
+  isInSessionWindow,
+  isOutperforming,
+  kama,
+  keltnerChannel,
+  killZones,
+  klinger,
+  kst,
+  linearRegression,
+  liquiditySweep,
+  lowest,
+  macd,
+  marketProfile,
+  massIndex,
+  mcginleyDynamic,
+  // Price transforms
+  medianPrice,
+  mfi,
+  nvi,
+  obv,
+  // Gap / Opening Range
+  openingRange,
+  // SMC (Smart Money Concepts)
+  orderBlock,
+  parabolicSar,
+  passesAtrFilter,
+  pivotPoints,
+  ppo,
+  pvt,
+  qstick,
+  rankByRS,
+  regimeTransitionMatrix,
+  returns,
+  roc,
+  roofingFilter,
+  // Momentum
+  rsi,
+  schaffTrendCycle,
+  sessionBreakout,
+  sessionStats,
+  slowStochastics,
+  // Moving Averages
+  sma,
+  // S/R Zone Clustering
+  srZones,
+  srZonesSeries,
+  standardDeviation,
+  stochastics,
+  stochRsi,
+  // Filter (Ehlers)
+  superSmoother,
+  supertrend,
+  swingPoints,
+  t3,
+  tema,
+  topByRS,
+  trix,
+  tsi,
+  twap,
+  typicalPrice,
+  ulcerIndex,
+  ultimateOscillator,
+  volatilityRegime,
+  volumeAnomaly,
+  // Volume
+  volumeMa,
+  volumeProfile,
+  volumeProfileSeries,
+  volumeTrend,
+  vortex,
+  // Wyckoff (VSA + Phase Detection)
+  vsa,
+  vwap,
+  vwma,
+  weightedClose,
+  weisWave,
+  williamsR,
+  wma,
+  wyckoffPhases,
+  zigzag,
+  zlema,
+} from "./indicators";
+// Incremental Indicator API
+export * as incremental from "./indicators/incremental";
 // Indicator Plugins (namespace)
 export * as plugins from "./indicators/plugins";
-
-// Plugin system
-export type { IndicatorPlugin } from "./types";
-export { defineIndicator } from "./types";
-
-// Fluent API
-export { TrendCraft, StrategyBuilder, MtfStrategyBuilder, TrendCraftMtf } from "./core/trendcraft";
-export type { AnalysisResult } from "./core/trendcraft";
-
-// Backtest conditions
-export {
-  // Combinators
-  and,
-  or,
-  not,
-  // Always-true / always-false primitives
-  alwaysTrue,
-  alwaysFalse,
-  // Preset conditions
-  goldenCross as goldenCrossCondition,
-  deadCross as deadCrossCondition,
-  rsiBelow,
-  rsiAbove,
-  macdCrossUp,
-  macdCrossDown,
-  bollingerBreakout,
-  bollingerTouch,
-  priceAboveSma,
-  priceBelowSma,
-  priceDroppedAtr,
-  // Validated conditions (with damashi detection)
-  validatedGoldenCross,
-  validatedDeadCross,
-  // Perfect Order conditions
-  perfectOrderBullish,
-  perfectOrderBearish,
-  perfectOrderCollapsed,
-  perfectOrderActiveBullish,
-  perfectOrderActiveBearish,
-  // Enhanced Perfect Order conditions
-  perfectOrderBullishConfirmed,
-  perfectOrderBearishConfirmed,
-  perfectOrderConfirmationFormed,
-  perfectOrderBreakdown,
-  perfectOrderMaCollapsed,
-  perfectOrderPreBullish,
-  perfectOrderPreBearish,
-  // PO+ and PB entry conditions
-  poPlusEntry,
-  pbEntry,
-  poPlusPbEntry,
-  // Stochastics conditions
-  stochBelow,
-  stochAbove,
-  stochCrossUp,
-  stochCrossDown,
-  // DMI/ADX conditions
-  dmiBullish,
-  dmiBearish,
-  adxStrong,
-  // Volume conditions
-  volumeAboveAvg,
-  // Fundamental conditions
-  perBelow,
-  perAbove,
-  perBetween,
-  pbrBelow,
-  pbrAbove,
-  pbrBetween,
-  // Engine
-  runBacktest,
-  runBacktestScaled,
-  // Portfolio / Multi-Asset Backtest
-  batchBacktest,
-  portfolioBacktest,
-} from "./backtest";
-
+// Safe indicator versions (Result-returning)
+export * as safe from "./indicators/safe";
 export type {
-  ValidatedCrossOptions,
-  PerfectOrderConditionOptions,
-  PerfectOrderEnhancedConditionOptions,
-  ScaledBacktestOptions,
-} from "./backtest";
-
-// Portfolio types
-export type {
-  SymbolData,
-  SymbolBacktestResult,
-  EquityPoint,
-  BatchBacktestOptions,
-  PortfolioMetrics,
-  BatchBacktestResult,
-  AllocationStrategy,
-  RebalanceConfig,
-  PortfolioBacktestOptions,
-  PortfolioBacktestResult,
-} from "./types";
-
-// Signals
+  // Anchored Walk-Forward types
+  AnchoredWalkForwardOptions,
+  AWFPeriod,
+  AWFResult,
+  CombinationResultEntry,
+  CombinationSearchOptions,
+  CombinationSearchResult,
+  // Combination Search types
+  ConditionDefinition,
+  DnaGrade,
+  DnaGradeItem,
+  DnaGradeReport,
+  // Strategy DNA types
+  GenomeSegment,
+  GridSearchOptions,
+  GridSearchResult,
+  MetricStatistics,
+  // Monte Carlo types
+  MonteCarloOptions,
+  MonteCarloResult,
+  OptimizationConstraint,
+  OptimizationMetric,
+  OptimizationResultEntry,
+  // Optimization types
+  ParameterRange,
+  // Pareto types
+  ParetoObjective,
+  ParetoOptions,
+  ParetoResult,
+  ParetoResultEntry,
+  PathParameterRange,
+  RecommendedParams,
+  SafeZone,
+  SensitivityData,
+  SensitivityPair,
+  SensitivitySingle,
+  StrategyFactory,
+  WalkForwardOptions,
+  WalkForwardPeriod,
+  WalkForwardResult,
+} from "./optimization";
+// Optimization
 export {
-  crossOver,
-  crossUnder,
-  goldenCross,
-  deadCross,
-  validateCrossSignals,
-  obvDivergence,
-  rsiDivergence,
-  macdDivergence,
-  cvdDivergence,
-  detectDivergence,
-  bollingerSqueeze,
-  perfectOrder,
-  perfectOrderEnhanced,
-  rangeBound,
-  volumeBreakout,
-  volumeAccumulation,
-  volumeMaCross,
-  volumeAboveAverage,
-  // Trade Signal Converters
-  fromCrossSignal,
-  fromDivergenceSignal,
-  fromSqueezeSignal,
-  fromPatternSignal,
-  fromScoreResult,
-  fromPipelineResult,
-  // Candlestick Patterns
-  candlestickPatterns,
-  // Price Patterns
-  doubleTop,
-  doubleBottom,
-  headAndShoulders,
-  inverseHeadAndShoulders,
-  cupWithHandle,
-  detectTriangle,
-  detectWedge,
-  detectChannel,
-  detectFlag,
-  detectHarmonicPatterns,
-  filterPatterns,
-  fitTrendline,
-  fitTrendlinePair,
-  classifyTrendlinePair,
-  // Signal Lifecycle
-  createSignalManager,
-  processSignalsBatch,
-  // Coaching
-  detectCoachingSignals,
-} from "./signals";
-export type {
-  // Signal Lifecycle types
-  SignalState,
-  ManagedSignal,
-  CooldownConfig,
-  DebounceConfig,
-  ExpiryConfig,
-  SignalKeyFn,
-  SignalManagerOptions,
-  SignalManagerState,
-  SignalManager,
-  CrossValidationOptions,
-  CrossSignalQuality,
-  DivergenceSignal,
-  DivergenceOptions,
-  SqueezeSignal,
-  SqueezeOptions,
-  PerfectOrderType,
-  PerfectOrderValue,
-  PerfectOrderOptions,
-  SlopeDirection,
-  PerfectOrderState,
-  PerfectOrderValueEnhanced,
-  PerfectOrderOptionsEnhanced,
-  TrendReason,
-  RangeBoundState,
-  RangeBoundValue,
-  RangeBoundOptions,
-  VolumeBreakoutSignal,
-  VolumeBreakoutOptions,
-  VolumeAccumulationSignal,
-  VolumeAccumulationOptions,
-  VolumeMaCrossSignal,
-  VolumeMaCrossOptions,
-  VolumeAboveAverageSignal,
-  VolumeAboveAverageOptions,
-  // Candlestick Pattern types
-  CandlestickPattern,
-  CandlestickPatternName,
-  CandlestickPatternOptions,
-  CandlestickPatternValue,
-  // Pattern types
-  PatternType,
-  PatternKeyPoint,
-  PatternNeckline,
-  PatternSignal,
-  DoublePatternOptions,
-  HeadShouldersOptions,
-  CupHandleOptions,
-  TriangleOptions,
-  WedgeOptions,
-  ChannelOptions,
-  FlagOptions,
-  HarmonicPatternType,
-  HarmonicPatternOptions,
-  PatternFilterOptions,
-  TrendlineFit,
-  TrendlinePairType,
-  // Coaching types
-  CoachingSignal,
-  CoachingDirection,
-  CoachingSeverity,
-  CoachingOptions,
-} from "./signals";
-
-// Range-Bound backtest conditions
-export {
-  inRangeBound,
-  rangeForming,
-  rangeConfirmed,
-  breakoutRiskUp,
-  breakoutRiskDown,
-  rangeBreakout,
-  tightRange,
-  rangeScoreAbove,
-} from "./backtest";
-
-export type { RangeBoundConditionOptions } from "./backtest";
-
-// Advanced Volume conditions
-export {
-  volumeAnomalyCondition,
-  volumeExtreme,
-  volumeRatioAbove,
-  nearPoc,
-  inValueArea,
-  breakoutVah,
-  breakdownVal,
-  priceAbovePoc,
-  priceBelowPoc,
-  volumeConfirmsTrend,
-  volumeDivergence,
-  bullishVolumeDivergence,
-  bearishVolumeDivergence,
-  volumeTrendConfidence,
-  // CMF conditions
-  cmfAbove,
-  cmfBelow,
-  // OBV conditions
-  obvRising,
-  obvFalling,
-  obvCrossUp,
-  obvCrossDown,
-} from "./backtest";
-
-// Multi-Timeframe (MTF) conditions
-export {
-  weeklyRsiAbove,
-  weeklyRsiBelow,
-  monthlyRsiAbove,
-  monthlyRsiBelow,
-  mtfRsiAbove,
-  mtfRsiBelow,
-  weeklyPriceAboveSma,
-  weeklyPriceBelowSma,
-  monthlyPriceAboveSma,
-  monthlyPriceBelowSma,
-  mtfPriceAboveSma,
-  mtfPriceBelowSma,
-  weeklyPriceAboveEma,
-  mtfPriceAboveEma,
-  weeklyTrendStrong,
-  monthlyTrendStrong,
-  mtfTrendStrong,
-  weeklyUptrend,
-  weeklyDowntrend,
-  mtfUptrend,
-  mtfDowntrend,
-  mtfCondition,
-} from "./backtest";
-
-// Volatility Regime conditions
-export {
-  regimeIs,
-  regimeNot,
-  volatilityAbove,
-  volatilityBelow,
-  atrPercentileAbove,
-  atrPercentileBelow,
-  regimeConfidenceAbove,
-  volatilityExpanding,
-  volatilityContracting,
-  // ATR% Filter conditions
-  atrPercentAbove,
-  atrPercentBelow,
-} from "./backtest";
-
-// Relative Strength (RS) conditions
-export {
-  rsAbove,
-  rsBelow,
-  rsRising,
-  rsFalling,
-  rsNewHigh,
-  rsNewLow,
-  rsRatingAbove,
-  rsRatingBelow,
-  mansfieldRSAbove,
-  mansfieldRSBelow,
-  outperformanceAbove,
-  outperformanceBelow,
-  setBenchmark,
-  BENCHMARK_CACHE_KEY,
-} from "./backtest";
-
-export type { RSConditionOptions } from "./backtest";
-
-// Price Pattern conditions
-export {
-  patternDetected,
-  patternConfirmed,
-  anyBullishPattern,
-  anyBearishPattern,
-  patternConfidenceAbove,
-  anyPatternConfidenceAbove,
-  patternWithinBars,
-  doubleTopDetected,
-  doubleBottomDetected,
-  headShouldersDetected,
-  inverseHeadShouldersDetected,
-  cupHandleDetected,
-  triangleDetected,
-  wedgeDetected,
-  channelDetected,
-  flagDetected,
-  bullFlagDetected,
-  bearFlagDetected,
-  harmonicPatternDetected,
-  bullishHarmonicDetected,
-  bearishHarmonicDetected,
-} from "./backtest";
-
-export type { PatternConditionOptions } from "./backtest";
-
-// Smart Money Concepts (SMC) conditions
-export {
-  priceAtBullishOrderBlock,
-  priceAtBearishOrderBlock,
-  priceAtOrderBlock,
-  orderBlockCreated,
-  orderBlockMitigated,
-  hasActiveOrderBlocks,
-  liquiditySweepDetected,
-  liquiditySweepRecovered,
-  hasRecentSweeps,
-  sweepDepthAbove,
-} from "./backtest";
-
-export type { OrderBlockConditionOptions, LiquiditySweepConditionOptions } from "./backtest";
-
-// Perfect Order Pullback conditions
-export {
-  perfectOrderPullbackEntry,
-  perfectOrderPullbackSellEntry,
-} from "./backtest";
-
-// Volatility Regime indicator
-export { volatilityRegime } from "./indicators";
-
+  // Anchored Walk-Forward Analysis
+  anchoredWalkForwardAnalysis,
+  anchoredWalkForwardAnalysisSafe,
+  annualizeReturn,
+  // Strategy DNA — post-optimization analytics
+  buildGenomeSegments,
+  calculateAllMetrics,
+  calculateAWFPeriodCount,
+  calculateCalmarRatio,
+  calculatePeriodCount,
+  calculateRecoveryFactor,
+  // Metrics
+  calculateSharpeRatio,
+  calculateStatistics,
+  // Combination Search
+  combinationSearch,
+  combinationSearchSafe,
+  computeDnaGrade,
+  computeRecommendedParams,
+  constraint,
+  countCombinations,
+  countTotalCombinations,
+  createEntryConditionPool,
+  createExitConditionPool,
+  crowdingDistance,
+  extractSensitivityData,
+  fastNonDominatedSort,
+  formatAWFResult,
+  formatCombinationResult,
+  formatMonteCarloResult,
+  GRID_SEARCH_EPSILON_FACTOR,
+  generateAWFBoundaries,
+  generateCombinations,
+  generateParameterCombinations,
+  generatePeriodBoundaries,
+  getAWFEquityCurve,
+  getOutOfSampleEquityCurve,
+  getTopCombinations,
+  getTopResults,
+  // Grid Search
+  gridSearch,
+  gridSearchFromJSON,
+  gridSearchFromJSONSafe,
+  gridSearchSafe,
+  param,
+  // Pareto (Multi-Objective) Optimization
+  paretoOptimization,
+  paretoOptimizationSafe,
+  // Monte Carlo Simulation
+  runMonteCarloSimulation,
+  runMonteCarloSimulationSafe,
+  summarizeAWFResult,
+  summarizeCombinationSearch,
+  summarizeGridSearch,
+  summarizeMonteCarloResult,
+  summarizeParetoResult,
+  summarizeWalkForward,
+  // Walk-Forward Analysis
+  walkForwardAnalysis,
+  walkForwardAnalysisSafe,
+} from "./optimization";
 // Position Sizing
 export {
-  // Risk-based sizing
-  riskBasedSize,
-  calculateStopDistance,
-  riskPerShare,
   // ATR-based sizing
   atrBasedSize,
   calculateAtrStopDistance,
-  recommendedAtrMultiplier,
-  // Kelly criterion
-  kellySize,
   calculateKellyPercent,
+  calculateStopDistance,
   // Fixed fractional
   fixedFractionalSize,
-  maxPositions,
   fractionForPositionCount,
+  // Kelly criterion
+  kellySize,
+  maxPositions,
+  recommendedAtrMultiplier,
+  // Risk-based sizing
+  riskBasedSize,
+  riskPerShare,
 } from "./position-sizing";
-
-export type {
-  PositionSizeResult,
-  PositionSizingMethod,
-  PositionSizingBaseOptions,
-  RiskBasedSizingOptions,
-  AtrBasedSizingOptions,
-  KellySizingOptions,
-  FixedFractionalOptions,
-  PositionSizingOptions,
-  // Scoring types
-  SignalEvaluator,
-  SignalDefinition,
-  ScoreResult,
-  SignalContribution,
-  ScoreBreakdown,
-  ScoringConfig,
-  ScoringPreset,
-} from "./types";
-
 // Signal Scoring
 export {
   // Calculator
   calculateScore,
   calculateScoreBreakdown,
   calculateScoreSeries,
-  isScoreAbove,
-  isScoreBelow,
-  // Builder
-  ScoreBuilder,
-  // Presets
-  getPreset,
-  listPresets,
-  createMomentumPreset,
-  createMeanReversionPreset,
-  createTrendFollowingPreset,
-  createBalancedPreset,
   createAggressivePreset,
+  createBalancedPreset,
   createConservativePreset,
-  // Backtest conditions
-  scoreAbove,
-  scoreBelow,
-  scoreStrength,
-  minActiveSignals,
-  scoreWithMinSignals,
-  scoreIncreasing,
-  // Signal evaluators
-  createRsiOversoldEvaluator,
-  createRsiOverboughtEvaluator,
-  createMacdBullishEvaluator,
   createMacdBearishEvaluator,
+  createMacdBullishEvaluator,
+  createMeanReversionPreset,
+  createMomentumPreset,
   createPerfectOrderBullishEvaluator,
   createPOConfirmationEvaluator,
   createPullbackEntryEvaluator,
-  createVolumeSpikeEvaluator,
+  createRsiOverboughtEvaluator,
+  // Signal evaluators
+  createRsiOversoldEvaluator,
+  createTrendFollowingPreset,
   createVolumeAnomalyEvaluator,
+  createVolumeSpikeEvaluator,
+  // Presets
+  getPreset,
+  isScoreAbove,
+  isScoreBelow,
+  listPresets,
+  macdBearish,
+  macdBullish,
+  minActiveSignals,
+  perfectOrderBearish as poBearishSignal,
+  perfectOrderBullish as poBullishSignal,
+  poConfirmation,
+  rsiOverbought70,
   // Pre-built signals
   rsiOversold30,
-  rsiOverbought70,
-  macdBullish,
-  macdBearish,
-  perfectOrderBullish as poBullishSignal,
-  perfectOrderBearish as poBearishSignal,
-  poConfirmation,
-  volumeSpike,
+  // Builder
+  ScoreBuilder,
+  // Backtest conditions
+  scoreAbove,
+  scoreBelow,
+  scoreIncreasing,
+  scoreStrength,
+  scoreWithMinSignals,
   volumeAnomaly2z,
+  volumeSpike,
 } from "./scoring";
-
-// Result types
-export type { Ok, Err, Result, TrendCraftErrorCode, TrendCraftError } from "./types";
-export {
-  ok,
-  err,
-  tcError,
-  mapResult,
-  flatMap,
-  unwrapOr,
-  unwrap,
-  collectResults,
-  partitionResults,
-  tryCatch,
-  toResult,
-} from "./types";
-
-// Safe indicator versions (Result-returning)
-export * as safe from "./indicators/safe";
-
-// Incremental Indicator API
-export * as incremental from "./indicators/incremental";
-
-// Indicator Cache
-export { IndicatorCache, createCachedIndicators } from "./core/indicator-cache";
-
-// Optimization
-export {
-  // Metrics
-  calculateSharpeRatio,
-  calculateCalmarRatio,
-  calculateRecoveryFactor,
-  annualizeReturn,
-  calculateAllMetrics,
-  // Grid Search
-  gridSearch,
-  gridSearchSafe,
-  generateParameterCombinations,
-  countCombinations,
-  GRID_SEARCH_EPSILON_FACTOR,
-  param,
-  constraint,
-  getTopResults,
-  summarizeGridSearch,
-  gridSearchFromJSON,
-  gridSearchFromJSONSafe,
-  // Walk-Forward Analysis
-  walkForwardAnalysis,
-  walkForwardAnalysisSafe,
-  calculatePeriodCount,
-  generatePeriodBoundaries,
-  summarizeWalkForward,
-  getOutOfSampleEquityCurve,
-  // Combination Search
-  combinationSearch,
-  combinationSearchSafe,
-  generateCombinations,
-  countTotalCombinations,
-  getTopCombinations,
-  formatCombinationResult,
-  summarizeCombinationSearch,
-  createEntryConditionPool,
-  createExitConditionPool,
-  // Monte Carlo Simulation
-  runMonteCarloSimulation,
-  runMonteCarloSimulationSafe,
-  calculateStatistics,
-  formatMonteCarloResult,
-  summarizeMonteCarloResult,
-  // Anchored Walk-Forward Analysis
-  anchoredWalkForwardAnalysis,
-  anchoredWalkForwardAnalysisSafe,
-  generateAWFBoundaries,
-  calculateAWFPeriodCount,
-  summarizeAWFResult,
-  formatAWFResult,
-  getAWFEquityCurve,
-  // Pareto (Multi-Objective) Optimization
-  paretoOptimization,
-  paretoOptimizationSafe,
-  fastNonDominatedSort,
-  crowdingDistance,
-  summarizeParetoResult,
-  // Strategy DNA — post-optimization analytics
-  buildGenomeSegments,
-  extractSensitivityData,
-  computeRecommendedParams,
-  computeDnaGrade,
-} from "./optimization";
-
-export type {
-  // Optimization types
-  ParameterRange,
-  OptimizationMetric,
-  OptimizationConstraint,
-  OptimizationResultEntry,
-  GridSearchResult,
-  GridSearchOptions,
-  WalkForwardPeriod,
-  WalkForwardResult,
-  WalkForwardOptions,
-  StrategyFactory,
-  PathParameterRange,
-  // Combination Search types
-  ConditionDefinition,
-  CombinationResultEntry,
-  CombinationSearchResult,
-  CombinationSearchOptions,
-  // Monte Carlo types
-  MonteCarloOptions,
-  MonteCarloResult,
-  MetricStatistics,
-  // Anchored Walk-Forward types
-  AnchoredWalkForwardOptions,
-  AWFPeriod,
-  AWFResult,
-  // Pareto types
-  ParetoObjective,
-  ParetoOptions,
-  ParetoResultEntry,
-  ParetoResult,
-  // Strategy DNA types
-  GenomeSegment,
-  SensitivitySingle,
-  SensitivityPair,
-  SafeZone,
-  SensitivityData,
-  RecommendedParams,
-  DnaGrade,
-  DnaGradeItem,
-  DnaGradeReport,
-} from "./optimization";
-
+export { parseCsv } from "./screening/csv-parser";
+export { formatCsv, formatJson, formatTable } from "./screening/formatters";
 // Screening (browser-compatible exports only - no fs dependency)
 export {
-  screenStock,
-  screenStockSafe,
+  CONDITION_PRESETS,
   createCriteriaFromNames,
   getAvailableConditions,
-  CONDITION_PRESETS,
+  screenStock,
+  screenStockSafe,
 } from "./screening/screen-stock";
+export type {
+  // Candlestick Pattern types
+  CandlestickPattern,
+  CandlestickPatternName,
+  CandlestickPatternOptions,
+  CandlestickPatternValue,
+  ChannelOptions,
+  CoachingDirection,
+  CoachingOptions,
+  CoachingSeverity,
+  // Coaching types
+  CoachingSignal,
+  CooldownConfig,
+  CrossSignalQuality,
+  CrossValidationOptions,
+  CupHandleOptions,
+  DebounceConfig,
+  DivergenceOptions,
+  DivergenceSignal,
+  DoublePatternOptions,
+  ExpiryConfig,
+  FlagOptions,
+  HarmonicPatternOptions,
+  HarmonicPatternType,
+  HeadShouldersOptions,
+  ManagedSignal,
+  PatternFilterOptions,
+  PatternKeyPoint,
+  PatternNeckline,
+  PatternSignal,
+  // Pattern types
+  PatternType,
+  PerfectOrderOptions,
+  PerfectOrderOptionsEnhanced,
+  PerfectOrderState,
+  PerfectOrderType,
+  PerfectOrderValue,
+  PerfectOrderValueEnhanced,
+  RangeBoundOptions,
+  RangeBoundState,
+  RangeBoundValue,
+  SignalKeyFn,
+  SignalManager,
+  SignalManagerOptions,
+  SignalManagerState,
+  // Signal Lifecycle types
+  SignalState,
+  SlopeDirection,
+  SqueezeOptions,
+  SqueezeSignal,
+  TrendlineFit,
+  TrendlinePairType,
+  TrendReason,
+  TriangleOptions,
+  VolumeAboveAverageOptions,
+  VolumeAboveAverageSignal,
+  VolumeAccumulationOptions,
+  VolumeAccumulationSignal,
+  VolumeBreakoutOptions,
+  VolumeBreakoutSignal,
+  VolumeMaCrossOptions,
+  VolumeMaCrossSignal,
+  WedgeOptions,
+} from "./signals";
+// Signals
+export {
+  bollingerSqueeze,
+  // Candlestick Patterns
+  candlestickPatterns,
+  classifyTrendlinePair,
+  // Signal Lifecycle
+  createSignalManager,
+  crossOver,
+  crossUnder,
+  cupWithHandle,
+  cvdDivergence,
+  deadCross,
+  detectChannel,
+  // Coaching
+  detectCoachingSignals,
+  detectDivergence,
+  detectFlag,
+  detectHarmonicPatterns,
+  detectTriangle,
+  detectWedge,
+  doubleBottom,
+  // Price Patterns
+  doubleTop,
+  filterPatterns,
+  fitTrendline,
+  fitTrendlinePair,
+  // Trade Signal Converters
+  fromCrossSignal,
+  fromDivergenceSignal,
+  fromPatternSignal,
+  fromPipelineResult,
+  fromScoreResult,
+  fromSqueezeSignal,
+  goldenCross,
+  headAndShoulders,
+  inverseHeadAndShoulders,
+  macdDivergence,
+  obvDivergence,
+  perfectOrder,
+  perfectOrderEnhanced,
+  processSignalsBatch,
+  rangeBound,
+  rsiDivergence,
+  validateCrossSignals,
+  volumeAboveAverage,
+  volumeAccumulation,
+  volumeBreakout,
+  volumeMaCross,
+} from "./signals";
+// Types
+// Plugin system
+// Portfolio types
+// Result types
+export type {
+  AllocationStrategy,
+  AtrBasedSizingOptions,
+  AtrOptions,
+  // ATR risk management types
+  AtrRiskOptions,
+  AtrStopsOptions,
+  AtrStopsValue,
+  AtrTrailingStopConfig,
+  BacktestOptions,
+  BacktestResult,
+  BacktestSettings,
+  BatchBacktestOptions,
+  BatchBacktestResult,
+  BollingerBandsOptions,
+  BollingerBandsValue,
+  // Candle types
+  Candle,
+  ChandelierExitOptions,
+  ChandelierExitValue,
+  CombinedCondition,
+  Condition,
+  ConditionFn,
+  CrossOptions,
+  DrawdownPeriod,
+  EmaOptions,
+  EquityPoint,
+  Err,
+  ExitReason,
+  FillMode,
+  FixedFractionalOptions,
+  // Fundamental metrics types
+  FundamentalMetrics,
+  HighestLowestOptions,
+  IndicatorPlugin,
+  // Indicator types
+  IndicatorValue,
+  KellySizingOptions,
+  MacdOptions,
+  // Indicator result types
+  MacdValue,
+  MtfConditionFn,
+  // MTF types
+  MtfContext,
+  MtfDataset,
+  MtfPresetCondition,
+  NormalizedCandle,
+  Ok,
+  PartialTakeProfitConfig,
+  PortfolioBacktestOptions,
+  PortfolioBacktestResult,
+  PortfolioMetrics,
+  // Backtest types
+  PositionDirection,
+  PositionSizeResult,
+  PositionSizingBaseOptions,
+  PositionSizingMethod,
+  PositionSizingOptions,
+  PresetCondition,
+  PriceLevels,
+  PriceSource,
+  RebalanceConfig,
+  Result,
+  ReturnsOptions,
+  RiskBasedSizingOptions,
+  RsiOptions,
+  ScaledEntryConfig,
+  ScaledEntryIntervalType,
+  // Scaled entry types
+  ScaledEntryStrategy,
+  ScoreBreakdown,
+  ScoreResult,
+  ScoringConfig,
+  ScoringPreset,
+  Series,
+  Signal,
+  SignalContribution,
+  SignalDefinition,
+  // Scoring types
+  SignalEvaluator,
+  SignalReason,
+  // Signal types
+  SignalType,
+  SlTpMode,
+  // Option types
+  SmaOptions,
+  SymbolBacktestResult,
+  SymbolData,
+  // Timeframe types
+  Timeframe,
+  TimeframeShorthand,
+  TimeframeUnit,
+  Trade,
+  // Trade Signal types
+  TradeAction,
+  TradeDirection,
+  TradeSignal,
+  TrendCraftError,
+  TrendCraftErrorCode,
+  // Volatility regime types
+  VolatilityRegime,
+  VolatilityRegimeOptions,
+  VolatilityRegimeValue,
+  // Volume analysis types
+  VolumeAnomalyValue,
+  VolumePriceLevel,
+  VolumeProfileValue,
+  VolumeTrendValue,
+} from "./types";
+export {
+  collectResults,
+  defineIndicator,
+  err,
+  flatMap,
+  mapResult,
+  ok,
+  partitionResults,
+  tcError,
+  toResult,
+  tryCatch,
+  unwrap,
+  unwrapOr,
+} from "./types";
 
-export { parseCsv } from "./screening/csv-parser";
-
-export { formatTable, formatJson, formatCsv } from "./screening/formatters";
 // Note: runScreening, loadCsvFile, getCsvFiles, loadCsvDirectory are Node.js-only
 // Import from "trendcraft/screening" or "../src/screening" for CLI usage
-
-export type {
-  ScreeningCriteria,
-  ScreeningResult,
-  ScreeningOptions,
-  ScreeningSessionResult,
-  OutputFormat,
-  CsvLoadResult,
-  CsvLoadError,
-} from "./screening";
-
-// Trade Analysis
-export {
-  calculateTradeStats,
-  analyzeByExitReason,
-  analyzeByHoldingPeriod,
-  analyzeByTime,
-  analyzeMfeMae,
-  analyzeStreaks,
-  analyzeAllTrades,
-  detectMarketRegime,
-  calculateRuntimeMetrics,
-  analyzeDrawdowns,
-  projectPatternOutcome,
-  projectFromSeries,
-  projectFromPatterns,
-  // Market Context
-  analyzeMarketContext,
-  // Behavior Insights
-  generateBehaviorInsights,
-} from "./analysis";
-
-export type {
-  TradeStats,
-  ExitReasonAnalysis,
-  HoldingPeriodAnalysis,
-  TimeAnalysis,
-  MfeMaeAnalysis,
-  StreakAnalysis,
-  TradeAnalysis,
-  MarketRegimeResult,
-  MarketRegimeOptions,
-  RuntimeMetrics,
-  RuntimeMetricsOptions,
-  DrawdownSummary,
-  PatternProjectionOptions,
-  HitRate,
-  PatternProjection,
-  EventExtractor,
-  // Market Context types
-  MarketContext,
-  MarketContextOptions,
-  // Behavior Insights types
-  BehaviorInsight,
-  BehaviorEquityPoint,
-} from "./analysis";
-
-// Validation
-export {
-  validateCandles,
-  detectGaps,
-  detectDuplicates,
-  removeDuplicates,
-  detectOhlcErrors,
-  detectPriceSpikes,
-  detectVolumeAnomalies,
-  detectStaleData,
-  detectSplitHints,
-} from "./validation";
-export type {
-  ValidationResult,
-  ValidationFinding,
-  ValidationOptions,
-  ValidationSeverity,
-  GapDetectionOptions,
-  SpikeDetectionOptions,
-  VolumeAnomalyOptions,
-  StaleDetectionOptions,
-} from "./validation";
-export { normalizeAndValidate } from "./core/normalize";
-
-// Series tagging (chart rendering metadata)
-export { tagSeries } from "./core/tag-series";
-export type { SeriesMeta, TaggedSeries } from "./types/candle";
-
-// Streaming (real-time trading pipeline)
-export * as streaming from "./streaming";
-export { createLiveCandle } from "./streaming";
-export { livePresets } from "./streaming";
-export type { LivePreset } from "./streaming";
-export { indicatorPresets, getIndicatorPreset } from "./streaming";
-export type { IndicatorPreset, IndicatorCategory, ParamSchema } from "./streaming";
-
-// Unified Conditions (define once, use in backtest & streaming)
-export {
-  defineUnifiedCondition,
-  unifiedAnd,
-  unifiedOr,
-  unifiedNot,
-} from "./conditions";
-
-export type {
-  IndicatorAccessor,
-  UnifiedConditionDef,
-  UnifiedCondition,
-} from "./conditions";
-
-// Backtest Scoring
-export { scoreBacktestResult } from "./backtest";
-export type { BacktestScore, ScoreBreakdownEntry, ScoreWeights, ScoreOptions } from "./backtest";
-
-// Strategy Definition
-export * as strategy from "./strategy";
-export type { StrategyDefinition, SessionOverrides } from "./strategy";
-export { createSessionFromStrategy } from "./strategy";
-
-// Strategy JSON Serialization
-export type {
-  ConditionSpec,
-  StrategyJSON,
-  ParamDef,
-  ConditionParamSchema,
-  ConditionCategory,
-  ConditionRegistryEntry,
-  ValidationResult as StrategyValidationResult,
-} from "./strategy";
-export { ConditionRegistry } from "./strategy";
-export { backtestRegistry } from "./strategy";
-export { streamingRegistry } from "./strategy";
-export { hydrateCondition, loadStrategy } from "./strategy";
-export { serializeStrategy, parseStrategy, parseStrategySafe } from "./strategy";
-export { validateConditionSpec, validateStrategyJSON } from "./strategy";
-export { applyParamOverrides, flattenStrategyLeaves, parseLeafPath } from "./strategy";
-export type { LeafInfo, ParsedLeafPath } from "./strategy";
-
-// Execution utilities (resilient order execution)
-export * as execution from "./execution";
-
-// Series Utilities
-export {
-  zipSeries,
-  mapSeries,
-  filterSeries,
-  alignSeries,
-  normalizeToPercent,
-  alignAndNormalize,
-} from "./utils/series";
-
-// Composable Indicator Algebra
-export {
-  pipe,
-  compose,
-  applyIndicator,
-  through,
-  seriesToCandles,
-  extractField,
-  mapValues,
-  combineSeries,
-} from "./compose";
-export type { IndicatorFn, SeriesTransformFn, SeriesToCandlesOptions } from "./types";
-
-// Signal Explainability
-export {
-  explainSignal,
-  explainCondition,
-  traceCondition,
-  generateNarrative,
-} from "./explainability";
-export type { ConditionTrace, SignalExplanation, ExplainOptions } from "./types";
 
 // Alpha Decay Monitor
 export {
   analyzeAlphaDecay,
-  createObservationsFromTrades,
   createObservationsFromScores,
+  createObservationsFromTrades,
   spearmanCorrelation,
 } from "./alpha-decay";
 export type {
-  DecayObservation,
-  RollingICPoint,
-  HitRatePoint,
-  CusumBreak,
-  DecayAssessment,
-  AlphaDecayResult,
-  AlphaDecayOptions,
-} from "./types";
-
-// Pairs Trading / Cointegration
+  BehaviorEquityPoint,
+  // Behavior Insights types
+  BehaviorInsight,
+  DrawdownSummary,
+  EventExtractor,
+  ExitReasonAnalysis,
+  HitRate,
+  HoldingPeriodAnalysis,
+  // Market Context types
+  MarketContext,
+  MarketContextOptions,
+  MarketRegimeOptions,
+  MarketRegimeResult,
+  MfeMaeAnalysis,
+  PatternProjection,
+  PatternProjectionOptions,
+  RuntimeMetrics,
+  RuntimeMetricsOptions,
+  StreakAnalysis,
+  TimeAnalysis,
+  TradeAnalysis,
+  TradeStats,
+} from "./analysis";
+// Trade Analysis
 export {
-  analyzePair,
-  adfTest,
-  calculateSpread,
-  analyzeMeanReversion,
-  olsRegression,
-} from "./pairs";
+  analyzeAllTrades,
+  analyzeByExitReason,
+  analyzeByHoldingPeriod,
+  analyzeByTime,
+  analyzeDrawdowns,
+  // Market Context
+  analyzeMarketContext,
+  analyzeMfeMae,
+  analyzeStreaks,
+  calculateRuntimeMetrics,
+  calculateTradeStats,
+  detectMarketRegime,
+  // Behavior Insights
+  generateBehaviorInsights,
+  projectFromPatterns,
+  projectFromSeries,
+  projectPatternOutcome,
+} from "./analysis";
 export type {
-  CointegrationResult,
-  SpreadPoint,
-  MeanReversionResult,
-  PairsSignal,
-  PairsAnalysisOptions,
-  PairsAnalysisResult,
-} from "./types";
-
-// Cross-Asset Correlation
-export {
-  analyzeCorrelation,
-  rollingCorrelation,
-  pearsonCorrelation,
-  spearmanRankCorrelation,
-  detectCorrelationRegimes,
-  analyzeLeadLag,
-  detectIntermarketDivergence,
-} from "./correlation";
-export type {
-  CorrelationPoint,
-  CorrelationRegime,
-  CorrelationRegimePoint,
-  LeadLagResult,
-  DivergencePoint,
-  CorrelationAnalysisResult,
-  CorrelationAnalysisOptions,
-} from "./types";
-
-// Strategy Robustness Score
-export { quickRobustnessScore, calculateRobustnessScore, scoreToGrade } from "./robustness";
-export type {
-  DimensionScore,
-  RobustnessGrade,
-  RobustnessResult,
-  RobustnessOptions,
-  QuickRobustnessOptions,
-  QuickRobustnessResult,
-} from "./types";
-
-// Risk Analytics (VaR / CVaR / Risk Parity)
-export {
-  calculateVaR,
-  rollingVaR,
-  riskParityAllocation,
-  correlationAdjustedSize,
-} from "./risk";
-export type {
-  VarMethod,
-  VarOptions,
-  VarResult,
-  RollingVarOptions,
-  RollingVarValue,
-  RiskParityOptions,
-  RiskParityResult,
-  CorrelationAdjustedSizeOptions,
-  CorrelationAdjustedSizeResult,
-} from "./risk";
-
-// Stress Testing / Scenario Analysis
-export {
-  stressTest,
-  runAllStressTests,
-  generateShockedReturns,
-  calculateMetricsFromReturns,
-  PRESET_SCENARIOS,
-} from "./risk";
-export type {
-  ReturnShock,
-  StressScenario,
-  StressTestResult,
-  StressTestSummary,
-} from "./risk";
-
-// Deep Drawdown Analysis
-export {
-  drawdownDistribution,
-  conditionalDrawdown,
-  estimateRecoveryTime,
-  ulcerPerformanceIndex,
-} from "./risk";
-export type {
-  DrawdownBin,
-  DrawdownDistribution,
-  ConditionalDrawdownResult,
-  RecoveryEstimate,
-} from "./risk";
-
-// Dynamic Slippage Model
-export { calculateDynamicSlippage, resolveSlippageModel } from "./backtest";
-export type {
-  SlippageModel,
-  FixedSlippageModel,
-  VolatilitySlippageModel,
-  VolumeSlippageModel,
+  BacktestScore,
   CompositeSlippageModel,
-} from "./backtest";
-
-// Order Types (Limit/Stop)
-export {
-  tryFillOrder,
-  // Preset limit/stop strategies
-  limitBelowClose,
-  limitAboveClose,
-  limitAtrBelow,
-  limitAtrAbove,
-  limitAtLow,
-  limitAtHigh,
-  stopAboveHigh,
-  stopBelowLow,
-  stopAtrAbove,
-  stopAtrBelow,
-} from "./backtest";
-export type {
-  OrderType,
+  FixedSlippageModel,
   LimitOrder,
-  StopOrder,
-  StopLimitOrder,
-  PendingOrder,
   LimitPriceFunc,
+  MarginConfig,
+  MarginState,
+  OrderType,
+  PendingOrder,
+  ScoreBreakdownEntry,
+  ScoreOptions,
+  ScoreWeights,
+  SlippageModel,
+  StopLimitOrder,
+  StopOrder,
   StopPriceFunc,
   TimeInForce,
+  VolatilitySlippageModel,
+  VolumeSlippageModel,
 } from "./backtest";
-
+// Backtest Scoring
+// Dynamic Slippage Model
+// Order Types (Limit/Stop)
 // Margin/Leverage
 export {
-  createMarginState,
-  calculateBuyingPower,
-  updateMarginState,
   accrueInterest,
+  calculateBuyingPower,
+  calculateDynamicSlippage,
   checkMarginCall,
+  createMarginState,
+  limitAboveClose,
+  limitAtHigh,
+  limitAtLow,
+  limitAtrAbove,
+  limitAtrBelow,
+  // Preset limit/stop strategies
+  limitBelowClose,
+  resolveSlippageModel,
+  scoreBacktestResult,
+  stopAboveHigh,
+  stopAtrAbove,
+  stopAtrBelow,
+  stopBelowLow,
+  tryFillOrder,
+  updateMarginState,
 } from "./backtest";
-export type { MarginConfig, MarginState } from "./backtest";
-
-// GARCH / EWMA Volatility
-export { garch, ewmaVolatility, ewmaVolatilityFromCandles } from "./indicators/volatility";
-export type {
-  GarchOptions,
-  GarchResult,
-  EwmaVolatilityOptions,
-  EwmaVolatilityFromCandlesOptions,
-} from "./indicators/volatility";
-
-// Meta-Strategy (Equity Curve Trading, Strategy Rotation)
-export {
-  applyEquityCurveFilter,
-  equityCurveHealth,
-  rotateStrategies,
-} from "./meta-strategy";
-export type {
-  EquityCurveFilterType,
-  EquityCurveFilterOptions,
-  EquityCurveAnalysis,
-  EquityCurveHealthResult,
-  StrategyPerformanceMetric,
-  StrategyRotationOptions,
-  StrategyAllocation,
-  StrategyRotationResult,
-} from "./meta-strategy";
-
-// CandleFormer - ML-based candlestick prediction
-export {
-  trainCandleFormer,
-  candleFormer,
-  candleFormerBullish,
-  candleFormerBearish,
-  quantizeCandle,
-  tokenizeCandles,
-  tokenizePatterns,
-  classifyShape,
-  SHAPE_NAMES,
-  PATTERN_NAMES,
-  VOCAB_SIZE,
-  PAD_TOKEN,
-  NUM_CLASSES,
-  NUM_SHAPES,
-  NUM_VOLUME_BINS,
-  NUM_PATTERNS,
-  PATTERN_VOCAB_SIZE,
-  PATTERN_NONE,
-  DEFAULT_CONFIG as CANDLE_FORMER_DEFAULT_CONFIG,
-} from "./ml";
-export type {
-  CandleToken,
-  CandleFormerConfig,
-  CandleFormerWeights,
-  CandleFormerTrainOptions,
-  CandleFormerTrainResult,
-  CandleFormerOptions,
-  CandleFormerValue,
-  PredictionDirection,
-} from "./ml";
-
+export type { AnnualizationOptions, TradingCalendar } from "./calendar";
 // Trading calendar (market-specific annualization)
 export {
   annualizationFactor,
@@ -1469,4 +1128,262 @@ export {
   JPX_CALENDAR,
   US_EQUITY_CALENDAR,
 } from "./calendar";
-export type { AnnualizationOptions, TradingCalendar } from "./calendar";
+// Composable Indicator Algebra
+export {
+  applyIndicator,
+  combineSeries,
+  compose,
+  extractField,
+  mapValues,
+  pipe,
+  seriesToCandles,
+  through,
+} from "./compose";
+export type {
+  IndicatorAccessor,
+  UnifiedCondition,
+  UnifiedConditionDef,
+} from "./conditions";
+// Unified Conditions (define once, use in backtest & streaming)
+export {
+  defineUnifiedCondition,
+  unifiedAnd,
+  unifiedNot,
+  unifiedOr,
+} from "./conditions";
+export { normalizeAndValidate } from "./core/normalize";
+// Series tagging (chart rendering metadata)
+export { tagSeries } from "./core/tag-series";
+// Cross-Asset Correlation
+export {
+  analyzeCorrelation,
+  analyzeLeadLag,
+  detectCorrelationRegimes,
+  detectIntermarketDivergence,
+  pearsonCorrelation,
+  rollingCorrelation,
+  spearmanRankCorrelation,
+} from "./correlation";
+// Execution utilities (resilient order execution)
+export * as execution from "./execution";
+// Signal Explainability
+export {
+  explainCondition,
+  explainSignal,
+  generateNarrative,
+  traceCondition,
+} from "./explainability";
+export type {
+  EwmaVolatilityFromCandlesOptions,
+  EwmaVolatilityOptions,
+  GarchOptions,
+  GarchResult,
+} from "./indicators/volatility";
+// GARCH / EWMA Volatility
+export { ewmaVolatility, ewmaVolatilityFromCandles, garch } from "./indicators/volatility";
+export type {
+  EquityCurveAnalysis,
+  EquityCurveFilterOptions,
+  EquityCurveFilterType,
+  EquityCurveHealthResult,
+  StrategyAllocation,
+  StrategyPerformanceMetric,
+  StrategyRotationOptions,
+  StrategyRotationResult,
+} from "./meta-strategy";
+// Meta-Strategy (Equity Curve Trading, Strategy Rotation)
+export {
+  applyEquityCurveFilter,
+  equityCurveHealth,
+  rotateStrategies,
+} from "./meta-strategy";
+export type {
+  CandleFormerConfig,
+  CandleFormerOptions,
+  CandleFormerTrainOptions,
+  CandleFormerTrainResult,
+  CandleFormerValue,
+  CandleFormerWeights,
+  CandleToken,
+  PredictionDirection,
+} from "./ml";
+// CandleFormer - ML-based candlestick prediction
+export {
+  candleFormer,
+  candleFormerBearish,
+  candleFormerBullish,
+  classifyShape,
+  DEFAULT_CONFIG as CANDLE_FORMER_DEFAULT_CONFIG,
+  NUM_CLASSES,
+  NUM_PATTERNS,
+  NUM_SHAPES,
+  NUM_VOLUME_BINS,
+  PAD_TOKEN,
+  PATTERN_NAMES,
+  PATTERN_NONE,
+  PATTERN_VOCAB_SIZE,
+  quantizeCandle,
+  SHAPE_NAMES,
+  tokenizeCandles,
+  tokenizePatterns,
+  trainCandleFormer,
+  VOCAB_SIZE,
+} from "./ml";
+// Pairs Trading / Cointegration
+export {
+  adfTest,
+  analyzeMeanReversion,
+  analyzePair,
+  calculateSpread,
+  olsRegression,
+} from "./pairs";
+export type {
+  ConditionalDrawdownResult,
+  CorrelationAdjustedSizeOptions,
+  CorrelationAdjustedSizeResult,
+  DrawdownBin,
+  DrawdownDistribution,
+  RecoveryEstimate,
+  ReturnShock,
+  RiskParityOptions,
+  RiskParityResult,
+  RollingVarOptions,
+  RollingVarValue,
+  StressScenario,
+  StressTestResult,
+  StressTestSummary,
+  VarMethod,
+  VarOptions,
+  VarResult,
+} from "./risk";
+// Risk Analytics (VaR / CVaR / Risk Parity)
+// Stress Testing / Scenario Analysis
+// Deep Drawdown Analysis
+export {
+  calculateMetricsFromReturns,
+  calculateVaR,
+  conditionalDrawdown,
+  correlationAdjustedSize,
+  drawdownDistribution,
+  estimateRecoveryTime,
+  generateShockedReturns,
+  PRESET_SCENARIOS,
+  riskParityAllocation,
+  rollingVaR,
+  runAllStressTests,
+  stressTest,
+  ulcerPerformanceIndex,
+} from "./risk";
+// Strategy Robustness Score
+export { calculateRobustnessScore, quickRobustnessScore, scoreToGrade } from "./robustness";
+export type {
+  CsvLoadError,
+  CsvLoadResult,
+  OutputFormat,
+  ScreeningCriteria,
+  ScreeningOptions,
+  ScreeningResult,
+  ScreeningSessionResult,
+} from "./screening";
+// Strategy JSON Serialization
+export type {
+  ConditionCategory,
+  ConditionParamSchema,
+  ConditionRegistryEntry,
+  ConditionSpec,
+  LeafInfo,
+  ParamDef,
+  ParsedLeafPath,
+  SessionOverrides,
+  StrategyDefinition,
+  StrategyJSON,
+  ValidationResult as StrategyValidationResult,
+} from "./strategy";
+// Strategy Definition
+export * as strategy from "./strategy";
+export {
+  applyParamOverrides,
+  backtestRegistry,
+  ConditionRegistry,
+  createSessionFromStrategy,
+  flattenStrategyLeaves,
+  hydrateCondition,
+  loadStrategy,
+  parseLeafPath,
+  parseStrategy,
+  parseStrategySafe,
+  serializeStrategy,
+  streamingRegistry,
+  validateConditionSpec,
+  validateStrategyJSON,
+} from "./strategy";
+export type { IndicatorCategory, IndicatorPreset, LivePreset, ParamSchema } from "./streaming";
+// Streaming (real-time trading pipeline)
+export * as streaming from "./streaming";
+export { createLiveCandle, getIndicatorPreset, indicatorPresets, livePresets } from "./streaming";
+export type {
+  AlphaDecayOptions,
+  AlphaDecayResult,
+  CointegrationResult,
+  ConditionTrace,
+  CorrelationAnalysisOptions,
+  CorrelationAnalysisResult,
+  CorrelationPoint,
+  CorrelationRegime,
+  CorrelationRegimePoint,
+  CusumBreak,
+  DecayAssessment,
+  DecayObservation,
+  DimensionScore,
+  DivergencePoint,
+  ExplainOptions,
+  HitRatePoint,
+  IndicatorFn,
+  LeadLagResult,
+  MeanReversionResult,
+  PairsAnalysisOptions,
+  PairsAnalysisResult,
+  PairsSignal,
+  QuickRobustnessOptions,
+  QuickRobustnessResult,
+  RobustnessGrade,
+  RobustnessOptions,
+  RobustnessResult,
+  RollingICPoint,
+  SeriesToCandlesOptions,
+  SeriesTransformFn,
+  SignalExplanation,
+  SpreadPoint,
+} from "./types";
+export type { SeriesMeta, TaggedSeries } from "./types/candle";
+// Series Utilities
+export {
+  alignAndNormalize,
+  alignSeries,
+  filterSeries,
+  mapSeries,
+  normalizeToPercent,
+  zipSeries,
+} from "./utils/series";
+export type {
+  GapDetectionOptions,
+  SpikeDetectionOptions,
+  StaleDetectionOptions,
+  ValidationFinding,
+  ValidationOptions,
+  ValidationResult,
+  ValidationSeverity,
+  VolumeAnomalyOptions,
+} from "./validation";
+// Validation
+export {
+  detectDuplicates,
+  detectGaps,
+  detectOhlcErrors,
+  detectPriceSpikes,
+  detectSplitHints,
+  detectStaleData,
+  detectVolumeAnomalies,
+  removeDuplicates,
+  validateCandles,
+} from "./validation";

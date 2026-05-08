@@ -7,8 +7,8 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { TrendChart } from "../../react/TrendChart";
 import type { TrendChartProps, TrendChartRef } from "../../react/TrendChart";
+import { TrendChart } from "../../react/TrendChart";
 
 describe("React TrendChart wrapper", () => {
   it("is a valid React forwardRef component", () => {

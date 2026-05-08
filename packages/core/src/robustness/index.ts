@@ -6,6 +6,6 @@
  * efficiency, and regime consistency.
  */
 
-export { quickRobustnessScore } from "./quick";
 export { calculateRobustnessScore } from "./full";
 export { scoreToGrade } from "./grade";
+export { quickRobustnessScore } from "./quick";

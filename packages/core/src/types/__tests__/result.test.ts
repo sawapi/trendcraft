@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
-  type Result,
-  type TrendCraftError,
   collectResults,
   err,
   flatMap,
   mapResult,
   ok,
   partitionResults,
+  type Result,
+  type TrendCraftError,
   tcError,
   tryCatch,
   unwrap,

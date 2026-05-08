@@ -8,57 +8,52 @@
 
 // Core
 export { DataLayer } from "./core/data-layer";
-export { lttb, decimateCandles, getDecimationTarget } from "./core/decimation";
+export { decimateCandles, getDecimationTarget, lttb } from "./core/decimation";
+// Drawing helper
+export { DrawHelper, type FillStyle, type StrokeStyle } from "./core/draw-helper";
 export {
   autoFormatPrice,
   autoFormatTime,
-  formatCrosshairTime,
-  formatVolume,
   detectPrecision,
   fixedPriceFormatter,
+  formatCrosshairTime,
+  formatVolume,
 } from "./core/format";
-export { TimeScale, PriceScale } from "./core/scale";
-export { LayoutEngine, DEFAULT_LAYOUT } from "./core/layout";
-export { SeriesRegistry, defaultRegistry } from "./core/series-registry";
-export { Viewport } from "./core/viewport";
-
-// Integration
-export { introspect, type IntrospectionResult } from "./integration/series-introspector";
-export { INDICATOR_PRESETS, type IndicatorPreset } from "./integration/indicator-presets";
-
+export { DEFAULT_LAYOUT, LayoutEngine } from "./core/layout";
 // Plugin types
 export type {
-  SeriesRendererPlugin,
   PrimitivePlugin,
-  SeriesRenderContext,
   PrimitiveRenderContext,
+  SeriesRenderContext,
+  SeriesRendererPlugin,
 } from "./core/plugin-types";
-export { defineSeriesRenderer, definePrimitive } from "./core/plugin-types";
+export { definePrimitive, defineSeriesRenderer } from "./core/plugin-types";
 export { RendererRegistry } from "./core/renderer-registry";
-
-// Drawing helper
-export { DrawHelper, type StrokeStyle, type FillStyle } from "./core/draw-helper";
-
+export { PriceScale, TimeScale } from "./core/scale";
+export { defaultRegistry, SeriesRegistry } from "./core/series-registry";
 // Types
 export type {
-  ChartOptions,
+  BuiltinSeriesType,
   CandleData,
+  ChartOptions,
   DataPoint,
-  TimeValue,
-  ThemeColors,
+  LayoutConfig,
   PaneConfig,
   PaneRect,
-  LayoutConfig,
-  SeriesConfig,
-  SeriesType,
-  BuiltinSeriesType,
-  SeriesHandle,
-  SignalMarker,
-  TradeMarker,
-  ScaleMode,
   ResolvedSeries,
+  ScaleMode,
+  SeriesConfig,
+  SeriesHandle,
+  SeriesType,
+  SignalMarker,
+  ThemeColors,
+  TimeValue,
+  TradeMarker,
 } from "./core/types";
-
 export { DARK_THEME, LIGHT_THEME } from "./core/types";
+export { Viewport } from "./core/viewport";
+export { INDICATOR_PRESETS, type IndicatorPreset } from "./integration/indicator-presets";
+// Integration
+export { type IntrospectionResult, introspect } from "./integration/series-introspector";
 
 // Indicator connection (connectIndicators is DOM-dependent; use the main entry for it)

@@ -5,12 +5,12 @@
  * Run: npx tsx examples/quick-start/02-backtest.ts
  */
 import {
-  type NormalizedCandle,
-  TrendCraft,
   and,
   deadCrossCondition,
   goldenCrossCondition,
+  type NormalizedCandle,
   rsiBelow,
+  TrendCraft,
 } from "../../src";
 
 // Generate 200 days of trending + mean-reverting data

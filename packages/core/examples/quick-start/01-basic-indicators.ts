@@ -4,7 +4,7 @@
  * Calculate SMA, RSI, MACD, and Bollinger Bands on sample data.
  * Run: npx tsx examples/quick-start/01-basic-indicators.ts
  */
-import { type NormalizedCandle, bollingerBands, ema, macd, rsi, sma } from "../../src";
+import { bollingerBands, ema, macd, type NormalizedCandle, rsi, sma } from "../../src";
 
 // Generate 60 days of synthetic price data
 function generateCandles(count: number): NormalizedCandle[] {

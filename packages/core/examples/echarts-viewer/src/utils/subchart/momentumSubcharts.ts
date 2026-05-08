@@ -6,10 +6,10 @@ import type { IndicatorData } from "../../hooks/useIndicators";
 import type { IndicatorParams, SubChartType } from "../../types";
 import {
   COLORS,
-  type SeriesItem,
-  type SubchartContext,
   createMarkLine,
   createSubchart,
+  type SeriesItem,
+  type SubchartContext,
 } from "../chartColors";
 
 /**

@@ -26,5 +26,5 @@
  * ```
  */
 
-export { seriesToCandles, extractField, mapValues, combineSeries } from "./adapters";
-export { pipe, compose, applyIndicator, through } from "./pipe";
+export { combineSeries, extractField, mapValues, seriesToCandles } from "./adapters";
+export { applyIndicator, compose, pipe, through } from "./pipe";

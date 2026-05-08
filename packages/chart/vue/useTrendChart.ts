@@ -35,11 +35,11 @@
 
 import {
   type MaybeRefOrGetter,
-  type Ref,
-  type ShallowRef,
   onMounted,
   onUnmounted,
+  type Ref,
   ref,
+  type ShallowRef,
   shallowRef,
   toValue,
   watch,

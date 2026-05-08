@@ -14,7 +14,6 @@ import { CircularBuffer } from "../circular-buffer";
 import type { SmaState } from "../moving-average/sma";
 import { createSma } from "../moving-average/sma";
 import type { IncrementalIndicator, WarmUpOptions } from "../types";
-import { makeCandle } from "../utils";
 import type { AtrState } from "../volatility/atr";
 import { createAtr } from "../volatility/atr";
 
@@ -75,7 +74,7 @@ export type VsaOptions = {
   narrowSpreadThreshold?: number;
 };
 
-const nullValue: VsaValue = {
+const _nullValue: VsaValue = {
   barType: "normal",
   spreadRelative: 1,
   closePosition: 0.5,
@@ -312,7 +311,7 @@ export function createVsa(
       };
 
       // We can approximate using existing buffer length + 1 for index
-      const peekBufIndex = candleBuffer.length;
+      const _peekBufIndex = candleBuffer.length;
 
       // For upthrust/spring/test we need lookback into the buffer.
       // Create a temporary wrapper that includes the peek candle.

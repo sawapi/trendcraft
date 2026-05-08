@@ -224,7 +224,7 @@ export function createDmi(
       let peekSmoothedMinusDm: number;
 
       if (peekCount === period + 1) {
-        const peekInitSumTr = initSumTr + raw.tr; // no, initSum was accumulated for count 1..period
+        const _peekInitSumTr = initSumTr + raw.tr; // no, initSum was accumulated for count 1..period
         // Actually at this point initSumTr already has all values from count 1..period
         peekSmoothedTr = initSumTr - initSumTr / period + raw.tr;
         peekSmoothedPlusDm = initSumPlusDm - initSumPlusDm / period + raw.pDm;

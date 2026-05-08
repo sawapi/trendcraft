@@ -14,7 +14,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import type { ExitReason, NormalizedCandle } from "../../types";
+import type { NormalizedCandle } from "../../types";
 import { runBacktest } from "../engine";
 
 // Helper to create candles

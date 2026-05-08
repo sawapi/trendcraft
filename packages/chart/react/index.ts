@@ -4,8 +4,8 @@ export {
   type TrendChartRef,
 } from "./TrendChart";
 export {
-  useTrendChart,
   type IndicatorInput,
   type UseTrendChartOptions,
   type UseTrendChartResult,
+  useTrendChart,
 } from "./useTrendChart";

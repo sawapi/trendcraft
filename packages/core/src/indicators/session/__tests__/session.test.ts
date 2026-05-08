@@ -27,7 +27,7 @@ function makeCandle(
 /**
  * Helper: generate candles at 30-min intervals spanning hours [startHour, endHour).
  */
-function generateCandles(
+function _generateCandles(
   startHour: number,
   endHour: number,
   basePrice: number,

@@ -61,7 +61,10 @@
 
 .panel-content {
   overflow: hidden;
-  transition: max-height 0.3s ease, opacity 0.2s ease, padding 0.3s ease;
+  transition:
+    max-height 0.3s ease,
+    opacity 0.2s ease,
+    padding 0.3s ease;
   max-height: 2000px;
   opacity: 1;
 }

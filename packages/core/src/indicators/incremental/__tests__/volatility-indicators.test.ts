@@ -4,8 +4,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import type { NormalizedCandle } from "../../../types";
-import type { AtrStopsValue } from "../../../types";
+import type { AtrStopsValue, NormalizedCandle } from "../../../types";
 import { atrStops } from "../../volatility/atr-stops";
 import { garmanKlass } from "../../volatility/garman-klass";
 import { historicalVolatility } from "../../volatility/historical-volatility";

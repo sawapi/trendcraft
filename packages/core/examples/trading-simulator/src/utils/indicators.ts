@@ -1,4 +1,3 @@
-import * as TrendCraft from "trendcraft";
 import type {
   BosValue,
   FractalValue,
@@ -15,6 +14,7 @@ import type {
   VolumeTrendValue,
   ZigzagValue,
 } from "trendcraft";
+import * as TrendCraft from "trendcraft";
 import {
   DEFAULT_INDICATOR_PARAMS,
   type IndicatorParams,

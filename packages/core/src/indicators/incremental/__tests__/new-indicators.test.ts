@@ -19,7 +19,6 @@ import { t3 } from "../../moving-average/t3";
 import { tema } from "../../moving-average/tema";
 import { zlema } from "../../moving-average/zlema";
 import { klinger } from "../../volume/klinger";
-import type { KlingerValue } from "../../volume/klinger";
 import { processAll } from "../bridge";
 import { createAdxr } from "../momentum/adxr";
 import { createCmo } from "../momentum/cmo";

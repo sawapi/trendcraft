@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { IndicatorCache, createCachedIndicators } from "../indicator-cache";
+import { createCachedIndicators, IndicatorCache } from "../indicator-cache";
 
 describe("IndicatorCache", () => {
   describe("get / set", () => {

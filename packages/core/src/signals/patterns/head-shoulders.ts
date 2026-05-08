@@ -111,7 +111,7 @@ export function headAndShoulders(
     );
 
     // Check neckline slope
-    const patternLength = rightShoulder.index - leftShoulder.index;
+    const _patternLength = rightShoulder.index - leftShoulder.index;
     const totalPriceChange =
       Math.abs(neckline.endPrice - neckline.startPrice) / neckline.startPrice;
     if (totalPriceChange > maxNecklineSlope) {

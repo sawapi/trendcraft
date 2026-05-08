@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { type SessionData, clearSession, loadSession } from "../hooks/useSessionPersistence";
+import { clearSession, loadSession, type SessionData } from "../hooks/useSessionPersistence";
 
 interface SessionManagerProps {
   onRestore: (session: SessionData) => void;

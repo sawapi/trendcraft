@@ -95,7 +95,7 @@ export function createDrawdownTracker(initialCapital: number): DrawdownTracker {
     }
   }
 
-  function finalize(time: number, barIndex: number): void {
+  function finalize(_time: number, barIndex: number): void {
     if (currentDD !== null) {
       // Close open drawdown without recovery
       periods.push({

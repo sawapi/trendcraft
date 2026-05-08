@@ -4,9 +4,9 @@
  * Incremental signal detection for real-time data processing.
  */
 
-export { createCrossOverDetector, createCrossUnderDetector } from "./cross";
-export { createThresholdDetector } from "./threshold";
-export { createSqueezeDetector } from "./bollinger-squeeze";
 export type { SqueezeDetectorOptions } from "./bollinger-squeeze";
-export { createDivergenceDetector } from "./divergence";
+export { createSqueezeDetector } from "./bollinger-squeeze";
+export { createCrossOverDetector, createCrossUnderDetector } from "./cross";
 export type { DivergenceDetectorOptions } from "./divergence";
+export { createDivergenceDetector } from "./divergence";
+export { createThresholdDetector } from "./threshold";

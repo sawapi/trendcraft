@@ -12,8 +12,8 @@ import {
   CURRENCY_CONFIG,
   EXIT_REASON_LABELS,
   EXIT_TRIGGER_LABELS,
-  PRICE_TYPE_LABELS,
   formatPrice,
+  PRICE_TYPE_LABELS,
 } from "../../types";
 import { CollapsiblePanel } from "../CollapsiblePanel";
 import { BracketOrderForm } from "./BracketOrderForm";

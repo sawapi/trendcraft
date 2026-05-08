@@ -23,10 +23,6 @@
  * ```
  */
 
-import type { HarmonicPatternType, PatternType } from "../signals/patterns/types";
-import type { Condition } from "../types";
-import { ConditionRegistry } from "./registry";
-
 import { bollingerBreakout, bollingerTouch } from "../backtest/conditions/bollinger";
 import { alwaysFalse, alwaysTrue } from "../backtest/conditions/core";
 import { adxStrong, dmiBearish, dmiBullish } from "../backtest/conditions/dmi";
@@ -133,29 +129,30 @@ import {
 } from "../backtest/conditions/volatility";
 import { volumeAboveAvg } from "../backtest/conditions/volume";
 import {
+  bearishVolumeDivergence,
   breakdownVal,
   breakoutVah,
-  inValueArea,
-  nearPoc,
-  priceAbovePoc,
-  priceBelowPoc,
-  volumeAnomalyCondition,
-  volumeExtreme,
-  volumeRatioAbove,
-} from "../backtest/conditions/volume-advanced";
-import {
-  bearishVolumeDivergence,
   bullishVolumeDivergence,
   cmfAbove,
   cmfBelow,
+  inValueArea,
+  nearPoc,
   obvCrossDown,
   obvCrossUp,
   obvFalling,
   obvRising,
+  priceAbovePoc,
+  priceBelowPoc,
+  volumeAnomalyCondition,
   volumeConfirmsTrend,
   volumeDivergence,
+  volumeExtreme,
+  volumeRatioAbove,
   volumeTrendConfidence,
 } from "../backtest/conditions/volume-advanced";
+import type { PatternType } from "../signals/patterns/types";
+import type { Condition } from "../types";
+import { ConditionRegistry } from "./registry";
 
 /**
  * Pre-built registry containing all backtest conditions

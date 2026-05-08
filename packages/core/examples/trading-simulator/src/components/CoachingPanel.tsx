@@ -19,13 +19,7 @@ const LEVEL_LABELS: Record<CoachingLevel, string> = {
   advanced: "Advanced",
 };
 
-function SignalCard({
-  signal,
-  level,
-}: {
-  signal: CoachingSignal;
-  level: CoachingLevel;
-}) {
+function SignalCard({ signal, level }: { signal: CoachingSignal; level: CoachingLevel }) {
   const color = DIRECTION_COLORS[signal.direction];
   const icon = DIRECTION_ICONS[signal.direction];
 

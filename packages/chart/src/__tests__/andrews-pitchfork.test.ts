@@ -3,9 +3,9 @@ import type { PrimitiveRenderContext } from "../core/plugin-types";
 import type { PriceScale, TimeScale } from "../core/scale";
 import type { ChartInstance, PaneRect } from "../core/types";
 import {
-  type PitchforkAnchors,
   connectAndrewsPitchfork,
   createAndrewsPitchfork,
+  type PitchforkAnchors,
 } from "../plugins/andrews-pitchfork";
 
 const mockCtx = () =>

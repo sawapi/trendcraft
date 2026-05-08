@@ -11,6 +11,7 @@
  */
 
 import { useCallback, useMemo, useState } from "react";
+import type { PositionSizeResult } from "trendcraft";
 import {
   atrBasedSize,
   calculateKellyPercent,
@@ -18,7 +19,6 @@ import {
   kellySize,
   riskBasedSize,
 } from "trendcraft";
-import type { PositionSizeResult } from "trendcraft";
 import { useChartStore } from "../store/chartStore";
 
 /** Input state for the calculator */

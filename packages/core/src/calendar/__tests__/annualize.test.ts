@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  annualizationFactor,
   CRYPTO_CALENDAR,
   FX_CALENDAR,
   HKEX_CALENDAR,
   JPX_CALENDAR,
   US_EQUITY_CALENDAR,
-  annualizationFactor,
 } from "../index";
 
 describe("annualizationFactor", () => {

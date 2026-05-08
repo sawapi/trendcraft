@@ -172,8 +172,8 @@
 html,
 body {
   height: 100%;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial,
-    sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   font-size: var(--font-base);
   line-height: 1.5;
   background: var(--bg-primary);
@@ -281,7 +281,9 @@ body {
   cursor: pointer;
   font-size: var(--font-sm);
   font-weight: 600;
-  transition: background var(--transition-fast), color var(--transition-fast);
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast);
 }
 
 .header-toggle-btn:hover {
@@ -540,7 +542,9 @@ body {
   background: transparent;
   color: var(--text-secondary);
   cursor: pointer;
-  transition: background var(--transition-fast), color var(--transition-fast);
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast);
 }
 
 .drawing-tool-btn:hover {
@@ -748,7 +752,9 @@ body {
   display: flex;
   flex-direction: column;
   position: relative;
-  transition: width var(--transition-normal), min-width var(--transition-normal);
+  transition:
+    width var(--transition-normal),
+    min-width var(--transition-normal);
 }
 
 .signals-sidebar.collapsed {

@@ -7,8 +7,8 @@
  */
 import { describe, expect, it } from "vitest";
 import type { NormalizedCandle } from "../../types";
-import { wyckoffPhases } from "../wyckoff/wyckoff-phases";
 import type { WyckoffEvent } from "../wyckoff/wyckoff-phases";
+import { wyckoffPhases } from "../wyckoff/wyckoff-phases";
 
 function mc(
   i: number,
@@ -505,7 +505,7 @@ describe("wyckoffPhases – isHighVolumeBar variants", () => {
     c.push(mc(idx++, 114, 115, 113, 114, 700));
 
     const result = wyckoffPhases(c, OPTS);
-    const phases = new Set(result.map((r) => r.value.phase));
+    const _phases = new Set(result.map((r) => r.value.phase));
     // Should detect accumulation from effortUp as isHighVolumeBar
     expect(result).toHaveLength(c.length);
   });

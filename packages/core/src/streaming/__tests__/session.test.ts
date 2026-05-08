@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { NormalizedCandle } from "../../types";
 import { rsiAbove, rsiBelow } from "../conditions";
 import { createTradingSession } from "../session";
-import type { SessionEvent, Trade } from "../types";
+import type { Trade } from "../types";
 
 /**
  * Mock indicator with a deterministic sequence
@@ -178,7 +178,7 @@ describe("createTradingSession", () => {
 
   it("should warm up indicators with historical candles", () => {
     let callCount = 0;
-    const session = createTradingSession({
+    const _session = createTradingSession({
       intervalMs: INTERVAL,
       pipeline: {
         indicators: [

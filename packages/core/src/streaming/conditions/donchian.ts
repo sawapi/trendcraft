@@ -45,7 +45,7 @@ export function donchianBreakoutLow(key = "donchian"): StreamingPresetCondition 
  */
 export function donchianMiddleCrossUp(key = "donchian"): StreamingPresetCondition {
   const cross = crossOver(
-    (snap, candle) => candle.close,
+    (_snap, candle) => candle.close,
     (snap) => getField(snap, key, "middle"),
   );
   return {
@@ -62,7 +62,7 @@ export function donchianMiddleCrossUp(key = "donchian"): StreamingPresetConditio
  */
 export function donchianMiddleCrossDown(key = "donchian"): StreamingPresetCondition {
   const cross = crossUnder(
-    (snap, candle) => candle.close,
+    (_snap, candle) => candle.close,
     (snap) => getField(snap, key, "middle"),
   );
   return {

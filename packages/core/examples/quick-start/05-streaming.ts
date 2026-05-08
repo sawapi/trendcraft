@@ -4,7 +4,7 @@
  * Process candles one-by-one with incremental indicators and streaming conditions.
  * Run: npx tsx examples/quick-start/05-streaming.ts
  */
-import { type NormalizedCandle, incremental, streaming } from "../../src";
+import { incremental, type NormalizedCandle, streaming } from "../../src";
 
 // Generate 100 candles
 function generateCandles(count: number): NormalizedCandle[] {

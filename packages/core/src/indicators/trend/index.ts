@@ -8,15 +8,16 @@
  *
  * @module
  */
-export { ichimoku } from "./ichimoku";
+
 export type { IchimokuOptions, IchimokuValue } from "./ichimoku";
-export { supertrend } from "./supertrend";
-export type { SupertrendOptions, SupertrendValue } from "./supertrend";
-export { parabolicSar } from "./parabolic-sar";
-export type { ParabolicSarOptions, ParabolicSarValue } from "./parabolic-sar";
-export { vortex } from "./vortex";
-export type { VortexOptions, VortexValue } from "./vortex";
-export { schaffTrendCycle } from "./schaff-trend-cycle";
-export type { SchaffTrendCycleOptions } from "./schaff-trend-cycle";
-export { linearRegression } from "./linear-regression";
+export { ichimoku } from "./ichimoku";
 export type { LinearRegressionOptions, LinearRegressionValue } from "./linear-regression";
+export { linearRegression } from "./linear-regression";
+export type { ParabolicSarOptions, ParabolicSarValue } from "./parabolic-sar";
+export { parabolicSar } from "./parabolic-sar";
+export type { SchaffTrendCycleOptions } from "./schaff-trend-cycle";
+export { schaffTrendCycle } from "./schaff-trend-cycle";
+export type { SupertrendOptions, SupertrendValue } from "./supertrend";
+export { supertrend } from "./supertrend";
+export type { VortexOptions, VortexValue } from "./vortex";
+export { vortex } from "./vortex";

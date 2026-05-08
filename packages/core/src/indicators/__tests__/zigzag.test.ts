@@ -195,7 +195,7 @@ describe("zigzag", () => {
     ]);
 
     const result = zigzag(candles, { deviation: 10 });
-    const pivots = result.filter((r) => r.value.point !== null);
+    const _pivots = result.filter((r) => r.value.point !== null);
 
     // Should find the high at index 3 and the low at index 7
     const highPivot = result.find((r) => r.value.point === "high" && r.value.price === 120);

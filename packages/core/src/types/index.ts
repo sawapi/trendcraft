@@ -16,27 +16,27 @@
 // ============================================
 
 export type {
+  AtrOptions,
+  BollingerBandsOptions,
+  BollingerBandsValue,
   Candle,
-  NormalizedCandle,
+  CrossOptions,
+  EmaOptions,
+  HighestLowestOptions,
   IndicatorValue,
-  Series,
+  MacdOptions,
+  MacdValue,
+  NormalizedCandle,
   PriceSource,
-  TimeframeUnit,
+  ReturnsOptions,
+  RsiOptions,
+  Series,
+  Signal,
+  SignalType,
+  SmaOptions,
   Timeframe,
   TimeframeShorthand,
-  MacdValue,
-  BollingerBandsValue,
-  SignalType,
-  Signal,
-  SmaOptions,
-  EmaOptions,
-  RsiOptions,
-  MacdOptions,
-  BollingerBandsOptions,
-  AtrOptions,
-  HighestLowestOptions,
-  ReturnsOptions,
-  CrossOptions,
+  TimeframeUnit,
 } from "./candle";
 
 // ============================================
@@ -44,29 +44,29 @@ export type {
 // ============================================
 
 export type {
-  PositionDirection,
-  ExitReason,
-  ConditionFn,
-  PresetCondition,
+  AtrTrailingStopConfig,
+  BacktestOptions,
+  BacktestResult,
+  BacktestSettings,
+  BreakevenStopConfig,
   CombinedCondition,
   Condition,
-  Trade,
-  PartialTakeProfitConfig,
-  BreakevenStopConfig,
-  ScaleOutLevel,
-  ScaleOutConfig,
-  TimeExitConfig,
-  AtrTrailingStopConfig,
-  FillMode,
-  SlTpMode,
-  BacktestOptions,
-  BacktestSettings,
-  BacktestResult,
+  ConditionFn,
   DrawdownPeriod,
-  MtfDataset,
-  MtfContext,
+  ExitReason,
+  FillMode,
   MtfConditionFn,
+  MtfContext,
+  MtfDataset,
   MtfPresetCondition,
+  PartialTakeProfitConfig,
+  PositionDirection,
+  PresetCondition,
+  ScaleOutConfig,
+  ScaleOutLevel,
+  SlTpMode,
+  TimeExitConfig,
+  Trade,
   VolumeConstraint,
 } from "./backtest";
 
@@ -75,23 +75,23 @@ export type {
 // ============================================
 
 export type {
+  AtrBasedSizingOptions,
+  AtrRiskOptions,
+  AtrStopsOptions,
+  AtrStopsValue,
+  ChandelierExitOptions,
+  ChandelierExitValue,
+  FixedFractionalOptions,
+  KellySizingOptions,
+  PositionSizeResult,
+  PositionSizingBaseOptions,
+  PositionSizingMethod,
+  PositionSizingOptions,
+  RiskBasedSizingOptions,
   VolumeAnomalyValue,
   VolumePriceLevel,
   VolumeProfileValue,
   VolumeTrendValue,
-  AtrRiskOptions,
-  ChandelierExitOptions,
-  ChandelierExitValue,
-  AtrStopsOptions,
-  AtrStopsValue,
-  PositionSizeResult,
-  PositionSizingMethod,
-  PositionSizingBaseOptions,
-  RiskBasedSizingOptions,
-  AtrBasedSizingOptions,
-  KellySizingOptions,
-  FixedFractionalOptions,
-  PositionSizingOptions,
 } from "./volume-risk";
 
 // ============================================
@@ -99,21 +99,21 @@ export type {
 // ============================================
 
 export type {
+  FundamentalMetrics,
   PrecomputedIndicators,
-  SignalEvaluator,
-  SignalDefinition,
-  ScoreResult,
-  SignalContribution,
+  ScaledEntryConfig,
+  ScaledEntryIntervalType,
+  ScaledEntryStrategy,
   ScoreBreakdown,
+  ScoreResult,
   ScoringConfig,
   ScoringPreset,
+  SignalContribution,
+  SignalDefinition,
+  SignalEvaluator,
   VolatilityRegime,
   VolatilityRegimeOptions,
   VolatilityRegimeValue,
-  ScaledEntryStrategy,
-  ScaledEntryIntervalType,
-  ScaledEntryConfig,
-  FundamentalMetrics,
 } from "./scoring";
 
 // ============================================
@@ -121,34 +121,34 @@ export type {
 // ============================================
 
 export type {
-  ParameterRange,
-  OptimizationMetric,
-  OptimizationConstraint,
-  OptimizationResultEntry,
-  GridSearchResult,
   GridSearchOptions,
+  GridSearchResult,
+  OptimizationConstraint,
+  OptimizationMetric,
+  OptimizationResultEntry,
+  ParameterRange,
+  WalkForwardOptions,
   WalkForwardPeriod,
   WalkForwardResult,
-  WalkForwardOptions,
 } from "./optimization";
 
 // ============================================
 // Result Types (re-export from result.ts)
 // ============================================
 
-export type { Ok, Err, Result, TrendCraftErrorCode, TrendCraftError } from "./result";
+export type { Err, Ok, Result, TrendCraftError, TrendCraftErrorCode } from "./result";
 export {
-  ok,
-  err,
-  tcError,
-  mapResult,
-  flatMap,
-  unwrapOr,
-  unwrap,
   collectResults,
+  err,
+  flatMap,
+  mapResult,
+  ok,
   partitionResults,
-  tryCatch,
+  tcError,
   toResult,
+  tryCatch,
+  unwrap,
+  unwrapOr,
 } from "./result";
 
 // ============================================
@@ -156,10 +156,10 @@ export {
 // ============================================
 
 export type {
+  PriceLevels,
+  SignalReason,
   TradeAction,
   TradeDirection,
-  SignalReason,
-  PriceLevels,
   TradeSignal,
 } from "./trade-signal";
 
@@ -175,14 +175,14 @@ export { defineIndicator } from "./plugin";
 // ============================================
 
 export type {
-  ValidationResult,
-  ValidationFinding,
-  ValidationOptions,
-  ValidationSeverity,
   GapDetectionOptions,
   SpikeDetectionOptions,
-  VolumeAnomalyOptions,
   StaleDetectionOptions,
+  ValidationFinding,
+  ValidationOptions,
+  ValidationResult,
+  ValidationSeverity,
+  VolumeAnomalyOptions,
 } from "../validation/types";
 
 // ============================================
@@ -190,16 +190,16 @@ export type {
 // ============================================
 
 export type {
-  SymbolData,
-  SymbolBacktestResult,
-  EquityPoint,
-  BatchBacktestOptions,
-  PortfolioMetrics,
-  BatchBacktestResult,
   AllocationStrategy,
-  RebalanceConfig,
+  BatchBacktestOptions,
+  BatchBacktestResult,
+  EquityPoint,
   PortfolioBacktestOptions,
   PortfolioBacktestResult,
+  PortfolioMetrics,
+  RebalanceConfig,
+  SymbolBacktestResult,
+  SymbolData,
 } from "./portfolio";
 
 // ============================================
@@ -208,18 +208,18 @@ export type {
 
 export type {
   DimensionScore,
-  RobustnessGrade,
-  RobustnessResult,
-  RobustnessOptions,
   QuickRobustnessOptions,
   QuickRobustnessResult,
+  RobustnessGrade,
+  RobustnessOptions,
+  RobustnessResult,
 } from "./robustness";
 
 // ============================================
 // Composable Indicator Algebra Types
 // ============================================
 
-export type { IndicatorFn, SeriesTransformFn, SeriesToCandlesOptions } from "./compose";
+export type { IndicatorFn, SeriesToCandlesOptions, SeriesTransformFn } from "./compose";
 
 // ============================================
 // Explainability Types
@@ -227,8 +227,8 @@ export type { IndicatorFn, SeriesTransformFn, SeriesToCandlesOptions } from "./c
 
 export type {
   ConditionTrace,
-  SignalExplanation,
   ExplainOptions,
+  SignalExplanation,
 } from "./explainability";
 
 // ============================================
@@ -236,13 +236,13 @@ export type {
 // ============================================
 
 export type {
-  DecayObservation,
-  RollingICPoint,
-  HitRatePoint,
+  AlphaDecayOptions,
+  AlphaDecayResult,
   CusumBreak,
   DecayAssessment,
-  AlphaDecayResult,
-  AlphaDecayOptions,
+  DecayObservation,
+  HitRatePoint,
+  RollingICPoint,
 } from "./alpha-decay";
 
 // ============================================
@@ -251,11 +251,11 @@ export type {
 
 export type {
   CointegrationResult,
-  SpreadPoint,
   MeanReversionResult,
-  PairsSignal,
   PairsAnalysisOptions,
   PairsAnalysisResult,
+  PairsSignal,
+  SpreadPoint,
 } from "./pairs";
 
 // ============================================
@@ -263,11 +263,11 @@ export type {
 // ============================================
 
 export type {
+  CorrelationAnalysisOptions,
+  CorrelationAnalysisResult,
   CorrelationPoint,
   CorrelationRegime,
   CorrelationRegimePoint,
-  LeadLagResult,
   DivergencePoint,
-  CorrelationAnalysisResult,
-  CorrelationAnalysisOptions,
+  LeadLagResult,
 } from "./correlation";

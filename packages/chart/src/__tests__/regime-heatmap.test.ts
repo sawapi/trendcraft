@@ -1,9 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { PrimitiveRenderContext } from "../core/plugin-types";
 import type { TimeScale } from "../core/scale";
-import type { PaneRect } from "../core/types";
-import type { DataPoint } from "../core/types";
-import type { ChartInstance } from "../core/types";
+import type { ChartInstance, DataPoint, PaneRect } from "../core/types";
 import { connectRegimeHeatmap, createRegimeHeatmap } from "../plugins/regime-heatmap";
 
 function makeRegimeData(

@@ -133,13 +133,13 @@ export function App() {
       });
     }
     return list;
-  }, [showSma, showBb, showRsi, showMacd, showTrail, showVolOverlay, candles]);
+  }, [showSma, showBb, showRsi, showMacd, showTrail, showVolOverlay]);
 
   const backtestResult = useMemo(() => {
     if (!showBacktest) return undefined;
     const normalized = normalizeCandles(candles);
     return runBacktest(normalized, goldenCrossCondition(), rsiBelow(70), { capital: 100000 });
-  }, [showBacktest, candles]);
+  }, [showBacktest]);
 
   // Compute S/R zones
   const plugins = useMemo(() => {
@@ -159,7 +159,7 @@ export function App() {
       ],
     };
     return { renderers: [trailRenderer], primitives: [srZonePrimitive] };
-  }, [showSrZones, candles]);
+  }, [showSrZones]);
 
   return (
     <>
@@ -234,7 +234,11 @@ function Btn({
   active,
   onClick,
   children,
-}: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
   return (
     <button
       onClick={onClick}

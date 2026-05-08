@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import type { Condition } from "../../types";
 import { ConditionRegistry } from "../registry";
 import { backtestRegistry } from "../registry-backtest";
 import { streamingRegistry } from "../registry-streaming";

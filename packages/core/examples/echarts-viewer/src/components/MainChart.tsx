@@ -2,9 +2,9 @@
  * Main chart component (candlestick + volume + subcharts + overlays)
  */
 
-import ReactECharts from "echarts-for-react";
 import * as echarts from "echarts/core";
 import { SVGRenderer } from "echarts/renderers";
+import ReactECharts from "echarts-for-react";
 import {
   forwardRef,
   useCallback,

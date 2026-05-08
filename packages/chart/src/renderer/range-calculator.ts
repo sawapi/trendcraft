@@ -7,7 +7,7 @@ import type { InternalSeries } from "../core/data-layer";
 import type { RendererRegistry } from "../core/renderer-registry";
 import { defaultRegistry } from "../core/series-registry";
 import type { CandleData, DataPoint, PaneRect } from "../core/types";
-import { type MinMax, emptyRange, reduceRange } from "../core/value-range";
+import { emptyRange, type MinMax, reduceRange } from "../core/value-range";
 import { bandPriceRange } from "../series/band";
 import { candlePriceRange } from "../series/candlestick";
 import { cloudPriceRange } from "../series/cloud";

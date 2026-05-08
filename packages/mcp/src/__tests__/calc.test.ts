@@ -66,13 +66,17 @@ describe("calcIndicatorHandler", () => {
     );
   });
 
-  it.each(["ema", "wma", "vwma", "volumeMa", "highestLowest", "volatilityRegime"])(
-    "rewraps missing-params for %s",
-    (kind) => {
-      const candles = makeCandles(50);
-      expect(() => calcIndicatorHandler({ kind, candles })).toThrow(/INVALID_PARAMETER/);
-    },
-  );
+  it.each([
+    "ema",
+    "wma",
+    "vwma",
+    "volumeMa",
+    "highestLowest",
+    "volatilityRegime",
+  ])("rewraps missing-params for %s", (kind) => {
+    const candles = makeCandles(50);
+    expect(() => calcIndicatorHandler({ kind, candles })).toThrow(/INVALID_PARAMETER/);
+  });
 
   it("rejects empty candles with canonical INVALID_INPUT", () => {
     expect(() => calcIndicatorHandler({ kind: "rsi", candles: [] })).toThrow(

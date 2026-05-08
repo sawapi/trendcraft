@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { DataLayer } from "../core/data-layer";
 import type { DataPoint } from "../core/types";
 import { renderBoxes } from "../series/box";

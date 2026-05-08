@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useSimulatorStore } from "../store/simulatorStore";
-import { PRICE_TYPE_LABELS, formatPrice } from "../types";
+import { formatPrice, PRICE_TYPE_LABELS } from "../types";
 import { formatDate } from "../utils/fileParser";
 import { CollapsiblePanel } from "./CollapsiblePanel";
 

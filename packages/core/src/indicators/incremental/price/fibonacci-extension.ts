@@ -23,7 +23,7 @@ import {
   resolveLevelsConfig,
   resolveSwingConfig,
 } from "./swing-helpers";
-import { type SwingPointsState, createSwingPoints } from "./swing-points";
+import { createSwingPoints, type SwingPointsState } from "./swing-points";
 
 export type FibonacciExtensionValue = {
   /** Extension levels mapped by ratio string to price value, null until a valid A→B→C pattern */

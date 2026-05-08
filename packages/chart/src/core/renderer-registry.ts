@@ -15,8 +15,6 @@ export type PrimitiveEntry = {
 // Internal storage type — erases the config generic to allow heterogeneous plugins
 // biome-ignore lint/suspicious/noExplicitAny: Required for heterogeneous plugin storage
 type AnyRendererPlugin = SeriesRendererPlugin<any>;
-// biome-ignore lint/suspicious/noExplicitAny: Required for heterogeneous plugin storage
-type AnyPrimitivePlugin = PrimitivePlugin<any>;
 
 export class RendererRegistry {
   private _renderers = new Map<string, AnyRendererPlugin>();

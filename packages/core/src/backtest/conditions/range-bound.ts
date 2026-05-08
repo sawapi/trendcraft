@@ -59,7 +59,7 @@ export function inRangeBound(options: RangeBoundConditionOptions = {}): PresetCo
   return {
     type: "preset",
     name: "inRangeBound()",
-    evaluate: (indicators, candle, index, candles) => {
+    evaluate: (indicators, _candle, index, candles) => {
       const rbData = getRangeBoundData(indicators, candles, options);
       const rb = rbData[index]?.value;
       if (!rb) return false;
@@ -76,7 +76,7 @@ export function rangeForming(options: RangeBoundConditionOptions = {}): PresetCo
   return {
     type: "preset",
     name: "rangeForming()",
-    evaluate: (indicators, candle, index, candles) => {
+    evaluate: (indicators, _candle, index, candles) => {
       const rbData = getRangeBoundData(indicators, candles, options);
       return rbData[index]?.value.rangeDetected ?? false;
     },
@@ -90,7 +90,7 @@ export function rangeConfirmed(options: RangeBoundConditionOptions = {}): Preset
   return {
     type: "preset",
     name: "rangeConfirmed()",
-    evaluate: (indicators, candle, index, candles) => {
+    evaluate: (indicators, _candle, index, candles) => {
       const rbData = getRangeBoundData(indicators, candles, options);
       return rbData[index]?.value.rangeConfirmed ?? false;
     },
@@ -104,7 +104,7 @@ export function breakoutRiskUp(options: RangeBoundConditionOptions = {}): Preset
   return {
     type: "preset",
     name: "breakoutRiskUp()",
-    evaluate: (indicators, candle, index, candles) => {
+    evaluate: (indicators, _candle, index, candles) => {
       const rbData = getRangeBoundData(indicators, candles, options);
       return rbData[index]?.value.state === "BREAKOUT_RISK_UP";
     },
@@ -118,7 +118,7 @@ export function breakoutRiskDown(options: RangeBoundConditionOptions = {}): Pres
   return {
     type: "preset",
     name: "breakoutRiskDown()",
-    evaluate: (indicators, candle, index, candles) => {
+    evaluate: (indicators, _candle, index, candles) => {
       const rbData = getRangeBoundData(indicators, candles, options);
       return rbData[index]?.value.state === "BREAKOUT_RISK_DOWN";
     },
@@ -132,7 +132,7 @@ export function rangeBreakout(options: RangeBoundConditionOptions = {}): PresetC
   return {
     type: "preset",
     name: "rangeBreakout()",
-    evaluate: (indicators, candle, index, candles) => {
+    evaluate: (indicators, _candle, index, candles) => {
       const rbData = getRangeBoundData(indicators, candles, options);
       return rbData[index]?.value.rangeBroken ?? false;
     },
@@ -146,7 +146,7 @@ export function tightRange(options: RangeBoundConditionOptions = {}): PresetCond
   return {
     type: "preset",
     name: "tightRange()",
-    evaluate: (indicators, candle, index, candles) => {
+    evaluate: (indicators, _candle, index, candles) => {
       const rbData = getRangeBoundData(indicators, candles, options);
       return rbData[index]?.value.state === "RANGE_TIGHT";
     },
@@ -164,7 +164,7 @@ export function rangeScoreAbove(
   return {
     type: "preset",
     name: `rangeScoreAbove(${threshold})`,
-    evaluate: (indicators, candle, index, candles) => {
+    evaluate: (indicators, _candle, index, candles) => {
       const rbData = getRangeBoundData(indicators, candles, options);
       const rb = rbData[index]?.value;
       return rb?.rangeScore !== undefined && rb.rangeScore >= threshold;

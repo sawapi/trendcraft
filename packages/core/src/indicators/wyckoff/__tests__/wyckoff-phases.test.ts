@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { NormalizedCandle } from "../../../types";
 import { wyckoffPhases } from "../wyckoff-phases";
-import type { WyckoffEvent } from "../wyckoff-phases";
 
 function mc(
   i: number,

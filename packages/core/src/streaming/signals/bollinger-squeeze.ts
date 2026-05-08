@@ -55,7 +55,7 @@ export function createSqueezeDetector(
 
   function detect(
     bandwidth: number | null,
-    prev: number | null,
+    _prev: number | null,
     wasSqueeze: boolean,
   ): { squeezeStart: boolean; squeezeEnd: boolean; inSqueeze: boolean } {
     if (bandwidth === null) {

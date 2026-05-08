@@ -1,8 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { useSimulatorStore } from "../store/simulatorStore";
 import {
-  type PortfolioReportData,
-  type SymbolReportData,
   downloadReport,
   generateCSVReport,
   generateJSONReport,
@@ -10,6 +8,8 @@ import {
   generatePortfolioCSVReport,
   generatePortfolioJSONReport,
   generatePortfolioMarkdownReport,
+  type PortfolioReportData,
+  type SymbolReportData,
 } from "../utils/reportGenerator";
 
 type ExportFormat = "markdown" | "csv" | "json";

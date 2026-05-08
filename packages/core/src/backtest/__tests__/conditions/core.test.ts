@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { MtfPresetCondition, NormalizedCandle, PresetCondition } from "../../../types";
 import {
-  MtfContextRequiredError,
   and,
   evaluateCondition,
   getRequiredTimeframes,
+  MtfContextRequiredError,
   not,
   or,
   requiresMtf,

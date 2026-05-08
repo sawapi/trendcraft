@@ -30,7 +30,7 @@ export function volumeConfirmsTrend(): PresetCondition {
   return {
     type: "preset",
     name: "volumeConfirmsTrend",
-    evaluate: (indicators, candle, index, candles) => {
+    evaluate: (indicators, _candle, index, candles) => {
       let trendData = indicators[cacheKey] as
         | { time: number; value: VolumeTrendValue }[]
         | undefined;
@@ -59,7 +59,7 @@ export function volumeDivergence(): PresetCondition {
   return {
     type: "preset",
     name: "volumeDivergence",
-    evaluate: (indicators, candle, index, candles) => {
+    evaluate: (indicators, _candle, index, candles) => {
       let trendData = indicators[cacheKey] as
         | { time: number; value: VolumeTrendValue }[]
         | undefined;
@@ -84,7 +84,7 @@ export function bullishVolumeDivergence(): PresetCondition {
   return {
     type: "preset",
     name: "bullishVolumeDivergence",
-    evaluate: (indicators, candle, index, candles) => {
+    evaluate: (indicators, _candle, index, candles) => {
       let trendData = indicators[cacheKey] as
         | { time: number; value: VolumeTrendValue }[]
         | undefined;
@@ -113,7 +113,7 @@ export function bearishVolumeDivergence(): PresetCondition {
   return {
     type: "preset",
     name: "bearishVolumeDivergence",
-    evaluate: (indicators, candle, index, candles) => {
+    evaluate: (indicators, _candle, index, candles) => {
       let trendData = indicators[cacheKey] as
         | { time: number; value: VolumeTrendValue }[]
         | undefined;
@@ -144,7 +144,7 @@ export function volumeTrendConfidence(minConfidence = 60): PresetCondition {
   return {
     type: "preset",
     name: `volumeTrendConfidence(${minConfidence})`,
-    evaluate: (indicators, candle, index, candles) => {
+    evaluate: (indicators, _candle, index, candles) => {
       let trendData = indicators[cacheKey] as
         | { time: number; value: VolumeTrendValue }[]
         | undefined;
@@ -192,7 +192,7 @@ export function cmfAbove(threshold = 0, period = 20): PresetCondition {
   return {
     type: "preset",
     name: `cmfAbove(${threshold})`,
-    evaluate: (indicators, candle, index, candles) => {
+    evaluate: (indicators, _candle, index, candles) => {
       let cmfData = indicators[cacheKey] as { time: number; value: number | null }[] | undefined;
 
       if (!cmfData) {
@@ -230,7 +230,7 @@ export function cmfBelow(threshold = 0, period = 20): PresetCondition {
   return {
     type: "preset",
     name: `cmfBelow(${threshold})`,
-    evaluate: (indicators, candle, index, candles) => {
+    evaluate: (indicators, _candle, index, candles) => {
       let cmfData = indicators[cacheKey] as { time: number; value: number | null }[] | undefined;
 
       if (!cmfData) {
@@ -272,7 +272,7 @@ export function obvRising(period = 10): PresetCondition {
   return {
     type: "preset",
     name: `obvRising(${period})`,
-    evaluate: (indicators, candle, index, candles) => {
+    evaluate: (indicators, _candle, index, candles) => {
       if (index < period) return false;
 
       let obvData = indicators[cacheKey] as { time: number; value: number }[] | undefined;
@@ -315,7 +315,7 @@ export function obvFalling(period = 10): PresetCondition {
   return {
     type: "preset",
     name: `obvFalling(${period})`,
-    evaluate: (indicators, candle, index, candles) => {
+    evaluate: (indicators, _candle, index, candles) => {
       if (index < period) return false;
 
       let obvData = indicators[cacheKey] as { time: number; value: number }[] | undefined;
@@ -359,7 +359,7 @@ export function obvCrossUp(shortPeriod = 5, longPeriod = 20): PresetCondition {
   return {
     type: "preset",
     name: `obvCrossUp(${shortPeriod},${longPeriod})`,
-    evaluate: (indicators, candle, index, candles) => {
+    evaluate: (indicators, _candle, index, candles) => {
       if (index < 1) return false;
 
       let maData = indicators[cacheKey] as
@@ -431,7 +431,7 @@ export function obvCrossDown(shortPeriod = 5, longPeriod = 20): PresetCondition 
   return {
     type: "preset",
     name: `obvCrossDown(${shortPeriod},${longPeriod})`,
-    evaluate: (indicators, candle, index, candles) => {
+    evaluate: (indicators, _candle, index, candles) => {
       if (index < 1) return false;
 
       let maData = indicators[cacheKey] as

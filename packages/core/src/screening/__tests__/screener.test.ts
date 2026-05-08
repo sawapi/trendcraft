@@ -2,7 +2,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { and, goldenCross, rsiBelow } from "../../backtest/conditions";
 import type { NormalizedCandle } from "../../types";
-import { getCsvFiles, loadCsvDirectory } from "../csv-loader";
+import { getCsvFiles } from "../csv-loader";
 import { parseCsv } from "../csv-parser";
 import { formatCsv, formatJson, formatTable } from "../formatters";
 import {
@@ -138,7 +138,7 @@ describe("screener", () => {
 
   describe("CONDITION_PRESETS", () => {
     it("should have all presets return valid conditions", () => {
-      for (const [name, factory] of Object.entries(CONDITION_PRESETS)) {
+      for (const [_name, factory] of Object.entries(CONDITION_PRESETS)) {
         const condition = factory();
         expect(condition).toBeDefined();
       }

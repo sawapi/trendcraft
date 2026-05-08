@@ -8,8 +8,8 @@
  *   - MACD           → histogram + 2 lines (sub-pane)
  */
 
-import { createChart } from "@trendcraft/chart";
 import type { CandleData } from "@trendcraft/chart";
+import { createChart } from "@trendcraft/chart";
 import { registerTrendCraftPresets } from "@trendcraft/chart/presets";
 import { bollingerBands, macd, rsi, sma, stochastics } from "trendcraft";
 

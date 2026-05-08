@@ -9,8 +9,8 @@
  */
 
 import type { NormalizedCandle, PriceSource } from "../../../types";
-import { createEma } from "../moving-average/ema";
 import type { EmaState } from "../moving-average/ema";
+import { createEma } from "../moving-average/ema";
 import type { IncrementalIndicator, WarmUpOptions } from "../types";
 import { getSourcePrice, makeCandle } from "../utils";
 

@@ -13,6 +13,7 @@ import type {
   ChandelierExitValue,
   ChannelLineValue,
   DonchianValue,
+  EmaRibbonValue,
   FibonacciExtensionValue,
   FibonacciRetracementValue,
   FractalValue,
@@ -74,7 +75,6 @@ import {
   wma,
   zigzag,
 } from "trendcraft";
-import type { EmaRibbonValue } from "trendcraft";
 import { useChartStore } from "../store/chartStore";
 import type { OverlayType } from "../types";
 

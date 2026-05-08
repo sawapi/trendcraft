@@ -7,25 +7,23 @@
  * spinning up a stdio transport.
  */
 
-// Server factory + identity.
-export { createServer, SERVER_NAME, SERVER_VERSION } from "./server";
-
-// Tool handlers (use these to invoke a tool's logic without going through MCP).
-export {
-  type IndicatorSummary,
-  formatMarkdownHandler,
-  getManifestHandler,
-  listIndicatorsHandler,
-  suggestForRegimeHandler,
-} from "./tools/manifest";
-export { type CalcResult, calcIndicatorHandler } from "./tools/calc";
-export { type DetectSignalResult, detectSignalHandler } from "./tools/detect-signal";
-export { listSignalsHandler } from "./tools/list-signals";
-
 // Dispatcher introspection — what's actually wired up.
 export { listSupportedKinds } from "./dispatcher/safe-map";
 export {
+  listSupportedSignals,
   type SignalShape,
   type SignalSummary,
-  listSupportedSignals,
 } from "./dispatcher/signal-map";
+// Server factory + identity.
+export { createServer, SERVER_NAME, SERVER_VERSION } from "./server";
+export { type CalcResult, calcIndicatorHandler } from "./tools/calc";
+export { type DetectSignalResult, detectSignalHandler } from "./tools/detect-signal";
+export { listSignalsHandler } from "./tools/list-signals";
+// Tool handlers (use these to invoke a tool's logic without going through MCP).
+export {
+  formatMarkdownHandler,
+  getManifestHandler,
+  type IndicatorSummary,
+  listIndicatorsHandler,
+  suggestForRegimeHandler,
+} from "./tools/manifest";

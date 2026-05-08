@@ -32,8 +32,7 @@ import type {
   VolumeProfileValue,
 } from "../types";
 import type { IndicatorPlugin } from "../types/plugin";
-import { isNormalized } from "./normalize";
-import { normalizeCandles } from "./normalize";
+import { isNormalized, normalizeCandles } from "./normalize";
 import { resample } from "./resample";
 import { MtfStrategyBuilder, StrategyBuilder } from "./strategy-builder";
 
@@ -403,7 +402,7 @@ export class TrendCraft<TIndicators extends Record<string, unknown> = {}> {
 }
 
 // Re-export strategy builders for backward compatibility
-export { StrategyBuilder, MtfStrategyBuilder } from "./strategy-builder";
+export { MtfStrategyBuilder, StrategyBuilder } from "./strategy-builder";
 
 /**
  * TrendCraft with MTF (Multi-Timeframe) support

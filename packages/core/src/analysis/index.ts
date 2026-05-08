@@ -4,54 +4,48 @@
  * Provides comprehensive analysis functions for evaluating trading performance.
  */
 
+export type { BehaviorEquityPoint, BehaviorInsight } from "./behavior-insights";
+// Behavior Insights
+export { generateBehaviorInsights } from "./behavior-insights";
+export type { DrawdownSummary } from "./drawdown-analysis";
+// Drawdown Analysis
+export { analyzeDrawdowns } from "./drawdown-analysis";
 export {
-  // Main analysis functions
-  calculateTradeStats,
+  analyzeAllTrades,
   analyzeByExitReason,
   analyzeByHoldingPeriod,
   analyzeByTime,
   analyzeMfeMae,
   analyzeStreaks,
-  analyzeAllTrades,
-  // Types
-  type TradeStats,
+  // Main analysis functions
+  calculateTradeStats,
   type ExitReasonAnalysis,
   type HoldingPeriodAnalysis,
-  type TimeAnalysis,
   type MfeMaeAnalysis,
   type StreakAnalysis,
+  type TimeAnalysis,
   type TradeAnalysis,
+  // Types
+  type TradeStats,
 } from "./edge-analysis";
-
-// Runtime Metrics
-export { calculateRuntimeMetrics } from "./runtime-metrics";
-export type { RuntimeMetrics, RuntimeMetricsOptions } from "./runtime-metrics";
-
-// Market Regime Detection
-export { detectMarketRegime } from "./market-regime";
-export type { MarketRegimeResult, MarketRegimeOptions } from "./market-regime";
-
-// Drawdown Analysis
-export { analyzeDrawdowns } from "./drawdown-analysis";
-export type { DrawdownSummary } from "./drawdown-analysis";
-
+export type { MarketContext, MarketContextOptions } from "./market-context";
 // Market Context
 export { analyzeMarketContext } from "./market-context";
-export type { MarketContext, MarketContextOptions } from "./market-context";
-
-// Behavior Insights
-export { generateBehaviorInsights } from "./behavior-insights";
-export type { BehaviorInsight, BehaviorEquityPoint } from "./behavior-insights";
-
+export type { MarketRegimeOptions, MarketRegimeResult } from "./market-regime";
+// Market Regime Detection
+export { detectMarketRegime } from "./market-regime";
 // Pattern Projection Analysis
 export {
-  projectPatternOutcome,
-  projectFromSeries,
   projectFromPatterns,
+  projectFromSeries,
+  projectPatternOutcome,
 } from "./pattern-projection";
 export type {
-  PatternProjectionOptions,
+  EventExtractor,
   HitRate,
   PatternProjection,
-  EventExtractor,
+  PatternProjectionOptions,
 } from "./pattern-projection-types";
+export type { RuntimeMetrics, RuntimeMetricsOptions } from "./runtime-metrics";
+// Runtime Metrics
+export { calculateRuntimeMetrics } from "./runtime-metrics";

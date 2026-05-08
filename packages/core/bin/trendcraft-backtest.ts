@@ -16,14 +16,12 @@
  *   trendcraft-backtest ./data --entry "goldenCross,volumeAnomaly" --stop-loss 5 --take-profit 10
  */
 
-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
-import { basename, join, resolve } from "node:path";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { join, resolve } from "node:path";
 import { runBacktest } from "../src/backtest/engine";
 import { batchBacktest } from "../src/backtest/portfolio";
 import { createCriteriaFromNames, getAvailableConditions, loadCsvFile } from "../src/screening";
-import type { BacktestResult, BatchBacktestResult } from "../src/types";
-
-import type { FillMode, SlTpMode } from "../src/types";
+import type { BacktestResult, FillMode, SlTpMode } from "../src/types";
 
 // Parse command line arguments
 function parseArgs(args: string[]): {

@@ -4,8 +4,8 @@
  * get from stock charting libraries.
  */
 
-import { connectRegimeHeatmap, createChart } from "@trendcraft/chart";
 import type { CandleData } from "@trendcraft/chart";
+import { connectRegimeHeatmap, createChart } from "@trendcraft/chart";
 import { registerTrendCraftPresets } from "@trendcraft/chart/presets";
 import { hmmRegimes, sma } from "trendcraft";
 

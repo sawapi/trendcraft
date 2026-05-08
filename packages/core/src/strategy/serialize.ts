@@ -10,7 +10,7 @@
  * ```
  */
 
-import { type Result, err, ok, tcError } from "../types/result";
+import { err, ok, type Result, tcError } from "../types/result";
 import type { ConditionRegistry } from "./registry";
 import type { StrategyJSON } from "./types";
 import { validateConditionSpec, validateStrategyJSON } from "./validate";

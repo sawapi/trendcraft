@@ -37,14 +37,13 @@
 import type { NormalizedCandle } from "../types";
 import { createCandleResampler } from "./candle-resampler";
 import type {
+  CandleResampler,
   IndicatorSnapshot,
   MtfSnapshot,
-  PipelineIndicatorConfig,
   StreamingMtf,
   StreamingMtfState,
   StreamingMtfTimeframeConfig,
 } from "./types";
-import type { CandleResampler } from "./types";
 
 type MtfTimeframeInstance = {
   intervalMs: number;

@@ -1,13 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  and,
-  deadCross,
-  goldenCross,
-  not,
-  or,
-  rsiAbove,
-  rsiBelow,
-} from "../../backtest/conditions";
+import { and, not, or, rsiAbove, rsiBelow } from "../../backtest/conditions";
 import type { NormalizedCandle } from "../../types";
 import type { ConditionTrace } from "../../types/explainability";
 import { explainCondition, explainSignal } from "../explain";

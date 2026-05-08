@@ -48,7 +48,7 @@ describe("createPositionTracker", () => {
         commission: 500,
         commissionRate: 0.1,
       });
-      const pos = tracker.openPosition(100, 100, 1000);
+      const _pos = tracker.openPosition(100, 100, 1000);
       const account = tracker.getAccount();
 
       // Position value = 100 * 100 = 10,000

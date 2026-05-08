@@ -3,7 +3,6 @@ import { DataLayer } from "../core/data-layer";
 import type {
   ArrowDrawing,
   ChannelDrawing,
-  Drawing,
   FibExtensionDrawing,
   FibRetracementDrawing,
   HLineDrawing,

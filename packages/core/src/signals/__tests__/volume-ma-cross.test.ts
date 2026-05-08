@@ -107,7 +107,7 @@ describe("volumeMaCross", () => {
     });
 
     // High minRatio should not detect (requiring 2x ratio)
-    const resultHigh = volumeMaCross(candles, {
+    const _resultHigh = volumeMaCross(candles, {
       shortPeriod: 5,
       longPeriod: 20,
       minRatio: 2.0,

@@ -1,9 +1,9 @@
 import {
   COLORS,
-  type SeriesItem,
-  type SubchartContext,
   createLineSeries,
   createSubchart,
+  type SeriesItem,
+  type SubchartContext,
 } from "../chartColors";
 import type { IndicatorData } from "../indicators";
 

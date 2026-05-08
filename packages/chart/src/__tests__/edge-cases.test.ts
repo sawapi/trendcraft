@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { DataLayer } from "../core/data-layer";
 import { LayoutEngine } from "../core/layout";
 import { PriceScale, TimeScale } from "../core/scale";
-import type { CandleData, DataPoint } from "../core/types";
+import type { DataPoint } from "../core/types";
 
 describe("Edge Cases", () => {
   describe("Empty data", () => {
@@ -69,7 +69,7 @@ describe("Edge Cases", () => {
       const ts = new TimeScale();
       ts.setWidth(800);
       ts.setTotalCount(100);
-      const before = ts.barSpacing;
+      const _before = ts.barSpacing;
       ts.zoom(0);
       // Should clamp, not go to 0
       expect(ts.barSpacing).toBeGreaterThan(0);

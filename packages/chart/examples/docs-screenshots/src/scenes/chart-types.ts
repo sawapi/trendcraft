@@ -3,8 +3,8 @@
  * Same NVDA dataset across all four panels so differences are visually obvious.
  */
 
-import { createChart } from "@trendcraft/chart";
 import type { CandleData, ChartType } from "@trendcraft/chart";
+import { createChart } from "@trendcraft/chart";
 
 const TYPES: { type: ChartType; label: string }[] = [
   { type: "candlestick", label: "candlestick" },

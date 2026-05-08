@@ -4,8 +4,8 @@
  * come out without any extra wiring.
  */
 
-import { createChart } from "@trendcraft/chart";
 import type { CandleData } from "@trendcraft/chart";
+import { createChart } from "@trendcraft/chart";
 import { registerTrendCraftPresets } from "@trendcraft/chart/presets";
 import { deadCrossCondition, goldenCrossCondition, runBacktest, sma } from "trendcraft";
 

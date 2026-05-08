@@ -8,8 +8,8 @@
 import type { NormalizedCandle } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
 import type { IncrementalIndicator, WarmUpOptions } from "../types";
-import { createDmi } from "./dmi";
 import type { DmiState } from "./dmi";
+import { createDmi } from "./dmi";
 
 export type AdxrState = {
   period: number;

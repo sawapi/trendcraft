@@ -538,7 +538,7 @@ describe("detectChannel – behavioral tests", () => {
     const candles = makeHorizontalChannel(60);
     const result = detectChannel(candles, { minBars: 10, swingLookback: 2 });
     // Check that no two patterns have the same approximate key
-    const keys = result.map(
+    const _keys = result.map(
       (p) =>
         `${p.type}_${Math.round(p.pattern.startTime / (10 * DAY))}_${Math.round(p.pattern.endTime / (10 * DAY))}`,
     );

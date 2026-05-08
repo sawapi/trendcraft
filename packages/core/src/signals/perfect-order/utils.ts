@@ -1,7 +1,7 @@
 import { ema } from "../../indicators/moving-average/ema";
 import { sma } from "../../indicators/moving-average/sma";
 import { wma } from "../../indicators/moving-average/wma";
-import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
+import type { NormalizedCandle, PriceSource, Series } from "../../types";
 import type { PerfectOrderType, SlopeDirection } from "./types";
 
 export { isNormalized } from "../../core/normalize";

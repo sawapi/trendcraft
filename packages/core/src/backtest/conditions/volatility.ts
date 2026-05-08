@@ -7,8 +7,8 @@
 
 import {
   type AtrFilterOptions,
-  DEFAULT_ATR_THRESHOLD,
   atrPercentSeries,
+  DEFAULT_ATR_THRESHOLD,
 } from "../../indicators/volatility/atr-filter";
 import { volatilityRegime } from "../../indicators/volatility/regime";
 import type { PresetCondition, VolatilityRegime, VolatilityRegimeOptions } from "../../types";

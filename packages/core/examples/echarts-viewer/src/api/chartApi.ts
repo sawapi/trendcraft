@@ -21,8 +21,8 @@ import type {
   SubChartType,
   Timeframe,
 } from "../types";
-import { INDICATOR_PARAM_CONFIGS } from "../types/indicators";
 import type { NumericParamConfig } from "../types/indicators";
+import { INDICATOR_PARAM_CONFIGS } from "../types/indicators";
 import { parseCSV } from "../utils/fileParser";
 
 // ---------------------------------------------------------------------------

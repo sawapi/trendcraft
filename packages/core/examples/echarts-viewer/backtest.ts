@@ -4,8 +4,8 @@
  */
 
 import * as echarts from "echarts";
-import * as TrendCraft from "trendcraft";
 import type { BacktestResult, Condition, NormalizedCandle } from "trendcraft";
+import * as TrendCraft from "trendcraft";
 import { formatDate } from "./utils";
 
 // State
@@ -228,7 +228,7 @@ export function runBacktest(candles: NormalizedCandle[], mainChart: echarts.ECha
 
   // ATR trailing stop
   const atrTrailMultiplier = Number.parseFloat(atrTrailMultiplierInput.value) || undefined;
-  const atrTrailPeriod = Number.parseInt(atrTrailPeriodInput.value) || 14;
+  const atrTrailPeriod = Number.parseInt(atrTrailPeriodInput.value, 10) || 14;
 
   const partialThreshold = Number.parseFloat(partialThresholdInput.value) || undefined;
   const partialSellPercent = Number.parseFloat(partialSellPercentInput.value) || 50;

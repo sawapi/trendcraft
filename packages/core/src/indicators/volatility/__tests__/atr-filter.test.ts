@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { NormalizedCandle } from "../../../types";
 import {
-  DEFAULT_ATR_THRESHOLD,
   atrPercentSeries,
   calculateAtrPercent,
+  DEFAULT_ATR_THRESHOLD,
   filterStocksByAtr,
   passesAtrFilter,
 } from "../atr-filter";
@@ -37,7 +37,7 @@ function createCandles(
 }
 
 // Create predictable candles for exact calculation tests
-function createPredictableCandles(
+function _createPredictableCandles(
   count: number,
   atrPct: number,
   basePrice = 1000,

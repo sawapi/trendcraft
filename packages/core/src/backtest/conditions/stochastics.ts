@@ -47,7 +47,7 @@ export function stochBelow(threshold = 20, kPeriod = 14, dPeriod = 3): PresetCon
   return {
     type: "preset",
     name: `stochBelow(${threshold})`,
-    evaluate: (indicators, candle, index, candles) => {
+    evaluate: (indicators, _candle, index, candles) => {
       const stochData = getStochData(indicators, candles, kPeriod, dPeriod);
       const stoch = stochData[index]?.value;
       return stoch?.k !== null && stoch?.k !== undefined && stoch.k < threshold;
@@ -71,7 +71,7 @@ export function stochAbove(threshold = 80, kPeriod = 14, dPeriod = 3): PresetCon
   return {
     type: "preset",
     name: `stochAbove(${threshold})`,
-    evaluate: (indicators, candle, index, candles) => {
+    evaluate: (indicators, _candle, index, candles) => {
       const stochData = getStochData(indicators, candles, kPeriod, dPeriod);
       const stoch = stochData[index]?.value;
       return stoch?.k !== null && stoch?.k !== undefined && stoch.k > threshold;
@@ -111,7 +111,7 @@ export function stochCrossUp(kPeriod = 14, dPeriod = 3): PresetCondition {
   return {
     type: "preset",
     name: "stochCrossUp()",
-    evaluate: (indicators, candle, index, candles) => {
+    evaluate: (indicators, _candle, index, candles) => {
       if (index < 1) return false;
 
       const stochData = getStochData(indicators, candles, kPeriod, dPeriod);
@@ -141,7 +141,7 @@ export function stochCrossDown(kPeriod = 14, dPeriod = 3): PresetCondition {
   return {
     type: "preset",
     name: "stochCrossDown()",
-    evaluate: (indicators, candle, index, candles) => {
+    evaluate: (indicators, _candle, index, candles) => {
       if (index < 1) return false;
 
       const stochData = getStochData(indicators, candles, kPeriod, dPeriod);

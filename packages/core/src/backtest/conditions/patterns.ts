@@ -6,6 +6,7 @@
  * Triangle, Wedge, Channel, and Flag/Pennant patterns.
  */
 
+import type { PatternSignal, PatternType } from "../../signals/patterns";
 import {
   detectChannel,
   cupWithHandle as detectCupHandle,
@@ -18,7 +19,6 @@ import {
   detectTriangle,
   detectWedge,
 } from "../../signals/patterns";
-import type { PatternSignal, PatternType } from "../../signals/patterns";
 import type { NormalizedCandle, PresetCondition } from "../../types";
 
 const PATTERN_CACHE_PREFIX = "pattern_";
