@@ -8,6 +8,7 @@ export type ChartEvent =
   | "crosshairMove"
   | "visibleRangeChange"
   | "click"
+  | "doubleClick"
   | "resize"
   | "paneResize"
   | "seriesAdded"
@@ -16,6 +17,7 @@ export type ChartEvent =
   | "seriesRemoveRequest"
   | "dataFiltered"
   | "drawingComplete"
+  | "drawingToolChanged"
   | "error";
 
 /**
@@ -43,16 +45,23 @@ export type CrosshairMoveData = {
 };
 
 /**
- * Payload for the chart-wide `click` event. Fires on any pointer tap that
- * isn't consumed by the drawing tool. `index` and `time` resolve to the
- * candle nearest the click; `null` when the click landed outside the
- * data range.
+ * Payload for the chart-wide `click` and `doubleClick` events. Fires on
+ * pointer taps (mouse or touch) and double-clicks / double-taps that
+ * aren't consumed by the drawing tool. `index` and `time` resolve to the
+ * candle nearest the pointer; `null` when the pointer landed outside the
+ * data range. Modifier keys carry the keyboard state at click time (always
+ * `false` on touch unless the platform pairs a hardware keyboard) so hosts
+ * can branch on Shift/Alt/Meta/Ctrl without attaching their own listeners.
  */
 export type ChartClickData = {
   x: number;
   y: number;
   index: number | null;
   time: TimeValue | null;
+  shiftKey: boolean;
+  altKey: boolean;
+  metaKey: boolean;
+  ctrlKey: boolean;
 };
 
 export type VisibleRangeChangeData = {

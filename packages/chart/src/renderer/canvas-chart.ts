@@ -10,7 +10,7 @@ import { autoFormatPrice, setMonthNames } from "../core/format";
 import { type ChartLocale, mergeLocale } from "../core/i18n";
 import { DEFAULT_LAYOUT, DEFAULT_LAYOUT_NO_VOLUME, LayoutEngine } from "../core/layout";
 import type { PrimitivePlugin, SeriesRendererPlugin } from "../core/plugin-types";
-import { onTap } from "../core/pointer";
+import { onDoubleTap, onTap } from "../core/pointer";
 import { resolveRangeDuration } from "../core/range-utils";
 import { RendererRegistry } from "../core/renderer-registry";
 import { type PriceScale, TimeScale } from "../core/scale";
@@ -53,6 +53,23 @@ import { renderFrame } from "./render-pipeline";
 // ============================================
 // Default Options
 // ============================================
+
+/** Window during which a `dblclick` arriving after a drawing's completing
+ *  tap is treated as the same gesture and suppressed. Slightly longer than
+ *  the platform double-click threshold (~300 ms) so we don't miss the
+ *  trailing event. */
+const DRAWING_DOUBLECLICK_GUARD_MS = 400;
+
+/** Squared canvas-local distance under which a `dblclick` is considered the
+ *  same gesture as the preceding drawing tap (5px radius — matches the
+ *  pointer module's tap threshold). */
+const DRAWING_DOUBLECLICK_RADIUS_SQ = 25;
+
+function nowMs(): number {
+  return typeof performance !== "undefined" && typeof performance.now === "function"
+    ? performance.now()
+    : Date.now();
+}
 
 const DEFAULT_OPTIONS: Required<
   Pick<ChartOptions, "height" | "priceAxisWidth" | "timeAxisHeight" | "fontSize">
@@ -119,6 +136,21 @@ export class CanvasChart implements ChartInstance {
   private _chartType: import("../core/types").ChartType;
   private _drawingTool: DrawingTool | null = null;
   private _detachDrawTap: (() => void) | null = null;
+  private _detachDoubleTap: (() => void) | null = null;
+  /**
+   * Timestamp + canvas-local position of the most recent tap that *completed*
+   * a drawing (the only tap of a one-click tool, or the second tap of a
+   * two-click tool). Used to suppress the trailing native `dblclick` that
+   * the browser emits after that completing click — by then the drawing
+   * tool has already cleared its active state, so the plain `isActive()`
+   * guard in the doubleClick path isn't enough.
+   *
+   * The position match is essential: a time-only guard would drop *any*
+   * `doubleClick` that happens shortly after a drawing tap, even when the
+   * user intentionally double-clicks elsewhere on the chart.
+   */
+  private _lastDrawingCompleteAt = 0;
+  private _lastDrawingCompletePos: { x: number; y: number } | null = null;
 
   private _rendererRegistry = new RendererRegistry();
   private _drawHelper: DrawHelper | null = null;
@@ -405,6 +437,7 @@ export class CanvasChart implements ChartInstance {
         wheelInertia: options?.interaction?.wheelInertia ?? true,
         hotkeys: options?.hotkeys,
         onAction: (action) => this._handleHotkeyAction(action),
+        isDrawingActive: () => this._drawingTool?.isActive() ?? false,
       },
     );
 
@@ -470,6 +503,15 @@ export class CanvasChart implements ChartInstance {
       // placement will fire spuriously while the user is drawing.
       if (this._drawingTool?.isActive()) {
         this._drawingTool.handleTap(pos);
+        // If the tap *completed* the drawing (one-click tools complete on
+        // their only tap; two-click tools complete on the second tap) the
+        // tool transitions back to inactive. Stamp the position so the
+        // browser-paired `dblclick` arriving at the same spot can be
+        // suppressed without affecting double-clicks elsewhere.
+        if (!this._drawingTool.isActive()) {
+          this._lastDrawingCompleteAt = nowMs();
+          this._lastDrawingCompletePos = { x: pos.x, y: pos.y };
+        }
         return;
       }
       const idx = this._timeScale.xToIndex(pos.x);
@@ -480,6 +522,44 @@ export class CanvasChart implements ChartInstance {
         y: pos.y,
         index: inRange ? idx : null,
         time: inRange ? candles[idx].time : null,
+        shiftKey: pos.shiftKey,
+        altKey: pos.altKey,
+        metaKey: pos.metaKey,
+        ctrlKey: pos.ctrlKey,
+      });
+    });
+    this._detachDoubleTap = onDoubleTap(this._canvas, (pos) => {
+      // Drawing tool swallows double-taps for symmetry with `onTap` — a
+      // double-tap that lands inside an active drawing session shouldn't
+      // also drive Replay anchors or other host-side handlers.
+      if (this._drawingTool?.isActive()) return;
+      // Two-click drawings (trendline, ray, rectangle, channel, fib...) and
+      // one-click drawings dispatched via a fast double-click both clear
+      // `_activeTool` on the completion click before the browser fires the
+      // matching `dblclick`. Suppress only when the dblclick is the same
+      // gesture — i.e. close in time AND position to the drawing's
+      // completing tap. A pure time guard would drop unrelated double-
+      // clicks elsewhere on the chart.
+      if (this._lastDrawingCompletePos) {
+        const dt = nowMs() - this._lastDrawingCompleteAt;
+        if (dt < DRAWING_DOUBLECLICK_GUARD_MS) {
+          const dx = pos.x - this._lastDrawingCompletePos.x;
+          const dy = pos.y - this._lastDrawingCompletePos.y;
+          if (dx * dx + dy * dy <= DRAWING_DOUBLECLICK_RADIUS_SQ) return;
+        }
+      }
+      const idx = this._timeScale.xToIndex(pos.x);
+      const candles = this._data.candles;
+      const inRange = idx >= 0 && idx < candles.length;
+      this._emit("doubleClick", {
+        x: pos.x,
+        y: pos.y,
+        index: inRange ? idx : null,
+        time: inRange ? candles[idx].time : null,
+        shiftKey: pos.shiftKey,
+        altKey: pos.altKey,
+        metaKey: pos.metaKey,
+        ctrlKey: pos.ctrlKey,
       });
     });
 
@@ -1162,6 +1242,7 @@ export class CanvasChart implements ChartInstance {
     this._legendOverlay?.destroy();
     this._rendererRegistry.destroyAll();
     this._detachDrawTap?.();
+    this._detachDoubleTap?.();
     this._drawingTool?.reset();
     this._drawingTool = null;
     this._canvas.remove();

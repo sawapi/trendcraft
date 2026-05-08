@@ -3,6 +3,7 @@ import { registerTrendCraftPresets } from "@trendcraft/chart/presets";
 import { useTrendChart } from "@trendcraft/chart/react";
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { indicatorPresets, parseStrategy, validateStrategyJSON } from "trendcraft";
+import { ChartToolbar } from "./components/ChartToolbar";
 import { DataSourcePanel } from "./components/DataSourcePanel";
 import { useBacktestRunner } from "./hooks/useBacktestRunner";
 import { useDataSource } from "./hooks/useDataSource";
@@ -69,6 +70,7 @@ export function App() {
     reload: reloadDataSource,
     loading: dataLoading,
     error: dataError,
+    reloadTick: dataReloadTick,
   } = useDataSource();
   const regime = useRegime(candles);
 
@@ -88,6 +90,24 @@ export function App() {
   const [progress, setProgress] = useState(0);
   const replayRef = useRef(replay);
   replayRef.current = replay;
+
+  // Anchor mode — when on, the next chart click starts Replay at that bar.
+  // Shift+click is also recognized as anchor (regardless of mode). Driven via
+  // a ref so the chart click handler reads it without re-binding on every
+  // toggle.
+  const [anchorMode, setAnchorMode] = useState(false);
+  const anchorModeRef = useRef(anchorMode);
+  anchorModeRef.current = anchorMode;
+  const toggleAnchor = useCallback(() => setAnchorMode((v) => !v), []);
+  // Esc cancels anchor mode.
+  useEffect(() => {
+    if (!anchorMode) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setAnchorMode(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [anchorMode]);
 
   // Reset replay whenever the underlying candle series changes (different
   // symbol / timeframe / source). A live cursorIndex against stale data
@@ -409,22 +429,27 @@ export function App() {
       if (instId) setInstances((prev) => prev.filter((i) => i.id !== instId));
     };
     const onClick = (data: unknown) => {
-      const payload = data as { index: number | null } | null;
+      const payload = data as { index: number | null; shiftKey?: boolean } | null;
       if (payload?.index == null) return;
-      // Static-mode click anchors Replay at the clicked bar (TradingView's
-      // signature UX). Live-mode clicks are ignored — re-anchoring mid-replay
-      // would surprise the user; use Exit ✕ first.
+      // A click anchors Replay only when the user has explicitly opted in:
+      // either by arming anchor-mode via the toolbar button, or by holding
+      // Shift while clicking. Plain clicks do nothing so users can interact
+      // with the chart without accidentally entering Replay. Live-mode
+      // clicks are ignored — re-anchoring mid-replay would surprise the
+      // user; use Exit ✕ first.
       // `cursorIndex` becomes seedEnd downstream and the seed is
       // `candles[0..seedEnd-1]`, so add 1 to include the clicked candle in
       // the snapshot rather than treating it as the first queued bar.
-      if (replayRef.current.mode === "static") {
-        setReplay({
-          mode: "live",
-          cursorIndex: payload.index + 1,
-          status: "idle",
-          speed: "1x",
-        });
-      }
+      const wantAnchor = anchorModeRef.current || payload.shiftKey === true;
+      if (!wantAnchor) return;
+      if (replayRef.current.mode !== "static") return;
+      setReplay({
+        mode: "live",
+        cursorIndex: payload.index + 1,
+        status: "idle",
+        speed: "1x",
+      });
+      setAnchorMode(false);
     };
     chart.on("seriesEditRequest", onEdit);
     chart.on("seriesRemoveRequest", onRemove);
@@ -695,10 +720,13 @@ export function App() {
       </aside>
 
       <main className="pane center">
+        <ChartToolbar chart={chart} />
         <ReplayControls
           replay={replay}
           progress={progress}
           cursorTime={cursorCandle?.time ?? null}
+          anchorMode={anchorMode}
+          onToggleAnchor={toggleAnchor}
           onPlay={replayPlay}
           onPause={replayPause}
           onStep={replayStep}
@@ -733,8 +761,11 @@ export function App() {
         <PortfolioPanel
           strategy={runner.state.lastResult?.json}
           lastResult={runner.state.lastResult?.result}
-          sliceLength={backtestCandles.length}
+          sliceStartTime={backtestCandles[0]?.time ?? null}
+          sliceEndTime={backtestCandles[backtestCandles.length - 1]?.time ?? null}
           isReplayPlaying={replay.mode === "live" && replay.status === "playing"}
+          dataSource={dataSource}
+          reloadTick={dataReloadTick}
         />
         <div className="pane-divider" />
         <ScoringPanel

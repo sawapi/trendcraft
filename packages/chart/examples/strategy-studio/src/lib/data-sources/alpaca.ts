@@ -42,6 +42,17 @@ export const DEFAULT_SYMBOL = "SPY";
 export const DEFAULT_TIMEFRAME: Timeframe = "1Day";
 
 /**
+ * Symbols used by PortfolioPanel when Alpaca is enabled — picked to span the
+ * volatility / cap-size spectrum so the BASE / STEADY / VOLAT semantics still
+ * read clearly with real data.
+ */
+export const PORTFOLIO_SYMBOLS: ReadonlyArray<{ symbol: string; label: string }> = [
+  { symbol: "SPY", label: "SPDR S&P 500 ETF" },
+  { symbol: "AAPL", label: "Apple Inc." },
+  { symbol: "NVDA", label: "NVIDIA Corp" },
+];
+
+/**
  * Fetch historical bars for a given symbol/timeframe via the dev-server proxy.
  * Pagination is handled internally; returns a chronologically ordered array
  * of `StudioCandle`. Adjustment is `split` to align with TradingView's default

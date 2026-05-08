@@ -110,4 +110,12 @@ export type InteractionContext = {
   // Scrollbar-press helpers (kept on Viewport to preserve their docstrings).
   applyScrollbarDrag: (mouseX: number, sb: ScrollbarRect) => void;
   beginScrollbarDrag: (mouseX: number, sb: ScrollbarRect) => void;
+
+  /**
+   * Whether a drawing tool is currently armed in the host. Touch gesture
+   * defaults (double-tap fitContent, long-press crosshair lock) consult this
+   * so two-click drawings can complete without the second tap also being
+   * interpreted as a viewport gesture.
+   */
+  isDrawingActive?: () => boolean;
 };

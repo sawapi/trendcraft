@@ -34,8 +34,19 @@ export class DrawingTool {
   }
 
   setTool(tool: DrawingType | null): void {
-    this._activeTool = tool;
+    // Always reset the in-progress anchor so that re-selecting the same
+    // multi-click tool (e.g. via repeated toolbar click or re-pressing the
+    // hotkey) starts a fresh gesture instead of completing the abandoned
+    // half-drawn one. The `drawingToolChanged` emit is still de-duped so
+    // listeners don't churn on no-op calls.
+    const sameTool = this._activeTool === tool;
     this._inProgress = null;
+    if (sameTool) {
+      this._deps.requestRender();
+      return;
+    }
+    this._activeTool = tool;
+    this._deps.emit("drawingToolChanged", { tool });
     this._deps.requestRender();
   }
 
@@ -227,6 +238,10 @@ export class DrawingTool {
     this._deps.emit("drawingComplete", drawing);
     this._activeTool = null;
     this._inProgress = null;
+    // Mirror `setTool(null)` so listeners that key off `drawingToolChanged`
+    // (e.g. host toolbars syncing their highlighted-button state) see the
+    // tool clear immediately after a successful placement.
+    this._deps.emit("drawingToolChanged", { tool: null });
     this._deps.requestRender();
   }
 }

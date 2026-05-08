@@ -26,6 +26,12 @@ export interface UseDataSourceResult {
   reload: () => void;
   loading: boolean;
   error: Error | null;
+  /**
+   * Monotonic counter incremented every time `reload()` fires. Other hooks
+   * that own independent fetches (e.g. PortfolioPanel's symbol set) should
+   * key on this so they refresh in lockstep with the main candle stream.
+   */
+  reloadTick: number;
 }
 
 export function useDataSource(): UseDataSourceResult {
@@ -92,5 +98,5 @@ export function useDataSource(): UseDataSourceResult {
     setReloadTick(reloadCounterRef.current);
   }, [source]);
 
-  return { candles, source, setSource, reload, loading, error };
+  return { candles, source, setSource, reload, loading, error, reloadTick };
 }

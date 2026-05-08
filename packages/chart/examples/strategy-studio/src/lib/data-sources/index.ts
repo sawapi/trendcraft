@@ -3,6 +3,7 @@ export {
   DEFAULT_SYMBOL,
   DEFAULT_TIMEFRAME,
   POPULAR_SYMBOLS,
+  PORTFOLIO_SYMBOLS,
   fetchAlpacaBars,
   fetchAssetList,
   searchAssets,
