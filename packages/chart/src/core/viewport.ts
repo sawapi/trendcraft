@@ -16,8 +16,8 @@ import { attachTouchHandlers } from "./interaction/touch-handler";
 import type {
   DragState,
   InteractionContext,
-  PanInertiaState,
   PaneResizeState,
+  PanInertiaState,
   ScrollbarRect,
   TouchHandlerState,
   ViewportState,

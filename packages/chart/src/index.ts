@@ -47,148 +47,140 @@ export function createChart(container: HTMLElement, options?: ChartOptions): Cha
 
 // ---- Re-exports ----
 
-// Core types
-export type {
-  ChartInstance,
-  ChartOptions,
-  ChartEvent,
-  CandleData,
-  DataPoint,
-  TimeValue,
-  ThemeColors,
-  PaneConfig,
-  LayoutConfig,
-  SeriesConfig,
-  SeriesType,
-  BuiltinSeriesType,
-  SeriesHandle,
-  SignalMarker,
-  TradeMarker,
-  ScaleMode,
-  CrosshairMoveData,
-  VisibleRangeChangeData,
-  ChartErrorCode,
-  ChartErrorPayload,
-  SeriesInfo,
-  Drawing,
-  DrawingType,
-  HLineDrawing,
-  TrendLineDrawing,
-  FibRetracementDrawing,
-  RayDrawing,
-  HRayDrawing,
-  VLineDrawing,
-  RectangleDrawing,
-  ChannelDrawing,
-  FibExtensionDrawing,
-  TextLabelDrawing,
-  ArrowDrawing,
-  TimeframeOverlay,
-  ChartType,
-  InfoOverlayData,
-  RangeDuration,
-  CrosshairMode,
-  CrosshairOptions,
-  InteractionOptions,
-  HotkeyAction,
-  TimeScaleOptions,
-  SessionGapsOptions,
-} from "./core/types";
+// Drawing helper
+export { DrawHelper, type FillStyle, type StrokeStyle } from "./core/draw-helper";
 
 export { DEFAULT_HOTKEYS, type HotkeyMap } from "./core/hotkeys";
 
 // i18n
 export type { ChartLocale } from "./core/i18n";
 export { DEFAULT_LOCALE, mergeLocale } from "./core/i18n";
-
-export { DARK_THEME, LIGHT_THEME } from "./core/types";
-
-// Series registry (for custom rules)
-export { SeriesRegistry, type IntrospectionRule } from "./core/series-registry";
-
 // Plugin system
 export {
-  defineSeriesRenderer,
-  definePrimitive,
-  type SeriesRendererPlugin,
-  type PrimitivePlugin,
-  type SeriesRenderContext,
-  type PrimitiveRenderContext,
-  type AnySeriesRendererPlugin,
   type AnyPrimitivePlugin,
+  type AnySeriesRendererPlugin,
+  definePrimitive,
+  defineSeriesRenderer,
+  type PrimitivePlugin,
+  type PrimitiveRenderContext,
+  type SeriesRenderContext,
+  type SeriesRendererPlugin,
 } from "./core/plugin-types";
 export { RendererRegistry } from "./core/renderer-registry";
-
-// Drawing helper
-export { DrawHelper, type StrokeStyle, type FillStyle } from "./core/draw-helper";
-
+// Series registry (for custom rules)
+export { type IntrospectionRule, SeriesRegistry } from "./core/series-registry";
+// Core types
+export type {
+  ArrowDrawing,
+  BuiltinSeriesType,
+  CandleData,
+  ChannelDrawing,
+  ChartErrorCode,
+  ChartErrorPayload,
+  ChartEvent,
+  ChartInstance,
+  ChartOptions,
+  ChartType,
+  CrosshairMode,
+  CrosshairMoveData,
+  CrosshairOptions,
+  DataPoint,
+  Drawing,
+  DrawingType,
+  FibExtensionDrawing,
+  FibRetracementDrawing,
+  HLineDrawing,
+  HotkeyAction,
+  HRayDrawing,
+  InfoOverlayData,
+  InteractionOptions,
+  LayoutConfig,
+  PaneConfig,
+  RangeDuration,
+  RayDrawing,
+  RectangleDrawing,
+  ScaleMode,
+  SeriesConfig,
+  SeriesHandle,
+  SeriesInfo,
+  SeriesType,
+  SessionGapsOptions,
+  SignalMarker,
+  TextLabelDrawing,
+  ThemeColors,
+  TimeframeOverlay,
+  TimeScaleOptions,
+  TimeValue,
+  TradeMarker,
+  TrendLineDrawing,
+  VisibleRangeChangeData,
+  VLineDrawing,
+} from "./core/types";
+export { DARK_THEME, LIGHT_THEME } from "./core/types";
+export type {
+  AddIndicatorOptions,
+  ConnectIndicatorsOptions,
+  IndicatorConnection,
+  IndicatorHandle,
+  IndicatorPresetEntry,
+  IndicatorSpec,
+  LiveSource,
+} from "./integration/connect-indicators";
 // Unified indicator connection
 export { connectIndicators, defineIndicator } from "./integration/connect-indicators";
-
+export type {
+  LivePrimitiveHandle,
+  LivePrimitiveSpec,
+  LivePrimitivesConnection,
+} from "./integration/connect-live-primitives";
 // Live mode for primitive plugins (S/R Zones, SMC, Wyckoff, Kill Zones, Regime
 // Heatmap, etc.) — recompute on candleComplete and push to handle.update().
 export { connectLivePrimitives } from "./integration/connect-live-primitives";
-export type {
-  LivePrimitiveSpec,
-  LivePrimitiveHandle,
-  LivePrimitivesConnection,
-} from "./integration/connect-live-primitives";
-
 // Drawing auto-injection helpers — convert indicator output (fibs / trendlines / channels)
 // into built-in Drawing objects without needing a dedicated primitive plugin.
 export {
-  addAutoFibRetracement,
-  addAutoFibExtension,
-  addAutoTrendLine,
-  addAutoChannelLine,
-  DEFAULT_FIB_RETRACEMENT_LEVELS,
-  DEFAULT_FIB_EXTENSION_LEVELS,
-  type SwingAnchor,
+  type AddChannelLineOptions,
   type AddFibOptions,
   type AddTrendLineOptions,
-  type AddChannelLineOptions,
+  addAutoChannelLine,
+  addAutoFibExtension,
+  addAutoFibRetracement,
+  addAutoTrendLine,
+  DEFAULT_FIB_EXTENSION_LEVELS,
+  DEFAULT_FIB_RETRACEMENT_LEVELS,
+  type SwingAnchor,
 } from "./integration/drawing-helpers";
-export type {
-  ConnectIndicatorsOptions,
-  IndicatorConnection,
-  IndicatorPresetEntry,
-  IndicatorHandle,
-  IndicatorSpec,
-  AddIndicatorOptions,
-  LiveSource,
-} from "./integration/connect-indicators";
-
-// Plugins — tree-shakeable visualization primitives
-export { createRegimeHeatmap, connectRegimeHeatmap } from "./plugins/regime-heatmap";
-export { createSmcLayer, connectSmcLayer } from "./plugins/smc-layer";
-export type { SmcState, SmcZone, SmcMarker, SmcLevel } from "./plugins/smc-layer";
-export { createWyckoffPhase, connectWyckoffPhase } from "./plugins/wyckoff-phase";
-export { createSrConfluence, connectSrConfluence } from "./plugins/sr-confluence";
-export { createTradeAnalysis, connectTradeAnalysis } from "./plugins/trade-analysis";
-export { createSessionZones, connectSessionZones } from "./plugins/session-zones";
 export {
-  createAndrewsPitchfork,
-  connectAndrewsPitchfork,
   type AndrewsPitchforkState,
+  connectAndrewsPitchfork,
+  createAndrewsPitchfork,
   type PitchforkAnchor,
   type PitchforkAnchors,
 } from "./plugins/andrews-pitchfork";
 export {
-  createVolumeProfile,
+  connectMarketProfile,
+  createMarketProfile,
+  type MarketProfileOptions,
+  type MarketProfileSeries,
+  type MarketProfileValue,
+} from "./plugins/market-profile";
+// Plugins — tree-shakeable visualization primitives
+export { connectRegimeHeatmap, createRegimeHeatmap } from "./plugins/regime-heatmap";
+export { connectSessionZones, createSessionZones } from "./plugins/session-zones";
+export type { SmcLevel, SmcMarker, SmcState, SmcZone } from "./plugins/smc-layer";
+export { connectSmcLayer, createSmcLayer } from "./plugins/smc-layer";
+export {
+  connectSqueezeDots,
+  createSqueezeDots,
+  type SqueezeDotsOptions,
+} from "./plugins/squeeze-dots";
+export { connectSrConfluence, createSrConfluence } from "./plugins/sr-confluence";
+export { connectTradeAnalysis, createTradeAnalysis } from "./plugins/trade-analysis";
+export {
   connectVolumeProfile,
+  createVolumeProfile,
   type VolumeProfileData,
   type VolumeProfileLevel,
   type VolumeProfileState,
 } from "./plugins/volume-profile";
-export {
-  createMarketProfile,
-  connectMarketProfile,
-  type MarketProfileValue,
-  type MarketProfileSeries,
-  type MarketProfileOptions,
-} from "./plugins/market-profile";
-export {
-  createSqueezeDots,
-  connectSqueezeDots,
-  type SqueezeDotsOptions,
-} from "./plugins/squeeze-dots";
+export { connectWyckoffPhase, createWyckoffPhase } from "./plugins/wyckoff-phase";

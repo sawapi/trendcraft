@@ -49,6 +49,8 @@
  * ```
  */
 
+// Builder
+export { ScoreBuilder } from "./builder";
 // Calculator
 export {
   calculateScore,
@@ -57,31 +59,26 @@ export {
   isScoreAbove,
   isScoreBelow,
 } from "./calculator";
-
-// Builder
-export { ScoreBuilder } from "./builder";
-
-// Presets
-export {
-  getPreset,
-  listPresets,
-  createMomentumPreset,
-  createMeanReversionPreset,
-  createTrendFollowingPreset,
-  createBalancedPreset,
-  createAggressivePreset,
-  createConservativePreset,
-} from "./presets";
-
 // Backtest conditions
 export {
+  minActiveSignals,
   scoreAbove,
   scoreBelow,
-  scoreStrength,
-  minActiveSignals,
-  scoreWithMinSignals,
   scoreIncreasing,
+  scoreStrength,
+  scoreWithMinSignals,
 } from "./conditions";
+// Presets
+export {
+  createAggressivePreset,
+  createBalancedPreset,
+  createConservativePreset,
+  createMeanReversionPreset,
+  createMomentumPreset,
+  createTrendFollowingPreset,
+  getPreset,
+  listPresets,
+} from "./presets";
 
 // Signal evaluators
 export * from "./signals";

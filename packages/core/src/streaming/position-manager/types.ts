@@ -7,13 +7,12 @@
 
 import type {
   BreakevenStopConfig,
-  ExitReason,
   NormalizedCandle,
   PartialTakeProfitConfig,
   PositionDirection,
   Trade,
 } from "../../types";
-import type { IndicatorSnapshot, SessionEvent } from "../types";
+import type { SessionEvent } from "../types";
 
 // ============================================
 // Position & Account State

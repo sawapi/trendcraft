@@ -97,8 +97,8 @@ export function chandelierExit(
 
   const result: Series<ChandelierExitValue> = [];
   let prevDirection: 1 | -1 | 0 = 0;
-  let prevLongExit: number | null = null;
-  let prevShortExit: number | null = null;
+  let _prevLongExit: number | null = null;
+  let _prevShortExit: number | null = null;
 
   for (let i = 0; i < normalized.length; i++) {
     const candle = normalized[i];
@@ -156,8 +156,8 @@ export function chandelierExit(
     });
 
     prevDirection = direction;
-    prevLongExit = longExit;
-    prevShortExit = shortExit;
+    _prevLongExit = longExit;
+    _prevShortExit = shortExit;
   }
 
   return tagSeries(result, withLabelParams(CHANDELIER_EXIT_META, [period, multiplier]));

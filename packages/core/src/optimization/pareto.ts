@@ -17,8 +17,8 @@ import type {
   ParetoResult,
   ParetoResultEntry,
 } from "../types/optimization";
-import { type Result, err, ok, tcError } from "../types/result";
-import { type StrategyFactory, generateParameterCombinations } from "./grid-search";
+import { err, ok, type Result, tcError } from "../types/result";
+import { generateParameterCombinations, type StrategyFactory } from "./grid-search";
 import { calculateAllMetrics, checkConstraint, getMetricValue } from "./metrics";
 
 /**

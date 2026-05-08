@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { runBacktest } from "../../backtest/engine";
-import type { DrawdownPeriod } from "../../types";
-import type { NormalizedCandle } from "../../types";
+import type { DrawdownPeriod, NormalizedCandle } from "../../types";
 import { analyzeDrawdowns } from "../drawdown-analysis";
 
 function makePeriod(overrides: Partial<DrawdownPeriod> = {}): DrawdownPeriod {

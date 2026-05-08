@@ -5,27 +5,24 @@
  * Re-exports all marker functions from sub-modules.
  */
 
-export { SIGNAL_COLORS } from "./markers/signalColors";
-export type { MarkPointItem, MarkAreaItem, MarkLineItem } from "./markers/signalColors";
+export {
+  createCrossMarkPoints,
+  createDivergenceMarkers,
+  createSqueezeMarkers,
+} from "./markers/crossDivergenceMarkers";
+export { createPatternMarkLines, createPatternMarkPoints } from "./markers/patternMarkers";
 
 export { createPerfectOrderMarkPoints } from "./markers/perfectOrderMarkers";
 
 export {
   createRangeBoundAreas,
   createSupportResistanceLines,
-  shouldMergeRanges,
   mergeRanges,
+  shouldMergeRanges,
 } from "./markers/rangeBoundMarkers";
-
-export {
-  createCrossMarkPoints,
-  createDivergenceMarkers,
-  createSqueezeMarkers,
-} from "./markers/crossDivergenceMarkers";
-
+export type { MarkAreaItem, MarkLineItem, MarkPointItem } from "./markers/signalColors";
+export { SIGNAL_COLORS } from "./markers/signalColors";
 export {
   createVolumeBreakoutMarkers,
   createVolumeMaCrossMarkers,
 } from "./markers/volumeMarkers";
-
-export { createPatternMarkPoints, createPatternMarkLines } from "./markers/patternMarkers";

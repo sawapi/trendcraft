@@ -8,7 +8,7 @@
  * until promoted to `@trendcraft/chart/replay` (or `examples/_shared`).
  */
 
-import { type NormalizedCandle, createLiveCandle } from "trendcraft";
+import { createLiveCandle, type NormalizedCandle } from "trendcraft";
 
 type LiveCandle = ReturnType<typeof createLiveCandle>;
 

@@ -246,7 +246,7 @@ describe("volumeAboveAverage", () => {
 
       // Should have signals from both high volume periods
       // and consecutive days should reset between them
-      const firstPeriodSignals = signals.filter(
+      const _firstPeriodSignals = signals.filter(
         (s) => s.time < baseTime + 32 * 24 * 60 * 60 * 1000,
       );
       const secondPeriodSignals = signals.filter(

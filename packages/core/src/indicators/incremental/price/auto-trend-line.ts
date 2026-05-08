@@ -17,7 +17,7 @@
 import type { NormalizedCandle } from "../../../types";
 import type { IncrementalIndicator, WarmUpOptions } from "../types";
 import { cloneShallow, pushBounded, resolveSwingConfig } from "./swing-helpers";
-import { type SwingPointsState, createSwingPoints } from "./swing-points";
+import { createSwingPoints, type SwingPointsState } from "./swing-points";
 
 export type AutoTrendLineValue = {
   /** Resistance line value at the current bar, null before enough data */

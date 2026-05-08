@@ -4,8 +4,8 @@
  */
 
 import * as echarts from "echarts";
-import * as TrendCraft from "trendcraft";
 import type { Timeframe } from "trendcraft";
+import * as TrendCraft from "trendcraft";
 import {
   clearTradeMarkers,
   getRunButton,

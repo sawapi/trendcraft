@@ -179,7 +179,7 @@ export function perfectOrderEnhanced(
   // Track pullback buy signal state
   // Once PB fires, it won't fire again until slope goes UP → DOWN (new pullback cycle)
   let hasPullbackBuyFiredBullish = false;
-  let hasPullbackBuyFiredBearish = false;
+  let _hasPullbackBuyFiredBearish = false;
   let prevShortSlope: SlopeDirection = "FLAT";
 
   for (let i = 0; i < normalized.length; i++) {
@@ -259,7 +259,7 @@ export function perfectOrderEnhanced(
     }
     // Similar for bearish (short selling pullback)
     if (prevShortSlope === "DOWN" && currentShortSlope === "UP") {
-      hasPullbackBuyFiredBearish = false;
+      _hasPullbackBuyFiredBearish = false;
     }
 
     // Calculate gap between short MA and mid MA for pullback validation
@@ -300,7 +300,7 @@ export function perfectOrderEnhanced(
     // Reset PB tracking on breakdown
     if (breakdownDetected) {
       hasPullbackBuyFiredBullish = false;
-      hasPullbackBuyFiredBearish = false;
+      _hasPullbackBuyFiredBearish = false;
     }
 
     // Continuous state flag

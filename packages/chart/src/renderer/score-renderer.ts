@@ -3,7 +3,7 @@
  * Green (high score / bullish) → Yellow (neutral) → Red (low score / bearish).
  */
 
-import type { PriceScale, TimeScale } from "../core/scale";
+import type { TimeScale } from "../core/scale";
 import type { DataPoint, PaneRect } from "../core/types";
 
 /**

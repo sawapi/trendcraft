@@ -10,12 +10,12 @@
  */
 
 import type { NormalizedCandle, PriceSource } from "../../../types";
-import { createWma } from "../moving-average/wma";
 import type { WmaState } from "../moving-average/wma";
+import { createWma } from "../moving-average/wma";
 import type { IncrementalIndicator, WarmUpOptions } from "../types";
-import { getSourcePrice, makeCandle } from "../utils";
-import { createRoc } from "./roc";
+import { makeCandle } from "../utils";
 import type { RocState } from "./roc";
+import { createRoc } from "./roc";
 
 /**
  * State for incremental Coppock Curve

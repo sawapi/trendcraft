@@ -7,8 +7,8 @@
 import type { NormalizedCandle, PriceSource } from "../../../types";
 import type { IncrementalIndicator, WarmUpOptions } from "../types";
 import { makeCandle } from "../utils";
-import { createWma } from "./wma";
 import type { WmaState } from "./wma";
+import { createWma } from "./wma";
 
 export type HmaState = {
   period: number;

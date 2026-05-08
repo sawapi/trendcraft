@@ -23,12 +23,12 @@ import type { NormalizedCandle, PresetCondition } from "../../types";
  * ```
  */
 export function goldenCross(shortPeriod = 5, longPeriod = 25): PresetCondition {
-  const cacheKey = `gc_${shortPeriod}_${longPeriod}`;
+  const _cacheKey = `gc_${shortPeriod}_${longPeriod}`;
 
   return {
     type: "preset",
     name: `goldenCross(${shortPeriod}, ${longPeriod})`,
-    evaluate: (indicators, candle, index, candles) => {
+    evaluate: (indicators, _candle, index, candles) => {
       if (index < 1) return false;
 
       // Use cached or compute SMAs
@@ -80,7 +80,7 @@ export function deadCross(shortPeriod = 5, longPeriod = 25): PresetCondition {
   return {
     type: "preset",
     name: `deadCross(${shortPeriod}, ${longPeriod})`,
-    evaluate: (indicators, candle, index, candles) => {
+    evaluate: (indicators, _candle, index, candles) => {
       if (index < 1) return false;
 
       let shortSma = indicators[`sma${shortPeriod}`] as

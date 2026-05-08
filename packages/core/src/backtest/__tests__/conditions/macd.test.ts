@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { NormalizedCandle } from "../../../types";
 import { evaluateCondition, macdCrossDown, macdCrossUp } from "../../conditions";
-import { generateCandles, generateStrongDowntrend, generateStrongUptrend } from "./test-helpers";
+import { generateCandles, generateStrongUptrend } from "./test-helpers";
 
 describe("macdCrossUp()", () => {
   it("should create a valid preset condition", () => {

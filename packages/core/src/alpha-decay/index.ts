@@ -6,8 +6,8 @@
 
 export {
   analyzeAlphaDecay,
-  createObservationsFromTrades,
   createObservationsFromScores,
+  createObservationsFromTrades,
 } from "./monitor";
 
-export { spearmanCorrelation, linearRegression } from "./statistics";
+export { linearRegression, spearmanCorrelation } from "./statistics";

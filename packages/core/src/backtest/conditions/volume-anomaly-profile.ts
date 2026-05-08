@@ -32,7 +32,7 @@ export function volumeAnomalyCondition(threshold = 2.0, period = 20): PresetCond
   return {
     type: "preset",
     name: `volumeAnomaly(${threshold}x)`,
-    evaluate: (indicators, candle, index, candles) => {
+    evaluate: (indicators, _candle, index, candles) => {
       let anomalyData = indicators[cacheKey] as
         | { time: number; value: VolumeAnomalyValue }[]
         | undefined;
@@ -60,7 +60,7 @@ export function volumeExtreme(threshold = 3.0, period = 20): PresetCondition {
   return {
     type: "preset",
     name: `volumeExtreme(${threshold}x)`,
-    evaluate: (indicators, candle, index, candles) => {
+    evaluate: (indicators, _candle, index, candles) => {
       let anomalyData = indicators[cacheKey] as
         | { time: number; value: VolumeAnomalyValue }[]
         | undefined;
@@ -92,7 +92,7 @@ export function volumeRatioAbove(minRatio = 1.5, period = 20): PresetCondition {
   return {
     type: "preset",
     name: `volumeRatioAbove(${minRatio})`,
-    evaluate: (indicators, candle, index, candles) => {
+    evaluate: (indicators, _candle, index, candles) => {
       let anomalyData = indicators[cacheKey] as
         | { time: number; value: VolumeAnomalyValue }[]
         | undefined;

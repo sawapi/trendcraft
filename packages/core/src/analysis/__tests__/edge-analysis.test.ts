@@ -12,7 +12,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import type { ExitReason, Trade } from "../../types";
+import type { Trade } from "../../types";
 import {
   analyzeAllTrades,
   analyzeByExitReason,

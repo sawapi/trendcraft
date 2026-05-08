@@ -1,24 +1,24 @@
 import {
   type BacktestResult,
+  backtestRegistry,
   type Condition,
   type ConditionCategory,
   type ConditionRegistryEntry,
-  type IndicatorPreset,
-  type MarketRegimeResult,
-  type StrategyJSON,
-  backtestRegistry,
   detectMarketRegime,
   getIndicatorPreset,
+  type IndicatorPreset,
   indicatorPresets,
   loadStrategy,
+  type MarketRegimeResult,
   normalizeCandles,
   runBacktest,
+  type StrategyJSON,
 } from "trendcraft";
 import {
   type IndicatorCategory,
   type IndicatorManifest,
-  type MarketRegime,
   listManifests,
+  type MarketRegime,
   suggestForRegime,
 } from "trendcraft/manifest";
 import type { StudioCandle } from "./sample-data";

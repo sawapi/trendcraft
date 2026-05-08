@@ -4,7 +4,7 @@
  */
 
 import type { PriceScale, TimeScale } from "../core/scale";
-import type { CandleData, DataPoint, ThemeColors } from "../core/types";
+import type { CandleData, ThemeColors } from "../core/types";
 
 export type HistogramRenderOptions = {
   /** Positive bar color */

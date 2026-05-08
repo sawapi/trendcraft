@@ -1,4 +1,4 @@
-import { type IndicatorConnection, type SignalMarker, connectIndicators } from "@trendcraft/chart";
+import { connectIndicators, type IndicatorConnection, type SignalMarker } from "@trendcraft/chart";
 import { registerTrendCraftPresets } from "@trendcraft/chart/presets";
 import { useTrendChart } from "@trendcraft/chart/react";
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
@@ -9,7 +9,7 @@ import { useBacktestRunner } from "./hooks/useBacktestRunner";
 import { useDataSource } from "./hooks/useDataSource";
 import { useRegime } from "./hooks/useRegime";
 import { dataSourceKey } from "./lib/data-sources";
-import { type SimulatorHandle, createLiveSimulator } from "./lib/live-simulator";
+import { createLiveSimulator, type SimulatorHandle } from "./lib/live-simulator";
 import type { OptimizationComputation } from "./lib/optimization";
 import { PLUGIN_BY_KIND, type PluginHandle } from "./lib/plugins";
 import { clampedSeedEnd, lastEmittedIdx } from "./lib/replay";

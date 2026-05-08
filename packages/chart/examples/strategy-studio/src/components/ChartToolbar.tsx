@@ -83,7 +83,7 @@ export function ChartToolbar({ chart }: ChartToolbarProps) {
 
   return (
     <div className="chart-toolbar" role="toolbar" aria-label="Chart controls">
-      <div className="chart-toolbar-group" aria-label="Chart type">
+      <div className="chart-toolbar-group" role="group" aria-label="Chart type">
         {CHART_TYPES.map((t) => (
           <button
             type="button"
@@ -99,7 +99,7 @@ export function ChartToolbar({ chart }: ChartToolbarProps) {
 
       <span className="chart-toolbar-sep" aria-hidden="true" />
 
-      <div className="chart-toolbar-group" aria-label="Drawing tools">
+      <div className="chart-toolbar-group" role="group" aria-label="Drawing tools">
         {DRAWING_TOOLS.map((t) => (
           <button
             type="button"

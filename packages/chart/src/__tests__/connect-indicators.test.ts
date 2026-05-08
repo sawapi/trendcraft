@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import type { CandleData, ChartInstance, DataPoint, SeriesHandle } from "../core/types";
 import {
-  type IndicatorPresetEntry,
-  type LiveSource,
   connectIndicators,
   defineIndicator,
+  type IndicatorPresetEntry,
+  type LiveSource,
 } from "../integration/connect-indicators";
 
 // ============================================

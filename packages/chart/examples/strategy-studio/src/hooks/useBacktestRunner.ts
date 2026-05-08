@@ -2,7 +2,7 @@ import type { ChartInstance } from "@trendcraft/chart";
 import { useCallback, useState } from "react";
 import type { StrategyJSON } from "trendcraft";
 import type { StudioCandle } from "../lib/sample-data";
-import { type StrategyRunResult, localStudioAPI } from "../lib/studio-api";
+import { localStudioAPI, type StrategyRunResult } from "../lib/studio-api";
 
 export type BacktestRunnerState =
   | { status: "idle"; lastError?: undefined; lastResult?: StrategyRunResult }

@@ -8,10 +8,10 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import type { Candle, NormalizedCandle } from "../../types";
 import {
-  type SessionDefinition,
   getIctSessions,
   isInAnyBreak,
   isInSessionWindow,
+  type SessionDefinition,
 } from "./session-definition";
 import { getTzHourMinute } from "./tz-utils";
 

@@ -48,17 +48,15 @@
  * ```
  */
 
-// Risk-based sizing
-export { riskBasedSize, calculateStopDistance, riskPerShare } from "./risk-based";
-
 // ATR-based sizing
 export { atrBasedSize, calculateAtrStopDistance, recommendedAtrMultiplier } from "./atr-based";
+// Fixed fractional
+export { fixedFractionalSize, fractionForPositionCount, maxPositions } from "./fixed-fractional";
 
 // Kelly criterion
-export { kellySize, calculateKellyPercent } from "./kelly";
-
-// Fixed fractional
-export { fixedFractionalSize, maxPositions, fractionForPositionCount } from "./fixed-fractional";
+export { calculateKellyPercent, kellySize } from "./kelly";
+// Risk-based sizing
+export { calculateStopDistance, riskBasedSize, riskPerShare } from "./risk-based";
 
 // Utilities
 export { applyConstraints, createResult, validateInputs } from "./utils";

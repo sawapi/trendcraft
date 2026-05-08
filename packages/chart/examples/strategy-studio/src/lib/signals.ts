@@ -10,8 +10,6 @@
 import type { SignalMarker } from "@trendcraft/chart";
 import {
   type DivergenceSignal,
-  type PatternSignal,
-  type Series,
   deadCross,
   doubleBottom,
   doubleTop,
@@ -19,7 +17,9 @@ import {
   headAndShoulders,
   inverseHeadAndShoulders,
   macdDivergence,
+  type PatternSignal,
   rsiDivergence,
+  type Series,
 } from "trendcraft";
 import type { CatalogEntry } from "../panels/ToggleCatalogPanel";
 import type { StudioCandle } from "./sample-data";

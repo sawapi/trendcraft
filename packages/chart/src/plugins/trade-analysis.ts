@@ -19,8 +19,8 @@
  */
 
 import { withPaneClip } from "../core/draw-helper";
-import { definePrimitive } from "../core/plugin-types";
 import type { PrimitivePlugin, PrimitiveRenderContext } from "../core/plugin-types";
+import { definePrimitive } from "../core/plugin-types";
 import type { ChartInstance } from "../core/types";
 
 // ---- Types (duck-typed) ----

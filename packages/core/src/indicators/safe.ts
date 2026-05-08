@@ -17,8 +17,8 @@
  * ```
  */
 
-import { err, ok, tcError } from "../types";
 import type { Result, TrendCraftError, TrendCraftErrorCode } from "../types";
+import { err, ok, tcError } from "../types";
 
 import {
   adl,
@@ -67,8 +67,8 @@ import {
   slowStochastics,
   // Moving Averages
   sma,
-  stochRsi,
   stochastics,
+  stochRsi,
   // Filter
   superSmoother,
   supertrend,

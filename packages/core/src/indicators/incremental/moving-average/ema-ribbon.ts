@@ -6,8 +6,8 @@
 
 import type { NormalizedCandle, PriceSource } from "../../../types";
 import type { IncrementalIndicator, WarmUpOptions } from "../types";
-import { createEma } from "./ema";
 import type { EmaState } from "./ema";
+import { createEma } from "./ema";
 
 export type EmaRibbonValue = {
   values: (number | null)[];

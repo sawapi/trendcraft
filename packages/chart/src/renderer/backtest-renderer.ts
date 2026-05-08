@@ -4,7 +4,7 @@
  */
 
 import type { DataLayer } from "../core/data-layer";
-import { autoFormatPrice, measureTextWidth } from "../core/format";
+import { measureTextWidth } from "../core/format";
 import type { PriceScale, TimeScale } from "../core/scale";
 import type { PaneRect, ThemeColors } from "../core/types";
 

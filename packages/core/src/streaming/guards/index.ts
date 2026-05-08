@@ -6,32 +6,31 @@
  * that wrap a TradingSession to enforce trading discipline.
  */
 
-// Types
-export type {
-  RiskGuardOptions,
-  RiskGuardState,
-  RiskGuardCheckResult,
-  RiskGuard,
-  TradingWindow,
-  BlackoutPeriod,
-  TimeGuardOptions,
-  TimeGuardState,
-  TimeGuardCheckResult,
-  TimeGuard,
-  PortfolioGuardOptions,
-  PortfolioGuardState,
-  PortfolioGuardCheckResult,
-  PortfolioExposure,
-  PortfolioGuard,
-  GuardedSessionOptions,
-  GuardedSessionState,
-  BlockedEvent,
-  ForceCloseEvent,
-  GuardedTradingSession,
-} from "./types";
-
+export { createGuardedSession } from "./guarded-session";
+export { createPortfolioGuard } from "./portfolio-guard";
 // Implementations
 export { createRiskGuard } from "./risk-guard";
 export { createTimeGuard } from "./time-guard";
-export { createGuardedSession } from "./guarded-session";
-export { createPortfolioGuard } from "./portfolio-guard";
+// Types
+export type {
+  BlackoutPeriod,
+  BlockedEvent,
+  ForceCloseEvent,
+  GuardedSessionOptions,
+  GuardedSessionState,
+  GuardedTradingSession,
+  PortfolioExposure,
+  PortfolioGuard,
+  PortfolioGuardCheckResult,
+  PortfolioGuardOptions,
+  PortfolioGuardState,
+  RiskGuard,
+  RiskGuardCheckResult,
+  RiskGuardOptions,
+  RiskGuardState,
+  TimeGuard,
+  TimeGuardCheckResult,
+  TimeGuardOptions,
+  TimeGuardState,
+  TradingWindow,
+} from "./types";

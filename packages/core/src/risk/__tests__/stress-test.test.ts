@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
-  PRESET_SCENARIOS,
   calculateMetricsFromReturns,
   generateShockedReturns,
+  PRESET_SCENARIOS,
   runAllStressTests,
   stressTest,
 } from "../stress-test";

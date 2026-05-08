@@ -9,6 +9,7 @@ import { FileDropZone } from "./components/FileDropZone";
 import { IndicatorSettingsDialog } from "./components/IndicatorSettingsDialog";
 import { PositionPanel } from "./components/PositionPanel";
 import { ReportButton } from "./components/ReportButton";
+import { PerformanceReview } from "./components/review/PerformanceReview";
 import { SecondaryChart } from "./components/SecondaryChart";
 import { SessionManager } from "./components/SessionManager";
 import { ShortcutsHelp } from "./components/ShortcutsHelp";
@@ -20,12 +21,11 @@ import { ThemeToggle } from "./components/ThemeToggle";
 import { TradeAnalysis } from "./components/TradeAnalysis";
 import { TradeHistoryPanel } from "./components/TradeHistoryPanel";
 import { TradePanel } from "./components/TradePanel";
-import { PerformanceReview } from "./components/review/PerformanceReview";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import {
-  type SessionData,
   clearSession,
   loadSession,
+  type SessionData,
   useSessionPersistence,
 } from "./hooks/useSessionPersistence";
 import { useSimulatorStore } from "./store/simulatorStore";

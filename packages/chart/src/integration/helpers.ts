@@ -88,7 +88,7 @@ export function resolveSnapshotName(
 export function buildSeriesConfig(
   meta: PresetMeta,
   snapshotName: string,
-  params: Record<string, unknown>,
+  _params: Record<string, unknown>,
   overrides?: SeriesConfig,
   presetId?: string,
 ): SeriesConfig {

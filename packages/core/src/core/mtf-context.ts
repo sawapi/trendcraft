@@ -6,7 +6,7 @@
  */
 
 import type { MtfContext, MtfDataset, NormalizedCandle, TimeframeShorthand } from "../types";
-import { parseTimeframe, resample } from "./resample";
+import { resample } from "./resample";
 
 /**
  * Create an MTF context from base timeframe candles

@@ -11,29 +11,30 @@
  *
  * @module
  */
-export { sma } from "./sma";
-export { ema } from "./ema";
-export { wma } from "./wma";
-export type { WmaOptions } from "./wma";
-export { vwma } from "./vwma";
-export type { VwmaOptions } from "./vwma";
-export { kama } from "./kama";
-export type { KamaOptions } from "./kama";
-export { t3 } from "./t3";
-export type { T3Options } from "./t3";
-export { hma } from "./hma";
-export type { HmaOptions } from "./hma";
-export { mcginleyDynamic } from "./mcginley-dynamic";
-export type { McGinleyDynamicOptions } from "./mcginley-dynamic";
-export { emaRibbon } from "./ema-ribbon";
-export type { EmaRibbonOptions, EmaRibbonValue } from "./ema-ribbon";
-export { dema } from "./dema";
-export type { DemaOptions } from "./dema";
-export { tema } from "./tema";
-export type { TemaOptions } from "./tema";
-export { zlema } from "./zlema";
-export type { ZlemaOptions } from "./zlema";
-export { frama } from "./frama";
-export type { FramaOptions } from "./frama";
-export { alma } from "./alma";
+
 export type { AlmaOptions } from "./alma";
+export { alma } from "./alma";
+export type { DemaOptions } from "./dema";
+export { dema } from "./dema";
+export { ema } from "./ema";
+export type { EmaRibbonOptions, EmaRibbonValue } from "./ema-ribbon";
+export { emaRibbon } from "./ema-ribbon";
+export type { FramaOptions } from "./frama";
+export { frama } from "./frama";
+export type { HmaOptions } from "./hma";
+export { hma } from "./hma";
+export type { KamaOptions } from "./kama";
+export { kama } from "./kama";
+export type { McGinleyDynamicOptions } from "./mcginley-dynamic";
+export { mcginleyDynamic } from "./mcginley-dynamic";
+export { sma } from "./sma";
+export type { T3Options } from "./t3";
+export { t3 } from "./t3";
+export type { TemaOptions } from "./tema";
+export { tema } from "./tema";
+export type { VwmaOptions } from "./vwma";
+export { vwma } from "./vwma";
+export type { WmaOptions } from "./wma";
+export { wma } from "./wma";
+export type { ZlemaOptions } from "./zlema";
+export { zlema } from "./zlema";

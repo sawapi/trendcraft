@@ -2,13 +2,13 @@
  * Signal rendering: Perfect Order, Range-Bound, Cross events
  */
 
-import * as TrendCraft from "trendcraft";
 import type {
   PerfectOrderValueEnhanced,
   RangeBoundValue,
   SqueezeSignal,
   TrendReason,
 } from "trendcraft";
+import * as TrendCraft from "trendcraft";
 import { currentCandles, currentZoomRange } from "./state";
 import { formatDate } from "./utils";
 

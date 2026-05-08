@@ -4,7 +4,7 @@
 
 import { bench, describe } from "vitest";
 import { atr, bollingerBands, ema, macd, rsi, sma } from "../indicators";
-import { dmi, stochRsi, stochastics } from "../indicators/momentum";
+import { dmi, stochastics, stochRsi } from "../indicators/momentum";
 import { ichimoku, supertrend } from "../indicators/trend";
 import { volumeProfileSeries } from "../indicators/volume";
 import { generateCandles } from "./helpers";

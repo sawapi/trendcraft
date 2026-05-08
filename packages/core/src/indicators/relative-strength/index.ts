@@ -1,15 +1,14 @@
+export type { BenchmarkRSOptions, RSValue } from "./benchmark-rs";
 export {
   benchmarkRS,
   calculateRSRating,
   isOutperforming,
 } from "./benchmark-rs";
-export type { RSValue, BenchmarkRSOptions } from "./benchmark-rs";
-
+export type { MultiRSOptions, SymbolRSRank } from "./multi-rs";
 export {
+  bottomByRS,
+  compareRS,
+  filterByRSPercentile,
   rankByRS,
   topByRS,
-  bottomByRS,
-  filterByRSPercentile,
-  compareRS,
 } from "./multi-rs";
-export type { SymbolRSRank, MultiRSOptions } from "./multi-rs";

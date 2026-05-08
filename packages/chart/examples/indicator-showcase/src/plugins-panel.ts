@@ -45,6 +45,7 @@ import {
 } from "trendcraft";
 
 type LiquiditySweepValue = Awaited<ReturnType<typeof liquiditySweep>>[number]["value"];
+
 import type { LiveSource } from "./live-simulator";
 
 // Per-plugin update signatures vary (zones[], smc sources, regime data, etc.).

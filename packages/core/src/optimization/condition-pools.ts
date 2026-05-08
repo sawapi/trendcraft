@@ -7,7 +7,7 @@
 
 import type { NormalizedCandle } from "../types";
 import type { OptimizationMetric } from "../types/optimization";
-import { type Result, err, ok, tcError } from "../types/result";
+import { err, ok, type Result, tcError } from "../types/result";
 import {
   type CombinationResultEntry,
   type CombinationSearchOptions,

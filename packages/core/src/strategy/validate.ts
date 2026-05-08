@@ -14,7 +14,7 @@
  */
 
 import type { ConditionRegistry } from "./registry";
-import type { ConditionSpec, ParamDef, StrategyJSON } from "./types";
+import type { ConditionSpec, ParamDef } from "./types";
 
 /**
  * Validation result

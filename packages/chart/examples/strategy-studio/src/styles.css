@@ -589,7 +589,9 @@ button.ghost.danger:hover {
   border: 1px solid #2a2e39;
   border-radius: 4px;
   background: #0e1320;
-  transition: box-shadow 200ms ease, border-color 200ms ease;
+  transition:
+    box-shadow 200ms ease,
+    border-color 200ms ease;
 }
 
 .param-card--flash {

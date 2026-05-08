@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { DataLayer } from "../core/data-layer";
-import { DARK_THEME } from "../core/types";
 import type {
   ArrowDrawing,
   ChannelDrawing,
@@ -14,6 +13,7 @@ import type {
   TrendLineDrawing,
   VLineDrawing,
 } from "../core/types";
+import { DARK_THEME } from "../core/types";
 import { renderDrawings } from "../renderer/drawing-renderer";
 import { makeCandle, makePane, makePriceScale, makeTimeScale, mockCtx } from "./helpers/mock-ctx";
 

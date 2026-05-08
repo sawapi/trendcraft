@@ -9,8 +9,8 @@ import {
 import {
   type BuilderAction,
   type BuilderState,
-  type ConditionRow,
   buildStrategyJSON,
+  type ConditionRow,
 } from "../lib/strategy-state";
 import { localStudioAPI } from "../lib/studio-api";
 

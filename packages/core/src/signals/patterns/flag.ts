@@ -15,15 +15,14 @@ import { getSwingHighs, getSwingLows } from "../../indicators/price/swing-points
 import { atr as calcAtr } from "../../indicators/volatility/atr";
 import type { Candle, NormalizedCandle } from "../../types";
 import {
-  type TrendlineFit,
   avgClosePrice,
-  calculateBaseConfidence,
   calculateBreakoutLevels,
   checkBreakoutVolume,
   clampConfidence,
   fitTrendlinePair,
   isSlopeFlat,
   lookupAtr,
+  type TrendlineFit,
 } from "./trendline-utils";
 import type { FlagOptions, PatternKeyPoint, PatternSignal } from "./types";
 

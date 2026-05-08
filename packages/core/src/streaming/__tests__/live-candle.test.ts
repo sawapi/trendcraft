@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { NormalizedCandle } from "../../types";
 import { createLiveCandle } from "../live-candle";
-import type { LiveCandleCompleteEvent, LiveTickEvent, Trade } from "../types";
+import type { Trade } from "../types";
 
 function createMockIndicator(startValue: number, step: number) {
   let value = startValue;
@@ -186,7 +186,7 @@ describe("createLiveCandle", () => {
 
       // Late add — should catch up: 2 history + 2 completed = 4 next() calls
       let instanceRef: ReturnType<typeof createMockIndicator> | null = null;
-      live.addIndicator("late", (s) => {
+      live.addIndicator("late", (_s) => {
         instanceRef = createMockIndicator(0, 1);
         return instanceRef;
       });
@@ -277,7 +277,7 @@ describe("createLiveCandle", () => {
     it("should roundtrip via getState / fromState", () => {
       const live1 = createLiveCandle({
         intervalMs: INTERVAL,
-        indicators: [{ name: "mock", create: (s) => createMockIndicator(10, 1) }],
+        indicators: [{ name: "mock", create: (_s) => createMockIndicator(10, 1) }],
       });
 
       live1.addTick(trade(0, 100));
@@ -320,7 +320,7 @@ describe("createLiveCandle", () => {
       ];
 
       let instanceRef: ReturnType<typeof createMockIndicator> | null = null;
-      const live = createLiveCandle({
+      const _live = createLiveCandle({
         history,
         indicators: [
           {

@@ -12,13 +12,13 @@ import { runBacktest } from "../backtest";
 import { and } from "../backtest/conditions";
 import type { BacktestOptions, NormalizedCandle } from "../types";
 import type {
+  AnchoredWalkForwardOptions,
   AWFPeriod,
   AWFResult,
-  AnchoredWalkForwardOptions,
   OptimizationConstraint,
   OptimizationMetric,
 } from "../types/optimization";
-import { type Result, err, ok, tcError } from "../types/result";
+import { err, ok, type Result, tcError } from "../types/result";
 import {
   analyzeConditionStability,
   calculateAggregateAWFMetrics,
@@ -33,9 +33,9 @@ import { calculateAllMetrics } from "./metrics";
 
 // Re-export public utility functions
 export {
-  summarizeAWFResult,
   formatAWFResult,
   getAWFEquityCurve,
+  summarizeAWFResult,
 } from "./anchored-walkforward-utils";
 
 /**

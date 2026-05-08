@@ -4,15 +4,14 @@
  * Define conditions once, use in both backtest and streaming contexts.
  */
 
+export type {
+  IndicatorAccessor,
+  UnifiedCondition,
+  UnifiedConditionDef,
+} from "./unified";
 export {
   defineUnifiedCondition,
   unifiedAnd,
-  unifiedOr,
   unifiedNot,
-} from "./unified";
-
-export type {
-  IndicatorAccessor,
-  UnifiedConditionDef,
-  UnifiedCondition,
+  unifiedOr,
 } from "./unified";

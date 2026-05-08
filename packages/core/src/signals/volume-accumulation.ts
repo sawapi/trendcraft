@@ -58,14 +58,14 @@ function linearRegression(values: number[]): {
   let sumY = 0;
   let sumXY = 0;
   let sumX2 = 0;
-  let sumY2 = 0;
+  let _sumY2 = 0;
 
   for (let i = 0; i < n; i++) {
     sumX += i;
     sumY += values[i];
     sumXY += i * values[i];
     sumX2 += i * i;
-    sumY2 += values[i] * values[i];
+    _sumY2 += values[i] * values[i];
   }
 
   const denominator = n * sumX2 - sumX * sumX;

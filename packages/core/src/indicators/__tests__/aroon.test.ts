@@ -107,7 +107,7 @@ describe("aroon", () => {
 
   it("should keep values in range [0, 100] for up and down", () => {
     const candles = makeCandles(
-      Array.from({ length: 50 }, (_, i) => ({
+      Array.from({ length: 50 }, (_, _i) => ({
         high: 100 + Math.random() * 20,
         low: 80 + Math.random() * 10,
       })),
@@ -126,7 +126,7 @@ describe("aroon", () => {
 
   it("should keep oscillator in range [-100, 100]", () => {
     const candles = makeCandles(
-      Array.from({ length: 50 }, (_, i) => ({
+      Array.from({ length: 50 }, (_, _i) => ({
         high: 100 + Math.random() * 20,
         low: 80 + Math.random() * 10,
       })),

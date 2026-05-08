@@ -19,45 +19,42 @@
  * ```
  */
 
+// Indicator
+export { candleFormer } from "./candle-former";
+// Backtest conditions
+export { candleFormerBearish, candleFormerBullish } from "./conditions";
 // Tokenizer
 export {
+  classifyShape,
+  PATTERN_NAMES,
   quantizeCandle,
+  SHAPE_NAMES,
   tokenizeCandles,
   tokenizePatterns,
-  classifyShape,
-  SHAPE_NAMES,
-  PATTERN_NAMES,
 } from "./tokenizer";
-
 // Model
 export { trainCandleFormer } from "./train";
 
-// Indicator
-export { candleFormer } from "./candle-former";
-
-// Backtest conditions
-export { candleFormerBullish, candleFormerBearish } from "./conditions";
-
 // Types
 export type {
-  CandleToken,
   CandleFormerConfig,
-  CandleFormerWeights,
+  CandleFormerOptions,
   CandleFormerTrainOptions,
   CandleFormerTrainResult,
-  CandleFormerOptions,
   CandleFormerValue,
+  CandleFormerWeights,
+  CandleToken,
   PredictionDirection,
 } from "./types";
 
 export {
-  VOCAB_SIZE,
-  PAD_TOKEN,
+  DEFAULT_CONFIG,
   NUM_CLASSES,
+  NUM_PATTERNS,
   NUM_SHAPES,
   NUM_VOLUME_BINS,
-  NUM_PATTERNS,
-  PATTERN_VOCAB_SIZE,
+  PAD_TOKEN,
   PATTERN_NONE,
-  DEFAULT_CONFIG,
+  PATTERN_VOCAB_SIZE,
+  VOCAB_SIZE,
 } from "./types";

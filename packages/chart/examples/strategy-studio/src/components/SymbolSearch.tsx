@@ -123,6 +123,7 @@ export function SymbolSearch({ symbol, onSelect }: SymbolSearchProps) {
           }
         }}
         style={inputStyle}
+        role="combobox"
         aria-label="Symbol search"
         aria-autocomplete="list"
         aria-expanded={open}

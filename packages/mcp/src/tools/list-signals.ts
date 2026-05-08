@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { type SignalSummary, listSupportedSignals } from "../dispatcher/signal-map";
+import { listSupportedSignals, type SignalSummary } from "../dispatcher/signal-map";
 
 export const listSignalsInputShape = {
   /**

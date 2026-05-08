@@ -652,7 +652,9 @@
 /* Trade History Clickable */
 .trade-item.clickable {
   cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
 }
 
 .trade-item.clickable:hover {

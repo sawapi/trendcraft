@@ -7,6 +7,7 @@
 import { bench, describe } from "vitest";
 import { runBacktest } from "../backtest";
 import {
+  and,
   deadCross,
   goldenCross,
   macdCrossDown,
@@ -14,7 +15,6 @@ import {
   rsiAbove,
   rsiBelow,
 } from "../backtest/conditions";
-import { and } from "../backtest/conditions";
 import { IndicatorCache } from "../core/indicator-cache";
 import { generateCandles } from "./helpers";
 

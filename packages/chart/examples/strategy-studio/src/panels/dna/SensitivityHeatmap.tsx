@@ -143,13 +143,7 @@ export function SensitivityHeatmap({
   );
 }
 
-function SingleParamBars({
-  data,
-  paramName,
-}: {
-  data: SensitivityData;
-  paramName: string;
-}) {
+function SingleParamBars({ data, paramName }: { data: SensitivityData; paramName: string }) {
   const single = data.singleParams.find((s) => s.paramName === paramName);
   const safeZone = data.safeZones.find((z) => z.paramName === paramName);
   if (!single || single.data.length === 0) return null;

@@ -4,15 +4,15 @@ import { NumInput } from "../components/NumInput";
 import { DEMO_STRATEGIES } from "../lib/demo-strategies";
 import {
   type AllocationMethod,
+  buildRotation,
+  computeFilter,
   DEFAULT_FILTER_INPUTS,
   DEFAULT_ROTATION_INPUTS,
   type DemoBacktest,
   type FilterInputs,
+  overridesFromResult,
   type RotationInputs,
   type RotationSlot,
-  buildRotation,
-  computeFilter,
-  overridesFromResult,
   runDemoBacktests,
 } from "../lib/meta-strategy";
 import type { StudioCandle } from "../lib/sample-data";

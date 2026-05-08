@@ -71,7 +71,7 @@ export function createZlema(
     count = 0;
   }
 
-  function compute(price: number, currentCount: number, isPeek: boolean): number | null {
+  function _compute(price: number, currentCount: number, isPeek: boolean): number | null {
     // Need at least lag+1 prices to compute adjusted price
     if (currentCount <= lag) {
       return null;

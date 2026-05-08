@@ -1,14 +1,14 @@
 import {
+  backtestRegistry,
+  flattenStrategyLeaves,
   type GridSearchResult,
+  gridSearchFromJSON,
+  normalizeCandles,
   type OptimizationMetric,
   type ParamDef,
   type ParameterRange,
   type PathParameterRange,
   type StrategyJSON,
-  backtestRegistry,
-  flattenStrategyLeaves,
-  gridSearchFromJSON,
-  normalizeCandles,
 } from "trendcraft";
 import type { StudioCandle } from "./sample-data";
 
@@ -363,4 +363,4 @@ export function combinationCount(ranges: ParameterRange[]): number {
   return total;
 }
 
-export type { ParameterRange, OptimizationMetric, GridSearchResult };
+export type { GridSearchResult, OptimizationMetric, ParameterRange };

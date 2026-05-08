@@ -1,3 +1,4 @@
+import type { IndicatorConnection, IndicatorPresetEntry } from "@trendcraft/chart";
 import {
   connectIndicators,
   connectRegimeHeatmap,
@@ -10,7 +11,6 @@ import {
   definePrimitive,
   defineSeriesRenderer,
 } from "@trendcraft/chart";
-import type { IndicatorConnection, IndicatorPresetEntry } from "@trendcraft/chart";
 import { registerTrendCraftPresets } from "@trendcraft/chart/presets";
 import {
   bollingerBands,

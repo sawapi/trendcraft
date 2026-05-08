@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import type { BacktestOptions, NormalizedCandle, PresetCondition } from "../../types";
 import {
-  GRID_SEARCH_EPSILON_FACTOR,
   constraint,
   countCombinations,
+  GRID_SEARCH_EPSILON_FACTOR,
   generateParameterCombinations,
   getTopResults,
   gridSearch,
@@ -47,7 +47,7 @@ const createEnterCondition = (enterIndex: number): PresetCondition => ({
 const createExitCondition = (holdBars: number): PresetCondition => ({
   type: "preset",
   name: "paramExit",
-  evaluate: (_indicators, _candle, index, candles) => {
+  evaluate: (_indicators, _candle, index, _candles) => {
     // This is a simplified exit - just exit after holdBars from start
     return index === holdBars + 5;
   },

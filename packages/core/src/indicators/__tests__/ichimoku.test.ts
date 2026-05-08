@@ -89,7 +89,7 @@ describe("ichimoku", () => {
     // Senkou A at current index uses values calculated 'displacement' bars ago
     // At index 14, it uses tenkan and kijun from index 9
     const idx = 14;
-    const sourceIdx = idx - 5;
+    const _sourceIdx = idx - 5;
 
     // Verify Senkou A is calculated
     expect(result[idx].value.senkouA).not.toBeNull();

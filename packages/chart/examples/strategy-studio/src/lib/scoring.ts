@@ -1,11 +1,11 @@
 import {
-  type ScoreBreakdown,
-  type ScoreResult,
-  type ScoringPreset,
   calculateScoreBreakdown,
   calculateScoreSeries,
   getPreset,
   normalizeCandles,
+  type ScoreBreakdown,
+  type ScoreResult,
+  type ScoringPreset,
 } from "trendcraft";
 import type { StudioCandle } from "./sample-data";
 

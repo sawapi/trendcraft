@@ -55,7 +55,7 @@ export function assertSeriesMatch(
   actual: { time: number; value: number | null }[],
   expected: (number | null)[],
   decimals: number,
-  label: string,
+  _label: string,
   startIndex = 0,
 ): void {
   expect(actual.length).toBe(expected.length);

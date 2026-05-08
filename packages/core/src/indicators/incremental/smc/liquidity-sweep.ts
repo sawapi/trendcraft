@@ -26,7 +26,7 @@
 
 import type { NormalizedCandle } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
-import { type SwingPointsState, createSwingPoints } from "../price/swing-points";
+import { createSwingPoints, type SwingPointsState } from "../price/swing-points";
 import type { IncrementalIndicator, WarmUpOptions } from "../types";
 
 export type LiquiditySweep = {

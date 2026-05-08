@@ -4,8 +4,8 @@
  */
 
 import type { ExtendedCondition } from "../backtest/conditions/core";
-import { runBacktest } from "../backtest/engine";
 import type { MtfBacktestOptions } from "../backtest/engine";
+import { runBacktest } from "../backtest/engine";
 import type {
   BacktestOptions,
   BacktestResult,
@@ -13,7 +13,7 @@ import type {
   NormalizedCandle,
   TimeframeShorthand,
 } from "../types";
-import { type Result, err, ok, tcError } from "../types/result";
+import { err, ok, type Result, tcError } from "../types/result";
 
 /**
  * Strategy Builder for backtesting

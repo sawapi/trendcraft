@@ -17,6 +17,6 @@
  * ```
  */
 
-export { traceCondition } from "./trace";
-export { explainSignal, explainCondition } from "./explain";
+export { explainCondition, explainSignal } from "./explain";
 export { generateNarrative } from "./narrative";
+export { traceCondition } from "./trace";

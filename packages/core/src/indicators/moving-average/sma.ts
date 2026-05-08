@@ -2,8 +2,7 @@
  * Simple Moving Average (SMA) indicator
  */
 
-import { getPrice, isNormalized } from "../../core/normalize";
-import { normalizeCandles } from "../../core/normalize";
+import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series, SmaOptions } from "../../types";
 import { SMA_META } from "../indicator-meta";

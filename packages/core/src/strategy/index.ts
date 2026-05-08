@@ -11,35 +11,30 @@
  * - Hydration/Serialization/Validation utilities
  */
 
-// Existing exports
-export type { StrategyDefinition, SessionOverrides } from "./types";
 export { createSessionFromStrategy } from "./factory";
-
-// New: Strategy JSON Serialization types
-export type {
-  ConditionSpec,
-  StrategyJSON,
-  ParamDef,
-  ConditionParamSchema,
-  ConditionCategory,
-  ConditionRegistryEntry,
-} from "./types";
-
+// New: Hydration
+export { hydrateCondition, loadStrategy } from "./hydrate";
 // New: Registry
 export { ConditionRegistry } from "./registry";
 export { backtestRegistry } from "./registry-backtest";
 export { streamingRegistry } from "./registry-streaming";
-
-// New: Hydration
-export { hydrateCondition, loadStrategy } from "./hydrate";
-
 // New: Serialization
-export { serializeStrategy, parseStrategy, parseStrategySafe } from "./serialize";
-
+export { parseStrategy, parseStrategySafe, serializeStrategy } from "./serialize";
+// Existing exports
+// New: Strategy JSON Serialization types
+export type {
+  ConditionCategory,
+  ConditionParamSchema,
+  ConditionRegistryEntry,
+  ConditionSpec,
+  ParamDef,
+  SessionOverrides,
+  StrategyDefinition,
+  StrategyJSON,
+} from "./types";
+export type { ValidationResult } from "./validate";
 // New: Validation
 export { validateConditionSpec, validateStrategyJSON } from "./validate";
-export type { ValidationResult } from "./validate";
-
+export type { LeafInfo, ParsedLeafPath } from "./walker";
 // New: Walker — pure utilities for inspecting / rewriting StrategyJSON shapes
 export { applyParamOverrides, flattenStrategyLeaves, parseLeafPath } from "./walker";
-export type { LeafInfo, ParsedLeafPath } from "./walker";

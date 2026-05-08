@@ -10,15 +10,15 @@ import type { MonteCarloResult } from "trendcraft";
 import { runMonteCarloSimulation } from "trendcraft";
 import { useChartStore } from "../store/chartStore";
 import {
-  type GenomeSegment,
-  type RecommendedParams,
-  type RobustnessGrade,
-  type SensitivityData,
   buildGenomeSegments,
   computeRecommendedParams,
   computeRobustnessGrade,
   encodeBacktestConfig,
   extractSensitivityData,
+  type GenomeSegment,
+  type RecommendedParams,
+  type RobustnessGrade,
+  type SensitivityData,
 } from "../utils/strategyDna";
 
 export type DnaTab = "genome" | "sensitivity" | "robustness" | "share";

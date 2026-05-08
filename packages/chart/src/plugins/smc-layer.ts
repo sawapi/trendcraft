@@ -23,8 +23,8 @@
  */
 
 import { withPaneClip } from "../core/draw-helper";
-import { definePrimitive } from "../core/plugin-types";
 import type { PrimitivePlugin, PrimitiveRenderContext } from "../core/plugin-types";
+import { definePrimitive } from "../core/plugin-types";
 import type { ChartInstance, DataPoint } from "../core/types";
 import { buildSmcState } from "./smc-adapter";
 
@@ -184,7 +184,7 @@ function renderBosLevels(
   levels: readonly SmcLevel[],
   timeScale: PrimitiveRenderContext["timeScale"],
   priceScale: PrimitiveRenderContext["priceScale"],
-  theme: PrimitiveRenderContext["theme"],
+  _theme: PrimitiveRenderContext["theme"],
 ): void {
   ctx.save();
   ctx.setLineDash([6, 4]);

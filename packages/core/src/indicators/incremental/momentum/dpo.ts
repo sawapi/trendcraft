@@ -11,9 +11,8 @@
  */
 
 import type { NormalizedCandle, PriceSource } from "../../../types";
-import { CircularBuffer } from "../circular-buffer";
-import { createSma } from "../moving-average/sma";
 import type { SmaState } from "../moving-average/sma";
+import { createSma } from "../moving-average/sma";
 import type { IncrementalIndicator, WarmUpOptions } from "../types";
 import { getSourcePrice } from "../utils";
 

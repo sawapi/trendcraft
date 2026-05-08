@@ -23,7 +23,7 @@
  * ```
  */
 
-import { type PropType, defineComponent, h } from "vue";
+import { defineComponent, h, type PropType } from "vue";
 import type { AnyPrimitivePlugin, AnySeriesRendererPlugin } from "../src/core/plugin-types";
 import type {
   BacktestResultData,

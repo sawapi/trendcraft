@@ -97,7 +97,7 @@ describe("computeSeriesRange", () => {
 
   it("returns infinity for empty data", () => {
     const series = makeSeries([]);
-    const [min, max] = computeSeriesRange(series, 0, 0);
+    const [min, _max] = computeSeriesRange(series, 0, 0);
     expect(min).toBe(Number.POSITIVE_INFINITY);
   });
 });

@@ -8,8 +8,8 @@
 
 import { olsRegression } from "../../pairs/regression";
 import type { NormalizedCandle, Series } from "../../types";
-import { validateBreakoutVolume } from "./double-pattern-utils";
 import type { SwingPoint } from "./double-pattern-utils";
+import { validateBreakoutVolume } from "./double-pattern-utils";
 import type { PatternKeyPoint } from "./types";
 
 /**

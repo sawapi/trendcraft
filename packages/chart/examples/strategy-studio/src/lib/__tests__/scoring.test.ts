@@ -1,7 +1,7 @@
-import { type ScoringPreset, getPreset } from "trendcraft";
+import { getPreset, type ScoringPreset } from "trendcraft";
 import { describe, expect, it } from "vitest";
 import type { StudioCandle } from "../sample-data";
-import { SCORING_PRESETS, runScoring } from "../scoring";
+import { runScoring, SCORING_PRESETS } from "../scoring";
 
 function makeCandles(n: number): StudioCandle[] {
   return Array.from({ length: n }, (_, i) => {

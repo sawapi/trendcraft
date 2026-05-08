@@ -6,7 +6,7 @@
  */
 
 import type { Condition } from "../types";
-import { type Result, err, ok, tcError } from "../types/result";
+import { err, ok, type Result, tcError } from "../types/result";
 import { getCsvFiles, loadCsvDirectory } from "./csv-loader";
 import { screenStock } from "./screen-stock";
 import type { ScreeningOptions, ScreeningResult, ScreeningSessionResult } from "./types";

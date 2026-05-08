@@ -1,14 +1,14 @@
 import {
-  type PositionSizeResult,
-  type Trade,
-  type VarMethod,
-  type VarResult,
   atr,
   atrBasedSize,
   calculateVaR,
   kellySize,
+  type PositionSizeResult,
   returns,
   riskBasedSize,
+  type Trade,
+  type VarMethod,
+  type VarResult,
 } from "trendcraft";
 import type { StudioCandle } from "./sample-data";
 

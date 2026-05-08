@@ -9,7 +9,6 @@
 import { describe, expect, it } from "vitest";
 import type { NormalizedCandle } from "../../types";
 import { getLearningRate, trainCandleFormer } from "../train";
-import { DEFAULT_CONFIG } from "../types";
 
 const TINY = {
   seqLen: 4,

@@ -1,11 +1,11 @@
 import type { BacktestResult, Trade } from "trendcraft";
 import { describe, expect, it } from "vitest";
 import {
+  buildRotation,
+  computeFilter,
   DEFAULT_FILTER_INPUTS,
   DEFAULT_ROTATION_INPUTS,
   type RotationSlot,
-  buildRotation,
-  computeFilter,
 } from "../meta-strategy";
 
 function makeTrade(returnPct: number, idx: number): Trade {

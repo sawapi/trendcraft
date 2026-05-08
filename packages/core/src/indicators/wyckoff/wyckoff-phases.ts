@@ -18,8 +18,8 @@ import type { Candle, NormalizedCandle, Series } from "../../types";
 import { breakOfStructure } from "../price/break-of-structure";
 import { swingPoints } from "../price/swing-points";
 import { atr } from "../volatility/atr";
-import { vsa } from "./vsa";
 import type { VsaBarType } from "./vsa";
+import { vsa } from "./vsa";
 
 // ---------------------------------------------------------------------------
 // Types

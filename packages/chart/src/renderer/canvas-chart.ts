@@ -8,13 +8,13 @@ import { DataLayer } from "../core/data-layer";
 import type { DrawHelper } from "../core/draw-helper";
 import { autoFormatPrice, setMonthNames } from "../core/format";
 import { type ChartLocale, mergeLocale } from "../core/i18n";
-import { DEFAULT_LAYOUT, DEFAULT_LAYOUT_NO_VOLUME, LayoutEngine } from "../core/layout";
+import { DEFAULT_LAYOUT_NO_VOLUME, LayoutEngine } from "../core/layout";
 import type { PrimitivePlugin, SeriesRendererPlugin } from "../core/plugin-types";
 import { onDoubleTap, onTap } from "../core/pointer";
 import { resolveRangeDuration } from "../core/range-utils";
 import { RendererRegistry } from "../core/renderer-registry";
 import { type PriceScale, TimeScale } from "../core/scale";
-import { type IntrospectionRule, defaultRegistry } from "../core/series-registry";
+import { defaultRegistry, type IntrospectionRule } from "../core/series-registry";
 import type {
   CandleData,
   ChartErrorCode,
@@ -33,8 +33,8 @@ import type {
   SessionGapsOptions,
   SignalMarker,
   ThemeColors,
-  TimeValue,
   TimeframeOverlay,
+  TimeValue,
   TradeMarker,
 } from "../core/types";
 import { DARK_THEME, LIGHT_THEME } from "../core/types";

@@ -1,8 +1,8 @@
 import {
   ALPACA_ENABLED,
+  type DataSource,
   DEFAULT_SYMBOL,
   DEFAULT_TIMEFRAME,
-  type DataSource,
   POPULAR_SYMBOLS,
   TIMEFRAME_LABEL,
   TIMEFRAME_ORDER,

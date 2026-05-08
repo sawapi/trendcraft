@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Tensor, mulberry32, randNormal } from "../tensor";
+import { mulberry32, randNormal, Tensor } from "../tensor";
 
 describe("mulberry32 PRNG", () => {
   it("produces deterministic sequence", () => {

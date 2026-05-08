@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ALPACA_ENABLED,
+  type DataSource,
   DEFAULT_SYMBOL,
   DEFAULT_TIMEFRAME,
-  type DataSource,
   dataSourceKey,
   fetchAlpacaBars,
 } from "../lib/data-sources";

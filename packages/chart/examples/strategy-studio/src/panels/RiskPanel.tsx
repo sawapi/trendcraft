@@ -2,15 +2,15 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { BacktestResult } from "trendcraft";
 import { NumInput } from "../components/NumInput";
 import {
+  computeSizing,
+  computeVar,
   DEFAULT_VAR_INPUTS,
+  defaultSizingInputs,
+  deriveKellyStats,
   type SizingInputs,
   type SizingMethod,
   type VarInputs,
   type VarMethod,
-  computeSizing,
-  computeVar,
-  defaultSizingInputs,
-  deriveKellyStats,
 } from "../lib/risk";
 import type { StudioCandle } from "../lib/sample-data";
 

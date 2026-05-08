@@ -2,7 +2,7 @@ import { Sparkline } from "@trendcraft/chart/react/sparkline";
 import { useEffect, useRef, useState } from "react";
 import type { ScoreResult, ScoringPreset } from "trendcraft";
 import type { StudioCandle } from "../lib/sample-data";
-import { SCORING_PRESETS, type ScoringComputation, runScoring } from "../lib/scoring";
+import { runScoring, SCORING_PRESETS, type ScoringComputation } from "../lib/scoring";
 
 type Props = {
   /** Playhead-aware candle slice from App. */

@@ -61,10 +61,10 @@ function bufferMinMax(buf: CircularBuffer<number>): { min: number; max: number }
   return { min, max };
 }
 
-function midPrice(
+function _midPrice(
   buf: CircularBuffer<number>,
   period: number,
-  highOrLow: "high" | "low",
+  _highOrLow: "high" | "low",
   otherBuf: CircularBuffer<number>,
 ): number | null {
   if (buf.length < period) return null;

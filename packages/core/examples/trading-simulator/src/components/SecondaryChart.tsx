@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { useSimulatorStore } from "../store/simulatorStore";
 import { COLORS, THEME_COLORS } from "../utils/chartColors";
 import { formatDate } from "../utils/fileParser";
-import { type Timeframe, convertTimeframe } from "../utils/timeframeConverter";
+import { convertTimeframe, type Timeframe } from "../utils/timeframeConverter";
 
 function useDocumentTheme() {
   const [theme] = useState(

@@ -15,15 +15,15 @@ import { FileDropZone } from "./FileDropZone";
 import { IndicatorSettingsDialog } from "./IndicatorSettingsDialog";
 import { KeyboardShortcutsHelp } from "./KeyboardShortcutsHelp";
 import { MainChart, type MainChartHandle } from "./MainChart";
+import { OptimizationPanel } from "./optimization/OptimizationPanel";
 import { PatternReplayPanel } from "./PatternReplayPanel";
 import { PeriodSelector } from "./PeriodSelector";
 import { PositionSizingPanel } from "./PositionSizingPanel";
 import { SignalsPanel } from "./SignalsPanel";
 import { SymbolSearch } from "./SymbolSearch";
-import { TimeframeSelector } from "./TimeframeSelector";
-import { Watchlist, useWatchlist } from "./Watchlist";
-import { OptimizationPanel } from "./optimization/OptimizationPanel";
 import { StrategyDnaPanel } from "./strategy-dna/StrategyDnaPanel";
+import { TimeframeSelector } from "./TimeframeSelector";
+import { useWatchlist, Watchlist } from "./Watchlist";
 
 /**
  * Format a timestamp as YYYY/MM/DD

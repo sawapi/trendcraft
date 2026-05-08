@@ -9,8 +9,8 @@ import {
   type OptimizationTab,
   PARAMETER_TEMPLATES,
   type ParameterRangeConfig,
-  type WalkForwardConfig,
   useOptimization,
+  type WalkForwardConfig,
 } from "../../hooks/useOptimization";
 import { useChartStore } from "../../store/chartStore";
 import { renderGroupedOptions } from "../BacktestPanel";
@@ -37,13 +37,7 @@ function formatDate(ts: number): string {
 
 // ── Sub-components ────────────────────────────────────────────────
 
-function TabBar({
-  tab,
-  setTab,
-}: {
-  tab: OptimizationTab;
-  setTab: (t: OptimizationTab) => void;
-}) {
+function TabBar({ tab, setTab }: { tab: OptimizationTab; setTab: (t: OptimizationTab) => void }) {
   return (
     <div style={{ display: "flex", gap: 0, marginBottom: 8 }}>
       <button
@@ -215,11 +209,7 @@ function ProgressBar({ current, total }: { current: number; total: number }) {
   );
 }
 
-function WalkForwardResults({
-  result,
-}: {
-  result: import("trendcraft").WalkForwardResult;
-}) {
+function WalkForwardResults({ result }: { result: import("trendcraft").WalkForwardResult }) {
   const { periods, aggregateMetrics, recommendation } = result;
 
   return (
@@ -358,15 +348,7 @@ function WalkForwardResults({
   );
 }
 
-function MetricCell({
-  label,
-  value,
-  color,
-}: {
-  label: string;
-  value: string;
-  color?: string;
-}) {
+function MetricCell({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 2, textAlign: "center" }}>
       <span style={{ fontSize: 9, color: "var(--text-secondary)", textTransform: "uppercase" }}>

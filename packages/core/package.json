@@ -111,11 +111,11 @@
   ],
   "devDependencies": {
     "@size-limit/file": "^12.1.0",
-    "@vitest/coverage-v8": "^4.1.4",
+    "@vitest/coverage-v8": "^4.1.5",
     "size-limit": "^12.1.0",
-    "vite": "^8.0.8",
+    "vite": "^8.0.10",
     "vite-plugin-dts": "^4.3.0",
-    "vitest": "^4.1.4"
+    "vitest": "^4.1.5"
   },
   "engines": {
     "node": ">=18.0.0"

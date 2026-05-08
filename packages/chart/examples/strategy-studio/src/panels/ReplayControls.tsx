@@ -96,7 +96,14 @@ export function ReplayControls({
         </button>
       </div>
 
-      <div className="replay-progress" aria-label="Replay progress">
+      <div
+        className="replay-progress"
+        role="progressbar"
+        aria-label="Replay progress"
+        aria-valuenow={Math.round(progress * 100)}
+        aria-valuemin={0}
+        aria-valuemax={100}
+      >
         <div className="replay-progress-fill" style={{ width: `${Math.round(progress * 100)}%` }} />
       </div>
 

@@ -94,7 +94,7 @@ export function zigzag(
   // Track current zigzag state
   let trend: "up" | "down" | null = null;
   let lastPivotPrice = 0;
-  let lastPivotIndex = 0;
+  let _lastPivotIndex = 0;
   let currentHigh = normalized[0].high;
   let currentHighIndex = 0;
   let currentLow = normalized[0].low;
@@ -128,7 +128,7 @@ export function zigzag(
       if (currentHigh - normalized[0].low >= threshold) {
         trend = "up";
         lastPivotPrice = currentLow;
-        lastPivotIndex = currentLowIndex;
+        _lastPivotIndex = currentLowIndex;
         result[currentLowIndex].value = {
           point: "low",
           price: currentLow,
@@ -137,7 +137,7 @@ export function zigzag(
       } else if (normalized[0].high - currentLow >= threshold) {
         trend = "down";
         lastPivotPrice = currentHigh;
-        lastPivotIndex = currentHighIndex;
+        _lastPivotIndex = currentHighIndex;
         result[currentHighIndex].value = {
           point: "high",
           price: currentHigh,
@@ -151,7 +151,7 @@ export function zigzag(
         if (upRange >= downRange) {
           trend = "up";
           lastPivotPrice = currentLow;
-          lastPivotIndex = currentLowIndex;
+          _lastPivotIndex = currentLowIndex;
           result[currentLowIndex].value = {
             point: "low",
             price: currentLow,
@@ -160,7 +160,7 @@ export function zigzag(
         } else {
           trend = "down";
           lastPivotPrice = currentHigh;
-          lastPivotIndex = currentHighIndex;
+          _lastPivotIndex = currentHighIndex;
           result[currentHighIndex].value = {
             point: "high",
             price: currentHigh,
@@ -195,7 +195,7 @@ export function zigzag(
         };
 
         lastPivotPrice = currentHigh;
-        lastPivotIndex = currentHighIndex;
+        _lastPivotIndex = currentHighIndex;
         trend = "down";
         currentLow = low;
         currentLowIndex = i;
@@ -225,7 +225,7 @@ export function zigzag(
         };
 
         lastPivotPrice = currentLow;
-        lastPivotIndex = currentLowIndex;
+        _lastPivotIndex = currentLowIndex;
         trend = "up";
         currentHigh = high;
         currentHighIndex = i;

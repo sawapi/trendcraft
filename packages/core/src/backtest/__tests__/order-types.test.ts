@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { NormalizedCandle } from "../../types";
+import type { PendingOrder } from "../order-types";
 import {
   limitAboveClose,
   limitAtHigh,
@@ -15,7 +16,6 @@ import {
   stopBelowLow,
   tryFillOrder,
 } from "../order-types";
-import type { PendingOrder } from "../order-types";
 
 const candle: NormalizedCandle = {
   time: 1000,

@@ -7,9 +7,9 @@
  */
 
 export {
+  createLiveSimulator,
   type LiveSource,
   type SimulatorHandle,
   type SimulatorOptions,
   type SimulatorState,
-  createLiveSimulator,
 } from "@trendcraft/chart/replay";

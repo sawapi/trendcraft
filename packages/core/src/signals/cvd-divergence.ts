@@ -13,8 +13,8 @@
 import { isNormalized, normalizeCandles } from "../core/normalize";
 import { cvd } from "../indicators/volume/cvd";
 import type { Candle, NormalizedCandle } from "../types";
-import { detectDivergence } from "./divergence";
 import type { DivergenceOptions, DivergenceSignal } from "./divergence";
+import { detectDivergence } from "./divergence";
 
 /**
  * Detect CVD divergence signals

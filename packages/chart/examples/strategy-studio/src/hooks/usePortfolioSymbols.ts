@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import {
   type DataSource,
+  fetchAlpacaBars,
   PORTFOLIO_SYMBOLS,
   type Timeframe,
-  fetchAlpacaBars,
 } from "../lib/data-sources";
 import { type SampleSymbol, sampleSymbols } from "../lib/sample-data";
 

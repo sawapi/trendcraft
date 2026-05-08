@@ -8,8 +8,8 @@ import type { NormalizedCandle, PriceSource } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
 import type { IncrementalIndicator, WarmUpOptions } from "../types";
 import { getSourcePrice, makeCandle } from "../utils";
-import { createRsi } from "./rsi";
 import type { RsiState } from "./rsi";
+import { createRsi } from "./rsi";
 
 export type ConnorsRsiValue = {
   crsi: number | null;

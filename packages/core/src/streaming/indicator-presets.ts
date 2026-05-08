@@ -98,8 +98,8 @@ import {
   slowStochastics,
   sma,
   standardDeviation,
-  stochRsi,
   stochastics,
+  stochRsi,
   superSmoother,
   supertrend,
   swingPoints,
@@ -141,8 +141,8 @@ import {
   SLOW_STOCH_META,
   STD_DEV_META,
   SWING_POINTS_META,
-  VOLUME_MA_META,
   VOL_REGIME_META,
+  VOLUME_MA_META,
   ZIGZAG_META,
 } from "../indicators/indicator-meta";
 import type { NormalizedCandle, Series } from "../types";

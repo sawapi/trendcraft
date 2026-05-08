@@ -18,6 +18,7 @@ import sampleData from "../../simple-chart/data.json";
 const candles = sampleData.slice(0, 200);
 const indicators = [sma(candles, { period: 20 })];
 
+// biome-ignore lint/correctness/noUnusedVariables: bound to template via `ref="containerRef"` — Biome can't see the .vue template usage.
 const { containerRef, chart } = useTrendChart({
   candles,
   indicators,

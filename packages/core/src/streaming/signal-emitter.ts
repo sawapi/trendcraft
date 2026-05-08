@@ -23,8 +23,7 @@ import type { NormalizedCandle } from "../types";
 import type { TradeSignal } from "../types/trade-signal";
 import { createPipeline } from "./pipeline";
 import { createTradingSession } from "./session";
-import type { PipelineOptions, SessionEvent } from "./types";
-import type { Trade } from "./types";
+import type { PipelineOptions, SessionEvent, Trade } from "./types";
 
 /**
  * Options for creating a SignalEmitter

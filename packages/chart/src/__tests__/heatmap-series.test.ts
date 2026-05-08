@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { renderHeatmap } from "../series/heatmap";
 import { makePriceScale, makeTimeScale, mockCtx } from "./helpers/mock-ctx";
 

@@ -3,9 +3,9 @@ import type { NormalizedCandle, PrecomputedIndicators } from "../../types";
 import {
   createDeathCrossEvaluator,
   createGoldenCrossEvaluator,
-  createPOConfirmationEvaluator,
   createPerfectOrderBearishEvaluator,
   createPerfectOrderBullishEvaluator,
+  createPOConfirmationEvaluator,
   createPriceAboveEmaEvaluator,
   createPriceBelowEmaEvaluator,
   createPullbackEntryEvaluator,

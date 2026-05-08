@@ -19,42 +19,46 @@
  *
  * @module
  */
-export { highestLowest, highest, lowest } from "./highest-lowest";
-export type { HighestLowestValue } from "./highest-lowest";
-export { returns, cumulativeReturns } from "./returns";
-export { pivotPoints } from "./pivot-points";
-export type { PivotPointsOptions, PivotPointsValue } from "./pivot-points";
-export { swingPoints, getSwingHighs, getSwingLows } from "./swing-points";
-export type { SwingPointValue, SwingPointOptions } from "./swing-points";
+
+export type { AndrewsPitchforkOptions, AndrewsPitchforkValue } from "./andrews-pitchfork";
+export { andrewsPitchfork } from "./andrews-pitchfork";
+export type { AutoTrendLineOptions, AutoTrendLineValue } from "./auto-trend-line";
+export { autoTrendLine } from "./auto-trend-line";
+export type { BosOptions, BosValue } from "./break-of-structure";
 export { breakOfStructure, changeOfCharacter } from "./break-of-structure";
-export type { BosValue, BosOptions } from "./break-of-structure";
-export { fairValueGap, getUnfilledFvgs, getNearestFvg } from "./fair-value-gap";
-export type { FvgValue, FvgGap, FvgOptions } from "./fair-value-gap";
-export { fibonacciRetracement } from "./fibonacci-retracement";
+export type { ChannelLineOptions, ChannelLineValue } from "./channel-line";
+export { channelLine } from "./channel-line";
+export type { FvgGap, FvgOptions, FvgValue } from "./fair-value-gap";
+export { fairValueGap, getNearestFvg, getUnfilledFvgs } from "./fair-value-gap";
+export type { FibonacciExtensionOptions, FibonacciExtensionValue } from "./fibonacci-extension";
+export { fibonacciExtension } from "./fibonacci-extension";
 export type {
   FibonacciRetracementOptions,
   FibonacciRetracementValue,
 } from "./fibonacci-retracement";
-export { autoTrendLine } from "./auto-trend-line";
-export type { AutoTrendLineOptions, AutoTrendLineValue } from "./auto-trend-line";
-export { channelLine } from "./channel-line";
-export type { ChannelLineOptions, ChannelLineValue } from "./channel-line";
-export { fibonacciExtension } from "./fibonacci-extension";
-export type { FibonacciExtensionOptions, FibonacciExtensionValue } from "./fibonacci-extension";
-export { andrewsPitchfork } from "./andrews-pitchfork";
-export type { AndrewsPitchforkOptions, AndrewsPitchforkValue } from "./andrews-pitchfork";
-export { getAlternatingSwingPoints } from "./swing-points";
-export type { AlternatingSwingPoint } from "./swing-points";
-export { heikinAshi } from "./heikin-ashi";
-export type { HeikinAshiValue } from "./heikin-ashi";
+export { fibonacciRetracement } from "./fibonacci-retracement";
+export type { FractalOptions, FractalValue } from "./fractals";
 export { fractals } from "./fractals";
-export type { FractalValue, FractalOptions } from "./fractals";
-export { zigzag } from "./zigzag";
-export type { ZigzagValue, ZigzagOptions } from "./zigzag";
-export { openingRange } from "./opening-range";
-export type { OpeningRangeOptions, OpeningRangeValue } from "./opening-range";
-export { gapAnalysis } from "./gap-analysis";
 export type { GapAnalysisOptions, GapValue } from "./gap-analysis";
+export { gapAnalysis } from "./gap-analysis";
+export type { HeikinAshiValue } from "./heikin-ashi";
+export { heikinAshi } from "./heikin-ashi";
+export type { HighestLowestValue } from "./highest-lowest";
+export { highest, highestLowest, lowest } from "./highest-lowest";
 export { medianPrice, typicalPrice, weightedClose } from "./median-price";
-export { srZones, srZonesSeries } from "./sr-zones";
+export type { OpeningRangeOptions, OpeningRangeValue } from "./opening-range";
+export { openingRange } from "./opening-range";
+export type { PivotPointsOptions, PivotPointsValue } from "./pivot-points";
+export { pivotPoints } from "./pivot-points";
+export { cumulativeReturns, returns } from "./returns";
 export type { PriceLevelSource, SrZone, SrZonesOptions, SrZonesResult } from "./sr-zones";
+export { srZones, srZonesSeries } from "./sr-zones";
+export type { AlternatingSwingPoint, SwingPointOptions, SwingPointValue } from "./swing-points";
+export {
+  getAlternatingSwingPoints,
+  getSwingHighs,
+  getSwingLows,
+  swingPoints,
+} from "./swing-points";
+export type { ZigzagOptions, ZigzagValue } from "./zigzag";
+export { zigzag } from "./zigzag";

@@ -2,15 +2,15 @@ import { useEffect, useMemo, useState } from "react";
 import type { ParameterRange, StrategyJSON } from "trendcraft";
 import { NumInput } from "../components/NumInput";
 import {
-  OPTIMIZATION_METRICS,
-  type OptimizationComputation,
-  type OptimizationMetricUI,
-  type Tunable,
   autoDeriveRange,
   combinationCount,
   findIntegerRangeViolation,
   listTunables,
+  OPTIMIZATION_METRICS,
+  type OptimizationComputation,
+  type OptimizationMetricUI,
   runGridSearch,
+  type Tunable,
 } from "../lib/optimization";
 import type { StudioCandle } from "../lib/sample-data";
 

@@ -7,8 +7,8 @@ import type { DataSource } from "../lib/data-sources";
 import { overridesFromResult } from "../lib/meta-strategy";
 import {
   type AllocationMode,
-  type PortfolioInputs,
   defaultPortfolioInputs,
+  type PortfolioInputs,
   runPortfolio,
   symbolEquityCurve,
 } from "../lib/portfolio";

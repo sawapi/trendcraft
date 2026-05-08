@@ -330,7 +330,7 @@ export function baumWelch(observations: number[][], options?: HmmOptions): HmmMo
     let model = initializeModel(observations, numStates, rng, varianceFloor);
 
     let prevLogLik = Number.NEGATIVE_INFINITY;
-    let converged = false;
+    let _converged = false;
 
     for (let iter = 0; iter < maxIterations; iter++) {
       // E-step: forward-backward
@@ -347,7 +347,7 @@ export function baumWelch(observations: number[][], options?: HmmOptions): HmmMo
 
       // Check convergence
       if (Math.abs(logLik - prevLogLik) < tolerance) {
-        converged = true;
+        _converged = true;
         model.logLikelihood = logLik;
         model.converged = true;
         break;

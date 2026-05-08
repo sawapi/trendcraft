@@ -27,7 +27,7 @@ export function dmiBullish(minAdx = 20, period = 14): PresetCondition {
   return {
     type: "preset",
     name: `dmiBullish(ADX>${minAdx})`,
-    evaluate: (indicators, candle, index, candles) => {
+    evaluate: (indicators, _candle, index, candles) => {
       let dmiData = indicators[cacheKey] as
         | {
             time: number;
@@ -66,7 +66,7 @@ export function dmiBearish(minAdx = 20, period = 14): PresetCondition {
   return {
     type: "preset",
     name: `dmiBearish(ADX>${minAdx})`,
-    evaluate: (indicators, candle, index, candles) => {
+    evaluate: (indicators, _candle, index, candles) => {
       let dmiData = indicators[cacheKey] as
         | {
             time: number;
@@ -105,7 +105,7 @@ export function adxStrong(threshold = 25, period = 14): PresetCondition {
   return {
     type: "preset",
     name: `adxStrong(${threshold})`,
-    evaluate: (indicators, candle, index, candles) => {
+    evaluate: (indicators, _candle, index, candles) => {
       let dmiData = indicators[cacheKey] as
         | {
             time: number;

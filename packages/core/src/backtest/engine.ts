@@ -5,7 +5,7 @@
  */
 
 import { createFundamentalsMap } from "../core/fundamentals";
-import { type IndicatorCache, createCachedIndicators } from "../core/indicator-cache";
+import { createCachedIndicators, type IndicatorCache } from "../core/indicator-cache";
 import { buildMtfIndexMap, createMtfContext, updateMtfIndices } from "../core/mtf-context";
 import { atr } from "../indicators/volatility/atr";
 import type {
@@ -26,11 +26,11 @@ import type {
 } from "../types";
 import type { ValidationOptions } from "../validation/types";
 import { validateCandles } from "../validation/validate";
-import { evaluateCondition } from "./conditions";
 import type { ExtendedCondition } from "./conditions";
+import { evaluateCondition } from "./conditions";
 import { createDrawdownTracker } from "./drawdown-tracker";
+import type { Position } from "./engine-utils";
 import {
-  MS_PER_DAY,
   applySlippage,
   applyVolumeConstraint,
   calculateStats,
@@ -38,8 +38,9 @@ import {
   checkProfitTriggerDirectional,
   checkStopTriggerDirectional,
   emptyResult,
+  MS_PER_DAY,
 } from "./engine-utils";
-import type { Position } from "./engine-utils";
+import type { MarginState } from "./margin";
 import {
   accrueInterest,
   calculateBuyingPower,
@@ -47,11 +48,10 @@ import {
   createMarginState,
   updateMarginState,
 } from "./margin";
-import type { MarginState } from "./margin";
-import { resolveTimeInForce, tryFillOrder } from "./order-types";
 import type { PendingOrder } from "./order-types";
-import { calculateDynamicSlippage, resolveSlippageModel } from "./slippage-model";
+import { resolveTimeInForce, tryFillOrder } from "./order-types";
 import type { SlippageModel } from "./slippage-model";
+import { calculateDynamicSlippage, resolveSlippageModel } from "./slippage-model";
 
 /**
  * Extended backtest options with MTF, ATR risk, and fundamentals support

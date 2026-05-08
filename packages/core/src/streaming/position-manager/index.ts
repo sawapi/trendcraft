@@ -5,26 +5,26 @@
  * and account management for streaming trading sessions.
  */
 
-// Types
-export type {
-  ManagedPosition,
-  AccountState,
-  FillRecord,
-  PositionSizingConfig,
-  PositionManagerOptions,
-  OpenPositionOptions,
-  UpdatePriceResult,
-  ClosedTradeResult,
-  PositionTrackerState,
-  PositionTracker,
-  PartialFillResult,
-  PositionTrackerOptions,
-  PositionEvent,
-  ManagedEvent,
-  ManagedSessionState,
-  ManagedSession,
-} from "./types";
+export { createManagedSession } from "./managed-session";
 
 // Functions
 export { createPositionTracker } from "./position-tracker";
-export { createManagedSession } from "./managed-session";
+// Types
+export type {
+  AccountState,
+  ClosedTradeResult,
+  FillRecord,
+  ManagedEvent,
+  ManagedPosition,
+  ManagedSession,
+  ManagedSessionState,
+  OpenPositionOptions,
+  PartialFillResult,
+  PositionEvent,
+  PositionManagerOptions,
+  PositionSizingConfig,
+  PositionTracker,
+  PositionTrackerOptions,
+  PositionTrackerState,
+  UpdatePriceResult,
+} from "./types";

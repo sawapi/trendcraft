@@ -91,7 +91,7 @@ function drawAnchoredLabel(
 ): void {
   ctx.font = "11px system-ui, sans-serif";
   const padX = 6;
-  const padY = 3;
+  const _padY = 3;
   const w = ctx.measureText(text).width + padX * 2;
   const h = 18;
   const gap = 12;
