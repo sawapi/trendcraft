@@ -19,7 +19,6 @@ export class LegendOverlay {
   private _styleEl: HTMLStyleElement | null = null;
 
   constructor(container: HTMLElement, theme: ThemeColors, locale?: ChartLocale) {
-    this._container = container;
     this._theme = theme;
     this._locale = locale ?? DEFAULT_LOCALE;
 
