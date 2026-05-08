@@ -222,6 +222,18 @@ export function renderTimeframeOverlays(
     ctx.globalAlpha = opacity;
 
     for (const candle of overlay.candles) {
+      // Skip candles with non-finite OHLC. Same rationale as the
+      // primary candlestick renderer: canvas silently swallows draw
+      // calls with NaN coords, leaving an invisible bar with no error.
+      if (
+        !Number.isFinite(candle.open) ||
+        !Number.isFinite(candle.high) ||
+        !Number.isFinite(candle.low) ||
+        !Number.isFinite(candle.close)
+      ) {
+        continue;
+      }
+
       const startIdx = dataLayer.indexAtTime(candle.time);
       const nextIdx = overlay.candles.indexOf(candle) + 1;
       const endTime =
@@ -483,11 +495,15 @@ export function drawSeriesBadges(
   }
 }
 
+// `latestNumber` / `latestInArray` skip non-finite values too: a NaN
+// would otherwise be passed to `valueFormatter` and rendered as the
+// literal string "NaN" inside last-value badges. Treat NaN / Infinity
+// as if they were null so badges fall back to the nearest valid bar.
 function latestNumber(data: readonly DataPoint<number | null>[], upTo?: number): number | null {
   const start = upTo !== undefined ? Math.min(upTo, data.length - 1) : data.length - 1;
   for (let i = start; i >= 0; i--) {
     const v = data[i]?.value;
-    if (v !== null && v !== undefined) return v;
+    if (v !== null && v !== undefined && Number.isFinite(v)) return v;
   }
   return null;
 }
@@ -496,7 +512,7 @@ function latestInArray(values: readonly (number | null)[], upTo?: number): numbe
   const start = upTo !== undefined ? Math.min(upTo, values.length - 1) : values.length - 1;
   for (let i = start; i >= 0; i--) {
     const v = values[i];
-    if (v !== null && v !== undefined) return v;
+    if (v !== null && v !== undefined && Number.isFinite(v)) return v;
   }
   return null;
 }

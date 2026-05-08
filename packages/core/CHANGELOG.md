@@ -1,5 +1,337 @@
 # Changelog
 
+## Unreleased
+
+### Added — strategy JSON round-trip depth tests
+
+`serialize / parse` is now pinned across:
+
+- all condition shapes (preset leaf, `and`, `or`, `not`)
+- 3- and 4-level nesting
+- presence and absence of optional fields (`tags`, `metadata`,
+  `description`, `backtest.*`, `params`)
+- unicode / quotes / backslashes / newlines in `id` / `name` /
+  `description`; long descriptions; 20-element tag arrays
+- every entry in `backtestRegistry`: each preset's default-param
+  shape round-trips through `serialize → parse → serialize` to
+  byte-identical JSON
+
+The contract enforced is `serialize(parse(serialize(s))) === serialize(s)`
+plus structural equality after parse. No production behavior change;
+this is regression coverage for the JSON layer that downstream
+consumers (MCP, Strategy Studio, Strategy DNA) all build on.
+
+### Fixed — GARCH / EWMA volatility input and stationarity guards
+
+- `garch(returns)` and `ewmaVolatility(returns)` now throw early when
+  any input element is `NaN` / `±Infinity`. A single contaminated
+  return previously poisoned the negative log-likelihood and every
+  downstream parameter, returning a silently broken model with
+  `converged: result.converged` from the optimiser.
+- `garch` no longer reports `converged: true` when the optimiser's
+  output had to be clamped (`omega <= 0`, negative `alpha` / `beta`,
+  or `alpha + beta >= 1`). The returned params are not the optimiser's
+  settled answer in that case, so flagging convergence is misleading.
+- If the optimiser drifts to non-finite parameters, `garch` now
+  falls back to the unconditional-variance degenerate result with
+  `converged: false` instead of returning a `NaN` forecast.
+- `forecastVar` is `Number.isFinite`-checked before `sqrt`; falls back
+  to the unconditional variance on the rare case the recursive update
+  drifts non-finite under finite input.
+
+### Fixed — Ulcer Index uses the canonical Peter Martin two-stage formula
+
+`ulcerIndex` now matches Peter Martin & Byron McCann's original
+(1987) two-stage definition:
+
+1. For each bar `j`: `rolling_max[j] = max(close[j - N + 1 .. j])`
+2. For each bar `j`: `drawdown[j] = (close[j] - rolling_max[j]) / rolling_max[j] × 100`
+3. `UI[i] = sqrt(mean(drawdown[i - N + 1 .. i]^2))`
+
+Each per-bar drawdown is now measured against that bar's own rolling
+peak. The previous implementation used a single peak shared across
+the whole window, which the docstring already described in canonical
+terms; the code is now consistent with the docstring.
+
+**Breaking** for callers that depended on the prior numeric output:
+
+- Total warmup is now `2 × period - 1` bars (was `period`). First
+  non-null is at index `2 × period - 2` (was `period - 1`).
+- Numeric values change for every period combination.
+
+The same fix is applied to `createUlcerIndex` (incremental). The
+incremental version now keeps two `period`-sized buffers — rolling
+prices for stage 1 and rolling drawdowns for stage 2 — and warms up
+over `2 × period - 1` bars to match the batch output.
+
+`UlcerIndexState` schema changed accordingly: the previous single
+`buffer` field is replaced with `prices` and `drawdowns` buffers.
+Per-bar drawdowns aren't recoverable from the old shape, so
+`fromState` now throws a clear `"legacy state snapshot detected"`
+error when it sees the old format — re-warm from candles instead.
+
+A cross-validation regression test pins the new behavior at
+9-decimal precision against an independent reference fixture.
+
+### Added — pandas-ta cross-validation for Coppock / Mass Index / TSI / Choppiness
+
+- Four additional indicators with no TA-Lib counterpart now have
+  parity tests against `pandas-ta` at 9-decimal precision:
+  - `coppockCurve(close, { wmaPeriod: 10, longRocPeriod: 14, shortRocPeriod: 11 })`
+  - `massIndex(candles, { emaPeriod: 9, sumPeriod: 25 })`
+  - `tsi(close, { longPeriod: 25, shortPeriod: 13, signalPeriod: 13 })` — line only
+  - `choppinessIndex(candles, { period: 14 })`
+- TSI signal-line warmup differs by 1 bar between pandas-ta and
+  TrendCraft (EMA seeding convention), so only the line is compared.
+- Cross-validation suite: 43 → 47 indicators.
+
+Three Tier-2 candidates were probed and deferred:
+- `ulcerIndex` — pandas-ta warmup is 2× TrendCraft's; needs deeper
+  formula reconciliation.
+- `pvt` — TrendCraft output is 100× smaller than pandas-ta on the
+  same input; potential scaling bug, tracked separately.
+- `nvi` — values diverge significantly (1129 vs 1013), formula
+  variants need reconciliation.
+
+### Added — pandas-ta cross-validation for HMA / VWMA / CMF / Vortex / Awesome Oscillator
+
+- Five indicators with no TA-Lib counterpart now have parity tests
+  against `pandas-ta` at 9-decimal precision:
+  - `hma(close, period)` for periods 9 and 14
+  - `vwma(candles, { period: 20 })`
+  - `cmf(candles, { period: 20 })`
+  - `vortex(candles, { period: 14 })` — both VI+ and VI- legs
+  - `awesomeOscillator(candles, { fastPeriod: 5, slowPeriod: 34 })`
+- Each test pairs `assertNullAlignment` (warmup parity) with
+  `assertSeriesMatch` (numeric parity) to catch both shifts and drift.
+
+### Added — TA-Lib cross-validation for TRIX and Balance of Power
+
+- `trix(close, period)` line is now compared against `talib.TRIX` at
+  6-decimal precision (period 9 and 15).
+- `balanceOfPower(candles, { smoothPeriod: 1 })` is compared against
+  `talib.BOP` at 8-decimal precision. The default `smoothPeriod = 14`
+  remains unchanged; the test pins `smoothPeriod = 1` so it can
+  match TA-Lib's raw `(close-open)/(high-low)` formula.
+- Cross-validation suite: 36 → 43 indicators (38 with TA-Lib + 5 with
+  pandas-ta as ground truth).
+
+### Fixed — `+Infinity` scores leaking into grid search ranking
+
+- `calculateCalmarRatio` / `calculateRecoveryFactor` / `calculateMAR`
+  previously returned `Number.POSITIVE_INFINITY` when
+  `maxDrawdown === 0` and the return was positive. Combined with
+  `gridSearch`'s `if (score > bestScore)` ranking, this caused a
+  flat strategy with maxDD = 0 (e.g. one tiny coincidental winning
+  trade) to outrank legitimate strategies and become `bestScore =
+  Infinity`. Downstream (Strategy DNA, MCP recommendations) inherited
+  the bad ranking. The three functions now return `NaN` when the
+  ratio is undefined, matching the empyrical / pyfolio convention
+  (`np.nan` on `max_dd >= 0` or non-finite). **Breaking** for callers
+  that compared the result to `Number.POSITIVE_INFINITY` — branch on
+  `Number.isFinite(value)` instead.
+- `gridSearch` now filters NaN / ±Infinity scores out of `bestScore`
+  selection and out of the returned `results` array (default), so
+  downstream consumers like `strategy-dna`'s `computeRecommendedParams`
+  / `extractSensitivityData` no longer have to re-guard before sorting
+  or averaging. Pass `keepAllResults: true` to surface the rejected
+  combinations for inspection — they sink to the end of the sorted
+  list deterministically.
+- `walkforward.calculateAggregateMetrics` now averages only across
+  periods where the metric was actually defined, instead of coercing
+  NaN to 0. The earlier coercion silently collapsed the average to
+  0 when every period had an undefined primary metric (e.g. Calmar
+  on a flat strategy across all windows), which made
+  `stabilityRatio` look perfect (`avgIn === avgOut === 0` → 1) and
+  caused `generateRecommendation` to endorse params whose primary
+  metric was never measurable. The recommendation path now treats
+  "no finite samples on either side" as `stabilityRatio = 0`.
+- Length=0 guards added in `walkforward.generateRecommendation` for
+  `periods.length === 0` and empty `paramKeys`.
+- `risk/var.ts` internal `mean` / `stdDev` / `skewness` /
+  `excessKurtosis` helpers now return 0 on empty arrays; the public
+  `calculateVaR` was already guarded but the helpers themselves
+  could be reused (or accidentally wired) elsewhere.
+
+### Added — `parseStrategy` opt-in registry validation + `parseStrategySafe`
+
+- `parseStrategy(json, registry?)` gains an optional second argument.
+  When a `ConditionRegistry` is passed, the parser runs
+  `validateStrategyJSON` (structural shape) plus
+  `validateConditionSpec` on the entry / exit trees and aggregates
+  every finding into the thrown error message. Without a registry,
+  behavior is unchanged (back-compat: only `$schema` and `version`
+  are checked).
+- New `parseStrategySafe(json, registry?)` returns
+  `Result<StrategyJSON>` with one of five error codes —
+  `INVALID_JSON`, `INVALID_SCHEMA`, `UNSUPPORTED_VERSION`,
+  `INVALID_STRUCTURE`, `INVALID_CONDITION` — letting MCP / LLM
+  consumers branch on the failure reason instead of pattern-matching
+  on a thrown error message.
+- Surfaces unknown conditions / out-of-range params / malformed
+  `not` arity at parse time instead of deferring them to
+  `loadStrategy()` or runtime; aligned with the existing
+  `gridSearch` / `gridSearchFromJSON` `*Safe` pattern.
+
+### Fixed — `detectOhlcErrors` now flags NaN / Infinity OHLCV fields
+
+- `detectOhlcErrors(candles)` previously only checked relational
+  invariants (`high < low`, etc.). Non-finite values silently slipped
+  through because every `NaN < x` comparison is `false`, so a candle
+  with `close: NaN` would pass validation and then propagate `NaN`
+  through every rolling indicator (Bollinger Bands, RSI, ATR, …).
+- Each non-finite OHLCV field is now reported as an error finding
+  with the field name and value (`"close (NaN) is not a finite
+  number at index 7"`). Once a candle has any non-finite field, the
+  relational checks for that candle are skipped to avoid confusingly-
+  passing follow-up findings.
+- Audit-driven (no specific bug report). Cheap belt-and-suspenders
+  guard for a class of debug black holes.
+
+### Added — Strategy DNA primitives (`optimization/strategy-dna`)
+
+- New `optimization/strategy-dna.ts` module exposing post-optimization
+  analytics that previously lived only as user-space helpers in
+  example apps:
+  - `buildGenomeSegments(bestParams, paramRanges, bestScore)` — maps
+    each best-param value onto a `[0, 1]` position within its declared
+    search range, for "where in the space did the optimizer land"
+    visualizations.
+  - `extractSensitivityData(results, metric)` — aggregates per-param
+    and pairwise mean-metric tables plus top-25% safe zones from a
+    grid search's `results[]`.
+  - `computeRecommendedParams(grid, walkForward?, sensitivity?)` —
+    three-step recommendation: safe-zone median → walk-forward
+    stable-period median override → sensitivity-peak penalty. Returns
+    `{ params, ranges, confidence, reason, sources }` with
+    `confidence: "high" | "medium" | "low"`. Handles
+    `gridSearch.bestParams === null` (PR-A2 contract) by falling back
+    to `results[0]?.params` so the explored grid still informs a
+    recommendation.
+  - `computeDnaGrade(grid?, walkForward?, monteCarlo?)` — A–F grade
+    across four dimensions (WF stability 30%, MC significance 30%,
+    parameter sensitivity 20%, win-rate stability 20%). Items whose
+    inputs are missing are marked `available: false` and excluded
+    from the renormalized weighted average — distinct from
+    `robustness/calculateRobustnessScore` which runs new backtests.
+- New types: `GenomeSegment`, `SensitivitySingle`, `SensitivityPair`,
+  `SafeZone`, `SensitivityData`, `RecommendedParams`, `DnaGrade`,
+  `DnaGradeItem`, `DnaGradeReport`. The `Dna` prefix avoids collision
+  with `robustness/RobustnessGrade`.
+- `core.examples.echarts-viewer` cleaned up: its
+  `utils/strategyDna.ts` (574 lines) is now an ~80-line shim that
+  re-exports the core APIs (with backwards-compatible aliases) plus
+  the viewer-specific URL codec.
+
+### Added — `percentile` / `median` / `quartiles` statistics utilities
+
+- New `packages/core/src/core/statistics.ts` with three exported
+  helpers: `percentile(values, p)`, `median(values)`, and
+  `quartiles(values)` — all linear-interpolation, all empty-safe
+  (return `0` / `[0, 0, 0]` for empty input), all non-mutating.
+- Consolidates two private `getPercentile` / `percentile` copies
+  inside `optimization/monte-carlo.ts` and `risk/drawdown-analysis.ts`
+  into one canonical algorithm. Internal call sites that already
+  share a sorted array continue to use a local sorted-input variant
+  to avoid re-sorting on every percentile lookup.
+- Foundation for upcoming post-optimization analytics
+  (`computeParameterSensitivity`, `safeZoneFromResults`, etc.) that
+  need quartile filtering across many param/score arrays.
+
+### Added — `gridSearchFromJSON` + strategy walker primitives
+
+- `gridSearchFromJSON(candles, strategy, ranges, registry, options?)` —
+  JSON-first wrapper around `gridSearch`. Drives the engine directly
+  from a `StrategyJSON` plus path-addressed `PathParameterRange[]`
+  (`{ path: "entry.0.shortPeriod", min, max, step }`), so callers no
+  longer need to hand-write a strategy walker / param-injector. The
+  returned `bestParams` keys are paths, plug straight back into
+  `applyParamOverrides`. Companion `gridSearchFromJSONSafe` returns a
+  `Result<GridSearchResult>` with codes `INVALID_PARAMETER`,
+  `TOO_MANY_COMBINATIONS`, or `OPTIMIZATION_FAILED`.
+- `flattenStrategyLeaves(strategy)` — depth-first leaf enumeration
+  across `entry` and `exit`, tagged with `bucket`, `leafIndex`, `name`,
+  and `params`. Handles `and` / `or` / `not` combinators uniformly.
+- `applyParamOverrides(strategy, overrides)` — pure: returns a new
+  strategy with the addressed leaves' params updated. Throws on
+  out-of-range leaf indices, malformed paths, or paths that omit a
+  param name. Inputs are never mutated.
+- `parseLeafPath(path)` — exported parser for the
+  `<bucket>.<leafIndex>.<paramName>` syntax. Useful for tools that
+  want to surface or validate paths without invoking the optimization
+  engine (parameter editors, deep-link routes, MCP tools).
+- New types: `PathParameterRange`, `LeafInfo`, `ParsedLeafPath`.
+
+Path syntax constraint: `paramName` cannot contain `.` (consistent
+with all current registry param names). Paths are case-sensitive.
+
+### Breaking — `bestScore` / `bestParams` are now `number | null`
+
+- `GridSearchResult.bestScore` and `CombinationSearchResult.bestScore` are
+  now `number | null`. Previously they fell back to `0` when no parameter
+  combination satisfied all constraints (or no combination produced
+  trades), which callers mistook as "the optimum is zero" instead of
+  "no valid result". Update consumers to handle `null` explicitly:
+
+  ```ts
+  // Before
+  console.log(`Best Sharpe: ${result.bestScore.toFixed(3)}`);
+
+  // After (preserve prior behavior)
+  console.log(`Best Sharpe: ${(result.bestScore ?? 0).toFixed(3)}`);
+
+  // Or branch
+  if (result.bestScore !== null) {
+    console.log(`Best Sharpe: ${result.bestScore.toFixed(3)}`);
+  } else {
+    console.log("No combination passed constraints");
+  }
+  ```
+
+- `GridSearchResult.bestParams` is now `Record<string, number> | null`
+  for the same reason — the legacy `{}` fallback was indistinguishable
+  from the legitimate "no params to optimize" case (empty
+  `parameterRanges`). `result.validCombinations > 0` and
+  `result.bestParams !== null` are now equivalent guards.
+- `CombinationSearchResult.bestEntry` / `bestExit` keep their `string[]`
+  type (empty arrays unambiguously signal "no entry/exit conditions"),
+  so this breaking change is limited to `bestScore` and `bestParams`.
+
+### Added — `GRID_SEARCH_EPSILON_FACTOR`
+
+- Exported constant (`1_000_000`) used by `getParameterValues` for the
+  inclusive `<= max + ε` upper-bound comparison (epsilon = step / FACTOR).
+  Exposed so external tools (UIs deriving the same grid points, MCP
+  callers pre-validating LLM output) can reproduce the comparison
+  semantics without re-deriving the constant.
+
+### Added — ParamDef annotations (`integer`, `precision`, `suggestedMin/Max`)
+
+- `ParamDef` gains optional `integer?: boolean` and `precision?: number`
+  fields. UIs and optimization helpers that derive parameter ranges or
+  step inputs from a registry entry no longer need to heuristically
+  guess whether a param is integer-valued (period etc.) or what its
+  decimal grid is. The two fields are mutually exclusive: when
+  `integer: true`, `precision` is ignored.
+- `ParamDef` also gains optional `suggestedMin?` / `suggestedMax?` UI
+  hints. Unlike `min` / `max` these are **not** enforced by
+  `validateConditionSpec`, so adding them to a registry entry never
+  invalidates persisted strategy JSON. Use them for params where the
+  indicator mathematically accepts a wider range than is practical to
+  surface in a slider (e.g. periods accept any positive integer, but a
+  UI usually wants 1..200).
+- Representative entries in `backtestRegistry` now carry these
+  annotations as a starting set: `goldenCross` / `deadCross` periods
+  (`integer: true`, `suggestedMax`), `bollingerBreakout` /
+  `bollingerTouch` `stdDev` (`precision: 1`, existing `min: 0.1`
+  preserved as runtime contract, new `suggestedMax: 5` UI hint),
+  `bollingerBreakout` / `bollingerTouch` `period`
+  (`integer: true`, `suggestedMax: 200`), and `cmfAbove` / `cmfBelow`
+  `threshold` (`precision: 2`, `suggestedMin: -1`, `suggestedMax: 1`).
+  All bounds are UI hints, not validation limits, so adding them never
+  invalidates persisted strategy JSON. Remaining entries will be
+  annotated as needed.
+
 ## [0.3.0] - 2026-04-26
 
 ### Breaking — Indicator Quality Fixes

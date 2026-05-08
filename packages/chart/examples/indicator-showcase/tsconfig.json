@@ -12,6 +12,7 @@
     "paths": {
       "@trendcraft/chart": ["../../src/index.ts"],
       "@trendcraft/chart/presets": ["../../src/presets.ts"],
+      "@trendcraft/chart/replay": ["../../src/replay.ts"],
       "trendcraft": ["../../../core/src/index.ts"]
     }
   },

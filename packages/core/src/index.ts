@@ -94,6 +94,9 @@ export {
 
 export { resample, parseTimeframe, getPeriodStart } from "./core/resample";
 
+// Statistics utilities
+export { percentile, median, quartiles } from "./core/statistics";
+
 // Fundamentals utilities
 export {
   parseFundamentals,
@@ -485,6 +488,9 @@ export {
   and,
   or,
   not,
+  // Always-true / always-false primitives
+  alwaysTrue,
+  alwaysFalse,
   // Preset conditions
   goldenCross as goldenCrossCondition,
   deadCross as deadCrossCondition,
@@ -958,10 +964,13 @@ export {
   gridSearchSafe,
   generateParameterCombinations,
   countCombinations,
+  GRID_SEARCH_EPSILON_FACTOR,
   param,
   constraint,
   getTopResults,
   summarizeGridSearch,
+  gridSearchFromJSON,
+  gridSearchFromJSONSafe,
   // Walk-Forward Analysis
   walkForwardAnalysis,
   walkForwardAnalysisSafe,
@@ -999,6 +1008,11 @@ export {
   fastNonDominatedSort,
   crowdingDistance,
   summarizeParetoResult,
+  // Strategy DNA — post-optimization analytics
+  buildGenomeSegments,
+  extractSensitivityData,
+  computeRecommendedParams,
+  computeDnaGrade,
 } from "./optimization";
 
 export type {
@@ -1013,6 +1027,7 @@ export type {
   WalkForwardResult,
   WalkForwardOptions,
   StrategyFactory,
+  PathParameterRange,
   // Combination Search types
   ConditionDefinition,
   CombinationResultEntry,
@@ -1031,6 +1046,16 @@ export type {
   ParetoOptions,
   ParetoResultEntry,
   ParetoResult,
+  // Strategy DNA types
+  GenomeSegment,
+  SensitivitySingle,
+  SensitivityPair,
+  SafeZone,
+  SensitivityData,
+  RecommendedParams,
+  DnaGrade,
+  DnaGradeItem,
+  DnaGradeReport,
 } from "./optimization";
 
 // Screening (browser-compatible exports only - no fs dependency)
@@ -1137,7 +1162,7 @@ export * as streaming from "./streaming";
 export { createLiveCandle } from "./streaming";
 export { livePresets } from "./streaming";
 export type { LivePreset } from "./streaming";
-export { indicatorPresets } from "./streaming";
+export { indicatorPresets, getIndicatorPreset } from "./streaming";
 export type { IndicatorPreset, IndicatorCategory, ParamSchema } from "./streaming";
 
 // Unified Conditions (define once, use in backtest & streaming)
@@ -1177,8 +1202,10 @@ export { ConditionRegistry } from "./strategy";
 export { backtestRegistry } from "./strategy";
 export { streamingRegistry } from "./strategy";
 export { hydrateCondition, loadStrategy } from "./strategy";
-export { serializeStrategy, parseStrategy } from "./strategy";
+export { serializeStrategy, parseStrategy, parseStrategySafe } from "./strategy";
 export { validateConditionSpec, validateStrategyJSON } from "./strategy";
+export { applyParamOverrides, flattenStrategyLeaves, parseLeafPath } from "./strategy";
+export type { LeafInfo, ParsedLeafPath } from "./strategy";
 
 // Execution utilities (resilient order execution)
 export * as execution from "./execution";

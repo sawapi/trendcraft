@@ -34,8 +34,12 @@ export { streamingRegistry } from "./registry-streaming";
 export { hydrateCondition, loadStrategy } from "./hydrate";
 
 // New: Serialization
-export { serializeStrategy, parseStrategy } from "./serialize";
+export { serializeStrategy, parseStrategy, parseStrategySafe } from "./serialize";
 
 // New: Validation
 export { validateConditionSpec, validateStrategyJSON } from "./validate";
 export type { ValidationResult } from "./validate";
+
+// New: Walker — pure utilities for inspecting / rewriting StrategyJSON shapes
+export { applyParamOverrides, flattenStrategyLeaves, parseLeafPath } from "./walker";
+export type { LeafInfo, ParsedLeafPath } from "./walker";

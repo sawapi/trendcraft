@@ -570,22 +570,27 @@ export function OptimizationPanel() {
                   <MetricCell label="Valid" value={String(gridSearchResult.validCombinations)} />
                   <MetricCell
                     label="Best Score"
-                    value={gridSearchResult.bestScore.toFixed(3)}
+                    value={
+                      gridSearchResult.bestScore !== null
+                        ? gridSearchResult.bestScore.toFixed(3)
+                        : "—"
+                    }
                     color="var(--success)"
                   />
                 </div>
-                {Object.keys(gridSearchResult.bestParams).length > 0 && (
-                  <div
-                    style={{
-                      fontSize: "var(--font-xs)",
-                      color: "var(--warning)",
-                      marginTop: 6,
-                      textAlign: "center",
-                    }}
-                  >
-                    Best: {JSON.stringify(gridSearchResult.bestParams)}
-                  </div>
-                )}
+                {gridSearchResult.bestParams !== null &&
+                  Object.keys(gridSearchResult.bestParams).length > 0 && (
+                    <div
+                      style={{
+                        fontSize: "var(--font-xs)",
+                        color: "var(--warning)",
+                        marginTop: 6,
+                        textAlign: "center",
+                      }}
+                    >
+                      Best: {JSON.stringify(gridSearchResult.bestParams)}
+                    </div>
+                  )}
               </div>
 
               {/* Results Table */}

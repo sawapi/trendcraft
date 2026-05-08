@@ -11,9 +11,16 @@ import type { SpikeDetectionOptions, ValidationFinding, VolumeAnomalyOptions } f
  * Detect OHLC consistency errors
  *
  * Flags candles where:
+ * - any of `open` / `high` / `low` / `close` / `volume` is `NaN` or
+ *   non-finite (silent NaN propagation through rolling indicators is
+ *   one of the hardest debug paths in technical analysis)
  * - high < max(open, close)
  * - low > min(open, close)
  * - high < low
+ *
+ * Once a candle has any non-finite field, the relational checks for
+ * that candle are skipped — every `NaN < x` comparison is `false`,
+ * so re-running them would only emit confusingly-passing findings.
  *
  * @param candles - Array of normalized candles
  * @returns Array of validation findings for OHLC errors
@@ -28,6 +35,33 @@ export function detectOhlcErrors(candles: NormalizedCandle[]): ValidationFinding
 
   for (let i = 0; i < candles.length; i++) {
     const c = candles[i];
+
+    let priceNonFinite = false;
+    const fields: Array<["open" | "high" | "low" | "close" | "volume", number]> = [
+      ["open", c.open],
+      ["high", c.high],
+      ["low", c.low],
+      ["close", c.close],
+      ["volume", c.volume],
+    ];
+    for (const [name, value] of fields) {
+      if (!Number.isFinite(value)) {
+        findings.push({
+          severity: "error",
+          category: "ohlc",
+          message: `${name} (${value}) is not a finite number at index ${i}`,
+          index: i,
+          time: c.time,
+        });
+        // Only OHLC fields gate the relational checks below — every
+        // `NaN < x` is `false` so re-running them on price NaN would
+        // emit confusingly-passing findings. A non-finite `volume`
+        // doesn't poison the OHLC inequalities, so let those checks
+        // still surface real price-structure errors on the same bar.
+        if (name !== "volume") priceNonFinite = true;
+      }
+    }
+    if (priceNonFinite) continue;
 
     if (c.high < c.low) {
       findings.push({

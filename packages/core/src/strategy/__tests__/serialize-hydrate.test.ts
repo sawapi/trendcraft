@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { NormalizedCandle, PresetCondition } from "../../types";
 import { hydrateCondition, loadStrategy } from "../hydrate";
 import { backtestRegistry } from "../registry-backtest";
-import { parseStrategy, serializeStrategy } from "../serialize";
+import { parseStrategy, parseStrategySafe, serializeStrategy } from "../serialize";
 import type { ConditionSpec, StrategyJSON } from "../types";
 
 // Helper: create minimal candle data for evaluation
@@ -69,10 +69,176 @@ describe("serializeStrategy / parseStrategy", () => {
     );
   });
 
+  it("parseStrategy rejects non-object JSON (null / array / primitive)", () => {
+    expect(() => parseStrategy("null")).toThrow(/expected JSON object.*null/);
+    expect(() => parseStrategy("[1,2,3]")).toThrow(/expected JSON object.*array/);
+    expect(() => parseStrategy('"just a string"')).toThrow(/expected JSON object.*string/);
+  });
+
   it("serialize produces formatted JSON", () => {
     const json = serializeStrategy(strategy);
     expect(json).toContain("\n"); // multi-line
     expect(json).toContain("  "); // indented
+  });
+
+  it("registry-less parse keeps current behavior — only schema/version checked", () => {
+    // Unknown condition slips through without registry. Verifies the
+    // back-compat path: existing callers that don't pass a registry
+    // see no behavior change.
+    const json = JSON.stringify({
+      $schema: "trendcraft/strategy",
+      version: 1,
+      id: "x",
+      name: "x",
+      entry: { name: "thisDoesNotExist" },
+      exit: { name: "alsoMissing" },
+    });
+    expect(() => parseStrategy(json)).not.toThrow();
+  });
+
+  it("with registry, parseStrategy throws on unknown condition (regression — was deferred to hydration)", () => {
+    const json = JSON.stringify({
+      $schema: "trendcraft/strategy",
+      version: 1,
+      id: "x",
+      name: "x",
+      entry: { name: "totallyMadeUpCondition" },
+      exit: { name: "deadCross" },
+    });
+    expect(() => parseStrategy(json, backtestRegistry)).toThrow(/unknown condition/i);
+  });
+
+  it("with registry, parseStrategy throws on out-of-range params", () => {
+    const json = JSON.stringify({
+      $schema: "trendcraft/strategy",
+      version: 1,
+      id: "x",
+      name: "x",
+      // bollingerBreakout.stdDev has min: 0.1
+      entry: { name: "bollingerBreakout", params: { period: 20, stdDev: -1 } },
+      exit: { name: "deadCross" },
+    });
+    expect(() => parseStrategy(json, backtestRegistry)).toThrow(/below minimum/i);
+  });
+
+  it("with registry, parseStrategy throws on missing required fields", () => {
+    const json = JSON.stringify({
+      $schema: "trendcraft/strategy",
+      version: 1,
+      // id and name missing
+      entry: { name: "deadCross" },
+      exit: { name: "deadCross" },
+    });
+    expect(() => parseStrategy(json, backtestRegistry)).toThrow(/id|name/i);
+  });
+
+  it("with registry, parseStrategy aggregates multiple errors in one throw", () => {
+    const json = JSON.stringify({
+      $schema: "trendcraft/strategy",
+      version: 1,
+      id: "x",
+      name: "x",
+      entry: { name: "thisDoesNotExist" },
+      exit: { name: "alsoMissing" },
+    });
+    let caught: Error | null = null;
+    try {
+      parseStrategy(json, backtestRegistry);
+    } catch (e) {
+      caught = e as Error;
+    }
+    expect(caught).not.toBeNull();
+    // One bullet per error.
+    const message = caught?.message ?? "";
+    expect(message.match(/^\s*-\s/gm)?.length ?? 0).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe("parseStrategySafe", () => {
+  const goodJson = JSON.stringify({
+    $schema: "trendcraft/strategy",
+    version: 1,
+    id: "test",
+    name: "Test",
+    entry: { name: "goldenCross" },
+    exit: { name: "deadCross" },
+  });
+
+  it("returns ok for a valid strategy with registry", () => {
+    const result = parseStrategySafe(goodJson, backtestRegistry);
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value.id).toBe("test");
+  });
+
+  it("returns INVALID_JSON for malformed JSON", () => {
+    const result = parseStrategySafe("{not valid json");
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.code).toBe("INVALID_JSON");
+  });
+
+  it("returns INVALID_SCHEMA for wrong $schema", () => {
+    const json = JSON.stringify({ $schema: "other", version: 1 });
+    const result = parseStrategySafe(json);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.code).toBe("INVALID_SCHEMA");
+  });
+
+  it("returns UNSUPPORTED_VERSION for non-1 version", () => {
+    const json = JSON.stringify({ $schema: "trendcraft/strategy", version: 99 });
+    const result = parseStrategySafe(json);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.code).toBe("UNSUPPORTED_VERSION");
+  });
+
+  it("returns INVALID_STRUCTURE when registry is given and required fields missing", () => {
+    const json = JSON.stringify({ $schema: "trendcraft/strategy", version: 1 });
+    const result = parseStrategySafe(json, backtestRegistry);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.code).toBe("INVALID_STRUCTURE");
+  });
+
+  it("returns INVALID_CONDITION when registry catches unknown condition", () => {
+    const json = JSON.stringify({
+      $schema: "trendcraft/strategy",
+      version: 1,
+      id: "x",
+      name: "x",
+      entry: { name: "unknownXyz" },
+      exit: { name: "deadCross" },
+    });
+    const result = parseStrategySafe(json, backtestRegistry);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe("INVALID_CONDITION");
+      expect(result.error.message).toMatch(/unknown condition/i);
+    }
+  });
+
+  it("returns INVALID_SCHEMA for JSON null (must not throw)", () => {
+    const result = parseStrategySafe("null");
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe("INVALID_SCHEMA");
+      expect(result.error.message).toMatch(/null/);
+    }
+  });
+
+  it("returns INVALID_SCHEMA for JSON array", () => {
+    const result = parseStrategySafe("[1,2,3]");
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe("INVALID_SCHEMA");
+      expect(result.error.message).toMatch(/array/);
+    }
+  });
+
+  it("returns INVALID_SCHEMA for JSON primitive", () => {
+    const result = parseStrategySafe('"just a string"');
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe("INVALID_SCHEMA");
+      expect(result.error.message).toMatch(/string/);
+    }
   });
 });
 

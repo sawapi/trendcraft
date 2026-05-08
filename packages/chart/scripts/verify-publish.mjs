@@ -29,6 +29,7 @@ const EXPECTED_SYMBOLS = {
   ".": ["createChart", "connectIndicators", "defineIndicator", "DARK_THEME", "LIGHT_THEME"],
   "./headless": ["DataLayer", "TimeScale", "PriceScale", "introspect", "lttb"],
   "./presets": ["registerTrendCraftPresets"],
+  "./replay": ["createLiveSimulator"],
   "./react": ["TrendChart", "useTrendChart"],
   "./vue": ["TrendChart", "useTrendChart"],
 };

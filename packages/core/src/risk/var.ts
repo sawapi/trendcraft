@@ -139,12 +139,14 @@ function normalInverseCdf(p: number): number {
 // ---------------------------------------------------------------------------
 
 function mean(arr: number[]): number {
+  if (arr.length === 0) return 0;
   let sum = 0;
   for (let i = 0; i < arr.length; i++) sum += arr[i];
   return sum / arr.length;
 }
 
 function stdDev(arr: number[], mu: number): number {
+  if (arr.length === 0) return 0;
   let sum = 0;
   for (let i = 0; i < arr.length; i++) {
     const d = arr[i] - mu;
@@ -154,7 +156,7 @@ function stdDev(arr: number[], mu: number): number {
 }
 
 function skewness(arr: number[], mu: number, sigma: number): number {
-  if (sigma === 0) return 0;
+  if (arr.length === 0 || sigma === 0) return 0;
   let sum = 0;
   for (let i = 0; i < arr.length; i++) {
     const d = (arr[i] - mu) / sigma;
@@ -164,7 +166,7 @@ function skewness(arr: number[], mu: number, sigma: number): number {
 }
 
 function excessKurtosis(arr: number[], mu: number, sigma: number): number {
-  if (sigma === 0) return 0;
+  if (arr.length === 0 || sigma === 0) return 0;
   let sum = 0;
   for (let i = 0; i < arr.length; i++) {
     const d = (arr[i] - mu) / sigma;
