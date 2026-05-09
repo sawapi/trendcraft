@@ -81,7 +81,7 @@ describe("createSmcLayer", () => {
     expect(ctx.strokeRect).not.toHaveBeenCalled();
   });
 
-  it("renders order blocks as filled rectangles", () => {
+  it("renders order blocks as filled rectangles with a BB / OB label", () => {
     const state: SmcState = {
       ...EMPTY_STATE,
       orderBlocks: [
@@ -94,6 +94,15 @@ describe("createSmcLayer", () => {
           strength: 80,
           mitigated: false,
         },
+        {
+          type: "bearish",
+          high: 130,
+          low: 120,
+          startIndex: 8,
+          endIndex: null,
+          strength: 60,
+          mitigated: false,
+        },
       ],
     };
     const plugin = createSmcLayer(state);
@@ -103,6 +112,31 @@ describe("createSmcLayer", () => {
 
     expect(ctx.fillRect).toHaveBeenCalled();
     expect(ctx.strokeRect).toHaveBeenCalled();
+    expect(ctx.fillText).toHaveBeenCalledWith("BB", expect.any(Number), expect.any(Number));
+    expect(ctx.fillText).toHaveBeenCalledWith("OB", expect.any(Number), expect.any(Number));
+  });
+
+  it("annotates a mitigated order block with the strikethrough tag", () => {
+    const state: SmcState = {
+      ...EMPTY_STATE,
+      orderBlocks: [
+        {
+          type: "bullish",
+          high: 110,
+          low: 100,
+          startIndex: 5,
+          endIndex: 10,
+          strength: 80,
+          mitigated: true,
+        },
+      ],
+    };
+    const plugin = createSmcLayer(state);
+    const ctx = mockCtx();
+
+    plugin.render(makeRenderContext(ctx), state);
+
+    expect(ctx.fillText).toHaveBeenCalledWith("BB ✕", expect.any(Number), expect.any(Number));
   });
 
   it("renders mitigated OB with lower alpha", () => {
@@ -141,7 +175,7 @@ describe("createSmcLayer", () => {
     expect(obFill).toContain("0.05");
   });
 
-  it("renders FVG zones with dashed border", () => {
+  it("renders FVG zones with dashed border and an FVG label", () => {
     const state: SmcState = {
       ...EMPTY_STATE,
       fvgZones: [
@@ -163,12 +197,18 @@ describe("createSmcLayer", () => {
 
     expect(ctx.setLineDash).toHaveBeenCalledWith([4, 3]);
     expect(ctx.strokeRect).toHaveBeenCalled();
+    expect(ctx.fillText).toHaveBeenCalledWith("FVG", expect.any(Number), expect.any(Number));
   });
 
-  it("renders sweep markers as triangles", () => {
+  it("renders sweep markers as triangles with BSL / SSL labels", () => {
     const state: SmcState = {
       ...EMPTY_STATE,
-      sweepMarkers: [{ type: "bullish", index: 10, price: 95, label: "Sweep" }],
+      sweepMarkers: [
+        // bullish sweep = swept *sell-side* liquidity → SSL
+        { type: "bullish", index: 10, price: 95, label: "Sweep" },
+        // bearish sweep = swept *buy-side* liquidity → BSL
+        { type: "bearish", index: 12, price: 130, label: "Sweep" },
+      ],
     };
     const plugin = createSmcLayer(state);
     const ctx = mockCtx();
@@ -176,8 +216,9 @@ describe("createSmcLayer", () => {
     plugin.render(makeRenderContext(ctx), state);
 
     expect(ctx.moveTo).toHaveBeenCalled();
-    expect(ctx.lineTo).toHaveBeenCalledTimes(2);
     expect(ctx.fill).toHaveBeenCalled();
+    expect(ctx.fillText).toHaveBeenCalledWith("SSL", expect.any(Number), expect.any(Number));
+    expect(ctx.fillText).toHaveBeenCalledWith("BSL", expect.any(Number), expect.any(Number));
   });
 
   it("renders BOS levels as dashed lines with labels", () => {
