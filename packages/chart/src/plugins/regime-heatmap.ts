@@ -34,8 +34,20 @@ type RegimeDataPoint = DataPoint<{
   confidence?: number;
 }>;
 
+export type RegimeHeatmapOptions = {
+  /**
+   * Whether to draw a corner badge showing the current regime + confidence.
+   * Mirrors the convention used by TradingView regime indicators
+   * (EXCAVO / LuxAlgo / RWCS_LTD): "trending-up · 72%" style pill in the
+   * top-left so the analyst can read the active regime without decoding
+   * background colors. Default `true`.
+   */
+  showBadge?: boolean;
+};
+
 type RegimeHeatmapState = {
   data: readonly RegimeDataPoint[];
+  options: Required<RegimeHeatmapOptions>;
 };
 
 // ---- Colors ----
@@ -60,7 +72,7 @@ function renderRegimeHeatmap(
   { ctx, pane, timeScale }: PrimitiveRenderContext,
   state: RegimeHeatmapState,
 ): void {
-  const { data } = state;
+  const { data, options } = state;
   if (data.length === 0) return;
 
   const start = timeScale.startIndex;
@@ -81,24 +93,110 @@ function renderRegimeHeatmap(
       ctx.fillRect(x - barWidth / 2, pane.y, barWidth, pane.height);
     }
   });
+
+  if (options.showBadge) {
+    renderRegimeBadge(ctx, pane, data, start, end);
+  }
+}
+
+/**
+ * Top-left corner pill: "trending-up · 72%" using the active regime's color.
+ * The regime is read from the most recent *visible* bar in `data` — we walk
+ * back from `end-1` only as far as `start`, so panning into a sparse region
+ * with no regime data can't surface a stale label from an off-screen bar.
+ * No visible regime → no badge at all.
+ */
+function renderRegimeBadge(
+  ctx: CanvasRenderingContext2D,
+  pane: { x: number; y: number; width: number; height: number },
+  data: readonly RegimeDataPoint[],
+  visibleStart: number,
+  visibleEnd: number,
+): void {
+  const lastVisibleIdx = Math.min(visibleEnd - 1, data.length - 1);
+  const firstVisibleIdx = Math.max(0, visibleStart);
+  let value: RegimeDataPoint["value"] | null = null;
+  for (let i = lastVisibleIdx; i >= firstVisibleIdx; i--) {
+    const v = data[i]?.value;
+    if (v) {
+      value = v;
+      break;
+    }
+  }
+  if (!value) return;
+
+  const rgb = regimeToRgb(value.regime, value.label);
+  // Treat empty string the same as missing — upstream normalizers sometimes
+  // emit `""` for "no label", and `??` would otherwise produce `" · 72%"`
+  // or a blank pill.
+  const text = value.label && value.label.length > 0 ? value.label : `regime ${value.regime}`;
+  const conf = value.confidence;
+  const display = conf != null ? `${text} · ${Math.round(conf * 100)}%` : text;
+
+  ctx.save();
+  ctx.font = "bold 11px -apple-system, BlinkMacSystemFont, sans-serif";
+  ctx.textBaseline = "top";
+  ctx.textAlign = "left";
+
+  const padX = 8;
+  const padY = 4;
+  const metrics = ctx.measureText(display);
+  const textW = metrics.width;
+  const textH = 11;
+  const pillX = pane.x + 8;
+  const pillY = pane.y + 8;
+  const pillW = textW + padX * 2;
+  const pillH = textH + padY * 2;
+
+  // Pill background — saturated regime tint with rounded corners.
+  const r = pillH / 2;
+  ctx.fillStyle = `rgba(${rgb},0.85)`;
+  ctx.beginPath();
+  ctx.moveTo(pillX + r, pillY);
+  ctx.lineTo(pillX + pillW - r, pillY);
+  ctx.quadraticCurveTo(pillX + pillW, pillY, pillX + pillW, pillY + r);
+  ctx.lineTo(pillX + pillW, pillY + pillH - r);
+  ctx.quadraticCurveTo(pillX + pillW, pillY + pillH, pillX + pillW - r, pillY + pillH);
+  ctx.lineTo(pillX + r, pillY + pillH);
+  ctx.quadraticCurveTo(pillX, pillY + pillH, pillX, pillY + pillH - r);
+  ctx.lineTo(pillX, pillY + r);
+  ctx.quadraticCurveTo(pillX, pillY, pillX + r, pillY);
+  ctx.closePath();
+  ctx.fill();
+
+  // White text — high contrast against the saturated pill regardless of
+  // the host theme (light vs dark).
+  ctx.fillStyle = "#fff";
+  ctx.fillText(display, pillX + padX, pillY + padY);
+  ctx.restore();
 }
 
 // ---- Factory ----
+
+const DEFAULT_OPTIONS: Required<RegimeHeatmapOptions> = {
+  showBadge: true,
+};
+
+function resolveOptions(options: RegimeHeatmapOptions = {}): Required<RegimeHeatmapOptions> {
+  return { ...DEFAULT_OPTIONS, ...options };
+}
 
 /**
  * Create a PrimitivePlugin that renders regime heatmap background.
  *
  * @param data - Series data from hmmRegimes() or any compatible shape
+ * @param options - Visual customization (badge on/off, etc.)
  * @returns PrimitivePlugin to register via chart.registerPrimitive()
  */
 export function createRegimeHeatmap(
   data: readonly RegimeDataPoint[],
+  options: RegimeHeatmapOptions = {},
 ): PrimitivePlugin<RegimeHeatmapState> {
   return definePrimitive<RegimeHeatmapState>({
     name: "regimeHeatmap",
     pane: "main",
     zOrder: "below",
-    defaultState: { data },
+    defaultState: { data, options: resolveOptions(options) },
     render: renderRegimeHeatmap,
   });
 }
@@ -107,7 +205,7 @@ export function createRegimeHeatmap(
 
 type RegimeHeatmapHandle = {
   /** Update with new regime data */
-  update(data: readonly RegimeDataPoint[]): void;
+  update(data: readonly RegimeDataPoint[], options?: RegimeHeatmapOptions): void;
   /** Remove the heatmap from the chart */
   remove(): void;
 };
@@ -117,19 +215,25 @@ type RegimeHeatmapHandle = {
  *
  * @param chart - ChartInstance to attach to
  * @param data - Series data from hmmRegimes()
+ * @param options - Visual customization (badge on/off, etc.)
  * @returns Handle for updating or removing the heatmap
  */
 export function connectRegimeHeatmap(
   chart: ChartInstance,
   data: readonly RegimeDataPoint[],
+  options: RegimeHeatmapOptions = {},
 ): RegimeHeatmapHandle {
-  const plugin = createRegimeHeatmap(data);
-  chart.registerPrimitive(plugin);
+  // Track the last-applied options so a host that toggles the badge once
+  // (`handle.update(data, { showBadge: false })`) and then keeps streaming
+  // data (`handle.update(nextData)`) doesn't see the toggle silently revert
+  // to the original options on the next refresh.
+  let appliedOptions = options;
+  chart.registerPrimitive(createRegimeHeatmap(data, appliedOptions));
 
   return {
-    update(newData: readonly RegimeDataPoint[]) {
-      // Re-register with new data (replaces existing primitive of same name)
-      chart.registerPrimitive(createRegimeHeatmap(newData));
+    update(newData: readonly RegimeDataPoint[], newOptions?: RegimeHeatmapOptions) {
+      if (newOptions !== undefined) appliedOptions = newOptions;
+      chart.registerPrimitive(createRegimeHeatmap(newData, appliedOptions));
     },
     remove() {
       chart.removePrimitive("regimeHeatmap");

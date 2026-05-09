@@ -79,6 +79,38 @@ describe("createSrConfluence", () => {
     plugin.render(makeCtx(ctx), plugin.defaultState);
     expect(ctx.fillRect).not.toHaveBeenCalled();
   });
+
+  it("appends touch count to the strength label when present", () => {
+    const zones = [
+      {
+        price: 100,
+        low: 98,
+        high: 102,
+        strength: 80,
+        touchCount: 5,
+      },
+    ];
+    const plugin = createSrConfluence(zones);
+    const ctx = mockCtx();
+    plugin.render(makeCtx(ctx), plugin.defaultState);
+
+    // "S80 · ×5" — matches the BigBeluga / MTF Confluence convention of
+    // surfacing how many times the level has been retested.
+    expect(ctx.fillText).toHaveBeenCalledWith("S80 · ×5", expect.any(Number), expect.any(Number));
+  });
+
+  it("omits the touch count suffix when touchCount is 0 or absent", () => {
+    const zones = [
+      { price: 100, low: 98, high: 102, strength: 50 },
+      { price: 120, low: 118, high: 122, strength: 60, touchCount: 0 },
+    ];
+    const plugin = createSrConfluence(zones);
+    const ctx = mockCtx();
+    plugin.render(makeCtx(ctx), plugin.defaultState);
+
+    expect(ctx.fillText).toHaveBeenCalledWith("S50", expect.any(Number), expect.any(Number));
+    expect(ctx.fillText).toHaveBeenCalledWith("S60", expect.any(Number), expect.any(Number));
+  });
 });
 
 describe("connectSrConfluence", () => {

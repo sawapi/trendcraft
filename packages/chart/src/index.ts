@@ -166,7 +166,11 @@ export {
   type MarketProfileValue,
 } from "./plugins/market-profile";
 // Plugins — tree-shakeable visualization primitives
-export { connectRegimeHeatmap, createRegimeHeatmap } from "./plugins/regime-heatmap";
+export {
+  connectRegimeHeatmap,
+  createRegimeHeatmap,
+  type RegimeHeatmapOptions,
+} from "./plugins/regime-heatmap";
 export { connectSessionZones, createSessionZones } from "./plugins/session-zones";
 export type { SmcLevel, SmcMarker, SmcState, SmcZone } from "./plugins/smc-layer";
 export { connectSmcLayer, createSmcLayer } from "./plugins/smc-layer";
