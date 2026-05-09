@@ -122,6 +122,44 @@ describe("createWyckoffPhase", () => {
     expect(badgeCall).toBeDefined();
     expect(badgeCall?.[0]).toContain("Distribution");
     expect(badgeCall?.[0]).toContain("72");
+    // subPhase is rendered as its own chip, not stuffed into the main badge.
+    expect(badgeCall?.[0]).not.toContain("phase_B");
+  });
+
+  it("renders subPhase as a separate chip next to the main badge", () => {
+    const phases = [
+      { time: 1000, value: { phase: "accumulation", confidence: 65, subPhase: "phase_B" } },
+    ];
+    const plugin = createWyckoffPhase(phases);
+    const ctx = mockCtx();
+    plugin.render(makeCtx(ctx, mockTs(0, 1)), plugin.defaultState);
+    expect(ctx.fillText).toHaveBeenCalledWith("phase_B", expect.any(Number), expect.any(Number));
+  });
+
+  it("does not render the subPhase chip when subPhase is missing or empty", () => {
+    const phases = [
+      // No subPhase at all.
+      { time: 1000, value: { phase: "accumulation", confidence: 50 } },
+    ];
+    const plugin = createWyckoffPhase(phases);
+    const ctx = mockCtx();
+    plugin.render(makeCtx(ctx, mockTs(0, 1)), plugin.defaultState);
+    const calls = (ctx.fillText as unknown as ReturnType<typeof vi.fn>).mock.calls;
+    // Only the main badge text should fire — no second chip text.
+    const badgeCalls = calls.filter((c) => typeof c[0] === "string" && c[0].includes("Wyckoff:"));
+    expect(badgeCalls).toHaveLength(1);
+
+    // Empty-string subPhase should also stay quiet.
+    const phasesEmpty = [
+      { time: 1000, value: { phase: "accumulation", confidence: 50, subPhase: "  " } },
+    ];
+    const plugin2 = createWyckoffPhase(phasesEmpty);
+    const ctx2 = mockCtx();
+    plugin2.render(makeCtx(ctx2, mockTs(0, 1)), plugin2.defaultState);
+    const calls2 = (ctx2.fillText as unknown as ReturnType<typeof vi.fn>).mock.calls;
+    const badgeCalls2 = calls2.filter((c) => typeof c[0] === "string" && c[0].includes("Wyckoff:"));
+    expect(badgeCalls2).toHaveLength(1);
+    expect(calls2.some((c) => c[0] === "  ")).toBe(false);
   });
 
   it("renders VSA event markers as dots", () => {
