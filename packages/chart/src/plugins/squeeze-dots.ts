@@ -105,11 +105,13 @@ function renderSqueezeDots(
 
   const start = timeScale.startIndex;
   const end = timeScale.endIndex;
-  // The TTM ribbon sits as a thin colored bar row at the pane bottom. Bar
-  // width tracks bar spacing so it always reads as "this bar is in squeeze".
-  const ribbonHeight = options.radius * 2;
-  const ribbonY = pane.y + pane.height - options.offsetFromBottom - ribbonHeight / 2;
-  const barWidth = Math.max(2, timeScale.barSpacing * 0.9);
+  // Carter's TTM Squeeze convention: small *circular dots* riding a faint
+  // zero-line guide rail. The dots sit just above the pane's bottom edge so
+  // they never collide with candles. `offsetFromBottom` continues to mean
+  // "distance from the pane bottom to the bottom of the marker" (matching
+  // the previous bar-style implementation), so we lift the center by
+  // `radius` to keep the dot fully inside that gap.
+  const railY = pane.y + pane.height - options.offsetFromBottom - options.radius;
 
   withPaneClip(ctx, pane, () => {
     // Faint guide rail spanning the visible range
@@ -119,21 +121,23 @@ function renderSqueezeDots(
       ctx.strokeStyle = "rgba(120,123,134,0.25)";
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(pane.x, ribbonY + ribbonHeight / 2);
-      ctx.lineTo(pane.x + pane.width, ribbonY + ribbonHeight / 2);
+      ctx.moveTo(pane.x, railY);
+      ctx.lineTo(pane.x + pane.width, railY);
       ctx.stroke();
       ctx.restore();
     }
 
-    const drawBar = (i: number, color: string) => {
+    const drawDot = (i: number, color: string) => {
       if (i < start || i >= end) return;
       const x = timeScale.indexToX(i);
       ctx.fillStyle = color;
-      ctx.fillRect(x - barWidth / 2, ribbonY, barWidth, ribbonHeight);
+      ctx.beginPath();
+      ctx.arc(x, railY, options.radius, 0, Math.PI * 2);
+      ctx.fill();
     };
 
-    for (const i of squeezeIndices) drawBar(i, `rgba(${options.squeezeColor},1)`);
-    for (const i of releaseIndices) drawBar(i, `rgba(${options.releaseColor},1)`);
+    for (const i of squeezeIndices) drawDot(i, `rgba(${options.squeezeColor},1)`);
+    for (const i of releaseIndices) drawDot(i, `rgba(${options.releaseColor},1)`);
   });
 }
 
