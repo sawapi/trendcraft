@@ -60,12 +60,23 @@ export type VolumeProfileState = {
   highlightValueArea?: boolean;
   /** Whether to draw a horizontal line at the POC. Default true. */
   showPoc?: boolean;
+  /**
+   * Whether to draw horizontal lines and labels at the Value Area High and
+   * Low (VAH / VAL). Default true. The shaded fill from
+   * `highlightValueArea` only marks which levels are *inside* the area —
+   * these explicit lines are what TradingView, Bookmap and most volume
+   * profile tools draw so the upper and lower bounds are readable as
+   * specific price levels at a glance.
+   */
+  showValueAreaBounds?: boolean;
   /** Bar fill color (outside the value area). */
   barColor?: string;
   /** Bar fill color inside the value area (overrides barColor when highlightValueArea). */
   valueAreaColor?: string;
   /** POC line color. */
   pocColor?: string;
+  /** Color of the VAH and VAL boundary lines. */
+  valueAreaBoundsColor?: string;
 };
 
 // ---- Defaults ----
@@ -73,6 +84,8 @@ export type VolumeProfileState = {
 const DEFAULT_BAR_COLOR = "rgba(100,149,237,0.35)";
 const DEFAULT_VALUE_AREA_COLOR = "rgba(100,149,237,0.55)";
 const DEFAULT_POC_COLOR = "rgba(255,193,7,0.85)";
+// Same hue as the value-area shading but opaque enough to read as a line.
+const DEFAULT_VALUE_AREA_BOUNDS_COLOR = "rgba(100,149,237,0.75)";
 
 // ---- Render ----
 
@@ -85,9 +98,11 @@ function renderVolumeProfile(
     widthFraction = 0.18,
     highlightValueArea = true,
     showPoc = true,
+    showValueAreaBounds = true,
     barColor = DEFAULT_BAR_COLOR,
     valueAreaColor = DEFAULT_VALUE_AREA_COLOR,
     pocColor = DEFAULT_POC_COLOR,
+    valueAreaBoundsColor = DEFAULT_VALUE_AREA_BOUNDS_COLOR,
   } = state;
 
   if (profile.levels.length === 0) return;
@@ -121,6 +136,35 @@ function renderVolumeProfile(
 
       // Bar extends leftward from the right edge.
       ctx.fillRect(rightEdge - barLen, topY, barLen, barHeight);
+    }
+
+    // VAH / VAL — boundary lines for the value area. Drawn before POC so a
+    // POC that sits exactly on VAH or VAL gets the brighter highlight on top.
+    if (showValueAreaBounds) {
+      ctx.strokeStyle = valueAreaBoundsColor;
+      ctx.fillStyle = valueAreaBoundsColor;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 3]);
+      ctx.font = "10px -apple-system, BlinkMacSystemFont, sans-serif";
+      ctx.textAlign = "right";
+
+      const vahY = priceScale.priceToY(profile.vah);
+      ctx.beginPath();
+      ctx.moveTo(pane.x, vahY);
+      ctx.lineTo(rightEdge, vahY);
+      ctx.stroke();
+      ctx.textBaseline = "bottom";
+      ctx.fillText("VAH", rightEdge - 4, vahY - 2);
+
+      const valY = priceScale.priceToY(profile.val);
+      ctx.beginPath();
+      ctx.moveTo(pane.x, valY);
+      ctx.lineTo(rightEdge, valY);
+      ctx.stroke();
+      ctx.textBaseline = "top";
+      ctx.fillText("VAL", rightEdge - 4, valY + 2);
+
+      ctx.setLineDash([]);
     }
 
     // POC line — thin horizontal line across the entire pane width.

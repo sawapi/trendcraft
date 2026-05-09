@@ -60,15 +60,17 @@ describe("createVolumeProfile", () => {
     expect(plugin.zOrder).toBe("above");
   });
 
-  it("renders a bar per level plus a POC line when showPoc is true (default)", () => {
+  it("renders a bar per level plus POC and VAH/VAL bounds by default", () => {
     const plugin = createVolumeProfile(profile);
     const ctx = mockCtx();
     plugin.render(makeCtx(ctx), plugin.defaultState);
 
-    // One fillRect per level
+    // One fillRect per level.
     expect(ctx.fillRect).toHaveBeenCalledTimes(profile.levels.length);
-    // POC line + POC label + strip divider
-    expect(ctx.stroke).toHaveBeenCalledTimes(2);
+    // VAH line + VAL line + POC line + strip divider.
+    expect(ctx.stroke).toHaveBeenCalledTimes(4);
+    expect(ctx.fillText).toHaveBeenCalledWith("VAH", expect.any(Number), expect.any(Number));
+    expect(ctx.fillText).toHaveBeenCalledWith("VAL", expect.any(Number), expect.any(Number));
     expect(ctx.fillText).toHaveBeenCalledWith("POC", expect.any(Number), expect.any(Number));
   });
 
@@ -77,7 +79,34 @@ describe("createVolumeProfile", () => {
     const ctx = mockCtx();
     plugin.render(makeCtx(ctx), plugin.defaultState);
 
-    // Only the divider line, no POC label
+    // VAH + VAL + divider remain. POC label gone.
+    expect(ctx.stroke).toHaveBeenCalledTimes(3);
+    expect(ctx.fillText).not.toHaveBeenCalledWith("POC", expect.any(Number), expect.any(Number));
+    expect(ctx.fillText).toHaveBeenCalledWith("VAH", expect.any(Number), expect.any(Number));
+    expect(ctx.fillText).toHaveBeenCalledWith("VAL", expect.any(Number), expect.any(Number));
+  });
+
+  it("omits the value-area bounds when showValueAreaBounds is false", () => {
+    const plugin = createVolumeProfile(profile, { showValueAreaBounds: false });
+    const ctx = mockCtx();
+    plugin.render(makeCtx(ctx), plugin.defaultState);
+
+    // POC + divider only.
+    expect(ctx.stroke).toHaveBeenCalledTimes(2);
+    expect(ctx.fillText).not.toHaveBeenCalledWith("VAH", expect.any(Number), expect.any(Number));
+    expect(ctx.fillText).not.toHaveBeenCalledWith("VAL", expect.any(Number), expect.any(Number));
+    expect(ctx.fillText).toHaveBeenCalledWith("POC", expect.any(Number), expect.any(Number));
+  });
+
+  it("omits all overlay chrome when both showPoc and showValueAreaBounds are false", () => {
+    const plugin = createVolumeProfile(profile, {
+      showPoc: false,
+      showValueAreaBounds: false,
+    });
+    const ctx = mockCtx();
+    plugin.render(makeCtx(ctx), plugin.defaultState);
+
+    // Only the divider line, no labels.
     expect(ctx.stroke).toHaveBeenCalledTimes(1);
     expect(ctx.fillText).not.toHaveBeenCalled();
   });
@@ -105,10 +134,26 @@ describe("createVolumeProfile", () => {
       barColor: "red",
       valueAreaColor: "blue",
       pocColor: "green",
+      valueAreaBoundsColor: "magenta",
     });
     expect(plugin.defaultState.barColor).toBe("red");
     expect(plugin.defaultState.valueAreaColor).toBe("blue");
     expect(plugin.defaultState.pocColor).toBe("green");
+    expect(plugin.defaultState.valueAreaBoundsColor).toBe("magenta");
+  });
+
+  it("draws VAH and VAL lines at the prices reported by the profile", () => {
+    const plugin = createVolumeProfile(profile);
+    const ctx = mockCtx();
+    plugin.render(makeCtx(ctx), plugin.defaultState);
+
+    // mockPs: priceToY(p) = 400 - p*2 → vah=105 → 190, val=95 → 210.
+    const vahY = 400 - profile.vah * 2;
+    const valY = 400 - profile.val * 2;
+    expect(ctx.moveTo).toHaveBeenCalledWith(expect.any(Number), vahY);
+    expect(ctx.moveTo).toHaveBeenCalledWith(expect.any(Number), valY);
+    expect(ctx.lineTo).toHaveBeenCalledWith(expect.any(Number), vahY);
+    expect(ctx.lineTo).toHaveBeenCalledWith(expect.any(Number), valY);
   });
 });
 
