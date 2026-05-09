@@ -900,10 +900,22 @@ export const livePresets: Record<string, LivePreset> = {
   emv: {
     meta: EMV_META,
     defaultParams: { period: 14 },
-    snapshotName: (p) => `emv${p.period}`,
+    // Include `volumeDivisor` in the snapshot key so resuming under a
+    // different divisor doesn't mix scales. EMV's circular buffer + sum
+    // are accumulated under the active divisor, so a state captured at
+    // 10000 cannot be reused for a 1e8 run — different keys force a
+    // fresh warm-up. Stale `emv14` snapshots from before this format
+    // change won't match the new key and are discarded cleanly.
+    snapshotName: (p) => `emv${p.period}_${p.volumeDivisor ?? 100_000_000}`,
+    // Pass `volumeDivisor` through only when the host supplies a real value
+    // so the preset inherits the incremental indicator's canonical (1e8)
+    // default. Use `== null` (catches both `undefined` and `null`) —
+    // host-supplied params often arrive from JSON / form deserialization
+    // that emits explicit `null` for unset optional fields, and forwarding
+    // that to `createEmv()` would yield a division by zero.
     createFactory: factory<{ period?: number; volumeDivisor?: number }>()(createEmv, (p) => ({
       period: p.period ?? 14,
-      volumeDivisor: p.volumeDivisor ?? 10000,
+      ...(p.volumeDivisor != null ? { volumeDivisor: p.volumeDivisor as number } : {}),
     })),
   },
   volumeTrend: {

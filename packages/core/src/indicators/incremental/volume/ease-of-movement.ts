@@ -38,7 +38,14 @@ export function createEmv(
   warmUpOptions?: WarmUpOptions<EmvState>,
 ): IncrementalIndicator<number | null, EmvState> {
   const period = options.period ?? 14;
-  const volumeDivisor = options.volumeDivisor ?? 10000;
+  // Resume order: explicit option > persisted state > canonical default
+  // (1e8, matching StockCharts / ChartSchool). Reading the snapshot first
+  // is critical — a state captured under the legacy 10000 divisor would
+  // otherwise jump to 1e8 mid-stream after a library upgrade and produce
+  // a discontinuous EMV at the resume boundary.
+  // Keep in sync with `easeOfMovement()` in indicators/volume/ease-of-movement.ts.
+  const volumeDivisor =
+    options.volumeDivisor ?? warmUpOptions?.fromState?.volumeDivisor ?? 100_000_000;
 
   let prevHigh: number | null;
   let prevLow: number | null;

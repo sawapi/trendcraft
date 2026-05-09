@@ -255,7 +255,7 @@ export const VOLUME_MANIFESTS: IndicatorManifest[] = [
     ],
     pitfalls: [
       "Range-zero bars (high=low) make the box ratio explode — trendcraft handles with fallback",
-      "trendcraft uses `volumeDivisor=10000` by default; canonical Arms formula uses 100,000,000. Magnitudes differ — focus on sign and slope, not absolute values",
+      "trendcraft `volumeDivisor` default is 100,000,000 (canonical Arms / StockCharts scaling). EMV is proportional to the divisor — smaller-volume instruments may want a smaller divisor to keep magnitudes readable",
       "Useless on instruments with unreliable volume",
     ],
     marketRegime: ["trending"],
@@ -263,7 +263,7 @@ export const VOLUME_MANIFESTS: IndicatorManifest[] = [
     paramHints: {
       period: "14 default SMA smoothing",
       volumeDivisor:
-        "10000 default in trendcraft (NOT the canonical 100,000,000) — keeps values readable but values are not directly comparable to ChartSchool examples",
+        "100,000,000 default (canonical Arms / StockCharts scaling). Pre-v0.4 the default was 10000 — magnitudes captured under that default are 10000× smaller than the new canonical output",
     },
   },
   {

@@ -278,6 +278,62 @@ describe("EMV incremental", () => {
       }
     }
   });
+
+  it("default volumeDivisor matches StockCharts canonical scaling (1e8)", () => {
+    // Sanity check: sign / slope must equal a manual-divisor variant, but
+    // EMV is *proportional* to `volumeDivisor` (rawEmv = distanceMoved *
+    // volumeDivisor * hl / volume), so the canonical 1e8 default produces
+    // values 10000× LARGER than the legacy 1e4 default.
+    const canonical = easeOfMovement(candles, { period: 14 });
+    const legacy = easeOfMovement(candles, { period: 14, volumeDivisor: 10000 });
+    let comparedAny = false;
+    for (let i = 0; i < canonical.length; i++) {
+      const a = canonical[i].value;
+      const b = legacy[i].value;
+      if (a !== null && b !== null && b !== 0) {
+        // canonical / legacy = 10000
+        expect(Math.abs(a / b - 10000)).toBeLessThan(1e-6);
+        comparedAny = true;
+      }
+    }
+    expect(comparedAny).toBe(true);
+  });
+
+  it("fromState preserves the volumeDivisor captured in the snapshot", () => {
+    // Resume contract: a state created under the legacy divisor must
+    // continue computing on that divisor when restored, even after the
+    // library default has moved. Without this guard, the resumed series
+    // would jump 10000× at the resume boundary.
+    const ind1 = createEmv({ period: 14, volumeDivisor: 10000 });
+    for (let i = 0; i < 30; i++) ind1.next(candles[i]);
+    const state = ind1.getState();
+    expect(state.volumeDivisor).toBe(10000);
+
+    // Resume without re-passing options — the legacy divisor must be
+    // recovered from the snapshot, NOT silently swapped for the
+    // canonical default.
+    const ind2 = createEmv({ period: 14 }, { fromState: state });
+    expect(ind2.getState().volumeDivisor).toBe(10000);
+
+    for (let i = 30; i < 60; i++) {
+      const v1 = ind1.next(candles[i]).value;
+      const v2 = ind2.next(candles[i]).value;
+      if (v1 === null) {
+        expect(v2).toBeNull();
+      } else {
+        expect(Math.abs(v1 - v2!)).toBeLessThan(1e-10);
+      }
+    }
+  });
+
+  it("explicit volumeDivisor option wins over both fromState and the default", () => {
+    const ind1 = createEmv({ period: 14, volumeDivisor: 10000 });
+    for (let i = 0; i < 30; i++) ind1.next(candles[i]);
+    const state = ind1.getState();
+    // Explicit option overrides the persisted snapshot value.
+    const ind2 = createEmv({ period: 14, volumeDivisor: 5000 }, { fromState: state });
+    expect(ind2.getState().volumeDivisor).toBe(5000);
+  });
 });
 
 // ---- Volume Trend ----
