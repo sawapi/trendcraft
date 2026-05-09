@@ -7,9 +7,22 @@ const CATEGORY_LABELS: Record<PluginCategory, string> = {
   structure: "Structure",
   volume: "Volume",
   patterns: "Patterns",
+  regime: "Regime",
+  session: "Session",
+  drawings: "Auto Drawings",
+  signals: "Signals",
 };
 
-const CATEGORY_ORDER: readonly PluginCategory[] = ["smc", "structure", "volume", "patterns"];
+const CATEGORY_ORDER: readonly PluginCategory[] = [
+  "smc",
+  "structure",
+  "volume",
+  "patterns",
+  "regime",
+  "session",
+  "drawings",
+  "signals",
+];
 
 type Props = {
   enabled: ReadonlySet<string>;
