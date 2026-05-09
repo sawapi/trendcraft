@@ -17,6 +17,32 @@ describe("easeOfMovement", () => {
     expect(easeOfMovement([])).toEqual([]);
   });
 
+  it("treats `volumeDivisor: null` as unset and uses the canonical default", () => {
+    // JSON / form-driven configs frequently send explicit `null` for
+    // unset optional fields. The destructuring default only applies when
+    // the property is `undefined`, so without an explicit `??` guard the
+    // `null` would slip through and `c.volume / null` would make
+    // boxRatio infinite — every EMV value would silently collapse to 0.
+    const data: { high: number; low: number; volume: number }[] = [];
+    for (let i = 0; i < 20; i++) {
+      data.push({ high: 102 + i, low: 98 + i, volume: 50_000_000 });
+    }
+    const candles = makeCandles(data);
+    const fromUndefined = easeOfMovement(candles, { period: 3 });
+    const fromNull = easeOfMovement(candles, {
+      period: 3,
+      volumeDivisor: null as unknown as number,
+    });
+
+    for (let i = 0; i < fromUndefined.length; i++) {
+      expect(fromNull[i].time).toBe(fromUndefined[i].time);
+      expect(fromNull[i].value).toBe(fromUndefined[i].value);
+    }
+    const lastNull = fromNull[fromNull.length - 1].value;
+    expect(lastNull).not.toBeNull();
+    expect(Number.isFinite(lastNull as number)).toBe(true);
+  });
+
   it("should throw if period < 1", () => {
     const candles = makeCandles([{ high: 101, low: 99, volume: 1000 }]);
     expect(() => easeOfMovement(candles, { period: 0 })).toThrow();

@@ -15,7 +15,12 @@ import type { Candle, NormalizedCandle, Series } from "../../types";
 export type EaseOfMovementOptions = {
   /** SMA smoothing period (default: 14) */
   period?: number;
-  /** Volume divisor to scale values (default: 10000) */
+  /**
+   * Volume scaling divisor (default: `100_000_000`, matching StockCharts /
+   * ChartSchool canonical EMV). Smaller-volume instruments may want a
+   * smaller divisor to keep the values from collapsing toward zero — pass
+   * the divisor that produces readable magnitudes for your data.
+   */
   volumeDivisor?: number;
 };
 
@@ -25,21 +30,22 @@ export type EaseOfMovementOptions = {
  * EMV = ((H+L)/2 - (prevH+prevL)/2) / ((Volume/divisor) / (H-L))
  * Then smoothed with SMA.
  *
- * Note on `volumeDivisor`: trendcraft's default is `10000`, which makes
- * EMV values comparable across small-volume instruments. The canonical
- * StockCharts / ChartSchool reference uses `100_000_000` (100M), which
- * scales EMV down by ~10000× and is the value to pass when comparing
- * directly to charting platform references:
+ * The default `volumeDivisor` is `100_000_000` (100M), matching the
+ * StockCharts / ChartSchool canonical EMV scaling. With this default,
+ * trendcraft's EMV values can be compared directly against any reference
+ * implementation — Bulkowski, Yahoo Finance, TradingView's `Ease of
+ * Movement`, etc.
+ *
+ * If you previously relied on the legacy `volumeDivisor: 10000` default
+ * (which produced ~10000× larger values), pass it explicitly:
  *
  * ```ts
- * // Match StockCharts / ChartSchool reference values
- * const emv = easeOfMovement(candles, { period: 14, volumeDivisor: 100_000_000 });
+ * // Pre-canonical (legacy) scaling
+ * const emv = easeOfMovement(candles, { period: 14, volumeDivisor: 10000 });
  * ```
  *
  * For trading-decision use cases the **sign** and **slope** of EMV are
- * what matters, and both are invariant to `volumeDivisor`. The default
- * is preserved for backward compatibility through the 0.x line; a future
- * major bump may switch to the canonical 100M.
+ * what matters, and both are invariant to `volumeDivisor`.
  *
  * @param candles - Array of candles (raw or normalized)
  * @param options - Options
@@ -54,7 +60,13 @@ export function easeOfMovement(
   candles: Candle[] | NormalizedCandle[],
   options: EaseOfMovementOptions = {},
 ): Series<number | null> {
-  const { period = 14, volumeDivisor = 10000 } = options;
+  const { period = 14 } = options;
+  // Use `??` rather than a destructuring default so an explicit
+  // `volumeDivisor: null` (common after JSON / form deserialization of
+  // unset optional fields) still falls back to the canonical default.
+  // Without this guard `null` slips through and `c.volume / null` makes
+  // boxRatio infinite, collapsing every EMV value to zero.
+  const volumeDivisor = options.volumeDivisor ?? 100_000_000;
 
   if (period < 1) {
     throw new Error("EMV period must be at least 1");

@@ -1343,8 +1343,17 @@ export const indicatorPresets: Record<string, IndicatorPreset> = {
   ),
   emv: withCompute(
     "emv",
+    // Pass `volumeDivisor` through only when the host supplies a real value
+    // so the preset inherits the indicator's canonical (1e8) default. Use
+    // `== null` (catches both `undefined` and `null`) — preset params often
+    // arrive from JSON / form deserialization that emits explicit `null`
+    // for unset optional fields, and forwarding that to `easeOfMovement()`
+    // would yield a division by zero.
     (c, p) =>
-      easeOfMovement(c, { period: p.period ?? 14, volumeDivisor: p.volumeDivisor ?? 10000 }),
+      easeOfMovement(c, {
+        period: p.period ?? 14,
+        ...(p.volumeDivisor != null ? { volumeDivisor: p.volumeDivisor as number } : {}),
+      }),
     {
       category: "Volume",
       name: "Ease of Movement",
