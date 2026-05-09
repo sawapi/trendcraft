@@ -151,6 +151,7 @@ export {
   type SwingAnchor,
 } from "./integration/drawing-helpers";
 export {
+  type AndrewsPitchforkOptions,
   type AndrewsPitchforkState,
   connectAndrewsPitchfork,
   createAndrewsPitchfork,
