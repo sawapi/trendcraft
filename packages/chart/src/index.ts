@@ -180,7 +180,11 @@ export {
   type SqueezeDotsOptions,
 } from "./plugins/squeeze-dots";
 export { connectSrConfluence, createSrConfluence } from "./plugins/sr-confluence";
-export { connectTradeAnalysis, createTradeAnalysis } from "./plugins/trade-analysis";
+export {
+  connectTradeAnalysis,
+  createTradeAnalysis,
+  type TradeAnalysisOptions,
+} from "./plugins/trade-analysis";
 export {
   connectVolumeProfile,
   createVolumeProfile,

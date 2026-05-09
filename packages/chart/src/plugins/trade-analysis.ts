@@ -42,10 +42,44 @@ type CandleRef = {
   low: number;
 };
 
+export type TradeAnalysisOptions = {
+  /**
+   * Whether to draw the P&L percentage as a small label near the exit
+   * dot. Default `true`. Backtest analysts read this number first when
+   * scanning a result; without it the win / loss color of the exit dot
+   * is the only signal.
+   */
+  showPnlLabel?: boolean;
+  /**
+   * Whether to label the right end of each MFE / MAE dashed line with
+   * the absolute price level. Default `false` — useful when reviewing
+   * single trades, but on a full backtest the labels stack and clutter.
+   */
+  showMfeMaeLabels?: boolean;
+  /**
+   * Custom price formatter for MFE / MAE labels. The default adapts the
+   * decimal count to the price magnitude (≥1000 → 2 dp, ≥1 → 4 dp, <1 →
+   * up to 8 dp), which works for equities, FX and crypto. Override this
+   * if your instrument has a fixed tick size or a non-decimal display.
+   */
+  priceFormatter?: (price: number) => string;
+};
+
 type TradeAnalysisState = {
   trades: readonly TradeData[];
   candles: readonly CandleRef[];
+  options: Required<TradeAnalysisOptions>;
 };
+
+const DEFAULT_OPTIONS: Required<TradeAnalysisOptions> = {
+  showPnlLabel: true,
+  showMfeMaeLabels: false,
+  priceFormatter: defaultFormatPrice,
+};
+
+function resolveOptions(options: TradeAnalysisOptions = {}): Required<TradeAnalysisOptions> {
+  return { ...DEFAULT_OPTIONS, ...options };
+}
 
 // ---- Colors ----
 
@@ -98,7 +132,7 @@ function renderTradeAnalysis(
   { ctx, pane, timeScale, priceScale }: PrimitiveRenderContext,
   state: TradeAnalysisState,
 ): void {
-  const { trades, candles } = state;
+  const { trades, candles, options } = state;
   if (trades.length === 0 || candles.length === 0) return;
 
   withPaneClip(ctx, pane, () => {
@@ -147,6 +181,17 @@ function renderTradeAnalysis(
       ctx.stroke();
       ctx.restore();
 
+      // Optional MFE / MAE end-of-line price labels.
+      if (options.showMfeMaeLabels) {
+        ctx.font = "9px -apple-system, BlinkMacSystemFont, sans-serif";
+        ctx.textAlign = "left";
+        ctx.textBaseline = "middle";
+        ctx.fillStyle = `rgba(${MFE_COLOR},0.85)`;
+        ctx.fillText(options.priceFormatter(mfePrice), exitX + 4, mfeY);
+        ctx.fillStyle = `rgba(${MAE_COLOR},0.85)`;
+        ctx.fillText(options.priceFormatter(maePrice), exitX + 4, maeY);
+      }
+
       // Shaded area between MFE and MAE
       const topY = Math.min(mfeY, maeY);
       const bottomY = Math.max(mfeY, maeY);
@@ -173,8 +218,48 @@ function renderTradeAnalysis(
       ctx.beginPath();
       ctx.arc(exitX, exitY, 3, 0, Math.PI * 2);
       ctx.fill();
+
+      // P&L label — placed above the exit dot for wins, below for losses
+      // so it never visually crosses the trade line on its way out.
+      if (options.showPnlLabel) {
+        const pct = trade.returnPercent;
+        const sign = pct >= 0 ? "+" : "";
+        const label = `${sign}${pct.toFixed(2)}%`;
+        ctx.font = "bold 10px -apple-system, BlinkMacSystemFont, sans-serif";
+        ctx.textAlign = "left";
+        if (isWin) {
+          ctx.textBaseline = "bottom";
+          ctx.fillStyle = `rgba(${TRADE_WIN_COLOR},0.95)`;
+          ctx.fillText(label, exitX + 5, exitY - 4);
+        } else {
+          ctx.textBaseline = "top";
+          ctx.fillStyle = `rgba(${TRADE_LOSS_COLOR},0.95)`;
+          ctx.fillText(label, exitX + 5, exitY + 4);
+        }
+      }
     }
   });
+}
+
+/**
+ * Adapt decimal count to the price's magnitude so the label is readable
+ * across equities (e.g. `4500.12`), FX (e.g. `1.23456`) and low-priced
+ * crypto (e.g. `0.00012345`) without callers having to specify precision.
+ *
+ * Hosts that need a fixed tick size or a non-decimal display can override
+ * this via `TradeAnalysisOptions.priceFormatter`.
+ */
+function defaultFormatPrice(value: number): string {
+  if (!Number.isFinite(value)) return "";
+  const abs = Math.abs(value);
+  let decimals: number;
+  if (abs >= 1000) decimals = 2;
+  else if (abs >= 1) decimals = 4;
+  else if (abs >= 0.01) decimals = 6;
+  else decimals = 8;
+  // Trim trailing zeros so "100.0000" reads as "100" but "1.2345" stays
+  // intact. The trailing-dot guard handles values like "100." → "100".
+  return value.toFixed(decimals).replace(/\.?0+$/, "");
 }
 
 // ---- Factory ----
@@ -182,12 +267,13 @@ function renderTradeAnalysis(
 export function createTradeAnalysis(
   trades: readonly TradeData[],
   candles: readonly CandleRef[],
+  options: TradeAnalysisOptions = {},
 ): PrimitivePlugin<TradeAnalysisState> {
   return definePrimitive<TradeAnalysisState>({
     name: "tradeAnalysis",
     pane: "main",
     zOrder: "above",
-    defaultState: { trades, candles },
+    defaultState: { trades, candles, options: resolveOptions(options) },
     render: renderTradeAnalysis,
   });
 }
@@ -195,7 +281,11 @@ export function createTradeAnalysis(
 // ---- Convenience connector ----
 
 type TradeAnalysisHandle = {
-  update(trades: readonly TradeData[], candles: readonly CandleRef[]): void;
+  update(
+    trades: readonly TradeData[],
+    candles: readonly CandleRef[],
+    options?: TradeAnalysisOptions,
+  ): void;
   remove(): void;
 };
 
@@ -203,12 +293,22 @@ export function connectTradeAnalysis(
   chart: ChartInstance,
   trades: readonly TradeData[],
   candles: readonly CandleRef[],
+  options: TradeAnalysisOptions = {},
 ): TradeAnalysisHandle {
-  chart.registerPrimitive(createTradeAnalysis(trades, candles));
+  // Track the last-applied options. Merge (not replace) so a partial
+  // update — e.g. `update(data, candles, { showPnlLabel: false })` —
+  // preserves previously-applied fields like `showMfeMaeLabels` or a
+  // custom `priceFormatter` instead of silently reverting them to
+  // defaults on the next render.
+  let appliedOptions: TradeAnalysisOptions = { ...options };
+  chart.registerPrimitive(createTradeAnalysis(trades, candles, appliedOptions));
 
   return {
-    update(newTrades, newCandles) {
-      chart.registerPrimitive(createTradeAnalysis(newTrades, newCandles));
+    update(newTrades, newCandles, newOptions) {
+      if (newOptions !== undefined) {
+        appliedOptions = { ...appliedOptions, ...newOptions };
+      }
+      chart.registerPrimitive(createTradeAnalysis(newTrades, newCandles, appliedOptions));
     },
     remove() {
       chart.removePrimitive("tradeAnalysis");
