@@ -68,26 +68,17 @@ export function createFrama(
   let count: number;
 
   if (fs) {
-    if (fs.effectivePeriod !== effectivePeriod) {
-      throw new Error(
-        `FRAMA cannot be resumed with a different period (snapshot effectivePeriod=${fs.effectivePeriod}, requested=${effectivePeriod}). Re-warm a fresh instance instead.`,
-      );
-    }
-    if (fs.source !== source) {
-      throw new Error(
-        `FRAMA cannot be resumed with a different source (snapshot=${fs.source}, requested=${source}). Re-warm a fresh instance instead.`,
-      );
-    }
-
-    if (!fs.highBuffer || !fs.lowBuffer) {
-      // Pre-canonical FRAMA stored a single close-only `buffer`. We
-      // refuse silent migration: seeding both buffers from closes loses
-      // the wick range information, and any preservation of the old
-      // `prevFrama` would bake the non-canonical close-based smoothing
-      // into every subsequent value. Force a clean re-warm.
-      throw new Error(
-        "FRAMA state schema changed: snapshots taken before high/low range support cannot be resumed. Re-warm a fresh instance from candle history.",
-      );
+    // Resume contract: same period and source as the snapshot, or omit
+    // both. FRAMA's recursive `prevFrama` makes mid-stream reconfig
+    // mathematically undefined, and pre-canonical snapshots (close-only
+    // buffer, no wick range) cannot be migrated cleanly — re-warm.
+    if (
+      fs.effectivePeriod !== effectivePeriod ||
+      fs.source !== source ||
+      !fs.highBuffer ||
+      !fs.lowBuffer
+    ) {
+      throw new Error("FRAMA: incompatible snapshot, re-warm required");
     }
     highBuffer = CircularBuffer.fromSnapshot(fs.highBuffer);
     lowBuffer = CircularBuffer.fromSnapshot(fs.lowBuffer);
