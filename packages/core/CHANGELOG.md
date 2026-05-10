@@ -2,6 +2,35 @@
 
 ## Unreleased
 
+### Breaking — Elder's Force Index returns `{ short, long }`
+
+`elderForceIndex` and the incremental `createElderForceIndex` now
+emit Elder's canonical pair on every bar: a **2-period** EMA for
+entry timing and a **13-period** EMA for trend bias. The legacy
+single-period output (default `period: 13`) is gone.
+
+Migration:
+
+- Old: `elderForceIndex(c, { period: 13 })` → `Series<number | null>`
+- New: `elderForceIndex(c)` → `Series<{ short: number | null, long: number | null }>`
+
+Callers that only need the long line should read `.long`; callers
+that previously passed a custom `period` should pass it as
+`longPeriod` (and optionally a custom `shortPeriod` to match
+Elder's two-screen approach).
+
+The streaming preset wrappers (`indicatorPresets.elderForceIndex`,
+`livePresets.elderForceIndex`) now expose `shortPeriod` /
+`longPeriod` instead of `period`. The live snapshot key is now
+`efi_${shortPeriod}_${longPeriod}` so old `efi` snapshots from
+the single-period era are discarded cleanly on resume — no
+mixed-period state corruption.
+
+The chart introspection rule auto-detects the new shape and
+plots the `short` (orange) and `long` (purple) lines together
+in the sub-pane, so chart consumers don't need any host-side
+changes when the chart picks up the new core.
+
 ### Breaking — Ease of Movement default `volumeDivisor`
 
 `easeOfMovement` and the incremental `createEmv` now default

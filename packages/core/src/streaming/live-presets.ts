@@ -828,11 +828,18 @@ export const livePresets: Record<string, LivePreset> = {
   },
   elderForceIndex: {
     meta: ELDER_FORCE_INDEX_META,
-    defaultParams: { period: 13 },
-    snapshotName: "efi",
-    createFactory: factory<{ period?: number }>()(createElderForceIndex, (p) => ({
-      period: p.period ?? 13,
-    })),
+    defaultParams: { shortPeriod: 2, longPeriod: 13 },
+    // Snapshot key includes both periods — resuming under different
+    // periods would mix scales (each EMA's running state is tied to its
+    // own period). Different keys force a fresh warm-up.
+    snapshotName: (p) => `efi_${p.shortPeriod ?? 2}_${p.longPeriod ?? 13}`,
+    createFactory: factory<{ shortPeriod?: number; longPeriod?: number }>()(
+      createElderForceIndex,
+      (p) => ({
+        shortPeriod: p.shortPeriod ?? 2,
+        longPeriod: p.longPeriod ?? 13,
+      }),
+    ),
   },
   volumeAnomaly: {
     meta: VOLUME_ANOMALY_META,

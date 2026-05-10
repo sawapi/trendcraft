@@ -185,6 +185,22 @@ const BUILTIN_RULES: IntrospectionRule[] = [
     },
   },
 
+  // Elder's Force Index — canonical short / long pair. The
+  // TrendCraft preset registry adds the same rule with channel
+  // colors / reference lines, but consumers that pass
+  // `elderForceIndex(...)` output straight into a chart without
+  // registering presets still need to render the two lines, so
+  // the default registry has to recognize the shape too.
+  {
+    name: "elderForceIndex",
+    test: (v) => hasKeys(v, ["short", "long"]),
+    seriesType: "line",
+    defaultPane: "sub",
+    decompose: (v) => {
+      return { short: v.short, long: v.long };
+    },
+  },
+
   // Simple number → line (catch-all for RSI, CCI, ATR, OBV, etc.)
   {
     name: "number",

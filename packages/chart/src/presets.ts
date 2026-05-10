@@ -106,6 +106,15 @@ const TRENDCRAFT_RULES: IntrospectionRule[] = [
     decompose: (v) => ({ kst: v.kst, signal: v.signal }),
   },
 
+  // Elder's Force Index (canonical short / long pair)
+  {
+    name: "elderForceIndex",
+    test: (v) => hasKeys(v, ["short", "long"]),
+    seriesType: "line",
+    defaultPane: "sub",
+    decompose: (v) => ({ short: v.short, long: v.long }),
+  },
+
   // ATR Stops (long/short stop + TP levels)
   {
     name: "atrStops",
@@ -409,6 +418,18 @@ const TRENDCRAFT_PRESETS: [string, IndicatorPreset][] = [
     },
   ],
   [
+    "elderForceIndex",
+    {
+      pane: "sub",
+      label: "Force Index",
+      // Short = entry timing (lighter / faster), Long = trend bias (deeper /
+      // slower). Same orange palette as the other dual-line momentum
+      // oscillators so the canonical pairing reads consistently.
+      channelColors: { short: "#FF9800", long: "#673ab7" },
+      referenceLines: [0],
+    },
+  ],
+  [
     "klinger",
     {
       pane: "sub",
@@ -453,7 +474,9 @@ const TRENDCRAFT_PRESETS: [string, IndicatorPreset][] = [
   ["cmf", { color: "#00bcd4" }],
   ["mfi", { color: "#ff9800" }],
   ["adl", { color: "#8bc34a" }],
-  ["elderForceIndex", { color: "#673ab7" }],
+  // elderForceIndex is now a dual-channel value `{ short, long }` — see
+  // the channelColors entry above. The legacy single-color preset is no
+  // longer applicable.
   ["pvt", { color: "#009688" }],
   ["nvi", { color: "#3f51b5" }],
   ["cvd", { color: "#e91e63" }],

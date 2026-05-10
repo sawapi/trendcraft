@@ -421,28 +421,33 @@ describe("Ulcer Index", () => {
 });
 
 describe("Elder Force Index", () => {
-  it("matches EMA of (close-prevClose)*volume", () => {
-    const period = 13;
-    const result = elderForceIndex(candles, { period });
+  it.each([
+    { period: 2 as const, channel: "short" as const }, // Elder canonical short
+    { period: 13 as const, channel: "long" as const }, // Elder canonical long
+  ])("$period-period EMA of (close-prevClose)*volume matches the `$channel` channel", ({
+    period,
+    channel,
+  }) => {
+    // The indicator now returns both short and long EMAs in lockstep.
+    // Pin each channel independently against the canonical EMA formula.
+    const result = elderForceIndex(candles, { shortPeriod: 2, longPeriod: 13 });
 
-    // Raw force
     const rawForce: number[] = [0];
     for (let i = 1; i < candles.length; i++) {
       rawForce.push((candles[i].close - candles[i - 1].close) * candles[i].volume);
     }
 
-    // EMA smoothing
     const multiplier = 2 / (period + 1);
     let sum = 0;
     for (let i = 0; i < period; i++) {
       sum += rawForce[i];
     }
     let prev = sum / period;
-    expect(result[period - 1].value).toBeCloseTo(prev, 6);
+    expect(result[period - 1].value[channel]).toBeCloseTo(prev, 6);
 
     for (let i = period; i < candles.length; i++) {
       prev = rawForce[i] * multiplier + prev * (1 - multiplier);
-      expect(result[i].value).toBeCloseTo(prev, 6);
+      expect(result[i].value[channel]).toBeCloseTo(prev, 6);
     }
   });
 });

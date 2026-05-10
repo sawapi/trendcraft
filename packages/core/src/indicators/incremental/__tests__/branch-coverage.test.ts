@@ -559,41 +559,150 @@ describe("VolumeAnomaly detection accuracy", () => {
 // --- Elder Force Index ---
 
 describe("Elder Force Index", () => {
-  it("first candle returns null because there is no previous close for comparison", () => {
-    const efi = createElderForceIndex({ period: 3 });
+  // The new dual-period shape: short=2 entry timing, long=13 trend bias.
+  // Use shortPeriod / longPeriod options. `isWarmedUp` is gated by
+  // longPeriod so both EMAs are non-null when it returns true.
+  it("first candle returns { short: null, long: null } (no prevClose yet)", () => {
+    const efi = createElderForceIndex({ shortPeriod: 2, longPeriod: 3 });
     const r = efi.next(makeCandle(0));
-    expect(r.value).toBe(null);
+    expect(r.value.short).toBe(null);
+    expect(r.value.long).toBe(null);
   });
 
-  it("peek before warmup returns null", () => {
-    const efi = createElderForceIndex({ period: 3 });
+  it("peek before long-EMA warmup returns null long", () => {
+    const efi = createElderForceIndex({ shortPeriod: 2, longPeriod: 3 });
     efi.next(makeCandle(0));
     const r = efi.peek(makeCandle(1));
-    expect(r.value).toBe(null);
+    expect(r.value.long).toBe(null);
   });
 
-  it("peek at warmup boundary returns valid value matching next()", () => {
-    const efi = createElderForceIndex({ period: 3 });
+  it("peek at warmup boundary matches next()", () => {
+    const efi = createElderForceIndex({ shortPeriod: 2, longPeriod: 3 });
     for (let i = 0; i < 2; i++) efi.next(makeCandle(i));
     const candle = makeCandle(2);
-    const peekVal = efi.peek(candle).value;
-    expect(peekVal).not.toBe(null);
-    const nextVal = efi.next(candle).value;
-    expect(peekVal).toBeCloseTo(nextVal!, 10);
+    const peek = efi.peek(candle).value;
+    expect(peek.long).not.toBe(null);
+    const next = efi.next(candle).value;
+    expect(peek.short).toBeCloseTo(next.short!, 10);
+    expect(peek.long).toBeCloseTo(next.long!, 10);
   });
 
-  it("fromState restoration produces identical output", () => {
-    const efi1 = createElderForceIndex({ period: 3 });
+  it("fromState restoration produces identical output for both EMAs", () => {
+    const opts = { shortPeriod: 2, longPeriod: 3 };
+    const efi1 = createElderForceIndex(opts);
     for (let i = 0; i < 5; i++) efi1.next(makeCandle(i));
     const state = efi1.getState();
 
-    const efi2 = createElderForceIndex({ period: 3 }, { fromState: state });
-    expect(efi2.next(makeCandle(5)).value).toBeCloseTo(efi1.next(makeCandle(5)).value!, 10);
+    const efi2 = createElderForceIndex(opts, { fromState: state });
+    const v1 = efi1.next(makeCandle(5)).value;
+    const v2 = efi2.next(makeCandle(5)).value;
+    expect(v2.short).toBeCloseTo(v1.short!, 10);
+    expect(v2.long).toBeCloseTo(v1.long!, 10);
   });
 
   it("warmUp option works correctly", () => {
     const candles = generateCandles(5);
-    const efi = createElderForceIndex({ period: 3 }, { warmUp: candles });
+    const efi = createElderForceIndex({ shortPeriod: 2, longPeriod: 3 }, { warmUp: candles });
+    expect(efi.isWarmedUp).toBe(true);
+  });
+
+  it("fromState restores the persisted periods when options are not re-passed", () => {
+    // A state captured under custom periods must continue at those
+    // periods after resume — without this guard the EMAs would
+    // silently switch to canonical 2 / 13 mid-stream, producing a
+    // discontinuous output.
+    const opts = { shortPeriod: 5, longPeriod: 20 };
+    const efi1 = createElderForceIndex(opts);
+    for (let i = 0; i < 25; i++) efi1.next(makeCandle(i));
+    const state = efi1.getState();
+    expect(state.shortPeriod).toBe(5);
+    expect(state.longPeriod).toBe(20);
+
+    // Resume without re-passing options — periods must come from the
+    // snapshot, NOT silently revert to canonical 2 / 13.
+    const efi2 = createElderForceIndex({}, { fromState: state });
+    expect(efi2.getState().shortPeriod).toBe(5);
+    expect(efi2.getState().longPeriod).toBe(20);
+
+    // Subsequent values must match what efi1 would have produced.
+    for (let i = 25; i < 35; i++) {
+      const v1 = efi1.next(makeCandle(i)).value;
+      const v2 = efi2.next(makeCandle(i)).value;
+      expect(v2.short).toBeCloseTo(v1.short!, 10);
+      expect(v2.long).toBeCloseTo(v1.long!, 10);
+    }
+  });
+
+  it("explicit periods on resume override persisted state", () => {
+    const efi1 = createElderForceIndex({ shortPeriod: 5, longPeriod: 20 });
+    for (let i = 0; i < 25; i++) efi1.next(makeCandle(i));
+    // Caller explicitly re-parameterizes on resume — the snapshot's
+    // periods are ignored.
+    const efi2 = createElderForceIndex(
+      { shortPeriod: 3, longPeriod: 10 },
+      { fromState: efi1.getState() },
+    );
+    expect(efi2.getState().shortPeriod).toBe(3);
+    expect(efi2.getState().longPeriod).toBe(10);
+  });
+
+  it("re-parameterizing on resume resets EMA state and produces a fresh warm-up", () => {
+    // The previous EMA / sum / count were accumulated under the old
+    // multipliers; replaying them with new multipliers would produce a
+    // mathematically incorrect series. The new indicator must start
+    // its warm-up from scratch and only inherit `prevClose` from the
+    // snapshot (so the first raw-force computation after resume is
+    // still correct).
+    const efi1 = createElderForceIndex({ shortPeriod: 5, longPeriod: 20 });
+    for (let i = 0; i < 25; i++) efi1.next(makeCandle(i));
+    const snapshot = efi1.getState();
+
+    const efi2 = createElderForceIndex({ shortPeriod: 3, longPeriod: 10 }, { fromState: snapshot });
+
+    // EMAs / sums / count are reset for the new periods. prevClose
+    // carries over so the very next bar still has a valid raw force.
+    const reset = efi2.getState();
+    expect(reset.shortEma).toBeNull();
+    expect(reset.longEma).toBeNull();
+    expect(reset.shortSum).toBe(0);
+    expect(reset.longSum).toBe(0);
+    expect(reset.count).toBe(0);
+    expect(reset.prevClose).toBe(snapshot.prevClose);
+
+    // After feeding shortPeriod=3 bars, the short EMA must be the
+    // canonical SMA seed of the new bars' raw forces (NOT a value
+    // derived from the old 5-period multiplier on the snapshot's
+    // EMA). Compute it manually and compare.
+    const newBars: NormalizedCandle[] = [];
+    for (let i = 25; i < 28; i++) newBars.push(makeCandle(i));
+
+    let prevClose = snapshot.prevClose as number;
+    let sumRaw = 0;
+    for (const c of newBars) {
+      sumRaw += (c.close - prevClose) * c.volume;
+      prevClose = c.close;
+    }
+    const expectedShortSeed = sumRaw / 3;
+
+    let observedShort: number | null = null;
+    for (const c of newBars) observedShort = efi2.next(c).value.short;
+
+    expect(observedShort).not.toBeNull();
+    expect(observedShort as number).toBeCloseTo(expectedShortSeed, 8);
+  });
+
+  it("isWarmedUp accounts for the larger of shortPeriod / longPeriod", () => {
+    // The API allows shortPeriod > longPeriod (Elder's *canonical* pair
+    // is 2 / 13 but nothing forbids 7 / 3, e.g. for an inverted setup
+    // testing entry-vs-trend rolepairing). `isWarmedUp` must wait for
+    // the slower channel to seed — otherwise downstream code can read
+    // a `null` short value while the indicator claims it is ready.
+    const efi = createElderForceIndex({ shortPeriod: 7, longPeriod: 3 });
+    // Long channel warms up at count=3, but short channel needs count=7.
+    for (let i = 0; i < 3; i++) efi.next(makeCandle(i));
+    expect(efi.next(makeCandle(3)).value.long).not.toBe(null);
+    expect(efi.isWarmedUp).toBe(false);
+    for (let i = 4; i < 7; i++) efi.next(makeCandle(i));
     expect(efi.isWarmedUp).toBe(true);
   });
 });
@@ -2170,10 +2279,11 @@ describe("Single candle input returns null/initial values for indicators that ne
     expect(r.value.viPlus).toBe(null);
   });
 
-  it("Elder Force Index single candle: null (no prevClose)", () => {
-    const efi = createElderForceIndex({ period: 3 });
+  it("Elder Force Index single candle: { short: null, long: null } (no prevClose)", () => {
+    const efi = createElderForceIndex({ shortPeriod: 2, longPeriod: 3 });
     const r = efi.next(makeCandle(0));
-    expect(r.value).toBe(null);
+    expect(r.value.short).toBe(null);
+    expect(r.value.long).toBe(null);
   });
 
   it("ADL single candle: returns a number, isWarmedUp=true", () => {

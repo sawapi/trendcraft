@@ -878,10 +878,33 @@ describe("TWAP consistency", () => {
 // ==========================================
 
 describe("Elder Force Index consistency", () => {
-  it.each([7, 13, 20])("period=%i matches batch", (period) => {
-    const batch = elderForceIndex(candles, { period });
-    const incremental = processAll(createElderForceIndex({ period }), candles);
-    assertConsistency(batch, incremental, 1e-8);
+  it.each([
+    { shortPeriod: 2, longPeriod: 13 }, // Elder canonical default
+    { shortPeriod: 5, longPeriod: 20 },
+    { shortPeriod: 1, longPeriod: 7 },
+  ])("shortPeriod=$shortPeriod longPeriod=$longPeriod matches batch", (opts) => {
+    const batch = elderForceIndex(candles, opts);
+    const incremental = processAll(createElderForceIndex(opts), candles);
+
+    expect(incremental.length).toBe(batch.length);
+    for (let i = 0; i < batch.length; i++) {
+      expect(incremental[i].time).toBe(batch[i].time);
+      const bv = batch[i].value;
+      const iv = incremental[i].value;
+
+      if (bv.short === null) {
+        expect(iv.short).toBeNull();
+      } else {
+        expect(iv.short).not.toBeNull();
+        expect(Math.abs((iv.short as number) - bv.short)).toBeLessThan(1e-8);
+      }
+      if (bv.long === null) {
+        expect(iv.long).toBeNull();
+      } else {
+        expect(iv.long).not.toBeNull();
+        expect(Math.abs((iv.long as number) - bv.long)).toBeLessThan(1e-8);
+      }
+    }
   });
 });
 

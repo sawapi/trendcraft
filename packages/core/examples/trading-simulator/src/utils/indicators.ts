@@ -558,9 +558,13 @@ export function calculateIndicators(
   }
 
   if (enabledIndicators.includes("elderForce")) {
-    result.elderForceData = extractValues(
-      TrendCraft.elderForceIndex(candles, { period: p.elderForcePeriod }),
-    );
+    // The simulator's existing single-line view maps to Elder's
+    // long-period FI (intermediate-trend bias). Extract `.long` from
+    // the canonical `{ short, long }` shape.
+    const series = TrendCraft.elderForceIndex(candles, {
+      longPeriod: p.elderForcePeriod,
+    });
+    result.elderForceData = series.map((s) => s.value.long);
   }
 
   if (enabledIndicators.includes("volumeAnomaly")) {
