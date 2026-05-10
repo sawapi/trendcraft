@@ -2,6 +2,12 @@
  * Incremental McGinley Dynamic
  *
  * MD[i] = MD[i-1] + (Price - MD[i-1]) / (k × period × (Price / MD[i-1])^4)
+ *
+ * State category: **Recursive** (single-pole). `prevMd` carries
+ * permanent dependence on past parameters, so resume-time reconfig
+ * (different period, k, or source) is mathematically undefined and
+ * refused. Pass identical options on resume, or omit them and let the
+ * snapshot's params win.
  */
 
 import type { NormalizedCandle, PriceSource } from "../../../types";
@@ -33,19 +39,27 @@ export function createMcGinleyDynamic(
   options: { period?: number; k?: number; source?: PriceSource } = {},
   warmUpOptions?: WarmUpOptions<McGinleyDynamicState>,
 ): IncrementalIndicator<number | null, McGinleyDynamicState> {
-  const period = options.period ?? 14;
-  const k = options.k ?? 0.6;
-  const source: PriceSource = options.source ?? "close";
+  // Resume order: explicit option > snapshot value > canonical default.
+  const fs = warmUpOptions?.fromState ?? null;
+  const period = options.period ?? fs?.period ?? 14;
+  const k = options.k ?? fs?.k ?? 0.6;
+  const source: PriceSource = options.source ?? fs?.source ?? "close";
 
   let prevMd: number | null;
   let sum: number;
   let count: number;
 
-  if (warmUpOptions?.fromState) {
-    const s = warmUpOptions.fromState;
-    prevMd = s.prevMd;
-    sum = s.sum;
-    count = s.count;
+  if (fs) {
+    // McGinley is recursive: `prevMd` carries past parameters forever,
+    // so reconfiguring on resume produces a hybrid series that doesn't
+    // match either fresh-with-old-options or fresh-with-new-options
+    // computed over the same candle history. Refuse explicitly.
+    if (fs.period !== period || fs.k !== k || fs.source !== source) {
+      throw new Error("McGinley Dynamic: incompatible snapshot, re-warm required");
+    }
+    prevMd = fs.prevMd;
+    sum = fs.sum;
+    count = fs.count;
   } else {
     prevMd = null;
     sum = 0;

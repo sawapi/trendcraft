@@ -25,9 +25,21 @@ export type McGinleyDynamicOptions = {
 /**
  * Calculate McGinley Dynamic
  *
- * MD[i] = MD[i-1] + (Close - MD[i-1]) / (k × period × (Close / MD[i-1])^4)
+ * John R. McGinley, Jr.'s adaptive moving average. The original 1990
+ * formulation (Market Technicians Association Journal, 1997) uses just
+ * the period N:
  *
- * The initial seed is the SMA of the first `period` values.
+ *   MD[i] = MD[i-1] + (Price - MD[i-1]) / (N * (Price / MD[i-1])^4)
+ *
+ * The widely-used "improved" form adds a smoothing constant `k` to slow
+ * the response (k ≈ 0.6 is the de-facto convention on TradingView):
+ *
+ *   MD[i] = MD[i-1] + (Price - MD[i-1]) / (k * N * (Price / MD[i-1])^4)
+ *
+ * This implementation uses the improved k-form. Pass `k: 1` for the
+ * original 1990 form. Initial seed is the SMA of the first `period`
+ * values; some references seed with the first close instead — the
+ * difference fades after a few bars.
  *
  * @param candles - Array of candles (raw or normalized)
  * @param options - Options

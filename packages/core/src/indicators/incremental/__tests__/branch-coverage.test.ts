@@ -1216,6 +1216,62 @@ describe("McGinley Dynamic responds to price changes", () => {
     const md = createMcGinleyDynamic({ period: 3 }, { warmUp: candles });
     expect(md.isWarmedUp).toBe(true);
   });
+
+  // Resume contract: McGinley is recursive (single-pole) — `prevMd`
+  // permanently encodes past parameters, so reconfiguring on resume is
+  // mathematically undefined.
+  it("fromState restores period / k / source when options are not re-passed", () => {
+    const md1 = createMcGinleyDynamic({ period: 7, k: 0.4, source: "high" });
+    for (let i = 0; i < 10; i++) md1.next(makeCandle(i));
+    const state = md1.getState();
+
+    const md2 = createMcGinleyDynamic({}, { fromState: state });
+    expect(md2.getState().period).toBe(7);
+    expect(md2.getState().k).toBe(0.4);
+    expect(md2.getState().source).toBe("high");
+  });
+
+  it("refuses resume with a different period", () => {
+    const md1 = createMcGinleyDynamic({ period: 7 });
+    for (let i = 0; i < 10; i++) md1.next(makeCandle(i));
+    const state = md1.getState();
+
+    expect(() => createMcGinleyDynamic({ period: 14 }, { fromState: state })).toThrow(
+      /incompatible snapshot/,
+    );
+  });
+
+  it("refuses resume with a different k", () => {
+    const md1 = createMcGinleyDynamic({ period: 7, k: 0.6 });
+    for (let i = 0; i < 10; i++) md1.next(makeCandle(i));
+    const state = md1.getState();
+
+    expect(() => createMcGinleyDynamic({ period: 7, k: 1 }, { fromState: state })).toThrow(
+      /incompatible snapshot/,
+    );
+  });
+
+  it("refuses resume with a different source", () => {
+    const md1 = createMcGinleyDynamic({ period: 7, source: "close" });
+    for (let i = 0; i < 10; i++) md1.next(makeCandle(i));
+    const state = md1.getState();
+
+    expect(() =>
+      createMcGinleyDynamic({ period: 7, source: "high" }, { fromState: state }),
+    ).toThrow(/incompatible snapshot/);
+  });
+
+  it("peek matches next at every bar and does not mutate state", () => {
+    const md = createMcGinleyDynamic({ period: 4 });
+    for (let i = 0; i < 12; i++) {
+      const candle = makeCandle(i + 100);
+      const stateBeforePeek = JSON.stringify(md.getState());
+      const peeked = md.peek(candle);
+      expect(JSON.stringify(md.getState())).toBe(stateBeforePeek);
+      const advanced = md.next(candle);
+      expect(peeked.value).toEqual(advanced.value);
+    }
+  });
 });
 
 // --- CMF ---
