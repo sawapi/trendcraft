@@ -23,12 +23,19 @@ export type FramaOptions = {
 /**
  * Calculate Fractal Adaptive Moving Average
  *
- * FRAMA dynamically adjusts its alpha based on the fractal dimension:
- * 1. Split the period into two halves
- * 2. Calculate the range (max-min) for each half and the full period
- * 3. Compute fractal dimension D
- * 4. alpha = exp(-4.6 * (D - 1))
- * 5. FRAMA = alpha * price + (1 - alpha) * prev_FRAMA
+ * Canonical Ehlers FRAMA (2005 paper): the fractal-dimension calculation
+ * uses **candle highs and lows** (not the smoothing `source`) so the
+ * period-range slope reflects true price excursion, matching Pine Script
+ * `ta.frama()` and Ehlers' original `Highest(High, N/2) - Lowest(Low, N/2)`
+ * formulation.
+ *
+ * 1. Split the period into two halves of length N/2.
+ * 2. n1, n2, n3 = (HighestHigh - LowestLow) / length for each half + full.
+ * 3. D = (log(n1 + n2) - log(n3)) / log(2).
+ * 4. alpha = exp(-4.6 * (D - 1)), clamped to [0.01, 1].
+ * 5. FRAMA = alpha * source + (1 - alpha) * prevFRAMA.
+ *
+ * The `source` option only controls the price term in step 5.
  *
  * @param candles - Array of candles (raw or normalized)
  * @param options - FRAMA options
@@ -77,7 +84,10 @@ export function frama(
       continue;
     }
 
-    // Calculate high/low ranges for first half, second half, and full period
+    // Range calc uses the candle's high/low (Ehlers canonical) so the
+    // fractal-dimension input reflects true intrabar excursion rather
+    // than just the smoothing source. The source price still drives the
+    // FRAMA update step below.
     let h1High = Number.NEGATIVE_INFINITY;
     let h1Low = Number.POSITIVE_INFINITY;
     let h2High = Number.NEGATIVE_INFINITY;
@@ -86,18 +96,20 @@ export function frama(
     let fLow = Number.POSITIVE_INFINITY;
 
     for (let j = 0; j < effectivePeriod; j++) {
-      const p = getPrice(normalized[i - effectivePeriod + 1 + j], source);
+      const c = normalized[i - effectivePeriod + 1 + j];
+      const high = c.high;
+      const low = c.low;
 
       if (j < halfPeriod) {
-        h1High = Math.max(h1High, p);
-        h1Low = Math.min(h1Low, p);
+        if (high > h1High) h1High = high;
+        if (low < h1Low) h1Low = low;
       } else {
-        h2High = Math.max(h2High, p);
-        h2Low = Math.min(h2Low, p);
+        if (high > h2High) h2High = high;
+        if (low < h2Low) h2Low = low;
       }
 
-      fHigh = Math.max(fHigh, p);
-      fLow = Math.min(fLow, p);
+      if (high > fHigh) fHigh = high;
+      if (low < fLow) fLow = low;
     }
 
     const n1 = (h1High - h1Low) / halfPeriod;

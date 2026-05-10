@@ -283,3 +283,46 @@ chartEl.addEventListener("click", () => {
     sidebarEl.classList.remove("open");
   }
 });
+
+// ============================================
+// Test hooks (window.__showcase) — for AI-agent / e2e access
+// ============================================
+//
+// Exposes the chart, the live IndicatorConnection, and a few helpers so an
+// external driver (agent-browser, Playwright, etc.) can add/remove indicators
+// without depending on the sidebar DOM. `conn` is a getter because the
+// connection is rebuilt on every mode/timeframe switch.
+
+declare global {
+  interface Window {
+    __showcase?: {
+      chart: typeof chart;
+      readonly conn: IndicatorConnection | null;
+      add(id: string, params?: Record<string, unknown>): void;
+      remove(id: string): void;
+      list(): string[];
+    };
+  }
+}
+
+window.__showcase = {
+  chart,
+  get conn() {
+    return conn;
+  },
+  add(id, params = {}) {
+    if (!conn) throw new Error("connection not ready");
+    // Mirror the sidebar's "primary instance" behavior: snapshotName is
+    // pinned to the preset id, so calling add() while one is already
+    // active replaces it (same as toggling params from the sidebar UI).
+    // Without this, connectIndicators rejects the duplicate snapshotName.
+    conn.remove(id);
+    conn.add(id, { ...resolveParams(id, params), snapshotName: id });
+  },
+  remove(id) {
+    conn?.remove(id);
+  },
+  list() {
+    return conn ? conn.list().map((c) => c.snapshotName) : [];
+  },
+};
