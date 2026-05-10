@@ -436,6 +436,54 @@ describe("HMA (Hull Moving Average)", () => {
     const hma = createHma({ period: 4 }, { warmUp: candles });
     expect(hma.isWarmedUp).toBe(true);
   });
+
+  // Resume contract: HMA is cascaded — `finalWma` carries intermediate
+  // values that depend on `period`, so reconfig is refused.
+  it("fromState restores period / source when options are not re-passed", () => {
+    const hma1 = createHma({ period: 16, source: "high" });
+    for (let i = 0; i < 30; i++) hma1.next(makeCandle(i));
+    const state = hma1.getState();
+
+    const hma2 = createHma({}, { fromState: state });
+    expect(hma2.getState().period).toBe(16);
+    expect(hma2.getState().source).toBe("high");
+  });
+
+  it("refuses resume with a different period", () => {
+    const hma1 = createHma({ period: 16 });
+    for (let i = 0; i < 30; i++) hma1.next(makeCandle(i));
+    const state = hma1.getState();
+
+    expect(() => createHma({ period: 25 }, { fromState: state })).toThrow(/incompatible snapshot/);
+  });
+
+  it("refuses resume with a different source", () => {
+    const hma1 = createHma({ period: 16, source: "close" });
+    for (let i = 0; i < 30; i++) hma1.next(makeCandle(i));
+    const state = hma1.getState();
+
+    expect(() => createHma({ period: 16, source: "high" }, { fromState: state })).toThrow(
+      /incompatible snapshot/,
+    );
+  });
+
+  it("peek matches next at every bar and does not mutate state", () => {
+    const hma = createHma({ period: 4 });
+    // Drive past warmup to exercise both pre-warmup and steady-state branches.
+    for (let i = 0; i < 15; i++) {
+      const candle = makeCandle(i);
+      const stateBeforePeek = JSON.stringify(hma.getState());
+      const peeked = hma.peek(candle);
+      expect(JSON.stringify(hma.getState())).toBe(stateBeforePeek);
+      const advanced = hma.next(candle);
+      if (peeked.value === null) {
+        expect(advanced.value).toBe(null);
+      } else {
+        expect(advanced.value).not.toBe(null);
+        expect(peeked.value).toBeCloseTo(advanced.value!, 10);
+      }
+    }
+  });
 });
 
 // --- VWMA ---

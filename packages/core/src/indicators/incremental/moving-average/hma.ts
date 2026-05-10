@@ -2,6 +2,13 @@
  * Incremental HMA (Hull Moving Average)
  *
  * HMA(n) = WMA(2 * WMA(n/2) - WMA(n), sqrt(n))
+ *
+ * State category: **Cascaded** (3 stacked WMAs). The inner half/full
+ * WMAs hold raw price buffers, but the outer `finalWma` holds
+ * intermediate `2*WMA(n/2) - WMA(n)` values whose meaning depends on
+ * `period`. Reconfiguring `period` mid-stream invalidates that
+ * intermediate buffer, so resume requires identical `period` and
+ * `source` (or omit them and let the snapshot's params win).
  */
 
 import type { NormalizedCandle, PriceSource } from "../../../types";
@@ -35,8 +42,10 @@ export function createHma(
   options: { period?: number; source?: PriceSource } = {},
   warmUpOptions?: WarmUpOptions<HmaState>,
 ): IncrementalIndicator<number | null, HmaState> {
-  const period = options.period ?? 9;
-  const source: PriceSource = options.source ?? "close";
+  // Resume order: explicit option > snapshot value > canonical default.
+  const fs = warmUpOptions?.fromState ?? null;
+  const period = options.period ?? fs?.period ?? 9;
+  const source: PriceSource = options.source ?? fs?.source ?? "close";
   const halfPeriod = Math.floor(period / 2);
   const sqrtPeriod = Math.floor(Math.sqrt(period));
 
@@ -45,12 +54,18 @@ export function createHma(
   let finalWma: ReturnType<typeof createWma>;
   let count: number;
 
-  if (warmUpOptions?.fromState) {
-    const s = warmUpOptions.fromState;
-    halfWma = createWma({ period: halfPeriod, source }, { fromState: s.halfWmaState });
-    fullWma = createWma({ period, source }, { fromState: s.fullWmaState });
-    finalWma = createWma({ period: sqrtPeriod }, { fromState: s.finalWmaState });
-    count = s.count;
+  if (fs) {
+    // HMA is a cascade: the outer `finalWma` carries intermediate
+    // `2*WMA(n/2) - WMA(n)` values whose semantics depend on `period`.
+    // Reconfiguring `period` invalidates those intermediates, so
+    // resume requires identical params.
+    if (fs.period !== period || fs.source !== source) {
+      throw new Error("HMA: incompatible snapshot, re-warm required");
+    }
+    halfWma = createWma({ period: halfPeriod, source }, { fromState: fs.halfWmaState });
+    fullWma = createWma({ period, source }, { fromState: fs.fullWmaState });
+    finalWma = createWma({ period: sqrtPeriod }, { fromState: fs.finalWmaState });
+    count = fs.count;
   } else {
     halfWma = createWma({ period: halfPeriod, source });
     fullWma = createWma({ period, source });

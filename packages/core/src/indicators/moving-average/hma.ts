@@ -24,13 +24,19 @@ export type HmaOptions = {
 /**
  * Calculate Hull Moving Average
  *
- * HMA = WMA(2 * WMA(n/2) - WMA(n), sqrt(n))
+ * Alan Hull's 2005 cascaded-WMA design that reduces lag while
+ * preserving smoothness. Canonical formula:
+ *
+ *   HMA(n) = WMA(2 * WMA(n/2) - WMA(n), sqrt(n))
  *
  * Steps:
  * 1. Calculate WMA with period n/2
  * 2. Calculate WMA with period n
  * 3. Compute 2 * WMA(n/2) - WMA(n) for each point
  * 4. Apply WMA with period sqrt(n) to the result
+ *
+ * `halfPeriod = floor(n/2)` and `sqrtPeriod = floor(sqrt(n))` match
+ * Pine Script's `ta.hma()` integer-truncation convention.
  *
  * @param candles - Array of candles (raw or normalized)
  * @param options - HMA options (period, source)
