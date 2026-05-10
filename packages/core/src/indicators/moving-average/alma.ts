@@ -30,6 +30,13 @@ export type AlmaOptions = {
  * ALMA applies a Gaussian distribution curve as weight to the price series.
  * The offset parameter shifts the Gaussian curve, and sigma controls its width.
  *
+ * Weights are computed as `w[i] = exp(-((i - m)^2) / (2 * s^2))` with
+ * `m = offset * (period - 1)` (Pine Script / TradingView `ta.alma()`
+ * convention) and `s = period / sigma`. Some references use
+ * `m = offset * period` instead — the magnitude shift is small; this
+ * implementation standardizes on the Pine Script form so values match
+ * any TradingView reference chart at the same parameters.
+ *
  * @param candles - Array of candles (raw or normalized)
  * @param options - ALMA options
  * @returns Series of ALMA values (null for insufficient data)
