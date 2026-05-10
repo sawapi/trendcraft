@@ -225,16 +225,17 @@ export const VOLUME_MANIFESTS: IndicatorManifest[] = [
     pitfalls: [
       "Volume spike on a tiny price move yields a large Force value — can mislead",
       "Default 13 EMA smoothes substantial intra-period variation; raw 1-period FI is very noisy",
-      "Elder explicitly prescribes BOTH a short-period (2) FI for entries AND long-period (13) for trend; trendcraft's single-period default tilts to the long",
     ],
     synergy: [
-      "Pair with a separate short-period Force Index (period=2) for entries vs long-period (13) for trend (Elder's canonical setup)",
+      "Use long FI for trend bias (above zero = bullish), short FI for pullback entries (cross below zero in an uptrend = buy)",
     ],
     marketRegime: ["trending"],
     timeframe: ["swing"],
     paramHints: {
-      period:
-        "13 default EMA smoothing (Elder's long-period). Use period=2 for short-period entry signals",
+      shortPeriod:
+        "2 default (Elder canonical) — fine-tunes pullback entries within the long-period trend",
+      longPeriod:
+        "13 default (Elder canonical) — confirms intermediate-trend direction, look for divergences here first",
     },
   },
   {

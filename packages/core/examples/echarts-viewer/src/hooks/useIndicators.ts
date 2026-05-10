@@ -613,8 +613,11 @@ export function useIndicators(
 
     // Elder Force Index
     if (enabledIndicators.includes("elderForce")) {
-      const series = elderForceIndex(candles, { period: p.elderForcePeriod });
-      data.elderForce = series.map((s) => s.value);
+      // The current single-line subchart maps to Elder's long-period FI
+      // (intermediate-trend bias) — extract `.long` from the canonical
+      // `{ short, long }` value shape.
+      const series = elderForceIndex(candles, { longPeriod: p.elderForcePeriod });
+      data.elderForce = series.map((s) => s.value.long);
     }
 
     return data;

@@ -1243,12 +1243,36 @@ export const indicatorPresets: Record<string, IndicatorPreset> = {
   }),
   elderForceIndex: withCompute(
     "elderForceIndex",
-    (c, p) => elderForceIndex(c, { period: p.period ?? 13 }),
+    (c, p) =>
+      elderForceIndex(c, {
+        shortPeriod: p.shortPeriod ?? 2,
+        longPeriod: p.longPeriod ?? 13,
+      }),
     {
       category: "Volume",
       name: "Elder Force Index",
-      description: "Combines price change and volume to measure the power behind price movements.",
-      paramSchema: [period(13)],
+      description:
+        "Combines price change and volume to measure the power behind price movements. Default uses Elder's canonical pair: short=2 (entry timing), long=13 (trend bias).",
+      paramSchema: [
+        {
+          key: "shortPeriod",
+          label: "Short Period",
+          type: "number",
+          default: 2,
+          min: 1,
+          max: 50,
+          step: 1,
+        },
+        {
+          key: "longPeriod",
+          label: "Long Period",
+          type: "number",
+          default: 13,
+          min: 1,
+          max: 200,
+          step: 1,
+        },
+      ],
     },
   ),
   volumeAnomaly: withCompute(
