@@ -61,18 +61,6 @@ function bufferMinMax(buf: CircularBuffer<number>): { min: number; max: number }
   return { min, max };
 }
 
-function _midPrice(
-  buf: CircularBuffer<number>,
-  period: number,
-  _highOrLow: "high" | "low",
-  otherBuf: CircularBuffer<number>,
-): number | null {
-  if (buf.length < period) return null;
-  const { max } = bufferMinMax(buf);
-  const { min } = bufferMinMax(otherBuf);
-  return (max + min) / 2;
-}
-
 /**
  * Create an incremental Ichimoku indicator
  *
@@ -217,8 +205,16 @@ export function createIchimoku(
     },
 
     get isWarmedUp() {
-      // Kijun (longest non-displaced period) and displacement for senkou
-      return count >= kijunPeriod + displacement;
+      // Two displaced channels gate readiness: `senkouA` depends on a
+      // valid kijun from `displacement` bars ago (so it needs
+      // `kijunPeriod + displacement`) and `senkouB` needs
+      // `senkouBPeriod + displacement`. The slower of the two wins.
+      // The previous threshold (`kijunPeriod + displacement`) was
+      // wrong for the canonical 9/26/52 setup (senkouB still null);
+      // the simpler swap to `senkouBPeriod + displacement` was wrong
+      // for caller-overridden setups where kijunPeriod > senkouBPeriod
+      // (senkouA would still be null). The Math.max here covers both.
+      return count >= Math.max(kijunPeriod, senkouBPeriod) + displacement;
     },
   };
 

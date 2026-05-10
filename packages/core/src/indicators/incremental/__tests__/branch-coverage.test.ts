@@ -2060,6 +2060,54 @@ describe("Ichimoku cloud components", () => {
     expect(r.value.chikou).toBe(null);
   });
 
+  it("isWarmedUp also waits for senkouA when kijunPeriod exceeds senkouBPeriod", () => {
+    // The API allows callers to flip the canonical period ordering.
+    // When `kijunPeriod > senkouBPeriod`, senkouA is the slower
+    // displaced channel — it needs `kijunPeriod + displacement` bars
+    // to settle. A naive `senkouBPeriod + displacement` threshold
+    // would fire early and leave `value.senkouA` null.
+    const ichi = createIchimoku({
+      tenkanPeriod: 3,
+      kijunPeriod: 20,
+      senkouBPeriod: 10,
+      displacement: 3,
+    });
+    // Past senkouB threshold (10 + 3 = 13), before senkouA threshold
+    // (20 + 3 = 23).
+    for (let i = 0; i < 22; i++) ichi.next(makeCandle(i));
+    expect(ichi.isWarmedUp).toBe(false);
+
+    // Feed up to count = 23.
+    ichi.next(makeCandle(22));
+    expect(ichi.isWarmedUp).toBe(true);
+    // The very next bar must have a non-null senkouA.
+    expect(ichi.next(makeCandle(23)).value.senkouA).not.toBeNull();
+  });
+
+  it("isWarmedUp waits for senkouB to settle, not just kijun + displacement", () => {
+    // The latest channel to settle is Senkou Span B: it needs
+    // `senkouBPeriod` bars to compute its base AND `displacement`
+    // bars to carry that base forward. Previously `isWarmedUp` only
+    // checked `kijunPeriod + displacement`, which fired early
+    // whenever `senkouBPeriod > kijunPeriod` (the canonical 9/26/52
+    // setup) — `value.senkouB` was still null at that point.
+    const ichi = createIchimoku({
+      tenkanPeriod: 3,
+      kijunPeriod: 5,
+      senkouBPeriod: 10,
+      displacement: 3,
+    });
+    // Past kijun+displacement (8) but before senkouBPeriod+displacement (13).
+    for (let i = 0; i < 10; i++) ichi.next(makeCandle(i));
+    expect(ichi.isWarmedUp).toBe(false);
+
+    // Feed up through count = senkouBPeriod + displacement = 13.
+    for (let i = 10; i < 13; i++) ichi.next(makeCandle(i));
+    expect(ichi.isWarmedUp).toBe(true);
+    // The very next bar must have a non-null senkouB.
+    expect(ichi.next(makeCandle(13)).value.senkouB).not.toBeNull();
+  });
+
   it("peek does not modify internal Ichimoku state", () => {
     const ichi = createIchimoku({ tenkanPeriod: 3, kijunPeriod: 5, displacement: 3 });
     for (let i = 0; i < 10; i++) ichi.next(makeCandle(i));
