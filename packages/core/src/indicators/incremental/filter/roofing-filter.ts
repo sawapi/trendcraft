@@ -31,12 +31,13 @@ export type RoofingFilterState = {
 };
 
 function highPassCoeffs(period: number) {
-  const a1 = Math.exp((-Math.SQRT2 * Math.PI) / period);
-  const b1 = 2 * a1 * Math.cos((Math.SQRT2 * Math.PI) / period);
-  const c2 = b1;
-  const c3 = -(a1 * a1);
-  // 2-pole Butterworth high-pass
-  const c1 = (1 + c2 - c3) / 4;
+  // 2-pole high-pass, Ehlers canonical form (Cybernetic Analysis ch. 13).
+  // Mirrors the batch coefficients exactly so resume + streaming agree.
+  const theta = (Math.SQRT2 * Math.PI) / period;
+  const alpha1 = (Math.cos(theta) + Math.sin(theta) - 1) / Math.cos(theta);
+  const c1 = (1 - alpha1 / 2) * (1 - alpha1 / 2);
+  const c2 = 2 * (1 - alpha1);
+  const c3 = -((1 - alpha1) * (1 - alpha1));
   return { c1, c2, c3 };
 }
 
@@ -71,7 +72,9 @@ export function createRoofingFilter(
   const lowPassPeriod = warmUpOptions?.fromState?.lowPassPeriod ?? options.lowPassPeriod ?? 10;
   const source: PriceSource = warmUpOptions?.fromState?.source ?? options.source ?? "close";
 
-  if (highPassPeriod < 1) throw new Error("Roofing filter highPassPeriod must be at least 1");
+  // See batch `roofingFilter()` for why the canonical formula requires
+  // highPassPeriod >= 2 (only period=1 leaves the unit circle).
+  if (highPassPeriod < 2) throw new Error("Roofing filter highPassPeriod must be at least 2");
   if (lowPassPeriod < 1) throw new Error("Roofing filter lowPassPeriod must be at least 1");
 
   const hp = highPassCoeffs(highPassPeriod);
