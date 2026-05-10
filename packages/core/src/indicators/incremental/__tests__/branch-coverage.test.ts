@@ -1231,6 +1231,76 @@ describe("KAMA adapts smoothing constant based on price efficiency", () => {
     const kama = createKama({ period: 3 }, { warmUp: candles });
     expect(kama.isWarmedUp).toBe(true);
   });
+
+  // Resume contract: KAMA is Mixed (price buffer + recursive prevKama).
+  // The recursive component permanently encodes past parameters so
+  // reconfiguring on resume is refused.
+  it("fromState restores period / source / fastSC / slowSC when options are omitted", () => {
+    const k1 = createKama({ period: 10, fastPeriod: 2, slowPeriod: 30, source: "high" });
+    for (let i = 0; i < 15; i++) k1.next(makeCandle(i));
+    const state = k1.getState();
+
+    const k2 = createKama({}, { fromState: state });
+    expect(k2.getState().period).toBe(10);
+    expect(k2.getState().source).toBe("high");
+    expect(k2.getState().fastSC).toBe(2 / 3);
+    expect(k2.getState().slowSC).toBe(2 / 31);
+  });
+
+  it("refuses resume with a different period", () => {
+    const k1 = createKama({ period: 10 });
+    for (let i = 0; i < 15; i++) k1.next(makeCandle(i));
+    const state = k1.getState();
+
+    expect(() => createKama({ period: 14 }, { fromState: state })).toThrow(/incompatible snapshot/);
+  });
+
+  it("refuses resume with a different fastPeriod", () => {
+    const k1 = createKama({ period: 10, fastPeriod: 2 });
+    for (let i = 0; i < 15; i++) k1.next(makeCandle(i));
+    const state = k1.getState();
+
+    expect(() => createKama({ period: 10, fastPeriod: 3 }, { fromState: state })).toThrow(
+      /incompatible snapshot/,
+    );
+  });
+
+  it("refuses resume with a different slowPeriod", () => {
+    const k1 = createKama({ period: 10, slowPeriod: 30 });
+    for (let i = 0; i < 15; i++) k1.next(makeCandle(i));
+    const state = k1.getState();
+
+    expect(() => createKama({ period: 10, slowPeriod: 40 }, { fromState: state })).toThrow(
+      /incompatible snapshot/,
+    );
+  });
+
+  it("refuses resume with a different source", () => {
+    const k1 = createKama({ period: 10, source: "close" });
+    for (let i = 0; i < 15; i++) k1.next(makeCandle(i));
+    const state = k1.getState();
+
+    expect(() => createKama({ period: 10, source: "high" }, { fromState: state })).toThrow(
+      /incompatible snapshot/,
+    );
+  });
+
+  it("peek matches next at every bar and does not mutate state", () => {
+    const kama = createKama({ period: 4 });
+    for (let i = 0; i < 15; i++) {
+      const candle = makeCandle(i + 100);
+      const stateBeforePeek = JSON.stringify(kama.getState());
+      const peeked = kama.peek(candle);
+      expect(JSON.stringify(kama.getState())).toBe(stateBeforePeek);
+      const advanced = kama.next(candle);
+      if (peeked.value === null) {
+        expect(advanced.value).toBe(null);
+      } else {
+        expect(advanced.value).not.toBe(null);
+        expect(peeked.value).toBeCloseTo(advanced.value!, 10);
+      }
+    }
+  });
 });
 
 // --- McGinley Dynamic ---

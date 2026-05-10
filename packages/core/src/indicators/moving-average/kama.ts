@@ -29,12 +29,21 @@ export type KamaOptions = {
 /**
  * Calculate Kaufman Adaptive Moving Average
  *
- * Algorithm:
+ * Perry Kaufman's adaptive MA. The canonical configuration is
+ * KAMA(10, 2, 30) — 10-period efficiency ratio, fast EMA period 2,
+ * slow EMA period 30 (Kaufman 1995/2013):
+ *
  * 1. ER = |Price - Price[period]| / Sum(|Price[i] - Price[i-1]|, period)
- * 2. SC = (ER * (fastSC - slowSC) + slowSC)^2
- *    where fastSC = 2/(fastPeriod+1), slowSC = 2/(slowPeriod+1)
- * 3. KAMA seed = close[period-1] (TA-Lib compatible)
- * 4. KAMA = KAMA[prev] + SC * (Price - KAMA[prev])
+ * 2. fastSC = 2/(fastPeriod+1), slowSC = 2/(slowPeriod+1)
+ * 3. SC = (ER * (fastSC - slowSC) + slowSC)^2
+ * 4. KAMA seed = close[period-1] (TA-Lib compatible)
+ * 5. KAMA[i] = KAMA[i-1] + SC * (Price - KAMA[i-1])
+ *
+ * Note: TA-Lib hardcodes fast=2 / slow=30 internally and only exposes
+ * `timeperiod` (= our `period`). This implementation exposes
+ * `fastPeriod` / `slowPeriod` as options for flexibility while
+ * defaulting to TA-Lib's values. Output matches TA-Lib to 6 decimal
+ * places at default configuration.
  *
  * @param candles - Array of candles (raw or normalized)
  * @param options - KAMA options
