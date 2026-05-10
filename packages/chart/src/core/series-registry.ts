@@ -108,7 +108,15 @@ const BUILTIN_RULES: IntrospectionRule[] = [
     },
   },
 
-  // Supertrend
+  // Supertrend — the chart's specialized supertrend dispatch
+  // (renderer/series-dispatcher.ts) reads `upperBand`, `lowerBand`,
+  // and `trend` to draw the canonical industry-standard
+  // visualization: a single line that *switches* between the lower
+  // band (when bullish, direction=1) and the upper band (when
+  // bearish, direction=-1), with a translucent fill between price
+  // and the line. Channel names here MUST stay in sync with that
+  // dispatch path — renaming them silently disables the renderer
+  // and the indicator stops drawing.
   {
     name: "supertrend",
     test: (v) => hasKeys(v, ["upperBand", "lowerBand", "direction"]) && hasKeys(v, ["supertrend"]),
