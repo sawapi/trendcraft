@@ -1,0 +1,376 @@
+/**
+ * `describeContract` — a test DSL that generates the seven resume /
+ * peek / warmup invariants for every indicator that opts into the
+ * State Contract.
+ *
+ * Usage (Phase 2, once an indicator is migrated):
+ * ```ts
+ * import { describeContract } from "../__tests__/contract-helper";
+ *
+ * describeContract({
+ *   name: "alma",
+ *   create: (opts, warmUp) => createAlma(opts, warmUp),
+ *   category: "windowed",
+ *   version: 1,
+ *   defaultParams: { period: 9, offset: 0.85, sigma: 6, source: "close" },
+ *   reconfigParams: [{ period: 14 }],
+ *   sourceVariants: ["close", "high"],
+ *   makeCandles,
+ * });
+ * ```
+ *
+ * Generates these tests:
+ * 1. Round-trip identity (`getState → fromState` reproduces series)
+ * 2. Indicator name guard (foreign snapshot throws)
+ * 3. Version mismatch (throw)
+ * 4. Reconfig — windowed: new options produce series equivalent to
+ *    fresh `create(newOptions)` over the same history (after warmup)
+ * 5. Reconfig refuse — recursive/mixed/cascaded: any param change throws
+ * 6. peek consistency (`peek` matches `next`, doesn't mutate state)
+ * 7. Warmup gate consistency (`next` / `peek` / `isWarmedUp` align)
+ *
+ * Phase 1 skeleton: the full implementation is intentionally kept
+ * minimal here. Per-indicator nuances (custom equality, post-warmup
+ * tolerance, etc.) will be added as Phase 2 surfaces them.
+ */
+
+import { describe, expect, it } from "vitest";
+import type { NormalizedCandle } from "../../../types";
+import type { IndicatorSnapshot, StateCategory } from "../state-contract";
+import type { IncrementalIndicator } from "../types";
+
+/**
+ * Caller-side contract: any indicator under test must accept these
+ * shapes for `create`. This intentionally mirrors the new
+ * `IndicatorSnapshot<TState>` wire format from `state-contract.ts`.
+ */
+export type ContractCreate<TValue, TState> = (
+  options: Record<string, unknown>,
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<TState>;
+    warmUp?: NormalizedCandle[];
+  },
+) => IncrementalIndicator<TValue, IndicatorSnapshot<TState>>;
+
+export type ContractConfig<TValue, TState> = {
+  /** Indicator name (matches `meta.indicator`). */
+  name: string;
+  /** Factory under test. */
+  create: ContractCreate<TValue, TState>;
+  /** Resume category. */
+  category: StateCategory;
+  /** Current schema version. */
+  version: number;
+  /** Canonical default params. */
+  defaultParams: Record<string, unknown>;
+  /**
+   * Sample reconfig param overrides for category-specific tests.
+   * For windowed: tests reconfig-with-carry-forward.
+   * For recursive/mixed/cascaded: tests reconfig refuse.
+   * Caller can pass empty array to skip these tests.
+   */
+  reconfigParams: Record<string, unknown>[];
+  /**
+   * Candle generator used for all tests. The same input feeds every
+   * invariant so a single dataset surfaces edge cases consistently.
+   */
+  makeCandles: (n: number) => NormalizedCandle[];
+  /**
+   * Number of candles to use for round-trip / peek tests.
+   * Default 200. Increase for indicators with long warm-ups
+   * (e.g., default rocPeriod=100 for Connors RSI).
+   */
+  streamLength?: number;
+  /**
+   * Tolerance for value equality when comparing two series produced
+   * by independent runs. Default 1e-10 (essentially exact). Loosen
+   * for indicators that have non-deterministic FP ordering.
+   */
+  tolerance?: number;
+  /**
+   * How many post-resume bars to skip before comparing the windowed
+   * resumed series against a fresh series in invariant [4]. Receives
+   * the merged `newOptions` so it can derive the right margin from
+   * whatever shape param the indicator uses.
+   *
+   * Defaults to `newOpts.period` when that is a finite number, falling
+   * back to 0 otherwise. Indicators whose warm-up is governed by
+   * something other than `period` (e.g., swing points'
+   * `leftBars + rightBars`) must override this.
+   */
+  reconfigMargin?: (newOpts: Record<string, unknown>) => number;
+};
+
+/**
+ * Run the seven State Contract invariants against an indicator.
+ *
+ * Each generated test is a `it(...)` inside the parent `describe`, so
+ * standard vitest filtering (`--run name pattern`) works.
+ */
+export function describeContract<TValue, TState>(config: ContractConfig<TValue, TState>): void {
+  const streamLength = config.streamLength ?? 200;
+  const tolerance = config.tolerance ?? 1e-10;
+  const candles = config.makeCandles(streamLength);
+
+  describe(`State Contract: ${config.name}`, () => {
+    it("[1] round-trip identity: getState → fromState reproduces the series", () => {
+      const splitIdx = Math.floor(streamLength / 2);
+
+      const reference = config.create({ ...config.defaultParams });
+      const valuesReference: unknown[] = [];
+      for (const c of candles) {
+        valuesReference.push(reference.next(c).value);
+      }
+
+      const stage1 = config.create({ ...config.defaultParams });
+      for (let i = 0; i < splitIdx; i++) stage1.next(candles[i]);
+      const snapshot = stage1.getState();
+
+      const stage2 = config.create({ ...config.defaultParams }, { fromState: snapshot });
+      const valuesResumed = valuesReference.slice(0, splitIdx);
+      for (let i = splitIdx; i < streamLength; i++) {
+        valuesResumed.push(stage2.next(candles[i]).value);
+      }
+
+      expectSeriesEqual(valuesResumed, valuesReference, tolerance);
+    });
+
+    it("[2] indicator name guard: foreign snapshot throws", () => {
+      const ind = config.create({ ...config.defaultParams });
+      for (let i = 0; i < 10; i++) ind.next(candles[i]);
+      const snapshot = ind.getState();
+
+      const foreign: IndicatorSnapshot<TState> = {
+        meta: { ...snapshot.meta, indicator: "__foreign_indicator__" },
+        state: snapshot.state,
+      };
+
+      expect(() => config.create({ ...config.defaultParams }, { fromState: foreign })).toThrow(
+        /indicator mismatch|incompatible snapshot/,
+      );
+    });
+
+    it("[3] version guard: stale version throws", () => {
+      const ind = config.create({ ...config.defaultParams });
+      for (let i = 0; i < 10; i++) ind.next(candles[i]);
+      const snapshot = ind.getState();
+
+      // The indicator must emit the version declared in the contract
+      // config. Otherwise a forgotten bump (or wrong-place bump) would
+      // pass the stale-version test below without ever exercising the
+      // real check.
+      expect(
+        snapshot.meta.version,
+        `indicator "${config.name}" emitted version=${snapshot.meta.version} but ContractConfig declares ${config.version}`,
+      ).toBe(config.version);
+
+      const stale: IndicatorSnapshot<TState> = {
+        meta: { ...snapshot.meta, version: snapshot.meta.version - 1 },
+        state: snapshot.state,
+      };
+
+      expect(() => config.create({ ...config.defaultParams }, { fromState: stale })).toThrow(
+        /version mismatch|incompatible snapshot/,
+      );
+    });
+
+    if (config.reconfigParams.length > 0) {
+      if (config.category === "windowed") {
+        it(`[4] reconfig (windowed): post-warmup output equals a fresh run with the new options`, () => {
+          // For windowed indicators, resume-with-different-period must
+          // produce the same series as a fresh run with the new period
+          // once the carry-forward buffer has been fully rotated by new
+          // candles. This is the main correctness invariant — a broken
+          // carry-forward implementation would diverge here.
+          const splitIdx = Math.floor(streamLength / 2);
+
+          for (const reconfig of config.reconfigParams) {
+            if ("source" in reconfig) continue;
+            const newOpts = { ...config.defaultParams, ...reconfig };
+
+            // Reference: fresh run with new options over the full
+            // candle history.
+            const refInd = config.create(newOpts);
+            const refValues: unknown[] = [];
+            for (const c of candles) refValues.push(refInd.next(c).value);
+
+            // Resumed: warm with defaults to splitIdx, then switch to
+            // new options.
+            const warmInd = config.create({ ...config.defaultParams });
+            for (let i = 0; i < splitIdx; i++) warmInd.next(candles[i]);
+            const snapshot = warmInd.getState();
+            const resumed = config.create(newOpts, { fromState: snapshot });
+            const resumedTail: unknown[] = [];
+            for (let i = splitIdx; i < streamLength; i++) {
+              resumedTail.push(resumed.next(candles[i]).value);
+            }
+
+            // First N post-resume bars may diverge while the
+            // carry-forward buffer rotates. Tightest safe default for
+            // SMA-like windowed indicators is
+            // `max(0, newPeriod - oldPeriod)`: that's exactly how many
+            // new bars must roll in before the resumed buffer matches
+            // a fresh buffer at the same point in history.
+            //
+            //   period 5 → 8: needs 3 new bars (margin = 3)
+            //   period 8 → 5: matches immediately (margin = 0)
+            //   non-period reconfig: matches immediately (margin = 0)
+            //
+            // Caller can override via `config.reconfigMargin` when the
+            // indicator's warm-up isn't governed by `period` (e.g.,
+            // swing points' `leftBars + rightBars`).
+            const margin = config.reconfigMargin
+              ? config.reconfigMargin(newOpts)
+              : (() => {
+                  const newP = newOpts.period;
+                  const oldP = snapshot.meta.params.period;
+                  if (typeof newP !== "number" || !Number.isFinite(newP)) return 0;
+                  if (typeof oldP !== "number" || !Number.isFinite(oldP)) return newP;
+                  return Math.max(0, newP - oldP);
+                })();
+
+            // Guard: if the post-resume tail is shorter than the
+            // carry-forward margin, the comparison loop would never
+            // execute and the test would silently pass. Fail
+            // explicitly so the caller knows to extend `streamLength`
+            // (or shrink the reconfig period).
+            const comparableTailLength = resumedTail.length - margin;
+            expect(
+              comparableTailLength,
+              `streamLength=${streamLength} too short for windowed reconfig comparison: need at least ${margin + 1} post-resume bars to clear the carry-forward margin (newOpts=${JSON.stringify(reconfig)}). Increase ContractConfig.streamLength.`,
+            ).toBeGreaterThan(0);
+
+            for (let i = margin; i < resumedTail.length; i++) {
+              expectValueEqual(
+                resumedTail[i],
+                refValues[splitIdx + i],
+                tolerance,
+                `reconfig tail i=${i} (newOpts=${JSON.stringify(reconfig)})`,
+              );
+            }
+          }
+        });
+      } else if (config.category === "event") {
+        it(`[4] reconfig (event): resumed run produces values without throwing`, () => {
+          // Event log indicators can have different lookback semantics
+          // for past events after reconfig (past events stand; future
+          // events use new params). A direct fresh-vs-resumed equality
+          // check is not meaningful; we only assert the mechanical
+          // contract.
+          const ind = config.create({ ...config.defaultParams });
+          for (let i = 0; i < Math.floor(streamLength / 2); i++) ind.next(candles[i]);
+          const snapshot = ind.getState();
+
+          for (const reconfig of config.reconfigParams) {
+            if ("source" in reconfig) continue;
+            expect(() => {
+              const resumed = config.create(
+                { ...config.defaultParams, ...reconfig },
+                { fromState: snapshot },
+              );
+              for (let i = Math.floor(streamLength / 2); i < streamLength; i++) {
+                resumed.next(candles[i]);
+              }
+            }).not.toThrow();
+          }
+        });
+      } else {
+        // recursive / mixed / cascaded
+        it(`[5] reconfig refuse (${config.category}): any param change throws`, () => {
+          const ind = config.create({ ...config.defaultParams });
+          for (let i = 0; i < Math.floor(streamLength / 2); i++) ind.next(candles[i]);
+          const snapshot = ind.getState();
+
+          for (const reconfig of config.reconfigParams) {
+            expect(() =>
+              config.create({ ...config.defaultParams, ...reconfig }, { fromState: snapshot }),
+            ).toThrow(/incompatible snapshot|cannot be reconfigured/);
+          }
+        });
+      }
+    }
+
+    it("[6] peek consistency: peek matches next and does not mutate state", () => {
+      const ind = config.create({ ...config.defaultParams });
+      for (let i = 0; i < streamLength; i++) {
+        const candle = candles[i];
+
+        const stateBeforePeek = JSON.stringify(ind.getState());
+        const peeked = ind.peek(candle);
+        const stateAfterPeek = JSON.stringify(ind.getState());
+
+        expect(stateAfterPeek).toBe(stateBeforePeek);
+
+        const advanced = ind.next(candle);
+        expectValueEqual(peeked.value, advanced.value, tolerance);
+      }
+    });
+
+    it("[7] warmup gate consistency: next / peek / isWarmedUp align", () => {
+      const ind = config.create({ ...config.defaultParams });
+
+      let firstWarmupBar = -1;
+      for (let i = 0; i < streamLength; i++) {
+        const peeked = ind.peek(candles[i]);
+        const peekedNullBefore = peeked.value === null;
+
+        const advanced = ind.next(candles[i]);
+        const advancedNull = advanced.value === null;
+
+        // peek and next must agree on null-ness at the same bar.
+        expect(peekedNullBefore).toBe(advancedNull);
+
+        if (!advancedNull && firstWarmupBar === -1) {
+          firstWarmupBar = i;
+          // At the very moment of producing the first non-null value,
+          // isWarmedUp must be true.
+          expect(ind.isWarmedUp).toBe(true);
+        }
+
+        // Once any non-null value has been emitted, isWarmedUp stays true.
+        if (firstWarmupBar !== -1) {
+          expect(ind.isWarmedUp).toBe(true);
+        }
+      }
+    });
+  });
+}
+
+// ---- Internal helpers ----
+
+function expectSeriesEqual(a: unknown[], b: unknown[], tolerance: number) {
+  expect(a.length).toBe(b.length);
+  for (let i = 0; i < a.length; i++) {
+    expectValueEqual(a[i], b[i], tolerance, `index ${i}`);
+  }
+}
+
+function expectValueEqual(a: unknown, b: unknown, tolerance: number, context?: string): void {
+  const where = context ? ` (${context})` : "";
+
+  if (a === null || b === null) {
+    expect(a, `null mismatch${where}`).toBe(b);
+    return;
+  }
+
+  if (typeof a === "number" && typeof b === "number") {
+    if (Number.isNaN(a) && Number.isNaN(b)) return;
+    expect(Math.abs(a - b), `numeric mismatch${where}: a=${a}, b=${b}`).toBeLessThanOrEqual(
+      tolerance,
+    );
+    return;
+  }
+
+  if (typeof a === "object" && typeof b === "object" && a !== null && b !== null) {
+    // Recurse into object values (for composite outputs like { kvo, signal, histogram }).
+    const aRec = a as Record<string, unknown>;
+    const bRec = b as Record<string, unknown>;
+    const keys = new Set([...Object.keys(aRec), ...Object.keys(bRec)]);
+    for (const key of keys) {
+      expectValueEqual(aRec[key], bRec[key], tolerance, `${context ?? ""}.${key}`);
+    }
+    return;
+  }
+
+  expect(a).toEqual(b);
+}
