@@ -5,7 +5,13 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { buildMeta, type IndicatorSnapshot, makeSnapshot, resolveResume } from "../state-contract";
+import {
+  buildMeta,
+  type IndicatorSnapshot,
+  makeSnapshot,
+  requireParam,
+  resolveResume,
+} from "../state-contract";
 
 type AlmaParams = {
   period: number;
@@ -35,7 +41,7 @@ function snapshot(
 describe("resolveResume", () => {
   describe("fresh start (no fromState)", () => {
     it("returns merged defaults + options with null state", () => {
-      const result = resolveResume({
+      const result = resolveResume<AlmaParams, AlmaState>({
         indicator: "alma",
         version: 1,
         category: "windowed",
@@ -50,7 +56,7 @@ describe("resolveResume", () => {
     });
 
     it("treats undefined fromState identically to null", () => {
-      const result = resolveResume({
+      const result = resolveResume<AlmaParams, AlmaState>({
         indicator: "alma",
         version: 1,
         category: "windowed",
@@ -68,7 +74,7 @@ describe("resolveResume", () => {
     it("throws when the snapshot was created for a different indicator", () => {
       const fromState = snapshot("frama", 1, ALMA_DEFAULTS, { buffer: [], count: 0 });
       expect(() =>
-        resolveResume({
+        resolveResume<AlmaParams, AlmaState>({
           indicator: "alma",
           version: 1,
           category: "windowed",
@@ -84,7 +90,7 @@ describe("resolveResume", () => {
     it("throws when the snapshot's version differs from the current version", () => {
       const fromState = snapshot("alma", 0, ALMA_DEFAULTS, { buffer: [], count: 0 });
       expect(() =>
-        resolveResume({
+        resolveResume<AlmaParams, AlmaState>({
           indicator: "alma",
           version: 1,
           category: "windowed",
@@ -100,7 +106,7 @@ describe("resolveResume", () => {
         state: { buffer: [], count: 0 },
       } as unknown as IndicatorSnapshot<AlmaState>;
       expect(() =>
-        resolveResume({
+        resolveResume<AlmaParams, AlmaState>({
           indicator: "alma",
           version: 1,
           category: "windowed",
@@ -122,7 +128,7 @@ describe("resolveResume", () => {
         state: { buffer: [], count: 0 },
       } as unknown as IndicatorSnapshot<AlmaState>;
       expect(() =>
-        resolveResume({
+        resolveResume<AlmaParams, AlmaState>({
           indicator: "alma",
           version: 1,
           category: "recursive",
@@ -139,7 +145,7 @@ describe("resolveResume", () => {
         state: { buffer: [], count: 0 },
       } as unknown as IndicatorSnapshot<AlmaState>;
       expect(() =>
-        resolveResume({
+        resolveResume<AlmaParams, AlmaState>({
           indicator: "alma",
           version: 1,
           category: "windowed",
@@ -159,7 +165,7 @@ describe("resolveResume", () => {
         state: { buffer: [], count: 0 },
       } as unknown as IndicatorSnapshot<AlmaState>;
       expect(() =>
-        resolveResume({
+        resolveResume<AlmaParams, AlmaState>({
           indicator: "alma",
           version: 1,
           category: "recursive",
@@ -175,7 +181,7 @@ describe("resolveResume", () => {
     it("returns state verbatim when options match snapshot params exactly", () => {
       const state: AlmaState = { buffer: [1, 2, 3], count: 3 };
       const fromState = snapshot("alma", 1, ALMA_DEFAULTS, state);
-      const result = resolveResume({
+      const result = resolveResume<AlmaParams, AlmaState>({
         indicator: "alma",
         version: 1,
         category: "windowed",
@@ -196,7 +202,7 @@ describe("resolveResume", () => {
         { ...ALMA_DEFAULTS, period: 14 },
         { buffer: [], count: 0 },
       );
-      const result = resolveResume({
+      const result = resolveResume<AlmaParams, AlmaState>({
         indicator: "alma",
         version: 1,
         category: "windowed",
@@ -214,7 +220,7 @@ describe("resolveResume", () => {
     it("throws for Windowed when source changes", () => {
       const fromState = snapshot("alma", 1, ALMA_DEFAULTS, { buffer: [], count: 0 });
       expect(() =>
-        resolveResume({
+        resolveResume<AlmaParams, AlmaState>({
           indicator: "alma",
           version: 1,
           category: "windowed",
@@ -226,6 +232,7 @@ describe("resolveResume", () => {
     });
 
     it("throws for Recursive when source changes", () => {
+      type EmaParams = { period: number; source: "close" | "high" };
       const fromState = snapshot(
         "ema",
         1,
@@ -233,7 +240,7 @@ describe("resolveResume", () => {
         { buffer: [], count: 0 },
       );
       expect(() =>
-        resolveResume({
+        resolveResume<EmaParams, AlmaState>({
           indicator: "ema",
           version: 1,
           category: "recursive",
@@ -249,7 +256,7 @@ describe("resolveResume", () => {
     it("returns reconfigured=true when a non-source param changes", () => {
       const state: AlmaState = { buffer: [1, 2, 3], count: 3 };
       const fromState = snapshot("alma", 1, ALMA_DEFAULTS, state);
-      const result = resolveResume({
+      const result = resolveResume<AlmaParams, AlmaState>({
         indicator: "alma",
         version: 1,
         category: "windowed",
@@ -289,7 +296,7 @@ describe("resolveResume", () => {
     it(`throws when any non-source param changes`, () => {
       const fromState = snapshot("frama", 1, ALMA_DEFAULTS, { buffer: [], count: 0 });
       expect(() =>
-        resolveResume({
+        resolveResume<AlmaParams, AlmaState>({
           indicator: "frama",
           version: 1,
           category,
@@ -304,7 +311,7 @@ describe("resolveResume", () => {
       const fromState = snapshot("frama", 1, ALMA_DEFAULTS, { buffer: [], count: 0 });
       let thrown: Error | null = null;
       try {
-        resolveResume({
+        resolveResume<AlmaParams, AlmaState>({
           indicator: "frama",
           version: 1,
           category,
@@ -329,7 +336,7 @@ describe("resolveResume", () => {
         { period: 14, offset: 0.5, sigma: 6, source: "close" },
         { buffer: [], count: 0 },
       );
-      const result = resolveResume({
+      const result = resolveResume<AlmaParams, AlmaState>({
         indicator: "alma",
         version: 1,
         category: "windowed",
@@ -353,7 +360,7 @@ describe("resolveResume", () => {
         { period: 14, offset: 0.85, sigma: 6, source: "close" },
         { buffer: [], count: 0 },
       );
-      const result = resolveResume({
+      const result = resolveResume<AlmaParams, AlmaState>({
         indicator: "alma",
         version: 1,
         category: "windowed",
@@ -365,6 +372,112 @@ describe("resolveResume", () => {
       expect(result.params.period).toBe(14);
       expect(result.reconfigured).toBe(false);
     });
+  });
+});
+
+describe("partial defaults (no canonical default for a param)", () => {
+  // SMA, EMA, and several other indicators don't have a meaningful
+  // canonical default for `period`. Callers must always provide it;
+  // omitting it on a fresh-start call should yield a params object
+  // where `period` is `undefined`, which the indicator constructor
+  // is expected to validate and reject.
+  type Params = { period: number; source: "close" | "high" };
+
+  it("accepts defaults that omit some keys", () => {
+    const result = resolveResume<Params, { count: number }>({
+      indicator: "sma",
+      version: 1,
+      category: "windowed",
+      options: { period: 20 },
+      fromState: null,
+      defaults: { source: "close" }, // no `period` default
+    });
+
+    expect(result.params.period).toBe(20);
+    expect(result.params.source).toBe("close");
+  });
+
+  it("returns undefined for a missing required param when caller omits it (constructor must validate)", () => {
+    const result = resolveResume<Params, { count: number }>({
+      indicator: "sma",
+      version: 1,
+      category: "windowed",
+      options: {},
+      fromState: null,
+      defaults: { source: "close" }, // no `period` default
+    });
+
+    // Helper does not throw — typing claims TParams but the caller
+    // is responsible for validating required fields.
+    expect(result.params.period).toBeUndefined();
+    expect(result.params.source).toBe("close");
+  });
+
+  it("recovers a defaultless param from the snapshot on resume", () => {
+    const fromState: IndicatorSnapshot<{ count: number }> = {
+      meta: { indicator: "sma", version: 1, params: { period: 20, source: "close" } },
+      state: { count: 5 },
+    };
+
+    const result = resolveResume<Params, { count: number }>({
+      indicator: "sma",
+      version: 1,
+      category: "windowed",
+      options: {}, // caller omits — snapshot supplies it
+      fromState,
+      defaults: { source: "close" },
+    });
+
+    expect(result.params.period).toBe(20);
+    expect(result.reconfigured).toBe(false);
+  });
+});
+
+describe("requireParam", () => {
+  type Params = { period: number; source: "close" };
+
+  it("returns the value when present", () => {
+    const params = { period: 14, source: "close" } as Params;
+    const v = requireParam("sma", params, "period");
+    expect(v).toBe(14);
+  });
+
+  it("throws when the value is undefined (defaultless param not supplied)", () => {
+    const params = { source: "close" } as unknown as Params;
+    expect(() => requireParam("sma", params, "period")).toThrow(
+      /sma: required option "period" was not provided/,
+    );
+  });
+
+  it("throws when the value is null", () => {
+    const params = { period: null, source: "close" } as unknown as Params;
+    expect(() => requireParam("sma", params, "period")).toThrow(
+      /sma: required option "period" was not provided/,
+    );
+  });
+
+  it("runs the optional validate callback and rejects invalid values", () => {
+    const params = { period: 0, source: "close" } as Params;
+    expect(() =>
+      requireParam(
+        "sma",
+        params,
+        "period",
+        (v): v is number => Number.isInteger(v) && v >= 1,
+        "must be a positive integer",
+      ),
+    ).toThrow(/sma: option "period" failed validation \(must be a positive integer\)/);
+  });
+
+  it("accepts values that pass the validate callback", () => {
+    const params = { period: 14, source: "close" } as Params;
+    const v = requireParam(
+      "sma",
+      params,
+      "period",
+      (val): val is number => Number.isInteger(val) && val >= 1,
+    );
+    expect(v).toBe(14);
   });
 });
 

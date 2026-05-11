@@ -331,7 +331,55 @@ commit at 0.4.0 release time.
 - **Schema introspection for tooling** (UI that knows what params
   each indicator's snapshot has).
 
-## 8. Decisions made (Phase 0 sign-off)
+## 8. Phase 2 per-indicator migration checklist
+
+Every indicator migration in Phase 2 must hit each of these so the
+contract is enforced uniformly. Drift here is what produces "type-safe
+looking" bugs where `params.period: number` is actually `undefined` at
+runtime.
+
+1. **Categorize.** Decide A/B/C/D/E (see §2.3).
+2. **Strip param fields from bare state.** `period`, `source`, etc.
+   live in `meta.params` now, not in the state object.
+3. **Bump `version` to `1`** in the constructor's `resolveResume` call.
+4. **Pick defaults honestly.** If a param has no canonical default
+   (SMA's `period`, etc.), omit it from `defaults` — do not invent a
+   placeholder. The helper accepts `Partial<TParams>`.
+5. **Validate required-but-defaultless params with `requireParam`.**
+   Immediately after `resolveResume`. Without this, the typed
+   `params.period: number` could be `undefined` at runtime.
+   ```ts
+   const { params, state } = resolveResume<SmaParams, SmaState>({
+     indicator: "sma",
+     defaults: { source: "close" },
+     ...
+   });
+   const period = requireParam(
+     "sma",
+     params,
+     "period",
+     (v): v is number => Number.isInteger(v) && v >= 1,
+     "must be a positive integer",
+   );
+   ```
+6. **Handle `reconfigured` for windowed/event indicators.** Rebuild
+   shape-dependent structures (buffers, etc.) at the new params; carry
+   raw data forward.
+7. **Return `IndicatorSnapshot<TState>` from `getState()`** via
+   `makeSnapshot(name, version, params, state)`.
+8. **Register with `describeContract`.** The seven invariants must
+   pass without overrides where possible; document any overrides
+   (e.g., `reconfigMargin` for non-period-warmup indicators).
+9. **Update internal users.** If indicator X embeds indicator Y's
+   state, X's state field changes from `YState` to
+   `IndicatorSnapshot<YState>`.
+10. **Pre-commit gate:** `pnpm test`, `pnpm lint`, `pnpm build`,
+    `pnpm size-check`, `pnpm exec tsc -p tsconfig.json --noEmit
+    --ignoreDeprecations "6.0"`. The last one is critical and not
+    covered by the others — see
+    `feedback_test_before_commit.md` (memory).
+
+## 9. Decisions made (Phase 0 sign-off)
 
 The following were agreed before Phase 0 finalization:
 
