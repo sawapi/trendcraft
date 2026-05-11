@@ -2,6 +2,12 @@
  * Incremental Connors RSI (CRSI)
  *
  * CRSI = (RSI(close, rsiPeriod) + RSI(streak, streakPeriod) + PercentRank(ROC(1), rocPeriod)) / 3
+ *
+ * State category: **Mixed/Cascaded** (two internal RSI states using
+ * Wilder smoothing + a windowed ROC buffer + streak tracker). The
+ * recursive RSI components permanently encode past parameters, so
+ * resume requires identical `rsiPeriod`, `streakPeriod`, `rocPeriod`,
+ * and `source` (or omit them and let the snapshot's params win).
  */
 
 import type { NormalizedCandle, PriceSource } from "../../../types";
@@ -22,6 +28,7 @@ export type ConnorsRsiState = {
   rsiPeriod: number;
   streakPeriod: number;
   rocPeriod: number;
+  source: PriceSource;
   priceRsiState: RsiState;
   streakRsiState: RsiState;
   rocBuffer: ReturnType<CircularBuffer<number>["snapshot"]>;
@@ -51,10 +58,12 @@ export function createConnorsRsi(
   } = {},
   warmUpOptions?: WarmUpOptions<ConnorsRsiState>,
 ): IncrementalIndicator<ConnorsRsiValue, ConnorsRsiState> {
-  const rsiPeriod = options.rsiPeriod ?? 3;
-  const streakPeriod = options.streakPeriod ?? 2;
-  const rocPeriod = options.rocPeriod ?? 100;
-  const source: PriceSource = options.source ?? "close";
+  // Resume order: explicit option > snapshot value > canonical default.
+  const fs = warmUpOptions?.fromState ?? null;
+  const rsiPeriod = options.rsiPeriod ?? fs?.rsiPeriod ?? 3;
+  const streakPeriod = options.streakPeriod ?? fs?.streakPeriod ?? 2;
+  const rocPeriod = options.rocPeriod ?? fs?.rocPeriod ?? 100;
+  const source: PriceSource = options.source ?? fs?.source ?? "close";
 
   let priceRsi: ReturnType<typeof createRsi>;
   let streakRsi: ReturnType<typeof createRsi>;
@@ -63,14 +72,26 @@ export function createConnorsRsi(
   let streak: number;
   let count: number;
 
-  if (warmUpOptions?.fromState) {
-    const s = warmUpOptions.fromState;
-    priceRsi = createRsi({ period: rsiPeriod, source }, { fromState: s.priceRsiState });
-    streakRsi = createRsi({ period: streakPeriod }, { fromState: s.streakRsiState });
-    rocBuffer = CircularBuffer.fromSnapshot(s.rocBuffer);
-    prevClose = s.prevClose;
-    streak = s.streak;
-    count = s.count;
+  if (fs) {
+    // CRSI is Mixed/Cascaded: two internal Wilder-RSI states
+    // permanently encode past parameters. Refuse all parameter changes
+    // on resume. Pre-this-PR snapshots (no `source` field, undefined !==
+    // any string) are naturally rejected by the equality check and
+    // surface the same re-warm message.
+    if (
+      fs.rsiPeriod !== rsiPeriod ||
+      fs.streakPeriod !== streakPeriod ||
+      fs.rocPeriod !== rocPeriod ||
+      fs.source !== source
+    ) {
+      throw new Error("Connors RSI: incompatible snapshot, re-warm required");
+    }
+    priceRsi = createRsi({ period: rsiPeriod, source }, { fromState: fs.priceRsiState });
+    streakRsi = createRsi({ period: streakPeriod }, { fromState: fs.streakRsiState });
+    rocBuffer = CircularBuffer.fromSnapshot(fs.rocBuffer);
+    prevClose = fs.prevClose;
+    streak = fs.streak;
+    count = fs.count;
   } else {
     priceRsi = createRsi({ period: rsiPeriod, source });
     streakRsi = createRsi({ period: streakPeriod });
@@ -181,6 +202,7 @@ export function createConnorsRsi(
         rsiPeriod,
         streakPeriod,
         rocPeriod,
+        source,
         priceRsiState: priceRsi.getState(),
         streakRsiState: streakRsi.getState(),
         rocBuffer: rocBuffer.snapshot(),

@@ -6,7 +6,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import type { NormalizedCandle } from "../../../types";
+import type { NormalizedCandle, PriceSource } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
 import { createAdxr } from "../momentum/adxr";
 import { createAroon } from "../momentum/aroon";
@@ -1643,6 +1643,95 @@ describe("Connors RSI streak tracking and composite value", () => {
     crsi.next({ ...makeCandle(0), close: 0 });
     const r = crsi.next(makeCandle(1));
     expect(r.value.rocPercentile).toBe(null);
+  });
+
+  // Resume contract: CRSI is Mixed/Cascaded — two recursive Wilder
+  // RSIs embed past periods, so reconfigure-on-resume is refused.
+  it("fromState restores rsiPeriod / streakPeriod / rocPeriod / source when options are omitted", () => {
+    const c1 = createConnorsRsi({ rsiPeriod: 3, streakPeriod: 2, rocPeriod: 5, source: "high" });
+    for (let i = 0; i < 15; i++) c1.next(makeCandle(i));
+    const state = c1.getState();
+
+    const c2 = createConnorsRsi({}, { fromState: state });
+    expect(c2.getState().rsiPeriod).toBe(3);
+    expect(c2.getState().streakPeriod).toBe(2);
+    expect(c2.getState().rocPeriod).toBe(5);
+    expect(c2.getState().source).toBe("high");
+  });
+
+  it("refuses resume with a different rsiPeriod", () => {
+    const c1 = createConnorsRsi({ rsiPeriod: 3, streakPeriod: 2, rocPeriod: 5 });
+    for (let i = 0; i < 15; i++) c1.next(makeCandle(i));
+    const state = c1.getState();
+
+    expect(() =>
+      createConnorsRsi({ rsiPeriod: 5, streakPeriod: 2, rocPeriod: 5 }, { fromState: state }),
+    ).toThrow(/incompatible snapshot/);
+  });
+
+  it("refuses resume with a different streakPeriod", () => {
+    const c1 = createConnorsRsi({ rsiPeriod: 3, streakPeriod: 2, rocPeriod: 5 });
+    for (let i = 0; i < 15; i++) c1.next(makeCandle(i));
+    const state = c1.getState();
+
+    expect(() =>
+      createConnorsRsi({ rsiPeriod: 3, streakPeriod: 3, rocPeriod: 5 }, { fromState: state }),
+    ).toThrow(/incompatible snapshot/);
+  });
+
+  it("refuses resume with a different rocPeriod", () => {
+    const c1 = createConnorsRsi({ rsiPeriod: 3, streakPeriod: 2, rocPeriod: 5 });
+    for (let i = 0; i < 15; i++) c1.next(makeCandle(i));
+    const state = c1.getState();
+
+    expect(() =>
+      createConnorsRsi({ rsiPeriod: 3, streakPeriod: 2, rocPeriod: 10 }, { fromState: state }),
+    ).toThrow(/incompatible snapshot/);
+  });
+
+  it("refuses resume with a different source", () => {
+    const c1 = createConnorsRsi({ rsiPeriod: 3, streakPeriod: 2, rocPeriod: 5, source: "close" });
+    for (let i = 0; i < 15; i++) c1.next(makeCandle(i));
+    const state = c1.getState();
+
+    expect(() =>
+      createConnorsRsi(
+        { rsiPeriod: 3, streakPeriod: 2, rocPeriod: 5, source: "high" },
+        { fromState: state },
+      ),
+    ).toThrow(/incompatible snapshot/);
+  });
+
+  it("peek matches next at every bar and does not mutate state", () => {
+    const crsi = createConnorsRsi({ rsiPeriod: 3, streakPeriod: 2, rocPeriod: 5 });
+    for (let i = 0; i < 20; i++) {
+      const candle = makeCandle(i);
+      const stateBeforePeek = JSON.stringify(crsi.getState());
+      const peeked = crsi.peek(candle);
+      expect(JSON.stringify(crsi.getState())).toBe(stateBeforePeek);
+      const advanced = crsi.next(candle);
+      // Both should agree on which sub-values are null vs numeric
+      expect(peeked.value.crsi === null).toBe(advanced.value.crsi === null);
+      if (peeked.value.crsi !== null && advanced.value.crsi !== null) {
+        expect(peeked.value.crsi).toBeCloseTo(advanced.value.crsi, 10);
+      }
+    }
+  });
+
+  // Pre-this-PR snapshots have no `source` field. They are not
+  // resumable — re-warm is required. (The natural source-equality
+  // check throws since `undefined !== <any-string>`.)
+  it("rejects pre-source snapshots regardless of options.source", () => {
+    const fresh = createConnorsRsi({ rsiPeriod: 3, streakPeriod: 2, rocPeriod: 5 });
+    for (let i = 0; i < 10; i++) fresh.next(makeCandle(i));
+    const legacy = { ...fresh.getState(), source: undefined as unknown as PriceSource };
+    expect(() => createConnorsRsi({}, { fromState: legacy })).toThrow(/incompatible snapshot/);
+    expect(() =>
+      createConnorsRsi(
+        { rsiPeriod: 3, streakPeriod: 2, rocPeriod: 5, source: "close" },
+        { fromState: legacy },
+      ),
+    ).toThrow(/incompatible snapshot/);
   });
 });
 
