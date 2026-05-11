@@ -88,8 +88,16 @@ export type ResolveResumeOptions<TParams extends Record<string, unknown>, TState
   options: DeepPartial<TParams>;
   /** Optional saved snapshot. `null` / `undefined` → fresh start. */
   fromState: IndicatorSnapshot<TState> | null | undefined;
-  /** Canonical defaults for every param key. */
-  defaults: TParams;
+  /**
+   * Canonical defaults. Partial — keys can be omitted for params
+   * with no meaningful canonical default (e.g., SMA's `period`: every
+   * mainstream library makes the caller specify it). The merged
+   * `params` returned by `resolveResume` is still typed as `TParams`
+   * (the caller's declared intent); the constructor is expected to
+   * validate that any required-but-defaultless key was supplied via
+   * `options` or `fromState`, and throw otherwise.
+   */
+  defaults: Partial<TParams>;
 };
 
 /**
@@ -230,16 +238,76 @@ export function makeSnapshot<TState>(
   return { meta: buildMeta(indicator, version, params), state };
 }
 
+/**
+ * Standard runtime validation for a required indicator option.
+ *
+ * `resolveResume` types its returned `params` as the full `TParams`,
+ * but with `Partial<TParams>` defaults a key may still be `undefined`
+ * at runtime when the caller omits it AND no snapshot supplies it.
+ * Indicators like SMA / EMA / WMA whose `period` has no canonical
+ * default must call this immediately after `resolveResume` to fail
+ * early with a uniform error message.
+ *
+ * @example
+ * ```ts
+ * const { params } = resolveResume<SmaParams, SmaState>({
+ *   indicator: "sma",
+ *   defaults: { source: "close" }, // no `period` default
+ *   ...
+ * });
+ * const period = requireParam(
+ *   "sma",
+ *   params,
+ *   "period",
+ *   (v): v is number => Number.isInteger(v) && v >= 1,
+ *   "must be a positive integer",
+ * );
+ * ```
+ *
+ * @returns the validated value, narrowed to `NonNullable<TParams[K]>`.
+ */
+export function requireParam<TParams, K extends keyof TParams>(
+  indicator: string,
+  params: TParams,
+  key: K,
+  validate?: (value: NonNullable<TParams[K]>) => boolean,
+  expectation?: string,
+): NonNullable<TParams[K]> {
+  const value = params[key];
+  if (value === undefined || value === null) {
+    throw new Error(
+      `${indicator}: required option "${String(key)}" was not provided (no default and no snapshot value)`,
+    );
+  }
+  const narrowed = value as NonNullable<TParams[K]>;
+  if (validate && !validate(narrowed)) {
+    throw new Error(
+      `${indicator}: option "${String(key)}" failed validation${
+        expectation ? ` (${expectation})` : ""
+      }`,
+    );
+  }
+  return narrowed;
+}
+
 // ---- Internal helpers ----
 
 function mergeParams<TParams extends Record<string, unknown>>(
-  defaults: TParams,
+  defaults: Partial<TParams>,
   snapshotParams: Record<string, unknown> | undefined,
   options: Record<string, unknown>,
 ): TParams {
-  // Stage 1: defaults provide the universe of keys.
+  // Stage 1: seed from `defaults` (now partial; some keys may be
+  //          absent — those start as `undefined` and stay so unless
+  //          snapshot or options supply them).
   // Stage 2: snapshot deep-merges over defaults for any key it has.
   // Stage 3: explicit options deep-merge over that.
+  //
+  // After all three stages, a key may legitimately remain `undefined`
+  // when (a) it's not in defaults, (b) there's no snapshot, and
+  // (c) the caller omitted it. The constructor is responsible for
+  // validating any such required-but-defaultless key via
+  // `requireParam` and failing fast.
   //
   // Deep merge recurses into plain objects so sparse overrides work
   // for indicators with nested-object params:
