@@ -308,6 +308,59 @@ describe("Klinger incremental", () => {
       }
     }
   });
+
+  // Resume contract: Cascaded (3 internal recursive EMAs).
+  it("fromState restores shortPeriod / longPeriod / signalPeriod when options are omitted", () => {
+    const ind1 = createKlinger({ shortPeriod: 20, longPeriod: 40, signalPeriod: 9 });
+    for (let i = 0; i < 50; i++) ind1.next(candles[i]);
+    const state = ind1.getState();
+
+    const ind2 = createKlinger({}, { fromState: state });
+    expect(ind2.getState().shortPeriod).toBe(20);
+    expect(ind2.getState().longPeriod).toBe(40);
+    expect(ind2.getState().signalPeriod).toBe(9);
+  });
+
+  it("refuses resume with a different shortPeriod", () => {
+    const ind1 = createKlinger({ shortPeriod: 34, longPeriod: 55, signalPeriod: 13 });
+    for (let i = 0; i < 50; i++) ind1.next(candles[i]);
+    const state = ind1.getState();
+    expect(() =>
+      createKlinger({ shortPeriod: 20, longPeriod: 55, signalPeriod: 13 }, { fromState: state }),
+    ).toThrow(/incompatible snapshot/);
+  });
+
+  it("refuses resume with a different longPeriod", () => {
+    const ind1 = createKlinger({ shortPeriod: 34, longPeriod: 55, signalPeriod: 13 });
+    for (let i = 0; i < 50; i++) ind1.next(candles[i]);
+    const state = ind1.getState();
+    expect(() =>
+      createKlinger({ shortPeriod: 34, longPeriod: 80, signalPeriod: 13 }, { fromState: state }),
+    ).toThrow(/incompatible snapshot/);
+  });
+
+  it("refuses resume with a different signalPeriod", () => {
+    const ind1 = createKlinger({ shortPeriod: 34, longPeriod: 55, signalPeriod: 13 });
+    for (let i = 0; i < 50; i++) ind1.next(candles[i]);
+    const state = ind1.getState();
+    expect(() =>
+      createKlinger({ shortPeriod: 34, longPeriod: 55, signalPeriod: 9 }, { fromState: state }),
+    ).toThrow(/incompatible snapshot/);
+  });
+
+  it("peek matches next at every bar and does not mutate state", () => {
+    const ind = createKlinger();
+    for (let i = 0; i < 100; i++) {
+      const stateBeforePeek = JSON.stringify(ind.getState());
+      const peeked = ind.peek(candles[i]);
+      expect(JSON.stringify(ind.getState())).toBe(stateBeforePeek);
+      const advanced = ind.next(candles[i]);
+      expect(peeked.value.kvo === null).toBe(advanced.value.kvo === null);
+      if (peeked.value.kvo !== null && advanced.value.kvo !== null) {
+        expect(peeked.value.kvo).toBeCloseTo(advanced.value.kvo, 10);
+      }
+    }
+  });
 });
 
 // ---- DEMA ----
