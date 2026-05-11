@@ -37,12 +37,27 @@ export type KlingerOptions = {
 /**
  * Calculate Klinger Volume Oscillator
  *
- * 1. Trend (T) = +1 if (H+L+C) > prev(H+L+C), else -1
- * 2. dm = H - L
- * 3. cm = accumulates dm when trend continues, resets when trend reverses
- * 4. Volume Force (VF) = Volume × |2×(dm/cm) - 1| × T × 100
- * 5. KVO = EMA(VF, short) - EMA(VF, long)
- * 6. Signal = EMA(KVO, signal)
+ * Stephen J. Klinger's volume oscillator (1997 Stocks & Commodities
+ * article). The default (34, 55, 13) parameters are Klinger's own.
+ *
+ * 1. Key Price = High + Low + Close
+ * 2. Trend (T) = +1 if Key Price > prev Key Price, else -1
+ * 3. DM = High - Low (daily range)
+ * 4. CM (cumulative measurement):
+ *    - same trend: CM = prev CM + DM
+ *    - trend reversal: CM = DM (this implementation; the original
+ *      paper specifies CM = prev DM + DM. Both forms are seen in
+ *      published implementations and produce nearly identical
+ *      oscillator shapes at default periods. Held to avoid a breaking
+ *      VF-magnitude shift; pin the variant in JSDoc as a documented
+ *      choice.)
+ * 5. Volume Force (VF) = Volume × |2 × (DM / CM) − 1| × T × 100
+ * 6. KVO = EMA(VF, shortPeriod) − EMA(VF, longPeriod)
+ * 7. Signal = EMA(KVO, signalPeriod)
+ *
+ * The Key Price is intentionally the **sum** H+L+C (not HLC/3) — only
+ * its sign of change matters for trend determination, so the divisor
+ * is a no-op.
  *
  * @param candles - Array of candles (raw or normalized)
  * @param options - Options
