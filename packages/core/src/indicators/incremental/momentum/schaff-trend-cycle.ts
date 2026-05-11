@@ -1,10 +1,17 @@
 /**
  * Incremental Schaff Trend Cycle (STC)
  *
- * Combines MACD with double Stochastic smoothing:
+ * Doug Schaff's 1999 momentum oscillator. Combines MACD with double
+ * Stochastic smoothing:
  * 1. MACD = EMA(fast) - EMA(slow)
  * 2. Stochastic of MACD over cyclePeriod → smooth with factor → PF
  * 3. Stochastic of PF over cyclePeriod → smooth with factor → STC
+ *
+ * State category: **Cascaded** (two recursive EMAs + two recursive
+ * stochastic smoothings + two windowed buffers). The recursive
+ * components permanently encode past parameters, so resume requires
+ * identical `fastPeriod`, `slowPeriod`, `cyclePeriod`, `factor`, and
+ * `source` (or omit them and let the snapshot's params win).
  */
 
 import type { NormalizedCandle, PriceSource } from "../../../types";
@@ -55,11 +62,23 @@ export function createStc(
   } = {},
   warmUpOptions?: WarmUpOptions<StcState>,
 ): IncrementalIndicator<number | null, StcState> {
-  const fastPeriod = options.fastPeriod ?? 23;
-  const slowPeriod = options.slowPeriod ?? 50;
-  const cyclePeriod = options.cyclePeriod ?? 10;
-  const factor = options.factor ?? 0.5;
-  const source: PriceSource = options.source ?? "close";
+  // Resume order: explicit option > snapshot value > canonical default.
+  const fs = warmUpOptions?.fromState ?? null;
+  const fastPeriod = options.fastPeriod ?? fs?.fastPeriod ?? 23;
+  const slowPeriod = options.slowPeriod ?? fs?.slowPeriod ?? 50;
+  const cyclePeriod = options.cyclePeriod ?? fs?.cyclePeriod ?? 10;
+  const factor = options.factor ?? fs?.factor ?? 0.5;
+  const source: PriceSource = options.source ?? fs?.source ?? "close";
+
+  // Validate parameters identically to the batch indicator so the same
+  // options object behaves the same in both APIs.
+  if (fastPeriod < 1 || slowPeriod < 1 || cyclePeriod < 1) {
+    throw new Error("Schaff Trend Cycle periods must be at least 1");
+  }
+  if (factor <= 0 || factor > 1) {
+    throw new Error("Schaff Trend Cycle factor must be in (0, 1]");
+  }
+
   const fastMult = 2 / (fastPeriod + 1);
   const slowMult = 2 / (slowPeriod + 1);
 
@@ -75,19 +94,30 @@ export function createStc(
   let firstStcDone: boolean;
   let count: number;
 
-  if (warmUpOptions?.fromState) {
-    const s = warmUpOptions.fromState;
-    fastEma = s.fastEma;
-    slowEma = s.slowEma;
-    fastSum = s.fastSum;
-    slowSum = s.slowSum;
-    macdBuffer = CircularBuffer.fromSnapshot(s.macdBuffer);
-    prevPf = s.prevPf;
-    pfBuffer = CircularBuffer.fromSnapshot(s.pfBuffer);
-    prevStc = s.prevStc;
-    firstPfDone = s.firstPfDone;
-    firstStcDone = s.firstStcDone;
-    count = s.count;
+  if (fs) {
+    // Cascaded: two recursive EMAs + two recursive stochastic
+    // smoothings permanently encode past parameters, so reconfiguring
+    // on resume produces a hybrid series.
+    if (
+      fs.fastPeriod !== fastPeriod ||
+      fs.slowPeriod !== slowPeriod ||
+      fs.cyclePeriod !== cyclePeriod ||
+      fs.factor !== factor ||
+      fs.source !== source
+    ) {
+      throw new Error("Schaff Trend Cycle: incompatible snapshot, re-warm required");
+    }
+    fastEma = fs.fastEma;
+    slowEma = fs.slowEma;
+    fastSum = fs.fastSum;
+    slowSum = fs.slowSum;
+    macdBuffer = CircularBuffer.fromSnapshot(fs.macdBuffer);
+    prevPf = fs.prevPf;
+    pfBuffer = CircularBuffer.fromSnapshot(fs.pfBuffer);
+    prevStc = fs.prevStc;
+    firstPfDone = fs.firstPfDone;
+    firstStcDone = fs.firstStcDone;
+    count = fs.count;
   } else {
     fastEma = null;
     slowEma = null;
