@@ -17,10 +17,13 @@ describe("roofingFilter", () => {
     expect(roofingFilter([])).toEqual([]);
   });
 
-  it("should throw if highPassPeriod is less than 1", () => {
+  it("should throw if highPassPeriod is less than 2", () => {
     const candles = makeCandles([100]);
+    expect(() => roofingFilter(candles, { highPassPeriod: 1 })).toThrow(
+      "Roofing filter highPassPeriod must be at least 2",
+    );
     expect(() => roofingFilter(candles, { highPassPeriod: 0 })).toThrow(
-      "Roofing filter highPassPeriod must be at least 1",
+      "Roofing filter highPassPeriod must be at least 2",
     );
   });
 

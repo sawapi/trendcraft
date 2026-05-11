@@ -349,8 +349,99 @@ describe("STC incremental", () => {
     );
     assertConsistency(batch, incremental, 1e-8);
   });
+
+  it("batch and incremental agree on non-default factor", () => {
+    // Pins the fix for the previously-hardcoded batch factor: passing
+    // factor=0.7 must yield the same series in both APIs.
+    const opts = { fastPeriod: 23, slowPeriod: 50, cyclePeriod: 10, factor: 0.7 };
+    const batch = schaffTrendCycle(candles, opts);
+    const incremental = processAll(createStc(opts), candles);
+    assertConsistency(batch, incremental, 1e-8);
+  });
+
   it("peek does not mutate state", () =>
     peekTest(createStc, [{ fastPeriod: 23, slowPeriod: 50, cyclePeriod: 10 }], 80));
   it("getState/fromState restores correctly", () =>
     stateRestoreTest(createStc, [{ fastPeriod: 23, slowPeriod: 50, cyclePeriod: 10 }], 90));
+
+  // Resume contract: Cascaded category — two recursive EMAs and two
+  // recursive stoch smoothings permanently encode past parameters.
+  it("fromState restores all params when options are omitted", () => {
+    const s1 = createStc({
+      fastPeriod: 12,
+      slowPeriod: 26,
+      cyclePeriod: 7,
+      factor: 0.4,
+      source: "high",
+    });
+    for (let i = 0; i < 80; i++) s1.next(candles[i]);
+    const state = s1.getState();
+
+    const s2 = createStc({}, { fromState: state });
+    expect(s2.getState().fastPeriod).toBe(12);
+    expect(s2.getState().slowPeriod).toBe(26);
+    expect(s2.getState().cyclePeriod).toBe(7);
+    expect(s2.getState().factor).toBe(0.4);
+    expect(s2.getState().source).toBe("high");
+  });
+
+  it("refuses resume with a different fastPeriod", () => {
+    const s1 = createStc({ fastPeriod: 23, slowPeriod: 50, cyclePeriod: 10 });
+    for (let i = 0; i < 80; i++) s1.next(candles[i]);
+    expect(() =>
+      createStc({ fastPeriod: 12, slowPeriod: 50, cyclePeriod: 10 }, { fromState: s1.getState() }),
+    ).toThrow(/incompatible snapshot/);
+  });
+
+  it("refuses resume with a different slowPeriod", () => {
+    const s1 = createStc({ fastPeriod: 23, slowPeriod: 50, cyclePeriod: 10 });
+    for (let i = 0; i < 80; i++) s1.next(candles[i]);
+    expect(() =>
+      createStc({ fastPeriod: 23, slowPeriod: 100, cyclePeriod: 10 }, { fromState: s1.getState() }),
+    ).toThrow(/incompatible snapshot/);
+  });
+
+  it("refuses resume with a different cyclePeriod", () => {
+    const s1 = createStc({ fastPeriod: 23, slowPeriod: 50, cyclePeriod: 10 });
+    for (let i = 0; i < 80; i++) s1.next(candles[i]);
+    expect(() =>
+      createStc({ fastPeriod: 23, slowPeriod: 50, cyclePeriod: 20 }, { fromState: s1.getState() }),
+    ).toThrow(/incompatible snapshot/);
+  });
+
+  it("refuses resume with a different factor", () => {
+    const s1 = createStc({ fastPeriod: 23, slowPeriod: 50, cyclePeriod: 10, factor: 0.5 });
+    for (let i = 0; i < 80; i++) s1.next(candles[i]);
+    expect(() =>
+      createStc(
+        { fastPeriod: 23, slowPeriod: 50, cyclePeriod: 10, factor: 0.7 },
+        { fromState: s1.getState() },
+      ),
+    ).toThrow(/incompatible snapshot/);
+  });
+
+  it("refuses resume with a different source", () => {
+    const s1 = createStc({ fastPeriod: 23, slowPeriod: 50, cyclePeriod: 10, source: "close" });
+    for (let i = 0; i < 80; i++) s1.next(candles[i]);
+    expect(() =>
+      createStc(
+        { fastPeriod: 23, slowPeriod: 50, cyclePeriod: 10, source: "high" },
+        { fromState: s1.getState() },
+      ),
+    ).toThrow(/incompatible snapshot/);
+  });
+
+  // Validation must match the batch indicator's so the same options
+  // object behaves identically across both APIs.
+  it("rejects invalid factor (<=0 or >1) just like the batch indicator", () => {
+    expect(() => createStc({ factor: 0 })).toThrow(/factor must be in/);
+    expect(() => createStc({ factor: -0.1 })).toThrow(/factor must be in/);
+    expect(() => createStc({ factor: 1.5 })).toThrow(/factor must be in/);
+  });
+
+  it("rejects invalid periods (<1) just like the batch indicator", () => {
+    expect(() => createStc({ fastPeriod: 0 })).toThrow(/periods must be at least 1/);
+    expect(() => createStc({ slowPeriod: 0 })).toThrow(/periods must be at least 1/);
+    expect(() => createStc({ cyclePeriod: 0 })).toThrow(/periods must be at least 1/);
+  });
 });

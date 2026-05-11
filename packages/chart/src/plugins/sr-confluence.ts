@@ -99,7 +99,15 @@ function renderSrConfluence(
       ctx.font = "9px -apple-system, BlinkMacSystemFont, sans-serif";
       ctx.textAlign = "right";
       ctx.textBaseline = "middle";
-      ctx.fillText(`S${zone.strength.toFixed(0)}`, right - 4, centerY);
+      // Strength score + touch count (when available). Mirrors the
+      // convention used by TradingView S/R indicators (BigBeluga, MTF
+      // Confluence) where "how many tests has this level survived" is
+      // surfaced alongside the numeric strength.
+      const label =
+        zone.touchCount != null && zone.touchCount > 0
+          ? `S${zone.strength.toFixed(0)} · ×${zone.touchCount}`
+          : `S${zone.strength.toFixed(0)}`;
+      ctx.fillText(label, right - 4, centerY);
     }
   });
 }

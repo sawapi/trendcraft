@@ -1243,12 +1243,36 @@ export const indicatorPresets: Record<string, IndicatorPreset> = {
   }),
   elderForceIndex: withCompute(
     "elderForceIndex",
-    (c, p) => elderForceIndex(c, { period: p.period ?? 13 }),
+    (c, p) =>
+      elderForceIndex(c, {
+        shortPeriod: p.shortPeriod ?? 2,
+        longPeriod: p.longPeriod ?? 13,
+      }),
     {
       category: "Volume",
       name: "Elder Force Index",
-      description: "Combines price change and volume to measure the power behind price movements.",
-      paramSchema: [period(13)],
+      description:
+        "Combines price change and volume to measure the power behind price movements. Default uses Elder's canonical pair: short=2 (entry timing), long=13 (trend bias).",
+      paramSchema: [
+        {
+          key: "shortPeriod",
+          label: "Short Period",
+          type: "number",
+          default: 2,
+          min: 1,
+          max: 50,
+          step: 1,
+        },
+        {
+          key: "longPeriod",
+          label: "Long Period",
+          type: "number",
+          default: 13,
+          min: 1,
+          max: 200,
+          step: 1,
+        },
+      ],
     },
   ),
   volumeAnomaly: withCompute(
@@ -1343,8 +1367,17 @@ export const indicatorPresets: Record<string, IndicatorPreset> = {
   ),
   emv: withCompute(
     "emv",
+    // Pass `volumeDivisor` through only when the host supplies a real value
+    // so the preset inherits the indicator's canonical (1e8) default. Use
+    // `== null` (catches both `undefined` and `null`) — preset params often
+    // arrive from JSON / form deserialization that emits explicit `null`
+    // for unset optional fields, and forwarding that to `easeOfMovement()`
+    // would yield a division by zero.
     (c, p) =>
-      easeOfMovement(c, { period: p.period ?? 14, volumeDivisor: p.volumeDivisor ?? 10000 }),
+      easeOfMovement(c, {
+        period: p.period ?? 14,
+        ...(p.volumeDivisor != null ? { volumeDivisor: p.volumeDivisor as number } : {}),
+      }),
     {
       category: "Volume",
       name: "Ease of Movement",

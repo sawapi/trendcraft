@@ -19,6 +19,12 @@ export type SchaffTrendCycleOptions = {
   slowPeriod?: number;
   /** Stochastic cycle period (default: 10) */
   cyclePeriod?: number;
+  /**
+   * Smoothing factor for both stochastic passes (default: 0.5).
+   * Doug Schaff's published value; range [0, 1]. Lower values produce
+   * smoother but more lagged output.
+   */
+  factor?: number;
   /** Price source (default: 'close') */
   source?: PriceSource;
 };
@@ -26,15 +32,27 @@ export type SchaffTrendCycleOptions = {
 /**
  * Calculate Schaff Trend Cycle
  *
- * 1. Calculate MACD line (fast EMA - slow EMA)
- * 2. Apply Stochastic on MACD (first stochastic pass)
- * 3. Apply Stochastic again on the result (second stochastic pass)
- * 4. Result is bounded between 0-100
+ * Doug Schaff's 1999 momentum oscillator. Combines MACD with a
+ * double-smoothed stochastic to identify cyclic trend changes with
+ * less lag than MACD alone. Default `(23, 50, 10)` is Schaff's own
+ * parameter set; smoothing `factor = 0.5` is the canonical value.
  *
- * Interpretation:
- * - Above 75: Overbought / uptrend
- * - Below 25: Oversold / downtrend
- * - Crossings of 25 and 75 signal trend changes
+ * Algorithm:
+ * 1. MACD = `EMA(price, fastPeriod) - EMA(price, slowPeriod)`
+ * 2. First stochastic over `cyclePeriod`:
+ *    - `%K1 = 100 × (MACD - min) / (max - min)`
+ *    - `PF = prevPF + factor × (%K1 - prevPF)` (EMA-style smoothing)
+ * 3. Second stochastic over `cyclePeriod` (on PF):
+ *    - `%K2 = 100 × (PF - min) / (max - min)`
+ *    - `STC = prevSTC + factor × (%K2 - prevSTC)`
+ *
+ * Output bounded to 0-100. Conventional thresholds: > 75 overbought,
+ * < 25 oversold; crossings of 25 / 75 signal trend changes.
+ *
+ * Degenerate-range fallback: when min == max in a stochastic window,
+ * the smoothed value carries forward (no division-by-zero). This
+ * matches the de-facto implementations across Pine Script community
+ * scripts and stockindicators.dev.
  *
  * @param candles - Array of candles (raw or normalized)
  * @param options - STC options
@@ -50,10 +68,19 @@ export function schaffTrendCycle(
   candles: Candle[] | NormalizedCandle[],
   options: SchaffTrendCycleOptions = {},
 ): Series<number | null> {
-  const { fastPeriod = 23, slowPeriod = 50, cyclePeriod = 10, source = "close" } = options;
+  const {
+    fastPeriod = 23,
+    slowPeriod = 50,
+    cyclePeriod = 10,
+    factor = 0.5,
+    source = "close",
+  } = options;
 
   if (fastPeriod < 1 || slowPeriod < 1 || cyclePeriod < 1) {
     throw new Error("Schaff Trend Cycle periods must be at least 1");
+  }
+  if (factor <= 0 || factor > 1) {
+    throw new Error("Schaff Trend Cycle factor must be in (0, 1]");
   }
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
@@ -96,7 +123,7 @@ export function schaffTrendCycle(
 
   // Apply exponentially smoothed stochastic to a nullable series
   function stochSmooth(input: (number | null)[]): (number | null)[] {
-    const smoothFactor = 0.5;
+    const smoothFactor = factor;
     const output: (number | null)[] = new Array(input.length).fill(null);
     let prevSmoothed = 0;
 
@@ -144,6 +171,7 @@ export function schaffTrendCycle(
       fastPeriod,
       slowPeriod,
       cyclePeriod,
+      factor,
     ]),
   );
 }

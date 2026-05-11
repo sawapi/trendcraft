@@ -108,7 +108,15 @@ const BUILTIN_RULES: IntrospectionRule[] = [
     },
   },
 
-  // Supertrend
+  // Supertrend — the chart's specialized supertrend dispatch
+  // (renderer/series-dispatcher.ts) reads `upperBand`, `lowerBand`,
+  // and `trend` to draw the canonical industry-standard
+  // visualization: a single line that *switches* between the lower
+  // band (when bullish, direction=1) and the upper band (when
+  // bearish, direction=-1), with a translucent fill between price
+  // and the line. Channel names here MUST stay in sync with that
+  // dispatch path — renaming them silently disables the renderer
+  // and the indicator stops drawing.
   {
     name: "supertrend",
     test: (v) => hasKeys(v, ["upperBand", "lowerBand", "direction"]) && hasKeys(v, ["supertrend"]),
@@ -182,6 +190,22 @@ const BUILTIN_RULES: IntrospectionRule[] = [
     defaultPane: "main",
     decompose: (v) => {
       return { highest: v.highest, lowest: v.lowest };
+    },
+  },
+
+  // Elder's Force Index — canonical short / long pair. The
+  // TrendCraft preset registry adds the same rule with channel
+  // colors / reference lines, but consumers that pass
+  // `elderForceIndex(...)` output straight into a chart without
+  // registering presets still need to render the two lines, so
+  // the default registry has to recognize the shape too.
+  {
+    name: "elderForceIndex",
+    test: (v) => hasKeys(v, ["short", "long"]),
+    seriesType: "line",
+    defaultPane: "sub",
+    decompose: (v) => {
+      return { short: v.short, long: v.long };
     },
   },
 

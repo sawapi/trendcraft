@@ -21,10 +21,14 @@ const mockCtx = () =>
     closePath: vi.fn(),
     fill: vi.fn(),
     arc: vi.fn(),
+    fillText: vi.fn(),
     setLineDash: vi.fn(),
     fillStyle: "",
     strokeStyle: "",
     lineWidth: 1,
+    font: "",
+    textAlign: "" as CanvasTextAlign,
+    textBaseline: "" as CanvasTextBaseline,
   }) as unknown as CanvasRenderingContext2D;
 
 const mockTs = () =>
@@ -54,7 +58,7 @@ describe("createAndrewsPitchfork", () => {
     expect(plugin.zOrder).toBe("below");
   });
 
-  it("renders three parallel lines, the handle connector, and anchor dots", () => {
+  it("renders three parallel lines, the handle connector, anchor dots, and labels", () => {
     const plugin = createAndrewsPitchfork(anchors);
     const ctx = mockCtx();
     plugin.render(makeCtx(ctx), plugin.defaultState);
@@ -65,6 +69,36 @@ describe("createAndrewsPitchfork", () => {
     expect(ctx.stroke).toHaveBeenCalledTimes(3);
     // Three anchor arcs
     expect(ctx.arc).toHaveBeenCalledTimes(3);
+    // Labels for upper / median / lower lines (default `showLabels: true`)
+    expect(ctx.fillText).toHaveBeenCalledWith("UML", expect.any(Number), expect.any(Number));
+    expect(ctx.fillText).toHaveBeenCalledWith("ML", expect.any(Number), expect.any(Number));
+    expect(ctx.fillText).toHaveBeenCalledWith("LML", expect.any(Number), expect.any(Number));
+  });
+
+  it("omits labels when showLabels is false", () => {
+    const plugin = createAndrewsPitchfork(anchors, { showLabels: false });
+    const ctx = mockCtx();
+    plugin.render(makeCtx(ctx), plugin.defaultState);
+    expect(ctx.fillText).not.toHaveBeenCalled();
+  });
+
+  it("draws 0.25 / 0.75 half-lines when showHalfLines is true", () => {
+    const plugin = createAndrewsPitchfork(anchors, { showHalfLines: true });
+    const ctx = mockCtx();
+    plugin.render(makeCtx(ctx), plugin.defaultState);
+
+    // Default 3 strokes + 1 extra stroke for the two half-lines (single
+    // batched path) = 4.
+    expect(ctx.stroke).toHaveBeenCalledTimes(4);
+  });
+
+  it("does not draw half-lines by default", () => {
+    const plugin = createAndrewsPitchfork(anchors);
+    const ctx = mockCtx();
+    plugin.render(makeCtx(ctx), plugin.defaultState);
+
+    // 3 strokes: handle connector + median + (upper+lower batched).
+    expect(ctx.stroke).toHaveBeenCalledTimes(3);
   });
 
   it("bails out on a degenerate configuration where p0 aligns vertically with midpoint", () => {
@@ -86,9 +120,13 @@ describe("createAndrewsPitchfork", () => {
     const plugin = createAndrewsPitchfork(anchors, {
       color: "rgba(255,0,0,1)",
       fillColor: "rgba(255,0,0,0.2)",
+      labelColor: "rgba(0,255,0,1)",
+      halfLineColor: "rgba(0,0,255,0.5)",
     });
     expect(plugin.defaultState.color).toBe("rgba(255,0,0,1)");
     expect(plugin.defaultState.fillColor).toBe("rgba(255,0,0,0.2)");
+    expect(plugin.defaultState.labelColor).toBe("rgba(0,255,0,1)");
+    expect(plugin.defaultState.halfLineColor).toBe("rgba(0,0,255,0.5)");
   });
 });
 

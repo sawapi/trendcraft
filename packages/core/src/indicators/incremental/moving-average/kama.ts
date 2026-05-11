@@ -2,6 +2,11 @@
  * Incremental KAMA (Kaufman Adaptive Moving Average)
  *
  * KAMA adapts smoothing speed based on Efficiency Ratio (ER).
+ *
+ * State category: **Mixed** (price buffer for ER + recursive
+ * `prevKama`). The recursive component permanently carries past
+ * parameters, so resume requires identical period, fastSC, slowSC,
+ * and source (or omit them and let the snapshot's params win).
  */
 
 import type { NormalizedCandle, PriceSource } from "../../../types";
@@ -35,21 +40,37 @@ export function createKama(
   options: { period?: number; fastPeriod?: number; slowPeriod?: number; source?: PriceSource } = {},
   warmUpOptions?: WarmUpOptions<KamaState>,
 ): IncrementalIndicator<number | null, KamaState> {
-  const period = options.period ?? 10;
-  const source: PriceSource = options.source ?? "close";
-  const fastSC = 2 / ((options.fastPeriod ?? 2) + 1);
-  const slowSC = 2 / ((options.slowPeriod ?? 30) + 1);
+  // Resume order: explicit option > snapshot value > canonical default.
+  // fastPeriod/slowPeriod aren't stored on state directly — fastSC and
+  // slowSC are. When the caller omits the period option, restore the
+  // SC from the snapshot; otherwise re-derive from the new period.
+  const fs = warmUpOptions?.fromState ?? null;
+  const period = options.period ?? fs?.period ?? 10;
+  const source: PriceSource = options.source ?? fs?.source ?? "close";
+  const fastSC =
+    options.fastPeriod !== undefined ? 2 / (options.fastPeriod + 1) : (fs?.fastSC ?? 2 / 3);
+  const slowSC =
+    options.slowPeriod !== undefined ? 2 / (options.slowPeriod + 1) : (fs?.slowSC ?? 2 / 31);
 
   // Need period+1 prices to compute direction and volatility
   let priceBuffer: CircularBuffer<number>;
   let prevKama: number | null;
   let count: number;
 
-  if (warmUpOptions?.fromState) {
-    const s = warmUpOptions.fromState;
-    priceBuffer = CircularBuffer.fromSnapshot(s.priceBuffer);
-    prevKama = s.prevKama;
-    count = s.count;
+  if (fs) {
+    // KAMA is Mixed-recursive: `prevKama` carries past parameters
+    // forever, so reconfiguring mid-stream yields a hybrid series.
+    if (
+      fs.period !== period ||
+      fs.source !== source ||
+      fs.fastSC !== fastSC ||
+      fs.slowSC !== slowSC
+    ) {
+      throw new Error("KAMA: incompatible snapshot, re-warm required");
+    }
+    priceBuffer = CircularBuffer.fromSnapshot(fs.priceBuffer);
+    prevKama = fs.prevKama;
+    count = fs.count;
   } else {
     priceBuffer = new CircularBuffer<number>(period + 1);
     prevKama = null;

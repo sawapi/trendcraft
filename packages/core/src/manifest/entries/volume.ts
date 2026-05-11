@@ -225,16 +225,17 @@ export const VOLUME_MANIFESTS: IndicatorManifest[] = [
     pitfalls: [
       "Volume spike on a tiny price move yields a large Force value — can mislead",
       "Default 13 EMA smoothes substantial intra-period variation; raw 1-period FI is very noisy",
-      "Elder explicitly prescribes BOTH a short-period (2) FI for entries AND long-period (13) for trend; trendcraft's single-period default tilts to the long",
     ],
     synergy: [
-      "Pair with a separate short-period Force Index (period=2) for entries vs long-period (13) for trend (Elder's canonical setup)",
+      "Use long FI for trend bias (above zero = bullish), short FI for pullback entries (cross below zero in an uptrend = buy)",
     ],
     marketRegime: ["trending"],
     timeframe: ["swing"],
     paramHints: {
-      period:
-        "13 default EMA smoothing (Elder's long-period). Use period=2 for short-period entry signals",
+      shortPeriod:
+        "2 default (Elder canonical) — fine-tunes pullback entries within the long-period trend",
+      longPeriod:
+        "13 default (Elder canonical) — confirms intermediate-trend direction, look for divergences here first",
     },
   },
   {
@@ -255,7 +256,7 @@ export const VOLUME_MANIFESTS: IndicatorManifest[] = [
     ],
     pitfalls: [
       "Range-zero bars (high=low) make the box ratio explode — trendcraft handles with fallback",
-      "trendcraft uses `volumeDivisor=10000` by default; canonical Arms formula uses 100,000,000. Magnitudes differ — focus on sign and slope, not absolute values",
+      "trendcraft `volumeDivisor` default is 100,000,000 (canonical Arms / StockCharts scaling). EMV is proportional to the divisor — smaller-volume instruments may want a smaller divisor to keep magnitudes readable",
       "Useless on instruments with unreliable volume",
     ],
     marketRegime: ["trending"],
@@ -263,7 +264,7 @@ export const VOLUME_MANIFESTS: IndicatorManifest[] = [
     paramHints: {
       period: "14 default SMA smoothing",
       volumeDivisor:
-        "10000 default in trendcraft (NOT the canonical 100,000,000) — keeps values readable but values are not directly comparable to ChartSchool examples",
+        "100,000,000 default (canonical Arms / StockCharts scaling). Pre-v0.4 the default was 10000 — magnitudes captured under that default are 10000× smaller than the new canonical output",
     },
   },
   {

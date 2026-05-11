@@ -84,6 +84,10 @@ function renderOrderBlocks(
   timeScale: PrimitiveRenderContext["timeScale"],
   priceScale: PrimitiveRenderContext["priceScale"],
 ): void {
+  ctx.font = "9px -apple-system, BlinkMacSystemFont, sans-serif";
+  ctx.textAlign = "left";
+  ctx.textBaseline = "top";
+
   for (const zone of zones) {
     const startX = timeScale.indexToX(zone.startIndex);
     const endX =
@@ -108,6 +112,14 @@ function renderOrderBlocks(
     ctx.strokeStyle = `rgba(${rgb},${zone.mitigated ? 0.15 : 0.4})`;
     ctx.lineWidth = 1;
     ctx.strokeRect(startX, topY, w, h);
+
+    // Top-left label — "BB" / "OB" matches LuxAlgo SMC convention
+    // (Bullish Block / Order Block). Mitigation tag distinguishes used
+    // blocks at a glance without changing the color palette.
+    const label = zone.type === "bullish" ? "BB" : "OB";
+    const text = zone.mitigated ? `${label} ✕` : label;
+    ctx.fillStyle = `rgba(${rgb},${zone.mitigated ? 0.45 : 0.85})`;
+    ctx.fillText(text, startX + 3, topY + 2);
   }
 }
 
@@ -117,6 +129,10 @@ function renderFvgZones(
   timeScale: PrimitiveRenderContext["timeScale"],
   priceScale: PrimitiveRenderContext["priceScale"],
 ): void {
+  ctx.font = "9px -apple-system, BlinkMacSystemFont, sans-serif";
+  ctx.textAlign = "right";
+  ctx.textBaseline = "top";
+
   for (const zone of zones) {
     const startX = timeScale.indexToX(zone.startIndex);
     const endX =
@@ -144,6 +160,12 @@ function renderFvgZones(
     ctx.lineWidth = 1;
     ctx.strokeRect(startX, topY, w, h);
     ctx.restore();
+
+    // Top-right label "FVG" — placed opposite of OB labels (top-left) so
+    // they don't collide when an OB and an FVG overlap on the same bar.
+    const text = zone.mitigated ? "FVG ✕" : "FVG";
+    ctx.fillStyle = `rgba(${rgb},${zone.mitigated ? 0.45 : 0.85})`;
+    ctx.fillText(text, endX - 3, topY + 2);
   }
 }
 
@@ -154,6 +176,8 @@ function renderSweepMarkers(
   priceScale: PrimitiveRenderContext["priceScale"],
 ): void {
   const size = 5;
+  ctx.font = "9px -apple-system, BlinkMacSystemFont, sans-serif";
+  ctx.textAlign = "center";
 
   for (const marker of markers) {
     const x = timeScale.indexToX(marker.index);
@@ -164,18 +188,35 @@ function renderSweepMarkers(
     ctx.fillStyle = `rgba(${rgb},0.8)`;
     ctx.beginPath();
     if (marker.type === "bullish") {
-      // Up triangle (swept low → bullish signal)
+      // Up triangle (swept low → bullish signal). The bar swept *sell-side*
+      // liquidity (stops below recent lows) and reversed up — LuxAlgo SMC
+      // labels this "SSL" (Sell-Side Liquidity).
       ctx.moveTo(x, y - size);
       ctx.lineTo(x - size, y + size);
       ctx.lineTo(x + size, y + size);
     } else {
-      // Down triangle (swept high → bearish signal)
+      // Down triangle (swept high → bearish signal). The bar swept
+      // *buy-side* liquidity (stops above recent highs) — LuxAlgo SMC
+      // labels this "BSL" (Buy-Side Liquidity).
       ctx.moveTo(x, y + size);
       ctx.lineTo(x - size, y - size);
       ctx.lineTo(x + size, y - size);
     }
     ctx.closePath();
     ctx.fill();
+
+    // Side label below the down triangle / above the up triangle.
+    const label = marker.type === "bullish" ? "SSL" : "BSL";
+    ctx.fillStyle = `rgba(${rgb},0.95)`;
+    if (marker.type === "bullish") {
+      // Up arrow points up; label sits below the triangle.
+      ctx.textBaseline = "top";
+      ctx.fillText(label, x, y + size + 2);
+    } else {
+      // Down arrow points down; label sits above the triangle.
+      ctx.textBaseline = "bottom";
+      ctx.fillText(label, x, y - size - 2);
+    }
   }
 }
 

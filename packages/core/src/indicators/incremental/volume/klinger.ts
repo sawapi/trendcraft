@@ -2,6 +2,11 @@
  * Incremental Klinger Volume Oscillator (KVO)
  *
  * Computes Volume Force → short/long EMA → KVO = short - long → signal = EMA(KVO).
+ *
+ * State category: **Cascaded** (three internal EMAs, each
+ * single-pole recursive). The EMAs permanently encode past periods,
+ * so resume requires identical `shortPeriod`, `longPeriod`, and
+ * `signalPeriod` (or omit them and let the snapshot's params win).
  */
 
 import type { NormalizedCandle } from "../../../types";
@@ -100,9 +105,11 @@ export function createKlinger(
   options: { shortPeriod?: number; longPeriod?: number; signalPeriod?: number } = {},
   warmUpOptions?: WarmUpOptions<KlingerState>,
 ): IncrementalIndicator<KlingerValue, KlingerState> {
-  const shortPeriod = options.shortPeriod ?? 34;
-  const longPeriod = options.longPeriod ?? 55;
-  const signalPeriod = options.signalPeriod ?? 13;
+  // Resume order: explicit option > snapshot value > canonical default.
+  const fs = warmUpOptions?.fromState ?? null;
+  const shortPeriod = options.shortPeriod ?? fs?.shortPeriod ?? 34;
+  const longPeriod = options.longPeriod ?? fs?.longPeriod ?? 55;
+  const signalPeriod = options.signalPeriod ?? fs?.signalPeriod ?? 13;
 
   let prevHlc: number | null;
   let prevTrend: number;
@@ -112,15 +119,23 @@ export function createKlinger(
   let signalEma: ReturnType<typeof createInternalEma>;
   let count: number;
 
-  if (warmUpOptions?.fromState) {
-    const s = warmUpOptions.fromState;
-    prevHlc = s.prevHlc;
-    prevTrend = s.prevTrend;
-    cm = s.cm;
-    shortEma = createInternalEma(shortPeriod, s.shortEma);
-    longEma = createInternalEma(longPeriod, s.longEma);
-    signalEma = createInternalEma(signalPeriod, s.signalEma);
-    count = s.count;
+  if (fs) {
+    // Cascaded: three internal recursive EMAs permanently encode past
+    // periods, so reconfiguring mid-stream produces a hybrid series.
+    if (
+      fs.shortPeriod !== shortPeriod ||
+      fs.longPeriod !== longPeriod ||
+      fs.signalPeriod !== signalPeriod
+    ) {
+      throw new Error("Klinger: incompatible snapshot, re-warm required");
+    }
+    prevHlc = fs.prevHlc;
+    prevTrend = fs.prevTrend;
+    cm = fs.cm;
+    shortEma = createInternalEma(shortPeriod, fs.shortEma);
+    longEma = createInternalEma(longPeriod, fs.longEma);
+    signalEma = createInternalEma(signalPeriod, fs.signalEma);
+    count = fs.count;
   } else {
     prevHlc = null;
     prevTrend = 1;

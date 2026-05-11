@@ -46,12 +46,28 @@ export type ConnorsRsiValue = {
 /**
  * Calculate Connors RSI
  *
- * Components:
- * 1. RSI(close, rsiPeriod) — standard RSI of closing prices
- * 2. RSI(streak, streakPeriod) — RSI of consecutive up/down day streak
- * 3. PercentRank(ROC(1), rocPeriod) — percent rank of 1-day ROC over lookback
+ * Larry Connors' composite oscillator (2013 ebook "An Introduction to
+ * ConnorsRSI"). Combines three components:
  *
- * CRSI = (Component1 + Component2 + Component3) / 3
+ * 1. RSI(close, rsiPeriod=3) — Wilder-smoothed RSI of the price series
+ * 2. RSI(streak, streakPeriod=2) — RSI of the consecutive up/down
+ *    streak: +N for N consecutive up closes, -N for N consecutive
+ *    down closes, 0 for unchanged
+ * 3. PercentRank(ROC(1), rocPeriod=100) — ranks the current 1-bar ROC
+ *    against the prior `rocPeriod` ROCs as a percentage
+ *
+ *   CRSI = (Component1 + Component2 + Component3) / 3
+ *
+ * The result oscillates between 0 and 100. Connors' convention treats
+ * readings above 90 as overbought and below 10 as oversold.
+ *
+ * Note on percent-rank semantics: this implementation counts ROCs
+ * `<=` the current value (population-rank convention) and emits
+ * best-effort values during warmup using whatever samples are
+ * available. Pine Script's `ta.percentrank` uses strict `<` and waits
+ * for a full lookback. Both forms are seen in published references;
+ * pre-1.0 the library has not standardized one — tracked in the
+ * State Contract Epic notes.
  *
  * @param candles - Array of candles (raw or normalized)
  * @param options - Connors RSI options

@@ -2,6 +2,58 @@
 
 ## Unreleased
 
+### Breaking — Elder's Force Index returns `{ short, long }`
+
+`elderForceIndex` and the incremental `createElderForceIndex` now
+emit Elder's canonical pair on every bar: a **2-period** EMA for
+entry timing and a **13-period** EMA for trend bias. The legacy
+single-period output (default `period: 13`) is gone.
+
+Migration:
+
+- Old: `elderForceIndex(c, { period: 13 })` → `Series<number | null>`
+- New: `elderForceIndex(c)` → `Series<{ short: number | null, long: number | null }>`
+
+Callers that only need the long line should read `.long`; callers
+that previously passed a custom `period` should pass it as
+`longPeriod` (and optionally a custom `shortPeriod` to match
+Elder's two-screen approach).
+
+The streaming preset wrappers (`indicatorPresets.elderForceIndex`,
+`livePresets.elderForceIndex`) now expose `shortPeriod` /
+`longPeriod` instead of `period`. The live snapshot key is now
+`efi_${shortPeriod}_${longPeriod}` so old `efi` snapshots from
+the single-period era are discarded cleanly on resume — no
+mixed-period state corruption.
+
+The chart introspection rule auto-detects the new shape and
+plots the `short` (orange) and `long` (purple) lines together
+in the sub-pane, so chart consumers don't need any host-side
+changes when the chart picks up the new core.
+
+### Breaking — Ease of Movement default `volumeDivisor`
+
+`easeOfMovement` and the incremental `createEmv` now default
+`volumeDivisor` to `100_000_000` (1e8), matching the StockCharts /
+ChartSchool canonical scaling. The previous default was `10000`, which
+produced values ~10000× *smaller* than every reference implementation
+(EMV is proportional to `volumeDivisor`). The streaming preset wrappers
+(`indicatorPresets.emv`, `livePresets.emv`) now also inherit the
+canonical default — previously they hard-coded 10000 independently.
+
+For trading-decision use cases the **sign** and **slope** of EMV are
+what matter, and both are invariant to `volumeDivisor` — strategies
+relying on EMV crossings or zero-line crosses are unaffected. Code
+that compares EMV's absolute magnitude to a hard-coded threshold or
+to a value pinned from the prior trendcraft default needs to either
+multiply the threshold by 10000 or pass `volumeDivisor: 10000`
+explicitly.
+
+State resume preserves the captured divisor: a state captured under
+the legacy 10000 divisor and resumed via `createEmv(opts, { fromState })`
+continues at 10000, not the new 1e8 default. Explicit `opts.volumeDivisor`
+still wins over both the snapshot and the default.
+
 ### Added — strategy JSON round-trip depth tests
 
 `serialize / parse` is now pinned across:

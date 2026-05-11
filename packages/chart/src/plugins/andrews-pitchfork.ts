@@ -55,6 +55,24 @@ export type AndrewsPitchforkState = {
   color?: string;
   /** Fill color for the area between upper and lower handles. */
   fillColor?: string;
+  /**
+   * Whether to draw "ML" / "UML" / "LML" labels at the right edge of each
+   * line. Default `true`. Helpful for distinguishing the three parallel
+   * lines, especially on screenshots and shallow slopes where the colors
+   * alone aren't enough.
+   */
+  showLabels?: boolean;
+  /**
+   * Whether to draw the 0.25 / 0.75 half-lines (parallel intermediate lines
+   * sitting halfway between the median and each handle). Default `false`
+   * — opt-in because on tight ranges they can clutter the view. Heavy
+   * pitchfork users use these as finer support / resistance levels.
+   */
+  showHalfLines?: boolean;
+  /** Override the label text color. Defaults to `color`. */
+  labelColor?: string;
+  /** Override the half-line stroke color. Defaults to `color`. */
+  halfLineColor?: string;
 };
 
 // ---- Render ----
@@ -140,6 +158,41 @@ function renderAndrewsPitchfork(
     ctx.lineTo(lowerEndX, lowerEndY);
     ctx.stroke();
 
+    // Optional 0.25 / 0.75 half-lines. Geometric trick: a parallel line
+    // through the midpoint of (P0, upperAnchor) is exactly halfway between
+    // the median and the upper handle (and similarly for the lower side).
+    if (state.showHalfLines) {
+      const halfUpperX = (x0 + upperAnchorX) / 2;
+      const halfUpperY = (y0 + upperAnchorY) / 2;
+      const halfLowerX = (x0 + lowerAnchorX) / 2;
+      const halfLowerY = (y0 + lowerAnchorY) / 2;
+      const slope = dyMed / dxMed;
+      const halfUpperEndY = halfUpperY + slope * (rightEdgeX - halfUpperX);
+      const halfLowerEndY = halfLowerY + slope * (rightEdgeX - halfLowerX);
+
+      ctx.strokeStyle = state.halfLineColor ?? stroke;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([2, 4]);
+      ctx.beginPath();
+      ctx.moveTo(halfUpperX, halfUpperY);
+      ctx.lineTo(rightEdgeX, halfUpperEndY);
+      ctx.moveTo(halfLowerX, halfLowerY);
+      ctx.lineTo(rightEdgeX, halfLowerEndY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // Right-edge labels for the three parallel lines.
+    if (state.showLabels !== false) {
+      ctx.fillStyle = state.labelColor ?? stroke;
+      ctx.font = "10px -apple-system, BlinkMacSystemFont, sans-serif";
+      ctx.textAlign = "right";
+      ctx.textBaseline = "middle";
+      ctx.fillText("UML", rightEdgeX - 4, upperEndY);
+      ctx.fillText("ML", rightEdgeX - 4, medianEndY);
+      ctx.fillText("LML", rightEdgeX - 4, lowerEndY);
+    }
+
     // Small anchor dots
     ctx.fillStyle = stroke;
     for (const [ax, ay] of [
@@ -156,15 +209,18 @@ function renderAndrewsPitchfork(
 
 // ---- Factory ----
 
+/** Visual options accepted by `createAndrewsPitchfork` / `connectAndrewsPitchfork`. */
+export type AndrewsPitchforkOptions = Omit<AndrewsPitchforkState, "anchors">;
+
 export function createAndrewsPitchfork(
   anchors: PitchforkAnchors,
-  options: { color?: string; fillColor?: string } = {},
+  options: AndrewsPitchforkOptions = {},
 ): PrimitivePlugin<AndrewsPitchforkState> {
   return definePrimitive<AndrewsPitchforkState>({
     name: "andrewsPitchfork",
     pane: "main",
     zOrder: "below",
-    defaultState: { anchors, color: options.color, fillColor: options.fillColor },
+    defaultState: { anchors, ...options },
     render: renderAndrewsPitchfork,
   });
 }
@@ -172,14 +228,14 @@ export function createAndrewsPitchfork(
 // ---- Convenience connector ----
 
 type AndrewsPitchforkHandle = {
-  update(anchors: PitchforkAnchors, options?: { color?: string; fillColor?: string }): void;
+  update(anchors: PitchforkAnchors, options?: AndrewsPitchforkOptions): void;
   remove(): void;
 };
 
 export function connectAndrewsPitchfork(
   chart: ChartInstance,
   anchors: PitchforkAnchors,
-  options: { color?: string; fillColor?: string } = {},
+  options: AndrewsPitchforkOptions = {},
 ): AndrewsPitchforkHandle {
   chart.registerPrimitive(createAndrewsPitchfork(anchors, options));
 

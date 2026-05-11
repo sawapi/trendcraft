@@ -46,8 +46,15 @@ export function roofingFilter(
 ): Series<number | null> {
   const { highPassPeriod = 48, lowPassPeriod = 10, source = "close" } = options;
 
-  if (highPassPeriod < 1) {
-    throw new Error("Roofing filter highPassPeriod must be at least 1");
+  // The canonical HP coefficients (`alpha1 = (cos+sin-1)/cos`) place both
+  // recurrence poles inside the unit circle for `highPassPeriod >= 2`.
+  // At `period = 1` the angle `theta = sqrt(2)*pi` lands deep in the
+  // third quadrant, alpha1 jumps to ~8.3, and the resulting coefficients
+  // (|c2| ≈ 14.5, |c3| ≈ 53) drive the recurrence to infinity on bounded
+  // inputs. period=1 is also the Nyquist degenerate case and has no
+  // practical use for cycle filtering anyway.
+  if (highPassPeriod < 2) {
+    throw new Error("Roofing filter highPassPeriod must be at least 2");
   }
   if (lowPassPeriod < 1) {
     throw new Error("Roofing filter lowPassPeriod must be at least 1");
@@ -61,12 +68,19 @@ export function roofingFilter(
     return result;
   }
 
-  // High-pass filter coefficients (2-pole Butterworth)
-  const a1HP = Math.exp((-Math.SQRT2 * Math.PI) / highPassPeriod);
-  const b1HP = 2 * a1HP * Math.cos((Math.SQRT2 * Math.PI) / highPassPeriod);
-  const c2HP = b1HP;
-  const c3HP = -(a1HP * a1HP);
-  const c1HP = (1 + c2HP - c3HP) / 4; // Coefficient for 2-pole high-pass
+  // 2-pole high-pass filter coefficients (Ehlers canonical form, from
+  // "Cybernetic Analysis for Stocks and Futures" ch. 13 / "Predictive
+  // Indicators"):
+  //   theta  = sqrt(2) * pi / highPassPeriod
+  //   alpha1 = (cos(theta) + sin(theta) - 1) / cos(theta)
+  //   HP = (1 - alpha1/2)^2 * (P - 2*P[-1] + P[-2])
+  //      + 2*(1 - alpha1)   * HP[-1]
+  //      -    (1 - alpha1)^2 * HP[-2]
+  const thetaHP = (Math.SQRT2 * Math.PI) / highPassPeriod;
+  const alpha1 = (Math.cos(thetaHP) + Math.sin(thetaHP) - 1) / Math.cos(thetaHP);
+  const c1HP = (1 - alpha1 / 2) * (1 - alpha1 / 2);
+  const c2HP = 2 * (1 - alpha1);
+  const c3HP = -((1 - alpha1) * (1 - alpha1));
 
   // Super Smoother (low-pass) coefficients
   const a1SS = Math.exp((-Math.SQRT2 * Math.PI) / lowPassPeriod);

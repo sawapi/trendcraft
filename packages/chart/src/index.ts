@@ -151,6 +151,7 @@ export {
   type SwingAnchor,
 } from "./integration/drawing-helpers";
 export {
+  type AndrewsPitchforkOptions,
   type AndrewsPitchforkState,
   connectAndrewsPitchfork,
   createAndrewsPitchfork,
@@ -172,7 +173,11 @@ export {
   type PricePatternSignal,
   type PricePatternsOptions,
 } from "./plugins/price-patterns";
-export { connectRegimeHeatmap, createRegimeHeatmap } from "./plugins/regime-heatmap";
+export {
+  connectRegimeHeatmap,
+  createRegimeHeatmap,
+  type RegimeHeatmapOptions,
+} from "./plugins/regime-heatmap";
 export { connectSessionZones, createSessionZones } from "./plugins/session-zones";
 export type { SmcLevel, SmcMarker, SmcState, SmcZone } from "./plugins/smc-layer";
 export { connectSmcLayer, createSmcLayer } from "./plugins/smc-layer";
@@ -182,7 +187,11 @@ export {
   type SqueezeDotsOptions,
 } from "./plugins/squeeze-dots";
 export { connectSrConfluence, createSrConfluence } from "./plugins/sr-confluence";
-export { connectTradeAnalysis, createTradeAnalysis } from "./plugins/trade-analysis";
+export {
+  connectTradeAnalysis,
+  createTradeAnalysis,
+  type TradeAnalysisOptions,
+} from "./plugins/trade-analysis";
 export {
   connectVolumeProfile,
   createVolumeProfile,

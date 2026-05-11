@@ -308,6 +308,59 @@ describe("Klinger incremental", () => {
       }
     }
   });
+
+  // Resume contract: Cascaded (3 internal recursive EMAs).
+  it("fromState restores shortPeriod / longPeriod / signalPeriod when options are omitted", () => {
+    const ind1 = createKlinger({ shortPeriod: 20, longPeriod: 40, signalPeriod: 9 });
+    for (let i = 0; i < 50; i++) ind1.next(candles[i]);
+    const state = ind1.getState();
+
+    const ind2 = createKlinger({}, { fromState: state });
+    expect(ind2.getState().shortPeriod).toBe(20);
+    expect(ind2.getState().longPeriod).toBe(40);
+    expect(ind2.getState().signalPeriod).toBe(9);
+  });
+
+  it("refuses resume with a different shortPeriod", () => {
+    const ind1 = createKlinger({ shortPeriod: 34, longPeriod: 55, signalPeriod: 13 });
+    for (let i = 0; i < 50; i++) ind1.next(candles[i]);
+    const state = ind1.getState();
+    expect(() =>
+      createKlinger({ shortPeriod: 20, longPeriod: 55, signalPeriod: 13 }, { fromState: state }),
+    ).toThrow(/incompatible snapshot/);
+  });
+
+  it("refuses resume with a different longPeriod", () => {
+    const ind1 = createKlinger({ shortPeriod: 34, longPeriod: 55, signalPeriod: 13 });
+    for (let i = 0; i < 50; i++) ind1.next(candles[i]);
+    const state = ind1.getState();
+    expect(() =>
+      createKlinger({ shortPeriod: 34, longPeriod: 80, signalPeriod: 13 }, { fromState: state }),
+    ).toThrow(/incompatible snapshot/);
+  });
+
+  it("refuses resume with a different signalPeriod", () => {
+    const ind1 = createKlinger({ shortPeriod: 34, longPeriod: 55, signalPeriod: 13 });
+    for (let i = 0; i < 50; i++) ind1.next(candles[i]);
+    const state = ind1.getState();
+    expect(() =>
+      createKlinger({ shortPeriod: 34, longPeriod: 55, signalPeriod: 9 }, { fromState: state }),
+    ).toThrow(/incompatible snapshot/);
+  });
+
+  it("peek matches next at every bar and does not mutate state", () => {
+    const ind = createKlinger();
+    for (let i = 0; i < 100; i++) {
+      const stateBeforePeek = JSON.stringify(ind.getState());
+      const peeked = ind.peek(candles[i]);
+      expect(JSON.stringify(ind.getState())).toBe(stateBeforePeek);
+      const advanced = ind.next(candles[i]);
+      expect(peeked.value.kvo === null).toBe(advanced.value.kvo === null);
+      if (peeked.value.kvo !== null && advanced.value.kvo !== null) {
+        expect(peeked.value.kvo).toBeCloseTo(advanced.value.kvo, 10);
+      }
+    }
+  });
 });
 
 // ---- DEMA ----
@@ -468,6 +521,125 @@ describe("ALMA incremental", () => {
         expect(Math.abs(v1 - v2!)).toBeLessThan(1e-10);
       }
     }
+  });
+
+  it("fromState restores period / offset / sigma / source when options are not re-passed", () => {
+    // The buffer capacity and the Gaussian weights are functions of all
+    // four shape params. Without explicit restoration, a snapshot from
+    // `{ period: 20, offset: 0.7, sigma: 8 }` would resume under the
+    // canonical 9 / 0.85 / 6 defaults — different weights applied to a
+    // 20-slot buffer = mathematically broken output.
+    const ind1 = createAlma({ period: 20, offset: 0.7, sigma: 8 });
+    for (let i = 0; i < 40; i++) ind1.next(candles[i]);
+    const state = ind1.getState();
+    expect(state.period).toBe(20);
+    expect(state.offset).toBe(0.7);
+    expect(state.sigma).toBe(8);
+
+    // Resume without re-passing options — periods / shape must come
+    // from the snapshot, NOT silently revert to canonical defaults.
+    const ind2 = createAlma({}, { fromState: state });
+    expect(ind2.getState().period).toBe(20);
+    expect(ind2.getState().offset).toBe(0.7);
+    expect(ind2.getState().sigma).toBe(8);
+
+    // Subsequent values must match what ind1 would have produced.
+    for (let i = 40; i < 60; i++) {
+      const v1 = ind1.next(candles[i]).value;
+      const v2 = ind2.next(candles[i]).value;
+      expect(v2).toBeCloseTo(v1!, 10);
+    }
+  });
+
+  it("re-parameterizing on resume carries forward the latest snapshot prices", () => {
+    // The snapshot stores raw source prices (not derived EMA / weighted
+    // values), so a Gaussian-shape change does not invalidate them.
+    // Resuming a 20-bar snapshot under `period: 9` must therefore emit
+    // a non-null value immediately from the latest 9 prices already on
+    // hand — and that value must equal what a fresh 9-bar ALMA would
+    // produce when fed the same 9 prices in order.
+    const ind1 = createAlma({ period: 20, offset: 0.7, sigma: 8 });
+    for (let i = 0; i < 40; i++) ind1.next(candles[i]);
+    const state = ind1.getState();
+
+    const ind2 = createAlma({ period: 9, offset: 0.85, sigma: 6 }, { fromState: state });
+    expect(ind2.getState().period).toBe(9);
+    // `count` preserves the public "candles processed so far" contract
+    // across reconfiguration — 40 bars went through ind1.
+    expect(ind2.getState().count).toBe(40);
+    // Warm-up is gated on the buffer (filled with the latest 9 prices
+    // from the snapshot), not on count. So the indicator emits a
+    // value immediately on the next bar.
+    expect(ind2.isWarmedUp).toBe(true);
+
+    // Compare the resumed indicator's next bar against what a brand-new
+    // 9-bar ALMA, primed with the same raw price tail, would output.
+    const baseline = createAlma({ period: 9, offset: 0.85, sigma: 6 });
+    for (let i = 31; i < 40; i++) baseline.next(candles[i]);
+    const v1 = ind2.next(candles[40]).value;
+    const v2 = baseline.next(candles[40]).value;
+    expect(v1).not.toBeNull();
+    expect(v1).toBeCloseTo(v2!, 10);
+  });
+
+  it("changing source on resume discards the old buffer and warms up fresh", () => {
+    // The buffer holds source-derived numbers (close prices in this
+    // case). Mixing them with `high` prices in the next `period`
+    // outputs would be mathematically incorrect, so the source switch
+    // forces a fresh warm-up regardless of whether shape params match.
+    const ind1 = createAlma({ period: 9, source: "close" });
+    for (let i = 0; i < 30; i++) ind1.next(candles[i]);
+    const state = ind1.getState();
+    expect(state.source).toBe("close");
+
+    const ind2 = createAlma({ source: "high" }, { fromState: state });
+    expect(ind2.getState().source).toBe("high");
+    // `count` preserves the public processed-candles contract even
+    // though the buffer is reset — readers using count for backfill
+    // / progress tracking shouldn't see the counter snap to 0.
+    expect(ind2.getState().count).toBe(30);
+    // Buffer is empty — warm-up is buffer-based.
+    expect(ind2.isWarmedUp).toBe(false);
+
+    // Need a full period of new-source bars before the first output.
+    for (let i = 30; i < 38; i++) {
+      expect(ind2.next(candles[i]).value).toBeNull();
+    }
+    expect(ind2.next(candles[38]).value).not.toBeNull();
+  });
+
+  it("growing the period on resume waits for the buffer to fill before emitting", () => {
+    // When the new period exceeds the snapshot's old period, we don't
+    // have enough buffered prices to compute the wider Gaussian
+    // window. `count` is reset to the carried-over buffer length so
+    // `isWarmedUp` correctly stays false until more bars arrive.
+    const ind1 = createAlma({ period: 9 });
+    for (let i = 0; i < 30; i++) ind1.next(candles[i]);
+    const state = ind1.getState();
+
+    const ind2 = createAlma({ period: 20 }, { fromState: state });
+    // `count` preserves the public processed-candles contract (30
+    // bars went through ind1) regardless of the buffer carry-over.
+    expect(ind2.getState().count).toBe(30);
+    // Warm-up is gated on the buffer (only 9 of 20 entries carried
+    // forward), so the new indicator stays not-yet-warmed-up until
+    // 11 more bars fill the window.
+    expect(ind2.isWarmedUp).toBe(false);
+
+    // Need 11 more bars to fill the new 20-bar window.
+    for (let i = 30; i < 40; i++) {
+      expect(ind2.next(candles[i]).value).toBeNull();
+    }
+    expect(ind2.next(candles[40]).value).not.toBeNull();
+  });
+
+  it("explicit options on resume override persisted state", () => {
+    const ind1 = createAlma({ period: 20, offset: 0.7, sigma: 8 });
+    for (let i = 0; i < 40; i++) ind1.next(candles[i]);
+    const ind2 = createAlma({ period: 5, offset: 0.5, sigma: 4 }, { fromState: ind1.getState() });
+    expect(ind2.getState().period).toBe(5);
+    expect(ind2.getState().offset).toBe(0.5);
+    expect(ind2.getState().sigma).toBe(4);
   });
 });
 

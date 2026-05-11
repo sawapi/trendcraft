@@ -74,6 +74,27 @@ describe("SeriesRegistry", () => {
     expect(rule!.defaultPane).toBe("main");
   });
 
+  it("Supertrend decompose preserves the channel names the dispatcher expects", () => {
+    // The chart's specialized supertrend dispatch
+    // (renderer/series-dispatcher.ts) reads `upperBand`, `lowerBand`,
+    // and `trend` to render the canonical switching line + cloud fill.
+    // Renaming any of these silently disables the renderer.
+    const rule = registry.detect([
+      { time: 1, value: { supertrend: 95, upperBand: 105, lowerBand: 95, direction: 1 } },
+    ]);
+    if (!rule) throw new Error("Supertrend rule not detected");
+
+    const decomposed = rule.decompose({
+      supertrend: 95,
+      upperBand: 105,
+      lowerBand: 95,
+      direction: 1,
+    });
+    expect(decomposed.upperBand).toBe(105);
+    expect(decomposed.lowerBand).toBe(95);
+    expect(decomposed.trend).toBe(1);
+  });
+
   it("detects Parabolic SAR shape", () => {
     const data: DataPoint<{ sar: number; direction: number }>[] = [
       { time: 1, value: { sar: 100, direction: 1 } },

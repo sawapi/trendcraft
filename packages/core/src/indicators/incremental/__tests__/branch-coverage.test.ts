@@ -6,7 +6,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import type { NormalizedCandle } from "../../../types";
+import type { NormalizedCandle, PriceSource } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
 import { createAdxr } from "../momentum/adxr";
 import { createAroon } from "../momentum/aroon";
@@ -436,6 +436,54 @@ describe("HMA (Hull Moving Average)", () => {
     const hma = createHma({ period: 4 }, { warmUp: candles });
     expect(hma.isWarmedUp).toBe(true);
   });
+
+  // Resume contract: HMA is cascaded — `finalWma` carries intermediate
+  // values that depend on `period`, so reconfig is refused.
+  it("fromState restores period / source when options are not re-passed", () => {
+    const hma1 = createHma({ period: 16, source: "high" });
+    for (let i = 0; i < 30; i++) hma1.next(makeCandle(i));
+    const state = hma1.getState();
+
+    const hma2 = createHma({}, { fromState: state });
+    expect(hma2.getState().period).toBe(16);
+    expect(hma2.getState().source).toBe("high");
+  });
+
+  it("refuses resume with a different period", () => {
+    const hma1 = createHma({ period: 16 });
+    for (let i = 0; i < 30; i++) hma1.next(makeCandle(i));
+    const state = hma1.getState();
+
+    expect(() => createHma({ period: 25 }, { fromState: state })).toThrow(/incompatible snapshot/);
+  });
+
+  it("refuses resume with a different source", () => {
+    const hma1 = createHma({ period: 16, source: "close" });
+    for (let i = 0; i < 30; i++) hma1.next(makeCandle(i));
+    const state = hma1.getState();
+
+    expect(() => createHma({ period: 16, source: "high" }, { fromState: state })).toThrow(
+      /incompatible snapshot/,
+    );
+  });
+
+  it("peek matches next at every bar and does not mutate state", () => {
+    const hma = createHma({ period: 4 });
+    // Drive past warmup to exercise both pre-warmup and steady-state branches.
+    for (let i = 0; i < 15; i++) {
+      const candle = makeCandle(i);
+      const stateBeforePeek = JSON.stringify(hma.getState());
+      const peeked = hma.peek(candle);
+      expect(JSON.stringify(hma.getState())).toBe(stateBeforePeek);
+      const advanced = hma.next(candle);
+      if (peeked.value === null) {
+        expect(advanced.value).toBe(null);
+      } else {
+        expect(advanced.value).not.toBe(null);
+        expect(peeked.value).toBeCloseTo(advanced.value!, 10);
+      }
+    }
+  });
 });
 
 // --- VWMA ---
@@ -559,41 +607,150 @@ describe("VolumeAnomaly detection accuracy", () => {
 // --- Elder Force Index ---
 
 describe("Elder Force Index", () => {
-  it("first candle returns null because there is no previous close for comparison", () => {
-    const efi = createElderForceIndex({ period: 3 });
+  // The new dual-period shape: short=2 entry timing, long=13 trend bias.
+  // Use shortPeriod / longPeriod options. `isWarmedUp` is gated by
+  // longPeriod so both EMAs are non-null when it returns true.
+  it("first candle returns { short: null, long: null } (no prevClose yet)", () => {
+    const efi = createElderForceIndex({ shortPeriod: 2, longPeriod: 3 });
     const r = efi.next(makeCandle(0));
-    expect(r.value).toBe(null);
+    expect(r.value.short).toBe(null);
+    expect(r.value.long).toBe(null);
   });
 
-  it("peek before warmup returns null", () => {
-    const efi = createElderForceIndex({ period: 3 });
+  it("peek before long-EMA warmup returns null long", () => {
+    const efi = createElderForceIndex({ shortPeriod: 2, longPeriod: 3 });
     efi.next(makeCandle(0));
     const r = efi.peek(makeCandle(1));
-    expect(r.value).toBe(null);
+    expect(r.value.long).toBe(null);
   });
 
-  it("peek at warmup boundary returns valid value matching next()", () => {
-    const efi = createElderForceIndex({ period: 3 });
+  it("peek at warmup boundary matches next()", () => {
+    const efi = createElderForceIndex({ shortPeriod: 2, longPeriod: 3 });
     for (let i = 0; i < 2; i++) efi.next(makeCandle(i));
     const candle = makeCandle(2);
-    const peekVal = efi.peek(candle).value;
-    expect(peekVal).not.toBe(null);
-    const nextVal = efi.next(candle).value;
-    expect(peekVal).toBeCloseTo(nextVal!, 10);
+    const peek = efi.peek(candle).value;
+    expect(peek.long).not.toBe(null);
+    const next = efi.next(candle).value;
+    expect(peek.short).toBeCloseTo(next.short!, 10);
+    expect(peek.long).toBeCloseTo(next.long!, 10);
   });
 
-  it("fromState restoration produces identical output", () => {
-    const efi1 = createElderForceIndex({ period: 3 });
+  it("fromState restoration produces identical output for both EMAs", () => {
+    const opts = { shortPeriod: 2, longPeriod: 3 };
+    const efi1 = createElderForceIndex(opts);
     for (let i = 0; i < 5; i++) efi1.next(makeCandle(i));
     const state = efi1.getState();
 
-    const efi2 = createElderForceIndex({ period: 3 }, { fromState: state });
-    expect(efi2.next(makeCandle(5)).value).toBeCloseTo(efi1.next(makeCandle(5)).value!, 10);
+    const efi2 = createElderForceIndex(opts, { fromState: state });
+    const v1 = efi1.next(makeCandle(5)).value;
+    const v2 = efi2.next(makeCandle(5)).value;
+    expect(v2.short).toBeCloseTo(v1.short!, 10);
+    expect(v2.long).toBeCloseTo(v1.long!, 10);
   });
 
   it("warmUp option works correctly", () => {
     const candles = generateCandles(5);
-    const efi = createElderForceIndex({ period: 3 }, { warmUp: candles });
+    const efi = createElderForceIndex({ shortPeriod: 2, longPeriod: 3 }, { warmUp: candles });
+    expect(efi.isWarmedUp).toBe(true);
+  });
+
+  it("fromState restores the persisted periods when options are not re-passed", () => {
+    // A state captured under custom periods must continue at those
+    // periods after resume — without this guard the EMAs would
+    // silently switch to canonical 2 / 13 mid-stream, producing a
+    // discontinuous output.
+    const opts = { shortPeriod: 5, longPeriod: 20 };
+    const efi1 = createElderForceIndex(opts);
+    for (let i = 0; i < 25; i++) efi1.next(makeCandle(i));
+    const state = efi1.getState();
+    expect(state.shortPeriod).toBe(5);
+    expect(state.longPeriod).toBe(20);
+
+    // Resume without re-passing options — periods must come from the
+    // snapshot, NOT silently revert to canonical 2 / 13.
+    const efi2 = createElderForceIndex({}, { fromState: state });
+    expect(efi2.getState().shortPeriod).toBe(5);
+    expect(efi2.getState().longPeriod).toBe(20);
+
+    // Subsequent values must match what efi1 would have produced.
+    for (let i = 25; i < 35; i++) {
+      const v1 = efi1.next(makeCandle(i)).value;
+      const v2 = efi2.next(makeCandle(i)).value;
+      expect(v2.short).toBeCloseTo(v1.short!, 10);
+      expect(v2.long).toBeCloseTo(v1.long!, 10);
+    }
+  });
+
+  it("explicit periods on resume override persisted state", () => {
+    const efi1 = createElderForceIndex({ shortPeriod: 5, longPeriod: 20 });
+    for (let i = 0; i < 25; i++) efi1.next(makeCandle(i));
+    // Caller explicitly re-parameterizes on resume — the snapshot's
+    // periods are ignored.
+    const efi2 = createElderForceIndex(
+      { shortPeriod: 3, longPeriod: 10 },
+      { fromState: efi1.getState() },
+    );
+    expect(efi2.getState().shortPeriod).toBe(3);
+    expect(efi2.getState().longPeriod).toBe(10);
+  });
+
+  it("re-parameterizing on resume resets EMA state and produces a fresh warm-up", () => {
+    // The previous EMA / sum / count were accumulated under the old
+    // multipliers; replaying them with new multipliers would produce a
+    // mathematically incorrect series. The new indicator must start
+    // its warm-up from scratch and only inherit `prevClose` from the
+    // snapshot (so the first raw-force computation after resume is
+    // still correct).
+    const efi1 = createElderForceIndex({ shortPeriod: 5, longPeriod: 20 });
+    for (let i = 0; i < 25; i++) efi1.next(makeCandle(i));
+    const snapshot = efi1.getState();
+
+    const efi2 = createElderForceIndex({ shortPeriod: 3, longPeriod: 10 }, { fromState: snapshot });
+
+    // EMAs / sums / count are reset for the new periods. prevClose
+    // carries over so the very next bar still has a valid raw force.
+    const reset = efi2.getState();
+    expect(reset.shortEma).toBeNull();
+    expect(reset.longEma).toBeNull();
+    expect(reset.shortSum).toBe(0);
+    expect(reset.longSum).toBe(0);
+    expect(reset.count).toBe(0);
+    expect(reset.prevClose).toBe(snapshot.prevClose);
+
+    // After feeding shortPeriod=3 bars, the short EMA must be the
+    // canonical SMA seed of the new bars' raw forces (NOT a value
+    // derived from the old 5-period multiplier on the snapshot's
+    // EMA). Compute it manually and compare.
+    const newBars: NormalizedCandle[] = [];
+    for (let i = 25; i < 28; i++) newBars.push(makeCandle(i));
+
+    let prevClose = snapshot.prevClose as number;
+    let sumRaw = 0;
+    for (const c of newBars) {
+      sumRaw += (c.close - prevClose) * c.volume;
+      prevClose = c.close;
+    }
+    const expectedShortSeed = sumRaw / 3;
+
+    let observedShort: number | null = null;
+    for (const c of newBars) observedShort = efi2.next(c).value.short;
+
+    expect(observedShort).not.toBeNull();
+    expect(observedShort as number).toBeCloseTo(expectedShortSeed, 8);
+  });
+
+  it("isWarmedUp accounts for the larger of shortPeriod / longPeriod", () => {
+    // The API allows shortPeriod > longPeriod (Elder's *canonical* pair
+    // is 2 / 13 but nothing forbids 7 / 3, e.g. for an inverted setup
+    // testing entry-vs-trend rolepairing). `isWarmedUp` must wait for
+    // the slower channel to seed — otherwise downstream code can read
+    // a `null` short value while the indicator claims it is ready.
+    const efi = createElderForceIndex({ shortPeriod: 7, longPeriod: 3 });
+    // Long channel warms up at count=3, but short channel needs count=7.
+    for (let i = 0; i < 3; i++) efi.next(makeCandle(i));
+    expect(efi.next(makeCandle(3)).value.long).not.toBe(null);
+    expect(efi.isWarmedUp).toBe(false);
+    for (let i = 4; i < 7; i++) efi.next(makeCandle(i));
     expect(efi.isWarmedUp).toBe(true);
   });
 });
@@ -1074,6 +1231,76 @@ describe("KAMA adapts smoothing constant based on price efficiency", () => {
     const kama = createKama({ period: 3 }, { warmUp: candles });
     expect(kama.isWarmedUp).toBe(true);
   });
+
+  // Resume contract: KAMA is Mixed (price buffer + recursive prevKama).
+  // The recursive component permanently encodes past parameters so
+  // reconfiguring on resume is refused.
+  it("fromState restores period / source / fastSC / slowSC when options are omitted", () => {
+    const k1 = createKama({ period: 10, fastPeriod: 2, slowPeriod: 30, source: "high" });
+    for (let i = 0; i < 15; i++) k1.next(makeCandle(i));
+    const state = k1.getState();
+
+    const k2 = createKama({}, { fromState: state });
+    expect(k2.getState().period).toBe(10);
+    expect(k2.getState().source).toBe("high");
+    expect(k2.getState().fastSC).toBe(2 / 3);
+    expect(k2.getState().slowSC).toBe(2 / 31);
+  });
+
+  it("refuses resume with a different period", () => {
+    const k1 = createKama({ period: 10 });
+    for (let i = 0; i < 15; i++) k1.next(makeCandle(i));
+    const state = k1.getState();
+
+    expect(() => createKama({ period: 14 }, { fromState: state })).toThrow(/incompatible snapshot/);
+  });
+
+  it("refuses resume with a different fastPeriod", () => {
+    const k1 = createKama({ period: 10, fastPeriod: 2 });
+    for (let i = 0; i < 15; i++) k1.next(makeCandle(i));
+    const state = k1.getState();
+
+    expect(() => createKama({ period: 10, fastPeriod: 3 }, { fromState: state })).toThrow(
+      /incompatible snapshot/,
+    );
+  });
+
+  it("refuses resume with a different slowPeriod", () => {
+    const k1 = createKama({ period: 10, slowPeriod: 30 });
+    for (let i = 0; i < 15; i++) k1.next(makeCandle(i));
+    const state = k1.getState();
+
+    expect(() => createKama({ period: 10, slowPeriod: 40 }, { fromState: state })).toThrow(
+      /incompatible snapshot/,
+    );
+  });
+
+  it("refuses resume with a different source", () => {
+    const k1 = createKama({ period: 10, source: "close" });
+    for (let i = 0; i < 15; i++) k1.next(makeCandle(i));
+    const state = k1.getState();
+
+    expect(() => createKama({ period: 10, source: "high" }, { fromState: state })).toThrow(
+      /incompatible snapshot/,
+    );
+  });
+
+  it("peek matches next at every bar and does not mutate state", () => {
+    const kama = createKama({ period: 4 });
+    for (let i = 0; i < 15; i++) {
+      const candle = makeCandle(i + 100);
+      const stateBeforePeek = JSON.stringify(kama.getState());
+      const peeked = kama.peek(candle);
+      expect(JSON.stringify(kama.getState())).toBe(stateBeforePeek);
+      const advanced = kama.next(candle);
+      if (peeked.value === null) {
+        expect(advanced.value).toBe(null);
+      } else {
+        expect(advanced.value).not.toBe(null);
+        expect(peeked.value).toBeCloseTo(advanced.value!, 10);
+      }
+    }
+  });
 });
 
 // --- McGinley Dynamic ---
@@ -1106,6 +1333,62 @@ describe("McGinley Dynamic responds to price changes", () => {
     const candles = generateCandles(5);
     const md = createMcGinleyDynamic({ period: 3 }, { warmUp: candles });
     expect(md.isWarmedUp).toBe(true);
+  });
+
+  // Resume contract: McGinley is recursive (single-pole) — `prevMd`
+  // permanently encodes past parameters, so reconfiguring on resume is
+  // mathematically undefined.
+  it("fromState restores period / k / source when options are not re-passed", () => {
+    const md1 = createMcGinleyDynamic({ period: 7, k: 0.4, source: "high" });
+    for (let i = 0; i < 10; i++) md1.next(makeCandle(i));
+    const state = md1.getState();
+
+    const md2 = createMcGinleyDynamic({}, { fromState: state });
+    expect(md2.getState().period).toBe(7);
+    expect(md2.getState().k).toBe(0.4);
+    expect(md2.getState().source).toBe("high");
+  });
+
+  it("refuses resume with a different period", () => {
+    const md1 = createMcGinleyDynamic({ period: 7 });
+    for (let i = 0; i < 10; i++) md1.next(makeCandle(i));
+    const state = md1.getState();
+
+    expect(() => createMcGinleyDynamic({ period: 14 }, { fromState: state })).toThrow(
+      /incompatible snapshot/,
+    );
+  });
+
+  it("refuses resume with a different k", () => {
+    const md1 = createMcGinleyDynamic({ period: 7, k: 0.6 });
+    for (let i = 0; i < 10; i++) md1.next(makeCandle(i));
+    const state = md1.getState();
+
+    expect(() => createMcGinleyDynamic({ period: 7, k: 1 }, { fromState: state })).toThrow(
+      /incompatible snapshot/,
+    );
+  });
+
+  it("refuses resume with a different source", () => {
+    const md1 = createMcGinleyDynamic({ period: 7, source: "close" });
+    for (let i = 0; i < 10; i++) md1.next(makeCandle(i));
+    const state = md1.getState();
+
+    expect(() =>
+      createMcGinleyDynamic({ period: 7, source: "high" }, { fromState: state }),
+    ).toThrow(/incompatible snapshot/);
+  });
+
+  it("peek matches next at every bar and does not mutate state", () => {
+    const md = createMcGinleyDynamic({ period: 4 });
+    for (let i = 0; i < 12; i++) {
+      const candle = makeCandle(i + 100);
+      const stateBeforePeek = JSON.stringify(md.getState());
+      const peeked = md.peek(candle);
+      expect(JSON.stringify(md.getState())).toBe(stateBeforePeek);
+      const advanced = md.next(candle);
+      expect(peeked.value).toEqual(advanced.value);
+    }
   });
 });
 
@@ -1360,6 +1643,95 @@ describe("Connors RSI streak tracking and composite value", () => {
     crsi.next({ ...makeCandle(0), close: 0 });
     const r = crsi.next(makeCandle(1));
     expect(r.value.rocPercentile).toBe(null);
+  });
+
+  // Resume contract: CRSI is Mixed/Cascaded — two recursive Wilder
+  // RSIs embed past periods, so reconfigure-on-resume is refused.
+  it("fromState restores rsiPeriod / streakPeriod / rocPeriod / source when options are omitted", () => {
+    const c1 = createConnorsRsi({ rsiPeriod: 3, streakPeriod: 2, rocPeriod: 5, source: "high" });
+    for (let i = 0; i < 15; i++) c1.next(makeCandle(i));
+    const state = c1.getState();
+
+    const c2 = createConnorsRsi({}, { fromState: state });
+    expect(c2.getState().rsiPeriod).toBe(3);
+    expect(c2.getState().streakPeriod).toBe(2);
+    expect(c2.getState().rocPeriod).toBe(5);
+    expect(c2.getState().source).toBe("high");
+  });
+
+  it("refuses resume with a different rsiPeriod", () => {
+    const c1 = createConnorsRsi({ rsiPeriod: 3, streakPeriod: 2, rocPeriod: 5 });
+    for (let i = 0; i < 15; i++) c1.next(makeCandle(i));
+    const state = c1.getState();
+
+    expect(() =>
+      createConnorsRsi({ rsiPeriod: 5, streakPeriod: 2, rocPeriod: 5 }, { fromState: state }),
+    ).toThrow(/incompatible snapshot/);
+  });
+
+  it("refuses resume with a different streakPeriod", () => {
+    const c1 = createConnorsRsi({ rsiPeriod: 3, streakPeriod: 2, rocPeriod: 5 });
+    for (let i = 0; i < 15; i++) c1.next(makeCandle(i));
+    const state = c1.getState();
+
+    expect(() =>
+      createConnorsRsi({ rsiPeriod: 3, streakPeriod: 3, rocPeriod: 5 }, { fromState: state }),
+    ).toThrow(/incompatible snapshot/);
+  });
+
+  it("refuses resume with a different rocPeriod", () => {
+    const c1 = createConnorsRsi({ rsiPeriod: 3, streakPeriod: 2, rocPeriod: 5 });
+    for (let i = 0; i < 15; i++) c1.next(makeCandle(i));
+    const state = c1.getState();
+
+    expect(() =>
+      createConnorsRsi({ rsiPeriod: 3, streakPeriod: 2, rocPeriod: 10 }, { fromState: state }),
+    ).toThrow(/incompatible snapshot/);
+  });
+
+  it("refuses resume with a different source", () => {
+    const c1 = createConnorsRsi({ rsiPeriod: 3, streakPeriod: 2, rocPeriod: 5, source: "close" });
+    for (let i = 0; i < 15; i++) c1.next(makeCandle(i));
+    const state = c1.getState();
+
+    expect(() =>
+      createConnorsRsi(
+        { rsiPeriod: 3, streakPeriod: 2, rocPeriod: 5, source: "high" },
+        { fromState: state },
+      ),
+    ).toThrow(/incompatible snapshot/);
+  });
+
+  it("peek matches next at every bar and does not mutate state", () => {
+    const crsi = createConnorsRsi({ rsiPeriod: 3, streakPeriod: 2, rocPeriod: 5 });
+    for (let i = 0; i < 20; i++) {
+      const candle = makeCandle(i);
+      const stateBeforePeek = JSON.stringify(crsi.getState());
+      const peeked = crsi.peek(candle);
+      expect(JSON.stringify(crsi.getState())).toBe(stateBeforePeek);
+      const advanced = crsi.next(candle);
+      // Both should agree on which sub-values are null vs numeric
+      expect(peeked.value.crsi === null).toBe(advanced.value.crsi === null);
+      if (peeked.value.crsi !== null && advanced.value.crsi !== null) {
+        expect(peeked.value.crsi).toBeCloseTo(advanced.value.crsi, 10);
+      }
+    }
+  });
+
+  // Pre-this-PR snapshots have no `source` field. They are not
+  // resumable — re-warm is required. (The natural source-equality
+  // check throws since `undefined !== <any-string>`.)
+  it("rejects pre-source snapshots regardless of options.source", () => {
+    const fresh = createConnorsRsi({ rsiPeriod: 3, streakPeriod: 2, rocPeriod: 5 });
+    for (let i = 0; i < 10; i++) fresh.next(makeCandle(i));
+    const legacy = { ...fresh.getState(), source: undefined as unknown as PriceSource };
+    expect(() => createConnorsRsi({}, { fromState: legacy })).toThrow(/incompatible snapshot/);
+    expect(() =>
+      createConnorsRsi(
+        { rsiPeriod: 3, streakPeriod: 2, rocPeriod: 5, source: "close" },
+        { fromState: legacy },
+      ),
+    ).toThrow(/incompatible snapshot/);
   });
 });
 
@@ -1951,6 +2323,54 @@ describe("Ichimoku cloud components", () => {
     expect(r.value.chikou).toBe(null);
   });
 
+  it("isWarmedUp also waits for senkouA when kijunPeriod exceeds senkouBPeriod", () => {
+    // The API allows callers to flip the canonical period ordering.
+    // When `kijunPeriod > senkouBPeriod`, senkouA is the slower
+    // displaced channel — it needs `kijunPeriod + displacement` bars
+    // to settle. A naive `senkouBPeriod + displacement` threshold
+    // would fire early and leave `value.senkouA` null.
+    const ichi = createIchimoku({
+      tenkanPeriod: 3,
+      kijunPeriod: 20,
+      senkouBPeriod: 10,
+      displacement: 3,
+    });
+    // Past senkouB threshold (10 + 3 = 13), before senkouA threshold
+    // (20 + 3 = 23).
+    for (let i = 0; i < 22; i++) ichi.next(makeCandle(i));
+    expect(ichi.isWarmedUp).toBe(false);
+
+    // Feed up to count = 23.
+    ichi.next(makeCandle(22));
+    expect(ichi.isWarmedUp).toBe(true);
+    // The very next bar must have a non-null senkouA.
+    expect(ichi.next(makeCandle(23)).value.senkouA).not.toBeNull();
+  });
+
+  it("isWarmedUp waits for senkouB to settle, not just kijun + displacement", () => {
+    // The latest channel to settle is Senkou Span B: it needs
+    // `senkouBPeriod` bars to compute its base AND `displacement`
+    // bars to carry that base forward. Previously `isWarmedUp` only
+    // checked `kijunPeriod + displacement`, which fired early
+    // whenever `senkouBPeriod > kijunPeriod` (the canonical 9/26/52
+    // setup) — `value.senkouB` was still null at that point.
+    const ichi = createIchimoku({
+      tenkanPeriod: 3,
+      kijunPeriod: 5,
+      senkouBPeriod: 10,
+      displacement: 3,
+    });
+    // Past kijun+displacement (8) but before senkouBPeriod+displacement (13).
+    for (let i = 0; i < 10; i++) ichi.next(makeCandle(i));
+    expect(ichi.isWarmedUp).toBe(false);
+
+    // Feed up through count = senkouBPeriod + displacement = 13.
+    for (let i = 10; i < 13; i++) ichi.next(makeCandle(i));
+    expect(ichi.isWarmedUp).toBe(true);
+    // The very next bar must have a non-null senkouB.
+    expect(ichi.next(makeCandle(13)).value.senkouB).not.toBeNull();
+  });
+
   it("peek does not modify internal Ichimoku state", () => {
     const ichi = createIchimoku({ tenkanPeriod: 3, kijunPeriod: 5, displacement: 3 });
     for (let i = 0; i < 10; i++) ichi.next(makeCandle(i));
@@ -2170,10 +2590,11 @@ describe("Single candle input returns null/initial values for indicators that ne
     expect(r.value.viPlus).toBe(null);
   });
 
-  it("Elder Force Index single candle: null (no prevClose)", () => {
-    const efi = createElderForceIndex({ period: 3 });
+  it("Elder Force Index single candle: { short: null, long: null } (no prevClose)", () => {
+    const efi = createElderForceIndex({ shortPeriod: 2, longPeriod: 3 });
     const r = efi.next(makeCandle(0));
-    expect(r.value).toBe(null);
+    expect(r.value.short).toBe(null);
+    expect(r.value.long).toBe(null);
   });
 
   it("ADL single candle: returns a number, isWarmedUp=true", () => {
