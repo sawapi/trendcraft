@@ -13,6 +13,7 @@
  */
 
 import type { NormalizedCandle } from "../../../types";
+import { type AlmaState, createAlma } from "../moving-average/alma";
 import { createSma, type SmaState } from "../moving-average/sma";
 import { describeContract } from "./contract-helper";
 
@@ -43,6 +44,31 @@ describeContract<number | null, SmaState>({
   version: 1,
   defaultParams: { period: 20, source: "close" },
   reconfigParams: [{ period: 8 }, { period: 30 }],
+  makeCandles,
+  streamLength: 100,
+});
+
+// ---- ALMA (Wave 1 ALMA cluster, Category Windowed, version 1) ----
+
+describeContract<number | null, AlmaState>({
+  name: "alma",
+  create: (opts, warmUp) =>
+    createAlma(
+      opts as {
+        period?: number;
+        offset?: number;
+        sigma?: number;
+        source?: "close" | "high";
+      },
+      warmUp,
+    ),
+  category: "windowed",
+  version: 1,
+  defaultParams: { period: 9, offset: 0.85, sigma: 6, source: "close" },
+  // Mix period changes with offset/sigma changes so the windowed
+  // reconfig invariant exercises shape changes that aren't just
+  // period grows/shrinks.
+  reconfigParams: [{ period: 14 }, { period: 5 }, { offset: 0.5 }, { sigma: 3 }],
   makeCandles,
   streamLength: 100,
 });

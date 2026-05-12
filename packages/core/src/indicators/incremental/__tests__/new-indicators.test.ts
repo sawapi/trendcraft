@@ -532,16 +532,16 @@ describe("ALMA incremental", () => {
     const ind1 = createAlma({ period: 20, offset: 0.7, sigma: 8 });
     for (let i = 0; i < 40; i++) ind1.next(candles[i]);
     const state = ind1.getState();
-    expect(state.period).toBe(20);
-    expect(state.offset).toBe(0.7);
-    expect(state.sigma).toBe(8);
+    expect(state.meta.params.period).toBe(20);
+    expect(state.meta.params.offset).toBe(0.7);
+    expect(state.meta.params.sigma).toBe(8);
 
-    // Resume without re-passing options — periods / shape must come
-    // from the snapshot, NOT silently revert to canonical defaults.
+    // Resume without re-passing options — params must come from the
+    // snapshot, NOT silently revert to canonical defaults.
     const ind2 = createAlma({}, { fromState: state });
-    expect(ind2.getState().period).toBe(20);
-    expect(ind2.getState().offset).toBe(0.7);
-    expect(ind2.getState().sigma).toBe(8);
+    expect(ind2.getState().meta.params.period).toBe(20);
+    expect(ind2.getState().meta.params.offset).toBe(0.7);
+    expect(ind2.getState().meta.params.sigma).toBe(8);
 
     // Subsequent values must match what ind1 would have produced.
     for (let i = 40; i < 60; i++) {
@@ -563,10 +563,10 @@ describe("ALMA incremental", () => {
     const state = ind1.getState();
 
     const ind2 = createAlma({ period: 9, offset: 0.85, sigma: 6 }, { fromState: state });
-    expect(ind2.getState().period).toBe(9);
+    expect(ind2.getState().meta.params.period).toBe(9);
     // `count` preserves the public "candles processed so far" contract
     // across reconfiguration — 40 bars went through ind1.
-    expect(ind2.getState().count).toBe(40);
+    expect(ind2.getState().state.count).toBe(40);
     // Warm-up is gated on the buffer (filled with the latest 9 prices
     // from the snapshot), not on count. So the indicator emits a
     // value immediately on the next bar.
@@ -582,30 +582,22 @@ describe("ALMA incremental", () => {
     expect(v1).toBeCloseTo(v2!, 10);
   });
 
-  it("changing source on resume discards the old buffer and warms up fresh", () => {
-    // The buffer holds source-derived numbers (close prices in this
-    // case). Mixing them with `high` prices in the next `period`
-    // outputs would be mathematically incorrect, so the source switch
-    // forces a fresh warm-up regardless of whether shape params match.
+  it("changing source on resume throws (Windowed source-change refuse rule)", () => {
+    // The buffer holds source-derived numbers (close prices here).
+    // Mixing them with `high` prices in the next `period` outputs
+    // would be mathematically incorrect. Under the 0.4.0 State
+    // Contract, a `source` change on resume is library-wide refused
+    // (rather than silently discarding and re-warming), forcing the
+    // caller to make a deliberate choice between re-warming a fresh
+    // instance or keeping the original source.
     const ind1 = createAlma({ period: 9, source: "close" });
     for (let i = 0; i < 30; i++) ind1.next(candles[i]);
     const state = ind1.getState();
-    expect(state.source).toBe("close");
+    expect(state.meta.params.source).toBe("close");
 
-    const ind2 = createAlma({ source: "high" }, { fromState: state });
-    expect(ind2.getState().source).toBe("high");
-    // `count` preserves the public processed-candles contract even
-    // though the buffer is reset — readers using count for backfill
-    // / progress tracking shouldn't see the counter snap to 0.
-    expect(ind2.getState().count).toBe(30);
-    // Buffer is empty — warm-up is buffer-based.
-    expect(ind2.isWarmedUp).toBe(false);
-
-    // Need a full period of new-source bars before the first output.
-    for (let i = 30; i < 38; i++) {
-      expect(ind2.next(candles[i]).value).toBeNull();
-    }
-    expect(ind2.next(candles[38]).value).not.toBeNull();
+    expect(() => createAlma({ source: "high" }, { fromState: state })).toThrow(
+      /source mismatch|incompatible snapshot/,
+    );
   });
 
   it("growing the period on resume waits for the buffer to fill before emitting", () => {
@@ -620,7 +612,7 @@ describe("ALMA incremental", () => {
     const ind2 = createAlma({ period: 20 }, { fromState: state });
     // `count` preserves the public processed-candles contract (30
     // bars went through ind1) regardless of the buffer carry-over.
-    expect(ind2.getState().count).toBe(30);
+    expect(ind2.getState().state.count).toBe(30);
     // Warm-up is gated on the buffer (only 9 of 20 entries carried
     // forward), so the new indicator stays not-yet-warmed-up until
     // 11 more bars fill the window.
@@ -637,9 +629,9 @@ describe("ALMA incremental", () => {
     const ind1 = createAlma({ period: 20, offset: 0.7, sigma: 8 });
     for (let i = 0; i < 40; i++) ind1.next(candles[i]);
     const ind2 = createAlma({ period: 5, offset: 0.5, sigma: 4 }, { fromState: ind1.getState() });
-    expect(ind2.getState().period).toBe(5);
-    expect(ind2.getState().offset).toBe(0.5);
-    expect(ind2.getState().sigma).toBe(4);
+    expect(ind2.getState().meta.params.period).toBe(5);
+    expect(ind2.getState().meta.params.offset).toBe(0.5);
+    expect(ind2.getState().meta.params.sigma).toBe(4);
   });
 });
 
