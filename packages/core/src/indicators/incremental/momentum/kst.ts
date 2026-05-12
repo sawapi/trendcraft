@@ -11,6 +11,7 @@
 import type { NormalizedCandle, PriceSource } from "../../../types";
 import type { SmaState } from "../moving-average/sma";
 import { createSma } from "../moving-average/sma";
+import type { IndicatorSnapshot } from "../state-contract";
 import type { IncrementalIndicator, WarmUpOptions } from "../types";
 import { makeCandle } from "../utils";
 import type { RocState } from "./roc";
@@ -23,8 +24,13 @@ export type KstValue = {
 
 export type KstState = {
   rocStates: [RocState, RocState, RocState, RocState];
-  smaStates: [SmaState, SmaState, SmaState, SmaState];
-  signalSmaState: SmaState;
+  smaStates: [
+    IndicatorSnapshot<SmaState>,
+    IndicatorSnapshot<SmaState>,
+    IndicatorSnapshot<SmaState>,
+    IndicatorSnapshot<SmaState>,
+  ];
+  signalSmaState: IndicatorSnapshot<SmaState>;
   rocPeriods: [number, number, number, number];
   smaPeriods: [number, number, number, number];
   weights: [number, number, number, number];
@@ -169,7 +175,12 @@ export function createKst(
     getState(): KstState {
       return {
         rocStates: rocs.map((r) => r.getState()) as [RocState, RocState, RocState, RocState],
-        smaStates: smas.map((s) => s.getState()) as [SmaState, SmaState, SmaState, SmaState],
+        smaStates: smas.map((s) => s.getState()) as [
+          IndicatorSnapshot<SmaState>,
+          IndicatorSnapshot<SmaState>,
+          IndicatorSnapshot<SmaState>,
+          IndicatorSnapshot<SmaState>,
+        ],
         signalSmaState: signalSma.getState(),
         rocPeriods,
         smaPeriods,

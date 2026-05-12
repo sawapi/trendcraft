@@ -12,6 +12,7 @@ import type { NormalizedCandle } from "../../../types";
 import { createDmi, type DmiState } from "../../incremental/momentum/dmi";
 import { createSma, type SmaState } from "../../incremental/moving-average/sma";
 import { CircularBuffer } from "../circular-buffer";
+import type { IndicatorSnapshot } from "../state-contract";
 import type { IncrementalIndicator, WarmUpOptions } from "../types";
 import { type AtrState, createAtr } from "./atr";
 import { type BollingerBandsState, createBollingerBands } from "./bollinger-bands";
@@ -38,7 +39,7 @@ export type RegimeState = {
   atrState: AtrState;
   bbState: BollingerBandsState;
   dmiState: DmiState;
-  smaState: SmaState;
+  smaState: IndicatorSnapshot<SmaState>;
   atrBuffer: ReturnType<CircularBuffer<number>["snapshot"]>;
   bwBuffer: ReturnType<CircularBuffer<number>["snapshot"]>;
   count: number;
@@ -109,7 +110,7 @@ export function createRegime(
     BollingerBandsState
   >;
   let dmiInd: ReturnType<typeof createDmi>;
-  let smaInd: IncrementalIndicator<number | null, SmaState>;
+  let smaInd: IncrementalIndicator<number | null, IndicatorSnapshot<SmaState>>;
   let atrBuffer: CircularBuffer<number>;
   let bwBuffer: CircularBuffer<number>;
   let count: number;

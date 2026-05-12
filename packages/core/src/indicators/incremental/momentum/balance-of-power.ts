@@ -8,11 +8,12 @@
 import type { NormalizedCandle } from "../../../types";
 import type { SmaState } from "../moving-average/sma";
 import { createSma } from "../moving-average/sma";
+import type { IndicatorSnapshot } from "../state-contract";
 import type { IncrementalIndicator, WarmUpOptions } from "../types";
 import { makeCandle } from "../utils";
 
 export type BalanceOfPowerState = {
-  smaState: SmaState;
+  smaState: IndicatorSnapshot<SmaState>;
   smoothPeriod: number;
   count: number;
 };

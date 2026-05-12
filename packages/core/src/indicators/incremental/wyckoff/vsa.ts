@@ -13,6 +13,7 @@ import type { NormalizedCandle } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
 import type { SmaState } from "../moving-average/sma";
 import { createSma } from "../moving-average/sma";
+import type { IndicatorSnapshot } from "../state-contract";
 import type { IncrementalIndicator, WarmUpOptions } from "../types";
 import type { AtrState } from "../volatility/atr";
 import { createAtr } from "../volatility/atr";
@@ -54,7 +55,7 @@ type CandleEntry = {
 
 export type VsaState = {
   atrState: AtrState;
-  volumeSmaState: SmaState;
+  volumeSmaState: IndicatorSnapshot<SmaState>;
   candleBuffer: ReturnType<CircularBuffer<CandleEntry>["snapshot"]>;
   volumeMaPeriod: number;
   atrPeriod: number;

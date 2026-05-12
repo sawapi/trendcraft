@@ -306,6 +306,28 @@ createFrama({ period: 14 }, { fromState: stateWith9 });
 
 For Category A (Windowed), period change is supported via carry-forward; source change still throws.
 
+### 5.3 Streaming session / pipeline persistence
+
+`createLiveCandle` / `createPipeline` / `createSession` store each
+indicator's `getState()` output as opaque `unknown` and pass it back
+to the indicator's factory on resume. Because the wire format of
+`getState()` changes to `IndicatorSnapshot<TState>`, **streaming
+session snapshots persisted under 0.3.x cannot be resumed in
+0.4.0**:
+
+- Operators upgrading a long-running streaming process must re-warm
+  from candle history rather than restore from the old session blob.
+- Session-level state (aggregator state, completed candles, etc.) is
+  unaffected — only the per-indicator snapshots inside the session
+  blob are incompatible.
+- The error surfaces with the standard `<indicator>: incompatible
+  snapshot, re-warm required` message thrown by `resolveResume`'s
+  meta-validation step.
+
+Strategy JSON (`serializeStrategy` / `parseStrategy`) describes
+indicator *configurations*, not runtime state — it is unaffected by
+this change.
+
 ## 6. Roadmap
 
 Five phases, ~4-5 weeks total. Each phase lands as a PR into
