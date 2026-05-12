@@ -1,0 +1,48 @@
+/**
+ * State Contract integration tests for migrated indicators.
+ *
+ * Every indicator migrated to the 0.4.0 State Contract registers
+ * here via `describeContract`. The DSL generates the seven invariants
+ * (round-trip, name guard, version guard, reconfig per category,
+ * peek consistency, warmup gate) automatically — pinning the contract
+ * uniformly across the library.
+ *
+ * Phase 2 migration adds entries to this file. The file should never
+ * shrink (only add new indicators) so this becomes a stable "what's
+ * migrated" registry.
+ */
+
+import type { NormalizedCandle } from "../../../types";
+import { createSma, type SmaState } from "../moving-average/sma";
+import { describeContract } from "./contract-helper";
+
+// ---- Shared candle generator ----
+
+function makeCandles(n: number): NormalizedCandle[] {
+  // Deterministic, mildly volatile series: trend + sine + noise.
+  return Array.from({ length: n }, (_, i) => {
+    const close = 100 + i * 0.05 + Math.sin(i * 0.3) * 5 + ((i * 7) % 11) * 0.1;
+    return {
+      time: 1700000000000 + i * 86400000,
+      open: close - 0.3,
+      high: close + 1.2,
+      low: close - 1.1,
+      close,
+      volume: 1000 + (i % 13) * 50,
+    };
+  });
+}
+
+// ---- SMA (Wave 1, Category Windowed, version 1) ----
+
+describeContract<number | null, SmaState>({
+  name: "sma",
+  create: (opts, warmUp) =>
+    createSma(opts as { period?: number; source?: "close" | "high" }, warmUp),
+  category: "windowed",
+  version: 1,
+  defaultParams: { period: 20, source: "close" },
+  reconfigParams: [{ period: 8 }, { period: 30 }],
+  makeCandles,
+  streamLength: 100,
+});

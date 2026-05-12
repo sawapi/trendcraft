@@ -95,8 +95,14 @@ function assertConsistency(
   }
 }
 
+// Test helper parameter `createFn` accepts a heterogeneous family of
+// indicator factories with disjoint option shapes. `unknown[]` is too
+// strict for inference (TS2345 against every concrete factory); the
+// runtime call already does `createFn(...args)`, so `any[]` here is
+// honest and unblocks `tsc --noEmit` as a pre-commit gate (see
+// `feedback_test_before_commit.md`).
 function peekTest(
-  createFn: (...args: unknown[]) => {
+  createFn: (...args: any[]) => {
     next: (c: NormalizedCandle) => unknown;
     peek: (c: NormalizedCandle) => unknown;
     getState: () => unknown;
@@ -104,7 +110,7 @@ function peekTest(
   args: unknown[],
   warmUpCount: number,
 ) {
-  const ind = (createFn as any)(...args);
+  const ind = createFn(...args);
   for (let i = 0; i < warmUpCount; i++) ind.next(candles[i]);
   const stateBefore = JSON.stringify(ind.getState());
   ind.peek(candles[warmUpCount]);
@@ -112,8 +118,9 @@ function peekTest(
   expect(stateAfter).toBe(stateBefore);
 }
 
+// Same rationale as peekTest above re: `any[]` for the factory.
 function stateRestoreTest(
-  createFn: (...args: unknown[]) => {
+  createFn: (...args: any[]) => {
     next: (c: NormalizedCandle) => { value: unknown };
     getState: () => unknown;
   },
@@ -121,10 +128,10 @@ function stateRestoreTest(
   splitAt: number,
   extractValue?: (v: unknown) => number | null,
 ) {
-  const ind1 = (createFn as any)(...args);
+  const ind1 = createFn(...args);
   for (let i = 0; i < splitAt; i++) ind1.next(candles[i]);
   const state = ind1.getState();
-  const ind2 = (createFn as any)(args[0], { fromState: state });
+  const ind2 = createFn(args[0], { fromState: state });
   const extract = extractValue ?? ((v: unknown) => v as number | null);
 
   for (let i = splitAt; i < splitAt + 50; i++) {

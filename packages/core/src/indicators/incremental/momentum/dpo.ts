@@ -13,6 +13,7 @@
 import type { NormalizedCandle, PriceSource } from "../../../types";
 import type { SmaState } from "../moving-average/sma";
 import { createSma } from "../moving-average/sma";
+import type { IndicatorSnapshot } from "../state-contract";
 import type { IncrementalIndicator, WarmUpOptions } from "../types";
 import { getSourcePrice } from "../utils";
 
@@ -25,7 +26,7 @@ export type DpoState = {
   period: number;
   source: PriceSource;
   shift: number;
-  smaState: SmaState;
+  smaState: IndicatorSnapshot<SmaState>;
   pending: PendingEntry[];
   /** Number of entries already resolved and removed from pending head */
   resolvedOffset: number;
