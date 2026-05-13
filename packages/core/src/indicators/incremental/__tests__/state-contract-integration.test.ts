@@ -18,8 +18,13 @@ import { createSma, type SmaState } from "../moving-average/sma";
 import { createVwma, type VwmaState } from "../moving-average/vwma";
 import { createWma, type WmaState } from "../moving-average/wma";
 import { type ChoppinessIndexState, createChoppinessIndex } from "../volatility/choppiness-index";
+import {
+  createStandardDeviation,
+  type StandardDeviationState,
+} from "../volatility/standard-deviation";
 import { createUlcerIndex, type UlcerIndexState } from "../volatility/ulcer-index";
 import { createTwap, type TwapState } from "../volume/twap";
+import { createVwap, type VwapState } from "../volume/vwap";
 import { describeContract } from "./contract-helper";
 
 // ---- Shared candle generator ----
@@ -155,3 +160,44 @@ describeContract<number | null, TwapState>({
   makeCandles,
   streamLength: 100,
 });
+
+// ---- Bundle B: Standard Deviation / VWAP ----
+
+// Standard Deviation — Windowed, same defaultless-period pattern as
+// SMA / WMA / VWMA. Buffer carries forward on reconfig; sum / sumSq
+// are recomputed from the carried samples.
+describeContract<number | null, StandardDeviationState>({
+  name: "standardDeviation",
+  create: (opts, warmUp) =>
+    createStandardDeviation(opts as { period?: number; source?: "close" | "high" }, warmUp),
+  category: "windowed",
+  version: 1,
+  defaultParams: { period: 20, source: "close" },
+  reconfigParams: [{ period: 10 }, { period: 30 }],
+  makeCandles,
+  streamLength: 100,
+});
+
+// VWAP — Recursive, parameter-less (daily session reset is the only
+// "reconfig" knob and it's hardcoded). `meta.params` is always `{}`,
+// so reconfig is structurally impossible and the recursive-refuse
+// invariant is skipped via an empty `reconfigParams`. The remaining
+// invariants (round-trip, name guard, version guard, peek, warmup)
+// still cover the meaningful contract surface.
+describeContract<VwapValueWithFlatField, VwapState>({
+  name: "vwap",
+  // describeContract compares values via `expectValueEqual` which
+  // recurses into nested object keys, so the `{ vwap: ... }` output
+  // works without flattening.
+  create: (opts, warmUp) => createVwap(opts as Record<string, never>, warmUp),
+  category: "recursive",
+  version: 1,
+  defaultParams: {},
+  reconfigParams: [],
+  makeCandles,
+  streamLength: 100,
+});
+
+// Local alias so the `describeContract<TValue, TState>` generic captures
+// the composite VWAP value type without polluting public exports.
+type VwapValueWithFlatField = { vwap: number | null };
