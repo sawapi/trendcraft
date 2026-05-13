@@ -209,11 +209,13 @@ describe("Ulcer Index incremental", () => {
     }
   });
 
-  it("legacy single-buffer state snapshot is rejected with a clear error", () => {
-    // Snapshot produced by the pre-canonical (single-buffer) code path
-    // that shipped in earlier versions. Restoring it under the new
-    // two-stage formula would silently produce wrong values, so the
-    // factory must throw a recognizable error instead.
+  it("pre-0.4.0 bare-state snapshot is rejected by the State Contract", () => {
+    // A pre-0.4.0 snapshot is bare state without the `meta` envelope.
+    // Includes the now-removed single-buffer field as well — both
+    // shapes flunk the same missing-meta check in resolveResume.
+    // The dedicated translation shim that used to live inside
+    // createUlcerIndex was removed (STATE_CONTRACT.md §4.1: per-
+    // indicator guards aren't added; resolveResume handles it).
     const legacyState = {
       period: 14,
       source: "close" as const,
@@ -221,7 +223,7 @@ describe("Ulcer Index incremental", () => {
       count: 3,
     };
     expect(() => createUlcerIndex({ period: 14 }, { fromState: legacyState as never })).toThrow(
-      /legacy state snapshot/i,
+      /incompatible snapshot|pre-0\.4\.0/i,
     );
   });
 });

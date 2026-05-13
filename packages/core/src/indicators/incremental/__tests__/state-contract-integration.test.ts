@@ -15,7 +15,11 @@
 import type { NormalizedCandle } from "../../../types";
 import { type AlmaState, createAlma } from "../moving-average/alma";
 import { createSma, type SmaState } from "../moving-average/sma";
+import { createVwma, type VwmaState } from "../moving-average/vwma";
 import { createWma, type WmaState } from "../moving-average/wma";
+import { type ChoppinessIndexState, createChoppinessIndex } from "../volatility/choppiness-index";
+import { createUlcerIndex, type UlcerIndexState } from "../volatility/ulcer-index";
+import { createTwap, type TwapState } from "../volume/twap";
 import { describeContract } from "./contract-helper";
 
 // ---- Shared candle generator ----
@@ -84,6 +88,70 @@ describeContract<number | null, WmaState>({
   version: 1,
   defaultParams: { period: 20, source: "close" },
   reconfigParams: [{ period: 10 }, { period: 30 }],
+  makeCandles,
+  streamLength: 100,
+});
+
+// ---- Bundle A: VWMA / Choppiness Index / Ulcer Index / TWAP ----
+
+// VWMA — Windowed, same defaultless-period pattern as SMA/WMA.
+describeContract<number | null, VwmaState>({
+  name: "vwma",
+  create: (opts, warmUp) =>
+    createVwma(opts as { period?: number; source?: "close" | "high" }, warmUp),
+  category: "windowed",
+  version: 1,
+  defaultParams: { period: 20, source: "close" },
+  reconfigParams: [{ period: 10 }, { period: 30 }],
+  makeCandles,
+  streamLength: 100,
+});
+
+// Choppiness Index — Windowed; `period` has a canonical default of 14
+// (Bill Dreiss). TR/H/L buffers carry forward as raw values.
+describeContract<number | null, ChoppinessIndexState>({
+  name: "choppinessIndex",
+  create: (opts, warmUp) => createChoppinessIndex(opts as { period?: number }, warmUp),
+  category: "windowed",
+  version: 1,
+  defaultParams: { period: 14 },
+  reconfigParams: [{ period: 7 }, { period: 28 }],
+  makeCandles,
+  streamLength: 200,
+});
+
+// Ulcer Index — Windowed two-stage. On reconfig the `prices` buffer
+// carries forward but `drawdowns` is cleared and re-derived (each
+// drawdown is per-period). Effective re-warmup margin is therefore
+// up to `2 * newPeriod` post-resume bars.
+describeContract<number | null, UlcerIndexState>({
+  name: "ulcerIndex",
+  create: (opts, warmUp) =>
+    createUlcerIndex(opts as { period?: number; source?: "close" | "high" }, warmUp),
+  category: "windowed",
+  version: 1,
+  defaultParams: { period: 14, source: "close" },
+  reconfigParams: [{ period: 7 }, { period: 28 }],
+  // Two-stage warmup: prices buffer + drawdowns buffer. After reconfig
+  // both must re-fill before the resumed series matches a fresh run.
+  // `2 * newPeriod` is the safe upper bound (worst case: oldPeriod=0).
+  reconfigMargin: (newOpts) => 2 * (newOpts.period as number),
+  makeCandles,
+  streamLength: 200,
+});
+
+// TWAP — Recursive (`cumTp` accumulator with session-boundary resets;
+// no raw-price window to carry forward). Any `sessionResetPeriod`
+// change throws via the recursive policy.
+describeContract<number | null, TwapState>({
+  name: "twap",
+  create: (opts, warmUp) => createTwap(opts as { sessionResetPeriod?: "session" | number }, warmUp),
+  category: "recursive",
+  version: 1,
+  defaultParams: { sessionResetPeriod: "session" },
+  // Exercise both directions: switch to a numeric session AND between
+  // two different numeric sessions.
+  reconfigParams: [{ sessionResetPeriod: 60 }, { sessionResetPeriod: 30 }],
   makeCandles,
   streamLength: 100,
 });

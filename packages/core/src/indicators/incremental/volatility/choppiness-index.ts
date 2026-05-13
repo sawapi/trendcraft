@@ -1,20 +1,46 @@
 /**
  * Incremental Choppiness Index
  *
+ * State category: **Windowed** (raw TR / high / low buffers).
+ * Migrated to the 0.4.0 State Contract: `getState()` returns
+ * `IndicatorSnapshot<ChoppinessIndexState>` and `fromState` accepts
+ * the same.
+ *
  * CHOP = 100 * LOG10(SUM(TR, period) / (HH - LL)) / LOG10(period)
+ *
+ * Defaults: `period` defaults to `14` (canonical Bill Dreiss value).
+ * Reconfig on resume carries the TR / high / low buffers forward
+ * (raw values, no per-period derivation needed).
  */
 
 import type { NormalizedCandle } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import {
+  type IndicatorSnapshot,
+  makeSnapshot,
+  requireParam,
+  resolveResume,
+} from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 
+/**
+ * Bare state shape for Choppiness Index. Params (`period`) live in
+ * `meta.params` on the wire — they are not part of the bare state.
+ * `log10Period` is a derived cache and is recomputed at construction.
+ */
 export type ChoppinessIndexState = {
-  period: number;
   trBuffer: ReturnType<CircularBuffer<number>["snapshot"]>;
   highBuffer: ReturnType<CircularBuffer<number>["snapshot"]>;
   lowBuffer: ReturnType<CircularBuffer<number>["snapshot"]>;
   prevClose: number | null;
   count: number;
+};
+
+/** Per-indicator schema version. Bump on any breaking state change. */
+export const CHOPPINESS_INDEX_VERSION = 1;
+
+type ChoppinessIndexParams = {
+  period: number;
 };
 
 /**
@@ -31,12 +57,30 @@ export type ChoppinessIndexState = {
  */
 export function createChoppinessIndex(
   options: { period?: number } = {},
-  warmUpOptions?: WarmUpOptions<ChoppinessIndexState>,
-): IncrementalIndicator<number | null, ChoppinessIndexState> {
-  const period = options.period ?? 14;
-  if (period < 2) {
-    throw new Error("Choppiness Index period must be at least 2");
-  }
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<ChoppinessIndexState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<number | null, IndicatorSnapshot<ChoppinessIndexState>> {
+  const { params, state, reconfigured } = resolveResume<
+    ChoppinessIndexParams,
+    ChoppinessIndexState
+  >({
+    indicator: "choppinessIndex",
+    version: CHOPPINESS_INDEX_VERSION,
+    category: "windowed",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { period: 14 },
+  });
+
+  const period = requireParam(
+    "choppinessIndex",
+    params,
+    "period",
+    (v): v is number => Number.isInteger(v) && v >= 2,
+    "must be an integer >= 2",
+  );
   const log10Period = Math.log10(period);
 
   let trBuffer: CircularBuffer<number>;
@@ -45,13 +89,34 @@ export function createChoppinessIndex(
   let prevClose: number | null;
   let count: number;
 
-  if (warmUpOptions?.fromState) {
-    const s = warmUpOptions.fromState;
-    trBuffer = CircularBuffer.fromSnapshot(s.trBuffer);
-    highBuffer = CircularBuffer.fromSnapshot(s.highBuffer);
-    lowBuffer = CircularBuffer.fromSnapshot(s.lowBuffer);
-    prevClose = s.prevClose;
-    count = s.count;
+  if (state !== null) {
+    if (reconfigured) {
+      // Period change. Buffers are raw TR / high / low values — no
+      // per-period derivation, so we just carry forward the most
+      // recent min(snapshot.length, newPeriod) samples into buffers
+      // sized at the new period.
+      const oldTr = CircularBuffer.fromSnapshot(state.trBuffer);
+      const oldH = CircularBuffer.fromSnapshot(state.highBuffer);
+      const oldL = CircularBuffer.fromSnapshot(state.lowBuffer);
+      trBuffer = new CircularBuffer<number>(period);
+      highBuffer = new CircularBuffer<number>(period);
+      lowBuffer = new CircularBuffer<number>(period);
+      const available = oldTr.length;
+      const carryStart = Math.max(0, available - period);
+      for (let i = carryStart; i < available; i++) {
+        trBuffer.push(oldTr.get(i));
+        highBuffer.push(oldH.get(i));
+        lowBuffer.push(oldL.get(i));
+      }
+      prevClose = state.prevClose;
+      count = state.count;
+    } else {
+      trBuffer = CircularBuffer.fromSnapshot(state.trBuffer);
+      highBuffer = CircularBuffer.fromSnapshot(state.highBuffer);
+      lowBuffer = CircularBuffer.fromSnapshot(state.lowBuffer);
+      prevClose = state.prevClose;
+      count = state.count;
+    }
   } else {
     trBuffer = new CircularBuffer<number>(period);
     highBuffer = new CircularBuffer<number>(period);
@@ -83,7 +148,7 @@ export function createChoppinessIndex(
     return (100 * Math.log10(trSum / range)) / log10Period;
   }
 
-  const indicator: IncrementalIndicator<number | null, ChoppinessIndexState> = {
+  const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<ChoppinessIndexState>> = {
     next(candle: NormalizedCandle) {
       count++;
 
@@ -125,7 +190,12 @@ export function createChoppinessIndex(
       peekH.push(candle.high);
       peekL.push(candle.low);
 
-      if (peekTr.length < period) return { time: candle.time, value: null };
+      // Same gate as `compute()`: need a full buffer AND we must be
+      // past the first-bar TR=0 (count + 1 > period means at least
+      // one TR computed from a real prevClose has rolled in).
+      if (peekTr.length < period || count + 1 <= period) {
+        return { time: candle.time, value: null };
+      }
 
       let trSum = 0;
       let hh = Number.NEGATIVE_INFINITY;
@@ -142,15 +212,19 @@ export function createChoppinessIndex(
       return { time: candle.time, value: (100 * Math.log10(trSum / range)) / log10Period };
     },
 
-    getState(): ChoppinessIndexState {
-      return {
-        period,
-        trBuffer: trBuffer.snapshot(),
-        highBuffer: highBuffer.snapshot(),
-        lowBuffer: lowBuffer.snapshot(),
-        prevClose,
-        count,
-      };
+    getState(): IndicatorSnapshot<ChoppinessIndexState> {
+      return makeSnapshot(
+        "choppinessIndex",
+        CHOPPINESS_INDEX_VERSION,
+        { period },
+        {
+          trBuffer: trBuffer.snapshot(),
+          highBuffer: highBuffer.snapshot(),
+          lowBuffer: lowBuffer.snapshot(),
+          prevClose,
+          count,
+        },
+      );
     },
 
     get count() {
@@ -158,7 +232,7 @@ export function createChoppinessIndex(
     },
 
     get isWarmedUp() {
-      return trBuffer.isFull;
+      return trBuffer.length >= period && count > period;
     },
   };
 
