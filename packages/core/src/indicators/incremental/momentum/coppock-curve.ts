@@ -12,6 +12,7 @@
 import type { NormalizedCandle, PriceSource } from "../../../types";
 import type { WmaState } from "../moving-average/wma";
 import { createWma } from "../moving-average/wma";
+import type { IndicatorSnapshot } from "../state-contract";
 import type { IncrementalIndicator, WarmUpOptions } from "../types";
 import { makeCandle } from "../utils";
 import type { RocState } from "./roc";
@@ -27,7 +28,7 @@ export type CoppockCurveState = {
   source: PriceSource;
   longRocState: RocState;
   shortRocState: RocState;
-  wmaState: WmaState;
+  wmaState: IndicatorSnapshot<WmaState>;
   count: number;
 };
 

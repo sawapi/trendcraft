@@ -15,6 +15,7 @@
 import type { NormalizedCandle } from "../../../types";
 import { type AlmaState, createAlma } from "../moving-average/alma";
 import { createSma, type SmaState } from "../moving-average/sma";
+import { createWma, type WmaState } from "../moving-average/wma";
 import { describeContract } from "./contract-helper";
 
 // ---- Shared candle generator ----
@@ -69,6 +70,20 @@ describeContract<number | null, AlmaState>({
   // reconfig invariant exercises shape changes that aren't just
   // period grows/shrinks.
   reconfigParams: [{ period: 14 }, { period: 5 }, { offset: 0.5 }, { sigma: 3 }],
+  makeCandles,
+  streamLength: 100,
+});
+
+// ---- WMA (Wave 1 WMA cluster, Category Windowed, version 1) ----
+
+describeContract<number | null, WmaState>({
+  name: "wma",
+  create: (opts, warmUp) =>
+    createWma(opts as { period?: number; source?: "close" | "high" }, warmUp),
+  category: "windowed",
+  version: 1,
+  defaultParams: { period: 20, source: "close" },
+  reconfigParams: [{ period: 10 }, { period: 30 }],
   makeCandles,
   streamLength: 100,
 });

@@ -283,7 +283,7 @@ describe("WMA mathematical correctness", () => {
     });
     // WMA = (10*1 + 20*2 + 30*3) / (1+2+3) = (10+40+90)/6 = 140/6
     const state = wma.getState();
-    expect(state.count).toBe(3);
+    expect(state.state.count).toBe(3);
   });
 
   it("WMA peek returns correct value without modifying internal state", () => {

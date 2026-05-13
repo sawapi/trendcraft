@@ -258,6 +258,61 @@ ALMA: incompatible snapshot, re-warm required (period mismatch: snapshot=9 reque
 `resolveResume` constructs the message; per-indicator code does not
 need to format it.
 
+### 4.1 Error-handling responsibility (library invariant)
+
+**The library propagates errors with context; the caller is
+responsible for catching them and deciding the recovery path.** This
+is a library-wide invariant — every Wave / every cluster / every
+future migration follows it. It exists because:
+
+- A composite indicator (HMA, Coppock, KST, DPO, …) embeds nested
+  leaf indicators. When a nested leaf throws (e.g. `wma:
+  incompatible snapshot`) the error reaches the caller through the
+  composite call. The library does **not** pre-translate the error
+  to the composite's name.
+- The caller's call site is the only place that has full context
+  (which indicator was invoked, what user-facing action triggered
+  it, what UX response is appropriate). The library cannot guess
+  that — and shouldn't try.
+- Per-wrapper translation shims (`if nested state is legacy, throw
+  with wrapper name`) would be reactive: every time a new composite
+  uses an existing leaf, the existing leaf or its callers would
+  need a new shim. That couples leaves to their consumers and
+  scales poorly across ~90 indicators.
+
+The implication: when you call `createXxx({}, { fromState })` and
+catch `Error("<indicator>: incompatible snapshot, ...")`, your code
+is the right place to handle it. Standard recovery paths:
+
+```ts
+// 1. Re-warm from candle history (most common).
+try {
+  ind = createHma({ period: 16 }, { fromState: savedHma });
+} catch (err) {
+  ind = createHma({ period: 16 });
+  for (const candle of warmUpCandles) ind.next(candle);
+}
+
+// 2. Fall back to a fresh instance with no warm-up.
+try {
+  ind = createHma({ period: 16 }, { fromState: savedHma });
+} catch {
+  ind = createHma({ period: 16 });
+}
+
+// 3. Surface to the operator with your own UI text.
+try {
+  ind = createHma({ period: 16 }, { fromState: savedHma });
+} catch (err) {
+  logger.warn("HMA state from older release; re-warming", err);
+  // ... your re-warm or skip logic
+}
+```
+
+Library code itself never catches `resolveResume` errors — that
+would conflate the library's job (detection + clear reporting) with
+the caller's job (recovery policy).
+
 ## 5. Migration guide (0.3.x → 0.4.0)
 
 For library consumers:
@@ -327,6 +382,39 @@ session snapshots persisted under 0.3.x cannot be resumed in
 Strategy JSON (`serializeStrategy` / `parseStrategy`) describes
 indicator *configurations*, not runtime state — it is unaffected by
 this change.
+
+### 5.4 Error surface for legacy nested snapshots (intentional)
+
+When a Wave-N migrated leaf indicator (e.g., WMA migrated in Wave 1)
+is embedded in an unmigrated wrapper (e.g., HMA / Coppock Curve,
+which migrate in their own Wave), resuming a pre-0.4.0 wrapper
+snapshot causes the inner leaf's `resolveResume()` to throw
+`<leaf>: incompatible snapshot, re-warm required` with `missing
+meta`. The caller sees a leaf-scoped error inside a wrapper call.
+
+**This is the intended behavior** and follows directly from §4.1's
+error-handling invariant: the library propagates errors with
+context, the caller decides recovery. We deliberately do not add
+per-wrapper legacy guards because:
+
+1. **It violates §4.1.** Per-wrapper guards translate / pre-handle
+   errors that should propagate to the caller's call site.
+2. **Symmetry across the library.** ALMA (a leaf with no wrapper)
+   only ever throws as itself. SMA (leaf) is wrapped by 7
+   indicators — those wrappers also surface the SMA error directly,
+   no shim. If WMA added per-wrapper guards in HMA/Coppock, the
+   contract would behave asymmetrically across migration waves and
+   would need a new shim every time a new composite is added.
+3. **The error message correctly identifies the failing leaf.**
+   `wma: incompatible snapshot` inside an HMA call tells the caller
+   exactly which nested state is the problem; §4.1's recovery
+   patterns (re-warm / fall back / surface) apply unchanged.
+
+When the wrapper itself is migrated in a later Wave, its own
+top-level `resolveResume()` will throw first (e.g., `hma:
+incompatible snapshot`) before reaching the nested leaf. At that
+point the user-facing error becomes wrapper-scoped naturally — no
+bridge code needed and nothing to delete.
 
 ## 6. Roadmap
 
