@@ -162,7 +162,7 @@ describe("State persistence", () => {
   testStatePersistence(
     "VWAP",
     () => createVwap(),
-    (s) => createVwap({ fromState: s as any }),
+    (s) => createVwap({}, { fromState: s as any }),
   );
 
   testStatePersistence(
