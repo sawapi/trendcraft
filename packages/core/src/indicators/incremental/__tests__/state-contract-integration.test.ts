@@ -18,11 +18,13 @@ import { createSma, type SmaState } from "../moving-average/sma";
 import { createVwma, type VwmaState } from "../moving-average/vwma";
 import { createWma, type WmaState } from "../moving-average/wma";
 import { type ChoppinessIndexState, createChoppinessIndex } from "../volatility/choppiness-index";
+import { createDonchianChannel, type DonchianState } from "../volatility/donchian-channel";
 import {
   createStandardDeviation,
   type StandardDeviationState,
 } from "../volatility/standard-deviation";
 import { createUlcerIndex, type UlcerIndexState } from "../volatility/ulcer-index";
+import { type AnchoredVwapState, createAnchoredVwap } from "../volume/anchored-vwap";
 import { createTwap, type TwapState } from "../volume/twap";
 import { createVwap, type VwapState } from "../volume/vwap";
 import { describeContract } from "./contract-helper";
@@ -201,3 +203,52 @@ describeContract<VwapValueWithFlatField, VwapState>({
 // Local alias so the `describeContract<TValue, TState>` generic captures
 // the composite VWAP value type without polluting public exports.
 type VwapValueWithFlatField = { vwap: number | null };
+
+// ---- Bundle C: Donchian Channel / Anchored VWAP ----
+
+// Donchian Channel — Windowed, same defaultless-period pattern as
+// SMA / WMA / VWMA / SD. high/low buffers carry forward as raw values.
+describeContract<DonchianValueShape, DonchianState>({
+  name: "donchianChannel",
+  create: (opts, warmUp) => createDonchianChannel(opts as { period?: number }, warmUp),
+  category: "windowed",
+  version: 1,
+  defaultParams: { period: 20 },
+  reconfigParams: [{ period: 10 }, { period: 30 }],
+  makeCandles,
+  streamLength: 100,
+});
+
+type DonchianValueShape = {
+  upper: number | null;
+  middle: number | null;
+  lower: number | null;
+};
+
+// Anchored VWAP — Recursive (cumulative TPV/volume accumulators from
+// a fixed anchor time). Any `anchorTime` or `bands` change throws via
+// the recursive policy.
+//
+// `anchorTime: 1700000000000` matches the start of `makeCandles`, so
+// the indicator anchors on the first candle and produces a non-null
+// value immediately (satisfying invariant [7]).
+describeContract<AnchoredVwapValueShape, AnchoredVwapState>({
+  name: "anchoredVwap",
+  create: (opts, warmUp) =>
+    createAnchoredVwap(opts as { anchorTime?: number; bands?: number }, warmUp),
+  category: "recursive",
+  version: 1,
+  defaultParams: { anchorTime: 1700000000000, bands: 0 },
+  // Exercise refuse on both anchor and band changes.
+  reconfigParams: [{ anchorTime: 1700000000000 + 5 * 86400000 }, { bands: 1 }],
+  makeCandles,
+  streamLength: 100,
+});
+
+type AnchoredVwapValueShape = {
+  vwap: number | null;
+  upper1?: number | null;
+  lower1?: number | null;
+  upper2?: number | null;
+  lower2?: number | null;
+};

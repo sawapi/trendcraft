@@ -312,10 +312,10 @@ export function describeContract<TValue, TState>(config: ContractConfig<TValue, 
       let firstWarmupBar = -1;
       for (let i = 0; i < streamLength; i++) {
         const peeked = ind.peek(candles[i]);
-        const peekedNullBefore = peeked.value === null;
+        const peekedNullBefore = isNullishValue(peeked.value);
 
         const advanced = ind.next(candles[i]);
-        const advancedNull = advanced.value === null;
+        const advancedNull = isNullishValue(advanced.value);
 
         // peek and next must agree on null-ness at the same bar.
         expect(peekedNullBefore).toBe(advancedNull);
@@ -334,6 +334,26 @@ export function describeContract<TValue, TState>(config: ContractConfig<TValue, 
       }
     });
   });
+}
+
+/**
+ * "Looks like a null value" predicate that handles both primitive
+ * `null` (used by `number | null` outputs like SMA / RSI) and
+ * composite-all-null objects (used by multi-field outputs like
+ * Donchian's `{ upper, middle, lower }`). During warmup, composite
+ * indicators emit an object whose fields are all `null` rather than
+ * the bare value `null`; without this normalization the warmup-gate
+ * invariant treats those bars as already non-null.
+ */
+function isNullishValue(v: unknown): boolean {
+  if (v === null || v === undefined) return true;
+  if (typeof v !== "object" || Array.isArray(v)) return false;
+  const values = Object.values(v as Record<string, unknown>);
+  if (values.length === 0) return false;
+  // Treat an object as null when every present field is null.
+  // Optional fields that are simply absent (undefined) don't count
+  // against this — only fields explicitly emitted as null do.
+  return values.every((x) => x === null || x === undefined);
 }
 
 // ---- Internal helpers ----
