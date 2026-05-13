@@ -12,6 +12,7 @@
  */
 
 import type { NormalizedCandle, PriceSource } from "../../../types";
+import type { IndicatorSnapshot } from "../state-contract";
 import type { IncrementalIndicator, WarmUpOptions } from "../types";
 import { makeCandle } from "../utils";
 import type { WmaState } from "./wma";
@@ -20,9 +21,9 @@ import { createWma } from "./wma";
 export type HmaState = {
   period: number;
   source: PriceSource;
-  halfWmaState: WmaState;
-  fullWmaState: WmaState;
-  finalWmaState: WmaState;
+  halfWmaState: IndicatorSnapshot<WmaState>;
+  fullWmaState: IndicatorSnapshot<WmaState>;
+  finalWmaState: IndicatorSnapshot<WmaState>;
   count: number;
 };
 
