@@ -100,8 +100,11 @@ export type ConnectIndicatorsOptions = {
  * Options accepted by `add()`.
  *
  * - `series`: visual overrides (color, pane, lineWidth, etc.)
- * - `snapshotName`: override the computed snapshot name. Use this to mount multiple
- *   instances of a preset whose snapshotName is a static string (e.g. `"emaRibbon"`).
+ * - `snapshotName`: explicit instance id. When supplied, this is used verbatim
+ *   and collisions throw (caller asked for this exact name and must own it).
+ *   When omitted, the preset's derived name is used as a base and the library
+ *   auto-suffixes with `#2`, `#3`, … on collision so multiple instances of the
+ *   same preset can coexist without boilerplate.
  * - Any other key is treated as a parameter override for the preset.
  */
 export type AddIndicatorOptions = {
@@ -366,13 +369,26 @@ export function connectIndicators(
       ...paramOverrides
     } = options ?? {};
     const params = { ...preset.defaultParams, ...paramOverrides };
-    const snapshotName = userSnapshotName ?? resolveSnapshotName(preset, params);
+    const baseSnapshotName = userSnapshotName ?? resolveSnapshotName(preset, params);
 
+    // Identity policy:
+    // - Explicit `userSnapshotName`: caller asked for this exact id, so a
+    //   collision is a caller bug. Throw with a clear migration hint.
+    // - Derived (preset-default) name: collisions are normal when the host
+    //   wants multiple instances of the same preset (different colors, fast/
+    //   slow pairs at the same period, etc.). Auto-suffix with `#2`, `#3`,
+    //   … so the boilerplate isn't pushed onto every host.
+    let snapshotName = baseSnapshotName;
     if (active.has(snapshotName)) {
-      const existing = active.get(snapshotName);
-      throw new Error(
-        `Indicator snapshotName "${snapshotName}" is already added (preset="${existing?.presetId}"). Either the params produce the same snapshotName as an existing one, or this preset uses a static snapshotName. Pass { snapshotName: "custom-id" } to disambiguate, or remove the existing one first.`,
-      );
+      if (userSnapshotName !== undefined) {
+        const existing = active.get(snapshotName);
+        throw new Error(
+          `Indicator snapshotName "${snapshotName}" is already added (preset="${existing?.presetId}"). The id was set explicitly via { snapshotName: ... } so it must be unique — pick a different value, or remove the existing one first.`,
+        );
+      }
+      let suffix = 2;
+      while (active.has(`${baseSnapshotName}#${suffix}`)) suffix++;
+      snapshotName = `${baseSnapshotName}#${suffix}`;
     }
 
     // Determine if this indicator can stream
