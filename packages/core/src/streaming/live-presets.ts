@@ -74,9 +74,11 @@ import {
   createPpo,
   createPvt,
   createQStick,
+  createReturns,
   createRoc,
   createRsi,
   createSma,
+  createStandardDeviation,
   createStc,
   createStochastics,
   createStochRsi,
@@ -160,10 +162,12 @@ import {
   PPO_META,
   PVT_META,
   QSTICK_META,
+  RETURNS_META,
   ROC_META,
   RSI_META,
   SMA_META,
   STC_META,
+  STD_DEV_META,
   STOCH_RSI_META,
   STOCHASTICS_META,
   SUPERTREND_META,
@@ -257,7 +261,7 @@ export const livePresets: Record<string, LivePreset> = {
   sma: {
     meta: SMA_META,
     defaultParams: { period: 20 },
-    snapshotName: (p) => `sma${p.period}`,
+    snapshotName: (p) => `sma_${p.source ?? "close"}_${p.period ?? 20}`,
     createFactory: factory<{ source?: PriceSource; period?: number }>()(createSma, (p) => ({
       period: p.period ?? 20,
       source: p.source,
@@ -318,7 +322,7 @@ export const livePresets: Record<string, LivePreset> = {
   dema: {
     meta: DEMA_META,
     defaultParams: { period: 20 },
-    snapshotName: (p) => `dema${p.period}`,
+    snapshotName: (p) => `dema_${p.source ?? "close"}_${p.period ?? 20}`,
     createFactory: factory<{ source?: PriceSource; period?: number }>()(createDema, (p) => ({
       period: p.period ?? 20,
       source: p.source,
@@ -327,7 +331,7 @@ export const livePresets: Record<string, LivePreset> = {
   tema: {
     meta: TEMA_META,
     defaultParams: { period: 20 },
-    snapshotName: (p) => `tema${p.period}`,
+    snapshotName: (p) => `tema_${p.source ?? "close"}_${p.period ?? 20}`,
     createFactory: factory<{ source?: PriceSource; period?: number }>()(createTema, (p) => ({
       period: p.period ?? 20,
       source: p.source,
@@ -336,7 +340,7 @@ export const livePresets: Record<string, LivePreset> = {
   zlema: {
     meta: ZLEMA_META,
     defaultParams: { period: 20 },
-    snapshotName: (p) => `zlema${p.period}`,
+    snapshotName: (p) => `zlema_${p.source ?? "close"}_${p.period ?? 20}`,
     createFactory: factory<{ source?: PriceSource; period?: number }>()(createZlema, (p) => ({
       period: p.period ?? 20,
       source: p.source,
@@ -361,7 +365,7 @@ export const livePresets: Record<string, LivePreset> = {
   frama: {
     meta: FRAMA_META,
     defaultParams: { period: 16 },
-    snapshotName: (p) => `frama${p.period}`,
+    snapshotName: (p) => `frama_${p.source ?? "close"}_${p.period ?? 16}`,
     createFactory: factory<{ source?: PriceSource; period?: number }>()(createFrama, (p) => ({
       period: p.period ?? 16,
       source: p.source,
@@ -599,7 +603,7 @@ export const livePresets: Record<string, LivePreset> = {
   kst: {
     meta: KST_META,
     defaultParams: { signalPeriod: 9 },
-    snapshotName: "kst",
+    snapshotName: (p) => `kst_${p.source ?? "close"}_${p.signalPeriod ?? 9}`,
     createFactory: factory<{ source?: PriceSource; signalPeriod?: number }>()(createKst, (p) => ({
       signalPeriod: p.signalPeriod ?? 9,
       source: p.source,
@@ -608,7 +612,7 @@ export const livePresets: Record<string, LivePreset> = {
   hurst: {
     meta: HURST_META,
     defaultParams: { minWindow: 20, maxWindow: 100 },
-    snapshotName: "hurst",
+    snapshotName: (p) => `hurst_${p.source ?? "close"}_${p.minWindow ?? 20}_${p.maxWindow ?? 100}`,
     createFactory: factory<{ source?: PriceSource; minWindow?: number; maxWindow?: number }>()(
       createHurst,
       (p) => ({
@@ -719,7 +723,7 @@ export const livePresets: Record<string, LivePreset> = {
   hv: {
     meta: HV_META,
     defaultParams: { period: 20 },
-    snapshotName: (p) => `hv${p.period}`,
+    snapshotName: (p) => `hv_${p.source ?? "close"}_${p.period ?? 20}_${p.annualFactor ?? 252}`,
     createFactory: factory<{ source?: PriceSource; period?: number; annualFactor?: number }>()(
       createHistoricalVolatility,
       (p) => ({
@@ -746,11 +750,25 @@ export const livePresets: Record<string, LivePreset> = {
   ulcer: {
     meta: ULCER_META,
     defaultParams: { period: 14 },
-    snapshotName: (p) => `ulcer${p.period}`,
+    snapshotName: (p) => `ulcer_${p.source ?? "close"}_${p.period ?? 14}`,
     createFactory: factory<{ source?: PriceSource; period?: number }>()(createUlcerIndex, (p) => ({
       period: p.period ?? 14,
       source: p.source,
     })),
+  },
+  standardDeviation: {
+    meta: STD_DEV_META,
+    defaultParams: { period: 20 },
+    // Key matches `STD_DEV_META.kind` so `livePresets.standardDeviation`
+    // and `indicatorPresets.standardDeviation` reach the same factory.
+    snapshotName: (p) => `stddev_${p.source ?? "close"}_${p.period ?? 20}`,
+    createFactory: factory<{ period?: number; source?: PriceSource }>()(
+      createStandardDeviation,
+      (p) => ({
+        period: p.period ?? 20,
+        source: p.source,
+      }),
+    ),
   },
 
   // Trend
@@ -949,6 +967,15 @@ export const livePresets: Record<string, LivePreset> = {
     snapshotName: (p) => `hilo${p.period}`,
     createFactory: factory<{ period?: number }>()(createHighestLowest, (p) => ({
       period: p.period ?? 20,
+    })),
+  },
+  returns: {
+    meta: RETURNS_META,
+    defaultParams: { period: 1, type: "simple" },
+    snapshotName: (p) => `returns_${p.type ?? "simple"}_${p.period ?? 1}`,
+    createFactory: factory<{ period?: number; type?: "simple" | "log" }>()(createReturns, (p) => ({
+      period: p.period ?? 1,
+      type: p.type ?? "simple",
     })),
   },
   pivotPoints: {

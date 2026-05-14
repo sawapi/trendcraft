@@ -1,19 +1,40 @@
 /**
  * Incremental Returns
  *
+ * State category: **Windowed** (raw close buffer; the only state is
+ * the last `period` close values).
+ * Migrated to the 0.4.0 State Contract: `getState()` returns
+ * `IndicatorSnapshot<ReturnsState>` and `fromState` accepts the same.
+ *
  * n-period simple or log returns of close prices.
- * Holds the last `period` close values in a CircularBuffer.
+ *
+ * Defaults: `period` defaults to `1` (the universal pandas / NumPy /
+ * quantstats convention — `r_t = close_t / close_{t-1} - 1`).
+ * `type` defaults to `"simple"`. Reconfig may change either param;
+ * the close buffer carries forward as raw values and the new
+ * `period` / `type` apply from the next bar onward.
  */
 
 import type { NormalizedCandle } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import { type IndicatorSnapshot, makeSnapshot, resolveResume } from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 
+/**
+ * Bare state shape for Returns. Params (`period`, `type`) live in
+ * `meta.params` on the wire — they are not part of the bare state.
+ */
 export type ReturnsState = {
-  period: number;
-  type: "simple" | "log";
   buffer: ReturnType<CircularBuffer<number>["snapshot"]>;
   count: number;
+};
+
+/** Per-indicator schema version. Bump on any breaking state change. */
+export const RETURNS_VERSION = 1;
+
+type ReturnsParams = {
+  period: number;
+  type: "simple" | "log";
 };
 
 /**
@@ -33,13 +54,28 @@ export type ReturnsState = {
  */
 export function createReturns(
   options: { period?: number; type?: "simple" | "log" } = {},
-  warmUpOptions?: WarmUpOptions<ReturnsState>,
-): IncrementalIndicator<number | null, ReturnsState> {
-  const period = options.period ?? 1;
-  const type: "simple" | "log" = options.type ?? "simple";
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<ReturnsState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<number | null, IndicatorSnapshot<ReturnsState>> {
+  const { params, state, reconfigured } = resolveResume<ReturnsParams, ReturnsState>({
+    indicator: "returns",
+    version: RETURNS_VERSION,
+    category: "windowed",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { period: 1, type: "simple" },
+  });
 
-  if (period < 1) {
-    throw new Error("Returns period must be at least 1");
+  const period = params.period;
+  const type = params.type;
+
+  if (!Number.isInteger(period) || period < 1) {
+    throw new Error('returns: option "period" must be a positive integer');
+  }
+  if (type !== "simple" && type !== "log") {
+    throw new Error('returns: option "type" must be "simple" or "log"');
   }
 
   // Buffer holds the last `period` closes (i.e. closes at index t-period..t-1);
@@ -47,9 +83,25 @@ export function createReturns(
   let buffer: CircularBuffer<number>;
   let count: number;
 
-  if (warmUpOptions?.fromState) {
-    buffer = CircularBuffer.fromSnapshot(warmUpOptions.fromState.buffer);
-    count = warmUpOptions.fromState.count;
+  if (state !== null) {
+    if (reconfigured) {
+      // Period change. Carry forward the most recent min(snapshot, newPeriod)
+      // raw closes into a buffer at the new capacity. No sums to recompute —
+      // the return computation reads the buffer's oldest slot directly.
+      // A `type` change leaves the buffer untouched (raw closes) but the
+      // returned values shift from simple to log formula from the next bar.
+      const oldBuffer = CircularBuffer.fromSnapshot(state.buffer);
+      buffer = new CircularBuffer<number>(period);
+      const available = oldBuffer.length;
+      const carryStart = Math.max(0, available - period);
+      for (let i = carryStart; i < available; i++) {
+        buffer.push(oldBuffer.get(i));
+      }
+      count = state.count;
+    } else {
+      buffer = CircularBuffer.fromSnapshot(state.buffer);
+      count = state.count;
+    }
   } else {
     buffer = new CircularBuffer<number>(period);
     count = 0;
@@ -60,7 +112,7 @@ export function createReturns(
     return type === "log" ? Math.log(current / prev) : (current - prev) / prev;
   }
 
-  const indicator: IncrementalIndicator<number | null, ReturnsState> = {
+  const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<ReturnsState>> = {
     next(candle: NormalizedCandle) {
       const current = candle.close;
       let value: number | null = null;
@@ -78,8 +130,13 @@ export function createReturns(
       return { time: candle.time, value: calc(candle.close, buffer.oldest()) };
     },
 
-    getState(): ReturnsState {
-      return { period, type, buffer: buffer.snapshot(), count };
+    getState(): IndicatorSnapshot<ReturnsState> {
+      return makeSnapshot(
+        "returns",
+        RETURNS_VERSION,
+        { period, type },
+        { buffer: buffer.snapshot(), count },
+      );
     },
 
     get count() {

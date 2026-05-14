@@ -139,7 +139,6 @@ import {
   ORDER_BLOCK_META,
   SESSION_BREAKOUT_META,
   SLOW_STOCH_META,
-  STD_DEV_META,
   SWING_POINTS_META,
   VOL_REGIME_META,
   VOLUME_MA_META,
@@ -1673,18 +1672,16 @@ export const indicatorPresets: Record<string, IndicatorPreset> = {
   // ============================================
   // Additional Volatility
   // ============================================
-  standardDeviation: {
-    meta: STD_DEV_META,
-    defaultParams: { period: 20 },
-    snapshotName: "stdDev",
-    compute: typedCompute<{ period?: number }>((c, p) =>
-      standardDeviation(c, { period: p.period ?? 20 }),
-    ),
-    category: "Volatility",
-    name: "Standard Deviation",
-    description: "Raw standard deviation of closing prices over a rolling window.",
-    paramSchema: [period(20)],
-  },
+  standardDeviation: withCompute<{ period?: number; source?: PriceSource }>(
+    "standardDeviation",
+    (c, p) => standardDeviation(c, { period: p.period ?? 20, source: p.source }),
+    {
+      category: "Volatility",
+      name: "Standard Deviation",
+      description: "Raw standard deviation of closing prices over a rolling window.",
+      paramSchema: [period(20)],
+    },
+  ),
   ewmaVol: withCompute<{ lambda?: number }>(
     "ewmaVol",
     (c, p) => {
@@ -2059,21 +2056,20 @@ export const indicatorPresets: Record<string, IndicatorPreset> = {
     description: "Rolling minimum of candle lows over N bars.",
     paramSchema: [period(20, 2, 500)],
   },
-  returns: {
-    meta: { kind: "returns", overlay: false, label: "Returns" },
-    defaultParams: { period: 1, type: "simple" },
-    snapshotName: (p: Record<string, unknown>) => `ret${p.period}-${p.type ?? "simple"}`,
-    compute: typedCompute<{ period?: number; type?: "simple" | "log" }>((c, p) =>
+  returns: withCompute<{ period?: number; type?: "simple" | "log" }>(
+    "returns",
+    (c, p) =>
       returns(c, {
         period: p.period ?? 1,
         type: p.type ?? "simple",
       }),
-    ),
-    category: "Price",
-    name: "Returns",
-    description: "Bar-over-bar percentage or log returns of close prices.",
-    paramSchema: [period(1, 1, 100)],
-  },
+    {
+      category: "Price",
+      name: "Returns",
+      description: "Bar-over-bar percentage or log returns of close prices.",
+      paramSchema: [period(1, 1, 100)],
+    },
+  ),
   cumulativeReturns: {
     meta: { kind: "cumulativeReturns", overlay: false, label: "Cum. Returns" },
     defaultParams: { type: "simple" },

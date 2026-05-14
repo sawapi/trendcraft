@@ -501,3 +501,98 @@ The following were agreed before Phase 0 finalization:
 5. ✓ Source change always refuses reconfig (even for Windowed).
 6. ✓ `fromState` type breaking change to `IndicatorSnapshot<S>` is
    accepted (0.x breaking-change allowance).
+## 10. `snapshotName` contract key (Wave 1 final)
+
+### 10.1. Purpose
+
+Every `LivePreset` exports `snapshotName(params)` — a string that
+identifies a specific configuration of an indicator. Two concerns
+share this key:
+
+1. **Internal uniqueness** — `connectIndicators` uses it as a duplicate
+   guard so the same `(indicator, params)` combination can only be
+   registered once per live session.
+2. **External persistence** — host applications use it as the
+   filename / cache key under which they serialize the snapshot
+   returned by `getState()`.
+
+These responsibilities are coupled: a key that is unstable for the
+host is fine as long as the same logical configuration always
+resolves to the same key. The bug pattern this section formalizes is
+**different param sets resolving to the same key** (silent
+overwrite) or **the same logical configuration resolving to different
+keys across versions** (silent cold-start).
+
+### 10.2. Contract
+
+For any preset whose `createFactory` accepts a parameter `P`,
+`snapshotName(params)` MUST satisfy:
+
+- **Surjective on variants.** If two `params` differ in any value
+  that `createFactory` forwards to the underlying `createXxx` (and
+  that value affects the indicator's state), they MUST produce
+  different `snapshotName` outputs. Otherwise resuming under one set
+  silently restores state from the other.
+- **Deterministic.** Same `params` → same output, always. No
+  timestamps, hashes of mutable state, or environment-dependent
+  values.
+- **Defaults-equivalent.** A `params` object that omits a default
+  field MUST produce the same `snapshotName` as one that explicitly
+  passes the canonical default. (i.e. `sma({ period: 20 })` and
+  `sma({ period: 20, source: "close" })` collapse to the same key
+  when `source` defaults to `"close"`.)
+
+### 10.3. Stability across releases (pre-1.0)
+
+- **Patch releases (`0.x.y` → `0.x.(y+1)`)** MUST NOT change
+  `snapshotName` output for any preset.
+- **Minor releases (`0.x.0` → `0.(x+1).0`)** MAY change
+  `snapshotName` output when accompanied by:
+  - A documented "snapshotName format change" entry in the CHANGELOG
+    `Breaking` section, listing the affected presets.
+  - A clear migration path (typically: discard prior state and
+    re-warm, matching the State Contract format-break policy in §5.3).
+- **The 0.4.0 release** is the first formal contract anchor: prior
+  to 0.4.0 the snapshotName format was conventionally stable but
+  never formally guaranteed.
+
+### 10.4. Recommended format
+
+To make audits mechanical and reduce per-preset bike-shedding, new
+presets should use the conventional form:
+
+```
+${kind}_${param1}_${param2}_...
+```
+
+Where each `paramN` is one of the values forwarded by `createFactory`.
+Defaults are applied before formatting so omitting a field produces
+the same key as passing the default explicitly. Param order matches
+the declaration order in the factory's `TParams`.
+
+Existing presets that pre-date 0.4.0 may use shorter / older formats;
+those are kept as-is unless they violate §10.2 (in which case they're
+fixed under the §10.3 minor-release allowance).
+
+### 10.5. 0.4.0 snapshotName changes
+
+Wave 1 final tightens the contract by fixing eleven presets whose
+prior keys violated §10.2 (Surjective on variants):
+
+| Preset | Old format | New format |
+|---|---|---|
+| `sma` | `sma${period}` | `sma_${source}_${period}` |
+| `dema` | `dema${period}` | `dema_${source}_${period}` |
+| `tema` | `tema${period}` | `tema_${source}_${period}` |
+| `zlema` | `zlema${period}` | `zlema_${source}_${period}` |
+| `frama` | `frama${period}` | `frama_${source}_${period}` |
+| `hv` | `hv${period}` | `hv_${source}_${period}_${annualFactor}` |
+| `ulcer` | `ulcer${period}` | `ulcer_${source}_${period}` |
+| `standardDeviation` | (not registered) | `stddev_${source}_${period}` |
+| `returns` | (not registered) | `returns_${type}_${period}` |
+| `kst` | `"kst"` | `kst_${source}_${signalPeriod}` |
+| `hurst` | `"hurst"` | `hurst_${source}_${minWindow}_${maxWindow}` |
+
+Other presets with similar latent collisions (static `snapshotName`
+for params they vary internally) exist; a separate audit + cleanup PR
+will address them under the same §10.3 minor-release allowance.

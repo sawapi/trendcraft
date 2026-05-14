@@ -462,6 +462,16 @@ export const LINEAR_REG_META: SeriesMeta = {
 };
 
 // ============================================
+// Price-derived
+// ============================================
+
+export const RETURNS_META: SeriesMeta = {
+  kind: "returns",
+  overlay: false,
+  label: "Returns",
+};
+
+// ============================================
 // Additional Volume
 // ============================================
 
