@@ -17,6 +17,8 @@ import { type AlmaState, createAlma } from "../moving-average/alma";
 import { createSma, type SmaState } from "../moving-average/sma";
 import { createVwma, type VwmaState } from "../moving-average/vwma";
 import { createWma, type WmaState } from "../moving-average/wma";
+import { createHighestLowest, type HighestLowestState } from "../price/highest-lowest";
+import { createReturns, type ReturnsState } from "../price/returns";
 import { type ChoppinessIndexState, createChoppinessIndex } from "../volatility/choppiness-index";
 import { createDonchianChannel, type DonchianState } from "../volatility/donchian-channel";
 import {
@@ -251,4 +253,40 @@ type AnchoredVwapValueShape = {
   lower1?: number | null;
   upper2?: number | null;
   lower2?: number | null;
+};
+
+// ---- Bundle D (Wave 1 final): Returns / HighestLowest ----
+
+// Returns — Windowed, canonical defaults (period=1, type="simple"
+// match pandas / quantstats convention). The close buffer carries
+// forward as raw values across both period AND type changes — `type`
+// only affects the formula, not the buffered data.
+describeContract<number | null, ReturnsState>({
+  name: "returns",
+  create: (opts, warmUp) =>
+    createReturns(opts as { period?: number; type?: "simple" | "log" }, warmUp),
+  category: "windowed",
+  version: 1,
+  defaultParams: { period: 1, type: "simple" },
+  reconfigParams: [{ period: 5 }, { period: 10 }, { type: "log" }],
+  makeCandles,
+  streamLength: 100,
+});
+
+// HighestLowest — Windowed, same shape as Donchian's high/low buffers.
+// `period` carries forward as raw high/low values.
+describeContract<HighestLowestValueShape, HighestLowestState>({
+  name: "highestLowest",
+  create: (opts, warmUp) => createHighestLowest(opts as { period?: number }, warmUp),
+  category: "windowed",
+  version: 1,
+  defaultParams: { period: 20 },
+  reconfigParams: [{ period: 10 }, { period: 30 }],
+  makeCandles,
+  streamLength: 100,
+});
+
+type HighestLowestValueShape = {
+  highest: number | null;
+  lowest: number | null;
 };
