@@ -501,85 +501,94 @@ The following were agreed before Phase 0 finalization:
 5. ✓ Source change always refuses reconfig (even for Windowed).
 6. ✓ `fromState` type breaking change to `IndicatorSnapshot<S>` is
    accepted (0.x breaking-change allowance).
-## 10. `snapshotName` contract key (Wave 1 final)
 
-### 10.1. Purpose
+## 10. `snapshotName` — default label, library-guaranteed identity
 
-Every `LivePreset` exports `snapshotName(params)` — a string that
-identifies a specific configuration of an indicator. Two concerns
-share this key:
+Wave 1 final formalized `snapshotName`, then immediate post-Wave-1
+work redesigned the model to better match real multi-instance usage.
+This section reflects the final design.
 
-1. **Internal uniqueness** — `connectIndicators` uses it as a duplicate
-   guard so the same `(indicator, params)` combination can only be
-   registered once per live session.
-2. **External persistence** — host applications use it as the
-   filename / cache key under which they serialize the snapshot
-   returned by `getState()`.
+### 10.1. Two responsibilities, cleanly separated
 
-These responsibilities are coupled: a key that is unstable for the
-host is fine as long as the same logical configuration always
-resolves to the same key. The bug pattern this section formalizes is
-**different param sets resolving to the same key** (silent
-overwrite) or **the same logical configuration resolving to different
-keys across versions** (silent cold-start).
+Earlier drafts treated `snapshotName(params)` as both a host-facing
+persistence key and the internal duplicate guard. That conflation
+forced every preset to be "surjective on variants" — different params
+must produce different keys — so any preset whose `createFactory`
+varied a param missing from `snapshotName` would silently collide on
+the second `connectIndicators.add()` call.
 
-### 10.2. Contract
+The current model splits the two cleanly:
 
-For any preset whose `createFactory` accepts a parameter `P`,
-`snapshotName(params)` MUST satisfy:
+1. **Default instance label** — `LivePreset.snapshotName(params)` is a
+   suggested, human-readable name. It is allowed to collide; the
+   library does not require it to be surjective on variants.
+2. **Instance identity** — `connectIndicators` owns identity. When
+   the default label collides, it auto-suffixes (`"sma20"` →
+   `"sma20#2"` → `"sma20#3"` …) so multiple instances of the same
+   preset always succeed without caller boilerplate. Hosts that need
+   a stable, host-controlled id can still pass
+   `add(name, params, { snapshotName: "my-id" })`; explicit ids
+   collide loudly because the caller asked for that exact value.
 
-- **Surjective on variants.** If two `params` differ in any value
-  that `createFactory` forwards to the underlying `createXxx` (and
-  that value affects the indicator's state), they MUST produce
-  different `snapshotName` outputs. Otherwise resuming under one set
-  silently restores state from the other.
+### 10.2. Author guidance (still useful, no longer enforced)
+
+When writing a new preset's `snapshotName(params)` function, the
+following are still recommended — they make the default labels
+predictable and informative, which is what users see in legends and
+log lines:
+
 - **Deterministic.** Same `params` → same output, always. No
   timestamps, hashes of mutable state, or environment-dependent
   values.
 - **Defaults-equivalent.** A `params` object that omits a default
-  field MUST produce the same `snapshotName` as one that explicitly
+  field SHOULD produce the same `snapshotName` as one that explicitly
   passes the canonical default. (i.e. `sma({ period: 20 })` and
-  `sma({ period: 20, source: "close" })` collapse to the same key
-  when `source` defaults to `"close"`.)
+  `sma({ period: 20, source: "close" })` collapse to the same default
+  label when `source` defaults to `"close"`.)
+- **Informative on variant params.** Where it is natural and the
+  resulting label stays readable, include the most-varied params in
+  the default label so multi-instance suffixes are rare in practice
+  (e.g. `sma_close_20`, `bb_${period}_${stdDev}`). This is a quality
+  consideration, not a correctness requirement — the auto-suffix
+  policy means any preset's default label can collide without
+  breaking the host.
 
 ### 10.3. Stability across releases (pre-1.0)
 
-- **Patch releases (`0.x.y` → `0.x.(y+1)`)** MUST NOT change
-  `snapshotName` output for any preset.
-- **Minor releases (`0.x.0` → `0.(x+1).0`)** MAY change
-  `snapshotName` output when accompanied by:
-  - A documented "snapshotName format change" entry in the CHANGELOG
-    `Breaking` section, listing the affected presets.
-  - A clear migration path (typically: discard prior state and
-    re-warm, matching the State Contract format-break policy in §5.3).
-- **The 0.4.0 release** is the first formal contract anchor: prior
-  to 0.4.0 the snapshotName format was conventionally stable but
-  never formally guaranteed.
+Default labels are best-effort stable; the library does not promise
+that two different versions emit the same `snapshotName` for the same
+params. Patch releases avoid changes; minor releases may improve
+labels (e.g. add a previously-missing param). Hosts that need a
+guaranteed-stable id MUST set `userSnapshotName` explicitly — the
+library treats explicit ids as caller-owned and never rewrites them.
+
+This is why Bundle D's eleven informativeness upgrades (table in
+§10.5) are not catalogued as breaking changes against the contract:
+the contract only promises label *quality*, not label *stability*.
 
 ### 10.4. Recommended format
 
-To make audits mechanical and reduce per-preset bike-shedding, new
-presets should use the conventional form:
+Where a preset's default label includes variant params, the canonical
+form is:
 
 ```
 ${kind}_${param1}_${param2}_...
 ```
 
-Where each `paramN` is one of the values forwarded by `createFactory`.
-Defaults are applied before formatting so omitting a field produces
-the same key as passing the default explicitly. Param order matches
-the declaration order in the factory's `TParams`.
+Param order matches the declaration order in the factory's `TParams`.
+Array params join with `-` (`periods: [5, 10, 20]` → `5-10-20`).
+Shorter forms (`"macd"`, `"obv"`, `"stoch"`) are also acceptable when
+the indicator is rarely multi-instanced — the auto-suffix policy means
+they still work for the rare case.
 
-Existing presets that pre-date 0.4.0 may use shorter / older formats;
-those are kept as-is unless they violate §10.2 (in which case they're
-fixed under the §10.3 minor-release allowance).
+### 10.5. Bundle D label upgrades
 
-### 10.5. 0.4.0 snapshotName changes
+Wave 1 final made eleven presets' default labels more informative.
+These are not bug fixes against the §10 contract (the contract no
+longer requires surjectivity) but quality improvements that reduce
+how often the auto-suffix policy needs to fire:
 
-Wave 1 final tightens the contract by fixing eleven presets whose
-prior keys violated §10.2 (Surjective on variants):
-
-| Preset | Old format | New format |
+| Preset | Pre-0.4.0 default | 0.4.0 default |
 |---|---|---|
 | `sma` | `sma${period}` | `sma_${source}_${period}` |
 | `dema` | `dema${period}` | `dema_${source}_${period}` |
@@ -593,6 +602,8 @@ prior keys violated §10.2 (Surjective on variants):
 | `kst` | `"kst"` | `kst_${source}_${signalPeriod}` |
 | `hurst` | `"hurst"` | `hurst_${source}_${minWindow}_${maxWindow}` |
 
-Other presets with similar latent collisions (static `snapshotName`
-for params they vary internally) exist; a separate audit + cleanup PR
-will address them under the same §10.3 minor-release allowance.
+Other presets whose default labels are short static strings
+(`"macd"`, `"stochastics"`, `"dmi"`, …) are intentionally left as-is.
+Under the auto-suffix policy they multi-instance cleanly via
+`"macd"` / `"macd#2"`, and hosts that prefer a hand-picked label can
+still pass `userSnapshotName`.
