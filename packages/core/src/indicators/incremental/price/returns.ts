@@ -17,7 +17,12 @@
 
 import type { NormalizedCandle } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
-import { type IndicatorSnapshot, makeSnapshot, resolveResume } from "../state-contract";
+import {
+  type IndicatorSnapshot,
+  makeSnapshot,
+  requireParam,
+  resolveResume,
+} from "../state-contract";
 import type { IncrementalIndicator } from "../types";
 
 /**
@@ -68,15 +73,25 @@ export function createReturns(
     defaults: { period: 1, type: "simple" },
   });
 
-  const period = params.period;
-  const type = params.type;
-
-  if (!Number.isInteger(period) || period < 1) {
-    throw new Error('returns: option "period" must be a positive integer');
-  }
-  if (type !== "simple" && type !== "log") {
-    throw new Error('returns: option "type" must be "simple" or "log"');
-  }
+  // Centralized requireParam keeps the error-message shape uniform
+  // across the migrated indicator surface (compare with sma.ts,
+  // donchian-channel.ts, ulcer-index.ts). Pre-fix this file threw a
+  // bespoke `returns: option "..." must be ...` message that diverged
+  // from the rest of the State Contract validation surface.
+  const period = requireParam(
+    "returns",
+    params,
+    "period",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
+  const type = requireParam(
+    "returns",
+    params,
+    "type",
+    (v): v is "simple" | "log" => v === "simple" || v === "log",
+    'must be "simple" or "log"',
+  );
 
   // Buffer holds the last `period` closes (i.e. closes at index t-period..t-1);
   // when a new close arrives, the oldest slot is the reference price.

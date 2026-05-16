@@ -12,6 +12,8 @@
  * migrated" registry.
  */
 
+import { describe, expect, it } from "vitest";
+import { CRYPTO_CALENDAR, JPX_CALENDAR } from "../../../calendar";
 import type { NormalizedCandle, PriceSource } from "../../../types";
 import { alma } from "../../moving-average/alma";
 import { mcginleyDynamic } from "../../moving-average/mcginley-dynamic";
@@ -509,4 +511,233 @@ describeContract<number | null, EwmaVolatilityState>({
     }
     return padded;
   },
+  // EWMA's output is annualized volatility (%) — typical magnitudes
+  // 10..60. The default 1e-10 absolute tolerance is ~1e-12 relative
+  // and trips on any future tweak to summation order (e.g., log-return
+  // clipping). Loosen to 1e-9 absolute (~1e-11 relative): still well
+  // below any meaningful divergence, but stable against benign FP
+  // reordering. Tighten if any test failure here ever surfaces a real
+  // algorithmic gap.
+  consistencyTolerance: 1e-9,
+});
+
+// EWMA parity at non-default params (lambda=0.97 — RiskMetrics monthly
+// convention; periodsPerYear=365 — crypto). Both flows must remain
+// bar-for-bar identical to batch when these options are passed; before
+// the Bundle G annualization fix the latter silently diverged because
+// incremental hard-coded sqrt(252). These extra contract entries lock
+// the API parity in regardless of `defaultParams`.
+describeContract<number | null, EwmaVolatilityState>({
+  name: "ewmaVolatility (lambda=0.97)",
+  create: (opts, warmUp) =>
+    createEwmaVolatility(
+      opts as { lambda?: number; source?: PriceSource; seedSize?: number },
+      warmUp,
+    ),
+  category: "recursive",
+  version: 1,
+  defaultParams: { lambda: 0.97, source: "close", seedSize: 10 },
+  reconfigParams: [],
+  makeCandles,
+  streamLength: 100,
+  batchCompute: (opts, candles) => {
+    const seedSize = (opts.seedSize as number) ?? 10;
+    const result = ewmaVolatilityFromCandles(
+      candles,
+      opts as { lambda?: number; source?: PriceSource },
+    );
+    const padded: (number | null)[] = new Array(candles.length).fill(null);
+    for (let i = seedSize - 1; i < result.length; i++) {
+      padded[i + 1] = result[i].value;
+    }
+    return padded;
+  },
+  consistencyTolerance: 1e-9,
+});
+
+describeContract<number | null, EwmaVolatilityState>({
+  name: "ewmaVolatility (crypto: periodsPerYear=365)",
+  create: (opts, warmUp) =>
+    createEwmaVolatility(
+      opts as {
+        lambda?: number;
+        source?: PriceSource;
+        seedSize?: number;
+        periodsPerYear?: number;
+      },
+      warmUp,
+    ),
+  category: "recursive",
+  version: 1,
+  defaultParams: { lambda: 0.94, source: "close", seedSize: 10, periodsPerYear: 365 },
+  reconfigParams: [],
+  makeCandles,
+  streamLength: 100,
+  batchCompute: (opts, candles) => {
+    const seedSize = (opts.seedSize as number) ?? 10;
+    const result = ewmaVolatilityFromCandles(
+      candles,
+      opts as { lambda?: number; source?: PriceSource; periodsPerYear?: number },
+    );
+    const padded: (number | null)[] = new Array(candles.length).fill(null);
+    for (let i = seedSize - 1; i < result.length; i++) {
+      padded[i + 1] = result[i].value;
+    }
+    return padded;
+  },
+  consistencyTolerance: 1e-9,
+});
+
+// Calendar input must work without breaking `getState()`. `TradingCalendar`
+// carries an optional `isTradingDay?(date)` predicate; if it leaked into
+// `meta.params` the snapshot deep-clone (`structuredClone` /
+// JSON round-trip) would throw `DataCloneError` or silently drop the
+// function. The constructor resolves `calendar` → numeric
+// `periodsPerYear` *before* snapshotting, so this scenario must produce
+// a JSON-safe snapshot and resume cleanly to the same numeric factor.
+describe("EWMA Volatility — calendar input round-trip", () => {
+  const candles = makeCandles(60);
+
+  it("calendar input resolves to numeric periodsPerYear and snapshots safely", () => {
+    const ind = createEwmaVolatility({ calendar: JPX_CALENDAR });
+    for (const c of candles) ind.next(c);
+    const snapshot = ind.getState();
+
+    // Snapshot must be JSON-serializable (no functions leaked through).
+    expect(() => JSON.parse(JSON.stringify(snapshot))).not.toThrow();
+    expect(snapshot.meta.params.periodsPerYear).toBe(JPX_CALENDAR.tradingDaysPerYear);
+    expect("calendar" in snapshot.meta.params).toBe(false);
+  });
+
+  it("calendar with custom isTradingDay function still produces a JSON-safe snapshot", () => {
+    const customCalendar = {
+      name: "custom",
+      tradingDaysPerYear: 250,
+      isTradingDay: (_d: Date) => true,
+    };
+    const ind = createEwmaVolatility({ calendar: customCalendar });
+    for (const c of candles) ind.next(c);
+    const snapshot = ind.getState();
+
+    // The function must NOT leak into params — JSON round-trip would
+    // throw or silently drop it otherwise.
+    const roundTripped = JSON.parse(JSON.stringify(snapshot));
+    expect(roundTripped.meta.params.periodsPerYear).toBe(250);
+    expect(roundTripped.meta.params.calendar).toBeUndefined();
+  });
+
+  it("resume with periodsPerYear matches resume with equivalent calendar", () => {
+    const ind = createEwmaVolatility({ calendar: JPX_CALENDAR });
+    for (const c of candles) ind.next(c);
+    const snapshot = ind.getState();
+
+    // Both forms must resolve to the same numeric factor and not trip
+    // the recursive-refuse policy.
+    expect(() =>
+      createEwmaVolatility({ calendar: JPX_CALENDAR }, { fromState: snapshot }),
+    ).not.toThrow();
+    expect(() =>
+      createEwmaVolatility(
+        { periodsPerYear: JPX_CALENDAR.tradingDaysPerYear },
+        { fromState: snapshot },
+      ),
+    ).not.toThrow();
+  });
+
+  it("resume with different calendar (different tradingDaysPerYear) is refused", () => {
+    const ind = createEwmaVolatility({ calendar: JPX_CALENDAR });
+    for (const c of candles) ind.next(c);
+    const snapshot = ind.getState();
+
+    expect(() =>
+      createEwmaVolatility({ calendar: CRYPTO_CALENDAR }, { fromState: snapshot }),
+    ).toThrow(/periodsPerYear|incompatible snapshot/);
+  });
+
+  it("legacy snapshot without periodsPerYear key resumes cleanly across the API change", () => {
+    // Initial Bundle F migration persisted `meta.params = {lambda,
+    // source, seedSize}` (no `periodsPerYear` key) and hard-coded
+    // sqrt(252) at compute time. After the annualization audit fix,
+    // snapshots always persist a numeric `periodsPerYear`. A caller
+    // holding such a *legacy-shape* snapshot must still be able to
+    // resume with `{ periodsPerYear: 252 }` (or US-equity calendar)
+    // without the recursive-refuse policy tripping. The constructor
+    // materializes the implicit 252 into the legacy snapshot before
+    // diff time; verify that explicit equivalent options no longer
+    // throw on this upgrade path.
+    const fresh = createEwmaVolatility({});
+    for (const c of candles) fresh.next(c);
+    const cur = fresh.getState();
+    // Strip `periodsPerYear` to simulate a snapshot saved by the
+    // pre-audit Bundle F code.
+    const { periodsPerYear: _ignored, ...legacyParams } = cur.meta.params as Record<
+      string,
+      unknown
+    >;
+    const legacySnapshot = {
+      meta: { ...cur.meta, params: legacyParams },
+      state: cur.state,
+    } as typeof cur;
+
+    expect("periodsPerYear" in legacySnapshot.meta.params).toBe(false);
+
+    // Explicit equivalent must NOT throw.
+    expect(() =>
+      createEwmaVolatility({ periodsPerYear: 252 }, { fromState: legacySnapshot }),
+    ).not.toThrow();
+    const usEquityLike = { name: "test", tradingDaysPerYear: 252 };
+    expect(() =>
+      createEwmaVolatility({ calendar: usEquityLike }, { fromState: legacySnapshot }),
+    ).not.toThrow();
+
+    // Non-equivalent explicit (different factor) must still throw —
+    // legacy assumed 252, options says 365, that's a real change.
+    expect(() =>
+      createEwmaVolatility({ periodsPerYear: 365 }, { fromState: legacySnapshot }),
+    ).toThrow(/periodsPerYear|incompatible snapshot/);
+  });
+
+  it("implicit-default snapshot resumes cleanly with the equivalent explicit option", () => {
+    // A snapshot built with no annualization option must accept
+    // resume with `periodsPerYear: 252` (or US_EQUITY_CALENDAR whose
+    // tradingDaysPerYear is also 252) — the effective factor is
+    // identical, so the recursive-refuse policy must not trip.
+    // Earlier the snapshot omitted `periodsPerYear` on the
+    // implicit-default path; resolveResume then saw "added param"
+    // when the resume supplied the equivalent number and refused.
+    const ind = createEwmaVolatility({});
+    for (const c of candles) ind.next(c);
+    const snapshot = ind.getState();
+
+    expect(snapshot.meta.params.periodsPerYear).toBe(252);
+    expect(() =>
+      createEwmaVolatility({ periodsPerYear: 252 }, { fromState: snapshot }),
+    ).not.toThrow();
+    // 252-day calendar (US equity) must also be accepted as equivalent.
+    const usEquityLike = { name: "test", tradingDaysPerYear: 252 };
+    expect(() =>
+      createEwmaVolatility({ calendar: usEquityLike }, { fromState: snapshot }),
+    ).not.toThrow();
+  });
+
+  it("when both calendar and periodsPerYear are supplied, calendar wins (matches batch)", () => {
+    // Batch `annualizationFactor` returns `calendar.tradingDaysPerYear`
+    // whenever a calendar is present, regardless of `periodsPerYear`.
+    // Incremental must match — otherwise a caller passing the
+    // conflicting pair gets different volatility scales between the
+    // two APIs. Snapshot must persist the calendar's number (245),
+    // not the periodsPerYear override (365).
+    const withBoth = createEwmaVolatility({
+      calendar: JPX_CALENDAR, // tradingDaysPerYear = 245 — must win
+      periodsPerYear: 365, // would shadow calendar if precedence were inverted
+    });
+    const calendarOnly = createEwmaVolatility({ calendar: JPX_CALENDAR });
+    for (const c of candles) {
+      withBoth.next(c);
+      calendarOnly.next(c);
+    }
+    const last = candles[candles.length - 1];
+    expect(withBoth.peek(last).value).toBe(calendarOnly.peek(last).value);
+    expect(withBoth.getState().meta.params.periodsPerYear).toBe(JPX_CALENDAR.tradingDaysPerYear);
+  });
 });
