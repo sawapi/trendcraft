@@ -126,7 +126,7 @@ describe("State persistence", () => {
   testStatePersistence(
     "OBV",
     () => createObv(),
-    (s) => createObv({ fromState: s as any }),
+    (s) => createObv({}, { fromState: s as any }),
   );
 
   testStatePersistence(

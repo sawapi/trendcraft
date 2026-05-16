@@ -26,7 +26,12 @@ import {
   type StandardDeviationState,
 } from "../volatility/standard-deviation";
 import { createUlcerIndex, type UlcerIndexState } from "../volatility/ulcer-index";
+import { type AdlState, createAdl } from "../volume/adl";
 import { type AnchoredVwapState, createAnchoredVwap } from "../volume/anchored-vwap";
+import { type CvdState, createCvd } from "../volume/cvd";
+import { createNvi, type NviState } from "../volume/nvi";
+import { createObv, type ObvState } from "../volume/obv";
+import { createPvt, type PvtState } from "../volume/pvt";
 import { createTwap, type TwapState } from "../volume/twap";
 import { createVwap, type VwapState } from "../volume/vwap";
 import { describeContract } from "./contract-helper";
@@ -290,3 +295,75 @@ type HighestLowestValueShape = {
   highest: number | null;
   lowest: number | null;
 };
+
+// ---- Wave 2 Bundle E: OBV / PVT / NVI / ADL / CVD (pure accumulators) ----
+
+// All five are Recursive (cumulative accumulators with no raw-price
+// window). OBV / PVT / ADL / CVD are parameter-less, so `meta.params`
+// is always `{}` and the recursive-refuse path is structurally
+// unreachable — `reconfigParams: []` skips invariant [5] for them.
+// NVI carries `initialValue` in `meta.params` and exercises the
+// refuse path with a different seed.
+
+// OBV — Recursive, parameter-less.
+describeContract<number, ObvState>({
+  name: "obv",
+  create: (opts, warmUp) => createObv(opts as Record<string, never>, warmUp),
+  category: "recursive",
+  version: 1,
+  defaultParams: {},
+  reconfigParams: [],
+  makeCandles,
+  streamLength: 100,
+});
+
+// PVT — Recursive, parameter-less.
+describeContract<number | null, PvtState>({
+  name: "pvt",
+  create: (opts, warmUp) => createPvt(opts as Record<string, never>, warmUp),
+  category: "recursive",
+  version: 1,
+  defaultParams: {},
+  reconfigParams: [],
+  makeCandles,
+  streamLength: 100,
+});
+
+// NVI — Recursive with one param (`initialValue`). Exercises the
+// recursive-refuse path: resuming under a different seed throws
+// because the running `nviValue` is already scaled to the original
+// seed.
+describeContract<number, NviState>({
+  name: "nvi",
+  create: (opts, warmUp) => createNvi(opts as { initialValue?: number }, warmUp),
+  category: "recursive",
+  version: 1,
+  defaultParams: { initialValue: 1000 },
+  reconfigParams: [{ initialValue: 5000 }],
+  makeCandles,
+  streamLength: 100,
+});
+
+// ADL — Recursive, parameter-less.
+describeContract<number, AdlState>({
+  name: "adl",
+  create: (opts, warmUp) => createAdl(opts as Record<string, never>, warmUp),
+  category: "recursive",
+  version: 1,
+  defaultParams: {},
+  reconfigParams: [],
+  makeCandles,
+  streamLength: 100,
+});
+
+// CVD — Recursive, parameter-less.
+describeContract<number, CvdState>({
+  name: "cvd",
+  create: (opts, warmUp) => createCvd(opts as Record<string, never>, warmUp),
+  category: "recursive",
+  version: 1,
+  defaultParams: {},
+  reconfigParams: [],
+  makeCandles,
+  streamLength: 100,
+});

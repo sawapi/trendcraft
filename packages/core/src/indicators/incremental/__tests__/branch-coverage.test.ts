@@ -337,7 +337,7 @@ describe("ADL (Accumulation/Distribution Line)", () => {
     for (let i = 0; i < 5; i++) adl1.next(makeCandle(i));
     const state = adl1.getState();
 
-    const adl2 = createAdl({ fromState: state });
+    const adl2 = createAdl({}, { fromState: state });
     const next1 = adl1.next(makeCandle(5));
     const next2 = adl2.next(makeCandle(5));
     expect(next2.value).toBeCloseTo(next1.value, 10);
@@ -345,7 +345,7 @@ describe("ADL (Accumulation/Distribution Line)", () => {
 
   it("warmUp option pre-fills indicator state", () => {
     const candles = generateCandles(5);
-    const adl = createAdl({ warmUp: candles });
+    const adl = createAdl({}, { warmUp: candles });
     expect(adl.count).toBe(5);
     expect(adl.isWarmedUp).toBe(true);
   });

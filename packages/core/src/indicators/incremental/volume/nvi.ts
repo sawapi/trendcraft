@@ -1,20 +1,42 @@
 /**
  * Incremental NVI (Negative Volume Index)
  *
+ * State category: **Recursive** (`nviValue` is a multiplicative
+ * cumulative accumulator updated only on volume-down bars; no raw-price
+ * window).
+ *
+ * Migrated to the 0.4.0 State Contract: `getState()` returns
+ * `IndicatorSnapshot<NviState>` and `fromState` accepts the same.
+ * `initialValue` now lives in `meta.params` (no longer in bare state),
+ * so resuming with a different `initialValue` is refused by the
+ * recursive policy — the running `nviValue` is already scaled to the
+ * original seed and re-seeding mid-stream would mislead consumers.
+ *
  * NVI changes only on days when volume decreases from the prior day.
  * When volume decreases: NVI *= (close / prevClose)
  * When volume increases or stays same: NVI unchanged
  */
 
 import type { NormalizedCandle } from "../../../types";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import { type IndicatorSnapshot, makeSnapshot, resolveResume } from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 
+/**
+ * Bare state shape for NVI. Params (`initialValue`) live in
+ * `meta.params` on the wire — they are not part of the bare state.
+ */
 export type NviState = {
   prevClose: number | null;
   prevVolume: number | null;
   nviValue: number;
-  initialValue: number;
   count: number;
+};
+
+/** Per-indicator schema version. Bumped on any breaking state change. */
+export const NVI_VERSION = 1;
+
+type NviParams = {
+  initialValue: number;
 };
 
 /**
@@ -34,21 +56,32 @@ export type NviState = {
  */
 export function createNvi(
   options: { initialValue?: number } = {},
-  warmUpOptions?: WarmUpOptions<NviState>,
-): IncrementalIndicator<number, NviState> {
-  const initialValue = options.initialValue ?? 1000;
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<NviState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<number, IndicatorSnapshot<NviState>> {
+  const { params, state } = resolveResume<NviParams, NviState>({
+    indicator: "nvi",
+    version: NVI_VERSION,
+    category: "recursive",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { initialValue: 1000 },
+  });
+
+  const initialValue = params.initialValue;
 
   let prevClose: number | null;
   let prevVolume: number | null;
   let nviValue: number;
   let count: number;
 
-  if (warmUpOptions?.fromState) {
-    const s = warmUpOptions.fromState;
-    prevClose = s.prevClose;
-    prevVolume = s.prevVolume;
-    nviValue = s.nviValue;
-    count = s.count;
+  if (state !== null) {
+    prevClose = state.prevClose;
+    prevVolume = state.prevVolume;
+    nviValue = state.nviValue;
+    count = state.count;
   } else {
     prevClose = null;
     prevVolume = null;
@@ -56,7 +89,7 @@ export function createNvi(
     count = 0;
   }
 
-  const indicator: IncrementalIndicator<number, NviState> = {
+  const indicator: IncrementalIndicator<number, IndicatorSnapshot<NviState>> = {
     next(candle: NormalizedCandle) {
       count++;
 
@@ -88,8 +121,13 @@ export function createNvi(
       return { time: candle.time, value: peekNvi };
     },
 
-    getState(): NviState {
-      return { prevClose, prevVolume, nviValue, initialValue, count };
+    getState(): IndicatorSnapshot<NviState> {
+      return makeSnapshot(
+        "nvi",
+        NVI_VERSION,
+        { initialValue },
+        { prevClose, prevVolume, nviValue, count },
+      );
     },
 
     get count() {

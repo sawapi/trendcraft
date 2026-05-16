@@ -885,7 +885,7 @@ export const livePresets: Record<string, LivePreset> = {
     meta: PVT_META,
     defaultParams: {},
     snapshotName: "pvt",
-    createFactory: () => (state) => createPvt(restoreState(state)),
+    createFactory: factory()(createPvt, () => ({})),
   },
   nvi: {
     meta: NVI_META,
@@ -899,7 +899,7 @@ export const livePresets: Record<string, LivePreset> = {
     meta: CVD_META,
     defaultParams: {},
     snapshotName: "cvd",
-    createFactory: () => (state) => createCvd(restoreState(state)),
+    createFactory: factory()(createCvd, () => ({})),
   },
   weisWave: {
     meta: WEIS_WAVE_META,
