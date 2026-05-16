@@ -28,6 +28,9 @@
  * 5. Reconfig refuse — recursive/mixed/cascaded: any param change throws
  * 6. peek consistency (`peek` matches `next`, doesn't mutate state)
  * 7. Warmup gate consistency (`next` / `peek` / `isWarmedUp` align)
+ * 8. Batch/incremental parity (optional, requires `batchCompute`):
+ *    feeding the same candles to the incremental indicator and the
+ *    batch counterpart yields the same value series.
  *
  * Phase 1 skeleton: the full implementation is intentionally kept
  * minimal here. Per-indicator nuances (custom equality, post-warmup
@@ -99,6 +102,40 @@ export type ContractConfig<TValue, TState> = {
    * `leftBars + rightBars`) must override this.
    */
   reconfigMargin?: (newOpts: Record<string, unknown>) => number;
+  /**
+   * Batch counterpart for invariant [8] (batch/incremental parity).
+   *
+   * Takes the same `options` and `candles` as the incremental
+   * indicator and returns the expected value series, **one entry per
+   * candle** in input order. Entries should be `null` for any bar
+   * where the incremental indicator emits null (warmup period).
+   *
+   * Most batch indicators in this package return `Series<T>` with the
+   * same length as the candle stream and null values during warmup,
+   * so the typical implementation is a one-liner:
+   *
+   *     batchCompute: (opts, candles) =>
+   *       smaBatch(candles, opts as { period?: number }).map(s => s.value)
+   *
+   * Indicators whose batch sibling uses a different alignment
+   * (e.g., `ewmaVolatilityFromCandles` returns one entry per *return*,
+   * skipping candle 0, and uses a non-causal lookahead seed) must
+   * pad / mask explicitly so the returned series is candle-aligned
+   * and null-matched to the incremental output.
+   *
+   * Migration policy: every `describeContract` entry whose indicator
+   * has a batch counterpart MUST supply `batchCompute` so the parity
+   * regression net stays in place. Omit only when no batch
+   * implementation exists for the indicator.
+   */
+  batchCompute?: (options: Record<string, unknown>, candles: NormalizedCandle[]) => unknown[];
+  /**
+   * Tolerance override for invariant [8]. Falls back to `tolerance`
+   * (then 1e-10). Loosen only when floating-point summation order
+   * produces deterministic-but-tiny drift between batch and
+   * incremental — never to paper over algorithmic divergence.
+   */
+  consistencyTolerance?: number;
 };
 
 /**
@@ -306,6 +343,45 @@ export function describeContract<TValue, TState>(config: ContractConfig<TValue, 
       }
     });
 
+    if (config.batchCompute) {
+      // Invariant [8] runs `batchCompute` and incremental factory
+      // against multiple candle shapes — the standard trend+sine
+      // dataset plus a flat-price dataset that surfaces zero-variance
+      // / div-by-zero / accumulator-stuck bugs the trending shape
+      // hides. Adding new variants here permanently extends the
+      // regression net across every indicator with batch parity wired
+      // up; this is how we ensure edge-case bugs (e.g., EWMA's
+      // missing zero-variance floor) cannot quietly come back.
+      const parityCases: Array<{ label: string; candles: NormalizedCandle[] }> = [
+        { label: "trending candles", candles },
+        { label: "flat-price candles", candles: makeFlatCandles(streamLength) },
+      ];
+
+      for (const parityCase of parityCases) {
+        it(`[8] batch/incremental parity (${parityCase.label}): same candles produce same value series`, () => {
+          // Feed the same candles through the batch sibling and the
+          // incremental factory using identical default params. Every
+          // emitted value (including `null` warmup bars) must agree
+          // within `consistencyTolerance`. A failure here means the
+          // two computations have diverged — either a latent algorithm
+          // mismatch, an off-by-one alignment, or a tolerance issue
+          // that warrants explicit acknowledgement rather than silent
+          // tolerance growth.
+          const opts = { ...config.defaultParams };
+          const batchValues = config.batchCompute!(opts, parityCase.candles);
+
+          const incremental = config.create({ ...config.defaultParams });
+          const incrementalValues: unknown[] = [];
+          for (const c of parityCase.candles) {
+            incrementalValues.push(incremental.next(c).value);
+          }
+
+          const tol = config.consistencyTolerance ?? config.tolerance ?? 1e-10;
+          expectSeriesEqual(incrementalValues, batchValues, tol);
+        });
+      }
+    }
+
     it("[7] warmup gate consistency: next / peek / isWarmedUp align", () => {
       const ind = config.create({ ...config.defaultParams });
 
@@ -334,6 +410,27 @@ export function describeContract<TValue, TState>(config: ContractConfig<TValue, 
       }
     });
   });
+}
+
+/**
+ * Flat-price candle generator used by invariant [8].
+ *
+ * All OHLC = 100 with mild volume variation. Surfaces bugs that the
+ * trending generator hides: zero-variance seeding (EWMA), div-by-zero
+ * on TR/range (Choppiness/ADL/CVD), recursive accumulators stuck at
+ * their seed value, and so on. Future variants (NaN-adjacent, single
+ * bar, huge values) can extend the parity-case list in `describeContract`
+ * with the same pattern.
+ */
+function makeFlatCandles(n: number): NormalizedCandle[] {
+  return Array.from({ length: n }, (_, i) => ({
+    time: 1700000000000 + i * 86400000,
+    open: 100,
+    high: 100,
+    low: 100,
+    close: 100,
+    volume: 1000 + (i % 3),
+  }));
 }
 
 /**

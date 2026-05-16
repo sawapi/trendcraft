@@ -1344,9 +1344,9 @@ describe("McGinley Dynamic responds to price changes", () => {
     const state = md1.getState();
 
     const md2 = createMcGinleyDynamic({}, { fromState: state });
-    expect(md2.getState().period).toBe(7);
-    expect(md2.getState().k).toBe(0.4);
-    expect(md2.getState().source).toBe("high");
+    expect(md2.getState().meta.params.period).toBe(7);
+    expect(md2.getState().meta.params.k).toBe(0.4);
+    expect(md2.getState().meta.params.source).toBe("high");
   });
 
   it("refuses resume with a different period", () => {
