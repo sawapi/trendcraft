@@ -39,6 +39,7 @@
  * suppression + replay fixes both issues.
  */
 
+import { type AnnualizationOptions, annualizationFactor } from "../../../calendar";
 import type { NormalizedCandle, PriceSource } from "../../../types";
 import { type IndicatorSnapshot, makeSnapshot, resolveResume } from "../state-contract";
 import type { IncrementalIndicator } from "../types";
@@ -64,6 +65,24 @@ type EwmaVolatilityParams = {
   lambda: number;
   source: PriceSource;
   seedSize: number;
+  /**
+   * Annualization scaling, stored only as the resolved numeric
+   * `periodsPerYear`. The constructor accepts either `periodsPerYear`
+   * (e.g. `365` for crypto) or `calendar: JPX_CALENDAR` (a
+   * `TradingCalendar` whose `tradingDaysPerYear` supplies the number);
+   * `calendar` is resolved to its numeric factor *before* the options
+   * reach `resolveResume`, so this field always holds a plain number.
+   *
+   * Why not persist the calendar object: `TradingCalendar` can carry an
+   * `isTradingDay?(date): boolean` function. `meta.params` is deep-cloned
+   * via `structuredClone` (or JSON round-trip), so a function value
+   * would either throw `DataCloneError` or silently disappear — both
+   * unacceptable for `getState()`. Storing only the resolved number
+   * keeps snapshots JSON-clean and round-trip-deterministic, and lets
+   * a caller resume with either input form as long as it resolves to
+   * the same `periodsPerYear`.
+   */
+  periodsPerYear?: number;
 };
 
 /**
@@ -82,24 +101,92 @@ type EwmaVolatilityParams = {
  * ```
  */
 export function createEwmaVolatility(
-  options: { lambda?: number; source?: PriceSource; seedSize?: number } = {},
+  options: {
+    lambda?: number;
+    source?: PriceSource;
+    seedSize?: number;
+    periodsPerYear?: number;
+    calendar?: AnnualizationOptions["calendar"];
+  } = {},
   warmUpOptions?: {
     fromState?: IndicatorSnapshot<EwmaVolatilityState>;
     warmUp?: NormalizedCandle[];
   },
 ): IncrementalIndicator<number | null, IndicatorSnapshot<EwmaVolatilityState>> {
+  // Resolve `calendar` → numeric `periodsPerYear` *before* handing the
+  // options bag to `resolveResume`. Reasoning:
+  //   1. `TradingCalendar` may include an `isTradingDay?(date)` function
+  //      that cannot survive `structuredClone` / JSON serialization;
+  //      keeping it out of `meta.params` makes snapshots round-trip-safe.
+  //   2. A caller may legitimately use `calendar: JPX_CALENDAR` on the
+  //      first run and `periodsPerYear: 245` on resume (or vice-versa).
+  //      Pre-resolving means the resume diff compares a single canonical
+  //      number, so equivalent inputs are not flagged as a param change.
+  //
+  // Precedence must match the batch sibling's `annualizationFactor`:
+  // `calendar` wins over `periodsPerYear` when both are supplied.
+  // Earlier this branch reversed the precedence by only consulting
+  // `calendar` when `periodsPerYear` was absent — that silently
+  // produced different volatility scales between batch and incremental
+  // for the same input. Always honor `calendar` first to stay aligned.
+  const { calendar, ...optionsWithoutCalendar } = options;
+  const resolvedOptions =
+    calendar !== undefined
+      ? { ...optionsWithoutCalendar, periodsPerYear: calendar.tradingDaysPerYear }
+      : optionsWithoutCalendar;
+
+  // Canonicalize legacy snapshots that pre-date annualization support.
+  // The initial Bundle F migration emitted `meta.params = {lambda, source,
+  // seedSize}` (no `periodsPerYear`) and hard-coded sqrt(252) at compute
+  // time. After this audit, snapshots always persist a numeric
+  // `periodsPerYear` — but a caller resuming an *old-shape* snapshot
+  // with an explicit `{periodsPerYear: 252}` (or equivalent calendar)
+  // would otherwise trip the recursive-refuse policy because the
+  // snapshot lacks the key while options has it. Materialize the
+  // implicit-252 default into the legacy snapshot *before* resolveResume
+  // computes its diff, so equivalent inputs round-trip cleanly across
+  // the API change without forcing a re-warm.
+  const incomingSnapshot = warmUpOptions?.fromState ?? null;
+  const normalizedFromState =
+    incomingSnapshot?.meta?.params &&
+    typeof incomingSnapshot.meta.params === "object" &&
+    !Array.isArray(incomingSnapshot.meta.params) &&
+    (incomingSnapshot.meta.params as Record<string, unknown>).periodsPerYear === undefined
+      ? {
+          meta: {
+            ...incomingSnapshot.meta,
+            params: { ...incomingSnapshot.meta.params, periodsPerYear: 252 },
+          },
+          state: incomingSnapshot.state,
+        }
+      : incomingSnapshot;
+
   const { params, state } = resolveResume<EwmaVolatilityParams, EwmaVolatilityState>({
     indicator: "ewmaVolatility",
     version: EWMA_VOLATILITY_VERSION,
     category: "recursive",
-    options,
-    fromState: warmUpOptions?.fromState ?? null,
+    options: resolvedOptions,
+    fromState: normalizedFromState,
     defaults: { lambda: 0.94, source: "close", seedSize: 10 },
   });
 
   const lambda = params.lambda;
   const source = params.source;
   const seedSize = params.seedSize;
+  // Resolve `periodsPerYear` to its concrete numeric value (calendar
+  // already pre-folded into options, snapshot value carried by
+  // resolveResume, default 252 if still unset). We persist *this*
+  // resolved number in `meta.params` rather than the optional input
+  // value — otherwise a snapshot taken with the implicit 252 default
+  // would have no `periodsPerYear` key, and resuming with an
+  // *equivalent* explicit option (`{ periodsPerYear: 252 }` or a
+  // 252-day calendar like `US_EQUITY_CALENDAR`) would be flagged as a
+  // param change and refused by the recursive policy even though the
+  // effective factor is identical.
+  const effectivePeriodsPerYear = annualizationFactor({
+    periodsPerYear: params.periodsPerYear,
+  });
+  const annualFactor = Math.sqrt(effectivePeriodsPerYear) * 100;
 
   let prevPrice: number | null;
   let prevVariance: number | null;
@@ -121,21 +208,29 @@ export function createEwmaVolatility(
     count = 0;
   }
 
-  const annualFactor = Math.sqrt(252) * 100;
-
   function sampleVariance(returns: number[]): number {
-    // Population variance (divide by N) with a 1e-10 floor to match
-    // the batch sibling's `ewmaVolatility` seed convention exactly.
+    // Centered population variance (Σ(r-μ)²/N) with a 1e-10 floor.
+    // Identical to the batch sibling's `ewmaVolatility` seed.
+    //
+    // Variant note: RiskMetrics Technical Document (1996) §5.3.2
+    // specifies the *uncentered* form (Σr²/N) with the mean assumed
+    // to be zero — for daily log returns this differs from the
+    // centered form by μ², a sub-basis-point effect. We pick the
+    // centered form because (a) it is what `Math.var`-style sample
+    // statistics imply and what pyfolio / quantstats use under the
+    // hood, and (b) it does not silently bake in a "returns are
+    // mean-zero" assumption that breaks on monthly / weekly bars
+    // where the drift is non-trivial. Batch and incremental MUST
+    // use the same form; invariant [8] enforces this bar-for-bar.
     //
     // Pre-0.4.0 incremental used Bessel-corrected sample variance
-    // (divide by N-1), which is statistically more rigorous but
-    // caused a permanent N/(N-1) divergence between batch and
-    // incremental output. It also lacked the zero floor, so a
-    // flat-price seed window emitted `0` while batch emitted a tiny
-    // positive value — and the recursive update then stayed at
-    // exact zero forever. Aligning on N + the floor keeps invariant
-    // [8] (batch parity) clean on every candle shape, including
-    // flat-price streams.
+    // (Σ(r-μ)²/(N-1)), which caused a permanent N/(N-1) divergence
+    // between batch and incremental output. It also lacked the
+    // 1e-10 zero floor, so a flat-price seed window emitted `0`
+    // while batch emitted a tiny positive value — and the recursive
+    // update then stayed at exact zero forever. Aligning on
+    // /N + the floor closes both gaps on every candle shape,
+    // including flat-price streams.
     const n = returns.length;
     if (n === 0) return 0;
     const mean = returns.reduce((a, b) => a + b, 0) / n;
@@ -186,7 +281,12 @@ export function createEwmaVolatility(
         return { time: candle.time, value: null };
       }
 
-      prevVariance = lambda * (prevVariance ?? 0) + (1 - lambda) * logReturn * logReturn;
+      // `seedDone` is true here, so `prevVariance` is necessarily a
+      // number set by the seed-replay branch above. The non-null
+      // assertion makes that invariant explicit — a defensive
+      // `?? 0` would silently bypass the 1e-10 floor installed by
+      // `sampleVariance` if the invariant were ever broken.
+      prevVariance = lambda * (prevVariance as number) + (1 - lambda) * logReturn * logReturn;
       return { time: candle.time, value: computeOutput(prevVariance) };
     },
 
@@ -214,7 +314,9 @@ export function createEwmaVolatility(
         return { time: candle.time, value: null };
       }
 
-      const v = lambda * (prevVariance ?? 0) + (1 - lambda) * logReturn * logReturn;
+      // Mirrors `next`: `seedDone` is true here so `prevVariance` is
+      // a number. Cast (not `??`) to keep the floor invariant intact.
+      const v = lambda * (prevVariance as number) + (1 - lambda) * logReturn * logReturn;
       return { time: candle.time, value: computeOutput(v) };
     },
 
@@ -222,7 +324,21 @@ export function createEwmaVolatility(
       return makeSnapshot(
         "ewmaVolatility",
         EWMA_VOLATILITY_VERSION,
-        { lambda, source, seedSize },
+        // Always persist the *resolved* `periodsPerYear` (incl. the
+        // 252 default) so resume-time diffing compares concrete
+        // numbers. Omitting it on the implicit-default path used to
+        // refuse a resume that re-specified the same factor
+        // explicitly — `{}` snapshot vs `{ periodsPerYear: 252 }`
+        // (or a 252-day calendar) options registered as a "change"
+        // even though the math was identical. `calendar` itself
+        // never enters `params`; only its numeric `tradingDaysPerYear`
+        // does, keeping the snapshot JSON-safe.
+        {
+          lambda,
+          source,
+          seedSize,
+          periodsPerYear: effectivePeriodsPerYear,
+        },
         {
           prevPrice,
           prevVariance,

@@ -14,6 +14,27 @@
  * the same. Params (`period`, `k`, `source`) now live in `meta.params`
  * — the hand-rolled resume guard from 0.3.x is replaced by the
  * library-wide `resolveResume` recursive policy.
+ *
+ * Extreme-gap behavior: the `(price / MD)^4` ratio is uncapped, which
+ * matches the canonical McGinley (1990) formulation as used by
+ * TradingView and StockCharts. On upward gaps the denominator grows
+ * fast, so the indicator simply lags more — graceful. On *downward*
+ * gaps the denominator shrinks to ~0 and the next MD can swing to a
+ * large negative value (e.g. `price = 0.1 × MD` → denom ≈ 8.4e-4,
+ * adjustment ≈ -1071 × MD). In practice price = 0 / extreme-down
+ * gaps mostly indicate dirty input rather than real moves; reject
+ * those upstream. Some third-party implementations clamp the ratio
+ * to `[0.5, 2.0]`; trendcraft does not, to remain bar-for-bar
+ * faithful to the published formula.
+ *
+ * Seeding asymmetry note (intentional): the batch sibling produces
+ * its first non-null value at index `period - 1` (`if i === period - 1`),
+ * while this incremental factory uses a post-incremented `count` so
+ * the first non-null is produced when `count === period`. Both refer
+ * to the same candle (the `period`-th one, 0-indexed `period - 1`);
+ * the formulations differ only because batch indexes the array
+ * directly while incremental counts calls. Invariant [8] enforces
+ * bar-for-bar parity.
  */
 
 import type { NormalizedCandle, PriceSource } from "../../../types";

@@ -136,6 +136,30 @@ export type ContractConfig<TValue, TState> = {
    * incremental — never to paper over algorithmic divergence.
    */
   consistencyTolerance?: number;
+  /**
+   * Custom "is this value the indicator's warmup gate?" predicate for
+   * invariant [7].
+   *
+   * The default (`isNullishValue`) treats a composite as null only
+   * when *every* present field is null/undefined. That's fine for
+   * indicators whose components warm up together (Donchian, BB, MACD
+   * variants with shared period). It breaks for indicators with
+   * *decoupled component warmup* — e.g., a hypothetical MACD where
+   * `macd` becomes non-null at `slowPeriod` but `signal` waits an
+   * additional `signalPeriod` bars: the default predicate would
+   * report "warmed up" the moment `macd` arrives, conflating with
+   * the indicator's own `isWarmedUp` getter (which usually waits for
+   * all components).
+   *
+   * Pass a predicate that returns `true` for any bar the indicator
+   * considers "still in warmup". The DSL then asserts `next`/`peek`
+   * agreement against this predicate instead of the all-null
+   * heuristic, and `isWarmedUp` against the first bar where the
+   * predicate returns `false`.
+   *
+   * Only override when the default is wrong; otherwise omit.
+   */
+  isNullishField?: (value: unknown) => boolean;
 };
 
 /**
@@ -355,6 +379,13 @@ export function describeContract<TValue, TState>(config: ContractConfig<TValue, 
       const parityCases: Array<{ label: string; candles: NormalizedCandle[] }> = [
         { label: "trending candles", candles },
         { label: "flat-price candles", candles: makeFlatCandles(streamLength) },
+        // Gap-candle variant: an isolated 10× upward jump mid-stream
+        // surfaces bugs that smooth datasets hide — McGinley's
+        // `(price/MD)^4` term divergence, EWMA's variance explosion,
+        // PVT/CVD multiplier overflow, etc. Trending + flat together
+        // never produce a discontinuity, so gap testing is the third
+        // axis of the regression net.
+        { label: "gap-candle stream", candles: makeGapCandles(streamLength) },
       ];
 
       for (const parityCase of parityCases) {
@@ -384,14 +415,15 @@ export function describeContract<TValue, TState>(config: ContractConfig<TValue, 
 
     it("[7] warmup gate consistency: next / peek / isWarmedUp align", () => {
       const ind = config.create({ ...config.defaultParams });
+      const isNullish = config.isNullishField ?? isNullishValue;
 
       let firstWarmupBar = -1;
       for (let i = 0; i < streamLength; i++) {
         const peeked = ind.peek(candles[i]);
-        const peekedNullBefore = isNullishValue(peeked.value);
+        const peekedNullBefore = isNullish(peeked.value);
 
         const advanced = ind.next(candles[i]);
-        const advancedNull = isNullishValue(advanced.value);
+        const advancedNull = isNullish(advanced.value);
 
         // peek and next must agree on null-ness at the same bar.
         expect(peekedNullBefore).toBe(advancedNull);
@@ -431,6 +463,36 @@ function makeFlatCandles(n: number): NormalizedCandle[] {
     close: 100,
     volume: 1000 + (i % 3),
   }));
+}
+
+/**
+ * Gap-candle generator: a mostly-flat stream with a single isolated
+ * 10× upward jump at the midpoint. Used by invariant [8] to surface
+ * discontinuity-sensitive bugs:
+ *
+ *   - McGinley Dynamic `(price/MD)^4` term divergence on extreme ratios
+ *   - EWMA variance explosion from a single large squared return
+ *   - PVT / CVD multiplier overflow on large `(close - prev) / prev`
+ *   - Donchian channel reset behavior when the gap exits the lookback
+ *
+ * The gap is placed at index `n/2` so warm-up has completed before it
+ * appears, ensuring the gap exercises the steady-state path rather
+ * than the seed path. Volume varies mildly so volume-weighted
+ * indicators get a non-degenerate signal.
+ */
+function makeGapCandles(n: number): NormalizedCandle[] {
+  const gapIndex = Math.floor(n / 2);
+  return Array.from({ length: n }, (_, i) => {
+    const base = i === gapIndex ? 1000 : 100;
+    return {
+      time: 1700000000000 + i * 86400000,
+      open: base,
+      high: base * 1.005,
+      low: base * 0.995,
+      close: base,
+      volume: 1000 + (i % 5) * 10,
+    };
+  });
 }
 
 /**
