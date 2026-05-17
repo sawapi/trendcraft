@@ -16,6 +16,7 @@ import { describe, expect, it } from "vitest";
 import { CRYPTO_CALENDAR, JPX_CALENDAR } from "../../../calendar";
 import type { NormalizedCandle, PriceSource } from "../../../types";
 import { alma } from "../../moving-average/alma";
+import { ema } from "../../moving-average/ema";
 import { mcginleyDynamic } from "../../moving-average/mcginley-dynamic";
 import { sma } from "../../moving-average/sma";
 import { vwma } from "../../moving-average/vwma";
@@ -36,6 +37,7 @@ import { pvt } from "../../volume/pvt";
 import { twap } from "../../volume/twap";
 import { vwap } from "../../volume/vwap";
 import { type AlmaState, createAlma } from "../moving-average/alma";
+import { createEma, type EmaState } from "../moving-average/ema";
 import {
   createMcGinleyDynamic,
   type McGinleyDynamicState,
@@ -740,4 +742,35 @@ describe("EWMA Volatility — calendar input round-trip", () => {
     expect(withBoth.peek(last).value).toBe(calendarOnly.peek(last).value);
     expect(withBoth.getState().meta.params.periodsPerYear).toBe(JPX_CALENDAR.tradingDaysPerYear);
   });
+});
+
+// ---- Wave 2 Bundle G: EMA ----
+
+// EMA — Recursive (single-pole). `prevEma` permanently encodes its
+// construction-time `period` and `source`, so any param change on
+// resume is mathematically undefined and refused by the recursive
+// policy. The bare state shrinks from 6 fields (period / source /
+// multiplier / prevEma / sum / count) to just the 3 runtime values
+// (prevEma / sum / count); multiplier is derived from `period` in
+// the factory closure.
+//
+// EMA is the most widely-used moving average and is internally
+// composed by DEMA, TEMA, T3, EMA Ribbon, TRIX, TSI, Mass Index,
+// and Keltner Channel — all 8 consumers cascade through the
+// `EmaState → IndicatorSnapshot<EmaState>` type rename in their
+// bare-state field declarations. They remain opaque pass-throughs
+// (snapshot in, snapshot out) so their `next()` / `peek()` /
+// computation paths are byte-identical to 0.3.x.
+describeContract<number | null, EmaState>({
+  name: "ema",
+  create: (opts, warmUp) => createEma(opts as { period?: number; source?: PriceSource }, warmUp),
+  category: "recursive",
+  version: 1,
+  defaultParams: { period: 20, source: "close" },
+  // Exercise refuse on both independent param axes.
+  reconfigParams: [{ period: 10 }, { period: 30 }, { source: "high" }],
+  makeCandles,
+  streamLength: 100,
+  batchCompute: (opts, candles) =>
+    ema(candles, opts as { period: number; source?: PriceSource }).map((s) => s.value),
 });

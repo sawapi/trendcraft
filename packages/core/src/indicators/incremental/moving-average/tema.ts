@@ -6,6 +6,7 @@
  */
 
 import type { NormalizedCandle, PriceSource } from "../../../types";
+import type { IndicatorSnapshot } from "../state-contract";
 import type { IncrementalIndicator, WarmUpOptions } from "../types";
 import { makeCandle } from "../utils";
 import type { EmaState } from "./ema";
@@ -14,9 +15,9 @@ import { createEma } from "./ema";
 export type TemaState = {
   period: number;
   source: PriceSource;
-  ema1State: EmaState;
-  ema2State: EmaState;
-  ema3State: EmaState;
+  ema1State: IndicatorSnapshot<EmaState>;
+  ema2State: IndicatorSnapshot<EmaState>;
+  ema3State: IndicatorSnapshot<EmaState>;
   count: number;
 };
 

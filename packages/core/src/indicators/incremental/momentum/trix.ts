@@ -14,6 +14,7 @@
 import type { NormalizedCandle } from "../../../types";
 import type { EmaState } from "../moving-average/ema";
 import { createEma } from "../moving-average/ema";
+import type { IndicatorSnapshot } from "../state-contract";
 import type { IncrementalIndicator, WarmUpOptions } from "../types";
 
 export type TrixValue = {
@@ -78,7 +79,7 @@ function makeNullEma(period: number, fromState?: NullEmaState) {
 export type TrixState = {
   period: number;
   signalPeriod: number;
-  ema1State: EmaState;
+  ema1State: IndicatorSnapshot<EmaState>;
   ema2State: NullEmaState;
   ema3State: NullEmaState;
   signalState: NullEmaState;
