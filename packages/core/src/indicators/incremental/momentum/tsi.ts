@@ -11,6 +11,7 @@
 import type { NormalizedCandle, PriceSource } from "../../../types";
 import type { EmaState } from "../moving-average/ema";
 import { createEma } from "../moving-average/ema";
+import type { IndicatorSnapshot } from "../state-contract";
 import type { IncrementalIndicator, WarmUpOptions } from "../types";
 import { getSourcePrice, makeCandle } from "../utils";
 
@@ -20,11 +21,11 @@ export type TsiValue = {
 };
 
 export type TsiState = {
-  ema1MomState: EmaState;
-  ema2MomState: EmaState;
-  ema1AbsState: EmaState;
-  ema2AbsState: EmaState;
-  signalEmaState: EmaState;
+  ema1MomState: IndicatorSnapshot<EmaState>;
+  ema2MomState: IndicatorSnapshot<EmaState>;
+  ema1AbsState: IndicatorSnapshot<EmaState>;
+  ema2AbsState: IndicatorSnapshot<EmaState>;
+  signalEmaState: IndicatorSnapshot<EmaState>;
   prevPrice: number | null;
   longPeriod: number;
   shortPeriod: number;

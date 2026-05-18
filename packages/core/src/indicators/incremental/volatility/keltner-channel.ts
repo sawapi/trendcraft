@@ -9,6 +9,7 @@
 
 import type { NormalizedCandle } from "../../../types";
 import { createEma, type EmaState } from "../moving-average/ema";
+import type { IndicatorSnapshot } from "../state-contract";
 import type { IncrementalIndicator, WarmUpOptions } from "../types";
 import { type AtrState, createAtr } from "../volatility/atr";
 
@@ -28,7 +29,7 @@ export type KeltnerChannelState = {
   emaPeriod: number;
   atrPeriod: number;
   multiplier: number;
-  emaState: EmaState;
+  emaState: IndicatorSnapshot<EmaState>;
   atrState: AtrState;
   count: number;
 };
@@ -53,7 +54,7 @@ export function createKeltnerChannel(
   const atrPeriod = options.atrPeriod ?? 10;
   const multiplier = options.multiplier ?? 2;
 
-  let emaInd: IncrementalIndicator<number | null, EmaState>;
+  let emaInd: IncrementalIndicator<number | null, IndicatorSnapshot<EmaState>>;
   let atrInd: IncrementalIndicator<number | null, AtrState>;
   let count: number;
 

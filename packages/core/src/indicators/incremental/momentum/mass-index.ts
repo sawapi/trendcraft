@@ -19,6 +19,7 @@ import type { NormalizedCandle } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
 import type { EmaState } from "../moving-average/ema";
 import { createEma } from "../moving-average/ema";
+import type { IndicatorSnapshot } from "../state-contract";
 import type { IncrementalIndicator, WarmUpOptions } from "../types";
 import { makeCandle } from "../utils";
 
@@ -28,8 +29,8 @@ import { makeCandle } from "../utils";
 export type MassIndexState = {
   emaPeriod: number;
   sumPeriod: number;
-  ema1State: EmaState;
-  ema2State: EmaState;
+  ema1State: IndicatorSnapshot<EmaState>;
+  ema2State: IndicatorSnapshot<EmaState>;
   ratioBuffer: ReturnType<CircularBuffer<number>["snapshot"]>;
   ratioSum: number;
   count: number;
