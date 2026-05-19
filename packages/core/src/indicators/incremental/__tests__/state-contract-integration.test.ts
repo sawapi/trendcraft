@@ -21,6 +21,7 @@ import { mcginleyDynamic } from "../../moving-average/mcginley-dynamic";
 import { sma } from "../../moving-average/sma";
 import { vwma } from "../../moving-average/vwma";
 import { wma } from "../../moving-average/wma";
+import { zlema } from "../../moving-average/zlema";
 import { highest, lowest } from "../../price/highest-lowest";
 import { returns as returnsBatch } from "../../price/returns";
 import { choppinessIndex } from "../../volatility/choppiness-index";
@@ -45,6 +46,7 @@ import {
 import { createSma, type SmaState } from "../moving-average/sma";
 import { createVwma, type VwmaState } from "../moving-average/vwma";
 import { createWma, type WmaState } from "../moving-average/wma";
+import { createZlema, type ZlemaState } from "../moving-average/zlema";
 import { createHighestLowest, type HighestLowestState } from "../price/highest-lowest";
 import { createReturns, type ReturnsState } from "../price/returns";
 import { type ChoppinessIndexState, createChoppinessIndex } from "../volatility/choppiness-index";
@@ -773,4 +775,32 @@ describeContract<number | null, EmaState>({
   streamLength: 100,
   batchCompute: (opts, candles) =>
     ema(candles, opts as { period: number; source?: PriceSource }).map((s) => s.value),
+});
+
+// ---- Wave 2 Bundle H: ZLEMA ----
+
+// ZLEMA — Recursive (single-pole on adjusted price). `prevZlema`
+// carries the recursion; the fixed-size lag lookback ring buffer
+// (capacity = `floor((period - 1) / 2) + 1`) and `seedSum` /
+// `seedCount` together form the warmup tally consumed once the SMA
+// seed completes. Both the recursive accumulator and the lag-window
+// contents are permanently conditioned on construction-time `period`
+// and `source`, so any param change on resume is mathematically
+// undefined and refused by the recursive policy. The bare state
+// shrinks by removing the persisted `period` / `source` / `lag` /
+// `multiplier` fields (now in `meta.params` / derived in the factory
+// closure); `prevZlema` / `seedSum` / `seedCount` / `buffer` / `count`
+// remain on the wire.
+describeContract<number | null, ZlemaState>({
+  name: "zlema",
+  create: (opts, warmUp) => createZlema(opts as { period?: number; source?: PriceSource }, warmUp),
+  category: "recursive",
+  version: 1,
+  defaultParams: { period: 20, source: "close" },
+  // Exercise refuse on both independent param axes.
+  reconfigParams: [{ period: 10 }, { period: 30 }, { source: "high" }],
+  makeCandles,
+  streamLength: 100,
+  batchCompute: (opts, candles) =>
+    zlema(candles, opts as { period: number; source?: PriceSource }).map((s) => s.value),
 });
