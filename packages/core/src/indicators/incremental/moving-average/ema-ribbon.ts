@@ -2,11 +2,23 @@
  * Incremental EMA Ribbon
  *
  * Multiple EMAs to visualize trend strength and direction.
+ *
+ * State category: **Cascaded** (parallel recursive EMA stages, each
+ * processed independently from the same input). Resume with different
+ * `periods` / `source` is refused — periods is an array of construction
+ * keys, every inner EMA is permanently bound to its period.
+ *
+ * Migrated to the 0.4.0 State Contract.
  */
 
 import type { NormalizedCandle, PriceSource } from "../../../types";
-import type { IndicatorSnapshot } from "../state-contract";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import {
+  type IndicatorSnapshot,
+  makeSnapshot,
+  requireParam,
+  resolveResume,
+} from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 import type { EmaState } from "./ema";
 import { createEma } from "./ema";
 
@@ -17,11 +29,16 @@ export type EmaRibbonValue = {
 };
 
 export type EmaRibbonState = {
-  periods: number[];
-  source: PriceSource;
   emaStates: IndicatorSnapshot<EmaState>[];
   prevSpread: number | null;
   count: number;
+};
+
+export const EMA_RIBBON_VERSION = 1;
+
+type EmaRibbonParams = {
+  periods: number[];
+  source: PriceSource;
 };
 
 /**
@@ -38,20 +55,51 @@ export type EmaRibbonState = {
  */
 export function createEmaRibbon(
   options: { periods?: number[]; source?: PriceSource } = {},
-  warmUpOptions?: WarmUpOptions<EmaRibbonState>,
-): IncrementalIndicator<EmaRibbonValue, EmaRibbonState> {
-  const periods = [...(options.periods ?? [8, 13, 21, 34, 55])].sort((a, b) => a - b);
-  const source: PriceSource = options.source ?? "close";
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<EmaRibbonState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<EmaRibbonValue, IndicatorSnapshot<EmaRibbonState>> {
+  // Normalize `periods` before resolveResume so that resuming from a
+  // snapshot created with the same unsorted array (e.g.
+  // `createEmaRibbon({ periods: [10, 3, 5] })`) does not throw.
+  // `meta.params.periods` is stored sorted (see `getState()` below), so
+  // comparing the raw `options.periods` against the snapshot would
+  // false-positive on order-only differences even though the indicator
+  // has always been order-insensitive (matches batch `emaRibbon`).
+  const normalizedOptions = options.periods
+    ? { ...options, periods: [...options.periods].sort((a, b) => a - b) }
+    : options;
+
+  const { params, state } = resolveResume<EmaRibbonParams, EmaRibbonState>({
+    indicator: "emaRibbon",
+    version: EMA_RIBBON_VERSION,
+    category: "cascaded",
+    options: normalizedOptions,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { periods: [8, 13, 21, 34, 55], source: "close" },
+  });
+
+  const periods = requireParam(
+    "emaRibbon",
+    params,
+    "periods",
+    (v): v is number[] =>
+      Array.isArray(v) && v.length > 0 && v.every((n) => Number.isInteger(n) && n >= 1),
+    "must be a non-empty array of positive integers",
+  );
+  const source = params.source;
 
   let emas: ReturnType<typeof createEma>[];
   let prevSpread: number | null;
   let count: number;
 
-  if (warmUpOptions?.fromState) {
-    const s = warmUpOptions.fromState;
-    emas = s.emaStates.map((st, i) => createEma({ period: periods[i], source }, { fromState: st }));
-    prevSpread = s.prevSpread;
-    count = s.count;
+  if (state !== null) {
+    emas = state.emaStates.map((st, i) =>
+      createEma({ period: periods[i], source }, { fromState: st }),
+    );
+    prevSpread = state.prevSpread;
+    count = state.count;
   } else {
     emas = periods.map((p) => createEma({ period: p, source }));
     prevSpread = null;
@@ -85,7 +133,7 @@ export function createEmaRibbon(
     return { bullish, expanding };
   }
 
-  const indicator: IncrementalIndicator<EmaRibbonValue, EmaRibbonState> = {
+  const indicator: IncrementalIndicator<EmaRibbonValue, IndicatorSnapshot<EmaRibbonState>> = {
     next(candle: NormalizedCandle) {
       count++;
       const values = emas.map((e) => e.next(candle).value);
@@ -126,14 +174,17 @@ export function createEmaRibbon(
       return { time: candle.time, value: { values, bullish, expanding } };
     },
 
-    getState(): EmaRibbonState {
-      return {
-        periods,
-        source,
-        emaStates: emas.map((e) => e.getState()),
-        prevSpread,
-        count,
-      };
+    getState(): IndicatorSnapshot<EmaRibbonState> {
+      return makeSnapshot(
+        "emaRibbon",
+        EMA_RIBBON_VERSION,
+        { periods, source },
+        {
+          emaStates: emas.map((e) => e.getState()),
+          prevSpread,
+          count,
+        },
+      );
     },
 
     get count() {

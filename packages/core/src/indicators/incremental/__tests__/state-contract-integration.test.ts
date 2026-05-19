@@ -15,10 +15,17 @@
 import { describe, expect, it } from "vitest";
 import { CRYPTO_CALENDAR, JPX_CALENDAR } from "../../../calendar";
 import type { NormalizedCandle, PriceSource } from "../../../types";
+import { massIndex } from "../../momentum/mass-index";
+import { trix } from "../../momentum/trix";
+import { tsi } from "../../momentum/tsi";
 import { alma } from "../../moving-average/alma";
+import { dema } from "../../moving-average/dema";
 import { ema } from "../../moving-average/ema";
+import { emaRibbon } from "../../moving-average/ema-ribbon";
 import { mcginleyDynamic } from "../../moving-average/mcginley-dynamic";
 import { sma } from "../../moving-average/sma";
+import { t3 } from "../../moving-average/t3";
+import { tema } from "../../moving-average/tema";
 import { vwma } from "../../moving-average/vwma";
 import { wma } from "../../moving-average/wma";
 import { zlema } from "../../moving-average/zlema";
@@ -37,13 +44,24 @@ import { obv } from "../../volume/obv";
 import { pvt } from "../../volume/pvt";
 import { twap } from "../../volume/twap";
 import { vwap } from "../../volume/vwap";
+import { createMassIndex, type MassIndexState } from "../momentum/mass-index";
+import { createTrix, type TrixState, type TrixValue } from "../momentum/trix";
+import { createTsi, type TsiState, type TsiValue } from "../momentum/tsi";
 import { type AlmaState, createAlma } from "../moving-average/alma";
+import { createDema, type DemaState } from "../moving-average/dema";
 import { createEma, type EmaState } from "../moving-average/ema";
+import {
+  createEmaRibbon,
+  type EmaRibbonState,
+  type EmaRibbonValue,
+} from "../moving-average/ema-ribbon";
 import {
   createMcGinleyDynamic,
   type McGinleyDynamicState,
 } from "../moving-average/mcginley-dynamic";
 import { createSma, type SmaState } from "../moving-average/sma";
+import { createT3, type T3State } from "../moving-average/t3";
+import { createTema, type TemaState } from "../moving-average/tema";
 import { createVwma, type VwmaState } from "../moving-average/vwma";
 import { createWma, type WmaState } from "../moving-average/wma";
 import { createZlema, type ZlemaState } from "../moving-average/zlema";
@@ -803,4 +821,187 @@ describeContract<number | null, ZlemaState>({
   streamLength: 100,
   batchCompute: (opts, candles) =>
     zlema(candles, opts as { period: number; source?: PriceSource }).map((s) => s.value),
+});
+
+// ---- Wave 3 Bundle I: Cascaded EMA wrappers ----
+//
+// All seven entries below compose the migrated EMA factory (Bundle G).
+// Bare state holds only the inner EMA snapshots plus per-wrapper
+// accumulators (`prevSpread`, `prevEma3`, `prevPrice`, `ratioBuffer`,
+// etc.). Params live in `meta.params`. Resume with mismatched params
+// throws via the cascaded / mixed policy. `batchCompute` pins
+// invariant [8] across trending / flat / gap candle variants.
+
+// DEMA — Cascaded (2 EMAs). DEMA = 2 * EMA1 - EMA2.
+describeContract<number | null, DemaState>({
+  name: "dema",
+  create: (opts, warmUp) => createDema(opts as { period?: number; source?: PriceSource }, warmUp),
+  category: "cascaded",
+  version: 1,
+  defaultParams: { period: 20, source: "close" },
+  reconfigParams: [{ period: 10 }, { period: 30 }, { source: "high" }],
+  makeCandles,
+  streamLength: 100,
+  batchCompute: (opts, candles) =>
+    dema(candles, opts as { period?: number; source?: PriceSource }).map((s) => s.value),
+});
+
+// TEMA — Cascaded (3 EMAs). TEMA = 3 * EMA1 - 3 * EMA2 + EMA3.
+describeContract<number | null, TemaState>({
+  name: "tema",
+  create: (opts, warmUp) => createTema(opts as { period?: number; source?: PriceSource }, warmUp),
+  category: "cascaded",
+  version: 1,
+  defaultParams: { period: 20, source: "close" },
+  reconfigParams: [{ period: 10 }, { period: 30 }, { source: "high" }],
+  makeCandles,
+  streamLength: 100,
+  batchCompute: (opts, candles) =>
+    tema(candles, opts as { period?: number; source?: PriceSource }).map((s) => s.value),
+});
+
+// T3 (Tillson) — Cascaded (6 EMAs + volume factor coefficients).
+describeContract<number | null, T3State>({
+  name: "t3",
+  create: (opts, warmUp) =>
+    createT3(opts as { period?: number; vFactor?: number; source?: PriceSource }, warmUp),
+  category: "cascaded",
+  version: 1,
+  defaultParams: { period: 5, vFactor: 0.7, source: "close" },
+  reconfigParams: [{ period: 8 }, { period: 10 }, { vFactor: 0.5 }, { source: "high" }],
+  makeCandles,
+  streamLength: 100,
+  batchCompute: (opts, candles) =>
+    t3(candles, opts as { period?: number; vFactor?: number; source?: PriceSource }).map(
+      (s) => s.value,
+    ),
+});
+
+// EMA Ribbon — Cascaded (parallel EMAs over the same input).
+// `periods` is an array key; the inner EMAs are sorted ascending by
+// period. `bullish` / `expanding` are derived from the composite values.
+//
+// The value object is never literally `null`: warmup bars emit
+// `{ values: [null, …], bullish: null, expanding: null }`. The default
+// `isNullishValue` predicate treats the embedded `values` array as a
+// non-null leaf so it would mis-classify warmup bars as warmed up.
+// Override with a predicate that treats the bar as nullish until
+// `bullish` is computed — that matches the indicator's `isWarmedUp`
+// (slowest EMA done warming).
+describeContract<EmaRibbonValue, EmaRibbonState>({
+  name: "emaRibbon",
+  create: (opts, warmUp) =>
+    createEmaRibbon(opts as { periods?: number[]; source?: PriceSource }, warmUp),
+  category: "cascaded",
+  version: 1,
+  defaultParams: { periods: [8, 13, 21, 34, 55], source: "close" },
+  reconfigParams: [{ periods: [5, 10, 20] }, { periods: [8, 21, 55] }, { source: "high" }],
+  makeCandles,
+  streamLength: 100,
+  isNullishField: (v) =>
+    v === null ||
+    v === undefined ||
+    (typeof v === "object" && (v as { bullish: unknown }).bullish === null),
+  batchCompute: (opts, candles) =>
+    emaRibbon(candles, opts as { periods?: number[]; source?: PriceSource }).map((s) => s.value),
+});
+
+// Regression: EMA Ribbon has always treated `periods` as
+// order-insensitive (batch `emaRibbon([10, 3, 5])` sorts internally).
+// The Bundle I migration originally compared the raw `options.periods`
+// against the sorted `meta.params.periods`, causing resume with the
+// same unsorted array to throw an incompatible-snapshot error. The fix
+// normalizes `periods` before `resolveResume` so the resume path
+// remains order-insensitive — pinned here so the regression cannot
+// silently come back.
+describe("emaRibbon: unsorted periods order-insensitive resume", () => {
+  it("accepts resume when fromState was created with an unsorted periods array", () => {
+    const candles = makeCandles(80);
+    const seed = createEmaRibbon({ periods: [10, 3, 5] });
+    for (const c of candles) seed.next(c);
+    const snapshot = seed.getState();
+    // Same array, same order — must not throw.
+    expect(() => createEmaRibbon({ periods: [10, 3, 5] }, { fromState: snapshot })).not.toThrow();
+    // Same set of periods in a different order — also must not throw.
+    expect(() => createEmaRibbon({ periods: [5, 3, 10] }, { fromState: snapshot })).not.toThrow();
+    expect(() => createEmaRibbon({ periods: [3, 5, 10] }, { fromState: snapshot })).not.toThrow();
+  });
+
+  it("still refuses resume when periods set actually differs", () => {
+    const candles = makeCandles(80);
+    const seed = createEmaRibbon({ periods: [10, 3, 5] });
+    for (const c of candles) seed.next(c);
+    const snapshot = seed.getState();
+    expect(() => createEmaRibbon({ periods: [10, 3, 7] }, { fromState: snapshot })).toThrow();
+    expect(() => createEmaRibbon({ periods: [10, 3] }, { fromState: snapshot })).toThrow();
+  });
+});
+
+// TRIX — Cascaded (1 createEma stage + 3 internal null-propagating EMA
+// stages). Composite output `{ trix, signal }`.
+describeContract<TrixValue, TrixState>({
+  name: "trix",
+  create: (opts, warmUp) => createTrix(opts as { period?: number; signalPeriod?: number }, warmUp),
+  category: "cascaded",
+  version: 1,
+  defaultParams: { period: 15, signalPeriod: 9 },
+  reconfigParams: [{ period: 10 }, { period: 20 }, { signalPeriod: 5 }],
+  makeCandles,
+  streamLength: 120,
+  batchCompute: (opts, candles) =>
+    trix(candles, opts as { period?: number; signalPeriod?: number }).map((s) => s.value),
+});
+
+// TSI — Cascaded (5 EMAs over momentum / abs-momentum paths + signal
+// line). Composite output `{ tsi, signal } | null`. `prevPrice`
+// initializes the momentum recursion on the first candle.
+describeContract<TsiValue | null, TsiState>({
+  name: "tsi",
+  create: (opts, warmUp) =>
+    createTsi(
+      opts as {
+        longPeriod?: number;
+        shortPeriod?: number;
+        signalPeriod?: number;
+        source?: PriceSource;
+      },
+      warmUp,
+    ),
+  category: "cascaded",
+  version: 1,
+  defaultParams: { longPeriod: 25, shortPeriod: 13, signalPeriod: 7, source: "close" },
+  reconfigParams: [
+    { longPeriod: 20 },
+    { shortPeriod: 10 },
+    { signalPeriod: 5 },
+    { source: "high" },
+  ],
+  makeCandles,
+  streamLength: 120,
+  batchCompute: (opts, candles) =>
+    tsi(
+      candles,
+      opts as {
+        longPeriod?: number;
+        shortPeriod?: number;
+        signalPeriod?: number;
+        source?: PriceSource;
+      },
+    ).map((s) => s.value),
+});
+
+// Mass Index — Mixed (2 cascaded EMAs + a windowed ratio sum buffer).
+// The mixed policy refuses any param change on resume.
+describeContract<number | null, MassIndexState>({
+  name: "massIndex",
+  create: (opts, warmUp) =>
+    createMassIndex(opts as { emaPeriod?: number; sumPeriod?: number }, warmUp),
+  category: "mixed",
+  version: 1,
+  defaultParams: { emaPeriod: 9, sumPeriod: 25 },
+  reconfigParams: [{ emaPeriod: 7 }, { sumPeriod: 20 }],
+  makeCandles,
+  streamLength: 120,
+  batchCompute: (opts, candles) =>
+    massIndex(candles, opts as { emaPeriod?: number; sumPeriod?: number }).map((s) => s.value),
 });

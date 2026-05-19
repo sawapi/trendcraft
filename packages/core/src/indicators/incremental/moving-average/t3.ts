@@ -3,19 +3,27 @@
  *
  * T3 = c1*e6 + c2*e5 + c3*e4 + c4*e3
  * where e1..e6 are cascaded EMAs and c1..c4 are volume factor coefficients.
+ *
+ * State category: **Cascaded** (six recursive EMA stages composed in
+ * series). Resume with different `period` / `vFactor` / `source` is
+ * refused.
+ *
+ * Migrated to the 0.4.0 State Contract.
  */
 
 import type { NormalizedCandle, PriceSource } from "../../../types";
-import type { IndicatorSnapshot } from "../state-contract";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import {
+  type IndicatorSnapshot,
+  makeSnapshot,
+  requireParam,
+  resolveResume,
+} from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 import { makeCandle } from "../utils";
 import type { EmaState } from "./ema";
 import { createEma } from "./ema";
 
 export type T3State = {
-  period: number;
-  vFactor: number;
-  source: PriceSource;
   ema1State: IndicatorSnapshot<EmaState>;
   ema2State: IndicatorSnapshot<EmaState>;
   ema3State: IndicatorSnapshot<EmaState>;
@@ -23,6 +31,14 @@ export type T3State = {
   ema5State: IndicatorSnapshot<EmaState>;
   ema6State: IndicatorSnapshot<EmaState>;
   count: number;
+};
+
+export const T3_VERSION = 1;
+
+type T3Params = {
+  period: number;
+  vFactor: number;
+  source: PriceSource;
 };
 
 /**
@@ -39,11 +55,29 @@ export type T3State = {
  */
 export function createT3(
   options: { period?: number; vFactor?: number; source?: PriceSource } = {},
-  warmUpOptions?: WarmUpOptions<T3State>,
-): IncrementalIndicator<number | null, T3State> {
-  const period = options.period ?? 5;
-  const vFactor = options.vFactor ?? 0.7;
-  const source: PriceSource = options.source ?? "close";
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<T3State>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<number | null, IndicatorSnapshot<T3State>> {
+  const { params, state } = resolveResume<T3Params, T3State>({
+    indicator: "t3",
+    version: T3_VERSION,
+    category: "cascaded",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { period: 5, vFactor: 0.7, source: "close" },
+  });
+
+  const period = requireParam(
+    "t3",
+    params,
+    "period",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
+  const vFactor = params.vFactor;
+  const source = params.source;
 
   // T3 coefficients derived from volume factor
   const v2 = vFactor * vFactor;
@@ -61,15 +95,14 @@ export function createT3(
   let ema6: ReturnType<typeof createEma>;
   let count: number;
 
-  if (warmUpOptions?.fromState) {
-    const s = warmUpOptions.fromState;
-    ema1 = createEma({ period, source }, { fromState: s.ema1State });
-    ema2 = createEma({ period }, { fromState: s.ema2State });
-    ema3 = createEma({ period }, { fromState: s.ema3State });
-    ema4 = createEma({ period }, { fromState: s.ema4State });
-    ema5 = createEma({ period }, { fromState: s.ema5State });
-    ema6 = createEma({ period }, { fromState: s.ema6State });
-    count = s.count;
+  if (state !== null) {
+    ema1 = createEma({ period, source }, { fromState: state.ema1State });
+    ema2 = createEma({ period }, { fromState: state.ema2State });
+    ema3 = createEma({ period }, { fromState: state.ema3State });
+    ema4 = createEma({ period }, { fromState: state.ema4State });
+    ema5 = createEma({ period }, { fromState: state.ema5State });
+    ema6 = createEma({ period }, { fromState: state.ema6State });
+    count = state.count;
   } else {
     ema1 = createEma({ period, source });
     ema2 = createEma({ period });
@@ -108,30 +141,31 @@ export function createT3(
     return c1 * v6 + c2 * v5 + c3 * v4 + c4 * v3;
   }
 
-  const indicator: IncrementalIndicator<number | null, T3State> = {
+  const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<T3State>> = {
     next(candle: NormalizedCandle) {
       count++;
-      const value = cascade(candle, false);
-      return { time: candle.time, value };
+      return { time: candle.time, value: cascade(candle, false) };
     },
 
     peek(candle: NormalizedCandle) {
       return { time: candle.time, value: cascade(candle, true) };
     },
 
-    getState(): T3State {
-      return {
-        period,
-        vFactor,
-        source,
-        ema1State: ema1.getState(),
-        ema2State: ema2.getState(),
-        ema3State: ema3.getState(),
-        ema4State: ema4.getState(),
-        ema5State: ema5.getState(),
-        ema6State: ema6.getState(),
-        count,
-      };
+    getState(): IndicatorSnapshot<T3State> {
+      return makeSnapshot(
+        "t3",
+        T3_VERSION,
+        { period, vFactor, source },
+        {
+          ema1State: ema1.getState(),
+          ema2State: ema2.getState(),
+          ema3State: ema3.getState(),
+          ema4State: ema4.getState(),
+          ema5State: ema5.getState(),
+          ema6State: ema6.getState(),
+          count,
+        },
+      );
     },
 
     get count() {
