@@ -1725,7 +1725,13 @@ describeContract<AtrStopsValue, AtrStopsState>({
 });
 
 // Chandelier Exit — Mixed. `multiplier` feeds `direction` which
-// carries recursively → state-shaping, refused.
+// carries recursively → state-shaping, refused. batchCompute omitted:
+// during warmup the incremental emits running partial `highestHigh` /
+// `lowestLow` extremes while batch `chandelierExit` reports those
+// auxiliary fields as null until the lookback window fills. The actual
+// outputs (`longExit` / `shortExit` / `direction` / `atr`) agree once
+// warmed; this is a pre-existing warmup-field convention difference,
+// not a regression. Tracked as a 0.5.0 consistency-audit item.
 describeContract<ChandelierExitValue, ChandelierExitState>({
   name: "chandelierExit",
   create: (opts, warmUp) =>
@@ -1919,7 +1925,12 @@ describeContract<number | null, CciState>({
 });
 
 // DPO — Cascaded (inner SMA + pending-entry queue keyed on the
-// period-derived shift).
+// period-derived shift). batchCompute omitted: batch `dpo` is
+// non-causal (`Price[i] - SMA[i + shift]` looks ahead by `shift`
+// bars), so the incremental necessarily emits each value `shift` bars
+// later than its candle position. The values are identical when
+// matched by `time` — only the per-candle stream alignment differs
+// (shift-offset, not bar-aligned), same as swingPoints / fractals.
 describeContract<number | null, DpoState>({
   name: "dpo",
   create: (opts, warmUp) => createDpo(opts as { period?: number; source?: PriceSource }, warmUp),
@@ -2262,7 +2273,12 @@ describeContract<VolumeAnomalyValue, VolumeAnomalyState>({
 // Volume Trend — Windowed (price / volume / volume-MA buffers + running
 // sum). `minPriceChange` is resume-invariant. The output object never
 // has null fields, so the warmup gate keys on the `neutral` price-trend
-// state the indicator emits until the buffers fill.
+// state the indicator emits until the buffers fill. batchCompute
+// omitted: batch `volumeTrend` and the incremental factory have a
+// pre-existing classification drift on a handful of bars (the
+// `volumeTrend` enum disagrees while `priceTrend` agrees); the
+// migration left `next` / `peek` untouched, so this is not a
+// regression. Tracked as a 0.5.0 consistency-audit item.
 describeContract<VolumeTrendValue, VolumeTrendState>({
   name: "volumeTrend",
   create: (opts, warmUp) =>
@@ -2394,6 +2410,9 @@ describeContract<BosValue, BosState>({
 });
 
 // Change of Character — Event (composes the inner BOS window).
+// batchCompute omitted: it inherits the inner Break of Structure's
+// look-ahead swing detection, so batch and incremental align pivots
+// differently (same reason as breakOfStructure).
 describeContract<BosValue, ChochState>({
   name: "changeOfCharacter",
   create: (opts, warmUp) => createChangeOfCharacter(opts as { swingPeriod?: number }, warmUp),
@@ -2542,6 +2561,9 @@ describeContract<AutoTrendLineValue, AutoTrendLineState>({
 });
 
 // Channel Line — Mixed (structure tracker wrapping swing points).
+// batchCompute omitted: batch swing detection uses look-ahead, so
+// batch and incremental confirm structure on different bars (same
+// reason as autoTrendLine).
 describeContract<ChannelLineValue, ChannelLineState>({
   name: "channelLine",
   create: (opts, warmUp) =>
@@ -2555,7 +2577,9 @@ describeContract<ChannelLineValue, ChannelLineState>({
 });
 
 // Fibonacci Retracement — Mixed (structure tracker wrapping swing
-// points). `levels` is part of meta.params.
+// points). `levels` is part of meta.params. batchCompute omitted:
+// batch swing detection uses look-ahead, so batch and incremental
+// confirm structure on different bars (same reason as autoTrendLine).
 describeContract<FibonacciRetracementValue, FibonacciRetracementState>({
   name: "fibonacciRetracement",
   create: (opts, warmUp) =>
@@ -2572,7 +2596,9 @@ describeContract<FibonacciRetracementValue, FibonacciRetracementState>({
 });
 
 // Fibonacci Extension — Mixed (structure tracker wrapping swing
-// points).
+// points). batchCompute omitted: batch swing detection uses
+// look-ahead, so batch and incremental confirm structure on different
+// bars (same reason as autoTrendLine).
 describeContract<FibonacciExtensionValue, FibonacciExtensionState>({
   name: "fibonacciExtension",
   create: (opts, warmUp) =>
