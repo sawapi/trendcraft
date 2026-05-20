@@ -14,12 +14,16 @@
 
 import { describe, expect, it } from "vitest";
 import { CRYPTO_CALENDAR, JPX_CALENDAR } from "../../../calendar";
-import type { NormalizedCandle, PriceSource } from "../../../types";
+import type { MacdValue, NormalizedCandle, PriceSource } from "../../../types";
 import { adxr } from "../../momentum/adxr";
 import { cmo } from "../../momentum/cmo";
 import { connorsRsi } from "../../momentum/connors-rsi";
+import { coppockCurve } from "../../momentum/coppock-curve";
 import { dmi } from "../../momentum/dmi";
+import { macd } from "../../momentum/macd";
 import { massIndex } from "../../momentum/mass-index";
+import { ppo } from "../../momentum/ppo";
+import { roc } from "../../momentum/roc";
 import { rsi } from "../../momentum/rsi";
 import { stochRsi } from "../../momentum/stoch-rsi";
 import { trix } from "../../momentum/trix";
@@ -28,6 +32,9 @@ import { alma } from "../../moving-average/alma";
 import { dema } from "../../moving-average/dema";
 import { ema } from "../../moving-average/ema";
 import { emaRibbon } from "../../moving-average/ema-ribbon";
+import { frama } from "../../moving-average/frama";
+import { hma } from "../../moving-average/hma";
+import { kama } from "../../moving-average/kama";
 import { mcginleyDynamic } from "../../moving-average/mcginley-dynamic";
 import { sma } from "../../moving-average/sma";
 import { t3 } from "../../moving-average/t3";
@@ -37,6 +44,7 @@ import { wma } from "../../moving-average/wma";
 import { zlema } from "../../moving-average/zlema";
 import { highest, lowest } from "../../price/highest-lowest";
 import { returns as returnsBatch } from "../../price/returns";
+import { schaffTrendCycle } from "../../trend/schaff-trend-cycle";
 import { atr } from "../../volatility/atr";
 import { choppinessIndex } from "../../volatility/choppiness-index";
 import { donchianChannel } from "../../volatility/donchian-channel";
@@ -59,9 +67,14 @@ import {
   type ConnorsRsiValue,
   createConnorsRsi,
 } from "../momentum/connors-rsi";
+import { type CoppockCurveState, createCoppockCurve } from "../momentum/coppock-curve";
 import { createDmi, type DmiState, type DmiValue } from "../momentum/dmi";
+import { createMacd, type MacdState } from "../momentum/macd";
 import { createMassIndex, type MassIndexState } from "../momentum/mass-index";
+import { createPpo, type PpoState, type PpoValue } from "../momentum/ppo";
+import { createRoc, type RocState } from "../momentum/roc";
 import { createRsi, type RsiState } from "../momentum/rsi";
+import { createStc, type StcState } from "../momentum/schaff-trend-cycle";
 import { createStochRsi, type StochRsiState, type StochRsiValue } from "../momentum/stoch-rsi";
 import { createTrix, type TrixState, type TrixValue } from "../momentum/trix";
 import { createTsi, type TsiState, type TsiValue } from "../momentum/tsi";
@@ -73,6 +86,9 @@ import {
   type EmaRibbonState,
   type EmaRibbonValue,
 } from "../moving-average/ema-ribbon";
+import { createFrama, type FramaState } from "../moving-average/frama";
+import { createHma, type HmaState } from "../moving-average/hma";
+import { createKama, type KamaState } from "../moving-average/kama";
 import {
   createMcGinleyDynamic,
   type McGinleyDynamicState,
@@ -1216,6 +1232,223 @@ describeContract<ConnorsRsiValue, ConnorsRsiState>({
         rsiPeriod?: number;
         streakPeriod?: number;
         rocPeriod?: number;
+        source?: PriceSource;
+      },
+    ).map((s) => s.value),
+});
+
+// ---- Wave 3 Bundle K: Mixed + own-EMA indicators ----
+//
+// ROC is Windowed (price buffer carry-forward). FRAMA / KAMA are Mixed,
+// HMA / Coppock Curve / MACD / PPO / Schaff Trend Cycle are Cascaded.
+// MACD / PPO / STC keep their own inline EMA logic (no createEma) with
+// derived multipliers dropped from bare state. `batchCompute` pins
+// invariant [8].
+
+// ROC — Windowed (period+1 price buffer; carry-forward on reconfig).
+describeContract<number | null, RocState>({
+  name: "roc",
+  create: (opts, warmUp) => createRoc(opts as { period?: number; source?: PriceSource }, warmUp),
+  category: "windowed",
+  version: 1,
+  defaultParams: { period: 12, source: "close" },
+  reconfigParams: [{ period: 8 }, { period: 20 }],
+  makeCandles,
+  streamLength: 100,
+  batchCompute: (opts, candles) =>
+    roc(candles, opts as { period?: number; source?: PriceSource }).map((s) => s.value),
+});
+
+// FRAMA — Mixed (high/low buffers for fractal dimension + recursive
+// prevFrama). Resume with a different period/source is refused.
+describeContract<number | null, FramaState>({
+  name: "frama",
+  create: (opts, warmUp) => createFrama(opts as { period?: number; source?: PriceSource }, warmUp),
+  category: "mixed",
+  version: 1,
+  defaultParams: { period: 16, source: "close" },
+  reconfigParams: [{ period: 10 }, { period: 20 }, { source: "high" }],
+  makeCandles,
+  streamLength: 100,
+  batchCompute: (opts, candles) =>
+    frama(candles, opts as { period?: number; source?: PriceSource }).map((s) => s.value),
+});
+
+// KAMA — Mixed (price buffer for ER + recursive prevKama). fastSC /
+// slowSC are derived from fastPeriod / slowPeriod.
+describeContract<number | null, KamaState>({
+  name: "kama",
+  create: (opts, warmUp) =>
+    createKama(
+      opts as { period?: number; fastPeriod?: number; slowPeriod?: number; source?: PriceSource },
+      warmUp,
+    ),
+  category: "mixed",
+  version: 1,
+  defaultParams: { period: 10, fastPeriod: 2, slowPeriod: 30, source: "close" },
+  reconfigParams: [{ period: 8 }, { fastPeriod: 3 }, { slowPeriod: 20 }, { source: "high" }],
+  makeCandles,
+  streamLength: 100,
+  batchCompute: (opts, candles) =>
+    kama(
+      candles,
+      opts as { period?: number; fastPeriod?: number; slowPeriod?: number; source?: PriceSource },
+    ).map((s) => s.value),
+});
+
+// HMA — Cascaded (3 stacked WMAs).
+describeContract<number | null, HmaState>({
+  name: "hma",
+  create: (opts, warmUp) => createHma(opts as { period?: number; source?: PriceSource }, warmUp),
+  category: "cascaded",
+  version: 1,
+  defaultParams: { period: 9, source: "close" },
+  reconfigParams: [{ period: 16 }, { period: 25 }, { source: "high" }],
+  makeCandles,
+  streamLength: 100,
+  batchCompute: (opts, candles) =>
+    hma(candles, opts as { period?: number; source?: PriceSource }).map((s) => s.value),
+});
+
+// Coppock Curve — Cascaded (2 ROC stages → WMA).
+describeContract<number | null, CoppockCurveState>({
+  name: "coppockCurve",
+  create: (opts, warmUp) =>
+    createCoppockCurve(
+      opts as {
+        wmaPeriod?: number;
+        longRocPeriod?: number;
+        shortRocPeriod?: number;
+        source?: PriceSource;
+      },
+      warmUp,
+    ),
+  category: "cascaded",
+  version: 1,
+  defaultParams: { wmaPeriod: 10, longRocPeriod: 14, shortRocPeriod: 11, source: "close" },
+  reconfigParams: [{ wmaPeriod: 8 }, { longRocPeriod: 10 }, { shortRocPeriod: 8 }],
+  makeCandles,
+  streamLength: 100,
+  batchCompute: (opts, candles) =>
+    coppockCurve(
+      candles,
+      opts as {
+        wmaPeriod?: number;
+        longRocPeriod?: number;
+        shortRocPeriod?: number;
+        source?: PriceSource;
+      },
+    ).map((s) => s.value),
+});
+
+// MACD — Cascaded (own inline EMA logic). Composite `{ macd, signal,
+// histogram }`; macd emerges before signal, so the null predicate
+// gates on `signal` to align with `isWarmedUp`.
+describeContract<MacdValue, MacdState>({
+  name: "macd",
+  create: (opts, warmUp) =>
+    createMacd(
+      opts as {
+        fastPeriod?: number;
+        slowPeriod?: number;
+        signalPeriod?: number;
+        source?: PriceSource;
+      },
+      warmUp,
+    ),
+  category: "cascaded",
+  version: 1,
+  defaultParams: { fastPeriod: 12, slowPeriod: 26, signalPeriod: 9, source: "close" },
+  reconfigParams: [{ fastPeriod: 10 }, { slowPeriod: 20 }, { signalPeriod: 5 }],
+  makeCandles,
+  streamLength: 120,
+  isNullishField: (v) =>
+    v === null ||
+    v === undefined ||
+    (typeof v === "object" && (v as { signal: unknown }).signal === null),
+  batchCompute: (opts, candles) =>
+    macd(
+      candles,
+      opts as {
+        fastPeriod?: number;
+        slowPeriod?: number;
+        signalPeriod?: number;
+        source?: PriceSource;
+      },
+    ).map((s) => s.value),
+});
+
+// PPO — Cascaded (own inline EMA logic). Composite `{ ppo, signal,
+// histogram } | null`; gates on `signal` like MACD.
+describeContract<PpoValue | null, PpoState>({
+  name: "ppo",
+  create: (opts, warmUp) =>
+    createPpo(
+      opts as {
+        fastPeriod?: number;
+        slowPeriod?: number;
+        signalPeriod?: number;
+        source?: PriceSource;
+      },
+      warmUp,
+    ),
+  category: "cascaded",
+  version: 1,
+  defaultParams: { fastPeriod: 12, slowPeriod: 26, signalPeriod: 9, source: "close" },
+  reconfigParams: [{ fastPeriod: 10 }, { slowPeriod: 20 }, { signalPeriod: 5 }],
+  makeCandles,
+  streamLength: 120,
+  isNullishField: (v) =>
+    v === null ||
+    v === undefined ||
+    (typeof v === "object" && (v as { signal: unknown }).signal === null),
+  batchCompute: (opts, candles) =>
+    ppo(
+      candles,
+      opts as {
+        fastPeriod?: number;
+        slowPeriod?: number;
+        signalPeriod?: number;
+        source?: PriceSource;
+      },
+    ).map((s) => s.value),
+});
+
+// Schaff Trend Cycle — Cascaded (2 inline EMAs + 2 recursive stochastic
+// smoothings + 2 windowed buffers).
+describeContract<number | null, StcState>({
+  name: "stc",
+  create: (opts, warmUp) =>
+    createStc(
+      opts as {
+        fastPeriod?: number;
+        slowPeriod?: number;
+        cyclePeriod?: number;
+        factor?: number;
+        source?: PriceSource;
+      },
+      warmUp,
+    ),
+  category: "cascaded",
+  version: 1,
+  defaultParams: { fastPeriod: 23, slowPeriod: 50, cyclePeriod: 10, factor: 0.5, source: "close" },
+  reconfigParams: [
+    { fastPeriod: 12 },
+    { slowPeriod: 30 },
+    { cyclePeriod: 7 },
+    { factor: 0.4 },
+    { source: "high" },
+  ],
+  makeCandles,
+  streamLength: 160,
+  batchCompute: (opts, candles) =>
+    schaffTrendCycle(
+      candles,
+      opts as {
+        fastPeriod?: number;
+        slowPeriod?: number;
+        cyclePeriod?: number;
+        factor?: number;
         source?: PriceSource;
       },
     ).map((s) => s.value),

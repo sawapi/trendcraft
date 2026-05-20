@@ -6,30 +6,42 @@
  * A momentum indicator originally designed for long-term monthly charts.
  * Buy signals occur when the Coppock Curve turns up from below zero.
  *
- * Composes: 2x ROC (long + short) + 1x WMA
+ * State category: **Cascaded** (two ROC stages feeding a WMA). Resume
+ * with a different `wmaPeriod` / `longRocPeriod` / `shortRocPeriod` /
+ * `source` is refused.
+ *
+ * Migrated to the 0.4.0 State Contract.
  */
 
 import type { NormalizedCandle, PriceSource } from "../../../types";
 import type { WmaState } from "../moving-average/wma";
 import { createWma } from "../moving-average/wma";
-import type { IndicatorSnapshot } from "../state-contract";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import {
+  type IndicatorSnapshot,
+  makeSnapshot,
+  requireParam,
+  resolveResume,
+} from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 import { makeCandle } from "../utils";
 import type { RocState } from "./roc";
 import { createRoc } from "./roc";
 
-/**
- * State for incremental Coppock Curve
- */
 export type CoppockCurveState = {
+  longRocState: IndicatorSnapshot<RocState>;
+  shortRocState: IndicatorSnapshot<RocState>;
+  wmaState: IndicatorSnapshot<WmaState>;
+  count: number;
+};
+
+/** Per-indicator schema version. Bumped on any breaking state change. */
+export const COPPOCK_CURVE_VERSION = 1;
+
+type CoppockCurveParams = {
   wmaPeriod: number;
   longRocPeriod: number;
   shortRocPeriod: number;
   source: PriceSource;
-  longRocState: RocState;
-  shortRocState: RocState;
-  wmaState: IndicatorSnapshot<WmaState>;
-  count: number;
 };
 
 /**
@@ -51,24 +63,53 @@ export function createCoppockCurve(
     shortRocPeriod?: number;
     source?: PriceSource;
   } = {},
-  warmUpOptions?: WarmUpOptions<CoppockCurveState>,
-): IncrementalIndicator<number | null, CoppockCurveState> {
-  const wmaPeriod = options.wmaPeriod ?? 10;
-  const longRocPeriod = options.longRocPeriod ?? 14;
-  const shortRocPeriod = options.shortRocPeriod ?? 11;
-  const source: PriceSource = options.source ?? "close";
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<CoppockCurveState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<number | null, IndicatorSnapshot<CoppockCurveState>> {
+  const { params, state } = resolveResume<CoppockCurveParams, CoppockCurveState>({
+    indicator: "coppockCurve",
+    version: COPPOCK_CURVE_VERSION,
+    category: "cascaded",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { wmaPeriod: 10, longRocPeriod: 14, shortRocPeriod: 11, source: "close" },
+  });
+
+  const wmaPeriod = requireParam(
+    "coppockCurve",
+    params,
+    "wmaPeriod",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
+  const longRocPeriod = requireParam(
+    "coppockCurve",
+    params,
+    "longRocPeriod",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
+  const shortRocPeriod = requireParam(
+    "coppockCurve",
+    params,
+    "shortRocPeriod",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
+  const source = params.source;
 
   let longRoc: ReturnType<typeof createRoc>;
   let shortRoc: ReturnType<typeof createRoc>;
   let wma: ReturnType<typeof createWma>;
   let count: number;
 
-  if (warmUpOptions?.fromState) {
-    const s = warmUpOptions.fromState;
-    longRoc = createRoc({ period: longRocPeriod, source }, { fromState: s.longRocState });
-    shortRoc = createRoc({ period: shortRocPeriod, source }, { fromState: s.shortRocState });
-    wma = createWma({ period: wmaPeriod }, { fromState: s.wmaState });
-    count = s.count;
+  if (state !== null) {
+    longRoc = createRoc({ period: longRocPeriod, source }, { fromState: state.longRocState });
+    shortRoc = createRoc({ period: shortRocPeriod, source }, { fromState: state.shortRocState });
+    wma = createWma({ period: wmaPeriod }, { fromState: state.wmaState });
+    count = state.count;
   } else {
     longRoc = createRoc({ period: longRocPeriod, source });
     shortRoc = createRoc({ period: shortRocPeriod, source });
@@ -76,7 +117,7 @@ export function createCoppockCurve(
     count = 0;
   }
 
-  const indicator: IncrementalIndicator<number | null, CoppockCurveState> = {
+  const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<CoppockCurveState>> = {
     next(candle: NormalizedCandle) {
       count++;
 
@@ -105,17 +146,18 @@ export function createCoppockCurve(
       return { time: candle.time, value: null };
     },
 
-    getState(): CoppockCurveState {
-      return {
-        wmaPeriod,
-        longRocPeriod,
-        shortRocPeriod,
-        source,
-        longRocState: longRoc.getState(),
-        shortRocState: shortRoc.getState(),
-        wmaState: wma.getState(),
-        count,
-      };
+    getState(): IndicatorSnapshot<CoppockCurveState> {
+      return makeSnapshot(
+        "coppockCurve",
+        COPPOCK_CURVE_VERSION,
+        { wmaPeriod, longRocPeriod, shortRocPeriod, source },
+        {
+          longRocState: longRoc.getState(),
+          shortRocState: shortRoc.getState(),
+          wmaState: wma.getState(),
+          count,
+        },
+      );
     },
 
     get count() {

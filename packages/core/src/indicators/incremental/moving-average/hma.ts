@@ -7,24 +7,37 @@
  * WMAs hold raw price buffers, but the outer `finalWma` holds
  * intermediate `2*WMA(n/2) - WMA(n)` values whose meaning depends on
  * `period`. Reconfiguring `period` mid-stream invalidates that
- * intermediate buffer, so resume requires identical `period` and
- * `source` (or omit them and let the snapshot's params win).
+ * intermediate buffer, so the cascaded-category policy refuses any
+ * `period` / `source` change on resume.
+ *
+ * Migrated to the 0.4.0 State Contract.
  */
 
 import type { NormalizedCandle, PriceSource } from "../../../types";
-import type { IndicatorSnapshot } from "../state-contract";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import {
+  type IndicatorSnapshot,
+  makeSnapshot,
+  requireParam,
+  resolveResume,
+} from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 import { makeCandle } from "../utils";
 import type { WmaState } from "./wma";
 import { createWma } from "./wma";
 
 export type HmaState = {
-  period: number;
-  source: PriceSource;
   halfWmaState: IndicatorSnapshot<WmaState>;
   fullWmaState: IndicatorSnapshot<WmaState>;
   finalWmaState: IndicatorSnapshot<WmaState>;
   count: number;
+};
+
+/** Per-indicator schema version. Bumped on any breaking state change. */
+export const HMA_VERSION = 1;
+
+type HmaParams = {
+  period: number;
+  source: PriceSource;
 };
 
 /**
@@ -41,12 +54,28 @@ export type HmaState = {
  */
 export function createHma(
   options: { period?: number; source?: PriceSource } = {},
-  warmUpOptions?: WarmUpOptions<HmaState>,
-): IncrementalIndicator<number | null, HmaState> {
-  // Resume order: explicit option > snapshot value > canonical default.
-  const fs = warmUpOptions?.fromState ?? null;
-  const period = options.period ?? fs?.period ?? 9;
-  const source: PriceSource = options.source ?? fs?.source ?? "close";
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<HmaState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<number | null, IndicatorSnapshot<HmaState>> {
+  const { params, state } = resolveResume<HmaParams, HmaState>({
+    indicator: "hma",
+    version: HMA_VERSION,
+    category: "cascaded",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { period: 9, source: "close" },
+  });
+
+  const period = requireParam(
+    "hma",
+    params,
+    "period",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
+  const source = params.source;
   const halfPeriod = Math.floor(period / 2);
   const sqrtPeriod = Math.floor(Math.sqrt(period));
 
@@ -55,18 +84,11 @@ export function createHma(
   let finalWma: ReturnType<typeof createWma>;
   let count: number;
 
-  if (fs) {
-    // HMA is a cascade: the outer `finalWma` carries intermediate
-    // `2*WMA(n/2) - WMA(n)` values whose semantics depend on `period`.
-    // Reconfiguring `period` invalidates those intermediates, so
-    // resume requires identical params.
-    if (fs.period !== period || fs.source !== source) {
-      throw new Error("HMA: incompatible snapshot, re-warm required");
-    }
-    halfWma = createWma({ period: halfPeriod, source }, { fromState: fs.halfWmaState });
-    fullWma = createWma({ period, source }, { fromState: fs.fullWmaState });
-    finalWma = createWma({ period: sqrtPeriod }, { fromState: fs.finalWmaState });
-    count = fs.count;
+  if (state !== null) {
+    halfWma = createWma({ period: halfPeriod, source }, { fromState: state.halfWmaState });
+    fullWma = createWma({ period, source }, { fromState: state.fullWmaState });
+    finalWma = createWma({ period: sqrtPeriod }, { fromState: state.finalWmaState });
+    count = state.count;
   } else {
     halfWma = createWma({ period: halfPeriod, source });
     fullWma = createWma({ period, source });
@@ -74,7 +96,7 @@ export function createHma(
     count = 0;
   }
 
-  const indicator: IncrementalIndicator<number | null, HmaState> = {
+  const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<HmaState>> = {
     next(candle: NormalizedCandle) {
       count++;
 
@@ -102,15 +124,18 @@ export function createHma(
       return { time: candle.time, value: finalWma.peek(makeCandle(candle.time, diff)).value };
     },
 
-    getState(): HmaState {
-      return {
-        period,
-        source,
-        halfWmaState: halfWma.getState(),
-        fullWmaState: fullWma.getState(),
-        finalWmaState: finalWma.getState(),
-        count,
-      };
+    getState(): IndicatorSnapshot<HmaState> {
+      return makeSnapshot(
+        "hma",
+        HMA_VERSION,
+        { period, source },
+        {
+          halfWmaState: halfWma.getState(),
+          fullWmaState: fullWma.getState(),
+          finalWmaState: finalWma.getState(),
+          count,
+        },
+      );
     },
 
     get count() {

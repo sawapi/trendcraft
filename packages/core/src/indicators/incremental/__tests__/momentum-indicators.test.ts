@@ -385,11 +385,11 @@ describe("STC incremental", () => {
     const state = s1.getState();
 
     const s2 = createStc({}, { fromState: state });
-    expect(s2.getState().fastPeriod).toBe(12);
-    expect(s2.getState().slowPeriod).toBe(26);
-    expect(s2.getState().cyclePeriod).toBe(7);
-    expect(s2.getState().factor).toBe(0.4);
-    expect(s2.getState().source).toBe("high");
+    expect(s2.getState().meta.params.fastPeriod).toBe(12);
+    expect(s2.getState().meta.params.slowPeriod).toBe(26);
+    expect(s2.getState().meta.params.cyclePeriod).toBe(7);
+    expect(s2.getState().meta.params.factor).toBe(0.4);
+    expect(s2.getState().meta.params.source).toBe("high");
   });
 
   it("refuses resume with a different fastPeriod", () => {
@@ -440,15 +440,15 @@ describe("STC incremental", () => {
 
   // Validation must match the batch indicator's so the same options
   // object behaves identically across both APIs.
-  it("rejects invalid factor (<=0 or >1) just like the batch indicator", () => {
-    expect(() => createStc({ factor: 0 })).toThrow(/factor must be in/);
-    expect(() => createStc({ factor: -0.1 })).toThrow(/factor must be in/);
-    expect(() => createStc({ factor: 1.5 })).toThrow(/factor must be in/);
+  it("rejects invalid factor (<=0 or >1) via the State Contract requireParam check", () => {
+    expect(() => createStc({ factor: 0 })).toThrow(/"factor" failed validation/);
+    expect(() => createStc({ factor: -0.1 })).toThrow(/"factor" failed validation/);
+    expect(() => createStc({ factor: 1.5 })).toThrow(/"factor" failed validation/);
   });
 
-  it("rejects invalid periods (<1) just like the batch indicator", () => {
-    expect(() => createStc({ fastPeriod: 0 })).toThrow(/periods must be at least 1/);
-    expect(() => createStc({ slowPeriod: 0 })).toThrow(/periods must be at least 1/);
-    expect(() => createStc({ cyclePeriod: 0 })).toThrow(/periods must be at least 1/);
+  it("rejects invalid periods (<1) via the State Contract requireParam check", () => {
+    expect(() => createStc({ fastPeriod: 0 })).toThrow(/"fastPeriod" failed validation/);
+    expect(() => createStc({ slowPeriod: 0 })).toThrow(/"slowPeriod" failed validation/);
+    expect(() => createStc({ cyclePeriod: 0 })).toThrow(/"cyclePeriod" failed validation/);
   });
 });
