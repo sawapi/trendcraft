@@ -445,8 +445,8 @@ describe("HMA (Hull Moving Average)", () => {
     const state = hma1.getState();
 
     const hma2 = createHma({}, { fromState: state });
-    expect(hma2.getState().period).toBe(16);
-    expect(hma2.getState().source).toBe("high");
+    expect(hma2.getState().meta.params.period).toBe(16);
+    expect(hma2.getState().meta.params.source).toBe("high");
   });
 
   it("refuses resume with a different period", () => {
@@ -1235,16 +1235,16 @@ describe("KAMA adapts smoothing constant based on price efficiency", () => {
   // Resume contract: KAMA is Mixed (price buffer + recursive prevKama).
   // The recursive component permanently encodes past parameters so
   // reconfiguring on resume is refused.
-  it("fromState restores period / source / fastSC / slowSC when options are omitted", () => {
+  it("fromState restores period / fastPeriod / slowPeriod / source when options are omitted", () => {
     const k1 = createKama({ period: 10, fastPeriod: 2, slowPeriod: 30, source: "high" });
     for (let i = 0; i < 15; i++) k1.next(makeCandle(i));
     const state = k1.getState();
 
     const k2 = createKama({}, { fromState: state });
-    expect(k2.getState().period).toBe(10);
-    expect(k2.getState().source).toBe("high");
-    expect(k2.getState().fastSC).toBe(2 / 3);
-    expect(k2.getState().slowSC).toBe(2 / 31);
+    expect(k2.getState().meta.params.period).toBe(10);
+    expect(k2.getState().meta.params.source).toBe("high");
+    expect(k2.getState().meta.params.fastPeriod).toBe(2);
+    expect(k2.getState().meta.params.slowPeriod).toBe(30);
   });
 
   it("refuses resume with a different period", () => {

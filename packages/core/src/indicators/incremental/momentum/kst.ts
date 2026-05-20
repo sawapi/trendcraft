@@ -23,7 +23,12 @@ export type KstValue = {
 };
 
 export type KstState = {
-  rocStates: [RocState, RocState, RocState, RocState];
+  rocStates: [
+    IndicatorSnapshot<RocState>,
+    IndicatorSnapshot<RocState>,
+    IndicatorSnapshot<RocState>,
+    IndicatorSnapshot<RocState>,
+  ];
   smaStates: [
     IndicatorSnapshot<SmaState>,
     IndicatorSnapshot<SmaState>,
@@ -174,7 +179,12 @@ export function createKst(
 
     getState(): KstState {
       return {
-        rocStates: rocs.map((r) => r.getState()) as [RocState, RocState, RocState, RocState],
+        rocStates: rocs.map((r) => r.getState()) as [
+          IndicatorSnapshot<RocState>,
+          IndicatorSnapshot<RocState>,
+          IndicatorSnapshot<RocState>,
+          IndicatorSnapshot<RocState>,
+        ],
         smaStates: smas.map((s) => s.getState()) as [
           IndicatorSnapshot<SmaState>,
           IndicatorSnapshot<SmaState>,
