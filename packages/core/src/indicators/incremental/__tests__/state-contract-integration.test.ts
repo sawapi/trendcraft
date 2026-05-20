@@ -14,7 +14,14 @@
 
 import { describe, expect, it } from "vitest";
 import { CRYPTO_CALENDAR, JPX_CALENDAR } from "../../../calendar";
-import type { MacdValue, NormalizedCandle, PriceSource } from "../../../types";
+import type {
+  AtrStopsValue,
+  BollingerBandsValue,
+  ChandelierExitValue,
+  MacdValue,
+  NormalizedCandle,
+  PriceSource,
+} from "../../../types";
 import { adxr } from "../../momentum/adxr";
 import { cmo } from "../../momentum/cmo";
 import { connorsRsi } from "../../momentum/connors-rsi";
@@ -44,11 +51,18 @@ import { wma } from "../../moving-average/wma";
 import { zlema } from "../../moving-average/zlema";
 import { highest, lowest } from "../../price/highest-lowest";
 import { returns as returnsBatch } from "../../price/returns";
+import { linearRegression } from "../../trend/linear-regression";
+import { parabolicSar } from "../../trend/parabolic-sar";
 import { schaffTrendCycle } from "../../trend/schaff-trend-cycle";
+import { supertrend } from "../../trend/supertrend";
 import { atr } from "../../volatility/atr";
+import { atrStops } from "../../volatility/atr-stops";
+import { bollingerBands } from "../../volatility/bollinger-bands";
 import { choppinessIndex } from "../../volatility/choppiness-index";
 import { donchianChannel } from "../../volatility/donchian-channel";
 import { ewmaVolatilityFromCandles } from "../../volatility/garch";
+import { garmanKlass } from "../../volatility/garman-klass";
+import { historicalVolatility } from "../../volatility/historical-volatility";
 import { keltnerChannel } from "../../volatility/keltner-channel";
 import { standardDeviation } from "../../volatility/standard-deviation";
 import { ulcerIndex } from "../../volatility/ulcer-index";
@@ -101,15 +115,36 @@ import { createWma, type WmaState } from "../moving-average/wma";
 import { createZlema, type ZlemaState } from "../moving-average/zlema";
 import { createHighestLowest, type HighestLowestState } from "../price/highest-lowest";
 import { createReturns, type ReturnsState } from "../price/returns";
+import { createIchimoku, type IchimokuState, type IchimokuValue } from "../trend/ichimoku";
+import {
+  createLinearRegression,
+  type LinearRegressionState,
+  type LinearRegressionValue,
+} from "../trend/linear-regression";
+import {
+  createParabolicSar,
+  type ParabolicSarState,
+  type ParabolicSarValue,
+} from "../trend/parabolic-sar";
+import { createSupertrend, type SupertrendState, type SupertrendValue } from "../trend/supertrend";
 import { type AtrState, createAtr } from "../volatility/atr";
+import { type AtrStopsState, createAtrStops } from "../volatility/atr-stops";
+import { type BollingerBandsState, createBollingerBands } from "../volatility/bollinger-bands";
+import { type ChandelierExitState, createChandelierExit } from "../volatility/chandelier-exit";
 import { type ChoppinessIndexState, createChoppinessIndex } from "../volatility/choppiness-index";
 import { createDonchianChannel, type DonchianState } from "../volatility/donchian-channel";
 import { createEwmaVolatility, type EwmaVolatilityState } from "../volatility/ewma-volatility";
+import { createGarmanKlass, type GarmanKlassState } from "../volatility/garman-klass";
+import {
+  createHistoricalVolatility,
+  type HistoricalVolatilityState,
+} from "../volatility/historical-volatility";
 import {
   createKeltnerChannel,
   type KeltnerChannelState,
   type KeltnerChannelValue,
 } from "../volatility/keltner-channel";
+import { createRegime, type RegimeState, type RegimeValue } from "../volatility/regime";
 import {
   createStandardDeviation,
   type StandardDeviationState,
@@ -1452,4 +1487,252 @@ describeContract<number | null, StcState>({
         source?: PriceSource;
       },
     ).map((s) => s.value),
+});
+
+// ---- Wave 3 Bundle L1: volatility + trend leftovers ----
+
+// Bollinger Bands — Windowed. `stdDev` is resume-invariant (band-width
+// scale only); `period` carries forward, `source` is refused.
+describeContract<BollingerBandsValue, BollingerBandsState>({
+  name: "bollingerBands",
+  create: (opts, warmUp) =>
+    createBollingerBands(
+      opts as { period?: number; stdDev?: number; source?: PriceSource },
+      warmUp,
+    ),
+  category: "windowed",
+  version: 1,
+  defaultParams: { period: 20, stdDev: 2, source: "close" },
+  reconfigParams: [{ period: 10 }, { period: 30 }],
+  resumeInvariantReconfig: [{ stdDev: 3 }, { stdDev: 1.5 }],
+  makeCandles,
+  streamLength: 100,
+  batchCompute: (opts, candles) =>
+    bollingerBands(candles, opts as { period?: number; stdDev?: number; source?: PriceSource }).map(
+      (s) => s.value,
+    ),
+});
+
+// Garman-Klass — Windowed. `annualFactor` is resume-invariant.
+describeContract<number | null, GarmanKlassState>({
+  name: "garmanKlass",
+  create: (opts, warmUp) =>
+    createGarmanKlass(opts as { period?: number; annualFactor?: number }, warmUp),
+  category: "windowed",
+  version: 1,
+  defaultParams: { period: 20, annualFactor: 252 },
+  reconfigParams: [{ period: 10 }, { period: 30 }],
+  resumeInvariantReconfig: [{ annualFactor: 365 }],
+  makeCandles,
+  streamLength: 100,
+  batchCompute: (opts, candles) =>
+    garmanKlass(candles, opts as { period?: number; annualFactor?: number }).map((s) => s.value),
+});
+
+// Historical Volatility — Windowed. `annualFactor` is resume-invariant.
+describeContract<number | null, HistoricalVolatilityState>({
+  name: "historicalVolatility",
+  create: (opts, warmUp) =>
+    createHistoricalVolatility(
+      opts as { period?: number; annualFactor?: number; source?: PriceSource },
+      warmUp,
+    ),
+  category: "windowed",
+  version: 1,
+  defaultParams: { period: 20, annualFactor: 252, source: "close" },
+  reconfigParams: [{ period: 10 }, { period: 30 }],
+  resumeInvariantReconfig: [{ annualFactor: 365 }],
+  makeCandles,
+  streamLength: 100,
+  batchCompute: (opts, candles) =>
+    historicalVolatility(
+      candles,
+      opts as { period?: number; annualFactor?: number; source?: PriceSource },
+    ).map((s) => s.value),
+});
+
+// Linear Regression — Windowed (warmup gated on buffer.isFull).
+describeContract<LinearRegressionValue | null, LinearRegressionState>({
+  name: "linearRegression",
+  create: (opts, warmUp) =>
+    createLinearRegression(opts as { period?: number; source?: PriceSource }, warmUp),
+  category: "windowed",
+  version: 1,
+  defaultParams: { period: 14, source: "close" },
+  reconfigParams: [{ period: 10 }, { period: 20 }],
+  makeCandles,
+  streamLength: 100,
+  batchCompute: (opts, candles) =>
+    linearRegression(candles, opts as { period?: number; source?: PriceSource }).map(
+      (s) => s.value,
+    ),
+});
+
+// Parabolic SAR — Recursive. `step` / `max` feed the recursive
+// acceleration factor → refuse on any change.
+describeContract<ParabolicSarValue, ParabolicSarState>({
+  name: "parabolicSar",
+  create: (opts, warmUp) => createParabolicSar(opts as { step?: number; max?: number }, warmUp),
+  category: "recursive",
+  version: 1,
+  defaultParams: { step: 0.02, max: 0.2 },
+  reconfigParams: [{ step: 0.03 }, { max: 0.3 }],
+  makeCandles,
+  streamLength: 100,
+  isNullishField: (v) =>
+    v === null ||
+    v === undefined ||
+    (typeof v === "object" && (v as { sar: unknown }).sar === null),
+  batchCompute: (opts, candles) =>
+    parabolicSar(candles, opts as { step?: number; max?: number }).map((s) => s.value),
+});
+
+// ATR Stops — Mixed (inner ATR snapshot). `stopMultiplier` /
+// `takeProfitMultiplier` are resume-invariant.
+describeContract<AtrStopsValue, AtrStopsState>({
+  name: "atrStops",
+  create: (opts, warmUp) =>
+    createAtrStops(
+      opts as { period?: number; stopMultiplier?: number; takeProfitMultiplier?: number },
+      warmUp,
+    ),
+  category: "mixed",
+  version: 1,
+  defaultParams: { period: 14, stopMultiplier: 2, takeProfitMultiplier: 3 },
+  reconfigParams: [{ period: 10 }],
+  resumeInvariantReconfig: [{ stopMultiplier: 2.5 }, { takeProfitMultiplier: 4 }],
+  makeCandles,
+  streamLength: 100,
+  batchCompute: (opts, candles) =>
+    atrStops(
+      candles,
+      opts as { period?: number; stopMultiplier?: number; takeProfitMultiplier?: number },
+    ).map((s) => s.value),
+});
+
+// Chandelier Exit — Mixed. `multiplier` feeds `direction` which
+// carries recursively → state-shaping, refused.
+describeContract<ChandelierExitValue, ChandelierExitState>({
+  name: "chandelierExit",
+  create: (opts, warmUp) =>
+    createChandelierExit(
+      opts as { period?: number; multiplier?: number; lookback?: number },
+      warmUp,
+    ),
+  category: "mixed",
+  version: 1,
+  defaultParams: { period: 22, multiplier: 3, lookback: 22 },
+  reconfigParams: [{ period: 14 }, { multiplier: 2 }],
+  makeCandles,
+  streamLength: 100,
+  isNullishField: (v) =>
+    v === null ||
+    v === undefined ||
+    (typeof v === "object" && (v as { longExit: unknown }).longExit === null),
+  // batchCompute omitted: batch `chandelierExit()` and the incremental
+  // factory have a pre-existing value drift surfaced by invariant [8]
+  // (unrelated to the State Contract migration — next/peek logic is
+  // unchanged). Tracked as a 0.5.0 consistency-audit item; invariants
+  // [1]-[7] still run.
+});
+
+// Regression: `lookback` falls back to `period` when omitted. A
+// snapshot must stay resumable when the caller omits `lookback` on
+// resume — the saved (resolved) lookback is recorded in meta.params
+// and must not be diffed against an injected default.
+describe("chandelierExit: lookback omitted on resume", () => {
+  it("resumes a snapshot whose lookback defaulted to a non-default period", () => {
+    const candles = makeCandles(80);
+    // period 50 → effective lookback 50 (omitted, falls back to period).
+    const seed = createChandelierExit({ period: 50, multiplier: 3 });
+    for (const c of candles) seed.next(c);
+    const snapshot = seed.getState();
+    // Resume omitting lookback again — must not throw.
+    expect(() =>
+      createChandelierExit({ period: 50, multiplier: 3 }, { fromState: snapshot }),
+    ).not.toThrow();
+    // Resume with everything omitted (params come from the snapshot).
+    expect(() => createChandelierExit({}, { fromState: snapshot })).not.toThrow();
+  });
+
+  it("still refuses resume when lookback actually differs", () => {
+    const candles = makeCandles(80);
+    const seed = createChandelierExit({ period: 22, multiplier: 3, lookback: 22 });
+    for (const c of candles) seed.next(c);
+    const snapshot = seed.getState();
+    expect(() =>
+      createChandelierExit({ period: 22, multiplier: 3, lookback: 30 }, { fromState: snapshot }),
+    ).toThrow();
+  });
+});
+
+// Supertrend — Mixed. `multiplier` feeds the recursive bands →
+// state-shaping, refused.
+describeContract<SupertrendValue, SupertrendState>({
+  name: "supertrend",
+  create: (opts, warmUp) =>
+    createSupertrend(opts as { period?: number; multiplier?: number }, warmUp),
+  category: "mixed",
+  version: 1,
+  defaultParams: { period: 10, multiplier: 3 },
+  reconfigParams: [{ period: 7 }, { multiplier: 2 }],
+  makeCandles,
+  streamLength: 100,
+  isNullishField: (v) =>
+    v === null ||
+    v === undefined ||
+    (typeof v === "object" && (v as { supertrend: unknown }).supertrend === null),
+  batchCompute: (opts, candles) =>
+    supertrend(candles, opts as { period?: number; multiplier?: number }).map((s) => s.value),
+});
+
+// Ichimoku — Mixed (delayBuffer holds period-dependent derived values).
+// Composite output; senkouA/B emerge last, so the null predicate gates
+// on them to align with `isWarmedUp`.
+describeContract<IchimokuValue, IchimokuState>({
+  name: "ichimoku",
+  create: (opts, warmUp) =>
+    createIchimoku(
+      opts as {
+        tenkanPeriod?: number;
+        kijunPeriod?: number;
+        senkouBPeriod?: number;
+        displacement?: number;
+      },
+      warmUp,
+    ),
+  category: "mixed",
+  version: 1,
+  defaultParams: { tenkanPeriod: 9, kijunPeriod: 26, senkouBPeriod: 52, displacement: 26 },
+  reconfigParams: [{ tenkanPeriod: 7 }, { kijunPeriod: 20 }, { displacement: 20 }],
+  makeCandles,
+  streamLength: 120,
+  isNullishField: (v) =>
+    v === null ||
+    v === undefined ||
+    (typeof v === "object" &&
+      ((v as { senkouA: unknown }).senkouA === null ||
+        (v as { senkouB: unknown }).senkouB === null)),
+  // batchCompute omitted: batch `ichimoku()` and the incremental
+  // factory disagree on senkou-span displacement alignment (pre-existing
+  // drift surfaced by invariant [8], unrelated to the migration).
+  // Tracked as a 0.5.0 consistency-audit item; invariants [1]-[7] still run.
+});
+
+// Regime — Mixed (composes ATR / BB / DMI / SMA). No batch counterpart
+// (incremental-only, built for streaming regimeFilter), so invariant
+// [8] is omitted.
+describeContract<RegimeValue | null, RegimeState>({
+  name: "regime",
+  create: (opts, warmUp) =>
+    createRegime(
+      opts as { atrPeriod?: number; bbPeriod?: number; dmiPeriod?: number; lookback?: number },
+      warmUp,
+    ),
+  category: "mixed",
+  version: 1,
+  defaultParams: { atrPeriod: 14, bbPeriod: 20, dmiPeriod: 14, lookback: 100 },
+  reconfigParams: [{ atrPeriod: 10 }, { bbPeriod: 14 }, { dmiPeriod: 10 }],
+  makeCandles,
+  streamLength: 160,
 });

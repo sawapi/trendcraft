@@ -6,14 +6,25 @@
  *
  * Composes ATR, Bollinger Bands, DMI, and SMA incremental indicators
  * to produce a snapshot compatible with regimeFilter().
+ *
+ * State category: **Mixed** (four inner recursive / windowed indicator
+ * snapshots plus two percentile buffers). Resume with any param change
+ * is refused.
+ *
+ * Migrated to the 0.4.0 State Contract.
  */
 
 import type { NormalizedCandle } from "../../../types";
 import { createDmi, type DmiState } from "../../incremental/momentum/dmi";
 import { createSma, type SmaState } from "../../incremental/moving-average/sma";
 import { CircularBuffer } from "../circular-buffer";
-import type { IndicatorSnapshot } from "../state-contract";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import {
+  type IndicatorSnapshot,
+  makeSnapshot,
+  requireParam,
+  resolveResume,
+} from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 import { type AtrState, createAtr } from "./atr";
 import { type BollingerBandsState, createBollingerBands } from "./bollinger-bands";
 
@@ -31,18 +42,28 @@ export type RegimeValue = {
   trendStrength: number;
 };
 
+/**
+ * Bare state shape for Regime. Params (`atrPeriod`, `bbPeriod`,
+ * `dmiPeriod`, `lookback`) live in `meta.params` on the wire.
+ */
 export type RegimeState = {
-  atrPeriod: number;
-  bbPeriod: number;
-  dmiPeriod: number;
-  lookback: number;
   atrState: IndicatorSnapshot<AtrState>;
-  bbState: BollingerBandsState;
+  bbState: IndicatorSnapshot<BollingerBandsState>;
   dmiState: IndicatorSnapshot<DmiState>;
   smaState: IndicatorSnapshot<SmaState>;
   atrBuffer: ReturnType<CircularBuffer<number>["snapshot"]>;
   bwBuffer: ReturnType<CircularBuffer<number>["snapshot"]>;
   count: number;
+};
+
+/** Per-indicator schema version. Bumped on any breaking state change. */
+export const REGIME_VERSION = 1;
+
+type RegimeParams = {
+  atrPeriod: number;
+  bbPeriod: number;
+  dmiPeriod: number;
+  lookback: number;
 };
 
 export type RegimeOptions = {
@@ -91,39 +112,65 @@ function percentileRank(buf: CircularBuffer<number>): number | null {
  */
 export function createRegime(
   options: RegimeOptions = {},
-  warmUpOptions?: WarmUpOptions<RegimeState>,
-): IncrementalIndicator<RegimeValue | null, RegimeState> {
-  const atrPeriod = options.atrPeriod ?? 14;
-  const bbPeriod = options.bbPeriod ?? 20;
-  const dmiPeriod = options.dmiPeriod ?? 14;
-  const lookback = options.lookback ?? 100;
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<RegimeState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<RegimeValue | null, IndicatorSnapshot<RegimeState>> {
+  const { params, state } = resolveResume<RegimeParams, RegimeState>({
+    indicator: "regime",
+    version: REGIME_VERSION,
+    category: "mixed",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { atrPeriod: 14, bbPeriod: 20, dmiPeriod: 14, lookback: 100 },
+  });
 
-  let atrInd: IncrementalIndicator<number | null, IndicatorSnapshot<AtrState>>;
-  let bbInd: IncrementalIndicator<
-    {
-      upper: number | null;
-      middle: number | null;
-      lower: number | null;
-      percentB: number | null;
-      bandwidth: number | null;
-    },
-    BollingerBandsState
-  >;
+  const atrPeriod = requireParam(
+    "regime",
+    params,
+    "atrPeriod",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
+  const bbPeriod = requireParam(
+    "regime",
+    params,
+    "bbPeriod",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
+  const dmiPeriod = requireParam(
+    "regime",
+    params,
+    "dmiPeriod",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
+  const lookback = requireParam(
+    "regime",
+    params,
+    "lookback",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
+
+  let atrInd: ReturnType<typeof createAtr>;
+  let bbInd: ReturnType<typeof createBollingerBands>;
   let dmiInd: ReturnType<typeof createDmi>;
-  let smaInd: IncrementalIndicator<number | null, IndicatorSnapshot<SmaState>>;
+  let smaInd: ReturnType<typeof createSma>;
   let atrBuffer: CircularBuffer<number>;
   let bwBuffer: CircularBuffer<number>;
   let count: number;
 
-  if (warmUpOptions?.fromState) {
-    const s = warmUpOptions.fromState;
-    atrInd = createAtr({ period: atrPeriod }, { fromState: s.atrState });
-    bbInd = createBollingerBands({ period: bbPeriod }, { fromState: s.bbState });
-    dmiInd = createDmi({ period: dmiPeriod }, { fromState: s.dmiState });
-    smaInd = createSma({ period: lookback }, { fromState: s.smaState });
-    atrBuffer = CircularBuffer.fromSnapshot(s.atrBuffer);
-    bwBuffer = CircularBuffer.fromSnapshot(s.bwBuffer);
-    count = s.count;
+  if (state !== null) {
+    atrInd = createAtr({ period: atrPeriod }, { fromState: state.atrState });
+    bbInd = createBollingerBands({ period: bbPeriod }, { fromState: state.bbState });
+    dmiInd = createDmi({ period: dmiPeriod }, { fromState: state.dmiState });
+    smaInd = createSma({ period: lookback }, { fromState: state.smaState });
+    atrBuffer = CircularBuffer.fromSnapshot(state.atrBuffer);
+    bwBuffer = CircularBuffer.fromSnapshot(state.bwBuffer);
+    count = state.count;
   } else {
     atrInd = createAtr({ period: atrPeriod });
     bbInd = createBollingerBands({ period: bbPeriod });
@@ -134,14 +181,14 @@ export function createRegime(
     count = 0;
   }
 
-  const indicator: IncrementalIndicator<RegimeValue | null, RegimeState> = {
+  const indicator: IncrementalIndicator<RegimeValue | null, IndicatorSnapshot<RegimeState>> = {
     next(candle: NormalizedCandle) {
       count++;
 
       const atrResult = atrInd.next(candle);
       const bbResult = bbInd.next(candle);
       const dmiResult = dmiInd.next(candle);
-      smaInd.next(candle);
+      const smaResult = smaInd.next(candle);
 
       // Accumulate ATR values for percentile
       if (atrResult.value !== null) {
@@ -173,16 +220,14 @@ export function createRegime(
         else if (avg >= 75) volatility = "high";
       }
 
-      // Trend direction from SMA slope
+      // Trend direction: current close vs the SMA value at this candle.
+      // Use the SMA value `next()` just produced — peeking the same
+      // candle again would look one bar ahead and diverge from peek().
       let trend: "bullish" | "bearish" | "sideways" = "sideways";
-      if (smaInd.isWarmedUp) {
-        // Compare current close to SMA
-        const smaVal = smaInd.peek(candle).value;
-        if (smaVal !== null) {
-          const diff = (candle.close - smaVal) / smaVal;
-          if (diff > 0.001) trend = "bullish";
-          else if (diff < -0.001) trend = "bearish";
-        }
+      if (smaResult.value !== null) {
+        const diff = (candle.close - smaResult.value) / smaResult.value;
+        if (diff > 0.001) trend = "bullish";
+        else if (diff < -0.001) trend = "bearish";
       }
 
       // Trend strength from ADX
@@ -224,13 +269,11 @@ export function createRegime(
       }
 
       let trend: "bullish" | "bearish" | "sideways" = "sideways";
-      if (smaInd.isWarmedUp) {
-        const smaVal = smaInd.peek(candle).value;
-        if (smaVal !== null) {
-          const diff = (candle.close - smaVal) / smaVal;
-          if (diff > 0.001) trend = "bullish";
-          else if (diff < -0.001) trend = "bearish";
-        }
+      const smaVal = smaInd.peek(candle).value;
+      if (smaVal !== null) {
+        const diff = (candle.close - smaVal) / smaVal;
+        if (diff > 0.001) trend = "bullish";
+        else if (diff < -0.001) trend = "bearish";
       }
 
       const trendStrength = Math.round(dmiResult.value.adx * 100) / 100;
@@ -241,20 +284,21 @@ export function createRegime(
       };
     },
 
-    getState(): RegimeState {
-      return {
-        atrPeriod,
-        bbPeriod,
-        dmiPeriod,
-        lookback,
-        atrState: atrInd.getState(),
-        bbState: bbInd.getState(),
-        dmiState: dmiInd.getState(),
-        smaState: smaInd.getState(),
-        atrBuffer: atrBuffer.snapshot(),
-        bwBuffer: bwBuffer.snapshot(),
-        count,
-      };
+    getState(): IndicatorSnapshot<RegimeState> {
+      return makeSnapshot(
+        "regime",
+        REGIME_VERSION,
+        { atrPeriod, bbPeriod, dmiPeriod, lookback },
+        {
+          atrState: atrInd.getState(),
+          bbState: bbInd.getState(),
+          dmiState: dmiInd.getState(),
+          smaState: smaInd.getState(),
+          atrBuffer: atrBuffer.snapshot(),
+          bwBuffer: bwBuffer.snapshot(),
+          count,
+        },
+      );
     },
 
     get count() {

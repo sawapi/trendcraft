@@ -2186,7 +2186,7 @@ describe("Chandelier Exit direction and crossover detection", () => {
     const ce = createChandelierExit({ period: 3, multiplier: 0.5 });
     for (let i = 0; i < 10; i++) ce.next(makeCandle(i));
     const state = ce.getState();
-    expect(state.prevDirection).not.toBe(undefined);
+    expect(state.state.prevDirection).not.toBe(undefined);
   });
 });
 
@@ -2238,7 +2238,7 @@ describe("Supertrend direction changes and band computation", () => {
     const st = createSupertrend({ period: 3, multiplier: 2 });
     for (let i = 0; i < 5; i++) st.next(makeCandle(i));
     const state = st.getState();
-    expect(state.direction).not.toBe(0);
+    expect(state.state.direction).not.toBe(0);
   });
 
   it("supertrend = lower band in uptrend (direction=1)", () => {

@@ -2,13 +2,24 @@
  * Incremental Supertrend
  *
  * Uses ATR internally to calculate dynamic support/resistance bands.
+ *
+ * State category: **Mixed** (an inner recursive ATR snapshot plus the
+ * recursive `prevFinalUpper` / `prevFinalLower` / `direction` bands).
+ * `multiplier` feeds the final bands that carry forward recursively,
+ * so it is state-shaping — every param change on resume is refused.
+ *
+ * Migrated to the 0.4.0 State Contract.
  */
 
 import type { NormalizedCandle } from "../../../types";
-import type { IndicatorSnapshot } from "../state-contract";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
-import type { AtrState } from "../volatility/atr";
-import { createAtr } from "../volatility/atr";
+import {
+  type IndicatorSnapshot,
+  makeSnapshot,
+  requireParam,
+  resolveResume,
+} from "../state-contract";
+import type { IncrementalIndicator } from "../types";
+import { type AtrState, createAtr } from "../volatility/atr";
 
 export type SupertrendValue = {
   supertrend: number | null;
@@ -18,14 +29,20 @@ export type SupertrendValue = {
 };
 
 export type SupertrendState = {
-  period: number;
-  multiplier: number;
   atrState: IndicatorSnapshot<AtrState>;
   prevFinalUpper: number | null;
   prevFinalLower: number | null;
   prevClose: number | null;
   direction: 1 | -1 | 0;
   count: number;
+};
+
+/** Per-indicator schema version. Bumped on any breaking state change. */
+export const SUPERTREND_VERSION = 1;
+
+type SupertrendParams = {
+  period: number;
+  multiplier: number;
 };
 
 /**
@@ -42,26 +59,56 @@ export type SupertrendState = {
  */
 export function createSupertrend(
   options: { period?: number; multiplier?: number } = {},
-  warmUpOptions?: WarmUpOptions<SupertrendState>,
-): IncrementalIndicator<SupertrendValue, SupertrendState> {
-  const period = options.period ?? 10;
-  const multiplier = options.multiplier ?? 3;
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<SupertrendState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<SupertrendValue, IndicatorSnapshot<SupertrendState>> {
+  const { params, state } = resolveResume<SupertrendParams, SupertrendState>({
+    indicator: "supertrend",
+    version: SUPERTREND_VERSION,
+    category: "mixed",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { period: 10, multiplier: 3 },
+  });
 
-  let atrIndicator = createAtr({ period });
-  let prevFinalUpper: number | null = null;
-  let prevFinalLower: number | null = null;
-  let prevClose: number | null = null;
-  let direction: 1 | -1 | 0 = 0;
-  let count = 0;
+  const period = requireParam(
+    "supertrend",
+    params,
+    "period",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
+  const multiplier = requireParam(
+    "supertrend",
+    params,
+    "multiplier",
+    (v): v is number => typeof v === "number" && Number.isFinite(v) && v > 0,
+    "must be a positive number",
+  );
 
-  if (warmUpOptions?.fromState) {
-    const s = warmUpOptions.fromState;
-    atrIndicator = createAtr({ period }, { fromState: s.atrState });
-    prevFinalUpper = s.prevFinalUpper;
-    prevFinalLower = s.prevFinalLower;
-    prevClose = s.prevClose;
-    direction = s.direction;
-    count = s.count;
+  let atrIndicator: ReturnType<typeof createAtr>;
+  let prevFinalUpper: number | null;
+  let prevFinalLower: number | null;
+  let prevClose: number | null;
+  let direction: 1 | -1 | 0;
+  let count: number;
+
+  if (state !== null) {
+    atrIndicator = createAtr({ period }, { fromState: state.atrState });
+    prevFinalUpper = state.prevFinalUpper;
+    prevFinalLower = state.prevFinalLower;
+    prevClose = state.prevClose;
+    direction = state.direction;
+    count = state.count;
+  } else {
+    atrIndicator = createAtr({ period });
+    prevFinalUpper = null;
+    prevFinalLower = null;
+    prevClose = null;
+    direction = 0;
+    count = 0;
   }
 
   const nullValue: SupertrendValue = {
@@ -71,7 +118,7 @@ export function createSupertrend(
     lowerBand: null,
   };
 
-  const indicator: IncrementalIndicator<SupertrendValue, SupertrendState> = {
+  const indicator: IncrementalIndicator<SupertrendValue, IndicatorSnapshot<SupertrendState>> = {
     next(candle: NormalizedCandle) {
       count++;
       const atrResult = atrIndicator.next(candle);
@@ -174,17 +221,20 @@ export function createSupertrend(
       };
     },
 
-    getState(): SupertrendState {
-      return {
-        period,
-        multiplier,
-        atrState: atrIndicator.getState(),
-        prevFinalUpper,
-        prevFinalLower,
-        prevClose,
-        direction,
-        count,
-      };
+    getState(): IndicatorSnapshot<SupertrendState> {
+      return makeSnapshot(
+        "supertrend",
+        SUPERTREND_VERSION,
+        { period, multiplier },
+        {
+          atrState: atrIndicator.getState(),
+          prevFinalUpper,
+          prevFinalLower,
+          prevClose,
+          direction,
+          count,
+        },
+      );
     },
 
     get count() {
