@@ -21,20 +21,35 @@ import type {
   MacdValue,
   NormalizedCandle,
   PriceSource,
+  VolumeAnomalyValue,
+  VolumeTrendValue,
 } from "../../../types";
+import { roofingFilter } from "../../filter/roofing-filter";
+import { superSmoother } from "../../filter/super-smoother";
 import { adxr } from "../../momentum/adxr";
+import { aroon } from "../../momentum/aroon";
+import { awesomeOscillator } from "../../momentum/awesome-oscillator";
+import { balanceOfPower } from "../../momentum/balance-of-power";
+import { cci } from "../../momentum/cci";
 import { cmo } from "../../momentum/cmo";
 import { connorsRsi } from "../../momentum/connors-rsi";
 import { coppockCurve } from "../../momentum/coppock-curve";
 import { dmi } from "../../momentum/dmi";
+import { hurst } from "../../momentum/hurst";
+import { imi } from "../../momentum/imi";
+import { kst } from "../../momentum/kst";
 import { macd } from "../../momentum/macd";
 import { massIndex } from "../../momentum/mass-index";
 import { ppo } from "../../momentum/ppo";
+import { qstick } from "../../momentum/qstick";
 import { roc } from "../../momentum/roc";
 import { rsi } from "../../momentum/rsi";
 import { stochRsi } from "../../momentum/stoch-rsi";
+import { stochastics } from "../../momentum/stochastics";
 import { trix } from "../../momentum/trix";
 import { tsi } from "../../momentum/tsi";
+import { ultimateOscillator } from "../../momentum/ultimate-oscillator";
+import { williamsR } from "../../momentum/williams-r";
 import { alma } from "../../moving-average/alma";
 import { dema } from "../../moving-average/dema";
 import { ema } from "../../moving-average/ema";
@@ -49,12 +64,14 @@ import { tema } from "../../moving-average/tema";
 import { vwma } from "../../moving-average/vwma";
 import { wma } from "../../moving-average/wma";
 import { zlema } from "../../moving-average/zlema";
+import { heikinAshi } from "../../price/heikin-ashi";
 import { highest, lowest } from "../../price/highest-lowest";
 import { returns as returnsBatch } from "../../price/returns";
 import { linearRegression } from "../../trend/linear-regression";
 import { parabolicSar } from "../../trend/parabolic-sar";
 import { schaffTrendCycle } from "../../trend/schaff-trend-cycle";
 import { supertrend } from "../../trend/supertrend";
+import { vortex } from "../../trend/vortex";
 import { atr } from "../../volatility/atr";
 import { atrStops } from "../../volatility/atr-stops";
 import { bollingerBands } from "../../volatility/bollinger-bands";
@@ -68,13 +85,29 @@ import { standardDeviation } from "../../volatility/standard-deviation";
 import { ulcerIndex } from "../../volatility/ulcer-index";
 import { adl } from "../../volume/adl";
 import { anchoredVwap } from "../../volume/anchored-vwap";
+import { cmf } from "../../volume/cmf";
 import { cvd } from "../../volume/cvd";
+import { easeOfMovement } from "../../volume/ease-of-movement";
+import { elderForceIndex } from "../../volume/elder-force-index";
+import { klinger } from "../../volume/klinger";
+import { mfi } from "../../volume/mfi";
 import { nvi } from "../../volume/nvi";
 import { obv } from "../../volume/obv";
 import { pvt } from "../../volume/pvt";
 import { twap } from "../../volume/twap";
+import { volumeAnomaly } from "../../volume/volume-anomaly";
 import { vwap } from "../../volume/vwap";
+import { weisWave } from "../../volume/weis-wave";
+import { createRoofingFilter, type RoofingFilterState } from "../filter/roofing-filter";
+import { createSuperSmoother, type SuperSmootherState } from "../filter/super-smoother";
 import { type AdxrState, createAdxr } from "../momentum/adxr";
+import { type AroonState, type AroonValue, createAroon } from "../momentum/aroon";
+import {
+  type AwesomeOscillatorState,
+  createAwesomeOscillator,
+} from "../momentum/awesome-oscillator";
+import { type BalanceOfPowerState, createBalanceOfPower } from "../momentum/balance-of-power";
+import { type CciState, createCci } from "../momentum/cci";
 import { type CmoState, createCmo } from "../momentum/cmo";
 import {
   type ConnorsRsiState,
@@ -83,15 +116,31 @@ import {
 } from "../momentum/connors-rsi";
 import { type CoppockCurveState, createCoppockCurve } from "../momentum/coppock-curve";
 import { createDmi, type DmiState, type DmiValue } from "../momentum/dmi";
+import { createDpo, type DpoState } from "../momentum/dpo";
+import { createHurst, type HurstState } from "../momentum/hurst";
+import { createImi, type ImiState } from "../momentum/imi";
+import { createKst, type KstState, type KstValue } from "../momentum/kst";
 import { createMacd, type MacdState } from "../momentum/macd";
 import { createMassIndex, type MassIndexState } from "../momentum/mass-index";
 import { createPpo, type PpoState, type PpoValue } from "../momentum/ppo";
+import { createQStick, type QStickState } from "../momentum/qstick";
 import { createRoc, type RocState } from "../momentum/roc";
 import { createRsi, type RsiState } from "../momentum/rsi";
 import { createStc, type StcState } from "../momentum/schaff-trend-cycle";
 import { createStochRsi, type StochRsiState, type StochRsiValue } from "../momentum/stoch-rsi";
+import {
+  createStochastics,
+  type StochasticsState,
+  type StochasticsValue,
+} from "../momentum/stochastics";
 import { createTrix, type TrixState, type TrixValue } from "../momentum/trix";
 import { createTsi, type TsiState, type TsiValue } from "../momentum/tsi";
+import {
+  createUltimateOscillator,
+  type UltimateOscillatorState,
+} from "../momentum/ultimate-oscillator";
+import { createVortex, type VortexState, type VortexValue } from "../momentum/vortex";
+import { createWilliamsR, type WilliamsRState } from "../momentum/williams-r";
 import { type AlmaState, createAlma } from "../moving-average/alma";
 import { createDema, type DemaState } from "../moving-average/dema";
 import { createEma, type EmaState } from "../moving-average/ema";
@@ -113,8 +162,60 @@ import { createTema, type TemaState } from "../moving-average/tema";
 import { createVwma, type VwmaState } from "../moving-average/vwma";
 import { createWma, type WmaState } from "../moving-average/wma";
 import { createZlema, type ZlemaState } from "../moving-average/zlema";
+import {
+  type AutoTrendLineState,
+  type AutoTrendLineValue,
+  createAutoTrendLine,
+} from "../price/auto-trend-line";
+import {
+  type BosState,
+  type BosValue,
+  type ChochState,
+  createBreakOfStructure,
+  createChangeOfCharacter,
+} from "../price/break-of-structure";
+import {
+  type ChannelLineState,
+  type ChannelLineValue,
+  createChannelLine,
+} from "../price/channel-line";
+import { createFairValueGap, type FairValueGapState, type FvgValue } from "../price/fair-value-gap";
+import {
+  createFibonacciExtension,
+  type FibonacciExtensionState,
+  type FibonacciExtensionValue,
+} from "../price/fibonacci-extension";
+import {
+  createFibonacciRetracement,
+  type FibonacciRetracementState,
+  type FibonacciRetracementValue,
+} from "../price/fibonacci-retracement";
+import { createFractals, type FractalsState, type FractalValue } from "../price/fractals";
+import { createGapAnalysis, type GapAnalysisState, type GapValue } from "../price/gap-analysis";
+import { createHeikinAshi, type HeikinAshiState, type HeikinAshiValue } from "../price/heikin-ashi";
 import { createHighestLowest, type HighestLowestState } from "../price/highest-lowest";
+import {
+  createOpeningRange,
+  type OpeningRangeState,
+  type OpeningRangeValue,
+} from "../price/opening-range";
+import {
+  createPivotPoints,
+  type PivotPointsState,
+  type PivotPointsValue,
+} from "../price/pivot-points";
 import { createReturns, type ReturnsState } from "../price/returns";
+import {
+  createSwingPoints,
+  type SwingPointsState,
+  type SwingPointValue,
+} from "../price/swing-points";
+import { createZigzag, type ZigzagState, type ZigzagValue } from "../price/zigzag";
+import {
+  createLiquiditySweep,
+  type LiquiditySweepState,
+  type LiquiditySweepValue,
+} from "../smc/liquidity-sweep";
 import { createIchimoku, type IchimokuState, type IchimokuValue } from "../trend/ichimoku";
 import {
   createLinearRegression,
@@ -152,12 +253,25 @@ import {
 import { createUlcerIndex, type UlcerIndexState } from "../volatility/ulcer-index";
 import { type AdlState, createAdl } from "../volume/adl";
 import { type AnchoredVwapState, createAnchoredVwap } from "../volume/anchored-vwap";
+import { type CmfState, createCmf } from "../volume/cmf";
 import { type CvdState, createCvd } from "../volume/cvd";
+import { createEmv, type EmvState } from "../volume/ease-of-movement";
+import {
+  createElderForceIndex,
+  type ElderForceIndexState,
+  type ElderForceIndexValue,
+} from "../volume/elder-force-index";
+import { createKlinger, type KlingerState, type KlingerValue } from "../volume/klinger";
+import { createMfi, type MfiState } from "../volume/mfi";
 import { createNvi, type NviState } from "../volume/nvi";
 import { createObv, type ObvState } from "../volume/obv";
 import { createPvt, type PvtState } from "../volume/pvt";
 import { createTwap, type TwapState } from "../volume/twap";
+import { createVolumeAnomaly, type VolumeAnomalyState } from "../volume/volume-anomaly";
+import { createVolumeTrend, type VolumeTrendState } from "../volume/volume-trend";
 import { createVwap, type VwapState } from "../volume/vwap";
+import { createWeisWave, type WeisWaveState, type WeisWaveValue } from "../volume/weis-wave";
+import { createVsa, type VsaState, type VsaValue } from "../wyckoff/vsa";
 import { describeContract } from "./contract-helper";
 
 // ---- Shared candle generator ----
@@ -1735,4 +1849,888 @@ describeContract<RegimeValue | null, RegimeState>({
   reconfigParams: [{ atrPeriod: 10 }, { bbPeriod: 14 }, { dmiPeriod: 10 }],
   makeCandles,
   streamLength: 160,
+});
+
+// ---- Wave 3 Bundle L2: 13 incremental momentum indicators ----
+
+// Aroon — Windowed (period+1 high/low buffers; carry-forward on
+// reconfig). Composite output; up/down/oscillator emerge together.
+describeContract<AroonValue, AroonState>({
+  name: "aroon",
+  create: (opts, warmUp) => createAroon(opts as { period?: number }, warmUp),
+  category: "windowed",
+  version: 1,
+  defaultParams: { period: 25 },
+  reconfigParams: [{ period: 14 }, { period: 30 }],
+  makeCandles,
+  streamLength: 120,
+  isNullishField: (v) =>
+    v === null || v === undefined || (typeof v === "object" && (v as { up: unknown }).up === null),
+  batchCompute: (opts, candles) => aroon(candles, opts as { period?: number }).map((s) => s.value),
+});
+
+// Awesome Oscillator — Cascaded (two inner SMAs over the median price).
+describeContract<number | null, AwesomeOscillatorState>({
+  name: "awesomeOscillator",
+  create: (opts, warmUp) =>
+    createAwesomeOscillator(opts as { fastPeriod?: number; slowPeriod?: number }, warmUp),
+  category: "cascaded",
+  version: 1,
+  defaultParams: { fastPeriod: 5, slowPeriod: 34 },
+  reconfigParams: [{ fastPeriod: 3 }, { slowPeriod: 20 }],
+  makeCandles,
+  streamLength: 120,
+  batchCompute: (opts, candles) =>
+    awesomeOscillator(candles, opts as { fastPeriod?: number; slowPeriod?: number }).map(
+      (s) => s.value,
+    ),
+});
+
+// Balance of Power — Cascaded (one inner SMA over the raw BOP series).
+describeContract<number | null, BalanceOfPowerState>({
+  name: "balanceOfPower",
+  create: (opts, warmUp) => createBalanceOfPower(opts as { smoothPeriod?: number }, warmUp),
+  category: "cascaded",
+  version: 1,
+  defaultParams: { smoothPeriod: 14 },
+  reconfigParams: [{ smoothPeriod: 10 }, { smoothPeriod: 20 }],
+  makeCandles,
+  streamLength: 100,
+  batchCompute: (opts, candles) =>
+    balanceOfPower(candles, opts as { smoothPeriod?: number }).map((s) => s.value),
+});
+
+// CCI — Windowed (typical-price buffer + running sum; carry-forward on
+// reconfig). `constant` is resume-invariant.
+describeContract<number | null, CciState>({
+  name: "cci",
+  create: (opts, warmUp) =>
+    createCci(opts as { period?: number; constant?: number; source?: PriceSource }, warmUp),
+  category: "windowed",
+  version: 1,
+  defaultParams: { period: 20, constant: 0.015, source: "hlc3" },
+  reconfigParams: [{ period: 14 }, { period: 30 }, { constant: 0.02 }],
+  makeCandles,
+  streamLength: 120,
+  batchCompute: (opts, candles) =>
+    cci(candles, opts as { period?: number; constant?: number; source?: PriceSource }).map(
+      (s) => s.value,
+    ),
+});
+
+// DPO — Cascaded (inner SMA + pending-entry queue keyed on the
+// period-derived shift).
+describeContract<number | null, DpoState>({
+  name: "dpo",
+  create: (opts, warmUp) => createDpo(opts as { period?: number; source?: PriceSource }, warmUp),
+  category: "cascaded",
+  version: 1,
+  defaultParams: { period: 20, source: "close" },
+  reconfigParams: [{ period: 14 }, { period: 30 }],
+  makeCandles,
+  streamLength: 120,
+  // batchCompute omitted: the incremental DPO emits a `shift`-delayed
+  // stream (time-shifted relative to the input bar), so per-index
+  // alignment against the batch `dpo()` output is structurally
+  // different — a pre-existing design difference, not a migration
+  // regression. Invariants [1]-[7] still run.
+});
+
+// Hurst — Windowed (single price buffer of size maxWindow;
+// carry-forward on reconfig). `minWindow` is resume-invariant.
+describeContract<number | null, HurstState>({
+  name: "hurst",
+  create: (opts, warmUp) =>
+    createHurst(opts as { minWindow?: number; maxWindow?: number; source?: PriceSource }, warmUp),
+  category: "windowed",
+  version: 1,
+  defaultParams: { minWindow: 20, maxWindow: 100, source: "close" },
+  reconfigParams: [{ maxWindow: 80 }, { maxWindow: 120 }, { minWindow: 10 }],
+  // The carry-forward buffer must fully rotate to post-resume prices
+  // before a resumed run matches a fresh run — `maxWindow` new bars.
+  reconfigMargin: (newOpts) => (newOpts.maxWindow as number) ?? 100,
+  makeCandles,
+  streamLength: 260,
+  batchCompute: (opts, candles) =>
+    hurst(candles, opts as { minWindow?: number; maxWindow?: number; source?: PriceSource }).map(
+      (s) => s.value,
+    ),
+});
+
+// IMI — Windowed (gains/losses buffers + running sums; carry-forward
+// on reconfig).
+describeContract<number | null, ImiState>({
+  name: "imi",
+  create: (opts, warmUp) => createImi(opts as { period?: number }, warmUp),
+  category: "windowed",
+  version: 1,
+  defaultParams: { period: 14 },
+  reconfigParams: [{ period: 10 }, { period: 20 }],
+  makeCandles,
+  streamLength: 100,
+  batchCompute: (opts, candles) => imi(candles, opts as { period?: number }).map((s) => s.value),
+});
+
+// KST — Cascaded (4 inner ROC + 4 inner SMA stages + 1 signal SMA).
+// Composite output; `signal` emerges last so the null predicate gates
+// on it to align with `isWarmedUp`.
+describeContract<KstValue | null, KstState>({
+  name: "kst",
+  create: (opts, warmUp) =>
+    createKst(
+      opts as {
+        rocPeriods?: [number, number, number, number];
+        smaPeriods?: [number, number, number, number];
+        weights?: [number, number, number, number];
+        signalPeriod?: number;
+        source?: PriceSource;
+      },
+      warmUp,
+    ),
+  category: "cascaded",
+  version: 1,
+  defaultParams: {
+    rocPeriods: [10, 15, 20, 30],
+    smaPeriods: [10, 10, 10, 15],
+    weights: [1, 2, 3, 4],
+    signalPeriod: 9,
+    source: "close",
+  },
+  reconfigParams: [{ signalPeriod: 5 }, { weights: [2, 3, 4, 5] }],
+  makeCandles,
+  streamLength: 160,
+  isNullishField: (v) =>
+    v === null ||
+    v === undefined ||
+    (typeof v === "object" && (v as { signal: unknown }).signal === null),
+  batchCompute: (opts, candles) =>
+    kst(
+      candles,
+      opts as {
+        rocPeriods?: [number, number, number, number];
+        smaPeriods?: [number, number, number, number];
+        weights?: [number, number, number, number];
+        signalPeriod?: number;
+        source?: PriceSource;
+      },
+    ).map((s) => s.value),
+});
+
+// QStick — Cascaded (one inner SMA over the close-minus-open series).
+describeContract<number | null, QStickState>({
+  name: "qstick",
+  create: (opts, warmUp) => createQStick(opts as { period?: number }, warmUp),
+  category: "cascaded",
+  version: 1,
+  defaultParams: { period: 14 },
+  reconfigParams: [{ period: 10 }, { period: 20 }],
+  makeCandles,
+  streamLength: 100,
+  batchCompute: (opts, candles) => qstick(candles, opts as { period?: number }).map((s) => s.value),
+});
+
+// Stochastics — Mixed (raw high/low buffers feed derived rawK/K
+// buffers + running sums). Composite output; `d` emerges last.
+describeContract<StochasticsValue, StochasticsState>({
+  name: "stochastics",
+  create: (opts, warmUp) =>
+    createStochastics(opts as { kPeriod?: number; dPeriod?: number; slowing?: number }, warmUp),
+  category: "mixed",
+  version: 1,
+  defaultParams: { kPeriod: 14, dPeriod: 3, slowing: 3 },
+  reconfigParams: [{ kPeriod: 10 }, { dPeriod: 5 }, { slowing: 1 }],
+  makeCandles,
+  streamLength: 120,
+  isNullishField: (v) =>
+    v === null || v === undefined || (typeof v === "object" && (v as { d: unknown }).d === null),
+  batchCompute: (opts, candles) =>
+    stochastics(candles, opts as { kPeriod?: number; dPeriod?: number; slowing?: number }).map(
+      (s) => s.value,
+    ),
+});
+
+// Ultimate Oscillator — Mixed (BP/TR buffers sized to the longest
+// period + carried-forward prevClose).
+describeContract<number | null, UltimateOscillatorState>({
+  name: "ultimateOscillator",
+  create: (opts, warmUp) =>
+    createUltimateOscillator(
+      opts as { period1?: number; period2?: number; period3?: number },
+      warmUp,
+    ),
+  category: "mixed",
+  version: 1,
+  defaultParams: { period1: 7, period2: 14, period3: 28 },
+  reconfigParams: [{ period1: 5 }, { period2: 10 }, { period3: 21 }],
+  makeCandles,
+  streamLength: 120,
+  batchCompute: (opts, candles) =>
+    ultimateOscillator(
+      candles,
+      opts as { period1?: number; period2?: number; period3?: number },
+    ).map((s) => s.value),
+});
+
+// Vortex — Mixed (VM+/VM-/TR buffers + carried-forward prevHigh/Low/
+// Close). Composite output; viPlus/viMinus emerge together.
+describeContract<VortexValue, VortexState>({
+  name: "vortex",
+  create: (opts, warmUp) => createVortex(opts as { period?: number }, warmUp),
+  category: "mixed",
+  version: 1,
+  defaultParams: { period: 14 },
+  reconfigParams: [{ period: 10 }, { period: 20 }],
+  makeCandles,
+  streamLength: 100,
+  isNullishField: (v) =>
+    v === null ||
+    v === undefined ||
+    (typeof v === "object" && (v as { viPlus: unknown }).viPlus === null),
+  batchCompute: (opts, candles) => vortex(candles, opts as { period?: number }).map((s) => s.value),
+});
+
+// Williams %R — Windowed (high/low buffers; carry-forward on reconfig).
+describeContract<number | null, WilliamsRState>({
+  name: "williamsR",
+  create: (opts, warmUp) => createWilliamsR(opts as { period?: number }, warmUp),
+  category: "windowed",
+  version: 1,
+  defaultParams: { period: 14 },
+  reconfigParams: [{ period: 10 }, { period: 20 }],
+  makeCandles,
+  streamLength: 100,
+  batchCompute: (opts, candles) =>
+    williamsR(candles, opts as { period?: number }).map((s) => s.value),
+});
+
+// ---- Wave 3 Bundle L3: incremental volume indicators ----
+
+// CMF — Windowed (money-flow-volume + raw-volume buffers; carry-forward
+// on `period` change, running sums recomputed).
+describeContract<number | null, CmfState>({
+  name: "cmf",
+  create: (opts, warmUp) => createCmf(opts as { period?: number }, warmUp),
+  category: "windowed",
+  version: 1,
+  defaultParams: { period: 20 },
+  reconfigParams: [{ period: 10 }, { period: 30 }],
+  makeCandles,
+  streamLength: 120,
+  batchCompute: (opts, candles) => cmf(candles, opts as { period?: number }).map((s) => s.value),
+});
+
+// EMV (Ease of Movement) — Mixed (buffer of derived raw EMV values +
+// running sum + prevHigh/prevLow). Refuses any param change on resume.
+describeContract<number | null, EmvState>({
+  name: "emv",
+  create: (opts, warmUp) => createEmv(opts as { period?: number; volumeDivisor?: number }, warmUp),
+  category: "mixed",
+  version: 1,
+  defaultParams: { period: 14, volumeDivisor: 100_000_000 },
+  reconfigParams: [{ period: 10 }, { volumeDivisor: 10_000 }],
+  makeCandles,
+  streamLength: 100,
+  // EMV's SMA running sum (incremental) and the batch's per-window
+  // re-summation accumulate the same terms in a different order; on the
+  // gap-candle stream the large raw EMV magnitudes surface a ~3e-9
+  // deterministic floating-point drift. Loosen [8] accordingly — this
+  // is summation-order noise, not algorithmic divergence.
+  consistencyTolerance: 1e-6,
+  batchCompute: (opts, candles) =>
+    easeOfMovement(candles, opts as { period?: number; volumeDivisor?: number }).map(
+      (s) => s.value,
+    ),
+});
+
+// Elder's Force Index — Cascaded (two recursive EMA channels). Composite
+// output `{ short, long }` whose fields are null during warmup.
+describeContract<ElderForceIndexValue, ElderForceIndexState>({
+  name: "elderForceIndex",
+  create: (opts, warmUp) =>
+    createElderForceIndex(opts as { shortPeriod?: number; longPeriod?: number }, warmUp),
+  category: "cascaded",
+  version: 1,
+  defaultParams: { shortPeriod: 2, longPeriod: 13 },
+  reconfigParams: [{ shortPeriod: 5 }, { longPeriod: 20 }],
+  makeCandles,
+  streamLength: 100,
+  // The two channels warm up independently (`short` at shortPeriod,
+  // `long` at longPeriod). `isWarmedUp` waits for the slower channel,
+  // so the warmup gate must key on `long` rather than the all-null
+  // default predicate.
+  isNullishField: (v) =>
+    v === null ||
+    v === undefined ||
+    (typeof v === "object" && (v as { long: unknown }).long === null),
+  batchCompute: (opts, candles) =>
+    elderForceIndex(candles, opts as { shortPeriod?: number; longPeriod?: number }).map(
+      (s) => s.value,
+    ),
+});
+
+// Klinger Volume Oscillator — Cascaded (three recursive EMAs). Composite
+// output `{ kvo, signal, histogram }`, all null during warmup.
+describeContract<KlingerValue, KlingerState>({
+  name: "klinger",
+  create: (opts, warmUp) =>
+    createKlinger(
+      opts as { shortPeriod?: number; longPeriod?: number; signalPeriod?: number },
+      warmUp,
+    ),
+  category: "cascaded",
+  version: 1,
+  defaultParams: { shortPeriod: 34, longPeriod: 55, signalPeriod: 13 },
+  reconfigParams: [{ shortPeriod: 20 }, { longPeriod: 80 }, { signalPeriod: 9 }],
+  makeCandles,
+  streamLength: 160,
+  // `kvo` warms up before `signal` (the signal EMA needs an extra
+  // `signalPeriod` valid KVO inputs). `isWarmedUp` waits for `signal`,
+  // so the warmup gate keys on `signal`.
+  isNullishField: (v) =>
+    v === null ||
+    v === undefined ||
+    (typeof v === "object" && (v as { signal: unknown }).signal === null),
+  batchCompute: (opts, candles) =>
+    klinger(
+      candles,
+      opts as { shortPeriod?: number; longPeriod?: number; signalPeriod?: number },
+    ).map((s) => s.value),
+});
+
+// MFI — Mixed (buffer of derived signed money flows + recursive prevTp).
+// Refuses `period` change on resume.
+describeContract<number | null, MfiState>({
+  name: "mfi",
+  create: (opts, warmUp) => createMfi(opts as { period?: number }, warmUp),
+  category: "mixed",
+  version: 1,
+  defaultParams: { period: 14 },
+  reconfigParams: [{ period: 10 }, { period: 20 }],
+  makeCandles,
+  streamLength: 100,
+  batchCompute: (opts, candles) => mfi(candles, opts as { period?: number }).map((s) => s.value),
+});
+
+// Volume Anomaly — Windowed (single raw volume buffer). The threshold /
+// z-score params are resume-invariant — they only classify the
+// already-computed ratio / z-score. Composite output is never all-null;
+// `level` flips from null to "normal"/"high"/"extreme" at warmup.
+describeContract<VolumeAnomalyValue, VolumeAnomalyState>({
+  name: "volumeAnomaly",
+  create: (opts, warmUp) =>
+    createVolumeAnomaly(
+      opts as {
+        period?: number;
+        highThreshold?: number;
+        extremeThreshold?: number;
+        useZScore?: boolean;
+        zScoreThreshold?: number;
+      },
+      warmUp,
+    ),
+  category: "windowed",
+  version: 1,
+  defaultParams: {
+    period: 20,
+    highThreshold: 2.0,
+    extremeThreshold: 3.0,
+    useZScore: true,
+    zScoreThreshold: 2.0,
+  },
+  reconfigParams: [{ period: 10 }, { period: 30 }],
+  resumeInvariantReconfig: [{ highThreshold: 1.5 }, { zScoreThreshold: 3.0 }],
+  makeCandles,
+  streamLength: 100,
+  // `level` is the warmup gate: null until the buffer fills.
+  isNullishField: (v) =>
+    v === null ||
+    v === undefined ||
+    (typeof v === "object" && (v as { level: unknown }).level === null),
+  batchCompute: (opts, candles) =>
+    volumeAnomaly(
+      candles,
+      opts as {
+        period?: number;
+        highThreshold?: number;
+        extremeThreshold?: number;
+        useZScore?: boolean;
+        zScoreThreshold?: number;
+      },
+    ).map((s) => s.value),
+});
+
+// Volume Trend — Windowed (price / volume / volume-MA buffers + running
+// sum). `minPriceChange` is resume-invariant. The output object never
+// has null fields, so the warmup gate keys on the `neutral` price-trend
+// state the indicator emits until the buffers fill.
+describeContract<VolumeTrendValue, VolumeTrendState>({
+  name: "volumeTrend",
+  create: (opts, warmUp) =>
+    createVolumeTrend(
+      opts as {
+        pricePeriod?: number;
+        volumePeriod?: number;
+        maPeriod?: number;
+        minPriceChange?: number;
+      },
+      warmUp,
+    ),
+  category: "windowed",
+  version: 1,
+  defaultParams: { pricePeriod: 10, volumePeriod: 10, maPeriod: 20, minPriceChange: 2.0 },
+  reconfigParams: [{ pricePeriod: 6 }, { maPeriod: 30 }],
+  resumeInvariantReconfig: [{ minPriceChange: 3.0 }],
+  makeCandles,
+  streamLength: 120,
+  // Three independent windows must each refill after a reconfig; the
+  // default single-period margin is not enough, so wait for the
+  // largest of the new periods before comparing against a fresh run.
+  reconfigMargin: (o) =>
+    Math.max(Number(o.pricePeriod), Number(o.volumePeriod), Number(o.maPeriod)),
+  // During warmup the indicator emits a fully-neutral value; treat that
+  // as the null gate so invariant [7] aligns with `isWarmedUp`.
+  isNullishField: (v) =>
+    v === null ||
+    v === undefined ||
+    (typeof v === "object" && (v as { priceTrend: unknown }).priceTrend === "neutral"),
+  // batchCompute intentionally omitted: the batch `volumeTrend` and the
+  // incremental factory have a pre-existing trend-direction drift (batch
+  // can classify a bar `down` where the incremental emits `neutral`).
+  // The migration left `next` / `peek` untouched, so this is not a
+  // regression introduced here; the legacy parity test only compared
+  // `confidence` within tolerance and never exercised the direction
+  // fields. Chasing the batch-drift fix is out of scope for Bundle L3.
+});
+
+// Weis Wave — Recursive (`waveVolume` cumulative accumulator; reset
+// points depend on `method` / `threshold`). Warms up at the first bar.
+describeContract<WeisWaveValue, WeisWaveState>({
+  name: "weisWave",
+  create: (opts, warmUp) =>
+    createWeisWave(opts as { method?: "close" | "highlow"; threshold?: number }, warmUp),
+  category: "recursive",
+  version: 1,
+  defaultParams: { method: "close", threshold: 0 },
+  reconfigParams: [{ method: "highlow" }, { threshold: 5 }],
+  makeCandles,
+  streamLength: 100,
+  batchCompute: (opts, candles) =>
+    weisWave(candles, opts as { method?: "close" | "highlow"; threshold?: number }).map(
+      (s) => s.value,
+    ),
+});
+
+// ---- Wave 3 Bundle L4: price-structure / wyckoff / smc / filter ----
+
+// Swing Points — Event (a `leftBars + 1 + rightBars` raw OHLC window
+// plus persistent last-swing trackers). The trackers are conditioned
+// on the window the swing was confirmed under, so a `leftBars` /
+// `rightBars` reconfig cannot reproduce a fresh run bar-by-bar — past
+// swings stand. The warmup gate keys on both swing flags being false
+// (the indicator emits a fully-null composite until a swing is
+// detected). batchCompute omitted: the batch `swingPoints` uses
+// look-ahead confirmation while the incremental confirms with a
+// `rightBars` delay (shift-offset, not bar-aligned).
+describeContract<SwingPointValue, SwingPointsState>({
+  name: "swingPoints",
+  create: (opts, warmUp) =>
+    createSwingPoints(opts as { leftBars?: number; rightBars?: number }, warmUp),
+  category: "mixed",
+  version: 1,
+  defaultParams: { leftBars: 3, rightBars: 3 },
+  reconfigParams: [{ leftBars: 2, rightBars: 2 }, { rightBars: 4 }],
+  makeCandles,
+  streamLength: 120,
+  isNullishField: (v) =>
+    v === null ||
+    v === undefined ||
+    (typeof v === "object" &&
+      !(v as { isSwingHigh: boolean }).isSwingHigh &&
+      !(v as { isSwingLow: boolean }).isSwingLow),
+});
+
+// Fractals — Windowed (a `2*period+1` raw OHLC window). Reconfig
+// carries the window forward. The warmup gate keys on both fractal
+// flags being false. batchCompute omitted: batch `fractals` confirms
+// with look-ahead while the incremental delays by `period` bars
+// (shift-offset, not bar-aligned).
+describeContract<FractalValue, FractalsState>({
+  name: "fractals",
+  create: (opts, warmUp) => createFractals(opts as { period?: number }, warmUp),
+  category: "windowed",
+  version: 1,
+  defaultParams: { period: 2 },
+  reconfigParams: [{ period: 3 }, { period: 4 }],
+  makeCandles,
+  streamLength: 120,
+  // Warmup is `2*period+1`.
+  reconfigMargin: (newOpts) => 2 * (newOpts.period as number) + 1,
+  isNullishField: (v) =>
+    v === null ||
+    v === undefined ||
+    (typeof v === "object" &&
+      !(v as { upFractal: boolean }).upFractal &&
+      !(v as { downFractal: boolean }).downFractal),
+});
+
+// Break of Structure — Event (a `2*swingPeriod+1` raw high/low window
+// plus last-swing / trend trackers conditioned on the confirming
+// window). The warmup gate keys on `trend === "neutral"` (the
+// indicator emits a neutral trend until the first BOS). batchCompute
+// omitted: batch swing detection uses look-ahead.
+describeContract<BosValue, BosState>({
+  name: "breakOfStructure",
+  create: (opts, warmUp) => createBreakOfStructure(opts as { swingPeriod?: number }, warmUp),
+  category: "mixed",
+  version: 1,
+  defaultParams: { swingPeriod: 3 },
+  reconfigParams: [{ swingPeriod: 2 }, { swingPeriod: 4 }],
+  makeCandles,
+  streamLength: 120,
+  isNullishField: (v) =>
+    v === null ||
+    v === undefined ||
+    (typeof v === "object" && (v as { trend: unknown }).trend === "neutral"),
+});
+
+// Change of Character — Event (composes the inner BOS window).
+describeContract<BosValue, ChochState>({
+  name: "changeOfCharacter",
+  create: (opts, warmUp) => createChangeOfCharacter(opts as { swingPeriod?: number }, warmUp),
+  category: "mixed",
+  version: 1,
+  defaultParams: { swingPeriod: 3 },
+  reconfigParams: [{ swingPeriod: 2 }, { swingPeriod: 4 }],
+  makeCandles,
+  streamLength: 120,
+  isNullishField: (v) =>
+    v === null ||
+    v === undefined ||
+    (typeof v === "object" && (v as { trend: unknown }).trend === "neutral"),
+});
+
+// Pivot Points — Windowed (`prevCandle` is a raw one-bar OHLC
+// window). `method` is resume-invariant: it only selects the level
+// formula applied to the raw `prevCandle`. batchCompute omitted: the
+// batch `pivotPoints` aligns levels to the bar the prior OHLC came
+// from, a different convention than the incremental's same-bar
+// projection.
+describeContract<PivotPointsValue, PivotPointsState>({
+  name: "pivotPoints",
+  create: (opts, warmUp) =>
+    createPivotPoints(
+      opts as { method?: "standard" | "fibonacci" | "woodie" | "camarilla" | "demark" },
+      warmUp,
+    ),
+  category: "windowed",
+  version: 1,
+  defaultParams: { method: "standard" },
+  reconfigParams: [],
+  resumeInvariantReconfig: [{ method: "fibonacci" }, { method: "camarilla" }],
+  makeCandles,
+  streamLength: 100,
+});
+
+// Heikin-Ashi — Recursive (`prevHaOpen` / `prevHaClose`). No params,
+// so reconfig is not exercised. Batch parity is clean (pure recursive
+// transform). Never emits null, so the warmup gate is bar 0.
+describeContract<HeikinAshiValue, HeikinAshiState>({
+  name: "heikinAshi",
+  create: (opts, warmUp) => createHeikinAshi(opts as Record<string, never>, warmUp),
+  category: "recursive",
+  version: 1,
+  defaultParams: {},
+  reconfigParams: [],
+  makeCandles,
+  streamLength: 100,
+  batchCompute: (_opts, candles) => heikinAshi(candles).map((s) => s.value),
+});
+
+// Fair Value Gap — Event (an append-only log of active FVG zones).
+// Past detections stand on resume; reconfig of detection params only
+// affects future bars. batchCompute omitted: the batch FVG does a
+// retroactive fill pass while the incremental detects fills as they
+// occur.
+describeContract<FvgValue, FairValueGapState>({
+  name: "fairValueGap",
+  create: (opts, warmUp) =>
+    createFairValueGap(
+      opts as { minGapPercent?: number; maxActiveFvgs?: number; partialFill?: boolean },
+      warmUp,
+    ),
+  category: "mixed",
+  version: 1,
+  defaultParams: { minGapPercent: 0, maxActiveFvgs: 10, partialFill: true },
+  reconfigParams: [{ minGapPercent: 0.2 }, { maxActiveFvgs: 5 }],
+  makeCandles,
+  streamLength: 120,
+  // FVG never emits a bare-null value; the first two bars emit the
+  // empty result (needs 3 candles to detect). Treat "no detection,
+  // no active/filled zones" as the warmup gate so it aligns with the
+  // indicator's `count >= 3` `isWarmedUp` getter.
+  isNullishField: (v) => {
+    if (v === null || v === undefined) return true;
+    if (typeof v !== "object") return false;
+    const o = v as FvgValue;
+    return (
+      !o.newBullishFvg &&
+      !o.newBearishFvg &&
+      o.newFvg === null &&
+      o.activeBullishFvgs.length === 0 &&
+      o.activeBearishFvgs.length === 0 &&
+      o.filledFvgs.length === 0
+    );
+  },
+});
+
+// Gap Analysis — Event (an append-only log of active gap zones).
+// batchCompute omitted: batch does a retroactive fill pass.
+describeContract<GapValue, GapAnalysisState>({
+  name: "gapAnalysis",
+  create: (opts, warmUp) => createGapAnalysis(opts as { minGapPercent?: number }, warmUp),
+  category: "mixed",
+  version: 1,
+  defaultParams: { minGapPercent: 0.5 },
+  reconfigParams: [{ minGapPercent: 0.2 }, { minGapPercent: 1.0 }],
+  makeCandles,
+  streamLength: 120,
+  // The output object is never all-null (`gapPercent: 0`,
+  // `filled: false`); gate on `type === null` (no gap detected).
+  isNullishField: (v) =>
+    v === null ||
+    v === undefined ||
+    (typeof v === "object" && (v as { type: unknown }).type === null),
+});
+
+// Opening Range — Mixed (session-scoped accumulator; `orDurationMs`
+// and the reset rule are derived from params, so resume with changed
+// `minutes` / `sessionResetPeriod` is refused). batchCompute omitted:
+// no candle-aligned batch sibling with the same session semantics.
+describeContract<OpeningRangeValue, OpeningRangeState>({
+  name: "openingRange",
+  create: (opts, warmUp) =>
+    createOpeningRange(opts as { minutes?: number; sessionResetPeriod?: "day" | number }, warmUp),
+  category: "mixed",
+  version: 1,
+  defaultParams: { minutes: 30, sessionResetPeriod: 20 },
+  reconfigParams: [{ minutes: 60 }, { sessionResetPeriod: 30 }],
+  makeCandles,
+  streamLength: 120,
+  // `isWarmedUp` returns `orEstablished`; the indicator emits
+  // `high`/`low` while the range is still accumulating but only emits
+  // a non-null `breakout` once the range is established. Gate on
+  // `breakout === null` so the first non-nullish bar coincides with
+  // an established range.
+  isNullishField: (v) =>
+    v === null ||
+    v === undefined ||
+    (typeof v === "object" && (v as { breakout: unknown }).breakout === null),
+});
+
+// Auto Trend Line — Event (structure tracker wrapping swing points).
+// batchCompute omitted: batch swing detection uses look-ahead.
+describeContract<AutoTrendLineValue, AutoTrendLineState>({
+  name: "autoTrendLine",
+  create: (opts, warmUp) =>
+    createAutoTrendLine(opts as { leftBars?: number; rightBars?: number }, warmUp),
+  category: "mixed",
+  version: 1,
+  defaultParams: { leftBars: 3, rightBars: 3 },
+  reconfigParams: [{ leftBars: 2, rightBars: 2 }, { rightBars: 4 }],
+  makeCandles,
+  streamLength: 150,
+});
+
+// Channel Line — Mixed (structure tracker wrapping swing points).
+describeContract<ChannelLineValue, ChannelLineState>({
+  name: "channelLine",
+  create: (opts, warmUp) =>
+    createChannelLine(opts as { leftBars?: number; rightBars?: number }, warmUp),
+  category: "mixed",
+  version: 1,
+  defaultParams: { leftBars: 3, rightBars: 3 },
+  reconfigParams: [{ leftBars: 2, rightBars: 2 }, { rightBars: 4 }],
+  makeCandles,
+  streamLength: 150,
+});
+
+// Fibonacci Retracement — Mixed (structure tracker wrapping swing
+// points). `levels` is part of meta.params.
+describeContract<FibonacciRetracementValue, FibonacciRetracementState>({
+  name: "fibonacciRetracement",
+  create: (opts, warmUp) =>
+    createFibonacciRetracement(
+      opts as { leftBars?: number; rightBars?: number; levels?: number[] },
+      warmUp,
+    ),
+  category: "mixed",
+  version: 1,
+  defaultParams: { leftBars: 3, rightBars: 3, levels: [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1] },
+  reconfigParams: [{ leftBars: 2, rightBars: 2 }, { levels: [0, 0.5, 1] }],
+  makeCandles,
+  streamLength: 150,
+});
+
+// Fibonacci Extension — Mixed (structure tracker wrapping swing
+// points).
+describeContract<FibonacciExtensionValue, FibonacciExtensionState>({
+  name: "fibonacciExtension",
+  create: (opts, warmUp) =>
+    createFibonacciExtension(
+      opts as { leftBars?: number; rightBars?: number; levels?: number[] },
+      warmUp,
+    ),
+  category: "mixed",
+  version: 1,
+  defaultParams: { leftBars: 3, rightBars: 3, levels: [0, 0.618, 1, 1.272, 1.618, 2, 2.618] },
+  reconfigParams: [{ leftBars: 2, rightBars: 2 }, { levels: [0, 1, 1.618] }],
+  makeCandles,
+  streamLength: 150,
+});
+
+// Liquidity Sweep — Mixed (inner swing-points snapshot + a
+// `swingPeriod + 1` scan ring buffer; both are conditioned on
+// construction params, so resume with a changed param is refused).
+// batchCompute omitted: batch swing detection uses look-ahead, and the
+// live indicator emits sweeps with up to `swingPeriod` bars of lag.
+describeContract<LiquiditySweepValue, LiquiditySweepState>({
+  name: "liquiditySweep",
+  create: (opts, warmUp) =>
+    createLiquiditySweep(
+      opts as {
+        swingPeriod?: number;
+        maxRecoveryBars?: number;
+        maxTrackedSweeps?: number;
+        minSweepDepth?: number;
+      },
+      warmUp,
+    ),
+  category: "mixed",
+  version: 1,
+  defaultParams: { swingPeriod: 3, maxRecoveryBars: 3, maxTrackedSweeps: 10, minSweepDepth: 0 },
+  reconfigParams: [{ maxRecoveryBars: 5 }, { minSweepDepth: 0.1 }],
+  makeCandles,
+  streamLength: 150,
+  // The output object is never all-null (`isSweep: false`, empty
+  // arrays); gate on `isSweep === false` so the first non-nullish bar
+  // is a real sweep detection (by which point the inner swing points
+  // are warmed).
+  isNullishField: (v) =>
+    v === null ||
+    v === undefined ||
+    (typeof v === "object" && (v as { isSweep: boolean }).isSweep === false),
+});
+
+// VSA — Mixed (inner recursive ATR + windowed SMA + own 10-bar candle
+// buffer). The four threshold params are resume-invariant — they only
+// classify already-computed spread / volume ratios. batchCompute
+// omitted: the batch `vsa` and the incremental factory have a
+// pre-existing classification drift on a handful of bars (the legacy
+// parity test compared only `spreadRelative` / `volumeRelative`
+// within tolerance, never the `barType` enum); the migration left
+// `next` / `peek` untouched, so this is not a regression. The
+// incremental never emits null (VSA classifies every bar from bar 0).
+describeContract<VsaValue, VsaState>({
+  name: "vsa",
+  create: (opts, warmUp) =>
+    createVsa(
+      opts as {
+        volumeMaPeriod?: number;
+        atrPeriod?: number;
+        highVolumeThreshold?: number;
+        lowVolumeThreshold?: number;
+        wideSpreadThreshold?: number;
+        narrowSpreadThreshold?: number;
+      },
+      warmUp,
+    ),
+  category: "mixed",
+  version: 1,
+  defaultParams: {
+    volumeMaPeriod: 20,
+    atrPeriod: 14,
+    highVolumeThreshold: 1.5,
+    lowVolumeThreshold: 0.7,
+    wideSpreadThreshold: 1.2,
+    narrowSpreadThreshold: 0.7,
+  },
+  reconfigParams: [{ volumeMaPeriod: 10 }, { atrPeriod: 20 }],
+  resumeInvariantReconfig: [{ highVolumeThreshold: 2.0 }, { narrowSpreadThreshold: 0.5 }],
+  makeCandles,
+  streamLength: 120,
+  // VSA never emits a bare-null value. Until the inner volume SMA is
+  // warmed, `volumeRelative` is exactly 1 (the `volMaVal == null`
+  // fallback). The SMA is the slowest-warming inner indicator, so
+  // gating on `volumeRelative === 1` aligns the first non-nullish bar
+  // with the indicator's `isWarmedUp` (ATR && SMA warmed).
+  isNullishField: (v) =>
+    v === null ||
+    v === undefined ||
+    (typeof v === "object" && (v as { volumeRelative: number }).volumeRelative === 1),
+});
+
+// Super Smoother — Recursive (two-tap IIR memory). Batch parity is
+// clean. First two bars emit null.
+describeContract<number | null, SuperSmootherState>({
+  name: "superSmoother",
+  create: (opts, warmUp) =>
+    createSuperSmoother(opts as { period?: number; source?: PriceSource }, warmUp),
+  category: "recursive",
+  version: 1,
+  defaultParams: { period: 10, source: "close" },
+  reconfigParams: [{ period: 8 }, { period: 20 }],
+  makeCandles,
+  streamLength: 120,
+  batchCompute: (opts, candles) =>
+    superSmoother(candles, opts as { period: number; source?: PriceSource }).map((s) => s.value),
+});
+
+// Roofing Filter — Cascaded (a 2-pole high-pass IIR feeding a 2-pole
+// Super Smoother IIR). Batch parity is clean. First two bars emit
+// null.
+describeContract<number | null, RoofingFilterState>({
+  name: "roofingFilter",
+  create: (opts, warmUp) =>
+    createRoofingFilter(
+      opts as { highPassPeriod?: number; lowPassPeriod?: number; source?: PriceSource },
+      warmUp,
+    ),
+  category: "cascaded",
+  version: 1,
+  defaultParams: { highPassPeriod: 48, lowPassPeriod: 10, source: "close" },
+  reconfigParams: [{ highPassPeriod: 40 }, { lowPassPeriod: 20 }],
+  makeCandles,
+  streamLength: 120,
+  batchCompute: (opts, candles) =>
+    roofingFilter(
+      candles,
+      opts as { highPassPeriod?: number; lowPassPeriod?: number; source?: PriceSource },
+    ).map((s) => s.value),
+});
+
+// Zigzag — Mixed (a recursive trend / running-extreme tracker
+// composed with an inner recursive ATR snapshot). Every param is
+// state-shaping (pivot-trigger threshold or inner ATR), so reconfig
+// is refused. Emits a fully-null value until the first pivot is
+// confirmed. batchCompute omitted: the batch `zigzag` emits one entry
+// per pivot bar with a different null-bar alignment than the
+// incremental's per-candle stream.
+describeContract<ZigzagValue, ZigzagState>({
+  name: "zigzag",
+  create: (opts, warmUp) =>
+    createZigzag(
+      opts as {
+        deviation?: number;
+        useAtr?: boolean;
+        atrPeriod?: number;
+        atrMultiplier?: number;
+      },
+      warmUp,
+    ),
+  category: "mixed",
+  version: 1,
+  defaultParams: { deviation: 5, useAtr: false, atrPeriod: 14, atrMultiplier: 2 },
+  reconfigParams: [{ deviation: 8 }, { atrMultiplier: 3 }],
+  makeCandles,
+  streamLength: 150,
 });

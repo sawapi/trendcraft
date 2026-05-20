@@ -316,9 +316,9 @@ describe("Klinger incremental", () => {
     const state = ind1.getState();
 
     const ind2 = createKlinger({}, { fromState: state });
-    expect(ind2.getState().shortPeriod).toBe(20);
-    expect(ind2.getState().longPeriod).toBe(40);
-    expect(ind2.getState().signalPeriod).toBe(9);
+    expect(ind2.getState().meta.params.shortPeriod).toBe(20);
+    expect(ind2.getState().meta.params.longPeriod).toBe(40);
+    expect(ind2.getState().meta.params.signalPeriod).toBe(9);
   });
 
   it("refuses resume with a different shortPeriod", () => {

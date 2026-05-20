@@ -307,13 +307,13 @@ describe("EMV incremental", () => {
     const ind1 = createEmv({ period: 14, volumeDivisor: 10000 });
     for (let i = 0; i < 30; i++) ind1.next(candles[i]);
     const state = ind1.getState();
-    expect(state.volumeDivisor).toBe(10000);
+    expect(state.meta.params.volumeDivisor).toBe(10000);
 
     // Resume without re-passing options — the legacy divisor must be
     // recovered from the snapshot, NOT silently swapped for the
     // canonical default.
     const ind2 = createEmv({ period: 14 }, { fromState: state });
-    expect(ind2.getState().volumeDivisor).toBe(10000);
+    expect(ind2.getState().meta.params.volumeDivisor).toBe(10000);
 
     for (let i = 30; i < 60; i++) {
       const v1 = ind1.next(candles[i]).value;
@@ -326,13 +326,16 @@ describe("EMV incremental", () => {
     }
   });
 
-  it("explicit volumeDivisor option wins over both fromState and the default", () => {
+  it("refuses resume with a different volumeDivisor", () => {
+    // Under the State Contract, EMV is `mixed`: `volumeDivisor` scales
+    // every buffered raw EMV value, so resuming a snapshot with a
+    // different divisor is a hard refuse rather than a silent override.
     const ind1 = createEmv({ period: 14, volumeDivisor: 10000 });
     for (let i = 0; i < 30; i++) ind1.next(candles[i]);
     const state = ind1.getState();
-    // Explicit option overrides the persisted snapshot value.
-    const ind2 = createEmv({ period: 14, volumeDivisor: 5000 }, { fromState: state });
-    expect(ind2.getState().volumeDivisor).toBe(5000);
+    expect(() => createEmv({ period: 14, volumeDivisor: 5000 }, { fromState: state })).toThrow(
+      /incompatible snapshot|cannot be reconfigured/,
+    );
   });
 });
 
