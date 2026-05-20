@@ -7,10 +7,18 @@
  * single-pole recursive). The EMAs permanently encode past periods,
  * so resume requires identical `shortPeriod`, `longPeriod`, and
  * `signalPeriod` (or omit them and let the snapshot's params win).
+ *
+ * Migrated to the 0.4.0 State Contract.
  */
 
 import type { NormalizedCandle } from "../../../types";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import {
+  type IndicatorSnapshot,
+  makeSnapshot,
+  requireParam,
+  resolveResume,
+} from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 
 export type KlingerValue = {
   kvo: number | null;
@@ -18,10 +26,12 @@ export type KlingerValue = {
   histogram: number | null;
 };
 
+/**
+ * Bare state shape for Klinger. Params (`shortPeriod`, `longPeriod`,
+ * `signalPeriod`) live in `meta.params`; the three inner EMA states
+ * carry only runtime accumulators.
+ */
 export type KlingerState = {
-  shortPeriod: number;
-  longPeriod: number;
-  signalPeriod: number;
   prevHlc: number | null;
   prevTrend: number;
   cm: number;
@@ -37,6 +47,15 @@ type EmaInternalState = {
   sum: number;
   validCount: number;
   prevEma: number | null;
+};
+
+/** Per-indicator schema version. Bumped on any breaking state change. */
+export const KLINGER_VERSION = 1;
+
+type KlingerParams = {
+  shortPeriod: number;
+  longPeriod: number;
+  signalPeriod: number;
 };
 
 /**
@@ -103,13 +122,41 @@ function createInternalEma(
  */
 export function createKlinger(
   options: { shortPeriod?: number; longPeriod?: number; signalPeriod?: number } = {},
-  warmUpOptions?: WarmUpOptions<KlingerState>,
-): IncrementalIndicator<KlingerValue, KlingerState> {
-  // Resume order: explicit option > snapshot value > canonical default.
-  const fs = warmUpOptions?.fromState ?? null;
-  const shortPeriod = options.shortPeriod ?? fs?.shortPeriod ?? 34;
-  const longPeriod = options.longPeriod ?? fs?.longPeriod ?? 55;
-  const signalPeriod = options.signalPeriod ?? fs?.signalPeriod ?? 13;
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<KlingerState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<KlingerValue, IndicatorSnapshot<KlingerState>> {
+  const { params, state } = resolveResume<KlingerParams, KlingerState>({
+    indicator: "klinger",
+    version: KLINGER_VERSION,
+    category: "cascaded",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { shortPeriod: 34, longPeriod: 55, signalPeriod: 13 },
+  });
+
+  const shortPeriod = requireParam(
+    "klinger",
+    params,
+    "shortPeriod",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
+  const longPeriod = requireParam(
+    "klinger",
+    params,
+    "longPeriod",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
+  const signalPeriod = requireParam(
+    "klinger",
+    params,
+    "signalPeriod",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
 
   let prevHlc: number | null;
   let prevTrend: number;
@@ -119,23 +166,14 @@ export function createKlinger(
   let signalEma: ReturnType<typeof createInternalEma>;
   let count: number;
 
-  if (fs) {
-    // Cascaded: three internal recursive EMAs permanently encode past
-    // periods, so reconfiguring mid-stream produces a hybrid series.
-    if (
-      fs.shortPeriod !== shortPeriod ||
-      fs.longPeriod !== longPeriod ||
-      fs.signalPeriod !== signalPeriod
-    ) {
-      throw new Error("Klinger: incompatible snapshot, re-warm required");
-    }
-    prevHlc = fs.prevHlc;
-    prevTrend = fs.prevTrend;
-    cm = fs.cm;
-    shortEma = createInternalEma(shortPeriod, fs.shortEma);
-    longEma = createInternalEma(longPeriod, fs.longEma);
-    signalEma = createInternalEma(signalPeriod, fs.signalEma);
-    count = fs.count;
+  if (state !== null) {
+    prevHlc = state.prevHlc;
+    prevTrend = state.prevTrend;
+    cm = state.cm;
+    shortEma = createInternalEma(shortPeriod, state.shortEma);
+    longEma = createInternalEma(longPeriod, state.longEma);
+    signalEma = createInternalEma(signalPeriod, state.signalEma);
+    count = state.count;
   } else {
     prevHlc = null;
     prevTrend = 1;
@@ -169,7 +207,7 @@ export function createKlinger(
     return { vf, newHlc: hlc, newTrend: trend, newCm };
   }
 
-  const indicator: IncrementalIndicator<KlingerValue, KlingerState> = {
+  const indicator: IncrementalIndicator<KlingerValue, IndicatorSnapshot<KlingerState>> = {
     next(candle: NormalizedCandle) {
       count++;
 
@@ -226,19 +264,21 @@ export function createKlinger(
       return { time: candle.time, value: { kvo, signal, histogram } };
     },
 
-    getState(): KlingerState {
-      return {
-        shortPeriod,
-        longPeriod,
-        signalPeriod,
-        prevHlc,
-        prevTrend,
-        cm,
-        shortEma: shortEma.getState(),
-        longEma: longEma.getState(),
-        signalEma: signalEma.getState(),
-        count,
-      };
+    getState(): IndicatorSnapshot<KlingerState> {
+      return makeSnapshot(
+        "klinger",
+        KLINGER_VERSION,
+        { shortPeriod, longPeriod, signalPeriod },
+        {
+          prevHlc,
+          prevTrend,
+          cm,
+          shortEma: shortEma.getState(),
+          longEma: longEma.getState(),
+          signalEma: signalEma.getState(),
+          count,
+        },
+      );
     },
 
     get count() {

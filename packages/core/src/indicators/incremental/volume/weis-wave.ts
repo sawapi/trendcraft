@@ -3,23 +3,46 @@
  *
  * Accumulates volume within directional price waves.
  * When price direction reverses (exceeding threshold), a new wave begins.
+ *
+ * State category: **Recursive** (`waveVolume` is a cumulative
+ * accumulator whose reset points depend on `method` / `threshold`).
+ * Resume with a different `method` or `threshold` is refused — the
+ * saved wave was accumulated under the old reversal rule.
+ *
+ * Migrated to the 0.4.0 State Contract.
  */
 
 import type { NormalizedCandle } from "../../../types";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import {
+  type IndicatorSnapshot,
+  makeSnapshot,
+  requireParam,
+  resolveResume,
+} from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 
 export type WeisWaveValue = {
   waveVolume: number;
   direction: "up" | "down";
 };
 
+/**
+ * Bare state shape for Weis Wave. Params (`method`, `threshold`) live
+ * in `meta.params`.
+ */
 export type WeisWaveState = {
   waveVolume: number;
   direction: "up" | "down";
   prevCandle: { close: number; high: number; low: number } | null;
-  method: string;
-  threshold: number;
   count: number;
+};
+
+/** Per-indicator schema version. Bumped on any breaking state change. */
+export const WEIS_WAVE_VERSION = 1;
+
+type WeisWaveParams = {
+  method: "close" | "highlow";
+  threshold: number;
 };
 
 /**
@@ -40,22 +63,45 @@ export type WeisWaveState = {
  */
 export function createWeisWave(
   options: { method?: "close" | "highlow"; threshold?: number } = {},
-  warmUpOptions?: WarmUpOptions<WeisWaveState>,
-): IncrementalIndicator<WeisWaveValue, WeisWaveState> {
-  const method = options.method ?? "close";
-  const threshold = options.threshold ?? 0;
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<WeisWaveState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<WeisWaveValue, IndicatorSnapshot<WeisWaveState>> {
+  const { params, state } = resolveResume<WeisWaveParams, WeisWaveState>({
+    indicator: "weisWave",
+    version: WEIS_WAVE_VERSION,
+    category: "recursive",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { method: "close", threshold: 0 },
+  });
+
+  const method = requireParam(
+    "weisWave",
+    params,
+    "method",
+    (v): v is "close" | "highlow" => v === "close" || v === "highlow",
+    'must be "close" or "highlow"',
+  );
+  const threshold = requireParam(
+    "weisWave",
+    params,
+    "threshold",
+    (v): v is number => typeof v === "number" && v >= 0,
+    "must be a non-negative number",
+  );
 
   let waveVolume: number;
   let direction: "up" | "down";
   let prevCandle: { close: number; high: number; low: number } | null;
   let count: number;
 
-  if (warmUpOptions?.fromState) {
-    const s = warmUpOptions.fromState;
-    waveVolume = s.waveVolume;
-    direction = s.direction;
-    prevCandle = s.prevCandle;
-    count = s.count;
+  if (state !== null) {
+    waveVolume = state.waveVolume;
+    direction = state.direction;
+    prevCandle = state.prevCandle;
+    count = state.count;
   } else {
     waveVolume = 0;
     direction = "up";
@@ -96,7 +142,7 @@ export function createWeisWave(
     return { waveVolume, direction };
   }
 
-  const indicator: IncrementalIndicator<WeisWaveValue, WeisWaveState> = {
+  const indicator: IncrementalIndicator<WeisWaveValue, IndicatorSnapshot<WeisWaveState>> = {
     next(candle: NormalizedCandle) {
       count++;
       const value = processCandle(candle);
@@ -128,8 +174,13 @@ export function createWeisWave(
       return { time: candle.time, value: { waveVolume: peekVolume, direction: peekDir } };
     },
 
-    getState(): WeisWaveState {
-      return { waveVolume, direction, prevCandle, method, threshold, count };
+    getState(): IndicatorSnapshot<WeisWaveState> {
+      return makeSnapshot(
+        "weisWave",
+        WEIS_WAVE_VERSION,
+        { method, threshold },
+        { waveVolume, direction, prevCandle, count },
+      );
     },
 
     get count() {
