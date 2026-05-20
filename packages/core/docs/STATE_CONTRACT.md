@@ -106,6 +106,32 @@ period change on resume (carry forward what fits) while FRAMA cannot.
 - Restore event list verbatim
 - Params change → continue appending; past events keep their original-param interpretation (they are timestamped facts, not derived state)
 
+**Param-role axis (orthogonal to category)**:
+
+The five categories above classify an indicator by its *state
+structure*. A second, independent axis classifies each *param* by its
+*role*:
+
+- **State-shaping params** (`period`, `source`, …) determine the
+  structure or contents of the saved state. Changing one on resume
+  follows the per-category rule above (Windowed carries forward;
+  Recursive / Mixed / Cascaded throw).
+- **Resume-invariant params** scale only the state→output projection
+  and never touch the state itself — e.g. the band-width `multiplier`
+  in Keltner Channel's `EMA ± multiplier × ATR`. Changing one on
+  resume is mathematically safe *regardless of category*: the saved
+  state is reused verbatim and the new value takes effect immediately.
+
+A `mixed` indicator can still have resume-invariant params — the two
+axes are independent. `resolveResume` accepts an explicit
+`resumeInvariantParams` list; listed params are dropped from the
+resume compatibility check (their new value still flows into the
+merged `params`). `source` is never eligible — it changes the input
+series, so the saved state corresponds to different data — and is
+refused even if mistakenly listed. The contract test DSL verifies
+resume-invariant params via invariant [9] (a projection-only change
+resumes without throwing and matches a fresh run with the new value).
+
 ### 2.5 API surface — `createXxx(options, { fromState })` retained
 
 The existing API is preserved; only the semantics inside `fromState`

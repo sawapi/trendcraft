@@ -5,6 +5,7 @@
  */
 
 import type { NormalizedCandle } from "../../../types";
+import type { IndicatorSnapshot } from "../state-contract";
 import type { IncrementalIndicator, WarmUpOptions } from "../types";
 import type { AtrState } from "../volatility/atr";
 import { createAtr } from "../volatility/atr";
@@ -19,7 +20,7 @@ export type SupertrendValue = {
 export type SupertrendState = {
   period: number;
   multiplier: number;
-  atrState: AtrState;
+  atrState: IndicatorSnapshot<AtrState>;
   prevFinalUpper: number | null;
   prevFinalLower: number | null;
   prevClose: number | null;

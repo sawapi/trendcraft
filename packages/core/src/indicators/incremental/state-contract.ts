@@ -98,6 +98,22 @@ export type ResolveResumeOptions<TParams extends Record<string, unknown>, TState
    * `options` or `fromState`, and throw otherwise.
    */
   defaults: Partial<TParams>;
+  /**
+   * Params that only affect the state→output projection, never the
+   * state itself — e.g., a band-width `multiplier` in
+   * `EMA ± multiplier × ATR`. Changing one of these on resume is
+   * mathematically safe: the saved recursive / windowed state is
+   * reused verbatim and the new value takes effect immediately.
+   *
+   * This is the **param-role axis**, orthogonal to `category` (the
+   * state-structure axis): a `mixed` indicator can still have
+   * resume-invariant params. See STATE_CONTRACT.md §2.4.
+   *
+   * `source` is never eligible — it changes the input series, so the
+   * saved state corresponds to different data — and is refused even
+   * if mistakenly listed here.
+   */
+  resumeInvariantParams?: (keyof TParams & string)[];
 };
 
 /**
@@ -129,7 +145,8 @@ export type ResolveResumeOptions<TParams extends Record<string, unknown>, TState
 export function resolveResume<TParams extends Record<string, unknown>, TState>(
   opts: ResolveResumeOptions<TParams, TState>,
 ): ResolveResumeResult<TParams, TState> {
-  const { indicator, version, category, options, fromState, defaults } = opts;
+  const { indicator, version, category, options, fromState, defaults, resumeInvariantParams } =
+    opts;
 
   // Fresh start: just merge defaults + options. No snapshot to consult.
   if (!fromState) {
@@ -189,20 +206,35 @@ export function resolveResume<TParams extends Record<string, unknown>, TState>(
   // Source change is always a refuse — the input series differs, so
   // the snapshot's accumulated data (whether buffer or recursive
   // value) corresponds to a different input than the new run will see.
+  // Checked before the resume-invariant filter so `source` can never
+  // be waved through even if mistakenly listed there.
   if (changedKeys.includes("source")) {
     throw new Error(
       `${indicator}: incompatible snapshot, re-warm required (source mismatch — different source means different input series)`,
     );
   }
 
+  // Resume-invariant params (the param-role axis) only scale the
+  // state→output projection — changing them never invalidates the
+  // saved state. Drop them from the change set; the merged `params`
+  // already carries their new values.
+  const invariantSet = new Set<string>(resumeInvariantParams ?? []);
+  const stateShapingChanges = changedKeys.filter((k) => !invariantSet.has(k));
+
+  if (stateShapingChanges.length === 0) {
+    // Only resume-invariant params changed — resume the saved state
+    // verbatim, no buffer rebuild needed.
+    return { params, state: fromState.state, reconfigured: false };
+  }
+
   if (category === "windowed" || category === "event") {
     return { params, state: fromState.state, reconfigured: true };
   }
 
-  // recursive / mixed / cascaded: any param change permanently
-  // poisons the recursive accumulator(s).
+  // recursive / mixed / cascaded: any state-shaping param change
+  // permanently poisons the recursive accumulator(s).
   throw new Error(
-    `${indicator}: incompatible snapshot, re-warm required (${category} indicators cannot be reconfigured on resume; changed: ${changedKeys.join(", ")})`,
+    `${indicator}: incompatible snapshot, re-warm required (${category} indicators cannot be reconfigured on resume; changed: ${stateShapingChanges.join(", ")})`,
   );
 }
 
