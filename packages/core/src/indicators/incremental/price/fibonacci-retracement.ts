@@ -20,8 +20,9 @@
  */
 
 import type { NormalizedCandle } from "../../../types";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
-import { resolveLevelsConfig, resolveSwingConfig } from "./swing-helpers";
+import { type IndicatorSnapshot, makeSnapshot, resolveResume } from "../state-contract";
+import type { IncrementalIndicator } from "../types";
+import { resolveLevels, validateSwingConfig } from "./swing-helpers";
 import { createSwingPoints, type SwingPointsState } from "./swing-points";
 
 export type FibonacciRetracementValue = {
@@ -44,11 +45,13 @@ export type FibonacciRetracementOptions = {
   levels?: number[];
 };
 
+/**
+ * Bare state shape for Fibonacci Retracement. Params (`leftBars`,
+ * `rightBars`, `levels`) live in `meta.params`; the inner swing-points
+ * snapshot is itself an `IndicatorSnapshot`.
+ */
 export type FibonacciRetracementState = {
-  leftBars: number;
-  rightBars: number;
-  levels: number[];
-  swings: SwingPointsState;
+  swings: IndicatorSnapshot<SwingPointsState>;
   lastSwingHighPrice: number | null;
   lastSwingHighIdx: number | null;
   lastSwingLowPrice: number | null;
@@ -56,15 +59,34 @@ export type FibonacciRetracementState = {
   count: number;
 };
 
+/** Per-indicator schema version. Bumped on any breaking state change. */
+export const FIBONACCI_RETRACEMENT_VERSION = 1;
+
 const DEFAULT_LEVELS: readonly number[] = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1];
+
+type FibonacciRetracementParams = {
+  leftBars: number;
+  rightBars: number;
+  levels: number[];
+};
 
 export function createFibonacciRetracement(
   options: FibonacciRetracementOptions = {},
-  warmUpOptions?: WarmUpOptions<FibonacciRetracementState>,
-): IncrementalIndicator<FibonacciRetracementValue, FibonacciRetracementState> {
-  const fromState = warmUpOptions?.fromState;
-  const { leftBars, rightBars } = resolveSwingConfig(options, fromState);
-  const { levels, ratioKeys } = resolveLevelsConfig(options, fromState, DEFAULT_LEVELS);
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<FibonacciRetracementState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<FibonacciRetracementValue, IndicatorSnapshot<FibonacciRetracementState>> {
+  const { params, state } = resolveResume<FibonacciRetracementParams, FibonacciRetracementState>({
+    indicator: "fibonacciRetracement",
+    version: FIBONACCI_RETRACEMENT_VERSION,
+    category: "mixed",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { leftBars: 10, rightBars: 10, levels: DEFAULT_LEVELS.slice() },
+  });
+  const { leftBars, rightBars } = validateSwingConfig(params.leftBars, params.rightBars);
+  const { levels, ratioKeys } = resolveLevels(params.levels);
 
   let swings: ReturnType<typeof createSwingPoints>;
   let lastSwingHighPrice: number | null;
@@ -81,13 +103,13 @@ export function createFibonacciRetracement(
   let cachedHighIdx: number | null = null;
   let cachedLowIdx: number | null = null;
 
-  if (fromState) {
-    swings = createSwingPoints({ leftBars, rightBars }, { fromState: fromState.swings });
-    lastSwingHighPrice = fromState.lastSwingHighPrice;
-    lastSwingHighIdx = fromState.lastSwingHighIdx;
-    lastSwingLowPrice = fromState.lastSwingLowPrice;
-    lastSwingLowIdx = fromState.lastSwingLowIdx;
-    count = fromState.count;
+  if (state !== null) {
+    swings = createSwingPoints({ leftBars, rightBars }, { fromState: state.swings });
+    lastSwingHighPrice = state.lastSwingHighPrice;
+    lastSwingHighIdx = state.lastSwingHighIdx;
+    lastSwingLowPrice = state.lastSwingLowPrice;
+    lastSwingLowIdx = state.lastSwingLowIdx;
+    count = state.count;
   } else {
     swings = createSwingPoints({ leftBars, rightBars });
     lastSwingHighPrice = null;
@@ -136,7 +158,10 @@ export function createFibonacciRetracement(
     return value;
   }
 
-  const indicator: IncrementalIndicator<FibonacciRetracementValue, FibonacciRetracementState> = {
+  const indicator: IncrementalIndicator<
+    FibonacciRetracementValue,
+    IndicatorSnapshot<FibonacciRetracementState>
+  > = {
     next(candle: NormalizedCandle) {
       count++;
       const swingResult = swings.next(candle);
@@ -160,7 +185,7 @@ export function createFibonacciRetracement(
     },
 
     peek(candle: NormalizedCandle) {
-      const saved = indicator.getState();
+      const saved = indicator.getState().state;
       const result = indicator.next(candle);
       swings = createSwingPoints({ leftBars, rightBars }, { fromState: saved.swings });
       lastSwingHighPrice = saved.lastSwingHighPrice;
@@ -171,18 +196,20 @@ export function createFibonacciRetracement(
       return result;
     },
 
-    getState(): FibonacciRetracementState {
-      return {
-        leftBars,
-        rightBars,
-        levels: levels.slice(),
-        swings: swings.getState(),
-        lastSwingHighPrice,
-        lastSwingHighIdx,
-        lastSwingLowPrice,
-        lastSwingLowIdx,
-        count,
-      };
+    getState(): IndicatorSnapshot<FibonacciRetracementState> {
+      return makeSnapshot(
+        "fibonacciRetracement",
+        FIBONACCI_RETRACEMENT_VERSION,
+        { leftBars, rightBars, levels: levels.slice() },
+        {
+          swings: swings.getState(),
+          lastSwingHighPrice,
+          lastSwingHighIdx,
+          lastSwingLowPrice,
+          lastSwingLowIdx,
+          count,
+        },
+      );
     },
 
     get count() {

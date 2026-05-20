@@ -24,8 +24,9 @@
  */
 
 import type { NormalizedCandle } from "../../../types";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
-import { cloneShallow, pushBounded, resolveSwingConfig } from "./swing-helpers";
+import { type IndicatorSnapshot, makeSnapshot, resolveResume } from "../state-contract";
+import type { IncrementalIndicator } from "../types";
+import { cloneShallow, pushBounded, validateSwingConfig } from "./swing-helpers";
 import { createSwingPoints, type SwingPointsState } from "./swing-points";
 
 export type ChannelLineValue = {
@@ -51,10 +52,13 @@ type SwingPoint = {
   price: number;
 };
 
+/**
+ * Bare state shape for Channel Line. Params (`leftBars`, `rightBars`)
+ * live in `meta.params`; the inner swing-points snapshot is itself an
+ * `IndicatorSnapshot`.
+ */
 export type ChannelLineState = {
-  leftBars: number;
-  rightBars: number;
-  swings: SwingPointsState;
+  swings: IndicatorSnapshot<SwingPointsState>;
   lastTwoHighs: SwingPoint[];
   lastTwoLows: SwingPoint[];
   highsSinceLastSwingLow: SwingPoint[];
@@ -70,12 +74,30 @@ export type ChannelLineState = {
   count: number;
 };
 
+/** Per-indicator schema version. Bumped on any breaking state change. */
+export const CHANNEL_LINE_VERSION = 1;
+
+type ChannelLineParams = {
+  leftBars: number;
+  rightBars: number;
+};
+
 export function createChannelLine(
   options: ChannelLineOptions = {},
-  warmUpOptions?: WarmUpOptions<ChannelLineState>,
-): IncrementalIndicator<ChannelLineValue, ChannelLineState> {
-  const fromState = warmUpOptions?.fromState;
-  const { leftBars, rightBars } = resolveSwingConfig(options, fromState);
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<ChannelLineState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<ChannelLineValue, IndicatorSnapshot<ChannelLineState>> {
+  const { params, state } = resolveResume<ChannelLineParams, ChannelLineState>({
+    indicator: "channelLine",
+    version: CHANNEL_LINE_VERSION,
+    category: "mixed",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { leftBars: 10, rightBars: 10 },
+  });
+  const { leftBars, rightBars } = validateSwingConfig(params.leftBars, params.rightBars);
 
   let swings: ReturnType<typeof createSwingPoints>;
   let lastTwoHighs: SwingPoint[];
@@ -92,21 +114,21 @@ export function createChannelLine(
   let parallelOffset: number;
   let count: number;
 
-  if (fromState) {
-    swings = createSwingPoints({ leftBars, rightBars }, { fromState: fromState.swings });
-    lastTwoHighs = cloneShallow(fromState.lastTwoHighs);
-    lastTwoLows = cloneShallow(fromState.lastTwoLows);
-    highsSinceLastSwingLow = cloneShallow(fromState.highsSinceLastSwingLow);
-    lowsSinceLastSwingHigh = cloneShallow(fromState.lowsSinceLastSwingHigh);
-    highsBetweenLastTwoLows = cloneShallow(fromState.highsBetweenLastTwoLows);
-    lowsBetweenLastTwoHighs = cloneShallow(fromState.lowsBetweenLastTwoHighs);
-    channelDefined = fromState.channelDefined;
-    channelDir = fromState.channelDir;
-    primarySlope = fromState.primarySlope;
-    primaryAnchorIdx = fromState.primaryAnchorIdx;
-    primaryAnchorPrice = fromState.primaryAnchorPrice;
-    parallelOffset = fromState.parallelOffset;
-    count = fromState.count;
+  if (state !== null) {
+    swings = createSwingPoints({ leftBars, rightBars }, { fromState: state.swings });
+    lastTwoHighs = cloneShallow(state.lastTwoHighs);
+    lastTwoLows = cloneShallow(state.lastTwoLows);
+    highsSinceLastSwingLow = cloneShallow(state.highsSinceLastSwingLow);
+    lowsSinceLastSwingHigh = cloneShallow(state.lowsSinceLastSwingHigh);
+    highsBetweenLastTwoLows = cloneShallow(state.highsBetweenLastTwoLows);
+    lowsBetweenLastTwoHighs = cloneShallow(state.lowsBetweenLastTwoHighs);
+    channelDefined = state.channelDefined;
+    channelDir = state.channelDir;
+    primarySlope = state.primarySlope;
+    primaryAnchorIdx = state.primaryAnchorIdx;
+    primaryAnchorPrice = state.primaryAnchorPrice;
+    parallelOffset = state.parallelOffset;
+    count = state.count;
   } else {
     swings = createSwingPoints({ leftBars, rightBars });
     lastTwoHighs = [];
@@ -236,7 +258,7 @@ export function createChannelLine(
     };
   }
 
-  const indicator: IncrementalIndicator<ChannelLineValue, ChannelLineState> = {
+  const indicator: IncrementalIndicator<ChannelLineValue, IndicatorSnapshot<ChannelLineState>> = {
     next(candle: NormalizedCandle) {
       count++;
       const swingResult = swings.next(candle);
@@ -275,7 +297,7 @@ export function createChannelLine(
     },
 
     peek(candle: NormalizedCandle) {
-      const saved = indicator.getState();
+      const saved = indicator.getState().state;
       const result = indicator.next(candle);
       swings = createSwingPoints({ leftBars, rightBars }, { fromState: saved.swings });
       lastTwoHighs = cloneShallow(saved.lastTwoHighs);
@@ -294,25 +316,28 @@ export function createChannelLine(
       return result;
     },
 
-    getState(): ChannelLineState {
-      return {
-        leftBars,
-        rightBars,
-        swings: swings.getState(),
-        lastTwoHighs: cloneShallow(lastTwoHighs),
-        lastTwoLows: cloneShallow(lastTwoLows),
-        highsSinceLastSwingLow: cloneShallow(highsSinceLastSwingLow),
-        lowsSinceLastSwingHigh: cloneShallow(lowsSinceLastSwingHigh),
-        highsBetweenLastTwoLows: cloneShallow(highsBetweenLastTwoLows),
-        lowsBetweenLastTwoHighs: cloneShallow(lowsBetweenLastTwoHighs),
-        channelDefined,
-        channelDir,
-        primarySlope,
-        primaryAnchorIdx,
-        primaryAnchorPrice,
-        parallelOffset,
-        count,
-      };
+    getState(): IndicatorSnapshot<ChannelLineState> {
+      return makeSnapshot(
+        "channelLine",
+        CHANNEL_LINE_VERSION,
+        { leftBars, rightBars },
+        {
+          swings: swings.getState(),
+          lastTwoHighs: cloneShallow(lastTwoHighs),
+          lastTwoLows: cloneShallow(lastTwoLows),
+          highsSinceLastSwingLow: cloneShallow(highsSinceLastSwingLow),
+          lowsSinceLastSwingHigh: cloneShallow(lowsSinceLastSwingHigh),
+          highsBetweenLastTwoLows: cloneShallow(highsBetweenLastTwoLows),
+          lowsBetweenLastTwoHighs: cloneShallow(lowsBetweenLastTwoHighs),
+          channelDefined,
+          channelDir,
+          primarySlope,
+          primaryAnchorIdx,
+          primaryAnchorPrice,
+          parallelOffset,
+          count,
+        },
+      );
     },
 
     get count() {

@@ -2,10 +2,17 @@
  * Incremental Heikin-Ashi
  *
  * Smoothed candles that depend on the previous HA open/close.
+ *
+ * State category: **Recursive** (`prevHaOpen` / `prevHaClose` are the
+ * recursive accumulators). Heikin-Ashi takes no params, so there is
+ * nothing to reconfigure — every resume is a verbatim restore.
+ *
+ * Migrated to the 0.4.0 State Contract.
  */
 
 import type { NormalizedCandle } from "../../../types";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import { type IndicatorSnapshot, makeSnapshot, resolveResume } from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 
 const EPSILON = 1e-10;
 
@@ -17,11 +24,21 @@ export type HeikinAshiValue = {
   trend: 1 | -1 | 0;
 };
 
+/**
+ * Bare state shape for Heikin-Ashi. Heikin-Ashi has no params, so
+ * `meta.params` is an empty object on the wire.
+ */
 export type HeikinAshiState = {
   prevHaOpen: number | null;
   prevHaClose: number | null;
   count: number;
 };
+
+/** Per-indicator schema version. Bumped on any breaking state change. */
+export const HEIKIN_ASHI_VERSION = 1;
+
+// biome-ignore lint/complexity/noBannedTypes: Heikin-Ashi genuinely has no params.
+type HeikinAshiParams = {};
 
 /**
  * Create an incremental Heikin-Ashi indicator.
@@ -37,16 +54,28 @@ export type HeikinAshiState = {
  */
 export function createHeikinAshi(
   _options: Record<string, never> = {},
-  warmUpOptions?: WarmUpOptions<HeikinAshiState>,
-): IncrementalIndicator<HeikinAshiValue, HeikinAshiState> {
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<HeikinAshiState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<HeikinAshiValue, IndicatorSnapshot<HeikinAshiState>> {
+  const { state } = resolveResume<HeikinAshiParams, HeikinAshiState>({
+    indicator: "heikinAshi",
+    version: HEIKIN_ASHI_VERSION,
+    category: "recursive",
+    options: {},
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: {},
+  });
+
   let prevHaOpen: number | null;
   let prevHaClose: number | null;
   let count: number;
 
-  if (warmUpOptions?.fromState) {
-    prevHaOpen = warmUpOptions.fromState.prevHaOpen;
-    prevHaClose = warmUpOptions.fromState.prevHaClose;
-    count = warmUpOptions.fromState.count;
+  if (state !== null) {
+    prevHaOpen = state.prevHaOpen;
+    prevHaClose = state.prevHaClose;
+    count = state.count;
   } else {
     prevHaOpen = null;
     prevHaClose = null;
@@ -76,7 +105,7 @@ export function createHeikinAshi(
     return { open: haOpen, high: haHigh, low: haLow, close: haClose, trend };
   }
 
-  const indicator: IncrementalIndicator<HeikinAshiValue, HeikinAshiState> = {
+  const indicator: IncrementalIndicator<HeikinAshiValue, IndicatorSnapshot<HeikinAshiState>> = {
     next(candle: NormalizedCandle) {
       const value = compute(candle, prevHaOpen, prevHaClose);
       prevHaOpen = value.open;
@@ -89,8 +118,13 @@ export function createHeikinAshi(
       return { time: candle.time, value: compute(candle, prevHaOpen, prevHaClose) };
     },
 
-    getState(): HeikinAshiState {
-      return { prevHaOpen, prevHaClose, count };
+    getState(): IndicatorSnapshot<HeikinAshiState> {
+      return makeSnapshot(
+        "heikinAshi",
+        HEIKIN_ASHI_VERSION,
+        {},
+        { prevHaOpen, prevHaClose, count },
+      );
     },
 
     get count() {

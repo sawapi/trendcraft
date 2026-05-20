@@ -8,21 +8,44 @@
  *
  * with coefficients derived from the cutoff `period`. State carries the
  * last input + last two outputs.
+ *
+ * State category: **Recursive** (the two-tap IIR memory `outPrev1` /
+ * `outPrev2` is the recursive accumulator). `period` determines the
+ * filter coefficients and `source` the input series, so resuming with
+ * either changed is mathematically undefined and refused.
+ *
+ * Migrated to the 0.4.0 State Contract.
  */
 
 import type { NormalizedCandle, PriceSource } from "../../../types";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import {
+  type IndicatorSnapshot,
+  makeSnapshot,
+  requireParam,
+  resolveResume,
+} from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 import { getSourcePrice } from "../utils";
 
+/**
+ * Bare state shape for Super Smoother. Params (`period`, `source`)
+ * live in `meta.params` on the wire.
+ */
 export type SuperSmootherState = {
-  period: number;
-  source: PriceSource;
   prevPrice: number | null;
   /** Memory `out[i-2]` after the last `next()` call. */
   outPrev2: number;
   /** Memory `out[i-1]` after the last `next()` call. */
   outPrev1: number;
   count: number;
+};
+
+/** Per-indicator schema version. Bumped on any breaking state change. */
+export const SUPER_SMOOTHER_VERSION = 1;
+
+type SuperSmootherParams = {
+  period: number;
+  source: PriceSource;
 };
 
 function coefficients(period: number) {
@@ -49,16 +72,28 @@ function coefficients(period: number) {
  */
 export function createSuperSmoother(
   options: { period?: number; source?: PriceSource } = {},
-  warmUpOptions?: WarmUpOptions<SuperSmootherState>,
-): IncrementalIndicator<number | null, SuperSmootherState> {
-  // Saved snapshot wins so the IIR memories (outPrev1/outPrev2) keep being
-  // applied with the coefficients they were computed under.
-  const period = warmUpOptions?.fromState?.period ?? options.period ?? 10;
-  const source: PriceSource = warmUpOptions?.fromState?.source ?? options.source ?? "close";
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<SuperSmootherState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<number | null, IndicatorSnapshot<SuperSmootherState>> {
+  const { params, state } = resolveResume<SuperSmootherParams, SuperSmootherState>({
+    indicator: "superSmoother",
+    version: SUPER_SMOOTHER_VERSION,
+    category: "recursive",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { period: 10, source: "close" },
+  });
 
-  if (period < 1) {
-    throw new Error("Super Smoother period must be at least 1");
-  }
+  const period = requireParam(
+    "superSmoother",
+    params,
+    "period",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
+  const source = params.source;
 
   const { c1, c2, c3 } = coefficients(period);
 
@@ -67,12 +102,11 @@ export function createSuperSmoother(
   let outPrev1: number;
   let count: number;
 
-  if (warmUpOptions?.fromState) {
-    const s = warmUpOptions.fromState;
-    prevPrice = s.prevPrice;
-    outPrev2 = s.outPrev2;
-    outPrev1 = s.outPrev1;
-    count = s.count;
+  if (state !== null) {
+    prevPrice = state.prevPrice;
+    outPrev2 = state.outPrev2;
+    outPrev1 = state.outPrev1;
+    count = state.count;
   } else {
     prevPrice = null;
     outPrev2 = 0;
@@ -80,7 +114,7 @@ export function createSuperSmoother(
     count = 0;
   }
 
-  const indicator: IncrementalIndicator<number | null, SuperSmootherState> = {
+  const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<SuperSmootherState>> = {
     next(candle: NormalizedCandle) {
       const price = getSourcePrice(candle, source);
 
@@ -117,8 +151,13 @@ export function createSuperSmoother(
       return { time: candle.time, value: out };
     },
 
-    getState(): SuperSmootherState {
-      return { period, source, prevPrice, outPrev2, outPrev1, count };
+    getState(): IndicatorSnapshot<SuperSmootherState> {
+      return makeSnapshot(
+        "superSmoother",
+        SUPER_SMOOTHER_VERSION,
+        { period, source },
+        { prevPrice, outPrev2, outPrev1, count },
+      );
     },
 
     get count() {
