@@ -3,11 +3,23 @@
  *
  * Aroon Up = ((period - bars since highest high) / period) × 100
  * Aroon Down = ((period - bars since lowest low) / period) × 100
+ *
+ * State category: **Windowed** (fixed-size high/low raw-value buffers,
+ * no recursion). Resume with a different `period` carries the high/low
+ * values forward into the resized buffers.
+ *
+ * Migrated to the 0.4.0 State Contract.
  */
 
 import type { NormalizedCandle } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import {
+  type IndicatorSnapshot,
+  makeSnapshot,
+  requireParam,
+  resolveResume,
+} from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 
 export type AroonValue = {
   up: number | null;
@@ -15,11 +27,20 @@ export type AroonValue = {
   oscillator: number | null;
 };
 
+/**
+ * Bare state shape for Aroon. Params (`period`) live in `meta.params`.
+ */
 export type AroonState = {
-  period: number;
   highBuffer: ReturnType<CircularBuffer<number>["snapshot"]>;
   lowBuffer: ReturnType<CircularBuffer<number>["snapshot"]>;
   count: number;
+};
+
+/** Per-indicator schema version. Bumped on any breaking state change. */
+export const AROON_VERSION = 1;
+
+type AroonParams = {
+  period: number;
 };
 
 /**
@@ -36,22 +57,58 @@ export type AroonState = {
  */
 export function createAroon(
   options: { period?: number } = {},
-  warmUpOptions?: WarmUpOptions<AroonState>,
-): IncrementalIndicator<AroonValue, AroonState> {
-  const period = options.period ?? 25;
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<AroonState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<AroonValue, IndicatorSnapshot<AroonState>> {
+  const { params, state, reconfigured } = resolveResume<AroonParams, AroonState>({
+    indicator: "aroon",
+    version: AROON_VERSION,
+    category: "windowed",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { period: 25 },
+  });
+
+  const period = requireParam(
+    "aroon",
+    params,
+    "period",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
+
+  const capacity = period + 1;
 
   let highBuffer: CircularBuffer<number>;
   let lowBuffer: CircularBuffer<number>;
   let count: number;
 
-  if (warmUpOptions?.fromState) {
-    const s = warmUpOptions.fromState;
-    highBuffer = CircularBuffer.fromSnapshot(s.highBuffer);
-    lowBuffer = CircularBuffer.fromSnapshot(s.lowBuffer);
-    count = s.count;
+  function carryForward(
+    snapshot: ReturnType<CircularBuffer<number>["snapshot"]>,
+  ): CircularBuffer<number> {
+    const old = CircularBuffer.fromSnapshot<number>(snapshot);
+    const next = new CircularBuffer<number>(capacity);
+    const carry = Math.min(old.length, capacity);
+    for (let i = old.length - carry; i < old.length; i++) {
+      next.push(old.get(i));
+    }
+    return next;
+  }
+
+  if (state !== null) {
+    if (reconfigured) {
+      highBuffer = carryForward(state.highBuffer);
+      lowBuffer = carryForward(state.lowBuffer);
+    } else {
+      highBuffer = CircularBuffer.fromSnapshot(state.highBuffer);
+      lowBuffer = CircularBuffer.fromSnapshot(state.lowBuffer);
+    }
+    count = state.count;
   } else {
-    highBuffer = new CircularBuffer<number>(period + 1);
-    lowBuffer = new CircularBuffer<number>(period + 1);
+    highBuffer = new CircularBuffer<number>(capacity);
+    lowBuffer = new CircularBuffer<number>(capacity);
     count = 0;
   }
 
@@ -78,7 +135,7 @@ export function createAroon(
     return { up, down, oscillator: up - down };
   }
 
-  const indicator: IncrementalIndicator<AroonValue, AroonState> = {
+  const indicator: IncrementalIndicator<AroonValue, IndicatorSnapshot<AroonState>> = {
     next(candle: NormalizedCandle) {
       count++;
       highBuffer.push(candle.high);
@@ -94,13 +151,17 @@ export function createAroon(
       return { time: candle.time, value: compute(peekH, peekL) };
     },
 
-    getState(): AroonState {
-      return {
-        period,
-        highBuffer: highBuffer.snapshot(),
-        lowBuffer: lowBuffer.snapshot(),
-        count,
-      };
+    getState(): IndicatorSnapshot<AroonState> {
+      return makeSnapshot(
+        "aroon",
+        AROON_VERSION,
+        { period },
+        {
+          highBuffer: highBuffer.snapshot(),
+          lowBuffer: lowBuffer.snapshot(),
+          count,
+        },
+      );
     },
 
     get count() {
@@ -108,7 +169,10 @@ export function createAroon(
     },
 
     get isWarmedUp() {
-      return count > period;
+      // Gate on buffer fill, not `count`: after a period-growing resume
+      // the carried buffer is shorter than the old `count`, and
+      // compute() returns nulls until it refills to period + 1.
+      return highBuffer.length >= period + 1;
     },
   };
 
