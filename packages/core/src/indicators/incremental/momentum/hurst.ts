@@ -5,21 +5,42 @@
  * window of prices. H > 0.5 indicates trend persistence, H < 0.5 indicates
  * mean reversion, and H ~ 0.5 indicates a random walk.
  *
- * Uses a CircularBuffer to store the most recent `maxWindow` prices and
- * performs R/S analysis across multiple sub-window sizes (geometric progression).
+ * State category: **Windowed** (a single raw price buffer of size
+ * `maxWindow`). A `maxWindow` change carries the most recent prices
+ * forward into the resized buffer; `minWindow` is a resume-invariant
+ * param (it only affects the R/S sub-window projection, never the
+ * buffered data); `source` change is refused.
+ *
+ * Migrated to the 0.4.0 State Contract.
  */
 
 import type { NormalizedCandle, PriceSource } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import {
+  type IndicatorSnapshot,
+  makeSnapshot,
+  requireParam,
+  resolveResume,
+} from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 import { getSourcePrice } from "../utils";
 
+/**
+ * Bare state shape for Hurst. Params (`minWindow`, `maxWindow`,
+ * `source`) live in `meta.params` on the wire.
+ */
 export type HurstState = {
   priceBuffer: ReturnType<CircularBuffer<number>["snapshot"]>;
+  count: number;
+};
+
+/** Per-indicator schema version. Bumped on any breaking state change. */
+export const HURST_VERSION = 1;
+
+type HurstParams = {
   minWindow: number;
   maxWindow: number;
   source: PriceSource;
-  count: number;
 };
 
 /**
@@ -170,31 +191,67 @@ export function createHurst(
     maxWindow?: number;
     source?: PriceSource;
   } = {},
-  warmUpOptions?: WarmUpOptions<HurstState>,
-): IncrementalIndicator<number | null, HurstState> {
-  const minWindow = options.minWindow ?? 20;
-  const maxWindow = options.maxWindow ?? 100;
-  const source: PriceSource = options.source ?? "close";
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<HurstState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<number | null, IndicatorSnapshot<HurstState>> {
+  const { params, state, reconfigured } = resolveResume<HurstParams, HurstState>({
+    indicator: "hurst",
+    version: HURST_VERSION,
+    category: "windowed",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { minWindow: 20, maxWindow: 100, source: "close" },
+    resumeInvariantParams: ["minWindow"],
+  });
+
+  const minWindow = requireParam(
+    "hurst",
+    params,
+    "minWindow",
+    (v): v is number => Number.isInteger(v) && v >= 2,
+    "must be an integer >= 2",
+  );
+  const maxWindow = requireParam(
+    "hurst",
+    params,
+    "maxWindow",
+    (v): v is number => Number.isInteger(v) && v >= 2,
+    "must be an integer >= 2",
+  );
+  const source = params.source;
 
   let priceBuffer: CircularBuffer<number>;
   let count: number;
 
-  if (warmUpOptions?.fromState) {
-    const s = warmUpOptions.fromState;
-    priceBuffer = CircularBuffer.fromSnapshot(s.priceBuffer);
-    count = s.count;
+  if (state !== null) {
+    if (reconfigured) {
+      // maxWindow changed — carry the most recent prices forward.
+      const old = CircularBuffer.fromSnapshot<number>(state.priceBuffer);
+      priceBuffer = new CircularBuffer<number>(maxWindow);
+      const carry = Math.min(old.length, maxWindow);
+      for (let i = old.length - carry; i < old.length; i++) {
+        priceBuffer.push(old.get(i));
+      }
+    } else {
+      priceBuffer = CircularBuffer.fromSnapshot(state.priceBuffer);
+    }
+    count = state.count;
   } else {
     priceBuffer = new CircularBuffer<number>(maxWindow);
     count = 0;
   }
 
-  const indicator: IncrementalIndicator<number | null, HurstState> = {
+  const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<HurstState>> = {
     next(candle: NormalizedCandle) {
       const price = getSourcePrice(candle, source);
       priceBuffer.push(price);
       count++;
 
-      if (count < maxWindow) {
+      // Gate on buffer fill, not `count`: after a maxWindow-growing
+      // resume the carried buffer is shorter than the old `count`.
+      if (priceBuffer.length < maxWindow) {
         return { time: candle.time, value: null };
       }
 
@@ -205,9 +262,10 @@ export function createHurst(
 
     peek(candle: NormalizedCandle) {
       const price = getSourcePrice(candle, source);
-      const peekCount = count + 1;
 
-      if (peekCount < maxWindow) {
+      // After the simulated push the buffer holds
+      // min(length + 1, maxWindow) prices.
+      if (priceBuffer.length + 1 < maxWindow) {
         return { time: candle.time, value: null };
       }
 
@@ -227,14 +285,16 @@ export function createHurst(
       return { time: candle.time, value };
     },
 
-    getState(): HurstState {
-      return {
-        priceBuffer: priceBuffer.snapshot(),
-        minWindow,
-        maxWindow,
-        source,
-        count,
-      };
+    getState(): IndicatorSnapshot<HurstState> {
+      return makeSnapshot(
+        "hurst",
+        HURST_VERSION,
+        { minWindow, maxWindow, source },
+        {
+          priceBuffer: priceBuffer.snapshot(),
+          count,
+        },
+      );
     },
 
     get count() {
@@ -242,7 +302,7 @@ export function createHurst(
     },
 
     get isWarmedUp() {
-      return count >= maxWindow;
+      return priceBuffer.length >= maxWindow;
     },
   };
 

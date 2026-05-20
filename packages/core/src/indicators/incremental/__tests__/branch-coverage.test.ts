@@ -663,14 +663,14 @@ describe("Elder Force Index", () => {
     const efi1 = createElderForceIndex(opts);
     for (let i = 0; i < 25; i++) efi1.next(makeCandle(i));
     const state = efi1.getState();
-    expect(state.shortPeriod).toBe(5);
-    expect(state.longPeriod).toBe(20);
+    expect(state.meta.params.shortPeriod).toBe(5);
+    expect(state.meta.params.longPeriod).toBe(20);
 
     // Resume without re-passing options — periods must come from the
     // snapshot, NOT silently revert to canonical 2 / 13.
     const efi2 = createElderForceIndex({}, { fromState: state });
-    expect(efi2.getState().shortPeriod).toBe(5);
-    expect(efi2.getState().longPeriod).toBe(20);
+    expect(efi2.getState().meta.params.shortPeriod).toBe(5);
+    expect(efi2.getState().meta.params.longPeriod).toBe(20);
 
     // Subsequent values must match what efi1 would have produced.
     for (let i = 25; i < 35; i++) {
@@ -681,62 +681,18 @@ describe("Elder Force Index", () => {
     }
   });
 
-  it("explicit periods on resume override persisted state", () => {
-    const efi1 = createElderForceIndex({ shortPeriod: 5, longPeriod: 20 });
-    for (let i = 0; i < 25; i++) efi1.next(makeCandle(i));
-    // Caller explicitly re-parameterizes on resume — the snapshot's
-    // periods are ignored.
-    const efi2 = createElderForceIndex(
-      { shortPeriod: 3, longPeriod: 10 },
-      { fromState: efi1.getState() },
-    );
-    expect(efi2.getState().shortPeriod).toBe(3);
-    expect(efi2.getState().longPeriod).toBe(10);
-  });
-
-  it("re-parameterizing on resume resets EMA state and produces a fresh warm-up", () => {
-    // The previous EMA / sum / count were accumulated under the old
-    // multipliers; replaying them with new multipliers would produce a
-    // mathematically incorrect series. The new indicator must start
-    // its warm-up from scratch and only inherit `prevClose` from the
-    // snapshot (so the first raw-force computation after resume is
-    // still correct).
+  it("re-parameterizing a cascaded indicator on resume is refused", () => {
+    // Under the State Contract, Elder Force Index is `cascaded`: its
+    // two EMAs permanently encode their construction-time periods, so
+    // resuming a snapshot with different periods is a hard refuse
+    // rather than a silent reset / re-warm.
     const efi1 = createElderForceIndex({ shortPeriod: 5, longPeriod: 20 });
     for (let i = 0; i < 25; i++) efi1.next(makeCandle(i));
     const snapshot = efi1.getState();
 
-    const efi2 = createElderForceIndex({ shortPeriod: 3, longPeriod: 10 }, { fromState: snapshot });
-
-    // EMAs / sums / count are reset for the new periods. prevClose
-    // carries over so the very next bar still has a valid raw force.
-    const reset = efi2.getState();
-    expect(reset.shortEma).toBeNull();
-    expect(reset.longEma).toBeNull();
-    expect(reset.shortSum).toBe(0);
-    expect(reset.longSum).toBe(0);
-    expect(reset.count).toBe(0);
-    expect(reset.prevClose).toBe(snapshot.prevClose);
-
-    // After feeding shortPeriod=3 bars, the short EMA must be the
-    // canonical SMA seed of the new bars' raw forces (NOT a value
-    // derived from the old 5-period multiplier on the snapshot's
-    // EMA). Compute it manually and compare.
-    const newBars: NormalizedCandle[] = [];
-    for (let i = 25; i < 28; i++) newBars.push(makeCandle(i));
-
-    let prevClose = snapshot.prevClose as number;
-    let sumRaw = 0;
-    for (const c of newBars) {
-      sumRaw += (c.close - prevClose) * c.volume;
-      prevClose = c.close;
-    }
-    const expectedShortSeed = sumRaw / 3;
-
-    let observedShort: number | null = null;
-    for (const c of newBars) observedShort = efi2.next(c).value.short;
-
-    expect(observedShort).not.toBeNull();
-    expect(observedShort as number).toBeCloseTo(expectedShortSeed, 8);
+    expect(() =>
+      createElderForceIndex({ shortPeriod: 3, longPeriod: 10 }, { fromState: snapshot }),
+    ).toThrow(/incompatible snapshot|cannot be reconfigured/);
   });
 
   it("isWarmedUp accounts for the larger of shortPeriod / longPeriod", () => {

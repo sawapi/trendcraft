@@ -4,11 +4,18 @@
  * Detects Williams fractal patterns: a bar whose high (or low) is the
  * extreme among 2*period+1 surrounding bars. Output is delayed by `period`
  * bars since right-side confirmation is required.
+ *
+ * State category: **Windowed** (a fixed-size `2*period+1` raw OHLC
+ * window). Resuming with a different `period` carries the most-recent
+ * window entries forward into a buffer sized at the new window.
+ *
+ * Migrated to the 0.4.0 State Contract.
  */
 
 import type { NormalizedCandle } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import { type IndicatorSnapshot, makeSnapshot, resolveResume } from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 
 export type FractalValue = {
   upFractal: boolean;
@@ -19,10 +26,20 @@ export type FractalValue = {
 
 type FractalEntry = { high: number; low: number; time: number };
 
+/**
+ * Bare state shape for Fractals. The param (`period`) lives in
+ * `meta.params` on the wire.
+ */
 export type FractalsState = {
-  period: number;
   buffer: ReturnType<CircularBuffer<FractalEntry>["snapshot"]>;
   count: number;
+};
+
+/** Per-indicator schema version. Bumped on any breaking state change. */
+export const FRACTALS_VERSION = 1;
+
+type FractalsParams = {
+  period: number;
 };
 
 const nullValue: FractalValue = {
@@ -50,18 +67,41 @@ const nullValue: FractalValue = {
  */
 export function createFractals(
   options: { period?: number } = {},
-  warmUpOptions?: WarmUpOptions<FractalsState>,
-): IncrementalIndicator<FractalValue, FractalsState> {
-  const period = options.period ?? 2;
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<FractalsState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<FractalValue, IndicatorSnapshot<FractalsState>> {
+  const { params, state, reconfigured } = resolveResume<FractalsParams, FractalsState>({
+    indicator: "fractals",
+    version: FRACTALS_VERSION,
+    category: "windowed",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { period: 2 },
+  });
+
+  const period = params.period;
+  if (!Number.isInteger(period) || period < 1) {
+    throw new Error('fractals: option "period" must be a positive integer');
+  }
   const windowSize = 2 * period + 1;
 
   let buffer: CircularBuffer<FractalEntry>;
   let count: number;
 
-  if (warmUpOptions?.fromState) {
-    const s = warmUpOptions.fromState;
-    buffer = CircularBuffer.fromSnapshot(s.buffer);
-    count = s.count;
+  if (state !== null) {
+    const old = CircularBuffer.fromSnapshot(state.buffer);
+    if (reconfigured) {
+      buffer = new CircularBuffer<FractalEntry>(windowSize);
+      const carry = Math.min(old.length, windowSize);
+      for (let i = old.length - carry; i < old.length; i++) {
+        buffer.push(old.get(i));
+      }
+    } else {
+      buffer = old;
+    }
+    count = state.count;
   } else {
     buffer = new CircularBuffer<FractalEntry>(windowSize);
     count = 0;
@@ -91,7 +131,7 @@ export function createFractals(
     };
   }
 
-  const indicator: IncrementalIndicator<FractalValue, FractalsState> = {
+  const indicator: IncrementalIndicator<FractalValue, IndicatorSnapshot<FractalsState>> = {
     next(candle: NormalizedCandle) {
       buffer.push({ high: candle.high, low: candle.low, time: candle.time });
       count++;
@@ -147,12 +187,16 @@ export function createFractals(
       };
     },
 
-    getState(): FractalsState {
-      return {
-        period,
-        buffer: buffer.snapshot(),
-        count,
-      };
+    getState(): IndicatorSnapshot<FractalsState> {
+      return makeSnapshot(
+        "fractals",
+        FRACTALS_VERSION,
+        { period },
+        {
+          buffer: buffer.snapshot(),
+          count,
+        },
+      );
     },
 
     get count() {
@@ -160,7 +204,7 @@ export function createFractals(
     },
 
     get isWarmedUp() {
-      return count >= windowSize;
+      return buffer.length >= windowSize;
     },
   };
 

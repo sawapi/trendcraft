@@ -1,18 +1,40 @@
 /**
  * Incremental CMF (Chaikin Money Flow)
+ *
+ * State category: **Windowed** (two fixed-size buffers — money-flow
+ * volume and raw volume — plus running sums). Resume with a different
+ * `period` carries both buffers forward and recomputes the running
+ * sums against the new window.
+ *
+ * Migrated to the 0.4.0 State Contract.
  */
 
 import type { NormalizedCandle } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import {
+  type IndicatorSnapshot,
+  makeSnapshot,
+  requireParam,
+  resolveResume,
+} from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 
+/**
+ * Bare state shape for CMF. `period` lives in `meta.params`.
+ */
 export type CmfState = {
-  period: number;
   mfvBuffer: ReturnType<CircularBuffer<number>["snapshot"]>;
   volBuffer: ReturnType<CircularBuffer<number>["snapshot"]>;
   mfvSum: number;
   volSum: number;
   count: number;
+};
+
+/** Per-indicator schema version. Bumped on any breaking state change. */
+export const CMF_VERSION = 1;
+
+type CmfParams = {
+  period: number;
 };
 
 /**
@@ -29,9 +51,27 @@ export type CmfState = {
  */
 export function createCmf(
   options: { period?: number } = {},
-  warmUpOptions?: WarmUpOptions<CmfState>,
-): IncrementalIndicator<number | null, CmfState> {
-  const period = options.period ?? 20;
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<CmfState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<number | null, IndicatorSnapshot<CmfState>> {
+  const { params, state, reconfigured } = resolveResume<CmfParams, CmfState>({
+    indicator: "cmf",
+    version: CMF_VERSION,
+    category: "windowed",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { period: 20 },
+  });
+
+  const period = requireParam(
+    "cmf",
+    params,
+    "period",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
 
   let mfvBuffer: CircularBuffer<number>;
   let volBuffer: CircularBuffer<number>;
@@ -39,13 +79,32 @@ export function createCmf(
   let volSum: number;
   let count: number;
 
-  if (warmUpOptions?.fromState) {
-    const s = warmUpOptions.fromState;
-    mfvBuffer = CircularBuffer.fromSnapshot(s.mfvBuffer);
-    volBuffer = CircularBuffer.fromSnapshot(s.volBuffer);
-    mfvSum = s.mfvSum;
-    volSum = s.volSum;
-    count = s.count;
+  if (state !== null) {
+    if (reconfigured) {
+      // Period changed — carry both derived buffers forward and
+      // recompute the running sums against the new window.
+      const oldMfv = CircularBuffer.fromSnapshot(state.mfvBuffer);
+      const oldVol = CircularBuffer.fromSnapshot(state.volBuffer);
+      mfvBuffer = new CircularBuffer<number>(period);
+      volBuffer = new CircularBuffer<number>(period);
+      const carry = Math.min(oldMfv.length, period);
+      for (let i = oldMfv.length - carry; i < oldMfv.length; i++) {
+        mfvBuffer.push(oldMfv.get(i));
+        volBuffer.push(oldVol.get(i));
+      }
+      mfvSum = 0;
+      volSum = 0;
+      for (let i = 0; i < mfvBuffer.length; i++) {
+        mfvSum += mfvBuffer.get(i);
+        volSum += volBuffer.get(i);
+      }
+    } else {
+      mfvBuffer = CircularBuffer.fromSnapshot(state.mfvBuffer);
+      volBuffer = CircularBuffer.fromSnapshot(state.volBuffer);
+      mfvSum = state.mfvSum;
+      volSum = state.volSum;
+    }
+    count = state.count;
   } else {
     mfvBuffer = new CircularBuffer<number>(period);
     volBuffer = new CircularBuffer<number>(period);
@@ -60,7 +119,7 @@ export function createCmf(
     return multiplier * candle.volume;
   }
 
-  const indicator: IncrementalIndicator<number | null, CmfState> = {
+  const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<CmfState>> = {
     next(candle: NormalizedCandle) {
       count++;
 
@@ -78,7 +137,7 @@ export function createCmf(
       mfvBuffer.push(mfv);
       volBuffer.push(vol);
 
-      if (count < period) {
+      if (mfvBuffer.length < period) {
         return { time: candle.time, value: null };
       }
 
@@ -87,7 +146,7 @@ export function createCmf(
     },
 
     peek(candle: NormalizedCandle) {
-      if (count + 1 < period) {
+      if (mfvBuffer.length + 1 < period && !mfvBuffer.isFull) {
         return { time: candle.time, value: null };
       }
 
@@ -109,15 +168,19 @@ export function createCmf(
       return { time: candle.time, value };
     },
 
-    getState(): CmfState {
-      return {
-        period,
-        mfvBuffer: mfvBuffer.snapshot(),
-        volBuffer: volBuffer.snapshot(),
-        mfvSum,
-        volSum,
-        count,
-      };
+    getState(): IndicatorSnapshot<CmfState> {
+      return makeSnapshot(
+        "cmf",
+        CMF_VERSION,
+        { period },
+        {
+          mfvBuffer: mfvBuffer.snapshot(),
+          volBuffer: volBuffer.snapshot(),
+          mfvSum,
+          volSum,
+          count,
+        },
+      );
     },
 
     get count() {
@@ -125,7 +188,7 @@ export function createCmf(
     },
 
     get isWarmedUp() {
-      return count >= period;
+      return mfvBuffer.length >= period;
     },
   };
 

@@ -22,12 +22,21 @@
  * The set of sweeps observed by the live indicator eventually matches batch,
  * but emission lags real time by up to `swingPeriod` bars. Tests compare the
  * multiset of detected sweeps after both sides finish processing.
+ *
+ * State category: **Mixed** (an inner `createSwingPoints` snapshot
+ * plus a `swingPeriod + 1` scan ring buffer). The buffer capacity and
+ * the inner detector are conditioned on construction-time params, so
+ * resume with a different `swingPeriod` / `maxRecoveryBars` /
+ * `maxTrackedSweeps` / `minSweepDepth` is refused.
+ *
+ * Migrated to the 0.4.0 State Contract.
  */
 
 import type { NormalizedCandle } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
 import { createSwingPoints, type SwingPointsState } from "../price/swing-points";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import { type IndicatorSnapshot, makeSnapshot, resolveResume } from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 
 export type LiquiditySweep = {
   type: "bullish" | "bearish";
@@ -71,12 +80,14 @@ type BufferedCandle = {
   index: number;
 };
 
+/**
+ * Bare state shape for Liquidity Sweep. Params (`swingPeriod`,
+ * `maxRecoveryBars`, `maxTrackedSweeps`, `minSweepDepth`) live in
+ * `meta.params`; the inner swing-points snapshot is an
+ * `IndicatorSnapshot`.
+ */
 export type LiquiditySweepState = {
-  swingPeriod: number;
-  maxRecoveryBars: number;
-  maxTrackedSweeps: number;
-  minSweepDepth: number;
-  swings: SwingPointsState;
+  swings: IndicatorSnapshot<SwingPointsState>;
   buffer: ReturnType<CircularBuffer<BufferedCandle>["snapshot"]>;
   recentSwingHigh: { level: number; index: number } | null;
   recentSwingLow: { level: number; index: number } | null;
@@ -84,14 +95,36 @@ export type LiquiditySweepState = {
   count: number;
 };
 
+/** Per-indicator schema version. Bumped on any breaking state change. */
+export const LIQUIDITY_SWEEP_VERSION = 1;
+
+type LiquiditySweepParams = {
+  swingPeriod: number;
+  maxRecoveryBars: number;
+  maxTrackedSweeps: number;
+  minSweepDepth: number;
+};
+
 export function createLiquiditySweep(
   options: LiquiditySweepOptions = {},
-  warmUpOptions?: WarmUpOptions<LiquiditySweepState>,
-): IncrementalIndicator<LiquiditySweepValue, LiquiditySweepState> {
-  const swingPeriod = options.swingPeriod ?? 5;
-  const maxRecoveryBars = options.maxRecoveryBars ?? 3;
-  const maxTrackedSweeps = options.maxTrackedSweeps ?? 10;
-  const minSweepDepth = options.minSweepDepth ?? 0;
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<LiquiditySweepState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<LiquiditySweepValue, IndicatorSnapshot<LiquiditySweepState>> {
+  const { params, state } = resolveResume<LiquiditySweepParams, LiquiditySweepState>({
+    indicator: "liquiditySweep",
+    version: LIQUIDITY_SWEEP_VERSION,
+    category: "mixed",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { swingPeriod: 5, maxRecoveryBars: 3, maxTrackedSweeps: 10, minSweepDepth: 0 },
+  });
+
+  const swingPeriod = params.swingPeriod;
+  const maxRecoveryBars = params.maxRecoveryBars;
+  const maxTrackedSweeps = params.maxTrackedSweeps;
+  const minSweepDepth = params.minSweepDepth;
 
   if (swingPeriod < 1) throw new Error("swingPeriod must be at least 1");
   if (maxRecoveryBars < 1) throw new Error("maxRecoveryBars must be at least 1");
@@ -107,17 +140,16 @@ export function createLiquiditySweep(
   let recentSweeps: LiquiditySweep[];
   let count: number;
 
-  if (warmUpOptions?.fromState) {
-    const s = warmUpOptions.fromState;
+  if (state !== null) {
     swings = createSwingPoints(
       { leftBars: swingPeriod, rightBars: swingPeriod },
-      { fromState: s.swings },
+      { fromState: state.swings },
     );
-    buffer = CircularBuffer.fromSnapshot(s.buffer);
-    recentSwingHigh = s.recentSwingHigh ? { ...s.recentSwingHigh } : null;
-    recentSwingLow = s.recentSwingLow ? { ...s.recentSwingLow } : null;
-    recentSweeps = s.recentSweeps.map((sw) => ({ ...sw }));
-    count = s.count;
+    buffer = CircularBuffer.fromSnapshot(state.buffer);
+    recentSwingHigh = state.recentSwingHigh ? { ...state.recentSwingHigh } : null;
+    recentSwingLow = state.recentSwingLow ? { ...state.recentSwingLow } : null;
+    recentSweeps = state.recentSweeps.map((sw) => ({ ...sw }));
+    count = state.count;
   } else {
     swings = createSwingPoints({ leftBars: swingPeriod, rightBars: swingPeriod });
     buffer = new CircularBuffer<BufferedCandle>(bufferCapacity);
@@ -187,7 +219,10 @@ export function createLiquiditySweep(
     return null;
   }
 
-  const indicator: IncrementalIndicator<LiquiditySweepValue, LiquiditySweepState> = {
+  const indicator: IncrementalIndicator<
+    LiquiditySweepValue,
+    IndicatorSnapshot<LiquiditySweepState>
+  > = {
     next(candle: NormalizedCandle) {
       const idx = count;
       buffer.push({
@@ -296,7 +331,7 @@ export function createLiquiditySweep(
     },
 
     peek(candle: NormalizedCandle) {
-      const saved = indicator.getState();
+      const saved = indicator.getState().state;
       const result = indicator.next(candle);
       swings = createSwingPoints(
         { leftBars: swingPeriod, rightBars: swingPeriod },
@@ -310,19 +345,20 @@ export function createLiquiditySweep(
       return result;
     },
 
-    getState(): LiquiditySweepState {
-      return {
-        swingPeriod,
-        maxRecoveryBars,
-        maxTrackedSweeps,
-        minSweepDepth,
-        swings: swings.getState(),
-        buffer: buffer.snapshot(),
-        recentSwingHigh: recentSwingHigh ? { ...recentSwingHigh } : null,
-        recentSwingLow: recentSwingLow ? { ...recentSwingLow } : null,
-        recentSweeps: recentSweeps.map((sw) => ({ ...sw })),
-        count,
-      };
+    getState(): IndicatorSnapshot<LiquiditySweepState> {
+      return makeSnapshot(
+        "liquiditySweep",
+        LIQUIDITY_SWEEP_VERSION,
+        { swingPeriod, maxRecoveryBars, maxTrackedSweeps, minSweepDepth },
+        {
+          swings: swings.getState(),
+          buffer: buffer.snapshot(),
+          recentSwingHigh: recentSwingHigh ? { ...recentSwingHigh } : null,
+          recentSwingLow: recentSwingLow ? { ...recentSwingLow } : null,
+          recentSweeps: recentSweeps.map((sw) => ({ ...sw })),
+          count,
+        },
+      );
     },
 
     get count() {

@@ -3,19 +3,38 @@
  *
  * QStick = SMA(close - open, period)
  * Measures the dominance of buying or selling pressure via candlestick body.
+ *
+ * State category: **Cascaded** (composes an inner incremental SMA over
+ * the per-candle close-minus-open series). Resume with a different
+ * `period` is refused.
+ *
+ * Migrated to the 0.4.0 State Contract.
  */
 
 import type { NormalizedCandle } from "../../../types";
-import type { SmaState } from "../moving-average/sma";
-import { createSma } from "../moving-average/sma";
-import type { IndicatorSnapshot } from "../state-contract";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import { createSma, type SmaState } from "../moving-average/sma";
+import {
+  type IndicatorSnapshot,
+  makeSnapshot,
+  requireParam,
+  resolveResume,
+} from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 import { makeCandle } from "../utils";
 
+/**
+ * Bare state shape for QStick. Params (`period`) live in `meta.params`.
+ */
 export type QStickState = {
   smaState: IndicatorSnapshot<SmaState>;
-  period: number;
   count: number;
+};
+
+/** Per-indicator schema version. Bumped on any breaking state change. */
+export const QSTICK_VERSION = 1;
+
+type QStickParams = {
+  period: number;
 };
 
 /**
@@ -32,23 +51,40 @@ export type QStickState = {
  */
 export function createQStick(
   options: { period?: number } = {},
-  warmUpOptions?: WarmUpOptions<QStickState>,
-): IncrementalIndicator<number | null, QStickState> {
-  const period = options.period ?? 14;
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<QStickState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<number | null, IndicatorSnapshot<QStickState>> {
+  const { params, state } = resolveResume<QStickParams, QStickState>({
+    indicator: "qstick",
+    version: QSTICK_VERSION,
+    category: "cascaded",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { period: 14 },
+  });
+
+  const period = requireParam(
+    "qstick",
+    params,
+    "period",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
 
   let sma: ReturnType<typeof createSma>;
   let count: number;
 
-  if (warmUpOptions?.fromState) {
-    const s = warmUpOptions.fromState;
-    sma = createSma({ period }, { fromState: s.smaState });
-    count = s.count;
+  if (state !== null) {
+    sma = createSma({ period }, { fromState: state.smaState });
+    count = state.count;
   } else {
     sma = createSma({ period });
     count = 0;
   }
 
-  const indicator: IncrementalIndicator<number | null, QStickState> = {
+  const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<QStickState>> = {
     next(candle: NormalizedCandle) {
       count++;
       const diff = candle.close - candle.open;
@@ -60,12 +96,16 @@ export function createQStick(
       return sma.peek(makeCandle(candle.time, diff));
     },
 
-    getState(): QStickState {
-      return {
-        smaState: sma.getState(),
-        period,
-        count,
-      };
+    getState(): IndicatorSnapshot<QStickState> {
+      return makeSnapshot(
+        "qstick",
+        QSTICK_VERSION,
+        { period },
+        {
+          smaState: sma.getState(),
+          count,
+        },
+      );
     },
 
     get count() {

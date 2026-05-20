@@ -8,13 +8,23 @@
  * required SMA (shift bars later) becomes available. Output is emitted in
  * order with the correct timestamps, but with a delay of `shift` bars.
  * Bars near the end of a finite series will be null (no future SMA).
+ *
+ * State category: **Cascaded** (composes an inner incremental SMA plus
+ * a pending-entry queue keyed on `shift`, which is derived from
+ * `period`). Resume with a different `period` / `source` is refused.
+ *
+ * Migrated to the 0.4.0 State Contract.
  */
 
 import type { NormalizedCandle, PriceSource } from "../../../types";
-import type { SmaState } from "../moving-average/sma";
-import { createSma } from "../moving-average/sma";
-import type { IndicatorSnapshot } from "../state-contract";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import { createSma, type SmaState } from "../moving-average/sma";
+import {
+  type IndicatorSnapshot,
+  makeSnapshot,
+  requireParam,
+  resolveResume,
+} from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 import { getSourcePrice } from "../utils";
 
 /**
@@ -22,16 +32,25 @@ import { getSourcePrice } from "../utils";
  */
 type PendingEntry = { time: number; price: number };
 
+/**
+ * Bare state shape for DPO. Params (`period`, `source`) live in
+ * `meta.params` on the wire; `shift` is derived from `period`.
+ */
 export type DpoState = {
-  period: number;
-  source: PriceSource;
-  shift: number;
   smaState: IndicatorSnapshot<SmaState>;
   pending: PendingEntry[];
   /** Number of entries already resolved and removed from pending head */
   resolvedOffset: number;
   count: number;
   outputCount: number;
+};
+
+/** Per-indicator schema version. Bumped on any breaking state change. */
+export const DPO_VERSION = 1;
+
+type DpoParams = {
+  period: number;
+  source: PriceSource;
 };
 
 /**
@@ -54,10 +73,28 @@ export type DpoState = {
  */
 export function createDpo(
   options: { period?: number; source?: PriceSource } = {},
-  warmUpOptions?: WarmUpOptions<DpoState>,
-): IncrementalIndicator<number | null, DpoState> {
-  const period = options.period ?? 20;
-  const source: PriceSource = options.source ?? "close";
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<DpoState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<number | null, IndicatorSnapshot<DpoState>> {
+  const { params, state } = resolveResume<DpoParams, DpoState>({
+    indicator: "dpo",
+    version: DPO_VERSION,
+    category: "cascaded",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { period: 20, source: "close" },
+  });
+
+  const period = requireParam(
+    "dpo",
+    params,
+    "period",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
+  const source = params.source;
   const shift = Math.floor(period / 2) + 1;
 
   let sma: ReturnType<typeof createSma>;
@@ -66,13 +103,12 @@ export function createDpo(
   let count: number;
   let outputCount: number;
 
-  if (warmUpOptions?.fromState) {
-    const s = warmUpOptions.fromState;
-    sma = createSma({ period, source }, { fromState: s.smaState });
-    pending = [...s.pending];
-    resolvedOffset = s.resolvedOffset;
-    count = s.count;
-    outputCount = s.outputCount;
+  if (state !== null) {
+    sma = createSma({ period, source }, { fromState: state.smaState });
+    pending = [...state.pending];
+    resolvedOffset = state.resolvedOffset;
+    count = state.count;
+    outputCount = state.outputCount;
   } else {
     sma = createSma({ period, source });
     pending = [];
@@ -81,7 +117,7 @@ export function createDpo(
     outputCount = 0;
   }
 
-  const indicator: IncrementalIndicator<number | null, DpoState> = {
+  const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<DpoState>> = {
     next(candle: NormalizedCandle) {
       count++;
       const price = getSourcePrice(candle, source);
@@ -134,17 +170,19 @@ export function createDpo(
       return { time: candle.time, value: null };
     },
 
-    getState(): DpoState {
-      return {
-        period,
-        source,
-        shift,
-        smaState: sma.getState(),
-        pending: [...pending],
-        resolvedOffset,
-        count,
-        outputCount,
-      };
+    getState(): IndicatorSnapshot<DpoState> {
+      return makeSnapshot(
+        "dpo",
+        DPO_VERSION,
+        { period, source },
+        {
+          smaState: sma.getState(),
+          pending: [...pending],
+          resolvedOffset,
+          count,
+          outputCount,
+        },
+      );
     },
 
     get count() {

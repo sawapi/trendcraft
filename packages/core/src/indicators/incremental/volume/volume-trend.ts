@@ -3,22 +3,47 @@
  *
  * Analyzes whether volume confirms or diverges from price trend
  * using rolling windows for price linear regression and volume comparison.
+ *
+ * State category: **Windowed** (three fixed-size raw buffers — closes,
+ * volumes, and volume-MA volumes — plus a running volume sum). Resume
+ * with different `pricePeriod` / `volumePeriod` / `maPeriod` carries
+ * the raw buffers forward at the new capacities and recomputes the
+ * volume-MA running sum. `minPriceChange` is resume-invariant — it
+ * only classifies the already-computed trend, never the buffers.
+ *
+ * Migrated to the 0.4.0 State Contract.
  */
 
 import type { NormalizedCandle, VolumeTrendValue } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import {
+  type IndicatorSnapshot,
+  makeSnapshot,
+  requireParam,
+  resolveResume,
+} from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 
+/**
+ * Bare state shape for Volume Trend. Params (`pricePeriod`,
+ * `volumePeriod`, `maPeriod`, `minPriceChange`) live in `meta.params`.
+ */
 export type VolumeTrendState = {
   priceBuffer: ReturnType<CircularBuffer<number>["snapshot"]>;
   volumeBuffer: ReturnType<CircularBuffer<number>["snapshot"]>;
   volumeSum: number;
   volumeMaBuffer: ReturnType<CircularBuffer<number>["snapshot"]>;
+  count: number;
+};
+
+/** Per-indicator schema version. Bumped on any breaking state change. */
+export const VOLUME_TREND_VERSION = 1;
+
+type VolumeTrendParams = {
   pricePeriod: number;
   volumePeriod: number;
   maPeriod: number;
   minPriceChange: number;
-  count: number;
 };
 
 /**
@@ -51,13 +76,43 @@ export function createVolumeTrend(
     maPeriod?: number;
     minPriceChange?: number;
   } = {},
-  warmUpOptions?: WarmUpOptions<VolumeTrendState>,
-): IncrementalIndicator<VolumeTrendValue, VolumeTrendState> {
-  const pricePeriod = options.pricePeriod ?? 10;
-  const volumePeriod = options.volumePeriod ?? 10;
-  const maPeriod = options.maPeriod ?? 20;
-  const minPriceChange = options.minPriceChange ?? 2.0;
-  const minPeriod = Math.max(pricePeriod, volumePeriod, maPeriod);
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<VolumeTrendState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<VolumeTrendValue, IndicatorSnapshot<VolumeTrendState>> {
+  const { params, state, reconfigured } = resolveResume<VolumeTrendParams, VolumeTrendState>({
+    indicator: "volumeTrend",
+    version: VOLUME_TREND_VERSION,
+    category: "windowed",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { pricePeriod: 10, volumePeriod: 10, maPeriod: 20, minPriceChange: 2.0 },
+    resumeInvariantParams: ["minPriceChange"],
+  });
+
+  const pricePeriod = requireParam(
+    "volumeTrend",
+    params,
+    "pricePeriod",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
+  const volumePeriod = requireParam(
+    "volumeTrend",
+    params,
+    "volumePeriod",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
+  const maPeriod = requireParam(
+    "volumeTrend",
+    params,
+    "maPeriod",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
+  const minPriceChange = params.minPriceChange;
 
   let priceBuffer: CircularBuffer<number>;
   let volumeBuffer: CircularBuffer<number>;
@@ -65,13 +120,38 @@ export function createVolumeTrend(
   let volumeMaBuffer: CircularBuffer<number>;
   let count: number;
 
-  if (warmUpOptions?.fromState) {
-    const s = warmUpOptions.fromState;
-    priceBuffer = CircularBuffer.fromSnapshot(s.priceBuffer);
-    volumeBuffer = CircularBuffer.fromSnapshot(s.volumeBuffer);
-    volumeSum = s.volumeSum;
-    volumeMaBuffer = CircularBuffer.fromSnapshot(s.volumeMaBuffer);
-    count = s.count;
+  /** Rebuild a buffer at `capacity`, carrying the most recent values forward. */
+  function carryBuffer(
+    snapshot: ReturnType<CircularBuffer<number>["snapshot"]>,
+    capacity: number,
+  ): CircularBuffer<number> {
+    const old = CircularBuffer.fromSnapshot(snapshot);
+    const next = new CircularBuffer<number>(capacity);
+    const carry = Math.min(old.length, capacity);
+    for (let i = old.length - carry; i < old.length; i++) {
+      next.push(old.get(i));
+    }
+    return next;
+  }
+
+  if (state !== null) {
+    if (reconfigured) {
+      // One or more periods changed — carry every raw buffer forward
+      // at its new capacity and recompute the volume-MA running sum.
+      priceBuffer = carryBuffer(state.priceBuffer, pricePeriod);
+      volumeBuffer = carryBuffer(state.volumeBuffer, volumePeriod);
+      volumeMaBuffer = carryBuffer(state.volumeMaBuffer, maPeriod);
+      volumeSum = 0;
+      for (let i = 0; i < volumeMaBuffer.length; i++) {
+        volumeSum += volumeMaBuffer.get(i);
+      }
+    } else {
+      priceBuffer = CircularBuffer.fromSnapshot(state.priceBuffer);
+      volumeBuffer = CircularBuffer.fromSnapshot(state.volumeBuffer);
+      volumeMaBuffer = CircularBuffer.fromSnapshot(state.volumeMaBuffer);
+      volumeSum = state.volumeSum;
+    }
+    count = state.count;
   } else {
     priceBuffer = new CircularBuffer<number>(pricePeriod);
     volumeBuffer = new CircularBuffer<number>(volumePeriod);
@@ -228,7 +308,9 @@ export function createVolumeTrend(
     volumeSum += candle.volume;
     volumeMaBuffer.push(candle.volume);
 
-    if (count < minPeriod) {
+    // Gate on buffer fill, not `count`: after a period-growing resume
+    // the carried buffers are shorter than the old `count`.
+    if (!priceBuffer.isFull || !volumeBuffer.isFull || !volumeMaBuffer.isFull) {
       return neutralValue;
     }
 
@@ -237,7 +319,7 @@ export function createVolumeTrend(
     return evaluate(priceTrend, volTrend);
   }
 
-  const indicator: IncrementalIndicator<VolumeTrendValue, VolumeTrendState> = {
+  const indicator: IncrementalIndicator<VolumeTrendValue, IndicatorSnapshot<VolumeTrendState>> = {
     next(candle: NormalizedCandle) {
       count++;
       const value = processCandle(candle);
@@ -245,11 +327,14 @@ export function createVolumeTrend(
     },
 
     peek(candle: NormalizedCandle) {
-      // For peek we need to simulate without mutating state
-      // Create temporary copies of buffers
-      const peekCount = count + 1;
-
-      if (peekCount < minPeriod) {
+      // For peek we simulate without mutating state. After the
+      // simulated push each buffer is full iff it currently holds
+      // at least `period - 1` values.
+      if (
+        priceBuffer.length < pricePeriod - 1 ||
+        volumeBuffer.length < volumePeriod - 1 ||
+        volumeMaBuffer.length < maPeriod - 1
+      ) {
         return { time: candle.time, value: neutralValue };
       }
 
@@ -342,18 +427,19 @@ export function createVolumeTrend(
       return { time: candle.time, value: evaluate(priceTrend, volTrend) };
     },
 
-    getState(): VolumeTrendState {
-      return {
-        priceBuffer: priceBuffer.snapshot(),
-        volumeBuffer: volumeBuffer.snapshot(),
-        volumeSum,
-        volumeMaBuffer: volumeMaBuffer.snapshot(),
-        pricePeriod,
-        volumePeriod,
-        maPeriod,
-        minPriceChange,
-        count,
-      };
+    getState(): IndicatorSnapshot<VolumeTrendState> {
+      return makeSnapshot(
+        "volumeTrend",
+        VOLUME_TREND_VERSION,
+        { pricePeriod, volumePeriod, maPeriod, minPriceChange },
+        {
+          priceBuffer: priceBuffer.snapshot(),
+          volumeBuffer: volumeBuffer.snapshot(),
+          volumeSum,
+          volumeMaBuffer: volumeMaBuffer.snapshot(),
+          count,
+        },
+      );
     },
 
     get count() {
@@ -361,7 +447,7 @@ export function createVolumeTrend(
     },
 
     get isWarmedUp() {
-      return count >= minPeriod;
+      return priceBuffer.isFull && volumeBuffer.isFull && volumeMaBuffer.isFull;
     },
   };
 

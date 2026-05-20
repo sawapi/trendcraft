@@ -1,10 +1,12 @@
 # Indicator State Contract (target: trendcraft 0.4.0)
 
-> **Status**: Phase 0 design document. The contract is being introduced
-> in the `epic/state-contract` branch and will land in trendcraft
-> 0.4.0 as a breaking change. 1.0 is still ahead; the 0.x line
-> continues to allow breaking changes per the project's release
-> practice.
+> **Status**: Complete. The contract is fully implemented — all
+> Waves (1-3) of indicator migration are done and every incremental
+> indicator (~94) exchanges state through the `IndicatorSnapshot`
+> envelope and routes resume through `resolveResume`. The contract
+> ships in trendcraft 0.4.0 as a breaking change. 1.0 is still ahead;
+> the 0.x line continues to allow breaking changes per the project's
+> release practice.
 
 ## 1. Motivation
 
@@ -17,10 +19,10 @@ ind.peek(candle);       // → preview without mutating state
 ind.getState();         // → snapshot for persistence / resume
 ```
 
-The library has shipped ~90 such indicators. Through Phase 2 (canonical
-alignment) it became clear that the `getState` / `fromState`
-*contract* — what guarantees the API offers about resume — is not
-defined library-wide. Each indicator has reinvented its own version
+The library ships ~94 such indicators. Through earlier canonical-
+alignment work it became clear that the `getState` / `fromState`
+*contract* — what guarantees the API offers about resume — was not
+defined library-wide. Each indicator had reinvented its own version
 of the answer, sometimes inconsistently:
 
 1. **Snapshot has no version field.** Adding/removing a state field
@@ -220,8 +222,8 @@ Adding a new indicator to the library requires registering it in
 
 ## 3. Categorization process
 
-Phase 2 (migration) classifies each of the ~90 indicators into A-E by
-inspecting:
+Migration classified each of the ~94 incremental indicators into A-E
+by inspecting:
 
 - Does the state include a recursive accumulator (`prev*` field)?
   → at least Recursive/Mixed/Cascaded.
@@ -249,22 +251,20 @@ will fail the reconfig refuse test).
 - **Heikin-Ashi**: Recursive (`prevHaOpen`, `prevHaClose`). Refuse
   reconfig.
 
-### 3.2 Open classification (to resolve in Phase 2)
+### 3.2 Open classification — resolved during migration
 
-These need a closer look during migration:
+These were flagged during design as needing a closer look; their
+final classification (pinned by the contract tests) is:
 
-- **Linear regression**: state includes running sums; could be either
-  Windowed (sums computed from raw window) or Mixed depending on
-  implementation. Likely Windowed.
-- **Regime detection (volatility)**: uses windowed variance, no
-  recursion. Likely Windowed.
-- **Anchored VWAP**: cumulative from anchor; resetting anchor is the
-  "reconfig" — special. Possibly Recursive or its own category.
-- **CVD (Cumulative Volume Delta)**: pure cumulative; reconfig means
-  changing anchor. Possibly Recursive.
-- **Ichimoku**: multiple windowed components + future displacement
-  buffer. Likely a Windowed-cascade. Refuse reconfig matches the
-  Phase 2 fix.
+- **Linear regression**: Windowed — running sums are computed from the
+  raw window, no cross-param recursion.
+- **Regime detection (volatility)**: Windowed — windowed variance, no
+  recursion.
+- **Anchored VWAP**: Recursive — cumulative from anchor; re-anchoring
+  is a fresh start, not a resume reconfig.
+- **CVD (Cumulative Volume Delta)**: Recursive — pure cumulative.
+- **Ichimoku**: Windowed-cascade, treated as refuse-reconfig — multiple
+  windowed components plus a future-displacement buffer.
 
 ## 4. Errors and messages
 
@@ -442,20 +442,28 @@ incompatible snapshot`) before reaching the nested leaf. At that
 point the user-facing error becomes wrapper-scoped naturally — no
 bridge code needed and nothing to delete.
 
-## 6. Roadmap
+## 6. Roadmap — completed
 
-Five phases, ~4-5 weeks total. Each phase lands as a PR into
-`epic/state-contract`. Final merge to `main` is a single epic merge
-commit at 0.4.0 release time.
+The epic landed as a series of bundled PRs into `feat/state-contract-*`
+branches. All phases below are **done**; the contract ships in
+trendcraft 0.4.0.
 
-| Phase | Output | Duration |
+| Phase | Output | Status |
 |---|---|---|
-| **0. Decision doc** | This document + memory note + epic branch | 1 day |
-| **1. Foundation** | `state-contract.ts` (types + `resolveResume`), `describeContract` DSL skeleton, no indicator changes yet | 3-4 days |
-| **2. Indicator migration** | Wave 1: Category A (~20). Wave 2: B (~6). Wave 3: C/D (~25). Wave 4: E (~10). Wave 5: remaining (~30) | 2 weeks |
-| **3. Contract test rollout** | All indicators registered, latent edge cases surfaced + fixed in individual PRs | 1 week |
-| **4. Documentation** | `STATE_AND_RESUME.md` consumer guide, migration guide, JSDoc `@stateCategory` tags | 2-3 days |
-| **5. 0.4.0 release prep** | CHANGELOG BREAKING entry, perf check (meta wrapper overhead < 5%), final audit | 2 days |
+| **0. Decision doc** | This document + memory note + epic branch | ✓ Done |
+| **1. Foundation** | `state-contract.ts` (types + `resolveResume`), `describeContract` DSL | ✓ Done |
+| **2. Indicator migration** | All ~94 incremental indicators migrated across Wave 1 (Category A — windowed), Wave 2 (Category B — recursive, plus E — event log), Wave 3 (Categories C/D — mixed/cascaded, and the RSI/ATR/DMI Wilder-smoother cluster) | ✓ Done |
+| **3. Contract test rollout** | All indicators registered in `describeContract`; latent edge cases surfaced and fixed | ✓ Done |
+| **4. Documentation** | `STATE_CONTRACT.md` design doc, `docs/migration-0.3-to-0.4.md` consumer guide, CHANGELOG breaking entry | ✓ Done |
+| **5. 0.4.0 release prep** | CHANGELOG BREAKING entry, perf check, final audit | ✓ Done |
+
+> Wave numbering note: the original plan sketched five migration waves
+> by category; during execution the work consolidated into three waves
+> (Wave 1 = A, Wave 2 = B + E, Wave 3 = C/D + the Wilder-smoother
+> cluster). The Wilder smoothers (RSI/ATR/DMI internals) had no
+> standalone factory and were therefore migrated together with their
+> dependent cluster in Wave 3. The end state is identical: every
+> incremental indicator is migrated and registered.
 
 ## 7. Out of scope (deferred to later minors)
 

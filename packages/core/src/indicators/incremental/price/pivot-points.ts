@@ -3,10 +3,18 @@
  *
  * Computes classic pivot point levels from the previous candle's OHLC.
  * Supports Standard, Fibonacci, Woodie, Camarilla, and DeMark methods.
+ *
+ * State category: **Windowed** (`prevCandle` is a raw one-bar OHLC
+ * window). `method` is a **resume-invariant param**: it only selects
+ * the level formula applied to the raw `prevCandle`, never touches the
+ * stored state — so changing it on resume is mathematically safe.
+ *
+ * Migrated to the 0.4.0 State Contract.
  */
 
 import type { NormalizedCandle } from "../../../types";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import { type IndicatorSnapshot, makeSnapshot, resolveResume } from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 
 export type PivotMethod = "standard" | "fibonacci" | "woodie" | "camarilla" | "demark";
 
@@ -20,10 +28,20 @@ export type PivotPointsValue = {
   s3: number | null;
 };
 
+/**
+ * Bare state shape for Pivot Points. The param (`method`) lives in
+ * `meta.params` on the wire.
+ */
 export type PivotPointsState = {
   prevCandle: { high: number; low: number; close: number } | null;
-  method: PivotMethod;
   count: number;
+};
+
+/** Per-indicator schema version. Bumped on any breaking state change. */
+export const PIVOT_POINTS_VERSION = 1;
+
+type PivotPointsParams = {
+  method: PivotMethod;
 };
 
 const nullValue: PivotPointsValue = {
@@ -138,23 +156,35 @@ function computePivot(
  */
 export function createPivotPoints(
   options: { method?: PivotMethod } = {},
-  warmUpOptions?: WarmUpOptions<PivotPointsState>,
-): IncrementalIndicator<PivotPointsValue, PivotPointsState> {
-  const method: PivotMethod = options.method ?? "standard";
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<PivotPointsState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<PivotPointsValue, IndicatorSnapshot<PivotPointsState>> {
+  const { params, state } = resolveResume<PivotPointsParams, PivotPointsState>({
+    indicator: "pivotPoints",
+    version: PIVOT_POINTS_VERSION,
+    category: "windowed",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { method: "standard" },
+    resumeInvariantParams: ["method"],
+  });
+
+  const method: PivotMethod = params.method;
 
   let prevCandle: { high: number; low: number; close: number } | null;
   let count: number;
 
-  if (warmUpOptions?.fromState) {
-    const s = warmUpOptions.fromState;
-    prevCandle = s.prevCandle ? { ...s.prevCandle } : null;
-    count = s.count;
+  if (state !== null) {
+    prevCandle = state.prevCandle ? { ...state.prevCandle } : null;
+    count = state.count;
   } else {
     prevCandle = null;
     count = 0;
   }
 
-  const indicator: IncrementalIndicator<PivotPointsValue, PivotPointsState> = {
+  const indicator: IncrementalIndicator<PivotPointsValue, IndicatorSnapshot<PivotPointsState>> = {
     next(candle: NormalizedCandle) {
       count++;
 
@@ -189,12 +219,16 @@ export function createPivotPoints(
       return { time: candle.time, value };
     },
 
-    getState(): PivotPointsState {
-      return {
-        prevCandle: prevCandle ? { ...prevCandle } : null,
-        method,
-        count,
-      };
+    getState(): IndicatorSnapshot<PivotPointsState> {
+      return makeSnapshot(
+        "pivotPoints",
+        PIVOT_POINTS_VERSION,
+        { method },
+        {
+          prevCandle: prevCandle ? { ...prevCandle } : null,
+          count,
+        },
+      );
     },
 
     get count() {
