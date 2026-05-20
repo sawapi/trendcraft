@@ -6,7 +6,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import type { NormalizedCandle, PriceSource } from "../../../types";
+import type { NormalizedCandle } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
 import { createAdxr } from "../momentum/adxr";
 import { createAroon } from "../momentum/aroon";
@@ -1653,10 +1653,10 @@ describe("Connors RSI streak tracking and composite value", () => {
     const state = c1.getState();
 
     const c2 = createConnorsRsi({}, { fromState: state });
-    expect(c2.getState().rsiPeriod).toBe(3);
-    expect(c2.getState().streakPeriod).toBe(2);
-    expect(c2.getState().rocPeriod).toBe(5);
-    expect(c2.getState().source).toBe("high");
+    expect(c2.getState().meta.params.rsiPeriod).toBe(3);
+    expect(c2.getState().meta.params.streakPeriod).toBe(2);
+    expect(c2.getState().meta.params.rocPeriod).toBe(5);
+    expect(c2.getState().meta.params.source).toBe("high");
   });
 
   it("refuses resume with a different rsiPeriod", () => {
@@ -1718,20 +1718,16 @@ describe("Connors RSI streak tracking and composite value", () => {
     }
   });
 
-  // Pre-this-PR snapshots have no `source` field. They are not
-  // resumable — re-warm is required. (The natural source-equality
-  // check throws since `undefined !== <any-string>`.)
-  it("rejects pre-source snapshots regardless of options.source", () => {
+  // Pre-0.4.0 snapshots have no `meta` envelope. They are not
+  // resumable — `resolveResume` refuses them and forces a re-warm.
+  it("rejects pre-0.4.0 (meta-less) snapshots", () => {
     const fresh = createConnorsRsi({ rsiPeriod: 3, streakPeriod: 2, rocPeriod: 5 });
     for (let i = 0; i < 10; i++) fresh.next(makeCandle(i));
-    const legacy = { ...fresh.getState(), source: undefined as unknown as PriceSource };
+    // The bare 0.3.x state shape (no `meta` envelope).
+    const legacy = fresh.getState().state as unknown as ReturnType<
+      ReturnType<typeof createConnorsRsi>["getState"]
+    >;
     expect(() => createConnorsRsi({}, { fromState: legacy })).toThrow(/incompatible snapshot/);
-    expect(() =>
-      createConnorsRsi(
-        { rsiPeriod: 3, streakPeriod: 2, rocPeriod: 5, source: "close" },
-        { fromState: legacy },
-      ),
-    ).toThrow(/incompatible snapshot/);
   });
 });
 

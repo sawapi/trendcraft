@@ -7,6 +7,7 @@
 
 import type { ChandelierExitValue, NormalizedCandle } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
+import type { IndicatorSnapshot } from "../state-contract";
 import type { IncrementalIndicator, WarmUpOptions } from "../types";
 import type { AtrState } from "./atr";
 import { createAtr } from "./atr";
@@ -15,7 +16,7 @@ export type ChandelierExitState = {
   period: number;
   multiplier: number;
   hlLookback: number;
-  atrState: AtrState;
+  atrState: IndicatorSnapshot<AtrState>;
   highBuffer: ReturnType<CircularBuffer<number>["snapshot"]>;
   lowBuffer: ReturnType<CircularBuffer<number>["snapshot"]>;
   prevDirection: 1 | -1 | 0;

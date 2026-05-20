@@ -54,7 +54,7 @@ type CandleEntry = {
 };
 
 export type VsaState = {
-  atrState: AtrState;
+  atrState: IndicatorSnapshot<AtrState>;
   volumeSmaState: IndicatorSnapshot<SmaState>;
   candleBuffer: ReturnType<CircularBuffer<CandleEntry>["snapshot"]>;
   volumeMaPeriod: number;

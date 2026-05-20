@@ -15,7 +15,13 @@
 import { describe, expect, it } from "vitest";
 import { CRYPTO_CALENDAR, JPX_CALENDAR } from "../../../calendar";
 import type { NormalizedCandle, PriceSource } from "../../../types";
+import { adxr } from "../../momentum/adxr";
+import { cmo } from "../../momentum/cmo";
+import { connorsRsi } from "../../momentum/connors-rsi";
+import { dmi } from "../../momentum/dmi";
 import { massIndex } from "../../momentum/mass-index";
+import { rsi } from "../../momentum/rsi";
+import { stochRsi } from "../../momentum/stoch-rsi";
 import { trix } from "../../momentum/trix";
 import { tsi } from "../../momentum/tsi";
 import { alma } from "../../moving-average/alma";
@@ -31,9 +37,11 @@ import { wma } from "../../moving-average/wma";
 import { zlema } from "../../moving-average/zlema";
 import { highest, lowest } from "../../price/highest-lowest";
 import { returns as returnsBatch } from "../../price/returns";
+import { atr } from "../../volatility/atr";
 import { choppinessIndex } from "../../volatility/choppiness-index";
 import { donchianChannel } from "../../volatility/donchian-channel";
 import { ewmaVolatilityFromCandles } from "../../volatility/garch";
+import { keltnerChannel } from "../../volatility/keltner-channel";
 import { standardDeviation } from "../../volatility/standard-deviation";
 import { ulcerIndex } from "../../volatility/ulcer-index";
 import { adl } from "../../volume/adl";
@@ -44,7 +52,17 @@ import { obv } from "../../volume/obv";
 import { pvt } from "../../volume/pvt";
 import { twap } from "../../volume/twap";
 import { vwap } from "../../volume/vwap";
+import { type AdxrState, createAdxr } from "../momentum/adxr";
+import { type CmoState, createCmo } from "../momentum/cmo";
+import {
+  type ConnorsRsiState,
+  type ConnorsRsiValue,
+  createConnorsRsi,
+} from "../momentum/connors-rsi";
+import { createDmi, type DmiState, type DmiValue } from "../momentum/dmi";
 import { createMassIndex, type MassIndexState } from "../momentum/mass-index";
+import { createRsi, type RsiState } from "../momentum/rsi";
+import { createStochRsi, type StochRsiState, type StochRsiValue } from "../momentum/stoch-rsi";
 import { createTrix, type TrixState, type TrixValue } from "../momentum/trix";
 import { createTsi, type TsiState, type TsiValue } from "../momentum/tsi";
 import { type AlmaState, createAlma } from "../moving-average/alma";
@@ -67,9 +85,15 @@ import { createWma, type WmaState } from "../moving-average/wma";
 import { createZlema, type ZlemaState } from "../moving-average/zlema";
 import { createHighestLowest, type HighestLowestState } from "../price/highest-lowest";
 import { createReturns, type ReturnsState } from "../price/returns";
+import { type AtrState, createAtr } from "../volatility/atr";
 import { type ChoppinessIndexState, createChoppinessIndex } from "../volatility/choppiness-index";
 import { createDonchianChannel, type DonchianState } from "../volatility/donchian-channel";
 import { createEwmaVolatility, type EwmaVolatilityState } from "../volatility/ewma-volatility";
+import {
+  createKeltnerChannel,
+  type KeltnerChannelState,
+  type KeltnerChannelValue,
+} from "../volatility/keltner-channel";
 import {
   createStandardDeviation,
   type StandardDeviationState,
@@ -1004,4 +1028,195 @@ describeContract<number | null, MassIndexState>({
   streamLength: 120,
   batchCompute: (opts, candles) =>
     massIndex(candles, opts as { emaPeriod?: number; sumPeriod?: number }).map((s) => s.value),
+});
+
+// ---- Wave 3 Bundle J: Wilder smoother cluster ----
+//
+// RSI / ATR / DMI / CMO are recursive (Wilder accumulators + warmup
+// tally). ADXR / Keltner / StochRSI / Connors RSI compose them and are
+// mixed. No standalone Wilder helper is extracted — the smoothing is a
+// one-line expression and the seed phases / state shapes differ per
+// indicator, so each is migrated independently. `batchCompute` pins
+// invariant [8] across trending / flat / gap variants.
+
+// RSI — Recursive (Wilder avgGain/avgLoss + initialGains/Losses tally).
+describeContract<number | null, RsiState>({
+  name: "rsi",
+  create: (opts, warmUp) => createRsi(opts as { period?: number; source?: PriceSource }, warmUp),
+  category: "recursive",
+  version: 1,
+  defaultParams: { period: 14, source: "close" },
+  reconfigParams: [{ period: 10 }, { period: 21 }, { source: "high" }],
+  makeCandles,
+  streamLength: 100,
+  batchCompute: (opts, candles) =>
+    rsi(candles, opts as { period?: number; source?: PriceSource }).map((s) => s.value),
+});
+
+// ATR — Recursive (Wilder TR smoother + trSum tally).
+describeContract<number | null, AtrState>({
+  name: "atr",
+  create: (opts, warmUp) => createAtr(opts as { period?: number }, warmUp),
+  category: "recursive",
+  version: 1,
+  defaultParams: { period: 14 },
+  reconfigParams: [{ period: 10 }, { period: 21 }],
+  makeCandles,
+  streamLength: 100,
+  batchCompute: (opts, candles) => atr(candles, opts as { period?: number }).map((s) => s.value),
+});
+
+// DMI — Recursive. TR/DM use the sum-form Wilder smoother, ADX uses
+// the average form. Composite output `{ plusDi, minusDi, adx }`; +DI
+// emerges before ADX, so the null predicate gates on `adx` to align
+// with `isWarmedUp` (= adx non-null).
+describeContract<DmiValue, DmiState>({
+  name: "dmi",
+  create: (opts, warmUp) => createDmi(opts as { period?: number; adxPeriod?: number }, warmUp),
+  category: "recursive",
+  version: 1,
+  defaultParams: { period: 14, adxPeriod: 14 },
+  reconfigParams: [{ period: 10 }, { adxPeriod: 21 }],
+  makeCandles,
+  streamLength: 120,
+  isNullishField: (v) =>
+    v === null ||
+    v === undefined ||
+    (typeof v === "object" && (v as { adx: unknown }).adx === null),
+  batchCompute: (opts, candles) =>
+    dmi(candles, opts as { period?: number; adxPeriod?: number }).map((s) => s.value),
+});
+
+// CMO — Recursive (Wilder avgUp/avgDown + initialUps/Downs tally).
+describeContract<number | null, CmoState>({
+  name: "cmo",
+  create: (opts, warmUp) => createCmo(opts as { period?: number; source?: PriceSource }, warmUp),
+  category: "recursive",
+  version: 1,
+  defaultParams: { period: 14, source: "close" },
+  reconfigParams: [{ period: 10 }, { period: 21 }, { source: "high" }],
+  makeCandles,
+  streamLength: 100,
+  batchCompute: (opts, candles) =>
+    cmo(candles, opts as { period?: number; source?: PriceSource }).map((s) => s.value),
+});
+
+// ADXR — Mixed (inner DMI snapshot + windowed ADX lag-lookback buffer).
+describeContract<number | null, AdxrState>({
+  name: "adxr",
+  create: (opts, warmUp) =>
+    createAdxr(opts as { period?: number; dmiPeriod?: number; adxPeriod?: number }, warmUp),
+  category: "mixed",
+  version: 1,
+  defaultParams: { period: 14, dmiPeriod: 14, adxPeriod: 14 },
+  reconfigParams: [{ period: 10 }, { dmiPeriod: 10 }, { adxPeriod: 21 }],
+  makeCandles,
+  streamLength: 140,
+  batchCompute: (opts, candles) =>
+    adxr(candles, opts as { period?: number; dmiPeriod?: number; adxPeriod?: number }).map(
+      (s) => s.value,
+    ),
+});
+
+// Keltner Channel — Mixed (inner EMA snapshot + inner ATR snapshot).
+// Composite output; EMA and ATR warm up together (computeValue gates
+// on both), so the default null predicate aligns with `isWarmedUp`.
+//
+// `emaPeriod` / `atrPeriod` are state-shaping → reconfig refused
+// (invariant [5]). `multiplier` is resume-invariant (param-role axis)
+// → it scales only the band width and is checked by invariant [9].
+describeContract<KeltnerChannelValue, KeltnerChannelState>({
+  name: "keltnerChannel",
+  create: (opts, warmUp) =>
+    createKeltnerChannel(
+      opts as { emaPeriod?: number; atrPeriod?: number; multiplier?: number },
+      warmUp,
+    ),
+  category: "mixed",
+  version: 1,
+  defaultParams: { emaPeriod: 20, atrPeriod: 10, multiplier: 2 },
+  reconfigParams: [{ emaPeriod: 14 }, { atrPeriod: 14 }],
+  resumeInvariantReconfig: [{ multiplier: 3 }, { multiplier: 1.5 }],
+  makeCandles,
+  streamLength: 100,
+  batchCompute: (opts, candles) =>
+    keltnerChannel(
+      candles,
+      opts as { emaPeriod?: number; atrPeriod?: number; multiplier?: number },
+    ).map((s) => s.value),
+});
+
+// StochRSI — Mixed (inline RSI accumulator + 3 windowed SMA buffers).
+// Composite output `{ stochRsi, k, d }`; stochRsi emerges first, so the
+// null predicate gates on `d` to align with `isWarmedUp`.
+describeContract<StochRsiValue, StochRsiState>({
+  name: "stochRsi",
+  create: (opts, warmUp) =>
+    createStochRsi(
+      opts as {
+        rsiPeriod?: number;
+        stochPeriod?: number;
+        kPeriod?: number;
+        dPeriod?: number;
+        source?: PriceSource;
+      },
+      warmUp,
+    ),
+  category: "mixed",
+  version: 1,
+  defaultParams: { rsiPeriod: 14, stochPeriod: 14, kPeriod: 3, dPeriod: 3, source: "close" },
+  reconfigParams: [{ rsiPeriod: 10 }, { stochPeriod: 10 }, { kPeriod: 5 }, { dPeriod: 5 }],
+  makeCandles,
+  streamLength: 120,
+  isNullishField: (v) =>
+    v === null || v === undefined || (typeof v === "object" && (v as { d: unknown }).d === null),
+  batchCompute: (opts, candles) =>
+    stochRsi(
+      candles,
+      opts as {
+        rsiPeriod?: number;
+        stochPeriod?: number;
+        kPeriod?: number;
+        dPeriod?: number;
+        source?: PriceSource;
+      },
+    ).map((s) => s.value),
+});
+
+// Connors RSI — Mixed (2 inner RSI snapshots + windowed ROC buffer +
+// streak tracker). The hand-written resume guard is replaced by the
+// mixed-category resolveResume policy. Composite output; `crsi`
+// emerges last, so the null predicate gates on it.
+describeContract<ConnorsRsiValue, ConnorsRsiState>({
+  name: "connorsRsi",
+  create: (opts, warmUp) =>
+    createConnorsRsi(
+      opts as {
+        rsiPeriod?: number;
+        streakPeriod?: number;
+        rocPeriod?: number;
+        source?: PriceSource;
+      },
+      warmUp,
+    ),
+  category: "mixed",
+  version: 1,
+  defaultParams: { rsiPeriod: 3, streakPeriod: 2, rocPeriod: 100, source: "close" },
+  reconfigParams: [{ rsiPeriod: 5 }, { streakPeriod: 3 }, { rocPeriod: 50 }, { source: "high" }],
+  makeCandles,
+  streamLength: 140,
+  isNullishField: (v) =>
+    v === null ||
+    v === undefined ||
+    (typeof v === "object" && (v as { crsi: unknown }).crsi === null),
+  batchCompute: (opts, candles) =>
+    connorsRsi(
+      candles,
+      opts as {
+        rsiPeriod?: number;
+        streakPeriod?: number;
+        rocPeriod?: number;
+        source?: PriceSource;
+      },
+    ).map((s) => s.value),
 });

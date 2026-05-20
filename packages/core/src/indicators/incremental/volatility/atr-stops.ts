@@ -6,11 +6,12 @@
  */
 
 import type { AtrStopsValue, NormalizedCandle } from "../../../types";
+import type { IndicatorSnapshot } from "../state-contract";
 import type { IncrementalIndicator, WarmUpOptions } from "../types";
 import { type AtrState, createAtr } from "./atr";
 
 export type AtrStopsState = {
-  atrState: AtrState;
+  atrState: IndicatorSnapshot<AtrState>;
   period: number;
   stopMultiplier: number;
   takeProfitMultiplier: number;
@@ -53,7 +54,7 @@ export function createAtrStops(
   const takeProfitMultiplier = options.takeProfitMultiplier ?? 3.0;
 
   let count: number;
-  let atr: IncrementalIndicator<number | null, AtrState>;
+  let atr: IncrementalIndicator<number | null, IndicatorSnapshot<AtrState>>;
 
   if (warmUpOptions?.fromState) {
     const s = warmUpOptions.fromState;

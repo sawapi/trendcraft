@@ -12,6 +12,7 @@
  */
 
 import type { NormalizedCandle } from "../../../types";
+import type { IndicatorSnapshot } from "../state-contract";
 import type { IncrementalIndicator, WarmUpOptions } from "../types";
 import type { AtrState } from "../volatility/atr";
 import { createAtr } from "../volatility/atr";
@@ -37,7 +38,7 @@ export type ZigzagState = {
   firstLow: number;
   count: number;
   maxInitBars: number;
-  atrState: AtrState | null;
+  atrState: IndicatorSnapshot<AtrState> | null;
 };
 
 const nullValue: ZigzagValue = { point: null, price: null, changePercent: null };
@@ -83,7 +84,7 @@ export function createZigzag(
   let firstHigh: number;
   let firstLow: number;
   let count: number;
-  let atr: IncrementalIndicator<number | null, AtrState> | null;
+  let atr: IncrementalIndicator<number | null, IndicatorSnapshot<AtrState>> | null;
 
   if (warmUpOptions?.fromState) {
     const s = warmUpOptions.fromState;

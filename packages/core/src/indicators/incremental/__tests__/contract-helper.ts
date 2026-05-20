@@ -160,6 +160,19 @@ export type ContractConfig<TValue, TState> = {
    * Only override when the default is wrong; otherwise omit.
    */
   isNullishField?: (value: unknown) => boolean;
+  /**
+   * Reconfig overrides that change only **resume-invariant params**
+   * (the param-role axis — params that scale the state→output
+   * projection but never touch state, e.g. a band-width `multiplier`
+   * in `EMA ± multiplier × ATR`).
+   *
+   * Unlike `reconfigParams` — which the recursive/mixed/cascaded
+   * invariant [5] expects to *throw* — these MUST resume without
+   * throwing, and the resumed series must match an indicator built
+   * with the new param from the start (proving the param never
+   * poisoned the saved state). Omit when the indicator has none.
+   */
+  resumeInvariantReconfig?: Record<string, unknown>[];
 };
 
 /**
@@ -441,6 +454,46 @@ export function describeContract<TValue, TState>(config: ContractConfig<TValue, 
         }
       }
     });
+
+    if (config.resumeInvariantReconfig && config.resumeInvariantReconfig.length > 0) {
+      it("[9] resume-invariant reconfig: a projection-only param change resumes without throw and matches a fresh run", () => {
+        // Resume-invariant params (the param-role axis) scale only the
+        // state→output projection. Changing one on resume must NOT
+        // throw — even for recursive/mixed/cascaded indicators — and
+        // the resumed series must equal an indicator constructed with
+        // the new param from the start, since the saved state is
+        // identical regardless of the param's value.
+        const splitIdx = Math.floor(streamLength / 2);
+        const reconfigs = config.resumeInvariantReconfig ?? [];
+
+        for (const reconfig of reconfigs) {
+          const warmInd = config.create({ ...config.defaultParams });
+          for (let i = 0; i < splitIdx; i++) warmInd.next(candles[i]);
+          const snapshot = warmInd.getState();
+
+          const newOpts = { ...config.defaultParams, ...reconfig };
+          let resumed: ReturnType<typeof config.create> | undefined;
+          expect(
+            () => {
+              resumed = config.create(newOpts, { fromState: snapshot });
+            },
+            `resume-invariant reconfig must not throw (${JSON.stringify(reconfig)})`,
+          ).not.toThrow();
+
+          // Reference: the same new param applied from candle 0.
+          // Because the param never touches state, the reference's
+          // internal state at splitIdx equals the resumed one's.
+          const reference = config.create(newOpts);
+          for (let i = 0; i < splitIdx; i++) reference.next(candles[i]);
+
+          for (let i = splitIdx; i < streamLength; i++) {
+            const r = resumed!.next(candles[i]).value;
+            const ref = reference.next(candles[i]).value;
+            expectValueEqual(r, ref, tolerance, `[9] i=${i} reconfig=${JSON.stringify(reconfig)}`);
+          }
+        }
+      });
+    }
   });
 }
 

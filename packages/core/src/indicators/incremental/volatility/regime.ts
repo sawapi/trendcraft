@@ -36,9 +36,9 @@ export type RegimeState = {
   bbPeriod: number;
   dmiPeriod: number;
   lookback: number;
-  atrState: AtrState;
+  atrState: IndicatorSnapshot<AtrState>;
   bbState: BollingerBandsState;
-  dmiState: DmiState;
+  dmiState: IndicatorSnapshot<DmiState>;
   smaState: IndicatorSnapshot<SmaState>;
   atrBuffer: ReturnType<CircularBuffer<number>["snapshot"]>;
   bwBuffer: ReturnType<CircularBuffer<number>["snapshot"]>;
@@ -98,7 +98,7 @@ export function createRegime(
   const dmiPeriod = options.dmiPeriod ?? 14;
   const lookback = options.lookback ?? 100;
 
-  let atrInd: IncrementalIndicator<number | null, AtrState>;
+  let atrInd: IncrementalIndicator<number | null, IndicatorSnapshot<AtrState>>;
   let bbInd: IncrementalIndicator<
     {
       upper: number | null;

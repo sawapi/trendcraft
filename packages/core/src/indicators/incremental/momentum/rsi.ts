@@ -2,20 +2,48 @@
  * Incremental RSI (Relative Strength Index)
  *
  * Uses Wilder's smoothing method for consistency with batch implementation.
+ *
+ * State category: **Recursive** (`avgGain` / `avgLoss` are the recursive
+ * accumulators; `initialGains` / `initialLosses` form the warmup tally
+ * that gets baked into the averages at `count === period + 1` and is no
+ * longer consulted afterwards). Resume with a different `period` /
+ * `source` is mathematically undefined — the recursive averages are
+ * permanently conditioned on construction-time params — and is refused.
+ *
+ * Migrated to the 0.4.0 State Contract: `getState()` returns
+ * `IndicatorSnapshot<RsiState>` and `fromState` accepts the same.
+ * Params (`period`, `source`) now live in `meta.params`.
  */
 
 import type { NormalizedCandle, PriceSource } from "../../../types";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import {
+  type IndicatorSnapshot,
+  makeSnapshot,
+  requireParam,
+  resolveResume,
+} from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 import { getSourcePrice } from "../utils";
 
+/**
+ * Bare state shape for RSI. Params (`period`, `source`) live in
+ * `meta.params` on the wire — they are not part of the bare state.
+ */
 export type RsiState = {
-  period: number;
   prevClose: number | null;
   avgGain: number;
   avgLoss: number;
   count: number;
   initialGains: number[];
   initialLosses: number[];
+};
+
+/** Per-indicator schema version. Bumped on any breaking state change. */
+export const RSI_VERSION = 1;
+
+type RsiParams = {
+  period: number;
+  source: PriceSource;
 };
 
 /**
@@ -32,10 +60,28 @@ export type RsiState = {
  */
 export function createRsi(
   options: { period?: number; source?: PriceSource } = {},
-  warmUpOptions?: WarmUpOptions<RsiState>,
-): IncrementalIndicator<number | null, RsiState> {
-  const period = options.period ?? 14;
-  const source = options.source ?? "close";
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<RsiState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<number | null, IndicatorSnapshot<RsiState>> {
+  const { params, state } = resolveResume<RsiParams, RsiState>({
+    indicator: "rsi",
+    version: RSI_VERSION,
+    category: "recursive",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { period: 14, source: "close" },
+  });
+
+  const period = requireParam(
+    "rsi",
+    params,
+    "period",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
+  const source = params.source;
 
   let prevClose: number | null;
   let avgGain: number;
@@ -44,14 +90,13 @@ export function createRsi(
   let initialGains: number[];
   let initialLosses: number[];
 
-  if (warmUpOptions?.fromState) {
-    const s = warmUpOptions.fromState;
-    prevClose = s.prevClose;
-    avgGain = s.avgGain;
-    avgLoss = s.avgLoss;
-    count = s.count;
-    initialGains = [...s.initialGains];
-    initialLosses = [...s.initialLosses];
+  if (state !== null) {
+    prevClose = state.prevClose;
+    avgGain = state.avgGain;
+    avgLoss = state.avgLoss;
+    count = state.count;
+    initialGains = [...state.initialGains];
+    initialLosses = [...state.initialLosses];
   } else {
     prevClose = null;
     avgGain = 0;
@@ -68,7 +113,7 @@ export function createRsi(
     return 100 - 100 / (1 + rs);
   }
 
-  const indicator: IncrementalIndicator<number | null, RsiState> = {
+  const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<RsiState>> = {
     next(candle: NormalizedCandle) {
       count++;
       const price = getSourcePrice(candle, source);
@@ -142,16 +187,20 @@ export function createRsi(
       return { time: candle.time, value: computeRsi(peekAvgGain, peekAvgLoss) };
     },
 
-    getState(): RsiState {
-      return {
-        period,
-        prevClose,
-        avgGain,
-        avgLoss,
-        count,
-        initialGains: [...initialGains],
-        initialLosses: [...initialLosses],
-      };
+    getState(): IndicatorSnapshot<RsiState> {
+      return makeSnapshot(
+        "rsi",
+        RSI_VERSION,
+        { period, source },
+        {
+          prevClose,
+          avgGain,
+          avgLoss,
+          count,
+          initialGains: [...initialGains],
+          initialLosses: [...initialLosses],
+        },
+      );
     },
 
     get count() {
