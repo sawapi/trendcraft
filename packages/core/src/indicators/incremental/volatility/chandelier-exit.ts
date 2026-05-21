@@ -144,14 +144,19 @@ export function createChandelierExit(
       highBuffer.push(candle.high);
       lowBuffer.push(candle.low);
 
-      const highestHigh = getHighest(highBuffer);
-      const lowestLow = getLowest(lowBuffer);
+      // Highest High / Lowest Low are only defined once the lookback
+      // window is full. Batch `chandelierExit` sources these from
+      // `highest()` / `lowest()`, which emit null during warmup; mirror
+      // that here instead of reporting a running partial extreme.
+      const hlWarmedUp = highBuffer.isFull;
+      const highestHigh = hlWarmedUp ? getHighest(highBuffer) : null;
+      const lowestLow = hlWarmedUp ? getLowest(lowBuffer) : null;
       const atrVal = atrResult.value;
 
       let longExit: number | null = null;
       let shortExit: number | null = null;
 
-      if (atrVal !== null) {
+      if (atrVal !== null && highestHigh !== null && lowestLow !== null) {
         const atrDist = atrVal * multiplier;
         longExit = highestHigh - atrDist;
         shortExit = lowestLow + atrDist;
@@ -210,12 +215,19 @@ export function createChandelierExit(
         }
       }
 
+      // After the simulated push the lookback window is full iff the
+      // current buffer already holds `hlLookback - 1` values. Mirror
+      // `next`: report null Highest High / Lowest Low during warmup.
+      const hlWarmedUp = highBuffer.length >= hlLookback - 1;
+      const highestHigh = hlWarmedUp ? hh : null;
+      const lowestLow = hlWarmedUp ? ll : null;
+
       let longExit: number | null = null;
       let shortExit: number | null = null;
 
-      if (atrVal !== null) {
-        longExit = hh - atrVal * multiplier;
-        shortExit = ll + atrVal * multiplier;
+      if (atrVal !== null && highestHigh !== null && lowestLow !== null) {
+        longExit = highestHigh - atrVal * multiplier;
+        shortExit = lowestLow + atrVal * multiplier;
       }
 
       let direction: 1 | -1 | 0 = 0;
@@ -241,8 +253,8 @@ export function createChandelierExit(
           shortExit,
           direction,
           isCrossover,
-          highestHigh: hh,
-          lowestLow: ll,
+          highestHigh,
+          lowestLow,
           atr: atrVal,
         },
       };
