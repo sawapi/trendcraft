@@ -187,7 +187,17 @@ export function createVolumeTrend(
     volTrend: { direction: "up" | "down" | "neutral"; strength: number },
   ): VolumeTrendValue {
     if (priceTrend.direction === "neutral") {
-      return neutralValue;
+      // A neutral price trend means no confirmation or divergence is
+      // possible, but the volume trend is an independent measurement
+      // and must still be reported (matches batch `volumeTrend()`,
+      // which only zeroes the confirmation fields here).
+      return {
+        priceTrend: "neutral",
+        volumeTrend: volTrend.direction,
+        isConfirmed: false,
+        hasDivergence: false,
+        confidence: 0,
+      };
     }
 
     const isConfirmed =

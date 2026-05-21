@@ -73,6 +73,30 @@ plus structural equality after parse. No production behavior change;
 this is regression coverage for the JSON layer that downstream
 consumers (MCP, Strategy Studio, Strategy DNA) all build on.
 
+### Fixed — incremental Volume Trend / Chandelier Exit match their batch functions
+
+Two incremental indicators diverged from their batch counterparts
+on a handful of bars; both are now corrected so the streaming and
+batch APIs produce identical output.
+
+- **Volume Trend** — when the price trend was `neutral`, the
+  incremental `createVolumeTrend` discarded the `volumeTrend`
+  reading and reported `volumeTrend: "neutral"`. The volume trend
+  is an independent measurement and is now reported on every bar,
+  matching batch `volumeTrend()`. `isConfirmed` / `hasDivergence` /
+  `confidence` are still zeroed when the price trend is neutral.
+- **Chandelier Exit** — the incremental `createChandelierExit`
+  emitted a running partial `highestHigh` / `lowestLow` during the
+  warmup period, while batch `chandelierExit()` (and the library's
+  `highest()` / `lowest()`) report `null` until the lookback window
+  is full. The incremental now reports `null` for these fields
+  during warmup. The actual exit levels (`longExit` / `shortExit` /
+  `direction`) were already correct and are unchanged.
+
+The `consistency.test.ts` suite now also asserts the previously
+unchecked `highestHigh` / `lowestLow` / `atr` fields and gains a
+Volume Trend batch-parity block.
+
 ### Fixed — GARCH / EWMA volatility input and stationarity guards
 
 - `garch(returns)` and `ewmaVolatility(returns)` now throw early when
