@@ -80,11 +80,11 @@ when the contract is introduced.
 
 | Category | State shape | Reconfig on resume | Examples |
 |---|---|---|---|
-| **A. Windowed** | Raw price/data buffer of N samples | ✓ Carry-forward (period change), refuse source change | SMA, WMA, ALMA, Highest/Lowest, Donchian, Returns |
+| **A. Windowed** | Raw price/data buffer of N samples | ✓ Carry-forward (period change), refuse source change | SMA, WMA, ALMA, Highest/Lowest, Donchian, Returns, Pivot Points |
 | **B. Recursive** | Single recursive accumulator (`prevValue`) | ✗ Always refuse | EMA, McGinley, ZLEMA, Wilder smoothers (RSI internal, ATR internal) |
-| **C. Mixed** | Windowed buffer + recursive value | ✗ Always refuse (recursive part is poisoned by past params) | FRAMA, KAMA, Super Smoother |
+| **C. Mixed** | Windowed buffer + recursive value | ✗ Always refuse (recursive part is poisoned by past params) | FRAMA, KAMA, Super Smoother, BOS, CHoCH, FVG, Liquidity Sweep, Swing Points |
 | **D. Cascaded** | Multiple recursive stages | ✗ Always refuse (every stage's recursion encodes past params) | MACD, DEMA, TEMA, TRIX, Roofing Filter, STC, Klinger, HMA |
-| **E. Event log** | Append-only event list | ✓ Append-only (params change does not invalidate past events) | BOS, FVG, Liquidity Sweep, Pivot Points, Order Block, Swing Points |
+| **E. Event log** | Append-only event list | ✓ Append-only (params change does not invalidate past events) | *(reserved — no 0.4.0 indicator is a pure event log; see note below)* |
 
 **Important note on ALMA vs FRAMA**: ALMA's formula is
 `sum(weights[i] * buffer[i])` — its state is just the raw price
@@ -92,6 +92,18 @@ buffer, no recursion. ALMA is **Category A**. FRAMA combines a raw
 price buffer (for fractal-dim calc) with a recursive `prevFrama` value
 — FRAMA is **Category C**. This distinction is why ALMA can support
 period change on resume (carry forward what fits) while FRAMA cannot.
+
+**Important note on Category E**: the contract and `resolveResume`
+fully support an append-only event-log category, but **no 0.4.0
+indicator is classified into it**. The structure-tracking indicators
+that look event-like — BOS, CHoCH, FVG, Liquidity Sweep, Swing Points
+— each pair an event list with a parameter-sized *detection window*
+(e.g. a `2*swingPeriod+1` high/low buffer). Because that window cannot
+be carried forward across a window-sizing param change, they are
+classified **Category C (Mixed)** and refuse reconfig. Pivot Points
+keeps only a one-bar OHLC window, so it is **Category A (Windowed)**.
+Category E remains defined for a future indicator whose entire state
+is a pure timestamped log.
 
 ### 2.4 Per-category resume rules
 
@@ -452,7 +464,7 @@ trendcraft 0.4.0.
 |---|---|---|
 | **0. Decision doc** | This document + memory note + epic branch | ✓ Done |
 | **1. Foundation** | `state-contract.ts` (types + `resolveResume`), `describeContract` DSL | ✓ Done |
-| **2. Indicator migration** | All ~94 incremental indicators migrated across Wave 1 (Category A — windowed), Wave 2 (Category B — recursive, plus E — event log), Wave 3 (Categories C/D — mixed/cascaded, and the RSI/ATR/DMI Wilder-smoother cluster) | ✓ Done |
+| **2. Indicator migration** | All ~94 incremental indicators migrated across Wave 1 (Category A — windowed), Wave 2 (Category B — recursive), Wave 3 (Categories C/D — mixed/cascaded, and the RSI/ATR/DMI Wilder-smoother cluster) | ✓ Done |
 | **3. Contract test rollout** | All indicators registered in `describeContract`; latent edge cases surfaced and fixed | ✓ Done |
 | **4. Documentation** | `STATE_CONTRACT.md` design doc, `docs/migration-0.3-to-0.4.md` consumer guide, CHANGELOG breaking entry | ✓ Done |
 | **5. 0.4.0 release prep** | CHANGELOG BREAKING entry, perf check, final audit | ✓ Done |

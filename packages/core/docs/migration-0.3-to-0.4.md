@@ -62,12 +62,17 @@ are incompatible.
 Once you are on 0.4.0 envelopes, resume with *changed params* follows
 the state category:
 
-- **Windowed** (SMA, WMA, ALMA, Donchian, …) — `period` change is
-  supported via carry-forward; `source` change throws.
+- **Windowed** (SMA, WMA, ALMA, Donchian, Pivot Points, …) — `period`
+  change is supported via carry-forward; `source` change throws.
 - **Recursive / Mixed / Cascaded** (EMA, ZLEMA, FRAMA, KAMA, MACD,
-  DEMA, TEMA, HMA, …) — any state-shaping param change throws.
-- **Event log** (BOS, FVG, Pivot Points, …) — params change is
-  harmless; events keep appending.
+  DEMA, TEMA, HMA, and the structure trackers BOS, CHoCH, FVG,
+  Liquidity Sweep, Swing Points, …) — any state-shaping param change
+  throws.
+
+The contract also defines an append-only **Event log** category, but
+no 0.4.0 indicator is classified into it — the structure trackers that
+look event-like keep a parameter-sized detection window, so they are
+Mixed (see [`STATE_CONTRACT.md` §2.3](./STATE_CONTRACT.md#23-five-resume-categories)).
 
 *Resume-invariant* params (those that only scale the state→output
 projection, e.g. a band-width multiplier) may change on resume in any

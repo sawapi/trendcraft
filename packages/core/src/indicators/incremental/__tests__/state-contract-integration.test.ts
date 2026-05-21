@@ -2383,9 +2383,10 @@ describeContract<FractalValue, FractalsState>({
       !(v as { downFractal: boolean }).downFractal),
 });
 
-// Break of Structure — Event (a `2*swingPeriod+1` raw high/low window
+// Break of Structure — Mixed (a `2*swingPeriod+1` raw high/low window
 // plus last-swing / trend trackers conditioned on the confirming
-// window). The warmup gate keys on `trend === "neutral"` (the
+// window). `swingPeriod` sizes the detection window, so reconfig is
+// refused. The warmup gate keys on `trend === "neutral"` (the
 // indicator emits a neutral trend until the first BOS). batchCompute
 // omitted: batch swing detection uses look-ahead.
 describeContract<BosValue, BosState>({
@@ -2403,7 +2404,8 @@ describeContract<BosValue, BosState>({
     (typeof v === "object" && (v as { trend: unknown }).trend === "neutral"),
 });
 
-// Change of Character — Event (composes the inner BOS window).
+// Change of Character — Mixed (composes the inner BOS window, which
+// is sized by `swingPeriod` — reconfig refused).
 // batchCompute omitted: it inherits the inner Break of Structure's
 // look-ahead swing detection, so batch and incremental align pivots
 // differently (same reason as breakOfStructure).
@@ -2459,9 +2461,9 @@ describeContract<HeikinAshiValue, HeikinAshiState>({
   batchCompute: (_opts, candles) => heikinAshi(candles).map((s) => s.value),
 });
 
-// Fair Value Gap — Event (an append-only log of active FVG zones).
-// Past detections stand on resume; reconfig of detection params only
-// affects future bars. batchCompute omitted: the batch FVG does a
+// Fair Value Gap — Mixed (an append-only log of active FVG zones plus
+// a two-candle detection window). Resume refuses any param change.
+// batchCompute omitted: the batch FVG does a
 // retroactive fill pass while the incremental detects fills as they
 // occur.
 describeContract<FvgValue, FairValueGapState>({
@@ -2496,7 +2498,8 @@ describeContract<FvgValue, FairValueGapState>({
   },
 });
 
-// Gap Analysis — Event (an append-only log of active gap zones).
+// Gap Analysis — Mixed (an append-only log of active gap zones plus a
+// one-candle detection window). Resume refuses any param change.
 // batchCompute omitted: batch does a retroactive fill pass.
 describeContract<GapValue, GapAnalysisState>({
   name: "gapAnalysis",
@@ -2540,7 +2543,8 @@ describeContract<OpeningRangeValue, OpeningRangeState>({
     (typeof v === "object" && (v as { breakout: unknown }).breakout === null),
 });
 
-// Auto Trend Line — Event (structure tracker wrapping swing points).
+// Auto Trend Line — Mixed (structure tracker wrapping swing points;
+// the swing window is param-sized, so reconfig is refused).
 // batchCompute omitted: batch swing detection uses look-ahead.
 describeContract<AutoTrendLineValue, AutoTrendLineState>({
   name: "autoTrendLine",
