@@ -75,6 +75,7 @@ import { vortex } from "../../trend/vortex";
 import { atr } from "../../volatility/atr";
 import { atrStops } from "../../volatility/atr-stops";
 import { bollingerBands } from "../../volatility/bollinger-bands";
+import { chandelierExit } from "../../volatility/chandelier-exit";
 import { choppinessIndex } from "../../volatility/choppiness-index";
 import { donchianChannel } from "../../volatility/donchian-channel";
 import { ewmaVolatilityFromCandles } from "../../volatility/garch";
@@ -96,6 +97,7 @@ import { obv } from "../../volume/obv";
 import { pvt } from "../../volume/pvt";
 import { twap } from "../../volume/twap";
 import { volumeAnomaly } from "../../volume/volume-anomaly";
+import { volumeTrend } from "../../volume/volume-trend";
 import { vwap } from "../../volume/vwap";
 import { weisWave } from "../../volume/weis-wave";
 import { createRoofingFilter, type RoofingFilterState } from "../filter/roofing-filter";
@@ -1743,11 +1745,11 @@ describeContract<ChandelierExitValue, ChandelierExitState>({
     v === null ||
     v === undefined ||
     (typeof v === "object" && (v as { longExit: unknown }).longExit === null),
-  // batchCompute omitted: batch `chandelierExit()` and the incremental
-  // factory have a pre-existing value drift surfaced by invariant [8]
-  // (unrelated to the State Contract migration — next/peek logic is
-  // unchanged). Tracked as a 0.5.0 consistency-audit item; invariants
-  // [1]-[7] still run.
+  batchCompute: (opts, candles) =>
+    chandelierExit(
+      candles,
+      opts as { period?: number; multiplier?: number; lookback?: number },
+    ).map((s) => s.value),
 });
 
 // Regression: `lookback` falls back to `period` when omitted. A
@@ -1919,7 +1921,12 @@ describeContract<number | null, CciState>({
 });
 
 // DPO — Cascaded (inner SMA + pending-entry queue keyed on the
-// period-derived shift).
+// period-derived shift). batchCompute omitted: batch `dpo` is
+// non-causal (`Price[i] - SMA[i + shift]` looks ahead by `shift`
+// bars), so the incremental necessarily emits each value `shift` bars
+// later than its candle position. The values are identical when
+// matched by `time` — only the per-candle stream alignment differs
+// (shift-offset, not bar-aligned), same as swingPoints / fractals.
 describeContract<number | null, DpoState>({
   name: "dpo",
   create: (opts, warmUp) => createDpo(opts as { period?: number; source?: PriceSource }, warmUp),
@@ -2293,13 +2300,16 @@ describeContract<VolumeTrendValue, VolumeTrendState>({
     v === null ||
     v === undefined ||
     (typeof v === "object" && (v as { priceTrend: unknown }).priceTrend === "neutral"),
-  // batchCompute intentionally omitted: the batch `volumeTrend` and the
-  // incremental factory have a pre-existing trend-direction drift (batch
-  // can classify a bar `down` where the incremental emits `neutral`).
-  // The migration left `next` / `peek` untouched, so this is not a
-  // regression introduced here; the legacy parity test only compared
-  // `confidence` within tolerance and never exercised the direction
-  // fields. Chasing the batch-drift fix is out of scope for Bundle L3.
+  batchCompute: (opts, candles) =>
+    volumeTrend(
+      candles,
+      opts as {
+        pricePeriod?: number;
+        volumePeriod?: number;
+        maPeriod?: number;
+        minPriceChange?: number;
+      },
+    ).map((s) => s.value),
 });
 
 // Weis Wave — Recursive (`waveVolume` cumulative accumulator; reset
@@ -2394,6 +2404,9 @@ describeContract<BosValue, BosState>({
 });
 
 // Change of Character — Event (composes the inner BOS window).
+// batchCompute omitted: it inherits the inner Break of Structure's
+// look-ahead swing detection, so batch and incremental align pivots
+// differently (same reason as breakOfStructure).
 describeContract<BosValue, ChochState>({
   name: "changeOfCharacter",
   create: (opts, warmUp) => createChangeOfCharacter(opts as { swingPeriod?: number }, warmUp),
@@ -2542,6 +2555,9 @@ describeContract<AutoTrendLineValue, AutoTrendLineState>({
 });
 
 // Channel Line — Mixed (structure tracker wrapping swing points).
+// batchCompute omitted: batch swing detection uses look-ahead, so
+// batch and incremental confirm structure on different bars (same
+// reason as autoTrendLine).
 describeContract<ChannelLineValue, ChannelLineState>({
   name: "channelLine",
   create: (opts, warmUp) =>
@@ -2555,7 +2571,9 @@ describeContract<ChannelLineValue, ChannelLineState>({
 });
 
 // Fibonacci Retracement — Mixed (structure tracker wrapping swing
-// points). `levels` is part of meta.params.
+// points). `levels` is part of meta.params. batchCompute omitted:
+// batch swing detection uses look-ahead, so batch and incremental
+// confirm structure on different bars (same reason as autoTrendLine).
 describeContract<FibonacciRetracementValue, FibonacciRetracementState>({
   name: "fibonacciRetracement",
   create: (opts, warmUp) =>
@@ -2572,7 +2590,9 @@ describeContract<FibonacciRetracementValue, FibonacciRetracementState>({
 });
 
 // Fibonacci Extension — Mixed (structure tracker wrapping swing
-// points).
+// points). batchCompute omitted: batch swing detection uses
+// look-ahead, so batch and incremental confirm structure on different
+// bars (same reason as autoTrendLine).
 describeContract<FibonacciExtensionValue, FibonacciExtensionState>({
   name: "fibonacciExtension",
   create: (opts, warmUp) =>
