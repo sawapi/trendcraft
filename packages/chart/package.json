@@ -166,7 +166,7 @@
     "@vue/test-utils": "^2.4.6",
     "happy-dom": "^20.9.0",
     "react": "^19.2.5",
-    "react-dom": "^19.2.5",
+    "react-dom": "^19.2.6",
     "size-limit": "^12.1.0",
     "trendcraft": "workspace:*",
     "vite": "^8.0.10",
