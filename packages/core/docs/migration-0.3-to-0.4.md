@@ -2,9 +2,8 @@
 
 The 0.4.0 release lands the **Indicator State Contract**. This is the
 only breaking change that affects incremental-indicator persistence.
-This page is a 5-minute summary; the full design is in
-[`STATE_CONTRACT.md`](./STATE_CONTRACT.md), and the consumer-facing
-detail lives in [`STATE_CONTRACT.md` §5](./STATE_CONTRACT.md#5-migration-guide-03x--040).
+This page is the 5-minute upgrade guide: what broke and how to update
+your code.
 
 ## What broke
 
@@ -72,9 +71,9 @@ the state category:
 The contract also defines an append-only **Event log** category, but
 no 0.4.0 indicator is classified into it — the structure trackers that
 look event-like keep a parameter-sized detection window, so they are
-Mixed (see [`STATE_CONTRACT.md` §2.3](./STATE_CONTRACT.md#23-five-resume-categories)).
+Mixed.
 
 *Resume-invariant* params (those that only scale the state→output
 projection, e.g. a band-width multiplier) may change on resume in any
-category. See [`STATE_CONTRACT.md` §2.4](./STATE_CONTRACT.md#24-per-category-resume-rules)
-for the param-role axis.
+category — the saved state is reused verbatim and the new value takes
+effect immediately. `source` is never resume-invariant.
