@@ -615,7 +615,12 @@ export function App() {
     const fullRebuild = chartChanged || sliceMoved || candlesChanged;
 
     if (fullRebuild) {
-      for (const handle of handles.values()) handle.remove();
+      // `chart.removeAllPrimitives()` drops every registered primitive and
+      // fires their `destroy` hooks in one call — same outcome as iterating
+      // `handles` and calling `.remove()` on each, but it's the canonical
+      // pattern documented in COOKBOOK Recipe 14. Studio is the sole
+      // primitive owner on this chart instance, so a "remove all" is safe.
+      chart.removeAllPrimitives();
       handles.clear();
     } else {
       for (const [kind, handle] of [...handles]) {
