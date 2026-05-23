@@ -4,21 +4,46 @@
  * EMV = ((H+L)/2 - prev(H+L)/2) / ((Volume / divisor) / (H - L))
  * Smoothed with SMA over `period` bars. Windows containing any null
  * raw EMV values produce null output (matching batch behavior).
+ *
+ * State category: **Mixed** (a fixed-size buffer of *derived* raw EMV
+ * values plus a recursive running `sum` and the `prevHigh` / `prevLow`
+ * carry-over needed to compute the next raw EMV). Resume with any
+ * param change is refused — `period` resizes the SMA window and
+ * `volumeDivisor` changes every buffered raw EMV value, so neither can
+ * be reconciled with the saved buffer.
+ *
+ * Migrated to the 0.4.0 State Contract.
  */
 
 import type { NormalizedCandle } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import {
+  type IndicatorSnapshot,
+  makeSnapshot,
+  requireParam,
+  resolveResume,
+} from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 
+/**
+ * Bare state shape for EMV. Params (`period`, `volumeDivisor`) live in
+ * `meta.params`.
+ */
 export type EmvState = {
   prevHigh: number | null;
   prevLow: number | null;
   /** Circular buffer of raw EMV values; NaN marks null slots */
-  buffer: { data: number[]; head: number; length: number; capacity: number };
+  buffer: ReturnType<CircularBuffer<number>["snapshot"]>;
   sum: number;
+  count: number;
+};
+
+/** Per-indicator schema version. Bumped on any breaking state change. */
+export const EMV_VERSION = 1;
+
+type EmvParams = {
   period: number;
   volumeDivisor: number;
-  count: number;
 };
 
 /**
@@ -35,17 +60,36 @@ export type EmvState = {
  */
 export function createEmv(
   options: { period?: number; volumeDivisor?: number } = {},
-  warmUpOptions?: WarmUpOptions<EmvState>,
-): IncrementalIndicator<number | null, EmvState> {
-  const period = options.period ?? 14;
-  // Resume order: explicit option > persisted state > canonical default
-  // (1e8, matching StockCharts / ChartSchool). Reading the snapshot first
-  // is critical — a state captured under the legacy 10000 divisor would
-  // otherwise jump to 1e8 mid-stream after a library upgrade and produce
-  // a discontinuous EMV at the resume boundary.
-  // Keep in sync with `easeOfMovement()` in indicators/volume/ease-of-movement.ts.
-  const volumeDivisor =
-    options.volumeDivisor ?? warmUpOptions?.fromState?.volumeDivisor ?? 100_000_000;
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<EmvState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<number | null, IndicatorSnapshot<EmvState>> {
+  const { params, state } = resolveResume<EmvParams, EmvState>({
+    indicator: "emv",
+    version: EMV_VERSION,
+    category: "mixed",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    // Canonical divisor 1e8, matching StockCharts / ChartSchool and
+    // `easeOfMovement()` in indicators/volume/ease-of-movement.ts.
+    defaults: { period: 14, volumeDivisor: 100_000_000 },
+  });
+
+  const period = requireParam(
+    "emv",
+    params,
+    "period",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
+  const volumeDivisor = requireParam(
+    "emv",
+    params,
+    "volumeDivisor",
+    (v): v is number => typeof v === "number" && v > 0,
+    "must be a positive number",
+  );
 
   let prevHigh: number | null;
   let prevLow: number | null;
@@ -53,13 +97,12 @@ export function createEmv(
   let sum: number;
   let count: number;
 
-  if (warmUpOptions?.fromState) {
-    const s = warmUpOptions.fromState;
-    prevHigh = s.prevHigh;
-    prevLow = s.prevLow;
-    buffer = CircularBuffer.fromSnapshot(s.buffer);
-    sum = s.sum;
-    count = s.count;
+  if (state !== null) {
+    prevHigh = state.prevHigh;
+    prevLow = state.prevLow;
+    buffer = CircularBuffer.fromSnapshot(state.buffer);
+    sum = state.sum;
+    count = state.count;
   } else {
     prevHigh = null;
     prevLow = null;
@@ -92,7 +135,7 @@ export function createEmv(
     return sum / period;
   }
 
-  const indicator: IncrementalIndicator<number | null, EmvState> = {
+  const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<EmvState>> = {
     next(candle: NormalizedCandle) {
       count++;
       const raw = computeRawEmv(candle);
@@ -153,16 +196,19 @@ export function createEmv(
       return { time: candle.time, value: peekSum / period };
     },
 
-    getState(): EmvState {
-      return {
-        prevHigh,
-        prevLow,
-        buffer: buffer.snapshot(),
-        sum,
-        period,
-        volumeDivisor,
-        count,
-      };
+    getState(): IndicatorSnapshot<EmvState> {
+      return makeSnapshot(
+        "emv",
+        EMV_VERSION,
+        { period, volumeDivisor },
+        {
+          prevHigh,
+          prevLow,
+          buffer: buffer.snapshot(),
+          sum,
+          count,
+        },
+      );
     },
 
     get count() {

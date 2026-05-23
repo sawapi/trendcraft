@@ -4,10 +4,19 @@
  * Detects 3-candle imbalance patterns and tracks fill status.
  * Bullish FVG: prev2.high < current.low (gap between candle 1 high and candle 3 low)
  * Bearish FVG: prev2.low > current.high (gap between candle 3 high and candle 1 low)
+ *
+ * State category: **Mixed** — the `active*Fvgs` lists are not a frozen
+ * append-only log: `minGapPercent` / `maxActiveFvgs` / `partialFill`
+ * decide which gaps were recorded, retained, or already considered
+ * filled, so they shape the persisted state. Resume with any of those
+ * changed cannot match a fresh run and is refused.
+ *
+ * Migrated to the 0.4.0 State Contract.
  */
 
 import type { NormalizedCandle } from "../../../types";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import { type IndicatorSnapshot, makeSnapshot, resolveResume } from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 
 export type FvgGap = {
   type: "bullish" | "bearish";
@@ -44,15 +53,25 @@ export type FvgValue = {
 
 type StoredCandle = { high: number; low: number; time: number };
 
+/**
+ * Bare state shape for Fair Value Gap. Params (`minGapPercent`,
+ * `maxActiveFvgs`, `partialFill`) live in `meta.params` on the wire.
+ */
 export type FairValueGapState = {
   prev2: StoredCandle | null;
   prev1: StoredCandle | null;
   activeBullishFvgs: FvgGap[];
   activeBearishFvgs: FvgGap[];
+  count: number;
+};
+
+/** Per-indicator schema version. Bumped on any breaking state change. */
+export const FAIR_VALUE_GAP_VERSION = 1;
+
+type FairValueGapParams = {
   minGapPercent: number;
   maxActiveFvgs: number;
   partialFill: boolean;
-  count: number;
 };
 
 const emptyValue: FvgValue = {
@@ -86,11 +105,23 @@ const emptyValue: FvgValue = {
  */
 export function createFairValueGap(
   options: { minGapPercent?: number; maxActiveFvgs?: number; partialFill?: boolean } = {},
-  warmUpOptions?: WarmUpOptions<FairValueGapState>,
-): IncrementalIndicator<FvgValue, FairValueGapState> {
-  const minGapPercent = options.minGapPercent ?? 0;
-  const maxActiveFvgs = options.maxActiveFvgs ?? 10;
-  const partialFill = options.partialFill ?? true;
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<FairValueGapState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<FvgValue, IndicatorSnapshot<FairValueGapState>> {
+  const { params, state } = resolveResume<FairValueGapParams, FairValueGapState>({
+    indicator: "fairValueGap",
+    version: FAIR_VALUE_GAP_VERSION,
+    category: "mixed",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { minGapPercent: 0, maxActiveFvgs: 10, partialFill: true },
+  });
+
+  const minGapPercent = params.minGapPercent;
+  const maxActiveFvgs = params.maxActiveFvgs;
+  const partialFill = params.partialFill;
 
   let prev2: StoredCandle | null;
   let prev1: StoredCandle | null;
@@ -98,13 +129,12 @@ export function createFairValueGap(
   let activeBearishFvgs: FvgGap[];
   let count: number;
 
-  if (warmUpOptions?.fromState) {
-    const s = warmUpOptions.fromState;
-    prev2 = s.prev2 ? { ...s.prev2 } : null;
-    prev1 = s.prev1 ? { ...s.prev1 } : null;
-    activeBullishFvgs = s.activeBullishFvgs.map((g) => ({ ...g }));
-    activeBearishFvgs = s.activeBearishFvgs.map((g) => ({ ...g }));
-    count = s.count;
+  if (state !== null) {
+    prev2 = state.prev2 ? { ...state.prev2 } : null;
+    prev1 = state.prev1 ? { ...state.prev1 } : null;
+    activeBullishFvgs = state.activeBullishFvgs.map((g) => ({ ...g }));
+    activeBearishFvgs = state.activeBearishFvgs.map((g) => ({ ...g }));
+    count = state.count;
   } else {
     prev2 = null;
     prev1 = null;
@@ -150,7 +180,7 @@ export function createFairValueGap(
     return filled;
   }
 
-  const indicator: IncrementalIndicator<FvgValue, FairValueGapState> = {
+  const indicator: IncrementalIndicator<FvgValue, IndicatorSnapshot<FairValueGapState>> = {
     next(candle: NormalizedCandle) {
       count++;
       const barIndex = count - 1;
@@ -236,17 +266,36 @@ export function createFairValueGap(
         return { time: candle.time, value: emptyValue };
       }
 
-      // Simulate fill check without mutating
+      // `next` increments `count` then uses `barIndex = count - 1`, so
+      // the bar index of the incoming candle equals the current
+      // (pre-increment) `count`.
+      const barIndex = count;
+
+      // Simulate fill check without mutating. Mirror `next`'s
+      // `checkFills` exactly — including the reverse iteration order,
+      // which determines `filledFvgs` ordering — so peek matches next.
       const peekFilledFvgs: FvgGap[] = [];
-      for (const g of activeBullishFvgs) {
+      for (let i = activeBullishFvgs.length - 1; i >= 0; i--) {
+        const g = activeBullishFvgs[i];
         const isFilled = partialFill ? candle.low <= g.high : candle.low <= g.low;
         if (isFilled)
-          peekFilledFvgs.push({ ...g, filled: true, filledIndex: count, filledTime: candle.time });
+          peekFilledFvgs.push({
+            ...g,
+            filled: true,
+            filledIndex: barIndex,
+            filledTime: candle.time,
+          });
       }
-      for (const g of activeBearishFvgs) {
+      for (let i = activeBearishFvgs.length - 1; i >= 0; i--) {
+        const g = activeBearishFvgs[i];
         const isFilled = partialFill ? candle.high >= g.low : candle.high >= g.high;
         if (isFilled)
-          peekFilledFvgs.push({ ...g, filled: true, filledIndex: count, filledTime: candle.time });
+          peekFilledFvgs.push({
+            ...g,
+            filled: true,
+            filledIndex: barIndex,
+            filledTime: candle.time,
+          });
       }
 
       let newBullishFvg = false;
@@ -255,16 +304,15 @@ export function createFairValueGap(
 
       if (candle.low > prev2.high) {
         const gapSize = candle.low - prev2.high;
-        const midPrice = (prev2.high + candle.low) / 2;
-        const gapPct = midPrice > 0 ? (gapSize / midPrice) * 100 : 0;
+        const gapPct = prev2.high > 0 ? (gapSize / prev2.high) * 100 : 0;
         if (gapPct >= minGapPercent) {
           newBullishFvg = true;
           newFvg = {
             type: "bullish",
             high: candle.low,
             low: prev2.high,
-            startIndex: count - 1,
-            startTime: prev1.time,
+            startIndex: barIndex,
+            startTime: candle.time,
             filled: false,
             filledIndex: null,
             filledTime: null,
@@ -274,16 +322,15 @@ export function createFairValueGap(
 
       if (candle.high < prev2.low) {
         const gapSize = prev2.low - candle.high;
-        const midPrice = (prev2.low + candle.high) / 2;
-        const gapPct = midPrice > 0 ? (gapSize / midPrice) * 100 : 0;
+        const gapPct = prev2.low > 0 ? (gapSize / prev2.low) * 100 : 0;
         if (gapPct >= minGapPercent) {
           newBearishFvg = true;
           newFvg = {
             type: "bearish",
             high: prev2.low,
             low: candle.high,
-            startIndex: count - 1,
-            startTime: prev1.time,
+            startIndex: barIndex,
+            startTime: candle.time,
             filled: false,
             filledIndex: null,
             filledTime: null,
@@ -318,17 +365,19 @@ export function createFairValueGap(
       };
     },
 
-    getState(): FairValueGapState {
-      return {
-        prev2: prev2 ? { ...prev2 } : null,
-        prev1: prev1 ? { ...prev1 } : null,
-        activeBullishFvgs: activeBullishFvgs.map((g) => ({ ...g })),
-        activeBearishFvgs: activeBearishFvgs.map((g) => ({ ...g })),
-        minGapPercent,
-        maxActiveFvgs,
-        partialFill,
-        count,
-      };
+    getState(): IndicatorSnapshot<FairValueGapState> {
+      return makeSnapshot(
+        "fairValueGap",
+        FAIR_VALUE_GAP_VERSION,
+        { minGapPercent, maxActiveFvgs, partialFill },
+        {
+          prev2: prev2 ? { ...prev2 } : null,
+          prev1: prev1 ? { ...prev1 } : null,
+          activeBullishFvgs: activeBullishFvgs.map((g) => ({ ...g })),
+          activeBearishFvgs: activeBearishFvgs.map((g) => ({ ...g })),
+          count,
+        },
+      );
     },
 
     get count() {

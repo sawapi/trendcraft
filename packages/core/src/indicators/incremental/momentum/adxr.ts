@@ -3,21 +3,38 @@
  *
  * ADXR = (ADX[current] + ADX[current - (period - 1)]) / 2
  * Wraps createDmi and maintains a circular buffer of ADX history.
+ *
+ * State category: **Mixed** (an inner recursive DMI snapshot plus a
+ * windowed ADX lag-lookback buffer). Resume with different params is
+ * refused.
+ *
+ * Migrated to the 0.4.0 State Contract.
  */
 
 import type { NormalizedCandle } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import {
+  type IndicatorSnapshot,
+  makeSnapshot,
+  requireParam,
+  resolveResume,
+} from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 import type { DmiState } from "./dmi";
 import { createDmi } from "./dmi";
 
 export type AdxrState = {
+  dmiState: IndicatorSnapshot<DmiState>;
+  adxBuffer: ReturnType<CircularBuffer<number | null>["snapshot"]>;
+  count: number;
+};
+
+export const ADXR_VERSION = 1;
+
+type AdxrParams = {
   period: number;
   dmiPeriod: number;
   adxPeriod: number;
-  dmiState: DmiState;
-  adxBuffer: ReturnType<CircularBuffer<number | null>["snapshot"]>;
-  count: number;
 };
 
 /**
@@ -34,11 +51,41 @@ export type AdxrState = {
  */
 export function createAdxr(
   options: { period?: number; dmiPeriod?: number; adxPeriod?: number } = {},
-  warmUpOptions?: WarmUpOptions<AdxrState>,
-): IncrementalIndicator<number | null, AdxrState> {
-  const period = options.period ?? 14;
-  const dmiPeriod = options.dmiPeriod ?? 14;
-  const adxPeriod = options.adxPeriod ?? 14;
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<AdxrState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<number | null, IndicatorSnapshot<AdxrState>> {
+  const { params, state } = resolveResume<AdxrParams, AdxrState>({
+    indicator: "adxr",
+    version: ADXR_VERSION,
+    category: "mixed",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { period: 14, dmiPeriod: 14, adxPeriod: 14 },
+  });
+
+  const period = requireParam(
+    "adxr",
+    params,
+    "period",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
+  const dmiPeriod = requireParam(
+    "adxr",
+    params,
+    "dmiPeriod",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
+  const adxPeriod = requireParam(
+    "adxr",
+    params,
+    "adxPeriod",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
 
   // ADXR lookback matches TA-Lib: adx[i] + adx[i-(period-1)]
   const lookback = period - 1;
@@ -47,11 +94,10 @@ export function createAdxr(
   let adxBuffer: CircularBuffer<number | null>;
   let count: number;
 
-  if (warmUpOptions?.fromState) {
-    const s = warmUpOptions.fromState;
-    dmiInd = createDmi({ period: dmiPeriod, adxPeriod }, { fromState: s.dmiState });
-    adxBuffer = CircularBuffer.fromSnapshot(s.adxBuffer);
-    count = s.count;
+  if (state !== null) {
+    dmiInd = createDmi({ period: dmiPeriod, adxPeriod }, { fromState: state.dmiState });
+    adxBuffer = CircularBuffer.fromSnapshot(state.adxBuffer);
+    count = state.count;
   } else {
     dmiInd = createDmi({ period: dmiPeriod, adxPeriod });
     // Buffer needs to hold at least lookback+1 values to access the past ADX
@@ -70,7 +116,7 @@ export function createAdxr(
     return (currentAdx + pastAdx) / 2;
   }
 
-  const indicator: IncrementalIndicator<number | null, AdxrState> = {
+  const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<AdxrState>> = {
     next(candle: NormalizedCandle) {
       count++;
       const dmiResult = dmiInd.next(candle);
@@ -93,15 +139,17 @@ export function createAdxr(
       return { time: candle.time, value: (currentAdx + pastAdx) / 2 };
     },
 
-    getState(): AdxrState {
-      return {
-        period,
-        dmiPeriod,
-        adxPeriod,
-        dmiState: dmiInd.getState(),
-        adxBuffer: adxBuffer.snapshot(),
-        count,
-      };
+    getState(): IndicatorSnapshot<AdxrState> {
+      return makeSnapshot(
+        "adxr",
+        ADXR_VERSION,
+        { period, dmiPeriod, adxPeriod },
+        {
+          dmiState: dmiInd.getState(),
+          adxBuffer: adxBuffer.snapshot(),
+          count,
+        },
+      );
     },
 
     get count() {

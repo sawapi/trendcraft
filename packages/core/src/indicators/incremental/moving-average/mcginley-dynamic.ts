@@ -8,19 +8,58 @@
  * (different period, k, or source) is mathematically undefined and
  * refused. Pass identical options on resume, or omit them and let the
  * snapshot's params win.
+ *
+ * Migrated to the 0.4.0 State Contract: `getState()` returns
+ * `IndicatorSnapshot<McGinleyDynamicState>` and `fromState` accepts
+ * the same. Params (`period`, `k`, `source`) now live in `meta.params`
+ * — the hand-rolled resume guard from 0.3.x is replaced by the
+ * library-wide `resolveResume` recursive policy.
+ *
+ * Extreme-gap behavior: the `(price / MD)^4` ratio is uncapped, which
+ * matches the canonical McGinley (1990) formulation as used by
+ * TradingView and StockCharts. On upward gaps the denominator grows
+ * fast, so the indicator simply lags more — graceful. On *downward*
+ * gaps the denominator shrinks to ~0 and the next MD can swing to a
+ * large negative value (e.g. `price = 0.1 × MD` → denom ≈ 8.4e-4,
+ * adjustment ≈ -1071 × MD). In practice price = 0 / extreme-down
+ * gaps mostly indicate dirty input rather than real moves; reject
+ * those upstream. Some third-party implementations clamp the ratio
+ * to `[0.5, 2.0]`; trendcraft does not, to remain bar-for-bar
+ * faithful to the published formula.
+ *
+ * Seeding asymmetry note (intentional): the batch sibling produces
+ * its first non-null value at index `period - 1` (`if i === period - 1`),
+ * while this incremental factory uses a post-incremented `count` so
+ * the first non-null is produced when `count === period`. Both refer
+ * to the same candle (the `period`-th one, 0-indexed `period - 1`);
+ * the formulations differ only because batch indexes the array
+ * directly while incremental counts calls. Invariant [8] enforces
+ * bar-for-bar parity.
  */
 
 import type { NormalizedCandle, PriceSource } from "../../../types";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import { type IndicatorSnapshot, makeSnapshot, resolveResume } from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 import { getSourcePrice } from "../utils";
 
+/**
+ * Bare state shape for McGinley Dynamic. Params (`period`, `k`,
+ * `source`) live in `meta.params` on the wire — they are not part
+ * of the bare state.
+ */
 export type McGinleyDynamicState = {
-  period: number;
-  k: number;
-  source: PriceSource;
   prevMd: number | null;
   sum: number;
   count: number;
+};
+
+/** Per-indicator schema version. Bumped on any breaking state change. */
+export const MCGINLEY_DYNAMIC_VERSION = 1;
+
+type McGinleyDynamicParams = {
+  period: number;
+  k: number;
+  source: PriceSource;
 };
 
 /**
@@ -37,36 +76,39 @@ export type McGinleyDynamicState = {
  */
 export function createMcGinleyDynamic(
   options: { period?: number; k?: number; source?: PriceSource } = {},
-  warmUpOptions?: WarmUpOptions<McGinleyDynamicState>,
-): IncrementalIndicator<number | null, McGinleyDynamicState> {
-  // Resume order: explicit option > snapshot value > canonical default.
-  const fs = warmUpOptions?.fromState ?? null;
-  const period = options.period ?? fs?.period ?? 14;
-  const k = options.k ?? fs?.k ?? 0.6;
-  const source: PriceSource = options.source ?? fs?.source ?? "close";
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<McGinleyDynamicState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<number | null, IndicatorSnapshot<McGinleyDynamicState>> {
+  const { params, state } = resolveResume<McGinleyDynamicParams, McGinleyDynamicState>({
+    indicator: "mcginleyDynamic",
+    version: MCGINLEY_DYNAMIC_VERSION,
+    category: "recursive",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { period: 14, k: 0.6, source: "close" },
+  });
+
+  const period = params.period;
+  const k = params.k;
+  const source = params.source;
 
   let prevMd: number | null;
   let sum: number;
   let count: number;
 
-  if (fs) {
-    // McGinley is recursive: `prevMd` carries past parameters forever,
-    // so reconfiguring on resume produces a hybrid series that doesn't
-    // match either fresh-with-old-options or fresh-with-new-options
-    // computed over the same candle history. Refuse explicitly.
-    if (fs.period !== period || fs.k !== k || fs.source !== source) {
-      throw new Error("McGinley Dynamic: incompatible snapshot, re-warm required");
-    }
-    prevMd = fs.prevMd;
-    sum = fs.sum;
-    count = fs.count;
+  if (state !== null) {
+    prevMd = state.prevMd;
+    sum = state.sum;
+    count = state.count;
   } else {
     prevMd = null;
     sum = 0;
     count = 0;
   }
 
-  const indicator: IncrementalIndicator<number | null, McGinleyDynamicState> = {
+  const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<McGinleyDynamicState>> = {
     next(candle: NormalizedCandle) {
       const price = getSourcePrice(candle, source);
       count++;
@@ -108,8 +150,13 @@ export function createMcGinleyDynamic(
       return { time: candle.time, value: prev + (price - prev) / denominator };
     },
 
-    getState(): McGinleyDynamicState {
-      return { period, k, source, prevMd, sum, count };
+    getState(): IndicatorSnapshot<McGinleyDynamicState> {
+      return makeSnapshot(
+        "mcginleyDynamic",
+        MCGINLEY_DYNAMIC_VERSION,
+        { period, k, source },
+        { prevMd, sum, count },
+      );
     },
 
     get count() {

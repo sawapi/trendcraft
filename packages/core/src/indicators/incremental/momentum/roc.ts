@@ -3,22 +3,40 @@
  *
  * ROC = ((Current Price - Price N periods ago) / Price N periods ago) × 100
  *
- * Uses CircularBuffer to store lookback prices.
+ * State category: **Windowed** (a fixed-size price buffer; no
+ * recursive accumulator). Resume with a different `period` carries the
+ * raw price buffer forward; `source` change is refused.
+ *
+ * Migrated to the 0.4.0 State Contract: `getState()` returns
+ * `IndicatorSnapshot<RocState>` and `fromState` accepts the same.
  */
 
 import type { NormalizedCandle, PriceSource } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import {
+  type IndicatorSnapshot,
+  makeSnapshot,
+  requireParam,
+  resolveResume,
+} from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 import { getSourcePrice } from "../utils";
 
 /**
- * State for incremental ROC
+ * Bare state shape for ROC. Params (`period`, `source`) live in
+ * `meta.params` on the wire.
  */
 export type RocState = {
-  period: number;
-  source: PriceSource;
   buffer: ReturnType<CircularBuffer<number>["snapshot"]>;
   count: number;
+};
+
+/** Per-indicator schema version. Bumped on any breaking state change. */
+export const ROC_VERSION = 1;
+
+type RocParams = {
+  period: number;
+  source: PriceSource;
 };
 
 /**
@@ -34,32 +52,60 @@ export type RocState = {
  * ```
  */
 export function createRoc(
-  options: { period: number; source?: PriceSource },
-  warmUpOptions?: WarmUpOptions<RocState>,
-): IncrementalIndicator<number | null, RocState> {
-  const period = options.period;
-  const source: PriceSource = options.source ?? "close";
+  options: { period?: number; source?: PriceSource },
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<RocState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<number | null, IndicatorSnapshot<RocState>> {
+  const { params, state, reconfigured } = resolveResume<RocParams, RocState>({
+    indicator: "roc",
+    version: ROC_VERSION,
+    category: "windowed",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { source: "close" },
+  });
 
+  const period = requireParam(
+    "roc",
+    params,
+    "period",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
+  const source = params.source;
+
+  // Need period + 1 slots: period historical values + current.
   let buffer: CircularBuffer<number>;
   let count: number;
 
-  if (warmUpOptions?.fromState) {
-    const s = warmUpOptions.fromState;
-    buffer = CircularBuffer.fromSnapshot(s.buffer);
-    count = s.count;
+  if (state !== null) {
+    if (reconfigured) {
+      // Period changed — carry the raw prices forward into a buffer
+      // resized to the new capacity (windowed carry-forward).
+      const old = CircularBuffer.fromSnapshot(state.buffer);
+      buffer = new CircularBuffer<number>(period + 1);
+      const carry = Math.min(old.length, period + 1);
+      for (let i = old.length - carry; i < old.length; i++) {
+        buffer.push(old.get(i));
+      }
+    } else {
+      buffer = CircularBuffer.fromSnapshot(state.buffer);
+    }
+    count = state.count;
   } else {
-    // Need period + 1 slots: period historical values + current
     buffer = new CircularBuffer<number>(period + 1);
     count = 0;
   }
 
-  const indicator: IncrementalIndicator<number | null, RocState> = {
+  const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<RocState>> = {
     next(candle: NormalizedCandle) {
       const price = getSourcePrice(candle, source);
       buffer.push(price);
       count++;
 
-      if (count <= period) {
+      if (buffer.length <= period) {
         return { time: candle.time, value: null };
       }
 
@@ -71,9 +117,8 @@ export function createRoc(
 
     peek(candle: NormalizedCandle) {
       const price = getSourcePrice(candle, source);
-      const newCount = count + 1;
 
-      if (newCount <= period) {
+      if (buffer.length < period) {
         return { time: candle.time, value: null };
       }
 
@@ -90,8 +135,13 @@ export function createRoc(
       return { time: candle.time, value };
     },
 
-    getState(): RocState {
-      return { period, source, buffer: buffer.snapshot(), count };
+    getState(): IndicatorSnapshot<RocState> {
+      return makeSnapshot(
+        "roc",
+        ROC_VERSION,
+        { period, source },
+        { buffer: buffer.snapshot(), count },
+      );
     },
 
     get count() {
@@ -99,7 +149,7 @@ export function createRoc(
     },
 
     get isWarmedUp() {
-      return count >= period;
+      return buffer.length > period;
     },
   };
 

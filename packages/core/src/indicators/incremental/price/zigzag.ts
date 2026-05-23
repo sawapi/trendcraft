@@ -9,10 +9,24 @@
  *  - when no pivot is confirmed, the current candle's time with a null value
  *  - when a pivot is confirmed, the original time of the extremum bar (so
  *    streamed output aligns with batch zigzag() output on pivot bars)
+ *
+ * State category: **Mixed** (a recursive trend / running-extreme
+ * tracker composed with an inner recursive ATR snapshot). Every param
+ * (`deviation`, `useAtr`, `atrPeriod`, `atrMultiplier`) affects either
+ * the pivot-trigger threshold or the inner ATR, so resuming with any
+ * changed is refused.
+ *
+ * Migrated to the 0.4.0 State Contract.
  */
 
 import type { NormalizedCandle } from "../../../types";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import {
+  type IndicatorSnapshot,
+  makeSnapshot,
+  requireParam,
+  resolveResume,
+} from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 import type { AtrState } from "../volatility/atr";
 import { createAtr } from "../volatility/atr";
 
@@ -22,11 +36,13 @@ export type ZigzagValue = {
   changePercent: number | null;
 };
 
+/**
+ * Bare state shape for Zigzag. Params (`deviation`, `useAtr`,
+ * `atrPeriod`, `atrMultiplier`) live in `meta.params`; the derived
+ * `maxInitBars` is recomputed in the factory. The inner ATR snapshot
+ * is itself an `IndicatorSnapshot` (or `null` when `useAtr` is false).
+ */
 export type ZigzagState = {
-  deviation: number;
-  useAtr: boolean;
-  atrPeriod: number;
-  atrMultiplier: number;
   trend: "up" | "down" | null;
   lastPivotPrice: number;
   currentHigh: number;
@@ -36,8 +52,17 @@ export type ZigzagState = {
   firstHigh: number;
   firstLow: number;
   count: number;
-  maxInitBars: number;
-  atrState: AtrState | null;
+  atrState: IndicatorSnapshot<AtrState> | null;
+};
+
+/** Per-indicator schema version. Bumped on any breaking state change. */
+export const ZIGZAG_VERSION = 1;
+
+type ZigzagParams = {
+  deviation: number;
+  useAtr: boolean;
+  atrPeriod: number;
+  atrMultiplier: number;
 };
 
 const nullValue: ZigzagValue = { point: null, price: null, changePercent: null };
@@ -61,16 +86,30 @@ export function createZigzag(
     atrPeriod?: number;
     atrMultiplier?: number;
   } = {},
-  warmUpOptions?: WarmUpOptions<ZigzagState>,
-): IncrementalIndicator<ZigzagValue, ZigzagState> {
-  const deviation = options.deviation ?? 5;
-  const useAtr = options.useAtr ?? false;
-  const atrPeriod = options.atrPeriod ?? 14;
-  const atrMultiplier = options.atrMultiplier ?? 2;
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<ZigzagState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<ZigzagValue, IndicatorSnapshot<ZigzagState>> {
+  const { params, state } = resolveResume<ZigzagParams, ZigzagState>({
+    indicator: "zigzag",
+    version: ZIGZAG_VERSION,
+    category: "mixed",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { deviation: 5, useAtr: false, atrPeriod: 14, atrMultiplier: 2 },
+  });
 
-  if (deviation <= 0) {
-    throw new Error("Zigzag deviation must be positive");
-  }
+  const deviation = requireParam(
+    "zigzag",
+    params,
+    "deviation",
+    (v): v is number => typeof v === "number" && Number.isFinite(v) && v > 0,
+    "must be a positive number",
+  );
+  const useAtr = params.useAtr;
+  const atrPeriod = params.atrPeriod;
+  const atrMultiplier = params.atrMultiplier;
 
   const maxInitBars = Math.max(20, atrPeriod * 2);
 
@@ -83,21 +122,20 @@ export function createZigzag(
   let firstHigh: number;
   let firstLow: number;
   let count: number;
-  let atr: IncrementalIndicator<number | null, AtrState> | null;
+  let atr: IncrementalIndicator<number | null, IndicatorSnapshot<AtrState>> | null;
 
-  if (warmUpOptions?.fromState) {
-    const s = warmUpOptions.fromState;
-    trend = s.trend;
-    lastPivotPrice = s.lastPivotPrice;
-    currentHigh = s.currentHigh;
-    currentHighTime = s.currentHighTime;
-    currentLow = s.currentLow;
-    currentLowTime = s.currentLowTime;
-    firstHigh = s.firstHigh;
-    firstLow = s.firstLow;
-    count = s.count;
+  if (state !== null) {
+    trend = state.trend;
+    lastPivotPrice = state.lastPivotPrice;
+    currentHigh = state.currentHigh;
+    currentHighTime = state.currentHighTime;
+    currentLow = state.currentLow;
+    currentLowTime = state.currentLowTime;
+    firstHigh = state.firstHigh;
+    firstLow = state.firstLow;
+    count = state.count;
     atr = useAtr
-      ? createAtr({ period: atrPeriod }, s.atrState ? { fromState: s.atrState } : undefined)
+      ? createAtr({ period: atrPeriod }, state.atrState ? { fromState: state.atrState } : undefined)
       : null;
   } else {
     trend = null;
@@ -117,7 +155,7 @@ export function createZigzag(
     return Math.abs(anchorPrice) * (deviation / 100);
   }
 
-  const indicator: IncrementalIndicator<ZigzagValue, ZigzagState> = {
+  const indicator: IncrementalIndicator<ZigzagValue, IndicatorSnapshot<ZigzagState>> = {
     next(candle: NormalizedCandle) {
       const atrVal = atr ? atr.next(candle).value : null;
       const isFirst = count === 0;
@@ -234,7 +272,7 @@ export function createZigzag(
     },
 
     peek(candle: NormalizedCandle) {
-      const saved = indicator.getState();
+      const saved = indicator.getState().state;
       const result = indicator.next(candle);
       // restore
       trend = saved.trend;
@@ -255,24 +293,24 @@ export function createZigzag(
       return result;
     },
 
-    getState(): ZigzagState {
-      return {
-        deviation,
-        useAtr,
-        atrPeriod,
-        atrMultiplier,
-        trend,
-        lastPivotPrice,
-        currentHigh,
-        currentHighTime,
-        currentLow,
-        currentLowTime,
-        firstHigh,
-        firstLow,
-        count,
-        maxInitBars,
-        atrState: atr ? atr.getState() : null,
-      };
+    getState(): IndicatorSnapshot<ZigzagState> {
+      return makeSnapshot(
+        "zigzag",
+        ZIGZAG_VERSION,
+        { deviation, useAtr, atrPeriod, atrMultiplier },
+        {
+          trend,
+          lastPivotPrice,
+          currentHigh,
+          currentHighTime,
+          currentLow,
+          currentLowTime,
+          firstHigh,
+          firstLow,
+          count,
+          atrState: atr ? atr.getState() : null,
+        },
+      );
     },
 
     get count() {

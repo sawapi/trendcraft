@@ -6,7 +6,13 @@
  */
 
 import type { NormalizedCandle } from "../../../types";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import {
+  type IndicatorSnapshot,
+  makeSnapshot,
+  requireParam,
+  resolveResume,
+} from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 
 export type ParabolicSarValue = {
   sar: number | null;
@@ -16,9 +22,12 @@ export type ParabolicSarValue = {
   ep: number | null;
 };
 
+/**
+ * Bare state shape for Parabolic SAR. Params (`step`, `max`) live in
+ * `meta.params`. `step` / `max` are state-shaping — they feed the
+ * recursive acceleration factor, so any change on resume is refused.
+ */
 export type ParabolicSarState = {
-  step: number;
-  max: number;
   count: number;
   initialized: boolean;
   isLong: boolean;
@@ -29,6 +38,14 @@ export type ParabolicSarState = {
   prevHigh: number;
   firstHigh: number;
   firstLow: number;
+};
+
+/** Per-indicator schema version. Bumped on any breaking state change. */
+export const PARABOLIC_SAR_VERSION = 1;
+
+type ParabolicSarParams = {
+  step: number;
+  max: number;
 };
 
 /**
@@ -45,10 +62,34 @@ export type ParabolicSarState = {
  */
 export function createParabolicSar(
   options: { step?: number; max?: number } = {},
-  warmUpOptions?: WarmUpOptions<ParabolicSarState>,
-): IncrementalIndicator<ParabolicSarValue, ParabolicSarState> {
-  const step = options.step ?? 0.02;
-  const max = options.max ?? 0.2;
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<ParabolicSarState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<ParabolicSarValue, IndicatorSnapshot<ParabolicSarState>> {
+  const { params, state } = resolveResume<ParabolicSarParams, ParabolicSarState>({
+    indicator: "parabolicSar",
+    version: PARABOLIC_SAR_VERSION,
+    category: "recursive",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { step: 0.02, max: 0.2 },
+  });
+
+  const step = requireParam(
+    "parabolicSar",
+    params,
+    "step",
+    (v): v is number => typeof v === "number" && Number.isFinite(v) && v > 0,
+    "must be a positive number",
+  );
+  const max = requireParam(
+    "parabolicSar",
+    params,
+    "max",
+    (v): v is number => typeof v === "number" && Number.isFinite(v) && v > 0,
+    "must be a positive number",
+  );
 
   let count: number;
   let initialized: boolean;
@@ -61,18 +102,17 @@ export function createParabolicSar(
   let firstHigh: number;
   let firstLow: number;
 
-  if (warmUpOptions?.fromState) {
-    const s = warmUpOptions.fromState;
-    count = s.count;
-    initialized = s.initialized;
-    isLong = s.isLong;
-    sar = s.sar;
-    ep = s.ep;
-    af = s.af;
-    prevLow = s.prevLow;
-    prevHigh = s.prevHigh;
-    firstHigh = s.firstHigh;
-    firstLow = s.firstLow;
+  if (state !== null) {
+    count = state.count;
+    initialized = state.initialized;
+    isLong = state.isLong;
+    sar = state.sar;
+    ep = state.ep;
+    af = state.af;
+    prevLow = state.prevLow;
+    prevHigh = state.prevHigh;
+    firstHigh = state.firstHigh;
+    firstLow = state.firstLow;
   } else {
     count = 0;
     initialized = false;
@@ -181,7 +221,7 @@ export function createParabolicSar(
     return { outputSar, isReversal, nextSar, nextEp, nextAf, nextIsLong };
   }
 
-  const indicator: IncrementalIndicator<ParabolicSarValue, ParabolicSarState> = {
+  const indicator: IncrementalIndicator<ParabolicSarValue, IndicatorSnapshot<ParabolicSarState>> = {
     next(candle: NormalizedCandle) {
       count++;
 
@@ -295,21 +335,24 @@ export function createParabolicSar(
       };
     },
 
-    getState(): ParabolicSarState {
-      return {
-        step,
-        max,
-        count,
-        initialized,
-        isLong,
-        sar,
-        ep,
-        af,
-        prevLow,
-        prevHigh,
-        firstHigh,
-        firstLow,
-      };
+    getState(): IndicatorSnapshot<ParabolicSarState> {
+      return makeSnapshot(
+        "parabolicSar",
+        PARABOLIC_SAR_VERSION,
+        { step, max },
+        {
+          count,
+          initialized,
+          isLong,
+          sar,
+          ep,
+          af,
+          prevLow,
+          prevHigh,
+          firstHigh,
+          firstLow,
+        },
+      );
     },
 
     get count() {

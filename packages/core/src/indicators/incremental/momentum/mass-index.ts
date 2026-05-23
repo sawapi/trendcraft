@@ -12,27 +12,38 @@
  *
  * A "reversal bulge" occurs when Mass Index rises above 27 then drops below 26.5.
  *
- * Composes: 2x EMA (cascaded) + CircularBuffer for ratio sum
+ * State category: **Mixed** (two cascaded EMAs plus a windowed ratio
+ * buffer). Resume with different `emaPeriod` / `sumPeriod` is refused.
+ *
+ * Migrated to the 0.4.0 State Contract.
  */
 
 import type { NormalizedCandle } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
 import type { EmaState } from "../moving-average/ema";
 import { createEma } from "../moving-average/ema";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import {
+  type IndicatorSnapshot,
+  makeSnapshot,
+  requireParam,
+  resolveResume,
+} from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 import { makeCandle } from "../utils";
 
-/**
- * State for incremental Mass Index
- */
 export type MassIndexState = {
-  emaPeriod: number;
-  sumPeriod: number;
-  ema1State: EmaState;
-  ema2State: EmaState;
+  ema1State: IndicatorSnapshot<EmaState>;
+  ema2State: IndicatorSnapshot<EmaState>;
   ratioBuffer: ReturnType<CircularBuffer<number>["snapshot"]>;
   ratioSum: number;
   count: number;
+};
+
+export const MASS_INDEX_VERSION = 1;
+
+type MassIndexParams = {
+  emaPeriod: number;
+  sumPeriod: number;
 };
 
 /**
@@ -49,10 +60,34 @@ export type MassIndexState = {
  */
 export function createMassIndex(
   options: { emaPeriod?: number; sumPeriod?: number } = {},
-  warmUpOptions?: WarmUpOptions<MassIndexState>,
-): IncrementalIndicator<number | null, MassIndexState> {
-  const emaPeriod = options.emaPeriod ?? 9;
-  const sumPeriod = options.sumPeriod ?? 25;
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<MassIndexState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<number | null, IndicatorSnapshot<MassIndexState>> {
+  const { params, state } = resolveResume<MassIndexParams, MassIndexState>({
+    indicator: "massIndex",
+    version: MASS_INDEX_VERSION,
+    category: "mixed",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { emaPeriod: 9, sumPeriod: 25 },
+  });
+
+  const emaPeriod = requireParam(
+    "massIndex",
+    params,
+    "emaPeriod",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
+  const sumPeriod = requireParam(
+    "massIndex",
+    params,
+    "sumPeriod",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
 
   let ema1: ReturnType<typeof createEma>;
   let ema2: ReturnType<typeof createEma>;
@@ -60,13 +95,12 @@ export function createMassIndex(
   let ratioSum: number;
   let count: number;
 
-  if (warmUpOptions?.fromState) {
-    const s = warmUpOptions.fromState;
-    ema1 = createEma({ period: emaPeriod }, { fromState: s.ema1State });
-    ema2 = createEma({ period: emaPeriod }, { fromState: s.ema2State });
-    ratioBuffer = CircularBuffer.fromSnapshot(s.ratioBuffer);
-    ratioSum = s.ratioSum;
-    count = s.count;
+  if (state !== null) {
+    ema1 = createEma({ period: emaPeriod }, { fromState: state.ema1State });
+    ema2 = createEma({ period: emaPeriod }, { fromState: state.ema2State });
+    ratioBuffer = CircularBuffer.fromSnapshot(state.ratioBuffer);
+    ratioSum = state.ratioSum;
+    count = state.count;
   } else {
     ema1 = createEma({ period: emaPeriod });
     ema2 = createEma({ period: emaPeriod });
@@ -75,7 +109,7 @@ export function createMassIndex(
     count = 0;
   }
 
-  const indicator: IncrementalIndicator<number | null, MassIndexState> = {
+  const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<MassIndexState>> = {
     next(candle: NormalizedCandle) {
       count++;
 
@@ -133,16 +167,19 @@ export function createMassIndex(
       return { time: candle.time, value: null };
     },
 
-    getState(): MassIndexState {
-      return {
-        emaPeriod,
-        sumPeriod,
-        ema1State: ema1.getState(),
-        ema2State: ema2.getState(),
-        ratioBuffer: ratioBuffer.snapshot(),
-        ratioSum,
-        count,
-      };
+    getState(): IndicatorSnapshot<MassIndexState> {
+      return makeSnapshot(
+        "massIndex",
+        MASS_INDEX_VERSION,
+        { emaPeriod, sumPeriod },
+        {
+          ema1State: ema1.getState(),
+          ema2State: ema2.getState(),
+          ratioBuffer: ratioBuffer.snapshot(),
+          ratioSum,
+          count,
+        },
+      );
     },
 
     get count() {

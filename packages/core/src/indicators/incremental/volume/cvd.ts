@@ -1,6 +1,20 @@
 /**
  * Incremental CVD (Cumulative Volume Delta)
  *
+ * State category: **Recursive** (`cumDelta` is a cumulative
+ * buy/sell-pressure accumulator; no raw-price window).
+ *
+ * Migrated to the 0.4.0 State Contract: `getState()` returns
+ * `IndicatorSnapshot<CvdState>` and `fromState` accepts the same.
+ * The factory signature now takes `(options, warmUpOptions)` to match
+ * the rest of the library; previous direct callers that used the
+ * single-argument form (`createCvd({ fromState })` or
+ * `createCvd({ warmUp })`) must add an empty options object:
+ * `createCvd({}, { fromState })` / `createCvd({}, { warmUp })`.
+ *
+ * Reconfig policy: CVD has no parameters, so meta.params is always
+ * `{}` and structural reconfig is impossible.
+ *
  * Estimates buying and selling pressure from OHLCV data.
  * buyVol = volume * (close - low) / (high - low)
  * sellVol = volume - buyVol
@@ -9,12 +23,22 @@
  */
 
 import type { NormalizedCandle } from "../../../types";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import { type IndicatorSnapshot, makeSnapshot, resolveResume } from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 
+/**
+ * Bare state shape for CVD. CVD is parameter-less, so `meta.params`
+ * is always `{}` and no params live here.
+ */
 export type CvdState = {
   cumDelta: number;
   count: number;
 };
+
+/** Per-indicator schema version. Bumped on any breaking state change. */
+export const CVD_VERSION = 1;
+
+type CvdParams = Record<string, never>;
 
 /**
  * Create an incremental CVD indicator
@@ -29,15 +53,27 @@ export type CvdState = {
  * ```
  */
 export function createCvd(
-  warmUpOptions?: WarmUpOptions<CvdState>,
-): IncrementalIndicator<number, CvdState> {
+  options: Record<string, never> = {},
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<CvdState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<number, IndicatorSnapshot<CvdState>> {
+  const { state } = resolveResume<CvdParams, CvdState>({
+    indicator: "cvd",
+    version: CVD_VERSION,
+    category: "recursive",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: {},
+  });
+
   let cumDelta: number;
   let count: number;
 
-  if (warmUpOptions?.fromState) {
-    const s = warmUpOptions.fromState;
-    cumDelta = s.cumDelta;
-    count = s.count;
+  if (state !== null) {
+    cumDelta = state.cumDelta;
+    count = state.count;
   } else {
     cumDelta = 0;
     count = 0;
@@ -51,7 +87,7 @@ export function createCvd(
     return buyVol - sellVol;
   }
 
-  const indicator: IncrementalIndicator<number, CvdState> = {
+  const indicator: IncrementalIndicator<number, IndicatorSnapshot<CvdState>> = {
     next(candle: NormalizedCandle) {
       count++;
       cumDelta += computeDelta(candle);
@@ -62,8 +98,8 @@ export function createCvd(
       return { time: candle.time, value: cumDelta + computeDelta(candle) };
     },
 
-    getState(): CvdState {
-      return { cumDelta, count };
+    getState(): IndicatorSnapshot<CvdState> {
+      return makeSnapshot("cvd", CVD_VERSION, {}, { cumDelta, count });
     },
 
     get count() {

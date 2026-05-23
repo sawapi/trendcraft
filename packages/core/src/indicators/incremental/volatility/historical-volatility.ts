@@ -5,22 +5,46 @@
  * Uses sample variance (divides by N-1) for statistical correctness.
  *
  * Formula: HV = sqrt(variance(logReturns) * annualFactor) * 100
+ *
+ * State category: **Windowed** (a fixed-size log-return buffer plus
+ * running `sum` / `sumSq` and the recursive `prevPrice` needed to form
+ * the next return). Resume with a different `period` carries the
+ * return buffer forward; `source` change is refused. `annualFactor` is
+ * a resume-invariant param.
+ *
+ * Migrated to the 0.4.0 State Contract.
  */
 
 import type { NormalizedCandle, PriceSource } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import {
+  type IndicatorSnapshot,
+  makeSnapshot,
+  requireParam,
+  resolveResume,
+} from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 import { getSourcePrice } from "../utils";
 
+/**
+ * Bare state shape for Historical Volatility. Params (`period`,
+ * `annualFactor`, `source`) live in `meta.params` on the wire.
+ */
 export type HistoricalVolatilityState = {
-  period: number;
-  annualFactor: number;
-  source: PriceSource;
   buffer: ReturnType<CircularBuffer<number>["snapshot"]>;
   sum: number;
   sumSq: number;
   prevPrice: number | null;
   count: number;
+};
+
+/** Per-indicator schema version. Bumped on any breaking state change. */
+export const HISTORICAL_VOLATILITY_VERSION = 1;
+
+type HistoricalVolatilityParams = {
+  period: number;
+  annualFactor: number;
+  source: PriceSource;
 };
 
 /**
@@ -37,11 +61,33 @@ export type HistoricalVolatilityState = {
  */
 export function createHistoricalVolatility(
   options: { period?: number; annualFactor?: number; source?: PriceSource } = {},
-  warmUpOptions?: WarmUpOptions<HistoricalVolatilityState>,
-): IncrementalIndicator<number | null, HistoricalVolatilityState> {
-  const period = options.period ?? 20;
-  const annualFactor = options.annualFactor ?? 252;
-  const source: PriceSource = options.source ?? "close";
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<HistoricalVolatilityState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<number | null, IndicatorSnapshot<HistoricalVolatilityState>> {
+  const { params, state, reconfigured } = resolveResume<
+    HistoricalVolatilityParams,
+    HistoricalVolatilityState
+  >({
+    indicator: "historicalVolatility",
+    version: HISTORICAL_VOLATILITY_VERSION,
+    category: "windowed",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { period: 20, annualFactor: 252, source: "close" },
+    resumeInvariantParams: ["annualFactor"],
+  });
+
+  const period = requireParam(
+    "historicalVolatility",
+    params,
+    "period",
+    (v): v is number => Number.isInteger(v) && v >= 2,
+    "must be an integer >= 2",
+  );
+  const annualFactor = params.annualFactor;
+  const source = params.source;
 
   let buffer: CircularBuffer<number>;
   let sum: number;
@@ -49,13 +95,30 @@ export function createHistoricalVolatility(
   let prevPrice: number | null;
   let count: number;
 
-  if (warmUpOptions?.fromState) {
-    const s = warmUpOptions.fromState;
-    buffer = CircularBuffer.fromSnapshot(s.buffer);
-    sum = s.sum;
-    sumSq = s.sumSq;
-    prevPrice = s.prevPrice;
-    count = s.count;
+  if (state !== null) {
+    if (reconfigured) {
+      // Period changed — carry the log-return buffer forward and
+      // recompute the running sums against the new window.
+      const old = CircularBuffer.fromSnapshot(state.buffer);
+      buffer = new CircularBuffer<number>(period);
+      const carry = Math.min(old.length, period);
+      for (let i = old.length - carry; i < old.length; i++) {
+        buffer.push(old.get(i));
+      }
+      sum = 0;
+      sumSq = 0;
+      for (let i = 0; i < buffer.length; i++) {
+        const v = buffer.get(i);
+        sum += v;
+        sumSq += v * v;
+      }
+    } else {
+      buffer = CircularBuffer.fromSnapshot(state.buffer);
+      sum = state.sum;
+      sumSq = state.sumSq;
+    }
+    prevPrice = state.prevPrice;
+    count = state.count;
   } else {
     buffer = new CircularBuffer<number>(period);
     sum = 0;
@@ -70,7 +133,10 @@ export function createHistoricalVolatility(
     return Math.sqrt(Math.max(0, variance) * annualFactor) * 100;
   }
 
-  const indicator: IncrementalIndicator<number | null, HistoricalVolatilityState> = {
+  const indicator: IncrementalIndicator<
+    number | null,
+    IndicatorSnapshot<HistoricalVolatilityState>
+  > = {
     next(candle: NormalizedCandle) {
       count++;
       const price = getSourcePrice(candle, source);
@@ -136,17 +202,13 @@ export function createHistoricalVolatility(
       return { time: candle.time, value: computeOutput(peekSum, peekSumSq, period) };
     },
 
-    getState(): HistoricalVolatilityState {
-      return {
-        period,
-        annualFactor,
-        source,
-        buffer: buffer.snapshot(),
-        sum,
-        sumSq,
-        prevPrice,
-        count,
-      };
+    getState(): IndicatorSnapshot<HistoricalVolatilityState> {
+      return makeSnapshot(
+        "historicalVolatility",
+        HISTORICAL_VOLATILITY_VERSION,
+        { period, annualFactor, source },
+        { buffer: buffer.snapshot(), sum, sumSq, prevPrice, count },
+      );
     },
 
     get count() {

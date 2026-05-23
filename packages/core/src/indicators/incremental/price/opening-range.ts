@@ -3,10 +3,19 @@
  *
  * Tracks the opening range high/low during the first N minutes of a session,
  * then detects breakouts above or below the established range.
+ *
+ * State category: **Mixed** (a session-scoped accumulator: the current
+ * session's running high/low and the derived `orDurationMs` / reset
+ * rule are all conditioned on construction-time params). Resume with a
+ * different `minutes` / `sessionResetPeriod` would silently re-time or
+ * restart the in-flight session, so any param change is refused.
+ *
+ * Migrated to the 0.4.0 State Contract.
  */
 
 import type { NormalizedCandle } from "../../../types";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import { type IndicatorSnapshot, makeSnapshot, resolveResume } from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 
 export type OpeningRangeValue = {
   /** Opening range high, null until first bar */
@@ -17,16 +26,33 @@ export type OpeningRangeValue = {
   breakout: "above" | "below" | null;
 };
 
+/**
+ * Bare state shape for Opening Range. Params (`minutes`,
+ * `sessionResetPeriod`) live in `meta.params` on the wire.
+ */
 export type OpeningRangeState = {
   sessionStartTime: number | null;
   sessionStartBarIndex: number;
   orHigh: number | null;
   orLow: number | null;
   orEstablished: boolean;
+  /**
+   * Sticky flag: `true` once any session's opening range has been
+   * established. `orEstablished` resets per session, but the
+   * indicator's overall warm-up is a one-way latch — this drives the
+   * monotonic `isWarmedUp` getter.
+   */
+  everEstablished: boolean;
   lastDayIndex: number;
+  count: number;
+};
+
+/** Per-indicator schema version. Bumped on any breaking state change. */
+export const OPENING_RANGE_VERSION = 1;
+
+type OpeningRangeParams = {
   minutes: number;
   sessionResetPeriod: "day" | number;
-  count: number;
 };
 
 const nullValue: OpeningRangeValue = { high: null, low: null, breakout: null };
@@ -78,10 +104,22 @@ function isNewSession(
  */
 export function createOpeningRange(
   options: { minutes?: number; sessionResetPeriod?: "day" | number } = {},
-  warmUpOptions?: WarmUpOptions<OpeningRangeState>,
-): IncrementalIndicator<OpeningRangeValue, OpeningRangeState> {
-  const minutes = options.minutes ?? 30;
-  const sessionResetPeriod = options.sessionResetPeriod ?? "day";
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<OpeningRangeState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<OpeningRangeValue, IndicatorSnapshot<OpeningRangeState>> {
+  const { params, state } = resolveResume<OpeningRangeParams, OpeningRangeState>({
+    indicator: "openingRange",
+    version: OPENING_RANGE_VERSION,
+    category: "mixed",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { minutes: 30, sessionResetPeriod: "day" },
+  });
+
+  const minutes = params.minutes;
+  const sessionResetPeriod = params.sessionResetPeriod;
   const orDurationMs = minutes * 60 * 1000;
 
   let sessionStartTime: number | null;
@@ -89,24 +127,26 @@ export function createOpeningRange(
   let orHigh: number | null;
   let orLow: number | null;
   let orEstablished: boolean;
+  let everEstablished: boolean;
   let lastDayIndex: number;
   let count: number;
 
-  if (warmUpOptions?.fromState) {
-    const s = warmUpOptions.fromState;
-    sessionStartTime = s.sessionStartTime;
-    sessionStartBarIndex = s.sessionStartBarIndex;
-    orHigh = s.orHigh;
-    orLow = s.orLow;
-    orEstablished = s.orEstablished;
-    lastDayIndex = s.lastDayIndex;
-    count = s.count;
+  if (state !== null) {
+    sessionStartTime = state.sessionStartTime;
+    sessionStartBarIndex = state.sessionStartBarIndex;
+    orHigh = state.orHigh;
+    orLow = state.orLow;
+    orEstablished = state.orEstablished;
+    everEstablished = state.everEstablished ?? state.orEstablished;
+    lastDayIndex = state.lastDayIndex;
+    count = state.count;
   } else {
     sessionStartTime = null;
     sessionStartBarIndex = 0;
     orHigh = null;
     orLow = null;
     orEstablished = false;
+    everEstablished = false;
     lastDayIndex = 0;
     count = 0;
   }
@@ -128,7 +168,7 @@ export function createOpeningRange(
     return { high: h, low: l, breakout };
   }
 
-  const indicator: IncrementalIndicator<OpeningRangeValue, OpeningRangeState> = {
+  const indicator: IncrementalIndicator<OpeningRangeValue, IndicatorSnapshot<OpeningRangeState>> = {
     next(candle: NormalizedCandle) {
       count++;
 
@@ -160,6 +200,7 @@ export function createOpeningRange(
         }
         // OR period just ended
         orEstablished = true;
+        everEstablished = true;
       }
 
       return { time: candle.time, value: computeValue(candle, orHigh, orLow, orEstablished) };
@@ -192,18 +233,22 @@ export function createOpeningRange(
       return { time: candle.time, value: computeValue(candle, orHigh, orLow, orEstablished) };
     },
 
-    getState(): OpeningRangeState {
-      return {
-        sessionStartTime,
-        sessionStartBarIndex,
-        orHigh,
-        orLow,
-        orEstablished,
-        lastDayIndex,
-        minutes,
-        sessionResetPeriod,
-        count,
-      };
+    getState(): IndicatorSnapshot<OpeningRangeState> {
+      return makeSnapshot(
+        "openingRange",
+        OPENING_RANGE_VERSION,
+        { minutes, sessionResetPeriod },
+        {
+          sessionStartTime,
+          sessionStartBarIndex,
+          orHigh,
+          orLow,
+          orEstablished,
+          everEstablished,
+          lastDayIndex,
+          count,
+        },
+      );
     },
 
     get count() {
@@ -211,7 +256,10 @@ export function createOpeningRange(
     },
 
     get isWarmedUp() {
-      return orEstablished;
+      // Monotonic: once any session's opening range has been
+      // established the indicator is considered warmed up, even though
+      // `orEstablished` itself resets at each new session.
+      return everEstablished;
     },
   };
 

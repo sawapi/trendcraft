@@ -9,12 +9,24 @@
  *
  * The non-leading EMA stages skip null inputs and seed from the first
  * `period` consecutive non-null upstream samples (matches batch trix()).
+ *
+ * State category: **Cascaded** (one leading createEma stage plus three
+ * internal null-propagating EMA stages, all conditioned on
+ * construction-time periods). Resume with different periods is refused.
+ *
+ * Migrated to the 0.4.0 State Contract.
  */
 
 import type { NormalizedCandle } from "../../../types";
 import type { EmaState } from "../moving-average/ema";
 import { createEma } from "../moving-average/ema";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import {
+  type IndicatorSnapshot,
+  makeSnapshot,
+  requireParam,
+  resolveResume,
+} from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 
 export type TrixValue = {
   trix: number | null;
@@ -76,14 +88,19 @@ function makeNullEma(period: number, fromState?: NullEmaState) {
 }
 
 export type TrixState = {
-  period: number;
-  signalPeriod: number;
-  ema1State: EmaState;
+  ema1State: IndicatorSnapshot<EmaState>;
   ema2State: NullEmaState;
   ema3State: NullEmaState;
   signalState: NullEmaState;
   prevEma3: number | null;
   count: number;
+};
+
+export const TRIX_VERSION = 1;
+
+type TrixParams = {
+  period: number;
+  signalPeriod: number;
 };
 
 /**
@@ -100,10 +117,34 @@ export type TrixState = {
  */
 export function createTrix(
   options: { period?: number; signalPeriod?: number } = {},
-  warmUpOptions?: WarmUpOptions<TrixState>,
-): IncrementalIndicator<TrixValue, TrixState> {
-  const period = options.period ?? 15;
-  const signalPeriod = options.signalPeriod ?? 9;
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<TrixState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<TrixValue, IndicatorSnapshot<TrixState>> {
+  const { params, state } = resolveResume<TrixParams, TrixState>({
+    indicator: "trix",
+    version: TRIX_VERSION,
+    category: "cascaded",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { period: 15, signalPeriod: 9 },
+  });
+
+  const period = requireParam(
+    "trix",
+    params,
+    "period",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
+  const signalPeriod = requireParam(
+    "trix",
+    params,
+    "signalPeriod",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
 
   let ema1: ReturnType<typeof createEma>;
   let ema2: ReturnType<typeof makeNullEma>;
@@ -112,14 +153,13 @@ export function createTrix(
   let prevEma3: number | null;
   let count: number;
 
-  if (warmUpOptions?.fromState) {
-    const s = warmUpOptions.fromState;
-    ema1 = createEma({ period }, { fromState: s.ema1State });
-    ema2 = makeNullEma(period, s.ema2State);
-    ema3 = makeNullEma(period, s.ema3State);
-    signalEma = makeNullEma(signalPeriod, s.signalState);
-    prevEma3 = s.prevEma3;
-    count = s.count;
+  if (state !== null) {
+    ema1 = createEma({ period }, { fromState: state.ema1State });
+    ema2 = makeNullEma(period, state.ema2State);
+    ema3 = makeNullEma(period, state.ema3State);
+    signalEma = makeNullEma(signalPeriod, state.signalState);
+    prevEma3 = state.prevEma3;
+    count = state.count;
   } else {
     ema1 = createEma({ period });
     ema2 = makeNullEma(period);
@@ -129,7 +169,7 @@ export function createTrix(
     count = 0;
   }
 
-  const indicator: IncrementalIndicator<TrixValue, TrixState> = {
+  const indicator: IncrementalIndicator<TrixValue, IndicatorSnapshot<TrixState>> = {
     next(candle: NormalizedCandle) {
       count++;
 
@@ -165,17 +205,20 @@ export function createTrix(
       return { time: candle.time, value: { trix: trixVal, signal: signalVal } };
     },
 
-    getState(): TrixState {
-      return {
-        period,
-        signalPeriod,
-        ema1State: ema1.getState(),
-        ema2State: ema2.getState(),
-        ema3State: ema3.getState(),
-        signalState: signalEma.getState(),
-        prevEma3,
-        count,
-      };
+    getState(): IndicatorSnapshot<TrixState> {
+      return makeSnapshot(
+        "trix",
+        TRIX_VERSION,
+        { period, signalPeriod },
+        {
+          ema1State: ema1.getState(),
+          ema2State: ema2.getState(),
+          ema3State: ema3.getState(),
+          signalState: signalEma.getState(),
+          prevEma3,
+          count,
+        },
+      );
     },
 
     get count() {

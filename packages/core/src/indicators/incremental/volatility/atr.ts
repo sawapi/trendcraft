@@ -2,17 +2,40 @@
  * Incremental ATR (Average True Range)
  *
  * Uses Wilder's smoothing method for consistency with batch implementation.
+ *
+ * State category: **Recursive** (`atr` is the recursive accumulator;
+ * `trSum` is the warmup tally baked into the first ATR at
+ * `count === period + 1`). Resume with a different `period` is
+ * mathematically undefined and refused.
+ *
+ * Migrated to the 0.4.0 State Contract: `getState()` returns
+ * `IndicatorSnapshot<AtrState>` and `fromState` accepts the same.
  */
 
 import type { NormalizedCandle } from "../../../types";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import {
+  type IndicatorSnapshot,
+  makeSnapshot,
+  requireParam,
+  resolveResume,
+} from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 
+/**
+ * Bare state shape for ATR. Param (`period`) lives in `meta.params`.
+ */
 export type AtrState = {
-  period: number;
   prevClose: number | null;
   atr: number | null;
   trSum: number;
   count: number;
+};
+
+/** Per-indicator schema version. Bumped on any breaking state change. */
+export const ATR_VERSION = 1;
+
+type AtrParams = {
+  period: number;
 };
 
 /**
@@ -29,21 +52,38 @@ export type AtrState = {
  */
 export function createAtr(
   options: { period?: number } = {},
-  warmUpOptions?: WarmUpOptions<AtrState>,
-): IncrementalIndicator<number | null, AtrState> {
-  const period = options.period ?? 14;
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<AtrState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<number | null, IndicatorSnapshot<AtrState>> {
+  const { params, state } = resolveResume<AtrParams, AtrState>({
+    indicator: "atr",
+    version: ATR_VERSION,
+    category: "recursive",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { period: 14 },
+  });
+
+  const period = requireParam(
+    "atr",
+    params,
+    "period",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
 
   let prevClose: number | null;
   let atrValue: number | null;
   let trSum: number;
   let count: number;
 
-  if (warmUpOptions?.fromState) {
-    const s = warmUpOptions.fromState;
-    prevClose = s.prevClose;
-    atrValue = s.atr;
-    trSum = s.trSum;
-    count = s.count;
+  if (state !== null) {
+    prevClose = state.prevClose;
+    atrValue = state.atr;
+    trSum = state.trSum;
+    count = state.count;
   } else {
     prevClose = null;
     atrValue = null;
@@ -59,7 +99,7 @@ export function createAtr(
     );
   }
 
-  const indicator: IncrementalIndicator<number | null, AtrState> = {
+  const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<AtrState>> = {
     next(candle: NormalizedCandle) {
       count++;
 
@@ -107,8 +147,13 @@ export function createAtr(
       return { time: candle.time, value: peekAtr };
     },
 
-    getState(): AtrState {
-      return { period, prevClose, atr: atrValue, trSum, count };
+    getState(): IndicatorSnapshot<AtrState> {
+      return makeSnapshot(
+        "atr",
+        ATR_VERSION,
+        { period },
+        { prevClose, atr: atrValue, trSum, count },
+      );
     },
 
     get count() {

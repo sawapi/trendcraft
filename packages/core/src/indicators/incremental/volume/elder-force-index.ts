@@ -4,19 +4,33 @@
  * Tracks both short-period (entry timing) and long-period (trend bias)
  * EMAs of raw FI(1) = `(close − prevClose) * volume` in lockstep, the
  * canonical Elder pairing.
+ *
+ * State category: **Cascaded** (two recursive EMA stages, each
+ * permanently conditioned on its construction-time period). Resume
+ * with a different `shortPeriod` / `longPeriod` is refused.
+ *
+ * Migrated to the 0.4.0 State Contract.
  */
 
 import type { NormalizedCandle } from "../../../types";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import {
+  type IndicatorSnapshot,
+  makeSnapshot,
+  requireParam,
+  resolveResume,
+} from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 
 export type ElderForceIndexValue = {
   short: number | null;
   long: number | null;
 };
 
+/**
+ * Bare state shape for Elder's Force Index. Params (`shortPeriod`,
+ * `longPeriod`) live in `meta.params`.
+ */
 export type ElderForceIndexState = {
-  shortPeriod: number;
-  longPeriod: number;
   prevClose: number | null;
   shortEma: number | null;
   longEma: number | null;
@@ -24,6 +38,14 @@ export type ElderForceIndexState = {
   shortSum: number;
   longSum: number;
   count: number;
+};
+
+/** Per-indicator schema version. Bumped on any breaking state change. */
+export const ELDER_FORCE_INDEX_VERSION = 1;
+
+type ElderForceIndexParams = {
+  shortPeriod: number;
+  longPeriod: number;
 };
 
 /**
@@ -43,23 +65,34 @@ export type ElderForceIndexState = {
  */
 export function createElderForceIndex(
   options: { shortPeriod?: number; longPeriod?: number } = {},
-  warmUpOptions?: WarmUpOptions<ElderForceIndexState>,
-): IncrementalIndicator<ElderForceIndexValue, ElderForceIndexState> {
-  // Resume order: explicit option > persisted state > canonical default.
-  // Reading the snapshot first is critical — a state captured under
-  // custom periods (e.g. shortPeriod=5, longPeriod=20) would otherwise
-  // silently switch to 2 / 13 mid-stream after restore, producing a
-  // discontinuous EMA. Explicit options still win for callers that
-  // intentionally re-parameterize on resume.
-  const shortPeriod = options.shortPeriod ?? warmUpOptions?.fromState?.shortPeriod ?? 2;
-  const longPeriod = options.longPeriod ?? warmUpOptions?.fromState?.longPeriod ?? 13;
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<ElderForceIndexState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<ElderForceIndexValue, IndicatorSnapshot<ElderForceIndexState>> {
+  const { params, state } = resolveResume<ElderForceIndexParams, ElderForceIndexState>({
+    indicator: "elderForceIndex",
+    version: ELDER_FORCE_INDEX_VERSION,
+    category: "cascaded",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { shortPeriod: 2, longPeriod: 13 },
+  });
 
-  if (shortPeriod < 1) {
-    throw new Error("Elder Force Index shortPeriod must be at least 1");
-  }
-  if (longPeriod < 1) {
-    throw new Error("Elder Force Index longPeriod must be at least 1");
-  }
+  const shortPeriod = requireParam(
+    "elderForceIndex",
+    params,
+    "shortPeriod",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
+  const longPeriod = requireParam(
+    "elderForceIndex",
+    params,
+    "longPeriod",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
 
   const shortMultiplier = 2 / (shortPeriod + 1);
   const longMultiplier = 2 / (longPeriod + 1);
@@ -71,32 +104,13 @@ export function createElderForceIndex(
   let longSum: number;
   let count: number;
 
-  const fs = warmUpOptions?.fromState ?? null;
-  const periodsMatchSnapshot =
-    fs !== null && fs.shortPeriod === shortPeriod && fs.longPeriod === longPeriod;
-
-  if (fs !== null && periodsMatchSnapshot) {
-    // Full restore — same periods, all EMA state is mathematically valid.
-    prevClose = fs.prevClose;
-    shortEma = fs.shortEma;
-    longEma = fs.longEma;
-    shortSum = fs.shortSum;
-    longSum = fs.longSum;
-    count = fs.count;
-  } else if (fs !== null) {
-    // The caller resumed with explicit periods that differ from the
-    // snapshot — intentional re-parameterization. The previous EMA /
-    // sum / count were accumulated under the old multipliers and can't
-    // be reused; replaying them with new multipliers would produce a
-    // mathematically incorrect series. Reset the EMA state and let the
-    // new periods warm up from scratch. We keep `prevClose` so the
-    // first raw-force computation after resume is still correct.
-    prevClose = fs.prevClose;
-    shortEma = null;
-    longEma = null;
-    shortSum = 0;
-    longSum = 0;
-    count = 0;
+  if (state !== null) {
+    prevClose = state.prevClose;
+    shortEma = state.shortEma;
+    longEma = state.longEma;
+    shortSum = state.shortSum;
+    longSum = state.longSum;
+    count = state.count;
   } else {
     prevClose = null;
     shortEma = null;
@@ -133,7 +147,10 @@ export function createElderForceIndex(
     return { ema: raw * multiplier + (prev ?? 0) * (1 - multiplier), sum };
   }
 
-  const indicator: IncrementalIndicator<ElderForceIndexValue, ElderForceIndexState> = {
+  const indicator: IncrementalIndicator<
+    ElderForceIndexValue,
+    IndicatorSnapshot<ElderForceIndexState>
+  > = {
     next(candle: NormalizedCandle) {
       const raw = computeRawForce(candle);
       count++;
@@ -173,17 +190,20 @@ export function createElderForceIndex(
       };
     },
 
-    getState(): ElderForceIndexState {
-      return {
-        shortPeriod,
-        longPeriod,
-        prevClose,
-        shortEma,
-        longEma,
-        shortSum,
-        longSum,
-        count,
-      };
+    getState(): IndicatorSnapshot<ElderForceIndexState> {
+      return makeSnapshot(
+        "elderForceIndex",
+        ELDER_FORCE_INDEX_VERSION,
+        { shortPeriod, longPeriod },
+        {
+          prevClose,
+          shortEma,
+          longEma,
+          shortSum,
+          longSum,
+          count,
+        },
+      );
     },
 
     get count() {

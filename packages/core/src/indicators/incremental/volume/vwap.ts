@@ -1,12 +1,30 @@
 /**
  * Incremental VWAP (Volume Weighted Average Price)
  *
+ * State category: **Recursive** (cumulative TPV / volume accumulators
+ * with daily session-boundary resets — no raw-price window to carry
+ * forward across a parameter change). VWAP itself takes no parameters,
+ * so reconfig is structurally impossible; the recursive category is
+ * the semantically correct slot.
+ *
+ * Migrated to the 0.4.0 State Contract: `getState()` returns
+ * `IndicatorSnapshot<VwapState>` and `fromState` accepts the same.
+ * The factory signature now takes `(options, warmUpOptions)` to match
+ * the rest of the library; previous direct callers that used the
+ * single-argument form (`createVwap({ fromState })`) must add an empty
+ * options object: `createVwap({}, { fromState })`.
+ *
  * Session-based VWAP with daily reset (simplified for incremental use).
  */
 
 import type { NormalizedCandle } from "../../../types";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import { type IndicatorSnapshot, makeSnapshot, resolveResume } from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 
+/**
+ * Bare state shape for VWAP. VWAP has no params, so `meta.params` is
+ * always `{}` on the wire.
+ */
 export type VwapState = {
   cumulativeTpv: number;
   cumulativeVolume: number;
@@ -17,6 +35,9 @@ export type VwapState = {
 export type VwapValue = {
   vwap: number | null;
 };
+
+/** Per-indicator schema version. Bump on any breaking state change. */
+export const VWAP_VERSION = 1;
 
 const MS_PER_DAY = 86400000;
 
@@ -33,19 +54,31 @@ const MS_PER_DAY = 86400000;
  * ```
  */
 export function createVwap(
-  warmUpOptions?: WarmUpOptions<VwapState>,
-): IncrementalIndicator<VwapValue, VwapState> {
+  _options: Record<string, never> = {},
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<VwapState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<VwapValue, IndicatorSnapshot<VwapState>> {
+  const { state } = resolveResume<Record<string, never>, VwapState>({
+    indicator: "vwap",
+    version: VWAP_VERSION,
+    category: "recursive",
+    options: _options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: {},
+  });
+
   let cumulativeTpv: number;
   let cumulativeVolume: number;
   let count: number;
   let currentDay: number;
 
-  if (warmUpOptions?.fromState) {
-    const s = warmUpOptions.fromState;
-    cumulativeTpv = s.cumulativeTpv;
-    cumulativeVolume = s.cumulativeVolume;
-    count = s.count;
-    currentDay = s.currentDay;
+  if (state !== null) {
+    cumulativeTpv = state.cumulativeTpv;
+    cumulativeVolume = state.cumulativeVolume;
+    count = state.count;
+    currentDay = state.currentDay;
   } else {
     cumulativeTpv = 0;
     cumulativeVolume = 0;
@@ -71,7 +104,7 @@ export function createVwap(
     return { vwap };
   }
 
-  const indicator: IncrementalIndicator<VwapValue, VwapState> = {
+  const indicator: IncrementalIndicator<VwapValue, IndicatorSnapshot<VwapState>> = {
     next(candle: NormalizedCandle) {
       count++;
       const value = processCandle(candle);
@@ -96,8 +129,13 @@ export function createVwap(
       return { time: candle.time, value: { vwap } };
     },
 
-    getState(): VwapState {
-      return { cumulativeTpv, cumulativeVolume, count, currentDay };
+    getState(): IndicatorSnapshot<VwapState> {
+      return makeSnapshot(
+        "vwap",
+        VWAP_VERSION,
+        {},
+        { cumulativeTpv, cumulativeVolume, count, currentDay },
+      );
     },
 
     get count() {

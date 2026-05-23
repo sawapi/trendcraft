@@ -209,11 +209,13 @@ describe("Ulcer Index incremental", () => {
     }
   });
 
-  it("legacy single-buffer state snapshot is rejected with a clear error", () => {
-    // Snapshot produced by the pre-canonical (single-buffer) code path
-    // that shipped in earlier versions. Restoring it under the new
-    // two-stage formula would silently produce wrong values, so the
-    // factory must throw a recognizable error instead.
+  it("pre-0.4.0 bare-state snapshot is rejected by the State Contract", () => {
+    // A pre-0.4.0 snapshot is bare state without the `meta` envelope.
+    // Includes the now-removed single-buffer field as well — both
+    // shapes flunk the same missing-meta check in resolveResume.
+    // The dedicated translation shim that used to live inside
+    // createUlcerIndex was removed: per-indicator guards aren't added;
+    // resolveResume handles legacy snapshots centrally.
     const legacyState = {
       period: 14,
       source: "close" as const,
@@ -221,7 +223,7 @@ describe("Ulcer Index incremental", () => {
       count: 3,
     };
     expect(() => createUlcerIndex({ period: 14 }, { fromState: legacyState as never })).toThrow(
-      /legacy state snapshot/i,
+      /incompatible snapshot|pre-0\.4\.0/i,
     );
   });
 });
@@ -252,13 +254,20 @@ describe("EWMA Volatility incremental", () => {
     }
   });
 
-  it("produces non-null values after warmup", () => {
+  it("emits null during seeding and produces non-null once seed completes", () => {
+    // Default seedSize=10 — need 10 returns (= 11 candles) before the
+    // first stable sample-variance estimate is emitted.
     const ind = createEwmaVolatility({ lambda: 0.94 });
-    // First candle: no return yet
-    expect(ind.next(candles[0]).value).toBeNull();
-    // Second candle: first return
-    const v = ind.next(candles[1]).value;
+    // Candle 0 has no return yet; candles 1..9 are mid-seed (9 returns).
+    for (let i = 0; i < 10; i++) {
+      expect(ind.next(candles[i]).value).toBeNull();
+    }
+    expect(ind.isWarmedUp).toBe(false);
+    // Candle 10 produces the 10th return — seed completes and the
+    // first non-null value is emitted alongside `isWarmedUp=true`.
+    const v = ind.next(candles[10]).value;
     expect(v).not.toBeNull();
     expect(v).toBeGreaterThan(0);
+    expect(ind.isWarmedUp).toBe(true);
   });
 });

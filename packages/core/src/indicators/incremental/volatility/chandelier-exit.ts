@@ -3,23 +3,43 @@
  *
  * Long Exit = Highest High (n) - ATR * Multiplier
  * Short Exit = Lowest Low (n) + ATR * Multiplier
+ *
+ * State category: **Mixed** (an inner recursive ATR snapshot, windowed
+ * high/low buffers, and a recursive `prevDirection`). `multiplier`
+ * feeds the exit levels that determine `direction`, which carries into
+ * `prevDirection`, so it is state-shaping — every param change on
+ * resume is refused.
+ *
+ * Migrated to the 0.4.0 State Contract.
  */
 
 import type { ChandelierExitValue, NormalizedCandle } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
-import type { AtrState } from "./atr";
-import { createAtr } from "./atr";
+import {
+  type IndicatorSnapshot,
+  makeSnapshot,
+  requireParam,
+  resolveResume,
+} from "../state-contract";
+import type { IncrementalIndicator } from "../types";
+import { type AtrState, createAtr } from "./atr";
 
 export type ChandelierExitState = {
-  period: number;
-  multiplier: number;
-  hlLookback: number;
-  atrState: AtrState;
+  atrState: IndicatorSnapshot<AtrState>;
   highBuffer: ReturnType<CircularBuffer<number>["snapshot"]>;
   lowBuffer: ReturnType<CircularBuffer<number>["snapshot"]>;
   prevDirection: 1 | -1 | 0;
   count: number;
+};
+
+/** Per-indicator schema version. Bumped on any breaking state change. */
+export const CHANDELIER_EXIT_VERSION = 1;
+
+type ChandelierExitParams = {
+  period: number;
+  multiplier: number;
+  /** Optional — falls back to `period` when omitted. */
+  lookback?: number;
 };
 
 /**
@@ -36,11 +56,47 @@ export type ChandelierExitState = {
  */
 export function createChandelierExit(
   options: { period?: number; multiplier?: number; lookback?: number } = {},
-  warmUpOptions?: WarmUpOptions<ChandelierExitState>,
-): IncrementalIndicator<ChandelierExitValue, ChandelierExitState> {
-  const period = options.period ?? 22;
-  const multiplier = options.multiplier ?? 3.0;
-  const hlLookback = options.lookback ?? period;
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<ChandelierExitState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<ChandelierExitValue, IndicatorSnapshot<ChandelierExitState>> {
+  // Pass the raw `options` to resolveResume — do not inject a resolved
+  // `lookback`. Injecting a default would make a resumed snapshot
+  // (which omits `lookback`) look like a state-shaping change and throw.
+  const { params, state } = resolveResume<ChandelierExitParams, ChandelierExitState>({
+    indicator: "chandelierExit",
+    version: CHANDELIER_EXIT_VERSION,
+    category: "mixed",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { period: 22, multiplier: 3.0 },
+  });
+
+  const period = requireParam(
+    "chandelierExit",
+    params,
+    "period",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
+  const multiplier = requireParam(
+    "chandelierExit",
+    params,
+    "multiplier",
+    (v): v is number => typeof v === "number" && Number.isFinite(v) && v > 0,
+    "must be a positive number",
+  );
+  // `lookback` has no canonical default — it falls back to `period`.
+  // Resolved AFTER resolveResume: a resumed snapshot keeps its saved
+  // `lookback` (recorded in `meta.params` by getState) because the raw
+  // options carry no injected default to diff against.
+  const hlLookback = params.lookback ?? period;
+  if (!Number.isInteger(hlLookback) || hlLookback < 1) {
+    throw new Error(
+      'chandelierExit: option "lookback" failed validation (must be a positive integer)',
+    );
+  }
 
   let atrIndicator: ReturnType<typeof createAtr>;
   let highBuffer: CircularBuffer<number>;
@@ -48,13 +104,12 @@ export function createChandelierExit(
   let prevDirection: 1 | -1 | 0;
   let count: number;
 
-  if (warmUpOptions?.fromState) {
-    const s = warmUpOptions.fromState;
-    atrIndicator = createAtr({ period }, { fromState: s.atrState });
-    highBuffer = CircularBuffer.fromSnapshot(s.highBuffer);
-    lowBuffer = CircularBuffer.fromSnapshot(s.lowBuffer);
-    prevDirection = s.prevDirection;
-    count = s.count;
+  if (state !== null) {
+    atrIndicator = createAtr({ period }, { fromState: state.atrState });
+    highBuffer = CircularBuffer.fromSnapshot(state.highBuffer);
+    lowBuffer = CircularBuffer.fromSnapshot(state.lowBuffer);
+    prevDirection = state.prevDirection;
+    count = state.count;
   } else {
     atrIndicator = createAtr({ period });
     highBuffer = new CircularBuffer<number>(hlLookback);
@@ -79,68 +134,10 @@ export function createChandelierExit(
     return min;
   }
 
-  function _computeValue(
-    candle: NormalizedCandle,
-    atrVal: number | null,
-    advance: boolean,
-  ): ChandelierExitValue {
-    const hh = highBuffer.length > 0 ? Math.max(getHighest(highBuffer), candle.high) : candle.high;
-    const ll = lowBuffer.length > 0 ? Math.min(getLowest(lowBuffer), candle.low) : candle.low;
-
-    // For peek: the buffers already include this candle for the `next` path
-    // For advance=true, we use post-push values; for peek we simulate
-    let highestHigh: number | null = null;
-    let lowestLow: number | null = null;
-
-    if (
-      count >= hlLookback - 1 ||
-      (advance && count + 1 >= hlLookback) ||
-      (!advance && count >= hlLookback - 1)
-    ) {
-      highestHigh = hh;
-      lowestLow = ll;
-    } else {
-      highestHigh = hh;
-      lowestLow = ll;
-    }
-
-    let longExit: number | null = null;
-    let shortExit: number | null = null;
-
-    if (atrVal !== null && highestHigh !== null && lowestLow !== null) {
-      const atrDist = atrVal * multiplier;
-      longExit = highestHigh - atrDist;
-      shortExit = lowestLow + atrDist;
-    }
-
-    let direction: 1 | -1 | 0 = 0;
-    if (longExit !== null && shortExit !== null) {
-      if (candle.close > longExit) {
-        direction = 1;
-      } else if (candle.close < shortExit) {
-        direction = -1;
-      } else {
-        direction = prevDirection !== 0 ? prevDirection : 1;
-      }
-    }
-
-    let isCrossover = false;
-    if (prevDirection !== 0 && direction !== 0 && prevDirection !== direction) {
-      isCrossover = true;
-    }
-
-    return {
-      longExit,
-      shortExit,
-      direction,
-      isCrossover,
-      highestHigh,
-      lowestLow,
-      atr: atrVal,
-    };
-  }
-
-  const indicator: IncrementalIndicator<ChandelierExitValue, ChandelierExitState> = {
+  const indicator: IncrementalIndicator<
+    ChandelierExitValue,
+    IndicatorSnapshot<ChandelierExitState>
+  > = {
     next(candle: NormalizedCandle) {
       count++;
       const atrResult = atrIndicator.next(candle);
@@ -263,17 +260,19 @@ export function createChandelierExit(
       };
     },
 
-    getState(): ChandelierExitState {
-      return {
-        period,
-        multiplier,
-        hlLookback,
-        atrState: atrIndicator.getState(),
-        highBuffer: highBuffer.snapshot(),
-        lowBuffer: lowBuffer.snapshot(),
-        prevDirection,
-        count,
-      };
+    getState(): IndicatorSnapshot<ChandelierExitState> {
+      return makeSnapshot(
+        "chandelierExit",
+        CHANDELIER_EXIT_VERSION,
+        { period, multiplier, lookback: hlLookback },
+        {
+          atrState: atrIndicator.getState(),
+          highBuffer: highBuffer.snapshot(),
+          lowBuffer: lowBuffer.snapshot(),
+          prevDirection,
+          count,
+        },
+      );
     },
 
     get count() {

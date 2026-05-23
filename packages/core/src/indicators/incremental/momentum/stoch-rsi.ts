@@ -8,11 +8,25 @@
  * 2. Apply Stochastic (min/max over lookback) to RSI
  * 3. Smooth with SMA for %K
  * 4. Smooth %K with SMA for %D
+ *
+ * State category: **Mixed** (an inline recursive RSI accumulator plus
+ * three windowed SMA buffers for the stochastic / %K / %D stages).
+ * Resume with different params is refused.
+ *
+ * Migrated to the 0.4.0 State Contract. The RSI stage is implemented
+ * inline (not via `createRsi`), so the bare state carries the RSI
+ * accumulators directly.
  */
 
 import type { NormalizedCandle, PriceSource } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import {
+  type IndicatorSnapshot,
+  makeSnapshot,
+  requireParam,
+  resolveResume,
+} from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 import { getSourcePrice } from "../utils";
 
 /**
@@ -25,13 +39,10 @@ export type StochRsiValue = {
 };
 
 /**
- * State for incremental StochRSI
+ * Bare state shape for StochRSI. Params (`rsiPeriod`, `stochPeriod`,
+ * `kPeriod`, `dPeriod`, `source`) live in `meta.params` on the wire.
  */
 export type StochRsiState = {
-  rsiPeriod: number;
-  stochPeriod: number;
-  kPeriod: number;
-  dPeriod: number;
   count: number;
   // RSI state
   prevClose: number | null;
@@ -51,6 +62,16 @@ export type StochRsiState = {
   kBuffer: ReturnType<CircularBuffer<number>["snapshot"]>;
   kSum: number;
   kValidCount: number;
+};
+
+export const STOCH_RSI_VERSION = 1;
+
+type StochRsiParams = {
+  rsiPeriod: number;
+  stochPeriod: number;
+  kPeriod: number;
+  dPeriod: number;
+  source: PriceSource;
 };
 
 /**
@@ -73,13 +94,49 @@ export function createStochRsi(
     dPeriod?: number;
     source?: PriceSource;
   } = {},
-  warmUpOptions?: WarmUpOptions<StochRsiState>,
-): IncrementalIndicator<StochRsiValue, StochRsiState> {
-  const rsiPeriod = options.rsiPeriod ?? 14;
-  const stochPeriod = options.stochPeriod ?? 14;
-  const kPeriod = options.kPeriod ?? 3;
-  const dPeriod = options.dPeriod ?? 3;
-  const source: PriceSource = options.source ?? "close";
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<StochRsiState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<StochRsiValue, IndicatorSnapshot<StochRsiState>> {
+  const { params, state } = resolveResume<StochRsiParams, StochRsiState>({
+    indicator: "stochRsi",
+    version: STOCH_RSI_VERSION,
+    category: "mixed",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { rsiPeriod: 14, stochPeriod: 14, kPeriod: 3, dPeriod: 3, source: "close" },
+  });
+
+  const rsiPeriod = requireParam(
+    "stochRsi",
+    params,
+    "rsiPeriod",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
+  const stochPeriod = requireParam(
+    "stochRsi",
+    params,
+    "stochPeriod",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
+  const kPeriod = requireParam(
+    "stochRsi",
+    params,
+    "kPeriod",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
+  const dPeriod = requireParam(
+    "stochRsi",
+    params,
+    "dPeriod",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
+  const source = params.source;
 
   let count: number;
   let prevClose: number | null;
@@ -97,23 +154,22 @@ export function createStochRsi(
   let kSum: number;
   let kValidCount: number;
 
-  if (warmUpOptions?.fromState) {
-    const s = warmUpOptions.fromState;
-    count = s.count;
-    prevClose = s.prevClose;
-    avgGain = s.avgGain;
-    avgLoss = s.avgLoss;
-    rsiCount = s.rsiCount;
-    initialGains = [...s.initialGains];
-    initialLosses = [...s.initialLosses];
-    rsiBuffer = CircularBuffer.fromSnapshot(s.rsiBuffer);
-    rsiValidCount = s.rsiValidCount;
-    rawStochBuffer = CircularBuffer.fromSnapshot(s.rawStochBuffer);
-    rawStochSum = s.rawStochSum;
-    rawStochValidCount = s.rawStochValidCount;
-    kBuffer = CircularBuffer.fromSnapshot(s.kBuffer);
-    kSum = s.kSum;
-    kValidCount = s.kValidCount;
+  if (state !== null) {
+    count = state.count;
+    prevClose = state.prevClose;
+    avgGain = state.avgGain;
+    avgLoss = state.avgLoss;
+    rsiCount = state.rsiCount;
+    initialGains = [...state.initialGains];
+    initialLosses = [...state.initialLosses];
+    rsiBuffer = CircularBuffer.fromSnapshot(state.rsiBuffer);
+    rsiValidCount = state.rsiValidCount;
+    rawStochBuffer = CircularBuffer.fromSnapshot(state.rawStochBuffer);
+    rawStochSum = state.rawStochSum;
+    rawStochValidCount = state.rawStochValidCount;
+    kBuffer = CircularBuffer.fromSnapshot(state.kBuffer);
+    kSum = state.kSum;
+    kValidCount = state.kValidCount;
   } else {
     count = 0;
     prevClose = null;
@@ -170,6 +226,11 @@ export function createStochRsi(
       avgLoss = (avgLoss * (rsiPeriod - 1) + loss) / rsiPeriod;
     }
 
+    // Match standalone `rsi()` / `createRsi()`: a fully flat window
+    // (no gains and no losses) is neutral (50), not overbought (100).
+    // Without this branch the inline RSI diverges from batch `rsi()`
+    // — which batch `stochRsi()` consumes — on flat segments.
+    if (avgGain === 0 && avgLoss === 0) return 50;
     if (avgLoss === 0) return 100;
     const rs = avgGain / avgLoss;
     return 100 - 100 / (1 + rs);
@@ -235,7 +296,7 @@ export function createStochRsi(
     return { stochRsi: rawStoch, k: kVal, d: dVal };
   }
 
-  const indicator: IncrementalIndicator<StochRsiValue, StochRsiState> = {
+  const indicator: IncrementalIndicator<StochRsiValue, IndicatorSnapshot<StochRsiState>> = {
     next(candle: NormalizedCandle) {
       count++;
       const rsiVal = computeRsi(getSourcePrice(candle, source));
@@ -245,51 +306,52 @@ export function createStochRsi(
 
     peek(candle: NormalizedCandle) {
       // Save state, compute, restore
-      const savedState = indicator.getState();
+      const saved = indicator.getState().state;
       const result = indicator.next(candle);
 
       // Restore state
-      count = savedState.count;
-      prevClose = savedState.prevClose;
-      avgGain = savedState.avgGain;
-      avgLoss = savedState.avgLoss;
-      rsiCount = savedState.rsiCount;
-      initialGains = [...savedState.initialGains];
-      initialLosses = [...savedState.initialLosses];
-      rsiBuffer = CircularBuffer.fromSnapshot(savedState.rsiBuffer);
-      rsiValidCount = savedState.rsiValidCount;
-      rawStochBuffer = CircularBuffer.fromSnapshot(savedState.rawStochBuffer);
-      rawStochSum = savedState.rawStochSum;
-      rawStochValidCount = savedState.rawStochValidCount;
-      kBuffer = CircularBuffer.fromSnapshot(savedState.kBuffer);
-      kSum = savedState.kSum;
-      kValidCount = savedState.kValidCount;
+      count = saved.count;
+      prevClose = saved.prevClose;
+      avgGain = saved.avgGain;
+      avgLoss = saved.avgLoss;
+      rsiCount = saved.rsiCount;
+      initialGains = [...saved.initialGains];
+      initialLosses = [...saved.initialLosses];
+      rsiBuffer = CircularBuffer.fromSnapshot(saved.rsiBuffer);
+      rsiValidCount = saved.rsiValidCount;
+      rawStochBuffer = CircularBuffer.fromSnapshot(saved.rawStochBuffer);
+      rawStochSum = saved.rawStochSum;
+      rawStochValidCount = saved.rawStochValidCount;
+      kBuffer = CircularBuffer.fromSnapshot(saved.kBuffer);
+      kSum = saved.kSum;
+      kValidCount = saved.kValidCount;
 
       return result;
     },
 
-    getState(): StochRsiState {
-      return {
-        rsiPeriod,
-        stochPeriod,
-        kPeriod,
-        dPeriod,
-        count,
-        prevClose,
-        avgGain,
-        avgLoss,
-        rsiCount,
-        initialGains: [...initialGains],
-        initialLosses: [...initialLosses],
-        rsiBuffer: rsiBuffer.snapshot(),
-        rsiValidCount,
-        rawStochBuffer: rawStochBuffer.snapshot(),
-        rawStochSum,
-        rawStochValidCount,
-        kBuffer: kBuffer.snapshot(),
-        kSum,
-        kValidCount,
-      };
+    getState(): IndicatorSnapshot<StochRsiState> {
+      return makeSnapshot(
+        "stochRsi",
+        STOCH_RSI_VERSION,
+        { rsiPeriod, stochPeriod, kPeriod, dPeriod, source },
+        {
+          count,
+          prevClose,
+          avgGain,
+          avgLoss,
+          rsiCount,
+          initialGains: [...initialGains],
+          initialLosses: [...initialLosses],
+          rsiBuffer: rsiBuffer.snapshot(),
+          rsiValidCount,
+          rawStochBuffer: rawStochBuffer.snapshot(),
+          rawStochSum,
+          rawStochValidCount,
+          kBuffer: kBuffer.snapshot(),
+          kSum,
+          kValidCount,
+        },
+      );
     },
 
     get count() {

@@ -2,6 +2,66 @@
 
 ## Unreleased
 
+### Breaking — Indicator State Contract (`getState` / `fromState` wire format)
+
+Every incremental indicator (`createSma`, `createEma`, `createMacd`,
+… — all ~94 of them) now exchanges state through a versioned
+envelope instead of a bare state object:
+
+```ts
+type IndicatorSnapshot<TState> = {
+  meta: {
+    version: number;                  // per-indicator schema version
+    indicator: string;                // "sma" | "ema" | … runtime guard
+    params: Record<string, unknown>;  // params captured at snapshot time
+  };
+  state: TState;                       // indicator-specific state
+};
+```
+
+- `getState()` now returns `IndicatorSnapshot<TState>` (previously
+  the bare `TState`).
+- `createXxx(options, { fromState })` now expects an
+  `IndicatorSnapshot<TState>` for `fromState` (previously the bare
+  `TState`).
+
+**Pre-0.4.0 snapshots cannot be resumed.** They have no `meta`
+field; `fromState` detects this and throws
+`<indicator>: incompatible snapshot, re-warm required`. The fix is
+to re-warm the indicator from candle history (replay candles through
+`next()`), or fall back to a fresh instance. There is no automatic
+migration in 0.4.0 — `throw + re-warm` is the policy.
+
+Resume behaviour is now defined per **state category**:
+
+- **Windowed** (SMA, WMA, ALMA, Donchian, Highest/Lowest, …) —
+  carry-forward: resuming with a different `period` reuses the
+  saved buffer and re-warms only the shortfall. A `source` change
+  still throws.
+- **Recursive / Mixed / Cascaded** (EMA, ZLEMA, FRAMA, KAMA, MACD,
+  DEMA, TEMA, HMA, …) — any state-shaping param change on resume
+  throws; the recursive accumulator encodes past params and cannot
+  be reconfigured mid-stream.
+- **Event log** (BOS, FVG, Liquidity Sweep, Pivot Points, Order
+  Block, Swing Points, …) — append-only: a params change keeps the
+  recorded events and continues appending.
+
+A new orthogonal **param-role** axis lets *resume-invariant* params
+change freely on resume regardless of category. These params (e.g.
+a band-width `multiplier` that only scales the state→output
+projection, never the state itself) are exempt from the resume
+compatibility check — the saved state is reused verbatim and the new
+value takes effect immediately. `source` is never eligible.
+
+Streaming sessions (`createLiveCandle` / `createPipeline` /
+`createSession`) persist per-indicator `getState()` output, so
+**0.3.x streaming session snapshots cannot be resumed in 0.4.0** —
+re-warm from candle history. Strategy JSON
+(`serializeStrategy` / `parseStrategy`) describes configurations,
+not runtime state, and is unaffected.
+
+See `docs/migration-0.3-to-0.4.md` for the 5-minute upgrade guide.
+
 ### Breaking — Elder's Force Index returns `{ short, long }`
 
 `elderForceIndex` and the incremental `createElderForceIndex` now
