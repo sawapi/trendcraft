@@ -112,6 +112,66 @@ describe("RendererRegistry", () => {
     expect(() => registry.removePrimitive("nonexistent")).not.toThrow();
   });
 
+  it("removeAllPrimitives drops every primitive and fires their destroy hooks", () => {
+    const registry = new RendererRegistry();
+    const destroyA = vi.fn();
+    const destroyB = vi.fn();
+    registry.registerPrimitive(
+      definePrimitive({
+        name: "a",
+        pane: "main",
+        zOrder: "above",
+        defaultState: null,
+        render: vi.fn(),
+        destroy: destroyA,
+      }),
+    );
+    registry.registerPrimitive(
+      definePrimitive({
+        name: "b",
+        pane: "volume",
+        zOrder: "below",
+        defaultState: null,
+        render: vi.fn(),
+        destroy: destroyB,
+      }),
+    );
+
+    registry.removeAllPrimitives();
+
+    expect(registry.getPrimitives("main", "above")).toHaveLength(0);
+    expect(registry.getPrimitives("volume", "below")).toHaveLength(0);
+    expect(destroyA).toHaveBeenCalledOnce();
+    expect(destroyB).toHaveBeenCalledOnce();
+    // Renderers are untouched.
+    expect(registry.isEmpty).toBe(true);
+  });
+
+  it("removeAllPrimitives leaves renderers alone", () => {
+    const registry = new RendererRegistry();
+    registry.registerRenderer(defineSeriesRenderer({ type: "keep-me", render: vi.fn() }));
+    registry.registerPrimitive(
+      definePrimitive({
+        name: "drop",
+        pane: "main",
+        zOrder: "above",
+        defaultState: null,
+        render: vi.fn(),
+      }),
+    );
+
+    registry.removeAllPrimitives();
+
+    expect(registry.getRenderer("keep-me")).toBeDefined();
+    expect(registry.getPrimitives("main", "above")).toHaveLength(0);
+  });
+
+  it("removeAllPrimitives is a no-op when empty", () => {
+    const registry = new RendererRegistry();
+    expect(() => registry.removeAllPrimitives()).not.toThrow();
+    expect(registry.isEmpty).toBe(true);
+  });
+
   it("calls update hook on getPrimitives", () => {
     const registry = new RendererRegistry();
     registry.registerPrimitive(
