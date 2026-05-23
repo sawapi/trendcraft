@@ -60,8 +60,7 @@ re-warm from candle history. Strategy JSON
 (`serializeStrategy` / `parseStrategy`) describes configurations,
 not runtime state, and is unaffected.
 
-See `docs/STATE_CONTRACT.md` (full design) and
-`docs/migration-0.3-to-0.4.md` (5-minute upgrade guide).
+See `docs/migration-0.3-to-0.4.md` for the 5-minute upgrade guide.
 
 ### Breaking — Elder's Force Index returns `{ short, long }`
 

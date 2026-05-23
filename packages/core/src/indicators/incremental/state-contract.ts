@@ -2,10 +2,15 @@
  * Indicator State Contract — wire format, categories, and the
  * `resolveResume` helper that centralizes resume policy.
  *
- * See `packages/core/docs/STATE_CONTRACT.md` for the design rationale.
+ * `resolveResume` is the single place resume behaviour lives: every
+ * incremental indicator routes its `fromState` through it, so
+ * per-indicator translation shims are not added — the helper handles
+ * legacy / mismatched snapshots uniformly and propagates a clear error
+ * for the caller to catch.
  *
  * Introduced in trendcraft 0.4.0 as a breaking change. Pre-0.4.0
- * snapshots (bare state, no `meta` field) are not resumable.
+ * snapshots (bare state, no `meta` field) are not resumable. The
+ * consumer upgrade guide is `docs/migration-0.3-to-0.4.md`.
  */
 
 /**
@@ -34,9 +39,26 @@ export type IndicatorSnapshot<TState> = {
 
 /**
  * Resume category — determines how `resolveResume` reacts to param
- * mismatches between `options` and the snapshot's recorded params.
+ * mismatches between `options` and the snapshot's recorded params:
  *
- * See STATE_CONTRACT.md §2.3 for the full taxonomy.
+ * - `windowed`  — state is a raw N-sample buffer. A `period`-type
+ *   change carries the buffer forward and re-warms the shortfall; a
+ *   `source` change throws. (SMA, WMA, ALMA, Donchian, Pivot Points)
+ * - `recursive` — state is a single recursive accumulator. Any param
+ *   change throws (the accumulator encodes past params). (EMA, ZLEMA,
+ *   Wilder smoothers)
+ * - `mixed`     — windowed buffer + recursive value. Any param change
+ *   throws. (FRAMA, KAMA, Super Smoother, the structure trackers
+ *   BOS / CHoCH / FVG / Liquidity Sweep / Swing Points)
+ * - `cascaded`  — multiple recursive stages. Any param change throws.
+ *   (MACD, DEMA, TEMA, TRIX)
+ * - `event`     — append-only event log; a param change keeps past
+ *   events and continues appending. Defined but unused in 0.4.0.
+ *
+ * Classification keys on the *state shape*, not the formula: ALMA is
+ * `windowed` (its state is just a price buffer) while FRAMA is `mixed`
+ * (price buffer + a recursive `prevFrama`). `resolveResume` enforces
+ * the per-category rule; the `describeContract` test DSL pins it.
  */
 export type StateCategory = "windowed" | "recursive" | "mixed" | "cascaded" | "event";
 
@@ -107,7 +129,7 @@ export type ResolveResumeOptions<TParams extends Record<string, unknown>, TState
    *
    * This is the **param-role axis**, orthogonal to `category` (the
    * state-structure axis): a `mixed` indicator can still have
-   * resume-invariant params. See STATE_CONTRACT.md §2.4.
+   * resume-invariant params.
    *
    * `source` is never eligible — it changes the input series, so the
    * saved state corresponds to different data — and is refused even

@@ -13,7 +13,7 @@
  * `multiplier` is a **resume-invariant param**: it only scales the
  * final `EMA ± multiplier × ATR` band width and never touches the
  * inner EMA / ATR state. Changing it on resume is mathematically safe
- * and stays supported (parity with 0.3.x). See STATE_CONTRACT.md §2.4.
+ * and stays supported (parity with 0.3.x).
  *
  * Migrated to the 0.4.0 State Contract.
  */

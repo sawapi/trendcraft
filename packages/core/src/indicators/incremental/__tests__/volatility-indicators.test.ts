@@ -214,8 +214,8 @@ describe("Ulcer Index incremental", () => {
     // Includes the now-removed single-buffer field as well — both
     // shapes flunk the same missing-meta check in resolveResume.
     // The dedicated translation shim that used to live inside
-    // createUlcerIndex was removed (STATE_CONTRACT.md §4.1: per-
-    // indicator guards aren't added; resolveResume handles it).
+    // createUlcerIndex was removed: per-indicator guards aren't added;
+    // resolveResume handles legacy snapshots centrally.
     const legacyState = {
       period: 14,
       source: "close" as const,
