@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { EMPTY_EXTENDED_METRICS_FIXTURE } from "../../backtest/__tests__/backtest-result-fixture";
 import type { BacktestResult, NormalizedCandle } from "../../types";
 import {
   annualizeReturn,
@@ -48,6 +49,7 @@ function createMockBacktestResult(overrides: Partial<BacktestResult> = {}): Back
     winRate: 60,
     maxDrawdown: 5,
     sharpeRatio: 1.5,
+    ...EMPTY_EXTENDED_METRICS_FIXTURE,
     profitFactor: 2.0,
     avgHoldingDays: 5,
     trades: [],

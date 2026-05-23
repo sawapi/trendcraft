@@ -1,19 +1,16 @@
 import { describe, expect, it } from "vitest";
-import type { BacktestSettings, DrawdownPeriod, Trade } from "../../types";
+import type { BacktestSettings, DrawdownPeriod, NormalizedCandle, Trade } from "../../types";
+import { deadCross, goldenCross } from "../conditions/ma-cross";
+import { runBacktest } from "../engine";
 import { calculateStats, emptyResult, MS_PER_DAY } from "../scaled-entry-utils";
 
 const SETTINGS: BacktestSettings = {
-  capital: 100_000,
-  commission: 0,
-  taxRate: 0,
-  stopLoss: 0,
-  takeProfit: 0,
-  trailingStop: 0,
-  scaledEntry: false,
-  scalingTranches: 1,
-  scalingDistribution: "equal",
+  fillMode: "next-bar-open",
+  slTpMode: "close-only",
   slippage: 0,
-  fillMode: "close",
+  commission: 0,
+  commissionRate: 0,
+  taxRate: 0,
 };
 
 function makeTrade(
@@ -231,5 +228,106 @@ describe("extended BacktestResult metrics", () => {
     ];
     const result = calculateStats(trades, returns, 100_000, 105_000, 5, SETTINGS, periods);
     expect(result.drawdownPeriods).toBe(periods);
+  });
+
+  it("exposure does NOT double-count partial-exit (scale-out) trades", () => {
+    // Single position from t=10 to t=100 (90 days), split into 3 partial
+    // exits at t=40, t=70, t=100. The merged window is (10, 100) = 90
+    // days, so exposure should be 90 / 100 = 90% — not 180% (which
+    // `sum(holdingDays)` would give: 30 + 60 + 90 = 180).
+    const startTime = new Date(2024, 0, 1).getTime();
+    const positionEntry = startTime + 10 * MS_PER_DAY;
+    const trades: Trade[] = [
+      {
+        entryTime: positionEntry,
+        entryPrice: 100,
+        exitTime: positionEntry + 30 * MS_PER_DAY,
+        exitPrice: 102,
+        return: 200,
+        returnPercent: 0.67,
+        holdingDays: 30,
+        isPartial: true,
+      },
+      {
+        entryTime: positionEntry,
+        entryPrice: 100,
+        exitTime: positionEntry + 60 * MS_PER_DAY,
+        exitPrice: 105,
+        return: 500,
+        returnPercent: 1.67,
+        holdingDays: 60,
+        isPartial: true,
+      },
+      {
+        entryTime: positionEntry,
+        entryPrice: 100,
+        exitTime: positionEntry + 90 * MS_PER_DAY,
+        exitPrice: 108,
+        return: 800,
+        returnPercent: 2.67,
+        holdingDays: 90,
+      },
+    ];
+    const returns = trades.map((t) => t.returnPercent / 100);
+    const result = calculateStats(trades, returns, 100_000, 101_500, 1, SETTINGS, [], {
+      firstTime: startTime,
+      lastTime: startTime + 100 * MS_PER_DAY,
+    });
+    // Position window is 90 days, total span is 100 days → 90% exposure.
+    expect(result.exposurePercent).toBe(90);
+    // And critically: not the naive 180% that holdingDays-sum would give.
+    expect(result.exposurePercent).toBeLessThanOrEqual(100);
+  });
+});
+
+/** Synthetic candles with a clear cross pattern to drive runBacktest. */
+function generateCrossingCandles(): NormalizedCandle[] {
+  const candles: NormalizedCandle[] = [];
+  const start = new Date(2024, 0, 1).getTime();
+  for (let i = 0; i < 200; i++) {
+    // Two phases: 0-99 rising, 100-199 falling-then-rising — generates
+    // multiple golden + dead crosses for a 5/25 SMA strategy.
+    const t = start + i * MS_PER_DAY;
+    const close =
+      i < 100 ? 100 + i * 0.5 + Math.sin(i / 5) * 2 : 150 - (i - 100) * 0.3 + Math.cos(i / 7) * 3;
+    candles.push({
+      time: t,
+      open: close - 0.1,
+      high: close + 0.5,
+      low: close - 0.5,
+      close,
+      volume: 1000,
+    });
+  }
+  return candles;
+}
+
+describe("runBacktest end-to-end: extended metrics populated", () => {
+  it("populates Sortino/Calmar/CAGR/Expectancy/Exposure and span fields via the engine path", () => {
+    // This catches the engine-utils calculateStats path that PR #232's
+    // initial implementation missed — the scaled-entry-utils edits
+    // only covered the scaled-entry engine, not the main runBacktest.
+    const candles = generateCrossingCandles();
+    const result = runBacktest(candles, goldenCross(5, 25), deadCross(5, 25), {
+      capital: 100_000,
+    });
+    expect(result.tradeCount).toBeGreaterThan(0);
+    // All new fields must be present (TypeScript enforces, but assert
+    // at runtime so an accidental `undefined` slip-through fails fast).
+    expect(typeof result.sortinoRatio).toBe("number");
+    expect(typeof result.calmarRatio).toBe("number");
+    expect(typeof result.cagrPercent).toBe("number");
+    expect(typeof result.expectancyPercent).toBe("number");
+    expect(typeof result.exposurePercent).toBe("number");
+    expect(typeof result.avgWinPercent).toBe("number");
+    expect(typeof result.avgLossPercent).toBe("number");
+    expect(typeof result.largestWinPercent).toBe("number");
+    expect(typeof result.largestLossPercent).toBe("number");
+    // Span fields reflect the candle window.
+    expect(result.firstBarTime).toBe(candles[0].time);
+    expect(result.lastBarTime).toBe(candles[candles.length - 1].time);
+    // Exposure is bounded.
+    expect(result.exposurePercent).toBeGreaterThanOrEqual(0);
+    expect(result.exposurePercent).toBeLessThanOrEqual(100);
   });
 });

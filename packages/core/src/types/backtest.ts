@@ -361,6 +361,16 @@ export type BacktestResult = {
   largestWinPercent: number;
   /** Largest single-trade losing return percentage (positive value, sign-flipped for display). `0` when no losing trades. */
   largestLossPercent: number;
+  /**
+   * Time of the first candle the backtest ran over (epoch ms). Stored
+   * so derived analyses (equity-curve filter, slicing, post-hoc
+   * annualization) can recompute time-based metrics like `cagrPercent`
+   * and `exposurePercent` without re-supplying the candle window.
+   * `0` when no candle span info was provided to `calculateStats`.
+   */
+  firstBarTime: number;
+  /** Time of the last candle the backtest ran over (epoch ms). See `firstBarTime`. */
+  lastBarTime: number;
   /** Profit factor */
   profitFactor: number;
   /** Average holding days */

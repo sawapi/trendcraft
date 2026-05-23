@@ -229,6 +229,159 @@ export function calculateMfeUtilization(returnPercent: number, mfe: number): num
 }
 
 /**
+ * Span info used for time-based metrics (CAGR, exposure). Engines that
+ * have access to the candle array pass `firstTime` / `lastTime` directly
+ * to avoid the inaccuracy of inferring the backtest window from trade
+ * timestamps (which would exclude pre-first-trade warmup time).
+ */
+export type BacktestSpanInfo = {
+  firstTime: number;
+  lastTime: number;
+};
+
+/**
+ * The nine "extended" backtest metrics added in this release. Extracted
+ * as a helper so every `BacktestResult` construction site (the main
+ * engine, scaled-entry engine, equity-curve rebuildResult) can call a
+ * single implementation instead of duplicating the math.
+ */
+export type ExtendedBacktestMetrics = {
+  sortinoRatio: number;
+  calmarRatio: number;
+  cagrPercent: number;
+  expectancyPercent: number;
+  exposurePercent: number;
+  avgWinPercent: number;
+  avgLossPercent: number;
+  largestWinPercent: number;
+  largestLossPercent: number;
+};
+
+/** Zero-filled `ExtendedBacktestMetrics`. Used by empty-result paths. */
+export const ZERO_EXTENDED_METRICS: ExtendedBacktestMetrics = {
+  sortinoRatio: 0,
+  calmarRatio: 0,
+  cagrPercent: 0,
+  expectancyPercent: 0,
+  exposurePercent: 0,
+  avgWinPercent: 0,
+  avgLossPercent: 0,
+  largestWinPercent: 0,
+  largestLossPercent: 0,
+};
+
+/**
+ * Compute total market-exposure time from trades, **merging overlapping
+ * `(entryTime, exitTime)` intervals** so the same wall-clock minute is
+ * counted at most once. Scale-out / partial-exit strategies emit several
+ * `Trade` records that share an entry time and have increasing exits;
+ * a naive `sum(holdingDays)` would multiply the actual exposure by the
+ * number of tranches. The merged-interval form returns the union of
+ * trade windows, which is what "time in market" actually means.
+ */
+function computeMergedExposureDays(trades: Trade[]): number {
+  if (trades.length === 0) return 0;
+  const intervals = trades
+    .map((t) => ({ start: t.entryTime, end: t.exitTime }))
+    .sort((a, b) => a.start - b.start);
+  let totalMs = 0;
+  let curStart = intervals[0].start;
+  let curEnd = intervals[0].end;
+  for (let i = 1; i < intervals.length; i++) {
+    const iv = intervals[i];
+    if (iv.start > curEnd) {
+      totalMs += curEnd - curStart;
+      curStart = iv.start;
+      curEnd = iv.end;
+    } else if (iv.end > curEnd) {
+      curEnd = iv.end;
+    }
+  }
+  totalMs += curEnd - curStart;
+  return totalMs / MS_PER_DAY;
+}
+
+/**
+ * Compute the nine extended backtest metrics from raw trade / return /
+ * capital inputs. Pure function; no side effects. Callers spread the
+ * result into the final `BacktestResult` they construct.
+ *
+ * `span` (the candle window) is optional. CAGR and exposure are
+ * meaningful only when the host knows the backtest window: when `span`
+ * is omitted, both are reported as `0`.
+ */
+export function computeExtendedMetrics(
+  trades: Trade[],
+  returns: number[],
+  initialCapital: number,
+  finalCapital: number,
+  maxDrawdown: number,
+  span?: BacktestSpanInfo,
+): ExtendedBacktestMetrics {
+  if (trades.length === 0 || returns.length === 0) {
+    return { ...ZERO_EXTENDED_METRICS };
+  }
+
+  // Sortino: like Sharpe but only penalizes downside deviation.
+  // Target return = 0; downside-only squared deviation over min(0, r).
+  const avgReturn = returns.reduce((s, r) => s + r, 0) / returns.length;
+  const downsideSqSum = returns.reduce((s, r) => s + (r < 0 ? r * r : 0), 0);
+  const downsideStd = Math.sqrt(downsideSqSum / returns.length);
+  const sortinoRatio = downsideStd > 0 ? (avgReturn / downsideStd) * Math.sqrt(252) : 0;
+
+  // Per-trade % aggregates. avgLoss / largestLoss are reported as
+  // positive numbers so they read naturally side-by-side with wins.
+  const winningTrades = trades.filter((t) => t.return > 0);
+  const losingTrades = trades.filter((t) => t.return <= 0);
+  const avgWinPercent =
+    winningTrades.length > 0
+      ? winningTrades.reduce((s, t) => s + t.returnPercent, 0) / winningTrades.length
+      : 0;
+  const avgLossPercent =
+    losingTrades.length > 0
+      ? Math.abs(losingTrades.reduce((s, t) => s + t.returnPercent, 0) / losingTrades.length)
+      : 0;
+  const largestWinPercent =
+    winningTrades.length > 0 ? Math.max(...winningTrades.map((t) => t.returnPercent)) : 0;
+  const largestLossPercent =
+    losingTrades.length > 0 ? Math.abs(Math.min(...losingTrades.map((t) => t.returnPercent))) : 0;
+
+  // Expectancy: arithmetic mean of returnPercent. Equivalent to
+  // (winRate × avgWin) − (lossRate × avgLoss) but cleaner to compute.
+  const expectancyPercent = trades.reduce((s, t) => s + t.returnPercent, 0) / trades.length;
+
+  // Time-based metrics. Only meaningful with a known candle span.
+  let cagrPercent = 0;
+  let exposurePercent = 0;
+  if (span && span.lastTime > span.firstTime) {
+    const spanDays = (span.lastTime - span.firstTime) / MS_PER_DAY;
+    if (spanDays > 0) {
+      const exposureDays = computeMergedExposureDays(trades);
+      exposurePercent = Math.min(100, (exposureDays / spanDays) * 100);
+      const years = spanDays / 365.25;
+      if (years > 0 && finalCapital > 0 && initialCapital > 0) {
+        cagrPercent = ((finalCapital / initialCapital) ** (1 / years) - 1) * 100;
+      }
+    }
+  }
+
+  // Calmar: CAGR / maxDrawdown. Industry "return per unit of pain".
+  const calmarRatio = maxDrawdown > 0 ? cagrPercent / maxDrawdown : 0;
+
+  return {
+    sortinoRatio: Math.round(sortinoRatio * 100) / 100,
+    calmarRatio: Math.round(calmarRatio * 100) / 100,
+    cagrPercent: Math.round(cagrPercent * 100) / 100,
+    expectancyPercent: Math.round(expectancyPercent * 100) / 100,
+    exposurePercent: Math.round(exposurePercent * 100) / 100,
+    avgWinPercent: Math.round(avgWinPercent * 100) / 100,
+    avgLossPercent: Math.round(avgLossPercent * 100) / 100,
+    largestWinPercent: Math.round(largestWinPercent * 100) / 100,
+    largestLossPercent: Math.round(largestLossPercent * 100) / 100,
+  };
+}
+
+/**
  * Calculate backtest statistics
  */
 export function calculateStats(
@@ -239,9 +392,10 @@ export function calculateStats(
   maxDrawdown: number,
   settings: BacktestSettings,
   drawdownPeriods: DrawdownPeriod[] = [],
+  span?: BacktestSpanInfo,
 ): BacktestResult {
   if (trades.length === 0) {
-    return emptyResult(initialCapital, settings);
+    return emptyResult(initialCapital, settings, span);
   }
 
   const totalReturn = finalCapital - initialCapital;
@@ -266,6 +420,15 @@ export function calculateStats(
   // Annualize using sqrt(252) - standard annualization factor for daily returns
   const sharpeRatio = stdReturn > 0 ? (avgReturn / stdReturn) * Math.sqrt(252) : 0;
 
+  const extended = computeExtendedMetrics(
+    trades,
+    returns,
+    initialCapital,
+    finalCapital,
+    maxDrawdown,
+    span,
+  );
+
   return {
     initialCapital,
     finalCapital: Math.round(finalCapital * 100) / 100,
@@ -275,6 +438,9 @@ export function calculateStats(
     winRate: Math.round(winRate * 100) / 100,
     maxDrawdown: Math.round(maxDrawdown * 100) / 100,
     sharpeRatio: Math.round(sharpeRatio * 100) / 100,
+    ...extended,
+    firstBarTime: span?.firstTime ?? 0,
+    lastBarTime: span?.lastTime ?? 0,
     profitFactor: Math.round(profitFactor * 100) / 100,
     avgHoldingDays: Math.round(avgHoldingDays * 10) / 10,
     trades,
@@ -324,7 +490,11 @@ export function applyVolumeConstraint(
 /**
  * Return empty result for edge cases
  */
-export function emptyResult(capital: number, settings: BacktestSettings): BacktestResult {
+export function emptyResult(
+  capital: number,
+  settings: BacktestSettings,
+  span?: BacktestSpanInfo,
+): BacktestResult {
   return {
     initialCapital: capital,
     finalCapital: capital,
@@ -334,6 +504,9 @@ export function emptyResult(capital: number, settings: BacktestSettings): Backte
     winRate: 0,
     maxDrawdown: 0,
     sharpeRatio: 0,
+    ...ZERO_EXTENDED_METRICS,
+    firstBarTime: span?.firstTime ?? 0,
+    lastBarTime: span?.lastTime ?? 0,
     profitFactor: 0,
     avgHoldingDays: 0,
     trades: [],

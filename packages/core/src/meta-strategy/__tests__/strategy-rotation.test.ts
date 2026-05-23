@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { EMPTY_EXTENDED_METRICS_FIXTURE } from "../../backtest/__tests__/backtest-result-fixture";
 import type { BacktestResult, Trade } from "../../types";
 import { rotateStrategies } from "../strategy-rotation";
 
@@ -26,6 +27,7 @@ function makeResult(tradeReturns: number[]): BacktestResult {
     winRate: trades.filter((t) => t.return > 0).length / (trades.length || 1),
     maxDrawdown: 0.1,
     sharpeRatio: 1.0,
+    ...EMPTY_EXTENDED_METRICS_FIXTURE,
     profitFactor: 1.5,
     avgHoldingDays: 1,
     trades,

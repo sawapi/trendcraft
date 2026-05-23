@@ -4,7 +4,7 @@
 
 ### Added — Extended `BacktestResult` metrics (Sortino, Calmar, CAGR, Expectancy, Exposure, per-trade aggregates)
 
-`BacktestResult` gains nine new fields filled in by every call to
+`BacktestResult` gains **eleven** new fields filled in by every call to
 `runBacktest` / `runScaledEntryBacktest`:
 
 - `sortinoRatio` — like Sharpe but divides by *downside* deviation
@@ -24,25 +24,43 @@
 - `exposurePercent` — total holding time divided by the candle span.
   A Sharpe of 2 at 10% exposure is materially different from a
   Sharpe of 2 at 100% exposure; this surfaces that distinction.
+  **Computed via merged `(entryTime, exitTime)` intervals** so
+  scale-out / partial-exit strategies (which emit several `Trade`
+  records that share an entry time) report the actual time-in-market
+  rather than the naive `sum(holdingDays)` that would double-count.
 - `avgWinPercent` / `avgLossPercent` — average % return of winning /
   losing trades. `avgLossPercent` is reported as a positive number
   ("how much did the average loser lose").
 - `largestWinPercent` / `largestLossPercent` — best / worst single-
   trade return, same positive-for-loss convention.
+- `firstBarTime` / `lastBarTime` — the candle span the backtest ran
+  over (epoch ms). Stored so derived analyses (equity-curve filter,
+  slicing, post-hoc annualization) can recompute time-based metrics
+  without re-supplying the window.
 
 Matches TradingView Performance Summary, QuantifiedStrategies'
 checklist, and Van Tharp's metrics framework — what veteran traders
 expect to see in a backtest summary.
 
-`calculateStats` (internal) gained an optional `span` parameter
-(`{ firstTime, lastTime }`). Engines that have candle data
-(`runBacktest`, `runScaledEntryBacktest`) pass it automatically so
-CAGR / exposure are accurate. External consumers wrapping
-`calculateStats` directly get `0` for these two fields if they don't
-supply `span` — back-compatible.
+The metric math is consolidated into a single
+`computeExtendedMetrics(...)` helper exported from
+`backtest/engine-utils.ts`, used by every `BacktestResult`
+construction site — the main `runBacktest` engine, the scaled-entry
+engine, and `meta-strategy/equity-curve.ts:rebuildResult` (which
+filters trades and recomputes metrics against the same candle
+window).
+
+`calculateStats` and `emptyResult` (internal) gained an optional
+`span` parameter (`{ firstTime, lastTime }`). Engines that have
+candle data pass it automatically so CAGR / exposure are accurate.
+External consumers wrapping `calculateStats` directly get `0` for
+those metrics if they don't supply `span` — back-compatible.
 
 All new fields default to `0` in `emptyResult` and round to 2 decimal
-places. No existing field semantics change.
+places. No existing field semantics change. **Type-level note:**
+because the new fields are required on `BacktestResult`, external
+code that *constructs* this type (e.g. test fixtures, mock results)
+must supply the new properties. Reading code is unaffected.
 
 ### Breaking — Indicator State Contract (`getState` / `fromState` wire format)
 

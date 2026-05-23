@@ -8,6 +8,7 @@
  * @packageDocumentation
  */
 
+import { computeExtendedMetrics, ZERO_EXTENDED_METRICS } from "../backtest/engine-utils";
 import type { BacktestResult, EquityPoint, Trade } from "../types";
 
 // ---------------------------------------------------------------------------
@@ -153,6 +154,14 @@ function computeProfitFactor(grossProfit: number, grossLoss: number): number {
 
 function rebuildResult(trades: Trade[], original: BacktestResult): BacktestResult {
   const initialCapital = original.initialCapital;
+  // Preserve the backtest's time window — the filter removes trades
+  // but doesn't change the underlying candle span, so CAGR / exposure
+  // must be recomputed against the *same* (firstBarTime, lastBarTime).
+  const span =
+    original.lastBarTime > original.firstBarTime
+      ? { firstTime: original.firstBarTime, lastTime: original.lastBarTime }
+      : undefined;
+
   if (trades.length === 0) {
     return {
       ...original,
@@ -163,6 +172,7 @@ function rebuildResult(trades: Trade[], original: BacktestResult): BacktestResul
       winRate: 0,
       maxDrawdown: 0,
       sharpeRatio: 0,
+      ...ZERO_EXTENDED_METRICS,
       profitFactor: 0,
       avgHoldingDays: 0,
       trades: [],
@@ -186,6 +196,7 @@ function rebuildResult(trades: Trade[], original: BacktestResult): BacktestResul
     const dd = peak > 0 ? (peak - e) / peak : 0;
     if (dd > maxDd) maxDd = dd;
   }
+  const maxDrawdownPercent = maxDd * 100;
 
   // Simple Sharpe from trade returns
   const tradeReturns = trades.map((t) => t.returnPercent / 100);
@@ -193,6 +204,18 @@ function rebuildResult(trades: Trade[], original: BacktestResult): BacktestResul
   const variance = tradeReturns.reduce((s, r) => s + (r - meanRet) ** 2, 0) / tradeReturns.length;
   const stdDev = Math.sqrt(variance);
   const sharpe = stdDev > 0 ? (meanRet / stdDev) * Math.sqrt(252) : 0;
+
+  // Reuse the canonical metric helper so filter results match the
+  // shape an unfiltered backtest produces — important for the panel
+  // that diffs `original` vs `filtered` cell-by-cell.
+  const extended = computeExtendedMetrics(
+    trades,
+    tradeReturns,
+    initialCapital,
+    finalCapital,
+    maxDrawdownPercent,
+    span,
+  );
 
   return {
     initialCapital,
@@ -204,8 +227,11 @@ function rebuildResult(trades: Trade[], original: BacktestResult): BacktestResul
     // (0-100), not fraction (0-1). Aligning with runBacktest so callers can
     // compare both shapes directly (e.g. applyEquityCurveFilter.improvement).
     winRate: (wins.length / trades.length) * 100,
-    maxDrawdown: maxDd * 100,
+    maxDrawdown: maxDrawdownPercent,
     sharpeRatio: sharpe,
+    ...extended,
+    firstBarTime: original.firstBarTime,
+    lastBarTime: original.lastBarTime,
     profitFactor: computeProfitFactor(grossProfit, grossLoss),
     avgHoldingDays: trades.reduce((sum, t) => sum + t.holdingDays, 0) / trades.length,
     trades,
