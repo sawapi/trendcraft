@@ -299,9 +299,12 @@ export const livePresets: Record<string, LivePreset> = {
   },
   t3: {
     meta: T3_META,
-    defaultParams: { period: 5 },
-    snapshotName: (p) => `t3_${p.period}`,
-    createFactory: factory<{ period?: number }>()(createT3, (p) => ({ period: p.period ?? 5 })),
+    defaultParams: { period: 5, vFactor: 0.7 },
+    snapshotName: (p) => `t3_${p.period}_${p.vFactor}`,
+    createFactory: factory<{ period?: number; vFactor?: number }>()(createT3, (p) => ({
+      period: p.period ?? 5,
+      vFactor: p.vFactor ?? 0.7,
+    })),
   },
   mcginley: {
     meta: MCGINLEY_META,
