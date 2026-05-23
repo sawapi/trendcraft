@@ -206,6 +206,66 @@ export function autoDeriveRange(
 
 export type OptimizationMetricUI = "returns" | "sharpe" | "profitFactor" | "winRate";
 
+/**
+ * Condition-specific parameter validators. Returns `true` when the params
+ * make semantic sense for that condition. Used to drop nonsensical grid
+ * cells (e.g. a `goldenCross` row with `shortPeriod=13, longPeriod=12`
+ * which mathematically inverts the indicator's design) before the user
+ * sees them as "best" in the top-10 table.
+ *
+ * Core's registry doesn't model cross-param constraints today
+ * (`shortPeriod < longPeriod` would need a per-condition predicate), so
+ * Studio enforces it at the UI layer. Conditions not listed are treated
+ * as always valid.
+ */
+const CONDITION_PARAM_CONSTRAINTS: Record<string, (params: Record<string, number>) => boolean> = {
+  goldenCross: (p) => p.shortPeriod < p.longPeriod,
+  deadCross: (p) => p.shortPeriod < p.longPeriod,
+  validatedGoldenCross: (p) => p.shortPeriod < p.longPeriod,
+  validatedDeadCross: (p) => p.shortPeriod < p.longPeriod,
+};
+
+/**
+ * Walk a result row's flat param map (`{ "entry.0.shortPeriod": 13,
+ * "entry.0.longPeriod": 12, ... }`) and group by leaf path. Returns
+ * `false` if any leaf's condition has a registered constraint that the
+ * row violates. `leafBaseParams` supplies registry defaults + the
+ * strategy's static values so a validator that needs a sibling param
+ * the grid isn't varying (e.g. only `shortPeriod` is opened) still has
+ * a value to compare against.
+ */
+function resultParamsAreValid(
+  params: Record<string, number>,
+  leafConditionByPrefix: Map<string, string>,
+  leafBaseParams: Map<string, Record<string, number>>,
+): boolean {
+  const grouped = new Map<string, Record<string, number>>();
+  for (const prefix of leafConditionByPrefix.keys()) {
+    grouped.set(prefix, { ...(leafBaseParams.get(prefix) ?? {}) });
+  }
+  for (const [key, value] of Object.entries(params)) {
+    const lastDot = key.lastIndexOf(".");
+    if (lastDot <= 0) continue;
+    const prefix = key.slice(0, lastDot);
+    const paramName = key.slice(lastDot + 1);
+    let bucket = grouped.get(prefix);
+    if (!bucket) {
+      bucket = {};
+      grouped.set(prefix, bucket);
+    }
+    bucket[paramName] = value;
+  }
+  for (const [prefix, leafParams] of grouped) {
+    const conditionName = leafConditionByPrefix.get(prefix);
+    if (!conditionName) continue;
+    const validator = CONDITION_PARAM_CONSTRAINTS[conditionName];
+    if (!validator) continue;
+    if (validator(leafParams)) continue;
+    return false;
+  }
+  return true;
+}
+
 export const OPTIMIZATION_METRICS: ReadonlyArray<{ id: OptimizationMetricUI; label: string }> = [
   { id: "returns", label: "Return %" },
   { id: "sharpe", label: "Sharpe" },
@@ -298,26 +358,61 @@ export function runGridSearch(
       metric: metric === "returns" ? "returns" : metric,
       keepAllResults: false,
     });
+    // Build a `<bucket>.<leafIndex> → conditionName` map + the leaf's
+    // resolved params (registry default merged with user-supplied) so
+    // constraint validators can read params that the grid isn't varying
+    // (e.g. a 1-D sweep of `shortPeriod` still needs `longPeriod` to
+    // check the `short < long` invariant).
+    const leafConditionByPrefix = new Map<string, string>();
+    const leafBaseParams = new Map<string, Record<string, number>>();
+    for (const leaf of flattenStrategyLeaves(strategy)) {
+      const prefix = `${leaf.bucket}.${leaf.leafIndex}`;
+      leafConditionByPrefix.set(prefix, leaf.name);
+      const entry = backtestRegistry.get(leaf.name);
+      const base: Record<string, number> = {};
+      if (entry) {
+        for (const [k, schema] of Object.entries(entry.params)) {
+          if (schema.type === "number" && typeof schema.default === "number") {
+            base[k] = schema.default;
+          }
+        }
+      }
+      if (leaf.params) {
+        for (const [k, v] of Object.entries(leaf.params)) {
+          if (typeof v === "number") base[k] = v;
+        }
+      }
+      leafBaseParams.set(prefix, base);
+    }
     // Studio UX: zero-trade backtests score 0 across every metric, so
     // they'd otherwise tie at the top of a Sharpe / returns ranking
     // when nothing actually traded. Drop them and rebuild the summary
     // fields from the surviving rows. If everything was zero-trade,
     // surface an empty-state instead of a misleading "best 0.00".
-    const tradingResults = result.results.filter((r) => r.backtest.trades.length > 0);
-    if (tradingResults.length === 0) {
+    //
+    // Same dropping happens for combinations that violate a condition's
+    // semantic constraint (e.g. `goldenCross` with `shortPeriod >=
+    // longPeriod` — mathematically valid but the indicator's name
+    // implies the opposite ordering, so presenting these as "best" is
+    // misleading).
+    const usableResults = result.results.filter((r) => {
+      if (r.backtest.trades.length === 0) return false;
+      return resultParamsAreValid(r.params, leafConditionByPrefix, leafBaseParams);
+    });
+    if (usableResults.length === 0) {
       return {
         kind: "empty",
-        message: "No parameter combinations produced any trades on this slice",
+        message: "No parameter combinations produced usable trades on this slice",
       };
     }
-    const sorted = [...tradingResults].sort((a, b) => b.score - a.score);
+    const sorted = [...usableResults].sort((a, b) => b.score - a.score);
     const best = sorted[0];
     const filtered: GridSearchResult = {
       ...result,
       results: sorted,
       bestParams: best.params,
       bestScore: best.score,
-      validCombinations: tradingResults.length,
+      validCombinations: usableResults.length,
     };
     return { kind: "ok", result: filtered, metric };
   } catch (err) {

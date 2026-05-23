@@ -7,6 +7,12 @@ type Props = {
   replay: ReplayState;
   progress: number;
   cursorTime: number | null;
+  /**
+   * When true, the cursor label omits the `HH:MM` suffix. Daily timeframes
+   * store an arbitrary bar-close time (Alpaca uses 13:00 UTC for `1Day`),
+   * which is meaningless to the user and visually noisy.
+   */
+  cursorIsDaily?: boolean;
   /** Whether the host is in "anchor mode" (next chart click anchors Replay). */
   anchorMode: boolean;
   onToggleAnchor: () => void;
@@ -28,6 +34,7 @@ export function ReplayControls({
   replay,
   progress,
   cursorTime,
+  cursorIsDaily = false,
   anchorMode,
   onToggleAnchor,
   onPlay,
@@ -69,7 +76,7 @@ export function ReplayControls({
 
   const playing = replay.status === "playing";
   const complete = replay.status === "complete";
-  const cursorLabel = cursorTime ? formatCursor(cursorTime) : "—";
+  const cursorLabel = cursorTime ? formatCursor(cursorTime, cursorIsDaily) : "—";
 
   return (
     <div className="replay-toolbar">
@@ -149,11 +156,12 @@ export function ReplayControls({
 // component is zero-padded and locale-independent. Using `Intl.DateTimeFormat`
 // with month: "short" / hour12 made the label width jitter as the playhead
 // advanced (May vs September, 1 vs 12, AM vs PM), shifting the toolbar.
-function formatCursor(time: number): string {
+function formatCursor(time: number, isDaily: boolean): string {
   const d = new Date(time);
   const yyyy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
+  if (isDaily) return `${yyyy}-${mm}-${dd}`;
   const hh = String(d.getHours()).padStart(2, "0");
   const mi = String(d.getMinutes()).padStart(2, "0");
   return `${yyyy}-${mm}-${dd} ${hh}:${mi}`;

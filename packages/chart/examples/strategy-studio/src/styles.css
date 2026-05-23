@@ -221,6 +221,24 @@ body,
   padding: 0 8px 8px;
 }
 
+.preset-show-all {
+  display: block;
+  margin: 0 8px 8px;
+  padding: 6px 10px;
+  width: calc(100% - 16px);
+  background: none;
+  color: #787b86;
+  font-size: 11px;
+  border: 1px dashed #2a2e39;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.preset-show-all:hover {
+  background: #1e222d;
+  color: #d1d4dc;
+}
+
 .preset-item {
   position: relative;
   border-radius: 4px;

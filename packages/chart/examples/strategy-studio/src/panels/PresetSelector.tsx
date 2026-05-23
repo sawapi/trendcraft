@@ -47,6 +47,15 @@ function matchesQuery(m: IndicatorManifest, q: string): boolean {
   return haystack.includes(q);
 }
 
+/**
+ * `suggestForRegime` returns every manifest entry whose `marketRegime`
+ * array includes the active regime — for `trending` that's ~73 entries,
+ * which defeats the "suggestion" framing and pushes the browse-by-category
+ * section below the fold. Cap the default view so the panel surfaces a
+ * short shortlist; users can opt in to the full set with "Show all".
+ */
+const SUGGESTED_TOP_N = 10;
+
 export function PresetSelector({ regime, instanceCountsByKind, onToggle, onAdd }: Props) {
   const [search, setSearch] = useState("");
   const [hovered, setHovered] = useState<string | null>(null);
@@ -55,6 +64,7 @@ export function PresetSelector({ regime, instanceCountsByKind, onToggle, onAdd }
   // category with a match is expanded.
   const [expandedCats, setExpandedCats] = useState<Set<IndicatorCategory>>(() => new Set());
   const [suggestionsOpen, setSuggestionsOpen] = useState(true);
+  const [showAllSuggestions, setShowAllSuggestions] = useState(false);
 
   const suggestions = useMemo(
     () => localStudioAPI.suggestPresets(regime.manifestRegime),
@@ -143,19 +153,36 @@ export function PresetSelector({ regime, instanceCountsByKind, onToggle, onAdd }
         onToggle={() => setSuggestionsOpen((v) => !v)}
       />
       {suggestionsOpen && (
-        <PresetList
-          items={filteredSuggestions}
-          instanceCountsByKind={instanceCountsByKind}
-          hovered={hovered}
-          onHover={setHovered}
-          onToggle={onToggle}
-          onAdd={onAdd}
-          emptyText={
-            isSearching
-              ? "No matches in regime suggestions."
-              : "No manifest entries match this regime yet."
-          }
-        />
+        <>
+          <PresetList
+            items={
+              isSearching || showAllSuggestions
+                ? filteredSuggestions
+                : filteredSuggestions.slice(0, SUGGESTED_TOP_N)
+            }
+            instanceCountsByKind={instanceCountsByKind}
+            hovered={hovered}
+            onHover={setHovered}
+            onToggle={onToggle}
+            onAdd={onAdd}
+            emptyText={
+              isSearching
+                ? "No matches in regime suggestions."
+                : "No manifest entries match this regime yet."
+            }
+          />
+          {!isSearching && filteredSuggestions.length > SUGGESTED_TOP_N && (
+            <button
+              type="button"
+              className="preset-show-all"
+              onClick={() => setShowAllSuggestions((v) => !v)}
+            >
+              {showAllSuggestions
+                ? `Show top ${SUGGESTED_TOP_N}`
+                : `Show all (${filteredSuggestions.length})`}
+            </button>
+          )}
+        </>
       )}
 
       {CATEGORIES.map((cat) => {

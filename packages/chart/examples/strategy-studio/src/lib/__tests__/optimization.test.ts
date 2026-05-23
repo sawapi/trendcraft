@@ -416,6 +416,52 @@ describe("runGridSearch", () => {
     }
   });
 
+  it("drops cross-condition rows where shortPeriod >= longPeriod", () => {
+    // Range straddles the equal/inverted boundary: short ∈ [5..15], long ∈
+    // [10..20]. The result must contain no `shortPeriod >= longPeriod`
+    // rows for either entry or exit.
+    const out = runGridSearch(
+      makeCandles(200),
+      GOLDEN_CROSS_DEAD_CROSS,
+      [
+        { name: "entry.0.shortPeriod", min: 5, max: 15, step: 5 },
+        { name: "entry.0.longPeriod", min: 10, max: 20, step: 5 },
+        { name: "exit.0.shortPeriod", min: 5, max: 15, step: 5 },
+        { name: "exit.0.longPeriod", min: 10, max: 20, step: 5 },
+      ],
+      "returns",
+    );
+    if (out.kind !== "ok") throw new Error(`expected ok, got ${out.kind}`);
+    for (const r of out.result.results) {
+      const eShort = r.params["entry.0.shortPeriod"];
+      const eLong = r.params["entry.0.longPeriod"];
+      const xShort = r.params["exit.0.shortPeriod"];
+      const xLong = r.params["exit.0.longPeriod"];
+      expect(eShort).toBeLessThan(eLong);
+      expect(xShort).toBeLessThan(xLong);
+    }
+  });
+
+  it("keeps cross-condition rows valid when only one side of the pair is being optimized", () => {
+    // Optimize only `shortPeriod`; `longPeriod` stays at the strategy
+    // default (25). All rows must keep short < 25.
+    const out = runGridSearch(
+      makeCandles(200),
+      GOLDEN_CROSS_DEAD_CROSS,
+      [
+        { name: "entry.0.shortPeriod", min: 20, max: 30, step: 2 },
+        { name: "exit.0.shortPeriod", min: 20, max: 30, step: 2 },
+      ],
+      "returns",
+    );
+    if (out.kind === "empty") return; // acceptable when slice is too thin
+    if (out.kind !== "ok") throw new Error(`expected ok or empty, got ${out.kind}`);
+    for (const r of out.result.results) {
+      expect(r.params["entry.0.shortPeriod"]).toBeLessThan(25);
+      expect(r.params["exit.0.shortPeriod"]).toBeLessThan(25);
+    }
+  });
+
   it("returns kind:'error' when combinations exceed core's maxCombinations", () => {
     const ranges = [
       { name: "entry.0.shortPeriod", min: 1, max: 20, step: 1 },

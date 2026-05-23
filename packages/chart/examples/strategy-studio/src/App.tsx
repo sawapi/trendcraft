@@ -584,9 +584,25 @@ export function App() {
 
   const prevPluginSliceKeyRef = useRef<string>("init");
   const prevPluginChartRef = useRef<typeof chart | null>(null);
+  const prevPluginCandlesRef = useRef<typeof candles | null>(null);
+  // Plugins capture their (time, price) coordinates at build time and do NOT
+  // subscribe to `chart.setCandles()` — the chart API contract is "host
+  // removes + reconnects on data change" (see `connectPricePatterns`
+  // JSDoc). The rebuild trigger encodes:
+  // - `sessionKey` + `pluginPlayheadDep`: replay state changes.
+  //
+  // Data-source changes (symbol / timeframe / Synthetic ↔ Alpaca) are
+  // picked up via `candles` in the deps array below, not in this key. We
+  // rely on `useDataSource` always calling `setCandles(newArray)` after a
+  // source change, which yields a fresh reference React's shallow equality
+  // catches. An earlier attempt used `dataKey` + a content signature
+  // (length + first.time + last.time), but two same-timeframe Alpaca
+  // symbols (SPY / AAPL on 1D) yielded identical signatures and triggered
+  // a render-1 rebuild against the *previous* symbol's candles that
+  // never re-fired afterwards.
   const pluginSliceKey = `${sessionKey}:${pluginPlayheadDep ?? "null"}`;
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: backtestCandles is read at build time; pluginSliceKey is the gated trigger and prevSliceKey/prevChart refs distinguish "slice or chart changed → rebuild all" from "toggle only → diff add/remove".
+  // biome-ignore lint/correctness/useExhaustiveDependencies: backtestCandles is derived from candles+playheadIdx; including the raw `candles` reference fires the rebuild when `useDataSource.setCandles` swaps the array (post-fetch), which is the signal that primitives need to recompute. `pluginSliceKey` separately catches replay state changes; prevSliceKey/prevChart refs distinguish "slice or chart changed → rebuild all" from "toggle only → diff add/remove".
   useEffect(() => {
     if (!chart) return;
     const handles = pluginHandlesRef.current;
@@ -595,7 +611,8 @@ export function App() {
     // would silently become orphans if we tried to diff against them.
     const chartChanged = prevPluginChartRef.current !== chart;
     const sliceMoved = prevPluginSliceKeyRef.current !== pluginSliceKey;
-    const fullRebuild = chartChanged || sliceMoved;
+    const candlesChanged = prevPluginCandlesRef.current !== candles;
+    const fullRebuild = chartChanged || sliceMoved || candlesChanged;
 
     if (fullRebuild) {
       for (const handle of handles.values()) handle.remove();
@@ -632,7 +649,8 @@ export function App() {
 
     prevPluginSliceKeyRef.current = pluginSliceKey;
     prevPluginChartRef.current = chart;
-  }, [chart, enabledPlugins, pluginSliceKey]);
+    prevPluginCandlesRef.current = candles;
+  }, [chart, enabledPlugins, pluginSliceKey, candles]);
 
   // Unmount-only cleanup: the build effect above manages add/remove
   // imperatively (no per-run cleanup return), so primitives outlive each
@@ -722,6 +740,7 @@ export function App() {
           replay={replay}
           progress={progress}
           cursorTime={cursorCandle?.time ?? null}
+          cursorIsDaily={dataSource.kind === "synthetic" || dataSource.timeframe === "1Day"}
           anchorMode={anchorMode}
           onToggleAnchor={toggleAnchor}
           onPlay={replayPlay}
