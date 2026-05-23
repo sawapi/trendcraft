@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { EMPTY_EXTENDED_METRICS_FIXTURE } from "../../backtest/__tests__/backtest-result-fixture";
 import type { BacktestResult, Trade } from "../../types";
 import { applyEquityCurveFilter, equityCurveHealth } from "../equity-curve";
 
@@ -34,6 +35,7 @@ function makeResult(trades: Trade[]): BacktestResult {
     winRate: trades.length > 0 ? (wins.length / trades.length) * 100 : 0,
     maxDrawdown: 10,
     sharpeRatio: 1.0,
+    ...EMPTY_EXTENDED_METRICS_FIXTURE,
     profitFactor:
       grossLoss > 0 ? grossProfit / grossLoss : grossProfit > 0 ? Number.POSITIVE_INFINITY : 0,
     avgHoldingDays:
