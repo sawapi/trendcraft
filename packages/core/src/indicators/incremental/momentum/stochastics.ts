@@ -2,21 +2,36 @@
  * Incremental Stochastics
  *
  * Implements %K and %D using sliding window min/max + SMA smoothing.
+ *
+ * State category: **Mixed** (raw high/low buffers feed derived rawK /
+ * K buffers and their running sums). The rawK / K buffers hold values
+ * derived from the whole `kPeriod` / `slowing` windows, so a param
+ * change cannot be reconciled — resume with different
+ * `kPeriod` / `dPeriod` / `slowing` is refused.
+ *
+ * Migrated to the 0.4.0 State Contract.
  */
 
 import type { NormalizedCandle } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import {
+  type IndicatorSnapshot,
+  makeSnapshot,
+  requireParam,
+  resolveResume,
+} from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 
 export type StochasticsValue = {
   k: number | null;
   d: number | null;
 };
 
+/**
+ * Bare state shape for Stochastics. Params (`kPeriod`, `dPeriod`,
+ * `slowing`) live in `meta.params` on the wire.
+ */
 export type StochasticsState = {
-  kPeriod: number;
-  dPeriod: number;
-  slowing: number;
   highBuffer: ReturnType<CircularBuffer<number>["snapshot"]>;
   lowBuffer: ReturnType<CircularBuffer<number>["snapshot"]>;
   rawKBuffer: ReturnType<CircularBuffer<number>["snapshot"]>;
@@ -26,6 +41,15 @@ export type StochasticsState = {
   kSum: number;
   kValidCount: number;
   count: number;
+};
+
+/** Per-indicator schema version. Bumped on any breaking state change. */
+export const STOCHASTICS_VERSION = 1;
+
+type StochasticsParams = {
+  kPeriod: number;
+  dPeriod: number;
+  slowing: number;
 };
 
 /**
@@ -42,11 +66,42 @@ export type StochasticsState = {
  */
 export function createStochastics(
   options: { kPeriod?: number; dPeriod?: number; slowing?: number } = {},
-  warmUpOptions?: WarmUpOptions<StochasticsState>,
-): IncrementalIndicator<StochasticsValue, StochasticsState> {
-  const kPeriod = options.kPeriod ?? 14;
-  const dPeriod = options.dPeriod ?? 3;
-  const slowing = options.slowing ?? 3;
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<StochasticsState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<StochasticsValue, IndicatorSnapshot<StochasticsState>> {
+  const { params, state } = resolveResume<StochasticsParams, StochasticsState>({
+    indicator: "stochastics",
+    version: STOCHASTICS_VERSION,
+    category: "mixed",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { kPeriod: 14, dPeriod: 3, slowing: 3 },
+  });
+
+  const isPositiveInt = (v: number): v is number => Number.isInteger(v) && v >= 1;
+  const kPeriod = requireParam(
+    "stochastics",
+    params,
+    "kPeriod",
+    isPositiveInt,
+    "must be a positive integer",
+  );
+  const dPeriod = requireParam(
+    "stochastics",
+    params,
+    "dPeriod",
+    isPositiveInt,
+    "must be a positive integer",
+  );
+  const slowing = requireParam(
+    "stochastics",
+    params,
+    "slowing",
+    isPositiveInt,
+    "must be a positive integer",
+  );
 
   let highBuffer: CircularBuffer<number>;
   let lowBuffer: CircularBuffer<number>;
@@ -58,17 +113,16 @@ export function createStochastics(
   let kValidCount: number;
   let count: number;
 
-  if (warmUpOptions?.fromState) {
-    const s = warmUpOptions.fromState;
-    highBuffer = CircularBuffer.fromSnapshot(s.highBuffer);
-    lowBuffer = CircularBuffer.fromSnapshot(s.lowBuffer);
-    rawKBuffer = CircularBuffer.fromSnapshot(s.rawKBuffer);
-    kBuffer = CircularBuffer.fromSnapshot(s.kBuffer);
-    rawKSum = s.rawKSum;
-    rawKValidCount = s.rawKValidCount;
-    kSum = s.kSum;
-    kValidCount = s.kValidCount;
-    count = s.count;
+  if (state !== null) {
+    highBuffer = CircularBuffer.fromSnapshot(state.highBuffer);
+    lowBuffer = CircularBuffer.fromSnapshot(state.lowBuffer);
+    rawKBuffer = CircularBuffer.fromSnapshot(state.rawKBuffer);
+    kBuffer = CircularBuffer.fromSnapshot(state.kBuffer);
+    rawKSum = state.rawKSum;
+    rawKValidCount = state.rawKValidCount;
+    kSum = state.kSum;
+    kValidCount = state.kValidCount;
+    count = state.count;
   } else {
     highBuffer = new CircularBuffer<number>(kPeriod);
     lowBuffer = new CircularBuffer<number>(kPeriod);
@@ -99,7 +153,7 @@ export function createStochastics(
 
   const nullValue: StochasticsValue = { k: null, d: null };
 
-  const indicator: IncrementalIndicator<StochasticsValue, StochasticsState> = {
+  const indicator: IncrementalIndicator<StochasticsValue, IndicatorSnapshot<StochasticsState>> = {
     next(candle: NormalizedCandle) {
       count++;
 
@@ -195,21 +249,23 @@ export function createStochastics(
       return { time: candle.time, value: { k: kVal, d: dVal } };
     },
 
-    getState(): StochasticsState {
-      return {
-        kPeriod,
-        dPeriod,
-        slowing,
-        highBuffer: highBuffer.snapshot(),
-        lowBuffer: lowBuffer.snapshot(),
-        rawKBuffer: rawKBuffer.snapshot(),
-        kBuffer: kBuffer.snapshot(),
-        rawKSum,
-        rawKValidCount,
-        kSum,
-        kValidCount,
-        count,
-      };
+    getState(): IndicatorSnapshot<StochasticsState> {
+      return makeSnapshot(
+        "stochastics",
+        STOCHASTICS_VERSION,
+        { kPeriod, dPeriod, slowing },
+        {
+          highBuffer: highBuffer.snapshot(),
+          lowBuffer: lowBuffer.snapshot(),
+          rawKBuffer: rawKBuffer.snapshot(),
+          kBuffer: kBuffer.snapshot(),
+          rawKSum,
+          rawKValidCount,
+          kSum,
+          kValidCount,
+          count,
+        },
+      );
     },
 
     get count() {

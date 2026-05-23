@@ -146,9 +146,9 @@ describe("createFibonacciRetracement", () => {
       }
     }
     const stateB = b.getState();
-    expect(stateB.leftBars).toBe(customLeft);
-    expect(stateB.rightBars).toBe(customRight);
-    expect(stateB.levels).toEqual(customLevels);
+    expect(stateB.meta.params.leftBars).toBe(customLeft);
+    expect(stateB.meta.params.rightBars).toBe(customRight);
+    expect(stateB.meta.params.levels).toEqual(customLevels);
   });
 
   it("respects custom levels", () => {

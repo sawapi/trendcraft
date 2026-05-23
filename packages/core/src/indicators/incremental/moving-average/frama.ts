@@ -15,18 +15,33 @@
 
 import type { NormalizedCandle, PriceSource } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import {
+  type IndicatorSnapshot,
+  makeSnapshot,
+  requireParam,
+  resolveResume,
+} from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 import { getSourcePrice } from "../utils";
 
+/**
+ * Bare state shape for FRAMA. Params (`period`, `source`) live in
+ * `meta.params`; `effectivePeriod` / `halfPeriod` are derived from
+ * `period` in the factory closure and intentionally not persisted.
+ */
 export type FramaState = {
-  period: number;
-  effectivePeriod: number;
-  halfPeriod: number;
-  source: PriceSource;
   prevFrama: number | null;
   highBuffer: { data: number[]; head: number; length: number; capacity: number };
   lowBuffer: { data: number[]; head: number; length: number; capacity: number };
   count: number;
+};
+
+/** Per-indicator schema version. Bumped on any breaking state change. */
+export const FRAMA_VERSION = 1;
+
+type FramaParams = {
+  period: number;
+  source: PriceSource;
 };
 
 /**
@@ -43,22 +58,32 @@ export type FramaState = {
  */
 export function createFrama(
   options: { period?: number; source?: PriceSource } = {},
-  warmUpOptions?: WarmUpOptions<FramaState>,
-): IncrementalIndicator<number | null, FramaState> {
-  // Resume contract: a snapshot can only be resumed with the SAME
-  // period and source it was created under. FRAMA is fundamentally
-  // recursive (`prevFrama` carries the smoothed history forward forever),
-  // so changing either of those mid-stream produces a series that
-  // doesn't match what `createFrama(newOptions)` would compute over the
-  // same candle history. We refuse the reconfiguration explicitly rather
-  // than silently producing a hybrid output.
-  //
-  // If options are omitted on resume, snapshot values are restored.
-  // If options are provided, they must match the snapshot or be the
-  // first time the indicator is created (no fromState).
-  const fs = warmUpOptions?.fromState ?? null;
-  const period = options.period ?? fs?.period ?? 16;
-  const source: PriceSource = options.source ?? fs?.source ?? "close";
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<FramaState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<number | null, IndicatorSnapshot<FramaState>> {
+  // FRAMA is Mixed: the recursive `prevFrama` carries smoothed history
+  // forward forever, so changing `period` / `source` mid-stream
+  // produces a hybrid series. The mixed-category `resolveResume`
+  // policy refuses any param change on resume.
+  const { params, state } = resolveResume<FramaParams, FramaState>({
+    indicator: "frama",
+    version: FRAMA_VERSION,
+    category: "mixed",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { period: 16, source: "close" },
+  });
+
+  const period = requireParam(
+    "frama",
+    params,
+    "period",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
+  const source = params.source;
   const effectivePeriod = period % 2 === 0 ? period : period + 1;
   const halfPeriod = effectivePeriod / 2;
 
@@ -67,23 +92,11 @@ export function createFrama(
   let prevFrama: number | null;
   let count: number;
 
-  if (fs) {
-    // Resume contract: same period and source as the snapshot, or omit
-    // both. FRAMA's recursive `prevFrama` makes mid-stream reconfig
-    // mathematically undefined, and pre-canonical snapshots (close-only
-    // buffer, no wick range) cannot be migrated cleanly — re-warm.
-    if (
-      fs.effectivePeriod !== effectivePeriod ||
-      fs.source !== source ||
-      !fs.highBuffer ||
-      !fs.lowBuffer
-    ) {
-      throw new Error("FRAMA: incompatible snapshot, re-warm required");
-    }
-    highBuffer = CircularBuffer.fromSnapshot(fs.highBuffer);
-    lowBuffer = CircularBuffer.fromSnapshot(fs.lowBuffer);
-    prevFrama = fs.prevFrama;
-    count = fs.count;
+  if (state !== null) {
+    highBuffer = CircularBuffer.fromSnapshot(state.highBuffer);
+    lowBuffer = CircularBuffer.fromSnapshot(state.lowBuffer);
+    prevFrama = state.prevFrama;
+    count = state.count;
   } else {
     highBuffer = new CircularBuffer<number>(effectivePeriod);
     lowBuffer = new CircularBuffer<number>(effectivePeriod);
@@ -127,7 +140,7 @@ export function createFrama(
     return 0.01;
   }
 
-  const indicator: IncrementalIndicator<number | null, FramaState> = {
+  const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<FramaState>> = {
     next(candle: NormalizedCandle) {
       const price = getSourcePrice(candle, source);
       count++;
@@ -154,13 +167,12 @@ export function createFrama(
     peek(candle: NormalizedCandle) {
       const price = getSourcePrice(candle, source);
 
-      // Gate on the *existing* buffer being full (not the simulated +1
-      // length). Otherwise the loop below would call
-      // `highBuffer.get(j+1)` for j up to effectivePeriod-2 — which
-      // requires length >= effectivePeriod. After a period-growing
-      // resume the buffer is partially refilled and we must report null
-      // until next() finishes warming.
-      if (highBuffer.length < effectivePeriod) {
+      // Mirror next(): it pushes first, then gates on
+      // `buffer.length >= effectivePeriod`. After a simulated push the
+      // window holds min(length + 1, capacity) entries, so peek must
+      // gate on `length + 1 >= effectivePeriod` to agree with next on
+      // the warmup boundary.
+      if (highBuffer.length + 1 < effectivePeriod) {
         return { time: candle.time, value: null };
       }
 
@@ -168,7 +180,11 @@ export function createFrama(
         return { time: candle.time, value: price };
       }
 
-      // Simulate buffer with new candle's high/low.
+      // Simulate the post-push window: the most recent
+      // (effectivePeriod - 1) buffer entries plus the new candle.
+      // `startIdx` is 1 when the buffer is full (the push evicts the
+      // oldest entry) and 0 when it holds exactly effectivePeriod - 1.
+      const startIdx = highBuffer.length - (effectivePeriod - 1);
       let h1High = Number.NEGATIVE_INFINITY;
       let h1Low = Number.POSITIVE_INFINITY;
       let h2High = Number.NEGATIVE_INFINITY;
@@ -177,8 +193,8 @@ export function createFrama(
       let fLow = Number.POSITIVE_INFINITY;
 
       for (let j = 0; j < effectivePeriod; j++) {
-        const high = j < effectivePeriod - 1 ? highBuffer.get(j + 1) : candle.high;
-        const low = j < effectivePeriod - 1 ? lowBuffer.get(j + 1) : candle.low;
+        const high = j < effectivePeriod - 1 ? highBuffer.get(startIdx + j) : candle.high;
+        const low = j < effectivePeriod - 1 ? lowBuffer.get(startIdx + j) : candle.low;
 
         if (j < halfPeriod) {
           if (high > h1High) h1High = high;
@@ -207,17 +223,18 @@ export function createFrama(
       return { time: candle.time, value: alpha * price + (1 - alpha) * prevFrama };
     },
 
-    getState(): FramaState {
-      return {
-        period,
-        effectivePeriod,
-        halfPeriod,
-        source,
-        prevFrama,
-        highBuffer: highBuffer.snapshot(),
-        lowBuffer: lowBuffer.snapshot(),
-        count,
-      };
+    getState(): IndicatorSnapshot<FramaState> {
+      return makeSnapshot(
+        "frama",
+        FRAMA_VERSION,
+        { period, source },
+        {
+          prevFrama,
+          highBuffer: highBuffer.snapshot(),
+          lowBuffer: lowBuffer.snapshot(),
+          count,
+        },
+      );
     },
 
     get count() {

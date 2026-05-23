@@ -4,21 +4,39 @@
  * AO = SMA(median, fastPeriod) - SMA(median, slowPeriod)
  * where median = (high + low) / 2
  *
- * Measures market momentum by comparing recent momentum to a larger timeframe.
+ * State category: **Cascaded** (composes two inner incremental SMAs).
+ * Resume with a different `fastPeriod` / `slowPeriod` is refused.
+ *
+ * Migrated to the 0.4.0 State Contract.
  */
 
 import type { NormalizedCandle } from "../../../types";
-import type { SmaState } from "../moving-average/sma";
-import { createSma } from "../moving-average/sma";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import { createSma, type SmaState } from "../moving-average/sma";
+import {
+  type IndicatorSnapshot,
+  makeSnapshot,
+  requireParam,
+  resolveResume,
+} from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 import { makeCandle } from "../utils";
 
+/**
+ * Bare state shape for Awesome Oscillator. Params (`fastPeriod`,
+ * `slowPeriod`) live in `meta.params` on the wire.
+ */
 export type AwesomeOscillatorState = {
-  fastSmaState: SmaState;
-  slowSmaState: SmaState;
+  fastSmaState: IndicatorSnapshot<SmaState>;
+  slowSmaState: IndicatorSnapshot<SmaState>;
+  count: number;
+};
+
+/** Per-indicator schema version. Bumped on any breaking state change. */
+export const AWESOME_OSCILLATOR_VERSION = 1;
+
+type AwesomeOscillatorParams = {
   fastPeriod: number;
   slowPeriod: number;
-  count: number;
 };
 
 /**
@@ -35,20 +53,44 @@ export type AwesomeOscillatorState = {
  */
 export function createAwesomeOscillator(
   options: { fastPeriod?: number; slowPeriod?: number } = {},
-  warmUpOptions?: WarmUpOptions<AwesomeOscillatorState>,
-): IncrementalIndicator<number | null, AwesomeOscillatorState> {
-  const fastPeriod = options.fastPeriod ?? 5;
-  const slowPeriod = options.slowPeriod ?? 34;
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<AwesomeOscillatorState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<number | null, IndicatorSnapshot<AwesomeOscillatorState>> {
+  const { params, state } = resolveResume<AwesomeOscillatorParams, AwesomeOscillatorState>({
+    indicator: "awesomeOscillator",
+    version: AWESOME_OSCILLATOR_VERSION,
+    category: "cascaded",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { fastPeriod: 5, slowPeriod: 34 },
+  });
+
+  const isPositiveInt = (v: number): v is number => Number.isInteger(v) && v >= 1;
+  const fastPeriod = requireParam(
+    "awesomeOscillator",
+    params,
+    "fastPeriod",
+    isPositiveInt,
+    "must be a positive integer",
+  );
+  const slowPeriod = requireParam(
+    "awesomeOscillator",
+    params,
+    "slowPeriod",
+    isPositiveInt,
+    "must be a positive integer",
+  );
 
   let fastSma: ReturnType<typeof createSma>;
   let slowSma: ReturnType<typeof createSma>;
   let count: number;
 
-  if (warmUpOptions?.fromState) {
-    const s = warmUpOptions.fromState;
-    fastSma = createSma({ period: fastPeriod }, { fromState: s.fastSmaState });
-    slowSma = createSma({ period: slowPeriod }, { fromState: s.slowSmaState });
-    count = s.count;
+  if (state !== null) {
+    fastSma = createSma({ period: fastPeriod }, { fromState: state.fastSmaState });
+    slowSma = createSma({ period: slowPeriod }, { fromState: state.slowSmaState });
+    count = state.count;
   } else {
     fastSma = createSma({ period: fastPeriod });
     slowSma = createSma({ period: slowPeriod });
@@ -73,7 +115,10 @@ export function createAwesomeOscillator(
     return { time: candle.time, value: fastVal - slowVal };
   }
 
-  const indicator: IncrementalIndicator<number | null, AwesomeOscillatorState> = {
+  const indicator: IncrementalIndicator<
+    number | null,
+    IndicatorSnapshot<AwesomeOscillatorState>
+  > = {
     next(candle: NormalizedCandle) {
       count++;
       return computeAo(candle, false);
@@ -83,14 +128,17 @@ export function createAwesomeOscillator(
       return computeAo(candle, true);
     },
 
-    getState(): AwesomeOscillatorState {
-      return {
-        fastSmaState: fastSma.getState(),
-        slowSmaState: slowSma.getState(),
-        fastPeriod,
-        slowPeriod,
-        count,
-      };
+    getState(): IndicatorSnapshot<AwesomeOscillatorState> {
+      return makeSnapshot(
+        "awesomeOscillator",
+        AWESOME_OSCILLATOR_VERSION,
+        { fastPeriod, slowPeriod },
+        {
+          fastSmaState: fastSma.getState(),
+          slowSmaState: slowSma.getState(),
+          count,
+        },
+      );
     },
 
     get count() {

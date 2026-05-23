@@ -3,10 +3,27 @@
  *
  * Uses Wilder's smoothing for TR, +DM, -DM and ADX computation.
  * TA-Lib compatible: TR[0]=0, first smoothed output at index=period.
+ *
+ * Note two distinct Wilder forms coexist here: the TR / +DM / -DM
+ * smoothers use the **sum form** (`prev - prev/period + current`)
+ * while the ADX smoother uses the **average form**
+ * (`(prev*(period-1) + current)/period`). Both are preserved verbatim.
+ *
+ * State category: **Recursive** (`smoothed*` and `adx` are the
+ * recursive accumulators; `initSum*` / `dxInitSum` form the warmup
+ * tallies). Resume with a different `period` / `adxPeriod` is refused.
+ *
+ * Migrated to the 0.4.0 State Contract.
  */
 
 import type { NormalizedCandle } from "../../../types";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import {
+  type IndicatorSnapshot,
+  makeSnapshot,
+  requireParam,
+  resolveResume,
+} from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 
 export type DmiValue = {
   plusDi: number | null;
@@ -14,9 +31,11 @@ export type DmiValue = {
   adx: number | null;
 };
 
+/**
+ * Bare state shape for DMI. Params (`period`, `adxPeriod`) live in
+ * `meta.params` on the wire.
+ */
 export type DmiState = {
-  period: number;
-  adxPeriod: number;
   count: number;
   prevClose: number | null;
   prevHigh: number | null;
@@ -30,6 +49,14 @@ export type DmiState = {
   dxInitSum: number;
   dxValidCount: number;
   adx: number | null;
+};
+
+/** Per-indicator schema version. Bumped on any breaking state change. */
+export const DMI_VERSION = 1;
+
+type DmiParams = {
+  period: number;
+  adxPeriod: number;
 };
 
 /**
@@ -46,10 +73,34 @@ export type DmiState = {
  */
 export function createDmi(
   options: { period?: number; adxPeriod?: number } = {},
-  warmUpOptions?: WarmUpOptions<DmiState>,
-): IncrementalIndicator<DmiValue, DmiState> {
-  const period = options.period ?? 14;
-  const adxPeriod = options.adxPeriod ?? 14;
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<DmiState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<DmiValue, IndicatorSnapshot<DmiState>> {
+  const { params, state } = resolveResume<DmiParams, DmiState>({
+    indicator: "dmi",
+    version: DMI_VERSION,
+    category: "recursive",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { period: 14, adxPeriod: 14 },
+  });
+
+  const period = requireParam(
+    "dmi",
+    params,
+    "period",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
+  const adxPeriod = requireParam(
+    "dmi",
+    params,
+    "adxPeriod",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
 
   let count: number;
   let prevClose: number | null;
@@ -65,21 +116,20 @@ export function createDmi(
   let dxValidCount: number;
   let adxVal: number | null;
 
-  if (warmUpOptions?.fromState) {
-    const s = warmUpOptions.fromState;
-    count = s.count;
-    prevClose = s.prevClose;
-    prevHigh = s.prevHigh;
-    prevLow = s.prevLow;
-    initSumTr = s.initSumTr;
-    initSumPlusDm = s.initSumPlusDm;
-    initSumMinusDm = s.initSumMinusDm;
-    smoothedTr = s.smoothedTr;
-    smoothedPlusDm = s.smoothedPlusDm;
-    smoothedMinusDm = s.smoothedMinusDm;
-    dxInitSum = s.dxInitSum;
-    dxValidCount = s.dxValidCount;
-    adxVal = s.adx;
+  if (state !== null) {
+    count = state.count;
+    prevClose = state.prevClose;
+    prevHigh = state.prevHigh;
+    prevLow = state.prevLow;
+    initSumTr = state.initSumTr;
+    initSumPlusDm = state.initSumPlusDm;
+    initSumMinusDm = state.initSumMinusDm;
+    smoothedTr = state.smoothedTr;
+    smoothedPlusDm = state.smoothedPlusDm;
+    smoothedMinusDm = state.smoothedMinusDm;
+    dxInitSum = state.dxInitSum;
+    dxValidCount = state.dxValidCount;
+    adxVal = state.adx;
   } else {
     count = 0;
     prevClose = null;
@@ -202,7 +252,7 @@ export function createDmi(
     return { plusDi, minusDi, adx: currentAdx };
   }
 
-  const indicator: IncrementalIndicator<DmiValue, DmiState> = {
+  const indicator: IncrementalIndicator<DmiValue, IndicatorSnapshot<DmiState>> = {
     next(candle: NormalizedCandle) {
       count++;
       const value = processCandle(candle);
@@ -261,24 +311,27 @@ export function createDmi(
       return { time: candle.time, value: { plusDi, minusDi, adx: currentAdx } };
     },
 
-    getState(): DmiState {
-      return {
-        period,
-        adxPeriod,
-        count,
-        prevClose,
-        prevHigh,
-        prevLow,
-        initSumTr,
-        initSumPlusDm,
-        initSumMinusDm,
-        smoothedTr,
-        smoothedPlusDm,
-        smoothedMinusDm,
-        dxInitSum,
-        dxValidCount,
-        adx: adxVal,
-      };
+    getState(): IndicatorSnapshot<DmiState> {
+      return makeSnapshot(
+        "dmi",
+        DMI_VERSION,
+        { period, adxPeriod },
+        {
+          count,
+          prevClose,
+          prevHigh,
+          prevLow,
+          initSumTr,
+          initSumPlusDm,
+          initSumMinusDm,
+          smoothedTr,
+          smoothedPlusDm,
+          smoothedMinusDm,
+          dxInitSum,
+          dxValidCount,
+          adx: adxVal,
+        },
+      );
     },
 
     get count() {

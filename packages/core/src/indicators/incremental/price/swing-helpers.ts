@@ -13,38 +13,39 @@
  */
 
 /**
- * Resolve `leftBars` / `rightBars` with the canonical precedence:
- *   snapshot state → constructor options → defaults (10).
+ * Validate `leftBars` / `rightBars` (both `>= 1`).
  *
- * Validates that both values are `>= 1`.
+ * Under the 0.4.0 State Contract the precedence merge
+ * (defaults < snapshot.params < options) is done by `resolveResume`;
+ * this helper only performs the shared range validation.
  */
-export function resolveSwingConfig(
-  options: { leftBars?: number; rightBars?: number } | undefined,
-  fromState: { leftBars: number; rightBars: number } | undefined,
-): { leftBars: number; rightBars: number } {
-  const leftBars = fromState?.leftBars ?? options?.leftBars ?? 10;
-  const rightBars = fromState?.rightBars ?? options?.rightBars ?? 10;
+export function validateSwingConfig(
+  leftBars: number,
+  rightBars: number,
+): {
+  leftBars: number;
+  rightBars: number;
+} {
   if (leftBars < 1) throw new Error("leftBars must be at least 1");
   if (rightBars < 1) throw new Error("rightBars must be at least 1");
   return { leftBars, rightBars };
 }
 
 /**
- * Resolve a Fibonacci-style `levels: number[]` with the same precedence and
- * return both the (defensively copied) levels array and a pre-computed array
- * of `String(ratio)` keys so the hot path can skip per-bar coercion.
+ * Validate a Fibonacci-style `levels: number[]` (non-empty array) and
+ * return both the (defensively copied) levels array and a pre-computed
+ * array of `String(ratio)` keys so the hot path can skip per-bar
+ * coercion.
  */
-export function resolveLevelsConfig(
-  options: { levels?: number[] } | undefined,
-  fromState: { levels: number[] } | undefined,
-  defaults: readonly number[],
-): { levels: number[]; ratioKeys: string[] } {
-  const source = fromState?.levels ?? options?.levels ?? defaults;
-  if (!Array.isArray(source) || source.length === 0) {
+export function resolveLevels(levels: readonly number[]): {
+  levels: number[];
+  ratioKeys: string[];
+} {
+  if (!Array.isArray(levels) || levels.length === 0) {
     throw new Error("levels must be a non-empty array");
   }
-  const levels = source.slice();
-  return { levels, ratioKeys: levels.map(String) };
+  const copy = levels.slice();
+  return { levels: copy, ratioKeys: copy.map(String) };
 }
 
 /**

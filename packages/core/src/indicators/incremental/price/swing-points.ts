@@ -10,11 +10,21 @@
  * time), following the same convention as `createFractals`. During the warm-up
  * window the output time falls back to the streaming candle's time with all
  * fields nulled.
+ *
+ * State category: **Mixed** (a fixed-size `leftBars + 1 + rightBars`
+ * raw OHLC window plus persistent last-swing trackers conditioned on
+ * the window the swing was confirmed under). A `leftBars` / `rightBars`
+ * change resizes the scan window and re-times confirmation, which would
+ * re-emit pre-snapshot swings from the carried buffer — so any param
+ * change on resume is refused.
+ *
+ * Migrated to the 0.4.0 State Contract.
  */
 
 import type { NormalizedCandle } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import { type IndicatorSnapshot, makeSnapshot, resolveResume } from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 
 export type SwingPointValue = {
   isSwingHigh: boolean;
@@ -29,9 +39,11 @@ export type SwingPointValue = {
 
 type WindowEntry = { high: number; low: number; time: number; index: number };
 
+/**
+ * Bare state shape for Swing Points. Params (`leftBars`, `rightBars`)
+ * live in `meta.params` on the wire.
+ */
 export type SwingPointsState = {
-  leftBars: number;
-  rightBars: number;
   buffer: ReturnType<CircularBuffer<WindowEntry>["snapshot"]>;
   /** Index of the last confirmed swing high (absolute bar index, 0-based) */
   lastSwingHighIdx: number | null;
@@ -39,6 +51,14 @@ export type SwingPointsState = {
   lastSwingLowIdx: number | null;
   lastSwingLowPrice: number | null;
   count: number;
+};
+
+/** Per-indicator schema version. Bumped on any breaking state change. */
+export const SWING_POINTS_VERSION = 1;
+
+type SwingPointsParams = {
+  leftBars: number;
+  rightBars: number;
 };
 
 const nullValue: SwingPointValue = {
@@ -68,11 +88,22 @@ const nullValue: SwingPointValue = {
  */
 export function createSwingPoints(
   options: { leftBars?: number; rightBars?: number } = {},
-  warmUpOptions?: WarmUpOptions<SwingPointsState>,
-): IncrementalIndicator<SwingPointValue, SwingPointsState> {
-  const leftBars = options.leftBars ?? 5;
-  const rightBars = options.rightBars ?? 5;
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<SwingPointsState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<SwingPointValue, IndicatorSnapshot<SwingPointsState>> {
+  const { params, state, reconfigured } = resolveResume<SwingPointsParams, SwingPointsState>({
+    indicator: "swingPoints",
+    version: SWING_POINTS_VERSION,
+    category: "mixed",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { leftBars: 5, rightBars: 5 },
+  });
 
+  const leftBars = params.leftBars;
+  const rightBars = params.rightBars;
   if (leftBars < 1) throw new Error("leftBars must be at least 1");
   if (rightBars < 1) throw new Error("rightBars must be at least 1");
 
@@ -85,14 +116,24 @@ export function createSwingPoints(
   let lastSwingLowPrice: number | null;
   let count: number;
 
-  if (warmUpOptions?.fromState) {
-    const s = warmUpOptions.fromState;
-    buffer = CircularBuffer.fromSnapshot(s.buffer);
-    lastSwingHighIdx = s.lastSwingHighIdx;
-    lastSwingHighPrice = s.lastSwingHighPrice;
-    lastSwingLowIdx = s.lastSwingLowIdx;
-    lastSwingLowPrice = s.lastSwingLowPrice;
-    count = s.count;
+  if (state !== null) {
+    const old = CircularBuffer.fromSnapshot(state.buffer);
+    if (reconfigured) {
+      // leftBars / rightBars changed — carry the most-recent window
+      // entries into a buffer sized at the new window.
+      buffer = new CircularBuffer<WindowEntry>(windowSize);
+      const carry = Math.min(old.length, windowSize);
+      for (let i = old.length - carry; i < old.length; i++) {
+        buffer.push(old.get(i));
+      }
+    } else {
+      buffer = old;
+    }
+    lastSwingHighIdx = state.lastSwingHighIdx;
+    lastSwingHighPrice = state.lastSwingHighPrice;
+    lastSwingLowIdx = state.lastSwingLowIdx;
+    lastSwingLowPrice = state.lastSwingLowPrice;
+    count = state.count;
   } else {
     buffer = new CircularBuffer<WindowEntry>(windowSize);
     lastSwingHighIdx = null;
@@ -125,7 +166,7 @@ export function createSwingPoints(
     return { isHigh, isLow, mid };
   }
 
-  const indicator: IncrementalIndicator<SwingPointValue, SwingPointsState> = {
+  const indicator: IncrementalIndicator<SwingPointValue, IndicatorSnapshot<SwingPointsState>> = {
     next(candle: NormalizedCandle) {
       buffer.push({
         high: candle.high,
@@ -205,17 +246,20 @@ export function createSwingPoints(
       };
     },
 
-    getState(): SwingPointsState {
-      return {
-        leftBars,
-        rightBars,
-        buffer: buffer.snapshot(),
-        lastSwingHighIdx,
-        lastSwingHighPrice,
-        lastSwingLowIdx,
-        lastSwingLowPrice,
-        count,
-      };
+    getState(): IndicatorSnapshot<SwingPointsState> {
+      return makeSnapshot(
+        "swingPoints",
+        SWING_POINTS_VERSION,
+        { leftBars, rightBars },
+        {
+          buffer: buffer.snapshot(),
+          lastSwingHighIdx,
+          lastSwingHighPrice,
+          lastSwingLowIdx,
+          lastSwingLowPrice,
+          count,
+        },
+      );
     },
 
     get count() {
@@ -223,7 +267,7 @@ export function createSwingPoints(
     },
 
     get isWarmedUp() {
-      return count >= windowSize;
+      return buffer.length >= windowSize;
     },
   };
 

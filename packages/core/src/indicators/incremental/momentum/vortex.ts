@@ -3,19 +3,35 @@
  *
  * VI+ = sum(VM+, period) / sum(TR, period)
  * VI- = sum(VM-, period) / sum(TR, period)
+ *
+ * State category: **Mixed** (fixed-size VM+/VM-/TR buffers plus the
+ * carried-forward `prevHigh` / `prevLow` / `prevClose`). The buffered
+ * VM/TR values are each derived from a candle *and its predecessor*,
+ * so a `period` change cannot be reconciled — resume with a different
+ * `period` is refused.
+ *
+ * Migrated to the 0.4.0 State Contract.
  */
 
 import type { NormalizedCandle } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import {
+  type IndicatorSnapshot,
+  makeSnapshot,
+  requireParam,
+  resolveResume,
+} from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 
 export type VortexValue = {
   viPlus: number | null;
   viMinus: number | null;
 };
 
+/**
+ * Bare state shape for Vortex. Params (`period`) live in `meta.params`.
+ */
 export type VortexState = {
-  period: number;
   vmPlusBuffer: ReturnType<CircularBuffer<number>["snapshot"]>;
   vmMinusBuffer: ReturnType<CircularBuffer<number>["snapshot"]>;
   trBuffer: ReturnType<CircularBuffer<number>["snapshot"]>;
@@ -23,6 +39,13 @@ export type VortexState = {
   prevLow: number | null;
   prevClose: number | null;
   count: number;
+};
+
+/** Per-indicator schema version. Bumped on any breaking state change. */
+export const VORTEX_VERSION = 1;
+
+type VortexParams = {
+  period: number;
 };
 
 /**
@@ -39,9 +62,27 @@ export type VortexState = {
  */
 export function createVortex(
   options: { period?: number } = {},
-  warmUpOptions?: WarmUpOptions<VortexState>,
-): IncrementalIndicator<VortexValue, VortexState> {
-  const period = options.period ?? 14;
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<VortexState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<VortexValue, IndicatorSnapshot<VortexState>> {
+  const { params, state } = resolveResume<VortexParams, VortexState>({
+    indicator: "vortex",
+    version: VORTEX_VERSION,
+    category: "mixed",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { period: 14 },
+  });
+
+  const period = requireParam(
+    "vortex",
+    params,
+    "period",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
 
   let vmPlusBuffer: CircularBuffer<number>;
   let vmMinusBuffer: CircularBuffer<number>;
@@ -51,15 +92,14 @@ export function createVortex(
   let prevClose: number | null;
   let count: number;
 
-  if (warmUpOptions?.fromState) {
-    const s = warmUpOptions.fromState;
-    vmPlusBuffer = CircularBuffer.fromSnapshot(s.vmPlusBuffer);
-    vmMinusBuffer = CircularBuffer.fromSnapshot(s.vmMinusBuffer);
-    trBuffer = CircularBuffer.fromSnapshot(s.trBuffer);
-    prevHigh = s.prevHigh;
-    prevLow = s.prevLow;
-    prevClose = s.prevClose;
-    count = s.count;
+  if (state !== null) {
+    vmPlusBuffer = CircularBuffer.fromSnapshot(state.vmPlusBuffer);
+    vmMinusBuffer = CircularBuffer.fromSnapshot(state.vmMinusBuffer);
+    trBuffer = CircularBuffer.fromSnapshot(state.trBuffer);
+    prevHigh = state.prevHigh;
+    prevLow = state.prevLow;
+    prevClose = state.prevClose;
+    count = state.count;
   } else {
     vmPlusBuffer = new CircularBuffer<number>(period);
     vmMinusBuffer = new CircularBuffer<number>(period);
@@ -94,7 +134,7 @@ export function createVortex(
     };
   }
 
-  const indicator: IncrementalIndicator<VortexValue, VortexState> = {
+  const indicator: IncrementalIndicator<VortexValue, IndicatorSnapshot<VortexState>> = {
     next(candle: NormalizedCandle) {
       count++;
 
@@ -150,17 +190,21 @@ export function createVortex(
       return { time: candle.time, value: computeFromBuffers(peekVmP, peekVmM, peekTr) };
     },
 
-    getState(): VortexState {
-      return {
-        period,
-        vmPlusBuffer: vmPlusBuffer.snapshot(),
-        vmMinusBuffer: vmMinusBuffer.snapshot(),
-        trBuffer: trBuffer.snapshot(),
-        prevHigh,
-        prevLow,
-        prevClose,
-        count,
-      };
+    getState(): IndicatorSnapshot<VortexState> {
+      return makeSnapshot(
+        "vortex",
+        VORTEX_VERSION,
+        { period },
+        {
+          vmPlusBuffer: vmPlusBuffer.snapshot(),
+          vmMinusBuffer: vmMinusBuffer.snapshot(),
+          trBuffer: trBuffer.snapshot(),
+          prevHigh,
+          prevLow,
+          prevClose,
+          count,
+        },
+      );
     },
 
     get count() {

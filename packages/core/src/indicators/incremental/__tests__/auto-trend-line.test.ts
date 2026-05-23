@@ -98,8 +98,8 @@ describe("createAutoTrendLine", () => {
       expect(vb.support).toBe(va.support);
     }
     const stateB = b.getState();
-    expect(stateB.leftBars).toBe(customLeft);
-    expect(stateB.rightBars).toBe(customRight);
+    expect(stateB.meta.params.leftBars).toBe(customLeft);
+    expect(stateB.meta.params.rightBars).toBe(customRight);
   });
 
   it("peek does not mutate state", () => {

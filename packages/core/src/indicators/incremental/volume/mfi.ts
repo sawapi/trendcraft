@@ -11,23 +11,42 @@
  * 5. MFI = 100 - 100 / (1 + Positive MF / Negative MF)
  *
  * Uses CircularBuffer to store money flow direction/amount for the lookback window.
+ *
+ * State category: **Mixed** (a fixed-size buffer of *derived* signed
+ * money flows plus the recursive `prevTp` carry-over needed to sign
+ * the next flow). Resume with a different `period` is refused — the
+ * window length is baked into the buffered flows.
+ *
+ * Migrated to the 0.4.0 State Contract.
  */
 
 import type { NormalizedCandle } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import {
+  type IndicatorSnapshot,
+  makeSnapshot,
+  requireParam,
+  resolveResume,
+} from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 
 /**
- * State for incremental MFI
+ * Bare state shape for MFI. `period` lives in `meta.params`.
  */
 export type MfiState = {
-  period: number;
   prevTp: number | null;
   /** Buffer stores signed money flows: positive=up, negative=down, 0=unchanged */
   flowBuffer: ReturnType<CircularBuffer<number>["snapshot"]>;
   positiveSum: number;
   negativeSum: number;
   count: number;
+};
+
+/** Per-indicator schema version. Bumped on any breaking state change. */
+export const MFI_VERSION = 1;
+
+type MfiParams = {
+  period: number;
 };
 
 /**
@@ -43,10 +62,28 @@ export type MfiState = {
  * ```
  */
 export function createMfi(
-  options: { period: number },
-  warmUpOptions?: WarmUpOptions<MfiState>,
-): IncrementalIndicator<number | null, MfiState> {
-  const period = options.period;
+  options: { period?: number } = {},
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<MfiState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<number | null, IndicatorSnapshot<MfiState>> {
+  const { params, state } = resolveResume<MfiParams, MfiState>({
+    indicator: "mfi",
+    version: MFI_VERSION,
+    category: "mixed",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { period: 14 },
+  });
+
+  const period = requireParam(
+    "mfi",
+    params,
+    "period",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
 
   let prevTp: number | null;
   let flowBuffer: CircularBuffer<number>;
@@ -54,13 +91,12 @@ export function createMfi(
   let negativeSum: number;
   let count: number;
 
-  if (warmUpOptions?.fromState) {
-    const s = warmUpOptions.fromState;
-    prevTp = s.prevTp;
-    flowBuffer = CircularBuffer.fromSnapshot(s.flowBuffer);
-    positiveSum = s.positiveSum;
-    negativeSum = s.negativeSum;
-    count = s.count;
+  if (state !== null) {
+    prevTp = state.prevTp;
+    flowBuffer = CircularBuffer.fromSnapshot(state.flowBuffer);
+    positiveSum = state.positiveSum;
+    negativeSum = state.negativeSum;
+    count = state.count;
   } else {
     prevTp = null;
     flowBuffer = new CircularBuffer<number>(period);
@@ -117,7 +153,7 @@ export function createMfi(
     return 100 - 100 / (1 + ratio);
   }
 
-  const indicator: IncrementalIndicator<number | null, MfiState> = {
+  const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<MfiState>> = {
     next(candle: NormalizedCandle) {
       const value = computeNext(candle);
       return { time: candle.time, value };
@@ -125,28 +161,37 @@ export function createMfi(
 
     peek(candle: NormalizedCandle) {
       // Save and restore for peek
-      const savedState = indicator.getState();
+      const savedTp = prevTp;
+      const savedBuffer = flowBuffer.snapshot();
+      const savedPositive = positiveSum;
+      const savedNegative = negativeSum;
+      const savedCount = count;
+
       const result = indicator.next(candle);
 
       // Restore
-      prevTp = savedState.prevTp;
-      flowBuffer = CircularBuffer.fromSnapshot(savedState.flowBuffer);
-      positiveSum = savedState.positiveSum;
-      negativeSum = savedState.negativeSum;
-      count = savedState.count;
+      prevTp = savedTp;
+      flowBuffer = CircularBuffer.fromSnapshot(savedBuffer);
+      positiveSum = savedPositive;
+      negativeSum = savedNegative;
+      count = savedCount;
 
       return result;
     },
 
-    getState(): MfiState {
-      return {
-        period,
-        prevTp,
-        flowBuffer: flowBuffer.snapshot(),
-        positiveSum,
-        negativeSum,
-        count,
-      };
+    getState(): IndicatorSnapshot<MfiState> {
+      return makeSnapshot(
+        "mfi",
+        MFI_VERSION,
+        { period },
+        {
+          prevTp,
+          flowBuffer: flowBuffer.snapshot(),
+          positiveSum,
+          negativeSum,
+          count,
+        },
+      );
     },
 
     get count() {

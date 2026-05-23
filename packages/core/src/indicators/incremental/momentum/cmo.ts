@@ -3,21 +3,43 @@
  *
  * CMO = 100 × (AvgGain - AvgLoss) / (AvgGain + AvgLoss)
  * Uses Wilder's smoothing method (same as RSI).
+ *
+ * State category: **Recursive** (`avgUp` / `avgDown` are the recursive
+ * accumulators; `initialUps` / `initialDowns` form the warmup tally).
+ * Resume with a different `period` / `source` is refused.
+ *
+ * Migrated to the 0.4.0 State Contract.
  */
 
 import type { NormalizedCandle, PriceSource } from "../../../types";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import {
+  type IndicatorSnapshot,
+  makeSnapshot,
+  requireParam,
+  resolveResume,
+} from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 import { getSourcePrice } from "../utils";
 
+/**
+ * Bare state shape for CMO. Params (`period`, `source`) live in
+ * `meta.params` on the wire.
+ */
 export type CmoState = {
-  period: number;
-  source: PriceSource;
   prevClose: number | null;
   avgUp: number;
   avgDown: number;
   count: number;
   initialUps: number[];
   initialDowns: number[];
+};
+
+/** Per-indicator schema version. Bumped on any breaking state change. */
+export const CMO_VERSION = 1;
+
+type CmoParams = {
+  period: number;
+  source: PriceSource;
 };
 
 /**
@@ -34,10 +56,28 @@ export type CmoState = {
  */
 export function createCmo(
   options: { period?: number; source?: PriceSource } = {},
-  warmUpOptions?: WarmUpOptions<CmoState>,
-): IncrementalIndicator<number | null, CmoState> {
-  const period = options.period ?? 14;
-  const source: PriceSource = options.source ?? "close";
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<CmoState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<number | null, IndicatorSnapshot<CmoState>> {
+  const { params, state } = resolveResume<CmoParams, CmoState>({
+    indicator: "cmo",
+    version: CMO_VERSION,
+    category: "recursive",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { period: 14, source: "close" },
+  });
+
+  const period = requireParam(
+    "cmo",
+    params,
+    "period",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
+  const source = params.source;
 
   let prevClose: number | null;
   let avgUp: number;
@@ -46,14 +86,13 @@ export function createCmo(
   let initialUps: number[];
   let initialDowns: number[];
 
-  if (warmUpOptions?.fromState) {
-    const s = warmUpOptions.fromState;
-    prevClose = s.prevClose;
-    avgUp = s.avgUp;
-    avgDown = s.avgDown;
-    count = s.count;
-    initialUps = [...s.initialUps];
-    initialDowns = [...s.initialDowns];
+  if (state !== null) {
+    prevClose = state.prevClose;
+    avgUp = state.avgUp;
+    avgDown = state.avgDown;
+    count = state.count;
+    initialUps = [...state.initialUps];
+    initialDowns = [...state.initialDowns];
   } else {
     prevClose = null;
     avgUp = 0;
@@ -68,7 +107,7 @@ export function createCmo(
     return total === 0 ? 0 : (100 * (au - ad)) / total;
   }
 
-  const indicator: IncrementalIndicator<number | null, CmoState> = {
+  const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<CmoState>> = {
     next(candle: NormalizedCandle) {
       count++;
       const price = getSourcePrice(candle, source);
@@ -132,17 +171,20 @@ export function createCmo(
       return { time: candle.time, value: computeCmo(peekAvgUp, peekAvgDown) };
     },
 
-    getState(): CmoState {
-      return {
-        period,
-        source,
-        prevClose,
-        avgUp,
-        avgDown,
-        count,
-        initialUps: [...initialUps],
-        initialDowns: [...initialDowns],
-      };
+    getState(): IndicatorSnapshot<CmoState> {
+      return makeSnapshot(
+        "cmo",
+        CMO_VERSION,
+        { period, source },
+        {
+          prevClose,
+          avgUp,
+          avgDown,
+          count,
+          initialUps: [...initialUps],
+          initialDowns: [...initialDowns],
+        },
+      );
     },
 
     get count() {

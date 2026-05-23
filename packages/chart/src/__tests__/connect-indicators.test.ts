@@ -638,13 +638,24 @@ describe("connectIndicators", () => {
       expect(() => conn.add("nonexistent")).toThrow("Unknown indicator preset");
     });
 
-    it("should throw on duplicate snapshotName (static snapshotName preset)", () => {
+    it("should auto-suffix duplicate derived snapshotName (static snapshotName preset)", () => {
       const { chart } = createMockChart();
       const presets = { rsi: makeComputePreset("rsi") };
       const conn = connectIndicators(chart, { presets, candles: [candle(1, 100)] });
 
-      conn.add("rsi");
-      expect(() => conn.add("rsi")).toThrow(/already added/);
+      const first = conn.add("rsi");
+      const second = conn.add("rsi");
+      expect(first.snapshotName).toBe("rsi");
+      expect(second.snapshotName).toBe("rsi#2");
+    });
+
+    it("should throw when an explicit snapshotName collides with an existing one", () => {
+      const { chart } = createMockChart();
+      const presets = { rsi: makeComputePreset("rsi") };
+      const conn = connectIndicators(chart, { presets, candles: [candle(1, 100)] });
+
+      conn.add("rsi", { snapshotName: "primary-rsi" });
+      expect(() => conn.add("rsi", { snapshotName: "primary-rsi" })).toThrow(/already added/);
     });
   });
 
@@ -694,13 +705,17 @@ describe("connectIndicators", () => {
       expect(handles[2].updates[0]).toEqual({ time: 2, value: 95 });
     });
 
-    it("should throw on same snapshotName collision (same params)", () => {
+    it("should auto-suffix when the same preset is added twice with the same params", () => {
       const { chart } = createMockChart();
       const presets = { sma: makeComputePreset("sma", { paramKeyedSnapshot: true }) };
       const conn = connectIndicators(chart, { presets, candles: [candle(1, 100)] });
 
-      conn.add("sma", { period: 5 });
-      expect(() => conn.add("sma", { period: 5 })).toThrow(/already added/);
+      const a = conn.add("sma", { period: 5 });
+      const b = conn.add("sma", { period: 5 });
+      const c = conn.add("sma", { period: 5 });
+      expect(a.snapshotName).toBe("sma5");
+      expect(b.snapshotName).toBe("sma5#2");
+      expect(c.snapshotName).toBe("sma5#3");
     });
 
     it("should recompute all instances with their own params", () => {

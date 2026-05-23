@@ -5,16 +5,31 @@
  * by a Super Smoother (removes high-frequency noise). Mirrors the batch
  * `roofingFilter()` exactly — first 2 bars emit null, subsequent bars
  * apply the cascaded recurrences.
+ *
+ * State category: **Cascaded** (a 2-pole high-pass IIR feeds a 2-pole
+ * Super Smoother IIR — two coupled recursive stages). `highPassPeriod`
+ * / `lowPassPeriod` set the per-stage coefficients and `source` the
+ * input series, so resuming with any of them changed is mathematically
+ * undefined and refused.
+ *
+ * Migrated to the 0.4.0 State Contract.
  */
 
 import type { NormalizedCandle, PriceSource } from "../../../types";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import {
+  type IndicatorSnapshot,
+  makeSnapshot,
+  requireParam,
+  resolveResume,
+} from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 import { getSourcePrice } from "../utils";
 
+/**
+ * Bare state shape for the Roofing Filter. Params (`highPassPeriod`,
+ * `lowPassPeriod`, `source`) live in `meta.params` on the wire.
+ */
 export type RoofingFilterState = {
-  highPassPeriod: number;
-  lowPassPeriod: number;
-  source: PriceSource;
   /** price[i-1] */
   prevPrice: number | null;
   /** price[i-2] */
@@ -28,6 +43,15 @@ export type RoofingFilterState = {
   /** filt[i-2] */
   filtPrev2: number;
   count: number;
+};
+
+/** Per-indicator schema version. Bumped on any breaking state change. */
+export const ROOFING_FILTER_VERSION = 1;
+
+type RoofingFilterParams = {
+  highPassPeriod: number;
+  lowPassPeriod: number;
+  source: PriceSource;
 };
 
 function highPassCoeffs(period: number) {
@@ -64,18 +88,37 @@ function superSmootherCoeffs(period: number) {
  */
 export function createRoofingFilter(
   options: { highPassPeriod?: number; lowPassPeriod?: number; source?: PriceSource } = {},
-  warmUpOptions?: WarmUpOptions<RoofingFilterState>,
-): IncrementalIndicator<number | null, RoofingFilterState> {
-  // Saved snapshot wins so the cascaded HP / SS memories keep being applied
-  // with the coefficients they were computed under.
-  const highPassPeriod = warmUpOptions?.fromState?.highPassPeriod ?? options.highPassPeriod ?? 48;
-  const lowPassPeriod = warmUpOptions?.fromState?.lowPassPeriod ?? options.lowPassPeriod ?? 10;
-  const source: PriceSource = warmUpOptions?.fromState?.source ?? options.source ?? "close";
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<RoofingFilterState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<number | null, IndicatorSnapshot<RoofingFilterState>> {
+  const { params, state } = resolveResume<RoofingFilterParams, RoofingFilterState>({
+    indicator: "roofingFilter",
+    version: ROOFING_FILTER_VERSION,
+    category: "cascaded",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { highPassPeriod: 48, lowPassPeriod: 10, source: "close" },
+  });
 
   // See batch `roofingFilter()` for why the canonical formula requires
   // highPassPeriod >= 2 (only period=1 leaves the unit circle).
-  if (highPassPeriod < 2) throw new Error("Roofing filter highPassPeriod must be at least 2");
-  if (lowPassPeriod < 1) throw new Error("Roofing filter lowPassPeriod must be at least 1");
+  const highPassPeriod = requireParam(
+    "roofingFilter",
+    params,
+    "highPassPeriod",
+    (v): v is number => Number.isInteger(v) && v >= 2,
+    "must be an integer >= 2",
+  );
+  const lowPassPeriod = requireParam(
+    "roofingFilter",
+    params,
+    "lowPassPeriod",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
+  const source = params.source;
 
   const hp = highPassCoeffs(highPassPeriod);
   const ss = superSmootherCoeffs(lowPassPeriod);
@@ -88,15 +131,14 @@ export function createRoofingFilter(
   let filtPrev2: number;
   let count: number;
 
-  if (warmUpOptions?.fromState) {
-    const s = warmUpOptions.fromState;
-    prevPrice = s.prevPrice;
-    prevPrice2 = s.prevPrice2;
-    hpPrev1 = s.hpPrev1;
-    hpPrev2 = s.hpPrev2;
-    filtPrev1 = s.filtPrev1;
-    filtPrev2 = s.filtPrev2;
-    count = s.count;
+  if (state !== null) {
+    prevPrice = state.prevPrice;
+    prevPrice2 = state.prevPrice2;
+    hpPrev1 = state.hpPrev1;
+    hpPrev2 = state.hpPrev2;
+    filtPrev1 = state.filtPrev1;
+    filtPrev2 = state.filtPrev2;
+    count = state.count;
   } else {
     prevPrice = null;
     prevPrice2 = null;
@@ -117,7 +159,7 @@ export function createRoofingFilter(
     return { hpVal, filtVal };
   }
 
-  const indicator: IncrementalIndicator<number | null, RoofingFilterState> = {
+  const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<RoofingFilterState>> = {
     next(candle: NormalizedCandle) {
       const price = getSourcePrice(candle, source);
 
@@ -149,19 +191,21 @@ export function createRoofingFilter(
       return { time: candle.time, value: filtVal };
     },
 
-    getState(): RoofingFilterState {
-      return {
-        highPassPeriod,
-        lowPassPeriod,
-        source,
-        prevPrice,
-        prevPrice2,
-        hpPrev1,
-        hpPrev2,
-        filtPrev1,
-        filtPrev2,
-        count,
-      };
+    getState(): IndicatorSnapshot<RoofingFilterState> {
+      return makeSnapshot(
+        "roofingFilter",
+        ROOFING_FILTER_VERSION,
+        { highPassPeriod, lowPassPeriod, source },
+        {
+          prevPrice,
+          prevPrice2,
+          hpPrev1,
+          hpPrev2,
+          filtPrev1,
+          filtPrev2,
+          count,
+        },
+      );
     },
 
     get count() {

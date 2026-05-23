@@ -4,18 +4,41 @@
  * ZLEMA = EMA(adjusted_price, period)
  * where adjusted_price = price + (price - price[lag])
  * and lag = floor((period - 1) / 2)
+ *
+ * State category: **Recursive** (`prevZlema` is the recursive
+ * accumulator; the fixed-size lag lookback buffer and `seedSum` /
+ * `seedCount` form the warmup tally that is consumed once the SMA
+ * seed completes). Resume with different `period` / `source` is
+ * mathematically undefined — both the recursive accumulator and the
+ * lag-window contents are permanently conditioned on construction-time
+ * params — and is refused.
+ *
+ * Migrated to the 0.4.0 State Contract: `getState()` returns
+ * `IndicatorSnapshot<ZlemaState>` and `fromState` accepts the same.
+ * Params (`period`, `source`) now live in `meta.params`; the
+ * derived `lag` (= `floor((period - 1) / 2)`) and `multiplier`
+ * (= `2 / (period + 1)`) are computed in the factory closure rather
+ * than persisted, since both are uniquely determined by `period`.
  */
 
 import type { NormalizedCandle, PriceSource } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import {
+  type IndicatorSnapshot,
+  makeSnapshot,
+  requireParam,
+  resolveResume,
+} from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 import { getSourcePrice } from "../utils";
 
+/**
+ * Bare state shape for ZLEMA. Params (`period`, `source`) live in
+ * `meta.params` on the wire — they are not part of the bare state.
+ * `lag` and `multiplier` are derived from `period` in the factory
+ * closure and intentionally absent from the persisted state.
+ */
 export type ZlemaState = {
-  period: number;
-  source: PriceSource;
-  lag: number;
-  multiplier: number;
   prevZlema: number | null;
   /** Sum of adjusted prices during SMA seed phase */
   seedSum: number;
@@ -23,6 +46,14 @@ export type ZlemaState = {
   seedCount: number;
   buffer: { data: number[]; head: number; length: number; capacity: number };
   count: number;
+};
+
+/** Per-indicator schema version. Bumped on any breaking state change. */
+export const ZLEMA_VERSION = 1;
+
+type ZlemaParams = {
+  period: number;
+  source: PriceSource;
 };
 
 /**
@@ -39,13 +70,28 @@ export type ZlemaState = {
  */
 export function createZlema(
   options: { period?: number; source?: PriceSource } = {},
-  warmUpOptions?: WarmUpOptions<ZlemaState>,
-): IncrementalIndicator<number | null, ZlemaState> {
-  const period = options.period ?? 20;
-  if (period < 1) {
-    throw new Error("ZLEMA period must be at least 1");
-  }
-  const source: PriceSource = options.source ?? "close";
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<ZlemaState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<number | null, IndicatorSnapshot<ZlemaState>> {
+  const { params, state } = resolveResume<ZlemaParams, ZlemaState>({
+    indicator: "zlema",
+    version: ZLEMA_VERSION,
+    category: "recursive",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { period: 20, source: "close" },
+  });
+
+  const period = requireParam(
+    "zlema",
+    params,
+    "period",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
+  const source = params.source;
   const lag = Math.floor((period - 1) / 2);
   const multiplier = 2 / (period + 1);
 
@@ -56,13 +102,12 @@ export function createZlema(
   let seedCount: number;
   let count: number;
 
-  if (warmUpOptions?.fromState) {
-    const s = warmUpOptions.fromState;
-    buffer = CircularBuffer.fromSnapshot(s.buffer);
-    prevZlema = s.prevZlema;
-    seedSum = s.seedSum;
-    seedCount = s.seedCount;
-    count = s.count;
+  if (state !== null) {
+    buffer = CircularBuffer.fromSnapshot(state.buffer);
+    prevZlema = state.prevZlema;
+    seedSum = state.seedSum;
+    seedCount = state.seedCount;
+    count = state.count;
   } else {
     buffer = new CircularBuffer<number>(lag + 1);
     prevZlema = null;
@@ -71,38 +116,7 @@ export function createZlema(
     count = 0;
   }
 
-  function _compute(price: number, currentCount: number, isPeek: boolean): number | null {
-    // Need at least lag+1 prices to compute adjusted price
-    if (currentCount <= lag) {
-      return null;
-    }
-
-    // Get the lagged price from the buffer
-    // In buffer: index 0 = oldest. We need the price from `lag` bars ago.
-    // After pushing current price, buffer has min(count, lag+1) items.
-    // The lagged price is at index 0 when buffer is full.
-    const lagPrice = isPeek ? buffer.get(buffer.length - lag) : buffer.get(buffer.length - 1 - lag);
-    const adjustedPrice = price + (price - lagPrice);
-
-    // SMA seed phase: need `period - lag` adjusted prices for seeding
-    const seedTarget = period - lag;
-    const currentSeedCount = isPeek ? seedCount + 1 : seedCount;
-    const currentSeedSum = isPeek ? seedSum + adjustedPrice : seedSum;
-
-    if (currentSeedCount < seedTarget) {
-      return null;
-    }
-
-    if (currentSeedCount === seedTarget) {
-      return currentSeedSum / seedTarget;
-    }
-
-    // Standard EMA on adjusted price
-    const prev = isPeek ? prevZlema : prevZlema;
-    return adjustedPrice * multiplier + (prev ?? 0) * (1 - multiplier);
-  }
-
-  const indicator: IncrementalIndicator<number | null, ZlemaState> = {
+  const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<ZlemaState>> = {
     next(candle: NormalizedCandle) {
       const price = getSourcePrice(candle, source);
       count++;
@@ -177,18 +191,19 @@ export function createZlema(
       return { time: candle.time, value };
     },
 
-    getState(): ZlemaState {
-      return {
-        period,
-        source,
-        lag,
-        multiplier,
-        prevZlema,
-        seedSum,
-        seedCount,
-        buffer: buffer.snapshot(),
-        count,
-      };
+    getState(): IndicatorSnapshot<ZlemaState> {
+      return makeSnapshot(
+        "zlema",
+        ZLEMA_VERSION,
+        { period, source },
+        {
+          prevZlema,
+          seedSum,
+          seedCount,
+          buffer: buffer.snapshot(),
+          count,
+        },
+      );
     },
 
     get count() {

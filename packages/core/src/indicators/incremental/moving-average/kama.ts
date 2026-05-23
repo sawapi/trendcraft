@@ -5,23 +5,44 @@
  *
  * State category: **Mixed** (price buffer for ER + recursive
  * `prevKama`). The recursive component permanently carries past
- * parameters, so resume requires identical period, fastSC, slowSC,
- * and source (or omit them and let the snapshot's params win).
+ * parameters, so resume with a different `period` / `fastPeriod` /
+ * `slowPeriod` / `source` is refused by the mixed-category policy.
+ *
+ * Migrated to the 0.4.0 State Contract. The smoothing constants
+ * `fastSC` / `slowSC` are derived from `fastPeriod` / `slowPeriod` in
+ * the factory closure and not persisted — `meta.params` carries the
+ * periods themselves.
  */
 
 import type { NormalizedCandle, PriceSource } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import {
+  type IndicatorSnapshot,
+  makeSnapshot,
+  requireParam,
+  resolveResume,
+} from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 import { getSourcePrice } from "../utils";
 
+/**
+ * Bare state shape for KAMA. Params (`period`, `fastPeriod`,
+ * `slowPeriod`, `source`) live in `meta.params`.
+ */
 export type KamaState = {
-  period: number;
-  source: PriceSource;
-  fastSC: number;
-  slowSC: number;
   priceBuffer: ReturnType<CircularBuffer<number>["snapshot"]>;
   prevKama: number | null;
   count: number;
+};
+
+/** Per-indicator schema version. Bumped on any breaking state change. */
+export const KAMA_VERSION = 1;
+
+type KamaParams = {
+  period: number;
+  fastPeriod: number;
+  slowPeriod: number;
+  source: PriceSource;
 };
 
 /**
@@ -38,46 +59,61 @@ export type KamaState = {
  */
 export function createKama(
   options: { period?: number; fastPeriod?: number; slowPeriod?: number; source?: PriceSource } = {},
-  warmUpOptions?: WarmUpOptions<KamaState>,
-): IncrementalIndicator<number | null, KamaState> {
-  // Resume order: explicit option > snapshot value > canonical default.
-  // fastPeriod/slowPeriod aren't stored on state directly — fastSC and
-  // slowSC are. When the caller omits the period option, restore the
-  // SC from the snapshot; otherwise re-derive from the new period.
-  const fs = warmUpOptions?.fromState ?? null;
-  const period = options.period ?? fs?.period ?? 10;
-  const source: PriceSource = options.source ?? fs?.source ?? "close";
-  const fastSC =
-    options.fastPeriod !== undefined ? 2 / (options.fastPeriod + 1) : (fs?.fastSC ?? 2 / 3);
-  const slowSC =
-    options.slowPeriod !== undefined ? 2 / (options.slowPeriod + 1) : (fs?.slowSC ?? 2 / 31);
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<KamaState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<number | null, IndicatorSnapshot<KamaState>> {
+  const { params, state } = resolveResume<KamaParams, KamaState>({
+    indicator: "kama",
+    version: KAMA_VERSION,
+    category: "mixed",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { period: 10, fastPeriod: 2, slowPeriod: 30, source: "close" },
+  });
+
+  const period = requireParam(
+    "kama",
+    params,
+    "period",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
+  const fastPeriod = requireParam(
+    "kama",
+    params,
+    "fastPeriod",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
+  const slowPeriod = requireParam(
+    "kama",
+    params,
+    "slowPeriod",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
+  const source = params.source;
+  const fastSC = 2 / (fastPeriod + 1);
+  const slowSC = 2 / (slowPeriod + 1);
 
   // Need period+1 prices to compute direction and volatility
   let priceBuffer: CircularBuffer<number>;
   let prevKama: number | null;
   let count: number;
 
-  if (fs) {
-    // KAMA is Mixed-recursive: `prevKama` carries past parameters
-    // forever, so reconfiguring mid-stream yields a hybrid series.
-    if (
-      fs.period !== period ||
-      fs.source !== source ||
-      fs.fastSC !== fastSC ||
-      fs.slowSC !== slowSC
-    ) {
-      throw new Error("KAMA: incompatible snapshot, re-warm required");
-    }
-    priceBuffer = CircularBuffer.fromSnapshot(fs.priceBuffer);
-    prevKama = fs.prevKama;
-    count = fs.count;
+  if (state !== null) {
+    priceBuffer = CircularBuffer.fromSnapshot(state.priceBuffer);
+    prevKama = state.prevKama;
+    count = state.count;
   } else {
     priceBuffer = new CircularBuffer<number>(period + 1);
     prevKama = null;
     count = 0;
   }
 
-  const indicator: IncrementalIndicator<number | null, KamaState> = {
+  const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<KamaState>> = {
     next(candle: NormalizedCandle) {
       const price = getSourcePrice(candle, source);
       count++;
@@ -142,16 +178,17 @@ export function createKama(
       return { time: candle.time, value: prev + sc * (price - prev) };
     },
 
-    getState(): KamaState {
-      return {
-        period,
-        source,
-        fastSC,
-        slowSC,
-        priceBuffer: priceBuffer.snapshot(),
-        prevKama,
-        count,
-      };
+    getState(): IndicatorSnapshot<KamaState> {
+      return makeSnapshot(
+        "kama",
+        KAMA_VERSION,
+        { period, fastPeriod, slowPeriod, source },
+        {
+          priceBuffer: priceBuffer.snapshot(),
+          prevKama,
+          count,
+        },
+      );
     },
 
     get count() {

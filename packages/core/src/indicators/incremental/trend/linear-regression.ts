@@ -13,14 +13,23 @@
  *
  * where y_drop is the oldest value in the window before the push.
  *
- * R² is computed from running sums via the Pearson form
- *   R² = (n·sumXY − sumX·sumY)² / ((n·sumXX − sumX²) · (n·sumYY − sumY²))
- * so we never have to iterate the buffer to get ssRes / ssTot.
+ * State category: **Windowed** (a raw price buffer plus running sums).
+ * Warmup and seeding are gated on `buffer.isFull`, not a monotonic
+ * `count`, so resume with a different `period` carries the buffer
+ * forward correctly; `source` change is refused.
+ *
+ * Migrated to the 0.4.0 State Contract.
  */
 
 import type { NormalizedCandle, PriceSource } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import {
+  type IndicatorSnapshot,
+  makeSnapshot,
+  requireParam,
+  resolveResume,
+} from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 import { getSourcePrice } from "../utils";
 
 export type LinearRegressionValue = {
@@ -30,14 +39,24 @@ export type LinearRegressionValue = {
   rSquared: number;
 };
 
+/**
+ * Bare state shape for Linear Regression. Params (`period`, `source`)
+ * live in `meta.params` on the wire.
+ */
 export type LinearRegressionState = {
-  period: number;
-  source: PriceSource;
   buffer: ReturnType<CircularBuffer<number>["snapshot"]>;
   sumY: number;
   sumY2: number;
   sumXY: number;
   count: number;
+};
+
+/** Per-indicator schema version. Bumped on any breaking state change. */
+export const LINEAR_REGRESSION_VERSION = 1;
+
+type LinearRegressionParams = {
+  period: number;
+  source: PriceSource;
 };
 
 /**
@@ -54,18 +73,31 @@ export type LinearRegressionState = {
  */
 export function createLinearRegression(
   options: { period?: number; source?: PriceSource } = {},
-  warmUpOptions?: WarmUpOptions<LinearRegressionState>,
-): IncrementalIndicator<LinearRegressionValue | null, LinearRegressionState> {
-  // When restoring from a snapshot, the saved period/source MUST win over the
-  // factory-call defaults — otherwise sumY / sumXY / buffer values that were
-  // computed under one configuration would be reused with a different one,
-  // silently corrupting outputs from the first resumed candle onward.
-  const period = warmUpOptions?.fromState?.period ?? options.period ?? 14;
-  const source: PriceSource = warmUpOptions?.fromState?.source ?? options.source ?? "close";
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<LinearRegressionState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<LinearRegressionValue | null, IndicatorSnapshot<LinearRegressionState>> {
+  const { params, state, reconfigured } = resolveResume<
+    LinearRegressionParams,
+    LinearRegressionState
+  >({
+    indicator: "linearRegression",
+    version: LINEAR_REGRESSION_VERSION,
+    category: "windowed",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { period: 14, source: "close" },
+  });
 
-  if (period < 2) {
-    throw new Error("Linear Regression period must be at least 2");
-  }
+  const period = requireParam(
+    "linearRegression",
+    params,
+    "period",
+    (v): v is number => Number.isInteger(v) && v >= 2,
+    "must be an integer >= 2",
+  );
+  const source = params.source;
 
   // Closed-form constants for x = 0..period-1
   const sumX = (period * (period - 1)) / 2;
@@ -78,13 +110,36 @@ export function createLinearRegression(
   let sumXY: number;
   let count: number;
 
-  if (warmUpOptions?.fromState) {
-    const s = warmUpOptions.fromState;
-    buffer = CircularBuffer.fromSnapshot(s.buffer);
-    sumY = s.sumY;
-    sumY2 = s.sumY2;
-    sumXY = s.sumXY;
-    count = s.count;
+  if (state !== null) {
+    if (reconfigured) {
+      // Period changed — carry the raw prices forward and recompute the
+      // running sums against the new window.
+      const old = CircularBuffer.fromSnapshot(state.buffer);
+      buffer = new CircularBuffer<number>(period);
+      const carry = Math.min(old.length, period);
+      for (let i = old.length - carry; i < old.length; i++) {
+        buffer.push(old.get(i));
+      }
+      sumY = 0;
+      sumY2 = 0;
+      for (let i = 0; i < buffer.length; i++) {
+        const v = buffer.get(i);
+        sumY += v;
+        sumY2 += v * v;
+      }
+      // sumXY is only meaningful once the window is full; seed it now
+      // if the carry-forward already filled the new window.
+      sumXY = 0;
+      if (buffer.isFull) {
+        for (let j = 0; j < period; j++) sumXY += j * buffer.get(j);
+      }
+    } else {
+      buffer = CircularBuffer.fromSnapshot(state.buffer);
+      sumY = state.sumY;
+      sumY2 = state.sumY2;
+      sumXY = state.sumXY;
+    }
+    count = state.count;
   } else {
     buffer = new CircularBuffer<number>(period);
     sumY = 0;
@@ -94,7 +149,7 @@ export function createLinearRegression(
   }
 
   function compute(): LinearRegressionValue | null {
-    if (count < period) return null;
+    if (!buffer.isFull) return null;
     const slope = (period * sumXY - sumX * sumY) / denomX;
     const intercept = (sumY - slope * sumX) / period;
     const value = intercept + slope * (period - 1);
@@ -110,14 +165,17 @@ export function createLinearRegression(
     };
   }
 
-  const indicator: IncrementalIndicator<LinearRegressionValue | null, LinearRegressionState> = {
+  const indicator: IncrementalIndicator<
+    LinearRegressionValue | null,
+    IndicatorSnapshot<LinearRegressionState>
+  > = {
     next(candle: NormalizedCandle) {
       const y = getSourcePrice(candle, source);
-      const willEvict = buffer.isFull;
-      const yDrop = willEvict ? buffer.oldest() : 0;
+      const wasFull = buffer.isFull;
+      const yDrop = wasFull ? buffer.oldest() : 0;
 
       // Window already full → use the slide-update law BEFORE mutating sumY.
-      if (count >= period) {
+      if (wasFull) {
         sumXY = sumXY + (period - 1) * y - (sumY - yDrop);
       }
 
@@ -126,8 +184,8 @@ export function createLinearRegression(
       buffer.push(y);
       count++;
 
-      // First time the buffer is full → seed sumXY from the explicit sum.
-      if (count === period) {
+      // Buffer just reached full → seed sumXY from the explicit sum.
+      if (!wasFull && buffer.isFull) {
         sumXY = 0;
         for (let j = 0; j < period; j++) {
           sumXY += j * buffer.get(j);
@@ -139,27 +197,26 @@ export function createLinearRegression(
 
     peek(candle: NormalizedCandle) {
       const y = getSourcePrice(candle, source);
-      const willEvict = buffer.isFull;
-      const yDrop = willEvict ? buffer.oldest() : 0;
-      const peekCount = count + 1;
-      if (peekCount < period) return { time: candle.time, value: null };
+      const wasFull = buffer.isFull;
+      const yDrop = wasFull ? buffer.oldest() : 0;
+      const willBeFull = wasFull || buffer.length + 1 >= period;
+      if (!willBeFull) return { time: candle.time, value: null };
 
       let peekSumY: number;
       let peekSumY2: number;
       let peekSumXY: number;
 
-      if (count < period) {
-        // Buffer just becomes full; peek the seeded sumXY from buffer + new y.
-        peekSumY = sumY + y;
-        peekSumY2 = sumY2 + y * y;
-        peekSumXY = 0;
-        // Buffer currently has count elements, peek-pushing y at the end.
-        for (let j = 0; j < count; j++) peekSumXY += j * buffer.get(j);
-        peekSumXY += count * y;
-      } else {
+      if (wasFull) {
         peekSumY = sumY - yDrop + y;
         peekSumY2 = sumY2 - yDrop * yDrop + y * y;
         peekSumXY = sumXY + (period - 1) * y - (sumY - yDrop);
+      } else {
+        // Buffer becomes full exactly now; seed sumXY from buffer + new y.
+        peekSumY = sumY + y;
+        peekSumY2 = sumY2 + y * y;
+        peekSumXY = 0;
+        for (let j = 0; j < buffer.length; j++) peekSumXY += j * buffer.get(j);
+        peekSumXY += buffer.length * y;
       }
 
       const slope = (period * peekSumXY - sumX * peekSumY) / denomX;
@@ -179,16 +236,13 @@ export function createLinearRegression(
       };
     },
 
-    getState(): LinearRegressionState {
-      return {
-        period,
-        source,
-        buffer: buffer.snapshot(),
-        sumY,
-        sumY2,
-        sumXY,
-        count,
-      };
+    getState(): IndicatorSnapshot<LinearRegressionState> {
+      return makeSnapshot(
+        "linearRegression",
+        LINEAR_REGRESSION_VERSION,
+        { period, source },
+        { buffer: buffer.snapshot(), sumY, sumY2, sumXY, count },
+      );
     },
 
     get count() {
@@ -196,7 +250,7 @@ export function createLinearRegression(
     },
 
     get isWarmedUp() {
-      return count >= period;
+      return buffer.isFull;
     },
   };
 

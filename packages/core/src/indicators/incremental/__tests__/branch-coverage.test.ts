@@ -6,7 +6,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import type { NormalizedCandle, PriceSource } from "../../../types";
+import type { NormalizedCandle } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
 import { createAdxr } from "../momentum/adxr";
 import { createAroon } from "../momentum/aroon";
@@ -283,7 +283,7 @@ describe("WMA mathematical correctness", () => {
     });
     // WMA = (10*1 + 20*2 + 30*3) / (1+2+3) = (10+40+90)/6 = 140/6
     const state = wma.getState();
-    expect(state.count).toBe(3);
+    expect(state.state.count).toBe(3);
   });
 
   it("WMA peek returns correct value without modifying internal state", () => {
@@ -337,7 +337,7 @@ describe("ADL (Accumulation/Distribution Line)", () => {
     for (let i = 0; i < 5; i++) adl1.next(makeCandle(i));
     const state = adl1.getState();
 
-    const adl2 = createAdl({ fromState: state });
+    const adl2 = createAdl({}, { fromState: state });
     const next1 = adl1.next(makeCandle(5));
     const next2 = adl2.next(makeCandle(5));
     expect(next2.value).toBeCloseTo(next1.value, 10);
@@ -345,7 +345,7 @@ describe("ADL (Accumulation/Distribution Line)", () => {
 
   it("warmUp option pre-fills indicator state", () => {
     const candles = generateCandles(5);
-    const adl = createAdl({ warmUp: candles });
+    const adl = createAdl({}, { warmUp: candles });
     expect(adl.count).toBe(5);
     expect(adl.isWarmedUp).toBe(true);
   });
@@ -445,8 +445,8 @@ describe("HMA (Hull Moving Average)", () => {
     const state = hma1.getState();
 
     const hma2 = createHma({}, { fromState: state });
-    expect(hma2.getState().period).toBe(16);
-    expect(hma2.getState().source).toBe("high");
+    expect(hma2.getState().meta.params.period).toBe(16);
+    expect(hma2.getState().meta.params.source).toBe("high");
   });
 
   it("refuses resume with a different period", () => {
@@ -663,14 +663,14 @@ describe("Elder Force Index", () => {
     const efi1 = createElderForceIndex(opts);
     for (let i = 0; i < 25; i++) efi1.next(makeCandle(i));
     const state = efi1.getState();
-    expect(state.shortPeriod).toBe(5);
-    expect(state.longPeriod).toBe(20);
+    expect(state.meta.params.shortPeriod).toBe(5);
+    expect(state.meta.params.longPeriod).toBe(20);
 
     // Resume without re-passing options — periods must come from the
     // snapshot, NOT silently revert to canonical 2 / 13.
     const efi2 = createElderForceIndex({}, { fromState: state });
-    expect(efi2.getState().shortPeriod).toBe(5);
-    expect(efi2.getState().longPeriod).toBe(20);
+    expect(efi2.getState().meta.params.shortPeriod).toBe(5);
+    expect(efi2.getState().meta.params.longPeriod).toBe(20);
 
     // Subsequent values must match what efi1 would have produced.
     for (let i = 25; i < 35; i++) {
@@ -681,62 +681,18 @@ describe("Elder Force Index", () => {
     }
   });
 
-  it("explicit periods on resume override persisted state", () => {
-    const efi1 = createElderForceIndex({ shortPeriod: 5, longPeriod: 20 });
-    for (let i = 0; i < 25; i++) efi1.next(makeCandle(i));
-    // Caller explicitly re-parameterizes on resume — the snapshot's
-    // periods are ignored.
-    const efi2 = createElderForceIndex(
-      { shortPeriod: 3, longPeriod: 10 },
-      { fromState: efi1.getState() },
-    );
-    expect(efi2.getState().shortPeriod).toBe(3);
-    expect(efi2.getState().longPeriod).toBe(10);
-  });
-
-  it("re-parameterizing on resume resets EMA state and produces a fresh warm-up", () => {
-    // The previous EMA / sum / count were accumulated under the old
-    // multipliers; replaying them with new multipliers would produce a
-    // mathematically incorrect series. The new indicator must start
-    // its warm-up from scratch and only inherit `prevClose` from the
-    // snapshot (so the first raw-force computation after resume is
-    // still correct).
+  it("re-parameterizing a cascaded indicator on resume is refused", () => {
+    // Under the State Contract, Elder Force Index is `cascaded`: its
+    // two EMAs permanently encode their construction-time periods, so
+    // resuming a snapshot with different periods is a hard refuse
+    // rather than a silent reset / re-warm.
     const efi1 = createElderForceIndex({ shortPeriod: 5, longPeriod: 20 });
     for (let i = 0; i < 25; i++) efi1.next(makeCandle(i));
     const snapshot = efi1.getState();
 
-    const efi2 = createElderForceIndex({ shortPeriod: 3, longPeriod: 10 }, { fromState: snapshot });
-
-    // EMAs / sums / count are reset for the new periods. prevClose
-    // carries over so the very next bar still has a valid raw force.
-    const reset = efi2.getState();
-    expect(reset.shortEma).toBeNull();
-    expect(reset.longEma).toBeNull();
-    expect(reset.shortSum).toBe(0);
-    expect(reset.longSum).toBe(0);
-    expect(reset.count).toBe(0);
-    expect(reset.prevClose).toBe(snapshot.prevClose);
-
-    // After feeding shortPeriod=3 bars, the short EMA must be the
-    // canonical SMA seed of the new bars' raw forces (NOT a value
-    // derived from the old 5-period multiplier on the snapshot's
-    // EMA). Compute it manually and compare.
-    const newBars: NormalizedCandle[] = [];
-    for (let i = 25; i < 28; i++) newBars.push(makeCandle(i));
-
-    let prevClose = snapshot.prevClose as number;
-    let sumRaw = 0;
-    for (const c of newBars) {
-      sumRaw += (c.close - prevClose) * c.volume;
-      prevClose = c.close;
-    }
-    const expectedShortSeed = sumRaw / 3;
-
-    let observedShort: number | null = null;
-    for (const c of newBars) observedShort = efi2.next(c).value.short;
-
-    expect(observedShort).not.toBeNull();
-    expect(observedShort as number).toBeCloseTo(expectedShortSeed, 8);
+    expect(() =>
+      createElderForceIndex({ shortPeriod: 3, longPeriod: 10 }, { fromState: snapshot }),
+    ).toThrow(/incompatible snapshot|cannot be reconfigured/);
   });
 
   it("isWarmedUp accounts for the larger of shortPeriod / longPeriod", () => {
@@ -1235,16 +1191,16 @@ describe("KAMA adapts smoothing constant based on price efficiency", () => {
   // Resume contract: KAMA is Mixed (price buffer + recursive prevKama).
   // The recursive component permanently encodes past parameters so
   // reconfiguring on resume is refused.
-  it("fromState restores period / source / fastSC / slowSC when options are omitted", () => {
+  it("fromState restores period / fastPeriod / slowPeriod / source when options are omitted", () => {
     const k1 = createKama({ period: 10, fastPeriod: 2, slowPeriod: 30, source: "high" });
     for (let i = 0; i < 15; i++) k1.next(makeCandle(i));
     const state = k1.getState();
 
     const k2 = createKama({}, { fromState: state });
-    expect(k2.getState().period).toBe(10);
-    expect(k2.getState().source).toBe("high");
-    expect(k2.getState().fastSC).toBe(2 / 3);
-    expect(k2.getState().slowSC).toBe(2 / 31);
+    expect(k2.getState().meta.params.period).toBe(10);
+    expect(k2.getState().meta.params.source).toBe("high");
+    expect(k2.getState().meta.params.fastPeriod).toBe(2);
+    expect(k2.getState().meta.params.slowPeriod).toBe(30);
   });
 
   it("refuses resume with a different period", () => {
@@ -1344,9 +1300,9 @@ describe("McGinley Dynamic responds to price changes", () => {
     const state = md1.getState();
 
     const md2 = createMcGinleyDynamic({}, { fromState: state });
-    expect(md2.getState().period).toBe(7);
-    expect(md2.getState().k).toBe(0.4);
-    expect(md2.getState().source).toBe("high");
+    expect(md2.getState().meta.params.period).toBe(7);
+    expect(md2.getState().meta.params.k).toBe(0.4);
+    expect(md2.getState().meta.params.source).toBe("high");
   });
 
   it("refuses resume with a different period", () => {
@@ -1653,10 +1609,10 @@ describe("Connors RSI streak tracking and composite value", () => {
     const state = c1.getState();
 
     const c2 = createConnorsRsi({}, { fromState: state });
-    expect(c2.getState().rsiPeriod).toBe(3);
-    expect(c2.getState().streakPeriod).toBe(2);
-    expect(c2.getState().rocPeriod).toBe(5);
-    expect(c2.getState().source).toBe("high");
+    expect(c2.getState().meta.params.rsiPeriod).toBe(3);
+    expect(c2.getState().meta.params.streakPeriod).toBe(2);
+    expect(c2.getState().meta.params.rocPeriod).toBe(5);
+    expect(c2.getState().meta.params.source).toBe("high");
   });
 
   it("refuses resume with a different rsiPeriod", () => {
@@ -1718,20 +1674,16 @@ describe("Connors RSI streak tracking and composite value", () => {
     }
   });
 
-  // Pre-this-PR snapshots have no `source` field. They are not
-  // resumable — re-warm is required. (The natural source-equality
-  // check throws since `undefined !== <any-string>`.)
-  it("rejects pre-source snapshots regardless of options.source", () => {
+  // Pre-0.4.0 snapshots have no `meta` envelope. They are not
+  // resumable — `resolveResume` refuses them and forces a re-warm.
+  it("rejects pre-0.4.0 (meta-less) snapshots", () => {
     const fresh = createConnorsRsi({ rsiPeriod: 3, streakPeriod: 2, rocPeriod: 5 });
     for (let i = 0; i < 10; i++) fresh.next(makeCandle(i));
-    const legacy = { ...fresh.getState(), source: undefined as unknown as PriceSource };
+    // The bare 0.3.x state shape (no `meta` envelope).
+    const legacy = fresh.getState().state as unknown as ReturnType<
+      ReturnType<typeof createConnorsRsi>["getState"]
+    >;
     expect(() => createConnorsRsi({}, { fromState: legacy })).toThrow(/incompatible snapshot/);
-    expect(() =>
-      createConnorsRsi(
-        { rsiPeriod: 3, streakPeriod: 2, rocPeriod: 5, source: "close" },
-        { fromState: legacy },
-      ),
-    ).toThrow(/incompatible snapshot/);
   });
 });
 
@@ -2190,7 +2142,7 @@ describe("Chandelier Exit direction and crossover detection", () => {
     const ce = createChandelierExit({ period: 3, multiplier: 0.5 });
     for (let i = 0; i < 10; i++) ce.next(makeCandle(i));
     const state = ce.getState();
-    expect(state.prevDirection).not.toBe(undefined);
+    expect(state.state.prevDirection).not.toBe(undefined);
   });
 });
 
@@ -2242,7 +2194,7 @@ describe("Supertrend direction changes and band computation", () => {
     const st = createSupertrend({ period: 3, multiplier: 2 });
     for (let i = 0; i < 5; i++) st.next(makeCandle(i));
     const state = st.getState();
-    expect(state.direction).not.toBe(0);
+    expect(state.state.direction).not.toBe(0);
   });
 
   it("supertrend = lower band in uptrend (direction=1)", () => {

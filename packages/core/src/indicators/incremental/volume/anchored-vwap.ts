@@ -1,12 +1,36 @@
 /**
  * Incremental Anchored VWAP
  *
+ * State category: **Recursive** (cumulative TPV / volume accumulators
+ * from a fixed anchor time; no raw-price window to carry forward).
+ * Migrated to the 0.4.0 State Contract: `getState()` returns
+ * `IndicatorSnapshot<AnchoredVwapState>` and `fromState` accepts the same.
+ *
  * VWAP = Sum(TP * Volume) / Sum(Volume) starting from an anchor time.
  * Optionally includes standard deviation bands.
+ *
+ * Reconfig policy: any `anchorTime` or `bands` change throws via the
+ * resolveResume recursive branch. anchorTime change means a different
+ * aggregation window; bands change means a different output shape
+ * (upper1/lower1/upper2/lower2 keys appear or disappear). Both are
+ * unsafe to silently carry forward.
+ *
+ * Known limitation (out of scope for this migration): when `bands > 0`,
+ * `tpvHistory` grows unboundedly from the anchor onward — it retains
+ * per-candle (tp, volume) pairs to compute the volume-weighted variance.
+ * Long-running sessions accumulate proportionally to candle count.
+ * A future running-variance refactor (Welford / similar) would let us
+ * drop the history.
  */
 
 import type { NormalizedCandle } from "../../../types";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import {
+  type IndicatorSnapshot,
+  makeSnapshot,
+  requireParam,
+  resolveResume,
+} from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 
 export type AnchoredVwapValue = {
   vwap: number | null;
@@ -16,14 +40,24 @@ export type AnchoredVwapValue = {
   lower2?: number | null;
 };
 
+/**
+ * Bare state shape for Anchored VWAP. Params (`anchorTime`, `bands`)
+ * live in `meta.params` on the wire — they are not part of the bare state.
+ */
 export type AnchoredVwapState = {
-  anchorTime: number;
-  bands: number;
   cumTPV: number;
   cumVol: number;
   tpvHistory: { tp: number; volume: number }[];
   isAnchored: boolean;
   count: number;
+};
+
+/** Per-indicator schema version. Bump on any breaking state change. */
+export const ANCHORED_VWAP_VERSION = 1;
+
+type AnchoredVwapParams = {
+  anchorTime: number;
+  bands: number;
 };
 
 /**
@@ -43,11 +77,35 @@ export type AnchoredVwapState = {
  * ```
  */
 export function createAnchoredVwap(
-  options: { anchorTime: number; bands?: number },
-  warmUpOptions?: WarmUpOptions<AnchoredVwapState>,
-): IncrementalIndicator<AnchoredVwapValue, AnchoredVwapState> {
-  const anchorTime = options.anchorTime;
-  const bands = options.bands ?? 0;
+  options: { anchorTime?: number; bands?: number } = {},
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<AnchoredVwapState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<AnchoredVwapValue, IndicatorSnapshot<AnchoredVwapState>> {
+  const { params, state } = resolveResume<AnchoredVwapParams, AnchoredVwapState>({
+    indicator: "anchoredVwap",
+    version: ANCHORED_VWAP_VERSION,
+    category: "recursive",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { bands: 0 }, // `anchorTime` is intentionally absent — no canonical default.
+  });
+
+  const anchorTime = requireParam(
+    "anchoredVwap",
+    params,
+    "anchorTime",
+    (v): v is number => Number.isFinite(v) && v >= 0,
+    "must be a non-negative finite timestamp",
+  );
+  const bands = requireParam(
+    "anchoredVwap",
+    params,
+    "bands",
+    (v): v is number => Number.isInteger(v) && v >= 0 && v <= 2,
+    "must be 0, 1, or 2",
+  );
 
   let cumTPV: number;
   let cumVol: number;
@@ -55,13 +113,14 @@ export function createAnchoredVwap(
   let isAnchored: boolean;
   let count: number;
 
-  if (warmUpOptions?.fromState) {
-    const s = warmUpOptions.fromState;
-    cumTPV = s.cumTPV;
-    cumVol = s.cumVol;
-    tpvHistory = s.tpvHistory.map((h) => ({ ...h }));
-    isAnchored = s.isAnchored;
-    count = s.count;
+  if (state !== null) {
+    cumTPV = state.cumTPV;
+    cumVol = state.cumVol;
+    // Defensive copy so subsequent next() mutations don't reach back
+    // into a snapshot the caller may still hold.
+    tpvHistory = state.tpvHistory.map((h) => ({ ...h }));
+    isAnchored = state.isAnchored;
+    count = state.count;
   } else {
     cumTPV = 0;
     cumVol = 0;
@@ -116,7 +175,7 @@ export function createAnchoredVwap(
     return result;
   }
 
-  const indicator: IncrementalIndicator<AnchoredVwapValue, AnchoredVwapState> = {
+  const indicator: IncrementalIndicator<AnchoredVwapValue, IndicatorSnapshot<AnchoredVwapState>> = {
     next(candle: NormalizedCandle) {
       count++;
 
@@ -199,16 +258,21 @@ export function createAnchoredVwap(
       return { time: candle.time, value: result };
     },
 
-    getState(): AnchoredVwapState {
-      return {
-        anchorTime,
-        bands,
-        cumTPV,
-        cumVol,
-        tpvHistory: tpvHistory.map((h) => ({ ...h })),
-        isAnchored,
-        count,
-      };
+    getState(): IndicatorSnapshot<AnchoredVwapState> {
+      return makeSnapshot(
+        "anchoredVwap",
+        ANCHORED_VWAP_VERSION,
+        { anchorTime, bands },
+        {
+          cumTPV,
+          cumVol,
+          // Defensive copy so the caller's snapshot isn't mutated by
+          // later next() calls (tpvHistory is pushed in place).
+          tpvHistory: tpvHistory.map((h) => ({ ...h })),
+          isAnchored,
+          count,
+        },
+      );
     },
 
     get count() {
