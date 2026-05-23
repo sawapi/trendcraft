@@ -308,7 +308,44 @@ For series-type plugins (e.g. footprint candles), use `defineSeriesRenderer`. Se
 
 ---
 
-## Recipe 14: PNG export
+## Recipe 14: Swapping the candle dataset (symbol / timeframe change)
+
+**Goal:** Replace the chart's candles with an unrelated dataset (a different symbol, a new timeframe, a freshly uploaded file) without leaving primitive overlays anchored to the old (time, price) coordinates.
+
+Chart primitives — anything registered via `registerPrimitive` or the built-in `connectPricePatterns` / `connectVolumeProfile` / `connectSrConfluence` / etc. — capture their coordinates at build time and **do not** auto-invalidate when `setCandles` runs. This is intentional and matches TradingView Lightweight Charts and Highcharts behavior, where annotations stay attached and re-project from `(time, price)` each frame. The downside is that primitives built from the previous data can render at coordinates that happen to overlap the new view, silently misleading the reader.
+
+The cleanup pattern:
+
+```typescript
+function loadDataset(next: CandleData[]) {
+  // Drop overlays anchored to the old candles. Renderers, series, and
+  // drawings are independent — they update on their own.
+  chart.removeAllPrimitives();
+  chart.setCandles(next);
+
+  // Re-register any primitives that should follow the new data,
+  // recomputed from the fresh candles.
+  if (showPatterns) {
+    connectPricePatterns(chart, [
+      ...doubleBottom(next),
+      ...doubleTop(next),
+      ...inverseHeadAndShoulders(next),
+      ...headAndShoulders(next),
+    ]);
+  }
+}
+```
+
+When *not* to call `removeAllPrimitives`:
+
+- `updateCandle(latest)` / streaming bar appends — the time axis only grows; existing primitives still anchor to valid coordinates.
+- User drawing tools anchored to specific dates the user picked — those are owned by the chart's drawing layer (`addDrawing` / `removeDrawing`), not primitives.
+
+For React / Vue wrappers, calling `chart.removeAllPrimitives()` before the effect that calls `setCandles` (or making it part of the same `useEffect` deps trigger) is the equivalent host-side pattern.
+
+---
+
+## Recipe 15: PNG export
 
 **Goal:** Save the current chart as a PNG.
 
@@ -326,7 +363,7 @@ URL.revokeObjectURL(url);
 
 ---
 
-## Recipe 15: Headless usage (SSR / tests)
+## Recipe 16: Headless usage (SSR / tests)
 
 **Goal:** Compute layout, scales, or LTTB-decimated series on the server.
 

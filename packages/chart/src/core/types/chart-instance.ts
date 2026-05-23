@@ -21,6 +21,20 @@ import type { ThemeColors } from "./theme";
 
 export type ChartInstance = {
   // Data
+  /**
+   * Replace the chart's candle dataset.
+   *
+   * **Primitive lifecycle note**: primitives registered via
+   * `registerPrimitive` are not removed by `setCandles`. They capture
+   * their `(time, price)` coordinates at registration and continue
+   * rendering at those coordinates against the new candle dataset.
+   * When the new data is unrelated to the previous (different symbol,
+   * timeframe, etc.), call `removeAllPrimitives()` first so primitives
+   * built from the previous data don't bleed into the new view.
+   *
+   * Series, indicators, drawings, and the chart's own overlays are
+   * managed independently and update automatically.
+   */
   setCandles(candles: CandleData[]): void;
   updateCandle(candle: CandleData): void;
   /** Batch multiple updates into a single render frame.
@@ -104,6 +118,16 @@ export type ChartInstance = {
   registerPrimitive<TState>(plugin: import("../plugin-types").PrimitivePlugin<TState>): void;
   /** Remove a primitive by name */
   removePrimitive(name: string): void;
+  /**
+   * Remove every registered primitive in one call. Useful before
+   * `setCandles()` swaps in an unrelated dataset (different symbol,
+   * timeframe, etc.) — primitives capture their `(time, price)`
+   * coordinates at build time and don't auto-invalidate, so they would
+   * otherwise keep rendering at coordinates from the previous data.
+   *
+   * Renderers, series, drawings, and indicators are not affected.
+   */
+  removeAllPrimitives(): void;
 
   // Extensibility
   /** Register a custom introspection rule for shape detection */
