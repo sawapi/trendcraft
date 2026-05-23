@@ -59,6 +59,18 @@ export class RendererRegistry {
     }
   }
 
+  /**
+   * Remove every registered primitive in one call. Runs each plugin's
+   * `destroy` hook before dropping the entry. Renderers are not touched.
+   */
+  removeAllPrimitives(): void {
+    if (this._primitives.size === 0) return;
+    for (const entry of this._primitives.values()) {
+      entry.plugin.destroy?.();
+    }
+    this._primitives.clear();
+  }
+
   private static readonly _emptyPrimitives: PrimitiveEntry[] = [];
 
   /** Get all primitives for a given pane and z-order */

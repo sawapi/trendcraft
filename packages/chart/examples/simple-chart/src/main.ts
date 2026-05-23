@@ -237,6 +237,39 @@ const allIndicatorBtns = ["btn-sma", "btn-bb", "btn-ichimoku", "btn-rsi", "btn-m
 
 let simTimer: ReturnType<typeof setInterval> | null = null;
 
+/**
+ * Drop every primitive overlay before swapping the candle dataset
+ * (simulation start / stop). Primitives capture (time, price)
+ * coordinates at registration and don't auto-invalidate, so without
+ * this they keep rendering at the old dataset's coordinates on the
+ * new view. Also clears the local handle refs + button state so the
+ * user can re-toggle freshly without the UI showing a primitive as
+ * active while the overlay is gone, and without the next click landing
+ * on the wrong branch of a toggle (e.g. `srActive` flipping to `false`
+ * when the overlay was already removed).
+ */
+function resetPrimitivesBeforeDataSwap(): void {
+  chart.removeAllPrimitives();
+  tradeAnalysisHandle = null;
+  regimeHandle = null;
+  smcHandle = null;
+  wyckoffHandle = null;
+  srConfHandle = null;
+  sessionHandle = null;
+  srActive = false;
+  for (const id of [
+    "btn-mfe-mae",
+    "btn-regime",
+    "btn-smc",
+    "btn-wyckoff",
+    "btn-sr-confluence",
+    "btn-sessions",
+    "btn-plugin-sr",
+  ]) {
+    document.getElementById(id)?.classList.remove("active");
+  }
+}
+
 document.getElementById("btn-simulate")?.addEventListener("click", (e) => {
   const btn = e.target as HTMLButtonElement;
   if (simTimer) {
@@ -249,6 +282,9 @@ document.getElementById("btn-simulate")?.addEventListener("click", (e) => {
     liveCandle = null;
     activeLiveIndicators.clear();
     volOverlayLive = false;
+
+    // Drop primitives anchored to simulation candles before restoring daily.
+    resetPrimitivesBeforeDataSwap();
 
     // Restore full data + re-add active indicators
     chart.setCandles(candles);
@@ -279,6 +315,9 @@ document.getElementById("btn-simulate")?.addEventListener("click", (e) => {
       ref.value = null;
     }
   }
+  // And drop daily-anchored primitives so they don't bleed onto the
+  // simulated 1-min view at stale (time, price) coordinates.
+  resetPrimitivesBeforeDataSwap();
 
   // Pre-generate 50 candles of 1-min history (epoch-aligned times)
   const startPrice = candles[candles.length - 1].close;

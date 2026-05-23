@@ -1147,6 +1147,11 @@ export class CanvasChart implements ChartInstance {
     this._needsRender = true;
   }
 
+  removeAllPrimitives(): void {
+    this._rendererRegistry.removeAllPrimitives();
+    this._needsRender = true;
+  }
+
   // ---- Public API: Extensibility ----
 
   addRule(rule: IntrospectionRule): void {

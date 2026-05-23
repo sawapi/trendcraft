@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — `chart.removeAllPrimitives()` helper
+
+A new method on `ChartInstance` drops every primitive registered via
+`registerPrimitive` in one call. Intended for the common host pattern
+of swapping in an unrelated candle dataset (different symbol,
+timeframe, file upload, etc.) — primitives capture `(time, price)`
+coordinates at registration and don't auto-invalidate, so they would
+otherwise keep rendering at the previous data's coordinates against
+the new view.
+
+This matches the documented host-driven primitive lifecycle (see
+`connectPricePatterns` JSDoc and the new COOKBOOK recipe) and the
+behavior of other charting libraries (TradingView Lightweight Charts,
+Highcharts annotations, etc.); the chart still does not auto-remove
+primitives in `setCandles`, but the helper gives the cleanup pattern
+a named API so hosts don't have to track every handle individually.
+
+- `setCandles` JSDoc now documents the lifecycle gotcha explicitly.
+- `simple-chart` example fixed: enabling SMC / Wyckoff / Regime
+  Heatmap / S/R Confluence / Session Zones on the daily view and
+  then toggling Simulate (which calls `setCandles(simHistory)`) used
+  to carry the daily-anchored primitives onto the 1-min simulation
+  view, drawing at meaningless coordinates. The example now calls
+  `removeAllPrimitives()` before each `setCandles` transition.
+
+Renderers, series, drawings, and indicators are not affected by the
+new helper.
+
 ### Added — `markers` option on scalar line series for "discrete-per-bar" affordance
 
 `SeriesConfig.markers?: boolean | { radius?: number; color?: string }`
