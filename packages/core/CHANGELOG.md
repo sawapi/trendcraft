@@ -2,6 +2,48 @@
 
 ## Unreleased
 
+### Added — Extended `BacktestResult` metrics (Sortino, Calmar, CAGR, Expectancy, Exposure, per-trade aggregates)
+
+`BacktestResult` gains nine new fields filled in by every call to
+`runBacktest` / `runScaledEntryBacktest`:
+
+- `sortinoRatio` — like Sharpe but divides by *downside* deviation
+  only, so upside volatility no longer penalizes the score. `0` when
+  there are no negative returns. Annualized with `sqrt(252)` to match
+  Sharpe's convention.
+- `calmarRatio` — `cagrPercent / maxDrawdown`. Industry-standard
+  "return per unit of pain". `0` when `maxDrawdown` is zero.
+- `cagrPercent` — compound annual growth rate, computed from the
+  candle span (first bar time → last bar time). Replaces having to
+  guess at "what's my actual annualized return" from
+  `totalReturnPercent` + holding period.
+- `expectancyPercent` — average of `trade.returnPercent` across all
+  trades. Equivalent to `(winRate × avgWin) − (lossRate × avgLoss)`.
+  Positive = strategy is profitable per trade on average; the
+  canonical "is this an edge?" check.
+- `exposurePercent` — total holding time divided by the candle span.
+  A Sharpe of 2 at 10% exposure is materially different from a
+  Sharpe of 2 at 100% exposure; this surfaces that distinction.
+- `avgWinPercent` / `avgLossPercent` — average % return of winning /
+  losing trades. `avgLossPercent` is reported as a positive number
+  ("how much did the average loser lose").
+- `largestWinPercent` / `largestLossPercent` — best / worst single-
+  trade return, same positive-for-loss convention.
+
+Matches TradingView Performance Summary, QuantifiedStrategies'
+checklist, and Van Tharp's metrics framework — what veteran traders
+expect to see in a backtest summary.
+
+`calculateStats` (internal) gained an optional `span` parameter
+(`{ firstTime, lastTime }`). Engines that have candle data
+(`runBacktest`, `runScaledEntryBacktest`) pass it automatically so
+CAGR / exposure are accurate. External consumers wrapping
+`calculateStats` directly get `0` for these two fields if they don't
+supply `span` — back-compatible.
+
+All new fields default to `0` in `emptyResult` and round to 2 decimal
+places. No existing field semantics change.
+
 ### Breaking — Indicator State Contract (`getState` / `fromState` wire format)
 
 Every incremental indicator (`createSma`, `createEma`, `createMacd`,

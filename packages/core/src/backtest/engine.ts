@@ -932,5 +932,8 @@ export function runBacktest(
     maxDrawdown,
     settings,
     ddTracker.getPeriods(),
+    candles.length >= 2
+      ? { firstTime: candles[0].time, lastTime: candles[candles.length - 1].time }
+      : undefined,
   );
 }
