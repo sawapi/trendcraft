@@ -1320,7 +1320,13 @@ export {
 export type { IndicatorCategory, IndicatorPreset, LivePreset, ParamSchema } from "./streaming";
 // Streaming (real-time trading pipeline)
 export * as streaming from "./streaming";
-export { createLiveCandle, getIndicatorPreset, indicatorPresets, livePresets } from "./streaming";
+export {
+  createLiveCandle,
+  getIndicatorPreset,
+  getIndicatorPresetKey,
+  indicatorPresets,
+  livePresets,
+} from "./streaming";
 export type {
   AlphaDecayOptions,
   AlphaDecayResult,

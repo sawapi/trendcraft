@@ -2170,3 +2170,27 @@ const KIND_ALIASES: Record<string, string> = {
 export function getIndicatorPreset(kind: string): IndicatorPreset | undefined {
   return indicatorPresets[KIND_ALIASES[kind] ?? kind];
 }
+
+/**
+ * Resolve an indicator preset's short key by `kind`, accepting either the
+ * manifest's canonical long name (e.g. `"bollingerBands"`) or the short key
+ * itself (e.g. `"bb"`). Returns `undefined` when the kind has no preset.
+ *
+ * The forward sibling of `getIndicatorPreset`: reach for this when the caller
+ * needs the key string itself — typical use is bridging manifest output to
+ * chart-side APIs that key on the short name (`connectIndicators({ presets })
+ * .add(key, ...)`). Reads from the same `KIND_ALIASES` table that drives
+ * preset resolution, so the two helpers never disagree about which kind maps
+ * where.
+ *
+ * @example
+ * ```ts
+ * getIndicatorPresetKey("bollingerBands"); // "bb" (resolved via alias)
+ * getIndicatorPresetKey("bb");             // "bb" (direct hit)
+ * getIndicatorPresetKey("hmmRegimes");     // undefined (no preset entry)
+ * ```
+ */
+export function getIndicatorPresetKey(kind: string): string | undefined {
+  if (Object.hasOwn(KIND_ALIASES, kind)) return KIND_ALIASES[kind];
+  return Object.hasOwn(indicatorPresets, kind) ? kind : undefined;
+}

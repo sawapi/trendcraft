@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### Added — `getIndicatorPresetKey(kind)` for manifest-kind → preset-key resolution
+
+Forward sibling of `getIndicatorPreset(kind)`: returns the preset's
+short key (`"bb"`) when given either the manifest's canonical long name
+(`"bollingerBands"`) or the short key itself. Returns `undefined` when
+the kind has no preset (regime classifiers, smc events).
+
+Typical use is bridging manifest output to chart-side APIs that key on
+the short name, e.g. `connectIndicators({ presets }).add(key, ...)`.
+Hosts that previously did their own reverse scan over `indicatorPresets`
+can drop that and read directly from the canonical alias table.
+
+Both helpers share the same `KIND_ALIASES` table internally, so they
+cannot drift on which kind maps where.
+
 ### Added — Extended `BacktestResult` metrics (Sortino, Calmar, CAGR, Expectancy, Exposure, per-trade aggregates)
 
 `BacktestResult` gains **eleven** new fields filled in by every call to
