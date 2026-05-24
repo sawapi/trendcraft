@@ -46,8 +46,39 @@ export type SimulatorHandle = {
   /** Initial seed history loaded into the LiveCandle. */
   readonly seedCandles: readonly NormalizedCandle[];
   getState(): SimulatorState;
-  /** 0..1 progress across the queued (= post-seed) candles. */
+  /**
+   * 0..1 progress across the queued (= post-seed) candles. **UI display
+   * only** (progress bar fill). Do not derive an integer index from this
+   * — `Math.floor(progress * queueLen)` can drift by one because of
+   * IEEE-754 roundoff (e.g. `(15/22) * 22 === 14.999...`). Use
+   * `getEmittedQueueCount()` or `getLastEmittedIdx()` instead.
+   */
   getProgress(): number;
+  /**
+   * Integer count of queued candles the simulator has fully emitted
+   * (i.e. fired `candleComplete` for). Sourced directly from the
+   * simulator's internal counter — exact, no float arithmetic.
+   */
+  getEmittedQueueCount(): number;
+  /**
+   * Integer index, in candle space, of the *last bar the simulator has
+   * emitted*. Equals `seedCandles.length + getEmittedQueueCount() - 1`
+   * (when at least one bar exists). Returns `-1` when `candles` is
+   * empty as a sentinel for "no bar emitted yet" — a host slicing
+   * `candles.slice(0, idx + 1)` then gets the correct empty array
+   * instead of a phantom `candles[0]`.
+   *
+   * This is the canonical "playhead" for any snapshot backtest, cursor
+   * label, or indicator slice that must not leak future data. It comes
+   * straight from the simulator's own state — there is no separate
+   * stateless helper to re-derive it, by design: every earlier "derive
+   * the same integer via independent math" path produced a drift bug
+   * (float roundoff, double-clamping, empty-array mismatch). Hosts
+   * that hold a `SimulatorHandle` should always read this method
+   * rather than computing the index from `getProgress()` or a saved
+   * cursor anchor.
+   */
+  getLastEmittedIdx(): number;
   play(): void;
   pause(): void;
   /**
@@ -71,6 +102,20 @@ export type SimulatorOptions = {
   candles: readonly NormalizedCandle[];
   /** Fraction of `candles` to load as seed before playback starts. Default 0.6. */
   seedRatio?: number;
+  /**
+   * Integer count of seed bars. Overrides `seedRatio` when both are
+   * passed. Preferred over `seedRatio` for any host that derives the
+   * anchor from a click index — passing an integer directly avoids
+   * the float roundoff `Math.floor(length * (anchor / length))` can
+   * introduce (e.g. `Math.floor(22 * (15/22)) === 14`, not 15).
+   *
+   * Clamped through `clampedSeedEnd` to the same `SEED_RATIO_MIN/MAX`
+   * bounds. A user-supplied `seedEnd: 1` on 100 candles becomes 5
+   * internally; hosts that need the actual value should read
+   * `sim.seedCandles.length` (or preview with `clampedSeedEnd`
+   * before construction).
+   */
+  seedEnd?: number;
   /** Number of partial ticks emitted before each candleComplete. Default 5. */
   ticksPerCandle?: number;
   /** Initial inter-frame interval in ms. Default 250. */
@@ -79,11 +124,26 @@ export type SimulatorOptions = {
 
 export function createLiveSimulator(opts: SimulatorOptions): SimulatorHandle {
   const candles = opts.candles;
-  const seedRatio = clamp(opts.seedRatio ?? 0.6, 0.05, 0.95);
   const ticksPerCandle = Math.max(1, opts.ticksPerCandle ?? 5);
   let intervalMs = Math.max(8, opts.intervalMs ?? 250);
 
-  const seedEnd = Math.max(1, Math.floor(candles.length * seedRatio));
+  // Prefer `seedEnd` when provided — it avoids the seedRatio float-roundoff
+  // that would otherwise make the simulator and host-side invariant helpers
+  // disagree by one bar on ~3.7% of (length, anchor) combinations. When
+  // only `seedRatio` is given, fall back to the original ratio-based path.
+  //
+  // Both paths funnel through `clampedSeedEnd` so `sim.seedCandles.length`
+  // always matches what `clampedSeedEnd(candles, anchor)` previews. Hosts
+  // that want to know the actual seed end before construction can call
+  // `clampedSeedEnd` directly; either way there's only one clamp logic
+  // and no double-clamping disagreement to debug.
+  // Both paths funnel through `clampedSeedEnd`, which internally floors,
+  // so there is exactly one place that decides the simulator's seed-end
+  // integer — no second derivation path to disagree with.
+  const seedEnd =
+    opts.seedEnd !== undefined
+      ? clampedSeedEnd(candles, opts.seedEnd)
+      : clampedSeedEnd(candles, candles.length * clamp(opts.seedRatio ?? 0.6, 0.05, 0.95));
   const seedCandles = candles.slice(0, seedEnd);
   const queue = candles.slice(seedEnd);
 
@@ -165,6 +225,16 @@ export function createLiveSimulator(opts: SimulatorOptions): SimulatorHandle {
     seedCandles,
     getState: () => state,
     getProgress,
+    getEmittedQueueCount: () => nextIdx,
+    getLastEmittedIdx: () => {
+      // Empty dataset: no bar has been (or can be) emitted. `-1`
+      // signals "no bar yet" — hosts using this for a snapshot slice
+      // get `candles.slice(0, -1 + 1) === []` which is the correct
+      // empty snapshot. Returning `0` would point at a non-existent
+      // index in an empty array.
+      if (candles.length === 0) return -1;
+      return Math.min(candles.length - 1, seedEnd + nextIdx - 1);
+    },
     play(): void {
       if (state === "complete" || state === "playing") return;
       state = "playing";
@@ -257,3 +327,84 @@ function buildPartial(target: NormalizedCandle, i: number, N: number): Normalize
 function clamp(v: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, v));
 }
+
+// ============================================================
+// Replay UI invariants
+// ============================================================
+//
+// Pure helpers for hosts building a "scrubbable replay" UI on top of
+// `createLiveSimulator`. They keep cursor display, snapshot-backtest
+// slice, and the simulator's emitted bars in lockstep — three places
+// that all need to derive the same integer index from the same
+// (anchor, progress) inputs. Drift between them is the no-look-ahead
+// leak Replay exists to prevent.
+//
+// The functions take `readonly unknown[]` and only read `.length`, so
+// they work for any candle-array-like input without coupling to the
+// chart's `NormalizedCandle` type.
+
+/**
+ * Minimum fraction of total history loaded as seed before the
+ * simulator starts replaying. Below this the chart has too little
+ * warm-up data; above the matching `SEED_RATIO_MAX` there's nothing
+ * left to replay. Anchor clicks are clamped through these bounds so
+ * the simulator's actual seed end and the host's cursor display
+ * always agree.
+ */
+export const SEED_RATIO_MIN = 0.05;
+
+/** Maximum fraction of total history loaded as seed. See `SEED_RATIO_MIN`. */
+export const SEED_RATIO_MAX = 0.95;
+
+/**
+ * Clamp a user-supplied anchor (cursor index) to a valid seed-end
+ * range, returning the *exact* integer the simulator will use.
+ *
+ * Always returns an integer — `Math.floor(cursorIndex)` is applied
+ * inside so a fractional input (e.g. a sub-pixel UI coordinate)
+ * doesn't make this helper return a different number from what
+ * `createLiveSimulator({ seedEnd })` would resolve to. The two
+ * paths share this single function so they cannot drift apart.
+ *
+ * Non-numeric / `NaN` / `undefined` inputs fall back to the default
+ * 60% mark (matching the simulator's default `seedRatio: 0.6`)
+ * rather than propagating `NaN` through downstream code — UI math
+ * can sometimes produce `NaN` (`0 / 0`, missing event coords) and a
+ * silent simulator stall is worse than a deterministic fallback.
+ *
+ * Guarantees at least 1 seed bar and at least 1 queue bar (provided
+ * `candles.length >= 2`) so the replay has both warm-up and content.
+ */
+export function clampedSeedEnd(candles: readonly unknown[], cursorIndex: number): number {
+  // Empty candles: the simulator can only seed zero bars, so the
+  // preview must agree. Returning the usual `Math.max(1, ...)` floor
+  // would let this helper report 1 while `sim.seedCandles.length`
+  // stayed 0 — the same kind of preview/library disagreement the rest
+  // of this module exists to prevent.
+  if (candles.length === 0) return 0;
+  const min = Math.max(1, Math.floor(candles.length * SEED_RATIO_MIN));
+  const max = Math.max(min, Math.floor(candles.length * SEED_RATIO_MAX));
+  // `Math.floor` coerces booleans / null / numeric strings cleanly,
+  // but produces `NaN` for actual NaN / undefined / non-numeric. Catch
+  // that single case explicitly so the fallback is deterministic.
+  const floored = Math.floor(cursorIndex);
+  const safe = Number.isNaN(floored) ? Math.floor(candles.length * 0.6) : floored;
+  return Math.max(min, Math.min(max, safe));
+}
+
+// Why no standalone `resolveQueueIdx(candles, cursor, count)` or
+// `lastEmittedIdx(candles, cursor, count)` helpers here:
+//
+// Earlier drafts of this subpath exposed both. Each shipped with a
+// drift bug Codex caught — float-roundoff in `seedRatio` round-trips
+// (`Math.floor(22 * (15/22)) === 14`, not 15), float-roundoff in
+// `progress * queueLen`, then double-clamping disagreement between
+// the simulator's `seedEnd` and the helper's own `clampedSeedEnd`.
+//
+// All three were the same class of bug: two parties (the simulator
+// and a standalone helper) re-deriving the same integer from
+// independent inputs. The fix wasn't another epsilon; it was to
+// remove the second derivation path entirely. The simulator owns
+// `seedEnd` and `nextIdx` as integers — hosts read them via
+// `seedCandles.length`, `getEmittedQueueCount()`, and
+// `getLastEmittedIdx()`. There is no second source of truth.
