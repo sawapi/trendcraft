@@ -1297,6 +1297,7 @@ export type {
   SessionOverrides,
   StrategyDefinition,
   StrategyJSON,
+  Tunable,
   ValidationResult as StrategyValidationResult,
 } from "./strategy";
 // Strategy Definition
@@ -1308,6 +1309,7 @@ export {
   createSessionFromStrategy,
   flattenStrategyLeaves,
   hydrateCondition,
+  listTunables,
   loadStrategy,
   parseLeafPath,
   parseStrategy,
