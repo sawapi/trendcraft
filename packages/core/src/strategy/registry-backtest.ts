@@ -405,7 +405,11 @@ backtestRegistry.register({
 // ============================================
 
 const poParams = {
-  periods: { type: "number" as const, description: "MA periods (array via JSON)" },
+  periods: {
+    type: "number" as const,
+    tunable: false,
+    description: "MA periods (array via JSON)",
+  },
 };
 
 backtestRegistry.register({

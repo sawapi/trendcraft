@@ -2,6 +2,34 @@
 
 ## Unreleased
 
+### Added — `listTunables(strategy)` for numeric parameter introspection
+
+Walks a `StrategyJSON`'s entry / exit conditions and emits one `Tunable`
+per numeric registry-declared parameter. Mirrors the strategy-parameter
+introspection surface exposed by other TA frameworks (TA-Lib's
+`TA_GetOptInputParameterInfo`, backtrader's `self.params`, freqtrade's
+`IntParameter` / `DecimalParameter`, Pine Script's `input.int` /
+`input.float`).
+
+Each `Tunable.key` follows the canonical `<bucket>.<leafIndex>.<paramName>`
+path syntax so the result feeds `gridSearchFromJSON` without
+translation. The full registry `ParamDef` is attached as `schema` so
+callers can read `min` / `max` / `default` / `integer` / `precision` /
+`suggestedMin` / `suggestedMax` directly. There is **no** heuristic on
+top — integer / continuous typing is read from the explicit
+`schema.integer` annotation, in line with the industry pattern of
+making this typing explicit at the schema level (TA-Lib enum,
+freqtrade class hierarchy, Pine Script function pair).
+
+Conditions whose registry entry is missing or whose params are all
+non-numeric are silently skipped, so a strategy with `alwaysTrue` /
+`alwaysFalse` returns `[]`. Defaults to `backtestRegistry`.
+
+Also adds `ParamDef.tunable?: boolean` so registry entries can opt out
+of enumeration when they declare `type: "number"` for compactness but
+the runtime value is non-scalar — applied internally to the Perfect
+Order `periods` param (consumed as `number[]`).
+
 ### Added — `getIndicatorPresetKey(kind)` for manifest-kind → preset-key resolution
 
 Forward sibling of `getIndicatorPreset(kind)`: returns the preset's

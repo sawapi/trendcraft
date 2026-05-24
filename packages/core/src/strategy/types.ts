@@ -155,6 +155,15 @@ export type ParamDef = {
    * persisted strategy JSON, whereas tightening `max` would.
    */
   suggestedMax?: number;
+  /**
+   * `false` opts the parameter out of generic numeric introspection
+   * (e.g. `listTunables`). Use this for params whose JSON value is *not*
+   * a scalar number — for instance MA period vectors declared with
+   * `type: "number"` for compactness but actually consumed as
+   * `number[]`. Defaults to `true` (the param participates in
+   * enumeration).
+   */
+  tunable?: boolean;
 };
 
 /**
