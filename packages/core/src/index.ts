@@ -1297,6 +1297,7 @@ export type {
   SessionOverrides,
   StrategyDefinition,
   StrategyJSON,
+  Tunable,
   ValidationResult as StrategyValidationResult,
 } from "./strategy";
 // Strategy Definition
@@ -1308,6 +1309,7 @@ export {
   createSessionFromStrategy,
   flattenStrategyLeaves,
   hydrateCondition,
+  listTunables,
   loadStrategy,
   parseLeafPath,
   parseStrategy,
@@ -1320,7 +1322,13 @@ export {
 export type { IndicatorCategory, IndicatorPreset, LivePreset, ParamSchema } from "./streaming";
 // Streaming (real-time trading pipeline)
 export * as streaming from "./streaming";
-export { createLiveCandle, getIndicatorPreset, indicatorPresets, livePresets } from "./streaming";
+export {
+  createLiveCandle,
+  getIndicatorPreset,
+  getIndicatorPresetKey,
+  indicatorPresets,
+  livePresets,
+} from "./streaming";
 export type {
   AlphaDecayOptions,
   AlphaDecayResult,

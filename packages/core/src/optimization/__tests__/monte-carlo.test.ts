@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { EMPTY_EXTENDED_METRICS_FIXTURE } from "../../backtest/__tests__/backtest-result-fixture";
 import type { BacktestResult, Trade } from "../../types";
 import {
   calculateStatistics,
@@ -111,6 +112,7 @@ function createMockBacktestResult(
     winRate: (wins.length / trades.length) * 100,
     maxDrawdown: 10,
     sharpeRatio: 1.2,
+    ...EMPTY_EXTENDED_METRICS_FIXTURE,
     profitFactor: totalLoss > 0 ? totalProfit / totalLoss : 999,
     avgHoldingDays: 7,
     trades,

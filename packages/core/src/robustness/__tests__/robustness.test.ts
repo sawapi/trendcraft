@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { EMPTY_EXTENDED_METRICS_FIXTURE } from "../../backtest/__tests__/backtest-result-fixture";
 import type { BacktestResult, DrawdownPeriod, Trade } from "../../types";
 import type { RobustnessGrade } from "../../types/robustness";
 import { scoreToGrade } from "../grade";
@@ -33,6 +34,7 @@ function mockBacktestResult(overrides: Partial<BacktestResult> = {}): BacktestRe
     winRate: 60,
     maxDrawdown: 10,
     sharpeRatio: 1.5,
+    ...EMPTY_EXTENDED_METRICS_FIXTURE,
     profitFactor: 1.8,
     avgHoldingDays: 5,
     trades: [],

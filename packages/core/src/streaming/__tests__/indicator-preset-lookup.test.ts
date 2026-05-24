@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { listManifests } from "../../manifest";
-import { getIndicatorPreset, indicatorPresets } from "../indicator-presets";
+import { getIndicatorPreset, getIndicatorPresetKey, indicatorPresets } from "../indicator-presets";
 
 describe("getIndicatorPreset", () => {
   it("resolves a manifest long-name kind to its preset", () => {
@@ -131,6 +131,70 @@ describe("getIndicatorPreset", () => {
     // produce ~8e-4. Pin the lower bound so any silent revert to 1e4
     // (factor 10000 smaller) trips the assertion.
     expect(Math.abs(lastValue as number)).toBeGreaterThan(0.5);
+  });
+
+  it.each([
+    ["awesomeOscillator", "ao"],
+    ["balanceOfPower", "bop"],
+    ["bollingerBands", "bb"],
+    ["choppinessIndex", "choppiness"],
+    ["coppockCurve", "coppock"],
+    ["donchianChannel", "donchian"],
+    ["easeOfMovement", "emv"],
+    ["ewmaVolatility", "ewmaVol"],
+    ["fairValueGap", "fvg"],
+    ["historicalVolatility", "hv"],
+    ["keltnerChannel", "keltner"],
+    ["openingRange", "orb"],
+    ["ulcerIndex", "ulcer"],
+  ])("getIndicatorPresetKey: alias %s → %s", (long, short) => {
+    expect(getIndicatorPresetKey(long)).toBe(short);
+  });
+
+  it("getIndicatorPresetKey returns the input when it is already a canonical short key", () => {
+    expect(getIndicatorPresetKey("bb")).toBe("bb");
+    expect(getIndicatorPresetKey("rsi")).toBe("rsi");
+  });
+
+  it("getIndicatorPresetKey returns undefined for kinds with no preset", () => {
+    expect(getIndicatorPresetKey("notARealIndicator")).toBeUndefined();
+    expect(getIndicatorPresetKey("hmmRegimes")).toBeUndefined();
+  });
+
+  it("getIndicatorPresetKey ignores inherited Object prototype property names", () => {
+    // `in` would return true for these and produce invalid keys; the
+    // helper must only honor own properties of the presets registry.
+    expect(getIndicatorPresetKey("constructor")).toBeUndefined();
+    expect(getIndicatorPresetKey("toString")).toBeUndefined();
+    expect(getIndicatorPresetKey("hasOwnProperty")).toBeUndefined();
+    expect(getIndicatorPresetKey("__proto__")).toBeUndefined();
+  });
+
+  it("getIndicatorPresetKey agrees with getIndicatorPreset for every kind that resolves", () => {
+    // Drift gate: the two helpers read the same alias map, so for any
+    // input that resolves to a preset, the key returned by *Key must
+    // index the same preset object that getIndicatorPreset returns.
+    // Locks in the "single source of truth" invariant.
+    const aliasInputs = [
+      "bollingerBands",
+      "bb",
+      "awesomeOscillator",
+      "ao",
+      "rsi",
+      "macd",
+      "ewmaVolatility",
+      "ewmaVol",
+    ];
+    for (const kind of aliasInputs) {
+      const preset = getIndicatorPreset(kind);
+      const key = getIndicatorPresetKey(kind);
+      if (preset === undefined) {
+        expect(key).toBeUndefined();
+      } else {
+        expect(key).toBeDefined();
+        expect(indicatorPresets[key as string]).toBe(preset);
+      }
+    }
   });
 
   it("every manifest kind that has a preset can be resolved by long name", () => {

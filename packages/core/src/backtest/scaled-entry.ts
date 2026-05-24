@@ -526,5 +526,16 @@ export function runBacktestScaled(
     returns.push(returnPercent / 100);
   }
 
-  return calculateStats(trades, returns, capital, currentCapital, maxDrawdown, settings);
+  return calculateStats(
+    trades,
+    returns,
+    capital,
+    currentCapital,
+    maxDrawdown,
+    settings,
+    [],
+    candles.length >= 2
+      ? { firstTime: candles[0].time, lastTime: candles[candles.length - 1].time }
+      : undefined,
+  );
 }

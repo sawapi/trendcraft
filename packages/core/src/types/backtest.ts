@@ -321,6 +321,56 @@ export type BacktestResult = {
   maxDrawdown: number;
   /** Sharpe ratio (annualized) */
   sharpeRatio: number;
+  /**
+   * Sortino ratio (annualized). Like Sharpe but divides by *downside*
+   * deviation instead of total return std, so upside volatility no
+   * longer penalizes the score. `0` when no negative returns exist.
+   */
+  sortinoRatio: number;
+  /**
+   * Calmar ratio: annualized return (CAGR) divided by max drawdown.
+   * Standard "return per unit of pain" metric. `0` when `maxDrawdown`
+   * is zero (no drawdown observed yet).
+   */
+  calmarRatio: number;
+  /**
+   * Compound annual growth rate percentage. Computed from the candle
+   * span (first to last bar time), so a backtest covering 1.5 years
+   * with +50% return reports CAGR ≈ +31%. `0` when fewer than 2
+   * candles are passed in.
+   */
+  cagrPercent: number;
+  /**
+   * Per-trade expectancy percentage. Equivalent to the average of
+   * `trade.returnPercent` across all trades. Positive expectancy = the
+   * strategy is profitable per trade on average.
+   */
+  expectancyPercent: number;
+  /**
+   * Market exposure percentage: total holding time divided by the
+   * candle span. A Sharpe of 2 with 10% exposure is very different
+   * from a Sharpe of 2 with 100% exposure; this metric surfaces the
+   * difference. `0` when no candle span is available.
+   */
+  exposurePercent: number;
+  /** Average winning trade return percentage (positive value). `0` when no winning trades. */
+  avgWinPercent: number;
+  /** Average losing trade return percentage (positive value, sign-flipped for display). `0` when no losing trades. */
+  avgLossPercent: number;
+  /** Largest single-trade winning return percentage. `0` when no winning trades. */
+  largestWinPercent: number;
+  /** Largest single-trade losing return percentage (positive value, sign-flipped for display). `0` when no losing trades. */
+  largestLossPercent: number;
+  /**
+   * Time of the first candle the backtest ran over (epoch ms). Stored
+   * so derived analyses (equity-curve filter, slicing, post-hoc
+   * annualization) can recompute time-based metrics like `cagrPercent`
+   * and `exposurePercent` without re-supplying the candle window.
+   * `0` when no candle span info was provided to `calculateStats`.
+   */
+  firstBarTime: number;
+  /** Time of the last candle the backtest ran over (epoch ms). See `firstBarTime`. */
+  lastBarTime: number;
   /** Profit factor */
   profitFactor: number;
   /** Average holding days */
