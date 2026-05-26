@@ -1,5 +1,7 @@
 import {
   backtestRegistry,
+  type Tunable as CoreTunable,
+  listTunables as coreListTunables,
   flattenStrategyLeaves,
   type GridSearchResult,
   gridSearchFromJSON,
@@ -14,16 +16,15 @@ import type { StudioCandle } from "./sample-data";
 
 /**
  * One tunable parameter discovered by walking a strategy's ConditionSpec.
- * `key` follows core's path syntax (`<bucket>.<leafIndex>.<paramName>`,
- * see core's `parseLeafPath` / `applyParamOverrides`) so it round-trips
- * through `gridSearchFromJSON` without translation.
+ * Wraps core's `Tunable` (`key` / `bucket` / `leafIndex` / `conditionName`
+ * / `paramName` / `schema`) with the Studio-specific derived fields the
+ * `OptimizationPanel` UI needs: the user's effective `currentValue`
+ * (registry default merged with the strategy's saved overrides), the
+ * `registryMin` cache, and an `isInteger` flag that falls back to a
+ * heuristic when the registry entry pre-dates the `ParamDef.integer`
+ * annotation.
  */
-export type Tunable = {
-  key: string;
-  bucket: "entry" | "exit";
-  leafIndex: number;
-  conditionName: string;
-  paramName: string;
+export type Tunable = CoreTunable & {
   currentValue: number;
   /**
    * Registry-declared minimum (`Number.NEGATIVE_INFINITY` when absent —
@@ -34,60 +35,52 @@ export type Tunable = {
   registryMin: number;
   /**
    * `true` when the param accepts only integer values. Source of truth:
-   * `ParamDef.integer` from PR-A1 when annotated; falls back to a
-   * heuristic (`isInteger(default) && isInteger(min)`) for entries the
-   * registry hasn't been annotated for yet.
+   * `ParamDef.integer` when annotated; falls back to a heuristic
+   * (`isInteger(default) && isInteger(min)`) for entries the registry
+   * hasn't been annotated for yet.
    */
   isInteger: boolean;
-  /**
-   * Full registry `ParamDef`. Lets `autoDeriveRange` consult
-   * `schema.precision` / `schema.suggestedMax` annotations without
-   * re-querying the registry.
-   */
-  schema: ParamDef;
 };
 
 /**
  * Walk a strategy JSON's `entry`/`exit` and pull out every numeric
- * tunable. Studio-specific wrapper around core's `flattenStrategyLeaves`
- * — adds registry-aware default hydration and the `Tunable` shape.
+ * tunable. Delegates to core's `listTunables` for the canonical
+ * enumeration (path syntax, `tunable: false` opt-out, registry lookup)
+ * and layers Studio-specific derived fields on top:
  *
- * Conditions whose registry entry is missing or whose params are all
- * non-numeric are silently skipped, so a strategy with `alwaysTrue` /
- * `alwaysFalse` returns `[]` (used by the panel to render the empty
- * state). For partially-registered strategies (one valid + one
- * unknown), only the valid leaves are surfaced — `gridSearchFromJSON`
- * will reject the unknown leaf upfront when actually run.
+ * - `currentValue`: the value `OptimizationPanel` shows centered in the
+ *   range slider — registry default merged with the strategy's saved
+ *   override from `leaf.params`. Core's `Tunable.schema.default` alone
+ *   would miss the user's saved value.
+ * - `isInteger`: falls back to a numeric heuristic for registry entries
+ *   that haven't been annotated with `ParamDef.integer`. Core
+ *   deliberately doesn't infer this (matches TA-Lib / freqtrade / Pine
+ *   Script: integer vs float typing should be explicit at the schema
+ *   level), but Studio still needs *some* answer for un-annotated
+ *   entries so the range slider's step works.
  */
 export function listTunables(strategy: StrategyJSON): Tunable[] {
-  const out: Tunable[] = [];
+  const leafParamsByPrefix = new Map<string, Record<string, unknown> | undefined>();
   for (const leaf of flattenStrategyLeaves(strategy)) {
-    const entry = backtestRegistry.get(leaf.name);
-    if (!entry) continue;
-    for (const [paramName, schema] of Object.entries(entry.params)) {
-      if (schema.type !== "number") continue;
-      const min = typeof schema.min === "number" ? schema.min : Number.NEGATIVE_INFINITY;
-      const def =
-        typeof schema.default === "number" ? schema.default : Number.isFinite(min) ? min : 0;
-      const supplied = leaf.params?.[paramName];
-      const currentValue = typeof supplied === "number" ? supplied : def;
-      const isInteger =
-        schema.integer ??
-        ((min === Number.NEGATIVE_INFINITY || Number.isInteger(min)) && Number.isInteger(def));
-      out.push({
-        key: `${leaf.bucket}.${leaf.leafIndex}.${paramName}`,
-        bucket: leaf.bucket,
-        leafIndex: leaf.leafIndex,
-        conditionName: leaf.name,
-        paramName,
-        currentValue,
-        registryMin: min,
-        isInteger,
-        schema,
-      });
-    }
+    leafParamsByPrefix.set(`${leaf.bucket}.${leaf.leafIndex}`, leaf.params);
   }
-  return out;
+  return coreListTunables(strategy).map((t): Tunable => {
+    const schema = t.schema;
+    const min = typeof schema.min === "number" ? schema.min : Number.NEGATIVE_INFINITY;
+    const def =
+      typeof schema.default === "number" ? schema.default : Number.isFinite(min) ? min : 0;
+    const supplied = leafParamsByPrefix.get(`${t.bucket}.${t.leafIndex}`)?.[t.paramName];
+    const currentValue = typeof supplied === "number" ? supplied : def;
+    const isInteger =
+      schema.integer ??
+      ((min === Number.NEGATIVE_INFINITY || Number.isInteger(min)) && Number.isInteger(def));
+    return {
+      ...t,
+      currentValue,
+      registryMin: min,
+      isInteger,
+    };
+  });
 }
 
 /**

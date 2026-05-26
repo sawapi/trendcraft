@@ -1,6 +1,11 @@
 import { connectIndicators, type IndicatorConnection, type SignalMarker } from "@trendcraft/chart";
 import { registerTrendCraftPresets } from "@trendcraft/chart/presets";
 import { useTrendChart } from "@trendcraft/chart/react";
+import {
+  clampedSeedEnd,
+  createLiveSimulator,
+  type SimulatorHandle,
+} from "@trendcraft/chart/replay";
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { indicatorPresets, parseStrategy, validateStrategyJSON } from "trendcraft";
 import { ChartToolbar } from "./components/ChartToolbar";
@@ -9,10 +14,8 @@ import { useBacktestRunner } from "./hooks/useBacktestRunner";
 import { useDataSource } from "./hooks/useDataSource";
 import { useRegime } from "./hooks/useRegime";
 import { dataSourceKey } from "./lib/data-sources";
-import { createLiveSimulator, type SimulatorHandle } from "./lib/live-simulator";
 import type { OptimizationComputation } from "./lib/optimization";
 import { PLUGIN_BY_KIND, type PluginHandle } from "./lib/plugins";
-import { clampedSeedEnd, lastEmittedIdx } from "./lib/replay";
 import { SIGNAL_BY_KIND } from "./lib/signals";
 import { builderReducer, initialBuilderState, strategyJSONToState } from "./lib/strategy-state";
 import { localStudioAPI } from "./lib/studio-api";
@@ -263,10 +266,15 @@ export function App() {
     const r = replayRef.current;
     let conn: IndicatorConnection;
     if (r.mode === "live") {
-      const seedEnd = clampedSeedEnd(candles, r.cursorIndex);
+      // Pass the cursor index as `seedEnd` (integer) directly instead of
+      // round-tripping through `seedRatio`. The simulator clamps internally
+      // via `clampedSeedEnd`, so `sim.seedCandles.length` matches what a
+      // host preview with `clampedSeedEnd(candles, r.cursorIndex)` would
+      // return. Going through `seedRatio: seedEnd / length` would introduce
+      // float-roundoff drift on ~3.7% of (length, anchor) pairs.
       const sim = createLiveSimulator({
         candles,
-        seedRatio: seedEnd / candles.length,
+        seedEnd: r.cursorIndex,
         intervalMs: SPEED_MS[r.speed],
       });
       simulatorRef.current = sim;
@@ -505,16 +513,31 @@ export function App() {
     return instances.find((i) => i.id === popoverState.instanceId) ?? null;
   }, [popoverState, instances]);
 
-  // Integer index of the *last emitted* candle in candle space. The simulator
-  // tracks "next to emit"; subtract 1 so the cursor and backtest slice never
-  // include a bar the user hasn't seen yet (the whole point of Replay).
-  // Recomputes whenever progress moves but returns the same number across
-  // most frames — downstream memos depending on it skip recompute via
-  // Object.is, so Max-speed playback doesn't churn the right pane.
-  const playheadIdx = useMemo(
-    () => (replay.mode !== "live" ? null : lastEmittedIdx(candles, replay.cursorIndex, progress)),
-    [replay, progress, candles],
-  );
+  // Integer index of the *last emitted* candle in candle space. Sourced
+  // from the simulator's `getLastEmittedIdx()` whenever it exists, which
+  // owns the integer counter — re-deriving from `progress` here would
+  // reintroduce the float-roundoff drift the accessor exists to prevent.
+  //
+  // The `?? clampedSeedEnd(...) - 1` branch covers the one render between
+  // toggling Replay on and the effect that allocates `simulatorRef.current`.
+  // Without a fallback, that single render returns null and `backtestCandles`
+  // / signal-marker filtering would briefly use the full history — the
+  // exact look-ahead leak Replay exists to prevent. The simulator clamps
+  // `seedEnd` through the same `clampedSeedEnd` helper, so the fallback
+  // and the eventual `getLastEmittedIdx()` agree on the bar index
+  // (`seedEnd - 1` == last seed bar == playhead at idle).
+  //
+  // No useMemo: `progress` is a useState set by the simulator's onChange
+  // handler on every advance, so each meaningful change already triggers
+  // an App re-render and this expression re-evaluates exactly when it can
+  // change. Downstream memos that depend on `playheadIdx` skip via
+  // Object.is for frames where the emitted index hasn't moved, so
+  // Max-speed playback doesn't churn the right pane.
+  const playheadIdx: number | null =
+    replay.mode !== "live"
+      ? null
+      : (simulatorRef.current?.getLastEmittedIdx() ??
+        clampedSeedEnd(candles, replay.cursorIndex) - 1);
 
   const cursorCandle = useMemo(
     () => (playheadIdx == null ? null : (candles[playheadIdx] ?? null)),

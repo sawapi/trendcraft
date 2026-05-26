@@ -6,8 +6,8 @@ import {
   type ConditionRegistryEntry,
   detectMarketRegime,
   getIndicatorPreset,
+  getIndicatorPresetKey,
   type IndicatorPreset,
-  indicatorPresets,
   loadStrategy,
   type MarketRegimeResult,
   normalizeCandles,
@@ -124,13 +124,7 @@ export const localStudioAPI: StudioAPI = {
   },
 
   resolvePresetKey(kind) {
-    const preset = getIndicatorPreset(kind);
-    if (!preset) return undefined;
-    if (indicatorPresets[kind] === preset) return kind;
-    for (const [key, p] of Object.entries(indicatorPresets)) {
-      if (p === preset) return key;
-    }
-    return undefined;
+    return getIndicatorPresetKey(kind);
   },
 
   listConditions(category) {
