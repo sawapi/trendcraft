@@ -21,6 +21,23 @@ function makeTrade(returnPct: number, idx: number): Trade {
   };
 }
 
+// Zero defaults for the extended-metrics fields added to `BacktestResult` in
+// trendcraft v0.4.x. Spread into mock results so the type stays satisfied
+// without each fixture duplicating eleven zero lines.
+const EMPTY_EXTENDED_METRICS = {
+  sortinoRatio: 0,
+  calmarRatio: 0,
+  cagrPercent: 0,
+  expectancyPercent: 0,
+  exposurePercent: 0,
+  avgWinPercent: 0,
+  avgLossPercent: 0,
+  largestWinPercent: 0,
+  largestLossPercent: 0,
+  firstBarTime: 0,
+  lastBarTime: 0,
+} as const;
+
 function makeResult(returnsPct: number[], capital = 100_000): BacktestResult {
   const trades = returnsPct.map((r, i) => makeTrade(r, i));
   const totalReturn = trades.reduce((s, t) => s + t.return, 0);
@@ -47,6 +64,7 @@ function makeResult(returnsPct: number[], capital = 100_000): BacktestResult {
       taxRate: 0,
     },
     drawdownPeriods: [],
+    ...EMPTY_EXTENDED_METRICS,
   };
 }
 

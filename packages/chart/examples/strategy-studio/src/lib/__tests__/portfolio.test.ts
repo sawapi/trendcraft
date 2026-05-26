@@ -150,6 +150,17 @@ describe("symbolEquityCurve", () => {
           taxRate: 0,
         },
         drawdownPeriods: [],
+        sortinoRatio: 0,
+        calmarRatio: 0,
+        cagrPercent: 0,
+        expectancyPercent: 0,
+        exposurePercent: 0,
+        avgWinPercent: 0,
+        avgLossPercent: 0,
+        largestWinPercent: 0,
+        largestLossPercent: 0,
+        firstBarTime: 0,
+        lastBarTime: 0,
       },
     };
     const curve = symbolEquityCurve(noTradeSymbol);

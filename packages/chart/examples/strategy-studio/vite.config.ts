@@ -60,6 +60,10 @@ export default defineConfig(({ mode }) => {
           replacement: resolve(__dirname, useDist ? "../../dist/presets.js" : "../../src/presets.ts"),
         },
         {
+          find: "@trendcraft/chart/replay",
+          replacement: resolve(__dirname, useDist ? "../../dist/replay.js" : "../../src/replay.ts"),
+        },
+        {
           find: "@trendcraft/chart",
           replacement: resolve(__dirname, useDist ? "../../dist/index.js" : "../../src/index.ts"),
         },
