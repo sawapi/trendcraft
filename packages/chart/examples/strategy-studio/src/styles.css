@@ -858,6 +858,64 @@ button.ghost.danger:hover {
   border-top: 1px solid #2a2e39;
 }
 
+.metrics-grid-3 {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
+.results-chart-block {
+  margin-top: 10px;
+  padding: 6px 8px;
+  background: #0e1320;
+  border: 1px solid #2a2e39;
+  border-radius: 4px;
+}
+
+.results-chart-label {
+  font-size: 10px;
+  color: #787b86;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 4px;
+}
+
+.breakdown-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 12px;
+}
+
+.breakdown-table th,
+.breakdown-table td {
+  padding: 4px 8px;
+  border-bottom: 1px solid #1e222d;
+  text-align: left;
+}
+
+.breakdown-table th {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #787b86;
+  font-weight: 600;
+  background: #131722;
+}
+
+.breakdown-table .num {
+  text-align: right;
+}
+
+.sample-size-banner {
+  margin-bottom: 8px;
+  padding: 6px 8px;
+  font-size: 11px;
+  color: #ffb74d;
+  background: rgba(255, 183, 77, 0.08);
+  border: 1px solid rgba(255, 183, 77, 0.35);
+  border-radius: 4px;
+}
+
 /* ============================================
  * Replay Controls (top of chart pane)
  * ============================================ */
