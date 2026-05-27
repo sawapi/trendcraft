@@ -45,43 +45,112 @@ export function latestAtr(candles: StudioCandle[], period: number): number | nul
   return series[series.length - 1]?.value ?? null;
 }
 
+export type KellyStats = {
+  winRate: number;
+  winLossRatio: number;
+  sampleSize: number;
+  /**
+   * Full-Kelly point estimate `f* = p - (1-p)/b` (clipped at 0). The
+   * `kellyFraction` slider scales this down further at the UI layer.
+   */
+  kellyStar: number;
+  /**
+   * Standard error of `kellyStar` via the delta method (Sinclair 2014,
+   * Journal of Investment Strategies). Treats win rate `p` (binomial,
+   * `Var ≈ p(1-p)/n`) and win/loss ratio `b = avg_win / avg_loss` (ratio
+   * of independent sample means) as independent, then propagates through
+   * the partials `df/dp = 1 + 1/b` and `df/db = (1-p)/b^2`. `null` if
+   * either side has fewer than 2 samples (sample variance is undefined).
+   */
+  stdError: number | null;
+  /** 95% confidence interval `kellyStar ± 1.96·stdError`. `null` when `stdError` is. */
+  ci95: { low: number; high: number } | null;
+};
+
 // Use `returnPercent` (size-independent) rather than `return` (dollar P/L) so
 // scaled entries / partial exits / variable position sizing don't let larger
 // notionals dominate the avgWin/avgLoss ratio Kelly depends on. Partial exits
 // are folded in alongside full exits — Kelly is sensitive to the realised
 // payoff distribution, not just fully-closed trades.
-export function deriveKellyStats(trades: readonly Trade[]): {
-  winRate: number;
-  winLossRatio: number;
-  sampleSize: number;
-} | null {
+export function deriveKellyStats(trades: readonly Trade[]): KellyStats | null {
   if (trades.length === 0) return null;
-  let wins = 0;
-  let losses = 0;
-  let winSum = 0;
-  let lossSum = 0;
+  const winReturns: number[] = [];
+  const lossReturns: number[] = [];
   for (const t of trades) {
     const pct = t.returnPercent;
-    if (pct > 0) {
-      wins += 1;
-      winSum += pct;
-    } else if (pct < 0) {
-      losses += 1;
-      lossSum += -pct;
-    }
+    if (pct > 0) winReturns.push(pct);
+    else if (pct < 0) lossReturns.push(-pct);
   }
-  const decided = wins + losses;
+  const decided = winReturns.length + lossReturns.length;
   if (decided === 0) return null;
-  const avgWin = wins > 0 ? winSum / wins : 0;
-  const avgLoss = losses > 0 ? lossSum / losses : 0;
+  const wins = winReturns.length;
+  const losses = lossReturns.length;
+  const avgWin = wins > 0 ? winReturns.reduce((s, v) => s + v, 0) / wins : 0;
+  const avgLoss = losses > 0 ? lossReturns.reduce((s, v) => s + v, 0) / losses : 0;
   // No realised losses → ratio is undefined; fall back to a large but finite
   // proxy so the UI can still surface a Kelly result rather than blank out.
   const winLossRatio = avgLoss > 0 ? avgWin / avgLoss : Math.max(avgWin, 1);
+  const p = wins / decided;
+  const kellyStar = Math.max(0, p - (1 - p) / winLossRatio);
+
+  let stdError: number | null = null;
+  let ci95: { low: number; high: number } | null = null;
+  if (wins >= 2 && losses >= 2 && avgWin > 0 && avgLoss > 0) {
+    const varWin = sampleVariance(winReturns, avgWin);
+    const varLoss = sampleVariance(lossReturns, avgLoss);
+    const varP = (p * (1 - p)) / decided;
+    // delta-method variance of b = avg_win / avg_loss, treating the two
+    // sample means as independent
+    const varB =
+      winLossRatio *
+      winLossRatio *
+      (varWin / (wins * avgWin * avgWin) + varLoss / (losses * avgLoss * avgLoss));
+    const dKdP = 1 + 1 / winLossRatio;
+    const dKdB = (1 - p) / (winLossRatio * winLossRatio);
+    const varK = dKdP * dKdP * varP + dKdB * dKdB * varB;
+    if (Number.isFinite(varK) && varK >= 0) {
+      stdError = Math.sqrt(varK);
+      ci95 = { low: kellyStar - 1.96 * stdError, high: kellyStar + 1.96 * stdError };
+    }
+  }
+
   return {
-    winRate: wins / decided,
+    winRate: p,
     winLossRatio,
     sampleSize: decided,
+    kellyStar,
+    stdError,
+    ci95,
   };
+}
+
+function sampleVariance(xs: number[], mean: number): number {
+  if (xs.length < 2) return 0;
+  let s = 0;
+  for (const x of xs) {
+    const d = x - mean;
+    s += d * d;
+  }
+  return s / (xs.length - 1);
+}
+
+/**
+ * Sample-size driven default Kelly fraction. Industry consensus
+ * (MacLean–Thorp–Ziemba "Good and Bad Properties of Kelly", Van Tharp)
+ * is that Full Kelly is fragile to estimation error and only safe with
+ * a large sample of in-distribution trades; below 100 decided trades
+ * we step down to Quarter Kelly, and never seed Full Kelly automatically.
+ */
+export function recommendedKellyFraction(sampleSize: number): number {
+  return sampleSize >= 100 ? 0.5 : 0.25;
+}
+
+export type KellySampleTier = "insufficient" | "limited" | "acceptable";
+
+export function classifyKellySample(sampleSize: number): KellySampleTier {
+  if (sampleSize < 30) return "insufficient";
+  if (sampleSize < 100) return "limited";
+  return "acceptable";
 }
 
 export function defaultSizingInputs(entryPrice: number): SizingInputs {
