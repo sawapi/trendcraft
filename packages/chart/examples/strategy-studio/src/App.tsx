@@ -824,7 +824,10 @@ export function App() {
           onResult={setOptimizationResult}
         />
         <div className="pane-divider" />
-        <StrategyDnaPanel optimizationResult={optimizationResult} />
+        <StrategyDnaPanel
+          optimizationResult={optimizationResult}
+          lastBacktest={runner.state.lastResult?.result}
+        />
       </aside>
 
       {popoverState && popoverInstance && (

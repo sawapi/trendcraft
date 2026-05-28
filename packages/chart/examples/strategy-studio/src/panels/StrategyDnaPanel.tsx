@@ -1,12 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  type BacktestResult,
   buildGenomeSegments,
   computeDnaGrade,
   computeRecommendedParams,
   extractSensitivityData,
 } from "trendcraft";
 import type { OptimizationComputation } from "../lib/optimization";
+import {
+  DEFAULT_MC_ITERATIONS,
+  type MonteCarloComputation,
+  runMonteCarlo,
+} from "../lib/robustness";
 import { GenomeVisualization } from "./dna/GenomeVisualization";
+import { MonteCarloReport } from "./dna/MonteCarloReport";
 import { RobustnessReport } from "./dna/RobustnessReport";
 import { SensitivityHeatmap } from "./dna/SensitivityHeatmap";
 
@@ -27,23 +34,49 @@ type Props = {
    * actually completed but produced no usable result.
    */
   optimizationResult: OptimizationComputation;
+  /**
+   * Last backtest result, used as the Monte Carlo resampling input.
+   * `undefined` until the user runs a backtest; the MC section then
+   * renders its own "run a backtest first" empty state.
+   */
+  lastBacktest: BacktestResult | undefined;
 };
 
 /**
- * Strategy DNA panel — three-tab read-only visualization of an
- * optimization run's genome, parameter sensitivity, and robustness
- * grade. Display-only by design (no Apply button, no Compute Monte
- * Carlo trigger): builder state is never mutated from this panel,
- * matching PR12's OptimizationPanel philosophy. Walk-Forward and
- * Monte Carlo dimensions on the grade card surface as
- * `available: false` until Studio adds those workflows.
+ * Strategy DNA panel — three-tab visualization of an optimization
+ * run's genome, parameter sensitivity, and robustness grade. The
+ * Genome and Sensitivity tabs are display-only (builder state is never
+ * mutated from this panel, matching PR12's OptimizationPanel
+ * philosophy). The Robustness tab adds a run-on-demand Monte Carlo
+ * simulation over the last backtest, which lights up the "Monte Carlo
+ * Significance" dimension of the grade. The Walk-Forward dimensions
+ * stay `available: false` until that workflow is wired.
  */
-export function StrategyDnaPanel({ optimizationResult }: Props) {
+export function StrategyDnaPanel({ optimizationResult, lastBacktest }: Props) {
   const gridSearchResult = optimizationResult.kind === "ok" ? optimizationResult.result : null;
 
   const [activeTab, setActiveTab] = useState<DnaTab>("genome");
   const [selectedParam, setSelectedParam] = useState<string | null>(null);
   const [selectedParamPair, setSelectedParamPair] = useState<[string, string] | null>(null);
+
+  // Monte Carlo runs on demand (expensive + stochastic), so its result
+  // is button-triggered state rather than a derived useMemo. Iteration
+  // count is user-selectable; the result carries the count it was run
+  // with so a stale display can't mislabel itself.
+  const [mcIterations, setMcIterations] = useState<number>(DEFAULT_MC_ITERATIONS);
+  const [mcComputation, setMcComputation] = useState<MonteCarloComputation>({ kind: "idle" });
+
+  // A new backtest invalidates any prior Monte Carlo result — it was
+  // resampled from a different trade set. Key on the result object
+  // reference: the runner produces a fresh `BacktestResult` on every
+  // run, so the effect fires exactly when the underlying trades change.
+  // A scalar proxy (trade count + total return) would collide when a
+  // modified strategy happens to produce the same aggregate, leaving a
+  // stale MC verdict and DNA grade on screen.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: lastBacktest is the intended change trigger, not read inside the effect — clearing MC on each new result object is the point.
+  useEffect(() => {
+    setMcComputation({ kind: "idle" });
+  }, [lastBacktest]);
 
   // Reset sensitivity selections when the grid result changes.
   // Otherwise a second run with a different tunable set would leave
@@ -94,9 +127,15 @@ export function StrategyDnaPanel({ optimizationResult }: Props) {
     return computeRecommendedParams(gridSearchResult, null, sensitivityData);
   }, [gridSearchResult, sensitivityData]);
 
+  const monteCarloResult = mcComputation.kind === "ok" ? mcComputation.result : null;
+
+  // Feed the Monte Carlo result into the grade so the "Monte Carlo
+  // Significance" dimension lights up (and the overall grade reweights)
+  // as soon as the user runs it. Walk-Forward stays `null` until that
+  // workflow is wired.
   const dnaGrade = useMemo(() => {
-    return computeDnaGrade(gridSearchResult, null, null);
-  }, [gridSearchResult]);
+    return computeDnaGrade(gridSearchResult, null, monteCarloResult);
+  }, [gridSearchResult, monteCarloResult]);
 
   if (gridSearchResult === null) {
     // Distinguish the three non-`ok` states. For `idle` (no run yet)
@@ -209,7 +248,28 @@ export function StrategyDnaPanel({ optimizationResult }: Props) {
           ))}
 
         {activeTab === "robustness" && (
-          <RobustnessReport grade={dnaGrade} recommendedParams={recommendedParams} />
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <RobustnessReport grade={dnaGrade} recommendedParams={recommendedParams} />
+            <div className="meta-strategy-caption" style={{ fontWeight: 600, marginTop: 2 }}>
+              Monte Carlo
+            </div>
+            <MonteCarloReport
+              computation={mcComputation}
+              iterations={mcIterations}
+              onIterationsChange={setMcIterations}
+              onRun={() =>
+                setMcComputation(runMonteCarlo(lastBacktest, { iterations: mcIterations }))
+              }
+              disabled={!lastBacktest || lastBacktest.trades.length < 2}
+              disabledReason={
+                !lastBacktest
+                  ? "Run a backtest first to enable Monte Carlo."
+                  : lastBacktest.trades.length < 2
+                    ? "Need at least 2 trades for Monte Carlo simulation."
+                    : undefined
+              }
+            />
+          </div>
         )}
       </section>
     </div>
