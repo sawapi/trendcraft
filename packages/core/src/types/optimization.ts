@@ -188,6 +188,22 @@ export type MonteCarloOptions = {
   seed?: number;
   /** Confidence level for percentile calculations (default: 0.95) */
   confidenceLevel?: number;
+  /**
+   * Resampling method (default: `"bootstrap"`).
+   *
+   * - `"bootstrap"`: draw N trades with replacement. The same trade can
+   *   appear multiple times or not at all, so total return, Sharpe, and
+   *   profit factor all vary across simulations — the basis for
+   *   outcome-uncertainty estimates (return distribution, probability of
+   *   loss). This is the canonical method for "how reliable is this
+   *   edge?".
+   * - `"shuffle"`: permute the existing trades (no replacement). The
+   *   multiset of returns is unchanged, so total return / Sharpe /
+   *   profit factor are identical across simulations and only the
+   *   path-dependent max drawdown varies. Use this to study sequence
+   *   risk (clustering of losing trades) specifically.
+   */
+  method?: "shuffle" | "bootstrap";
   /** Progress callback */
   progressCallback?: (current: number, total: number) => void;
 };
@@ -236,7 +252,22 @@ export type MonteCarloResult = {
   };
   /** Number of simulations run */
   simulationCount: number;
-  /** P-value: probability of achieving original result by chance */
+  /**
+   * Downside probabilities across the simulated distribution. Lower is
+   * better. Measured directly on the resampled outcomes (no comparison
+   * to the backtest's own annualized figures, which use a different
+   * formula):
+   * - `returns`: fraction of simulations with total return ≤ 0
+   *   (probability of a losing outcome).
+   * - `sharpe`: fraction of simulations with a non-positive risk-adjusted
+   *   return — Sharpe < 0, or Sharpe = 0 only when the return was also
+   *   ≤ 0. A zero-volatility *winning* resample (identical positive
+   *   trades → Sharpe 0) is not counted, so a flawless run is not branded
+   *   the worst outcome.
+   *
+   * Under `"shuffle"`, return is order-invariant so `returns` collapses
+   * to 0 or 1; the figure is only informative under `"bootstrap"`.
+   */
   pValue: {
     sharpe: number;
     returns: number;

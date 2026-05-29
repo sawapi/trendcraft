@@ -421,4 +421,118 @@ describe("Monte Carlo Simulation", () => {
       expect(mcResult.simulationCount).toBe(100);
     });
   });
+
+  describe("resampling method", () => {
+    // A clearly mixed win/loss set so bootstrap draws differ from each other.
+    const mixedTrades: Trade[] = Array.from({ length: 20 }, (_, i) => ({
+      entryTime: Date.now() + i * 86400000,
+      entryPrice: 100,
+      exitTime: Date.now() + (i + 1) * 86400000,
+      exitPrice: i % 3 === 0 ? 92 : 108,
+      return: i % 3 === 0 ? -80 : 80,
+      returnPercent: i % 3 === 0 ? -8 : 8,
+      holdingDays: 1,
+    }));
+
+    it("shuffle leaves total return invariant across simulations", () => {
+      const backtest = createMockBacktestResult(mixedTrades);
+      const mc = runMonteCarloSimulation(backtest, {
+        simulations: 200,
+        seed: 42,
+        method: "shuffle",
+      });
+      // Permuting trade order cannot change the compounded total return
+      // (multiplication is commutative); only float rounding wiggles it.
+      expect(mc.statistics.totalReturnPercent.stdDev).toBeLessThan(1e-6);
+    });
+
+    it("bootstrap varies total return across simulations", () => {
+      const backtest = createMockBacktestResult(mixedTrades);
+      const mc = runMonteCarloSimulation(backtest, {
+        simulations: 200,
+        seed: 42,
+        method: "bootstrap",
+      });
+      // Resampling with replacement changes the multiset of returns, so
+      // total return genuinely varies — the whole point of the mode.
+      expect(mc.statistics.totalReturnPercent.stdDev).toBeGreaterThan(0);
+      expect(mc.statistics.totalReturnPercent.percentile5).toBeLessThan(
+        mc.statistics.totalReturnPercent.percentile95,
+      );
+    });
+
+    it("defaults to bootstrap", () => {
+      const backtest = createMockBacktestResult(mixedTrades);
+      const explicit = runMonteCarloSimulation(backtest, {
+        simulations: 200,
+        seed: 42,
+        method: "bootstrap",
+      });
+      const defaulted = runMonteCarloSimulation(backtest, { simulations: 200, seed: 42 });
+      expect(defaulted.statistics.totalReturnPercent.stdDev).toBe(
+        explicit.statistics.totalReturnPercent.stdDev,
+      );
+    });
+
+    it("p(loss) is 0 for all-win trades and 1 for all-loss trades", () => {
+      const allWins: Trade[] = Array.from({ length: 8 }, (_, i) => ({
+        entryTime: Date.now() + i * 86400000,
+        entryPrice: 100,
+        exitTime: Date.now() + (i + 1) * 86400000,
+        exitPrice: 110,
+        return: 100,
+        returnPercent: 10,
+        holdingDays: 1,
+      }));
+      const allLosses: Trade[] = allWins.map((t) => ({
+        ...t,
+        exitPrice: 90,
+        return: -100,
+        returnPercent: -10,
+      }));
+
+      const winMc = runMonteCarloSimulation(createMockBacktestResult(allWins), {
+        simulations: 100,
+        seed: 7,
+      });
+      const lossMc = runMonteCarloSimulation(createMockBacktestResult(allLosses), {
+        simulations: 100,
+        seed: 7,
+      });
+
+      expect(winMc.pValue.returns).toBe(0);
+      expect(winMc.assessment.isSignificant).toBe(true);
+      expect(lossMc.pValue.returns).toBe(1);
+      expect(lossMc.assessment.isSignificant).toBe(false);
+
+      // Identical winners resample to zero-volatility runs (Sharpe 0).
+      // pValue.sharpe must NOT brand them a non-positive outcome, or the
+      // robustness grade would score a flawless strategy as the worst.
+      expect(winMc.pValue.sharpe).toBe(0);
+      // Identical losers (also zero-volatility, Sharpe 0) are still caught
+      // via the non-positive return, so the downside is not hidden.
+      expect(lossMc.pValue.sharpe).toBe(1);
+    });
+
+    it("shuffle assessment reflects drawdown sequence risk, not returns", () => {
+      const backtest = createMockBacktestResult(mixedTrades);
+      const shuffle = runMonteCarloSimulation(backtest, {
+        simulations: 200,
+        seed: 42,
+        method: "shuffle",
+      });
+      const bootstrap = runMonteCarloSimulation(backtest, {
+        simulations: 200,
+        seed: 42,
+        method: "bootstrap",
+      });
+      // Returns are invariant under shuffle, so significance must come
+      // from the drawdown distribution — never the misleading "all
+      // resamples profitable" claim that a shared return rule produced.
+      expect(shuffle.assessment.reason).toMatch(/ordering|drawdown/i);
+      expect(shuffle.assessment.reason).not.toMatch(/profitable/i);
+      // Bootstrap keeps the profitability framing.
+      expect(bootstrap.assessment.reason).toMatch(/profitable/i);
+    });
+  });
 });
