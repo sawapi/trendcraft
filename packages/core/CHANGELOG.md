@@ -2,6 +2,31 @@
 
 ## Unreleased
 
+### Changed — Monte Carlo resamples with replacement (bootstrap) by default
+
+`runMonteCarloSimulation` gains a `method?: "shuffle" | "bootstrap"`
+option and now defaults to **`"bootstrap"`** (was an unconditional
+order shuffle). Bootstrap draws N trades with replacement, so total
+return, Sharpe, and profit factor vary across simulations — the basis
+for outcome-uncertainty and probability-of-loss estimates. The previous
+behaviour is still available as `method: "shuffle"` for sequence-risk
+analysis, where only the path-dependent max drawdown varies.
+
+This matches the resampling distinction drawn by mainstream backtest MC
+tooling, where bootstrap (with replacement) is the default for "how
+reliable is this edge?" and order shuffling is the narrower
+sequence-risk test.
+
+`pValue` is redefined as a **downside probability measured directly on
+the resampled outcomes**: `pValue.returns` is the fraction of
+simulations with total return ≤ 0 (probability of loss) and
+`pValue.sharpe` the fraction with Sharpe ≤ 0. It no longer compares the
+resampled distribution to the backtest's own annualized Sharpe — that
+comparison mixed two different Sharpe formulas and overstated
+significance. `assessment.isSignificant` is now true when fewer than
+`1 - confidenceLevel` of simulations lost money. `originalResult` is
+unchanged (still the backtest's reported metrics).
+
 ### Added — `listTunables(strategy)` for numeric parameter introspection
 
 Walks a `StrategyJSON`'s entry / exit conditions and emits one `Tunable`
