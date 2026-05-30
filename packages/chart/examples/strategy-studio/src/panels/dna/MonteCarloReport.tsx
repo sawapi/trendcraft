@@ -15,16 +15,16 @@ type Props = {
 const ITERATION_OPTIONS = [500, 1000, 5000];
 
 /**
- * Monte Carlo section of the Robustness tab — trade-shuffle resampling
- * of the last backtest. Run-on-demand (not auto-computed): the
- * simulation is O(iterations · trades) and stochastic, so it stays
- * behind an explicit button like the sibling Grid Search.
+ * Monte Carlo section of the Robustness tab — bootstrap resampling of
+ * the last backtest. Run-on-demand (not auto-computed): the simulation
+ * is O(iterations · trades) and stochastic, so it stays behind an
+ * explicit button like the sibling Grid Search.
  *
- * Surfaces the significance verdict, both p-values, and a 5th/median/
- * 95th percentile table for Sharpe / Return / Max DD — the resampled
- * spread is the headline a single backtest number can't show. Richer
- * visuals (equity fan chart, Max DD histogram, P(ruin)) land in a
- * later pass once core exposes the per-path equity bands.
+ * Surfaces the downside-risk headline — probability of profit / loss and
+ * risk of ruin (a ruin-threshold drawdown) — plus a 5th/median/95th
+ * percentile table for Sharpe / Return / Max DD. The resampled spread is
+ * the headline a single backtest number can't show. A full equity fan
+ * chart lands in a later pass once core exposes the per-path equity bands.
  */
 export function MonteCarloReport({
   computation,
@@ -84,35 +84,34 @@ export function MonteCarloReport({
   );
 }
 
+/**
+ * Color a risk fraction by the bands mainstream Monte Carlo tooling uses
+ * (green < 5%, amber < 20%, red ≥ 20%, deep red ≥ 50%).
+ */
+function riskColor(p: number): string {
+  if (p < 0.05) return "#16a34a";
+  if (p < 0.2) return "#eab308";
+  if (p < 0.5) return "#ea580c";
+  return "#dc2626";
+}
+
 function McResultBody({ result, iterations }: { result: MonteCarloResult; iterations: number }) {
-  const { assessment, pValue, statistics, originalResult } = result;
+  const { assessment, downside, statistics, originalResult } = result;
+  const { probProfit, probLoss, riskOfRuin, ruinThreshold } = downside;
   return (
     <>
-      {/* Significance verdict */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          padding: "6px 10px",
-          borderRadius: 6,
-          background: "var(--bg-primary, #1a1a1a)",
-          borderLeft: `3px solid ${assessment.isSignificant ? "#16a34a" : "#ea580c"}`,
-        }}
-      >
-        <span
-          style={{
-            fontSize: "var(--font-sm)",
-            fontWeight: 600,
-            color: assessment.isSignificant ? "#16a34a" : "#ea580c",
-          }}
-        >
-          {assessment.isSignificant ? "Significant" : "Not significant"}
-        </span>
-        <span style={{ fontSize: 9, color: "var(--text-secondary, #888)" }}>
-          {iterations.toLocaleString()} shuffles · p(Sharpe) {pValue.sharpe.toFixed(3)} · p(Return){" "}
-          {pValue.returns.toFixed(3)}
-        </span>
+      {/* Downside-risk headline */}
+      <div style={{ display: "flex", gap: 6 }}>
+        <DownsideStat label="P(profit)" value={probProfit} color="#16a34a" />
+        <DownsideStat label="P(loss)" value={probLoss} color={riskColor(probLoss)} />
+        <DownsideStat
+          label={`Risk of ruin (${ruinThreshold}%)`}
+          value={riskOfRuin}
+          color={riskColor(riskOfRuin)}
+        />
+      </div>
+      <div style={{ fontSize: 9, color: "var(--text-secondary, #888)", lineHeight: 1.4 }}>
+        {iterations.toLocaleString()} bootstrap resamples · {assessment.reason}
       </div>
 
       {/* Percentile spread table */}
@@ -148,6 +147,26 @@ function McResultBody({ result, iterations }: { result: MonteCarloResult; iterat
         </tbody>
       </table>
     </>
+  );
+}
+
+/** A single downside-risk stat chip (label + colored percentage). */
+function DownsideStat({ label, value, color }: { label: string; value: number; color: string }) {
+  return (
+    <div
+      style={{
+        flex: 1,
+        padding: "6px 8px",
+        borderRadius: 6,
+        background: "var(--bg-primary, #1a1a1a)",
+        borderLeft: `3px solid ${color}`,
+      }}
+    >
+      <div style={{ fontSize: "var(--font-md)", fontWeight: 700, color }}>
+        {(value * 100).toFixed(1)}%
+      </div>
+      <div style={{ fontSize: 9, color: "var(--text-secondary, #888)" }}>{label}</div>
+    </div>
   );
 }
 
