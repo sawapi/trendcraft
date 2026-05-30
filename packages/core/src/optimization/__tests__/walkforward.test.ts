@@ -1,13 +1,38 @@
 import { describe, expect, it, vi } from "vitest";
 import type { BacktestOptions, NormalizedCandle, PresetCondition } from "../../types";
+import type { WalkForwardPeriod, WalkForwardResult } from "../../types/optimization";
 import { param } from "../grid-search";
 import {
   calculatePeriodCount,
   generatePeriodBoundaries,
   getOutOfSampleEquityCurve,
+  stitchOosEquity,
   summarizeWalkForward,
   walkForwardAnalysis,
+  wfeRatio,
 } from "../walkforward";
+
+const MS_PER_YEAR = 365.25 * 24 * 60 * 60 * 1000;
+
+/** Build a full OptimizationMetric record, defaulting unspecified keys to 0. */
+function metricsRecord(over: { returns?: number; winRate?: number } = {}) {
+  return {
+    sharpe: 0,
+    calmar: 0,
+    mar: 0,
+    profitFactor: 0,
+    recoveryFactor: 0,
+    returns: over.returns ?? 0,
+    winRate: over.winRate ?? 0,
+    tradeCount: 0,
+    maxDrawdown: 0,
+  };
+}
+
+/** Minimal WalkForwardResult carrying only the fields the helpers read. */
+function makeWfResult(periods: Partial<WalkForwardPeriod>[]): WalkForwardResult {
+  return { periods } as unknown as WalkForwardResult;
+}
 
 /**
  * Generate test candles with upward trend
@@ -311,6 +336,162 @@ describe("Walk-Forward Analysis", () => {
         const ratio200k = curve200k[0].equity / 200000;
         expect(ratio100k).toBeCloseTo(ratio200k, 5);
       }
+    });
+  });
+
+  describe("wfeRatio", () => {
+    // Spans of exactly one year make annualization a no-op, so WFE
+    // reduces to the plain out-of-sample / in-sample return ratio.
+    it("equals OOS/IS return ratio when both windows span one year", () => {
+      const result = makeWfResult([
+        {
+          trainStart: 0,
+          trainEnd: MS_PER_YEAR,
+          testStart: MS_PER_YEAR,
+          testEnd: 2 * MS_PER_YEAR,
+          inSampleMetrics: metricsRecord({ returns: 20 }),
+          outOfSampleMetrics: metricsRecord({ returns: 10 }),
+        },
+      ]);
+      expect(wfeRatio(result)).toBeCloseTo(0.5, 10);
+    });
+
+    it("averages per-period WFE", () => {
+      const result = makeWfResult([
+        {
+          trainStart: 0,
+          trainEnd: MS_PER_YEAR,
+          testStart: MS_PER_YEAR,
+          testEnd: 2 * MS_PER_YEAR,
+          inSampleMetrics: metricsRecord({ returns: 20 }),
+          outOfSampleMetrics: metricsRecord({ returns: 10 }), // WFE 0.5
+        },
+        {
+          trainStart: 2 * MS_PER_YEAR,
+          trainEnd: 3 * MS_PER_YEAR,
+          testStart: 3 * MS_PER_YEAR,
+          testEnd: 4 * MS_PER_YEAR,
+          inSampleMetrics: metricsRecord({ returns: 10 }),
+          outOfSampleMetrics: metricsRecord({ returns: 10 }), // WFE 1.0
+        },
+      ]);
+      expect(wfeRatio(result)).toBeCloseTo(0.75, 10);
+    });
+
+    it("skips periods with non-positive in-sample return and is NaN when none qualify", () => {
+      const result = makeWfResult([
+        {
+          trainStart: 0,
+          trainEnd: MS_PER_YEAR,
+          testStart: MS_PER_YEAR,
+          testEnd: 2 * MS_PER_YEAR,
+          inSampleMetrics: metricsRecord({ returns: -5 }),
+          outOfSampleMetrics: metricsRecord({ returns: 10 }),
+        },
+      ]);
+      expect(Number.isNaN(wfeRatio(result))).toBe(true);
+    });
+
+    it("is not capped above 1 when OOS beats IS", () => {
+      const result = makeWfResult([
+        {
+          trainStart: 0,
+          trainEnd: MS_PER_YEAR,
+          testStart: MS_PER_YEAR,
+          testEnd: 2 * MS_PER_YEAR,
+          inSampleMetrics: metricsRecord({ returns: 10 }),
+          outOfSampleMetrics: metricsRecord({ returns: 25 }),
+        },
+      ]);
+      expect(wfeRatio(result)).toBeCloseTo(2.5, 10);
+    });
+  });
+
+  describe("stitchOosEquity", () => {
+    it("compounds each OOS trade onto a leading anchor point", () => {
+      const result = makeWfResult([
+        {
+          testStart: 1000,
+          testBacktest: {
+            trades: [
+              { exitTime: 2000, returnPercent: 10 },
+              { exitTime: 3000, returnPercent: -5 },
+            ],
+          },
+        },
+        {
+          testStart: 4000,
+          testBacktest: {
+            trades: [{ exitTime: 5000, returnPercent: 20 }],
+          },
+        },
+      ] as unknown as Partial<WalkForwardPeriod>[]);
+
+      const curve = stitchOosEquity(result, 100_000);
+
+      // 1 anchor + 3 trades
+      expect(curve.length).toBe(4);
+      expect(curve[0]).toEqual({ time: 1000, equity: 100_000 });
+      expect(curve[1].equity).toBeCloseTo(110_000, 6); // +10%
+      expect(curve[2].equity).toBeCloseTo(104_500, 6); // -5%
+      expect(curve[3].equity).toBeCloseTo(125_400, 6); // +20%
+      // Times are non-decreasing.
+      for (let i = 1; i < curve.length; i++) {
+        expect(curve[i].time).toBeGreaterThanOrEqual(curve[i - 1].time);
+      }
+    });
+
+    it("returns an empty curve for no periods", () => {
+      expect(stitchOosEquity(makeWfResult([]), 100_000)).toEqual([]);
+    });
+
+    it("keeps the curve chronological when test windows overlap", () => {
+      // Overlapping windows (stepSize < testSize): period 2 holds a trade
+      // that exited before period 1's last trade. A global sort must keep
+      // exit times non-decreasing across the whole stitched curve.
+      const result = makeWfResult([
+        {
+          testStart: 1000,
+          testBacktest: {
+            trades: [
+              { exitTime: 2000, returnPercent: 5 },
+              { exitTime: 6000, returnPercent: 5 },
+            ],
+          },
+        },
+        {
+          testStart: 4000,
+          testBacktest: {
+            trades: [{ exitTime: 5000, returnPercent: 5 }],
+          },
+        },
+      ] as unknown as Partial<WalkForwardPeriod>[]);
+
+      const curve = stitchOosEquity(result, 100_000);
+      const times = curve.map((p) => p.time);
+      expect(times).toEqual([1000, 2000, 5000, 6000]);
+      for (let i = 1; i < times.length; i++) {
+        expect(times[i]).toBeGreaterThanOrEqual(times[i - 1]);
+      }
+    });
+
+    it("is finer than the per-period equity curve", () => {
+      const candles = generateUpTrendCandles(300);
+      const createStrategy = (params: Record<string, number>) => ({
+        entry: createEnterCondition(Math.round(params.enterAfter)),
+        exit: createExitCondition(10, Math.round(params.enterAfter)),
+        options: { capital: 100000 } as BacktestOptions,
+      });
+      const result = walkForwardAnalysis(candles, createStrategy, [param("enterAfter", 5, 10, 5)], {
+        windowSize: 100,
+        stepSize: 50,
+        testSize: 50,
+      });
+
+      const perPeriod = getOutOfSampleEquityCurve(result);
+      const stitched = stitchOosEquity(result);
+      // At least as many points as periods (anchor + trades), never fewer.
+      expect(stitched.length).toBeGreaterThanOrEqual(perPeriod.length);
     });
   });
 

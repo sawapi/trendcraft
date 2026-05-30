@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-### Changed — Monte Carlo resamples with replacement (bootstrap) by default
+### Changed — Monte Carlo: bootstrap resampling by default + downside-risk summary (replaces p-value)
 
 `runMonteCarloSimulation` gains a `method?: "shuffle" | "bootstrap"`
 option and now defaults to **`"bootstrap"`** (was an unconditional
@@ -17,15 +17,43 @@ tooling, where bootstrap (with replacement) is the default for "how
 reliable is this edge?" and order shuffling is the narrower
 sequence-risk test.
 
-`pValue` is redefined as a **downside probability measured directly on
-the resampled outcomes**: `pValue.returns` is the fraction of
-simulations with total return ≤ 0 (probability of loss) and
-`pValue.sharpe` the fraction with Sharpe ≤ 0. It no longer compares the
-resampled distribution to the backtest's own annualized Sharpe — that
-comparison mixed two different Sharpe formulas and overstated
-significance. `assessment.isSignificant` is now true when fewer than
-`1 - confidenceLevel` of simulations lost money. `originalResult` is
-unchanged (still the backtest's reported metrics).
+The result's significance fields are replaced by a **downside-risk
+summary measured directly on the resampled outcomes**. The previous
+`pValue` / `assessment.isSignificant` shape forced a binary
+significance verdict (a permutation-test concept) onto a resampling
+distribution and compared mismatched Sharpe formulas. In its place
+`MonteCarloResult.downside` reports `probProfit`, `probLoss`,
+`riskOfRuin` (the fraction of simulations whose path-dependent max
+drawdown reaches a configurable `ruinThreshold`, default 50%), and the
+`ruinThreshold` used. `runMonteCarloSimulation` accepts a matching
+`ruinThreshold?: number` option. `assessment` keeps a method-aware,
+human-readable `reason` and the `confidenceLevel` but no longer carries
+`isSignificant`. `summarizeMonteCarloResult` returns `{ probProfit,
+probLoss, riskOfRuin, expectedSharpe, sharpe95CI, originalSharpe }`.
+These distribution-based figures are what mainstream backtest Monte
+Carlo tooling reports (StrategyQuant, AmiBroker, BuildAlpha).
+`originalResult` is unchanged (still the backtest's reported metrics).
+
+### Added — Robustness helpers: walk-forward efficiency, stitched OOS equity, Deflated Sharpe
+
+- **`wfeRatio(result)`** — Pardo's Walk-Forward Efficiency: the average
+  per-period ratio of annualized out-of-sample to annualized in-sample
+  return. Both windows are annualized over their calendar span before
+  the ratio, periods with non-positive in-sample return are skipped, and
+  the result is `NaN` when none qualify. Uncapped, so a strategy that
+  beats its optimization out-of-sample scores above 1.0. Pardo treats
+  ≥ 0.5 as the threshold for a robust (rather than curve-fit) strategy.
+- **`stitchOosEquity(result, initialCapital?)`** — stitches every
+  walk-forward period's out-of-sample trades into one continuous equity
+  curve, one point per trade (plus a leading anchor). A finer-grained
+  companion to the period-granularity `getOutOfSampleEquityCurve`.
+- **`deflatedSharpe(params)`** / **`deflatedSharpeFromReturns(returns,
+  trialSharpes)`** — Deflated Sharpe Ratio (Bailey & López de Prado
+  2014): the probability the true Sharpe is positive after correcting
+  for selection bias across `N` trials, non-normality (skew / kurtosis),
+  and sample length. Building blocks `probabilisticSharpe(...)` (PSR) and
+  `expectedMaxSharpe(trials, variance)` (the SR0 selection benchmark) are
+  exported too. All Sharpe inputs are per-return (non-annualized).
 
 ### Added — `listTunables(strategy)` for numeric parameter introspection
 

@@ -84,9 +84,11 @@ function scoreMonteCarlo(
     const mc = runMonteCarloSimulation(result, { simulations, seed });
 
     // Score based on:
-    // - p-value of Sharpe (lower = better)
+    // - survival probability: the chance of neither losing money nor
+    //   suffering a ruin-level drawdown (higher = better)
     // - consistency of returns distribution
-    const pValueScore = Math.max(0, (1 - mc.pValue.sharpe) * 100);
+    const survivalProb = 1 - Math.max(mc.downside.probLoss, mc.downside.riskOfRuin);
+    const pValueScore = Math.max(0, survivalProb * 100);
 
     // Narrow confidence interval -> more consistent
     const ciWidth = mc.confidenceInterval.returns.upper - mc.confidenceInterval.returns.lower;
@@ -110,7 +112,7 @@ function scoreMonteCarlo(
       name: "Monte Carlo Survival",
       score: Math.round(Math.max(0, Math.min(100, score)) * 10) / 10,
       weight: 0.4,
-      detail: `p-value: ${mc.pValue.sharpe.toFixed(3)}, 5th%ile return: ${mc.statistics.totalReturnPercent.percentile5.toFixed(1)}%`,
+      detail: `P(loss): ${(mc.downside.probLoss * 100).toFixed(0)}%, risk of ruin: ${(mc.downside.riskOfRuin * 100).toFixed(0)}%, 5th%ile return: ${mc.statistics.totalReturnPercent.percentile5.toFixed(1)}%`,
     };
   } catch {
     return {

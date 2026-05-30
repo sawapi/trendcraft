@@ -434,6 +434,136 @@ export function getOutOfSampleEquityCurve(
   return curve;
 }
 
+const MS_PER_YEAR = 365.25 * 24 * 60 * 60 * 1000;
+
+/**
+ * Annualize a total return (in percent) over a calendar span.
+ * Returns `NaN` when the span is non-positive.
+ */
+function annualizeByCalendar(totalReturnPercent: number, startMs: number, endMs: number): number {
+  const years = (endMs - startMs) / MS_PER_YEAR;
+  if (!(years > 0)) return Number.NaN;
+  const total = totalReturnPercent / 100;
+  // A loss beyond -100% is not representable; clamp like `annualizeReturn`.
+  if (total <= -1) return -100;
+  return ((1 + total) ** (1 / years) - 1) * 100;
+}
+
+/**
+ * Walk-Forward Efficiency (WFE) — Pardo's measure of how well a
+ * strategy's in-sample optimization carries to out-of-sample data.
+ *
+ * For each period, WFE = (annualized out-of-sample return) /
+ * (annualized in-sample return). The training and test windows usually
+ * differ in length, so both returns are annualized over their calendar
+ * span before the ratio. The result is the **average per-period WFE**.
+ *
+ * A WFE of 1.0 means out-of-sample matched the optimized in-sample
+ * result; Pardo treats ≥ 0.5 (50–60%) as the threshold for a genuinely
+ * robust strategy rather than a curve-fit one. WFE is not capped — an
+ * out-of-sample result that beats in-sample yields > 1.0. (This is
+ * distinct from `aggregateMetrics.stabilityRatio`, which is capped at 1
+ * and computed on the primary optimization metric rather than on
+ * annualized return.)
+ *
+ * Periods whose in-sample annualized return is ≤ 0 are skipped: walk-
+ * forward efficiency is undefined when the strategy wasn't even
+ * profitable in-sample, since the ratio's sign and magnitude would be
+ * meaningless. Returns `NaN` when no period has a positive in-sample
+ * return, matching the `calculateCalmarRatio` "undefined" convention.
+ *
+ * @param result Walk-forward analysis result
+ * @returns Average per-period walk-forward efficiency, or `NaN` when undefined
+ * @example
+ * ```ts
+ * import { walkForwardAnalysis, wfeRatio } from "trendcraft";
+ *
+ * const wf = walkForwardAnalysis(candles, createStrategy, ranges);
+ * const wfe = wfeRatio(wf);
+ * if (Number.isFinite(wfe) && wfe >= 0.5) {
+ *   console.log(`Robust: WFE ${(wfe * 100).toFixed(0)}%`);
+ * }
+ * ```
+ */
+export function wfeRatio(result: WalkForwardResult): number {
+  const ratios: number[] = [];
+  for (const p of result.periods) {
+    const isAnn = annualizeByCalendar(p.inSampleMetrics.returns, p.trainStart, p.trainEnd);
+    const oosAnn = annualizeByCalendar(p.outOfSampleMetrics.returns, p.testStart, p.testEnd);
+    if (Number.isFinite(isAnn) && isAnn > 0 && Number.isFinite(oosAnn)) {
+      ratios.push(oosAnn / isAnn);
+    }
+  }
+  if (ratios.length === 0) return Number.NaN;
+  return ratios.reduce((s, v) => s + v, 0) / ratios.length;
+}
+
+/**
+ * Stitch the out-of-sample trades from every walk-forward period into a
+ * single continuous equity curve, one point per trade.
+ *
+ * {@link getOutOfSampleEquityCurve} emits one point per *period* (the
+ * compounded period return at each `testEnd`). This finer variant walks
+ * every period's out-of-sample trades in chronological order and
+ * compounds each trade's return, so the curve shows the intra-period
+ * path — the canonical "stitched OOS equity" used to visualize walk-
+ * forward robustness. Points are placed at trade exits, the finest
+ * granularity the walk-forward result carries (per-candle marks are not
+ * retained on the period backtests).
+ *
+ * Each trade is compounded against the running equity
+ * (`equity *= 1 + returnPercent/100`), matching the full-capital
+ * trade-compounding convention used elsewhere in the library (e.g. the
+ * Monte Carlo resampler). A leading anchor point at the first period's
+ * `testStart` with the initial capital starts the curve.
+ *
+ * Trades from every period are merged and sorted globally by exit time
+ * before compounding, so the curve stays chronological even when test
+ * windows overlap (`stepSize < testSize`). Note that overlapping windows
+ * test the same span more than once, so the shared trades are
+ * double-counted — the same caveat that applies to the period-level
+ * {@link getOutOfSampleEquityCurve}. Use non-overlapping windows
+ * (`stepSize === testSize`, the default) for a clean stitched curve.
+ *
+ * @param result Walk-forward analysis result
+ * @param initialCapital Starting capital (default 100000)
+ * @returns Equity curve as `{ time, equity }` — one leading anchor plus one point per out-of-sample trade
+ * @example
+ * ```ts
+ * import { walkForwardAnalysis, stitchOosEquity } from "trendcraft";
+ *
+ * const wf = walkForwardAnalysis(candles, createStrategy, ranges);
+ * const curve = stitchOosEquity(wf, 100_000);
+ * // curve[curve.length - 1].equity → final stitched out-of-sample equity
+ * ```
+ */
+export function stitchOosEquity(
+  result: WalkForwardResult,
+  initialCapital = 100000,
+): Array<{ time: number; equity: number }> {
+  const curve: Array<{ time: number; equity: number }> = [];
+  let equity = initialCapital;
+
+  const firstPeriod = result.periods[0];
+  if (firstPeriod) {
+    curve.push({ time: firstPeriod.testStart, equity });
+  }
+
+  // Merge every period's out-of-sample trades and sort by exit time
+  // globally. Sorting per period would leave the curve non-chronological
+  // when test windows overlap (a later period can hold trades that
+  // exited before the previous period's last trade).
+  const trades = result.periods
+    .flatMap((period) => period.testBacktest.trades)
+    .sort((a, b) => a.exitTime - b.exitTime);
+  for (const trade of trades) {
+    equity += equity * (trade.returnPercent / 100);
+    curve.push({ time: trade.exitTime, equity });
+  }
+
+  return curve;
+}
+
 /**
  * Safe variant of walkForwardAnalysis that returns a Result instead of throwing.
  *

@@ -690,6 +690,7 @@ export {
   // Monte Carlo Simulation
   runMonteCarloSimulation,
   runMonteCarloSimulationSafe,
+  stitchOosEquity,
   summarizeAWFResult,
   summarizeCombinationSearch,
   summarizeGridSearch,
@@ -699,6 +700,7 @@ export {
   // Walk-Forward Analysis
   walkForwardAnalysis,
   walkForwardAnalysisSafe,
+  wfeRatio,
 } from "./optimization";
 // Position Sizing
 export {
@@ -718,6 +720,7 @@ export {
   riskBasedSize,
   riskPerShare,
 } from "./position-sizing";
+export type { DeflatedSharpeParams } from "./scoring";
 // Signal Scoring
 export {
   // Calculator
@@ -740,6 +743,10 @@ export {
   createTrendFollowingPreset,
   createVolumeAnomalyEvaluator,
   createVolumeSpikeEvaluator,
+  // Deflated Sharpe Ratio
+  deflatedSharpe,
+  deflatedSharpeFromReturns,
+  expectedMaxSharpe,
   // Presets
   getPreset,
   isScoreAbove,
@@ -751,6 +758,7 @@ export {
   perfectOrderBearish as poBearishSignal,
   perfectOrderBullish as poBullishSignal,
   poConfirmation,
+  probabilisticSharpe,
   rsiOverbought70,
   // Pre-built signals
   rsiOversold30,

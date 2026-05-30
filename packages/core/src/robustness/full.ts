@@ -162,7 +162,8 @@ function scoreMonteCarloDimension(
   }
   try {
     const mc = runMonteCarloSimulation(result, { simulations: sims, seed });
-    const pScore = Math.max(0, (1 - mc.pValue.sharpe) * 100);
+    const survivalProb = 1 - Math.max(mc.downside.probLoss, mc.downside.riskOfRuin);
+    const pScore = Math.max(0, survivalProb * 100);
     const worstCase =
       mc.statistics.totalReturnPercent.percentile5 > 0
         ? 100
@@ -174,7 +175,7 @@ function scoreMonteCarloDimension(
       name: "Monte Carlo Survival",
       score: Math.round(Math.max(0, Math.min(100, score)) * 10) / 10,
       weight: 0.25,
-      detail: `p=${mc.pValue.sharpe.toFixed(3)}, 5th%ile=${mc.statistics.totalReturnPercent.percentile5.toFixed(1)}%`,
+      detail: `P(loss)=${(mc.downside.probLoss * 100).toFixed(0)}%, risk of ruin=${(mc.downside.riskOfRuin * 100).toFixed(0)}%, 5th%ile=${mc.statistics.totalReturnPercent.percentile5.toFixed(1)}%`,
     };
   } catch {
     return {
