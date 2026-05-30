@@ -68,6 +68,14 @@ export {
   scoreStrength,
   scoreWithMinSignals,
 } from "./conditions";
+export type { DeflatedSharpeParams } from "./deflated-sharpe";
+// Deflated Sharpe Ratio (Bailey & López de Prado 2014)
+export {
+  deflatedSharpe,
+  deflatedSharpeFromReturns,
+  expectedMaxSharpe,
+  probabilisticSharpe,
+} from "./deflated-sharpe";
 // Presets
 export {
   createAggressivePreset,
