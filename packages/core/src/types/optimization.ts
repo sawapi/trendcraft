@@ -204,6 +204,15 @@ export type MonteCarloOptions = {
    *   risk (clustering of losing trades) specifically.
    */
   method?: "shuffle" | "bootstrap";
+  /**
+   * Drawdown level (as a positive percent) treated as "ruin" for the
+   * {@link MonteCarloResult.downside}.`riskOfRuin` figure. A simulation
+   * counts toward risk of ruin when its path-dependent max drawdown
+   * reaches or exceeds this level. Default `50` (a 50% peak-to-trough
+   * loss), matching the threshold used by mainstream backtest Monte
+   * Carlo tooling (BuildAlpha, AmiBroker).
+   */
+  ruinThreshold?: number;
   /** Progress callback */
   progressCallback?: (current: number, total: number) => void;
 };
@@ -253,24 +262,28 @@ export type MonteCarloResult = {
   /** Number of simulations run */
   simulationCount: number;
   /**
-   * Downside probabilities across the simulated distribution. Lower is
-   * better. Measured directly on the resampled outcomes (no comparison
-   * to the backtest's own annualized figures, which use a different
-   * formula):
-   * - `returns`: fraction of simulations with total return ≤ 0
-   *   (probability of a losing outcome).
-   * - `sharpe`: fraction of simulations with a non-positive risk-adjusted
-   *   return — Sharpe < 0, or Sharpe = 0 only when the return was also
-   *   ≤ 0. A zero-volatility *winning* resample (identical positive
-   *   trades → Sharpe 0) is not counted, so a flawless run is not branded
-   *   the worst outcome.
-   *
-   * Under `"shuffle"`, return is order-invariant so `returns` collapses
-   * to 0 or 1; the figure is only informative under `"bootstrap"`.
+   * Downside-risk summary measured directly on the resampled outcomes —
+   * the headline figures for "how risky is this edge?". These replace
+   * the previous permutation-test `pValue` / `isSignificant` framing,
+   * which forced a binary significance verdict onto a resampling
+   * distribution and compared mismatched Sharpe formulas. The
+   * distribution-based figures below are what mainstream backtest Monte
+   * Carlo tooling reports (StrategyQuant, AmiBroker, BuildAlpha).
    */
-  pValue: {
-    sharpe: number;
-    returns: number;
+  downside: {
+    /** Fraction of simulations that ended profitable (total return > 0). */
+    probProfit: number;
+    /** Fraction of simulations that lost money (total return ≤ 0) = `1 - probProfit`. */
+    probLoss: number;
+    /**
+     * Fraction of simulations whose path-dependent max drawdown reached
+     * or exceeded {@link ruinThreshold}. Meaningful under both methods
+     * (drawdown is path-dependent), unlike `probLoss` which collapses to
+     * 0/1 under `"shuffle"` because the return multiset is fixed.
+     */
+    riskOfRuin: number;
+    /** Drawdown level (positive percent) used as the ruin threshold. */
+    ruinThreshold: number;
   };
   /** Confidence interval for expected performance */
   confidenceInterval: {
@@ -278,9 +291,12 @@ export type MonteCarloResult = {
     returns: { lower: number; upper: number };
     maxDrawdown: { lower: number; upper: number };
   };
-  /** Assessment of whether strategy is statistically significant */
+  /**
+   * Human-readable, method-aware interpretation of the distribution. No
+   * binary significance flag — bootstrap describes outcome uncertainty
+   * (profitability + ruin), shuffle describes sequence risk (drawdown).
+   */
   assessment: {
-    isSignificant: boolean;
     reason: string;
     confidenceLevel: number;
   };

@@ -220,7 +220,8 @@ describe("Monte Carlo Simulation", () => {
       });
 
       expect(result1.statistics.sharpe.mean).toBe(result2.statistics.sharpe.mean);
-      expect(result1.pValue.sharpe).toBe(result2.pValue.sharpe);
+      expect(result1.downside.probLoss).toBe(result2.downside.probLoss);
+      expect(result1.downside.riskOfRuin).toBe(result2.downside.riskOfRuin);
     });
 
     it("should produce different max drawdown distributions with different seeds", () => {
@@ -270,16 +271,35 @@ describe("Monte Carlo Simulation", () => {
       expect(mcResult.originalResult.profitFactor).toBe(2.5);
     });
 
-    it("should calculate p-values between 0 and 1", () => {
+    it("should produce downside probabilities between 0 and 1 that sum consistently", () => {
       const trades = createDeterministicTrades();
       const backtest = createMockBacktestResult(trades);
 
       const mcResult = runMonteCarloSimulation(backtest, { simulations: 100 });
 
-      expect(mcResult.pValue.sharpe).toBeGreaterThanOrEqual(0);
-      expect(mcResult.pValue.sharpe).toBeLessThanOrEqual(1);
-      expect(mcResult.pValue.returns).toBeGreaterThanOrEqual(0);
-      expect(mcResult.pValue.returns).toBeLessThanOrEqual(1);
+      const { probProfit, probLoss, riskOfRuin } = mcResult.downside;
+      for (const p of [probProfit, probLoss, riskOfRuin]) {
+        expect(p).toBeGreaterThanOrEqual(0);
+        expect(p).toBeLessThanOrEqual(1);
+      }
+      expect(probProfit + probLoss).toBeCloseTo(1, 10);
+    });
+
+    it("uses the default ruin threshold of 50% and respects an override", () => {
+      const trades = createDeterministicTrades();
+      const backtest = createMockBacktestResult(trades);
+
+      const def = runMonteCarloSimulation(backtest, { simulations: 100, seed: 1 });
+      expect(def.downside.ruinThreshold).toBe(50);
+
+      const strict = runMonteCarloSimulation(backtest, {
+        simulations: 100,
+        seed: 1,
+        ruinThreshold: 5,
+      });
+      expect(strict.downside.ruinThreshold).toBe(5);
+      // A lower (easier-to-hit) ruin threshold can only increase risk of ruin.
+      expect(strict.downside.riskOfRuin).toBeGreaterThanOrEqual(def.downside.riskOfRuin);
     });
 
     it("should calculate confidence intervals", () => {
@@ -304,9 +324,9 @@ describe("Monte Carlo Simulation", () => {
 
       const mcResult = runMonteCarloSimulation(backtest, { simulations: 100 });
 
-      expect(typeof mcResult.assessment.isSignificant).toBe("boolean");
       expect(typeof mcResult.assessment.reason).toBe("string");
       expect(mcResult.assessment.reason.length).toBeGreaterThan(0);
+      expect(mcResult.assessment.confidenceLevel).toBe(0.95);
     });
 
     it("should call progress callback", () => {
@@ -347,14 +367,16 @@ describe("Monte Carlo Simulation", () => {
       expect(formatted).toContain("Assessment:");
     });
 
-    it("should include significance assessment", () => {
+    it("should include the downside-risk summary", () => {
       const trades = createDeterministicTrades();
       const backtest = createMockBacktestResult(trades);
       const mcResult = runMonteCarloSimulation(backtest, { simulations: 100 });
 
       const formatted = formatMonteCarloResult(mcResult);
 
-      expect(formatted).toMatch(/SIGNIFICANT|NOT SIGNIFICANT/);
+      expect(formatted).toContain("Downside risk:");
+      expect(formatted).toContain("P(profit):");
+      expect(formatted).toContain("Risk of ruin");
     });
   });
 
@@ -366,9 +388,9 @@ describe("Monte Carlo Simulation", () => {
 
       const summary = summarizeMonteCarloResult(mcResult);
 
-      expect(typeof summary.isSignificant).toBe("boolean");
-      expect(typeof summary.pValueSharpe).toBe("number");
-      expect(typeof summary.pValueReturns).toBe("number");
+      expect(typeof summary.probProfit).toBe("number");
+      expect(typeof summary.probLoss).toBe("number");
+      expect(typeof summary.riskOfRuin).toBe("number");
       expect(summary.expectedSharpe).toHaveProperty("mean");
       expect(summary.expectedSharpe).toHaveProperty("median");
       expect(summary.sharpe95CI).toHaveProperty("lower");
@@ -474,7 +496,7 @@ describe("Monte Carlo Simulation", () => {
       );
     });
 
-    it("p(loss) is 0 for all-win trades and 1 for all-loss trades", () => {
+    it("P(loss) is 0 for all-win trades and 1 for all-loss trades", () => {
       const allWins: Trade[] = Array.from({ length: 8 }, (_, i) => ({
         entryTime: Date.now() + i * 86400000,
         entryPrice: 100,
@@ -500,18 +522,15 @@ describe("Monte Carlo Simulation", () => {
         seed: 7,
       });
 
-      expect(winMc.pValue.returns).toBe(0);
-      expect(winMc.assessment.isSignificant).toBe(true);
-      expect(lossMc.pValue.returns).toBe(1);
-      expect(lossMc.assessment.isSignificant).toBe(false);
+      expect(winMc.downside.probLoss).toBe(0);
+      expect(winMc.downside.probProfit).toBe(1);
+      expect(lossMc.downside.probLoss).toBe(1);
+      expect(lossMc.downside.probProfit).toBe(0);
 
-      // Identical winners resample to zero-volatility runs (Sharpe 0).
-      // pValue.sharpe must NOT brand them a non-positive outcome, or the
-      // robustness grade would score a flawless strategy as the worst.
-      expect(winMc.pValue.sharpe).toBe(0);
-      // Identical losers (also zero-volatility, Sharpe 0) are still caught
-      // via the non-positive return, so the downside is not hidden.
-      expect(lossMc.pValue.sharpe).toBe(1);
+      // All-win trades never draw down past the ruin threshold; all-loss
+      // trades compound straight down past any sane threshold.
+      expect(winMc.downside.riskOfRuin).toBe(0);
+      expect(lossMc.downside.riskOfRuin).toBe(1);
     });
 
     it("shuffle assessment reflects drawdown sequence risk, not returns", () => {

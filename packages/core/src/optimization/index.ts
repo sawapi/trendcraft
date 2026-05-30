@@ -131,7 +131,9 @@ export {
   calculatePeriodCount,
   generatePeriodBoundaries,
   getOutOfSampleEquityCurve,
+  stitchOosEquity,
   summarizeWalkForward,
   walkForwardAnalysis,
   walkForwardAnalysisSafe,
+  wfeRatio,
 } from "./walkforward";
