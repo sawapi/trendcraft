@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+### Added — `walkForwardAnalysisFromJSON` (JSON-first rolling walk-forward)
+
+Sibling of `gridSearchFromJSON` for rolling walk-forward analysis. Drives
+`walkForwardAnalysis` directly from a `StrategyJSON` plus path-addressed
+`PathParameterRange[]`, so callers no longer have to hand-write a
+`StrategyFactory` to walk-forward a JSON strategy. Per-period `bestParams`
+keys are paths (e.g. `"entry.0.shortPeriod"`), matching
+`gridSearchFromJSON`, so a window's optimized params plug straight back
+into `applyParamOverrides`. `walkForwardAnalysisFromJSONSafe` returns a
+`Result` (range-path errors → `INVALID_PARAMETER`, oversized grid →
+`TOO_MANY_COMBINATIONS`, too-short slice → `INSUFFICIENT_DATA`).
+
+Covers rolling walk-forward only; anchored walk-forward runs a
+condition-combination search rather than a parameter sweep and does not
+share this shape.
+
+Internally, the shared JSON→factory translation (path validation, factory
+construction, range conversion, error classification) is now factored into
+`optimization/strategy-json-factory.ts`, which both `gridSearchFromJSON`
+and `walkForwardAnalysisFromJSON` delegate to, so the two entry points
+cannot drift on validation rules.
+
 ### Changed — Monte Carlo: bootstrap resampling by default + downside-risk summary (replaces p-value)
 
 `runMonteCarloSimulation` gains a `method?: "shuffle" | "bootstrap"`
