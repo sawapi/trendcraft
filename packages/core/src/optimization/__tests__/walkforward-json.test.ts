@@ -132,4 +132,72 @@ describe("walkForwardAnalysisFromJSONSafe", () => {
       expect(result.error.code).toBe("INSUFFICIENT_DATA");
     }
   });
+
+  it("fast-fails oversized grids as TOO_MANY_COMBINATIONS even with a constraint filter", () => {
+    // The strategy has registered constraints (goldenCross), so a
+    // paramFilter is auto-built. An oversized grid must still be rejected
+    // by the per-window maxCombinations guard rather than eagerly
+    // enumerating the whole Cartesian product first.
+    const candles = makeCandles(200);
+    const result = walkForwardAnalysisFromJSONSafe(
+      candles,
+      SMA_CROSS_STRATEGY,
+      [
+        { path: "entry.0.shortPeriod", min: 1, max: 100, step: 1 },
+        { path: "entry.0.longPeriod", min: 101, max: 300, step: 1 },
+      ],
+      backtestRegistry,
+      WF_OPTS,
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe("TOO_MANY_COMBINATIONS");
+    }
+  });
+
+  it("rejects a fully-invalid search space as INVALID_PARAMETER (no filtered-out fallback)", () => {
+    // Every combination violates goldenCross's shortPeriod < longPeriod
+    // (short range entirely above long range), so the param filter accepts
+    // nothing. Rather than falling back to a filtered-out combo, the run
+    // must surface that no valid combination exists.
+    const candles = makeCandles(200);
+    const result = walkForwardAnalysisFromJSONSafe(
+      candles,
+      SMA_CROSS_STRATEGY,
+      [
+        { path: "entry.0.shortPeriod", min: 20, max: 24, step: 2 },
+        { path: "entry.0.longPeriod", min: 4, max: 8, step: 2 },
+      ],
+      backtestRegistry,
+      WF_OPTS,
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe("INVALID_PARAMETER");
+    }
+  });
+
+  it("never picks a constraint-violating combo as a window's best params", () => {
+    const candles = makeCandles(200);
+    // Overlapping short/long ranges so the per-window grid contains
+    // invalid combos. Each window's chosen bestParams must still satisfy
+    // goldenCross's shortPeriod < longPeriod — enforced at the optimizer
+    // via the registry's validateParams, not post-hoc.
+    const wf = walkForwardAnalysisFromJSON(
+      candles,
+      SMA_CROSS_STRATEGY,
+      [
+        { path: "entry.0.shortPeriod", min: 4, max: 8, step: 2 },
+        { path: "entry.0.longPeriod", min: 4, max: 8, step: 2 },
+      ],
+      backtestRegistry,
+      WF_OPTS,
+    );
+    expect(wf.periods.length).toBeGreaterThan(0);
+    for (const period of wf.periods) {
+      expect(period.bestParams["entry.0.shortPeriod"]).toBeLessThan(
+        period.bestParams["entry.0.longPeriod"],
+      );
+    }
+  });
 });

@@ -106,6 +106,17 @@ export type GridSearchOptions = {
   progressCallback?: (current: number, total: number) => void;
   /** Whether to keep all results or only valid ones (default: false) */
   keepAllResults?: boolean;
+  /**
+   * Structural validity predicate for a parameter combination. When
+   * provided, combinations it rejects are skipped *before* backtesting —
+   * they never run, never enter `results`, and don't count toward
+   * `validCombinations`. Use it for cross-parameter invariants that no
+   * per-field range can express (e.g. `shortPeriod < longPeriod`), the
+   * exhaustive-grid analogue of vectorbt's parameter mask. The metric
+   * `constraints` above filter *after* backtesting on realized metrics;
+   * this filters *before*, on the parameters themselves.
+   */
+  paramFilter?: (params: Record<string, number>) => boolean;
 };
 
 /**
@@ -172,6 +183,14 @@ export type WalkForwardOptions = {
   constraints?: OptimizationConstraint[];
   /** Progress callback */
   progressCallback?: (period: number, total: number) => void;
+  /**
+   * Structural validity predicate for a parameter combination, forwarded
+   * to each window's internal {@link GridSearchOptions.paramFilter}.
+   * Combinations it rejects are never optimized in any window, so a
+   * structurally-invalid set (e.g. `shortPeriod >= longPeriod`) can't be
+   * chosen as a window's best parameters.
+   */
+  paramFilter?: (params: Record<string, number>) => boolean;
 };
 
 // ============================================

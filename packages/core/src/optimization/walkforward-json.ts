@@ -40,6 +40,7 @@ import type { WalkForwardOptions, WalkForwardResult } from "../types/optimizatio
 import { err, ok, type Result, tcError } from "../types/result";
 import {
   classifyOptimizationError,
+  composeParamFilter,
   type PathParameterRange,
   pathRangesToParameterRanges,
   strategyFactoryFromJSON,
@@ -62,7 +63,11 @@ import { walkForwardAnalysis } from "./walkforward";
  * The `strategy.backtest` block is forwarded into each window's backtest
  * options, so commission / direction / stops / capital from the strategy
  * JSON are honored. Caller-supplied `options` (window/step/test sizes,
- * metric, constraints) are passed through unchanged.
+ * metric, constraints) are passed through; any registered cross-parameter
+ * constraints (`validateParams`, e.g. `goldenCross` requiring
+ * `shortPeriod < longPeriod`) are AND'd into `paramFilter` so a
+ * structurally-invalid combination can't be chosen as a window's best
+ * parameters.
  */
 export function walkForwardAnalysisFromJSON(
   candles: NormalizedCandle[],
@@ -76,7 +81,10 @@ export function walkForwardAnalysisFromJSON(
     candles,
     strategyFactoryFromJSON(strategy, registry),
     pathRangesToParameterRanges(ranges),
-    options,
+    {
+      ...options,
+      paramFilter: composeParamFilter(strategy, registry, options?.paramFilter),
+    },
   );
 }
 
