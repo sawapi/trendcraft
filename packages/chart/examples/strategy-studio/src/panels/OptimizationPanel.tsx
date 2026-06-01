@@ -10,11 +10,15 @@ import {
   type OptimizationComputation,
   type OptimizationMetricUI,
   runGridSearch,
+  runWalkForward,
   type Tunable,
+  type WalkForwardComputation,
 } from "../lib/optimization";
 import type { StudioCandle } from "../lib/sample-data";
 
 const MAX_COMBINATIONS = 10_000;
+const WF_DEFAULT_OOS_PERCENT = 20;
+const WF_DEFAULT_WINDOWS = 4;
 
 type Props = {
   /** Last-run strategy JSON (PR10 single source of truth). */
@@ -30,6 +34,13 @@ type Props = {
    * is fire-and-forget broadcast on every change.
    */
   onResult?: (result: OptimizationComputation) => void;
+  /**
+   * Optional notifier for the latest walk-forward result. Same
+   * fire-and-forget contract as `onResult` — StrategyDnaPanel consumes
+   * it to feed `computeDnaGrade` and render the per-window report
+   * without owning the run trigger.
+   */
+  onWalkForwardResult?: (result: WalkForwardComputation) => void;
 };
 
 type RangeMap = Record<string, { min: number; max: number; step: number }>;
@@ -43,12 +54,24 @@ function initRanges(tunables: Tunable[]): RangeMap {
   return out;
 }
 
-export function OptimizationPanel({ strategy, candles, isReplayPlaying, onResult }: Props) {
+export function OptimizationPanel({
+  strategy,
+  candles,
+  isReplayPlaying,
+  onResult,
+  onWalkForwardResult,
+}: Props) {
   const tunables = useMemo<Tunable[]>(() => (strategy ? listTunables(strategy) : []), [strategy]);
 
   const [ranges, setRanges] = useState<RangeMap>(() => initRanges(tunables));
   const [metric, setMetric] = useState<OptimizationMetricUI>("returns");
   const [result, setResult] = useState<OptimizationComputation>({ kind: "idle" });
+
+  // Walk-forward dials. The two user-facing knobs (out-of-sample % and
+  // window count) derive core's window/step/test sizes in `runWalkForward`.
+  const [wfOosPercent, setWfOosPercent] = useState<number>(WF_DEFAULT_OOS_PERCENT);
+  const [wfWindows, setWfWindows] = useState<number>(WF_DEFAULT_WINDOWS);
+  const [wfResult, setWfResult] = useState<WalkForwardComputation>({ kind: "idle" });
 
   // Broadcast every result change so sibling panels (StrategyDnaPanel
   // mounted in App) consume the same data without duplicating the
@@ -58,6 +81,12 @@ export function OptimizationPanel({ strategy, candles, isReplayPlaying, onResult
   useEffect(() => {
     onResult?.(result);
   }, [result]);
+
+  // Same broadcast contract for the walk-forward result.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: onWalkForwardResult is stable in practice; broadcast only when the result itself changes.
+  useEffect(() => {
+    onWalkForwardResult?.(wfResult);
+  }, [wfResult]);
 
   // Anything that changes how `runGridSearch` would evaluate the strategy
   // must invalidate the panel state. Stringify the full entry/exit specs
@@ -76,6 +105,7 @@ export function OptimizationPanel({ strategy, candles, isReplayPlaying, onResult
   useEffect(() => {
     setRanges(initRanges(tunables));
     setResult({ kind: "idle" });
+    setWfResult({ kind: "idle" });
   }, [strategyKey]);
 
   // Any slice change → the prior optimisation was computed against different
@@ -93,6 +123,7 @@ export function OptimizationPanel({ strategy, candles, isReplayPlaying, onResult
   // biome-ignore lint/correctness/useExhaustiveDependencies: keys are content hashes; we don't want to depend on the `candles` reference or the `ranges` object identity.
   useEffect(() => {
     setResult((prev) => (prev.kind === "idle" ? prev : { kind: "idle" }));
+    setWfResult((prev) => (prev.kind === "idle" ? prev : { kind: "idle" }));
   }, [slicedKey, rangesKey]);
 
   const rangeArray = useMemo<ParameterRange[]>(
@@ -138,6 +169,24 @@ export function OptimizationPanel({ strategy, candles, isReplayPlaying, onResult
     setResult(runGridSearch(candles, strategy, rangeArray, metric));
   };
 
+  // Editing the walk-forward dials changes the window sizing, so any
+  // displayed result is from a different analysis. Drop it (idle→idle is
+  // a no-op so we don't re-broadcast on every keystroke) the same way the
+  // metric/range edits invalidate the grid result above.
+  const clearWalkForward = () =>
+    setWfResult((prev) => (prev.kind === "idle" ? prev : { kind: "idle" }));
+
+  const handleRunWalkForward = () => {
+    if (!strategy || runDisabled) return;
+    setWfResult(
+      runWalkForward(candles, strategy, rangeArray, {
+        oosPercent: wfOosPercent,
+        windows: wfWindows,
+        metric,
+      }),
+    );
+  };
+
   if (!strategy) {
     return (
       <div className="risk-panel">
@@ -176,6 +225,7 @@ export function OptimizationPanel({ strategy, candles, isReplayPlaying, onResult
                 // and would be misread as if recomputed for the new one.
                 setMetric(e.target.value as OptimizationMetricUI);
                 setResult({ kind: "idle" });
+                setWfResult({ kind: "idle" });
               }}
             >
               {OPTIMIZATION_METRICS.map((m) => (
@@ -264,7 +314,72 @@ export function OptimizationPanel({ strategy, candles, isReplayPlaying, onResult
         )}
 
         <ResultBody result={result} tunables={tunables} />
+
+        <div className="pane-divider" style={{ margin: "10px 0 8px" }} />
+
+        <div className="optimization-header">
+          <span className="optimization-metric-label" style={{ fontWeight: 600 }}>
+            Walk-Forward
+          </span>
+          <span className="meta-strategy-caption">out-of-sample stability</span>
+        </div>
+        <div className="optimization-header" style={{ gap: 10 }}>
+          <NumInput
+            label="OOS %"
+            value={wfOosPercent}
+            min={5}
+            max={50}
+            step={1}
+            integer
+            onChange={(v) => {
+              setWfOosPercent(v);
+              clearWalkForward();
+            }}
+          />
+          <NumInput
+            label="Windows"
+            value={wfWindows}
+            min={2}
+            max={12}
+            step={1}
+            integer
+            onChange={(v) => {
+              setWfWindows(v);
+              clearWalkForward();
+            }}
+          />
+        </div>
+        <button
+          type="button"
+          className="optimization-run-btn"
+          onClick={handleRunWalkForward}
+          disabled={runDisabled}
+        >
+          {isReplayPlaying ? "Run walk-forward (paused during replay)" : "Run walk-forward"}
+        </button>
+        <WalkForwardStatus result={wfResult} />
       </section>
+    </div>
+  );
+}
+
+/**
+ * One-line walk-forward status shown inside the Optimization panel. The
+ * full per-window report renders in StrategyDnaPanel's Robustness tab;
+ * this is just enough to confirm the run landed and point the user there.
+ */
+function WalkForwardStatus({ result }: { result: WalkForwardComputation }) {
+  if (result.kind === "idle") return null;
+  if (result.kind === "empty") {
+    return <div className="meta-strategy-caption">{result.message}</div>;
+  }
+  if (result.kind === "error") {
+    return <div className="risk-error">{result.message}</div>;
+  }
+  return (
+    <div className="meta-strategy-caption">
+      {result.windows} window(s) analyzed at {result.oosPercent}% OOS — see Strategy DNA →
+      Robustness for the breakdown.
     </div>
   );
 }

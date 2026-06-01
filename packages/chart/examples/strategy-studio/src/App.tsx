@@ -14,7 +14,7 @@ import { useBacktestRunner } from "./hooks/useBacktestRunner";
 import { useDataSource } from "./hooks/useDataSource";
 import { useRegime } from "./hooks/useRegime";
 import { dataSourceKey } from "./lib/data-sources";
-import type { OptimizationComputation } from "./lib/optimization";
+import type { OptimizationComputation, WalkForwardComputation } from "./lib/optimization";
 import { PLUGIN_BY_KIND, type PluginHandle } from "./lib/plugins";
 import { SIGNAL_BY_KIND } from "./lib/signals";
 import { builderReducer, initialBuilderState, strategyJSONToState } from "./lib/strategy-state";
@@ -583,6 +583,11 @@ export function App() {
   const [optimizationResult, setOptimizationResult] = useState<OptimizationComputation>({
     kind: "idle",
   });
+  // Walk-forward result lifted alongside the grid result so StrategyDnaPanel
+  // can fold it into `computeDnaGrade` and render the per-window breakdown.
+  const [walkForwardResult, setWalkForwardResult] = useState<WalkForwardComputation>({
+    kind: "idle",
+  });
 
   // Backtest snapshot against history up to the current playhead — what the
   // user sees on chart matches what backtest sees.
@@ -822,10 +827,12 @@ export function App() {
           candles={backtestCandles}
           isReplayPlaying={replay.mode === "live" && replay.status === "playing"}
           onResult={setOptimizationResult}
+          onWalkForwardResult={setWalkForwardResult}
         />
         <div className="pane-divider" />
         <StrategyDnaPanel
           optimizationResult={optimizationResult}
+          walkForwardResult={walkForwardResult}
           lastBacktest={runner.state.lastResult?.result}
         />
       </aside>
