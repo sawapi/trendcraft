@@ -359,4 +359,56 @@ describe("gridSearchFromJSONSafe", () => {
       expect(result.error.code).toBe("INVALID_PARAMETER");
     }
   });
+
+  it("applies registered cross-param constraints (goldenCross short < long) from overlapping ranges", () => {
+    const candles = makeUpTrendCandles(80);
+    // Ranges overlap so the grid contains invalid combos where
+    // shortPeriod >= longPeriod (e.g. short=8, long=4). The registered
+    // `validateParams` on goldenCross must keep those out of the results
+    // entirely — no post-filtering by the caller.
+    const result = gridSearchFromJSON(
+      candles,
+      STRATEGY,
+      [
+        { path: "entry.0.shortPeriod", min: 4, max: 8, step: 2 },
+        { path: "entry.0.longPeriod", min: 4, max: 8, step: 2 },
+      ],
+      backtestRegistry,
+      { keepAllResults: true },
+    );
+    for (const entry of result.results) {
+      expect(entry.params["entry.0.shortPeriod"]).toBeLessThan(entry.params["entry.0.longPeriod"]);
+    }
+    // 3 short × 3 long = 9 enumerated; the 6 with short >= long are
+    // skipped, leaving the 3 strictly-increasing pairs (4<6, 4<8, 6<8).
+    expect(result.results.length).toBe(3);
+    if (result.bestParams !== null) {
+      expect(result.bestParams["entry.0.shortPeriod"]).toBeLessThan(
+        result.bestParams["entry.0.longPeriod"],
+      );
+    }
+  });
+
+  it("does not constrain conditions without a validateParams predicate", () => {
+    // A tuned leaf with no cross-param constraint is unaffected: the
+    // param filter is undefined and every combo runs.
+    const rsiStrategy: StrategyJSON = {
+      $schema: "trendcraft/strategy",
+      version: 1,
+      id: "rsi",
+      name: "RSI",
+      entry: { name: "rsiBelow", params: { threshold: 30, period: 14 } },
+      exit: { name: "rsiAbove", params: { threshold: 70, period: 14 } },
+    };
+    const candles = makeUpTrendCandles(80);
+    const result = gridSearchFromJSON(
+      candles,
+      rsiStrategy,
+      [{ path: "entry.0.period", min: 5, max: 9, step: 2 }],
+      backtestRegistry,
+      { keepAllResults: true },
+    );
+    expect(result.totalCombinations).toBe(3);
+    expect(result.results.length).toBe(3);
+  });
 });

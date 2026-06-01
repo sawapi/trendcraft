@@ -137,6 +137,7 @@ export function gridSearch(
     maxCombinations = 10000,
     progressCallback,
     keepAllResults = false,
+    paramFilter,
   } = options;
 
   // Check total combinations
@@ -166,6 +167,15 @@ export function gridSearch(
     // Report progress
     if (progressCallback) {
       progressCallback(i + 1, combinations.length);
+    }
+
+    // Skip structurally-invalid combinations before spending a backtest
+    // on them. Unlike metric `constraints` (which filter on realized
+    // results), this rejects on the parameters themselves — e.g. a
+    // `shortPeriod >= longPeriod` cross — so such a combo never enters
+    // `results` or competes for `bestParams`.
+    if (paramFilter && !paramFilter(params)) {
+      continue;
     }
 
     try {

@@ -699,6 +699,8 @@ export {
   summarizeWalkForward,
   // Walk-Forward Analysis
   walkForwardAnalysis,
+  walkForwardAnalysisFromJSON,
+  walkForwardAnalysisFromJSONSafe,
   walkForwardAnalysisSafe,
   wfeRatio,
 } from "./optimization";

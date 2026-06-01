@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { runBacktest } from "../../backtest";
 import { alwaysFalse, alwaysTrue } from "../../backtest/conditions/core";
-import type { Candle } from "../../types";
+import type { NormalizedCandle } from "../../types";
 import { loadStrategy } from "../hydrate";
 import { backtestRegistry } from "../registry-backtest";
 import type { StrategyJSON } from "../types";
 
-function makeCandles(n: number): Candle[] {
+function makeCandles(n: number): NormalizedCandle[] {
   return Array.from({ length: n }, (_, i) => ({
     time: 1700000000000 + i * 86400000,
     open: 100 + i,

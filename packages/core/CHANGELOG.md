@@ -2,6 +2,50 @@
 
 ## Unreleased
 
+### Added — optimizer cross-parameter constraints (`validateParams` + `paramFilter`)
+
+The grid-search engine can now reject structurally-invalid parameter
+combinations *before* backtesting them, the exhaustive-grid analogue of
+vectorbt's parameter mask. `GridSearchOptions` and `WalkForwardOptions`
+gain a `paramFilter?: (params) => boolean`; combinations it rejects never
+run, never enter `results`, and don't count toward `validCombinations`
+(distinct from metric `constraints`, which filter *after* backtesting on
+realized metrics).
+
+Condition registry entries gain an optional
+`validateParams?: (params) => boolean` for cross-field invariants no
+per-field range can express — `goldenCross` / `deadCross` /
+`validatedGoldenCross` / `validatedDeadCross` now declare
+`shortPeriod < longPeriod`. `gridSearchFromJSON` and
+`walkForwardAnalysisFromJSON` automatically build a `paramFilter` from the
+strategy's leaves and their registered `validateParams` (AND-composed with
+any caller-supplied `paramFilter`), so an inverted-cross combo can neither
+appear in grid results nor be chosen as a walk-forward window's best
+parameters. Walk-forward's no-valid-combination fallback honors the same
+filter rather than defaulting to raw range minima.
+
+### Added — `walkForwardAnalysisFromJSON` (JSON-first rolling walk-forward)
+
+Sibling of `gridSearchFromJSON` for rolling walk-forward analysis. Drives
+`walkForwardAnalysis` directly from a `StrategyJSON` plus path-addressed
+`PathParameterRange[]`, so callers no longer have to hand-write a
+`StrategyFactory` to walk-forward a JSON strategy. Per-period `bestParams`
+keys are paths (e.g. `"entry.0.shortPeriod"`), matching
+`gridSearchFromJSON`, so a window's optimized params plug straight back
+into `applyParamOverrides`. `walkForwardAnalysisFromJSONSafe` returns a
+`Result` (range-path errors → `INVALID_PARAMETER`, oversized grid →
+`TOO_MANY_COMBINATIONS`, too-short slice → `INSUFFICIENT_DATA`).
+
+Covers rolling walk-forward only; anchored walk-forward runs a
+condition-combination search rather than a parameter sweep and does not
+share this shape.
+
+Internally, the shared JSON→factory translation (path validation, factory
+construction, range conversion, error classification) is now factored into
+`optimization/strategy-json-factory.ts`, which both `gridSearchFromJSON`
+and `walkForwardAnalysisFromJSON` delegate to, so the two entry points
+cannot drift on validation rules.
+
 ### Changed — Monte Carlo: bootstrap resampling by default + downside-risk summary (replaces p-value)
 
 `runMonteCarloSimulation` gains a `method?: "shuffle" | "bootstrap"`

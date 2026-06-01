@@ -16,13 +16,15 @@ import type {
   WalkForwardResult,
 } from "../types/optimization";
 import { err, ok, type Result, tcError } from "../types/result";
-import { gridSearch, type StrategyFactory } from "./grid-search";
+import { generateParameterCombinations, gridSearch, type StrategyFactory } from "./grid-search";
 import { calculateAllMetrics } from "./metrics";
 
 /**
  * Default options for walk-forward analysis
  */
-const DEFAULT_OPTIONS: Required<Omit<WalkForwardOptions, "constraints" | "progressCallback">> = {
+const DEFAULT_OPTIONS: Required<
+  Omit<WalkForwardOptions, "constraints" | "progressCallback" | "paramFilter">
+> = {
   windowSize: 252, // ~1 year of daily data
   stepSize: 63, // ~1 quarter
   testSize: 63, // ~1 quarter
@@ -107,7 +109,7 @@ export function walkForwardAnalysis(
   parameterRanges: ParameterRange[],
   options: WalkForwardOptions = {},
 ): WalkForwardResult {
-  const { windowSize, stepSize, testSize, metric, constraints, progressCallback } = {
+  const { windowSize, stepSize, testSize, metric, constraints, progressCallback, paramFilter } = {
     ...DEFAULT_OPTIONS,
     constraints: [] as OptimizationConstraint[],
     ...options,
@@ -125,6 +127,54 @@ export function walkForwardAnalysis(
       `Insufficient data for walk-forward analysis. Need at least ${windowSize + testSize} candles, got ${candles.length}.`,
     );
   }
+
+  // Fallback params for windows where no combination passed constraints
+  // (none traded / none scored finite in that window), so gridSearch
+  // returned no best params. Without a `paramFilter`, raw range minima
+  // are a fine "nothing optimized here" placeholder. With a `paramFilter`,
+  // minima could themselves be a structurally-invalid combo (e.g.
+  // `shortPeriod === longPeriod` when both ranges start at the same
+  // value) — exactly the kind the optimizer is told to skip — so we use
+  // the first combo the filter accepts instead. If the filter accepts
+  // *no* combination at all (a fully-degenerate search space, e.g. every
+  // goldenCross candidate has `shortPeriod >= longPeriod`), there is no
+  // valid fallback: throwing surfaces the empty search space rather than
+  // silently reporting a filtered-out combo as a window's best params.
+  //
+  // Resolved lazily and memoized: when a `paramFilter` is set this
+  // enumerates the full grid, which must NOT happen before the per-window
+  // `gridSearch` has had a chance to reject an oversized grid via its
+  // `maxCombinations` guard. Because the fallback is only ever needed
+  // *after* a window's `gridSearch` returned (i.e. the grid already
+  // passed that ≤10000 cap), computing it on first use keeps the
+  // fast-fail `TOO_MANY_COMBINATIONS` path intact and bounds the
+  // enumeration.
+  const minimaParams = parameterRanges.reduce(
+    (acc, r) => {
+      acc[r.name] = r.min;
+      return acc;
+    },
+    {} as Record<string, number>,
+  );
+  let resolvedFallback: Record<string, number> | null = null;
+  const fallbackParams = (): Record<string, number> => {
+    if (resolvedFallback === null) {
+      if (!paramFilter) {
+        resolvedFallback = minimaParams;
+      } else {
+        const firstValid = generateParameterCombinations(parameterRanges).find((c) =>
+          paramFilter(c),
+        );
+        if (firstValid === undefined) {
+          throw new Error(
+            "Invalid parameter ranges: every combination in the search space is rejected by a cross-parameter constraint (e.g. shortPeriod < longPeriod)",
+          );
+        }
+        resolvedFallback = firstValid;
+      }
+    }
+    return resolvedFallback;
+  };
 
   const periods: WalkForwardPeriod[] = [];
   const allInSampleMetrics: Record<OptimizationMetric, number>[] = [];
@@ -148,21 +198,17 @@ export function walkForwardAnalysis(
       metric,
       constraints,
       maxCombinations: 10000,
+      paramFilter,
     });
 
-    // Use best parameters or fallback to range minima.
-    // When validCombinations > 0, gridSearch guarantees bestParams is non-null,
-    // but TypeScript can't infer that across the boundary, so assert here.
+    // Use best parameters or fall back to the lazily-resolved fallback (a
+    // filter-valid combo when a paramFilter is set, else range minima).
+    // When validCombinations > 0, gridSearch guarantees bestParams is
+    // non-null, but TypeScript can't infer that across the boundary.
     const bestParams: Record<string, number> =
       gridResult.validCombinations > 0 && gridResult.bestParams !== null
         ? gridResult.bestParams
-        : parameterRanges.reduce(
-            (acc, r) => {
-              acc[r.name] = r.min;
-              return acc;
-            },
-            {} as Record<string, number>,
-          );
+        : fallbackParams();
 
     // Run backtest on training data with best params
     const trainStrategy = createStrategy(bestParams);
