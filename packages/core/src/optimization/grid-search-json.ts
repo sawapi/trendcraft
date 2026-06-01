@@ -37,6 +37,7 @@ import { err, ok, type Result, tcError } from "../types/result";
 import { gridSearch } from "./grid-search";
 import {
   classifyOptimizationError,
+  composeParamFilter,
   type PathParameterRange,
   pathRangesToParameterRanges,
   strategyFactoryFromJSON,
@@ -59,7 +60,11 @@ export type { PathParameterRange } from "./strategy-json-factory";
  * The `strategy.backtest` block is forwarded into the underlying
  * backtest options, so commission / direction / stops / capital from
  * the strategy JSON are honored. Caller-supplied `options` (e.g.
- * metric, constraints) are passed through to `gridSearch` unchanged.
+ * metric, constraints) are passed through to `gridSearch`; any
+ * registered cross-parameter constraints (`validateParams`, e.g.
+ * `goldenCross` requiring `shortPeriod < longPeriod`) are AND'd into
+ * `paramFilter` so structurally-invalid combinations are skipped before
+ * backtesting rather than ranked as results.
  */
 export function gridSearchFromJSON(
   candles: NormalizedCandle[],
@@ -73,7 +78,10 @@ export function gridSearchFromJSON(
     candles,
     strategyFactoryFromJSON(strategy, registry),
     pathRangesToParameterRanges(ranges),
-    options,
+    {
+      ...options,
+      paramFilter: composeParamFilter(strategy, registry, options?.paramFilter),
+    },
   );
 }
 

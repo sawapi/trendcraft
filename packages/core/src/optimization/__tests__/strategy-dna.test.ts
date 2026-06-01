@@ -29,6 +29,8 @@ const makeEntry = (
     maxDrawdown: -score / 2,
     calmar: score,
     recoveryFactor: score,
+    mar: score,
+    tradeCount: trades,
   },
   // Backtest field is required for OptimizationResultEntry but DNA
   // analytics only read params + metrics + score, so a minimal stub is
@@ -219,6 +221,8 @@ describe("computeRecommendedParams", () => {
             maxDrawdown: -5,
             calmar: 1.5,
             recoveryFactor: 1.5,
+            mar: 1.5,
+            tradeCount: 5,
           },
           outOfSampleMetrics: {
             sharpe: 1.0,
@@ -228,6 +232,8 @@ describe("computeRecommendedParams", () => {
             maxDrawdown: -8,
             calmar: 1.0,
             recoveryFactor: 1.0,
+            mar: 1.0,
+            tradeCount: 5,
           },
           testBacktest: {} as never,
         },

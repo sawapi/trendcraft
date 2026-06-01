@@ -211,6 +211,95 @@ export function strategyFactoryFromJSON(
 }
 
 /**
+ * Build a structural-validity predicate for the optimizer from the
+ * strategy's leaves and their registered `validateParams` constraints
+ * (e.g. `goldenCross` requires `shortPeriod < longPeriod`). Returns
+ * `undefined` when no leaf declares a constraint, so the optimizer pays
+ * nothing for strategies that don't need it.
+ *
+ * The returned predicate receives the engine's name-keyed params, where
+ * each `name` is a range path (`<bucket>.<leafIndex>.<paramName>`). It
+ * regroups them per leaf and merges each leaf's swept values over the
+ * leaf's static params and the registry defaults, so a constraint that
+ * references a sibling param (`longPeriod`) still sees a value even when
+ * only `shortPeriod` is being swept. Both `gridSearchFromJSON` and
+ * `walkForwardAnalysisFromJSON` pass this as `paramFilter`, so the two
+ * entry points enforce the same invariants from one definition.
+ */
+export function buildParamConstraintFilter(
+  strategy: StrategyJSON,
+  registry: ConditionRegistry<Condition>,
+): ((params: Record<string, number>) => boolean) | undefined {
+  const constrained: Array<{
+    address: string;
+    validate: (p: Record<string, number>) => boolean;
+    base: Record<string, number>;
+  }> = [];
+  for (const leaf of flattenStrategyLeaves(strategy)) {
+    const entry = registry.get(leaf.name);
+    if (!entry?.validateParams) continue;
+    // Resolve the leaf's full numeric param set: registry defaults first,
+    // then the strategy's saved overrides. A swept param will layer on
+    // top of this per-combination inside the predicate.
+    const base: Record<string, number> = {};
+    for (const [k, schema] of Object.entries(entry.params)) {
+      if (schema.type === "number" && typeof schema.default === "number") {
+        base[k] = schema.default;
+      }
+    }
+    if (leaf.params) {
+      for (const [k, v] of Object.entries(leaf.params)) {
+        if (typeof v === "number") base[k] = v;
+      }
+    }
+    constrained.push({
+      address: `${leaf.bucket}.${leaf.leafIndex}`,
+      validate: entry.validateParams,
+      base,
+    });
+  }
+  if (constrained.length === 0) return undefined;
+  return (params) => {
+    // Regroup the flat path-keyed combo into per-leaf param maps.
+    const byAddress = new Map<string, Record<string, number>>();
+    for (const [key, value] of Object.entries(params)) {
+      const parsed = parseLeafPath(key);
+      if (parsed.paramName === null) continue;
+      const address = `${parsed.bucket}.${parsed.leafIndex}`;
+      let m = byAddress.get(address);
+      if (!m) {
+        m = {};
+        byAddress.set(address, m);
+      }
+      m[parsed.paramName] = value;
+    }
+    for (const c of constrained) {
+      const merged = { ...c.base, ...(byAddress.get(c.address) ?? {}) };
+      if (!c.validate(merged)) return false;
+    }
+    return true;
+  };
+}
+
+/**
+ * Resolve the `paramFilter` the JSON optimizers hand to the engine:
+ * the registry-derived constraint filter (from {@link buildParamConstraintFilter})
+ * AND'd with any caller-supplied `paramFilter`. Returns `undefined` when
+ * neither exists, so the engine sees no filter and pays nothing. A combo
+ * must satisfy both predicates to be optimized.
+ */
+export function composeParamFilter(
+  strategy: StrategyJSON,
+  registry: ConditionRegistry<Condition>,
+  callerFilter?: (params: Record<string, number>) => boolean,
+): ((params: Record<string, number>) => boolean) | undefined {
+  const constraintFilter = buildParamConstraintFilter(strategy, registry);
+  if (!constraintFilter) return callerFilter;
+  if (!callerFilter) return constraintFilter;
+  return (params) => constraintFilter(params) && callerFilter(params);
+}
+
+/**
  * Convert path-addressed ranges to the engine's `name`-keyed
  * `ParameterRange[]`. The engine doesn't interpret `name`, so the path
  * string is a valid identifier and round-trips through `bestParams` /
