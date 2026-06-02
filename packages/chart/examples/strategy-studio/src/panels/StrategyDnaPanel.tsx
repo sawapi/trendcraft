@@ -6,7 +6,7 @@ import {
   computeRecommendedParams,
   extractSensitivityData,
 } from "trendcraft";
-import type { OptimizationComputation } from "../lib/optimization";
+import type { OptimizationComputation, WalkForwardComputation } from "../lib/optimization";
 import {
   DEFAULT_MC_ITERATIONS,
   type MonteCarloComputation,
@@ -16,6 +16,7 @@ import { GenomeVisualization } from "./dna/GenomeVisualization";
 import { MonteCarloReport } from "./dna/MonteCarloReport";
 import { RobustnessReport } from "./dna/RobustnessReport";
 import { SensitivityHeatmap } from "./dna/SensitivityHeatmap";
+import { WalkForwardReport } from "./dna/WalkForwardReport";
 
 type DnaTab = "genome" | "sensitivity" | "robustness";
 
@@ -35,6 +36,12 @@ type Props = {
    */
   optimizationResult: OptimizationComputation;
   /**
+   * Walk-forward computation from the sibling OptimizationPanel. Feeds
+   * the "Walk-Forward Stability" dimensions of the grade and the
+   * per-window report. Stays `idle` until the user runs walk-forward.
+   */
+  walkForwardResult: WalkForwardComputation;
+  /**
    * Last backtest result, used as the Monte Carlo resampling input.
    * `undefined` until the user runs a backtest; the MC section then
    * renders its own "run a backtest first" empty state.
@@ -48,12 +55,14 @@ type Props = {
  * Genome and Sensitivity tabs are display-only (builder state is never
  * mutated from this panel, matching PR12's OptimizationPanel
  * philosophy). The Robustness tab adds a run-on-demand Monte Carlo
- * simulation over the last backtest, which lights up the "Monte Carlo
- * Significance" dimension of the grade. The Walk-Forward dimensions
- * stay `available: false` until that workflow is wired.
+ * simulation over the last backtest (lighting up the "Monte Carlo
+ * Significance" dimension) and surfaces the walk-forward result run from
+ * the sibling Optimization panel (lighting up the "Walk-Forward
+ * Stability" dimensions and rendering the per-window report).
  */
-export function StrategyDnaPanel({ optimizationResult, lastBacktest }: Props) {
+export function StrategyDnaPanel({ optimizationResult, walkForwardResult, lastBacktest }: Props) {
   const gridSearchResult = optimizationResult.kind === "ok" ? optimizationResult.result : null;
+  const walkForward = walkForwardResult.kind === "ok" ? walkForwardResult.result : null;
 
   const [activeTab, setActiveTab] = useState<DnaTab>("genome");
   const [selectedParam, setSelectedParam] = useState<string | null>(null);
@@ -124,20 +133,29 @@ export function StrategyDnaPanel({ optimizationResult, lastBacktest }: Props) {
 
   const recommendedParams = useMemo(() => {
     if (!gridSearchResult) return null;
-    return computeRecommendedParams(gridSearchResult, null, sensitivityData);
-  }, [gridSearchResult, sensitivityData]);
+    return computeRecommendedParams(gridSearchResult, walkForward, sensitivityData);
+  }, [gridSearchResult, walkForward, sensitivityData]);
 
   const monteCarloResult = mcComputation.kind === "ok" ? mcComputation.result : null;
 
-  // Feed the Monte Carlo result into the grade so the "Monte Carlo
-  // Significance" dimension lights up (and the overall grade reweights)
-  // as soon as the user runs it. Walk-Forward stays `null` until that
-  // workflow is wired.
+  // Feed the walk-forward and Monte Carlo results into the grade so the
+  // "Walk-Forward Stability" and "Monte Carlo Significance" dimensions
+  // light up (and the overall grade reweights) as soon as the user runs
+  // each. Both stay `null` until their respective workflow runs.
   const dnaGrade = useMemo(() => {
-    return computeDnaGrade(gridSearchResult, null, monteCarloResult);
-  }, [gridSearchResult, monteCarloResult]);
+    return computeDnaGrade(gridSearchResult, walkForward, monteCarloResult);
+  }, [gridSearchResult, walkForward, monteCarloResult]);
 
-  if (gridSearchResult === null) {
+  // Genome and Sensitivity are grid-only views; the Robustness tab also
+  // lights up from a standalone walk-forward run (its grade and the
+  // per-window report don't need a grid result). So the panel is
+  // reachable whenever *either* workflow has data — gating it on the
+  // grid alone would strand a walk-forward run the user was just told to
+  // open here.
+  const hasGrid = gridSearchResult !== null;
+  const hasWalkForward = walkForward !== null;
+
+  if (!hasGrid && !hasWalkForward) {
     // Distinguish the three non-`ok` states. For `idle` (no run yet)
     // we deliberately don't tell the user "Run a grid search" — the
     // sibling Optimization panel may be unable to run (no strategy,
@@ -160,37 +178,52 @@ export function StrategyDnaPanel({ optimizationResult, lastBacktest }: Props) {
     );
   }
 
+  // Genome/Sensitivity need a grid result; when only walk-forward has
+  // run, force the Robustness tab (where the WF report lives) so the
+  // user lands on the data they just computed instead of an empty
+  // grid-only tab.
+  const effectiveTab: DnaTab = hasGrid ? activeTab : "robustness";
+
   return (
     <div className="risk-panel">
       <div className="pane-header">Strategy DNA</div>
       <section className="risk-section">
         <div style={{ display: "flex", gap: 0, marginBottom: 8 }}>
-          {TABS.map((tab, idx) => (
-            <button
-              key={tab.key}
-              type="button"
-              onClick={() => setActiveTab(tab.key)}
-              style={{
-                flex: 1,
-                padding: "5px 4px",
-                fontSize: 10,
-                borderWidth: 1,
-                borderStyle: "solid",
-                borderColor: "var(--border, #333)",
-                background:
-                  activeTab === tab.key ? "var(--accent, #4a9eff)" : "var(--bg-tertiary, #222)",
-                color: activeTab === tab.key ? "#fff" : "var(--text-secondary, #888)",
-                cursor: "pointer",
-                borderRadius:
-                  idx === 0 ? "4px 0 0 4px" : idx === TABS.length - 1 ? "0 4px 4px 0" : "0",
-              }}
-            >
-              {tab.label}
-            </button>
-          ))}
+          {TABS.map((tab, idx) => {
+            // Genome/Sensitivity are meaningless without a grid result, so
+            // disable them when only walk-forward has run.
+            const tabDisabled = !hasGrid && tab.key !== "robustness";
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                disabled={tabDisabled}
+                onClick={() => setActiveTab(tab.key)}
+                style={{
+                  flex: 1,
+                  padding: "5px 4px",
+                  fontSize: 10,
+                  borderWidth: 1,
+                  borderStyle: "solid",
+                  borderColor: "var(--border, #333)",
+                  background:
+                    effectiveTab === tab.key
+                      ? "var(--accent, #4a9eff)"
+                      : "var(--bg-tertiary, #222)",
+                  color: effectiveTab === tab.key ? "#fff" : "var(--text-secondary, #888)",
+                  cursor: tabDisabled ? "not-allowed" : "pointer",
+                  opacity: tabDisabled ? 0.4 : 1,
+                  borderRadius:
+                    idx === 0 ? "4px 0 0 4px" : idx === TABS.length - 1 ? "0 4px 4px 0" : "0",
+                }}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
         </div>
 
-        {activeTab === "genome" &&
+        {effectiveTab === "genome" &&
           (genomeSegments && genomeSegments.length > 0 ? (
             <>
               <div className="meta-strategy-caption" style={{ marginBottom: 6 }}>
@@ -232,7 +265,7 @@ export function StrategyDnaPanel({ optimizationResult, lastBacktest }: Props) {
             <div className="meta-strategy-caption">No tunable parameters in this grid search.</div>
           ))}
 
-        {activeTab === "sensitivity" &&
+        {effectiveTab === "sensitivity" &&
           (sensitivityData && sensitivityData.singleParams.length > 0 ? (
             <SensitivityHeatmap
               data={sensitivityData}
@@ -247,9 +280,13 @@ export function StrategyDnaPanel({ optimizationResult, lastBacktest }: Props) {
             </div>
           ))}
 
-        {activeTab === "robustness" && (
+        {effectiveTab === "robustness" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             <RobustnessReport grade={dnaGrade} recommendedParams={recommendedParams} />
+            <div className="meta-strategy-caption" style={{ fontWeight: 600, marginTop: 2 }}>
+              Walk-Forward
+            </div>
+            <WalkForwardReport computation={walkForwardResult} />
             <div className="meta-strategy-caption" style={{ fontWeight: 600, marginTop: 2 }}>
               Monte Carlo
             </div>

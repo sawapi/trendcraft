@@ -3,9 +3,11 @@ import { describe, expect, it } from "vitest";
 import {
   autoDeriveRange,
   combinationCount,
+  deriveWalkForwardSizing,
   findIntegerRangeViolation,
   listTunables,
   runGridSearch,
+  runWalkForward,
 } from "../optimization";
 import type { StudioCandle } from "../sample-data";
 
@@ -471,5 +473,101 @@ describe("runGridSearch", () => {
     ];
     const out = runGridSearch(makeCandles(100), GOLDEN_CROSS_DEAD_CROSS, ranges, "returns");
     expect(out.kind).toBe("error");
+  });
+});
+
+describe("deriveWalkForwardSizing", () => {
+  it("solves windowSize + windows·testSize = N for non-overlapping windows", () => {
+    // N=1000, 20% OOS, 4 windows → trainPerTest = 4, testSize = 1000/(4+4) = 125.
+    const s = deriveWalkForwardSizing(1000, 20, 4);
+    expect(s.testSize).toBe(125);
+    expect(s.windowSize).toBe(500);
+    expect(s.stepSize).toBe(s.testSize); // non-overlapping OOS
+  });
+
+  it("lands on (approximately) the requested window count", () => {
+    // Sanity-check the derivation against core's period formula:
+    // floor((N - windowSize - testSize)/stepSize) + 1.
+    for (const [n, oos, w] of [
+      [1000, 20, 4],
+      [600, 30, 3],
+      [900, 25, 5],
+      [500, 50, 2],
+    ] as const) {
+      const s = deriveWalkForwardSizing(n, oos, w);
+      const periods = Math.floor((n - s.windowSize - s.testSize) / s.stepSize) + 1;
+      expect(Math.abs(periods - w)).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it("clamps OOS% and window count so sizes stay positive", () => {
+    const tiny = deriveWalkForwardSizing(100, 0, 0); // OOS clamps to 5%, windows to 1
+    expect(tiny.testSize).toBeGreaterThanOrEqual(1);
+    expect(tiny.windowSize).toBeGreaterThanOrEqual(1);
+    const huge = deriveWalkForwardSizing(100, 200, 1); // OOS clamps to 90%
+    expect(huge.testSize).toBeGreaterThanOrEqual(1);
+    expect(huge.windowSize).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe("runWalkForward", () => {
+  const WF_OPTS = { oosPercent: 20, windows: 3, metric: "returns" as const };
+
+  it("is deterministic — identical inputs produce identical outputs", () => {
+    const candles = makeCandles(400);
+    const ranges = [
+      { name: "entry.0.shortPeriod", min: 3, max: 7, step: 2 },
+      { name: "entry.0.longPeriod", min: 20, max: 30, step: 5 },
+      { name: "exit.0.shortPeriod", min: 3, max: 7, step: 2 },
+      { name: "exit.0.longPeriod", min: 20, max: 30, step: 5 },
+    ];
+    const a = runWalkForward(candles, GOLDEN_CROSS_DEAD_CROSS, ranges, WF_OPTS);
+    const b = runWalkForward(candles, GOLDEN_CROSS_DEAD_CROSS, ranges, WF_OPTS);
+    if (a.kind !== "ok" || b.kind !== "ok") throw new Error("expected ok");
+    expect(a.result.aggregateMetrics.stabilityRatio).toBe(b.result.aggregateMetrics.stabilityRatio);
+    expect(a.windows).toBe(b.windows);
+  });
+
+  it("returns kind:'ok' with at least one analyzed window on a long slice", () => {
+    const ranges = [
+      { name: "entry.0.shortPeriod", min: 3, max: 7, step: 2 },
+      { name: "entry.0.longPeriod", min: 20, max: 30, step: 5 },
+    ];
+    const out = runWalkForward(makeCandles(400), GOLDEN_CROSS_DEAD_CROSS, ranges, WF_OPTS);
+    if (out.kind !== "ok") throw new Error(`expected ok, got ${out.kind}`);
+    expect(out.windows).toBe(out.result.periods.length);
+    expect(out.windows).toBeGreaterThanOrEqual(1);
+    expect(out.oosPercent).toBe(20);
+  });
+
+  it("returns kind:'empty' when 0 tunables (alwaysTrue strategy)", () => {
+    const out = runWalkForward(makeCandles(400), ALWAYS_HOLD, [], WF_OPTS);
+    expect(out.kind).toBe("empty");
+  });
+
+  it("returns kind:'empty' when no window produces an out-of-sample trade", () => {
+    // Periods far longer than the data ever crosses → goldenCross never
+    // fires, so every window has zero trades. Core still returns finite
+    // (zero) metrics, but the wrapper must reject the run rather than feed
+    // an all-zero stability grade into Strategy DNA.
+    const ranges = [
+      { name: "entry.0.shortPeriod", min: 60, max: 64, step: 2 },
+      { name: "entry.0.longPeriod", min: 80, max: 88, step: 4 },
+    ];
+    const out = runWalkForward(makeCandles(400), GOLDEN_CROSS_DEAD_CROSS, ranges, WF_OPTS);
+    expect(out.kind).toBe("empty");
+  });
+
+  it("returns kind:'empty' when the slice is too short for one window", () => {
+    // A low OOS% with few windows derives a long training window: 10% OOS
+    // over 2 windows → windowSize 9, testSize 1, so 8 candles can't fit
+    // even one train+test window (needs ≥ 10).
+    const ranges = [{ name: "entry.0.shortPeriod", min: 3, max: 7, step: 2 }];
+    const out = runWalkForward(makeCandles(8), GOLDEN_CROSS_DEAD_CROSS, ranges, {
+      oosPercent: 10,
+      windows: 2,
+      metric: "returns",
+    });
+    expect(out.kind).toBe("empty");
   });
 });

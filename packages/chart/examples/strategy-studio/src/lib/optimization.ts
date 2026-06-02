@@ -1,6 +1,7 @@
 import {
   backtestRegistry,
   type Tunable as CoreTunable,
+  calculatePeriodCount,
   listTunables as coreListTunables,
   flattenStrategyLeaves,
   type GridSearchResult,
@@ -11,6 +12,8 @@ import {
   type ParameterRange,
   type PathParameterRange,
   type StrategyJSON,
+  type WalkForwardResult,
+  walkForwardAnalysisFromJSON,
 } from "trendcraft";
 import type { StudioCandle } from "./sample-data";
 
@@ -199,66 +202,6 @@ export function autoDeriveRange(
 
 export type OptimizationMetricUI = "returns" | "sharpe" | "profitFactor" | "winRate";
 
-/**
- * Condition-specific parameter validators. Returns `true` when the params
- * make semantic sense for that condition. Used to drop nonsensical grid
- * cells (e.g. a `goldenCross` row with `shortPeriod=13, longPeriod=12`
- * which mathematically inverts the indicator's design) before the user
- * sees them as "best" in the top-10 table.
- *
- * Core's registry doesn't model cross-param constraints today
- * (`shortPeriod < longPeriod` would need a per-condition predicate), so
- * Studio enforces it at the UI layer. Conditions not listed are treated
- * as always valid.
- */
-const CONDITION_PARAM_CONSTRAINTS: Record<string, (params: Record<string, number>) => boolean> = {
-  goldenCross: (p) => p.shortPeriod < p.longPeriod,
-  deadCross: (p) => p.shortPeriod < p.longPeriod,
-  validatedGoldenCross: (p) => p.shortPeriod < p.longPeriod,
-  validatedDeadCross: (p) => p.shortPeriod < p.longPeriod,
-};
-
-/**
- * Walk a result row's flat param map (`{ "entry.0.shortPeriod": 13,
- * "entry.0.longPeriod": 12, ... }`) and group by leaf path. Returns
- * `false` if any leaf's condition has a registered constraint that the
- * row violates. `leafBaseParams` supplies registry defaults + the
- * strategy's static values so a validator that needs a sibling param
- * the grid isn't varying (e.g. only `shortPeriod` is opened) still has
- * a value to compare against.
- */
-function resultParamsAreValid(
-  params: Record<string, number>,
-  leafConditionByPrefix: Map<string, string>,
-  leafBaseParams: Map<string, Record<string, number>>,
-): boolean {
-  const grouped = new Map<string, Record<string, number>>();
-  for (const prefix of leafConditionByPrefix.keys()) {
-    grouped.set(prefix, { ...(leafBaseParams.get(prefix) ?? {}) });
-  }
-  for (const [key, value] of Object.entries(params)) {
-    const lastDot = key.lastIndexOf(".");
-    if (lastDot <= 0) continue;
-    const prefix = key.slice(0, lastDot);
-    const paramName = key.slice(lastDot + 1);
-    let bucket = grouped.get(prefix);
-    if (!bucket) {
-      bucket = {};
-      grouped.set(prefix, bucket);
-    }
-    bucket[paramName] = value;
-  }
-  for (const [prefix, leafParams] of grouped) {
-    const conditionName = leafConditionByPrefix.get(prefix);
-    if (!conditionName) continue;
-    const validator = CONDITION_PARAM_CONSTRAINTS[conditionName];
-    if (!validator) continue;
-    if (validator(leafParams)) continue;
-    return false;
-  }
-  return true;
-}
-
 export const OPTIMIZATION_METRICS: ReadonlyArray<{ id: OptimizationMetricUI; label: string }> = [
   { id: "returns", label: "Return %" },
   { id: "sharpe", label: "Sharpe" },
@@ -317,6 +260,12 @@ export type OptimizationComputation =
  *    rebuilds `bestScore`/`bestParams`/`validCombinations` from what
  *    remains; if nothing remains, the panel renders an empty-state.
  *
+ * Cross-parameter constraints (e.g. `goldenCross` requiring
+ * `shortPeriod < longPeriod`) are no longer filtered here: core's
+ * `gridSearchFromJSON` builds a `paramFilter` from each condition's
+ * registered `validateParams`, so structurally-invalid combos never
+ * appear in `result.results` in the first place.
+ *
  * Pure: same `(candles, strategy, ranges, metric)` always produces the
  * same output. Replay-aware behavior lives one layer up (the panel
  * disables the Run button while playback is running).
@@ -351,47 +300,14 @@ export function runGridSearch(
       metric: metric === "returns" ? "returns" : metric,
       keepAllResults: false,
     });
-    // Build a `<bucket>.<leafIndex> → conditionName` map + the leaf's
-    // resolved params (registry default merged with user-supplied) so
-    // constraint validators can read params that the grid isn't varying
-    // (e.g. a 1-D sweep of `shortPeriod` still needs `longPeriod` to
-    // check the `short < long` invariant).
-    const leafConditionByPrefix = new Map<string, string>();
-    const leafBaseParams = new Map<string, Record<string, number>>();
-    for (const leaf of flattenStrategyLeaves(strategy)) {
-      const prefix = `${leaf.bucket}.${leaf.leafIndex}`;
-      leafConditionByPrefix.set(prefix, leaf.name);
-      const entry = backtestRegistry.get(leaf.name);
-      const base: Record<string, number> = {};
-      if (entry) {
-        for (const [k, schema] of Object.entries(entry.params)) {
-          if (schema.type === "number" && typeof schema.default === "number") {
-            base[k] = schema.default;
-          }
-        }
-      }
-      if (leaf.params) {
-        for (const [k, v] of Object.entries(leaf.params)) {
-          if (typeof v === "number") base[k] = v;
-        }
-      }
-      leafBaseParams.set(prefix, base);
-    }
     // Studio UX: zero-trade backtests score 0 across every metric, so
     // they'd otherwise tie at the top of a Sharpe / returns ranking
     // when nothing actually traded. Drop them and rebuild the summary
     // fields from the surviving rows. If everything was zero-trade,
     // surface an empty-state instead of a misleading "best 0.00".
-    //
-    // Same dropping happens for combinations that violate a condition's
-    // semantic constraint (e.g. `goldenCross` with `shortPeriod >=
-    // longPeriod` — mathematically valid but the indicator's name
-    // implies the opposite ordering, so presenting these as "best" is
-    // misleading).
-    const usableResults = result.results.filter((r) => {
-      if (r.backtest.trades.length === 0) return false;
-      return resultParamsAreValid(r.params, leafConditionByPrefix, leafBaseParams);
-    });
+    // (Structurally-invalid combos are already excluded upstream by
+    // core's `validateParams`-derived `paramFilter`.)
+    const usableResults = result.results.filter((r) => r.backtest.trades.length > 0);
     if (usableResults.length === 0) {
       return {
         kind: "empty",
@@ -408,6 +324,158 @@ export function runGridSearch(
       validCombinations: usableResults.length,
     };
     return { kind: "ok", result: filtered, metric };
+  } catch (err) {
+    return { kind: "error", message: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+/**
+ * The (windowSize, testSize, stepSize) triple core's walk-forward engine
+ * actually consumes, derived from the two dials the panel exposes.
+ */
+export type WalkForwardSizing = {
+  /** Training (in-sample) window length in candles. */
+  windowSize: number;
+  /** Test (out-of-sample) window length in candles. */
+  testSize: number;
+  /** Advance between successive windows. Equals `testSize` here so the
+   * out-of-sample slices tile the data without gaps or overlap. */
+  stepSize: number;
+};
+
+/**
+ * Derive core's `(windowSize, testSize, stepSize)` from the two
+ * user-facing dials the panel exposes: out-of-sample fraction and the
+ * desired number of walk-forward windows.
+ *
+ * Uses non-overlapping out-of-sample windows (`stepSize === testSize`) —
+ * the standard "rolling" walk-forward layout where each period's test
+ * slice picks up exactly where the previous one ended, so the stitched
+ * out-of-sample series has no gaps or double-counting. Under that layout
+ * the engine yields `floor((N − windowSize − testSize) / testSize) + 1`
+ * periods, so solving `windowSize + windows·testSize = N` together with
+ * `windowSize / testSize = (1 − oosFrac) / oosFrac` lands on `windows`
+ * periods (±1 once the sizes are rounded to whole candles).
+ *
+ * `oosPercent` is clamped to `[5, 90]` and `windows` to `≥ 1` so a
+ * mistyped dial can't produce a zero/negative window. Callers should
+ * still check `calculatePeriodCount` against the result before running —
+ * a short slice can leave room for fewer windows than requested.
+ */
+export function deriveWalkForwardSizing(
+  totalCandles: number,
+  oosPercent: number,
+  windows: number,
+): WalkForwardSizing {
+  const oosFrac = Math.min(0.9, Math.max(0.05, oosPercent / 100));
+  const trainPerTest = (1 - oosFrac) / oosFrac;
+  const w = Math.max(1, Math.floor(windows));
+  const testSize = Math.max(1, Math.floor(totalCandles / (trainPerTest + w)));
+  const windowSize = Math.max(1, Math.round(testSize * trainPerTest));
+  return { windowSize, testSize, stepSize: testSize };
+}
+
+export type WalkForwardComputation =
+  | { kind: "idle" }
+  | { kind: "ok"; result: WalkForwardResult; windows: number; oosPercent: number }
+  | { kind: "empty"; message: string }
+  | { kind: "error"; message: string };
+
+export type WalkForwardRunOptions = {
+  /** Out-of-sample fraction per cycle, as a percent (e.g. `20`). */
+  oosPercent: number;
+  /** Requested number of walk-forward windows. */
+  windows: number;
+  /** Metric optimized within each training window. */
+  metric: OptimizationMetricUI;
+};
+
+/**
+ * Run rolling walk-forward analysis via core's
+ * `walkForwardAnalysisFromJSON`, sharing the exact ranges the grid
+ * search uses so the two views describe the same search space.
+ *
+ * Mirrors {@link runGridSearch}'s contract: user-recoverable conditions
+ * (no tunables, no ranges, a slice too short to fit even one window)
+ * short-circuit to `kind:"empty"` with an actionable message rather than
+ * surfacing as errors. The window sizing is derived from the panel's
+ * out-of-sample % and window-count dials by {@link deriveWalkForwardSizing};
+ * because integer rounding can leave room for fewer periods than
+ * requested, the resulting `windows` field reports the count core
+ * actually produced, not the requested one.
+ *
+ * Pure: same `(candles, strategy, ranges, opts)` always produces the
+ * same output. Replay-awareness lives one layer up (the panel disables
+ * Run during playback).
+ *
+ * Cross-parameter constraints (e.g. `goldenCross` requiring
+ * `shortPeriod < longPeriod`) are enforced by core: `walkForwardAnalysisFromJSON`
+ * builds a `paramFilter` from each condition's registered `validateParams`,
+ * so a structurally-invalid combo can't be chosen as any window's best
+ * parameters (and a fully-invalid search space surfaces as an error rather
+ * than a filtered-out fallback). The no-trade half of the grid filter is
+ * mirrored here — a run where no window trades out-of-sample returns
+ * `kind:"empty"` below.
+ */
+export function runWalkForward(
+  candles: StudioCandle[],
+  strategy: StrategyJSON,
+  ranges: ParameterRange[],
+  opts: WalkForwardRunOptions,
+): WalkForwardComputation {
+  const tunables = listTunables(strategy);
+  if (tunables.length === 0) {
+    return { kind: "empty", message: "Strategy has no tunable parameters" };
+  }
+  if (ranges.length === 0) {
+    return { kind: "empty", message: "No parameter ranges configured" };
+  }
+  const sizing = deriveWalkForwardSizing(candles.length, opts.oosPercent, opts.windows);
+  const periodCount = calculatePeriodCount(
+    candles.length,
+    sizing.windowSize,
+    sizing.stepSize,
+    sizing.testSize,
+  );
+  if (periodCount < 1) {
+    return {
+      kind: "empty",
+      message: `Slice too short for ${opts.windows} window(s) at ${opts.oosPercent}% OOS (need ≥ ${sizing.windowSize + sizing.testSize} candles, have ${candles.length})`,
+    };
+  }
+  try {
+    const normalized = normalizeCandles(candles);
+    const pathRanges: PathParameterRange[] = ranges.map((r) => ({
+      path: r.name,
+      min: r.min,
+      max: r.max,
+      step: r.step,
+    }));
+    const result = walkForwardAnalysisFromJSON(normalized, strategy, pathRanges, backtestRegistry, {
+      windowSize: sizing.windowSize,
+      stepSize: sizing.stepSize,
+      testSize: sizing.testSize,
+      metric: opts.metric,
+    });
+    // A window that never trades out-of-sample still yields finite-but-zero
+    // metrics (returns/tradeCount = 0), so a run where *no* window traded
+    // would otherwise report `kind:"ok"` and feed an all-zero stability
+    // grade into Strategy DNA — the same misleading "best 0.00" that
+    // `runGridSearch`'s no-trade filter guards against. Mirror that guard
+    // at the run level: if zero windows produced an out-of-sample trade,
+    // there's nothing to grade, so surface an empty-state. Partial
+    // no-trade windows are kept — core's aggregate already counts a
+    // non-trading window as unstable (`outOfSampleMetrics.returns > 0`)
+    // and `wfeRatio` skips it, so removing periods here would only desync
+    // the aggregate metrics the result already carries.
+    const tradedPeriods = result.periods.filter((p) => p.testBacktest.trades.length > 0).length;
+    if (tradedPeriods === 0) {
+      return {
+        kind: "empty",
+        message: "Walk-forward produced no out-of-sample trades on any window",
+      };
+    }
+    return { kind: "ok", result, windows: result.periods.length, oosPercent: opts.oosPercent };
   } catch (err) {
     return { kind: "error", message: err instanceof Error ? err.message : String(err) };
   }
@@ -451,4 +519,4 @@ export function combinationCount(ranges: ParameterRange[]): number {
   return total;
 }
 
-export type { GridSearchResult, OptimizationMetric, ParameterRange };
+export type { GridSearchResult, OptimizationMetric, ParameterRange, WalkForwardResult };
