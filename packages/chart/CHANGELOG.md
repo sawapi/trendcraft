@@ -7,6 +7,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — Price Patterns plugin (`connectPricePatterns`)
+
+A tree-shakeable visualization plugin for chart-pattern signals — Double
+Top / Double Bottom, Head & Shoulders and its inverse, triangles,
+channels, etc. Hosts compute the signals with `trendcraft`'s detectors
+(`doubleTop`, `doubleBottom`, `headAndShoulders`,
+`inverseHeadAndShoulders`, …) and pass them to the plugin verbatim; the
+plugin renders the standard idiom — a zigzag line through the swing
+extremes, a dashed neckline, light body shading, anchored labels, and a
+dashed projector to the measured-move target.
+
+New exports from the package entry:
+
+- `connectPricePatterns(chart, signals, options?)` — attach to a chart and
+  get a `{ remove() }` handle, matching the other `connect*` plugins.
+- `createPricePatterns(signals, options?)` — the headless primitive
+  factory, for hosts driving their own render loop.
+- `filterPricePatterns(signals, options?)` — the dedup / confidence /
+  cap pass used internally, exposed for hosts that want the same culling.
+- `PricePatternSignal` (a structural subset of `trendcraft`'s
+  `PatternSignal`, so detector output passes through directly) and
+  `PricePatternsOptions`.
+
+`PricePatternsOptions` covers bull/bear/neutral colors (hex + optional
+`r,g,b` triplets for fills), body alpha, neckline / target dash patterns,
+a `minConfidence` floor (default 60), and a `maxPatterns` cap (default 8).
+
+### Added — `liveRecompute` option for batch-only indicator presets
+
+`connectIndicators` presets gain a `liveRecompute?: boolean` flag
+controlling how "batch-only" presets (those without a streaming factory,
+e.g. HMM regimes) react to new bars:
+
+- **`true` (default)** — the preset recomputes on every `candleComplete`,
+  so a batch indicator stays in sync with live data without the host
+  wiring its own recompute.
+- **`false`** — the preset skips auto-recompute and holds its last value
+  until the host calls `conn.recompute(...)`. Use it for presets whose
+  recompute is too heavy to run per bar.
+
+### Fixed — touch (double-tap) interaction parity
+
+Pointer handling is unified across mouse and touch: double-tap now mirrors
+double-click, the synthesized mouse event that mobile browsers fire after
+a real touch double-tap is suppressed (so subscribers don't see it twice),
+and a two-click drawing's second tap or a long-press no longer
+double-fires as a viewport reset.
+
 ### Added — Replay playhead + seed-end integer accessors in `@trendcraft/chart/replay`
 
 For hosts building a "scrubbable replay" UI on top of
