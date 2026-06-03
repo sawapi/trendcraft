@@ -33,7 +33,14 @@ const mockTs = () =>
   ({ startIndex: 0, endIndex: 50, barSpacing: 8, indexToX: (i: number) => i * 8 + 4 }) as TimeScale;
 
 const mockPs = () => ({ priceToY: (p: number) => 400 - p * 2 }) as PriceScale;
-const mockPane: PaneRect = { id: "main", x: 0, y: 0, width: 800, height: 400 };
+const mockPane: PaneRect = {
+  id: "main",
+  x: 0,
+  y: 0,
+  width: 800,
+  height: 400,
+  config: { id: "main", flex: 1 },
+};
 const makeCtx = (ctx: CanvasRenderingContext2D) =>
   ({ ctx, pane: mockPane, timeScale: mockTs(), priceScale: mockPs() }) as PrimitiveRenderContext;
 

@@ -8,7 +8,7 @@
  * it terminates.
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import { InertiaController } from "../core/interaction/inertia";
 import type { PanInertiaState, ZoomInertiaState } from "../core/interaction/types";
 import { TimeScale } from "../core/scale";
@@ -33,7 +33,7 @@ describe("InertiaController.pan", () => {
   let ts: TimeScale;
   let pan: PanInertiaState;
   let zoom: ZoomInertiaState;
-  let onUpdate: ReturnType<typeof vi.fn>;
+  let onUpdate: Mock<() => void>;
   let inertia: InertiaController;
 
   beforeEach(() => {
@@ -96,7 +96,7 @@ describe("InertiaController.zoom", () => {
   let ts: TimeScale;
   let pan: PanInertiaState;
   let zoom: ZoomInertiaState;
-  let onUpdate: ReturnType<typeof vi.fn>;
+  let onUpdate: Mock<() => void>;
   let inertia: InertiaController;
 
   beforeEach(() => {

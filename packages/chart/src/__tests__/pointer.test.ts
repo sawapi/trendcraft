@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { getPointerPos, onDoubleTap, onTap } from "../core/pointer";
+import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
+import { getPointerPos, onDoubleTap, onTap, type PointerInfo } from "../core/pointer";
 
 function makeEl(rect: Partial<DOMRect> = {}): HTMLElement {
   const el = document.createElement("div");
@@ -54,7 +54,7 @@ describe("getPointerPos", () => {
 
 describe("onTap", () => {
   let el: HTMLElement;
-  let handler: ReturnType<typeof vi.fn>;
+  let handler: Mock<(pos: PointerInfo) => void>;
   beforeEach(() => {
     el = makeEl();
     handler = vi.fn();
@@ -166,7 +166,7 @@ describe("onTap", () => {
 
 describe("onDoubleTap", () => {
   let el: HTMLElement;
-  let handler: ReturnType<typeof vi.fn>;
+  let handler: Mock<(pos: PointerInfo) => void>;
   beforeEach(() => {
     el = makeEl();
     handler = vi.fn();
