@@ -68,8 +68,8 @@ function setup(
   const vp = new Viewport();
   const ts = makeTimeScale(opts.total);
   const panes: PaneRect[] = opts.panes ?? [
-    { id: "main", y: 0, height: 400, flex: 1 },
-    { id: "vol", y: 400, height: 200, flex: 0.5 },
+    { id: "main", x: 0, y: 0, width: 800, height: 400, config: { id: "main", flex: 1 } },
+    { id: "vol", x: 0, y: 400, width: 800, height: 200, config: { id: "vol", flex: 0.5 } },
   ];
   const scrollbar =
     opts.scrollbar !== undefined ? opts.scrollbar : { x: 0, y: 580, width: 800, height: 12 };
@@ -135,7 +135,7 @@ function fireTouch(el: HTMLElement, type: string, touches: Touch[]) {
     ev = new TouchEvent(type, {
       bubbles: true,
       cancelable: true,
-      touches: touches as unknown as TouchList,
+      touches,
     });
   } catch {
     ev = new Event(type, { bubbles: true, cancelable: true });
