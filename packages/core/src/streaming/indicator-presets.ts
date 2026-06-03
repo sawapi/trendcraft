@@ -307,12 +307,34 @@ export const indicatorPresets: Record<string, IndicatorPreset> = {
     description: "Reduces lag while maintaining smoothness using weighted moving averages.",
     paramSchema: [period(16)],
   }),
-  t3: withCompute("t3", (c, p) => t3(c, { period: p.period ?? 5 }), {
-    category: "Moving Averages",
-    name: "Tillson T3",
-    description: "Ultra-smooth moving average using six cascaded exponential smoothing stages.",
-    paramSchema: [period(5)],
-  }),
+  t3: withCompute(
+    "t3",
+    (c, p) =>
+      t3(c, {
+        period: (p.period as number | undefined) ?? 5,
+        vFactor: (p.vFactor as number | undefined) ?? 0.7,
+      }),
+    {
+      category: "Moving Averages",
+      name: "Tillson T3",
+      description: "Ultra-smooth moving average using six cascaded exponential smoothing stages.",
+      // vFactor is T3's signature tradeoff knob (Tillson 1998): smoothness vs.
+      // lag. Exposing it lets hosts tune T3 the way the indicator was
+      // designed to be tuned — period alone underrepresents the indicator.
+      paramSchema: [
+        period(5),
+        {
+          key: "vFactor",
+          label: "Volume Factor",
+          type: "number",
+          default: 0.7,
+          min: 0,
+          max: 1,
+          step: 0.05,
+        },
+      ],
+    },
+  ),
   mcginley: withCompute("mcginley", (c, p) => mcginleyDynamic(c, { period: p.period ?? 14 }), {
     category: "Moving Averages",
     name: "McGinley Dynamic",

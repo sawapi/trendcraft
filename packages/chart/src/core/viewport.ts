@@ -39,6 +39,13 @@ export type ViewportAttachOptions = {
   hotkeys?: HotkeyMap | false;
   /** Called when a hotkey fires (drawing tool, 'cancel', 'toggleOverlays'). */
   onAction?: (action: HotkeyAction) => void;
+  /**
+   * Returns whether a drawing tool is currently armed. When `true`, touch
+   * handlers suppress gesture defaults (double-tap fitContent, long-press
+   * crosshair lock) so the second tap of a two-click drawing isn't also
+   * interpreted as a viewport reset.
+   */
+  isDrawingActive?: () => boolean;
 };
 
 export class Viewport {
@@ -182,6 +189,7 @@ export class Viewport {
       },
       applyScrollbarDrag: (mouseX, sb) => this._applyScrollbarDrag(mouseX, sb, timeScale),
       beginScrollbarDrag: (mouseX, sb) => this._beginScrollbarDrag(mouseX, sb, timeScale),
+      isDrawingActive: opts?.isDrawingActive,
     };
 
     const inertia = new InertiaController(timeScale, ctx.pan, ctx.zoom, ctx.onUpdate);

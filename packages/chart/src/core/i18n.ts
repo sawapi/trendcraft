@@ -31,6 +31,10 @@ export type ChartLocale = {
   indicator: string;
   indicators: string;
   toggleVisibility: (label: string) => string;
+  /** Optional — falls back to `Edit ${label}` if not provided. */
+  editSeries?: (label: string) => string;
+  /** Optional — falls back to `Remove ${label}` if not provided. */
+  removeSeries?: (label: string) => string;
 
   // Drawing
   defaultLabel: string;
@@ -60,6 +64,8 @@ export const DEFAULT_LOCALE: ChartLocale = {
   indicator: "indicator",
   indicators: "indicators",
   toggleVisibility: (label: string) => `Toggle ${label} visibility`,
+  editSeries: (label: string) => `Edit ${label}`,
+  removeSeries: (label: string) => `Remove ${label}`,
 
   defaultLabel: "Label",
 };

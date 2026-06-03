@@ -8,13 +8,33 @@ export type ChartEvent =
   | "crosshairMove"
   | "visibleRangeChange"
   | "click"
+  | "doubleClick"
   | "resize"
   | "paneResize"
   | "seriesAdded"
   | "seriesRemoved"
+  | "seriesEditRequest"
+  | "seriesRemoveRequest"
   | "dataFiltered"
   | "drawingComplete"
+  | "drawingToolChanged"
   | "error";
+
+/**
+ * Payload for `seriesEditRequest` and `seriesRemoveRequest` events. Fired when
+ * the user clicks the edit / remove affordance on a legend row. The chart
+ * never edits or removes the series itself — it only delegates the intent
+ * back to the host application, which owns indicator parameters and lifecycle.
+ *
+ * `anchorEl` is the DOM element of the clicked legend row (or button), so the
+ * host can position a popover next to the user's cursor without having to
+ * query the chart's internal selectors. Same window only — for cross-frame
+ * use, derive a bounding rect from it on the host side.
+ */
+export type SeriesActionData = {
+  seriesId: string;
+  anchorEl: HTMLElement;
+};
 
 export type CrosshairMoveData = {
   time: TimeValue | null;
@@ -22,6 +42,26 @@ export type CrosshairMoveData = {
   x: number;
   y: number;
   paneId: string;
+};
+
+/**
+ * Payload for the chart-wide `click` and `doubleClick` events. Fires on
+ * pointer taps (mouse or touch) and double-clicks / double-taps that
+ * aren't consumed by the drawing tool. `index` and `time` resolve to the
+ * candle nearest the pointer; `null` when the pointer landed outside the
+ * data range. Modifier keys carry the keyboard state at click time (always
+ * `false` on touch unless the platform pairs a hardware keyboard) so hosts
+ * can branch on Shift/Alt/Meta/Ctrl without attaching their own listeners.
+ */
+export type ChartClickData = {
+  x: number;
+  y: number;
+  index: number | null;
+  time: TimeValue | null;
+  shiftKey: boolean;
+  altKey: boolean;
+  metaKey: boolean;
+  ctrlKey: boolean;
 };
 
 export type VisibleRangeChangeData = {

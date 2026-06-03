@@ -167,6 +167,13 @@ export {
 } from "./plugins/market-profile";
 // Plugins — tree-shakeable visualization primitives
 export {
+  connectPricePatterns,
+  createPricePatterns,
+  filterPricePatterns,
+  type PricePatternSignal,
+  type PricePatternsOptions,
+} from "./plugins/price-patterns";
+export {
   connectRegimeHeatmap,
   createRegimeHeatmap,
   type RegimeHeatmapOptions,

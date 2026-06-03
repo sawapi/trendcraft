@@ -335,6 +335,249 @@ describe("connectIndicators", () => {
       expect(handles[0].updates).toHaveLength(0);
     });
 
+    it("recomputes batch-only presets on candleComplete (PR14)", () => {
+      const { chart, handles } = createMockChart();
+      const completed: CandleData[] = [candle(1, 100), candle(2, 102)];
+      const { source, emitComplete } = createMockLiveSource(completed);
+      const preset = makeComputePreset("custom");
+      const conn = connectIndicators(chart, {
+        presets: { custom: preset },
+        candles: [],
+        live: source,
+      });
+      conn.add("custom");
+
+      // Initial backfill goes through `addIndicator(initialData, ...)` and
+      // doesn't show up in setDataCalls — that's a `setData()` counter.
+      expect(handles[0].data).toHaveLength(2);
+      expect(handles[0].setDataCalls).toHaveLength(0);
+
+      // A new completed candle arrives. The simulator pushes to the same
+      // completedCandles array (`createLiveCandle` does the equivalent), then
+      // fires the event — recompute should see the longer history.
+      const c3 = candle(3, 105);
+      completed.push(c3);
+      emitComplete(c3, {});
+
+      expect(handles[0].setDataCalls).toHaveLength(1);
+      expect(handles[0].setDataCalls[0]).toHaveLength(3);
+      // No streaming `update()` for batch-only presets — recompute uses setData.
+      expect(handles[0].updates).toHaveLength(0);
+    });
+
+    it("does NOT recompute factory-driven presets on candleComplete", () => {
+      const { chart, handles } = createMockChart();
+      const completed: CandleData[] = [candle(1, 100)];
+      const { source, emitComplete } = createMockLiveSource(completed);
+      const conn = connectIndicators(chart, {
+        presets: { rsi: makeFactoryPreset("rsi") },
+        candles: [],
+        live: source,
+      });
+      conn.add("rsi");
+
+      const initialSetData = handles[0].setDataCalls.length;
+
+      const c2 = candle(2, 105);
+      completed.push(c2);
+      emitComplete(c2, { rsi: 65 });
+
+      // Streaming path stays — update fires, setData does not.
+      expect(handles[0].updates).toHaveLength(1);
+      expect(handles[0].setDataCalls).toHaveLength(initialSetData);
+    });
+
+    it("recomputes batch-only presets with options.candles as warm-up history", () => {
+      // Common setup: host passes warm-up history via `options.candles` and
+      // an empty live source that fills via addCandle(). Auto-recompute must
+      // include the warm-up — otherwise long-lookback batch indicators see
+      // only the post-warmup tail and produce wrong values.
+      const warmUp = [candle(1, 100), candle(2, 102), candle(3, 101)];
+      const completed: CandleData[] = [];
+      const { chart, handles } = createMockChart();
+      const { source, emitComplete } = createMockLiveSource(completed);
+      const preset = makeComputePreset("custom");
+      const conn = connectIndicators(chart, {
+        presets: { custom: preset },
+        candles: warmUp,
+        live: source,
+      });
+      conn.add("custom");
+
+      const c4 = candle(4, 105);
+      completed.push(c4);
+      emitComplete(c4, {});
+
+      expect(handles[0].setDataCalls).toHaveLength(1);
+      expect(handles[0].setDataCalls[0]).toHaveLength(warmUp.length + completed.length);
+    });
+
+    it("does not double-count after a manual recompute() in live mode", () => {
+      // Manual `recompute(custom)` replaces the connection's canonical
+      // history. A subsequent `candleComplete` *appends* the new bar onto
+      // that custom window — it does not re-concat the live source's
+      // completedCandles, so no bar is counted twice.
+      const { chart, handles } = createMockChart();
+      const completed: CandleData[] = [candle(1, 100), candle(2, 102)];
+      const { source, emitComplete } = createMockLiveSource(completed);
+      const preset = makeComputePreset("custom");
+      const conn = connectIndicators(chart, {
+        presets: { custom: preset },
+        candles: [],
+        live: source,
+      });
+      conn.add("custom");
+
+      // Host triggers a manual refresh — passes the full live history.
+      conn.recompute(completed);
+      const afterManual = handles[0].setDataCalls.length;
+
+      // New bar arrives.
+      const c3 = candle(3, 105);
+      completed.push(c3);
+      emitComplete(c3, {});
+
+      // Auto-recompute fires once with the correct length (= completed.length),
+      // not 2x.
+      expect(handles[0].setDataCalls).toHaveLength(afterManual + 1);
+      expect(handles[0].setDataCalls.at(-1)).toHaveLength(completed.length);
+    });
+
+    it("merges options.candles + completedCandles by time at construction (Pattern C)", () => {
+      // Defensive against a host that seeds the same bars into both
+      // options.candles and the live source: dedup by `time` so the chart
+      // doesn't see each bar twice in the backfill.
+      const seed = [candle(1, 100), candle(2, 102)];
+      const completed: CandleData[] = [...seed];
+      const { chart, handles } = createMockChart();
+      const { source } = createMockLiveSource(completed);
+      const preset = makeComputePreset("custom");
+      const conn = connectIndicators(chart, {
+        presets: { custom: preset },
+        candles: seed,
+        live: source,
+      });
+      conn.add("custom");
+
+      // Backfill arrives via addIndicator(initialData, ...). Length should be
+      // seed.length, NOT seed.length + completed.length.
+      expect(handles[0].data).toHaveLength(seed.length);
+    });
+
+    it("replaces the last bar on candleComplete with same time (re-emit / correction)", () => {
+      // LiveCandle can re-emit a bar (e.g. tick aggregator finalizing a
+      // partial). The connection should replace the last entry, not push a
+      // duplicate.
+      const initial = candle(1, 100);
+      const completed: CandleData[] = [initial];
+      const { chart, handles } = createMockChart();
+      const { source, emitComplete } = createMockLiveSource(completed);
+      const conn = connectIndicators(chart, {
+        presets: { custom: makeComputePreset("custom") },
+        candles: [],
+        live: source,
+      });
+      conn.add("custom");
+
+      const corrected = { ...initial, close: 999 };
+      // Live source mutates the completedCandles tail (typical re-emit).
+      completed[completed.length - 1] = corrected;
+      emitComplete(corrected, {});
+
+      expect(handles[0].setDataCalls).toHaveLength(1);
+      // History length stayed at 1 — no duplicate. The last bar carries the
+      // corrected close.
+      expect(handles[0].setDataCalls[0]).toHaveLength(1);
+      const lastPoint = handles[0].setDataCalls[0][0] as { time: number; value: number };
+      expect(lastPoint.time).toBe(initial.time);
+      expect(lastPoint.value).toBe(999);
+    });
+
+    it("manual recompute() in live mode is a permanent override, not a one-shot", () => {
+      // After conn.recompute(custom), the new history *is* the canonical
+      // view. Subsequent candleComplete events extend that custom window
+      // (not the original options.candles + completedCandles seed).
+      const { chart, handles } = createMockChart();
+      const completed: CandleData[] = [];
+      const { source, emitComplete } = createMockLiveSource(completed);
+      const conn = connectIndicators(chart, {
+        presets: { custom: makeComputePreset("custom") },
+        candles: [],
+        live: source,
+      });
+      conn.add("custom");
+
+      // Host injects a custom window unrelated to the live source's history.
+      const customWindow = [candle(10, 100), candle(11, 102), candle(12, 101)];
+      conn.recompute(customWindow);
+      expect(handles[0].setDataCalls.at(-1)).toHaveLength(customWindow.length);
+
+      // New bar arrives via the live source.
+      const c13 = candle(13, 105);
+      completed.push(c13);
+      emitComplete(c13, {});
+
+      // Auto-recompute extends the custom window — does NOT revert to the
+      // (empty) seed view, and does NOT discard host's custom bars.
+      expect(handles[0].setDataCalls.at(-1)).toHaveLength(customWindow.length + 1);
+    });
+
+    it("respects liveRecompute=false opt-out for expensive batch presets", () => {
+      const { chart, handles } = createMockChart();
+      const completed: CandleData[] = [candle(1, 100)];
+      const { source, emitComplete } = createMockLiveSource(completed);
+      const preset: IndicatorPresetEntry = {
+        ...makeComputePreset("hmm"),
+        liveRecompute: false,
+      };
+      const conn = connectIndicators(chart, {
+        presets: { hmm: preset },
+        candles: [],
+        live: source,
+      });
+      conn.add("hmm");
+      const initialSetData = handles[0].setDataCalls.length;
+
+      const c2 = candle(2, 102);
+      completed.push(c2);
+      emitComplete(c2, {});
+
+      // Opted-out preset stays frozen at seed values.
+      expect(handles[0].setDataCalls).toHaveLength(initialSetData);
+    });
+
+    it("liveRecompute=false makes manual recompute() the permanent override", () => {
+      // The flip-side contract of liveRecompute: when a preset opts out of
+      // auto-recompute, conn.recompute(custom) is the *only* way data
+      // changes — and subsequent candleComplete events do not overwrite it.
+      const { chart, handles } = createMockChart();
+      const completed: CandleData[] = [candle(1, 100), candle(2, 102)];
+      const { source, emitComplete } = createMockLiveSource(completed);
+      const preset: IndicatorPresetEntry = {
+        ...makeComputePreset("hmm"),
+        liveRecompute: false,
+      };
+      const conn = connectIndicators(chart, {
+        presets: { hmm: preset },
+        candles: [],
+        live: source,
+      });
+      conn.add("hmm");
+
+      // Host pushes a custom candle window through recompute().
+      const customWindow = [candle(1, 100), candle(2, 102), candle(3, 104)];
+      conn.recompute(customWindow);
+      const afterManual = handles[0].setDataCalls.length;
+      expect(handles[0].setDataCalls.at(-1)).toHaveLength(3);
+
+      // Live source advances. Auto-recompute is OFF, so the host's custom
+      // window stays put — no setData fires.
+      const c4 = candle(4, 106);
+      completed.push(c4);
+      emitComplete(c4, {});
+      expect(handles[0].setDataCalls).toHaveLength(afterManual);
+    });
+
     it("should clean up on remove in live mode", () => {
       const { chart, handles } = createMockChart();
       const { source, registeredIndicators } = createMockLiveSource([candle(1, 100)]);
