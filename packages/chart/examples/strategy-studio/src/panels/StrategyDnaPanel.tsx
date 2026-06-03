@@ -8,10 +8,12 @@ import {
 } from "trendcraft";
 import type { OptimizationComputation, WalkForwardComputation } from "../lib/optimization";
 import {
+  computeDeflatedSharpe,
   DEFAULT_MC_ITERATIONS,
   type MonteCarloComputation,
   runMonteCarlo,
 } from "../lib/robustness";
+import { DeflatedSharpeReport } from "./dna/DeflatedSharpeReport";
 import { GenomeVisualization } from "./dna/GenomeVisualization";
 import { MonteCarloReport } from "./dna/MonteCarloReport";
 import { RobustnessReport } from "./dna/RobustnessReport";
@@ -145,6 +147,14 @@ export function StrategyDnaPanel({ optimizationResult, walkForwardResult, lastBa
   const dnaGrade = useMemo(() => {
     return computeDnaGrade(gridSearchResult, walkForward, monteCarloResult);
   }, [gridSearchResult, walkForward, monteCarloResult]);
+
+  // Deflated Sharpe corrects the chosen strategy's Sharpe for having
+  // selected the best of N grid combinations. It needs the full grid
+  // (the trial set), so it stays null on a walk-forward-only run.
+  const deflatedSharpe = useMemo(() => {
+    if (!gridSearchResult) return null;
+    return computeDeflatedSharpe(gridSearchResult);
+  }, [gridSearchResult]);
 
   // Genome and Sensitivity are grid-only views; the Robustness tab also
   // lights up from a standalone walk-forward run (its grade and the
@@ -283,6 +293,14 @@ export function StrategyDnaPanel({ optimizationResult, walkForwardResult, lastBa
         {effectiveTab === "robustness" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             <RobustnessReport grade={dnaGrade} recommendedParams={recommendedParams} />
+            {deflatedSharpe && (
+              <>
+                <div className="meta-strategy-caption" style={{ fontWeight: 600, marginTop: 2 }}>
+                  Deflated Sharpe
+                </div>
+                <DeflatedSharpeReport computation={deflatedSharpe} />
+              </>
+            )}
             <div className="meta-strategy-caption" style={{ fontWeight: 600, marginTop: 2 }}>
               Walk-Forward
             </div>
