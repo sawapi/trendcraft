@@ -144,6 +144,25 @@ describe("stressTest", () => {
     expect(typeof result.stressedCVaR).toBe("number");
   });
 
+  it("CVaR averages the worst (varIdx + 1) returns, including the VaR observation", () => {
+    // No-shock scenario → stressed === returns, so the tail is fully
+    // deterministic. 20 returns → varIdx = floor(20 * 0.05) = 1, so the 95% CVaR
+    // is the mean of the two worst returns (indices 0 and 1). The earlier
+    // off-by-one (slice(0, max(varIdx,1)) → only index 0) dropped the VaR
+    // observation and averaged just the single worst return.
+    const tail = [-0.1, -0.08];
+    const det = [...tail, ...Array.from({ length: 18 }, () => 0.01)];
+    const noShock = { name: "No shock", description: "identity", shocks: [] };
+    const result = stressTest(det, noShock);
+
+    // VaR observation is the 2nd-worst (index varIdx = 1) → 0.08.
+    expect(result.stressedVaR).toBeCloseTo(0.08, 10);
+    // CVaR = -mean(-0.1, -0.08) = 0.09 (worst two), NOT 0.10 (worst one only).
+    expect(result.stressedCVaR).toBeCloseTo(0.09, 10);
+    // Expected shortfall is at least as deep as VaR.
+    expect(result.stressedCVaR).toBeGreaterThanOrEqual(result.stressedVaR);
+  });
+
   it("drawdown scenario increases max drawdown vs original", () => {
     const scenario = PRESET_SCENARIOS.lehman2008;
     const result = stressTest(returns, scenario);

@@ -131,8 +131,13 @@ export function benchmarkRS(
       const lookback = Math.min(rsValues.length, rankingLookback);
       const recentValues = rsValues.slice(-lookback);
       const sortedValues = [...recentValues].sort((a, b) => a - b);
-      const rank = sortedValues.findIndex((v) => v >= rs);
-      rsRating = Math.round((rank / (sortedValues.length - 1)) * 100);
+      // A percentile rank needs at least two samples; with one the divisor
+      // (length - 1) is 0 → NaN. Leave rsRating null (insufficient data) — only
+      // reachable via a degenerate rankingLookback ≤ 1.
+      if (sortedValues.length >= 2) {
+        const rank = sortedValues.findIndex((v) => v >= rs);
+        rsRating = Math.round((rank / (sortedValues.length - 1)) * 100);
+      }
     }
 
     // Calculate Mansfield RS (deviation from SMA)

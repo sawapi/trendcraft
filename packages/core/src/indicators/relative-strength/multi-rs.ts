@@ -108,7 +108,12 @@ export function rankByRS(
     symbol: r.symbol,
     rs: r.rs,
     rank: index + 1,
-    percentile: Math.round(((results.length - index - 1) / (results.length - 1)) * 100),
+    // Guard the single-symbol case: (length - 1) would be 0 → NaN. A sole
+    // ranked symbol is by definition the strongest, so its percentile is 100.
+    percentile:
+      results.length > 1
+        ? Math.round(((results.length - index - 1) / (results.length - 1)) * 100)
+        : 100,
     performance: r.performance,
   }));
 

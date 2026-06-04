@@ -326,8 +326,11 @@ export function stressTest(
   const varIdx = Math.floor(sorted.length * 0.05);
   const stressedVaR = -sorted[Math.max(varIdx, 0)];
 
-  // CVaR = mean of returns below VaR threshold
-  const tailReturns = sorted.slice(0, Math.max(varIdx, 1));
+  // CVaR = mean of returns at or below the VaR threshold. slice's end is
+  // exclusive, so include index varIdx (the VaR observation itself) via
+  // varIdx + 1 — matching calculateVaR's `<= threshold` convention. Using
+  // `Math.max(varIdx, 1)` previously dropped the VaR observation from the tail.
+  const tailReturns = sorted.slice(0, varIdx + 1);
   const stressedCVaR =
     tailReturns.length > 0
       ? -(tailReturns.reduce((s, v) => s + v, 0) / tailReturns.length)
