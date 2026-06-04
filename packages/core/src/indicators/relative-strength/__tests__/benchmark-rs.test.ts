@@ -73,6 +73,20 @@ describe("benchmarkRS", () => {
       expect(latest.rs).toBeCloseTo(1.0, 1);
     });
 
+    it("never emits a NaN rsRating with a degenerate rankingLookback", () => {
+      // rankingLookback 1 lets the ranking gate open at a single sample, where
+      // the percentile divisor (length - 1) is 0. rsRating must stay null
+      // (insufficient data), never NaN.
+      const stock = generateTrendingCandles(100, 100, 0.01);
+      const benchmark = generateFlatCandles(100, 100);
+      const rs = benchmarkRS(stock, benchmark, { period: 20, rankingLookback: 1 });
+
+      expect(rs.length).toBeGreaterThan(0);
+      for (const point of rs) {
+        expect(Number.isNaN(point.value.rsRating as number)).toBe(false);
+      }
+    });
+
     it("should show RS > 1 when stock outperforms benchmark", () => {
       // Stock goes up 1% daily, benchmark flat
       const stock = generateTrendingCandles(100, 100, 0.01);
@@ -361,6 +375,9 @@ describe("Multi-Symbol RS", () => {
       expect(rankings).toHaveLength(1);
       expect(rankings[0].symbol).toBe("ONLY");
       expect(rankings[0].rank).toBe(1);
+      // Single symbol: percentile must be 100 (sole = strongest), not NaN from
+      // dividing by (length - 1) === 0.
+      expect(rankings[0].percentile).toBe(100);
     });
 
     it("should handle all symbols with insufficient data", () => {

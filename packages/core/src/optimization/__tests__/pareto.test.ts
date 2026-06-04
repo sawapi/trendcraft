@@ -296,6 +296,42 @@ describe("Pareto Optimization", () => {
       }
     });
 
+    it("excludes entries with a non-finite objective metric from the front (NaN calmar on zero-drawdown data)", () => {
+      // Flat market → every trade nets 0 → maxDrawdown 0 → calmar / recoveryFactor
+      // are NaN. NaN breaks non-dominated sorting (never dominated), so such
+      // entries used to pollute the Pareto front. They must be filtered out.
+      const flat: NormalizedCandle[] = Array.from({ length: 100 }, (_, i) => ({
+        time: 1_700_000_000_000 + i * 86_400_000,
+        open: 100,
+        high: 100,
+        low: 100,
+        close: 100,
+        volume: 1000,
+      }));
+      const flatStrategy = (params: Record<string, number>) => ({
+        entry: createEnterCondition(Math.floor(params.enterAt)),
+        exit: createExitCondition(Math.floor(params.enterAt) + 10),
+      });
+
+      const result = paretoOptimization(
+        flat,
+        flatStrategy,
+        [{ name: "enterAt", min: 5, max: 15, step: 5 }],
+        {
+          objectives: [
+            { metric: "calmar", direction: "maximize" },
+            { metric: "returns", direction: "maximize" },
+          ],
+        },
+      );
+
+      // No front member may carry a NaN objective metric (before the fix the
+      // NaN-calmar entries landed in front 0 as spurious "optimal" solutions).
+      for (const entry of result.paretoFront) {
+        expect(Number.isFinite(entry.metrics.calmar)).toBe(true);
+      }
+    });
+
     it("should filter results with constraints", () => {
       const candles = generateUpTrendCandles(100);
 
