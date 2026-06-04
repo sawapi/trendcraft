@@ -27,6 +27,16 @@ import {
 } from "trendcraft";
 import type { Candle } from "../schemas/candle";
 
+/**
+ * A {@link Candle} whose `volume` has been resolved to a number. The MCP
+ * candle schema accepts `volume` as optional (callers may omit it for
+ * price-only signals), but `trendcraft`'s signal functions take
+ * `Candle[] | NormalizedCandle[]` where `volume` is required. The
+ * dispatcher fills a missing `volume` with `0` before invoking `fn`, so
+ * registry implementations can hand candles straight to `trendcraft`.
+ */
+export type ResolvedCandle = Candle & { volume: number };
+
 export type SignalShape = "series" | "events";
 
 export interface SignalDescriptor {
@@ -42,7 +52,15 @@ export interface SignalDescriptor {
    * `value === true || value.formed === true`.
    */
   firesAt?: (value: unknown) => boolean;
-  fn: (candles: Candle[], options?: Record<string, unknown>) => unknown;
+  /**
+   * True when the signal reads candle `volume`. The dispatcher rejects
+   * input that omits volume on any bar for these kinds rather than
+   * fabricating it — a synthetic zero would distort volume averages and
+   * could fire a false breakout/cross. Price-only signals leave this
+   * unset and tolerate a missing (zero-filled) volume.
+   */
+  usesVolume?: boolean;
+  fn: (candles: ResolvedCandle[], options?: Record<string, unknown>) => unknown;
 }
 
 export function defaultFiresAt(value: unknown): boolean {
@@ -96,12 +114,14 @@ const REGISTRY: Record<string, SignalDescriptor> = {
     shape: "events",
     oneLiner: "Divergence between price and OBV swings.",
     paramsHint: "DivergenceOptions — see trendcraft signals docs.",
+    usesVolume: true,
     fn: (c, o) => obvDivergence(c, o as Parameters<typeof obvDivergence>[1]),
   },
   volumeBreakout: {
     shape: "events",
     oneLiner: "Volume exceeds N-period MA × ratio — breakout volume confirmation.",
     paramsHint: "{ period?: number = 20, minRatio?: number = 1.0 }",
+    usesVolume: true,
     fn: (c, o) => volumeBreakout(c, o as Parameters<typeof volumeBreakout>[1]),
   },
   volumeAccumulation: {
@@ -109,6 +129,7 @@ const REGISTRY: Record<string, SignalDescriptor> = {
     oneLiner: "Sustained positive volume slope (regression-confirmed accumulation).",
     paramsHint:
       "{ period?: number = 10, minSlope?: number = 0.05, minRSquared?: number = 0.3, minConsecutiveDays?: number = 3 }",
+    usesVolume: true,
     fn: (c, o) => volumeAccumulation(c, o as Parameters<typeof volumeAccumulation>[1]),
   },
   volumeMaCross: {
@@ -116,6 +137,7 @@ const REGISTRY: Record<string, SignalDescriptor> = {
     oneLiner: "Volume short-MA crosses volume long-MA — institutional interest signal.",
     paramsHint:
       "{ shortPeriod?: number = 5, longPeriod?: number = 20, minRatio?: number = 1.0, bullishOnly?: boolean = true }",
+    usesVolume: true,
     fn: (c, o) => volumeMaCross(c, o as Parameters<typeof volumeMaCross>[1]),
   },
   volumeAboveAverage: {
@@ -123,6 +145,7 @@ const REGISTRY: Record<string, SignalDescriptor> = {
     oneLiner: "Volume sustained above N-period MA × ratio for K consecutive days.",
     paramsHint:
       "{ period?: number = 20, minRatio?: number = 1.0, minConsecutiveDays?: number = 3 }",
+    usesVolume: true,
     fn: (c, o) => volumeAboveAverage(c, o as Parameters<typeof volumeAboveAverage>[1]),
   },
   candlestickPatterns: {
