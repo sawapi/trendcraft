@@ -396,6 +396,11 @@ export function runBacktest(
     const entryCommission = commission + availCap * (commissionRate / 100);
     let shares = (availCap - entryCommission) / entryPrice;
 
+    // Whether a volume constraint actually shrank the order below a full fill.
+    // A full fill deploys all available capital (shares * price + commission ==
+    // availCap by construction), so draining the account to 0 is correct. A
+    // partial fill must NOT drain it — only the filled notional leaves.
+    let partiallyFilled = false;
     if (volumeConstraint) {
       const originalShares = shares;
       shares = applyVolumeConstraint(shares, entryPrice, candle, volumeConstraint);
@@ -404,15 +409,38 @@ export function runBacktest(
       if (allowPartialFill === false && shares < originalShares) {
         shares = 0;
       }
+      partiallyFilled = shares > 0 && shares < originalShares;
     }
 
     if (shares <= 0) return null;
 
     const pos = createPosition(entryTime, entryPrice, shares, entryAtr, initialHigh, initialLow);
-    if (marginConfig && marginState) {
-      marginState.borrowedAmount = currentCapital * (marginConfig.leverage - 1);
+    if (partiallyFilled) {
+      // Deduct only the deployed notional + commission; the un-deployed capital
+      // stays as cash. Zeroing currentCapital here (as a full fill does) would
+      // erase it — exit only credits back the deployed shares' value, so the
+      // difference would vanish as a phantom loss on every constrained entry.
+      //
+      // Commission is recomputed on the FILLED notional, not the full-order
+      // `entryCommission` (which is the percentage fee on the whole available
+      // capital): charging the unfilled portion's fee would itself break
+      // capital conservation whenever a percentage commissionRate is set.
+      const filledNotional = shares * entryPrice;
+      const filledCommission = commission + filledNotional * (commissionRate / 100);
+      const deployedCost = filledNotional + filledCommission;
+      if (marginConfig && marginState) {
+        // Fund from cash first; borrow only the remainder of the deployed cost.
+        marginState.borrowedAmount = Math.max(0, deployedCost - currentCapital);
+        currentCapital = Math.max(0, currentCapital - (deployedCost - marginState.borrowedAmount));
+      } else {
+        currentCapital = availCap - deployedCost;
+      }
+    } else {
+      if (marginConfig && marginState) {
+        marginState.borrowedAmount = currentCapital * (marginConfig.leverage - 1);
+      }
+      currentCapital = 0;
     }
-    currentCapital = 0;
     return pos;
   }
 
