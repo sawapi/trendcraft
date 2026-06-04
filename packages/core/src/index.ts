@@ -665,6 +665,7 @@ export {
   createExitConditionPool,
   crowdingDistance,
   extractSensitivityData,
+  extractTradeReturns,
   fastNonDominatedSort,
   formatAWFResult,
   formatCombinationResult,
