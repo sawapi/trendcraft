@@ -45,6 +45,7 @@ export function createMockChartInstance(): MockChartInstance {
     }),
     setChartType: vi.fn(),
     setLayout: vi.fn(),
+    applyOptions: vi.fn(),
     addIndicator: vi.fn((_data: unknown, _config?: unknown) => {
       const handle = {
         remove: vi.fn(() => {

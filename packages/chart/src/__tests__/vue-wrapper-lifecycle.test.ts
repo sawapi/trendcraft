@@ -157,4 +157,17 @@ describe("Vue TrendChart lifecycle", () => {
     wrapper.unmount();
     expect(currentMock.__state.destroyCalls).toBe(1);
   });
+
+  it("applies runtime option changes when the options prop is replaced", async () => {
+    const wrapper = mount(TrendChart, {
+      props: { candles: sampleCandles, options: { watermark: "v1" } as never },
+    });
+    // Replacing options with a new object must drive applyOptions. Before the
+    // fix the prop was forwarded by value (not as a getter), so the watcher
+    // never re-fired and runtime option changes were silently dropped.
+    await wrapper.setProps({ options: { watermark: "v2" } as never });
+    expect(currentMock.applyOptions).toHaveBeenCalledWith({ watermark: "v2" });
+
+    wrapper.unmount();
+  });
 });
