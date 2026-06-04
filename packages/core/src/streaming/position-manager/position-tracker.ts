@@ -175,8 +175,13 @@ export function createPositionTracker(
     } else {
       account.unrealizedPnl =
         directionSign * (currentPrice - position.entryPrice) * position.shares;
-      // Equity = cash + position market value
-      account.equity = account.currentCapital + currentPrice * position.shares;
+      // Equity = cash + entry cost basis + unrealized P&L. This is
+      // direction-agnostic: for a long it equals the old `cash + currentPrice *
+      // shares` (entryPrice*shares + unrealizedPnl == currentPrice*shares), but
+      // for a short the old formula added the position's market value as if the
+      // borrowed shares were an asset, inverting equity/drawdown against price.
+      account.equity =
+        account.currentCapital + position.entryPrice * position.shares + account.unrealizedPnl;
     }
 
     // Track peak equity and drawdown
