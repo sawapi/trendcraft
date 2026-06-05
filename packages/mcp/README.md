@@ -1,8 +1,8 @@
 # @trendcraft/mcp
 
-Model Context Protocol server for [TrendCraft](https://github.com/sawapi/trendcraft) — exposes the indicator **manifest** (96+ entries with `whenToUse` / `pitfalls` / `synergy` / `marketRegime` / `timeframe` / `paramHints`) plus calc and signal dispatchers to LLM clients like Claude Desktop and Cursor.
+A Model Context Protocol server exposing [TrendCraft](https://github.com/sawapi/trendcraft)'s technical-analysis indicators and signals to MCP clients like Claude Desktop and Cursor over stdio.
 
-> Positioning: this is an **indicator knowledge server**, not a backtest wrapper. The differentiator is the structured per-indicator metadata that lets an LLM decide *which* tool to use, paired with a token-aware calc/signal API designed for agentic workflows.
+The server's differentiator is its structured per-indicator **manifest** — 96+ entries with `whenToUse`, `pitfalls`, `synergy`, `marketRegime`, `timeframe`, and `paramHints` — that lets an LLM decide *which* indicator to use, paired with token-aware calc and signal dispatchers built for agentic single-symbol analysis and multi-symbol screening. It ships no data connector: candles are supplied by the caller (paste from a file, or pair with a data-source MCP server).
 
 ## Install
 
@@ -12,11 +12,11 @@ npm install -g @trendcraft/mcp
 npx @trendcraft/mcp
 ```
 
-## Configuring an MCP client
+The package ships a stdio binary, `trendcraft-mcp`.
 
-### Claude Desktop
+## Run
 
-Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
+Add the server to your MCP client config. For Claude Desktop, edit `claude_desktop_config.json`:
 
 ```json
 {
@@ -29,198 +29,43 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
 }
 ```
 
-Restart Claude Desktop.
-
-### Claude Code
+The same `mcpServers` entry works for Cursor and `~/.claude.json`. For Claude Code:
 
 ```bash
 claude mcp add trendcraft -- npx -y @trendcraft/mcp
 ```
 
-Or edit `~/.claude.json` directly under the `mcpServers` key with the same config as Claude Desktop.
-
-### Cursor
-
-`Cursor Settings → MCP → Add new MCP Server`:
-
-```json
-{
-  "mcpServers": {
-    "trendcraft": {
-      "command": "npx",
-      "args": ["-y", "@trendcraft/mcp"]
-    }
-  }
-}
-```
-
-### Verify
-
-After connecting, the eight tools below should appear in the client's tool picker. To smoke-test the binary directly without an MCP client:
+Smoke-test the binary without a client:
 
 ```bash
-echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' \
-  | npx -y @trendcraft/mcp
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | npx -y @trendcraft/mcp
 ```
 
 ## Tools
 
 | Tool | Purpose |
 |---|---|
-| `list_indicators` | Discover indicator kinds. Returns `kind`, `displayName`, `oneLiner`, `category`, and `calcSupported` per entry. Optional filters: `category`, `regime`, `timeframe`, `calcSupported`. |
-| `get_indicator_manifest` | Full `IndicatorManifest` for one kind — `whenToUse`, `pitfalls`, `synergy`, `paramHints`, etc. Throws `UNKNOWN_KIND` if the manifest entry is missing. |
-| `suggest_indicators_for_regime` | Indicators well-suited to `trending` / `ranging` / `volatile` / `low-volatility`. |
-| `format_manifest_markdown` | Render one indicator's manifest as Markdown — useful for agent prompt embedding. |
-| `calc_indicator` | Compute one indicator on caller-supplied OHLCV candles. ~60 kinds have safe-calc wrappers. `lastN` (default 200) trims response size. |
-| `list_signals` | Discover signal kinds supported by `detect_signal`. Returns `kind`, `shape` (`series` or `events`), `oneLiner`, and `paramsHint`. Optional `shape` filter. |
-| `detect_signal` | Detect a trading signal — crossovers, MA alignment, candlestick patterns, divergences, squeeze, and volume signals. Returns `{ output, firedAt, ... }` where `firedAt` is a sparse list of trigger times — designed for cheap screening (*"did the signal fire in the last N bars?"*). |
-| `load_candles` | Cache OHLCV candles in the session and return an opaque `handle`. Pass that handle as `candlesRef` on subsequent `calc_indicator` / `detect_signal` calls instead of re-sending the array. Designed for multi-tool screens. Session-ephemeral, capacity 50, oldest evicted silently. |
+| `list_indicators` | Discover indicator kinds, with optional `category` / `regime` / `timeframe` / `calcSupported` filters. |
+| `get_indicator_manifest` | Full manifest for one kind — `whenToUse`, `pitfalls`, `synergy`, `paramHints`, etc. |
+| `suggest_indicators_for_regime` | Indicators suited to `trending` / `ranging` / `volatile` / `low-volatility`. |
+| `format_manifest_markdown` | Render one indicator's manifest as Markdown for prompt embedding. |
+| `calc_indicator` | Compute one indicator on caller-supplied candles. `lastN` trims response size. |
+| `detect_signal` | Detect a signal (crossovers, MA alignment, patterns, divergences, squeeze, volume). Returns a sparse `firedAt` list for cheap screening. |
+| `list_signals` | Discover signal kinds supported by `detect_signal`, with optional `shape` filter. |
+| `load_candles` | Cache candles in the session and return a reusable handle (see below). |
 
-### Candle input forms (v0.2.0+)
+## Candle input
 
-`calc_indicator` and `detect_signal` accept exactly one of:
+`calc_indicator` and `detect_signal` accept exactly one candle source: `candles` (an array of `{time, open, high, low, close, volume?}` objects — the canonical form), `candlesArray` (the same rows as `[time, open, high, low, close, volume?]` tuples, ~40% smaller payload), or `candlesRef` (an opaque handle returned by `load_candles`). Use `candlesRef` when fanning out several tools over the same series so the bars are transmitted only once; a stale or evicted handle returns `INVALID_HANDLE`, so just call `load_candles` again.
 
-| Form | Shape | Use when |
-|---|---|---|
-| `candles` | `[{time, open, high, low, close, volume?}, ...]` | Single-call, simplest. The canonical form. |
-| `candlesArray` | `[[time, open, high, low, close, volume?], ...]` | ~40% smaller payload — field names not repeated per row. |
-| `candlesRef` | string handle from `load_candles` | Cheapest for multi-tool calls — bars transmitted once total. |
+## Documentation
 
-A stale or evicted `candlesRef` returns `INVALID_HANDLE`; just call `load_candles` again.
-
-### Response envelope additions (v0.2.0+)
-
-- `load_candles` returns `storeSize` (handles currently held) and `capacity` (LRU max). Watch `storeSize` approach `capacity` to anticipate eviction.
-- `detect_signal` returns `processedBars` — the number of input bars the signal was evaluated against. Use this to distinguish *"no events fired"* from *"no data processed"* on `events`-shape outputs (where `totalLength` counts events, not bars).
-- `calc_indicator` and `detect_signal` echo `symbol` when the caller used `candlesRef` and the handle was loaded with a `symbol`. Omitted otherwise — handy for fan-out screens to correlate handle → symbol without a side-table.
-
-## Designed for screening
-
-The output shape is tuned for two LLM-driven workflows: **single-symbol analysis** (call a few indicators + signals on one symbol's candles) and **multi-symbol screening** (loop over many symbols, ask one yes/no per signal). For screening, `detect_signal` returns a `firedAt: number[]` summary so the caller doesn't have to scan the full series — typically 100x cheaper on tokens than reading the boolean output array.
-
-```jsonc
-// detect_signal output for a screening question
-{
-  "kind": "goldenCross",
-  "shape": "series",
-  "totalLength": 80,
-  "count": 80,
-  "truncated": false,
-  "output": [/* full Series<boolean> here */],
-  "firedAt": []   // ← scan this. empty = no fire in window.
-}
-```
-
-## Recipes
-
-See [EXAMPLES.md](./EXAMPLES.md) for end-to-end patterns: regime-driven discovery, multi-symbol screening, working with `series`-vs-`events` signals, indicator synergy, token-budget tuning, and error recovery.
-
-## Example workflow
-
-A typical agent flow against a single symbol's daily candles:
-
-```ts
-// 1. Discover what to use for the regime you suspect.
-suggest_indicators_for_regime({ regime: "trending" })
-
-// 2. Look up paramHints / pitfalls before computing.
-get_indicator_manifest({ kind: "rsi" })
-
-// 3. Compute on the symbol's candles. lastN keeps the response compact.
-calc_indicator({
-  kind: "rsi",
-  candles: /* { time, open, high, low, close, volume? }[] */,
-  params: { period: 14 },
-  lastN: 5
-})
-
-// 4. Discover signal kinds and their parameter shape.
-list_signals({ shape: "series" })
-
-// 5. Check whether a screening signal fired recently.
-detect_signal({
-  kind: "goldenCross",
-  candles,
-  params: { short: 5, long: 25 },
-  lastN: 10
-})
-// → { firedAt: [...timestamps], output: [...] }
-```
-
-### Multi-indicator screen with `load_candles`
-
-When you want to fan out 5+ tools against the same candle series, send the bars
-once and reuse the handle:
-
-```ts
-// 1. Cache the candles in the session.
-const { handle } = load_candles({ candles, symbol: "BTC" })
-// → { handle: "cdl_3_8a2c1f", count: 124, span: { from, to } }
-
-// 2. Fan out — `candlesRef` replaces `candles` on every subsequent call.
-calc_indicator  ({ kind: "rsi",         candlesRef: handle, params: { period: 14 } })
-calc_indicator  ({ kind: "atr",         candlesRef: handle, params: { period: 14 } })
-calc_indicator  ({ kind: "macd",        candlesRef: handle, params: { fast: 12, slow: 26, signal: 9 } })
-detect_signal   ({ kind: "goldenCross", candlesRef: handle, params: { short: 5, long: 25 } })
-detect_signal   ({ kind: "bollingerSqueeze", candlesRef: handle })
-```
-
-Or send the bars in compact tuple form once-shot to a single tool:
-
-```ts
-calc_indicator({
-  kind: "rsi",
-  candlesArray: [
-    [1714000000000, 100, 101, 99, 100.5, 1200],
-    [1714003600000, 100.5, 102, 100, 101.5, 1300],
-    // ...
-  ],
-  params: { period: 14 },
-})
-```
-
-## Errors
-
-All tool errors return `isError: true` with the message body in the form `<CODE>: <message>`. Codes:
-
-| Code | Meaning | Surface |
-|---|---|---|
-| `INVALID_INPUT` | Empty / malformed candles array, or zero/multiple of `candles` / `candlesArray` / `candlesRef` provided | calc, detect_signal, load_candles |
-| `INVALID_HANDLE` | `candlesRef` is unknown / evicted / never loaded — call `load_candles` again | calc, detect_signal |
-| `INVALID_PARAMETER` | Missing or invalid params (negative period, missing required `params` object, etc.) | calc, detect_signal |
-| `INSUFFICIENT_DATA` | Candles count below the indicator/signal's minimum required window | calc, detect_signal |
-| `INDICATOR_ERROR` | Underlying indicator raised an unclassified runtime error | calc |
-| `SIGNAL_ERROR` | Underlying signal raised an unclassified runtime error | detect_signal |
-| `UNSUPPORTED_KIND` | Manifest entry exists but no calc wrapper is available | calc |
-| `UNSUPPORTED_SIGNAL` | Kind is not registered with `detect_signal` | detect_signal |
-| `UNKNOWN_KIND` | No manifest entry exists for the given kind | manifest tools |
-| `INTERNAL_ERROR` | Wrapper returned an unexpected envelope (should not occur) | calc, detect_signal |
-
-`UNSUPPORTED_KIND` (calc) and `UNKNOWN_KIND` (manifest) are intentionally distinct: the former means the kind is documented in the manifest but the safe-calc wrapper hasn't been written yet; the latter means the kind doesn't exist at all. Use `list_indicators({ calcSupported: true })` to enumerate the calc-ready set.
-
-## Data sourcing
-
-`calc_indicator` and `detect_signal` both expect candles supplied by the caller. The server has **no built-in data connector** — pair it with another MCP server (Yahoo / Alpaca / your broker) or have the agent paste candles from a local file. This is a deliberate scope decision: data fetching, auth, and rate-limiting belong in dedicated tools.
-
-## Development
-
-```bash
-pnpm install --frozen-lockfile
-pnpm --filter trendcraft build      # core must build first
-pnpm --filter @trendcraft/mcp build
-pnpm --filter @trendcraft/mcp test
-```
-
-Quick stdio smoke test:
-
-```bash
-echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' \
-  | node packages/mcp/dist/bin/trendcraft-mcp.js
-```
+- [EXAMPLES.md](./EXAMPLES.md) — end-to-end recipes: regime-driven discovery, multi-symbol screening, `series`-vs-`events` signals, synergy, token-budget tuning, error recovery.
+- [CHANGELOG.md](./CHANGELOG.md) — release history.
 
 ## Disclaimer
 
-`@trendcraft/mcp` and the underlying `trendcraft` library provide technical analysis primitives for informational and educational purposes only. Outputs — including indicator values, signal triggers, and manifest interpretive notes — are not investment advice and do not constitute a recommendation to buy, sell, or hold any financial instrument. You are solely responsible for any trading decisions made using this software.
+`@trendcraft/mcp` and the underlying `trendcraft` library provide technical-analysis primitives for informational and educational purposes only. Outputs — indicator values, signal triggers, and manifest notes — are not investment advice and are not a recommendation to buy, sell, or hold any instrument. You are solely responsible for any trading decisions made using this software.
 
 ## License
 
