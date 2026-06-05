@@ -155,6 +155,15 @@ export type ParamDef = {
    * persisted strategy JSON, whereas tightening `max` would.
    */
   suggestedMax?: number;
+  /**
+   * `false` opts the parameter out of generic numeric introspection
+   * (e.g. `listTunables`). Use this for params whose JSON value is *not*
+   * a scalar number — for instance MA period vectors declared with
+   * `type: "number"` for compactness but actually consumed as
+   * `number[]`. Defaults to `true` (the param participates in
+   * enumeration).
+   */
+  tunable?: boolean;
 };
 
 /**
@@ -191,6 +200,22 @@ export type ConditionRegistryEntry<T = unknown> = {
   create: (params: Record<string, unknown>) => T;
   /** Whether this is a filter condition (vs. entry/exit signal) */
   isFilter?: boolean;
+  /**
+   * Cross-parameter validity predicate. Returns `false` for a parameter
+   * combination that is structurally invalid for this condition even
+   * though each value passes its own `min`/`max` schema — e.g.
+   * `goldenCross` requires `shortPeriod < longPeriod`, an invariant no
+   * per-field range can express.
+   *
+   * Optimizers (`gridSearch` / `walkForwardAnalysis` via the JSON-first
+   * entry points) skip combinations this rejects *before* backtesting
+   * them, so an inverted-cross combo never enters the results or biases
+   * a walk-forward window's chosen parameters. The predicate receives the
+   * condition's params merged with registry defaults, so it can rely on
+   * siblings being present even when only one param is being swept.
+   * Omit it for conditions with no cross-param constraint.
+   */
+  validateParams?: (params: Record<string, number>) => boolean;
 };
 
 /**

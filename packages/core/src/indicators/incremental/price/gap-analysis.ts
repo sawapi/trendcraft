@@ -8,10 +8,19 @@
  * Note: Unlike the batch version which does a retroactive final pass,
  * the incremental version detects gap fills as they occur in subsequent bars.
  * The `filled` field on the gap-creation bar stays false until a later bar fills it.
+ *
+ * State category: **Mixed** — the `activeGaps` list is shaped by
+ * `minGapPercent`: it decides which gaps were ever recorded. Resuming
+ * under a different threshold cannot recreate older gaps that were
+ * never tracked (or drop ones a fresh run would skip), so a
+ * `minGapPercent` change on resume is refused.
+ *
+ * Migrated to the 0.4.0 State Contract.
  */
 
 import type { NormalizedCandle } from "../../../types";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import { type IndicatorSnapshot, makeSnapshot, resolveResume } from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 
 export type GapValue = {
   /** Gap direction, null if no gap */
@@ -31,11 +40,21 @@ type ActiveGap = {
   prevClose: number;
 };
 
+/**
+ * Bare state shape for Gap Analysis. The param (`minGapPercent`)
+ * lives in `meta.params` on the wire.
+ */
 export type GapAnalysisState = {
   prevCandle: { high: number; low: number; close: number } | null;
   activeGaps: ActiveGap[];
-  minGapPercent: number;
   count: number;
+};
+
+/** Per-indicator schema version. Bumped on any breaking state change. */
+export const GAP_ANALYSIS_VERSION = 1;
+
+type GapAnalysisParams = {
+  minGapPercent: number;
 };
 
 const nullValue: GapValue = {
@@ -63,19 +82,30 @@ const nullValue: GapValue = {
  */
 export function createGapAnalysis(
   options: { minGapPercent?: number } = {},
-  warmUpOptions?: WarmUpOptions<GapAnalysisState>,
-): IncrementalIndicator<GapValue, GapAnalysisState> {
-  const minGapPercent = options.minGapPercent ?? 0.5;
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<GapAnalysisState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<GapValue, IndicatorSnapshot<GapAnalysisState>> {
+  const { params, state } = resolveResume<GapAnalysisParams, GapAnalysisState>({
+    indicator: "gapAnalysis",
+    version: GAP_ANALYSIS_VERSION,
+    category: "mixed",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { minGapPercent: 0.5 },
+  });
+
+  const minGapPercent = params.minGapPercent;
 
   let prevCandle: { high: number; low: number; close: number } | null;
   let activeGaps: ActiveGap[];
   let count: number;
 
-  if (warmUpOptions?.fromState) {
-    const s = warmUpOptions.fromState;
-    prevCandle = s.prevCandle ? { ...s.prevCandle } : null;
-    activeGaps = s.activeGaps.map((g) => ({ ...g }));
-    count = s.count;
+  if (state !== null) {
+    prevCandle = state.prevCandle ? { ...state.prevCandle } : null;
+    activeGaps = state.activeGaps.map((g) => ({ ...g }));
+    count = state.count;
   } else {
     prevCandle = null;
     activeGaps = [];
@@ -157,7 +187,7 @@ export function createGapAnalysis(
     return { value: nullValue, newGap: null, filledIndices };
   }
 
-  const indicator: IncrementalIndicator<GapValue, GapAnalysisState> = {
+  const indicator: IncrementalIndicator<GapValue, IndicatorSnapshot<GapAnalysisState>> = {
     next(candle: NormalizedCandle) {
       count++;
 
@@ -182,13 +212,17 @@ export function createGapAnalysis(
       return { time: candle.time, value };
     },
 
-    getState(): GapAnalysisState {
-      return {
-        prevCandle: prevCandle ? { ...prevCandle } : null,
-        activeGaps: activeGaps.map((g) => ({ ...g })),
-        minGapPercent,
-        count,
-      };
+    getState(): IndicatorSnapshot<GapAnalysisState> {
+      return makeSnapshot(
+        "gapAnalysis",
+        GAP_ANALYSIS_VERSION,
+        { minGapPercent },
+        {
+          prevCandle: prevCandle ? { ...prevCandle } : null,
+          activeGaps: activeGaps.map((g) => ({ ...g })),
+          count,
+        },
+      );
     },
 
     get count() {

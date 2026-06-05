@@ -10,7 +10,7 @@ import { autoFormatPrice, setMonthNames } from "../core/format";
 import { type ChartLocale, mergeLocale } from "../core/i18n";
 import { DEFAULT_LAYOUT_NO_VOLUME, LayoutEngine } from "../core/layout";
 import type { PrimitivePlugin, SeriesRendererPlugin } from "../core/plugin-types";
-import { onTap } from "../core/pointer";
+import { onDoubleTap, onTap } from "../core/pointer";
 import { resolveRangeDuration } from "../core/range-utils";
 import { RendererRegistry } from "../core/renderer-registry";
 import { type PriceScale, TimeScale } from "../core/scale";
@@ -53,6 +53,23 @@ import { renderFrame } from "./render-pipeline";
 // ============================================
 // Default Options
 // ============================================
+
+/** Window during which a `dblclick` arriving after a drawing's completing
+ *  tap is treated as the same gesture and suppressed. Slightly longer than
+ *  the platform double-click threshold (~300 ms) so we don't miss the
+ *  trailing event. */
+const DRAWING_DOUBLECLICK_GUARD_MS = 400;
+
+/** Squared canvas-local distance under which a `dblclick` is considered the
+ *  same gesture as the preceding drawing tap (5px radius — matches the
+ *  pointer module's tap threshold). */
+const DRAWING_DOUBLECLICK_RADIUS_SQ = 25;
+
+function nowMs(): number {
+  return typeof performance !== "undefined" && typeof performance.now === "function"
+    ? performance.now()
+    : Date.now();
+}
 
 const DEFAULT_OPTIONS: Required<
   Pick<ChartOptions, "height" | "priceAxisWidth" | "timeAxisHeight" | "fontSize">
@@ -119,6 +136,21 @@ export class CanvasChart implements ChartInstance {
   private _chartType: import("../core/types").ChartType;
   private _drawingTool: DrawingTool | null = null;
   private _detachDrawTap: (() => void) | null = null;
+  private _detachDoubleTap: (() => void) | null = null;
+  /**
+   * Timestamp + canvas-local position of the most recent tap that *completed*
+   * a drawing (the only tap of a one-click tool, or the second tap of a
+   * two-click tool). Used to suppress the trailing native `dblclick` that
+   * the browser emits after that completing click — by then the drawing
+   * tool has already cleared its active state, so the plain `isActive()`
+   * guard in the doubleClick path isn't enough.
+   *
+   * The position match is essential: a time-only guard would drop *any*
+   * `doubleClick` that happens shortly after a drawing tap, even when the
+   * user intentionally double-clicks elsewhere on the chart.
+   */
+  private _lastDrawingCompleteAt = 0;
+  private _lastDrawingCompletePos: { x: number; y: number } | null = null;
 
   private _rendererRegistry = new RendererRegistry();
   private _drawHelper: DrawHelper | null = null;
@@ -184,6 +216,49 @@ export class CanvasChart implements ChartInstance {
     if (handlers) {
       for (const h of handlers) h(data);
     }
+  }
+
+  /**
+   * Wire a freshly created LegendOverlay to the chart's mutation/event surface.
+   * Toggle is handled internally (chart owns visibility); edit/remove are
+   * forwarded to host listeners as `seriesEditRequest` / `seriesRemoveRequest`
+   * so the host can run its own indicator pipeline. The chart never removes a
+   * series in response to the legend ✕ — that would orphan host-side state.
+   */
+  private _wireLegend(legend: LegendOverlay): void {
+    legend.setOnToggle((seriesId, visible) => {
+      const series = this._data.getAllSeries().find((s) => s.id === seriesId);
+      if (series) {
+        series.visible = visible;
+        this._needsRender = true;
+      }
+    });
+    // Edit / remove affordances are wired lazily from `on()` so the legend
+    // only renders ⚙ / ✕ when the host has actually subscribed.
+    this._syncLegendActions(legend);
+  }
+
+  private _syncLegendActions(legend: LegendOverlay = this._legendOverlay as LegendOverlay): void {
+    if (!legend) return;
+    legend.setOnEdit(
+      this._hasListener("seriesEditRequest")
+        ? (seriesId, anchorEl) => this._emit("seriesEditRequest", { seriesId, anchorEl })
+        : null,
+    );
+    legend.setOnRemove(
+      this._hasListener("seriesRemoveRequest")
+        ? (seriesId, anchorEl) => this._emit("seriesRemoveRequest", { seriesId, anchorEl })
+        : null,
+    );
+  }
+
+  private _hasListener(event: ChartEvent): boolean {
+    const set = this._listeners.get(event);
+    return !!set && set.size > 0;
+  }
+
+  getLegendRow(seriesId: string): HTMLElement | null {
+    return this._legendOverlay?.getRowAnchor(seriesId) ?? null;
   }
 
   /**
@@ -362,6 +437,7 @@ export class CanvasChart implements ChartInstance {
         wheelInertia: options?.interaction?.wheelInertia ?? true,
         hotkeys: options?.hotkeys,
         onAction: (action) => this._handleHotkeyAction(action),
+        isDrawingActive: () => this._drawingTool?.isActive() ?? false,
       },
     );
 
@@ -392,13 +468,7 @@ export class CanvasChart implements ChartInstance {
     // Legend overlay
     if (options?.legend !== false) {
       this._legendOverlay = new LegendOverlay(container, this._theme, this._locale);
-      this._legendOverlay.setOnToggle((seriesId, visible) => {
-        const series = this._data.getAllSeries().find((s) => s.id === seriesId);
-        if (series) {
-          series.visible = visible;
-          this._needsRender = true;
-        }
-      });
+      this._wireLegend(this._legendOverlay);
     }
 
     // Watermark
@@ -426,7 +496,72 @@ export class CanvasChart implements ChartInstance {
       },
       locale: this._locale,
     });
-    this._detachDrawTap = onTap(this._canvas, (pos) => this._drawingTool?.handleTap(pos));
+    this._detachDrawTap = onTap(this._canvas, (pos) => {
+      // Drawing mode owns every tap while engaged — even taps it can't place
+      // (volume pane, outside data range) must NOT fall through to the
+      // generic `click` event, or hosts watching for Replay anchors / marker
+      // placement will fire spuriously while the user is drawing.
+      if (this._drawingTool?.isActive()) {
+        this._drawingTool.handleTap(pos);
+        // If the tap *completed* the drawing (one-click tools complete on
+        // their only tap; two-click tools complete on the second tap) the
+        // tool transitions back to inactive. Stamp the position so the
+        // browser-paired `dblclick` arriving at the same spot can be
+        // suppressed without affecting double-clicks elsewhere.
+        if (!this._drawingTool.isActive()) {
+          this._lastDrawingCompleteAt = nowMs();
+          this._lastDrawingCompletePos = { x: pos.x, y: pos.y };
+        }
+        return;
+      }
+      const idx = this._timeScale.xToIndex(pos.x);
+      const candles = this._data.candles;
+      const inRange = idx >= 0 && idx < candles.length;
+      this._emit("click", {
+        x: pos.x,
+        y: pos.y,
+        index: inRange ? idx : null,
+        time: inRange ? candles[idx].time : null,
+        shiftKey: pos.shiftKey,
+        altKey: pos.altKey,
+        metaKey: pos.metaKey,
+        ctrlKey: pos.ctrlKey,
+      });
+    });
+    this._detachDoubleTap = onDoubleTap(this._canvas, (pos) => {
+      // Drawing tool swallows double-taps for symmetry with `onTap` — a
+      // double-tap that lands inside an active drawing session shouldn't
+      // also drive Replay anchors or other host-side handlers.
+      if (this._drawingTool?.isActive()) return;
+      // Two-click drawings (trendline, ray, rectangle, channel, fib...) and
+      // one-click drawings dispatched via a fast double-click both clear
+      // `_activeTool` on the completion click before the browser fires the
+      // matching `dblclick`. Suppress only when the dblclick is the same
+      // gesture — i.e. close in time AND position to the drawing's
+      // completing tap. A pure time guard would drop unrelated double-
+      // clicks elsewhere on the chart.
+      if (this._lastDrawingCompletePos) {
+        const dt = nowMs() - this._lastDrawingCompleteAt;
+        if (dt < DRAWING_DOUBLECLICK_GUARD_MS) {
+          const dx = pos.x - this._lastDrawingCompletePos.x;
+          const dy = pos.y - this._lastDrawingCompletePos.y;
+          if (dx * dx + dy * dy <= DRAWING_DOUBLECLICK_RADIUS_SQ) return;
+        }
+      }
+      const idx = this._timeScale.xToIndex(pos.x);
+      const candles = this._data.candles;
+      const inRange = idx >= 0 && idx < candles.length;
+      this._emit("doubleClick", {
+        x: pos.x,
+        y: pos.y,
+        index: inRange ? idx : null,
+        time: inRange ? candles[idx].time : null,
+        shiftKey: pos.shiftKey,
+        altKey: pos.altKey,
+        metaKey: pos.metaKey,
+        ctrlKey: pos.ctrlKey,
+      });
+    });
 
     // Start render loop
     this._renderLoop();
@@ -816,11 +951,24 @@ export class CanvasChart implements ChartInstance {
       set = new Set();
       this._listeners.set(event, set);
     }
+    const wasEmpty = set.size === 0;
     set.add(handler);
+    if (wasEmpty && (event === "seriesEditRequest" || event === "seriesRemoveRequest")) {
+      this._syncLegendActions();
+    }
   }
 
   off<E extends ChartEvent>(event: E, handler: (data: unknown) => void): void {
-    this._listeners.get(event)?.delete(handler);
+    const set = this._listeners.get(event);
+    if (!set) return;
+    const removed = set.delete(handler);
+    if (
+      removed &&
+      set.size === 0 &&
+      (event === "seriesEditRequest" || event === "seriesRemoveRequest")
+    ) {
+      this._syncLegendActions();
+    }
   }
 
   // ---- Public API: Theme ----
@@ -922,13 +1070,7 @@ export class CanvasChart implements ChartInstance {
         this._legendOverlay = null;
       } else if (opts.legend !== false && !this._legendOverlay) {
         this._legendOverlay = new LegendOverlay(this._container, this._theme, this._locale);
-        this._legendOverlay.setOnToggle((seriesId, visible) => {
-          const series = this._data.getAllSeries().find((s) => s.id === seriesId);
-          if (series) {
-            series.visible = visible;
-            this._needsRender = true;
-          }
-        });
+        this._wireLegend(this._legendOverlay);
       }
       this._needsRender = true;
     }
@@ -1002,6 +1144,11 @@ export class CanvasChart implements ChartInstance {
 
   removePrimitive(name: string): void {
     this._rendererRegistry.removePrimitive(name);
+    this._needsRender = true;
+  }
+
+  removeAllPrimitives(): void {
+    this._rendererRegistry.removeAllPrimitives();
     this._needsRender = true;
   }
 
@@ -1100,6 +1247,7 @@ export class CanvasChart implements ChartInstance {
     this._legendOverlay?.destroy();
     this._rendererRegistry.destroyAll();
     this._detachDrawTap?.();
+    this._detachDoubleTap?.();
     this._drawingTool?.reset();
     this._drawingTool = null;
     this._canvas.remove();

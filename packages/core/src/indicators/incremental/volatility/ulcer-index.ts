@@ -1,6 +1,10 @@
 /**
  * Incremental Ulcer Index (Peter Martin & Byron McCann, 1987 / 1989)
  *
+ * State category: **Windowed** (two-stage: rolling-max + drawdown^2 mean).
+ * Migrated to the 0.4.0 State Contract: `getState()` returns
+ * `IndicatorSnapshot<UlcerIndexState>` and `fromState` accepts the same.
+ *
  * Two-stage canonical formula:
  *   1. rolling_max[j] = max(prices[j-N+1..j])
  *   2. drawdown[j]    = (prices[j] - rolling_max[j]) / rolling_max[j] × 100
@@ -9,19 +13,38 @@
  * Each bar's drawdown is measured against ITS OWN rolling peak, not
  * a peak shared across the window. Warmup is `2 * period - 1` bars
  * (first non-null at count = 2 * period - 1).
+ *
+ * Reconfig on resume: `prices` is carried forward (raw closes, no
+ * period derivation). `drawdowns` is **cleared** — each drawdown is
+ * computed against a rolling-max window of the configured period, so
+ * the snapshot's drawdowns are invalid for the new period. The
+ * indicator re-warms its drawdown buffer naturally as new candles
+ * arrive (effective re-warmup = `period_new` bars after the prices
+ * buffer is full again).
  */
 
 import type { NormalizedCandle, PriceSource } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import { type IndicatorSnapshot, makeSnapshot, resolveResume } from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 import { getSourcePrice } from "../utils";
 
+/**
+ * Bare state shape for Ulcer Index. Params (`period`, `source`) live
+ * in `meta.params` on the wire — they are not part of the bare state.
+ */
 export type UlcerIndexState = {
-  period: number;
-  source: PriceSource;
   prices: ReturnType<CircularBuffer<number>["snapshot"]>;
   drawdowns: ReturnType<CircularBuffer<number>["snapshot"]>;
   count: number;
+};
+
+/** Per-indicator schema version. Bump on any breaking state change. */
+export const ULCER_INDEX_VERSION = 1;
+
+type UlcerIndexParams = {
+  period: number;
+  source: PriceSource;
 };
 
 /**
@@ -38,42 +61,58 @@ export type UlcerIndexState = {
  */
 export function createUlcerIndex(
   options: { period?: number; source?: PriceSource } = {},
-  warmUpOptions?: WarmUpOptions<UlcerIndexState>,
-): IncrementalIndicator<number | null, UlcerIndexState> {
-  const period = options.period ?? 14;
-  const source: PriceSource = options.source ?? "close";
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<UlcerIndexState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<number | null, IndicatorSnapshot<UlcerIndexState>> {
+  const { params, state, reconfigured } = resolveResume<UlcerIndexParams, UlcerIndexState>({
+    indicator: "ulcerIndex",
+    version: ULCER_INDEX_VERSION,
+    category: "windowed",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { period: 14, source: "close" },
+  });
+
+  const period = params.period;
+  const source = params.source;
 
   let prices: CircularBuffer<number>;
   let drawdowns: CircularBuffer<number>;
   let count: number;
 
-  if (warmUpOptions?.fromState) {
-    // Detect the legacy single-buffer snapshot shape (released
-    // before the canonical Peter Martin two-stage rewrite). We can't
-    // back-compute the per-bar drawdowns the new algorithm needs,
-    // so the only safe path is a clear error instead of silently
-    // returning wrong values.
-    const s = warmUpOptions.fromState as UlcerIndexState & {
-      buffer?: ReturnType<CircularBuffer<number>["snapshot"]>;
-    };
-    if (s.buffer !== undefined && (s.prices === undefined || s.drawdowns === undefined)) {
-      throw new Error(
-        "createUlcerIndex: legacy state snapshot detected (single 'buffer' field). " +
-          "Ulcer Index switched to the canonical Peter Martin two-stage formula and the state schema now uses 'prices' and 'drawdowns' buffers. " +
-          "Re-warm the indicator from candles instead of restoring from the old snapshot.",
-      );
+  if (state !== null) {
+    if (reconfigured) {
+      // Period change. Carry forward the last min(snapshot, newPeriod)
+      // raw prices into a buffer sized at the new period.
+      //
+      // Drawdowns are NOT carried — each snapshot drawdown was
+      // computed against a rolling-max window of the OLD period, so
+      // they don't represent the new period's per-bar drawdowns.
+      // We clear and re-derive going forward.
+      const oldPrices = CircularBuffer.fromSnapshot(state.prices);
+      prices = new CircularBuffer<number>(period);
+      const available = oldPrices.length;
+      const carryStart = Math.max(0, available - period);
+      for (let i = carryStart; i < available; i++) {
+        prices.push(oldPrices.get(i));
+      }
+      drawdowns = new CircularBuffer<number>(period);
+      count = state.count;
+    } else {
+      prices = CircularBuffer.fromSnapshot(state.prices);
+      drawdowns = CircularBuffer.fromSnapshot(state.drawdowns);
+      count = state.count;
     }
-    prices = CircularBuffer.fromSnapshot(s.prices);
-    drawdowns = CircularBuffer.fromSnapshot(s.drawdowns);
-    count = s.count;
   } else {
     prices = new CircularBuffer<number>(period);
     drawdowns = new CircularBuffer<number>(period);
     count = 0;
   }
 
-  function rollingMaxOf(buf: CircularBuffer<number>, withExtra?: number): number {
-    let m = withExtra !== undefined ? withExtra : Number.NEGATIVE_INFINITY;
+  function rollingMaxOf(buf: CircularBuffer<number>): number {
+    let m = Number.NEGATIVE_INFINITY;
     for (let i = 0; i < buf.length; i++) {
       const v = buf.get(i);
       if (v > m) m = v;
@@ -81,17 +120,16 @@ export function createUlcerIndex(
     return m;
   }
 
-  function sumSquares(buf: CircularBuffer<number>, withExtra?: number): number {
+  function sumSquares(buf: CircularBuffer<number>): number {
     let s = 0;
     for (let i = 0; i < buf.length; i++) {
       const v = buf.get(i);
       s += v * v;
     }
-    if (withExtra !== undefined) s += withExtra * withExtra;
     return s;
   }
 
-  const indicator: IncrementalIndicator<number | null, UlcerIndexState> = {
+  const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<UlcerIndexState>> = {
     next(candle: NormalizedCandle) {
       count++;
       const price = getSourcePrice(candle, source);
@@ -157,14 +195,17 @@ export function createUlcerIndex(
       return { time: candle.time, value: Math.sqrt(ss / period) };
     },
 
-    getState(): UlcerIndexState {
-      return {
-        period,
-        source,
-        prices: prices.snapshot(),
-        drawdowns: drawdowns.snapshot(),
-        count,
-      };
+    getState(): IndicatorSnapshot<UlcerIndexState> {
+      return makeSnapshot(
+        "ulcerIndex",
+        ULCER_INDEX_VERSION,
+        { period, source },
+        {
+          prices: prices.snapshot(),
+          drawdowns: drawdowns.snapshot(),
+          count,
+        },
+      );
     },
 
     get count() {

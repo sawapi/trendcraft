@@ -29,6 +29,8 @@ const makeEntry = (
     maxDrawdown: -score / 2,
     calmar: score,
     recoveryFactor: score,
+    mar: score,
+    tradeCount: trades,
   },
   // Backtest field is required for OptimizationResultEntry but DNA
   // analytics only read params + metrics + score, so a minimal stub is
@@ -219,6 +221,8 @@ describe("computeRecommendedParams", () => {
             maxDrawdown: -5,
             calmar: 1.5,
             recoveryFactor: 1.5,
+            mar: 1.5,
+            tradeCount: 5,
           },
           outOfSampleMetrics: {
             sharpe: 1.0,
@@ -228,6 +232,8 @@ describe("computeRecommendedParams", () => {
             maxDrawdown: -8,
             calmar: 1.0,
             recoveryFactor: 1.0,
+            mar: 1.0,
+            tradeCount: 5,
           },
           testBacktest: {} as never,
         },
@@ -442,9 +448,9 @@ describe("computeDnaGrade", () => {
     recommendation: { useOptimizedParams: true, suggestedParams: {}, reason: "" },
   };
 
-  const mc: MonteCarloResult = {
-    pValue: { sharpe: 0.005, returns: 0.005 } as never,
-  } as MonteCarloResult;
+  const mc = {
+    downside: { probProfit: 0.995, probLoss: 0.005, riskOfRuin: 0.005, ruinThreshold: 50 },
+  } as unknown as MonteCarloResult;
 
   it("returns overall='F' with all items unavailable when no inputs are provided", () => {
     const out = computeDnaGrade(null, null, null);
@@ -460,9 +466,9 @@ describe("computeDnaGrade", () => {
     expect(wfItem?.grade).toBe("A");
   });
 
-  it("includes MC significance when monteCarlo is provided", () => {
+  it("includes MC robustness when monteCarlo is provided", () => {
     const out = computeDnaGrade(null, null, mc);
-    const mcItem = out.items.find((it) => it.label === "Monte Carlo Significance");
+    const mcItem = out.items.find((it) => it.label === "Monte Carlo Robustness");
     expect(mcItem?.available).toBe(true);
     expect(mcItem?.grade).toBe("A");
   });
@@ -478,7 +484,7 @@ describe("computeDnaGrade", () => {
     // of those two items, not penalize for missing items.
     const out = computeDnaGrade(null, wfStable, mc);
     const wfScore = out.items.find((it) => it.label === "Walk-Forward Stability")?.score ?? 0;
-    const mcScore = out.items.find((it) => it.label === "Monte Carlo Significance")?.score ?? 0;
+    const mcScore = out.items.find((it) => it.label === "Monte Carlo Robustness")?.score ?? 0;
     // weights: WF 0.3, MC 0.3 → renormalized to 0.5 each
     const expected = (wfScore * 0.3 + mcScore * 0.3) / 0.6;
     expect(out.overallScore).toBeCloseTo(expected, 5);

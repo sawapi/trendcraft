@@ -4,33 +4,58 @@
  * KST = w1*SMA(ROC(r1), s1) + w2*SMA(ROC(r2), s2) + w3*SMA(ROC(r3), s3) + w4*SMA(ROC(r4), s4)
  * Signal = SMA(KST, signalPeriod)
  *
- * Uses 4 ROC + 4 SMA sub-indicators for the weighted components,
- * plus 1 SMA for the signal line.
+ * State category: **Cascaded** (composes 4 inner ROC + 4 inner SMA
+ * stages plus 1 signal SMA). Resume with any changed period / weight /
+ * source param is refused — all inner recursive/windowed stages are
+ * conditioned on their construction-time params.
+ *
+ * Migrated to the 0.4.0 State Contract.
  */
 
 import type { NormalizedCandle, PriceSource } from "../../../types";
-import type { SmaState } from "../moving-average/sma";
-import { createSma } from "../moving-average/sma";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import { createSma, type SmaState } from "../moving-average/sma";
+import { type IndicatorSnapshot, makeSnapshot, resolveResume } from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 import { makeCandle } from "../utils";
-import type { RocState } from "./roc";
-import { createRoc } from "./roc";
+import { createRoc, type RocState } from "./roc";
 
 export type KstValue = {
   kst: number;
   signal: number | null;
 };
 
+/**
+ * Bare state shape for KST. Params (`rocPeriods`, `smaPeriods`,
+ * `weights`, `signalPeriod`, `source`) live in `meta.params`.
+ */
 export type KstState = {
-  rocStates: [RocState, RocState, RocState, RocState];
-  smaStates: [SmaState, SmaState, SmaState, SmaState];
-  signalSmaState: SmaState;
-  rocPeriods: [number, number, number, number];
-  smaPeriods: [number, number, number, number];
-  weights: [number, number, number, number];
+  rocStates: [
+    IndicatorSnapshot<RocState>,
+    IndicatorSnapshot<RocState>,
+    IndicatorSnapshot<RocState>,
+    IndicatorSnapshot<RocState>,
+  ];
+  smaStates: [
+    IndicatorSnapshot<SmaState>,
+    IndicatorSnapshot<SmaState>,
+    IndicatorSnapshot<SmaState>,
+    IndicatorSnapshot<SmaState>,
+  ];
+  signalSmaState: IndicatorSnapshot<SmaState>;
+  count: number;
+};
+
+/** Per-indicator schema version. Bumped on any breaking state change. */
+export const KST_VERSION = 1;
+
+type Quad = [number, number, number, number];
+
+type KstParams = {
+  rocPeriods: Quad;
+  smaPeriods: Quad;
+  weights: Quad;
   signalPeriod: number;
   source: PriceSource;
-  count: number;
 };
 
 /**
@@ -52,33 +77,50 @@ export type KstState = {
  */
 export function createKst(
   options: {
-    rocPeriods?: [number, number, number, number];
-    smaPeriods?: [number, number, number, number];
-    weights?: [number, number, number, number];
+    rocPeriods?: Quad;
+    smaPeriods?: Quad;
+    weights?: Quad;
     signalPeriod?: number;
     source?: PriceSource;
   } = {},
-  warmUpOptions?: WarmUpOptions<KstState>,
-): IncrementalIndicator<KstValue | null, KstState> {
-  const rocPeriods: [number, number, number, number] = options.rocPeriods ?? [10, 15, 20, 30];
-  const smaPeriods: [number, number, number, number] = options.smaPeriods ?? [10, 10, 10, 15];
-  const weights: [number, number, number, number] = options.weights ?? [1, 2, 3, 4];
-  const signalPeriod = options.signalPeriod ?? 9;
-  const source: PriceSource = options.source ?? "close";
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<KstState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<KstValue | null, IndicatorSnapshot<KstState>> {
+  const { params, state } = resolveResume<KstParams, KstState>({
+    indicator: "kst",
+    version: KST_VERSION,
+    category: "cascaded",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: {
+      rocPeriods: [10, 15, 20, 30],
+      smaPeriods: [10, 10, 10, 15],
+      weights: [1, 2, 3, 4],
+      signalPeriod: 9,
+      source: "close",
+    },
+  });
+
+  const rocPeriods = params.rocPeriods;
+  const smaPeriods = params.smaPeriods;
+  const weights = params.weights;
+  const signalPeriod = params.signalPeriod;
+  const source = params.source;
 
   let rocs: ReturnType<typeof createRoc>[];
   let smas: ReturnType<typeof createSma>[];
   let signalSma: ReturnType<typeof createSma>;
   let count: number;
 
-  if (warmUpOptions?.fromState) {
-    const s = warmUpOptions.fromState;
-    rocs = s.rocStates.map((rs, i) =>
+  if (state !== null) {
+    rocs = state.rocStates.map((rs, i) =>
       createRoc({ period: rocPeriods[i], source }, { fromState: rs }),
     );
-    smas = s.smaStates.map((ss, i) => createSma({ period: smaPeriods[i] }, { fromState: ss }));
-    signalSma = createSma({ period: signalPeriod }, { fromState: s.signalSmaState });
-    count = s.count;
+    smas = state.smaStates.map((ss, i) => createSma({ period: smaPeriods[i] }, { fromState: ss }));
+    signalSma = createSma({ period: signalPeriod }, { fromState: state.signalSmaState });
+    count = state.count;
   } else {
     rocs = rocPeriods.map((p) => createRoc({ period: p, source }));
     smas = smaPeriods.map((p) => createSma({ period: p }));
@@ -157,7 +199,7 @@ export function createKst(
     return { time: candle.time, value: { kst: kstVal, signal: signalVal } };
   }
 
-  const indicator: IncrementalIndicator<KstValue | null, KstState> = {
+  const indicator: IncrementalIndicator<KstValue | null, IndicatorSnapshot<KstState>> = {
     next(candle: NormalizedCandle) {
       return computeNext(candle);
     },
@@ -166,18 +208,28 @@ export function createKst(
       return computePeek(candle);
     },
 
-    getState(): KstState {
-      return {
-        rocStates: rocs.map((r) => r.getState()) as [RocState, RocState, RocState, RocState],
-        smaStates: smas.map((s) => s.getState()) as [SmaState, SmaState, SmaState, SmaState],
-        signalSmaState: signalSma.getState(),
-        rocPeriods,
-        smaPeriods,
-        weights,
-        signalPeriod,
-        source,
-        count,
-      };
+    getState(): IndicatorSnapshot<KstState> {
+      return makeSnapshot(
+        "kst",
+        KST_VERSION,
+        { rocPeriods, smaPeriods, weights, signalPeriod, source },
+        {
+          rocStates: rocs.map((r) => r.getState()) as [
+            IndicatorSnapshot<RocState>,
+            IndicatorSnapshot<RocState>,
+            IndicatorSnapshot<RocState>,
+            IndicatorSnapshot<RocState>,
+          ],
+          smaStates: smas.map((s) => s.getState()) as [
+            IndicatorSnapshot<SmaState>,
+            IndicatorSnapshot<SmaState>,
+            IndicatorSnapshot<SmaState>,
+            IndicatorSnapshot<SmaState>,
+          ],
+          signalSmaState: signalSma.getState(),
+          count,
+        },
+      );
     },
 
     get count() {

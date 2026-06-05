@@ -9,28 +9,35 @@
  *
  * State category: **Cascaded** (two recursive EMAs + two recursive
  * stochastic smoothings + two windowed buffers). The recursive
- * components permanently encode past parameters, so resume requires
- * identical `fastPeriod`, `slowPeriod`, `cyclePeriod`, `factor`, and
- * `source` (or omit them and let the snapshot's params win).
+ * components permanently encode past parameters, so resume with a
+ * different `fastPeriod` / `slowPeriod` / `cyclePeriod` / `factor` /
+ * `source` is refused.
+ *
+ * Migrated to the 0.4.0 State Contract. The EMA multipliers are
+ * derived from the periods in the factory closure and not persisted.
  */
 
 import type { NormalizedCandle, PriceSource } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import {
+  type IndicatorSnapshot,
+  makeSnapshot,
+  requireParam,
+  resolveResume,
+} from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 import { getSourcePrice } from "../utils";
 
+/**
+ * Bare state shape for STC. Params (`fastPeriod`, `slowPeriod`,
+ * `cyclePeriod`, `factor`, `source`) live in `meta.params`; the EMA
+ * multipliers are derived from the periods.
+ */
 export type StcState = {
-  fastPeriod: number;
-  slowPeriod: number;
-  cyclePeriod: number;
-  factor: number;
-  source: PriceSource;
   fastEma: number | null;
   slowEma: number | null;
   fastSum: number;
   slowSum: number;
-  fastMult: number;
-  slowMult: number;
   macdBuffer: { data: (number | null)[]; head: number; length: number; capacity: number };
   prevPf: number;
   pfBuffer: { data: (number | null)[]; head: number; length: number; capacity: number };
@@ -38,6 +45,17 @@ export type StcState = {
   firstPfDone: boolean;
   firstStcDone: boolean;
   count: number;
+};
+
+/** Per-indicator schema version. Bumped on any breaking state change. */
+export const STC_VERSION = 1;
+
+type StcParams = {
+  fastPeriod: number;
+  slowPeriod: number;
+  cyclePeriod: number;
+  factor: number;
+  source: PriceSource;
 };
 
 /**
@@ -60,24 +78,49 @@ export function createStc(
     factor?: number;
     source?: PriceSource;
   } = {},
-  warmUpOptions?: WarmUpOptions<StcState>,
-): IncrementalIndicator<number | null, StcState> {
-  // Resume order: explicit option > snapshot value > canonical default.
-  const fs = warmUpOptions?.fromState ?? null;
-  const fastPeriod = options.fastPeriod ?? fs?.fastPeriod ?? 23;
-  const slowPeriod = options.slowPeriod ?? fs?.slowPeriod ?? 50;
-  const cyclePeriod = options.cyclePeriod ?? fs?.cyclePeriod ?? 10;
-  const factor = options.factor ?? fs?.factor ?? 0.5;
-  const source: PriceSource = options.source ?? fs?.source ?? "close";
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<StcState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<number | null, IndicatorSnapshot<StcState>> {
+  const { params, state } = resolveResume<StcParams, StcState>({
+    indicator: "stc",
+    version: STC_VERSION,
+    category: "cascaded",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { fastPeriod: 23, slowPeriod: 50, cyclePeriod: 10, factor: 0.5, source: "close" },
+  });
 
-  // Validate parameters identically to the batch indicator so the same
-  // options object behaves the same in both APIs.
-  if (fastPeriod < 1 || slowPeriod < 1 || cyclePeriod < 1) {
-    throw new Error("Schaff Trend Cycle periods must be at least 1");
-  }
-  if (factor <= 0 || factor > 1) {
-    throw new Error("Schaff Trend Cycle factor must be in (0, 1]");
-  }
+  const fastPeriod = requireParam(
+    "stc",
+    params,
+    "fastPeriod",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
+  const slowPeriod = requireParam(
+    "stc",
+    params,
+    "slowPeriod",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
+  const cyclePeriod = requireParam(
+    "stc",
+    params,
+    "cyclePeriod",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
+  const factor = requireParam(
+    "stc",
+    params,
+    "factor",
+    (v): v is number => typeof v === "number" && v > 0 && v <= 1,
+    "must be in (0, 1]",
+  );
+  const source = params.source;
 
   const fastMult = 2 / (fastPeriod + 1);
   const slowMult = 2 / (slowPeriod + 1);
@@ -94,30 +137,18 @@ export function createStc(
   let firstStcDone: boolean;
   let count: number;
 
-  if (fs) {
-    // Cascaded: two recursive EMAs + two recursive stochastic
-    // smoothings permanently encode past parameters, so reconfiguring
-    // on resume produces a hybrid series.
-    if (
-      fs.fastPeriod !== fastPeriod ||
-      fs.slowPeriod !== slowPeriod ||
-      fs.cyclePeriod !== cyclePeriod ||
-      fs.factor !== factor ||
-      fs.source !== source
-    ) {
-      throw new Error("Schaff Trend Cycle: incompatible snapshot, re-warm required");
-    }
-    fastEma = fs.fastEma;
-    slowEma = fs.slowEma;
-    fastSum = fs.fastSum;
-    slowSum = fs.slowSum;
-    macdBuffer = CircularBuffer.fromSnapshot(fs.macdBuffer);
-    prevPf = fs.prevPf;
-    pfBuffer = CircularBuffer.fromSnapshot(fs.pfBuffer);
-    prevStc = fs.prevStc;
-    firstPfDone = fs.firstPfDone;
-    firstStcDone = fs.firstStcDone;
-    count = fs.count;
+  if (state !== null) {
+    fastEma = state.fastEma;
+    slowEma = state.slowEma;
+    fastSum = state.fastSum;
+    slowSum = state.slowSum;
+    macdBuffer = CircularBuffer.fromSnapshot(state.macdBuffer);
+    prevPf = state.prevPf;
+    pfBuffer = CircularBuffer.fromSnapshot(state.pfBuffer);
+    prevStc = state.prevStc;
+    firstPfDone = state.firstPfDone;
+    firstStcDone = state.firstStcDone;
+    count = state.count;
   } else {
     fastEma = null;
     slowEma = null;
@@ -183,7 +214,7 @@ export function createStc(
     return { min, max };
   }
 
-  const indicator: IncrementalIndicator<number | null, StcState> = {
+  const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<StcState>> = {
     next(candle: NormalizedCandle) {
       const price = getSourcePrice(candle, source);
       count++;
@@ -260,27 +291,25 @@ export function createStc(
       return { time: candle.time, value: peekStc };
     },
 
-    getState(): StcState {
-      return {
-        fastPeriod,
-        slowPeriod,
-        cyclePeriod,
-        factor,
-        source,
-        fastEma,
-        slowEma,
-        fastSum,
-        slowSum,
-        fastMult,
-        slowMult,
-        macdBuffer: macdBuffer.snapshot() as StcState["macdBuffer"],
-        prevPf,
-        pfBuffer: pfBuffer.snapshot() as StcState["pfBuffer"],
-        prevStc,
-        firstPfDone,
-        firstStcDone,
-        count,
-      };
+    getState(): IndicatorSnapshot<StcState> {
+      return makeSnapshot(
+        "stc",
+        STC_VERSION,
+        { fastPeriod, slowPeriod, cyclePeriod, factor, source },
+        {
+          fastEma,
+          slowEma,
+          fastSum,
+          slowSum,
+          macdBuffer: macdBuffer.snapshot() as StcState["macdBuffer"],
+          prevPf,
+          pfBuffer: pfBuffer.snapshot() as StcState["pfBuffer"],
+          prevStc,
+          firstPfDone,
+          firstStcDone,
+          count,
+        },
+      );
     },
 
     get count() {

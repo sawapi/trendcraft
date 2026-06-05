@@ -68,6 +68,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "biome check .",
@@ -119,7 +120,7 @@
     {
       "name": "Main (createChart + all exports)",
       "path": "dist/index.js",
-      "limit": "38 kB"
+      "limit": "41 kB"
     },
     {
       "name": "Headless API",
@@ -149,12 +150,12 @@
     {
       "name": "React wrapper",
       "path": "dist/react/TrendChart.js",
-      "limit": "31 kB"
+      "limit": "33 kB"
     },
     {
       "name": "Vue wrapper",
       "path": "dist/vue/TrendChart.js",
-      "limit": "31 kB"
+      "limit": "33 kB"
     }
   ],
   "devDependencies": {

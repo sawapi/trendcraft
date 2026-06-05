@@ -186,6 +186,7 @@ backtestRegistry.register({
     },
   },
   create: (p) => goldenCross((p.shortPeriod as number) ?? 5, (p.longPeriod as number) ?? 25),
+  validateParams: (p) => p.shortPeriod < p.longPeriod,
 });
 
 backtestRegistry.register({
@@ -211,6 +212,7 @@ backtestRegistry.register({
     },
   },
   create: (p) => deadCross((p.shortPeriod as number) ?? 5, (p.longPeriod as number) ?? 25),
+  validateParams: (p) => p.shortPeriod < p.longPeriod,
 });
 
 backtestRegistry.register({
@@ -232,6 +234,7 @@ backtestRegistry.register({
       trendPeriod: p.trendPeriod as number,
       minScore: p.minScore as number,
     }),
+  validateParams: (p) => p.shortPeriod < p.longPeriod,
 });
 
 backtestRegistry.register({
@@ -253,6 +256,7 @@ backtestRegistry.register({
       trendPeriod: p.trendPeriod as number,
       minScore: p.minScore as number,
     }),
+  validateParams: (p) => p.shortPeriod < p.longPeriod,
 });
 
 // ============================================
@@ -405,7 +409,11 @@ backtestRegistry.register({
 // ============================================
 
 const poParams = {
-  periods: { type: "number" as const, description: "MA periods (array via JSON)" },
+  periods: {
+    type: "number" as const,
+    tunable: false,
+    description: "MA periods (array via JSON)",
+  },
 };
 
 backtestRegistry.register({

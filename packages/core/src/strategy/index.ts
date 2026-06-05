@@ -20,6 +20,11 @@ export { backtestRegistry } from "./registry-backtest";
 export { streamingRegistry } from "./registry-streaming";
 // New: Serialization
 export { parseStrategy, parseStrategySafe, serializeStrategy } from "./serialize";
+export type { Tunable } from "./tunables";
+// Strategy tunables — enumerate numeric registry-declared params for
+// optimization / range editors. Mirrors the introspection surface
+// exposed by TA-Lib / freqtrade / Pine Script.
+export { listTunables } from "./tunables";
 // Existing exports
 // New: Strategy JSON Serialization types
 export type {

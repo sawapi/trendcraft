@@ -139,7 +139,6 @@ import {
   ORDER_BLOCK_META,
   SESSION_BREAKOUT_META,
   SLOW_STOCH_META,
-  STD_DEV_META,
   SWING_POINTS_META,
   VOL_REGIME_META,
   VOLUME_MA_META,
@@ -308,12 +307,34 @@ export const indicatorPresets: Record<string, IndicatorPreset> = {
     description: "Reduces lag while maintaining smoothness using weighted moving averages.",
     paramSchema: [period(16)],
   }),
-  t3: withCompute("t3", (c, p) => t3(c, { period: p.period ?? 5 }), {
-    category: "Moving Averages",
-    name: "Tillson T3",
-    description: "Ultra-smooth moving average using six cascaded exponential smoothing stages.",
-    paramSchema: [period(5)],
-  }),
+  t3: withCompute(
+    "t3",
+    (c, p) =>
+      t3(c, {
+        period: (p.period as number | undefined) ?? 5,
+        vFactor: (p.vFactor as number | undefined) ?? 0.7,
+      }),
+    {
+      category: "Moving Averages",
+      name: "Tillson T3",
+      description: "Ultra-smooth moving average using six cascaded exponential smoothing stages.",
+      // vFactor is T3's signature tradeoff knob (Tillson 1998): smoothness vs.
+      // lag. Exposing it lets hosts tune T3 the way the indicator was
+      // designed to be tuned — period alone underrepresents the indicator.
+      paramSchema: [
+        period(5),
+        {
+          key: "vFactor",
+          label: "Volume Factor",
+          type: "number",
+          default: 0.7,
+          min: 0,
+          max: 1,
+          step: 0.05,
+        },
+      ],
+    },
+  ),
   mcginley: withCompute("mcginley", (c, p) => mcginleyDynamic(c, { period: p.period ?? 14 }), {
     category: "Moving Averages",
     name: "McGinley Dynamic",
@@ -1673,18 +1694,16 @@ export const indicatorPresets: Record<string, IndicatorPreset> = {
   // ============================================
   // Additional Volatility
   // ============================================
-  standardDeviation: {
-    meta: STD_DEV_META,
-    defaultParams: { period: 20 },
-    snapshotName: "stdDev",
-    compute: typedCompute<{ period?: number }>((c, p) =>
-      standardDeviation(c, { period: p.period ?? 20 }),
-    ),
-    category: "Volatility",
-    name: "Standard Deviation",
-    description: "Raw standard deviation of closing prices over a rolling window.",
-    paramSchema: [period(20)],
-  },
+  standardDeviation: withCompute<{ period?: number; source?: PriceSource }>(
+    "standardDeviation",
+    (c, p) => standardDeviation(c, { period: p.period ?? 20, source: p.source }),
+    {
+      category: "Volatility",
+      name: "Standard Deviation",
+      description: "Raw standard deviation of closing prices over a rolling window.",
+      paramSchema: [period(20)],
+    },
+  ),
   ewmaVol: withCompute<{ lambda?: number }>(
     "ewmaVol",
     (c, p) => {
@@ -2059,21 +2078,20 @@ export const indicatorPresets: Record<string, IndicatorPreset> = {
     description: "Rolling minimum of candle lows over N bars.",
     paramSchema: [period(20, 2, 500)],
   },
-  returns: {
-    meta: { kind: "returns", overlay: false, label: "Returns" },
-    defaultParams: { period: 1, type: "simple" },
-    snapshotName: (p: Record<string, unknown>) => `ret${p.period}-${p.type ?? "simple"}`,
-    compute: typedCompute<{ period?: number; type?: "simple" | "log" }>((c, p) =>
+  returns: withCompute<{ period?: number; type?: "simple" | "log" }>(
+    "returns",
+    (c, p) =>
       returns(c, {
         period: p.period ?? 1,
         type: p.type ?? "simple",
       }),
-    ),
-    category: "Price",
-    name: "Returns",
-    description: "Bar-over-bar percentage or log returns of close prices.",
-    paramSchema: [period(1, 1, 100)],
-  },
+    {
+      category: "Price",
+      name: "Returns",
+      description: "Bar-over-bar percentage or log returns of close prices.",
+      paramSchema: [period(1, 1, 100)],
+    },
+  ),
   cumulativeReturns: {
     meta: { kind: "cumulativeReturns", overlay: false, label: "Cum. Returns" },
     defaultParams: { type: "simple" },
@@ -2173,4 +2191,28 @@ const KIND_ALIASES: Record<string, string> = {
  */
 export function getIndicatorPreset(kind: string): IndicatorPreset | undefined {
   return indicatorPresets[KIND_ALIASES[kind] ?? kind];
+}
+
+/**
+ * Resolve an indicator preset's short key by `kind`, accepting either the
+ * manifest's canonical long name (e.g. `"bollingerBands"`) or the short key
+ * itself (e.g. `"bb"`). Returns `undefined` when the kind has no preset.
+ *
+ * The forward sibling of `getIndicatorPreset`: reach for this when the caller
+ * needs the key string itself — typical use is bridging manifest output to
+ * chart-side APIs that key on the short name (`connectIndicators({ presets })
+ * .add(key, ...)`). Reads from the same `KIND_ALIASES` table that drives
+ * preset resolution, so the two helpers never disagree about which kind maps
+ * where.
+ *
+ * @example
+ * ```ts
+ * getIndicatorPresetKey("bollingerBands"); // "bb" (resolved via alias)
+ * getIndicatorPresetKey("bb");             // "bb" (direct hit)
+ * getIndicatorPresetKey("hmmRegimes");     // undefined (no preset entry)
+ * ```
+ */
+export function getIndicatorPresetKey(kind: string): string | undefined {
+  if (Object.hasOwn(KIND_ALIASES, kind)) return KIND_ALIASES[kind];
+  return Object.hasOwn(indicatorPresets, kind) ? kind : undefined;
 }

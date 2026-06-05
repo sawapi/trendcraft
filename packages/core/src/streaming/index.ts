@@ -131,7 +131,7 @@ export {
 } from "./guards";
 export type { IndicatorCategory, IndicatorPreset, ParamSchema } from "./indicator-presets";
 // Unified indicator presets (static compute + incremental factory)
-export { getIndicatorPreset, indicatorPresets } from "./indicator-presets";
+export { getIndicatorPreset, getIndicatorPresetKey, indicatorPresets } from "./indicator-presets";
 // LiveCandle (lightweight live candle + indicator manager)
 export { createLiveCandle } from "./live-candle";
 export type { LivePreset } from "./live-presets";

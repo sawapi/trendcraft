@@ -265,7 +265,17 @@ export function paretoOptimization(
         checkConstraint(getMetricValue(metrics, c.metric), c.operator, c.value),
       );
 
-      if (passedConstraints) {
+      // Skip entries whose objective metrics are non-finite. calmar / mar /
+      // recoveryFactor return NaN when maxDrawdown <= 0 (flat or never-underwater
+      // equity), and NaN breaks non-dominated sorting: `va < vb` and `va > vb`
+      // are both false for NaN, so such an entry is never dominated and pollutes
+      // the Pareto front as a spurious "optimal" solution (and destabilizes the
+      // crowding-distance sort). Mirror gridSearch's finite-score filter.
+      const objectivesFinite = objectives.every((o) =>
+        Number.isFinite(getMetricValue(metrics, o.metric)),
+      );
+
+      if (passedConstraints && objectivesFinite) {
         // Use first objective's metric value as the "score" for compatibility
         const score = getMetricValue(metrics, objectives[0].metric);
         validEntries.push({

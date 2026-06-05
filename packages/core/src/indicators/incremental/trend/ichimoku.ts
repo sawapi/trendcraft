@@ -10,11 +10,25 @@
  *
  * Note: senkouA/B at bar i use values from `displacement` bars ago.
  * Chikou requires future data and cannot be computed incrementally.
+ *
+ * State category: **Mixed** — although every field is a buffer, the
+ * `delayBuffer` holds period-dependent *derived* values (tenkan / kijun
+ * mid-prices), so a windowed carry-forward across a period change is
+ * not mathematically well-defined. Resume with any param change is
+ * refused.
+ *
+ * Migrated to the 0.4.0 State Contract.
  */
 
 import type { NormalizedCandle } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import {
+  type IndicatorSnapshot,
+  makeSnapshot,
+  requireParam,
+  resolveResume,
+} from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 
 /**
  * Ichimoku output value
@@ -33,13 +47,10 @@ export type IchimokuValue = {
 type MidPricePair = { tenkan: number | null; kijun: number | null; senkouBBase: number | null };
 
 /**
- * State for incremental Ichimoku
+ * Bare state shape for Ichimoku. Params (`tenkanPeriod`, `kijunPeriod`,
+ * `senkouBPeriod`, `displacement`) live in `meta.params` on the wire.
  */
 export type IchimokuState = {
-  tenkanPeriod: number;
-  kijunPeriod: number;
-  senkouBPeriod: number;
-  displacement: number;
   tenkanHighBuf: ReturnType<CircularBuffer<number>["snapshot"]>;
   tenkanLowBuf: ReturnType<CircularBuffer<number>["snapshot"]>;
   kijunHighBuf: ReturnType<CircularBuffer<number>["snapshot"]>;
@@ -48,6 +59,16 @@ export type IchimokuState = {
   senkouBLowBuf: ReturnType<CircularBuffer<number>["snapshot"]>;
   delayBuffer: MidPricePair[];
   count: number;
+};
+
+/** Per-indicator schema version. Bumped on any breaking state change. */
+export const ICHIMOKU_VERSION = 1;
+
+type IchimokuParams = {
+  tenkanPeriod: number;
+  kijunPeriod: number;
+  senkouBPeriod: number;
+  displacement: number;
 };
 
 function bufferMinMax(buf: CircularBuffer<number>): { min: number; max: number } {
@@ -80,12 +101,48 @@ export function createIchimoku(
     senkouBPeriod?: number;
     displacement?: number;
   } = {},
-  warmUpOptions?: WarmUpOptions<IchimokuState>,
-): IncrementalIndicator<IchimokuValue, IchimokuState> {
-  const tenkanPeriod = options.tenkanPeriod ?? 9;
-  const kijunPeriod = options.kijunPeriod ?? 26;
-  const senkouBPeriod = options.senkouBPeriod ?? 52;
-  const displacement = options.displacement ?? 26;
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<IchimokuState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<IchimokuValue, IndicatorSnapshot<IchimokuState>> {
+  const { params, state } = resolveResume<IchimokuParams, IchimokuState>({
+    indicator: "ichimoku",
+    version: ICHIMOKU_VERSION,
+    category: "mixed",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { tenkanPeriod: 9, kijunPeriod: 26, senkouBPeriod: 52, displacement: 26 },
+  });
+
+  const tenkanPeriod = requireParam(
+    "ichimoku",
+    params,
+    "tenkanPeriod",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
+  const kijunPeriod = requireParam(
+    "ichimoku",
+    params,
+    "kijunPeriod",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
+  const senkouBPeriod = requireParam(
+    "ichimoku",
+    params,
+    "senkouBPeriod",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
+  const displacement = requireParam(
+    "ichimoku",
+    params,
+    "displacement",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
 
   let tenkanHighBuf: CircularBuffer<number>;
   let tenkanLowBuf: CircularBuffer<number>;
@@ -96,16 +153,15 @@ export function createIchimoku(
   let delayBuffer: MidPricePair[];
   let count: number;
 
-  if (warmUpOptions?.fromState) {
-    const s = warmUpOptions.fromState;
-    tenkanHighBuf = CircularBuffer.fromSnapshot(s.tenkanHighBuf);
-    tenkanLowBuf = CircularBuffer.fromSnapshot(s.tenkanLowBuf);
-    kijunHighBuf = CircularBuffer.fromSnapshot(s.kijunHighBuf);
-    kijunLowBuf = CircularBuffer.fromSnapshot(s.kijunLowBuf);
-    senkouBHighBuf = CircularBuffer.fromSnapshot(s.senkouBHighBuf);
-    senkouBLowBuf = CircularBuffer.fromSnapshot(s.senkouBLowBuf);
-    delayBuffer = [...s.delayBuffer];
-    count = s.count;
+  if (state !== null) {
+    tenkanHighBuf = CircularBuffer.fromSnapshot(state.tenkanHighBuf);
+    tenkanLowBuf = CircularBuffer.fromSnapshot(state.tenkanLowBuf);
+    kijunHighBuf = CircularBuffer.fromSnapshot(state.kijunHighBuf);
+    kijunLowBuf = CircularBuffer.fromSnapshot(state.kijunLowBuf);
+    senkouBHighBuf = CircularBuffer.fromSnapshot(state.senkouBHighBuf);
+    senkouBLowBuf = CircularBuffer.fromSnapshot(state.senkouBLowBuf);
+    delayBuffer = [...state.delayBuffer];
+    count = state.count;
   } else {
     tenkanHighBuf = new CircularBuffer<number>(tenkanPeriod);
     tenkanLowBuf = new CircularBuffer<number>(tenkanPeriod);
@@ -160,44 +216,45 @@ export function createIchimoku(
     return { tenkan, kijun, senkouA, senkouB, chikou: null };
   }
 
-  const indicator: IncrementalIndicator<IchimokuValue, IchimokuState> = {
+  const indicator: IncrementalIndicator<IchimokuValue, IndicatorSnapshot<IchimokuState>> = {
     next(candle: NormalizedCandle) {
       const value = processCandle(candle);
       return { time: candle.time, value };
     },
 
     peek(candle: NormalizedCandle) {
-      const savedState = indicator.getState();
+      const saved = indicator.getState().state;
       const result = indicator.next(candle);
 
       // Restore
-      tenkanHighBuf = CircularBuffer.fromSnapshot(savedState.tenkanHighBuf);
-      tenkanLowBuf = CircularBuffer.fromSnapshot(savedState.tenkanLowBuf);
-      kijunHighBuf = CircularBuffer.fromSnapshot(savedState.kijunHighBuf);
-      kijunLowBuf = CircularBuffer.fromSnapshot(savedState.kijunLowBuf);
-      senkouBHighBuf = CircularBuffer.fromSnapshot(savedState.senkouBHighBuf);
-      senkouBLowBuf = CircularBuffer.fromSnapshot(savedState.senkouBLowBuf);
-      delayBuffer = [...savedState.delayBuffer];
-      count = savedState.count;
+      tenkanHighBuf = CircularBuffer.fromSnapshot(saved.tenkanHighBuf);
+      tenkanLowBuf = CircularBuffer.fromSnapshot(saved.tenkanLowBuf);
+      kijunHighBuf = CircularBuffer.fromSnapshot(saved.kijunHighBuf);
+      kijunLowBuf = CircularBuffer.fromSnapshot(saved.kijunLowBuf);
+      senkouBHighBuf = CircularBuffer.fromSnapshot(saved.senkouBHighBuf);
+      senkouBLowBuf = CircularBuffer.fromSnapshot(saved.senkouBLowBuf);
+      delayBuffer = [...saved.delayBuffer];
+      count = saved.count;
 
       return result;
     },
 
-    getState(): IchimokuState {
-      return {
-        tenkanPeriod,
-        kijunPeriod,
-        senkouBPeriod,
-        displacement,
-        tenkanHighBuf: tenkanHighBuf.snapshot(),
-        tenkanLowBuf: tenkanLowBuf.snapshot(),
-        kijunHighBuf: kijunHighBuf.snapshot(),
-        kijunLowBuf: kijunLowBuf.snapshot(),
-        senkouBHighBuf: senkouBHighBuf.snapshot(),
-        senkouBLowBuf: senkouBLowBuf.snapshot(),
-        delayBuffer: delayBuffer.map((d) => ({ ...d })),
-        count,
-      };
+    getState(): IndicatorSnapshot<IchimokuState> {
+      return makeSnapshot(
+        "ichimoku",
+        ICHIMOKU_VERSION,
+        { tenkanPeriod, kijunPeriod, senkouBPeriod, displacement },
+        {
+          tenkanHighBuf: tenkanHighBuf.snapshot(),
+          tenkanLowBuf: tenkanLowBuf.snapshot(),
+          kijunHighBuf: kijunHighBuf.snapshot(),
+          kijunLowBuf: kijunLowBuf.snapshot(),
+          senkouBHighBuf: senkouBHighBuf.snapshot(),
+          senkouBLowBuf: senkouBLowBuf.snapshot(),
+          delayBuffer: delayBuffer.map((d) => ({ ...d })),
+          count,
+        },
+      );
     },
 
     get count() {
@@ -209,11 +266,6 @@ export function createIchimoku(
       // valid kijun from `displacement` bars ago (so it needs
       // `kijunPeriod + displacement`) and `senkouB` needs
       // `senkouBPeriod + displacement`. The slower of the two wins.
-      // The previous threshold (`kijunPeriod + displacement`) was
-      // wrong for the canonical 9/26/52 setup (senkouB still null);
-      // the simpler swap to `senkouBPeriod + displacement` was wrong
-      // for caller-overridden setups where kijunPeriod > senkouBPeriod
-      // (senkouA would still be null). The Math.max here covers both.
       return count >= Math.max(kijunPeriod, senkouBPeriod) + displacement;
     },
   };

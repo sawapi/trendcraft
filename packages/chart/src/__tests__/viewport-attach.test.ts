@@ -61,14 +61,15 @@ function setup(
     longPress?: boolean;
     wheelInertia?: boolean;
     total?: number;
+    isDrawingActive?: () => boolean;
   } = {},
 ): Setup {
   const el = makeEl();
   const vp = new Viewport();
   const ts = makeTimeScale(opts.total);
   const panes: PaneRect[] = opts.panes ?? [
-    { id: "main", y: 0, height: 400, flex: 1 },
-    { id: "vol", y: 400, height: 200, flex: 0.5 },
+    { id: "main", x: 0, y: 0, width: 800, height: 400, config: { id: "main", flex: 1 } },
+    { id: "vol", x: 0, y: 400, width: 800, height: 200, config: { id: "vol", flex: 0.5 } },
   ];
   const scrollbar =
     opts.scrollbar !== undefined ? opts.scrollbar : { x: 0, y: 580, width: 800, height: 12 };
@@ -89,6 +90,7 @@ function setup(
       wheelInertia: opts.wheelInertia ?? true,
       hotkeys: opts.hotkeys,
       onAction: dispatch,
+      isDrawingActive: opts.isDrawingActive,
     },
   );
   return { el, vp, ts, detach, resizePanes, dispatch, onUpdate };
@@ -133,7 +135,7 @@ function fireTouch(el: HTMLElement, type: string, touches: Touch[]) {
     ev = new TouchEvent(type, {
       bubbles: true,
       cancelable: true,
-      touches: touches as unknown as TouchList,
+      touches,
     });
   } catch {
     ev = new Event(type, { bubbles: true, cancelable: true });
@@ -349,6 +351,31 @@ describe("Viewport.attach() — touch", () => {
     vi.advanceTimersByTime(100);
     fireTouch(s.el, "touchstart", [makeTouch(400, 200)]);
     expect(s.ts.startIndex).toBe(0);
+  });
+
+  it("suppresses double-tap fitContent while a drawing tool is active", () => {
+    // Two-click drawings (rectangle / ray / channel / fib) on touch devices
+    // would otherwise fire the chart's built-in double-tap fit on the second
+    // tap. Hosts that arm a drawing tool expose `isDrawingActive: () => true`
+    // so the gesture default backs off and the drawing completes cleanly.
+    s.detach();
+    s = setup({ isDrawingActive: () => true });
+    // makeTimeScale defaults visible range to [100, 200] of 500 total — fit
+    // would snap startIndex to 0 if the guard didn't fire.
+    const startBefore = s.ts.startIndex;
+    fireTouch(s.el, "touchstart", [makeTouch(400, 200)]);
+    fireTouch(s.el, "touchend", []);
+    vi.advanceTimersByTime(100);
+    fireTouch(s.el, "touchstart", [makeTouch(400, 200)]);
+    expect(s.ts.startIndex).toBe(startBefore);
+  });
+
+  it("suppresses long-press crosshair lock while a drawing tool is active", () => {
+    s.detach();
+    s = setup({ isDrawingActive: () => true });
+    fireTouch(s.el, "touchstart", [makeTouch(400, 200)]);
+    vi.advanceTimersByTime(600);
+    expect(s.vp.state.crosshairIndex).toBe(null);
   });
 
   it("long-press locks crosshair after 500ms", () => {

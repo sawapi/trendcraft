@@ -7,6 +7,172 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — Price Patterns plugin (`connectPricePatterns`)
+
+A tree-shakeable visualization plugin for chart-pattern signals — Double
+Top / Double Bottom, Head & Shoulders and its inverse, triangles,
+channels, etc. Hosts compute the signals with `trendcraft`'s detectors
+(`doubleTop`, `doubleBottom`, `headAndShoulders`,
+`inverseHeadAndShoulders`, …) and pass them to the plugin verbatim; the
+plugin renders the standard idiom — a zigzag line through the swing
+extremes, a dashed neckline, light body shading, anchored labels, and a
+dashed projector to the measured-move target.
+
+New exports from the package entry:
+
+- `connectPricePatterns(chart, signals, options?)` — attach to a chart and
+  get a `{ remove() }` handle, matching the other `connect*` plugins.
+- `createPricePatterns(signals, options?)` — the headless primitive
+  factory, for hosts driving their own render loop.
+- `filterPricePatterns(signals, options?)` — the dedup / confidence /
+  cap pass used internally, exposed for hosts that want the same culling.
+- `PricePatternSignal` (a structural subset of `trendcraft`'s
+  `PatternSignal`, so detector output passes through directly) and
+  `PricePatternsOptions`.
+
+`PricePatternsOptions` covers bull/bear/neutral colors (hex + optional
+`r,g,b` triplets for fills), body alpha, neckline / target dash patterns,
+a `minConfidence` floor (default 60), and a `maxPatterns` cap (default 8).
+
+### Added — `liveRecompute` option for batch-only indicator presets
+
+`connectIndicators` presets gain a `liveRecompute?: boolean` flag
+controlling how "batch-only" presets (those without a streaming factory,
+e.g. HMM regimes) react to new bars:
+
+- **`true` (default)** — the preset recomputes on every `candleComplete`,
+  so a batch indicator stays in sync with live data without the host
+  wiring its own recompute.
+- **`false`** — the preset skips auto-recompute and holds its last value
+  until the host calls `conn.recompute(...)`. Use it for presets whose
+  recompute is too heavy to run per bar.
+
+### Fixed — touch (double-tap) interaction parity
+
+Pointer handling is unified across mouse and touch: double-tap now mirrors
+double-click, the synthesized mouse event that mobile browsers fire after
+a real touch double-tap is suppressed (so subscribers don't see it twice),
+and a two-click drawing's second tap or a long-press no longer
+double-fires as a viewport reset.
+
+### Added — Replay playhead + seed-end integer accessors in `@trendcraft/chart/replay`
+
+For hosts building a "scrubbable replay" UI on top of
+`createLiveSimulator`, the subpath now exposes the simulator's
+internal integer state directly. The cursor display, snapshot-
+backtest slice, and indicator slices all need to agree on *which
+bar the user has seen most recently*; reading that integer straight
+off the simulator (instead of re-deriving it via independent math)
+is the only design that doesn't admit a class of drift bugs at the
+boundary.
+
+Added on `SimulatorHandle`:
+
+- `getEmittedQueueCount(): number` — exact integer count of queued
+  candles the simulator has fully emitted.
+- `getLastEmittedIdx(): number` — exact integer index, in candle
+  space, of the last emitted bar. Equals
+  `seedCandles.length + getEmittedQueueCount() - 1`. The canonical
+  "playhead" for any snapshot backtest or cursor label that must
+  not leak future data.
+
+Added on `SimulatorOptions`:
+
+- `seedEnd?: number` — integer seed-bar count, takes precedence
+  over `seedRatio` when both are passed. Preferred when the host
+  derives the anchor from a click index (passing `seedRatio =
+  anchor / length` and letting the simulator multiply back can
+  drift by one in IEEE-754, e.g. `Math.floor(22 * (15/22)) === 14`,
+  not 15).
+
+Added at module scope:
+
+- `clampedSeedEnd(candles, cursorIndex): number` — clamps the
+  anchor click to the same `[5%, 95%]` bounds the simulator uses.
+  Stateless utility for previewing what the simulator will pick
+  before construction.
+- `SEED_RATIO_MIN` (`0.05`) / `SEED_RATIO_MAX` (`0.95`) —
+  surface-able constants for hosts that display the bounds in UI.
+
+**Why no `lastEmittedIdx(candles, cursor, count)` /
+`resolveQueueIdx` standalone helpers**: an earlier draft of this
+release exposed both. Review caught four drift bugs in succession
+— float roundoff in the `seedRatio` round-trip; float roundoff in
+`progress * queueLen`; double-clamping disagreement between the
+simulator and the helper's own `clampedSeedEnd`; and a fractional-
+cursor case where the helper preserved the fraction while the
+simulator floored. All four were the same class: two parties (the
+simulator and a stateless helper) deriving the same integer
+through independent paths, which is inherently fragile. The
+redesign drops the standalone helper entirely. The simulator owns
+`seedEnd` and `nextIdx` as integers and exposes them via
+`getEmittedQueueCount()` and `getLastEmittedIdx()` — there is no
+second derivation path.
+
+`clampedSeedEnd` survives because it serves a distinct purpose
+(previewing the simulator's choice before construction), but it
+is now defined so the simulator literally calls it for its own
+`seedEnd` computation. The two paths share one function; they
+cannot disagree by construction. The helper also floors the
+cursor internally, so a fractional sub-pixel UI coordinate
+produces the same integer in both places.
+
+22 new tests in `__tests__/replay.test.ts` cover the `seedEnd`
+integer path including the 22/15 float-drift case, an arbitrary
+`(n, anchor)` sweep against `clampedSeedEnd`, out-of-range clamping
+to `SEED_RATIO_MIN/MAX`, the fractional-cursor floor case
+(`clampedSeedEnd(C, 10.9) === 10`), the `NaN`/`undefined`/non-
+numeric fallback to the 60% default (silent-failure guard), the
+±Infinity boundary clamps, empty-candle preview equality
+(`clampedSeedEnd([], any) === 0` matching `sim.seedCandles.length`),
+the `getLastEmittedIdx()` empty-array sentinel (`-1`), and a
+**property test** that exhaustively asserts `clampedSeedEnd(C,
+cursor) === createLiveSimulator({candles: C, seedEnd: cursor})
+.seedCandles.length` for 9 candle shapes × 18 cursor values (162
+combinations) — including degenerate inputs like `NaN`,
+`±Infinity`, and empty `C`. If any drift remains, this property
+test catches it.
+
+Empty / degenerate inputs are explicitly handled rather than left
+as undefined behavior:
+
+- `clampedSeedEnd([], …)` returns `0` (matching the simulator's
+  zero-bar seed) instead of the previous `1`.
+- `sim.getLastEmittedIdx()` returns `-1` on empty candles —
+  sentinel for "no bar emitted yet". A host slicing
+  `candles.slice(0, idx + 1)` gets the correct empty array
+  instead of pointing at a phantom `candles[0]`.
+
+Bundle: replay subpath 935 B (limit 3 kB).
+
+### Added — `chart.removeAllPrimitives()` helper
+
+A new method on `ChartInstance` drops every primitive registered via
+`registerPrimitive` in one call. Intended for the common host pattern
+of swapping in an unrelated candle dataset (different symbol,
+timeframe, file upload, etc.) — primitives capture `(time, price)`
+coordinates at registration and don't auto-invalidate, so they would
+otherwise keep rendering at the previous data's coordinates against
+the new view.
+
+This matches the documented host-driven primitive lifecycle (see
+`connectPricePatterns` JSDoc and the new COOKBOOK recipe) and the
+behavior of other charting libraries (TradingView Lightweight Charts,
+Highcharts annotations, etc.); the chart still does not auto-remove
+primitives in `setCandles`, but the helper gives the cleanup pattern
+a named API so hosts don't have to track every handle individually.
+
+- `setCandles` JSDoc now documents the lifecycle gotcha explicitly.
+- `simple-chart` example fixed: enabling SMC / Wyckoff / Regime
+  Heatmap / S/R Confluence / Session Zones on the daily view and
+  then toggling Simulate (which calls `setCandles(simHistory)`) used
+  to carry the daily-anchored primitives onto the 1-min simulation
+  view, drawing at meaningless coordinates. The example now calls
+  `removeAllPrimitives()` before each `setCandles` transition.
+
+Renderers, series, drawings, and indicators are not affected by the
+new helper.
+
 ### Added — `markers` option on scalar line series for "discrete-per-bar" affordance
 
 `SeriesConfig.markers?: boolean | { radius?: number; color?: string }`

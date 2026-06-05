@@ -5,11 +5,28 @@
  * Middle Band = EMA(close)
  * Upper Band = EMA + multiplier × ATR
  * Lower Band = EMA - multiplier × ATR
+ *
+ * State category: **Mixed** (an inner recursive EMA snapshot and an
+ * inner recursive ATR snapshot, composed in parallel). Resume with a
+ * different `emaPeriod` / `atrPeriod` is refused.
+ *
+ * `multiplier` is a **resume-invariant param**: it only scales the
+ * final `EMA ± multiplier × ATR` band width and never touches the
+ * inner EMA / ATR state. Changing it on resume is mathematically safe
+ * and stays supported (parity with 0.3.x).
+ *
+ * Migrated to the 0.4.0 State Contract.
  */
 
 import type { NormalizedCandle } from "../../../types";
 import { createEma, type EmaState } from "../moving-average/ema";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import {
+  type IndicatorSnapshot,
+  makeSnapshot,
+  requireParam,
+  resolveResume,
+} from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 import { type AtrState, createAtr } from "../volatility/atr";
 
 /**
@@ -22,15 +39,21 @@ export type KeltnerChannelValue = {
 };
 
 /**
- * State for incremental Keltner Channel
+ * Bare state shape for Keltner Channel. Params (`emaPeriod`,
+ * `atrPeriod`, `multiplier`) live in `meta.params` on the wire.
  */
 export type KeltnerChannelState = {
+  emaState: IndicatorSnapshot<EmaState>;
+  atrState: IndicatorSnapshot<AtrState>;
+  count: number;
+};
+
+export const KELTNER_CHANNEL_VERSION = 1;
+
+type KeltnerChannelParams = {
   emaPeriod: number;
   atrPeriod: number;
   multiplier: number;
-  emaState: EmaState;
-  atrState: AtrState;
-  count: number;
 };
 
 /**
@@ -47,21 +70,51 @@ export type KeltnerChannelState = {
  */
 export function createKeltnerChannel(
   options: { emaPeriod?: number; atrPeriod?: number; multiplier?: number } = {},
-  warmUpOptions?: WarmUpOptions<KeltnerChannelState>,
-): IncrementalIndicator<KeltnerChannelValue, KeltnerChannelState> {
-  const emaPeriod = options.emaPeriod ?? 20;
-  const atrPeriod = options.atrPeriod ?? 10;
-  const multiplier = options.multiplier ?? 2;
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<KeltnerChannelState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<KeltnerChannelValue, IndicatorSnapshot<KeltnerChannelState>> {
+  const { params, state } = resolveResume<KeltnerChannelParams, KeltnerChannelState>({
+    indicator: "keltnerChannel",
+    version: KELTNER_CHANNEL_VERSION,
+    category: "mixed",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { emaPeriod: 20, atrPeriod: 10, multiplier: 2 },
+    resumeInvariantParams: ["multiplier"],
+  });
 
-  let emaInd: IncrementalIndicator<number | null, EmaState>;
-  let atrInd: IncrementalIndicator<number | null, AtrState>;
+  const emaPeriod = requireParam(
+    "keltnerChannel",
+    params,
+    "emaPeriod",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
+  const atrPeriod = requireParam(
+    "keltnerChannel",
+    params,
+    "atrPeriod",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
+  const multiplier = requireParam(
+    "keltnerChannel",
+    params,
+    "multiplier",
+    (v): v is number => typeof v === "number" && Number.isFinite(v) && v > 0,
+    "must be a positive number",
+  );
+
+  let emaInd: IncrementalIndicator<number | null, IndicatorSnapshot<EmaState>>;
+  let atrInd: IncrementalIndicator<number | null, IndicatorSnapshot<AtrState>>;
   let count: number;
 
-  if (warmUpOptions?.fromState) {
-    const s = warmUpOptions.fromState;
-    emaInd = createEma({ period: emaPeriod, source: "close" }, { fromState: s.emaState });
-    atrInd = createAtr({ period: atrPeriod }, { fromState: s.atrState });
-    count = s.count;
+  if (state !== null) {
+    emaInd = createEma({ period: emaPeriod, source: "close" }, { fromState: state.emaState });
+    atrInd = createAtr({ period: atrPeriod }, { fromState: state.atrState });
+    count = state.count;
   } else {
     emaInd = createEma({ period: emaPeriod, source: "close" });
     atrInd = createAtr({ period: atrPeriod });
@@ -80,7 +133,10 @@ export function createKeltnerChannel(
     };
   }
 
-  const indicator: IncrementalIndicator<KeltnerChannelValue, KeltnerChannelState> = {
+  const indicator: IncrementalIndicator<
+    KeltnerChannelValue,
+    IndicatorSnapshot<KeltnerChannelState>
+  > = {
     next(candle: NormalizedCandle) {
       count++;
       const emaResult = emaInd.next(candle);
@@ -96,15 +152,17 @@ export function createKeltnerChannel(
       return { time: candle.time, value };
     },
 
-    getState(): KeltnerChannelState {
-      return {
-        emaPeriod,
-        atrPeriod,
-        multiplier,
-        emaState: emaInd.getState(),
-        atrState: atrInd.getState(),
-        count,
-      };
+    getState(): IndicatorSnapshot<KeltnerChannelState> {
+      return makeSnapshot(
+        "keltnerChannel",
+        KELTNER_CHANNEL_VERSION,
+        { emaPeriod, atrPeriod, multiplier },
+        {
+          emaState: emaInd.getState(),
+          atrState: atrInd.getState(),
+          count,
+        },
+      );
     },
 
     get count() {

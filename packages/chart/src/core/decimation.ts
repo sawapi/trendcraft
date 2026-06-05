@@ -141,11 +141,19 @@ export function decimateCandles(
   endIndex: number,
   maxBars: number,
 ): DecimatedCandles {
-  const count = endIndex - startIndex;
+  // Clamp the requested range to the actual data length. The viewport can lag
+  // a setCandles call by a frame (or be set programmatically past the data),
+  // and reading `candles[bStart].open` blindly would crash on an undefined.
+  const safeStart = Math.max(0, Math.min(startIndex, candles.length));
+  const safeEnd = Math.max(safeStart, Math.min(endIndex, candles.length));
+  const count = safeEnd - safeStart;
+  if (count === 0) {
+    return { candles: [], originalIndices: new Int32Array(0) };
+  }
   if (count <= maxBars || maxBars <= 0) {
-    const result = candles.slice(startIndex, endIndex) as CandleData[];
+    const result = candles.slice(safeStart, safeEnd) as CandleData[];
     const originalIndices = new Int32Array(result.length);
-    for (let i = 0; i < result.length; i++) originalIndices[i] = startIndex + i;
+    for (let i = 0; i < result.length; i++) originalIndices[i] = safeStart + i;
     return { candles: result, originalIndices };
   }
 
@@ -154,8 +162,8 @@ export function decimateCandles(
   const originalIndices = new Int32Array(maxBars);
 
   for (let b = 0; b < maxBars; b++) {
-    const bStart = startIndex + Math.floor(b * bucketSize);
-    const bEnd = Math.min(startIndex + Math.floor((b + 1) * bucketSize), endIndex);
+    const bStart = safeStart + Math.floor(b * bucketSize);
+    const bEnd = Math.min(safeStart + Math.floor((b + 1) * bucketSize), safeEnd);
 
     const open = candles[bStart].open;
     let high = Number.NEGATIVE_INFINITY;

@@ -665,6 +665,7 @@ export {
   createExitConditionPool,
   crowdingDistance,
   extractSensitivityData,
+  extractTradeReturns,
   fastNonDominatedSort,
   formatAWFResult,
   formatCombinationResult,
@@ -690,6 +691,7 @@ export {
   // Monte Carlo Simulation
   runMonteCarloSimulation,
   runMonteCarloSimulationSafe,
+  stitchOosEquity,
   summarizeAWFResult,
   summarizeCombinationSearch,
   summarizeGridSearch,
@@ -698,7 +700,10 @@ export {
   summarizeWalkForward,
   // Walk-Forward Analysis
   walkForwardAnalysis,
+  walkForwardAnalysisFromJSON,
+  walkForwardAnalysisFromJSONSafe,
   walkForwardAnalysisSafe,
+  wfeRatio,
 } from "./optimization";
 // Position Sizing
 export {
@@ -718,6 +723,7 @@ export {
   riskBasedSize,
   riskPerShare,
 } from "./position-sizing";
+export type { DeflatedSharpeParams } from "./scoring";
 // Signal Scoring
 export {
   // Calculator
@@ -740,6 +746,10 @@ export {
   createTrendFollowingPreset,
   createVolumeAnomalyEvaluator,
   createVolumeSpikeEvaluator,
+  // Deflated Sharpe Ratio
+  deflatedSharpe,
+  deflatedSharpeFromReturns,
+  expectedMaxSharpe,
   // Presets
   getPreset,
   isScoreAbove,
@@ -751,6 +761,7 @@ export {
   perfectOrderBearish as poBearishSignal,
   perfectOrderBullish as poBullishSignal,
   poConfirmation,
+  probabilisticSharpe,
   rsiOverbought70,
   // Pre-built signals
   rsiOversold30,
@@ -1297,6 +1308,7 @@ export type {
   SessionOverrides,
   StrategyDefinition,
   StrategyJSON,
+  Tunable,
   ValidationResult as StrategyValidationResult,
 } from "./strategy";
 // Strategy Definition
@@ -1308,6 +1320,7 @@ export {
   createSessionFromStrategy,
   flattenStrategyLeaves,
   hydrateCondition,
+  listTunables,
   loadStrategy,
   parseLeafPath,
   parseStrategy,
@@ -1320,7 +1333,13 @@ export {
 export type { IndicatorCategory, IndicatorPreset, LivePreset, ParamSchema } from "./streaming";
 // Streaming (real-time trading pipeline)
 export * as streaming from "./streaming";
-export { createLiveCandle, getIndicatorPreset, indicatorPresets, livePresets } from "./streaming";
+export {
+  createLiveCandle,
+  getIndicatorPreset,
+  getIndicatorPresetKey,
+  indicatorPresets,
+  livePresets,
+} from "./streaming";
 export type {
   AlphaDecayOptions,
   AlphaDecayResult,

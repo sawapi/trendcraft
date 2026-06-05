@@ -90,7 +90,6 @@ export {
   extractTradeReturns,
   getMetricValue,
 } from "./metrics";
-
 // Monte Carlo Simulation
 export {
   calculateStatistics,
@@ -118,7 +117,6 @@ export type {
   SensitivityPair,
   SensitivitySingle,
 } from "./strategy-dna";
-
 // Strategy DNA — post-optimization analytics
 export {
   buildGenomeSegments,
@@ -131,7 +129,14 @@ export {
   calculatePeriodCount,
   generatePeriodBoundaries,
   getOutOfSampleEquityCurve,
+  stitchOosEquity,
   summarizeWalkForward,
   walkForwardAnalysis,
   walkForwardAnalysisSafe,
+  wfeRatio,
 } from "./walkforward";
+// Walk-Forward — JSON-first wrapper
+export {
+  walkForwardAnalysisFromJSON,
+  walkForwardAnalysisFromJSONSafe,
+} from "./walkforward-json";

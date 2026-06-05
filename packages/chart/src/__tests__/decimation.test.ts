@@ -106,6 +106,22 @@ describe("decimateCandles", () => {
     expect(result.candles[0].volume).toBe(firstBucketVolume);
   });
 
+  it("clamps out-of-range indices instead of throwing on undefined candle", () => {
+    // The viewport can lag a setCandles call by a frame, leaving the renderer
+    // requesting a range past the data. Reading `candles[bStart].open` would
+    // crash without the clamp.
+    const candles = makeCandles(50);
+    expect(() => decimateCandles(candles, 0, 200, 20)).not.toThrow();
+    const past = decimateCandles(candles, 60, 200, 20);
+    expect(past.candles).toEqual([]);
+    expect(past.originalIndices.length).toBe(0);
+    const overshoot = decimateCandles(candles, 0, 200, 20);
+    expect(overshoot.candles.length).toBe(20);
+    for (let i = 0; i < overshoot.originalIndices.length; i++) {
+      expect(overshoot.originalIndices[i]).toBeLessThan(50);
+    }
+  });
+
   it("originalIndices are monotonic, in-range, and land inside each bucket", () => {
     const candles = makeCandles(100);
     const result = decimateCandles(candles, 10, 90, 8);

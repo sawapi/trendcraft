@@ -9,11 +9,21 @@
  *
  * CHoCH derives from BOS: it marks only the first BOS that flips the prior
  * trend direction.
+ *
+ * State category: **Mixed** (a fixed-size `2*swingPeriod+1` raw
+ * high/low window plus persistent last-swing / trend trackers
+ * conditioned on the window the swing was confirmed under). A
+ * `swingPeriod` change re-times confirmation and would re-emit
+ * pre-snapshot structure from the carried window, so any param change
+ * on resume is refused.
+ *
+ * Migrated to the 0.4.0 State Contract.
  */
 
 import type { NormalizedCandle } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import { type IndicatorSnapshot, makeSnapshot, resolveResume } from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 
 export type BosValue = {
   bullishBos: boolean;
@@ -26,13 +36,23 @@ export type BosValue = {
 
 type WindowEntry = { high: number; low: number };
 
+/**
+ * Bare state shape for Break of Structure. The param (`swingPeriod`)
+ * lives in `meta.params` on the wire.
+ */
 export type BosState = {
-  swingPeriod: number;
   buffer: ReturnType<CircularBuffer<WindowEntry>["snapshot"]>;
   lastSwingHigh: number | null;
   lastSwingLow: number | null;
   trend: "bullish" | "bearish" | "neutral";
   count: number;
+};
+
+/** Per-indicator schema version. Bumped on any breaking state change. */
+export const BREAK_OF_STRUCTURE_VERSION = 1;
+
+type BosParams = {
+  swingPeriod: number;
 };
 
 /**
@@ -49,9 +69,21 @@ export type BosState = {
  */
 export function createBreakOfStructure(
   options: { swingPeriod?: number } = {},
-  warmUpOptions?: WarmUpOptions<BosState>,
-): IncrementalIndicator<BosValue, BosState> {
-  const swingPeriod = options.swingPeriod ?? 5;
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<BosState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<BosValue, IndicatorSnapshot<BosState>> {
+  const { params, state, reconfigured } = resolveResume<BosParams, BosState>({
+    indicator: "breakOfStructure",
+    version: BREAK_OF_STRUCTURE_VERSION,
+    category: "mixed",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { swingPeriod: 5 },
+  });
+
+  const swingPeriod = params.swingPeriod;
   if (swingPeriod < 1) throw new Error("swingPeriod must be at least 1");
 
   const windowSize = 2 * swingPeriod + 1;
@@ -62,13 +94,21 @@ export function createBreakOfStructure(
   let trend: "bullish" | "bearish" | "neutral";
   let count: number;
 
-  if (warmUpOptions?.fromState) {
-    const s = warmUpOptions.fromState;
-    buffer = CircularBuffer.fromSnapshot(s.buffer);
-    lastSwingHigh = s.lastSwingHigh;
-    lastSwingLow = s.lastSwingLow;
-    trend = s.trend;
-    count = s.count;
+  if (state !== null) {
+    const old = CircularBuffer.fromSnapshot(state.buffer);
+    if (reconfigured) {
+      buffer = new CircularBuffer<WindowEntry>(windowSize);
+      const carry = Math.min(old.length, windowSize);
+      for (let i = old.length - carry; i < old.length; i++) {
+        buffer.push(old.get(i));
+      }
+    } else {
+      buffer = old;
+    }
+    lastSwingHigh = state.lastSwingHigh;
+    lastSwingLow = state.lastSwingLow;
+    trend = state.trend;
+    count = state.count;
   } else {
     buffer = new CircularBuffer<WindowEntry>(windowSize);
     lastSwingHigh = null;
@@ -92,7 +132,7 @@ export function createBreakOfStructure(
     return { isHigh, isLow, mid };
   }
 
-  const indicator: IncrementalIndicator<BosValue, BosState> = {
+  const indicator: IncrementalIndicator<BosValue, IndicatorSnapshot<BosState>> = {
     next(candle: NormalizedCandle) {
       buffer.push({ high: candle.high, low: candle.low });
       count++;
@@ -140,7 +180,7 @@ export function createBreakOfStructure(
     },
 
     peek(candle: NormalizedCandle) {
-      const saved = indicator.getState();
+      const saved = indicator.getState().state;
       const result = indicator.next(candle);
       buffer = CircularBuffer.fromSnapshot(saved.buffer);
       lastSwingHigh = saved.lastSwingHigh;
@@ -150,15 +190,19 @@ export function createBreakOfStructure(
       return result;
     },
 
-    getState(): BosState {
-      return {
-        swingPeriod,
-        buffer: buffer.snapshot(),
-        lastSwingHigh,
-        lastSwingLow,
-        trend,
-        count,
-      };
+    getState(): IndicatorSnapshot<BosState> {
+      return makeSnapshot(
+        "breakOfStructure",
+        BREAK_OF_STRUCTURE_VERSION,
+        { swingPeriod },
+        {
+          buffer: buffer.snapshot(),
+          lastSwingHigh,
+          lastSwingLow,
+          trend,
+          count,
+        },
+      );
     },
 
     get count() {
@@ -166,7 +210,7 @@ export function createBreakOfStructure(
     },
 
     get isWarmedUp() {
-      return count >= windowSize;
+      return buffer.length >= windowSize;
     },
   };
 
@@ -179,15 +223,25 @@ export function createBreakOfStructure(
   return indicator;
 }
 
+/**
+ * Bare state shape for Change of Character. Composes an inner BOS
+ * snapshot. The param (`swingPeriod`) lives in `meta.params`.
+ */
 export type ChochState = {
-  bosState: BosState;
+  bosState: IndicatorSnapshot<BosState>;
   prevTrend: "bullish" | "bearish" | "neutral";
 };
+
+/** Per-indicator schema version. Bumped on any breaking state change. */
+export const CHANGE_OF_CHARACTER_VERSION = 1;
 
 /**
  * Create an incremental Change of Character indicator.
  *
  * CHoCH is a BOS in the opposite direction of the previous (post-BOS) trend.
+ *
+ * State category: **Mixed** — wraps an inner BOS snapshot; a
+ * `swingPeriod` change on resume is refused (as for BOS itself).
  *
  * @example
  * ```ts
@@ -200,17 +254,28 @@ export type ChochState = {
  */
 export function createChangeOfCharacter(
   options: { swingPeriod?: number } = {},
-  warmUpOptions?: WarmUpOptions<ChochState>,
-): IncrementalIndicator<BosValue, ChochState> {
-  const bos = createBreakOfStructure(
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<ChochState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<BosValue, IndicatorSnapshot<ChochState>> {
+  const { params, state } = resolveResume<BosParams, ChochState>({
+    indicator: "changeOfCharacter",
+    version: CHANGE_OF_CHARACTER_VERSION,
+    category: "mixed",
     options,
-    warmUpOptions?.fromState ? { fromState: warmUpOptions.fromState.bosState } : undefined,
-  );
-  let prevTrend: "bullish" | "bearish" | "neutral" = warmUpOptions?.fromState
-    ? warmUpOptions.fromState.prevTrend
-    : "neutral";
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { swingPeriod: 5 },
+  });
 
-  const indicator: IncrementalIndicator<BosValue, ChochState> = {
+  const swingPeriod = params.swingPeriod;
+  const bos = createBreakOfStructure(
+    { swingPeriod },
+    state ? { fromState: state.bosState } : undefined,
+  );
+  let prevTrend: "bullish" | "bearish" | "neutral" = state ? state.prevTrend : "neutral";
+
+  const indicator: IncrementalIndicator<BosValue, IndicatorSnapshot<ChochState>> = {
     next(candle: NormalizedCandle) {
       const { time, value } = bos.next(candle);
       const isBullishChoch = value.bullishBos && prevTrend === "bearish";
@@ -243,8 +308,13 @@ export function createChangeOfCharacter(
       };
     },
 
-    getState(): ChochState {
-      return { bosState: bos.getState(), prevTrend };
+    getState(): IndicatorSnapshot<ChochState> {
+      return makeSnapshot(
+        "changeOfCharacter",
+        CHANGE_OF_CHARACTER_VERSION,
+        { swingPeriod },
+        { bosState: bos.getState(), prevTrend },
+      );
     },
 
     get count() {

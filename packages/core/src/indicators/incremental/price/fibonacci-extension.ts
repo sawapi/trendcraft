@@ -16,13 +16,9 @@
  */
 
 import type { NormalizedCandle } from "../../../types";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
-import {
-  cloneShallow,
-  pushBounded,
-  resolveLevelsConfig,
-  resolveSwingConfig,
-} from "./swing-helpers";
+import { type IndicatorSnapshot, makeSnapshot, resolveResume } from "../state-contract";
+import type { IncrementalIndicator } from "../types";
+import { cloneShallow, pushBounded, resolveLevels, validateSwingConfig } from "./swing-helpers";
 import { createSwingPoints, type SwingPointsState } from "./swing-points";
 
 export type FibonacciExtensionValue = {
@@ -53,11 +49,13 @@ type AlternatingPoint = {
   type: "high" | "low";
 };
 
+/**
+ * Bare state shape for Fibonacci Extension. Params (`leftBars`,
+ * `rightBars`, `levels`) live in `meta.params`; the inner swing-points
+ * snapshot is itself an `IndicatorSnapshot`.
+ */
 export type FibonacciExtensionState = {
-  leftBars: number;
-  rightBars: number;
-  levels: number[];
-  swings: SwingPointsState;
+  swings: IndicatorSnapshot<SwingPointsState>;
   alternating: AlternatingPoint[];
   currentLevels: Record<string, number> | null;
   currentPointA: number | null;
@@ -67,15 +65,34 @@ export type FibonacciExtensionState = {
   count: number;
 };
 
+/** Per-indicator schema version. Bumped on any breaking state change. */
+export const FIBONACCI_EXTENSION_VERSION = 1;
+
 const DEFAULT_LEVELS: readonly number[] = [0, 0.618, 1, 1.272, 1.618, 2, 2.618];
+
+type FibonacciExtensionParams = {
+  leftBars: number;
+  rightBars: number;
+  levels: number[];
+};
 
 export function createFibonacciExtension(
   options: FibonacciExtensionOptions = {},
-  warmUpOptions?: WarmUpOptions<FibonacciExtensionState>,
-): IncrementalIndicator<FibonacciExtensionValue, FibonacciExtensionState> {
-  const fromState = warmUpOptions?.fromState;
-  const { leftBars, rightBars } = resolveSwingConfig(options, fromState);
-  const { levels, ratioKeys } = resolveLevelsConfig(options, fromState, DEFAULT_LEVELS);
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<FibonacciExtensionState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<FibonacciExtensionValue, IndicatorSnapshot<FibonacciExtensionState>> {
+  const { params, state } = resolveResume<FibonacciExtensionParams, FibonacciExtensionState>({
+    indicator: "fibonacciExtension",
+    version: FIBONACCI_EXTENSION_VERSION,
+    category: "mixed",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { leftBars: 10, rightBars: 10, levels: DEFAULT_LEVELS.slice() },
+  });
+  const { leftBars, rightBars } = validateSwingConfig(params.leftBars, params.rightBars);
+  const { levels, ratioKeys } = resolveLevels(params.levels);
 
   let swings: ReturnType<typeof createSwingPoints>;
   // The pattern only ever needs the last 3 alternating points. Trim to that
@@ -88,15 +105,15 @@ export function createFibonacciExtension(
   let currentDirection: "bullish" | "bearish" | null;
   let count: number;
 
-  if (fromState) {
-    swings = createSwingPoints({ leftBars, rightBars }, { fromState: fromState.swings });
-    alternating = cloneShallow(fromState.alternating);
-    currentLevels = fromState.currentLevels ? { ...fromState.currentLevels } : null;
-    currentPointA = fromState.currentPointA;
-    currentPointB = fromState.currentPointB;
-    currentPointC = fromState.currentPointC;
-    currentDirection = fromState.currentDirection;
-    count = fromState.count;
+  if (state !== null) {
+    swings = createSwingPoints({ leftBars, rightBars }, { fromState: state.swings });
+    alternating = cloneShallow(state.alternating);
+    currentLevels = state.currentLevels ? { ...state.currentLevels } : null;
+    currentPointA = state.currentPointA;
+    currentPointB = state.currentPointB;
+    currentPointC = state.currentPointC;
+    currentDirection = state.currentDirection;
+    count = state.count;
   } else {
     swings = createSwingPoints({ leftBars, rightBars });
     alternating = [];
@@ -175,7 +192,10 @@ export function createFibonacciExtension(
     return value;
   }
 
-  const indicator: IncrementalIndicator<FibonacciExtensionValue, FibonacciExtensionState> = {
+  const indicator: IncrementalIndicator<
+    FibonacciExtensionValue,
+    IndicatorSnapshot<FibonacciExtensionState>
+  > = {
     next(candle: NormalizedCandle) {
       count++;
       const swingResult = swings.next(candle);
@@ -203,7 +223,7 @@ export function createFibonacciExtension(
     },
 
     peek(candle: NormalizedCandle) {
-      const saved = indicator.getState();
+      const saved = indicator.getState().state;
       const result = indicator.next(candle);
       swings = createSwingPoints({ leftBars, rightBars }, { fromState: saved.swings });
       alternating = cloneShallow(saved.alternating);
@@ -217,20 +237,22 @@ export function createFibonacciExtension(
       return result;
     },
 
-    getState(): FibonacciExtensionState {
-      return {
-        leftBars,
-        rightBars,
-        levels: levels.slice(),
-        swings: swings.getState(),
-        alternating: cloneShallow(alternating),
-        currentLevels: currentLevels ? { ...currentLevels } : null,
-        currentPointA,
-        currentPointB,
-        currentPointC,
-        currentDirection,
-        count,
-      };
+    getState(): IndicatorSnapshot<FibonacciExtensionState> {
+      return makeSnapshot(
+        "fibonacciExtension",
+        FIBONACCI_EXTENSION_VERSION,
+        { leftBars, rightBars, levels: levels.slice() },
+        {
+          swings: swings.getState(),
+          alternating: cloneShallow(alternating),
+          currentLevels: currentLevels ? { ...currentLevels } : null,
+          currentPointA,
+          currentPointB,
+          currentPointC,
+          currentDirection,
+          count,
+        },
+      );
     },
 
     get count() {

@@ -2,6 +2,266 @@
 
 ## Unreleased
 
+### Added — optimizer cross-parameter constraints (`validateParams` + `paramFilter`)
+
+The grid-search engine can now reject structurally-invalid parameter
+combinations *before* backtesting them, the exhaustive-grid analogue of
+vectorbt's parameter mask. `GridSearchOptions` and `WalkForwardOptions`
+gain a `paramFilter?: (params) => boolean`; combinations it rejects never
+run, never enter `results`, and don't count toward `validCombinations`
+(distinct from metric `constraints`, which filter *after* backtesting on
+realized metrics).
+
+Condition registry entries gain an optional
+`validateParams?: (params) => boolean` for cross-field invariants no
+per-field range can express — `goldenCross` / `deadCross` /
+`validatedGoldenCross` / `validatedDeadCross` now declare
+`shortPeriod < longPeriod`. `gridSearchFromJSON` and
+`walkForwardAnalysisFromJSON` automatically build a `paramFilter` from the
+strategy's leaves and their registered `validateParams` (AND-composed with
+any caller-supplied `paramFilter`), so an inverted-cross combo can neither
+appear in grid results nor be chosen as a walk-forward window's best
+parameters. Walk-forward's no-valid-combination fallback honors the same
+filter rather than defaulting to raw range minima.
+
+### Added — `walkForwardAnalysisFromJSON` (JSON-first rolling walk-forward)
+
+Sibling of `gridSearchFromJSON` for rolling walk-forward analysis. Drives
+`walkForwardAnalysis` directly from a `StrategyJSON` plus path-addressed
+`PathParameterRange[]`, so callers no longer have to hand-write a
+`StrategyFactory` to walk-forward a JSON strategy. Per-period `bestParams`
+keys are paths (e.g. `"entry.0.shortPeriod"`), matching
+`gridSearchFromJSON`, so a window's optimized params plug straight back
+into `applyParamOverrides`. `walkForwardAnalysisFromJSONSafe` returns a
+`Result` (range-path errors → `INVALID_PARAMETER`, oversized grid →
+`TOO_MANY_COMBINATIONS`, too-short slice → `INSUFFICIENT_DATA`).
+
+Covers rolling walk-forward only; anchored walk-forward runs a
+condition-combination search rather than a parameter sweep and does not
+share this shape.
+
+Internally, the shared JSON→factory translation (path validation, factory
+construction, range conversion, error classification) is now factored into
+`optimization/strategy-json-factory.ts`, which both `gridSearchFromJSON`
+and `walkForwardAnalysisFromJSON` delegate to, so the two entry points
+cannot drift on validation rules.
+
+### Changed — Monte Carlo: bootstrap resampling by default + downside-risk summary (replaces p-value)
+
+`runMonteCarloSimulation` gains a `method?: "shuffle" | "bootstrap"`
+option and now defaults to **`"bootstrap"`** (was an unconditional
+order shuffle). Bootstrap draws N trades with replacement, so total
+return, Sharpe, and profit factor vary across simulations — the basis
+for outcome-uncertainty and probability-of-loss estimates. The previous
+behaviour is still available as `method: "shuffle"` for sequence-risk
+analysis, where only the path-dependent max drawdown varies.
+
+This matches the resampling distinction drawn by mainstream backtest MC
+tooling, where bootstrap (with replacement) is the default for "how
+reliable is this edge?" and order shuffling is the narrower
+sequence-risk test.
+
+The result's significance fields are replaced by a **downside-risk
+summary measured directly on the resampled outcomes**. The previous
+`pValue` / `assessment.isSignificant` shape forced a binary
+significance verdict (a permutation-test concept) onto a resampling
+distribution and compared mismatched Sharpe formulas. In its place
+`MonteCarloResult.downside` reports `probProfit`, `probLoss`,
+`riskOfRuin` (the fraction of simulations whose path-dependent max
+drawdown reaches a configurable `ruinThreshold`, default 50%), and the
+`ruinThreshold` used. `runMonteCarloSimulation` accepts a matching
+`ruinThreshold?: number` option. `assessment` keeps a method-aware,
+human-readable `reason` and the `confidenceLevel` but no longer carries
+`isSignificant`. `summarizeMonteCarloResult` returns `{ probProfit,
+probLoss, riskOfRuin, expectedSharpe, sharpe95CI, originalSharpe }`.
+These distribution-based figures are what mainstream backtest Monte
+Carlo tooling reports (StrategyQuant, AmiBroker, BuildAlpha).
+`originalResult` is unchanged (still the backtest's reported metrics).
+
+### Added — Robustness helpers: walk-forward efficiency, stitched OOS equity, Deflated Sharpe
+
+- **`wfeRatio(result)`** — Pardo's Walk-Forward Efficiency: the average
+  per-period ratio of annualized out-of-sample to annualized in-sample
+  return. Both windows are annualized over their calendar span before
+  the ratio, periods with non-positive in-sample return are skipped, and
+  the result is `NaN` when none qualify. Uncapped, so a strategy that
+  beats its optimization out-of-sample scores above 1.0. Pardo treats
+  ≥ 0.5 as the threshold for a robust (rather than curve-fit) strategy.
+- **`stitchOosEquity(result, initialCapital?)`** — stitches every
+  walk-forward period's out-of-sample trades into one continuous equity
+  curve, one point per trade (plus a leading anchor). A finer-grained
+  companion to the period-granularity `getOutOfSampleEquityCurve`.
+- **`deflatedSharpe(params)`** / **`deflatedSharpeFromReturns(returns,
+  trialSharpes)`** — Deflated Sharpe Ratio (Bailey & López de Prado
+  2014): the probability the true Sharpe is positive after correcting
+  for selection bias across `N` trials, non-normality (skew / kurtosis),
+  and sample length. Building blocks `probabilisticSharpe(...)` (PSR) and
+  `expectedMaxSharpe(trials, variance)` (the SR0 selection benchmark) are
+  exported too. All Sharpe inputs are per-return (non-annualized).
+
+### Added — `listTunables(strategy)` for numeric parameter introspection
+
+Walks a `StrategyJSON`'s entry / exit conditions and emits one `Tunable`
+per numeric registry-declared parameter. Mirrors the strategy-parameter
+introspection surface exposed by other TA frameworks (TA-Lib's
+`TA_GetOptInputParameterInfo`, backtrader's `self.params`, freqtrade's
+`IntParameter` / `DecimalParameter`, Pine Script's `input.int` /
+`input.float`).
+
+Each `Tunable.key` follows the canonical `<bucket>.<leafIndex>.<paramName>`
+path syntax so the result feeds `gridSearchFromJSON` without
+translation. The full registry `ParamDef` is attached as `schema` so
+callers can read `min` / `max` / `default` / `integer` / `precision` /
+`suggestedMin` / `suggestedMax` directly. There is **no** heuristic on
+top — integer / continuous typing is read from the explicit
+`schema.integer` annotation, in line with the industry pattern of
+making this typing explicit at the schema level (TA-Lib enum,
+freqtrade class hierarchy, Pine Script function pair).
+
+Conditions whose registry entry is missing or whose params are all
+non-numeric are silently skipped, so a strategy with `alwaysTrue` /
+`alwaysFalse` returns `[]`. Defaults to `backtestRegistry`.
+
+Also adds `ParamDef.tunable?: boolean` so registry entries can opt out
+of enumeration when they declare `type: "number"` for compactness but
+the runtime value is non-scalar — applied internally to the Perfect
+Order `periods` param (consumed as `number[]`).
+
+### Added — `getIndicatorPresetKey(kind)` for manifest-kind → preset-key resolution
+
+Forward sibling of `getIndicatorPreset(kind)`: returns the preset's
+short key (`"bb"`) when given either the manifest's canonical long name
+(`"bollingerBands"`) or the short key itself. Returns `undefined` when
+the kind has no preset (regime classifiers, smc events).
+
+Typical use is bridging manifest output to chart-side APIs that key on
+the short name, e.g. `connectIndicators({ presets }).add(key, ...)`.
+Hosts that previously did their own reverse scan over `indicatorPresets`
+can drop that and read directly from the canonical alias table.
+
+Both helpers share the same `KIND_ALIASES` table internally, so they
+cannot drift on which kind maps where.
+
+### Added — Extended `BacktestResult` metrics (Sortino, Calmar, CAGR, Expectancy, Exposure, per-trade aggregates)
+
+`BacktestResult` gains **eleven** new fields filled in by every call to
+`runBacktest` / `runScaledEntryBacktest`:
+
+- `sortinoRatio` — like Sharpe but divides by *downside* deviation
+  only, so upside volatility no longer penalizes the score. `0` when
+  there are no negative returns. Annualized with `sqrt(252)` to match
+  Sharpe's convention.
+- `calmarRatio` — `cagrPercent / maxDrawdown`. Industry-standard
+  "return per unit of pain". `0` when `maxDrawdown` is zero.
+- `cagrPercent` — compound annual growth rate, computed from the
+  candle span (first bar time → last bar time). Replaces having to
+  guess at "what's my actual annualized return" from
+  `totalReturnPercent` + holding period.
+- `expectancyPercent` — average of `trade.returnPercent` across all
+  trades. Equivalent to `(winRate × avgWin) − (lossRate × avgLoss)`.
+  Positive = strategy is profitable per trade on average; the
+  canonical "is this an edge?" check.
+- `exposurePercent` — total holding time divided by the candle span.
+  A Sharpe of 2 at 10% exposure is materially different from a
+  Sharpe of 2 at 100% exposure; this surfaces that distinction.
+  **Computed via merged `(entryTime, exitTime)` intervals** so
+  scale-out / partial-exit strategies (which emit several `Trade`
+  records that share an entry time) report the actual time-in-market
+  rather than the naive `sum(holdingDays)` that would double-count.
+- `avgWinPercent` / `avgLossPercent` — average % return of winning /
+  losing trades. `avgLossPercent` is reported as a positive number
+  ("how much did the average loser lose").
+- `largestWinPercent` / `largestLossPercent` — best / worst single-
+  trade return, same positive-for-loss convention.
+- `firstBarTime` / `lastBarTime` — the candle span the backtest ran
+  over (epoch ms). Stored so derived analyses (equity-curve filter,
+  slicing, post-hoc annualization) can recompute time-based metrics
+  without re-supplying the window.
+
+Matches TradingView Performance Summary, QuantifiedStrategies'
+checklist, and Van Tharp's metrics framework — what veteran traders
+expect to see in a backtest summary.
+
+The metric math is consolidated into a single
+`computeExtendedMetrics(...)` helper exported from
+`backtest/engine-utils.ts`, used by every `BacktestResult`
+construction site — the main `runBacktest` engine, the scaled-entry
+engine, and `meta-strategy/equity-curve.ts:rebuildResult` (which
+filters trades and recomputes metrics against the same candle
+window).
+
+`calculateStats` and `emptyResult` (internal) gained an optional
+`span` parameter (`{ firstTime, lastTime }`). Engines that have
+candle data pass it automatically so CAGR / exposure are accurate.
+External consumers wrapping `calculateStats` directly get `0` for
+those metrics if they don't supply `span` — back-compatible.
+
+All new fields default to `0` in `emptyResult` and round to 2 decimal
+places. No existing field semantics change. **Type-level note:**
+because the new fields are required on `BacktestResult`, external
+code that *constructs* this type (e.g. test fixtures, mock results)
+must supply the new properties. Reading code is unaffected.
+
+### Breaking — Indicator State Contract (`getState` / `fromState` wire format)
+
+Every incremental indicator (`createSma`, `createEma`, `createMacd`,
+… — all ~94 of them) now exchanges state through a versioned
+envelope instead of a bare state object:
+
+```ts
+type IndicatorSnapshot<TState> = {
+  meta: {
+    version: number;                  // per-indicator schema version
+    indicator: string;                // "sma" | "ema" | … runtime guard
+    params: Record<string, unknown>;  // params captured at snapshot time
+  };
+  state: TState;                       // indicator-specific state
+};
+```
+
+- `getState()` now returns `IndicatorSnapshot<TState>` (previously
+  the bare `TState`).
+- `createXxx(options, { fromState })` now expects an
+  `IndicatorSnapshot<TState>` for `fromState` (previously the bare
+  `TState`).
+
+**Pre-0.4.0 snapshots cannot be resumed.** They have no `meta`
+field; `fromState` detects this and throws
+`<indicator>: incompatible snapshot, re-warm required`. The fix is
+to re-warm the indicator from candle history (replay candles through
+`next()`), or fall back to a fresh instance. There is no automatic
+migration in 0.4.0 — `throw + re-warm` is the policy.
+
+Resume behaviour is now defined per **state category**:
+
+- **Windowed** (SMA, WMA, ALMA, Donchian, Highest/Lowest, …) —
+  carry-forward: resuming with a different `period` reuses the
+  saved buffer and re-warms only the shortfall. A `source` change
+  still throws.
+- **Recursive / Mixed / Cascaded** (EMA, ZLEMA, FRAMA, KAMA, MACD,
+  DEMA, TEMA, HMA, …) — any state-shaping param change on resume
+  throws; the recursive accumulator encodes past params and cannot
+  be reconfigured mid-stream.
+- **Event log** (BOS, FVG, Liquidity Sweep, Pivot Points, Order
+  Block, Swing Points, …) — append-only: a params change keeps the
+  recorded events and continues appending.
+
+A new orthogonal **param-role** axis lets *resume-invariant* params
+change freely on resume regardless of category. These params (e.g.
+a band-width `multiplier` that only scales the state→output
+projection, never the state itself) are exempt from the resume
+compatibility check — the saved state is reused verbatim and the new
+value takes effect immediately. `source` is never eligible.
+
+Streaming sessions (`createLiveCandle` / `createPipeline` /
+`createSession`) persist per-indicator `getState()` output, so
+**0.3.x streaming session snapshots cannot be resumed in 0.4.0** —
+re-warm from candle history. Strategy JSON
+(`serializeStrategy` / `parseStrategy`) describes configurations,
+not runtime state, and is unaffected.
+
+See `docs/migration-0.3-to-0.4.md` for the 5-minute upgrade guide.
+
 ### Breaking — Elder's Force Index returns `{ short, long }`
 
 `elderForceIndex` and the incremental `createElderForceIndex` now
@@ -72,6 +332,30 @@ The contract enforced is `serialize(parse(serialize(s))) === serialize(s)`
 plus structural equality after parse. No production behavior change;
 this is regression coverage for the JSON layer that downstream
 consumers (MCP, Strategy Studio, Strategy DNA) all build on.
+
+### Fixed — incremental Volume Trend / Chandelier Exit match their batch functions
+
+Two incremental indicators diverged from their batch counterparts
+on a handful of bars; both are now corrected so the streaming and
+batch APIs produce identical output.
+
+- **Volume Trend** — when the price trend was `neutral`, the
+  incremental `createVolumeTrend` discarded the `volumeTrend`
+  reading and reported `volumeTrend: "neutral"`. The volume trend
+  is an independent measurement and is now reported on every bar,
+  matching batch `volumeTrend()`. `isConfirmed` / `hasDivergence` /
+  `confidence` are still zeroed when the price trend is neutral.
+- **Chandelier Exit** — the incremental `createChandelierExit`
+  emitted a running partial `highestHigh` / `lowestLow` during the
+  warmup period, while batch `chandelierExit()` (and the library's
+  `highest()` / `lowest()`) report `null` until the lookback window
+  is full. The incremental now reports `null` for these fields
+  during warmup. The actual exit levels (`longExit` / `shortExit` /
+  `direction`) were already correct and are unchanged.
+
+The `consistency.test.ts` suite now also asserts the previously
+unchecked `highestHigh` / `lowestLow` / `atr` fields and gains a
+Volume Trend batch-parity block.
 
 ### Fixed — GARCH / EWMA volatility input and stationarity guards
 

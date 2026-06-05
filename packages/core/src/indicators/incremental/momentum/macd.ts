@@ -2,27 +2,52 @@
  * Incremental MACD (Moving Average Convergence Divergence)
  *
  * Composite indicator using three EMA layers: fast, slow, signal.
+ *
+ * State category: **Cascaded** (three recursive EMA layers). MACD
+ * keeps its own inline EMA logic — it does not compose `createEma` —
+ * so the bare state carries the EMA accumulators directly. Resume
+ * with a different `fastPeriod` / `slowPeriod` / `signalPeriod` /
+ * `source` is refused.
+ *
+ * Migrated to the 0.4.0 State Contract. The EMA multipliers
+ * (`fastMult` / `slowMult` / `signalMult`) are derived from the
+ * periods in the factory closure and not persisted.
  */
 
 import type { MacdValue, NormalizedCandle, PriceSource } from "../../../types";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import {
+  type IndicatorSnapshot,
+  makeSnapshot,
+  requireParam,
+  resolveResume,
+} from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 import { getSourcePrice } from "../utils";
 
+/**
+ * Bare state shape for MACD. Params (`fastPeriod`, `slowPeriod`,
+ * `signalPeriod`, `source`) live in `meta.params`; the EMA multipliers
+ * are derived from the periods.
+ */
 export type MacdState = {
-  fastPeriod: number;
-  slowPeriod: number;
-  signalPeriod: number;
   fastEma: number | null;
   slowEma: number | null;
   signalEma: number | null;
   fastSum: number;
   slowSum: number;
   signalSum: number;
-  fastMult: number;
-  slowMult: number;
-  signalMult: number;
   count: number;
   validMacdCount: number;
+};
+
+/** Per-indicator schema version. Bumped on any breaking state change. */
+export const MACD_VERSION = 1;
+
+type MacdParams = {
+  fastPeriod: number;
+  slowPeriod: number;
+  signalPeriod: number;
+  source: PriceSource;
 };
 
 /**
@@ -44,12 +69,42 @@ export function createMacd(
     signalPeriod?: number;
     source?: PriceSource;
   } = {},
-  warmUpOptions?: WarmUpOptions<MacdState>,
-): IncrementalIndicator<MacdValue, MacdState> {
-  const fastPeriod = options.fastPeriod ?? 12;
-  const slowPeriod = options.slowPeriod ?? 26;
-  const signalPeriod = options.signalPeriod ?? 9;
-  const source = options.source ?? "close";
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<MacdState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<MacdValue, IndicatorSnapshot<MacdState>> {
+  const { params, state } = resolveResume<MacdParams, MacdState>({
+    indicator: "macd",
+    version: MACD_VERSION,
+    category: "cascaded",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { fastPeriod: 12, slowPeriod: 26, signalPeriod: 9, source: "close" },
+  });
+
+  const fastPeriod = requireParam(
+    "macd",
+    params,
+    "fastPeriod",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
+  const slowPeriod = requireParam(
+    "macd",
+    params,
+    "slowPeriod",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
+  const signalPeriod = requireParam(
+    "macd",
+    params,
+    "signalPeriod",
+    (v): v is number => Number.isInteger(v) && v >= 1,
+    "must be a positive integer",
+  );
+  const source = params.source;
   const fastMult = 2 / (fastPeriod + 1);
   const slowMult = 2 / (slowPeriod + 1);
   const signalMult = 2 / (signalPeriod + 1);
@@ -63,16 +118,15 @@ export function createMacd(
   let count: number;
   let validMacdCount: number;
 
-  if (warmUpOptions?.fromState) {
-    const s = warmUpOptions.fromState;
-    fastEma = s.fastEma;
-    slowEma = s.slowEma;
-    signalEma = s.signalEma;
-    fastSum = s.fastSum;
-    slowSum = s.slowSum;
-    signalSum = s.signalSum;
-    count = s.count;
-    validMacdCount = s.validMacdCount;
+  if (state !== null) {
+    fastEma = state.fastEma;
+    slowEma = state.slowEma;
+    signalEma = state.signalEma;
+    fastSum = state.fastSum;
+    slowSum = state.slowSum;
+    signalSum = state.signalSum;
+    count = state.count;
+    validMacdCount = state.validMacdCount;
   } else {
     fastEma = null;
     slowEma = null;
@@ -104,7 +158,7 @@ export function createMacd(
     return { ema: price * mult + (prevEma ?? 0) * (1 - mult), sum };
   }
 
-  const indicator: IncrementalIndicator<MacdValue, MacdState> = {
+  const indicator: IncrementalIndicator<MacdValue, IndicatorSnapshot<MacdState>> = {
     next(candle: NormalizedCandle) {
       count++;
       const price = getSourcePrice(candle, source);
@@ -186,23 +240,22 @@ export function createMacd(
       };
     },
 
-    getState(): MacdState {
-      return {
-        fastPeriod,
-        slowPeriod,
-        signalPeriod,
-        fastEma,
-        slowEma,
-        signalEma,
-        fastSum,
-        slowSum,
-        signalSum,
-        fastMult,
-        slowMult,
-        signalMult,
-        count,
-        validMacdCount,
-      };
+    getState(): IndicatorSnapshot<MacdState> {
+      return makeSnapshot(
+        "macd",
+        MACD_VERSION,
+        { fastPeriod, slowPeriod, signalPeriod, source },
+        {
+          fastEma,
+          slowEma,
+          signalEma,
+          fastSum,
+          slowSum,
+          signalSum,
+          count,
+          validMacdCount,
+        },
+      );
     },
 
     get count() {

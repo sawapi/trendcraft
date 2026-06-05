@@ -180,6 +180,11 @@ export type {
 } from "./smc/liquidity-sweep";
 // SMC
 export { createLiquiditySweep } from "./smc/liquidity-sweep";
+// State Contract — the versioned envelope every `getState()` returns and
+// every `fromState` accepts. Exported so TypeScript consumers can name
+// the snapshot type. (Distinct from the looser `streaming` snapshot
+// type of the same name; this is the per-indicator state envelope.)
+export type { IndicatorSnapshot, SnapshotMeta } from "./state-contract";
 export type { IchimokuState, IchimokuValue as IncrementalIchimokuValue } from "./trend/ichimoku";
 export { createIchimoku } from "./trend/ichimoku";
 export type {

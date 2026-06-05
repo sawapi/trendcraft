@@ -3,10 +3,6 @@
   "compilerOptions": {
     "rootDir": ".",
     "outDir": "./dist",
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["./src/*"]
-    },
     "types": ["vitest/globals", "node"]
   },
   "include": ["src/**/*", "bin/**/*"],

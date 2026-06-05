@@ -12,6 +12,7 @@ import type {
   MacdValue,
   NormalizedCandle,
   VolumeAnomalyValue,
+  VolumeTrendValue,
 } from "../../../types";
 import type { AroonValue } from "../../momentum/aroon";
 import { aroon } from "../../momentum/aroon";
@@ -62,6 +63,7 @@ import { mfi } from "../../volume/mfi";
 import { obv } from "../../volume/obv";
 import { twap } from "../../volume/twap";
 import { volumeAnomaly } from "../../volume/volume-anomaly";
+import { volumeTrend } from "../../volume/volume-trend";
 import type { VwapValue } from "../../volume/vwap";
 import { vwap } from "../../volume/vwap";
 import { processAll } from "../bridge";
@@ -108,6 +110,7 @@ import { createMfi } from "../volume/mfi";
 import { createObv } from "../volume/obv";
 import { createTwap } from "../volume/twap";
 import { createVolumeAnomaly } from "../volume/volume-anomaly";
+import { createVolumeTrend } from "../volume/volume-trend";
 import { createVwap } from "../volume/vwap";
 
 /**
@@ -174,6 +177,18 @@ function assertConsistency(
       expect(iv).not.toBeNull();
       expect(Math.abs(iv! - bv)).toBeLessThan(tolerance);
     }
+  }
+}
+
+/**
+ * Compare a single nullable numeric field: both null, or both close.
+ */
+function expectNullableClose(incremental: number | null, batch: number | null, tolerance = 1e-8) {
+  if (batch === null) {
+    expect(incremental).toBeNull();
+  } else {
+    expect(incremental).not.toBeNull();
+    expect(Math.abs(incremental! - batch)).toBeLessThan(tolerance);
   }
 }
 
@@ -1095,6 +1110,9 @@ describe("Chandelier Exit consistency", () => {
         expect(Math.abs(iv.shortExit! - bv.shortExit)).toBeLessThan(1e-8);
       }
 
+      expectNullableClose(iv.highestHigh, bv.highestHigh);
+      expectNullableClose(iv.lowestLow, bv.lowestLow);
+      expectNullableClose(iv.atr, bv.atr);
       expect(iv.direction).toBe(bv.direction);
       expect(iv.isCrossover).toBe(bv.isCrossover);
     }
@@ -1117,9 +1135,42 @@ describe("Chandelier Exit consistency", () => {
         expect(Math.abs(iv.longExit! - bv.longExit)).toBeLessThan(1e-8);
       }
 
+      expectNullableClose(iv.highestHigh, bv.highestHigh);
+      expectNullableClose(iv.lowestLow, bv.lowestLow);
       expect(iv.direction).toBe(bv.direction);
       expect(iv.isCrossover).toBe(bv.isCrossover);
     }
+  });
+});
+
+describe("Volume Trend consistency", () => {
+  function expectVolumeTrendMatch(opts?: Parameters<typeof createVolumeTrend>[0]) {
+    const batch = volumeTrend(candles, opts);
+    const incremental = processAll(createVolumeTrend(opts), candles);
+
+    expect(incremental.length).toBe(batch.length);
+    for (let i = 0; i < batch.length; i++) {
+      expect(incremental[i].time).toBe(batch[i].time);
+
+      const bv = batch[i].value as VolumeTrendValue;
+      const iv = incremental[i].value as VolumeTrendValue;
+
+      // priceTrend / volumeTrend must agree on every bar — including
+      // bars where priceTrend is neutral but volume is still trending.
+      expect(iv.priceTrend).toBe(bv.priceTrend);
+      expect(iv.volumeTrend).toBe(bv.volumeTrend);
+      expect(iv.isConfirmed).toBe(bv.isConfirmed);
+      expect(iv.hasDivergence).toBe(bv.hasDivergence);
+      expect(iv.confidence).toBe(bv.confidence);
+    }
+  }
+
+  it("default params match batch", () => {
+    expectVolumeTrendMatch();
+  });
+
+  it("custom params match batch", () => {
+    expectVolumeTrendMatch({ pricePeriod: 8, volumePeriod: 12, maPeriod: 15 });
   });
 });
 

@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { EMPTY_EXTENDED_METRICS_FIXTURE } from "../../backtest/__tests__/backtest-result-fixture";
 import { and } from "../../backtest/conditions/core";
 import { deadCross, goldenCross } from "../../backtest/conditions/ma-cross";
 import { runBacktest } from "../../backtest/engine";
@@ -65,6 +66,7 @@ function mockBacktestResult(overrides: Partial<BacktestResult> = {}): BacktestRe
     winRate: 60,
     maxDrawdown: 10,
     sharpeRatio: 1.5,
+    ...EMPTY_EXTENDED_METRICS_FIXTURE,
     profitFactor: 1.8,
     avgHoldingDays: 5,
     trades: [],

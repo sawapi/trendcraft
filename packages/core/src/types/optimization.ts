@@ -106,6 +106,17 @@ export type GridSearchOptions = {
   progressCallback?: (current: number, total: number) => void;
   /** Whether to keep all results or only valid ones (default: false) */
   keepAllResults?: boolean;
+  /**
+   * Structural validity predicate for a parameter combination. When
+   * provided, combinations it rejects are skipped *before* backtesting —
+   * they never run, never enter `results`, and don't count toward
+   * `validCombinations`. Use it for cross-parameter invariants that no
+   * per-field range can express (e.g. `shortPeriod < longPeriod`), the
+   * exhaustive-grid analogue of vectorbt's parameter mask. The metric
+   * `constraints` above filter *after* backtesting on realized metrics;
+   * this filters *before*, on the parameters themselves.
+   */
+  paramFilter?: (params: Record<string, number>) => boolean;
 };
 
 /**
@@ -172,6 +183,14 @@ export type WalkForwardOptions = {
   constraints?: OptimizationConstraint[];
   /** Progress callback */
   progressCallback?: (period: number, total: number) => void;
+  /**
+   * Structural validity predicate for a parameter combination, forwarded
+   * to each window's internal {@link GridSearchOptions.paramFilter}.
+   * Combinations it rejects are never optimized in any window, so a
+   * structurally-invalid set (e.g. `shortPeriod >= longPeriod`) can't be
+   * chosen as a window's best parameters.
+   */
+  paramFilter?: (params: Record<string, number>) => boolean;
 };
 
 // ============================================
@@ -188,6 +207,31 @@ export type MonteCarloOptions = {
   seed?: number;
   /** Confidence level for percentile calculations (default: 0.95) */
   confidenceLevel?: number;
+  /**
+   * Resampling method (default: `"bootstrap"`).
+   *
+   * - `"bootstrap"`: draw N trades with replacement. The same trade can
+   *   appear multiple times or not at all, so total return, Sharpe, and
+   *   profit factor all vary across simulations — the basis for
+   *   outcome-uncertainty estimates (return distribution, probability of
+   *   loss). This is the canonical method for "how reliable is this
+   *   edge?".
+   * - `"shuffle"`: permute the existing trades (no replacement). The
+   *   multiset of returns is unchanged, so total return / Sharpe /
+   *   profit factor are identical across simulations and only the
+   *   path-dependent max drawdown varies. Use this to study sequence
+   *   risk (clustering of losing trades) specifically.
+   */
+  method?: "shuffle" | "bootstrap";
+  /**
+   * Drawdown level (as a positive percent) treated as "ruin" for the
+   * {@link MonteCarloResult.downside}.`riskOfRuin` figure. A simulation
+   * counts toward risk of ruin when its path-dependent max drawdown
+   * reaches or exceeds this level. Default `50` (a 50% peak-to-trough
+   * loss), matching the threshold used by mainstream backtest Monte
+   * Carlo tooling (BuildAlpha, AmiBroker).
+   */
+  ruinThreshold?: number;
   /** Progress callback */
   progressCallback?: (current: number, total: number) => void;
 };
@@ -236,10 +280,29 @@ export type MonteCarloResult = {
   };
   /** Number of simulations run */
   simulationCount: number;
-  /** P-value: probability of achieving original result by chance */
-  pValue: {
-    sharpe: number;
-    returns: number;
+  /**
+   * Downside-risk summary measured directly on the resampled outcomes —
+   * the headline figures for "how risky is this edge?". These replace
+   * the previous permutation-test `pValue` / `isSignificant` framing,
+   * which forced a binary significance verdict onto a resampling
+   * distribution and compared mismatched Sharpe formulas. The
+   * distribution-based figures below are what mainstream backtest Monte
+   * Carlo tooling reports (StrategyQuant, AmiBroker, BuildAlpha).
+   */
+  downside: {
+    /** Fraction of simulations that ended profitable (total return > 0). */
+    probProfit: number;
+    /** Fraction of simulations that lost money (total return ≤ 0) = `1 - probProfit`. */
+    probLoss: number;
+    /**
+     * Fraction of simulations whose path-dependent max drawdown reached
+     * or exceeded {@link ruinThreshold}. Meaningful under both methods
+     * (drawdown is path-dependent), unlike `probLoss` which collapses to
+     * 0/1 under `"shuffle"` because the return multiset is fixed.
+     */
+    riskOfRuin: number;
+    /** Drawdown level (positive percent) used as the ruin threshold. */
+    ruinThreshold: number;
   };
   /** Confidence interval for expected performance */
   confidenceInterval: {
@@ -247,9 +310,12 @@ export type MonteCarloResult = {
     returns: { lower: number; upper: number };
     maxDrawdown: { lower: number; upper: number };
   };
-  /** Assessment of whether strategy is statistically significant */
+  /**
+   * Human-readable, method-aware interpretation of the distribution. No
+   * binary significance flag — bootstrap describes outcome uncertainty
+   * (profitability + ruin), shuffle describes sequence risk (drawdown).
+   */
   assessment: {
-    isSignificant: boolean;
     reason: string;
     confidenceLevel: number;
   };

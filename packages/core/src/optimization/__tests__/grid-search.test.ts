@@ -194,6 +194,38 @@ describe("Grid Search Optimization", () => {
       expect(result.validCombinations).toBeGreaterThanOrEqual(0);
     });
 
+    it("skips combinations rejected by paramFilter before backtesting", () => {
+      const candles = generateUpTrendCandles(50);
+
+      const seen: Array<Record<string, number>> = [];
+      const createStrategy = (params: Record<string, number>) => {
+        seen.push(params);
+        return {
+          entry: createEnterCondition(Math.round(params.enterAt)),
+          exit: createExitCondition(Math.round(params.holdBars)),
+          options: { capital: 100000 } as BacktestOptions,
+        };
+      };
+
+      const result = gridSearch(
+        candles,
+        createStrategy,
+        [param("enterAt", 5, 10, 5), param("holdBars", 10, 15, 5)],
+        // Reject the (enterAt=10, holdBars=10) cell — 1 of 4 combos.
+        { paramFilter: (p) => !(p.enterAt === 10 && p.holdBars === 10) },
+      );
+
+      // The rejected combo never reached the factory (no backtest spent).
+      expect(seen.some((p) => p.enterAt === 10 && p.holdBars === 10)).toBe(false);
+      // …and never appears in the ranked results / best params.
+      for (const entry of result.results) {
+        expect(entry.params.enterAt === 10 && entry.params.holdBars === 10).toBe(false);
+      }
+      if (result.bestParams) {
+        expect(result.bestParams.enterAt === 10 && result.bestParams.holdBars === 10).toBe(false);
+      }
+    });
+
     it("should call progress callback", () => {
       const candles = generateUpTrendCandles(50);
       const progressFn = vi.fn();

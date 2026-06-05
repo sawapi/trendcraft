@@ -9,24 +9,42 @@
  *   Avg_n = sum(BP, n) / sum(TR, n)
  *   UO = 100 * (4 * Avg1 + 2 * Avg2 + Avg3) / 7
  *
- * Uses CircularBuffer for BP and TR values (sized to longest period).
+ * State category: **Mixed** (BP/TR buffers sized to the longest period
+ * plus the carried-forward `prevClose`). The buffered BP/TR values are
+ * each derived from a candle *and its predecessor*, so a period change
+ * is refused.
+ *
+ * Migrated to the 0.4.0 State Contract.
  */
 
 import type { NormalizedCandle } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import {
+  type IndicatorSnapshot,
+  makeSnapshot,
+  requireParam,
+  resolveResume,
+} from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 
 /**
- * State for incremental Ultimate Oscillator
+ * Bare state shape for Ultimate Oscillator. Params (`period1`,
+ * `period2`, `period3`) live in `meta.params` on the wire.
  */
 export type UltimateOscillatorState = {
-  period1: number;
-  period2: number;
-  period3: number;
   bpBuffer: ReturnType<CircularBuffer<number>["snapshot"]>;
   trBuffer: ReturnType<CircularBuffer<number>["snapshot"]>;
   prevClose: number | null;
   count: number;
+};
+
+/** Per-indicator schema version. Bumped on any breaking state change. */
+export const ULTIMATE_OSCILLATOR_VERSION = 1;
+
+type UltimateOscillatorParams = {
+  period1: number;
+  period2: number;
+  period3: number;
 };
 
 /**
@@ -43,11 +61,42 @@ export type UltimateOscillatorState = {
  */
 export function createUltimateOscillator(
   options: { period1?: number; period2?: number; period3?: number } = {},
-  warmUpOptions?: WarmUpOptions<UltimateOscillatorState>,
-): IncrementalIndicator<number | null, UltimateOscillatorState> {
-  const period1 = options.period1 ?? 7;
-  const period2 = options.period2 ?? 14;
-  const period3 = options.period3 ?? 28;
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<UltimateOscillatorState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<number | null, IndicatorSnapshot<UltimateOscillatorState>> {
+  const { params, state } = resolveResume<UltimateOscillatorParams, UltimateOscillatorState>({
+    indicator: "ultimateOscillator",
+    version: ULTIMATE_OSCILLATOR_VERSION,
+    category: "mixed",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { period1: 7, period2: 14, period3: 28 },
+  });
+
+  const isPositiveInt = (v: number): v is number => Number.isInteger(v) && v >= 1;
+  const period1 = requireParam(
+    "ultimateOscillator",
+    params,
+    "period1",
+    isPositiveInt,
+    "must be a positive integer",
+  );
+  const period2 = requireParam(
+    "ultimateOscillator",
+    params,
+    "period2",
+    isPositiveInt,
+    "must be a positive integer",
+  );
+  const period3 = requireParam(
+    "ultimateOscillator",
+    params,
+    "period3",
+    isPositiveInt,
+    "must be a positive integer",
+  );
   const maxPeriod = Math.max(period1, period2, period3);
 
   let bpBuffer: CircularBuffer<number>;
@@ -55,12 +104,11 @@ export function createUltimateOscillator(
   let prevClose: number | null;
   let count: number;
 
-  if (warmUpOptions?.fromState) {
-    const s = warmUpOptions.fromState;
-    bpBuffer = CircularBuffer.fromSnapshot(s.bpBuffer);
-    trBuffer = CircularBuffer.fromSnapshot(s.trBuffer);
-    prevClose = s.prevClose;
-    count = s.count;
+  if (state !== null) {
+    bpBuffer = CircularBuffer.fromSnapshot(state.bpBuffer);
+    trBuffer = CircularBuffer.fromSnapshot(state.trBuffer);
+    prevClose = state.prevClose;
+    count = state.count;
   } else {
     bpBuffer = new CircularBuffer<number>(maxPeriod);
     trBuffer = new CircularBuffer<number>(maxPeriod);
@@ -96,7 +144,10 @@ export function createUltimateOscillator(
     return (100 * (4 * avg1 + 2 * avg2 + avg3)) / 7;
   }
 
-  const indicator: IncrementalIndicator<number | null, UltimateOscillatorState> = {
+  const indicator: IncrementalIndicator<
+    number | null,
+    IndicatorSnapshot<UltimateOscillatorState>
+  > = {
     next(candle: NormalizedCandle) {
       count++;
 
@@ -135,16 +186,18 @@ export function createUltimateOscillator(
       return { time: candle.time, value };
     },
 
-    getState(): UltimateOscillatorState {
-      return {
-        period1,
-        period2,
-        period3,
-        bpBuffer: bpBuffer.snapshot(),
-        trBuffer: trBuffer.snapshot(),
-        prevClose,
-        count,
-      };
+    getState(): IndicatorSnapshot<UltimateOscillatorState> {
+      return makeSnapshot(
+        "ultimateOscillator",
+        ULTIMATE_OSCILLATOR_VERSION,
+        { period1, period2, period3 },
+        {
+          bpBuffer: bpBuffer.snapshot(),
+          trBuffer: trBuffer.snapshot(),
+          prevClose,
+          count,
+        },
+      );
     },
 
     get count() {

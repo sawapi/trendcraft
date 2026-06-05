@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { BacktestResult } from "../../types";
 import { scoreBacktestResult } from "../scoring";
+import { EMPTY_EXTENDED_METRICS_FIXTURE } from "./backtest-result-fixture";
 
 function makeResult(overrides: Partial<BacktestResult> = {}): BacktestResult {
   return {
@@ -12,6 +13,7 @@ function makeResult(overrides: Partial<BacktestResult> = {}): BacktestResult {
     winRate: 55,
     maxDrawdown: 10,
     sharpeRatio: 1.5,
+    ...EMPTY_EXTENDED_METRICS_FIXTURE,
     profitFactor: 1.8,
     avgHoldingDays: 5,
     trades: [],

@@ -96,6 +96,7 @@ pnpm size-check   # Check bundle size limits (esbuild, brotli-compressed)
 - Uses Wilder's smoothing method (RSI, ATR, etc.)
 - Functions should have JSDoc comments with @example
 - `@trendcraft/chart`: Bundle size limits enforced via `size-limit` + `@size-limit/esbuild` (brotli-compressed). Main ≤ 31 kB, Headless ≤ 11 kB, React/Vue ≤ 27 kB. Zero runtime dependencies; `trendcraft`, `react`, `vue` are optional peer deps
+- `@trendcraft/chart` + `indicatorPresets` integration: when wiring a chart to `connectIndicators(chart, { presets: indicatorPresets, ... })`, **also call `registerTrendCraftPresets(chart)` from `@trendcraft/chart/presets`** before adding indicators. Without it, TrendCraft-specific shapes (adaptiveRsi `{rsi, effectivePeriod, volatilityPercentile}`, connorsRsi, klinger, vsa, etc.) fall through built-in introspection rules and silently render as generic "Indicator"/"Series" with no visible line. The chart degrades silently — there is no warning. See `packages/chart/examples/indicator-showcase/src/main.ts:57` for the canonical setup
 
 ## Testing & Validation
 

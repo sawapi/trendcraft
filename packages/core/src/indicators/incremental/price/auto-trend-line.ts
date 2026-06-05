@@ -15,8 +15,9 @@
  */
 
 import type { NormalizedCandle } from "../../../types";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
-import { cloneShallow, pushBounded, resolveSwingConfig } from "./swing-helpers";
+import { type IndicatorSnapshot, makeSnapshot, resolveResume } from "../state-contract";
+import type { IncrementalIndicator } from "../types";
+import { cloneShallow, pushBounded, validateSwingConfig } from "./swing-helpers";
 import { createSwingPoints, type SwingPointsState } from "./swing-points";
 
 export type AutoTrendLineValue = {
@@ -38,10 +39,13 @@ type SwingPoint = {
   price: number;
 };
 
+/**
+ * Bare state shape for Auto Trend Line. Params (`leftBars`,
+ * `rightBars`) live in `meta.params`; the inner swing-points snapshot
+ * is itself an `IndicatorSnapshot`.
+ */
 export type AutoTrendLineState = {
-  leftBars: number;
-  rightBars: number;
-  swings: SwingPointsState;
+  swings: IndicatorSnapshot<SwingPointsState>;
   lastTwoHighs: SwingPoint[];
   lastTwoLows: SwingPoint[];
   hasResistance: boolean;
@@ -55,12 +59,30 @@ export type AutoTrendLineState = {
   count: number;
 };
 
+/** Per-indicator schema version. Bumped on any breaking state change. */
+export const AUTO_TREND_LINE_VERSION = 1;
+
+type AutoTrendLineParams = {
+  leftBars: number;
+  rightBars: number;
+};
+
 export function createAutoTrendLine(
   options: AutoTrendLineOptions = {},
-  warmUpOptions?: WarmUpOptions<AutoTrendLineState>,
-): IncrementalIndicator<AutoTrendLineValue, AutoTrendLineState> {
-  const fromState = warmUpOptions?.fromState;
-  const { leftBars, rightBars } = resolveSwingConfig(options, fromState);
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<AutoTrendLineState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<AutoTrendLineValue, IndicatorSnapshot<AutoTrendLineState>> {
+  const { params, state } = resolveResume<AutoTrendLineParams, AutoTrendLineState>({
+    indicator: "autoTrendLine",
+    version: AUTO_TREND_LINE_VERSION,
+    category: "mixed",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: { leftBars: 10, rightBars: 10 },
+  });
+  const { leftBars, rightBars } = validateSwingConfig(params.leftBars, params.rightBars);
 
   let swings: ReturnType<typeof createSwingPoints>;
   let lastTwoHighs: SwingPoint[];
@@ -75,19 +97,19 @@ export function createAutoTrendLine(
   let supAnchorPrice: number;
   let count: number;
 
-  if (fromState) {
-    swings = createSwingPoints({ leftBars, rightBars }, { fromState: fromState.swings });
-    lastTwoHighs = cloneShallow(fromState.lastTwoHighs);
-    lastTwoLows = cloneShallow(fromState.lastTwoLows);
-    hasResistance = fromState.hasResistance;
-    resSlope = fromState.resSlope;
-    resAnchorIdx = fromState.resAnchorIdx;
-    resAnchorPrice = fromState.resAnchorPrice;
-    hasSupport = fromState.hasSupport;
-    supSlope = fromState.supSlope;
-    supAnchorIdx = fromState.supAnchorIdx;
-    supAnchorPrice = fromState.supAnchorPrice;
-    count = fromState.count;
+  if (state !== null) {
+    swings = createSwingPoints({ leftBars, rightBars }, { fromState: state.swings });
+    lastTwoHighs = cloneShallow(state.lastTwoHighs);
+    lastTwoLows = cloneShallow(state.lastTwoLows);
+    hasResistance = state.hasResistance;
+    resSlope = state.resSlope;
+    resAnchorIdx = state.resAnchorIdx;
+    resAnchorPrice = state.resAnchorPrice;
+    hasSupport = state.hasSupport;
+    supSlope = state.supSlope;
+    supAnchorIdx = state.supAnchorIdx;
+    supAnchorPrice = state.supAnchorPrice;
+    count = state.count;
   } else {
     swings = createSwingPoints({ leftBars, rightBars });
     lastTwoHighs = [];
@@ -103,7 +125,10 @@ export function createAutoTrendLine(
     count = 0;
   }
 
-  const indicator: IncrementalIndicator<AutoTrendLineValue, AutoTrendLineState> = {
+  const indicator: IncrementalIndicator<
+    AutoTrendLineValue,
+    IndicatorSnapshot<AutoTrendLineState>
+  > = {
     next(candle: NormalizedCandle) {
       count++;
       const swingResult = swings.next(candle);
@@ -151,7 +176,7 @@ export function createAutoTrendLine(
     },
 
     peek(candle: NormalizedCandle) {
-      const saved = indicator.getState();
+      const saved = indicator.getState().state;
       const result = indicator.next(candle);
       swings = createSwingPoints({ leftBars, rightBars }, { fromState: saved.swings });
       lastTwoHighs = cloneShallow(saved.lastTwoHighs);
@@ -168,23 +193,26 @@ export function createAutoTrendLine(
       return result;
     },
 
-    getState(): AutoTrendLineState {
-      return {
-        leftBars,
-        rightBars,
-        swings: swings.getState(),
-        lastTwoHighs: cloneShallow(lastTwoHighs),
-        lastTwoLows: cloneShallow(lastTwoLows),
-        hasResistance,
-        resSlope,
-        resAnchorIdx,
-        resAnchorPrice,
-        hasSupport,
-        supSlope,
-        supAnchorIdx,
-        supAnchorPrice,
-        count,
-      };
+    getState(): IndicatorSnapshot<AutoTrendLineState> {
+      return makeSnapshot(
+        "autoTrendLine",
+        AUTO_TREND_LINE_VERSION,
+        { leftBars, rightBars },
+        {
+          swings: swings.getState(),
+          lastTwoHighs: cloneShallow(lastTwoHighs),
+          lastTwoLows: cloneShallow(lastTwoLows),
+          hasResistance,
+          resSlope,
+          resAnchorIdx,
+          resAnchorPrice,
+          hasSupport,
+          supSlope,
+          supAnchorIdx,
+          supAnchorPrice,
+          count,
+        },
+      );
     },
 
     get count() {

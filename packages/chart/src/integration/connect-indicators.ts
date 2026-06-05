@@ -57,6 +57,27 @@ export type IndicatorPresetEntry = {
   compute?: (candles: SourceCandle[], params: Record<string, unknown>) => DataPoint<unknown>[];
   /** Incremental factory for live streaming */
   createFactory?: (params: Record<string, unknown>) => LiveIndicatorFactoryFn;
+  /**
+   * Behavior in live mode for presets that have `compute` but no `createFactory`
+   * ("batch-only").
+   *
+   * - **`true` (default)**: connection auto-recomputes on every `candleComplete`
+   *   against its connection-owned canonical history (built once from
+   *   `options.candles + liveSource.completedCandles` and extended on each
+   *   subsequent `candleComplete`). Manual `conn.recompute(custom)` calls
+   *   replace that history permanently — new bars append onto the host's
+   *   custom window rather than reverting to the seed view.
+   *
+   * - **`false`**: connection skips auto-recompute. The preset stays at its
+   *   seed-time value (or whatever `recompute()` last produced) until the
+   *   host calls `conn.recompute(...)` again. Use this for batch presets
+   *   whose recompute is too heavy to run per bar (e.g. HMM regimes on long
+   *   histories).
+   *
+   * Has no effect on presets with a `createFactory` — those always stream
+   * incrementally regardless of this flag.
+   */
+  liveRecompute?: boolean;
 };
 
 /** Duck-typed LiveCandle-compatible data source */
@@ -100,8 +121,11 @@ export type ConnectIndicatorsOptions = {
  * Options accepted by `add()`.
  *
  * - `series`: visual overrides (color, pane, lineWidth, etc.)
- * - `snapshotName`: override the computed snapshot name. Use this to mount multiple
- *   instances of a preset whose snapshotName is a static string (e.g. `"emaRibbon"`).
+ * - `snapshotName`: explicit instance id. When supplied, this is used verbatim
+ *   and collisions throw (caller asked for this exact name and must own it).
+ *   When omitted, the preset's derived name is used as a base and the library
+ *   auto-suffixes with `#2`, `#3`, … on collision so multiple instances of the
+ *   same preset can coexist without boilerplate.
  * - Any other key is treated as a parameter override for the preset.
  */
 export type AddIndicatorOptions = {
@@ -167,7 +191,14 @@ export type IndicatorConnection = {
   /** Look up a single handle by snapshot name */
   get(snapshotName: string): IndicatorHandle | undefined;
 
-  /** Recompute all static indicators with new candle data */
+  /**
+   * Recompute all indicators with new candle data.
+   *
+   * Replaces the connection-owned canonical history with `candles`, then
+   * fires `setData(compute(candles))` on every active indicator. In live
+   * mode, subsequent `candleComplete` events append onto this new history
+   * — the override is permanent, not a one-shot.
+   */
   recompute(candles: readonly SourceCandle[]): void;
   /** Disconnect: remove all indicators and unsubscribe events */
   disconnect(): void;
@@ -234,7 +265,26 @@ export function connectIndicators(
   const mode = liveSource ? ("live" as const) : ("static" as const);
   /** Keyed by snapshotName (single source of truth, matches LiveCandle's indicator map) */
   const active = new Map<string, ActiveEntry>();
-  let _candles: readonly SourceCandle[] = initialCandles;
+  /**
+   * Connection-owned canonical view of the candle history. All paths read
+   * from here:
+   * - `add()` backfill
+   * - `recomputeBatchOnlyIndicators()` on candleComplete
+   * - `recompute(custom)` (replace)
+   *
+   * In live mode, seeded once at construction by `mergeByTime(options.candles,
+   * liveSource.completedCandles)` (deduplicated by `time`, with completedCandles
+   * winning on conflict). Each subsequent `candleComplete` event appends the
+   * incoming candle (or replaces the last entry on `time` collision) — we do
+   * NOT re-read `liveSource.completedCandles`, so source-side trimming
+   * (`maxHistory`) cannot retroactively shrink our long-lookback view.
+   *
+   * In static mode, just a copy of `options.candles`. `recompute(custom)`
+   * replaces the entire array.
+   */
+  const _runningHistory: SourceCandle[] = liveSource
+    ? mergeByTime(initialCandles, liveSource.completedCandles)
+    : [...initialCandles];
 
   // Unsub handles for live events
   let unsubTick: (() => void) | null = null;
@@ -272,6 +322,29 @@ export function connectIndicators(
     }
   }
 
+  /**
+   * Recompute batch-only indicators (no `createFactory`) on candleComplete.
+   * Without this pass, presets that only ship `compute` would freeze at the
+   * seed boundary in live mode — `updateLiveIndicators` skips them by design
+   * because they don't expose a per-bar streaming value.
+   *
+   * Reads the connection-owned `_runningHistory`, which already includes
+   * the bar that just fired this event (the candleComplete handler appends
+   * before invoking us). Hosts that opt out via `liveRecompute: false`
+   * stay frozen at their last `setData` value.
+   */
+  function recomputeBatchOnlyIndicators(): void {
+    if (!liveSource) return;
+    for (const entry of active.values()) {
+      if (!entry.staticOnly) continue;
+      const preset = presets[entry.presetId];
+      if (!preset?.compute) continue;
+      if (preset.liveRecompute === false) continue;
+      const newData = computeData(preset, entry.params, _runningHistory);
+      entry.series.setData(newData);
+    }
+  }
+
   // Initialize live subscriptions
   if (liveSource) {
     if (options.initHistory !== false) {
@@ -291,10 +364,21 @@ export function connectIndicators(
     });
 
     unsubComplete = liveSource.on("candleComplete", ({ candle, snapshot }) => {
+      // Update the connection-owned canonical history first so both the
+      // streaming path (factory-driven) and batch recompute see the new bar.
+      // Append, or replace the last entry on `time` collision (handles
+      // re-emit / correction without duplicating).
+      appendOrReplaceByTime(_runningHistory, candle);
+
       try {
         updateLiveIndicators(snapshot, candle);
       } catch (e) {
         console.error("[@trendcraft/chart] connect-indicators candleComplete error:", e);
+      }
+      try {
+        recomputeBatchOnlyIndicators();
+      } catch (e) {
+        console.error("[@trendcraft/chart] connect-indicators batch recompute error:", e);
       }
     });
   }
@@ -366,13 +450,26 @@ export function connectIndicators(
       ...paramOverrides
     } = options ?? {};
     const params = { ...preset.defaultParams, ...paramOverrides };
-    const snapshotName = userSnapshotName ?? resolveSnapshotName(preset, params);
+    const baseSnapshotName = userSnapshotName ?? resolveSnapshotName(preset, params);
 
+    // Identity policy:
+    // - Explicit `userSnapshotName`: caller asked for this exact id, so a
+    //   collision is a caller bug. Throw with a clear migration hint.
+    // - Derived (preset-default) name: collisions are normal when the host
+    //   wants multiple instances of the same preset (different colors, fast/
+    //   slow pairs at the same period, etc.). Auto-suffix with `#2`, `#3`,
+    //   … so the boilerplate isn't pushed onto every host.
+    let snapshotName = baseSnapshotName;
     if (active.has(snapshotName)) {
-      const existing = active.get(snapshotName);
-      throw new Error(
-        `Indicator snapshotName "${snapshotName}" is already added (preset="${existing?.presetId}"). Either the params produce the same snapshotName as an existing one, or this preset uses a static snapshotName. Pass { snapshotName: "custom-id" } to disambiguate, or remove the existing one first.`,
-      );
+      if (userSnapshotName !== undefined) {
+        const existing = active.get(snapshotName);
+        throw new Error(
+          `Indicator snapshotName "${snapshotName}" is already added (preset="${existing?.presetId}"). The id was set explicitly via { snapshotName: ... } so it must be unique — pick a different value, or remove the existing one first.`,
+        );
+      }
+      let suffix = 2;
+      while (active.has(`${baseSnapshotName}#${suffix}`)) suffix++;
+      snapshotName = `${baseSnapshotName}#${suffix}`;
     }
 
     // Determine if this indicator can stream
@@ -385,9 +482,12 @@ export function connectIndicators(
       if (factory) liveSource.addIndicator(snapshotName, factory);
     }
 
-    // Compute initial data (backfill)
-    const allCandles = liveSource ? [..._candles, ...liveSource.completedCandles] : [..._candles];
-    const historyData = allCandles.length > 0 ? computeData(preset, params, allCandles) : [];
+    // Compute initial data (backfill) from the connection-owned canonical
+    // view. In live mode this was already deduplicated against the live
+    // source's seed at construction; in static mode it's `options.candles`
+    // (or whatever the host last passed to `recompute()`).
+    const historyData =
+      _runningHistory.length > 0 ? computeData(preset, params, _runningHistory) : [];
 
     // Build series config
     const series = buildSeriesConfig(preset.meta, snapshotName, params, seriesOverrides, presetId);
@@ -480,13 +580,15 @@ export function connectIndicators(
 
   function recompute(candles: readonly SourceCandle[]): void {
     assertConnected();
-    _candles = candles;
+    // Replace the canonical view permanently. Subsequent candleComplete
+    // events append onto this; subsequent add() calls backfill from this.
+    _runningHistory.splice(0, _runningHistory.length, ...candles);
 
     for (const entry of active.values()) {
       const preset = presets[entry.presetId];
       if (!preset) continue;
 
-      const newData = computeData(preset, entry.params, candles);
+      const newData = computeData(preset, entry.params, _runningHistory);
       entry.series.setData(newData);
     }
   }
@@ -524,4 +626,38 @@ export function connectIndicators(
       return mode;
     },
   };
+}
+
+// ============================================
+// Internal helpers
+// ============================================
+
+/**
+ * Merge two candle arrays by `time`, deduplicating collisions. Bars from `b`
+ * take precedence on conflict — used at construction time so the live source's
+ * view of a shared bar wins over the host's seed copy. Returns a new array
+ * sorted by `time` ascending.
+ */
+function mergeByTime(a: readonly SourceCandle[], b: readonly SourceCandle[]): SourceCandle[] {
+  if (a.length === 0) return [...b];
+  if (b.length === 0) return [...a];
+  const seen = new Map<number, SourceCandle>();
+  for (const c of a) seen.set(c.time, c);
+  for (const c of b) seen.set(c.time, c);
+  return [...seen.values()].sort((x, y) => x.time - y.time);
+}
+
+/**
+ * Append a candle to a chronologically-ordered array, or replace the last
+ * entry if it shares the same `time` (handles re-emit / late-correction
+ * without duplicating the bar). LiveCandle's contract guarantees monotonic
+ * candleComplete times, so we only need to compare against the tail.
+ */
+function appendOrReplaceByTime(arr: SourceCandle[], candle: SourceCandle): void {
+  const last = arr[arr.length - 1];
+  if (last && last.time === candle.time) {
+    arr[arr.length - 1] = candle;
+  } else {
+    arr.push(candle);
+  }
 }

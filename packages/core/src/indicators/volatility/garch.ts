@@ -374,7 +374,18 @@ export function ewmaVolatility(returns: number[], options?: EwmaVolatilityOption
     }
   }
 
-  // Seed variance: variance of first min(10, T) returns
+  // Seed variance: centered population variance (Σ(r-μ)²/N) of the
+  // first min(10, T) returns, with a 1e-10 zero floor.
+  //
+  // Variant note: RiskMetrics Technical Document (1996) §5.3.2 uses
+  // the uncentered form Σr²/N (mean assumed zero). For daily log
+  // returns the two forms differ by μ² — a sub-basis-point effect.
+  // We pick centered because (a) it matches standard sample-variance
+  // semantics used by pyfolio / quantstats, and (b) it does not bake
+  // in a "returns are mean-zero" assumption that breaks on weekly /
+  // monthly bars where drift is non-trivial. The incremental
+  // sibling (createEwmaVolatility) MUST stay aligned; invariant [8]
+  // in the State Contract test DSL enforces this bar-for-bar.
   const seedCount = Math.min(10, T);
   let sigma2 = sampleVariance(returns.slice(0, seedCount));
   if (sigma2 === 0) sigma2 = 1e-10; // prevent zero variance

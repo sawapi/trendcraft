@@ -1,8 +1,13 @@
 /**
  * Monte Carlo Simulation
  *
- * Shuffles trade sequence to test robustness of backtest results.
- * Determines if performance is statistically significant vs random chance.
+ * Resamples the trade list to estimate how reliable a backtest's
+ * performance is. Two methods (see {@link MonteCarloOptions.method}):
+ * - `"bootstrap"` (default): sample N trades with replacement, so total
+ *   return / Sharpe / profit factor vary — used for outcome-uncertainty
+ *   and probability-of-loss estimates.
+ * - `"shuffle"`: permute the trade order, so only the path-dependent max
+ *   drawdown varies — used for sequence-risk analysis.
  */
 
 import type { BacktestResult, Trade } from "../types";
@@ -15,16 +20,35 @@ import { err, ok, type Result, tcError } from "../types/result";
 const DEFAULT_OPTIONS = {
   simulations: 1000,
   confidenceLevel: 0.95,
+  method: "bootstrap",
+  ruinThreshold: 50,
 } as const;
 
 /**
- * Fisher-Yates shuffle algorithm
+ * Fisher-Yates shuffle algorithm — permutes the array (no replacement).
+ * The multiset of elements is preserved, so only order changes.
  */
 function shuffleArray<T>(array: T[], random: () => number): T[] {
   const result = [...array];
   for (let i = result.length - 1; i > 0; i--) {
     const j = Math.floor(random() * (i + 1));
     [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
+
+/**
+ * Bootstrap resample — draw `array.length` elements with replacement.
+ * Unlike {@link shuffleArray}, the same element can be drawn multiple
+ * times and others omitted, so the multiset of returns changes per
+ * draw. This is what makes total return / Sharpe / profit factor vary
+ * across simulations rather than staying pinned to the original.
+ */
+function bootstrapSample<T>(array: T[], random: () => number): T[] {
+  const n = array.length;
+  const result: T[] = new Array(n);
+  for (let i = 0; i < n; i++) {
+    result[i] = array[Math.floor(random() * n)];
   }
   return result;
 }
@@ -170,6 +194,8 @@ export function runMonteCarloSimulation(
 ): MonteCarloResult {
   const simulations = options.simulations ?? DEFAULT_OPTIONS.simulations;
   const confidenceLevel = options.confidenceLevel ?? DEFAULT_OPTIONS.confidenceLevel;
+  const method = options.method ?? DEFAULT_OPTIONS.method;
+  const ruinThreshold = options.ruinThreshold ?? DEFAULT_OPTIONS.ruinThreshold;
   const { progressCallback } = options;
 
   const trades = result.trades;
@@ -181,6 +207,7 @@ export function runMonteCarloSimulation(
 
   // Create random generator
   const random = options.seed !== undefined ? createSeededRandom(options.seed) : Math.random;
+  const resample = method === "shuffle" ? shuffleArray : bootstrapSample;
 
   // Collect simulation results
   const sharpeValues: number[] = [];
@@ -194,11 +221,11 @@ export function runMonteCarloSimulation(
       progressCallback(i + 1, simulations);
     }
 
-    // Shuffle trades
-    const shuffledTrades = shuffleArray(trades, random);
+    // Resample trades (bootstrap with replacement, or order shuffle)
+    const resampledTrades = resample(trades, random);
 
     // Recalculate metrics
-    const metrics = recalculateMetricsFromTrades(shuffledTrades, initialCapital);
+    const metrics = recalculateMetricsFromTrades(resampledTrades, initialCapital);
 
     sharpeValues.push(metrics.sharpe);
     maxDrawdownValues.push(metrics.maxDrawdown);
@@ -214,15 +241,27 @@ export function runMonteCarloSimulation(
     profitFactor: calculateStatistics(profitFactorValues),
   };
 
-  // Original result values
+  // Original result values — the backtest's own reported metrics, kept
+  // as-is for display. They are NOT used as a baseline for the downside
+  // figures: the resampler recomputes Sharpe with a per-trade formula
+  // that differs from the backtest's candle-aware annualization, so
+  // comparing the two would mix scales.
   const originalSharpe = result.sharpeRatio;
   const originalReturn = result.totalReturnPercent;
   const originalMaxDD = result.maxDrawdown;
   const originalPF = result.profitFactor;
 
-  // Calculate p-values (probability of achieving >= original by chance)
-  const pValueSharpe = sharpeValues.filter((v) => v >= originalSharpe).length / simulations;
-  const pValueReturns = returnValues.filter((v) => v >= originalReturn).length / simulations;
+  // Downside-risk figures, measured directly on the resampled outcomes
+  // (no cross-formula comparison, no permutation-test framing):
+  // - probLoss: fraction of simulations that lost money. Under "shuffle"
+  //   the return multiset is fixed so this collapses to 0 or 1; it is
+  //   only informative under "bootstrap".
+  // - riskOfRuin: fraction whose path-dependent max drawdown reached the
+  //   ruin threshold. Drawdown is path-dependent, so this is meaningful
+  //   under both methods.
+  const probLoss = returnValues.filter((v) => v <= 0).length / simulations;
+  const probProfit = 1 - probLoss;
+  const riskOfRuin = maxDrawdownValues.filter((dd) => dd >= ruinThreshold).length / simulations;
 
   // Calculate confidence intervals
   const alpha = 1 - confidenceLevel;
@@ -248,13 +287,26 @@ export function runMonteCarloSimulation(
     },
   };
 
-  // Assessment
-  const isSignificant = pValueSharpe < 1 - confidenceLevel;
+  // Assessment narrative is method-specific because the two resamplers
+  // answer different questions. Bootstrap varies the outcome, so the
+  // story is about profitability and ruin; shuffle leaves return
+  // invariant and only moves the drawdown path, so the story is about
+  // sequence risk. There is no binary significance flag — the figures
+  // in `downside` are the verdict.
   let reason: string;
-  if (isSignificant) {
-    reason = `Original Sharpe (${originalSharpe.toFixed(2)}) exceeds ${(confidenceLevel * 100).toFixed(0)}% of random permutations (p=${pValueSharpe.toFixed(3)}). Strategy shows statistically significant edge.`;
+  if (method === "shuffle") {
+    // How often a different ordering drew down deeper than the one
+    // actually observed. Low = the observed path was already near the
+    // worst case, so little drawdown is hidden by trade sequence.
+    const worseDrawdownProb =
+      maxDrawdownValues.filter((v) => v > originalMaxDD).length / simulations;
+    const p95MaxDD = getPercentile(sortedMaxDD, 95);
+    const worsePct = (worseDrawdownProb * 100).toFixed(0);
+    reason = `${worsePct}% of ${simulations} orderings drew down deeper than the observed ${originalMaxDD.toFixed(1)}% (95th pct ${p95MaxDD.toFixed(1)}%, risk of ${ruinThreshold}%+ ruin ${(riskOfRuin * 100).toFixed(0)}%). Trade sequence ${worseDrawdownProb <= 1 - confidenceLevel ? "barely affects" : "materially affects"} drawdown risk.`;
   } else {
-    reason = `Original Sharpe (${originalSharpe.toFixed(2)}) is within random distribution (p=${pValueSharpe.toFixed(3)}). Results may be due to lucky trade sequence.`;
+    // Bootstrap: report the resampled profitability and ruin tail.
+    const profitablePct = (probProfit * 100).toFixed(0);
+    reason = `${profitablePct}% of ${simulations} bootstrap resamples were profitable (p(loss)=${probLoss.toFixed(3)}, risk of ${ruinThreshold}%+ ruin ${(riskOfRuin * 100).toFixed(0)}%). ${probLoss < 1 - confidenceLevel ? "Downside tail is contained." : "Results are sensitive to which trades occur."}`;
   }
 
   return {
@@ -266,13 +318,14 @@ export function runMonteCarloSimulation(
     },
     statistics,
     simulationCount: simulations,
-    pValue: {
-      sharpe: pValueSharpe,
-      returns: pValueReturns,
+    downside: {
+      probProfit,
+      probLoss,
+      riskOfRuin,
+      ruinThreshold,
     },
     confidenceInterval,
     assessment: {
-      isSignificant,
       reason,
       confidenceLevel,
     },
@@ -283,23 +336,26 @@ export function runMonteCarloSimulation(
  * Format Monte Carlo result for display
  */
 export function formatMonteCarloResult(result: MonteCarloResult): string {
-  const { originalResult, statistics, pValue, confidenceInterval, assessment } = result;
+  const { originalResult, statistics, downside, confidenceInterval, assessment } = result;
 
   const lines = [
     "=== Monte Carlo Simulation Results ===",
     `Simulations: ${result.simulationCount}`,
     "",
     "Original vs Simulated:",
-    `  Sharpe: ${originalResult.sharpe.toFixed(2)} (mean: ${statistics.sharpe.mean.toFixed(2)}, p=${pValue.sharpe.toFixed(3)})`,
+    `  Sharpe: ${originalResult.sharpe.toFixed(2)} (mean: ${statistics.sharpe.mean.toFixed(2)})`,
     `  Return: ${originalResult.totalReturnPercent.toFixed(2)}% (mean: ${statistics.totalReturnPercent.mean.toFixed(2)}%)`,
     `  Max DD: ${originalResult.maxDrawdown.toFixed(2)}% (mean: ${statistics.maxDrawdown.mean.toFixed(2)}%)`,
+    "",
+    "Downside risk:",
+    `  P(profit): ${(downside.probProfit * 100).toFixed(1)}%  P(loss): ${(downside.probLoss * 100).toFixed(1)}%`,
+    `  Risk of ruin (${downside.ruinThreshold}%+ drawdown): ${(downside.riskOfRuin * 100).toFixed(1)}%`,
     "",
     `${(assessment.confidenceLevel * 100).toFixed(0)}% Confidence Intervals:`,
     `  Sharpe: [${confidenceInterval.sharpe.lower.toFixed(2)}, ${confidenceInterval.sharpe.upper.toFixed(2)}]`,
     `  Return: [${confidenceInterval.returns.lower.toFixed(2)}%, ${confidenceInterval.returns.upper.toFixed(2)}%]`,
     "",
     "Assessment:",
-    `  ${assessment.isSignificant ? "SIGNIFICANT" : "NOT SIGNIFICANT"}`,
     `  ${assessment.reason}`,
   ];
 
@@ -310,17 +366,17 @@ export function formatMonteCarloResult(result: MonteCarloResult): string {
  * Summarize Monte Carlo result
  */
 export function summarizeMonteCarloResult(result: MonteCarloResult): {
-  isSignificant: boolean;
-  pValueSharpe: number;
-  pValueReturns: number;
+  probProfit: number;
+  probLoss: number;
+  riskOfRuin: number;
   expectedSharpe: { mean: number; median: number };
   sharpe95CI: { lower: number; upper: number };
   originalSharpe: number;
 } {
   return {
-    isSignificant: result.assessment.isSignificant,
-    pValueSharpe: result.pValue.sharpe,
-    pValueReturns: result.pValue.returns,
+    probProfit: result.downside.probProfit,
+    probLoss: result.downside.probLoss,
+    riskOfRuin: result.downside.riskOfRuin,
     expectedSharpe: {
       mean: result.statistics.sharpe.mean,
       median: result.statistics.sharpe.median,

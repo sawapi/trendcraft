@@ -7,13 +7,25 @@
  *
  * Based on Richard Wyckoff's principles of reading the market through
  * volume and price action.
+ *
+ * State category: **Mixed** (an inner recursive ATR snapshot and an
+ * inner windowed SMA snapshot composed with an own 10-bar candle
+ * buffer). `volumeMaPeriod` / `atrPeriod` shape the inner indicators
+ * and are refused on resume. The four threshold params
+ * (`highVolumeThreshold`, `lowVolumeThreshold`, `wideSpreadThreshold`,
+ * `narrowSpreadThreshold`) are **resume-invariant** — they only
+ * classify already-computed spread / volume ratios and never touch
+ * state, so changing them on resume is mathematically safe.
+ *
+ * Migrated to the 0.4.0 State Contract.
  */
 
 import type { NormalizedCandle } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
 import type { SmaState } from "../moving-average/sma";
 import { createSma } from "../moving-average/sma";
-import type { IncrementalIndicator, WarmUpOptions } from "../types";
+import { type IndicatorSnapshot, makeSnapshot, resolveResume } from "../state-contract";
+import type { IncrementalIndicator } from "../types";
 import type { AtrState } from "../volatility/atr";
 import { createAtr } from "../volatility/atr";
 
@@ -52,17 +64,28 @@ type CandleEntry = {
   close: number;
 };
 
+/**
+ * Bare state shape for VSA. Params (`volumeMaPeriod`, `atrPeriod`,
+ * threshold params) live in `meta.params`; the inner ATR / SMA
+ * snapshots are themselves `IndicatorSnapshot`s.
+ */
 export type VsaState = {
-  atrState: AtrState;
-  volumeSmaState: SmaState;
+  atrState: IndicatorSnapshot<AtrState>;
+  volumeSmaState: IndicatorSnapshot<SmaState>;
   candleBuffer: ReturnType<CircularBuffer<CandleEntry>["snapshot"]>;
+  count: number;
+};
+
+/** Per-indicator schema version. Bumped on any breaking state change. */
+export const VSA_VERSION = 1;
+
+type VsaParams = {
   volumeMaPeriod: number;
   atrPeriod: number;
   highVolumeThreshold: number;
   lowVolumeThreshold: number;
   wideSpreadThreshold: number;
   narrowSpreadThreshold: number;
-  count: number;
 };
 
 export type VsaOptions = {
@@ -185,14 +208,39 @@ function classifyBar(
  */
 export function createVsa(
   options: VsaOptions = {},
-  warmUpOptions?: WarmUpOptions<VsaState>,
-): IncrementalIndicator<VsaValue, VsaState> {
-  const volumeMaPeriod = options.volumeMaPeriod ?? 20;
-  const atrPeriod = options.atrPeriod ?? 14;
-  const highVolumeThreshold = options.highVolumeThreshold ?? 1.5;
-  const lowVolumeThreshold = options.lowVolumeThreshold ?? 0.7;
-  const wideSpreadThreshold = options.wideSpreadThreshold ?? 1.2;
-  const narrowSpreadThreshold = options.narrowSpreadThreshold ?? 0.7;
+  warmUpOptions?: {
+    fromState?: IndicatorSnapshot<VsaState>;
+    warmUp?: NormalizedCandle[];
+  },
+): IncrementalIndicator<VsaValue, IndicatorSnapshot<VsaState>> {
+  const { params, state } = resolveResume<VsaParams, VsaState>({
+    indicator: "vsa",
+    version: VSA_VERSION,
+    category: "mixed",
+    options,
+    fromState: warmUpOptions?.fromState ?? null,
+    defaults: {
+      volumeMaPeriod: 20,
+      atrPeriod: 14,
+      highVolumeThreshold: 1.5,
+      lowVolumeThreshold: 0.7,
+      wideSpreadThreshold: 1.2,
+      narrowSpreadThreshold: 0.7,
+    },
+    resumeInvariantParams: [
+      "highVolumeThreshold",
+      "lowVolumeThreshold",
+      "wideSpreadThreshold",
+      "narrowSpreadThreshold",
+    ],
+  });
+
+  const volumeMaPeriod = params.volumeMaPeriod;
+  const atrPeriod = params.atrPeriod;
+  const highVolumeThreshold = params.highVolumeThreshold;
+  const lowVolumeThreshold = params.lowVolumeThreshold;
+  const wideSpreadThreshold = params.wideSpreadThreshold;
+  const narrowSpreadThreshold = params.narrowSpreadThreshold;
 
   // 10-bar candle buffer for test detection (needs lookback of 10)
   const candleBufferSize = 10;
@@ -202,15 +250,14 @@ export function createVsa(
   let candleBuffer: CircularBuffer<CandleEntry>;
   let count: number;
 
-  if (warmUpOptions?.fromState) {
-    const s = warmUpOptions.fromState;
-    atrIndicator = createAtr({ period: atrPeriod }, { fromState: s.atrState });
+  if (state !== null) {
+    atrIndicator = createAtr({ period: atrPeriod }, { fromState: state.atrState });
     volumeSma = createSma(
       { period: volumeMaPeriod, source: "volume" },
-      { fromState: s.volumeSmaState },
+      { fromState: state.volumeSmaState },
     );
-    candleBuffer = CircularBuffer.fromSnapshot(s.candleBuffer);
-    count = s.count;
+    candleBuffer = CircularBuffer.fromSnapshot(state.candleBuffer);
+    count = state.count;
   } else {
     atrIndicator = createAtr({ period: atrPeriod });
     volumeSma = createSma({ period: volumeMaPeriod, source: "volume" });
@@ -230,7 +277,7 @@ export function createVsa(
     return { spreadRelative, closePosition, volumeRelative };
   }
 
-  const indicator: IncrementalIndicator<VsaValue, VsaState> = {
+  const indicator: IncrementalIndicator<VsaValue, IndicatorSnapshot<VsaState>> = {
     next(candle: NormalizedCandle) {
       count++;
 
@@ -342,19 +389,25 @@ export function createVsa(
       };
     },
 
-    getState(): VsaState {
-      return {
-        atrState: atrIndicator.getState(),
-        volumeSmaState: volumeSma.getState(),
-        candleBuffer: candleBuffer.snapshot(),
-        volumeMaPeriod,
-        atrPeriod,
-        highVolumeThreshold,
-        lowVolumeThreshold,
-        wideSpreadThreshold,
-        narrowSpreadThreshold,
-        count,
-      };
+    getState(): IndicatorSnapshot<VsaState> {
+      return makeSnapshot(
+        "vsa",
+        VSA_VERSION,
+        {
+          volumeMaPeriod,
+          atrPeriod,
+          highVolumeThreshold,
+          lowVolumeThreshold,
+          wideSpreadThreshold,
+          narrowSpreadThreshold,
+        },
+        {
+          atrState: atrIndicator.getState(),
+          volumeSmaState: volumeSma.getState(),
+          candleBuffer: candleBuffer.snapshot(),
+          count,
+        },
+      );
     },
 
     get count() {

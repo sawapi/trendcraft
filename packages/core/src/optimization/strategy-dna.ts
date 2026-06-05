@@ -456,11 +456,18 @@ function wfStabilityScore(stabilityRatio: number): number {
   return 0;
 }
 
-function mcSignificanceScore(pValue: number): number {
-  if (pValue < 0.01) return 100;
-  if (pValue < 0.05) return 75;
-  if (pValue < 0.1) return 50;
-  if (pValue < 0.2) return 25;
+/**
+ * Map Monte Carlo downside risk to a 0–100 robustness score. Driven by
+ * the worse of probability-of-loss and risk-of-ruin (a strategy is only
+ * as robust as its larger downside). Thresholds mirror the color bands
+ * mainstream MC tooling uses for risk of ruin (green < 5%, red > 50%).
+ */
+function mcDownsideScore(probLoss: number, riskOfRuin: number): number {
+  const risk = Math.max(probLoss, riskOfRuin);
+  if (risk < 0.05) return 100;
+  if (risk < 0.1) return 75;
+  if (risk < 0.2) return 50;
+  if (risk < 0.35) return 25;
   return 0;
 }
 
@@ -540,18 +547,18 @@ export function computeDnaGrade(
   }
 
   if (monteCarlo) {
-    const pVal = Math.min(monteCarlo.pValue.sharpe, monteCarlo.pValue.returns);
-    const s = mcSignificanceScore(pVal);
+    const { probLoss, riskOfRuin, ruinThreshold } = monteCarlo.downside;
+    const s = mcDownsideScore(probLoss, riskOfRuin);
     items.push({
-      label: "Monte Carlo Significance",
+      label: "Monte Carlo Robustness",
       grade: scoreToDnaGrade(s),
       score: s,
-      description: `p-value: ${pVal.toFixed(3)}`,
+      description: `P(loss): ${(probLoss * 100).toFixed(0)}%, risk of ${ruinThreshold}%+ ruin: ${(riskOfRuin * 100).toFixed(0)}%`,
       available: true,
     });
   } else {
     items.push({
-      label: "Monte Carlo Significance",
+      label: "Monte Carlo Robustness",
       grade: "F",
       score: 0,
       description: "Run Monte Carlo first",
