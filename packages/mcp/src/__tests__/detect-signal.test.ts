@@ -80,6 +80,15 @@ describe("detectSignalHandler", () => {
     );
   });
 
+  it("rejects a volume-based signal when a candle supplies a non-finite volume", () => {
+    // A NaN volume would slip past a `=== undefined` check and through `?? 0`,
+    // silently distorting the volume average. The finiteness guard rejects it.
+    const withNaN = trendingCandles(40).map((c, i) => (i === 5 ? { ...c, volume: Number.NaN } : c));
+    expect(() => detectSignalHandler({ kind: "volumeBreakout", candles: withNaN })).toThrow(
+      /INVALID_INPUT.*reads volume.*non-finite/s,
+    );
+  });
+
   it("rejects a price-based signal routed onto volume via source:'volume' when volume is omitted", () => {
     // perfectOrder is price-based, but `source: "volume"` makes it read
     // candle volume through getPrice — the guard must catch this dynamic

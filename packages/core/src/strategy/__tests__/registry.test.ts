@@ -174,3 +174,23 @@ describe("streamingRegistry", () => {
     expect(streamingRegistry.has("crossOver")).toBe(true);
   });
 });
+
+describe("cross-registry param consistency", () => {
+  it("rsiBelow/rsiAbove threshold is optional-with-default in both registries", () => {
+    // A StrategyJSON that omits `threshold` must validate identically against
+    // either registry. Previously the streaming registry marked threshold
+    // `required` (no default) while backtest defaulted it, so `{ name: "rsiBelow" }`
+    // passed backtest validation but failed streaming validation.
+    for (const [name, expectedDefault] of [
+      ["rsiBelow", 30],
+      ["rsiAbove", 70],
+    ] as const) {
+      const bt = backtestRegistry.get(name)?.params.threshold;
+      const st = streamingRegistry.get(name)?.params.threshold;
+      expect(bt?.default).toBe(expectedDefault);
+      expect(st?.default).toBe(expectedDefault);
+      expect(bt?.required).toBeFalsy();
+      expect(st?.required).toBeFalsy();
+    }
+  });
+});
