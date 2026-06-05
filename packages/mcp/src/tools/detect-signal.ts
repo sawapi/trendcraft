@@ -83,14 +83,20 @@ export function detectSignalHandler(
   // filled with 0 to satisfy `trendcraft`'s numeric-volume contract.
   const readsVolume = desc.usesVolume === true || input.params?.source === "volume";
   if (readsVolume) {
-    const missing = candles.filter((c) => c.volume === undefined).length;
+    // Reject a non-finite volume (undefined, or NaN/Infinity if a caller reached
+    // the handler bypassing the schema): a fabricated 0 would distort the volume
+    // average, and a NaN would silently poison the result.
+    const missing = candles.filter((c) => !Number.isFinite(c.volume)).length;
     if (missing > 0) {
       throw new Error(
-        `INVALID_INPUT: signal "${input.kind}" reads volume, but ${missing} of ${candles.length} candle(s) omit it. Provide volume on every bar, or choose a price-only signal.`,
+        `INVALID_INPUT: signal "${input.kind}" reads volume, but ${missing} of ${candles.length} candle(s) omit it or supply a non-finite value. Provide a finite volume on every bar, or choose a price-only signal.`,
       );
     }
   }
-  const resolvedCandles = candles.map((c) => ({ ...c, volume: c.volume ?? 0 }));
+  const resolvedCandles = candles.map((c) => ({
+    ...c,
+    volume: Number.isFinite(c.volume) ? (c.volume as number) : 0,
+  }));
 
   let raw: unknown;
   try {
