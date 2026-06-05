@@ -31,6 +31,7 @@
   "scripts": {
     "dev": "vite build --watch",
     "build": "vite build",
+    "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "start": "node ./dist/bin/trendcraft-mcp.js",

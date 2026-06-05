@@ -158,6 +158,28 @@ describe("Walk-Forward Analysis", () => {
       expect(result.recommendation).toBeDefined();
     });
 
+    it("aggregates the 'mar' metric (regression: mar was missing from metricKeys)", () => {
+      const candles = generateUpTrendCandles(300);
+      const createStrategy = (params: Record<string, number>) => ({
+        entry: createEnterCondition(Math.round(params.enterAfter)),
+        exit: createExitCondition(10, Math.round(params.enterAfter)),
+        options: { capital: 100000 } as BacktestOptions,
+      });
+
+      const result = walkForwardAnalysis(candles, createStrategy, [param("enterAfter", 5, 15, 5)], {
+        windowSize: 100,
+        stepSize: 50,
+        testSize: 50,
+        metric: "mar",
+      });
+
+      // Before the fix "mar" was absent from metricKeys, so these were
+      // undefined (violating the Record<OptimizationMetric, number> type) and
+      // stabilityRatio silently collapsed to 0 for any mar-optimized run.
+      expect(Number.isFinite(result.aggregateMetrics.avgInSample.mar)).toBe(true);
+      expect(Number.isFinite(result.aggregateMetrics.avgOutOfSample.mar)).toBe(true);
+    });
+
     it("should throw error for insufficient data", () => {
       const candles = generateUpTrendCandles(50);
 

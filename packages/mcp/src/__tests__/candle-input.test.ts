@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { CandleStore } from "../dispatcher/candle-store";
-import type { Candle } from "../schemas/candle";
+import { type Candle, candleSchema, candleTupleSchema } from "../schemas/candle";
 import { calcIndicatorHandler } from "../tools/calc";
 import { detectSignalHandler } from "../tools/detect-signal";
 import { loadCandlesHandler } from "../tools/load-candles";
@@ -203,5 +203,24 @@ describe("response envelope additions (v0.2.0+)", () => {
     );
     expect(result.totalLength).toBe(0);
     expect(result.processedBars).toBe(80);
+  });
+});
+
+describe("candle schema finiteness", () => {
+  const base = { time: 1, open: 100, high: 101, low: 99, close: 100, volume: 1000 };
+
+  it("rejects NaN / Infinity OHLCV in the object schema", () => {
+    expect(candleSchema.safeParse(base).success).toBe(true);
+    expect(candleSchema.safeParse({ ...base, close: Number.NaN }).success).toBe(false);
+    expect(candleSchema.safeParse({ ...base, open: Number.POSITIVE_INFINITY }).success).toBe(false);
+    expect(candleSchema.safeParse({ ...base, volume: Number.NaN }).success).toBe(false);
+  });
+
+  it("rejects NaN / Infinity in the tuple schema", () => {
+    expect(candleTupleSchema.safeParse([1, 100, 101, 99, 100, 1000]).success).toBe(true);
+    expect(candleTupleSchema.safeParse([1, 100, 101, 99, Number.NaN]).success).toBe(false);
+    expect(
+      candleTupleSchema.safeParse([1, 100, 101, 99, 100, Number.POSITIVE_INFINITY]).success,
+    ).toBe(false);
   });
 });

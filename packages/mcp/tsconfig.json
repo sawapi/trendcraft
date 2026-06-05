@@ -3,7 +3,6 @@
   "compilerOptions": {
     "rootDir": ".",
     "outDir": "./dist",
-    "baseUrl": ".",
     "lib": ["ES2022"],
     "types": ["vitest/globals", "node"]
   },

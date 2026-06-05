@@ -3,10 +3,6 @@
   "compilerOptions": {
     "rootDir": ".",
     "outDir": "./dist",
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["./src/*"]
-    },
     "jsx": "react-jsx",
     "types": ["vitest/globals", "node", "react", "react-dom"]
   },

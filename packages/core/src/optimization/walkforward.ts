@@ -286,9 +286,14 @@ function calculateAggregateMetrics(
   outOfSampleMetrics: Record<OptimizationMetric, number>[],
   primaryMetric: OptimizationMetric,
 ): WalkForwardResult["aggregateMetrics"] {
+  // Must list every OptimizationMetric: a key omitted here is never averaged,
+  // so aggregateMetrics[key] stays undefined and any run optimized on that
+  // metric (e.g. "mar") silently collapses stabilityRatio to 0 and the
+  // recommendation to the pessimistic branch.
   const metricKeys: OptimizationMetric[] = [
     "sharpe",
     "calmar",
+    "mar",
     "profitFactor",
     "recoveryFactor",
     "returns",

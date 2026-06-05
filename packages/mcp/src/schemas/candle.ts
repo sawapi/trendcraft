@@ -1,13 +1,17 @@
 import { z } from "zod";
 import type { CandleStore } from "../dispatcher/candle-store";
 
+// `.finite()` rejects NaN / ±Infinity: a non-finite OHLCV value poisons every
+// downstream indicator/signal with NaN, so it must be refused at the input
+// boundary (the same finiteness contract `validateIndicatorParams` enforces on
+// params) rather than silently producing a NaN-filled result.
 export const candleSchema = z.object({
-  time: z.number(),
-  open: z.number(),
-  high: z.number(),
-  low: z.number(),
-  close: z.number(),
-  volume: z.number().optional(),
+  time: z.number().finite(),
+  open: z.number().finite(),
+  high: z.number().finite(),
+  low: z.number().finite(),
+  close: z.number().finite(),
+  volume: z.number().finite().optional(),
 });
 
 // Length validation is handled by the tool handler so that the surfaced
@@ -24,8 +28,21 @@ export type Candle = z.infer<typeof candleSchema>;
  * `detect_signal` via the `candlesArray` parameter.
  */
 export const candleTupleSchema = z.union([
-  z.tuple([z.number(), z.number(), z.number(), z.number(), z.number()]),
-  z.tuple([z.number(), z.number(), z.number(), z.number(), z.number(), z.number()]),
+  z.tuple([
+    z.number().finite(),
+    z.number().finite(),
+    z.number().finite(),
+    z.number().finite(),
+    z.number().finite(),
+  ]),
+  z.tuple([
+    z.number().finite(),
+    z.number().finite(),
+    z.number().finite(),
+    z.number().finite(),
+    z.number().finite(),
+    z.number().finite(),
+  ]),
 ]);
 
 export const candlesTupleArraySchema = z.array(candleTupleSchema);
