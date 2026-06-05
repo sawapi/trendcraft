@@ -64,7 +64,7 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
     "trendcraft": "workspace:^",
-    "zod": "^3.25.0"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "vite": "^8.0.10",
