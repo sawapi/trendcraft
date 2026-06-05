@@ -47,6 +47,7 @@
     "!dist/__benchmarks__",
     "!dist/**/*.js.map",
     "!dist/**/*.cjs.map",
+    "!dist/**/*.d.ts.map",
     "LICENSE"
   ],
   "scripts": {

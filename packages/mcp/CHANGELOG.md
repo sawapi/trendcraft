@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+### Fixed — reject non-finite candle OHLCV at the input boundary
+
+The candle schemas accepted `NaN` / `±Infinity` (bare `z.number()`), unlike
+params, so a non-finite OHLCV value flowed into every indicator/signal and
+returned a NaN-poisoned result with `ok: true` instead of a clear
+`INVALID_INPUT`. The schemas now require finite numbers.
+
+### Fixed — volume-reading signals require a real volume on every bar
+
+`detect_signal` checked only `volume === undefined`, so a volume-based signal
+(or one routed onto volume via `source: "volume"`) silently fabricated a `0`
+volume — distorting the volume average — for omitted or `NaN` volumes. Such
+input is now rejected with `INVALID_INPUT`; price-only signals still tolerate a
+missing volume.
+
+### Changed — bumped `zod` to v4
+
+The runtime `zod` dependency moved from v3 to v4. No schema behavior changes for
+callers.
+
 ### Added — upfront `params` shape guard for `calc_indicator` / `detect_signal`
 
 `validateIndicatorParams` rejects structurally broken `params`

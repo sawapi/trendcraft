@@ -2,6 +2,55 @@
 
 ## Unreleased
 
+### Fixed — volume-constrained partial fills no longer erase un-deployed capital
+
+`runBacktest` with a `volumeConstraint` (and the default `partialFill: true`)
+zeroed `currentCapital` on entry regardless of how many shares actually filled.
+For a partial fill the cost basis is only the deployed notional, so the
+un-deployed cash was erased from equity and never credited back on exit — on a
+flat market a constrained backtest reported a ~99.9% phantom loss. Only the
+filled notional + commission is now deducted; full (unconstrained) fills are
+unchanged.
+
+### Fixed — walk-forward analysis aggregates the `mar` metric
+
+`calculateAggregateMetrics` omitted `"mar"` from its metric list, so
+`walkForwardAnalysis(..., { metric: "mar" })` left the aggregate `mar`
+undefined, collapsing `stabilityRatio` to 0 and forcing the pessimistic
+recommendation regardless of true out-of-sample performance.
+
+### Fixed — live `PositionTracker` equity/drawdown for short positions
+
+`updateUnrealized` used a long-only equity formula, so an open short's equity
+(and therefore `peakEquity` / `maxDrawdownPercent`) moved the wrong way with
+price — a winning short looked like a losing one mid-trade, firing phantom-loss
+drawdown stops. Equity is now direction-agnostic (`cash + entryPrice·shares +
+unrealizedPnl`).
+
+### Fixed — NaN / divide-by-zero guards in relative-strength, Pareto, and stress-test
+
+`rankByRS` returned `NaN` percentile for a single-symbol input; `benchmarkRS`
+returned `NaN` `rsRating` for a degenerate `rankingLookback`; `paretoOptimization`
+let NaN objective metrics (calmar / mar / recoveryFactor on zero-drawdown data)
+pollute the front; and `stressTest`'s CVaR dropped the VaR observation from its
+tail (off-by-one). All four are now guarded.
+
+### Fixed — sloped Head & Shoulders neckline breakout + RSI registry default drift
+
+`findNecklineBreakIndex` projected a sloped neckline from the wrong anchor, so
+the breakout threshold was mis-placed (false confirmations on down-sloping
+necklines, suppressed breaks on up-sloping ones); flat necklines were
+unaffected. Separately, the streaming registry marked `rsiBelow` / `rsiAbove`
+`threshold` as required while the backtest registry defaulted it, so a portable
+StrategyJSON omitting `threshold` validated differently per registry — the
+streaming entries now share the same default.
+
+### Added — `extractTradeReturns` re-exported from the package root
+
+`extractTradeReturns` is now exported from `trendcraft` (it was only on the
+`optimization` barrel), so the documented `deflatedSharpeFromReturns` example —
+`extractTradeReturns(result)` — no longer throws at runtime.
+
 ### Added — optimizer cross-parameter constraints (`validateParams` + `paramFilter`)
 
 The grid-search engine can now reject structurally-invalid parameter
