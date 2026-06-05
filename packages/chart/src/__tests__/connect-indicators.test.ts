@@ -36,6 +36,7 @@ function createMockChart() {
       handles.push(record);
       return {
         id,
+        config: {},
         update: vi.fn((point: DataPoint) => {
           record.updates.push(point);
         }),

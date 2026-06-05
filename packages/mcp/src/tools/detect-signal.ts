@@ -71,9 +71,36 @@ export function detectSignalHandler(
   // underlying signal function.
   validateIndicatorParams(input.kind, input.params);
 
+  // `trendcraft`'s signal functions require a numeric `volume`, but the
+  // MCP candle schema allows it to be omitted (price-only callers).
+  //
+  // A signal reads volume either intrinsically (the `usesVolume` kinds) or
+  // dynamically, when the caller routes a price-source option onto volume
+  // (`source: "volume"`, read via `getPrice`). In both cases it must see real
+  // volume on every bar: zero-filling a missing one would feed a synthetic
+  // zero into the computation and could fabricate a signal, so reject the
+  // input instead. Price-only reads ignore volume, so a missing one is
+  // filled with 0 to satisfy `trendcraft`'s numeric-volume contract.
+  const readsVolume = desc.usesVolume === true || input.params?.source === "volume";
+  if (readsVolume) {
+    // Reject a non-finite volume (undefined, or NaN/Infinity if a caller reached
+    // the handler bypassing the schema): a fabricated 0 would distort the volume
+    // average, and a NaN would silently poison the result.
+    const missing = candles.filter((c) => !Number.isFinite(c.volume)).length;
+    if (missing > 0) {
+      throw new Error(
+        `INVALID_INPUT: signal "${input.kind}" reads volume, but ${missing} of ${candles.length} candle(s) omit it or supply a non-finite value. Provide a finite volume on every bar, or choose a price-only signal.`,
+      );
+    }
+  }
+  const resolvedCandles = candles.map((c) => ({
+    ...c,
+    volume: Number.isFinite(c.volume) ? (c.volume as number) : 0,
+  }));
+
   let raw: unknown;
   try {
-    raw = desc.fn(candles, input.params);
+    raw = desc.fn(resolvedCandles, input.params);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     if (MISSING_PARAMS_RE.test(message)) {

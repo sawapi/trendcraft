@@ -32,6 +32,10 @@ jobs:
 
       - run: pnpm build
 
+      # After build: chart/mcp type-check against `trendcraft`'s published
+      # types (packages/core/dist/*.d.ts), which only exist post-build.
+      - run: pnpm typecheck
+
       - run: pnpm test
 
       - name: Cross-validation (TA-Lib compatibility)

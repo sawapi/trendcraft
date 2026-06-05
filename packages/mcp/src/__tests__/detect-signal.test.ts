@@ -71,6 +71,50 @@ describe("detectSignalHandler", () => {
     );
   });
 
+  it("rejects a volume-based signal when any candle omits volume (INVALID_INPUT)", () => {
+    // Strip volume off the candles — a volume signal must not see fabricated
+    // zeros, so the dispatcher should reject rather than zero-fill.
+    const priceOnly = trendingCandles(40).map(({ volume: _volume, ...c }) => c);
+    expect(() => detectSignalHandler({ kind: "volumeBreakout", candles: priceOnly })).toThrow(
+      /INVALID_INPUT.*reads volume.*40 candle/s,
+    );
+  });
+
+  it("rejects a volume-based signal when a candle supplies a non-finite volume", () => {
+    // A NaN volume would slip past a `=== undefined` check and through `?? 0`,
+    // silently distorting the volume average. The finiteness guard rejects it.
+    const withNaN = trendingCandles(40).map((c, i) => (i === 5 ? { ...c, volume: Number.NaN } : c));
+    expect(() => detectSignalHandler({ kind: "volumeBreakout", candles: withNaN })).toThrow(
+      /INVALID_INPUT.*reads volume.*non-finite/s,
+    );
+  });
+
+  it("rejects a price-based signal routed onto volume via source:'volume' when volume is omitted", () => {
+    // perfectOrder is price-based, but `source: "volume"` makes it read
+    // candle volume through getPrice — the guard must catch this dynamic
+    // path too, not just the static usesVolume kinds.
+    const priceOnly = trendingCandles(60).map(({ volume: _volume, ...c }) => c);
+    expect(() =>
+      detectSignalHandler({
+        kind: "perfectOrder",
+        candles: priceOnly,
+        params: { source: "volume" },
+      }),
+    ).toThrow(/INVALID_INPUT.*reads volume/s);
+  });
+
+  it("tolerates omitted volume for a price-only signal (zero-filled, no throw)", () => {
+    const priceOnly = trendingCandles(80).map(({ volume: _volume, ...c }) => c);
+    const result = detectSignalHandler({
+      kind: "goldenCross",
+      candles: priceOnly,
+      params: { short: 5, long: 25 },
+      lastN: 0,
+    });
+    expect(result.kind).toBe("goldenCross");
+    expect(result.totalLength).toBe(80);
+  });
+
   it("reclassifies invalid params (short>=long) as INVALID_PARAMETER", () => {
     expect(() =>
       detectSignalHandler({

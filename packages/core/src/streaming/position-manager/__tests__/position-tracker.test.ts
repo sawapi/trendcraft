@@ -462,4 +462,32 @@ describe("createPositionTracker", () => {
       expect(pos.id).toBe("pos-2");
     });
   });
+
+  describe("short position open-equity (regression: equity inverted for shorts)", () => {
+    it("moves equity UP when a short's price falls (winning short)", () => {
+      const tracker = createPositionTracker({ capital: 100_000, direction: "short" });
+      tracker.openPosition(100, 100, 1000); // short 100 sh @ 100 → cash 90,000
+      // Price falls to 90 → a +1,000 profit for the short.
+      tracker.updatePrice(makeCandle({ close: 90, high: 91, low: 89 }));
+
+      const account = tracker.getAccount();
+      expect(account.unrealizedPnl).toBe(1000);
+      // Equity must rise to 101,000. The old long-only formula
+      // (cash + currentPrice*shares = 90,000 + 90*100) wrongly gave 99,000,
+      // inverting the equity/drawdown curve against price for every short.
+      expect(account.equity).toBe(101_000);
+      expect(account.peakEquity).toBe(101_000);
+      expect(account.maxDrawdownPercent).toBe(0);
+    });
+
+    it("moves equity DOWN when a short's price rises (losing short)", () => {
+      const tracker = createPositionTracker({ capital: 100_000, direction: "short" });
+      tracker.openPosition(100, 100, 1000);
+      tracker.updatePrice(makeCandle({ close: 110, high: 111, low: 109 }));
+
+      const account = tracker.getAccount();
+      expect(account.unrealizedPnl).toBe(-1000);
+      expect(account.equity).toBe(99_000);
+    });
+  });
 });

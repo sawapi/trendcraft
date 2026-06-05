@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { getPointerPos, onDoubleTap, onTap } from "../core/pointer";
+import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
+import { getPointerPos, onDoubleTap, onTap, type PointerInfo } from "../core/pointer";
 
 function makeEl(rect: Partial<DOMRect> = {}): HTMLElement {
   const el = document.createElement("div");
@@ -54,7 +54,7 @@ describe("getPointerPos", () => {
 
 describe("onTap", () => {
   let el: HTMLElement;
-  let handler: ReturnType<typeof vi.fn>;
+  let handler: Mock<(pos: PointerInfo) => void>;
   beforeEach(() => {
     el = makeEl();
     handler = vi.fn();
@@ -103,6 +103,41 @@ describe("onTap", () => {
     el.dispatchEvent(end);
     expect(handler).toHaveBeenCalledTimes(1);
     expect(handler.mock.calls[0][0].isTouch).toBe(true);
+    off();
+  });
+
+  it("fires once per touch tap, suppressing the synthesized mouse click", () => {
+    const off = onTap(el, handler);
+    // Real single-finger tap: touchstart → touchend.
+    const start = new Event("touchstart") as unknown as TouchEvent;
+    Object.defineProperty(start, "touches", { value: [{ clientX: 50, clientY: 60 }] });
+    el.dispatchEvent(start);
+    const end = new Event("touchend") as unknown as TouchEvent;
+    Object.defineProperty(end, "changedTouches", { value: [{ clientX: 50, clientY: 60 }] });
+    el.dispatchEvent(end);
+    // Browser then synthesizes a mouse click for the same gesture; it must be
+    // suppressed so the handler fires exactly once (not twice).
+    el.dispatchEvent(new MouseEvent("click", { clientX: 50, clientY: 60 }));
+
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(handler.mock.calls[0][0].isTouch).toBe(true);
+    off();
+  });
+
+  it("still fires a genuine mouse click at a different position after a touch tap", () => {
+    const off = onTap(el, handler);
+    const start = new Event("touchstart") as unknown as TouchEvent;
+    Object.defineProperty(start, "touches", { value: [{ clientX: 50, clientY: 60 }] });
+    el.dispatchEvent(start);
+    const end = new Event("touchend") as unknown as TouchEvent;
+    Object.defineProperty(end, "changedTouches", { value: [{ clientX: 50, clientY: 60 }] });
+    el.dispatchEvent(end);
+    // A real mouse click elsewhere (hybrid device) is NOT the synthesized one →
+    // must still fire.
+    el.dispatchEvent(new MouseEvent("click", { clientX: 300, clientY: 300 }));
+
+    expect(handler).toHaveBeenCalledTimes(2);
+    expect(handler.mock.calls[1][0].isTouch).toBe(false);
     off();
   });
 
@@ -166,7 +201,7 @@ describe("onTap", () => {
 
 describe("onDoubleTap", () => {
   let el: HTMLElement;
-  let handler: ReturnType<typeof vi.fn>;
+  let handler: Mock<(pos: PointerInfo) => void>;
   beforeEach(() => {
     el = makeEl();
     handler = vi.fn();
