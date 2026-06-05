@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — multiple chart instances no longer cross-contaminate decimated candles
+
+The candle-decimation cache was a module-level singleton keyed only on
+`{start, end, target, dataVersion}` — none instance-unique — so two charts on
+one page, both zoomed out enough to decimate and sharing a viewport, could have
+one render with the other's candles. The cache is now keyed on the source candle
+array (a `WeakMap`, like the LTTB line cache), scoping it per instance.
+
+### Fixed — a single touch tap fires the tap handler once, not twice
+
+`onTap` listened to both `touchend` and the mouse `click` that browsers
+synthesize for the same gesture, so each touch tap fired twice (and a
+touch-drawn shape emitted a phantom click). The synthesized click is now
+suppressed, matching the guard `onDoubleTap` already had.
+
+### Fixed — Vue `<TrendChart>` applies runtime `options` changes
+
+The Vue wrapper forwarded the `options` prop by value rather than as a reactive
+getter, so replacing it with a new object never re-ran `applyOptions` and
+runtime option changes (volume, watermark, formatters, …) were silently dropped.
+
 ### Added — Price Patterns plugin (`connectPricePatterns`)
 
 A tree-shakeable visualization plugin for chart-pattern signals — Double
