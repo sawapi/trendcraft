@@ -54,6 +54,13 @@ const TAP_THRESHOLD = 25; // 5px squared
 export function onTap(el: HTMLElement, handler: (pos: PointerInfo) => void): () => void {
   let downPos: { x: number; y: number } | null = null;
 
+  // After a real touch tap, mobile browsers synthesize a mouse `click` for the
+  // same gesture (touch→mouse compat). Stamp the touch tap and suppress that
+  // synthesized click so a single tap fires the handler once, not twice
+  // (mirrors the guard onDoubleTap already has for dblclick).
+  let lastTouchTapAt = Number.NEGATIVE_INFINITY;
+  let lastTouchTapPos: { x: number; y: number } | null = null;
+
   const onMouseDown = (e: MouseEvent) => {
     const rect = el.getBoundingClientRect();
     downPos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
@@ -63,6 +70,11 @@ export function onTap(el: HTMLElement, handler: (pos: PointerInfo) => void): () 
     const rect = el.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
+    if (lastTouchTapPos && pointerNowMs() - lastTouchTapAt < TOUCH_TO_MOUSE_COMPAT_MS) {
+      const sx = x - lastTouchTapPos.x;
+      const sy = y - lastTouchTapPos.y;
+      if (sx * sx + sy * sy <= TAP_THRESHOLD) return;
+    }
     if (downPos) {
       const dx = x - downPos.x;
       const dy = y - downPos.y;
@@ -95,6 +107,9 @@ export function onTap(el: HTMLElement, handler: (pos: PointerInfo) => void): () 
     const dy = y - touchStartPos.y;
     touchStartPos = null;
     if (dx * dx + dy * dy > TAP_THRESHOLD) return;
+    // Stamp so the synthesized mouse click for this gesture is suppressed.
+    lastTouchTapAt = pointerNowMs();
+    lastTouchTapPos = { x, y };
     handler({ x, y, isTouch: true, ...readModifiers(e) });
   };
 

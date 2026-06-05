@@ -90,7 +90,11 @@ export const TrendChart = defineComponent({
       chartType: () => props.chartType,
       layout: () => props.layout,
       theme: () => props.theme,
-      options: props.options,
+      // Pass as a getter (like every sibling prop) so `useTrendChart`'s watcher
+      // re-runs applyOptions when the parent replaces `options` with a new
+      // object. Passing `props.options` by value captured the initial reference,
+      // so runtime option changes were silently ignored.
+      options: () => props.options,
       fitOnLoad: () => props.fitOnLoad,
       onCrosshairMove: (data) => emit("crosshairMove", data),
       onSeriesAdded: (data) => emit("seriesAdded", data),

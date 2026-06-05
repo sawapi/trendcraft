@@ -83,6 +83,38 @@ describe("headAndShoulders", () => {
     }
   });
 
+  it("detects and confirms a sloped-neckline pattern (breakout projected from the right-shoulder anchor)", () => {
+    const candles: NormalizedCandle[] = [];
+    let day = 1;
+    for (let i = 0; i < 10; i++) candles.push(createCandle(day++, 100 + i * 2));
+    // Left shoulder
+    for (let i = 0; i < 5; i++)
+      candles.push(createCandle(day++, 120 + (i < 3 ? i * 2 : (4 - i) * 2)));
+    // Left trough ~108
+    for (let i = 0; i < 8; i++)
+      candles.push(createCandle(day++, i < 4 ? 118 - i * 3 : 108 + (i - 4) * 3));
+    // Head
+    for (let i = 0; i < 7; i++)
+      candles.push(createCandle(day++, i < 4 ? 118 + i * 5 : 133 - (i - 3) * 5));
+    // Right trough ~100 — lower than the left trough, so the neckline slopes down.
+    for (let i = 0; i < 8; i++)
+      candles.push(createCandle(day++, i < 4 ? 115 - i * 3 : 100 + (i - 4) * 3));
+    // Right shoulder
+    for (let i = 0; i < 5; i++)
+      candles.push(createCandle(day++, 118 + (i < 3 ? i * 2 : (4 - i) * 2)));
+    // Strong break below the (down-sloping) neckline
+    for (let i = 0; i < 15; i++) candles.push(createCandle(day++, 112 - i * 4));
+
+    const patterns = headAndShoulders(candles, { swingLookback: 3 });
+    // The sloped neckline must still project a confirmable breakout. The
+    // breakout level is anchored at the right shoulder (currentPrice), not the
+    // left trough (startPrice) — the latter would mis-place the threshold.
+    expect(patterns.length).toBeGreaterThanOrEqual(1);
+    expect(patterns[0].confirmed).toBe(true);
+    expect(patterns[0].confidence).toBeGreaterThanOrEqual(0);
+    expect(patterns[0].confidence).toBeLessThanOrEqual(100);
+  });
+
   it("should respect shoulderTolerance parameter", () => {
     const candles: NormalizedCandle[] = [];
     let day = 1;

@@ -103,10 +103,12 @@ streamingRegistry.register({
   displayName: "RSI Below",
   category: "momentum",
   params: {
-    threshold: { type: "number", required: true, min: 0, max: 100 },
+    // Default matches the backtest registry so a portable StrategyJSON that
+    // omits `threshold` validates identically against either registry.
+    threshold: { type: "number", default: 30, min: 0, max: 100, description: "RSI threshold" },
     key: { type: "string", default: "rsi" },
   },
-  create: (p) => rsiBelow(p.threshold as number, (p.key as string) ?? "rsi"),
+  create: (p) => rsiBelow((p.threshold as number) ?? 30, (p.key as string) ?? "rsi"),
 });
 
 streamingRegistry.register({
@@ -114,10 +116,10 @@ streamingRegistry.register({
   displayName: "RSI Above",
   category: "momentum",
   params: {
-    threshold: { type: "number", required: true, min: 0, max: 100 },
+    threshold: { type: "number", default: 70, min: 0, max: 100, description: "RSI threshold" },
     key: { type: "string", default: "rsi" },
   },
-  create: (p) => rsiAbove(p.threshold as number, (p.key as string) ?? "rsi"),
+  create: (p) => rsiAbove((p.threshold as number) ?? 70, (p.key as string) ?? "rsi"),
 });
 
 // ============================================
