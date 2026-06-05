@@ -421,8 +421,12 @@ function findNecklineBreakIndex(
 ): number | null {
   const endIndex = Math.min(fromIndex + maxBars, candles.length);
   for (let i = fromIndex + 1; i < endIndex; i++) {
-    // Calculate neckline price at this index (accounting for slope)
-    const necklinePrice = neckline.startPrice + neckline.slope * (i - fromIndex);
+    // Project the neckline at bar i from its value at `fromIndex`. The base must
+    // be `currentPrice` (the neckline value at fromIndex = rightShoulder.index),
+    // NOT `startPrice` (its value at the left trough/peak): with a sloped
+    // neckline the two differ by slope·(rightShoulder − leftTrough), which would
+    // mis-place the breakout threshold and flip confirmation on/off.
+    const necklinePrice = neckline.currentPrice + neckline.slope * (i - fromIndex);
 
     if (direction === "down" && candles[i].close < necklinePrice) {
       return i;
