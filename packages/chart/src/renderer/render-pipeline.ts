@@ -50,15 +50,25 @@ let _watermarkFont = "";
 const _rightScaleMap = new Map<string, PriceScale>();
 const _seriesByPane = new Map<string, InternalSeries[]>();
 
-/** Candle decimation cache — avoids re-decimating every frame when viewport hasn't changed */
-let _decimCache: {
-  start: number;
-  end: number;
-  target: number;
-  dataVersion: number;
-  candles: readonly CandleData[];
-  originalIndices: Int32Array;
-} | null = null;
+/**
+ * Candle decimation cache — avoids re-decimating every frame when the viewport
+ * hasn't changed. Keyed on the source candle array reference (a WeakMap, like
+ * the LTTB line cache) so each chart instance gets its own entry: a module-level
+ * singleton keyed only on {start,end,target,dataVersion} collided across two
+ * charts sharing those values (e.g. both `fitContent()`'d to the same count and
+ * width), painting one chart's decimated candles onto the other.
+ */
+const _decimCache = new WeakMap<
+  readonly CandleData[],
+  {
+    start: number;
+    end: number;
+    target: number;
+    dataVersion: number;
+    candles: readonly CandleData[];
+    originalIndices: Int32Array;
+  }
+>();
 
 /** Everything the render pipeline needs from CanvasChart */
 export type RenderContext = {
@@ -307,17 +317,20 @@ export function renderFrame(rc: RenderContext): RenderResult {
         let visibleCandles: readonly CandleData[];
         let origIndices: Int32Array | undefined;
         if (decimTarget > 0) {
-          // Use cached decimation result when viewport hasn't changed
+          // Use cached decimation result when viewport hasn't changed. The
+          // cache is keyed on this chart's own candle array, so a sibling
+          // chart with the same start/end/target/version can't read it.
           const dataVer = data.version;
+          const cached = _decimCache.get(candles);
           if (
-            _decimCache &&
-            _decimCache.start === timeScale.startIndex &&
-            _decimCache.end === timeScale.endIndex &&
-            _decimCache.target === decimTarget &&
-            _decimCache.dataVersion === dataVer
+            cached &&
+            cached.start === timeScale.startIndex &&
+            cached.end === timeScale.endIndex &&
+            cached.target === decimTarget &&
+            cached.dataVersion === dataVer
           ) {
-            visibleCandles = _decimCache.candles;
-            origIndices = _decimCache.originalIndices;
+            visibleCandles = cached.candles;
+            origIndices = cached.originalIndices;
           } else {
             const decimated = decimateCandles(
               candles,
@@ -327,14 +340,14 @@ export function renderFrame(rc: RenderContext): RenderResult {
             );
             visibleCandles = decimated.candles;
             origIndices = decimated.originalIndices;
-            _decimCache = {
+            _decimCache.set(candles, {
               start: timeScale.startIndex,
               end: timeScale.endIndex,
               target: decimTarget,
               dataVersion: dataVer,
               candles: visibleCandles,
               originalIndices: origIndices,
-            };
+            });
           }
         } else {
           visibleCandles = candles;
