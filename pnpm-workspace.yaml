@@ -1,3 +1,8 @@
 packages:
   - "packages/*"
   - "packages/chart/examples/strategy-studio"
+
+# Supply chain security: delay installing newly published versions.
+# 10080 minutes = 7 days. Blocks packages published less than 7 days ago,
+# giving time for compromised releases to be reported and yanked.
+minimumReleaseAge: 10080
