@@ -6,11 +6,15 @@ Complete API surface for `@trendcraft/chart`. This is the reference; for concept
 
 | Import from | Contents | Environment |
 |---|---|---|
-| `@trendcraft/chart` | `createChart`, `connectIndicators`, plugin helpers, plugins, all types | Browser only — throws in SSR |
+| `@trendcraft/chart` | `createChart`, `connectIndicators`, `connectLivePrimitives`, plugin helpers, plugins, all types | Browser only — throws in SSR |
 | `@trendcraft/chart/headless` | `DataLayer`, `TimeScale`, `PriceScale`, `LayoutEngine`, `introspect`, `lttb`, formatters | Any (Node / SSR / tests) |
-| `@trendcraft/chart/presets` | Bundled indicator presets | Browser only |
+| `@trendcraft/chart/presets` | `registerTrendCraftPresets` — opt-in introspection rules + visual presets for TrendCraft-specific indicator shapes | Browser only |
+| `@trendcraft/chart/sparkline` | `createSparkline`, `createSparklineGroup`, line/candle mini-chart renderers | Browser only |
+| `@trendcraft/chart/replay` | `createLiveSimulator` — replay historical candles as a live feed | Any (Node / SSR / tests) |
 | `@trendcraft/chart/react` | `TrendChart` component, `useTrendChart` hook | React 19+, browser only |
+| `@trendcraft/chart/react/sparkline` | `Sparkline`, `SparklineList` React components | React 19+, browser only |
 | `@trendcraft/chart/vue` | `TrendChart` component, `useTrendChart` composable | Vue 3.3+, browser only |
+| `@trendcraft/chart/vue/sparkline` | `Sparkline`, `SparklineList` Vue components | Vue 3.3+, browser only |
 
 ## Table of Contents
 
@@ -33,6 +37,7 @@ Complete API surface for `@trendcraft/chart`. This is the reference; for concept
 - [Connection APIs](#connection-apis)
   - [`connectIndicators`](#connectindicatorschart-options)
   - [`defineIndicator`](#defineindicatorpresetid-options)
+  - [`connectLivePrimitives`](#connectliveprimitivessource-specs)
 - [Drawing auto-injection helpers](#drawing-auto-injection-helpers)
 - [Plugin helpers](#plugin-helpers)
 - [Built-in plugins](#built-in-plugins)
@@ -319,9 +324,9 @@ All time values are epoch milliseconds.
 | `paneResize` | `{ paneId: string, height: number }` |
 | `seriesAdded` | `{ id: string, label: string }` |
 | `seriesRemoved` | `{ id: string }` |
-| `dataFiltered` | `{ reason: string, count: number }` |
+| `dataFiltered` | `{ total: number, valid: number, removed: number }` |
 | `drawingComplete` | `Drawing` |
-| `error` | `{ message: string, source?: string }` |
+| `error` | `ChartErrorPayload = { message: string, code?: ChartErrorCode, detail?: unknown }` |
 
 ## Connection APIs
 
@@ -382,6 +387,48 @@ conn.add(sma5);
 ```
 
 Useful when you want to pass indicator configurations around your app without coupling to a specific chart connection.
+
+### `connectLivePrimitives(source, specs)`
+
+```typescript
+function connectLivePrimitives(
+  source: LiveSource,
+  specs: readonly LivePrimitiveSpec<unknown>[],
+): LivePrimitivesConnection
+```
+
+Keep primitive plugins (S/R Zones, SMC, Wyckoff, Kill Zones, Regime Heatmap, etc.) in sync with a live feed. Primitives register via `chart.registerPrimitive()` rather than `addIndicator()`, so they are invisible to `connectIndicators`' live event loop. This helper recomputes each spec on `candleComplete` and pushes the result to the plugin handle's `update()` method (batch recompute — O(N) per completed candle).
+
+```typescript
+import { connectIndicators, connectLivePrimitives, connectSrConfluence } from '@trendcraft/chart';
+import { srZones } from 'trendcraft';
+
+const conn = connectIndicators(chart, { presets, candles, live: source });
+const sr = connectSrConfluence(chart, srZones(source.completedCandles));
+
+const liveSr = connectLivePrimitives(source, [
+  { recompute: (candles) => srZones(candles), handle: sr, name: 'sr' },
+]);
+
+// later
+liveSr.disconnect();
+conn.disconnect();
+```
+
+`LivePrimitiveSpec`:
+
+| Field | Type | Description |
+|---|---|---|
+| `recompute` | `(candles: readonly SourceCandle[]) => T` | Recompute the primitive's data from the current candle history. |
+| `handle` | `LivePrimitiveHandle<T>` | Plugin handle (e.g. from `connectSrConfluence`) whose `update(data)` is called with the recomputed result. |
+| `name` | `string` (optional) | Name used in error logs to identify which spec failed. |
+
+`LivePrimitivesConnection`:
+
+| Method | Description |
+|---|---|
+| `disconnect()` | Unsubscribe from `candleComplete` events. Idempotent. |
+| `recomputeAll()` | Manually trigger a recompute of all specs — useful to seed handles right after construction. No-op once disconnected. |
 
 ## Drawing auto-injection helpers
 
@@ -465,6 +512,9 @@ Tree-shakeable visualization primitives bundled with the library:
 | `createSessionZones` / `connectSessionZones` | Session backgrounds (Asian/London/NY) |
 | `createAndrewsPitchfork` / `connectAndrewsPitchfork` | Andrew's Pitchfork — median line + upper/lower handles from three swing anchors, extending forward |
 | `createVolumeProfile` / `connectVolumeProfile` | Horizontal volume-by-price histogram along the right edge, with highlighted Value Area and dashed POC line |
+| `createMarketProfile` / `connectMarketProfile` | TPO (Time Price Opportunity) market profile — per-price letter/block distribution with Value Area and POC |
+| `createPricePatterns` / `connectPricePatterns` | Chart pattern outlines (double top/bottom, head & shoulders, triangles, etc.). `filterPricePatterns` narrows a `PricePatternSignal[]` set before connecting |
+| `createSqueezeDots` / `connectSqueezeDots` | Bollinger/Keltner squeeze dots along the pane baseline |
 
 Each `create*` returns a `PrimitivePlugin`; each `connect*` registers it and returns an update handle.
 
@@ -620,13 +670,12 @@ The chart uses a three-tier resolution path when deciding how to render a series
 ### Adding custom rules
 
 ```typescript
-import { SeriesRegistry } from '@trendcraft/chart';
-
-SeriesRegistry.addRule({
+chart.addRule({
   name: 'myShape',
-  match: (value) => typeof value === 'object' && value !== null && 'a' in value && 'b' in value,
+  test: (value) => typeof value === 'object' && value !== null && 'a' in value && 'b' in value,
   seriesType: 'line',
-  channels: ['a', 'b'],
+  defaultPane: 'sub',
+  decompose: (value) => ({ a: value.a, b: value.b }),
 });
 ```
 
@@ -641,3 +690,15 @@ chart.addPreset('myShape', {
 ```
 
 Presets override built-ins for the same name. Use this to re-skin built-in indicators without forking.
+
+### TrendCraft preset bundle (`@trendcraft/chart/presets`)
+
+```typescript
+import { registerTrendCraftPresets } from '@trendcraft/chart/presets';
+
+registerTrendCraftPresets(chart);
+```
+
+`registerTrendCraftPresets(chart)` is an opt-in helper that registers introspection rules **and** visual presets for TrendCraft-specific indicator output shapes — e.g. `klinger` `{ kvo, signal, histogram }`, `connorsRsi` `{ crsi, ... }`, `adaptiveRsi` `{ rsi, effectivePeriod, volatilityPercentile }`, `vsa`, `emaRibbon`, `fairValueGap` / `orderBlock` box zones, `fractals`, `heikinAshi`, and more. It also registers the custom renderers those shapes need (FVG / order-block zones, fractal markers, Heikin-Ashi overlay).
+
+Generic shapes (band, MACD-like oscillators, plain numbers, etc.) are handled by the chart core, so this call is only needed when you feed it TrendCraft-specific indicator output. Without it those shapes fall through to generic rendering and may show no visible series. Call it once, right after `createChart`, before adding the affected indicators.

@@ -49,7 +49,7 @@ The split is intentional: `trendcraft` owns the data math (aggregation, stateful
 |---|---|---|
 | `createLiveCandle` | `trendcraft` | Aggregates ticks into candles, runs incremental indicators, emits events |
 | `livePresets` / `indicatorPresets` | `trendcraft` | Registries of incremental factories + metadata |
-| `incremental.create*` | `trendcraft` | 160+ incremental indicator factories |
+| `incremental.create*` | `trendcraft` | 90+ incremental indicator factories |
 | `connectIndicators` | `@trendcraft/chart` | Wires a preset registry to a chart; handles backfill + live updates |
 | `ChartInstance.updateCandle` | `@trendcraft/chart` | Append or patch the last candle |
 
@@ -61,9 +61,11 @@ If your feed delivers individual trades and you want the chart to aggregate them
 
 ```typescript
 import { createChart, connectIndicators } from '@trendcraft/chart';
+import { registerTrendCraftPresets } from '@trendcraft/chart/presets';
 import { createLiveCandle, indicatorPresets } from 'trendcraft';
 
 const chart = createChart(container, { theme: 'dark' });
+registerTrendCraftPresets(chart);  // required when using indicatorPresets — see "Common pitfalls"
 chart.setCandles(history);  // prime with historical bars
 
 const live = createLiveCandle({
@@ -311,6 +313,20 @@ This is usually what you want. `createLiveCandle` has no network I/O — it just
 For gaps in the feed during a disconnect, request the missing history from your REST API and replay through `live.addCandle(bar)`.
 
 ## Common pitfalls
+
+### Forgetting `registerTrendCraftPresets(chart)`
+
+When you wire `connectIndicators` with `indicatorPresets`, also call `registerTrendCraftPresets(chart)` from `@trendcraft/chart/presets` **before adding indicators**:
+
+```typescript
+import { registerTrendCraftPresets } from '@trendcraft/chart/presets';
+
+const chart = createChart(container, { theme: 'dark' });
+registerTrendCraftPresets(chart);
+const conn = connectIndicators(chart, { presets: indicatorPresets, candles, live });
+```
+
+Without it, TrendCraft-specific shapes (`adaptiveRsi` `{rsi, effectivePeriod, volatilityPercentile}`, `connorsRsi`, `klinger`, `vsa`, etc.) fall through built-in introspection and silently render as generic "Indicator"/"Series" with no visible line. There is no warning — the chart degrades silently.
 
 ### Forgetting to call `conn.disconnect()` in cleanup
 

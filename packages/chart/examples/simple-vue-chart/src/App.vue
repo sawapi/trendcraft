@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { definePrimitive, defineSeriesRenderer } from "@trendcraft/chart";
+// biome-ignore lint/correctness/noUnusedImports: used as <TrendChart> in the .vue template — Biome can't see template usage.
+import { TrendChart } from "@trendcraft/chart/vue";
 import {
   bollingerBands,
   goldenCrossCondition,
@@ -105,8 +107,15 @@ function computeTrailingStop() {
   });
 }
 
-const _indicators = computed(() => {
-  const list: unknown[] = [];
+// biome-ignore lint/correctness/noUnusedVariables: bound to template via `:indicators` — Biome can't see the .vue template usage.
+const indicators = computed(() => {
+  const list: (
+    | { time: number; value: unknown }[]
+    | {
+        data: { time: number; value: unknown }[];
+        config: import("@trendcraft/chart").SeriesConfig;
+      }
+  )[] = [];
   if (showSma.value) list.push(sma(candles, { period: 20 }));
   if (showBb.value) list.push(bollingerBands(candles));
   if (showRsi.value) list.push(rsi(candles));
@@ -131,13 +140,15 @@ const _indicators = computed(() => {
   return list;
 });
 
-const _backtestResult = computed(() => {
+// biome-ignore lint/correctness/noUnusedVariables: bound to template via `:backtest` — Biome can't see the .vue template usage.
+const backtestResult = computed(() => {
   if (!showBacktest.value) return undefined;
   const normalized = normalizeCandles(candles);
   return runBacktest(normalized, goldenCrossCondition(), rsiBelow(70), { capital: 100000 });
 });
 
-const _plugins = computed(() => {
+// biome-ignore lint/correctness/noUnusedVariables: bound to template via `:plugins` — Biome can't see the .vue template usage.
+const plugins = computed(() => {
   if (!showSrZones.value) return { renderers: [trailRenderer] };
   const recent = candles.slice(-60);
   let high = Number.NEGATIVE_INFINITY;
@@ -156,7 +167,8 @@ const _plugins = computed(() => {
   return { renderers: [trailRenderer], primitives: [srZonePrimitive] };
 });
 
-function _toggleTheme() {
+// biome-ignore lint/correctness/noUnusedVariables: bound to template via `@click="toggleTheme"` — Biome can't see the .vue template usage.
+function toggleTheme() {
   theme.value = theme.value === "dark" ? "light" : "dark";
 }
 </script>

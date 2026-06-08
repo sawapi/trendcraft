@@ -1008,7 +1008,7 @@ const entry = and(
   rsAbove(1.0),         // Outperforming
   rsRising(),           // RS improving
   rsRatingAbove(70),    // Top 30%
-  goldenCross()         // Technical entry
+  goldenCrossCondition()  // Technical entry
 );
 
 // Run backtest with benchmark
@@ -1331,7 +1331,7 @@ import { rangeBreakout } from 'trendcraft';
 const result = TrendCraft.from(candles)
   .strategy()
     .entry(rangeBreakout())  // Enter when range breaks
-    .exit(deadCross())
+    .exit(deadCrossCondition())
   .backtest({ capital: 1000000 });
 ```
 
@@ -1485,12 +1485,12 @@ Backtesting simulates a trading strategy's performance using historical data. Tr
 ### Basic Usage
 
 ```typescript
-import { runBacktest, goldenCross, deadCross } from 'trendcraft';
+import { runBacktest, goldenCrossCondition, deadCrossCondition } from 'trendcraft';
 
 const result = runBacktest(
   candles,
-  goldenCross(5, 25),  // Entry condition
-  deadCross(5, 25),    // Exit condition
+  goldenCrossCondition(5, 25),  // Entry condition
+  deadCrossCondition(5, 25),    // Exit condition
   {
     capital: 1000000,    // Initial capital
     stopLoss: 5,         // 5% stop loss
@@ -1503,8 +1503,8 @@ const result = runBacktest(
 
 | Condition | Description |
 |-----------|-------------|
-| `goldenCross(short, long)` | Short MA crosses above Long MA |
-| `deadCross(short, long)` | Short MA crosses below Long MA |
+| `goldenCrossCondition(short, long)` | Short MA crosses above Long MA |
+| `deadCrossCondition(short, long)` | Short MA crosses below Long MA |
 | `rsiBelow(threshold)` | RSI below threshold |
 | `rsiAbove(threshold)` | RSI above threshold |
 | `macdCrossUp()` | MACD crosses above signal |
@@ -1519,10 +1519,10 @@ const result = runBacktest(
 import { and, or, not } from 'trendcraft';
 
 // Golden Cross AND RSI < 30
-const entry = and(goldenCross(), rsiBelow(30));
+const entry = and(goldenCrossCondition(), rsiBelow(30));
 
 // Dead Cross OR RSI > 70
-const exit = or(deadCross(), rsiAbove(70));
+const exit = or(deadCrossCondition(), rsiAbove(70));
 
 // NOT overbought
 const notOverbought = not(rsiAbove(70));
@@ -1645,7 +1645,7 @@ import { getPreset, scoreAbove } from 'trendcraft';
 const result = TrendCraft.from(candles)
   .strategy()
     .entry(scoreAbove(70, "trendFollowing"))
-    .exit(deadCross())
+    .exit(deadCrossCondition())
   .backtest({ capital: 1000000 });
 ```
 
@@ -1820,31 +1820,30 @@ chandelier.forEach(({ time, value }) => {
 Calculate entry, stop, and take-profit levels:
 
 ```typescript
-import { calculateAtrStops } from 'trendcraft';
+import { calculateAtrStop, calculateAtrTakeProfit } from 'trendcraft';
 
-const levels = calculateAtrStops({
-  entryPrice: 100,
-  atrValue: 2.5,
-  stopMultiplier: 2,        // 2x ATR for stop
-  takeProfitMultiplier: 3,  // 3x ATR for take-profit
-  direction: 'long',
-});
+const entryPrice = 100;
+const atrValue = 2.5;
 
-// Result:
-// stopPrice: 95 (100 - 2 × 2.5)
-// takeProfitPrice: 107.5 (100 + 3 × 2.5)
-// riskRewardRatio: 1.5
+const stopPrice = calculateAtrStop(entryPrice, atrValue, 2, 'long');
+// 95 (100 - 2 × 2.5)
+const takeProfitPrice = calculateAtrTakeProfit(entryPrice, atrValue, 3, 'long');
+// 107.5 (100 + 3 × 2.5)
+
+const riskRewardRatio =
+  (takeProfitPrice - entryPrice) / (entryPrice - stopPrice);
+// 1.5
 ```
 
 ### Using ATR in Backtesting
 
 ```typescript
-import { TrendCraft, goldenCross, deadCross } from 'trendcraft';
+import { TrendCraft, goldenCrossCondition, deadCrossCondition } from 'trendcraft';
 
 const result = TrendCraft.from(candles)
   .strategy()
-    .entry(goldenCross())
-    .exit(deadCross())
+    .entry(goldenCrossCondition())
+    .exit(deadCrossCondition())
   .backtest({
     capital: 1000000,
     atrRisk: {
@@ -1877,7 +1876,8 @@ const result = TrendCraft.from(candles)
 ```typescript
 import {
   atrBasedSize,
-  calculateAtrStops,
+  calculateAtrStop,
+  calculateAtrTakeProfit,
   atr
 } from 'trendcraft';
 
@@ -1895,18 +1895,16 @@ const position = atrBasedSize({
 });
 
 // Calculate stop and take-profit
-const levels = calculateAtrStops({
-  entryPrice: 50,
-  atrValue: currentAtr,
-  stopMultiplier: 2,
-  takeProfitMultiplier: 3,
-  direction: 'long',
-});
+const entryPrice = 50;
+const stopPrice = calculateAtrStop(entryPrice, currentAtr, 2, 'long');
+const takeProfitPrice = calculateAtrTakeProfit(entryPrice, currentAtr, 3, 'long');
+const riskRewardRatio =
+  (takeProfitPrice - entryPrice) / (entryPrice - stopPrice);
 
 console.log(`Buy ${position.shares} shares at $50`);
-console.log(`Stop: ${levels.stopPrice}`);
-console.log(`Target: ${levels.takeProfitPrice}`);
-console.log(`Risk/Reward: 1:${levels.riskRewardRatio.toFixed(1)}`);
+console.log(`Stop: ${stopPrice}`);
+console.log(`Target: ${takeProfitPrice}`);
+console.log(`Risk/Reward: 1:${riskRewardRatio.toFixed(1)}`);
 ```
 
 ---
@@ -2016,7 +2014,7 @@ regime = 'extreme'  → Very cautious, consider sitting out
 ### Trading Applications
 
 ```typescript
-import { regimeIs, regimeNot, atrPercentAbove, and, goldenCross, bollingerTouch } from 'trendcraft';
+import { regimeIs, regimeNot, atrPercentAbove, and, goldenCrossCondition, bollingerTouch } from 'trendcraft';
 
 // Range-bound strategies in low volatility
 const rangeEntry = and(
@@ -2027,7 +2025,7 @@ const rangeEntry = and(
 // Avoid high volatility for trend strategies
 const trendEntry = and(
   regimeNot('extreme'),
-  goldenCross()
+  goldenCrossCondition()
 );
 
 // Filter by ATR% for trend-following (volatile stocks only)
@@ -2068,30 +2066,34 @@ Strategy optimization helps you find the best parameters and conditions for your
 Grid search tests all combinations of parameter values to find optimal settings.
 
 ```typescript
-import { gridSearch, param, constraint, goldenCross, deadCross } from 'trendcraft';
+import { gridSearch, param, constraint, goldenCrossCondition, deadCrossCondition } from 'trendcraft';
 
 const result = gridSearch(
   candles,
   (params) => ({
-    entry: goldenCross(params.short, params.long),
-    exit: deadCross(params.short, params.long),
+    entry: goldenCrossCondition(params.short, params.long),
+    exit: deadCrossCondition(params.short, params.long),
   }),
   [
-    param('short', [5, 10, 15, 20]),
-    param('long', [25, 50, 75, 100]),
+    param('short', 5, 20, 5),    // name, min, max, step
+    param('long', 25, 100, 25),
   ],
   {
-    metric: 'sharpeRatio',
+    metric: 'sharpe',
     constraints: [
       constraint('winRate', '>=', 40),
       constraint('maxDrawdown', '<=', 30),
     ],
-    topN: 5
   }
 );
 
-console.log('Best parameters:', result.results[0].parameters);
-console.log('Sharpe ratio:', result.results[0].metrics.sharpeRatio);
+console.log('Best parameters:', result.bestParams);
+console.log('Sharpe ratio:', result.bestScore);
+
+// Top 5 results (sorted by score, descending)
+const top5 = result.results.slice(0, 5);
+console.log('Best parameters:', top5[0].params);
+console.log('Sharpe ratio:', top5[0].metrics.sharpe);
 ```
 
 ### Walk-Forward Analysis
@@ -2112,9 +2114,10 @@ const result = walkForwardAnalysis(
   strategyFactory,
   paramRanges,
   {
-    inSampleRatio: 0.7,    // 70% in-sample, 30% out-of-sample
-    periods: 5,            // 5 walk-forward periods
-    metric: 'sharpeRatio',
+    windowSize: 252,   // training window in candles (~1 year daily)
+    stepSize: 63,      // roll forward by this many candles (~1 quarter)
+    testSize: 63,      // out-of-sample test window (~1 quarter)
+    metric: 'sharpe',
   }
 );
 ```
@@ -2130,8 +2133,11 @@ const result = combinationSearch(
   candles,
   createEntryConditionPool(),
   createExitConditionPool(),
-  { metric: 'sharpeRatio', topN: 20 }
+  { metric: 'sharpe' }
 );
+
+// Top 20 combinations (results are sorted by score, descending)
+const top20 = result.results.slice(0, 20);
 ```
 
 ### Tips
@@ -2167,10 +2173,10 @@ Scaled entry (or split entry) divides your capital into multiple tranches instea
 ### Usage Example
 
 ```typescript
-import { runBacktestScaled, goldenCross, deadCross } from 'trendcraft';
+import { runBacktestScaled, goldenCrossCondition, deadCrossCondition } from 'trendcraft';
 
 // Enter in 3 tranches, adding on 2% dips
-const result = runBacktestScaled(candles, goldenCross(), deadCross(), {
+const result = runBacktestScaled(candles, goldenCrossCondition(), deadCrossCondition(), {
   capital: 1000000,
   scaledEntry: {
     tranches: 3,
@@ -2181,7 +2187,7 @@ const result = runBacktestScaled(candles, goldenCross(), deadCross(), {
 });
 
 // Signal-based: add on each golden cross
-const result2 = runBacktestScaled(candles, goldenCross(), deadCross(), {
+const result2 = runBacktestScaled(candles, goldenCrossCondition(), deadCrossCondition(), {
   capital: 1000000,
   scaledEntry: {
     tranches: 3,
@@ -2229,7 +2235,7 @@ const snap = rsi.getState();  // serialize for persistence
 const resumed = incremental.createRsi({ period: 14 }, { fromState: snap });
 ```
 
-v0.2.0 ships 160+ factories across moving-average, momentum, trend, volatility, volume, price, and Wyckoff categories.
+There are 90+ incremental factories across moving-average, momentum, trend, volatility, volume, price, and Wyckoff categories.
 
 ### `createLiveCandle` — one object for ticks, bars, and indicator snapshots
 
@@ -2281,7 +2287,7 @@ const smaIndicator = smaFactory(undefined);
 const rsiSeries = indicatorPresets.rsi.compute(candles, { period: 14 });
 ```
 
-`livePresets` ships 76 entries (streaming-focused); `indicatorPresets` ships 95 with both streaming and batch paths.
+`livePresets` ships 84 entries (streaming-focused); `indicatorPresets` ships 104 with both streaming and batch paths.
 
 ### Series metadata (`SeriesMeta` / `tagSeries`)
 

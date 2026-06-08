@@ -63,7 +63,7 @@ type StrategyDef = {
 
 const STRATEGIES: StrategyDef[] = [
   {
-    name: "Golden Cross (50/200)",
+    name: "Golden Cross (5/25)",
     description: "SMA 5/25 golden cross → dead cross, 5% stop loss",
     entry: goldenCrossCondition(5, 25),
     exit: deadCrossCondition(5, 25),

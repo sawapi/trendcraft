@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Breaking — `snapshotName` is now a default label, not a uniqueness key
+
+`connectIndicators.add()` previously threw on **any** `snapshotName`
+collision, forcing hosts to pass `{ snapshotName: "..." }` boilerplate
+to keep multiple instances of the same preset — e.g. comparing two
+SMA(20) lines in different colors, or stacking two anchored VWAPs from
+different anchor times.
+
+New behavior:
+
+- A preset's `snapshotName(params)` is treated as a **default label
+  suggestion**, not a uniqueness key.
+- When the derived default collides, the library **auto-suffixes**:
+  `"sma20"` → `"sma20#2"` → `"sma20#3"`, and so on. Identity is
+  guaranteed by `connectIndicators`, not by the preset.
+- When the caller passes an **explicit** `snapshotName` and it
+  collides, the library still throws — an explicit id belongs to the
+  caller and a duplicate is a caller-side bug.
+
+**Migration**: drop the `{ snapshotName }` boilerplate you added solely
+to dedupe same-preset instances; the auto-suffix now handles it. Keep
+explicit `snapshotName` only where you rely on a stable, host-chosen id
+(and ensure those ids are unique — duplicates still throw).
+
 ### Fixed — multiple chart instances no longer cross-contaminate decimated candles
 
 The candle-decimation cache was a module-level singleton keyed only on
@@ -54,6 +78,37 @@ New exports from the package entry:
 `PricePatternsOptions` covers bull/bear/neutral colors (hex + optional
 `r,g,b` triplets for fills), body alpha, neckline / target dash patterns,
 a `minConfidence` floor (default 60), and a `maxPatterns` cap (default 8).
+
+### Added — `connectLivePrimitives` for live-mode plugin support
+
+`connectLivePrimitives(chart, ...)` is a new public export from the
+package entry, returning a `{ remove() }` handle like the other
+`connect*` plugins. It lets the differentiation plugins (SMC, Wyckoff,
+Regime Heatmap, S/R Confluence, Session Zones, etc.) participate in
+live mode by recomputing their primitives as new bars arrive, rather
+than rendering only against a static candle array. The replay subpath's
+`createLiveSimulator` drives it directly (see the `@trendcraft/chart/replay`
+entry below).
+
+### Added / Changed — plugin visual enhancements
+
+- **Volume Profile** now draws the VAH / VAL value-area boundary lines
+  in addition to the POC, so the 70% value area is visible at a glance
+  (#179).
+- **Andrews Pitchfork** gains line labels and the 0.25 / 0.75 half-lines
+  between the median and the outer tines (#180).
+- **Plugin visuals aligned with industry conventions** (#181): TTM
+  Squeeze markers render as circular dots on a zero-line rail (was
+  rectangles, despite the "dots" name); the Regime Heatmap adds a
+  top-left corner pill spelling out the active regime plus confidence
+  ("trending-up · 72%") instead of relying on background tint alone.
+  Pure rendering changes — the data layer is unchanged.
+- **SMC Layer text annotations** label order blocks, fair-value gaps,
+  and liquidity sweeps directly on the chart (#183).
+- **Wyckoff** renders the sub-phase letter as a separate corner chip
+  distinct from the phase label (#184).
+- **Trade analysis** gains a P&L label and magnitude-aware MFE / MAE
+  labels on each trade marker (#185).
 
 ### Added — `liveRecompute` option for batch-only indicator presets
 
@@ -313,11 +368,25 @@ Six new unit tests cover the guard paths.
 
 - **`@trendcraft/chart/sparkline` subpath** — ultra-lightweight mini chart for watchlist-style UIs (200+ instances on a single page). Vanilla `createSparkline` / `createSparklineGroup`, plus `@trendcraft/chart/react/sparkline` and `@trendcraft/chart/vue/sparkline` thin wrappers. Supports both `line` (with optional fill) and `candle` modes, four color presets (`first-vs-last`, `open-vs-close`, `baseline`, `fixed` / per-candle `up`/`down`), and a single-listener delegated hover with a shared tooltip across all sparklines in a group. Vanilla bundle ≈ 2.5 kB brotli; React/Vue ≈ 3 kB. New example at `examples/sparkline-showcase/`.
 
+### Changed
+
+- Bundle size budgets raised (brotli) to absorb the new plugin
+  enhancements and `connectLivePrimitives`. The headless budget is
+  unchanged; per-feature subpaths (`sparkline`, `replay`) carry their
+  own limits.
+
+  | Entry | 0.2.0 limit | Unreleased limit |
+  | --- | --- | --- |
+  | Main (`@trendcraft/chart`) | 36 kB | **41 kB** |
+  | Headless (`@trendcraft/chart/headless`) | 11 kB | 11 kB |
+  | React (`@trendcraft/chart/react`) | 30 kB | **33 kB** |
+  | Vue (`@trendcraft/chart/vue`) | 30 kB | **33 kB** |
+
 ### Not in this release
 
 - Intraday session gap rendering (weekend/overnight visual gaps for minute data) — tracked for v0.3.
 - C1 coverage 90% target — viewport / canvas-chart / drawing-tool DOM integration tests have low ROI; addressed incrementally.
-- Plugin live-mode integration — the six differentiation plugins remain static-only until incrementalization lands.
+- Plugin live-mode integration is now available via `connectLivePrimitives` (see Unreleased above); the differentiation plugins are no longer static-only.
 
 ## [0.2.0] - 2026-04-26
 

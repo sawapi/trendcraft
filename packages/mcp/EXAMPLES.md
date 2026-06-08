@@ -15,6 +15,8 @@ OHLCV candles look like this throughout:
 
 `time` is a unix epoch in milliseconds. `volume` is optional but required for volume-based indicators (`obv`, `mfi`, `cvd`, `volume*` signals, ...).
 
+`detect_signal` also treats a signal as volume-reading whenever you route a price source onto volume with `params: { source: "volume" }`. In that case the dispatcher requires a finite `volume` on *every* bar and rejects the call with `INVALID_INPUT` if any bar omits it — rather than zero-filling, which would feed a synthetic zero into the computation and could fabricate a false trigger. The same rule applies to the intrinsically volume-reading kinds (`obvDivergence`, `volumeBreakout`, `volumeAccumulation`, `volumeMaCross`, `volumeAboveAverage`). Price-only signals ignore volume, so a missing one is tolerated.
+
 ---
 
 ## 1. Discover what fits the situation

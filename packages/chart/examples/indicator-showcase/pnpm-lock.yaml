@@ -12,8 +12,8 @@ importers:
         specifier: link:../..
         version: link:../..
       trendcraft:
-        specifier: link:../../../../core
-        version: link:../../../../core
+        specifier: link:../../../core
+        version: link:../../../core
     devDependencies:
       typescript:
         specifier: ^5.7.2

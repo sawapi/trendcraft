@@ -1002,14 +1002,14 @@ rankings.slice(0, 5).forEach((r, i) => {
 ### バックテストでのRS
 
 ```typescript
-import { rsAbove, rsRising, rsRatingAbove, setBenchmark, and } from 'trendcraft';
+import { rsAbove, rsRising, rsRatingAbove, setBenchmark, and, goldenCrossCondition } from 'trendcraft';
 
 // エントリー: 強いRS + トレンド確認
 const entry = and(
   rsAbove(1.0),         // アウトパフォーム
   rsRising(),           // RS改善中
   rsRatingAbove(70),    // 上位30%
-  goldenCross()         // テクニカルエントリー
+  goldenCrossCondition()         // テクニカルエントリー
 );
 
 // ベンチマーク付きバックテスト実行
@@ -1323,24 +1323,24 @@ rangeScore <= 40 → トレンドまたは中立
 | 条件 | 説明 |
 |------|------|
 | `rangeBreakout()` | レンジからのブレイクアウトでエントリー |
-| `notInRange()` | レンジ相場ではない時のみエントリー（フィルター） |
+| `not(inRangeBound())` | レンジ相場ではない時のみエントリー（フィルター） |
 | `rangeForming()` | レンジ形成中にイグジット |
 
 ```typescript
-import { TrendCraft, goldenCross, rangeBreakout, notInRange } from 'trendcraft';
+import { TrendCraft, and, goldenCrossCondition, deadCrossCondition, rangeBreakout, inRangeBound, not } from 'trendcraft';
 
 // ブレイクアウト戦略
 const result1 = TrendCraft.from(candles)
   .strategy()
     .entry(rangeBreakout())
-    .exit(deadCross())
+    .exit(deadCrossCondition())
   .backtest({ capital: 1000000 });
 
 // レンジ相場を避けるフィルター
 const result2 = TrendCraft.from(candles)
   .strategy()
-    .entry(and(goldenCross(), notInRange()))
-    .exit(deadCross())
+    .entry(and(goldenCrossCondition(), not(inRangeBound())))
+    .exit(deadCrossCondition())
   .backtest({ capital: 1000000 });
 ```
 
@@ -1472,12 +1472,12 @@ orb.forEach(({ value }) => {
 ### 基本的な使い方
 
 ```typescript
-import { runBacktest, goldenCross, deadCross } from 'trendcraft';
+import { runBacktest, goldenCrossCondition, deadCrossCondition } from 'trendcraft';
 
 const result = runBacktest(
   candles,
-  goldenCross(5, 25),  // エントリー条件
-  deadCross(5, 25),    // イグジット条件
+  goldenCrossCondition(5, 25),  // エントリー条件
+  deadCrossCondition(5, 25),    // イグジット条件
   {
     capital: 1000000,    // 初期資金
     stopLoss: 5,         // 5%で損切り
@@ -1490,8 +1490,8 @@ const result = runBacktest(
 
 | 条件 | 説明 |
 |------|------|
-| `goldenCross(short, long)` | 短期MAが長期MAを上抜け |
-| `deadCross(short, long)` | 短期MAが長期MAを下抜け |
+| `goldenCrossCondition(short, long)` | 短期MAが長期MAを上抜け |
+| `deadCrossCondition(short, long)` | 短期MAが長期MAを下抜け |
 | `rsiBelow(threshold)` | RSIが閾値未満 |
 | `rsiAbove(threshold)` | RSIが閾値超え |
 | `macdCrossUp()` | MACDがシグナルを上抜け |
@@ -1503,13 +1503,13 @@ const result = runBacktest(
 ### 条件の組み合わせ
 
 ```typescript
-import { and, or, not } from 'trendcraft';
+import { and, or, not, goldenCrossCondition, deadCrossCondition } from 'trendcraft';
 
 // ゴールデンクロス AND RSI < 30
-const entry = and(goldenCross(), rsiBelow(30));
+const entry = and(goldenCrossCondition(), rsiBelow(30));
 
 // デッドクロス OR RSI > 70
-const exit = or(deadCross(), rsiAbove(70));
+const exit = or(deadCrossCondition(), rsiAbove(70));
 
 // 買われすぎではない
 const notOverbought = not(rsiAbove(70));
@@ -1626,13 +1626,13 @@ TrendCraftは事前構築されたスコアリング戦略を提供していま�
 | `balanced` | 混合シグナル | 汎用 |
 
 ```typescript
-import { getPreset, scoreAbove } from 'trendcraft';
+import { getPreset, scoreAbove, deadCrossCondition } from 'trendcraft';
 
 // プリセットをバックテストで使用
 const result = TrendCraft.from(candles)
   .strategy()
     .entry(scoreAbove(70, "trendFollowing"))
-    .exit(deadCross())
+    .exit(deadCrossCondition())
   .backtest({ capital: 1000000 });
 ```
 
@@ -1807,31 +1807,30 @@ chandelier.forEach(({ time, value }) => {
 エントリー、ストップ、利確レベルを計算：
 
 ```typescript
-import { calculateAtrStops } from 'trendcraft';
+import { calculateAtrStop, calculateAtrTakeProfit } from 'trendcraft';
 
-const levels = calculateAtrStops({
-  entryPrice: 100,
-  atrValue: 2.5,
-  stopMultiplier: 2,        // 2×ATRでストップ
-  takeProfitMultiplier: 3,  // 3×ATRで利確
-  direction: 'long',
-});
+const entryPrice = 100;
+const atrValue = 2.5;
 
-// 結果:
-// stopPrice: 95 (100 - 2 × 2.5)
-// takeProfitPrice: 107.5 (100 + 3 × 2.5)
-// riskRewardRatio: 1.5
+const stopPrice = calculateAtrStop(entryPrice, atrValue, 2, 'long');
+// 95 (100 - 2 × 2.5)
+const takeProfitPrice = calculateAtrTakeProfit(entryPrice, atrValue, 3, 'long');
+// 107.5 (100 + 3 × 2.5)
+
+const riskRewardRatio =
+  (takeProfitPrice - entryPrice) / (entryPrice - stopPrice);
+// 1.5
 ```
 
 ### バックテストでATRを使用
 
 ```typescript
-import { TrendCraft, goldenCross, deadCross } from 'trendcraft';
+import { TrendCraft, goldenCrossCondition, deadCrossCondition } from 'trendcraft';
 
 const result = TrendCraft.from(candles)
   .strategy()
-    .entry(goldenCross())
-    .exit(deadCross())
+    .entry(goldenCrossCondition())
+    .exit(deadCrossCondition())
   .backtest({
     capital: 1000000,
     atrRisk: {
@@ -1864,7 +1863,8 @@ const result = TrendCraft.from(candles)
 ```typescript
 import {
   atrBasedSize,
-  calculateAtrStops,
+  calculateAtrStop,
+  calculateAtrTakeProfit,
   atr
 } from 'trendcraft';
 
@@ -1882,18 +1882,16 @@ const position = atrBasedSize({
 });
 
 // ストップと利確を計算
-const levels = calculateAtrStops({
-  entryPrice: 50,
-  atrValue: currentAtr,
-  stopMultiplier: 2,
-  takeProfitMultiplier: 3,
-  direction: 'long',
-});
+const entryPrice = 50;
+const stopPrice = calculateAtrStop(entryPrice, currentAtr, 2, 'long');
+const takeProfitPrice = calculateAtrTakeProfit(entryPrice, currentAtr, 3, 'long');
+const riskRewardRatio =
+  (takeProfitPrice - entryPrice) / (entryPrice - stopPrice);
 
 console.log(`${position.shares}株を50円で購入`);
-console.log(`ストップ: ${levels.stopPrice}`);
-console.log(`ターゲット: ${levels.takeProfitPrice}`);
-console.log(`リスク/リワード: 1:${levels.riskRewardRatio.toFixed(1)}`);
+console.log(`ストップ: ${stopPrice}`);
+console.log(`ターゲット: ${takeProfitPrice}`);
+console.log(`リスク/リワード: 1:${riskRewardRatio.toFixed(1)}`);
 ```
 
 ---
@@ -2003,7 +2001,7 @@ regime = 'extreme'  → 非常に慎重に、様子見も検討
 ### トレードへの応用
 
 ```typescript
-import { regimeIs, regimeNot, atrPercentAbove, and, goldenCross, bollingerTouch } from 'trendcraft';
+import { regimeIs, regimeNot, atrPercentAbove, and, goldenCrossCondition, bollingerTouch } from 'trendcraft';
 
 // 低ボラティリティでのレンジ相場戦略
 const rangeEntry = and(
@@ -2014,7 +2012,7 @@ const rangeEntry = and(
 // トレンド戦略で高ボラティリティを避ける
 const trendEntry = and(
   regimeNot('extreme'),
-  goldenCross()
+  goldenCrossCondition()
 );
 
 // トレンドフォロー用にATR%でフィルタ（ボラタイルな銘柄のみ）
@@ -2055,30 +2053,34 @@ ATR% > 3%     → 非常にボラタイル（テック株、グロース株な�
 グリッドサーチは、パラメータ値のすべての組み合わせをテストして最適な設定を見つけます。
 
 ```typescript
-import { gridSearch, param, constraint, goldenCross, deadCross } from 'trendcraft';
+import { gridSearch, param, constraint, goldenCrossCondition, deadCrossCondition } from 'trendcraft';
 
 const result = gridSearch(
   candles,
   (params) => ({
-    entry: goldenCross(params.short, params.long),
-    exit: deadCross(params.short, params.long),
+    entry: goldenCrossCondition(params.short, params.long),
+    exit: deadCrossCondition(params.short, params.long),
   }),
   [
-    param('short', [5, 10, 15, 20]),
-    param('long', [25, 50, 75, 100]),
+    param('short', 5, 20, 5),    // 名前, 最小, 最大, ステップ
+    param('long', 25, 100, 25),
   ],
   {
-    metric: 'sharpeRatio',
+    metric: 'sharpe',
     constraints: [
       constraint('winRate', '>=', 40),
       constraint('maxDrawdown', '<=', 30),
     ],
-    topN: 5
   }
 );
 
-console.log('最適パラメータ:', result.results[0].parameters);
-console.log('シャープレシオ:', result.results[0].metrics.sharpeRatio);
+console.log('最適パラメータ:', result.bestParams);
+console.log('シャープレシオ:', result.bestScore);
+
+// 上位5件（スコア降順でソート済み）
+const top5 = result.results.slice(0, 5);
+console.log('最適パラメータ:', top5[0].params);
+console.log('シャープレシオ:', top5[0].metrics.sharpe);
 ```
 
 ### ウォークフォワード分析
@@ -2099,9 +2101,10 @@ const result = walkForwardAnalysis(
   strategyFactory,
   paramRanges,
   {
-    inSampleRatio: 0.7,    // 70%イン・サンプル、30%アウト・オブ・サンプル
-    periods: 5,            // 5つのウォークフォワード期間
-    metric: 'sharpeRatio',
+    windowSize: 252,   // 訓練ウィンドウのローソク足数（日足で約1年）
+    stepSize: 63,      // 前進させるローソク足数（約1四半期）
+    testSize: 63,      // アウト・オブ・サンプル検証ウィンドウ（約1四半期）
+    metric: 'sharpe',
   }
 );
 ```
@@ -2117,8 +2120,11 @@ const result = combinationSearch(
   candles,
   createEntryConditionPool(),
   createExitConditionPool(),
-  { metric: 'sharpeRatio', topN: 20 }
+  { metric: 'sharpe' }
 );
+
+// 上位20件（results はスコア降順でソート済み）
+const top20 = result.results.slice(0, 20);
 ```
 
 ### ヒント
@@ -2154,10 +2160,10 @@ const result = combinationSearch(
 ### 使用例
 
 ```typescript
-import { runBacktestScaled, goldenCross, deadCross } from 'trendcraft';
+import { runBacktestScaled, goldenCrossCondition, deadCrossCondition } from 'trendcraft';
 
 // 3トランシェでエントリー、2%下落で追加
-const result = runBacktestScaled(candles, goldenCross(), deadCross(), {
+const result = runBacktestScaled(candles, goldenCrossCondition(), deadCrossCondition(), {
   capital: 1000000,
   scaledEntry: {
     tranches: 3,
@@ -2168,7 +2174,7 @@ const result = runBacktestScaled(candles, goldenCross(), deadCross(), {
 });
 
 // シグナルベース: 各ゴールデンクロスで追加
-const result2 = runBacktestScaled(candles, goldenCross(), deadCross(), {
+const result2 = runBacktestScaled(candles, goldenCrossCondition(), deadCrossCondition(), {
   capital: 1000000,
   scaledEntry: {
     tranches: 3,
@@ -2216,7 +2222,7 @@ const snap = rsi.getState();  // 永続化用にシリアライズ
 const resumed = incremental.createRsi({ period: 14 }, { fromState: snap });
 ```
 
-v0.2.0 では moving-average / momentum / trend / volatility / volume / price / Wyckoff 等にわたり 160+ のファクトリを提供しています。
+moving-average / momentum / trend / volatility / volume / price / Wyckoff 等にわたり 90+ のインクリメンタルファクトリを提供しています。
 
 ### `createLiveCandle` — ティック・バー・指標スナップショットを1つにまとめる
 
@@ -2268,7 +2274,7 @@ const smaIndicator = smaFactory(undefined);
 const rsiSeries = indicatorPresets.rsi.compute(candles, { period: 14 });
 ```
 
-`livePresets` はストリーミング向け 76 エントリー、`indicatorPresets` はストリーミング + バッチ両対応の 95 エントリーです。
+`livePresets` はストリーミング向け 84 エントリー、`indicatorPresets` はストリーミング + バッチ両対応の 104 エントリーです。
 
 ### シリーズメタデータ（`SeriesMeta` / `tagSeries`）
 

@@ -50,10 +50,10 @@ console.log(`Return: ${result.totalReturnPercent.toFixed(2)}%  Sharpe: ${result.
 - **最適化** — 制約付きグリッドサーチ、アウトオブサンプル検証のウォークフォワード分析、組み合わせ探索。
 - **シグナルスコアリング** — 重み付きマルチシグナルスコアリング、プリセット、Fluentな`ScoreBuilder`。
 - **ポジションサイジング & リスク** — リスクベース・ATRベース・ケリー・固定比率サイジング、ATRストップとシャンデリアエグジット、VaR/CVaR、リスクパリティ、相関調整サイジング。
-- **ストリーミング** — `createLiveCandle()` がティックやローソク足を集約し、160以上のインクリメンタルなインジケーターファクトリをバーごとに駆動。再開可能なセッションのための状態保存/復元に対応。
+- **ストリーミング** — `createLiveCandle()` がティックやローソク足を集約し、90以上のインクリメンタルなインジケーターファクトリをバーごとに駆動。再開可能なセッションのための状態保存/復元に対応。
 - **高度な分析** — ペアトレード/共和分、クロスアセット相関、アルファ減衰モニタリング、戦略ロバストネススコアリング、シグナル説明可能性。
 
-36個のインジケーターはTA-Libと相互検証済みです — [`cross-validation/`](./cross-validation/) を参照してください。
+48個のインジケーターはTA-Libと相互検証済みです — [`cross-validation/`](./cross-validation/) を参照してください。
 
 ## エントリーポイント
 
@@ -82,7 +82,7 @@ import { ... } from 'trendcraft/manifest';     // インジケーターメタデ
 
 `Candle`の`time`はUnixタイムスタンプ・日付文字列・`Date`を受け付け、すべてのインジケーターは`Series<T> = { time: number, value: T }[]`を返します。
 
-2つのCLIツールが同梱されています: `trendcraft-screen` と `trendcraft-backtest`（`npx`で実行。`--list`で利用可能な条件を確認できます）。
+3つのCLIツールが同梱されています: `trendcraft-screen`、`trendcraft-backtest`、`trendcraft-analyze`（`npx`で実行。screen/backtest は `--list` で利用可能な条件を確認できます）。
 
 ## ドキュメント
 

@@ -57,9 +57,10 @@ import {
 const candles = normalizeCandles(rawCandles);
 
 // Enter: strong bullish trend + volume confirmation
-const entry = and(dmiBullish(20), adxStrong(25), volumeAboveAvg(1.5));
+// dmiBullish()/dmiBearish() default to ADX >= 25 (Wilder's strong-trend level)
+const entry = and(dmiBullish(), adxStrong(25), volumeAboveAvg(1.5));
 // Exit: bearish DMI crossover
-const exit = dmiBearish(20);
+const exit = dmiBearish();
 
 const result = runBacktest(candles, entry, exit, {
   capital: 1_000_000,
@@ -125,7 +126,7 @@ const dailyCandles = normalizeCandles(rawDailyCandles);
 const entry = and(goldenCrossCondition(5, 25), weeklyPriceAboveSma(20));
 const exit = deadCrossCondition(5, 25);
 
-const result = runBacktest(candles, entry, exit, {
+const result = runBacktest(dailyCandles, entry, exit, {
   capital: 1_000_000,
   mtfTimeframes: ["1W"],   // Enable weekly MTF data
   stopLoss: 5,
@@ -199,44 +200,49 @@ import {
 const candles = normalizeCandles(rawCandles);
 
 // Step 1: Grid search for best parameters
+// Signature: gridSearch(candles, createStrategy, parameterRanges[], options)
 const gridResult = gridSearch(
   candles,
-  {
-    shortPeriod: param(3, 10, 1),    // 3 to 10, step 1
-    longPeriod: param(15, 50, 5),    // 15 to 50, step 5
-  },
   (params) => ({
     entry: goldenCrossCondition(params.shortPeriod, params.longPeriod),
     exit: deadCrossCondition(params.shortPeriod, params.longPeriod),
     options: { capital: 1_000_000 },
   }),
+  [
+    param("shortPeriod", 3, 10, 1),    // 3 to 10, step 1
+    param("longPeriod", 15, 50, 5),    // 15 to 50, step 5
+  ],
   { metric: "sharpe" },
 );
 
-console.log(`Best params:`, gridResult.results[0].params);
-console.log(`Best Sharpe: ${gridResult.results[0].metricValue.toFixed(2)}`);
+// results[] is sorted best-first; bestParams/bestScore are also returned directly
+console.log(`Best params:`, gridResult.bestParams);
+console.log(`Best Sharpe: ${gridResult.results[0].score.toFixed(2)}`);
 
 // Step 2: Walk-forward validation
+// Signature: walkForwardAnalysis(candles, createStrategy, parameterRanges[], options)
 const wfResult = walkForwardAnalysis(
   candles,
-  {
-    shortPeriod: param(3, 10, 1),
-    longPeriod: param(15, 50, 5),
-  },
   (params) => ({
     entry: goldenCrossCondition(params.shortPeriod, params.longPeriod),
     exit: deadCrossCondition(params.shortPeriod, params.longPeriod),
     options: { capital: 1_000_000 },
   }),
+  [
+    param("shortPeriod", 3, 10, 1),
+    param("longPeriod", 15, 50, 5),
+  ],
   {
     metric: "sharpe",
-    inSampleRatio: 0.7,
-    periods: 5,
+    windowSize: 252,   // training window (~1 year daily)
+    stepSize: 63,      // roll forward ~1 quarter
+    testSize: 63,      // out-of-sample test ~1 quarter
   },
 );
 
-console.log(`OOS Return: ${wfResult.outOfSampleReturn.toFixed(2)}%`);
-console.log(`Robustness: ${wfResult.robustnessScore.toFixed(2)}`);
+// Aggregate metrics: avgOutOfSample is a per-metric record; stabilityRatio is OOS/IS
+console.log(`OOS Sharpe: ${wfResult.aggregateMetrics.avgOutOfSample.sharpe.toFixed(2)}`);
+console.log(`Stability: ${wfResult.aggregateMetrics.stabilityRatio.toFixed(2)}`);
 ```
 
 ---
@@ -257,12 +263,10 @@ const session = streaming.createTradingSession({
       { name: "rsi", create: () => incremental.createRsi({ period: 14 }) },
       { name: "sma20", create: () => incremental.createSma({ period: 20 }) },
     ],
-    detectors: [
-      {
-        name: "rsiCross30",
-        create: () => streaming.createThresholdDetector({ threshold: 30, direction: "crossBelow" }),
-        indicatorKey: "rsi",
-      },
+    // Named signals are StreamingConditions evaluated against the snapshot.
+    // crossUnder("rsi", 30) fires the bar RSI crosses from >=30 to <30.
+    signals: [
+      { name: "rsiCross30", condition: streaming.crossUnder("rsi", 30) },
     ],
   },
 });
@@ -277,7 +281,7 @@ function onTrade(price: number, volume: number) {
 
   for (const event of events) {
     if (event.type === "signal") {
-      console.log(`Signal: ${event.detectorName} at price ${price}`);
+      console.log(`Signal: ${event.name} at price ${price}`);
     }
     if (event.type === "candle") {
       console.log(`New candle: O=${event.candle.open} H=${event.candle.high}`);

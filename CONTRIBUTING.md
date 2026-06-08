@@ -5,7 +5,7 @@
 ```bash
 git clone https://github.com/sawapi/trendcraft.git
 cd trendcraft
-pnpm install
+pnpm install --frozen-lockfile
 pnpm test
 ```
 
@@ -36,8 +36,14 @@ pnpm format        # Format code
 Tests are written with [Vitest](https://vitest.dev/).
 
 ```bash
-pnpm test          # Run all tests
-pnpm test:watch    # Run in watch mode
+pnpm test          # Run all tests (all packages)
+```
+
+There is no root watch script. For watch mode, run Vitest in watch mode inside a package, e.g.:
+
+```bash
+cd packages/core
+npx vitest        # Run that package's tests in watch mode
 ```
 
 Add tests for every new feature or bug fix. Place test files in `__tests__/` directories next to the source code they cover.

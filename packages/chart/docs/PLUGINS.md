@@ -411,4 +411,4 @@ export function createMyPlugin(): PrimitivePlugin<MyState> {
 }
 ```
 
-For reference, TrendCraft's own shipped plugins (`regime-heatmap`, `smc-layer`, `wyckoff-phase`, `sr-confluence`, `trade-analysis`, `session-zones`) follow this pattern. They live in `packages/chart/src/plugins/` and export both the factory and connect helper from the main entry.
+For reference, TrendCraft's own shipped plugins (`regime-heatmap`, `smc-layer`, `wyckoff-phase`, `sr-confluence`, `trade-analysis`, `session-zones`, `andrews-pitchfork`, `volume-profile`, `market-profile`, `price-patterns`, `squeeze-dots`) follow this pattern. They live in `packages/chart/src/plugins/` and export both the factory and connect helper from the main entry.

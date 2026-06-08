@@ -2825,12 +2825,12 @@ interface PatternSignal {
 Run a backtest simulation on historical data.
 
 ```typescript
-import { runBacktest, goldenCross, deadCross } from 'trendcraft';
+import { runBacktest, goldenCrossCondition, deadCrossCondition } from 'trendcraft';
 
 const result = runBacktest(
   candles,
-  goldenCross(5, 25),  // Entry: Golden Cross
-  deadCross(5, 25),    // Exit: Dead Cross
+  goldenCrossCondition(5, 25),  // Entry: Golden Cross
+  deadCrossCondition(5, 25),    // Exit: Dead Cross
   {
     capital: 1000000,
     commission: 0,
@@ -2956,8 +2956,8 @@ interface Trade {
 #### Moving Average Cross
 
 ```typescript
-goldenCross(shortPeriod = 5, longPeriod = 25)  // Short MA crosses above Long MA
-deadCross(shortPeriod = 5, longPeriod = 25)    // Short MA crosses below Long MA
+goldenCrossCondition(shortPeriod = 5, longPeriod = 25)  // Short MA crosses above Long MA
+deadCrossCondition(shortPeriod = 5, longPeriod = 25)    // Short MA crosses below Long MA
 ```
 
 #### RSI Conditions
@@ -3256,20 +3256,20 @@ const cupEntry = patternWithinBars('cup_handle', 5, { confirmedOnly: true });
 Combine multiple conditions with logical operators.
 
 ```typescript
-import { and, or, not, goldenCross, rsiBelow, rsiAbove, deadCross } from 'trendcraft';
+import { and, or, not, goldenCrossCondition, rsiBelow, rsiAbove, deadCrossCondition } from 'trendcraft';
 
 // Entry: Golden Cross AND RSI < 30
-const entry = and(goldenCross(), rsiBelow(30));
+const entry = and(goldenCrossCondition(), rsiBelow(30));
 
 // Exit: Dead Cross OR RSI > 70
-const exit = or(deadCross(), rsiAbove(70));
+const exit = or(deadCrossCondition(), rsiAbove(70));
 
 // Entry: NOT overbought
 const notOverbought = not(rsiAbove(70));
 
 // Complex condition
 const complexEntry = and(
-  goldenCross(),
+  goldenCrossCondition(),
   rsiBelow(40),
   not(rsiAbove(60))
 );
@@ -3291,7 +3291,7 @@ const customCondition = (
   return candle.volume > 1000000 && candle.close > candle.open;
 };
 
-const result = runBacktest(candles, customCondition, deadCross(), { capital: 1000000 });
+const result = runBacktest(candles, customCondition, deadCrossCondition(), { capital: 1000000 });
 ```
 
 ---
@@ -3701,10 +3701,10 @@ const latest = result[result.length - 1].value;
 Calculate stop and take-profit levels from ATR.
 
 ```typescript
-import { calculateAtrStops } from 'trendcraft';
+import { atrStops } from 'trendcraft';
 
-const stops = calculateAtrStops(candles, {
-  atrPeriod: 14,
+const stops = atrStops(candles, {
+  period: 14,
   stopMultiplier: 2.5,
   takeProfitMultiplier: 4.0,
 });
@@ -3712,14 +3712,21 @@ const stops = calculateAtrStops(candles, {
 const latest = stops[stops.length - 1].value;
 // {
 //   atr: 2.5,
-//   stopDistance: 6.25,      // 2.5 * 2.5
-//   takeProfitDistance: 10,  // 2.5 * 4.0
-//   longStop: 93.75,         // close - stopDistance
-//   longTakeProfit: 110,     // close + takeProfitDistance
-//   shortStop: 106.25,       // close + stopDistance
-//   shortTakeProfit: 90,     // close - takeProfitDistance
+//   stopDistance: 6.25,           // 2.5 * 2.5
+//   takeProfitDistance: 10,       // 2.5 * 4.0
+//   longStopLevel: 93.75,         // close - stopDistance
+//   longTakeProfitLevel: 110,     // close + takeProfitDistance
+//   shortStopLevel: 106.25,       // close + stopDistance
+//   shortTakeProfitLevel: 90,     // close - takeProfitDistance
 // }
 ```
+
+**Options:**
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `period` | `number` | `14` | ATR period |
+| `stopMultiplier` | `number` | `2.0` | ATR multiplier for stop distance |
+| `takeProfitMultiplier` | `number` | `3.0` | ATR multiplier for take-profit distance |
 
 **Backtest integration:**
 
@@ -3804,7 +3811,7 @@ Use these conditions to filter trades by market volatility environment.
 **Example:**
 
 ```typescript
-import { regimeIs, regimeNot, atrPercentAbove, and, goldenCross } from 'trendcraft';
+import { regimeIs, regimeNot, atrPercentAbove, and, goldenCrossCondition } from 'trendcraft';
 
 // Only enter trades in low volatility environment
 const entry = and(
@@ -3815,7 +3822,7 @@ const entry = and(
 // Avoid extreme volatility
 const entry = and(
   regimeNot('extreme'),
-  goldenCross()
+  goldenCrossCondition()
 );
 
 // Filter by ATR% for trend-following (volatile stocks only)
@@ -3834,41 +3841,41 @@ const entry = and(
 Grid search for optimal strategy parameters.
 
 ```typescript
-import { gridSearch, param, constraint, goldenCross, deadCross } from 'trendcraft';
+import { gridSearch, param, constraint, goldenCrossCondition, deadCrossCondition } from 'trendcraft';
 
 const result = gridSearch(
   candles,
   (params) => ({
-    entry: goldenCross(params.short, params.long),
-    exit: deadCross(params.short, params.long),
+    entry: goldenCrossCondition(params.short, params.long),
+    exit: deadCrossCondition(params.short, params.long),
   }),
   [
-    param('short', [5, 10, 15, 20]),
-    param('long', [25, 50, 75]),
+    param('short', 5, 20, 5),
+    param('long', 25, 75, 25),
   ],
   {
-    metric: 'sharpeRatio',
+    metric: 'sharpe',
     constraints: [
       constraint('winRate', '>=', 40),
       constraint('maxDrawdown', '<=', 30),
     ],
-    topN: 10,
   }
 );
 
-console.log('Best parameters:', result.results[0].parameters);
-console.log('Sharpe ratio:', result.results[0].metrics.sharpeRatio);
+// results[] is sorted best-first; take the top 10 with .slice(0, 10)
+const top10 = result.results.slice(0, 10);
+console.log('Best parameters:', result.results[0].params);
+console.log('Sharpe ratio:', result.results[0].metrics.sharpe);
 ```
 
 **Options:**
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `metric` | `OptimizationMetric` | `'sharpeRatio'` | Target metric to optimize |
+| `metric` | `OptimizationMetric` | `'sharpe'` | Target metric to optimize |
 | `constraints` | `OptimizationConstraint[]` | `[]` | Constraints to filter results |
-| `topN` | `number` | `10` | Number of top results to return |
-| `capital` | `number` | `1000000` | Initial capital for backtests |
+| `maxCombinations` | `number` | `10000` | Maximum parameter combinations to test |
 
-**Metrics:** `'sharpeRatio' | 'calmarRatio' | 'recoveryFactor' | 'totalReturn' | 'winRate' | 'profitFactor'`
+**Metrics:** `'sharpe' | 'calmar' | 'mar' | 'profitFactor' | 'recoveryFactor' | 'returns' | 'winRate' | 'tradeCount' | 'maxDrawdown'`
 
 **Returns:** `GridSearchResult`
 
@@ -3899,21 +3906,95 @@ const result = walkForwardAnalysis(
   strategyFactory,
   paramRanges,
   {
-    inSampleRatio: 0.7,    // 70% in-sample, 30% out-of-sample
-    periods: 5,            // 5 walk-forward periods
-    metric: 'sharpeRatio',
+    windowSize: 252,   // training window (~1 year daily)
+    stepSize: 63,      // roll forward ~1 quarter
+    testSize: 63,      // out-of-sample test ~1 quarter
+    metric: 'sharpe',
   }
 );
 
-console.log('Out-of-sample results:', result.outOfSampleResults);
+// aggregateMetrics.avgOutOfSample is a per-metric record; periods[] holds each window
+console.log('OOS Sharpe:', result.aggregateMetrics.avgOutOfSample.sharpe);
+console.log('Stability:', result.aggregateMetrics.stabilityRatio);
 ```
 
 **Options:**
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `inSampleRatio` | `number` | `0.7` | Ratio of data for in-sample optimization |
-| `periods` | `number` | `5` | Number of walk-forward periods |
-| `metric` | `OptimizationMetric` | `'sharpeRatio'` | Metric to optimize |
+| `windowSize` | `number` | `252` | Training window size in candles |
+| `stepSize` | `number` | `63` | Step size in candles between windows |
+| `testSize` | `number` | `63` | Out-of-sample test size in candles |
+| `metric` | `OptimizationMetric` | `'sharpe'` | Metric to optimize |
+
+---
+
+### JSON-first optimization
+
+Drive the same `gridSearch` / `walkForwardAnalysis` engines from a serialized `StrategyJSON` plus path-addressed parameter ranges, instead of a hand-written `strategyFactory`. Returned `bestParams` keys are paths (e.g. `entry.0.params.period`) so they can be plugged straight back into `applyParamOverrides`. Registered cross-parameter constraints are AND'd into the param filter, so structurally-invalid combinations are skipped before backtesting.
+
+```typescript
+import {
+  gridSearchFromJSON,
+  walkForwardAnalysisFromJSON,
+  backtestRegistry,
+  type PathParameterRange,
+} from 'trendcraft';
+
+const ranges: PathParameterRange[] = [
+  { path: 'entry.0.params.period', min: 10, max: 30, step: 5 },
+];
+
+const grid = gridSearchFromJSON(candles, strategy, ranges, backtestRegistry, {
+  metric: 'sharpe',
+});
+
+const wf = walkForwardAnalysisFromJSON(candles, strategy, ranges, backtestRegistry, {
+  windowSize: 252,
+  stepSize: 63,
+  testSize: 63,
+});
+```
+
+**Signatures:**
+
+```typescript
+function gridSearchFromJSON(
+  candles: NormalizedCandle[],
+  strategy: StrategyJSON,
+  ranges: PathParameterRange[],
+  registry: ConditionRegistry<Condition>,
+  options?: GridSearchOptions,
+): GridSearchResult;
+
+function walkForwardAnalysisFromJSON(
+  candles: NormalizedCandle[],
+  strategy: StrategyJSON,
+  ranges: PathParameterRange[],
+  registry: ConditionRegistry<Condition>,
+  options?: WalkForwardOptions,
+): WalkForwardResult;
+```
+
+Both throw if any range path fails to resolve (malformed, out-of-range leaf, unknown or non-numeric param). The `gridSearchFromJSONSafe` / `walkForwardAnalysisFromJSONSafe` variants take the same arguments and return a `Result<…>` instead of throwing (validation → `INVALID_PARAMETER`, over-large grid → `TOO_MANY_COMBINATIONS`, too-short slice → `INSUFFICIENT_DATA`, otherwise `OPTIMIZATION_FAILED`).
+
+---
+
+### Walk-forward utilities
+
+```typescript
+import { wfeRatio, stitchOosEquity } from 'trendcraft';
+
+// Average per-period walk-forward efficiency (OOS annualized / IS annualized).
+// Periods with non-positive in-sample return are skipped; returns NaN when undefined.
+const wfe = wfeRatio(wf);
+if (Number.isFinite(wfe) && wfe >= 0.5) console.log(`Robust: WFE ${(wfe * 100).toFixed(0)}%`);
+
+// Stitch every period's out-of-sample trades into one continuous equity curve,
+// one point per trade (plus a leading anchor at the first period's testStart).
+const curve = stitchOosEquity(wf, 100_000); // -> Array<{ time: number; equity: number }>
+```
+
+`wfeRatio(result: WalkForwardResult): number` and `stitchOosEquity(result: WalkForwardResult, initialCapital = 100000)`.
 
 ---
 
@@ -3932,13 +4013,13 @@ const entryPool = createEntryConditionPool();  // Default entry conditions
 const exitPool = createExitConditionPool();    // Default exit conditions
 
 const result = combinationSearch(candles, entryPool, exitPool, {
-  metric: 'sharpeRatio',
-  topN: 20,
+  metric: 'sharpe',
 });
 
-result.results.forEach((r) => {
-  console.log(`Entry: ${r.entryName}, Exit: ${r.exitName}`);
-  console.log(`Sharpe: ${r.metrics.sharpeRatio}`);
+// results[] is sorted best-first; take the top 20 with .slice(0, 20)
+result.results.slice(0, 20).forEach((r) => {
+  console.log(`Entry: ${r.entryConditions.join(' + ')}, Exit: ${r.exitConditions.join(' + ')}`);
+  console.log(`Sharpe: ${r.metrics.sharpe}`);
 });
 ```
 
@@ -3952,23 +4033,56 @@ import {
   calculateCalmarRatio,
   calculateRecoveryFactor,
   annualizeReturn,
-  calculateAllMetrics
+  calculateAllMetrics,
+  extractTradeReturns
 } from 'trendcraft';
 
 // Calculate individual metrics
 const sharpe = calculateSharpeRatio(returns, riskFreeRate);
-const calmar = calculateCalmarRatio(totalReturn, maxDrawdown, years);
-const recovery = calculateRecoveryFactor(totalReturn, maxDrawdown);
+const calmar = calculateCalmarRatio(annualizedReturnPercent, maxDrawdownPercent);
+const recovery = calculateRecoveryFactor(netProfit, maxDrawdown);
 
-// Calculate all metrics at once
-const metrics = calculateAllMetrics(backtestResult);
+// Calculate all metrics at once (candles required for annualization)
+const metrics = calculateAllMetrics(backtestResult, candles);
+
+// Per-trade returns (decimals) from a backtest result
+const tradeReturns = extractTradeReturns(backtestResult); // number[]
+```
+
+`extractTradeReturns(result: BacktestResult): number[]` maps each trade's `returnPercent` to a decimal.
+
+---
+
+### `deflatedSharpe(params)` / `deflatedSharpeFromReturns(returns, trialSharpes)`
+
+Deflated Sharpe Ratio — the probability that the selected strategy's true Sharpe is positive after correcting for selection bias (N trials), non-normality, and sample length. Returns a probability in `[0, 1]`; values above ~0.95 indicate the Sharpe is unlikely to be a multiple-testing artifact. All Sharpe inputs must be in per-return (non-annualized) units.
+
+```typescript
+import { deflatedSharpe, deflatedSharpeFromReturns, extractTradeReturns } from 'trendcraft';
+
+// Explicit-parameter form
+const dsr = deflatedSharpe({
+  observedSharpe: 0.12,       // per-return Sharpe of the selected strategy
+  sampleSize: 500,            // number of return observations (T >= 2)
+  trials: 50,                 // number of independent configurations evaluated (N)
+  trialSharpeVariance: 0.0025,// variance of per-return Sharpe across the N trials
+  skewness: 0,                // optional, default 0
+  kurtosis: 3,                // optional, default 3 (non-excess)
+});
+console.log(dsr < 0.95 ? 'likely overfit' : 'credible edge');
+
+// Convenience form: derives observedSharpe / sampleSize / skewness / kurtosis
+// from `returns`, and trials / variance from `trialSharpes`. Both arrays must
+// be in the same per-return units. Returns NaN when undefined (e.g. < 2 returns).
+const returns = extractTradeReturns(bestResult);
+const dsr2 = deflatedSharpeFromReturns(returns, trialSharpes);
 ```
 
 ---
 
 ### `runMonteCarloSimulation(result, options)`
 
-Monte Carlo simulation to test if backtest results are statistically significant or just lucky.
+Monte Carlo simulation that resamples the trade list to estimate how reliable a backtest's performance is.
 
 ```typescript
 import { runMonteCarloSimulation, formatMonteCarloResult } from 'trendcraft';
@@ -3977,24 +4091,29 @@ const mcResult = runMonteCarloSimulation(backtestResult, {
   simulations: 1000,
   seed: 42,              // Optional: for reproducibility
   confidenceLevel: 0.95,
+  method: 'bootstrap',   // default; or 'shuffle' for sequence-risk only
+  ruinThreshold: 50,     // drawdown % treated as "ruin"
 });
 
 console.log(formatMonteCarloResult(mcResult));
-// => p=0.023, SIGNIFICANT - Strategy shows statistically significant edge
 ```
 
 **How it works:**
-1. Shuffles the trade sequence 1000 times (configurable)
-2. Recalculates metrics (Sharpe, MaxDrawdown, etc.) for each shuffle
-3. Computes p-value: probability of achieving original result by chance
-4. If p < 0.05, the strategy is statistically significant
+
+Two resampling methods (`method` option):
+1. `"bootstrap"` (default): draws N trades with replacement, so the same trade can repeat or be omitted. Total return, Sharpe, and profit factor all vary across simulations — the basis for outcome-uncertainty estimates (return distribution, probability of loss, risk of ruin).
+2. `"shuffle"`: permutes the existing trades (no replacement). The multiset of returns is unchanged, so return / Sharpe / profit factor are identical across simulations and only the path-dependent max drawdown varies. Use this to study sequence risk specifically.
+
+Each simulation rebuilds the equity curve from the resampled trades and recomputes Sharpe, max drawdown, total return, and profit factor. The result reports the distribution of these metrics plus a `downside` summary (probability of profit/loss, risk of ruin). There is no binary significance flag — the figures in `downside` are the verdict.
 
 **Options:**
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `simulations` | `number` | `1000` | Number of shuffle simulations |
+| `simulations` | `number` | `1000` | Number of simulations |
 | `seed` | `number` | - | Random seed for reproducibility |
 | `confidenceLevel` | `number` | `0.95` | Confidence level for intervals |
+| `method` | `"bootstrap" \| "shuffle"` | `"bootstrap"` | Resampling method (see "How it works") |
+| `ruinThreshold` | `number` | `50` | Drawdown level (positive percent) counted as "ruin" for `riskOfRuin` |
 | `progressCallback` | `function` | - | Progress callback (current, total) |
 
 **Returns:** `MonteCarloResult`
@@ -4014,15 +4133,19 @@ interface MonteCarloResult {
     profitFactor: MetricStatistics;
   };
   simulationCount: number;
-  pValue: { sharpe: number; returns: number };
+  downside: {
+    probProfit: number;    // fraction of simulations that ended profitable
+    probLoss: number;      // fraction that lost money = 1 - probProfit
+    riskOfRuin: number;    // fraction whose max drawdown reached ruinThreshold
+    ruinThreshold: number; // drawdown % used as the ruin threshold
+  };
   confidenceInterval: {
     sharpe: { lower: number; upper: number };
     returns: { lower: number; upper: number };
     maxDrawdown: { lower: number; upper: number };
   };
   assessment: {
-    isSignificant: boolean;
-    reason: string;
+    reason: string;          // method-aware, human-readable interpretation
     confidenceLevel: number;
   };
 }
@@ -4047,8 +4170,9 @@ import { summarizeMonteCarloResult, calculateStatistics } from 'trendcraft';
 
 // Get summary
 const summary = summarizeMonteCarloResult(mcResult);
-console.log(summary.isSignificant);    // true
-console.log(summary.pValueSharpe);     // 0.023
+console.log(summary.probProfit);   // 0.92  (fraction of profitable resamples)
+console.log(summary.riskOfRuin);   // 0.03  (fraction reaching the ruin threshold)
+console.log(summary.sharpe95CI);   // { lower: 0.4, upper: 1.8 }
 
 // Calculate statistics for any array
 const stats = calculateStatistics([1, 2, 3, 4, 5]);
@@ -4192,9 +4316,9 @@ const curve = getAWFEquityCurve(awfResult, 1000000);
 Backtest with split/scaled entry strategies. Instead of entering a full position at once, capital is divided into multiple tranches.
 
 ```typescript
-import { runBacktestScaled, goldenCross, deadCross } from 'trendcraft';
+import { runBacktestScaled, goldenCrossCondition, deadCrossCondition } from 'trendcraft';
 
-const result = runBacktestScaled(candles, goldenCross(), deadCross(), {
+const result = runBacktestScaled(candles, goldenCrossCondition(), deadCrossCondition(), {
   capital: 1000000,
   scaledEntry: {
     tranches: 3,
@@ -5210,12 +5334,12 @@ TrendCraft supports short selling in both backtest and streaming modes. All shor
 Pass `direction: "short"` in backtest options to simulate short positions.
 
 ```typescript
-import { runBacktest, deadCross, goldenCross } from 'trendcraft';
+import { runBacktest, deadCrossCondition, goldenCrossCondition } from 'trendcraft';
 
 const result = runBacktest(
   candles,
-  deadCross(5, 25),     // Entry: Dead Cross (short entry)
-  goldenCross(5, 25),   // Exit: Golden Cross (short exit)
+  deadCrossCondition(5, 25),     // Entry: Dead Cross (short entry)
+  goldenCrossCondition(5, 25),   // Exit: Golden Cross (short exit)
   {
     capital: 1000000,
     direction: 'short',  // Enable short selling
@@ -5274,10 +5398,10 @@ if (result.triggered) {
 Both `batchBacktest()` and `portfolioBacktest()` support short selling through the same `direction` option.
 
 ```typescript
-import { batchBacktest, deadCross, goldenCross } from 'trendcraft';
+import { batchBacktest, deadCrossCondition, goldenCrossCondition } from 'trendcraft';
 
 // Batch backtest: direction is passed directly in options
-const batchResult = batchBacktest(datasets, deadCross(5, 25), goldenCross(5, 25), {
+const batchResult = batchBacktest(datasets, deadCrossCondition(5, 25), goldenCrossCondition(5, 25), {
   capital: 3_000_000,
   direction: 'short',
   stopLoss: 5,
@@ -5285,7 +5409,7 @@ const batchResult = batchBacktest(datasets, deadCross(5, 25), goldenCross(5, 25)
 });
 
 // Portfolio backtest: direction goes inside tradeOptions
-const portfolioResult = portfolioBacktest(datasets, deadCross(5, 25), goldenCross(5, 25), {
+const portfolioResult = portfolioBacktest(datasets, deadCrossCondition(5, 25), goldenCrossCondition(5, 25), {
   capital: 3_000_000,
   allocation: { type: 'equal' },
   maxPositions: 5,
@@ -5303,7 +5427,7 @@ Common short strategy patterns using built-in conditions:
 
 ```typescript
 import {
-  and, rsiAbove, rsiBelow, bollingerTouch, deadCross, goldenCross,
+  and, rsiAbove, rsiBelow, bollingerTouch, deadCrossCondition, goldenCrossCondition,
   dmiBearish, anyBearishPattern, stochAbove, stochBelow,
 } from 'trendcraft';
 
@@ -5312,8 +5436,8 @@ const mrEntry = and(rsiAbove(70), bollingerTouch('upper'));
 const mrExit  = rsiBelow(50);
 
 // Trend-following short: confirmed downtrend
-const tfEntry = and(deadCross(5, 25), dmiBearish());
-const tfExit  = goldenCross(5, 25);
+const tfEntry = and(deadCrossCondition(5, 25), dmiBearish());
+const tfExit  = goldenCrossCondition(5, 25);
 
 // Pattern-based short: bearish pattern + overbought stochastic
 const ptEntry = and(anyBearishPattern(), stochAbove(80));
@@ -6836,15 +6960,15 @@ The `AnnualizationOptions` bag (`{ calendar?, periodsPerYear? }`) is accepted by
 NSGA-II multi-objective optimization — finds Pareto-optimal parameter sets that balance competing objectives (e.g., maximize Sharpe ratio while minimizing drawdown). Uses fast non-dominated sorting and crowding distance for diversity.
 
 ```typescript
-import { paretoOptimization, param, constraint, summarizeParetoResult } from "trendcraft";
+import { paretoOptimization, param, constraint, summarizeParetoResult, goldenCrossCondition, deadCrossCondition } from "trendcraft";
 
 const result = paretoOptimization(
   candles,
   (params) => ({
-    entry: goldenCross(params.short, params.long),
-    exit: deadCross(params.short, params.long),
+    entry: goldenCrossCondition(params.short, params.long),
+    exit: deadCrossCondition(params.short, params.long),
   }),
-  [param("short", [5, 10, 15, 20]), param("long", [25, 50, 75, 100])],
+  [param("short", 5, 20, 5), param("long", 25, 100, 25)],
   {
     objectives: [
       { metric: "sharpe", direction: "maximize" },
@@ -7137,7 +7261,7 @@ type ConditionSpec =
   | { name: string; params?: Record<string, unknown> }
   | { op: "and" | "or" | "not"; conditions: ConditionSpec[] };
 
-// Example: and(goldenCross(5,25), rsiBelow(30))
+// Example: and(goldenCrossCondition(5,25), rsiBelow(30))
 {
   "op": "and",
   "conditions": [
