@@ -111,10 +111,11 @@ Default hotkeys: `Alt+H` (h-line), `Alt+T` (trendline), `Alt+F` (fib retracement
 
 ```typescript
 import { addAutoFibRetracement } from "@trendcraft/chart";
-import { swingPoints } from "trendcraft";
+import { getAlternatingSwingPoints } from "trendcraft";
 
-const swings = swingPoints(candles, { leftBars: 5, rightBars: 5 });
-addAutoFibRetracement(chart, swings, { lookback: 1 });
+// getAlternatingSwingPoints returns the SwingAnchor shape directly.
+const anchors = getAlternatingSwingPoints(candles, 10, { leftBars: 5, rightBars: 5 });
+addAutoFibRetracement(chart, anchors);
 ```
 
 Companions: `addAutoFibExtension`, `addAutoTrendLine`, `addAutoChannelLine`.
@@ -148,9 +149,11 @@ chart.addBacktest(result);
 
 ```typescript
 import { connectIndicators, createChart } from "@trendcraft/chart";
+import { registerTrendCraftPresets } from "@trendcraft/chart/presets";
 import { createLiveCandle, indicatorPresets } from "trendcraft";
 
 const chart = createChart(container);
+registerTrendCraftPresets(chart);
 chart.setCandles(history);
 
 const live = createLiveCandle({
@@ -208,7 +211,7 @@ export function ChartView({ candles }: { candles: Candle[] }) {
 }
 ```
 
-Need imperative access? Use `useTrendChart()` and read `chartRef.current` once mounted.
+Need imperative access? Use `useTrendChart()`, which returns `{ containerRef, chart }` — spread `containerRef` onto your own `<div ref={containerRef} />` and read `chart` (the `ChartInstance`, `null` until mounted).
 
 ---
 
@@ -289,20 +292,30 @@ Switch modes at runtime via `chart.applyOptions({ crosshair: { mode: "magnet" } 
 ```typescript
 import { definePrimitive } from "@trendcraft/chart";
 
-const zonePlugin = definePrimitive({
-  name: "supportZone",
-  initialState: { lo: 0, hi: 0 },
-  draw(ctx, state, helpers) {
-    const y1 = helpers.priceToY(state.lo);
-    const y2 = helpers.priceToY(state.hi);
-    ctx.fillStyle = "rgba(34,197,94,0.12)";
-    ctx.fillRect(0, Math.min(y1, y2), helpers.width, Math.abs(y2 - y1));
-  },
-});
+type ZoneState = { lo: number; hi: number };
 
-chart.registerPrimitive(zonePlugin);
-chart.setPrimitiveState("supportZone", { lo: 140, hi: 145 });
+function createSupportZone(state: ZoneState) {
+  return definePrimitive<ZoneState>({
+    name: "supportZone",
+    pane: "main",
+    zOrder: "below",
+    defaultState: state,
+    render: ({ ctx, priceScale, pane }, { lo, hi }) => {
+      const y1 = priceScale.priceToY(lo);
+      const y2 = priceScale.priceToY(hi);
+      ctx.fillStyle = "rgba(34,197,94,0.12)";
+      ctx.fillRect(pane.x, Math.min(y1, y2), pane.width, Math.abs(y2 - y1));
+    },
+  });
+}
+
+chart.registerPrimitive(createSupportZone({ lo: 140, hi: 145 }));
+
+// To change the zone, re-register with new state (overwrites by name):
+chart.registerPrimitive(createSupportZone({ lo: 138, hi: 143 }));
 ```
+
+`render(context, state)` receives the live `priceScale` (use `priceScale.priceToY(price)`) and `pane` rect (`pane.x`, `pane.y`, `pane.width`, `pane.height`). State comes from `defaultState`; update it by re-registering the plugin under the same `name`, or via the optional `update(state)` hook called before each frame. Remove with `chart.removePrimitive("supportZone")`.
 
 For series-type plugins (e.g. footprint candles), use `defineSeriesRenderer`. See [PLUGINS.md](./PLUGINS.md).
 

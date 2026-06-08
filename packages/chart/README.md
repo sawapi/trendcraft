@@ -48,7 +48,7 @@ Without TrendCraft, pass any `{ time, value }[]` series and a small config: `cha
 - **React & Vue wrappers** — `<TrendChart>` components plus `useTrendChart` hook/composable for imperative access.
 - **Headless API** — DOM-free data layer, scales, layout, and `introspect` for SSR, testing, and custom renderers.
 - **Sparkline & replay subpaths** — compact ~4 kB sparklines and a live-feed replay simulator.
-- **Bundle-size discipline** — zero runtime dependencies; every entry point is brotli size-checked in CI.
+- **Bundle-size discipline** — zero runtime dependencies; every major entry point (main, headless, sparkline, replay, React/Vue wrappers) is brotli size-checked in CI.
 
 ## Framework bindings
 

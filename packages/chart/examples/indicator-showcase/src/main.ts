@@ -1,7 +1,7 @@
 /**
  * Indicator Showcase — Main Entry
  *
- * Demonstrates every preset available in `indicatorPresets` (96 as of 2026-04-18)
+ * Demonstrates every preset available in `indicatorPresets` (104 as of 2026-06-08)
  * with a categorized sidebar UI, search, parameter controls, and active indicator
  * bar. The sidebar is auto-generated from indicatorPresets metadata, so the count
  * stays accurate as the preset registry grows.

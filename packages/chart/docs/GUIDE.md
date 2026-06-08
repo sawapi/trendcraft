@@ -30,7 +30,7 @@ A conceptual walkthrough of `@trendcraft/chart`. If you just want to get pixels 
 `@trendcraft/chart` is a Canvas-based charting library built specifically for financial time series. It optimizes for three things:
 
 1. **Zero-config indicator rendering** — pass a `trendcraft` indicator output and the chart figures out where it belongs, what scale it needs, and what reference lines to draw.
-2. **A small, focused runtime** — no runtime dependencies, ~31 kB gzipped main bundle, one canvas per chart, no virtual DOM.
+2. **A small, focused runtime** — no runtime dependencies, ~41 kB main bundle (brotli, size-limit enforced), one canvas per chart, no virtual DOM.
 3. **Extensibility as a plugin system, not a configuration tree** — custom series types and overlays ship as plain functions you register.
 
 What it's **not**:
@@ -172,9 +172,10 @@ import { SeriesRegistry } from '@trendcraft/chart';
 
 SeriesRegistry.addRule({
   name: 'myCustomShape',
-  match: (value) => typeof value === 'object' && value !== null && 'score' in value,
+  test: (value) => typeof value === 'object' && value !== null && 'score' in value,
   seriesType: 'line',
-  channels: ['score'],
+  defaultPane: 'sub',
+  decompose: (value) => ({ score: value.score }),
 });
 ```
 
@@ -312,9 +313,9 @@ Subscribe via `chart.on(event, handler)`. Unsubscribe via `chart.off`. Events ar
 | `paneResize` | `{ paneId, height }` — fires when the user drags a pane divider |
 | `seriesAdded` | `{ id, label }` |
 | `seriesRemoved` | `{ id }` |
-| `dataFiltered` | `{ reason, count }` — warnings about invalid candles dropped |
+| `dataFiltered` | `{ total, valid, removed }` — fires when invalid candles are dropped (`removed` = count) |
 | `drawingComplete` | `Drawing` — fires after a click-to-place drawing finishes |
-| `error` | `{ message, source }` — non-fatal runtime warnings |
+| `error` | `ChartErrorPayload` — `{ message, code?, detail? }`, non-fatal runtime warnings |
 
 ## Live data
 
@@ -324,9 +325,11 @@ At a glance:
 
 ```typescript
 import { createChart, connectIndicators } from '@trendcraft/chart';
+import { registerTrendCraftPresets } from '@trendcraft/chart/presets';
 import { createLiveCandle, indicatorPresets } from 'trendcraft';
 
 const chart = createChart(el, { theme: 'dark' });
+registerTrendCraftPresets(chart); // teaches the chart TrendCraft-specific shapes
 const live = createLiveCandle({ intervalMs: 60_000, history: candles });
 const conn = connectIndicators(chart, {
   presets: indicatorPresets,

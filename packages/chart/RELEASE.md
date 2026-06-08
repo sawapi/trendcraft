@@ -12,7 +12,7 @@ The full cross-package release workflow (including `trendcraft` coordination and
 - [ ] `pnpm --filter @trendcraft/chart build` succeeds
 - [ ] `pnpm --filter @trendcraft/chart test` green
 - [ ] `pnpm --filter @trendcraft/chart verify:publish` green — confirms every `package.json#exports` subpath resolves in both ESM and CJS and exposes its advertised symbols
-- [ ] `pnpm --filter @trendcraft/chart size-check` within limits. The authoritative budget lives in `package.json#size-limit` (currently main ≤ 36 kB, headless ≤ 11 kB, React/Vue ≤ 30 kB, brotli). If a feature warrants a raise, bump it there and call it out in the CHANGELOG `Changed` section.
+- [ ] `pnpm --filter @trendcraft/chart size-check` within limits. The authoritative budget lives in `package.json#size-limit` (currently main ≤ 41 kB, headless ≤ 11 kB, sparkline ≤ 5 kB vanilla / ≤ 7 kB React+Vue, replay ≤ 3 kB, React/Vue ≤ 33 kB, brotli). If a feature warrants a raise, bump it there and call it out in the CHANGELOG `Changed` section.
 - [ ] Docs sanity pass — `README.md`, `docs/*.md`, `llms.txt`, `llms-full.txt` reflect any new public API
 - [ ] Examples still build: `cd packages/chart/examples/simple-chart && pnpm build` (repeat for `simple-react-chart`, `simple-vue-chart`)
 
@@ -28,7 +28,7 @@ git push origin chart-v<x.y.z>
 ## After publish
 
 - [ ] `npm view @trendcraft/chart@<x.y.z> version` returns the new version
-- [ ] Spot-install into a throwaway project and import each entry point (`.`, `/headless`, `/presets`, `/react`, `/vue`) to confirm the published tarball behaves like the local build
+- [ ] Spot-install into a throwaway project and import each entry point (`.`, `/headless`, `/presets`, `/sparkline`, `/replay`, `/react`, `/react/sparkline`, `/vue`, `/vue/sparkline`) to confirm the published tarball behaves like the local build
 - [ ] Open a new `Unreleased` section in `CHANGELOG.md` for the next cycle
 
 ## Rollback

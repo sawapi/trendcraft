@@ -1,7 +1,7 @@
 # indicator-showcase
 
 Catalog demo for `@trendcraft/chart`. Every preset registered with
-`registerTrendCraftPresets` (96+ entries) is exposed via a categorized sidebar
+`registerTrendCraftPresets` (104+ entries) is exposed via a categorized sidebar
 with parameter controls, live mode, signal panel, and plugin panel.
 
 ## Setup
