@@ -51,7 +51,7 @@ function getBBData(
  * ```
  */
 export function bollingerBreakout(
-  band: "upper" | "lower",
+  band: "upper" | "lower" = "lower",
   period = 20,
   stdDev = 2,
 ): PresetCondition {
@@ -82,7 +82,11 @@ export function bollingerBreakout(
  * const result = runBacktest(candles, entry, bollingerTouch("upper"), { capital: 1_000_000 });
  * ```
  */
-export function bollingerTouch(band: "upper" | "lower", period = 20, stdDev = 2): PresetCondition {
+export function bollingerTouch(
+  band: "upper" | "lower" = "lower",
+  period = 20,
+  stdDev = 2,
+): PresetCondition {
   return {
     type: "preset",
     name: `bollingerTouch('${band}')`,

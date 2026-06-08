@@ -10,10 +10,10 @@ import type { StreamingPresetCondition } from "./types";
 /**
  * Condition: Price dropped by more than N ATRs from previous close
  *
- * @param multiplier - ATR multiplier (default: 1.0)
+ * @param multiplier - ATR multiplier (default: 2.0)
  * @param key - Snapshot key for ATR (default: "atr")
  */
-export function priceDroppedAtr(multiplier = 1.0, key = "atr"): StreamingPresetCondition {
+export function priceDroppedAtr(multiplier = 2.0, key = "atr"): StreamingPresetCondition {
   let prevClose: number | null = null;
 
   return {

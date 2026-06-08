@@ -8,10 +8,13 @@ import type { StreamingPresetCondition } from "./types";
 /**
  * Condition: Price breaks above/below Bollinger Band
  *
- * @param band - Which band to check ("upper" or "lower")
+ * @param band - Which band to check ("upper" or "lower", default: "lower")
  * @param key - Snapshot key for Bollinger Bands (default: "bb")
  */
-export function bollingerBreakout(band: "upper" | "lower", key = "bb"): StreamingPresetCondition {
+export function bollingerBreakout(
+  band: "upper" | "lower" = "lower",
+  key = "bb",
+): StreamingPresetCondition {
   return {
     type: "preset",
     name: `bollingerBreakout(${band})`,
@@ -26,12 +29,12 @@ export function bollingerBreakout(band: "upper" | "lower", key = "bb"): Streamin
 /**
  * Condition: Price touches/is near a Bollinger Band
  *
- * @param band - Which band to check ("upper" or "lower")
+ * @param band - Which band to check ("upper" or "lower", default: "lower")
  * @param tolerance - Percentage tolerance (default: 0.1 = 0.1%)
  * @param key - Snapshot key for Bollinger Bands (default: "bb")
  */
 export function bollingerTouch(
-  band: "upper" | "lower",
+  band: "upper" | "lower" = "lower",
   tolerance = 0.1,
   key = "bb",
 ): StreamingPresetCondition {

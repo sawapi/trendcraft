@@ -2,6 +2,39 @@
 
 ## Unreleased
 
+### Breaking — `dmiBullish` / `dmiBearish` ADX param renamed `minAdx` → `threshold`
+
+The backtest `dmiBullish(threshold, period)` / `dmiBearish(threshold, period)`
+conditions renamed their first parameter from `minAdx` to `threshold` and
+raised its default from `20` to `25` (Wilder's strong-trend level). This aligns
+them with the streaming registry, the shared `adxStrong` condition, and the
+direct factory signatures — the ADX threshold now has one name and one default
+everywhere. A persisted StrategyJSON leaf `{ "name": "dmiBullish", "params": {
+"minAdx": 30 } }` must be updated to `{ "params": { "threshold": 30 } }`; an
+unrecognized `minAdx` is otherwise ignored and the new default (25) applies.
+
+### Fixed — backtest ↔ streaming registry parity for shared condition params
+
+Conditions registered under the same name in both registries had drifted on
+portability-relevant param schema, so a portable StrategyJSON behaved
+differently per registry. Reconciled: `cmfAbove` / `cmfBelow` `threshold`
+default (now `0`, the CMF zero-line, on both), `priceDroppedAtr` `multiplier`
+default (now `2.0` on both), `atrPercentAbove` `threshold` default (now the
+shared `DEFAULT_ATR_THRESHOLD` constant on both), `atrPercentBelow` `threshold`
+(backtest now defaults it to `1.0` instead of requiring it), and
+`bollingerBreakout` / `bollingerTouch` `band` (streaming now defaults to
+`"lower"` instead of requiring it). A new parity test fails CI on any future
+shared-param drift between the two registries.
+
+The condition factories behind these entries were aligned with the reconciled
+defaults so a directly-constructed condition and a registry-hydrated one behave
+identically when a param is omitted: the streaming `cmfAbove` / `cmfBelow`
+(`0`), `priceDroppedAtr` (`2.0`), `atrPercentAbove` (`DEFAULT_ATR_THRESHOLD`),
+`rsiBelow` (`30`) / `rsiAbove` (`70`) factories now carry those defaults; the
+backtest `atrPercentBelow` factory defaults `threshold` to `1.0` instead of
+requiring it; and the streaming and backtest `bollingerBreakout` /
+`bollingerTouch` factories default `band` to `"lower"` instead of requiring it.
+
 ### Fixed — volume-constrained partial fills no longer erase un-deployed capital
 
 `runBacktest` with a `volumeConstraint` (and the default `partialFill: true`)

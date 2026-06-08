@@ -150,6 +150,7 @@ import {
   volumeRatioAbove,
   volumeTrendConfidence,
 } from "../backtest/conditions/volume-advanced";
+import { DEFAULT_ATR_THRESHOLD } from "../indicators/volatility/atr-filter";
 import type { PatternType } from "../signals/patterns/types";
 import type { Condition } from "../types";
 import { ConditionRegistry } from "./registry";
@@ -629,22 +630,26 @@ backtestRegistry.register({
   name: "dmiBullish",
   displayName: "DMI Bullish",
   category: "trend",
+  // `threshold` (name + default 25) matches the streaming registry and the
+  // shared `adxStrong` condition. 25 is Wilder's original strong-trend level.
   params: {
-    minAdx: { type: "number", default: 20, min: 0 },
+    threshold: { type: "number", default: 25, min: 0 },
     period: { type: "number", default: 14, min: 1 },
   },
-  create: (p) => dmiBullish((p.minAdx as number) ?? 20, (p.period as number) ?? 14),
+  create: (p) => dmiBullish((p.threshold as number) ?? 25, (p.period as number) ?? 14),
 });
 
 backtestRegistry.register({
   name: "dmiBearish",
   displayName: "DMI Bearish",
   category: "trend",
+  // `threshold` (name + default 25) matches the streaming registry and the
+  // shared `adxStrong` condition. 25 is Wilder's original strong-trend level.
   params: {
-    minAdx: { type: "number", default: 20, min: 0 },
+    threshold: { type: "number", default: 25, min: 0 },
     period: { type: "number", default: 14, min: 1 },
   },
-  create: (p) => dmiBearish((p.minAdx as number) ?? 20, (p.period as number) ?? 14),
+  create: (p) => dmiBearish((p.threshold as number) ?? 25, (p.period as number) ?? 14),
 });
 
 backtestRegistry.register({
@@ -997,22 +1002,27 @@ backtestRegistry.register({
   name: "atrPercentAbove",
   displayName: "ATR% Above",
   category: "volatility",
+  // Default references the shared DEFAULT_ATR_THRESHOLD constant so the
+  // registry, the streaming registry, and the factory can't drift apart.
   params: {
-    threshold: { type: "number", default: 3.0, min: 0 },
+    threshold: { type: "number", default: DEFAULT_ATR_THRESHOLD, min: 0 },
   },
   isFilter: true,
-  create: (p) => atrPercentAbove((p.threshold as number) ?? 3.0),
+  create: (p) => atrPercentAbove((p.threshold as number) ?? DEFAULT_ATR_THRESHOLD),
 });
 
 backtestRegistry.register({
   name: "atrPercentBelow",
   displayName: "ATR% Below",
   category: "volatility",
+  // Default matches the streaming registry (1% ≈ low daily volatility). A
+  // sensible default keeps a portable JSON that omits `threshold` valid on
+  // both sides instead of failing validation here.
   params: {
-    threshold: { type: "number", required: true, min: 0 },
+    threshold: { type: "number", default: 1.0, min: 0 },
   },
   isFilter: true,
-  create: (p) => atrPercentBelow(p.threshold as number),
+  create: (p) => atrPercentBelow((p.threshold as number) ?? 1.0),
 });
 
 // ============================================
