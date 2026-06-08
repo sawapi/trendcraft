@@ -84,6 +84,30 @@ streaming entries now share the same default.
 `optimization` barrel), so the documented `deflatedSharpeFromReturns` example —
 `extractTradeReturns(result)` — no longer throws at runtime.
 
+### Added — incremental price / SMC factories
+
+Five batch indicators gained streaming counterparts, exposed on the
+`incremental` barrel: `createAutoTrendLine`, `createChannelLine`,
+`createFibonacciExtension`, `createFibonacciRetracement` (price), and
+`createLiquiditySweep` (SMC). Each maintains running state across `next()`
+calls instead of recomputing over the full candle history.
+
+### Added — `getIndicatorPreset(kind)` + `alwaysTrue` / `alwaysFalse` conditions
+
+`getIndicatorPreset(kind)` resolves a manifest kind (long name or short
+key) to its `IndicatorPreset`, returning `undefined` when the kind has no
+preset. The `alwaysTrue` / `alwaysFalse` backtest conditions provide
+constant-truth leaves for composing or disabling strategy branches.
+
+### Added — Schaff Trend Cycle `factor` option; T3 `vFactor` exposed in presets
+
+`schaffTrendCycle` gains a `factor` option (default `0.5`, validated to
+`(0, 1]`) controlling the smoothing of both stochastic passes. Separately,
+T3's existing `vFactor` volume-factor option is now surfaced in the
+streaming presets — `livePresets.t3` and `indicatorPresets.t3.paramSchema`
+expose `vFactor` (default `0.7`) so hosts can drive it from the UI, and the
+snapshot name now incorporates it (`t3_<period>_<vFactor>`).
+
 ### Added — optimizer cross-parameter constraints (`validateParams` + `paramFilter`)
 
 The grid-search engine can now reject structurally-invalid parameter
@@ -324,9 +348,9 @@ Resume behaviour is now defined per **state category**:
   DEMA, TEMA, HMA, …) — any state-shaping param change on resume
   throws; the recursive accumulator encodes past params and cannot
   be reconfigured mid-stream.
-- **Event log** (BOS, FVG, Liquidity Sweep, Pivot Points, Order
-  Block, Swing Points, …) — append-only: a params change keeps the
-  recorded events and continues appending.
+- **Event log** (BOS, FVG, Liquidity Sweep, Pivot Points, Swing
+  Points, …) — append-only: a params change keeps the recorded
+  events and continues appending.
 
 A new orthogonal **param-role** axis lets *resume-invariant* params
 change freely on resume regardless of category. These params (e.g.
@@ -372,6 +396,33 @@ The chart introspection rule auto-detects the new shape and
 plots the `short` (orange) and `long` (purple) lines together
 in the sub-pane, so chart consumers don't need any host-side
 changes when the chart picks up the new core.
+
+### Breaking — Roofing Filter / FRAMA align with canonical Ehlers formulas
+
+`roofingFilter` / `createRoofingFilter` and `frama` / `createFrama` now
+match John Ehlers' published reference formulas; both previously used
+variants that diverged from spec.
+
+- **Roofing Filter** (Cybernetic Analysis ch. 13 / Predictive Indicators):
+  the high-pass coefficients switched from a Butterworth-shape form to the
+  canonical critically-damped form (`alpha1 = (cos θ + sin θ − 1) / cos θ`
+  with `θ = √2·π / highPassPeriod`). The `highPassPeriod` minimum was also
+  raised from `1` to `2` — the canonical recurrence is stable for period ≥ 2
+  but diverges at period 1 (Nyquist-degenerate). Output difference is small
+  at default parameters (<1% at period 48).
+- **FRAMA** (Ehlers 2005): the fractal-dimension range calculation now uses
+  each candle's `high` / `low` (`Highest(High, N/2) − Lowest(Low, N/2)`)
+  instead of the smoothing source price. The `source` option still drives
+  the recursive smoothing step; only the period-range slope inputs change.
+  Incremental FRAMA state now stores separate `highBuffer` / `lowBuffer`
+  instead of a single source-price `buffer`.
+
+**Breaking** for callers depending on the prior numeric output (values
+change for every parameter combination) and for `highPassPeriod: 1`
+(now rejected). Because FRAMA is a recursive smoother, `createFrama(opts,
+{ fromState })` refuses to resume with a different `period` / `source`, and
+pre-canonical (close-only `buffer`) snapshots are rejected rather than
+silently migrated — re-warm from candle history instead.
 
 ### Breaking — Ease of Movement default `volumeDivisor`
 

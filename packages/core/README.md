@@ -50,10 +50,10 @@ Runnable scripts live in [`examples/quick-start/`](./examples/quick-start/) (ind
 - **Optimization** — grid search with constraints, walk-forward analysis for out-of-sample validation, and combination search.
 - **Signal scoring** — weighted multi-signal scoring with presets and a fluent `ScoreBuilder`.
 - **Position sizing & risk** — risk-based, ATR-based, Kelly, and fixed-fractional sizing; ATR stops and Chandelier Exit; VaR/CVaR, risk parity, and correlation-adjusted sizing.
-- **Streaming** — `createLiveCandle()` aggregates ticks or candles and drives 160+ incremental indicator factories bar-by-bar, with state save/restore for resumable sessions.
+- **Streaming** — `createLiveCandle()` aggregates ticks or candles and drives 90+ incremental indicator factories bar-by-bar, with state save/restore for resumable sessions.
 - **Advanced analytics** — pairs trading / cointegration, cross-asset correlation, alpha-decay monitoring, strategy robustness scoring, and signal explainability.
 
-36 indicators are cross-validated against TA-Lib — see [`cross-validation/`](./cross-validation/).
+48 indicators are cross-validated against TA-Lib — see [`cross-validation/`](./cross-validation/).
 
 ## Entry points
 
@@ -82,7 +82,7 @@ import { ... } from 'trendcraft/manifest';     // Indicator metadata
 
 A `Candle` accepts `time` as a Unix timestamp, date string, or `Date`; every indicator emits `Series<T> = { time: number, value: T }[]`.
 
-Two CLI tools ship with the package: `trendcraft-screen` and `trendcraft-backtest` (run with `npx`; pass `--list` to see available conditions).
+Three CLI tools ship with the package: `trendcraft-screen`, `trendcraft-backtest`, and `trendcraft-analyze` (run with `npx`; pass `--list` to see available conditions for screen/backtest).
 
 ## Documentation
 

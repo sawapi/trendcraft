@@ -2395,12 +2395,12 @@ interface PatternSignal {
 過去データでバックテストを実行。
 
 ```typescript
-import { runBacktest, goldenCross, deadCross } from 'trendcraft';
+import { runBacktest, goldenCrossCondition, deadCrossCondition } from 'trendcraft';
 
 const result = runBacktest(
   candles,
-  goldenCross(5, 25),  // エントリー: ゴールデンクロス
-  deadCross(5, 25),    // イグジット: デッドクロス
+  goldenCrossCondition(5, 25),  // エントリー: ゴールデンクロス
+  deadCrossCondition(5, 25),    // イグジット: デッドクロス
   {
     capital: 1000000,
     commission: 0,
@@ -2526,8 +2526,8 @@ interface Trade {
 #### 移動平均クロス
 
 ```typescript
-goldenCross(shortPeriod = 5, longPeriod = 25)  // 短期MAが長期MAを上抜け
-deadCross(shortPeriod = 5, longPeriod = 25)    // 短期MAが長期MAを下抜け
+goldenCrossCondition(shortPeriod = 5, longPeriod = 25)  // 短期MAが長期MAを上抜け
+deadCrossCondition(shortPeriod = 5, longPeriod = 25)    // 短期MAが長期MAを下抜け
 ```
 
 #### RSI条件
@@ -2826,20 +2826,20 @@ const cupEntry = patternWithinBars('cup_handle', 5, { confirmedOnly: true });
 論理演算子で複数条件を組み合わせ。
 
 ```typescript
-import { and, or, not, goldenCross, rsiBelow, rsiAbove, deadCross } from 'trendcraft';
+import { and, or, not, goldenCrossCondition, rsiBelow, rsiAbove, deadCrossCondition } from 'trendcraft';
 
 // エントリー: ゴールデンクロス AND RSI < 30
-const entry = and(goldenCross(), rsiBelow(30));
+const entry = and(goldenCrossCondition(), rsiBelow(30));
 
 // イグジット: デッドクロス OR RSI > 70
-const exit = or(deadCross(), rsiAbove(70));
+const exit = or(deadCrossCondition(), rsiAbove(70));
 
 // エントリー: 買われすぎではない
 const notOverbought = not(rsiAbove(70));
 
 // 複雑な条件
 const complexEntry = and(
-  goldenCross(),
+  goldenCrossCondition(),
   rsiBelow(40),
   not(rsiAbove(60))
 );
@@ -2861,7 +2861,7 @@ const customCondition = (
   return candle.volume > 1000000 && candle.close > candle.open;
 };
 
-const result = runBacktest(candles, customCondition, deadCross(), { capital: 1000000 });
+const result = runBacktest(candles, customCondition, deadCrossCondition(), { capital: 1000000 });
 ```
 
 ---
@@ -3184,14 +3184,28 @@ const latest = result[result.length - 1].value;
 ATRからストップと利確レベルを計算。
 
 ```typescript
-import { calculateAtrStops } from 'trendcraft';
+import { atrStops } from 'trendcraft';
 
-const stops = calculateAtrStops(candles, {
-  atrPeriod: 14,
+const stops = atrStops(candles, {
+  period: 14,
   stopMultiplier: 2.5,
   takeProfitMultiplier: 4.0,
 });
+
+const latest = stops[stops.length - 1].value;
+// {
+//   atr, stopDistance, takeProfitDistance,
+//   longStopLevel, longTakeProfitLevel,
+//   shortStopLevel, shortTakeProfitLevel,
+// }
 ```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|--------|------|---------|-------------|
+| `period` | `number` | `14` | ATR期間 |
+| `stopMultiplier` | `number` | `2.0` | ストップ距離のATR倍率 |
+| `takeProfitMultiplier` | `number` | `3.0` | 利確距離のATR倍率 |
 
 **バックテスト連携:**
 
@@ -3274,7 +3288,7 @@ interface VolatilityRegimeValue {
 **使用例:**
 
 ```typescript
-import { regimeIs, regimeNot, atrPercentAbove, and, goldenCross } from 'trendcraft';
+import { regimeIs, regimeNot, atrPercentAbove, and, goldenCrossCondition } from 'trendcraft';
 
 // 低ボラティリティ環境でのみエントリー
 const entry = and(
@@ -3285,7 +3299,7 @@ const entry = and(
 // 極端なボラティリティを避ける
 const entry = and(
   regimeNot('extreme'),
-  goldenCross()
+  goldenCrossCondition()
 );
 
 // トレンドフォロー用にATR%でフィルタ（ボラタイルな銘柄のみ）
@@ -3304,41 +3318,41 @@ const entry = and(
 最適な戦略パラメータのグリッドサーチ。
 
 ```typescript
-import { gridSearch, param, constraint, goldenCross, deadCross } from 'trendcraft';
+import { gridSearch, param, constraint, goldenCrossCondition, deadCrossCondition } from 'trendcraft';
 
 const result = gridSearch(
   candles,
   (params) => ({
-    entry: goldenCross(params.short, params.long),
-    exit: deadCross(params.short, params.long),
+    entry: goldenCrossCondition(params.short, params.long),
+    exit: deadCrossCondition(params.short, params.long),
   }),
   [
-    param('short', [5, 10, 15, 20]),
-    param('long', [25, 50, 75]),
+    param('short', 5, 20, 5),
+    param('long', 25, 75, 25),
   ],
   {
-    metric: 'sharpeRatio',
+    metric: 'sharpe',
     constraints: [
       constraint('winRate', '>=', 40),
       constraint('maxDrawdown', '<=', 30),
     ],
-    topN: 10,
   }
 );
 
-console.log('最適パラメータ:', result.results[0].parameters);
-console.log('シャープレシオ:', result.results[0].metrics.sharpeRatio);
+// results[] はベスト順にソート済み。上位 10 件は .slice(0, 10) で取得
+const top10 = result.results.slice(0, 10);
+console.log('最適パラメータ:', result.results[0].params);
+console.log('シャープレシオ:', result.results[0].metrics.sharpe);
 ```
 
 **オプション:**
 | オプション | 型 | デフォルト | 説明 |
 |--------|------|---------|-------------|
-| `metric` | `OptimizationMetric` | `'sharpeRatio'` | 最適化対象の指標 |
+| `metric` | `OptimizationMetric` | `'sharpe'` | 最適化対象の指標 |
 | `constraints` | `OptimizationConstraint[]` | `[]` | 結果をフィルタする制約条件 |
-| `topN` | `number` | `10` | 返す上位結果の数 |
-| `capital` | `number` | `1000000` | バックテスト用の初期資金 |
+| `maxCombinations` | `number` | `10000` | テストするパラメータ組み合わせの最大数 |
 
-**指標:** `'sharpeRatio' | 'calmarRatio' | 'recoveryFactor' | 'totalReturn' | 'winRate' | 'profitFactor'`
+**指標:** `'sharpe' | 'calmar' | 'mar' | 'profitFactor' | 'recoveryFactor' | 'returns' | 'winRate' | 'tradeCount' | 'maxDrawdown'`
 
 **戻り値:** `GridSearchResult`
 
@@ -3369,21 +3383,95 @@ const result = walkForwardAnalysis(
   strategyFactory,
   paramRanges,
   {
-    inSampleRatio: 0.7,    // 70%をイン・サンプル、30%をアウト・オブ・サンプル
-    periods: 5,            // 5つのウォークフォワード期間
-    metric: 'sharpeRatio',
+    windowSize: 252,   // 学習ウィンドウ（日足で約1年）
+    stepSize: 63,      // 約1四半期ずつ前進
+    testSize: 63,      // アウト・オブ・サンプル検証期間（約1四半期）
+    metric: 'sharpe',
   }
 );
 
-console.log('アウトオブサンプル結果:', result.outOfSampleResults);
+// aggregateMetrics.avgOutOfSample は指標ごとのレコード。periods[] に各ウィンドウが入る
+console.log('OOS シャープ:', result.aggregateMetrics.avgOutOfSample.sharpe);
+console.log('安定性:', result.aggregateMetrics.stabilityRatio);
 ```
 
 **オプション:**
 | オプション | 型 | デフォルト | 説明 |
 |--------|------|---------|-------------|
-| `inSampleRatio` | `number` | `0.7` | イン・サンプル最適化に使用するデータの割合 |
-| `periods` | `number` | `5` | ウォークフォワード期間の数 |
-| `metric` | `OptimizationMetric` | `'sharpeRatio'` | 最適化する指標 |
+| `windowSize` | `number` | `252` | 学習ウィンドウのサイズ（ローソク足本数） |
+| `stepSize` | `number` | `63` | ウィンドウ間のステップサイズ（ローソク足本数） |
+| `testSize` | `number` | `63` | アウト・オブ・サンプル検証期間のサイズ（ローソク足本数） |
+| `metric` | `OptimizationMetric` | `'sharpe'` | 最適化する指標 |
+
+---
+
+### JSON ファーストの最適化
+
+手書きの `strategyFactory` の代わりに、シリアライズした `StrategyJSON` とパス指定のパラメーター範囲から同じ `gridSearch` / `walkForwardAnalysis` エンジンを駆動します。返される `bestParams` のキーはパス（例: `entry.0.params.period`）なので、そのまま `applyParamOverrides` に渡せます。登録済みのクロスパラメーター制約は param フィルターに AND され、構造的に無効な組み合わせはバックテスト前にスキップされます。
+
+```typescript
+import {
+  gridSearchFromJSON,
+  walkForwardAnalysisFromJSON,
+  backtestRegistry,
+  type PathParameterRange,
+} from 'trendcraft';
+
+const ranges: PathParameterRange[] = [
+  { path: 'entry.0.params.period', min: 10, max: 30, step: 5 },
+];
+
+const grid = gridSearchFromJSON(candles, strategy, ranges, backtestRegistry, {
+  metric: 'sharpe',
+});
+
+const wf = walkForwardAnalysisFromJSON(candles, strategy, ranges, backtestRegistry, {
+  windowSize: 252,
+  stepSize: 63,
+  testSize: 63,
+});
+```
+
+**シグネチャ:**
+
+```typescript
+function gridSearchFromJSON(
+  candles: NormalizedCandle[],
+  strategy: StrategyJSON,
+  ranges: PathParameterRange[],
+  registry: ConditionRegistry<Condition>,
+  options?: GridSearchOptions,
+): GridSearchResult;
+
+function walkForwardAnalysisFromJSON(
+  candles: NormalizedCandle[],
+  strategy: StrategyJSON,
+  ranges: PathParameterRange[],
+  registry: ConditionRegistry<Condition>,
+  options?: WalkForwardOptions,
+): WalkForwardResult;
+```
+
+いずれも範囲パスが解決できない場合（不正な形式、範囲外のリーフ、未知または数値でない param）に throw します。`gridSearchFromJSONSafe` / `walkForwardAnalysisFromJSONSafe` は同じ引数を取り、throw せず `Result<…>` を返します（検証エラー → `INVALID_PARAMETER`、過大なグリッド → `TOO_MANY_COMBINATIONS`、短すぎるスライス → `INSUFFICIENT_DATA`、それ以外 → `OPTIMIZATION_FAILED`）。
+
+---
+
+### ウォークフォワードユーティリティ
+
+```typescript
+import { wfeRatio, stitchOosEquity } from 'trendcraft';
+
+// 期間ごとのウォークフォワード効率（OOS年率 / IS年率）の平均。
+// イン・サンプルのリターンが非正の期間はスキップされ、未定義のときは NaN を返す。
+const wfe = wfeRatio(wf);
+if (Number.isFinite(wfe) && wfe >= 0.5) console.log(`堅牢: WFE ${(wfe * 100).toFixed(0)}%`);
+
+// 各期間のアウトオブサンプルトレードを 1 本の連続エクイティカーブに連結する。
+// トレード 1 件につき 1 点（先頭に最初の期間の testStart のアンカー点を追加）。
+const curve = stitchOosEquity(wf, 100_000); // -> Array<{ time: number; equity: number }>
+```
+
+`wfeRatio(result: WalkForwardResult): number` および `stitchOosEquity(result: WalkForwardResult, initialCapital = 100000)`。
 
 ---
 
@@ -3402,13 +3490,13 @@ const entryPool = createEntryConditionPool();  // デフォルトのエントリ
 const exitPool = createExitConditionPool();    // デフォルトのイグジット条件
 
 const result = combinationSearch(candles, entryPool, exitPool, {
-  metric: 'sharpeRatio',
-  topN: 20,
+  metric: 'sharpe',
 });
 
-result.results.forEach((r) => {
-  console.log(`エントリー: ${r.entryName}, イグジット: ${r.exitName}`);
-  console.log(`シャープ: ${r.metrics.sharpeRatio}`);
+// results[] はベスト順にソート済み。上位 20 件は .slice(0, 20) で取得
+result.results.slice(0, 20).forEach((r) => {
+  console.log(`エントリー: ${r.entryConditions.join(' + ')}, イグジット: ${r.exitConditions.join(' + ')}`);
+  console.log(`シャープ: ${r.metrics.sharpe}`);
 });
 ```
 
@@ -3422,16 +3510,49 @@ import {
   calculateCalmarRatio,
   calculateRecoveryFactor,
   annualizeReturn,
-  calculateAllMetrics
+  calculateAllMetrics,
+  extractTradeReturns
 } from 'trendcraft';
 
 // 個別メトリクスを計算
 const sharpe = calculateSharpeRatio(returns, riskFreeRate);
-const calmar = calculateCalmarRatio(totalReturn, maxDrawdown, years);
-const recovery = calculateRecoveryFactor(totalReturn, maxDrawdown);
+const calmar = calculateCalmarRatio(annualizedReturnPercent, maxDrawdownPercent);
+const recovery = calculateRecoveryFactor(netProfit, maxDrawdown);
 
-// 全メトリクスを一度に計算
-const metrics = calculateAllMetrics(backtestResult);
+// 全メトリクスを一度に計算（年率化のため candles が必須）
+const metrics = calculateAllMetrics(backtestResult, candles);
+
+// バックテスト結果からトレードごとのリターン（小数）を取得
+const tradeReturns = extractTradeReturns(backtestResult); // number[]
+```
+
+`extractTradeReturns(result: BacktestResult): number[]` は各トレードの `returnPercent` を小数に変換します。
+
+---
+
+### `deflatedSharpe(params)` / `deflatedSharpeFromReturns(returns, trialSharpes)`
+
+Deflated Sharpe Ratio —選択バイアス（N 試行）、非正規性、サンプル長を補正した後に、選択された戦略の真の Sharpe が正である確率。`[0, 1]` の確率を返し、~0.95 を超える値は Sharpe が多重検定のアーティファクトである可能性が低いことを示します。すべての Sharpe 入力は per-return（非年率化）単位である必要があります。
+
+```typescript
+import { deflatedSharpe, deflatedSharpeFromReturns, extractTradeReturns } from 'trendcraft';
+
+// パラメーター明示形式
+const dsr = deflatedSharpe({
+  observedSharpe: 0.12,       // 選択された戦略の per-return Sharpe
+  sampleSize: 500,            // リターン観測数（T >= 2）
+  trials: 50,                 // 評価した独立構成の数（N）
+  trialSharpeVariance: 0.0025,// N 試行にわたる per-return Sharpe の分散
+  skewness: 0,                // 任意。デフォルト 0
+  kurtosis: 3,                // 任意。デフォルト 3（非超過）
+});
+console.log(dsr < 0.95 ? 'オーバーフィットの可能性' : '信頼できるエッジ');
+
+// 簡便形式: observedSharpe / sampleSize / skewness / kurtosis を `returns` から、
+// trials / variance を `trialSharpes` から導出します。両配列は同じ per-return
+// 単位である必要があります。未定義のとき（例: リターンが 2 未満）は NaN を返します。
+const returns = extractTradeReturns(bestResult);
+const dsr2 = deflatedSharpeFromReturns(returns, trialSharpes);
 ```
 
 ---
@@ -3440,7 +3561,7 @@ const metrics = calculateAllMetrics(backtestResult);
 
 #### `runMonteCarloSimulation(result, options)`
 
-バックテスト結果の統計的有意性を検証。トレード順序をシャッフルして「運が良かっただけか」を判定します。
+トレードリストをリサンプリングして、バックテスト結果がどれだけ信頼できるかを推定します。
 
 ```typescript
 import { runMonteCarloSimulation, formatMonteCarloResult } from 'trendcraft';
@@ -3449,25 +3570,33 @@ const mcResult = runMonteCarloSimulation(backtestResult, {
   simulations: 1000,
   seed: 42,
   confidenceLevel: 0.95,
+  method: 'bootstrap',   // デフォルト。シーケンスリスクのみ見るなら 'shuffle'
+  ruinThreshold: 50,     // 「破産」とみなすドローダウン（%）
 });
 
 console.log(formatMonteCarloResult(mcResult));
-// => p=0.023, 有意（元のSharpeはランダムより優れている）
 
-// 結果をチェック
-if (mcResult.assessment.isSignificant) {
-  console.log('戦略は統計的に有意です');
-} else {
-  console.log('結果は偶然の可能性があります:', mcResult.assessment.reason);
-}
+// ダウンサイドリスクをチェック
+console.log('利益確率:', mcResult.downside.probProfit);
+console.log('破産リスク:', mcResult.downside.riskOfRuin);
 ```
+
+**仕組み:**
+
+2つのリサンプリング手法があります（`method` オプション）:
+1. `"bootstrap"`（デフォルト）: N件のトレードを復元抽出します。同じトレードが複数回現れたり、まったく現れなかったりするため、トータルリターン・Sharpe・プロフィットファクターがシミュレーションごとに変動します。結果の不確実性推定（リターン分布、損失確率、破産リスク）の基礎となります。
+2. `"shuffle"`: 既存のトレードを並べ替えます（非復元）。リターンの多重集合は変わらないため、リターン・Sharpe・プロフィットファクターはシミュレーション間で同一となり、経路依存の最大ドローダウンのみが変動します。シーケンスリスク（連敗の偏り）の分析に使います。
+
+各シミュレーションはリサンプリングしたトレードからエクイティカーブを再構築し、Sharpe・最大ドローダウン・トータルリターン・プロフィットファクターを再計算します。結果はこれらのメトリクスの分布に加え、`downside` サマリー（利益/損失確率、破産リスク）を返します。二値の有意性フラグはありません — `downside` の数値が判定結果です。
 
 **オプション:**
 | オプション | 型 | デフォルト | 説明 |
 |--------|------|---------|-------------|
-| `simulations` | `number` | `1000` | シャッフルシミュレーション回数 |
+| `simulations` | `number` | `1000` | シミュレーション回数 |
 | `seed` | `number` | `undefined` | 再現性のためのシード値 |
 | `confidenceLevel` | `number` | `0.95` | 信頼区間レベル（0.90, 0.95, 0.99） |
+| `method` | `"bootstrap" \| "shuffle"` | `"bootstrap"` | リサンプリング手法（「仕組み」参照） |
+| `ruinThreshold` | `number` | `50` | `riskOfRuin` で「破産」とみなすドローダウン（正の%） |
 | `progressCallback` | `function` | `undefined` | 進捗コールバック |
 
 **戻り値:** `MonteCarloResult`
@@ -3486,9 +3615,12 @@ interface MonteCarloResult {
     totalReturnPercent: MetricStatistics;
     profitFactor: MetricStatistics;
   };
-  pValue: {
-    sharpe: number;    // Sharpeがランダムで達成される確率
-    returns: number;   // リターンがランダムで達成される確率
+  simulationCount: number;
+  downside: {
+    probProfit: number;    // 利益で終わったシミュレーションの割合
+    probLoss: number;      // 損失で終わった割合 = 1 - probProfit
+    riskOfRuin: number;    // 最大ドローダウンが ruinThreshold に達した割合
+    ruinThreshold: number; // 破産しきい値として使ったドローダウン（%）
   };
   confidenceInterval: {
     sharpe: { lower: number; upper: number };
@@ -3496,11 +3628,9 @@ interface MonteCarloResult {
     maxDrawdown: { lower: number; upper: number };
   };
   assessment: {
-    isSignificant: boolean;  // p < 0.05 なら true
-    reason: string;
+    reason: string;          // 手法別の人間可読な解釈
     confidenceLevel: number;
   };
-  simulationCount: number;
 }
 
 interface MetricStatistics {
@@ -3524,7 +3654,7 @@ const formatted = formatMonteCarloResult(mcResult);
 
 // サマリー取得
 const summary = summarizeMonteCarloResult(mcResult);
-// => { isSignificant, pValueSharpe, pValueReturns, expectedSharpe, sharpe95CI }
+// => { probProfit, probLoss, riskOfRuin, expectedSharpe, sharpe95CI, originalSharpe }
 
 // 統計値の計算（直接使用可能）
 const stats = calculateStatistics([1, 2, 3, 4, 5]);
@@ -3667,9 +3797,9 @@ const equity = getAWFEquityCurve(awfResult, 1000000);
 分割エントリー戦略でのバックテスト。一度に全ポジションを建てる代わりに、資金を複数のトランシェに分割します。
 
 ```typescript
-import { runBacktestScaled, goldenCross, deadCross } from 'trendcraft';
+import { runBacktestScaled, goldenCrossCondition, deadCrossCondition } from 'trendcraft';
 
-const result = runBacktestScaled(candles, goldenCross(), deadCross(), {
+const result = runBacktestScaled(candles, goldenCrossCondition(), deadCrossCondition(), {
   capital: 1000000,
   scaledEntry: {
     tranches: 3,
@@ -4685,12 +4815,12 @@ TrendCraftはバックテスト・ストリーミング両方でショートポ�
 バックテストオプションに`direction: "short"`を指定。
 
 ```typescript
-import { runBacktest, deadCross, goldenCross } from 'trendcraft';
+import { runBacktest, deadCrossCondition, goldenCrossCondition } from 'trendcraft';
 
 const result = runBacktest(
   candles,
-  deadCross(5, 25),     // エントリー: デッドクロス（ショートイン）
-  goldenCross(5, 25),   // イグジット: ゴールデンクロス（ショートアウト）
+  deadCrossCondition(5, 25),     // エントリー: デッドクロス（ショートイン）
+  goldenCrossCondition(5, 25),   // イグジット: ゴールデンクロス（ショートアウト）
   {
     capital: 1000000,
     direction: 'short',  // ショートセリング有効化
@@ -4749,10 +4879,10 @@ if (result.triggered) {
 `batchBacktest()` と `portfolioBacktest()` も同じ `direction` オプションでショートセリングに対応。
 
 ```typescript
-import { batchBacktest, deadCross, goldenCross } from 'trendcraft';
+import { batchBacktest, deadCrossCondition, goldenCrossCondition } from 'trendcraft';
 
 // バッチバックテスト: direction をオプションに直接指定
-const batchResult = batchBacktest(datasets, deadCross(5, 25), goldenCross(5, 25), {
+const batchResult = batchBacktest(datasets, deadCrossCondition(5, 25), goldenCrossCondition(5, 25), {
   capital: 3_000_000,
   direction: 'short',
   stopLoss: 5,
@@ -4760,7 +4890,7 @@ const batchResult = batchBacktest(datasets, deadCross(5, 25), goldenCross(5, 25)
 });
 
 // ポートフォリオバックテスト: direction は tradeOptions 内に指定
-const portfolioResult = portfolioBacktest(datasets, deadCross(5, 25), goldenCross(5, 25), {
+const portfolioResult = portfolioBacktest(datasets, deadCrossCondition(5, 25), goldenCrossCondition(5, 25), {
   capital: 3_000_000,
   allocation: { type: 'equal' },
   maxPositions: 5,
@@ -4778,7 +4908,7 @@ const portfolioResult = portfolioBacktest(datasets, deadCross(5, 25), goldenCros
 
 ```typescript
 import {
-  and, rsiAbove, rsiBelow, bollingerTouch, deadCross, goldenCross,
+  and, rsiAbove, rsiBelow, bollingerTouch, deadCrossCondition, goldenCrossCondition,
   dmiBearish, anyBearishPattern, stochAbove, stochBelow,
 } from 'trendcraft';
 
@@ -4787,8 +4917,8 @@ const mrEntry = and(rsiAbove(70), bollingerTouch('upper'));
 const mrExit  = rsiBelow(50);
 
 // トレンドフォローショート: 下落トレンド確認
-const tfEntry = and(deadCross(5, 25), dmiBearish());
-const tfExit  = goldenCross(5, 25);
+const tfEntry = and(deadCrossCondition(5, 25), dmiBearish());
+const tfExit  = goldenCrossCondition(5, 25);
 
 // パターンベースショート: 弱気パターン + ストキャスティクス買われすぎ
 const ptEntry = and(anyBearishPattern(), stochAbove(80));
@@ -6057,15 +6187,15 @@ const N = annualizationFactor({ calendar: JPX_CALENDAR }); // 245
 NSGA-II多目的最適化 — 競合する目的関数をバランスするパレート最適なパラメータセットを発見します（例：シャープレシオ最大化とドローダウン最小化の両立）。高速非支配ソートとクラウディングディスタンスで多様性を維持。
 
 ```typescript
-import { paretoOptimization, param, constraint, summarizeParetoResult } from "trendcraft";
+import { paretoOptimization, param, constraint, summarizeParetoResult, goldenCrossCondition, deadCrossCondition } from "trendcraft";
 
 const result = paretoOptimization(
   candles,
   (params) => ({
-    entry: goldenCross(params.short, params.long),
-    exit: deadCross(params.short, params.long),
+    entry: goldenCrossCondition(params.short, params.long),
+    exit: deadCrossCondition(params.short, params.long),
   }),
-  [param("short", [5, 10, 15, 20]), param("long", [25, 50, 75, 100])],
+  [param("short", 5, 20, 5), param("long", 25, 100, 25)],
   {
     objectives: [
       { metric: "sharpe", direction: "maximize" },
@@ -6356,7 +6486,7 @@ type ConditionSpec =
   | { name: string; params?: Record<string, unknown> }
   | { op: "and" | "or" | "not"; conditions: ConditionSpec[] };
 
-// 例: and(goldenCross(5,25), rsiBelow(30))
+// 例: and(goldenCrossCondition(5,25), rsiBelow(30))
 {
   "op": "and",
   "conditions": [
