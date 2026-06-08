@@ -35,11 +35,17 @@ The same `mcpServers` entry works for Cursor and `~/.claude.json`. For Claude Co
 claude mcp add trendcraft -- npx -y @trendcraft/mcp
 ```
 
-Smoke-test the binary without a client:
+Smoke-test the binary without a client. MCP requires an `initialize` handshake before any other request, so send `initialize`, then the `notifications/initialized` notification, then `tools/list` on the same stdio session:
 
 ```bash
-echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | npx -y @trendcraft/mcp
+printf '%s\n' \
+  '{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"smoke","version":"0"}}}' \
+  '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
+  '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' \
+  | npx -y @trendcraft/mcp
 ```
+
+The MCP spec requires the `initialize` exchange before any other request, so send the full sequence above rather than a lone `tools/list` — the latter is not guaranteed to be answered across protocol versions and transports.
 
 ## Tools
 

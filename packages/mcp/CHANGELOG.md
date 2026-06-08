@@ -20,7 +20,19 @@ missing volume.
 ### Changed — bumped `zod` to v4
 
 The runtime `zod` dependency moved from v3 to v4. No schema behavior changes for
-callers.
+callers: the validation contract that callers actually observe (non-finite OHLCV
+rejection, candle length, the exactly-one-of `candles` / `candlesArray` /
+`candlesRef` rule) is enforced by explicit `INVALID_INPUT` throws in the
+resolver/handler and surfaced through the canonical error envelope, not by zod's
+own error format — so a major `zod` bump leaves the caller-visible error shape
+unchanged.
+
+### Changed — exclude `.d.ts.map` from the published tarball
+
+`dist/**/*.d.ts.map` is now excluded from the npm package `files` list (alongside
+the already-excluded `.js.map` / `.cjs.map`). The declaration maps shipped no
+consumer value and embedded absolute local source paths; dropping them yields a
+smaller tarball and stops leaking build-machine paths.
 
 ### Added — upfront `params` shape guard for `calc_indicator` / `detect_signal`
 
