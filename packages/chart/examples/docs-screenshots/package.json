@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@trendcraft/chart": "link:../..",
-    "trendcraft": "link:../../../../core"
+    "trendcraft": "link:../../../core"
   },
   "devDependencies": {
     "typescript": "^5.7.2",
