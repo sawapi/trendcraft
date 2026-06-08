@@ -2,16 +2,20 @@
  * Volatility Streaming Conditions
  */
 
+import { DEFAULT_ATR_THRESHOLD } from "../../indicators/volatility/atr-filter";
 import { getNumber } from "../snapshot-utils";
 import type { StreamingPresetCondition } from "./types";
 
 /**
  * Condition: ATR as percentage of close is above threshold
  *
- * @param threshold - ATR% threshold (default: 2.0 = 2%)
+ * @param threshold - ATR% threshold (default: {@link DEFAULT_ATR_THRESHOLD})
  * @param key - Snapshot key for ATR (default: "atr")
  */
-export function atrPercentAbove(threshold = 2.0, key = "atr"): StreamingPresetCondition {
+export function atrPercentAbove(
+  threshold = DEFAULT_ATR_THRESHOLD,
+  key = "atr",
+): StreamingPresetCondition {
   return {
     type: "preset",
     name: `atrPercentAbove(${threshold}%)`,

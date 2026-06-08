@@ -415,7 +415,7 @@ export function atrPercentAbove(
  * ```
  */
 export function atrPercentBelow(
-  threshold: number,
+  threshold = 1.0,
   options?: Pick<AtrFilterOptions, "atrPeriod">,
 ): PresetCondition {
   return {

@@ -11,7 +11,7 @@ import type { PresetCondition } from "../../types";
 
 /**
  * DMI Bullish: +DI > -DI with optional ADX filter
- * @param minAdx Minimum ADX for trend strength (default: 20)
+ * @param threshold Minimum ADX for trend strength (default: 25, Wilder's strong-trend level)
  * @example
  * ```ts
  * import { runBacktest, dmiBullish, dmiBearish } from "trendcraft";
@@ -21,12 +21,12 @@ import type { PresetCondition } from "../../types";
  * });
  * ```
  */
-export function dmiBullish(minAdx = 20, period = 14): PresetCondition {
+export function dmiBullish(threshold = 25, period = 14): PresetCondition {
   const cacheKey = `dmi_${period}`;
 
   return {
     type: "preset",
-    name: `dmiBullish(ADX>${minAdx})`,
+    name: `dmiBullish(ADX>=${threshold})`,
     evaluate: (indicators, _candle, index, candles) => {
       let dmiData = indicators[cacheKey] as
         | {
@@ -43,14 +43,14 @@ export function dmiBullish(minAdx = 20, period = 14): PresetCondition {
       const d = dmiData[index]?.value;
       if (!d || d.plusDi === null || d.minusDi === null || d.adx === null) return false;
 
-      return d.plusDi > d.minusDi && d.adx >= minAdx;
+      return d.plusDi > d.minusDi && d.adx >= threshold;
     },
   };
 }
 
 /**
  * DMI Bearish: -DI > +DI with optional ADX filter
- * @param minAdx Minimum ADX for trend strength (default: 20)
+ * @param threshold Minimum ADX for trend strength (default: 25, Wilder's strong-trend level)
  * @example
  * ```ts
  * import { runBacktest, dmiBullish, dmiBearish, and, adxStrong } from "trendcraft";
@@ -60,12 +60,12 @@ export function dmiBullish(minAdx = 20, period = 14): PresetCondition {
  * const result = runBacktest(candles, entry, dmiBearish(), { capital: 1_000_000 });
  * ```
  */
-export function dmiBearish(minAdx = 20, period = 14): PresetCondition {
+export function dmiBearish(threshold = 25, period = 14): PresetCondition {
   const cacheKey = `dmi_${period}`;
 
   return {
     type: "preset",
-    name: `dmiBearish(ADX>${minAdx})`,
+    name: `dmiBearish(ADX>=${threshold})`,
     evaluate: (indicators, _candle, index, candles) => {
       let dmiData = indicators[cacheKey] as
         | {
@@ -82,7 +82,7 @@ export function dmiBearish(minAdx = 20, period = 14): PresetCondition {
       const d = dmiData[index]?.value;
       if (!d || d.plusDi === null || d.minusDi === null || d.adx === null) return false;
 
-      return d.minusDi > d.plusDi && d.adx >= minAdx;
+      return d.minusDi > d.plusDi && d.adx >= threshold;
     },
   };
 }

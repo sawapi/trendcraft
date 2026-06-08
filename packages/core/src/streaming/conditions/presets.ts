@@ -44,7 +44,7 @@ export type RegimeFilterOptions = {
  * const oversold = rsiBelow(30);
  * ```
  */
-export function rsiBelow(threshold: number, key = "rsi"): StreamingPresetCondition {
+export function rsiBelow(threshold = 30, key = "rsi"): StreamingPresetCondition {
   return {
     type: "preset",
     name: `rsiBelow(${threshold})`,
@@ -66,7 +66,7 @@ export function rsiBelow(threshold: number, key = "rsi"): StreamingPresetConditi
  * const overbought = rsiAbove(70);
  * ```
  */
-export function rsiAbove(threshold: number, key = "rsi"): StreamingPresetCondition {
+export function rsiAbove(threshold = 70, key = "rsi"): StreamingPresetCondition {
   return {
     type: "preset",
     name: `rsiAbove(${threshold})`,

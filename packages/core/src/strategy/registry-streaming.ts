@@ -16,6 +16,7 @@
  * ```
  */
 
+import { DEFAULT_ATR_THRESHOLD } from "../indicators/volatility/atr-filter";
 import {
   bollingerBreakout,
   bollingerExpansion,
@@ -318,25 +319,29 @@ streamingRegistry.register({
   name: "bollingerBreakout",
   displayName: "Bollinger Breakout",
   category: "volatility",
+  // `band` defaults to "lower" to match the backtest registry (a portable
+  // JSON omitting `band` resolves identically on either side).
   params: {
-    band: { type: "string", required: true, enum: ["upper", "lower"] },
+    band: { type: "string", default: "lower", enum: ["upper", "lower"] },
     key: { type: "string", default: "bb" },
   },
-  create: (p) => bollingerBreakout(p.band as "upper" | "lower", (p.key as string) ?? "bb"),
+  create: (p) =>
+    bollingerBreakout((p.band as "upper" | "lower") ?? "lower", (p.key as string) ?? "bb"),
 });
 
 streamingRegistry.register({
   name: "bollingerTouch",
   displayName: "Bollinger Touch",
   category: "volatility",
+  // `band` defaults to "lower" to match the backtest registry (see bollingerBreakout).
   params: {
-    band: { type: "string", required: true, enum: ["upper", "lower"] },
+    band: { type: "string", default: "lower", enum: ["upper", "lower"] },
     tolerance: { type: "number", default: 0.1, min: 0 },
     key: { type: "string", default: "bb" },
   },
   create: (p) =>
     bollingerTouch(
-      p.band as "upper" | "lower",
+      (p.band as "upper" | "lower") ?? "lower",
       (p.tolerance as number) ?? 0.1,
       (p.key as string) ?? "bb",
     ),
@@ -427,18 +432,21 @@ streamingRegistry.register({
   name: "cmfAbove",
   displayName: "CMF Above",
   category: "volume",
-  params: { threshold: { type: "number", default: 0.05 }, key: { type: "string", default: "cmf" } },
-  create: (p) => cmfAbove((p.threshold as number) ?? 0.05, (p.key as string) ?? "cmf"),
+  // Default matches the backtest registry. 0 is the canonical CMF zero-line
+  // reference (the ±0.05 buffer is an optional whipsaw filter, not the default).
+  params: { threshold: { type: "number", default: 0 }, key: { type: "string", default: "cmf" } },
+  create: (p) => cmfAbove((p.threshold as number) ?? 0, (p.key as string) ?? "cmf"),
 });
 streamingRegistry.register({
   name: "cmfBelow",
   displayName: "CMF Below",
   category: "volume",
+  // Default matches the backtest registry (CMF zero-line; see cmfAbove).
   params: {
-    threshold: { type: "number", default: -0.05 },
+    threshold: { type: "number", default: 0 },
     key: { type: "string", default: "cmf" },
   },
-  create: (p) => cmfBelow((p.threshold as number) ?? -0.05, (p.key as string) ?? "cmf"),
+  create: (p) => cmfBelow((p.threshold as number) ?? 0, (p.key as string) ?? "cmf"),
 });
 streamingRegistry.register({
   name: "obvRising",
@@ -483,12 +491,15 @@ streamingRegistry.register({
   name: "atrPercentAbove",
   displayName: "ATR% Above",
   category: "volatility",
+  // Default references the shared DEFAULT_ATR_THRESHOLD constant (matches the
+  // backtest registry and the factory; single source of truth).
   params: {
-    threshold: { type: "number", default: 2.0, min: 0 },
+    threshold: { type: "number", default: DEFAULT_ATR_THRESHOLD, min: 0 },
     key: { type: "string", default: "atr" },
   },
   isFilter: true,
-  create: (p) => atrPercentAbove((p.threshold as number) ?? 2.0, (p.key as string) ?? "atr"),
+  create: (p) =>
+    atrPercentAbove((p.threshold as number) ?? DEFAULT_ATR_THRESHOLD, (p.key as string) ?? "atr"),
 });
 
 streamingRegistry.register({
@@ -575,11 +586,13 @@ streamingRegistry.register({
   name: "priceDroppedAtr",
   displayName: "Price Dropped ATR",
   category: "volatility",
+  // Default matches the backtest registry. 2× ATR is the conventional range
+  // (2–3) for a meaningful move; 1× is too tight to register as a "drop".
   params: {
-    multiplier: { type: "number", default: 1.0, min: 0.1 },
+    multiplier: { type: "number", default: 2.0, min: 0.1 },
     key: { type: "string", default: "atr" },
   },
-  create: (p) => priceDroppedAtr((p.multiplier as number) ?? 1.0, (p.key as string) ?? "atr"),
+  create: (p) => priceDroppedAtr((p.multiplier as number) ?? 2.0, (p.key as string) ?? "atr"),
 });
 
 streamingRegistry.register({

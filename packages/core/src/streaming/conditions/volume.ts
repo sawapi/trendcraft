@@ -26,10 +26,10 @@ export function volumeAboveAvg(multiplier = 1.5, key = "volumeAnomaly"): Streami
 /**
  * Condition: Chaikin Money Flow above threshold
  *
- * @param threshold - CMF threshold (default: 0.05)
+ * @param threshold - CMF threshold (default: 0, the CMF zero-line)
  * @param key - Snapshot key (default: "cmf")
  */
-export function cmfAbove(threshold = 0.05, key = "cmf"): StreamingPresetCondition {
+export function cmfAbove(threshold = 0, key = "cmf"): StreamingPresetCondition {
   return {
     type: "preset",
     name: `cmfAbove(${threshold})`,
@@ -43,10 +43,10 @@ export function cmfAbove(threshold = 0.05, key = "cmf"): StreamingPresetConditio
 /**
  * Condition: Chaikin Money Flow below threshold
  *
- * @param threshold - CMF threshold (default: -0.05)
+ * @param threshold - CMF threshold (default: 0, the CMF zero-line)
  * @param key - Snapshot key (default: "cmf")
  */
-export function cmfBelow(threshold = -0.05, key = "cmf"): StreamingPresetCondition {
+export function cmfBelow(threshold = 0, key = "cmf"): StreamingPresetCondition {
   return {
     type: "preset",
     name: `cmfBelow(${threshold})`,
