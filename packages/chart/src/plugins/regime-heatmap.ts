@@ -21,7 +21,7 @@
  * ```
  */
 
-import { withPaneClip } from "../core/draw-helper";
+import { roundRectPath, withPaneClip } from "../core/draw-helper";
 import type { PrimitivePlugin, PrimitiveRenderContext } from "../core/plugin-types";
 import { definePrimitive } from "../core/plugin-types";
 import type { ChartInstance, DataPoint } from "../core/types";
@@ -149,19 +149,8 @@ function renderRegimeBadge(
   const pillH = textH + padY * 2;
 
   // Pill background — saturated regime tint with rounded corners.
-  const r = pillH / 2;
   ctx.fillStyle = `rgba(${rgb},0.85)`;
-  ctx.beginPath();
-  ctx.moveTo(pillX + r, pillY);
-  ctx.lineTo(pillX + pillW - r, pillY);
-  ctx.quadraticCurveTo(pillX + pillW, pillY, pillX + pillW, pillY + r);
-  ctx.lineTo(pillX + pillW, pillY + pillH - r);
-  ctx.quadraticCurveTo(pillX + pillW, pillY + pillH, pillX + pillW - r, pillY + pillH);
-  ctx.lineTo(pillX + r, pillY + pillH);
-  ctx.quadraticCurveTo(pillX, pillY + pillH, pillX, pillY + pillH - r);
-  ctx.lineTo(pillX, pillY + r);
-  ctx.quadraticCurveTo(pillX, pillY, pillX + r, pillY);
-  ctx.closePath();
+  roundRectPath(ctx, pillX, pillY, pillW, pillH, pillH / 2);
   ctx.fill();
 
   // White text — high contrast against the saturated pill regardless of

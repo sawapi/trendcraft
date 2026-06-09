@@ -22,7 +22,7 @@
  * ```
  */
 
-import { withPaneClip } from "../core/draw-helper";
+import { roundRectPath, withPaneClip } from "../core/draw-helper";
 import { definePrimitive } from "../core/plugin-types";
 import type { ChartInstance } from "../core/types";
 
@@ -223,17 +223,7 @@ function drawAnchoredLabel(
   const r = 3;
 
   ctx.fillStyle = bg;
-  ctx.beginPath();
-  ctx.moveTo(labelX + r, labelY);
-  ctx.lineTo(labelX + w - r, labelY);
-  ctx.quadraticCurveTo(labelX + w, labelY, labelX + w, labelY + r);
-  ctx.lineTo(labelX + w, labelY + h - r);
-  ctx.quadraticCurveTo(labelX + w, labelY + h, labelX + w - r, labelY + h);
-  ctx.lineTo(labelX + r, labelY + h);
-  ctx.quadraticCurveTo(labelX, labelY + h, labelX, labelY + h - r);
-  ctx.lineTo(labelX, labelY + r);
-  ctx.quadraticCurveTo(labelX, labelY, labelX + r, labelY);
-  ctx.closePath();
+  roundRectPath(ctx, labelX, labelY, w, h, r);
   ctx.fill();
 
   // Tail
