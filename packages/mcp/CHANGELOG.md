@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.0 (2026-06-09)
 
 ### Fixed — reject non-finite candle OHLCV at the input boundary
 
