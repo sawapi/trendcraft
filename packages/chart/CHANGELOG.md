@@ -305,6 +305,18 @@ The pinned override path is unchanged — callers that supply
 `pixelRatio` keep full control. Sparkline already re-read DPR each
 frame and is unaffected.
 
+### Fixed — sparkline hardens its device-pixel-ratio guard
+
+The sparkline canvas setup resolved `window.devicePixelRatio` with a
+truthiness check (`dpr ? dpr : 1`), which correctly falls back to `1`
+for `0` / `NaN` / `undefined` but let `±Infinity` and negative values
+through. Multiplying the CSS size by such a ratio yielded a non-finite
+or negative canvas bitmap dimension. The main chart already clamped to
+a finite positive ratio; both paths now share a single
+`safeDevicePixelRatio()` helper, so the sparkline falls back to `1`
+for those degenerate ratios as well. This is a defensive hardening —
+real browsers report a small positive ratio.
+
 ### Fixed — non-finite value guards across render and layout paths
 
 Canvas silently swallows draw calls with `NaN` / `±Infinity`

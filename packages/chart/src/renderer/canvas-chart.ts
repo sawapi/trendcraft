@@ -5,6 +5,7 @@
 
 import { ViewTransition } from "../core/animation";
 import { DataLayer } from "../core/data-layer";
+import { safeDevicePixelRatio } from "../core/dpr";
 import type { DrawHelper } from "../core/draw-helper";
 import { autoFormatPrice, setMonthNames } from "../core/format";
 import { type ChartLocale, mergeLocale } from "../core/i18n";
@@ -79,18 +80,6 @@ const DEFAULT_OPTIONS: Required<
   timeAxisHeight: 32,
   fontSize: 11,
 };
-
-/**
- * Read `window.devicePixelRatio` and clamp to a finite positive value.
- * Falls back to 1 when running outside a browser, when DPR is 0 / NaN /
- * negative, or when DPR is `±Infinity` (the last is rare in practice
- * but breaks `canvas.width = w * dpr` if it slips through).
- */
-function safeDevicePixelRatio(): number {
-  if (typeof window === "undefined") return 1;
-  const dpr = window.devicePixelRatio;
-  return Number.isFinite(dpr) && dpr > 0 ? dpr : 1;
-}
 
 // ============================================
 // CanvasChart Class
