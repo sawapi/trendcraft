@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## [0.4.0] - 2026-06-09
 
 ### Breaking — `dmiBullish` / `dmiBearish` ADX param renamed `minAdx` → `threshold`
 
