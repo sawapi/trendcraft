@@ -129,6 +129,29 @@ export type SparklineOptions = {
   hover?: boolean;
 };
 
+/**
+ * The `SparklineOptions` keys a live `update()` must react to — the single
+ * source of truth the React effect-deps, the Vue watch sources, and the Vue
+ * prop→options builder all derive from. Add a new live-updatable option here
+ * and every wrapper picks it up; forgetting one is exactly what silently drops
+ * an option from live updates. Layout-only props (width / height / style /
+ * className) are intentionally excluded.
+ */
+export const SPARKLINE_OPTION_KEYS = [
+  "type",
+  "data",
+  "color",
+  "fill",
+  "baseline",
+  "maxCandles",
+  "totalSlots",
+  "session",
+  "breakGap",
+  "densityFallback",
+  "colors",
+  "hover",
+] as const satisfies readonly (keyof SparklineOptions)[];
+
 export type SparklineHandle = {
   /** Update options and re-render. Pass partial; only changed fields apply. */
   update(opts: Partial<SparklineOptions>): void;

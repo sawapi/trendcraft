@@ -189,15 +189,22 @@ function renderTrendLine(
   ctx.fill();
 }
 
-function renderFibRetracement(
+/**
+ * Shared renderer for Fibonacci retracement and extension drawings. Both draw
+ * the same idiom — a horizontal line per level, light shading between adjacent
+ * levels, and a `pct% (price)` label — and differ only in how a level maps to
+ * a price (`priceAt`) and in the color table. Solid line for the 0 and 1
+ * anchors, dashed for the rest.
+ */
+function renderFibLevels(
   ctx: CanvasRenderingContext2D,
-  drawing: FibRetracementDrawing,
   c: DrawCtx,
   fontSize: number,
+  levels: readonly number[],
+  colors: readonly string[],
+  priceAt: (level: number) => number,
 ): void {
   const { pane } = c;
-  const levels = drawing.levels ?? DEFAULT_FIB_LEVELS;
-  const priceRange = drawing.endPrice - drawing.startPrice;
 
   ctx.font = `${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
   ctx.textAlign = "left";
@@ -205,9 +212,9 @@ function renderFibRetracement(
 
   for (let i = 0; i < levels.length; i++) {
     const level = levels[i];
-    const price = drawing.endPrice - priceRange * level;
+    const price = priceAt(level);
     const y = toScreenY(price, c);
-    const color = FIB_COLORS[i % FIB_COLORS.length];
+    const color = colors[i % colors.length];
 
     // Horizontal line
     ctx.strokeStyle = color;
@@ -221,8 +228,7 @@ function renderFibRetracement(
 
     // Fill between levels
     if (i < levels.length - 1) {
-      const nextPrice = drawing.endPrice - priceRange * levels[i + 1];
-      const nextY = toScreenY(nextPrice, c);
+      const nextY = toScreenY(priceAt(levels[i + 1]), c);
       ctx.fillStyle = color;
       ctx.globalAlpha = 0.04;
       ctx.fillRect(pane.x, Math.min(y, nextY), pane.width, Math.abs(nextY - y));
@@ -237,6 +243,23 @@ function renderFibRetracement(
     ctx.fillStyle = color;
     ctx.fillText(label, pane.x + 4, y);
   }
+}
+
+function renderFibRetracement(
+  ctx: CanvasRenderingContext2D,
+  drawing: FibRetracementDrawing,
+  c: DrawCtx,
+  fontSize: number,
+): void {
+  const priceRange = drawing.endPrice - drawing.startPrice;
+  renderFibLevels(
+    ctx,
+    c,
+    fontSize,
+    drawing.levels ?? DEFAULT_FIB_LEVELS,
+    FIB_COLORS,
+    (level) => drawing.endPrice - priceRange * level,
+  );
 }
 
 function renderRay(ctx: CanvasRenderingContext2D, drawing: RayDrawing, c: DrawCtx): void {
@@ -413,48 +436,15 @@ function renderFibExtension(
   c: DrawCtx,
   fontSize: number,
 ): void {
-  const { pane } = c;
-  const levels = drawing.levels ?? DEFAULT_FIB_EXT_LEVELS;
   const priceRange = drawing.endPrice - drawing.startPrice;
-
-  ctx.font = `${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
-  ctx.textAlign = "left";
-  ctx.textBaseline = "middle";
-
-  for (let i = 0; i < levels.length; i++) {
-    const level = levels[i];
-    const price = drawing.startPrice + priceRange * level;
-    const y = toScreenY(price, c);
-    const color = FIB_EXT_COLORS[i % FIB_EXT_COLORS.length];
-
-    // Horizontal line
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 1;
-    ctx.setLineDash(level === 0 || level === 1 ? [] : [4, 3]);
-    ctx.globalAlpha = 0.7;
-    ctx.beginPath();
-    ctx.moveTo(pane.x, Math.round(y) + 0.5);
-    ctx.lineTo(pane.x + pane.width, Math.round(y) + 0.5);
-    ctx.stroke();
-
-    // Fill between levels
-    if (i < levels.length - 1) {
-      const nextPrice = drawing.startPrice + priceRange * levels[i + 1];
-      const nextY = toScreenY(nextPrice, c);
-      ctx.fillStyle = color;
-      ctx.globalAlpha = 0.04;
-      ctx.fillRect(pane.x, Math.min(y, nextY), pane.width, Math.abs(nextY - y));
-    }
-
-    ctx.globalAlpha = 1;
-    ctx.setLineDash([]);
-
-    // Label
-    const pct = (level * 100).toFixed(1);
-    const label = `${pct}% (${autoFormatPrice(price)})`;
-    ctx.fillStyle = color;
-    ctx.fillText(label, pane.x + 4, y);
-  }
+  renderFibLevels(
+    ctx,
+    c,
+    fontSize,
+    drawing.levels ?? DEFAULT_FIB_EXT_LEVELS,
+    FIB_EXT_COLORS,
+    (level) => drawing.startPrice + priceRange * level,
+  );
 }
 
 function renderTextLabel(

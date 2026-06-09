@@ -1,4 +1,5 @@
 import type { StrokeAndFill } from "./color-resolve";
+import { computeYScale, drawSparkBaseline } from "./scale";
 import type { SessionLayout } from "./session";
 import type { ResolvedColors, SparklineCandle } from "./types";
 
@@ -42,15 +43,8 @@ export function drawMiniCandles(args: CandleDrawArgs): void {
     if (c.low < min) min = c.low;
     if (c.high > max) max = c.high;
   }
-  if (baselineValue != null) {
-    if (baselineValue < min) min = baselineValue;
-    if (baselineValue > max) max = baselineValue;
-  }
 
-  const padY = 1;
-  const innerH = Math.max(1, height - padY * 2);
-  const range = max - min || 1;
-  const yOf = (v: number) => padY + innerH - ((v - min) / range) * innerH;
+  const { yOf } = computeYScale(min, max, baselineValue, height);
 
   // Compute slot/body width. Session mode bases the slot on the median bar
   // interval mapped to pixels via the layout's pxPerMs; slot mode uses simple
@@ -79,18 +73,7 @@ export function drawMiniCandles(args: CandleDrawArgs): void {
   const bodyW = Math.max(1, Math.floor(slot * 0.7));
 
   // Baseline (under candles)
-  if (baselineValue != null) {
-    ctx.save();
-    ctx.strokeStyle = themeColors.baseline;
-    ctx.lineWidth = 1;
-    ctx.setLineDash([2, 2]);
-    ctx.beginPath();
-    const by = yOf(baselineValue);
-    ctx.moveTo(0, by);
-    ctx.lineTo(width, by);
-    ctx.stroke();
-    ctx.restore();
-  }
+  drawSparkBaseline(ctx, yOf, baselineValue, width, themeColors.baseline);
 
   for (let i = 0; i < data.length; i++) {
     const c = data[i];

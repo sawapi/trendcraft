@@ -47,7 +47,7 @@ export type {
   SparklineOptions,
   SparklineSession,
 } from "./types";
-export { DEFAULT_COLORS } from "./types";
+export { DEFAULT_COLORS, SPARKLINE_OPTION_KEYS } from "./types";
 
 /**
  * Create a single sparkline. For multiple instances on the same page, prefer

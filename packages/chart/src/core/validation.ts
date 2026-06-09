@@ -24,6 +24,26 @@ const isObject = (v: unknown): v is Record<string, unknown> => typeof v === "obj
 const isFiniteNumber = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
 
 /**
+ * True when all four OHLC fields are finite. Canvas silently swallows draw
+ * calls with `NaN` / `±Infinity` coordinates, so renderers skip any bar that
+ * fails this check rather than leaving an invisible gap with no error. Used by
+ * the candlestick and overlay-candle renderers, which share the exact guard.
+ */
+export function isFiniteOHLC(c: {
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+}): boolean {
+  return (
+    Number.isFinite(c.open) &&
+    Number.isFinite(c.high) &&
+    Number.isFinite(c.low) &&
+    Number.isFinite(c.close)
+  );
+}
+
+/**
  * Validate `addSignals` input. Each entry must have a finite epoch-ms `time`
  * and `type` of `'buy'` or `'sell'`.
  */

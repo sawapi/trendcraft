@@ -1,4 +1,5 @@
 import type { StrokeAndFill } from "./color-resolve";
+import { computeYScale, drawSparkBaseline } from "./scale";
 import type { SessionLayout } from "./session";
 import type { ResolvedColors, SparklineCandle } from "./types";
 
@@ -61,16 +62,8 @@ export function drawMiniLine(args: LineDrawArgs): void {
     if (v < min) min = v;
     if (v > max) max = v;
   }
-  if (baselineValue != null) {
-    if (baselineValue < min) min = baselineValue;
-    if (baselineValue > max) max = baselineValue;
-  }
 
-  const padY = 1;
-  const innerH = Math.max(1, height - padY * 2);
-  const range = max - min || 1;
-
-  const yOf = (v: number) => padY + innerH - ((v - min) / range) * innerH;
+  const { yOf } = computeYScale(min, max, baselineValue, height);
 
   // Compute x positions per point. Session mode maps by time and emits
   // separate path segments per break; slot mode places points at evenly
@@ -139,18 +132,7 @@ export function drawMiniLine(args: LineDrawArgs): void {
   }
 
   // Baseline (drawn under stroke).
-  if (baselineValue != null) {
-    ctx.save();
-    ctx.strokeStyle = themeColors.baseline;
-    ctx.lineWidth = 1;
-    ctx.setLineDash([2, 2]);
-    ctx.beginPath();
-    const by = yOf(baselineValue);
-    ctx.moveTo(0, by);
-    ctx.lineTo(width, by);
-    ctx.stroke();
-    ctx.restore();
-  }
+  drawSparkBaseline(ctx, yOf, baselineValue, width, themeColors.baseline);
 
   // Stroke — one polyline per segment, so the line breaks at each gap.
   ctx.strokeStyle = colors.stroke;

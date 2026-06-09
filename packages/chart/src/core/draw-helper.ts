@@ -300,3 +300,30 @@ export function withPaneClip(
     ctx.restore();
   }
 }
+
+/**
+ * Trace a rounded-rectangle path (`beginPath` → `closePath`) with corner
+ * radius `r`. Leaves filling/stroking to the caller, so a caller can fill the
+ * pill and then start a fresh path for an attached tail. Uses `quadraticCurveTo`
+ * corners rather than the native `ctx.roundRect` for broad canvas-mock support.
+ */
+export function roundRectPath(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
+): void {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
