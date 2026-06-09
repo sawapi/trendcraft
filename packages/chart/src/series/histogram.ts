@@ -89,20 +89,3 @@ export function volumeRange(
   }
   return [0, max];
 }
-
-/** Compute range for histogram values */
-export function histogramRange(
-  values: readonly (number | null)[],
-  startIndex: number,
-  endIndex: number,
-): [number, number] {
-  let min = 0;
-  let max = 0;
-  for (let i = startIndex; i < endIndex && i < values.length; i++) {
-    const val = values[i];
-    if (val === null || val === undefined) continue;
-    if (val < min) min = val;
-    if (val > max) max = val;
-  }
-  return [min, max];
-}
