@@ -16,6 +16,7 @@ import type {
   TimeframeOverlay,
   TradeMarker,
 } from "../core/types";
+import { isFiniteOHLC } from "../core/validation";
 import type { AxisExcludeRange } from "./axis-renderer";
 
 /**
@@ -222,17 +223,10 @@ export function renderTimeframeOverlays(
     ctx.globalAlpha = opacity;
 
     for (const candle of overlay.candles) {
-      // Skip candles with non-finite OHLC. Same rationale as the
-      // primary candlestick renderer: canvas silently swallows draw
-      // calls with NaN coords, leaving an invisible bar with no error.
-      if (
-        !Number.isFinite(candle.open) ||
-        !Number.isFinite(candle.high) ||
-        !Number.isFinite(candle.low) ||
-        !Number.isFinite(candle.close)
-      ) {
-        continue;
-      }
+      // Skip candles with non-finite OHLC. Same rationale as the primary
+      // candlestick renderer: canvas silently swallows draw calls with NaN
+      // coords, leaving an invisible bar with no error.
+      if (!isFiniteOHLC(candle)) continue;
 
       const startIdx = dataLayer.indexAtTime(candle.time);
       const nextIdx = overlay.candles.indexOf(candle) + 1;
