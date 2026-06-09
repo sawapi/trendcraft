@@ -33,6 +33,7 @@ import {
   createSparkline,
   createSparklineGroup,
   type HoverPayload,
+  SPARKLINE_OPTION_KEYS,
   type SparklineCandle,
   type SparklineGroup,
   type SparklineHandle,
@@ -119,20 +120,13 @@ export const Sparkline = defineComponent({
     const handleRef = shallowRef<SparklineHandle | null>(null);
     const groupRef = inject(GROUP_KEY, null);
 
-    const buildOpts = (): SparklineOptions => ({
-      type: props.type,
-      data: props.data as SparklineOptions["data"],
-      color: props.color,
-      fill: props.fill,
-      baseline: props.baseline,
-      maxCandles: props.maxCandles,
-      totalSlots: props.totalSlots,
-      session: props.session,
-      breakGap: props.breakGap,
-      colors: props.colors,
-      densityFallback: props.densityFallback,
-      hover: props.hover,
-    });
+    const buildOpts = (): SparklineOptions => {
+      const out: Record<string, unknown> = {};
+      for (const k of SPARKLINE_OPTION_KEYS) {
+        out[k] = (props as Record<string, unknown>)[k];
+      }
+      return out as SparklineOptions;
+    };
 
     /** Track which mode the current handle was attached in, so we can detect
      *  the standalone→group transition (children mount before parent's onMounted
@@ -170,20 +164,7 @@ export const Sparkline = defineComponent({
     }
 
     watch(
-      [
-        () => props.data,
-        () => props.type,
-        () => props.fill,
-        () => props.baseline,
-        () => props.color,
-        () => props.maxCandles,
-        () => props.totalSlots,
-        () => props.session,
-        () => props.breakGap,
-        () => props.colors,
-        () => props.densityFallback,
-        () => props.hover,
-      ],
+      SPARKLINE_OPTION_KEYS.map((k) => () => (props as Record<string, unknown>)[k]),
       () => handleRef.value?.update(buildOpts()),
     );
 

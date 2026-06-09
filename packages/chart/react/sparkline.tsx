@@ -95,22 +95,22 @@ export function Sparkline({ width = 80, height = 30, style, className, ...opts }
     };
   }, [group]);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: granular opts deps; full opts ref would over-trigger.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: granular opts deps; a full opts ref would over-trigger. React requires an array literal here, so keep this list in sync with SPARKLINE_OPTION_KEYS.
   useEffect(() => {
     handleRef.current?.update(opts as Partial<SparklineOptions>);
   }, [
-    opts.data,
     opts.type,
+    opts.data,
+    opts.color,
     opts.fill,
     opts.baseline,
     opts.maxCandles,
     opts.totalSlots,
-    opts.color,
     opts.session,
     opts.breakGap,
     opts.densityFallback,
-    opts.hover,
     opts.colors,
+    opts.hover,
   ]);
 
   return (
