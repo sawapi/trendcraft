@@ -1,3 +1,4 @@
+import { safeDevicePixelRatio } from "../core/dpr";
 import { resolveColors } from "./color-resolve";
 import { drawMiniCandles } from "./draw-candle";
 import { drawMiniLine } from "./draw-line";
@@ -62,8 +63,7 @@ function setupCanvas(canvas: HTMLCanvasElement): {
   cssHeight: number;
   ctx: CanvasRenderingContext2D | null;
 } {
-  const dpr =
-    typeof window !== "undefined" && window.devicePixelRatio ? window.devicePixelRatio : 1;
+  const dpr = safeDevicePixelRatio();
   const rect = canvas.getBoundingClientRect();
   const cssWidth = rect.width || canvas.clientWidth || canvas.width || 80;
   const cssHeight = rect.height || canvas.clientHeight || canvas.height || 30;
