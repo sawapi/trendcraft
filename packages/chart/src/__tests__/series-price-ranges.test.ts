@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { bandPriceRange } from "../series/band";
 import { candlePriceRange } from "../series/candlestick";
 import { cloudPriceRange } from "../series/cloud";
-import { histogramRange, volumeRange } from "../series/histogram";
-import { channelPriceRange, linePriceRange } from "../series/line";
+import { volumeRange } from "../series/histogram";
+import { linePriceRange } from "../series/line";
 import { makeCandle } from "./helpers/mock-ctx";
 
 describe("candlePriceRange", () => {
@@ -78,34 +78,6 @@ describe("linePriceRange", () => {
     const [min, max] = linePriceRange([], 0, 0);
     expect(min).toBe(Number.POSITIVE_INFINITY);
     expect(max).toBe(Number.NEGATIVE_INFINITY);
-  });
-});
-
-describe("channelPriceRange", () => {
-  const values = [10, null, 30, 20, null];
-
-  it("returns min/max ignoring nulls", () => {
-    const [min, max] = channelPriceRange(values, 0, 5);
-    expect(min).toBe(10);
-    expect(max).toBe(30);
-  });
-
-  it("respects start/end bounds", () => {
-    const [min, max] = channelPriceRange(values, 2, 4);
-    expect(min).toBe(20);
-    expect(max).toBe(30);
-  });
-
-  it("returns Infinity/-Infinity for all-null data", () => {
-    const [min, max] = channelPriceRange([null, null], 0, 2);
-    expect(min).toBe(Number.POSITIVE_INFINITY);
-    expect(max).toBe(Number.NEGATIVE_INFINITY);
-  });
-
-  it("handles single value", () => {
-    const [min, max] = channelPriceRange([42], 0, 1);
-    expect(min).toBe(42);
-    expect(max).toBe(42);
   });
 });
 
@@ -201,40 +173,6 @@ describe("volumeRange", () => {
 
   it("returns [0, 0] for empty range", () => {
     const [min, max] = volumeRange(candles, 5, 10);
-    expect(min).toBe(0);
-    expect(max).toBe(0);
-  });
-});
-
-describe("histogramRange", () => {
-  const values = [-5, 10, null, -3, 8];
-
-  it("returns min/max including zero baseline", () => {
-    const [min, max] = histogramRange(values, 0, 5);
-    expect(min).toBe(-5);
-    expect(max).toBe(10);
-  });
-
-  it("clamps to zero when all positive", () => {
-    const [min, max] = histogramRange([5, 10, 15], 0, 3);
-    expect(min).toBe(0);
-    expect(max).toBe(15);
-  });
-
-  it("clamps to zero when all negative", () => {
-    const [min, max] = histogramRange([-5, -10, -15], 0, 3);
-    expect(min).toBe(-15);
-    expect(max).toBe(0);
-  });
-
-  it("ignores null values", () => {
-    const [min, max] = histogramRange([null, null, 7], 0, 3);
-    expect(min).toBe(0);
-    expect(max).toBe(7);
-  });
-
-  it("returns [0, 0] for all-null data", () => {
-    const [min, max] = histogramRange([null, null], 0, 2);
     expect(min).toBe(0);
     expect(max).toBe(0);
   });

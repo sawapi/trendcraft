@@ -6,7 +6,6 @@
 import { strokeNullableLine } from "../core/draw-helper";
 import type { PriceScale, TimeScale } from "../core/scale";
 import type { DataPoint } from "../core/types";
-import { reduceRange } from "../core/value-range";
 
 export type LineRenderOptions = {
   color: string;
@@ -133,13 +132,4 @@ export function linePriceRange(
     if (val > max) max = val;
   }
   return [min, max];
-}
-
-/** Compute min/max from channel values array */
-export function channelPriceRange(
-  values: readonly (number | null)[],
-  startIndex: number,
-  endIndex: number,
-): [number, number] {
-  return reduceRange(values, startIndex, endIndex);
 }

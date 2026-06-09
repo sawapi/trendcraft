@@ -132,14 +132,11 @@ export function createLiveSimulator(opts: SimulatorOptions): SimulatorHandle {
   // disagree by one bar on ~3.7% of (length, anchor) combinations. When
   // only `seedRatio` is given, fall back to the original ratio-based path.
   //
-  // Both paths funnel through `clampedSeedEnd` so `sim.seedCandles.length`
-  // always matches what `clampedSeedEnd(candles, anchor)` previews. Hosts
-  // that want to know the actual seed end before construction can call
-  // `clampedSeedEnd` directly; either way there's only one clamp logic
-  // and no double-clamping disagreement to debug.
-  // Both paths funnel through `clampedSeedEnd`, which internally floors,
-  // so there is exactly one place that decides the simulator's seed-end
-  // integer — no second derivation path to disagree with.
+  // Both paths funnel through `clampedSeedEnd`, which internally floors, so
+  // there is exactly one place that decides the simulator's seed-end integer
+  // and no second derivation path to disagree with. `sim.seedCandles.length`
+  // always matches what `clampedSeedEnd(candles, anchor)` previews, so hosts
+  // that want the actual seed end before construction can call it directly.
   const seedEnd =
     opts.seedEnd !== undefined
       ? clampedSeedEnd(candles, opts.seedEnd)

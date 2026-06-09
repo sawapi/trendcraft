@@ -58,23 +58,3 @@ export function renderScrollbar(
   ctx.strokeRect(thumbX + 0.5, trackY + 0.5, thumbW - 1, trackH - 1);
   ctx.globalAlpha = 1;
 }
-
-/**
- * Check if a point is within the scrollbar area and convert to target index.
- */
-export function scrollbarHitTest(
-  mouseX: number,
-  mouseY: number,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  timeScale: TimeScale,
-): number | null {
-  if (mouseY < y || mouseY > y + height) return null;
-  if (mouseX < x || mouseX > x + width) return null;
-
-  const frac = (mouseX - x) / width;
-  const targetCenter = Math.round(frac * timeScale.totalCount);
-  return Math.max(0, targetCenter - Math.floor(timeScale.visibleCount / 2));
-}

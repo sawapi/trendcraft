@@ -16,39 +16,6 @@ export function activeDuration(session: SparklineSession): number {
 }
 
 /**
- * Active duration elapsed from session start to time `t` (excluding any
- * break time that falls before `t`). Returns null if `t` is outside the
- * session window or inside a break.
- */
-export function activeElapsed(t: number, session: SparklineSession): number | null {
-  if (t < session.start || t > session.end) return null;
-  let elapsed = t - session.start;
-  if (session.breaks) {
-    for (const b of session.breaks) {
-      if (t >= b.start && t < b.end) return null; // inside break
-      if (t >= b.end) {
-        const s = Math.max(b.start, session.start);
-        const e = Math.min(b.end, session.end);
-        if (e > s) elapsed -= e - s;
-      }
-    }
-  }
-  return Math.max(0, elapsed);
-}
-
-/**
- * Map an in-session time to its fractional position in [0, 1] across the
- * canvas width. Returns null when `t` is outside the session or inside a break.
- */
-export function timeToFraction(t: number, session: SparklineSession): number | null {
-  const elapsed = activeElapsed(t, session);
-  if (elapsed === null) return null;
-  const total = activeDuration(session);
-  if (total <= 0) return null;
-  return elapsed / total;
-}
-
-/**
  * Pixel-space layout for a session. Distributes the canvas width into
  * one pixel range per active segment (gap-separated) and provides forward
  * (time → x) and inverse (x → time) lookups. Used by the sparkline
@@ -191,24 +158,4 @@ export function resolveBreakGapPx(breakGap: number | "auto" | undefined, width: 
   if (typeof breakGap === "number") return Math.max(0, breakGap);
   // 'auto' (default)
   return Math.max(2, Math.round(width * 0.03));
-}
-
-/**
- * Inverse of {@link timeToFraction}: given a fractional position [0, 1],
- * return the corresponding session time. Skips over break ranges.
- */
-export function fractionToTime(frac: number, session: SparklineSession): number {
-  const total = activeDuration(session);
-  let target = Math.max(0, Math.min(total, frac * total));
-  let t = session.start;
-  if (!session.breaks || session.breaks.length === 0) return t + target;
-  // Walk forward through ordered breaks, consuming active duration.
-  const sorted = [...session.breaks].sort((a, b) => a.start - b.start);
-  for (const b of sorted) {
-    const beforeBreak = b.start - t;
-    if (target <= beforeBreak) return t + target;
-    target -= beforeBreak;
-    t = b.end;
-  }
-  return t + target;
 }
