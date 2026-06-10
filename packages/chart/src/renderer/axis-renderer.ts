@@ -7,6 +7,7 @@ import {
   autoFormatTime,
   formatShortDate,
   formatShortTime,
+  measureTextWidth,
   pickNiceStep,
 } from "../core/format";
 import type { PriceScale, TimeScale } from "../core/scale";
@@ -171,6 +172,12 @@ export function renderTimeAxis(
   const firstAnchor = Math.ceil(start / labelInterval) * labelInterval;
   let prevLabelTime: number | null = null;
 
+  // Dominant bar interval, used to decide whether the first label's wall-clock
+  // time is meaningful (intraday) or a timezone artifact (daily+). Derived
+  // straight from the candle timestamps — not timeScale.medianBarIntervalMs,
+  // which is only populated in time-proportional layout mode and is 0 here.
+  const barIntervalMs = estimateBarIntervalMs(candles);
+
   for (let i = firstAnchor; i < end && i < candles.length; i += labelInterval) {
     const candle = candles[i];
     if (!candle) continue;
@@ -178,11 +185,43 @@ export function renderTimeAxis(
     const labelX = timeScale.indexToX(i);
     const label = timeFormatter
       ? timeFormatter(candle.time)
-      : autoFormatTime(candle.time, prevLabelTime);
+      : autoFormatTime(candle.time, prevLabelTime, barIntervalMs);
     prevLabelTime = candle.time;
 
-    ctx.fillText(label, labelX, y + 6);
+    // Keep edge labels fully on-screen: a centered label whose tick sits at the
+    // plot boundary loses ~half its text to clipping. Left-align (and nudge in)
+    // the first label, right-align one overflowing the right edge; center the
+    // rest. Matches the inward-nudge the price axis does via textBaseline.
+    const half = measureTextWidth(ctx, label) / 2;
+    if (labelX - half < x) {
+      ctx.textAlign = "left";
+      ctx.fillText(label, Math.max(labelX, x + 2), y + 6);
+    } else if (labelX + half > x + width) {
+      ctx.textAlign = "right";
+      ctx.fillText(label, Math.min(labelX, x + width - 2), y + 6);
+    } else {
+      ctx.textAlign = "center";
+      ctx.fillText(label, labelX, y + 6);
+    }
   }
+}
+
+/**
+ * Estimate the dominant bar interval (ms) from candle timestamps by taking the
+ * minimum positive gap across a bounded sample. Minimum (rather than
+ * mean/median) returns the regular bar spacing while ignoring the larger gaps
+ * introduced by weekends and holidays. Returns 0 when it cannot be determined
+ * (no time data or <2 candles).
+ */
+function estimateBarIntervalMs(candles: readonly CandleData[]): number {
+  const n = candles.length;
+  if (n < 2) return 0;
+  let min = Number.POSITIVE_INFINITY;
+  for (let i = 1; i < n && i <= 32; i++) {
+    const dt = candles[i].time - candles[i - 1].time;
+    if (dt > 0 && dt < min) min = dt;
+  }
+  return Number.isFinite(min) ? min : 0;
 }
 
 /**
