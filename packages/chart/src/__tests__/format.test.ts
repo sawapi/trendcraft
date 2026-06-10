@@ -71,6 +71,26 @@ describe("autoFormatTime", () => {
     expect(label).toContain("15");
   });
 
+  it("first label of a daily series omits the wall-clock time artifact", () => {
+    // A daily bar stamped at 00:00 UTC renders as 09:00 in a +09:00 TZ. With a
+    // daily interval hint the first label must stay a bare date, not "09:00".
+    const DAY = 24 * 60 * 60 * 1000;
+    const label = autoFormatTime(day1, null, DAY);
+    expect(label).not.toContain(":");
+    expect(label).toContain("Jan");
+    expect(label).toContain("15");
+  });
+
+  it("first label of an intraday series keeps the wall-clock time", () => {
+    // intraday1 is 10:30 UTC; with a 1h interval hint the time must survive
+    // (in TZs where 10:30 UTC is not local midnight).
+    const HOUR = 60 * 60 * 1000;
+    const label = autoFormatTime(intraday1, null, HOUR);
+    const localMidnight =
+      new Date(intraday1).getHours() === 0 && new Date(intraday1).getMinutes() === 0;
+    if (!localMidnight) expect(label).toMatch(/\d{2}:\d{2}/);
+  });
+
   it("day change shows month + day", () => {
     const label = autoFormatTime(day2, day1);
     expect(label).toContain("16");

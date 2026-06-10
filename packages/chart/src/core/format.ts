@@ -77,15 +77,21 @@ export function setMonthNames(names: readonly string[]): void {
   if (names.length === 12) MONTH_NAMES = [...names];
 }
 
+/** One day in milliseconds — the threshold at/above which a series is "daily+". */
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 /**
  * Smart time label formatting.
  * Uses the difference from the previous label to determine the appropriate level of detail.
  *
  * @param time - Epoch milliseconds
  * @param prevTime - Previous label's epoch milliseconds (null for first label)
+ * @param intervalMs - Optional dominant bar interval. When the series is
+ *   daily-grained or coarser, the first label's wall-clock time is suppressed
+ *   (see below). Omit to keep the legacy "show time if non-midnight" behavior.
  * @returns Formatted string
  */
-export function autoFormatTime(time: number, prevTime: number | null): string {
+export function autoFormatTime(time: number, prevTime: number | null, intervalMs?: number): string {
   const d = new Date(time);
   const year = d.getFullYear();
   const month = d.getMonth();
@@ -94,8 +100,13 @@ export function autoFormatTime(time: number, prevTime: number | null): string {
   const minutes = d.getMinutes();
 
   if (prevTime === null) {
-    // First label: show full date
-    if (hours === 0 && minutes === 0) {
+    // First label: show full date. The wall-clock time is suppressed for
+    // daily+ bars, where the hour is a timezone artifact (e.g. a 00:00 UTC
+    // daily bar renders as 09:00 in JST) that would clash with the bare
+    // month/year anchors used for every later tick. With no interval hint we
+    // keep the legacy behavior of showing the time when it is non-midnight.
+    const coarse = (intervalMs ?? 0) >= DAY_MS;
+    if ((hours === 0 && minutes === 0) || coarse) {
       return `${MONTH_NAMES[month]} ${day}`;
     }
     return `${MONTH_NAMES[month]} ${day} ${pad2(hours)}:${pad2(minutes)}`;
