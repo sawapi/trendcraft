@@ -35,7 +35,7 @@ import type {
   PositionSizingConfig,
 } from "../streaming/position-manager/types";
 import type { PipelineOptions } from "../streaming/types";
-import type { BacktestOptions, Condition } from "../types";
+import type { BacktestOptions, BacktestSizingConfigJSON, Condition } from "../types";
 
 /**
  * Complete strategy definition for both live and backtest use
@@ -292,6 +292,8 @@ export type StrategyJSON = {
     commissionRate?: number;
     slippage?: number;
     fillMode?: "same-bar-close" | "next-bar-open";
+    /** Position sizing config (JSON-safe subset — the custom callback variant is not serializable) */
+    sizing?: BacktestSizingConfigJSON;
   };
   /** Custom metadata */
   metadata?: Record<string, unknown>;

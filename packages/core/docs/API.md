@@ -2858,6 +2858,40 @@ const result = runBacktest(
 | `fillMode` | `FillMode` | `'next-bar-open'` | Order fill timing (see below) |
 | `slTpMode` | `SlTpMode` | `'close-only'` | Stop loss/take profit evaluation mode (see below) |
 | `direction` | `PositionDirection` | `'long'` | Position direction (`'long'` or `'short'`). See [Short Selling](#short-selling) |
+| `sizing` | `BacktestSizingConfig` | `{ method: 'full-capital' }` | Position sizing per entry (see below) |
+
+#### Position Sizing
+
+By default every entry deploys all available capital. The `sizing` option
+sizes each entry instead, using the same methods (and the same math) as the
+streaming position manager, so a strategy sizes identically in backtest and
+live contexts:
+
+```typescript
+// Risk 1% of current equity against the 5% stop
+const result = runBacktest(candles, entry, exit, {
+  capital: 1_000_000,
+  stopLoss: 5,
+  sizing: { method: 'risk-based', riskPercent: 1 },
+});
+```
+
+| Method | Config | Behavior |
+|--------|--------|----------|
+| `'full-capital'` | — | Deploy all available capital (default, legacy behavior) |
+| `'fixed-fractional'` | `fractionPercent` | Deploy a fixed percentage of current equity |
+| `'risk-based'` | `riskPercent` | Risk a percentage of equity against the configured stop (`stopLoss`, or `atrRisk.atrStopMultiplier`). Falls back to full-capital when no stop is configured |
+| `'atr-based'` | `riskPercent`, `atrMultiplier?` (2), `atrPeriod?` (14) | Risk against an ATR-implied stop distance. Entries are skipped while ATR is warming up |
+| `'kelly'` | `winRate`, `winLossRatio`, `kellyFraction?` (0.5), `maxKellyPercent?` (25) | Kelly criterion from user-supplied statistics. Entries are skipped when there is no positive edge |
+| `'custom'` | `calculate(ctx)` | Per-entry callback receiving a `BacktestSizingContext` (current equity, entry price, proposed full-capital shares, ATR, closed trades so far). Return the share count, or 0 to skip the entry |
+
+All sized methods compute their risk on current (compounding) cash equity
+and are clamped to available buying power — with `margin` configured,
+`risk-based` / `atr-based` entries can deploy leveraged notional up to the
+buying-power cap. Shares stay fractional, and sizing composes with
+`volumeConstraint` (the tighter limit wins). The full sizing config is
+recorded in `result.settings.sizing`. In strategy JSON, set `backtest.sizing`
+with any method except `custom` (callbacks are not serializable).
 
 #### Look-Ahead Bias Prevention
 

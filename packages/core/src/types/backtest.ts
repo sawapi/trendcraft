@@ -199,6 +199,90 @@ export type FillMode = "same-bar-close" | "next-bar-open";
 export type SlTpMode = "intraday" | "close-only";
 
 /**
+ * Context passed to a custom position sizing callback (`sizing.method: "custom"`).
+ *
+ * Mirrors the conventions of the built-in methods: `equity` is the current
+ * cash equity (compounding basis), `proposedShares` is what a full-capital
+ * entry would buy, and `closedTrades` enables rolling statistics (win rate,
+ * payoff ratio) for Kelly-style sizing from the backtest's own history.
+ */
+export type BacktestSizingContext = {
+  /** Current cash equity before the entry (compounding basis) */
+  equity: number;
+  /** Slippage-adjusted entry price */
+  entryPrice: number;
+  /** Shares a full-capital entry would buy after commission (the engine's default policy) */
+  proposedShares: number;
+  /** Position direction for this backtest */
+  direction: PositionDirection;
+  /** ATR(14) value at the entry bar, or null during warmup */
+  atr: number | null;
+  /** Entry bar candle */
+  candle: NormalizedCandle;
+  /** Entry bar index */
+  index: number;
+  /**
+   * Trades closed so far in this backtest run. A live view of the trade
+   * log — read it synchronously inside the callback (it keeps growing as
+   * the backtest proceeds).
+   */
+  closedTrades: readonly Trade[];
+};
+
+/**
+ * Position sizing configuration for `runBacktest`.
+ *
+ * Mirrors the streaming `PositionSizingConfig` (createManagedSession) so a
+ * strategy sizes identically in backtest and live contexts. All sized
+ * methods compute on current cash equity (compounding) and the result is
+ * clamped to available buying power; shares stay fractional, matching the
+ * engine's share convention. Default (no `sizing`): `full-capital`.
+ *
+ * - `full-capital`: deploy all available capital per entry (legacy behavior)
+ * - `fixed-fractional`: deploy a fixed percentage of current equity
+ * - `risk-based`: risk `riskPercent` of equity against the configured stop
+ *   (`stopLoss` percent, or `atrRisk.atrStopMultiplier` when set). Falls back
+ *   to full-capital when no stop is configured, like the streaming manager.
+ * - `atr-based`: risk `riskPercent` of equity against an ATR-derived stop
+ *   distance (`atrValue × atrMultiplier`). Entries are skipped while ATR is
+ *   still warming up.
+ * - `kelly`: Kelly criterion with user-supplied statistics. Entries are
+ *   skipped when the Kelly fraction is zero or negative (no edge).
+ * - `custom`: per-entry callback returning the number of shares; return 0
+ *   (or a non-finite value) to skip the entry.
+ */
+export type BacktestSizingConfig =
+  | { method: "full-capital" }
+  | { method: "fixed-fractional"; fractionPercent: number }
+  | { method: "risk-based"; riskPercent: number }
+  | {
+      method: "atr-based";
+      riskPercent: number;
+      /** ATR multiplier for the implied stop distance (default: 2) */
+      atrMultiplier?: number;
+      /** ATR period used for sizing (default: 14) */
+      atrPeriod?: number;
+    }
+  | {
+      method: "kelly";
+      /** Historical win rate (0-1) */
+      winRate: number;
+      /** Average win/loss ratio (avgWin / avgLoss) */
+      winLossRatio: number;
+      /** Kelly fraction to use (default: 0.5 = half-Kelly) */
+      kellyFraction?: number;
+      /** Maximum Kelly percentage allowed (default: 25) */
+      maxKellyPercent?: number;
+    }
+  | { method: "custom"; calculate: (ctx: BacktestSizingContext) => number };
+
+/**
+ * JSON-serializable subset of {@link BacktestSizingConfig} (excludes the
+ * `custom` callback variant). Used by the strategy JSON schema.
+ */
+export type BacktestSizingConfigJSON = Exclude<BacktestSizingConfig, { method: "custom" }>;
+
+/**
  * Backtest options
  */
 export type BacktestOptions = {
@@ -262,6 +346,8 @@ export type BacktestOptions = {
   volumeConstraint?: VolumeConstraint;
   /** Margin/leverage configuration */
   margin?: MarginConfig;
+  /** Position sizing per entry (default: full-capital, the legacy behavior) */
+  sizing?: BacktestSizingConfig;
 };
 
 /**
@@ -299,6 +385,13 @@ export type BacktestSettings = {
   commissionRate: number;
   /** Tax rate on profits in percent */
   taxRate: number;
+  /**
+   * Sizing config used, when a `sizing` option was provided. Recorded in
+   * full so the run is reproducible from the settings snapshot; the custom
+   * callback variant is recorded as `{ method: "custom" }` only, since
+   * callbacks are not serializable.
+   */
+  sizing?: BacktestSizingConfigJSON | { method: "custom" };
 };
 
 /**

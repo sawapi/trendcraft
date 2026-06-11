@@ -89,6 +89,7 @@ export function loadStrategy(
     if (b.commissionRate !== undefined) backtestOptions.commissionRate = b.commissionRate;
     if (b.slippage !== undefined) backtestOptions.slippage = b.slippage;
     if (b.fillMode !== undefined) backtestOptions.fillMode = b.fillMode;
+    if (b.sizing !== undefined) backtestOptions.sizing = b.sizing;
   }
 
   return { entry, exit, backtestOptions, metadata: strategy.metadata };

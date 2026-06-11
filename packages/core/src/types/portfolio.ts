@@ -147,9 +147,12 @@ export type PortfolioBacktestOptions = {
   maxPortfolioDrawdown?: number;
   /** Rebalance configuration (optional) */
   rebalance?: RebalanceConfig;
-  /** Per-trade backtest options (SL, TP, trailing, commissions, etc.) */
+  /** Per-trade backtest options (SL, TP, trailing, commissions, sizing, etc.) */
   tradeOptions?: Omit<BacktestOptions, "capital">;
-  /** Position sizing method to use */
+  /**
+   * @deprecated Was never wired into the engine. Use `tradeOptions.sizing`
+   * (a `BacktestSizingConfig`), which flows into every per-symbol backtest.
+   */
   positionSizing?: PositionSizingMethod;
 };
 
