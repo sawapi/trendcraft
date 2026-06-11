@@ -188,21 +188,35 @@ export function renderTimeAxis(
       : autoFormatTime(candle.time, prevLabelTime, barIntervalMs);
     prevLabelTime = candle.time;
 
-    // Keep edge labels fully on-screen: a centered label whose tick sits at the
-    // plot boundary loses ~half its text to clipping. Left-align (and nudge in)
-    // the first label, right-align one overflowing the right edge; center the
-    // rest. Matches the inward-nudge the price axis does via textBaseline.
-    const half = measureTextWidth(ctx, label) / 2;
-    if (labelX - half < x) {
-      ctx.textAlign = "left";
-      ctx.fillText(label, Math.max(labelX, x + 2), y + 6);
-    } else if (labelX + half > x + width) {
-      ctx.textAlign = "right";
-      ctx.fillText(label, Math.min(labelX, x + width - 2), y + 6);
-    } else {
-      ctx.textAlign = "center";
-      ctx.fillText(label, labelX, y + 6);
-    }
+    drawClampedAxisLabel(ctx, label, labelX, y + 6, x, x + width);
+  }
+}
+
+/**
+ * Draw an axis label horizontally clamped inside `[leftBound, rightBound]`. A
+ * centered label whose tick sits at the plot boundary loses ~half its text to
+ * clipping, so the first label is left-aligned (and nudged in) and one
+ * overflowing the right edge is right-aligned; the rest stay centered. Mirrors
+ * the inward-nudge the price axis does via textBaseline. Mutates ctx.textAlign.
+ */
+function drawClampedAxisLabel(
+  ctx: CanvasRenderingContext2D,
+  label: string,
+  centerX: number,
+  y: number,
+  leftBound: number,
+  rightBound: number,
+): void {
+  const half = measureTextWidth(ctx, label) / 2;
+  if (centerX - half < leftBound) {
+    ctx.textAlign = "left";
+    ctx.fillText(label, Math.max(centerX, leftBound + 2), y);
+  } else if (centerX + half > rightBound) {
+    ctx.textAlign = "right";
+    ctx.fillText(label, Math.min(centerX, rightBound - 2), y);
+  } else {
+    ctx.textAlign = "center";
+    ctx.fillText(label, centerX, y);
   }
 }
 
@@ -251,17 +265,19 @@ function renderTwoRowAxis(
   // confusing "naked 00:00" that in 24h format might look like a tick near
   // midnight but without date context (the date row will anchor it below).
   const topY = y + 4;
+  const rightBound = x + width;
   for (const t of timeTicks) {
-    ctx.fillText(formatShortTime(t.time), x + t.x, topY);
+    drawClampedAxisLabel(ctx, formatShortTime(t.time), x + t.x, topY, x, rightBound);
   }
 
-  // Lower row: date at day boundaries. Skip the first tick if it would collide
-  // with the very-left edge (likely a partial view).
+  // Lower row: date at day boundaries. Edge ticks are clamped inward (rather
+  // than clipped) by drawClampedAxisLabel, so a date at the very-left/right
+  // boundary of a partial view stays fully readable.
   const bottomY = y + Math.max(18, height / 2);
   let prevDateTime: number | null = null;
   for (const d of dateTicks) {
     const label = formatShortDate(d.time, prevDateTime);
-    ctx.fillText(label, x + d.x, bottomY);
+    drawClampedAxisLabel(ctx, label, x + d.x, bottomY, x, rightBound);
     prevDateTime = d.time;
   }
 }
