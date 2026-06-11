@@ -2428,6 +2428,40 @@ const result = runBacktest(
 | `fillMode` | `FillMode` | `'next-bar-open'` | 約定タイミング（下記参照） |
 | `slTpMode` | `SlTpMode` | `'close-only'` | SL/TP判定方法（下記参照） |
 | `direction` | `PositionDirection` | `'long'` | ポジション方向（`'long'` or `'short'`）。[ショートセリング](#ショートセリング)参照 |
+| `sizing` | `BacktestSizingConfig` | `{ method: 'full-capital' }` | エントリーごとのポジションサイジング（下記参照） |
+
+#### ポジションサイジング
+
+デフォルトでは各エントリーで利用可能な資金を全額投入します。`sizing`
+オプションを指定すると、エントリーごとにサイズを計算します。ストリーミングの
+ポジションマネージャーと同じ手法・同じ計算を使うため、バックテストとライブで
+戦略のサイジングが一致します:
+
+```typescript
+// 5%ストップに対して現在資金の1%をリスクに取る
+const result = runBacktest(candles, entry, exit, {
+  capital: 1_000_000,
+  stopLoss: 5,
+  sizing: { method: 'risk-based', riskPercent: 1 },
+});
+```
+
+| メソッド | 設定 | 動作 |
+|----------|------|------|
+| `'full-capital'` | — | 全額投入（デフォルト、従来動作） |
+| `'fixed-fractional'` | `fractionPercent` | 現在資金の固定割合を投入 |
+| `'risk-based'` | `riskPercent` | 設定済みストップ（`stopLoss` または `atrRisk.atrStopMultiplier`）に対して資金の一定割合をリスクに取る。ストップ未設定時は full-capital にフォールバック |
+| `'atr-based'` | `riskPercent`, `atrMultiplier?` (2), `atrPeriod?` (14) | ATR由来のストップ距離に対してリスクを取る。ATRウォームアップ中のエントリーはスキップ |
+| `'kelly'` | `winRate`, `winLossRatio`, `kellyFraction?` (0.5), `maxKellyPercent?` (25) | ユーザー指定の統計値によるケリー基準。エッジがない場合はエントリーをスキップ |
+| `'custom'` | `calculate(ctx)` | エントリーごとのコールバック。`BacktestSizingContext`（現在資金、エントリー価格、全額投入時の株数、ATR、約定済みトレード）を受け取り株数を返す。0を返すとスキップ |
+
+リスク量は常に現在の（複利の）現金資金を基準に計算され、結果は買付余力に
+クランプされます。`margin` 設定時は `risk-based` / `atr-based` が買付余力
+上限までレバレッジを使えます。株数は端数のまま扱われ、`volumeConstraint`
+とも併用可能（より厳しい制限が優先）。使用したサイジング設定は再現性のため
+`result.settings.sizing` に丸ごと記録されます（`custom` はメソッド名のみ）。
+Strategy JSON では `backtest.sizing` に `custom` 以外のメソッドを指定
+できます（コールバックはシリアライズ不可のため）。
 
 #### 先読みバイアス対策
 

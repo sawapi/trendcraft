@@ -1,5 +1,51 @@
 # Changelog
 
+## [Unreleased]
+
+### Added — position sizing wired into the backtest engine (`sizing` option)
+
+`runBacktest` now accepts a `sizing` option (`BacktestSizingConfig`) that
+sizes every entry instead of always deploying full capital:
+
+```ts
+runBacktest(candles, entry, exit, {
+  capital: 1_000_000,
+  stopLoss: 5,
+  sizing: { method: "risk-based", riskPercent: 1 },
+});
+```
+
+Methods — mirroring the streaming `PositionSizingConfig` so a strategy sizes
+identically in backtest and live contexts:
+
+- `full-capital` (default, the previous behavior)
+- `fixed-fractional` — a fixed percentage of current equity per entry
+- `risk-based` — risk `riskPercent` of equity against the configured stop
+  (`stopLoss` percent, or `atrRisk.atrStopMultiplier`); falls back to
+  full-capital when no stop is configured
+- `atr-based` — risk against an ATR-implied stop distance
+  (`atrValue × atrMultiplier`); entries are skipped during ATR warmup
+- `kelly` — Kelly criterion from user-supplied `winRate` / `winLossRatio`
+  (half-Kelly by default, capped at 25%); entries are skipped when there is
+  no positive edge
+- `custom` — per-entry callback receiving a `BacktestSizingContext` (current
+  equity, entry price, proposed full-capital shares, ATR, closed trades so
+  far); return the desired share count, or 0 to skip
+
+All sized methods compute their risk on current (compounding) cash equity
+and are clamped to available buying power — so with `margin` configured,
+`risk-based` / `atr-based` entries can deploy leveraged notional up to the
+buying-power cap. Shares stay fractional, and sizing composes with
+`volumeConstraint` (the tighter limit wins). The full sizing config is
+recorded in `result.settings.sizing` for reproducibility (the `custom`
+variant as `{ method: "custom" }` only).
+
+Strategy JSON gains an optional `backtest.sizing` field (the JSON-safe
+subset, `BacktestSizingConfigJSON` — every method except `custom`), loaded by
+`loadStrategy`. `portfolioBacktest` picks sizing up through
+`tradeOptions.sizing`; its never-wired `positionSizing` field is now marked
+deprecated in favor of that path.
+
 ## [0.4.0] - 2026-06-09
 
 ### Breaking — `dmiBullish` / `dmiBearish` ADX param renamed `minAdx` → `threshold`

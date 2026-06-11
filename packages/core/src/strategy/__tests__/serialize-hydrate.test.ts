@@ -326,6 +326,7 @@ describe("loadStrategy", () => {
         takeProfit: 10,
         direction: "long",
         fillMode: "next-bar-open",
+        sizing: { method: "risk-based", riskPercent: 1 },
       },
       metadata: { author: "test" },
     };
@@ -339,6 +340,7 @@ describe("loadStrategy", () => {
     expect(result.backtestOptions.takeProfit).toBe(10);
     expect(result.backtestOptions.direction).toBe("long");
     expect(result.backtestOptions.fillMode).toBe("next-bar-open");
+    expect(result.backtestOptions.sizing).toEqual({ method: "risk-based", riskPercent: 1 });
     expect(result.metadata?.author).toBe("test");
   });
 

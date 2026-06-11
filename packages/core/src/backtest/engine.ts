@@ -50,6 +50,7 @@ import {
 } from "./margin";
 import type { PendingOrder } from "./order-types";
 import { resolveTimeInForce, tryFillOrder } from "./order-types";
+import { calculateSizedShares } from "./sizing";
 import type { SlippageModel } from "./slippage-model";
 import { calculateDynamicSlippage, resolveSlippageModel } from "./slippage-model";
 
@@ -118,6 +119,7 @@ export function runBacktest(
     timeInForce: tifOpt,
     volumeConstraint,
     margin: marginConfig,
+    sizing,
   } = options;
 
   const isShort = dir === "short";
@@ -146,6 +148,9 @@ export function runBacktest(
     commission,
     commissionRate,
     taxRate,
+    ...(sizing
+      ? { sizing: sizing.method === "custom" ? { method: "custom" as const } : sizing }
+      : {}),
   };
 
   // Validate input data if requested
@@ -192,6 +197,16 @@ export function runBacktest(
     atrSeries = atr(candles, { period: atrPeriod });
   } else if (needsAtr) {
     atrSeries = atr(candles, { period: 14 });
+  }
+
+  // Pre-calculate a dedicated ATR series for position sizing. Kept separate
+  // from the risk-management `atrSeries` above so the sizing period never
+  // fights with atrRisk/atrTrailingStop over which period the shared series
+  // uses.
+  let sizingAtrSeries: { time: number; value: number | null }[] | null = null;
+  if (sizing && (sizing.method === "atr-based" || sizing.method === "custom")) {
+    const sizingAtrPeriod = sizing.method === "atr-based" ? (sizing.atrPeriod ?? 14) : 14;
+    sizingAtrSeries = atr(candles, { period: sizingAtrPeriod });
   }
 
   // Build fundamentals map for fast lookup if provided
@@ -390,32 +405,68 @@ export function runBacktest(
     initialHigh: number,
     initialLow: number,
     candle: NormalizedCandle,
+    barIndex: number,
     allowPartialFill?: boolean,
   ): Position | null {
     const availCap = getAvailableCapital();
     const entryCommission = commission + availCap * (commissionRate / 100);
-    let shares = (availCap - entryCommission) / entryPrice;
+    const fullCapitalShares = (availCap - entryCommission) / entryPrice;
+    let shares = fullCapitalShares;
 
-    // Whether a volume constraint actually shrank the order below a full fill.
-    // A full fill deploys all available capital (shares * price + commission ==
-    // availCap by construction), so draining the account to 0 is correct. A
-    // partial fill must NOT drain it — only the filled notional leaves.
-    let partiallyFilled = false;
+    if (sizing && sizing.method !== "full-capital") {
+      // Stop distance implied by the engine's stop configuration, consumed
+      // by the "risk-based" method. When both stops are configured the bar
+      // loop checks both at exit time; sizing treats the fixed stopLoss
+      // percent as the primary stop and ignores the ATR stop.
+      const stopDistance =
+        stopLoss !== undefined
+          ? entryPrice * (stopLoss / 100)
+          : atrRisk?.atrStopMultiplier !== undefined && entryAtr !== null
+            ? entryAtr * atrRisk.atrStopMultiplier
+            : null;
+
+      const sized = calculateSizedShares(
+        sizing,
+        {
+          // Sized methods compute on cash equity (compounding), not on
+          // leveraged buying power — risk percentages are relative to what
+          // the account can actually lose.
+          equity: currentCapital,
+          entryPrice,
+          proposedShares: fullCapitalShares,
+          direction: dir,
+          atr: sizingAtrSeries ? (sizingAtrSeries[barIndex]?.value ?? null) : null,
+          candle,
+          index: barIndex,
+          closedTrades: trades,
+        },
+        stopDistance,
+      );
+      if (sized <= 0) return null;
+      shares = Math.min(sized, fullCapitalShares);
+    }
+
     if (volumeConstraint) {
-      const originalShares = shares;
+      const requestedShares = shares;
       shares = applyVolumeConstraint(shares, entryPrice, candle, volumeConstraint);
 
       // FOK: reject if volume-constrained (partial not allowed)
-      if (allowPartialFill === false && shares < originalShares) {
+      if (allowPartialFill === false && shares < requestedShares) {
         shares = 0;
       }
-      partiallyFilled = shares > 0 && shares < originalShares;
     }
 
     if (shares <= 0) return null;
 
+    // Whether sizing or a volume constraint shrank the order below a full
+    // fill. A full fill deploys all available capital (shares * price +
+    // commission == availCap by construction), so draining the account to 0
+    // is correct. A below-full deployment must NOT drain it — only the
+    // deployed notional leaves.
+    const deployedBelowFull = shares < fullCapitalShares;
+
     const pos = createPosition(entryTime, entryPrice, shares, entryAtr, initialHigh, initialLow);
-    if (partiallyFilled) {
+    if (deployedBelowFull) {
       // Deduct only the deployed notional + commission; the un-deployed capital
       // stays as cash. Zeroing currentCapital here (as a full fill does) would
       // erase it — exit only credits back the deployed shares' value, so the
@@ -477,6 +528,7 @@ export function runBacktest(
             candle.high,
             candle.low,
             candle,
+            i,
             pendingOrder.allowPartialFill,
           );
           if (opened) {
@@ -498,6 +550,7 @@ export function runBacktest(
         candle.high,
         candle.low,
         candle,
+        i,
       );
       if (opened) {
         position = opened;
@@ -571,6 +624,7 @@ export function runBacktest(
             entryPrice,
             entryPrice,
             candle,
+            i,
           );
           if (opened) {
             position = opened;
