@@ -2,6 +2,33 @@
 
 ## [Unreleased]
 
+### Added — tearsheet metrics and `report()`
+
+- **Return-distribution metrics** operating on a periodic-returns array
+  (fractions): `omegaRatio`, `tailRatio`, `gainToPainRatio`,
+  `commonSenseRatio`, `cpcIndex`, plus the building blocks
+  `profitFactorFromReturns`, `winRateFromReturns`, `payoffRatioFromReturns`
+  and the `percentileLinear` helper. Definitions follow the established quant
+  convention: undefined ratios (zero/empty denominator) return `NaN`, except
+  the returns-based profit factor, which returns `Infinity` when there are
+  gains but no losses (and so can propagate into `commonSenseRatio`).
+  Percentiles use linear interpolation and rolling deviations use the sample
+  estimator (ddof = 1).
+- **Rolling metrics**: `rollingSharpe` and `rollingVolatility` over a trailing
+  window (default 126 periods), returning arrays aligned index-for-index with
+  the input (leading `window - 1` entries are `NaN`). Sharpe is annualised by
+  `sqrt(periodsPerYear)`; volatility always is.
+- **`captureRatios(returns, benchmark, periodsPerYear?)`** — up/down capture
+  versus a benchmark, dividing the strategy's geometric annualised return by
+  the benchmark's over the periods where the benchmark is strictly up or down.
+- **`report(result, { candles, ... })`** — a single aggregated tearsheet
+  object combining the engine's headline statistics (return, CAGR, Sharpe,
+  Sortino, Calmar, max drawdown, profit factor, win rate) with the
+  distribution metrics, Ulcer Index / Ulcer Performance Index, optional
+  capture ratios, the drawdown summary, and the daily equity, underwater and
+  rolling series. The distribution and rolling figures are computed from the
+  daily equity returns reconstructed from `candles`.
+
 ### Added — overfitting defense: PBO (CSCV), purged walk-forward, MinTRL
 
 - **`pbo(returnsMatrix, { blocks, metric })`** — Probability of Backtest
