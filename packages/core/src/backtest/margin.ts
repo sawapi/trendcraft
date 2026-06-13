@@ -73,26 +73,38 @@ export function calculateBuyingPower(capital: number, leverage: number): number 
  * checking `isMarginCall` via {@link checkMarginCall} and setting it
  * on the returned state.
  *
+ * For longs the position is an asset worth its market value. For shorts
+ * the account's claim is what covering would return — the entry proceeds
+ * plus unrealized P&L (`entryValue + (entryValue - positionValue)`), with
+ * `positionValue` being the current cover cost. The margin ratio divides
+ * by `positionValue` in both cases (market exposure).
+ *
  * @param state - Current margin state
- * @param positionValue - Current market value of the position
- * @param capital - Original capital (cost basis)
+ * @param positionValue - Current market value of the position (cover cost for shorts)
+ * @param capital - Remaining cash not deployed in the position
+ * @param direction - Position direction (default: "long")
+ * @param entryValue - Entry notional (entry price × shares); required for shorts
  * @returns Updated margin state
  *
  * @example
  * ```ts
  * let state = createMarginState(10000, 2.0);
- * // Bought $20000 worth, now position is worth $18000
- * state = updateMarginState(state, 18000, 10000);
- * // state.equity === 10000 + 18000 - 10000 - 0 = 18000
- * // state.marginRatio === 18000 / 18000 = 1.0
+ * // Bought $20000 worth at 2x (cash 0 left), now position is worth $18000
+ * state = updateMarginState(state, 18000, 0);
+ * // state.equity === 0 + 18000 - 10000 - 0 = 8000
+ * // state.marginRatio === 8000 / 18000 ≈ 0.44
  * ```
  */
 export function updateMarginState(
   state: MarginState,
   positionValue: number,
   capital: number,
+  direction: "long" | "short" = "long",
+  entryValue: number = positionValue,
 ): MarginState {
-  const equity = capital + positionValue - state.borrowedAmount - state.accumulatedInterest;
+  const positionEquity =
+    direction === "short" ? entryValue + (entryValue - positionValue) : positionValue;
+  const equity = capital + positionEquity - state.borrowedAmount - state.accumulatedInterest;
   const marginRatio = positionValue > 0 ? equity / positionValue : 1.0;
 
   return {
@@ -120,6 +132,29 @@ export function updateMarginState(
  */
 export function accrueInterest(state: MarginState, dailyRate: number, days: number): number {
   return state.borrowedAmount * dailyRate * days;
+}
+
+/**
+ * Repay the borrowed principal for the fraction of a position being closed.
+ *
+ * Exit proceeds include the loan-funded notional, so the loan must leave
+ * the account as the position that borrowed it unwinds — otherwise
+ * leveraged backtests overstate final capital by roughly the borrowed
+ * amount. Mutates `state.borrowedAmount` and returns the repaid amount for
+ * the caller to subtract from the close proceeds.
+ *
+ * Settle interest (which accrues on the outstanding `borrowedAmount`)
+ * BEFORE calling this on a full close, since repayment zeroes the balance.
+ *
+ * @param state - Current margin state (mutated)
+ * @param fraction - Fraction of the position being closed (clamped to [0, 1])
+ * @returns Repaid principal amount
+ */
+export function repayLoan(state: MarginState, fraction: number): number {
+  if (state.borrowedAmount <= 0) return 0;
+  const repaid = state.borrowedAmount * Math.min(1, Math.max(0, fraction));
+  state.borrowedAmount -= repaid;
+  return repaid;
 }
 
 /**

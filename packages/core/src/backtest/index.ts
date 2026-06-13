@@ -208,6 +208,7 @@ export {
   calculateBuyingPower,
   checkMarginCall,
   createMarginState,
+  repayLoan,
   updateMarginState,
 } from "./margin";
 export type {

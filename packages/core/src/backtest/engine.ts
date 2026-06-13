@@ -46,6 +46,7 @@ import {
   calculateBuyingPower,
   checkMarginCall,
   createMarginState,
+  repayLoan,
   updateMarginState,
 } from "./margin";
 import type { PendingOrder } from "./order-types";
@@ -383,14 +384,32 @@ export function runBacktest(
   }
 
   /**
-   * Deduct margin interest when closing a position
+   * Repay the borrowed principal for the fraction of the position being
+   * closed (no-op without margin). See {@link repayLoan} — in particular,
+   * settle interest before a full-close repayment zeroes the loan.
    */
-  function deductMarginInterest(entryTime: number, exitTime: number): void {
+  function repayMarginLoan(fraction: number): number {
+    return marginState ? repayLoan(marginState, fraction) : 0;
+  }
+
+  /**
+   * Deduct margin interest for the fraction of the loan being settled,
+   * charged on the outstanding `borrowedAmount` over the entry-to-exit
+   * holding period. Call BEFORE `repayMarginLoan` reduces the balance, so
+   * each repaid tranche is charged for exactly the days it was outstanding.
+   *
+   * The charge is settled in cash immediately, so it is deliberately NOT
+   * added to `accumulatedInterest` — the equity check subtracts that field
+   * as *unpaid* interest, and recording a paid charge there would deduct
+   * it from equity a second time.
+   */
+  function deductMarginInterest(entryTime: number, exitTime: number, fraction = 1): void {
     if (marginConfig && marginState && marginConfig.interestRate) {
       const holdDays = Math.max(1, Math.round((exitTime - entryTime) / MS_PER_DAY));
-      const interest = accrueInterest(marginState, marginConfig.interestRate / 365, holdDays);
+      const interest =
+        accrueInterest(marginState, marginConfig.interestRate / 365, holdDays) *
+        Math.min(1, Math.max(0, fraction));
       currentCapital -= interest;
-      marginState.accumulatedInterest += interest;
     }
   }
 
@@ -574,8 +593,8 @@ export function runBacktest(
       });
 
       trades.push(result.trade);
-      currentCapital += result.netProceeds;
       deductMarginInterest(position.entryTime, candle.time);
+      currentCapital += result.netProceeds - repayMarginLoan(1);
       returns.push(result.returnPercent / 100);
       trackDrawdown(candle.time, i);
 
@@ -659,14 +678,55 @@ export function runBacktest(
       // === Margin call check ===
       if (marginConfig && marginState) {
         const positionValue = candle.close * position.shares;
-        const entryValue = position.entryPrice * position.shares;
-        marginState = updateMarginState(marginState, positionValue, entryValue);
+        // Equity = cash + position claim - loan. Passing remaining cash
+        // (not the entry notional) is what lets the margin ratio actually
+        // fall below maintenance as the position loses value; the direction
+        // and entry notional let shorts gain equity as the price falls.
+        marginState = updateMarginState(
+          marginState,
+          positionValue,
+          currentCapital,
+          dir,
+          position.entryPrice * position.shares,
+        );
         if (checkMarginCall(marginState, marginConfig.maintenanceMargin)) {
           marginState.isMarginCall = true;
-          if (marginConfig.marginCallAction === "liquidate") {
+          // A fair-value partial close keeps equity constant while scaling
+          // exposure by (1 - f), so selling f = 1 - ratio/maintenance
+          // restores the ratio to exactly the maintenance level. f >= 1
+          // means equity is gone and no reduction can restore it.
+          const reduceFraction = 1 - marginState.marginRatio / marginConfig.maintenanceMargin;
+          if (marginConfig.marginCallAction === "liquidate" || reduceFraction >= 1) {
             shouldExit = true;
             exitPrice = candle.close;
             exitReason = "marginCall";
+          } else if (reduceFraction > 1e-9) {
+            // The epsilon guard absorbs float error when a previous
+            // reduction landed the ratio exactly on maintenance — without
+            // it, a one-ulp shortfall fires a second, dust-sized close.
+            const reduceShares = position.shares * reduceFraction;
+            const reduceSlip = getSlippage(candle, i);
+            const result = calculateTradeClose({
+              position,
+              exitTime: candle.time,
+              exitPrice: candle.close,
+              exitReason: "marginCall",
+              sharesToClose: reduceShares,
+              isPartial: true,
+              exitPercent: reduceFraction * 100,
+              commission,
+              commissionRate,
+              taxRate,
+              slippage: reduceSlip,
+            });
+
+            trades.push(result.trade);
+            deductMarginInterest(position.entryTime, candle.time, reduceFraction);
+            currentCapital += result.netProceeds - repayMarginLoan(reduceFraction);
+            returns.push(result.returnPercent / 100);
+            trackDrawdown(candle.time, i);
+
+            position.shares -= reduceShares;
           }
         }
       }
@@ -765,7 +825,9 @@ export function runBacktest(
           });
 
           trades.push(result.trade);
-          currentCapital += result.netProceeds;
+          const partialFraction = sharesToSell / position.shares;
+          deductMarginInterest(position.entryTime, candle.time, partialFraction);
+          currentCapital += result.netProceeds - repayMarginLoan(partialFraction);
           returns.push(result.returnPercent / 100);
           trackDrawdown(candle.time, i);
 
@@ -809,7 +871,9 @@ export function runBacktest(
             });
 
             trades.push(result.trade);
-            currentCapital += result.netProceeds;
+            const scaleOutFraction = sharesToSell / position.shares;
+            deductMarginInterest(position.entryTime, candle.time, scaleOutFraction);
+            currentCapital += result.netProceeds - repayMarginLoan(scaleOutFraction);
             returns.push(result.returnPercent / 100);
             trackDrawdown(candle.time, i);
 
@@ -959,8 +1023,8 @@ export function runBacktest(
           });
 
           trades.push(result.trade);
-          currentCapital += result.netProceeds;
           deductMarginInterest(position.entryTime, candle.time);
+          currentCapital += result.netProceeds - repayMarginLoan(1);
           returns.push(result.returnPercent / 100);
           trackDrawdown(candle.time, i);
 
@@ -995,8 +1059,8 @@ export function runBacktest(
     });
 
     trades.push(result.trade);
-    currentCapital += result.netProceeds;
     deductMarginInterest(position.entryTime, lastCandle.time);
+    currentCapital += result.netProceeds - repayMarginLoan(1);
     returns.push(result.returnPercent / 100);
     ddTracker.update(currentCapital, lastCandle.time, candles.length - 1);
   }
