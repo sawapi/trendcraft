@@ -135,6 +135,42 @@ describe("Walk-Forward Analysis", () => {
       // Should have at least 1 period
       expect(boundaries.length).toBeGreaterThanOrEqual(1);
     });
+
+    it("leaves a purge gap between every training and test window", () => {
+      const candles = generateUpTrendCandles(320);
+      const boundaries = generatePeriodBoundaries(candles, {
+        windowSize: 100,
+        stepSize: 50,
+        testSize: 50,
+        purgeBars: 10,
+      });
+
+      expect(boundaries.length).toBeGreaterThan(0);
+      for (const b of boundaries) {
+        // The 10 purged bars belong to neither window
+        expect(b.testStart - b.trainEnd - 1).toBe(10);
+        expect(b.testEnd).toBeLessThan(candles.length);
+      }
+      expect(boundaries[0].trainEnd).toBe(99);
+      expect(boundaries[0].testStart).toBe(110);
+      expect(boundaries[0].testEnd).toBe(159);
+
+      // purgeBars: 0 (default) keeps the legacy adjacent layout
+      const adjacent = generatePeriodBoundaries(candles, {
+        windowSize: 100,
+        stepSize: 50,
+        testSize: 50,
+      });
+      expect(adjacent[0].testStart).toBe(100);
+    });
+
+    it("purge gap reduces the period count when data is tight", () => {
+      // 160 bars fit exactly one purged period (100 + 10 + 50)
+      expect(calculatePeriodCount(160, 100, 50, 50, 10)).toBe(1);
+      expect(calculatePeriodCount(159, 100, 50, 50, 10)).toBe(0);
+      // Without purge the same data fits one period with 10 bars to spare
+      expect(calculatePeriodCount(160, 100, 50, 50)).toBe(1);
+    });
   });
 
   describe("walkForwardAnalysis", () => {

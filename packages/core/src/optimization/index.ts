@@ -106,6 +106,9 @@ export {
   paretoOptimizationSafe,
   summarizeParetoResult,
 } from "./pareto";
+// Probability of Backtest Overfitting (CSCV)
+export type { PboOptions, PboResult } from "./pbo";
+export { pbo, pboSafe } from "./pbo";
 export type {
   DnaGrade,
   DnaGradeItem,

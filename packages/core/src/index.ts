@@ -627,6 +627,9 @@ export type {
   ParetoResult,
   ParetoResultEntry,
   PathParameterRange,
+  // PBO (CSCV) types
+  PboOptions,
+  PboResult,
   RecommendedParams,
   SafeZone,
   SensitivityData,
@@ -688,6 +691,9 @@ export {
   // Pareto (Multi-Objective) Optimization
   paretoOptimization,
   paretoOptimizationSafe,
+  // Probability of Backtest Overfitting (CSCV)
+  pbo,
+  pboSafe,
   // Monte Carlo Simulation
   runMonteCarloSimulation,
   runMonteCarloSimulationSafe,
@@ -758,8 +764,10 @@ export {
   macdBearish,
   macdBullish,
   minActiveSignals,
+  minTrackRecordLength,
   perfectOrderBearish as poBearishSignal,
   perfectOrderBullish as poBullishSignal,
+  perReturnSharpe,
   poConfirmation,
   probabilisticSharpe,
   rsiOverbought70,

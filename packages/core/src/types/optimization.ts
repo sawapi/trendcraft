@@ -177,6 +177,17 @@ export type WalkForwardOptions = {
   stepSize?: number;
   /** Test period size in candles (default: 63 for ~1 quarter daily) */
   testSize?: number;
+  /**
+   * Purge gap in candles between each training window and its test window
+   * (default: 0). The last `purgeBars` bars before the test window are
+   * excluded from training, so information that leaks across the boundary
+   * — indicator lookback windows, multi-bar exit labels — cannot let the
+   * optimizer peek into the test period. Size it to the longest indicator
+   * period or holding horizon the strategy uses. (An embargo after the
+   * test window is a combinatorial-split concept; in causal walk-forward
+   * the test window precedes no training data of its own period.)
+   */
+  purgeBars?: number;
   /** Metric to optimize (default: "sharpe") */
   metric?: OptimizationMetric;
   /** Constraints to filter results */
@@ -391,6 +402,11 @@ export type AnchoredWalkForwardOptions = {
   expansionStep?: number;
   /** Test period size in candles (default: 252 for ~1 year) */
   testSize?: number;
+  /**
+   * Purge gap in candles between the training window and its test window
+   * (default: 0). See {@link WalkForwardOptions.purgeBars}.
+   */
+  purgeBars?: number;
   /** Metric to optimize (default: "sharpe") */
   metric?: OptimizationMetric;
   /** Constraints for optimization */

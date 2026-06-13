@@ -30,6 +30,7 @@ import {
   combinationSearch,
 } from "./combination-search";
 import { calculateAllMetrics } from "./metrics";
+import { validatePurgeBars } from "./walkforward";
 
 // Re-export public utility functions
 export {
@@ -68,6 +69,8 @@ export function generateAWFBoundaries(
   const initialTrainSize = options.initialTrainSize ?? DEFAULT_OPTIONS.initialTrainSize;
   const expansionStep = options.expansionStep ?? DEFAULT_OPTIONS.expansionStep;
   const testSize = options.testSize ?? DEFAULT_OPTIONS.testSize;
+  const purgeBars = options.purgeBars ?? 0;
+  validatePurgeBars(purgeBars);
   const { anchorDate } = options;
 
   // Find anchor index
@@ -78,8 +81,9 @@ export function generateAWFBoundaries(
 
   let trainEnd = anchorIndex + initialTrainSize - 1;
 
-  while (trainEnd + testSize < candles.length) {
-    const testStart = trainEnd + 1;
+  while (trainEnd + purgeBars + testSize < candles.length) {
+    // The purge gap stays out of both windows — see WalkForwardOptions.purgeBars
+    const testStart = trainEnd + 1 + purgeBars;
     const testEnd = Math.min(testStart + testSize - 1, candles.length - 1);
 
     boundaries.push({
@@ -104,9 +108,10 @@ export function calculateAWFPeriodCount(
   initialTrainSize: number,
   expansionStep: number,
   testSize: number,
+  purgeBars = 0,
 ): number {
   const availableCandles = totalCandles - anchorIndex;
-  const minRequired = initialTrainSize + testSize;
+  const minRequired = initialTrainSize + purgeBars + testSize;
 
   if (availableCandles < minRequired) return 0;
 

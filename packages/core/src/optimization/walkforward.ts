@@ -28,6 +28,7 @@ const DEFAULT_OPTIONS: Required<
   windowSize: 252, // ~1 year of daily data
   stepSize: 63, // ~1 quarter
   testSize: 63, // ~1 quarter
+  purgeBars: 0, // adjacent train/test windows (no purge gap)
   metric: "sharpe",
 };
 
@@ -44,11 +45,19 @@ export function calculatePeriodCount(
   windowSize: number,
   stepSize: number,
   testSize: number,
+  purgeBars = 0,
 ): number {
-  const minDataNeeded = windowSize + testSize;
+  const minDataNeeded = windowSize + purgeBars + testSize;
   if (totalCandles < minDataNeeded) return 0;
 
-  return Math.floor((totalCandles - windowSize - testSize) / stepSize) + 1;
+  return Math.floor((totalCandles - minDataNeeded) / stepSize) + 1;
+}
+
+/** Shared input guard for the boundary generators that accept purgeBars. */
+export function validatePurgeBars(purgeBars: number): void {
+  if (purgeBars < 0 || !Number.isInteger(purgeBars)) {
+    throw new Error(`purgeBars must be a non-negative integer, got ${purgeBars}`);
+  }
 }
 
 /**
@@ -66,7 +75,8 @@ export function generatePeriodBoundaries(
   testStart: number;
   testEnd: number;
 }> {
-  const { windowSize, stepSize, testSize } = { ...DEFAULT_OPTIONS, ...options };
+  const { windowSize, stepSize, testSize, purgeBars } = { ...DEFAULT_OPTIONS, ...options };
+  validatePurgeBars(purgeBars);
 
   const boundaries: Array<{
     trainStart: number;
@@ -77,9 +87,11 @@ export function generatePeriodBoundaries(
 
   let trainStart = 0;
 
-  while (trainStart + windowSize + testSize <= candles.length) {
+  while (trainStart + windowSize + purgeBars + testSize <= candles.length) {
     const trainEnd = trainStart + windowSize - 1;
-    const testStart = trainEnd + 1;
+    // The purge gap stays out of BOTH windows: bars whose indicator
+    // lookbacks or exit labels straddle the boundary can't inform training
+    const testStart = trainEnd + 1 + purgeBars;
     const testEnd = testStart + testSize - 1;
 
     boundaries.push({
@@ -109,22 +121,32 @@ export function walkForwardAnalysis(
   parameterRanges: ParameterRange[],
   options: WalkForwardOptions = {},
 ): WalkForwardResult {
-  const { windowSize, stepSize, testSize, metric, constraints, progressCallback, paramFilter } = {
+  const {
+    windowSize,
+    stepSize,
+    testSize,
+    purgeBars,
+    metric,
+    constraints,
+    progressCallback,
+    paramFilter,
+  } = {
     ...DEFAULT_OPTIONS,
     constraints: [] as OptimizationConstraint[],
     ...options,
   };
 
-  // Generate period boundaries
+  // Generate period boundaries (validates purgeBars)
   const boundaries = generatePeriodBoundaries(candles, {
     windowSize,
     stepSize,
     testSize,
+    purgeBars,
   });
 
   if (boundaries.length === 0) {
     throw new Error(
-      `Insufficient data for walk-forward analysis. Need at least ${windowSize + testSize} candles, got ${candles.length}.`,
+      `Insufficient data for walk-forward analysis. Need at least ${windowSize + purgeBars + testSize} candles, got ${candles.length}.`,
     );
   }
 

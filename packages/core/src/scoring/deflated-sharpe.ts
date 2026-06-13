@@ -283,3 +283,75 @@ export function deflatedSharpeFromReturns(returns: number[], trialSharpes: numbe
     kurtosis,
   });
 }
+
+/**
+ * Per-return (non-annualized) Sharpe ratio: mean divided by the
+ * *population* standard deviation of the raw return series — the unit
+ * every PSR / DSR / PBO input in this library expects.
+ *
+ * Zero-variance series preserve ranking order instead of collapsing to 0:
+ * a constant positive series returns `+Infinity` (it beats any finite
+ * Sharpe — risk-free gain), a constant negative one `-Infinity`, and an
+ * empty or constant-zero series `0`.
+ */
+export function perReturnSharpe(returns: number[]): number {
+  if (returns.length === 0) return 0;
+  const mu = mean(returns);
+  const sd = Math.sqrt(variance(returns, mu));
+  if (sd > 0) return mu / sd;
+  if (mu > 0) return Number.POSITIVE_INFINITY;
+  if (mu < 0) return Number.NEGATIVE_INFINITY;
+  return 0;
+}
+
+/**
+ * Minimum Track Record Length (MinTRL) — the shortest number of return
+ * observations needed before the {@link probabilisticSharpe} of the
+ * observed Sharpe clears `confidence` against `benchmarkSharpe`; i.e. how
+ * long a track record must be before the edge is statistically
+ * distinguishable from the benchmark.
+ *
+ * `MinTRL = 1 + (1 − γ₃·SR̂ + ((γ₄ − 1)/4)·SR̂²) · (Φ⁻¹(α) / (SR̂ − SR*))²`
+ *
+ * Exact inverse of the PSR formula: `probabilisticSharpe(SR̂, SR*, T)`
+ * crosses `confidence` precisely at `T = MinTRL`. The result is a real
+ * (fractional) observation count — `Math.ceil` it for a usable bar count.
+ *
+ * Returns `Infinity` when the observed Sharpe does not exceed the
+ * benchmark (no track record length can establish the edge) and `NaN`
+ * when the non-normality correction term is non-positive.
+ *
+ * @param observedSharpe Observed per-return (non-annualized) Sharpe (SR̂)
+ * @param benchmarkSharpe Sharpe threshold to beat (SR*, default 0)
+ * @param confidence Required PSR confidence level in (0.5, 1) (default 0.95)
+ * @param skewness Skewness of the return series (default 0 = normal)
+ * @param kurtosis Non-excess kurtosis of the return series (default 3 = normal)
+ * @returns Minimum number of return observations (fractional)
+ *
+ * @example
+ * ```ts
+ * import { minTrackRecordLength } from "trendcraft";
+ *
+ * // Per-return Sharpe 0.1: how many bars until PSR(0) ≥ 95%?
+ * const bars = Math.ceil(minTrackRecordLength(0.1));
+ * // ≈ 274 observations
+ * ```
+ */
+export function minTrackRecordLength(
+  observedSharpe: number,
+  benchmarkSharpe = 0,
+  confidence = 0.95,
+  skewness = 0,
+  kurtosis = 3,
+): number {
+  // Confidence at or below 0.5 is meaningless for this one-sided test:
+  // whenever SR̂ > SR*, PSR already exceeds 0.5 at any valid sample size,
+  // and the squared quantile would silently answer for 1 - confidence.
+  if (!(confidence > 0.5 && confidence < 1)) {
+    throw new Error(`minTrackRecordLength: confidence must be in (0.5, 1), got ${confidence}`);
+  }
+  if (observedSharpe <= benchmarkSharpe) return Number.POSITIVE_INFINITY;
+  const radicand = 1 - skewness * observedSharpe + ((kurtosis - 1) / 4) * observedSharpe ** 2;
+  if (!(radicand > 0)) return Number.NaN;
+  return 1 + radicand * (normalPpf(confidence) / (observedSharpe - benchmarkSharpe)) ** 2;
+}
