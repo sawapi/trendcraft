@@ -46,6 +46,31 @@ export type {
   PatternProjection,
   PatternProjectionOptions,
 } from "./pattern-projection-types";
+export type {
+  OmegaOptions,
+  RollingOptions,
+} from "./return-metrics";
+// Return-distribution & rolling metrics
+export {
+  captureRatios,
+  commonSenseRatio,
+  cpcIndex,
+  gainToPainRatio,
+  omegaRatio,
+  payoffRatioFromReturns,
+  profitFactorFromReturns,
+  rollingSharpe,
+  rollingVolatility,
+  tailRatio,
+  winRateFromReturns,
+} from "./return-metrics";
 export type { RuntimeMetrics, RuntimeMetricsOptions } from "./runtime-metrics";
 // Runtime Metrics
 export { calculateRuntimeMetrics } from "./runtime-metrics";
+export type {
+  ReportOptions,
+  TearsheetReport,
+  TearsheetSeries,
+} from "./tearsheet";
+// Tearsheet report
+export { report } from "./tearsheet";
