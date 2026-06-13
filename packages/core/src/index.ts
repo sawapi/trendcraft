@@ -1123,6 +1123,7 @@ export {
   limitAtrBelow,
   // Preset limit/stop strategies
   limitBelowClose,
+  repayLoan,
   resolveSlippageModel,
   scoreBacktestResult,
   stopAboveHigh,

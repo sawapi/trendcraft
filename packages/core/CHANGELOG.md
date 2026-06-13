@@ -2,6 +2,44 @@
 
 ## [Unreleased]
 
+### Fixed — leveraged backtests now repay the margin loan on position close
+
+`runBacktest` with a `margin` config credited the full exit proceeds —
+including the loan-funded notional — back to capital without ever deducting
+the borrowed principal, overstating final capital by roughly the borrowed
+amount (e.g. 1M capital at 2x leverage on a +20% trade reported 2.4M instead
+of 1.4M). The borrowed principal is now repaid proportionally as the position
+unwinds (full exits, partial take profits, scale-outs, margin-call
+liquidations, and end-of-data closes), and margin interest is settled against
+the outstanding loan before repayment.
+
+Margin-call detection was also broken: the equity check passed the entry
+notional instead of remaining cash into the margin-ratio computation, so the
+ratio could effectively never fall below maintenance. The check now uses
+cash + position claim − loan, and is direction-aware
+(`updateMarginState` gained optional `direction` / `entryValue` params): a
+short's equity rises as the price falls — proceeds plus unrealized P&L —
+so profitable shorts are no longer at risk of being liquidated while losing
+shorts breach maintenance correctly, and `marginCallAction: "liquidate"`
+actually triggers.
+
+`marginCallAction: "reduceToMaintenance"` is now implemented (it was
+accepted by the config type but did nothing): on a maintenance breach the
+engine sells just enough of the position — a fair-value partial close with
+`exitReason: "marginCall"` — to restore the margin ratio to the maintenance
+level, repaying the loan proportionally; if equity is exhausted it falls
+back to full liquidation.
+
+Margin interest is now charged per repaid tranche: partial take profits and
+scale-outs settle interest on the repaid portion for exactly the days it
+was outstanding, instead of the final close charging only the residual
+loan. Settled interest also no longer inflates `accumulatedInterest` (which
+the equity check subtracts as *unpaid* interest — recording paid charges
+there double-counted them against equity). Leveraged results (final
+capital, drawdowns, Sharpe) will be lower — and correct — after these
+fixes; unlevered backtests are unaffected. The `repayLoan` helper is
+exported alongside the other margin utilities.
+
 ### Added — position sizing wired into the backtest engine (`sizing` option)
 
 `runBacktest` now accepts a `sizing` option (`BacktestSizingConfig`) that
