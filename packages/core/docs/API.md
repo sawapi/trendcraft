@@ -3958,7 +3958,62 @@ console.log('Stability:', result.aggregateMetrics.stabilityRatio);
 | `windowSize` | `number` | `252` | Training window size in candles |
 | `stepSize` | `number` | `63` | Step size in candles between windows |
 | `testSize` | `number` | `63` | Out-of-sample test size in candles |
+| `purgeBars` | `number` | `0` | Purge gap between training and test windows — bars excluded from both, so indicator lookbacks and multi-bar exit labels can't leak across the boundary. Size to the longest indicator period or holding horizon. Also available on `anchoredWalkForwardAnalysis` |
 | `metric` | `OptimizationMetric` | `'sharpe'` | Metric to optimize |
+
+---
+
+### `pbo(returnsMatrix, options)`
+
+Probability of Backtest Overfitting via Combinatorially Symmetric
+Cross-Validation (CSCV). Answers: *when I pick the best parameter set
+in-sample, how often does it rank below the median set out-of-sample?*
+(the canonical λ < 0 criterion; tied OOS scores take the average rank, so
+an exactly-median winner counts as neutral rather than overfit.)
+
+```typescript
+import { pbo } from 'trendcraft';
+
+// returns[t][n] = period-t return of the n-th parameter combination,
+// e.g. per-bar or per-week returns collected for every grid-search combo
+const result = pbo(returns, { blocks: 10 });
+
+console.log(`PBO: ${(result.pbo * 100).toFixed(1)}%`);   // ≥50% → selection is chance
+console.log(`Splits evaluated: ${result.combinations}`);  // C(10, 5) = 252
+```
+
+**Options:**
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `blocks` | `number` | `10` | Even number of contiguous row blocks S; evaluates C(S, S/2) splits (S ≤ 20) |
+| `metric` | `(returns: number[]) => number` | per-return Sharpe | Ranking metric per configuration |
+
+The result includes the per-split OOS rank logits, so the full logit
+distribution can be plotted. `pboSafe` returns a `Result` instead of
+throwing. Use alongside `deflatedSharpe` (selection-bias-aware
+significance) and `wfeRatio` (out-of-sample efficiency) — the three answer
+different overfitting questions.
+
+> **Note:** building the matrix is currently the caller's responsibility —
+> every combination must be evaluated over the same period grid (e.g. run
+> `runBacktest` per combination and derive aligned per-bar equity returns).
+> An adapter that builds the matrix from grid-search results is planned.
+
+---
+
+### `minTrackRecordLength(observedSharpe, benchmarkSharpe?, confidence?, skewness?, kurtosis?)`
+
+The exact inverse of `probabilisticSharpe`: the shortest number of return
+observations before the observed Sharpe is statistically distinguishable
+from the benchmark at the given confidence (default 0.95). Returns
+`Infinity` when the Sharpe does not exceed the benchmark.
+
+```typescript
+import { minTrackRecordLength } from 'trendcraft';
+
+// Per-return Sharpe 0.1 — how many bars until PSR(0) ≥ 95%?
+const bars = Math.ceil(minTrackRecordLength(0.1)); // ≈ 274
+```
 
 ---
 

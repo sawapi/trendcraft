@@ -2,6 +2,33 @@
 
 ## [Unreleased]
 
+### Added — overfitting defense: PBO (CSCV), purged walk-forward, MinTRL
+
+- **`pbo(returnsMatrix, { blocks, metric })`** — Probability of Backtest
+  Overfitting via Combinatorially Symmetric Cross-Validation (Bailey,
+  Borwein, López de Prado & Zhu). Takes a T×N matrix of per-period returns
+  (N parameter combinations over T periods), evaluates all C(S, S/2)
+  in-sample/out-of-sample block splits, and reports how often the IS-best
+  configuration ranks below the OOS median (λ < 0, the canonical CSCV
+  criterion; ties take the average rank so an exactly-median winner is
+  neutral, not overfit). PBO ≥ 0.5 means parameter selection is no better
+  than chance out of sample. `pboSafe` variant included. Building the matrix is the caller's
+  responsibility for now (a grid-search adapter is planned); the default
+  ranking metric is the newly exported `perReturnSharpe`.
+- **`purgeBars` option on `walkForwardAnalysis` / `anchoredWalkForwardAnalysis`**
+  — excludes the last N bars between each training window and its test
+  window, so indicator lookbacks and multi-bar exit labels cannot leak
+  in-sample information across the boundary. Size it to the longest
+  indicator period or holding horizon the strategy uses. Default 0
+  (legacy adjacent windows). An embargo after the test window is a
+  combinatorial-split concept and intentionally not part of causal
+  walk-forward.
+- **`minTrackRecordLength(sharpe, benchmark?, confidence?, skew?, kurt?)`**
+  — the exact inverse of `probabilisticSharpe`: the shortest number of
+  return observations before the observed Sharpe is statistically
+  distinguishable from the benchmark at the given confidence. Returns
+  `Infinity` when there is no edge to establish.
+
 ### Fixed — leveraged backtests now repay the margin loan on position close
 
 `runBacktest` with a `margin` config credited the full exit proceeds —

@@ -3435,7 +3435,59 @@ console.log('安定性:', result.aggregateMetrics.stabilityRatio);
 | `windowSize` | `number` | `252` | 学習ウィンドウのサイズ（ローソク足本数） |
 | `stepSize` | `number` | `63` | ウィンドウ間のステップサイズ（ローソク足本数） |
 | `testSize` | `number` | `63` | アウト・オブ・サンプル検証期間のサイズ（ローソク足本数） |
+| `purgeBars` | `number` | `0` | 学習とテストの間のパージギャップ（両ウィンドウから除外）。指標のlookbackや複数バーにまたがる出口ラベルが境界越しにリークするのを防ぐ。最長の指標期間/保有期間に合わせる。`anchoredWalkForwardAnalysis` でも利用可 |
 | `metric` | `OptimizationMetric` | `'sharpe'` | 最適化する指標 |
+
+---
+
+### `pbo(returnsMatrix, options)`
+
+CSCV（組合せ対称交差検証）によるバックテスト過学習確率（PBO）。
+「イン・サンプルで最良のパラメーターを選んだとき、それがアウト・オブ・
+サンプルで中央値を下回る頻度はどれだけか？」に答えます（正準の λ < 0
+基準。タイは平均ランクを取るため、ちょうど中央値の勝者は過学習でなく
+中立として扱います）。
+
+```typescript
+import { pbo } from 'trendcraft';
+
+// returns[t][n] = n番目のパラメーター組み合わせの期間tのリターン
+const result = pbo(returns, { blocks: 10 });
+
+console.log(`PBO: ${(result.pbo * 100).toFixed(1)}%`);   // 50%以上 → 選択は偶然と同等
+console.log(`評価したsplit数: ${result.combinations}`);   // C(10, 5) = 252
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|--------|------|---------|-------------|
+| `blocks` | `number` | `10` | 連続行ブロック数S（偶数）。C(S, S/2)通りのsplitを評価（S ≤ 20） |
+| `metric` | `(returns: number[]) => number` | per-return Sharpe | 組み合わせごとのランキング指標 |
+
+結果にはsplitごとのOOSランクlogitが含まれ、分布として可視化できます。
+`pboSafe` はthrowせず `Result` を返します。`deflatedSharpe`（選択バイアス
+込みの有意性）、`wfeRatio`（OOS効率）と併用してください — 3つは過学習の
+異なる側面に答えます。
+
+> **注:** 行列の構築は現状呼び出し側の責任です — 全組み合わせを同一の
+> 期間グリッドで評価する必要があります（例: 組み合わせごとに `runBacktest`
+> を実行し、揃ったper-barのequityリターンを導出）。grid-search結果から
+> 行列を構築するadapterは今後提供予定です。
+
+---
+
+### `minTrackRecordLength(observedSharpe, benchmarkSharpe?, confidence?, skewness?, kurtosis?)`
+
+`probabilisticSharpe` の厳密な逆関数: 観測Sharpeがベンチマークと統計的に
+区別できるようになるまでに必要な最小観測数（デフォルト信頼度 0.95）。
+Sharpeがベンチマークを超えない場合は `Infinity` を返します。
+
+```typescript
+import { minTrackRecordLength } from 'trendcraft';
+
+// per-return Sharpe 0.1 — PSR(0) ≥ 95% に必要なバー数は？
+const bars = Math.ceil(minTrackRecordLength(0.1)); // ≈ 274
+```
 
 ---
 

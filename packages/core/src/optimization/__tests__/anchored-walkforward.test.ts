@@ -164,6 +164,13 @@ describe("Anchored Walk-Forward Analysis", () => {
       expect(count).toBe(1);
     });
 
+    it("accounts for the purge gap so preflight matches the boundary generator", () => {
+      // 756 candles fit exactly one unpurged period; a 10-bar purge gap
+      // pushes the requirement to 766
+      expect(calculateAWFPeriodCount(756, 0, 504, 252, 252, 10)).toBe(0);
+      expect(calculateAWFPeriodCount(766, 0, 504, 252, 252, 10)).toBe(1);
+    });
+
     it("should calculate correct period count", () => {
       // Total: 1500, Initial: 504, Step: 252, Test: 252
       // Period 1: train 0-503, test 504-755 (756 candles used)

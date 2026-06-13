@@ -3,8 +3,63 @@ import {
   deflatedSharpe,
   deflatedSharpeFromReturns,
   expectedMaxSharpe,
+  minTrackRecordLength,
+  perReturnSharpe,
   probabilisticSharpe,
 } from "../deflated-sharpe";
+
+describe("minTrackRecordLength", () => {
+  it("is the exact inverse of probabilisticSharpe at the confidence level", () => {
+    const minTrl = minTrackRecordLength(0.1, 0, 0.95);
+    // PSR crosses 0.95 precisely at T = MinTRL (to the precision of the
+    // rational normal-quantile approximation used internally)
+    expect(probabilisticSharpe(0.1, 0, minTrl)).toBeCloseTo(0.95, 6);
+    // One observation fewer falls short, one more clears it
+    expect(probabilisticSharpe(0.1, 0, minTrl - 1)).toBeLessThan(0.95);
+    expect(probabilisticSharpe(0.1, 0, minTrl + 1)).toBeGreaterThan(0.95);
+  });
+
+  it("shrinks as the edge grows and grows with the confidence level", () => {
+    expect(minTrackRecordLength(0.2)).toBeLessThan(minTrackRecordLength(0.1));
+    expect(minTrackRecordLength(0.1, 0, 0.99)).toBeGreaterThan(minTrackRecordLength(0.1, 0, 0.9));
+  });
+
+  it("accounts for non-normality (heavy tails need longer records)", () => {
+    const normal = minTrackRecordLength(0.1, 0, 0.95, 0, 3);
+    const heavyTailed = minTrackRecordLength(0.1, 0, 0.95, -0.5, 6);
+    expect(heavyTailed).toBeGreaterThan(normal);
+  });
+
+  it("is Infinity when the Sharpe does not exceed the benchmark", () => {
+    expect(minTrackRecordLength(0.1, 0.1)).toBe(Number.POSITIVE_INFINITY);
+    expect(minTrackRecordLength(-0.05, 0)).toBe(Number.POSITIVE_INFINITY);
+  });
+
+  it("rejects confidence outside (0.5, 1)", () => {
+    expect(() => minTrackRecordLength(0.1, 0, 0)).toThrow(/confidence/);
+    expect(() => minTrackRecordLength(0.1, 0, 1)).toThrow(/confidence/);
+    // At or below 0.5 the one-sided test is already satisfied by any
+    // valid sample — the formula would silently answer for 1 - confidence
+    expect(() => minTrackRecordLength(0.1, 0, 0.5)).toThrow(/confidence/);
+    expect(() => minTrackRecordLength(0.1, 0, 0.4)).toThrow(/confidence/);
+  });
+});
+
+describe("perReturnSharpe", () => {
+  it("computes mean over population std", () => {
+    // mean 0.01, population std of [0.012, 0.008] around 0.01 = 0.002
+    expect(perReturnSharpe([0.012, 0.008])).toBeCloseTo(5, 9);
+  });
+
+  it("preserves ordering for zero-variance series", () => {
+    // A risk-free positive series outranks any finite Sharpe; a constant
+    // loss ranks below any finite Sharpe
+    expect(perReturnSharpe([0.01, 0.01, 0.01])).toBe(Number.POSITIVE_INFINITY);
+    expect(perReturnSharpe([-0.01, -0.01])).toBe(Number.NEGATIVE_INFINITY);
+    expect(perReturnSharpe([0, 0, 0])).toBe(0);
+    expect(perReturnSharpe([])).toBe(0);
+  });
+});
 
 describe("probabilisticSharpe", () => {
   it("is 0.5 when the observed Sharpe equals the benchmark", () => {

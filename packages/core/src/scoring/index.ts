@@ -74,6 +74,8 @@ export {
   deflatedSharpe,
   deflatedSharpeFromReturns,
   expectedMaxSharpe,
+  minTrackRecordLength,
+  perReturnSharpe,
   probabilisticSharpe,
 } from "./deflated-sharpe";
 // Presets
