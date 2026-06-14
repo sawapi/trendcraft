@@ -27,26 +27,10 @@
  * No external dependencies.
  */
 
+import { normalCdf } from "../core/statistics";
+
 const EULER_MASCHERONI = 0.5772156649015329;
 const E = Math.E;
-
-/**
- * CDF of the standard normal distribution. Horner form with
- * Abramowitz & Stegun 7.1.26 coefficients (|error| < 1.5e-7).
- */
-function normalCdf(x: number): number {
-  const a1 = 0.254829592;
-  const a2 = -0.284496736;
-  const a3 = 1.421413741;
-  const a4 = -1.453152027;
-  const a5 = 1.061405429;
-  const p = 0.3275911;
-  const sign = x < 0 ? -1 : 1;
-  const absX = Math.abs(x) / Math.SQRT2;
-  const t = 1.0 / (1.0 + p * absX);
-  const y = 1.0 - ((((a5 * t + a4) * t + a3) * t + a2) * t + a1) * t * Math.exp(-absX * absX);
-  return 0.5 * (1.0 + sign * y);
-}
 
 /**
  * Inverse CDF (quantile / ppf) of the standard normal distribution.

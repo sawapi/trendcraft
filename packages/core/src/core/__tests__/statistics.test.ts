@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { median, percentile, quartiles } from "../statistics";
+import { kurtosis, median, normalCdf, percentile, quartiles, skewness } from "../statistics";
 
 describe("percentile", () => {
   it("returns 0 for an empty array", () => {
@@ -79,5 +79,54 @@ describe("quartiles", () => {
 
   it("returns [0, 0, 0] for empty array", () => {
     expect(quartiles([])).toEqual([0, 0, 0]);
+  });
+});
+
+describe("normalCdf", () => {
+  it("is 0.5 at the mean and symmetric", () => {
+    expect(normalCdf(0)).toBeCloseTo(0.5, 6);
+    expect(normalCdf(1.96) + normalCdf(-1.96)).toBeCloseTo(1, 6);
+  });
+
+  it("matches known quantiles within the approximation error", () => {
+    expect(normalCdf(1.96)).toBeCloseTo(0.975, 4); // two-sided 95%
+    expect(normalCdf(2.575)).toBeCloseTo(0.995, 4); // two-sided 99%
+    expect(normalCdf(1)).toBeCloseTo(0.8413, 4);
+  });
+
+  it("saturates in the tails", () => {
+    expect(normalCdf(10)).toBeCloseTo(1, 6);
+    expect(normalCdf(-10)).toBeCloseTo(0, 6);
+  });
+});
+
+describe("skewness", () => {
+  it("is ~0 for a symmetric sample", () => {
+    expect(skewness([-2, -1, 0, 1, 2])).toBeCloseTo(0, 12);
+  });
+
+  it("is positive for a right-skewed sample and negative for left-skewed", () => {
+    expect(skewness([1, 1, 1, 1, 10])).toBeGreaterThan(0);
+    expect(skewness([1, 10, 10, 10, 10])).toBeLessThan(0);
+  });
+
+  it("is NaN for fewer than three values or zero variance", () => {
+    expect(Number.isNaN(skewness([1, 2]))).toBe(true);
+    expect(Number.isNaN(skewness([5, 5, 5, 5]))).toBe(true);
+  });
+});
+
+describe("kurtosis", () => {
+  it("is negative (platykurtic) for a flat/uniform-like sample", () => {
+    expect(kurtosis([1, 2, 3, 4, 5, 6, 7, 8])).toBeLessThan(0);
+  });
+
+  it("is positive (leptokurtic) for a heavy-tailed sample", () => {
+    expect(kurtosis([0, 0, 0, 0, 0, 0, 0, 10])).toBeGreaterThan(0);
+  });
+
+  it("is NaN for fewer than four values or zero variance", () => {
+    expect(Number.isNaN(kurtosis([1, 2, 3]))).toBe(true);
+    expect(Number.isNaN(kurtosis([5, 5, 5, 5, 5]))).toBe(true);
   });
 });

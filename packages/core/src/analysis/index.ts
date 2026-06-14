@@ -37,6 +37,14 @@ export {
   // Types
   type TradeStats,
 } from "./edge-analysis";
+export type {
+  EventHorizonStats,
+  EventStudyBaseline,
+  EventStudyOptions,
+  EventStudyResult,
+} from "./event-study";
+// Event study
+export { eventStudy } from "./event-study";
 export type { MarketContext, MarketContextOptions } from "./market-context";
 // Market Context
 export { analyzeMarketContext } from "./market-context";

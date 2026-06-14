@@ -2,6 +2,28 @@
 
 ## [Unreleased]
 
+### Added — event study: `eventStudy()`
+
+- **`eventStudy(candles, events, options?)`** — measures whether a pattern
+  detector's firings carry predictive power, via the conditional-vs-
+  unconditional forward-return comparison of Lo, Mamaysky & Wang (2000) within
+  the abnormal-return / AAR framework of MacKinlay (1997) and Brown & Warner
+  (1985). `events` is a list of event bar timestamps (epoch ms, matching
+  `candle.time`) or a `Series<boolean>` whose `true` entries mark events, so the
+  output of any detector maps in with a `.filter(...).map(p => p.time)`.
+- Per horizon it reports `n`, mean / median / abnormal-mean (AAR) forward
+  return, sample std, a cross-sectional t-test, a deterministic **pseudo-event
+  bootstrap** p-value (the non-parametric workhorse), a hit rate with a binomial
+  test, and distribution shape (skewness, excess kurtosis, percentiles).
+  Bootstrap p-values are Benjamini-Hochberg adjusted across the horizons.
+- Default baseline is **mean-adjusted** (subtract the unconditional mean forward
+  return); `"raw"` tests against zero. The bootstrap is seeded (default 42) so
+  results are reproducible. `minSeparation` thins overlapping events and
+  `overlappingEvents` flags the non-independence they cause.
+- New shared statistics primitives on `core/statistics`: `normalCdf`,
+  `skewness`, `kurtosis` (the `normalCdf` consolidates two previously-duplicated
+  internal copies in the deflated-Sharpe and alpha-decay modules).
+
 ### Added — first-class equity curve on `BacktestResult`
 
 - **`BacktestResult.equityCurve`** — `runBacktest` now emits the mark-to-market
