@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+### Added — S/R zone clustering multi-restart
+
+- **`srZones()` / `srZonesSeries()` accept a `restarts` option** (default `1`):
+  K-means is only locally optimal, so the clustering can settle in a worse
+  arrangement depending on its initialization. With `restarts > 1` the algorithm
+  runs that many initializations and keeps the lowest-inertia (within-cluster sum
+  of squares) result. Restart 0 always uses the existing deterministic
+  k-means++ seeding, so `restarts: 1` reproduces previous results exactly and any
+  higher value can only match or improve on them — never degrade.
+- Extra restarts use randomized D²-weighted k-means++ seeding driven by a seeded
+  PRNG, controlled by the new `seed` option (default `42`); results stay fully
+  deterministic for a given seed.
+
 ### Added — hidden (continuation) divergence
 
 - **`detectDivergence()` now detects hidden divergence** in addition to regular
