@@ -10,6 +10,7 @@
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { mulberry32 } from "../../core/random";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { volumeProfile } from "../volume/volume-profile";
@@ -68,6 +69,20 @@ export type SrZonesOptions = {
   swingLookback?: number;
   /** Max K-means iterations (default: 50) */
   maxIterations?: number;
+  /**
+   * Number of K-means initializations to try, keeping the lowest-inertia run
+   * (default: 1). K-means is only locally optimal, so a single initialization
+   * can land in a worse clustering; extra restarts make the result more robust.
+   * The first restart always uses the deterministic k-means++ seeding, so the
+   * default (`1`) reproduces the previous behavior exactly, and any higher value
+   * can only match or improve on it.
+   */
+  restarts?: number;
+  /**
+   * Seed for the randomized k-means++ seeding used by restarts beyond the first
+   * (default: 42). Results are fully deterministic for a given seed.
+   */
+  seed?: number;
 };
 
 /** Result of S/R zone detection. */
@@ -198,8 +213,26 @@ interface KMeansInput {
 }
 
 /**
- * K-means++ initialization: pick first center at random (deterministic: use
- * median), then pick subsequent centers proportional to squared distance.
+ * The k-means++ D² term: for each point, the squared distance to its nearest
+ * already-chosen center, weighted by the point's weight. Shared by both the
+ * deterministic and randomized seeding variants.
+ */
+function weightedNearestDist2(data: KMeansInput[], centers: number[]): number[] {
+  return data.map((d) => {
+    let minD = Number.POSITIVE_INFINITY;
+    for (const ctr of centers) {
+      const dd = (d.price - ctr) ** 2;
+      if (dd < minD) minD = dd;
+    }
+    return minD * d.weight;
+  });
+}
+
+/**
+ * Deterministic k-means++ initialization: first center is the price-median
+ * point, then each subsequent center is the point with the largest weighted
+ * squared distance from the nearest chosen center (a greedy, reproducible
+ * farthest-point rule).
  */
 function kmeansppInit(data: KMeansInput[], k: number): number[] {
   if (data.length === 0 || k <= 0) return [];
@@ -210,15 +243,7 @@ function kmeansppInit(data: KMeansInput[], k: number): number[] {
   centers.push(sorted[Math.floor(sorted.length / 2)].price);
 
   for (let c = 1; c < k; c++) {
-    // Compute distance² from each point to nearest existing center
-    const dist2: number[] = data.map((d) => {
-      let minD = Number.POSITIVE_INFINITY;
-      for (const ctr of centers) {
-        const dd = (d.price - ctr) ** 2;
-        if (dd < minD) minD = dd;
-      }
-      return minD * d.weight;
-    });
+    const dist2 = weightedNearestDist2(data, centers);
 
     const totalDist = dist2.reduce((s, v) => s + v, 0);
     if (totalDist === 0) {
@@ -242,14 +267,71 @@ function kmeansppInit(data: KMeansInput[], k: number): number[] {
   return centers;
 }
 
-function kmeansCluster(
+/**
+ * Pick an index with probability proportional to `weights`, given a uniform
+ * draw `r` in `[0, sum(weights))`. The caller scales its random number by the
+ * weight total before calling.
+ */
+function weightedPick(weights: number[], r: number): number {
+  let acc = r;
+  for (let i = 0; i < weights.length; i++) {
+    acc -= weights[i];
+    if (acc < 0) return i;
+  }
+  return weights.length - 1;
+}
+
+/**
+ * Randomized k-means++ initialization: the canonical D²-weighted seeding. The
+ * first center is sampled proportional to point weight, and each subsequent
+ * center proportional to its weighted squared distance from the nearest chosen
+ * center. Used for the extra restarts so they explore different starts than the
+ * deterministic {@link kmeansppInit}.
+ */
+function kmeansppInitSeeded(data: KMeansInput[], k: number, rng: () => number): number[] {
+  if (data.length === 0 || k <= 0) return [];
+  const centers: number[] = [];
+
+  // First center: sample proportional to weight.
+  const weights = data.map((d) => d.weight);
+  const totalWeight = weights.reduce((s, v) => s + v, 0);
+  centers.push(
+    totalWeight > 0 ? data[weightedPick(weights, rng() * totalWeight)].price : data[0].price,
+  );
+
+  for (let c = 1; c < k; c++) {
+    const dist2 = weightedNearestDist2(data, centers);
+
+    const totalDist = dist2.reduce((s, v) => s + v, 0);
+    if (totalDist === 0) {
+      // All remaining points coincide with existing centers; duplicate last.
+      centers.push(centers[centers.length - 1]);
+      continue;
+    }
+    centers.push(data[weightedPick(dist2, rng() * totalDist)].price);
+  }
+
+  return centers;
+}
+
+/** Weighted within-cluster sum of squares (the k-means objective). */
+function computeInertia(data: KMeansInput[], centers: number[], assignments: number[]): number {
+  let inertia = 0;
+  for (let i = 0; i < data.length; i++) {
+    const d = data[i].price - centers[assignments[i]];
+    inertia += data[i].weight * d * d;
+  }
+  return inertia;
+}
+
+/** Run Lloyd's algorithm to convergence from a fixed set of initial centers. */
+function runKmeans(
   data: KMeansInput[],
-  k: number,
+  effectiveK: number,
   maxIter: number,
+  initCenters: number[],
 ): { centers: number[]; assignments: number[] } {
-  if (data.length === 0) return { centers: [], assignments: [] };
-  const effectiveK = Math.min(k, data.length);
-  let centers = kmeansppInit(data, effectiveK);
+  let centers = initCenters;
   let assignments = new Array<number>(data.length).fill(0);
 
   for (let iter = 0; iter < maxIter; iter++) {
@@ -300,6 +382,46 @@ function kmeansCluster(
   return { centers, assignments };
 }
 
+/**
+ * Cluster the price levels with K-means, optionally retrying from several
+ * initializations and keeping the lowest-inertia result. Restart 0 always uses
+ * the deterministic {@link kmeansppInit} (so `restarts === 1` matches the prior
+ * behavior); restarts 1..n use seeded randomized k-means++.
+ */
+function kmeansCluster(
+  data: KMeansInput[],
+  k: number,
+  maxIter: number,
+  restarts: number,
+  seed: number,
+): { centers: number[]; assignments: number[] } {
+  if (data.length === 0) return { centers: [], assignments: [] };
+  const effectiveK = Math.min(k, data.length);
+
+  // Restart 0: deterministic init (so restarts === 1 matches prior behavior).
+  let best = runKmeans(data, effectiveK, maxIter, kmeansppInit(data, effectiveK));
+  if (restarts <= 1) return best;
+
+  // Extra restarts: seeded randomized k-means++; keep the lowest-inertia run.
+  let bestInertia = computeInertia(data, best.centers, best.assignments);
+  const rng = mulberry32(seed);
+  for (let r = 1; r < restarts; r++) {
+    const candidate = runKmeans(
+      data,
+      effectiveK,
+      maxIter,
+      kmeansppInitSeeded(data, effectiveK, rng),
+    );
+    const inertia = computeInertia(data, candidate.centers, candidate.assignments);
+    if (inertia < bestInertia) {
+      best = candidate;
+      bestInertia = inertia;
+    }
+  }
+
+  return best;
+}
+
 // ---------------------------------------------------------------------------
 // Main functions
 // ---------------------------------------------------------------------------
@@ -341,6 +463,8 @@ export function srZones(
     customLevels,
     swingLookback = 5,
     maxIterations = 50,
+    restarts = 1,
+    seed = 42,
   } = options;
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
@@ -386,7 +510,7 @@ export function srZones(
 
   const k = numZones ?? Math.min(Math.max(3, Math.floor(rawLevels.length / 3)), 15);
 
-  const { centers, assignments } = kmeansCluster(kInput, k, maxIterations);
+  const { centers, assignments } = kmeansCluster(kInput, k, maxIterations, restarts, seed);
 
   // 3. Build zones from clusters
   const atrValue = simpleAtr(normalized);

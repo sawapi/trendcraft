@@ -180,3 +180,70 @@ describe("srZones", () => {
     }
   });
 });
+
+describe("srZones multi-restart", () => {
+  // Cluster only a known set of custom levels (all other sources disabled), so
+  // the K-means inertia can be recomputed from the returned zone centroids.
+  const levels = [10, 11, 12, 40, 41, 42, 43, 70, 71, 72, 95];
+  const candles = makeSwingCandles();
+  const baseOptions = {
+    includeSwingPoints: false,
+    includePivotPoints: false,
+    includeVwap: false,
+    includeVolumeProfile: false,
+    includeRoundNumbers: false,
+    customLevels: levels,
+    numZones: 3,
+  } as const;
+
+  /** Weighted (here unit-weight) within-cluster sum of squares to nearest centroid. */
+  function inertiaOf(centroids: number[]): number {
+    let sum = 0;
+    for (const p of levels) {
+      let best = Number.POSITIVE_INFINITY;
+      for (const c of centroids) {
+        const d = (p - c) ** 2;
+        if (d < best) best = d;
+      }
+      sum += best;
+    }
+    return sum;
+  }
+
+  it("never produces a worse clustering than a single restart", () => {
+    const single = srZones(candles, { ...baseOptions, restarts: 1 });
+    const many = srZones(candles, { ...baseOptions, restarts: 25 });
+
+    const singleInertia = inertiaOf(single.zones.map((z) => z.price));
+    const manyInertia = inertiaOf(many.zones.map((z) => z.price));
+
+    // Restart 0 is always the deterministic init, so multi-restart keeps the
+    // best of (deterministic, randomized...) and can only match or improve it.
+    expect(manyInertia).toBeLessThanOrEqual(singleInertia + 1e-9);
+  });
+
+  it("is deterministic for a given seed", () => {
+    const a = srZones(candles, { ...baseOptions, restarts: 25, seed: 7 });
+    const b = srZones(candles, { ...baseOptions, restarts: 25, seed: 7 });
+    expect(b.zones).toEqual(a.zones);
+  });
+
+  it("defaults (restarts: 1) reproduce the explicit single-restart result", () => {
+    const implicit = srZones(candles, baseOptions);
+    const explicit = srZones(candles, { ...baseOptions, restarts: 1 });
+    expect(explicit.zones).toEqual(implicit.zones);
+  });
+
+  it("produces finite, well-formed zones with restarts enabled", () => {
+    const { zones } = srZones(candles, { ...baseOptions, restarts: 10 });
+    expect(zones.length).toBeGreaterThan(0);
+    for (const z of zones) {
+      expect(Number.isFinite(z.price)).toBe(true);
+      expect(z.low).toBeLessThanOrEqual(z.high);
+    }
+    // Sorted by strength descending.
+    for (let i = 1; i < zones.length; i++) {
+      expect(zones[i - 1].strength).toBeGreaterThanOrEqual(zones[i].strength);
+    }
+  });
+});
