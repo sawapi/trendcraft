@@ -42,6 +42,7 @@ import {
 } from "./engine-utils";
 import type { MarginState } from "./margin";
 import {
+  accountEquity,
   accrueInterest,
   calculateBuyingPower,
   checkMarginCall,
@@ -239,6 +240,11 @@ export function runBacktest(
   const returns: number[] = [];
   const ddTracker = createDrawdownTracker(capital);
 
+  // Mark-to-market equity at each candle's close, aligned to `candles`. Bar 0
+  // is never traded (the loop starts at index 1), so it holds the starting
+  // capital; every later bar is filled at the end of its iteration.
+  const equityCurve: number[] = new Array(candles.length).fill(capital);
+
   // Margin state tracking
   let marginState: MarginState | null = null;
   if (marginConfig) {
@@ -381,6 +387,25 @@ export function runBacktest(
       maxDrawdown = drawdown;
     }
     ddTracker.update(currentCapital, time, barIndex);
+  }
+
+  /**
+   * Mark-to-market account equity at a candle's close, via the shared
+   * {@link accountEquity} definition — pure cash when flat, `cash + position
+   * claim` for the common non-margin case, less loan and accrued interest under
+   * margin. Sharing the formula keeps the equity curve consistent with
+   * margin-call accounting.
+   */
+  function markToMarketEquity(close: number): number {
+    if (position === null) return currentCapital;
+    return accountEquity(
+      close * position.shares,
+      currentCapital,
+      position.direction ?? "long",
+      position.entryPrice * position.shares,
+      marginState?.borrowedAmount ?? 0,
+      marginState?.accumulatedInterest ?? 0,
+    );
   }
 
   /**
@@ -890,6 +915,7 @@ export function runBacktest(
 
       // Skip remaining checks if position was closed by scale-out
       if (position === null) {
+        equityCurve[i] = markToMarketEquity(candle.close);
         continue;
       }
 
@@ -1040,6 +1066,7 @@ export function runBacktest(
         }
       }
     }
+    equityCurve[i] = markToMarketEquity(candle.close);
   }
 
   // Close any open position at the end
@@ -1063,6 +1090,9 @@ export function runBacktest(
     currentCapital += result.netProceeds - repayMarginLoan(1);
     returns.push(result.returnPercent / 100);
     ddTracker.update(currentCapital, lastCandle.time, candles.length - 1);
+    // The end-of-data close realizes the final bar's equity (the in-loop value
+    // was the still-open mark-to-market); align it with the realized capital.
+    equityCurve[candles.length - 1] = currentCapital;
   }
 
   // Cancel any unfilled pending order at end of data
@@ -1070,7 +1100,7 @@ export function runBacktest(
 
   ddTracker.finalize(candles[candles.length - 1].time, candles.length - 1);
 
-  return calculateStats(
+  const result = calculateStats(
     trades,
     returns,
     capital,
@@ -1082,4 +1112,6 @@ export function runBacktest(
       ? { firstTime: candles[0].time, lastTime: candles[candles.length - 1].time }
       : undefined,
   );
+  result.equityCurve = equityCurve;
+  return result;
 }

@@ -474,6 +474,18 @@ export type BacktestResult = {
   settings: BacktestSettings;
   /** Individual drawdown periods with peak-trough-recovery tracking */
   drawdownPeriods: DrawdownPeriod[];
+  /**
+   * Mark-to-market account equity at each candle's close, aligned
+   * index-for-index with the candles the backtest ran on (so
+   * `equityCurve[0]` is the starting capital and `equityCurve.length ===
+   * candles.length`). Equity is `cash + position claim − loan`, signed by
+   * direction, so it tracks unrealized P&L of an open position and realizes
+   * each partial exit faithfully — unlike a from-trades reconstruction, which
+   * cannot recover the open fraction after a partial exit. Emitted by
+   * `runBacktest`; optional because hand-built results may omit it (consumers
+   * fall back to reconstructing returns from trades).
+   */
+  equityCurve?: number[];
 };
 
 // ============================================

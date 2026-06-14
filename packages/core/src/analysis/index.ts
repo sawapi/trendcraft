@@ -4,6 +4,15 @@
  * Provides comprehensive analysis functions for evaluating trading performance.
  */
 
+export type {
+  RegimeAttributionOptions,
+  RegimeAttributionReport,
+  RegimeLabel,
+  RegimeStats,
+  RegimeTransition,
+} from "./backtest-by-regime";
+// Regime-conditioned attribution
+export { backtestByRegime } from "./backtest-by-regime";
 export type { BehaviorEquityPoint, BehaviorInsight } from "./behavior-insights";
 // Behavior Insights
 export { generateBehaviorInsights } from "./behavior-insights";
@@ -61,6 +70,7 @@ export {
   profitFactorFromReturns,
   rollingSharpe,
   rollingVolatility,
+  sharpeFromReturns,
   tailRatio,
   winRateFromReturns,
 } from "./return-metrics";

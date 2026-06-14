@@ -2,6 +2,50 @@
 
 ## [Unreleased]
 
+### Added — first-class equity curve on `BacktestResult`
+
+- **`BacktestResult.equityCurve`** — `runBacktest` now emits the mark-to-market
+  account equity at each candle's close, aligned index-for-index with the
+  candles (`equityCurve[0]` is the starting capital, `equityCurve.length ===
+  candles.length`). Equity is `cash + position claim − loan`, signed by
+  direction, matching the engine's own margin-equity accounting. This is a
+  faithful curve: it tracks an open position's unrealized P&L and realizes each
+  partial exit / scale-out leg correctly.
+
+### Fixed
+
+- **Daily-returns-based metrics are now faithful for shorts and partial
+  exits.** The returns underlying `report()`, `backtestByRegime()` and the
+  optimization metrics were reconstructed from trade records, which (a) marked
+  open positions long-only — so a profitable short showed interim losses — and
+  (b) treated the first partial exit as closing the whole position, dropping the
+  P&L of every later scale-out leg. These metrics now derive from the engine's
+  `equityCurve` when present, which handles direction, partials and margin
+  correctly. The from-trades reconstruction remains as a fallback for hand-built
+  results and was itself corrected to respect trade direction.
+
+### Added — regime-conditioned attribution: `backtestByRegime()`
+
+- **`backtestByRegime(result, { candles, regimes, ... })`** — attributes a
+  backtest's performance to the market regime active on each bar. Returns a
+  per-regime performance table (bars, share of period, total/annualised
+  return, annualised volatility, Sharpe, regime-local max drawdown, win rate,
+  and an entry-attributed trade count) plus the empirical regime transition
+  matrix. `regimes` is a per-bar label series aligned to `candles` — the
+  output of `hmmRegimes(candles)` satisfies it directly, but any per-bar
+  `{ regime, label }` source works.
+- Attribution is **bar/return-level** (each daily return is assigned to the
+  regime of the bar it is realised on, the convention shared across the quant
+  ecosystem), so a position held across a regime change has its P&L split
+  across regimes. The per-regime `tradeCount` is a separate trade-level view,
+  counted by the regime at trade entry.
+- The transition matrix is **row-stochastic** (`matrix[from][to]`, each row
+  summing to 1, the diagonal being regime persistence) and is returned with a
+  parallel `counts` matrix so small-sample cells are visible.
+- Documented caveats: regime labels from a full-sequence (smoothed/Viterbi)
+  fit embed look-ahead bias, making the table descriptive rather than
+  tradeable; and per-regime ratios from few `bars` are unreliable.
+
 ### Added — tearsheet metrics and `report()`
 
 - **Return-distribution metrics** operating on a periodic-returns array
@@ -17,7 +61,8 @@
 - **Rolling metrics**: `rollingSharpe` and `rollingVolatility` over a trailing
   window (default 126 periods), returning arrays aligned index-for-index with
   the input (leading `window - 1` entries are `NaN`). Sharpe is annualised by
-  `sqrt(periodsPerYear)`; volatility always is.
+  `sqrt(periodsPerYear)`; volatility always is. `sharpeFromReturns` exposes the
+  scalar annualised Sharpe kernel they (and the per-regime attribution) share.
 - **`captureRatios(returns, benchmark, periodsPerYear?)`** — up/down capture
   versus a benchmark, dividing the strategy's geometric annualised return by
   the benchmark's over the periods where the benchmark is strictly up or down.

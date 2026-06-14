@@ -4,7 +4,7 @@
  * Functions for calculating advanced performance metrics for backtest optimization.
  */
 
-import type { BacktestResult, NormalizedCandle } from "../types";
+import type { BacktestResult, NormalizedCandle, PositionDirection } from "../types";
 import type { OptimizationMetric } from "../types/optimization";
 
 /**
@@ -160,6 +160,20 @@ export function calculateDailyReturns(
   initialCapital: number,
 ): number[] {
   if (candles.length < 2) return [];
+
+  // Prefer the engine's faithful mark-to-market equity curve when present: it
+  // already accounts for trade direction, partial exits and margin, none of
+  // which the from-trades reconstruction below can recover. Fall back to that
+  // reconstruction only for hand-built results that omit the curve.
+  const curve = result.equityCurve;
+  if (curve && curve.length === candles.length) {
+    const dailyReturns: number[] = [];
+    for (let i = 1; i < curve.length; i++) {
+      dailyReturns.push(curve[i - 1] > 0 ? (curve[i] - curve[i - 1]) / curve[i - 1] : 0);
+    }
+    return dailyReturns;
+  }
+
   if (result.trades.length === 0) return [];
 
   // Build equity curve
@@ -167,6 +181,7 @@ export function calculateDailyReturns(
   let currentEquity = initialCapital;
   let positionValue = 0;
   let entryPrice = 0;
+  let positionDirection: PositionDirection = "long";
   let inPosition = false;
   let tradeIndex = 0;
 
@@ -183,6 +198,7 @@ export function calculateDailyReturns(
       const trade = result.trades[tradeIndex];
       entryPrice = trade.entryPrice;
       positionValue = currentEquity;
+      positionDirection = trade.direction ?? "long";
       inPosition = true;
       break;
     }
@@ -198,9 +214,11 @@ export function calculateDailyReturns(
         break;
       }
 
-      // Mark-to-market if still in position
+      // Mark-to-market if still in position. A short position gains as price
+      // falls, so the unrealized return is the price move signed by direction.
       if (inPosition && entryPrice > 0) {
-        const unrealizedReturn = (candle.close - entryPrice) / entryPrice;
+        const priceReturn = (candle.close - entryPrice) / entryPrice;
+        const unrealizedReturn = positionDirection === "short" ? -priceReturn : priceReturn;
         equity[i] = positionValue * (1 + unrealizedReturn);
       } else {
         equity[i] = currentEquity;

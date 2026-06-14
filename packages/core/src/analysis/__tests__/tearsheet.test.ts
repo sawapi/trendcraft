@@ -48,11 +48,12 @@ describe("report", () => {
     const sheet = report(result, { candles: CANDLES });
     expect(Number.isFinite(sheet.annualizedVolatilityPercent)).toBe(true);
     expect(sheet.drawdowns.count).toBe(result.drawdownPeriods.length);
-    // The run takes a real loss, so the loss magnitude is non-zero and
-    // gain-to-pain is defined. (Tail ratio can be NaN here because the
-    // step-price returns are mostly zeros, driving the 5th percentile to 0 —
-    // that edge case is covered precisely in return-metrics.test.ts.)
-    expect(Number.isFinite(sheet.gainToPainRatio)).toBe(true);
+    // Both trades win and the strategy is flat (no position, no mark-to-market
+    // loss) through the price drop between them, so the faithful equity curve
+    // only steps up — there are no losing daily periods. Gain-to-pain and the
+    // tail ratio are therefore undefined (NaN); their finite-value paths are
+    // covered precisely in return-metrics.test.ts.
+    expect(Number.isNaN(sheet.gainToPainRatio)).toBe(true);
     expect(typeof sheet.tailRatio).toBe("number");
     expect(typeof sheet.ulcerPerformanceIndex).toBe("number");
   });

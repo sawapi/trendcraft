@@ -95,6 +95,37 @@ export function calculateBuyingPower(capital: number, leverage: number): number 
  * // state.marginRatio === 8000 / 18000 ≈ 0.44
  * ```
  */
+/**
+ * Mark-to-market account equity: `cash + position claim − loan − interest`.
+ *
+ * The position claim is direction-signed — a long's claim is its market value,
+ * a short's is the entry proceeds plus unrealized P&L
+ * (`entryValue + (entryValue − positionValue)`), with `positionValue` the
+ * current cover cost. This is the single definition shared by
+ * {@link updateMarginState} (margin-call accounting) and the per-bar equity
+ * curve emitted by `runBacktest`, so the two never drift.
+ *
+ * @param positionValue - Current market value of the position (cover cost for shorts)
+ * @param capital - Cash not deployed in the position
+ * @param direction - Position direction (default: "long")
+ * @param entryValue - Entry notional (entry price × shares); required for shorts
+ * @param borrowedAmount - Outstanding margin loan (default 0)
+ * @param accumulatedInterest - Accrued, unsettled margin interest (default 0)
+ * @returns Mark-to-market account equity
+ */
+export function accountEquity(
+  positionValue: number,
+  capital: number,
+  direction: "long" | "short" = "long",
+  entryValue: number = positionValue,
+  borrowedAmount = 0,
+  accumulatedInterest = 0,
+): number {
+  const positionClaim =
+    direction === "short" ? entryValue + (entryValue - positionValue) : positionValue;
+  return capital + positionClaim - borrowedAmount - accumulatedInterest;
+}
+
 export function updateMarginState(
   state: MarginState,
   positionValue: number,
@@ -102,9 +133,14 @@ export function updateMarginState(
   direction: "long" | "short" = "long",
   entryValue: number = positionValue,
 ): MarginState {
-  const positionEquity =
-    direction === "short" ? entryValue + (entryValue - positionValue) : positionValue;
-  const equity = capital + positionEquity - state.borrowedAmount - state.accumulatedInterest;
+  const equity = accountEquity(
+    positionValue,
+    capital,
+    direction,
+    entryValue,
+    state.borrowedAmount,
+    state.accumulatedInterest,
+  );
   const marginRatio = positionValue > 0 ? equity / positionValue : 1.0;
 
   return {
