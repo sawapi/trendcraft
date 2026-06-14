@@ -232,7 +232,7 @@ export {
 } from "./core/normalize";
 export { getPeriodStart, parseTimeframe, resample } from "./core/resample";
 // Statistics utilities
-export { median, percentile, quartiles } from "./core/statistics";
+export { kurtosis, median, normalCdf, percentile, quartiles, skewness } from "./core/statistics";
 export type { AnalysisResult } from "./core/trendcraft";
 // Fluent API
 export { MtfStrategyBuilder, StrategyBuilder, TrendCraft, TrendCraftMtf } from "./core/trendcraft";
@@ -1055,6 +1055,10 @@ export type {
   BehaviorInsight,
   DrawdownSummary,
   EventExtractor,
+  EventHorizonStats,
+  EventStudyBaseline,
+  EventStudyOptions,
+  EventStudyResult,
   ExitReasonAnalysis,
   HitRate,
   HoldingPeriodAnalysis,
@@ -1103,6 +1107,8 @@ export {
   commonSenseRatio,
   cpcIndex,
   detectMarketRegime,
+  // Event study
+  eventStudy,
   gainToPainRatio,
   // Behavior Insights
   generateBehaviorInsights,
