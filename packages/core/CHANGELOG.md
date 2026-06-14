@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+### Added — hidden (continuation) divergence
+
+- **`detectDivergence()` now detects hidden divergence** in addition to regular
+  divergence, selected via the new `DivergenceOptions.kinds` option. Hidden
+  divergence is a continuation signal: hidden bullish is a price higher low
+  against an indicator lower low; hidden bearish is a price lower high against an
+  indicator higher high (the mirror of the regular/reversal forms).
+- Every `DivergenceSignal` now carries a `kind: "regular" | "hidden"` field
+  alongside its directional `type`. `kinds` defaults to `["regular"]`, so
+  existing callers keep getting reversal signals only; pass
+  `["regular", "hidden"]` (or `["hidden"]`) to opt into continuation signals.
+  The `obvDivergence` / `rsiDivergence` / `macdDivergence` / `cvdDivergence`
+  wrappers forward the option unchanged.
+- New `DivergenceClass` type export.
+
 ### Added — event study: `eventStudy()`
 
 - **`eventStudy(candles, events, options?)`** — measures whether a pattern

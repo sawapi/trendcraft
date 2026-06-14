@@ -10,13 +10,29 @@ import { obv } from "../indicators/volume/obv";
 import type { Candle, NormalizedCandle } from "../types";
 
 /**
+ * Divergence class.
+ *
+ * - `"regular"` — a reversal signal: price and indicator pull apart at an
+ *   extreme that the price is still extending (price lower low / indicator
+ *   higher low for bullish; price higher high / indicator lower high for
+ *   bearish).
+ * - `"hidden"` — a continuation signal seen during a pullback: the indicator
+ *   extends past its prior extreme while price holds back (price higher low /
+ *   indicator lower low for bullish; price lower high / indicator higher high
+ *   for bearish).
+ */
+export type DivergenceClass = "regular" | "hidden";
+
+/**
  * Divergence signal type
  */
 export type DivergenceSignal = {
   /** Timestamp of the divergence point (second peak/trough) */
   time: number;
-  /** Type of divergence */
+  /** Directional bias of the divergence (a buy lean vs. a sell lean) */
   type: "bullish" | "bearish";
+  /** Regular (reversal) vs. hidden (continuation) divergence */
+  kind: DivergenceClass;
   /** First peak/trough index */
   firstIdx: number;
   /** Second peak/trough index */
@@ -37,6 +53,12 @@ export type DivergenceOptions = {
   minSwingDistance?: number;
   /** Maximum bars between two peaks/troughs (default: 60) */
   maxSwingDistance?: number;
+  /**
+   * Which divergence classes to detect. Defaults to `["regular"]` so existing
+   * callers keep getting reversal signals only; pass `["regular", "hidden"]`
+   * (or `["hidden"]`) to opt into continuation signals.
+   */
+  kinds?: DivergenceClass[];
 };
 
 /**
@@ -145,13 +167,34 @@ export function macdDivergence(
 }
 
 /**
- * Generic divergence detection between price and any indicator
+ * Generic divergence detection between price and any indicator.
+ *
+ * Detects up to four divergence types, gated by {@link DivergenceOptions.kinds}:
+ * - Regular bullish (reversal): price lower low, indicator higher low
+ * - Regular bearish (reversal): price higher high, indicator lower high
+ * - Hidden bullish (continuation): price higher low, indicator lower low
+ * - Hidden bearish (continuation): price lower high, indicator higher high
+ *
+ * Each signal carries a `type` (`"bullish"`/`"bearish"` directional bias) and a
+ * `kind` (`"regular"`/`"hidden"`). Only regular divergences are detected by
+ * default.
  *
  * @param candles - Normalized candles (for timestamps)
  * @param prices - Price series (typically close prices)
  * @param indicator - Indicator series
  * @param options - Detection options
- * @returns Array of divergence signals
+ * @returns Array of divergence signals, sorted by time
+ *
+ * @example
+ * ```ts
+ * // Reversal signals only (default)
+ * const reversals = detectDivergence(candles, prices, rsiValues);
+ * // Both reversal and continuation signals
+ * const all = detectDivergence(candles, prices, rsiValues, {
+ *   kinds: ["regular", "hidden"],
+ * });
+ * const continuation = all.filter((s) => s.kind === "hidden");
+ * ```
  */
 export function detectDivergence(
   candles: NormalizedCandle[],
@@ -159,77 +202,72 @@ export function detectDivergence(
   indicator: number[],
   options: DivergenceOptions = {},
 ): DivergenceSignal[] {
-  const { swingLookback = 5, minSwingDistance = 5, maxSwingDistance = 60 } = options;
+  const {
+    swingLookback = 5,
+    minSwingDistance = 5,
+    maxSwingDistance = 60,
+    kinds = ["regular"],
+  } = options;
 
-  const results: DivergenceSignal[] = [];
-
-  // Find swing highs and lows for price
+  // Find swing highs and lows for both series once; the detector loops below
+  // reuse these pivot lists.
   const priceHighs = findSwingHighs(prices, swingLookback);
   const priceLows = findSwingLows(prices, swingLookback);
-
-  // Find swing highs and lows for indicator
   const indHighs = findSwingHighs(indicator, swingLookback);
   const indLows = findSwingLows(indicator, swingLookback);
 
-  // Detect bearish divergence (price higher high, indicator lower high)
-  for (let i = 1; i < priceHighs.length; i++) {
-    const prev = priceHighs[i - 1];
-    const curr = priceHighs[i];
+  // Required first->second pivot move directions for each (kind, type). Bearish
+  // works on peaks, bullish on troughs; `priceHigher`/`indHigher` say which way
+  // each series must move. Hidden is the mirror of regular (booleans flipped).
+  const directions: Record<
+    DivergenceClass,
+    Record<"bullish" | "bearish", { priceHigher: boolean; indHigher: boolean }>
+  > = {
+    regular: {
+      bearish: { priceHigher: true, indHigher: false }, // price higher high, ind lower high
+      bullish: { priceHigher: false, indHigher: true }, // price lower low, ind higher low
+    },
+    hidden: {
+      bearish: { priceHigher: false, indHigher: true }, // price lower high, ind higher high
+      bullish: { priceHigher: true, indHigher: false }, // price higher low, ind lower low
+    },
+  };
 
-    // Check distance constraint
-    const distance = curr.idx - prev.idx;
-    if (distance < minSwingDistance || distance > maxSwingDistance) continue;
+  const results: DivergenceSignal[] = [];
 
-    // Price makes higher high
-    if (curr.value <= prev.value) continue;
+  for (const kind of kinds) {
+    for (const type of ["bearish", "bullish"] as const) {
+      const { priceHigher, indHigher } = directions[kind][type];
+      const pricePivots = type === "bearish" ? priceHighs : priceLows;
+      const indPivots = type === "bearish" ? indHighs : indLows;
 
-    // Find corresponding indicator highs
-    const prevIndHigh = findNearestSwing(indHighs, prev.idx, swingLookback);
-    const currIndHigh = findNearestSwing(indHighs, curr.idx, swingLookback);
+      for (let i = 1; i < pricePivots.length; i++) {
+        const prev = pricePivots[i - 1];
+        const curr = pricePivots[i];
 
-    if (!prevIndHigh || !currIndHigh) continue;
+        const distance = curr.idx - prev.idx;
+        if (distance < minSwingDistance || distance > maxSwingDistance) continue;
 
-    // Indicator makes lower high (bearish divergence)
-    if (currIndHigh.value < prevIndHigh.value) {
-      results.push({
-        time: candles[curr.idx].time,
-        type: "bearish",
-        firstIdx: prev.idx,
-        secondIdx: curr.idx,
-        price: { first: prev.value, second: curr.value },
-        indicator: { first: prevIndHigh.value, second: currIndHigh.value },
-      });
-    }
-  }
+        // Price must move strictly in the required direction.
+        if (priceHigher ? curr.value <= prev.value : curr.value >= prev.value) continue;
 
-  // Detect bullish divergence (price lower low, indicator higher low)
-  for (let i = 1; i < priceLows.length; i++) {
-    const prev = priceLows[i - 1];
-    const curr = priceLows[i];
+        const prevInd = findNearestSwing(indPivots, prev.idx, swingLookback);
+        const currInd = findNearestSwing(indPivots, curr.idx, swingLookback);
+        if (!prevInd || !currInd) continue;
 
-    // Check distance constraint
-    const distance = curr.idx - prev.idx;
-    if (distance < minSwingDistance || distance > maxSwingDistance) continue;
+        // Indicator must move strictly in the (opposing) required direction.
+        if (indHigher ? currInd.value <= prevInd.value : currInd.value >= prevInd.value) continue;
 
-    // Price makes lower low
-    if (curr.value >= prev.value) continue;
-
-    // Find corresponding indicator lows
-    const prevIndLow = findNearestSwing(indLows, prev.idx, swingLookback);
-    const currIndLow = findNearestSwing(indLows, curr.idx, swingLookback);
-
-    if (!prevIndLow || !currIndLow) continue;
-
-    // Indicator makes higher low (bullish divergence)
-    if (currIndLow.value > prevIndLow.value) {
-      results.push({
-        time: candles[curr.idx].time,
-        type: "bullish",
-        firstIdx: prev.idx,
-        secondIdx: curr.idx,
-        price: { first: prev.value, second: curr.value },
-        indicator: { first: prevIndLow.value, second: currIndLow.value },
-      });
+        results.push({
+          time: candles[curr.idx].time,
+          type,
+          kind,
+          firstIdx: prev.idx,
+          secondIdx: curr.idx,
+          price: { first: prev.value, second: curr.value },
+          indicator: { first: prevInd.value, second: currInd.value },
+        });
+      }
     }
   }
 

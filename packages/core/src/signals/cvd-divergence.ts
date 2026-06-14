@@ -4,10 +4,13 @@
  * Detects divergence between price and CVD, which can signal
  * potential reversals in buying/selling pressure.
  *
- * - Bullish divergence: Price makes lower low, CVD makes higher low
- *   (hidden buying pressure despite falling price)
- * - Bearish divergence: Price makes higher high, CVD makes lower high
- *   (weakening buying pressure despite rising price)
+ * - Regular bullish: Price makes lower low, CVD makes higher low
+ *   (buying pressure building despite falling price — a reversal signal)
+ * - Regular bearish: Price makes higher high, CVD makes lower high
+ *   (buying pressure weakening despite rising price — a reversal signal)
+ *
+ * Pass `{ kinds: ["regular", "hidden"] }` to also detect hidden (continuation)
+ * divergence; see {@link detectDivergence}.
  */
 
 import { isNormalized, normalizeCandles } from "../core/normalize";

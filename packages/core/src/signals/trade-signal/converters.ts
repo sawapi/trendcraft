@@ -66,7 +66,7 @@ export function fromCrossSignal(signal: CrossSignalQuality, entryPrice?: number)
 export function fromDivergenceSignal(signal: DivergenceSignal, entryPrice?: number): TradeSignal {
   const isBullish = signal.type === "bullish";
   return {
-    id: `divergence-${signal.type}-${signal.time}`,
+    id: `divergence-${signal.kind}-${signal.type}-${signal.time}`,
     time: signal.time,
     action: isBullish ? "BUY" : "SELL",
     direction: isBullish ? "LONG" : "SHORT",
@@ -75,7 +75,7 @@ export function fromDivergenceSignal(signal: DivergenceSignal, entryPrice?: numb
     reasons: [
       {
         source: "divergence",
-        name: signal.type,
+        name: `${signal.kind} ${signal.type}`,
         detail: `price ${signal.price.first.toFixed(2)}->${signal.price.second.toFixed(2)}, indicator ${signal.indicator.first.toFixed(2)}->${signal.indicator.second.toFixed(2)}`,
       },
     ],
