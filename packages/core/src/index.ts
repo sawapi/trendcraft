@@ -1067,6 +1067,11 @@ export type {
   OmegaOptions,
   PatternProjection,
   PatternProjectionOptions,
+  RegimeAttributionOptions,
+  RegimeAttributionReport,
+  RegimeLabel,
+  RegimeStats,
+  RegimeTransition,
   ReportOptions,
   RollingOptions,
   RuntimeMetrics,
@@ -1089,6 +1094,8 @@ export {
   analyzeMarketContext,
   analyzeMfeMae,
   analyzeStreaks,
+  // Regime-conditioned attribution
+  backtestByRegime,
   calculateRuntimeMetrics,
   calculateTradeStats,
   // Return-distribution & rolling metrics
@@ -1109,6 +1116,7 @@ export {
   report,
   rollingSharpe,
   rollingVolatility,
+  sharpeFromReturns,
   tailRatio,
   winRateFromReturns,
 } from "./analysis";

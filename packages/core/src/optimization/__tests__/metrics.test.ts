@@ -5,6 +5,7 @@ import {
   annualizeReturn,
   calculateAllMetrics,
   calculateCalmarRatio,
+  calculateDailyReturns,
   calculateMAR,
   calculateRecoveryFactor,
   calculateSharpeRatio,
@@ -302,6 +303,62 @@ describe("Optimization Metrics", () => {
       expect(metrics.calmar).toBeNaN();
       expect(metrics.recoveryFactor).toBeNaN();
       expect(metrics.mar).toBeNaN();
+    });
+  });
+
+  describe("calculateDailyReturns — direction-aware mark-to-market", () => {
+    // Flat at 100, then a step down to 90: a short held across the step is in
+    // profit, a long is in loss. The interim MTM return must be signed by
+    // direction, not always treated as long.
+    const flat = (price: number, t: number): NormalizedCandle => ({
+      time: t,
+      open: price,
+      high: price + 1,
+      low: price - 1,
+      close: price,
+      volume: 1_000_000,
+    });
+    const candles: NormalizedCandle[] = [flat(100, 0), flat(100, 1), flat(90, 2), flat(90, 3)];
+
+    it("marks a short to market as a gain when the price falls", () => {
+      const result = createMockBacktestResult({
+        trades: [
+          {
+            entryTime: 0,
+            entryPrice: 100,
+            exitTime: 3,
+            exitPrice: 90,
+            return: 10_000,
+            returnPercent: 10,
+            holdingDays: 3,
+            direction: "short",
+          },
+        ],
+      });
+
+      const returns = calculateDailyReturns(result, candles, 100_000);
+      // The 100 -> 90 step (into candle index 2) is a +10% interim gain.
+      expect(returns[1]).toBeCloseTo(0.1, 12);
+    });
+
+    it("marks an otherwise-identical long to market as a loss on the same step", () => {
+      const result = createMockBacktestResult({
+        trades: [
+          {
+            entryTime: 0,
+            entryPrice: 100,
+            exitTime: 3,
+            exitPrice: 90,
+            return: -10_000,
+            returnPercent: -10,
+            holdingDays: 3,
+            direction: "long",
+          },
+        ],
+      });
+
+      const returns = calculateDailyReturns(result, candles, 100_000);
+      expect(returns[1]).toBeCloseTo(-0.1, 12);
     });
   });
 });

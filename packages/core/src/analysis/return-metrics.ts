@@ -281,6 +281,44 @@ export type RollingOptions = {
 };
 
 /**
+ * Annualised Sharpe ratio of a returns series — mean excess return over sample
+ * standard deviation (ddof = 1), scaled by `sqrt(periodsPerYear)` when
+ * annualising. The risk-free rate is de-annualised to a per-period rate and
+ * subtracted from each observation (subtracting a constant leaves the standard
+ * deviation unchanged). Returns `NaN` for fewer than two observations or a flat
+ * (zero-volatility) series, per the module's undefined-ratio convention.
+ *
+ * This is the scalar kernel shared by {@link rollingSharpe} (one call per
+ * window) and the per-regime Sharpe in `backtest-by-regime.ts`, so all three
+ * report comparable, identically-defined Sharpe values.
+ *
+ * @param returns - Periodic returns as fractions
+ * @param options - Annualisation options (`window` is ignored)
+ * @returns Annualised Sharpe ratio, or `NaN` when undefined
+ *
+ * @example
+ * ```ts
+ * import { sharpeFromReturns } from "trendcraft";
+ *
+ * const sharpe = sharpeFromReturns(dailyReturns, { periodsPerYear: 252 });
+ * ```
+ */
+export function sharpeFromReturns(returns: number[], options: RollingOptions = {}): number {
+  const { riskFree = 0, periodsPerYear = 252, annualize = true } = options;
+  if (returns.length < 2) return Number.NaN;
+
+  const sd = sampleStd(returns);
+  if (sd === 0) return Number.NaN;
+
+  const perPeriodRf = riskFree === 0 ? 0 : (1 + riskFree) ** (1 / periodsPerYear) - 1;
+  let mean = 0;
+  for (const r of returns) mean += r;
+  mean = mean / returns.length - perPeriodRf;
+
+  return (mean / sd) * (annualize ? Math.sqrt(periodsPerYear) : 1);
+}
+
+/**
  * Rolling annualised Sharpe ratio over a trailing window (quantstats
  * `rolling_sharpe`). The first `window - 1` entries are `NaN` (insufficient
  * data), so the result aligns index-for-index with `returns`. A flat window
@@ -302,18 +340,13 @@ export function rollingSharpe(returns: number[], options: RollingOptions = {}): 
   const { window = 126, riskFree = 0, periodsPerYear = 252, annualize = true } = options;
   if (window < 1) throw new Error("rollingSharpe: window must be at least 1");
 
-  const perPeriodRf = riskFree === 0 ? 0 : (1 + riskFree) ** (1 / periodsPerYear) - 1;
-  const excess = perPeriodRf === 0 ? returns : returns.map((r) => r - perPeriodRf);
-  const scale = annualize ? Math.sqrt(periodsPerYear) : 1;
-
   const out: number[] = new Array(returns.length).fill(Number.NaN);
-  for (let i = window - 1; i < excess.length; i++) {
-    const slice = excess.slice(i - window + 1, i + 1);
-    let mean = 0;
-    for (const v of slice) mean += v;
-    mean /= window;
-    const sd = sampleStd(slice);
-    out[i] = sd === 0 ? Number.NaN : (mean / sd) * scale;
+  for (let i = window - 1; i < returns.length; i++) {
+    out[i] = sharpeFromReturns(returns.slice(i - window + 1, i + 1), {
+      riskFree,
+      periodsPerYear,
+      annualize,
+    });
   }
   return out;
 }
@@ -342,8 +375,11 @@ export function rollingVolatility(returns: number[], options: RollingOptions = {
 /**
  * Geometric annualised return of a returns series (empyrical `annual_return`):
  * `prod(1 + r) ^ (periodsPerYear / n) - 1`. Returns `NaN` for an empty series.
+ *
+ * Shared by the capture ratios here and the per-regime attribution in
+ * `backtest-by-regime.ts`; not part of the public barrel.
  */
-function annualizedReturnFraction(returns: number[], periodsPerYear: number): number {
+export function annualizedReturnFraction(returns: number[], periodsPerYear: number): number {
   if (returns.length === 0) return Number.NaN;
   let ending = 1;
   for (const r of returns) ending *= 1 + r;
