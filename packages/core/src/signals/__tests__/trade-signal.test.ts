@@ -69,6 +69,7 @@ describe("fromDivergenceSignal", () => {
     const signal: DivergenceSignal = {
       time: 2000,
       type: "bullish",
+      kind: "regular",
       firstIdx: 5,
       secondIdx: 10,
       price: { first: 100, second: 95 },
@@ -85,6 +86,7 @@ describe("fromDivergenceSignal", () => {
     const signal: DivergenceSignal = {
       time: 3000,
       type: "bearish",
+      kind: "regular",
       firstIdx: 5,
       secondIdx: 10,
       price: { first: 100, second: 110 },

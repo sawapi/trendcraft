@@ -46,6 +46,7 @@ export {
 } from "./cross";
 export { cvdDivergence } from "./cvd-divergence";
 export {
+  type DivergenceClass,
   type DivergenceOptions,
   type DivergenceSignal,
   detectDivergence,

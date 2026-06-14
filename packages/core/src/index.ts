@@ -811,6 +811,7 @@ export type {
   CrossValidationOptions,
   CupHandleOptions,
   DebounceConfig,
+  DivergenceClass,
   DivergenceOptions,
   DivergenceSignal,
   DoublePatternOptions,

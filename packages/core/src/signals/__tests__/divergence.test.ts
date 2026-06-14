@@ -187,6 +187,112 @@ describe("detectDivergence", () => {
   });
 });
 
+describe("hidden divergence", () => {
+  // Build candles whose timestamps line up with a price/indicator series.
+  function candlesFor(length: number): NormalizedCandle[] {
+    return Array.from({ length }, (_, i) => createCandle(i + 1, 100));
+  }
+
+  // Two price troughs (idx 5, idx 15) where the second is a HIGHER low, paired
+  // with indicator troughs where the second is a LOWER low → hidden bullish.
+  const hiddenBullishPrice = [
+    20, 18, 16, 14, 12, 10, 12, 14, 16, 18, 20, 19, 18, 17, 16, 15, 17, 18, 19, 20, 21,
+  ];
+  const hiddenBullishInd = [
+    50, 48, 46, 44, 42, 40, 42, 44, 46, 48, 50, 48, 46, 44, 42, 38, 40, 42, 44, 46, 48,
+  ];
+
+  // Two price peaks (idx 5, idx 15) where the second is a LOWER high, paired
+  // with indicator peaks where the second is a HIGHER high → hidden bearish.
+  const hiddenBearishPrice = [
+    10, 12, 14, 16, 18, 20, 18, 16, 14, 12, 10, 11, 12, 13, 14, 15, 13, 12, 11, 10, 9,
+  ];
+  const hiddenBearishInd = [
+    40, 42, 44, 46, 48, 50, 48, 46, 44, 42, 40, 44, 46, 48, 50, 52, 50, 48, 46, 44, 42,
+  ];
+
+  const opts = { swingLookback: 2 };
+
+  it("detects hidden bullish (price higher low, indicator lower low)", () => {
+    const candles = candlesFor(hiddenBullishPrice.length);
+    const signals = detectDivergence(candles, hiddenBullishPrice, hiddenBullishInd, {
+      ...opts,
+      kinds: ["hidden"],
+    });
+
+    expect(signals).toHaveLength(1);
+    const [s] = signals;
+    expect(s.type).toBe("bullish");
+    expect(s.kind).toBe("hidden");
+    expect(s.firstIdx).toBe(5);
+    expect(s.secondIdx).toBe(15);
+    expect(s.price.second).toBeGreaterThan(s.price.first); // higher low
+    expect(s.indicator.second).toBeLessThan(s.indicator.first); // lower low
+  });
+
+  it("detects hidden bearish (price lower high, indicator higher high)", () => {
+    const candles = candlesFor(hiddenBearishPrice.length);
+    const signals = detectDivergence(candles, hiddenBearishPrice, hiddenBearishInd, {
+      ...opts,
+      kinds: ["hidden"],
+    });
+
+    expect(signals).toHaveLength(1);
+    const [s] = signals;
+    expect(s.type).toBe("bearish");
+    expect(s.kind).toBe("hidden");
+    expect(s.firstIdx).toBe(5);
+    expect(s.secondIdx).toBe(15);
+    expect(s.price.second).toBeLessThan(s.price.first); // lower high
+    expect(s.indicator.second).toBeGreaterThan(s.indicator.first); // higher high
+  });
+
+  it("does not report hidden patterns when only regular kinds are requested", () => {
+    const candles = candlesFor(hiddenBullishPrice.length);
+    expect(detectDivergence(candles, hiddenBullishPrice, hiddenBullishInd, opts)).toHaveLength(0);
+    expect(
+      detectDivergence(candles, hiddenBullishPrice, hiddenBullishInd, {
+        ...opts,
+        kinds: ["regular"],
+      }),
+    ).toHaveLength(0);
+  });
+
+  it("tags default (regular) signals with kind 'regular'", () => {
+    // Regular bullish: price lower low, indicator higher low.
+    const price = [
+      20, 18, 16, 14, 12, 10, 12, 14, 16, 18, 20, 19, 18, 17, 16, 8, 10, 12, 14, 16, 18,
+    ];
+    const ind = [
+      50, 48, 46, 44, 42, 40, 42, 44, 46, 48, 50, 49, 47, 45, 43, 42, 44, 46, 48, 50, 52,
+    ];
+    const candles = candlesFor(price.length);
+
+    const signals = detectDivergence(candles, price, ind, opts);
+    expect(signals.length).toBeGreaterThan(0);
+    for (const s of signals) {
+      expect(s.kind).toBe("regular");
+    }
+    expect(signals.some((s) => s.type === "bullish")).toBe(true);
+  });
+
+  it("returns both classes when requested", () => {
+    const candles = candlesFor(hiddenBullishPrice.length);
+    const hiddenOnly = detectDivergence(candles, hiddenBullishPrice, hiddenBullishInd, {
+      ...opts,
+      kinds: ["hidden"],
+    });
+    const both = detectDivergence(candles, hiddenBullishPrice, hiddenBullishInd, {
+      ...opts,
+      kinds: ["regular", "hidden"],
+    });
+    // This fixture has only a hidden bullish pattern, so the union equals the
+    // hidden-only result here, and every signal carries a kind.
+    expect(both).toHaveLength(hiddenOnly.length);
+    expect(both.every((s) => s.kind === "regular" || s.kind === "hidden")).toBe(true);
+  });
+});
+
 describe("rsiDivergence", () => {
   it("should return empty array for insufficient data", () => {
     const candles = [createCandle(1, 100), createCandle(2, 101)];
