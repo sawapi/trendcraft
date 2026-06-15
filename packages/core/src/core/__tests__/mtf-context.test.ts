@@ -237,6 +237,33 @@ describe("MTF look-ahead prevention", () => {
   });
 });
 
+describe("MTF timeframe aliases", () => {
+  // 2 weeks from a Monday so the last bar has a closed weekly candle.
+  const candles = createDailyCandlesFromDate(new Date("2024-01-01"), 14);
+
+  it("resolves alias and canonical spellings to the same dataset", () => {
+    const context = createMtfContext(candles, ["1w"]);
+    // Built under "1w", but a condition asking for "weekly" must still find it.
+    expect(hasMtfTimeframe(context, "weekly")).toBe(true);
+    expect(hasMtfTimeframe(context, "1w")).toBe(true);
+
+    const indexMap = buildMtfIndexMap(candles, context);
+    const last = candles.length - 1;
+    updateMtfIndices(context, indexMap, last, candles[last].time);
+
+    const viaCanonical = getMtfCandle(context, "1w");
+    const viaAlias = getMtfCandle(context, "weekly");
+    expect(viaAlias).not.toBeNull();
+    expect(viaAlias).toEqual(viaCanonical);
+  });
+
+  it("works when built with the alias and queried with the canonical form", () => {
+    const context = createMtfContext(candles, ["weekly"]);
+    expect(hasMtfTimeframe(context, "1w")).toBe(true);
+    expect(hasMtfTimeframe(context, "weekly")).toBe(true);
+  });
+});
+
 describe("getMtfCandle", () => {
   it("should retrieve candle for specified timeframe", () => {
     const startDate = new Date("2024-01-01");

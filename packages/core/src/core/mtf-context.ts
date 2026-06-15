@@ -9,6 +9,23 @@ import type { MtfContext, MtfDataset, NormalizedCandle, TimeframeShorthand } fro
 import { resample } from "./resample";
 
 /**
+ * Interchangeable timeframe spellings. The canonical form is the first member.
+ * Single source of truth for timeframe aliasing, used by both
+ * {@link normalizeTimeframe} and the context builder so a condition that asks
+ * for `"weekly"` finds data registered under `"1w"` and vice versa.
+ */
+const TF_ALIAS_GROUPS: TimeframeShorthand[][] = [
+  ["1d", "daily"],
+  ["1w", "weekly"],
+  ["1M", "monthly"],
+];
+
+/** All interchangeable spellings of a timeframe (e.g. `"1w"` -> `["1w", "weekly"]`). */
+function equivalentTimeframes(tf: TimeframeShorthand): TimeframeShorthand[] {
+  return TF_ALIAS_GROUPS.find((group) => group.includes(tf)) ?? [tf];
+}
+
+/**
  * Create an MTF context from base timeframe candles
  *
  * Generates resampled data for each requested timeframe and builds
@@ -36,14 +53,19 @@ export function createMtfContext(
   // Generate resampled data for each timeframe
   for (const tf of timeframes) {
     const resampled = resample(baseCandles, tf);
-    datasets.set(tf, {
+    const dataset: MtfDataset = {
       timeframe: tf,
       candles: resampled,
       indicators: {},
-    });
-    // -1 = no higher-timeframe candle has closed yet (set per bar by
-    // updateMtfIndices during iteration).
-    indices.set(tf, -1);
+    };
+    // Register the same dataset under every interchangeable spelling (e.g. both
+    // "1w" and "weekly") so conditions resolve regardless of which alias the
+    // caller passed in `timeframes`. -1 = no higher-timeframe candle has closed
+    // yet (set per bar by updateMtfIndices during iteration).
+    for (const key of equivalentTimeframes(tf)) {
+      datasets.set(key, dataset);
+      indices.set(key, -1);
+    }
   }
 
   return {
@@ -99,6 +121,26 @@ export function buildMtfIndexMap(
   }
 
   return indexMap;
+}
+
+/**
+ * Build an MTF context and its base→higher-timeframe index map in one step, or
+ * `undefined` when no timeframes are requested. This is the standard setup used
+ * by every per-bar consumer (backtest engine, scaled-entry simulation, stock
+ * screening), kept in one place so they stay aligned.
+ *
+ * @param candles - Base timeframe candles
+ * @param timeframes - Higher timeframes to generate (omit/empty for none)
+ * @returns `{ context, indexMap }`, or `undefined` when `timeframes` is empty
+ */
+export function buildMtfSetup(
+  candles: NormalizedCandle[],
+  timeframes: TimeframeShorthand[] | undefined,
+): { context: MtfContext; indexMap: Map<TimeframeShorthand, number[]> } | undefined {
+  if (!timeframes || timeframes.length === 0) return undefined;
+  const context = createMtfContext(candles, timeframes);
+  const indexMap = buildMtfIndexMap(candles, context);
+  return { context, indexMap };
 }
 
 /**
@@ -235,12 +277,8 @@ export function getMtfTimeframes(mtfContext: MtfContext): TimeframeShorthand[] {
  * e.g., "weekly" -> "1w", "monthly" -> "1M"
  */
 export function normalizeTimeframe(tf: TimeframeShorthand): TimeframeShorthand {
-  const aliasMap: Partial<Record<TimeframeShorthand, TimeframeShorthand>> = {
-    daily: "1d",
-    weekly: "1w",
-    monthly: "1M",
-  };
-  return aliasMap[tf] ?? tf;
+  // Canonical form is the first member of the alias group (e.g. "weekly" -> "1w").
+  return equivalentTimeframes(tf)[0];
 }
 
 /**

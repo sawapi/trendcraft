@@ -6,7 +6,7 @@
  * multiple tranches that are entered based on the configured strategy.
  */
 
-import { buildMtfIndexMap, createMtfContext, updateMtfIndices } from "../core/mtf-context";
+import { buildMtfSetup, updateMtfIndices } from "../core/mtf-context";
 import { atr } from "../indicators/volatility/atr";
 import type {
   AtrRiskOptions,
@@ -15,7 +15,6 @@ import type {
   BacktestSettings,
   Condition,
   FillMode,
-  MtfContext,
   NormalizedCandle,
   ScaledEntryConfig,
   SlTpMode,
@@ -190,13 +189,9 @@ export function runBacktestScaled(
   const indicators: Record<string, unknown> = {};
 
   // Setup MTF context if timeframes are specified
-  let mtfContext: MtfContext | undefined;
-  let mtfIndexMap: Map<TimeframeShorthand, number[]> | undefined;
-
-  if (mtfTimeframes && mtfTimeframes.length > 0) {
-    mtfContext = createMtfContext(candles, mtfTimeframes);
-    mtfIndexMap = buildMtfIndexMap(candles, mtfContext);
-  }
+  const mtfSetup = buildMtfSetup(candles, mtfTimeframes);
+  const mtfContext = mtfSetup?.context;
+  const mtfIndexMap = mtfSetup?.indexMap;
 
   // Pre-calculate ATR if ATR risk management is enabled
   let atrSeries: { time: number; value: number | null }[] | null = null;

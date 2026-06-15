@@ -1344,6 +1344,8 @@ export type {
   ScreeningSeriesPoint,
   ScreeningSeriesResult,
   ScreeningSessionResult,
+  ScreenStockOptions,
+  ScreenStockSeriesOptions,
 } from "./screening";
 // Strategy JSON Serialization
 export type {

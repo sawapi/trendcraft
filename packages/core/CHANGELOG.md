@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+### Added — MTF conditions in screening
+
+- **`screenStock` / `screenStockSafe` / `screenStockSeries` accept an
+  `mtfTimeframes` option** (and `runScreening` via `ScreeningOptions`), so
+  multi-timeframe conditions (`weeklyRsiAbove`, `mtfPriceAboveSma`, `mtfUptrend`,
+  …) can now be used in a screen. Without it, MTF conditions cannot evaluate and
+  resolve to `false` (with a warning), as before.
+- Screening builds the MTF context exactly like the backtest engine — same
+  resampling and same closed-bar alignment — so a screen and a backtest see
+  identical higher-timeframe data. New `ScreenStockOptions` /
+  `ScreenStockSeriesOptions` types are exported.
+- The MTF context now registers each timeframe under all of its interchangeable
+  spellings, so a condition built with an alias (e.g. `weeklyRsiAbove`, which
+  looks up `"weekly"`) resolves against a context requested with the canonical
+  form (`mtfTimeframes: ["1w"]`) and vice versa, instead of silently evaluating
+  `false`. This applies everywhere the shared MTF setup is used (backtest engine,
+  scaled-entry, screening).
+
 ### Fixed — MTF look-ahead bias (behavior change)
 
 - **Multi-timeframe conditions no longer see the forming higher-timeframe
