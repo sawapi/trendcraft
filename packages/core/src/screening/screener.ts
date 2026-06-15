@@ -42,6 +42,7 @@ export function runScreening(options: ScreeningOptions): ScreeningSessionResult 
     minDataPoints = 100,
     minAtrPercent,
     includeCandles = false,
+    mtfTimeframes,
     onProgress,
   } = options;
 
@@ -72,7 +73,10 @@ export function runScreening(options: ScreeningOptions): ScreeningSessionResult 
     }
 
     try {
-      const result = screenStock(stock.ticker, stock.candles, criteria, { includeCandles });
+      const result = screenStock(stock.ticker, stock.candles, criteria, {
+        includeCandles,
+        mtfTimeframes,
+      });
 
       // Check ATR% filter
       if (minAtrPercent !== undefined && result.atrPercent < minAtrPercent) {

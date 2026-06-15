@@ -7,6 +7,7 @@
 // Import all conditions for CLI name resolution
 import * as conditions from "../backtest/conditions";
 import { evaluateCondition } from "../backtest/conditions/core";
+import { buildMtfSetup, updateMtfIndices } from "../core/mtf-context";
 import { rsi } from "../indicators/momentum/rsi";
 import { calculateAtrPercent } from "../indicators/volatility/atr-filter";
 import { volumeMa } from "../indicators/volume/volume-ma";
@@ -17,6 +18,8 @@ import type {
   ScreeningResult,
   ScreeningSeriesPoint,
   ScreeningSeriesResult,
+  ScreenStockOptions,
+  ScreenStockSeriesOptions,
 } from "./types";
 
 /**
@@ -47,9 +50,9 @@ export function screenStock(
   ticker: string,
   candles: NormalizedCandle[],
   criteria: ScreeningCriteria,
-  options: { includeCandles?: boolean } = {},
+  options: ScreenStockOptions = {},
 ): ScreeningResult {
-  const { includeCandles = false } = options;
+  const { includeCandles = false, mtfTimeframes } = options;
 
   if (candles.length === 0) {
     throw new Error("No candle data");
@@ -59,12 +62,25 @@ export function screenStock(
   const lastCandle = candles[lastIndex];
   const indicators: Record<string, unknown> = {};
 
+  // Build MTF context (if requested) and align it to the latest bar.
+  const mtf = buildMtfSetup(candles, mtfTimeframes);
+  if (mtf) {
+    updateMtfIndices(mtf.context, mtf.indexMap, lastIndex, lastCandle.time);
+  }
+
   // Evaluate entry condition on latest bar
-  const entrySignal = evaluateCondition(criteria.entry, indicators, lastCandle, lastIndex, candles);
+  const entrySignal = evaluateCondition(
+    criteria.entry,
+    indicators,
+    lastCandle,
+    lastIndex,
+    candles,
+    mtf?.context,
+  );
 
   // Evaluate exit condition if provided
   const exitSignal = criteria.exit
-    ? evaluateCondition(criteria.exit, indicators, lastCandle, lastIndex, candles)
+    ? evaluateCondition(criteria.exit, indicators, lastCandle, lastIndex, candles, mtf?.context)
     : false;
 
   // Calculate ATR%
@@ -133,21 +149,36 @@ export function screenStockSeries(
   ticker: string,
   candles: NormalizedCandle[],
   criteria: ScreeningCriteria,
+  options: ScreenStockSeriesOptions = {},
 ): ScreeningSeriesResult {
+  const { mtfTimeframes } = options;
+
   // One shared indicator cache across all bars, matching the backtest engine:
   // each indicator is computed once over the full series and read by index.
   const indicators: Record<string, unknown> = {};
+  const mtf = buildMtfSetup(candles, mtfTimeframes);
   const points: ScreeningSeriesPoint[] = [];
 
   for (let index = 0; index < candles.length; index++) {
     const candle = candles[index];
+    // Advance MTF indices to this bar so conditions see only closed HTF data.
+    if (mtf) {
+      updateMtfIndices(mtf.context, mtf.indexMap, index, candle.time);
+    }
     points.push({
       index,
       time: candle.time,
       close: candle.close,
-      entrySignal: evaluateCondition(criteria.entry, indicators, candle, index, candles),
+      entrySignal: evaluateCondition(
+        criteria.entry,
+        indicators,
+        candle,
+        index,
+        candles,
+        mtf?.context,
+      ),
       exitSignal: criteria.exit
-        ? evaluateCondition(criteria.exit, indicators, candle, index, candles)
+        ? evaluateCondition(criteria.exit, indicators, candle, index, candles, mtf?.context)
         : false,
     });
   }
@@ -367,7 +398,7 @@ export function screenStockSafe(
   ticker: string,
   candles: NormalizedCandle[],
   criteria: ScreeningCriteria,
-  options: { includeCandles?: boolean } = {},
+  options: ScreenStockOptions = {},
 ): Result<ScreeningResult> {
   try {
     return ok(screenStock(ticker, candles, criteria, options));

@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { deadCross, goldenCross } from "../../backtest/conditions";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { deadCross, goldenCross, mtfPriceAboveSma } from "../../backtest/conditions";
 import type { Condition, NormalizedCandle } from "../../types";
 import {
   CONDITION_PRESETS,
@@ -184,6 +184,87 @@ describe("screenStockSeries", () => {
       ticker: "TEST",
       points: [],
     });
+  });
+});
+
+// =============================================================================
+// MTF screening
+// =============================================================================
+
+describe("MTF screening", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // Six Mon-Fri trading weeks (2024-01-01 is a Monday), steady uptrend so the
+  // weekly close climbs above its 2-week SMA once enough weeks have closed.
+  function weeklyUptrendCandles(): NormalizedCandle[] {
+    const MS_PER_DAY = 86400000;
+    const candles: NormalizedCandle[] = [];
+    let mondayStart = Date.parse("2024-01-01T00:00:00Z");
+    let price = 100;
+    for (let week = 0; week < 6; week++) {
+      for (let day = 0; day < 5; day++) {
+        price += 2;
+        candles.push({
+          time: mondayStart + day * MS_PER_DAY,
+          open: price,
+          high: price + 1,
+          low: price - 1,
+          close: price,
+          volume: 1000,
+        });
+      }
+      mondayStart += 7 * MS_PER_DAY;
+    }
+    return candles;
+  }
+
+  const weeklyCriteria = { entry: mtfPriceAboveSma("1w", 2) };
+
+  it("evaluates MTF conditions when mtfTimeframes is provided (screenStockSeries)", () => {
+    const candles = weeklyUptrendCandles();
+    const { points } = screenStockSeries("TEST", candles, weeklyCriteria, {
+      mtfTimeframes: ["1w"],
+    });
+    // In a sustained weekly uptrend, the condition fires on at least some bars.
+    expect(points.some((p) => p.entrySignal)).toBe(true);
+  });
+
+  it("cannot evaluate MTF conditions without mtfTimeframes (resolves to false)", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const candles = weeklyUptrendCandles();
+    const { points } = screenStockSeries("TEST", candles, weeklyCriteria);
+    expect(points.every((p) => p.entrySignal === false)).toBe(true);
+    expect(warn).toHaveBeenCalled();
+  });
+
+  it("evaluates MTF conditions on the latest bar (screenStock)", () => {
+    const candles = weeklyUptrendCandles();
+    const withMtf = screenStock("TEST", candles, weeklyCriteria, { mtfTimeframes: ["1w"] });
+    expect(withMtf.entrySignal).toBe(true);
+
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const withoutMtf = screenStock("TEST", candles, weeklyCriteria);
+    expect(withoutMtf.entrySignal).toBe(false);
+    expect(warn).toHaveBeenCalled();
+  });
+
+  it("latest-bar screenStock agrees with the last series point under MTF", () => {
+    const candles = weeklyUptrendCandles();
+    const latest = screenStock("TEST", candles, weeklyCriteria, { mtfTimeframes: ["1w"] });
+    const series = screenStockSeries("TEST", candles, weeklyCriteria, { mtfTimeframes: ["1w"] });
+    expect(series.points[series.points.length - 1].entrySignal).toBe(latest.entrySignal);
+  });
+
+  it("resolves a condition's alias timeframe against a canonical mtfTimeframes value", () => {
+    const candles = weeklyUptrendCandles();
+    // Condition asks for "weekly"; context is requested as the canonical "1w".
+    const aliasCriteria = { entry: mtfPriceAboveSma("weekly", 2) };
+    const { points } = screenStockSeries("TEST", candles, aliasCriteria, {
+      mtfTimeframes: ["1w"],
+    });
+    expect(points.some((p) => p.entrySignal)).toBe(true);
   });
 });
 

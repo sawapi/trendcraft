@@ -2,7 +2,7 @@
  * Screening module types
  */
 
-import type { Condition, NormalizedCandle } from "../types";
+import type { Condition, NormalizedCandle, TimeframeShorthand } from "../types";
 
 /**
  * Screening criteria defining entry and exit conditions
@@ -14,6 +14,30 @@ export type ScreeningCriteria = {
   entry: Condition;
   /** Exit condition - optional, for identifying stocks to exit */
   exit?: Condition;
+};
+
+/**
+ * Options for {@link screenStock} / {@link screenStockSafe}.
+ */
+export type ScreenStockOptions = {
+  /** Include full candle data in the result (default: false). */
+  includeCandles?: boolean;
+  /**
+   * Higher timeframes to make available to MTF conditions (e.g. `["1w"]`).
+   * Without this, MTF conditions cannot evaluate and resolve to `false`.
+   */
+  mtfTimeframes?: TimeframeShorthand[];
+};
+
+/**
+ * Options for {@link screenStockSeries}.
+ */
+export type ScreenStockSeriesOptions = {
+  /**
+   * Higher timeframes to make available to MTF conditions (e.g. `["1w"]`).
+   * Without this, MTF conditions cannot evaluate and resolve to `false`.
+   */
+  mtfTimeframes?: TimeframeShorthand[];
 };
 
 /**
@@ -84,6 +108,8 @@ export type ScreeningOptions = {
   concurrency?: number;
   /** Include full candle data in results (default: false) */
   includeCandles?: boolean;
+  /** Higher timeframes to make available to MTF conditions (e.g. `["1w"]`) */
+  mtfTimeframes?: TimeframeShorthand[];
   /** Progress callback */
   onProgress?: (processed: number, total: number, ticker: string) => void;
 };

@@ -56,4 +56,6 @@ export type {
   ScreeningSeriesPoint,
   ScreeningSeriesResult,
   ScreeningSessionResult,
+  ScreenStockOptions,
+  ScreenStockSeriesOptions,
 } from "./types";
