@@ -43,6 +43,32 @@ export type ScreeningResult = {
 };
 
 /**
+ * One bar of a time-series screen — whether the criteria matched as of that bar.
+ */
+export type ScreeningSeriesPoint = {
+  /** Index of this bar in the input candles. */
+  index: number;
+  /** Bar timestamp. */
+  time: number;
+  /** Close price at this bar. */
+  close: number;
+  /** Whether the entry condition matched as of this bar. */
+  entrySignal: boolean;
+  /** Whether the exit condition matched as of this bar (false when no exit criteria). */
+  exitSignal: boolean;
+};
+
+/**
+ * Result of screening a single stock across every bar of its history.
+ */
+export type ScreeningSeriesResult = {
+  /** Stock ticker/identifier. */
+  ticker: string;
+  /** Per-bar screen results, one entry per input candle, in chronological order. */
+  points: ScreeningSeriesPoint[];
+};
+
+/**
  * Screening session options
  */
 export type ScreeningOptions = {

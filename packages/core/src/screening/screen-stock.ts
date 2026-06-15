@@ -12,7 +12,12 @@ import { calculateAtrPercent } from "../indicators/volatility/atr-filter";
 import { volumeMa } from "../indicators/volume/volume-ma";
 import type { Condition, NormalizedCandle } from "../types";
 import { err, ok, type Result, tcError } from "../types/result";
-import type { ScreeningCriteria, ScreeningResult } from "./types";
+import type {
+  ScreeningCriteria,
+  ScreeningResult,
+  ScreeningSeriesPoint,
+  ScreeningSeriesResult,
+} from "./types";
 
 /**
  * Screen a single stock against criteria
@@ -87,6 +92,67 @@ export function screenStock(
     },
     candles: includeCandles ? candles : undefined,
   };
+}
+
+/**
+ * Screen a single stock across every bar of its history, reporting when the
+ * criteria matched as of each bar — rather than only the latest bar as
+ * {@link screenStock} does. Useful for finding *when* a stock first matched,
+ * backtesting a screen, or screening as of a past date (`result.points[i]`).
+ *
+ * Each bar is evaluated with the same per-bar condition evaluator the backtest
+ * engine uses, so the result is identical to what a backtest would see at that
+ * bar. Like the backtest engine, indicators are computed once over the full
+ * series; this is point-in-time correct for causal indicators (moving averages,
+ * RSI, …) but, for non-causal ones (e.g. Ichimoku's forward-displaced spans,
+ * swing points that need future bars to confirm), a match near the right edge
+ * can reflect data that would not yet have been known live — the same caveat
+ * that applies to backtesting.
+ *
+ * Unlike {@link screenStock}, this does not throw on empty input — it returns an
+ * empty `points` array, since a screen over zero bars is naturally empty.
+ *
+ * @param ticker - Stock ticker symbol
+ * @param candles - Normalized candle data
+ * @param criteria - Entry/exit conditions
+ * @returns Per-bar screen results, one entry per candle
+ *
+ * @example
+ * ```ts
+ * import { screenStockSeries } from "trendcraft/screening";
+ * import { goldenCross, deadCross } from "trendcraft";
+ *
+ * const { points } = screenStockSeries("6758.T", candles, {
+ *   entry: goldenCross(5, 25),
+ *   exit: deadCross(5, 25),
+ * });
+ * const entryBars = points.filter((p) => p.entrySignal);
+ * ```
+ */
+export function screenStockSeries(
+  ticker: string,
+  candles: NormalizedCandle[],
+  criteria: ScreeningCriteria,
+): ScreeningSeriesResult {
+  // One shared indicator cache across all bars, matching the backtest engine:
+  // each indicator is computed once over the full series and read by index.
+  const indicators: Record<string, unknown> = {};
+  const points: ScreeningSeriesPoint[] = [];
+
+  for (let index = 0; index < candles.length; index++) {
+    const candle = candles[index];
+    points.push({
+      index,
+      time: candle.time,
+      close: candle.close,
+      entrySignal: evaluateCondition(criteria.entry, indicators, candle, index, candles),
+      exitSignal: criteria.exit
+        ? evaluateCondition(criteria.exit, indicators, candle, index, candles)
+        : false,
+    });
+  }
+
+  return { ticker, points };
 }
 
 // ============================================

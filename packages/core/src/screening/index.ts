@@ -41,6 +41,7 @@ export {
   getAvailableConditions,
   screenStock,
   screenStockSafe,
+  screenStockSeries,
 } from "./screen-stock";
 // Node.js-only functions (require fs)
 export { runScreening, runScreeningSafe } from "./screener";
@@ -52,5 +53,7 @@ export type {
   ScreeningCriteria,
   ScreeningOptions,
   ScreeningResult,
+  ScreeningSeriesPoint,
+  ScreeningSeriesResult,
   ScreeningSessionResult,
 } from "./types";

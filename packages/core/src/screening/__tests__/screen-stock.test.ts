@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
+import { deadCross, goldenCross } from "../../backtest/conditions";
 import type { Condition, NormalizedCandle } from "../../types";
 import {
   CONDITION_PRESETS,
   createCriteriaFromNames,
   getAvailableConditions,
   screenStock,
+  screenStockSeries,
 } from "../screen-stock";
 
 // =============================================================================
@@ -118,6 +120,70 @@ describe("screenStock", () => {
     const candles = createTestCandles(30);
     const result = screenStock("TEST", candles, { entry: alwaysTrue });
     expect(result.timestamp).toBe(candles[candles.length - 1].time);
+  });
+});
+
+// =============================================================================
+// screenStockSeries
+// =============================================================================
+
+describe("screenStockSeries", () => {
+  it("returns one point per candle, echoing the ticker and bar metadata", () => {
+    const candles = createTestCandles(30);
+    const { ticker, points } = screenStockSeries("TEST", candles, { entry: alwaysTrue });
+    expect(ticker).toBe("TEST");
+    expect(points).toHaveLength(candles.length);
+    points.forEach((p, i) => {
+      expect(p.index).toBe(i);
+      expect(p.time).toBe(candles[i].time);
+      expect(p.close).toBe(candles[i].close);
+    });
+  });
+
+  it("evaluates the entry condition at every bar", () => {
+    const candles = createTestCandles(30);
+    expect(
+      screenStockSeries("TEST", candles, { entry: alwaysTrue }).points.every((p) => p.entrySignal),
+    ).toBe(true);
+    expect(
+      screenStockSeries("TEST", candles, { entry: alwaysFalse }).points.some((p) => p.entrySignal),
+    ).toBe(false);
+  });
+
+  it("reflects per-bar data, not just the latest bar", () => {
+    const candles = createTestCandles(30); // close oscillates around 100
+    const aboveHundred: Condition = (_ind, candle) => candle.close > 100;
+    const { points } = screenStockSeries("TEST", candles, { entry: aboveHundred });
+    // Each bar's signal matches that bar's own close, and both states occur.
+    points.forEach((p, i) => {
+      expect(p.entrySignal).toBe(candles[i].close > 100);
+    });
+    expect(points.some((p) => p.entrySignal)).toBe(true);
+    expect(points.some((p) => !p.entrySignal)).toBe(true);
+  });
+
+  it("reports exitSignal=false at every bar when no exit criteria", () => {
+    const candles = createTestCandles(30);
+    const { points } = screenStockSeries("TEST", candles, { entry: alwaysTrue });
+    expect(points.every((p) => p.exitSignal === false)).toBe(true);
+  });
+
+  it("agrees with screenStock on the latest bar (faithful generalization)", () => {
+    const candles = createTestCandles(60);
+    const criteria = { entry: goldenCross(5, 25), exit: deadCross(5, 25) };
+    const series = screenStockSeries("TEST", candles, criteria);
+    const latest = screenStock("TEST", candles, criteria);
+    const last = series.points[series.points.length - 1];
+    expect(last.index).toBe(candles.length - 1);
+    expect(last.entrySignal).toBe(latest.entrySignal);
+    expect(last.exitSignal).toBe(latest.exitSignal);
+  });
+
+  it("returns an empty point list for empty candles", () => {
+    expect(screenStockSeries("TEST", [], { entry: alwaysTrue })).toEqual({
+      ticker: "TEST",
+      points: [],
+    });
   });
 });
 
