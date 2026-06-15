@@ -1426,8 +1426,11 @@ export {
   alignAndNormalize,
   alignSeries,
   filterSeries,
+  firstValidIndex,
   mapSeries,
   normalizeToPercent,
+  trimWarmup,
+  warmupBars,
   zipSeries,
 } from "./utils/series";
 export type {

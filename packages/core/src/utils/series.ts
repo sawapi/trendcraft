@@ -7,6 +7,103 @@
 
 import type { Series } from "../types";
 
+// ---------------------------------------------------------------------------
+// Warmup detection
+//
+// TrendCraft indicators emit a value for every input candle, using `null`
+// during the warmup region before the indicator has seen enough data. These
+// helpers report (or strip) that region by reading the actual output, rather
+// than a hand-maintained per-indicator lookback formula that would duplicate
+// the logic inside each indicator and drift from it.
+//
+// For scalar `number | null` series — the large majority of indicators (moving
+// averages, RSI, ATR, ROC, …) — a warmup bar is unambiguously `null` (or a
+// non-finite number), and that is the default test. For object-valued outputs
+// there is NO reliable generic rule: a `null` field can mean "still warming up"
+// (Bollinger Bands) OR a normal post-warmup state (`swingPoints` leaves
+// `swingHighPrice` null between swings), and some indicators even use non-null
+// sentinels while warming up (Supertrend emits `direction: 0`). Only the
+// indicator's own semantics can resolve this, so the overloads below REQUIRE an
+// explicit validity predicate for non-scalar series — the caller names the field
+// that marks a real value (e.g. `(v) => v.macd !== null`).
+//
+// These read warmup from a computed series; they do not give an a-priori bar
+// count without first running the indicator.
+// ---------------------------------------------------------------------------
+
+/** Default validity for scalar series: a finite, non-null number. */
+const isFiniteNumber = (value: unknown): boolean =>
+  typeof value === "number" && Number.isFinite(value);
+
+/**
+ * Index of the first valid (non-warmup) value in a series, or `-1` if every
+ * value is a warmup placeholder. The TrendCraft analogue of TA-Lib's
+ * `*_Lookback()`, but read from the actual output so it never drifts from the
+ * indicator implementation.
+ *
+ * Scalar (`number | null`) series use the default test (a finite number).
+ * Object-valued series must supply `isValid` naming what counts as a real value.
+ *
+ * @example
+ * ```ts
+ * import { sma, macd, firstValidIndex } from "trendcraft";
+ *
+ * firstValidIndex(sma(candles, { period: 20 })); // 19 — valid from period - 1
+ * // Object output: name the field(s) that mark a real value.
+ * firstValidIndex(macd(candles), (v) => v.macd !== null);
+ * ```
+ */
+export function firstValidIndex(series: Series<number | null>): number;
+export function firstValidIndex<T>(series: Series<T>, isValid: (value: T) => boolean): number;
+export function firstValidIndex<T>(
+  series: Series<T>,
+  isValid: (value: T) => boolean = isFiniteNumber,
+): number {
+  for (let i = 0; i < series.length; i++) {
+    if (isValid(series[i].value)) return i;
+  }
+  return -1;
+}
+
+/**
+ * Number of leading warmup bars in a series — the count of placeholder values
+ * before the first valid one. Equals {@link firstValidIndex} when a valid value
+ * exists, or the full series length when the indicator never warms up on this
+ * data (too few bars). See {@link firstValidIndex} for the scalar-vs-object rule.
+ *
+ * @example
+ * ```ts
+ * import { rsi, warmupBars } from "trendcraft";
+ *
+ * warmupBars(rsi(candles, { period: 14 })); // 14
+ * ```
+ */
+export function warmupBars(series: Series<number | null>): number;
+export function warmupBars<T>(series: Series<T>, isValid: (value: T) => boolean): number;
+export function warmupBars<T>(
+  series: Series<T>,
+  isValid: (value: T) => boolean = isFiniteNumber,
+): number {
+  const idx = firstValidIndex(series, isValid);
+  return idx === -1 ? series.length : idx;
+}
+
+/**
+ * Drop the leading warmup region, returning the series from its first valid
+ * value onward (empty if the indicator never warms up). Useful when feeding
+ * indicator output into logic that should not see warmup placeholders, such as
+ * per-bar screening. See {@link firstValidIndex} for the scalar-vs-object rule.
+ */
+export function trimWarmup<V extends number | null>(series: Series<V>): Series<V>;
+export function trimWarmup<T>(series: Series<T>, isValid: (value: T) => boolean): Series<T>;
+export function trimWarmup<T>(
+  series: Series<T>,
+  isValid: (value: T) => boolean = isFiniteNumber,
+): Series<T> {
+  const idx = firstValidIndex(series, isValid);
+  return idx === -1 ? [] : series.slice(idx);
+}
+
 /**
  * Combine two series by aligning on timestamp and applying a merge function.
  * Only produces output for timestamps that exist in both series.

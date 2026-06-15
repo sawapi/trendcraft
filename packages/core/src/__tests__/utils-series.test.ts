@@ -1,6 +1,21 @@
 import { describe, expect, it } from "vitest";
-import type { Series } from "../types";
-import { alignSeries, filterSeries, mapSeries, zipSeries } from "../utils/series";
+import { macd } from "../indicators/momentum/macd";
+import { rsi } from "../indicators/momentum/rsi";
+import { ema } from "../indicators/moving-average/ema";
+import { sma } from "../indicators/moving-average/sma";
+import { swingPoints } from "../indicators/price/swing-points";
+import { atr } from "../indicators/volatility/atr";
+import { bollingerBands } from "../indicators/volatility/bollinger-bands";
+import type { NormalizedCandle, Series } from "../types";
+import {
+  alignSeries,
+  filterSeries,
+  firstValidIndex,
+  mapSeries,
+  trimWarmup,
+  warmupBars,
+  zipSeries,
+} from "../utils/series";
 
 describe("zipSeries", () => {
   it("should merge two series by aligned timestamps", () => {
@@ -150,5 +165,124 @@ describe("alignSeries", () => {
       { time: 1, value: null },
       { time: 2, value: null },
     ]);
+  });
+});
+
+describe("warmup detection", () => {
+  // 60 candles with a varied (non-flat) price so momentum indicators warm up.
+  const candles: NormalizedCandle[] = Array.from({ length: 60 }, (_, i) => {
+    const close = 100 + Math.sin(i / 5) * 10;
+    return {
+      time: 1700000000 + i * 86400,
+      open: close,
+      high: close + 1,
+      low: close - 1,
+      close,
+      volume: 1000,
+    };
+  });
+
+  describe("firstValidIndex", () => {
+    it("matches the known warmup of period-based indicators (scalar output)", () => {
+      expect(firstValidIndex(sma(candles, { period: 3 }))).toBe(2); // period - 1
+      expect(firstValidIndex(sma(candles, { period: 20 }))).toBe(19);
+      expect(firstValidIndex(ema(candles, { period: 3 }))).toBe(2);
+      expect(firstValidIndex(rsi(candles, { period: 14 }))).toBe(14);
+      expect(firstValidIndex(atr(candles, { period: 14 }))).toBe(14);
+    });
+
+    it("resolves an object-valued indicator's warmup via a field predicate", () => {
+      const bb = bollingerBands(candles, { period: 20 });
+      // Name the basis (middle) band as the marker of a real value.
+      const idx = firstValidIndex(bb, (v) => v.middle !== null);
+      expect(idx).toBe(19); // period - 1, same as the underlying SMA
+      expect(bb[idx - 1].value.middle).toBeNull();
+      expect(bb[idx].value.middle).not.toBeNull();
+    });
+
+    it("lets the predicate choose which component defines validity (MACD)", () => {
+      const m = macd(candles);
+      // The MACD line warms up before the signal line, so requiring the signal
+      // too pushes the warmup boundary later.
+      const lineIdx = firstValidIndex(m, (v) => v.macd !== null);
+      const fullIdx = firstValidIndex(m, (v) => v.macd !== null && v.signal !== null);
+      expect(m[lineIdx].value.macd).not.toBeNull();
+      expect(fullIdx).toBeGreaterThan(lineIdx);
+    });
+
+    it("handles event-style outputs with semantic nulls via a predicate", () => {
+      // swingPoints emits boolean flags from the first bar; swingHighPrice /
+      // swingLowPrice stay null until a swing prints. There is no generic rule
+      // for this — the caller names what a real value means.
+      const sp = swingPoints(candles, { leftBars: 2, rightBars: 2 });
+      // "Any output at all" — emitted from the first bar.
+      expect(firstValidIndex(sp, () => true)).toBe(0);
+      // "First actual swing" — a later, data-driven bar.
+      const firstSwing = firstValidIndex(sp, (v) => v.isSwingHigh || v.isSwingLow);
+      expect(firstSwing).toBeGreaterThan(0);
+    });
+
+    it("requires an explicit predicate for object-valued series (compile-time)", () => {
+      // Object value cannot use the scalar default; omitting the predicate is a
+      // type error, which prevents silently-wrong warmup for these shapes.
+      const guard = () =>
+        // @ts-expect-error object-valued series requires a validity predicate
+        firstValidIndex(bollingerBands(candles, { period: 20 }));
+      expect(typeof guard).toBe("function");
+    });
+
+    it("returns -1 when nothing is ever valid", () => {
+      const allNull: Series<number | null> = [
+        { time: 1, value: null },
+        { time: 2, value: null },
+      ];
+      expect(firstValidIndex(allNull)).toBe(-1);
+    });
+
+    it("treats NaN and Infinity as warmup placeholders", () => {
+      const s: Series<number> = [
+        { time: 1, value: Number.NaN },
+        { time: 2, value: Number.POSITIVE_INFINITY },
+        { time: 3, value: 42 },
+      ];
+      expect(firstValidIndex(s)).toBe(2);
+    });
+  });
+
+  describe("warmupBars", () => {
+    it("counts the leading warmup region", () => {
+      expect(warmupBars(sma(candles, { period: 20 }))).toBe(19);
+    });
+
+    it("equals the series length when the indicator never warms up", () => {
+      const short = candles.slice(0, 5);
+      const s = sma(short, { period: 20 });
+      expect(warmupBars(s)).toBe(s.length);
+    });
+  });
+
+  describe("trimWarmup", () => {
+    it("drops the warmup region and keeps valid bars", () => {
+      const s = sma(candles, { period: 20 });
+      const trimmed = trimWarmup(s);
+      expect(trimmed).toHaveLength(s.length - 19);
+      expect(trimmed[0].value).not.toBeNull();
+      expect(trimmed[0].time).toBe(s[19].time);
+    });
+
+    it("returns an empty series when nothing is valid", () => {
+      const s = sma(candles.slice(0, 5), { period: 20 });
+      expect(trimWarmup(s)).toEqual([]);
+    });
+
+    it("preserves the element type of a non-null numeric series (compile-time)", () => {
+      const s: Series<number> = [
+        { time: 1, value: 1 },
+        { time: 2, value: 2 },
+      ];
+      // Must stay Series<number>, not widen to Series<number | null>.
+      const trimmed: Series<number> = trimWarmup(s);
+      expect(trimmed).toHaveLength(2);
+    });
   });
 });
