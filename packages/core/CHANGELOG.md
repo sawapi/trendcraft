@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+### Added — warmup detection helpers
+
+- **`firstValidIndex(series)` / `warmupBars(series)` / `trimWarmup(series)`** —
+  series utilities that report (or strip) an indicator's warmup region by reading
+  the actual output: the index of the first valid value, the count of leading
+  warmup placeholders, and the series with that region removed. The TrendCraft
+  analogue of TA-Lib's `*_Lookback()`, but derived from the output rather than a
+  hand-maintained per-indicator formula, so it stays correct for option-dependent
+  warmups (e.g. `sma({ period })`) without drifting from the implementations.
+- For scalar `number | null` series (moving averages, RSI, ATR, …) a warmup bar
+  is simply `null`/non-finite, which is the default. Object-valued outputs have
+  no reliable generic warmup rule — a null field can mean "warming up" (Bollinger
+  Bands) or a normal state (`swingPoints` between swings), and some use non-null
+  sentinels while warming up — so the typed overloads **require an explicit
+  validity predicate** for non-scalar series (e.g.
+  `firstValidIndex(macd(c), (v) => v.macd !== null)`), making the per-indicator
+  semantics the caller's choice instead of an unsafe guess.
+
 ### Added — S/R zone clustering multi-restart
 
 - **`srZones()` / `srZonesSeries()` accept a `restarts` option** (default `1`):
