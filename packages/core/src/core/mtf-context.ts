@@ -41,7 +41,9 @@ export function createMtfContext(
       candles: resampled,
       indicators: {},
     });
-    indices.set(tf, 0);
+    // -1 = no higher-timeframe candle has closed yet (set per bar by
+    // updateMtfIndices during iteration).
+    indices.set(tf, -1);
   }
 
   return {
@@ -71,21 +73,26 @@ export function buildMtfIndexMap(
     const higherCandles = dataset.candles;
     const indices: number[] = [];
 
-    let higherIdx = 0;
+    let containingIdx = 0;
 
     for (let baseIdx = 0; baseIdx < baseCandles.length; baseIdx++) {
       const baseTime = baseCandles[baseIdx].time;
 
-      // Find the higher timeframe candle that contains this base candle
-      // Move forward until we find a candle that starts after the base candle
+      // Advance to the higher-timeframe candle that CONTAINS this base candle:
+      // the last one whose period has started at or before the base bar.
       while (
-        higherIdx < higherCandles.length - 1 &&
-        higherCandles[higherIdx + 1].time <= baseTime
+        containingIdx < higherCandles.length - 1 &&
+        higherCandles[containingIdx + 1].time <= baseTime
       ) {
-        higherIdx++;
+        containingIdx++;
       }
 
-      indices.push(higherIdx);
+      // Expose only the last CLOSED higher-timeframe candle. The containing
+      // candle's period has not ended yet at this base bar, so its OHLC (built
+      // from the whole period, including bars still in the future) would leak
+      // look-ahead information. Point one bar back instead; -1 means no
+      // higher-timeframe candle has closed yet.
+      indices.push(containingIdx - 1);
     }
 
     indexMap.set(tf, indices);
@@ -133,7 +140,8 @@ export function getMtfCandle(
   const dataset = mtfContext.datasets.get(timeframe);
   const index = mtfContext.indices.get(timeframe);
 
-  if (!dataset || index === undefined) {
+  // index < 0 means no higher-timeframe candle has closed yet at this bar.
+  if (!dataset || index === undefined || index < 0) {
     return null;
   }
 
@@ -195,7 +203,8 @@ export function getCurrentMtfIndicatorValue<T>(
   const dataset = mtfContext.datasets.get(timeframe);
   const index = mtfContext.indices.get(timeframe);
 
-  if (!dataset || index === undefined) {
+  // index < 0 means no higher-timeframe candle has closed yet at this bar.
+  if (!dataset || index === undefined || index < 0) {
     return null;
   }
 

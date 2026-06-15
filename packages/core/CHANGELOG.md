@@ -2,6 +2,25 @@
 
 ## [Unreleased]
 
+### Fixed — MTF look-ahead bias (behavior change)
+
+- **Multi-timeframe conditions no longer see the forming higher-timeframe
+  candle.** The base→higher-timeframe index map pointed each base bar at the
+  higher-timeframe candle *containing* it, but a resampled candle carries the
+  whole period's OHLC (built from bars still in the future relative to a base bar
+  mid-period), so e.g. on Monday a `weekly` condition could already read that
+  week's Friday close. The map now points at the last **closed** higher-timeframe
+  candle (`-1` until one has closed), matching the established convention that a
+  higher-timeframe bar becomes visible only after it closes.
+- This is a correctness fix that **changes existing MTF backtest results**: MTF
+  conditions (`weeklyRsiAbove`, `mtfPriceAboveSma`, `mtfUptrend`, …) now evaluate
+  against the prior completed higher-timeframe bar and return `false` early in
+  the series until the first higher-timeframe bar has closed. `getMtfCandle` /
+  `getCurrentMtfIndicatorValue` return `null` during that initial window.
+- Streaming MTF (`createStreamingMtf`) was already correct — it only feeds closed
+  candles to indicators and builds the in-progress bar incrementally from bars
+  already seen — and is unchanged.
+
 ### Added — time-series screening
 
 - **`screenStockSeries(ticker, candles, criteria)`** — screens a stock across

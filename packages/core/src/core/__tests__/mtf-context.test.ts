@@ -188,6 +188,55 @@ describe("updateMtfIndices", () => {
   });
 });
 
+describe("MTF look-ahead prevention", () => {
+  // Two trading weeks, Mon-Fri (2024-01-01 is a Monday). Distinct weekly
+  // closes so a leak is unmistakable: week 1 closes at 15, week 2 at 25.
+  function week(mondayIso: string, closes: number[]): NormalizedCandle[] {
+    const start = Date.parse(`${mondayIso}T00:00:00Z`);
+    const MS_PER_DAY = 86400000;
+    return closes.map((close, i) => ({
+      time: start + i * MS_PER_DAY,
+      open: close,
+      high: close + 0.5,
+      low: close - 0.5,
+      close,
+      volume: 1000,
+    }));
+  }
+
+  const candles = [
+    ...week("2024-01-01", [11, 12, 13, 14, 15]),
+    ...week("2024-01-08", [21, 22, 23, 24, 25]),
+  ];
+
+  it("exposes only the last closed higher-timeframe candle, never the forming one", () => {
+    const context = createMtfContext(candles, ["1w"]);
+    const indexMap = buildMtfIndexMap(candles, context);
+
+    const visibleCloses = candles.map((c, i) => {
+      updateMtfIndices(context, indexMap, i, c.time);
+      return getMtfCandle(context, "1w")?.close ?? null;
+    });
+
+    // Week 1 (indices 0-4): no week has closed yet -> null. Critically NOT 15
+    // (week 1's own Friday close), which the forming weekly bar already knows.
+    expect(visibleCloses.slice(0, 5)).toEqual([null, null, null, null, null]);
+    // Week 2 (indices 5-9): the only closed week is week 1 -> 15. Never 25
+    // (week 2's own close), which lies in the future during week 2.
+    expect(visibleCloses.slice(5, 10)).toEqual([15, 15, 15, 15, 15]);
+  });
+
+  it("returns null from value getters while no higher-timeframe candle has closed", () => {
+    const context = createMtfContext(candles, ["1w"]);
+    const indexMap = buildMtfIndexMap(candles, context);
+
+    // First bar of the dataset: no closed weekly candle exists yet.
+    updateMtfIndices(context, indexMap, 0, candles[0].time);
+    expect(getMtfCandle(context, "1w")).toBeNull();
+    expect(context.indices.get("1w")).toBe(-1);
+  });
+});
+
 describe("getMtfCandle", () => {
   it("should retrieve candle for specified timeframe", () => {
     const startDate = new Date("2024-01-01");
