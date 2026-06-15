@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+### Added — time-series screening
+
+- **`screenStockSeries(ticker, candles, criteria)`** — screens a stock across
+  every bar of its history, returning the entry/exit signal as of each bar,
+  rather than only the latest bar like `screenStock`. Useful for finding *when* a
+  stock first matched a screen, backtesting a screen, or screening as of a past
+  date (`result.points[i]`). Returns `{ ticker, points }` with one
+  `ScreeningSeriesPoint` (`index`, `time`, `close`, `entrySignal`, `exitSignal`)
+  per candle.
+- It evaluates each bar with the same per-bar condition evaluator the backtest
+  engine uses, so its latest-bar result matches `screenStock` and its per-bar
+  results match what a backtest sees. Indicators are computed once over the full
+  series; as with backtesting, that is point-in-time correct for causal
+  indicators but can look ahead near the right edge for non-causal ones
+  (forward-displaced Ichimoku spans, swing points that need future bars).
+
 ### Added — warmup detection helpers
 
 - **`firstValidIndex(series)` / `warmupBars(series)` / `trimWarmup(series)`** —

@@ -793,6 +793,7 @@ export {
   getAvailableConditions,
   screenStock,
   screenStockSafe,
+  screenStockSeries,
 } from "./screening/screen-stock";
 export type {
   // Candlestick Pattern types
@@ -1340,6 +1341,8 @@ export type {
   ScreeningCriteria,
   ScreeningOptions,
   ScreeningResult,
+  ScreeningSeriesPoint,
+  ScreeningSeriesResult,
   ScreeningSessionResult,
 } from "./screening";
 // Strategy JSON Serialization
