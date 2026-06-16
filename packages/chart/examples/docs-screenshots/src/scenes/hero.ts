@@ -1,10 +1,11 @@
 /**
- * Hero screenshot — NVDA daily (4y) with a 3-SMA ribbon.
- * Base: mountain — reads better than candles at 1000+ bar density and
- * gives the library a clean, modern first impression.
+ * Hero screenshot — a clean, legible candlestick beauty shot.
  *
- * Indicators are registered via connectIndicators so each SMA gets its
- * own label (SMA(5), SMA(20), SMA(60)) and an auto-cycled color.
+ * Deliberately minimal: a recent ~170-bar window so individual candles read
+ * as candles (not a blur), one Bollinger Bands envelope, and a single SMA(50)
+ * trend line. Volume sits in its own pane by default. The busy multi-pane
+ * indicator story (RSI + MACD + ribbon) lives in the auto-detection scene —
+ * the hero is the first impression, so it stays uncluttered.
  */
 
 import type { CandleData } from "@trendcraft/chart";
@@ -13,23 +14,24 @@ import { registerTrendCraftPresets } from "@trendcraft/chart/presets";
 import { indicatorPresets } from "trendcraft";
 
 export function run(stage: HTMLElement, candles: CandleData[]): void {
+  // Show a recent window so candles are readable at hero width instead of
+  // collapsing into a fuzzy band of 1000+ thin wicks.
+  const recent = candles.slice(-170);
+
   const chart = createChart(stage, {
     theme: "dark",
     animationDuration: 0,
     fontFamily: '"Helvetica Neue", Arial, sans-serif',
-    chartType: "mountain",
+    chartType: "candlestick",
   });
   registerTrendCraftPresets(chart);
-  chart.setCandles(candles);
+  chart.setCandles(recent);
 
-  const conn = connectIndicators(chart, { presets: indicatorPresets, candles });
-  // Core v0.2.0+ emits parameterized labels and the chart auto-cycles colors
-  // across multi-instance presets, so no manual overrides are needed here.
-  conn.add("sma", { period: 5 });
-  conn.add("sma", { period: 20 });
-  conn.add("sma", { period: 60 });
-  conn.add("rsi", { period: 14 });
-  conn.add("macd");
+  const conn = connectIndicators(chart, { presets: indicatorPresets, candles: recent });
+  // One cohesive overlay (band) + one trend line keeps the price pane calm.
+  // Keys are the canonical `indicatorPresets` ids (`bb`, not the `bollingerBands` alias).
+  conn.add("bb");
+  conn.add("sma", { period: 50 });
 
   chart.fitContent();
 }
