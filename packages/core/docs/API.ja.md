@@ -236,8 +236,8 @@ const custom = emaRibbon(candles, { periods: [8, 13, 21, 34, 55], source: 'close
 ```typescript
 interface EmaRibbonValue {
   values: (number | null)[];  // 各EMAの値
-  bullish: boolean;           // 短期EMA>長期EMA順で整列
-  expanding: boolean;         // スプレッド拡大中
+  bullish: boolean | null;    // 短期EMA>長期EMA順で整列（warmup中はnull）
+  expanding: boolean | null;  // スプレッド拡大中（warmup中はnull）
 }
 ```
 
@@ -1102,8 +1102,8 @@ const custom = weisWave(candles, { method: 'close', threshold: 0 });
 
 ```typescript
 interface WeisWaveValue {
-  waveVolume: number;   // 波動の累積ボリューム
-  direction: 1 | -1;   // 波動の方向（1=上昇, -1=下降）
+  waveVolume: number;          // 波動の累積ボリューム
+  direction: "up" | "down";    // 波動の方向
 }
 ```
 
@@ -1133,10 +1133,10 @@ const custom = marketProfile(candles, {
 
 ```typescript
 interface MarketProfileValue {
-  poc: number;              // Point of Control（最頻出価格帯）
-  valueAreaHigh: number;    // Value Area上限
-  valueAreaLow: number;     // Value Area下限
-  profile: Map<number, number>;  // 価格帯ごとのTPOカウント
+  poc: number | null;              // Point of Control（最頻出価格帯）
+  valueAreaHigh: number | null;    // Value Area上限
+  valueAreaLow: number | null;     // Value Area下限
+  profile: Map<number, number> | null;  // 価格帯ごとのTPOカウント
 }
 ```
 
@@ -1989,29 +1989,32 @@ type TrendReason =
 #### レンジ相場条件（バックテスト用）
 
 ```typescript
-// レンジブレイクアウトでエントリー
-rangeBreakout()
-
-// レンジ相場ではない時のみエントリー（フィルター）
-notInRange()
-
-// レンジ形成中にイグジット
-rangeForming()
-
-// レンジ確定中にのみエントリー
+// レンジ状態（任意のレンジ）
 inRangeBound()
 
-// 上方ブレイクアウトリスク
-breakoutRiskUp()
+// レンジ形成中
+rangeForming()
 
-// 下方ブレイクアウトリスク
-breakoutRiskDown()
+// レンジ確定
+rangeConfirmed()
+
+// レンジからトレンドへの転換（ブレイクアウト）
+rangeBreakout()
 
 // タイトレンジ検出
 tightRange()
 
-// トレンド中
-isTrending()
+// 上方ブレイクアウトリスク（上限付近）
+breakoutRiskUp()
+
+// 下方ブレイクアウトリスク（下限付近）
+breakoutRiskDown()
+
+// レンジスコアが閾値超
+rangeScoreAbove(70)
+
+// レンジ相場ではない時のみ（フィルター）
+not(inRangeBound())
 ```
 
 ---
@@ -3814,19 +3817,16 @@ Period 3: Train 2015-01-01〜2019-12-31 → Test 2020
 interface AWFResult {
   periods: AWFPeriod[];
   aggregateMetrics: {
-    avgInSampleSharpe: number;
-    avgOutOfSampleSharpe: number;
-    avgInSampleReturn: number;
-    avgOutOfSampleReturn: number;
-    stabilityRatio: number;      // OOS / IS Sharpe 比率
-    consistency: number;         // プラスリターン期間の割合
+    avgInSample: Record<OptimizationMetric, number>;
+    avgOutOfSample: Record<OptimizationMetric, number>;
+    stabilityRatio: number;      // OOS / IS パフォーマンス比率
+    oosReturnStdDev: number;     // OOS リターンのボラティリティ
   };
   stabilityAnalysis: {
-    entryConditionFrequency: Record<string, number>;
-    exitConditionFrequency: Record<string, number>;
-    stableEntryConditions: string[];  // 50%以上で選択
+    conditionFrequency: Record<string, number>;  // 条件の出現率（%）
+    stableEntryConditions: string[];   // 50%超の期間で出現
     stableExitConditions: string[];
-    consistencyScore: number;         // 0-100
+    consistencyScore: number;          // 0-100
   };
   recommendation: {
     useOptimized: boolean;
@@ -3840,8 +3840,10 @@ interface AWFPeriod {
   periodNumber: number;
   trainStart: number;
   trainEnd: number;
+  trainCandleCount: number;
   testStart: number;
   testEnd: number;
+  testCandleCount: number;
   bestEntryConditions: string[];
   bestExitConditions: string[];
   inSampleMetrics: Record<OptimizationMetric, number>;
