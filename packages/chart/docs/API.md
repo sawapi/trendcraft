@@ -595,7 +595,7 @@ import {
   DataLayer, TimeScale, PriceScale, LayoutEngine, Viewport,
   SeriesRegistry, RendererRegistry,
   DrawHelper,
-  introspect, IndicatorPreset, INDICATOR_PRESETS,
+  introspect, type IndicatorPreset, INDICATOR_PRESETS,
   lttb, decimateCandles, getDecimationTarget,
   autoFormatPrice, autoFormatTime, formatCrosshairTime, formatVolume,
   detectPrecision, fixedPriceFormatter,

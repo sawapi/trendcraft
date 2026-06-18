@@ -220,6 +220,72 @@ export function defineIndicator(presetId: string, options?: AddIndicatorOptions)
   return { presetId, options };
 }
 
+/** Iterative Levenshtein distance (single-row DP). */
+function levenshtein(a: string, b: string): number {
+  if (a === b) return 0;
+  if (a.length === 0) return b.length;
+  if (b.length === 0) return a.length;
+  let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    const curr = [i];
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      curr[j] = Math.min(curr[j - 1] + 1, prev[j] + 1, prev[j - 1] + cost);
+    }
+    prev = curr;
+  }
+  return prev[b.length];
+}
+
+/**
+ * Suggest the closest registered preset id for an unknown `id`, using ONLY the
+ * passed registry's own keys + metadata — no external alias table — so it works
+ * for any duck-typed `presets` registry without coupling the chart to core.
+ *
+ * Two passes:
+ * 1. Normalized match (lowercase, alphanumerics only) against each preset's key,
+ *    display `name`, or `meta.label`. Catches alias-style names — e.g. the
+ *    descriptive `"bollingerBands"` resolves to the `"bb"` key (name "Bollinger
+ *    Bands"), which an edit-distance check would miss.
+ * 2. Smallest Levenshtein distance against the keys, within a small threshold.
+ *    Catches typos — e.g. `"rsii"` → `"rsi"`.
+ */
+function suggestPresetId(
+  id: string,
+  presets: Record<string, IndicatorPresetEntry>,
+): string | undefined {
+  const normalize = (s: string): string => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const target = normalize(id);
+  if (target === "") return undefined;
+  const keys = Object.keys(presets);
+
+  // Pass 1: normalized match on key / display name / label.
+  for (const key of keys) {
+    const preset = presets[key];
+    const name = (preset as { name?: unknown }).name;
+    if (
+      normalize(key) === target ||
+      (typeof name === "string" && normalize(name) === target) ||
+      (typeof preset?.meta?.label === "string" && normalize(preset.meta.label) === target)
+    ) {
+      return key;
+    }
+  }
+
+  // Pass 2: closest key by edit distance, gated by a small typo threshold.
+  let best: string | undefined;
+  let bestDistance = Number.POSITIVE_INFINITY;
+  for (const key of keys) {
+    const distance = levenshtein(target, normalize(key));
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      best = key;
+    }
+  }
+  const threshold = Math.max(2, Math.floor(target.length / 4));
+  return bestDistance <= threshold ? best : undefined;
+}
+
 // ============================================
 // Internal Types
 // ============================================
@@ -438,8 +504,22 @@ export function connectIndicators(
 
     const preset = presets[presetId];
     if (!preset) {
+      const keys = Object.keys(presets);
+      if (keys.length === 0) {
+        throw new Error(
+          `Unknown indicator preset: "${presetId}". No presets are registered — pass them via connectIndicators({ presets: indicatorPresets }).`,
+        );
+      }
+      const suggestion = suggestPresetId(presetId, presets);
       throw new Error(
-        `Unknown indicator preset: "${presetId}". Pass it via connectIndicators({ presets: indicatorPresets }).`,
+        suggestion
+          ? `Unknown indicator preset: "${presetId}". Did you mean "${suggestion}"? (${keys.length} presets registered)`
+          : `Unknown indicator preset: "${presetId}". No close match among ${keys.length} registered presets (e.g. ${keys
+              .slice(0, 5)
+              .map((k) => `"${k}"`)
+              .join(
+                ", ",
+              )}). Preset ids are the keys of the registry passed to connectIndicators({ presets }).`,
       );
     }
 

@@ -238,7 +238,7 @@ chart.addIndicator(sma20Series, { label: 'SMA 20' });
 
 // Later, drive incremental updates from live
 const sma20Incr = incremental.createSma({ period: 20 }, {
-  fromState: sma(candles, { period: 20 })._state,  // if available
+  warmUp: candles,  // replay history to prime the incremental state
 });
 live.on('tick', ({ candle, snapshot }) => {
   // push the latest value to the chart series

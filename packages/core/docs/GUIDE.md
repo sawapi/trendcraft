@@ -1805,8 +1805,8 @@ const chandelier = chandelierExit(candles, {
 });
 
 chandelier.forEach(({ time, value }) => {
-  console.log(`Long stop: ${value.longStop}`);
-  console.log(`Short stop: ${value.shortStop}`);
+  console.log(`Long exit: ${value.longExit}`);
+  console.log(`Short exit: ${value.shortExit}`);
 });
 ```
 
