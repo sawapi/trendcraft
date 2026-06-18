@@ -922,3 +922,39 @@ describe("connectIndicators", () => {
     });
   });
 });
+
+describe("conn.add — unknown preset errors", () => {
+  const candles = [candle(1, 100), candle(2, 101)];
+
+  it("suggests the canonical key for an alias-style name (normalized match)", () => {
+    const { chart } = createMockChart();
+    // Real registries (e.g. trendcraft's indicatorPresets) carry a display
+    // `name`; "bollingerBands" normalizes to "Bollinger Bands" → key "bb".
+    const presets: Record<string, IndicatorPresetEntry> = {
+      bb: { ...makeComputePreset("BB"), name: "Bollinger Bands" } as IndicatorPresetEntry,
+      rsi: makeComputePreset("rsi"),
+    };
+    const conn = connectIndicators(chart, { presets, candles });
+    expect(() => conn.add("bollingerBands")).toThrow(/Did you mean "bb"\?/);
+  });
+
+  it("suggests the closest key for a typo (edit distance)", () => {
+    const { chart } = createMockChart();
+    const presets = { rsi: makeComputePreset("rsi") };
+    const conn = connectIndicators(chart, { presets, candles });
+    expect(() => conn.add("rsii")).toThrow(/Did you mean "rsi"\?/);
+  });
+
+  it("reports no close match for a far-off id", () => {
+    const { chart } = createMockChart();
+    const presets = { rsi: makeComputePreset("rsi") };
+    const conn = connectIndicators(chart, { presets, candles });
+    expect(() => conn.add("zzzznope")).toThrow(/No close match among 1 registered preset/);
+  });
+
+  it("guides the caller to pass presets when the registry is empty", () => {
+    const { chart } = createMockChart();
+    const conn = connectIndicators(chart, { presets: {}, candles });
+    expect(() => conn.add("rsi")).toThrow(/No presets are registered/);
+  });
+});
