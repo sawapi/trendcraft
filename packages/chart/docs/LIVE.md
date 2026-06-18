@@ -81,7 +81,7 @@ const conn = connectIndicators(chart, {
 });
 conn.add('rsi');
 conn.add('sma', { period: 20 });
-conn.add('bollingerBands');
+conn.add('bb'); // Bollinger Bands — the `indicatorPresets` key is "bb"
 
 // Wire your WebSocket
 ws.on('trade', (t) => {

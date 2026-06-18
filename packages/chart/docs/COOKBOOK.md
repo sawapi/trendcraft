@@ -4,9 +4,46 @@ Practical recipes for common charting tasks. Each recipe is self-contained and c
 
 ---
 
-## Recipe 1: Minimal candlestick chart
+## Recipe 1: Standalone candlestick chart (no dependencies)
 
-**Goal:** A chart with one indicator, no framework wrapper.
+**Goal:** A chart on plain OHLC data with one indicator, importing only from `@trendcraft/chart` — no `trendcraft` package required.
+
+```typescript
+import { createChart } from "@trendcraft/chart";
+
+const container = document.getElementById("chart") as HTMLElement;
+const chart = createChart(container, { theme: "dark" });
+
+// Plain OHLC candle literals — any source works.
+// `time` is epoch milliseconds (Date.now() units), not seconds.
+const candles = [
+  { time: 1717200000000, open: 100, high: 104, low: 99, close: 103, volume: 1200 },
+  { time: 1717286400000, open: 103, high: 106, low: 102, close: 105, volume: 1500 },
+  { time: 1717372800000, open: 105, high: 105, low: 101, close: 102, volume: 1100 },
+  { time: 1717459200000, open: 102, high: 108, low: 102, close: 107, volume: 1800 },
+  { time: 1717545600000, open: 107, high: 110, low: 106, close: 109, volume: 2000 },
+];
+
+chart.setCandles(candles);
+
+// Add a plain { time, value }[] series as an indicator — no trendcraft needed.
+const movingAvg = [
+  { time: 1717372800000, value: 103.5 },
+  { time: 1717459200000, value: 104.8 },
+  { time: 1717545600000, value: 106.0 },
+];
+chart.addIndicator(movingAvg, { pane: "main", color: "#3b82f6", label: "MA(3)" });
+```
+
+The container needs an explicit height: `createChart` defaults to height 400 and takes its width from `clientWidth`, so a zero-height container renders blank — set e.g. `#chart { height: 400px }` in CSS.
+
+The series here is detected purely by its `{ time, value }[]` key shape, so any data source renders. When you do pair with TrendCraft, indicator output also carries placement metadata — see Recipe 1b.
+
+---
+
+## Recipe 1b: Minimal candlestick chart with a TrendCraft indicator
+
+**Goal:** The same chart, but letting a TrendCraft indicator auto-place itself.
 
 ```typescript
 import { createChart } from "@trendcraft/chart";
@@ -30,13 +67,16 @@ chart.addIndicator(sma(candles, { period: 20 }));
 ```typescript
 import { connectIndicators, createChart } from "@trendcraft/chart";
 import { registerTrendCraftPresets } from "@trendcraft/chart/presets";
+import { indicatorPresets } from "trendcraft";
 
 const chart = createChart(container);
 registerTrendCraftPresets(chart);
 
-const conn = connectIndicators(chart, { candles });
+// `presets` is the indicator compute registry — required for `conn.add(...)`.
+// `registerTrendCraftPresets` only wires up rendering, not the math.
+const conn = connectIndicators(chart, { presets: indicatorPresets, candles });
 conn.add("sma", { period: 20 });
-conn.add("bollingerBands");
+conn.add("bb"); // Bollinger Bands — the `indicatorPresets` key is "bb"
 conn.add("rsi");
 conn.add("macd");
 ```
@@ -168,7 +208,7 @@ const conn = connectIndicators(chart, {
   live,
 });
 conn.add("rsi");
-conn.add("bollingerBands");
+conn.add("bb"); // Bollinger Bands
 
 ws.on("trade", (t) => {
   live.addTick({ time: t.ts, price: t.px, volume: t.size });
@@ -188,7 +228,7 @@ See [LIVE.md](./LIVE.md) for backfill, reconnect, and pre-formed candle inputs.
 
 ## Recipe 9: React
 
-**Goal:** A reactive chart in React 19+.
+**Goal:** A reactive chart in React 18+.
 
 ```tsx
 import { TrendChart } from "@trendcraft/chart/react";
