@@ -128,7 +128,7 @@ const exit = deadCrossCondition(5, 25);
 
 const result = runBacktest(dailyCandles, entry, exit, {
   capital: 1_000_000,
-  mtfTimeframes: ["1W"],   // Enable weekly MTF data
+  mtfTimeframes: ["1w"],   // Enable weekly MTF data
   stopLoss: 5,
 });
 
@@ -171,10 +171,10 @@ const lastAtr = atrSeries[atrSeries.length - 1]?.value ?? 0;
 const lastPrice = candles[candles.length - 1].close;
 
 const position = riskBasedSize({
-  capital: 1_000_000,
+  accountSize: 1_000_000,
   riskPercent: 2,
   entryPrice: lastPrice,
-  stopPrice: lastPrice - lastAtr * 2,
+  stopLossPrice: lastPrice - lastAtr * 2,
 });
 
 console.log(`Shares: ${position.shares}, Risk: $${position.riskAmount.toFixed(0)}`);
@@ -253,7 +253,7 @@ console.log(`Stability: ${wfResult.aggregateMetrics.stabilityRatio.toFixed(2)}`)
 **Indicators:** RSI(14), SMA(20)
 
 ```typescript
-import * as streaming from "trendcraft/streaming";
+import { streaming } from "trendcraft";
 import * as incremental from "trendcraft/incremental";
 
 const session = streaming.createTradingSession({

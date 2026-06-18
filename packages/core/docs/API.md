@@ -3533,7 +3533,7 @@ Pre-configured scoring strategies for common trading styles.
 import { getPreset, listPresets } from 'trendcraft';
 
 const config = getPreset('trendFollowing');
-const available = listPresets();  // ['momentum', 'meanReversion', 'trendFollowing', 'balanced']
+const available = listPresets();  // ['momentum', 'meanReversion', 'trendFollowing', 'balanced', 'aggressive', 'conservative']
 ```
 
 | Preset | Focus | Thresholds (S/M/W) | Description |
@@ -3647,7 +3647,7 @@ const result = atrBasedSize({
 import { calculateAtrStopDistance, recommendedAtrMultiplier } from 'trendcraft';
 
 const stopDistance = calculateAtrStopDistance(2.5, 2);  // 5
-const multiplier = recommendedAtrMultiplier('conservative');  // 2.5-3.0
+const multiplier = recommendedAtrMultiplier('conservative');  // 3
 ```
 
 ---
@@ -5311,11 +5311,12 @@ Wraps a streaming pipeline to automatically emit `TradeSignal` events.
 
 ```typescript
 import { streaming } from 'trendcraft';
+import { createRsi } from 'trendcraft/incremental';
 
 const emitter = streaming.createSignalEmitter({
   intervalMs: 60000,
   pipeline: {
-    indicators: [{ name: 'rsi14', create: () => streaming.incremental.rsi({ period: 14 }) }],
+    indicators: [{ name: 'rsi14', create: () => createRsi({ period: 14 }) }],
     entry: rsiBelow(30),
     exit: rsiAbove(70),
   },
@@ -5469,7 +5470,7 @@ const tracker = streaming.createPositionTracker({
   trailingStop: 3,    // Trail from trough
 });
 
-tracker.openPosition(100, currentTime, 1000);
+tracker.openPosition(100, 1000, currentTime);
 
 // Unrealized P&L is direction-aware
 const account = tracker.getAccount();
@@ -6421,13 +6422,16 @@ live.addCandle(partialCandle, { partial: true });
 |---|---|
 | `addTick(trade)` | Feed a trade tick (tick mode). |
 | `addCandle(candle, opts?)` | Feed a candle. `opts.partial = true` for forming candles. |
-| `addIndicator({ name, create })` | Register an indicator factory after construction. |
+| `addIndicator(name, create, state?)` | Register an indicator factory after construction. |
 | `removeIndicator(name)` | Remove an indicator. |
-| `snapshot()` | Get the current indicator snapshot (keyed by registered name). |
+| `getIndicator(name)` | Latest value for a single named indicator. |
+| `snapshot` | Readonly getter — snapshot of all indicator latest values (keyed by registered name). |
 | `completedCandles` | Readonly array of closed candles since start. |
-| `formingCandle` | The in-progress candle, or `null`. |
-| `on(event, handler)` / `off(event, handler)` | Event subscription. Events: `tick`, `candleComplete`. |
+| `candle` | Readonly — the in-progress (forming) candle, or `null`. |
+| `on(event, handler)` | Subscribe to events (`tick`, `candleComplete`). Returns an unsubscribe function (there is no separate `off`). |
+| `flush()` | Force-complete the forming candle (tick mode); returns it or `null`. |
 | `getState()` | Serialize state (aggregator + indicators + completed candles). |
+| `dispose()` | Clear all listeners and internal references. |
 
 ### `livePresets`
 
