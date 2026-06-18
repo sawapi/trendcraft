@@ -15,21 +15,22 @@ const container = document.getElementById("chart") as HTMLElement;
 const chart = createChart(container, { theme: "dark" });
 
 // Plain OHLC candle literals — any source works.
+// `time` is epoch milliseconds (Date.now() units), not seconds.
 const candles = [
-  { time: 1717200000, open: 100, high: 104, low: 99, close: 103, volume: 1200 },
-  { time: 1717286400, open: 103, high: 106, low: 102, close: 105, volume: 1500 },
-  { time: 1717372800, open: 105, high: 105, low: 101, close: 102, volume: 1100 },
-  { time: 1717459200, open: 102, high: 108, low: 102, close: 107, volume: 1800 },
-  { time: 1717545600, open: 107, high: 110, low: 106, close: 109, volume: 2000 },
+  { time: 1717200000000, open: 100, high: 104, low: 99, close: 103, volume: 1200 },
+  { time: 1717286400000, open: 103, high: 106, low: 102, close: 105, volume: 1500 },
+  { time: 1717372800000, open: 105, high: 105, low: 101, close: 102, volume: 1100 },
+  { time: 1717459200000, open: 102, high: 108, low: 102, close: 107, volume: 1800 },
+  { time: 1717545600000, open: 107, high: 110, low: 106, close: 109, volume: 2000 },
 ];
 
 chart.setCandles(candles);
 
 // Add a plain { time, value }[] series as an indicator — no trendcraft needed.
 const movingAvg = [
-  { time: 1717372800, value: 103.5 },
-  { time: 1717459200, value: 104.8 },
-  { time: 1717545600, value: 106.0 },
+  { time: 1717372800000, value: 103.5 },
+  { time: 1717459200000, value: 104.8 },
+  { time: 1717545600000, value: 106.0 },
 ];
 chart.addIndicator(movingAvg, { pane: "main", color: "#3b82f6", label: "MA(3)" });
 ```

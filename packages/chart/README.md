@@ -45,15 +45,16 @@ No TrendCraft, no other library. Feed it OHLC candles and a plain `{ time, value
 import { createChart } from '@trendcraft/chart';
 
 // Plain OHLC candles — any source (REST API, CSV, your DB).
+// `time` is epoch milliseconds (Date.now() units), not seconds.
 const candles = [
-  { time: 1700000000, open: 100, high: 105, low:  98, close: 104, volume: 1200 },
-  { time: 1700086400, open: 104, high: 108, low: 102, close: 103, volume: 1500 },
-  { time: 1700172800, open: 103, high: 106, low: 100, close: 101, volume:  900 },
-  { time: 1700259200, open: 101, high: 104, low:  99, close: 103, volume: 1100 },
-  { time: 1700345600, open: 103, high: 110, low: 103, close: 109, volume: 2100 },
-  { time: 1700432000, open: 109, high: 112, low: 106, close: 107, volume: 1700 },
-  { time: 1700518400, open: 107, high: 109, low: 104, close: 108, volume: 1300 },
-  { time: 1700604800, open: 108, high: 113, low: 107, close: 112, volume: 1900 },
+  { time: 1700000000000, open: 100, high: 105, low:  98, close: 104, volume: 1200 },
+  { time: 1700086400000, open: 104, high: 108, low: 102, close: 103, volume: 1500 },
+  { time: 1700172800000, open: 103, high: 106, low: 100, close: 101, volume:  900 },
+  { time: 1700259200000, open: 101, high: 104, low:  99, close: 103, volume: 1100 },
+  { time: 1700345600000, open: 103, high: 110, low: 103, close: 109, volume: 2100 },
+  { time: 1700432000000, open: 109, high: 112, low: 106, close: 107, volume: 1700 },
+  { time: 1700518400000, open: 107, high: 109, low: 104, close: 108, volume: 1300 },
+  { time: 1700604800000, open: 108, high: 113, low: 107, close: 112, volume: 1900 },
 ];
 
 const container = document.getElementById('chart');
