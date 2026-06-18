@@ -27,7 +27,9 @@ describe("getIndicatorPreset", () => {
     ["fairValueGap", "fvg"],
     ["historicalVolatility", "hv"],
     ["keltnerChannel", "keltner"],
+    ["mcginleyDynamic", "mcginley"],
     ["openingRange", "orb"],
+    ["schaffTrendCycle", "stc"],
     ["ulcerIndex", "ulcer"],
   ])("alias %s → %s resolves to the same preset", (long, short) => {
     expect(getIndicatorPreset(long)).toBe(indicatorPresets[short]);
@@ -145,7 +147,9 @@ describe("getIndicatorPreset", () => {
     ["fairValueGap", "fvg"],
     ["historicalVolatility", "hv"],
     ["keltnerChannel", "keltner"],
+    ["mcginleyDynamic", "mcginley"],
     ["openingRange", "orb"],
+    ["schaffTrendCycle", "stc"],
     ["ulcerIndex", "ulcer"],
   ])("getIndicatorPresetKey: alias %s → %s", (long, short) => {
     expect(getIndicatorPresetKey(long)).toBe(short);
