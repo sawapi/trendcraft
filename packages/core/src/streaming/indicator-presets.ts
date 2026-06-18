@@ -2169,7 +2169,9 @@ const KIND_ALIASES: Record<string, string> = {
   fairValueGap: "fvg",
   historicalVolatility: "hv",
   keltnerChannel: "keltner",
+  mcginleyDynamic: "mcginley",
   openingRange: "orb",
+  schaffTrendCycle: "stc",
   ulcerIndex: "ulcer",
 };
 
