@@ -57,3 +57,5 @@ docs-site/
 
 # Python
 packages/core/cross-validation/python/.venv/
+# doc-snippet harness temp output (auto-cleaned; ignore if a run is interrupted)
+.docsnippets-tmp/
