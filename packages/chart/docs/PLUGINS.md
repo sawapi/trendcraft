@@ -244,7 +244,7 @@ render: ({ ctx, draw, theme }) => {
 ```typescript
 type SeriesRenderContext = {
   ctx: CanvasRenderingContext2D;
-  series: InternalSeries;       // id, data, config, channels
+  series: InternalSeries;       // id, data, config
   timeScale: TimeScale;         // low-level scale (draw.x wraps this)
   priceScale: PriceScale;       // low-level scale (draw.y wraps this)
   dataLayer: DataLayer;         // global data model (rarely needed in plugins)
@@ -352,19 +352,23 @@ render: ({ draw, series }) => {
   draw.line(values, { color: '#fff' });
 }
 
-// ✓ good — precompute or cache
-const valuesCache = new WeakMap<InternalSeries, number[]>();
+// ✓ good — precompute and cache, invalidating on the series data version.
+// `_dataVersion` bumps on every data mutation — including a same-length
+// live update that replaces the last candle in place — so keying on it
+// (not on `data.length`) avoids drawing stale values.
+const valuesCache = new WeakMap<InternalSeries, { version: number; values: number[] }>();
 render: ({ draw, series }) => {
-  let values = valuesCache.get(series);
-  if (!values || values.length !== series.data.length) {
-    values = series.data.map(d => d.value);
-    valuesCache.set(series, values);
+  const version = series._dataVersion ?? 0;
+  let entry = valuesCache.get(series);
+  if (!entry || entry.version !== version) {
+    entry = { version, values: series.data.map(d => d.value) };
+    valuesCache.set(series, entry);
   }
-  draw.line(values, { color: '#fff' });
+  draw.line(entry.values, { color: '#fff' });
 }
 ```
 
-For series renderers, the chart internally caches decomposed channels — use `series.channels.get(name)` instead of mapping `series.data` yourself.
+For series renderers, precompute or cache derived values (see the `WeakMap` example above) instead of re-mapping `series.data` on every frame.
 
 ### Defensive rendering
 
