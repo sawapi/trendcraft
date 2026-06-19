@@ -8,6 +8,7 @@ Practical recipes for common charting tasks. Each recipe is self-contained and c
 
 **Goal:** A chart on plain OHLC data with one indicator, importing only from `@trendcraft/chart` — no `trendcraft` package required.
 
+<!-- doctest-run -->
 ```typescript
 import { createChart } from "@trendcraft/chart";
 
@@ -45,6 +46,7 @@ The series here is detected purely by its `{ time, value }[]` key shape, so any 
 
 **Goal:** The same chart, but letting a TrendCraft indicator auto-place itself.
 
+<!-- doctest-run -->
 ```typescript
 import { createChart } from "@trendcraft/chart";
 import { sma } from "trendcraft";
@@ -64,6 +66,7 @@ chart.addIndicator(sma(candles, { period: 20 }));
 
 **Goal:** Hook up many indicators at once via the bundled presets.
 
+<!-- doctest-run -->
 ```typescript
 import { connectIndicators, createChart } from "@trendcraft/chart";
 import { registerTrendCraftPresets } from "@trendcraft/chart/presets";
