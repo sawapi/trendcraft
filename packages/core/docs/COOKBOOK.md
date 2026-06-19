@@ -9,6 +9,7 @@ Practical recipes for common trading analysis tasks. Each recipe is self-contain
 **Goal:** Backtest a simple trend-following strategy with momentum confirmation.
 **Indicators:** SMA(5), SMA(25), RSI(14)
 
+<!-- doctest-run -->
 ```typescript
 import {
   normalizeCandles,
@@ -43,6 +44,7 @@ console.log(`Max Drawdown: ${result.maxDrawdown.toFixed(2)}%`);
 **Goal:** Follow established trends with multi-indicator confirmation.
 **Indicators:** Supertrend, DMI/ADX, Volume MA
 
+<!-- doctest-run -->
 ```typescript
 import {
   normalizeCandles,
@@ -78,6 +80,7 @@ console.log(`Profit Factor: ${result.profitFactor.toFixed(2)}`);
 **Goal:** Buy at oversold levels, sell at overbought levels.
 **Indicators:** Bollinger Bands(20, 2), RSI(14)
 
+<!-- doctest-run -->
 ```typescript
 import {
   normalizeCandles,
@@ -110,6 +113,7 @@ console.log(`Return: ${result.totalReturnPercent.toFixed(2)}%`);
 **Goal:** Enter daily trades only when the weekly trend is bullish.
 **Indicators:** Weekly SMA(20), Daily Golden Cross
 
+<!-- doctest-run -->
 ```typescript
 import {
   normalizeCandles,
@@ -142,6 +146,7 @@ console.log(`Return: ${result.totalReturnPercent.toFixed(2)}%`);
 **Goal:** Use ATR-based stops and risk-based position sizing.
 **Indicators:** ATR(14), RSI(14)
 
+<!-- doctest-run -->
 ```typescript
 import {
   normalizeCandles,
@@ -187,6 +192,7 @@ console.log(`Shares: ${position.shares}, Risk: $${position.riskAmount.toFixed(0)
 **Goal:** Find optimal parameters and validate with out-of-sample testing.
 **Indicators:** SMA(variable), RSI(variable)
 
+<!-- doctest-run -->
 ```typescript
 import {
   normalizeCandles,
