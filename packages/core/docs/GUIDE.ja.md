@@ -1002,7 +1002,7 @@ rankings.slice(0, 5).forEach((r, i) => {
 ### バックテストでのRS
 
 ```typescript
-import { rsAbove, rsRising, rsRatingAbove, setBenchmark, and, goldenCrossCondition } from 'trendcraft';
+import { rsAbove, rsRising, rsRatingAbove, and, goldenCrossCondition } from 'trendcraft';
 
 // エントリー: 強いRS + トレンド確認
 const entry = and(
@@ -1012,12 +1012,10 @@ const entry = and(
   goldenCrossCondition()         // テクニカルエントリー
 );
 
-// ベンチマーク付きバックテスト実行
+// ベンチマーク付きバックテスト実行 — `benchmark` オプションでベンチマークのローソク足を渡す
 runBacktest(candles, entry, exit, {
   capital: 1000000,
-  setup: (indicators) => {
-    setBenchmark(indicators, nikkei225Candles);
-  }
+  benchmark: nikkei225Candles,
 });
 ```
 

@@ -14,7 +14,6 @@ import {
   rsRatingAbove,
   rsRatingBelow,
   rsRising,
-  setBenchmark,
 } from "../relative-strength";
 
 // Fixed base time for consistent alignment between stock and benchmark
@@ -125,8 +124,7 @@ function evaluateCondition(
   benchmark: NormalizedCandle[],
   index?: number,
 ): boolean {
-  const indicators: Record<string, unknown> = {};
-  setBenchmark(indicators, benchmark);
+  const indicators: Record<string, unknown> = { [BENCHMARK_CACHE_KEY]: benchmark };
   const idx = index ?? candles.length - 1;
   return condition.evaluate(indicators, candles[idx], idx, candles);
 }
@@ -282,12 +280,12 @@ describe("RS Backtest Conditions", () => {
     });
   });
 
-  describe("setBenchmark helper", () => {
-    it("should set benchmark in indicators cache", () => {
+  describe("BENCHMARK_CACHE_KEY", () => {
+    it("is the slot RS conditions read benchmark candles from", () => {
       const indicators: Record<string, unknown> = {};
       const benchmark = generateFlatCandles(100, 100);
 
-      setBenchmark(indicators, benchmark);
+      indicators[BENCHMARK_CACHE_KEY] = benchmark;
 
       expect(indicators[BENCHMARK_CACHE_KEY]).toBe(benchmark);
     });

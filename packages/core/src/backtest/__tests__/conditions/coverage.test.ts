@@ -41,6 +41,7 @@ import {
   weeklyUptrend,
 } from "../../conditions/mtf";
 import {
+  BENCHMARK_CACHE_KEY,
   mansfieldRSAbove,
   mansfieldRSBelow,
   outperformanceAbove,
@@ -53,7 +54,6 @@ import {
   rsRatingAbove,
   rsRatingBelow,
   rsRising,
-  setBenchmark,
 } from "../../conditions/relative-strength";
 import {
   hasActiveOrderBlocks,
@@ -594,7 +594,7 @@ describe("Relative Strength conditions - behavior verification", () => {
 
   it("rsAbove returns true when stock outperforms weak benchmark", () => {
     const indicators: Record<string, unknown> = {};
-    setBenchmark(indicators, weakBenchmark);
+    indicators[BENCHMARK_CACHE_KEY] = weakBenchmark;
     const cond = rsAbove(1.0);
     // Stock trend=0.5 vs benchmark trend=0.3; stock should outperform (RS > 1.0)
     const result = cond.evaluate(indicators, stock[110], 110, stock);
@@ -603,7 +603,7 @@ describe("Relative Strength conditions - behavior verification", () => {
 
   it("rsAbove returns false when stock underperforms strong benchmark", () => {
     const indicators: Record<string, unknown> = {};
-    setBenchmark(indicators, strongBenchmark);
+    indicators[BENCHMARK_CACHE_KEY] = strongBenchmark;
     const cond = rsAbove(1.0);
     // Stock trend=0.5 vs benchmark trend=1.0; stock should underperform (RS < 1.0)
     const result = cond.evaluate(indicators, stock[110], 110, stock);
@@ -616,7 +616,7 @@ describe("Relative Strength conditions - behavior verification", () => {
 
   it("rsBelow returns true when stock underperforms strong benchmark", () => {
     const indicators: Record<string, unknown> = {};
-    setBenchmark(indicators, strongBenchmark);
+    indicators[BENCHMARK_CACHE_KEY] = strongBenchmark;
     const result = rsBelow(1.0).evaluate(indicators, stock[110], 110, stock);
     expect(result).toBe(true);
   });
@@ -631,7 +631,7 @@ describe("Relative Strength conditions - behavior verification", () => {
 
   it("rsRising/rsFalling are mutually exclusive at same index", () => {
     const indicators: Record<string, unknown> = {};
-    setBenchmark(indicators, weakBenchmark);
+    indicators[BENCHMARK_CACHE_KEY] = weakBenchmark;
     const rising = rsRising().evaluate(indicators, stock[110], 110, stock);
     const falling = rsFalling().evaluate(indicators, stock[110], 110, stock);
     // They should not both be true (one or both can be false)
@@ -648,14 +648,14 @@ describe("Relative Strength conditions - behavior verification", () => {
 
   it("rsNewHigh returns false at early index where lookback is insufficient", () => {
     const indicators: Record<string, unknown> = {};
-    setBenchmark(indicators, weakBenchmark);
+    indicators[BENCHMARK_CACHE_KEY] = weakBenchmark;
     const result = rsNewHigh(10).evaluate(indicators, stock[0], 0, stock);
     expect(result).toBe(false);
   });
 
   it("rsNewLow returns false at early index where lookback is insufficient", () => {
     const indicators: Record<string, unknown> = {};
-    setBenchmark(indicators, weakBenchmark);
+    indicators[BENCHMARK_CACHE_KEY] = weakBenchmark;
     const result = rsNewLow(10).evaluate(indicators, stock[0], 0, stock);
     expect(result).toBe(false);
   });
@@ -670,7 +670,7 @@ describe("Relative Strength conditions - behavior verification", () => {
 
   it("rsRatingAbove/Below produce opposite results for moderate thresholds", () => {
     const indicators: Record<string, unknown> = {};
-    setBenchmark(indicators, weakBenchmark);
+    indicators[BENCHMARK_CACHE_KEY] = weakBenchmark;
     const above50 = rsRatingAbove(50).evaluate(indicators, stock[110], 110, stock);
     const below50 = rsRatingBelow(50).evaluate(indicators, stock[110], 110, stock);
     // They should not both be true
@@ -687,7 +687,7 @@ describe("Relative Strength conditions - behavior verification", () => {
 
   it("mansfieldRSAbove with very negative threshold succeeds when benchmark exists", () => {
     const indicators: Record<string, unknown> = {};
-    setBenchmark(indicators, weakBenchmark);
+    indicators[BENCHMARK_CACHE_KEY] = weakBenchmark;
     // Mansfield RS > -100 should be true for any reasonable stock
     const result = mansfieldRSAbove(-100).evaluate(indicators, stock[110], 110, stock);
     expect(result).toBe(true);
@@ -695,7 +695,7 @@ describe("Relative Strength conditions - behavior verification", () => {
 
   it("mansfieldRSBelow with very high threshold succeeds when benchmark exists", () => {
     const indicators: Record<string, unknown> = {};
-    setBenchmark(indicators, weakBenchmark);
+    indicators[BENCHMARK_CACHE_KEY] = weakBenchmark;
     const result = mansfieldRSBelow(100).evaluate(indicators, stock[110], 110, stock);
     expect(result).toBe(true);
   });
@@ -710,7 +710,7 @@ describe("Relative Strength conditions - behavior verification", () => {
 
   it("outperformanceAbove detects outperformance against weak benchmark", () => {
     const indicators: Record<string, unknown> = {};
-    setBenchmark(indicators, weakBenchmark);
+    indicators[BENCHMARK_CACHE_KEY] = weakBenchmark;
     // Stock growing faster than benchmark; outperformance should be > 0
     const result = outperformanceAbove(0).evaluate(indicators, stock[110], 110, stock);
     expect(result).toBe(true);
@@ -718,7 +718,7 @@ describe("Relative Strength conditions - behavior verification", () => {
 
   it("outperformanceBelow detects underperformance against strong benchmark", () => {
     const indicators: Record<string, unknown> = {};
-    setBenchmark(indicators, strongBenchmark);
+    indicators[BENCHMARK_CACHE_KEY] = strongBenchmark;
     // Stock growing slower than benchmark; outperformance should be < 0
     const result = outperformanceBelow(0).evaluate(indicators, stock[110], 110, stock);
     expect(result).toBe(true);
@@ -726,7 +726,7 @@ describe("Relative Strength conditions - behavior verification", () => {
 
   it("RS cache is reused: second call with same indicators returns consistent result", () => {
     const indicators: Record<string, unknown> = {};
-    setBenchmark(indicators, weakBenchmark);
+    indicators[BENCHMARK_CACHE_KEY] = weakBenchmark;
     const cond = rsAbove(0.5);
     const first = cond.evaluate(indicators, stock[100], 100, stock);
     const second = cond.evaluate(indicators, stock[100], 100, stock);

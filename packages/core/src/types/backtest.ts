@@ -5,7 +5,7 @@
 import type { MarginConfig } from "../backtest/margin";
 import type { OrderType, TimeInForce } from "../backtest/order-types";
 import type { SlippageModel } from "../backtest/slippage-model";
-import type { NormalizedCandle, TimeframeShorthand } from "./candle";
+import type { Candle, NormalizedCandle, TimeframeShorthand } from "./candle";
 
 /**
  * Position direction for long/short trading
@@ -348,6 +348,14 @@ export type BacktestOptions = {
   margin?: MarginConfig;
   /** Position sizing per entry (default: full-capital, the legacy behavior) */
   sizing?: BacktestSizingConfig;
+  /**
+   * Benchmark candles for Relative Strength conditions (e.g. S&P 500, Nikkei 225).
+   *
+   * Required by RS conditions (`rsAbove`, `rsRising`, `rsRatingAbove`, …) — they
+   * compare the traded symbol against this series. Must be time-aligned with
+   * `candles`. When omitted, RS conditions evaluate to `false`.
+   */
+  benchmark?: (Candle | NormalizedCandle)[];
 };
 
 /**
