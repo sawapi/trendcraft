@@ -3204,26 +3204,27 @@ const result = TrendCraft.from(dailyCandles)
 
 #### Relative Strength (RS) Conditions
 
-RS conditions compare stock performance against a benchmark. Requires setting benchmark data.
+RS conditions compare stock performance against a benchmark. Pass the benchmark candles via the `benchmark` backtest option.
 
 ```typescript
-import { rsAbove, rsRising, rsRatingAbove, setBenchmark, and } from 'trendcraft';
+import { rsAbove, rsRising, rsRatingAbove, and } from 'trendcraft';
 
-// Set benchmark before backtest
 const entry = and(
   rsAbove(1.0),       // Outperforming benchmark
   rsRising(),         // RS trending up
   rsRatingAbove(80),  // In top 20% historically
 );
 
-// Usage with backtest setup
+// Supply the benchmark via the `benchmark` option
 runBacktest(candles, entry, exit, {
   capital: 1000000,
-  setup: (indicators) => {
-    setBenchmark(indicators, sp500Candles);
-  }
+  benchmark: sp500Candles,
 });
 ```
+
+The benchmark is a per-run input, so pass it on every run that uses RS
+conditions. When optimizing (sharing an `IndicatorCache` across runs with the
+same candles and benchmark), the derived RS series is still cached and reused.
 
 | Function | Description |
 |----------|-------------|

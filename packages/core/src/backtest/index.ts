@@ -161,7 +161,6 @@ export {
   rsRatingAbove,
   rsRatingBelow,
   rsRising,
-  setBenchmark,
   stochAbove,
   // Stochastics conditions
   stochBelow,

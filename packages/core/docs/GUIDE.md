@@ -1001,7 +1001,7 @@ rankings.slice(0, 5).forEach((r, i) => {
 ### RS in Backtesting
 
 ```typescript
-import { rsAbove, rsRising, rsRatingAbove, setBenchmark, and } from 'trendcraft';
+import { rsAbove, rsRising, rsRatingAbove, and, goldenCrossCondition } from 'trendcraft';
 
 // Entry: Strong RS + trend confirmation
 const entry = and(
@@ -1011,12 +1011,10 @@ const entry = and(
   goldenCrossCondition()  // Technical entry
 );
 
-// Run backtest with benchmark
+// Run backtest with benchmark — pass the benchmark candles via the `benchmark` option
 runBacktest(candles, entry, exit, {
   capital: 1000000,
-  setup: (indicators) => {
-    setBenchmark(indicators, sp500Candles);
-  }
+  benchmark: sp500Candles,
 });
 ```
 

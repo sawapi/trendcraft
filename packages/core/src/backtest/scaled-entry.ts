@@ -22,7 +22,7 @@ import type {
   Trade,
 } from "../types";
 import type { ExtendedCondition } from "./conditions";
-import { evaluateCondition } from "./conditions";
+import { evaluateCondition, seedBenchmark } from "./conditions";
 import {
   applySlippage,
   calculateStats,
@@ -187,6 +187,9 @@ export function runBacktestScaled(
 
   const trades: Trade[] = [];
   const indicators: Record<string, unknown> = {};
+
+  // Seed benchmark candles so Relative Strength conditions can read them
+  seedBenchmark(indicators, options.benchmark);
 
   // Setup MTF context if timeframes are specified
   const mtfSetup = buildMtfSetup(candles, mtfTimeframes);

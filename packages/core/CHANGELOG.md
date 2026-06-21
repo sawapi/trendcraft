@@ -2,6 +2,51 @@
 
 ## [Unreleased]
 
+### Added — `benchmark` backtest option for Relative Strength
+
+- **`runBacktest` now accepts a `benchmark` option** carrying the benchmark
+  candles (e.g. S&P 500, Nikkei 225). This is the supported, ergonomic way to
+  supply the reference series that Relative Strength conditions (`rsAbove`,
+  `rsRising`, `rsRatingAbove`, `outperformanceAbove`, …) compare against:
+
+  ```ts
+  runBacktest(candles, rsAbove(1.0), rsBelow(0.9), {
+    capital: 1_000_000,
+    benchmark: sp500Candles,
+  });
+  ```
+
+  Previously there was no working public path — the documented `setup:` callback
+  was never a real option and never took effect. The benchmark is a per-run
+  input (not a candle-derived value), so pass it on every run that uses RS
+  conditions; the derived RS series is still cached and reused across runs that
+  share an `IndicatorCache`, the same candles, and the same benchmark.
+- The option flows through every backtest entry point: `runBacktestScaled`
+  (including the multi-tranche path, which previously had no way to receive a
+  benchmark), `batchBacktest`, and `portfolioBacktest` (one benchmark shared by
+  all symbols).
+
+### Fixed — benchmark/shared-cache correctness for Relative Strength
+
+- The benchmark is now treated as a run-local input and is never stored in a
+  shared `IndicatorCache`. Reusing one cache across runs with the same candles no
+  longer lets a benchmark supplied on an earlier run leak into a later run that
+  omits it (which previously made RS conditions trade when they should evaluate
+  `false`, leaving results order-dependent).
+- The cached RS series key now includes the benchmark identity, so reusing one
+  cache across runs that share the same candles but use **different** benchmarks
+  no longer returns RS data computed against the previous benchmark. Runs that
+  share a benchmark still hit the cache as before.
+
+### Breaking — removed `setBenchmark` helper
+
+- **`setBenchmark(indicators, benchmark)` has been removed.** It only mutated an
+  indicators object and never reached a backtest run on its own (the documented
+  `setup:` callback it was paired with does not exist). Use the new `benchmark`
+  backtest option instead. `BENCHMARK_CACHE_KEY` remains exported as the
+  indicators-object slot for advanced callers that evaluate RS conditions
+  directly against a hand-built indicators object.
+
 ### Added — MTF conditions in screening
 
 - **`screenStock` / `screenStockSafe` / `screenStockSeries` accept an

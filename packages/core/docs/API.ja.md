@@ -2777,26 +2777,27 @@ const result = TrendCraft.from(dailyCandles)
 
 #### 相対強度（RS）条件
 
-RS条件は株式のパフォーマンスをベンチマークと比較します。ベンチマークデータの設定が必要です。
+RS条件は株式のパフォーマンスをベンチマークと比較します。ベンチマークのローソク足を `benchmark` バックテストオプションで渡します。
 
 ```typescript
-import { rsAbove, rsRising, rsRatingAbove, setBenchmark, and } from 'trendcraft';
+import { rsAbove, rsRising, rsRatingAbove, and } from 'trendcraft';
 
-// バックテスト前にベンチマークを設定
 const entry = and(
   rsAbove(1.0),       // ベンチマークをアウトパフォーム
   rsRising(),         // RS上昇トレンド
   rsRatingAbove(80),  // 過去比較で上位20%
 );
 
-// バックテストでの使用
+// `benchmark` オプションでベンチマークを渡す
 runBacktest(candles, entry, exit, {
   capital: 1000000,
-  setup: (indicators) => {
-    setBenchmark(indicators, sp500Candles);
-  }
+  benchmark: sp500Candles,
 });
 ```
+
+ベンチマークは run ごとの入力なので、RS 条件を使う実行では毎回渡します。最適化時
+（同じ candles・同じベンチマークで `IndicatorCache` を共有）は、派生 RS シリーズが
+引き続きキャッシュされ再利用されます。
 
 | 関数 | 説明 |
 |------|------|

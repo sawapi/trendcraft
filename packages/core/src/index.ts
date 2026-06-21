@@ -167,7 +167,6 @@ export {
   // Engine
   runBacktest,
   runBacktestScaled,
-  setBenchmark,
   stochAbove,
   // Stochastics conditions
   stochBelow,

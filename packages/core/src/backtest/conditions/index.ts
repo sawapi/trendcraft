@@ -129,6 +129,7 @@ export {
   outperformanceAbove,
   outperformanceBelow,
   type RSConditionOptions,
+  RUN_LOCAL_CACHE_KEYS,
   rsAbove,
   rsBelow,
   rsFalling,
@@ -137,7 +138,7 @@ export {
   rsRatingAbove,
   rsRatingBelow,
   rsRising,
-  setBenchmark,
+  seedBenchmark,
 } from "./relative-strength";
 // RSI conditions
 export { rsiAbove, rsiBelow } from "./rsi";

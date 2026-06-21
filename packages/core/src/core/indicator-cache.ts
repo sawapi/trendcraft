@@ -75,11 +75,17 @@ export class IndicatorCache {
  *
  * @param candles - Candle array (used as cache identity key)
  * @param cache - Shared IndicatorCache instance (optional)
+ * @param localOnlyKeys - Keys that are run-local inputs rather than candle-derived
+ *   computations (e.g. the RS benchmark). The shared cache only stores values
+ *   that are a pure function of the candle array, so these keys are kept on the
+ *   local object and never read from or written to the shared cache — otherwise
+ *   they would leak into later runs that reuse the same cache and candles.
  * @returns Proxied indicators object
  */
 export function createCachedIndicators(
   candles: object,
   cache?: IndicatorCache,
+  localOnlyKeys?: ReadonlySet<string>,
 ): Record<string, unknown> {
   const local: Record<string, unknown> = {};
 
@@ -89,6 +95,9 @@ export function createCachedIndicators(
     get(target, prop: string) {
       // Check local first
       if (prop in target) return target[prop];
+
+      // Run-local inputs are never shared via the cache
+      if (localOnlyKeys?.has(prop)) return undefined;
 
       // Then check shared cache
       const cached = cache.get(prop, candles);
@@ -101,7 +110,9 @@ export function createCachedIndicators(
     },
     set(target, prop: string, value) {
       target[prop] = value;
-      cache.set(prop, candles, value);
+      if (!localOnlyKeys?.has(prop)) {
+        cache.set(prop, candles, value);
+      }
       return true;
     },
   });

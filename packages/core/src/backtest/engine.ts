@@ -26,7 +26,7 @@ import type {
 import type { ValidationOptions } from "../validation/types";
 import { validateCandles } from "../validation/validate";
 import type { ExtendedCondition } from "./conditions";
-import { evaluateCondition } from "./conditions";
+import { evaluateCondition, RUN_LOCAL_CACHE_KEYS, seedBenchmark } from "./conditions";
 import { createDrawdownTracker } from "./drawdown-tracker";
 import type { Position } from "./engine-utils";
 import {
@@ -172,7 +172,16 @@ export function runBacktest(
   }
 
   const trades: Trade[] = [];
-  const indicators: Record<string, unknown> = createCachedIndicators(candles, cache);
+  // The benchmark is a run-local input, so it is kept off the shared cache
+  // (see RUN_LOCAL_CACHE_KEYS) and must be re-supplied each run.
+  const indicators: Record<string, unknown> = createCachedIndicators(
+    candles,
+    cache,
+    RUN_LOCAL_CACHE_KEYS,
+  );
+
+  // Seed benchmark candles for Relative Strength conditions.
+  seedBenchmark(indicators, options.benchmark);
 
   // Setup MTF context if timeframes are specified
   const mtfSetup = buildMtfSetup(candles, mtfTimeframes);
