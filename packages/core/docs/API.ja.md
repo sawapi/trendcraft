@@ -3961,7 +3961,8 @@ Layer 6 — ポジション管理
 トレードティックのストリームを、固定時間間隔でグループ化してOHLCVキャンドルに変換します。
 
 ```typescript
-import { createCandleAggregator } from "trendcraft/streaming";
+import { streaming } from "trendcraft";
+const { createCandleAggregator } = streaming;
 
 const agg = createCandleAggregator({ intervalMs: 60_000 }); // 1分足
 
@@ -4005,7 +4006,8 @@ const last = agg.flush();
 下位時間足のキャンドルを上位時間足にインクリメンタルにリサンプリングします（例: 1分足 → 5分足）。
 
 ```typescript
-import { createCandleResampler } from "trendcraft/streaming";
+import { streaming } from "trendcraft";
+const { createCandleResampler } = streaming;
 
 const resampler = createCandleResampler({ targetIntervalMs: 300_000 }); // 5分足
 
@@ -4041,7 +4043,8 @@ for (const candle1m of stream) {
 valueA が valueB を下から上に交差したことを検出します。
 
 ```typescript
-import { createCrossOverDetector } from "trendcraft/streaming";
+import { streaming } from "trendcraft";
+const { createCrossOverDetector } = streaming;
 
 const crossOver = createCrossOverDetector();
 crossOver.next(10, 20); // false（初回呼び出し、前の値なし）
@@ -4064,7 +4067,8 @@ crossOver.next(22, 20); // false（既に上にいる、新しいクロスなし
 valueA が valueB を上から下に交差したことを検出します。
 
 ```typescript
-import { createCrossUnderDetector } from "trendcraft/streaming";
+import { streaming } from "trendcraft";
+const { createCrossUnderDetector } = streaming;
 
 const crossUnder = createCrossUnderDetector();
 crossUnder.next(20, 10); // false（初回呼び出し）
@@ -4080,7 +4084,8 @@ crossUnder.next(9, 10);  // true （クロスアンダー発生）
 値が固定の閾値を上回ったり下回ったりしたことを検出します。
 
 ```typescript
-import { createThresholdDetector } from "trendcraft/streaming";
+import { streaming } from "trendcraft";
+const { createThresholdDetector } = streaming;
 
 const detector = createThresholdDetector(70);
 detector.next(65); // { crossAbove: false, crossBelow: false }
@@ -4107,7 +4112,8 @@ detector.next(68); // { crossAbove: false, crossBelow: true }
 ボリンジャーバンドのスクイーズ状態（低ボラティリティ）とその解放を検出します。
 
 ```typescript
-import { createSqueezeDetector } from "trendcraft/streaming";
+import { streaming } from "trendcraft";
+const { createSqueezeDetector } = streaming;
 
 const squeeze = createSqueezeDetector({ bandwidthThreshold: 0.05 });
 squeeze.next(0.08); // { squeezeStart: false, squeezeEnd: false, inSqueeze: false }
@@ -4134,7 +4140,8 @@ squeeze.next(0.06); // { squeezeStart: false, squeezeEnd: true, inSqueeze: false
 価格とインジケーター間のブリッシュ/ベアリッシュ・ダイバージェンスを検出します。
 
 ```typescript
-import { createDivergenceDetector } from "trendcraft/streaming";
+import { streaming } from "trendcraft";
+const { createDivergenceDetector } = streaming;
 
 const divergence = createDivergenceDetector({ lookback: 14 });
 for (const candle of stream) {
@@ -4167,7 +4174,8 @@ for (const candle of stream) {
 AND論理で条件を組み合わせます（すべてtrueである必要があります）。
 
 ```typescript
-import { and, rsiBelow, smaGoldenCross } from "trendcraft/streaming";
+import { streaming } from "trendcraft";
+const { and, rsiBelow, smaGoldenCross } = streaming;
 
 const entry = and(rsiBelow(30), smaGoldenCross());
 ```
@@ -4179,7 +4187,8 @@ const entry = and(rsiBelow(30), smaGoldenCross());
 OR論理で条件を組み合わせます（いずれかがtrueであればよい）。
 
 ```typescript
-import { or, rsiAbove, smaDeadCross } from "trendcraft/streaming";
+import { streaming } from "trendcraft";
+const { or, rsiAbove, smaDeadCross } = streaming;
 
 const exit = or(rsiAbove(70), smaDeadCross());
 ```
@@ -4191,7 +4200,8 @@ const exit = or(rsiAbove(70), smaDeadCross());
 条件を否定します。
 
 ```typescript
-import { not, rsiAbove } from "trendcraft/streaming";
+import { streaming } from "trendcraft";
+const { not, rsiAbove } = streaming;
 
 const notOverbought = not(rsiAbove(70));
 ```
@@ -4203,7 +4213,8 @@ const notOverbought = not(rsiAbove(70));
 ストリーミング条件をスナップショットとキャンドルに対して評価します。
 
 ```typescript
-import { evaluateStreamingCondition } from "trendcraft/streaming";
+import { streaming } from "trendcraft";
+const { evaluateStreamingCondition } = streaming;
 
 const isEntry = evaluateStreamingCondition(entryCondition, snapshot, candle);
 ```
@@ -4242,7 +4253,8 @@ const customCondition = (snapshot, candle) => {
 インクリメンタルなインジケーターとストリーミング条件を組み合わせてシグナル評価パイプラインを構築します。キャンドル1本あたりO(1)のコストで処理します。
 
 ```typescript
-import { createPipeline, rsiBelow, rsiAbove } from "trendcraft/streaming";
+import { streaming } from "trendcraft";
+const { createPipeline, rsiBelow, rsiAbove } = streaming;
 import { createRsi, createSma } from "trendcraft/incremental";
 
 const pipeline = createPipeline({
@@ -4286,7 +4298,8 @@ for (const candle of stream) {
 ベース時間足のキャンドルストリームを複数の上位時間足にリサンプリングし、各時間足でインジケーターを実行するマルチタイムフレームコンテキストです。
 
 ```typescript
-import { createStreamingMtf } from "trendcraft/streaming";
+import { streaming } from "trendcraft";
+const { createStreamingMtf } = streaming;
 import { createSma, createRsi } from "trendcraft/incremental";
 
 const mtf = createStreamingMtf({
@@ -4335,7 +4348,8 @@ for (const candle of stream) {
 エンドツーエンドのパイプライン: ティック → キャンドル → インジケーター → シグナル → イベント。`CandleAggregator` と `StreamingPipeline` を単一のエントリーポイントに統合します。
 
 ```typescript
-import { createTradingSession, rsiBelow, rsiAbove } from "trendcraft/streaming";
+import { streaming } from "trendcraft";
+const { createTradingSession, rsiBelow, rsiAbove } = streaming;
 import { createRsi } from "trendcraft/incremental";
 
 const session = createTradingSession({
@@ -4391,7 +4405,8 @@ const closeEvents = session.close();
 日次損失制限、取引回数制限、連続負け後のクールダウンを適用するサーキットブレーカーです。
 
 ```typescript
-import { createRiskGuard } from "trendcraft/streaming";
+import { streaming } from "trendcraft";
+const { createRiskGuard } = streaming;
 
 const guard = createRiskGuard({
   maxDailyLoss: -50000,
@@ -4431,7 +4446,8 @@ guard.reportTrade(-200, Date.now());
 取引時間枠、強制決済タイミング、ブラックアウト期間を管理します。
 
 ```typescript
-import { createTimeGuard } from "trendcraft/streaming";
+import { streaming } from "trendcraft";
+const { createTimeGuard } = streaming;
 
 const guard = createTimeGuard({
   tradingWindows: [
@@ -4476,7 +4492,8 @@ guard.addBlackout({
 `TradingSession` をリスクガードとタイムガードでラップします。エントリーシグナルはガードによるチェック後に発行され、取引時間枠の終了が近づくと強制決済イベントが挿入されます。
 
 ```typescript
-import { createGuardedSession, rsiBelow, rsiAbove } from "trendcraft/streaming";
+import { streaming } from "trendcraft";
+const { createGuardedSession, rsiBelow, rsiAbove } = streaming;
 import { createRsi } from "trendcraft/incremental";
 
 const session = createGuardedSession(
@@ -4533,7 +4550,8 @@ session.riskGuard?.reportTrade(-200, Date.now());
 SL/TP/トレーリングストップ検出とP&L計算を備えたステートフルなポジション・アカウント管理です。
 
 ```typescript
-import { createPositionTracker } from "trendcraft/streaming";
+import { streaming } from "trendcraft";
+const { createPositionTracker } = streaming;
 
 const tracker = createPositionTracker({
   capital: 1_000_000,
@@ -4591,7 +4609,8 @@ console.log("P&L:", trade.return);
 フルE2Eのマネージドトレーディングセッション: ティック → キャンドル → インジケーター → シグナル → ポジション → P&L。`GuardedSession` に自動ポジション管理（サイジング、SL/TP/トレーリング、RiskGuardへの自動レポート）を統合します。
 
 ```typescript
-import { createManagedSession, rsiBelow, rsiAbove } from "trendcraft/streaming";
+import { streaming } from "trendcraft";
+const { createManagedSession, rsiBelow, rsiAbove } = streaming;
 import { createRsi, createAtr } from "trendcraft/incremental";
 
 const session = createManagedSession(
