@@ -722,7 +722,7 @@ const custom = (indicators, candle, index, candles) => {
 - `rsRatingAbove(rating)` / `rsRatingBelow(rating)`
 - `mansfieldRSAbove(threshold)` / `mansfieldRSBelow(threshold)`
 - `outperformanceAbove(percent)` / `outperformanceBelow(percent)`
-- `setBenchmark(indicators, benchmarkCandles)` — Required before RS conditions
+- RS conditions require a benchmark — pass it via the `benchmark` backtest option: `runBacktest(candles, entry, exit, { capital, benchmark: sp500Candles })`
 
 **Price Patterns:**
 - `patternDetected(type, opts?)` / `patternConfirmed(type, opts?)`

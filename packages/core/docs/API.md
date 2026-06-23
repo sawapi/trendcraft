@@ -4481,7 +4481,8 @@ Layer 6 — Position Management
 Converts a stream of trade ticks into OHLCV candles by grouping trades within fixed time intervals.
 
 ```typescript
-import { createCandleAggregator } from "trendcraft/streaming";
+import { streaming } from "trendcraft";
+const { createCandleAggregator } = streaming;
 
 const agg = createCandleAggregator({ intervalMs: 60_000 }); // 1-min candles
 
@@ -4525,7 +4526,8 @@ const last = agg.flush();
 Incrementally resamples lower-timeframe candles into higher-timeframe candles (e.g., 1-min → 5-min).
 
 ```typescript
-import { createCandleResampler } from "trendcraft/streaming";
+import { streaming } from "trendcraft";
+const { createCandleResampler } = streaming;
 
 const resampler = createCandleResampler({ targetIntervalMs: 300_000 }); // 5-min
 
@@ -4561,7 +4563,8 @@ Incremental signal detectors that process one data point at a time. Each detecto
 Detects when valueA crosses from below/equal to above valueB.
 
 ```typescript
-import { createCrossOverDetector } from "trendcraft/streaming";
+import { streaming } from "trendcraft";
+const { createCrossOverDetector } = streaming;
 
 const crossOver = createCrossOverDetector();
 crossOver.next(10, 20); // false (first call, no previous)
@@ -4584,7 +4587,8 @@ crossOver.next(22, 20); // false (already above, no new cross)
 Detects when valueA crosses from above/equal to below valueB.
 
 ```typescript
-import { createCrossUnderDetector } from "trendcraft/streaming";
+import { streaming } from "trendcraft";
+const { createCrossUnderDetector } = streaming;
 
 const crossUnder = createCrossUnderDetector();
 crossUnder.next(20, 10); // false (first call)
@@ -4600,7 +4604,8 @@ Same methods as `createCrossOverDetector`.
 Detects when a value crosses above or below a fixed threshold level.
 
 ```typescript
-import { createThresholdDetector } from "trendcraft/streaming";
+import { streaming } from "trendcraft";
+const { createThresholdDetector } = streaming;
 
 const detector = createThresholdDetector(70);
 detector.next(65); // { crossAbove: false, crossBelow: false }
@@ -4627,7 +4632,8 @@ detector.next(68); // { crossAbove: false, crossBelow: true }
 Detects Bollinger Band squeeze conditions (low volatility) and their release.
 
 ```typescript
-import { createSqueezeDetector } from "trendcraft/streaming";
+import { streaming } from "trendcraft";
+const { createSqueezeDetector } = streaming;
 
 const squeeze = createSqueezeDetector({ bandwidthThreshold: 0.05 });
 squeeze.next(0.08); // { squeezeStart: false, squeezeEnd: false, inSqueeze: false }
@@ -4654,7 +4660,8 @@ squeeze.next(0.06); // { squeezeStart: false, squeezeEnd: true, inSqueeze: false
 Detects bullish/bearish divergences between price and an indicator by comparing recent highs/lows.
 
 ```typescript
-import { createDivergenceDetector } from "trendcraft/streaming";
+import { streaming } from "trendcraft";
+const { createDivergenceDetector } = streaming;
 
 const divergence = createDivergenceDetector({ lookback: 14 });
 for (const candle of stream) {
@@ -4687,7 +4694,8 @@ Streaming condition system with combinators (`and`, `or`, `not`) and preset cond
 Combine conditions with AND logic (all must be true).
 
 ```typescript
-import { and, rsiBelow, smaGoldenCross } from "trendcraft/streaming";
+import { streaming } from "trendcraft";
+const { and, rsiBelow, smaGoldenCross } = streaming;
 
 const entry = and(rsiBelow(30), smaGoldenCross());
 ```
@@ -4699,7 +4707,8 @@ const entry = and(rsiBelow(30), smaGoldenCross());
 Combine conditions with OR logic (any must be true).
 
 ```typescript
-import { or, rsiAbove, smaDeadCross } from "trendcraft/streaming";
+import { streaming } from "trendcraft";
+const { or, rsiAbove, smaDeadCross } = streaming;
 
 const exit = or(rsiAbove(70), smaDeadCross());
 ```
@@ -4711,7 +4720,8 @@ const exit = or(rsiAbove(70), smaDeadCross());
 Negate a condition.
 
 ```typescript
-import { not, rsiAbove } from "trendcraft/streaming";
+import { streaming } from "trendcraft";
+const { not, rsiAbove } = streaming;
 
 const notOverbought = not(rsiAbove(70));
 ```
@@ -4723,7 +4733,8 @@ const notOverbought = not(rsiAbove(70));
 Evaluate a streaming condition against a snapshot and candle.
 
 ```typescript
-import { evaluateStreamingCondition } from "trendcraft/streaming";
+import { streaming } from "trendcraft";
+const { evaluateStreamingCondition } = streaming;
 
 const isEntry = evaluateStreamingCondition(entryCondition, snapshot, candle);
 ```
@@ -4762,7 +4773,8 @@ const customCondition = (snapshot, candle) => {
 Combines incremental indicators with streaming conditions into a signal evaluation pipeline. Processes one candle at a time with O(1) per-candle cost.
 
 ```typescript
-import { createPipeline, rsiBelow, rsiAbove } from "trendcraft/streaming";
+import { streaming } from "trendcraft";
+const { createPipeline, rsiBelow, rsiAbove } = streaming;
 import { createRsi, createSma } from "trendcraft/incremental";
 
 const pipeline = createPipeline({
@@ -4806,7 +4818,8 @@ for (const candle of stream) {
 Multi-timeframe context that resamples a base-timeframe candle stream into multiple higher timeframes and runs indicators on each.
 
 ```typescript
-import { createStreamingMtf } from "trendcraft/streaming";
+import { streaming } from "trendcraft";
+const { createStreamingMtf } = streaming;
 import { createSma, createRsi } from "trendcraft/incremental";
 
 const mtf = createStreamingMtf({
@@ -4855,7 +4868,8 @@ Each `StreamingMtfTimeframeConfig`:
 End-to-end pipeline: tick → candle → indicator → signal → event. Combines `CandleAggregator` and `StreamingPipeline` into a single entry point.
 
 ```typescript
-import { createTradingSession, rsiBelow, rsiAbove } from "trendcraft/streaming";
+import { streaming } from "trendcraft";
+const { createTradingSession, rsiBelow, rsiAbove } = streaming;
 import { createRsi } from "trendcraft/incremental";
 
 const session = createTradingSession({
@@ -4911,7 +4925,8 @@ const closeEvents = session.close();
 Circuit breaker that enforces daily loss limits, trade count limits, and consecutive loss cooldowns.
 
 ```typescript
-import { createRiskGuard } from "trendcraft/streaming";
+import { streaming } from "trendcraft";
+const { createRiskGuard } = streaming;
 
 const guard = createRiskGuard({
   maxDailyLoss: -50000,
@@ -4951,7 +4966,8 @@ guard.reportTrade(-200, Date.now());
 Enforces trading windows, force-close timing, and blackout periods.
 
 ```typescript
-import { createTimeGuard } from "trendcraft/streaming";
+import { streaming } from "trendcraft";
+const { createTimeGuard } = streaming;
 
 const guard = createTimeGuard({
   tradingWindows: [
@@ -4996,7 +5012,8 @@ guard.addBlackout({
 Wraps a `TradingSession` with risk and time guards. Entry signals are checked against guards before being emitted; force-close events are injected when trading windows are about to end.
 
 ```typescript
-import { createGuardedSession, rsiBelow, rsiAbove } from "trendcraft/streaming";
+import { streaming } from "trendcraft";
+const { createGuardedSession, rsiBelow, rsiAbove } = streaming;
 import { createRsi } from "trendcraft/incremental";
 
 const session = createGuardedSession(
@@ -5053,7 +5070,8 @@ session.riskGuard?.reportTrade(-200, Date.now());
 Stateful position and account management with SL/TP/trailing stop detection and P&L calculation.
 
 ```typescript
-import { createPositionTracker } from "trendcraft/streaming";
+import { streaming } from "trendcraft";
+const { createPositionTracker } = streaming;
 
 const tracker = createPositionTracker({
   capital: 1_000_000,
@@ -5111,7 +5129,8 @@ console.log("P&L:", trade.return);
 Full end-to-end managed trading session: tick → candle → indicator → signal → position → P&L. Wraps `GuardedSession` with automatic position management, including sizing, SL/TP/trailing, and auto-reporting to RiskGuard.
 
 ```typescript
-import { createManagedSession, rsiBelow, rsiAbove } from "trendcraft/streaming";
+import { streaming } from "trendcraft";
+const { createManagedSession, rsiBelow, rsiAbove } = streaming;
 import { createRsi, createAtr } from "trendcraft/incremental";
 
 const session = createManagedSession(

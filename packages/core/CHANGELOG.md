@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+### Fixed — documentation: streaming imports and a stale helper reference
+
+- The API docs imported streaming exports from a `trendcraft/streaming` subpath
+  that was never published — those imports failed to resolve. Streaming exports
+  are reached through the `streaming` namespace of the main entry; the docs now
+  use `import { streaming } from "trendcraft"` accordingly.
+- Removed a leftover `setBenchmark(...)` reference from the docs (the helper was
+  removed; use the `benchmark` backtest option).
+- Added a doc-snippet **import check (Tier 1)** to the test suite: it validates
+  every `trendcraft` import in the docs against the published `exports` subpaths
+  and the real export surface, so a stale subpath or a removed/renamed symbol in
+  a doc snippet now fails CI even for snippets that aren't executed.
+
 ### Added — `benchmark` backtest option for Relative Strength
 
 - **`runBacktest` now accepts a `benchmark` option** carrying the benchmark
