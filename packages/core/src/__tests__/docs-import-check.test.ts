@@ -30,11 +30,19 @@ import { describe, expect, it } from "vitest";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const pkgRoot = path.resolve(here, "../..");
-const docsDir = path.resolve(here, "../../docs");
 
-// All doc files that carry runnable `ts` fences, including the Japanese
-// translations (which contain the same imports and are just as prone to drift).
-const DOC_FILES = ["COOKBOOK.md", "GUIDE.md", "API.md", "GUIDE.ja.md", "API.ja.md"];
+// All doc surfaces that carry `ts` fences (paths relative to the package root),
+// including the Japanese translations and the READMEs — every place a published
+// import is shown to a reader is just as prone to drift.
+const DOC_FILES = [
+  "docs/COOKBOOK.md",
+  "docs/GUIDE.md",
+  "docs/API.md",
+  "docs/GUIDE.ja.md",
+  "docs/API.ja.md",
+  "README.md",
+  "README.ja.md",
+];
 
 // Map each published subpath to its in-repo source entry (relative to this
 // test file). Mirrors the rewrites in the Tier 2 harness; the main entry is "".
@@ -57,16 +65,11 @@ type ImportRef = { file: string; source: string; subpath: string; names: string[
 // A local binding that holds a namespace object (whole module, or a named
 // export that is itself a namespace like `streaming`).
 type NsBinding = { subpath: string; member: string | null };
-type Destructure = {
-  file: string;
-  rhs: string;
-  names: string[];
-  nsBindings: Map<string, NsBinding>;
-};
+type Destructure = { file: string; rhs: string; names: string[]; binding: NsBinding };
 
 /** Extract `ts`/`typescript` fenced code from a doc file. */
 function extractFences(file: string): string[] {
-  const text = readFileSync(path.join(docsDir, file), "utf8");
+  const text = readFileSync(path.join(pkgRoot, file), "utf8");
   const out: string[] = [];
   const lines = text.split("\n");
   let i = 0;
@@ -93,16 +96,22 @@ function stripComments(code: string): string {
   return code.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
 }
 
-/** Split a `{ a, b as c, type T }` specifier list into checkable value names. */
-function parseSpecifiers(brace: string): string[] {
-  const names: string[] = [];
+/**
+ * Parse `{ a, b as c, type T }` into `{ exported, local }` pairs. The exported
+ * name is validated against the module's exports; the local name is what a later
+ * destructure (`const { … } = c`) binds, so namespace bindings key on it.
+ */
+function parseImportPairs(brace: string): Array<{ exported: string; local: string }> {
+  const pairs: Array<{ exported: string; local: string }> = [];
   for (const spec of brace.split(",")) {
     const s = spec.trim();
-    if (!s || s === "..." || s.startsWith("type ")) continue; // skip ellipsis + type specifiers
-    const name = s.split(/\s+as\s+/)[0].trim(); // `a as b` → check `a`
-    if (/^[A-Za-z_$][\w$]*$/.test(name)) names.push(name);
+    if (!s || s === "..." || s.startsWith("type ")) continue;
+    const parts = s.split(/\s+as\s+/);
+    const exported = parts[0].trim();
+    const local = (parts[1] ?? parts[0]).trim();
+    if (/^[A-Za-z_$][\w$]*$/.test(exported)) pairs.push({ exported, local });
   }
-  return names;
+  return pairs;
 }
 
 const IMPORT_RE = /import\s+([^;]*?)\s+from\s*['"](trendcraft(?:\/[\w-]+)?)['"]/g;
@@ -126,17 +135,21 @@ function parseSnippet(
     // Extract any checkable value names per import shape. The *source* is
     // recorded unconditionally below (every shape — named, namespace, type,
     // default — feeds the subpath-validity check), so no shape can slip past it.
-    let names: string[] = [];
-    const star = clause.match(/^\*\s+as\s+([A-Za-z_$][\w$]*)$/);
-    if (star) {
-      // `import * as ns from "..."` → ns binds the whole module namespace.
-      nsBindings.set(star[1], { subpath, member: null });
-    } else if (!/^type\s/.test(clause)) {
+    const names: string[] = [];
+    if (!/^type\s/.test(clause)) {
+      // `* as ns` can appear after a default import (`Foo, * as ns`), so match
+      // it anywhere in the clause, not just at the start.
+      const star = clause.match(/\*\s+as\s+([A-Za-z_$][\w$]*)/);
+      if (star) nsBindings.set(star[1], { subpath, member: null });
       const brace = clause.match(/\{([^}]*)\}/);
-      names = brace ? parseSpecifiers(brace[1]) : [];
-      // A named import may itself be a namespace object (e.g. `streaming`);
-      // record each as a candidate binding so a destructure can be validated.
-      for (const n of names) nsBindings.set(n, { subpath, member: n });
+      if (brace) {
+        // A named import may itself be a namespace object (e.g. `streaming`);
+        // record each by its LOCAL name so an aliased destructure resolves.
+        for (const { exported, local } of parseImportPairs(brace[1])) {
+          names.push(exported);
+          nsBindings.set(local, { subpath, member: exported });
+        }
+      }
     }
     imports.push({ file, source, subpath, names, raw: m[0] });
   }
@@ -145,8 +158,9 @@ function parseSnippet(
   // biome-ignore lint/suspicious/noAssignInExpressions: standard regex exec loop
   while ((m = DESTRUCTURE_RE.exec(src)) !== null) {
     const rhs = m[2];
-    if (!nsBindings.has(rhs)) continue; // only destructures of a trendcraft namespace
-    destructures.push({ file, rhs, names: parseSpecifiers(m[1]), nsBindings });
+    const binding = nsBindings.get(rhs);
+    if (!binding) continue; // only destructures of a trendcraft namespace
+    destructures.push({ file, rhs, names: parseImportPairs(m[1]).map((p) => p.exported), binding });
   }
   return { imports, destructures };
 }
@@ -202,11 +216,9 @@ describe("doc snippets — import check (Tier 1)", () => {
 
     const missing: string[] = [];
     for (const d of allDestructures) {
-      const binding = d.nsBindings.get(d.rhs);
-      if (!binding) continue;
-      const mod = await loadModule(binding.subpath);
+      const mod = await loadModule(d.binding.subpath);
       if (!mod) continue; // unpublished subpath — reported by the subpath test
-      const ns = binding.member === null ? mod : mod[binding.member];
+      const ns = d.binding.member === null ? mod : mod[d.binding.member];
       // Only validate when the binding is actually a namespace-like object.
       if (!ns || typeof ns !== "object") continue;
       const members = new Set(Object.keys(ns));
