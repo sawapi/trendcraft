@@ -70,9 +70,9 @@ All fields optional.
 | `theme` | `'dark' \| 'light' \| ThemeColors` | `'dark'` | Color theme |
 | `pixelRatio` | `number` | `window.devicePixelRatio` | Canvas backing-store ratio (one-time; not runtime-mutable) |
 | `priceAxisWidth` | `number` | `60` | Right axis width (px) |
-| `timeAxisHeight` | `number` | `24` | Bottom axis height (px) |
+| `timeAxisHeight` | `number` | `32` | Bottom axis height (px) |
 | `fontFamily` | `string` | system | Font family (one-time) |
-| `fontSize` | `number` | `11` | Font size (px), clamped to [8, 32] |
+| `fontSize` | `number` | `11` | Font size (px) |
 | `priceFormatter` | `(price: number) => string` | auto-precision | Custom price formatter |
 | `timeFormatter` | `(time: number) => string` | smart date/time | Custom time formatter |
 | `watermark` | `string` | — | Background watermark text |
@@ -112,15 +112,14 @@ The price/time label text color is chosen via WCAG relative luminance of the cro
 ### Hotkeys
 
 ```typescript
-type HotkeyMap = Partial<{
-  hline: string;        // default 'Alt+H'
-  vline: string;        // default 'Alt+V'
-  trendline: string;    // default 'Alt+T'
-  fibRetracement: string; // default 'Alt+F'
-  channel: string;      // default 'Alt+C'
-  hideAllSeries: string; // default 'Ctrl+Alt+H'
-  cancel: string;       // default 'Escape'
-}>;
+type HotkeyAction = DrawingType | 'cancel' | 'toggleOverlays';
+// Keyed by KeyboardEvent.code combos; value = action.
+type HotkeyMap = Partial<Record<string, HotkeyAction>>;
+// Defaults: {
+//   'Alt+KeyH': 'hline', 'Alt+KeyV': 'vline', 'Alt+KeyT': 'trendline',
+//   'Alt+KeyF': 'fibRetracement', 'Alt+KeyC': 'channel',
+//   'Ctrl+Alt+KeyH': 'toggleOverlays', 'Escape': 'cancel',
+// }
 ```
 
 Matching uses `KeyboardEvent.code`, so Option+letter on macOS resolves correctly despite the altered character output. `Alt` is treated the same as `Option`; `Ctrl` and `Cmd` are interchangeable. Pass `hotkeys: false` to disable every keyboard shortcut, including the pre-existing viewport nav keys (arrows / `+` / `-` / `Home` / `End` / `F`).
@@ -318,7 +317,7 @@ All time values are epoch milliseconds.
 | Event | Payload shape |
 |---|---|
 | `crosshairMove` | `CrosshairMoveData = { time, price, x, y, paneId }` |
-| `click` | `CrosshairMoveData` |
+| `click` | `ChartClickData = { x, y, index, time, shiftKey, altKey, metaKey, ctrlKey }` |
 | `visibleRangeChange` | `VisibleRangeChangeData = { startTime, endTime, startIndex, endIndex }` |
 | `resize` | `{ width: number, height: number }` |
 | `paneResize` | `{ paneId: string, height: number }` |
@@ -638,21 +637,21 @@ Use `introspect()` to replicate the chart's auto-detection in custom code (e.g. 
 ### Decimation
 
 ```typescript
-lttb(points: Point[], threshold: number): Point[]
-// Largest-Triangle-Three-Buckets downsampling. threshold = target point count.
+lttb(data: readonly DataPoint<number | null>[], targetCount: number, indexOffset?: number): DecimatedPoints<number | null>
+// Largest-Triangle-Three-Buckets downsampling. targetCount = target point count.
 
-decimateCandles(candles: CandleData[], target: number): CandleData[]
+decimateCandles(candles: readonly CandleData[], startIndex: number, endIndex: number, maxBars: number): DecimatedCandles
 // OHLC aggregation for candles.
 
-getDecimationTarget(visibleBars: number, pixelsWide: number): number
+getDecimationTarget(dataCount: number, pixelWidth: number, minPixelsPerPoint?: number): number
 // Heuristic: one point per pixel column, with a floor.
 ```
 
 ### Formatters
 
 ```typescript
-autoFormatPrice(price: number, precision?: number): string
-autoFormatTime(time: number, context?): string
+autoFormatPrice(price: number): string
+autoFormatTime(time: number, prevTime: number | null, intervalMs?: number): string
 formatCrosshairTime(time: number): string
 formatVolume(vol: number): string
 detectPrecision(values: number[]): number

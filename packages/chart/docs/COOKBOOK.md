@@ -430,10 +430,10 @@ const data = new DataLayer();
 data.setCandles(candles);
 
 const time = new TimeScale();
-time.setRange(candles[0].time, candles[candles.length - 1].time);
+time.setTotalCount(candles.length);
 
 const price = new PriceScale();
-price.setRangeFromCandles(candles);
+price.setDataRange(Math.min(...candles.map((c) => c.low)), Math.max(...candles.map((c) => c.high)));
 
 // Decimate a long series for a 480-pixel-wide thumbnail
 const decimated = lttb(series, 480);

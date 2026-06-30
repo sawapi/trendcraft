@@ -308,7 +308,7 @@ Subscribe via `chart.on(event, handler)`. Unsubscribe via `chart.off`. Events ar
 |---|---|
 | `crosshairMove` | `CrosshairMoveData` — time, price, x, y, paneId |
 | `visibleRangeChange` | `VisibleRangeChangeData` — startTime, endTime, startIndex, endIndex |
-| `click` | `CrosshairMoveData` — same as crosshairMove, fires on pointer up |
+| `click` | `ChartClickData` — x, y, index, time, shiftKey, altKey, metaKey, ctrlKey; fires on pointer up |
 | `resize` | `{ width, height }` |
 | `paneResize` | `{ paneId, height }` — fires when the user drags a pane divider |
 | `seriesAdded` | `{ id, label }` |
