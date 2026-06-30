@@ -983,9 +983,9 @@ if (isOutperforming(stockCandles, benchmarkCandles, 52, 10)) {
 }
 
 // Rank multiple stocks
-const rankings = rankByRS(symbolsMap, { benchmarkSymbol: 'SPY' });
+const rankings = rankByRS(symbolsMap, { period: 52 });
 rankings.slice(0, 5).forEach((r, i) => {
-  console.log(`#${i + 1}: ${r.symbol} (RS Rating: ${r.rsRating})`);
+  console.log(`#${i + 1}: ${r.symbol} (Percentile: ${r.percentile})`);
 });
 ```
 
@@ -1179,8 +1179,8 @@ weeklyRsiAbove(50)    // Weekly RSI bullish
 weeklyRsiBelow(50)    // Weekly RSI bearish
 
 // Trend filters
-weeklyUptrend()       // Price > Weekly SMA
-weeklyDowntrend()     // Price < Weekly SMA
+weeklyUptrend()       // +DI > -DI and ADX > 20
+weeklyDowntrend()     // -DI > +DI and ADX > 20
 weeklyTrendStrong()   // Weekly ADX > 25
 
 // Price vs MA
@@ -1845,10 +1845,9 @@ const result = TrendCraft.from(candles)
   .backtest({
     capital: 1000000,
     atrRisk: {
-      enabled: true,
-      period: 14,            // ATR period
-      stopMultiplier: 2,     // 2x ATR stop
-      takeProfitMultiplier: 3, // 3x ATR take-profit
+      atrPeriod: 14,             // ATR period
+      atrStopMultiplier: 2,      // 2x ATR stop
+      atrTakeProfitMultiplier: 3, // 3x ATR take-profit
     },
   });
 ```

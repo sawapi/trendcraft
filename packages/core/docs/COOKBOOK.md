@@ -904,7 +904,7 @@ const candles = normalizeCandles(
 import { parseCsv, normalizeCandles } from "trendcraft";
 
 // TrendCraft's built-in CSV parser handles common formats
-const raw = parseCsv(csvString); // Returns Candle[]
+const raw = parseCsv(csvString); // Returns NormalizedCandle[]
 const candles = normalizeCandles(raw);
 ```
 
