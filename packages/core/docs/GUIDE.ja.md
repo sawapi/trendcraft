@@ -984,9 +984,9 @@ if (isOutperforming(stockCandles, benchmarkCandles, 52, 10)) {
 }
 
 // 複数銘柄のランキング
-const rankings = rankByRS(symbolsMap, { benchmarkSymbol: 'TOPIX' });
+const rankings = rankByRS(symbolsMap, { period: 52 });
 rankings.slice(0, 5).forEach((r, i) => {
-  console.log(`#${i + 1}: ${r.symbol} (RS Rating: ${r.rsRating})`);
+  console.log(`#${i + 1}: ${r.symbol} (Percentile: ${r.percentile})`);
 });
 ```
 
@@ -1180,8 +1180,8 @@ weeklyRsiAbove(50)    // 週足RSI強気
 weeklyRsiBelow(50)    // 週足RSI弱気
 
 // トレンドフィルター
-weeklyUptrend()       // 価格 > 週足SMA
-weeklyDowntrend()     // 価格 < 週足SMA
+weeklyUptrend()       // 週足 +DI > -DI かつ ADX > 20（上昇トレンド）
+weeklyDowntrend()     // 週足 -DI > +DI かつ ADX > 20（下降トレンド）
 weeklyTrendStrong()   // 週足ADX > 25
 
 // 価格 vs MA
@@ -1790,8 +1790,8 @@ const chandelier = chandelierExit(candles, {
 });
 
 chandelier.forEach(({ time, value }) => {
-  console.log(`ロングストップ: ${value.longStop}`);
-  console.log(`ショートストップ: ${value.shortStop}`);
+  console.log(`ロングストップ: ${value.longExit}`);
+  console.log(`ショートストップ: ${value.shortExit}`);
 });
 ```
 
@@ -1832,10 +1832,9 @@ const result = TrendCraft.from(candles)
   .backtest({
     capital: 1000000,
     atrRisk: {
-      enabled: true,
-      period: 14,            // ATR期間
-      stopMultiplier: 2,     // 2×ATRストップ
-      takeProfitMultiplier: 3, // 3×ATR利確
+      atrPeriod: 14,            // ATR期間
+      atrStopMultiplier: 2,     // 2×ATRストップ
+      atrTakeProfitMultiplier: 3, // 3×ATR利確
     },
   });
 ```

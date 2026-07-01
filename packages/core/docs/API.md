@@ -366,15 +366,15 @@ const result = rsi(candles, { period: 14 });
 Moving Average Convergence Divergence.
 
 ```typescript
-const result = macd(candles, { fast: 12, slow: 26, signal: 9 });
+const result = macd(candles, { fastPeriod: 12, slowPeriod: 26, signalPeriod: 9 });
 ```
 
 **Options:**
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `fast` | `number` | `12` | Fast EMA period |
-| `slow` | `number` | `26` | Slow EMA period |
-| `signal` | `number` | `9` | Signal line period |
+| `fastPeriod` | `number` | `12` | Fast EMA period |
+| `slowPeriod` | `number` | `26` | Slow EMA period |
+| `signalPeriod` | `number` | `9` | Signal line period |
 | `source` | `PriceSource` | `'close'` | Price source |
 
 **Returns:** `Series<MacdValue>`
@@ -409,7 +409,7 @@ const slow = slowStochastics(candles, { kPeriod: 14, dPeriod: 3 });
 |--------|------|---------|-------------|
 | `kPeriod` | `number` | `14` | %K period |
 | `dPeriod` | `number` | `3` | %D smoothing period |
-| `smoothK` | `number` | `3` | %K smoothing (for slow stochastics) |
+| `slowing` | `number` | `3` | %K smoothing (for slow stochastics) |
 
 **Returns:** `Series<StochasticsValue>`
 
@@ -896,15 +896,15 @@ Calculate Volume Profile with Point of Control (POC) and Value Area.
 
 ```typescript
 const result = volumeProfile(candles);
-const custom = volumeProfile(candles, { period: 20, numLevels: 24, valueAreaPercent: 70 });
+const custom = volumeProfile(candles, { period: 20, levels: 24, valueAreaPercent: 0.7 });
 ```
 
 **Options:**
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `period` | `number` | `20` | Lookback period |
-| `numLevels` | `number` | `24` | Number of price levels |
-| `valueAreaPercent` | `number` | `70` | Percentage for Value Area calculation |
+| `levels` | `number` | `24` | Number of price levels |
+| `valueAreaPercent` | `number` | `0.7` | Value Area fraction (0-1) |
 
 **Returns:** `VolumeProfileValue`
 
@@ -1012,15 +1012,16 @@ Elder's Force Index — measures the force behind price movements by combining p
 
 ```typescript
 const result = elderForceIndex(candles);
-const custom = elderForceIndex(candles, { period: 13 });
+const custom = elderForceIndex(candles, { shortPeriod: 2, longPeriod: 13 });
 ```
 
 **Options:**
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `period` | `number` | `13` | EMA smoothing period |
+| `shortPeriod` | `number` | `2` | Short EMA period (entry timing) |
+| `longPeriod` | `number` | `13` | Long EMA period (trend bias) |
 
-**Returns:** `Series<number | null>`
+**Returns:** `Series<ElderForceIndexValue>` (`{ short: number|null; long: number|null }`)
 
 **Formula:** `Force = (Close - Previous Close) × Volume`, then smoothed with EMA.
 
@@ -1037,14 +1038,14 @@ Ease of Movement (EMV) — measures the relationship between price change and vo
 
 ```typescript
 const result = easeOfMovement(candles);
-const custom = easeOfMovement(candles, { period: 14, volumeDivisor: 10000 });
+const custom = easeOfMovement(candles, { period: 14, volumeDivisor: 100_000_000 });
 ```
 
 **Options:**
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `period` | `number` | `14` | SMA smoothing period |
-| `volumeDivisor` | `number` | `10000` | Volume scaling divisor |
+| `volumeDivisor` | `number` | `100_000_000` | Volume scaling divisor |
 
 **Returns:** `Series<number | null>`
 
@@ -1389,8 +1390,8 @@ const symbolsData = new Map([
   ['MSFT', msftCandles],
 ]);
 
-const rankings = rankByRS(symbolsData, { benchmarkSymbol: 'SPY' });
-// [{ symbol: 'AAPL', rank: 1, rsRating: 92, ... }, ...]
+const rankings = rankByRS(symbolsData, { period: 52 });
+// [{ symbol: 'AAPL', rank: 1, percentile: 92, ... }, ...]
 
 // Get top 5 stocks
 const top5 = topByRS(symbolsData, 5);
@@ -1405,7 +1406,7 @@ const leaders = filterByRSPercentile(symbolsData, 80);
 | `topByRS(symbolsData, n, options)` | Get top N stocks by RS |
 | `bottomByRS(symbolsData, n, options)` | Get bottom N stocks by RS |
 | `filterByRSPercentile(symbolsData, minPercentile, options)` | Filter by RS percentile |
-| `compareRS(symbol1, symbol2, candles1, candles2, options)` | Compare two stocks directly |
+| `compareRS(symbol1, symbol2, period)` | Compare two stocks directly |
 
 ---
 
@@ -1435,14 +1436,14 @@ Price returns calculation.
 
 ```typescript
 const simpleReturns = returns(candles, { period: 1 });
-const logReturns = returns(candles, { period: 1, log: true });
+const logReturns = returns(candles, { period: 1, type: 'log' });
 ```
 
 **Options:**
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `period` | `number` | `1` | Return period |
-| `log` | `boolean` | `false` | Use logarithmic returns |
+| `type` | `'simple' \| 'log'` | `'simple'` | Return type (simple or log) |
 
 **Returns:** `Series<number | null>`
 
@@ -1766,7 +1767,7 @@ if (lastOb.atBullishOB) {
 | `volumePeriod` | `number` | `20` | Volume MA period for strength calculation |
 | `minVolumeRatio` | `number` | `1.0` | Minimum volume ratio for valid OB |
 | `maxActiveOBs` | `number` | `10` | Maximum active order blocks to track |
-| `partialMitigation` | `boolean` | `true` | Consider partial touch as mitigation |
+| `partialMitigation` | `boolean` | `false` | Consider partial touch as mitigation |
 
 **Returns:** `Series<OrderBlockValue>`
 
@@ -2177,14 +2178,7 @@ Detect when one series crosses over/under another.
 const crosses = crossOver(shortMA, longMA);
 ```
 
-**Returns:** `Signal[]`
-
-```typescript
-interface Signal {
-  time: number;
-  type: 'bullish' | 'bearish';
-}
-```
+**Returns:** `Series<boolean>` (true at the bar where the cross occurs)
 
 ---
 
@@ -2200,10 +2194,10 @@ const dc = deadCross(candles, { short: 5, long: 25 });
 **Options:**
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `short` | `number` | required | Short MA period |
-| `long` | `number` | required | Long MA period |
+| `short` | `number` | `5` | Short MA period |
+| `long` | `number` | `25` | Long MA period |
 
-**Returns:** `Signal[]`
+**Returns:** `Series<boolean>` (true at the bar where the cross occurs). Backtest-condition variants are `goldenCrossCondition`/`deadCrossCondition`.
 
 ---
 
@@ -2227,6 +2221,7 @@ interface CrossSignalQuality {
   time: number;
   type: 'golden' | 'dead';
   isFake: boolean;
+  score: number;          // Quality score 0-100 (higher = more reliable)
   details: {
     volumeConfirmed: boolean;
     trendConfirmed: boolean;
@@ -2300,6 +2295,7 @@ const bearish = signals.filter(s => s.type === 'bearish');
 interface DivergenceSignal {
   time: number;
   type: 'bullish' | 'bearish';
+  kind: 'regular' | 'hidden';   // Regular (reversal) vs hidden (continuation) divergence
   firstIdx: number;
   secondIdx: number;
   price: { first: number; second: number };
@@ -2484,7 +2480,7 @@ const signals = volumeAccumulation(candles, {
   period: 10,
   minSlope: 0.05,
   minConsecutiveDays: 3,
-  minR2: 0.5
+  minRSquared: 0.3
 });
 ```
 
@@ -2494,7 +2490,7 @@ const signals = volumeAccumulation(candles, {
 | `period` | `number` | `10` | Period for regression calculation |
 | `minSlope` | `number` | `0.05` | Minimum normalized slope (5%/day) |
 | `minConsecutiveDays` | `number` | `3` | Minimum consecutive days |
-| `minR2` | `number` | `0.5` | Minimum R² for regression quality |
+| `minRSquared` | `number` | `0.3` | Minimum R² for regression quality |
 
 **Returns:** `VolumeAccumulationSignal[]`
 
@@ -2503,7 +2499,7 @@ interface VolumeAccumulationSignal {
   time: number;
   type: 'volume_accumulation';
   slope: number;           // Normalized slope
-  r2: number;              // R² quality score
+  rSquared: number;        // R² quality score
   consecutiveDays: number; // Days of accumulation
 }
 ```
@@ -2602,7 +2598,7 @@ bearishPatterns.forEach(p => {
 |--------|------|---------|-------------|
 | `tolerance` | `number` | `0.02` | Max price difference between peaks/troughs (2%) |
 | `minDistance` | `number` | `10` | Minimum bars between peaks/troughs |
-| `maxDistance` | `number` | `60` | Maximum bars between peaks/troughs |
+| `maxDistance` | `number` | `40` | Maximum bars between peaks/troughs |
 | `minMiddleDepth` | `number` | `0.1` | Minimum depth of middle trough/peak (10%) |
 | `swingLookback` | `number` | `5` | Swing point detection lookback |
 
@@ -3170,10 +3166,10 @@ weeklyPriceAboveEma(period)   // Price > weekly EMA
 mtfPriceAboveEma(timeframe, period)  // Price > MTF EMA
 
 // Trend conditions
-weeklyUptrend(smaPeriod = 20)    // Weekly price > weekly SMA
-weeklyDowntrend(smaPeriod = 20)  // Weekly price < weekly SMA
-mtfUptrend(timeframe, smaPeriod = 20)    // MTF uptrend
-mtfDowntrend(timeframe, smaPeriod = 20)  // MTF downtrend
+weeklyUptrend(adxThreshold = 20)    // Weekly uptrend (DMI: +DI > -DI and ADX > threshold)
+weeklyDowntrend(adxThreshold = 20)  // Weekly downtrend (DMI: -DI > +DI and ADX > threshold)
+mtfUptrend(timeframe, adxThreshold = 20)    // MTF uptrend (DMI/ADX-based)
+mtfDowntrend(timeframe, adxThreshold = 20)  // MTF downtrend (DMI/ADX-based)
 
 // Strong trend (ADX-based)
 weeklyTrendStrong(adxThreshold = 25)   // Weekly ADX > threshold
@@ -6455,7 +6451,7 @@ live.addCandle(partialCandle, { partial: true });
 
 ### `livePresets`
 
-A registry of 76 incremental indicator presets bundling factory + metadata + default params + snapshot-name convention. Usable by any consumer that wants to register indicators by string id with zero config (UI forms, renderers, screeners, etc.).
+A registry of 84 incremental indicator presets bundling factory + metadata + default params + snapshot-name convention. Usable by any consumer that wants to register indicators by string id with zero config (UI forms, renderers, screeners, etc.).
 
 ```typescript
 import { livePresets } from "trendcraft";
@@ -6484,7 +6480,7 @@ const rsiIndicator = factory(undefined); // no prior state
 
 ### `indicatorPresets`
 
-Extends `livePresets` with batch `compute(candles, params)` functions, giving a single registry that supports both static (snapshot-at-a-time) and streaming (bar-by-bar) modes. 95 entries.
+Extends `livePresets` with batch `compute(candles, params)` functions, giving a single registry that supports both static (snapshot-at-a-time) and streaming (bar-by-bar) modes. 104 entries.
 
 ```typescript
 import { indicatorPresets } from "trendcraft";
@@ -6745,9 +6741,9 @@ console.log(analysis.improvement.maxDrawdown); // positive = improvement
 | `type` | `'ma'` | Filter type: `'ma'`, `'drawdown'`, `'winRate'`, `'combined'` |
 | `maPeriod` | `20` | MA period (in trades) |
 | `maType` | `'sma'` | `'sma'` or `'ema'` |
-| `maxDrawdown` | `0.15` | Max drawdown threshold for pause |
+| `maxDrawdown` | `15` | Max drawdown threshold (percent, 15 = 15%) for pause |
 | `winRateWindow` | `20` | Rolling window for win rate |
-| `minWinRate` | `0.4` | Minimum win rate to continue |
+| `minWinRate` | `40` | Minimum win rate (percent, 40 = 40%) to continue |
 | `filteredSizeFactor` | `0` | Size factor when filtered (0 = skip) |
 
 ### `equityCurveHealth(result, options?)`
@@ -6759,8 +6755,8 @@ import { equityCurveHealth } from "trendcraft";
 
 const health = equityCurveHealth(result, { maPeriod: 10 });
 // health.aboveMa: boolean
-// health.currentDrawdown: 0-1
-// health.rollingWinRate: 0-1
+// health.currentDrawdown: 0-100 (percent, matching BacktestResult.maxDrawdown)
+// health.rollingWinRate: 0-100 (percent, matching BacktestResult.winRate)
 // health.healthScore: 0-100
 ```
 
@@ -6999,7 +6995,7 @@ EWMA (Exponentially Weighted Moving Average) volatility — RiskMetrics standard
 import { ewmaVolatility } from "trendcraft";
 
 const vol = ewmaVolatility(dailyReturns, { lambda: 0.94 });
-// vol: annualized volatility estimate (number)
+// vol: Series<number> (annualized volatility %, one point per return)
 ```
 
 | Option | Default | Description |
@@ -7225,8 +7221,8 @@ Declarative JSON representation for strategies, enabling save/share/version cont
 
 Two pre-built registries are available:
 
-- **`backtestRegistry`** — 105+ backtest conditions (trend, momentum, volume, volatility, pattern, smc, range, fundamental)
-- **`streamingRegistry`** — 65+ streaming conditions (same categories, adapted for real-time snapshots)
+- **`backtestRegistry`** — 116+ backtest conditions (trend, momentum, volume, volatility, pattern, smc, range, fundamental)
+- **`streamingRegistry`** — 60+ streaming conditions (momentum, trend, volatility, volume; adapted for real-time snapshots)
 
 ### `backtestRegistry` / `streamingRegistry`
 

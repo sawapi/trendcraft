@@ -362,15 +362,15 @@ const result = rsi(candles, { period: 14 });
 移動平均収束拡散法。
 
 ```typescript
-const result = macd(candles, { fast: 12, slow: 26, signal: 9 });
+const result = macd(candles, { fastPeriod: 12, slowPeriod: 26, signalPeriod: 9 });
 ```
 
 **オプション:**
 | オプション | 型 | デフォルト | 説明 |
 |------------|------|---------|------|
-| `fast` | `number` | `12` | 短期EMA期間 |
-| `slow` | `number` | `26` | 長期EMA期間 |
-| `signal` | `number` | `9` | シグナル期間 |
+| `fastPeriod` | `number` | `12` | 短期EMA期間 |
+| `slowPeriod` | `number` | `26` | 長期EMA期間 |
+| `signalPeriod` | `number` | `9` | シグナル期間 |
 | `source` | `PriceSource` | `'close'` | 価格ソース |
 
 **戻り値:** `Series<MacdValue>`
@@ -405,7 +405,7 @@ const slow = slowStochastics(candles, { kPeriod: 14, dPeriod: 3 });
 |------------|------|---------|------|
 | `kPeriod` | `number` | `14` | %K期間 |
 | `dPeriod` | `number` | `3` | %D平滑化期間 |
-| `smoothK` | `number` | `3` | %K平滑化（スローストキャスティクス用） |
+| `slowing` | `number` | `3` | %K平滑化（スローストキャスティクス用） |
 
 **戻り値:** `Series<StochasticsValue>`
 
@@ -886,15 +886,15 @@ Volume Profile（POC、Value Area）を計算。
 
 ```typescript
 const result = volumeProfile(candles);
-const custom = volumeProfile(candles, { period: 20, numLevels: 24, valueAreaPercent: 70 });
+const custom = volumeProfile(candles, { period: 20, levels: 24, valueAreaPercent: 0.7 });
 ```
 
 **オプション:**
 | オプション | 型 | デフォルト | 説明 |
 |------------|------|---------|------|
 | `period` | `number` | `20` | 参照期間 |
-| `numLevels` | `number` | `24` | 価格レベル数 |
-| `valueAreaPercent` | `number` | `70` | Value Area計算の割合 |
+| `levels` | `number` | `24` | 価格レベル数 |
+| `valueAreaPercent` | `number` | `0.7` | Value Area計算の割合（0-1の小数） |
 
 **戻り値:** `VolumeProfileValue`
 
@@ -1002,15 +1002,16 @@ Elder's Force Index — 価格変化×ボリュームをEMAで平滑化。
 
 ```typescript
 const result = elderForceIndex(candles);
-const custom = elderForceIndex(candles, { period: 13 });
+const custom = elderForceIndex(candles, { shortPeriod: 2, longPeriod: 13 });
 ```
 
 **オプション:**
 | オプション | 型 | デフォルト | 説明 |
 |-----------|------|-----------|------|
-| `period` | `number` | `13` | EMA平滑化期間 |
+| `shortPeriod` | `number` | `2` | 短期EMA期間（エントリー） |
+| `longPeriod` | `number` | `13` | 長期EMA期間（トレンド確認） |
 
-**戻り値:** `Series<number | null>`
+**戻り値:** `Series<ElderForceIndexValue>` (`{ short: number | null; long: number | null }`)
 
 **計算式:** `Force = (Close - Prev Close) × Volume → EMA平滑化`
 
@@ -1022,14 +1023,14 @@ Ease of Movement — 価格変化とボリューム効率の指標。
 
 ```typescript
 const result = easeOfMovement(candles);
-const custom = easeOfMovement(candles, { period: 14, volumeDivisor: 10000 });
+const custom = easeOfMovement(candles, { period: 14, volumeDivisor: 100_000_000 });
 ```
 
 **オプション:**
 | オプション | 型 | デフォルト | 説明 |
 |-----------|------|-----------|------|
 | `period` | `number` | `14` | 平滑化期間 |
-| `volumeDivisor` | `number` | `10000` | ボリューム除数 |
+| `volumeDivisor` | `number` | `100_000_000` | ボリューム除数 |
 
 **戻り値:** `Series<number | null>`
 
@@ -1225,8 +1226,8 @@ const symbolsData = new Map([
   ['任天堂', nintendoCandles],
 ]);
 
-const rankings = rankByRS(symbolsData, { benchmarkSymbol: 'TOPIX' });
-// [{ symbol: 'トヨタ', rank: 1, rsRating: 92, ... }, ...]
+const rankings = rankByRS(symbolsData, { period: 52 });
+// [{ symbol: 'トヨタ', rs: 1.18, rank: 1, percentile: 100, performance: 18 }, ...]
 
 // 上位5銘柄を取得
 const top5 = topByRS(symbolsData, 5);
@@ -1241,7 +1242,7 @@ const leaders = filterByRSPercentile(symbolsData, 80);
 | `topByRS(symbolsData, n, options)` | RS上位N銘柄を取得 |
 | `bottomByRS(symbolsData, n, options)` | RS下位N銘柄を取得 |
 | `filterByRSPercentile(symbolsData, minPercentile, options)` | RSパーセンタイルでフィルタ |
-| `compareRS(symbol1, symbol2, candles1, candles2, options)` | 2銘柄を直接比較 |
+| `compareRS(symbol1Candles, symbol2Candles, period?)` | 2銘柄を直接比較 |
 
 ---
 
@@ -1271,14 +1272,14 @@ const lowestLow = lowest(candles, { period: 20 });
 
 ```typescript
 const simpleReturns = returns(candles, { period: 1 });
-const logReturns = returns(candles, { period: 1, log: true });
+const logReturns = returns(candles, { period: 1, type: 'log' });
 ```
 
 **オプション:**
 | オプション | 型 | デフォルト | 説明 |
 |------------|------|---------|------|
 | `period` | `number` | `1` | リターン期間 |
-| `log` | `boolean` | `false` | 対数リターンを使用 |
+| `type` | `'simple' \| 'log'` | `'simple'` | リターン種別（対数リターンは 'log'） |
 
 **戻り値:** `Series<number | null>`
 
@@ -1602,7 +1603,7 @@ if (lastOb.atBullishOB) {
 | `volumePeriod` | `number` | `20` | 強度計算用の出来高MA期間 |
 | `minVolumeRatio` | `number` | `1.0` | 有効なOBの最低出来高倍率 |
 | `maxActiveOBs` | `number` | `10` | 追跡するアクティブOBの最大数 |
-| `partialMitigation` | `boolean` | `true` | 部分的な接触をミティゲーションと見なす |
+| `partialMitigation` | `boolean` | `false` | 部分的な接触をミティゲーションと見なす |
 
 **戻り値:** `Series<OrderBlockValue>`
 
@@ -1761,13 +1762,10 @@ if (hasRecentSweepSignal(candles, "bullish")) {
 const crosses = crossOver(shortMA, longMA);
 ```
 
-**戻り値:** `Signal[]`
+**戻り値:** `Series<boolean>`
 
 ```typescript
-interface Signal {
-  time: number;
-  type: 'bullish' | 'bearish';
-}
+// crossOver/crossUnder return Series<boolean> ({ time, value: boolean }) — true at the bar where the cross occurs.
 ```
 
 ---
@@ -1787,7 +1785,7 @@ const dc = deadCross(candles, { short: 5, long: 25 });
 | `short` | `number` | 必須 | 短期MA期間 |
 | `long` | `number` | 必須 | 長期MA期間 |
 
-**戻り値:** `Signal[]`
+**戻り値:** `Series<boolean>` （バックテスト条件版は `goldenCrossCondition`/`deadCrossCondition`）
 
 ---
 
@@ -1811,6 +1809,7 @@ interface CrossSignalQuality {
   time: number;
   type: 'golden' | 'dead';
   isFake: boolean;             // だましの可能性
+  score: number;               // 品質スコア (0-100)
   details: {
     volumeConfirmed: boolean;  // 出来高確認
     trendConfirmed: boolean;   // トレンド確認
@@ -1917,7 +1916,7 @@ interface SqueezeSignal {
 ```typescript
 const result = rangeBound(candles);
 const custom = rangeBound(candles, {
-  adxPeriod: 14,
+  dmiPeriod: 14,
   adxTrendThreshold: 25,
   donchianPeriod: 20,
   persistBars: 3,
@@ -1927,22 +1926,21 @@ const custom = rangeBound(candles, {
 **オプション:**
 | オプション | 型 | デフォルト | 説明 |
 |------------|------|---------|------|
-| `adxPeriod` | `number` | `14` | ADX計算期間 |
+| `dmiPeriod` | `number` | `14` | DMI/ADX計算期間 |
 | `adxTrendThreshold` | `number` | `25` | トレンド判定のADX閾値 |
 | `donchianPeriod` | `number` | `20` | ドンチャンチャネル期間 |
 | `atrPeriod` | `number` | `14` | ATR計算期間 |
-| `tightThreshold` | `number` | `80` | タイトレンジ判定のスコア閾値 |
-| `confirmedThreshold` | `number` | `60` | レンジ確定のスコア閾値 |
-| `formingThreshold` | `number` | `40` | レンジ形成中のスコア閾値 |
-| `breakoutProximity` | `number` | `0.02` | ブレイクアウト近接判定（2%） |
+| `tightRangeThreshold` | `number` | `85` | タイトレンジ判定のスコア閾値 |
+| `rangeScoreThreshold` | `number` | `70` | レンジ検出のスコア閾値 |
+| `breakoutRiskZone` | `number` | `0.1` | レンジ境界付近のブレイクアウトリスクゾーン（10%） |
 | `persistBars` | `number` | `3` | 状態維持の最小バー数 |
-| `adxWeight` | `number` | `0.4` | ADXスコアの重み |
-| `channelWeight` | `number` | `0.35` | チャネル幅スコアの重み |
-| `volatilityWeight` | `number` | `0.25` | ボラティリティスコアの重み |
+| `adxWeight` | `number` | `0.5` | ADXスコアの重み |
+| `bandwidthWeight` | `number` | `0.2` | バンド幅スコアの重み |
+| `donchianWeight` | `number` | `0.2` | ドンチャン幅スコアの重み |
+| `atrWeight` | `number` | `0.1` | ATRスコアの重み |
 | `diDifferenceThreshold` | `number` | `10` | +DI/-DI差分閾値 |
 | `slopeThreshold` | `number` | `0.15` | 線形回帰傾き閾値（ATR比） |
 | `consecutiveHHLLThreshold` | `number` | `3` | 連続HH/LL回数閾値 |
-| `slopePeriod` | `number` | `10` | 線形回帰期間 |
 | `hhllLookback` | `number` | `10` | HH/LL判定の参照期間 |
 | `priceMovementThreshold` | `number` | `0.05` | 価格変動閾値（5%） |
 | `priceMovementPeriod` | `number` | `20` | 価格変動判定期間 |
@@ -1956,14 +1954,12 @@ interface RangeBoundValue {
   rangeHigh: number | null;   // レンジ上限
   rangeLow: number | null;    // レンジ下限
   adx: number | null;         // ADX値
-  plusDi: number | null;      // +DI値
-  minusDi: number | null;     // -DI値
-  donchianUpper: number | null;  // ドンチャン上限
-  donchianLower: number | null;  // ドンチャン下限
-  atr: number | null;         // ATR値
+  donchianWidth: number | null;  // ドンチャンチャネル幅（中値比）
+  atrRatio: number | null;    // 終値比のATR
   adxScore: number;           // ADXスコア成分 (0-100)
-  channelScore: number;       // チャネルスコア成分 (0-100)
-  volatilityScore: number;    // ボラティリティスコア成分 (0-100)
+  bandwidthScore: number;     // バンド幅スコア成分 (0-100)
+  donchianScore: number;      // ドンチャン幅スコア成分 (0-100)
+  atrScore: number;           // ATR比スコア成分 (0-100)
   rangeBroken: boolean;       // レンジブレイク検出
   trendReason: TrendReason;   // トレンド判定理由
 }
@@ -2057,7 +2053,7 @@ const signals = volumeAccumulation(candles, {
   period: 10,
   minSlope: 0.05,
   minConsecutiveDays: 3,
-  minR2: 0.5
+  minRSquared: 0.3
 });
 ```
 
@@ -2067,7 +2063,7 @@ const signals = volumeAccumulation(candles, {
 | `period` | `number` | `10` | 回帰計算期間 |
 | `minSlope` | `number` | `0.05` | 最小正規化傾き（5%/日） |
 | `minConsecutiveDays` | `number` | `3` | 最小連続日数 |
-| `minR2` | `number` | `0.5` | 回帰品質の最小R² |
+| `minRSquared` | `number` | `0.3` | 回帰品質の最小R² |
 
 **戻り値:** `VolumeAccumulationSignal[]`
 
@@ -2076,7 +2072,7 @@ interface VolumeAccumulationSignal {
   time: number;
   type: 'volume_accumulation';
   slope: number;           // 正規化傾き
-  r2: number;              // R²品質スコア
+  rSquared: number;        // R²品質スコア
   consecutiveDays: number; // 蓄積日数
 }
 ```
@@ -2175,7 +2171,7 @@ bearishPatterns.forEach(p => {
 |-----------|-----|----------|------|
 | `tolerance` | `number` | `0.02` | ピーク/ボトム間の最大価格差（2%） |
 | `minDistance` | `number` | `10` | ピーク/ボトム間の最小バー数 |
-| `maxDistance` | `number` | `60` | ピーク/ボトム間の最大バー数 |
+| `maxDistance` | `number` | `40` | ピーク/ボトム間の最大バー数 |
 | `minMiddleDepth` | `number` | `0.1` | 中間トラフ/ピークの最小深さ（10%） |
 | `swingLookback` | `number` | `5` | スイングポイント検出ルックバック |
 
@@ -2743,10 +2739,10 @@ weeklyPriceAboveEma(period)   // 価格 > 週足EMA
 mtfPriceAboveEma(timeframe, period)  // 価格 > MTF EMA
 
 // トレンド条件
-weeklyUptrend(smaPeriod = 20)    // 週足価格 > 週足SMA
-weeklyDowntrend(smaPeriod = 20)  // 週足価格 < 週足SMA
-mtfUptrend(timeframe, smaPeriod = 20)    // MTF上昇トレンド
-mtfDowntrend(timeframe, smaPeriod = 20)  // MTF下降トレンド
+weeklyUptrend(adxThreshold = 20)    // 週足 +DI > -DI かつ ADX > 閾値（DMI/ADXベース）
+weeklyDowntrend(adxThreshold = 20)  // 週足 -DI > +DI かつ ADX > 閾値（DMI/ADXベース）
+mtfUptrend(timeframe, adxThreshold = 20)    // MTF上昇トレンド（+DI > -DI かつ ADX > 閾値）
+mtfDowntrend(timeframe, adxThreshold = 20)  // MTF下降トレンド（-DI > +DI かつ ADX > 閾値）
 
 // 強いトレンド（ADXベース）
 weeklyTrendStrong(adxThreshold = 25)   // 週足ADX > 閾値
@@ -3078,7 +3074,7 @@ for (const c of breakdown.contributions) {
 import { getPreset, listPresets } from 'trendcraft';
 
 const config = getPreset('trendFollowing');
-const available = listPresets();  // ['momentum', 'meanReversion', 'trendFollowing', 'balanced']
+const available = listPresets();  // ['momentum', 'meanReversion', 'trendFollowing', 'balanced', 'aggressive', 'conservative']
 ```
 
 | プリセット | フォーカス | 閾値 (S/M/W) | 説明 |
@@ -3087,6 +3083,8 @@ const available = listPresets();  // ['momentum', 'meanReversion', 'trendFollowi
 | `meanReversion` | 売られすぎシグナル | 75/55/35 | 押し目買い戦略 |
 | `trendFollowing` | PO, 出来高 | 70/50/30 | トレンドフォロー |
 | `balanced` | 混合 | 70/50/30 | バランス型 |
+| `aggressive` | 低閾値 | 60/40/25 | 積極型（低スコア閾値） |
+| `conservative` | 高閾値 | 80/60/40 | 保守型（高スコア閾値） |
 
 ---
 
@@ -4815,7 +4813,7 @@ import { streaming } from 'trendcraft';
 const emitter = streaming.createSignalEmitter({
   intervalMs: 60000,
   pipeline: {
-    indicators: [{ name: 'rsi14', create: () => streaming.incremental.rsi({ period: 14 }) }],
+    indicators: [{ name: 'rsi14', create: () => incremental.createRsi({ period: 14 }) }],
     entry: rsiBelow(30),
     exit: rsiAbove(70),
   },
@@ -5880,7 +5878,7 @@ live.addCandle(partialCandle, { partial: true });
 
 ### `livePresets`
 
-76 個のインクリメンタル指標プリセット（factory + メタデータ + デフォルトパラメータ + snapshot-name 規約）のレジストリ。文字列 ID で指標をゼロコンフィグに登録したい任意の利用者（UI フォーム、レンダラー、スクリーナー等）から利用できます。
+84 個のインクリメンタル指標プリセット（factory + メタデータ + デフォルトパラメータ + snapshot-name 規約）のレジストリ。文字列 ID で指標をゼロコンフィグに登録したい任意の利用者（UI フォーム、レンダラー、スクリーナー等）から利用できます。
 
 ```typescript
 import { livePresets } from "trendcraft";
@@ -5909,7 +5907,7 @@ const indicator = factory(undefined); // 既存 state なし
 
 ### `indicatorPresets`
 
-`livePresets` に `compute(candles, params)` バッチ関数を加えた拡張版。95 エントリー。単一のレジストリで静的（一括計算）と ストリーミング（バーごと）の両モードに対応します。
+`livePresets` に `compute(candles, params)` バッチ関数を加えた拡張版。104 エントリー。単一のレジストリで静的（一括計算）と ストリーミング（バーごと）の両モードに対応します。
 
 ```typescript
 import { indicatorPresets } from "trendcraft";
@@ -6229,7 +6227,7 @@ EWMA（指数加重移動平均）ボラティリティ — RiskMetrics標準の
 import { ewmaVolatility } from "trendcraft";
 
 const vol = ewmaVolatility(dailyReturns, { lambda: 0.94 });
-// vol: 年率ボラティリティ推定値（number）
+// vol: Series<number>（各点が年率ボラティリティ %）
 ```
 
 | オプション | デフォルト | 説明 |
@@ -6446,7 +6444,7 @@ const summary = runAllStressTests(dailyReturns, 1_000_000);
 ### ビルトインレジストリ
 
 - **`backtestRegistry`** — 105+個のバックテスト条件（trend, momentum, volume, volatility, pattern, smc, range, fundamental）
-- **`streamingRegistry`** — 65+個のストリーミング条件（リアルタイムスナップショット用）
+- **`streamingRegistry`** — 60+個のストリーミング条件（リアルタイムスナップショット用）
 
 ### `backtestRegistry` / `streamingRegistry`
 
