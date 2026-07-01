@@ -167,8 +167,10 @@ The two shapes carry different output structure.
 { "time": 1768259200000, "bandwidth": 0.034, "percentile": 3.2, /* ... */ }
 
 // rsiDivergence output element
-{ "time": 1768259200000, "type": "bullish", "rsiValue": 32.1,
-  "priceLow": 245.5, "rsiLow": 32.1, /* ... */ }
+{ "time": 1768259200000, "type": "bullish", "kind": "regular",
+  "firstIdx": 12, "secondIdx": 34,
+  "price": { "first": 250.0, "second": 245.5 },
+  "indicator": { "first": 28.0, "second": 32.1 } }
 ```
 
 `firedAt` for `events` shape is just the `time` of every event — equivalent to `output.map(e => e.time)`.
@@ -222,7 +224,7 @@ const { handle } = load_candles({ candles, symbol: "BTC" })
 // 2. Fan out — bars are transmitted exactly once total.
 calc_indicator  ({ kind: "rsi",          candlesRef: handle, params: { period: 14 } })
 calc_indicator  ({ kind: "atr",          candlesRef: handle, params: { period: 14 } })
-calc_indicator  ({ kind: "macd",         candlesRef: handle, params: { fast: 12, slow: 26, signal: 9 } })
+calc_indicator  ({ kind: "macd",         candlesRef: handle, params: { fastPeriod: 12, slowPeriod: 26, signalPeriod: 9 } })
 detect_signal   ({ kind: "goldenCross",  candlesRef: handle, params: { short: 5, long: 25 } })
 detect_signal   ({ kind: "bollingerSqueeze", candlesRef: handle })
 ```
