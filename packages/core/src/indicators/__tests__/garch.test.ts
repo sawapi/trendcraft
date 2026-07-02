@@ -132,6 +132,25 @@ describe("garch", () => {
       expect(result.params.alpha + result.params.beta).toBeLessThan(1);
     });
 
+    it("throws when p !== 1 (only GARCH(1,1) is supported)", () => {
+      expect(() => garch(returns, { p: 2 })).toThrow(
+        "garch: only GARCH(1,1) is currently supported; got p=2",
+      );
+      expect(() => garch(returns, { p: 0 })).toThrow(/only GARCH\(1,1\)/);
+    });
+
+    it("throws when q !== 1 (only GARCH(1,1) is supported)", () => {
+      expect(() => garch(returns, { q: 3 })).toThrow(
+        "garch: only GARCH(1,1) is currently supported; got q=3",
+      );
+    });
+
+    it("p=1, q=1 behaves identically to omitting p/q", () => {
+      const explicit = garch(returns, { p: 1, q: 1 });
+      const implicit = garch(returns);
+      expect(explicit).toEqual(implicit);
+    });
+
     it("never returns NaN forecast when input is finite", () => {
       // Pathological-but-finite returns: all very small with one large outlier
       const r = new Array(100).fill(1e-8);

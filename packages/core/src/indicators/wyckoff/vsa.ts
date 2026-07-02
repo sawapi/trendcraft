@@ -174,8 +174,23 @@ function classifyBar(
   // Absorption: high volume squeezed into narrow spread (supply/demand absorption)
   if (highVol && narrowSpread) return "absorption";
 
-  // Stopping volume: high volume at potential bottom (close in lower third)
-  if (highVol && closePosition < 0.33) return "stoppingVolume";
+  // Stopping volume: high-volume down bar after a decline (low is the lowest of
+  // the last 5 bars) whose result is dampened — it closes off its lows (upper
+  // 2/3 of the range) or fails to produce a wide spread despite the volume
+  // surge. Demand stepping in to absorb supply at a potential bottom.
+  // A wide-spread bar closing near its lows is NOT stopping volume — that is
+  // effort to fall (effortDown) or, at extreme volume, climacticAction.
+  if (highVol && c.close < c.open && (closePosition >= 0.33 || !wideSpread)) {
+    const lookback = Math.min(5, i + 1);
+    let isLowest = true;
+    for (let j = i - lookback + 1; j < i; j++) {
+      if (j >= 0 && candles[j].low <= c.low) {
+        isLowest = false;
+        break;
+      }
+    }
+    if (isLowest && lookback > 1) return "stoppingVolume";
+  }
 
   // Climactic action: extreme volume + wide spread
   if (veryHighVol && wideSpread) return "climacticAction";
@@ -222,7 +237,7 @@ function classifyBar(
   // Effort up: high volume + wide spread + close in upper 2/3
   if (highVol && wideSpread && closePosition > 0.67) return "effortUp";
 
-  // Effort down: high volume + wide spread + close in lower 1/3
+  // Effort down (effort to fall): high volume + wide spread + close in lower 1/3
   if (highVol && wideSpread && closePosition < 0.33) return "effortDown";
 
   // No supply: narrow spread + low volume + close in upper half

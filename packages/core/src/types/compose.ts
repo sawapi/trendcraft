@@ -22,6 +22,9 @@ export type SeriesTransformFn<TIn = number | null, TOut = number | null> = (
  * Options for converting Series to pseudo-candles
  */
 export type SeriesToCandlesOptions = {
-  /** Use this value for open/high/low (default: use the series value for all) */
+  /**
+   * What to fill open/high/low with: the series value (`"value"`, default)
+   * or 0 (`"zero"`). `close` always carries the series value.
+   */
   fillMode?: "value" | "zero";
 };

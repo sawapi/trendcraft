@@ -549,9 +549,10 @@ describe("wyckoffPhases – isHighVolumeBar variants", () => {
     c.push(mc(idx++, 119, 122, 118, 121, 1000));
     c.push(mc(idx++, 121, 123, 119, 120, 1000));
     c.push(mc(idx++, 120, 121, 110, 111, 1000));
-    // effortDown: highVol + wideSpread + closePosition < 0.33 (= stoppingVolume in classification)
-    // Actually stoppingVolume takes priority. Let's just test that stoppingVolume (already tested),
-    // and climacticAction (veryHighVol + wideSpread)
+    // veryHighVol + wideSpread + close near low = climacticAction (the
+    // extreme-volume variant of effort to fall; highVol-but-not-extreme bars
+    // with the same shape classify as effortDown). Both count as high-volume
+    // bars for phase detection.
     c.push(mc(idx++, 115, 118, 105, 106, 10000)); // veryHigh vol + wide spread = climacticAction
     c.push(mc(idx++, 107, 108, 106, 107, 700));
 

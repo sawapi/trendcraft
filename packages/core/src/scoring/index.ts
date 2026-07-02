@@ -40,12 +40,15 @@
  *   }
  * }
  *
- * // Use in backtest
+ * // Use in backtest (scoreAbove/scoreBelow return preset conditions)
  * const entry = scoreAbove(70, config);
+ * const exit = scoreBelow(30, config);
  * const result = runBacktest(candles, entry, exit, { capital: 100000 });
  *
  * // Or use a preset
- * const result2 = runBacktest(candles, scoreAbove(70, "trendFollowing"), exit);
+ * const result2 = runBacktest(candles, scoreAbove(70, "trendFollowing"), exit, {
+ *   capital: 100000,
+ * });
  * ```
  */
 

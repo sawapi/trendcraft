@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { NormalizedCandle } from "../../types";
 import { rangeBound } from "../range-bound";
+import { determineState } from "../range-bound/state-machine";
+import { DEFAULTS } from "../range-bound/types";
 
 // Helper to create test candles
 function createCandle(
@@ -145,6 +147,76 @@ describe("rangeBound", () => {
           expect(confirmedIdx).toBeGreaterThan(formingIdx);
         }
       }
+    });
+
+    it("promotes RANGE_FORMING to RANGE_CONFIRMED after persistBars consecutive in-range bars (unit)", () => {
+      // persistBars = 3 (default): 2 completed RANGE_FORMING bars + current in-range bar
+      const promoted = determineState(80, 10, 0.5, 0.01, null, "RANGE_FORMING", 2, DEFAULTS);
+      expect(promoted.state).toBe("RANGE_CONFIRMED");
+    });
+
+    it("does not promote RANGE_FORMING before persistBars is reached (unit)", () => {
+      // Only 1 completed RANGE_FORMING bar + current bar = 2 < persistBars(3)
+      const notYet = determineState(80, 10, 0.5, 0.01, null, "RANGE_FORMING", 1, DEFAULTS);
+      expect(notYet.state).toBe("RANGE_FORMING");
+
+      // First in-range bar from NEUTRAL never confirms directly (persistBars > 1)
+      const fromNeutral = determineState(80, 10, 0.5, 0.01, null, "NEUTRAL", 10, DEFAULTS);
+      expect(fromNeutral.state).toBe("RANGE_FORMING");
+    });
+
+    it("stays RANGE_CONFIRMED while range conditions hold (unit)", () => {
+      const stays = determineState(80, 10, 0.5, 0.01, null, "RANGE_CONFIRMED", 1, DEFAULTS);
+      expect(stays.state).toBe("RANGE_CONFIRMED");
+    });
+
+    it("promotes a persistent range to RANGE_CONFIRMED without passing through RANGE_TIGHT", () => {
+      const candles = createSidewaysCandles(1, 150, 100, 3);
+      const opts = {
+        lookbackPeriod: 50,
+        persistBars: 3,
+        rangeScoreThreshold: 60,
+        adxThreshold: 25, // More permissive for synthetic data
+        adxTrendThreshold: 30,
+        tightRangeThreshold: 101, // Unreachable: RANGE_CONFIRMED must come from RANGE_FORMING
+        // Disable directional-trend detectors — this test targets the
+        // FORMING → CONFIRMED promotion, not trend rejection
+        priceMovementThreshold: 1,
+        diDifferenceThreshold: 1000,
+        slopeThreshold: 1000,
+        consecutiveHHLLThreshold: 1000,
+      };
+      const result = rangeBound(candles, opts);
+
+      // The fix: FORMING can never persist persistBars or more bars — the
+      // persistBars-th consecutive in-range bar must be RANGE_CONFIRMED
+      let formingStreak = 0;
+      for (const r of result) {
+        formingStreak = r.value.state === "RANGE_FORMING" ? formingStreak + 1 : 0;
+        expect(formingStreak).toBeLessThan(opts.persistBars);
+      }
+
+      // The sideways fixture produces in-range streaks long enough to confirm
+      const confirmed = result.filter((r) => r.value.state === "RANGE_CONFIRMED");
+      expect(confirmed.length).toBeGreaterThan(0);
+    });
+
+    it("does not confirm when in-range streaks never reach persistBars", () => {
+      const candles = createSidewaysCandles(1, 150, 100, 3);
+      const result = rangeBound(candles, {
+        lookbackPeriod: 50,
+        persistBars: 999, // Unreachable persistence requirement
+        rangeScoreThreshold: 60,
+        adxThreshold: 25,
+        adxTrendThreshold: 30,
+        tightRangeThreshold: 101, // Disable the TIGHT → CONFIRMED path too
+        priceMovementThreshold: 1,
+        diDifferenceThreshold: 1000,
+        slopeThreshold: 1000,
+        consecutiveHHLLThreshold: 1000,
+      });
+
+      expect(result.some((r) => r.value.state === "RANGE_CONFIRMED")).toBe(false);
     });
 
     it("should detect breakout risk when price near boundaries", () => {

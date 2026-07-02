@@ -1,10 +1,15 @@
 /**
  * Scoring Conditions for Backtest
  *
- * Functions that create backtest conditions based on scoring thresholds.
+ * Factories that create backtest `PresetCondition`s based on scoring thresholds.
+ * The returned objects plug directly into `runBacktest` / `.entry()` / `.exit()`
+ * and combinators like `and()` / `or()` / `not()`.
+ *
+ * Note: scores are computed from the backtest candles only. For MTF-aware
+ * scoring, call `calculateScore(candles, index, config, mtfContext)` directly.
  */
 
-import type { MtfContext, NormalizedCandle, ScoringConfig, ScoringPreset } from "../types";
+import type { PresetCondition, ScoringConfig, ScoringPreset } from "../types";
 import { calculateScore } from "./calculator";
 import { getPreset } from "./presets";
 
@@ -13,7 +18,7 @@ import { getPreset } from "./presets";
  *
  * @param threshold - Score threshold (0-100)
  * @param config - Scoring configuration or preset name
- * @returns Condition function for backtest
+ * @returns Preset condition for backtest
  *
  * @example
  * ```ts
@@ -34,12 +39,16 @@ import { getPreset } from "./presets";
 export function scoreAbove(
   threshold: number,
   config: ScoringConfig | ScoringPreset,
-): (candles: NormalizedCandle[], index: number, context?: MtfContext) => boolean {
+): PresetCondition {
   const resolvedConfig = typeof config === "string" ? getPreset(config) : config;
 
-  return (candles: NormalizedCandle[], index: number, context?: MtfContext): boolean => {
-    const result = calculateScore(candles, index, resolvedConfig, context);
-    return result.normalizedScore >= threshold;
+  return {
+    type: "preset",
+    name: `scoreAbove(${threshold})`,
+    evaluate: (_indicators, _candle, index, candles) => {
+      const result = calculateScore(candles, index, resolvedConfig);
+      return result.normalizedScore >= threshold;
+    },
   };
 }
 
@@ -48,17 +57,21 @@ export function scoreAbove(
  *
  * @param threshold - Score threshold (0-100)
  * @param config - Scoring configuration or preset name
- * @returns Condition function for backtest
+ * @returns Preset condition for backtest
  */
 export function scoreBelow(
   threshold: number,
   config: ScoringConfig | ScoringPreset,
-): (candles: NormalizedCandle[], index: number, context?: MtfContext) => boolean {
+): PresetCondition {
   const resolvedConfig = typeof config === "string" ? getPreset(config) : config;
 
-  return (candles: NormalizedCandle[], index: number, context?: MtfContext): boolean => {
-    const result = calculateScore(candles, index, resolvedConfig, context);
-    return result.normalizedScore <= threshold;
+  return {
+    type: "preset",
+    name: `scoreBelow(${threshold})`,
+    evaluate: (_indicators, _candle, index, candles) => {
+      const result = calculateScore(candles, index, resolvedConfig);
+      return result.normalizedScore <= threshold;
+    },
   };
 }
 
@@ -67,24 +80,29 @@ export function scoreBelow(
  *
  * @param strength - Required strength level
  * @param config - Scoring configuration or preset name
+ * @returns Preset condition for backtest
  */
 export function scoreStrength(
   strength: "strong" | "moderate" | "weak",
   config: ScoringConfig | ScoringPreset,
-): (candles: NormalizedCandle[], index: number, context?: MtfContext) => boolean {
+): PresetCondition {
   const resolvedConfig = typeof config === "string" ? getPreset(config) : config;
 
-  return (candles: NormalizedCandle[], index: number, context?: MtfContext): boolean => {
-    const result = calculateScore(candles, index, resolvedConfig, context);
+  return {
+    type: "preset",
+    name: `scoreStrength(${strength})`,
+    evaluate: (_indicators, _candle, index, candles) => {
+      const result = calculateScore(candles, index, resolvedConfig);
 
-    switch (strength) {
-      case "strong":
-        return result.strength === "strong";
-      case "moderate":
-        return result.strength === "strong" || result.strength === "moderate";
-      case "weak":
-        return result.strength !== "none";
-    }
+      switch (strength) {
+        case "strong":
+          return result.strength === "strong";
+        case "moderate":
+          return result.strength === "strong" || result.strength === "moderate";
+        case "weak":
+          return result.strength !== "none";
+      }
+    },
   };
 }
 
@@ -93,16 +111,21 @@ export function scoreStrength(
  *
  * @param minActive - Minimum number of active signals required
  * @param config - Scoring configuration or preset name
+ * @returns Preset condition for backtest
  */
 export function minActiveSignals(
   minActive: number,
   config: ScoringConfig | ScoringPreset,
-): (candles: NormalizedCandle[], index: number, context?: MtfContext) => boolean {
+): PresetCondition {
   const resolvedConfig = typeof config === "string" ? getPreset(config) : config;
 
-  return (candles: NormalizedCandle[], index: number, context?: MtfContext): boolean => {
-    const result = calculateScore(candles, index, resolvedConfig, context);
-    return result.activeSignals >= minActive;
+  return {
+    type: "preset",
+    name: `minActiveSignals(${minActive})`,
+    evaluate: (_indicators, _candle, index, candles) => {
+      const result = calculateScore(candles, index, resolvedConfig);
+      return result.activeSignals >= minActive;
+    },
   };
 }
 
@@ -112,17 +135,22 @@ export function minActiveSignals(
  * @param threshold - Score threshold (0-100)
  * @param minActive - Minimum active signals
  * @param config - Scoring configuration or preset name
+ * @returns Preset condition for backtest
  */
 export function scoreWithMinSignals(
   threshold: number,
   minActive: number,
   config: ScoringConfig | ScoringPreset,
-): (candles: NormalizedCandle[], index: number, context?: MtfContext) => boolean {
+): PresetCondition {
   const resolvedConfig = typeof config === "string" ? getPreset(config) : config;
 
-  return (candles: NormalizedCandle[], index: number, context?: MtfContext): boolean => {
-    const result = calculateScore(candles, index, resolvedConfig, context);
-    return result.normalizedScore >= threshold && result.activeSignals >= minActive;
+  return {
+    type: "preset",
+    name: `scoreWithMinSignals(${threshold}, ${minActive})`,
+    evaluate: (_indicators, _candle, index, candles) => {
+      const result = calculateScore(candles, index, resolvedConfig);
+      return result.normalizedScore >= threshold && result.activeSignals >= minActive;
+    },
   };
 }
 
@@ -131,19 +159,24 @@ export function scoreWithMinSignals(
  *
  * @param minIncrease - Minimum score increase required
  * @param config - Scoring configuration or preset name
+ * @returns Preset condition for backtest
  */
 export function scoreIncreasing(
   minIncrease: number,
   config: ScoringConfig | ScoringPreset,
-): (candles: NormalizedCandle[], index: number, context?: MtfContext) => boolean {
+): PresetCondition {
   const resolvedConfig = typeof config === "string" ? getPreset(config) : config;
 
-  return (candles: NormalizedCandle[], index: number, context?: MtfContext): boolean => {
-    if (index < 1) return false;
+  return {
+    type: "preset",
+    name: `scoreIncreasing(${minIncrease})`,
+    evaluate: (_indicators, _candle, index, candles) => {
+      if (index < 1) return false;
 
-    const currentResult = calculateScore(candles, index, resolvedConfig, context);
-    const prevResult = calculateScore(candles, index - 1, resolvedConfig, context);
+      const currentResult = calculateScore(candles, index, resolvedConfig);
+      const prevResult = calculateScore(candles, index - 1, resolvedConfig);
 
-    return currentResult.normalizedScore - prevResult.normalizedScore >= minIncrease;
+      return currentResult.normalizedScore - prevResult.normalizedScore >= minIncrease;
+    },
   };
 }

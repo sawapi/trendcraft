@@ -73,6 +73,35 @@ describe("seriesToCandles", () => {
     const candles = seriesToCandles([]);
     expect(candles).toEqual([]);
   });
+
+  it("fillMode 'value' matches the default (OHLC = value)", () => {
+    const series: Series<number | null> = [
+      { time: 1000, value: null },
+      { time: 2000, value: 50 },
+    ];
+
+    const candles = seriesToCandles(series, { fillMode: "value" });
+
+    expect(candles).toEqual(seriesToCandles(series));
+    // null at the head of the series becomes 0 for all prices
+    expect(candles[0]).toEqual({ time: 1000, open: 0, high: 0, low: 0, close: 0, volume: 0 });
+    expect(candles[1]).toEqual({ time: 2000, open: 50, high: 50, low: 50, close: 50, volume: 0 });
+  });
+
+  it("fillMode 'zero' fills open/high/low with 0 while close keeps the value", () => {
+    const series: Series<number | null> = [
+      { time: 1000, value: null },
+      { time: 2000, value: 50 },
+      { time: 3000, value: 75 },
+    ];
+
+    const candles = seriesToCandles(series, { fillMode: "zero" });
+
+    // null at the head of the series becomes 0 for all prices
+    expect(candles[0]).toEqual({ time: 1000, open: 0, high: 0, low: 0, close: 0, volume: 0 });
+    expect(candles[1]).toEqual({ time: 2000, open: 0, high: 0, low: 0, close: 50, volume: 0 });
+    expect(candles[2]).toEqual({ time: 3000, open: 0, high: 0, low: 0, close: 75, volume: 0 });
+  });
 });
 
 describe("extractField", () => {

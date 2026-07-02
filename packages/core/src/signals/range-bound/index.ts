@@ -29,7 +29,9 @@
  *
  * - `NEUTRAL`: Insufficient data or mixed signals
  * - `RANGE_FORMING`: Range conditions detected, awaiting confirmation
- * - `RANGE_CONFIRMED`: Range persisted for `persistBars` (default: 3)
+ * - `RANGE_CONFIRMED`: Range persisted for `persistBars` consecutive in-range
+ *   bars (default: 3) — the `persistBars`-th consecutive in-range bar is
+ *   emitted as `RANGE_CONFIRMED`
  * - `RANGE_TIGHT`: Very tight range with high confidence
  * - `BREAKOUT_RISK_UP`: Price near upper boundary
  * - `BREAKOUT_RISK_DOWN`: Price near lower boundary
@@ -258,7 +260,7 @@ export function rangeBound(
       },
     );
 
-    // Determine state
+    // Determine state (persistCount holds the completed streak of prevState)
     const { state, confidence, trendReason } = determineState(
       rangeScore,
       adx,
@@ -266,6 +268,7 @@ export function rangeBound(
       priceMovement,
       isDirectionalTrend,
       prevState,
+      persistCount,
       opts,
     );
 

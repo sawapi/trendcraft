@@ -12,6 +12,10 @@ import type { SeriesToCandlesOptions } from "../types/compose";
  * Non-null values become OHLC (all the same value), volume = 0.
  * null values get 0 for all prices.
  *
+ * `fillMode` controls what open/high/low are filled with:
+ * - `"value"` (default): the series value, so OHLC are all equal
+ * - `"zero"`: 0, so only `close` carries the series value
+ *
  * @param series - Source series to convert
  * @param options - Conversion options
  * @returns Array of pseudo-candles suitable for indicator functions
@@ -25,15 +29,17 @@ import type { SeriesToCandlesOptions } from "../types/compose";
  */
 export function seriesToCandles(
   series: Series<number | null>,
-  _options: SeriesToCandlesOptions = {},
+  options: SeriesToCandlesOptions = {},
 ): NormalizedCandle[] {
+  const { fillMode = "value" } = options;
   return series.map((point) => {
     const v = point.value ?? 0;
+    const ohl = fillMode === "zero" ? 0 : v;
     return {
       time: point.time,
-      open: v,
-      high: v,
-      low: v,
+      open: ohl,
+      high: ohl,
+      low: ohl,
       close: v,
       volume: 0,
     };
@@ -52,7 +58,7 @@ export function seriesToCandles(
  * ```ts
  * const macdSeries = macd(candles);
  * const histogram = extractField(macdSeries, "histogram");
- * const smoothedHist = pipe(histogram, applyIndicator(ema, { period: 9 }));
+ * const smoothedHist = pipe(histogram, through(ema, { period: 9 }));
  * ```
  */
 export function extractField<T extends Record<string, unknown>>(

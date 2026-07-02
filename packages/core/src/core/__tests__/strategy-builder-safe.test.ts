@@ -122,3 +122,52 @@ describe("MtfStrategyBuilder.backtestSafe", () => {
     }
   });
 });
+
+describe("StrategyBuilder extended options (MtfBacktestOptions union)", () => {
+  // backtest()/backtestSafe() accept the same option union as the
+  // standalone runBacktest, so extended options like atrRisk must
+  // compile and be forwarded through the fluent API.
+  it("backtest() accepts atrRisk and produces a valid result", () => {
+    const candles = makeCandles(200);
+    const result = new StrategyBuilder(candles)
+      .entry(entryEveryN(10))
+      .exit(entryEveryN(15))
+      .backtest({
+        capital: 1000000,
+        atrRisk: {
+          atrPeriod: 14,
+          atrStopMultiplier: 2,
+          atrTakeProfitMultiplier: 3,
+        },
+      });
+
+    expect(result.initialCapital).toBe(1000000);
+    expect(result.trades).toBeDefined();
+  });
+
+  it("backtestSafe() accepts atrRisk and returns Ok", () => {
+    const candles = makeCandles(200);
+    const result = new StrategyBuilder(candles)
+      .entry(entryEveryN(10))
+      .exit(entryEveryN(15))
+      .backtestSafe({
+        capital: 1000000,
+        atrRisk: { atrPeriod: 14, atrStopMultiplier: 2 },
+      });
+
+    expect(result.ok).toBe(true);
+  });
+
+  it("MtfStrategyBuilder.backtest() accepts atrRisk alongside MTF timeframes", () => {
+    const candles = makeCandles(200);
+    const result = new MtfStrategyBuilder(candles, ["weekly"])
+      .entry(entryEveryN(10))
+      .exit(entryEveryN(15))
+      .backtest({
+        capital: 1000000,
+        atrRisk: { atrPeriod: 14, atrStopMultiplier: 2 },
+      });
+
+    expect(result.initialCapital).toBe(1000000);
+  });
+});

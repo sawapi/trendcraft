@@ -14,7 +14,8 @@ export const SPECIALIZED_MANIFESTS: IndicatorManifest[] = [
     ],
     signals: [
       "noSupply / noDemand: low-volume narrow-spread bars suggesting professional disinterest",
-      "stoppingVolume: high volume + close in lower third of bar = supply being absorbed (often near lows)",
+      "stoppingVolume: high-volume down bar at new local lows that closes off its lows or keeps a non-wide spread = demand absorbing supply at a potential bottom",
+      "effortUp / effortDown: high volume + wide spread closing near the bar's extreme = effort with result in that direction",
       "climacticAction: extreme volume + wide spread = capitulation or blow-off",
       "spring: false break below a swing low followed by recovery (Wyckoff signature) — trendcraft impl uses bar-shape rules, NOT a strict low-volume requirement",
       "upthrust: false break above a swing high followed by rejection — trendcraft impl uses bar-shape rules, NOT a strict low-volume requirement",

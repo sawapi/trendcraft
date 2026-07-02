@@ -19,9 +19,15 @@ import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types"
 
 /** GARCH model options */
 export type GarchOptions = AnnualizationOptions & {
-  /** GARCH lag order (default: 1) */
+  /**
+   * GARCH lag order — reserved for future use. Only `1` is currently
+   * supported (the implementation is GARCH(1,1)); any other value throws.
+   */
   p?: number;
-  /** ARCH lag order (default: 1) */
+  /**
+   * ARCH lag order — reserved for future use. Only `1` is currently
+   * supported (the implementation is GARCH(1,1)); any other value throws.
+   */
   q?: number;
   /** Maximum iterations for MLE optimization (default: 100) */
   maxIterations?: number;
@@ -201,6 +207,16 @@ function sampleVariance(values: number[]): number {
  * ```
  */
 export function garch(returns: number[], options?: GarchOptions): GarchResult {
+  // Only GARCH(1,1) is implemented. `p` / `q` are reserved for a future
+  // general GARCH(p,q) estimator — reject anything else loudly instead of
+  // silently fitting a (1,1) model the caller did not ask for.
+  if (options?.p !== undefined && options.p !== 1) {
+    throw new Error(`garch: only GARCH(1,1) is currently supported; got p=${options.p}`);
+  }
+  if (options?.q !== undefined && options.q !== 1) {
+    throw new Error(`garch: only GARCH(1,1) is currently supported; got q=${options.q}`);
+  }
+
   const maxIterations = options?.maxIterations ?? 100;
   const tolerance = options?.tolerance ?? 1e-6;
   const sqrtAnnualization = Math.sqrt(annualizationFactor(options));

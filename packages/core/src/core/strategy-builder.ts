@@ -44,9 +44,13 @@ export class StrategyBuilder {
   }
 
   /**
-   * Run backtest with the configured strategy
+   * Run backtest with the configured strategy.
+   *
+   * Accepts the same option union as the standalone `runBacktest`, so
+   * extended options such as `atrRisk` / `fundamentals` / `validateData`
+   * (from `MtfBacktestOptions`) can be passed through the fluent API.
    */
-  backtest(options: BacktestOptions): BacktestResult {
+  backtest(options: BacktestOptions | MtfBacktestOptions): BacktestResult {
     if (!this._entryCondition) {
       throw new Error("Entry condition is required. Use .entry() to set it.");
     }
@@ -64,8 +68,8 @@ export class StrategyBuilder {
    * ```ts
    * const result = TrendCraft.from(candles)
    *   .strategy()
-   *   .entry(goldenCross())
-   *   .exit(deadCross())
+   *   .entry(goldenCrossCondition())
+   *   .exit(deadCrossCondition())
    *   .backtestSafe({ capital: 1000000 });
    *
    * if (result.ok) {
@@ -75,7 +79,7 @@ export class StrategyBuilder {
    * }
    * ```
    */
-  backtestSafe(options: BacktestOptions): Result<BacktestResult> {
+  backtestSafe(options: BacktestOptions | MtfBacktestOptions): Result<BacktestResult> {
     if (!this._entryCondition) {
       return err(
         tcError("MISSING_CONDITION", "Entry condition is required. Use .entry() to set it."),
@@ -111,7 +115,7 @@ export class MtfStrategyBuilder extends StrategyBuilder {
   /**
    * Run backtest with MTF support
    */
-  backtest(options: BacktestOptions): BacktestResult {
+  backtest(options: BacktestOptions | MtfBacktestOptions): BacktestResult {
     if (!this._entryCondition) {
       throw new Error("Entry condition is required. Use .entry() to set it.");
     }
@@ -136,7 +140,7 @@ export class MtfStrategyBuilder extends StrategyBuilder {
    *   .withMtf(["weekly"])
    *   .strategy()
    *   .entry(weeklyRsiAbove(50))
-   *   .exit(deadCross())
+   *   .exit(deadCrossCondition())
    *   .backtestSafe({ capital: 1000000 });
    *
    * if (result.ok) {
@@ -146,7 +150,7 @@ export class MtfStrategyBuilder extends StrategyBuilder {
    * }
    * ```
    */
-  backtestSafe(options: BacktestOptions): Result<BacktestResult> {
+  backtestSafe(options: BacktestOptions | MtfBacktestOptions): Result<BacktestResult> {
     if (!this._entryCondition) {
       return err(
         tcError("MISSING_CONDITION", "Entry condition is required. Use .entry() to set it."),

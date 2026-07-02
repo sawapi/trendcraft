@@ -9,6 +9,12 @@ import type { RangeBoundOptions, RangeBoundState, TrendReason } from "./types";
  * - Directional trend filter: if DI difference, regression slope, or HH/LL pattern indicates trend, it's TRENDING
  * - Range detection requires BOTH low ADX AND high composite score AND low price movement AND no directional trend
  * - This prevents false positives where volatility indicators suggest range but price is clearly moving
+ * - RANGE_FORMING promotes to RANGE_CONFIRMED once the range has persisted for
+ *   `persistBars` consecutive in-range bars (counting the current bar), i.e. the
+ *   `persistBars`-th consecutive in-range bar is emitted as RANGE_CONFIRMED
+ *
+ * @param prevPersistCount - Number of consecutive bars already spent in `prevState`
+ *   (0 on the first bar). Used to promote RANGE_FORMING → RANGE_CONFIRMED.
  */
 export function determineState(
   rangeScore: number,
@@ -17,6 +23,7 @@ export function determineState(
   priceMovement: number | null,
   directionalTrendReason: TrendReason,
   prevState: RangeBoundState,
+  prevPersistCount: number,
   opts: Required<RangeBoundOptions>,
 ): { state: RangeBoundState; confidence: number; trendReason: TrendReason } {
   // 1. Check for insufficient data
@@ -85,6 +92,14 @@ export function determineState(
 
     if (isAlreadyConfirmed) {
       return { state: "RANGE_CONFIRMED", confidence: 0.85, trendReason: null };
+    }
+
+    // Promote RANGE_FORMING → RANGE_CONFIRMED once the range has persisted for
+    // `persistBars` consecutive in-range bars (the completed RANGE_FORMING
+    // streak plus the current bar).
+    const formingStreak = prevState === "RANGE_FORMING" ? prevPersistCount : 0;
+    if (formingStreak + 1 >= opts.persistBars) {
+      return { state: "RANGE_CONFIRMED", confidence: 0.8, trendReason: null };
     }
 
     return { state: "RANGE_FORMING", confidence: 0.7, trendReason: null };
