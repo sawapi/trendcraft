@@ -1,7 +1,8 @@
 /**
  * Candlestick-based hero variant, for docs pages that want the trader
  * signal rather than the cleaner mountain base.
- * Same indicator stack as hero.ts.
+ * Uses an SMA 5/20/60 ribbon plus RSI and MACD panes (hero.ts uses
+ * Bollinger Bands + SMA 50 instead).
  */
 
 import type { CandleData } from "@trendcraft/chart";

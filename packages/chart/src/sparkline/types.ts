@@ -41,7 +41,7 @@ export type HoverPayload = {
   type: "line" | "candle";
   /** For line mode: the close value at index. For candle: candle.close. */
   value: number;
-  /** Present when underlying data is OHLC. */
+  /** Present only when rendering in candle mode (omitted in line mode — including the density fallback — even when the underlying data is OHLC). */
   candle?: SparklineCandle;
 };
 

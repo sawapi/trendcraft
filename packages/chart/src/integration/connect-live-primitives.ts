@@ -12,13 +12,14 @@
  *
  * @example
  * ```ts
- * import { connectIndicators, connectLivePrimitives, connectSrConfluence, srZones } from "@trendcraft/chart";
+ * import { connectIndicators, connectLivePrimitives, connectSrConfluence } from "@trendcraft/chart";
+ * import { srZones } from "trendcraft";
  *
  * const conn = connectIndicators(chart, { presets, candles, live: source });
- * const sr = connectSrConfluence(chart, srZones(source.completedCandles));
+ * const sr = connectSrConfluence(chart, srZones(source.completedCandles).zones);
  *
  * const live = connectLivePrimitives(source, [
- *   { recompute: (candles) => srZones(candles), handle: sr, name: "sr" },
+ *   { recompute: (candles) => srZones(candles).zones, handle: sr, name: "sr" },
  * ]);
  *
  * // later

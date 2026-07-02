@@ -26,8 +26,8 @@
  * conn.add(sma5);
  *
  * // Individual and bulk removal
- * conn.remove("sma5");  // remove just one instance (snapshotName match)
- * conn.remove("sma");   // remove all remaining sma instances (preset id fallback)
+ * conn.remove("sma_close_5"); // remove just one instance (snapshotName match)
+ * conn.remove("sma");         // remove all remaining sma instances (preset id fallback)
  *
  * conn.disconnect();
  * ```
@@ -179,7 +179,7 @@ export type IndicatorConnection = {
   /**
    * Remove indicator(s). Accepts:
    * - an `IndicatorHandle` → removes that instance
-   * - a snapshot name (e.g. `"sma5"`) → removes that single instance
+   * - a snapshot name (e.g. `"sma_close_5"`) → removes that single instance
    * - a preset id (e.g. `"sma"`) with no matching snapshot name → removes all instances of that preset
    */
   remove(target: string | IndicatorHandle): void;

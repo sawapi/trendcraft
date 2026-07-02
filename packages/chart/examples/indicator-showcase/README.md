@@ -1,8 +1,9 @@
 # indicator-showcase
 
-Catalog demo for `@trendcraft/chart`. Every preset registered with
-`registerTrendCraftPresets` (104+ entries) is exposed via a categorized sidebar
-with parameter controls, live mode, signal panel, and plugin panel.
+Catalog demo for `@trendcraft/chart`. Every preset in `indicatorPresets` from
+`trendcraft` (104+ entries) is exposed via a categorized sidebar with parameter
+controls, live mode, signal panel, and plugin panel; `registerTrendCraftPresets`
+wires up their TrendCraft-specific rendering.
 
 ## Setup
 
@@ -27,7 +28,7 @@ pnpm dev
 - **Plugins panel** — toggle Regime Heatmap, SMC Layer, Wyckoff Phase, etc.
 - **Last-value badges** — `Badges` and `Mode` toolbar buttons exercise
   `showSeriesBadges` / `seriesBadgeMode` (absolute vs visible).
-- **Theme + PNG export** — light/dark and `chart.exportPng()`.
+- **Theme + PNG export** — light/dark and `chart.toImage("image/png")`.
 
 ## When to read this code
 

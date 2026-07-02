@@ -7,7 +7,7 @@ The chart exposes two plugin surfaces:
 | **Series renderer** | A new series type with its own rendering logic | "I need to draw Renko / Point&Figure / a custom candle style" |
 | **Pane primitive** | A free-form overlay on a pane (not tied to a data series) | "I want to draw support zones / session backgrounds / a watermark per pane" |
 
-Both plugins are plain objects you register on the chart instance. No build step, no magic discovery — the chart just calls your `render` function every frame.
+Both plugins are plain objects you register on the chart instance. No build step, no magic discovery — the chart just calls your `render` function on every invalidated frame.
 
 ## Table of Contents
 
@@ -34,13 +34,14 @@ SeriesRendererPlugin:                       Plugin owns: render, price range,
 
 PrimitivePlugin:                            Plugin owns: state, render
   plugin defines defaultState → chart       Chart owns: pane layout, z-order,
-  calls render(state) every frame           canvas lifecycle
+  calls render(state) on each               canvas lifecycle
+  invalidated frame
 ```
 
 - Pick a **series renderer** when you want per-bar data flowing through the standard `addIndicator` API and the chart to auto-scale around it.
 - Pick a **primitive** when you have a logically flat overlay (zones, bands, markers) that doesn't map cleanly onto a series.
 
-Many of TrendCraft's built-in visualizations (`addBacktest`, `addPatterns`, `addScores`, the regime heatmap, the SMC layer) are primitives.
+Several of TrendCraft's built-in visualizations (the regime heatmap, the SMC layer, and the other modules in `packages/chart/src/plugins/`) are primitives. `addBacktest`, `addPatterns`, and `addScores` are not — they use dedicated internal renderers, not the primitive system.
 
 ## Series renderer plugin
 
@@ -162,7 +163,7 @@ const myPrim = definePrimitive<MyState>({
 | `name` | `string` | Yes | Unique identifier. Used by `chart.removePrimitive(name)`. |
 | `pane` | `string` | Yes | Target pane: `'main'`, a specific pane id, or `'all'` to render on every pane. |
 | `zOrder` | `'below' \| 'above'` | Yes | Render order relative to series. `'below'` = backgrounds, `'above'` = annotations. |
-| `defaultState` | `TState` | Yes | Initial state object. The chart holds a mutable reference. |
+| `defaultState` | `TState` | Yes | Initial state object. The chart takes a shallow copy at registration, so later mutations of your original object are not seen — change state via the `update` hook or by re-registering under the same `name`. |
 | `render` | `(ctx, state) => void` | Yes | Draw the primitive. Called once per frame per matched pane. |
 | `update` | `(state) => state` | No | Optional state transform called before each render. Return a new state to replace the current one. |
 | `destroy` | `() => void` | No | Called on `chart.destroy()`. |
@@ -296,7 +297,7 @@ registerPrimitive(plugin)
 
 ### Primitive with external state
 
-If your primitive's state comes from outside the chart (e.g., a reactive store), keep a reference in the closure and read from it in `render`. The chart calls `render` every frame, so changes show up on the next tick.
+If your primitive's state comes from outside the chart (e.g., a reactive store), keep a reference in the closure and read from it in `render`. Rendering is invalidation-driven, not per-frame — after mutating the closure state, trigger a repaint (the simplest way is to re-register the primitive via `chart.registerPrimitive(...)`, which marks the chart dirty; any other chart mutation also works).
 
 ```typescript
 let currentZones: Zone[] = [];
@@ -315,7 +316,7 @@ const srZones = definePrimitive({
 export function setZones(zones: Zone[]) { currentZones = zones; }
 ```
 
-The built-in `connectRegimeHeatmap`, `connectSmcLayer`, etc. use this pattern — they return a handle that lets you push new state without re-registering.
+The built-in `connectRegimeHeatmap`, `connectSmcLayer`, etc. take a different approach: their handle's `update()` builds a fresh primitive with the new state baked into `defaultState` and calls `chart.registerPrimitive(...)` again — re-registering under the same name replaces the prior entry (and runs its `destroy`), which also marks the chart dirty so the update paints.
 
 ### Connect-style helpers
 

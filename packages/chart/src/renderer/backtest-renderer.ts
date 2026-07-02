@@ -196,7 +196,7 @@ export function renderEquityCurve(
 }
 
 /**
- * Render backtest summary bar at bottom of equity pane.
+ * Render backtest summary bar at the top of the equity pane.
  */
 export function renderBacktestSummary(
   ctx: CanvasRenderingContext2D,

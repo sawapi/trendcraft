@@ -58,7 +58,7 @@ chart.setCandles(candles);
 chart.addIndicator(sma(candles, { period: 20 }));
 ```
 
-`sma()` returns a `Series<number>` carrying `__meta` describing pane, color, and label. The chart auto-detects all three. No `addIndicator` config needed.
+`sma()` returns a `Series<number>` carrying `__meta` describing pane placement (`overlay`) and label — the chart auto-detects both and assigns a color from its palette. No `addIndicator` config needed.
 
 ---
 
@@ -94,14 +94,14 @@ conn.add("macd");
 
 ```typescript
 chart.addIndicator(rsi(candles, { period: 14 }), {
-  pane: "new",
+  pane: "sub",
   yRange: [0, 100],
   referenceLines: [30, 70],
   color: "#f59e0b",
 });
 ```
 
-`pane: "new"` creates a fresh sub-pane. `pane: "main"` forces the main pane. Omit it to let `__meta` decide.
+`pane: "sub"` creates a fresh sub-pane (each call gets its own auto-generated pane). `pane: "main"` forces the main pane. Omit it to let `__meta` decide.
 
 ---
 
@@ -308,7 +308,7 @@ for (const ticker of tickers) {
 }
 ```
 
-The sparkline subpath has its own bundle budget (see `packages/chart/.size-limit.json`) and does not pull in the main chart code.
+The sparkline subpath has its own bundle budget (see the `size-limit` field in `packages/chart/package.json`) and does not pull in the main chart code.
 
 ---
 

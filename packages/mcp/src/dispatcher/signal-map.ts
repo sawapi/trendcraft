@@ -101,7 +101,7 @@ const REGISTRY: Record<string, SignalDescriptor> = {
     shape: "events",
     oneLiner: "Bullish/bearish divergence between price and RSI swings.",
     paramsHint:
-      "DivergenceOptions — see trendcraft signals docs (period, lookback, swingThreshold, ...)",
+      "{ swingLookback?: number = 5, minSwingDistance?: number = 5, maxSwingDistance?: number = 60, kinds?: ('regular'|'hidden')[] = ['regular'] } — RSI period is fixed at 14",
     fn: (c, o) => rsiDivergence(c, o as Parameters<typeof rsiDivergence>[1]),
   },
   macdDivergence: {
@@ -119,7 +119,8 @@ const REGISTRY: Record<string, SignalDescriptor> = {
   },
   volumeBreakout: {
     shape: "events",
-    oneLiner: "Volume exceeds N-period MA × ratio — breakout volume confirmation.",
+    oneLiner:
+      "Volume exceeds the highest volume of the prior N bars (ratio vs previous high >= minRatio) — breakout volume confirmation.",
     paramsHint: "{ period?: number = 20, minRatio?: number = 1.0 }",
     usesVolume: true,
     fn: (c, o) => volumeBreakout(c, o as Parameters<typeof volumeBreakout>[1]),

@@ -2,7 +2,7 @@
 
 A 1-screen React example that aims to be the **flagship integration demo** of TrendCraft — the place where you can touch every layer (indicator, chart, signal, backtest, risk, meta-strategy, portfolio, MCP) without setting up your own project.
 
-The studio runs **fully offline with no LLM key**. It uses `detectMarketRegime` and `suggestForRegime` from `trendcraft/manifest` rule-based, so anyone can launch it and see a regime-aware setup immediately.
+The studio runs **fully offline with no LLM key**. It uses `detectMarketRegime` from `trendcraft` and `suggestForRegime` from `trendcraft/manifest`, rule-based, so anyone can launch it and see a regime-aware setup immediately.
 
 ## Why a third example?
 
@@ -42,9 +42,9 @@ The studio now spans every feature surface from the original plan; remaining roa
 
 ## Architecture notes
 
-- **`registerTrendCraftPresets(chart)` is required**, not optional. Calling `connectIndicators` with `indicatorPresets` without it leaves TrendCraft-specific shapes (`adaptiveRsi`, `connorsRsi`, `klinger`, `vsa`) silently rendering as generic "Indicator"/"Series". See `src/App.tsx` and `packages/chart/docs/COOKBOOK.md` Recipe 1.
+- **`registerTrendCraftPresets(chart)` is required**, not optional. Calling `connectIndicators` with `indicatorPresets` without it leaves TrendCraft-specific shapes (`adaptiveRsi`, `connorsRsi`, `klinger`, `vsa`) silently rendering as generic "Indicator"/"Series". See `src/App.tsx` and `packages/chart/docs/COOKBOOK.md` Recipe 2.
 - **Phase 2 seam**: all domain calls go through `lib/studio-api.ts`'s `StudioAPI` interface. PR2 ships `localStudioAPI` (calls trendcraft directly). A future `mcpStudioAPI` will let LLM tool-use drive the same surface unchanged.
-- **kind ↔ preset key alias**: `trendcraft/manifest` uses long names (`bollingerBands`); `indicatorPresets` uses short keys (`bb`). 13 mappings in `KIND_TO_PRESET_KEY`. Manifest entries with no preset (`hmmRegimes`, `liquiditySweep`) render as disabled.
+- **kind ↔ preset key alias**: `trendcraft/manifest` uses long names (`bollingerBands`); `indicatorPresets` uses short keys (`bb`). 15 mappings live in core's `KIND_ALIASES` table, consumed via `getIndicatorPreset` / `getIndicatorPresetKey` from `trendcraft` (single owner — the studio keeps no table of its own). Manifest entries with no preset (`hmmRegimes`, `liquiditySweep`) render as disabled.
 
 ## How to run
 
