@@ -64,7 +64,7 @@ export type StochRsiOptions = {
  * @example
  * ```ts
  * const stochRsiData = stochRsi(candles, { rsiPeriod: 14, stochPeriod: 14 });
- * const { stochRsi, k, d } = stochRsiData[i].value;
+ * const { stochRsi: stochRsiVal, k, d } = stochRsiData[i].value;
  *
  * if (k < 20 && k > d) {
  *   // Oversold with bullish crossover

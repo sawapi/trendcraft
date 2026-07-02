@@ -7,7 +7,9 @@
  *
  * @example
  * ```ts
- * import { createPortfolioGuard } from "trendcraft";
+ * import { streaming } from "trendcraft";
+ *
+ * const { createPortfolioGuard } = streaming;
  *
  * const guard = createPortfolioGuard({
  *   maxTotalExposure: 200,    // max 2x leverage

@@ -14,7 +14,7 @@
  * const live = createLiveCandle({
  *   intervalMs: 60_000,
  *   indicators: [
- *     { name: "sma20", create: (s) => createSma({ period: 20 }, { fromState: s }) },
+ *     { name: "sma20", create: (s) => createSma({ period: 20 }, restoreState(s)) },
  *   ],
  * });
  * live.on("candleComplete", ({ snapshot }) => console.log(snapshot.sma20));
@@ -57,8 +57,8 @@ type IndicatorEntry = {
  * const live = createLiveCandle({
  *   intervalMs: 60_000,
  *   indicators: [
- *     { name: "sma20", create: (s) => createSma({ period: 20 }, { fromState: s }) },
- *     { name: "rsi14", create: (s) => createRsi({ period: 14 }, { fromState: s }) },
+ *     { name: "sma20", create: (s) => createSma({ period: 20 }, restoreState(s)) },
+ *     { name: "rsi14", create: (s) => createRsi({ period: 14 }, restoreState(s)) },
  *   ],
  *   history: historicalCandles,
  *   maxHistory: 500,

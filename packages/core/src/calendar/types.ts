@@ -13,10 +13,10 @@
  *
  * @example
  * ```ts
- * import { JPX_CALENDAR, calculateVaR } from "trendcraft";
+ * import { JPX_CALENDAR, calculateRuntimeMetrics } from "trendcraft";
  *
  * // Use ~245 days/year for a Japanese-market strategy instead of US 252
- * const result = calculateVaR(returns, { confidence: 0.95, calendar: JPX_CALENDAR });
+ * const metrics = calculateRuntimeMetrics(trades, { calendar: JPX_CALENDAR });
  * ```
  */
 export interface TradingCalendar {

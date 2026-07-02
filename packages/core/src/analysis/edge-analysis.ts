@@ -363,7 +363,7 @@ export function analyzeStreaks(trades: Trade[]): StreakAnalysis {
  *
  * @example
  * ```ts
- * const result = runBacktest(candles, { entry, exit, stopLoss: 5 });
+ * const result = runBacktest(candles, entry, exit, { capital: 100_000, stopLoss: 5 });
  * const analysis = analyzeAllTrades(result.trades);
  *
  * console.log('Overall:', analysis.overall);

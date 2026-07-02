@@ -7,8 +7,9 @@
  *
  * @example
  * ```ts
- * import { createPipeline } from 'trendcraft/streaming';
+ * import { streaming } from 'trendcraft';
  * import { createRsi, createSma } from 'trendcraft/incremental';
+ * const { createPipeline } = streaming;
  *
  * const pipeline = createPipeline({
  *   indicators: [

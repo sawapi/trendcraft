@@ -80,7 +80,7 @@ import { ... } from 'trendcraft/screening';    // 銘柄スクリーニング
 import { ... } from 'trendcraft/manifest';     // インジケーターメタデータ
 ```
 
-`Candle`の`time`はUnixタイムスタンプ・日付文字列・`Date`を受け付け、すべてのインジケーターは`Series<T> = { time: number, value: T }[]`を返します。
+`Candle`の`time`はUnixタイムスタンプ（秒・ミリ秒・マイクロ秒）または日付文字列を受け付け、すべてのインジケーターは`Series<T> = { time: number, value: T }[]`を返します。
 
 3つのCLIツールが同梱されています: `trendcraft-screen`、`trendcraft-backtest`、`trendcraft-analyze`（`npx`で実行。screen/backtest は `--list` で利用可能な条件を確認できます）。
 

@@ -201,7 +201,7 @@ export interface CupHandleOptions {
 interface TrendlinePatternBaseOptions {
   /** Swing point detection lookback (default: 3) */
   swingLookback?: number;
-  /** Minimum swing points per trendline (default: 2) */
+  /** Minimum swing points per trendline (default: 2 for detectTriangle/detectFlag, 3 for detectWedge/detectChannel) */
   minPoints?: number;
   /** Minimum R² for trendline fit (default: 0.6) */
   minRSquared?: number;
@@ -247,6 +247,10 @@ export interface ChannelOptions extends TrendlinePatternBaseOptions {
 
 /**
  * Flag and Pennant pattern options
+ *
+ * Note: detectFlag overrides several inherited defaults:
+ * swingLookback defaults to 2 (not 3), minRSquared defaults to 0.5 (not 0.6),
+ * and maxBreakoutBars defaults to 10 (not 20).
  */
 export interface FlagOptions extends TrendlinePatternBaseOptions {
   /** Threshold for flat slope detection (default: 0.0003) */

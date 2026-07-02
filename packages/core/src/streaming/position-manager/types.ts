@@ -29,11 +29,15 @@ import type { SessionEvent } from "../types";
  *   entryPrice: 100,
  *   shares: 50,
  *   originalShares: 50,
+ *   direction: 'long',
  *   stopLossPrice: 98,
  *   takeProfitPrice: 106,
  *   peakPrice: 100,
+ *   troughPrice: 100,
  *   maxProfitPercent: 0,
  *   maxLossPercent: 0,
+ *   partialTaken: false,
+ *   breakevenActivated: false,
  * };
  * ```
  */

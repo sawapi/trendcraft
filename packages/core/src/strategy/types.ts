@@ -6,7 +6,7 @@
  *
  * @example
  * ```ts
- * import { type StrategyDefinition, createSessionFromStrategy } from "trendcraft";
+ * import { type StrategyDefinition, createSessionFromStrategy, streaming } from "trendcraft";
  * import * as inc from "trendcraft/incremental";
  *
  * const strategy: StrategyDefinition = {

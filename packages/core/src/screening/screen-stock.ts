@@ -34,11 +34,11 @@ import type {
  * @example
  * ```ts
  * import { screenStock } from "trendcraft/screening";
- * import { and, goldenCross, volumeAnomalyCondition } from "trendcraft";
+ * import { and, goldenCrossCondition, deadCrossCondition, volumeAnomalyCondition } from "trendcraft";
  *
  * const result = screenStock("6758.T", candles, {
- *   entry: and(goldenCross(5, 25), volumeAnomalyCondition(2.0, 20)),
- *   exit: deadCross(5, 25),
+ *   entry: and(goldenCrossCondition(5, 25), volumeAnomalyCondition(2.0, 20)),
+ *   exit: deadCrossCondition(5, 25),
  * });
  *
  * if (result.entrySignal) {
@@ -136,11 +136,11 @@ export function screenStock(
  * @example
  * ```ts
  * import { screenStockSeries } from "trendcraft/screening";
- * import { goldenCross, deadCross } from "trendcraft";
+ * import { goldenCrossCondition, deadCrossCondition } from "trendcraft";
  *
  * const { points } = screenStockSeries("6758.T", candles, {
- *   entry: goldenCross(5, 25),
- *   exit: deadCross(5, 25),
+ *   entry: goldenCrossCondition(5, 25),
+ *   exit: deadCrossCondition(5, 25),
  * });
  * const entryBars = points.filter((p) => p.entrySignal);
  * ```

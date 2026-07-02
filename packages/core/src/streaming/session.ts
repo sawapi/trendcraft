@@ -7,8 +7,10 @@
  *
  * @example
  * ```ts
- * import { createTradingSession } from 'trendcraft/streaming';
+ * import { streaming } from 'trendcraft';
  * import { createRsi, createSma } from 'trendcraft/incremental';
+ *
+ * const { createTradingSession } = streaming;
  *
  * const session = createTradingSession({
  *   intervalMs: 60_000,  // 1-minute candles

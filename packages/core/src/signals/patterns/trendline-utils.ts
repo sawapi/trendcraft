@@ -122,7 +122,7 @@ export function fitTrendlinePair(
  * @param upper - Upper trendline fit
  * @param lower - Lower trendline fit
  * @param slopeTolerance - Threshold for "flat" slope (default: 0.001)
- * @param parallelTolerance - Max slope difference ratio for "parallel" (default: 0.3)
+ * @param parallelTolerance - Multiplier on slopeTolerance for the "parallel" slope-difference threshold (default: 0.3, i.e. effective threshold 0.3 × slopeTolerance = 0.0003, 0.03% per bar)
  * @returns Classification string
  *
  * @example

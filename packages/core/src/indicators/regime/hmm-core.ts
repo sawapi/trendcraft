@@ -305,8 +305,9 @@ function initializeModel(
  *
  * @example
  * ```ts
- * import { baumWelch } from "trendcraft";
- *
+ * // baumWelch is internal to the regime module; the public entry point is
+ * // `import { fitHmm } from "trendcraft"` which extracts features from Candle[]
+ * // and calls baumWelch under the hood.
  * const obs = [[0.01, 0.1], [-0.02, 0.3], [0.005, 0.12]];
  * const model = baumWelch(obs, { numStates: 2, seed: 42 });
  * console.log(model.transitionMatrix);

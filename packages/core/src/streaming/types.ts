@@ -507,7 +507,7 @@ export type LiveCandleState = {
  * const live = createLiveCandle({
  *   intervalMs: 60_000,
  *   indicators: [
- *     { name: "sma20", create: (s) => createSma({ period: 20 }, { fromState: s }) },
+ *     { name: "sma20", create: (s) => createSma({ period: 20 }, restoreState(s)) },
  *   ],
  * });
  * live.on("candleComplete", ({ candle, snapshot }) => {

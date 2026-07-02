@@ -41,7 +41,7 @@ export function and(...conditions: StreamingCondition[]): StreamingCombinedCondi
  *
  * @example
  * ```ts
- * const exit = or(rsiAbove(70), smaCrossUnder());
+ * const exit = or(rsiAbove(70), smaDeadCross());
  * ```
  */
 export function or(...conditions: StreamingCondition[]): StreamingCombinedCondition {

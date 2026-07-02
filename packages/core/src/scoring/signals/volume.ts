@@ -19,7 +19,7 @@ import type { NormalizedCandle, PrecomputedIndicators, SignalDefinition } from "
  * import { ScoreBuilder, createVolumeSpikeEvaluator } from "trendcraft";
  *
  * const config = ScoreBuilder.create()
- *   .addSignal({ name: "volSpike", weight: 1.5, evaluate: createVolumeSpikeEvaluator(1.5) })
+ *   .addSignal({ name: "volSpike", displayName: "Volume Spike", weight: 1.5, evaluate: createVolumeSpikeEvaluator(1.5) })
  *   .build();
  * ```
  */
@@ -224,10 +224,10 @@ export function createBearishVolumeTrendEvaluator(maPeriod = 20): SignalDefiniti
  * @param period - CMF period (default: 20)
  * @example
  * ```ts
- * import { ScoreBuilder, createCmfPositiveEvaluator } from "trendcraft";
+ * import { ScoreBuilder } from "trendcraft";
  *
  * const config = ScoreBuilder.create()
- *   .addSignal({ name: "cmf", weight: 1.5, evaluate: createCmfPositiveEvaluator(0.1) })
+ *   .addSignal({ name: "cmf", displayName: "CMF Positive", weight: 1.5, evaluate: createCmfPositiveEvaluator(0.1) })
  *   .build();
  * ```
  */

@@ -17,7 +17,7 @@ import type { NormalizedCandle, PrecomputedIndicators, SignalDefinition } from "
  * import { ScoreBuilder, createPerfectOrderBullishEvaluator } from "trendcraft";
  *
  * const config = ScoreBuilder.create()
- *   .addSignal({ name: "poBull", weight: 3.0, evaluate: createPerfectOrderBullishEvaluator() })
+ *   .addSignal({ name: "poBull", displayName: "Perfect Order (Bull)", weight: 3.0, evaluate: createPerfectOrderBullishEvaluator() })
  *   .build();
  * ```
  */
@@ -180,7 +180,7 @@ export function createPOConfirmationEvaluator(
  * import { ScoreBuilder, createPullbackEntryEvaluator } from "trendcraft";
  *
  * const config = ScoreBuilder.create()
- *   .addSignal({ name: "pullback", weight: 2.5, evaluate: createPullbackEntryEvaluator(20, 1) })
+ *   .addSignal({ name: "pullback", displayName: "Pullback to 20MA", weight: 2.5, evaluate: createPullbackEntryEvaluator(20, 1) })
  *   .build();
  * ```
  */
@@ -250,7 +250,7 @@ export function createPullbackEntryEvaluator(
  * import { ScoreBuilder, createGoldenCrossEvaluator } from "trendcraft";
  *
  * const config = ScoreBuilder.create()
- *   .addSignal({ name: "gc", weight: 2.0, evaluate: createGoldenCrossEvaluator(50, 200) })
+ *   .addSignal({ name: "gc", displayName: "Golden Cross (50/200)", weight: 2.0, evaluate: createGoldenCrossEvaluator(50, 200) })
  *   .build();
  * ```
  */

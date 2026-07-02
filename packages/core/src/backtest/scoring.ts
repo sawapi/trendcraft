@@ -86,7 +86,7 @@ const DEFAULT_WEIGHTS: Required<ScoreWeights> = {
 
 /**
  * Normalize Sharpe ratio to 0-100 scale.
- * 0 -> 0, 1 -> 50, 2 -> 75, 3+ -> ~100
+ * 0 -> 0, 1 -> 50, 2 -> ~67, 3 -> 75 (asymptotically approaches 100)
  */
 function normalizeSharpe(sharpe: number): number {
   if (sharpe <= 0) return 0;
@@ -105,7 +105,7 @@ function normalizeWinRate(winRate: number): number {
 
 /**
  * Normalize max drawdown to 0-100 score (lower DD = higher score).
- * 0% DD -> 100, 10% -> 70, 30% -> 30, 50%+ -> 0
+ * 0% DD -> 100, 10% -> 80, 30% -> 40, 50%+ -> 0
  */
 function normalizeDrawdown(maxDrawdown: number): number {
   if (maxDrawdown <= 0) return 100;
@@ -115,7 +115,7 @@ function normalizeDrawdown(maxDrawdown: number): number {
 
 /**
  * Normalize profit factor to 0-100 score.
- * 0 -> 0, 1 -> 30, 2 -> 60, 3+ -> ~90-100
+ * 0 -> 0, 1 -> 30, 2 -> 65, 3 -> ~77 (asymptotically approaches 100)
  */
 function normalizeProfitFactor(pf: number): number {
   if (pf <= 0) return 0;
@@ -126,7 +126,7 @@ function normalizeProfitFactor(pf: number): number {
 
 /**
  * Normalize total return percentage to 0-100 score.
- * Negative -> 0, 0% -> 0, 20% -> 40, 50% -> 67, 100%+ -> ~90-100
+ * Negative -> 0, 0% -> 0, 20% -> ~29, 50% -> 50, 100% -> ~67 (asymptotically approaches 100)
  */
 function normalizeTotalReturn(returnPercent: number): number {
   if (returnPercent <= 0) return 0;

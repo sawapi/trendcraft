@@ -6,9 +6,9 @@
  *
  * @example
  * ```ts
- * import type { OrderIntent, ExecutionResult } from "trendcraft";
+ * import type { execution } from "trendcraft";
  *
- * const order: OrderIntent = {
+ * const order: execution.OrderIntent = {
  *   symbol: "AAPL",
  *   side: "buy",
  *   quantity: 10,

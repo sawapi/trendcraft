@@ -177,7 +177,7 @@ export function volumeTrendConfidence(minConfidence = 60): PresetCondition {
  * ```ts
  * // Accumulation phase detection
  * const entry = and(
- *   volumeAccumulationCondition({ minDays: 3 }),
+ *   volumeConfirmsTrend(),
  *   cmfAbove(0),  // Buying pressure dominant
  *   priceAboveSma(50),
  * );
@@ -260,7 +260,7 @@ export function cmfBelow(threshold = 0, period = 20): PresetCondition {
  * ```ts
  * // Accumulation confirmation
  * const entry = and(
- *   volumeAccumulationCondition({ minDays: 3 }),
+ *   volumeConfirmsTrend(),
  *   cmfAbove(0),
  *   obvRising(10),  // OBV trending up
  * );

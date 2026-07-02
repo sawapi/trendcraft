@@ -262,7 +262,7 @@ export function countNecklineCrosses(
  * @param endIndex - End of range to check
  * @param necklinePrice - Neckline price level
  * @param direction - "above" for double bottom (check highs), "below" for double top (check lows)
- * @param tolerancePercent - Tolerance for small violations (default: 0.005 = 0.5%)
+ * @param tolerancePercent - Tolerance for small violations (default: 0 = no tolerance)
  * @returns true if a violation exists, false otherwise
  */
 export function hasNecklineViolation(

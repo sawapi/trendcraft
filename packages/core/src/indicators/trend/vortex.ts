@@ -53,7 +53,7 @@ export type VortexValue = {
  * const vortexData = vortex(candles, { period: 14 });
  * const { viPlus, viMinus } = vortexData[i].value;
  *
- * if (viPlus > viMinus) {
+ * if (viPlus !== null && viMinus !== null && viPlus > viMinus) {
  *   // Bullish signal
  * }
  * ```

@@ -19,7 +19,7 @@ import type { PresetCondition } from "../../types";
  * @example
  * ```ts
  * // Entry only when stock is undervalued (PER < 15)
- * const entry = and(goldenCross(), perBelow(15));
+ * const entry = and(goldenCrossCondition(), perBelow(15));
  * ```
  */
 export function perBelow(threshold: number): PresetCondition {
@@ -66,7 +66,7 @@ export function perAbove(threshold: number): PresetCondition {
  * @example
  * ```ts
  * // Entry only when PER is in reasonable range (10-20)
- * const entry = and(goldenCross(), perBetween(10, 20));
+ * const entry = and(goldenCrossCondition(), perBetween(10, 20));
  * ```
  */
 export function perBetween(min: number, max: number): PresetCondition {
@@ -93,7 +93,7 @@ export function perBetween(min: number, max: number): PresetCondition {
  * @example
  * ```ts
  * // Entry only when stock trades below book value
- * const entry = and(goldenCross(), pbrBelow(1.0));
+ * const entry = and(goldenCrossCondition(), pbrBelow(1.0));
  * ```
  */
 export function pbrBelow(threshold: number): PresetCondition {
@@ -140,7 +140,7 @@ export function pbrAbove(threshold: number): PresetCondition {
  * @example
  * ```ts
  * // Entry only when PBR is in value range (0.5-1.5)
- * const entry = and(goldenCross(), pbrBetween(0.5, 1.5));
+ * const entry = and(goldenCrossCondition(), pbrBetween(0.5, 1.5));
  * ```
  */
 export function pbrBetween(min: number, max: number): PresetCondition {

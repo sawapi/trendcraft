@@ -244,10 +244,10 @@ export function deflatedSharpe(params: DeflatedSharpeParams): number {
  * @returns Deflated Sharpe probability in [0, 1], or `NaN` when undefined
  * @example
  * ```ts
- * import { deflatedSharpeFromReturns, extractTradeReturns } from "trendcraft";
+ * import { deflatedSharpeFromReturns, extractTradeReturns, perReturnSharpe } from "trendcraft";
  *
  * const returns = extractTradeReturns(bestResult);
- * const trialSharpes = gridResult.results.map((r) => perReturnSharpe(r));
+ * const trialSharpes = gridResult.results.map((r) => perReturnSharpe(extractTradeReturns(r.backtest)));
  * const dsr = deflatedSharpeFromReturns(returns, trialSharpes);
  * ```
  */
@@ -318,7 +318,7 @@ export function perReturnSharpe(returns: number[]): number {
  *
  * // Per-return Sharpe 0.1: how many bars until PSR(0) ≥ 95%?
  * const bars = Math.ceil(minTrackRecordLength(0.1));
- * // ≈ 274 observations
+ * // ≈ 273 observations (minTrackRecordLength(0.1) ≈ 272.9)
  * ```
  */
 export function minTrackRecordLength(

@@ -1,7 +1,7 @@
 /**
  * Linear Regression indicators
  *
- * Provides linear regression line value, slope, angle, intercept,
+ * Provides linear regression line value, slope, intercept,
  * and R-squared for a rolling window of price data.
  */
 

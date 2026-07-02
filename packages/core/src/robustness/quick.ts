@@ -2,8 +2,8 @@
  * Quick Robustness Score
  *
  * Computes a robustness score from a single BacktestResult without
- * re-running backtests. Uses Monte Carlo trade shuffling, trade
- * consistency analysis, and drawdown resilience.
+ * re-running backtests. Uses Monte Carlo bootstrap resampling of trades
+ * (with replacement), trade consistency analysis, and drawdown resilience.
  */
 
 import { runMonteCarloSimulation } from "../optimization/monte-carlo";
@@ -17,8 +17,8 @@ import { scoreToGrade } from "./grade";
 
 /**
  * Quick robustness assessment from a single backtest result.
- * No re-running of backtests needed — uses Monte Carlo trade shuffling,
- * trade consistency analysis, and drawdown resilience.
+ * No re-running of backtests needed — uses Monte Carlo bootstrap resampling
+ * of trades (with replacement), trade consistency analysis, and drawdown resilience.
  *
  * @param result Backtest result to evaluate
  * @param options Configuration options

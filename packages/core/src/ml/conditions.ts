@@ -37,7 +37,7 @@ function getCachedPredictions(
  * @example
  * ```ts
  * const entry = candleFormerBullish(weights, 60);
- * const result = runBacktest(candles, { entry, exit: rsiAbove(70) });
+ * const result = runBacktest(candles, entry, rsiAbove(70), { capital: 100_000 });
  * ```
  */
 export function candleFormerBullish(
@@ -67,7 +67,7 @@ export function candleFormerBullish(
  * @example
  * ```ts
  * const exit = candleFormerBearish(weights, 60);
- * const result = runBacktest(candles, { entry: rsiBelow(30), exit });
+ * const result = runBacktest(candles, rsiBelow(30), exit, { capital: 100_000 });
  * ```
  */
 export function candleFormerBearish(

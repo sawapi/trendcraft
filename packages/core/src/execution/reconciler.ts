@@ -7,9 +7,9 @@
  *
  * @example
  * ```ts
- * import { reconcilePositions } from "trendcraft/execution";
+ * import { execution } from "trendcraft";
  *
- * const discrepancies = reconcilePositions(internalPositions, brokerPositions, {
+ * const discrepancies = execution.reconcilePositions(internalPositions, brokerPositions, {
  *   priceTolerance: 0.01,
  * });
  *

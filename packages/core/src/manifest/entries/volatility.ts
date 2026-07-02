@@ -393,11 +393,11 @@ export const VOLATILITY_MANIFESTS: IndicatorManifest[] = [
     displayName: "Adaptive Bollinger Bands",
     category: "volatility",
     oneLiner:
-      "Bollinger Bands whose stddev multiplier adapts to rolling excess kurtosis of CLOSE PRICES (not returns) — wider in fat-tail price-distribution regimes.",
+      "Bollinger Bands whose stddev multiplier adapts to rolling excess kurtosis of log returns (ln(p_t / p_{t-1})) — wider in fat-tail return regimes.",
     whenToUse: [
-      "Markets with regime-shifting price-distribution shape where fixed 2σ either over- or under-reacts",
+      "Markets with regime-shifting return-distribution shape where fixed 2σ either over- or under-reacts",
       "Mean-reversion strategies that get burned by fat-tail false breakouts",
-      "Adapting risk envelopes to the current price-distribution shape",
+      "Adapting risk envelopes to the current return-distribution shape",
     ],
     signals: [
       "Standard Bollinger interpretations apply (band touches, squeeze, band-walk)",
@@ -406,7 +406,7 @@ export const VOLATILITY_MANIFESTS: IndicatorManifest[] = [
     ],
     pitfalls: [
       "trendcraft custom variant — values are not directly comparable to fixed-multiplier BB",
-      "Kurtosis here is computed on CLOSE PRICES, not log-returns. Differs from textbook 'fat tails of returns' framing — interpretation is about price-level distribution shape over the window",
+      "Kurtosis is computed on log returns ln(p_t/p_{t-1}) — the canonical fat-tail measure (pre-v0.3.0 versions used close prices directly; values recorded under that behavior are not comparable)",
       "Kurtosis is sensitive to outliers in the lookback window — large `kurtosisLookback` (default 100) reduces sensitivity but lags regime shifts",
       "Multiplier capped at min 1.5 / max 3.0 by default — extreme tail-shape regimes still see bounded widening",
     ],

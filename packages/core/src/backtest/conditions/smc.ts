@@ -72,10 +72,12 @@ export type OrderBlockConditionOptions = OrderBlockOptions;
  *
  * @example
  * ```ts
- * runBacktest(candles, {
- *   entry: and(priceAtBullishOrderBlock(), rsiBelow(30)),
- *   exit: rsiAbove(70),
- * });
+ * runBacktest(
+ *   candles,
+ *   and(priceAtBullishOrderBlock(), rsiBelow(30)),
+ *   rsiAbove(70),
+ *   { capital: 1_000_000 },
+ * );
  * ```
  */
 export function priceAtBullishOrderBlock(
@@ -98,10 +100,12 @@ export function priceAtBullishOrderBlock(
  *
  * @example
  * ```ts
- * runBacktest(candles, {
- *   entry: and(priceAtBearishOrderBlock(), rsiAbove(70)),
- *   exit: rsiBelow(30),
- * });
+ * runBacktest(
+ *   candles,
+ *   and(priceAtBearishOrderBlock(), rsiAbove(70)),
+ *   rsiBelow(30),
+ *   { capital: 1_000_000 },
+ * );
  * ```
  */
 export function priceAtBearishOrderBlock(
@@ -226,10 +230,12 @@ export type LiquiditySweepConditionOptions = LiquiditySweepOptions;
  * @example
  * ```ts
  * // Enter on bullish sweep (price swept below swing low and recovered)
- * runBacktest(candles, {
- *   entry: liquiditySweepDetected("bullish"),
- *   exit: rsiAbove(70),
- * });
+ * runBacktest(
+ *   candles,
+ *   liquiditySweepDetected("bullish"),
+ *   rsiAbove(70),
+ *   { capital: 1_000_000 },
+ * );
  * ```
  */
 export function liquiditySweepDetected(
@@ -261,10 +267,12 @@ export function liquiditySweepDetected(
  * @example
  * ```ts
  * // Enter when bullish sweep recovers (price swept below and came back)
- * runBacktest(candles, {
- *   entry: liquiditySweepRecovered("bullish"),
- *   exit: priceAboveSma(50),
- * });
+ * runBacktest(
+ *   candles,
+ *   liquiditySweepRecovered("bullish"),
+ *   priceAboveSma(50),
+ *   { capital: 1_000_000 },
+ * );
  * ```
  */
 export function liquiditySweepRecovered(

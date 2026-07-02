@@ -19,7 +19,7 @@ import { ScoreBuilder } from "./builder";
  * const config = createMomentumPreset();
  * const candles = normalizeCandles(rawCandles);
  * const score = calculateScore(candles, candles.length - 1, config);
- * console.log(score.totalScore, score.strength); // e.g. 72, "strong"
+ * console.log(score.normalizedScore, score.strength); // e.g. 72, "strong"
  * ```
  */
 export function createMomentumPreset(): ScoringConfig {
@@ -71,7 +71,7 @@ export function createMeanReversionPreset(): ScoringConfig {
  * const config = createTrendFollowingPreset();
  * const series = calculateScoreSeries(candles, config);
  * const latest = series[series.length - 1];
- * console.log(latest.value.totalScore, latest.value.strength);
+ * console.log(latest.score.normalizedScore, latest.score.strength);
  * ```
  */
 export function createTrendFollowingPreset(): ScoringConfig {
@@ -98,7 +98,7 @@ export function createTrendFollowingPreset(): ScoringConfig {
  *
  * const config = createBalancedPreset();
  * const score = calculateScore(candles, candles.length - 1, config);
- * console.log(score.totalScore); // 0-100
+ * console.log(score.normalizedScore); // 0-100
  * ```
  */
 export function createBalancedPreset(): ScoringConfig {

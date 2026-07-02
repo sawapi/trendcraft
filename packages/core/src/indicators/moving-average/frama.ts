@@ -14,7 +14,7 @@ import { FRAMA_META } from "../indicator-meta";
  * FRAMA options
  */
 export type FramaOptions = {
-  /** Period for FRAMA calculation (must be even, default: 16) */
+  /** Period for FRAMA calculation (rounded up to the next even number if odd; default: 16) */
   period?: number;
   /** Price source to use (default: 'close') */
   source?: PriceSource;
@@ -36,6 +36,9 @@ export type FramaOptions = {
  * 5. FRAMA = alpha * source + (1 - alpha) * prevFRAMA.
  *
  * The `source` option only controls the price term in step 5.
+ *
+ * Odd periods are silently rounded up to the next even number (the series
+ * label still reports the original period).
  *
  * @param candles - Array of candles (raw or normalized)
  * @param options - FRAMA options

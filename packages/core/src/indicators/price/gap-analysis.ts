@@ -25,7 +25,7 @@ export type GapValue = {
   type: "up" | "down" | null;
   /** Gap size as a percentage of previous close */
   gapPercent: number;
-  /** Gap classification based on fill status */
+  /** Gap classification: 'full' (open beyond previous high/low), 'partial' (open beyond previous close only), or 'unfilled' (gap reclaimed within its own creation bar) */
   classification: "full" | "partial" | "unfilled" | null;
   /** Whether the gap has been completely filled */
   filled: boolean;
@@ -34,8 +34,8 @@ export type GapValue = {
 /**
  * Calculate Gap Analysis
  *
- * Gap Up: Current Open > Previous High
- * Gap Down: Current Open < Previous Low
+ * Gap Up: Current Open above Previous Close by >= minGapPercent
+ * Gap Down: Current Open below Previous Close by >= minGapPercent
  *
  * Classification:
  * - Full gap: Open beyond previous High/Low (true gap)

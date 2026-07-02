@@ -6,8 +6,10 @@
  *
  * @example
  * ```ts
- * import { createStreamingMtf } from 'trendcraft/streaming';
+ * import { streaming } from 'trendcraft';
  * import { createSma, createRsi } from 'trendcraft/incremental';
+ *
+ * const { createStreamingMtf } = streaming;
  *
  * const mtf = createStreamingMtf({
  *   timeframes: [

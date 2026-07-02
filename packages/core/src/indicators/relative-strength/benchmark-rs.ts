@@ -30,7 +30,7 @@ export interface RSValue {
  * Options for benchmark RS calculation
  */
 export interface BenchmarkRSOptions {
-  /** Period for performance calculation (default: 52 for weekly, 252 for daily) */
+  /** Period for performance calculation (default: 52; recommended 52 for weekly bars, 252 for daily bars) */
   period?: number;
   /** Period for RS SMA (for Mansfield RS calculation, default: 52) */
   smaPeriod?: number;
@@ -59,7 +59,7 @@ export interface BenchmarkRSOptions {
  *
  * // Find outperforming stocks
  * const latest = rs[rs.length - 1];
- * if (latest.value.rsRating > 80 && latest.value.trend === 'up') {
+ * if (latest.value.rsRating !== null && latest.value.rsRating > 80 && latest.value.trend === 'up') {
  *   console.log('Strong relative strength!');
  * }
  * ```

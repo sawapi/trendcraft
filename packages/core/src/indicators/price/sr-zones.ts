@@ -49,7 +49,7 @@ export type SrZone = {
 
 /** Options for the S/R zone clustering algorithm. */
 export type SrZonesOptions = {
-  /** Number of zones to find (default: auto based on price range) */
+  /** Number of zones to find (default: auto — one third of the collected raw levels, clamped to 3..15) */
   numZones?: number;
   /** ATR multiplier for zone width (default: 0.5) */
   zoneWidth?: number;
@@ -579,7 +579,7 @@ export function srZones(
  * from the preceding `lookback` bars (or all available bars if fewer).
  *
  * @param candles - Array of candles (raw or normalized)
- * @param options - S/R zone options (plus optional `lookback`)
+ * @param options - S/R zone options
  * @param lookback - Number of bars to look back (default: 200)
  * @returns Series of zone arrays, one per bar
  *

@@ -208,7 +208,7 @@ export function repayLoan(state: MarginState, fraction: number): number {
  * checkMarginCall(state, 0.25); // false
  *
  * state = updateMarginState(state, 11000, 10000);
- * // state.marginRatio = (10000 + 11000 - 10000) / 11000 ≈ 0.909
+ * // state.marginRatio = (10000 + 11000 - 10000) / 11000 = 1.0
  * checkMarginCall(state, 0.25); // false
  *
  * // After a large drop:

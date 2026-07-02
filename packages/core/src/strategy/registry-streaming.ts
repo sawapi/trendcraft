@@ -6,8 +6,8 @@
  *
  * @example
  * ```ts
- * import { streamingRegistry } from "trendcraft";
- * import { and, or, not } from "trendcraft/streaming";
+ * import { streamingRegistry, streaming } from "trendcraft";
+ * const { and, or, not } = streaming;
  *
  * const condition = streamingRegistry.hydrate(
  *   { name: "rsiBelow", params: { threshold: 30 } },

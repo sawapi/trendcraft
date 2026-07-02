@@ -55,7 +55,7 @@ export type PredictionDirection = "bullish" | "bearish" | "neutral";
  * Model hyperparameters
  */
 export type CandleFormerConfig = {
-  /** Vocabulary size (default: 46) */
+  /** Vocabulary size (default: 69 = VOCAB_SIZE, 17 shapes × 4 volume bins + 1 PAD) */
   vocabSize: number;
   /** Sequence length / context window (default: 16) */
   seqLen: number;
@@ -71,7 +71,7 @@ export type CandleFormerConfig = {
   dropoutRate: number;
   /** Number of transformer layers (default: 1) */
   numLayers: number;
-  /** Pattern vocabulary size for dual embedding (default: 15, 0 = disabled) */
+  /** Pattern vocabulary size for dual embedding (default: 0 = disabled; set to PATTERN_VOCAB_SIZE = 15 to enable) */
   patternVocabSize: number;
 };
 

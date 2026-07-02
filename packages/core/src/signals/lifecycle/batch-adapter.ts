@@ -31,7 +31,7 @@ import type { SignalManagerOptions } from "./types";
  * @example
  * ```ts
  * const crossSignals = validateCrossSignals(candles)
- *   .map(s => fromCrossSignal(s, candles[s.secondIdx].close));
+ *   .map(s => fromCrossSignal(s, candles.find(c => c.time === s.time)?.close));
  *
  * const filtered = processSignalsBatch(crossSignals, {
  *   cooldown: { bars: 10 },

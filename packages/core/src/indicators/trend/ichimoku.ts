@@ -70,7 +70,10 @@ export type IchimokuValue = {
  *
  * // Check if price is above the cloud (bullish)
  * const current = ichi[i].value;
- * const isAboveCloud = candles[i].close > Math.max(current.senkouA, current.senkouB);
+ * const isAboveCloud =
+ *   current.senkouA !== null &&
+ *   current.senkouB !== null &&
+ *   candles[i].close > Math.max(current.senkouA, current.senkouB);
  * ```
  */
 export function ichimoku(

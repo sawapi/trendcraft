@@ -320,7 +320,7 @@ const candles = normalizeCandles(rawCandles);
 // Option A: Use a preset
 const config = createMomentumPreset();
 const score = calculateScore(candles, candles.length - 1, config);
-console.log(`Score: ${score.totalScore}, Strength: ${score.strength}`);
+console.log(`Score: ${score.normalizedScore}, Strength: ${score.strength}`);
 
 // Option B: Build custom scoring
 const custom = ScoreBuilder.create()
@@ -651,7 +651,7 @@ const alignedWeeklySma = alignSeries(weeklySma, dailySma);
 
 ### Step 1: Provide Context to the LLM
 
-Copy the contents of `llms.txt` (shipped with the package) into your LLM prompt:
+Copy the contents of `llms.txt` (found in the repository at `packages/core/llms.txt`, viewable on GitHub) into your LLM prompt:
 
 ```
 You are a quant strategy developer. Use the TrendCraft library to build strategies.

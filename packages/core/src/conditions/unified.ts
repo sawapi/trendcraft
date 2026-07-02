@@ -7,9 +7,9 @@
  *
  * @example
  * ```ts
- * import { defineCondition } from "trendcraft";
+ * import { defineUnifiedCondition } from "trendcraft";
  *
- * const rsiOversold = defineCondition({
+ * const rsiOversold = defineUnifiedCondition({
  *   name: "rsiOversold",
  *   requires: ["rsi"],
  *   evaluate: (ind) => {

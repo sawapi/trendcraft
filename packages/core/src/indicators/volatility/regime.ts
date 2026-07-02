@@ -2,7 +2,8 @@
  * Volatility Regime Detection
  *
  * Classifies market volatility into regimes (low, normal, high, extreme)
- * using ATR percentile, Bollinger Bandwidth percentile, and historical volatility.
+ * using percentiles of ATR and Bollinger Bandwidth; historical volatility
+ * is also computed and reported for reference.
  */
 
 import { annualizationFactor } from "../../calendar";
@@ -49,10 +50,13 @@ const DEFAULT_OPTIONS: ResolvedOptions = {
 /**
  * Calculate volatility regime for each candle
  *
- * Combines multiple volatility measures to classify the current market regime:
+ * Classifies the market regime from the average of two volatility percentiles:
  * - ATR percentile: Position of current ATR within historical range
  * - Bollinger Bandwidth percentile: Position of current bandwidth within historical range
- * - Historical volatility: Annualized standard deviation of returns
+ *
+ * Historical volatility (annualized standard deviation of log returns) is also
+ * computed and included in the output (`historicalVol`) for reference, but does
+ * not affect the regime label or confidence.
  *
  * Regime classification based on average percentile:
  * - "low": <= low threshold (default 25)

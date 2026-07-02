@@ -146,8 +146,8 @@ export class TrendCraft<TIndicators extends Record<string, unknown> = {}> {
    * const result = TrendCraft.from(dailyCandles)
    *   .withMtf(["weekly"])
    *   .strategy()
-   *   .entry(and(weeklyRsiAbove(50), goldenCross()))
-   *   .exit(deadCross())
+   *   .entry(and(weeklyRsiAbove(50), goldenCrossCondition()))
+   *   .exit(deadCrossCondition())
    *   .backtest({ capital: 1000000 });
    * ```
    */
@@ -373,15 +373,15 @@ export class TrendCraft<TIndicators extends Record<string, unknown> = {}> {
    * // Simple preset conditions
    * const result = TrendCraft.from(candles)
    *   .strategy()
-   *   .entry(goldenCross())
-   *   .exit(deadCross())
+   *   .entry(goldenCrossCondition())
+   *   .exit(deadCrossCondition())
    *   .backtest({ capital: 1000000 });
    *
    * // Combined conditions
    * const result = TrendCraft.from(candles)
    *   .strategy()
-   *   .entry(and(goldenCross(), rsiBelow(30)))
-   *   .exit(or(deadCross(), rsiAbove(70)))
+   *   .entry(and(goldenCrossCondition(), rsiBelow(30)))
+   *   .exit(or(deadCrossCondition(), rsiAbove(70)))
    *   .backtest({ capital: 1000000 });
    *
    * // Custom function

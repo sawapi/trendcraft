@@ -13,11 +13,11 @@
 
 /** Options for risk parity allocation */
 export type RiskParityOptions = {
-  /** Maximum iterations for optimization (default: 100) */
+  /** Maximum iterations for optimization (default: 1000) */
   maxIterations?: number;
   /** Convergence tolerance (default: 1e-8) */
   tolerance?: number;
-  /** Risk-free rate for Sharpe calculations (default: 0) */
+  /** Unused — reserved for future use; riskParityAllocation does not read this option */
   riskFreeRate?: number;
 };
 
