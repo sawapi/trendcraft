@@ -37,6 +37,7 @@ export class DataLayer {
   private _onChange: (() => void) | null = null;
   private _onPaneEmpty: ((paneId: string) => void) | null = null;
   private _onWarn: ((message: string) => void) | null = null;
+  private _onSeriesRemoved: ((id: string) => void) | null = null;
 
   /** Register a callback for data changes */
   setOnChange(cb: () => void): void {
@@ -51,6 +52,15 @@ export class DataLayer {
   /** Register a callback for diagnostic warnings (e.g. duplicate timestamps) */
   setOnWarn(cb: (message: string) => void): void {
     this._onWarn = cb;
+  }
+
+  /**
+   * Register a callback fired when a series is removed via its handle.
+   * Every removal path (host `handle.remove()`, connectIndicators teardown,
+   * bulk cleanup) funnels through the handle, so this hook sees them all.
+   */
+  setOnSeriesRemoved(cb: (id: string) => void): void {
+    this._onSeriesRemoved = cb;
   }
 
   /** Set maximum candle count. Older candles are trimmed when exceeded. */
@@ -223,6 +233,10 @@ export class DataLayer {
         const paneId = s?.paneId;
         this._series.delete(id);
         this.markDirty();
+        // Only notify when the series actually existed — repeat remove()
+        // calls on the same handle stay silent (idempotent from the
+        // listener's point of view).
+        if (s) this._onSeriesRemoved?.(id);
         if (paneId) this.checkPaneEmpty(paneId);
       },
     };

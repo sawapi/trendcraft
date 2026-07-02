@@ -40,9 +40,8 @@ describe("syncCharts", () => {
 
     const move: CrosshairMoveData = {
       time: 1609459200000,
-      price: 100,
-      x: 0,
-      y: 0,
+      index: 0,
+      ohlcv: { open: 100, high: 101, low: 99, close: 100, volume: 1000 },
       paneId: "main",
     };
     a.emit("crosshairMove", move);
@@ -57,7 +56,7 @@ describe("syncCharts", () => {
     const b = makeFakeChart();
     syncCharts([a, b] as unknown as ChartInstance[]);
 
-    a.emit("crosshairMove", { time: null, price: null, x: 0, y: 0, paneId: "main" });
+    a.emit("crosshairMove", { time: null, index: null, ohlcv: null, paneId: null });
     expect(b.setCrosshair).toHaveBeenCalledWith(null);
   });
 
@@ -68,7 +67,7 @@ describe("syncCharts", () => {
     const a = makeFakeChart();
     const b = makeFakeChart();
     (b.setCrosshair as ReturnType<typeof vi.fn>).mockImplementation((time) => {
-      b.emit("crosshairMove", { time, price: null, x: 0, y: 0, paneId: "main" });
+      b.emit("crosshairMove", { time, index: null, ohlcv: null, paneId: "main" });
     });
 
     syncCharts([a, b] as unknown as ChartInstance[]);

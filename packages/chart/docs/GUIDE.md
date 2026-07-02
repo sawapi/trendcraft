@@ -50,7 +50,7 @@ Everything the chart draws is either:
 | **Drawings** | Discriminated union (`hline`, `trendline`, etc.) | User-drawn annotations via `addDrawing()` |
 | **Overlays** | Framework-provided helpers (`addSignals`, `addTrades`, `addBacktest`, `addPatterns`, `addScores`) | Pre-baked visualizations of higher-level trading concepts |
 
-`time` is always epoch milliseconds (matches `trendcraft`'s `TimeValue`). `value` shape varies — see [Auto-detection from `__meta`](#auto-detection-from-__meta).
+`time` is always epoch milliseconds (the chart's `TimeValue` type — the same epoch-ms `time` carried by `trendcraft`'s normalized candles). `value` shape varies — see [Auto-detection from `__meta`](#auto-detection-from-__meta).
 
 ### Compound values
 
@@ -74,15 +74,14 @@ Internally, every point goes through two scales:
 
 `DrawHelper` (exposed to plugins) wraps these with `draw.x(index)` and `draw.y(price)`.
 
-When you read event data, you get **both** the time value and the pixel coordinate:
+Event data is expressed in candle terms — the snapped index and its OHLCV — not pixels:
 
 ```typescript
 chart.on('crosshairMove', (data: CrosshairMoveData) => {
-  data.time   // epoch ms (or null if outside plot area)
-  data.price  // price (or null)
-  data.x      // canvas x in CSS pixels
-  data.y      // canvas y in CSS pixels
-  data.paneId // which pane the pointer is over
+  data.time   // epoch ms of the snapped candle (or null when leaving the plot area)
+  data.index  // candle index (or null)
+  data.ohlcv  // { open, high, low, close, volume } (or null)
+  data.paneId // pane under the pointer (or null)
 });
 ```
 
@@ -144,7 +143,7 @@ chart.addIndicator(mySecondarySeries, { pane: 'main', scaleId: 'left' });
 
 When you pass an indicator series to `addIndicator()`, the chart does two things:
 
-1. **Reads `__meta`** if present. `trendcraft` indicators attach a non-enumerable `__meta: SeriesMeta` describing the indicator's domain characteristics (label, overlay vs. sub-pane, Y-range, reference lines). The chart translates these to pane placement.
+1. **Reads `__meta`** if present. `trendcraft` indicators attach a `__meta: SeriesMeta` property describing the indicator's domain characteristics (label, overlay vs. sub-pane, Y-range, reference lines). The chart translates these to pane placement.
 2. **Falls back to shape introspection.** For untagged data, the chart inspects the first non-null value. A `number` becomes a line, `{ upper, middle, lower }` becomes a band, etc.
 
 This is why you can write `chart.addIndicator(sma(candles))` without passing a pane id — `trendcraft`'s `sma` sets `overlay: true` in its `__meta`, the chart puts it on the price pane, and reads the label for the legend.
@@ -155,7 +154,7 @@ Pass a `SeriesConfig` to override:
 
 ```typescript
 chart.addIndicator(mySeries, {
-  pane: 'new',                   // create a new sub-pane
+  pane: 'sub',                   // auto-generate a fresh sub-pane
   type: 'histogram',             // force a specific renderer
   color: '#FF9800',
   label: 'My Indicator',
@@ -163,14 +162,14 @@ chart.addIndicator(mySeries, {
 });
 ```
 
+`'sub'` mints a new auto-generated sub-pane on every call; any other string is a literal pane id — indicators passing the same id share that pane.
+
 ### Custom introspection rules
 
 If you have custom indicators with a non-standard compound shape, register a rule:
 
 ```typescript
-import { SeriesRegistry } from '@trendcraft/chart';
-
-SeriesRegistry.addRule({
+chart.addRule({
   name: 'myCustomShape',
   test: (value) => typeof value === 'object' && value !== null && 'score' in value,
   seriesType: 'line',
@@ -179,7 +178,9 @@ SeriesRegistry.addRule({
 });
 ```
 
-Rules are consulted in registration order, with built-in rules last. Useful when you want to share conventions across a team without each caller configuring the chart.
+`chart.addRule` delegates to the shared default registry. In headless code, import `defaultRegistry` from `@trendcraft/chart/headless` and call `defaultRegistry.addRule(rule)`.
+
+Custom rules are consulted most-recently-registered first, with built-in rules last — when two custom rules match the same shape, the later-registered rule wins. Useful when you want to share conventions across a team without each caller configuring the chart.
 
 ## Adding indicators: which API?
 
@@ -214,8 +215,8 @@ These three terms appear throughout the API and look similar; they describe diff
 
 | Term | Meaning |
 |---|---|
-| `Series<T>` | The input. A plain array `{ time: number, value: T }[]` returned by every `trendcraft` indicator, optionally tagged with a non-enumerable `__meta`. |
-| `ResolvedSeries` | An internal step. After introspection (auto-detection or your `SeriesConfig` overrides), the chart knows which pane, color, type, and channel layout to use. Not a public type, but referenced in error messages. |
+| `Series<T>` | The input. A plain array `{ time: number, value: T }[]` returned by every `trendcraft` indicator, optionally tagged with a `__meta` property. |
+| `ResolvedSeries` | An intermediate step. After introspection (auto-detection or your `SeriesConfig` overrides), the chart knows which pane, color, type, and channel layout to use. Exported as a type from `@trendcraft/chart/headless` (the computed series rendering info). |
 | `SeriesHandle` | The output of `addIndicator`. The handle you keep to mutate or remove the series later. Stable across `update()` calls; invalidated by `remove()`. |
 
 ### Validation behavior
@@ -281,7 +282,7 @@ The time axis has three navigational modes:
 |---|---|
 | `setVisibleRange(start, end)` | Absolute control — show this time window |
 | `setVisibleRangeByDuration('1M')` | Relative — show the last month |
-| `fitContent()` | Reset to show everything with 20% right padding |
+| `fitContent()` | Reset to show everything (data fills the full plot width; no right padding) |
 
 `fitContent()` locks pan when all data is visible. Once the user zooms back in, pan re-engages.
 
@@ -298,7 +299,7 @@ The chart captures keyboard when focused:
 
 ### Touch
 
-On touch devices: single-finger pan, two-finger pinch-zoom, tap-hold-drag for drawing tools.
+On touch devices: single-finger pan, two-finger pinch-zoom, double-tap to fit content, and long-press to lock the crosshair. Drawing tools place points with discrete taps (two-tap tools show a preview between the first and second tap).
 
 ## Events
 
@@ -306,7 +307,7 @@ Subscribe via `chart.on(event, handler)`. Unsubscribe via `chart.off`. Events ar
 
 | Event | Payload |
 |---|---|
-| `crosshairMove` | `CrosshairMoveData` — time, price, x, y, paneId |
+| `crosshairMove` | `CrosshairMoveData` — time, index, ohlcv, paneId |
 | `visibleRangeChange` | `VisibleRangeChangeData` — startTime, endTime, startIndex, endIndex |
 | `click` | `ChartClickData` — x, y, index, time, shiftKey, altKey, metaKey, ctrlKey; fires on pointer up |
 | `resize` | `{ width, height }` |
@@ -373,7 +374,7 @@ import {
 
 These are the same classes the browser chart uses internally — you can build server-side analytics, static previews, or tests without loading the canvas code.
 
-For Next.js specifically, import `@trendcraft/chart` in a `useEffect` or a dynamic import with `ssr: false`. The React wrapper (`@trendcraft/chart/react`) handles this for you: it mounts in `useLayoutEffect` and skips on the server.
+For Next.js specifically, import `@trendcraft/chart` in a `useEffect` or a dynamic import with `ssr: false`. The React wrapper (`@trendcraft/chart/react`) handles this for you: it mounts in `useEffect`, which does not run during server rendering.
 
 ## Accessibility
 
@@ -381,7 +382,7 @@ Each chart mounts an `aria-live` region (`ChartAria`) that announces crosshair u
 
 > "RSI: 42.5 at 2026-04-15"
 
-Announcements are debounced to once per 250 ms so screen readers don't get spammed. You can disable ARIA entirely by setting `theme.border` to transparent and... actually you can't disable it yet — if you need that, open an issue.
+Announcements are debounced by 300 ms (the announcement fires 300 ms after the crosshair settles) so screen readers don't get spammed. You can disable ARIA entirely by setting `theme.border` to transparent and... actually you can't disable it yet — if you need that, open an issue.
 
 Keyboard navigation works as documented in [Viewport and navigation](#viewport-and-navigation). The chart container itself is focusable (tabindex 0); arrow keys pan only when focused.
 
