@@ -9,11 +9,12 @@
 
 /**
  * Auto-format price based on magnitude.
- * - >= 10000 → "12,345" (0 decimals)
+ * - >= 10000 → "12345" (0 decimals)
  * - >= 100   → "234.56" (2 decimals)
  * - >= 1     → "1.234" (3 decimals)
  * - >= 0.01  → "0.0456" (4 decimals)
- * - < 0.01   → "0.00001234" (8 decimals)
+ * - >= 0.0001 → "0.000123" (6 decimals)
+ * - < 0.0001 → "0.00001234" (8 decimals)
  */
 export function autoFormatPrice(price: number): string {
   const abs = Math.abs(price);

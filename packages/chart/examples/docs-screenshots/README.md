@@ -45,8 +45,8 @@ Runs the Vite dev server on port 5175 in the background, then drives `agent-brow
 
 | id | purpose | indicators |
 |---|---|---|
-| `hero` | README top, mountain base | SMA 5 / 20 / 60 + RSI + MACD |
-| `hero-candle` | GUIDE, candlestick variant | same |
+| `hero` | README top, clean candlestick beauty shot (~170-bar window) | Bollinger Bands + SMA 50 |
+| `hero-candle` | GUIDE, candlestick variant | SMA 5 / 20 / 60 + RSI + MACD |
 | `auto-detection` | show five distinct shape types | SMA + Bollinger + RSI + Stochastics + MACD |
 | `chart-types` | 2×2 of candle / line / mountain / ohlc | — |
 | `plugin-regime` | plugin showcase | HMM regime heatmap on SMA 20 |

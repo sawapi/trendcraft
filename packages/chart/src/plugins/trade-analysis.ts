@@ -13,7 +13,7 @@
  *
  * const chart = createChart(el);
  * chart.setCandles(candles);
- * const result = runBacktest(candles, entry, exit);
+ * const result = runBacktest(candles, entry, exit, { capital: 1_000_000 });
  * const handle = connectTradeAnalysis(chart, result.trades, candles);
  * ```
  */

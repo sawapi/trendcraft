@@ -559,7 +559,8 @@ function localDayKey(time: number): number {
 
 /**
  * Maps price values to y-pixel positions within a pane.
- * Supports linear, logarithmic, and percent scaling.
+ * Supports linear and logarithmic scaling. ("percent" is accepted by the
+ * ScaleMode type but is not yet implemented and currently renders as linear.)
  */
 export class PriceScale {
   private _mode: ScaleMode = "linear";

@@ -17,7 +17,7 @@ export type ChartOptions = {
   pixelRatio?: number;
   /** Right margin for price axis in pixels (default: 60) */
   priceAxisWidth?: number;
-  /** Bottom margin for time axis in pixels (default: 24) */
+  /** Bottom margin for time axis in pixels (default: 32) */
   timeAxisHeight?: number;
   /** Font family (default: system) */
   fontFamily?: string;
@@ -94,7 +94,7 @@ export type SessionGapsOptions = {
   /**
    * Detection mode:
    * - `"timeGap"` (default): insert a gap whenever the time delta between
-   *   consecutive bars exceeds `gapThresholdMs` (or 2 × median when unset).
+   *   consecutive bars exceeds `gapThresholdMs` (or 4 hours when unset).
    *   Works correctly regardless of data timezone.
    * - `"dayBoundary"`: insert a gap whenever the UTC calendar day changes
    *   between consecutive bars. Useful for 24×7 data (crypto / FX) where
@@ -106,7 +106,7 @@ export type SessionGapsOptions = {
   sizeBars?: number;
   /** Only enable if median bar interval ≤ this many ms (default: 6h). */
   intradayThresholdMs?: number;
-  /** For `"timeGap"` mode: the minimum delta to count as a session gap (default: 2 × median). */
+  /** For `"timeGap"` mode: the minimum delta to count as a session gap (default: 4 hours). */
   gapThresholdMs?: number;
 };
 

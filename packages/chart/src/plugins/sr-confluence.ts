@@ -2,7 +2,8 @@
  * S/R Zone Confluence Plugin — Visualizes multi-source support/resistance zones
  * as strength-colored horizontal bands.
  *
- * Zone opacity and width scale with strength score (0-100).
+ * Zone opacity scales with strength score (0-100); the band height comes
+ * from the zone's low/high prices.
  * Sources are labeled: swing, pivot, VWAP, round, volumeProfile, custom.
  *
  * @example

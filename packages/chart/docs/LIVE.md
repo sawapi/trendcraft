@@ -74,10 +74,15 @@ const live = createLiveCandle({
   maxHistory: 2000,         // cap memory for long-running sessions
 });
 
+// initHistory: false — the chart was already primed via chart.setCandles(history).
+// The default (initHistory: true) would replace the chart candles with
+// live.completedCandles, which is empty here because createLiveCandle's
+// `history` option is warm-up-only and never enters completedCandles.
 const conn = connectIndicators(chart, {
   presets: indicatorPresets,
   candles: history,
   live,
+  initHistory: false,
 });
 conn.add('rsi');
 conn.add('sma', { period: 20 });
@@ -191,7 +196,7 @@ Each `add` call:
 | `list()` | All active handles. |
 | `listByPreset(id)` | Handles for a given preset id. |
 | `get(snapshotName)` | Look up a single handle. |
-| `recompute(candles)` | Re-run all indicators with new candle data (static mode). |
+| `recompute(candles)` | Re-run all indicators with new candle data. In live mode this permanently replaces the connection's canonical history — subsequent `candleComplete` bars append onto it and later `add()` calls backfill from it. |
 | `disconnect()` | Unsubscribe events and remove all indicators. Idempotent. |
 | `connected` (readonly) | `true` until `disconnect()` is called. |
 | `mode` (readonly) | `'static'` or `'live'`. |
@@ -200,7 +205,7 @@ Each `add` call:
 
 | Member | Description |
 |---|---|
-| `snapshotName` | Unique key for this instance (e.g. `'sma20'`). |
+| `snapshotName` | Unique key for this instance (e.g. `'sma_close_20'`). |
 | `presetId` | The preset id used to build this instance. |
 | `params` | Effective parameters (defaults merged with overrides). |
 | `series` | Underlying `SeriesHandle` (escape hatch — most users ignore this). |
@@ -224,7 +229,11 @@ connectIndicators(chart, {
   presets: indicatorPresets,
   candles,   // used for:
              //   1. preset.compute(candles, params) → backfill series
-             //   2. chart.setCandles(candles) if initHistory and live.completedCandles is empty
+             //   2. chart.setCandles(live.completedCandles) is called when
+             //      initHistory is not false (live mode) — options.candles is
+             //      never passed to setCandles. Prime the chart yourself with
+             //      chart.setCandles(candles) and pass initHistory: false if
+             //      the live source has no completed candles yet.
   live,
 });
 ```
@@ -265,12 +274,12 @@ handle.setVisible(false);
 handle.setVisible(true);
 ```
 
-For presets where snapshot names depend on params (e.g. `sma` → `sma20`), the chart keys state by snapshot name. This means you can mount multiple instances of the same preset without collision:
+For presets where snapshot names depend on params (e.g. `sma` → `sma_close_20`), the chart keys state by snapshot name. This means you can mount multiple instances of the same preset without collision:
 
 ```typescript
-conn.add('sma', { period: 5 });   // snapshotName: 'sma5'
-conn.add('sma', { period: 20 });  // snapshotName: 'sma20'
-conn.add('sma', { period: 60 });  // snapshotName: 'sma60'
+conn.add('sma', { period: 5 });   // snapshotName: 'sma_close_5'
+conn.add('sma', { period: 20 });  // snapshotName: 'sma_close_20'
+conn.add('sma', { period: 60 });  // snapshotName: 'sma_close_60'
 ```
 
 For presets with static snapshot names (e.g. `emaRibbon`), pass an explicit `snapshotName`:
@@ -291,14 +300,15 @@ let savedState = live.getState();
 
 ws.on('close', () => { savedState = live.getState(); });
 ws.on('open', () => {
-  // restore
+  // restore — disconnect the old connection first
+  conn.disconnect();
   live = createLiveCandle(options, savedState);
   conn = connectIndicators(chart, { presets: indicatorPresets, candles, live });
   for (const indicator of activeIndicators) conn.add(indicator.id, indicator.params);
 });
 ```
 
-This is correct but heavyweight — you rebuild the whole pipeline.
+This works but is heavyweight — you rebuild the whole pipeline, and the `conn.disconnect()` before recreating is required: chart series are only removed via `remove()`/`disconnect()`, so skipping it duplicates every indicator series on each reconnect.
 
 Approach B — keep `LiveCandle` alive, just reconnect the socket:
 
@@ -330,17 +340,17 @@ Without it, TrendCraft-specific shapes (`adaptiveRsi` `{rsi, effectivePeriod, vo
 
 ### Forgetting to call `conn.disconnect()` in cleanup
 
-`disconnect()` unsubscribes event handlers on `live` and removes chart series. Skip it and you leak listeners + series on every route transition. The React / Vue wrappers handle this when the component unmounts — but if you wire the connection inside a `useEffect`, return a cleanup function that calls `disconnect()`.
+`disconnect()` unsubscribes event handlers on `live` and removes chart series. Skip it and you leak listeners + series on every route transition. The React / Vue wrappers do **not** manage an `IndicatorConnection` — `TrendChart` only takes precomputed series props. If you wire `connectIndicators` inside a `useEffect` (React) or `onMounted`/`watchEffect` (Vue), always register a cleanup that calls `conn.disconnect()`.
 
 ### Expecting `live.completedCandles` to include `history`
 
 `createLiveCandle`'s `history` option is for **warm-up context only** — it's used to advance the incremental indicators so they're not stuck in their warm-up period. It does **not** become part of `completedCandles`.
 
-When `connectIndicators` sets up the chart, it uses `candles` for backfill **and** tries to prime the chart with `live.completedCandles` if non-empty. Be explicit about which source drives `setCandles()`.
+When `connectIndicators` sets up the chart, it uses `candles` for indicator backfill **and** — unless you pass `initHistory: false` — calls `chart.setCandles(live.completedCandles)` unconditionally, even when `completedCandles` is empty, which clears any candles you set yourself. Pass `initHistory: false` to keep your own `setCandles()` data.
 
 ### Re-using the same `live` across charts
 
-One `LiveCandle` per data source; one chart per view. If you need the same data on two charts, register indicators on both via `connectIndicators` — they'll share the underlying `live` state.
+One `LiveCandle` per data source; one chart per view. Sharing the same `live` across two `connectIndicators` connections is not supported out of the box: adding the same preset from the second connection derives the same snapshot name, and `LiveCandle.addIndicator` throws `Indicator "<name>" already registered`. Either give the second connection a distinct explicit `snapshotName` per add (this registers a separate indicator instance — incremental state is not shared), or drive the second chart directly from `live.on('tick')`.
 
 ### Forgetting to handle `partial: true`
 

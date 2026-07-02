@@ -136,7 +136,7 @@ export function createServer(): McpServer {
         "Cache OHLCV candles in the session and return an opaque `handle`. Pass that handle as `candlesRef` on subsequent `calc_indicator` / `detect_signal` calls instead of re-sending the candle array. " +
         "Designed for multi-tool screens: 5 parallel indicator calls against the same 124-bar series transmits the bars 1× total instead of 5×. " +
         "Inputs: provide either `candles` (canonical `[{time,open,high,low,close,volume?}]`) or `candlesArray` (compact tuple form `[[time,open,high,low,close,volume?], ...]`, ~40% smaller). Optional `symbol` and `hint` are stored as metadata for your own bookkeeping. " +
-        "Output: `{ handle, count, span: { from, to }, symbol?, hint? }`. " +
+        "Output: `{ handle, count, span: { from, to }, symbol?, hint?, storeSize, capacity }` — `storeSize` is the number of handles currently held (including this one), `capacity` is the LRU limit. " +
         "Lifetime: handles live for the duration of the stdio MCP process only — no persistence, no cross-session sharing. Capacity is 50 handles; oldest is silently evicted. Reload is cheap.",
       inputSchema: loadCandlesInputShape,
     },
@@ -153,9 +153,9 @@ export function createServer(): McpServer {
     "detect_signal",
     {
       description:
-        "Detect a trading signal from caller-supplied OHLCV candles. Single-tool dispatcher across crossovers (goldenCross, deadCross), multi-MA alignment (perfectOrder), divergence (rsiDivergence, macdDivergence, obvDivergence), volatility squeeze (bollingerSqueeze), and volume signals (volumeBreakout, volumeAccumulation, volumeMaCross, volumeAboveAverage). " +
+        "Detect a trading signal from caller-supplied OHLCV candles. Single-tool dispatcher across crossovers (goldenCross, deadCross), multi-MA alignment (perfectOrder), divergence (rsiDivergence, macdDivergence, obvDivergence), volatility squeeze (bollingerSqueeze), volume signals (volumeBreakout, volumeAccumulation, volumeMaCross, volumeAboveAverage), and candlestick patterns (candlestickPatterns). " +
         "Candle input: provide exactly one of `candles` (canonical), `candlesArray` (compact tuple form), or `candlesRef` (handle from `load_candles` — cheapest for repeated calls). " +
-        'Output envelope: `{ kind, shape, output, firedAt, count, totalLength, truncated }`. `firedAt` is a token-cheap list of times where the signal triggered — ideal for screening ("did goldenCross fire in the last 5 bars on this symbol?"). `shape` is `series` (boolean per bar) or `events` (sparse event objects). ' +
+        'Output envelope: `{ kind, shape, output, firedAt, count, totalLength, truncated, processedBars, symbol? }`. `firedAt` is a token-cheap list of times where the signal triggered — ideal for screening ("did goldenCross fire in the last 5 bars on this symbol?"). `shape` is `series` (boolean/state value per bar) or `events` (sparse event objects). `processedBars` is the number of input candle bars evaluated; `symbol` is echoed when `candlesRef` is used. ' +
         "Errors: INVALID_INPUT, INVALID_HANDLE, INVALID_PARAMETER, INSUFFICIENT_DATA, UNSUPPORTED_SIGNAL, SIGNAL_ERROR. " +
         "Note: signal kinds are NOT the same set as calc_indicator kinds — call detect_signal with an unknown kind to see the supported list.",
       inputSchema: detectSignalInputShape,

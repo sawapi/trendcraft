@@ -8,10 +8,10 @@ Screenshots referenced from `packages/chart/README.md` and the docs under `packa
 |---|---|---|
 | `hero.png` | `hero` | README (top) — mountain base for a clean first impression |
 | `hero-candle.png` | `hero-candle` | GUIDE — candlestick variant with the same indicator stack |
-| `auto-detection.png` | `auto-detection` | README "Series Auto-Detection" section |
-| `chart-types.png` | `chart-types` | README "Chart Types" table |
-| `plugin-regime.png` | `plugin-regime` | README "Plugin System" section |
-| `backtest.png` | `backtest` | README "Backtest Visualization" section |
+| `auto-detection.png` | `auto-detection` | README "With TrendCraft — zero-config indicators" section + GUIDE "Auto-detection from `__meta`" section |
+| `chart-types.png` | `chart-types` | llms-full.txt "Chart Types" section |
+| `plugin-regime.png` | `plugin-regime` | llms-full.txt "Plugin System" section |
+| `backtest.png` | `backtest` | llms-full.txt "Backtest Visualization" section |
 
 Each image is 2560×1440 (2x Retina-class), dark theme, pinned font (`"Helvetica Neue", Arial, sans-serif`). File sizes typically land in the 150–500 KB range. Prefer PNG; WebP is fine if you need smaller files for a specific image.
 

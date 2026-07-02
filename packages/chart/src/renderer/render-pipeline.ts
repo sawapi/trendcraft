@@ -624,8 +624,9 @@ export function renderFrame(rc: RenderContext): RenderResult {
     rc.crosshair,
   );
 
-  // Crosshair event emission is handled by CanvasChart._render() with
-  // change-detection so it only fires when the index actually moves.
+  // Crosshair event emission is handled by CanvasChart's viewport interaction
+  // callback (_maybeEmitCrosshair) with change-detection so it only fires
+  // when the index actually moves.
   // Emitting every frame (as this used to) broke syncCharts: the
   // round-trip A→B→A crosses a requestAnimationFrame boundary, so the
   // synchronous re-entry guard can't stop the echo.
