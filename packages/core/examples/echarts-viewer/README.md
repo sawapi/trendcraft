@@ -134,7 +134,7 @@ interface ChartState {
 
 ### Main Actions
 
-- `loadCandles(candles, fileName)` - Load candlestick data
+- `loadCandles(candles, fundamentals, fileName)` - Load candlestick data (pass `null` for fundamentals when PER/PBR data is absent)
 - `setTimeframe(timeframe)` - Switch timeframe (auto-converts)
 - `setEnabledIndicators(indicators)` - Enable subcharts
 - `setEnabledOverlays(overlays)` - Enable overlays
@@ -273,13 +273,14 @@ buildChartOption(
   trades: Trade[] | null,             // Backtest trades
   overlays: OverlayData,              // Overlay data
   enabledOverlays: OverlayType[],     // Enabled overlays
-  chartHeight: number                 // Chart height
+  _chartHeight = 500                  // Unused (layout uses fixed pixel heights)
+  // ...followed by further optional params: indicatorParams?, zoomRange?, yAxisType?, yAxisPercent?, theme?, drawings?, ...
 ): EChartsOption
 ```
 
 ## Color Palette
 
-Main color definitions (`COLORS` constant in `chartConfig.ts`):
+Main color definitions (`COLORS` constant in `chartColors.ts`):
 
 | Usage | Color |
 |-------|-------|

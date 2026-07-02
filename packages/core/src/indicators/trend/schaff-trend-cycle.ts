@@ -21,7 +21,7 @@ export type SchaffTrendCycleOptions = {
   cyclePeriod?: number;
   /**
    * Smoothing factor for both stochastic passes (default: 0.5).
-   * Doug Schaff's published value; range [0, 1]. Lower values produce
+   * Doug Schaff's published value; range (0, 1]. Lower values produce
    * smoother but more lagged output.
    */
   factor?: number;

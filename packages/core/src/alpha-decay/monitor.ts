@@ -108,7 +108,8 @@ export function createObservationsFromTrades(
  *
  * @example
  * ```ts
- * const scores = calculateScoreSeries(config, candles, indicators);
+ * const scoreSeries = calculateScoreSeries(candles, config);
+ * const scores = scoreSeries.map((s) => ({ time: s.time, score: s.score.normalizedScore }));
  * const observations = createObservationsFromScores(scores, candles, 5);
  * const decay = analyzeAlphaDecay(observations);
  * ```

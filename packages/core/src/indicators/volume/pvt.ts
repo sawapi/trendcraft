@@ -20,7 +20,7 @@ import type { Candle, NormalizedCandle, Series } from "../../types";
  * - Divergence between PVT and price can signal reversals
  *
  * @param candles - Array of candles (raw or normalized)
- * @returns Series of PVT values (null for first bar)
+ * @returns Series of PVT values (first bar is 0)
  *
  * @example
  * ```ts

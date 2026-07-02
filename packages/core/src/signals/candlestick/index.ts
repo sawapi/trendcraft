@@ -1,9 +1,9 @@
 /**
  * Candlestick Pattern Recognition
  *
- * Detects 20 common candlestick patterns in a single O(n) pass:
+ * Detects 22 common candlestick patterns in a single O(n) pass:
  * - 8 single-candle patterns
- * - 6 double-candle patterns
+ * - 8 double-candle patterns
  * - 6 triple-candle patterns
  */
 

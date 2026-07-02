@@ -1637,7 +1637,7 @@ TrendCraft provides pre-built scoring strategies:
 | `balanced` | Mixed signals | General purpose |
 
 ```typescript
-import { getPreset, scoreAbove } from 'trendcraft';
+import { getPreset, scoreAbove, deadCrossCondition } from 'trendcraft';
 
 // Use preset in backtest
 const result = TrendCraft.from(candles)
@@ -1836,20 +1836,21 @@ const riskRewardRatio =
 ### Using ATR in Backtesting
 
 ```typescript
-import { TrendCraft, goldenCrossCondition, deadCrossCondition } from 'trendcraft';
+import { runBacktest, goldenCrossCondition, deadCrossCondition } from 'trendcraft';
 
-const result = TrendCraft.from(candles)
-  .strategy()
-    .entry(goldenCrossCondition())
-    .exit(deadCrossCondition())
-  .backtest({
+const result = runBacktest(
+  candles,
+  goldenCrossCondition(),  // Entry: golden cross
+  deadCrossCondition(),    // Exit: dead cross
+  {
     capital: 1000000,
     atrRisk: {
       atrPeriod: 14,             // ATR period
       atrStopMultiplier: 2,      // 2x ATR stop
       atrTakeProfitMultiplier: 3, // 3x ATR take-profit
     },
-  });
+  },
+);
 ```
 
 ### ATR Multiplier Guidelines
@@ -2011,7 +2012,7 @@ regime = 'extreme'  → Very cautious, consider sitting out
 ### Trading Applications
 
 ```typescript
-import { regimeIs, regimeNot, atrPercentAbove, and, goldenCrossCondition, bollingerTouch } from 'trendcraft';
+import { regimeIs, regimeNot, atrPercentAbove, and, goldenCrossCondition, bollingerTouch, perfectOrderBullish } from 'trendcraft';
 
 // Range-bound strategies in low volatility
 const rangeEntry = and(
@@ -2214,7 +2215,7 @@ const result2 = runBacktestScaled(candles, goldenCrossCondition(), deadCrossCond
 
 ## Real-Time Streaming
 
-Batch indicators (`sma(candles, ...)`, `rsi(candles, ...)`, etc.) recompute from scratch every call. For live data — WebSocket ticks, paper-trading bots, alert dashboards — use the **incremental indicators** and the **live candle pipeline** introduced in v0.2.0.
+Batch indicators (`sma(candles, ...)`, `rsi(candles, ...)`, etc.) recompute from scratch every call. For live data — WebSocket ticks, paper-trading bots, alert dashboards — use the **incremental indicators** (available since v0.1.0) and the **live candle pipeline** introduced in v0.2.0.
 
 ### Incremental indicators
 
@@ -2244,8 +2245,8 @@ import { createLiveCandle, incremental } from 'trendcraft';
 const live = createLiveCandle({
   intervalMs: 60_000,
   indicators: [
-    { name: 'sma20', create: (s) => incremental.createSma({ period: 20 }, { fromState: s }) },
-    { name: 'rsi14', create: (s) => incremental.createRsi({ period: 14 }, { fromState: s }) },
+    { name: 'sma20', create: (s) => incremental.createSma({ period: 20 }, incremental.restoreState(s)) },
+    { name: 'rsi14', create: (s) => incremental.createRsi({ period: 14 }, incremental.restoreState(s)) },
   ],
   history: historicalCandles,  // optional warm-up context
 });
@@ -2288,7 +2289,7 @@ const rsiSeries = indicatorPresets.rsi.compute(candles, { period: 14 });
 
 ### Series metadata (`SeriesMeta` / `tagSeries`)
 
-Every built-in indicator output carries a non-enumerable `__meta` with display conventions — label, whether it belongs on the price scale, Y-range, reference lines:
+Every built-in indicator output carries a `__meta` property with display conventions — label, whether it belongs on the price scale, Y-range, reference lines:
 
 ```typescript
 import { rsi } from 'trendcraft';

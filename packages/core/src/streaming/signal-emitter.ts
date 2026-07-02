@@ -62,7 +62,7 @@ export type SignalEmitter = {
  * const emitter = createSignalEmitter({
  *   intervalMs: 60000,
  *   pipeline: {
- *     indicators: [{ name: 'rsi14', create: () => incremental.rsi({ period: 14 }) }],
+ *     indicators: [{ name: 'rsi14', create: () => incremental.createRsi({ period: 14 }) }],
  *     entry: rsiBelow(30),
  *     exit: rsiAbove(70),
  *   },

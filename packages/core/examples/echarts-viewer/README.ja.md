@@ -134,7 +134,7 @@ interface ChartState {
 
 ### 主要アクション
 
-- `loadCandles(candles, fileName)` - ローソク足データ読み込み
+- `loadCandles(candles, fundamentals, fileName)` - ローソク足データ読み込み（PER/PBRデータがない場合は `fundamentals` に `null` を渡す）
 - `setTimeframe(timeframe)` - 時間足切替 (自動変換)
 - `setEnabledIndicators(indicators)` - サブチャート有効化
 - `setEnabledOverlays(overlays)` - オーバーレイ有効化
@@ -273,13 +273,15 @@ buildChartOption(
   trades: Trade[] | null,             // バックテスト取引
   overlays: OverlayData,              // オーバーレイ用データ
   enabledOverlays: OverlayType[],     // 有効なオーバーレイ
-  chartHeight: number                 // チャート高さ
+  _chartHeight = 500,                 // 未使用（グリッド高さは mainHeight=300 等の固定ピクセル定数で決定）
 ): EChartsOption
 ```
 
+この後に `indicatorParams?`, `zoomRange?`, `yAxisType?`, `yAxisPercent?`, `theme?`, `drawings?`, `_subchartHeights?`, `selectedDrawingId?`, `comparisonSymbols?`, `replayEndIndex?`, `projectionFanSeries?` の省略可能引数が続く（詳細は `src/utils/chartConfig.ts` を参照）。
+
 ## カラーパレット
 
-主要な色定義 (`chartConfig.ts`のCOLORS定数):
+主要な色定義 (`chartColors.ts`のCOLORS定数):
 
 | 用途 | 色 |
 |------|------|

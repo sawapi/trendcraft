@@ -121,10 +121,15 @@ export function batchBacktest(
 // ============================================
 
 /**
- * Run a portfolio backtest with shared capital, allocation, and optional rebalancing.
+ * Run a portfolio backtest with weight-based capital allocation, exposure constraints, and optional rebalancing.
  *
- * Unlike `batchBacktest()`, this shares a single capital pool across all symbols.
- * Signals compete for capital allocation, and position limits are enforced.
+ * Unlike `batchBacktest()`, this applies portfolio-level allocation and exposure
+ * constraints. Allocation is static: total capital is split across symbols by the
+ * weights from the `allocation` strategy, and `maxSymbolExposure` caps each
+ * symbol's share of total capital. Symbols are currently backtested independently
+ * against their allocated capital (no shared capital pool or signal competition
+ * yet), and `maxPositions` is accepted but not yet enforced; concurrent positions
+ * are reported via `peakConcurrentPositions`.
  *
  * @param datasets - Array of symbol data
  * @param entryCondition - Entry condition
@@ -143,7 +148,7 @@ export function batchBacktest(
  *   {
  *     capital: 3_000_000,
  *     allocation: { type: "equal" },
- *     maxPositions: 5,
+ *     maxPositions: 5, // accepted but not yet enforced
  *     maxSymbolExposure: 25,
  *     tradeOptions: { stopLoss: 5, takeProfit: 15 },
  *   },

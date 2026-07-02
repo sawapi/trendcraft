@@ -293,7 +293,7 @@ export const MOMENTUM_MANIFESTS: IndicatorManifest[] = [
     ],
     pitfalls: [
       "Triple-smoothing means significant lag at trend turns",
-      "trendcraft impl is more permissive about warmup than canonical TRIX: null EMA values are treated as 0 inside the nested EMA passes, so TRIX becomes non-null around index `period` rather than after a strict 3-stage EMA warmup. Early values may differ from references like StockCharts until all three EMAs are fully populated",
+      "Strict 3-stage warmup: the null-propagating EMA cascade means the first valid TRIX appears only at index 3*(period-1)+1 — matches StockCharts canonical, but long periods need a correspondingly long candle history",
       "Crossovers in flat/zero-line areas produce whipsaws",
     ],
     marketRegime: ["trending"],

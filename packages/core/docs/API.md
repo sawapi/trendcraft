@@ -394,8 +394,8 @@ interface MacdValue {
 Stochastics Oscillator.
 
 ```typescript
-// Raw Stochastics
-const raw = stochastics(candles, { kPeriod: 14, dPeriod: 3 });
+// Slow Stochastics (default, slowing = 3)
+const result = stochastics(candles, { kPeriod: 14, dPeriod: 3 });
 
 // Fast Stochastics
 const fast = fastStochastics(candles, { kPeriod: 14, dPeriod: 3 });
@@ -473,8 +473,9 @@ const result = stochRsi(candles, {
 
 ```typescript
 interface StochRsiValue {
-  k: number | null;  // %K line
-  d: number | null;  // %D line
+  stochRsi: number | null;  // Raw StochRSI value (0-100)
+  k: number | null;  // %K line (smoothed StochRSI)
+  d: number | null;  // %D line (SMA of %K)
 }
 ```
 
@@ -615,7 +616,7 @@ const custom = adxr(candles, { period: 14, dmiPeriod: 14, adxPeriod: 14 });
 
 **Returns:** `Series<number | null>`
 
-**Formula:** `ADXR = (ADX[i] + ADX[i - period]) / 2`
+**Formula:** `ADXR = (ADX[i] + ADX[i - (period - 1)]) / 2` (TA-Lib-conformant lookback)
 
 **Interpretation:**
 - Above 25: Trending market confirmed
@@ -829,7 +830,8 @@ const result = volumeMa(candles, { period: 20 });
 **Options:**
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `period` | `number` | `20` | MA period |
+| `period` | `number` | required | MA period |
+| `type` | `'sma' \| 'ema'` | `'sma'` | Moving average type |
 
 **Returns:** `Series<number | null>`
 
@@ -902,7 +904,7 @@ const custom = volumeProfile(candles, { period: 20, levels: 24, valueAreaPercent
 **Options:**
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `period` | `number` | `20` | Lookback period |
+| `period` | `number` | all candles | Lookback period (last N candles; omit to use the entire array) |
 | `levels` | `number` | `24` | Number of price levels |
 | `valueAreaPercent` | `number` | `0.7` | Value Area fraction (0-1) |
 
@@ -919,10 +921,11 @@ interface VolumeProfileValue {
 }
 
 interface VolumePriceLevel {
-  priceMin: number;
-  priceMax: number;
-  volume: number;
-  percentage: number;  // Percentage of total volume
+  priceLow: number;   // Price level lower bound
+  priceHigh: number;  // Price level upper bound
+  priceMid: number;   // Price level midpoint
+  volume: number;     // Total volume at this price level
+  volumePercent: number;  // Percentage of total volume
 }
 ```
 
@@ -1412,19 +1415,16 @@ const leaders = filterByRSPercentile(symbolsData, 80);
 
 ### Price
 
-#### `highest(candles, options)` / `lowest(candles, options)`
+#### `highest(candles, period)` / `lowest(candles, period)`
 
 Highest High / Lowest Low over n periods.
 
 ```typescript
-const highestHigh = highest(candles, { period: 20 });
-const lowestLow = lowest(candles, { period: 20 });
+const highestHigh = highest(candles, 20);
+const lowestLow = lowest(candles, 20);
 ```
 
-**Options:**
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `period` | `number` | required | Lookback period |
+**Parameters:** `period` (number, required) — lookback period, passed as a positional parameter (the options-object form is only for `highestLowest(candles, { period })`).
 
 **Returns:** `Series<number | null>`
 
@@ -2288,6 +2288,7 @@ const bearish = signals.filter(s => s.type === 'bearish');
 | `swingLookback` | `number` | `5` | Swing point detection lookback |
 | `minSwingDistance` | `number` | `5` | Minimum bars between swings |
 | `maxSwingDistance` | `number` | `60` | Maximum bars between swings |
+| `kinds` | `DivergenceClass[]` | `['regular']` | Divergence classes to detect (`['regular','hidden']` to include hidden/continuation divergences) |
 
 **Returns:** `DivergenceSignal[]`
 
@@ -2462,7 +2463,7 @@ const signals = volumeBreakout(candles, { period: 20 });
 ```typescript
 interface VolumeBreakoutSignal {
   time: number;
-  type: 'volume_breakout';
+  type: 'breakout';
   volume: number;
   previousHigh: number;
   ratio: number;
@@ -2498,7 +2499,9 @@ const signals = volumeAccumulation(candles, {
 interface VolumeAccumulationSignal {
   time: number;
   type: 'volume_accumulation';
-  slope: number;           // Normalized slope
+  volume: number;          // Current volume
+  slope: number;           // Raw linear-regression slope (volume units per bar)
+  normalizedSlope: number; // slope / average volume — the value compared against minSlope
   rSquared: number;        // R² quality score
   consecutiveDays: number; // Days of accumulation
 }
@@ -2564,11 +2567,17 @@ const signals = volumeMaCross(candles, {
 ```typescript
 interface VolumeMaCrossSignal {
   time: number;
-  type: 'volume_ma_cross_up' | 'volume_ma_cross_down';
+  type: 'volume_ma_cross';
+  volume: number;
   shortMa: number;
   longMa: number;
+  direction: 'bullish' | 'bearish';
+  ratio: number;
+  daysSinceCross: number;
 }
 ```
+
+**Note:** Bearish (`direction: 'bearish'`) signals are only emitted when `bullishOnly: false` (default is `true`).
 
 ---
 
@@ -2696,7 +2705,7 @@ const patterns = detectWedge(candles);
 const fallingWedges = patterns.filter(p => p.type === 'falling_wedge');
 ```
 
-**Options:** Same as `detectTriangle` (minus `flatTolerance`).
+**Options:** Same as `detectTriangle` (minus `flatTolerance`), except `minPoints` defaults to `3` (3 touches per trendline).
 
 ---
 
@@ -2783,7 +2792,7 @@ interface PatternSignal {
     neckline?: PatternNeckline;    // For H&S patterns
     target?: number;         // Price target (measured move)
     stopLoss?: number;       // Suggested stop loss
-    height: number;          // Pattern height
+    height?: number;         // Pattern height (optional, for measured move calculation)
   };
   confidence: number;        // 0-100 confidence score
   confirmed: boolean;        // True if breakout occurred
@@ -3177,13 +3186,13 @@ monthlyTrendStrong(adxThreshold = 25)  // Monthly ADX > threshold
 mtfTrendStrong(timeframe, adxThreshold = 25)  // MTF ADX > threshold
 
 // Custom MTF condition
-mtfCondition(timeframe, conditionFn)  // Custom condition on MTF data
+mtfCondition(requiredTimeframes, name, evaluate)  // Custom condition on MTF data, e.g. mtfCondition(['weekly'], 'myCond', (mtf, indicators, candle, index, candles) => boolean)
 ```
 
 **Usage with Fluent API:**
 
 ```typescript
-import { TrendCraft, weeklyRsiAbove, goldenCrossCondition, and } from 'trendcraft';
+import { TrendCraft, weeklyRsiAbove, goldenCrossCondition, deadCrossCondition, and } from 'trendcraft';
 
 const result = TrendCraft.from(dailyCandles)
   .withMtf(['weekly'])  // Enable weekly timeframe
@@ -3397,9 +3406,7 @@ const weekly = resample(dailyCandles, 'weekly');
 const monthly = resample(dailyCandles, 'monthly');
 ```
 
-**Supported timeframes:**
-- `'weekly'` or `'1w'`
-- `'monthly'` or `'1M'`
+**Supported timeframes:** `'1m'`, `'5m'`, `'15m'`, `'30m'`, `'1h'`, `'4h'`, `'1d'`/`'daily'`, `'1w'`/`'weekly'`, `'1M'`/`'monthly'` — or a `{ value, unit }` Timeframe object.
 
 ---
 
@@ -4009,7 +4016,7 @@ from the benchmark at the given confidence (default 0.95). Returns
 import { minTrackRecordLength } from 'trendcraft';
 
 // Per-return Sharpe 0.1 — how many bars until PSR(0) ≥ 95%?
-const bars = Math.ceil(minTrackRecordLength(0.1)); // ≈ 274
+const bars = Math.ceil(minTrackRecordLength(0.1)); // 273
 ```
 
 ---
@@ -4419,8 +4426,8 @@ const result = runBacktestScaled(candles, goldenCrossCondition(), deadCrossCondi
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `tranches` | `number` | required | Number of entry tranches (2-10) |
-| `strategy` | `'equal' \| 'pyramid' \| 'reverse-pyramid'` | `'equal'` | Weight distribution strategy |
-| `intervalType` | `'signal' \| 'price'` | `'signal'` | How to trigger additional entries |
+| `strategy` | `'equal' \| 'pyramid' \| 'reverse-pyramid'` | required | Weight distribution strategy |
+| `intervalType` | `'signal' \| 'price'` | required | How to trigger additional entries |
 | `priceInterval` | `number` | `-2` | Price change % for next tranche (negative = dip) |
 
 **Strategies:**
@@ -5255,7 +5262,8 @@ Convert existing TrendCraft signal types into the unified `TradeSignal` format.
 import { fromCrossSignal } from 'trendcraft';
 
 const signals = validateCrossSignals(candles);
-const tradeSignals = signals.map(s => fromCrossSignal(s, candles[i].close));
+const tradeSignals = signals.map(s => fromCrossSignal(s, candles.find(c => c.time === s.time)?.close));
+// or simply signals.map(s => fromCrossSignal(s)) since entryPrice is optional
 // { action: "BUY", direction: "LONG", confidence: 85, ... }
 ```
 
@@ -5274,7 +5282,8 @@ const tradeSignals = divSignals.map(s => fromDivergenceSignal(s, candles[s.secon
 import { fromSqueezeSignal } from 'trendcraft';
 
 const squeezes = bollingerSqueeze(candles);
-const tradeSignals = squeezes.map(s => fromSqueezeSignal(s, "LONG", candles[i].close));
+const tradeSignals = squeezes.map(s => fromSqueezeSignal(s, "LONG", candles.find(c => c.time === s.time)?.close));
+// or simply squeezes.map(s => fromSqueezeSignal(s))
 ```
 
 #### `fromPatternSignal(signal, entryPrice?)`
@@ -5296,7 +5305,7 @@ Converts a `ScoreBreakdown` to a `TradeSignal`. Returns `null` if below threshol
 ```typescript
 import { fromScoreResult } from 'trendcraft';
 
-const breakdown = calculateScoreBreakdown(candles, signals, i);
+const breakdown = calculateScoreBreakdown(candles, i, config); // config: ScoringConfig, e.g. { signals: [...] }
 const signal = fromScoreResult(breakdown, candle.time, { minScore: 50, entryPrice: 100 });
 ```
 
@@ -5329,7 +5338,9 @@ Wraps a streaming pipeline to automatically emit `TradeSignal` events.
 import { streaming } from 'trendcraft';
 import { createRsi } from 'trendcraft/incremental';
 
-const emitter = streaming.createSignalEmitter({
+const { createSignalEmitter, rsiBelow, rsiAbove } = streaming;
+
+const emitter = createSignalEmitter({
   intervalMs: 60000,
   pipeline: {
     indicators: [{ name: 'rsi14', create: () => createRsi({ period: 14 }) }],
@@ -5504,7 +5515,7 @@ if (result.triggered) {
 Both `batchBacktest()` and `portfolioBacktest()` support short selling through the same `direction` option.
 
 ```typescript
-import { batchBacktest, deadCrossCondition, goldenCrossCondition } from 'trendcraft';
+import { batchBacktest, portfolioBacktest, deadCrossCondition, goldenCrossCondition } from 'trendcraft';
 
 // Batch backtest: direction is passed directly in options
 const batchResult = batchBacktest(datasets, deadCrossCondition(5, 25), goldenCrossCondition(5, 25), {
@@ -5534,7 +5545,7 @@ Common short strategy patterns using built-in conditions:
 ```typescript
 import {
   and, rsiAbove, rsiBelow, bollingerTouch, deadCrossCondition, goldenCrossCondition,
-  dmiBearish, anyBearishPattern, stochAbove, stochBelow,
+  dmiBearish, anyBearishPattern, stochAbove, stochBelow, runBacktest,
 } from 'trendcraft';
 
 // Mean reversion short: overbought reversal
@@ -6013,7 +6024,7 @@ Apply an indicator function that expects candles to a `Series<number|null>`. Int
 
 ### `seriesToCandles(series, options?)`
 
-Convert a `Series<number|null>` to pseudo `NormalizedCandle[]` for use as input to indicators. Non-null values become OHLC (all the same value).
+Convert a `Series<number|null>` to pseudo `NormalizedCandle[]` for use as input to indicators. Non-null values become OHLC (all the same value); `null` values get 0 for all prices. Options: `fillMode` — what to fill open/high/low with: the series value (`"value"`, default) or 0 (`"zero"`); `close` always carries the series value.
 
 ### `extractField(series, field)`
 
@@ -6403,8 +6414,8 @@ import { createLiveCandle, incremental } from "trendcraft";
 const live = createLiveCandle({
   intervalMs: 60_000,
   indicators: [
-    { name: "sma20", create: (s) => incremental.createSma({ period: 20 }, { fromState: s }) },
-    { name: "rsi14", create: (s) => incremental.createRsi({ period: 14 }, { fromState: s }) },
+    { name: "sma20", create: (s) => incremental.createSma({ period: 20 }, incremental.restoreState(s)) },
+    { name: "rsi14", create: (s) => incremental.createRsi({ period: 14 }, incremental.restoreState(s)) },
   ],
   history: historicalCandles,
   maxHistory: 500,
@@ -6428,7 +6439,7 @@ live.addCandle(partialCandle, { partial: true });
 | Option | Type | Description |
 |---|---|---|
 | `intervalMs` | `number?` | Candle interval in ms. Required for tick mode; omit for candle mode. |
-| `indicators` | `LiveIndicatorFactory[]?` | Initial indicators to register (can also add dynamically via `addIndicator`). |
+| `indicators` | `{ name: string; create: LiveIndicatorFactory; state?: unknown }[]?` | Initial indicators to register (can also add dynamically via `addIndicator`). |
 | `history` | `NormalizedCandle[]?` | Historical candles used only for context (not emitted). |
 | `maxHistory` | `number?` | Cap on the number of completed candles kept in memory. |
 
@@ -6460,7 +6471,7 @@ const sma = livePresets.sma;
 // {
 //   meta: { kind: 'sma', label: 'SMA', overlay: true, ... },
 //   defaultParams: { period: 20 },
-//   snapshotName: (p) => `sma${p.period}`,
+//   snapshotName: (p) => `sma_${p.source ?? "close"}_${p.period ?? 20}`,  // → "sma_close_20"
 //   createFactory: (params) => (fromState) => IncrementalIndicator,
 // }
 
@@ -6475,7 +6486,7 @@ const rsiIndicator = factory(undefined); // no prior state
 |---|---|---|
 | `meta` | `SeriesMeta` | Rendering metadata (kind, label, overlay, yRange, referenceLines). |
 | `defaultParams` | `Record<string, unknown>` | Default parameters when user passes `{}`. |
-| `snapshotName` | `(params) => string` | Derive the snapshot key (e.g. `"sma20"`) for this instance. |
+| `snapshotName` | `string \| (params) => string` | Snapshot key (fixed string or derived from params; e.g. sma → `"sma_close_20"`, ema → `"ema20"`). |
 | `createFactory` | `(params) => LiveIndicatorFactory` | Build the incremental factory closed over the given params. |
 
 ### `indicatorPresets`
@@ -6499,13 +6510,16 @@ const factory = rsi.createFactory({ period: 14 });
 | Field | Type | Description |
 |---|---|---|
 | ...all `LivePreset` fields | — | — |
-| `compute` | `(candles, params) => Series<T>` | Batch compute for static mode. |
-| `category` | `IndicatorCategory` | Grouping hint for UI (`"momentum"`, `"trend"`, etc.). |
-| `paramSchema` | `ParamSchema?` | Parameter schema for automatic UI form generation. |
+| `compute?` | `(candles, params) => Series<T>` | Batch compute for static mode (optional). |
+| `createFactory?` | `(params) => LiveIndicatorFactory` | Incremental factory for streaming mode (optional). |
+| `category` | `IndicatorCategory?` | Grouping hint for UI. Values are capitalized: `"Moving Averages"`, `"Momentum"`, `"Volatility"`, `"Trend"`, `"Volume"`, `"Price"`, `"Wyckoff"`, `"Adaptive"`, `"Session"`, `"SMC"`, `"Filter"`. |
+| `paramSchema` | `ParamSchema[]?` | Array of per-parameter schemas for automatic UI form generation. |
+
+At least one of `compute` or `createFactory` is always defined. All 104 entries have `compute`; 25 batch-only entries (e.g. `zigzag`, `heikinAshi`, `swingPoints`, `orderBlock`, `dpo`, `adaptiveRsi`) have no `createFactory` — check for its presence before using streaming mode.
 
 ### `tagSeries` / `SeriesMeta`
 
-Attach domain metadata to any `Series<T>` via a non-enumerable `__meta` property. Every built-in indicator already tags its output. Use `tagSeries` on your own indicators if you want downstream consumers (renderers, UI generators, etc.) to pick up the same conventions.
+Attach domain metadata to any `Series<T>` via a `__meta` property. Every built-in indicator already tags its output. Use `tagSeries` on your own indicators if you want downstream consumers (renderers, UI generators, etc.) to pick up the same conventions.
 
 ```typescript
 import { tagSeries, rsi, type SeriesMeta } from "trendcraft";
@@ -6549,7 +6563,7 @@ A renderer may translate `overlay` to pane placement and `yRange` to an axis con
 ```typescript
 // Input candle (flexible)
 interface Candle {
-  time: number | string | Date;
+  time: number | string;  // epoch seconds/ms/µs number, or ISO date string
   open: number;
   high: number;
   low: number;
@@ -6584,11 +6598,14 @@ type PriceSource = 'open' | 'high' | 'low' | 'close' | 'hl2' | 'hlc3' | 'ohlc4' 
 ### Signal Types
 
 ```typescript
-type SignalType = 'bullish' | 'bearish';
+type SignalType = 'buy' | 'sell' | 'hold';
 
 interface Signal {
   time: number;
   type: SignalType;
+  name: string;
+  confidence?: number;
+  metadata?: Record<string, unknown>;
 }
 ```
 
@@ -6946,7 +6963,7 @@ const patterns = detectHarmonicPatterns(candles, {
 |--------|---------|-------------|
 | `swingLookback` | `5` | Swing point detection period |
 | `tolerance` | `0.05` | Fibonacci ratio matching tolerance (5%) |
-| `minSwingPoints` | `50` | Minimum bars for swing detection |
+| `minSwingPoints` | `50` | Minimum number of swing points to scan for XABCD windows |
 | `patterns` | all | Pattern types to detect |
 
 **Pattern types:** `gartley_bullish`, `gartley_bearish`, `butterfly_bullish`, `butterfly_bearish`, `bat_bullish`, `bat_bearish`, `crab_bullish`, `crab_bearish`, `shark_bullish`, `shark_bearish`.
@@ -6980,8 +6997,8 @@ const result = garch(dailyReturns, {
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `p` | `1` | GARCH lag order |
-| `q` | `1` | ARCH lag order |
+| `p` | `1` | GARCH lag order — reserved for future use; only `1` is currently supported (any other value throws) |
+| `q` | `1` | ARCH lag order — reserved for future use; only `1` is currently supported (any other value throws) |
 | `maxIterations` | `100` | Max MLE iterations |
 | `tolerance` | `1e-6` | Convergence tolerance |
 
@@ -7002,7 +7019,7 @@ const vol = ewmaVolatility(dailyReturns, { lambda: 0.94 });
 |--------|---------|-------------|
 | `lambda` | `0.94` | Decay factor (RiskMetrics standard) |
 | `calendar` | `US_EQUITY_CALENDAR` | Trading calendar preset for annualization |
-| `periodsPerYear` | `252` | Override annualization (takes precedence over `calendar`) |
+| `periodsPerYear` | `252` | Override annualization (used only when `calendar` is not provided; `calendar` wins if both are set) |
 
 Returns `Series<number>` (annualized volatility, percent).
 
@@ -7058,7 +7075,9 @@ const N = annualizationFactor({ calendar: JPX_CALENDAR }); // 245
 ```
 
 The `AnnualizationOptions` bag (`{ calendar?, periodsPerYear? }`) is accepted by:
-`calculateMetricsFromReturns`, `stressTest`, `runAllStressTests`, `ulcerPerformanceIndex`, `garch`, `ewmaVolatility`, `ewmaVolatilityFromCandles`, `volatilityRegime`, `calculateRuntimeMetrics`. Defaults are unchanged from prior versions.
+`calculateMetricsFromReturns`, `stressTest`, `runAllStressTests`, `ulcerPerformanceIndex`, `garch`, `ewmaVolatility`, `ewmaVolatilityFromCandles`, `volatilityRegime`. Defaults are unchanged from prior versions.
+
+`calculateRuntimeMetrics` accepts `calendar` but not `periodsPerYear`; use its legacy `annualizationFactor: number` field for a raw bars-per-year override (`calendar` wins when both are set).
 
 ---
 
@@ -7101,7 +7120,7 @@ console.log(summarizeParetoResult(result));
 | `maxCombinations` | `10000` | Maximum parameter combinations to evaluate |
 | `progressCallback` | - | Progress reporting callback |
 
-**Available metrics:** `sharpe`, `returnPercent`, `maxDrawdown`, `profitFactor`, `winRate`, `calmar`, `recoveryFactor`, `avgHoldingDays`.
+**Available metrics:** `sharpe`, `calmar`, `mar`, `profitFactor`, `recoveryFactor`, `returns`, `winRate`, `tradeCount`, `maxDrawdown`.
 
 Returns `ParetoResult` with `paretoFront: ParetoResultEntry[]` (each with `frontIndex`, `crowdingDistance`).
 
@@ -7169,7 +7188,7 @@ const result = stressTest(dailyReturns, PRESET_SCENARIOS.lehman2008, 1_000_000);
 // result.originalMetrics — { totalReturn, maxDrawdown, sharpe }
 // result.stressedMetrics — { totalReturn, maxDrawdown, sharpe }
 // result.worstCase — { drawdown, duration, recoveryDays }
-// result.survivalRate — percentage of capital surviving
+// result.survivalRate — 1.0 if stressed equity never falls to/below zero, 0.0 otherwise (binary survive/ruin flag)
 // result.capitalAtRisk — capital at risk amount
 // result.stressedVaR, result.stressedCVaR
 ```
@@ -7182,7 +7201,7 @@ Run all preset stress scenarios at once.
 const summary = runAllStressTests(dailyReturns, 1_000_000);
 // summary.results — StressTestResult[] for each scenario
 // summary.worstScenario — name of the worst-performing scenario
-// summary.overallSurvivalRate — minimum survival across all scenarios
+// summary.overallSurvivalRate — proportion of scenarios that survived (mean of the binary per-scenario survivalRate values)
 // summary.maxStressedDrawdown — maximum drawdown across all scenarios
 ```
 
@@ -7357,6 +7376,7 @@ type StrategyJSON = {
     commissionRate?: number;
     slippage?: number;
     fillMode?: "same-bar-close" | "next-bar-open";
+    sizing?: BacktestSizingConfigJSON;
   };
   metadata?: Record<string, unknown>;
 };

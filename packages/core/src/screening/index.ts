@@ -7,22 +7,22 @@
  * @example
  * ```ts
  * import { runScreening, screenStock } from "trendcraft/screening";
- * import { and, goldenCross, volumeAnomalyCondition } from "trendcraft";
+ * import { and, goldenCrossCondition, deadCrossCondition, volumeAnomalyCondition } from "trendcraft";
  *
  * // Screen multiple stocks (Node.js only)
  * const results = runScreening({
  *   dataPath: "./data",
  *   criteria: {
  *     name: "GC + Volume",
- *     entry: and(goldenCross(5, 25), volumeAnomalyCondition(2.0, 20)),
- *     exit: deadCross(5, 25),
+ *     entry: and(goldenCrossCondition(5, 25), volumeAnomalyCondition(2.0, 20)),
+ *     exit: deadCrossCondition(5, 25),
  *   },
  *   minAtrPercent: 2.3,
  * });
  *
  * // Screen single stock (browser-compatible)
  * const result = screenStock("6758.T", candles, {
- *   entry: goldenCross(5, 25),
+ *   entry: goldenCrossCondition(5, 25),
  * });
  * ```
  */

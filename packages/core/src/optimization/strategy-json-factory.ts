@@ -302,8 +302,8 @@ export function composeParamFilter(
 /**
  * Convert path-addressed ranges to the engine's `name`-keyed
  * `ParameterRange[]`. The engine doesn't interpret `name`, so the path
- * string is a valid identifier and round-trips through `bestParams` /
- * `bestEntryConditions` keys.
+ * string is a valid identifier and round-trips through `bestParams` keys
+ * (grid search results and walk-forward period results).
  */
 export function pathRangesToParameterRanges(ranges: PathParameterRange[]): ParameterRange[] {
   return ranges.map((r) => ({

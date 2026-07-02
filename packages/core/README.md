@@ -80,7 +80,7 @@ import { ... } from 'trendcraft/screening';    // Stock screening
 import { ... } from 'trendcraft/manifest';     // Indicator metadata
 ```
 
-A `Candle` accepts `time` as a Unix timestamp, date string, or `Date`; every indicator emits `Series<T> = { time: number, value: T }[]`.
+A `Candle` accepts `time` as a Unix timestamp (seconds, milliseconds, or microseconds) or a date string; every indicator emits `Series<T> = { time: number, value: T }[]`.
 
 Three CLI tools ship with the package: `trendcraft-screen`, `trendcraft-backtest`, and `trendcraft-analyze` (run with `npx`; pass `--list` to see available conditions for screen/backtest).
 

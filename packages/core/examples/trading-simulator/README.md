@@ -48,5 +48,5 @@ pnpm dev
 
 - This example renders with **ECharts**, not `@trendcraft/chart`. It predates
   the chart package and has not been migrated yet.
-- The Alpaca client expects `VITE_ALPACA_API_KEY` / `VITE_ALPACA_API_SECRET`
-  in `.env.local` if you want live data; otherwise CSV / quick-start works.
+- The Alpaca client expects `ALPACA_API_KEY` / `ALPACA_API_SECRET` in `.env`
+  (see `.env.example`) if you want live data; otherwise CSV / quick-start works.

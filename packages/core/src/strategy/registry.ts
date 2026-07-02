@@ -8,7 +8,7 @@
  *
  * @example
  * ```ts
- * import { ConditionRegistry } from "trendcraft";
+ * import { ConditionRegistry, and, or, not } from "trendcraft";
  *
  * const registry = new ConditionRegistry();
  * registry.register({
@@ -25,7 +25,10 @@
  *   ),
  * });
  *
- * const condition = registry.hydrate({ name: "goldenCross", params: { shortPeriod: 10 } });
+ * const condition = registry.hydrate(
+ *   { name: "goldenCross", params: { shortPeriod: 10 } },
+ *   { and, or, not },
+ * );
  * ```
  */
 

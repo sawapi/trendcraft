@@ -1,7 +1,7 @@
 /**
  * CandleFormer - Mini Transformer for candlestick prediction
  *
- * A pure TypeScript implementation of a 1-layer Transformer decoder
+ * A pure TypeScript implementation of an N-layer Transformer decoder (default: 1 layer)
  * that learns candlestick patterns and predicts next-bar direction.
  *
  * @example

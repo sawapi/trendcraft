@@ -25,7 +25,7 @@ import type { ConditionTrace } from "../types/explainability";
  * import { generateNarrative } from "trendcraft";
  *
  * const narrative = generateNarrative(trace, "entry", true, candle);
- * // => "Entry signal fired. rsiBelow(30): passed (rsi14 = 28.5)."
+ * // => "Entry signal fired at close=105.2. rsiBelow(30): passed (rsi14 = 28.5)."
  * ```
  */
 export function generateNarrative(

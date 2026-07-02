@@ -20,7 +20,7 @@ import { seriesToCandles } from "./adapters";
  * ```ts
  * const rsiSeries = rsi(candles, { period: 14 });
  * const smoothed = applyIndicator(rsiSeries, ema, { period: 9 });
- * // Equivalent to: ema(seriesToCandles(rsi(candles, 14)), { period: 9 })
+ * // Equivalent to: ema(seriesToCandles(rsi(candles, { period: 14 })), { period: 9 })
  * ```
  */
 export function applyIndicator<TOpts, TOut>(

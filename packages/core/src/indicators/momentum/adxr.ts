@@ -1,7 +1,7 @@
 /**
  * ADXR (Average Directional Movement Index Rating)
  *
- * Smoothed version of ADX: (ADX[i] + ADX[i-period]) / 2
+ * Smoothed version of ADX: (ADX[i] + ADX[i - (period - 1)]) / 2
  */
 
 import { tagSeries, withLabelParams } from "../../core/tag-series";
@@ -24,7 +24,7 @@ export type AdxrOptions = {
 /**
  * Calculate ADXR (Average Directional Movement Index Rating)
  *
- * ADXR = (ADX[i] + ADX[i - period]) / 2
+ * ADXR = (ADX[i] + ADX[i - (period - 1)]) / 2
  *
  * @param candles - Array of candles (raw or normalized)
  * @param options - Options

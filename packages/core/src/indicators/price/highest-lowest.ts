@@ -18,7 +18,7 @@ export type HighestLowestValue = {
  * Calculate Highest and Lowest values over n periods
  *
  * @param candles - Array of candles (raw or normalized)
- * @param options - Options (period, source='high'/'low')
+ * @param options - Options (period)
  * @returns Series of highest/lowest values
  *
  * @example

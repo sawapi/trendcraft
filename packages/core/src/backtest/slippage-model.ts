@@ -21,14 +21,14 @@ export type FixedSlippageModel = {
 /** Volatility-based slippage scaled by ATR relative to price. */
 export type VolatilitySlippageModel = {
   type: "volatility";
-  /** Multiplier applied to (ATR / close) ratio (default: 1) */
+  /** Multiplier applied to (ATR / close) ratio (e.g., 1) */
   atrMultiplier: number;
 };
 
 /** Volume-based slippage using square-root market impact model. */
 export type VolumeSlippageModel = {
   type: "volume";
-  /** Impact coefficient — higher means more slippage in thin markets (default: 0.1) */
+  /** Impact coefficient — higher means more slippage in thin markets (e.g., 0.1) */
   impactCoeff: number;
 };
 
@@ -79,7 +79,7 @@ export type SlippageModel =
  * );
  * // => 2.0
  *
- * // Volume-based: impactCoeff=0.1, volume=10000 → 0.1/100 * 100 = 1%
+ * // Volume-based: impactCoeff=0.1, volume=10000 → 0.1/100 * 100 = 0.1 (0.1%)
  * const s3 = calculateDynamicSlippage(
  *   { type: "volume", impactCoeff: 0.1 },
  *   candle,

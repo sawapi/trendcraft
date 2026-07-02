@@ -67,7 +67,7 @@ export type OrderBlockOptions = {
   swingPeriod?: number;
   /** Volume MA period for strength calculation (default: 20) */
   volumePeriod?: number;
-  /** Minimum volume ratio above average for valid OB (default: 1.0, no filter) */
+  /** Minimum volume ratio above average for valid OB (default: 1.0 = require at least average volume; set 0 to disable the filter) */
   minVolumeRatio?: number;
   /** Maximum number of active order blocks to track (default: 10) */
   maxActiveOBs?: number;

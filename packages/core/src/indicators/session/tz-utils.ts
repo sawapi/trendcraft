@@ -20,8 +20,8 @@
  *
  * @example
  * ```ts
- * // 2026-03-08 14:00 UTC = 09:00 New York EST (winter)
- * getTzHourMinute(Date.UTC(2026, 2, 8, 14, 0), "America/New_York");
+ * // 2026-03-01 14:00 UTC = 09:00 New York EST (winter)
+ * getTzHourMinute(Date.UTC(2026, 2, 1, 14, 0), "America/New_York");
  * // => { hour: 9, minute: 0 }
  *
  * // 2026-03-15 14:00 UTC = 10:00 New York EDT (after DST)

@@ -28,7 +28,7 @@ type IndicatorSnapshot<TState> = {
 **Pre-0.4.0 snapshots cannot be resumed.** They have no `meta` field,
 so `fromState` throws `<indicator>: incompatible snapshot, re-warm
 required`. This applies equally to streaming session snapshots
-(`createLiveCandle` / `createPipeline` / `createSession`).
+(`createLiveCandle` / `createPipeline` / `createTradingSession`).
 
 ## How to fix: re-warm
 

@@ -20,7 +20,7 @@ import type { NormalizedCandle, PrecomputedIndicators, SignalDefinition } from "
  * import { ScoreBuilder, createRsiOversoldEvaluator } from "trendcraft";
  *
  * const config = ScoreBuilder.create()
- *   .addSignal({ name: "rsiOS", weight: 2.0, evaluate: createRsiOversoldEvaluator(25) })
+ *   .addSignal({ name: "rsiOS", displayName: "RSI < 25", weight: 2.0, evaluate: createRsiOversoldEvaluator(25) })
  *   .build();
  * ```
  */
@@ -143,7 +143,7 @@ export function createRsiNeutralEvaluator(
  * import { ScoreBuilder, createMacdBullishEvaluator } from "trendcraft";
  *
  * const config = ScoreBuilder.create()
- *   .addSignal({ name: "macdBull", weight: 1.5, evaluate: createMacdBullishEvaluator() })
+ *   .addSignal({ name: "macdBull", displayName: "MACD Bullish", weight: 1.5, evaluate: createMacdBullishEvaluator() })
  *   .build();
  * ```
  */
@@ -263,7 +263,7 @@ export function createMacdBearishEvaluator(
  * import { ScoreBuilder, createStochOversoldEvaluator } from "trendcraft";
  *
  * const config = ScoreBuilder.create()
- *   .addSignal({ name: "stochOS", weight: 2.0, evaluate: createStochOversoldEvaluator(20) })
+ *   .addSignal({ name: "stochOS", displayName: "Stoch < 20", weight: 2.0, evaluate: createStochOversoldEvaluator(20) })
  *   .build();
  * ```
  */
@@ -367,7 +367,7 @@ export function createStochOverboughtEvaluator(
  * import { ScoreBuilder, createStochBullishCrossEvaluator } from "trendcraft";
  *
  * const config = ScoreBuilder.create()
- *   .addSignal({ name: "stochCross", weight: 2.5, evaluate: createStochBullishCrossEvaluator(20) })
+ *   .addSignal({ name: "stochCross", displayName: "Stoch Bull Cross", weight: 2.5, evaluate: createStochBullishCrossEvaluator(20) })
  *   .build();
  * ```
  */

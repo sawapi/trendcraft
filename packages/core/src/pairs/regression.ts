@@ -15,7 +15,7 @@
  * @example
  * ```ts
  * const { beta, intercept, rSquared } = olsRegression([1, 2, 3], [2.1, 3.9, 6.1]);
- * // beta ≈ 2, intercept ≈ 0.1
+ * // beta ≈ 2, intercept ≈ 0.033
  * ```
  */
 export function olsRegression(

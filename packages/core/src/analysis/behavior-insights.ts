@@ -8,7 +8,18 @@
  * ```ts
  * import { generateBehaviorInsights } from "trendcraft";
  *
- * const insights = generateBehaviorInsights(result.trades, result.equityCurve);
+ * // BacktestResult.equityCurve is a plain number[] aligned with candles —
+ * // build BehaviorEquityPoint[] ({ time, equity, drawdownPercent }) for drawdown analysis
+ * let peak = Number.NEGATIVE_INFINITY;
+ * const equityPoints = (result.equityCurve ?? []).map((equity, i) => {
+ *   peak = Math.max(peak, equity);
+ *   return {
+ *     time: candles[i].time,
+ *     equity,
+ *     drawdownPercent: peak > 0 ? ((peak - equity) / peak) * 100 : 0,
+ *   };
+ * });
+ * const insights = generateBehaviorInsights(result.trades, equityPoints);
  * // [{ type: "strength", title: "Good profit capture", ... }, ...]
  * ```
  */
@@ -68,7 +79,7 @@ export type BehaviorEquityPoint = {
  *
  * @example
  * ```ts
- * const insights = generateBehaviorInsights(result.trades, result.equityCurve);
+ * const insights = generateBehaviorInsights(result.trades);
  * for (const insight of insights) {
  *   console.log(`[${insight.type}] ${insight.title}: ${insight.description}`);
  * }

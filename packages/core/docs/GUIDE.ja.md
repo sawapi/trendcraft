@@ -1243,7 +1243,7 @@ console.log(`勝率: ${result.winRate}%`);
 
 ```
 1. ADXによるトレンド強度チェック（ADX < 25 = 弱いトレンド）
-2. ドンチャンチャネル幅のATR正規化（狭い = レンジ）
+2. ドンチャンチャネル幅（中値で正規化）のパーセンタイル評価（狭い = レンジ）。ボリンジャーバンド幅と ATR/終値 比率も別コンポーネントとしてスコアに合成
 3. 線形回帰の傾き（水平に近い = レンジ）
 4. +DI/-DIの差分（差が小さい = 方向性なし）
 5. 連続するHH（Higher High）/ LL（Lower Low）のカウント
@@ -1296,10 +1296,9 @@ rbData.forEach(({ time, value }) => {
 `rangeScore`は0〜100のスコアで、数値が高いほどレンジ相場の特徴が強いことを示します：
 
 ```
-rangeScore > 80  → 非常にタイトなレンジ（RANGE_TIGHT）
-rangeScore > 60  → レンジ確定（RANGE_CONFIRMED）
-rangeScore > 40  → レンジ形成中（RANGE_FORMING）
-rangeScore <= 40 → トレンドまたは中立
+rangeScore >= 70（デフォルト rangeScoreThreshold。ADXが20〜25の遷移域では+10されて80）かつ ADX <= 20 → レンジ状態（まず RANGE_FORMING、persistBars（デフォルト3本）継続で RANGE_CONFIRMED）
+rangeScore >= 85（tightRangeThreshold）かつ ADX <= 15 → RANGE_TIGHT（非常にタイトなレンジ）
+閾値未満 → TRENDING または NEUTRAL
 ```
 
 ### トレード戦略
@@ -1669,7 +1668,7 @@ TrendCraftは4つのポジションサイジング手法を提供しています
 import { riskBasedSize } from 'trendcraft';
 
 const result = riskBasedSize({
-  accountSize: 100000,     // 口座資金100万円
+  accountSize: 100000,     // 口座資金10万円
   entryPrice: 50,          // エントリー価格50円
   stopLossPrice: 48,       // ストップ48円（4%下）
   riskPercent: 1,          // 口座の1%をリスク（1000円）
@@ -1823,20 +1822,21 @@ const riskRewardRatio =
 ### バックテストでATRを使用
 
 ```typescript
-import { TrendCraft, goldenCrossCondition, deadCrossCondition } from 'trendcraft';
+import { runBacktest, goldenCrossCondition, deadCrossCondition } from 'trendcraft';
 
-const result = TrendCraft.from(candles)
-  .strategy()
-    .entry(goldenCrossCondition())
-    .exit(deadCrossCondition())
-  .backtest({
+const result = runBacktest(
+  candles,
+  goldenCrossCondition(),  // エントリー: ゴールデンクロス
+  deadCrossCondition(),    // イグジット: デッドクロス
+  {
     capital: 1000000,
     atrRisk: {
       atrPeriod: 14,            // ATR期間
       atrStopMultiplier: 2,     // 2×ATRストップ
       atrTakeProfitMultiplier: 3, // 3×ATR利確
     },
-  });
+  },
+);
 ```
 
 ### ATR倍率ガイドライン
@@ -1998,7 +1998,7 @@ regime = 'extreme'  → 非常に慎重に、様子見も検討
 ### トレードへの応用
 
 ```typescript
-import { regimeIs, regimeNot, atrPercentAbove, and, goldenCrossCondition, bollingerTouch } from 'trendcraft';
+import { regimeIs, regimeNot, atrPercentAbove, and, goldenCrossCondition, bollingerTouch, perfectOrderBullish } from 'trendcraft';
 
 // 低ボラティリティでのレンジ相場戦略
 const rangeEntry = and(
@@ -2201,7 +2201,7 @@ const result2 = runBacktestScaled(candles, goldenCrossCondition(), deadCrossCond
 
 ## リアルタイムストリーミング
 
-バッチ指標（`sma(candles, ...)`、`rsi(candles, ...)` など）は呼ぶたびに全体を再計算します。WebSocket ティック、ペーパートレード Bot、アラートダッシュボードなどのライブデータを扱うときは、v0.2.0 で導入した**インクリメンタル指標**と**ライブローソク足パイプライン**を使います。
+バッチ指標（`sma(candles, ...)`、`rsi(candles, ...)` など）は呼ぶたびに全体を再計算します。WebSocket ティック、ペーパートレード Bot、アラートダッシュボードなどのライブデータを扱うときは、**インクリメンタル指標**と、v0.2.0 で導入した**ライブローソク足パイプライン**を使います。
 
 ### インクリメンタル指標
 
@@ -2231,8 +2231,8 @@ import { createLiveCandle, incremental } from 'trendcraft';
 const live = createLiveCandle({
   intervalMs: 60_000,
   indicators: [
-    { name: 'sma20', create: (s) => incremental.createSma({ period: 20 }, { fromState: s }) },
-    { name: 'rsi14', create: (s) => incremental.createRsi({ period: 14 }, { fromState: s }) },
+    { name: 'sma20', create: (s) => incremental.createSma({ period: 20 }, incremental.restoreState(s)) },
+    { name: 'rsi14', create: (s) => incremental.createRsi({ period: 14 }, incremental.restoreState(s)) },
   ],
   history: historicalCandles,  // 任意の warm-up コンテキスト
 });
@@ -2275,7 +2275,7 @@ const rsiSeries = indicatorPresets.rsi.compute(candles, { period: 14 });
 
 ### シリーズメタデータ（`SeriesMeta` / `tagSeries`）
 
-組み込み指標の出力はすべて、表示規約（ラベル、価格スケールに重ねるか、Y 軸レンジ、参照線）を示す非列挙の `__meta` を持ちます:
+組み込み指標の出力はすべて、表示規約（ラベル、価格スケールに重ねるか、Y 軸レンジ、参照線）を示す `__meta` プロパティを持ちます:
 
 ```typescript
 import { rsi } from 'trendcraft';

@@ -49,8 +49,8 @@ export type DmiOptions = {
  *
  * @example
  * ```ts
- * const dmi = dmi(candles, { period: 14 });
- * const { plusDi, minusDi, adx } = dmi[i].value;
+ * const dmiData = dmi(candles, { period: 14 });
+ * const { plusDi, minusDi, adx } = dmiData[i].value;
  *
  * if (adx > 25 && plusDi > minusDi) {
  *   // Strong bullish trend

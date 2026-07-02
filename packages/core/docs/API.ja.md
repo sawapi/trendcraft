@@ -390,8 +390,10 @@ interface MacdValue {
 ストキャスティクス。
 
 ```typescript
-// 生のストキャスティクス
+// ストキャスティクス（デフォルト slowing: 3 = スロー相当）
 const raw = stochastics(candles, { kPeriod: 14, dPeriod: 3 });
+// 生（未平滑）にする場合は slowing: 1 を明示
+// const fastRaw = stochastics(candles, { kPeriod: 14, dPeriod: 3, slowing: 1 });
 
 // ファストストキャスティクス
 const fast = fastStochastics(candles, { kPeriod: 14, dPeriod: 3 });
@@ -469,8 +471,9 @@ const result = stochRsi(candles, {
 
 ```typescript
 interface StochRsiValue {
-  k: number | null;  // %Kライン
-  d: number | null;  // %Dライン
+  stochRsi: number | null; // 生のStochRSI値 (0-100)
+  k: number | null;        // %Kライン（平滑化StochRSI）
+  d: number | null;        // %Dライン（%KのSMA）
 }
 ```
 
@@ -611,7 +614,7 @@ const custom = adxr(candles, { period: 14, dmiPeriod: 14, adxPeriod: 14 });
 
 **戻り値:** `Series<number | null>`
 
-**計算式:** `(ADX[i] + ADX[i - period]) / 2`
+**計算式:** `(ADX[i] + ADX[i - (period - 1)]) / 2`（TA-Lib準拠のルックバック）
 
 **解釈:**
 - 25超: トレンドあり
@@ -819,7 +822,8 @@ const result = volumeMa(candles, { period: 20 });
 **オプション:**
 | オプション | 型 | デフォルト | 説明 |
 |------------|------|---------|------|
-| `period` | `number` | `20` | MA期間 |
+| `period` | `number` | 必須 | MA期間 |
+| `type` | `'sma' \| 'ema'` | `'sma'` | MA種別 |
 
 **戻り値:** `Series<number | null>`
 
@@ -892,7 +896,7 @@ const custom = volumeProfile(candles, { period: 20, levels: 24, valueAreaPercent
 **オプション:**
 | オプション | 型 | デフォルト | 説明 |
 |------------|------|---------|------|
-| `period` | `number` | `20` | 参照期間 |
+| `period` | `number` | 全期間（省略時は全キャンドル対象） | 参照期間（末尾からのキャンドル数） |
 | `levels` | `number` | `24` | 価格レベル数 |
 | `valueAreaPercent` | `number` | `0.7` | Value Area計算の割合（0-1の小数） |
 
@@ -909,10 +913,11 @@ interface VolumeProfileValue {
 }
 
 interface VolumePriceLevel {
-  priceMin: number;
-  priceMax: number;
-  volume: number;
-  percentage: number;  // 総出来高に対する割合
+  priceLow: number;      // 価格レベル下限
+  priceHigh: number;     // 価格レベル上限
+  priceMid: number;      // 価格レベル中央値
+  volume: number;        // このレベルの出来高
+  volumePercent: number; // 総出来高に対する割合
 }
 ```
 
@@ -1248,19 +1253,21 @@ const leaders = filterByRSPercentile(symbolsData, 80);
 
 ### 価格
 
-#### `highest(candles, options)` / `lowest(candles, options)`
+#### `highest(candles, period)` / `lowest(candles, period)`
 
 n期間の最高値/最安値。
 
 ```typescript
-const highestHigh = highest(candles, { period: 20 });
-const lowestLow = lowest(candles, { period: 20 });
+const highestHigh = highest(candles, 20);
+const lowestLow = lowest(candles, 20);
 ```
 
-**オプション:**
-| オプション | 型 | デフォルト | 説明 |
-|------------|------|---------|------|
-| `period` | `number` | 必須 | 参照期間 |
+**引数:**
+| 引数 | 型 | デフォルト | 説明 |
+|------|------|---------|------|
+| `period` | `number` | 必須（位置引数） | 参照期間 |
+
+（オプションオブジェクト版は `highestLowest(candles, { period })` のみで、戻り値は `Series<{highest, lowest}>`）
 
 **戻り値:** `Series<number | null>`
 
@@ -1782,8 +1789,8 @@ const dc = deadCross(candles, { short: 5, long: 25 });
 **オプション:**
 | オプション | 型 | デフォルト | 説明 |
 |------------|------|---------|------|
-| `short` | `number` | 必須 | 短期MA期間 |
-| `long` | `number` | 必須 | 長期MA期間 |
+| `short` | `number` | `5` | 短期MA期間 |
+| `long` | `number` | `25` | 長期MA期間 |
 
 **戻り値:** `Series<boolean>` （バックテスト条件版は `goldenCrossCondition`/`deadCrossCondition`）
 
@@ -1860,6 +1867,7 @@ const signals = macdDivergence(candles);
 | `swingLookback` | `number` | `5` | スイングポイント検出の参照期間 |
 | `minSwingDistance` | `number` | `5` | スイング間の最小バー数 |
 | `maxSwingDistance` | `number` | `60` | スイング間の最大バー数 |
+| `kinds` | `DivergenceClass[]` | `['regular']` | 検出するダイバージェンス種別（`['regular','hidden']` でヒドゥンも検出） |
 
 **戻り値:** `DivergenceSignal[]`
 
@@ -1867,6 +1875,7 @@ const signals = macdDivergence(candles);
 interface DivergenceSignal {
   time: number;
   type: 'bullish' | 'bearish';  // bullish: 強気, bearish: 弱気
+  kind: 'regular' | 'hidden';   // regular: レギュラー（反転）/ hidden: ヒドゥン（継続）
   firstIdx: number;              // 最初のスイングポイントのインデックス
   secondIdx: number;             // 2番目のスイングポイントのインデックス
   price: { first: number; second: number };
@@ -2035,7 +2044,7 @@ const signals = volumeBreakout(candles, { period: 20 });
 ```typescript
 interface VolumeBreakoutSignal {
   time: number;
-  type: 'volume_breakout';
+  type: 'breakout';
   volume: number;
   previousHigh: number;
   ratio: number;
@@ -2071,7 +2080,9 @@ const signals = volumeAccumulation(candles, {
 interface VolumeAccumulationSignal {
   time: number;
   type: 'volume_accumulation';
-  slope: number;           // 正規化傾き
+  volume: number;          // 現在の出来高
+  slope: number;           // 回帰の生の傾き
+  normalizedSlope: number; // 正規化傾き（slope / 平均出来高、minSlope と比較される値）
   rSquared: number;        // R²品質スコア
   consecutiveDays: number; // 蓄積日数
 }
@@ -2131,17 +2142,25 @@ const signals = volumeMaCross(candles, {
 |------------|------|---------|------|
 | `shortPeriod` | `number` | `5` | 短期MA期間 |
 | `longPeriod` | `number` | `20` | 長期MA期間 |
+| `minRatio` | `number` | `1.0` | クロス確定に必要な短期MA/長期MAの最小比率 |
+| `bullishOnly` | `boolean` | `true` | 強気（上抜け）クロスのみ検知 |
 
 **戻り値:** `VolumeMaCrossSignal[]`
 
 ```typescript
 interface VolumeMaCrossSignal {
   time: number;
-  type: 'volume_ma_cross_up' | 'volume_ma_cross_down';
+  type: 'volume_ma_cross';
+  volume: number;                    // 現在の出来高
   shortMa: number;
   longMa: number;
+  direction: 'bullish' | 'bearish';  // bullish: 短期MAが長期MAを上抜け
+  ratio: number;                     // 短期MA / 長期MA
+  daysSinceCross: number;            // クロス以降の連続日数
 }
 ```
+
+**注意:** デフォルトでは `bullishOnly: true` のため強気（上抜け）クロスのみ検知されます。弱気クロスも得るには `bullishOnly: false` を指定してください。
 
 ---
 
@@ -2269,7 +2288,7 @@ const patterns = detectWedge(candles);
 const fallingWedges = patterns.filter(p => p.type === 'falling_wedge');
 ```
 
-**オプション:** `detectTriangle`と同様（`flatTolerance`を除く）。
+**オプション:** `detectTriangle`と同様（`flatTolerance`を除く）。ただし `minPoints` のデフォルトは `3`（トレンドラインあたり3タッチ）。
 
 ---
 
@@ -2356,7 +2375,7 @@ interface PatternSignal {
     neckline?: PatternNeckline;    // H&Sパターン用
     target?: number;         // 目標価格（メジャードムーブ）
     stopLoss?: number;       // 推奨ストップロス
-    height: number;          // パターン高さ
+    height?: number;          // パターン高さ（メジャードムーブ計算用、省略される場合あり）
   };
   confidence: number;        // 0-100 信頼度スコア
   confirmed: boolean;        // ブレイクアウト発生時true
@@ -2750,7 +2769,7 @@ monthlyTrendStrong(adxThreshold = 25)  // 月足ADX > 閾値
 mtfTrendStrong(timeframe, adxThreshold = 25)  // MTF ADX > 閾値
 
 // カスタムMTF条件
-mtfCondition(timeframe, conditionFn)  // MTFデータでのカスタム条件
+mtfCondition(requiredTimeframes, name, evaluateFn)  // MTFデータでのカスタム条件（例: mtfCondition(['weekly', 'monthly'], 'weeklyAboveMonthly', (mtf, indicators, candle, index, candles) => ...)）
 ```
 
 **Fluent APIでの使用:**
@@ -2971,8 +2990,12 @@ const monthly = resample(dailyCandles, 'monthly');
 ```
 
 **サポートされるタイムフレーム:**
-- `'weekly'` または `'1w'`
-- `'monthly'` または `'1M'`
+- ショートハンド: `'1m'` / `'5m'` / `'15m'` / `'30m'` / `'1h'` / `'4h'` / `'1d'`（`'daily'`）/ `'1w'`（`'weekly'`）/ `'1M'`（`'monthly'`）
+- または `{ value, unit }` 形式の `Timeframe` オブジェクト（unit: `'minute' | 'hour' | 'day' | 'week' | 'month'`）
+
+```typescript
+const fourHour = resample(hourlyCandles, '4h');  // 1時間足 → 4時間足
+```
 
 ---
 
@@ -3488,7 +3511,7 @@ Sharpeがベンチマークを超えない場合は `Infinity` を返します�
 import { minTrackRecordLength } from 'trendcraft';
 
 // per-return Sharpe 0.1 — PSR(0) ≥ 95% に必要なバー数は？
-const bars = Math.ceil(minTrackRecordLength(0.1)); // ≈ 274
+const bars = Math.ceil(minTrackRecordLength(0.1)); // ≈ 273 （minTrackRecordLength(0.1) ≈ 272.9）
 ```
 
 ---
@@ -3804,7 +3827,7 @@ Period 3: Train 2015-01-01〜2019-12-31 → Test 2020
 | オプション | 型 | デフォルト | 説明 |
 |--------|------|---------|-------------|
 | `anchorDate` | `number` | 必須 | 固定起点（epoch ms） |
-| `initialTrainSize` | `number` | `252` | 初期訓練期間（バー数） |
+| `initialTrainSize` | `number` | `504` | 初期訓練期間（バー数、約2年） |
 | `expansionStep` | `number` | `252` | 拡張ステップ（バー数） |
 | `testSize` | `number` | `252` | テスト期間（バー数） |
 | `metric` | `OptimizationMetric` | `'sharpe'` | 最適化する指標 |
@@ -3860,13 +3883,11 @@ const formatted = formatAWFResult(awfResult);
 // サマリー取得
 const summary = summarizeAWFResult(awfResult);
 
-// 期間数の事前計算
-const count = calculateAWFPeriodCount(candles, {
-  anchorDate: new Date('2015-01-01').getTime(),
-  initialTrainSize: 500,
-  expansionStep: 252,
-  testSize: 252,
-});
+// 期間数の事前計算（位置引数）
+const anchorDate = new Date('2015-01-01').getTime();
+const anchorIndex = candles.findIndex((c) => c.time >= anchorDate);
+const count = calculateAWFPeriodCount(candles.length, anchorIndex, 500, 252, 252);
+// オプションオブジェクトから求める場合: generateAWFBoundaries(candles, options).length
 
 // 期間境界の生成
 const boundaries = generateAWFBoundaries(candles, options);
@@ -3901,8 +3922,8 @@ const result = runBacktestScaled(candles, goldenCrossCondition(), deadCrossCondi
 | オプション | 型 | デフォルト | 説明 |
 |--------|------|---------|-------------|
 | `tranches` | `number` | 必須 | エントリートランシェ数 (2-10) |
-| `strategy` | `'equal' \| 'pyramid' \| 'reverse-pyramid'` | `'equal'` | 配分戦略 |
-| `intervalType` | `'signal' \| 'price'` | `'signal'` | 追加エントリーのトリガー方法 |
+| `strategy` | `'equal' \| 'pyramid' \| 'reverse-pyramid'` | 必須 | 配分戦略 |
+| `intervalType` | `'signal' \| 'price'` | 必須 | 追加エントリーのトリガー方法 |
 | `priceInterval` | `number` | `-2` | 次のトランシェの価格変動 %（負の値 = 下落） |
 
 **戦略:**
@@ -4737,7 +4758,7 @@ type TradeSignal = {
 import { fromCrossSignal } from 'trendcraft';
 
 const signals = validateCrossSignals(candles);
-const tradeSignals = signals.map(s => fromCrossSignal(s, candles[i].close));
+const tradeSignals = signals.map(s => fromCrossSignal(s, candles.find(c => c.time === s.time)?.close)); // entryPrice は省略可能なので signals.map(s => fromCrossSignal(s)) でも可
 // { action: "BUY", direction: "LONG", confidence: 85, ... }
 ```
 
@@ -4756,7 +4777,7 @@ const tradeSignals = divSignals.map(s => fromDivergenceSignal(s, candles[s.secon
 import { fromSqueezeSignal } from 'trendcraft';
 
 const squeezes = bollingerSqueeze(candles);
-const tradeSignals = squeezes.map(s => fromSqueezeSignal(s, "LONG", candles[i].close));
+const tradeSignals = squeezes.map(s => fromSqueezeSignal(s, "LONG", candles.find(c => c.time === s.time)?.close)); // entryPrice は省略可能なので squeezes.map(s => fromSqueezeSignal(s)) でも可
 ```
 
 #### `fromPatternSignal(signal, entryPrice?)`
@@ -4778,7 +4799,7 @@ const tradeSignals = patterns.map(p => fromPatternSignal(p, 100));
 ```typescript
 import { fromScoreResult } from 'trendcraft';
 
-const breakdown = calculateScoreBreakdown(candles, signals, i);
+const breakdown = calculateScoreBreakdown(candles, i, config); // config: ScoringConfig（例: { signals: [...] }）
 const signal = fromScoreResult(breakdown, candle.time, { minScore: 50, entryPrice: 100 });
 ```
 
@@ -4808,9 +4829,11 @@ const signal = fromPipelineResult(result, candle.time, candle.close);
 #### `createSignalEmitter(options)`
 
 ```typescript
-import { streaming } from 'trendcraft';
+import { streaming, incremental } from 'trendcraft';
 
-const emitter = streaming.createSignalEmitter({
+const { createSignalEmitter, rsiBelow, rsiAbove } = streaming;
+
+const emitter = createSignalEmitter({
   intervalMs: 60000,
   pipeline: {
     indicators: [{ name: 'rsi14', create: () => incremental.createRsi({ period: 14 }) }],
@@ -4967,7 +4990,7 @@ const tracker = streaming.createPositionTracker({
   trailingStop: 3,    // トラフから追跡
 });
 
-tracker.openPosition(100, currentTime, 1000);
+tracker.openPosition(100, 1000, currentTime); // (価格, 株数, 時刻) の順
 
 // 含み損益は方向を考慮
 const account = tracker.getAccount();
@@ -4985,7 +5008,7 @@ if (result.triggered) {
 `batchBacktest()` と `portfolioBacktest()` も同じ `direction` オプションでショートセリングに対応。
 
 ```typescript
-import { batchBacktest, deadCrossCondition, goldenCrossCondition } from 'trendcraft';
+import { batchBacktest, portfolioBacktest, deadCrossCondition, goldenCrossCondition } from 'trendcraft';
 
 // バッチバックテスト: direction をオプションに直接指定
 const batchResult = batchBacktest(datasets, deadCrossCondition(5, 25), goldenCrossCondition(5, 25), {
@@ -5015,7 +5038,7 @@ const portfolioResult = portfolioBacktest(datasets, deadCrossCondition(5, 25), g
 ```typescript
 import {
   and, rsiAbove, rsiBelow, bollingerTouch, deadCrossCondition, goldenCrossCondition,
-  dmiBearish, anyBearishPattern, stochAbove, stochBelow,
+  dmiBearish, anyBearishPattern, stochAbove, stochBelow, runBacktest,
 } from 'trendcraft';
 
 // ミーンリバージョンショート: 買われすぎからの反転
@@ -5482,7 +5505,7 @@ const bbOfHist = pipe(
 
 ### `seriesToCandles(series, options?)`
 
-`Series<number|null>`を擬似`NormalizedCandle[]`に変換してインジケーター関数の入力として使用します。
+`Series<number|null>`を擬似`NormalizedCandle[]`に変換してインジケーター関数の入力として使用します。非nullの値はOHLC全てに同じ値が入り、`null`は全価格が0になります。オプション: `fillMode` — open/high/lowに何を入れるか: シリーズの値（`"value"`、デフォルト）または0（`"zero"`）。`close`は常にシリーズの値を持ちます。
 
 ### `extractField(series, field)`
 
@@ -5833,8 +5856,8 @@ import { createLiveCandle, incremental } from "trendcraft";
 const live = createLiveCandle({
   intervalMs: 60_000,
   indicators: [
-    { name: "sma20", create: (s) => incremental.createSma({ period: 20 }, { fromState: s }) },
-    { name: "rsi14", create: (s) => incremental.createRsi({ period: 14 }, { fromState: s }) },
+    { name: "sma20", create: (s) => incremental.createSma({ period: 20 }, incremental.restoreState(s)) },
+    { name: "rsi14", create: (s) => incremental.createRsi({ period: 14 }, incremental.restoreState(s)) },
   ],
   history: historicalCandles,
   maxHistory: 500,
@@ -5858,7 +5881,7 @@ live.addCandle(partialCandle, { partial: true });
 | オプション | 型 | 説明 |
 |---|---|---|
 | `intervalMs` | `number?` | ローソク足の間隔（ms）。ティックモードでは必須、ローソク足モードでは省略。 |
-| `indicators` | `LiveIndicatorFactory[]?` | 初期登録する指標（`addIndicator` で後から追加可能）。 |
+| `indicators` | `{ name: string; create: LiveIndicatorFactory; state?: unknown }[]?` | 初期登録する指標（`addIndicator` で後から追加可能）。 |
 | `history` | `NormalizedCandle[]?` | コンテキストのみに使う過去ローソク足（emit されない）。 |
 | `maxHistory` | `number?` | メモリに保持する完了ローソク足の上限。 |
 
@@ -5868,12 +5891,12 @@ live.addCandle(partialCandle, { partial: true });
 |---|---|
 | `addTick(trade)` | トレードを流し込む（ティックモード）。 |
 | `addCandle(candle, opts?)` | ローソク足を流し込む。`opts.partial = true` で形成中バー。 |
-| `addIndicator({ name, create })` | 構築後に指標ファクトリを登録。 |
+| `addIndicator(name, create, state?)` | 構築後に指標ファクトリを登録。 |
 | `removeIndicator(name)` | 指標を削除。 |
-| `snapshot()` | 現在の指標スナップショット（登録名キー）。 |
+| `snapshot` | 現在の指標スナップショット（登録名キー）。read-only プロパティ（メソッドではない）。 |
 | `completedCandles` | 開始以降の完了ローソク足配列（read-only）。 |
-| `formingCandle` | 進行中のローソク足、または `null`。 |
-| `on(event, handler)` / `off(event, handler)` | イベント購読。events: `tick`, `candleComplete`。 |
+| `candle` | 進行中のローソク足、または `null`（read-only）。 |
+| `on(event, handler)` | イベント購読。unsubscribe 関数を返す（`off` メソッドは無い）。events: `tick`, `candleComplete`。 |
 | `getState()` | state をシリアライズ（aggregator + 指標 + 完了ローソク足）。 |
 
 ### `livePresets`
@@ -5887,7 +5910,7 @@ const sma = livePresets.sma;
 // {
 //   meta: { kind: 'sma', label: 'SMA', overlay: true, ... },
 //   defaultParams: { period: 20 },
-//   snapshotName: (p) => `sma${p.period}`,
+//   snapshotName: (p) => `sma_${p.source ?? "close"}_${p.period ?? 20}`,
 //   createFactory: (params) => (fromState) => IncrementalIndicator,
 // }
 
@@ -5902,7 +5925,7 @@ const indicator = factory(undefined); // 既存 state なし
 |---|---|---|
 | `meta` | `SeriesMeta` | 描画メタデータ（kind, label, overlay, yRange, referenceLines）。 |
 | `defaultParams` | `Record<string, unknown>` | ユーザーが `{}` を渡したときのデフォルトパラメータ。 |
-| `snapshotName` | `(params) => string` | このインスタンスの snapshot キーを生成（例: `"sma20"`）。 |
+| `snapshotName` | `string \| ((params) => string)` | このインスタンスの snapshot キー（文字列、または params から生成する関数。例: `"sma_close_20"`）。 |
 | `createFactory` | `(params) => LiveIndicatorFactory` | 指定パラメータで closure したインクリメンタルファクトリを生成。 |
 
 ### `indicatorPresets`
@@ -5921,18 +5944,20 @@ const series = rsi.compute(candles, { period: 14 });
 const factory = rsi.createFactory({ period: 14 });
 ```
 
-**エントリー形式 (`IndicatorPreset extends LivePreset`):**
+**エントリー形式 (`IndicatorPreset`):** LivePreset と同形の `meta` / `defaultParams` / `snapshotName` を持つ独立型。`compute?` と `createFactory?` はともにオプショナル（少なくとも一方は定義。インクリメンタル未対応の指標は `compute` のみで、104 エントリー中 25 個は `createFactory` を持たない）。
 
 | フィールド | 型 | 説明 |
 |---|---|---|
-| ...`LivePreset` の全フィールド | — | — |
-| `compute` | `(candles, params) => Series<T>` | 静的モード用のバッチ計算。 |
-| `category` | `IndicatorCategory` | UI 用グルーピング（`"momentum"`、`"trend"` など）。 |
-| `paramSchema` | `ParamSchema?` | UI フォーム自動生成用のパラメータスキーマ。 |
+| `meta` / `defaultParams` / `snapshotName` | — | `LivePreset` と同形。 |
+| `compute` | `((candles, params) => Series<T>)?` | 静的モード用のバッチ計算。 |
+| `createFactory` | `((params) => LiveIndicatorFactory)?` | ストリーミングモード用のインクリメンタルファクトリ。 |
+| `category` | `IndicatorCategory?` | UI 用グルーピング。値は大文字始まり: `"Moving Averages"`, `"Momentum"`, `"Volatility"`, `"Trend"`, `"Volume"`, `"Price"`, `"Wyckoff"`, `"Adaptive"`, `"Session"`, `"SMC"`, `"Filter"`。 |
+| `name` / `description` | `string?` | 指標のフルネーム / 短い説明。 |
+| `paramSchema` | `ParamSchema[]?` | UI フォーム自動生成用のパラメータスキーマ配列（パラメータごとに 1 エントリー）。 |
 
 ### `tagSeries` / `SeriesMeta`
 
-任意の `Series<T>` に非列挙の `__meta` プロパティを付与してドメインメタデータを載せます。組み込み指標はすべて既に tag 済み。自作指標でも下流の利用者（レンダラー、UI ジェネレーター等）に同じ規約で解釈させたい場合に `tagSeries` を使います。
+任意の `Series<T>` に `__meta` プロパティを付与してドメインメタデータを載せます。組み込み指標はすべて既に tag 済み。自作指標でも下流の利用者（レンダラー、UI ジェネレーター等）に同じ規約で解釈させたい場合に `tagSeries` を使います。
 
 ```typescript
 import { tagSeries, rsi, type SeriesMeta } from "trendcraft";
@@ -5976,7 +6001,7 @@ const myCustom = tagSeries(myData, {
 ```typescript
 // 入力用ローソク足（柔軟）
 interface Candle {
-  time: number | string | Date;
+  time: number | string;
   open: number;
   high: number;
   low: number;
@@ -6011,11 +6036,14 @@ type PriceSource = 'open' | 'high' | 'low' | 'close' | 'hl2' | 'hlc3' | 'ohlc4' 
 ### シグナル型
 
 ```typescript
-type SignalType = 'bullish' | 'bearish';
+type SignalType = 'buy' | 'sell' | 'hold';
 
 interface Signal {
   time: number;
   type: SignalType;
+  name: string;
+  confidence?: number;
+  metadata?: Record<string, unknown>;
 }
 ```
 
@@ -6178,7 +6206,7 @@ const patterns = detectHarmonicPatterns(candles, {
 |--------|---------|-------------|
 | `swingLookback` | `5` | スイングポイント検出期間 |
 | `tolerance` | `0.05` | フィボナッチ比率の許容誤差（5%） |
-| `minSwingPoints` | `50` | スイング検出の最小バー数 |
+| `minSwingPoints` | `50` | スキャンするスイングポイント（高値/安値の転換点）の最小個数 |
 | `patterns` | すべて | 検出するパターンタイプ |
 
 **パターンタイプ:** `gartley_bullish`, `gartley_bearish`, `butterfly_bullish`, `butterfly_bearish`, `bat_bullish`, `bat_bearish`, `crab_bullish`, `crab_bearish`, `shark_bullish`, `shark_bearish`
@@ -6212,8 +6240,8 @@ const result = garch(dailyReturns, {
 
 | オプション | デフォルト | 説明 |
 |--------|---------|-------------|
-| `p` | `1` | GARCHラグ次数 |
-| `q` | `1` | ARCHラグ次数 |
+| `p` | `1` | GARCHラグ次数 — 将来の拡張用。現在は `1` のみサポート（それ以外の値は例外をスロー） |
+| `q` | `1` | ARCHラグ次数 — 将来の拡張用。現在は `1` のみサポート（それ以外の値は例外をスロー） |
 | `maxIterations` | `100` | MLE最大反復回数 |
 | `tolerance` | `1e-6` | 収束許容誤差 |
 
@@ -6234,7 +6262,7 @@ const vol = ewmaVolatility(dailyReturns, { lambda: 0.94 });
 |--------|---------|-------------|
 | `lambda` | `0.94` | 減衰係数（RiskMetrics標準） |
 | `calendar` | `US_EQUITY_CALENDAR` | 年率化に用いる取引カレンダープリセット |
-| `periodsPerYear` | `252` | 年率化期間の直接指定（`calendar` より優先） |
+| `periodsPerYear` | `252` | 年率化期間の直接指定（`calendar` が指定されている場合は `calendar` が優先） |
 
 `Series<number>`（年率ボラティリティ、%）を返します。
 
@@ -6282,7 +6310,7 @@ const N = annualizationFactor({ calendar: JPX_CALENDAR }); // 245
 ```
 
 `AnnualizationOptions`（`{ calendar?, periodsPerYear? }`）は次の API が受け付けます：
-`calculateMetricsFromReturns`, `stressTest`, `runAllStressTests`, `ulcerPerformanceIndex`, `garch`, `ewmaVolatility`, `ewmaVolatilityFromCandles`, `volatilityRegime`, `calculateRuntimeMetrics`。デフォルト動作は従来と互換です。
+`calculateMetricsFromReturns`, `stressTest`, `runAllStressTests`, `ulcerPerformanceIndex`, `garch`, `ewmaVolatility`, `ewmaVolatilityFromCandles`, `volatilityRegime`。デフォルト動作は従来と互換です。なお `calculateRuntimeMetrics` は `calendar` を受け付けますが、数値での直接指定は `periodsPerYear` ではなく `annualizationFactor` キーです。
 
 ---
 
@@ -6325,7 +6353,7 @@ console.log(summarizeParetoResult(result));
 | `maxCombinations` | `10000` | 評価するパラメータ組み合わせの最大数 |
 | `progressCallback` | - | 進捗報告コールバック |
 
-**利用可能なメトリクス:** `sharpe`, `returnPercent`, `maxDrawdown`, `profitFactor`, `winRate`, `calmar`, `recoveryFactor`, `avgHoldingDays`
+**利用可能なメトリクス:** `sharpe`, `calmar`, `mar`, `profitFactor`, `recoveryFactor`, `returns`, `winRate`, `tradeCount`, `maxDrawdown`
 
 `ParetoResult` を返します（`paretoFront: ParetoResultEntry[]`、各エントリに `frontIndex`, `crowdingDistance` 付き）。
 
@@ -6393,7 +6421,7 @@ const result = stressTest(dailyReturns, PRESET_SCENARIOS.lehman2008, 1_000_000);
 // result.originalMetrics — { totalReturn, maxDrawdown, sharpe }
 // result.stressedMetrics — { totalReturn, maxDrawdown, sharpe }
 // result.worstCase — { drawdown, duration, recoveryDays }
-// result.survivalRate — 資本生存率
+// result.survivalRate — ストレス適用後のエクイティが一度もゼロ以下にならなければ 1.0、なれば 0.0（生存/破綻の二値フラグ）
 // result.capitalAtRisk — リスク資本額
 // result.stressedVaR, result.stressedCVaR
 ```
@@ -6406,7 +6434,7 @@ const result = stressTest(dailyReturns, PRESET_SCENARIOS.lehman2008, 1_000_000);
 const summary = runAllStressTests(dailyReturns, 1_000_000);
 // summary.results — 各シナリオのStressTestResult[]
 // summary.worstScenario — 最悪パフォーマンスのシナリオ名
-// summary.overallSurvivalRate — 全シナリオ中の最低生存率
+// summary.overallSurvivalRate — 全シナリオの生存率の平均（生存したシナリオの割合）
 // summary.maxStressedDrawdown — 全シナリオ中の最大ドローダウン
 ```
 
@@ -6579,6 +6607,7 @@ type StrategyJSON = {
     commissionRate?: number;
     slippage?: number;
     fillMode?: "same-bar-close" | "next-bar-open";
+    sizing?: BacktestSizingConfigJSON; // JSON-safe なポジションサイジング設定（カスタムコールバック型は非対応）
   };
   metadata?: Record<string, unknown>;
 };
