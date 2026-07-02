@@ -78,19 +78,19 @@ All fields optional.
 | `watermark` | `string` | — | Background watermark text |
 | `legend` | `boolean` | `true` | Show series legend |
 | `volume` | `boolean` | `true` | Show volume pane |
-| `scrollSensitivity` | `number` | `0.3` | Scroll/pan sensitivity multiplier (one-time; 0.1–2.0) |
+| `scrollSensitivity` | `number` | `0.3` | Scroll/pan sensitivity multiplier (one-time; clamped to a minimum of 0.1) |
 | `chartType` | `'candlestick' \| 'line' \| 'mountain' \| 'ohlc'` | `'candlestick'` | Base chart type |
 | `formatInfoOverlay` | `(data: InfoOverlayData) => string \| null` | — | Custom info overlay HTML (one-time). Return `null` to use default. |
 | `animationDuration` | `number` | `300` | Range transition duration (ms). `0` disables |
 | `locale` | `Partial<ChartLocale>` | — | i18n string overrides (one-time) |
 | `maxCandles` | `number` | — | Cap on retained candles in live mode |
 | `crosshair` | `CrosshairOptions` | `{ mode: 'normal' }` | Crosshair snap behavior — see [Crosshair](#crosshair) |
-| `hotkeys` | `HotkeyMap \| false` | built-in defaults | Keyboard shortcut bindings — see [Hotkeys](#hotkeys). Pass `false` to disable **all** keyboard handling (including viewport nav keys). |
-| `interaction` | `{ wheelInertia?: boolean }` | `{ wheelInertia: true }` | Trackpad/wheel inertia for pan + zoom. Disable to stop the synthetic deceleration tail (macOS OS-level momentum is independent and always processed). |
+| `hotkeys` | `HotkeyMap \| false` | built-in defaults | Keyboard shortcut bindings — see [Hotkeys](#hotkeys). Pass `false` to disable **all** keyboard handling (including viewport nav keys). (one-time) |
+| `interaction` | `{ wheelInertia?: boolean }` | `{ wheelInertia: true }` | Trackpad/wheel inertia for pan + zoom. Disable to stop the synthetic deceleration tail (macOS OS-level momentum is independent and always processed). (one-time) |
 | `showSeriesBadges` | `boolean` | `false` | Render a colored pill on the right price axis for each labeled series, mirroring the candle current-price badge. Multi-channel series get one pill per channel. |
 | `seriesBadgeMode` | `'absolute' \| 'visible'` | `'absolute'` | `'absolute'` shows the latest non-null value in the data array (live "current" value). `'visible'` shows the latest non-null value within the current visible range. |
 
-Options marked "one-time" cannot be changed via `applyOptions()` — a warning is emitted via the `error` event if you try.
+Options marked "one-time" cannot be changed via `applyOptions()` — a warning is emitted via the `error` event if you try, except `hotkeys` and `interaction`, which are currently ignored silently (no warning).
 
 ### Crosshair
 
@@ -266,7 +266,7 @@ destroy(): void
 
 | Field | Type | Description |
 |---|---|---|
-| `pane` | `'main' \| string` | Target pane id. Omit for auto-detection via `__meta`. Pass `'new'` to create a new sub-pane. |
+| `pane` | `'main' \| string` | Target pane id. Omit for auto-detection via `__meta`. Pass `'sub'` to auto-create a new sub-pane; any other custom string creates (or reuses) a pane with that id. |
 | `scaleId` | `'left' \| 'right'` | Which scale to bind to (only relevant for dual-scale panes). Default `'right'`. |
 | `type` | `SeriesType` | Override the auto-detected series type. |
 | `color` | `string` | Primary color for the series. |
@@ -316,7 +316,7 @@ All time values are epoch milliseconds.
 
 | Event | Payload shape |
 |---|---|
-| `crosshairMove` | `CrosshairMoveData = { time, price, x, y, paneId }` |
+| `crosshairMove` | `CrosshairMoveData = { time, index, ohlcv, paneId }` |
 | `click` | `ChartClickData = { x, y, index, time, shiftKey, altKey, metaKey, ctrlKey }` |
 | `visibleRangeChange` | `VisibleRangeChangeData = { startTime, endTime, startIndex, endIndex }` |
 | `resize` | `{ width: number, height: number }` |
@@ -392,7 +392,7 @@ Useful when you want to pass indicator configurations around your app without co
 ```typescript
 function connectLivePrimitives(
   source: LiveSource,
-  specs: readonly LivePrimitiveSpec<unknown>[],
+  specs: readonly LivePrimitiveSpec<any>[], // `any`, not `unknown`: per-spec T varies across the array, and `unknown` would force every handle.update to accept unknown, rejecting strongly-typed plugin handles like connectSrConfluence's
 ): LivePrimitivesConnection
 ```
 
@@ -403,10 +403,10 @@ import { connectIndicators, connectLivePrimitives, connectSrConfluence } from '@
 import { srZones } from 'trendcraft';
 
 const conn = connectIndicators(chart, { presets, candles, live: source });
-const sr = connectSrConfluence(chart, srZones(source.completedCandles));
+const sr = connectSrConfluence(chart, srZones(source.completedCandles).zones);
 
 const liveSr = connectLivePrimitives(source, [
-  { recompute: (candles) => srZones(candles), handle: sr, name: 'sr' },
+  { recompute: (candles) => srZones(candles).zones, handle: sr, name: 'sr' },
 ]);
 
 // later
@@ -537,7 +537,7 @@ import { TrendChart, useTrendChart } from '@trendcraft/chart/react';
 />
 ```
 
-Props mirror `ChartOptions` plus: `candles`, `indicators`, `signals`, `trades`, `drawings`, `timeframes`, `backtest`, `patterns`, `scores`, and event handlers. Expose the underlying `ChartInstance` via ref.
+Props mirror the `useTrendChart` options: `candles`, `indicators`, `signals`, `trades`, `drawings`, `timeframes`, `backtest`, `patterns`, `scores`, `plugins`, `chartType`, `layout`, `theme`, `fitOnLoad`, event handlers (`onCrosshairMove`, `onSeriesAdded`, `onSeriesRemoved`, `onError`), an `options` prop carrying the remaining `ChartOptions`, plus `style` / `className`. Expose the underlying `ChartInstance` via ref.
 
 **Hook** — imperative access to `ChartInstance` for drawing tools, live feeds, custom plugins:
 
@@ -625,7 +625,7 @@ const result = introspect(myIndicatorData);
 //   seriesType: 'band',         // resolved visual type
 //   rule: IntrospectionRule,    // matched rule (or null)
 //   preset: IndicatorPreset,    // matched preset (or null)
-//   pane: 'main' | 'new',       // resolved pane hint
+//   pane: 'main' | 'sub' (or custom pane id),  // resolved pane hint
 //   config: SeriesConfig,       // merged config
 //   yRange?: [number, number],  // from __meta
 //   referenceLines?: number[],  // from __meta
@@ -684,7 +684,7 @@ chart.addRule({
 chart.addPreset('myShape', {
   color: '#FF9800',
   lineWidth: 2,
-  pane: 'new',
+  pane: 'sub',
 });
 ```
 

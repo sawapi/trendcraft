@@ -91,8 +91,8 @@ export class CanvasChart implements ChartInstance {
   private _ctx: CanvasRenderingContext2D;
   private _pixelRatio: number;
   /**
-   * `true` when the caller pinned `pixelRatio` via constructor options
-   * (or `applyOptions`). When pinned, we honor the caller's value and
+   * `true` when the caller pinned `pixelRatio` via constructor options.
+   * When pinned, we honor the caller's value and
    * never auto-track `window.devicePixelRatio`. When false, every
    * `_setSize` call re-reads `window.devicePixelRatio` so dragging the
    * window between displays of different DPR (e.g. Retina ↔ external
@@ -262,7 +262,7 @@ export class CanvasChart implements ChartInstance {
     if (idx === this._lastCrosshairIndex) return;
     this._lastCrosshairIndex = idx;
     if (idx === null) {
-      this._emit("crosshairMove", { time: null, index: null, paneId: null });
+      this._emit("crosshairMove", { time: null, index: null, ohlcv: null, paneId: null });
       return;
     }
     const candle = this._data.candles[idx];
@@ -377,6 +377,14 @@ export class CanvasChart implements ChartInstance {
     // Forward data layer warnings
     this._data.setOnWarn((msg) => this._warn(msg));
 
+    // Mirror of `seriesAdded`: every removal path (SeriesHandle.remove(),
+    // connectIndicators teardown, legend-driven host removal) funnels
+    // through the data layer, so this single hook covers them all.
+    this._data.setOnSeriesRemoved((id) => {
+      this._emit("seriesRemoved", { id });
+      this._updateAriaLabel();
+    });
+
     // Auto-remove empty panes when last series is removed
     this._data.setOnPaneEmpty((paneId) => {
       if (this._layout.removePane(paneId)) {
@@ -417,7 +425,17 @@ export class CanvasChart implements ChartInstance {
           : null,
       (y) => this._layout.gapAtY(y),
       (gapIdx, delta) => {
+        const prevHeight = this._layout.paneRects[gapIdx]?.height;
         this._layout.resizePanes(gapIdx, delta);
+        // paneResize fires per pointer-move during a divider drag (the drag
+        // handler streams deltas as the pointer moves — there is no separate
+        // "drag end" callback at this level). Payload identifies the pane
+        // above the dragged divider and its new height in CSS px; skipped
+        // when the drag was clamped away (height unchanged).
+        const rect = this._layout.paneRects[gapIdx];
+        if (rect && rect.height !== prevHeight) {
+          this._emit("paneResize", { paneId: rect.id, height: rect.height });
+        }
         this._needsRender = true;
       },
       options?.scrollSensitivity,
@@ -1279,6 +1297,12 @@ export class CanvasChart implements ChartInstance {
 
     this._layout.setDimensions(w, h, priceAxisWidth, timeAxisHeight);
 
+    // Emit `resize` only when the applied CSS-px size actually changed —
+    // DPR-only updates and repeated same-size calls (e.g. a ResizeObserver
+    // tick after applyOptions already applied the size) stay silent. The
+    // constructor's initial sizing pre-seeds `_sizeState`, so it never emits.
+    const sizeChanged = w !== this._sizeState?.width || h !== this._sizeState?.height;
+
     // Keep last-applied size so applyOptions() can compose partial changes
     this._sizeState = {
       width: w,
@@ -1293,6 +1317,10 @@ export class CanvasChart implements ChartInstance {
     // Re-fit if all data was visible before resize
     if (wasFit && this._timeScale.totalCount > 0) {
       this._timeScale.fitContent();
+    }
+
+    if (sizeChanged) {
+      this._emit("resize", { width: w, height: h });
     }
   }
 

@@ -36,12 +36,23 @@ export type SeriesActionData = {
   anchorEl: HTMLElement;
 };
 
+/**
+ * Payload for the `crosshairMove` event. Fires when the candle the crosshair
+ * snaps to changes. `time`/`index`/`ohlcv` describe the snapped candle;
+ * `paneId` is the pane under the pointer. All fields are `null` in the single
+ * emission fired when the crosshair leaves the data area.
+ */
 export type CrosshairMoveData = {
   time: TimeValue | null;
-  price: number | null;
-  x: number;
-  y: number;
-  paneId: string;
+  index: number | null;
+  ohlcv: {
+    open: number;
+    high: number;
+    low: number;
+    close: number;
+    volume: number;
+  } | null;
+  paneId: string | null;
 };
 
 /**

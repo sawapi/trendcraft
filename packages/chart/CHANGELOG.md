@@ -5,6 +5,44 @@ All notable changes to `@trendcraft/chart` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed — `resize`, `paneResize`, and `seriesRemoved` events now fire
+
+These three events were declared in the `ChartEvent` union and documented,
+but the chart never emitted them. They now fire with the documented payloads:
+
+- `resize` `{ width, height }` — once per actual CSS-px size change, whether
+  triggered by `chart.resize()`, an `applyOptions()` size change, or the
+  container's `ResizeObserver`. Same-size calls and DPR-only changes
+  (e.g. dragging the window to a Retina display) stay silent, and the
+  initial sizing during `createChart()` does not emit.
+- `paneResize` `{ paneId, height }` — fires while the user drags a pane
+  divider (per pointer-move), with the pane above the divider and its new
+  height in CSS px. Drags clamped away by the minimum pane height are silent.
+- `seriesRemoved` `{ id }` — fires when a series is removed via its handle
+  (covers `handle.remove()` and `connectIndicators` teardown). Repeat
+  `remove()` calls on the same handle are silent, and `chart.destroy()`
+  emits nothing (matching `seriesAdded`, which is also silent on teardown).
+
+### Fixed — `CrosshairMoveData` type now matches the emitted payload
+
+The exported `CrosshairMoveData` type declared `{ time, price, x, y, paneId }`,
+but the chart has always emitted `{ time, index, ohlcv, paneId }` from
+`crosshairMove`. The type (and docs) now describe the real payload:
+
+- `time: number | null` — epoch ms of the snapped candle
+- `index: number | null` — candle index
+- `ohlcv: { open, high, low, close, volume } | null` — the snapped candle's values
+- `paneId: string | null` — pane under the pointer
+
+All fields are `null` in the single emission fired when the crosshair leaves
+the data area (the `ohlcv: null` key is now included there too). Runtime
+behavior is otherwise unchanged — this is a type/docs correction. TypeScript
+consumers who typed handlers against the old (never-delivered) `price`/`x`/`y`
+fields will get compile errors pointing at the fields that never existed at
+runtime.
+
 ## [0.3.0] - 2026-06-09
 
 ### Breaking — `snapshotName` is now a default label, not a uniqueness key
