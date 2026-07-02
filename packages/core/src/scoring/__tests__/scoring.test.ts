@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import type { NormalizedCandle, ScoringConfig, SignalDefinition } from "../../types";
+import { runBacktest } from "../../backtest/engine";
+import type {
+  NormalizedCandle,
+  PresetCondition,
+  ScoringConfig,
+  SignalDefinition,
+} from "../../types";
 import { ScoreBuilder } from "../builder";
 import {
   calculateScore,
@@ -621,14 +627,30 @@ describe("Presets", () => {
 describe("Backtest Conditions", () => {
   const testCandles = createTestCandles(100);
 
+  /**
+   * Evaluate a PresetCondition the same way the backtest engine does
+   * (evaluate(indicators, candle, index, candles)).
+   */
+  function evalAt(condition: PresetCondition, candles: NormalizedCandle[], index: number): boolean {
+    return condition.evaluate({}, candles[index], index, candles);
+  }
+
   describe("scoreAbove", () => {
+    it("should return a preset condition with a descriptive name", () => {
+      const condition = scoreAbove(70, "balanced");
+
+      expect(condition.type).toBe("preset");
+      expect(condition.name).toBe("scoreAbove(70)");
+      expect(typeof condition.evaluate).toBe("function");
+    });
+
     it("should return true when score is above threshold", () => {
       const config: ScoringConfig = {
         signals: [createFixedSignal(0.8, 1)], // 80 normalized
       };
 
       const condition = scoreAbove(70, config);
-      expect(condition(testCandles, 99)).toBe(true);
+      expect(evalAt(condition, testCandles, 99)).toBe(true);
     });
 
     it("should return false when score is below threshold", () => {
@@ -637,14 +659,14 @@ describe("Backtest Conditions", () => {
       };
 
       const condition = scoreAbove(70, config);
-      expect(condition(testCandles, 99)).toBe(false);
+      expect(evalAt(condition, testCandles, 99)).toBe(false);
     });
 
     it("should work with preset name", () => {
       const condition = scoreAbove(70, "balanced");
 
       // Should not throw and return boolean
-      const result = condition(testCandles, 99);
+      const result = evalAt(condition, testCandles, 99);
       expect(typeof result).toBe("boolean");
     });
   });
@@ -656,7 +678,7 @@ describe("Backtest Conditions", () => {
       };
 
       const condition = scoreBelow(30, config);
-      expect(condition(testCandles, 99)).toBe(true);
+      expect(evalAt(condition, testCandles, 99)).toBe(true);
     });
 
     it("should return false when score is above threshold", () => {
@@ -665,7 +687,7 @@ describe("Backtest Conditions", () => {
       };
 
       const condition = scoreBelow(30, config);
-      expect(condition(testCandles, 99)).toBe(false);
+      expect(evalAt(condition, testCandles, 99)).toBe(false);
     });
   });
 
@@ -678,8 +700,8 @@ describe("Backtest Conditions", () => {
         signals: [createFixedSignal(0.55, 1)], // 55 = moderate
       };
 
-      expect(scoreStrength("strong", strongConfig)(testCandles, 99)).toBe(true);
-      expect(scoreStrength("strong", moderateConfig)(testCandles, 99)).toBe(false);
+      expect(evalAt(scoreStrength("strong", strongConfig), testCandles, 99)).toBe(true);
+      expect(evalAt(scoreStrength("strong", moderateConfig), testCandles, 99)).toBe(false);
     });
 
     it("should filter for moderate (includes strong)", () => {
@@ -693,9 +715,9 @@ describe("Backtest Conditions", () => {
         signals: [createFixedSignal(0.35, 1)],
       };
 
-      expect(scoreStrength("moderate", strongConfig)(testCandles, 99)).toBe(true);
-      expect(scoreStrength("moderate", moderateConfig)(testCandles, 99)).toBe(true);
-      expect(scoreStrength("moderate", weakConfig)(testCandles, 99)).toBe(false);
+      expect(evalAt(scoreStrength("moderate", strongConfig), testCandles, 99)).toBe(true);
+      expect(evalAt(scoreStrength("moderate", moderateConfig), testCandles, 99)).toBe(true);
+      expect(evalAt(scoreStrength("moderate", weakConfig), testCandles, 99)).toBe(false);
     });
 
     it("should filter for weak (includes moderate and strong)", () => {
@@ -706,8 +728,8 @@ describe("Backtest Conditions", () => {
         signals: [createFixedSignal(0.2, 1)], // 20 = none
       };
 
-      expect(scoreStrength("weak", config)(testCandles, 99)).toBe(true);
-      expect(scoreStrength("weak", noneConfig)(testCandles, 99)).toBe(false);
+      expect(evalAt(scoreStrength("weak", config), testCandles, 99)).toBe(true);
+      expect(evalAt(scoreStrength("weak", noneConfig), testCandles, 99)).toBe(false);
     });
   });
 
@@ -721,8 +743,8 @@ describe("Backtest Conditions", () => {
         ],
       };
 
-      expect(minActiveSignals(2, config)(testCandles, 99)).toBe(true);
-      expect(minActiveSignals(3, config)(testCandles, 99)).toBe(false);
+      expect(evalAt(minActiveSignals(2, config), testCandles, 99)).toBe(true);
+      expect(evalAt(minActiveSignals(3, config), testCandles, 99)).toBe(false);
     });
   });
 
@@ -733,9 +755,9 @@ describe("Backtest Conditions", () => {
       };
 
       // Score = 100, active = 2
-      expect(scoreWithMinSignals(70, 2, config)(testCandles, 99)).toBe(true);
-      expect(scoreWithMinSignals(70, 3, config)(testCandles, 99)).toBe(false); // not enough signals
-      expect(scoreWithMinSignals(101, 2, config)(testCandles, 99)).toBe(false); // score too low
+      expect(evalAt(scoreWithMinSignals(70, 2, config), testCandles, 99)).toBe(true);
+      expect(evalAt(scoreWithMinSignals(70, 3, config), testCandles, 99)).toBe(false); // not enough signals
+      expect(evalAt(scoreWithMinSignals(101, 2, config), testCandles, 99)).toBe(false); // score too low
     });
   });
 
@@ -760,13 +782,13 @@ describe("Backtest Conditions", () => {
       // At index 50, score = 100 (value = 1.0)
       // At index 49, score = 100 (value = 1.0, clamped)
       // No increase expected because both are clamped to 1
-      expect(scoreIncreasing(5, config)(testCandles, 50)).toBe(false);
+      expect(evalAt(scoreIncreasing(5, config), testCandles, 50)).toBe(false);
 
       // At index 5, score = 50 (value = 0.5)
       // At index 4, score = 40 (value = 0.4)
       // Increase of 10
-      expect(scoreIncreasing(10, config)(testCandles, 5)).toBe(true);
-      expect(scoreIncreasing(15, config)(testCandles, 5)).toBe(false);
+      expect(evalAt(scoreIncreasing(10, config), testCandles, 5)).toBe(true);
+      expect(evalAt(scoreIncreasing(15, config), testCandles, 5)).toBe(false);
     });
 
     it("should return false for index < 1", () => {
@@ -774,7 +796,67 @@ describe("Backtest Conditions", () => {
         signals: [createFixedSignal(1, 1)],
       };
 
-      expect(scoreIncreasing(0, config)(testCandles, 0)).toBe(false);
+      expect(evalAt(scoreIncreasing(0, config), testCandles, 0)).toBe(false);
+    });
+  });
+
+  describe("runBacktest integration", () => {
+    it("should run runBacktest end-to-end with scoring conditions and produce trades", () => {
+      const candles = createTestCandles(100);
+
+      // Entry always fires (threshold 0), exit never fires via score,
+      // so the position closes at end of data -> exactly one trade.
+      const entryConfig: ScoringConfig = {
+        signals: [createFixedSignal(1, 1)], // score = 100
+      };
+      const exitConfig: ScoringConfig = {
+        signals: [createFixedSignal(1, 1)], // score = 100, never <= 0
+      };
+
+      const result = runBacktest(candles, scoreAbove(0, entryConfig), scoreBelow(0, exitConfig), {
+        capital: 1_000_000,
+      });
+
+      expect(result.tradeCount).toBeGreaterThanOrEqual(1);
+      expect(result.trades[0]?.exitReason).toBe("endOfData");
+    });
+
+    it("should evaluate the score path on real candles (entry gated by threshold)", () => {
+      const candles = createTestCandles(100);
+
+      let evaluations = 0;
+      const spyConfig: ScoringConfig = {
+        signals: [
+          {
+            name: "spy",
+            displayName: "Spy",
+            weight: 1,
+            category: "momentum",
+            evaluate: () => {
+              evaluations++;
+              return 0; // score 0 -> scoreAbove(70) never fires
+            },
+          },
+        ],
+      };
+
+      const result = runBacktest(candles, scoreAbove(70, spyConfig), scoreBelow(30, spyConfig), {
+        capital: 1_000_000,
+      });
+
+      // The score was actually computed against the backtest candles
+      expect(evaluations).toBeGreaterThan(0);
+      expect(result.tradeCount).toBe(0);
+    });
+
+    it("should work with a preset name inside runBacktest", () => {
+      const candles = createTestCandles(100);
+
+      const result = runBacktest(candles, scoreAbove(0, "balanced"), scoreBelow(0, "balanced"), {
+        capital: 1_000_000,
+      });
+
+      expect(result.trades).toHaveLength(result.tradeCount);
     });
   });
 });

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { at, never, stepCandles } from "../../backtest/__tests__/step-candles";
 import { runBacktest } from "../../backtest/engine";
+import { omegaRatio } from "../return-metrics";
 import { report } from "../tearsheet";
 
 // Up, then a drawdown, then recovery — produces winning and losing trades
@@ -56,6 +57,29 @@ describe("report", () => {
     expect(Number.isNaN(sheet.gainToPainRatio)).toBe(true);
     expect(typeof sheet.tailRatio).toBe("number");
     expect(typeof sheet.ulcerPerformanceIndex).toBe("number");
+  });
+
+  it("de-annualises riskFree before passing it to omegaRatio", () => {
+    const riskFree = 0.04;
+    const periodsPerYear = 252;
+    const sheet = report(result, { candles: CANDLES, riskFree, periodsPerYear });
+
+    // Same compounding convention rollingSharpe uses (sharpeFromReturns).
+    const perPeriodRiskFree = (1 + riskFree) ** (1 / periodsPerYear) - 1;
+    const expected = omegaRatio(sheet.series.returns, {
+      riskFree: perPeriodRiskFree,
+      requiredReturn: 0,
+      periodsPerYear,
+    });
+    const annualThresholdOmega = omegaRatio(sheet.series.returns, {
+      riskFree, // the old (broken) behavior: annual rate used per-period
+      requiredReturn: 0,
+      periodsPerYear,
+    });
+
+    expect(Number.isFinite(sheet.omega)).toBe(true);
+    expect(sheet.omega).toBe(expected);
+    expect(sheet.omega).not.toBe(annualThresholdOmega);
   });
 
   it("omits capture without a benchmark and computes it with one", () => {

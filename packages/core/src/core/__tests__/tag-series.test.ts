@@ -23,6 +23,36 @@ describe("tagSeries", () => {
     expect(tagged.__meta).toBeUndefined();
   });
 
+  it("hides __meta from Object.keys and JSON.stringify while direct access works", () => {
+    const data: Series<number> = [
+      { time: 1, value: 10 },
+      { time: 2, value: 20 },
+    ];
+    const tagged = tagSeries(data, { kind: "test", overlay: true, label: "Test" });
+
+    // Only the array indices are enumerable own keys.
+    expect(Object.keys(tagged)).toEqual(["0", "1"]);
+    for (const key in tagged) expect(key).not.toBe("__meta");
+    // JSON round-trip is unchanged by tagging.
+    expect(JSON.stringify(tagged)).toBe(
+      JSON.stringify([
+        { time: 1, value: 10 },
+        { time: 2, value: 20 },
+      ]),
+    );
+    // Direct access still works.
+    expect(tagged.__meta?.label).toBe("Test");
+  });
+
+  it("allows re-tagging an already-tagged series", () => {
+    const data: Series<number> = [{ time: 1, value: 10 }];
+    const once = tagSeries(data, { overlay: true, label: "A" });
+    const twice = tagSeries(once, { overlay: false, label: "B" });
+
+    expect(twice.__meta?.label).toBe("B");
+    expect(Object.keys(twice)).toEqual(["0"]);
+  });
+
   it("__meta is non-enumerable and not spread by ...array", () => {
     const data: Series<number> = [{ time: 1, value: 10 }];
     const tagged = tagSeries(data, { overlay: true, label: "X" });

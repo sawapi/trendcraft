@@ -191,7 +191,15 @@ export function report(result: BacktestResult, options: ReportOptions): Tearshee
     tradeCount: result.tradeCount,
 
     annualizedVolatilityPercent,
-    omega: omegaRatio(returns, { riskFree, requiredReturn, periodsPerYear }),
+    // OmegaOptions.riskFree is a per-period rate subtracted from each
+    // observation, so de-annualise the annual `riskFree` option here with the
+    // same compounding convention rollingSharpe uses internally
+    // (see sharpeFromReturns in return-metrics.ts).
+    omega: omegaRatio(returns, {
+      riskFree: riskFree === 0 ? 0 : (1 + riskFree) ** (1 / periodsPerYear) - 1,
+      requiredReturn,
+      periodsPerYear,
+    }),
     tailRatio: tail,
     gainToPainRatio: gainToPainRatio(returns),
     commonSenseRatio: profitFactor * tail,

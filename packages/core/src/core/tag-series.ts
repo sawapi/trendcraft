@@ -1,6 +1,7 @@
 /**
  * Tag a Series with chart rendering metadata.
- * Non-destructive: mutates the array object by adding __meta property.
+ * Non-destructive: mutates the array object by adding a non-enumerable
+ * __meta property.
  *
  * @example
  * ```ts
@@ -17,7 +18,15 @@ export function tagSeries<T>(series: Series<T>, meta: SeriesMeta): TaggedSeries<
   // Skip tagging empty arrays to preserve toEqual([]) in tests
   if (series.length === 0) return series as TaggedSeries<T>;
   const tagged = series as TaggedSeries<T>;
-  tagged.__meta = meta;
+  // Non-enumerable per the TaggedSeries contract (see types/candle.ts):
+  // __meta must not leak into Object.keys / for...in over the array.
+  // Writable + configurable so an already-tagged series can be re-tagged.
+  Object.defineProperty(tagged, "__meta", {
+    value: meta,
+    writable: true,
+    enumerable: false,
+    configurable: true,
+  });
   return tagged;
 }
 
@@ -38,7 +47,8 @@ export function tagSeries<T>(series: Series<T>, meta: SeriesMeta): TaggedSeries<
  *
  * @example
  * ```ts
- * import { withLabelParams, SMA_META } from "trendcraft";
+ * import { withLabelParams } from "./tag-series";
+ * import { SMA_META, MACD_META } from "../indicators/indicator-meta";
  *
  * withLabelParams(SMA_META, [20]);                   // label: "SMA(20)"
  * withLabelParams(MACD_META, [12, 26, 9]);           // label: "MACD(12, 26, 9)"

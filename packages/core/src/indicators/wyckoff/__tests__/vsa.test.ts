@@ -72,14 +72,47 @@ describe("vsa", () => {
     expect(last.barType).toBe("effortUp");
   });
 
-  it("classifies stoppingVolume (high volume + close in lower third)", () => {
+  it("classifies stoppingVolume (high-volume down bar after decline, close off lows)", () => {
     const extra: NormalizedCandle[] = [
-      makeCandle(30, 101, 102, 99, 99.5, 5000), // high vol, close near low
+      // Decline into a potential bottom
+      makeCandle(30, 100, 100.5, 97, 97.5, 1200),
+      makeCandle(31, 97.5, 98, 95, 95.5, 1200),
+      makeCandle(32, 95.5, 96, 93.5, 94, 1300),
+      // High volume, new low, down bar closing mid-range (off its lows)
+      makeCandle(33, 94, 94.5, 89.5, 92, 5000),
     ];
     const candles = withWarmup(extra);
     const result = vsa(candles);
     const last = result[result.length - 1].value;
     expect(last.barType).toBe("stoppingVolume");
+    expect(last.closePosition).toBeGreaterThanOrEqual(0.33);
+  });
+
+  it("classifies effortDown (high volume + wide spread + close near low)", () => {
+    const extra: NormalizedCandle[] = [
+      // Decline so the wide down bar's high is not the highest of the last 5 bars
+      makeCandle(30, 100, 100.5, 97, 97.5, 1200),
+      makeCandle(31, 97.5, 98, 95, 95.5, 1200),
+      // High (but not climactic) volume, wide spread down bar closing on its lows
+      makeCandle(32, 95.5, 96, 91, 91.5, 1800),
+    ];
+    const candles = withWarmup(extra);
+    const result = vsa(candles);
+    const last = result[result.length - 1].value;
+    expect(last.barType).toBe("effortDown");
+    expect(last.closePosition).toBeLessThan(0.33);
+  });
+
+  it("classifies climacticAction for extreme-volume wide down bar closing on its lows", () => {
+    // Formerly misclassified as stoppingVolume: a close near the low is
+    // effort to fall / climax, not demand absorbing supply.
+    const extra: NormalizedCandle[] = [
+      makeCandle(30, 101, 102, 99, 99.5, 5000), // very high vol, wide spread, close near low
+    ];
+    const candles = withWarmup(extra);
+    const result = vsa(candles);
+    const last = result[result.length - 1].value;
+    expect(last.barType).toBe("climacticAction");
   });
 
   it("classifies noSupply (narrow spread + low volume + close in upper half)", () => {
