@@ -141,7 +141,10 @@ ws.on('bar', (bar) => {
 
 // Optional: forming bar updates (Alpaca minute-in-progress, etc.)
 ws.on('bar-partial', (bar) => {
-  live.addCandle({ /* ... */ }, { partial: true });
+  live.addCandle(
+    { time: bar.t, open: bar.o, high: bar.h, low: bar.l, close: bar.c, volume: bar.v },
+    { partial: true },
+  );
 });
 ```
 
@@ -150,7 +153,7 @@ ws.on('bar-partial', (bar) => {
 ## `connectIndicators` — one API for static and live
 
 ```typescript
-connectIndicators(chart, options): IndicatorConnection
+function connectIndicators(chart: ChartInstance, options: ConnectIndicatorsOptions): IndicatorConnection
 ```
 
 ### Static mode (no `live` option)
@@ -302,7 +305,7 @@ ws.on('close', () => { savedState = live.getState(); });
 ws.on('open', () => {
   // restore — disconnect the old connection first
   conn.disconnect();
-  live = createLiveCandle(options, savedState);
+  live = createLiveCandle(liveOptions, savedState);
   conn = connectIndicators(chart, { presets: indicatorPresets, candles, live });
   for (const indicator of activeIndicators) conn.add(indicator.id, indicator.params);
 });
@@ -312,6 +315,7 @@ This works but is heavyweight — you rebuild the whole pipeline, and the `conn.
 
 Approach B — keep `LiveCandle` alive, just reconnect the socket:
 
+<!-- doctest-notypecheck: vendor-socket pseudo-code — the browser WebSocket has no node-style `.on` -->
 ```typescript
 // `live` persists across reconnects
 ws = new WebSocket(url);

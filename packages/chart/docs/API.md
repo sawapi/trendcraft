@@ -98,6 +98,7 @@ Options marked "one-time" cannot be changed via `applyOptions()` — a warning i
 type CrosshairOptions = {
   mode?: 'normal' | 'magnet' | 'magnetOHLC';
   snapThreshold?: number; // px, default 12, only used by 'magnetOHLC'
+  lockOnLongPress?: boolean; // long-press crosshair lock on touch devices, default true
 };
 ```
 
@@ -285,6 +286,7 @@ Returned by `addIndicator`. Keep the reference if you need to manipulate the ser
 ```typescript
 type SeriesHandle = {
   readonly id: string;
+  readonly config: Readonly<SeriesConfig>;        // resolved config (read back auto-assigned color etc.)
   update(point: DataPoint<unknown>): void;       // streaming update — append or patch last point
   setData<T>(data: DataPoint<T>[]): void;         // replace all data
   setVisible(visible: boolean): void;
@@ -403,10 +405,11 @@ import { connectIndicators, connectLivePrimitives, connectSrConfluence } from '@
 import { srZones } from 'trendcraft';
 
 const conn = connectIndicators(chart, { presets, candles, live: source });
-const sr = connectSrConfluence(chart, srZones(source.completedCandles).zones);
+// completedCandles is readonly — copy before passing to trendcraft's mutable-array APIs
+const sr = connectSrConfluence(chart, srZones([...source.completedCandles]).zones);
 
 const liveSr = connectLivePrimitives(source, [
-  { recompute: (candles) => srZones(candles).zones, handle: sr, name: 'sr' },
+  { recompute: (candles) => srZones([...candles]).zones, handle: sr, name: 'sr' },
 ]);
 
 // later
@@ -480,20 +483,23 @@ definePrimitive<TState>(plugin: PrimitivePlugin<TState>): PrimitivePlugin<TState
 Identity functions that give you type inference. See [PLUGINS.md](./PLUGINS.md).
 
 ```typescript
-class DrawHelper {
+declare class DrawHelper {
   x(index: number): number;
   y(price: number): number;
   readonly startIndex: number;
   readonly endIndex: number;
   readonly barSpacing: number;
 
-  line(values, style): void;
-  hline(price, style): void;
-  rect(index, priceTop, widthBars, priceBottom, fill, stroke?): void;
-  fillBetween(upper, lower, fill): void;
-  circle(index, price, radius, fill): void;
-  text(label, index, price, options?): void;
-  scope(fn: (ctx) => void): void;
+  line(values: readonly (number | null)[], style: StrokeStyle): void;
+  hline(price: number, style: StrokeStyle): void;
+  rect(index: number, priceTop: number, widthBars: number, priceBottom: number,
+       fill: FillStyle, stroke?: StrokeStyle): void;
+  fillBetween(upper: readonly (number | null)[], lower: readonly (number | null)[],
+              fill: FillStyle): void;
+  circle(index: number, price: number, radius: number, fill: FillStyle): void;
+  text(label: string, index: number, price: number,
+       options?: { color?: string; font?: string; align?: CanvasTextAlign; baseline?: CanvasTextBaseline }): void;
+  scope(fn: (ctx: CanvasRenderingContext2D) => void): void;
 }
 ```
 
@@ -542,7 +548,7 @@ Props mirror the `useTrendChart` options: `candles`, `indicators`, `signals`, `t
 **Hook** — imperative access to `ChartInstance` for drawing tools, live feeds, custom plugins:
 
 ```tsx
-function MyChart({ candles }) {
+function MyChart({ candles }: { candles: CandleData[] }) {
   const { containerRef, chart } = useTrendChart({ candles, theme: 'dark' });
   useEffect(() => {
     if (!chart) return;

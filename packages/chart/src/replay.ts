@@ -19,7 +19,7 @@
  * import { createLiveSimulator } from "@trendcraft/chart/replay";
  *
  * const sim = createLiveSimulator({ candles, seedRatio: 0.6, ticksPerCandle: 5 });
- * connectIndicators(chart, indicators, { live: sim.live });
+ * connectIndicators(chart, { presets: indicatorPresets, candles, live: sim.live });
  * sim.play();
  * sim.onChange((state, progress) => console.log(state, progress));
  * ```

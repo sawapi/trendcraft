@@ -6,7 +6,7 @@
  * import { createChart } from '@trendcraft/chart';
  * import { sma, rsi, bollingerBands } from 'trendcraft';
  *
- * const chart = createChart(document.getElementById('chart'), { theme: 'dark' });
+ * const chart = createChart(document.getElementById('chart')!, { theme: 'dark' });
  * chart.setCandles(candles);
  * chart.addIndicator(sma(candles, { period: 20 }));
  * chart.addIndicator(bollingerBands(candles));
@@ -28,7 +28,7 @@ import { CanvasChart } from "./renderer/canvas-chart";
  *
  * @example
  * ```typescript
- * const chart = createChart(document.getElementById('chart'), {
+ * const chart = createChart(document.getElementById('chart')!, {
  *   width: 800,
  *   height: 600,
  *   theme: 'dark',
@@ -47,11 +47,11 @@ export function createChart(container: HTMLElement, options?: ChartOptions): Cha
 
 // ---- Re-exports ----
 
+// Series model type used by plugin render contexts
+export type { InternalSeries } from "./core/data-layer";
 // Drawing helper
 export { DrawHelper, type FillStyle, type StrokeStyle } from "./core/draw-helper";
-
 export { DEFAULT_HOTKEYS, type HotkeyMap } from "./core/hotkeys";
-
 // i18n
 export type { ChartLocale } from "./core/i18n";
 export { DEFAULT_LOCALE, mergeLocale } from "./core/i18n";
@@ -72,6 +72,7 @@ export { type IntrospectionRule, SeriesRegistry } from "./core/series-registry";
 // Core types
 export type {
   ArrowDrawing,
+  BacktestResultData,
   BuiltinSeriesType,
   CandleData,
   ChannelDrawing,
@@ -80,6 +81,7 @@ export type {
   ChartEvent,
   ChartInstance,
   ChartOptions,
+  ChartPatternSignal,
   ChartType,
   CrosshairMode,
   CrosshairMoveData,
