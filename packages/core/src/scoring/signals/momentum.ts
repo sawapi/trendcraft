@@ -260,7 +260,7 @@ export function createMacdBearishEvaluator(
  * @param dPeriod - %D period (default: 3)
  * @example
  * ```ts
- * import { ScoreBuilder, createStochOversoldEvaluator } from "trendcraft";
+ * import { ScoreBuilder } from "trendcraft";
  *
  * const config = ScoreBuilder.create()
  *   .addSignal({ name: "stochOS", displayName: "Stoch < 20", weight: 2.0, evaluate: createStochOversoldEvaluator(20) })
@@ -364,7 +364,7 @@ export function createStochOverboughtEvaluator(
  * Returns 1 when %K crosses above %D in oversold territory.
  * @example
  * ```ts
- * import { ScoreBuilder, createStochBullishCrossEvaluator } from "trendcraft";
+ * import { ScoreBuilder } from "trendcraft";
  *
  * const config = ScoreBuilder.create()
  *   .addSignal({ name: "stochCross", displayName: "Stoch Bull Cross", weight: 2.5, evaluate: createStochBullishCrossEvaluator(20) })

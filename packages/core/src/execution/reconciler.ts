@@ -44,10 +44,10 @@ export type ReconcileOptions = {
  *
  * @example
  * ```ts
- * const internal: PositionSnapshot[] = [
+ * const internal: execution.PositionSnapshot[] = [
  *   { symbol: "AAPL", quantity: 10, avgEntryPrice: 150 },
  * ];
- * const external: PositionSnapshot[] = [
+ * const external: execution.PositionSnapshot[] = [
  *   { symbol: "AAPL", quantity: 8, avgEntryPrice: 150.5 },
  *   { symbol: "TSLA", quantity: 5, avgEntryPrice: 200 },
  * ];

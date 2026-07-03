@@ -12,9 +12,12 @@
  *   backtestRegistry,
  * );
  *
- * // Load a full strategy
+ * // Load a full strategy (backtestOptions is partial — supply required fields)
  * const { entry, exit, backtestOptions } = loadStrategy(strategyJson, backtestRegistry);
- * const result = runBacktest(candles, entry, exit, backtestOptions);
+ * const result = runBacktest(candles, entry, exit, {
+ *   ...backtestOptions,
+ *   capital: backtestOptions.capital ?? 1_000_000,
+ * });
  * ```
  */
 
@@ -61,7 +64,7 @@ export function hydrateCondition(
  *
  * @example
  * ```ts
- * const { entry, exit, backtestOptions, metadata } = loadStrategy(json, backtestRegistry);
+ * const { entry, exit, backtestOptions, metadata } = loadStrategy(strategyJson, backtestRegistry);
  * const result = runBacktest(candles, entry, exit, { capital: 1_000_000, ...backtestOptions });
  * ```
  */

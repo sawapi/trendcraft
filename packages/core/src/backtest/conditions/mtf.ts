@@ -29,7 +29,7 @@ import type {
  * @example
  * ```ts
  * // Buy when weekly RSI > 50 and daily golden cross
- * const entry = and(weeklyRsiAbove(50), goldenCross());
+ * const entry = and(weeklyRsiAbove(50), goldenCrossCondition());
  * ```
  */
 export function weeklyRsiAbove(threshold = 50, period = 14): MtfPresetCondition {
@@ -454,7 +454,7 @@ export function mtfDowntrend(timeframe: TimeframeShorthand, adxThreshold = 20): 
  *     const monthlyIdx = mtf.indices.get("monthly");
  *     const weekly = mtf.datasets.get("weekly")?.candles[weeklyIdx!];
  *     const monthly = mtf.datasets.get("monthly")?.candles[monthlyIdx!];
- *     return weekly && monthly && weekly.close > monthly.close;
+ *     return weekly !== undefined && monthly !== undefined && weekly.close > monthly.close;
  *   }
  * );
  * ```

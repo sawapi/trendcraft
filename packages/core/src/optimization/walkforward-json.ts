@@ -97,7 +97,7 @@ export function walkForwardAnalysisFromJSON(
  *
  * @example
  * ```ts
- * const result = walkForwardAnalysisFromJSONSafe(candles, strategy, ranges, registry);
+ * const result = walkForwardAnalysisFromJSONSafe(candles, strategyJson, pathRanges, backtestRegistry);
  * if (result.ok) {
  *   console.log(result.value.recommendation);
  * } else {

@@ -1289,7 +1289,9 @@ const latest = rb[rb.length - 1].value;
 if (latest.state === 'RANGE_CONFIRMED') {
   console.log('Market is range-bound');
   console.log(`Range: ${latest.rangeLow} - ${latest.rangeHigh}`);
-  console.log(`Position: ${(latest.pricePosition * 100).toFixed(0)}%`);
+  if (latest.pricePosition !== null) {
+    console.log(`Position: ${(latest.pricePosition * 100).toFixed(0)}%`);
+  }
 }
 
 // React to breakout risk
@@ -1314,8 +1316,9 @@ import { rangeBound, inRangeBound } from 'trendcraft';
 
 // Entry when price at bottom of confirmed range
 const rb = rangeBound(candles);
-const isGoodEntry = rb[rb.length - 1].value.state === 'RANGE_CONFIRMED'
-  && rb[rb.length - 1].value.pricePosition < 0.2;
+const last = rb[rb.length - 1].value;
+const isGoodEntry = last.state === 'RANGE_CONFIRMED'
+  && last.pricePosition !== null && last.pricePosition < 0.2;
 ```
 
 #### Breakout Trading
@@ -1514,7 +1517,7 @@ const result = runBacktest(
 ### Combining Conditions
 
 ```typescript
-import { and, or, not } from 'trendcraft';
+import { and, or, not, goldenCrossCondition, deadCrossCondition } from 'trendcraft';
 
 // Golden Cross AND RSI < 30
 const entry = and(goldenCrossCondition(), rsiBelow(30));
@@ -1881,7 +1884,9 @@ import {
 
 // Calculate ATR
 const atrValues = atr(candles, { period: 14 });
+// ATR is null during the warm-up window — bail out until enough data exists
 const currentAtr = atrValues[atrValues.length - 1].value;
+if (currentAtr === null) throw new Error('not enough candles for ATR');
 
 // Calculate position size
 const position = atrBasedSize({
@@ -2281,8 +2286,9 @@ import { livePresets, indicatorPresets } from 'trendcraft';
 const smaFactory = livePresets.sma.createFactory({ period: 50 });
 const smaIndicator = smaFactory(undefined);
 
-// `indicatorPresets` adds a batch `compute` for one-shot static calculation
-const rsiSeries = indicatorPresets.rsi.compute(candles, { period: 14 });
+// `indicatorPresets` adds a batch `compute` for one-shot static calculation.
+// `compute` is optional in the entry type; every built-in entry defines it.
+const rsiSeries = indicatorPresets.rsi.compute!(candles, { period: 14 });
 ```
 
 `livePresets` ships 84 entries (streaming-focused); `indicatorPresets` ships 104 with both streaming and batch paths.
@@ -2292,10 +2298,12 @@ const rsiSeries = indicatorPresets.rsi.compute(candles, { period: 14 });
 Every built-in indicator output carries a `__meta` property with display conventions — label, whether it belongs on the price scale, Y-range, reference lines:
 
 ```typescript
-import { rsi } from 'trendcraft';
+import { rsi, type TaggedSeries } from 'trendcraft';
 
 const r = rsi(candles, { period: 14 });
-r.__meta; // { kind: 'rsi', label: 'RSI(14)', overlay: false, yRange: [0, 100], referenceLines: [30, 70] }
+// Indicator signatures are typed as Series<T>; cast to TaggedSeries<T> to read
+// the runtime-attached metadata.
+(r as TaggedSeries<number | null>).__meta; // { kind: 'rsi', label: 'RSI(14)', overlay: false, yRange: [0, 100], referenceLines: [30, 70] }
 ```
 
 `kind` is the stable, parameter-independent identifier (matches `indicatorPresets` keys) — use it for filtering (`s.__meta?.kind === 'rsi'`). `label` is for display and changes with parameters.

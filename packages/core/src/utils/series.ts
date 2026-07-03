@@ -220,6 +220,7 @@ export function filterSeries<T>(
  *
  * const weeklyCandles = resample(dailyCandles, { value: 1, unit: "week" });
  * const weeklySma = sma(weeklyCandles, { period: 20 });
+ * const dailySma = sma(dailyCandles, { period: 20 });
  *
  * // Align weekly SMA to daily timestamps
  * const dailyAlignedWeeklySma = alignSeries(weeklySma, dailySma);

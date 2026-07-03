@@ -7,7 +7,7 @@
  * ```ts
  * import { createSessionFromStrategy } from "trendcraft";
  *
- * const session = createSessionFromStrategy(strategy, {
+ * const session = createSessionFromStrategy(strategyDefinition, {
  *   capital: 500_000,
  * });
  *
@@ -31,14 +31,14 @@ import type { SessionOverrides, StrategyDefinition } from "./types";
  *
  * @example
  * ```ts
- * import { createSessionFromStrategy, type StrategyDefinition } from "trendcraft";
+ * import { createSessionFromStrategy, streaming, type StrategyDefinition } from "trendcraft";
  *
  * const strategy: StrategyDefinition = {
  *   id: "my-strategy",
  *   name: "My Strategy",
  *   intervalMs: 60_000,
  *   symbols: ["AAPL"],
- *   pipeline: { indicators: [...], entry: rsiBelow(30), exit: rsiAbove(70) },
+ *   pipeline: { indicators: [...], entry: streaming.rsiBelow(30), exit: streaming.rsiAbove(70) },
  *   position: { capital: 100_000, stopLoss: 2 },
  * };
  *

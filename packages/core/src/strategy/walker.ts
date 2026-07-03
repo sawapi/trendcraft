@@ -21,10 +21,10 @@
  * ```ts
  * import { flattenStrategyLeaves, applyParamOverrides } from "trendcraft";
  *
- * const leaves = flattenStrategyLeaves(strategy);
+ * const leaves = flattenStrategyLeaves(strategyJson);
  * // [{ bucket: "entry", leafIndex: 0, name: "goldenCross", params: {...} }, ...]
  *
- * const tuned = applyParamOverrides(strategy, {
+ * const tuned = applyParamOverrides(strategyJson, {
  *   "entry.0.shortPeriod": 10,
  *   "entry.0.longPeriod": 50,
  * });

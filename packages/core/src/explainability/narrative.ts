@@ -130,6 +130,7 @@ function buildJaDetails(trace: ConditionTrace): string {
  *
  * @example
  * ```ts
+ * // notypecheck — module-private helper, not importable
  * formatIndicatorValues({ rsi14: 28.5, sma5: 102.3 })
  * // => "rsi14 = 28.5, sma5 = 102.3"
  * ```

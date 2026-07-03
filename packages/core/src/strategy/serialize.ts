@@ -5,7 +5,7 @@
  * ```ts
  * import { serializeStrategy, parseStrategy } from "trendcraft";
  *
- * const json = serializeStrategy(strategy);
+ * const json = serializeStrategy(strategyJson);
  * const parsed = parseStrategy(json);
  * ```
  */

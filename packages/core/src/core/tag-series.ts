@@ -7,8 +7,8 @@
  * ```ts
  * import { tagSeries } from './tag-series';
  *
- * const result = computeIndicator(candles);
- * return tagSeries(result, { pane: 'main', label: 'SMA(20)' });
+ * const result = sma(candles, { period: 20 });
+ * const tagged = tagSeries(result, { overlay: true, label: 'SMA(20)' });
  * ```
  */
 

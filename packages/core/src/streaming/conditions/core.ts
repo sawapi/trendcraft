@@ -73,6 +73,7 @@ export function not(condition: StreamingCondition): StreamingCombinedCondition {
  *
  * @example
  * ```ts
+ * const entryCondition = and(rsiBelow(30), smaGoldenCross());
  * const isEntry = evaluateStreamingCondition(entryCondition, snapshot, candle);
  * ```
  */

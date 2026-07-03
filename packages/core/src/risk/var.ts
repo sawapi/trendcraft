@@ -67,6 +67,7 @@ export type RollingVarValue = {
  *
  * @example
  * ```ts
+ * // notypecheck — module-private helper, not importable
  * normalPdf(0); // ~0.3989
  * ```
  */
@@ -80,6 +81,7 @@ function normalPdf(x: number): number {
  *
  * @example
  * ```ts
+ * // notypecheck — module-private helper, not importable
  * normalInverseCdf(0.95); // ~1.6449
  * ```
  */
