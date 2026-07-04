@@ -181,6 +181,7 @@ const myPrim = definePrimitive<MyState>({
 
 ### Coordinate conversion
 
+<!-- doctest-notypecheck: member-signature summary in `object.method(param: type): ret` pseudo-syntax -->
 ```typescript
 draw.x(index: number): number     // bar index → x pixel
 draw.y(price: number): number     // price → y pixel
@@ -191,6 +192,7 @@ draw.barSpacing                   // pixels per bar (readonly)
 
 ### Primitive shapes
 
+<!-- doctest-notypecheck: parameter-name summary in pseudo-syntax; the typed signatures live in API.md's DrawHelper block -->
 ```typescript
 draw.line(values, { color, lineWidth?, dash? })
 // Draw a polyline over an array indexed by bar. Null entries break the line.
@@ -228,6 +230,7 @@ Prefer `draw.scope` over manual `ctx.save() / ctx.restore()` — a bug where you
 
 `ctx` is always available on the context if you need methods `DrawHelper` doesn't cover:
 
+<!-- doctest-notypecheck: bare `render:` field fragment shown outside its plugin object -->
 ```typescript
 render: ({ ctx, draw, theme }) => {
   // DrawHelper for the common case
@@ -348,25 +351,25 @@ This keeps call sites clean and hides registration details.
 
 ```typescript
 // ✗ bad — allocates a new array every frame
-render: ({ draw, series }) => {
-  const values = series.data.map(d => d.value);  // allocation
+const badRender: SeriesRendererPlugin<unknown>['render'] = ({ draw, series }) => {
+  const values = series.data.map(d => d.value as number | null);  // allocation
   draw.line(values, { color: '#fff' });
-}
+};
 
 // ✓ good — precompute and cache, invalidating on the series data version.
 // `_dataVersion` bumps on every data mutation — including a same-length
 // live update that replaces the last candle in place — so keying on it
 // (not on `data.length`) avoids drawing stale values.
-const valuesCache = new WeakMap<InternalSeries, { version: number; values: number[] }>();
-render: ({ draw, series }) => {
+const valuesCache = new WeakMap<InternalSeries, { version: number; values: (number | null)[] }>();
+const goodRender: SeriesRendererPlugin<unknown>['render'] = ({ draw, series }) => {
   const version = series._dataVersion ?? 0;
   let entry = valuesCache.get(series);
   if (!entry || entry.version !== version) {
-    entry = { version, values: series.data.map(d => d.value) };
+    entry = { version, values: series.data.map(d => d.value as number | null) };
     valuesCache.set(series, entry);
   }
   draw.line(entry.values, { color: '#fff' });
-}
+};
 ```
 
 For series renderers, precompute or cache derived values (see the `WeakMap` example above) instead of re-mapping `series.data` on every frame.
@@ -375,6 +378,7 @@ For series renderers, precompute or cache derived values (see the `WeakMap` exam
 
 Early-out when there's nothing to draw:
 
+<!-- doctest-notypecheck: bare `render:` field fragment shown outside its plugin object -->
 ```typescript
 render: ({ draw }, state) => {
   if (state.zones.length === 0) return;
@@ -405,6 +409,7 @@ my-plugin/
 └── tsconfig.json
 ```
 
+<!-- doctest-notypecheck: package-layout sketch — imports the hypothetical package's own './connect' / './state' modules -->
 ```typescript
 // src/index.ts
 import { definePrimitive, type PrimitivePlugin } from '@trendcraft/chart';

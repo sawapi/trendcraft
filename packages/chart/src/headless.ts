@@ -7,8 +7,14 @@
  */
 
 // Core
-export { DataLayer } from "./core/data-layer";
-export { decimateCandles, getDecimationTarget, lttb } from "./core/decimation";
+export { DataLayer, type InternalSeries } from "./core/data-layer";
+export {
+  type DecimatedCandles,
+  type DecimatedPoints,
+  decimateCandles,
+  getDecimationTarget,
+  lttb,
+} from "./core/decimation";
 // Drawing helper
 export { DrawHelper, type FillStyle, type StrokeStyle } from "./core/draw-helper";
 export {

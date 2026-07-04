@@ -57,10 +57,10 @@ Everything the chart draws is either:
 `trendcraft` indicators often return compound objects:
 
 ```typescript
-rsi(candles)          // [{ time, value: number | null }]
-bollingerBands(c)     // [{ time, value: { upper, middle, lower, percentB, bandwidth } }]
-ichimoku(c)           // [{ time, value: { tenkan, kijun, senkouA, senkouB, chikou } }]
-macd(c)               // [{ time, value: { macd, signal, histogram } }]
+rsi(candles)             // [{ time, value: number | null }]
+bollingerBands(candles)  // [{ time, value: { upper, middle, lower, percentB, bandwidth } }]
+ichimoku(candles)        // [{ time, value: { tenkan, kijun, senkouA, senkouB, chikou } }]
+macd(candles)            // [{ time, value: { macd, signal, histogram } }]
 ```
 
 The chart introspects the first non-null value to pick a series type and pane. You never have to split a compound object into separate line series yourself.
@@ -77,11 +77,13 @@ Internally, every point goes through two scales:
 Event data is expressed in candle terms — the snapped index and its OHLCV — not pixels:
 
 ```typescript
-chart.on('crosshairMove', (data: CrosshairMoveData) => {
-  data.time   // epoch ms of the snapped candle (or null when leaving the plot area)
-  data.index  // candle index (or null)
-  data.ohlcv  // { open, high, low, close, volume } (or null)
-  data.paneId // pane under the pointer (or null)
+chart.on('crosshairMove', (data) => {
+  // `on` handlers receive `unknown` — narrow to the event's payload type
+  const move = data as CrosshairMoveData;
+  move.time;   // epoch ms of the snapped candle (or null when leaving the plot area)
+  move.index;  // candle index (or null)
+  move.ohlcv;  // { open, high, low, close, volume } (or null)
+  move.paneId; // pane under the pointer (or null)
 });
 ```
 

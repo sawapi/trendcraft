@@ -235,9 +235,10 @@ See [LIVE.md](./LIVE.md) for backfill, reconnect, and pre-formed candle inputs.
 
 ```tsx
 import { TrendChart } from "@trendcraft/chart/react";
-import { sma, rsi } from "trendcraft";
+import { sma, rsi, type NormalizedCandle } from "trendcraft";
 
-export function ChartView({ candles }: { candles: Candle[] }) {
+// NormalizedCandle (numeric time) satisfies both trendcraft indicators and the chart
+export function ChartView({ candles }: { candles: NormalizedCandle[] }) {
   const indicators = [
     sma(candles, { period: 20 }),
     sma(candles, { period: 50 }),

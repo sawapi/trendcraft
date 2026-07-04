@@ -10,6 +10,7 @@
  * ```ts
  * import { createChart } from "@trendcraft/chart";
  * import { registerTrendCraftPresets } from "@trendcraft/chart/presets";
+ * import { klinger } from "trendcraft";
  *
  * const chart = createChart(el, { theme: "dark" });
  * registerTrendCraftPresets(chart);
