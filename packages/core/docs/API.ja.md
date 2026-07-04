@@ -10,11 +10,15 @@
   - [出来高](#出来高)
   - [相対強度（RS）](#相対強度rs)
   - [価格](#価格)
+  - [S/Rゾーンクラスタリング](#srゾーンクラスタリング)
   - [フィボナッチリトレースメント](#フィボナッチリトレースメント)
   - [スマートマネーコンセプト (SMC)](#スマートマネーコンセプト-smc)
+  - [セッション / キルゾーン](#セッション--キルゾーン)
+  - [HMMレジーム検出](#hmmレジーム検出)
 - [シグナル](#シグナル)
   - [クロス検出](#クロス検出)
   - [ダイバージェンス検出](#ダイバージェンス検出)
+  - [CVDダイバージェンス](#cvdダイバージェンス)
   - [スクイーズ検出](#スクイーズ検出)
   - [レンジ相場検出](#レンジ相場検出)
   - [価格パターン](#価格パターン)
@@ -198,7 +202,7 @@ McGinley Dynamic — 市場速度に自動適応するMA。速い市場でのラ
 
 ```typescript
 const result = mcginleyDynamic(candles);
-const custom = mcginleyDynamic(candles, { period: 20, k: 0.6, source: 'close' });
+const custom = mcginleyDynamic(candles, { period: 14, k: 0.6 });
 ```
 
 **オプション:**
@@ -222,7 +226,7 @@ EMAリボン — 複数EMAの束でトレンド強度・方向を可視化。
 
 ```typescript
 const result = emaRibbon(candles);
-const custom = emaRibbon(candles, { periods: [8, 13, 21, 34, 55], source: 'close' });
+const custom = emaRibbon(candles, { periods: [8, 13, 21, 34, 55] });
 ```
 
 **オプション:**
@@ -391,7 +395,7 @@ interface MacdValue {
 
 ```typescript
 // ストキャスティクス（デフォルト slowing: 3 = スロー相当）
-const raw = stochastics(candles, { kPeriod: 14, dPeriod: 3 });
+const result = stochastics(candles, { kPeriod: 14, dPeriod: 3 });
 // 生（未平滑）にする場合は slowing: 1 を明示
 // const fastRaw = stochastics(candles, { kPeriod: 14, dPeriod: 3, slowing: 1 });
 
@@ -777,7 +781,10 @@ interface VwapValue {
   lower: number | null;  // 下バンド（VWAP - 標準偏差）
   bands?: VwapBand[];    // bandMultipliers指定時の追加バンド
 }
-interface VwapBand { upper: number; lower: number; }
+interface VwapBand {
+  upper: number;  // 上バンド値
+  lower: number;  // 下バンド値
+}
 ```
 
 ---
@@ -1077,7 +1084,7 @@ TWAP（時間加重平均価格） — セッション内のTypical Priceの均�
 
 ```typescript
 const result = twap(candles);
-const custom = twap(candles, { sessionResetPeriod: 'session' });
+const fixed = twap(candles, { sessionResetPeriod: 30 });
 ```
 
 **オプション:**
@@ -1095,7 +1102,7 @@ Weis Wave Volume — 波動方向ごとにボリュームを累積。
 
 ```typescript
 const result = weisWave(candles);
-const custom = weisWave(candles, { method: 'close', threshold: 0 });
+const custom = weisWave(candles, { method: 'highlow', threshold: 0.5 });
 ```
 
 **オプション:**
@@ -1109,7 +1116,7 @@ const custom = weisWave(candles, { method: 'close', threshold: 0 });
 ```typescript
 interface WeisWaveValue {
   waveVolume: number;          // 波動の累積ボリューム
-  direction: "up" | "down";    // 波動の方向
+  direction: 'up' | 'down';    // 波動の方向
 }
 ```
 
@@ -1121,11 +1128,7 @@ Market Profile / TPO — 価格帯ごとの滞在時間分析。POC・Value Area
 
 ```typescript
 const result = marketProfile(candles);
-const custom = marketProfile(candles, {
-  tickSize: 0.01,
-  sessionResetPeriod: 'session',
-  valueAreaPercent: 0.70
-});
+const custom = marketProfile(candles, { tickSize: 0.5, valueAreaPercent: 0.70 });
 ```
 
 **オプション:**
@@ -1148,6 +1151,137 @@ interface MarketProfileValue {
 
 ---
 
+#### `cvd(candles)`
+
+Cumulative Volume Delta（累積出来高デルタ） — 各バーのレンジ内で終値がどこに位置するかから買い圧力・売り圧力を推定し、デルタを累積します。
+
+```typescript
+const cvdData = cvd(candles);
+const current = cvdData[cvdData.length - 1].value;
+const previous = cvdData[cvdData.length - 2].value;
+
+// CVD上昇 = 買い圧力優勢
+if (current !== null && previous !== null && current > previous) {
+  // 買い圧力が優勢
+}
+```
+
+**計算方法:**
+- `buyVolume = volume × (close - low) / (high - low)`
+- `sellVolume = volume - buyVolume`
+- `delta = buyVolume - sellVolume`
+- `CVD = デルタの累積和`
+
+**戻り値:** `Series<number>`
+
+**解釈:**
+- CVD上昇: 買い圧力優勢（アキュミュレーション）
+- CVD下降: 売り圧力優勢（ディストリビューション）
+- CVDと価格のダイバージェンスは反転の可能性を示唆
+- 同事線（レンジ = 0）: delta = 0
+
+---
+
+#### `cvdWithSignal(candles, options)`
+
+EMA平滑化とシグナルラインをオプションで付加したCVD。
+
+```typescript
+const data = cvdWithSignal(candles, { smoothing: 5, signalPeriod: 9 });
+const last = data[data.length - 1].value;
+
+// CVDがシグナルを上抜け = 強気
+if (last.cvd > last.signal!) {
+  // 強気モメンタム
+}
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|-----------|------|-----------|------|
+| `smoothing` | `number` | `1` | CVDのEMA平滑化期間（1 = 平滑化なし） |
+| `signalPeriod` | `number` | `9` | シグナルラインのEMA期間 |
+
+**戻り値:** `Series<CvdWithSignalValue>`
+
+```typescript
+interface CvdWithSignalValue {
+  cvd: number;              // CVD値（平滑化されている場合あり）
+  signal: number | null;    // シグナルライン（CVDのEMA）、ウォームアップ中はnull
+}
+```
+
+---
+
+### S/Rゾーンクラスタリング
+
+#### `srZones(candles, options)`
+
+複数のソースから価格レベルを収集し、K-means++でクラスタリングしてサポート/レジスタンスゾーンを特定します。各ゾーンはタッチ回数・ソース多様性・新しさでスコアリングされます。
+
+```typescript
+const result = srZones(candles);
+console.log(result.zones[0]);
+// { price: 100.5, low: 99.8, high: 101.2, touchCount: 5,
+//   sourceDiversity: 3, sources: ['swing', 'pivot', 'round'], strength: 85 }
+```
+
+**収集されるソース:**
+- **スイングポイント**: スイングハイ・スイングロー
+- **ピボットポイント**: PP、R1、R2、S1、S2
+- **VWAP**: 直近のVWAP値
+- **ボリュームプロファイル**: POC、Value Area上限/下限
+- **ラウンドナンバー**: 価格レンジに基づく自動検出間隔
+- **カスタムレベル**: ユーザー指定の価格レベル
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|-----------|------|-----------|------|
+| `numZones` | `number` | `auto` | ゾーン数（auto: `min(max(3, levels/3), 15)`） |
+| `zoneWidth` | `number` | `0.5` | ゾーン幅のATR倍率 |
+| `includeRoundNumbers` | `boolean` | `true` | ラウンドナンバーを含める |
+| `includeSwingPoints` | `boolean` | `true` | スイングポイントを含める |
+| `includePivotPoints` | `boolean` | `true` | ピボットポイントを含める |
+| `includeVwap` | `boolean` | `true` | VWAPレベルを含める |
+| `includeVolumeProfile` | `boolean` | `true` | ボリュームプロファイルレベルを含める |
+| `customLevels` | `number[]` | `[]` | カスタム価格レベル |
+| `swingLookback` | `number` | `5` | スイングポイントのルックバック本数 |
+| `maxIterations` | `number` | `50` | K-meansの最大反復回数 |
+
+**戻り値:** `SrZonesResult`
+
+```typescript
+interface SrZonesResult {
+  zones: SrZone[];              // 強度の降順でソートされたゾーン
+  rawLevels: PriceLevelSource[];  // クラスタリング前の全生レベル
+}
+
+interface SrZone {
+  price: number;          // 加重セントロイド
+  low: number;            // 下限（セントロイド − zoneWidth × ATR）
+  high: number;           // 上限（セントロイド + zoneWidth × ATR）
+  touchCount: number;     // クラスタ内の生レベル数
+  sourceDiversity: number; // ユニークなソース種別数
+  sources: string[];      // ユニークなソース種別のリスト
+  strength: number;       // スコア0-100（touchCount 40% + 多様性 40% + 新しさ 20%）
+}
+```
+
+---
+
+#### `srZonesSeries(candles, options)`
+
+`srZones`のローリング版 — ルックバックウィンドウを使って各バーでゾーンを計算します。
+
+```typescript
+const series = srZonesSeries(candles, { numZones: 5 });
+const currentZones = series[series.length - 1].value;
+```
+
+**戻り値:** `Series<SrZone[]>`
+
+---
+
 ### 相対強度（RS）
 
 #### `benchmarkRS(candles, benchmark, options)`
@@ -1162,7 +1296,7 @@ const rs = benchmarkRS(stockCandles, sp500Candles, { period: 52 });
 
 // アウトパフォームしている銘柄を探す
 const latest = rs[rs.length - 1];
-if (latest.value.rsRating > 80 && latest.value.trend === 'up') {
+if (latest.value.rsRating !== null && latest.value.rsRating > 80 && latest.value.trend === 'up') {
   console.log('相対強度が強い！');
 }
 ```
@@ -1226,13 +1360,13 @@ import { rankByRS, topByRS, filterByRSPercentile } from 'trendcraft';
 
 // 全銘柄をRSでランキング
 const symbolsData = new Map([
-  ['トヨタ', toyotaCandles],
-  ['ソニー', sonyCandles],
-  ['任天堂', nintendoCandles],
+  ['AAPL', aaplCandles],
+  ['GOOGL', googlCandles],
+  ['MSFT', msftCandles],
 ]);
 
 const rankings = rankByRS(symbolsData, { period: 52 });
-// [{ symbol: 'トヨタ', rs: 1.18, rank: 1, percentile: 100, performance: 18 }, ...]
+// [{ symbol: 'AAPL', rank: 1, percentile: 92, ... }, ...]
 
 // 上位5銘柄を取得
 const top5 = topByRS(symbolsData, 5);
@@ -1757,6 +1891,261 @@ if (hasRecentSweepSignal(candles, "bullish")) {
 
 ---
 
+### セッション / キルゾーン
+
+ICT標準のセッション検出、キルゾーン特定、セッション統計、セッションブレイクアウト検出。時刻はすべてUTC（ET = UTC-5、DSTは無視）。
+
+#### `getIctSessions()`
+
+UTCでの標準ICTセッション4つを返します。
+
+```typescript
+const sessions = getIctSessions();
+// [{ name: 'Asia', startHour: 0, startMinute: 0, endHour: 5, endMinute: 0 },
+//  { name: 'London', startHour: 7, ... }, { name: 'NY AM', ... }, { name: 'NY PM', ... }]
+```
+
+| セッション | UTC時刻 | ET時刻 | 特徴 |
+|-----------|----------|---------|----------------|
+| Asia | 00:00-05:00 | 19:00-00:00 | 低流動性、レンジ形成 |
+| London | 07:00-10:00 | 02:00-05:00 | 欧州勢参入、だまし |
+| NY AM | 13:30-16:00 | 08:30-11:00 | 最大流動性 |
+| NY PM | 18:30-21:00 | 13:30-16:00 | 反転が起きやすい |
+
+---
+
+#### `defineSession(name, startHour, startMinute, endHour, endMinute)`
+
+カスタムセッション定義を作成するファクトリ関数。
+
+```typescript
+const preMarket = defineSession('Pre-Market', 9, 0, 13, 30);
+```
+
+---
+
+#### `detectSessions(candles, sessions?)`
+
+各ローソク足がどのセッションに属するかを判定し、セッションOHLCを追跡します。
+
+```typescript
+const sessionData = detectSessions(candles);
+const i = sessionData.length - 1; // 現在バーのインデックス
+const bar = sessionData[i].value;
+if (bar.inSession) {
+  console.log(`セッション ${bar.session}、ここまでの高値: ${bar.sessionHigh}`);
+}
+```
+
+**戻り値:** `Series<SessionInfo>`
+
+```typescript
+interface SessionInfo {
+  session: string | null;       // セッション名（全セッション外はnull）
+  inSession: boolean;           // 定義されたセッション内かどうか
+  barIndex: number;             // 現在セッション内のバーインデックス（0始まり）
+  sessionOpen: number | null;   // セッション始値
+  sessionHigh: number | null;   // ここまでのセッション高値
+  sessionLow: number | null;    // ここまでのセッション安値
+}
+```
+
+---
+
+#### `sessionStats(candles, options?)`
+
+ルックバック期間にわたるセッション別の集計統計を計算します。
+
+```typescript
+const stats = sessionStats(candles, { lookback: 20 });
+stats.forEach(s => {
+  console.log(`${s.session}: avgRange=${s.avgRange.toFixed(2)}, bullish=${(s.bullishPercent * 100).toFixed(0)}%`);
+});
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|-----------|------|-----------|------|
+| `sessions` | `SessionDefinition[]` | ICTセッション | セッション定義 |
+| `lookback` | `number` | `20` | 分析するセッション出現回数 |
+
+**戻り値:** `SessionStatsValue[]`
+
+```typescript
+interface SessionStatsValue {
+  session: string;        // セッション名
+  avgRange: number;       // セッション出現あたりの平均レンジ
+  avgVolume: number;      // セッション出現あたりの平均出来高
+  bullishPercent: number; // 陽線（close > open）の割合
+  barCount: number;       // 全出現通算のバー数
+}
+```
+
+---
+
+#### `getIctKillZones()`
+
+UTCでの標準ICTキルゾーン4つを特徴説明付きで返します。
+
+```typescript
+const zones = getIctKillZones();
+// [{ name: 'Asian KZ', ..., characteristic: 'Range formation, accumulation' }, ...]
+```
+
+| キルゾーン | UTC時刻 | 特徴 |
+|-----------|----------|---------------|
+| Asian KZ | 00:00-05:00 | レンジ形成、アキュミュレーション |
+| London Open KZ | 07:00-09:00 | だまし、ストップ狩り、初動 |
+| NY Open KZ | 12:00-14:00 | 最大流動性、最も強い値動き |
+| London Close KZ | 15:00-17:00 | 反転、利益確定 |
+
+---
+
+#### `killZones(candles, zones?)`
+
+各ローソク足がキルゾーン内かどうかを判定します。
+
+```typescript
+const kz = killZones(candles);
+const i = kz.length - 1; // 現在バーのインデックス
+if (kz[i].value.inKillZone) {
+  console.log(`${kz[i].value.zone} 内: ${kz[i].value.characteristic}`);
+}
+```
+
+**戻り値:** `Series<KillZoneValue>`
+
+```typescript
+interface KillZoneValue {
+  zone: string | null;             // キルゾーン名（外ならnull）
+  inKillZone: boolean;             // いずれかのキルゾーン内かどうか
+  characteristic: string | null;   // 期待される値動きの説明
+}
+```
+
+---
+
+#### `sessionBreakout(candles, options?)`
+
+直近の完了セッションのレンジ上抜け/下抜けを検出します。
+
+```typescript
+const breakouts = sessionBreakout(candles);
+const i = breakouts.length - 1; // 現在バーのインデックス
+if (breakouts[i].value.breakout === 'above') {
+  console.log(`${breakouts[i].value.fromSession} の高値 ${breakouts[i].value.rangeHigh} を上抜け`);
+}
+```
+
+**戻り値:** `Series<SessionBreakoutValue>`
+
+```typescript
+interface SessionBreakoutValue {
+  fromSession: string | null;             // 直前セッション名
+  breakout: 'above' | 'below' | null;    // ブレイクアウト方向
+  rangeHigh: number | null;              // 直前セッション高値
+  rangeLow: number | null;               // 直前セッション安値
+}
+```
+
+---
+
+### HMMレジーム検出
+
+確率的な市場レジーム分類のための隠れマルコフモデル。外部依存ゼロの純TypeScript実装（Baum-Welch / Viterbi）。
+
+#### `hmmRegimes(candles, options?)`
+
+ガウシアンHMMで市場レジームを検出。特徴量（リターン、ボラティリティ、出来高比率、レンジ、実体比率）を抽出し、EMでモデルをフィットして最尤状態系列をデコードします。
+
+```typescript
+const regimes = hmmRegimes(candles, { numStates: 3, seed: 42 });
+const current = regimes[regimes.length - 1].value;
+console.log(`レジーム: ${current.label}, P=${current.probabilities}`);
+// レジーム: "trending-up", P=[0.02, 0.08, 0.90]
+```
+
+**オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|-----------|------|-----------|------|
+| `numStates` | `number` | `3` | レジーム状態数 |
+| `maxIterations` | `number` | `100` | EMの最大反復回数 |
+| `seed` | `number` | `42` | 再現性のための乱数シード |
+| `numRestarts` | `number` | `5` | 局所最適回避のランダム再スタート回数 |
+| `featureOptions` | `FeatureOptions` | `{}` | 特徴量抽出の設定 |
+
+**特徴量オプション:**
+| オプション | 型 | デフォルト | 説明 |
+|-----------|------|-----------|------|
+| `returnLookback` | `number` | `1` | リターン計算のルックバック |
+| `volatilityWindow` | `number` | `20` | ローリングボラティリティのウィンドウ |
+| `volumeWindow` | `number` | `20` | 出来高比率のウィンドウ |
+
+**戻り値:** `Series<HmmRegimeValue>`
+
+```typescript
+interface HmmRegimeValue {
+  regime: number;           // レジームインデックス（0始まり）
+  label: string;            // "trending-up" | "ranging" | "trending-down"（3状態時）
+  probabilities: number[];  // この時点での状態確率
+  logLikelihood: number;    // フィット済みモデルの対数尤度
+}
+```
+
+**ラベル（3状態モデル）:** 状態は平均リターンでソート — 最低 = "trending-down"、中間 = "ranging"、最高 = "trending-up"。N ≠ 3 の場合、ラベルは "state-0"、"state-1" など。
+
+---
+
+#### `fitHmm(candles, options?)`
+
+デコードせずにHMMをフィット — 分析用の学習済みモデルを返します。
+
+```typescript
+const model = fitHmm(candles, { numStates: 3 });
+console.log(`対数尤度: ${model.logLikelihood}`);
+console.log(`収束: ${model.converged}`);
+```
+
+**戻り値:** `HmmModel`
+
+```typescript
+interface HmmModel {
+  numStates: number;
+  pi: number[];                    // 初期状態確率
+  transitionMatrix: number[][];    // A[i][j] = P(state j | state i)
+  emissionMeans: number[][];       // means[state][feature]
+  emissionVariances: number[][];   // variances[state][feature]
+  logLikelihood: number;
+  converged: boolean;
+}
+```
+
+---
+
+#### `regimeTransitionMatrix(model, labels?)`
+
+フィット済みモデルから遷移分析を抽出します。
+
+```typescript
+const model = fitHmm(candles);
+const info = regimeTransitionMatrix(model);
+console.log(`期待継続期間: ${info.expectedDurations}`);
+console.log(`定常分布: ${info.stationaryDistribution}`);
+```
+
+**戻り値:** `RegimeTransitionInfo`
+
+```typescript
+interface RegimeTransitionInfo {
+  matrix: number[][];             // 遷移確率行列
+  labels: string[];               // 各状態のラベル
+  expectedDurations: number[];    // 各状態の期待滞在バー数: 1 / (1 - 自己遷移確率)
+  stationaryDistribution: number[]; // 長期的な状態確率
+}
+```
+
+---
+
 ## シグナル
 
 ### クロス検出
@@ -1769,11 +2158,7 @@ if (hasRecentSweepSignal(candles, "bullish")) {
 const crosses = crossOver(shortMA, longMA);
 ```
 
-**戻り値:** `Series<boolean>`
-
-```typescript
-// crossOver/crossUnder return Series<boolean> ({ time, value: boolean }) — true at the bar where the cross occurs.
-```
+**戻り値:** `Series<boolean>`（クロスが発生したバーでtrue）
 
 ---
 
@@ -1861,6 +2246,22 @@ const signals = macdDivergence(candles);
 
 ---
 
+### CVDダイバージェンス
+
+#### `cvdDivergence(candles, options)`
+
+価格とCumulative Volume Delta（CVD）のダイバージェンスを検出。内部で `detectDivergence()` を使用します。
+
+```typescript
+const signals = cvdDivergence(candles);
+const bullish = signals.filter(s => s.type === 'bullish');
+// 強気: 価格は安値更新、CVDは安値切り上げ → 買い圧力の蓄積
+const bearish = signals.filter(s => s.type === 'bearish');
+// 弱気: 価格は高値更新、CVDは高値切り下げ → 売り圧力の蓄積
+```
+
+---
+
 **オプション（全ダイバージェンス関数共通）:**
 | オプション | 型 | デフォルト | 説明 |
 |------------|------|---------|------|
@@ -1918,108 +2319,106 @@ interface SqueezeSignal {
 
 ### レンジ相場検出
 
-#### `rangeBound(candles, options)`
+#### `rangeBound(candles, options?)`
 
 レンジ相場（ボックス相場）を検出。複数の指標を組み合わせて、トレンドのない横ばい期間を識別します。
 
 ```typescript
-const result = rangeBound(candles);
-const custom = rangeBound(candles, {
-  dmiPeriod: 14,
-  adxTrendThreshold: 25,
-  donchianPeriod: 20,
-  persistBars: 3,
-});
+const rb = rangeBound(candles, { persistBars: 3 });
 ```
 
 **オプション:**
+
 | オプション | 型 | デフォルト | 説明 |
 |------------|------|---------|------|
-| `dmiPeriod` | `number` | `14` | DMI/ADX計算期間 |
-| `adxTrendThreshold` | `number` | `25` | トレンド判定のADX閾値 |
+| `dmiPeriod` | `number` | `14` | DMI/ADX期間 |
+| `bbPeriod` | `number` | `20` | ボリンジャーバンド期間 |
 | `donchianPeriod` | `number` | `20` | ドンチャンチャネル期間 |
-| `atrPeriod` | `number` | `14` | ATR計算期間 |
-| `tightRangeThreshold` | `number` | `85` | タイトレンジ判定のスコア閾値 |
+| `atrPeriod` | `number` | `14` | ATR期間 |
+| `adxWeight` | `number` | `0.50` | ADXスコアの重み |
+| `bandwidthWeight` | `number` | `0.20` | バンド幅スコアの重み |
+| `donchianWeight` | `number` | `0.20` | ドンチャン幅スコアの重み |
+| `atrWeight` | `number` | `0.10` | ATRスコアの重み |
+| `adxThreshold` | `number` | `20` | この値未満のADX = レンジ |
+| `adxTrendThreshold` | `number` | `25` | この値超のADX = トレンド |
 | `rangeScoreThreshold` | `number` | `70` | レンジ検出のスコア閾値 |
-| `breakoutRiskZone` | `number` | `0.1` | レンジ境界付近のブレイクアウトリスクゾーン（10%） |
-| `persistBars` | `number` | `3` | 状態維持の最小バー数 |
-| `adxWeight` | `number` | `0.5` | ADXスコアの重み |
-| `bandwidthWeight` | `number` | `0.2` | バンド幅スコアの重み |
-| `donchianWeight` | `number` | `0.2` | ドンチャン幅スコアの重み |
-| `atrWeight` | `number` | `0.1` | ATRスコアの重み |
-| `diDifferenceThreshold` | `number` | `10` | +DI/-DI差分閾値 |
-| `slopeThreshold` | `number` | `0.15` | 線形回帰傾き閾値（ATR比） |
-| `consecutiveHHLLThreshold` | `number` | `3` | 連続HH/LL回数閾値 |
-| `hhllLookback` | `number` | `10` | HH/LL判定の参照期間 |
-| `priceMovementThreshold` | `number` | `0.05` | 価格変動閾値（5%） |
-| `priceMovementPeriod` | `number` | `20` | 価格変動判定期間 |
+| `tightRangeThreshold` | `number` | `85` | タイトレンジ判定のスコア閾値 |
+| `breakoutRiskZone` | `number` | `0.1` | 境界付近のブレイクアウトリスクゾーン（10%） |
+| `persistBars` | `number` | `3` | 確定に必要なバー数 |
+| `lookbackPeriod` | `number` | `100` | パーセンタイル計算のルックバック |
+| `priceMovementPeriod` | `number` | `20` | 価格変動計算の期間 |
+| `priceMovementThreshold` | `number` | `0.05` | 5%の価格変動 = トレンド |
+| `diDifferenceThreshold` | `number` | `10` | トレンド判定の+DI/-DI差分 |
+| `slopeThreshold` | `number` | `0.15` | 回帰傾き閾値（ATR比） |
+| `consecutiveHHLLThreshold` | `number` | `3` | トレンド判定の連続HH/LL回数 |
+| `hhllLookback` | `number` | `10` | HH/LL検出のルックバック |
 
 **戻り値:** `Series<RangeBoundValue>`
 
+**RangeBoundValueのプロパティ:**
+
+| プロパティ | 型 | 説明 |
+|----------|------|-------------|
+| `state` | `RangeBoundState` | 現在の状態 |
+| `rangeScore` | `number` | 複合スコア（0-100） |
+| `confidence` | `number` | 信頼度（0-1） |
+| `persistCount` | `number` | 現在の状態の連続バー数 |
+| `isConfirmed` | `boolean` | persistCount >= persistBars でtrue |
+| `rangeDetected` | `boolean` | イベント: レンジ条件を初検出 |
+| `rangeConfirmed` | `boolean` | イベント: レンジを初確定 |
+| `breakoutRiskDetected` | `boolean` | イベント: ブレイクアウトリスクを初検出 |
+| `rangeBroken` | `boolean` | イベント: レンジからトレンドへの転換 |
+| `adx` | `number \| null` | ADX値 |
+| `rangeHigh` | `number \| null` | レンジ上限 |
+| `rangeLow` | `number \| null` | レンジ下限 |
+| `pricePosition` | `number \| null` | レンジ内の位置（0=下限、1=上限） |
+| `trendReason` | `TrendReason` | トレンド判定の理由（デバッグ用） |
+
+**RangeBoundStateの値:**
+
+| 状態 | 説明 |
+|-------|-------------|
+| `NEUTRAL` | データ不足または混在シグナル |
+| `RANGE_FORMING` | レンジ条件が出始めた |
+| `RANGE_CONFIRMED` | persistBars経過後にレンジ確定 |
+| `RANGE_TIGHT` | 非常にタイトなレンジ |
+| `BREAKOUT_RISK_UP` | 価格が上限付近 |
+| `BREAKOUT_RISK_DOWN` | 価格が下限付近 |
+| `TRENDING` | トレンド中 |
+
+**TrendReasonの値:**
+
+| 理由 | 説明 |
+|--------|-------------|
+| `adx_high` | ADX >= adxTrendThreshold |
+| `price_movement` | 価格変動 >= 閾値 |
+| `di_diff` | +DI/-DI差分 >= 閾値 |
+| `slope` | 回帰傾き >= 閾値 |
+| `hhll` | 連続HHまたはLL >= 閾値 |
+| `null` | トレンドではない |
+
+**例:**
+
 ```typescript
-interface RangeBoundValue {
-  state: RangeBoundState;     // 現在の状態
-  rangeScore: number;         // レンジスコア (0-100)
-  rangeHigh: number | null;   // レンジ上限
-  rangeLow: number | null;    // レンジ下限
-  adx: number | null;         // ADX値
-  donchianWidth: number | null;  // ドンチャンチャネル幅（中値比）
-  atrRatio: number | null;    // 終値比のATR
-  adxScore: number;           // ADXスコア成分 (0-100)
-  bandwidthScore: number;     // バンド幅スコア成分 (0-100)
-  donchianScore: number;      // ドンチャン幅スコア成分 (0-100)
-  atrScore: number;           // ATR比スコア成分 (0-100)
-  rangeBroken: boolean;       // レンジブレイク検出
-  trendReason: TrendReason;   // トレンド判定理由
+import { rangeBound } from 'trendcraft';
+
+const rb = rangeBound(candles);
+const latest = rb[rb.length - 1].value;
+
+// 現在の状態をチェック
+console.log(`状態: ${latest.state}`);
+console.log(`スコア: ${latest.rangeScore}/100`);
+
+// レンジ境界をチェック
+if (latest.rangeHigh && latest.rangeLow && latest.pricePosition !== null) {
+  console.log(`レンジ: ${latest.rangeLow} - ${latest.rangeHigh}`);
+  console.log(`位置: ${(latest.pricePosition * 100).toFixed(0)}%`);
 }
 
-type RangeBoundState =
-  | 'NEUTRAL'           // 中立
-  | 'RANGE_FORMING'     // レンジ形成中
-  | 'RANGE_CONFIRMED'   // レンジ確定
-  | 'RANGE_TIGHT'       // タイトレンジ
-  | 'BREAKOUT_RISK_UP'  // 上方ブレイクアウトリスク
-  | 'BREAKOUT_RISK_DOWN'// 下方ブレイクアウトリスク
-  | 'TRENDING';         // トレンド中
-
-type TrendReason =
-  | 'adx_high'          // ADX >= 25
-  | 'price_movement'    // 20日で5%以上の価格変動
-  | 'di_diff'           // +DI/-DI差分 >= 10
-  | 'slope'             // 線形回帰傾き >= 0.15 ATR
-  | 'hhll'              // 連続HH/LL >= 3
-  | null;               // トレンドではない
-```
-
-#### レンジ相場条件（バックテスト用）
-
-```typescript
-// レンジ状態（任意のレンジ）
-inRangeBound()
-
-// レンジ形成中
-rangeForming()
-
-// レンジ確定
-rangeConfirmed()
-
-// レンジからトレンドへの転換（ブレイクアウト）
-rangeBreakout()
-
-// タイトレンジ検出
-tightRange()
-
-// 上方ブレイクアウトリスク（上限付近）
-breakoutRiskUp()
-
-// 下方ブレイクアウトリスク（下限付近）
-breakoutRiskDown()
-
-// レンジスコアが閾値超
-rangeScoreAbove(70)
-
-// レンジ相場ではない時のみ（フィルター）
-not(inRangeBound())
+// トレンド判定のデバッグ
+if (latest.trendReason) {
+  console.log(`トレンド理由: ${latest.trendReason}`);
+}
 ```
 
 ---
@@ -2207,7 +2606,7 @@ const bearish = headAndShoulders(candles);
 const bullish = inverseHeadAndShoulders(candles);
 
 bearish.forEach(p => {
-  console.log(`H&S発生 ${new Date(p.time)}, ネックライン: ${p.pattern.neckline.currentPrice}`);
+  console.log(`H&S発生 ${new Date(p.time)}, ネックライン: ${p.pattern.neckline?.currentPrice}`);
 });
 ```
 
@@ -2531,11 +2930,23 @@ interface BacktestResult {
   winRate: number;                   // 勝率 (%)
   maxDrawdown: number;               // 最大ドローダウン (%)
   sharpeRatio: number;               // シャープレシオ（年率化）
+  sortinoRatio: number;              // ソルティノレシオ（年率化・下方偏差ベース）
+  calmarRatio: number;               // CAGR ÷ 最大ドローダウン
+  cagrPercent: number;               // 年平均成長率 (%)
+  expectancyPercent: number;         // 1取引あたり平均リターン (%)
+  exposurePercent: number;           // 市場エクスポージャー: ポジション保有時間比率 (%)
+  avgWinPercent: number;             // 平均勝ちトレード (%)
+  avgLossPercent: number;            // 平均負けトレード (%, 正の値)
+  largestWinPercent: number;         // 最大勝ちトレード (%)
+  largestLossPercent: number;        // 最大負けトレード (%, 正の値)
+  firstBarTime: number;              // 最初のローソク足時刻 (エポックms)
+  lastBarTime: number;               // 最後のローソク足時刻 (エポックms)
   profitFactor: number;              // プロフィットファクター
   avgHoldingDays: number;            // 平均保有日数
   trades: Trade[];                   // 取引詳細
   settings: BacktestSettings;        // 使用した設定（再現性のため）
   drawdownPeriods: DrawdownPeriod[]; // 個別ドローダウン期間
+  equityCurve?: number[];            // ローソク足終値ごとの時価評価資産額
 }
 
 interface DrawdownPeriod {
@@ -2552,12 +2963,15 @@ interface DrawdownPeriod {
 interface BacktestSettings {
   fillMode: FillMode;          // 約定タイミングモード
   slTpMode: SlTpMode;          // SL/TP判定モード
+  direction?: PositionDirection; // ポジション方向（デフォルト: "long"）
   stopLoss?: number;           // ストップロス (%)
   takeProfit?: number;         // 利確 (%)
   trailingStop?: number;       // トレーリングストップ (%)
   slippage: number;            // スリッページ (%)
   commission: number;          // 固定手数料/取引
   commissionRate: number;      // 手数料率 (%)
+  taxRate: number;             // 利益への税率 (%)
+  sizing?: BacktestSizingConfigJSON | { method: "custom" }; // 使用したサイジング設定
 }
 
 interface Trade {
@@ -2568,6 +2982,13 @@ interface Trade {
   return: number;
   returnPercent: number;
   holdingDays: number;
+  direction?: PositionDirection; // ポジション方向（デフォルト: "long"）
+  isPartial?: boolean;           // 部分利確による決済の場合 true
+  exitPercent?: number;          // 元ポジションのうち今回売却した割合 (%)
+  exitReason?: ExitReason;       // 決済理由
+  mfe?: number;                  // 最大含み益 (%)
+  mae?: number;                  // 最大含み損 (%)
+  mfeUtilization?: number;       // 実現リターン ÷ MFE
 }
 ```
 
@@ -2769,13 +3190,13 @@ monthlyTrendStrong(adxThreshold = 25)  // 月足ADX > 閾値
 mtfTrendStrong(timeframe, adxThreshold = 25)  // MTF ADX > 閾値
 
 // カスタムMTF条件
-mtfCondition(requiredTimeframes, name, evaluateFn)  // MTFデータでのカスタム条件（例: mtfCondition(['weekly', 'monthly'], 'weeklyAboveMonthly', (mtf, indicators, candle, index, candles) => ...)）
+mtfCondition(requiredTimeframes, name, evaluate)  // MTFデータでのカスタム条件（例: mtfCondition(['weekly'], 'myCond', (mtf, indicators, candle, index, candles) => boolean)）
 ```
 
 **Fluent APIでの使用:**
 
 ```typescript
-import { TrendCraft, weeklyRsiAbove, goldenCrossCondition, and } from 'trendcraft';
+import { TrendCraft, weeklyRsiAbove, goldenCrossCondition, deadCrossCondition, and } from 'trendcraft';
 
 const result = TrendCraft.from(dailyCandles)
   .withMtf(['weekly'])  // 週足タイムフレームを有効化
@@ -2992,10 +3413,7 @@ const monthly = resample(dailyCandles, 'monthly');
 **サポートされるタイムフレーム:**
 - ショートハンド: `'1m'` / `'5m'` / `'15m'` / `'30m'` / `'1h'` / `'4h'` / `'1d'`（`'daily'`）/ `'1w'`（`'weekly'`）/ `'1M'`（`'monthly'`）
 - または `{ value, unit }` 形式の `Timeframe` オブジェクト（unit: `'minute' | 'hour' | 'day' | 'week' | 'month'`）
-
-```typescript
-const fourHour = resample(hourlyCandles, '4h');  // 1時間足 → 4時間足
-```
+- 例: `resample(hourlyCandles, '4h')` で1時間足 → 4時間足
 
 ---
 
@@ -3087,6 +3505,35 @@ for (const c of breakdown.contributions) {
 }
 ```
 
+**戻り値:** `ScoreBreakdown`
+
+```typescript
+interface ScoreBreakdown extends ScoreResult {
+  contributions: SignalContribution[];
+}
+
+interface SignalContribution {
+  name: string;
+  displayName: string;
+  rawValue: number;     // 0-1
+  score: number;        // rawValue * weight
+  weight: number;
+  isActive: boolean;
+  category?: string;
+}
+```
+
+---
+
+#### `calculateScoreSeries(candles, config, startIndex?, context?)`
+
+全ローソク足のスコアを計算（チャート表示に便利）。
+
+```typescript
+const series = calculateScoreSeries(candles, config);
+// [{ time: 1234567890, score: ScoreResult }, ...]
+```
+
 ---
 
 ### スコアリングプリセット
@@ -3108,6 +3555,19 @@ const available = listPresets();  // ['momentum', 'meanReversion', 'trendFollowi
 | `balanced` | 混合 | 70/50/30 | バランス型 |
 | `aggressive` | 低閾値 | 60/40/25 | 積極型（低スコア閾値） |
 | `conservative` | 高閾値 | 80/60/40 | 保守型（高スコア閾値） |
+
+**ファクトリ関数:**
+
+```typescript
+import {
+  createMomentumPreset,
+  createMeanReversionPreset,
+  createTrendFollowingPreset,
+  createBalancedPreset,
+  createAggressivePreset,      // 低閾値: 60/40/25
+  createConservativePreset,    // 高閾値: 80/60/40
+} from 'trendcraft';
+```
 
 ---
 
@@ -3151,10 +3611,21 @@ const result = riskBasedSize({
   entryPrice: 50,
   stopLossPrice: 48,
   riskPercent: 1,           // 口座の1%をリスク
-  maxPositionPercent: 25,   // 最大25%
+  maxPositionPercent: 25,   // 口座の最大25%
+  minShares: 1,
+  roundShares: true,
+  direction: 'long',        // 'long' | 'short'
 });
 
-// 結果: { shares: 500, positionValue: 25000, riskAmount: 1000, ... }
+// 結果:
+// {
+//   shares: 500,
+//   positionValue: 25000,
+//   riskAmount: 1000,
+//   riskPercent: 1,
+//   stopPrice: 48,
+//   method: 'risk-based'
+// }
 ```
 
 **計算式:** `株数 = リスク額 / ストップ幅`
@@ -3174,8 +3645,20 @@ const result = atrBasedSize({
   atrValue: 2.5,
   atrMultiplier: 2,     // 2倍ATRでストップ
   riskPercent: 1,
+  direction: 'long',
 });
-// stopPrice: 45, shares: 200
+
+// stopPrice: 45 (50 - 2.5 * 2)
+// shares: 200 (1000 / 5)
+```
+
+**ユーティリティ関数:**
+
+```typescript
+import { calculateAtrStopDistance, recommendedAtrMultiplier } from 'trendcraft';
+
+const stopDistance = calculateAtrStopDistance(2.5, 2);  // 5
+const multiplier = recommendedAtrMultiplier('conservative');  // 3
 ```
 
 ---
@@ -3187,14 +3670,17 @@ const result = atrBasedSize({
 ```typescript
 import { kellySize, calculateKellyPercent } from 'trendcraft';
 
-const kellyPct = calculateKellyPercent(0.6, 1.5);  // 33.3%
+// 最適Kellyパーセンテージを計算
+const kellyPct = calculateKellyPercent(0.6, 1.5);  // 勝率60%、勝敗比1.5
+// 33.3%（Kelly = winRate - (1 - winRate) / winLossRatio）
 
 const result = kellySize({
   accountSize: 100000,
   entryPrice: 50,
   winRate: 0.6,
   winLossRatio: 1.5,
-  kellyFraction: 0.5,     // ハーフKelly
+  kellyFraction: 0.5,     // ハーフKelly（より安全）
+  maxKellyPercent: 25,    // 上限25%
 });
 ```
 
@@ -3205,13 +3691,18 @@ const result = kellySize({
 シンプルな固定比率配分。
 
 ```typescript
-import { fixedFractionalSize } from 'trendcraft';
+import { fixedFractionalSize, maxPositions, fractionForPositionCount } from 'trendcraft';
 
 const result = fixedFractionalSize({
   accountSize: 100000,
   entryPrice: 50,
   fractionPercent: 10,      // 1ポジションあたり10%
+  maxPositionPercent: 20,   // 上限
 });
+
+// ユーティリティ関数
+const positions = maxPositions(100000, 10);  // 10%で10ポジション
+const fraction = fractionForPositionCount(5);  // 5ポジションなら20%
 ```
 
 ---
@@ -3275,6 +3766,8 @@ const result = runBacktest(candles, entry, exit, {
     atrPeriod: 14,
     atrStopMultiplier: 2.5,
     atrTakeProfitMultiplier: 4.0,
+    atrTrailingMultiplier: 2.0,
+    useEntryAtr: true,  // エントリー時ATRを使用（動的でなく）
   },
 });
 ```
@@ -3347,22 +3840,25 @@ interface VolatilityRegimeValue {
 **使用例:**
 
 ```typescript
-import { regimeIs, regimeNot, atrPercentAbove, and, goldenCrossCondition } from 'trendcraft';
+import {
+  regimeIs, regimeNot, atrPercentAbove, and,
+  goldenCrossCondition, rsiBelow, perfectOrderBullish,
+} from 'trendcraft';
 
 // 低ボラティリティ環境でのみエントリー
-const entry = and(
+const lowVolEntry = and(
   regimeIs('low'),
   rsiBelow(30)
 );
 
 // 極端なボラティリティを避ける
-const entry = and(
+const calmEntry = and(
   regimeNot('extreme'),
   goldenCrossCondition()
 );
 
 // トレンドフォロー用にATR%でフィルタ（ボラタイルな銘柄のみ）
-const entry = and(
+const volatileEntry = and(
   atrPercentAbove(2.3),
   perfectOrderBullish()
 );
@@ -3476,8 +3972,8 @@ CSCV（組合せ対称交差検証）によるバックテスト過学習確率�
 ```typescript
 import { pbo } from 'trendcraft';
 
-// returns[t][n] = n番目のパラメーター組み合わせの期間tのリターン
-const result = pbo(returns, { blocks: 10 });
+// comboReturns[t][n] = n番目のパラメーター組み合わせの期間tのリターン
+const result = pbo(comboReturns, { blocks: 10 });
 
 console.log(`PBO: ${(result.pbo * 100).toFixed(1)}%`);   // 50%以上 → 選択は偶然と同等
 console.log(`評価したsplit数: ${result.combinations}`);   // C(10, 5) = 252
@@ -3532,11 +4028,11 @@ const ranges: PathParameterRange[] = [
   { path: 'entry.0.params.period', min: 10, max: 30, step: 5 },
 ];
 
-const grid = gridSearchFromJSON(candles, strategy, ranges, backtestRegistry, {
+const grid = gridSearchFromJSON(candles, strategyJson, ranges, backtestRegistry, {
   metric: 'sharpe',
 });
 
-const wf = walkForwardAnalysisFromJSON(candles, strategy, ranges, backtestRegistry, {
+const wf = walkForwardAnalysisFromJSON(candles, strategyJson, ranges, backtestRegistry, {
   windowSize: 252,
   stepSize: 63,
   testSize: 63,
@@ -3626,7 +4122,7 @@ import {
 } from 'trendcraft';
 
 // 個別メトリクスを計算
-const sharpe = calculateSharpeRatio(returns, riskFreeRate);
+const sharpe = calculateSharpeRatio(dailyReturns, riskFreeRate);
 const calmar = calculateCalmarRatio(annualizedReturnPercent, maxDrawdownPercent);
 const recovery = calculateRecoveryFactor(netProfit, maxDrawdown);
 
@@ -3760,16 +4256,18 @@ interface MetricStatistics {
 **ヘルパー関数:**
 
 ```typescript
-// 結果のフォーマット
-const formatted = formatMonteCarloResult(mcResult);
+import { summarizeMonteCarloResult, calculateStatistics } from 'trendcraft';
 
 // サマリー取得
 const summary = summarizeMonteCarloResult(mcResult);
-// => { probProfit, probLoss, riskOfRuin, expectedSharpe, sharpe95CI, originalSharpe }
+console.log(summary.probProfit);   // 0.92（利益となったリサンプルの割合）
+console.log(summary.riskOfRuin);   // 0.03（破産しきい値に達した割合）
+console.log(summary.sharpe95CI);   // { lower: 0.4, upper: 1.8 }
 
-// 統計値の計算（直接使用可能）
+// 任意の配列の統計値を計算
 const stats = calculateStatistics([1, 2, 3, 4, 5]);
-// => { mean: 3, median: 3, stdDev: 1.41, ... }
+console.log(stats.mean);    // 3
+console.log(stats.median);  // 3
 ```
 
 ---
@@ -3781,23 +4279,15 @@ const stats = calculateStatistics([1, 2, 3, 4, 5]);
 固定起点から訓練期間を拡張するウォークフォワード分析。長期的な戦略の堅牢性を検証します。
 
 ```typescript
-import {
-  anchoredWalkForwardAnalysis,
-  formatAWFResult,
-  createEntryConditionPool,
-  createExitConditionPool
-} from 'trendcraft';
-
-const entryPool = createEntryConditionPool();
-const exitPool = createExitConditionPool();
+import { anchoredWalkForwardAnalysis, formatAWFResult } from 'trendcraft';
 
 const awfResult = anchoredWalkForwardAnalysis(
   candles,
-  entryPool,
-  exitPool,
+  entryConditions,
+  exitConditions,
   {
     anchorDate: new Date('2015-01-01').getTime(),
-    initialTrainSize: 500,   // 約2年
+    initialTrainSize: 504,   // 約2年
     expansionStep: 252,      // 1年ずつ拡張
     testSize: 252,           // 1年テスト
     metric: 'sharpe',
@@ -3805,7 +4295,6 @@ const awfResult = anchoredWalkForwardAnalysis(
 );
 
 console.log(formatAWFResult(awfResult));
-// => Stability: 72%, Recommended: GC + Stoch↑ / VolDiv
 ```
 
 **期間分割の例:**
@@ -3877,23 +4366,31 @@ interface AWFPeriod {
 **ヘルパー関数:**
 
 ```typescript
-// 結果のフォーマット
-const formatted = formatAWFResult(awfResult);
-
-// サマリー取得
-const summary = summarizeAWFResult(awfResult);
+import {
+  generateAWFBoundaries,
+  calculateAWFPeriodCount,
+  summarizeAWFResult,
+  getAWFEquityCurve
+} from 'trendcraft';
 
 // 期間数の事前計算（位置引数）
 const anchorDate = new Date('2015-01-01').getTime();
 const anchorIndex = candles.findIndex((c) => c.time >= anchorDate);
-const count = calculateAWFPeriodCount(candles.length, anchorIndex, 500, 252, 252);
-// オプションオブジェクトから求める場合: generateAWFBoundaries(candles, options).length
+const count = calculateAWFPeriodCount(candles.length, anchorIndex, 504, 252, 252);
+// オプションオブジェクトから求める場合: generateAWFBoundaries(candles, awfOptions).length
 
-// 期間境界の生成
-const boundaries = generateAWFBoundaries(candles, options);
+// フル分析を実行せずに期間境界を取得
+const boundaries = generateAWFBoundaries(candles, awfOptions);
 
-// エクイティカーブの取得
-const equity = getAWFEquityCurve(awfResult, 1000000);
+// サマリー取得
+const summary = summarizeAWFResult(awfResult);
+console.log(summary.stabilityRatio);        // 0.72（ISパフォーマンスの72%）
+console.log(summary.profitablePeriods);     // 4（5期間中）
+console.log(summary.recommendedEntry);      // ['gc', 'stochUp']
+
+// OOS結果からエクイティカーブを取得
+const curve = getAWFEquityCurve(awfResult, 1000000);
+// [{ time: ..., equity: 1050000, periodNumber: 1 }, ...]
 ```
 
 ---
@@ -4258,8 +4755,13 @@ const isEntry = evaluateStreamingCondition(entryCondition, snapshot, candle);
 プレーンな関数を条件として渡すこともできます:
 
 ```typescript
-const customCondition = (snapshot, candle) => {
-  return candle.close > 100 && snapshot.rsi < 50;
+import { streaming } from "trendcraft";
+
+// スナップショットの値は `unknown`（各インジケーターの snapshot 名がキー）
+// のため、比較前にナローイングする。
+const customCondition: streaming.StreamingConditionFn = (snapshot, candle) => {
+  const rsi = snapshot.rsi as number | null;
+  return candle.close > 100 && rsi !== null && rsi < 50;
 };
 ```
 
@@ -4799,7 +5301,7 @@ const tradeSignals = patterns.map(p => fromPatternSignal(p, 100));
 ```typescript
 import { fromScoreResult } from 'trendcraft';
 
-const breakdown = calculateScoreBreakdown(candles, i, config); // config: ScoringConfig（例: { signals: [...] }）
+const breakdown = calculateScoreBreakdown(candles, candles.length - 1, config); // config: ScoringConfig（例: { signals: [...] }）
 const signal = fromScoreResult(breakdown, candle.time, { minScore: 50, entryPrice: 100 });
 ```
 
@@ -4829,14 +5331,15 @@ const signal = fromPipelineResult(result, candle.time, candle.close);
 #### `createSignalEmitter(options)`
 
 ```typescript
-import { streaming, incremental } from 'trendcraft';
+import { streaming } from 'trendcraft';
+import { createRsi } from 'trendcraft/incremental';
 
 const { createSignalEmitter, rsiBelow, rsiAbove } = streaming;
 
 const emitter = createSignalEmitter({
   intervalMs: 60000,
   pipeline: {
-    indicators: [{ name: 'rsi14', create: () => incremental.createRsi({ period: 14 }) }],
+    indicators: [{ name: 'rsi14', create: () => createRsi({ period: 14 }) }],
     entry: rsiBelow(30),
     exit: rsiAbove(70),
   },
@@ -4926,9 +5429,9 @@ const restored = createSignalManager(options, state);
 シグナル配列にライフサイクルルールを一括適用。バックテスト後のポスト処理に便利。
 
 ```typescript
-import { processSignalsBatch } from 'trendcraft';
+import { processSignalsBatch, type TradeSignal } from 'trendcraft';
 
-const allSignals = [/* バックテストのシグナル */];
+const allSignals: TradeSignal[] = [/* バックテストのシグナル */];
 const filtered = processSignalsBatch(allSignals, { cooldown: { bars: 3 } });
 // 3バー以内の重複シグナルを除去
 ```
@@ -5373,11 +5876,15 @@ import { TrendCraft, plugins } from "trendcraft";
 // .sma(50) と同等
 TrendCraft.from(candles).use(plugins.sma, { period: 50 });
 
-// 動的なプラグイン選択
-const selected = [plugins.sma, plugins.rsi];
-let tc = TrendCraft.from(candles);
-for (const p of selected) {
-  tc = tc.use(p);
+// 動的なプラグイン選択 — 各ステップが自身のプラグインをクロージャで保持する
+// ため、異種リストでもプラグインごとのオプション型チェックが維持される
+const steps = [
+  (t: TrendCraft) => t.use(plugins.sma),
+  (t: TrendCraft) => t.use(plugins.rsi),
+];
+let tc: TrendCraft = TrendCraft.from(candles);
+for (const step of steps) {
+  tc = step(tc);
 }
 const result = tc.compute();
 ```
@@ -5424,6 +5931,7 @@ console.log(explanation.fired);          // true/false
 console.log(explanation.signalType);     // "entry" | "exit"
 console.log(explanation.narrative);      // 人間が読めるテキスト
 console.log(explanation.contributions);  // リーフ条件の詳細
+console.log(explanation.trace);          // 完全な条件ツリー
 ```
 
 **オプション:**
@@ -5495,6 +6003,16 @@ const bbOfHist = pipe(
 
 複数の変換を単一の関数に合成します（右から左の順序）。
 
+```typescript
+import { compose, applyIndicator, rsi, ema } from "trendcraft";
+
+const smoothedRsi = compose(
+  (s: Series<number|null>) => applyIndicator(s, ema, { period: 9 }),
+  (c: NormalizedCandle[]) => rsi(c, { period: 14 }),
+);
+const result = smoothedRsi(candles);
+```
+
 ### `through(indicator, options?)`
 
 `pipe()`で使用するインジケーターステップを作成します。Seriesをローソク足に変換してインジケーターを適用します。
@@ -5519,9 +6037,19 @@ const histogram = extractField(macd(candles), "histogram");
 
 シリーズの値を変換関数でマッピングします。
 
+```typescript
+const normalized = mapValues(rsiSeries, v => v !== null ? v / 100 : null);
+```
+
 ### `combineSeries(a, b, fn)`
 
 2つのシリーズをインデックスごとにポイント単位で結合します。
+
+```typescript
+const spread = combineSeries(seriesA, seriesB, (a, b) =>
+  a !== null && b !== null ? a - b : null
+);
+```
 
 ---
 
@@ -5543,6 +6071,9 @@ console.log(decay.assessment.status);      // "healthy" | "warning" | "degraded"
 console.log(decay.assessment.reason);      // 人間が読める評価
 console.log(decay.assessment.currentIC);   // 現在の情報係数
 console.log(decay.assessment.halfLife);     // 推定半減期（バー数、またはnull）
+console.log(decay.rollingIC);              // ローリングICシリーズ
+console.log(decay.rollingHitRate);         // ローリングヒットレートシリーズ
+console.log(decay.breaks);                 // CUSUM構造的ブレークポイント
 ```
 
 **オプション:**
@@ -5559,6 +6090,11 @@ console.log(decay.assessment.halfLife);     // 推定半減期（バー数、ま
 ### `createObservationsFromScores(scores, candles, forwardBars?)`
 
 シグナルスコアとローソク足データからの実際の先行リターンをペアリングします。
+
+```typescript
+const observations = createObservationsFromScores(scoreSeries, candles, 5);
+const decay = analyzeAlphaDecay(observations);
+```
 
 ### `spearmanCorrelation(x, y)`
 
@@ -5668,6 +6204,7 @@ const robustness = quickRobustnessScore(result);
 console.log(`Grade: ${robustness.grade} (${robustness.compositeScore}/100)`);
 console.log(robustness.assessment);
 console.log(robustness.recommendations);
+console.log(robustness.dimensions); // { monteCarlo, tradeConsistency, drawdownResilience }
 ```
 
 **オプション:**
@@ -5699,6 +6236,7 @@ const robustness = calculateRobustnessScore(
     { name: "longMA", min: 20, max: 40, step: 5 },
   ],
 );
+console.log(`Grade: ${robustness.grade}`);
 ```
 
 **戻り値:** `RobustnessResult`（`compositeScore`、`grade`、`dimensions`、`assessment`、`recommendations` を含む）
@@ -5706,6 +6244,12 @@ const robustness = calculateRobustnessScore(
 ### `scoreToGrade(score)`
 
 数値スコア（0-100）をレターグレードに変換します。
+
+```typescript
+scoreToGrade(92); // "A+"
+scoreToGrade(75); // "B+"
+scoreToGrade(30); // "D"
+```
 
 グレードスケール: A+（90+）、A（80+）、B+（70+）、B（60+）、C+（50+）、C（40+）、D（25+）、F（<25）
 
@@ -5750,6 +6294,13 @@ if (result.cointegration.isCointegrated) {
 
 拡張Dickey-Fuller検定（定常性検定）。
 
+```typescript
+const result = adfTest(residuals);
+if (result.adfStatistic < result.criticalValues["5%"]) {
+  console.log("5%有意水準で定常です");
+}
+```
+
 **戻り値:** `{ adfStatistic, pValue, criticalValues: { "1%", "5%", "10%" }, lag }`
 
 ### `calculateSpread(seriesY, seriesX, hedgeRatio, intercept, times, options?)`
@@ -5791,6 +6342,7 @@ const analysis = analyzeCorrelation(
 console.log(`Average correlation: ${analysis.summary.avgCorrelation}`);
 console.log(`Current regime: ${analysis.summary.currentRegime}`);
 console.log(`Lead-lag: ${analysis.leadLag.assessment}`);
+console.log(`Divergences: ${analysis.divergences.length}`);
 ```
 
 **オプション:**
@@ -5831,6 +6383,11 @@ Spearman順位相関係数。
 ### `analyzeLeadLag(returnsA, returnsB, options?)`
 
 クロス相関を使用したリードラグ関係の分析。正の最適ラグはAがBをリード、負はBがAをリードすることを意味します。
+
+```typescript
+const result = analyzeLeadLag(returnsA, returnsB, { maxLag: 5 });
+console.log(`Optimal lag: ${result.optimalLag}`);
+```
 
 **戻り値:** `LeadLagResult`（`optimalLag`、`crossCorrelation`、`maxCorrelation`、`assessment` を含む）
 
@@ -5916,7 +6473,7 @@ const sma = livePresets.sma;
 
 // レジストリから指標をインスタンス化
 const factory = sma.createFactory({ period: 50 });
-const indicator = factory(undefined); // 既存 state なし
+const rsiIndicator = factory(undefined); // 既存 state なし
 ```
 
 **エントリー形式 (`LivePreset`):**
@@ -5937,11 +6494,12 @@ import { indicatorPresets } from "trendcraft";
 
 const rsi = indicatorPresets.rsi;
 
-// 静的モード — 一括計算
-const series = rsi.compute(candles, { period: 14 });
+// 静的モード — 一括計算。型上 `compute` はオプショナル（組み込みエントリーはすべて定義済み）
+const series = rsi.compute!(candles, { period: 14 });
 
-// ストリーミングモード — 同じレジストリから createFactory でインクリメンタル指標を生成
-const factory = rsi.createFactory({ period: 14 });
+// ストリーミングモード — バッチ専用エントリーには `createFactory` がないため
+// オプショナル呼び出し（または存在チェック）を使う
+const factory = rsi.createFactory?.({ period: 14 });
 ```
 
 **エントリー形式 (`IndicatorPreset`):** LivePreset と同形の `meta` / `defaultParams` / `snapshotName` を持つ独立型。`compute?` と `createFactory?` はともにオプショナル（少なくとも一方は定義。インクリメンタル未対応の指標は `compute` のみで、104 エントリー中 25 個は `createFactory` を持たない）。
@@ -5960,10 +6518,12 @@ const factory = rsi.createFactory({ period: 14 });
 任意の `Series<T>` に `__meta` プロパティを付与してドメインメタデータを載せます。組み込み指標はすべて既に tag 済み。自作指標でも下流の利用者（レンダラー、UI ジェネレーター等）に同じ規約で解釈させたい場合に `tagSeries` を使います。
 
 ```typescript
-import { tagSeries, rsi, type SeriesMeta } from "trendcraft";
+import { tagSeries, rsi, type SeriesMeta, type TaggedSeries } from "trendcraft";
 
 const r = rsi(candles, { period: 14 });
-r.__meta;
+// 指標のシグネチャ上の型は Series<T>。実行時に付与されるメタデータを読むには
+// TaggedSeries<T> にキャストします。
+(r as TaggedSeries<number | null>).__meta;
 // {
 //   kind: "rsi",
 //   label: "RSI(14)",
@@ -6063,7 +6623,8 @@ import { rsi, sma } from "trendcraft";
 try {
   const result = rsi(candles, { period: 14 });
 } catch (error) {
-  console.error(error.message);
+  // strict 設定では `error` は `unknown` — 使用前にナローイングする
+  console.error((error as Error).message);
 }
 ```
 
@@ -6115,6 +6676,202 @@ const result = toResult(() => someThrowingFunction(), "INDICATOR_ERROR");
 
 - **ライブラリ利用者**: 堅牢性のためSafeバージョンを推奨
 - **内部 / パフォーマンス重視のコード**: Throwバージョンを直接使用
+
+---
+
+## ワイコフ分析（VSA + フェーズ検出）
+
+### `vsa(candles, options?)`
+
+Volume Spread Analysis（出来高スプレッド分析） — 出来高・スプレッド・終値位置の関係から各バーを分類します。
+
+```typescript
+import { vsa } from "trendcraft";
+
+const vsaBars = vsa(candles, { volumeMaPeriod: 20, atrPeriod: 14 });
+const last = vsaBars[vsaBars.length - 1].value;
+// last.barType: 'noSupply' | 'noDemand' | 'stoppingVolume' | 'climacticAction'
+//             | 'test' | 'upthrust' | 'spring' | 'absorption'
+//             | 'effortUp' | 'effortDown' | 'normal'
+// last.spreadRelative: number（1.0 = 平均）
+// last.closePosition: number（0 = 安値、1 = 高値）
+// last.volumeRelative: number（1.0 = 平均）
+// last.isEffortDivergence: boolean
+```
+
+| オプション | デフォルト | 説明 |
+|--------|---------|-------------|
+| `volumeMaPeriod` | `20` | 出来高MA期間 |
+| `atrPeriod` | `14` | スプレッド正規化のATR期間 |
+| `highVolumeThreshold` | `1.5` | 「高出来高」の相対出来高閾値 |
+| `lowVolumeThreshold` | `0.7` | 「低出来高」の相対出来高閾値 |
+| `wideSpreadThreshold` | `1.2` | 「ワイドスプレッド」の相対スプレッド閾値 |
+| `narrowSpreadThreshold` | `0.7` | 「ナロースプレッド」の相対スプレッド閾値 |
+
+### `wyckoffPhases(candles, options?)`
+
+ワイコフフェーズ検出 — VSA・スイングポイント・BOS/CHoCHで駆動されるステートマシンにより、アキュミュレーション/ディストリビューションのフェーズとスキマティックイベントを特定します。
+
+```typescript
+import { wyckoffPhases } from "trendcraft";
+
+const phases = wyckoffPhases(candles, { swingPeriod: 5, minRangeBars: 20 });
+const last = phases[phases.length - 1].value;
+// last.phase: 'accumulation' | 'markup' | 'distribution' | 'markdown' | 'unknown'
+// last.event: 'PS' | 'SC' | 'AR' | 'ST' | 'spring' | 'SOS' | 'LPS' | ... | null
+// last.confidence: 0-100
+// last.eventsDetected: WyckoffEvent[]
+// last.rangeHigh / last.rangeLow: レンジ境界
+```
+
+| オプション | デフォルト | 説明 |
+|--------|---------|-------------|
+| `swingPeriod` | `5` | スイングポイント検出期間 |
+| `minRangeBars` | `20` | トレーディングレンジの最小バー数 |
+| `atrPeriod` | `14` | ATR期間 |
+| `volumeMaPeriod` | `20` | 出来高MA期間 |
+| `rangeTolerance` | `0.5` | レンジ境界許容のATR倍率 |
+
+---
+
+## メタ戦略（エクイティカーブトレーディング）
+
+### `applyEquityCurveFilter(result, options?)`
+
+エクイティカーブの健全性を分析してバックテスト結果をフィルタリングします。エクイティがMAを下回る、過大なドローダウン中、勝率が低い場合にトレードをスキップまたは縮小します。
+
+```typescript
+import { runBacktest, applyEquityCurveFilter } from "trendcraft";
+
+const result = runBacktest(candles, entry, exit, { capital: 100000 });
+const analysis = applyEquityCurveFilter(result, {
+  type: 'ma',
+  maPeriod: 10,
+  filteredSizeFactor: 0, // 0 = スキップ、0.5 = 半分のサイズ
+});
+console.log(analysis.tradesSkipped);
+console.log(analysis.improvement.maxDrawdown); // 正の値 = 改善
+```
+
+| オプション | デフォルト | 説明 |
+|--------|---------|-------------|
+| `type` | `'ma'` | フィルタータイプ: `'ma'`、`'drawdown'`、`'winRate'`、`'combined'` |
+| `maPeriod` | `20` | MA期間（トレード数単位） |
+| `maType` | `'sma'` | `'sma'` または `'ema'` |
+| `maxDrawdown` | `15` | 一時停止するドローダウン閾値（%、15 = 15%） |
+| `winRateWindow` | `20` | 勝率のローリングウィンドウ |
+| `minWinRate` | `40` | 継続に必要な最小勝率（%、40 = 40%） |
+| `filteredSizeFactor` | `0` | フィルター時のサイズ係数（0 = スキップ） |
+
+### `equityCurveHealth(result, options?)`
+
+戦略のエクイティカーブの現在の健全性を評価します。
+
+```typescript
+import { equityCurveHealth } from "trendcraft";
+
+const health = equityCurveHealth(result, { maPeriod: 10 });
+// health.aboveMa: boolean
+// health.currentDrawdown: 0-100（%、BacktestResult.maxDrawdownと同じ単位）
+// health.rollingWinRate: 0-100（%、BacktestResult.winRateと同じ単位）
+// health.healthScore: 0-100
+```
+
+### `rotateStrategies(results, options?)`
+
+複数の戦略を直近パフォーマンスでランク付けし、資金を配分します。
+
+```typescript
+import { rotateStrategies } from "trendcraft";
+
+const rotation = rotateStrategies([resultA, resultB, resultC], {
+  lookbackTrades: 20,
+  rankingMetric: 'returnPercent',
+  allocationMethod: 'proportional',
+});
+// rotation.allocations: [{ strategyIndex, weight, metricValue }]
+// rotation.rankings: [bestIdx, ..., worstIdx]
+```
+
+| オプション | デフォルト | 説明 |
+|--------|---------|-------------|
+| `lookbackTrades` | `20` | ランク付けに使う直近トレード数 |
+| `rankingMetric` | `'returnPercent'` | `'returnPercent'`、`'sharpeRatio'`、`'profitFactor'`、`'winRate'` |
+| `maxActiveStrategies` | 全戦略 | 配分する最大戦略数 |
+| `minAllocation` | `0.05` | 戦略あたりの最小配分 |
+| `allocationMethod` | `'proportional'` | `'equal'`、`'proportional'`、`'topN'` |
+
+---
+
+## リスク分析（VaR / CVaR / リスクパリティ）
+
+### `calculateVaR(returns, options?)`
+
+Value at Risk と Conditional VaR（期待ショートフォール）を計算します。
+
+```typescript
+import { calculateVaR } from "trendcraft";
+
+const result = calculateVaR(dailyReturns, {
+  confidence: 0.95,
+  method: 'historical', // 'historical' | 'parametric' | 'cornishFisher'
+});
+// result.var: 0.025（2.5%の潜在損失）
+// result.cvar: 0.035（VaR超過時の平均損失3.5%）
+// result.skewness, result.kurtosis
+```
+
+| オプション | デフォルト | 説明 |
+|--------|---------|-------------|
+| `confidence` | `0.95` | 信頼水準 |
+| `method` | `'historical'` | `'historical'`、`'parametric'`、`'cornishFisher'` |
+
+### `rollingVaR(returns, options?)`
+
+ローリングウィンドウでのVaR/CVaR計算。
+
+```typescript
+import { rollingVaR } from "trendcraft";
+
+const rolling = rollingVaR(dailyReturns, { window: 60, confidence: 0.95 });
+// rolling[i]: { var: number, cvar: number }
+```
+
+### `riskParityAllocation(returnsSeries, options?)`
+
+資産間のリスク寄与を均等化するリスクパリティ配分ウェイトを計算します。
+
+```typescript
+import { riskParityAllocation } from "trendcraft";
+
+const result = riskParityAllocation({
+  SPY: spyReturns,
+  TLT: tltReturns,
+  GLD: gldReturns,
+});
+// result.weights: { SPY: 0.20, TLT: 0.45, GLD: 0.35 }
+// result.riskContributions: ほぼ均等
+// result.portfolioVolatility: number
+// result.correlationMatrix: number[][]
+```
+
+### `correlationAdjustedSize(currentReturns, portfolioReturns, options)`
+
+既存ポートフォリオとの相関に基づいてポジションサイズを調整します。
+
+```typescript
+import { correlationAdjustedSize } from "trendcraft";
+
+const result = correlationAdjustedSize(stockReturns, [pos1Returns, pos2Returns], {
+  baseSize: 10000,
+  lowCorrelationThreshold: 0.3,
+  highCorrelationThreshold: 0.7,
+  minSizeFactor: 0.25,
+});
+// result.adjustedSize: 7500
+// result.sizeFactor: 0.75
+// result.averageCorrelation: 0.5
+```
 
 ---
 
@@ -6304,8 +7061,16 @@ import {
   CRYPTO_CALENDAR,     // 365
   FX_CALENDAR,         // 260
   annualizationFactor,
+  stressTest,
+  PRESET_SCENARIOS,
 } from "trendcraft";
 
+// 日本株戦略のSharpeは年245バーで計算
+const result = stressTest(dailyReturns, PRESET_SCENARIOS.covidCrash2020, 100_000, {
+  calendar: JPX_CALENDAR,
+});
+
+// 単一の情報源 — ボラティリティにはsqrt(N)、リターン指数にはN
 const N = annualizationFactor({ calendar: JPX_CALENDAR }); // 245
 ```
 
@@ -6622,13 +7387,13 @@ type ConditionSpec =
   | { op: "and" | "or" | "not"; conditions: ConditionSpec[] };
 
 // 例: and(goldenCrossCondition(5,25), rsiBelow(30))
-{
+const example: ConditionSpec = {
   "op": "and",
   "conditions": [
     { "name": "goldenCross", "params": { "shortPeriod": 5, "longPeriod": 25 } },
     { "name": "rsiBelow", "params": { "threshold": 30 } }
   ]
-}
+};
 ```
 
 ### 型

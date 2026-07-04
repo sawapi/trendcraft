@@ -54,7 +54,7 @@ function getRegimeSeries(
  * const entry = and(
  *   regimeNot('high'),
  *   regimeNot('extreme'),
- *   goldenCross()
+ *   goldenCrossCondition()
  * );
  * ```
  */

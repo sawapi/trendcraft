@@ -159,7 +159,7 @@ export function rsBelow(threshold = 1.0, options: RSConditionOptions = {}): Pres
  * @example
  * ```ts
  * // Buy when stock is gaining relative strength
- * const entry = and(goldenCross(), rsRising());
+ * const entry = and(goldenCrossCondition(), rsRising());
  * ```
  */
 export function rsRising(options: RSConditionOptions = {}): PresetCondition {

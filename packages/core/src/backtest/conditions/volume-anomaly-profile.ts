@@ -23,7 +23,7 @@ import type { PresetCondition, VolumeAnomalyValue, VolumeProfileValue } from "..
  * @example
  * ```ts
  * // Buy on golden cross with high volume
- * const entry = and(goldenCross(), volumeAnomalyCondition(2.0));
+ * const entry = and(goldenCrossCondition(), volumeAnomalyCondition(2.0));
  * ```
  */
 export function volumeAnomalyCondition(threshold = 2.0, period = 20): PresetCondition {

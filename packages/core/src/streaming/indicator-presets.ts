@@ -10,11 +10,11 @@
  *
  * const rsi = indicatorPresets.rsi;
  *
- * // Static mode — one-shot batch computation
- * const series = rsi.compute(candles, { period: 14 });
+ * // Static mode — one-shot batch computation (`compute` is optional per entry)
+ * const series = rsi.compute?.(candles, { period: 14 });
  *
  * // Streaming mode — build an incremental indicator from the same entry
- * const factory = rsi.createFactory({ period: 14 });
+ * const factory = rsi.createFactory?.({ period: 14 });
  * ```
  */
 

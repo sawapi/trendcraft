@@ -159,8 +159,8 @@ function precomputeIndicators(
  * ```ts
  * const config: ScoringConfig = {
  *   signals: [
- *     { name: "rsi", displayName: "RSI Oversold", weight: 2, evaluate: rsiOversoldEvaluator },
- *     { name: "macd", displayName: "MACD Bullish", weight: 1.5, evaluate: macdBullishEvaluator },
+ *     { name: "rsi", displayName: "RSI Oversold", weight: 2, evaluate: createRsiOversoldEvaluator() },
+ *     { name: "macd", displayName: "MACD Bullish", weight: 1.5, evaluate: createMacdBullishEvaluator() },
  *   ],
  * };
  *

@@ -36,10 +36,18 @@ export type StopPriceFunc = (entryCandle: NormalizedCandle, atr: number) => numb
  * @example
  * ```ts
  * // Limit order valid for today only
- * { orderType: { type: "limit", price: 100 }, timeInForce: "day" }
+ * const dayOrder: BacktestOptions = {
+ *   capital: 1_000_000,
+ *   orderType: { type: "limit", price: 100 },
+ *   timeInForce: "day",
+ * };
  *
  * // Fill or kill — all shares or nothing
- * { orderType: { type: "limit", price: 100 }, timeInForce: "fok" }
+ * const fokOrder: BacktestOptions = {
+ *   capital: 1_000_000,
+ *   orderType: { type: "limit", price: 100 },
+ *   timeInForce: "fok",
+ * };
  * ```
  */
 export type TimeInForce = "day" | "gtc" | "ioc" | "fok" | "opg" | "cls";

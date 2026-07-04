@@ -247,7 +247,7 @@ export function createPullbackEntryEvaluator(
  * Returns 1 when short MA crosses above long MA.
  * @example
  * ```ts
- * import { ScoreBuilder, createGoldenCrossEvaluator } from "trendcraft";
+ * import { ScoreBuilder } from "trendcraft";
  *
  * const config = ScoreBuilder.create()
  *   .addSignal({ name: "gc", displayName: "Golden Cross (50/200)", weight: 2.0, evaluate: createGoldenCrossEvaluator(50, 200) })

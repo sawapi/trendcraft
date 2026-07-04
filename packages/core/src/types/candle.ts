@@ -79,7 +79,7 @@ export type SeriesMeta = {
  *
  * @example
  * ```ts
- * const result = sma(candles, { period: 20 });
+ * const result = sma(candles, { period: 20 }) as TaggedSeries<number | null>;
  * result.__meta // { overlay: true, label: 'SMA 20' }
  * ```
  */

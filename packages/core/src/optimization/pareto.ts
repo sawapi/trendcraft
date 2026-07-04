@@ -387,7 +387,7 @@ export function paretoOptimizationSafe(
  *
  * @example
  * ```ts
- * console.log(summarizeParetoResult(result));
+ * console.log(summarizeParetoResult(paretoResult));
  * ```
  */
 export function summarizeParetoResult(result: ParetoResult): string {

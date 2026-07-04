@@ -69,7 +69,7 @@ export type Tunable = {
  *
  * @example
  * ```ts
- * const tunables = listTunables(strategy);
+ * const tunables = listTunables(strategyJson);
  * for (const t of tunables) {
  *   console.log(t.key, t.paramName, t.schema.default);
  * }

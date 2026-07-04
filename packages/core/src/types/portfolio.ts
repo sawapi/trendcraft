@@ -58,7 +58,11 @@ export type BatchBacktestOptions = Omit<BacktestOptions, "capital"> & {
    *
    * @example
    * ```ts
-   * allocations: { AAPL: 0.4, MSFT: 0.3, GOOG: 0.3 }
+   * const options: BatchBacktestOptions = {
+   *   capital: 3_000_000,
+   *   allocation: "custom",
+   *   allocations: { AAPL: 0.4, MSFT: 0.3, GOOG: 0.3 },
+   * };
    * ```
    */
   allocations?: Record<string, number>;

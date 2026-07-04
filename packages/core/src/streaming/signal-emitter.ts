@@ -69,7 +69,7 @@ export type SignalEmitter = {
  *   onSignal: (signal) => console.log(signal),
  * });
  *
- * for (const trade of trades) {
+ * for (const trade of tickStream) {
  *   emitter.onTrade(trade);
  * }
  * emitter.close();

@@ -194,7 +194,7 @@ export function fromPatternSignal(signal: PatternSignal, entryPrice?: number): T
  *
  * @example
  * ```ts
- * const breakdown = calculateScoreBreakdown(candles, signals, i);
+ * const breakdown = calculateScoreBreakdown(candles, i, config);
  * const signal = fromScoreResult(breakdown, candle.time, { minScore: 50 });
  * ```
  */

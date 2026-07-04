@@ -8,9 +8,9 @@
  *
  * @example
  * ```ts
- * import { ConditionRegistry, and, or, not } from "trendcraft";
+ * import { ConditionRegistry, and, or, not, goldenCrossCondition, type Condition } from "trendcraft";
  *
- * const registry = new ConditionRegistry();
+ * const registry = new ConditionRegistry<Condition>();
  * registry.register({
  *   name: "goldenCross",
  *   displayName: "Golden Cross",
@@ -19,7 +19,7 @@
  *     shortPeriod: { type: "number", default: 5, min: 1 },
  *     longPeriod: { type: "number", default: 25, min: 1 },
  *   },
- *   create: (p) => goldenCross(
+ *   create: (p) => goldenCrossCondition(
  *     (p.shortPeriod as number) ?? 5,
  *     (p.longPeriod as number) ?? 25,
  *   ),

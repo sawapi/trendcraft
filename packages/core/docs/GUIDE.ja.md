@@ -971,7 +971,7 @@ Mansfield RS < 0  →  RS弱まっている
 import { benchmarkRS, isOutperforming, rankByRS } from 'trendcraft';
 
 // ベンチマークに対するRS計算
-const rs = benchmarkRS(stockCandles, nikkei225Candles, { period: 52 });
+const rs = benchmarkRS(stockCandles, sp500Candles, { period: 52 });
 
 const latest = rs[rs.length - 1].value;
 console.log(`RS Rating: ${latest.rsRating}`);        // パーセンタイル（0-100）
@@ -1015,7 +1015,7 @@ const entry = and(
 // ベンチマーク付きバックテスト実行 — `benchmark` オプションでベンチマークのローソク足を渡す
 runBacktest(candles, entry, exit, {
   capital: 1000000,
-  benchmark: nikkei225Candles,
+  benchmark: sp500Candles,
 });
 ```
 
@@ -1266,29 +1266,27 @@ console.log(`勝率: ${result.winRate}%`);
 ```typescript
 import { rangeBound } from 'trendcraft';
 
-const rbData = rangeBound(candles);
+const rb = rangeBound(candles);
+const latest = rb[rb.length - 1].value;
 
-rbData.forEach(({ time, value }) => {
-  const { state, rangeScore, rangeHigh, rangeLow, trendReason } = value;
-
-  switch (state) {
-    case 'RANGE_CONFIRMED':
-      console.log(`${time}: レンジ確定 (${rangeLow} - ${rangeHigh})`);
-      break;
-    case 'RANGE_TIGHT':
-      console.log(`${time}: タイトレンジ - ブレイクアウト注意`);
-      break;
-    case 'BREAKOUT_RISK_UP':
-      console.log(`${time}: 上方ブレイクアウトリスク`);
-      break;
-    case 'BREAKOUT_RISK_DOWN':
-      console.log(`${time}: 下方ブレイクアウトリスク`);
-      break;
-    case 'TRENDING':
-      console.log(`${time}: トレンド中 (理由: ${trendReason})`);
-      break;
+// 現在の状態をチェック
+if (latest.state === 'RANGE_CONFIRMED') {
+  console.log('レンジ相場です');
+  console.log(`レンジ: ${latest.rangeLow} - ${latest.rangeHigh}`);
+  if (latest.pricePosition !== null) {
+    console.log(`ポジション: ${(latest.pricePosition * 100).toFixed(0)}%`);
   }
-});
+}
+
+// ブレイクアウトリスクに反応
+if (latest.state === 'BREAKOUT_RISK_UP') {
+  console.log('上方ブレイクアウトに注意！');
+}
+
+// トレンド判定の理由をデバッグ
+if (latest.trendReason === 'hhll') {
+  console.log('連続する高値切り上げ/安値切り上げによりトレンド中');
+}
 ```
 
 ### Range Score
@@ -1304,11 +1302,38 @@ rangeScore >= 85（tightRangeThreshold）かつ ADX <= 15 → RANGE_TIGHT（非�
 ### トレード戦略
 
 #### レンジトレード戦略
+
+サポート付近（pricePosition ≈ 0）で買い、レジスタンス付近（pricePosition ≈ 1）で売り：
+
+```typescript
+import { rangeBound, inRangeBound } from 'trendcraft';
+
+// 確定レンジの下限でエントリー
+const rb = rangeBound(candles);
+const last = rb[rb.length - 1].value;
+const isGoodEntry = last.state === 'RANGE_CONFIRMED'
+  && last.pricePosition !== null && last.pricePosition < 0.2;
+```
+
 - レンジ下限（`rangeLow`）で買い、上限（`rangeHigh`）で売り
 - レンジ幅の50%以上の利益目標
 - レンジ外に逃げた場合はストップロス
 
 #### ブレイクアウト戦略
+
+レンジ形成を待ち、ブレイクアウトを取引：
+
+```typescript
+import { rangeBreakout } from 'trendcraft';
+
+// バックテストのエントリー条件として使用
+const result = TrendCraft.from(candles)
+  .strategy()
+    .entry(rangeBreakout())  // レンジブレイクでエントリー
+    .exit(deadCrossCondition())
+  .backtest({ capital: 1000000 });
+```
+
 - `RANGE_TIGHT`または`BREAKOUT_RISK_*`で警戒態勢
 - ブレイクアウト方向にエントリー
 - 出来高増加で確認
@@ -1322,24 +1347,6 @@ rangeScore >= 85（tightRangeThreshold）かつ ADX <= 15 → RANGE_TIGHT（非�
 | `rangeBreakout()` | レンジからのブレイクアウトでエントリー |
 | `not(inRangeBound())` | レンジ相場ではない時のみエントリー（フィルター） |
 | `rangeForming()` | レンジ形成中にイグジット |
-
-```typescript
-import { TrendCraft, and, goldenCrossCondition, deadCrossCondition, rangeBreakout, inRangeBound, not } from 'trendcraft';
-
-// ブレイクアウト戦略
-const result1 = TrendCraft.from(candles)
-  .strategy()
-    .entry(rangeBreakout())
-    .exit(deadCrossCondition())
-  .backtest({ capital: 1000000 });
-
-// レンジ相場を避けるフィルター
-const result2 = TrendCraft.from(candles)
-  .strategy()
-    .entry(and(goldenCrossCondition(), not(inRangeBound())))
-    .exit(deadCrossCondition())
-  .backtest({ capital: 1000000 });
-```
 
 ### ポイント
 
@@ -1391,8 +1398,13 @@ chop.forEach(({ value }) => {
 ```typescript
 import { vwap } from 'trendcraft';
 
+// ±2σ、±3σバンドを追加
 const result = vwap(candles, { bandMultipliers: [2, 3] });
-// result[i].value.bands で ±2σ、±3σバンドにアクセス
+result.forEach(({ value }) => {
+  console.log(value.vwap);           // VWAP
+  console.log(value.upper, value.lower);  // ±1σバンド（常に含まれる）
+  console.log(value.bands);          // 2σ・3σの [{upper, lower}, {upper, lower}]
+});
 ```
 
 ### アンカードVWAP
@@ -1867,7 +1879,9 @@ import {
 
 // ATRを計算
 const atrValues = atr(candles, { period: 14 });
+// ウォームアップ期間中の ATR は null — 十分なデータが揃うまで処理を中断
 const currentAtr = atrValues[atrValues.length - 1].value;
+if (currentAtr === null) throw new Error('ATR の計算に十分なローソク足がありません');
 
 // ポジションサイズを計算
 const position = atrBasedSize({
@@ -2267,8 +2281,9 @@ import { livePresets, indicatorPresets } from 'trendcraft';
 const smaFactory = livePresets.sma.createFactory({ period: 50 });
 const smaIndicator = smaFactory(undefined);
 
-// `indicatorPresets` は一括計算用の `compute` も持つ
-const rsiSeries = indicatorPresets.rsi.compute(candles, { period: 14 });
+// `indicatorPresets` は一括計算用の `compute` も持つ。
+// 型上は `compute` はオプショナル（組み込みエントリーはすべて定義済み）。
+const rsiSeries = indicatorPresets.rsi.compute!(candles, { period: 14 });
 ```
 
 `livePresets` はストリーミング向け 84 エントリー、`indicatorPresets` はストリーミング + バッチ両対応の 104 エントリーです。
@@ -2278,10 +2293,12 @@ const rsiSeries = indicatorPresets.rsi.compute(candles, { period: 14 });
 組み込み指標の出力はすべて、表示規約（ラベル、価格スケールに重ねるか、Y 軸レンジ、参照線）を示す `__meta` プロパティを持ちます:
 
 ```typescript
-import { rsi } from 'trendcraft';
+import { rsi, type TaggedSeries } from 'trendcraft';
 
 const r = rsi(candles, { period: 14 });
-r.__meta; // { kind: 'rsi', label: 'RSI(14)', overlay: false, yRange: [0, 100], referenceLines: [30, 70] }
+// 指標のシグネチャ上の型は Series<T>。実行時に付与されるメタデータを読むには
+// TaggedSeries<T> にキャストします。
+(r as TaggedSeries<number | null>).__meta; // { kind: 'rsi', label: 'RSI(14)', overlay: false, yRange: [0, 100], referenceLines: [30, 70] }
 ```
 
 `kind` はパラメータ非依存の安定した識別子（`indicatorPresets` のキーと一致）— フィルタ用に `s.__meta?.kind === 'rsi'` のように使います。`label` は表示用で、パラメータで変化します。

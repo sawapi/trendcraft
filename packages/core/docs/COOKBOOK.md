@@ -421,10 +421,11 @@ const result = runBacktest(
 console.log(`Return: ${result.totalReturnPercent.toFixed(2)}%`);
 console.log(`Trades: ${result.tradeCount}`);
 
-// Check exit reasons
+// Check exit reasons (`exitReason` is undefined for still-open trades)
 const byReason = result.trades.reduce(
   (acc, t) => {
-    acc[t.exitReason] = (acc[t.exitReason] ?? 0) + 1;
+    const reason = t.exitReason ?? "open";
+    acc[reason] = (acc[reason] ?? 0) + 1;
     return acc;
   },
   {} as Record<string, number>,
@@ -473,17 +474,19 @@ console.log(result.indicators.rsi14);
 console.log(result.indicators.smaSpread_10_50);
 
 // Step 3: Dynamic plugin selection from config
+// Each entry closes over its own plugin + options, so the per-plugin option
+// types stay fully checked even though the list is heterogeneous.
 import { plugins } from "trendcraft";
 
 const pipeline = [
-  { plugin: plugins.sma, options: { period: 50 } },
-  { plugin: plugins.rsi, options: { period: 14 } },
-  { plugin: smaSpread, options: { fastPeriod: 5, slowPeriod: 20 } },
+  (t: TrendCraft) => t.use(plugins.sma, { period: 50 }),
+  (t: TrendCraft) => t.use(plugins.rsi, { period: 14 }),
+  (t: TrendCraft) => t.use(smaSpread, { fastPeriod: 5, slowPeriod: 20 }),
 ];
 
-let tc = TrendCraft.from(candles);
-for (const { plugin, options } of pipeline) {
-  tc = tc.use(plugin, options);
+let tc: TrendCraft = TrendCraft.from(candles);
+for (const step of pipeline) {
+  tc = step(tc);
 }
 const dynamicResult = tc.compute();
 console.log(Object.keys(dynamicResult.indicators));
@@ -609,14 +612,16 @@ import {
 
 const candles = normalizeCandles(rawCandles);
 
-// Transform: Normalize RSI to 0-1 range
+// Transform: Normalize RSI to 0-1 range (values are null during warm-up)
 const rsi14 = rsi(candles);
-const normalizedRsi = mapSeries(rsi14, (val) => val / 100);
+const normalizedRsi = mapSeries(rsi14, (val) => (val === null ? null : val / 100));
 
 // Combine: SMA spread
 const sma5 = sma(candles, { period: 5 });
 const sma25 = sma(candles, { period: 25 });
-const spread = zipSeries(sma5, sma25, (fast, slow) => fast - slow);
+const spread = zipSeries(sma5, sma25, (fast, slow) =>
+  fast !== null && slow !== null ? fast - slow : null,
+);
 
 // Complex merge: Create a composite signal
 const bb = bollingerBands(candles);
@@ -624,15 +629,15 @@ const composite = zipSeries(rsi14, bb, (rsiVal, bbVal) => ({
   rsi: rsiVal,
   percentB: bbVal.percentB,
   signal:
-    rsiVal < 30 && bbVal.percentB !== null && bbVal.percentB < 0
+    rsiVal !== null && rsiVal < 30 && bbVal.percentB !== null && bbVal.percentB < 0
       ? "strong_buy"
-      : rsiVal > 70 && bbVal.percentB !== null && bbVal.percentB > 1
+      : rsiVal !== null && rsiVal > 70 && bbVal.percentB !== null && bbVal.percentB > 1
         ? "strong_sell"
         : "neutral",
 }));
 
 // Filter: Find oversold moments
-const oversold = filterSeries(rsi14, (val) => val < 30);
+const oversold = filterSeries(rsi14, (val) => val !== null && val < 30);
 console.log(`Oversold points: ${oversold.length}`);
 
 // Align: Higher timeframe indicator to daily data

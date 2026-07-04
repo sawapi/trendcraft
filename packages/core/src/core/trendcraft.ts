@@ -388,10 +388,10 @@ export class TrendCraft<TIndicators extends Record<string, unknown> = {}> {
    * const result = TrendCraft.from(candles)
    *   .strategy()
    *   .entry((indicators, candle, i) => {
-   *     return indicators.goldenCross && indicators.rsi < 30;
+   *     return indicators.goldenCross === true && (indicators.rsi as number) < 30;
    *   })
    *   .exit((indicators, candle, i) => {
-   *     return indicators.deadCross || indicators.rsi > 70;
+   *     return indicators.deadCross === true || (indicators.rsi as number) > 70;
    *   })
    *   .backtest({ capital: 1000000 });
    * ```

@@ -1186,10 +1186,11 @@ Cumulative Volume Delta — estimates buying vs selling pressure by measuring wh
 
 ```typescript
 const cvdData = cvd(candles);
-const currentCvd = cvdData[i].value;
+const current = cvdData[cvdData.length - 1].value;
+const previous = cvdData[cvdData.length - 2].value;
 
 // CVD increasing = net buying pressure
-if (cvdData[i].value > cvdData[i - 1].value) {
+if (current !== null && previous !== null && current > previous) {
   // Buying pressure dominant
 }
 ```
@@ -1324,7 +1325,7 @@ const rs = benchmarkRS(stockCandles, sp500Candles, { period: 52 });
 
 // Find outperforming stocks
 const latest = rs[rs.length - 1];
-if (latest.value.rsRating > 80 && latest.value.trend === 'up') {
+if (latest.value.rsRating !== null && latest.value.rsRating > 80 && latest.value.trend === 'up') {
   console.log('Strong relative strength!');
 }
 ```
@@ -1953,6 +1954,7 @@ For each candle, determine which session it belongs to and track session OHLC.
 
 ```typescript
 const sessionData = detectSessions(candles);
+const i = sessionData.length - 1; // current bar index
 const bar = sessionData[i].value;
 if (bar.inSession) {
   console.log(`In ${bar.session}, high so far: ${bar.sessionHigh}`);
@@ -2029,6 +2031,7 @@ For each candle, determine if it falls within a kill zone.
 
 ```typescript
 const kz = killZones(candles);
+const i = kz.length - 1; // current bar index
 if (kz[i].value.inKillZone) {
   console.log(`In ${kz[i].value.zone}: ${kz[i].value.characteristic}`);
 }
@@ -2052,6 +2055,7 @@ Detect breakouts above/below the most recently completed session's range.
 
 ```typescript
 const breakouts = sessionBreakout(candles);
+const i = breakouts.length - 1; // current bar index
 if (breakouts[i].value.breakout === 'above') {
   console.log(`Broke above ${breakouts[i].value.fromSession} high at ${breakouts[i].value.rangeHigh}`);
 }
@@ -2430,7 +2434,7 @@ console.log(`State: ${latest.state}`);
 console.log(`Score: ${latest.rangeScore}/100`);
 
 // Check range boundaries
-if (latest.rangeHigh && latest.rangeLow) {
+if (latest.rangeHigh && latest.rangeLow && latest.pricePosition !== null) {
   console.log(`Range: ${latest.rangeLow} - ${latest.rangeHigh}`);
   console.log(`Position: ${(latest.pricePosition * 100).toFixed(0)}%`);
 }
@@ -2624,7 +2628,7 @@ const bearish = headAndShoulders(candles);
 const bullish = inverseHeadAndShoulders(candles);
 
 bearish.forEach(p => {
-  console.log(`H&S at ${new Date(p.time)}, neckline: ${p.pattern.neckline.currentPrice}`);
+  console.log(`H&S at ${new Date(p.time)}, neckline: ${p.pattern.neckline?.currentPrice}`);
 });
 ```
 
@@ -2948,11 +2952,23 @@ interface BacktestResult {
   winRate: number;                   // Win rate (%)
   maxDrawdown: number;               // Maximum drawdown (%)
   sharpeRatio: number;               // Sharpe ratio (annualized)
+  sortinoRatio: number;              // Sortino ratio (annualized, downside deviation)
+  calmarRatio: number;               // CAGR / max drawdown
+  cagrPercent: number;               // Compound annual growth rate (%)
+  expectancyPercent: number;         // Average per-trade return (%)
+  exposurePercent: number;           // Market exposure: time in position (%)
+  avgWinPercent: number;             // Average winning trade (%)
+  avgLossPercent: number;            // Average losing trade (%, positive value)
+  largestWinPercent: number;         // Largest winning trade (%)
+  largestLossPercent: number;        // Largest losing trade (%, positive value)
+  firstBarTime: number;              // First candle time (epoch ms)
+  lastBarTime: number;               // Last candle time (epoch ms)
   profitFactor: number;              // Profit factor
   avgHoldingDays: number;            // Average holding days
   trades: Trade[];                   // Trade details
   settings: BacktestSettings;        // Settings used (for reproducibility)
   drawdownPeriods: DrawdownPeriod[]; // Individual drawdown periods
+  equityCurve?: number[];            // Mark-to-market equity per candle close
 }
 
 interface DrawdownPeriod {
@@ -2969,12 +2985,15 @@ interface DrawdownPeriod {
 interface BacktestSettings {
   fillMode: FillMode;          // Order fill timing mode
   slTpMode: SlTpMode;          // SL/TP evaluation mode
+  direction?: PositionDirection; // Position direction (default: "long")
   stopLoss?: number;           // Stop loss percentage
   takeProfit?: number;         // Take profit percentage
   trailingStop?: number;       // Trailing stop percentage
   slippage: number;            // Slippage percentage
   commission: number;          // Fixed commission per trade
   commissionRate: number;      // Commission rate (%)
+  taxRate: number;             // Tax rate on profits (%)
+  sizing?: BacktestSizingConfigJSON | { method: "custom" }; // Sizing config used
 }
 
 interface Trade {
@@ -2985,6 +3004,13 @@ interface Trade {
   return: number;
   returnPercent: number;
   holdingDays: number;
+  direction?: PositionDirection; // Position direction (default: "long")
+  isPartial?: boolean;           // True when this row is a partial exit
+  exitPercent?: number;          // % of the original position sold in this exit
+  exitReason?: ExitReason;       // Why the trade was closed
+  mfe?: number;                  // Maximum favorable excursion (%)
+  mae?: number;                  // Maximum adverse excursion (%)
+  mfeUtilization?: number;       // Actual return / MFE
 }
 ```
 
@@ -3849,22 +3875,25 @@ Use these conditions to filter trades by market volatility environment.
 **Example:**
 
 ```typescript
-import { regimeIs, regimeNot, atrPercentAbove, and, goldenCrossCondition } from 'trendcraft';
+import {
+  regimeIs, regimeNot, atrPercentAbove, and,
+  goldenCrossCondition, rsiBelow, perfectOrderBullish,
+} from 'trendcraft';
 
 // Only enter trades in low volatility environment
-const entry = and(
+const lowVolEntry = and(
   regimeIs('low'),
   rsiBelow(30)
 );
 
 // Avoid extreme volatility
-const entry = and(
+const calmEntry = and(
   regimeNot('extreme'),
   goldenCrossCondition()
 );
 
 // Filter by ATR% for trend-following (volatile stocks only)
-const entry = and(
+const volatileEntry = and(
   atrPercentAbove(2.3),
   perfectOrderBullish()
 );
@@ -3978,9 +4007,9 @@ an exactly-median winner counts as neutral rather than overfit.)
 ```typescript
 import { pbo } from 'trendcraft';
 
-// returns[t][n] = period-t return of the n-th parameter combination,
+// comboReturns[t][n] = period-t return of the n-th parameter combination,
 // e.g. per-bar or per-week returns collected for every grid-search combo
-const result = pbo(returns, { blocks: 10 });
+const result = pbo(comboReturns, { blocks: 10 });
 
 console.log(`PBO: ${(result.pbo * 100).toFixed(1)}%`);   // ≥50% → selection is chance
 console.log(`Splits evaluated: ${result.combinations}`);  // C(10, 5) = 252
@@ -4037,11 +4066,11 @@ const ranges: PathParameterRange[] = [
   { path: 'entry.0.params.period', min: 10, max: 30, step: 5 },
 ];
 
-const grid = gridSearchFromJSON(candles, strategy, ranges, backtestRegistry, {
+const grid = gridSearchFromJSON(candles, strategyJson, ranges, backtestRegistry, {
   metric: 'sharpe',
 });
 
-const wf = walkForwardAnalysisFromJSON(candles, strategy, ranges, backtestRegistry, {
+const wf = walkForwardAnalysisFromJSON(candles, strategyJson, ranges, backtestRegistry, {
   windowSize: 252,
   stepSize: 63,
   testSize: 63,
@@ -4131,7 +4160,7 @@ import {
 } from 'trendcraft';
 
 // Calculate individual metrics
-const sharpe = calculateSharpeRatio(returns, riskFreeRate);
+const sharpe = calculateSharpeRatio(dailyReturns, riskFreeRate);
 const calmar = calculateCalmarRatio(annualizedReturnPercent, maxDrawdownPercent);
 const recovery = calculateRecoveryFactor(netProfit, maxDrawdown);
 
@@ -4189,6 +4218,10 @@ const mcResult = runMonteCarloSimulation(backtestResult, {
 });
 
 console.log(formatMonteCarloResult(mcResult));
+
+// Check downside risk
+console.log('Prob. of profit:', mcResult.downside.probProfit);
+console.log('Risk of ruin:', mcResult.downside.riskOfRuin);
 ```
 
 **How it works:**
@@ -4275,7 +4308,7 @@ console.log(stats.median);  // 3
 
 ---
 
-### `anchoredWalkForwardAnalysis(candles, entryPool, exitPool, options)`
+### `anchoredWalkForwardAnalysis(candles, entryConditions, exitConditions, options)`
 
 Anchored Walk-Forward (AWF) analysis for robust strategy validation. Unlike rolling walk-forward, AWF keeps the training start date fixed and progressively expands the training period.
 
@@ -4374,11 +4407,14 @@ import {
   getAWFEquityCurve
 } from 'trendcraft';
 
-// Calculate how many periods will be generated
-const count = calculateAWFPeriodCount(candles.length, 0, 504, 252, 252);
+// Calculate how many periods will be generated (positional args)
+const anchorDate = new Date('2015-01-01').getTime();
+const anchorIndex = candles.findIndex((c) => c.time >= anchorDate);
+const count = calculateAWFPeriodCount(candles.length, anchorIndex, 504, 252, 252);
+// From an options object instead: generateAWFBoundaries(candles, awfOptions).length
 
 // Get boundaries without running full analysis
-const boundaries = generateAWFBoundaries(candles, options);
+const boundaries = generateAWFBoundaries(candles, awfOptions);
 
 // Get summary
 const summary = summarizeAWFResult(awfResult);
@@ -4762,8 +4798,13 @@ const isEntry = evaluateStreamingCondition(entryCondition, snapshot, candle);
 You can also pass a plain function as a condition:
 
 ```typescript
-const customCondition = (snapshot, candle) => {
-  return candle.close > 100 && snapshot.rsi < 50;
+import { streaming } from "trendcraft";
+
+// Snapshot values are `unknown` (keyed by each indicator's snapshot name), so
+// narrow them before comparing.
+const customCondition: streaming.StreamingConditionFn = (snapshot, candle) => {
+  const rsi = snapshot.rsi as number | null;
+  return candle.close > 100 && rsi !== null && rsi < 50;
 };
 ```
 
@@ -5305,7 +5346,7 @@ Converts a `ScoreBreakdown` to a `TradeSignal`. Returns `null` if below threshol
 ```typescript
 import { fromScoreResult } from 'trendcraft';
 
-const breakdown = calculateScoreBreakdown(candles, i, config); // config: ScoringConfig, e.g. { signals: [...] }
+const breakdown = calculateScoreBreakdown(candles, candles.length - 1, config); // config: ScoringConfig, e.g. { signals: [...] }
 const signal = fromScoreResult(breakdown, candle.time, { minScore: 50, entryPrice: 100 });
 ```
 
@@ -5433,9 +5474,9 @@ const restored = createSignalManager(options, state);
 Applies lifecycle rules to an array of signals at once. Useful for backtest post-processing.
 
 ```typescript
-import { processSignalsBatch } from 'trendcraft';
+import { processSignalsBatch, type TradeSignal } from 'trendcraft';
 
-const allSignals = [/* signals from backtest */];
+const allSignals: TradeSignal[] = [/* signals from backtest */];
 const filtered = processSignalsBatch(allSignals, { cooldown: { bars: 3 } });
 // Removes duplicate signals within 3-bar windows
 ```
@@ -5654,7 +5695,7 @@ console.log(`5% hit rate: ${projection.hitRates.find(h => h.threshold === 5)?.ra
 Convenience wrapper for `PatternSignal[]`. Automatically detects direction from pattern type (double_top/head_shoulders → bearish, others → bullish).
 
 ```typescript
-import { projectFromPatterns, doubleTop, doubleBottom } from 'trendcraft';
+import { projectFromPatterns, doubleTop } from 'trendcraft';
 
 const tops = doubleTop(candles);
 const projection = projectFromPatterns(candles, tops); // auto bearish
@@ -5880,11 +5921,15 @@ import { TrendCraft, plugins } from "trendcraft";
 // Equivalent to .sma(50)
 TrendCraft.from(candles).use(plugins.sma, { period: 50 });
 
-// Dynamic plugin selection
-const selected = [plugins.sma, plugins.rsi];
-let tc = TrendCraft.from(candles);
-for (const p of selected) {
-  tc = tc.use(p);
+// Dynamic plugin selection — each step closes over its own plugin so the
+// per-plugin option types stay checked across a heterogeneous list
+const steps = [
+  (t: TrendCraft) => t.use(plugins.sma),
+  (t: TrendCraft) => t.use(plugins.rsi),
+];
+let tc: TrendCraft = TrendCraft.from(candles);
+for (const step of steps) {
+  tc = step(tc);
 }
 const result = tc.compute();
 ```
@@ -6498,11 +6543,13 @@ import { indicatorPresets } from "trendcraft";
 
 const rsi = indicatorPresets.rsi;
 
-// Static mode — one-shot computation
-const series = rsi.compute(candles, { period: 14 });
+// Static mode — one-shot computation. `compute` is optional in the entry
+// type; every built-in entry defines it.
+const series = rsi.compute!(candles, { period: 14 });
 
-// Streaming mode — use createFactory for incremental updates
-const factory = rsi.createFactory({ period: 14 });
+// Streaming mode — `createFactory` is absent on batch-only entries, so use
+// an optional call (or check for its presence first).
+const factory = rsi.createFactory?.({ period: 14 });
 ```
 
 **Entry shape (`IndicatorPreset` extends `LivePreset`):**
@@ -6522,10 +6569,12 @@ At least one of `compute` or `createFactory` is always defined. All 104 entries 
 Attach domain metadata to any `Series<T>` via a `__meta` property. Every built-in indicator already tags its output. Use `tagSeries` on your own indicators if you want downstream consumers (renderers, UI generators, etc.) to pick up the same conventions.
 
 ```typescript
-import { tagSeries, rsi, type SeriesMeta } from "trendcraft";
+import { tagSeries, rsi, type SeriesMeta, type TaggedSeries } from "trendcraft";
 
 const r = rsi(candles, { period: 14 });
-r.__meta;
+// Indicator signatures are typed as Series<T>; cast to TaggedSeries<T> to read
+// the runtime-attached metadata.
+(r as TaggedSeries<number | null>).__meta;
 // {
 //   kind: "rsi",
 //   label: "RSI(14)",
@@ -6625,7 +6674,8 @@ import { rsi, sma } from "trendcraft";
 try {
   const result = rsi(candles, { period: 14 });
 } catch (error) {
-  console.error(error.message);
+  // `error` is `unknown` under strict settings — narrow before use
+  console.error((error as Error).message);
 }
 ```
 
@@ -7391,13 +7441,13 @@ type ConditionSpec =
   | { op: "and" | "or" | "not"; conditions: ConditionSpec[] };
 
 // Example: and(goldenCrossCondition(5,25), rsiBelow(30))
-{
+const example: ConditionSpec = {
   "op": "and",
   "conditions": [
     { "name": "goldenCross", "params": { "shortPeriod": 5, "longPeriod": 25 } },
     { "name": "rsiBelow", "params": { "threshold": 30 } }
   ]
-}
+};
 ```
 
 ### Types

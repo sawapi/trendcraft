@@ -110,10 +110,10 @@ export type PartialTakeProfitConfig = {
  * @example
  * ```ts
  * // Move stop to breakeven after +3% gain
- * breakevenStop: { threshold: 3 }
+ * const breakeven: BreakevenStopConfig = { threshold: 3 };
  *
  * // Move stop to +0.5% above entry after +3% gain
- * breakevenStop: { threshold: 3, buffer: 0.5 }
+ * const breakevenBuffered: BreakevenStopConfig = { threshold: 3, buffer: 0.5 };
  * ```
  */
 export type BreakevenStopConfig = {
@@ -158,10 +158,10 @@ export type ScaleOutConfig = {
  * @example
  * ```ts
  * // Exit after 20 days regardless of P&L
- * timeExit: { maxHoldDays: 20 }
+ * const timeExit: TimeExitConfig = { maxHoldDays: 20 };
  *
  * // Exit after 20 days only if P&L is within ±2%
- * timeExit: { maxHoldDays: 20, onlyIfFlat: { threshold: 2 } }
+ * const timeExitFlat: TimeExitConfig = { maxHoldDays: 20, onlyIfFlat: { threshold: 2 } };
  * ```
  */
 export type TimeExitConfig = {

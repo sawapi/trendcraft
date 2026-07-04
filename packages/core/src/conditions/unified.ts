@@ -152,7 +152,8 @@ export function defineUnifiedCondition(def: UnifiedConditionDef): UnifiedConditi
  *
  * @example
  * ```ts
- * const entry = unifiedAnd(rsiOversold, volumeSpike);
+ * // oversoldCond / volumeSpikeCond: conditions from defineUnifiedCondition
+ * const entry = unifiedAnd(oversoldCond, volumeSpikeCond);
  * const bt = entry.toBacktestCondition();
  * const st = entry.toStreamingCondition();
  * ```
@@ -175,7 +176,7 @@ export function unifiedAnd(...conditions: UnifiedCondition[]): UnifiedCondition 
  *
  * @example
  * ```ts
- * const exit = unifiedOr(rsiOverbought, stopLossHit);
+ * const exit = unifiedOr(overboughtCond, stopLossCond);
  * ```
  */
 export function unifiedOr(...conditions: UnifiedCondition[]): UnifiedCondition {
@@ -196,7 +197,7 @@ export function unifiedOr(...conditions: UnifiedCondition[]): UnifiedCondition {
  *
  * @example
  * ```ts
- * const notOverbought = unifiedNot(rsiOverbought);
+ * const notOverbought = unifiedNot(overboughtCond);
  * ```
  */
 export function unifiedNot(condition: UnifiedCondition): UnifiedCondition {

@@ -304,7 +304,8 @@ export function makeSnapshot<TState>(
  *
  * @example
  * ```ts
- * const { params } = resolveResume<SmaParams, SmaState>({
+ * type SmaParams = { period?: number; source?: string };
+ * const { params } = resolveResume<SmaParams, unknown>({
  *   indicator: "sma",
  *   defaults: { source: "close" }, // no `period` default
  *   ...
@@ -313,7 +314,7 @@ export function makeSnapshot<TState>(
  *   "sma",
  *   params,
  *   "period",
- *   (v): v is number => Number.isInteger(v) && v >= 1,
+ *   (v) => Number.isInteger(v) && v >= 1,
  *   "must be a positive integer",
  * );
  * ```

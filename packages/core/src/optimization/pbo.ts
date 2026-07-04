@@ -113,8 +113,8 @@ function binomial(n: number, k: number): number {
  * ```ts
  * import { pbo } from "trendcraft";
  *
- * // returns[t][n]: period-t return of the n-th parameter combination
- * const { pbo: probability, combinations } = pbo(returns, { blocks: 10 });
+ * // returnsMatrix[t][n]: period-t return of the n-th parameter combination
+ * const { pbo: probability, combinations } = pbo(returnsMatrix, { blocks: 10 });
  * console.log(`PBO ${(probability * 100).toFixed(1)}% over ${combinations} splits`);
  * // PBO ≥ ~50% → the in-sample winner is indistinguishable from chance OOS
  * ```

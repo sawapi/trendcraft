@@ -93,7 +93,7 @@ export function gridSearchFromJSON(
  *
  * @example
  * ```ts
- * const result = gridSearchFromJSONSafe(candles, strategy, ranges, registry);
+ * const result = gridSearchFromJSONSafe(candles, strategyJson, pathRanges, backtestRegistry);
  * if (result.ok) {
  *   console.log(result.value.bestParams);
  * } else {

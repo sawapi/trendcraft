@@ -170,7 +170,7 @@ export function drawdownDistribution(drawdownDepths: number[], numBins = 10): Dr
  * ```ts
  * import { conditionalDrawdown } from "trendcraft";
  *
- * const result = conditionalDrawdown(returns, drawdowns, volatilities);
+ * const result = conditionalDrawdown(dailyReturns, drawdowns, volatilities);
  * console.log(`High-vol avg DD: ${result.highVolatility.avgDepth}%`);
  * console.log(`Trending avg DD: ${result.trending.avgDepth}%`);
  * ```
