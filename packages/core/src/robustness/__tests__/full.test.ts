@@ -377,6 +377,82 @@ describe("calculateRobustnessScore", () => {
     expect(result.compositeScore).toBeLessThanOrEqual(100);
   });
 
+  /** Shared fixture for the perturbation-sampling tests below. */
+  const makeSensitivityFixture = () => {
+    const candles = generateCandles(200, 42);
+
+    const createStrategy = (params: Record<string, number>) => ({
+      entry: and(goldenCross(params.shortMA, params.longMA)),
+      exit: and(deadCross(params.shortMA, params.longMA)),
+      options: { capital: 100000 as const },
+    });
+
+    const paramRanges = [
+      { name: "shortMA", min: 3, max: 7, step: 2 },
+      { name: "longMA", min: 15, max: 25, step: 5 },
+    ];
+
+    const original = runBacktest(candles, and(goldenCross(5, 20)), and(deadCross(5, 20)), {
+      capital: 100000,
+    });
+
+    const baseOptions = {
+      monteCarloSimulations: 10,
+      walkForwardWindowSize: 80,
+      walkForwardStepSize: 40,
+      walkForwardTestSize: 30,
+      seed: 42,
+    };
+
+    return { candles, createStrategy, paramRanges, original, baseOptions };
+  };
+
+  it("draws perturbationSamples random samples for sensitivity analysis", () => {
+    const { candles, createStrategy, paramRanges, original, baseOptions } =
+      makeSensitivityFixture();
+
+    // Default sample count is 10
+    const defaultResult = calculateRobustnessScore(
+      candles,
+      original,
+      createStrategy,
+      paramRanges,
+      baseOptions,
+    );
+    expect(defaultResult.dimensions.parameterSensitivity.detail).toContain("(10 samples)");
+
+    // Explicit sample count is honored
+    const explicit = calculateRobustnessScore(candles, original, createStrategy, paramRanges, {
+      ...baseOptions,
+      perturbationSamples: 5,
+    });
+    expect(explicit.dimensions.parameterSensitivity.detail).toContain("(5 samples)");
+
+    // Same seed → identical sensitivity score (sampling is seeded)
+    const repeat = calculateRobustnessScore(candles, original, createStrategy, paramRanges, {
+      ...baseOptions,
+      perturbationSamples: 5,
+    });
+    expect(repeat.dimensions.parameterSensitivity.score).toBe(
+      explicit.dimensions.parameterSensitivity.score,
+    );
+  });
+
+  it("returns neutral sensitivity score when perturbationSamples is below 3", () => {
+    const { candles, createStrategy, paramRanges, original, baseOptions } =
+      makeSensitivityFixture();
+
+    const result = calculateRobustnessScore(candles, original, createStrategy, paramRanges, {
+      ...baseOptions,
+      perturbationSamples: 2,
+    });
+
+    expect(result.dimensions.parameterSensitivity.score).toBe(50);
+    expect(result.dimensions.parameterSensitivity.detail).toContain(
+      "Insufficient perturbation samples",
+    );
+  });
+
   it("does not skip integer parameter neighborhoods during sensitivity analysis", () => {
     const candles = generateCandles(200, 42);
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});

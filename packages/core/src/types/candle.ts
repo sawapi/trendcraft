@@ -227,8 +227,13 @@ export type AtrOptions = {
  * Options for Highest/Lowest calculation
  */
 export type HighestLowestOptions = {
+  /** Lookback period (required) */
   period: number;
-  source?: "high" | "low" | "close";
+  /**
+   * Price source both extremes are computed from. When omitted, highest uses
+   * candle highs and lowest uses candle lows (default behavior).
+   */
+  source?: PriceSource;
 };
 
 /**

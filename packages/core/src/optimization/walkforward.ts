@@ -16,6 +16,7 @@ import type {
   WalkForwardResult,
 } from "../types/optimization";
 import { err, ok, type Result, tcError } from "../types/result";
+import { DEFAULT_BACKTEST_CAPITAL } from "./constants";
 import { generateParameterCombinations, gridSearch, type StrategyFactory } from "./grid-search";
 import { calculateAllMetrics } from "./metrics";
 
@@ -235,7 +236,7 @@ export function walkForwardAnalysis(
     // Run backtest on training data with best params
     const trainStrategy = createStrategy(bestParams);
     const trainBacktest = runBacktest(trainCandles, trainStrategy.entry, trainStrategy.exit, {
-      capital: 100000,
+      capital: DEFAULT_BACKTEST_CAPITAL,
       ...trainStrategy.options,
     });
     const inSampleMetrics = calculateAllMetrics(trainBacktest, trainCandles);
@@ -243,7 +244,7 @@ export function walkForwardAnalysis(
     // Run backtest on test data with same params
     const testStrategy = createStrategy(bestParams);
     const testBacktest = runBacktest(testCandles, testStrategy.entry, testStrategy.exit, {
-      capital: 100000,
+      capital: DEFAULT_BACKTEST_CAPITAL,
       ...testStrategy.options,
     });
     const outOfSampleMetrics = calculateAllMetrics(testBacktest, testCandles);

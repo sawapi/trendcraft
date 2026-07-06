@@ -6,7 +6,10 @@
  * Requires candles, strategy definition, and parameter ranges.
  */
 
-import { gridSearch } from "../optimization/grid-search";
+import { runBacktest } from "../backtest";
+import { IndicatorCache } from "../core/indicator-cache";
+import { mulberry32 } from "../core/random";
+import { DEFAULT_BACKTEST_CAPITAL } from "../optimization/constants";
 import { runMonteCarloSimulation } from "../optimization/monte-carlo";
 import { walkForwardAnalysis } from "../optimization/walkforward";
 import type { BacktestOptions, BacktestResult, NormalizedCandle } from "../types";
@@ -17,10 +20,6 @@ import { scoreToGrade } from "./grade";
 
 function isIntegerRange(range: ParameterRange): boolean {
   return Number.isInteger(range.min) && Number.isInteger(range.max) && Number.isInteger(range.step);
-}
-
-function clampToRange(value: number, range: ParameterRange): number {
-  return Math.min(range.max, Math.max(range.min, value));
 }
 
 /**
@@ -200,45 +199,81 @@ function scoreParameterSensitivity(
   try {
     // Create narrow ranges around the midpoint for perturbation analysis
     const perturbPct = (options.perturbationPercent ?? 20) / 100;
+    const sampleCount = options.perturbationSamples ?? 10;
+    const random = options.seed !== undefined ? mulberry32(options.seed) : Math.random;
 
     const narrowRanges = ranges.map((r) => {
       const mid = (r.min + r.max) / 2;
       const range = (r.max - r.min) * perturbPct;
-      const min = Math.max(r.min, mid - range / 2);
-      const max = Math.min(r.max, mid + range / 2);
-
-      if (isIntegerRange(r)) {
-        return {
-          name: r.name,
-          min: clampToRange(Math.round(min), r),
-          max: clampToRange(Math.round(max), r),
-          step: r.step,
-        };
-      }
-
       return {
         name: r.name,
-        min,
-        max,
-        step: r.step,
+        isInt: isIntegerRange(r),
+        min: Math.max(r.min, mid - range / 2),
+        max: Math.min(r.max, mid + range / 2),
       };
     });
 
-    const gs = gridSearch(candles, createStrategy, narrowRanges, {
-      metric: "sharpe",
-    });
+    // Randomly sample parameter sets within the perturbation neighborhood
+    // and backtest each. Random sampling (vs. a grid) keeps the sample
+    // count independent of the ranges' step sizes. Integer rounding can
+    // collapse nearby draws to the same params, so identical sets reuse
+    // their result instead of rerunning the backtest.
+    const cache = new IndicatorCache();
+    const evaluated = new Map<string, { sharpe: number; profitable: boolean } | null>();
+    const sharpes: number[] = [];
+    let profitableCount = 0;
 
-    if (gs.results.length < 3) {
+    for (let i = 0; i < sampleCount; i++) {
+      const params: Record<string, number> = {};
+      for (const nr of narrowRanges) {
+        const raw = nr.min + random() * (nr.max - nr.min);
+        params[nr.name] = nr.isInt ? Math.round(raw) : raw;
+      }
+
+      const key = narrowRanges.map((nr) => params[nr.name]).join(",");
+      let sample = evaluated.get(key);
+      if (sample === undefined) {
+        try {
+          const strategy = createStrategy(params);
+          const backtest = runBacktest(
+            candles,
+            strategy.entry,
+            strategy.exit,
+            {
+              capital: DEFAULT_BACKTEST_CAPITAL,
+              ...strategy.options,
+            },
+            cache,
+          );
+          sample = {
+            sharpe: backtest.sharpeRatio,
+            profitable: backtest.totalReturnPercent > 0,
+          };
+        } catch {
+          // Skip samples whose strategy or backtest fails
+          sample = null;
+        }
+        evaluated.set(key, sample);
+      }
+
+      if (sample !== null) {
+        sharpes.push(sample.sharpe);
+        if (sample.profitable) {
+          profitableCount++;
+        }
+      }
+    }
+
+    if (sharpes.length < 3) {
       return {
         name: "Parameter Sensitivity",
         score: 50,
         weight: 0.25,
-        detail: "Insufficient parameter combinations",
+        detail: "Insufficient perturbation samples",
       };
     }
 
     // Calculate coefficient of variation of Sharpe ratios
-    const sharpes = gs.results.map((r) => r.backtest.sharpeRatio);
     const mean = sharpes.reduce((a, b) => a + b, 0) / sharpes.length;
     const stdDev = Math.sqrt(sharpes.reduce((a, v) => a + (v - mean) ** 2, 0) / sharpes.length);
     const cv = mean !== 0 ? stdDev / Math.abs(mean) : 10;
@@ -247,9 +282,8 @@ function scoreParameterSensitivity(
     // CV < 0.2 = very stable (100), CV > 1.0 = very sensitive (0)
     const cvScore = Math.max(0, Math.min(100, ((1.0 - cv) / 0.8) * 100));
 
-    // Also check what fraction of parameter combos are profitable
-    const profitableCount = gs.results.filter((r) => r.backtest.totalReturnPercent > 0).length;
-    const profitableRate = profitableCount / gs.results.length;
+    // Also check what fraction of parameter samples are profitable
+    const profitableRate = profitableCount / sharpes.length;
     const profitableScore = profitableRate * 100;
 
     const finalScore = cvScore * 0.6 + profitableScore * 0.4;
@@ -258,7 +292,7 @@ function scoreParameterSensitivity(
       name: "Parameter Sensitivity",
       score: Math.round(Math.max(0, Math.min(100, finalScore)) * 10) / 10,
       weight: 0.25,
-      detail: `CV: ${cv.toFixed(3)}, ${(profitableRate * 100).toFixed(0)}% profitable in neighborhood`,
+      detail: `CV: ${cv.toFixed(3)}, ${(profitableRate * 100).toFixed(0)}% profitable in neighborhood (${sharpes.length} samples)`,
     };
   } catch {
     return {

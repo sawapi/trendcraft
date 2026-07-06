@@ -18,6 +18,7 @@ import type {
   ParetoResultEntry,
 } from "../types/optimization";
 import { err, ok, type Result, tcError } from "../types/result";
+import { DEFAULT_BACKTEST_CAPITAL } from "./constants";
 import { generateParameterCombinations, type StrategyFactory } from "./grid-search";
 import { calculateAllMetrics, checkConstraint, getMetricValue } from "./metrics";
 
@@ -251,7 +252,7 @@ export function paretoOptimization(
     try {
       const { entry, exit, options: btOptions } = createStrategy(params);
       const backtestOptions: BacktestOptions = {
-        capital: 100000,
+        capital: DEFAULT_BACKTEST_CAPITAL,
         ...btOptions,
       };
       const result = runBacktest(candles, entry, exit, backtestOptions, cache);
