@@ -104,8 +104,6 @@ export type ScreeningOptions = {
   minDataPoints?: number;
   /** Filter by ATR% threshold (default: no filter) */
   minAtrPercent?: number;
-  /** Maximum concurrent file processing (default: 10) */
-  concurrency?: number;
   /** Include full candle data in results (default: false) */
   includeCandles?: boolean;
   /** Higher timeframes to make available to MTF conditions (e.g. `["1w"]`) */

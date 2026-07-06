@@ -10,8 +10,6 @@ import type { FundamentalMetrics } from "../types";
  * Parse options for fundamentals CSV
  */
 export type ParseFundamentalsOptions = {
-  /** Encoding for CSV content (default: 'utf-8') */
-  encoding?: "utf-8" | "shift-jis";
   /** Column index for PER (0-based, default: 7) */
   perColumn?: number;
   /** Column index for PBR (0-based, default: 8) */

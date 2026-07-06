@@ -106,7 +106,9 @@ describe("doc snippets — execute (Tier 2)", () => {
   });
 
   for (const s of runnable) {
-    it(`${s.file} #${s.index} runs without throwing`, async () => {
+    // The first snippet pays the full transform/import cost of the source
+    // entry, which can exceed the default 5s timeout on a loaded machine.
+    it(`${s.file} #${s.index} runs without throwing`, { timeout: 30_000 }, async () => {
       mkdirSync(tmpDir, { recursive: true });
       const moduleSrc = `${FIXTURE_PREAMBLE}\n${rewriteImports(s.code)}\n`;
       const file = path.join(tmpDir, `${s.file.replace(/\W/g, "_")}_${s.index}.ts`);

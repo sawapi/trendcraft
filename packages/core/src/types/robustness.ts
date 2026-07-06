@@ -42,7 +42,10 @@ export type RobustnessOptions = {
   monteCarloSimulations?: number;
   /** Parameter perturbation range in percent (default: 20) */
   perturbationPercent?: number;
-  /** Number of perturbation samples (default: 10) */
+  /**
+   * Number of random parameter samples drawn within the perturbation
+   * neighborhood for the sensitivity dimension (default: 10)
+   */
   perturbationSamples?: number;
   /** Walk-Forward window size in candles (default: 252) */
   walkForwardWindowSize?: number;
@@ -57,7 +60,7 @@ export type RobustnessOptions = {
     walkForward?: number;
     regimeConsistency?: number;
   };
-  /** Random seed for reproducibility */
+  /** Random seed for Monte Carlo and perturbation sampling reproducibility */
   seed?: number;
   /** Progress callback */
   progressCallback?: (phase: string, progress: number) => void;
