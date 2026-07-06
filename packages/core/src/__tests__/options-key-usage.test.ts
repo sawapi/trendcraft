@@ -54,26 +54,6 @@ const SRC_ROOT = path.resolve(here, ".."); // packages/core/src
 // removed from here, not parked forever.
 // ---------------------------------------------------------------------------
 const ALLOWLIST: Record<string, string[]> = {
-  // LATENT BUG (flagged 2026-07): parseFundamentals() takes an already-decoded
-  // string, so `encoding` ("default: utf-8") is never read. Wire it up (accept
-  // a Buffer) or remove the key.
-  ParseFundamentalsOptions: ["encoding"],
-  // LATENT BUG (flagged 2026-07): documented as "softmax temperature for
-  // inference (default: 1.0)" but trainCandleFormer() never reads it and does
-  // not propagate it into the trained model/config; inference uses predict()'s
-  // own parameter. Setting it in train options silently does nothing.
-  CandleFormerTrainOptions: ["temperature"],
-  // LATENT BUG (flagged 2026-07): documented "(default: 10)" but runScreening
-  // is fully synchronous and never reads `concurrency`. Remove or implement.
-  ScreeningOptions: ["concurrency"],
-  // LATENT BUG (flagged 2026-07): highestLowest() always reads candle
-  // high/low; `source?: "high" | "low" | "close"` is never consulted, so
-  // callers asking for close-based extremes silently get high/low behavior.
-  HighestLowestOptions: ["source"],
-  // LATENT BUG (flagged 2026-07): documented "(default: 10)" but
-  // robustness/full.ts never reads `perturbationSamples` (unlike its sibling
-  // perturbationPercent, which is wired). Remove or implement.
-  RobustnessOptions: ["perturbationSamples"],
   // Known-dead, documented in source: "Unused — reserved for future use;
   // riskParityAllocation does not read this option". Kept for API compat.
   RiskParityOptions: ["riskFreeRate"],

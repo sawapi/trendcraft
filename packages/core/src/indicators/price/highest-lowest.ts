@@ -2,7 +2,7 @@
  * Highest/Lowest price indicators
  */
 
-import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { getPriceSeries, isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, HighestLowestOptions, NormalizedCandle, Series } from "../../types";
 
@@ -17,8 +17,12 @@ export type HighestLowestValue = {
 /**
  * Calculate Highest and Lowest values over n periods
  *
+ * By default the highest is taken from candle highs and the lowest from
+ * candle lows. Pass `source` to compute both extremes from a single price
+ * series (e.g. `source: "close"` for close-based ranges).
+ *
  * @param candles - Array of candles (raw or normalized)
- * @param options - Options (period)
+ * @param options - Options (period, source)
  * @returns Series of highest/lowest values
  *
  * @example
@@ -26,13 +30,16 @@ export type HighestLowestValue = {
  * const hl20 = highestLowest(candles, { period: 20 });
  * console.log(hl20[i].value.highest); // 20-period high
  * console.log(hl20[i].value.lowest);  // 20-period low
+ *
+ * const closeRange = highestLowest(candles, { period: 20, source: "close" });
+ * console.log(closeRange[i].value.highest); // 20-period highest close
  * ```
  */
 export function highestLowest(
   candles: Candle[] | NormalizedCandle[],
   options: HighestLowestOptions,
 ): Series<HighestLowestValue> {
-  const { period } = options;
+  const { period, source } = options;
 
   if (period < 1) {
     throw new Error("Period must be at least 1");
@@ -40,6 +47,12 @@ export function highestLowest(
 
   // Normalize if needed
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
+
+  // Default: highest from highs, lowest from lows. With `source`, both
+  // extremes come from that single price series.
+  const sourceValues = source ? getPriceSeries(normalized, source) : null;
+  const maxValues = sourceValues ?? normalized.map((c) => c.high);
+  const minValues = sourceValues ?? normalized.map((c) => c.low);
 
   const result: Series<HighestLowestValue> = [];
 
@@ -52,8 +65,8 @@ export function highestLowest(
   const minDeque: number[] = [];
 
   for (let i = 0; i < normalized.length; i++) {
-    const high = normalized[i].high;
-    const low = normalized[i].low;
+    const high = maxValues[i];
+    const low = minValues[i];
 
     // Remove elements outside the window from front
     while (maxDeque.length > 0 && maxDeque[0] <= i - period) {
@@ -64,13 +77,13 @@ export function highestLowest(
     }
 
     // For max deque: remove smaller elements from back (they can't be max)
-    while (maxDeque.length > 0 && normalized[maxDeque[maxDeque.length - 1]].high <= high) {
+    while (maxDeque.length > 0 && maxValues[maxDeque[maxDeque.length - 1]] <= high) {
       maxDeque.pop();
     }
     maxDeque.push(i);
 
     // For min deque: remove larger elements from back (they can't be min)
-    while (minDeque.length > 0 && normalized[minDeque[minDeque.length - 1]].low >= low) {
+    while (minDeque.length > 0 && minValues[minDeque[minDeque.length - 1]] >= low) {
       minDeque.pop();
     }
     minDeque.push(i);
@@ -85,8 +98,8 @@ export function highestLowest(
       result.push({
         time: normalized[i].time,
         value: {
-          highest: normalized[maxDeque[0]].high,
-          lowest: normalized[minDeque[0]].low,
+          highest: maxValues[maxDeque[0]],
+          lowest: minValues[minDeque[0]],
         },
       });
     }

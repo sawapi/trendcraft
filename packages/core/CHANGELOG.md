@@ -2,6 +2,45 @@
 
 ## [Unreleased]
 
+### Fixed — `highestLowest` now honors the `source` option
+
+- `highestLowest(candles, { period, source })` previously ignored `source` and
+  always computed the highest from candle highs and the lowest from candle
+  lows. Passing `source: "close"` now computes both extremes from that field,
+  e.g. close-based ranges for breakout logic. Omitting `source` keeps the
+  previous high/low behavior. The option also widened from
+  `"high" | "low" | "close"` to the full `PriceSource` union (adding `open`,
+  `hl2`, `hlc3`, `ohlc4`, `volume`), matching other source-accepting
+  indicators.
+
+### Changed — robustness parameter sensitivity uses random perturbation samples
+
+- `calculateRobustnessScore` now honors `RobustnessOptions.perturbationSamples`
+  (default: 10), which was previously declared and documented but never read.
+  The Parameter Sensitivity dimension draws that many random parameter sets
+  within the perturbation neighborhood (seeded via `options.seed`) and
+  backtests each, instead of grid-searching the narrowed ranges with the
+  original step sizes. Sensitivity scores may differ from previous releases;
+  the sample count is now independent of the ranges' steps, which removes the
+  degenerate "Insufficient parameter combinations" case that occurred when the
+  narrowed ranges contained fewer than 3 grid points.
+
+### Breaking — removed option keys that were never read
+
+- **`ScreeningOptions.concurrency`** — `runScreening` is fully synchronous;
+  the documented "max concurrent file processing" never existed.
+- **`CandleFormerTrainOptions.temperature`** — softmax temperature is an
+  inference-time parameter; setting it at training time never had any effect.
+  Use `CandleFormerOptions.temperature` (the `candleFormer` indicator option),
+  which is wired.
+- **`ParseFundamentalsOptions.encoding`** — `parseFundamentals` takes an
+  already-decoded string, so the option could never influence decoding. Decode
+  the CSV content before calling.
+
+  None of these keys ever changed behavior, so removing them cannot change
+  results — but code that sets them will now fail to type-check; delete the
+  key at the call site.
+
 ### Fixed — documentation: streaming imports and a stale helper reference
 
 - The API docs imported streaming exports from a `trendcraft/streaming` subpath

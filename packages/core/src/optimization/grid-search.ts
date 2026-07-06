@@ -16,6 +16,7 @@ import type {
   ParameterRange,
 } from "../types/optimization";
 import { err, ok, type Result, tcError } from "../types/result";
+import { DEFAULT_BACKTEST_CAPITAL } from "./constants";
 import { calculateAllMetrics, checkConstraint, getMetricValue } from "./metrics";
 
 /**
@@ -182,7 +183,7 @@ export function gridSearch(
       // Create strategy with current parameters
       const strategy = createStrategy(params);
       const backtestOptions: BacktestOptions = {
-        capital: 100000,
+        capital: DEFAULT_BACKTEST_CAPITAL,
         ...strategy.options,
       };
 
