@@ -53,6 +53,48 @@ describe("highestLowest", () => {
     expect(result[3].value.highest).toBe(125);
     expect(result[3].value.lowest).toBe(95);
   });
+
+  it("should compute both extremes from close when source is 'close'", () => {
+    // close = (high + low) / 2 per makeCandles
+    const candles = makeCandles([
+      [110, 90], // close 100
+      [120, 100], // close 110
+      [115, 95], // close 105
+      [125, 105], // close 115
+      [118, 98], // close 108
+    ]);
+    const result = highestLowest(candles, { period: 3, source: "close" });
+
+    expect(result[1].value.highest).toBeNull();
+
+    // Third value: highest/lowest of closes [100, 110, 105]
+    expect(result[2].value.highest).toBe(110);
+    expect(result[2].value.lowest).toBe(100);
+
+    // Fifth value: highest/lowest of closes [105, 115, 108]
+    expect(result[4].value.highest).toBe(115);
+    expect(result[4].value.lowest).toBe(105);
+  });
+
+  it("should match default behavior when source is 'high'/'low' respectively", () => {
+    const candles = makeCandles([
+      [110, 90],
+      [120, 100],
+      [115, 95],
+      [125, 105],
+      [118, 98],
+    ]);
+    const defaultResult = highestLowest(candles, { period: 3 });
+    const highResult = highestLowest(candles, { period: 3, source: "high" });
+    const lowResult = highestLowest(candles, { period: 3, source: "low" });
+
+    // With source "high", the highest matches default; with "low", the lowest matches default
+    expect(highResult[4].value.highest).toBe(defaultResult[4].value.highest);
+    expect(lowResult[4].value.lowest).toBe(defaultResult[4].value.lowest);
+    // And the opposite extreme comes from the same field, not the default one
+    expect(highResult[4].value.lowest).toBe(115); // min of highs [115, 125, 118]
+    expect(lowResult[4].value.highest).toBe(105); // max of lows [95, 105, 98]
+  });
 });
 
 describe("highest", () => {

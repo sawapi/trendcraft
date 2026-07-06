@@ -159,8 +159,6 @@ export type CandleFormerTrainOptions = {
   seed?: number;
   /** Neutral threshold for target classification (default: 0.001) */
   neutralThreshold?: number;
-  /** Softmax temperature for inference (default: 1.0) */
-  temperature?: number;
   /** Early stopping patience (default: 10, 0 = disabled) */
   patience?: number;
   /** Dropout rate during training (default: 0.1) */

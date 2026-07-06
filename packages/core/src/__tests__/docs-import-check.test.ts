@@ -182,7 +182,9 @@ describe("doc snippets — import check (Tier 1)", () => {
     expect(bad.length, `Unpublished subpath(s) in docs:\n${report}`).toBe(0);
   });
 
-  it("every named value import resolves to a real export", async () => {
+  // Importing the full source entry can exceed the default 5s timeout when
+  // the machine is loaded (the rest of the suite runs in parallel workers).
+  it("every named value import resolves to a real export", { timeout: 30_000 }, async () => {
     const exportsBySubpath = new Map<string, Set<string>>();
     for (const subpath of new Set(allRefs.map((r) => r.subpath))) {
       const source = SUBPATH_TO_SOURCE[subpath];
@@ -202,7 +204,9 @@ describe("doc snippets — import check (Tier 1)", () => {
     expect(missing.length, `Unknown named import(s) in docs:\n${missing.join("\n")}`).toBe(0);
   });
 
-  it("every destructured namespace member resolves to a real member", async () => {
+  it("every destructured namespace member resolves to a real member", {
+    timeout: 30_000,
+  }, async () => {
     // Cache loaded source modules so each entry is imported once.
     const modBySubpath = new Map<string, Record<string, unknown>>();
     async function loadModule(subpath: string): Promise<Record<string, unknown> | null> {
