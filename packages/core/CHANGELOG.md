@@ -2,6 +2,30 @@
 
 ## [Unreleased]
 
+### Added — 22 scoring exports that were unreachable are now on the main entry
+
+- The scoring module's signal-evaluator factories and pre-built signal
+  definitions were exported by the internal scoring barrel but never
+  re-exported from the package root — and with no `trendcraft/scoring`
+  subpath, they were impossible to import even though JSDoc examples
+  referenced them. Now available from `trendcraft`:
+  - Evaluator factories: `createStochOversoldEvaluator`,
+    `createStochOverboughtEvaluator`, `createStochBullishCrossEvaluator`,
+    `createRsiNeutralEvaluator`, `createGoldenCrossEvaluator`,
+    `createDeathCrossEvaluator`, `createPerfectOrderBearishEvaluator`,
+    `createPriceAboveEmaEvaluator`, `createPriceBelowEmaEvaluator`,
+    `createCmfPositiveEvaluator`, `createCmfNegativeEvaluator`,
+    `createBullishVolumeTrendEvaluator`, `createBearishVolumeTrendEvaluator`,
+    `createHighVolumeUpCandleEvaluator`
+  - Pre-built signals: `stochOversold`, `stochOverbought`,
+    `goldenCross50200`, `priceAboveEma20`, `pullbackEntry20`, `cmfPositive`,
+    `bullishVolumeTrend`, `highVolumeUpCandle`
+- A barrel-parity test now guards the root entry against this class of drift:
+  every export of the scoring / backtest / optimization / risk /
+  meta-strategy / signals / position-sizing / strategy barrels must be
+  reachable from the root (directly or via an alias), with intentionally
+  internal helpers tracked in an explicit allowlist.
+
 ### Fixed — `highestLowest` now honors the `source` option
 
 - `highestLowest(candles, { period, source })` previously ignored `source` and
