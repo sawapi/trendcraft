@@ -19,7 +19,7 @@ function getBBData(
   period: number,
   stdDev: number,
 ): BBData {
-  const key = `bb${period}`;
+  const key = `bb${period}_${stdDev}`;
   let bbData = indicators[key] as BBData | undefined;
 
   if (!bbData) {

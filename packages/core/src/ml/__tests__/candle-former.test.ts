@@ -125,14 +125,15 @@ describe("candleFormerBullish / candleFormerBearish conditions", () => {
     const condition = candleFormerBullish(weights, 30);
     const indicators: Record<string, unknown> = {};
 
-    // First call populates cache
+    // First call populates cache (key carries a per-weights identity suffix)
     condition.evaluate(indicators, candles[10], 10, candles);
-    expect(indicators.candleFormer_predictions).toBeDefined();
+    const keys = Object.keys(indicators).filter((k) => k.startsWith("candleFormer_predictions"));
+    expect(keys.length).toBe(1);
 
-    // Second call should reuse cache
-    const cached = indicators.candleFormer_predictions;
+    // Second call with the same weights should reuse the same cached series
+    const cached = indicators[keys[0]];
     condition.evaluate(indicators, candles[11], 11, candles);
-    expect(indicators.candleFormer_predictions).toBe(cached);
+    expect(indicators[keys[0]]).toBe(cached);
   });
 
   it("bullish and bearish are mutually exclusive at same candle", () => {

@@ -12,6 +12,23 @@ import type { CandleFormerValue, CandleFormerWeights } from "./types";
 const CACHE_PREFIX = "candleFormer_";
 
 /**
+ * Predictions are fully determined by the weights, so each distinct weights
+ * object gets a stable process-wide id that participates in the cache key.
+ * Without it, mixing two models in one backtest (or across runs sharing an
+ * IndicatorCache) would serve the first model's predictions to the second.
+ */
+const weightsIds = new WeakMap<CandleFormerWeights, number>();
+let nextWeightsId = 0;
+function weightsId(weights: CandleFormerWeights): number {
+  let id = weightsIds.get(weights);
+  if (id === undefined) {
+    id = nextWeightsId++;
+    weightsIds.set(weights, id);
+  }
+  return id;
+}
+
+/**
  * Get or compute cached CandleFormer predictions
  */
 function getCachedPredictions(
@@ -19,7 +36,7 @@ function getCachedPredictions(
   candles: NormalizedCandle[],
   weights: CandleFormerWeights,
 ): Series<CandleFormerValue> {
-  const cacheKey = `${CACHE_PREFIX}predictions`;
+  const cacheKey = `${CACHE_PREFIX}predictions_${weightsId(weights)}`;
   const cached = indicators[cacheKey] as Series<CandleFormerValue> | undefined;
   if (cached) return cached;
 
