@@ -2,6 +2,7 @@
  * Perfect Order pullback and entry conditions
  */
 
+import { RUN_LOCAL_KEY_PREFIX } from "../../core/indicator-cache";
 import { type PerfectOrderValueEnhanced, perfectOrderEnhanced } from "../../signals/perfect-order";
 import type { PresetCondition } from "../../types";
 import type { PerfectOrderEnhancedConditionOptions } from "./po-enhanced";
@@ -42,7 +43,10 @@ export function perfectOrderPullbackEntry(
     lookbackBars = 5,
   } = options;
   const cacheKey = `poe_pullback_${periods.join("_")}_${maType}_${slopeLookback}_${persistBars}_${collapseEps}`;
-  const stateKey = `poe_pullback_state_${periods.join("_")}`;
+  // Mutable per-run state: the run-local prefix keeps it off the shared
+  // IndicatorCache (one run's end state must not seed the next run), and
+  // deriving from the full cacheKey keeps different option sets separate.
+  const stateKey = `${RUN_LOCAL_KEY_PREFIX}${cacheKey}_state`;
 
   return {
     type: "preset",
@@ -166,7 +170,9 @@ export function perfectOrderPullbackSellEntry(
     lookbackBars = 5,
   } = options;
   const cacheKey = `poe_pullback_${periods.join("_")}_${maType}_${slopeLookback}_${persistBars}_${collapseEps}`;
-  const stateKey = `poe_pullback_sell_state_${periods.join("_")}`;
+  // Run-local mutable state — see the buy variant for rationale. The `_sell`
+  // segment keeps buy/sell state separate (they share the same cacheKey).
+  const stateKey = `${RUN_LOCAL_KEY_PREFIX}${cacheKey}_sell_state`;
 
   return {
     type: "preset",
