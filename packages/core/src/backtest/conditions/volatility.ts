@@ -13,25 +13,51 @@ import {
 import { volatilityRegime } from "../../indicators/volatility/regime";
 import type { PresetCondition, VolatilityRegime, VolatilityRegimeOptions } from "../../types";
 
-// Cache for volatility regime series
-const regimeCache = new WeakMap<object, ReturnType<typeof volatilityRegime>>();
+// Cache for volatility regime series, keyed by candles array + options.
+// A single-level candles key would let the first condition's options poison
+// every other regime condition evaluated on the same array.
+const regimeCache = new WeakMap<object, Map<string, ReturnType<typeof volatilityRegime>>>();
 
 /**
- * Get or calculate volatility regime series (cached)
+ * Canonical cache key for the options that influence volatilityRegime output.
+ * Raw (pre-default) values are used positionally so no defaults are restated
+ * here; semantically-equal spellings (e.g. `{}` vs `{ atrPeriod: 14 }`) may
+ * compute twice, which is correct — only merging distinct options is a bug.
+ * The calendar contributes only its annualization identity (volatilityRegime
+ * does not consult `isTradingDay`).
+ */
+function regimeOptionsKey(options?: VolatilityRegimeOptions): string {
+  if (!options) return "default";
+  const t = options.thresholds;
+  const cal = options.calendar;
+  return [
+    options.atrPeriod,
+    options.bbPeriod,
+    options.lookbackPeriod,
+    t?.low,
+    t?.high,
+    t?.extreme,
+    cal ? `${cal.name}:${cal.tradingDaysPerYear}` : undefined,
+  ].join("|");
+}
+
+/**
+ * Get or calculate volatility regime series (cached per candles + options)
  */
 function getRegimeSeries(
   candles: Parameters<typeof volatilityRegime>[0],
   options?: VolatilityRegimeOptions,
 ) {
-  // Use candles array as cache key
-  const cacheKey = candles as object;
-
-  // For simplicity, we don't cache with options differentiation
-  // In production, you might want a more sophisticated cache key
-  let cached = regimeCache.get(cacheKey);
+  let byOptions = regimeCache.get(candles as object);
+  if (!byOptions) {
+    byOptions = new Map();
+    regimeCache.set(candles as object, byOptions);
+  }
+  const optionsKey = regimeOptionsKey(options);
+  let cached = byOptions.get(optionsKey);
   if (!cached) {
     cached = volatilityRegime(candles, options);
-    regimeCache.set(cacheKey, cached);
+    byOptions.set(optionsKey, cached);
   }
   return cached;
 }
@@ -340,18 +366,24 @@ export function volatilityContracting(
   };
 }
 
-// Cache for ATR% series
-const atrPercentCache = new WeakMap<object, ReturnType<typeof atrPercentSeries>>();
+// Cache for ATR% series, keyed by candles array + period. A single-level
+// candles key would serve the first period's series to every other period.
+const atrPercentCache = new WeakMap<object, Map<string, ReturnType<typeof atrPercentSeries>>>();
 
 /**
- * Get or calculate ATR% series (cached)
+ * Get or calculate ATR% series (cached per candles + period)
  */
 function getAtrPercentSeries(candles: Parameters<typeof atrPercentSeries>[0], atrPeriod?: number) {
-  const cacheKey = candles as object;
-  let cached = atrPercentCache.get(cacheKey);
+  let byPeriod = atrPercentCache.get(candles as object);
+  if (!byPeriod) {
+    byPeriod = new Map();
+    atrPercentCache.set(candles as object, byPeriod);
+  }
+  const periodKey = atrPeriod === undefined ? "default" : String(atrPeriod);
+  let cached = byPeriod.get(periodKey);
   if (!cached) {
     cached = atrPercentSeries(candles, atrPeriod);
-    atrPercentCache.set(cacheKey, cached);
+    byPeriod.set(periodKey, cached);
   }
   return cached;
 }

@@ -41,7 +41,7 @@ export function perfectOrderPullbackEntry(
     minGapPercent = 0.5,
     lookbackBars = 5,
   } = options;
-  const cacheKey = `poe_pullback_${periods.join("_")}_${maType}_${slopeLookback}_${persistBars}`;
+  const cacheKey = `poe_pullback_${periods.join("_")}_${maType}_${slopeLookback}_${persistBars}_${collapseEps}`;
   const stateKey = `poe_pullback_state_${periods.join("_")}`;
 
   return {
@@ -165,7 +165,7 @@ export function perfectOrderPullbackSellEntry(
     minGapPercent = 0.5,
     lookbackBars = 5,
   } = options;
-  const cacheKey = `poe_pullback_${periods.join("_")}_${maType}_${slopeLookback}_${persistBars}`;
+  const cacheKey = `poe_pullback_${periods.join("_")}_${maType}_${slopeLookback}_${persistBars}_${collapseEps}`;
   const stateKey = `poe_pullback_sell_state_${periods.join("_")}`;
 
   return {
@@ -292,7 +292,7 @@ export function poPlusEntry(options: PerfectOrderEnhancedConditionOptions = {}):
     persistBars = 3,
     collapseEps = 0.003,
   } = options;
-  const cacheKey = `poe_${periods.join("_")}_${maType}_${slopeLookback}_${persistBars}`;
+  const cacheKey = `poe_${periods.join("_")}_${maType}_${slopeLookback}_${persistBars}_${collapseEps}`;
 
   return {
     type: "preset",
@@ -347,7 +347,7 @@ export function pbEntry(options: PerfectOrderEnhancedConditionOptions = {}): Pre
     persistBars = 3,
     collapseEps = 0.003,
   } = options;
-  const cacheKey = `poe_${periods.join("_")}_${maType}_${slopeLookback}_${persistBars}`;
+  const cacheKey = `poe_${periods.join("_")}_${maType}_${slopeLookback}_${persistBars}_${collapseEps}`;
 
   return {
     type: "preset",
@@ -396,7 +396,7 @@ export function poPlusPbEntry(options: PerfectOrderEnhancedConditionOptions = {}
     persistBars = 3,
     collapseEps = 0.003,
   } = options;
-  const cacheKey = `poe_${periods.join("_")}_${maType}_${slopeLookback}_${persistBars}`;
+  const cacheKey = `poe_${periods.join("_")}_${maType}_${slopeLookback}_${persistBars}_${collapseEps}`;
 
   return {
     type: "preset",

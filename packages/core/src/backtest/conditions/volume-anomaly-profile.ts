@@ -55,7 +55,7 @@ export function volumeAnomalyCondition(threshold = 2.0, period = 20): PresetCond
  * @param period - Lookback period for average (default: 20)
  */
 export function volumeExtreme(threshold = 3.0, period = 20): PresetCondition {
-  const cacheKey = `volumeAnomaly_${period}_extreme`;
+  const cacheKey = `volumeAnomaly_${period}_${threshold}_extreme`;
 
   return {
     type: "preset",
