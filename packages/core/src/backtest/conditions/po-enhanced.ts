@@ -49,7 +49,7 @@ export function perfectOrderBullishConfirmed(
     collapseEps = 0.003,
     minConfidence = 0,
   } = options;
-  const cacheKey = `poe_${periods.join("_")}_${maType}_${slopeLookback}_${persistBars}`;
+  const cacheKey = `poe_${periods.join("_")}_${maType}_${slopeLookback}_${persistBars}_${collapseEps}`;
 
   return {
     type: "preset",
@@ -100,7 +100,7 @@ export function perfectOrderBearishConfirmed(
     collapseEps = 0.003,
     minConfidence = 0,
   } = options;
-  const cacheKey = `poe_${periods.join("_")}_${maType}_${slopeLookback}_${persistBars}`;
+  const cacheKey = `poe_${periods.join("_")}_${maType}_${slopeLookback}_${persistBars}_${collapseEps}`;
 
   return {
     type: "preset",
@@ -151,7 +151,7 @@ export function perfectOrderConfirmationFormed(
     persistBars = 3,
     collapseEps = 0.003,
   } = options;
-  const cacheKey = `poe_${periods.join("_")}_${maType}_${slopeLookback}_${persistBars}`;
+  const cacheKey = `poe_${periods.join("_")}_${maType}_${slopeLookback}_${persistBars}_${collapseEps}`;
 
   return {
     type: "preset",
@@ -197,7 +197,7 @@ export function perfectOrderBreakdown(
     persistBars = 3,
     collapseEps = 0.003,
   } = options;
-  const cacheKey = `poe_${periods.join("_")}_${maType}_${slopeLookback}_${persistBars}`;
+  const cacheKey = `poe_${periods.join("_")}_${maType}_${slopeLookback}_${persistBars}_${collapseEps}`;
 
   return {
     type: "preset",
@@ -243,7 +243,7 @@ export function perfectOrderMaCollapsed(
     persistBars = 3,
     collapseEps = 0.003,
   } = options;
-  const cacheKey = `poe_${periods.join("_")}_${maType}_${slopeLookback}_${persistBars}`;
+  const cacheKey = `poe_${periods.join("_")}_${maType}_${slopeLookback}_${persistBars}_${collapseEps}`;
 
   return {
     type: "preset",
@@ -289,7 +289,7 @@ export function perfectOrderPreBullish(
     persistBars = 3,
     collapseEps = 0.003,
   } = options;
-  const cacheKey = `poe_${periods.join("_")}_${maType}_${slopeLookback}_${persistBars}`;
+  const cacheKey = `poe_${periods.join("_")}_${maType}_${slopeLookback}_${persistBars}_${collapseEps}`;
 
   return {
     type: "preset",
@@ -333,7 +333,7 @@ export function perfectOrderPreBearish(
     persistBars = 3,
     collapseEps = 0.003,
   } = options;
-  const cacheKey = `poe_${periods.join("_")}_${maType}_${slopeLookback}_${persistBars}`;
+  const cacheKey = `poe_${periods.join("_")}_${maType}_${slopeLookback}_${persistBars}_${collapseEps}`;
 
   return {
     type: "preset",

@@ -2,6 +2,34 @@
 
 ## [Unreleased]
 
+### Fixed — condition caches no longer collide across parameter values
+
+Several backtest condition caches omitted parameters from their cache keys, so
+two conditions differing only in that parameter shared one cached series —
+whichever evaluated first silently poisoned the other, both within a run
+(`and()`/`or()` combos) and across runs sharing an `IndicatorCache` (grid
+search sweeps over the omitted parameter returned identical results for every
+value). Fixed keys:
+
+- `bollingerBreakout` / Bollinger conditions — key now includes `stdDev`
+- `regimeIs` / `regimeNot` / `volatilityAbove`-family — the module-level cache
+  now differentiates the full `VolatilityRegimeOptions` (previously the first
+  options seen were pinned for the candles array, even across separate
+  `runBacktest` calls)
+- `atrPercentAbove` / `atrPercentBelow` — the module-level cache now
+  differentiates `atrPeriod`
+- `perfectOrderBullishConfirmed` and every other `perfectOrderEnhanced`-backed
+  condition (12 sites) — keys now include `collapseEps`
+- `volumeExtreme` — key now includes `threshold`
+- `candleFormerBullish` / `candleFormerBearish` — the predictions cache now
+  keys on the model weights identity, so mixing two trained models in one
+  backtest (or reusing a cache across runs with different models) no longer
+  serves the first model's predictions to the second
+
+Sweeps over `stdDev`, `atrPeriod`, `collapseEps`, volume thresholds, or regime
+options now produce genuinely distinct results per value; previously-poisoned
+runs may report different (correct) numbers.
+
 ### Added — 22 scoring exports that were unreachable are now on the main entry
 
 - The scoring module's signal-evaluator factories and pre-built signal
