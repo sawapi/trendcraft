@@ -225,6 +225,7 @@ export type {
 
 // Order Types (Limit/Stop)
 export {
+  freezeOrderPrices,
   limitAboveClose,
   limitAtHigh,
   limitAtLow,
