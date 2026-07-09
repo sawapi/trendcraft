@@ -18,6 +18,7 @@ import {
   stopBelowLow,
   tryFillOrder,
 } from "../order-types";
+import { at, never } from "./step-candles";
 
 const candle: NormalizedCandle = {
   time: 1000,
@@ -586,12 +587,6 @@ describe("runBacktest with function-based order prices", () => {
       close: c,
       volume: 1000,
     }) as NormalizedCandle;
-  const entryAt = (idx: number) => ({
-    type: "preset" as const,
-    name: `entryAt(${idx})`,
-    evaluate: (_i: Record<string, unknown>, _c: NormalizedCandle, index: number) => index === idx,
-  });
-  const never = { type: "preset" as const, name: "never", evaluate: () => false };
 
   it("stopAboveHigh(0) never fills in a falling market", () => {
     // Signal at bar 1 (high 100.4); every later high is lower, so a breakout
@@ -604,7 +599,7 @@ describe("runBacktest with function-based order prices", () => {
         return mk(2 + k, h - 1, h, h - 2, h - 1.5);
       }),
     ];
-    const result = runBacktest(candles, entryAt(1), never, {
+    const result = runBacktest(candles, at(1), never, {
       capital: 100000,
       orderType: { type: "stop", price: stopAboveHigh(0) },
     });
@@ -621,7 +616,7 @@ describe("runBacktest with function-based order prices", () => {
         return mk(2 + k, l + 1, l + 2, l, l + 1.5);
       }),
     ];
-    const result = runBacktest(candles, entryAt(1), never, {
+    const result = runBacktest(candles, at(1), never, {
       capital: 100000,
       orderType: { type: "limit", price: limitBelowClose(1) },
     });
@@ -637,7 +632,7 @@ describe("runBacktest with function-based order prices", () => {
       mk(3, 100, 101.5, 99.9, 101),
       mk(4, 101, 102, 100.5, 101.5),
     ];
-    const result = runBacktest(candles, entryAt(1), never, {
+    const result = runBacktest(candles, at(1), never, {
       capital: 100000,
       orderType: { type: "stop", price: stopAboveHigh(0) },
     });

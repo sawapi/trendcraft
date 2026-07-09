@@ -339,7 +339,11 @@ export type PendingOrder = {
   signalTime: number;
   /** Index of the signal candle in the data array. */
   signalIndex: number;
-  /** ATR value at signal time (used to resolve price functions). `null` if ATR is unavailable. */
+  /**
+   * ATR value at signal time. Passed to price functions when the order is
+   * created (see {@link freezeOrderPrices}) and used for ATR-based stop
+   * sizing after the fill. `null` if ATR is unavailable.
+   */
   entryAtr: number | null;
   /** Number of bars the order remains active before expiring. Decremented each bar. */
   barsRemaining: number;
@@ -369,7 +373,8 @@ export type FillResult = {
  * Resolve a static or function-based price to a concrete number.
  *
  * @param price - A fixed number or a function `(candle, atr) => number`.
- * @param candle - The current candle used when `price` is a function.
+ * @param candle - The candle the price function derives its level from — for
+ *   order prices this must be the SIGNAL candle (see {@link freezeOrderPrices}).
  * @param atr - The ATR value passed to the price function.
  * @returns The resolved numeric price.
  *
@@ -405,26 +410,28 @@ export function resolvePrice(
  *
  * @param orderType - The order whose prices may be functions.
  * @param signalCandle - The candle that generated the entry signal.
- * @param atr - ATR value at signal time (passed to price functions).
+ * @param atr - ATR value at signal time, or `null` when unavailable (price
+ *   functions then receive `0` — this fallback is owned here).
  * @returns An equivalent order with all prices resolved to numbers.
  */
 export function freezeOrderPrices(
   orderType: OrderType,
   signalCandle: NormalizedCandle,
-  atr: number,
+  atr: number | null,
 ): OrderType {
+  const resolvedAtr = atr ?? 0;
   switch (orderType.type) {
     case "market":
       return orderType;
     case "limit":
-      return { type: "limit", price: resolvePrice(orderType.price, signalCandle, atr) };
+      return { type: "limit", price: resolvePrice(orderType.price, signalCandle, resolvedAtr) };
     case "stop":
-      return { type: "stop", price: resolvePrice(orderType.price, signalCandle, atr) };
+      return { type: "stop", price: resolvePrice(orderType.price, signalCandle, resolvedAtr) };
     case "stopLimit":
       return {
         type: "stopLimit",
-        stopPrice: resolvePrice(orderType.stopPrice, signalCandle, atr),
-        limitPrice: resolvePrice(orderType.limitPrice, signalCandle, atr),
+        stopPrice: resolvePrice(orderType.stopPrice, signalCandle, resolvedAtr),
+        limitPrice: resolvePrice(orderType.limitPrice, signalCandle, resolvedAtr),
       };
   }
 }
@@ -452,9 +459,8 @@ export function freezeOrderPrices(
  *   open. On later bars it fills like a resting limit order. The `stopActivated` flag on
  *   the order is mutated to `true` when the stop triggers.
  *
- * Function-based prices must be resolved against the SIGNAL candle before the order starts
- * being tested (see {@link freezeOrderPrices} — the engine does this at order creation).
- * Passing an unresolved function here would re-derive the level from every fill-check bar.
+ * Function-based prices must be resolved against the signal candle before the order starts
+ * being tested — see {@link freezeOrderPrices} (the engine does this at order creation).
  *
  * @param order - The pending order to evaluate.
  * @param candle - The current candle to test against.
@@ -468,6 +474,16 @@ export function freezeOrderPrices(
  * }
  * ```
  */
+/**
+ * Earliest tradable price on the bar that triggers a stop: the stop price
+ * itself, or the open when the bar gapped through the stop (the order is
+ * live from the open in that case). Shared by the `stop` fill and the
+ * `stopLimit` trigger-bar fill so the policy has a single owner.
+ */
+function stopTriggerPrice(direction: PositionDirection, stopPrice: number, open: number): number {
+  return direction === "long" ? Math.max(stopPrice, open) : Math.min(stopPrice, open);
+}
+
 export function tryFillOrder(order: PendingOrder, candle: NormalizedCandle): FillResult | null {
   // Handle fill-price overrides from TIF (opg/cls)
   if (order.fillPriceOverride === "open") {
@@ -508,12 +524,12 @@ export function tryFillOrder(order: PendingOrder, candle: NormalizedCandle): Fil
       if (direction === "long") {
         // Breakout buy above stopPrice
         if (candle.high >= stopPrice) {
-          return { filled: true, fillPrice: Math.max(stopPrice, candle.open) };
+          return { filled: true, fillPrice: stopTriggerPrice("long", stopPrice, candle.open) };
         }
       } else {
         // Breakdown sell below stopPrice
         if (candle.low <= stopPrice) {
-          return { filled: true, fillPrice: Math.min(stopPrice, candle.open) };
+          return { filled: true, fillPrice: stopTriggerPrice("short", stopPrice, candle.open) };
         }
       }
       return null;
@@ -543,42 +559,22 @@ export function tryFillOrder(order: PendingOrder, candle: NormalizedCandle): Fil
         activatedThisBar = true;
       }
 
-      // Phase 2: check limit condition.
-      //
-      // On the trigger bar the order goes live intra-bar at the stop price
-      // (or at the open when the bar gapped through the stop) — NOT at the
-      // open, which is pre-trigger price action. The earliest tradable price
-      // is therefore the trigger itself; fill-at-open is only legitimate on
-      // later bars where the order was already resting as a live limit.
+      // Phase 2: fill like a resting limit, except that on the trigger bar
+      // the earliest tradable price is the stop trigger, not the open (which
+      // is pre-trigger price action).
       if (direction === "long") {
-        if (activatedThisBar) {
-          const trigger = Math.max(stopPrice, candle.open);
-          if (trigger <= limitPrice) {
-            return { filled: true, fillPrice: trigger };
-          }
-          // Triggered above the limit: the order rests as a limit; fill only
-          // if the bar also trades down to it (modeled via the bar low).
-          if (candle.low <= limitPrice) {
-            return { filled: true, fillPrice: limitPrice };
-          }
-          return null;
-        }
+        const ref = activatedThisBar
+          ? stopTriggerPrice("long", stopPrice, candle.open)
+          : candle.open;
         if (candle.low <= limitPrice) {
-          return { filled: true, fillPrice: Math.min(limitPrice, candle.open) };
+          return { filled: true, fillPrice: Math.min(limitPrice, ref) };
         }
       } else {
-        if (activatedThisBar) {
-          const trigger = Math.min(stopPrice, candle.open);
-          if (trigger >= limitPrice) {
-            return { filled: true, fillPrice: trigger };
-          }
-          if (candle.high >= limitPrice) {
-            return { filled: true, fillPrice: limitPrice };
-          }
-          return null;
-        }
+        const ref = activatedThisBar
+          ? stopTriggerPrice("short", stopPrice, candle.open)
+          : candle.open;
         if (candle.high >= limitPrice) {
-          return { filled: true, fillPrice: Math.max(limitPrice, candle.open) };
+          return { filled: true, fillPrice: Math.max(limitPrice, ref) };
         }
       }
 

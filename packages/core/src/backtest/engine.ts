@@ -662,11 +662,9 @@ export function runBacktest(
           const tif = tifOpt ?? "gtc";
           const tifResolved = resolveTimeInForce(tif, orderTTL);
           pendingOrder = {
-            // Function-based prices describe a level derived from the signal
-            // bar, so they are resolved exactly once here; re-resolving on
-            // each fill-check bar would let the level drift and self-reference
-            // the bar being tested.
-            orderType: freezeOrderPrices(orderTypeOpt, candle, entryAtr ?? 0),
+            // Resolve function prices once against the signal bar — see
+            // freezeOrderPrices for why.
+            orderType: freezeOrderPrices(orderTypeOpt, candle, entryAtr),
             direction: dir,
             signalTime: candle.time,
             signalIndex: i,
