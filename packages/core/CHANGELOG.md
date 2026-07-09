@@ -2,6 +2,26 @@
 
 ## [Unreleased]
 
+### Fixed — per-run state no longer leaks through a shared `IndicatorCache`
+
+- `perfectOrderPullbackEntry` / `perfectOrderPullbackSellEntry` kept a mutable
+  breakdown-tracking state object on the indicators proxy under a shareable
+  key, so a later `runBacktest` on the same candles + shared cache (exactly
+  what grid search and walk-forward do) inherited the previous run's end
+  state — producing phantom trades that a fresh-cache run does not have. The
+  state now lives under a run-local key that never enters the shared cache,
+  and the key includes the full option set (previously two conditions
+  differing in `maType`/`collapseEps`/etc. shared one state object within a
+  run).
+- The engine-injected fundamentals scalars (`per`/`pbr` from the
+  `fundamentals` option) leaked the same way: a later run **without**
+  fundamentals on a shared cache read the previous run's last values on every
+  bar, making `perBelow`/`pbrAbove`-style conditions fire when they should
+  see no data. They are now run-local, like the relative-strength benchmark.
+- New internal convention: indicator keys prefixed with `__runLocal_` are
+  never read from or written to a shared `IndicatorCache` — use it for any
+  per-run mutable state a condition keeps on the indicators object.
+
 ### Fixed — condition caches no longer collide across parameter values
 
 Several backtest condition caches omitted parameters from their cache keys, so

@@ -56,6 +56,15 @@ import type { SlippageModel } from "./slippage-model";
 import { calculateDynamicSlippage, resolveSlippageModel } from "./slippage-model";
 
 /**
+ * Run-local indicator keys for engine runs: the RS benchmark plus the
+ * fundamentals scalars the engine itself injects per bar. `per`/`pbr` come
+ * from the run's `fundamentals` option, not from the candles, so they must
+ * never leak through a shared IndicatorCache into a later run that omits
+ * fundamentals (conditions like `perBelow` would fire on stale values).
+ */
+const ENGINE_RUN_LOCAL_KEYS: ReadonlySet<string> = new Set([...RUN_LOCAL_CACHE_KEYS, "per", "pbr"]);
+
+/**
  * Extended backtest options with MTF, ATR risk, and fundamentals support
  */
 export type MtfBacktestOptions = BacktestOptions & {
@@ -172,12 +181,12 @@ export function runBacktest(
   }
 
   const trades: Trade[] = [];
-  // The benchmark is a run-local input, so it is kept off the shared cache
-  // (see RUN_LOCAL_CACHE_KEYS) and must be re-supplied each run.
+  // Benchmark and fundamentals scalars are run-local inputs, so they are kept
+  // off the shared cache (see ENGINE_RUN_LOCAL_KEYS) and re-supplied each run.
   const indicators: Record<string, unknown> = createCachedIndicators(
     candles,
     cache,
-    RUN_LOCAL_CACHE_KEYS,
+    ENGINE_RUN_LOCAL_KEYS,
   );
 
   // Seed benchmark candles for Relative Strength conditions.
