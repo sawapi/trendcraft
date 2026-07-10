@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { NormalizedCandle } from "../../types";
+import { runBacktest } from "../engine";
 import type { PendingOrder } from "../order-types";
 import {
+  freezeOrderPrices,
   limitAboveClose,
   limitAtHigh,
   limitAtLow,
@@ -16,6 +18,7 @@ import {
   stopBelowLow,
   tryFillOrder,
 } from "../order-types";
+import { at, never } from "./step-candles";
 
 const candle: NormalizedCandle = {
   time: 1000,
@@ -440,5 +443,200 @@ describe("tryFillOrder — TIF fillPriceOverride", () => {
     });
     const result = tryFillOrder(order, candle);
     expect(result).toEqual({ filled: true, fillPrice: 105 }); // candle.close
+  });
+});
+
+// ---------------------------------------------------------------------------
+// freezeOrderPrices — function prices resolve against the SIGNAL candle
+// ---------------------------------------------------------------------------
+
+describe("freezeOrderPrices", () => {
+  const signalCandle: NormalizedCandle = {
+    time: 500,
+    open: 99,
+    high: 100.4,
+    low: 98,
+    close: 100,
+    volume: 5000,
+  } as NormalizedCandle;
+
+  it("resolves stop/limit/stopLimit function prices to signal-candle numbers", () => {
+    const stop = freezeOrderPrices({ type: "stop", price: stopAboveHigh(0) }, signalCandle, 2);
+    expect(stop).toEqual({ type: "stop", price: 100.4 });
+
+    const limit = freezeOrderPrices({ type: "limit", price: limitBelowClose(1) }, signalCandle, 2);
+    expect(limit).toEqual({ type: "limit", price: 99 });
+
+    const stopLimit = freezeOrderPrices(
+      { type: "stopLimit", stopPrice: stopAboveHigh(0), limitPrice: (c) => c.high + 1 },
+      signalCandle,
+      2,
+    );
+    expect(stopLimit).toEqual({ type: "stopLimit", stopPrice: 100.4, limitPrice: 101.4 });
+  });
+
+  it("a frozen stopAboveHigh(0) order does NOT fill in a falling market", () => {
+    const frozen = freezeOrderPrices({ type: "stop", price: stopAboveHigh(0) }, signalCandle, 0);
+    const order = makePending({ orderType: frozen, direction: "long" });
+    // Every later bar stays below the signal high 100.4; an unfrozen function
+    // would degenerate to `high >= high` and fill on the first bar.
+    for (const high of [99.4, 98.4, 97.4]) {
+      const bar = { time: 2000, open: high - 1, high, low: high - 2, close: high - 1.5 };
+      expect(tryFillOrder(order, bar as NormalizedCandle)).toBeNull();
+    }
+    // A genuine later break of the frozen level fills at that level
+    const breakout = { time: 3000, open: 100, high: 101, low: 99.5, close: 100.8 };
+    expect(tryFillOrder(order, breakout as NormalizedCandle)).toEqual({
+      filled: true,
+      fillPrice: 100.4,
+    });
+  });
+
+  it("a frozen limitBelowClose(1) order does NOT fill in a rallying market", () => {
+    const frozen = freezeOrderPrices({ type: "limit", price: limitBelowClose(1) }, signalCandle, 0);
+    const order = makePending({ orderType: frozen, direction: "long" });
+    // Intended limit = signal close 100 * 0.99 = 99; price never dips there.
+    // An unfrozen function re-derived from each bar's close would fill.
+    for (const low of [100.1, 100.5, 101.2]) {
+      const bar = { time: 2000, open: low + 1, high: low + 2, low, close: low + 1.5 };
+      expect(tryFillOrder(order, bar as NormalizedCandle)).toBeNull();
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// tryFillOrder — stopLimit same-bar activation fill price
+// ---------------------------------------------------------------------------
+
+describe("tryFillOrder — stopLimit same-bar activation", () => {
+  const bar = (o: number, h: number, l: number, c: number): NormalizedCandle =>
+    ({ time: 1000, open: o, high: h, low: l, close: c, volume: 1000 }) as NormalizedCandle;
+
+  it("long: fills at the stop trigger, not the pre-trigger open", () => {
+    const order = makePending({
+      orderType: { type: "stopLimit", stopPrice: 105, limitPrice: 106 },
+      direction: "long",
+    });
+    // open 100 is pre-trigger price action; the order goes live at 105
+    const result = tryFillOrder(order, bar(100, 107, 99, 106));
+    expect(result).toEqual({ filled: true, fillPrice: 105 });
+  });
+
+  it("short: fills at the stop trigger, not the pre-trigger open", () => {
+    const order = makePending({
+      orderType: { type: "stopLimit", stopPrice: 95, limitPrice: 94 },
+      direction: "short",
+    });
+    const result = tryFillOrder(order, bar(100, 101, 93, 94));
+    expect(result).toEqual({ filled: true, fillPrice: 95 });
+  });
+
+  it("long gap through the stop: fills at the open (order live from the open)", () => {
+    const order = makePending({
+      orderType: { type: "stopLimit", stopPrice: 100, limitPrice: 106 },
+      direction: "long",
+    });
+    const result = tryFillOrder(order, bar(104, 107, 103, 105));
+    expect(result).toEqual({ filled: true, fillPrice: 104 });
+  });
+
+  it("long triggered above the limit: fills at the limit only if the bar trades down to it", () => {
+    const fills = makePending({
+      orderType: { type: "stopLimit", stopPrice: 101, limitPrice: 102 },
+      direction: "long",
+    });
+    // open 103 > limit 102 => not marketable at trigger; low 100 <= 102 => limit fill
+    expect(tryFillOrder(fills, bar(103, 104, 100, 101))).toEqual({
+      filled: true,
+      fillPrice: 102,
+    });
+
+    const stays = makePending({
+      orderType: { type: "stopLimit", stopPrice: 101, limitPrice: 102 },
+      direction: "long",
+    });
+    // low 102.5 never reaches the limit => activated but unfilled this bar
+    expect(tryFillOrder(stays, bar(103, 104, 102.5, 103.5))).toBeNull();
+    expect(stays.stopActivated).toBe(true);
+  });
+
+  it("later bars (already activated) still fill like a resting limit at the open", () => {
+    const order = makePending({
+      orderType: { type: "stopLimit", stopPrice: 105, limitPrice: 106 },
+      direction: "long",
+      stopActivated: true,
+    });
+    // Already live before this bar opened: open fill is legitimate
+    const result = tryFillOrder(order, bar(104, 106, 103, 105));
+    expect(result).toEqual({ filled: true, fillPrice: 104 });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Engine integration — function prices resolve at signal time
+// ---------------------------------------------------------------------------
+
+describe("runBacktest with function-based order prices", () => {
+  const day = 86400000;
+  const mk = (i: number, o: number, h: number, l: number, c: number): NormalizedCandle =>
+    ({
+      time: 1700000000000 + i * day,
+      open: o,
+      high: h,
+      low: l,
+      close: c,
+      volume: 1000,
+    }) as NormalizedCandle;
+
+  it("stopAboveHigh(0) never fills in a falling market", () => {
+    // Signal at bar 1 (high 100.4); every later high is lower, so a breakout
+    // stop above the signal high must never trigger.
+    const candles = [
+      mk(0, 100, 100.9, 99, 100.2),
+      mk(1, 100, 100.4, 99, 100),
+      ...Array.from({ length: 8 }, (_, k) => {
+        const h = 99.4 - k;
+        return mk(2 + k, h - 1, h, h - 2, h - 1.5);
+      }),
+    ];
+    const result = runBacktest(candles, at(1), never, {
+      capital: 100000,
+      orderType: { type: "stop", price: stopAboveHigh(0) },
+    });
+    expect(result.trades.length).toBe(0);
+  });
+
+  it("limitBelowClose(1) never fills in a rallying market", () => {
+    // Signal close 100 => intended limit 99; later lows never dip below 100.
+    const candles = [
+      mk(0, 100, 101, 99.5, 100.2),
+      mk(1, 100, 101, 99.8, 100),
+      ...Array.from({ length: 8 }, (_, k) => {
+        const l = 100.1 + k;
+        return mk(2 + k, l + 1, l + 2, l, l + 1.5);
+      }),
+    ];
+    const result = runBacktest(candles, at(1), never, {
+      capital: 100000,
+      orderType: { type: "limit", price: limitBelowClose(1) },
+    });
+    expect(result.trades.length).toBe(0);
+  });
+
+  it("a genuine later break of the signal-derived level fills at that level", () => {
+    // Signal high 100.4 at bar 1; bar 3 breaks above it.
+    const candles = [
+      mk(0, 100, 100.9, 99, 100.2),
+      mk(1, 100, 100.4, 99, 100),
+      mk(2, 99.5, 100.0, 99, 99.8),
+      mk(3, 100, 101.5, 99.9, 101),
+      mk(4, 101, 102, 100.5, 101.5),
+    ];
+    const result = runBacktest(candles, at(1), never, {
+      capital: 100000,
+      orderType: { type: "stop", price: stopAboveHigh(0) },
+    });
+    expect(result.trades.length).toBe(1);
+    expect(result.trades[0].entryPrice).toBeCloseTo(100.4, 10);
   });
 });

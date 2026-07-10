@@ -1180,6 +1180,7 @@ export {
   calculateDynamicSlippage,
   checkMarginCall,
   createMarginState,
+  freezeOrderPrices,
   limitAboveClose,
   limitAtHigh,
   limitAtLow,

@@ -50,7 +50,7 @@ import {
   updateMarginState,
 } from "./margin";
 import type { PendingOrder } from "./order-types";
-import { resolveTimeInForce, tryFillOrder } from "./order-types";
+import { freezeOrderPrices, resolveTimeInForce, tryFillOrder } from "./order-types";
 import { calculateSizedShares } from "./sizing";
 import type { SlippageModel } from "./slippage-model";
 import { calculateDynamicSlippage, resolveSlippageModel } from "./slippage-model";
@@ -662,7 +662,9 @@ export function runBacktest(
           const tif = tifOpt ?? "gtc";
           const tifResolved = resolveTimeInForce(tif, orderTTL);
           pendingOrder = {
-            orderType: orderTypeOpt,
+            // Resolve function prices once against the signal bar — see
+            // freezeOrderPrices for why.
+            orderType: freezeOrderPrices(orderTypeOpt, candle, entryAtr),
             direction: dir,
             signalTime: candle.time,
             signalIndex: i,

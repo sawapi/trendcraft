@@ -2,6 +2,31 @@
 
 ## [Unreleased]
 
+### Fixed — limit/stop order fills no longer use future or pre-trigger prices
+
+- **Function-based order prices now resolve against the signal candle.**
+  `LimitPriceFunc`/`StopPriceFunc` are documented as deriving a level from the
+  entry-signal bar (e.g. `stopAboveHigh()` = break of the signal bar's high),
+  but the engine re-resolved them against every later fill-check bar. The
+  level drifted bar by bar and self-referenced the bar being tested —
+  `stopAboveHigh(0)` degenerated to `high >= high` and filled unconditionally,
+  even in a falling market; `limitBelowClose(1)` filled in rallies that never
+  touched the intended level. Prices are now frozen once at order creation
+  (new `freezeOrderPrices` helper, exported for direct `tryFillOrder` users).
+  All 10 price presets were affected; fixed numeric prices were always
+  correct.
+- **stopLimit orders no longer fill at the pre-trigger open on the bar that
+  activates them.** The order goes live intra-bar at the stop trigger, so on
+  the trigger bar it now fills at `max(stopPrice, open)` (long; mirrored for
+  short) when within the limit, or at the limit when the bar also trades
+  through it. Previously it fell straight into the resting-limit formula and
+  filled at the bar's open — a price from before the order existed. Fills on
+  later bars (already-activated orders) are unchanged.
+
+Backtests using function-based prices or same-bar stopLimit activations will
+report different (correct) entries; results previously carried a look-ahead
+advantage.
+
 ### Fixed — per-run state no longer leaks through a shared `IndicatorCache`
 
 - `perfectOrderPullbackEntry` / `perfectOrderPullbackSellEntry` kept a mutable
