@@ -39,3 +39,21 @@ export const at =
 
 /** Condition that never fires */
 export const never: ConditionFn = () => false;
+
+/**
+ * Precise-OHLC candle builder for tests that need exact bar shapes
+ * (stepCandles only produces flat open=close bars with a fixed ±1 band).
+ */
+export const makeCandles = (
+  data: Array<{ o: number; h: number; l: number; c: number }>,
+  startTime = 1700000000000,
+  intervalMs = 86400000,
+): NormalizedCandle[] =>
+  data.map((d, i) => ({
+    time: startTime + i * intervalMs,
+    open: d.o,
+    high: d.h,
+    low: d.l,
+    close: d.c,
+    volume: 1000,
+  }));

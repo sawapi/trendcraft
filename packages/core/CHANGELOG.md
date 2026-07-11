@@ -2,6 +2,31 @@
 
 ## [Unreleased]
 
+### Fixed — mid-bar fills no longer monetize pre-fill price action
+
+When a pending limit/stop order filled mid-bar, the new position's
+peak/trough were seeded from the fill bar's full high/low, and same-bar
+stop/take-profit/trailing checks ran against the whole bar — including price
+action from before the order filled. A limit buy at 90 on a bar that spiked
+to 110 first could exit the same bar via "trailing" at 104.5 (a price the
+position never owned) and report an MFE of 22% instead of the real 5.6%.
+Now:
+
+- Peak/trough seed from the fill price.
+- On the fill bar, position management only uses post-fill knowledge (the
+  fill price and the close): profit-side triggers cap at
+  `max(fillPrice, close)`, stop-side at `min(fillPrice, close)`, and the
+  close is folded into peak/trough history only after the fill bar's checks
+  (the known path is fill → close, so the close is not a peak the entry
+  price then appears to dip below).
+- From the next bar on, management is unchanged. Next-bar-open entries are
+  unaffected (an open fill owns the whole bar). Exit-signal conditions still
+  evaluate against the real candle — market data is not altered, only the
+  position's price knowledge.
+
+Backtests entering via limit/stop orders on wide bars will report different
+(correct) same-bar exits and lower, honest MFE values.
+
 ### Fixed — limit/stop order fills no longer use future or pre-trigger prices
 
 - **Function-based order prices now resolve against the signal candle.**

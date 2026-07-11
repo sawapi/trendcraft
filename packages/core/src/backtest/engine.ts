@@ -36,6 +36,7 @@ import {
   calculateTradeClose,
   checkProfitTriggerDirectional,
   checkStopTriggerDirectional,
+  clampCandleToPostFill,
   emptyResult,
   MS_PER_DAY,
 } from "./engine-utils";
@@ -361,6 +362,22 @@ export function runBacktest(
   /**
    * Update MFE/MAE for direction
    */
+  /**
+   * Fold a bar's extremes into the position: peak/trough (the trailing-stop
+   * anchors) plus MFE/MAE. Single owner — the fill-bar path calls this after
+   * the exit checks instead of before, and the two call sites must apply the
+   * exact same update.
+   */
+  function foldBarIntoPosition(pos: Position, bar: NormalizedCandle): void {
+    if (bar.high > pos.peakPrice) {
+      pos.peakPrice = bar.high;
+    }
+    if (bar.low < pos.troughPrice) {
+      pos.troughPrice = bar.low;
+    }
+    updateMfeMae(pos, bar);
+  }
+
   function updateMfeMae(pos: Position, candle: NormalizedCandle): void {
     if (isShort) {
       // Short: profit when price drops, loss when price rises
@@ -553,6 +570,9 @@ export function runBacktest(
   }
 
   for (let i = 1; i < candles.length; i++) {
+    // True only on a bar where a pending order filled mid-bar; same-bar
+    // management then runs against a clamped view (see mgmtCandle below).
+    let filledMidBarThisBar = false;
     const candle = candles[i];
 
     // Update MTF indices for this candle
@@ -578,18 +598,21 @@ export function runBacktest(
         if (fillResult) {
           const currentSlip = getSlippage(candle, i);
           const fillPrice = applySlippage(fillResult.fillPrice, currentSlip, entrySide);
+          // Seed peak/trough from the fill price; same-bar management is
+          // clamped to post-fill knowledge (see clampCandleToPostFill).
           const opened = openPositionFromEntry(
             fillPrice,
             candle.time,
             pendingOrder.entryAtr,
-            candle.high,
-            candle.low,
+            fillPrice,
+            fillPrice,
             candle,
             i,
             pendingOrder.allowPartialFill,
           );
           if (opened) {
             position = opened;
+            filledMidBarThisBar = true;
           }
           pendingOrder = null;
         }
@@ -700,16 +723,22 @@ export function runBacktest(
     } else if (position !== null && pendingExit === null) {
       // === Position management ===
 
-      // Update peak/trough prices
-      if (candle.high > position.peakPrice) {
-        position.peakPrice = candle.high;
-      }
-      if (candle.low < position.troughPrice) {
-        position.troughPrice = candle.low;
-      }
+      // On a mid-bar fill bar, manage against post-fill knowledge only (see
+      // clampCandleToPostFill). Exit-signal condition evaluation below still
+      // sees the real candle — market data is not clamped, only the
+      // position's price knowledge is.
+      const mgmtCandle: NormalizedCandle = filledMidBarThisBar
+        ? clampCandleToPostFill(position.entryPrice, candle)
+        : candle;
 
-      // Track MFE/MAE
-      updateMfeMae(position, candle);
+      // Update peak/trough and MFE/MAE. On the fill bar this is DEFERRED
+      // until after the exit checks: the only known post-fill path is
+      // fill → close, so the close must not become a "peak" that the fill
+      // price then appears to dip below — that would fire trailing stops on
+      // the entry itself.
+      if (!filledMidBarThisBar) {
+        foldBarIntoPosition(position, mgmtCandle);
+      }
 
       let shouldExit = false;
       let exitPrice = candle.close;
@@ -784,7 +813,7 @@ export function runBacktest(
       // === Stop Loss Check ===
       if (stopLoss !== undefined) {
         const stopLossPrice = calcStopLossPrice(position.entryPrice, stopLoss);
-        const triggered = checkStopTriggerDirectional(candle, stopLossPrice, slTpMode, dir);
+        const triggered = checkStopTriggerDirectional(mgmtCandle, stopLossPrice, slTpMode, dir);
         if (triggered) {
           shouldExit = true;
           exitPrice = triggered.price;
@@ -799,7 +828,7 @@ export function runBacktest(
           currentAtr,
           atrRisk.atrStopMultiplier,
         );
-        const triggered = checkStopTriggerDirectional(candle, atrStopPrice, slTpMode, dir);
+        const triggered = checkStopTriggerDirectional(mgmtCandle, atrStopPrice, slTpMode, dir);
         if (triggered) {
           shouldExit = true;
           exitPrice = triggered.price;
@@ -810,7 +839,7 @@ export function runBacktest(
       // === Take Profit Check ===
       if (!shouldExit && takeProfit !== undefined) {
         const takeProfitPrice = calcTakeProfitPrice(position.entryPrice, takeProfit);
-        const triggered = checkProfitTriggerDirectional(candle, takeProfitPrice, slTpMode, dir);
+        const triggered = checkProfitTriggerDirectional(mgmtCandle, takeProfitPrice, slTpMode, dir);
         if (triggered) {
           shouldExit = true;
           exitPrice = triggered.price;
@@ -825,7 +854,7 @@ export function runBacktest(
           currentAtr,
           atrRisk.atrTakeProfitMultiplier,
         );
-        const triggered = checkProfitTriggerDirectional(candle, atrTpPrice, slTpMode, dir);
+        const triggered = checkProfitTriggerDirectional(mgmtCandle, atrTpPrice, slTpMode, dir);
         if (triggered) {
           shouldExit = true;
           exitPrice = triggered.price;
@@ -840,7 +869,7 @@ export function runBacktest(
           partialTakeProfit.threshold,
         );
         const partialTrigger = checkProfitTriggerDirectional(
-          candle,
+          mgmtCandle,
           partialThresholdPrice,
           slTpMode,
           dir,
@@ -884,7 +913,7 @@ export function runBacktest(
           const level = scaleOut.levels[levelIndex];
           const scaleOutThresholdPrice = calcTakeProfitPrice(position.entryPrice, level.threshold);
           const scaleOutTrigger = checkProfitTriggerDirectional(
-            candle,
+            mgmtCandle,
             scaleOutThresholdPrice,
             slTpMode,
             dir,
@@ -948,7 +977,7 @@ export function runBacktest(
         // Activate breakeven if threshold is reached
         if (!position.breakevenActivated) {
           const triggered = checkProfitTriggerDirectional(
-            candle,
+            mgmtCandle,
             breakevenThresholdPrice,
             slTpMode,
             dir,
@@ -960,7 +989,12 @@ export function runBacktest(
 
         // Check breakeven stop if activated
         if (position.breakevenActivated) {
-          const triggered = checkStopTriggerDirectional(candle, breakevenStopPrice, slTpMode, dir);
+          const triggered = checkStopTriggerDirectional(
+            mgmtCandle,
+            breakevenStopPrice,
+            slTpMode,
+            dir,
+          );
           if (triggered) {
             shouldExit = true;
             exitPrice = triggered.price;
@@ -972,7 +1006,7 @@ export function runBacktest(
       // Trailing stop check (fixed percentage)
       if (!shouldExit && trailingStop !== undefined) {
         const trailingStopPrice = calcTrailingStopPrice(position, trailingStop);
-        const triggered = checkStopTriggerDirectional(candle, trailingStopPrice, slTpMode, dir);
+        const triggered = checkStopTriggerDirectional(mgmtCandle, trailingStopPrice, slTpMode, dir);
         if (triggered) {
           shouldExit = true;
           exitPrice = triggered.price;
@@ -987,7 +1021,7 @@ export function runBacktest(
           currentAtr,
           atrRisk.atrTrailingMultiplier,
         );
-        const triggered = checkStopTriggerDirectional(candle, atrTrailPrice, slTpMode, dir);
+        const triggered = checkStopTriggerDirectional(mgmtCandle, atrTrailPrice, slTpMode, dir);
         if (triggered) {
           shouldExit = true;
           exitPrice = triggered.price;
@@ -1000,7 +1034,7 @@ export function runBacktest(
         const atrValue = atrSeries[i]?.value;
         if (atrValue !== null && atrValue !== undefined) {
           const atrTrailPrice = calcAtrTrailPrice(position, atrValue, atrTrailingStop.multiplier);
-          const triggered = checkStopTriggerDirectional(candle, atrTrailPrice, slTpMode, dir);
+          const triggered = checkStopTriggerDirectional(mgmtCandle, atrTrailPrice, slTpMode, dir);
           if (triggered) {
             shouldExit = true;
             exitPrice = triggered.price;
@@ -1079,6 +1113,13 @@ export function runBacktest(
             exitReason,
           };
         }
+      }
+
+      // Deferred fill-bar fold (see the comment at the top of this block):
+      // the clamped fill bar enters the position's history only after the
+      // fill bar's checks, so later bars also trail from its close.
+      if (filledMidBarThisBar && position !== null) {
+        foldBarIntoPosition(position, mgmtCandle);
       }
     }
     equityCurve[i] = markToMarketEquity(candle.close);

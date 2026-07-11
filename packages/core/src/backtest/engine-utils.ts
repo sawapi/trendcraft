@@ -180,6 +180,30 @@ export function checkProfitTrigger(
 }
 
 /**
+ * Clamp a fill bar to the position's post-fill price knowledge.
+ *
+ * When an order fills mid-bar, the bar's full high/low include price action
+ * from BEFORE the fill — a path the position never owned. The only knowable
+ * post-fill prices are the fill itself and the close, so same-bar position
+ * management (stop/TP/trailing checks, peak/trough, MFE/MAE) must run
+ * against this clamped view. The open is set to the fill price so the
+ * synthetic bar stays self-consistent (open within [low, high]).
+ *
+ * From the next bar on, the whole bar is post-fill and no clamp applies.
+ */
+export function clampCandleToPostFill(
+  fillPrice: number,
+  candle: NormalizedCandle,
+): NormalizedCandle {
+  return {
+    ...candle,
+    open: fillPrice,
+    high: Math.max(fillPrice, candle.close),
+    low: Math.min(fillPrice, candle.close),
+  };
+}
+
+/**
  * Check stop loss trigger with direction awareness
  * For long: price drops to stop level (same as checkStopTrigger)
  * For short: price rises to stop level

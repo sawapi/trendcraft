@@ -16,21 +16,7 @@
 import { describe, expect, it } from "vitest";
 import type { NormalizedCandle } from "../../types";
 import { runBacktest } from "../engine";
-
-// Helper to create candles
-const makeCandles = (
-  data: Array<{ o: number; h: number; l: number; c: number }>,
-  startTime = 1700000000000,
-  intervalMs = 86400000,
-): NormalizedCandle[] =>
-  data.map((d, i) => ({
-    time: startTime + i * intervalMs,
-    open: d.o,
-    high: d.h,
-    low: d.l,
-    close: d.c,
-    volume: 1000,
-  }));
+import { makeCandles } from "./step-candles";
 
 // Always true condition (for entry)
 const alwaysTrue = () => true;
