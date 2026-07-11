@@ -132,14 +132,30 @@ function getPatternData(
 }
 
 /**
- * Find a matching pattern at the given candle time
+ * Get the earliest bar time at which the pattern is actionable.
+ *
+ * `PatternSignal.time` anchors the final structural pivot, which is only
+ * identifiable `swingLookback` bars later (and confirmation requires a
+ * breakout that can be weeks after the pivot). Matching conditions against
+ * `time` would let a backtest act on future knowledge, so conditions match
+ * against the causal timestamps instead.
+ */
+function actionableTime(pattern: PatternSignal, confirmedOnly: boolean): number | undefined {
+  if (confirmedOnly) {
+    return pattern.confirmed ? pattern.confirmTime : undefined;
+  }
+  return pattern.detectableTime;
+}
+
+/**
+ * Find a matching pattern actionable at the given candle time
  */
 function findPatternAtTime(
   patterns: PatternSignal[],
   time: number | string,
   confirmedOnly: boolean,
 ): PatternSignal | undefined {
-  return patterns.find((p) => p.time === time && (!confirmedOnly || p.confirmed));
+  return patterns.find((p) => actionableTime(p, confirmedOnly) === time);
 }
 
 /**
@@ -171,6 +187,11 @@ function hasMatchingPattern(
 /**
  * Pattern of specific type detected at current bar
  *
+ * Fires at the first bar where the pattern formation is knowable in real
+ * time (the final structural pivot plus `swingLookback` confirmation bars),
+ * not at the pivot bar itself. With `confirmedOnly: true` it fires at the
+ * bar where the breakout confirmation becomes knowable.
+ *
  * @param type - Pattern type to detect
  * @param options - Pattern detection options
  *
@@ -197,6 +218,10 @@ export function patternDetected(
 
 /**
  * Pattern of specific type is confirmed (breakout occurred)
+ *
+ * Fires at the bar where the breakout confirmation becomes knowable in real
+ * time (the later of the breakout bar and the bar where the final pivot is
+ * identifiable).
  *
  * @param type - Pattern type to check
  * @param options - Pattern detection options
@@ -263,14 +288,21 @@ export function anyBearishPattern(options: PatternConditionOptions = {}): Preset
 // ============================================
 
 /**
- * Find a pattern at the given time with confidence above threshold
+ * Find a pattern actionable at the given time with confidence above threshold
+ *
+ * A confirmed pattern's confidence folds in breakout and breakout-bar volume
+ * information, so it only becomes knowable at `confirmTime`; unconfirmed
+ * patterns are gated on `detectableTime`. That is `actionableTime` with the
+ * pattern's own `confirmed` flag as the requirement.
  */
 function findHighConfidencePattern(
   patterns: PatternSignal[],
   time: number | string,
   minConfidence: number,
 ): boolean {
-  return patterns.some((p) => p.time === time && p.confidence >= minConfidence);
+  return patterns.some(
+    (p) => actionableTime(p, p.confirmed) === time && p.confidence >= minConfidence,
+  );
 }
 
 /**
@@ -333,7 +365,9 @@ export function anyPatternConfidenceAbove(
 /**
  * Pattern detected within last N bars
  *
- * Useful for detecting patterns that were recently formed but not exactly at current bar.
+ * Useful for detecting patterns that recently became actionable but not exactly at
+ * the current bar. The lookback window is matched against the bar where the pattern
+ * became knowable in real time (see `patternDetected`), not the pivot bar.
  *
  * @param type - Pattern type to detect
  * @param lookback - Number of bars to look back (default: 5)
@@ -365,12 +399,11 @@ export function patternWithinBars(
         lookbackTimes.add(candles[i].time);
       }
 
-      // Check if any pattern falls within the lookback window
+      // Check if any pattern became actionable within the lookback window
       for (const pattern of patterns) {
-        if (lookbackTimes.has(pattern.time)) {
-          if (!confirmedOnly || pattern.confirmed) {
-            return true;
-          }
+        const time = actionableTime(pattern, confirmedOnly);
+        if (time !== undefined && lookbackTimes.has(time)) {
+          return true;
         }
       }
 

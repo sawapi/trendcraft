@@ -11,6 +11,34 @@ export interface SwingPoint {
 }
 
 /**
+ * Compute the causal timestamps for a detected pattern.
+ *
+ * A swing pivot is only identifiable once its right-hand confirmation bars
+ * exist, so a pattern's formation becomes knowable at `detectableIndex`
+ * (final structural pivot + swing lookback), and its breakout confirmation
+ * at the later of the breakout bar and `detectableIndex` — a breakout can
+ * occur before the pivot itself is identifiable. This is the single owner
+ * of that rule; detectors only derive `detectableIndex` (which pivot is
+ * final varies per pattern) and pass the raw breakout index.
+ *
+ * `detectableIndex` is clamped to the last bar for detectors whose final
+ * anchor is not a swing pivot (e.g. cup-with-handle's fallback handle low)
+ * and may point past the end of data; for swing pivots the clamp is a no-op.
+ */
+export function causalPatternTimes(
+  candles: NormalizedCandle[],
+  detectableIndex: number,
+  breakoutIndex: number | null | undefined,
+): { detectableTime: number; confirmTime: number | undefined } {
+  const knowableIndex = Math.min(detectableIndex, candles.length - 1);
+  return {
+    detectableTime: candles[knowableIndex].time,
+    confirmTime:
+      breakoutIndex != null ? candles[Math.max(breakoutIndex, knowableIndex)].time : undefined,
+  };
+}
+
+/**
  * Interpolate time between two points to find where price crosses a target level
  * Used in strict mode to find neckline intersection points
  */

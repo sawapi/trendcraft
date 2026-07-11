@@ -1146,6 +1146,14 @@ const entry = and(
 const cupEntry = cupHandleDetected({ confirmedOnly: true });
 ```
 
+Pattern conditions fire when the pattern is knowable in real time, not at the
+pattern's pivot bar: a swing pivot is only identifiable `swingLookback` bars
+after it forms, and confirmation requires the breakout bar. `patternDetected`
+fires once the formation is knowable; with `confirmedOnly: true` (or
+`patternConfirmed`) it fires on the bar where the breakout becomes knowable.
+This keeps backtests causal — entries never use future knowledge of the
+pattern.
+
 ---
 
 ## Multi-Timeframe (MTF) Analysis

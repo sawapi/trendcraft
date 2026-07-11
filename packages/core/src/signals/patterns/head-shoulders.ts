@@ -8,7 +8,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { getSwingHighs, getSwingLows } from "../../indicators/price/swing-points";
 import type { Candle, NormalizedCandle } from "../../types";
-import { validateBreakoutVolume } from "./double-pattern-utils";
+import { causalPatternTimes, validateBreakoutVolume } from "./double-pattern-utils";
 import type {
   HeadShouldersOptions,
   PatternKeyPoint,
@@ -171,6 +171,7 @@ export function headAndShoulders(
 
     patterns.push({
       time: normalized[rightShoulder.index].time,
+      ...causalPatternTimes(normalized, rightShoulder.index + swingLookback, breakoutIndex),
       type: "head_shoulders",
       pattern: {
         startTime: normalized[leftShoulder.index].time,
@@ -332,6 +333,7 @@ export function inverseHeadAndShoulders(
 
     patterns.push({
       time: normalized[rightShoulder.index].time,
+      ...causalPatternTimes(normalized, rightShoulder.index + swingLookback, breakoutIndex),
       type: "inverse_head_shoulders",
       pattern: {
         startTime: normalized[leftShoulder.index].time,

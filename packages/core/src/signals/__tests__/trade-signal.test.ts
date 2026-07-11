@@ -130,6 +130,8 @@ describe("fromPatternSignal", () => {
   it("converts double_bottom to BUY with price levels", () => {
     const signal: PatternSignal = {
       time: 5000,
+      detectableTime: 5000,
+      confirmTime: 5000,
       type: "double_bottom",
       pattern: {
         startTime: 4000,
@@ -154,6 +156,7 @@ describe("fromPatternSignal", () => {
   it("converts double_top to SELL", () => {
     const signal: PatternSignal = {
       time: 6000,
+      detectableTime: 6000,
       type: "double_top",
       pattern: { startTime: 5000, endTime: 6000, keyPoints: [] },
       confidence: 65,

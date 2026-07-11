@@ -1147,6 +1147,14 @@ const entry = and(
 const cupEntry = cupHandleDetected({ confirmedOnly: true });
 ```
 
+パターン条件はパターンのピボットバーではなく、リアルタイムで判明する
+バーで発火します。スイングピボットは形成の `swingLookback` バー後に
+初めて確定し、確認（confirmed）にはブレイクアウトバーが必要です。
+`patternDetected` は形成が判明した時点で、`confirmedOnly: true`（または
+`patternConfirmed`）はブレイクアウトが判明したバーで発火します。これに
+よりバックテストは因果的になり、エントリーがパターンの未来情報を使う
+ことはありません。
+
 ---
 
 ## マルチタイムフレーム（MTF）分析

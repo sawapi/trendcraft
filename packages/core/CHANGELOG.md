@@ -2,6 +2,38 @@
 
 ## [Unreleased]
 
+### Breaking — `PatternSignal` gains causal timestamps; pattern backtest conditions no longer enter at the pivot bar
+
+Chart-pattern detectors anchor `PatternSignal.time` at the pattern's final
+structural pivot (e.g. a double bottom's second trough), but that pivot is
+only identifiable `swingLookback` bars later, and breakout confirmation can
+come weeks after that. The pattern backtest conditions (`patternDetected`,
+`patternConfirmed`, `patternWithinBars`, `patternConfidenceAbove`,
+`anyBullishPattern`, `anyBearishPattern`, and friends) matched entries
+against `time`, so a backtest bought the exact double-bottom low with
+knowledge of a breakout that had not happened yet — a measured ~10% per-trade
+look-ahead edge on synthetic data.
+
+- `PatternSignal` now carries `detectableTime` (required — the bar where the
+  formation becomes knowable in real time: final pivot + `swingLookback`
+  bars) and `confirmTime` (optional — where the breakout confirmation
+  becomes knowable: the later of the breakout bar and `detectableTime`; only
+  set when `confirmed` is true). All detectors (double top/bottom, head &
+  shoulders, cup & handle, triangle, wedge, channel, flag/pennant, harmonics)
+  populate them. Code constructing `PatternSignal` values by hand must now
+  provide `detectableTime`.
+- Pattern backtest conditions match against these causal timestamps instead
+  of `time`: `patternDetected` fires when the formation is knowable,
+  `patternConfirmed` when the breakout is knowable, and
+  `patternConfidenceAbove` gates a confirmed pattern's confidence (which
+  folds in breakout-bar information) on the confirmation bar.
+  `patternWithinBars` looks back over actionable bars.
+
+Backtests entering on pattern conditions will show later (honest) entries
+and typically lower returns; previous results carried systematic look-ahead
+bias. `PatternSignal.time` itself is unchanged, so chart rendering and
+pattern-marker placement are unaffected.
+
 ### Fixed — mid-bar fills no longer monetize pre-fill price action
 
 When a pending limit/stop order filled mid-bar, the new position's

@@ -87,6 +87,20 @@ export interface PatternNeckline {
 export interface PatternSignal {
   /** Timestamp when pattern was detected (usually at completion) */
   time: number;
+  /**
+   * Earliest bar time at which the pattern formation is knowable in real time.
+   * Swing pivots are only identifiable `swingLookback` bars after they occur,
+   * so this is the time of the bar `swingLookback` bars after the final
+   * structural pivot. Use this (not `time`) for causal/backtest entries.
+   */
+  detectableTime: number;
+  /**
+   * Earliest bar time at which the breakout confirmation is knowable in real
+   * time: the later of the breakout bar and `detectableTime` (a breakout can
+   * occur before the final pivot itself is identifiable). Only set when
+   * `confirmed` is true.
+   */
+  confirmTime?: number;
   /** Pattern type */
   type: PatternType;
   /** Pattern details */
