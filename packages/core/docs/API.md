@@ -2787,7 +2787,11 @@ All pattern detection functions return `PatternSignal[]`:
 
 ```typescript
 interface PatternSignal {
-  time: number;              // Pattern completion time
+  time: number;              // Pattern completion time (final structural pivot)
+  detectableTime: number;    // First bar where the formation is knowable in real time
+                             // (final pivot + swingLookback confirmation bars)
+  confirmTime?: number;      // First bar where the breakout confirmation is knowable
+                             // (only set when confirmed is true)
   type: PatternType;         // 'double_top' | 'double_bottom' | 'head_shoulders' | etc.
   pattern: {
     startTime: number;       // Pattern start

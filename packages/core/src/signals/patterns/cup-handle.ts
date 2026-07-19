@@ -8,7 +8,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { getSwingHighs, getSwingLows } from "../../indicators/price/swing-points";
 import type { Candle, NormalizedCandle } from "../../types";
-import { validateBreakoutVolume } from "./double-pattern-utils";
+import { causalPatternTimes, validateBreakoutVolume } from "./double-pattern-utils";
 import type { CupHandleOptions, PatternKeyPoint, PatternSignal } from "./types";
 
 /**
@@ -167,8 +167,17 @@ export function cupWithHandle(
         },
       ];
 
+      // The handle low is typically a swing low (identifiable swingLookback
+      // bars later); the handle end itself is knowable at that bar. The
+      // fallback handle-low path is not a swing pivot, so the index may run
+      // past the end of data (causalPatternTimes clamps it).
       patterns.push({
         time: normalized[handle.endIndex].time,
+        ...causalPatternTimes(
+          normalized,
+          Math.max(handle.endIndex, handle.lowIndex + swingLookback),
+          breakoutIndex,
+        ),
         type: "cup_handle",
         pattern: {
           startTime: normalized[leftRim.index].time,

@@ -17,6 +17,8 @@ function makeCandles(count: number): NormalizedCandle[] {
 function makePattern(overrides: Partial<PatternSignal> = {}): PatternSignal {
   return {
     time: 1050,
+    detectableTime: 1055,
+    confirmTime: 1055,
     type: "double_top",
     pattern: {
       startTime: 1020,

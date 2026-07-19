@@ -14,6 +14,7 @@ import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { getSwingHighs, getSwingLows } from "../../indicators/price/swing-points";
 import { atr as calcAtr } from "../../indicators/volatility/atr";
 import type { Candle, NormalizedCandle } from "../../types";
+import { causalPatternTimes } from "./double-pattern-utils";
 import {
   avgClosePrice,
   calculateBreakoutLevels,
@@ -358,8 +359,19 @@ export function detectFlag(
     }
     keyPoints.sort((a, b) => a.index - b.index);
 
+    // Consolidation swing points are only identifiable swingLookback bars
+    // later; the pattern also consumes data through consEnd.
+    const lastSwingIndex = Math.max(
+      ...consHighs.map((p) => p.index),
+      ...consLows.map((p) => p.index),
+    );
     results.push({
       time: normalized[detectionIndex].time,
+      ...causalPatternTimes(
+        normalized,
+        Math.max(consEnd, lastSwingIndex + swingLookback),
+        breakout?.index,
+      ),
       type: subtype,
       pattern: {
         startTime: normalized[pole.startIndex].time,

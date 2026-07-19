@@ -192,6 +192,8 @@ describe("projectFromPatterns", () => {
 
     const signal: PatternSignal = {
       time: candles[0].time,
+      detectableTime: candles[0].time,
+      confirmTime: candles[0].time,
       type: "double_top",
       pattern: {
         startTime: candles[0].time,
@@ -214,6 +216,8 @@ describe("projectFromPatterns", () => {
 
     const signal: PatternSignal = {
       time: candles[0].time,
+      detectableTime: candles[0].time,
+      confirmTime: candles[0].time,
       type: "double_bottom",
       pattern: {
         startTime: candles[0].time,

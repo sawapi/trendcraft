@@ -2765,7 +2765,11 @@ const filtered = filterPatterns(raw, candles, {
 
 ```typescript
 interface PatternSignal {
-  time: number;              // パターン完成時刻
+  time: number;              // パターン完成時刻（最終構造ピボット）
+  detectableTime: number;    // リアルタイムで形成が判明する最初のバー
+                             // （最終ピボット + swingLookback 確定バー）
+  confirmTime?: number;      // ブレイクアウト確認が判明する最初のバー
+                             // （confirmed が true の場合のみ設定）
   type: PatternType;         // 'double_top' | 'double_bottom' | 'head_shoulders' など
   pattern: {
     startTime: number;       // パターン開始

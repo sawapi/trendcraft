@@ -13,6 +13,7 @@ import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { getSwingHighs, getSwingLows } from "../../indicators/price/swing-points";
 import { atr as calcAtr } from "../../indicators/volatility/atr";
 import type { Candle, NormalizedCandle } from "../../types";
+import { causalPatternTimes } from "./double-pattern-utils";
 import {
   avgClosePrice,
   buildTouchKeyPoints,
@@ -233,6 +234,7 @@ export function detectTriangle(
 
         results.push({
           time: normalized[detectionIndex].time,
+          ...causalPatternTimes(normalized, endIndex + scale, breakout?.index),
           type: subtype,
           pattern: {
             startTime: normalized[startIndex].time,

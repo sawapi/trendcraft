@@ -8,6 +8,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { getAlternatingSwingPoints } from "../../indicators/price/swing-points";
 import type { Candle, NormalizedCandle } from "../../types";
+import { causalPatternTimes } from "./double-pattern-utils";
 import type {
   HarmonicPatternOptions,
   HarmonicPatternType,
@@ -248,8 +249,11 @@ export function detectHarmonicPatterns(
           label: XABCD_LABELS[idx],
         }));
 
+        // The pattern is confirmed at the D pivot itself, so confirmation
+        // becomes knowable together with the formation.
         const signal: PatternSignal = {
           time: D.time,
+          ...causalPatternTimes(normalized, D.index + swingLookback, D.index),
           type: patternType,
           pattern: {
             startTime: X.time,

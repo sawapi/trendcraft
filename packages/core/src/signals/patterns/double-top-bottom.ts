@@ -11,6 +11,7 @@ import type { Candle, NormalizedCandle } from "../../types";
 import {
   calculateDoublePatternConfidence,
   calculateProminence,
+  causalPatternTimes,
   countNecklineCrosses,
   findMiddlePeak,
   findMiddleTrough,
@@ -351,6 +352,7 @@ export function doubleTop(
 
       patterns.push({
         time: normalized[secondPeak.index].time,
+        ...causalPatternTimes(normalized, secondPeak.index + swingLookback, breakdownPoint?.index),
         type: "double_top",
         pattern: {
           startTime: patternStartTime,
@@ -708,6 +710,7 @@ export function doubleBottom(
 
       patterns.push({
         time: normalized[secondTrough.index].time,
+        ...causalPatternTimes(normalized, secondTrough.index + swingLookback, breakoutPoint?.index),
         type: "double_bottom",
         pattern: {
           startTime: patternStartTime,
