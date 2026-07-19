@@ -2,6 +2,43 @@
 
 ## [Unreleased]
 
+### Fixed — `runBacktestScaled` (tranches ≥ 2) now honors `fillMode` and `slTpMode`
+
+The multi-tranche path of `runBacktestScaled` accepted `fillMode`/`slTpMode`
+and recorded them in `result.settings`, but never used them:
+
+- Entries (first and additional tranches) always filled at the signal bar's
+  own close — a same-bar fill even under the default `next-bar-open`, giving
+  the backtest the signal bar's close before it could have acted on it.
+- Stop loss, take profit, partial take profit, and trailing stops always
+  triggered on intrabar wicks and exited at the trigger price, ignoring the
+  default `close-only` mode. A bar that dipped through the stop but closed
+  above it stopped the position out anyway.
+- The single-tranche fallback honored both modes, so semantics silently
+  flipped when `tranches` went from 1 to 2, and `result.settings` misreported
+  what actually ran.
+
+The multi-tranche path now mirrors the single-entry engine: `next-bar-open`
+queues entries/exits and fills them at the next bar's open, `same-bar-close`
+fills at the signal bar's close; SL/TP/partial/trailing route through the
+same trigger helpers as `runBacktest`, honoring `slTpMode`. With identical
+options and only one tranche filling, `runBacktestScaled` now produces
+trade-for-trade identical results to `runBacktest`. Scaled trades also carry
+`exitReason` now (previously undefined).
+
+Additionally, tranche additions no longer look ahead: the bar that triggers
+an additional tranche evaluates its exit checks against the pre-tranche
+average entry price (a `same-bar-close` tranche fill only exists from the
+close, a `next-bar-open` fill from the next bar's open), so price action
+from before the fill can no longer trigger take-profits computed off the
+updated average. Exit checks also run before tranche additions, so a bar
+that exits does not add a tranche at the same close.
+
+Multi-tranche backtest results will change (honestly): entries shift to the
+next bar's open under the default mode, and wick-based stop-outs disappear
+under the default `close-only` mode; previous results carried same-bar
+look-ahead.
+
 ### Breaking — `PatternSignal` gains causal timestamps; pattern backtest conditions no longer enter at the pivot bar
 
 Chart-pattern detectors anchor `PatternSignal.time` at the pattern's final
