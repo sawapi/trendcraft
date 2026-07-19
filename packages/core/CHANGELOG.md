@@ -34,6 +34,14 @@ from before the fill can no longer trigger take-profits computed off the
 updated average. Exit checks also run before tranche additions, so a bar
 that exits does not add a tranche at the same close.
 
+A partial take profit followed by a later tranche addition also computed the
+average entry price wrong: the sold shares were left inside the per-tranche
+records at full weight, so the recomputed average over-weighted the old cost
+basis (e.g. buy 500 @100, sell 250, add ~511 @97.9 → average reported as
+~98.94 instead of the correct ~98.59), skewing subsequent SL/TP levels and
+the final P&L. Tranche shares are now scaled down by the sold fraction, so
+later additions average against the remaining position only.
+
 Multi-tranche backtest results will change (honestly): entries shift to the
 next bar's open under the default mode, and wick-based stop-outs disappear
 under the default `close-only` mode; previous results carried same-bar

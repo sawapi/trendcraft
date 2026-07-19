@@ -180,6 +180,67 @@ describe("additional tranches carry no look-ahead", () => {
   });
 });
 
+describe("partial take profit keeps the tranche cost basis in sync", () => {
+  /**
+   * 2 tranches fill -> partial TP sells 50% -> 3rd tranche fills.
+   *
+   * capital 90,000, 3 equal tranches (30,000 each), no commission,
+   * same-bar-close fills for exact close-price entries:
+   * - t1 @100 (300 sh), t2 @98 (~306.12 sh) -> avg 98.9899
+   * - partial TP (threshold 3% -> 101.9596) fires at close 102, sells 50%
+   *   (selling does not change the remaining shares' average)
+   * - t3 @96 (312.5 sh): correct remaining-basis average is
+   *   (150*100 + 153.06*98 + 312.5*96) / 615.56 = 97.4720
+   *
+   * Without scaling the sold shares out of the tranches, the recomputed
+   * average counted them at full weight: 90,000 / 918.62 = 97.9728.
+   */
+  const candles = makeCandles(
+    [
+      { o: 100, h: 100.5, l: 99.5, c: 100 }, // i0
+      { o: 100, h: 100.5, l: 99.5, c: 100 }, // i1 <- signal, tranche 1 @100
+      { o: 98, h: 98.5, l: 97.5, c: 98 }, // i2 add trigger (98 <= 98): tranche 2 @98
+      { o: 102, h: 102.5, l: 101.5, c: 102 }, // i3 partial TP (close 102 >= 101.9596)
+      { o: 96, h: 96.5, l: 95.5, c: 96 }, // i4 add trigger (96 <= 96): tranche 3 @96
+      { o: 96, h: 96.5, l: 95.5, c: 96 }, // i5
+      { o: 96, h: 96.5, l: 95.5, c: 96 }, // i6 endOfData @96
+    ],
+    DAY,
+    DAY,
+  );
+
+  it("a tranche added after a partial exit averages against the remaining shares", () => {
+    const result = runBacktestScaled(candles, at(1), never, {
+      capital: 90_000,
+      fillMode: "same-bar-close",
+      partialTakeProfit: { threshold: 3, sellPercent: 50 },
+      scaledEntry: {
+        tranches: 3,
+        strategy: "equal",
+        intervalType: "price",
+        priceInterval: -2,
+      },
+    });
+
+    expect(result.trades).toHaveLength(2);
+
+    const partial = result.trades[0];
+    expect(partial.isPartial).toBe(true);
+    expect(partial.exitPercent).toBe(50);
+    expect(partial.exitReason).toBe("partialTakeProfit");
+    expect(partial.entryPrice).toBeCloseTo(98.9899, 3);
+    expect(partial.exitPrice).toBe(102);
+
+    const final = result.trades[1];
+    expect(final.exitReason).toBe("endOfData");
+    expect(final.exitPrice).toBe(96);
+    // Remaining-cost-basis average; with the sold shares still weighted in
+    // the tranches this came out as 97.9728 instead.
+    expect(final.entryPrice).toBeCloseTo(97.472, 3);
+    expect(final.returnPercent).toBeCloseTo(((96 - 97.472) / 97.472) * 100, 2);
+  });
+});
+
 describe("runBacktestScaled matches runBacktest when only one tranche fills", () => {
   const optionGrid: Record<string, unknown>[] = [];
   // No-modes entry: both engines must resolve their DEFAULTS identically

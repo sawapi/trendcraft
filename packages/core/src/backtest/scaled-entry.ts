@@ -466,7 +466,8 @@ export function runBacktestScaled(
           position.avgEntryPrice * (1 + partialTakeProfit.threshold / 100);
         const partialTrigger = checkProfitTrigger(candle, partialThresholdPrice, slTpMode);
         if (partialTrigger) {
-          const sharesToSell = position.totalShares * (partialTakeProfit.sellPercent / 100);
+          const sellFraction = partialTakeProfit.sellPercent / 100;
+          const sharesToSell = position.totalShares * sellFraction;
           closeShares(
             position,
             partialTrigger.price,
@@ -480,6 +481,14 @@ export function runBacktestScaled(
             },
           );
 
+          // Scale every tranche by the sold fraction so per-tranche shares
+          // stay in sync with totalShares. Selling at market does not change
+          // the remaining shares' average cost, and a later addTranche()
+          // recomputes the average from tranches — leaving the sold shares
+          // in place would weight the old cost basis as if nothing was sold.
+          for (const tranche of position.tranches) {
+            tranche.shares *= 1 - sellFraction;
+          }
           position.totalShares -= sharesToSell;
           position.partialTaken = true;
         }
