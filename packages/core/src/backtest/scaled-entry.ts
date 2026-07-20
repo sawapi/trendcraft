@@ -14,6 +14,7 @@ import type {
   BacktestResult,
   BacktestSettings,
   Condition,
+  ExitReason,
   FillMode,
   NormalizedCandle,
   ScaledEntryConfig,
@@ -23,6 +24,7 @@ import type {
 } from "../types";
 import type { ExtendedCondition } from "./conditions";
 import { evaluateCondition, seedBenchmark } from "./conditions";
+import { checkProfitTrigger, checkStopTrigger } from "./engine-utils";
 import {
   applySlippage,
   calculateStats,
@@ -212,12 +214,156 @@ export function runBacktestScaled(
   let maxDrawdown = 0;
   const returns: number[] = [];
 
+  // Fills queued by next-bar-open mode; they execute at the next bar's open,
+  // mirroring the single-entry engine's pendingEntry/pendingExit handling.
+  let pendingTranche: { entryAtr: number | null } | null = null;
+  let pendingExit: { exitReason: ExitReason } | null = null;
+
+  function openFirstTranche(
+    entryPrice: number,
+    time: number,
+    entryAtr: number | null,
+  ): ScaledPosition {
+    const trancheCapital = currentCapital * trancheWeights[0];
+    const entryCommission = commission + trancheCapital * (commissionRate / 100);
+    const shares = (trancheCapital - entryCommission) / entryPrice;
+
+    const opened: ScaledPosition = {
+      tranches: [
+        {
+          time,
+          price: entryPrice,
+          shares,
+          capitalUsed: trancheCapital,
+        },
+      ],
+      targetTranches: tranches,
+      firstEntryPrice: entryPrice,
+      avgEntryPrice: entryPrice,
+      totalShares: shares,
+      peakPrice: entryPrice,
+      partialTaken: false,
+      entryAtr,
+      reservedCapital: currentCapital - trancheCapital,
+    };
+
+    currentCapital = 0; // All capital (including reserved) is committed
+    return opened;
+  }
+
+  function addTranche(pos: ScaledPosition, entryPrice: number, time: number): void {
+    const trancheIndex = pos.tranches.length;
+    const trancheWeight = trancheWeights[trancheIndex];
+    const trancheCapital = capital * trancheWeight;
+    const entryCommission = commission + trancheCapital * (commissionRate / 100);
+    const shares = (trancheCapital - entryCommission) / entryPrice;
+
+    pos.tranches.push({
+      time,
+      price: entryPrice,
+      shares,
+      capitalUsed: trancheCapital,
+    });
+
+    pos.totalShares += shares;
+    pos.avgEntryPrice = calculateAvgEntryPrice(pos.tranches);
+    pos.reservedCapital -= trancheCapital;
+  }
+
+  function trackDrawdown(): void {
+    if (currentCapital > peakCapital) {
+      peakCapital = currentCapital;
+    }
+    const drawdown = ((peakCapital - currentCapital) / peakCapital) * 100;
+    if (drawdown > maxDrawdown) {
+      maxDrawdown = drawdown;
+    }
+  }
+
+  function closeShares(
+    pos: ScaledPosition,
+    rawExitPrice: number,
+    time: number,
+    exitReason: ExitReason,
+    sharesToClose: number,
+    opts: { withSlippage: boolean; releaseReserved: boolean; partial?: { exitPercent: number } },
+  ): void {
+    const exitPrice = opts.withSlippage
+      ? applySlippage(rawExitPrice, slippage, "sell")
+      : rawExitPrice;
+
+    const grossReturn = (exitPrice - pos.avgEntryPrice) * sharesToClose;
+    const exitValue = exitPrice * sharesToClose;
+    const exitCommission = commission + exitValue * (commissionRate / 100);
+
+    let tax = 0;
+    if (grossReturn > 0 && taxRate > 0) {
+      tax = grossReturn * (taxRate / 100);
+    }
+
+    const netReturn = grossReturn - exitCommission - tax;
+    const returnPercent = (netReturn / (pos.avgEntryPrice * sharesToClose)) * 100;
+    const holdingDays = Math.round((time - pos.tranches[0].time) / MS_PER_DAY);
+
+    trades.push({
+      entryTime: pos.tranches[0].time,
+      entryPrice: pos.avgEntryPrice,
+      exitTime: time,
+      exitPrice,
+      return: netReturn,
+      returnPercent,
+      holdingDays,
+      ...(opts.partial ? { isPartial: true, exitPercent: opts.partial.exitPercent } : {}),
+      exitReason,
+    });
+
+    // Add back any reserved capital that wasn't used (full closes only)
+    currentCapital +=
+      exitValue - exitCommission - tax + (opts.releaseReserved ? pos.reservedCapital : 0);
+    returns.push(returnPercent / 100);
+    trackDrawdown();
+  }
+
+  function closeFullPosition(
+    pos: ScaledPosition,
+    rawExitPrice: number,
+    time: number,
+    exitReason: ExitReason,
+    withSlippage: boolean,
+  ): void {
+    closeShares(pos, rawExitPrice, time, exitReason, pos.totalShares, {
+      withSlippage,
+      releaseReserved: true,
+    });
+  }
+
   for (let i = 1; i < candles.length; i++) {
     const candle = candles[i];
 
     // Update MTF indices for this candle
     if (mtfContext && mtfIndexMap) {
       updateMtfIndices(mtfContext, mtfIndexMap, i, candle.time);
+    }
+
+    // === Fill pending exit (next-bar-open mode) at this bar's open ===
+    if (pendingExit !== null) {
+      if (position !== null) {
+        closeFullPosition(position, candle.open, candle.time, pendingExit.exitReason, true);
+        position = null;
+      }
+      pendingExit = null;
+    }
+
+    // === Fill pending tranche (next-bar-open mode) at this bar's open ===
+    // An open fill owns the whole bar, so management below runs normally.
+    if (pendingTranche !== null) {
+      const fillPrice = applySlippage(candle.open, slippage, "buy");
+      if (position === null) {
+        position = openFirstTranche(fillPrice, candle.time, pendingTranche.entryAtr);
+      } else {
+        addTranche(position, fillPrice, candle.time);
+      }
+      pendingTranche = null;
     }
 
     if (position === null) {
@@ -232,49 +378,180 @@ export function runBacktestScaled(
           mtfContext,
         )
       ) {
-        const entryPrice = applySlippage(candle.close, slippage, "buy");
-
-        // Calculate capital allocation for first tranche
-        const trancheCapital = currentCapital * trancheWeights[0];
-        const entryCommission = commission + trancheCapital * (commissionRate / 100);
-        const shares = (trancheCapital - entryCommission) / entryPrice;
-
         const entryAtr = atrSeries ? atrSeries[i].value : null;
 
-        position = {
-          tranches: [
-            {
-              time: candle.time,
-              price: entryPrice,
-              shares,
-              capitalUsed: trancheCapital,
-            },
-          ],
-          targetTranches: tranches,
-          firstEntryPrice: entryPrice,
-          avgEntryPrice: entryPrice,
-          totalShares: shares,
-          peakPrice: entryPrice,
-          partialTaken: false,
-          entryAtr,
-          reservedCapital: currentCapital - trancheCapital,
-        };
-
-        currentCapital = 0; // All capital (including reserved) is committed
+        if (fillMode === "same-bar-close") {
+          // Close fill: position management starts on the next bar
+          position = openFirstTranche(
+            applySlippage(candle.close, slippage, "buy"),
+            candle.time,
+            entryAtr,
+          );
+        } else {
+          // next-bar-open mode: queue the first tranche for the next bar
+          pendingTranche = { entryAtr };
+        }
       }
     } else {
-      // Position exists - check for additional entries or exit
+      // === Position management ===
 
-      // Update peak price for trailing stop
+      // Fold this bar into the peak before trigger checks (mirrors the
+      // single-entry engine's ordering)
       if (candle.high > position.peakPrice) {
         position.peakPrice = candle.high;
       }
 
       let shouldExit = false;
       let exitPrice = candle.close;
+      let exitReason: ExitReason = "signal";
 
-      // Check for additional entry tranches
-      if (position.tranches.length < position.targetTranches && position.reservedCapital > 0) {
+      // Get current ATR value for ATR-based risk management
+      let currentAtr: number | null = null;
+      if (atrRisk && atrSeries) {
+        if (atrRisk.useEntryAtr && position.entryAtr !== null) {
+          currentAtr = position.entryAtr;
+        } else {
+          currentAtr = atrSeries[i].value;
+        }
+      }
+
+      // Stop loss check (using average entry price)
+      if (stopLoss !== undefined) {
+        const stopLossPrice = position.avgEntryPrice * (1 - stopLoss / 100);
+        const triggered = checkStopTrigger(candle, stopLossPrice, slTpMode);
+        if (triggered) {
+          shouldExit = true;
+          exitPrice = triggered.price;
+          exitReason = "stopLoss";
+        }
+      }
+
+      // ATR-based stop loss
+      if (!shouldExit && currentAtr !== null && atrRisk?.atrStopMultiplier !== undefined) {
+        const atrStopPrice = position.avgEntryPrice - currentAtr * atrRisk.atrStopMultiplier;
+        const triggered = checkStopTrigger(candle, atrStopPrice, slTpMode);
+        if (triggered) {
+          shouldExit = true;
+          exitPrice = triggered.price;
+          exitReason = "stopLoss";
+        }
+      }
+
+      // Take profit check
+      if (!shouldExit && takeProfit !== undefined) {
+        const takeProfitPrice = position.avgEntryPrice * (1 + takeProfit / 100);
+        const triggered = checkProfitTrigger(candle, takeProfitPrice, slTpMode);
+        if (triggered) {
+          shouldExit = true;
+          exitPrice = triggered.price;
+          exitReason = "takeProfit";
+        }
+      }
+
+      // ATR-based take profit
+      if (!shouldExit && currentAtr !== null && atrRisk?.atrTakeProfitMultiplier !== undefined) {
+        const atrTpPrice = position.avgEntryPrice + currentAtr * atrRisk.atrTakeProfitMultiplier;
+        const triggered = checkProfitTrigger(candle, atrTpPrice, slTpMode);
+        if (triggered) {
+          shouldExit = true;
+          exitPrice = triggered.price;
+          exitReason = "takeProfit";
+        }
+      }
+
+      // Partial take profit (on entire scaled position; executes immediately
+      // at the trigger price, mirroring the single-entry engine)
+      if (!shouldExit && partialTakeProfit && !position.partialTaken) {
+        const partialThresholdPrice =
+          position.avgEntryPrice * (1 + partialTakeProfit.threshold / 100);
+        const partialTrigger = checkProfitTrigger(candle, partialThresholdPrice, slTpMode);
+        if (partialTrigger) {
+          const sellFraction = partialTakeProfit.sellPercent / 100;
+          const sharesToSell = position.totalShares * sellFraction;
+          closeShares(
+            position,
+            partialTrigger.price,
+            candle.time,
+            "partialTakeProfit",
+            sharesToSell,
+            {
+              withSlippage: true,
+              releaseReserved: false,
+              partial: { exitPercent: partialTakeProfit.sellPercent },
+            },
+          );
+
+          // Scale every tranche by the sold fraction so per-tranche shares
+          // stay in sync with totalShares. Selling at market does not change
+          // the remaining shares' average cost, and a later addTranche()
+          // recomputes the average from tranches — leaving the sold shares
+          // in place would weight the old cost basis as if nothing was sold.
+          for (const tranche of position.tranches) {
+            tranche.shares *= 1 - sellFraction;
+          }
+          position.totalShares -= sharesToSell;
+          position.partialTaken = true;
+        }
+      }
+
+      // Trailing stop check
+      if (!shouldExit && trailingStop !== undefined) {
+        const trailingStopPrice = position.peakPrice * (1 - trailingStop / 100);
+        const triggered = checkStopTrigger(candle, trailingStopPrice, slTpMode);
+        if (triggered) {
+          shouldExit = true;
+          exitPrice = triggered.price;
+          exitReason = "trailing";
+        }
+      }
+
+      // ATR-based trailing stop
+      if (!shouldExit && currentAtr !== null && atrRisk?.atrTrailingMultiplier !== undefined) {
+        const atrTrailPrice = position.peakPrice - currentAtr * atrRisk.atrTrailingMultiplier;
+        const triggered = checkStopTrigger(candle, atrTrailPrice, slTpMode);
+        if (triggered) {
+          shouldExit = true;
+          exitPrice = triggered.price;
+          exitReason = "trailing";
+        }
+      }
+
+      // Signal-based exit condition
+      if (
+        !shouldExit &&
+        evaluateCondition(
+          exitCondition as ExtendedCondition,
+          indicators,
+          candle,
+          i,
+          candles,
+          mtfContext,
+        )
+      ) {
+        shouldExit = true;
+        exitPrice = candle.close;
+        exitReason = "signal";
+      }
+
+      if (shouldExit) {
+        if (fillMode === "same-bar-close") {
+          closeFullPosition(position, exitPrice, candle.time, exitReason, true);
+          position = null;
+        } else {
+          // next-bar-open mode: queue exit; it fills at the next bar's open
+          pendingExit = { exitReason };
+        }
+      } else if (
+        pendingTranche === null &&
+        position.tranches.length < position.targetTranches &&
+        position.reservedCapital > 0
+      ) {
+        // === Additional tranche check ===
+        // Runs after the exit checks: this bar's SL/TP/trailing ran against
+        // the pre-tranche position, so a same-bar-close tranche fill cannot
+        // be exited by price action from before the fill (the new average
+        // entry applies from the next bar). A bar that exits does not also
+        // add a tranche.
         let shouldAddTranche = false;
 
         if (intervalType === "signal") {
@@ -296,232 +573,23 @@ export function runBacktestScaled(
         }
 
         if (shouldAddTranche) {
-          const trancheIndex = position.tranches.length;
-          const trancheWeight = trancheWeights[trancheIndex];
-          const trancheCapital = capital * trancheWeight;
-          const entryPrice = applySlippage(candle.close, slippage, "buy");
-          const entryCommission = commission + trancheCapital * (commissionRate / 100);
-          const shares = (trancheCapital - entryCommission) / entryPrice;
-
-          position.tranches.push({
-            time: candle.time,
-            price: entryPrice,
-            shares,
-            capitalUsed: trancheCapital,
-          });
-
-          position.totalShares += shares;
-          position.avgEntryPrice = calculateAvgEntryPrice(position.tranches);
-          position.reservedCapital -= trancheCapital;
-        }
-      }
-
-      // Get current ATR value for ATR-based risk management
-      let currentAtr: number | null = null;
-      if (atrRisk && atrSeries) {
-        if (atrRisk.useEntryAtr && position.entryAtr !== null) {
-          currentAtr = position.entryAtr;
-        } else {
-          currentAtr = atrSeries[i].value;
-        }
-      }
-
-      // Stop loss check (using average entry price)
-      if (stopLoss !== undefined) {
-        const stopLossPrice = position.avgEntryPrice * (1 - stopLoss / 100);
-        if (candle.low <= stopLossPrice) {
-          shouldExit = true;
-          exitPrice = stopLossPrice;
-        }
-      }
-
-      // ATR-based stop loss
-      if (!shouldExit && currentAtr !== null && atrRisk?.atrStopMultiplier !== undefined) {
-        const atrStopDistance = currentAtr * atrRisk.atrStopMultiplier;
-        const atrStopPrice = position.avgEntryPrice - atrStopDistance;
-        if (candle.low <= atrStopPrice) {
-          shouldExit = true;
-          exitPrice = atrStopPrice;
-        }
-      }
-
-      // Take profit check
-      if (!shouldExit && takeProfit !== undefined) {
-        const takeProfitPrice = position.avgEntryPrice * (1 + takeProfit / 100);
-        if (candle.high >= takeProfitPrice) {
-          shouldExit = true;
-          exitPrice = takeProfitPrice;
-        }
-      }
-
-      // ATR-based take profit
-      if (!shouldExit && currentAtr !== null && atrRisk?.atrTakeProfitMultiplier !== undefined) {
-        const atrTpDistance = currentAtr * atrRisk.atrTakeProfitMultiplier;
-        const atrTpPrice = position.avgEntryPrice + atrTpDistance;
-        if (candle.high >= atrTpPrice) {
-          shouldExit = true;
-          exitPrice = atrTpPrice;
-        }
-      }
-
-      // Partial take profit (on entire scaled position)
-      if (!shouldExit && partialTakeProfit && !position.partialTaken) {
-        const partialThresholdPrice =
-          position.avgEntryPrice * (1 + partialTakeProfit.threshold / 100);
-        if (candle.high >= partialThresholdPrice) {
-          const partialExitPrice = applySlippage(partialThresholdPrice, slippage, "sell");
-          const sharesToSell = position.totalShares * (partialTakeProfit.sellPercent / 100);
-          const sharesRemaining = position.totalShares - sharesToSell;
-
-          const grossReturn = (partialExitPrice - position.avgEntryPrice) * sharesToSell;
-          const exitValue = partialExitPrice * sharesToSell;
-          const exitCommission = commission + exitValue * (commissionRate / 100);
-
-          let tax = 0;
-          if (grossReturn > 0 && taxRate > 0) {
-            tax = grossReturn * (taxRate / 100);
+          if (fillMode === "same-bar-close") {
+            addTranche(position, applySlippage(candle.close, slippage, "buy"), candle.time);
+          } else {
+            // next-bar-open mode: queue the tranche for the next bar's open
+            pendingTranche = { entryAtr: null };
           }
-
-          const netReturn = grossReturn - exitCommission - tax;
-          const returnPercent = (netReturn / (position.avgEntryPrice * sharesToSell)) * 100;
-          const holdingDays = Math.round((candle.time - position.tranches[0].time) / MS_PER_DAY);
-
-          trades.push({
-            entryTime: position.tranches[0].time,
-            entryPrice: position.avgEntryPrice,
-            exitTime: candle.time,
-            exitPrice: partialExitPrice,
-            return: netReturn,
-            returnPercent,
-            holdingDays,
-            isPartial: true,
-            exitPercent: partialTakeProfit.sellPercent,
-          });
-
-          currentCapital += exitValue - exitCommission - tax;
-          returns.push(returnPercent / 100);
-
-          if (currentCapital > peakCapital) {
-            peakCapital = currentCapital;
-          }
-          const drawdown = ((peakCapital - currentCapital) / peakCapital) * 100;
-          if (drawdown > maxDrawdown) {
-            maxDrawdown = drawdown;
-          }
-
-          position.totalShares = sharesRemaining;
-          position.partialTaken = true;
         }
-      }
-
-      // Trailing stop check
-      if (!shouldExit && trailingStop !== undefined) {
-        const trailingStopPrice = position.peakPrice * (1 - trailingStop / 100);
-        if (candle.low <= trailingStopPrice) {
-          shouldExit = true;
-          exitPrice = trailingStopPrice;
-        }
-      }
-
-      // ATR-based trailing stop
-      if (!shouldExit && currentAtr !== null && atrRisk?.atrTrailingMultiplier !== undefined) {
-        const atrTrailDistance = currentAtr * atrRisk.atrTrailingMultiplier;
-        const atrTrailPrice = position.peakPrice - atrTrailDistance;
-        if (candle.low <= atrTrailPrice) {
-          shouldExit = true;
-          exitPrice = atrTrailPrice;
-        }
-      }
-
-      // Signal-based exit condition
-      if (
-        !shouldExit &&
-        evaluateCondition(
-          exitCondition as ExtendedCondition,
-          indicators,
-          candle,
-          i,
-          candles,
-          mtfContext,
-        )
-      ) {
-        shouldExit = true;
-        exitPrice = candle.close;
-      }
-
-      if (shouldExit) {
-        exitPrice = applySlippage(exitPrice, slippage, "sell");
-
-        const grossReturn = (exitPrice - position.avgEntryPrice) * position.totalShares;
-        const exitValue = exitPrice * position.totalShares;
-        const exitCommission = commission + exitValue * (commissionRate / 100);
-
-        let tax = 0;
-        if (grossReturn > 0 && taxRate > 0) {
-          tax = grossReturn * (taxRate / 100);
-        }
-
-        const netReturn = grossReturn - exitCommission - tax;
-        const returnPercent = (netReturn / (position.avgEntryPrice * position.totalShares)) * 100;
-        const holdingDays = Math.round((candle.time - position.tranches[0].time) / MS_PER_DAY);
-
-        trades.push({
-          entryTime: position.tranches[0].time,
-          entryPrice: position.avgEntryPrice,
-          exitTime: candle.time,
-          exitPrice,
-          return: netReturn,
-          returnPercent,
-          holdingDays,
-        });
-
-        // Add back any reserved capital that wasn't used
-        currentCapital += exitValue - exitCommission - tax + position.reservedCapital;
-        returns.push(returnPercent / 100);
-
-        if (currentCapital > peakCapital) {
-          peakCapital = currentCapital;
-        }
-        const drawdown = ((peakCapital - currentCapital) / peakCapital) * 100;
-        if (drawdown > maxDrawdown) {
-          maxDrawdown = drawdown;
-        }
-
-        position = null;
       }
     }
   }
 
-  // Close any open position at the end
+  // Close any open position at the end (no slippage, matching the
+  // single-entry engine's end-of-data close). A queued next-bar-open exit
+  // that never got its fill bar also ends here as endOfData.
   if (position !== null) {
     const lastCandle = candles[candles.length - 1];
-    const exitPrice = lastCandle.close;
-
-    const grossReturn = (exitPrice - position.avgEntryPrice) * position.totalShares;
-    const exitValue = exitPrice * position.totalShares;
-    const exitCommission = commission + exitValue * (commissionRate / 100);
-
-    let tax = 0;
-    if (grossReturn > 0 && taxRate > 0) {
-      tax = grossReturn * (taxRate / 100);
-    }
-
-    const netReturn = grossReturn - exitCommission - tax;
-    const returnPercent = (netReturn / (position.avgEntryPrice * position.totalShares)) * 100;
-    const holdingDays = Math.round((lastCandle.time - position.tranches[0].time) / MS_PER_DAY);
-
-    trades.push({
-      entryTime: position.tranches[0].time,
-      entryPrice: position.avgEntryPrice,
-      exitTime: lastCandle.time,
-      exitPrice,
-      return: netReturn,
-      returnPercent,
-      holdingDays,
-    });
-
-    currentCapital += exitValue - exitCommission - tax + position.reservedCapital;
-    returns.push(returnPercent / 100);
+    closeFullPosition(position, lastCandle.close, lastCandle.time, "endOfData", false);
   }
 
   return calculateStats(
