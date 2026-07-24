@@ -3,6 +3,7 @@
  */
 
 import type { NormalizedCandle } from "../../types";
+import type { PatternSignal } from "./types";
 
 // Helper types
 export interface SwingPoint {
@@ -36,6 +37,25 @@ export function causalPatternTimes(
     confirmTime:
       breakoutIndex != null ? candles[Math.max(breakoutIndex, knowableIndex)].time : undefined,
   };
+}
+
+/**
+ * Earliest bar time at which a detected pattern can be acted on.
+ *
+ * `PatternSignal.time` anchors the final structural pivot, which is only
+ * identifiable `swingLookback` bars later (and confirmation requires a
+ * breakout that can come much later still), so consumers that act on `time`
+ * would be trading on future knowledge. Returns `undefined` when a confirmed
+ * pattern is required but the signal is unconfirmed.
+ */
+export function patternActionableTime(
+  pattern: PatternSignal,
+  confirmedOnly: boolean,
+): number | undefined {
+  if (confirmedOnly) {
+    return pattern.confirmed ? pattern.confirmTime : undefined;
+  }
+  return pattern.detectableTime;
 }
 
 /**

@@ -19,6 +19,7 @@ import {
   detectTriangle,
   detectWedge,
 } from "../../signals/patterns";
+import { patternActionableTime } from "../../signals/patterns/double-pattern-utils";
 import type { NormalizedCandle, PresetCondition } from "../../types";
 
 const PATTERN_CACHE_PREFIX = "pattern_";
@@ -132,22 +133,6 @@ function getPatternData(
 }
 
 /**
- * Get the earliest bar time at which the pattern is actionable.
- *
- * `PatternSignal.time` anchors the final structural pivot, which is only
- * identifiable `swingLookback` bars later (and confirmation requires a
- * breakout that can be weeks after the pivot). Matching conditions against
- * `time` would let a backtest act on future knowledge, so conditions match
- * against the causal timestamps instead.
- */
-function actionableTime(pattern: PatternSignal, confirmedOnly: boolean): number | undefined {
-  if (confirmedOnly) {
-    return pattern.confirmed ? pattern.confirmTime : undefined;
-  }
-  return pattern.detectableTime;
-}
-
-/**
  * Find a matching pattern actionable at the given candle time
  */
 function findPatternAtTime(
@@ -155,7 +140,7 @@ function findPatternAtTime(
   time: number | string,
   confirmedOnly: boolean,
 ): PatternSignal | undefined {
-  return patterns.find((p) => actionableTime(p, confirmedOnly) === time);
+  return patterns.find((p) => patternActionableTime(p, confirmedOnly) === time);
 }
 
 /**
@@ -292,8 +277,8 @@ export function anyBearishPattern(options: PatternConditionOptions = {}): Preset
  *
  * A confirmed pattern's confidence folds in breakout and breakout-bar volume
  * information, so it only becomes knowable at `confirmTime`; unconfirmed
- * patterns are gated on `detectableTime`. That is `actionableTime` with the
- * pattern's own `confirmed` flag as the requirement.
+ * patterns are gated on `detectableTime`. That is `patternActionableTime` with
+ * the pattern's own `confirmed` flag as the requirement.
  */
 function findHighConfidencePattern(
   patterns: PatternSignal[],
@@ -301,7 +286,7 @@ function findHighConfidencePattern(
   minConfidence: number,
 ): boolean {
   return patterns.some(
-    (p) => actionableTime(p, p.confirmed) === time && p.confidence >= minConfidence,
+    (p) => patternActionableTime(p, p.confirmed) === time && p.confidence >= minConfidence,
   );
 }
 
@@ -401,7 +386,7 @@ export function patternWithinBars(
 
       // Check if any pattern became actionable within the lookback window
       for (const pattern of patterns) {
-        const time = actionableTime(pattern, confirmedOnly);
+        const time = patternActionableTime(pattern, confirmedOnly);
         if (time !== undefined && lookbackTimes.has(time)) {
           return true;
         }

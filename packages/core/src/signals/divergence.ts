@@ -27,8 +27,23 @@ export type DivergenceClass = "regular" | "hidden";
  * Divergence signal type
  */
 export type DivergenceSignal = {
-  /** Timestamp of the divergence point (second peak/trough) */
+  /**
+   * Timestamp of the divergence point (second peak/trough).
+   *
+   * This anchors the pivot itself and is annotation metadata, **not** a
+   * decision time: a pivot is only identifiable `swingLookback` bars after it
+   * occurs. Use {@link DivergenceSignal.confirmedAt} for anything actionable.
+   */
   time: number;
+  /**
+   * Earliest bar time at which the divergence is knowable in real time: the
+   * bar `swingLookback` bars after the later of the price and indicator
+   * pivots. Use this (not `time`) for causal entries and for aligning with
+   * other signals.
+   */
+  confirmedAt: number;
+  /** Index of the {@link DivergenceSignal.confirmedAt} bar */
+  confirmedIdx: number;
   /** Directional bias of the divergence (a buy lean vs. a sell lean) */
   type: "bullish" | "bearish";
   /** Regular (reversal) vs. hidden (continuation) divergence */
@@ -182,13 +197,24 @@ export function macdDivergence(
  * @param candles - Normalized candles (for timestamps)
  * @param prices - Price series (typically close prices)
  * @param indicator - Indicator series
+ * Each signal is anchored at its second pivot (`time`/`secondIdx`) but is only
+ * knowable `swingLookback` bars later; `confirmedAt`/`confirmedIdx` carry that
+ * decision time and are what causal consumers should act on. A divergence
+ * whose confirmation bar is not in `candles` is not returned — it is not yet
+ * confirmable from the data given.
+ *
  * @param options - Detection options
- * @returns Array of divergence signals, sorted by time
+ * @returns Array of divergence signals, sorted by pivot time
  *
  * @example
  * ```ts
  * // Reversal signals only (default)
  * const reversals = detectDivergence(candles, prices, rsiValues);
+ * // Act at the bar the divergence is knowable, not at the pivot
+ * const entries = reversals.map((s) => ({
+ *   time: s.confirmedAt,
+ *   price: candles[s.confirmedIdx].close,
+ * }));
  * // Both reversal and continuation signals
  * const all = detectDivergence(candles, prices, rsiValues, {
  *   kinds: ["regular", "hidden"],
@@ -258,8 +284,15 @@ export function detectDivergence(
         // Indicator must move strictly in the (opposing) required direction.
         if (indHigher ? currInd.value <= prevInd.value : currInd.value >= prevInd.value) continue;
 
+        // Not yet confirmable within the candles given — see causalDivergenceTime.
+        const confirmation = causalDivergenceTime(candles, curr.idx, currInd.idx, swingLookback);
+        if (!confirmation) continue;
+        const { confirmedAt, confirmedIdx } = confirmation;
+
         results.push({
           time: candles[curr.idx].time,
+          confirmedAt,
+          confirmedIdx,
           type,
           kind,
           firstIdx: prev.idx,
@@ -275,6 +308,34 @@ export function detectDivergence(
   results.sort((a, b) => a.time - b.time);
 
   return results;
+}
+
+/**
+ * Compute the bar at which a divergence first becomes knowable.
+ *
+ * Both pivots are found by scanning `swingLookback` bars on either side, so
+ * the later of the two pivots is only identifiable `swingLookback` bars after
+ * it occurs — that bar is the divergence's decision time. The indicator pivot
+ * can trail the price pivot (`findNearestSwing` matches within a
+ * `swingLookback` tolerance), which is why the maximum is taken rather than
+ * the price pivot alone. This is the single owner of that rule.
+ *
+ * Returns `null` when the confirmation bar lies beyond the candle array: such
+ * a divergence is not confirmable from the data given, and reporting it at the
+ * last available bar would claim knowledge earlier than it exists. With
+ * `prices`/`indicator` aligned to `candles` this cannot happen — a pivot needs
+ * `swingLookback` bars to its right to be found at all — so it only guards
+ * callers passing series longer than the candle array.
+ */
+function causalDivergenceTime(
+  candles: NormalizedCandle[],
+  pricePivotIdx: number,
+  indicatorPivotIdx: number,
+  swingLookback: number,
+): { confirmedAt: number; confirmedIdx: number } | null {
+  const confirmedIdx = Math.max(pricePivotIdx, indicatorPivotIdx) + swingLookback;
+  if (confirmedIdx >= candles.length) return null;
+  return { confirmedAt: candles[confirmedIdx].time, confirmedIdx };
 }
 
 /**
