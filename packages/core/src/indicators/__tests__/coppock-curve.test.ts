@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { coppockCurve } from "../../indicators";
 
-function makeCandles(closes: number[], time0 = 1000, step = 86400) {
+function makeCandles(closes: number[], time0 = 1_700_000_000_000, step = 86_400_000) {
   return closes.map((c, i) => ({
     time: time0 + i * step,
     open: c - 0.5,

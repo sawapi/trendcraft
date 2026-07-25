@@ -4,8 +4,8 @@ import type { NormalizedCandle } from "../../types";
 
 function _makeCandles(
   data: { high: number; low: number }[],
-  time0 = 1000,
-  step = 86400,
+  time0 = 1_700_000_000_000,
+  step = 86_400_000,
 ): NormalizedCandle[] {
   return data.map((d, i) => ({
     time: time0 + i * step,
@@ -17,7 +17,7 @@ function _makeCandles(
   }));
 }
 
-function makeSimpleCandles(closes: number[], time0 = 1000, step = 86400) {
+function makeSimpleCandles(closes: number[], time0 = 1_700_000_000_000, step = 86_400_000) {
   return closes.map((c, i) => ({
     time: time0 + i * step,
     open: c - 0.5,

@@ -5,7 +5,7 @@ import type { PatternSignal } from "../types";
 
 function makeCandles(count: number): NormalizedCandle[] {
   return Array.from({ length: count }, (_, i) => ({
-    time: 1000 + i,
+    time: 1_700_000_000_000 + i * 86_400_000,
     open: 100 + i * 0.1,
     high: 101 + i * 0.1,
     low: 99 + i * 0.1,
@@ -16,7 +16,7 @@ function makeCandles(count: number): NormalizedCandle[] {
 
 function makePattern(overrides: Partial<PatternSignal> = {}): PatternSignal {
   return {
-    time: 1050,
+    time: 1704320000000,
     detectableTime: 1055,
     confirmTime: 1055,
     type: "double_top",

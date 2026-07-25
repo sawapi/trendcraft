@@ -9,7 +9,7 @@ import { volumeAnomaly } from "../volume-anomaly";
 // Helper to create test candles
 function createCandles(volumes: number[]): NormalizedCandle[] {
   return volumes.map((volume, i) => ({
-    time: 1000000 + i * 86400000,
+    time: 1_700_000_000_000 + i * 86_400_000,
     open: 100,
     high: 105,
     low: 95,

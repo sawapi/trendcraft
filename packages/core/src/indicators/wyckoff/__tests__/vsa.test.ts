@@ -11,7 +11,7 @@ function makeCandle(
   volume: number,
 ): NormalizedCandle {
   return {
-    time: 1000000 + i * 86400000,
+    time: 1_700_000_000_000 + i * 86_400_000,
     open,
     high,
     low,

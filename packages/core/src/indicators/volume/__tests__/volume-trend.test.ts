@@ -9,7 +9,7 @@ import { volumeTrend } from "../volume-trend";
 // Helper to create test candles with specific price and volume patterns
 function createCandles(data: Array<{ close: number; volume: number }>): NormalizedCandle[] {
   return data.map((d, i) => ({
-    time: 1000000 + i * 86400000,
+    time: 1_700_000_000_000 + i * 86_400_000,
     open: d.close * 0.99,
     high: d.close * 1.02,
     low: d.close * 0.98,
@@ -29,7 +29,7 @@ function createTrendingCandles(
   return Array(count)
     .fill(null)
     .map((_, i) => ({
-      time: 1000000 + i * 86400000,
+      time: 1_700_000_000_000 + i * 86_400_000,
       open: startPrice + i * priceChange,
       high: startPrice + i * priceChange + 2,
       low: startPrice + i * priceChange - 2,

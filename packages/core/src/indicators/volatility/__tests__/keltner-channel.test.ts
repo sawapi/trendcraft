@@ -13,7 +13,7 @@ describe("keltnerChannel", () => {
       const low = price - 2 - Math.abs(volatility);
       const close = price + volatility * 0.5;
       candles.push({
-        time: i + 1,
+        time: 1_700_000_000_000 + i * 86_400_000,
         open: price,
         high,
         low,

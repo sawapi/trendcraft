@@ -5,16 +5,16 @@ import { cmf } from "../cmf";
 describe("cmf", () => {
   // Sample data for testing
   const sampleCandles: NormalizedCandle[] = [
-    { time: 1, open: 100, high: 105, low: 95, close: 103, volume: 1000 },
-    { time: 2, open: 103, high: 108, low: 100, close: 106, volume: 1200 },
-    { time: 3, open: 106, high: 110, low: 104, close: 108, volume: 1100 },
-    { time: 4, open: 108, high: 112, low: 106, close: 110, volume: 1300 },
-    { time: 5, open: 110, high: 115, low: 108, close: 113, volume: 1400 },
-    { time: 6, open: 113, high: 118, low: 111, close: 116, volume: 1500 },
-    { time: 7, open: 116, high: 120, low: 114, close: 118, volume: 1600 },
-    { time: 8, open: 118, high: 122, low: 116, close: 120, volume: 1700 },
-    { time: 9, open: 120, high: 124, low: 118, close: 122, volume: 1800 },
-    { time: 10, open: 122, high: 126, low: 120, close: 124, volume: 1900 },
+    { time: 1700000000000, open: 100, high: 105, low: 95, close: 103, volume: 1000 },
+    { time: 1700086400000, open: 103, high: 108, low: 100, close: 106, volume: 1200 },
+    { time: 1700172800000, open: 106, high: 110, low: 104, close: 108, volume: 1100 },
+    { time: 1700259200000, open: 108, high: 112, low: 106, close: 110, volume: 1300 },
+    { time: 1700345600000, open: 110, high: 115, low: 108, close: 113, volume: 1400 },
+    { time: 1700432000000, open: 113, high: 118, low: 111, close: 116, volume: 1500 },
+    { time: 1700518400000, open: 116, high: 120, low: 114, close: 118, volume: 1600 },
+    { time: 1700604800000, open: 118, high: 122, low: 116, close: 120, volume: 1700 },
+    { time: 1700691200000, open: 120, high: 124, low: 118, close: 122, volume: 1800 },
+    { time: 1700777600000, open: 122, high: 126, low: 120, close: 124, volume: 1900 },
   ];
 
   it("should return empty array for empty input", () => {
@@ -123,9 +123,9 @@ describe("cmf", () => {
 
   it("should handle case where high equals low", () => {
     const flatCandles: NormalizedCandle[] = [
-      { time: 1, open: 100, high: 100, low: 100, close: 100, volume: 1000 },
-      { time: 2, open: 100, high: 100, low: 100, close: 100, volume: 1000 },
-      { time: 3, open: 100, high: 100, low: 100, close: 100, volume: 1000 },
+      { time: 1700000000000, open: 100, high: 100, low: 100, close: 100, volume: 1000 },
+      { time: 1700086400000, open: 100, high: 100, low: 100, close: 100, volume: 1000 },
+      { time: 1700172800000, open: 100, high: 100, low: 100, close: 100, volume: 1000 },
     ];
 
     const result = cmf(flatCandles, { period: 2 });

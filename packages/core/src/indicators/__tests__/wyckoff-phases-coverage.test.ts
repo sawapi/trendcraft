@@ -176,7 +176,7 @@ describe("wyckoffPhases – edge cases", () => {
 
   it("raw (non-normalized) candles", () => {
     const c = Array.from({ length: 15 }, (_, i) => ({
-      time: 1000000 + i * 86400000,
+      time: 1_700_000_000_000 + i * 86_400_000,
       open: 100,
       high: 102,
       low: 98,

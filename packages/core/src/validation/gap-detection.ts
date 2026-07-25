@@ -70,11 +70,21 @@ export function detectGaps(
   return findings;
 }
 
+/** The longest a genuine weekend hole can be: Friday open to Monday close. */
+const MAX_WEEKEND_MS = 4 * 24 * 60 * 60 * 1000;
+
 /**
  * Check if a gap spans only weekend days (Friday close to Monday open).
  * Returns true if the gap starts on Friday/Saturday and ends on Sunday/Monday.
+ *
+ * The duration bound is what makes that "only": weekday endpoints alone
+ * classified a three-month hole as a weekend as long as it happened to run
+ * Friday to Monday, so months of missing data passed the quality check in
+ * silence.
  */
 function isWeekendGap(startTime: number, endTime: number): boolean {
+  if (endTime - startTime > MAX_WEEKEND_MS) return false;
+
   const startDay = new Date(startTime).getUTCDay(); // 0=Sun, 5=Fri, 6=Sat
   const endDay = new Date(endTime).getUTCDay();
 

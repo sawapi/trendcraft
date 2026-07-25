@@ -33,7 +33,7 @@ function sineCandles(n: number, base: number, amp = 1, volume = 1_000_000): Norm
   return Array.from({ length: n }, (_, i) => {
     const close = base + amp * Math.sin(i * 0.7);
     return {
-      time: 1_700_000_000 + i * 86_400,
+      time: 1_700_000_000_000 + i * 86_400_000,
       open: close,
       high: close,
       low: close,
@@ -45,7 +45,7 @@ function sineCandles(n: number, base: number, amp = 1, volume = 1_000_000): Norm
 
 function candlesFromVolumes(volumes: number[]): NormalizedCandle[] {
   return volumes.map((volume, i) => ({
-    time: 1_700_000_000 + i * 86_400,
+    time: 1_700_000_000_000 + i * 86_400_000,
     open: 100,
     high: 100,
     low: 100,
@@ -215,7 +215,7 @@ describe("linearRegression slope accuracy at high price levels", () => {
     return Array.from({ length: n }, (_, i) => {
       const close = base + i * 0.5;
       return {
-        time: 1_700_000_000 + i * 86_400,
+        time: 1_700_000_000_000 + i * 86_400_000,
         open: close,
         high: close,
         low: close,
@@ -275,7 +275,7 @@ describe("incremental ↔ batch parity at high price levels", () => {
     const candles = Array.from({ length: 300 }, (_, i) => {
       const close = 1e8 + i * 0.5 + Math.sin(i * 0.7) * 2;
       return {
-        time: 1_700_000_000 + i * 86_400,
+        time: 1_700_000_000_000 + i * 86_400_000,
         open: close,
         high: close,
         low: close,
@@ -297,7 +297,7 @@ describe("incremental ↔ batch parity at high price levels", () => {
     const candles = Array.from({ length: 200 }, (_, i) => {
       const close = 100 * 2 ** i * (1 + Math.sin(i * 0.7) * 1e-9);
       return {
-        time: 1_700_000_000 + i * 86_400,
+        time: 1_700_000_000_000 + i * 86_400_000,
         open: close,
         high: close,
         low: close,
