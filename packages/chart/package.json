@@ -1,6 +1,6 @@
 {
   "name": "@trendcraft/chart",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Zero-dependency Canvas charting for TypeScript — candlestick & financial charts that work on plain OHLC data, with React/Vue wrappers and a headless API. Auto-places TrendCraft indicators when paired.",
   "type": "module",
   "main": "./dist/index.cjs",
