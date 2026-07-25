@@ -44,11 +44,6 @@ Both now hold `null` in the buffer, which survives the round trip unchanged.
 Their schema versions bump to 2, so earlier snapshots are rejected with the
 usual "re-warm required" error.
 
-The state-contract suite passed snapshots to the resumed indicator by
-reference, which is why none of this ever failed in CI. It now round-trips
-every snapshot through `JSON.parse(JSON.stringify(...))`, so the whole
-registry is held to what the contract actually promises.
-
 ### Breaking — second-stamped candles are converted again; multi-week resampling and long weekend gaps fixed
 
 `normalizeTime` documents a numeric time below 1e10 as Unix **seconds**, but
@@ -60,8 +55,7 @@ every `Math.floor(time / 86_400_000)` day bucket advanced once every 2.7
 years, so session VWAP and TWAP never reset, opening ranges and market
 profiles covered the whole history, `detectSessions` found no sessions at all,
 and resampling produced meaningless buckets. `isNormalized` is now
-magnitude-aware, matching the range `normalizeTime` leaves untouched, and the
-two private copies of it in the regime modules are gone.
+magnitude-aware, matching the range `normalizeTime` leaves untouched.
 
 Callers passing epoch-second candles will see different (correct) output from
 every time-bucketed indicator. Callers already passing milliseconds are
@@ -88,9 +82,7 @@ so it kept its sign: for the usual negatively skewed returns the fat-tail
 correction *reduced* VaR below the plain parametric figure instead of raising
 it, by `(z²−1)|S|σ/3` — 1.87 percentage points at 99% confidence on a skew of
 −1.25. The hybrid CVaR inherited the wrong cutoff, and `rollingVaR` inherited
-both. The expansion is now evaluated at the left-tail quantile. Existing tests
-only asserted that Cornish-Fisher differed from parametric, which held with
-either sign.
+both. The expansion is now evaluated at the left-tail quantile.
 
 **Deflated Sharpe silently stopped deflating.** `perReturnSharpe` returns
 ±Infinity for a zero-variance trial by design, and a grid trial with a single
@@ -99,7 +91,7 @@ trade always has zero variance. One such trial made the variance across trials
 with the benchmark — so the deflated Sharpe collapsed to a plain probabilistic
 Sharpe against zero and reported a credible edge exactly when it was meant to
 be warning about overfitting (0.994 against a correctly deflated 0.444 in the
-module's own documented example). The three kinds of trial value are now told apart: `±Infinity` is
+documented example). The three kinds of trial value are now told apart: `±Infinity` is
 excluded from the spread but still counts towards `trials`, since the search
 for it did happen; a `NaN` trial is broken input and propagates; and fewer
 than two finite trials among two or more searches leaves the spread
@@ -159,10 +151,8 @@ mark-to-market portfolio equity curve was already being built alongside it.
 the fallback for when the trades do not span a usable stretch of time, rather
 than the assumed period length.
 
-Also fixed: the scaled-entry path carried a copy of `calculateStats` that had
-drifted from the engine's only in its comments; it now shares the engine's
-implementation. `sortinoFromReturns` is exported alongside the existing
-`sharpeFromReturns` so the pair can be computed with matching conventions.
+`sortinoFromReturns` is exported alongside the existing `sharpeFromReturns` so
+the pair can be computed with matching conventions.
 
 ### Breaking — variance and correlation are computed in two passes; four incremental snapshots bump their schema version
 
@@ -196,7 +186,7 @@ were reachable with ordinary data, and they were not gradual:
   series rising by exactly 0.5 per bar at price ~1e15.
 
 All of them now compute the mean first and accumulate squared deviations
-about it, via one shared implementation. Bollinger bands are now bit-identical
+about it. Bollinger bands are now bit-identical
 to `middle ± stdDev · standardDeviation()` at every price level tested
 (1e2, 1e7, 1e9).
 
@@ -380,9 +370,10 @@ advantage.
   fundamentals on a shared cache read the previous run's last values on every
   bar, making `perBelow`/`pbrAbove`-style conditions fire when they should
   see no data. They are now run-local, like the relative-strength benchmark.
-- New internal convention: indicator keys prefixed with `__runLocal_` are
-  never read from or written to a shared `IndicatorCache` — use it for any
-  per-run mutable state a condition keeps on the indicators object.
+- If you write a custom condition that keeps per-run mutable state on the
+  indicators object, prefix its key with `__runLocal_`: such keys are never
+  read from or written to a shared `IndicatorCache`, so the state cannot
+  survive into another run.
 
 ### Fixed — condition caches no longer collide across parameter values
 
@@ -415,10 +406,9 @@ runs may report different (correct) numbers.
 ### Added — 22 scoring exports that were unreachable are now on the main entry
 
 - The scoring module's signal-evaluator factories and pre-built signal
-  definitions were exported by the internal scoring barrel but never
-  re-exported from the package root — and with no `trendcraft/scoring`
-  subpath, they were impossible to import even though JSDoc examples
-  referenced them. Now available from `trendcraft`:
+  definitions were not reachable from the package entry point, and there is no
+  `trendcraft/scoring` subpath, so they were impossible to import even though
+  the documentation referenced them. Now available from `trendcraft`:
   - Evaluator factories: `createStochOversoldEvaluator`,
     `createStochOverboughtEvaluator`, `createStochBullishCrossEvaluator`,
     `createRsiNeutralEvaluator`, `createGoldenCrossEvaluator`,
@@ -430,11 +420,6 @@ runs may report different (correct) numbers.
   - Pre-built signals: `stochOversold`, `stochOverbought`,
     `goldenCross50200`, `priceAboveEma20`, `pullbackEntry20`, `cmfPositive`,
     `bullishVolumeTrend`, `highVolumeUpCandle`
-- A barrel-parity test now guards the root entry against this class of drift:
-  every export of the scoring / backtest / optimization / risk /
-  meta-strategy / signals / position-sizing / strategy barrels must be
-  reachable from the root (directly or via an alias), with intentionally
-  internal helpers tracked in an explicit allowlist.
 
 ### Fixed — `highestLowest` now honors the `source` option
 
@@ -483,10 +468,6 @@ runs may report different (correct) numbers.
   use `import { streaming } from "trendcraft"` accordingly.
 - Removed a leftover `setBenchmark(...)` reference from the docs (the helper was
   removed; use the `benchmark` backtest option).
-- Added a doc-snippet **import check (Tier 1)** to the test suite: it validates
-  every `trendcraft` import in the docs against the published `exports` subpaths
-  and the real export surface, so a stale subpath or a removed/renamed symbol in
-  a doc snippet now fails CI even for snippets that aren't executed.
 
 ### Added — `benchmark` backtest option for Relative Strength
 
@@ -651,8 +632,7 @@ runs may report different (correct) numbers.
   results are reproducible. `minSeparation` thins overlapping events and
   `overlappingEvents` flags the non-independence they cause.
 - New shared statistics primitives on `core/statistics`: `normalCdf`,
-  `skewness`, `kurtosis` (the `normalCdf` consolidates two previously-duplicated
-  internal copies in the deflated-Sharpe and alpha-decay modules).
+  `skewness`, `kurtosis`.
 
 ### Added — first-class equity curve on `BacktestResult`
 
