@@ -11,7 +11,7 @@ function createCandles(
   data: Array<{ high: number; low: number; close: number; volume: number }>,
 ): NormalizedCandle[] {
   return data.map((d, i) => ({
-    time: 1000000 + i * 86400000,
+    time: 1_700_000_000_000 + i * 86_400_000,
     open: d.low + (d.high - d.low) * 0.3,
     high: d.high,
     low: d.low,
@@ -25,7 +25,7 @@ function createUniformCandles(count: number, volume = 100): NormalizedCandle[] {
   return Array(count)
     .fill(null)
     .map((_, i) => ({
-      time: 1000000 + i * 86400000,
+      time: 1_700_000_000_000 + i * 86_400_000,
       open: 100,
       high: 110,
       low: 90,

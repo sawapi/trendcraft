@@ -18,7 +18,7 @@
  * ```
  */
 
-import { normalizeCandles } from "../core/normalize";
+import { isNormalized, normalizeCandles } from "../core/normalize";
 import { dmi } from "../indicators/momentum/dmi";
 import { ema } from "../indicators/moving-average/ema";
 import { atr } from "../indicators/volatility/atr";
@@ -201,9 +201,4 @@ function classifyTrend(
   }
 
   return { trend: "sideways", trendStrength };
-}
-
-function isNormalized(candles: Candle[] | NormalizedCandle[]): candles is NormalizedCandle[] {
-  if (candles.length === 0) return true;
-  return typeof candles[0].time === "number";
 }

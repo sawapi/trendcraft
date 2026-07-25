@@ -10,7 +10,7 @@ function mc(
   close: number,
   volume: number,
 ): NormalizedCandle {
-  return { time: 1000000 + i * 86400000, open, high, low, close, volume };
+  return { time: 1_700_000_000_000 + i * 86_400_000, open, high, low, close, volume };
 }
 
 // ---------------------------------------------------------------------------

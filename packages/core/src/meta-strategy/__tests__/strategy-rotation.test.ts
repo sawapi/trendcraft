@@ -5,7 +5,7 @@ import { rotateStrategies } from "../strategy-rotation";
 
 function makeTrade(i: number, returnAmt: number): Trade {
   return {
-    entryTime: 1000000 + i * 86400000 * 2,
+    entryTime: 1_700_000_000_000 + i * 86_400_000 * 2,
     entryPrice: 100,
     exitTime: 1000000 + (i * 2 + 1) * 86400000,
     exitPrice: 100 + returnAmt / 100,

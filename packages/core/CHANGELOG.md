@@ -2,6 +2,36 @@
 
 ## [Unreleased]
 
+### Breaking — second-stamped candles are converted again; multi-week resampling and long weekend gaps fixed
+
+`normalizeTime` documents a numeric time below 1e10 as Unix **seconds**, but
+every indicator gates conversion behind `isNormalized(candles) ? candles :
+normalizeCandles(candles)`, and `isNormalized` accepted any number. So
+second-stamped candles — the shape most exchange REST APIs return — were
+declared already normalized and never converted. Nothing errored; instead
+every `Math.floor(time / 86_400_000)` day bucket advanced once every 2.7
+years, so session VWAP and TWAP never reset, opening ranges and market
+profiles covered the whole history, `detectSessions` found no sessions at all,
+and resampling produced meaningless buckets. `isNormalized` is now
+magnitude-aware, matching the range `normalizeTime` leaves untouched, and the
+two private copies of it in the regime modules are gone.
+
+Callers passing epoch-second candles will see different (correct) output from
+every time-bucketed indicator. Callers already passing milliseconds are
+unaffected. Note that a numeric time below 1e10 is now treated as seconds
+everywhere, so toy timestamps like `time: 1` are scaled by 1000 rather than
+taken literally.
+
+`resample` ignored `value` for the `'week'` unit, so `{ value: 2, unit:
+'week' }` silently returned ordinary weekly candles. Multi-week periods now
+bucket against a fixed Monday reference the way multi-day and multi-month
+periods already bucketed against theirs.
+
+`detectGaps` classified any Friday-to-Monday hole as a weekend regardless of
+length, so a seventeen-day — or three-month — hole passed validation in
+silence whenever its endpoints happened to fall that way. A weekend gap now
+has to be short enough to be one.
+
 ### Breaking — three financial formulas corrected: Cornish-Fisher VaR, deflated Sharpe, MAR
 
 **Cornish-Fisher VaR pointed risk the wrong way.** The expansion was evaluated

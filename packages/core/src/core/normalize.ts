@@ -95,8 +95,18 @@ export function getPriceSeries(candles: NormalizedCandle[], source: PriceSource)
  *
  * Use this to avoid redundant normalization when candles may have already been normalized.
  *
+ * "Numeric" is not enough on its own: {@link normalizeTime} treats a number
+ * below 1e10 as Unix *seconds* and one at or above 1e13 as microseconds, so
+ * accepting any number here declared second-stamped candles — the shape most
+ * exchange REST APIs return — already normalized and skipped the conversion.
+ * Every downstream `Math.floor(time / 86_400_000)` day bucket then advanced
+ * only once every 2.7 years, so session VWAP/TWAP/opening ranges never reset
+ * and `detectSessions` found nothing, with no error anywhere. The check is
+ * therefore magnitude-aware, matching the range `normalizeTime` leaves
+ * untouched; normalizing an already-normalized array is a no-op regardless.
+ *
  * @param candles - Array of candles to check
- * @returns true if candles are normalized (time is a number), false otherwise
+ * @returns true if candles already carry epoch-millisecond times
  *
  * @example
  * ```ts
@@ -107,7 +117,8 @@ export function isNormalized(
   candles: Candle[] | NormalizedCandle[],
 ): candles is NormalizedCandle[] {
   if (candles.length === 0) return true;
-  return typeof candles[0].time === "number";
+  const time = candles[0].time;
+  return typeof time === "number" && time >= 1e10 && time < 1e13;
 }
 
 /**

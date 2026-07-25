@@ -11,10 +11,12 @@ import {
 } from "../patterns";
 
 const DAY = 86_400_000;
+/** A realistic epoch: bar times must be milliseconds, not a small offset. */
+const BASE = 1_700_000_000_000;
 
 function candle(i: number, close: number, volume = 1000): NormalizedCandle {
   return {
-    time: DAY * (i + 1),
+    time: BASE + DAY * (i + 1),
     open: close,
     high: close + 0.5,
     low: close - 0.5,
@@ -24,7 +26,7 @@ function candle(i: number, close: number, volume = 1000): NormalizedCandle {
 }
 
 function timeAt(index: number): number {
-  return DAY * (index + 1);
+  return BASE + DAY * (index + 1);
 }
 
 /**

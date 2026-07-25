@@ -7,7 +7,7 @@
  */
 
 import { annualizationFactor } from "../../calendar";
-import { normalizeCandles } from "../../core/normalize";
+import { isNormalized, normalizeCandles } from "../../core/normalize";
 import type {
   Candle,
   NormalizedCandle,
@@ -325,12 +325,4 @@ function mergeOptions(options: VolatilityRegimeOptions): ResolvedOptions {
       extreme: options.thresholds?.extreme ?? DEFAULT_OPTIONS.thresholds.extreme,
     },
   };
-}
-
-/**
- * Check if candles are already normalized
- */
-function isNormalized(candles: Candle[] | NormalizedCandle[]): candles is NormalizedCandle[] {
-  if (candles.length === 0) return true;
-  return typeof candles[0].time === "number";
 }

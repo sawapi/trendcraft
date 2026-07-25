@@ -68,12 +68,12 @@ describe("cvd", () => {
 
   it("should preserve time values", () => {
     const candles = [
-      makeCandle(1000, 100, 110, 90, 100, 500),
-      makeCandle(2000, 100, 110, 90, 100, 500),
+      makeCandle(1700000000000, 100, 110, 90, 100, 500),
+      makeCandle(1700086400000, 100, 110, 90, 100, 500),
     ];
     const result = cvd(candles);
-    expect(result[0].time).toBe(1000);
-    expect(result[1].time).toBe(2000);
+    expect(result[0].time).toBe(1700000000000);
+    expect(result[1].time).toBe(1700086400000);
   });
 });
 

@@ -19,7 +19,7 @@ function makeCandles(count: number): NormalizedCandle[] {
     const high = Math.max(open, close) + 1;
     const low = Math.min(open, close) - 1;
     candles.push({
-      time: 1_700_000_000 + i * 86_400,
+      time: 1_700_000_000_000 + i * 86_400_000,
       open,
       high,
       low,

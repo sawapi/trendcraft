@@ -5,6 +5,9 @@
 
 import type { NormalizedCandle, Timeframe, TimeframeShorthand } from "../types";
 
+/** 1970-01-05T00:00Z — the first Monday of the epoch, the reference for multi-week buckets. */
+const MONDAY_EPOCH = 345_600_000;
+
 /**
  * Parse shorthand timeframe string to Timeframe object
  */
@@ -75,6 +78,15 @@ export function getPeriodStart(time: number, timeframe: Timeframe): number {
       const diff = day === 0 ? 6 : day - 1; // Adjust so Monday = 0
       date.setUTCDate(date.getUTCDate() - diff);
       date.setUTCHours(0, 0, 0, 0);
+      if (timeframe.value > 1) {
+        // Multi-week periods count from a fixed Monday so that adjacent weeks
+        // land in the same bucket. Without this, `value` was ignored outright
+        // and a 2-week resample returned ordinary weekly candles.
+        const weekMs = 7 * 24 * 60 * 60 * 1000;
+        const weeksSinceRef = Math.floor((date.getTime() - MONDAY_EPOCH) / weekMs);
+        const periodStart = Math.floor(weeksSinceRef / timeframe.value) * timeframe.value;
+        return MONDAY_EPOCH + periodStart * weekMs;
+      }
       return date.getTime();
     }
     case "month": {

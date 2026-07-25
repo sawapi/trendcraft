@@ -5,6 +5,8 @@ import { runBacktestScaled } from "../scaled-entry";
 import { at, makeCandles, never } from "./step-candles";
 
 const DAY = 86_400_000;
+/** Bar times must be epoch milliseconds, not a bare multiple of a day. */
+const BASE = 1_700_000_000_000;
 
 /**
  * Signal at i1; next-bar-open entry belongs at i2's open (105). The i3 wick
@@ -287,7 +289,7 @@ describe("runBacktestScaled matches runBacktest when only one tranche fills", ()
       const vol = price * (0.002 + rand() * 0.02);
       const high = Math.max(open, close) + rand() * vol;
       const low = Math.min(open, close) - rand() * vol;
-      out.push({ time: DAY * (i + 1), open, high, low, close, volume: 1000 });
+      out.push({ time: BASE + DAY * (i + 1), open, high, low, close, volume: 1000 });
       price = close;
     }
     return out;

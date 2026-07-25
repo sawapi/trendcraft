@@ -387,7 +387,7 @@ describe("divergence causality", () => {
     for (let i = 0; i < n; i++) {
       price *= 1 + (rnd() - 0.5) * 0.04;
       out.push({
-        time: 1_700_000_000 + i * 86_400,
+        time: 1_700_000_000_000 + i * 86_400_000,
         open: price,
         high: price * 1.01,
         low: price * 0.99,

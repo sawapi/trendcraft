@@ -24,6 +24,8 @@ function makeCandle(
 }
 
 const DAY = 86400000;
+/** Bar times must be epoch milliseconds, not a bare multiple of a day. */
+const T0 = 1_700_000_000_000;
 
 describe("gap-detection", () => {
   it("detects time gaps", () => {
@@ -265,14 +267,14 @@ describe("validateCandles", () => {
 
   it("autoClean removes duplicates and sorts", () => {
     const candles = [
-      makeCandle(DAY * 2, 102),
-      makeCandle(DAY, 100),
-      makeCandle(DAY, 101), // duplicate
+      makeCandle(T0 + DAY * 2, 102),
+      makeCandle(T0 + DAY, 100),
+      makeCandle(T0 + DAY, 101), // duplicate
     ];
     const result = validateCandles(candles, { autoClean: true });
     expect(result.cleanedCandles).toBeDefined();
     expect(result.cleanedCandles?.length).toBe(2);
-    expect(result.cleanedCandles?.[0].time).toBe(DAY);
+    expect(result.cleanedCandles?.[0].time).toBe(T0 + DAY);
   });
 
   it("accepts raw Candle[] with string time", () => {
