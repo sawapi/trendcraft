@@ -167,13 +167,23 @@ The two shapes carry different output structure.
 { "time": 1768259200000, "bandwidth": 0.034, "percentile": 3.2, /* ... */ }
 
 // rsiDivergence output element
-{ "time": 1768259200000, "type": "bullish", "kind": "regular",
+{ "time": 1768259200000, "confirmedAt": 1768691200000, "confirmedIdx": 39,
+  "type": "bullish", "kind": "regular",
   "firstIdx": 12, "secondIdx": 34,
   "price": { "first": 250.0, "second": 245.5 },
   "indicator": { "first": 28.0, "second": 32.1 } }
 ```
 
-`firedAt` for `events` shape is just the `time` of every event — equivalent to `output.map(e => e.time)`.
+**Divergences carry two timestamps, and the difference matters.** `time` (and
+`secondIdx`) anchor the second pivot — a bar that is only identifiable several
+bars after it prints, because a pivot needs bars on both sides to be one. Act
+on `confirmedAt` / `confirmedIdx` instead: that is the first bar at which the
+divergence could actually have been seen. Using `time` to place an entry or
+fire an alert means acting on a bar the market had not yet produced, and it
+lands on a local price extreme by construction, which flatters any backtest
+built from it.
+
+`firedAt` for `events` shape is just the `time` of every event — equivalent to `output.map(e => e.time)`. For the divergence signals that is therefore the **pivot** time, not the confirmation time; read `confirmedAt` off the `output` elements when you need the actionable bar.
 
 ---
 
