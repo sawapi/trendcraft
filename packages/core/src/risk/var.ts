@@ -255,18 +255,24 @@ export function calculateVaR(returns: number[], options?: VarOptions): VarResult
     }
 
     case "cornishFisher": {
-      const z = normalInverseCdf(confidence);
-      // Cornish-Fisher expansion to adjust z-score for non-normal distributions
+      // Evaluate the expansion at the LEFT-tail quantile. Taking the positive
+      // quantile and negating the result looks equivalent, but the skew term
+      // `(z²−1)·S/6` is even in z, so its sign does not flip with the rest:
+      // for the usual negatively skewed returns the fat-tail correction then
+      // *reduced* VaR below the plain parametric figure, moving risk the wrong
+      // way by `(z²−1)|S|σ/3` (1.87 percentage points at 99% on a skew of
+      // −1.25).
+      const zAlpha = normalInverseCdf(1 - confidence);
       const zCf =
-        z +
-        ((z * z - 1) * skew) / 6 +
-        ((z * z * z - 3 * z) * kurt) / 24 -
-        ((2 * z * z * z - 5 * z) * skew * skew) / 36;
+        zAlpha +
+        ((zAlpha * zAlpha - 1) * skew) / 6 +
+        ((zAlpha * zAlpha * zAlpha - 3 * zAlpha) * kurt) / 24 -
+        ((2 * zAlpha * zAlpha * zAlpha - 5 * zAlpha) * skew * skew) / 36;
 
-      varValue = -(mu - zCf * sigma);
+      varValue = -(mu + zCf * sigma);
 
       // Hybrid CVaR: use returns below VaR threshold
-      const threshold = mu - zCf * sigma;
+      const threshold = mu + zCf * sigma;
       let tailSum = 0;
       let tailCount = 0;
       for (let i = 0; i < returns.length; i++) {

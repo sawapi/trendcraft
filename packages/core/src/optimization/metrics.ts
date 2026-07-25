@@ -83,8 +83,14 @@ export function calculateRecoveryFactor(netProfit: number, maxDrawdown: number):
 }
 
 /**
- * Calculate MAR Ratio (Monthly Average Return / Max Drawdown)
- * Similar to Calmar but uses monthly returns instead of annualized.
+ * Calculate MAR Ratio (annualized return / max drawdown).
+ *
+ * This used to divide the arithmetic average *monthly* return by max
+ * drawdown, which is roughly a twelfth of the ratio the name denotes — a
+ * strategy screened against the usual "MAR above 0.5" kind of threshold was
+ * being judged on a number an order of magnitude too small, and because the
+ * monthly form is not a monotone rescaling of the annualized one, it could
+ * also rank two strategies in the opposite order.
  *
  * Returns `NaN` when the ratio is undefined (no drawdown or no
  * trading days). See `calculateCalmarRatio` for rationale.
@@ -92,22 +98,22 @@ export function calculateRecoveryFactor(netProfit: number, maxDrawdown: number):
  * @param totalReturnPercent Total return in percent
  * @param tradingDays Number of trading days
  * @param maxDrawdownPercent Maximum drawdown in percent (positive number)
- * @param tradingDaysPerMonth Trading days per month (default: 21)
+ * @param tradingDaysPerYear Trading days per year (default: 252)
  * @returns MAR Ratio, or `NaN` when undefined
  */
 export function calculateMAR(
   totalReturnPercent: number,
   tradingDays: number,
   maxDrawdownPercent: number,
-  tradingDaysPerMonth = 21,
+  tradingDaysPerYear = 252,
 ): number {
   if (!(maxDrawdownPercent > 0)) return Number.NaN;
   if (tradingDays <= 0) return Number.NaN;
 
-  const months = tradingDays / tradingDaysPerMonth;
-  const monthlyAvgReturn = totalReturnPercent / months;
-
-  return monthlyAvgReturn / maxDrawdownPercent;
+  return calculateCalmarRatio(
+    annualizeReturn(totalReturnPercent, tradingDays, tradingDaysPerYear),
+    maxDrawdownPercent,
+  );
 }
 
 /**
@@ -284,7 +290,8 @@ export function calculateAllMetrics(
   // Calculate Calmar (annualized return / max DD)
   const calmar = calculateCalmarRatio(annualizedReturn, result.maxDrawdown);
 
-  // Calculate MAR (monthly avg return / max DD)
+  // Calculate MAR (annualized return / max DD — same ratio as calmar when,
+  // as here, both are taken over the full result window)
   const mar = calculateMAR(returns, tradingDays, result.maxDrawdown);
 
   // Calculate Recovery Factor (total return / max DD)

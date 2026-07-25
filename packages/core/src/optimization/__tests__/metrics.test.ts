@@ -158,10 +158,16 @@ describe("Optimization Metrics", () => {
       expect(calculateMAR(10, -1, 5)).toBeNaN();
     });
 
-    it("computes monthly return / drawdown", () => {
-      // 10% return over 252 trading days ≈ 12 months → 0.833% / month / 5% DD = 0.1667
-      const v = calculateMAR(10, 252, 5);
-      expect(v).toBeCloseTo(0.1667, 3);
+    it("computes annualized return / drawdown", () => {
+      // 10% over exactly one year → 10% annualized / 5% DD = 2.
+      // Previously this divided the average *monthly* return instead, giving
+      // 0.1667 — a twelfth of the ratio the name denotes.
+      expect(calculateMAR(10, 252, 5)).toBeCloseTo(2, 6);
+    });
+
+    it("compounds over multi-year windows rather than averaging", () => {
+      // 21% over two years compounds to 10% a year, not 10.5%.
+      expect(calculateMAR(21, 504, 5)).toBeCloseTo(2, 3);
     });
   });
 
