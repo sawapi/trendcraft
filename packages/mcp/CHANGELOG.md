@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.3.0 (2026-07-25)
+
+### Fixed — tool descriptions and examples now match runtime behavior
+
+A tool description is not internal documentation here: it is handed to the
+model on the other side of the protocol and shapes the calls it makes. Several
+had drifted from what the server actually does, so a client was being told the
+wrong parameter names and the wrong response shape.
+
+- Corrected the documented parameters for `rsiDivergence` and the detection
+  semantics of `volumeBreakout`.
+- Documented candlestick-pattern support in `detect_signal`, along with the
+  `processedBars` and `symbol` fields it returns.
+- Documented the `storeSize` and `capacity` fields returned by `load_candles`.
+- Corrected the MACD parameters and the RSI-divergence output shape in
+  `EXAMPLES.md`.
+
+### Changed — requires `trendcraft` 0.5.0 or later
+
+The dependency range is raised so that installs pick up the correctness fixes
+in core 0.5.0. No tool signature changes, but the **values the tools return
+change** wherever those fixes apply — most visibly annualized Sharpe and
+Sortino, Cornish-Fisher VaR, the MAR optimization metric, variance-derived
+indicators at high price levels, and every time-bucketed indicator when
+candles are stamped in epoch seconds. See the `trendcraft` 0.5.0 changelog.
+
 ## 0.2.0 (2026-06-09)
 
 ### Fixed — reject non-finite candle OHLCV at the input boundary
