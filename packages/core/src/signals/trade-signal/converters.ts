@@ -10,6 +10,7 @@ import type { PriceLevels, TradeSignal } from "../../types/trade-signal";
 import type { SqueezeSignal } from "../bollinger-squeeze";
 import type { CrossSignalQuality } from "../cross";
 import type { DivergenceSignal } from "../divergence";
+import { patternActionableTime } from "../patterns/double-pattern-utils";
 import type { PatternSignal } from "../patterns/types";
 
 /**
@@ -53,21 +54,25 @@ export function fromCrossSignal(signal: CrossSignalQuality, entryPrice?: number)
 /**
  * Convert a DivergenceSignal to a TradeSignal
  *
+ * The trade signal is stamped at `confirmedAt` — the bar where the divergence
+ * first becomes knowable — not at the pivot bar it is anchored to. The pivot
+ * bar is carried in `metadata.pivotTime` for annotation.
+ *
  * @param signal - Divergence detection result
- * @param entryPrice - Current price at signal time
+ * @param entryPrice - Price at the confirmation bar
  * @returns Unified trade signal
  *
  * @example
  * ```ts
  * const divSignals = rsiDivergence(candles);
- * const tradeSignals = divSignals.map(s => fromDivergenceSignal(s, candles[s.secondIdx].close));
+ * const tradeSignals = divSignals.map(s => fromDivergenceSignal(s, candles[s.confirmedIdx].close));
  * ```
  */
 export function fromDivergenceSignal(signal: DivergenceSignal, entryPrice?: number): TradeSignal {
   const isBullish = signal.type === "bullish";
   return {
-    id: `divergence-${signal.kind}-${signal.type}-${signal.time}`,
-    time: signal.time,
+    id: `divergence-${signal.kind}-${signal.type}-${signal.confirmedAt}`,
+    time: signal.confirmedAt,
     action: isBullish ? "BUY" : "SELL",
     direction: isBullish ? "LONG" : "SHORT",
     confidence: 60,
@@ -82,6 +87,7 @@ export function fromDivergenceSignal(signal: DivergenceSignal, entryPrice?: numb
     metadata: {
       firstIdx: signal.firstIdx,
       secondIdx: signal.secondIdx,
+      pivotTime: signal.time,
     },
   };
 }
@@ -135,8 +141,13 @@ export function fromSqueezeSignal(
  *
  * Maps pattern target and stopLoss to TradeSignal price levels.
  *
+ * The trade signal is stamped at the bar where the pattern first becomes
+ * actionable — `confirmTime` for a confirmed pattern, `detectableTime`
+ * otherwise — not at the pivot bar `PatternSignal.time` anchors. The pivot bar
+ * is carried in `metadata.patternTime` for annotation.
+ *
  * @param signal - Pattern recognition signal
- * @param entryPrice - Current price at signal time
+ * @param entryPrice - Price at the actionable bar
  * @returns Unified trade signal
  *
  * @example
@@ -148,6 +159,9 @@ export function fromSqueezeSignal(
 export function fromPatternSignal(signal: PatternSignal, entryPrice?: number): TradeSignal {
   const bullishPatterns = ["double_bottom", "inverse_head_shoulders", "cup_handle"];
   const isBullish = bullishPatterns.includes(signal.type);
+  // A confirmed pattern's confidence folds in breakout information, so the
+  // whole signal is only knowable at confirmTime.
+  const actionableTime = patternActionableTime(signal, signal.confirmed) ?? signal.detectableTime;
 
   let prices: PriceLevels | undefined;
   if (entryPrice) {
@@ -161,8 +175,8 @@ export function fromPatternSignal(signal: PatternSignal, entryPrice?: number): T
   }
 
   return {
-    id: `pattern-${signal.type}-${signal.time}`,
-    time: signal.time,
+    id: `pattern-${signal.type}-${actionableTime}`,
+    time: actionableTime,
     action: isBullish ? "BUY" : "SELL",
     direction: isBullish ? "LONG" : "SHORT",
     confidence: signal.confidence,
@@ -177,6 +191,7 @@ export function fromPatternSignal(signal: PatternSignal, entryPrice?: number): T
     metadata: {
       confirmed: signal.confirmed,
       height: signal.pattern.height,
+      patternTime: signal.time,
     },
   };
 }

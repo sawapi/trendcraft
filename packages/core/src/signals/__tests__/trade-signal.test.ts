@@ -68,6 +68,8 @@ describe("fromDivergenceSignal", () => {
   it("converts bullish divergence to BUY", () => {
     const signal: DivergenceSignal = {
       time: 2000,
+      confirmedAt: 2500,
+      confirmedIdx: 15,
       type: "bullish",
       kind: "regular",
       firstIdx: 5,
@@ -85,6 +87,8 @@ describe("fromDivergenceSignal", () => {
   it("converts bearish divergence to SELL", () => {
     const signal: DivergenceSignal = {
       time: 3000,
+      confirmedAt: 3500,
+      confirmedIdx: 15,
       type: "bearish",
       kind: "regular",
       firstIdx: 5,
@@ -95,6 +99,26 @@ describe("fromDivergenceSignal", () => {
     const result = fromDivergenceSignal(signal);
     expect(result.action).toBe("SELL");
     expect(result.direction).toBe("SHORT");
+  });
+
+  it("stamps the trade signal at confirmedAt, not at the pivot bar", () => {
+    const signal: DivergenceSignal = {
+      time: 2000,
+      confirmedAt: 2500,
+      confirmedIdx: 15,
+      type: "bullish",
+      kind: "regular",
+      firstIdx: 5,
+      secondIdx: 10,
+      price: { first: 100, second: 95 },
+      indicator: { first: 30, second: 35 },
+    };
+    const result = fromDivergenceSignal(signal, 95);
+    expect(result.time).toBe(2500);
+    expect(result.id).toBe("divergence-regular-bullish-2500");
+    // The pivot bar stays available as annotation metadata
+    expect(result.metadata?.pivotTime).toBe(2000);
+    expect(result.metadata?.secondIdx).toBe(10);
   });
 });
 
@@ -166,6 +190,36 @@ describe("fromPatternSignal", () => {
     expect(result.action).toBe("SELL");
     expect(result.direction).toBe("SHORT");
     expect(result.metadata?.confirmed).toBe(false);
+  });
+
+  it("stamps a confirmed pattern at confirmTime, not at the pivot bar", () => {
+    const signal: PatternSignal = {
+      time: 5000,
+      detectableTime: 5500,
+      confirmTime: 7000,
+      type: "double_bottom",
+      pattern: { startTime: 4000, endTime: 5000, keyPoints: [] },
+      confidence: 72,
+      confirmed: true,
+    };
+    const result = fromPatternSignal(signal);
+    expect(result.time).toBe(7000);
+    expect(result.id).toBe("pattern-double_bottom-7000");
+    expect(result.metadata?.patternTime).toBe(5000);
+  });
+
+  it("stamps an unconfirmed pattern at detectableTime", () => {
+    const signal: PatternSignal = {
+      time: 5000,
+      detectableTime: 5500,
+      type: "double_top",
+      pattern: { startTime: 4000, endTime: 5000, keyPoints: [] },
+      confidence: 65,
+      confirmed: false,
+    };
+    const result = fromPatternSignal(signal);
+    expect(result.time).toBe(5500);
+    expect(result.metadata?.patternTime).toBe(5000);
   });
 });
 

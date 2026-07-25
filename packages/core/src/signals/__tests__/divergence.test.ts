@@ -366,3 +366,122 @@ describe("macdDivergence", () => {
     }
   });
 });
+
+describe("divergence causality", () => {
+  /** Deterministic PRNG so the walk below is stable across runs. */
+  function mulberry32(seed: number) {
+    let a = seed;
+    return () => {
+      a |= 0;
+      a = (a + 0x6d2b79f5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function randomWalk(n: number, seed: number): NormalizedCandle[] {
+    const rnd = mulberry32(seed);
+    const out: NormalizedCandle[] = [];
+    let price = 100;
+    for (let i = 0; i < n; i++) {
+      price *= 1 + (rnd() - 0.5) * 0.04;
+      out.push({
+        time: 1_700_000_000 + i * 86_400,
+        open: price,
+        high: price * 1.01,
+        low: price * 0.99,
+        close: price,
+        volume: 1_000_000,
+      });
+    }
+    return out;
+  }
+
+  /** A flat series with troughs punched in at the given indices. */
+  function withTroughs(n: number, troughs: { idx: number; depth: number }[]): number[] {
+    const out = Array.from({ length: n }, (_, i) => 100 + (i % 3) * 0.001);
+    for (const t of troughs) out[t.idx] = 100 - t.depth;
+    return out;
+  }
+
+  const candles = randomWalk(300, 42);
+  const signals = rsiDivergence(candles);
+
+  const detectedIn = (
+    signal: { secondIdx: number; type: string; kind: string },
+    barCount: number,
+  ): boolean =>
+    rsiDivergence(candles.slice(0, barCount)).some(
+      (x) => x.secondIdx === signal.secondIdx && x.type === signal.type && x.kind === signal.kind,
+    );
+
+  it("produces signals on the fixture walk", () => {
+    expect(signals.length).toBeGreaterThan(0);
+  });
+
+  it("is not detectable at its own pivot bar", () => {
+    // The pivot needs swingLookback bars on its right to be identified, so a
+    // consumer acting at `time` would be acting on bars it cannot have seen.
+    for (const s of signals) {
+      expect(detectedIn(s, s.secondIdx + 1)).toBe(false);
+    }
+  });
+
+  it("confirmedIdx is exactly the first bar at which the divergence is detectable", () => {
+    for (const s of signals) {
+      expect(s.confirmedIdx).toBeGreaterThan(s.secondIdx);
+      expect(detectedIn(s, s.confirmedIdx + 1)).toBe(true);
+      expect(detectedIn(s, s.confirmedIdx)).toBe(false);
+      expect(s.confirmedAt).toBe(candles[s.confirmedIdx].time);
+    }
+  });
+
+  it("confirms on the later of the price and indicator pivots", () => {
+    // Price troughs at 20/60, indicator troughs 2 bars later at 22/62. The
+    // divergence is anchored at price pivot 60 but only knowable at 62 + 5.
+    const n = 100;
+    const prices = withTroughs(n, [
+      { idx: 20, depth: 5 },
+      { idx: 60, depth: 8 },
+    ]);
+    const indicator = withTroughs(n, [
+      { idx: 22, depth: 8 },
+      { idx: 62, depth: 5 },
+    ]);
+    const bars = randomWalk(n, 1);
+
+    const found = detectDivergence(bars, prices, indicator, { swingLookback: 5 });
+    expect(found).toHaveLength(1);
+    expect(found[0].secondIdx).toBe(60);
+    expect(found[0].confirmedIdx).toBe(67);
+    expect(found[0].confirmedAt).toBe(bars[67].time);
+  });
+
+  it("omits a divergence whose confirmation bar is beyond the candles", () => {
+    // Same pivots as above (confirmation at bar 67), but the caller passes
+    // series longer than the candle array. Reporting the divergence at the
+    // last available bar would claim knowledge before it exists, so it is
+    // withheld until the confirmation bar is in range.
+    const n = 100;
+    const prices = withTroughs(n, [
+      { idx: 20, depth: 5 },
+      { idx: 60, depth: 8 },
+    ]);
+    const indicator = withTroughs(n, [
+      { idx: 22, depth: 8 },
+      { idx: 62, depth: 5 },
+    ]);
+
+    expect(detectDivergence(randomWalk(67, 1), prices, indicator, { swingLookback: 5 })).toEqual(
+      [],
+    );
+
+    // One more bar and the confirmation bar exists, so the signal appears.
+    const atBoundary = detectDivergence(randomWalk(68, 1), prices, indicator, {
+      swingLookback: 5,
+    });
+    expect(atBoundary).toHaveLength(1);
+    expect(atBoundary[0].confirmedIdx).toBe(67);
+  });
+});

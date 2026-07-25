@@ -2298,7 +2298,9 @@ const bearish = signals.filter(s => s.type === 'bearish');
 
 ```typescript
 interface DivergenceSignal {
-  time: number;
+  time: number;                 // Second pivot bar — annotation only, not a decision time
+  confirmedAt: number;          // Bar where the divergence first becomes knowable
+  confirmedIdx: number;         // Index of the confirmedAt bar
   type: 'bullish' | 'bearish';
   kind: 'regular' | 'hidden';   // Regular (reversal) vs hidden (continuation) divergence
   firstIdx: number;
@@ -2307,6 +2309,12 @@ interface DivergenceSignal {
   indicator: { first: number; second: number };
 }
 ```
+
+A pivot is only identifiable `swingLookback` bars after it occurs, so `time`
+(the second pivot) is not knowable when it happens. `confirmedAt` /
+`confirmedIdx` give the first bar at which the divergence can be acted on — the
+later of the price and indicator pivots plus `swingLookback` — and are what
+causal consumers (entries, alerts, cross-signal alignment) should use.
 
 ---
 
@@ -5318,7 +5326,9 @@ const tradeSignals = signals.map(s => fromCrossSignal(s, candles.find(c => c.tim
 import { fromDivergenceSignal } from 'trendcraft';
 
 const divSignals = rsiDivergence(candles);
-const tradeSignals = divSignals.map(s => fromDivergenceSignal(s, candles[s.secondIdx].close));
+// Stamped at `confirmedAt` (the bar the divergence becomes knowable), so the
+// entry price comes from that bar rather than from the pivot.
+const tradeSignals = divSignals.map(s => fromDivergenceSignal(s, candles[s.confirmedIdx].close));
 ```
 
 #### `fromSqueezeSignal(signal, direction?, entryPrice?)`
@@ -5333,7 +5343,10 @@ const tradeSignals = squeezes.map(s => fromSqueezeSignal(s, "LONG", candles.find
 
 #### `fromPatternSignal(signal, entryPrice?)`
 
-Maps pattern `target` and `stopLoss` to `TradeSignal.prices`.
+Maps pattern `target` and `stopLoss` to `TradeSignal.prices`. The signal is
+stamped at the bar where the pattern becomes actionable (`confirmTime` when
+confirmed, otherwise `detectableTime`), not at the pivot bar `PatternSignal.time`
+anchors; the pivot time is kept in `metadata.patternTime`.
 
 ```typescript
 import { fromPatternSignal } from 'trendcraft';
