@@ -2,25 +2,24 @@
  * Incremental Linear Regression
  *
  * Rolling least-squares fit over the last `period` prices with x = 0..period-1
- * indexed within the window. State is kept as O(1)-updateable running sums
- * (sumY, sumY², sumXY) plus a CircularBuffer of `period` y-values needed
- * to know which y is being evicted when the window slides.
+ * indexed within the window. Each bar's fit is recomputed from the window
+ * itself (O(period)), running the same arithmetic as the batch
+ * `linearRegression()` so the two agree by construction.
  *
- * Update law (proved under the change of variable k = j+1 against the batch
- * sumXY = Σ j·y_{i-period+1+j}):
+ * Running sums (sumY, sumY², sumXY) would make this O(1) per bar, but the
+ * uncentred r² term `period·sumY² − sumY²` cancels catastrophically once
+ * prices are large relative to their spread: r² collapsed to 0 on 204 of 287
+ * bars at price ~1e8, breaking parity with the batch indicator, and the drift
+ * persisted into snapshots.
  *
- *   sumXY_new = sumXY_old + (period-1) * y_new - (sumY_old - y_drop)
- *
- * where y_drop is the oldest value in the window before the push.
- *
- * State category: **Windowed** (a raw price buffer plus running sums).
- * Warmup and seeding are gated on `buffer.isFull`, not a monotonic
- * `count`, so resume with a different `period` carries the buffer
- * forward correctly; `source` change is refused.
+ * State category: **Windowed** (a raw price buffer). Warmup is gated on
+ * `buffer.isFull`, not a monotonic `count`, so resume with a different
+ * `period` carries the buffer forward correctly; `source` change is refused.
  *
  * Migrated to the 0.4.0 State Contract.
  */
 
+import { slopeOverIndex } from "../../../core/statistics";
 import type { NormalizedCandle, PriceSource } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
 import {
@@ -45,14 +44,16 @@ export type LinearRegressionValue = {
  */
 export type LinearRegressionState = {
   buffer: ReturnType<CircularBuffer<number>["snapshot"]>;
-  sumY: number;
-  sumY2: number;
-  sumXY: number;
   count: number;
 };
 
-/** Per-indicator schema version. Bumped on any breaking state change. */
-export const LINEAR_REGRESSION_VERSION = 1;
+/**
+ * Per-indicator schema version. Bumped on any breaking state change.
+ *
+ * v2 dropped the running `sumY`/`sumY2`/`sumXY`: the r² term derived from
+ * them was numerically unsound and their drift survived snapshot/restore.
+ */
+export const LINEAR_REGRESSION_VERSION = 2;
 
 type LinearRegressionParams = {
   period: number;
@@ -101,68 +102,63 @@ export function createLinearRegression(
 
   // Closed-form constants for x = 0..period-1
   const sumX = (period * (period - 1)) / 2;
-  const sumX2 = (period * (period - 1) * (2 * period - 1)) / 6;
-  const denomX = period * sumX2 - sumX * sumX;
 
   let buffer: CircularBuffer<number>;
-  let sumY: number;
-  let sumY2: number;
-  let sumXY: number;
   let count: number;
 
   if (state !== null) {
     if (reconfigured) {
-      // Period changed — carry the raw prices forward and recompute the
-      // running sums against the new window.
+      // Period changed — carry the raw prices forward into the new window.
       const old = CircularBuffer.fromSnapshot(state.buffer);
       buffer = new CircularBuffer<number>(period);
       const carry = Math.min(old.length, period);
       for (let i = old.length - carry; i < old.length; i++) {
         buffer.push(old.get(i));
       }
-      sumY = 0;
-      sumY2 = 0;
-      for (let i = 0; i < buffer.length; i++) {
-        const v = buffer.get(i);
-        sumY += v;
-        sumY2 += v * v;
-      }
-      // sumXY is only meaningful once the window is full; seed it now
-      // if the carry-forward already filled the new window.
-      sumXY = 0;
-      if (buffer.isFull) {
-        for (let j = 0; j < period; j++) sumXY += j * buffer.get(j);
-      }
     } else {
       buffer = CircularBuffer.fromSnapshot(state.buffer);
-      sumY = state.sumY;
-      sumY2 = state.sumY2;
-      sumXY = state.sumXY;
     }
     count = state.count;
   } else {
     buffer = new CircularBuffer<number>(period);
-    sumY = 0;
-    sumY2 = 0;
-    sumXY = 0;
     count = 0;
   }
 
-  function compute(): LinearRegressionValue | null {
-    if (!buffer.isFull) return null;
-    const slope = (period * sumXY - sumX * sumY) / denomX;
+  /**
+   * Least-squares fit over a full window, mirroring the batch indicator:
+   * slope/intercept from the closed-form x sums, then r² from the actual
+   * residuals about the window mean. Computing r² from centred sums of
+   * squares is what keeps it meaningful at high price levels.
+   */
+  function fitWindow(window: readonly number[]): LinearRegressionValue {
+    let sumY = 0;
+    for (let j = 0; j < period; j++) sumY += window[j];
+
+    const slope = slopeOverIndex(window);
     const intercept = (sumY - slope * sumX) / period;
-    const value = intercept + slope * (period - 1);
-    // Pearson R² via running sums; clamp to [0, 1] for float safety.
-    const denomY = period * sumY2 - sumY * sumY;
-    const numerR2 = (period * sumXY - sumX * sumY) ** 2;
-    const rSquared = denomY > 0 && denomX > 0 ? numerR2 / (denomX * denomY) : 0;
+
+    const meanY = sumY / period;
+    let ssTot = 0;
+    let ssRes = 0;
+    for (let j = 0; j < period; j++) {
+      const dy = window[j] - meanY;
+      const res = window[j] - (intercept + slope * j);
+      ssTot += dy * dy;
+      ssRes += res * res;
+    }
+    const rSquared = ssTot > 0 ? 1 - ssRes / ssTot : 0;
+
     return {
-      value,
+      value: intercept + slope * (period - 1),
       slope,
       intercept,
       rSquared: Math.min(1, Math.max(0, rSquared)),
     };
+  }
+
+  function compute(): LinearRegressionValue | null {
+    if (!buffer.isFull) return null;
+    return fitWindow(buffer.toArray());
   }
 
   const indicator: IncrementalIndicator<
@@ -170,70 +166,22 @@ export function createLinearRegression(
     IndicatorSnapshot<LinearRegressionState>
   > = {
     next(candle: NormalizedCandle) {
-      const y = getSourcePrice(candle, source);
-      const wasFull = buffer.isFull;
-      const yDrop = wasFull ? buffer.oldest() : 0;
-
-      // Window already full → use the slide-update law BEFORE mutating sumY.
-      if (wasFull) {
-        sumXY = sumXY + (period - 1) * y - (sumY - yDrop);
-      }
-
-      sumY = sumY - yDrop + y;
-      sumY2 = sumY2 - yDrop * yDrop + y * y;
-      buffer.push(y);
+      buffer.push(getSourcePrice(candle, source));
       count++;
-
-      // Buffer just reached full → seed sumXY from the explicit sum.
-      if (!wasFull && buffer.isFull) {
-        sumXY = 0;
-        for (let j = 0; j < period; j++) {
-          sumXY += j * buffer.get(j);
-        }
-      }
-
       return { time: candle.time, value: compute() };
     },
 
     peek(candle: NormalizedCandle) {
       const y = getSourcePrice(candle, source);
-      const wasFull = buffer.isFull;
-      const yDrop = wasFull ? buffer.oldest() : 0;
-      const willBeFull = wasFull || buffer.length + 1 >= period;
-      if (!willBeFull) return { time: candle.time, value: null };
-
-      let peekSumY: number;
-      let peekSumY2: number;
-      let peekSumXY: number;
-
-      if (wasFull) {
-        peekSumY = sumY - yDrop + y;
-        peekSumY2 = sumY2 - yDrop * yDrop + y * y;
-        peekSumXY = sumXY + (period - 1) * y - (sumY - yDrop);
-      } else {
-        // Buffer becomes full exactly now; seed sumXY from buffer + new y.
-        peekSumY = sumY + y;
-        peekSumY2 = sumY2 + y * y;
-        peekSumXY = 0;
-        for (let j = 0; j < buffer.length; j++) peekSumXY += j * buffer.get(j);
-        peekSumXY += buffer.length * y;
+      if (!buffer.isFull && buffer.length + 1 < period) {
+        return { time: candle.time, value: null };
       }
 
-      const slope = (period * peekSumXY - sumX * peekSumY) / denomX;
-      const intercept = (peekSumY - slope * sumX) / period;
-      const value = intercept + slope * (period - 1);
-      const denomY = period * peekSumY2 - peekSumY * peekSumY;
-      const numerR2 = (period * peekSumXY - sumX * peekSumY) ** 2;
-      const rSquared = denomY > 0 && denomX > 0 ? numerR2 / (denomX * denomY) : 0;
-      return {
-        time: candle.time,
-        value: {
-          value,
-          slope,
-          intercept,
-          rSquared: Math.min(1, Math.max(0, rSquared)),
-        },
-      };
+      // The window the buffer would hold after pushing `y`.
+      const window = buffer.toArray().slice(buffer.isFull ? 1 : 0);
+      window.push(y);
+
+      return { time: candle.time, value: fitWindow(window) };
     },
 
     getState(): IndicatorSnapshot<LinearRegressionState> {
@@ -241,7 +189,7 @@ export function createLinearRegression(
         "linearRegression",
         LINEAR_REGRESSION_VERSION,
         { period, source },
-        { buffer: buffer.snapshot(), sumY, sumY2, sumXY, count },
+        { buffer: buffer.snapshot(), count },
       );
     },
 

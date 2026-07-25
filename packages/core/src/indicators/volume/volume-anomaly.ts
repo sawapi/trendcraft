@@ -6,6 +6,7 @@
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { centeredMoments } from "../../core/statistics";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series, VolumeAnomalyValue } from "../../types";
 import { VOLUME_ANOMALY_META } from "../indicator-meta";
@@ -99,19 +100,14 @@ export function volumeAnomaly(
       continue;
     }
 
-    // Calculate average and standard deviation over the period
-    let sum = 0;
-    let sumSq = 0;
+    // Average and standard deviation over the period. Two-pass: with volumes
+    // large relative to their spread the one-pass form loses every digit of
+    // the variance and misses genuine outliers. See centeredMoments.
+    const window: number[] = [];
+    for (let j = 0; j < period; j++) window.push(normalized[i - j].volume);
 
-    for (let j = 0; j < period; j++) {
-      const vol = normalized[i - j].volume;
-      sum += vol;
-      sumSq += vol * vol;
-    }
-
-    const avgVolume = sum / period;
-    const variance = sumSq / period - avgVolume * avgVolume;
-    const stdDev = Math.sqrt(Math.max(0, variance));
+    const { mean: avgVolume, sumSqDev } = centeredMoments(window);
+    const stdDev = Math.sqrt(sumSqDev / period);
 
     // Calculate ratio and z-score
     const ratio = avgVolume > 0 ? currentVolume / avgVolume : 1;

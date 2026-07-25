@@ -2,6 +2,49 @@
 
 ## [Unreleased]
 
+### Breaking — variance and correlation are computed in two passes; four incremental snapshots bump their schema version
+
+Fifteen modules derived a variance, correlation or regression slope from the
+one-pass shortcuts `Σx²/n − mean²` and `n·Σxy − Σx·Σy`. Both subtract two
+nearly equal large numbers whenever values are large relative to their spread,
+and lose every significant digit of the result. Prices quoted in yen, won or
+rupiah — and raw share volumes — sit in exactly that range, so the failures
+were reachable with ordinary data, and they were not gradual:
+
+- `bollingerBands` collapsed to zero-width bands at price ~1e8 (a false
+  squeeze signal, with `percentB` pinned to its 0.5 fallback), and the error
+  grew with the length of the stream because the sliding sum-of-squares was
+  never recomputed. Bands no longer satisfied the documented
+  `middle ± stdDev · standardDeviation()` relation.
+- `olsRegression` returned a hedge ratio of −0.7 where the true slope was 0.5,
+  with `rSquared` of −4.76 — a pairs trade would have hedged in the wrong
+  direction while still reporting the pair as cointegrated.
+- `pearsonCorrelation` returned 0 for perfectly anti-correlated series at
+  large offsets, and −1.0000000000095 at ordinary price levels, outside its
+  documented range.
+- The incremental `standardDeviation`, `bollingerBands`, `linearRegression`
+  and `historicalVolatility` disagreed with their batch counterparts (up to
+  732% for standard deviation at 1e8; `rSquared` forced to 0 on 204 of 287
+  bars), breaking the batch/incremental parity contract. Worse, the drifted
+  running totals were serialized into snapshots, so the error survived
+  save/restore.
+- `volumeAnomaly` (batch and incremental) missed genuine outliers at large
+  volumes: a true 3.73-sigma spike scored 0.0008.
+- `linearRegression` (batch and incremental) reported a slope of 0.482 for a
+  series rising by exactly 0.5 per bar at price ~1e15.
+
+All of them now compute the mean first and accumulate squared deviations
+about it, via one shared implementation. Bollinger bands are now bit-identical
+to `middle ± stdDev · standardDeviation()` at every price level tested
+(1e2, 1e7, 1e9).
+
+Breaking: the incremental `standardDeviation`, `bollingerBands`,
+`linearRegression` and `historicalVolatility` no longer keep running sums in
+their state — the retained buffer is the only state a window needs, which is
+what makes a resumed stream drift-free. Their schema versions are bumped to 2,
+so snapshots taken with an earlier version are rejected with the usual
+"re-warm required" error and must be re-warmed. Statistics values change
+(they were wrong before) — mostly below float noise at ordinary price levels.
 ### Breaking — `DivergenceSignal` gains a confirmation bar; trade-signal converters emit at causal timestamps
 
 `detectDivergence` (and `rsiDivergence` / `obvDivergence` / `macdDivergence` /

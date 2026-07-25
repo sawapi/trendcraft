@@ -4,6 +4,8 @@
  * @module pairs/regression
  */
 
+import { centeredCrossMoments } from "../core/statistics";
+
 /**
  * Ordinary Least Squares regression
  * y = beta * x + intercept
@@ -28,22 +30,9 @@ export function olsRegression(
   residuals: number[];
 } {
   const n = x.length;
-  let sumX = 0;
-  let sumY = 0;
-  let sumXY = 0;
-  let sumX2 = 0;
+  const { meanX, meanY, sxx, sxy } = centeredCrossMoments(x, y);
 
-  for (let i = 0; i < n; i++) {
-    sumX += x[i];
-    sumY += y[i];
-    sumXY += x[i] * y[i];
-    sumX2 += x[i] * x[i];
-  }
-
-  const meanX = sumX / n;
-  const meanY = sumY / n;
-  const denom = sumX2 - n * meanX * meanX;
-  const beta = denom !== 0 ? (sumXY - n * meanX * meanY) / denom : 0;
+  const beta = sxx !== 0 ? sxy / sxx : 0;
   const intercept = meanY - beta * meanX;
 
   // Calculate residuals and R-squared

@@ -1,3 +1,4 @@
+import { centeredCrossMoments } from "../core/statistics";
 import type { CorrelationPoint } from "../types/correlation";
 import { computeRanks } from "../utils/statistics";
 
@@ -15,24 +16,15 @@ import { computeRanks } from "../utils/statistics";
  * ```
  */
 export function pearsonCorrelation(x: number[], y: number[]): number {
-  const n = x.length;
-  if (n < 2) return 0;
+  if (x.length < 2) return 0;
 
-  let sumX = 0;
-  let sumY = 0;
-  let sumXY = 0;
-  let sumX2 = 0;
-  let sumY2 = 0;
-  for (let i = 0; i < n; i++) {
-    sumX += x[i];
-    sumY += y[i];
-    sumXY += x[i] * y[i];
-    sumX2 += x[i] * x[i];
-    sumY2 += y[i] * y[i];
-  }
+  const { sxx, syy, sxy } = centeredCrossMoments(x, y);
 
-  const denom = Math.sqrt((n * sumX2 - sumX ** 2) * (n * sumY2 - sumY ** 2));
-  return denom === 0 ? 0 : (n * sumXY - sumX * sumY) / denom;
+  const denom = Math.sqrt(sxx * syy);
+  if (denom === 0) return 0;
+  // Rounding can push an exact ±1 a hair past the bound; the documented
+  // range is closed.
+  return Math.max(-1, Math.min(1, sxy / denom));
 }
 
 /**

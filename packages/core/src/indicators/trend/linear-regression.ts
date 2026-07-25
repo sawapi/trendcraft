@@ -6,6 +6,7 @@
  */
 
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
+import { slopeOverIndex } from "../../core/statistics";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
 
@@ -73,7 +74,6 @@ export function linearRegression(
   // Pre-compute sum of x and x^2 for the window [0..period-1]
   // x values are 0, 1, 2, ..., period-1
   const sumX = (period * (period - 1)) / 2;
-  const sumX2 = (period * (period - 1) * (2 * period - 1)) / 6;
 
   for (let i = 0; i < normalized.length; i++) {
     if (i < period - 1) {
@@ -82,18 +82,14 @@ export function linearRegression(
     }
 
     // Calculate sums for least squares
+    const window = prices.slice(i - period + 1, i + 1);
     let sumY = 0;
-    let sumXY = 0;
+    for (let j = 0; j < period; j++) sumY += window[j];
 
-    for (let j = 0; j < period; j++) {
-      const y = prices[i - period + 1 + j];
-      sumY += y;
-      sumXY += j * y;
-    }
-
-    // Slope and intercept
-    const denominator = period * sumX2 - sumX * sumX;
-    const slope = (period * sumXY - sumX * sumY) / denominator;
+    // Slope and intercept. The slope is taken about the window mean: the
+    // uncentred `period·Σj·y − Σj·Σy` form cancels once prices are large
+    // relative to their spread (0.482 for a true slope of 0.5 at 1e15).
+    const slope = slopeOverIndex(window);
     const intercept = (sumY - slope * sumX) / period;
 
     // R-squared

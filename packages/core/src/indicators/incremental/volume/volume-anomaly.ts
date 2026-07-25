@@ -12,6 +12,7 @@
  * Migrated to the 0.4.0 State Contract.
  */
 
+import { centeredMoments } from "../../../core/statistics";
 import type { NormalizedCandle, VolumeAnomalyValue } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
 import {
@@ -131,17 +132,11 @@ export function createVolumeAnomaly(
       };
     }
 
-    let sum = 0;
-    let sumSq = 0;
-    for (let i = 0; i < buf.length; i++) {
-      const v = buf.get(i);
-      sum += v;
-      sumSq += v * v;
-    }
-
-    const avgVolume = sum / period;
-    const variance = sumSq / period - avgVolume * avgVolume;
-    const stdDev = Math.sqrt(Math.max(0, variance));
+    // Two-pass, matching the batch indicator: the one-pass form collapses the
+    // variance to zero when volumes are large relative to their spread, which
+    // silently disables the z-score branch. See centeredMoments.
+    const { mean: avgVolume, sumSqDev } = centeredMoments(buf.toArray());
+    const stdDev = Math.sqrt(sumSqDev / period);
 
     const ratio = avgVolume > 0 ? volume / avgVolume : 1;
     const zScore = stdDev > 0 ? (volume - avgVolume) / stdDev : null;

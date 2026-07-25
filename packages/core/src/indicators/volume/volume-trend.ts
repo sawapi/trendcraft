@@ -6,6 +6,7 @@
  */
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
+import { slopeOverIndex } from "../../core/statistics";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series, VolumeTrendValue } from "../../types";
 
@@ -163,20 +164,16 @@ function analyzeTrendFast(arr: number[], start: number, end: number, minChange: 
   const change = first > 0 ? ((last - first) / first) * 100 : 0;
 
   // Calculate linear regression slope
-  let sumX = 0;
   let sumY = 0;
-  let sumXY = 0;
-  let sumX2 = 0;
 
+  const window: number[] = [];
   for (let i = 0; i < n; i++) {
     const val = arr[start + i];
-    sumX += i;
+    window.push(val);
     sumY += val;
-    sumXY += i * val;
-    sumX2 += i * i;
   }
 
-  const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+  const slope = slopeOverIndex(window);
 
   // Normalize slope relative to average price
   const avgPrice = sumY / n;

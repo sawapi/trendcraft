@@ -14,6 +14,7 @@
  * Migrated to the 0.4.0 State Contract.
  */
 
+import { slopeOverIndex } from "../../../core/statistics";
 import type { NormalizedCandle, VolumeTrendValue } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
 import {
@@ -177,21 +178,12 @@ export function createVolumeTrend(
     const change = first > 0 ? ((last - first) / first) * 100 : 0;
 
     // Linear regression slope
-    let sumX = 0;
     let sumY = 0;
-    let sumXY = 0;
-    let sumX2 = 0;
 
-    for (let i = 0; i < n; i++) {
-      const val = priceBuffer.get(i);
-      sumX += i;
-      sumY += val;
-      sumXY += i * val;
-      sumX2 += i * i;
-    }
+    const window = priceBuffer.toArray();
+    for (let i = 0; i < n; i++) sumY += window[i];
 
-    const denom = n * sumX2 - sumX * sumX;
-    const slope = denom !== 0 ? (n * sumXY - sumX * sumY) / denom : 0;
+    const slope = slopeOverIndex(window);
     const avgPrice = sumY / n;
     const normalizedSlope = avgPrice > 0 ? (slope / avgPrice) * 100 : 0;
 
@@ -363,18 +355,9 @@ export function createVolumeTrend(
       const last = tempPrices[n - 1];
       const change = first > 0 ? ((last - first) / first) * 100 : 0;
 
-      let sumX = 0;
       let sumY = 0;
-      let sumXY = 0;
-      let sumX2 = 0;
-      for (let i = 0; i < n; i++) {
-        sumX += i;
-        sumY += tempPrices[i];
-        sumXY += i * tempPrices[i];
-        sumX2 += i * i;
-      }
-      const denom = n * sumX2 - sumX * sumX;
-      const slope = denom !== 0 ? (n * sumXY - sumX * sumY) / denom : 0;
+      for (let i = 0; i < n; i++) sumY += tempPrices[i];
+      const slope = slopeOverIndex(tempPrices);
       const avgPrice = sumY / n;
       const normalizedSlope = avgPrice > 0 ? (slope / avgPrice) * 100 : 0;
 

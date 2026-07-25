@@ -6,6 +6,7 @@
  */
 
 import { isNormalized, normalizeCandles } from "../core/normalize";
+import { slopeOverIndex } from "../core/statistics";
 import type { Candle, NormalizedCandle } from "../types";
 
 /**
@@ -56,22 +57,13 @@ function linearRegression(values: number[]): {
   // x = 0, 1, 2, ..., n-1
   let sumX = 0;
   let sumY = 0;
-  let sumXY = 0;
-  let sumX2 = 0;
-  let _sumY2 = 0;
 
   for (let i = 0; i < n; i++) {
     sumX += i;
     sumY += values[i];
-    sumXY += i * values[i];
-    sumX2 += i * i;
-    _sumY2 += values[i] * values[i];
   }
 
-  const denominator = n * sumX2 - sumX * sumX;
-  if (denominator === 0) return { slope: 0, rSquared: 0, intercept: 0 };
-
-  const slope = (n * sumXY - sumX * sumY) / denominator;
+  const slope = slopeOverIndex(values);
   const intercept = (sumY - slope * sumX) / n;
 
   // Calculate R-squared
