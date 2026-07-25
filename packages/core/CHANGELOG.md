@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.5.0] - 2026-07-25
+## [0.5.0] - 2026-07-26
 
 ### Read this first — your numbers will change
 

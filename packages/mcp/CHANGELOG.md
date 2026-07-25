@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.3.0 (2026-07-25)
+## 0.3.0 (2026-07-26)
 
 ### Fixed — tool descriptions and examples now match runtime behavior
 
