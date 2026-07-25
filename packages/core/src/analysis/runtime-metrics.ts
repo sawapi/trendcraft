@@ -22,6 +22,7 @@
 import type { Trade } from "../types";
 import { calculateTradeStats } from "./edge-analysis";
 import type { TradeStats } from "./edge-analysis-types";
+import { periodsPerYearFromSpan, sharpeFromReturns, sortinoFromReturns } from "./return-metrics";
 
 /**
  * Comprehensive runtime performance metrics
@@ -151,11 +152,25 @@ export function calculateRuntimeMetrics(
       ? ((1 + totalReturnPercent / 100) ** (1 / years) - 1) * 100
       : totalReturnPercent;
 
-  // Sharpe ratio (from trade returns)
-  const sharpeRatio = calculateSharpe(tradeReturns, riskFreeRate, annualizationFactor);
+  // Sharpe / Sortino from trade returns. Observations here are trades, not
+  // days: annualising them as if each were a daily bar inflated the ratio by
+  // sqrt(avgHoldingDays), so the same equity path reported a four-times-higher
+  // Sharpe when traded monthly than daily. `annualizationFactor` is now the
+  // fallback for when the trades do not span a usable stretch of time.
+  const firstEntry = trades[0]?.entryTime;
+  const lastExit = trades[trades.length - 1]?.exitTime;
+  const tradesPerYear =
+    trades.length > 1 && lastExit !== undefined && firstEntry !== undefined && lastExit > firstEntry
+      ? periodsPerYearFromSpan(trades.length, firstEntry, lastExit)
+      : annualizationFactor;
+  const sharpeRatio = finiteOrZero(
+    sharpeFromReturns(tradeReturns, { riskFree: riskFreeRate, periodsPerYear: tradesPerYear }),
+  );
 
   // Sortino ratio (from trade returns)
-  const sortinoRatio = calculateSortino(tradeReturns, riskFreeRate, annualizationFactor);
+  const sortinoRatio = finiteOrZero(
+    sortinoFromReturns(tradeReturns, { riskFree: riskFreeRate, periodsPerYear: tradesPerYear }),
+  );
 
   // Calmar ratio
   const calmarRatio =
@@ -184,49 +199,7 @@ export function calculateRuntimeMetrics(
   };
 }
 
-function calculateSharpe(
-  returns: number[],
-  riskFreeRate: number,
-  annualizationFactor: number,
-): number {
-  if (returns.length === 0) return 0;
-
-  const meanReturn = returns.reduce((sum, r) => sum + r, 0) / returns.length;
-  const variance = returns.reduce((sum, r) => sum + (r - meanReturn) ** 2, 0) / returns.length;
-  const stdDev = Math.sqrt(variance);
-
-  if (stdDev === 0) return 0;
-
-  const annualizedReturn = meanReturn * annualizationFactor;
-  const annualizedStdDev = stdDev * Math.sqrt(annualizationFactor);
-
-  return (annualizedReturn - riskFreeRate) / annualizedStdDev;
-}
-
-function calculateSortino(
-  returns: number[],
-  riskFreeRate: number,
-  annualizationFactor: number,
-): number {
-  if (returns.length === 0) return 0;
-
-  const meanReturn = returns.reduce((sum, r) => sum + r, 0) / returns.length;
-
-  // Downside deviation: only negative returns
-  const periodicRiskFree = riskFreeRate / annualizationFactor;
-  const downsideReturns = returns.filter((r) => r < periodicRiskFree);
-  if (downsideReturns.length === 0) {
-    return meanReturn > 0 ? Number.POSITIVE_INFINITY : 0;
-  }
-
-  const downsideVariance =
-    downsideReturns.reduce((sum, r) => sum + (r - periodicRiskFree) ** 2, 0) / returns.length;
-  const downsideDev = Math.sqrt(downsideVariance);
-
-  if (downsideDev === 0) return 0;
-
-  const annualizedReturn = meanReturn * annualizationFactor;
-  const annualizedDownsideDev = downsideDev * Math.sqrt(annualizationFactor);
-
-  return (annualizedReturn - riskFreeRate) / annualizedDownsideDev;
+/** Undefined ratios are reported as 0, the value this module has always used. */
+function finiteOrZero(value: number): number {
+  return Number.isFinite(value) ? value : 0;
 }

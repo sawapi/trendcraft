@@ -1167,6 +1167,7 @@ export function runBacktest(
     candles.length >= 2
       ? { firstTime: candles[0].time, lastTime: candles[candles.length - 1].time }
       : undefined,
+    equityCurve,
   );
   result.equityCurve = equityCurve;
   return result;

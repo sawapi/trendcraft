@@ -420,12 +420,18 @@ export type BacktestResult = {
   winRate: number;
   /** Maximum drawdown percentage */
   maxDrawdown: number;
-  /** Sharpe ratio (annualized) */
+  /**
+   * Sharpe ratio, annualized from the equity curve's bar-to-bar returns and
+   * the calendar span they cover — so the value depends on the equity path
+   * and how long it took, not on how that path was divided into trades.
+   * `0` when undefined (fewer than two observations, or a flat curve).
+   */
   sharpeRatio: number;
   /**
-   * Sortino ratio (annualized). Like Sharpe but divides by *downside*
-   * deviation instead of total return std, so upside volatility no
-   * longer penalizes the score. `0` when no negative returns exist.
+   * Sortino ratio, annualized on the same basis as {@link BacktestResult.sharpeRatio}.
+   * Like Sharpe but divides by *downside* deviation instead of total return
+   * std, so upside volatility no longer penalizes the score. `0` when no
+   * negative returns exist.
    */
   sortinoRatio: number;
   /**

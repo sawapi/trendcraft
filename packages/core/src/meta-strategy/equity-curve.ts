@@ -8,7 +8,11 @@
  * @packageDocumentation
  */
 
-import { computeExtendedMetrics, ZERO_EXTENDED_METRICS } from "../backtest/engine-utils";
+import {
+  annualizedRatios,
+  computeExtendedMetrics,
+  ZERO_EXTENDED_METRICS,
+} from "../backtest/engine-utils";
 import type { BacktestResult, EquityPoint, Trade } from "../types";
 
 // ---------------------------------------------------------------------------
@@ -198,12 +202,11 @@ function rebuildResult(trades: Trade[], original: BacktestResult): BacktestResul
   }
   const maxDrawdownPercent = maxDd * 100;
 
-  // Simple Sharpe from trade returns
+  // Sharpe from the trade returns, annualised by the frequency those trades
+  // actually occurred at — the shared owner the unfiltered backtest uses, so
+  // `original` and `filtered` stay comparable cell-by-cell.
   const tradeReturns = trades.map((t) => t.returnPercent / 100);
-  const meanRet = tradeReturns.reduce((s, r) => s + r, 0) / tradeReturns.length;
-  const variance = tradeReturns.reduce((s, r) => s + (r - meanRet) ** 2, 0) / tradeReturns.length;
-  const stdDev = Math.sqrt(variance);
-  const sharpe = stdDev > 0 ? (meanRet / stdDev) * Math.sqrt(252) : 0;
+  const { sharpeRatio: sharpe } = annualizedRatios(trades, tradeReturns, span);
 
   // Reuse the canonical metric helper so filter results match the
   // shape an unfiltered backtest produces — important for the panel

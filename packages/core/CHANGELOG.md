@@ -2,6 +2,53 @@
 
 ## [Unreleased]
 
+### Breaking — Sharpe and Sortino are annualized from the equity curve, not from per-trade returns
+
+Five places annualized a series holding one return per **trade** by
+`sqrt(252)` — the factor for one return per *day*. The reported ratio
+therefore grew with how long positions were held: the same equity path
+packaged as 21-day trades scored `sqrt(21)` (over four times) higher than the
+same path marked daily, and it did not move at all when the same trades were
+spread over ten years instead of one. Any comparison between strategies of
+different trade frequency was being made on numbers that were not comparable,
+and `BacktestResult.sharpeRatio` was documented as "annualized" throughout.
+
+Sharpe and Sortino now come from the equity curve's bar-to-bar returns,
+annualized by the frequency those bars actually occurred at, which is the
+canonical definition and is independent of trade packaging. Where no equity
+curve exists — a result rebuilt from trades alone, or live metrics from a
+trade log — the trade returns are annualized by the observed trade frequency
+instead, an approximation of the same quantity rather than a different metric.
+
+`PortfolioBacktestResult.equityCurve` changed with it. It used to step only
+when a trade closed, which made it a realized-P&L curve rather than the
+mark-to-market one its documentation described: every price move made while a
+position was open was invisible, so a strategy that bought early and sold at
+the end produced a single step no matter how violent the ride, and two paths
+with the same final P&L were indistinguishable. It also ran only as far as the
+last trade exit, so a portfolio that traded for a month and then sat flat for
+eleven was annualized as a one-month run. The curve is now the per-bar
+mark-to-market equity of each symbol merged on timestamp, covering the whole
+window. Portfolio max drawdown is computed from that curve and therefore now
+includes drawdowns suffered inside an open position.
+
+Affected: `runBacktest`, `runBacktestScaled`, `batchBacktest`,
+`portfolioBacktest`, `calculateRuntimeMetrics` and
+`applyEquityCurveFilter`. Reported Sharpe/Sortino values change — typically
+downward for anything holding positions longer than a bar. Portfolio Sharpe
+changes the most: it pooled per-trade returns across symbols, measuring
+cross-sectional trade dispersion rather than portfolio risk, even though a
+mark-to-market portfolio equity curve was already being built alongside it.
+
+`calculateRuntimeMetrics`'s `annualizationFactor` / `calendar` options are now
+the fallback for when the trades do not span a usable stretch of time, rather
+than the assumed period length.
+
+Also fixed: the scaled-entry path carried a copy of `calculateStats` that had
+drifted from the engine's only in its comments; it now shares the engine's
+implementation. `sortinoFromReturns` is exported alongside the existing
+`sharpeFromReturns` so the pair can be computed with matching conventions.
+
 ### Breaking — variance and correlation are computed in two passes; four incremental snapshots bump their schema version
 
 Fifteen modules derived a variance, correlation or regression slope from the

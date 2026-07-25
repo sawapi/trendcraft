@@ -10,15 +10,12 @@ import type {
   BacktestResult,
   BacktestSettings,
   Condition,
-  DrawdownPeriod,
   NormalizedCandle,
-  Trade,
 } from "../types";
 import type { ExtendedCondition } from "./conditions";
 import { runBacktest } from "./engine";
 import {
   type BacktestSpanInfo,
-  computeExtendedMetrics,
   MS_PER_DAY as ENGINE_MS_PER_DAY,
   ZERO_EXTENDED_METRICS,
 } from "./engine-utils";
@@ -53,82 +50,19 @@ export function applySlippage(price: number, slippage: number, direction: "buy" 
 }
 
 /**
+ * Calculate backtest statistics.
+ *
+ * The scaled-entry path used to carry a copy of this function that had drifted
+ * only in its comments; it now shares the engine's implementation so the two
+ * paths cannot report differently defined statistics.
+ */
+export { calculateStats } from "./engine-utils";
+/**
  * Re-export of `BacktestSpanInfo` from `engine-utils`. Some host code
  * imported it from this module before the helper was consolidated;
  * keeping the re-export avoids a breaking import-path change.
  */
 export type { BacktestSpanInfo };
-
-/**
- * Calculate backtest statistics.
- *
- * Delegates the new extended metrics (Sortino / Calmar / CAGR /
- * Expectancy / Exposure / per-trade aggregates) to
- * `computeExtendedMetrics` in `engine-utils` so every backtest path
- * shares a single implementation.
- */
-export function calculateStats(
-  trades: Trade[],
-  returns: number[],
-  initialCapital: number,
-  finalCapital: number,
-  maxDrawdown: number,
-  settings: BacktestSettings,
-  drawdownPeriods: DrawdownPeriod[] = [],
-  span?: BacktestSpanInfo,
-): BacktestResult {
-  if (trades.length === 0) {
-    return emptyResult(initialCapital, settings, span);
-  }
-
-  const totalReturn = finalCapital - initialCapital;
-  const totalReturnPercent = (totalReturn / initialCapital) * 100;
-
-  const winningTrades = trades.filter((t) => t.return > 0);
-  const losingTrades = trades.filter((t) => t.return <= 0);
-  const winRate = (winningTrades.length / trades.length) * 100;
-
-  const totalProfit = winningTrades.reduce((sum, t) => sum + t.return, 0);
-  const totalLoss = Math.abs(losingTrades.reduce((sum, t) => sum + t.return, 0));
-  const profitFactor = totalLoss > 0 ? totalProfit / totalLoss : totalProfit > 0 ? 999.99 : 0;
-
-  const avgHoldingDays = trades.reduce((sum, t) => sum + t.holdingDays, 0) / trades.length;
-
-  // Sharpe ratio: annualized mean-return / stddev.
-  const avgReturn = returns.reduce((sum, r) => sum + r, 0) / returns.length;
-  const stdReturn = Math.sqrt(
-    returns.reduce((sum, r) => sum + (r - avgReturn) ** 2, 0) / returns.length,
-  );
-  const sharpeRatio = stdReturn > 0 ? (avgReturn / stdReturn) * Math.sqrt(252) : 0;
-
-  const extended = computeExtendedMetrics(
-    trades,
-    returns,
-    initialCapital,
-    finalCapital,
-    maxDrawdown,
-    span,
-  );
-
-  return {
-    initialCapital,
-    finalCapital: Math.round(finalCapital * 100) / 100,
-    totalReturn: Math.round(totalReturn * 100) / 100,
-    totalReturnPercent: Math.round(totalReturnPercent * 100) / 100,
-    tradeCount: trades.length,
-    winRate: Math.round(winRate * 100) / 100,
-    maxDrawdown: Math.round(maxDrawdown * 100) / 100,
-    sharpeRatio: Math.round(sharpeRatio * 100) / 100,
-    ...extended,
-    firstBarTime: span?.firstTime ?? 0,
-    lastBarTime: span?.lastTime ?? 0,
-    profitFactor: Math.round(profitFactor * 100) / 100,
-    avgHoldingDays: Math.round(avgHoldingDays * 10) / 10,
-    trades,
-    settings,
-    drawdownPeriods,
-  };
-}
 
 /**
  * Return empty result for edge cases

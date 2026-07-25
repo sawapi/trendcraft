@@ -319,6 +319,97 @@ export function sharpeFromReturns(returns: number[], options: RollingOptions = {
 }
 
 /**
+ * Annualised Sortino ratio of a returns series — mean excess return over
+ * downside deviation, scaled by `sqrt(periodsPerYear)` when annualising.
+ *
+ * Downside deviation is the root mean square of the negative excess returns
+ * taken over **all** observations (quantstats / empyrical convention: the
+ * denominator is the full sample size, not the count of losing periods), so a
+ * series with few but deep losses is not flattered. Returns `NaN` for fewer
+ * than two observations or a series with no downside, matching
+ * {@link sharpeFromReturns}'s undefined-ratio convention.
+ *
+ * The counterpart to {@link sharpeFromReturns}: both take the same options so
+ * a caller cannot annualise one of the pair differently from the other.
+ *
+ * @param returns - Periodic returns as fractions
+ * @param options - Annualisation options (`window` is ignored)
+ * @returns Annualised Sortino ratio, or `NaN` when undefined
+ *
+ * @example
+ * ```ts
+ * import { sortinoFromReturns } from "trendcraft";
+ *
+ * const sortino = sortinoFromReturns(dailyReturns, { periodsPerYear: 252 });
+ * ```
+ */
+export function sortinoFromReturns(returns: number[], options: RollingOptions = {}): number {
+  const { riskFree = 0, periodsPerYear = 252, annualize = true } = options;
+  if (returns.length < 2) return Number.NaN;
+
+  const perPeriodRf = riskFree === 0 ? 0 : (1 + riskFree) ** (1 / periodsPerYear) - 1;
+  let mean = 0;
+  for (const r of returns) mean += r;
+  mean = mean / returns.length - perPeriodRf;
+
+  let downsideSq = 0;
+  for (const r of returns) {
+    const excess = r - perPeriodRf;
+    if (excess < 0) downsideSq += excess * excess;
+  }
+  const downside = Math.sqrt(downsideSq / returns.length);
+  if (downside === 0) return Number.NaN;
+
+  return (mean / downside) * (annualize ? Math.sqrt(periodsPerYear) : 1);
+}
+
+/** Milliseconds in an average calendar year, leap years included. */
+const MS_PER_YEAR = 365.25 * 24 * 60 * 60 * 1000;
+
+/**
+ * How many observations of a series fall in a year, measured from the series
+ * itself rather than assumed.
+ *
+ * Annualising a ratio means scaling by the square root of the number of
+ * observations per year, so the factor has to match the series in hand: 252
+ * is right for daily bars, but not for a series of trades, of weekly bars, or
+ * of five-minute bars. Getting this wrong does not shift a Sharpe ratio
+ * slightly — packaging one equity path as 21-day trades instead of daily bars
+ * inflates it by `sqrt(21)`.
+ *
+ * Pass the number of return observations and the wall-clock span those
+ * observations cover — for bar-to-bar returns that is `bars - 1` returns over
+ * the first-to-last bar span; for one return per trade it is the trade count
+ * over the first-entry-to-last-exit span.
+ *
+ * Falls back to 252 when the span is unusable (fewer than two observations,
+ * missing or non-increasing timestamps), which is the daily-bar assumption the
+ * callers previously hard-coded. This is the single owner of that rule.
+ *
+ * @param count - Number of return observations
+ * @param firstTime - Start of the span they cover, in milliseconds
+ * @param lastTime - End of the span they cover, in milliseconds
+ * @returns Observations per year
+ *
+ * @example
+ * ```ts
+ * // 503 returns from 504 daily bars spanning two calendar years → ~252
+ * const periodsPerYear = periodsPerYearFromSpan(503, 1_700_000_000_000, 1_763_072_000_000);
+ * ```
+ */
+export function periodsPerYearFromSpan(
+  count: number,
+  firstTime: number | undefined,
+  lastTime: number | undefined,
+): number {
+  if (count < 2 || firstTime === undefined || lastTime === undefined) return 252;
+  const spanMs = lastTime - firstTime;
+  if (!(spanMs > 0)) return 252;
+  const years = spanMs / MS_PER_YEAR;
+  return count / years;
+}
+
+/**
  * Rolling annualised Sharpe ratio over a trailing window (quantstats
  * `rolling_sharpe`). The first `window - 1` entries are `NaN` (insufficient
  * data), so the result aligns index-for-index with `returns`. A flat window
