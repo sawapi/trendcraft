@@ -79,6 +79,7 @@ export {
   rollingSharpe,
   rollingVolatility,
   sharpeFromReturns,
+  sortinoFromReturns,
   tailRatio,
   winRateFromReturns,
 } from "./return-metrics";

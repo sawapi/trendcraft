@@ -2963,7 +2963,7 @@ interface BacktestResult {
   tradeCount: number;                // Number of trades
   winRate: number;                   // Win rate (%)
   maxDrawdown: number;               // Maximum drawdown (%)
-  sharpeRatio: number;               // Sharpe ratio (annualized)
+  sharpeRatio: number;               // Sharpe ratio, annualized from the equity curve
   sortinoRatio: number;              // Sortino ratio (annualized, downside deviation)
   calmarRatio: number;               // CAGR / max drawdown
   cagrPercent: number;               // Compound annual growth rate (%)

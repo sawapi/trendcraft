@@ -1146,6 +1146,7 @@ export {
   rollingSharpe,
   rollingVolatility,
   sharpeFromReturns,
+  sortinoFromReturns,
   tailRatio,
   winRateFromReturns,
 } from "./analysis";

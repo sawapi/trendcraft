@@ -2941,7 +2941,7 @@ interface BacktestResult {
   tradeCount: number;                // 取引回数
   winRate: number;                   // 勝率 (%)
   maxDrawdown: number;               // 最大ドローダウン (%)
-  sharpeRatio: number;               // シャープレシオ（年率化）
+  sharpeRatio: number;               // シャープレシオ（エクイティカーブから年率化）
   sortinoRatio: number;              // ソルティノレシオ（年率化・下方偏差ベース）
   calmarRatio: number;               // CAGR ÷ 最大ドローダウン
   cagrPercent: number;               // 年平均成長率 (%)

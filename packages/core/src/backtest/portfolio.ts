@@ -5,6 +5,7 @@
  * Phase 2: portfolioBacktest() - Shared capital with allocation and rebalancing
  */
 
+import { periodsPerYearFromSpan, sharpeFromReturns } from "../analysis/return-metrics";
 import type { IndicatorCache } from "../core/indicator-cache";
 import type {
   BatchBacktestOptions,
@@ -349,59 +350,66 @@ function mergeAndSortTrades(symbolResults: SymbolBacktestResult[]): (Trade & { s
 }
 
 /**
- * Build a merged equity curve from per-symbol results.
- * At each trade close event, recalculate total portfolio equity.
+ * Merge the per-symbol equity curves into one portfolio curve.
+ *
+ * Each symbol's backtest emits mark-to-market equity at every candle close, so
+ * merging those — rather than stepping the portfolio only when a trade closes —
+ * is what makes the curve reflect what the portfolio was actually worth on any
+ * given bar. A realized-P&L step curve hides every price move made while a
+ * position is open: a strategy that buys near the start and sells at the end
+ * produces one step regardless of how violent the ride was, which leaves
+ * nothing for a risk metric to measure.
+ *
+ * Symbols need not share a calendar. The curve carries every timestamp any
+ * dataset has, and a symbol that has no bar at that timestamp holds its last
+ * known equity (its allocation before its first bar).
  */
 function buildMergedEquityCurve(
   symbolResults: SymbolBacktestResult[],
   datasets: SymbolData[],
   allocations: Record<string, number>,
 ): EquityPoint[] {
-  // Track per-symbol equity over time via trade events
-  const symbolEquity: Record<string, number> = {};
-  for (const sr of symbolResults) {
-    symbolEquity[sr.symbol] = allocations[sr.symbol];
-  }
-
-  // Collect all trade close events
-  const events: { time: number; symbol: string; equityAfter: number }[] = [];
-  for (const sr of symbolResults) {
-    let equity = allocations[sr.symbol];
-    for (const trade of sr.result.trades) {
-      equity += trade.return;
-      events.push({
-        time: trade.exitTime,
-        symbol: sr.symbol,
-        equityAfter: equity,
-      });
+  const curveBySymbol = new Map<string, { times: number[]; equity: number[] }>();
+  for (const dataset of datasets) {
+    const result = symbolResults.find((sr) => sr.symbol === dataset.symbol)?.result;
+    const times = dataset.candles.map((c) => c.time);
+    const equity = result?.equityCurve;
+    if (equity && equity.length === times.length) {
+      curveBySymbol.set(dataset.symbol, { times, equity });
+      continue;
     }
+    // No per-bar curve (a hand-built result): fall back to stepping the
+    // symbol's equity at each trade exit, which is all the information there is.
+    const stepTimes: number[] = [];
+    const stepEquity: number[] = [];
+    let running = allocations[dataset.symbol] ?? 0;
+    for (const trade of result?.trades ?? []) {
+      running += trade.return;
+      stepTimes.push(trade.exitTime);
+      stepEquity.push(running);
+    }
+    curveBySymbol.set(dataset.symbol, { times: stepTimes, equity: stepEquity });
   }
-  events.sort((a, b) => a.time - b.time);
 
-  // Build curve
-  const totalInitial = Object.values(allocations).reduce((s, v) => s + v, 0);
+  const allTimes = [...new Set(datasets.flatMap((d) => d.candles.map((c) => c.time)))].sort(
+    (a, b) => a - b,
+  );
+  if (allTimes.length === 0) return [];
+
+  // One cursor per symbol, advanced in step with the merged timeline.
+  const cursors = new Map<string, number>();
+  for (const symbol of curveBySymbol.keys()) cursors.set(symbol, -1);
+
   const curve: EquityPoint[] = [];
-
-  // Find earliest time across all datasets
-  let earliestTime = Number.POSITIVE_INFINITY;
-  for (const d of datasets) {
-    if (d.candles.length > 0 && d.candles[0].time < earliestTime) {
-      earliestTime = d.candles[0].time;
+  for (const time of allTimes) {
+    let total = 0;
+    for (const [symbol, series] of curveBySymbol) {
+      let cursor = cursors.get(symbol) as number;
+      while (cursor + 1 < series.times.length && series.times[cursor + 1] <= time) cursor++;
+      cursors.set(symbol, cursor);
+      total += cursor < 0 ? (allocations[symbol] ?? 0) : series.equity[cursor];
     }
-  }
-  if (earliestTime !== Number.POSITIVE_INFINITY) {
-    curve.push({ time: earliestTime, equity: totalInitial });
-  }
-
-  // Track running equity per symbol
-  const runningEquity = { ...allocations };
-  for (const event of events) {
-    runningEquity[event.symbol] = event.equityAfter;
-    const totalEquity = Object.values(runningEquity).reduce((s, v) => s + v, 0);
-    curve.push({
-      time: event.time,
-      equity: Math.round(totalEquity * 100) / 100,
-    });
+    curve.push({ time, equity: Math.round(total * 100) / 100 });
   }
 
   return curve;
@@ -447,16 +455,22 @@ function calculatePortfolioMetrics(
     if (dd > maxDrawdown) maxDrawdown = dd;
   }
 
-  // Calculate portfolio Sharpe ratio from per-trade returns
-  const returns = allTrades.map((t) => t.returnPercent);
-  let sharpeRatio = 0;
-  if (returns.length > 1) {
-    const avgReturn = returns.reduce((s, r) => s + r, 0) / returns.length;
-    const stdReturn = Math.sqrt(
-      returns.reduce((s, r) => s + (r - avgReturn) ** 2, 0) / returns.length,
-    );
-    sharpeRatio = stdReturn > 0 ? (avgReturn / stdReturn) * Math.sqrt(252) : 0;
+  // Portfolio Sharpe from the merged mark-to-market equity curve. Pooling
+  // per-trade returns across symbols measured cross-sectional trade dispersion
+  // rather than portfolio risk, and — being unanchored in time — reported the
+  // same number whether those trades spanned three months or eight years.
+  const portfolioReturns: number[] = [];
+  for (let i = 1; i < equityCurve.length; i++) {
+    const prev = equityCurve[i - 1].equity;
+    portfolioReturns.push(prev !== 0 ? (equityCurve[i].equity - prev) / prev : 0);
   }
+  const periodsPerYear = periodsPerYearFromSpan(
+    portfolioReturns.length,
+    equityCurve[0]?.time,
+    equityCurve[equityCurve.length - 1]?.time,
+  );
+  const sharpe = sharpeFromReturns(portfolioReturns, { periodsPerYear });
+  const sharpeRatio = Number.isFinite(sharpe) ? sharpe : 0;
 
   return {
     initialCapital: totalCapital,

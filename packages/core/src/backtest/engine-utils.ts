@@ -3,6 +3,11 @@
  * Helper functions and types for the backtest engine
  */
 
+import {
+  periodsPerYearFromSpan,
+  sharpeFromReturns,
+  sortinoFromReturns,
+} from "../analysis/return-metrics";
 import type {
   BacktestResult,
   BacktestSettings,
@@ -326,6 +331,62 @@ function computeMergedExposureDays(trades: Trade[]): number {
 }
 
 /**
+ * Annualised Sharpe and Sortino for a backtest result.
+ *
+ * Both are annualised against the frequency of the series they are computed
+ * from, which is the whole point: the previous `sqrt(252)` treated one return
+ * per **trade** as if it were one per day, so the same equity path packaged as
+ * 21-day trades scored `sqrt(21)` — over four times — higher than the same
+ * path marked daily, and strategies of different trade frequency were ranked
+ * against each other on incomparable numbers.
+ *
+ * With a per-bar `equityCurve` the ratios come from bar-to-bar returns, which
+ * is the canonical definition and makes the value independent of how the path
+ * is chopped into trades. Without one (a result rebuilt from trades alone)
+ * they come from the trade returns, annualised by the observed trade
+ * frequency; that is an approximation of the same quantity rather than a
+ * different metric.
+ *
+ * `NaN` from the underlying kernels — fewer than two observations, a flat
+ * series, no downside — is reported as `0`, the value `BacktestResult` has
+ * always used for an undefined ratio.
+ */
+export function annualizedRatios(
+  trades: Trade[],
+  returns: number[],
+  span: BacktestSpanInfo | undefined,
+  equityCurve?: number[],
+): { sharpeRatio: number; sortinoRatio: number } {
+  let series: number[];
+  let periodsPerYear: number;
+
+  if (equityCurve && equityCurve.length >= 2) {
+    series = [];
+    for (let i = 1; i < equityCurve.length; i++) {
+      const prev = equityCurve[i - 1];
+      series.push(prev !== 0 ? (equityCurve[i] - prev) / prev : 0);
+    }
+    periodsPerYear = periodsPerYearFromSpan(series.length, span?.firstTime, span?.lastTime);
+  } else {
+    series = returns;
+    // Trades are the observations here, so the span they cover is their own,
+    // not the candle window: a backtest can trade for a fraction of it.
+    periodsPerYear = periodsPerYearFromSpan(
+      trades.length,
+      trades[0]?.entryTime,
+      trades[trades.length - 1]?.exitTime,
+    );
+  }
+
+  const sharpe = sharpeFromReturns(series, { periodsPerYear });
+  const sortino = sortinoFromReturns(series, { periodsPerYear });
+  return {
+    sharpeRatio: Number.isFinite(sharpe) ? sharpe : 0,
+    sortinoRatio: Number.isFinite(sortino) ? sortino : 0,
+  };
+}
+
+/**
  * Compute the nine extended backtest metrics from raw trade / return /
  * capital inputs. Pure function; no side effects. Callers spread the
  * result into the final `BacktestResult` they construct.
@@ -341,17 +402,13 @@ export function computeExtendedMetrics(
   finalCapital: number,
   maxDrawdown: number,
   span?: BacktestSpanInfo,
+  equityCurve?: number[],
 ): ExtendedBacktestMetrics {
   if (trades.length === 0 || returns.length === 0) {
     return { ...ZERO_EXTENDED_METRICS };
   }
 
-  // Sortino: like Sharpe but only penalizes downside deviation.
-  // Target return = 0; downside-only squared deviation over min(0, r).
-  const avgReturn = returns.reduce((s, r) => s + r, 0) / returns.length;
-  const downsideSqSum = returns.reduce((s, r) => s + (r < 0 ? r * r : 0), 0);
-  const downsideStd = Math.sqrt(downsideSqSum / returns.length);
-  const sortinoRatio = downsideStd > 0 ? (avgReturn / downsideStd) * Math.sqrt(252) : 0;
+  const { sortinoRatio } = annualizedRatios(trades, returns, span, equityCurve);
 
   // Per-trade % aggregates. avgLoss / largestLoss are reported as
   // positive numbers so they read naturally side-by-side with wins.
@@ -417,6 +474,7 @@ export function calculateStats(
   settings: BacktestSettings,
   drawdownPeriods: DrawdownPeriod[] = [],
   span?: BacktestSpanInfo,
+  equityCurve?: number[],
 ): BacktestResult {
   if (trades.length === 0) {
     return emptyResult(initialCapital, settings, span);
@@ -436,13 +494,7 @@ export function calculateStats(
 
   const avgHoldingDays = trades.reduce((sum, t) => sum + t.holdingDays, 0) / trades.length;
 
-  // Calculate Sharpe Ratio (annualized, assuming 252 trading days)
-  const avgReturn = returns.reduce((sum, r) => sum + r, 0) / returns.length;
-  const stdReturn = Math.sqrt(
-    returns.reduce((sum, r) => sum + (r - avgReturn) ** 2, 0) / returns.length,
-  );
-  // Annualize using sqrt(252) - standard annualization factor for daily returns
-  const sharpeRatio = stdReturn > 0 ? (avgReturn / stdReturn) * Math.sqrt(252) : 0;
+  const { sharpeRatio } = annualizedRatios(trades, returns, span, equityCurve);
 
   const extended = computeExtendedMetrics(
     trades,
@@ -451,6 +503,7 @@ export function calculateStats(
     finalCapital,
     maxDrawdown,
     span,
+    equityCurve,
   );
 
   return {
