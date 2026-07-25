@@ -181,6 +181,17 @@ export type ContractConfig<TValue, TState> = {
  * Each generated test is a `it(...)` inside the parent `describe`, so
  * standard vitest filtering (`--run name pattern`) works.
  */
+/**
+ * Persist a snapshot the way a caller would: serialize it and read it back.
+ *
+ * The state contract promises JSON-serializable snapshots, so anything that
+ * does not survive `JSON.stringify` is not state — it is a value the indicator
+ * only ever had in memory.
+ */
+function throughJson<T>(snapshot: T): T {
+  return JSON.parse(JSON.stringify(snapshot)) as T;
+}
+
 export function describeContract<TValue, TState>(config: ContractConfig<TValue, TState>): void {
   const streamLength = config.streamLength ?? 200;
   const tolerance = config.tolerance ?? 1e-10;
@@ -198,7 +209,11 @@ export function describeContract<TValue, TState>(config: ContractConfig<TValue, 
 
       const stage1 = config.create({ ...config.defaultParams });
       for (let i = 0; i < splitIdx; i++) stage1.next(candles[i]);
-      const snapshot = stage1.getState();
+      // Through the wire, not by reference. A snapshot exists to be persisted,
+      // and JSON.stringify turns NaN and +/-Infinity into null — so an
+      // indicator using either as an in-state sentinel resumes with the marker
+      // silently gone. Passing the object straight across hid that entirely.
+      const snapshot = throughJson(stage1.getState());
 
       const stage2 = config.create({ ...config.defaultParams }, { fromState: snapshot });
       const valuesResumed = valuesReference.slice(0, splitIdx);
