@@ -1,6 +1,6 @@
 {
   "name": "@trendcraft/mcp",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Model Context Protocol server for TrendCraft — exposes 96+ indicator manifests (whenToUse / pitfalls / synergy / regime) plus calc and signal dispatchers to LLM clients like Claude Desktop and Cursor",
   "type": "module",
   "main": "./dist/index.cjs",

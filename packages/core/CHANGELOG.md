@@ -1,6 +1,30 @@
 # Changelog
 
-## [Unreleased]
+## [0.5.0] - 2026-07-25
+
+### Read this first — your numbers will change
+
+This release is mostly correctness work, so the same code over the same data
+will report different figures than 0.4.0 did. That is the fix, not a
+regression. The changes you are most likely to notice:
+
+| What | Was | Now |
+| --- | --- | --- |
+| `sharpeRatio` / `sortinoRatio` | Annualized as if one trade were one day, so the value grew with holding period — the same equity path packaged as 21-day trades scored over four times higher | Annualized from the equity curve at the frequency its bars actually occurred |
+| Backtest entries and fills | Pattern and limit/stop entries could use prices from bars the strategy could not have seen | Fills use only price action the position already owned |
+| Cornish-Fisher VaR | Skew term carried the wrong sign, so fat left tails *lowered* reported risk | Risk rises with negative skew, as it should |
+| `"mar"` optimization metric | Average monthly return over max drawdown — about a twelfth of the ratio the name denotes | Annualized return over max drawdown |
+| Bollinger Bands, correlation, regression slopes | Lost all precision once prices were large relative to their spread (yen, won, rupiah levels); bands could collapse to zero width | Computed in two passes, accurate at any price level |
+| Candles stamped in epoch **seconds** | Silently treated as milliseconds, so every day bucket advanced once every 2.7 years: session VWAP never reset, `detectSessions` found nothing | Converted as documented |
+| Portfolio `sharpeRatio` / `equityCurve` / `maxDrawdown` | Built from realized trade P&L only, blind to price moves inside open positions, and ending at the last trade | Per-bar mark-to-market across the whole window |
+
+Snapshots of the incremental `standardDeviation`, `bollingerBands`,
+`linearRegression`, `historicalVolatility`, `emv` and `garmanKlass` taken with
+0.4.0 are rejected and must be re-warmed.
+
+Required-field additions to `PatternSignal` and `DivergenceSignal`, and the
+removal of `setBenchmark` and of option keys that were never read, are the
+source-level breaks — each is described in its own section below.
 
 ### Breaking — snapshot sentinels survive persistence (`emv`, `garmanKlass` schema v2)
 
@@ -9,10 +33,11 @@ buffer, and both used `NaN` as that marker. The state contract promises
 JSON-serializable snapshots, but `JSON.stringify` writes `NaN` as `null`: a
 snapshot that was persisted and read back had ordinary null slots where the
 resume path was looking for NaN, so the marker was gone. The resumed indicator
-then reported a number on bars where an uninterrupted run reported nothing,
-and considered itself warmed up while an unusable bar was still inside its
-window — no error, no gap, just a confident wrong value. It triggered on any
-snapshot taken within `period` bars of a doji or zero-volume bar
+then reported a number on bars where an uninterrupted run reported nothing —
+no error, no gap, just a confident wrong value. Ease-of-movement, whose
+`isWarmedUp` also consults the marker, additionally declared itself warmed up
+while an unusable bar was still inside its window. It triggered on any
+snapshot taken within `period` bars of a zero-range or zero-volume bar
 (ease-of-movement) or a non-positive price (Garman-Klass).
 
 Both now hold `null` in the buffer, which survives the round trip unchanged.

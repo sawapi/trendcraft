@@ -5,7 +5,7 @@ All notable changes to `@trendcraft/chart` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.4.0] - 2026-07-25
 
 ### Fixed — `resize`, `paneResize`, and `seriesRemoved` events now fire
 
@@ -25,7 +25,7 @@ but the chart never emitted them. They now fire with the documented payloads:
   `remove()` calls on the same handle are silent, and `chart.destroy()`
   emits nothing (matching `seriesAdded`, which is also silent on teardown).
 
-### Fixed — `CrosshairMoveData` type now matches the emitted payload
+### Breaking — `CrosshairMoveData` type now matches the emitted payload
 
 The exported `CrosshairMoveData` type declared `{ time, price, x, y, paneId }`,
 but the chart has always emitted `{ time, index, ohlcv, paneId }` from
@@ -42,6 +42,33 @@ behavior is otherwise unchanged — this is a type/docs correction. TypeScript
 consumers who typed handlers against the old (never-delivered) `price`/`x`/`y`
 fields will get compile errors pointing at the fields that never existed at
 runtime.
+
+### Added — unknown preset ids suggest the closest match
+
+`connectIndicators(...).add()` used to fail an unrecognised preset id with a
+bare "unknown preset" error, leaving a typo to be found by eye against a list
+of over a hundred ids. It now names the closest id it knows, so
+`add("bolinger")` points at `bollingerBands`.
+
+### Fixed — two-row time axis labels no longer overflow the plot
+
+Edge labels on the two-row time axis were positioned from their anchor without
+regard to the plot bounds, so the first and last of them could hang past the
+left or right edge and be clipped by the canvas. They are now clamped to stay
+inside the plot area.
+
+### Fixed — daily axis no longer shows a time on its first label
+
+On a daily series the first label carried a time component that came from the
+timezone offset of the underlying timestamp rather than from the data — a
+daily chart could open with a label reading "1 Jan 09:00". Daily and coarser
+timeframes now label the date alone.
+
+### Changed — React peer dependency relaxed to `>=18`
+
+The React wrapper declared a peer of `>=19.0.0`, which forced React 18
+projects to either upgrade or install with an override even though nothing in
+the wrapper needs 19. The peer is now `>=18.0.0`.
 
 ## [0.3.0] - 2026-06-09
 
