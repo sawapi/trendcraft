@@ -3,6 +3,7 @@
  */
 
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
+import { centeredMoments } from "../../core/statistics";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type {
   BollingerBandsOptions,
@@ -72,22 +73,20 @@ export function bollingerBands(
     return tagSeries(result, withLabelParams(BB_META, [period, stdDev]));
   }
 
-  // Calculate initial window statistics
-  let sum = 0;
-  let sumSquares = 0;
-  for (let i = 0; i < period; i++) {
-    const price = getPrice(normalized[i], source);
-    sum += price;
-    sumSquares += price * price;
-  }
+  // Window prices, kept in a plain array so each bar's statistics come from
+  // the values themselves rather than from running sums.
+  const window: number[] = [];
+  for (let i = 0; i < period; i++) window.push(getPrice(normalized[i], source));
 
   // Helper to compute result for current window
-  const computeResult = (index: number, windowSum: number, windowSumSquares: number) => {
-    const middle = windowSum / period;
-    // Variance = E[X²] - E[X]² = (sumSquares/n) - (sum/n)²
-    const variance = windowSumSquares / period - middle * middle;
-    // Handle numerical precision issues (variance should never be negative)
-    const standardDeviation = Math.sqrt(Math.max(0, variance));
+  const computeResult = (index: number) => {
+    // Two-pass: a running sum-of-squares cancels catastrophically at high
+    // price levels (bands collapsing to zero width), and its error grows with
+    // the length of the stream. This keeps the documented identity
+    // `upper === middle + stdDev * standardDeviation(...)` exact at any price
+    // level; see centeredMoments.
+    const { mean: middle, sumSqDev } = centeredMoments(window);
+    const standardDeviation = Math.sqrt(sumSqDev / period);
 
     const upper = middle + stdDev * standardDeviation;
     const lower = middle - stdDev * standardDeviation;
@@ -105,18 +104,14 @@ export function bollingerBands(
   };
 
   // First valid result
-  result.push(computeResult(period - 1, sum, sumSquares));
+  result.push(computeResult(period - 1));
 
-  // Slide the window - O(1) per iteration
+  // Slide the window one bar at a time
   for (let i = period; i < normalized.length; i++) {
-    const newPrice = getPrice(normalized[i], source);
-    const oldPrice = getPrice(normalized[i - period], source);
+    window.shift();
+    window.push(getPrice(normalized[i], source));
 
-    // Update running sums
-    sum += newPrice - oldPrice;
-    sumSquares += newPrice * newPrice - oldPrice * oldPrice;
-
-    result.push(computeResult(i, sum, sumSquares));
+    result.push(computeResult(i));
   }
 
   return tagSeries(result, withLabelParams(BB_META, [period, stdDev]));

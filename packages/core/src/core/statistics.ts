@@ -21,6 +21,117 @@
  */
 
 /**
+ * Centred moments of one series, computed in two passes: the mean first,
+ * then the sum of squared deviations from it.
+ *
+ * The textbook one-pass shortcut `Σx²/n − mean²` subtracts two nearly equal
+ * large numbers whenever the values are large relative to their spread, and
+ * loses every significant digit of the answer: at price ~1e8 with ordinary
+ * intraday volatility it returns a standard deviation off by 700%, or a
+ * negative variance that then gets clamped to zero. Prices in yen, won or
+ * rupiah reach that range routinely. Two passes cost one extra loop and are
+ * accurate at any offset, so this is the only variance form core uses.
+ *
+ * `sumSqDev` is the *sum* of squared deviations, not a variance: callers
+ * divide by `n` for the population form or `n - 1` for the sample form.
+ * Returns zeros for an empty input.
+ *
+ * @example
+ * ```ts
+ * const { n, mean, sumSqDev } = centeredMoments([10, 12, 11, 13]);
+ * const stdDev = Math.sqrt(sumSqDev / n); // population stdDev of the window
+ * ```
+ */
+export function centeredMoments(values: readonly number[]): {
+  n: number;
+  mean: number;
+  sumSqDev: number;
+} {
+  const n = values.length;
+  if (n === 0) return { n: 0, mean: 0, sumSqDev: 0 };
+  let sum = 0;
+  for (let i = 0; i < n; i++) sum += values[i];
+  const mean = sum / n;
+  let sumSqDev = 0;
+  for (let i = 0; i < n; i++) {
+    const d = values[i] - mean;
+    sumSqDev += d * d;
+  }
+  return { n, mean, sumSqDev };
+}
+
+/**
+ * Centred cross moments of two paired series — the building blocks of a
+ * least-squares fit and of Pearson correlation.
+ *
+ * `sxx`/`syy` are sums of squared deviations and `sxy` the sum of the
+ * cross-products, all taken about the means, so an OLS slope is `sxy / sxx`
+ * and a correlation `sxy / sqrt(sxx · syy)`. The uncentred forms
+ * (`Σx² − n·meanX²`, `n·Σxy − Σx·Σy`) cancel catastrophically at high value
+ * levels — enough to flip the sign of a hedge ratio — which is why nothing
+ * in core derives them that way.
+ *
+ * The series are compared over their common prefix; extra trailing values in
+ * the longer one are ignored. Returns zeros when that prefix is empty.
+ */
+export function centeredCrossMoments(
+  x: readonly number[],
+  y: readonly number[],
+): {
+  n: number;
+  meanX: number;
+  meanY: number;
+  sxx: number;
+  syy: number;
+  sxy: number;
+} {
+  const n = Math.min(x.length, y.length);
+  if (n === 0) return { n: 0, meanX: 0, meanY: 0, sxx: 0, syy: 0, sxy: 0 };
+  let sumX = 0;
+  let sumY = 0;
+  for (let i = 0; i < n; i++) {
+    sumX += x[i];
+    sumY += y[i];
+  }
+  const meanX = sumX / n;
+  const meanY = sumY / n;
+  let sxx = 0;
+  let syy = 0;
+  let sxy = 0;
+  for (let i = 0; i < n; i++) {
+    const dx = x[i] - meanX;
+    const dy = y[i] - meanY;
+    sxx += dx * dx;
+    syy += dy * dy;
+    sxy += dx * dy;
+  }
+  return { n, meanX, meanY, sxx, syy, sxy };
+}
+
+/**
+ * Least-squares slope of `values` against the bar index `0..n-1`.
+ *
+ * The shape a dozen trend/accumulation checks need: "is this series rising,
+ * and how fast". Written centred for the same reason as
+ * {@link centeredCrossMoments} — the uncentred `n·Σi·y − Σi·Σy` form cancels
+ * once the values are large relative to their spread, which for volume series
+ * is routine. Returns 0 for fewer than two values.
+ */
+export function slopeOverIndex(values: readonly number[]): number {
+  const n = values.length;
+  if (n < 2) return 0;
+  // x = 0..n-1, so the x moments are exact closed forms.
+  const meanX = (n - 1) / 2;
+  const sxx = (n * (n * n - 1)) / 12;
+  let sumY = 0;
+  for (let i = 0; i < n; i++) sumY += values[i];
+  const meanY = sumY / n;
+  let sxy = 0;
+  for (let i = 0; i < n; i++) sxy += (i - meanX) * (values[i] - meanY);
+  return sxy / sxx;
+}
+
+/**
  * Return the value at the given percentile (`0..100`) using linear
  * interpolation between adjacent sorted values.
  *

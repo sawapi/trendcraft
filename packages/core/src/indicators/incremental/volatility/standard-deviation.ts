@@ -1,8 +1,8 @@
 /**
  * Incremental Standard Deviation
  *
- * State category: **Windowed** (raw price buffer + running sum and sum-of-
- * squares for O(1) per-candle variance).
+ * State category: **Windowed** (raw price buffer; window statistics are
+ * recomputed from it each bar, O(period)).
  * Migrated to the 0.4.0 State Contract: `getState()` returns
  * `IndicatorSnapshot<StandardDeviationState>` and `fromState` accepts
  * the same.
@@ -15,6 +15,7 @@
  * with the SMA / WMA / VWMA migration pattern.
  */
 
+import { centeredMoments } from "../../../core/statistics";
 import type { NormalizedCandle, PriceSource } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
 import {
@@ -32,13 +33,16 @@ import { getSourcePrice } from "../utils";
  */
 export type StandardDeviationState = {
   buffer: ReturnType<CircularBuffer<number>["snapshot"]>;
-  sum: number;
-  sumSq: number;
   count: number;
 };
 
-/** Per-indicator schema version. Bump on any breaking state change. */
-export const STANDARD_DEVIATION_VERSION = 1;
+/**
+ * Per-indicator schema version. Bump on any breaking state change.
+ *
+ * v2 dropped the running `sum`/`sumSq`: they were the source of a drift that
+ * survived snapshot/restore, and the buffer alone determines the window.
+ */
+export const STANDARD_DEVIATION_VERSION = 2;
 
 type StandardDeviationParams = {
   period: number;
@@ -91,49 +95,46 @@ export function createStandardDeviation(
   const source = params.source;
 
   let buffer: CircularBuffer<number>;
-  let sum: number;
-  let sumSq: number;
   let count: number;
 
   if (state !== null) {
     if (reconfigured) {
       // Period change. The snapshot's buffer is at the OLD capacity;
       // rebuild at the NEW capacity holding the most recent
-      // min(snapshot.length, newPeriod) samples. sum / sumSq must be
-      // recomputed from those carried samples — the snapshot's running
-      // totals were over the old window.
+      // min(snapshot.length, newPeriod) samples.
       const oldBuffer = CircularBuffer.fromSnapshot(state.buffer);
       buffer = new CircularBuffer<number>(period);
       const available = oldBuffer.length;
       const carryStart = Math.max(0, available - period);
-      sum = 0;
-      sumSq = 0;
       for (let i = carryStart; i < available; i++) {
-        const v = oldBuffer.get(i);
-        buffer.push(v);
-        sum += v;
-        sumSq += v * v;
+        buffer.push(oldBuffer.get(i));
       }
       count = state.count;
     } else {
       buffer = CircularBuffer.fromSnapshot(state.buffer);
-      sum = state.sum;
-      sumSq = state.sumSq;
       count = state.count;
     }
   } else {
     buffer = new CircularBuffer<number>(period);
-    sum = 0;
-    sumSq = 0;
     count = 0;
+  }
+
+  /**
+   * Population standard deviation of the window, recomputed from the buffer.
+   *
+   * A running sum-of-squares would be O(1) per bar but cancels catastrophically
+   * once prices are large relative to their spread (over 700% error at price
+   * ~1e8), diverging from the two-pass batch `standardDeviation()` it is
+   * contracted to match — and the drift persisted into snapshots, so a resumed
+   * stream stayed wrong. See centeredMoments.
+   */
+  function stdDevOf(window: readonly number[]): number {
+    return Math.sqrt(centeredMoments(window).sumSqDev / period);
   }
 
   function compute(): number | null {
     if (buffer.length < period) return null;
-    const mean = sum / period;
-    // Variance = E[X²] - (E[X])²; clamp tiny negatives from float error.
-    const variance = Math.max(0, sumSq / period - mean * mean);
-    return Math.sqrt(variance);
+    return stdDevOf(buffer.toArray());
   }
 
   const indicator: IncrementalIndicator<
@@ -142,28 +143,20 @@ export function createStandardDeviation(
   > = {
     next(candle: NormalizedCandle) {
       const price = getSourcePrice(candle, source);
-      if (buffer.isFull) {
-        const oldest = buffer.oldest();
-        sum -= oldest;
-        sumSq -= oldest * oldest;
-      }
       buffer.push(price);
-      sum += price;
-      sumSq += price * price;
       count++;
       return { time: candle.time, value: compute() };
     },
 
     peek(candle: NormalizedCandle) {
       const price = getSourcePrice(candle, source);
-      const willEvict = buffer.isFull;
-      const peekSum = sum + price - (willEvict ? buffer.oldest() : 0);
-      const peekSumSq = sumSq + price * price - (willEvict ? buffer.oldest() * buffer.oldest() : 0);
-      const peekLength = Math.min(buffer.length + 1, period);
-      if (peekLength < period) return { time: candle.time, value: null };
-      const mean = peekSum / period;
-      const variance = Math.max(0, peekSumSq / period - mean * mean);
-      return { time: candle.time, value: Math.sqrt(variance) };
+      if (Math.min(buffer.length + 1, period) < period) {
+        return { time: candle.time, value: null };
+      }
+      // The window the buffer would hold after pushing `price`.
+      const window = buffer.toArray().slice(buffer.isFull ? 1 : 0);
+      window.push(price);
+      return { time: candle.time, value: stdDevOf(window) };
     },
 
     getState(): IndicatorSnapshot<StandardDeviationState> {
@@ -171,7 +164,7 @@ export function createStandardDeviation(
         "standardDeviation",
         STANDARD_DEVIATION_VERSION,
         { period, source },
-        { buffer: buffer.snapshot(), sum, sumSq, count },
+        { buffer: buffer.snapshot(), count },
       );
     },
 

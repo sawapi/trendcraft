@@ -3,15 +3,16 @@
  *
  * Uses population variance (/N, not /(N-1)) for TA-Lib compatibility.
  *
- * State category: **Windowed** (a fixed-size price buffer plus running
- * `sum` / `sumSquares`). Resume with a different `period` carries the
- * raw price buffer forward and recomputes the running sums; `source`
- * change is refused. `stdDev` is a resume-invariant param — it only
- * scales the band width, never the buffer or sums.
+ * State category: **Windowed** (a fixed-size price buffer; the band
+ * statistics are recomputed from it each bar, O(period)). Resume with a
+ * different `period` carries the raw price buffer forward; `source` change
+ * is refused. `stdDev` is a resume-invariant param — it only scales the band
+ * width, never the buffer.
  *
  * Migrated to the 0.4.0 State Contract.
  */
 
+import { centeredMoments } from "../../../core/statistics";
 import type { BollingerBandsValue, NormalizedCandle, PriceSource } from "../../../types";
 import { CircularBuffer } from "../circular-buffer";
 import {
@@ -29,13 +30,17 @@ import { getSourcePrice } from "../utils";
  */
 export type BollingerBandsState = {
   buffer: ReturnType<CircularBuffer<number>["snapshot"]>;
-  sum: number;
-  sumSquares: number;
   count: number;
 };
 
-/** Per-indicator schema version. Bumped on any breaking state change. */
-export const BOLLINGER_BANDS_VERSION = 1;
+/**
+ * Per-indicator schema version. Bumped on any breaking state change.
+ *
+ * v2 dropped the running `sum`/`sumSquares`: a drifted sum-of-squares was
+ * being serialized into snapshots, so the error survived restore. The buffer
+ * alone determines the window.
+ */
+export const BOLLINGER_BANDS_VERSION = 2;
 
 type BollingerBandsParams = {
   period: number;
@@ -83,37 +88,23 @@ export function createBollingerBands(
   const source = params.source;
 
   let buffer: CircularBuffer<number>;
-  let sum: number;
-  let sumSquares: number;
   let count: number;
 
   if (state !== null) {
     if (reconfigured) {
-      // Period changed — carry the raw prices forward and recompute the
-      // running sums against the new window.
+      // Period changed — carry the raw prices forward into the new window.
       const old = CircularBuffer.fromSnapshot(state.buffer);
       buffer = new CircularBuffer<number>(period);
       const carry = Math.min(old.length, period);
       for (let i = old.length - carry; i < old.length; i++) {
         buffer.push(old.get(i));
       }
-      sum = 0;
-      sumSquares = 0;
-      for (let i = 0; i < buffer.length; i++) {
-        const v = buffer.get(i);
-        sum += v;
-        sumSquares += v * v;
-      }
     } else {
       buffer = CircularBuffer.fromSnapshot(state.buffer);
-      sum = state.sum;
-      sumSquares = state.sumSquares;
     }
     count = state.count;
   } else {
     buffer = new CircularBuffer<number>(period);
-    sum = 0;
-    sumSquares = 0;
     count = 0;
   }
 
@@ -125,14 +116,17 @@ export function createBollingerBands(
     bandwidth: null,
   };
 
-  function computeBands(
-    currentSum: number,
-    currentSumSq: number,
-    price: number,
-  ): BollingerBandsValue {
-    const mean = currentSum / period;
-    const variance = Math.max(0, currentSumSq / period - mean * mean);
-    const std = Math.sqrt(variance);
+  /**
+   * Bands for a full window, recomputed from the prices themselves.
+   *
+   * A running sum-of-squares is O(1) per bar but cancels catastrophically
+   * once prices are large relative to their spread — bands collapse to zero
+   * width and percentB pins to its 0.5 fallback — and the drift used to be
+   * serialized into the snapshot. See centeredMoments.
+   */
+  function computeBands(window: readonly number[], price: number): BollingerBandsValue {
+    const { mean, sumSqDev } = centeredMoments(window);
+    const std = Math.sqrt(sumSqDev / period);
 
     const upper = mean + stdDevMult * std;
     const lower = mean - stdDevMult * std;
@@ -152,22 +146,13 @@ export function createBollingerBands(
       const price = getSourcePrice(candle, source);
       count++;
 
-      if (buffer.isFull) {
-        const oldest = buffer.oldest();
-        sum = sum - oldest + price;
-        sumSquares = sumSquares - oldest * oldest + price * price;
-      } else {
-        sum += price;
-        sumSquares += price * price;
-      }
-
       buffer.push(price);
 
       if (buffer.length < period) {
         return { time: candle.time, value: nullValue };
       }
 
-      return { time: candle.time, value: computeBands(sum, sumSquares, price) };
+      return { time: candle.time, value: computeBands(buffer.toArray(), price) };
     },
 
     peek(candle: NormalizedCandle) {
@@ -177,19 +162,11 @@ export function createBollingerBands(
         return { time: candle.time, value: nullValue };
       }
 
-      let peekSum = sum;
-      let peekSumSq = sumSquares;
+      // The window the buffer would hold after pushing `price`.
+      const window = buffer.toArray().slice(buffer.isFull ? 1 : 0);
+      window.push(price);
 
-      if (buffer.isFull) {
-        const oldest = buffer.oldest();
-        peekSum = peekSum - oldest + price;
-        peekSumSq = peekSumSq - oldest * oldest + price * price;
-      } else {
-        peekSum += price;
-        peekSumSq += price * price;
-      }
-
-      return { time: candle.time, value: computeBands(peekSum, peekSumSq, price) };
+      return { time: candle.time, value: computeBands(window, price) };
     },
 
     getState(): IndicatorSnapshot<BollingerBandsState> {
@@ -197,7 +174,7 @@ export function createBollingerBands(
         "bollingerBands",
         BOLLINGER_BANDS_VERSION,
         { period, stdDev: stdDevMult, source },
-        { buffer: buffer.snapshot(), sum, sumSquares, count },
+        { buffer: buffer.snapshot(), count },
       );
     },
 

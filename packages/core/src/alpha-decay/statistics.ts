@@ -6,7 +6,7 @@
  * No external dependencies.
  */
 
-import { normalCdf } from "../core/statistics";
+import { centeredCrossMoments, normalCdf } from "../core/statistics";
 import { computeRanks } from "../utils/statistics";
 
 /**
@@ -170,22 +170,11 @@ export function linearRegression(x: number[], y: number[]): { slope: number; int
   const n = x.length;
   if (n < 2) return { slope: 0, intercept: y[0] ?? 0 };
 
-  let sumX = 0;
-  let sumY = 0;
-  let sumXY = 0;
-  let sumX2 = 0;
-  for (let i = 0; i < n; i++) {
-    sumX += x[i];
-    sumY += y[i];
-    sumXY += x[i] * y[i];
-    sumX2 += x[i] * x[i];
-  }
+  const { meanX, meanY, sxx, sxy } = centeredCrossMoments(x, y);
+  if (sxx === 0) return { slope: 0, intercept: meanY };
 
-  const denom = n * sumX2 - sumX * sumX;
-  if (denom === 0) return { slope: 0, intercept: sumY / n };
-
-  const slope = (n * sumXY - sumX * sumY) / denom;
-  const intercept = (sumY - slope * sumX) / n;
+  const slope = sxy / sxx;
+  const intercept = meanY - slope * meanX;
 
   return { slope, intercept };
 }

@@ -1,3 +1,4 @@
+import { slopeOverIndex } from "../../core/statistics";
 import type { TrendReason } from "./types";
 
 /**
@@ -15,27 +16,8 @@ export function calculateRegressionSlope(values: number[], period: number): numb
   const len = values.length;
   if (len < period) return null;
 
-  const startIdx = len - period;
-  const n = period;
-
-  // Pre-computed sums for x = 0, 1, 2, ..., n-1
-  const sumX = (n * (n - 1)) / 2;
-  const sumXX = (n * (n - 1) * (2 * n - 1)) / 6;
-
-  let sumY = 0;
-  let sumXY = 0;
-
-  for (let i = 0; i < n; i++) {
-    const y = values[startIdx + i];
-    sumY += y;
-    sumXY += i * y;
-  }
-
-  const denominator = n * sumXX - sumX * sumX;
-  if (denominator === 0) return null;
-
-  const slope = (n * sumXY - sumX * sumY) / denominator;
-  return slope;
+  if (period < 2) return null;
+  return slopeOverIndex(values.slice(len - period));
 }
 
 /**
