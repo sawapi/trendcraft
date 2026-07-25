@@ -4,7 +4,7 @@
 
 ### Breaking — variance and correlation are computed in two passes; four incremental snapshots bump their schema version
 
-Nine places derived a variance, correlation or regression slope from the
+Fifteen modules derived a variance, correlation or regression slope from the
 one-pass shortcuts `Σx²/n − mean²` and `n·Σxy − Σx·Σy`. Both subtract two
 nearly equal large numbers whenever values are large relative to their spread,
 and lose every significant digit of the result. Prices quoted in yen, won or
@@ -45,6 +45,35 @@ what makes a resumed stream drift-free. Their schema versions are bumped to 2,
 so snapshots taken with an earlier version are rejected with the usual
 "re-warm required" error and must be re-warmed. Statistics values change
 (they were wrong before) — mostly below float noise at ordinary price levels.
+### Breaking — `DivergenceSignal` gains a confirmation bar; trade-signal converters emit at causal timestamps
+
+`detectDivergence` (and `rsiDivergence` / `obvDivergence` / `macdDivergence` /
+`cvdDivergence`) anchors each signal at its second pivot. A pivot is only
+identifiable `swingLookback` bars after it occurs, so `time` and `secondIdx`
+point at a bar that was not knowable when it printed — and it is by
+construction a local price extreme. `fromDivergenceSignal` re-stamped that
+time onto an actionable BUY/SELL `TradeSignal`, and the documented usage
+passed `candles[s.secondIdx].close` as the entry price, so consumers were
+entering at the swing extreme five bars before the divergence could be seen.
+
+`DivergenceSignal` now carries `confirmedAt` (and `confirmedIdx`): the first
+bar at which the divergence is knowable, being the later of the price and
+indicator pivots plus `swingLookback`. Verified against a truncated re-run —
+each signal is detectable from the prefix ending at `confirmedAt` and not one
+bar earlier. `time`/`secondIdx` remain as pivot annotation (chart markers
+still want the pivot), and both new fields are required, so any code
+constructing a `DivergenceSignal` must supply them. A divergence whose
+confirmation bar falls outside the candle array is withheld rather than
+reported at the last bar — only reachable through `detectDivergence` when the
+price/indicator series passed are longer than `candles`.
+
+`fromDivergenceSignal` now stamps `time` and `id` from `confirmedAt`, keeping
+the pivot time in `metadata.pivotTime`. `fromPatternSignal` had the same
+problem and now stamps at the pattern's actionable bar (`confirmTime` when
+confirmed, otherwise `detectableTime`), keeping the pivot in
+`metadata.patternTime`. Emitted timestamps and ids therefore change for both
+converters; the streaming divergence detector was already causal, so batch
+and streaming now agree.
 
 ### Fixed — `runBacktestScaled` (tranches ≥ 2) now honors `fillMode` and `slTpMode`
 

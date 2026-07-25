@@ -2274,7 +2274,9 @@ const bearish = signals.filter(s => s.type === 'bearish');
 
 ```typescript
 interface DivergenceSignal {
-  time: number;
+  time: number;                  // 2番目のピボットの時刻（注記用。判断時刻ではない）
+  confirmedAt: number;           // ダイバージェンスが実時間で判明する最初のバーの時刻
+  confirmedIdx: number;          // confirmedAt のバーのインデックス
   type: 'bullish' | 'bearish';  // bullish: 強気, bearish: 弱気
   kind: 'regular' | 'hidden';   // regular: レギュラー（反転）/ hidden: ヒドゥン（継続）
   firstIdx: number;              // 最初のスイングポイントのインデックス
@@ -2283,6 +2285,12 @@ interface DivergenceSignal {
   indicator: { first: number; second: number };
 }
 ```
+
+ピボットは発生から `swingLookback` 本後にならないと特定できないため、`time`
+（2番目のピボット）はその時点では知り得ません。`confirmedAt` / `confirmedIdx`
+はダイバージェンスを実際に行動に移せる最初のバー（価格側とインジケーター側の
+ピボットの遅い方 + `swingLookback`）を指します。エントリー・アラート・他シグナル
+との時刻合わせなど、因果性が必要な用途ではこちらを使ってください。
 
 ---
 
@@ -5274,7 +5282,9 @@ const tradeSignals = signals.map(s => fromCrossSignal(s, candles.find(c => c.tim
 import { fromDivergenceSignal } from 'trendcraft';
 
 const divSignals = rsiDivergence(candles);
-const tradeSignals = divSignals.map(s => fromDivergenceSignal(s, candles[s.secondIdx].close));
+// `confirmedAt`（ダイバージェンスが判明するバー）の時刻でスタンプされるため、
+// エントリー価格もピボットではなくそのバーから取る
+const tradeSignals = divSignals.map(s => fromDivergenceSignal(s, candles[s.confirmedIdx].close));
 ```
 
 #### `fromSqueezeSignal(signal, direction?, entryPrice?)`
@@ -5288,7 +5298,10 @@ const tradeSignals = squeezes.map(s => fromSqueezeSignal(s, "LONG", candles.find
 
 #### `fromPatternSignal(signal, entryPrice?)`
 
-パターンの`target`と`stopLoss`を`TradeSignal.prices`にマッピング。
+パターンの`target`と`stopLoss`を`TradeSignal.prices`にマッピング。シグナルの時刻は
+パターンが行動可能になるバー（confirmed なら `confirmTime`、そうでなければ
+`detectableTime`）でスタンプされます。`PatternSignal.time` が指すピボットのバーでは
+ありません（ピボット時刻は `metadata.patternTime` に保持）。
 
 ```typescript
 import { fromPatternSignal } from 'trendcraft';
