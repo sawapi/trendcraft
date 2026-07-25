@@ -136,6 +136,9 @@ export function expectedMaxSharpe(
   trialSharpeVariance: number,
   trialSharpeMean = 0,
 ): number {
+  // A NaN variance is a broken input, not "no selection": returning the
+  // benchmark would silently switch the deflation off. Propagate it.
+  if (Number.isNaN(trialSharpeVariance)) return Number.NaN;
   if (trials <= 1 || !(trialSharpeVariance > 0)) return trialSharpeMean;
   const sd = Math.sqrt(trialSharpeVariance);
   const maxZ =
@@ -262,10 +265,39 @@ export function deflatedSharpeFromReturns(returns: number[], trialSharpes: numbe
     observedSharpe,
     sampleSize: returns.length,
     trials: trialSharpes.length,
-    trialSharpeVariance: trialSharpes.length > 0 ? variance(trialSharpes) : 0,
+    trialSharpeVariance: trialSpreadVariance(trialSharpes),
     skewness,
     kurtosis,
   });
+}
+
+/**
+ * Spread of the trial Sharpes that the deflation is measured against.
+ *
+ * The three kinds of input have to be told apart, because getting any of them
+ * wrong turns the deflation off silently — the one failure mode this statistic
+ * cannot afford, since it is what stands between an overfit grid search and a
+ * confident-looking number.
+ *
+ * - `NaN` is not something {@link perReturnSharpe} produces. It means the
+ *   caller handed over a broken trial, so it propagates rather than being
+ *   quietly dropped from a still-counted trial set.
+ * - `±Infinity` *is* deliberate: a zero-variance trial, which any trial with a
+ *   single trade is. It carries an ordering but no magnitude, so it cannot
+ *   enter a variance — yet the search for it did happen, so it still counts
+ *   towards `trials`.
+ * - Fewer than two finite trials leaves nothing to estimate a spread from.
+ *   That is an undefined statistic (`NaN`), not an absence of selection: a
+ *   grid of `[Infinity, Infinity, 0.1]` searched three times.
+ *
+ * With one trial or none there genuinely was no selection, and
+ * {@link expectedMaxSharpe} returns the benchmark regardless of this value.
+ */
+function trialSpreadVariance(trialSharpes: number[]): number {
+  if (trialSharpes.some((s) => Number.isNaN(s))) return Number.NaN;
+  if (trialSharpes.length <= 1) return 0;
+  const finite = trialSharpes.filter((s) => Number.isFinite(s));
+  return finite.length > 1 ? variance(finite) : Number.NaN;
 }
 
 /**

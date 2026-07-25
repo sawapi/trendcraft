@@ -2,6 +2,44 @@
 
 ## [Unreleased]
 
+### Breaking — three financial formulas corrected: Cornish-Fisher VaR, deflated Sharpe, MAR
+
+**Cornish-Fisher VaR pointed risk the wrong way.** The expansion was evaluated
+at the positive quantile and the result negated. The kurtosis and squared-skew
+terms are odd in z and survive that, but the skew term `(z²−1)·S/6` is even,
+so it kept its sign: for the usual negatively skewed returns the fat-tail
+correction *reduced* VaR below the plain parametric figure instead of raising
+it, by `(z²−1)|S|σ/3` — 1.87 percentage points at 99% confidence on a skew of
+−1.25. The hybrid CVaR inherited the wrong cutoff, and `rollingVaR` inherited
+both. The expansion is now evaluated at the left-tail quantile. Existing tests
+only asserted that Cornish-Fisher differed from parametric, which held with
+either sign.
+
+**Deflated Sharpe silently stopped deflating.** `perReturnSharpe` returns
+±Infinity for a zero-variance trial by design, and a grid trial with a single
+trade always has zero variance. One such trial made the variance across trials
+`NaN`, which `expectedMaxSharpe` read as "no selection took place" and answered
+with the benchmark — so the deflated Sharpe collapsed to a plain probabilistic
+Sharpe against zero and reported a credible edge exactly when it was meant to
+be warning about overfitting (0.994 against a correctly deflated 0.444 in the
+module's own documented example). The three kinds of trial value are now told apart: `±Infinity` is
+excluded from the spread but still counts towards `trials`, since the search
+for it did happen; a `NaN` trial is broken input and propagates; and fewer
+than two finite trials among two or more searches leaves the spread
+unestimable, which is reported as `NaN` rather than as an absence of
+selection. `expectedMaxSharpe` propagates `NaN` rather than swallowing it.
+
+**MAR was a twelfth of the ratio its name denotes.** `calculateMAR` divided
+the arithmetic average *monthly* return by max drawdown; the canonical MAR is
+annualized return over max drawdown. Anything screening on the `"mar"`
+optimization metric — grid-search ranking, constraints, walk-forward
+aggregation — was comparing against industry thresholds an order of magnitude
+away. It is not a monotone rescaling either, so rankings could differ: over
+two years, 300% return against a 50% drawdown beat 200% against 36% on the
+monthly form (0.250 vs 0.231) and loses on the annualized one (2.00 vs 2.03).
+Note that this makes `"mar"` and `"calmar"` coincide for full-history results,
+which is what the two ratios are when computed over the same window.
+
 ### Breaking — Sharpe and Sortino are annualized from the equity curve, not from per-trade returns
 
 Five places annualized a series holding one return per **trade** by
