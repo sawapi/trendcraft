@@ -2,6 +2,28 @@
 
 ## [Unreleased]
 
+### Breaking — snapshot sentinels survive persistence (`emv`, `garmanKlass` schema v2)
+
+Both indicators mark "this bar produced no usable value" inside their window
+buffer, and both used `NaN` as that marker. The state contract promises
+JSON-serializable snapshots, but `JSON.stringify` writes `NaN` as `null`: a
+snapshot that was persisted and read back had ordinary null slots where the
+resume path was looking for NaN, so the marker was gone. The resumed indicator
+then reported a number on bars where an uninterrupted run reported nothing,
+and considered itself warmed up while an unusable bar was still inside its
+window — no error, no gap, just a confident wrong value. It triggered on any
+snapshot taken within `period` bars of a doji or zero-volume bar
+(ease-of-movement) or a non-positive price (Garman-Klass).
+
+Both now hold `null` in the buffer, which survives the round trip unchanged.
+Their schema versions bump to 2, so earlier snapshots are rejected with the
+usual "re-warm required" error.
+
+The state-contract suite passed snapshots to the resumed indicator by
+reference, which is why none of this ever failed in CI. It now round-trips
+every snapshot through `JSON.parse(JSON.stringify(...))`, so the whole
+registry is held to what the contract actually promises.
+
 ### Breaking — second-stamped candles are converted again; multi-week resampling and long weekend gaps fixed
 
 `normalizeTime` documents a numeric time below 1e10 as Unix **seconds**, but

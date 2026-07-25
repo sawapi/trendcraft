@@ -30,13 +30,20 @@ import type { IncrementalIndicator } from "../types";
  * live in `meta.params` on the wire.
  */
 export type GarmanKlassState = {
-  buffer: ReturnType<CircularBuffer<number>["snapshot"]>;
+  /**
+   * Per-bar variance contributions. A candle the estimator cannot use is held
+   * as `null` rather than `NaN`: `JSON.stringify` turns `NaN` into `null`
+   * anyway, so a NaN marker came back from a persisted snapshot as a slot the
+   * resume path no longer recognised as invalid, and the resumed indicator
+   * reported volatility where its uninterrupted twin reported none.
+   */
+  buffer: ReturnType<CircularBuffer<number | null>["snapshot"]>;
   sum: number;
   count: number;
 };
 
 /** Per-indicator schema version. Bumped on any breaking state change. */
-export const GARMAN_KLASS_VERSION = 1;
+export const GARMAN_KLASS_VERSION = 2;
 
 type GarmanKlassParams = {
   period: number;
@@ -83,16 +90,16 @@ export function createGarmanKlass(
 
   const LN2_COEFF = 2 * Math.LN2 - 1;
 
-  let buffer: CircularBuffer<number>;
+  let buffer: CircularBuffer<number | null>;
   let sum: number;
   let count: number;
 
   if (state !== null) {
     if (reconfigured) {
       // Period changed — carry the component buffer forward and
-      // recompute the running sum (NaN markers are excluded).
+      // recompute the running sum (null markers are excluded).
       const old = CircularBuffer.fromSnapshot(state.buffer);
-      buffer = new CircularBuffer<number>(period);
+      buffer = new CircularBuffer<number | null>(period);
       const carry = Math.min(old.length, period);
       for (let i = old.length - carry; i < old.length; i++) {
         buffer.push(old.get(i));
@@ -100,7 +107,7 @@ export function createGarmanKlass(
       sum = 0;
       for (let i = 0; i < buffer.length; i++) {
         const v = buffer.get(i);
-        if (!Number.isNaN(v)) sum += v;
+        if (v !== null) sum += v;
       }
     } else {
       buffer = CircularBuffer.fromSnapshot(state.buffer);
@@ -108,7 +115,7 @@ export function createGarmanKlass(
     }
     count = state.count;
   } else {
-    buffer = new CircularBuffer<number>(period);
+    buffer = new CircularBuffer<number | null>(period);
     sum = 0;
     count = 0;
   }
@@ -131,19 +138,19 @@ export function createGarmanKlass(
 
       const component = computeComponent(candle);
       if (component === null) {
-        // Invalid candle — push NaN marker to track the invalid slot
+        // Invalid candle — push a null marker to track the unusable slot
         // so buffer.length still advances correctly
         if (buffer.isFull) {
           const oldest = buffer.oldest();
-          if (!Number.isNaN(oldest)) sum -= oldest;
+          if (oldest !== null) sum -= oldest;
         }
-        buffer.push(Number.NaN);
+        buffer.push(null);
         return { time: candle.time, value: null };
       }
 
       if (buffer.isFull) {
         const oldest = buffer.oldest();
-        if (!Number.isNaN(oldest)) {
+        if (oldest !== null) {
           sum = sum - oldest + component;
         } else {
           sum += component;
@@ -159,9 +166,9 @@ export function createGarmanKlass(
         return { time: candle.time, value: null };
       }
 
-      // Check for any NaN (invalid) entries in the window
+      // Check for any null (invalid) entries in the window
       for (let i = 0; i < buffer.length; i++) {
-        if (Number.isNaN(buffer.get(i))) {
+        if (buffer.get(i) === null) {
           return { time: candle.time, value: null };
         }
       }
@@ -178,7 +185,8 @@ export function createGarmanKlass(
       let peekSum = sum;
       if (buffer.isFull) {
         const oldest = buffer.oldest();
-        peekSum = peekSum - oldest + component;
+        // An unusable slot never entered `sum`, so there is nothing to remove.
+        peekSum = peekSum - (oldest ?? 0) + component;
       } else {
         peekSum += component;
       }
@@ -187,10 +195,10 @@ export function createGarmanKlass(
         return { time: candle.time, value: null };
       }
 
-      // A NaN marker anywhere in the simulated window invalidates output.
+      // A null marker anywhere in the simulated window invalidates output.
       const start = buffer.isFull ? 1 : 0;
       for (let i = start; i < buffer.length; i++) {
-        if (Number.isNaN(buffer.get(i))) {
+        if (buffer.get(i) === null) {
           return { time: candle.time, value: null };
         }
       }

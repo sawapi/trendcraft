@@ -1635,7 +1635,7 @@ describeContract<number | null, GarmanKlassState>({
   create: (opts, warmUp) =>
     createGarmanKlass(opts as { period?: number; annualFactor?: number }, warmUp),
   category: "windowed",
-  version: 1,
+  version: 2,
   defaultParams: { period: 20, annualFactor: 252 },
   reconfigParams: [{ period: 10 }, { period: 30 }],
   resumeInvariantReconfig: [{ annualFactor: 365 }],
@@ -2132,7 +2132,7 @@ describeContract<number | null, EmvState>({
   name: "emv",
   create: (opts, warmUp) => createEmv(opts as { period?: number; volumeDivisor?: number }, warmUp),
   category: "mixed",
-  version: 1,
+  version: 2,
   defaultParams: { period: 14, volumeDivisor: 100_000_000 },
   reconfigParams: [{ period: 10 }, { volumeDivisor: 10_000 }],
   makeCandles,
