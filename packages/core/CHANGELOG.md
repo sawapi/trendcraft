@@ -2,6 +2,52 @@
 
 ## [Unreleased]
 
+### Breaking — partial exit percentages outside `(0, 100]` are rejected
+
+`sellPercent` is a fraction of the shares currently held, but nothing checked
+it. `scaleOut.levels[].sellPercent: 150` sold half again as many shares as the
+position owned and credited the account for all of them: 100,000 of capital
+finished a five-bar run at 164,973, out of thin air. Zero and `NaN` were
+accepted just as quietly.
+
+`partialTakeProfit.sellPercent` and every `scaleOut.levels[].sellPercent` are
+now validated at the entry points — `runBacktest`, `runBacktestScaled` and
+`createPositionTracker` — and values at or below zero, above 100, or `NaN`
+throw with the offending option named. `100` remains valid everywhere and means
+"close what is left", as the `scaleOut` documentation already showed.
+
+### Fixed — a 100% partial take profit closes the position instead of emptying it
+
+`partialTakeProfit.sellPercent: 100` sold every share, then left the position
+open with none in it. The next exit — or the end of the data — "closed" that
+empty position a second time, charging another exit commission and appending a
+trade with no shares and no return, which then contaminated the aggregate
+metrics.
+
+All three engines that implement partial exits were affected: `runBacktest`,
+the multi-tranche path of `runBacktestScaled`, and the streaming
+`createPositionTracker`. Each now closes the position when the sale empties it,
+and reports the trade as a full exit rather than a partial one — matching what
+`scaleOut` already did in the same situation.
+
+`runBacktestScaled` additionally releases the capital reserved for tranches
+that will now never be entered. A run with 100,000 of capital, two equal
+tranches and a 100% partial take profit finished at 104,969 with 50,000 of the
+reserve still stranded; it now finishes at 104,979 with the reserve returned.
+
+### Breaking — `UpdatePriceResult.position` is typed `ManagedPosition | null`
+
+`updatePrice()` has always returned `null` for `position` on the bar that
+closes a position, and when no position was open — the field was simply typed
+as though it could not. The cast that hid this is gone, so callers reading
+`result.position` now have to handle `null`, which is what the value has been
+all along.
+
+This was not only cosmetic: on a bar where a 100% partial take profit closed
+the position, `updatePrice()` returned `{}` — a spread of the nulled position —
+and the declared type meant nothing flagged it. Reading `result.position.shares`
+gave `undefined` rather than failing.
+
 ### Breaking — `runBacktestScaled` rejects the options its multi-tranche engine does not implement
 
 With two or more tranches, `runBacktestScaled` runs a second engine that never

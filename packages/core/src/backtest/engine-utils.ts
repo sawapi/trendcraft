@@ -14,13 +14,50 @@ import type {
   DrawdownPeriod,
   ExitReason,
   NormalizedCandle,
+  PartialTakeProfitConfig,
   PositionDirection,
+  ScaleOutConfig,
   SlTpMode,
   Trade,
   VolumeConstraint,
 } from "../types";
 
 export const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+/**
+ * Validate the configured partial exits.
+ *
+ * A sell percentage is a fraction of the shares currently held, so `100`
+ * legitimately means "close what is left" — engines treat it as a full close
+ * rather than leaving a zero-share position open. Anything above it would sell
+ * shares the position does not hold, and anything at or below zero is not an
+ * exit at all; both are rejected here instead of producing a trade whose size
+ * has no relationship to the position.
+ */
+export function assertValidPartialExits(options: {
+  partialTakeProfit?: PartialTakeProfitConfig;
+  scaleOut?: ScaleOutConfig;
+}): void {
+  if (options.partialTakeProfit) {
+    assertValidSellPercent(options.partialTakeProfit.sellPercent, "partialTakeProfit.sellPercent");
+  }
+
+  const levels = options.scaleOut?.levels ?? [];
+  for (let i = 0; i < levels.length; i++) {
+    assertValidSellPercent(levels[i].sellPercent, `scaleOut.levels[${i}].sellPercent`);
+  }
+}
+
+function assertValidSellPercent(sellPercent: number, optionPath: string): void {
+  // Written as a negated range so NaN — which fails every comparison — is
+  // rejected rather than slipping through as "not out of range".
+  if (!(sellPercent > 0 && sellPercent <= 100)) {
+    throw new Error(
+      `${optionPath} must be greater than 0 and at most 100 (got ${sellPercent}). ` +
+        "100 closes the remaining position; a larger value would sell shares the position does not hold.",
+    );
+  }
+}
 
 /**
  * Position state for tracking open trades

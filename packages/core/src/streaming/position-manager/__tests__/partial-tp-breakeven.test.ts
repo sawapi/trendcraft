@@ -56,6 +56,46 @@ describe("Partial Take Profit", () => {
     expect(tracker.getPosition()!.shares).toBe(50);
   });
 
+  it("should close the position when sellPercent is 100", () => {
+    // Selling the whole position left a zero-share position open, which a
+    // later exit would "close" a second time — charging another commission
+    // and recording a trade with no shares in it.
+    const tracker = createPositionTracker({
+      capital: 100_000,
+      partialTakeProfit: { threshold: 5, sellPercent: 100 },
+    });
+    tracker.openPosition(100, 100, 1000);
+
+    const result = tracker.updatePrice(makeCandle({ close: 106, high: 106, low: 100, time: 2000 }));
+
+    expect(result.partialFills).toHaveLength(1);
+    expect(result.partialFills[0].fill.shares).toBe(100);
+    // A close of the whole position is not a partial exit.
+    expect(result.partialFills[0].trade.isPartial).toBe(false);
+    expect(tracker.getPosition()).toBeNull();
+    // The bar's result must report the close too — it previously carried a
+    // spread of the nulled position, i.e. an empty object typed as a position.
+    expect(result.position).toBeNull();
+    expect(result.triggered).toBe(result.partialFills[0].fill);
+
+    // A later bar has nothing left to close.
+    const after = tracker.updatePrice(makeCandle({ close: 120, high: 120, low: 118, time: 3000 }));
+    expect(after.partialFills).toHaveLength(0);
+    expect(after.triggered).toBeNull();
+    expect(tracker.getTrades()).toHaveLength(1);
+  });
+
+  it("should reject a sellPercent outside (0, 100]", () => {
+    for (const sellPercent of [150, 0, -10, Number.NaN]) {
+      expect(() =>
+        createPositionTracker({
+          capital: 100_000,
+          partialTakeProfit: { threshold: 5, sellPercent },
+        }),
+      ).toThrow(/partialTakeProfit\.sellPercent must be greater than 0 and at most 100/);
+    }
+  });
+
   it("should allow full TP after partial TP", () => {
     const tracker = createPositionTracker({
       capital: 100_000,
