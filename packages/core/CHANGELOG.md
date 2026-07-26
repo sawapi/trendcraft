@@ -2,6 +2,37 @@
 
 ## [Unreleased]
 
+### Breaking — `runBacktestScaled` rejects the options its multi-tranche engine does not implement
+
+With two or more tranches, `runBacktestScaled` runs a second engine that never
+grew the feature set of `runBacktest`. It accepted the full `BacktestOptions`
+surface anyway and quietly ignored most of it, so a backtest could be
+configured one way and executed another — `direction: "short"` in particular
+behaved exactly like a long position and reported the inverse P&L as though it
+were real.
+
+Fourteen options are now rejected with an error naming them, instead of being
+ignored, when `scaledEntry.tranches >= 2`:
+
+`direction`, `atrTrailingStop`, `breakevenStop`, `scaleOut`, `timeExit`,
+`slippageModel`, `orderType`, `orderTTL`, `timeInForce`, `volumeConstraint`,
+`margin`, `sizing`, `fundamentals`, `validateData`
+
+The last two are the quietest of the set: `fundamentals` left PER/PBR
+conditions unable to fire, and `validateData: true` reported nothing because no
+validation ran.
+
+Runs with a single tranche are unaffected — they delegate to `runBacktest`,
+which implements everything — so `ScaledBacktestOptions` still accepts these
+keys. Whether an option is honored depends on `scaledEntry.tranches`, a value
+rather than a type, so the check is a runtime one.
+
+If you were passing one of these with two or more tranches, the result you were
+reading did not reflect it. Call `runBacktest` directly, or use `tranches: 1`.
+
+Support for short positions in the multi-tranche path is tracked separately;
+implementing it removes `direction` from the rejected list.
+
 ### Fixed — `runBacktestScaled` sizes every tranche from the capital the trade cycle actually has
 
 In the multi-tranche path, the first tranche was sized from the capital

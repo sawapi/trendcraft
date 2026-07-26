@@ -4448,6 +4448,14 @@ const result = runBacktestScaled(candles, goldenCrossCondition(), deadCrossCondi
 | `signal` | 各エントリーシグナルでトランシェ追加 |
 | `price` | 最初のエントリーから `priceInterval` % 価格変動でトランシェ追加 |
 
+**2トランシェ以上で未対応のオプション:**
+
+マルチトランシェ経路は `runBacktest` とは別のエンジンで、そのオプションの一部しか実装していません。`scaledEntry.tranches >= 2` の場合、以下は黙って無視されるのではなくエラーになります:
+
+`direction`, `atrTrailingStop`, `breakevenStop`, `scaleOut`, `timeExit`, `slippageModel`, `orderType`, `orderTTL`, `timeInForce`, `volumeConstraint`, `margin`, `sizing`, `fundamentals`, `validateData`
+
+`ScaledBacktestOptions` 型はこれらを受け付けたままです。有効になるかどうかは `scaledEntry.tranches` という値に依存し、型では表現できないためです。使用したい場合は `runBacktest` を直接呼ぶか、`tranches: 1` で実行してください（`runBacktest` に委譲され、すべてのオプションが有効になります）。
+
 ---
 
 ## ストリーミング

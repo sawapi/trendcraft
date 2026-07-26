@@ -4491,6 +4491,14 @@ const result = runBacktestScaled(candles, goldenCrossCondition(), deadCrossCondi
 | `signal` | Add tranche on each entry signal |
 | `price` | Add tranche when price drops by `priceInterval` % from first entry |
 
+**Options not supported with 2+ tranches:**
+
+The multi-tranche path is a separate engine from `runBacktest` and implements only part of its options. When `scaledEntry.tranches >= 2`, these throw rather than being silently ignored:
+
+`direction`, `atrTrailingStop`, `breakevenStop`, `scaleOut`, `timeExit`, `slippageModel`, `orderType`, `orderTTL`, `timeInForce`, `volumeConstraint`, `margin`, `sizing`, `fundamentals`, `validateData`
+
+`ScaledBacktestOptions` still accepts them, because whether they are honored depends on `scaledEntry.tranches` — a value, not a type. To use them, call `runBacktest` directly, or run with `tranches: 1`, which delegates to `runBacktest` and honors all of them.
+
 ---
 
 ## Streaming

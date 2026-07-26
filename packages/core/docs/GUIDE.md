@@ -2208,6 +2208,8 @@ const result2 = runBacktestScaled(candles, goldenCrossCondition(), deadCrossCond
 });
 ```
 
+> **Note:** With 2 or more tranches this runs a separate engine from `runBacktest`, and it implements only part of `BacktestOptions`. `direction`, `margin`, `sizing`, `scaleOut`, `timeExit`, `orderType` and several others throw rather than being applied — see the API reference for the full list. Use `runBacktest` (or `tranches: 1`) when you need them.
+
 ### When to Use Each Strategy
 
 | Strategy | Best For |
