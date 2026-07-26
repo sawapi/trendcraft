@@ -5,14 +5,9 @@
  * statistics calculation, slippage, and standard backtest delegation.
  */
 
-import type {
-  BacktestOptions,
-  BacktestResult,
-  BacktestSettings,
-  Condition,
-  NormalizedCandle,
-} from "../types";
+import type { BacktestResult, BacktestSettings, Condition, NormalizedCandle } from "../types";
 import type { ExtendedCondition } from "./conditions";
+import type { MtfBacktestOptions } from "./engine";
 import { runBacktest } from "./engine";
 import {
   type BacktestSpanInfo,
@@ -27,13 +22,18 @@ import {
 export const MS_PER_DAY = ENGINE_MS_PER_DAY;
 
 /**
- * Standard (non-scaled) backtest - delegates to main engine
+ * Standard (non-scaled) backtest - delegates to main engine.
+ *
+ * Takes the full `MtfBacktestOptions` surface: this is the path a
+ * single-tranche `runBacktestScaled` call takes, and everything the main
+ * engine implements — MTF timeframes, fundamentals, data validation — reaches
+ * it through here.
  */
 export function runStandardBacktest(
   candles: NormalizedCandle[],
   entryCondition: Condition | ExtendedCondition,
   exitCondition: Condition | ExtendedCondition,
-  options: BacktestOptions,
+  options: MtfBacktestOptions,
 ): BacktestResult {
   return runBacktest(candles, entryCondition, exitCondition, options);
 }

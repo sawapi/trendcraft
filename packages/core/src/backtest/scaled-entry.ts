@@ -9,8 +9,6 @@
 import { buildMtfSetup, updateMtfIndices } from "../core/mtf-context";
 import { atr } from "../indicators/volatility/atr";
 import type {
-  AtrRiskOptions,
-  BacktestOptions,
   BacktestResult,
   BacktestSettings,
   Condition,
@@ -19,11 +17,11 @@ import type {
   NormalizedCandle,
   ScaledEntryConfig,
   SlTpMode,
-  TimeframeShorthand,
   Trade,
 } from "../types";
 import type { ExtendedCondition } from "./conditions";
 import { evaluateCondition, seedBenchmark } from "./conditions";
+import type { MtfBacktestOptions } from "./engine";
 import { checkProfitTrigger, checkStopTrigger } from "./engine-utils";
 import {
   applySlippage,
@@ -34,16 +32,74 @@ import {
 } from "./scaled-entry-utils";
 
 /**
- * Extended backtest options with scaled entry support
+ * Options the multi-tranche path does not implement.
+ *
+ * With a single tranche `runBacktestScaled` delegates to `runBacktest`, which
+ * implements all of them. The multi-tranche path is a second engine that never
+ * grew the same features, and accepting these options silently produced
+ * plausible but wrong results: a `direction: "short"` run, for instance,
+ * behaved exactly like a long one and reported the inverse P&L as if it were
+ * real.
+ *
+ * Covers the whole option surface `runBacktest` accepts, not just
+ * `BacktestOptions`: `fundamentals` and `validateData` reach the single-tranche
+ * path through delegation, so leaving them out would mean a run that asked for
+ * data validation and never got it.
+ *
+ * Deliberately enforced at runtime only. Whether an option is honored depends
+ * on `scaledEntry.tranches`, which is a value, not a type — omitting these keys
+ * from `ScaledBacktestOptions` would also forbid them for the single-tranche
+ * calls that do support them.
  */
-export type ScaledBacktestOptions = BacktestOptions & {
-  /** Timeframes to include for MTF conditions */
-  mtfTimeframes?: TimeframeShorthand[];
-  /** ATR-based risk management options */
-  atrRisk?: AtrRiskOptions;
+const UNSUPPORTED_MULTI_TRANCHE_OPTIONS = [
+  "direction",
+  "atrTrailingStop",
+  "breakevenStop",
+  "scaleOut",
+  "timeExit",
+  "slippageModel",
+  "orderType",
+  "orderTTL",
+  "timeInForce",
+  "volumeConstraint",
+  "margin",
+  "sizing",
+  "fundamentals",
+  "validateData",
+] as const satisfies readonly (keyof MtfBacktestOptions)[];
+
+/**
+ * Extended backtest options with scaled entry support.
+ *
+ * Accepts everything `runBacktest` accepts, because a single-tranche run
+ * delegates to it and honors all of it. With `scaledEntry.tranches >= 2` the
+ * options in `UNSUPPORTED_MULTI_TRANCHE_OPTIONS` are rejected at runtime
+ * instead.
+ */
+export type ScaledBacktestOptions = MtfBacktestOptions & {
   /** Scaled entry configuration */
   scaledEntry?: ScaledEntryConfig;
 };
+
+/**
+ * Reject options the multi-tranche path would otherwise ignore.
+ *
+ * Only called once the run is known to take the multi-tranche path: with one
+ * tranche the options are handed to `runBacktest`, which honors them.
+ */
+function assertMultiTrancheOptionsSupported(options: ScaledBacktestOptions): void {
+  const provided = UNSUPPORTED_MULTI_TRANCHE_OPTIONS.filter(
+    (key) => (options as Record<string, unknown>)[key] !== undefined,
+  );
+
+  if (provided.length > 0) {
+    throw new Error(
+      `runBacktestScaled does not implement ${provided.join(", ")} when scaledEntry.tranches >= 2. ` +
+        "The multi-tranche engine would ignore these options and report results as if they had " +
+        "been applied. Remove them, or run with a single tranche to use them via runBacktest.",
+    );
+  }
+}
 
 /**
  * Single entry tranche record
@@ -182,6 +238,10 @@ export function runBacktestScaled(
     // Use standard backtest logic
     return runStandardBacktest(candles, entryCondition, exitCondition, options);
   }
+
+  // Past this point the run takes the multi-tranche path, which implements
+  // only part of BacktestOptions.
+  assertMultiTrancheOptionsSupported(options);
 
   const { tranches, strategy, intervalType, priceInterval = -2 } = scaledEntry;
 
