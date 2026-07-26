@@ -14,8 +14,9 @@ import {
   isInAnyBreak,
   isInSessionWindow,
   type SessionDefinition,
+  sessionOccurrenceKey,
 } from "./session-definition";
-import { getTzHourMinute } from "./tz-utils";
+import { getTzDateTime, type TzDateTime } from "./tz-utils";
 
 /**
  * Options for sessionBreakout
@@ -79,6 +80,7 @@ export function sessionBreakout(
   let activeSessionName: string | null = null;
   let activeHigh = Number.NEGATIVE_INFINITY;
   let activeLow = Number.POSITIVE_INFINITY;
+  let activeOccurrence = -1;
 
   // Most recent completed session range
   let completedSessionName: string | null = null;
@@ -92,12 +94,14 @@ export function sessionBreakout(
     let matchedSession: SessionDefinition | null = null;
     let matchedHour = 0;
     let matchedMinute = 0;
+    let matchedLocal: TzDateTime | null = null;
     for (const session of sessionDefs) {
-      const { hour, minute } = getTzHourMinute(candle.time, session.timezone);
-      if (isInSessionWindow(hour, minute, session)) {
+      const local = getTzDateTime(candle.time, session.timezone);
+      if (isInSessionWindow(local.hour, local.minute, session)) {
         matchedSession = session;
-        matchedHour = hour;
-        matchedMinute = minute;
+        matchedHour = local.hour;
+        matchedMinute = local.minute;
+        matchedLocal = local;
         break;
       }
     }
@@ -107,8 +111,20 @@ export function sessionBreakout(
       matchedSession.breaks !== undefined &&
       isInAnyBreak(matchedHour, matchedMinute, matchedSession.breaks);
 
+    const occurrence =
+      matchedSession === null || matchedLocal === null
+        ? -1
+        : sessionOccurrenceKey(matchedLocal, matchedSession);
+
+    // The same session starting again — the day it opened on changed. Data
+    // holding only in-session bars never leaves the window, so without this the
+    // session never completes and no range is ever published.
+    const rolledOver =
+      matchedName !== null && matchedName === activeSessionName && occurrence !== activeOccurrence;
+    activeOccurrence = occurrence;
+
     // Handle session transitions
-    if (matchedName !== activeSessionName) {
+    if (matchedName !== activeSessionName || rolledOver) {
       // If we had an active session and it just ended, save its range
       if (activeSessionName !== null && activeHigh !== Number.NEGATIVE_INFINITY) {
         completedSessionName = activeSessionName;

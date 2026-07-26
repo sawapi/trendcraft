@@ -2,6 +2,35 @@
 
 ## [Unreleased]
 
+### Fixed — sessions restart on the next day in regular-hours-only data
+
+`detectSessions`, `sessionStats` and `sessionBreakout` decided that one
+occurrence of a session had ended by watching bars fall outside its window.
+That never happens in a series that contains only in-session bars — the shape
+most vendors return for regular trading hours — so every day ran together as a
+single unbroken session:
+
+- `detectSessions` kept counting `barIndex` upward across days (0..11 over two
+  six-bar days instead of 0..5 twice) and held `sessionOpen`, `sessionHigh` and
+  `sessionLow` at the first day's values for the whole series.
+- `sessionStats` merged every day into one occurrence, so `avgRange` reported
+  the spread of the entire series rather than a typical session, and
+  `avgVolume` summed all the bars in it.
+- `sessionBreakout` never completed a session, so no range was ever published
+  and `rangeHigh`/`rangeLow` stayed `null` for every bar — the indicator
+  produced nothing at all.
+
+A new occurrence is now recognised when the local calendar day the session
+opened on changes, which needs no out-of-session bar to be present. Bars before
+the open of a window that crosses midnight are attributed back to the previous
+day, so `22:00`-`06:00` reads as one continuous session rather than being split
+at `00:00`. Keying off the day rather than the clock also keeps a session whole
+across a DST fall-back, where the local clock rewinds an hour and repeats it —
+a New York overnight session running through 2024-11-03 is one session, not
+two.
+
+Sessions are unchanged for data that does contain out-of-session bars.
+
 ### Breaking — partial exit percentages outside `(0, 100]` are rejected
 
 `sellPercent` is a fraction of the shares currently held, but nothing checked

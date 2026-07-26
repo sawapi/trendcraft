@@ -12,8 +12,9 @@ import {
   isInAnyBreak,
   isInSessionWindow,
   type SessionDefinition,
+  sessionOccurrenceKey,
 } from "./session-definition";
-import { getTzHourMinute } from "./tz-utils";
+import { getTzDateTime } from "./tz-utils";
 
 /**
  * Options for sessionStats
@@ -92,15 +93,18 @@ export function sessionStats(
   // Track current occurrence per session
   const currentOcc = new Map<string, SessionOccurrence | null>();
   const prevSession = new Map<string, boolean>();
+  const prevOccurrence = new Map<string, number>();
 
   for (const session of sessionDefs) {
     currentOcc.set(session.name, null);
     prevSession.set(session.name, false);
+    prevOccurrence.set(session.name, -1);
   }
 
   for (const candle of normalized) {
     for (const session of sessionDefs) {
-      const { hour, minute } = getTzHourMinute(candle.time, session.timezone);
+      const local = getTzDateTime(candle.time, session.timezone);
+      const { hour, minute } = local;
       // Use the outer window for occurrence boundary detection, so a lunch break
       // does not split one session into two occurrences.
       const inWindow = isInSessionWindow(hour, minute, session);
@@ -108,8 +112,26 @@ export function sessionStats(
         inWindow && session.breaks !== undefined && isInAnyBreak(hour, minute, session.breaks);
       const wasInWindow = prevSession.get(session.name) ?? false;
 
+      // The same session starting again — the day it opened on changed. Data
+      // holding only in-session bars never leaves the window, so without this
+      // every day merges into one long occurrence and the averages describe the
+      // whole series rather than a session.
+      const occurrence = inWindow ? sessionOccurrenceKey(local, session) : -1;
+      const rolledOver =
+        inWindow && wasInWindow && occurrence !== (prevOccurrence.get(session.name) ?? -1);
+      prevOccurrence.set(session.name, occurrence);
+
+      if (rolledOver) {
+        // Close the previous occurrence before the new one starts.
+        const finished = currentOcc.get(session.name);
+        if (finished && finished.totalBars > 0) {
+          occurrences.get(session.name)?.push(finished);
+        }
+        currentOcc.set(session.name, null);
+      }
+
       if (inWindow) {
-        if (!wasInWindow) {
+        if (!wasInWindow || rolledOver) {
           // New session occurrence starts. Seed with this bar unless it is in a break.
           const occ: SessionOccurrence = inBreak
             ? {
