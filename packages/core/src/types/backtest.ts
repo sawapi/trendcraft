@@ -97,7 +97,12 @@ export type Trade = {
 export type PartialTakeProfitConfig = {
   /** Profit threshold in percent to trigger partial exit (e.g., 5 = +5%) */
   threshold: number;
-  /** Percentage of position to sell (e.g., 50 = sell 50% of position) */
+  /**
+   * Percentage of position to sell (e.g., 50 = sell 50% of position).
+   *
+   * Must be greater than 0 and at most 100; anything else throws. `100` closes
+   * the position outright rather than leaving an empty one open.
+   */
   sellPercent: number;
 };
 
@@ -140,7 +145,12 @@ export type BreakevenStopConfig = {
 export type ScaleOutLevel = {
   /** Profit threshold in percent to trigger this level (e.g., 5 = +5%) */
   threshold: number;
-  /** Percentage of remaining position to sell (e.g., 33 = sell 33%) */
+  /**
+   * Percentage of remaining position to sell (e.g., 33 = sell 33%).
+   *
+   * Must be greater than 0 and at most 100; anything else throws. `100` sells
+   * whatever is left, closing the position.
+   */
   sellPercent: number;
 };
 

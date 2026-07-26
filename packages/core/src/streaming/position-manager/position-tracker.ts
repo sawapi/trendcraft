@@ -17,7 +17,11 @@
  * ```
  */
 
-import { applySlippage, calculateTradeClose } from "../../backtest/engine-utils";
+import {
+  applySlippage,
+  assertValidPartialExits,
+  calculateTradeClose,
+} from "../../backtest/engine-utils";
 import type {
   BreakevenStopConfig,
   ExitReason,
@@ -108,6 +112,8 @@ export function createPositionTracker(
   const maxTradeHistory = options.maxTradeHistory ?? 1000;
   const partialTakeProfit: PartialTakeProfitConfig | undefined = options.partialTakeProfit;
   const breakevenStop: BreakevenStopConfig | undefined = options.breakevenStop;
+
+  assertValidPartialExits({ partialTakeProfit });
 
   // Mutable state
   let position: ManagedPosition | null = fromState?.position ?? null;
@@ -281,6 +287,7 @@ export function createPositionTracker(
     }
 
     const sharesToSell = position.shares * (sellPercent / 100);
+    const sharesRemaining = position.shares - sharesToSell;
 
     const result = calculateTradeClose({
       position: positionSnapshot(position),
@@ -288,7 +295,7 @@ export function createPositionTracker(
       exitPrice,
       exitReason: "partialTakeProfit",
       sharesToClose: sharesToSell,
-      isPartial: true,
+      isPartial: sharesRemaining > 0,
       exitPercent: sellPercent,
       commission,
       commissionRate,
@@ -304,9 +311,16 @@ export function createPositionTracker(
       reason: "partial-take-profit",
     };
 
-    position.shares -= sharesToSell;
+    position.shares = sharesRemaining;
     position.partialTaken = true;
     recordTrade(result.netProceeds, result.trade);
+
+    // `sellPercent: 100` sells the whole position: close it here rather than
+    // leaving a zero-share position open for a later exit to "close" again.
+    if (sharesRemaining <= 0) {
+      position = null;
+      updateUnrealized(0);
+    }
 
     return { fill, trade: result.trade };
   }
@@ -362,11 +376,7 @@ export function createPositionTracker(
 
     updatePrice(candle: NormalizedCandle): UpdatePriceResult {
       if (!position) {
-        return {
-          position: null as unknown as ManagedPosition,
-          triggered: null,
-          partialFills: [],
-        };
+        return { position: null, triggered: null, partialFills: [] };
       }
 
       const partialFills: PartialFillResult[] = [];
@@ -395,11 +405,7 @@ export function createPositionTracker(
 
       /** Helper to build a closed-position result */
       function closedResult(fill: FillRecord): UpdatePriceResult {
-        return {
-          position: null as unknown as ManagedPosition,
-          triggered: fill,
-          partialFills,
-        };
+        return { position: null, triggered: fill, partialFills };
       }
 
       // Check stop loss (adverse price hit)
@@ -418,9 +424,19 @@ export function createPositionTracker(
       if (partialTakeProfit && !position.partialTaken) {
         const thresholdPrice = favorablePrice(position.entryPrice, partialTakeProfit.threshold);
         if (hitFavorable(candle, thresholdPrice)) {
-          partialFills.push(
-            executePartialClose(thresholdPrice, candle.time, partialTakeProfit.sellPercent),
+          const partialFill = executePartialClose(
+            thresholdPrice,
+            candle.time,
+            partialTakeProfit.sellPercent,
           );
+          partialFills.push(partialFill);
+
+          // `sellPercent: 100` closes the position. Report it the same way as
+          // any other close, rather than falling through to the checks below
+          // and returning a spread of a null position.
+          if (!position) {
+            return closedResult(partialFill.fill);
+          }
         }
       }
 

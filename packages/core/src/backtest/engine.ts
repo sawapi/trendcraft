@@ -32,6 +32,7 @@ import type { Position } from "./engine-utils";
 import {
   applySlippage,
   applyVolumeConstraint,
+  assertValidPartialExits,
   calculateStats,
   calculateTradeClose,
   checkProfitTriggerDirectional,
@@ -163,6 +164,8 @@ export function runBacktest(
       ? { sizing: sizing.method === "custom" ? { method: "custom" as const } : sizing }
       : {}),
   };
+
+  assertValidPartialExits(options);
 
   // Validate input data if requested
   const validateDataOpt = (options as MtfBacktestOptions).validateData;
@@ -877,6 +880,7 @@ export function runBacktest(
         if (partialTrigger) {
           const partialExitPrice = partialTrigger.price;
           const sharesToSell = position.shares * (partialTakeProfit.sellPercent / 100);
+          const sharesRemaining = position.shares - sharesToSell;
 
           const partialSlip = getSlippage(candle, i);
           const result = calculateTradeClose({
@@ -885,7 +889,7 @@ export function runBacktest(
             exitPrice: partialExitPrice,
             exitReason: "partialTakeProfit",
             sharesToClose: sharesToSell,
-            isPartial: true,
+            isPartial: sharesRemaining > 0,
             exitPercent: partialTakeProfit.sellPercent,
             commission,
             commissionRate,
@@ -900,9 +904,23 @@ export function runBacktest(
           returns.push(result.returnPercent / 100);
           trackDrawdown(candle.time, i);
 
-          position.shares -= sharesToSell;
+          position.shares = sharesRemaining;
           position.partialTaken = true;
+
+          // `sellPercent: 100` sells the whole position: close it here rather
+          // than carrying a zero-share position that would be "closed" a
+          // second time later, charging another exit commission and recording
+          // a trade with no shares in it.
+          if (sharesRemaining <= 0) {
+            position = null;
+          }
         }
+      }
+
+      // Skip remaining checks if the partial take profit closed the position
+      if (position === null) {
+        equityCurve[i] = markToMarketEquity(candle.close);
+        continue;
       }
 
       // Scale-out check

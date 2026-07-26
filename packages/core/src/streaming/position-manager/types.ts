@@ -233,7 +233,11 @@ export type PartialFillResult = {
  * Result of updatePrice when SL/TP/trailing is triggered
  */
 export type UpdatePriceResult = {
-  position: ManagedPosition;
+  /**
+   * The position after the bar, or `null` when there is none — because the bar
+   * closed it, or because none was open to begin with.
+   */
+  position: ManagedPosition | null;
   triggered: FillRecord | null;
   partialFills: PartialFillResult[];
 };

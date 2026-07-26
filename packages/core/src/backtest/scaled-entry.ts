@@ -22,7 +22,7 @@ import type {
 import type { ExtendedCondition } from "./conditions";
 import { evaluateCondition, seedBenchmark } from "./conditions";
 import type { MtfBacktestOptions } from "./engine";
-import { checkProfitTrigger, checkStopTrigger } from "./engine-utils";
+import { assertValidPartialExits, checkProfitTrigger, checkStopTrigger } from "./engine-utils";
 import {
   applySlippage,
   calculateStats,
@@ -242,6 +242,7 @@ export function runBacktestScaled(
   // Past this point the run takes the multi-tranche path, which implements
   // only part of BacktestOptions.
   assertMultiTrancheOptionsSupported(options);
+  assertValidPartialExits(options);
 
   const { tranches, strategy, intervalType, priceInterval = -2 } = scaledEntry;
 
@@ -545,6 +546,13 @@ export function runBacktestScaled(
         if (partialTrigger) {
           const sellFraction = partialTakeProfit.sellPercent / 100;
           const sharesToSell = position.totalShares * sellFraction;
+          // `sellPercent: 100` sells the whole position. Treat it as a full
+          // close — release the capital reserved for tranches that will now
+          // never be entered, and do not mark the trade partial — rather than
+          // carrying a zero-share position that gets "closed" a second time
+          // later, charging another exit commission on a trade with no shares.
+          const closesPosition = position.totalShares - sharesToSell <= 0;
+
           closeShares(
             position,
             partialTrigger.price,
@@ -553,22 +561,34 @@ export function runBacktestScaled(
             sharesToSell,
             {
               withSlippage: true,
-              releaseReserved: false,
-              partial: { exitPercent: partialTakeProfit.sellPercent },
+              releaseReserved: closesPosition,
+              ...(closesPosition
+                ? {}
+                : { partial: { exitPercent: partialTakeProfit.sellPercent } }),
             },
           );
 
-          // Scale every tranche by the sold fraction so per-tranche shares
-          // stay in sync with totalShares. Selling at market does not change
-          // the remaining shares' average cost, and a later addTranche()
-          // recomputes the average from tranches — leaving the sold shares
-          // in place would weight the old cost basis as if nothing was sold.
-          for (const tranche of position.tranches) {
-            tranche.shares *= 1 - sellFraction;
+          if (closesPosition) {
+            position = null;
+          } else {
+            // Scale every tranche by the sold fraction so per-tranche shares
+            // stay in sync with totalShares. Selling at market does not change
+            // the remaining shares' average cost, and a later addTranche()
+            // recomputes the average from tranches — leaving the sold shares
+            // in place would weight the old cost basis as if nothing was sold.
+            for (const tranche of position.tranches) {
+              tranche.shares *= 1 - sellFraction;
+            }
+            position.totalShares -= sharesToSell;
+            position.partialTaken = true;
           }
-          position.totalShares -= sharesToSell;
-          position.partialTaken = true;
         }
+      }
+
+      // A 100% partial take profit closes the position outright; the remaining
+      // per-bar management has nothing left to manage.
+      if (position === null) {
+        continue;
       }
 
       // Trailing stop check
