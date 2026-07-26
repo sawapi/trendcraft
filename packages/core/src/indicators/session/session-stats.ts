@@ -9,12 +9,9 @@ import { isNormalized, normalizeCandles } from "../../core/normalize";
 import type { Candle, NormalizedCandle } from "../../types";
 import {
   getIctSessions,
-  isInAnyBreak,
-  isInSessionWindow,
+  resolveSessionMembership,
   type SessionDefinition,
-  sessionOccurrenceKey,
 } from "./session-definition";
-import { getTzDateTime } from "./tz-utils";
 
 /**
  * Options for sessionStats
@@ -103,20 +100,19 @@ export function sessionStats(
 
   for (const candle of normalized) {
     for (const session of sessionDefs) {
-      const local = getTzDateTime(candle.time, session.timezone);
-      const { hour, minute } = local;
-      // Use the outer window for occurrence boundary detection, so a lunch break
-      // does not split one session into two occurrences.
-      const inWindow = isInSessionWindow(hour, minute, session);
-      const inBreak =
-        inWindow && session.breaks !== undefined && isInAnyBreak(hour, minute, session.breaks);
+      // The outer window drives occurrence boundaries, so a lunch break does
+      // not split one session into two occurrences.
+      const {
+        inWindow,
+        inBreak,
+        occurrenceKey: occurrence,
+      } = resolveSessionMembership(candle.time, session);
       const wasInWindow = prevSession.get(session.name) ?? false;
 
       // The same session starting again — the day it opened on changed. Data
       // holding only in-session bars never leaves the window, so without this
       // every day merges into one long occurrence and the averages describe the
       // whole series rather than a session.
-      const occurrence = inWindow ? sessionOccurrenceKey(local, session) : -1;
       const rolledOver =
         inWindow && wasInWindow && occurrence !== (prevOccurrence.get(session.name) ?? -1);
       prevOccurrence.set(session.name, occurrence);
