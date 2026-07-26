@@ -77,6 +77,12 @@ type ScaledPosition = {
   entryAtr: number | null;
   /** Capital reserved for remaining tranches */
   reservedCapital: number;
+  /**
+   * Capital available when this position opened. Every tranche of this
+   * position is sized from it, so the tranche weights always sum back to the
+   * capital actually committed to this trade cycle.
+   */
+  committedCapital: number;
 };
 
 /**
@@ -245,6 +251,7 @@ export function runBacktestScaled(
       partialTaken: false,
       entryAtr,
       reservedCapital: currentCapital - trancheCapital,
+      committedCapital: currentCapital,
     };
 
     currentCapital = 0; // All capital (including reserved) is committed
@@ -254,7 +261,17 @@ export function runBacktestScaled(
   function addTranche(pos: ScaledPosition, entryPrice: number, time: number): void {
     const trancheIndex = pos.tranches.length;
     const trancheWeight = trancheWeights[trancheIndex];
-    const trancheCapital = capital * trancheWeight;
+    // Size from the capital this position committed, not from the backtest's
+    // initial capital: once a trade cycle has closed at a profit or a loss the
+    // two differ, and weighting against the initial capital either strands
+    // reserved capital or overdraws it.
+    // The final tranche takes whatever is still reserved so that rounding in
+    // the weights (1/3 + 1/3 + 1/3 < 1 in binary floating point) cannot leave
+    // a sliver of capital uninvested.
+    const trancheCapital =
+      trancheIndex === pos.targetTranches - 1
+        ? pos.reservedCapital
+        : pos.committedCapital * trancheWeight;
     const entryCommission = commission + trancheCapital * (commissionRate / 100);
     const shares = (trancheCapital - entryCommission) / entryPrice;
 
