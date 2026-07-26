@@ -10,7 +10,7 @@
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import type { Candle, NormalizedCandle, Series } from "../../types";
-import { getTzHourMinute } from "./tz-utils";
+import { getTzDateTime, type TzDateTime } from "./tz-utils";
 
 /**
  * An intra-session break (e.g. lunch break on JPX/HKEX).
@@ -229,6 +229,43 @@ export function isInSessionWindow(
 }
 
 /**
+ * Identifies which occurrence of a session a bar belongs to: the local
+ * calendar day the session opened on, as epoch milliseconds at UTC midnight so
+ * that occurrences compare as plain numbers.
+ *
+ * Used to tell one occurrence from the next. Watching bars leave the window
+ * only works when the data contains out-of-session bars; a series holding
+ * regular-hours bars only never leaves, so every day would merge into a single
+ * unbroken session.
+ *
+ * Two properties make this the day the session *started* rather than the day
+ * printed on the bar:
+ *
+ * - A window that crosses midnight stays one session. For `22:00`-`06:00`, the
+ *   bars from midnight to 06:00 are attributed back to the previous day, so the
+ *   session does not split at `00:00`.
+ * - A DST fall-back does not split a session. The local clock repeats an hour
+ *   — New York runs 01:30 EDT then 01:00 EST — so elapsed local time can move
+ *   backwards inside one session, but the calendar day it started on does not.
+ *
+ * @param dt - Local date and time of the bar, in the session's timezone
+ * @param session - The session the bar falls inside
+ */
+export function sessionOccurrenceKey(dt: TzDateTime, session: SessionDefinition): number {
+  const localDay = Date.UTC(dt.year, dt.month - 1, dt.day);
+  const startMinutes = session.startHour * 60 + session.startMinute;
+  const endMinutes = session.endHour * 60 + session.endMinute;
+  const crossesMidnight = startMinutes > endMinutes;
+
+  if (crossesMidnight && dt.hour * 60 + dt.minute < startMinutes) {
+    return localDay - MS_PER_DAY;
+  }
+  return localDay;
+}
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+/**
  * Check if (hour, minute) falls inside any of the given breaks.
  */
 export function isInAnyBreak(hour: number, minute: number, breaks: SessionBreak[]): boolean {
@@ -298,6 +335,7 @@ export function detectSessions(
   let sessionOpen: number | null = null;
   let sessionHigh: number | null = null;
   let sessionLow: number | null = null;
+  let currentOccurrence = -1;
 
   for (const candle of normalized) {
     // Find the session whose outer window contains this candle (break-agnostic),
@@ -305,12 +343,14 @@ export function detectSessions(
     let anchorSession: SessionDefinition | null = null;
     let anchorHour = 0;
     let anchorMinute = 0;
+    let anchorLocal: TzDateTime | null = null;
     for (const session of sessionDefs) {
-      const { hour, minute } = getTzHourMinute(candle.time, session.timezone);
-      if (isInSessionWindow(hour, minute, session)) {
+      const local = getTzDateTime(candle.time, session.timezone);
+      if (isInSessionWindow(local.hour, local.minute, session)) {
         anchorSession = session;
-        anchorHour = hour;
-        anchorMinute = minute;
+        anchorHour = local.hour;
+        anchorMinute = local.minute;
+        anchorLocal = local;
         break;
       }
     }
@@ -319,9 +359,20 @@ export function detectSessions(
       anchorSession.breaks !== undefined &&
       isInAnyBreak(anchorHour, anchorMinute, anchorSession.breaks);
     const anchorName = anchorSession?.name ?? null;
+    const occurrence =
+      anchorSession === null || anchorLocal === null
+        ? -1
+        : sessionOccurrenceKey(anchorLocal, anchorSession);
+
+    // A new occurrence of the same session — the day it opened on changed.
+    // Without this, a series carrying only in-session bars never leaves the
+    // window and every day runs together as one session.
+    const rolledOver =
+      anchorName !== null && anchorName === currentSessionName && occurrence !== currentOccurrence;
+    currentOccurrence = occurrence;
 
     // Session anchor changed (new session entered, or fell outside everything)
-    if (anchorName !== currentSessionName) {
+    if (anchorName !== currentSessionName || rolledOver) {
       currentSessionName = anchorName;
       barIndex = 0;
       if (anchorName !== null && !inBreak) {

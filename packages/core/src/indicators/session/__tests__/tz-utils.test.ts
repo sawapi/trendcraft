@@ -5,7 +5,37 @@
 import { describe, expect, it } from "vitest";
 import type { Candle } from "../../../types";
 import { detectSessions } from "../session-definition";
-import { getTzHourMinute } from "../tz-utils";
+import { getTzDateTime, getTzHourMinute } from "../tz-utils";
+
+describe("getTzDateTime", () => {
+  it("returns the UTC date and time when timezone is omitted or 'UTC'", () => {
+    const t = Date.UTC(2026, 0, 15, 13, 45, 0);
+    const expected = { year: 2026, month: 1, day: 15, hour: 13, minute: 45 };
+    expect(getTzDateTime(t)).toEqual(expected);
+    expect(getTzDateTime(t, "UTC")).toEqual(expected);
+  });
+
+  it("reports the local calendar date, which can differ from the UTC one", () => {
+    // 2026-01-15 02:30 UTC is still 2026-01-14 in New York.
+    expect(getTzDateTime(Date.UTC(2026, 0, 15, 2, 30), "America/New_York")).toEqual({
+      year: 2026,
+      month: 1,
+      day: 14,
+      hour: 21,
+      minute: 30,
+    });
+  });
+
+  it("keeps the date stable across a DST fall-back, when the clock repeats", () => {
+    // New York rewinds 02:00 EDT to 01:00 EST on 2024-11-03: both of these
+    // read 01:30 locally, an hour apart in real time, on the same date.
+    const beforeRewind = getTzDateTime(Date.UTC(2024, 10, 3, 5, 30), "America/New_York");
+    const afterRewind = getTzDateTime(Date.UTC(2024, 10, 3, 6, 30), "America/New_York");
+
+    expect(beforeRewind).toEqual({ year: 2024, month: 11, day: 3, hour: 1, minute: 30 });
+    expect(afterRewind).toEqual(beforeRewind);
+  });
+});
 
 describe("getTzHourMinute", () => {
   it("returns UTC hour/minute when timezone is omitted or 'UTC'", () => {
