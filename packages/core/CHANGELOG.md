@@ -1,5 +1,32 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed — `runBacktestScaled` sizes every tranche from the capital the trade cycle actually has
+
+In the multi-tranche path, the first tranche was sized from the capital
+available when the position opened, but every additional tranche was sized
+from the backtest's *initial* capital. The two agree only for the first trade
+cycle; after any closed trade the tranche weights no longer sum to the capital
+committed to the new cycle.
+
+After a profitable cycle the position was under-invested and the shortfall sat
+in reserve doing nothing; after a losing cycle the later tranches spent more
+than had been reserved for them, driving the reserve negative and inflating
+the position. Either way P&L was computed from the wrong exposure. With
+100,000 of capital, two equal tranches, a first cycle bought at 100 and sold
+at 110, and a second cycle bought at 110 and sold back at 100, the run should
+end exactly where it started at 100,000; it reported 100,454.55, having
+invested 55,000 and 50,000 into a cycle that had 110,000 to deploy.
+
+Each position now records the capital it committed when it opened, and every
+tranche of that position is weighted against it. The final tranche takes
+whatever is still reserved, so rounding in the weights (1/3 + 1/3 + 1/3 falls
+a hair short of 1 in binary floating point) can no longer strand a sliver of
+capital outside the market.
+
+Multi-tranche results change for any backtest that closes more than one trade.
+
 ## [0.5.0] - 2026-07-26
 
 ### Read this first — your numbers will change
