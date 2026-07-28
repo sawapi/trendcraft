@@ -773,14 +773,14 @@ const nyVwap = vwap(candles, {
 **Options:**
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `resetPeriod` | `'session' \| 'rolling' \| number` | `'session'` | Reset period type. Cannot be combined with `session` |
+| `resetPeriod` | `'session' \| 'rolling' \| number` | `'session'` | Reset period type. Only the default `'session'` may be combined with `session` |
 | `period` | `number` | `20` | Period for rolling VWAP |
 | `bandMultipliers` | `number[]` | — | Additional σ-band multipliers (e.g., `[2, 3]` for ±2σ, ±3σ) |
 | `session` | `SessionDefinition` | — | Anchor the average to a trading session (see below) |
 
 **Session anchoring**
 
-Without `session`, the average restarts at UTC midnight, which is not when any exchange's trading day begins. For US equities that is 19:00 or 20:00 New York time — after the close — so one reset period runs from a day's post-market through the next day's pre-market, regular session and post-market: extended-hours bars are mixed in, and the average never restarts at the open.
+Without `session`, the average restarts at UTC midnight rather than at a session boundary. For a series limited to regular trading hours the two often coincide — a US equity day sits inside one UTC date — but it breaks once the series carries extended hours: UTC midnight is 19:00 or 20:00 in New York, part-way through the post-market, so one reset period runs from there through the next day's pre-market, regular session and post-market. It never lines up for a session that itself crosses UTC midnight.
 
 With `session`, the average restarts when the session does, in the session's own timezone, and only bars inside it contribute. Bars outside the window, and bars inside one of its breaks, return `null` and leave the running totals untouched, so a lunch break pauses the average rather than restarting it. Sessions that cross midnight stay whole, as do sessions running through a DST change.
 
@@ -1125,7 +1125,7 @@ const nyTwap = twap(candles, {
 **Options:**
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `sessionResetPeriod` | `'session' \| number` | `'session'` | Reset at each day or every N candles. Cannot be combined with `session` |
+| `sessionResetPeriod` | `'session' \| number` | `'session'` | Reset at each day or every N candles. Only the default `'session'` may be combined with `session` |
 | `session` | `SessionDefinition` | — | Anchor the average to a trading session — same semantics as [`vwap`](#vwapcandles-options) |
 
 **Returns:** `Series<number | null>`
@@ -1659,13 +1659,28 @@ Opening Range Breakout (ORB) — detects the opening range of a session and iden
 ```typescript
 const result = openingRange(candles);
 const custom = openingRange(candles, { minutes: 15, sessionResetPeriod: 'day' });
+
+// Measured from a real session open rather than the first bar of the UTC day
+const nyOrb = openingRange(candles, {
+  minutes: 30,
+  session: { name: 'regular', startHour: 9, startMinute: 30, endHour: 16, endMinute: 0, timezone: 'America/New_York' },
+});
 ```
 
 **Options:**
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `minutes` | `number` | `30` | Opening range duration in minutes |
-| `sessionResetPeriod` | `'day' \| number` | `'day'` | Session reset mode |
+| `sessionResetPeriod` | `'day' \| number` | `'day'` | Session reset mode. Only the default `'day'` may be combined with `session` |
+| `session` | `SessionDefinition` | — | Measure the range from a trading session's open (see below) |
+
+**Session anchoring**
+
+Without `session`, the range is measured from the first bar of each UTC calendar day. For regular-hours-only data that bar is usually the open, so the two agree. Once the series carries extended hours it is not: UTC midnight is 19:00 or 20:00 in New York, so the UTC day begins with a post-market bar and the "opening range" is built from it.
+
+With `session`, the range covers the first `minutes` of the session, measured from its official open in the session's own timezone. Bars outside the session, and bars inside one of its breaks, report `null`.
+
+A day whose open was never observed reports **no range at all**. If a series starts at 09:45, it does not get a fresh 30-minute range measured from there: a range built from part of the window would be quoted as if it were the whole one, and breakouts would be measured against a level the market never set. The next day, once an open is observed, the range works normally.
 
 **Returns:** `Series<OpeningRangeValue>`
 

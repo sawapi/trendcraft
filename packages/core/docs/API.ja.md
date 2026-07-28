@@ -773,14 +773,14 @@ const nyVwap = vwap(candles, {
 **オプション:**
 | オプション | 型 | デフォルト | 説明 |
 |------------|------|---------|------|
-| `resetPeriod` | `'session' \| 'rolling' \| number` | `'session'` | リセット期間タイプ。`session` とは併用不可 |
+| `resetPeriod` | `'session' \| 'rolling' \| number` | `'session'` | リセット期間タイプ。`session` と併用できるのは既定の `'session'` のみ |
 | `period` | `number` | `20` | ローリングVWAP期間 |
 | `bandMultipliers` | `number[]` | — | 追加σバンドの倍率（例：`[2, 3]` で±2σ、±3σ） |
 | `session` | `SessionDefinition` | — | 取引セッションに紐付ける（下記参照） |
 
 **セッション紐付け**
 
-`session` を指定しない場合、平均は UTC 0時でリセットされますが、これはどの取引所の取引開始時刻でもありません。米国株ではニューヨーク時間の 19:00 / 20:00、つまり引け後にあたります。そのため1つのリセット期間が、ある日のポストマーケットから翌日のプレマーケット・通常取引・ポストマーケットまでを1つにまとめてしまい、時間外バーが混ざったまま寄付でリセットされません。
+`session` を指定しない場合、平均はセッションの境界ではなく UTC 0時でリセットされます。通常取引時間のみの系列であれば両者はしばしば一致します（米国株の1日は1つの UTC 日に収まるため）。しかし時間外バーを含む系列では崩れます。UTC 0時はニューヨーク時間の 19:00 / 20:00、つまりポストマーケットの途中にあたるため、1つのリセット期間がそこから翌日のプレマーケット・通常取引・ポストマーケットまでを1つにまとめてしまい、時間外バーが混ざったまま寄付でリセットされません。UTC 0時を跨ぐセッションでは、データの内容にかかわらず一致しません。
 
 `session` を指定すると、平均はセッションのタイムゾーンで、セッション開始時にリセットされ、セッション内のバーだけが対象になります。window 外のバーと break 内のバーは `null` を返し、累積値を変更しません。したがって昼休みは平均を「一時停止」させるだけでリセットしません。深夜を跨ぐセッションも、DST 切り替え日を跨ぐセッションも1つのまま保たれます。
 
@@ -1109,7 +1109,7 @@ const nyTwap = twap(candles, {
 **オプション:**
 | オプション | 型 | デフォルト | 説明 |
 |-----------|------|-----------|------|
-| `sessionResetPeriod` | `'session' \| number` | `'session'` | セッションリセット期間。`session` とは併用不可 |
+| `sessionResetPeriod` | `'session' \| number` | `'session'` | セッションリセット期間。`session` と併用できるのは既定の `'session'` のみ |
 | `session` | `SessionDefinition` | — | 取引セッションに紐付ける — 意味論は [`vwap`](#vwapcandles-options) と同じ |
 
 **戻り値:** `Series<number | null>`
@@ -1635,13 +1635,28 @@ interface FibonacciRetracementValue {
 ```typescript
 const result = openingRange(candles);
 const custom = openingRange(candles, { minutes: 15, sessionResetPeriod: 'day' });
+
+// UTC 暦日の最初のバーではなく、実際のセッション寄付から計測
+const nyOrb = openingRange(candles, {
+  minutes: 30,
+  session: { name: 'regular', startHour: 9, startMinute: 30, endHour: 16, endMinute: 0, timezone: 'America/New_York' },
+});
 ```
 
 **オプション:**
 | オプション | 型 | デフォルト | 説明 |
 |-----------|------|-----------|------|
 | `minutes` | `number` | `30` | オープニングレンジの時間（分） |
-| `sessionResetPeriod` | `'day' \| number` | `'day'` | セッションリセット方式 |
+| `sessionResetPeriod` | `'day' \| number` | `'day'` | セッションリセット方式。`session` と併用できるのは既定の `'day'` のみ |
+| `session` | `SessionDefinition` | — | 取引セッションの寄付からレンジを計測する（下記参照） |
+
+**セッション紐付け**
+
+`session` を指定しない場合、レンジは UTC 暦日の最初のバーから計測されます。通常取引時間のみのデータであれば、そのバーは通常は寄付なので両者は一致します。しかし時間外バーを含む系列では一致しません。UTC 0時はニューヨーク時間の 19:00 / 20:00 にあたるため、UTC 日はポストマーケットのバーから始まり、「オープニングレンジ」がそこから作られてしまいます。
+
+`session` を指定すると、レンジはセッションのタイムゾーンにおける公式な寄付から `minutes` 分を対象にします。セッション外のバーと break 内のバーは `null` を返します。
+
+寄付を観測していない日は、**レンジを一切報告しません**。系列が 09:45 から始まる場合、そこから改めて30分を計測することはしません。window の一部だけで作ったレンジを「オープニングレンジ」として提示すると、市場が実際には付けていない水準でブレイクアウトを判定することになるためです。翌日、寄付が観測されれば通常どおり機能します。
 
 **戻り値:** `Series<OpeningRangeValue>`
 

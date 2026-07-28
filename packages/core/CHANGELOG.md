@@ -2,14 +2,38 @@
 
 ## [Unreleased]
 
+### Added — `session` option on `openingRange`
+
+The opening range was measured from the first bar of each UTC calendar day.
+For regular-hours-only data that bar is usually the open, so the two agree.
+Once the series carries extended hours it is not: UTC midnight is 19:00 or
+20:00 in New York, so the UTC day begins with a post-market bar, the "opening
+range" is built from it, and every breakout is measured against that.
+
+Passing a `SessionDefinition` measures the range from the session's official
+open instead, in its own timezone, covering its first `minutes`. Bars outside
+the session, and bars inside one of its breaks, report `null`.
+
+A day whose open was never observed reports no range at all. A series starting
+at 09:45 does not get a fresh 30-minute range measured from there: a range
+built from part of the window would be quoted as if it were the whole one, and
+breakouts would be checked against a level the market never set. The next
+session, once its open is observed, behaves normally.
+
+Combining `session` with a bar-count `sessionResetPeriod` throws; leaving it at
+its `"day"` default is what a session run expects. Without `session`, the
+indicator behaves exactly as before.
+
 ### Added — `session` option on `vwap` and `twap`
 
-Both averages restart at UTC midnight, which is not when any exchange's trading
-day begins. For US equities it falls at 19:00 or 20:00 New York time — after
-the close — so a single reset period runs from one day's post-market through
-the next day's pre-market, regular session and post-market, mixing extended
-hours into the figure and never restarting at the open. The reset lines up with
-a trading day only for markets that happen to open near 00:00 UTC.
+Both averages restart at UTC midnight rather than at a session boundary. For a
+series limited to regular trading hours the two often coincide — a US equity
+day sits inside one UTC date — but it breaks once the series carries extended
+hours: UTC midnight is 19:00 or 20:00 in New York, part-way through the
+post-market, so a single reset period runs from there through the next day's
+pre-market, regular session and post-market, mixing extended hours into the
+figure and never restarting at the open. It never lines up for a session that
+itself crosses UTC midnight, whatever the data contains.
 
 Passing a `SessionDefinition` anchors the average to that session instead:
 
@@ -31,10 +55,11 @@ inside one of its breaks, return `null` and leave the running totals untouched
 after the break continues from where trading left off. Sessions that cross
 midnight stay whole, as do sessions running through a DST change.
 
-Combining `session` with `resetPeriod: "rolling"` (or a bar count, or
-`sessionResetPeriod` on `twap`) throws, naming both options: a session brings
-its own boundaries, so honoring one of the two silently would report a figure
-the caller did not ask for.
+Combining `session` with `resetPeriod: "rolling"`, a bar count, or a bar-count
+`sessionResetPeriod` on `twap` throws, naming both options: a session brings its
+own boundaries, so honoring one of the two silently would report a figure the
+caller did not ask for. Leaving the reset option at its `"session"` default is
+what a session run expects.
 
 Without `session`, both indicators behave exactly as before.
 
