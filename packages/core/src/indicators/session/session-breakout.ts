@@ -11,12 +11,10 @@ import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import {
   getIctSessions,
-  isInAnyBreak,
-  isInSessionWindow,
+  resolveSessionMembership,
   type SessionDefinition,
-  sessionOccurrenceKey,
+  type SessionMembership,
 } from "./session-definition";
-import { getTzDateTime, type TzDateTime } from "./tz-utils";
 
 /**
  * Options for sessionBreakout
@@ -91,30 +89,18 @@ export function sessionBreakout(
     // Determine session using the outer window; bars inside a break remain
     // attached to the session but do not update its range. Each session's
     // own timezone is honored.
-    let matchedSession: SessionDefinition | null = null;
-    let matchedHour = 0;
-    let matchedMinute = 0;
-    let matchedLocal: TzDateTime | null = null;
+    let matchedName: string | null = null;
+    let membership: SessionMembership | null = null;
     for (const session of sessionDefs) {
-      const local = getTzDateTime(candle.time, session.timezone);
-      if (isInSessionWindow(local.hour, local.minute, session)) {
-        matchedSession = session;
-        matchedHour = local.hour;
-        matchedMinute = local.minute;
-        matchedLocal = local;
+      const resolved = resolveSessionMembership(candle.time, session);
+      if (resolved.inWindow) {
+        matchedName = session.name;
+        membership = resolved;
         break;
       }
     }
-    const matchedName = matchedSession?.name ?? null;
-    const inBreak =
-      matchedSession !== null &&
-      matchedSession.breaks !== undefined &&
-      isInAnyBreak(matchedHour, matchedMinute, matchedSession.breaks);
-
-    const occurrence =
-      matchedSession === null || matchedLocal === null
-        ? -1
-        : sessionOccurrenceKey(matchedLocal, matchedSession);
+    const inBreak = membership?.inBreak ?? false;
+    const occurrence = membership?.occurrenceKey ?? -1;
 
     // The same session starting again — the day it opened on changed. Data
     // holding only in-session bars never leaves the window, so without this the

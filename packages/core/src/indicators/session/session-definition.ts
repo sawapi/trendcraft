@@ -264,6 +264,90 @@ export function sessionOccurrenceKey(dt: TzDateTime, session: SessionDefinition)
 }
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const MINUTES_PER_DAY = 24 * 60;
+
+/**
+ * Where a bar sits relative to one session.
+ *
+ * Single owner of the four questions every session-aware indicator asks: which
+ * timezone the bar reads in, whether it is inside the window, whether it is in
+ * a break, and which occurrence of the session it belongs to. Answering them
+ * separately in each indicator is how they drifted apart in the first place.
+ */
+export type SessionMembership = {
+  /**
+   * Identifies the occurrence (see `sessionOccurrenceKey`), or `-1` when the
+   * bar is outside the window.
+   */
+  occurrenceKey: number;
+  /**
+   * Minutes since the session opened, or `-1` when the bar is outside the
+   * window.
+   *
+   * Read from the local clock, so it rewinds during a DST fall-back — never
+   * use it to tell one occurrence from another. `occurrenceKey` is the field
+   * for that. Its purpose is measuring position *within* an occurrence, such
+   * as an opening range.
+   */
+  elapsedMinutes: number;
+  /** Inside the session's outer window, breaks included. */
+  inWindow: boolean;
+  /** Inside one of the session's breaks. */
+  inBreak: boolean;
+  /** Inside the session and trading — `inWindow && !inBreak`. */
+  active: boolean;
+};
+
+const OUTSIDE_SESSION: SessionMembership = {
+  occurrenceKey: -1,
+  elapsedMinutes: -1,
+  inWindow: false,
+  inBreak: false,
+  active: false,
+};
+
+/**
+ * Resolve where a bar sits relative to a session, in that session's own
+ * timezone.
+ *
+ * @param epochMs - Bar time in UTC epoch milliseconds
+ * @param session - The session to test the bar against
+ *
+ * @example
+ * ```ts
+ * const nyOpen: SessionDefinition = {
+ *   ...defineSession("NY", 9, 30, 16, 0),
+ *   timezone: "America/New_York",
+ * };
+ * // 15:00 UTC = 10:00 in New York, half an hour after the open
+ * const m = resolveSessionMembership(Date.UTC(2024, 0, 2, 15, 0), nyOpen);
+ * // => { elapsedMinutes: 30, inWindow: true, inBreak: false, active: true, occurrenceKey: ... }
+ * ```
+ */
+export function resolveSessionMembership(
+  epochMs: number,
+  session: SessionDefinition,
+): SessionMembership {
+  const local = getTzDateTime(epochMs, session.timezone);
+
+  if (!isInSessionWindow(local.hour, local.minute, session)) {
+    return OUTSIDE_SESSION;
+  }
+
+  const inBreak =
+    session.breaks !== undefined && isInAnyBreak(local.hour, local.minute, session.breaks);
+  const startMinutes = session.startHour * 60 + session.startMinute;
+  const elapsedMinutes =
+    (local.hour * 60 + local.minute - startMinutes + MINUTES_PER_DAY) % MINUTES_PER_DAY;
+
+  return {
+    occurrenceKey: sessionOccurrenceKey(local, session),
+    elapsedMinutes,
+    inWindow: true,
+    inBreak,
+    active: !inBreak,
+  };
+}
 
 /**
  * Check if (hour, minute) falls inside any of the given breaks.
@@ -341,28 +425,18 @@ export function detectSessions(
     // Find the session whose outer window contains this candle (break-agnostic),
     // evaluating each session in its own configured timezone.
     let anchorSession: SessionDefinition | null = null;
-    let anchorHour = 0;
-    let anchorMinute = 0;
-    let anchorLocal: TzDateTime | null = null;
+    let anchorMembership: SessionMembership = OUTSIDE_SESSION;
     for (const session of sessionDefs) {
-      const local = getTzDateTime(candle.time, session.timezone);
-      if (isInSessionWindow(local.hour, local.minute, session)) {
+      const membership = resolveSessionMembership(candle.time, session);
+      if (membership.inWindow) {
         anchorSession = session;
-        anchorHour = local.hour;
-        anchorMinute = local.minute;
-        anchorLocal = local;
+        anchorMembership = membership;
         break;
       }
     }
-    const inBreak =
-      anchorSession !== null &&
-      anchorSession.breaks !== undefined &&
-      isInAnyBreak(anchorHour, anchorMinute, anchorSession.breaks);
+    const inBreak = anchorMembership.inBreak;
     const anchorName = anchorSession?.name ?? null;
-    const occurrence =
-      anchorSession === null || anchorLocal === null
-        ? -1
-        : sessionOccurrenceKey(anchorLocal, anchorSession);
+    const occurrence = anchorMembership.occurrenceKey;
 
     // A new occurrence of the same session — the day it opened on changed.
     // Without this, a series carrying only in-session bars never leaves the
