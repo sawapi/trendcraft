@@ -416,7 +416,7 @@ describeContract<number | null, TwapState>({
   name: "twap",
   create: (opts, warmUp) => createTwap(opts as { sessionResetPeriod?: "session" | number }, warmUp),
   category: "recursive",
-  version: 1,
+  version: 2,
   defaultParams: { sessionResetPeriod: "session" },
   // Exercise both directions: switch to a numeric session AND between
   // two different numeric sessions.
@@ -461,7 +461,7 @@ describeContract<VwapValueWithFlatField, VwapState>({
   // works without flattening.
   create: (opts, warmUp) => createVwap(opts as Record<string, never>, warmUp),
   category: "recursive",
-  version: 1,
+  version: 2,
   defaultParams: {},
   reconfigParams: [],
   makeCandles,
