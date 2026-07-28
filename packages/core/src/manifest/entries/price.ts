@@ -141,6 +141,7 @@ export const PRICE_MANIFESTS: IndicatorManifest[] = [
       "Range size matters: very tight opening range = high probability of false breakout (compression)",
       "30-minute default is one of several conventions — 15-minute and 60-minute also widely used; results differ materially",
       "Less useful in low-volatility sessions or on instruments without clear session boundaries",
+      "Without `session`, the range starts at the first bar of each UTC calendar day. RTH-only data usually starts at the open; with extended hours the UTC day begins with a post-market bar and the 'opening range' is built from it. Pass `session` to measure it from the real open",
     ],
     synergy: [
       "VWAP for institutional cost reference within the session",
@@ -151,7 +152,9 @@ export const PRICE_MANIFESTS: IndicatorManifest[] = [
     paramHints: {
       minutes: "30 default. Other common conventions: 5, 15, 60",
       sessionResetPeriod:
-        "'day' default (CALENDAR-day reset, not exchange session). Pass a number for fixed N-bar reset",
+        "'day' default (CALENDAR-day reset, not exchange session). Pass a number for fixed N-bar reset. Only the default 'day' may be combined with `session`; a number throws",
+      session:
+        "SessionDefinition to measure the range from a real session open, in its own timezone. Out-of-session and break bars return null. A day whose open was not observed (data starting mid-session) reports no range rather than a partial one measured from the first available bar",
     },
   },
   {

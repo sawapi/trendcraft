@@ -25,7 +25,8 @@ export type VwapOptions = {
    * - 'rolling': Rolling VWAP over specified period
    * - number: Reset every N candles
    *
-   * Cannot be combined with `session`, which brings its own boundaries.
+   * Only the default `'session'` may be combined with `session`, which brings
+   * its own boundaries; `'rolling'` and bar counts throw.
    */
   resetPeriod?: "session" | "rolling" | number;
   /** Period for rolling VWAP (only used when resetPeriod is 'rolling') */
@@ -33,11 +34,15 @@ export type VwapOptions = {
   /**
    * Trading session the VWAP belongs to.
    *
-   * Without it, the average restarts at UTC midnight, which is not when any
-   * exchange's trading day begins — for US equities it is 19:00 or 20:00 New
-   * York time, after the close — so one reset period runs from a day's
-   * post-market through the next day's pre-market, regular session and
-   * post-market. With it, the average restarts when the session does, in the
+   * Without it, the average restarts at UTC midnight rather than at a session
+   * boundary. For a series limited to regular trading hours the two often
+   * coincide — a US equity day sits inside one UTC date — but it breaks once
+   * the series carries extended hours: UTC midnight is 19:00 or 20:00 in New
+   * York, part-way through the post-market, so one reset period runs from
+   * there through the next day's pre-market, regular session and post-market.
+   * It never lines up for a session that itself crosses UTC midnight.
+   *
+   * With it, the average restarts when the session does, in the
    * session's own timezone, and only bars inside the session contribute: bars
    * outside the window, and bars inside one of its breaks, produce `null` and
    * leave the running totals untouched.
