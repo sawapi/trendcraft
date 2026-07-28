@@ -17,6 +17,7 @@ export const VOLUME_MANIFESTS: IndicatorManifest[] = [
       "Pullback to VWAP in trend = continuation entry zone",
     ],
     pitfalls: [
+      "Without `session`, the reset is at UTC midnight — 19:00/20:00 New York, after the close — so one period runs from a day's post-market through the next day's pre-market, regular session and post-market. Pass `session` to anchor it to the actual trading day",
       "Session-reset VWAP loses most of its intended relevance across multiple days; trendcraft offers `resetPeriod: 'rolling' | number` for non-session use",
       "Less useful pre-market or in low-volume sessions",
       "Anchored variants (anchoredVwap) are often more meaningful for multi-day context",
@@ -28,10 +29,12 @@ export const VOLUME_MANIFESTS: IndicatorManifest[] = [
     timeframe: ["intraday"],
     paramHints: {
       resetPeriod:
-        "'session' default (resets per trading day). 'rolling' for windowed VWAP, or number for fixed N-bar reset",
+        "'session' default (resets per trading day). 'rolling' for windowed VWAP, or number for fixed N-bar reset. Cannot be combined with `session`",
       period: "Used only when resetPeriod='rolling' — sets the rolling window length",
       bandMultipliers:
         "Extra ±N σ band pairs beyond the default ±1σ (e.g. [2, 3] adds ±2σ and ±3σ)",
+      session:
+        "SessionDefinition to anchor the average to a real trading session, in its own timezone. Only in-session bars contribute; out-of-session and break bars return null without moving the totals. Handles midnight-crossing sessions and DST",
     },
   },
   {
@@ -196,13 +199,16 @@ export const VOLUME_MANIFESTS: IndicatorManifest[] = [
       "TWAP and VWAP can diverge meaningfully on event days when volume is concentrated",
       "Not a market-direction reference; primarily an execution benchmark",
       "Resets per session by default — meaningless on multi-day timeframes without anchoring",
+      "Without `session`, the reset is at UTC midnight — 19:00/20:00 New York, after the close — so one period runs from a day's post-market through the next day's pre-market, regular session and post-market. Pass `session` to anchor it to the actual trading day",
     ],
     synergy: ["VWAP for cross-check; large TWAP-VWAP gap signals uneven volume distribution"],
     marketRegime: ["ranging"],
     timeframe: ["intraday"],
     paramHints: {
       sessionResetPeriod:
-        "'session' default (resets per trading day). Pass a number for fixed N-bar reset",
+        "'session' default (resets per trading day). Pass a number for fixed N-bar reset. Cannot be combined with `session`",
+      session:
+        "SessionDefinition to anchor the average to a real trading session, in its own timezone. Only in-session bars contribute; out-of-session and break bars return null without moving the totals. Handles midnight-crossing sessions and DST",
     },
   },
   {

@@ -758,19 +758,33 @@ const custom = choppinessIndex(candles, { period: 7 });
 Volume Weighted Average Price.
 
 ```typescript
-// Session VWAP (resets daily)
+// Session VWAP (resets at UTC midnight)
 const result = vwap(candles);
 
 // Rolling VWAP over 20 periods
 const rolling = vwap(candles, { resetPeriod: 'rolling', period: 20 });
+
+// Anchored to a trading session: resets at the open, ignores extended hours
+const nyVwap = vwap(candles, {
+  session: { name: 'regular', startHour: 9, startMinute: 30, endHour: 16, endMinute: 0, timezone: 'America/New_York' },
+});
 ```
 
 **Options:**
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `resetPeriod` | `'session' \| 'rolling' \| number` | `'session'` | Reset period type |
+| `resetPeriod` | `'session' \| 'rolling' \| number` | `'session'` | Reset period type. Cannot be combined with `session` |
 | `period` | `number` | `20` | Period for rolling VWAP |
 | `bandMultipliers` | `number[]` | — | Additional σ-band multipliers (e.g., `[2, 3]` for ±2σ, ±3σ) |
+| `session` | `SessionDefinition` | — | Anchor the average to a trading session (see below) |
+
+**Session anchoring**
+
+Without `session`, the average restarts at UTC midnight, which is not when any exchange's trading day begins. For US equities that is 19:00 or 20:00 New York time — after the close — so one reset period runs from a day's post-market through the next day's pre-market, regular session and post-market: extended-hours bars are mixed in, and the average never restarts at the open.
+
+With `session`, the average restarts when the session does, in the session's own timezone, and only bars inside it contribute. Bars outside the window, and bars inside one of its breaks, return `null` and leave the running totals untouched, so a lunch break pauses the average rather than restarting it. Sessions that cross midnight stay whole, as do sessions running through a DST change.
+
+Combining `session` with `resetPeriod: 'rolling'` or a bar count throws, rather than silently honoring one of them.
 
 **Returns:** `Series<VwapValue>`
 
@@ -1101,12 +1115,18 @@ Time-Weighted Average Price — equal-weighted average of typical prices within 
 ```typescript
 const result = twap(candles);
 const fixed = twap(candles, { sessionResetPeriod: 30 });
+
+// Anchored to a trading session, like session VWAP
+const nyTwap = twap(candles, {
+  session: { name: 'regular', startHour: 9, startMinute: 30, endHour: 16, endMinute: 0, timezone: 'America/New_York' },
+});
 ```
 
 **Options:**
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `sessionResetPeriod` | `'session' \| number` | `'session'` | Reset at each day or every N candles |
+| `sessionResetPeriod` | `'session' \| number` | `'session'` | Reset at each day or every N candles. Cannot be combined with `session` |
+| `session` | `SessionDefinition` | — | Anchor the average to a trading session — same semantics as [`vwap`](#vwapcandles-options) |
 
 **Returns:** `Series<number | null>`
 

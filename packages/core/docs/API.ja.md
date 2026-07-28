@@ -758,19 +758,33 @@ const custom = choppinessIndex(candles, { period: 7 });
 出来高加重平均価格。
 
 ```typescript
-// セッションVWAP（日次リセット）
+// セッションVWAP（UTC 0時リセット）
 const result = vwap(candles);
 
 // ローリングVWAP（20期間）
 const rolling = vwap(candles, { resetPeriod: 'rolling', period: 20 });
+
+// 取引セッションに紐付け：寄付でリセットし、時間外バーを除外
+const nyVwap = vwap(candles, {
+  session: { name: 'regular', startHour: 9, startMinute: 30, endHour: 16, endMinute: 0, timezone: 'America/New_York' },
+});
 ```
 
 **オプション:**
 | オプション | 型 | デフォルト | 説明 |
 |------------|------|---------|------|
-| `resetPeriod` | `'session' \| 'rolling' \| number` | `'session'` | リセット期間タイプ |
+| `resetPeriod` | `'session' \| 'rolling' \| number` | `'session'` | リセット期間タイプ。`session` とは併用不可 |
 | `period` | `number` | `20` | ローリングVWAP期間 |
 | `bandMultipliers` | `number[]` | — | 追加σバンドの倍率（例：`[2, 3]` で±2σ、±3σ） |
+| `session` | `SessionDefinition` | — | 取引セッションに紐付ける（下記参照） |
+
+**セッション紐付け**
+
+`session` を指定しない場合、平均は UTC 0時でリセットされますが、これはどの取引所の取引開始時刻でもありません。米国株ではニューヨーク時間の 19:00 / 20:00、つまり引け後にあたります。そのため1つのリセット期間が、ある日のポストマーケットから翌日のプレマーケット・通常取引・ポストマーケットまでを1つにまとめてしまい、時間外バーが混ざったまま寄付でリセットされません。
+
+`session` を指定すると、平均はセッションのタイムゾーンで、セッション開始時にリセットされ、セッション内のバーだけが対象になります。window 外のバーと break 内のバーは `null` を返し、累積値を変更しません。したがって昼休みは平均を「一時停止」させるだけでリセットしません。深夜を跨ぐセッションも、DST 切り替え日を跨ぐセッションも1つのまま保たれます。
+
+`session` と `resetPeriod: 'rolling'` または本数指定の併用は、どちらかを黙って優先するのではなくエラーになります。
 
 **戻り値:** `Series<VwapValue>`
 
@@ -1085,12 +1099,18 @@ TWAP（時間加重平均価格） — セッション内のTypical Priceの均�
 ```typescript
 const result = twap(candles);
 const fixed = twap(candles, { sessionResetPeriod: 30 });
+
+// セッションVWAPと同様に取引セッションへ紐付け
+const nyTwap = twap(candles, {
+  session: { name: 'regular', startHour: 9, startMinute: 30, endHour: 16, endMinute: 0, timezone: 'America/New_York' },
+});
 ```
 
 **オプション:**
 | オプション | 型 | デフォルト | 説明 |
 |-----------|------|-----------|------|
-| `sessionResetPeriod` | `'session' \| number` | `'session'` | セッションリセット期間 |
+| `sessionResetPeriod` | `'session' \| number` | `'session'` | セッションリセット期間。`session` とは併用不可 |
+| `session` | `SessionDefinition` | — | 取引セッションに紐付ける — 意味論は [`vwap`](#vwapcandles-options) と同じ |
 
 **戻り値:** `Series<number | null>`
 

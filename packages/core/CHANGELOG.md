@@ -2,6 +2,42 @@
 
 ## [Unreleased]
 
+### Added — `session` option on `vwap` and `twap`
+
+Both averages restart at UTC midnight, which is not when any exchange's trading
+day begins. For US equities it falls at 19:00 or 20:00 New York time — after
+the close — so a single reset period runs from one day's post-market through
+the next day's pre-market, regular session and post-market, mixing extended
+hours into the figure and never restarting at the open. The reset lines up with
+a trading day only for markets that happen to open near 00:00 UTC.
+
+Passing a `SessionDefinition` anchors the average to that session instead:
+
+```ts
+const nyVwap = vwap(candles, {
+  session: {
+    name: "regular",
+    startHour: 9, startMinute: 30,
+    endHour: 16, endMinute: 0,
+    timezone: "America/New_York",
+  },
+});
+```
+
+The average then restarts when the session does, in the session's own
+timezone, and only bars inside it contribute. Bars outside the window, and bars
+inside one of its breaks, return `null` and leave the running totals untouched
+— so a lunch break pauses the average rather than restarting it, and the value
+after the break continues from where trading left off. Sessions that cross
+midnight stay whole, as do sessions running through a DST change.
+
+Combining `session` with `resetPeriod: "rolling"` (or a bar count, or
+`sessionResetPeriod` on `twap`) throws, naming both options: a session brings
+its own boundaries, so honoring one of the two silently would report a figure
+the caller did not ask for.
+
+Without `session`, both indicators behave exactly as before.
+
 ### Fixed — sessions restart on the next day in regular-hours-only data
 
 `detectSessions`, `sessionStats` and `sessionBreakout` decided that one

@@ -350,6 +350,39 @@ export function resolveSessionMembership(
 }
 
 /**
+ * Reject a reset option that contradicts an explicit `session`.
+ *
+ * An indicator given a `session` takes its boundaries from that session, so a
+ * rolling window or a fixed bar count has nothing left to mean. Accepting both
+ * and silently honoring one would report a figure the caller did not ask for —
+ * the same failure as ignoring an option outright.
+ *
+ * Indicators name this option differently (`resetPeriod`, `sessionResetPeriod`)
+ * and default it differently (`"session"`, `"day"`), hence the parameters.
+ *
+ * @param indicator - Indicator name, for the error message
+ * @param optionName - The reset option's key in that indicator's options
+ * @param value - The reset option's effective value
+ * @param sessionDefault - The value meaning "one session per day", which is the
+ *   only value compatible with an explicit session
+ */
+export function assertSessionResetCompatible(
+  indicator: string,
+  optionName: string,
+  value: string | number,
+  sessionDefault: string,
+): void {
+  if (value === sessionDefault) return;
+
+  const kept = typeof value === "number" ? `resetting every ${value} bars` : `the "${value}" reset`;
+  throw new Error(
+    `${indicator}: \`${optionName}: ${JSON.stringify(value)}\` cannot be combined with \`session\` — ` +
+      `a session defines its own reset boundaries. Drop \`${optionName}\` to use the session, ` +
+      `or drop \`session\` to keep ${kept}.`,
+  );
+}
+
+/**
  * Check if (hour, minute) falls inside any of the given breaks.
  */
 export function isInAnyBreak(hour: number, minute: number, breaks: SessionBreak[]): boolean {
