@@ -9,6 +9,11 @@ import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
 import { VWAP_META } from "../indicator-meta";
+import {
+  assertSessionResetCompatible,
+  resolveSessionMembership,
+  type SessionDefinition,
+} from "../session/session-definition";
 
 /**
  * VWAP options
@@ -19,10 +24,28 @@ export type VwapOptions = {
    * - 'session': Reset at the start of each day (default)
    * - 'rolling': Rolling VWAP over specified period
    * - number: Reset every N candles
+   *
+   * Cannot be combined with `session`, which brings its own boundaries.
    */
   resetPeriod?: "session" | "rolling" | number;
   /** Period for rolling VWAP (only used when resetPeriod is 'rolling') */
   period?: number;
+  /**
+   * Trading session the VWAP belongs to.
+   *
+   * Without it, the average restarts at UTC midnight, which is not when any
+   * exchange's trading day begins — for US equities it is 19:00 or 20:00 New
+   * York time, after the close — so one reset period runs from a day's
+   * post-market through the next day's pre-market, regular session and
+   * post-market. With it, the average restarts when the session does, in the
+   * session's own timezone, and only bars inside the session contribute: bars
+   * outside the window, and bars inside one of its breaks, produce `null` and
+   * leave the running totals untouched.
+   *
+   * Handles sessions that cross midnight and days when the clock shifts for
+   * DST.
+   */
+  session?: SessionDefinition;
   /**
    * Band multipliers for additional standard deviation bands.
    * Each value creates an upper/lower band at that multiple of σ.
@@ -120,11 +143,33 @@ function calcVwapStdDev(
   return Math.sqrt(sumSquaredDiff / totalVolume);
 }
 
+/**
+ * Build the emitted value from a window's running totals
+ */
+function valueFromTotals(
+  tpvHistory: { tp: number; volume: number }[],
+  cumulativeTpv: number,
+  cumulativeVolume: number,
+  bandMultipliers: number[] | undefined,
+): VwapValue {
+  const vwapValue = cumulativeVolume > 0 ? cumulativeTpv / cumulativeVolume : null;
+  const stdDev =
+    vwapValue !== null && cumulativeVolume > 0
+      ? calcVwapStdDev(tpvHistory, vwapValue, cumulativeVolume)
+      : null;
+
+  return buildVwapValue(vwapValue, stdDev, bandMultipliers);
+}
+
 export function vwap(
   candles: Candle[] | NormalizedCandle[],
   options: VwapOptions = {},
 ): Series<VwapValue> {
-  const { resetPeriod = "session", period = 20, bandMultipliers } = options;
+  const { resetPeriod = "session", period = 20, bandMultipliers, session } = options;
+
+  if (session) {
+    assertSessionResetCompatible("vwap", "resetPeriod", resetPeriod, "session");
+  }
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
 
@@ -153,15 +198,47 @@ export function vwap(
         cumulativeVolume += candle.volume;
       }
 
-      const vwapValue = cumulativeVolume > 0 ? cumulativeTpv / cumulativeVolume : null;
-      const stdDev =
-        vwapValue !== null && cumulativeVolume > 0
-          ? calcVwapStdDev(tpvHistory, vwapValue, cumulativeVolume)
-          : null;
-
       result.push({
         time: normalized[i].time,
-        value: buildVwapValue(vwapValue, stdDev, bandMultipliers),
+        value: valueFromTotals(tpvHistory, cumulativeTpv, cumulativeVolume, bandMultipliers),
+      });
+    }
+  } else if (session) {
+    // Session-anchored: the average covers one session occurrence, restarting
+    // when the session does rather than at UTC midnight.
+    let cumulativeTpv = 0;
+    let cumulativeVolume = 0;
+    let tpvHistory: { tp: number; volume: number }[] = [];
+    let currentOccurrence = -1;
+
+    for (const candle of normalized) {
+      const membership = resolveSessionMembership(candle.time, session);
+
+      if (!membership.active) {
+        // Outside the window, or inside a break: not part of the session's
+        // average, and must not move the running totals either.
+        result.push({
+          time: candle.time,
+          value: buildVwapValue(null, null, bandMultipliers),
+        });
+        continue;
+      }
+
+      if (membership.occurrenceKey !== currentOccurrence) {
+        cumulativeTpv = 0;
+        cumulativeVolume = 0;
+        tpvHistory = [];
+        currentOccurrence = membership.occurrenceKey;
+      }
+
+      const tp = (candle.high + candle.low + candle.close) / 3;
+      cumulativeTpv += tp * candle.volume;
+      cumulativeVolume += candle.volume;
+      tpvHistory.push({ tp, volume: candle.volume });
+
+      result.push({
+        time: candle.time,
+        value: valueFromTotals(tpvHistory, cumulativeTpv, cumulativeVolume, bandMultipliers),
       });
     }
   } else {
@@ -199,15 +276,9 @@ export function vwap(
       cumulativeVolume += candle.volume;
       tpvHistory.push({ tp, volume: candle.volume });
 
-      const vwapValue = cumulativeVolume > 0 ? cumulativeTpv / cumulativeVolume : null;
-      const stdDev =
-        vwapValue !== null && cumulativeVolume > 0
-          ? calcVwapStdDev(tpvHistory, vwapValue, cumulativeVolume)
-          : null;
-
       result.push({
         time: candle.time,
-        value: buildVwapValue(vwapValue, stdDev, bandMultipliers),
+        value: valueFromTotals(tpvHistory, cumulativeTpv, cumulativeVolume, bandMultipliers),
       });
     }
   }
