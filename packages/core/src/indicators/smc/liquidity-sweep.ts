@@ -77,7 +77,12 @@ export type LiquiditySweepValue = {
   isSweep: boolean;
   /** New sweep detected on this bar */
   sweep: LiquiditySweep | null;
-  /** Recent sweeps (both recovered and unrecovered) */
+  /**
+   * Recent sweeps (both recovered and unrecovered), as of this bar.
+   *
+   * A snapshot: a sweep that recovers on a later bar keeps `recovered: false`
+   * in the bars emitted before that.
+   */
   recentSweeps: LiquiditySweep[];
   /** Sweeps that recovered on this bar (good entry signals) */
   recoveredThisBar: LiquiditySweep[];
@@ -163,7 +168,6 @@ export function liquiditySweep(
 
   for (let i = 0; i < normalized.length; i++) {
     const candle = normalized[i];
-    const swing = swings[i]?.value;
 
     let newSweep: LiquiditySweep | null = null;
     const recoveredThisBar: LiquiditySweep[] = [];
@@ -255,22 +259,29 @@ export function liquiditySweep(
       }
     }
 
-    // Update tracked swing levels for next iteration
-    // (After sweep checks to avoid overwriting the level we just swept)
-    if (swing?.isSwingHigh && swing.swingHighPrice !== null) {
-      recentSwingHigh = { level: swing.swingHighPrice, index: i };
+    // Update tracked swing levels for next iteration.
+    // A pivot at index `confirmedIdx` reads bars up to `confirmedIdx +
+    // swingPeriod`, so it is adopted on this bar and not on the pivot bar
+    // itself — until then the previous level stays active and can be swept.
+    // (After the sweep checks, to avoid overwriting the level we just swept.)
+    const confirmedIdx = i - swingPeriod;
+    const confirmed = confirmedIdx >= 0 ? swings[confirmedIdx]?.value : undefined;
+    if (confirmed?.isSwingHigh) {
+      recentSwingHigh = { level: normalized[confirmedIdx].high, index: confirmedIdx };
     }
-    if (swing?.isSwingLow && swing.swingLowPrice !== null) {
-      recentSwingLow = { level: swing.swingLowPrice, index: i };
+    if (confirmed?.isSwingLow) {
+      recentSwingLow = { level: normalized[confirmedIdx].low, index: confirmedIdx };
     }
 
+    // Emit copies: a sweep object keeps being mutated while it waits for
+    // recovery, and bars already emitted must not change under the consumer.
     result.push({
       time: candle.time,
       value: {
         isSweep: newSweep !== null,
-        sweep: newSweep,
-        recentSweeps: [...recentSweeps],
-        recoveredThisBar,
+        sweep: newSweep === null ? null : { ...newSweep },
+        recentSweeps: recentSweeps.map((sweep) => ({ ...sweep })),
+        recoveredThisBar: recoveredThisBar.map((sweep) => ({ ...sweep })),
       },
     });
   }

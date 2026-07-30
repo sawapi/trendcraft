@@ -1,9 +1,10 @@
 /**
  * Parity tests for incremental Liquidity Sweep vs batch.
  *
- * The batch implementation uses look-ahead (it consults `swings[i].isSwingHigh`
- * which itself peeks `swingPeriod` bars into the future), so the live indicator
- * cannot match batch bar-by-bar. Instead we verify:
+ * Both sides adopt a swing level once its pivot is confirmed, so they agree
+ * bar by bar. We verify:
+ *  - Detection matches on every bar, including a confirmation bar that sweeps
+ *    the level tracked before it.
  *  - The set of detected sweeps (keyed by sweepIndex + type) is identical once
  *    both sides finish processing.
  *  - Recovery indices agree on every sweep that both sides detect.
@@ -83,9 +84,84 @@ function collectBatch(
   return map;
 }
 
+function describeSweep(value: {
+  isSweep: boolean;
+  sweep: { type: string; sweptLevel: number } | null;
+}) {
+  return {
+    isSweep: value.isSweep,
+    type: value.sweep?.type ?? null,
+    level: value.sweep?.sweptLevel ?? null,
+  };
+}
+
 describe("createLiquiditySweep", () => {
   const candles = generateCandles(400);
   const opts = { swingPeriod: 3, maxRecoveryBars: 4, maxTrackedSweeps: 10 };
+
+  it("sweeps the older level on a bar that also confirms a new pivot", () => {
+    // Swing high 105 at bar 1 (confirmed at bar 2) and swing low 94 at bar 2
+    // (confirmed at bar 3). Bar 4 is an outside bar: it sweeps the low, which
+    // suppresses the bearish check, so 105 survives even though bar 4 traded
+    // through it. Bar 4 is also a pivot high at 110, confirmed on bar 5 — and
+    // bar 5 trades to 107, above the still-tracked 105 and below the 110 it is
+    // confirming. Adopting 110 before judging bar 5 would hide that sweep.
+    const rows = [
+      { o: 99, h: 100, l: 98, c: 99 }, // 0
+      { o: 99, h: 105, l: 96, c: 104 }, // 1 - pivot high 105
+      { o: 104, h: 103, l: 94, c: 100 }, // 2 - pivot low 94
+      { o: 100, h: 104, l: 95, c: 103 }, // 3
+      { o: 103, h: 110, l: 90, c: 100 }, // 4 - outside bar: sweeps 94; pivot high 110
+      { o: 100, h: 107, l: 93, c: 100 }, // 5 - sweeps 105 while confirming 110
+      { o: 100, h: 106, l: 94, c: 101 }, // 6
+    ];
+    const fixture: NormalizedCandle[] = rows.map((d, i) => ({
+      time: 1700000000000 + i * 86400000,
+      open: d.o,
+      high: d.h,
+      low: d.l,
+      close: d.c,
+      volume: 1000,
+    }));
+    const options = { swingPeriod: 1, maxRecoveryBars: 3, minSweepDepth: 0 };
+
+    const batch = liquiditySweep(fixture, options);
+    expect(batch[4].value.sweep?.type).toBe("bullish");
+    expect(batch[4].value.sweep?.sweptLevel).toBe(94);
+    expect(batch[5].value.sweep?.type).toBe("bearish");
+    expect(batch[5].value.sweep?.sweptLevel).toBe(105);
+
+    const live = createLiquiditySweep(options);
+    for (let i = 0; i < fixture.length; i++) {
+      const value = live.next(fixture[i]).value;
+      expect({ bar: i, ...describeSweep(value) }).toEqual({
+        bar: i,
+        ...describeSweep(batch[i].value),
+      });
+    }
+  });
+
+  it("detects the same sweeps as batch on every bar", () => {
+    let compared = 0;
+    let sweeps = 0;
+    for (const swingPeriod of [1, 2, 3, 5]) {
+      const options = { swingPeriod, maxRecoveryBars: 3, minSweepDepth: 0 };
+      const batch = liquiditySweep(candles, options);
+      const live = createLiquiditySweep(options);
+      for (let i = 0; i < candles.length; i++) {
+        const value = live.next(candles[i]).value;
+        expect({ bar: i, swingPeriod, ...describeSweep(value) }).toEqual({
+          bar: i,
+          swingPeriod,
+          ...describeSweep(batch[i].value),
+        });
+        compared++;
+        if (batch[i].value.isSweep) sweeps++;
+      }
+    }
+    expect(compared).toBe(candles.length * 4);
+    expect(sweeps).toBeGreaterThan(0);
+  });
 
   it("detects the same set of sweeps as batch", () => {
     const liveMap = collectLive(candles, opts);

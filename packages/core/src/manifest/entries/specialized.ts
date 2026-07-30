@@ -97,6 +97,7 @@ export const SPECIALIZED_MANIFESTS: IndicatorManifest[] = [
     pitfalls: [
       "Sweeps look identical to genuine breakouts in real-time — confirmation requires recovery",
       "trendcraft impl marks `recovered=true` when the bar that broke the level closes back past it. Multi-bar recoveries (sweep on bar N, recovery on bar N+1) need different logic",
+      "A swing level becomes sweepable `swingPeriod` bars after its pivot prints (that is when the pivot is confirmed), so a sweep of an older level can still fire while a newer pivot is unconfirmed",
       "Most 'sweeps' at minor swings are noise — focus on sweeps at major equal-highs/lows where stops cluster",
       "Combine with order-flow context: a sweep without follow-through reversal is just a trend continuation",
     ],

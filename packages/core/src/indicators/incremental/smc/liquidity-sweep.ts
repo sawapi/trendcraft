@@ -13,15 +13,18 @@
  *
  *   1. Drives an internal `createSwingPoints` for confirmation (delayed).
  *   2. Holds the last `swingPeriod + 1` candles in a ring.
- *   3. When a swing is confirmed at step `t` (for bar `mid = t - swingPeriod`),
+ *   3. Judges the current bar against the levels tracked before it, and only
+ *      then adopts a swing this bar confirms — the order matters, because a
+ *      bar that confirms a new pivot can itself sweep the older level.
+ *   4. When a swing is confirmed at step `t` (for bar `mid = t - swingPeriod`),
  *      it scans the buffered bars `(mid, t]` against the new level to detect
  *      any sweep that already occurred in that window — `sweep.sweepIndex /
  *      sweepTime` reflect the actual bar.
- *   4. Recovery checks always run against the current bar.
+ *   5. Recovery checks always run against the current bar.
  *
- * The set of sweeps observed by the live indicator eventually matches batch,
- * but emission lags real time by up to `swingPeriod` bars. Tests compare the
- * multiset of detected sweeps after both sides finish processing.
+ * The batch indicator adopts levels at the same point, so the two agree bar by
+ * bar; a sweep is still only reported once the level it broke was confirmed,
+ * which is what a live feed can know.
  *
  * State category: **Mixed** (an inner `createSwingPoints` snapshot
  * plus a `swingPeriod + 1` scan ring buffer). The buffer capacity and
@@ -241,6 +244,31 @@ export function createLiquiditySweep(
 
       const confirmedSwingIdx = idx - swingPeriod;
 
+      // The current bar is judged against the levels that were already
+      // tracked when it opened. A pivot that this very bar confirms is adopted
+      // afterwards: it was not an established level while the bar traded, and
+      // by the strict-inequality rule of swing detection this bar cannot break
+      // it anyway. Adopting it first would hide a sweep of the older level.
+      const currentBar = buffer.newest();
+      if (newSweep === null && recentSwingLow) {
+        const sweep = trySweep(recentSwingLow, currentBar, "bullish");
+        if (sweep) {
+          newSweep = sweep;
+          if (sweep.recovered) recoveredThisBar.push(sweep);
+          pushSweep(sweep);
+          recentSwingLow = null;
+        }
+      }
+      if (newSweep === null && recentSwingHigh) {
+        const sweep = trySweep(recentSwingHigh, currentBar, "bearish");
+        if (sweep) {
+          newSweep = sweep;
+          if (sweep.recovered) recoveredThisBar.push(sweep);
+          pushSweep(sweep);
+          recentSwingHigh = null;
+        }
+      }
+
       // Process newly-confirmed swings. Outside bars can confirm both a high
       // and a low on the same step, so each side runs an independent backfill
       // scan. If a backfill produces a sweep the swing tracker is reset (it
@@ -276,27 +304,6 @@ export function createLiquiditySweep(
         }
       }
 
-      // Current bar against any pre-existing tracked swing (set in earlier steps).
-      const currentBar = buffer.newest();
-      if (newSweep === null && recentSwingLow) {
-        const sweep = trySweep(recentSwingLow, currentBar, "bullish");
-        if (sweep) {
-          newSweep = sweep;
-          if (sweep.recovered) recoveredThisBar.push(sweep);
-          pushSweep(sweep);
-          recentSwingLow = null;
-        }
-      }
-      if (newSweep === null && recentSwingHigh) {
-        const sweep = trySweep(recentSwingHigh, currentBar, "bearish");
-        if (sweep) {
-          newSweep = sweep;
-          if (sweep.recovered) recoveredThisBar.push(sweep);
-          pushSweep(sweep);
-          recentSwingHigh = null;
-        }
-      }
-
       // Delayed recovery on previously tracked unrecovered sweeps.
       const survivors: LiquiditySweep[] = [];
       for (const sweep of recentSweeps) {
@@ -319,13 +326,15 @@ export function createLiquiditySweep(
       }
       recentSweeps = survivors;
 
+      // Emit copies: a sweep object keeps being mutated while it waits for
+      // recovery, and a value already handed out must not change.
       return {
         time: candle.time,
         value: {
           isSweep: newSweep !== null,
-          sweep: newSweep,
+          sweep: newSweep === null ? null : { ...newSweep },
           recentSweeps: recentSweeps.map((s) => ({ ...s })),
-          recoveredThisBar,
+          recoveredThisBar: recoveredThisBar.map((s) => ({ ...s })),
         },
       };
     },

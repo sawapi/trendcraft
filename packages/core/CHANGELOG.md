@@ -218,6 +218,50 @@ capital outside the market.
 
 Multi-tranche results change for any backtest that closes more than one trade.
 
+### Fixed — swing levels are adopted when the pivot is confirmed, not when it prints
+
+`swingPoints` reports two different things: `isSwingHigh` / `isSwingLow` mark
+the pivot bar itself, and `swingHighPrice` / `swingLowPrice` /
+`swingHighIndex` / `swingLowIndex` trail the most recent swing level. A pivot
+is decided by the `rightBars` bars that follow it, so it is only knowable that
+many bars later — but the trailing fields were updated on the pivot bar. Read
+bar by bar, as a backtest or any per-bar consumer does, they handed out a level
+the market had not confirmed yet. On a 200-bar random walk with the default
+5/5, 103 of the 200 bars disagreed with a run that ended at that bar.
+
+The trailing fields now adopt a pivot at `pivotIndex + rightBars`, so a run
+over the whole series and a run that stops at bar `k` report the same levels at
+bar `k`. `swingHighIndex` / `swingLowIndex` are therefore at least `rightBars`.
+`isSwingHigh` / `isSwingLow` keep marking the pivot bar and stay retrospective
+— that is what draws a swing marker on the chart at the right place — and this
+is now stated in their documentation.
+
+`liquiditySweep` read those trailing fields once per bar, so it replaced its
+tracked swing high and low at the pivot bar as well. A newer, still-unconfirmed
+pivot could hide an older level that price was in fact sweeping. With
+`swingPeriod: 2`, a swing high of 105 confirmed earlier and an outside bar
+printing a 110 pivot that only confirms two bars later, the next bar trading up
+to 107 reported nothing, while a run ending at that bar reported a bearish
+sweep of 105. It now promotes a pivot to a tracked level at
+`pivotIndex + swingPeriod`, and the two runs agree.
+
+`createLiquiditySweep`, the streaming counterpart, adopted a newly confirmed
+pivot *before* judging the bar that confirmed it, so it missed a sweep of the
+older level on that bar — the case above, where the bar trades above the level
+still being tracked and below the pivot it is confirming. It now judges the bar
+first and adopts afterwards, matching the batch indicator bar by bar. A bar
+cannot break the pivot it confirms: swing detection is strict, so every bar in
+the confirmation window is below it.
+
+Bars emitted by both indicators are also snapshots now. `sweep` and the entries
+in `recentSweeps` used to be the live sweep objects, which keep being mutated
+while they wait for recovery, so a recovery several bars later retroactively set
+`recovered` and `recoveredIndex` on bars that had already been emitted.
+
+Swing-level values and sweep detection change. Indicators that build on the
+`isSwingHigh` / `isSwingLow` flags — Fibonacci levels, channel lines,
+pitchfork, S/R zones, pattern detection — are untouched.
+
 ## [0.5.0] - 2026-07-26
 
 ### Read this first — your numbers will change
