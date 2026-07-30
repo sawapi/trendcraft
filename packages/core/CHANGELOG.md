@@ -2,6 +2,30 @@
 
 ## [Unreleased]
 
+### Breaking — incremental `vwap` and `twap` snapshots need a re-warm
+
+`createVwap` and `createTwap` take the same `session` option as their batch
+counterparts, with the same meaning: only bars inside the session contribute,
+and bars outside the window or inside one of its breaks return `null` while the
+running totals stay put. `count` still advances for them — the bar was
+consumed, it just did not contribute.
+
+The field tracking which period the totals belong to is now an occurrence key
+rather than a UTC day index, and is named `currentOccurrence` (was
+`currentDay` on `VwapState`, `lastDayIndex` on `TwapState`). A snapshot written
+by the previous version cannot be told apart from one written under a
+different anchoring, so both schema versions move to 2 and older snapshots are
+refused with the usual re-warm error. **Snapshots persisted before this release
+must be re-warmed**, whether or not you use `session`.
+
+`session` travels in `meta.params`, so resuming under a different one throws
+through the existing parameter-mismatch rule — the totals encode which session
+they were accumulated over. Omitting the option when resuming keeps the
+snapshot's session, as with every other param.
+
+`createTwap` rejects `session` combined with a bar-count `sessionResetPeriod`,
+matching the batch indicator.
+
 ### Added — `session` option on `openingRange`
 
 The opening range was measured from the first bar of each UTC calendar day.
