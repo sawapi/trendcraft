@@ -108,6 +108,77 @@ describe("swingPoints", () => {
     expect(hasSwingHigh).toBe(false);
   });
 
+  describe("trailing levels are knowable at the bar they are reported on", () => {
+    it("adopts a pivot only once its confirmation window has closed", () => {
+      // Pivot high at index 1, confirmed by the bars up to index 4.
+      const candles = makeCandles([
+        { o: 100, h: 105, l: 99, c: 104 }, // 0
+        { o: 104, h: 120, l: 103, c: 118 }, // 1 - pivot high at 120
+        { o: 118, h: 110, l: 108, c: 109 }, // 2
+        { o: 109, h: 108, l: 106, c: 107 }, // 3
+        { o: 107, h: 106, l: 104, c: 105 }, // 4 - pivot confirmable here
+        { o: 105, h: 107, l: 103, c: 106 }, // 5
+      ]);
+
+      const result = swingPoints(candles, { leftBars: 1, rightBars: 3 });
+
+      expect(result[1].value.isSwingHigh).toBe(true);
+      // The pivot bar itself, and every bar inside the confirmation window,
+      // still report the previous (here: no) swing level.
+      expect(result[1].value.swingHighPrice).toBeNull();
+      expect(result[2].value.swingHighPrice).toBeNull();
+      expect(result[3].value.swingHighPrice).toBeNull();
+      expect(result[4].value.swingHighPrice).toBe(120);
+      expect(result[4].value.swingHighIndex).toBe(3);
+      expect(result[5].value.swingHighIndex).toBe(4);
+    });
+
+    it("reports the same trailing levels as a run that ends at that bar", () => {
+      // Deterministic random walk.
+      let seed = 42;
+      const random = () => {
+        seed = (seed * 16807) % 2147483647;
+        return seed / 2147483647;
+      };
+      const rows: Array<{ o: number; h: number; l: number; c: number }> = [];
+      let price = 100;
+      for (let i = 0; i < 200; i++) {
+        const open = price;
+        const close = price * (1 + (random() - 0.5) * 0.06);
+        rows.push({
+          o: open,
+          h: Math.max(open, close) * (1 + random() * 0.02),
+          l: Math.min(open, close) * (1 - random() * 0.02),
+          c: close,
+        });
+        price = close;
+      }
+      const candles = makeCandles(rows);
+      const options = { leftBars: 5, rightBars: 5 };
+
+      const full = swingPoints(candles, options);
+      const mismatches: number[] = [];
+      for (let k = 0; k < candles.length; k++) {
+        const prefix = swingPoints(candles.slice(0, k + 1), options);
+        const a = full[k].value;
+        const b = prefix[k].value;
+        if (
+          a.swingHighPrice !== b.swingHighPrice ||
+          a.swingLowPrice !== b.swingLowPrice ||
+          a.swingHighIndex !== b.swingHighIndex ||
+          a.swingLowIndex !== b.swingLowIndex
+        ) {
+          mismatches.push(k);
+        }
+      }
+
+      expect(mismatches).toEqual([]);
+      // Guard against a series with no swings at all making this vacuous.
+      expect(full.some((r) => r.value.swingHighPrice !== null)).toBe(true);
+      expect(full.some((r) => r.value.swingLowPrice !== null)).toBe(true);
+    });
+  });
+
   describe("getSwingHighs", () => {
     it("should return array of swing high points", () => {
       const candles = makeCandles([

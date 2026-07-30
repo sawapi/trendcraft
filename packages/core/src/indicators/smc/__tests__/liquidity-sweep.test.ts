@@ -1,6 +1,17 @@
 import { describe, expect, it } from "vitest";
 import type { NormalizedCandle } from "../../../types";
-import { getRecoveredSweeps, hasRecentSweepSignal, liquiditySweep } from "../liquidity-sweep";
+import {
+  getRecoveredSweeps,
+  hasRecentSweepSignal,
+  type LiquiditySweepValue,
+  liquiditySweep,
+} from "../liquidity-sweep";
+
+const describeSweep = (value: LiquiditySweepValue) => ({
+  isSweep: value.isSweep,
+  type: value.sweep?.type ?? null,
+  level: value.sweep?.sweptLevel ?? null,
+});
 
 const makeCandles = (
   data: Array<{ o: number; h: number; l: number; c: number }>,
@@ -199,6 +210,108 @@ describe("liquiditySweep", () => {
 
       const sweepBar = result.find((r) => r.value.isSweep);
       expect(sweepBar).toBeUndefined();
+    });
+  });
+
+  describe("Swing levels are adopted only once confirmable", () => {
+    it("still sweeps the old level while a newer pivot is unconfirmed", () => {
+      // Pivot high 105 at bar 2 (confirmable at bar 4) and pivot low 90 at
+      // bar 5 (confirmable at bar 7). Bar 8 is an outside bar: it sweeps the
+      // low, and is itself a pivot high at 110 — confirmable only at bar 10.
+      // Bar 9 trades at 107: above the still-active 105, below the unconfirmed
+      // 110. It is a sweep of 105.
+      const candles = makeCandles([
+        { o: 99, h: 100, l: 98, c: 99 }, // 0
+        { o: 99, h: 101, l: 97, c: 100 }, // 1
+        { o: 100, h: 105, l: 96, c: 104 }, // 2 - pivot high 105
+        { o: 101, h: 102, l: 95, c: 100 }, // 3
+        { o: 100, h: 103, l: 94, c: 101 }, // 4
+        { o: 101, h: 104, l: 90, c: 95 }, // 5 - pivot low 90
+        { o: 95, h: 105, l: 93, c: 100 }, // 6
+        { o: 100, h: 104, l: 92, c: 97 }, // 7
+        { o: 97, h: 110, l: 85, c: 95 }, // 8 - sweeps 90; pivot high 110 + pivot low 85
+        { o: 95, h: 107, l: 88, c: 100 }, // 9 - sweeps 105
+        { o: 100, h: 106, l: 89, c: 101 }, // 10 - bar 8's pivots confirmable here
+      ]);
+      const options = { swingPeriod: 2, maxRecoveryBars: 3, minSweepDepth: 0 };
+
+      const result = liquiditySweep(candles, options);
+
+      expect(result[8].value.sweep?.type).toBe("bullish");
+      expect(result[8].value.sweep?.sweptLevel).toBe(90);
+      expect(result[9].value.sweep?.type).toBe("bearish");
+      expect(result[9].value.sweep?.sweptLevel).toBe(105);
+
+      // Same answer as a run that only has the bars up to and including bar 9.
+      const upTo9 = liquiditySweep(candles.slice(0, 10), options);
+      expect(upTo9[9].value.sweep?.type).toBe("bearish");
+      expect(upTo9[9].value.sweep?.sweptLevel).toBe(105);
+    });
+
+    it("detects the same sweeps as runs that end at each bar", () => {
+      let seed = 7;
+      const random = () => {
+        seed = (seed * 16807) % 2147483647;
+        return seed / 2147483647;
+      };
+      const rows: Array<{ o: number; h: number; l: number; c: number }> = [];
+      let price = 100;
+      for (let i = 0; i < 120; i++) {
+        const open = price;
+        const close = price * (1 + (random() - 0.5) * 0.06);
+        rows.push({
+          o: open,
+          h: Math.max(open, close) * (1 + random() * 0.02),
+          l: Math.min(open, close) * (1 - random() * 0.02),
+          c: close,
+        });
+        price = close;
+      }
+      const candles = makeCandles(rows);
+
+      let sweepsSeen = 0;
+      for (const swingPeriod of [1, 2, 3]) {
+        const options = { swingPeriod, maxRecoveryBars: 3, minSweepDepth: 0 };
+        const full = liquiditySweep(candles, options);
+        for (let k = 0; k < candles.length; k++) {
+          const prefix = liquiditySweep(candles.slice(0, k + 1), options);
+          expect({ bar: k, swingPeriod, ...describeSweep(full[k].value) }).toEqual({
+            bar: k,
+            swingPeriod,
+            ...describeSweep(prefix[k].value),
+          });
+          if (full[k].value.isSweep) sweepsSeen++;
+        }
+      }
+      expect(sweepsSeen).toBeGreaterThan(0);
+    });
+  });
+
+  describe("Emitted bars are snapshots", () => {
+    it("does not backdate a later recovery into earlier bars", () => {
+      const candles = makeCandles([
+        { o: 100, h: 102, l: 99, c: 101 }, // 0
+        { o: 101, h: 103, l: 100, c: 102 }, // 1
+        { o: 102, h: 104, l: 90, c: 92 }, // 2 - swing low at 90
+        { o: 92, h: 98, l: 91, c: 96 }, // 3
+        { o: 96, h: 100, l: 95, c: 99 }, // 4
+        { o: 99, h: 102, l: 98, c: 101 }, // 5
+        { o: 101, h: 103, l: 100, c: 102 }, // 6
+        { o: 102, h: 103, l: 85, c: 87 }, // 7 - breaks below 90, closes below
+        { o: 87, h: 95, l: 86, c: 93 }, // 8 - recovers above 90
+      ]);
+
+      const result = liquiditySweep(candles, { swingPeriod: 1 });
+
+      const sweepBar = result.findIndex((r) => r.value.isSweep);
+      expect(sweepBar).toBeGreaterThanOrEqual(0);
+      expect(result[sweepBar].value.sweep?.recovered).toBe(false);
+      expect(result[sweepBar].value.recentSweeps[0].recovered).toBe(false);
+
+      const recoveryBar = result.findIndex((r) => r.value.recoveredThisBar.length > 0);
+      expect(recoveryBar).toBeGreaterThan(sweepBar);
+      expect(result[recoveryBar].value.recentSweeps[0].recovered).toBe(true);
+      expect(result[recoveryBar].value.recentSweeps[0].recoveredIndex).toBe(recoveryBar);
     });
   });
 

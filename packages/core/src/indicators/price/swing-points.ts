@@ -14,17 +14,22 @@ import type { Candle, NormalizedCandle, Series } from "../../types";
  * Swing point detection result
  */
 export type SwingPointValue = {
-  /** Is this bar a confirmed swing high? */
+  /**
+   * Is this bar a swing high?
+   *
+   * Retrospective marker: it sits on the pivot bar itself, which only becomes
+   * knowable `rightBars` bars later.
+   */
   isSwingHigh: boolean;
-  /** Is this bar a confirmed swing low? */
+  /** Is this bar a swing low? Retrospective, like `isSwingHigh`. */
   isSwingLow: boolean;
-  /** Price of the most recent swing high */
+  /** Price of the most recent swing high confirmed as of this bar */
   swingHighPrice: number | null;
-  /** Price of the most recent swing low */
+  /** Price of the most recent swing low confirmed as of this bar */
   swingLowPrice: number | null;
-  /** Bars since the most recent swing high */
+  /** Bars since the most recent swing high confirmed as of this bar (at least `rightBars`) */
   swingHighIndex: number | null;
-  /** Bars since the most recent swing low */
+  /** Bars since the most recent swing low confirmed as of this bar (at least `rightBars`) */
   swingLowIndex: number | null;
 };
 
@@ -49,7 +54,15 @@ export type SwingPointOptions = {
  * - The bar's low is lower than all bars within leftBars to the left
  * - The bar's low is lower than all bars within rightBars to the right
  *
- * Note: Swing points are confirmed with a delay of rightBars.
+ * Note: Swing points are confirmed with a delay of rightBars. The two field
+ * groups are on different time bases:
+ *
+ * - `isSwingHigh` / `isSwingLow` mark the pivot bar itself, so they are
+ *   retrospective — reading them while stepping through the series exposes
+ *   what the following `rightBars` bars did.
+ * - `swingHighPrice` / `swingLowPrice` / `swingHighIndex` / `swingLowIndex`
+ *   only adopt a pivot once its confirmation window has closed, so they hold
+ *   what was knowable at that bar and can be read bar by bar.
  *
  * @param candles - Array of candles (raw or normalized)
  * @param options - Swing point options
@@ -130,14 +143,19 @@ export function swingPoints(
   let lastSwingLowIdx: number | null = null;
 
   for (let i = 0; i < normalized.length; i++) {
-    // Update tracking when we pass a swing point
-    if (swingHighs[i]) {
-      lastSwingHighPrice = normalized[i].high;
-      lastSwingHighIdx = i;
-    }
-    if (swingLows[i]) {
-      lastSwingLowPrice = normalized[i].low;
-      lastSwingLowIdx = i;
+    // Adopt a pivot only once its confirmation window has closed: a pivot at
+    // index p reads bars up to p + rightBars, so bar p + rightBars is the
+    // first bar from which it is knowable.
+    const confirmedIdx = i - rightBars;
+    if (confirmedIdx >= 0) {
+      if (swingHighs[confirmedIdx]) {
+        lastSwingHighPrice = normalized[confirmedIdx].high;
+        lastSwingHighIdx = confirmedIdx;
+      }
+      if (swingLows[confirmedIdx]) {
+        lastSwingLowPrice = normalized[confirmedIdx].low;
+        lastSwingLowIdx = confirmedIdx;
+      }
     }
 
     result.push({

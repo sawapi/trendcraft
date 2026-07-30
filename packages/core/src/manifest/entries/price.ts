@@ -201,10 +201,11 @@ export const PRICE_MANIFESTS: IndicatorManifest[] = [
     signals: [
       "isSwingHigh === true = confirmed swing high (potential resistance)",
       "isSwingLow === true = confirmed swing low (potential support)",
-      "swingHighPrice / swingLowPrice expose the most recent swing levels for downstream logic",
+      "swingHighPrice / swingLowPrice expose the most recent level already confirmed at that bar",
     ],
     pitfalls: [
       "CONFIRMATION lag: swing point identified `rightBars` bars AFTER it forms. Not real-time",
+      "isSwingHigh/isSwingLow sit ON the pivot bar, so they are retrospective; the trailing level fields (swingHighPrice etc.) adopt a pivot only `rightBars` later and can be read bar by bar",
       "Larger leftBars/rightBars = stricter swings (fewer, more meaningful); smaller = noise-prone",
       "Default 5/5 is moderate strictness — Bill Williams' 2/2 is the looser fractal convention",
       "Test fixtures need enough bars: with leftBars=1, rightBars=1, need 7+ candles for 3 alternating swings",
