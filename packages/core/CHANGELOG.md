@@ -245,11 +245,18 @@ to 107 reported nothing, while a run ending at that bar reported a bearish
 sweep of 105. It now promotes a pivot to a tracked level at
 `pivotIndex + swingPeriod`, and the two runs agree.
 
-Bars emitted by `liquiditySweep` are also snapshots now. `sweep` and the
-entries in `recentSweeps` used to be the live sweep objects, which keep being
-mutated while they wait for recovery, so a recovery several bars later
-retroactively set `recovered` and `recoveredIndex` on bars that had already
-been emitted.
+`createLiquiditySweep`, the streaming counterpart, adopted a newly confirmed
+pivot *before* judging the bar that confirmed it, so it missed a sweep of the
+older level on that bar — the case above, where the bar trades above the level
+still being tracked and below the pivot it is confirming. It now judges the bar
+first and adopts afterwards, matching the batch indicator bar by bar. A bar
+cannot break the pivot it confirms: swing detection is strict, so every bar in
+the confirmation window is below it.
+
+Bars emitted by both indicators are also snapshots now. `sweep` and the entries
+in `recentSweeps` used to be the live sweep objects, which keep being mutated
+while they wait for recovery, so a recovery several bars later retroactively set
+`recovered` and `recoveredIndex` on bars that had already been emitted.
 
 Swing-level values and sweep detection change. Indicators that build on the
 `isSwingHigh` / `isSwingLow` flags — Fibonacci levels, channel lines,
