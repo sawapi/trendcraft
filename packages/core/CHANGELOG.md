@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+### Fixed — incremental ADXR no longer crashes at `period: 1`
+
+`createAdxr({ period: 1 })` threw `RangeError: Index N out of bounds` on the
+first bar with a non-null ADX — from `next()`, `peek()`, and even the
+`isWarmedUp` getter, so it could not be guarded from outside. Both validators
+accept `period >= 1`, and the batch `adxr` handles it fine (at period 1 the
+pair `adx[i] + adx[i - (period - 1)]` is the current ADX twice, so ADXR
+degenerates to ADX). The incremental read for the paired value indexed one
+past the newest buffer element in that case; it now returns the current ADX
+directly, matching batch on every bar. Behavior at `period >= 2` is unchanged,
+and snapshots keep schema v1.
+
 ### Fixed — incremental Weis Wave: bar-0 volume no longer drops out of the first wave
 
 When a stream's first move was downward, `createWeisWave` treated the second
