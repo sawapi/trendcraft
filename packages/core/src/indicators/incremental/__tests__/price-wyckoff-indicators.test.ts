@@ -5,6 +5,7 @@
 
 import { describe, expect, it } from "vitest";
 import type { NormalizedCandle } from "../../../types";
+import { fairValueGap } from "../../price/fair-value-gap";
 import { gapAnalysis } from "../../price/gap-analysis";
 import { highestLowest } from "../../price/highest-lowest";
 import { openingRange } from "../../price/opening-range";
@@ -269,6 +270,132 @@ describe("FVG incremental", () => {
       const v2 = ind2.next(candles[i]).value;
       expect(v1.newBullishFvg).toBe(v2.newBullishFvg);
       expect(v1.newBearishFvg).toBe(v2.newBearishFvg);
+    }
+  });
+
+  function fvgCandle(
+    i: number,
+    open: number,
+    high: number,
+    low: number,
+    close: number,
+  ): NormalizedCandle {
+    return { time: 1700000000000 + i * 60000, open, high, low, close, volume: 1000 };
+  }
+
+  // The batch series stores live gap objects in historical entries, so gap
+  // fields (`filled` etc.) mutate retroactively when a gap fills later.
+  // Project each bar down to the fields that are stable at emission time
+  // so batch-vs-incremental comparison is not polluted by that aliasing.
+  function fvgProjection(v: FvgValueShape) {
+    return {
+      newBullishFvg: v.newBullishFvg,
+      newBearishFvg: v.newBearishFvg,
+      newFvg: v.newFvg ? [v.newFvg.type, v.newFvg.startIndex, v.newFvg.high, v.newFvg.low] : null,
+      activeBullish: v.activeBullishFvgs.map((g) => g.startIndex),
+      activeBearish: v.activeBearishFvgs.map((g) => g.startIndex),
+      // full data, order-sensitive: a filled gap is never mutated again
+      filledFvgs: v.filledFvgs,
+    };
+  }
+  type FvgValueShape = ReturnType<typeof fairValueGap>[number]["value"];
+
+  it("peek matches next when a new FVG forms while the active list is at maxActiveFvgs", () => {
+    // Monotonic uptrend: every bar from i=2 on opens a new, never-filled
+    // bullish FVG, so the active list reaches the cap at i = cap + 1 and
+    // next() starts evicting the oldest gap on every later bar.
+    const cap = 10;
+    const uptrend: NormalizedCandle[] = [];
+    for (let i = 0; i < cap + 4; i++) {
+      const base = 100 + i * 10;
+      uptrend.push(fvgCandle(i, base, base + 4, base, base + 4));
+    }
+    const ind = createFairValueGap({ maxActiveFvgs: cap });
+    let capBarsSeen = 0;
+    for (const candle of uptrend) {
+      const peeked = ind.peek(candle);
+      const advanced = ind.next(candle);
+      expect(fvgProjection(peeked.value)).toEqual(fvgProjection(advanced.value));
+      expect(peeked.value.activeBullishFvgs.length).toBeLessThanOrEqual(cap);
+      if (advanced.value.activeBullishFvgs.length === cap) capBarsSeen++;
+    }
+    // Make sure the fixture actually exercised the cap boundary
+    expect(capBarsSeen).toBeGreaterThanOrEqual(3);
+  });
+
+  it("lists same-bar multiple fills oldest-first, matching batch order", () => {
+    // Bars 2 and 3 each open a bearish FVG; bar 4 rallies through both
+    // zones so both fill on the same bar. Batch fills in insertion
+    // (oldest-first) order, and the incremental result must match.
+    const doubleFill = [
+      fvgCandle(0, 100, 101, 99, 100),
+      fvgCandle(1, 100, 101, 99, 100),
+      fvgCandle(2, 90, 91, 89, 90),
+      fvgCandle(3, 80, 81, 79, 80),
+      fvgCandle(4, 80, 105, 80, 104),
+    ];
+    const batch = fairValueGap(doubleFill, {});
+    const ind = createFairValueGap({});
+    const perBar = doubleFill.map((c) => {
+      const peeked = ind.peek(c).value;
+      const advanced = ind.next(c).value;
+      return { peeked, advanced };
+    });
+    expect(perBar[4].advanced.filledFvgs.map((g) => g.startIndex)).toEqual([2, 3]);
+    expect(perBar[4].advanced.filledFvgs).toEqual(batch[4].value.filledFvgs);
+    expect(perBar[4].peeked.filledFvgs).toEqual(batch[4].value.filledFvgs);
+  });
+
+  it("peek does not stamp fills onto gaps aliased into previous results", () => {
+    // next() returns shallow copies of the active lists, so the gap
+    // objects inside earlier results alias live state. A peek that
+    // would fill a gap must not mutate those — the fill never happened.
+    const cs = [
+      fvgCandle(0, 100, 101, 100, 101),
+      fvgCandle(1, 103, 104, 103, 104),
+      fvgCandle(2, 106, 107, 105, 107), // bullish FVG zone 101-105
+    ];
+    const ind = createFairValueGap({});
+    let lastActive: FvgValueShape["activeBullishFvgs"] = [];
+    for (const c of cs) lastActive = ind.next(c).value.activeBullishFvgs;
+    expect(lastActive).toHaveLength(1);
+    const filler = fvgCandle(3, 104, 105, 100, 104); // low 100 enters the zone
+    const peeked = ind.peek(filler).value;
+    expect(peeked.filledFvgs).toHaveLength(1);
+    expect(lastActive[0].filled).toBe(false);
+    expect(lastActive[0].filledIndex).toBeNull();
+    // the real next() still detects the same fill
+    expect(ind.next(filler).value.filledFvgs).toHaveLength(1);
+  });
+
+  it("matches batch bar-by-bar across caps and fill modes (randomized)", () => {
+    let seed = 123456789;
+    const rnd = () => {
+      seed = (seed * 16807) % 2147483647;
+      return seed / 2147483647;
+    };
+    for (const maxActiveFvgs of [1, 2, 10]) {
+      for (const partialFill of [true, false]) {
+        const walk: NormalizedCandle[] = [];
+        let price = 100;
+        for (let i = 0; i < 300; i++) {
+          const drift = (rnd() - 0.48) * 6;
+          const open = price;
+          const close = price * (1 + drift / 100);
+          const high = Math.max(open, close) * (1 + rnd() * 0.02);
+          const low = Math.min(open, close) * (1 - rnd() * 0.02);
+          walk.push(fvgCandle(i, open, high, low, close));
+          price = close;
+        }
+        const batch = fairValueGap(walk, { maxActiveFvgs, partialFill });
+        const ind = createFairValueGap({ maxActiveFvgs, partialFill });
+        for (let i = 0; i < walk.length; i++) {
+          const peeked = ind.peek(walk[i]).value;
+          const advanced = ind.next(walk[i]).value;
+          expect(fvgProjection(peeked)).toEqual(fvgProjection(advanced));
+          expect(fvgProjection(advanced)).toEqual(fvgProjection(batch[i].value));
+        }
+      }
     }
   });
 });
