@@ -33,7 +33,7 @@ function createBatchableChart() {
   const warnings: Array<{ message: string; detail: unknown }> = [];
   const events = new Map<string, Set<(data: unknown) => void>>();
   let batching = false;
-  let batchScrollToEnd = false;
+  let batchFollowFromEndDistance: number | null = null;
   let renderCount = 0;
   let needsRender = false;
 
@@ -97,6 +97,7 @@ function createBatchableChart() {
       rebuildTimeIndex();
       timeScale.setTotalCount(data.candleCount);
       timeScale.scrollToEnd();
+      batchFollowFromEndDistance = null;
       scheduleRender();
       if (removed > 0) {
         emit("dataFiltered", { total: candles.length, valid: valid.length, removed });
@@ -113,8 +114,9 @@ function createBatchableChart() {
         warn("updateCandle: invalid candle data ignored", candle);
         return;
       }
-      const wasAtEnd = timeScale.endIndex >= data.candleCount - 1;
+      const wasAtEnd = data.candleCount - timeScale.endIndex <= 1;
       const prevCount = data.candleCount;
+      const prevEndDistance = timeScale.endDistanceVirtual;
       data.updateCandle(candle);
 
       if (data.candleCount > prevCount) {
@@ -124,9 +126,9 @@ function createBatchableChart() {
 
       if (wasAtEnd) {
         if (batching) {
-          batchScrollToEnd = true;
+          batchFollowFromEndDistance ??= prevEndDistance;
         } else {
-          timeScale.scrollToEnd();
+          timeScale.followLiveEdge(prevEndDistance);
         }
       }
       scheduleRender();
@@ -134,13 +136,14 @@ function createBatchableChart() {
 
     batchUpdates(fn: () => void) {
       batching = true;
-      batchScrollToEnd = false;
+      batchFollowFromEndDistance = null;
       try {
         fn();
       } finally {
         batching = false;
-        if (batchScrollToEnd) {
-          timeScale.scrollToEnd();
+        if (batchFollowFromEndDistance !== null) {
+          timeScale.followLiveEdge(batchFollowFromEndDistance);
+          batchFollowFromEndDistance = null;
         }
         scheduleRender();
       }
@@ -168,12 +171,12 @@ function createBatchableChart() {
 }
 
 describe("batchUpdates", () => {
-  it("batches multiple updateCandle calls into deferred scrollToEnd", () => {
+  it("batches multiple updateCandle calls into one deferred live-edge follow", () => {
     const chart = createBatchableChart();
     chart.setCandles(makeCandles(50));
     chart.flushRender(); // flush initial
 
-    const scrollSpy = vi.spyOn(chart.timeScale, "scrollToEnd");
+    const followSpy = vi.spyOn(chart.timeScale, "followLiveEdge");
 
     chart.batchUpdates(() => {
       for (let i = 0; i < 10; i++) {
@@ -188,21 +191,22 @@ describe("batchUpdates", () => {
       }
     });
 
-    // scrollToEnd should be called once at end of batch, not 10 times
-    // (Once per batch completion, not per updateCandle)
-    expect(scrollSpy).toHaveBeenCalledTimes(1);
+    // followLiveEdge should be called once at end of batch, not 10 times,
+    // covering the full appended span in one shift
+    expect(followSpy).toHaveBeenCalledTimes(1);
+    expect(followSpy).toHaveBeenCalledWith(50);
   });
 
-  it("does not call scrollToEnd during batch", () => {
+  it("does not follow the live edge during batch", () => {
     const chart = createBatchableChart();
     chart.setCandles(makeCandles(50));
     chart.flushRender();
 
-    let scrollCalled = false;
-    const origScrollToEnd = chart.timeScale.scrollToEnd.bind(chart.timeScale);
-    vi.spyOn(chart.timeScale, "scrollToEnd").mockImplementation(() => {
-      scrollCalled = true;
-      origScrollToEnd();
+    let followCalled = false;
+    const origFollow = chart.timeScale.followLiveEdge.bind(chart.timeScale);
+    vi.spyOn(chart.timeScale, "followLiveEdge").mockImplementation((prev: number) => {
+      followCalled = true;
+      origFollow(prev);
     });
 
     chart.batchUpdates(() => {
@@ -214,12 +218,12 @@ describe("batchUpdates", () => {
         close: 205,
         volume: 3000,
       });
-      // During batch, scrollToEnd should not have been called yet
-      expect(scrollCalled).toBe(false);
+      // During batch, followLiveEdge should not have been called yet
+      expect(followCalled).toBe(false);
     });
 
     // After batch, it should be called
-    expect(scrollCalled).toBe(true);
+    expect(followCalled).toBe(true);
   });
 
   it("recovers from errors inside batch callback", () => {

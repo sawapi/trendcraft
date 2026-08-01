@@ -52,6 +52,8 @@ export class TimeScale {
   private readonly _minBarSpacing = 2;
   /** Maximum bar spacing */
   private readonly _maxBarSpacing = 50;
+  /** Bar-slots of empty space kept after the last bar (fractional allowed) */
+  private _rightOffset = 0;
 
   /**
    * Virtual position of each bar (length = totalCount when populated).
@@ -97,6 +99,43 @@ export class TimeScale {
 
   get width(): number {
     return this._width;
+  }
+
+  /** Configured right offset in bar-slots (see {@link setRightOffset}) */
+  get rightOffset(): number {
+    return this._rightOffset;
+  }
+
+  /**
+   * Total content span in virtual bar-slots (= totalCount in index mode).
+   * `_virt[last]` is the last bar's virtual position; `+1` converts that
+   * position into a slot count — the last bar occupies the slot
+   * `[virt[last], virt[last] + 1)` — it is NOT extra padding.
+   */
+  get virtualTotal(): number {
+    return this._virt.length > 0 ? this._virt[this._virt.length - 1] + 1 : this._totalCount;
+  }
+
+  /**
+   * Reserve empty space (in bar-slots, fractional allowed) after the last
+   * bar. Applied by {@link scrollToEnd}, {@link fitContent} and the clamp
+   * boundary. Negative and non-finite values coerce to 0 (this is the
+   * headless-layer fallback; the DOM chart layer validates first and warns).
+   * On the scrolling paths, values that would leave fewer than
+   * 2 bars visible are capped at
+   * application time (re-evaluated on zoom, since visibleCount changes);
+   * fitContent uses the raw value — every bar is on screen there.
+   */
+  setRightOffset(offset: number): void {
+    this._rightOffset = Number.isFinite(offset) ? Math.max(0, offset) : 0;
+    this.clamp();
+  }
+
+  /** The offset actually applied: capped so at least 2 bars stay visible
+   *  and the viewport can't go blank (self-locking at the live edge). */
+  private effectiveRightOffset(): number {
+    if (this._rightOffset <= 0) return 0;
+    return Math.min(this._rightOffset, Math.max(0, this._visibleCount - 2));
   }
 
   setTotalCount(count: number): void {
@@ -346,15 +385,42 @@ export class TimeScale {
     this.clamp();
   }
 
-  /** Scroll to show last candles */
+  /** Scroll to show the last candles plus the configured right offset.
+   *  virtualTotal already accounts for the last bar's own slot (see getter);
+   *  when everything fits the target is clamped to 0 by the Math.max. */
   scrollToEnd(): void {
-    if (this._virt.length === 0) {
-      this._startIndex = Math.max(0, this._totalCount - this._visibleCount);
-      return;
-    }
-    const virtEnd = this._virt[this._virt.length - 1] + 1; // last bar + 1 slot for padding
-    const targetVirt = Math.max(0, virtEnd - this._visibleCount);
+    const targetVirt = Math.max(
+      0,
+      this.virtualTotal + this.effectiveRightOffset() - this._visibleCount,
+    );
     this._startIndex = Math.max(0, this.realAtVirt(targetVirt));
+  }
+
+  /**
+   * Distance (in virtual bar-slots) from the window start to the end of the
+   * content. This is the follow invariant: capture it before a data/layout
+   * mutation and hand it to {@link followLiveEdge} afterwards.
+   */
+  get endDistanceVirtual(): number {
+    return this.virtualTotal - this.virtAt(this._startIndex);
+  }
+
+  /**
+   * Follow the live edge: re-establish the viewer's distance from the end
+   * of the content as captured before bars were appended. For a pinned
+   * viewer this equals the old scrollToEnd snap; for any other viewport it
+   * preserves the custom margin / pan position instead of overriding it.
+   *
+   * Re-establishing the distance (rather than shifting by a delta) also
+   * survives the transient index-mode clamp inside setTotalCount (the
+   * virtual layout is cleared and only re-applied afterwards) and layout
+   * rescales from a drifting median bar interval.
+   *
+   * @param prevEndDistance - {@link endDistanceVirtual} captured BEFORE the mutation
+   */
+  followLiveEdge(prevEndDistance: number): void {
+    this._startIndex = this.realAtVirt(this.virtualTotal - prevEndDistance);
+    this.clamp();
   }
 
   /** Zoom around a pixel position (Google Maps style — anchor stays under cursor) */
@@ -393,15 +459,34 @@ export class TimeScale {
     this.clamp();
   }
 
-  /** Fit all candles in view.
+  /** Fit all candles (plus the configured right offset) in view.
    *  barSpacing may go below 1px; the render pipeline remaps decimated
    *  candles to fill the canvas correctly in that case. */
   fitContent(): void {
     if (this._totalCount <= 0 || this._width <= 0) return;
-    this._barSpacing = Math.min(this._maxBarSpacing, this._width / this._totalCount);
+    // virtualTotal, not totalCount: in a gap-expanded layout the content
+    // spans more slots than there are bars, and each slot costs width.
+    const slots = this.virtualTotal + this._rightOffset;
+    this._barSpacing = Math.min(this._maxBarSpacing, this._width / slots);
     this._barSpacing = Math.max(0.1, this._barSpacing);
     this.recalcVisibleCount();
     this._startIndex = 0;
+  }
+
+  /** Show from `startIndex` through the live edge, including the right offset. */
+  setVisibleRangeToEnd(startIndex: number): void {
+    if (this._totalCount - startIndex <= 0) return;
+    // Count in virtual units: gaps between `startIndex` and the live edge
+    // consume window slots too, or scrollToEnd would push the start bar
+    // out of view by exactly the gap span. Use the raw offset: the
+    // effective cap depends on visibleCount, which this call is about to
+    // change — the destination window contains the full requested span,
+    // so the blank-viewport cap cannot bind there.
+    const count = this.virtualTotal + this._rightOffset - this.virtAt(startIndex);
+    this.setVisibleRange(startIndex, startIndex + count);
+    // setVisibleRange derives spacing from the count; scrollToEnd then
+    // aligns the window exactly (and handles virtual-mode layouts).
+    this.scrollToEnd();
   }
 
   /** Set startIndex and barSpacing directly (used by animation frames) */
@@ -460,13 +545,16 @@ export class TimeScale {
     return Math.max(0, Math.min(maxStart, this._startIndex));
   }
 
-  /** Maximum allowed startIndex, or null if all data fits in view */
+  /** Maximum allowed startIndex, or null if all content fits in view */
   private get maxStartIndex(): number | null {
     if (this._totalCount <= 0) return null;
-    const virtTotal =
-      this._virt.length > 0 ? this._virt[this._virt.length - 1] + 1 : this._totalCount;
-    if (this._visibleCount >= virtTotal) return null;
-    const rightPad = Math.ceil(this._visibleCount * 0.2);
+    const virtTotal = this.virtualTotal;
+    const offset = this.effectiveRightOffset();
+    if (this._visibleCount >= virtTotal + offset) return null;
+    // The scrollable empty space on the right is whichever is larger: the
+    // 20% overscroll pad or the configured right offset — so the pinned
+    // (scrollToEnd) position is always reachable without fighting clamp.
+    const rightPad = Math.max(Math.ceil(this._visibleCount * 0.2), offset);
     const maxStartVirt = Math.max(0, virtTotal + rightPad - this._visibleCount);
     if (this._virt.length === 0) return maxStartVirt;
     return this.realAtVirt(maxStartVirt);
@@ -538,11 +626,14 @@ export class TimeScale {
       this._startIndex = 0;
       return;
     }
-    if (this._visibleCount >= this._totalCount) {
+    // Single owner for the "everything fits" decision: maxStartIndex is
+    // null exactly when content + margin fit the viewport (it compares in
+    // virtual units, so gap-expanded layouts clamp consistently too).
+    const maxStart = this.maxStartIndex;
+    if (maxStart === null) {
       this._startIndex = 0;
       return;
     }
-    const maxStart = this.maxStartIndex ?? 0;
     this._startIndex = Math.max(0, Math.min(maxStart, this._startIndex));
   }
 }
