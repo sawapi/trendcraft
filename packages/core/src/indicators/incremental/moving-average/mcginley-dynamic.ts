@@ -27,6 +27,13 @@
  * to `[0.5, 2.0]`; trendcraft does not, to remain bar-for-bar
  * faithful to the published formula.
  *
+ * A run that has been pushed to a non-finite `prevMd` that way keeps
+ * emitting non-finite values, which is at least visible. Its snapshot
+ * is not: JSON writes the non-finite value as `null`, and the resumed
+ * run would coerce that to 0 and emit a plausible constant forever. So
+ * resuming a warmed-up snapshot whose `prevMd` is not a finite number
+ * is refused (`requireFiniteState`).
+ *
  * Seeding asymmetry note (intentional): the batch sibling produces
  * its first non-null value at index `period - 1` (`if i === period - 1`),
  * while this incremental factory uses a post-incremented `count` so
@@ -38,7 +45,12 @@
  */
 
 import type { NormalizedCandle, PriceSource } from "../../../types";
-import { type IndicatorSnapshot, makeSnapshot, resolveResume } from "../state-contract";
+import {
+  type IndicatorSnapshot,
+  makeSnapshot,
+  requireFiniteState,
+  resolveResume,
+} from "../state-contract";
 import type { IncrementalIndicator } from "../types";
 import { getSourcePrice } from "../utils";
 
@@ -99,6 +111,17 @@ export function createMcGinleyDynamic(
   let count: number;
 
   if (state !== null) {
+    // Every number this state carries, with the point in the indicator's life
+    // from which it must hold one. JSON writes a non-finite value as `null`,
+    // and both fields have a coercion waiting for them: `null + price` is a
+    // number, so a poisoned warm-up total would seed the average from a sum
+    // that lost its history, and the update below would turn a `null` prevMd
+    // into a constant 0 — either way a visibly broken series comes back
+    // looking like data.
+    requireFiniteState("mcginleyDynamic", { sum: state.sum, count: state.count });
+    if (state.count >= period) {
+      requireFiniteState("mcginleyDynamic", { prevMd: state.prevMd });
+    }
     prevMd = state.prevMd;
     sum = state.sum;
     count = state.count;

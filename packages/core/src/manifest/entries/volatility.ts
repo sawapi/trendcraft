@@ -313,6 +313,7 @@ export const VOLATILITY_MANIFESTS: IndicatorManifest[] = [
       "Single-parameter (λ) — convenient but inflexible compared to GARCH",
       "λ = 0.94 is RiskMetrics' daily standard; 0.97 is canonical for monthly. Don't change without reason",
       "Exponential weighting means very old returns still carry tiny weight — no clean cutoff window",
+      "When returns are derived from candles (`ewmaVolatilityFromCandles`, `createEwmaVolatility`), a step counts as a zero return whenever its log return is not a finite number — a price that is zero, negative or non-finite, and also two finite prices far enough apart that their ratio overflows. A bad tick dampens the estimate instead of breaking the recursion",
     ],
     synergy: ["GARCH for richer volatility modeling when EWMA's single λ isn't sufficient"],
     marketRegime: ["volatile", "low-volatility"],
