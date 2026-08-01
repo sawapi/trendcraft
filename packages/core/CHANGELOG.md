@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+### Fixed — incremental Fair Value Gap: `peek` honors `maxActiveFvgs`; same-bar fills listed oldest-first
+
+Two streaming/batch mismatches in `createFairValueGap`:
+
+- `peek()` did not apply the `maxActiveFvgs` cap when previewing a bar that
+  forms a new gap while the active list is already full, so it reported one
+  more active gap than the `next()` it is supposed to preview — including the
+  zone `next()` evicts. `peek` is now implemented by running the real `next()`
+  against a copy of the state, so it structurally cannot drift from it again.
+- When several gaps of the same direction filled on a single bar, `filledFvgs`
+  listed them newest-first, while the batch `fairValueGap` lists them in
+  insertion (oldest-first) order. The incremental detector now matches the
+  batch order.
+
+Values are otherwise unchanged: gap detection, fill detection, and the active
+lists after each bar are identical to before. Snapshots keep their schema
+version and resume without a re-warm.
+
 ### Breaking — incremental `vwap` and `twap` snapshots need a re-warm
 
 `createVwap` and `createTwap` take the same `session` option as their batch

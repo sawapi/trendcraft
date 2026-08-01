@@ -74,15 +74,6 @@ type FairValueGapParams = {
   partialFill: boolean;
 };
 
-const emptyValue: FvgValue = {
-  newBullishFvg: false,
-  newBearishFvg: false,
-  newFvg: null,
-  activeBullishFvgs: [],
-  activeBearishFvgs: [],
-  filledFvgs: [],
-};
-
 /**
  * Create an incremental Fair Value Gap detector
  *
@@ -143,39 +134,43 @@ export function createFairValueGap(
     count = 0;
   }
 
-  function checkFills(
-    candle: NormalizedCandle,
-    bullish: FvgGap[],
-    bearish: FvgGap[],
-    barIndex: number,
-  ): FvgGap[] {
+  function checkFills(candle: NormalizedCandle, barIndex: number): FvgGap[] {
     const filled: FvgGap[] = [];
 
+    // Iterate oldest-first and rebuild the survivor lists so that when
+    // several gaps fill on one bar, `filledFvgs` lists them in insertion
+    // order within each direction (bullish scanned first) — the same
+    // order the batch implementation produces.
+
     // Bullish FVG filled when price drops into the gap zone
-    for (let i = bullish.length - 1; i >= 0; i--) {
-      const g = bullish[i];
+    const remainingBullish: FvgGap[] = [];
+    for (const g of activeBullishFvgs) {
       const isFilled = partialFill ? candle.low <= g.high : candle.low <= g.low;
       if (isFilled) {
         g.filled = true;
         g.filledIndex = barIndex;
         g.filledTime = candle.time;
         filled.push(g);
-        bullish.splice(i, 1);
+      } else {
+        remainingBullish.push(g);
       }
     }
+    activeBullishFvgs = remainingBullish;
 
     // Bearish FVG filled when price rises into the gap zone
-    for (let i = bearish.length - 1; i >= 0; i--) {
-      const g = bearish[i];
+    const remainingBearish: FvgGap[] = [];
+    for (const g of activeBearishFvgs) {
       const isFilled = partialFill ? candle.high >= g.low : candle.high >= g.high;
       if (isFilled) {
         g.filled = true;
         g.filledIndex = barIndex;
         g.filledTime = candle.time;
         filled.push(g);
-        bearish.splice(i, 1);
+      } else {
+        remainingBearish.push(g);
       }
     }
+    activeBearishFvgs = remainingBearish;
 
     return filled;
   }
@@ -186,7 +181,7 @@ export function createFairValueGap(
       const barIndex = count - 1;
 
       // Check fills on active FVGs
-      const filledFvgs = checkFills(candle, activeBullishFvgs, activeBearishFvgs, barIndex);
+      const filledFvgs = checkFills(candle, barIndex);
 
       let newBullishFvg = false;
       let newBearishFvg = false;
@@ -262,107 +257,34 @@ export function createFairValueGap(
     },
 
     peek(candle: NormalizedCandle) {
-      if (prev2 === null || prev1 === null) {
-        return { time: candle.time, value: emptyValue };
-      }
-
-      // `next` increments `count` then uses `barIndex = count - 1`, so
-      // the bar index of the incoming candle equals the current
-      // (pre-increment) `count`.
-      const barIndex = count;
-
-      // Simulate fill check without mutating. Mirror `next`'s
-      // `checkFills` exactly — including the reverse iteration order,
-      // which determines `filledFvgs` ordering — so peek matches next.
-      const peekFilledFvgs: FvgGap[] = [];
-      for (let i = activeBullishFvgs.length - 1; i >= 0; i--) {
-        const g = activeBullishFvgs[i];
-        const isFilled = partialFill ? candle.low <= g.high : candle.low <= g.low;
-        if (isFilled)
-          peekFilledFvgs.push({
-            ...g,
-            filled: true,
-            filledIndex: barIndex,
-            filledTime: candle.time,
-          });
-      }
-      for (let i = activeBearishFvgs.length - 1; i >= 0; i--) {
-        const g = activeBearishFvgs[i];
-        const isFilled = partialFill ? candle.high >= g.low : candle.high >= g.high;
-        if (isFilled)
-          peekFilledFvgs.push({
-            ...g,
-            filled: true,
-            filledIndex: barIndex,
-            filledTime: candle.time,
-          });
-      }
-
-      let newBullishFvg = false;
-      let newBearishFvg = false;
-      let newFvg: FvgGap | null = null;
-
-      if (candle.low > prev2.high) {
-        const gapSize = candle.low - prev2.high;
-        const gapPct = prev2.high > 0 ? (gapSize / prev2.high) * 100 : 0;
-        if (gapPct >= minGapPercent) {
-          newBullishFvg = true;
-          newFvg = {
-            type: "bullish",
-            high: candle.low,
-            low: prev2.high,
-            startIndex: barIndex,
-            startTime: candle.time,
-            filled: false,
-            filledIndex: null,
-            filledTime: null,
-          };
-        }
-      }
-
-      if (candle.high < prev2.low) {
-        const gapSize = prev2.low - candle.high;
-        const gapPct = prev2.low > 0 ? (gapSize / prev2.low) * 100 : 0;
-        if (gapPct >= minGapPercent) {
-          newBearishFvg = true;
-          newFvg = {
-            type: "bearish",
-            high: prev2.low,
-            low: candle.high,
-            startIndex: barIndex,
-            startTime: candle.time,
-            filled: false,
-            filledIndex: null,
-            filledTime: null,
-          };
-        }
-      }
-
-      // Remaining active after simulated fills
-      const remainBullish = activeBullishFvgs.filter(
-        (g) => !(partialFill ? candle.low <= g.high : candle.low <= g.low),
-      );
-      const remainBearish = activeBearishFvgs.filter(
-        (g) => !(partialFill ? candle.high >= g.low : candle.high >= g.high),
-      );
-
-      return {
-        time: candle.time,
-        value: {
-          newBullishFvg,
-          newBearishFvg,
-          newFvg,
-          activeBullishFvgs:
-            newBullishFvg && newFvg?.type === "bullish"
-              ? [...remainBullish, newFvg]
-              : remainBullish,
-          activeBearishFvgs:
-            newBearishFvg && newFvg?.type === "bearish"
-              ? [...remainBearish, newFvg]
-              : remainBearish,
-          filledFvgs: peekFilledFvgs,
-        },
+      // Run the real `next()` against a deep copy of the state, then put
+      // the original state back. A hand-maintained mirror of `next` is
+      // where peek/next drift comes from (the previous mirror missed the
+      // `maxActiveFvgs` cap); this keeps peek structurally identical to
+      // next. The copy must be swapped in BEFORE `next` runs: filling
+      // mutates gap objects, and the live ones are aliased into the
+      // active lists of previously returned values — a peek must not
+      // stamp those with a fill that never happened.
+      const original = {
+        prev2,
+        prev1,
+        activeBullishFvgs,
+        activeBearishFvgs,
+        count,
       };
+      const copy = indicator.getState().state;
+      prev2 = copy.prev2;
+      prev1 = copy.prev1;
+      activeBullishFvgs = copy.activeBullishFvgs;
+      activeBearishFvgs = copy.activeBearishFvgs;
+      count = copy.count;
+      const result = indicator.next(candle);
+      prev2 = original.prev2;
+      prev1 = original.prev1;
+      activeBullishFvgs = original.activeBullishFvgs;
+      activeBearishFvgs = original.activeBearishFvgs;
+      count = original.count;
+      return result;
     },
 
     getState(): IndicatorSnapshot<FairValueGapState> {
