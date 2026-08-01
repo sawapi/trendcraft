@@ -2,6 +2,28 @@
 
 ## [Unreleased]
 
+### Fixed — incremental Weis Wave: bar-0 volume no longer drops out of the first wave
+
+When a stream's first move was downward, `createWeisWave` treated the second
+bar as a direction reversal — it had provisionally labeled bar 0 "up" — and
+reset the wave, so `waveVolume` was understated by exactly bar 0's volume on
+every bar of the first wave. With a `threshold` set and an opening drift of
+sub-threshold down moves, the direction also stayed "up" indefinitely, because
+only the reversal path (which the threshold gates) could correct it.
+
+The first observed move now defines the initial wave direction, with no
+threshold applied and no reset — the same seeding the batch `weisWave` uses.
+`waveVolume` now matches batch on every bar, and `direction` from bar 1 on.
+Bar 0's direction is the one value a streaming consumer cannot reproduce: the
+batch labels bar 0 using the bar0→bar1 move, which has not happened yet when
+the incremental must emit, so bar 0 stays provisionally "up".
+
+Snapshots keep schema v1. A snapshot written by an earlier version *during the
+first wave* of a down-starting stream carries the understated total; resume it
+and the understatement persists until the first reversal. Re-warm from history
+to get corrected values. Streams whose first move was upward were never
+affected.
+
 ### Fixed — incremental Fair Value Gap: `peek` honors `maxActiveFvgs`; same-bar fills listed oldest-first
 
 Two streaming/batch mismatches in `createFairValueGap`:

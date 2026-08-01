@@ -174,23 +174,78 @@ describe("CVD incremental", () => {
 describe("Weis Wave incremental", () => {
   const extractWave = (v: unknown) => (v as { waveVolume: number } | null)?.waveVolume ?? null;
 
-  it("matches batch output from bar 2 onward (waveVolume)", () => {
-    // Bar 0 direction differs: batch looks ahead to bar 1, incremental defaults to 'up'
-    // From bar 2 onward the wave state has converged
-    const batch = weisWave(candles);
-    const ind = createWeisWave();
-    const incr = candles.map((c) => ind.next(c));
+  function makeCandle(i: number, close: number, volume = 1000): NormalizedCandle {
+    return {
+      time: 1700000000000 + i * 60000,
+      open: close,
+      high: close + 0.5,
+      low: close - 0.5,
+      close,
+      volume,
+    };
+  }
 
-    let matchCount = 0;
-    for (let i = 2; i < batch.length; i++) {
-      const bv = extractWave(batch[i].value);
-      const iv = extractWave(incr[i].value);
-      if (bv !== null && iv !== null) {
-        expect(Math.abs(bv - iv)).toBeLessThan(1e-8);
-        matchCount++;
+  // Bar 0 direction can differ by construction: batch seeds it from the
+  // bar0->bar1 move, which a streaming consumer has not seen yet, so the
+  // incremental labels bar 0 "up" provisionally. Everything else —
+  // waveVolume on every bar, direction from bar 1 on — must match batch.
+  function expectBatchParity(
+    stream: NormalizedCandle[],
+    opts: { method?: "close" | "highlow"; threshold?: number } = {},
+  ) {
+    const batch = weisWave(stream, opts);
+    const ind = createWeisWave(opts);
+    for (let i = 0; i < stream.length; i++) {
+      const peeked = ind.peek(stream[i]).value;
+      const advanced = ind.next(stream[i]).value;
+      expect(peeked).toEqual(advanced);
+      expect(advanced.waveVolume).toBeCloseTo(batch[i].value.waveVolume, 8);
+      if (i >= 1) {
+        expect(advanced.direction).toBe(batch[i].value.direction);
       }
     }
-    expect(matchCount).toBeGreaterThan(batch.length / 2);
+  }
+
+  it("matches batch on waveVolume (all bars) and direction (bar 1 on)", () => {
+    expectBatchParity(candles);
+    expectBatchParity(candles, { method: "highlow" });
+    expectBatchParity(candles, { threshold: 0.5 });
+  });
+
+  it("keeps bar-0 volume in the first wave when the stream starts with a down move", () => {
+    // Falling market: the whole stream is one down wave. The first
+    // observed move must be adopted as the initial direction, not
+    // treated as a reversal that resets the wave and drops bar 0.
+    const falling = Array.from({ length: 10 }, (_, i) => makeCandle(i, 100 - i));
+    expectBatchParity(falling);
+    const ind = createWeisWave();
+    const values = falling.map((c) => ind.next(c).value);
+    expect(values[1]).toEqual({ waveVolume: 2000, direction: "down" });
+    expect(values[9]).toEqual({ waveVolume: 10000, direction: "down" });
+  });
+
+  it("adopts the first move as initial direction even when it is under the threshold", () => {
+    // Batch seeds bar-0 direction from the first move with no threshold
+    // applied; the incremental must do the same on the second bar, or a
+    // stream of sub-threshold down moves stays labeled "up" forever.
+    const drifting = Array.from({ length: 4 }, (_, i) => makeCandle(i, 100 - i * 0.1));
+    expectBatchParity(drifting, { threshold: 0.5 });
+    const ind = createWeisWave({ threshold: 0.5 });
+    const values = drifting.map((c) => ind.next(c).value);
+    expect(values[3]).toEqual({ waveVolume: 4000, direction: "down" });
+  });
+
+  it("resumes from a bar-0 snapshot through a JSON round trip without dropping bar 0", () => {
+    const falling = Array.from({ length: 10 }, (_, i) => makeCandle(i, 100 - i));
+    const batch = weisWave(falling);
+    const ind1 = createWeisWave();
+    ind1.next(falling[0]);
+    const snap = JSON.parse(JSON.stringify(ind1.getState()));
+    const ind2 = createWeisWave({}, { fromState: snap });
+    for (let i = 1; i < falling.length; i++) {
+      const v = ind2.next(falling[i]).value;
+      expect(v).toEqual(batch[i].value);
+    }
   });
 
   it("peek does not mutate state", () => {
