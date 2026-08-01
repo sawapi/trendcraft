@@ -18,6 +18,7 @@ import type { NormalizedCandle } from "../../../types";
 import { logReturnOrZero } from "../../../utils/statistics";
 import { ewmaVolatilityFromCandles } from "../../volatility/garch";
 import { createMcGinleyDynamic } from "../moving-average/mcginley-dynamic";
+import { deserializeIndicatorSnapshot } from "../state-contract";
 import { createEwmaVolatility } from "../volatility/ewma-volatility";
 
 const DAY = 86_400_000;
@@ -105,10 +106,18 @@ describe("McGinley Dynamic — poisoned state is refused on resume", () => {
     const uninterrupted = live.next(candle(32, 116)).value;
     expect(Number.isFinite(uninterrupted)).toBe(false);
 
-    const persisted = throughJson(live.getState());
-    expect(persisted.state.prevMd).toBeNull();
+    // The snapshot carries the non-finite value through JSON now, so the
+    // resumed run is refused for the same reason the in-memory one is —
+    // refusing is McGinley's own policy, not an artefact of the transport.
+    const text = JSON.stringify(live.getState());
+    const persisted = JSON.parse(text) as ReturnType<typeof live.getState>;
+    const decoded = deserializeIndicatorSnapshot<{ prevMd: number }>(text);
+    expect(Number.isNaN(decoded.state.prevMd)).toBe(true);
 
     expect(() => createMcGinleyDynamic({ period }, { fromState: persisted })).toThrow(
+      /re-warm required.*prevMd/s,
+    );
+    expect(() => createMcGinleyDynamic({ period }, { fromState: live.getState() })).toThrow(
       /re-warm required.*prevMd/s,
     );
   });
@@ -123,9 +132,11 @@ describe("McGinley Dynamic — poisoned state is refused on resume", () => {
     live.next({ ...candle(5, 100), close: Number.POSITIVE_INFINITY });
     for (let i = 6; i < 10; i++) live.next(candle(i, 100 + i));
 
-    const persisted = throughJson(live.getState());
-    expect(persisted.state.sum).toBeNull();
-    expect(persisted.state.count).toBe(10);
+    const text = JSON.stringify(live.getState());
+    const persisted = JSON.parse(text) as ReturnType<typeof live.getState>;
+    const decoded = deserializeIndicatorSnapshot<{ sum: number; count: number }>(text);
+    expect(decoded.state.sum).toBe(Number.POSITIVE_INFINITY);
+    expect(decoded.state.count).toBe(10);
 
     expect(() => createMcGinleyDynamic({ period }, { fromState: persisted })).toThrow(
       /re-warm required.*sum/s,

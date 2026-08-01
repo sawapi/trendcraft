@@ -310,6 +310,55 @@ it cannot use, which survives the round trip and is rejected by the same rule
 when the next return is computed, so an interrupted run and an uninterrupted
 one produce identical values.
 
+### Fixed — snapshots keep the numbers JSON has no syntax for
+
+`JSON.stringify` writes `NaN`, `Infinity` and `-Infinity` as `null`, and drops
+the sign of `-0`. Every incremental indicator promises a JSON-serializable
+snapshot, so a state that had gone non-finite — a bad tick is enough — came
+back from persistence with a `null` where a number belonged. The arithmetic on
+resume then coerced that `null` to `0`, and the indicator carried on emitting
+numbers that no uninterrupted run would produce. A probe across the whole
+incremental registry found **71 of 94** indicators behaving that way.
+
+Snapshots now carry those four values through a tagged encoding, so a run
+resumed from JSON matches one resumed from the object in memory, which matches
+one that was never interrupted. `createEma` fed a `NaN` price keeps reporting
+`NaN` after a round trip, where it used to report `16`.
+
+Nothing about the runtime shape of a snapshot changes: `state` still holds
+plain numbers, `Object.keys` is unchanged, spreading and resuming from
+`getState()` behave as before, and a state whose numbers are all ordinary
+serializes to exactly the same bytes as it did. The encoding rides on a
+non-enumerable `toJSON`, so the `JSON.stringify(snapshot)` a caller already
+writes is enough — as is `JSON.stringify(snapshot.state)`, or stringifying a
+spread of the snapshot.
+
+Two paths cannot carry a function and so cannot carry the hook:
+`structuredClone`, and spreading the state object itself. `structuredClone`
+keeps non-finite numbers natively, so resuming from a clone was never affected;
+serializing one now has an explicit route:
+
+```ts
+import {
+  serializeIndicatorSnapshot,
+  deserializeIndicatorSnapshot,
+} from "trendcraft/incremental";
+
+const text = serializeIndicatorSnapshot(structuredClone(ema.getState()));
+const restored = deserializeIndicatorSnapshot<EmaState>(text);
+```
+
+(They live with the rest of the streaming API, so they are also reachable as
+`incremental.serializeIndicatorSnapshot` from the main entry point.)
+
+A snapshot carrying the reserved `$trendcraft` key in any shape this codec does
+not write is rejected rather than read as data.
+
+Refusing to resume stays an indicator's own decision, separate from transport:
+`createMcGinleyDynamic` still refuses a snapshot whose running value is not
+finite, because that state can only ever produce `NaN` again — and it now
+refuses identically whether the snapshot arrived as an object or as JSON.
+
 ## [0.5.0] - 2026-07-26
 
 ### Read this first — your numbers will change
