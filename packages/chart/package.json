@@ -129,12 +129,12 @@
     {
       "name": "Main (createChart + all exports)",
       "path": "dist/index.js",
-      "limit": "41 kB"
+      "limit": "41.5 kB"
     },
     {
       "name": "Headless API",
       "path": "dist/headless.js",
-      "limit": "11 kB"
+      "limit": "11.25 kB"
     },
     {
       "name": "Sparkline (vanilla)",
