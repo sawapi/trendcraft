@@ -191,6 +191,55 @@ describe("ADXR incremental", () => {
     expect(stateAfter).toBe(stateBefore);
   });
 
+  it("period=1 degenerates to ADX and matches batch on every bar", () => {
+    // At period=1 the lookback is 0, so the paired past value is the
+    // current ADX itself. The general buffer read for it steps one past
+    // the newest element (the current ADX is pushed after computing),
+    // which used to throw a RangeError on the first non-null ADX — from
+    // next(), peek(), and even the isWarmedUp getter. period=2 runs the
+    // same loop as the smallest period that exercises the buffer read.
+    for (const period of [1, 2]) {
+      const batch = adxr(candles, { period, dmiPeriod: 5, adxPeriod: 5 });
+      const ind = createAdxr({ period, dmiPeriod: 5, adxPeriod: 5 });
+      for (let i = 0; i < candles.length; i++) {
+        const peeked = ind.peek(candles[i]).value;
+        expect(typeof ind.isWarmedUp).toBe("boolean"); // getter must not throw
+        const advanced = ind.next(candles[i]).value;
+        const expected = batch[i].value;
+        if (expected === null) {
+          expect(peeked).toBeNull();
+          expect(advanced).toBeNull();
+        } else {
+          expect(advanced).not.toBeNull();
+          expect(Math.abs(advanced! - expected)).toBeLessThan(1e-10);
+          expect(peeked).not.toBeNull();
+          expect(Math.abs(peeked! - expected)).toBeLessThan(1e-10);
+        }
+      }
+      expect(ind.isWarmedUp).toBe(true);
+      expect(batch.some((s) => s.value !== null)).toBe(true);
+    }
+  });
+
+  it("period=1 resumes from a JSON round-tripped snapshot", () => {
+    const opts = { period: 1, dmiPeriod: 5, adxPeriod: 5 };
+    const batch = adxr(candles, opts);
+    const ind1 = createAdxr(opts);
+    for (let i = 0; i < 30; i++) ind1.next(candles[i]);
+    const snap = JSON.parse(JSON.stringify(ind1.getState()));
+    const ind2 = createAdxr(opts, { fromState: snap });
+    for (let i = 30; i < 80; i++) {
+      const v = ind2.next(candles[i]).value;
+      const expected = batch[i].value;
+      if (expected === null) {
+        expect(v).toBeNull();
+      } else {
+        expect(v).not.toBeNull();
+        expect(Math.abs(v! - expected)).toBeLessThan(1e-10);
+      }
+    }
+  });
+
   it("getState/fromState restores correctly", () => {
     const ind1 = createAdxr({ period: 14 });
     for (let i = 0; i < 80; i++) ind1.next(candles[i]);

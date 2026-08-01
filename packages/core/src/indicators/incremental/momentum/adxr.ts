@@ -107,6 +107,13 @@ export function createAdxr(
 
   function computeAdxr(currentAdx: number | null): number | null {
     if (currentAdx === null) return null;
+
+    // At period = 1 the pair is adx[i] itself (ADXR degenerates to ADX,
+    // as in the batch indicator). The buffer holds only strictly-past
+    // values, so the general read below would step one past the newest
+    // element and throw.
+    if (lookback === 0) return currentAdx;
+
     if (adxBuffer.length < lookback) return null;
 
     // The oldest value in the buffer when full represents adx[i - lookback]
@@ -127,16 +134,11 @@ export function createAdxr(
     },
 
     peek(candle: NormalizedCandle) {
+      // Same value computation as next() (which reads the buffer before
+      // pushing), through the one shared computeAdxr — a restated copy
+      // here is where the two paths drift apart.
       const dmiResult = dmiInd.peek(candle);
-      const currentAdx = dmiResult.value.adx;
-
-      if (currentAdx === null) return { time: candle.time, value: null };
-      if (adxBuffer.length < lookback) return { time: candle.time, value: null };
-
-      const pastAdx = adxBuffer.get(adxBuffer.length - lookback);
-      if (pastAdx === null) return { time: candle.time, value: null };
-
-      return { time: candle.time, value: (currentAdx + pastAdx) / 2 };
+      return { time: candle.time, value: computeAdxr(dmiResult.value.adx) };
     },
 
     getState(): IndicatorSnapshot<AdxrState> {
@@ -157,6 +159,10 @@ export function createAdxr(
     },
 
     get isWarmedUp() {
+      // Mirrors the read the next computeAdxr will perform: at period=1
+      // that is the freshest pushed ADX (the general index would step
+      // one past the newest element and throw).
+      if (lookback === 0) return adxBuffer.length > 0 && adxBuffer.newest() !== null;
       return adxBuffer.length > lookback && adxBuffer.get(adxBuffer.length - lookback) !== null;
     },
   };
