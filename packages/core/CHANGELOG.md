@@ -2,6 +2,23 @@
 
 ## [Unreleased]
 
+### Breaking — incremental VSA scans the full 10-bar window for 'test' (schema v2)
+
+The incremental VSA's 'test' rule ("low volume near the lowest low of the last
+10 bars") saw only 9 previous bars: the internal candle buffer held 10 entries,
+and pushing the current bar before classification evicted the bar exactly 10
+back. When that bar held the decisive lowest low, `createVsa` reported a
+spurious `'test'` where the batch `vsa` says `'normal'` (`peek` mirrored the
+same window, so peek and next agreed — both wrong). In randomized 300-bar
+streams this fired on roughly 2-4 bars per stream; all other rules and the
+numeric fields were unaffected.
+
+The buffer now holds 11 entries (the current bar plus the 10 the rule scans),
+making the incremental classification identical to batch on every bar. Because
+a v1 snapshot's buffer cannot supply the 11th bar — resuming one would
+silently keep the 9-bar window — **VSA snapshot schema moves to v2 and v1
+snapshots are refused with a re-warm error**.
+
 ### Fixed — incremental ADXR no longer crashes at `period: 1`
 
 `createAdxr({ period: 1 })` threw `RangeError: Index N out of bounds` on the

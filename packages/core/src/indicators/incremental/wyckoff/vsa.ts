@@ -9,8 +9,9 @@
  * volume and price action.
  *
  * State category: **Mixed** (an inner recursive ATR snapshot and an
- * inner windowed SMA snapshot composed with an own 10-bar candle
- * buffer). `volumeMaPeriod` / `atrPeriod` shape the inner indicators
+ * inner windowed SMA snapshot composed with an own 11-bar candle
+ * buffer — the current bar plus the 10 previous bars the 'test' rule
+ * scans). `volumeMaPeriod` / `atrPeriod` shape the inner indicators
  * and are refused on resume. The four threshold params
  * (`highVolumeThreshold`, `lowVolumeThreshold`, `wideSpreadThreshold`,
  * `narrowSpreadThreshold`) are **resume-invariant** — they only
@@ -76,8 +77,15 @@ export type VsaState = {
   count: number;
 };
 
-/** Per-indicator schema version. Bumped on any breaking state change. */
-export const VSA_VERSION = 1;
+/**
+ * Per-indicator schema version. Bumped on any breaking state change.
+ *
+ * v2: candle buffer capacity grew from 10 to 11 (current bar + the 10
+ * previous bars the 'test' rule scans). A v1 snapshot's buffer holds
+ * only 10 bars, which perpetuates the 9-previous-bar window the fix
+ * removed, so v1 snapshots are refused with a re-warm error.
+ */
+export const VSA_VERSION = 2;
 
 type VsaParams = {
   volumeMaPeriod: number;
@@ -259,8 +267,11 @@ export function createVsa(
   const wideSpreadThreshold = params.wideSpreadThreshold;
   const narrowSpreadThreshold = params.narrowSpreadThreshold;
 
-  // 10-bar candle buffer for test detection (needs lookback of 10)
-  const candleBufferSize = 10;
+  // The 'test' rule scans the 10 bars BEFORE the current one, and the
+  // current bar is pushed before classification, so the buffer must
+  // hold 11 entries. At 10, the push evicted the bar exactly 10 back
+  // and the rule saw only 9 previous bars (batch scans i-10..i-1).
+  const candleBufferSize = 11;
 
   let atrIndicator: ReturnType<typeof createAtr>;
   let volumeSma: ReturnType<typeof createSma>;
