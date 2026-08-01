@@ -12,6 +12,7 @@ import { type AnnualizationOptions, annualizationFactor } from "../../calendar";
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
+import { logReturnOrZero } from "../../utils/statistics";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -455,7 +456,7 @@ export function ewmaVolatilityFromCandles(
   for (let i = 1; i < normalized.length; i++) {
     const prev = getPrice(normalized[i - 1], source);
     const cur = getPrice(normalized[i], source);
-    returns[i - 1] = prev > 0 && cur > 0 ? Math.log(cur / prev) : 0;
+    returns[i - 1] = logReturnOrZero(prev, cur);
   }
 
   const vol = ewmaVolatility(returns, options);

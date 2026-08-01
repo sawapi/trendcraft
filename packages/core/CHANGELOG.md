@@ -262,6 +262,54 @@ Swing-level values and sweep detection change. Indicators that build on the
 `isSwingHigh` / `isSwingLow` flags — Fibonacci levels, channel lines,
 pitchfork, S/R zones, pattern detection — are untouched.
 
+### Fixed — a poisoned recursive snapshot is refused instead of reviving as a number
+
+A bad tick — a zero or negative price — can push a recursive indicator's
+running value to `Infinity` or `NaN`. While the indicator keeps running that is
+at least obvious, because the output is non-finite too. Persisting it is not:
+`JSON.stringify` writes both as `null`, and the arithmetic in the resumed run
+coerces that `null` to `0`. The series stops looking broken and starts looking
+like data.
+
+`createMcGinleyDynamic` resumed from such a snapshot emitted a constant `0`
+from then on, where the run it continued was emitting `NaN`.
+`createEwmaVolatility` was worse: `lambda * null` is 0, so the recursion
+re-seeded itself from the next return and produced volatility figures in a
+realistic range — 7.4, 8.0, 8.5 — while the uninterrupted run stayed at
+`Infinity`.
+
+Both now refuse to resume such a snapshot, with the usual `re-warm required`
+error, and they check every number the state carries rather than only the
+headline one. `createMcGinleyDynamic` validates the warm-up total as well: it
+is the recursive state until warm-up ends, and `null + price` is a number, so a
+poisoned total used to come back as an average seeded from the bars after the
+bad tick alone. `createEwmaVolatility` validates the previous price as well: as
+`null` it reads as "no candle seen yet", which silently drops the next bar's
+return. The check is a shared helper, `requireFiniteState`, so this guard reads
+like the other resume policies. Snapshots taken before warm-up are unaffected —
+`null` is a legitimate value there, and each field is only checked from the
+point the state itself says it must hold a number.
+
+Neither the streaming nor the batch form produces the non-finite value in the
+first place any more. A step counts as a zero return whenever its log return is
+not a finite number. Non-positive prices were already treated that way in
+`ewmaVolatilityFromCandles`; `Infinity` was not, because it passes a "price is
+positive" test, and `ln(Infinity / price)` poisoned the estimate just the same.
+Nor were two finite prices far enough apart for their ratio to overflow — a
+tick at `Number.MIN_VALUE` next to one at `Number.MAX_VALUE` did it — so the
+result is what gets checked, not only the inputs. Batch and streaming share one
+helper for that decision now, so they agree bar for bar across a bad tick, and
+`garch.ts`'s `ewmaVolatilityFromCandles` returns finite volatility where it used
+to return `NaN`.
+
+Tolerating a bad tick holds across persistence as well. `createEwmaVolatility`
+kept the offending price as its "previous price", so a snapshot taken on that
+bar came back from JSON with the field nulled and could not be resumed — the
+one bar where a caller might most want to save. It now stores `0` for a price
+it cannot use, which survives the round trip and is rejected by the same rule
+when the next return is computed, so an interrupted run and an uninterrupted
+one produce identical values.
+
 ## [0.5.0] - 2026-07-26
 
 ### Read this first — your numbers will change

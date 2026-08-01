@@ -345,6 +345,55 @@ export function requireParam<TParams, K extends keyof TParams>(
   return narrowed;
 }
 
+/**
+ * Refuse a snapshot whose recursive accumulator is not a finite number.
+ *
+ * A recursive indicator that meets a bad tick (a zero or negative price, an
+ * infinity) can carry `Infinity` or `NaN` in its state from then on. That is
+ * visible while the indicator keeps running — the output is non-finite too —
+ * but it does not survive `JSON.stringify`, which writes both as `null`. A
+ * resumed indicator then reads `null` where it expects a number, and the
+ * arithmetic that follows coerces it to `0`: the output stops being obviously
+ * broken and becomes a plausible-looking number instead.
+ *
+ * Call this at resume time for every field that MUST hold a number at that
+ * point in the indicator's life. Fields that are legitimately `null` before
+ * warm-up completes must not be passed until the state says warm-up is done —
+ * the check cannot tell an unwarmed `null` from a serialized `NaN`.
+ *
+ * @param indicator - indicator name, for the error message
+ * @param fields - field name → value, as read from the snapshot
+ * @throws if any field is `null`, `undefined`, or a non-finite number
+ *
+ * @example
+ * ```ts
+ * const period = 14;
+ * const state: { prevMd: number | null; count: number } | null = {
+ *   prevMd: null,
+ *   count: 20,
+ * };
+ *
+ * // Throws: past warm-up `prevMd` cannot legitimately be null.
+ * if (state !== null && state.count >= period) {
+ *   requireFiniteState("mcginleyDynamic", { prevMd: state.prevMd });
+ * }
+ * ```
+ */
+export function requireFiniteState(
+  indicator: string,
+  fields: Record<string, number | null | undefined>,
+): void {
+  for (const [name, value] of Object.entries(fields)) {
+    if (typeof value !== "number" || !Number.isFinite(value)) {
+      throw new Error(
+        `${indicator}: incompatible snapshot, re-warm required (${name} is ${String(
+          value,
+        )}, not a finite number — the run that wrote this snapshot had already been poisoned by a bad tick)`,
+      );
+    }
+  }
+}
+
 // ---- Internal helpers ----
 
 function mergeParams<TParams extends Record<string, unknown>>(

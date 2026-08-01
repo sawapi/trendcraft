@@ -37,11 +37,33 @@
  * has a stable estimate" *and* leaving the post-seed series ~10 EWMA
  * updates behind the batch sibling indefinitely. The combined seed
  * suppression + replay fixes both issues.
+ *
+ * Bad ticks: a step whose log return is not a finite number counts as
+ * a zero return — a price that is zero, negative or non-finite, and
+ * also two finite prices whose ratio overflows. `logReturnOrZero` owns
+ * that rule for both this indicator and
+ * `ewmaVolatilityFromCandles`, so the two stay aligned and the
+ * recursion never goes non-finite from an undefined logarithm.
+ *
+ * That tolerance extends to the snapshot: a non-finite price is not
+ * carried into the state (`JSON.stringify` would write it as `null`,
+ * which a resumed run reads as "no candle seen yet"), it is stored as
+ * `0` — a value `logReturnOrZero` rejects identically, so the next
+ * return is 0 whether the run was interrupted or not. A snapshot that
+ * still carries a non-finite value, written before that was true, is
+ * refused on resume rather than revived as the 0 that JSON's `null`
+ * would coerce to.
  */
 
 import { type AnnualizationOptions, annualizationFactor } from "../../../calendar";
 import type { NormalizedCandle, PriceSource } from "../../../types";
-import { type IndicatorSnapshot, makeSnapshot, resolveResume } from "../state-contract";
+import { logReturnOrZero } from "../../../utils/statistics";
+import {
+  type IndicatorSnapshot,
+  makeSnapshot,
+  requireFiniteState,
+  resolveResume,
+} from "../state-contract";
 import type { IncrementalIndicator } from "../types";
 import { getSourcePrice } from "../utils";
 
@@ -195,6 +217,24 @@ export function createEwmaVolatility(
   let count: number;
 
   if (state !== null) {
+    // Every number this state carries, with the point in the indicator's life
+    // from which it must hold one. JSON writes a non-finite value as `null`,
+    // and each of these has a coercion waiting for it: `lambda * null` is 0
+    // (re-seeds the recursion, and the volatility it then reports looks
+    // entirely realistic), a null seed return quietly changes the seed
+    // variance, and a null `prevPrice` reads as "no candle seen yet", which
+    // drops the next bar's return instead.
+    requireFiniteState("ewmaVolatility", { count: state.count });
+    if (state.count > 0) {
+      requireFiniteState("ewmaVolatility", { prevPrice: state.prevPrice });
+    }
+    if (state.seedDone) {
+      requireFiniteState("ewmaVolatility", { prevVariance: state.prevVariance });
+    }
+    requireFiniteState(
+      "ewmaVolatility",
+      Object.fromEntries(state.seedReturns.map((r, i) => [`seedReturns[${i}]`, r])),
+    );
     prevPrice = state.prevPrice;
     prevVariance = state.prevVariance;
     seedReturns = [...state.seedReturns];
@@ -247,17 +287,32 @@ export function createEwmaVolatility(
     return Math.sqrt(Math.max(0, variance)) * annualFactor;
   }
 
+  /**
+   * The form of a price this indicator is willing to carry forward.
+   *
+   * A non-finite tick is tolerated — it counts as a zero return — but storing
+   * it would break the snapshot: `JSON.stringify` writes `Infinity` and `NaN`
+   * as `null`, and a resumed run reads that as "no candle seen yet" and drops
+   * the next bar's return. `0` stands in for it: `logReturnOrZero` rejects a
+   * zero previous price exactly as it rejects the value being replaced, so the
+   * next return is 0 either way and a resumed run computes what the
+   * uninterrupted one does.
+   */
+  function storablePrice(price: number): number {
+    return Number.isFinite(price) ? price : 0;
+  }
+
   const indicator: IncrementalIndicator<number | null, IndicatorSnapshot<EwmaVolatilityState>> = {
     next(candle: NormalizedCandle) {
       count++;
-      const price = getSourcePrice(candle, source);
+      const price = storablePrice(getSourcePrice(candle, source));
 
       if (prevPrice === null) {
         prevPrice = price;
         return { time: candle.time, value: null };
       }
 
-      const logReturn = Math.log(price / prevPrice);
+      const logReturn = logReturnOrZero(prevPrice, price);
       prevPrice = price;
 
       if (!seedDone) {
@@ -291,13 +346,13 @@ export function createEwmaVolatility(
     },
 
     peek(candle: NormalizedCandle) {
-      const price = getSourcePrice(candle, source);
+      const price = storablePrice(getSourcePrice(candle, source));
 
       if (prevPrice === null) {
         return { time: candle.time, value: null };
       }
 
-      const logReturn = Math.log(price / prevPrice);
+      const logReturn = logReturnOrZero(prevPrice, price);
 
       if (!seedDone) {
         const peekReturns = [...seedReturns, logReturn];
