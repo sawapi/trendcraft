@@ -119,7 +119,9 @@ export function createWeisWave(
 
   function processCandle(candle: NormalizedCandle): WeisWaveValue {
     if (prevCandle === null) {
-      // First bar
+      // First bar. The batch indicator seeds bar-0 direction from the
+      // bar0->bar1 move, which a streaming consumer cannot see yet, so
+      // "up" is a provisional label until the first move is observed.
       waveVolume = candle.volume;
       direction = "up";
       prevCandle = { close: candle.close, high: candle.high, low: candle.low };
@@ -129,7 +131,15 @@ export function createWeisWave(
     const move = getMove(candle);
     const newDir: "up" | "down" = move >= 0 ? "up" : "down";
 
-    if (newDir !== direction && Math.abs(move) > threshold) {
+    if (count === 2) {
+      // Second bar: the first observed move defines the initial wave
+      // direction — the batch seeds bar-0 direction from this same move
+      // with no threshold applied — so it can never be a reversal.
+      // Adopt it and keep accumulating on top of bar 0's volume;
+      // resetting here dropped bar 0 from the entire first wave.
+      direction = newDir;
+      waveVolume += candle.volume;
+    } else if (newDir !== direction && Math.abs(move) > threshold) {
       // Direction reversal - start new wave
       direction = newDir;
       waveVolume = candle.volume;
@@ -150,28 +160,20 @@ export function createWeisWave(
     },
 
     peek(candle: NormalizedCandle) {
-      if (prevCandle === null) {
-        return {
-          time: candle.time,
-          value: { waveVolume: candle.volume, direction: "up" as const },
-        };
-      }
-
-      const move = getMove(candle);
-      const newDir: "up" | "down" = move >= 0 ? "up" : "down";
-
-      let peekVolume: number;
-      let peekDir: "up" | "down";
-
-      if (newDir !== direction && Math.abs(move) > threshold) {
-        peekDir = newDir;
-        peekVolume = candle.volume;
-      } else {
-        peekDir = direction;
-        peekVolume = waveVolume + candle.volume;
-      }
-
-      return { time: candle.time, value: { waveVolume: peekVolume, direction: peekDir } };
+      // Run the real `next()` and put the saved state back, instead of
+      // hand-maintaining a mirror of `processCandle` — a mirror has to
+      // restate every rule (first bar, second-bar adoption, reversal)
+      // and silently drifts when one changes. Restoring after is safe
+      // here: `next()` replaces `prevCandle` with a fresh object and
+      // the other fields are primitives, so nothing the caller ever
+      // received is mutated.
+      const saved = { waveVolume, direction, prevCandle, count };
+      const result = indicator.next(candle);
+      waveVolume = saved.waveVolume;
+      direction = saved.direction;
+      prevCandle = saved.prevCandle;
+      count = saved.count;
+      return result;
     },
 
     getState(): IndicatorSnapshot<WeisWaveState> {
