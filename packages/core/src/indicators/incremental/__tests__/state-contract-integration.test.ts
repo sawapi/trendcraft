@@ -100,6 +100,7 @@ import { volumeAnomaly } from "../../volume/volume-anomaly";
 import { volumeTrend } from "../../volume/volume-trend";
 import { vwap } from "../../volume/vwap";
 import { weisWave } from "../../volume/weis-wave";
+import { vsa } from "../../wyckoff/vsa";
 import { createRoofingFilter, type RoofingFilterState } from "../filter/roofing-filter";
 import { createSuperSmoother, type SuperSmootherState } from "../filter/super-smoother";
 import { type AdxrState, createAdxr } from "../momentum/adxr";
@@ -2645,14 +2646,12 @@ describeContract<LiquiditySweepValue, LiquiditySweepState>({
     (typeof v === "object" && (v as { isSweep: boolean }).isSweep === false),
 });
 
-// VSA — Mixed (inner recursive ATR + windowed SMA + own 10-bar candle
-// buffer). The four threshold params are resume-invariant — they only
-// classify already-computed spread / volume ratios. batchCompute
-// omitted: the batch `vsa` and the incremental factory have a
-// pre-existing classification drift on a handful of bars (the legacy
-// parity test compared only `spreadRelative` / `volumeRelative`
-// within tolerance, never the `barType` enum); the migration left
-// `next` / `peek` untouched, so this is not a regression. The
+// VSA — Mixed (inner recursive ATR + windowed SMA + own 11-bar candle
+// buffer: current bar + the 10 previous bars the 'test' rule scans).
+// The four threshold params are resume-invariant — they only classify
+// already-computed spread / volume ratios. Batch parity is exact,
+// including the `barType` enum, since the buffer off-by-one that made
+// the 'test' rule scan 9 previous bars was fixed (schema v2). The
 // incremental never emits null (VSA classifies every bar from bar 0).
 describeContract<VsaValue, VsaState>({
   name: "vsa",
@@ -2669,7 +2668,7 @@ describeContract<VsaValue, VsaState>({
       warmUp,
     ),
   category: "mixed",
-  version: 1,
+  version: 2,
   defaultParams: {
     volumeMaPeriod: 20,
     atrPeriod: 14,
@@ -2682,6 +2681,18 @@ describeContract<VsaValue, VsaState>({
   resumeInvariantReconfig: [{ highVolumeThreshold: 2.0 }, { narrowSpreadThreshold: 0.5 }],
   makeCandles,
   streamLength: 120,
+  batchCompute: (opts, candles) =>
+    vsa(
+      candles,
+      opts as {
+        volumeMaPeriod?: number;
+        atrPeriod?: number;
+        highVolumeThreshold?: number;
+        lowVolumeThreshold?: number;
+        wideSpreadThreshold?: number;
+        narrowSpreadThreshold?: number;
+      },
+    ).map((s) => s.value),
   // VSA never emits a bare-null value. Until the inner volume SMA is
   // warmed, `volumeRelative` is exactly 1 (the `volMaVal == null`
   // fallback). The SMA is the slowest-warming inner indicator, so

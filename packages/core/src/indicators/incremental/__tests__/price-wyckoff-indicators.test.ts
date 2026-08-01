@@ -402,19 +402,88 @@ describe("FVG incremental", () => {
 
 // ---- VSA ----
 describe("VSA incremental", () => {
-  it("matches batch output (barType)", () => {
+  it("matches batch output exactly on every bar", () => {
+    // Exact equality, not a match-rate threshold: the old 80% tolerance
+    // hid a buffer off-by-one that made the 'test' rule scan 9 previous
+    // bars instead of batch's 10.
     const batch = vsa(candles, { volumeMaPeriod: 20, atrPeriod: 14 });
     const incremental = processAll(createVsa({ volumeMaPeriod: 20, atrPeriod: 14 }), candles);
     expect(incremental.length).toBe(batch.length);
-    // Match barType for bars where both are warmed up
-    let matchCount = 0;
-    for (let i = 30; i < batch.length; i++) {
-      if (batch[i].value.barType === incremental[i].value.barType) {
-        matchCount++;
+    for (let i = 0; i < batch.length; i++) {
+      const bv = batch[i].value;
+      const iv = incremental[i].value;
+      expect(iv.barType).toBe(bv.barType);
+      expect(iv.isEffortDivergence).toBe(bv.isEffortDivergence);
+      expect(Math.abs(iv.spreadRelative - bv.spreadRelative)).toBeLessThan(1e-10);
+      expect(Math.abs(iv.closePosition - bv.closePosition)).toBeLessThan(1e-10);
+      expect(Math.abs(iv.volumeRelative - bv.volumeRelative)).toBeLessThan(1e-10);
+    }
+  });
+
+  it("sees the decisive low exactly 10 bars back in the 'test' rule", () => {
+    // The 'test' rule scans the 10 bars before the current one. Build a
+    // stream whose lowest low sits exactly 10 bars back: a window one
+    // bar short misses it and reports a spurious 'test' where batch
+    // says 'normal'.
+    const fixture: NormalizedCandle[] = [];
+    const mk = (
+      i: number,
+      o: { open?: number; high?: number; low?: number; close?: number; volume?: number } = {},
+    ): NormalizedCandle => ({
+      time: 1700000000000 + i * 60000,
+      open: o.open ?? 100,
+      high: o.high ?? 100.6,
+      low: o.low ?? 99.4,
+      close: o.close ?? 100.2,
+      volume: o.volume ?? 1000,
+    });
+    for (let i = 0; i < 20; i++) fixture.push(mk(i));
+    fixture.push(mk(20, { low: 90, open: 100.2, close: 100 })); // decisive low
+    for (let i = 21; i < 30; i++) fixture.push(mk(i));
+    // Bar 30: low volume, low near the recent shallow lows; the decisive
+    // low (90) is exactly 10 back and far outside ATR tolerance.
+    fixture.push(mk(30, { volume: 500, low: 99.3, open: 100.1, close: 100 }));
+
+    const batch = vsa(fixture, { volumeMaPeriod: 20, atrPeriod: 14 });
+    const ind = createVsa({ volumeMaPeriod: 20, atrPeriod: 14 });
+    const inc = fixture.map((c) => {
+      const peeked = ind.peek(c).value;
+      const advanced = ind.next(c).value;
+      expect(peeked.barType).toBe(advanced.barType);
+      return advanced;
+    });
+    expect(batch[30].value.barType).toBe("normal");
+    expect(inc[30].barType).toBe("normal");
+  });
+
+  it("matches batch barType per bar across randomized streams (peek == next)", () => {
+    for (const seed0 of [12648430, 1, 987654321, 42424242]) {
+      let seed = seed0;
+      const rnd = () => {
+        seed = (seed * 16807) % 2147483647;
+        return seed / 2147483647;
+      };
+      const stream: NormalizedCandle[] = [];
+      let price = 100;
+      for (let i = 0; i < 300; i++) {
+        const drift = (rnd() - 0.5) * 3;
+        const open = price;
+        const close = price * (1 + drift / 100);
+        const high = Math.max(open, close) * (1 + rnd() * 0.008);
+        const low = Math.min(open, close) * (1 - rnd() * 0.008);
+        const volume = Math.floor(500 + rnd() * 2000);
+        stream.push({ time: 1700000000000 + i * 60000, open, high, low, close, volume });
+        price = close;
+      }
+      const batch = vsa(stream, { volumeMaPeriod: 20, atrPeriod: 14 });
+      const ind = createVsa({ volumeMaPeriod: 20, atrPeriod: 14 });
+      for (let i = 0; i < stream.length; i++) {
+        const peeked = ind.peek(stream[i]).value;
+        const advanced = ind.next(stream[i]).value;
+        expect(peeked.barType).toBe(advanced.barType);
+        expect(advanced.barType).toBe(batch[i].value.barType);
       }
     }
-    // Most should match (some edge cases in lookback may differ)
-    expect(matchCount).toBeGreaterThan((batch.length - 30) * 0.8);
   });
 
   it("peek does not mutate state", () => {
