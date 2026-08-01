@@ -185,6 +185,13 @@ export { createLiquiditySweep } from "./smc/liquidity-sweep";
 // the snapshot type. (Distinct from the looser `streaming` snapshot
 // type of the same name; this is the per-indicator state envelope.)
 export type { IndicatorSnapshot, SnapshotMeta } from "./state-contract";
+// Persisting a snapshot: `JSON.stringify` already keeps every value, these
+// cover the paths that drop the hook it relies on (`structuredClone`, or a
+// storage layer that rebuilds the object before serializing it).
+export {
+  deserializeIndicatorSnapshot,
+  serializeIndicatorSnapshot,
+} from "./state-contract";
 export type { IchimokuState, IchimokuValue as IncrementalIchimokuValue } from "./trend/ichimoku";
 export { createIchimoku } from "./trend/ichimoku";
 export type {

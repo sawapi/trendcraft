@@ -214,6 +214,11 @@ export function resolveResume<TParams extends Record<string, unknown>, TState>(
     );
   }
 
+  // Restore values JSON has no syntax for. A snapshot that never went through
+  // JSON decodes to itself, so resuming from `getState()` directly and
+  // resuming from its JSON produce the same state.
+  const restored = decodeSnapshotValue(fromState.state) as TState;
+
   // Merge: defaults < snapshot.params < explicit options.
   const params = mergeParams(defaults, fromState.meta.params, options);
 
@@ -222,7 +227,7 @@ export function resolveResume<TParams extends Record<string, unknown>, TState>(
   const changedKeys = diffParams(snapshotParams, params);
 
   if (changedKeys.length === 0) {
-    return { params, state: fromState.state, reconfigured: false };
+    return { params, state: restored, reconfigured: false };
   }
 
   // Source change is always a refuse — the input series differs, so
@@ -246,11 +251,11 @@ export function resolveResume<TParams extends Record<string, unknown>, TState>(
   if (stateShapingChanges.length === 0) {
     // Only resume-invariant params changed — resume the saved state
     // verbatim, no buffer rebuild needed.
-    return { params, state: fromState.state, reconfigured: false };
+    return { params, state: restored, reconfigured: false };
   }
 
   if (category === "windowed" || category === "event") {
-    return { params, state: fromState.state, reconfigured: true };
+    return { params, state: restored, reconfigured: true };
   }
 
   // recursive / mixed / cascaded: any state-shaping param change
@@ -282,6 +287,12 @@ export function buildMeta(
 
 /**
  * Wrap an indicator's bare state in the standard envelope.
+ *
+ * The state carries a non-enumerable `toJSON` so that `JSON.stringify` — the
+ * call a caller persisting a snapshot already writes — keeps values JSON has
+ * no syntax for. See {@link encodeSnapshotValue}. Nothing else about the state
+ * changes: property access, `Object.keys`, spreading and resuming from the
+ * object directly all behave exactly as before, and the numbers stay numbers.
  */
 export function makeSnapshot<TState>(
   indicator: string,
@@ -289,7 +300,236 @@ export function makeSnapshot<TState>(
   params: Record<string, unknown>,
   state: TState,
 ): IndicatorSnapshot<TState> {
-  return { meta: buildMeta(indicator, version, params), state };
+  return { meta: buildMeta(indicator, version, params), state: attachStateCodec(state) };
+}
+
+// ---- JSON codec for values JSON cannot represent ----
+
+/** Reserved key. Never produced for a state whose numbers are all ordinary. */
+const CODEC_KEY = "$trendcraft";
+
+/** Bumped only if the encoding itself changes shape. */
+const CODEC_VERSION = 1;
+
+/** The four values, as a closed set. A lookup would also answer for
+ * `"toString"` and every other name inherited from `Object.prototype`, and
+ * hand back the function it found. */
+function specialValue(name: string): number | undefined {
+  switch (name) {
+    case "NaN":
+      return Number.NaN;
+    case "Infinity":
+      return Number.POSITIVE_INFINITY;
+    case "-Infinity":
+      return Number.NEGATIVE_INFINITY;
+    case "-0":
+      return -0;
+    default:
+      return undefined;
+  }
+}
+
+function specialName(value: number): string | null {
+  if (Number.isNaN(value)) return "NaN";
+  if (value === Number.POSITIVE_INFINITY) return "Infinity";
+  if (value === Number.NEGATIVE_INFINITY) return "-Infinity";
+  if (Object.is(value, -0)) return "-0";
+  return null;
+}
+
+/**
+ * Rewrite a snapshot state into a JSON-safe structure.
+ *
+ * `JSON.stringify` writes `NaN`, `Infinity` and `-Infinity` as `null` and
+ * drops the sign of `-0`. A resumed indicator then reads a `null` where a
+ * number belongs, and the arithmetic that follows coerces it to `0` — the
+ * output stops looking broken and starts looking like data. Each of those four
+ * values is written as a tagged object instead and read back exactly.
+ *
+ * The input is not modified; a new structure is returned. A state whose
+ * numbers are all ordinary encodes to a structure that serializes to the same
+ * bytes as before this existed.
+ *
+ * @param value - any part of a snapshot state
+ * @returns the JSON-safe equivalent
+ *
+ * @example
+ * ```ts
+ * encodeSnapshotValue({ prevEma: Number.NaN, count: 3 });
+ * // { prevEma: { $trendcraft: { type: "number", value: "NaN", version: 1 } }, count: 3 }
+ * ```
+ */
+export function encodeSnapshotValue(value: unknown): unknown {
+  if (typeof value === "number") {
+    const name = specialName(value);
+    if (name === null) return value;
+    return { [CODEC_KEY]: { type: "number", value: name, version: CODEC_VERSION } };
+  }
+  if (Array.isArray(value)) return value.map(encodeSnapshotValue);
+  if (value !== null && typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [key, inner] of Object.entries(value as Record<string, unknown>)) {
+      out[key] = encodeSnapshotValue(inner);
+    }
+    return out;
+  }
+  return value;
+}
+
+/**
+ * Inverse of {@link encodeSnapshotValue}.
+ *
+ * A tag is only honored when it is exactly the shape this codec writes.
+ * Anything else carrying the reserved key is refused rather than passed
+ * through as data: a snapshot that half-matches is a corrupted wire format,
+ * and reading it as an ordinary object would put an object where the
+ * indicator expects a number.
+ *
+ * @param value - a parsed snapshot state, or any part of one
+ * @returns the same structure with tagged values restored
+ * @throws if the reserved key appears in any other shape
+ */
+export function decodeSnapshotValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    let changed = false;
+    const out = value.map((item) => {
+      const decoded = decodeSnapshotValue(item);
+      if (!Object.is(decoded, item)) changed = true;
+      return decoded;
+    });
+    // A state with nothing to decode is returned as-is, so resuming from an
+    // object keeps handing the indicator the very object it was given.
+    return changed ? out : value;
+  }
+  if (value === null || typeof value !== "object") return value;
+
+  const obj = value as Record<string, unknown>;
+  if (CODEC_KEY in obj) {
+    const keys = Object.keys(obj);
+    if (keys.length !== 1) {
+      throw new Error(
+        `invalid snapshot wire format: "${CODEC_KEY}" alongside other keys (${keys.join(", ")})`,
+      );
+    }
+    const tag = obj[CODEC_KEY];
+    if (tag === null || typeof tag !== "object" || Array.isArray(tag)) {
+      throw new Error(`invalid snapshot wire format: "${CODEC_KEY}" must hold an object`);
+    }
+    const tagKeys = Object.keys(tag).sort();
+    if (tagKeys.length !== 3 || tagKeys.join(",") !== "type,value,version") {
+      throw new Error(
+        `invalid snapshot wire format: tag must hold exactly type, value and version (got ${tagKeys.join(", ")})`,
+      );
+    }
+    const { type, value: name, version } = tag as Record<string, unknown>;
+    if (type !== "number") {
+      throw new Error(`invalid snapshot wire format: unknown tag type ${JSON.stringify(type)}`);
+    }
+    if (version !== CODEC_VERSION) {
+      throw new Error(
+        `invalid snapshot wire format: tag version ${JSON.stringify(version)} (this build writes ${CODEC_VERSION})`,
+      );
+    }
+    const restored = typeof name === "string" ? specialValue(name) : undefined;
+    if (restored === undefined) {
+      throw new Error(`invalid snapshot wire format: unknown tag value ${JSON.stringify(name)}`);
+    }
+    return restored;
+  }
+
+  const out: Record<string, unknown> = {};
+  let changed = false;
+  for (const [key, inner] of Object.entries(obj)) {
+    const decoded = decodeSnapshotValue(inner);
+    if (!Object.is(decoded, inner)) changed = true;
+    out[key] = decoded;
+  }
+  return changed ? out : value;
+}
+
+/**
+ * Give a state object the `toJSON` that runs the codec.
+ *
+ * Non-enumerable, so it is invisible to `Object.keys`, spreading and equality
+ * checks. It does not survive `structuredClone` or being spread into a fresh
+ * object — functions are not copied by either — which is what
+ * {@link serializeIndicatorSnapshot} is for.
+ */
+function attachStateCodec<TState>(state: TState): TState {
+  if (state === null || typeof state !== "object") return state;
+  if (Object.hasOwn(state as object, "toJSON")) {
+    throw new Error(
+      "indicator state defines its own toJSON; the snapshot codec would have to overwrite it",
+    );
+  }
+  if (!Object.isExtensible(state)) {
+    throw new Error("indicator state is not extensible; the snapshot codec cannot be attached");
+  }
+  Object.defineProperty(state, "toJSON", {
+    value(this: TState) {
+      const plain: Record<string, unknown> = {};
+      for (const [key, inner] of Object.entries(this as object)) plain[key] = inner;
+      return encodeSnapshotValue(plain);
+    },
+    enumerable: false,
+    configurable: true,
+    writable: true,
+  });
+  return state;
+}
+
+/**
+ * Persist a snapshot, keeping every number exactly.
+ *
+ * `JSON.stringify(snapshot)` already goes through the same codec. Use this
+ * when the snapshot has been copied in a way that drops the hook it relies on
+ * — `structuredClone`, spreading the state itself, or a storage layer that
+ * rebuilds the object before serializing it.
+ *
+ * @param snapshot - a snapshot from `getState()`
+ * @returns JSON text that {@link deserializeIndicatorSnapshot} reads back exactly
+ *
+ * @example
+ * ```ts
+ * const ema = createEma({ period: 12 });
+ * const text = serializeIndicatorSnapshot(ema.getState());
+ * const restored = deserializeIndicatorSnapshot<EmaState>(text);
+ * createEma({ period: 12 }, { fromState: restored });
+ * ```
+ */
+export function serializeIndicatorSnapshot<TState>(snapshot: IndicatorSnapshot<TState>): string {
+  return JSON.stringify({
+    meta: snapshot.meta,
+    state: encodeSnapshotValue(snapshot.state),
+  });
+}
+
+/**
+ * Read back what {@link serializeIndicatorSnapshot} wrote.
+ *
+ * Plain `JSON.parse` works too — `resolveResume` decodes tags on the way in —
+ * but this pairs with the explicit serializer and fails on a corrupted wire
+ * format at the point of reading rather than at resume.
+ *
+ * The state type is the caller's to declare, the way `JSON.parse` leaves it:
+ * `deserializeIndicatorSnapshot<EmaState>(text)` types the result, and
+ * omitting it leaves the state `unknown`.
+ *
+ * @param json - JSON text produced by `serializeIndicatorSnapshot` or `JSON.stringify`
+ * @returns the snapshot, with every tagged value restored
+ * @throws if the text is not valid JSON or carries a malformed tag
+ */
+export function deserializeIndicatorSnapshot<TState = unknown>(
+  json: string,
+): IndicatorSnapshot<TState> {
+  const parsed = JSON.parse(json) as { meta: SnapshotMeta; state: unknown };
+  // The result is an `IndicatorSnapshot` like any other, so it carries the
+  // hook too: deserializing and then persisting again with `JSON.stringify`
+  // must not be the step that loses the values this codec exists to keep.
+  return {
+    meta: parsed.meta,
+    state: attachStateCodec(decodeSnapshotValue(parsed.state)) as TState,
+  };
 }
 
 /**
