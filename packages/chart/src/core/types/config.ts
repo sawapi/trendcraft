@@ -19,7 +19,10 @@ export type ChartOptions = {
   priceAxisWidth?: number;
   /** Bottom margin for time axis in pixels (default: 32) */
   timeAxisHeight?: number;
-  /** Font family (default: system) */
+  /**
+   * Font family for canvas axis/crosshair/overlay text and DOM legend/info
+   * overlays (default: system UI stack). Runtime-updatable via `applyOptions`.
+   */
   fontFamily?: string;
   /** Font size in pixels (default: 11) */
   fontSize?: number;

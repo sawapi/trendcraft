@@ -6,6 +6,7 @@
 import type { DataLayer, InternalSeries } from "../core/data-layer";
 import { decimateCandles, getDecimationTarget } from "../core/decimation";
 import { DrawHelper, withPaneClip } from "../core/draw-helper";
+import { canvasFont } from "../core/font";
 import { formatVolume } from "../core/format";
 import type { LayoutEngine } from "../core/layout";
 import type { RendererRegistry } from "../core/renderer-registry";
@@ -44,6 +45,7 @@ type DualScale = { left: PriceScale; right: PriceScale };
 
 /** Cached watermark font string — avoids per-frame template literal */
 let _watermarkFontWidth = 0;
+let _watermarkFontFamily = "";
 let _watermarkFont = "";
 
 /** Reused Maps — avoids per-frame allocation */
@@ -78,6 +80,7 @@ export type RenderContext = {
   canvasHeight: number;
   theme: ThemeColors;
   fontSize: number;
+  fontFamily: string;
   chartType: ChartType;
   watermark: string | undefined;
   /** When true, draw last-value pills on each pane's right axis */
@@ -126,9 +129,10 @@ export function renderFrame(rc: RenderContext): RenderResult {
 
   // Watermark
   if (rc.watermark) {
-    if (_watermarkFontWidth !== width) {
+    if (_watermarkFontWidth !== width || _watermarkFontFamily !== rc.fontFamily) {
       _watermarkFontWidth = width;
-      _watermarkFont = `bold ${Math.min(width * 0.08, 48)}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+      _watermarkFontFamily = rc.fontFamily;
+      _watermarkFont = canvasFont(Math.min(width * 0.08, 48), rc.fontFamily, "bold");
     }
     ctx.save();
     ctx.fillStyle = theme.textSecondary;
@@ -389,6 +393,7 @@ export function renderFrame(rc: RenderContext): RenderResult {
               dataLayer: data,
               theme,
               draw: drawHelper,
+              fontFamily: rc.fontFamily,
             },
             prim.state,
           );
@@ -432,6 +437,7 @@ export function renderFrame(rc: RenderContext): RenderResult {
               dataLayer: data,
               theme,
               draw: drawHelper,
+              fontFamily: rc.fontFamily,
             },
             prim.state,
           );
@@ -485,6 +491,7 @@ export function renderFrame(rc: RenderContext): RenderResult {
           excludeYRanges,
           searchUpTo,
           extras,
+          rc.fontFamily,
         );
         for (const b of computedBadges) excludeYRanges.push({ y: b.y, half: b.half });
         if (computedBadges.length > 0) pendingBadges.push({ badges: computedBadges });
@@ -507,6 +514,7 @@ export function renderFrame(rc: RenderContext): RenderResult {
         maxTicks: paneMaxTicks,
         excludeYRanges: excludeYRanges.length > 0 ? excludeYRanges : undefined,
       },
+      rc.fontFamily,
     );
 
     // Left price axis (if pane has left-scale series)
@@ -522,6 +530,7 @@ export function renderFrame(rc: RenderContext): RenderResult {
         rc.fontSize,
         axisFormatter,
         { position: "left", maxTicks: paneMaxTicks },
+        rc.fontFamily,
       );
     }
   }
@@ -554,6 +563,7 @@ export function renderFrame(rc: RenderContext): RenderResult {
     theme,
     rc.fontSize,
     rc.timeFormatter,
+    rc.fontFamily,
   );
 
   // MTF overlays
@@ -575,6 +585,7 @@ export function renderFrame(rc: RenderContext): RenderResult {
         theme,
         rc.fontSize,
         rc.locale,
+        rc.fontFamily,
       );
     }
   }
@@ -590,20 +601,40 @@ export function renderFrame(rc: RenderContext): RenderResult {
       data,
       theme,
       rc.fontSize,
+      rc.fontFamily,
     );
   }
 
   // Drawings (include interactive preview if present)
   const allDrawings = rc.drawingPreview ? [...data.drawings, rc.drawingPreview] : data.drawings;
-  renderDrawings(ctx, allDrawings, paneRects, _rightScaleMap, timeScale, data, theme, rc.fontSize);
+  renderDrawings(
+    ctx,
+    allDrawings,
+    paneRects,
+    _rightScaleMap,
+    timeScale,
+    data,
+    theme,
+    rc.fontSize,
+    rc.fontFamily,
+  );
 
   // Overlays
-  renderPriceLine(ctx, candles, paneRects, _rightScaleMap, theme, rc.fontSize, currentPriceIndex);
+  renderPriceLine(
+    ctx,
+    candles,
+    paneRects,
+    _rightScaleMap,
+    theme,
+    rc.fontSize,
+    currentPriceIndex,
+    rc.fontFamily,
+  );
   // Last-value series badges (opt-in). Drawn after renderPriceLine so the
   // candle current-price badge stays on top visually, and above the axis so
   // pills aren't obscured by tick labels.
   for (const { badges } of pendingBadges) {
-    drawSeriesBadges(ctx, badges, rc.fontSize);
+    drawSeriesBadges(ctx, badges, rc.fontSize, rc.fontFamily);
   }
   renderSignals(ctx, data.signals, candles, data, paneRects, _rightScaleMap, timeScale);
   renderTrades(ctx, data.trades, data, paneRects, _rightScaleMap, timeScale);
@@ -622,6 +653,7 @@ export function renderFrame(rc: RenderContext): RenderResult {
     candles,
     undefined,
     rc.crosshair,
+    rc.fontFamily,
   );
 
   // Crosshair event emission is handled by CanvasChart's viewport interaction

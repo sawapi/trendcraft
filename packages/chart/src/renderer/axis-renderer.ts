@@ -2,6 +2,7 @@
  * Axis Renderer — Draws price (Y) and time (X) axes.
  */
 
+import { canvasFont, DEFAULT_FONT_FAMILY } from "../core/font";
 import {
   autoFormatPrice,
   autoFormatTime,
@@ -55,6 +56,7 @@ export function renderPriceAxis(
   fontSize: number,
   priceFormatter: (price: number) => string = autoFormatPrice,
   options: PriceAxisOptions | "left" | "right" = {},
+  fontFamily: string = DEFAULT_FONT_FAMILY,
 ): void {
   // Back-compat: position can be passed as a bare string.
   const opts: PriceAxisOptions = typeof options === "string" ? { position: options } : options;
@@ -95,7 +97,7 @@ export function renderPriceAxis(
   // for short panes (e.g. a volume pane where the nice-step tick generator
   // lands ticks at exactly the min/max of the range).
   ctx.fillStyle = theme.textSecondary;
-  ctx.font = `${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+  ctx.font = canvasFont(fontSize, fontFamily);
   ctx.textAlign = position === "left" ? "right" : "left";
   const labelX = position === "left" ? x - 6 : x + 6;
 
@@ -134,6 +136,7 @@ export function renderTimeAxis(
   theme: ThemeColors,
   fontSize: number,
   timeFormatter?: (time: number) => string,
+  fontFamily: string = DEFAULT_FONT_FAMILY,
 ): void {
   ctx.fillStyle = theme.background;
   ctx.fillRect(x, y, width + 100, height);
@@ -147,7 +150,7 @@ export function renderTimeAxis(
   ctx.stroke();
 
   ctx.fillStyle = theme.textSecondary;
-  ctx.font = `${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+  ctx.font = canvasFont(fontSize, fontFamily);
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
 

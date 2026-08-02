@@ -4,6 +4,7 @@
  */
 
 import type { DataLayer } from "../core/data-layer";
+import { canvasFont, DEFAULT_FONT_FAMILY } from "../core/font";
 import { measureTextWidth } from "../core/format";
 import type { PriceScale, TimeScale } from "../core/scale";
 import type { PaneRect, ThemeColors } from "../core/types";
@@ -206,11 +207,12 @@ export function renderBacktestSummary(
   theme: ThemeColors,
   fontSize: number,
   locale?: import("../core/i18n").ChartLocale,
+  fontFamily: string = DEFAULT_FONT_FAMILY,
 ): void {
   const isPositive = result.totalReturnPercent >= 0;
   const color = isPositive ? theme.upColor : theme.downColor;
 
-  ctx.font = `${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+  ctx.font = canvasFont(fontSize, fontFamily);
   ctx.textAlign = "left";
   ctx.textBaseline = "top";
 

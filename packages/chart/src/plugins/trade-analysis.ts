@@ -19,6 +19,7 @@
  */
 
 import { withPaneClip } from "../core/draw-helper";
+import { canvasFont } from "../core/font";
 import type { PrimitivePlugin, PrimitiveRenderContext } from "../core/plugin-types";
 import { definePrimitive } from "../core/plugin-types";
 import type { ChartInstance } from "../core/types";
@@ -129,7 +130,7 @@ function computeMfeMaePrice(
 // ---- Render ----
 
 function renderTradeAnalysis(
-  { ctx, pane, timeScale, priceScale }: PrimitiveRenderContext,
+  { ctx, pane, timeScale, priceScale, fontFamily }: PrimitiveRenderContext,
   state: TradeAnalysisState,
 ): void {
   const { trades, candles, options } = state;
@@ -183,7 +184,7 @@ function renderTradeAnalysis(
 
       // Optional MFE / MAE end-of-line price labels.
       if (options.showMfeMaeLabels) {
-        ctx.font = "9px -apple-system, BlinkMacSystemFont, sans-serif";
+        ctx.font = canvasFont(9, fontFamily);
         ctx.textAlign = "left";
         ctx.textBaseline = "middle";
         ctx.fillStyle = `rgba(${MFE_COLOR},0.85)`;
@@ -225,7 +226,7 @@ function renderTradeAnalysis(
         const pct = trade.returnPercent;
         const sign = pct >= 0 ? "+" : "";
         const label = `${sign}${pct.toFixed(2)}%`;
-        ctx.font = "bold 10px -apple-system, BlinkMacSystemFont, sans-serif";
+        ctx.font = canvasFont(10, fontFamily, "bold");
         ctx.textAlign = "left";
         if (isWin) {
           ctx.textBaseline = "bottom";

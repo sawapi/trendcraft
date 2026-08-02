@@ -52,6 +52,8 @@ export type PrimitiveRenderContext = {
   theme: ThemeColors;
   /** Drawing helper — wraps common canvas operations with coordinate conversion */
   draw: DrawHelper;
+  /** Chart font family (`ChartOptions.fontFamily`, falls back to system stack) */
+  fontFamily: string;
 };
 
 /** Custom series renderer plugin */

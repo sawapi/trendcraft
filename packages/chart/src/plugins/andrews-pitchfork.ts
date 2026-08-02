@@ -30,6 +30,7 @@
  */
 
 import { withPaneClip } from "../core/draw-helper";
+import { canvasFont } from "../core/font";
 import type { PrimitivePlugin, PrimitiveRenderContext } from "../core/plugin-types";
 import { definePrimitive } from "../core/plugin-types";
 import type { ChartInstance } from "../core/types";
@@ -78,7 +79,7 @@ export type AndrewsPitchforkState = {
 // ---- Render ----
 
 function renderAndrewsPitchfork(
-  { ctx, pane, timeScale, priceScale }: PrimitiveRenderContext,
+  { ctx, pane, timeScale, priceScale, fontFamily }: PrimitiveRenderContext,
   state: AndrewsPitchforkState,
 ): void {
   const { p0, p1, p2 } = state.anchors;
@@ -185,7 +186,7 @@ function renderAndrewsPitchfork(
     // Right-edge labels for the three parallel lines.
     if (state.showLabels !== false) {
       ctx.fillStyle = state.labelColor ?? stroke;
-      ctx.font = "10px -apple-system, BlinkMacSystemFont, sans-serif";
+      ctx.font = canvasFont(10, fontFamily);
       ctx.textAlign = "right";
       ctx.textBaseline = "middle";
       ctx.fillText("UML", rightEdgeX - 4, upperEndY);

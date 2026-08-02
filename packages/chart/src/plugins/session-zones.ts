@@ -20,6 +20,7 @@
  */
 
 import { withPaneClip } from "../core/draw-helper";
+import { canvasFont } from "../core/font";
 import type { PrimitivePlugin, PrimitiveRenderContext } from "../core/plugin-types";
 import { definePrimitive } from "../core/plugin-types";
 import type { ChartInstance, DataPoint } from "../core/types";
@@ -73,7 +74,7 @@ function zoneToShortLabel(zone: string): string {
 // ---- Render ----
 
 function renderSessionZones(
-  { ctx, pane, timeScale }: PrimitiveRenderContext,
+  { ctx, pane, timeScale, fontFamily }: PrimitiveRenderContext,
   state: SessionZonesState,
 ): void {
   const { data } = state;
@@ -122,7 +123,7 @@ function renderSessionZones(
       spans.push({ zone: spanZone, startIndex: spanStart, endIndex: lastIdx });
     }
 
-    renderZoneLabels(ctx, spans, timeScale, pane.y);
+    renderZoneLabels(ctx, spans, timeScale, pane.y, fontFamily);
   });
 }
 
@@ -131,10 +132,11 @@ function renderZoneLabels(
   spans: Array<{ zone: string; startIndex: number; endIndex: number }>,
   timeScale: { indexToX: (i: number) => number },
   paneY: number,
+  fontFamily: string,
 ): void {
   if (spans.length === 0) return;
 
-  ctx.font = "9px -apple-system, BlinkMacSystemFont, sans-serif";
+  ctx.font = canvasFont(9, fontFamily);
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
 

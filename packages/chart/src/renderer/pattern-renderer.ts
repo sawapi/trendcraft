@@ -4,6 +4,7 @@
  */
 
 import type { DataLayer } from "../core/data-layer";
+import { canvasFont, DEFAULT_FONT_FAMILY } from "../core/font";
 import { autoFormatPrice } from "../core/format";
 import type { PriceScale, TimeScale } from "../core/scale";
 import type { PaneRect, ThemeColors } from "../core/types";
@@ -66,6 +67,7 @@ export function renderPatterns(
   dataLayer: DataLayer,
   theme: ThemeColors,
   fontSize: number,
+  fontFamily: string = DEFAULT_FONT_FAMILY,
 ): void {
   if (patterns.length === 0) return;
 
@@ -116,7 +118,7 @@ export function renderPatterns(
 
       // Label
       ctx.fillStyle = theme.text;
-      ctx.font = `${fontSize - 1}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+      ctx.font = canvasFont(fontSize - 1, fontFamily);
       ctx.textAlign = "center";
       ctx.textBaseline = direction === "bearish" ? "top" : "bottom";
       ctx.fillText(kp.label, x, y + (direction === "bearish" ? 6 : -6));
@@ -158,7 +160,7 @@ export function renderPatterns(
       ctx.setLineDash([]);
 
       ctx.fillStyle = theme.textSecondary;
-      ctx.font = `${fontSize - 1}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+      ctx.font = canvasFont(fontSize - 1, fontFamily);
       ctx.textAlign = "left";
       ctx.textBaseline = "middle";
       ctx.fillText(`T:${autoFormatPrice(signal.pattern.target)}`, x + 64, targetY);
@@ -172,7 +174,7 @@ export function renderPatterns(
 
     ctx.fillStyle = color;
     ctx.globalAlpha = 0.9;
-    ctx.font = `bold ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+    ctx.font = canvasFont(fontSize, fontFamily, "bold");
     ctx.textAlign = "center";
     ctx.textBaseline = "bottom";
     ctx.fillText(`${patternName} (${signal.confidence}%)`, labelX, labelY);

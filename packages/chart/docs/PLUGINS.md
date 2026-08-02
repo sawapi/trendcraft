@@ -269,6 +269,7 @@ type PrimitiveRenderContext = {
   dataLayer: DataLayer;
   theme: ThemeColors;
   draw: DrawHelper;
+  fontFamily: string;           // ChartOptions.fontFamily (system stack by default)
 };
 ```
 

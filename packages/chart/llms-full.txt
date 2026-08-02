@@ -1254,7 +1254,7 @@ All fields optional.
 | `pixelRatio` | `number` | `window.devicePixelRatio` | Canvas backing-store ratio (one-time; not runtime-mutable) |
 | `priceAxisWidth` | `number` | `60` | Right axis width (px) |
 | `timeAxisHeight` | `number` | `24` | Bottom axis height (px) |
-| `fontFamily` | `string` | system | Font family (one-time) |
+| `fontFamily` | `string` | system UI stack | Font family for canvas + DOM overlays (runtime-updatable via `applyOptions`) |
 | `fontSize` | `number` | `11` | Font size (px), clamped to [8, 32] |
 | `priceFormatter` | `(price: number) => string` | auto-precision | Custom price formatter |
 | `timeFormatter` | `(time: number) => string` | smart date/time | Custom time formatter |
