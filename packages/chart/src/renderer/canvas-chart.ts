@@ -913,6 +913,29 @@ export class CanvasChart implements ChartInstance {
     this._animateToRange(() => this._timeScale.setVisibleRange(startIdx, endIdx));
   }
 
+  setVisibleLogicalRange(from: number, to: number): void {
+    if (
+      typeof from !== "number" ||
+      typeof to !== "number" ||
+      !Number.isFinite(from) ||
+      !Number.isFinite(to) ||
+      to <= from
+    ) {
+      this._warn(
+        "setVisibleLogicalRange: expected finite numbers with to > from, ignoring",
+        { from, to },
+        "INVALID_INPUT",
+      );
+      return;
+    }
+    this._animateToRange(() => this._timeScale.setVisibleLogicalRange(from, to));
+  }
+
+  getVisibleLogicalRange(): import("../core/types").LogicalRange | null {
+    if (this._data.candleCount === 0) return null;
+    return this._timeScale.getVisibleLogicalRange();
+  }
+
   setVisibleRangeByDuration(duration: import("../core/types").RangeDuration): void {
     const candles = this._data.candles;
     if (candles.length === 0) return;
@@ -964,12 +987,14 @@ export class CanvasChart implements ChartInstance {
   private _animateToRange(applyTarget: () => void): void {
     this._transition.cancel();
 
-    const fromStart = this._timeScale.startIndex;
+    // Raw (fractional) start indices: flooring here would truncate a
+    // fractional logical-range target to the previous whole bar.
+    const fromStart = this._timeScale.rawStartIndex;
     const fromSpacing = this._timeScale.barSpacing;
 
     // Apply target state to get the destination values
     applyTarget();
-    const toStart = this._timeScale.startIndex;
+    const toStart = this._timeScale.rawStartIndex;
     const toSpacing = this._timeScale.barSpacing;
 
     // Restore original state before animating
@@ -1190,6 +1215,7 @@ export class CanvasChart implements ChartInstance {
       endTime: candles[endIdx]?.time ?? 0,
       startIndex: startIdx,
       endIndex: endIdx,
+      logicalRange: this._timeScale.getVisibleLogicalRange(),
     };
   }
 

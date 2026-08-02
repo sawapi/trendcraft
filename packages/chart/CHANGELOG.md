@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — logical-range viewport API: `setVisibleLogicalRange` / `getVisibleLogicalRange`
+
+```ts
+chart.setVisibleLogicalRange(250, 330); // bars 250..300 + 30 empty slots
+const r = chart.getVisibleLogicalRange(); // { from, to } — fractional, unclamped
+```
+
+The time-based `setVisibleRange` cannot express empty space past the last
+candle: times after the last bar all resolve to it. The logical-range API
+works in bar-index units, accepts fractional values, and may extend beyond
+the data on either side — so custom right-edge margins (wider than
+`timeScale.rightOffset`, conditional, animated, whatever) can be built on
+top of the public API. It composes with live-edge following: while the last
+bar is visible, streaming updates preserve the window's distance from the
+live edge, custom margin included.
+
+Logical indices address the current candle array — they are shifted by
+`maxCandles` trimming and invalidated by `setCandles`. Read-modify-set
+synchronously; never persist them.
+
+`VisibleRangeChangeData` (the `visibleRangeChange` payload and
+`getVisibleRange()` result) gains an optional `logicalRange: { from, to }`
+field carrying the unclamped window edges — the existing time/index fields
+saturate at the last bar, so a right-edge margin was previously invisible
+to listeners. The chart always populates it; it is typed optional so
+existing code constructing this type (test mocks) keeps compiling.
+
+The requested span is exact: bar spacing follows `width / span` directly,
+bounded only by the render pipeline's 0.1px floor rather than the
+interactive zoom limits, so narrow (sub-16-bar) and very wide ranges
+round-trip through `getVisibleLogicalRange` without distortion.
+
 ### Added — `timeScale.rightOffset`: empty space after the last candle
 
 ```ts

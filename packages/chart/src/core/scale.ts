@@ -416,11 +416,16 @@ export class TimeScale {
    * virtual layout is cleared and only re-applied afterwards) and layout
    * rescales from a drifting median bar interval.
    *
+   * Deliberately unclamped: a position that was legal before the append
+   * stays legal after it (the boundary moves by the same span), and a
+   * deliberately beyond-boundary viewport (setVisibleLogicalRange margin
+   * wider than the overscroll pad) must keep its margin — clamping here
+   * would erode it on the first tick.
+   *
    * @param prevEndDistance - {@link endDistanceVirtual} captured BEFORE the mutation
    */
   followLiveEdge(prevEndDistance: number): void {
     this._startIndex = this.realAtVirt(this.virtualTotal - prevEndDistance);
-    this.clamp();
   }
 
   /** Zoom around a pixel position (Google Maps style — anchor stays under cursor) */
@@ -489,12 +494,59 @@ export class TimeScale {
     this.scrollToEnd();
   }
 
-  /** Set startIndex and barSpacing directly (used by animation frames) */
+  /**
+   * Visible range in logical (bar-index) units: `from` is the fractional
+   * bar index at the left window edge, `to` the one at the right edge.
+   * Unlike the time-based range, the values are NOT clamped to the data —
+   * `to` past the last bar measures the empty space after it (a right
+   * margin), and fractional parts measure partial bar visibility. The span
+   * is the window's true fractional width (`width / barSpacing`), not the
+   * integer-ceiled `visibleCount`, so a range set through
+   * {@link setVisibleLogicalRange} reads back exactly.
+   */
+  getVisibleLogicalRange(): { from: number; to: number } {
+    const from = this._startIndex;
+    const span = this._width > 0 ? this._width / this._barSpacing : this._visibleCount;
+    return { from, to: this.realAtVirt(this.virtAt(from) + span) };
+  }
+
+  /**
+   * Set the visible range in logical (bar-index) units. Fractional values
+   * and values beyond the data range are allowed — this is the one way to
+   * express empty space past the last bar (or before the first) that the
+   * time-based `setVisibleRange` cannot reach. The position is applied
+   * without clamping; the next user scroll/zoom clamps as usual.
+   *
+   * The exact span wins over the interactive zoom limits: bar spacing is
+   * derived directly from `width / span`, bounded only by the render
+   * pipeline's 0.1px floor (the same floor `fitContent` uses — spans
+   * wider than `width / 0.1` slots are capped there).
+   *
+   * Logical indices address the CURRENT candle array: they are shifted by
+   * `maxCandles` trimming and invalidated by `setCandles`. Read-modify-set
+   * synchronously; never persist them.
+   */
+  setVisibleLogicalRange(from: number, to: number): void {
+    const span = this.virtAt(to) - this.virtAt(from);
+    if (!(span > 0) || this._width <= 0) return;
+    // A denormal-small span passes the > 0 check but overflows the
+    // division to Infinity — refuse rather than poison the spacing.
+    const spacing = Math.max(0.1, this._width / span);
+    if (!Number.isFinite(spacing)) return;
+    this._barSpacing = spacing;
+    this.recalcVisibleCount();
+    this._startIndex = from;
+  }
+
+  /** Set startIndex and barSpacing directly (used by animation frames).
+   *  Deliberately unclamped: animations interpolate between positions their
+   *  callers already validated, and range targets may sit intentionally
+   *  beyond the scroll boundary (setVisibleLogicalRange) — clamping here
+   *  would silently pull them back. Clamping is the entry points' job. */
   setImmediate(startIndex: number, barSpacing: number): void {
     this._barSpacing = Math.max(0.1, barSpacing);
     this.recalcVisibleCount();
     this._startIndex = startIndex;
-    this.clamp();
   }
 
   /** Set startIndex without clamping (used for rubber-band overscroll) */

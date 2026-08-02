@@ -310,7 +310,7 @@ Subscribe via `chart.on(event, handler)`. Unsubscribe via `chart.off`. Events ar
 | Event | Payload |
 |---|---|
 | `crosshairMove` | `CrosshairMoveData` — time, index, ohlcv, paneId |
-| `visibleRangeChange` | `VisibleRangeChangeData` — startTime, endTime, startIndex, endIndex |
+| `visibleRangeChange` | `VisibleRangeChangeData` — startTime, endTime, startIndex, endIndex (clamped to the data), plus `logicalRange: { from, to }` with the unclamped fractional window edges (a right-edge margin is only visible here) |
 | `click` | `ChartClickData` — x, y, index, time, shiftKey, altKey, metaKey, ctrlKey; fires on pointer up |
 | `resize` | `{ width, height }` |
 | `paneResize` | `{ paneId, height }` — fires when the user drags a pane divider |
