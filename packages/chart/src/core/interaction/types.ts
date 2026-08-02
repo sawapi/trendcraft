@@ -96,7 +96,16 @@ export type InteractionContext = {
   hotkeyMap: HotkeyMap | undefined;
   hotkeyDisabled: boolean;
   dispatch?: (action: HotkeyAction) => void;
+  /** Something needs a repaint (crosshair, pane resize, drawing preview…). */
   onUpdate: () => void;
+  /**
+   * The USER moved the viewport (pan / zoom / scrollbar / viewport keys /
+   * inertia frames). Implies {@link onUpdate}. Kept separate so that a
+   * running programmatic range animation is cancelled only by actual
+   * viewport gestures — a mere hover must not kill it (and with it the
+   * exactly-once completion emit that viewport sync relies on).
+   */
+  onViewportMutation: () => void;
 
   // Mutable shared state (owned by Viewport; handed by reference)
   viewState: ViewportState;

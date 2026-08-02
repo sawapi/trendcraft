@@ -72,6 +72,7 @@ export class Viewport {
   };
 
   private _onUpdate: (() => void) | null = null;
+  private _onViewportMutation: (() => void) | null = null;
 
   get state(): Readonly<ViewportState> {
     return this._state;
@@ -79,6 +80,11 @@ export class Viewport {
 
   setOnUpdate(cb: () => void): void {
     this._onUpdate = cb;
+  }
+
+  /** Called only for user viewport gestures (see InteractionContext). */
+  setOnViewportMutation(cb: () => void): void {
+    this._onViewportMutation = cb;
   }
 
   /**
@@ -175,6 +181,10 @@ export class Viewport {
       hotkeyDisabled: hotkeyMap === false,
       dispatch: opts?.onAction,
       onUpdate: () => this._onUpdate?.(),
+      onViewportMutation: () => {
+        this._onViewportMutation?.();
+        this._onUpdate?.();
+      },
       viewState: this._state,
       drag: this._drag,
       paneResize: { gap: null, startY: 0 },
@@ -192,7 +202,10 @@ export class Viewport {
       isDrawingActive: opts?.isDrawingActive,
     };
 
-    const inertia = new InertiaController(timeScale, ctx.pan, ctx.zoom, ctx.onUpdate);
+    // Inertia frames move the viewport, so they go through the mutation
+    // channel (a fling arriving during a programmatic animation cancels it,
+    // exactly like the gesture that spawned the fling).
+    const inertia = new InertiaController(timeScale, ctx.pan, ctx.zoom, ctx.onViewportMutation);
 
     const detachers = [
       attachMouseHandlers(ctx, inertia),

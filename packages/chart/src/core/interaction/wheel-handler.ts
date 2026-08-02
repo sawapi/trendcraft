@@ -101,7 +101,7 @@ export function attachWheelHandlers(
         inertia.startZoom();
       }
     }
-    ctx.onUpdate();
+    ctx.onViewportMutation();
   };
 
   el.addEventListener("wheel", onWheel, { passive: false });

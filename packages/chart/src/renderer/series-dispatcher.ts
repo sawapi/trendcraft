@@ -133,6 +133,13 @@ export function dispatchSeries(
 
     const data = s.data as DataPoint<number | null>[];
     const target = getDecimationTarget(timeScale.endIndex - timeScale.startIndex, timeScale.width);
+    // Clamp the slice window to the data: a beyond-left viewport yields a
+    // negative startIndex, which Array.slice would interpret as an offset
+    // from the END (length + start) — silently blanking the whole series.
+    // The clamped value must feed the slice, the LTTB index offset, and the
+    // cache key identically, or the three drift apart.
+    const sliceStart = Math.max(0, timeScale.startIndex);
+    const sliceEnd = Math.max(sliceStart, timeScale.endIndex);
     let points: readonly DataPoint<number | null>[] = data;
     let origIndices: Int32Array | undefined;
     if (target > 0) {
@@ -140,24 +147,20 @@ export function dispatchSeries(
       const cached = _lttbCache.get(data);
       if (
         cached &&
-        cached.start === timeScale.startIndex &&
-        cached.end === timeScale.endIndex &&
+        cached.start === sliceStart &&
+        cached.end === sliceEnd &&
         cached.target === target &&
         cached.version === ver
       ) {
         points = cached.points;
         origIndices = cached.originalIndices;
       } else {
-        const decimated = lttb(
-          data.slice(timeScale.startIndex, timeScale.endIndex),
-          target,
-          timeScale.startIndex,
-        );
+        const decimated = lttb(data.slice(sliceStart, sliceEnd), target, sliceStart);
         points = decimated.points;
         origIndices = decimated.originalIndices;
         _lttbCache.set(data, {
-          start: timeScale.startIndex,
-          end: timeScale.endIndex,
+          start: sliceStart,
+          end: sliceEnd,
           target,
           version: ver,
           points,

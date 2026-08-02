@@ -78,7 +78,7 @@ export function attachKeyboardHandlers(
         return; // Don't prevent default for unhandled keys
     }
     e.preventDefault();
-    ctx.onUpdate();
+    ctx.onViewportMutation();
   };
 
   el.addEventListener("keydown", onKeyDown);

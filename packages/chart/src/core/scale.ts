@@ -430,15 +430,27 @@ export class TimeScale {
 
   /** Zoom around a pixel position (Google Maps style — anchor stays under cursor) */
   zoom(factor: number, anchorX?: number): void {
+    // Event-fed inputs (wheel/pinch anchors are derived from browser
+    // coordinates) must not poison the scale: a NaN reaching _startIndex
+    // is permanent and unrecoverable from the UI. Ignore a non-finite
+    // factor; fall back to the viewport center for a non-finite anchor.
+    if (!Number.isFinite(factor)) return;
     // Compute anchor as a fractional index before zoom
     // indexToX: x = (index - startIndex + 0.5) * barSpacing
     // → index = x / barSpacing - 0.5 + startIndex
-    const ax = anchorX ?? this._width / 2;
+    const ax = anchorX !== undefined && Number.isFinite(anchorX) ? anchorX : this._width / 2;
     const anchorIndex = ax / this._barSpacing - 0.5 + this._startIndex;
 
     // Zoom-out minimum: 1px per bar. This ensures decimated candles render correctly.
     // fitContent() can go below 1px internally but interactive zoom stops here.
-    const newSpacing = Math.max(1, Math.min(this._maxBarSpacing, this._barSpacing * factor));
+    // When the current spacing sits OUTSIDE [1, maxBarSpacing] (reachable via
+    // setVisibleLogicalRange's exact-span policy), the bounds fold the current
+    // value in so the first gesture moves continuously TOWARD the range —
+    // a hard clamp would teleport to the boundary, inverting the gesture
+    // direction (e.g. zoom-in at 800px/bar snapping out to 50px/bar).
+    const lo = Math.min(1, this._barSpacing);
+    const hi = Math.max(this._maxBarSpacing, this._barSpacing);
+    const newSpacing = Math.max(lo, Math.min(hi, this._barSpacing * factor));
     if (Math.abs(newSpacing - this._barSpacing) < 0.01) return;
 
     this._barSpacing = newSpacing;

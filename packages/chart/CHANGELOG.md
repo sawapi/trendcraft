@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — interaction and event hardening for logical-range viewports
+
+The states the logical-range API makes reachable (fractional resting
+positions, viewports beyond the data, bar spacing outside the interactive
+zoom range) are now handled consistently by the interaction and event
+layers:
+
+- Interactive zoom moves continuously toward its `[1, 50]` px/bar range
+  when the current spacing sits outside it, instead of teleporting to the
+  boundary — which inverted the gesture (zooming in at 800px/bar snapped
+  out 16×; also reachable before via `fitContent` on very large datasets).
+- Dragging from a fractional resting position no longer snaps the viewport
+  by the fractional part on the first pixel of movement.
+- An animated range transition lands on the exact target span even below
+  one bar per screen (the interpolation floored the bar count to 1).
+- A beyond-left viewport no longer blanks number-line series (a negative
+  index reached `Array.slice`, which reads it as an offset from the end).
+- `getVisibleRange()`'s time/index fields are clamped to the data as
+  documented — a beyond-data viewport used to report epoch-0 times, which
+  sent time-based viewport sync to the first bar.
+- `visibleRangeChange` has a single emission owner: movement is detected
+  on the fractional logical range with a ~0.25px threshold (sub-bar pans
+  and zooms now emit; integer-floored comparison swallowed them), and a
+  programmatic range change with animation enabled emits its final state
+  exactly once on completion (previously it could emit nothing at all).
+  Listeners may observe more frequent events during interaction.
+- The internal viewport sync tags forwarded range changes with an
+  origin/generation token, so the completion event of a forwarded change
+  is consumed exactly once instead of echoing between charts — including
+  multi-timeframe time-based sync, where the follower's quantized range
+  differs from the sender's and value comparison cannot work.
+- Only actual viewport gestures (pan, zoom, scrollbar, viewport keys,
+  inertia) cancel a running programmatic range animation. Hovering the
+  crosshair, resizing a pane, or previewing a drawing used to kill the
+  animation mid-flight — freezing the view at an intermediate range and
+  swallowing the completion event.
+- Interactive zoom ignores a non-finite factor and falls back to the
+  viewport center for a non-finite anchor, so an unexpected NaN in
+  event-derived coordinates can no longer poison the viewport position
+  permanently.
+
 ### Added — logical-range viewport API: `setVisibleLogicalRange` / `getVisibleLogicalRange`
 
 ```ts

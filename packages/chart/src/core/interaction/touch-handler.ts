@@ -26,7 +26,7 @@ export function attachTouchHandlers(
       const sb = scrollbar();
       if (sb && touchLocalY >= sb.y && touchLocalY <= sb.y + sb.height) {
         ctx.beginScrollbarDrag(touchLocalX, sb);
-        ctx.onUpdate();
+        ctx.onViewportMutation();
         return;
       }
 
@@ -39,7 +39,7 @@ export function attachTouchHandlers(
       // Double-tap detection
       if (!drawingActive && now - ctx.touch.lastTapTime < 300) {
         timeScale.fitContent();
-        ctx.onUpdate();
+        ctx.onViewportMutation();
         ctx.touch.lastTapTime = 0;
         return;
       }
@@ -60,7 +60,9 @@ export function attachTouchHandlers(
       ctx.pan.lastTouchMoveTime = now;
       ctx.pan.velocity = 0;
       ctx.drag.startX = ctx.pan.lastTouchX;
-      ctx.drag.startIndex = timeScale.startIndex;
+      // Raw (fractional) start — same reason as the mouse handler: the
+      // floored getter snaps a fractional resting position on first move.
+      ctx.drag.startIndex = timeScale.rawStartIndex;
     } else if (e.touches.length === 2) {
       // Switch from pan to pinch: cancel drag state
       if (ctx.touch.longPressTimer) {
@@ -89,7 +91,7 @@ export function attachTouchHandlers(
       const localX = sbTouch.clientX - rect.left;
       const sb = scrollbar();
       if (sb) ctx.applyScrollbarDrag(localX, sb);
-      ctx.onUpdate();
+      ctx.onViewportMutation();
       return;
     }
 
@@ -116,7 +118,7 @@ export function attachTouchHandlers(
       const rawStart = ctx.drag.startIndex + deltaBars;
       timeScale.setStartIndexUnclamped(rawStart);
       rubberBandDampen(timeScale);
-      ctx.onUpdate();
+      ctx.onViewportMutation();
     } else if (e.touches.length === 2) {
       const tdx = e.touches[0].clientX - e.touches[1].clientX;
       const tdy = e.touches[0].clientY - e.touches[1].clientY;
@@ -128,7 +130,7 @@ export function attachTouchHandlers(
         const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
         const rect = el.getBoundingClientRect();
         timeScale.zoom(amplified, midX - rect.left);
-        ctx.onUpdate();
+        ctx.onViewportMutation();
       }
       ctx.touch.lastDist = dist;
     }

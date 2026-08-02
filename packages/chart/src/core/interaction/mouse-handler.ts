@@ -33,13 +33,16 @@ export function attachMouseHandlers(
     const sb = scrollbar();
     if (sb && my >= sb.y && my <= sb.y + sb.height) {
       ctx.beginScrollbarDrag(mx, sb);
-      ctx.onUpdate();
+      ctx.onViewportMutation();
       return;
     }
 
     ctx.viewState.isDragging = true;
     ctx.drag.startX = e.clientX;
-    ctx.drag.startIndex = timeScale.startIndex;
+    // Raw (fractional) start: the floored getter would snap the viewport by
+    // the fractional part on the first pixel of drag — a resting fractional
+    // position is the norm after setVisibleLogicalRange.
+    ctx.drag.startIndex = timeScale.rawStartIndex;
   };
 
   const onMouseMove = (e: MouseEvent) => {
@@ -63,7 +66,7 @@ export function attachMouseHandlers(
     if (ctx.drag.scrollbarDragging) {
       const sb = scrollbar();
       if (sb) ctx.applyScrollbarDrag(ctx.viewState.mouseX, sb);
-      ctx.onUpdate();
+      ctx.onViewportMutation();
       return;
     }
 
@@ -84,8 +87,11 @@ export function attachMouseHandlers(
       const rawStart = ctx.drag.startIndex + deltaBars;
       timeScale.setStartIndexUnclamped(rawStart);
       rubberBandDampen(timeScale);
+      ctx.onViewportMutation();
+      return;
     }
 
+    // Plain hover (crosshair only) — must not cancel a running range animation
     ctx.onUpdate();
   };
 
