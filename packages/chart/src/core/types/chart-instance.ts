@@ -5,7 +5,7 @@
 
 import type { ChartOptions, ChartType, RangeDuration } from "./config";
 import type { Drawing, DrawingType } from "./drawing";
-import type { ChartEvent, VisibleRangeChangeData } from "./event";
+import type { ChartEvent, LogicalRange, VisibleRangeChangeData } from "./event";
 import type { CandleData, DataPoint, TimeValue } from "./fundamental";
 import type {
   BacktestResultData,
@@ -87,6 +87,21 @@ export type ChartInstance = {
   // Viewport
   setVisibleRange(start: TimeValue, end: TimeValue): void;
   setVisibleRangeByDuration(duration: RangeDuration): void;
+  /**
+   * Set the visible range in logical (bar-index) units. Fractional values
+   * and values beyond the data range are allowed — this is the way to
+   * express empty space past the last bar that the time-based
+   * `setVisibleRange` cannot (times after the last bar all resolve to it).
+   * Composes with live-edge following: if the last bar is visible, streaming
+   * updates preserve the window's distance from the live edge.
+   *
+   * Logical indices address the current candle array — they are shifted by
+   * `maxCandles` trimming and invalidated by `setCandles`. Read-modify-set
+   * synchronously (pair with `getVisibleLogicalRange`); never persist them.
+   */
+  setVisibleLogicalRange(from: number, to: number): void;
+  /** Current visible range in logical units (unclamped), or null with no data. */
+  getVisibleLogicalRange(): LogicalRange | null;
   fitContent(): void;
 
   /**

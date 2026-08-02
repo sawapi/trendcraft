@@ -18,8 +18,20 @@ import type { ChartInstance, CrosshairMoveData, VisibleRangeChangeData } from ".
 export type SyncOptions = {
   /** Mirror crosshair hover across charts (default: true) */
   crosshair?: boolean;
-  /** Mirror visible range (pan/zoom) across charts (default: false) */
-  viewport?: boolean;
+  /**
+   * Mirror visible range (pan/zoom) across charts (default: false).
+   *
+   * - `true`: mirror via the time-based range. Correct for multi-timeframe
+   *   layouts — each chart translates the times to its own bar indices —
+   *   but the time axis saturates at the last bar, so empty space after it
+   *   (a right-edge margin) is not mirrored.
+   * - `"logical"`: mirror via the unclamped logical (bar-index) range,
+   *   preserving margins past the last bar. Only valid when every chart
+   *   shows the SAME candle array (same symbol and timeframe) — bar index
+   *   100 on a 1h chart and on a 4h chart are different times. Falls back
+   *   to the time-based range for payloads without a logical range.
+   */
+  viewport?: boolean | "logical";
 };
 
 /**
@@ -32,7 +44,8 @@ export type SyncOptions = {
  */
 export function syncCharts(charts: ChartInstance[], opts: SyncOptions = {}): () => void {
   const syncCrosshair = opts.crosshair !== false;
-  const syncViewport = opts.viewport === true;
+  const syncViewport = opts.viewport === true || opts.viewport === "logical";
+  const logicalViewport = opts.viewport === "logical";
   if (charts.length < 2 || (!syncCrosshair && !syncViewport)) {
     return () => {};
   }
@@ -66,14 +79,31 @@ export function syncCharts(charts: ChartInstance[], opts: SyncOptions = {}): () 
       const onRange = (data: unknown): void => {
         if (forwarding) return;
         const range = data as VisibleRangeChangeData;
-        if (!range || typeof range.startTime !== "number" || typeof range.endTime !== "number") {
+        if (!range) return;
+        // "logical" mode mirrors the unclamped bar-index range (preserves
+        // margins past the last bar, same-data charts only, see SyncOptions);
+        // the default mirrors times so MTF charts translate per their own data.
+        const logical = range.logicalRange;
+        const useLogical =
+          logicalViewport &&
+          logical !== undefined &&
+          Number.isFinite(logical.from) &&
+          Number.isFinite(logical.to);
+        if (
+          !useLogical &&
+          (typeof range.startTime !== "number" || typeof range.endTime !== "number")
+        ) {
           return;
         }
         forwarding = true;
         try {
           for (const target of charts) {
             if (target === source) continue;
-            target.setVisibleRange(range.startTime, range.endTime);
+            if (useLogical) {
+              target.setVisibleLogicalRange(logical.from, logical.to);
+            } else {
+              target.setVisibleRange(range.startTime, range.endTime);
+            }
           }
         } finally {
           forwarding = false;

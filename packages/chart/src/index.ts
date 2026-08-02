@@ -97,6 +97,7 @@ export type {
   InfoOverlayData,
   InteractionOptions,
   LayoutConfig,
+  LogicalRange,
   PaneConfig,
   RangeDuration,
   RayDrawing,

@@ -199,12 +199,26 @@ setDrawingTool(tool: DrawingType | null): void
 ```typescript
 setVisibleRange(start: TimeValue, end: TimeValue): void
 setVisibleRangeByDuration(duration: RangeDuration): void
+setVisibleLogicalRange(from: number, to: number): void
+getVisibleLogicalRange(): LogicalRange | null
 fitContent(): void
 getVisibleRange(): VisibleRangeChangeData | null
 setLayout(config: LayoutConfig): void
 ```
 
 `RangeDuration = '1D' | '1W' | '1M' | '3M' | '6M' | 'YTD' | '1Y' | 'ALL'`
+
+`setVisibleLogicalRange(from, to)` sets the viewport in logical (bar-index)
+units — `LogicalRange = { from, to }`. Values are fractional and may extend
+beyond the data on either side, which is the one way to express empty space
+past the last candle (times after the last bar all resolve to it, so
+`setVisibleRange` cannot). While the last bar is visible, live updates
+preserve the window's distance from the live edge — custom margins included.
+The requested span is exact down to the render floor (0.1px per bar).
+
+Logical indices address the *current* candle array: they are shifted by
+`maxCandles` trimming and invalidated by `setCandles`. Read-modify-set
+synchronously (pair with `getVisibleLogicalRange()`); never persist them.
 
 ```typescript
 setCrosshair(time: number | null): void
