@@ -5,6 +5,50 @@ All notable changes to `@trendcraft/chart` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added — `timeScale.rightOffset`: empty space after the last candle
+
+```ts
+createChart(el, { timeScale: { rightOffset: 5 } });
+```
+
+Reserves the given number of bar-slots (fractional allowed) between the last
+candle and the price axis, so the forming candle isn't drawn flush against
+the right edge. The margin is maintained while following the live edge and
+honored by `scrollToEnd`-style navigation (keyboard End included),
+`fitContent`, and `setVisibleRangeByDuration`. It can be changed at runtime
+via `applyOptions({ timeScale: { rightOffset } })` — when the chart is at the
+live edge the new margin applies immediately. Values that would leave fewer
+than 2 bars visible are capped; negative or non-finite values are rejected
+with a warning. Default: 0 (flush, as before).
+
+### Changed — live-edge following shifts instead of snapping
+
+When a new bar arrives while the last bar is visible, the chart used to
+scroll back to the end position outright. It now preserves the viewer's
+distance from the live edge instead. For a viewer pinned at the live edge
+the result is identical, but two long-standing annoyances are gone:
+
+- A custom viewport (a margin different from `rightOffset`, or any
+  position set through the public API while the last bar is visible) is no
+  longer overridden on the next update — the window drifts with the market
+  instead of snapping.
+- Panning a few bars into history no longer risks being yanked back to the
+  live edge by the next tick; the view preserves its distance from the live
+  edge.
+
+`setCandles` still lands at the live edge, and viewers who scrolled fully
+away from the last bar are still left alone, as before.
+
+### Fixed — clamping is consistent in session-gap layouts
+
+The scroll clamp compared the viewport size against the raw candle count,
+while the scroll boundary used gap-expanded units. With session gaps enabled
+and a viewport wider than the candle count but narrower than the expanded
+layout, the chart forced the view to the far left even though the last bars
+did not fit. Both now use the same units.
+
 ## [0.4.0] - 2026-07-26
 
 ### Fixed — `resize`, `paneResize`, and `seriesRemoved` events now fire

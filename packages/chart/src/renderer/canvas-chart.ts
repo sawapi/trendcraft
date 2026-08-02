@@ -148,7 +148,8 @@ export class CanvasChart implements ChartInstance {
   private _needsRender = true;
   private _destroyed = false;
   private _batching = false;
-  private _batchScrollToEnd = false;
+  /** endDistanceVirtual captured when a batched update first requests live-follow */
+  private _batchFollowFromEndDistance: number | null = null;
   private _detachViewport: (() => void) | null = null;
   private _resizeObserver: ResizeObserver | null = null;
   private _aria: ChartAria | null = null;
@@ -317,6 +318,9 @@ export class CanvasChart implements ChartInstance {
       lockOnLongPress: options?.crosshair?.lockOnLongPress ?? true,
     };
     this._sessionGapsOpts = resolveSessionGapsOptions(options?.timeScale?.sessionGaps);
+    if (options?.timeScale?.rightOffset !== undefined) {
+      this._setRightOffsetOption(options.timeScale.rightOffset);
+    }
     this._locale = mergeLocale(options?.locale);
     setMonthNames(this._locale.months);
     this._pixelRatioPinned = options?.pixelRatio !== undefined;
@@ -597,6 +601,10 @@ export class CanvasChart implements ChartInstance {
     this._timeScale.setTotalCount(this._data.candleCount);
     this._applySessionGaps();
     this._timeScale.scrollToEnd();
+    // A full data replacement invalidates any follow baseline captured by
+    // earlier updates in the same batch — scrollToEnd above is the fresh
+    // authoritative position; later appends re-capture a valid baseline.
+    this._batchFollowFromEndDistance = null;
     this._needsRender = true;
     if (removed > 0) {
       this._emit("dataFiltered", { total: candles.length, valid: valid.length, removed });
@@ -617,9 +625,15 @@ export class CanvasChart implements ChartInstance {
       this._warn("updateCandle: invalid candle data ignored", candle, "BAD_CANDLE");
       return;
     }
-    // Auto-follow: if last candle is visible before update, keep following
-    const wasAtEnd = this._timeScale.endIndex >= this._data.candleCount - 1;
+    // Auto-follow: if the window reached (or nearly reached) the last bar
+    // before the update, keep following by re-establishing the viewer's
+    // distance from the live edge after the append. A scrollToEnd snap here
+    // would override any custom viewport (a wider margin set via the public
+    // API, or a viewer panned partway back) on every tick; preserving the
+    // end distance moves a pinned viewer exactly as the snap did.
+    const wasAtEnd = this._barsOffLiveEdge() <= 1;
     const prevCount = this._data.candleCount;
+    const prevEndDistance = this._timeScale.endDistanceVirtual;
 
     this._data.updateCandle(candle);
     const newCount = this._data.candleCount;
@@ -634,23 +648,33 @@ export class CanvasChart implements ChartInstance {
 
     if (wasAtEnd) {
       if (this._batching) {
-        this._batchScrollToEnd = true;
+        this._batchFollowFromEndDistance ??= prevEndDistance;
       } else {
-        this._timeScale.scrollToEnd();
+        this._timeScale.followLiveEdge(prevEndDistance);
       }
     }
     this._needsRender = true;
   }
 
+  /**
+   * How many bars the window end sits short of the last bar (0 = the last
+   * bar is inside the window; endIndex is exclusive and clamped to the
+   * candle count, so this never goes negative at the live edge).
+   */
+  private _barsOffLiveEdge(): number {
+    return this._data.candleCount - this._timeScale.endIndex;
+  }
+
   batchUpdates(fn: () => void): void {
     this._batching = true;
-    this._batchScrollToEnd = false;
+    this._batchFollowFromEndDistance = null;
     try {
       fn();
     } finally {
       this._batching = false;
-      if (this._batchScrollToEnd) {
-        this._timeScale.scrollToEnd();
+      if (this._batchFollowFromEndDistance !== null) {
+        this._timeScale.followLiveEdge(this._batchFollowFromEndDistance);
+        this._batchFollowFromEndDistance = null;
       }
       this._needsRender = true;
     }
@@ -899,11 +923,30 @@ export class CanvasChart implements ChartInstance {
       this.fitContent();
       return;
     }
-    this.setVisibleRange(startTime, lastTime);
+    // End at the live edge including the configured right offset — routing
+    // through the time-based setVisibleRange would saturate at the last bar
+    // and silently drop the margin.
+    const startIdx = this._data.indexAtTime(startTime);
+    this._animateToRange(() => this._timeScale.setVisibleRangeToEnd(startIdx));
   }
 
   fitContent(): void {
     this._animateToRange(() => this._timeScale.fitContent());
+  }
+
+  /** Validate and apply the `timeScale.rightOffset` option.
+   *  Returns false when the value was rejected (warn + keep previous). */
+  private _setRightOffsetOption(offset: number): boolean {
+    if (typeof offset !== "number" || !Number.isFinite(offset) || offset < 0) {
+      this._warn(
+        "timeScale.rightOffset: expected a finite number >= 0, ignoring",
+        offset,
+        "INVALID_INPUT",
+      );
+      return false;
+    }
+    this._timeScale.setRightOffset(offset);
+    return true;
   }
 
   setCrosshair(time: TimeValue | null): void {
@@ -1014,7 +1057,8 @@ export class CanvasChart implements ChartInstance {
    *
    * Runtime-capable fields: theme, chartType, volume, fontSize, watermark,
    * animationDuration, maxCandles, legend, priceFormatter, timeFormatter,
-   * width, height, priceAxisWidth, timeAxisHeight.
+   * width, height, priceAxisWidth, timeAxisHeight, timeScale.sessionGaps,
+   * timeScale.rightOffset.
    *
    * Fields that require re-creating the chart emit a warning and are ignored:
    * pixelRatio, fontFamily, scrollSensitivity, locale, formatInfoOverlay.
@@ -1064,10 +1108,22 @@ export class CanvasChart implements ChartInstance {
       this._needsRender = true;
     }
 
-    if (opts.timeScale !== undefined && opts.timeScale.sessionGaps !== undefined) {
-      this._sessionGapsOpts = resolveSessionGapsOptions(opts.timeScale.sessionGaps);
-      this._applySessionGaps();
-      this._needsRender = true;
+    if (opts.timeScale !== undefined) {
+      if (opts.timeScale.sessionGaps !== undefined) {
+        this._sessionGapsOpts = resolveSessionGapsOptions(opts.timeScale.sessionGaps);
+        this._applySessionGaps();
+        this._needsRender = true;
+      }
+      if (opts.timeScale.rightOffset !== undefined) {
+        // Re-scroll immediately when the last bar is visible so the new
+        // margin shows right away, not only on the next new bar. A rejected
+        // value must not move the viewport (it was "ignored").
+        const atEnd = this._barsOffLiveEdge() <= 0;
+        if (this._setRightOffsetOption(opts.timeScale.rightOffset)) {
+          if (atEnd) this._timeScale.scrollToEnd();
+          this._needsRender = true;
+        }
+      }
     }
 
     // Legend overlay — create/destroy

@@ -88,6 +88,18 @@ export type TimeScaleOptions = {
    * - object form: fine-grained control.
    */
   sessionGaps?: boolean | SessionGapsOptions;
+  /**
+   * Bars of empty space kept between the last candle and the right edge of
+   * the chart, so the forming candle isn't drawn flush against the price
+   * axis. Maintained while following the live edge, and honored by
+   * `scrollToEnd`-style navigation, `fitContent`, and duration presets.
+   *
+   * Units are bar-slots (fractional values allowed), so the margin scales
+   * with zoom — zooming out shrinks it visually, like the bars themselves.
+   * Values that would leave fewer than 2 bars visible are capped. Negative
+   * or non-finite values are rejected with a warning. Default: 0 (flush).
+   */
+  rightOffset?: number;
 };
 
 export type SessionGapsOptions = {
