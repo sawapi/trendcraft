@@ -89,10 +89,13 @@ export class ViewTransition {
     const progress = Math.min(1, elapsed / this._duration);
     const eased = easeOutCubic(progress);
 
-    // Interpolate center and count, then derive startIndex and barSpacing
+    // Interpolate center and count, then derive startIndex and barSpacing.
+    // Floor the derived SPACING (render floor 0.1px), never the count: a
+    // sub-1-bar target span (spacing > width) must land on its exact value,
+    // and count only shrinks below 1 when that is precisely the intent.
     const center = lerp(this._fromCenter, this._toCenter, eased);
     const count = lerp(this._fromCount, this._toCount, eased);
-    const barSpacing = this._width / Math.max(1, count);
+    const barSpacing = Math.max(0.1, this._width / count);
     const startIndex = center - count / 2;
 
     this._onFrame?.(startIndex, barSpacing);

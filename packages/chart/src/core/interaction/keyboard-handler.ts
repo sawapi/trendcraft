@@ -51,6 +51,9 @@ export function attachKeyboardHandlers(
       return;
     }
 
+    const beforeStart = timeScale.rawStartIndex;
+    const beforeSpacing = timeScale.barSpacing;
+    const beforeGrant = timeScale.hasViewportGrant;
     switch (e.key) {
       case "ArrowLeft":
         timeScale.scrollBy(e.shiftKey ? -10 : -1);
@@ -78,7 +81,23 @@ export function attachKeyboardHandlers(
         return; // Don't prevent default for unhandled keys
     }
     e.preventDefault();
-    ctx.onUpdate();
+    // Each key press is a discrete gesture; ratify AND notify as a viewport
+    // mutation only when it actually changed something. Position and
+    // spacing cover arrows / zoom keys; the grant flag covers Home/End/fit
+    // releasing a grant while the visible position happens to be identical
+    // — that release is a real mutation. An arrow absorbed at a clamp edge
+    // or +/- at the zoom limit changes nothing: it must neither dissolve
+    // an in-bounds grant nor cancel a running range animation.
+    const changed =
+      timeScale.rawStartIndex !== beforeStart ||
+      timeScale.barSpacing !== beforeSpacing ||
+      timeScale.hasViewportGrant !== beforeGrant;
+    if (changed) {
+      timeScale.ratifySettledPosition();
+      ctx.onViewportMutation();
+    } else {
+      ctx.onUpdate();
+    }
   };
 
   el.addEventListener("keydown", onKeyDown);

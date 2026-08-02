@@ -69,9 +69,11 @@ export class Viewport {
      * (outside the thumb); in that case we page-jump to center on the cursor.
      */
     scrollbarGrabOffsetFrac: null,
+    viewportMutated: false,
   };
 
   private _onUpdate: (() => void) | null = null;
+  private _onViewportMutation: (() => void) | null = null;
 
   get state(): Readonly<ViewportState> {
     return this._state;
@@ -79,6 +81,11 @@ export class Viewport {
 
   setOnUpdate(cb: () => void): void {
     this._onUpdate = cb;
+  }
+
+  /** Called only for user viewport gestures (see InteractionContext). */
+  setOnViewportMutation(cb: () => void): void {
+    this._onViewportMutation = cb;
   }
 
   /**
@@ -175,12 +182,16 @@ export class Viewport {
       hotkeyDisabled: hotkeyMap === false,
       dispatch: opts?.onAction,
       onUpdate: () => this._onUpdate?.(),
+      onViewportMutation: () => {
+        this._onViewportMutation?.();
+        this._onUpdate?.();
+      },
       viewState: this._state,
       drag: this._drag,
       paneResize: { gap: null, startY: 0 },
       pan: { velocity: 0, raf: null, lastTouchX: 0, lastTouchMoveTime: 0 },
       zoom: { velocity: 0, raf: null, lastTime: 0, anchorX: null },
-      wheel: { dir: null, timer: null, panVelocity: 0, lastPanTime: 0 },
+      wheel: { dir: null, timer: null, panVelocity: 0, lastPanTime: 0, viewportMutated: false },
       touch: {
         lastDist: 0,
         lastTapTime: 0,
@@ -192,7 +203,10 @@ export class Viewport {
       isDrawingActive: opts?.isDrawingActive,
     };
 
-    const inertia = new InertiaController(timeScale, ctx.pan, ctx.zoom, ctx.onUpdate);
+    // Inertia frames move the viewport, so they go through the mutation
+    // channel (a fling arriving during a programmatic animation cancels it,
+    // exactly like the gesture that spawned the fling).
+    const inertia = new InertiaController(timeScale, ctx.pan, ctx.zoom, ctx.onViewportMutation);
 
     const detachers = [
       attachMouseHandlers(ctx, inertia),

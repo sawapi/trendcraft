@@ -14,6 +14,16 @@
  */
 
 import type { ChartInstance, CrosshairMoveData, VisibleRangeChangeData } from "../core/types";
+import {
+  APPLY_WITH_ORIGIN,
+  readViewportOrigin,
+  type ViewportOrigin,
+  type ViewportOriginCarrier,
+} from "../core/viewport-origin";
+
+/** Distinct id per syncCharts group, so overlapping groups never consume
+ *  each other's completion events. */
+let nextSyncGroupId = 0;
 
 export type SyncOptions = {
   /** Mirror crosshair hover across charts (default: true) */
@@ -52,8 +62,35 @@ export function syncCharts(charts: ChartInstance[], opts: SyncOptions = {}): () 
 
   // Set at the start of each forward cycle; sync events observed while set
   // are ignored, so we never feed our own changes back into the network.
+  // This guards the SYNCHRONOUS part only (charts with animation disabled
+  // emit inside the setter call); asynchronous completion events — the
+  // default, with a ~300ms range animation — are identified by the
+  // origin/generation token below instead. Matching completions are
+  // consumed exactly once; a stale generation (superseded forward) is
+  // dropped without touching the newer expectation; anything without our
+  // token (user gestures, other groups, programmatic calls) is treated as
+  // fresh input. Range VALUES are never used to infer sync provenance —
+  // a time-mode multi-timeframe target quantizes forwarded times to its
+  // own bars, so the sender cannot predict the resulting range.
   let forwarding = false;
+  const groupId = `sync#${nextSyncGroupId++}`;
+  const generations = new Map<ChartInstance, number>();
+  const pending = new Map<ChartInstance, ViewportOrigin>();
   const handlers: Array<() => void> = [];
+
+  /** Forward a viewport mutation to `target` with provenance when supported. */
+  function forwardViewport(target: ChartInstance, apply: () => void): void {
+    const carrier = target as Partial<ViewportOriginCarrier>;
+    if (typeof carrier[APPLY_WITH_ORIGIN] !== "function") {
+      apply();
+      return;
+    }
+    const generation = (generations.get(target) ?? 0) + 1;
+    generations.set(target, generation);
+    const token: ViewportOrigin = { origin: groupId, generation };
+    pending.set(target, token);
+    carrier[APPLY_WITH_ORIGIN]?.(token, apply);
+  }
 
   for (const source of charts) {
     if (syncCrosshair) {
@@ -80,6 +117,17 @@ export function syncCharts(charts: ChartInstance[], opts: SyncOptions = {}): () 
         if (forwarding) return;
         const range = data as VisibleRangeChangeData;
         if (!range) return;
+        // Async completion of a range we forwarded to this chart?
+        const token = readViewportOrigin(range);
+        if (token && token.origin === groupId) {
+          const expected = pending.get(source);
+          if (expected && expected.generation === token.generation) {
+            pending.delete(source); // consume exactly once
+          }
+          // Stale generation (superseded forward): drop silently — it must
+          // neither propagate old state nor clear the newer expectation.
+          return;
+        }
         // "logical" mode mirrors the unclamped bar-index range (preserves
         // margins past the last bar, same-data charts only, see SyncOptions);
         // the default mirrors times so MTF charts translate per their own data.
@@ -100,9 +148,11 @@ export function syncCharts(charts: ChartInstance[], opts: SyncOptions = {}): () 
           for (const target of charts) {
             if (target === source) continue;
             if (useLogical) {
-              target.setVisibleLogicalRange(logical.from, logical.to);
+              forwardViewport(target, () =>
+                target.setVisibleLogicalRange(logical.from, logical.to),
+              );
             } else {
-              target.setVisibleRange(range.startTime, range.endTime);
+              forwardViewport(target, () => target.setVisibleRange(range.startTime, range.endTime));
             }
           }
         } finally {

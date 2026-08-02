@@ -42,6 +42,7 @@ import { DARK_THEME, LIGHT_THEME } from "../core/types";
 import type { ShapeCheck } from "../core/validation";
 import { checkBacktest, checkSignals, checkTrades, summarizeIssues } from "../core/validation";
 import { Viewport } from "../core/viewport";
+import { APPLY_WITH_ORIGIN, attachViewportOrigin } from "../core/viewport-origin";
 import { INDICATOR_PRESETS, type IndicatorPreset } from "../integration/indicator-presets";
 import { introspect } from "../integration/series-introspector";
 import { ChartAria } from "./chart-aria";
@@ -160,10 +161,17 @@ export class CanvasChart implements ChartInstance {
   private _sessionGapsOpts: ResolvedSessionGapsOptions;
   private _overlaysHidden = false;
   private _overlaySavedVisibility: Map<string, boolean> | null = null;
-  // Cached visible range for change-detection in the render loop — the public
-  // `visibleRangeChange` event fires only when the indices actually move.
-  private _lastVisibleStart = -1;
-  private _lastVisibleEnd = -1;
+  // Last emitted logical range for change-detection — the public
+  // `visibleRangeChange` event fires when either window edge moves by more
+  // than ~0.25px (in bars: 0.25 / barSpacing). Fractional resting positions
+  // are the norm since the logical-range API, so an integer-floored compare
+  // would silently swallow sub-bar movement (up to a full screen at narrow
+  // logical ranges).
+  private _lastEmittedLogical: { from: number; to: number } | null = null;
+  // Provenance staged for the next _animateToRange call (see viewport-origin).
+  // Cleared synchronously around the setter — it must never leak into a
+  // later, unrelated mutation.
+  private _nextRangeOrigin: import("../core/viewport-origin").ViewportOrigin | null = null;
   // Last crosshair index that was emitted via crosshairMove, kept so user
   // interaction only fires the event on real changes. Only user-driven
   // transitions go through _maybeEmitCrosshair(); programmatic setCrosshair()
@@ -397,15 +405,24 @@ export class CanvasChart implements ChartInstance {
       }
     });
 
-    // Viewport interaction
-    this._viewport.setOnUpdate(() => {
-      // User interaction cancels any running range transition. Clear the
-      // `_animatingRange` flag too: ViewTransition.cancel() nulls the onDone
-      // callback, so without this reset the flag would stay true forever and
-      // silently swallow every subsequent visibleRangeChange emit — which
-      // showed up as "sync stops following after you scroll mid-animation".
+    // Viewport interaction — two channels:
+    // - onViewportMutation fires only for USER viewport gestures (pan /
+    //   zoom / scrollbar / viewport keys / inertia frames) and cancels any
+    //   running range transition. Clear the `_animatingRange` flag too:
+    //   ViewTransition.cancel() nulls the onDone callback, so without this
+    //   reset the flag would stay true forever and silently swallow every
+    //   subsequent visibleRangeChange emit.
+    // - onUpdate fires for anything needing a repaint (crosshair hover,
+    //   pane resize, drawing preview…). It must NOT cancel the transition:
+    //   a mere hover during a programmatic range animation would otherwise
+    //   kill the animation and its exactly-once completion emit — leaving
+    //   sync peers with a stuck pending expectation, and re-emitting the
+    //   abandoned mid-flight range as token-less fresh input.
+    this._viewport.setOnViewportMutation(() => {
       this._transition.cancel();
       this._animatingRange = false;
+    });
+    this._viewport.setOnUpdate(() => {
       this._needsRender = true;
       // Emit crosshairMove synchronously from the interaction event rather
       // than from the render that comes on the next rAF. Letting sync fan
@@ -983,9 +1000,32 @@ export class CanvasChart implements ChartInstance {
     this._needsRender = true;
   }
 
+  /**
+   * Run a programmatic viewport mutation with provenance: the token is
+   * staged for the `_animateToRange` inside `apply()` and cleared
+   * synchronously, so it cannot leak into a later, unrelated mutation.
+   * Internal surface (non-exported Symbol) used by syncCharts.
+   */
+  [APPLY_WITH_ORIGIN](
+    origin: import("../core/viewport-origin").ViewportOrigin,
+    apply: () => void,
+  ): void {
+    this._nextRangeOrigin = origin;
+    try {
+      apply();
+    } finally {
+      this._nextRangeOrigin = null;
+    }
+  }
+
   /** Animate from current viewport state to the state produced by `applyTarget()` */
   private _animateToRange(applyTarget: () => void): void {
     this._transition.cancel();
+    // Consume any staged provenance into this animation's completion
+    // closure. A cancelled animation drops its onDone without firing, so
+    // the token dies with it — it can never stamp a later mutation.
+    const origin = this._nextRangeOrigin;
+    this._nextRangeOrigin = null;
 
     // Raw (fractional) start indices: flooring here would truncate a
     // fractional logical-range target to the previous whole bar.
@@ -1014,6 +1054,10 @@ export class CanvasChart implements ChartInstance {
       },
       () => {
         this._animatingRange = false;
+        this._needsRender = true;
+        // Exactly-once completion emit with the final state (and the
+        // provenance token, when this mutation was sync-forwarded).
+        this._maybeEmitVisibleRange({ force: true, origin });
       },
     );
   }
@@ -1142,8 +1186,11 @@ export class CanvasChart implements ChartInstance {
       if (opts.timeScale.rightOffset !== undefined) {
         // Re-scroll immediately when the last bar is visible so the new
         // margin shows right away, not only on the next new bar. A rejected
-        // value must not move the viewport (it was "ignored").
-        const atEnd = this._barsOffLiveEdge() <= 0;
+        // value must not move the viewport (it was "ignored"), and neither
+        // must an option update while an explicit logical-range viewport is
+        // active — the grant owns the position; the new offset applies once
+        // the grant is released (scrollToEnd / fitContent / time range).
+        const atEnd = this._barsOffLiveEdge() <= 0 && !this._timeScale.hasViewportGrant;
         if (this._setRightOffsetOption(opts.timeScale.rightOffset)) {
           if (atEnd) this._timeScale.scrollToEnd();
           this._needsRender = true;
@@ -1208,11 +1255,16 @@ export class CanvasChart implements ChartInstance {
   getVisibleRange(): import("../core/types").VisibleRangeChangeData | null {
     const candles = this._data.candles;
     if (candles.length === 0) return null;
-    const startIdx = this._timeScale.startIndex;
-    const endIdx = Math.min(this._timeScale.endIndex, candles.length - 1);
+    // The four legacy fields are documented as clamped to the data range —
+    // for a beyond-data viewport an unclamped index would read a missing
+    // candle and report epoch-0 times (sending time-based sync targets to
+    // bar 0). The unclamped truth lives in logicalRange.
+    const lastIdx = candles.length - 1;
+    const startIdx = Math.max(0, Math.min(this._timeScale.startIndex, lastIdx));
+    const endIdx = Math.max(startIdx, Math.min(this._timeScale.endIndex, lastIdx));
     return {
-      startTime: candles[Math.max(0, startIdx)]?.time ?? 0,
-      endTime: candles[endIdx]?.time ?? 0,
+      startTime: candles[startIdx].time,
+      endTime: candles[endIdx].time,
       startIndex: startIdx,
       endIndex: endIdx,
       logicalRange: this._timeScale.getVisibleLogicalRange(),
@@ -1394,7 +1446,12 @@ export class CanvasChart implements ChartInstance {
       timeAxisHeight:
         timeAxisHeight ?? this._sizeState?.timeAxisHeight ?? DEFAULT_OPTIONS.timeAxisHeight,
     };
-    const wasFit = this._timeScale.visibleCount >= this._timeScale.totalCount;
+    // "All data visible" also matches a deliberately wide logical-range
+    // viewport; auto-refitting would silently destroy the granted range
+    // (fitContent releases the grant), so only refit when none is active.
+    const wasFit =
+      this._timeScale.visibleCount >= this._timeScale.totalCount &&
+      !this._timeScale.hasViewportGrant;
     this._timeScale.setWidth(this._layout.dataAreaWidth);
     // Re-fit if all data was visible before resize
     if (wasFit && this._timeScale.totalCount > 0) {
@@ -1464,19 +1521,49 @@ export class CanvasChart implements ChartInstance {
     // here, so mirrored charts pick up the change inside the same rAF tick
     // and repaint without a one-frame lag. See _maybeEmitCrosshair().
 
-    // Emit visibleRangeChange on actual index movement. Suppressed while
-    // `_animatingRange` is true so programmatic setVisibleRange / fitContent
-    // tweens don't flood listeners on every frame of the transition.
-    const startIdx = this._timeScale.startIndex;
-    const endIdx = this._timeScale.endIndex;
-    if (startIdx !== this._lastVisibleStart || endIdx !== this._lastVisibleEnd) {
-      this._lastVisibleStart = startIdx;
-      this._lastVisibleEnd = endIdx;
-      if (!this._animatingRange) {
-        const range = this.getVisibleRange();
-        if (range) this._emit("visibleRangeChange", range);
-      }
+    // Emit visibleRangeChange on actual movement (single emission owner).
+    // Suppressed while `_animatingRange` is true so programmatic tweens
+    // don't flood listeners per frame; the animation's onDone force-emits
+    // the final state exactly once instead.
+    this._maybeEmitVisibleRange();
+  }
+
+  /**
+   * Single owner of `visibleRangeChange` emission.
+   *
+   * - Change detection compares the logical range with a ~0.25px-per-edge
+   *   threshold (converted to bars at the current spacing), so fractional
+   *   movement emits and float noise doesn't.
+   * - `force` bypasses both the animation gate and the change check —
+   *   used by the animation's completion so a programmatic range set emits
+   *   its final state exactly once even when it short-circuits (same-value
+   *   target), which sync provenance consumers rely on.
+   * - `origin` provenance is attached to the payload under a non-exported
+   *   Symbol (see core/viewport-origin.ts); the public payload is unchanged.
+   */
+  private _maybeEmitVisibleRange(
+    opts: {
+      force?: boolean;
+      origin?: import("../core/viewport-origin").ViewportOrigin | null;
+    } = {},
+  ): void {
+    if (this._animatingRange && !opts.force) return;
+    if (this._data.candleCount === 0) return;
+    const logical = this._timeScale.getVisibleLogicalRange();
+    if (!opts.force) {
+      const last = this._lastEmittedLogical;
+      const thresholdBars = 0.25 / Math.max(0.1, this._timeScale.barSpacing);
+      const changed =
+        !last ||
+        Math.abs(logical.from - last.from) > thresholdBars ||
+        Math.abs(logical.to - last.to) > thresholdBars;
+      if (!changed) return;
     }
+    const range = this.getVisibleRange();
+    if (!range) return;
+    this._lastEmittedLogical = { from: logical.from, to: logical.to };
+    if (opts.origin) attachViewportOrigin(range, opts.origin);
+    this._emit("visibleRangeChange", range);
   }
 
   private _updateAriaLabel(): void {

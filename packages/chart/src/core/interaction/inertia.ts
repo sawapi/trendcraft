@@ -22,6 +22,13 @@ import type { TimeScale } from "../scale";
 import type { PanInertiaState, ZoomInertiaState } from "./types";
 
 export class InertiaController {
+  /** True once the current pan/zoom inertia RUN actually moved the scale.
+   *  Unchanged (absorbed) frames neither notify the mutation channel nor,
+   *  at termination, ratify — an inertia run fully absorbed by the zoom
+   *  cap or clamp envelope is a no-op gesture. */
+  private panMoved = false;
+  private zoomMoved = false;
+
   constructor(
     private readonly timeScale: TimeScale,
     private readonly pan: PanInertiaState,
@@ -32,6 +39,7 @@ export class InertiaController {
   /** Begin pan inertia / bounce-back. Caller sets `pan.velocity` first. */
   startPan(): void {
     this.cancelPanFrame();
+    this.panMoved = false;
     this.pan.raf = requestAnimationFrame(this.runPan);
   }
 
@@ -48,6 +56,7 @@ export class InertiaController {
    */
   startZoom(): void {
     this.cancelZoomFrame();
+    this.zoomMoved = false;
     this.zoom.raf = requestAnimationFrame(this.runZoom);
   }
 
@@ -84,16 +93,19 @@ export class InertiaController {
     const over = ts.overscroll;
 
     if (Math.abs(over) > 0.1) {
-      // Bounce-back: spring toward clamped position
+      // Bounce-back: spring toward clamped position (always a real move —
+      // the overscroll guard guarantees a nonzero spring)
       const target = ts.clampedStartIndex;
       const raw = ts.rawStartIndex;
       const springForce = (target - raw) * 0.2;
       ts.setStartIndexUnclamped(raw + springForce);
       this.pan.velocity = 0;
+      this.panMoved = true;
 
       if (Math.abs(ts.overscroll) < 0.5) {
         ts.setStartIndexUnclamped(ts.clampedStartIndex);
         this.pan.raf = null;
+        ts.ratifySettledPosition(); // bounce settled — envelope tracks the rest
         this.onUpdate();
         return;
       }
@@ -104,25 +116,52 @@ export class InertiaController {
 
     if (Math.abs(this.pan.velocity) < 0.5) {
       this.pan.raf = null;
+      // Only a run that actually moved settles the envelope.
+      if (this.panMoved) ts.ratifySettledPosition();
       return;
     }
+    const before = ts.rawStartIndex;
     const deltaBars = -this.pan.velocity / ts.barSpacing;
     ts.scrollByUnclamped(deltaBars);
     this.pan.velocity *= 0.92;
-    this.onUpdate();
-    this.pan.raf = requestAnimationFrame(this.runPan);
+    if (ts.rawStartIndex !== before) {
+      this.panMoved = true;
+      this.onUpdate();
+      this.pan.raf = requestAnimationFrame(this.runPan);
+      return;
+    }
+    // Fully absorbed frame: TERMINATE instead of decaying silently. A loop
+    // idling with residual velocity is a trap — the moment anything moves
+    // the scale off the absorbing limit (e.g. a programmatic animation
+    // starts), the stale velocity would spring back to life and cancel it.
+    this.pan.raf = null;
+    if (this.panMoved) ts.ratifySettledPosition();
   };
 
   private runZoom = (): void => {
     if (Math.abs(this.zoom.velocity) < 0.0005) {
       this.zoom.raf = null;
       this.zoom.anchorX = null;
+      // Only a run that actually zoomed settles the envelope: a run fully
+      // absorbed at the zoom cap is a no-op gesture.
+      if (this.zoomMoved) this.timeScale.ratifySettledPosition();
       return;
     }
+    const before = this.timeScale.barSpacing;
     const factor = 1 - this.zoom.velocity;
     this.timeScale.zoom(factor, this.zoom.anchorX ?? undefined);
     this.zoom.velocity *= 0.9;
-    this.onUpdate();
-    this.zoom.raf = requestAnimationFrame(this.runZoom);
+    if (this.timeScale.barSpacing !== before) {
+      this.zoomMoved = true;
+      this.onUpdate();
+      this.zoom.raf = requestAnimationFrame(this.runZoom);
+      return;
+    }
+    // Fully absorbed frame (zoom cap): terminate — see runPan for why a
+    // silently idling loop with residual velocity is dangerous.
+    this.zoom.raf = null;
+    this.zoom.anchorX = null;
+    this.zoom.velocity = 0;
+    if (this.zoomMoved) this.timeScale.ratifySettledPosition();
   };
 }

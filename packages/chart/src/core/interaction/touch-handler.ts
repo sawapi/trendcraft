@@ -25,8 +25,15 @@ export function attachTouchHandlers(
       const touchLocalY = touch.clientY - rect.top;
       const sb = scrollbar();
       if (sb && touchLocalY >= sb.y && touchLocalY <= sb.y + sb.height) {
+        ctx.drag.viewportMutated = false;
+        const before = timeScale.rawStartIndex;
         ctx.beginScrollbarDrag(touchLocalX, sb);
-        ctx.onUpdate();
+        if (timeScale.rawStartIndex !== before) {
+          ctx.drag.viewportMutated = true;
+          ctx.onViewportMutation();
+        } else {
+          ctx.onUpdate();
+        }
         return;
       }
 
@@ -39,7 +46,7 @@ export function attachTouchHandlers(
       // Double-tap detection
       if (!drawingActive && now - ctx.touch.lastTapTime < 300) {
         timeScale.fitContent();
-        ctx.onUpdate();
+        ctx.onViewportMutation();
         ctx.touch.lastTapTime = 0;
         return;
       }
@@ -56,11 +63,14 @@ export function attachTouchHandlers(
       }
 
       ctx.viewState.isDragging = true;
+      ctx.drag.viewportMutated = false; // becomes true only if the pan moves
       ctx.pan.lastTouchX = touch.clientX;
       ctx.pan.lastTouchMoveTime = now;
       ctx.pan.velocity = 0;
       ctx.drag.startX = ctx.pan.lastTouchX;
-      ctx.drag.startIndex = timeScale.startIndex;
+      // Raw (fractional) start — same reason as the mouse handler: the
+      // floored getter snaps a fractional resting position on first move.
+      ctx.drag.startIndex = timeScale.rawStartIndex;
     } else if (e.touches.length === 2) {
       // Switch from pan to pinch: cancel drag state
       if (ctx.touch.longPressTimer) {
@@ -88,8 +98,14 @@ export function attachTouchHandlers(
       const rect = el.getBoundingClientRect();
       const localX = sbTouch.clientX - rect.left;
       const sb = scrollbar();
+      const before = timeScale.rawStartIndex;
       if (sb) ctx.applyScrollbarDrag(localX, sb);
-      ctx.onUpdate();
+      if (timeScale.rawStartIndex !== before) {
+        ctx.drag.viewportMutated = true;
+        ctx.onViewportMutation();
+      } else {
+        ctx.onUpdate();
+      }
       return;
     }
 
@@ -111,12 +127,18 @@ export function attachTouchHandlers(
         return;
       }
 
+      const before = timeScale.rawStartIndex;
       const dx = currentX - ctx.drag.startX;
       const deltaBars = -(dx / timeScale.barSpacing);
       const rawStart = ctx.drag.startIndex + deltaBars;
       timeScale.setStartIndexUnclamped(rawStart);
       rubberBandDampen(timeScale);
-      ctx.onUpdate();
+      if (timeScale.rawStartIndex !== before) {
+        ctx.drag.viewportMutated = true;
+        ctx.onViewportMutation();
+      } else {
+        ctx.onUpdate();
+      }
     } else if (e.touches.length === 2) {
       const tdx = e.touches[0].clientX - e.touches[1].clientX;
       const tdy = e.touches[0].clientY - e.touches[1].clientY;
@@ -127,8 +149,14 @@ export function attachTouchHandlers(
         const amplified = 1 + (rawFactor - 1) * 2.5;
         const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
         const rect = el.getBoundingClientRect();
+        const before = timeScale.barSpacing;
         timeScale.zoom(amplified, midX - rect.left);
-        ctx.onUpdate();
+        if (timeScale.barSpacing !== before) {
+          ctx.drag.viewportMutated = true;
+          ctx.onViewportMutation();
+        } else {
+          ctx.onUpdate(); // pinch absorbed at the zoom limit
+        }
       }
       ctx.touch.lastDist = dist;
     }
@@ -140,13 +168,21 @@ export function attachTouchHandlers(
       ctx.touch.longPressTimer = null;
     }
 
-    // Start inertia if swiped fast enough, or bounce-back if overscrolled
-    if (ctx.viewState.isDragging && !ctx.touch.longPressCrosshairLocked) {
-      if (Math.abs(ctx.pan.velocity) > 3 || Math.abs(timeScale.overscroll) > 0.1) {
-        inertia.startPan();
+    // Only a gesture that actually moved the viewport settles the clamp
+    // envelope — a tap or long-press crosshair must not dissolve a grant.
+    if (ctx.drag.viewportMutated) {
+      let settled = true;
+      if (ctx.viewState.isDragging && !ctx.touch.longPressCrosshairLocked) {
+        if (Math.abs(ctx.pan.velocity) > 3 || Math.abs(timeScale.overscroll) > 0.1) {
+          inertia.startPan();
+          settled = false; // the inertia loop ratifies when it terminates
+        }
+      }
+      if (settled) {
+        timeScale.ratifySettledPosition();
       }
     }
-
+    ctx.drag.viewportMutated = false;
     ctx.viewState.isDragging = false;
     ctx.touch.longPressCrosshairLocked = false;
     ctx.touch.lastDist = 0;
@@ -155,6 +191,10 @@ export function attachTouchHandlers(
   el.addEventListener("touchstart", onTouchStart, { passive: false });
   el.addEventListener("touchmove", onTouchMove, { passive: false });
   el.addEventListener("touchend", onTouchEnd);
+  // The browser can end a gesture with touchcancel (system gesture,
+  // element removal, palm rejection). Same settle path as touchend, or the
+  // drag's grant/overscroll would go unresolved.
+  el.addEventListener("touchcancel", onTouchEnd);
 
   return () => {
     if (ctx.touch.longPressTimer) {
@@ -164,5 +204,6 @@ export function attachTouchHandlers(
     el.removeEventListener("touchstart", onTouchStart);
     el.removeEventListener("touchmove", onTouchMove);
     el.removeEventListener("touchend", onTouchEnd);
+    el.removeEventListener("touchcancel", onTouchEnd);
   };
 }
