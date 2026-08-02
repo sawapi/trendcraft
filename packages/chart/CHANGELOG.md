@@ -47,6 +47,22 @@ layers:
   viewport center for a non-finite anchor, so an unexpected NaN in
   event-derived coordinates can no longer poison the viewport position
   permanently.
+- The scroll clamp respects positions granted by `setVisibleLogicalRange`
+  as a first-class envelope. Previously the interaction layer treated a
+  granted beyond-boundary position as ordinary overscroll: the first
+  wheel notch or drag pixel could fling the view most of the margin back
+  toward the ordinary boundary, a streaming tick destroyed a margin
+  before the first bar, and in the everything-fits regime a single arrow
+  key snapped a both-sides margin to the left edge. Granted margins now
+  behave predictably: user gestures consume them bar-by-bar (rubber-band
+  resistance and bounce apply only beyond the granted position), they
+  stream with the live-edge follow, and they are released by explicit
+  navigation (`fitContent`, scroll-to-end, time-based ranges,
+  `setCandles`). Consumed margin is not re-enterable by gestures — set a
+  new logical range to widen it again. A container resize no longer
+  auto-refits away a wide logical-range viewport, and a
+  `timeScale.rightOffset` update leaves an active logical-range viewport
+  in place (the new offset applies once the range is released).
 
 ### Added — logical-range viewport API: `setVisibleLogicalRange` / `getVisibleLogicalRange`
 

@@ -389,6 +389,7 @@ export class TimeScale {
    *  virtualTotal already accounts for the last bar's own slot (see getter);
    *  when everything fits the target is clamped to 0 by the Math.max. */
   scrollToEnd(): void {
+    this._granted = null; // explicit navigation releases any viewport grant
     const targetVirt = Math.max(
       0,
       this.virtualTotal + this.effectiveRightOffset() - this._visibleCount,
@@ -426,6 +427,9 @@ export class TimeScale {
    */
   followLiveEdge(prevEndDistance: number): void {
     this._startIndex = this.realAtVirt(this.virtualTotal - prevEndDistance);
+    // Re-base an active grant onto the new resting position so a granted
+    // margin keeps streaming with the market instead of eroding per tick.
+    if (this._granted !== null) this._granted = this._startIndex;
   }
 
   /** Zoom around a pixel position (Google Maps style — anchor stays under cursor) */
@@ -467,6 +471,7 @@ export class TimeScale {
   setVisibleRange(start: number, end: number): void {
     const count = end - start;
     if (count <= 0) return;
+    this._granted = null; // ordinary (data-bounded) range: release any grant
     this._barSpacing = Math.max(
       this._minBarSpacing,
       Math.min(this._maxBarSpacing, this._width / count),
@@ -481,6 +486,7 @@ export class TimeScale {
    *  candles to fill the canvas correctly in that case. */
   fitContent(): void {
     if (this._totalCount <= 0 || this._width <= 0) return;
+    this._granted = null; // fitting to content releases any viewport grant
     // virtualTotal, not totalCount: in a gap-expanded layout the content
     // spans more slots than there are bars, and each slot costs width.
     const slots = this.virtualTotal + this._rightOffset;
@@ -548,6 +554,14 @@ export class TimeScale {
     this._barSpacing = spacing;
     this.recalcVisibleCount();
     this._startIndex = from;
+    // Grant the requested resting position UNCONDITIONALLY — the grant is
+    // the owner of "an explicit logical viewport is active", not merely
+    // "the position is beyond ordinary bounds". A wide range starting at 0
+    // or a viewport inside the overscroll pad must still block auto-refit
+    // and rightOffset repositioning (D2/D3); within ordinary bounds the
+    // envelope arithmetic is unchanged, and the FIRST gesture settle
+    // dissolves an in-bounds grant via ratifySettledPosition().
+    this._granted = from;
   }
 
   /** Set startIndex and barSpacing directly (used by animation frames).
@@ -576,45 +590,43 @@ export class TimeScale {
   }
 
   /** Returns how far past the edge the viewport is (0 = within bounds).
-   *  Negative = past left edge, positive = past right edge. */
+   *  Negative = past left edge, positive = past right edge.
+   *  Measured against the clamp envelope, so a granted logical-range
+   *  position reads as 0 — the rubber band resists only movement BEYOND
+   *  what the viewer legitimately holds. */
   get overscroll(): number {
-    const maxStart = this.maxStartIndex;
-    if (maxStart === null) return 0;
-    if (this._startIndex < 0) return this._startIndex;
-    if (this._startIndex > maxStart) return this._startIndex - maxStart;
+    if (this._startIndex < this.allowedMin) return this._startIndex - this.allowedMin;
+    if (this._startIndex > this.allowedMax) return this._startIndex - this.allowedMax;
     return 0;
   }
 
   /** Scroll without clamping (allows overscroll for bounce effect) */
   scrollByUnclamped(deltaBars: number): void {
     this._startIndex += deltaBars;
-    // Soft clamp: allow overscroll but with increasing resistance
-    const maxStart = this.maxStartIndex;
-    if (maxStart === null) {
-      this.clamp();
-      return;
-    }
-    if (this._startIndex < 0) {
-      this._startIndex *= 0.4; // Rubber-band resistance
-    } else if (this._startIndex > maxStart) {
-      const over = this._startIndex - maxStart;
-      this._startIndex = maxStart + over * 0.4;
+    // Soft clamp: allow overscroll beyond the envelope, with resistance
+    const min = this.allowedMin;
+    const max = this.allowedMax;
+    if (this._startIndex < min) {
+      this._startIndex = min + (this._startIndex - min) * 0.4; // Rubber-band resistance
+    } else if (this._startIndex > max) {
+      this._startIndex = max + (this._startIndex - max) * 0.4;
     }
   }
 
-  /** Snap back to the nearest edge (for bounce-back after overscroll) */
+  /** Snap back to the nearest envelope edge (bounce-back after overscroll) */
   get clampedStartIndex(): number {
-    const maxStart = this.maxStartIndex;
-    if (maxStart === null) return 0;
-    return Math.max(0, Math.min(maxStart, this._startIndex));
+    return Math.max(this.allowedMin, Math.min(this.allowedMax, this._startIndex));
   }
 
-  /** Maximum allowed startIndex, or null if all content fits in view */
-  private get maxStartIndex(): number | null {
-    if (this._totalCount <= 0) return null;
+  /**
+   * Maximum ordinary startIndex. Total (never null): when all content
+   * (plus margin) fits the viewport this is 0 — the left-aligned layout.
+   */
+  private get normalMaxStart(): number {
+    if (this._totalCount <= 0) return 0;
     const virtTotal = this.virtualTotal;
     const offset = this.effectiveRightOffset();
-    if (this._visibleCount >= virtTotal + offset) return null;
+    if (this._visibleCount >= virtTotal + offset) return 0;
     // The scrollable empty space on the right is whichever is larger: the
     // 20% overscroll pad or the configured right offset — so the pinned
     // (scrollToEnd) position is always reachable without fighting clamp.
@@ -622,6 +634,53 @@ export class TimeScale {
     const maxStartVirt = Math.max(0, virtTotal + rightPad - this._visibleCount);
     if (this._virt.length === 0) return maxStartVirt;
     return this.realAtVirt(maxStartVirt);
+  }
+
+  // ---- Clamp envelope --------------------------------------------------
+  //
+  // The ordinary scroll bounds are [0, normalMaxStart]. A position set
+  // through setVisibleLogicalRange may legitimately sit OUTSIDE them (a
+  // margin wider than the overscroll pad, or space before the first bar);
+  // `_granted` records that resting position, and the effective bounds
+  // become [min(0, granted), max(normalMaxStart, granted)]. The grant is
+  // a ratification of where the viewer rests, not a persistent region:
+  // it shrinks to the new resting position when a user gesture settles
+  // (margins are consumable by interaction, re-creatable only via the
+  // API — a one-way ratchet), is released entirely by fitContent /
+  // scrollToEnd / setVisibleRange / setCandles, and is re-based by the
+  // live-edge follow so streaming keeps a granted margin.
+
+  /** Resting position granted by setVisibleLogicalRange (null = none).
+   *  Non-null also for in-bounds positions: it doubles as the marker that
+   *  an explicit logical viewport is active (D2/D3 protection). */
+  private _granted: number | null = null;
+
+  private get allowedMin(): number {
+    return this._granted !== null ? Math.min(0, this._granted) : 0;
+  }
+
+  private get allowedMax(): number {
+    const normal = this.normalMaxStart;
+    return this._granted !== null ? Math.max(normal, this._granted) : normal;
+  }
+
+  /** True while an explicit logical-range viewport grant is active
+   *  (in-bounds included — the grant marks "an explicit viewport is set",
+   *  not "the position is beyond ordinary bounds"). */
+  get hasViewportGrant(): boolean {
+    return this._granted !== null;
+  }
+
+  /**
+   * Ratify the current resting position as the clamp envelope: called
+   * when a user gesture fully settles (pointer up without bounce, bounce
+   * / inertia termination, each discrete keyboard step, wheel-session
+   * expiry). Inside the ordinary bounds the grant dissolves; outside, it
+   * shrinks to exactly where the viewer now rests.
+   */
+  ratifySettledPosition(): void {
+    const s = this._startIndex;
+    this._granted = s < 0 || s > this.normalMaxStart ? s : null;
   }
 
   /**
@@ -690,15 +749,13 @@ export class TimeScale {
       this._startIndex = 0;
       return;
     }
-    // Single owner for the "everything fits" decision: maxStartIndex is
-    // null exactly when content + margin fit the viewport (it compares in
-    // virtual units, so gap-expanded layouts clamp consistently too).
-    const maxStart = this.maxStartIndex;
-    if (maxStart === null) {
-      this._startIndex = 0;
-      return;
-    }
-    this._startIndex = Math.max(0, Math.min(maxStart, this._startIndex));
+    // Clamp into the envelope, not the ordinary bounds: a granted
+    // logical-range position (including one preserved across the
+    // transient relayout inside setTotalCount) must survive clamping.
+    // normalMaxStart compares in virtual units, so gap-expanded layouts
+    // clamp consistently, and the all-fits regime yields [min(0,g), max(0,g)]
+    // — a granted both-sides margin moves bar-by-bar instead of snapping.
+    this._startIndex = Math.max(this.allowedMin, Math.min(this.allowedMax, this._startIndex));
   }
 }
 

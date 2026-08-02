@@ -32,12 +32,22 @@ export function attachMouseHandlers(
 
     const sb = scrollbar();
     if (sb && my >= sb.y && my <= sb.y + sb.height) {
+      // A track press jumps the viewport; a thumb grab does not. Track the
+      // actual change so releasing an untouched thumb doesn't ratify.
+      ctx.drag.viewportMutated = false;
+      const before = timeScale.rawStartIndex;
       ctx.beginScrollbarDrag(mx, sb);
-      ctx.onViewportMutation();
+      if (timeScale.rawStartIndex !== before) {
+        ctx.drag.viewportMutated = true;
+        ctx.onViewportMutation(); // track press jumped the viewport
+      } else {
+        ctx.onUpdate(); // thumb grab: nothing moved yet
+      }
       return;
     }
 
     ctx.viewState.isDragging = true;
+    ctx.drag.viewportMutated = false; // becomes true only if the drag moves
     ctx.drag.startX = e.clientX;
     // Raw (fractional) start: the floored getter would snap the viewport by
     // the fractional part on the first pixel of drag — a resting fractional
@@ -65,8 +75,14 @@ export function attachMouseHandlers(
 
     if (ctx.drag.scrollbarDragging) {
       const sb = scrollbar();
+      const before = timeScale.rawStartIndex;
       if (sb) ctx.applyScrollbarDrag(ctx.viewState.mouseX, sb);
-      ctx.onViewportMutation();
+      if (timeScale.rawStartIndex !== before) {
+        ctx.drag.viewportMutated = true;
+        ctx.onViewportMutation();
+      } else {
+        ctx.onUpdate();
+      }
       return;
     }
 
@@ -82,12 +98,18 @@ export function attachMouseHandlers(
     ctx.viewState.crosshairIndex = timeScale.xToIndex(ctx.viewState.mouseX);
 
     if (ctx.viewState.isDragging) {
+      const before = timeScale.rawStartIndex;
       const dx = e.clientX - ctx.drag.startX;
       const deltaBars = -(dx / timeScale.barSpacing);
       const rawStart = ctx.drag.startIndex + deltaBars;
       timeScale.setStartIndexUnclamped(rawStart);
       rubberBandDampen(timeScale);
-      ctx.onViewportMutation();
+      if (timeScale.rawStartIndex !== before) {
+        ctx.drag.viewportMutated = true;
+        ctx.onViewportMutation();
+      } else {
+        ctx.onUpdate(); // zero-delta move event: repaint only
+      }
       return;
     }
 
@@ -95,25 +117,44 @@ export function attachMouseHandlers(
     ctx.onUpdate();
   };
 
-  const onMouseUp = () => {
-    // Bounce-back if overscrolled via mouse drag. The inertia loop handles
-    // both spring-back-from-overscroll and velocity-driven flick; here we
-    // explicitly zero velocity because mouse drag doesn't track flick speed.
-    if (ctx.viewState.isDragging && Math.abs(timeScale.overscroll) > 0.1) {
-      inertia.stopPan();
-      ctx.pan.velocity = 0;
-      inertia.startPan();
+  // Shared gesture-end: mouseup AND a mouseleave that interrupts a drag.
+  // Releasing the button outside the canvas never delivers mouseup here, so
+  // without this the drag's grant/overscroll would go unresolved — leaving
+  // a stale envelope (a consumed margin re-enterable without resistance)
+  // and, when overscrolled, no bounce-back.
+  const endDragGesture = () => {
+    // Only a gesture that actually MOVED the viewport settles the clamp
+    // envelope: a plain click (mousedown+up without movement) or an
+    // untouched scrollbar thumb must not dissolve an in-bounds grant.
+    if (ctx.drag.viewportMutated) {
+      // Bounce-back if overscrolled via mouse drag. The inertia loop
+      // handles both spring-back and velocity flick; velocity is zeroed
+      // because mouse drag doesn't track flick speed.
+      if (ctx.viewState.isDragging && Math.abs(timeScale.overscroll) > 0.1) {
+        inertia.stopPan();
+        ctx.pan.velocity = 0;
+        inertia.startPan();
+      } else {
+        // Gesture settles right here (no bounce/inertia will follow):
+        // ratify the resting position into the clamp envelope.
+        timeScale.ratifySettledPosition();
+      }
     }
+    ctx.drag.viewportMutated = false;
     ctx.viewState.isDragging = false;
     ctx.drag.scrollbarDragging = false;
     ctx.drag.scrollbarGrabOffsetFrac = null;
     ctx.paneResize.gap = null;
   };
 
+  const onMouseUp = () => {
+    endDragGesture();
+  };
+
   const onMouseLeave = () => {
-    ctx.viewState.isDragging = false;
-    ctx.drag.scrollbarDragging = false;
-    ctx.drag.scrollbarGrabOffsetFrac = null;
+    endDragGesture();
+    // Plain hover exit: clear the crosshair and repaint (never a
+    // viewport mutation — must not cancel a running range animation).
     ctx.viewState.crosshairIndex = null;
     ctx.viewState.activePaneId = null;
     ctx.onUpdate();

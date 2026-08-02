@@ -1186,8 +1186,11 @@ export class CanvasChart implements ChartInstance {
       if (opts.timeScale.rightOffset !== undefined) {
         // Re-scroll immediately when the last bar is visible so the new
         // margin shows right away, not only on the next new bar. A rejected
-        // value must not move the viewport (it was "ignored").
-        const atEnd = this._barsOffLiveEdge() <= 0;
+        // value must not move the viewport (it was "ignored"), and neither
+        // must an option update while an explicit logical-range viewport is
+        // active — the grant owns the position; the new offset applies once
+        // the grant is released (scrollToEnd / fitContent / time range).
+        const atEnd = this._barsOffLiveEdge() <= 0 && !this._timeScale.hasViewportGrant;
         if (this._setRightOffsetOption(opts.timeScale.rightOffset)) {
           if (atEnd) this._timeScale.scrollToEnd();
           this._needsRender = true;
@@ -1443,7 +1446,12 @@ export class CanvasChart implements ChartInstance {
       timeAxisHeight:
         timeAxisHeight ?? this._sizeState?.timeAxisHeight ?? DEFAULT_OPTIONS.timeAxisHeight,
     };
-    const wasFit = this._timeScale.visibleCount >= this._timeScale.totalCount;
+    // "All data visible" also matches a deliberately wide logical-range
+    // viewport; auto-refitting would silently destroy the granted range
+    // (fitContent releases the grant), so only refit when none is active.
+    const wasFit =
+      this._timeScale.visibleCount >= this._timeScale.totalCount &&
+      !this._timeScale.hasViewportGrant;
     this._timeScale.setWidth(this._layout.dataAreaWidth);
     // Re-fit if all data was visible before resize
     if (wasFit && this._timeScale.totalCount > 0) {

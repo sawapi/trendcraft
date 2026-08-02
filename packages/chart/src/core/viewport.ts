@@ -69,6 +69,7 @@ export class Viewport {
      * (outside the thumb); in that case we page-jump to center on the cursor.
      */
     scrollbarGrabOffsetFrac: null,
+    viewportMutated: false,
   };
 
   private _onUpdate: (() => void) | null = null;
@@ -190,7 +191,7 @@ export class Viewport {
       paneResize: { gap: null, startY: 0 },
       pan: { velocity: 0, raf: null, lastTouchX: 0, lastTouchMoveTime: 0 },
       zoom: { velocity: 0, raf: null, lastTime: 0, anchorX: null },
-      wheel: { dir: null, timer: null, panVelocity: 0, lastPanTime: 0 },
+      wheel: { dir: null, timer: null, panVelocity: 0, lastPanTime: 0, viewportMutated: false },
       touch: {
         lastDist: 0,
         lastTapTime: 0,
