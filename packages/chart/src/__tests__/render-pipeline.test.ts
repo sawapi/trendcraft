@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { DataLayer } from "../core/data-layer";
+import { DEFAULT_FONT_FAMILY } from "../core/font";
 import { DEFAULT_LOCALE } from "../core/i18n";
 import { LayoutEngine } from "../core/layout";
 import { RendererRegistry } from "../core/renderer-registry";
@@ -26,6 +27,7 @@ function makeRenderContext(overrides?: Partial<RenderContext>): RenderContext {
     canvasHeight: 400,
     theme: DARK_THEME,
     fontSize: 11,
+    fontFamily: DEFAULT_FONT_FAMILY,
     chartType: "candlestick",
     watermark: undefined,
     priceFormatter: (p: number) => p.toFixed(2),

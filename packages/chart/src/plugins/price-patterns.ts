@@ -23,6 +23,7 @@
  */
 
 import { roundRectPath, withPaneClip } from "../core/draw-helper";
+import { canvasFont } from "../core/font";
 import { definePrimitive } from "../core/plugin-types";
 import type { ChartInstance } from "../core/types";
 
@@ -212,8 +213,9 @@ function drawAnchoredLabel(
   text: string,
   bg: string,
   placement: "above" | "below",
+  fontFamily: string,
 ): void {
-  ctx.font = "11px system-ui, sans-serif";
+  ctx.font = canvasFont(11, fontFamily);
   const padX = 6;
   const w = ctx.measureText(text).width + padX * 2;
   const h = 18;
@@ -291,7 +293,7 @@ export function createPricePatterns(
     pane: "main",
     zOrder: "above",
     defaultState: { renders },
-    render({ ctx, pane, timeScale, priceScale }, state) {
+    render({ ctx, pane, timeScale, priceScale, fontFamily }, state) {
       withPaneClip(ctx, pane, () => {
         const start = timeScale.startIndex;
         const end = timeScale.endIndex;
@@ -380,6 +382,7 @@ export function createPricePatterns(
               labels[i].text,
               `rgba(${rgb},0.92)`,
               placement,
+              fontFamily,
             );
           }
 
@@ -404,6 +407,7 @@ export function createPricePatterns(
               "Target",
               `rgba(${rgb},0.92)`,
               direction === "bull" ? "above" : "below",
+              fontFamily,
             );
           }
         }

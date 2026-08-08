@@ -19,6 +19,7 @@
  */
 
 import { withPaneClip } from "../core/draw-helper";
+import { canvasFont } from "../core/font";
 import type { PrimitivePlugin, PrimitiveRenderContext } from "../core/plugin-types";
 import { definePrimitive } from "../core/plugin-types";
 import type { ChartInstance } from "../core/types";
@@ -60,7 +61,7 @@ function strengthToRgb(strength: number): string {
 // ---- Render ----
 
 function renderSrConfluence(
-  { ctx, pane, priceScale }: PrimitiveRenderContext,
+  { ctx, pane, priceScale, fontFamily }: PrimitiveRenderContext,
   state: SrConfluenceState,
 ): void {
   const { zones } = state;
@@ -97,7 +98,7 @@ function renderSrConfluence(
 
       const centerY = (topY + bottomY) / 2;
       ctx.fillStyle = `rgba(${rgb},0.7)`;
-      ctx.font = "9px -apple-system, BlinkMacSystemFont, sans-serif";
+      ctx.font = canvasFont(9, fontFamily);
       ctx.textAlign = "right";
       ctx.textBaseline = "middle";
       // Strength score + touch count (when available). Mirrors the

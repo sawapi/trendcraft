@@ -71,8 +71,8 @@ All fields optional.
 | `pixelRatio` | `number` | `window.devicePixelRatio` | Canvas backing-store ratio (one-time; not runtime-mutable) |
 | `priceAxisWidth` | `number` | `60` | Right axis width (px) |
 | `timeAxisHeight` | `number` | `32` | Bottom axis height (px) |
-| `fontFamily` | `string` | system | Font family (one-time) |
-| `fontSize` | `number` | `11` | Font size (px) |
+| `fontFamily` | `string` | system UI stack | Font family for canvas axis/crosshair/overlay text and DOM legend/info overlays. Runtime-updatable via `applyOptions` |
+| `fontSize` | `number` | `11` | Font size (px). Runtime-updatable via `applyOptions` |
 | `priceFormatter` | `(price: number) => string` | auto-precision | Custom price formatter |
 | `timeFormatter` | `(time: number) => string` | smart date/time | Custom time formatter |
 | `watermark` | `string` | — | Background watermark text |

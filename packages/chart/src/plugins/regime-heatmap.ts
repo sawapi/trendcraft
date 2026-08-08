@@ -22,6 +22,7 @@
  */
 
 import { roundRectPath, withPaneClip } from "../core/draw-helper";
+import { canvasFont } from "../core/font";
 import type { PrimitivePlugin, PrimitiveRenderContext } from "../core/plugin-types";
 import { definePrimitive } from "../core/plugin-types";
 import type { ChartInstance, DataPoint } from "../core/types";
@@ -69,7 +70,7 @@ function regimeToRgb(regime: number, label?: string): string {
 // ---- Render ----
 
 function renderRegimeHeatmap(
-  { ctx, pane, timeScale }: PrimitiveRenderContext,
+  { ctx, pane, timeScale, fontFamily }: PrimitiveRenderContext,
   state: RegimeHeatmapState,
 ): void {
   const { data, options } = state;
@@ -95,7 +96,7 @@ function renderRegimeHeatmap(
   });
 
   if (options.showBadge) {
-    renderRegimeBadge(ctx, pane, data, start, end);
+    renderRegimeBadge(ctx, pane, data, start, end, fontFamily);
   }
 }
 
@@ -112,6 +113,7 @@ function renderRegimeBadge(
   data: readonly RegimeDataPoint[],
   visibleStart: number,
   visibleEnd: number,
+  fontFamily: string,
 ): void {
   const lastVisibleIdx = Math.min(visibleEnd - 1, data.length - 1);
   const firstVisibleIdx = Math.max(0, visibleStart);
@@ -134,7 +136,7 @@ function renderRegimeBadge(
   const display = conf != null ? `${text} · ${Math.round(conf * 100)}%` : text;
 
   ctx.save();
-  ctx.font = "bold 11px -apple-system, BlinkMacSystemFont, sans-serif";
+  ctx.font = canvasFont(11, fontFamily, "bold");
   ctx.textBaseline = "top";
   ctx.textAlign = "left";
 

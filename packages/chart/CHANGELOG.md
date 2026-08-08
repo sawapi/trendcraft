@@ -96,6 +96,26 @@ bounded only by the render pipeline's 0.1px floor rather than the
 interactive zoom limits, so narrow (sub-16-bar) and very wide ranges
 round-trip through `getVisibleLogicalRange` without distortion.
 
+### Fixed — `fontFamily` option now applies to canvas and overlay text
+
+`ChartOptions.fontFamily` was documented but ignored: renderers hardcoded a
+system UI stack, and `applyOptions({ fontFamily })` warned that the field
+could not change at runtime. The option is now stored like `fontSize`,
+passed through the render context, and used for axis/crosshair/overlay/
+drawing/pattern/watermark canvas text plus DOM legend/info overlays.
+Built-in primitives honor it too. Default remains the previous system stack
+(`-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`).
+`applyOptions({ fontFamily })` updates live without re-creating the chart.
+Also exports `DEFAULT_FONT_FAMILY` and `canvasFont()` for plugins that draw
+their own labels.
+
+```ts
+createChart(el, {
+  fontSize: 11,
+  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+});
+```
+
 ### Added — `timeScale.rightOffset`: empty space after the last candle
 
 ```ts

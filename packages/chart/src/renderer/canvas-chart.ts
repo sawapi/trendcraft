@@ -7,6 +7,7 @@ import { ViewTransition } from "../core/animation";
 import { DataLayer } from "../core/data-layer";
 import { safeDevicePixelRatio } from "../core/dpr";
 import type { DrawHelper } from "../core/draw-helper";
+import { DEFAULT_FONT_FAMILY } from "../core/font";
 import { autoFormatPrice, setMonthNames } from "../core/format";
 import { type ChartLocale, mergeLocale } from "../core/i18n";
 import { DEFAULT_LAYOUT_NO_VOLUME, LayoutEngine } from "../core/layout";
@@ -74,12 +75,13 @@ function nowMs(): number {
 }
 
 const DEFAULT_OPTIONS: Required<
-  Pick<ChartOptions, "height" | "priceAxisWidth" | "timeAxisHeight" | "fontSize">
+  Pick<ChartOptions, "height" | "priceAxisWidth" | "timeAxisHeight" | "fontSize" | "fontFamily">
 > = {
   height: 400,
   priceAxisWidth: 60,
   timeAxisHeight: 32,
   fontSize: 11,
+  fontFamily: DEFAULT_FONT_FAMILY,
 };
 
 // ============================================
@@ -103,6 +105,7 @@ export class CanvasChart implements ChartInstance {
   private _pixelRatioPinned: boolean;
   private _theme: ThemeColors;
   private _fontSize: number;
+  private _fontFamily: string;
   private _priceFormatter: (price: number) => string;
   private _timeFormatter: ((time: number) => string) | undefined;
   /** Last applied layout size — tracked so applyOptions() can compose partial size changes. */
@@ -317,6 +320,7 @@ export class CanvasChart implements ChartInstance {
     this._container = container;
     if (options?.maxCandles) this._data.setMaxCandles(options.maxCandles);
     this._fontSize = options?.fontSize ?? DEFAULT_OPTIONS.fontSize;
+    this._fontFamily = options?.fontFamily ?? DEFAULT_OPTIONS.fontFamily;
     this._priceFormatter = options?.priceFormatter ?? autoFormatPrice;
     this._timeFormatter = options?.timeFormatter;
     this._animationDuration = options?.animationDuration ?? 300;
@@ -490,12 +494,18 @@ export class CanvasChart implements ChartInstance {
       this._priceFormatter,
       options?.formatInfoOverlay,
       this._locale,
+      this._fontFamily,
     );
     this._infoOverlay.setRendererRegistry(this._rendererRegistry);
 
     // Legend overlay
     if (options?.legend !== false) {
-      this._legendOverlay = new LegendOverlay(container, this._theme, this._locale);
+      this._legendOverlay = new LegendOverlay(
+        container,
+        this._theme,
+        this._locale,
+        this._fontFamily,
+      );
       this._wireLegend(this._legendOverlay);
     }
 
@@ -1124,13 +1134,13 @@ export class CanvasChart implements ChartInstance {
    * Diffs each provided field against the chart's current state and routes to
    * the appropriate internal setter. Fields not listed in `opts` are left alone.
    *
-   * Runtime-capable fields: theme, chartType, volume, fontSize, watermark,
-   * animationDuration, maxCandles, legend, priceFormatter, timeFormatter,
-   * width, height, priceAxisWidth, timeAxisHeight, timeScale.sessionGaps,
-   * timeScale.rightOffset.
+   * Runtime-capable fields: theme, chartType, volume, fontSize, fontFamily,
+   * watermark, animationDuration, maxCandles, legend, priceFormatter,
+   * timeFormatter, width, height, priceAxisWidth, timeAxisHeight,
+   * timeScale.sessionGaps, timeScale.rightOffset.
    *
    * Fields that require re-creating the chart emit a warning and are ignored:
-   * pixelRatio, fontFamily, scrollSensitivity, locale, formatInfoOverlay.
+   * pixelRatio, scrollSensitivity, locale, formatInfoOverlay.
    */
   applyOptions(opts: Partial<ChartOptions>): void {
     if (opts.theme !== undefined) this.setTheme(opts.theme);
@@ -1139,6 +1149,12 @@ export class CanvasChart implements ChartInstance {
 
     if (opts.fontSize !== undefined) {
       this._fontSize = opts.fontSize;
+      this._needsRender = true;
+    }
+    if (opts.fontFamily !== undefined) {
+      this._fontFamily = opts.fontFamily || DEFAULT_OPTIONS.fontFamily;
+      this._infoOverlay?.setFontFamily(this._fontFamily);
+      this._legendOverlay?.setFontFamily(this._fontFamily);
       this._needsRender = true;
     }
     if (opts.watermark !== undefined) {
@@ -1204,7 +1220,12 @@ export class CanvasChart implements ChartInstance {
         this._legendOverlay.destroy();
         this._legendOverlay = null;
       } else if (opts.legend !== false && !this._legendOverlay) {
-        this._legendOverlay = new LegendOverlay(this._container, this._theme, this._locale);
+        this._legendOverlay = new LegendOverlay(
+          this._container,
+          this._theme,
+          this._locale,
+          this._fontFamily,
+        );
         this._wireLegend(this._legendOverlay);
       }
       this._needsRender = true;
@@ -1229,7 +1250,6 @@ export class CanvasChart implements ChartInstance {
     // Unsupported at runtime — these bind to sub-components at construction
     const unsupported: (keyof ChartOptions)[] = [];
     if (opts.pixelRatio !== undefined) unsupported.push("pixelRatio");
-    if (opts.fontFamily !== undefined) unsupported.push("fontFamily");
     if (opts.scrollSensitivity !== undefined) unsupported.push("scrollSensitivity");
     if (opts.locale !== undefined) unsupported.push("locale");
     if (opts.formatInfoOverlay !== undefined) unsupported.push("formatInfoOverlay");
@@ -1366,6 +1386,7 @@ export class CanvasChart implements ChartInstance {
       this._theme,
       this._fontSize,
       this._locale,
+      this._fontFamily,
     );
     return off;
   }
@@ -1483,6 +1504,7 @@ export class CanvasChart implements ChartInstance {
       canvasHeight: this._canvas.height,
       theme: this._theme,
       fontSize: this._fontSize,
+      fontFamily: this._fontFamily,
       chartType: this._chartType,
       watermark: this._watermark,
       showSeriesBadges: this._showSeriesBadges,

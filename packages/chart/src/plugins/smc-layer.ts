@@ -23,6 +23,7 @@
  */
 
 import { withPaneClip } from "../core/draw-helper";
+import { canvasFont } from "../core/font";
 import type { PrimitivePlugin, PrimitiveRenderContext } from "../core/plugin-types";
 import { definePrimitive } from "../core/plugin-types";
 import type { ChartInstance, DataPoint } from "../core/types";
@@ -83,8 +84,9 @@ function renderOrderBlocks(
   zones: readonly SmcZone[],
   timeScale: PrimitiveRenderContext["timeScale"],
   priceScale: PrimitiveRenderContext["priceScale"],
+  fontFamily: string,
 ): void {
-  ctx.font = "9px -apple-system, BlinkMacSystemFont, sans-serif";
+  ctx.font = canvasFont(9, fontFamily);
   ctx.textAlign = "left";
   ctx.textBaseline = "top";
 
@@ -128,8 +130,9 @@ function renderFvgZones(
   zones: readonly SmcZone[],
   timeScale: PrimitiveRenderContext["timeScale"],
   priceScale: PrimitiveRenderContext["priceScale"],
+  fontFamily: string,
 ): void {
-  ctx.font = "9px -apple-system, BlinkMacSystemFont, sans-serif";
+  ctx.font = canvasFont(9, fontFamily);
   ctx.textAlign = "right";
   ctx.textBaseline = "top";
 
@@ -174,9 +177,10 @@ function renderSweepMarkers(
   markers: readonly SmcMarker[],
   timeScale: PrimitiveRenderContext["timeScale"],
   priceScale: PrimitiveRenderContext["priceScale"],
+  fontFamily: string,
 ): void {
   const size = 5;
-  ctx.font = "9px -apple-system, BlinkMacSystemFont, sans-serif";
+  ctx.font = canvasFont(9, fontFamily);
   ctx.textAlign = "center";
 
   for (const marker of markers) {
@@ -226,6 +230,7 @@ function renderBosLevels(
   timeScale: PrimitiveRenderContext["timeScale"],
   priceScale: PrimitiveRenderContext["priceScale"],
   _theme: PrimitiveRenderContext["theme"],
+  fontFamily: string,
 ): void {
   ctx.save();
   ctx.setLineDash([6, 4]);
@@ -249,7 +254,7 @@ function renderBosLevels(
 
     // Label
     ctx.fillStyle = `rgba(${rgb},0.8)`;
-    ctx.font = "9px -apple-system, BlinkMacSystemFont, sans-serif";
+    ctx.font = canvasFont(9, fontFamily);
     ctx.textAlign = "left";
     ctx.textBaseline = "bottom";
     ctx.fillText(level.label, startX + 3, y - 2);
@@ -261,27 +266,27 @@ function renderBosLevels(
 // ---- Main render ----
 
 function renderSmcLayer(context: PrimitiveRenderContext, state: SmcState): void {
-  const { ctx, pane, timeScale, priceScale, theme } = context;
+  const { ctx, pane, timeScale, priceScale, theme, fontFamily } = context;
 
   withPaneClip(ctx, pane, () => {
     // Order blocks (lowest visual priority)
     if (state.orderBlocks.length > 0) {
-      renderOrderBlocks(ctx, state.orderBlocks, timeScale, priceScale);
+      renderOrderBlocks(ctx, state.orderBlocks, timeScale, priceScale, fontFamily);
     }
 
     // FVG zones
     if (state.fvgZones.length > 0) {
-      renderFvgZones(ctx, state.fvgZones, timeScale, priceScale);
+      renderFvgZones(ctx, state.fvgZones, timeScale, priceScale, fontFamily);
     }
 
     // BOS levels
     if (state.bosLevels.length > 0) {
-      renderBosLevels(ctx, state.bosLevels, timeScale, priceScale, theme);
+      renderBosLevels(ctx, state.bosLevels, timeScale, priceScale, theme, fontFamily);
     }
 
     // Sweep markers (highest visual priority)
     if (state.sweepMarkers.length > 0) {
-      renderSweepMarkers(ctx, state.sweepMarkers, timeScale, priceScale);
+      renderSweepMarkers(ctx, state.sweepMarkers, timeScale, priceScale, fontFamily);
     }
   });
 }
