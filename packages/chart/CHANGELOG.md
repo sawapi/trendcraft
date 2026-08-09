@@ -23,6 +23,13 @@ layers:
 - A touch gesture cancelled by the system (`touchcancel` — incoming call,
   browser gesture takeover) now ends the drag like `touchend` instead of
   leaving a stuck drag state.
+- Dragging the scrollbar thumb to the far right now lands on the same
+  position as the End key — last bar plus the configured
+  `timeScale.rightOffset` margin. The scrollbar derived its own right
+  boundary as `total − visible`, so it always landed flush against the
+  last bar, silently destroying a configured margin. (The scroll-to-end
+  start index is exposed on the headless `TimeScale` as
+  `scrollToEndTarget`.)
 - An animated range transition lands on the exact target span even below
   one bar per screen (the interpolation floored the bar count to 1).
 - A beyond-left viewport no longer blanks number-line series (a negative

@@ -204,6 +204,29 @@ describe("Viewport.attach() — scrollbar drag", () => {
     fireMouse(s.el, "mouseup", 250, 585);
     s.detach();
   });
+
+  it("thumb dragged to the far right keeps the configured rightOffset margin", () => {
+    const s = setup();
+    s.ts.setRightOffset(7);
+    // Thumb spans x=160..320 (visible 100..200 of 500 over an 800px track).
+    fireMouse(s.el, "mousedown", 200, 585); // grab inside the thumb
+    fireMouse(s.el, "mousemove", 800, 585); // drag to the far right
+    fireMouse(s.el, "mouseup", 800, 585);
+    // 500 bars, 100 visible, offset 7 → start 407 (End-key position), not
+    // the flush 400 that a local `total - visible` boundary would give.
+    expect(s.ts.startIndex).toBe(407);
+    expect(s.ts.startIndex).toBe(s.ts.scrollToEndTarget);
+    s.detach();
+  });
+
+  it("thumb dragged to the far right without rightOffset lands flush (legacy)", () => {
+    const s = setup();
+    fireMouse(s.el, "mousedown", 200, 585);
+    fireMouse(s.el, "mousemove", 800, 585);
+    fireMouse(s.el, "mouseup", 800, 585);
+    expect(s.ts.startIndex).toBe(400); // total 500 − visible 100
+    s.detach();
+  });
 });
 
 describe("Viewport.attach() — pane resize via gap", () => {

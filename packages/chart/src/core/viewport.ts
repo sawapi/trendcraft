@@ -98,7 +98,10 @@ export class Viewport {
     const total = timeScale.totalCount;
     if (total <= 0) return;
     const visible = timeScale.visibleCount;
-    const maxStart = Math.max(0, total - visible);
+    // Far right lands where scrollToEnd/End lands — honors rightOffset and
+    // session-gap layouts. `total - visible` here would strand the thumb's
+    // rightmost position flush against the last bar, eating the margin.
+    const maxStart = timeScale.scrollToEndTarget;
     const pointerFrac = (mouseX - sb.x) / sb.width;
 
     let newStart: number;
