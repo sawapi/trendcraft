@@ -1348,8 +1348,8 @@ Complete API surface for `@trendcraft/chart`. This is the reference; for concept
 | `@trendcraft/chart/presets` | `registerTrendCraftPresets` — opt-in introspection rules + visual presets for TrendCraft-specific indicator shapes | Browser only |
 | `@trendcraft/chart/sparkline` | `createSparkline`, `createSparklineGroup`, line/candle mini-chart renderers | Browser only |
 | `@trendcraft/chart/replay` | `createLiveSimulator` — replay historical candles as a live feed | Any (Node / SSR / tests) |
-| `@trendcraft/chart/react` | `TrendChart` component, `useTrendChart` hook | React 19+, browser only |
-| `@trendcraft/chart/react/sparkline` | `Sparkline`, `SparklineList` React components | React 19+, browser only |
+| `@trendcraft/chart/react` | `TrendChart` component, `useTrendChart` hook | React 18+, browser only |
+| `@trendcraft/chart/react/sparkline` | `Sparkline`, `SparklineList` React components | React 18+, browser only |
 | `@trendcraft/chart/vue` | `TrendChart` component, `useTrendChart` composable | Vue 3.3+, browser only |
 | `@trendcraft/chart/vue/sparkline` | `Sparkline`, `SparklineList` Vue components | Vue 3.3+, browser only |
 
