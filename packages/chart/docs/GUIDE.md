@@ -30,7 +30,7 @@ A conceptual walkthrough of `@trendcraft/chart`. If you just want to get pixels 
 `@trendcraft/chart` is a Canvas-based charting library built specifically for financial time series. It optimizes for three things:
 
 1. **Zero-config indicator rendering** — pass a `trendcraft` indicator output and the chart figures out where it belongs, what scale it needs, and what reference lines to draw.
-2. **A small, focused runtime** — no runtime dependencies, ~41 kB main bundle (brotli, size-limit enforced), one canvas per chart, no virtual DOM.
+2. **A small, focused runtime** — no runtime dependencies, ~42 kB main bundle (brotli, size-limit enforced), one canvas per chart, no virtual DOM.
 3. **Extensibility as a plugin system, not a configuration tree** — custom series types and overlays ship as plain functions you register.
 
 What it's **not**:
@@ -278,15 +278,22 @@ Individual series colors are independent of the theme — pass `color` in `Serie
 
 ## Viewport and navigation
 
-The time axis has three navigational modes:
+The time axis has four navigational modes:
 
 | Method | Use case |
 |---|---|
 | `setVisibleRange(start, end)` | Absolute control — show this time window |
 | `setVisibleRangeByDuration('1M')` | Relative — show the last month |
-| `fitContent()` | Reset to show everything (data fills the full plot width; no right padding) |
+| `setVisibleLogicalRange(from, to)` | Bar-index control — fractional, may extend beyond the data (the way to express empty space past the last candle). Read back with `getVisibleLogicalRange()` |
+| `fitContent()` | Reset to show everything (data fills the full plot width, plus `timeScale.rightOffset` bar-slots of right padding — default 0, flush) |
 
 `fitContent()` locks pan when all data is visible. Once the user zooms back in, pan re-engages.
+
+To keep a permanent margin between the last candle and the price axis, set
+`timeScale.rightOffset` (bar-slots, fractional allowed). The margin is
+maintained while following the live edge and honored by `scrollToEnd`-style
+navigation (keyboard End included), `fitContent()`, and duration presets. It
+can be changed at runtime via `applyOptions({ timeScale: { rightOffset } })`.
 
 ### Keyboard
 

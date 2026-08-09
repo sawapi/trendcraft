@@ -9,645 +9,176 @@
 
 # @trendcraft/chart
 
-Finance-specialized charting library with native [TrendCraft](https://github.com/sawapi/trendcraft) integration. Pass indicator data, get a chart — no manual series decomposition needed.
+A zero-dependency Canvas charting library for OHLC / financial data. Works standalone on plain `{ time, value }[]` data; pairs with TrendCraft for zero-config indicators.
 
-![NVDA daily with a 5/20/60 SMA ribbon, RSI, and MACD — rendered with one chart.addIndicator call per indicator](./docs/assets/hero.png)
+[![npm version](https://img.shields.io/npm/v/@trendcraft/chart.svg)](https://www.npmjs.com/package/@trendcraft/chart)
+[![npm downloads](https://img.shields.io/npm/dm/@trendcraft/chart.svg)](https://www.npmjs.com/package/@trendcraft/chart)
+[![minzipped size](https://img.shields.io/bundlephobia/minzip/@trendcraft/chart.svg)](https://bundlephobia.com/package/@trendcraft/chart)
+[![TypeScript types included](https://img.shields.io/npm/types/@trendcraft/chart.svg)](https://www.npmjs.com/package/@trendcraft/chart)
+[![license MIT](https://img.shields.io/npm/l/@trendcraft/chart.svg)](https://github.com/sawapi/trendcraft/blob/main/LICENSE)
+
+A standalone Canvas charting library built for OHLC and financial data. Hand it plain candle arrays and `{ time, value }[]` series and it renders candlesticks, lines, bands, and sub-panes with no runtime dependencies — no chart framework, no data adapter, no TrendCraft required. It ships React/Vue wrappers and a DOM-free headless build out of the box.
+
+As an optional bonus, when you pair it with [TrendCraft](https://github.com/sawapi/trendcraft), the chart auto-detects each indicator's shape and metadata — figuring out pane placement, colors, value ranges, and render style with zero config. That's a convenience layer on top, not a requirement.
+
+![NVDA daily with a 5/20/60 SMA ribbon, RSI, and MACD — rendered with one chart.addIndicator call per indicator](https://raw.githubusercontent.com/sawapi/trendcraft/main/packages/chart/docs/assets/hero.png)
+
+## Install
+
+```bash
+npm install @trendcraft/chart
+```
+
+That's the only required package — the chart runs standalone on plain data with zero runtime dependencies.
+
+```bash
+# Optional, only if you need them:
+npm install trendcraft   # zero-config indicator auto-detection + connectIndicators
+npm install react        # for @trendcraft/chart/react   (React 18+)
+npm install vue          # for @trendcraft/chart/vue      (Vue 3.3+)
+```
+
+`trendcraft`, `react`, and `vue` are all **optional** peer deps and none of them is required to draw a chart. Install only the ones you actually use.
+
+## Quick start
+
+### Standalone — just `@trendcraft/chart`
+
+No TrendCraft, no other library. Feed it OHLC candles and a plain `{ time, value }[]` series. The container **must have an explicit height** (the canvas fills its parent).
+
+```html
+<div id="chart" style="height:480px"></div>
+```
+
+```typescript
+import { createChart } from '@trendcraft/chart';
+
+// Plain OHLC candles — any source (REST API, CSV, your DB).
+// `time` is epoch milliseconds (Date.now() units), not seconds.
+const candles = [
+  { time: 1700000000000, open: 100, high: 105, low:  98, close: 104, volume: 1200 },
+  { time: 1700086400000, open: 104, high: 108, low: 102, close: 103, volume: 1500 },
+  { time: 1700172800000, open: 103, high: 106, low: 100, close: 101, volume:  900 },
+  { time: 1700259200000, open: 101, high: 104, low:  99, close: 103, volume: 1100 },
+  { time: 1700345600000, open: 103, high: 110, low: 103, close: 109, volume: 2100 },
+  { time: 1700432000000, open: 109, high: 112, low: 106, close: 107, volume: 1700 },
+  { time: 1700518400000, open: 107, high: 109, low: 104, close: 108, volume: 1300 },
+  { time: 1700604800000, open: 108, high: 113, low: 107, close: 112, volume: 1900 },
+];
+
+const container = document.getElementById('chart');
+if (!container) throw new Error('Chart container not found');
+
+const chart = createChart(container, { theme: 'dark' });
+chart.setCandles(candles);
+
+// Any { time, value }[] series renders with a small config — here a simple
+// hand-rolled moving average. No TrendCraft involved.
+const ma = candles.map((c, i, a) => ({
+  time: c.time,
+  value: (a.slice(Math.max(0, i - 2), i + 1).reduce((s, x) => s + x.close, 0))
+    / Math.min(i + 1, 3),
+}));
+
+chart.addIndicator(ma, { pane: 'main', color: '#FF9800', label: 'MA(3)' });
+```
+
+### With TrendCraft — zero-config indicators
+
+If you also install `trendcraft`, pass indicator output straight to `addIndicator` and the chart reads pane placement, colors, y-range, and render style from each indicator's own metadata — no manual series decomposition.
+
+```typescript
+import { createChart } from '@trendcraft/chart';
+import { sma, rsi, bollingerBands, macd } from 'trendcraft'; // optional peer dep
+
+const chart = createChart(container, { theme: 'dark' });
+chart.setCandles(candles);
+
+// Pane, colors, y-range, and render style are read from each indicator's metadata
+chart.addIndicator(sma(candles, { period: 20 })); // overlay line on the price pane
+chart.addIndicator(bollingerBands(candles));      // band with fill
+chart.addIndicator(rsi(candles));                 // sub-pane, 0–100, 30/70 ref lines
+chart.addIndicator(macd(candles));                // sub-pane, histogram + 2 lines
+```
+
+![Five indicators auto-placed from their own metadata: SMA and Bollinger Bands on the price pane; RSI, Stochastics, and MACD in sub-panes](https://raw.githubusercontent.com/sawapi/trendcraft/main/packages/chart/docs/assets/auto-detection.png)
+
+## Highlights
+
+- **Works standalone** — renders candlestick / OHLC and plain `{ time, value }[]` series with zero runtime dependencies; no other library required.
+- **Core series types** — candlestick, OHLC, line, mountain price rendering, plus band/fill and Ichimoku cloud overlays.
+- **Responsive / auto-resize** — a built-in `ResizeObserver` keeps the chart sharp as its container resizes; no manual `resize()` wiring.
+- **Touch & pinch-zoom** — mobile-friendly pan and pinch-to-zoom gestures out of the box.
+- **Dark / Light + custom theming** — ships dark and light themes, plus fully customizable colors, fonts, and grid styling.
+- **Accessibility** — ARIA live region for screen-reader updates and full keyboard navigation of the chart.
+- **Drawings & interaction** — trendlines, h-lines, fib retracement/extension, channels, and configurable crosshair magnet modes.
+- **Auto-detection (with TrendCraft)** — inspects each `Series<T>` shape (number, band, cloud, MACD, stochastic, DMI, SAR…) plus TrendCraft `__meta` to place and style series with zero config.
+- **Tree-shakeable plugins** — SMC layer, Wyckoff phases, Volume Profile, Market Profile, regime heatmap, price patterns, S/R confluence, squeeze dots, session zones, Andrews pitchfork, trade analysis.
+- **Indicator connection** — `connectIndicators` for handle-based add/remove/recompute with optional live streaming.
+- **Backtest & analysis** — visualize `BacktestResult` trade markers + equity curve, pattern outlines, and per-bar score heatmaps.
+- **React & Vue wrappers** — `<TrendChart>` components plus `useTrendChart` hook/composable for imperative access.
+- **Headless API** — DOM-free data layer, scales, layout, and `introspect` for SSR, testing, and custom renderers.
+- **Sparkline & replay subpaths** — compact ~4 kB sparklines and a live-feed replay simulator.
+- **Bundle-size discipline** — zero runtime dependencies; every major entry point (main, headless, sparkline, replay, React/Vue wrappers) is brotli size-checked in CI.
+
+## Framework bindings
+
+```tsx
+// React 18+
+import { TrendChart, useTrendChart } from '@trendcraft/chart/react';
+```
+
+```vue
+<!-- Vue (>=3.3) -->
+<script setup>
+import { TrendChart, useTrendChart } from '@trendcraft/chart/vue';
+</script>
+```
+
+Both expose a `<TrendChart>` component (props: `candles`, `indicators`, `signals`, `trades`, `drawings`, `backtest`, `patterns`, `scores`, `theme`, …) and a `useTrendChart` hook/composable that hands you the live `ChartInstance` for drawing tools, live feeds, and plugins. See the [guide](https://github.com/sawapi/trendcraft/blob/main/packages/chart/docs/GUIDE.md) and [cookbook](https://github.com/sawapi/trendcraft/blob/main/packages/chart/docs/COOKBOOK.md) for full examples.
+
+## Examples
+
+Runnable example apps live in the repo. Clone it, `pnpm install`, then start any example with `pnpm dev`:
+
+| Example | What it shows | Run |
+|---|---|---|
+| [simple-chart](https://github.com/sawapi/trendcraft/tree/main/packages/chart/examples/simple-chart) | Vanilla TypeScript chart with indicators, drawings, and plugins | `pnpm -C packages/chart/examples/simple-chart dev` |
+| [indicator-showcase](https://github.com/sawapi/trendcraft/tree/main/packages/chart/examples/indicator-showcase) | Multi-indicator catalog (canonical preset / auto-detection setup) | `pnpm -C packages/chart/examples/indicator-showcase dev` |
+| [simple-react-chart](https://github.com/sawapi/trendcraft/tree/main/packages/chart/examples/simple-react-chart) | React wrapper usage | `pnpm -C packages/chart/examples/simple-react-chart dev` |
+| [simple-vue-chart](https://github.com/sawapi/trendcraft/tree/main/packages/chart/examples/simple-vue-chart) | Vue wrapper usage | `pnpm -C packages/chart/examples/simple-vue-chart dev` |
+
+## Subpath entry points
+
+| Entry | Use |
+|---|---|
+| `@trendcraft/chart` | `createChart`, `connectIndicators`, plugins, drawing helpers |
+| `@trendcraft/chart/headless` | DOM-free `DataLayer`, scales, layout, `introspect`, `lttb` |
+| `@trendcraft/chart/react` | `<TrendChart>` component + `useTrendChart` hook |
+| `@trendcraft/chart/vue` | `<TrendChart>` component + `useTrendChart` composable |
+| `@trendcraft/chart/sparkline` | Vanilla sparkline (also `/react/sparkline`, `/vue/sparkline`) |
+| `@trendcraft/chart/replay` | Live-feed replay simulator |
+| `@trendcraft/chart/presets` | `registerTrendCraftPresets` for TrendCraft-specific series shapes |
 
 ## Documentation
 
 | Doc | Use it when |
 |---|---|
-| [GUIDE](./docs/GUIDE.md) | You want the mental model — data model, coordinate system, render loop, theming, viewport, SSR, accessibility |
-| [API](./docs/API.md) | You need the full reference — every option, method, type, event |
-| [PLUGINS](./docs/PLUGINS.md) | You're writing a custom series renderer or pane primitive |
-| [LIVE](./docs/LIVE.md) | You're wiring a real-time feed — WebSocket → `createLiveCandle` → chart |
-| [COOKBOOK](./docs/COOKBOOK.md) | You want copy-paste recipes for common tasks — minimal chart, theming, live data, React/Vue, sparklines, custom plugins, PNG export, headless / SSR |
+| [GUIDE](https://github.com/sawapi/trendcraft/blob/main/packages/chart/docs/GUIDE.md) | You want the mental model — data model, coordinate system, render loop, theming, viewport, SSR, accessibility |
+| [API](https://github.com/sawapi/trendcraft/blob/main/packages/chart/docs/API.md) | You need the full reference — every option, method, type, and event |
+| [COOKBOOK](https://github.com/sawapi/trendcraft/blob/main/packages/chart/docs/COOKBOOK.md) | You want copy-paste recipes — minimal chart, theming, live data, React/Vue, sparklines, PNG export, headless |
+| [PLUGINS](https://github.com/sawapi/trendcraft/blob/main/packages/chart/docs/PLUGINS.md) | You're writing a custom series renderer or pane primitive |
+| [LIVE](https://github.com/sawapi/trendcraft/blob/main/packages/chart/docs/LIVE.md) | You're wiring a real-time feed — WebSocket → `createLiveCandle` → chart |
 
-The rest of this README is a guided tour of the most common features. Reach for the docs above when you need depth.
+Also published: [`CHANGELOG.md`](https://github.com/sawapi/trendcraft/blob/main/packages/chart/CHANGELOG.md), and machine-readable [`llms.txt`](./llms.txt) / [`llms-full.txt`](./llms-full.txt).
 
-## Install
+## Stability
 
-```bash
-npm install @trendcraft/chart trendcraft
-```
-
-**Peer dependencies (all optional):**
-
-| Peer | Required version | When needed |
-|---|---|---|
-| `trendcraft` | `>=0.2.0` | For indicator auto-detection and `connectIndicators`. Chart works without it on plain `{ time, value }[]` data. |
-| `react` | `>=19.0.0` | Only when importing from `@trendcraft/chart/react`. |
-| `vue` | `>=3.3.0` | Only when importing from `@trendcraft/chart/vue`. |
-
-> The chart's TrendCraft integration relies on `livePresets` / `indicatorPresets` / `createLiveCandle` added in `trendcraft@0.2.0`. Earlier core versions will compile but lose auto-pane-placement and the `connectIndicators` presets.
-
-## Quick Start
-
-```typescript
-import { createChart } from '@trendcraft/chart';
-import { sma, rsi, bollingerBands, ichimoku, macd } from 'trendcraft'; // optional peer dep
-
-const container = document.getElementById('chart');
-if (!container) throw new Error('Chart container not found');
-const chart = createChart(container, { theme: 'dark' });
-chart.setCandles(candles);
-
-// Indicators auto-detect pane placement, colors, and rendering style
-chart.addIndicator(sma(candles, { period: 20 }));     // overlay on price chart
-chart.addIndicator(bollingerBands(candles));            // bands with fill
-chart.addIndicator(ichimoku(candles));                  // cloud with 5 lines
-chart.addIndicator(rsi(candles));                       // subchart, 0-100, ref lines 30/70
-chart.addIndicator(macd(candles));                      // subchart, histogram + 2 lines
-```
-
-No `pane`, `color`, `yRange`, or `label` config needed — the library reads `__meta` from TrendCraft's 130+ indicators.
-
-![Five indicators auto-placed from their own metadata: SMA and Bollinger Bands on the price pane; RSI, Stochastics, and MACD in sub-panes](./docs/assets/auto-detection.png)
-
-### Chart Types
-
-Switch between different price rendering styles:
-
-```typescript
-const chart = createChart(el, { chartType: 'mountain' }); // or 'candlestick', 'line', 'ohlc'
-
-// Change at runtime
-chart.setChartType('line');
-```
-
-| Type | Description |
-|---|---|
-| `candlestick` | OHLC candles with wicks (default) |
-| `line` | Close price line |
-| `mountain` | Close price with gradient fill |
-| `ohlc` | Traditional OHLC bars |
-
-![The same NVDA series rendered in four chart types side by side](./docs/assets/chart-types.png)
-
-### Without TrendCraft
-
-Works with any `{ time, value }[]` data:
-
-```typescript
-const myData = prices.map(p => ({ time: p.timestamp, value: p.close }));
-chart.addIndicator(myData, { pane: 'main', color: '#FF9800', label: 'My Line' });
-```
-
-## React
-
-Requires **React 19+**.
-
-Two entry points share the same underlying lifecycle: the `<TrendChart>` component for simple drop-in use, and the `useTrendChart` hook for composing the live `ChartInstance` into your own effects.
-
-### Component
-
-```tsx
-import { TrendChart } from '@trendcraft/chart/react';
-import { sma, rsi } from 'trendcraft';
-
-<TrendChart
-  candles={candles}
-  indicators={[sma(candles, { period: 20 }), rsi(candles)]}
-  backtest={backtestResult}
-  theme="dark"
-  onCrosshairMove={(data) => console.log(data)}
-/>
-```
-
-All chart features are available as props: `indicators`, `signals`, `trades`, `drawings`, `timeframes`, `backtest`, `patterns`, `scores`. The underlying `ChartInstance` is reachable via ref.
-
-### Hook
-
-Use the hook when you need imperative access — drawing tools, live feeds, custom plugins, or anything that takes a `ChartInstance` as input. `chart` is `null` before mount and the live instance after, so it drops straight into `useEffect` deps.
-
-```tsx
-import { useTrendChart } from '@trendcraft/chart/react';
-import { connectIndicators } from '@trendcraft/chart';
-import { indicatorPresets } from 'trendcraft';
-
-function MyChart({ candles, liveSource }) {
-  const { containerRef, chart } = useTrendChart({ candles, theme: 'dark' });
-
-  useEffect(() => {
-    if (!chart) return;
-    const conn = connectIndicators(chart, {
-      presets: indicatorPresets,
-      candles,
-      live: liveSource,
-    });
-    conn.add('rsi');
-    chart.setDrawingTool('hline');
-    return () => conn.disconnect();
-  }, [chart, liveSource]);
-
-  return <div ref={containerRef} style={{ width: '100%', height: 400 }} />;
-}
-```
-
-## Vue
-
-Requires **Vue 3.3+**.
-
-Same dual API: a `<TrendChart>` component and a `useTrendChart` composable.
-
-### Component
-
-```vue
-<script setup>
-import { TrendChart } from '@trendcraft/chart/vue';
-import { sma, rsi } from 'trendcraft';
-</script>
-
-<template>
-  <TrendChart
-    :candles="candles"
-    :indicators="[sma(candles, { period: 20 }), rsi(candles)]"
-    :backtest="backtestResult"
-    theme="dark"
-    @crosshairMove="onCrosshairMove"
-  />
-</template>
-```
-
-### Composable
-
-`chart` is a `ShallowRef<ChartInstance | null>` — do **not** wrap it in `ref()`, which would trigger Vue's deep-reactivity proxy and corrupt the chart's internal state.
-
-```vue
-<script setup>
-import { watchEffect } from 'vue';
-import { useTrendChart } from '@trendcraft/chart/vue';
-import { connectIndicators } from '@trendcraft/chart';
-import { indicatorPresets } from 'trendcraft';
-
-const { containerRef, chart } = useTrendChart({
-  candles: () => props.candles,
-  theme: 'dark',
-});
-
-watchEffect((onCleanup) => {
-  if (!chart.value) return;
-  const conn = connectIndicators(chart.value, {
-    presets: indicatorPresets,
-    candles: props.candles,
-  });
-  conn.add('rsi');
-  onCleanup(() => conn.disconnect());
-});
-</script>
-
-<template>
-  <div ref="containerRef" style="width: 100%; height: 400px" />
-</template>
-```
-
-Option values accept plain values, refs, or getters — use a getter (`() => props.candles`) to make a prop reactive inside the composable.
-
-## API Reference
-
-### `createChart(container, options?)`
-
-Creates a chart instance attached to a DOM element.
-
-#### Options
-
-| Option | Type | Default | Description |
-|---|---|---|---|
-| `theme` | `'dark' \| 'light' \| ThemeColors` | `'dark'` | Color theme |
-| `width` | `number` | container width | Chart width (px) |
-| `height` | `number` | `400` | Chart height (px) |
-| `fontSize` | `number` | `11` | Font size (px) |
-| `priceAxisWidth` | `number` | `60` | Right axis width (px) |
-| `timeAxisHeight` | `number` | `24` | Bottom axis height (px) |
-| `priceFormatter` | `(price: number) => string` | auto-precision | Custom price format |
-| `timeFormatter` | `(time: number) => string` | smart date/time | Custom time format |
-| `watermark` | `string` | — | Background watermark text |
-| `legend` | `boolean` | `true` | Show series legend |
-| `chartType` | `'candlestick' \| 'line' \| 'mountain' \| 'ohlc'` | `'candlestick'` | Base chart type |
-
-### ChartInstance Methods
-
-#### Data
-
-| Method | Description |
-|---|---|
-| `setCandles(candles)` | Set OHLCV candle data |
-| `updateCandle(candle)` | Update last candle or append new one |
-| `batchUpdates(fn)` | Batch multiple mutations into a single render frame |
-
-#### Indicators
-
-| Method | Description |
-|---|---|
-| `addIndicator(series, config?)` | Add indicator with auto-detection. Returns `SeriesHandle` |
-| `getAllSeries()` | Get info for all series (id, pane, type, label, visible) |
-
-#### Signals & Trades
-
-| Method | Description |
-|---|---|
-| `addSignals(signals)` | Add buy/sell signal markers |
-| `addTrades(trades)` | Add trade entry/exit markers with holding period shading |
-
-#### Drawings
-
-| Method | Description |
-|---|---|
-| `addDrawing(drawing)` | Add a drawing (hline, trendline, fibRetracement) |
-| `removeDrawing(id)` | Remove a drawing by id |
-| `getDrawings()` | Get all drawings |
-| `setDrawingTool(tool)` | Set active drawing tool mode (`null` to disable) |
-
-#### Multi-Timeframe
-
-| Method | Description |
-|---|---|
-| `addTimeframe(overlay)` | Add higher timeframe candles as semi-transparent overlay |
-| `removeTimeframe(id)` | Remove a timeframe overlay |
-
-#### Backtest & Analysis (TrendCraft Integration)
-
-| Method | Description |
-|---|---|
-| `addBacktest(result)` | Visualize `BacktestResult` — trade markers, equity curve, summary |
-| `addPatterns(patterns)` | Draw `PatternSignal[]` — outlines, necklines, targets |
-| `addScores(scores)` | Per-bar score heatmap (0=red, 50=yellow, 100=green) |
-
-#### Viewport
-
-| Method | Description |
-|---|---|
-| `setVisibleRange(start, end)` | Set visible time range |
-| `fitContent()` | Fit all candles in view |
-| `getVisibleRange()` | Get current visible range (start/end time and index) |
-| `setLayout(config)` | Configure multi-pane layout with flex proportions |
-
-#### Events
-
-| Method | Description |
-|---|---|
-| `on(event, handler)` | Subscribe to chart events |
-| `off(event, handler)` | Unsubscribe from chart events |
-
-#### Theme & Export
-
-| Method | Description |
-|---|---|
-| `setTheme(theme)` | Change color theme |
-| `setChartType(type)` | Switch base chart type (candlestick/line/mountain/ohlc) |
-| `toImage(type?, quality?)` | Export chart as image `Blob` |
-| `resize(width, height)` | Resize chart |
-| `destroy()` | Clean up all resources |
-
-#### Plugins
-
-| Method | Description |
-|---|---|
-| `registerRenderer(plugin)` | Register a custom series renderer plugin |
-| `registerPrimitive(plugin)` | Register a pane primitive plugin |
-
-### Keyboard Shortcuts
-
-| Key | Action |
-|---|---|
-| ← → | Pan left/right (Shift: 10 bars) |
-| + / - | Zoom in/out |
-| Home / End | Jump to start/end |
-| F | Fit all content |
-| Alt + H / V / T / F / C | Activate horizontal line / vertical line / trendline / fib retracement / channel |
-| Ctrl + Alt + H | Hide/show every series (blank chart) |
-| Escape | Cancel active drawing, drag, long-press crosshair lock, or inertia |
-
-Alt is treated the same as Option on macOS; Ctrl and Cmd are interchangeable. Customize or disable via `ChartOptions.hotkeys` — pass `hotkeys: false` to turn off **every** keyboard shortcut (including the viewport nav keys above), or a partial `HotkeyMap` to override individual bindings. Matching uses `KeyboardEvent.code`, so Option+letter on macOS resolves correctly despite the altered character output.
-
-### Crosshair Modes
-
-Snap behavior is configurable via `ChartOptions.crosshair.mode`:
-
-| Mode | y-axis behavior |
-|---|---|
-| `"normal"` (default) | Follows the pointer freely |
-| `"magnet"` | Snaps to the active bar's close |
-| `"magnetOHLC"` | Snaps to the nearest of O/H/L/C within `snapThreshold` pixels (default 12) |
-
-```ts
-createChart(el, { crosshair: { mode: "magnetOHLC", snapThreshold: 15 } });
-```
-
-`lockOnLongPress: false` disables the touch-only long-press crosshair lock.
-
-## Series Auto-Detection
-
-The library inspects the first value in a `Series<T>` to determine rendering:
-
-| Value Shape | Rendering | Example |
-|---|---|---|
-| `number` | Line | SMA, RSI, ATR |
-| `{ upper, middle, lower }` | Band with fill | Bollinger Bands, Keltner |
-| `{ tenkan, kijun, senkouA, senkouB }` | Ichimoku cloud | Ichimoku |
-| `{ macd, signal, histogram }` | Multi-line + histogram | MACD |
-| `{ k, d }` | Oscillator lines | Stochastics |
-| `{ adx, plusDi, minusDi }` | Multi-line | DMI |
-| `{ sar }` | Dot markers | Parabolic SAR |
-
-TrendCraft indicators carry `__meta` with `overlay`, `label`, `yRange`, and `referenceLines` for zero-config pane placement. Custom rules can be added via `SeriesRegistry.addRule()`.
-
-## Drawings
-
-```typescript
-chart.addDrawing({ id: 'h1', type: 'hline', price: 150, color: '#FF9800' });
-
-chart.addDrawing({
-  id: 'tl1', type: 'trendline',
-  startTime: t1, startPrice: 140,
-  endTime: t2, endPrice: 160,
-});
-
-chart.addDrawing({
-  id: 'fib1', type: 'fibRetracement',
-  startTime: t1, startPrice: 130,
-  endTime: t2, endPrice: 170,
-});
-
-chart.removeDrawing('h1');
-```
-
-## Backtest Visualization
-
-```typescript
-import { runBacktest, goldenCrossCondition, rsiBelow } from 'trendcraft';
-
-const result = runBacktest(candles, goldenCrossCondition(), rsiBelow(70), { capital: 100000 });
-chart.addBacktest(result);
-// → Trade markers colored by exit reason
-// → Equity curve subchart with drawdown shading
-// → Summary bar (Return, Win%, Sharpe, MaxDD, PF, Trades)
-```
-
-![Backtest output on NVDA: trade entry/exit markers on the price pane with an equity curve sub-pane and summary bar](./docs/assets/backtest.png)
-
-## Pattern Visualization
-
-```typescript
-import { doubleTop, headAndShoulders } from 'trendcraft';
-
-chart.addPatterns([...doubleTop(candles), ...headAndShoulders(candles)]);
-// → Pattern outlines connecting key points
-// → Neckline, target price, pattern name + confidence
-```
-
-## Score Heatmap
-
-```typescript
-import { rsi } from 'trendcraft';
-
-chart.addScores(rsi(candles));
-// → Each candle's background colored by score (red → yellow → green)
-```
-
-## Events
-
-```typescript
-chart.on('crosshairMove', (data) => {
-  // { time, index, ohlcv: { open, high, low, close, volume }, paneId }
-});
-
-chart.on('seriesAdded', (data) => { /* { id, label } */ });
-chart.on('seriesRemoved', (data) => { /* { id } */ });
-chart.on('visibleRangeChange', (data) => { /* { startTime, endTime } */ });
-```
-
-## Plugin System
-
-Extend the chart with custom renderers and pane-level overlays.
-
-![HMM regime heatmap plugin painting background bands across the price pane based on detected market regime](./docs/assets/plugin-regime.png)
-
-### Custom Series Renderer
-
-Define a new series type with `defineSeriesRenderer()`:
-
-```typescript
-import { defineSeriesRenderer } from '@trendcraft/chart';
-
-const renkoRenderer = defineSeriesRenderer({
-  type: 'renko',
-  render: ({ ctx, series, timeScale, priceScale, draw }) => {
-    // draw.x(index) and draw.y(price) handle coordinate conversion
-    for (let i = timeScale.startIndex; i <= timeScale.endIndex; i++) {
-      const dp = series.data[i];
-      if (!dp) continue;
-      // Custom rendering logic...
-    }
-  },
-  priceRange: (series, start, end) => [minPrice, maxPrice], // optional
-  formatValue: (series, index) => `${series.data[index]?.value}`, // optional
-});
-
-chart.registerRenderer(renkoRenderer);
-chart.addIndicator(renkoData, { type: 'renko', pane: 'main' });
-```
-
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `type` | `string` | Yes | Unique type name (must not collide with built-in types) |
-| `render` | `(context, config) => void` | Yes | Render the series onto the canvas |
-| `priceRange` | `(series, start, end) => [min, max]` | No | Custom Y-axis auto-scaling |
-| `formatValue` | `(series, index) => string \| null` | No | Custom tooltip formatting |
-| `init` | `() => void` | No | Called once when plugin is registered |
-| `destroy` | `() => void` | No | Called on `chart.destroy()` |
-
-### Pane Primitives
-
-Add custom overlays that render below or above series:
-
-```typescript
-import { definePrimitive } from '@trendcraft/chart';
-
-const srZones = definePrimitive({
-  name: 'srZones',
-  pane: 'main',
-  zOrder: 'below',
-  defaultState: { zones: [{ price: 150, strength: 0.8 }] },
-  render: ({ ctx, priceScale, draw }, state) => {
-    for (const zone of state.zones) {
-      draw.hline(zone.price, { color: `rgba(255,152,0,${zone.strength})` });
-    }
-  },
-});
-
-chart.registerPrimitive(srZones);
-```
-
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `name` | `string` | Yes | Unique identifier |
-| `pane` | `string` | Yes | Target pane: `'main'`, a pane id, or `'all'` |
-| `zOrder` | `'below' \| 'above'` | Yes | Render order relative to series |
-| `render` | `(context, state) => void` | Yes | Render the primitive |
-| `defaultState` | `TState` | Yes | Initial state |
-| `update` | `(state) => state` | No | Called before each render frame |
-| `destroy` | `() => void` | No | Called on `chart.destroy()` |
-
-Both `SeriesRenderContext` and `PrimitiveRenderContext` include a `draw: DrawHelper` object with convenient methods: `x()`, `y()`, `line()`, `hline()`, `vline()`, `circle()`, `rect()`, `polygon()`, `text()`.
-
-## Indicators
-
-Use `connectIndicators` to attach indicators to a chart — with automatic backfill, optional live streaming, and a handle-based API. The interface is duck-typed — no hard `trendcraft` dependency required.
-
-```typescript
-import { createChart, connectIndicators, defineIndicator } from '@trendcraft/chart';
-import { indicatorPresets } from 'trendcraft';
-
-const chart = createChart(container, { theme: 'dark' });
-chart.setCandles(candles);
-
-const conn = connectIndicators(chart, { presets: indicatorPresets, candles });
-
-// Add by preset id (returns an IndicatorHandle)
-conn.add('rsi');
-const h = conn.add('sma', { period: 20 });
-h.setVisible(false);
-h.remove();
-
-// Multiple instances of the same preset
-conn.add('sma', { period: 5 });
-conn.add('sma', { period: 20 });
-conn.add('sma', { period: 60 });
-
-// Pre-defined specs are reusable across connections
-const sma5 = defineIndicator('sma', { period: 5 });
-conn.add(sma5);
-```
-
-### Live streaming
-
-Pass a `LiveCandle`-compatible source to stream values in real time. Indicators are back-filled from `candles` + `live.completedCandles`, then updated on each tick:
-
-```typescript
-import { createLiveCandle, livePresets } from 'trendcraft';
-
-const live = createLiveCandle({ intervalMs: 60_000, history });
-const conn = connectIndicators(chart, {
-  presets: livePresets,
-  candles: history,
-  live,
-});
-conn.add('rsi');
-conn.add('sma', { period: 20 });
-
-// Feed ticks from a WebSocket
-ws.on('trade', (t) => live.addTick(t));
-
-conn.disconnect();
-```
-
-### Multiple instances of the same preset
-
-`connectIndicators` keys internal state by each instance's `snapshotName`, so dynamic-name presets (`(p) => \`sma${p.period}\``) can be mounted multiple times. For static-name presets (e.g. `emaRibbon`), pass an explicit name:
-
-```typescript
-conn.add('emaRibbon', { periods: [8, 13, 21], snapshotName: 'ribbon-short' });
-conn.add('emaRibbon', { periods: [34, 55, 89], snapshotName: 'ribbon-long' });
-```
-
-### Removing
-
-`remove()` accepts a snapshot name, a preset id (removes all matching), or a handle:
-
-```typescript
-conn.remove('sma5');     // single instance (snapshot name match)
-conn.remove('sma');      // all sma instances (preset id fallback)
-conn.remove(myHandle);   // handle directly
-myHandle.remove();       // or via the handle
-```
-
-### ConnectIndicatorsOptions
-
-| Option | Type | Default | Description |
-|---|---|---|---|
-| `presets` | `Record<string, IndicatorPresetEntry>` | `{}` | Indicator preset registry |
-| `candles` | `readonly SourceCandle[]` | `[]` | Static candles (static mode / backfill) |
-| `live` | `LiveSource` | — | Live data source; enables streaming mode |
-| `initHistory` | `boolean` | `true` | Initialize chart with `live.completedCandles` when in live mode |
-
-### IndicatorConnection
-
-| Method / Property | Description |
-|---|---|
-| `add(presetId, options?)` | Add an indicator. Returns `IndicatorHandle`. |
-| `add(spec)` | Add using a pre-defined `IndicatorSpec` from `defineIndicator()`. |
-| `remove(target)` | Remove by snapshot name, preset id (all instances), or handle. |
-| `list()` | All active handles. |
-| `listByPreset(id)` | Handles for a given preset. |
-| `get(snapshotName)` | Look up a single handle. |
-| `recompute(candles)` | Re-run all indicators with new candle data. |
-| `disconnect()` | Unsubscribe events and remove all indicators. |
-| `connected` (readonly) | Whether the connection is still active. |
-| `mode` (readonly) | `"static"` or `"live"`. |
-
-### IndicatorHandle
-
-| Member | Description |
-|---|---|
-| `snapshotName` | This instance's unique key (e.g. `"sma5"`). |
-| `presetId` | The preset id used to build this instance. |
-| `params` | Effective parameters (defaults merged with overrides). |
-| `series` | Underlying `SeriesHandle` (escape hatch). |
-| `removed` | `true` once removed. |
-| `setVisible(visible)` | Toggle visibility. |
-| `remove()` | Remove this instance (idempotent). |
-
-Snapshot paths support dot notation: `"bb.upper"` resolves to `snapshot.bb.upper`.
-
-## Headless API
-
-For server-side processing, custom renderers, or testing:
-
-```typescript
-import {
-  DataLayer, TimeScale, PriceScale, LayoutEngine,
-  introspect, autoFormatPrice, lttb,
-} from '@trendcraft/chart/headless';
-
-const model = new DataLayer();
-model.setCandles(candles);
-
-const result = introspect(myIndicatorData);
-// { seriesType: 'band', pane: 'main', rule, preset, yRange, referenceLines }
-```
-
-## Migrating from 0.1.x
-
-Two headless helpers changed shape in 0.2.0. If your code only uses `createChart` / `connectIndicators` / the React or Vue wrappers, no migration is needed.
-
-```typescript
-// 0.1.x
-const candles: CandleData[] = decimateCandles(src, start, end, maxBars);
-const points: DataPoint[] = lttb(data, 2000);
-
-// 0.2.0
-const { candles, originalIndices } = decimateCandles(src, start, end, maxBars);
-const { points, originalIndices } = lttb(data, 2000);
-// `originalIndices` is an Int32Array mapping each output sample back to its
-// position in the input — used internally to keep candles and overlays
-// aligned at low zoom. `lttb` also accepts an optional 3rd `indexOffset`
-// argument to shift `originalIndices` into the caller's coordinate space.
-```
-
-## Troubleshooting
-
-**Chart is blank** — Ensure container has a non-zero height. Set `height` in options or use CSS `height: 100%`.
-
-**Indicator on wrong pane** — Without TrendCraft, number series default to subchart. Use `{ pane: 'main' }` for overlays.
-
-**Performance with large datasets** — The library auto-decimates via LTTB at high zoom levels. 10K+ candles should maintain 60fps.
-
-**Pane won't disappear after removing indicator** — Panes auto-remove when their last series is removed. If using `addTrades`/`addBacktest`, the equity pane persists.
+Pre-1.0 (0.x): the API may change between minor versions; see the [CHANGELOG](https://github.com/sawapi/trendcraft/blob/main/packages/chart/CHANGELOG.md). Every breaking change ships with an explicit Breaking / Migration note so upgrades are deliberate, not surprising.
 
 ## Disclaimer
 
-`@trendcraft/chart` is a charting library — the candle, overlay, and signal visualizations it renders are derived from technical analysis primitives provided for informational and educational purposes only. Visualizations are not investment advice and do not constitute a recommendation to buy, sell, or hold any financial instrument. You are solely responsible for any trading decisions made using this software.
+`@trendcraft/chart` is a charting library. Its visualizations are derived from technical analysis primitives provided for informational and educational purposes only — they are not investment advice. You are solely responsible for any trading decisions made using this software.
 
 ## License
 
@@ -666,6 +197,597 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — interaction and event hardening for logical-range viewports
+
+The states the logical-range API makes reachable (fractional resting
+positions, viewports beyond the data, bar spacing outside the interactive
+zoom range) are now handled consistently by the interaction and event
+layers:
+
+- Interactive zoom moves continuously toward its `[1, 50]` px/bar range
+  when the current spacing sits outside it, instead of teleporting to the
+  boundary — which inverted the gesture (zooming in at 800px/bar snapped
+  out 16×; also reachable before via `fitContent` on very large datasets).
+- Dragging from a fractional resting position no longer snaps the viewport
+  by the fractional part on the first pixel of movement.
+- A touch gesture cancelled by the system (`touchcancel` — incoming call,
+  browser gesture takeover) now ends the drag like `touchend` instead of
+  leaving a stuck drag state.
+- An animated range transition lands on the exact target span even below
+  one bar per screen (the interpolation floored the bar count to 1).
+- A beyond-left viewport no longer blanks number-line series (a negative
+  index reached `Array.slice`, which reads it as an offset from the end).
+- `getVisibleRange()`'s time/index fields are clamped to the data as
+  documented — a beyond-data viewport used to report epoch-0 times, which
+  sent time-based viewport sync to the first bar.
+- `visibleRangeChange` has a single emission owner: movement is detected
+  on the fractional logical range with a ~0.25px threshold (sub-bar pans
+  and zooms now emit; integer-floored comparison swallowed them), and a
+  programmatic range change with animation enabled emits its final state
+  exactly once on completion (previously it could emit nothing at all).
+  Listeners may observe more frequent events during interaction.
+- The internal viewport sync tags forwarded range changes with an
+  origin/generation token, so the completion event of a forwarded change
+  is consumed exactly once instead of echoing between charts — including
+  multi-timeframe time-based sync, where the follower's quantized range
+  differs from the sender's and value comparison cannot work.
+- Only actual viewport gestures (pan, zoom, scrollbar, viewport keys,
+  inertia) cancel a running programmatic range animation. Hovering the
+  crosshair, resizing a pane, or previewing a drawing used to kill the
+  animation mid-flight — freezing the view at an intermediate range and
+  swallowing the completion event.
+- Interactive zoom ignores a non-finite factor and falls back to the
+  viewport center for a non-finite anchor, so an unexpected NaN in
+  event-derived coordinates can no longer poison the viewport position
+  permanently.
+- The scroll clamp respects positions granted by `setVisibleLogicalRange`
+  as a first-class envelope. Previously the interaction layer treated a
+  granted beyond-boundary position as ordinary overscroll: the first
+  wheel notch or drag pixel could fling the view most of the margin back
+  toward the ordinary boundary, a streaming tick destroyed a margin
+  before the first bar, and in the everything-fits regime a single arrow
+  key snapped a both-sides margin to the left edge. Granted margins now
+  behave predictably: user gestures consume them bar-by-bar (rubber-band
+  resistance and bounce apply only beyond the granted position), they
+  stream with the live-edge follow, and they are released by explicit
+  navigation (`fitContent`, scroll-to-end, time-based ranges,
+  `setCandles`). Consumed margin is not re-enterable by gestures — set a
+  new logical range to widen it again. A container resize no longer
+  auto-refits away a wide logical-range viewport, and a
+  `timeScale.rightOffset` update leaves an active logical-range viewport
+  in place (the new offset applies once the range is released).
+
+### Added — logical-range viewport API: `setVisibleLogicalRange` / `getVisibleLogicalRange`
+
+```ts
+chart.setVisibleLogicalRange(250, 330); // bars 250..300 + 30 empty slots
+const r = chart.getVisibleLogicalRange(); // { from, to } — fractional, unclamped
+```
+
+The time-based `setVisibleRange` cannot express empty space past the last
+candle: times after the last bar all resolve to it. The logical-range API
+works in bar-index units, accepts fractional values, and may extend beyond
+the data on either side — so custom right-edge margins (wider than
+`timeScale.rightOffset`, conditional, animated, whatever) can be built on
+top of the public API. It composes with live-edge following: while the last
+bar is visible, streaming updates preserve the window's distance from the
+live edge, custom margin included.
+
+Logical indices address the current candle array — they are shifted by
+`maxCandles` trimming and invalidated by `setCandles`. Read-modify-set
+synchronously; never persist them.
+
+`VisibleRangeChangeData` (the `visibleRangeChange` payload and
+`getVisibleRange()` result) gains an optional `logicalRange: { from, to }`
+field carrying the unclamped window edges — the existing time/index fields
+saturate at the last bar, so a right-edge margin was previously invisible
+to listeners. The chart always populates it; it is typed optional so
+existing code constructing this type (test mocks) keeps compiling.
+
+The requested span is exact: bar spacing follows `width / span` directly,
+bounded only by the render pipeline's 0.1px floor rather than the
+interactive zoom limits, so narrow (sub-16-bar) and very wide ranges
+round-trip through `getVisibleLogicalRange` without distortion.
+
+### Fixed — `fontFamily` option now applies to canvas and overlay text
+
+`ChartOptions.fontFamily` was documented but ignored: renderers hardcoded a
+system UI stack, and `applyOptions({ fontFamily })` warned that the field
+could not change at runtime. The option is now stored like `fontSize`,
+passed through the render context, and used for axis/crosshair/overlay/
+drawing/pattern/watermark canvas text plus DOM legend/info overlays.
+Built-in primitives honor it too. Default remains the previous system stack
+(`-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`).
+`applyOptions({ fontFamily })` updates live without re-creating the chart.
+Also exports `DEFAULT_FONT_FAMILY` and `canvasFont()` for plugins that draw
+their own labels.
+
+For plugin authors: `PrimitiveRenderContext` gained a required `fontFamily`
+field (the built-in primitives use it for their labels). Code that
+*constructs* this context type — typically plugin test harnesses — must add
+the field; plugins that only consume the context are unaffected.
+
+```ts
+createChart(el, {
+  fontSize: 11,
+  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+});
+```
+
+### Added — `timeScale.rightOffset`: empty space after the last candle
+
+```ts
+createChart(el, { timeScale: { rightOffset: 5 } });
+```
+
+Reserves the given number of bar-slots (fractional allowed) between the last
+candle and the price axis, so the forming candle isn't drawn flush against
+the right edge. The margin is maintained while following the live edge and
+honored by `scrollToEnd`-style navigation (keyboard End included),
+`fitContent`, and `setVisibleRangeByDuration`. It can be changed at runtime
+via `applyOptions({ timeScale: { rightOffset } })` — when the chart is at the
+live edge the new margin applies immediately. Values that would leave fewer
+than 2 bars visible are capped; negative or non-finite values are rejected
+with a warning. Default: 0 (flush, as before).
+
+### Changed — live-edge following shifts instead of snapping
+
+When a new bar arrives while the last bar is visible, the chart used to
+scroll back to the end position outright. It now preserves the viewer's
+distance from the live edge instead. For a viewer pinned at the live edge
+the result is identical, but two long-standing annoyances are gone:
+
+- A custom viewport (a margin different from `rightOffset`, or any
+  position set through the public API while the last bar is visible) is no
+  longer overridden on the next update — the window drifts with the market
+  instead of snapping.
+- Panning a few bars into history no longer risks being yanked back to the
+  live edge by the next tick; the view preserves its distance from the live
+  edge.
+
+`setCandles` still lands at the live edge, and viewers who scrolled fully
+away from the last bar are still left alone, as before.
+
+### Fixed — clamping is consistent in session-gap layouts
+
+The scroll clamp compared the viewport size against the raw candle count,
+while the scroll boundary used gap-expanded units. With session gaps enabled
+and a viewport wider than the candle count but narrower than the expanded
+layout, the chart forced the view to the far left even though the last bars
+did not fit. Both now use the same units.
+
+## [0.4.0] - 2026-07-26
+
+### Fixed — `resize`, `paneResize`, and `seriesRemoved` events now fire
+
+These three events were declared in the `ChartEvent` union and documented,
+but the chart never emitted them. They now fire with the documented payloads:
+
+- `resize` `{ width, height }` — once per actual CSS-px size change, whether
+  triggered by `chart.resize()`, an `applyOptions()` size change, or the
+  container's `ResizeObserver`. Same-size calls and DPR-only changes
+  (e.g. dragging the window to a Retina display) stay silent, and the
+  initial sizing during `createChart()` does not emit.
+- `paneResize` `{ paneId, height }` — fires while the user drags a pane
+  divider (per pointer-move), with the pane above the divider and its new
+  height in CSS px. Drags clamped away by the minimum pane height are silent.
+- `seriesRemoved` `{ id }` — fires when a series is removed via its handle
+  (covers `handle.remove()` and `connectIndicators` teardown). Repeat
+  `remove()` calls on the same handle are silent, and `chart.destroy()`
+  emits nothing (matching `seriesAdded`, which is also silent on teardown).
+
+### Breaking — `CrosshairMoveData` type now matches the emitted payload
+
+The exported `CrosshairMoveData` type declared `{ time, price, x, y, paneId }`,
+but the chart has always emitted `{ time, index, ohlcv, paneId }` from
+`crosshairMove`. The type (and docs) now describe the real payload:
+
+- `time: number | null` — epoch ms of the snapped candle
+- `index: number | null` — candle index
+- `ohlcv: { open, high, low, close, volume } | null` — the snapped candle's values
+- `paneId: string | null` — pane under the pointer
+
+All fields are `null` in the single emission fired when the crosshair leaves
+the data area (the `ohlcv: null` key is now included there too). Runtime
+behavior is otherwise unchanged — this is a type/docs correction. TypeScript
+consumers who typed handlers against the old (never-delivered) `price`/`x`/`y`
+fields will get compile errors pointing at the fields that never existed at
+runtime.
+
+### Added — unknown preset ids suggest the closest match
+
+`connectIndicators(...).add()` used to fail an unrecognised preset id with a
+bare "unknown preset" error, leaving a typo to be found by eye against a list
+of over a hundred ids. It now names the closest id it knows, so
+`add("bolinger")` points at `bollingerBands`.
+
+### Fixed — two-row time axis labels no longer overflow the plot
+
+Edge labels on the two-row time axis were positioned from their anchor without
+regard to the plot bounds, so the first and last of them could hang past the
+left or right edge and be clipped by the canvas. They are now clamped to stay
+inside the plot area.
+
+### Fixed — daily axis no longer shows a time on its first label
+
+On a daily series the first label carried a time component that came from the
+timezone offset of the underlying timestamp rather than from the data — a
+daily chart could open with a label reading "1 Jan 09:00". Daily and coarser
+timeframes now label the date alone.
+
+### Changed — React peer dependency relaxed to `>=18`
+
+The React wrapper declared a peer of `>=19.0.0`, which forced React 18
+projects to either upgrade or install with an override even though nothing in
+the wrapper needs 19. The peer is now `>=18.0.0`.
+
+## [0.3.0] - 2026-06-09
+
+### Breaking — `snapshotName` is now a default label, not a uniqueness key
+
+`connectIndicators.add()` previously threw on **any** `snapshotName`
+collision, forcing hosts to pass `{ snapshotName: "..." }` boilerplate
+to keep multiple instances of the same preset — e.g. comparing two
+SMA(20) lines in different colors, or stacking two anchored VWAPs from
+different anchor times.
+
+New behavior:
+
+- A preset's `snapshotName(params)` is treated as a **default label
+  suggestion**, not a uniqueness key.
+- When the derived default collides, the library **auto-suffixes**:
+  `"sma20"` → `"sma20#2"` → `"sma20#3"`, and so on. Identity is
+  guaranteed by `connectIndicators`, not by the preset.
+- When the caller passes an **explicit** `snapshotName` and it
+  collides, the library still throws — an explicit id belongs to the
+  caller and a duplicate is a caller-side bug.
+
+**Migration**: drop the `{ snapshotName }` boilerplate you added solely
+to dedupe same-preset instances; the auto-suffix now handles it. Keep
+explicit `snapshotName` only where you rely on a stable, host-chosen id
+(and ensure those ids are unique — duplicates still throw).
+
+### Fixed — multiple chart instances no longer cross-contaminate decimated candles
+
+The candle-decimation cache was a module-level singleton keyed only on
+`{start, end, target, dataVersion}` — none instance-unique — so two charts on
+one page, both zoomed out enough to decimate and sharing a viewport, could have
+one render with the other's candles. The cache is now keyed on the source candle
+array (a `WeakMap`, like the LTTB line cache), scoping it per instance.
+
+### Fixed — a single touch tap fires the tap handler once, not twice
+
+`onTap` listened to both `touchend` and the mouse `click` that browsers
+synthesize for the same gesture, so each touch tap fired twice (and a
+touch-drawn shape emitted a phantom click). The synthesized click is now
+suppressed, matching the guard `onDoubleTap` already had.
+
+### Fixed — Vue `<TrendChart>` applies runtime `options` changes
+
+The Vue wrapper forwarded the `options` prop by value rather than as a reactive
+getter, so replacing it with a new object never re-ran `applyOptions` and
+runtime option changes (volume, watermark, formatters, …) were silently dropped.
+
+### Added — Price Patterns plugin (`connectPricePatterns`)
+
+A tree-shakeable visualization plugin for chart-pattern signals — Double
+Top / Double Bottom, Head & Shoulders and its inverse, triangles,
+channels, etc. Hosts compute the signals with `trendcraft`'s detectors
+(`doubleTop`, `doubleBottom`, `headAndShoulders`,
+`inverseHeadAndShoulders`, …) and pass them to the plugin verbatim; the
+plugin renders the standard idiom — a zigzag line through the swing
+extremes, a dashed neckline, light body shading, anchored labels, and a
+dashed projector to the measured-move target.
+
+New exports from the package entry:
+
+- `connectPricePatterns(chart, signals, options?)` — attach to a chart and
+  get a `{ remove() }` handle, matching the other `connect*` plugins.
+- `createPricePatterns(signals, options?)` — the headless primitive
+  factory, for hosts driving their own render loop.
+- `filterPricePatterns(signals, options?)` — the dedup / confidence /
+  cap pass used internally, exposed for hosts that want the same culling.
+- `PricePatternSignal` (a structural subset of `trendcraft`'s
+  `PatternSignal`, so detector output passes through directly) and
+  `PricePatternsOptions`.
+
+`PricePatternsOptions` covers bull/bear/neutral colors (hex + optional
+`r,g,b` triplets for fills), body alpha, neckline / target dash patterns,
+a `minConfidence` floor (default 60), and a `maxPatterns` cap (default 8).
+
+### Added — `connectLivePrimitives` for live-mode plugin support
+
+`connectLivePrimitives(chart, ...)` is a new public export from the
+package entry, returning a `{ remove() }` handle like the other
+`connect*` plugins. It lets the differentiation plugins (SMC, Wyckoff,
+Regime Heatmap, S/R Confluence, Session Zones, etc.) participate in
+live mode by recomputing their primitives as new bars arrive, rather
+than rendering only against a static candle array. The replay subpath's
+`createLiveSimulator` drives it directly (see the `@trendcraft/chart/replay`
+entry below).
+
+### Added / Changed — plugin visual enhancements
+
+- **Volume Profile** now draws the VAH / VAL value-area boundary lines
+  in addition to the POC, so the 70% value area is visible at a glance
+  (#179).
+- **Andrews Pitchfork** gains line labels and the 0.25 / 0.75 half-lines
+  between the median and the outer tines (#180).
+- **Plugin visuals aligned with industry conventions** (#181): TTM
+  Squeeze markers render as circular dots on a zero-line rail (was
+  rectangles, despite the "dots" name); the Regime Heatmap adds a
+  top-left corner pill spelling out the active regime plus confidence
+  ("trending-up · 72%") instead of relying on background tint alone.
+  Pure rendering changes — the data layer is unchanged.
+- **SMC Layer text annotations** label order blocks, fair-value gaps,
+  and liquidity sweeps directly on the chart (#183).
+- **Wyckoff** renders the sub-phase letter as a separate corner chip
+  distinct from the phase label (#184).
+- **Trade analysis** gains a P&L label and magnitude-aware MFE / MAE
+  labels on each trade marker (#185).
+
+### Added — `liveRecompute` option for batch-only indicator presets
+
+`connectIndicators` presets gain a `liveRecompute?: boolean` flag
+controlling how "batch-only" presets (those without a streaming factory,
+e.g. HMM regimes) react to new bars:
+
+- **`true` (default)** — the preset recomputes on every `candleComplete`,
+  so a batch indicator stays in sync with live data without the host
+  wiring its own recompute.
+- **`false`** — the preset skips auto-recompute and holds its last value
+  until the host calls `conn.recompute(...)`. Use it for presets whose
+  recompute is too heavy to run per bar.
+
+### Fixed — touch (double-tap) interaction parity
+
+Pointer handling is unified across mouse and touch: double-tap now mirrors
+double-click, the synthesized mouse event that mobile browsers fire after
+a real touch double-tap is suppressed (so subscribers don't see it twice),
+and a two-click drawing's second tap or a long-press no longer
+double-fires as a viewport reset.
+
+### Added — Replay playhead + seed-end integer accessors in `@trendcraft/chart/replay`
+
+For hosts building a "scrubbable replay" UI on top of
+`createLiveSimulator`, the subpath now exposes the simulator's
+internal integer state directly. The cursor display, snapshot-
+backtest slice, and indicator slices all need to agree on *which
+bar the user has seen most recently*; reading that integer straight
+off the simulator (instead of re-deriving it via independent math)
+is the only design that doesn't admit a class of drift bugs at the
+boundary.
+
+Added on `SimulatorHandle`:
+
+- `getEmittedQueueCount(): number` — exact integer count of queued
+  candles the simulator has fully emitted.
+- `getLastEmittedIdx(): number` — exact integer index, in candle
+  space, of the last emitted bar. Equals
+  `seedCandles.length + getEmittedQueueCount() - 1`. The canonical
+  "playhead" for any snapshot backtest or cursor label that must
+  not leak future data.
+
+Added on `SimulatorOptions`:
+
+- `seedEnd?: number` — integer seed-bar count, takes precedence
+  over `seedRatio` when both are passed. Preferred when the host
+  derives the anchor from a click index (passing `seedRatio =
+  anchor / length` and letting the simulator multiply back can
+  drift by one in IEEE-754, e.g. `Math.floor(22 * (15/22)) === 14`,
+  not 15).
+
+Added at module scope:
+
+- `clampedSeedEnd(candles, cursorIndex): number` — clamps the
+  anchor click to the same `[5%, 95%]` bounds the simulator uses.
+  Stateless utility for previewing what the simulator will pick
+  before construction.
+- `SEED_RATIO_MIN` (`0.05`) / `SEED_RATIO_MAX` (`0.95`) —
+  surface-able constants for hosts that display the bounds in UI.
+
+**Why no `lastEmittedIdx(candles, cursor, count)` /
+`resolveQueueIdx` standalone helpers**: an earlier draft of this
+release exposed both. Review caught four drift bugs in succession
+— float roundoff in the `seedRatio` round-trip; float roundoff in
+`progress * queueLen`; double-clamping disagreement between the
+simulator and the helper's own `clampedSeedEnd`; and a fractional-
+cursor case where the helper preserved the fraction while the
+simulator floored. All four were the same class: two parties (the
+simulator and a stateless helper) deriving the same integer
+through independent paths, which is inherently fragile. The
+redesign drops the standalone helper entirely. The simulator owns
+`seedEnd` and `nextIdx` as integers and exposes them via
+`getEmittedQueueCount()` and `getLastEmittedIdx()` — there is no
+second derivation path.
+
+`clampedSeedEnd` survives because it serves a distinct purpose
+(previewing the simulator's choice before construction), but it
+is now defined so the simulator literally calls it for its own
+`seedEnd` computation. The two paths share one function; they
+cannot disagree by construction. The helper also floors the
+cursor internally, so a fractional sub-pixel UI coordinate
+produces the same integer in both places.
+
+22 new tests in `__tests__/replay.test.ts` cover the `seedEnd`
+integer path including the 22/15 float-drift case, an arbitrary
+`(n, anchor)` sweep against `clampedSeedEnd`, out-of-range clamping
+to `SEED_RATIO_MIN/MAX`, the fractional-cursor floor case
+(`clampedSeedEnd(C, 10.9) === 10`), the `NaN`/`undefined`/non-
+numeric fallback to the 60% default (silent-failure guard), the
+±Infinity boundary clamps, empty-candle preview equality
+(`clampedSeedEnd([], any) === 0` matching `sim.seedCandles.length`),
+the `getLastEmittedIdx()` empty-array sentinel (`-1`), and a
+**property test** that exhaustively asserts `clampedSeedEnd(C,
+cursor) === createLiveSimulator({candles: C, seedEnd: cursor})
+.seedCandles.length` for 9 candle shapes × 18 cursor values (162
+combinations) — including degenerate inputs like `NaN`,
+`±Infinity`, and empty `C`. If any drift remains, this property
+test catches it.
+
+Empty / degenerate inputs are explicitly handled rather than left
+as undefined behavior:
+
+- `clampedSeedEnd([], …)` returns `0` (matching the simulator's
+  zero-bar seed) instead of the previous `1`.
+- `sim.getLastEmittedIdx()` returns `-1` on empty candles —
+  sentinel for "no bar emitted yet". A host slicing
+  `candles.slice(0, idx + 1)` gets the correct empty array
+  instead of pointing at a phantom `candles[0]`.
+
+Bundle: replay subpath 935 B (limit 3 kB).
+
+### Added — `chart.removeAllPrimitives()` helper
+
+A new method on `ChartInstance` drops every primitive registered via
+`registerPrimitive` in one call. Intended for the common host pattern
+of swapping in an unrelated candle dataset (different symbol,
+timeframe, file upload, etc.) — primitives capture `(time, price)`
+coordinates at registration and don't auto-invalidate, so they would
+otherwise keep rendering at the previous data's coordinates against
+the new view.
+
+This matches the documented host-driven primitive lifecycle (see
+`connectPricePatterns` JSDoc and the new COOKBOOK recipe) and the
+behavior of other charting libraries (TradingView Lightweight Charts,
+Highcharts annotations, etc.); the chart still does not auto-remove
+primitives in `setCandles`, but the helper gives the cleanup pattern
+a named API so hosts don't have to track every handle individually.
+
+- `setCandles` JSDoc now documents the lifecycle gotcha explicitly.
+- `simple-chart` example fixed: enabling SMC / Wyckoff / Regime
+  Heatmap / S/R Confluence / Session Zones on the daily view and
+  then toggling Simulate (which calls `setCandles(simHistory)`) used
+  to carry the daily-anchored primitives onto the 1-min simulation
+  view, drawing at meaningless coordinates. The example now calls
+  `removeAllPrimitives()` before each `setCandles` transition.
+
+Renderers, series, drawings, and indicators are not affected by the
+new helper.
+
+### Added — `markers` option on scalar line series for "discrete-per-bar" affordance
+
+`SeriesConfig.markers?: boolean | { radius?: number; color?: string }`
+draws a filled circle at each bar's value point on **scalar line
+series** (i.e. `Series<number>` such as SMA, EMA, RSI, CCI). This
+makes it visually obvious that the underlying data is one value
+per bar and the line connecting consecutive points is just linear
+interpolation — particularly useful for backtest signal
+interpretation, where the cross's visual x-position can land
+mid-candle on slope-asymmetric crossings.
+
+- `markers: true` → default radius 2.5 px, filled with the series color
+- `markers: { radius: 4, color: "#fff" }` → custom override
+- Auto-skipped when `barSpacing < 5 px` to avoid the dots smearing
+  into a solid mass at high zoom-out
+- No-op on multi-channel series (`band`, MACD, Stochastics, etc.)
+  by design — those would clutter at high marker count and don't
+  share the "where does the line really cross?" ambiguity
+
+### Fixed — axis label "0.00000000" overflow on oscillator panes
+
+For oscillator-style indicators (QStick, CCI, ROC, etc.) the visible
+range is symmetric around zero. `PriceScale.getTicks` was generating
+the tick array by accumulating `v += niceStep` in a loop, which
+drifts after several iterations: what should be exactly 0 lands at
+~1e-16, and `autoFormatPrice` then renders that drifted value as
+"0.00000000" (8 decimals) — visibly overflowing the axis label area
+and colliding with neighbouring ticks.
+
+`PriceScale.getTicks` now computes ticks as integer multiples of
+`niceStep` (`m * niceStep` for each integer `m` in the visible
+range), so the 0 tick lands at exactly 0. A small upward tolerance
+on the upper-bound floor handles the case where the max lands
+exactly on a step boundary but the divided quotient lands at
+`n - ε`. The lower bound stays strict (no downward tolerance) so
+ranges whose endpoints are merely near a step boundary don't
+generate ticks outside the visible range. Each computed tick is
+also bounds-checked before being emitted as a final guard against
+multiplicative FP drift.
+
+### Fixed — chart now tracks `window.devicePixelRatio` across resizes
+
+The main `createChart` instance previously cached
+`window.devicePixelRatio` once at construction and never refreshed it.
+When the user dragged the browser window between displays of
+different DPR (e.g. an external 1× monitor ↔ a 2× Retina laptop
+display) or changed OS scaling mid-session, the canvas internal
+resolution stayed at the original DPR — the chart kept rendering at
+1× resolution on a 2× display, producing visibly blurry output.
+
+`_setSize` now re-reads `window.devicePixelRatio` on every resize
+when no explicit `options.pixelRatio` was pinned at construction.
+The pinned override path is unchanged — callers that supply
+`pixelRatio` keep full control. Sparkline already re-read DPR each
+frame and is unaffected.
+
+### Fixed — sparkline hardens its device-pixel-ratio guard
+
+The sparkline canvas setup resolved `window.devicePixelRatio` with a
+truthiness check (`dpr ? dpr : 1`), which correctly falls back to `1`
+for `0` / `NaN` / `undefined` but let `±Infinity` and negative values
+through. Multiplying the CSS size by such a ratio yielded a non-finite
+or negative canvas bitmap dimension. The main chart already clamped to
+a finite positive ratio; both paths now share a single
+`safeDevicePixelRatio()` helper, so the sparkline falls back to `1`
+for those degenerate ratios as well. This is a defensive hardening —
+real browsers report a small positive ratio.
+
+### Fixed — non-finite value guards across render and layout paths
+
+Canvas silently swallows draw calls with `NaN` / `±Infinity`
+coordinates, which means a single contaminated value previously
+produced an invisible primitive with no error. A code audit
+surfaced four spots where non-finite inputs could leak through:
+
+- `series/candlestick.ts` — candles with `NaN` / `±Infinity` in
+  any of `open` / `high` / `low` / `close` are now skipped instead
+  of issuing draw calls with NaN coords. Adjacent candles are
+  unaffected.
+- `renderer/overlay-renderer.ts` — same guard applied to the
+  multi-timeframe candle overlay, plus `latestNumber` /
+  `latestInArray` (used by the last-value badge labels) now treat
+  `NaN` / `±Infinity` as missing. Previously these would have been
+  passed to `valueFormatter`, rendering the literal string "NaN"
+  inside a series badge.
+- `core/layout.ts` — when every pane has `flex: 0` (or any other
+  shape that sums to `0`), `recompute` now normalizes each pane's
+  flex to `1` in place so the layout both renders AND stays
+  interactive. The previous code produced `NaN` heights that
+  propagated through every downstream pixel coordinate; an
+  intermediate fix that only normalized the divisor would have
+  left `resizePanes()` unable to make progress (divider drag would
+  immediately revert because the underlying `flex` values were
+  still `0`).
+- `core/scale.ts` — `priceToY` now returns `NaN` explicitly when
+  `price` is non-finite, instead of relying on the `1e-10` floor
+  (which doesn't protect against `NaN` input because
+  `Math.max(NaN, x) === NaN`). The behavior change is documented;
+  callers that already guard the result are unaffected.
+
+Six new unit tests cover the guard paths.
+
+### Added — `@trendcraft/chart/replay` subpath
+
+- New `createLiveSimulator(opts)` export at `@trendcraft/chart/replay`.
+  Drives a `createLiveCandle` instance from a static candle array on a
+  timer, splitting each pending candle into N intra-candle ticks
+  before the final `candleComplete`. Useful for any chart host that
+  wants to demo / dogfood `connectIndicators({ live })` and
+  `connectLivePrimitives` without a real market feed.
+- API: `play()`, `pause()`, `stepOnce({ wholeBar? })`,
+  `setIntervalMs(ms)`, `reset()`, `onChange(cb)`, `dispose()`. Plus
+  the `live` LiveSource that plugs straight into the connect APIs.
+- Lifted from `examples/indicator-showcase` and
+  `examples/strategy-studio`, where the same code was duplicated. Both
+  examples now re-export from the canonical location. ~3 kB
+  brotli-compressed.
+- **Note**: this subpath imports `createLiveCandle` from `trendcraft`,
+  so consumers using `@trendcraft/chart/replay` must install
+  `trendcraft` alongside `@trendcraft/chart`. The chart's main entry
+  stays standalone-capable; only `replay` (and existing `presets`)
+  need the optional peer.
+
 <!-- draft -->
 <!-- - session gap rendering (ChartOptions.timeScale.sessionGaps, TimeScale.setGapsBefore) -->
 <!-- - autoFormatTime shows date anchor after large time jumps within the same local day -->
@@ -674,11 +796,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **`@trendcraft/chart/sparkline` subpath** — ultra-lightweight mini chart for watchlist-style UIs (200+ instances on a single page). Vanilla `createSparkline` / `createSparklineGroup`, plus `@trendcraft/chart/react/sparkline` and `@trendcraft/chart/vue/sparkline` thin wrappers. Supports both `line` (with optional fill) and `candle` modes, four color presets (`first-vs-last`, `open-vs-close`, `baseline`, `fixed` / per-candle `up`/`down`), and a single-listener delegated hover with a shared tooltip across all sparklines in a group. Vanilla bundle ≈ 2.5 kB brotli; React/Vue ≈ 3 kB. New example at `examples/sparkline-showcase/`.
 
+### Changed
+
+- Bundle size budgets raised (brotli) to absorb the new plugin
+  enhancements and `connectLivePrimitives`. The headless budget is
+  unchanged; per-feature subpaths (`sparkline`, `replay`) carry their
+  own limits.
+
+  | Entry | 0.2.0 limit | Unreleased limit |
+  | --- | --- | --- |
+  | Main (`@trendcraft/chart`) | 36 kB | **41 kB** |
+  | Headless (`@trendcraft/chart/headless`) | 11 kB | 11 kB |
+  | React (`@trendcraft/chart/react`) | 30 kB | **33 kB** |
+  | Vue (`@trendcraft/chart/vue`) | 30 kB | **33 kB** |
+
 ### Not in this release
 
 - Intraday session gap rendering (weekend/overnight visual gaps for minute data) — tracked for v0.3.
 - C1 coverage 90% target — viewport / canvas-chart / drawing-tool DOM integration tests have low ROI; addressed incrementally.
-- Plugin live-mode integration — the six differentiation plugins remain static-only until incrementalization lands.
+- Plugin live-mode integration is now available via `connectLivePrimitives` (see Unreleased above); the differentiation plugins are no longer static-only.
 
 ## [0.2.0] - 2026-04-26
 
@@ -803,7 +939,7 @@ A conceptual walkthrough of `@trendcraft/chart`. If you just want to get pixels 
 `@trendcraft/chart` is a Canvas-based charting library built specifically for financial time series. It optimizes for three things:
 
 1. **Zero-config indicator rendering** — pass a `trendcraft` indicator output and the chart figures out where it belongs, what scale it needs, and what reference lines to draw.
-2. **A small, focused runtime** — no runtime dependencies, ~31 kB gzipped main bundle, one canvas per chart, no virtual DOM.
+2. **A small, focused runtime** — no runtime dependencies, ~42 kB main bundle (brotli, size-limit enforced), one canvas per chart, no virtual DOM.
 3. **Extensibility as a plugin system, not a configuration tree** — custom series types and overlays ship as plain functions you register.
 
 What it's **not**:
@@ -823,17 +959,17 @@ Everything the chart draws is either:
 | **Drawings** | Discriminated union (`hline`, `trendline`, etc.) | User-drawn annotations via `addDrawing()` |
 | **Overlays** | Framework-provided helpers (`addSignals`, `addTrades`, `addBacktest`, `addPatterns`, `addScores`) | Pre-baked visualizations of higher-level trading concepts |
 
-`time` is always epoch milliseconds (matches `trendcraft`'s `TimeValue`). `value` shape varies — see [Auto-detection from `__meta`](#auto-detection-from-__meta).
+`time` is always epoch milliseconds (the chart's `TimeValue` type — the same epoch-ms `time` carried by `trendcraft`'s normalized candles). `value` shape varies — see [Auto-detection from `__meta`](#auto-detection-from-__meta).
 
 ### Compound values
 
 `trendcraft` indicators often return compound objects:
 
 ```typescript
-rsi(candles)          // [{ time, value: number | null }]
-bollingerBands(c)     // [{ time, value: { upper, middle, lower, percentB, bandwidth } }]
-ichimoku(c)           // [{ time, value: { tenkan, kijun, senkouA, senkouB, chikou } }]
-macd(c)               // [{ time, value: { macd, signal, histogram } }]
+rsi(candles)             // [{ time, value: number | null }]
+bollingerBands(candles)  // [{ time, value: { upper, middle, lower, percentB, bandwidth } }]
+ichimoku(candles)        // [{ time, value: { tenkan, kijun, senkouA, senkouB, chikou } }]
+macd(candles)            // [{ time, value: { macd, signal, histogram } }]
 ```
 
 The chart introspects the first non-null value to pick a series type and pane. You never have to split a compound object into separate line series yourself.
@@ -847,15 +983,16 @@ Internally, every point goes through two scales:
 
 `DrawHelper` (exposed to plugins) wraps these with `draw.x(index)` and `draw.y(price)`.
 
-When you read event data, you get **both** the time value and the pixel coordinate:
+Event data is expressed in candle terms — the snapped index and its OHLCV — not pixels:
 
 ```typescript
-chart.on('crosshairMove', (data: CrosshairMoveData) => {
-  data.time   // epoch ms (or null if outside plot area)
-  data.price  // price (or null)
-  data.x      // canvas x in CSS pixels
-  data.y      // canvas y in CSS pixels
-  data.paneId // which pane the pointer is over
+chart.on('crosshairMove', (data) => {
+  // `on` handlers receive `unknown` — narrow to the event's payload type
+  const move = data as CrosshairMoveData;
+  move.time;   // epoch ms of the snapped candle (or null when leaving the plot area)
+  move.index;  // candle index (or null)
+  move.ohlcv;  // { open, high, low, close, volume } (or null)
+  move.paneId; // pane under the pointer (or null)
 });
 ```
 
@@ -917,7 +1054,7 @@ chart.addIndicator(mySecondarySeries, { pane: 'main', scaleId: 'left' });
 
 When you pass an indicator series to `addIndicator()`, the chart does two things:
 
-1. **Reads `__meta`** if present. `trendcraft` indicators attach a non-enumerable `__meta: SeriesMeta` describing the indicator's domain characteristics (label, overlay vs. sub-pane, Y-range, reference lines). The chart translates these to pane placement.
+1. **Reads `__meta`** if present. `trendcraft` indicators attach a `__meta: SeriesMeta` property describing the indicator's domain characteristics (label, overlay vs. sub-pane, Y-range, reference lines). The chart translates these to pane placement.
 2. **Falls back to shape introspection.** For untagged data, the chart inspects the first non-null value. A `number` becomes a line, `{ upper, middle, lower }` becomes a band, etc.
 
 This is why you can write `chart.addIndicator(sma(candles))` without passing a pane id — `trendcraft`'s `sma` sets `overlay: true` in its `__meta`, the chart puts it on the price pane, and reads the label for the legend.
@@ -928,7 +1065,7 @@ Pass a `SeriesConfig` to override:
 
 ```typescript
 chart.addIndicator(mySeries, {
-  pane: 'new',                   // create a new sub-pane
+  pane: 'sub',                   // auto-generate a fresh sub-pane
   type: 'histogram',             // force a specific renderer
   color: '#FF9800',
   label: 'My Indicator',
@@ -936,22 +1073,25 @@ chart.addIndicator(mySeries, {
 });
 ```
 
+`'sub'` mints a new auto-generated sub-pane on every call; any other string is a literal pane id — indicators passing the same id share that pane.
+
 ### Custom introspection rules
 
 If you have custom indicators with a non-standard compound shape, register a rule:
 
 ```typescript
-import { SeriesRegistry } from '@trendcraft/chart';
-
-SeriesRegistry.addRule({
+chart.addRule({
   name: 'myCustomShape',
-  match: (value) => typeof value === 'object' && value !== null && 'score' in value,
+  test: (value) => typeof value === 'object' && value !== null && 'score' in value,
   seriesType: 'line',
-  channels: ['score'],
+  defaultPane: 'sub',
+  decompose: (value) => ({ score: value.score }),
 });
 ```
 
-Rules are consulted in registration order, with built-in rules last. Useful when you want to share conventions across a team without each caller configuring the chart.
+`chart.addRule` delegates to the shared default registry. In headless code, import `defaultRegistry` from `@trendcraft/chart/headless` and call `defaultRegistry.addRule(rule)`.
+
+Custom rules are consulted most-recently-registered first, with built-in rules last — when two custom rules match the same shape, the later-registered rule wins. Useful when you want to share conventions across a team without each caller configuring the chart.
 
 ## Adding indicators: which API?
 
@@ -986,8 +1126,8 @@ These three terms appear throughout the API and look similar; they describe diff
 
 | Term | Meaning |
 |---|---|
-| `Series<T>` | The input. A plain array `{ time: number, value: T }[]` returned by every `trendcraft` indicator, optionally tagged with a non-enumerable `__meta`. |
-| `ResolvedSeries` | An internal step. After introspection (auto-detection or your `SeriesConfig` overrides), the chart knows which pane, color, type, and channel layout to use. Not a public type, but referenced in error messages. |
+| `Series<T>` | The input. A plain array `{ time: number, value: T }[]` returned by every `trendcraft` indicator, optionally tagged with a `__meta` property. |
+| `ResolvedSeries` | An intermediate step. After introspection (auto-detection or your `SeriesConfig` overrides), the chart knows which pane, color, type, and channel layout to use. Exported as a type from `@trendcraft/chart/headless` (the computed series rendering info). |
 | `SeriesHandle` | The output of `addIndicator`. The handle you keep to mutate or remove the series later. Stable across `update()` calls; invalidated by `remove()`. |
 
 ### Validation behavior
@@ -1047,15 +1187,22 @@ Individual series colors are independent of the theme — pass `color` in `Serie
 
 ## Viewport and navigation
 
-The time axis has three navigational modes:
+The time axis has four navigational modes:
 
 | Method | Use case |
 |---|---|
 | `setVisibleRange(start, end)` | Absolute control — show this time window |
 | `setVisibleRangeByDuration('1M')` | Relative — show the last month |
-| `fitContent()` | Reset to show everything with 20% right padding |
+| `setVisibleLogicalRange(from, to)` | Bar-index control — fractional, may extend beyond the data (the way to express empty space past the last candle). Read back with `getVisibleLogicalRange()` |
+| `fitContent()` | Reset to show everything (data fills the full plot width, plus `timeScale.rightOffset` bar-slots of right padding — default 0, flush) |
 
 `fitContent()` locks pan when all data is visible. Once the user zooms back in, pan re-engages.
+
+To keep a permanent margin between the last candle and the price axis, set
+`timeScale.rightOffset` (bar-slots, fractional allowed). The margin is
+maintained while following the live edge and honored by `scrollToEnd`-style
+navigation (keyboard End included), `fitContent()`, and duration presets. It
+can be changed at runtime via `applyOptions({ timeScale: { rightOffset } })`.
 
 ### Keyboard
 
@@ -1070,7 +1217,7 @@ The chart captures keyboard when focused:
 
 ### Touch
 
-On touch devices: single-finger pan, two-finger pinch-zoom, tap-hold-drag for drawing tools.
+On touch devices: single-finger pan, two-finger pinch-zoom, double-tap to fit content, and long-press to lock the crosshair. Drawing tools place points with discrete taps (two-tap tools show a preview between the first and second tap).
 
 ## Events
 
@@ -1078,16 +1225,16 @@ Subscribe via `chart.on(event, handler)`. Unsubscribe via `chart.off`. Events ar
 
 | Event | Payload |
 |---|---|
-| `crosshairMove` | `CrosshairMoveData` — time, price, x, y, paneId |
-| `visibleRangeChange` | `VisibleRangeChangeData` — startTime, endTime, startIndex, endIndex |
-| `click` | `CrosshairMoveData` — same as crosshairMove, fires on pointer up |
+| `crosshairMove` | `CrosshairMoveData` — time, index, ohlcv, paneId |
+| `visibleRangeChange` | `VisibleRangeChangeData` — startTime, endTime, startIndex, endIndex (clamped to the data), plus `logicalRange: { from, to }` with the unclamped fractional window edges (a right-edge margin is only visible here) |
+| `click` | `ChartClickData` — x, y, index, time, shiftKey, altKey, metaKey, ctrlKey; fires on pointer up |
 | `resize` | `{ width, height }` |
 | `paneResize` | `{ paneId, height }` — fires when the user drags a pane divider |
 | `seriesAdded` | `{ id, label }` |
 | `seriesRemoved` | `{ id }` |
-| `dataFiltered` | `{ reason, count }` — warnings about invalid candles dropped |
+| `dataFiltered` | `{ total, valid, removed }` — fires when invalid candles are dropped (`removed` = count) |
 | `drawingComplete` | `Drawing` — fires after a click-to-place drawing finishes |
-| `error` | `{ message, source }` — non-fatal runtime warnings |
+| `error` | `ChartErrorPayload` — `{ message, code?, detail? }`, non-fatal runtime warnings |
 
 ## Live data
 
@@ -1097,9 +1244,11 @@ At a glance:
 
 ```typescript
 import { createChart, connectIndicators } from '@trendcraft/chart';
+import { registerTrendCraftPresets } from '@trendcraft/chart/presets';
 import { createLiveCandle, indicatorPresets } from 'trendcraft';
 
 const chart = createChart(el, { theme: 'dark' });
+registerTrendCraftPresets(chart); // teaches the chart TrendCraft-specific shapes
 const live = createLiveCandle({ intervalMs: 60_000, history: candles });
 const conn = connectIndicators(chart, {
   presets: indicatorPresets,
@@ -1143,7 +1292,7 @@ import {
 
 These are the same classes the browser chart uses internally — you can build server-side analytics, static previews, or tests without loading the canvas code.
 
-For Next.js specifically, import `@trendcraft/chart` in a `useEffect` or a dynamic import with `ssr: false`. The React wrapper (`@trendcraft/chart/react`) handles this for you: it mounts in `useLayoutEffect` and skips on the server.
+For Next.js specifically, import `@trendcraft/chart` in a `useEffect` or a dynamic import with `ssr: false`. The React wrapper (`@trendcraft/chart/react`) handles this for you: it mounts in `useEffect`, which does not run during server rendering.
 
 ## Accessibility
 
@@ -1151,7 +1300,7 @@ Each chart mounts an `aria-live` region (`ChartAria`) that announces crosshair u
 
 > "RSI: 42.5 at 2026-04-15"
 
-Announcements are debounced to once per 250 ms so screen readers don't get spammed. You can disable ARIA entirely by setting `theme.border` to transparent and... actually you can't disable it yet — if you need that, open an issue.
+Announcements are debounced by 300 ms (the announcement fires 300 ms after the crosshair settles) so screen readers don't get spammed. You can disable ARIA entirely by setting `theme.border` to transparent and... actually you can't disable it yet — if you need that, open an issue.
 
 Keyboard navigation works as documented in [Viewport and navigation](#viewport-and-navigation). The chart container itself is focusable (tabindex 0); arrow keys pan only when focused.
 
@@ -1194,11 +1343,15 @@ Complete API surface for `@trendcraft/chart`. This is the reference; for concept
 
 | Import from | Contents | Environment |
 |---|---|---|
-| `@trendcraft/chart` | `createChart`, `connectIndicators`, plugin helpers, plugins, all types | Browser only — throws in SSR |
+| `@trendcraft/chart` | `createChart`, `connectIndicators`, `connectLivePrimitives`, plugin helpers, plugins, all types | Browser only — throws in SSR |
 | `@trendcraft/chart/headless` | `DataLayer`, `TimeScale`, `PriceScale`, `LayoutEngine`, `introspect`, `lttb`, formatters | Any (Node / SSR / tests) |
-| `@trendcraft/chart/presets` | Bundled indicator presets | Browser only |
-| `@trendcraft/chart/react` | `TrendChart` component, `useTrendChart` hook | React 19+, browser only |
+| `@trendcraft/chart/presets` | `registerTrendCraftPresets` — opt-in introspection rules + visual presets for TrendCraft-specific indicator shapes | Browser only |
+| `@trendcraft/chart/sparkline` | `createSparkline`, `createSparklineGroup`, line/candle mini-chart renderers | Browser only |
+| `@trendcraft/chart/replay` | `createLiveSimulator` — replay historical candles as a live feed | Any (Node / SSR / tests) |
+| `@trendcraft/chart/react` | `TrendChart` component, `useTrendChart` hook | React 18+, browser only |
+| `@trendcraft/chart/react/sparkline` | `Sparkline`, `SparklineList` React components | React 18+, browser only |
 | `@trendcraft/chart/vue` | `TrendChart` component, `useTrendChart` composable | Vue 3.3+, browser only |
+| `@trendcraft/chart/vue/sparkline` | `Sparkline`, `SparklineList` Vue components | Vue 3.3+, browser only |
 
 ## Table of Contents
 
@@ -1221,6 +1374,7 @@ Complete API surface for `@trendcraft/chart`. This is the reference; for concept
 - [Connection APIs](#connection-apis)
   - [`connectIndicators`](#connectindicatorschart-options)
   - [`defineIndicator`](#defineindicatorpresetid-options)
+  - [`connectLivePrimitives`](#connectliveprimitivessource-specs)
 - [Drawing auto-injection helpers](#drawing-auto-injection-helpers)
 - [Plugin helpers](#plugin-helpers)
 - [Built-in plugins](#built-in-plugins)
@@ -1253,27 +1407,52 @@ All fields optional.
 | `theme` | `'dark' \| 'light' \| ThemeColors` | `'dark'` | Color theme |
 | `pixelRatio` | `number` | `window.devicePixelRatio` | Canvas backing-store ratio (one-time; not runtime-mutable) |
 | `priceAxisWidth` | `number` | `60` | Right axis width (px) |
-| `timeAxisHeight` | `number` | `24` | Bottom axis height (px) |
-| `fontFamily` | `string` | system UI stack | Font family for canvas + DOM overlays (runtime-updatable via `applyOptions`) |
-| `fontSize` | `number` | `11` | Font size (px), clamped to [8, 32] |
+| `timeAxisHeight` | `number` | `32` | Bottom axis height (px) |
+| `fontFamily` | `string` | system UI stack | Font family for canvas axis/crosshair/overlay text and DOM legend/info overlays. Runtime-updatable via `applyOptions` |
+| `fontSize` | `number` | `11` | Font size (px). Runtime-updatable via `applyOptions` |
 | `priceFormatter` | `(price: number) => string` | auto-precision | Custom price formatter |
 | `timeFormatter` | `(time: number) => string` | smart date/time | Custom time formatter |
 | `watermark` | `string` | — | Background watermark text |
 | `legend` | `boolean` | `true` | Show series legend |
 | `volume` | `boolean` | `true` | Show volume pane |
-| `scrollSensitivity` | `number` | `0.3` | Scroll/pan sensitivity multiplier (one-time; 0.1–2.0) |
+| `scrollSensitivity` | `number` | `0.3` | Scroll/pan sensitivity multiplier (one-time; clamped to a minimum of 0.1) |
 | `chartType` | `'candlestick' \| 'line' \| 'mountain' \| 'ohlc'` | `'candlestick'` | Base chart type |
 | `formatInfoOverlay` | `(data: InfoOverlayData) => string \| null` | — | Custom info overlay HTML (one-time). Return `null` to use default. |
 | `animationDuration` | `number` | `300` | Range transition duration (ms). `0` disables |
 | `locale` | `Partial<ChartLocale>` | — | i18n string overrides (one-time) |
 | `maxCandles` | `number` | — | Cap on retained candles in live mode |
 | `crosshair` | `CrosshairOptions` | `{ mode: 'normal' }` | Crosshair snap behavior — see [Crosshair](#crosshair) |
-| `hotkeys` | `HotkeyMap \| false` | built-in defaults | Keyboard shortcut bindings — see [Hotkeys](#hotkeys). Pass `false` to disable **all** keyboard handling (including viewport nav keys). |
-| `interaction` | `{ wheelInertia?: boolean }` | `{ wheelInertia: true }` | Trackpad/wheel inertia for pan + zoom. Disable to stop the synthetic deceleration tail (macOS OS-level momentum is independent and always processed). |
+| `hotkeys` | `HotkeyMap \| false` | built-in defaults | Keyboard shortcut bindings — see [Hotkeys](#hotkeys). Pass `false` to disable **all** keyboard handling (including viewport nav keys). (one-time) |
+| `interaction` | `{ wheelInertia?: boolean }` | `{ wheelInertia: true }` | Trackpad/wheel inertia for pan + zoom. Disable to stop the synthetic deceleration tail (macOS OS-level momentum is independent and always processed). (one-time) |
 | `showSeriesBadges` | `boolean` | `false` | Render a colored pill on the right price axis for each labeled series, mirroring the candle current-price badge. Multi-channel series get one pill per channel. |
 | `seriesBadgeMode` | `'absolute' \| 'visible'` | `'absolute'` | `'absolute'` shows the latest non-null value in the data array (live "current" value). `'visible'` shows the latest non-null value within the current visible range. |
+| `timeScale` | `TimeScaleOptions` | — | Time-scale behavior — see [Time scale](#time-scale). Runtime-updatable via `applyOptions` |
 
-Options marked "one-time" cannot be changed via `applyOptions()` — a warning is emitted via the `error` event if you try.
+Options marked "one-time" cannot be changed via `applyOptions()` — a warning is emitted via the `error` event if you try, except `hotkeys` and `interaction`, which are currently ignored silently (no warning).
+
+### Time scale
+
+```typescript
+type TimeScaleOptions = {
+  sessionGaps?: boolean | SessionGapsOptions;
+  rightOffset?: number;
+};
+```
+
+`sessionGaps` inserts visual gaps between trading sessions (overnight breaks,
+weekends) in intraday data instead of compressing non-trading hours to a
+zero-width seam. `true` auto-detects gaps from the median bar interval; the
+object form gives fine-grained control (`mode: 'timeGap' | 'dayBoundary' |
+'off'`, `gapThresholdMs`, `intradayThresholdMs`, `sizeBars`).
+
+`rightOffset` (default `0`) reserves that many bar-slots of empty space
+between the last candle and the price axis, so the forming candle isn't drawn
+flush against the right edge. Units are bar-slots (fractional allowed), so
+the margin scales with zoom. The margin is maintained while following the
+live edge and honored by `scrollToEnd`-style navigation (keyboard End
+included), `fitContent()`, and duration presets. Values that would leave
+fewer than 2 bars visible are capped; negative or non-finite values are
+rejected with a warning.
 
 ### Crosshair
 
@@ -1281,6 +1460,7 @@ Options marked "one-time" cannot be changed via `applyOptions()` — a warning i
 type CrosshairOptions = {
   mode?: 'normal' | 'magnet' | 'magnetOHLC';
   snapThreshold?: number; // px, default 12, only used by 'magnetOHLC'
+  lockOnLongPress?: boolean; // long-press crosshair lock on touch devices, default true
 };
 ```
 
@@ -1295,15 +1475,14 @@ The price/time label text color is chosen via WCAG relative luminance of the cro
 ### Hotkeys
 
 ```typescript
-type HotkeyMap = Partial<{
-  hline: string;        // default 'Alt+H'
-  vline: string;        // default 'Alt+V'
-  trendline: string;    // default 'Alt+T'
-  fibRetracement: string; // default 'Alt+F'
-  channel: string;      // default 'Alt+C'
-  hideAllSeries: string; // default 'Ctrl+Alt+H'
-  cancel: string;       // default 'Escape'
-}>;
+type HotkeyAction = DrawingType | 'cancel' | 'toggleOverlays';
+// Keyed by KeyboardEvent.code combos; value = action.
+type HotkeyMap = Partial<Record<string, HotkeyAction>>;
+// Defaults: {
+//   'Alt+KeyH': 'hline', 'Alt+KeyV': 'vline', 'Alt+KeyT': 'trendline',
+//   'Alt+KeyF': 'fibRetracement', 'Alt+KeyC': 'channel',
+//   'Ctrl+Alt+KeyH': 'toggleOverlays', 'Escape': 'cancel',
+// }
 ```
 
 Matching uses `KeyboardEvent.code`, so Option+letter on macOS resolves correctly despite the altered character output. `Alt` is treated the same as `Option`; `Ctrl` and `Cmd` are interchangeable. Pass `hotkeys: false` to disable every keyboard shortcut, including the pre-existing viewport nav keys (arrows / `+` / `-` / `Home` / `End` / `F`).
@@ -1382,12 +1561,26 @@ setDrawingTool(tool: DrawingType | null): void
 ```typescript
 setVisibleRange(start: TimeValue, end: TimeValue): void
 setVisibleRangeByDuration(duration: RangeDuration): void
+setVisibleLogicalRange(from: number, to: number): void
+getVisibleLogicalRange(): LogicalRange | null
 fitContent(): void
 getVisibleRange(): VisibleRangeChangeData | null
 setLayout(config: LayoutConfig): void
 ```
 
 `RangeDuration = '1D' | '1W' | '1M' | '3M' | '6M' | 'YTD' | '1Y' | 'ALL'`
+
+`setVisibleLogicalRange(from, to)` sets the viewport in logical (bar-index)
+units — `LogicalRange = { from, to }`. Values are fractional and may extend
+beyond the data on either side, which is the one way to express empty space
+past the last candle (times after the last bar all resolve to it, so
+`setVisibleRange` cannot). While the last bar is visible, live updates
+preserve the window's distance from the live edge — custom margins included.
+The requested span is exact down to the render floor (0.1px per bar).
+
+Logical indices address the *current* candle array: they are shifted by
+`maxCandles` trimming and invalidated by `setCandles`. Read-modify-set
+synchronously (pair with `getVisibleLogicalRange()`); never persist them.
 
 ```typescript
 setCrosshair(time: number | null): void
@@ -1450,7 +1643,7 @@ destroy(): void
 
 | Field | Type | Description |
 |---|---|---|
-| `pane` | `'main' \| string` | Target pane id. Omit for auto-detection via `__meta`. Pass `'new'` to create a new sub-pane. |
+| `pane` | `'main' \| string` | Target pane id. Omit for auto-detection via `__meta`. Pass `'sub'` to auto-create a new sub-pane; any other custom string creates (or reuses) a pane with that id. |
 | `scaleId` | `'left' \| 'right'` | Which scale to bind to (only relevant for dual-scale panes). Default `'right'`. |
 | `type` | `SeriesType` | Override the auto-detected series type. |
 | `color` | `string` | Primary color for the series. |
@@ -1469,6 +1662,7 @@ Returned by `addIndicator`. Keep the reference if you need to manipulate the ser
 ```typescript
 type SeriesHandle = {
   readonly id: string;
+  readonly config: Readonly<SeriesConfig>;        // resolved config (read back auto-assigned color etc.)
   update(point: DataPoint<unknown>): void;       // streaming update — append or patch last point
   setData<T>(data: DataPoint<T>[]): void;         // replace all data
   setVisible(visible: boolean): void;
@@ -1500,16 +1694,16 @@ All time values are epoch milliseconds.
 
 | Event | Payload shape |
 |---|---|
-| `crosshairMove` | `CrosshairMoveData = { time, price, x, y, paneId }` |
-| `click` | `CrosshairMoveData` |
-| `visibleRangeChange` | `VisibleRangeChangeData = { startTime, endTime, startIndex, endIndex }` |
+| `crosshairMove` | `CrosshairMoveData = { time, index, ohlcv, paneId }` |
+| `click` | `ChartClickData = { x, y, index, time, shiftKey, altKey, metaKey, ctrlKey }` |
+| `visibleRangeChange` | `VisibleRangeChangeData = { startTime, endTime, startIndex, endIndex, logicalRange? }` — time/index fields are clamped to the data; `logicalRange: { from, to }` carries the unclamped fractional window edges (always populated; a right-edge margin is only visible here) |
 | `resize` | `{ width: number, height: number }` |
 | `paneResize` | `{ paneId: string, height: number }` |
 | `seriesAdded` | `{ id: string, label: string }` |
 | `seriesRemoved` | `{ id: string }` |
-| `dataFiltered` | `{ reason: string, count: number }` |
+| `dataFiltered` | `{ total: number, valid: number, removed: number }` |
 | `drawingComplete` | `Drawing` |
-| `error` | `{ message: string, source?: string }` |
+| `error` | `ChartErrorPayload = { message: string, code?: ChartErrorCode, detail?: unknown }` |
 
 ## Connection APIs
 
@@ -1571,6 +1765,49 @@ conn.add(sma5);
 
 Useful when you want to pass indicator configurations around your app without coupling to a specific chart connection.
 
+### `connectLivePrimitives(source, specs)`
+
+```typescript
+function connectLivePrimitives(
+  source: LiveSource,
+  specs: readonly LivePrimitiveSpec<any>[], // `any`, not `unknown`: per-spec T varies across the array, and `unknown` would force every handle.update to accept unknown, rejecting strongly-typed plugin handles like connectSrConfluence's
+): LivePrimitivesConnection
+```
+
+Keep primitive plugins (S/R Zones, SMC, Wyckoff, Kill Zones, Regime Heatmap, etc.) in sync with a live feed. Primitives register via `chart.registerPrimitive()` rather than `addIndicator()`, so they are invisible to `connectIndicators`' live event loop. This helper recomputes each spec on `candleComplete` and pushes the result to the plugin handle's `update()` method (batch recompute — O(N) per completed candle).
+
+```typescript
+import { connectIndicators, connectLivePrimitives, connectSrConfluence } from '@trendcraft/chart';
+import { srZones } from 'trendcraft';
+
+const conn = connectIndicators(chart, { presets, candles, live: source });
+// completedCandles is readonly — copy before passing to trendcraft's mutable-array APIs
+const sr = connectSrConfluence(chart, srZones([...source.completedCandles]).zones);
+
+const liveSr = connectLivePrimitives(source, [
+  { recompute: (candles) => srZones([...candles]).zones, handle: sr, name: 'sr' },
+]);
+
+// later
+liveSr.disconnect();
+conn.disconnect();
+```
+
+`LivePrimitiveSpec`:
+
+| Field | Type | Description |
+|---|---|---|
+| `recompute` | `(candles: readonly SourceCandle[]) => T` | Recompute the primitive's data from the current candle history. |
+| `handle` | `LivePrimitiveHandle<T>` | Plugin handle (e.g. from `connectSrConfluence`) whose `update(data)` is called with the recomputed result. |
+| `name` | `string` (optional) | Name used in error logs to identify which spec failed. |
+
+`LivePrimitivesConnection`:
+
+| Method | Description |
+|---|---|
+| `disconnect()` | Unsubscribe from `candleComplete` events. Idempotent. |
+| `recomputeAll()` | Manually trigger a recompute of all specs — useful to seed handles right after construction. No-op once disconnected. |
+
 ## Drawing auto-injection helpers
 
 Four TrendCraft indicators (`autoTrendLine`, `channelLine`, `fibonacciRetracement`, `fibonacciExtension`) produce shape data the chart already renders via its built-in drawing types. These helpers convert raw swing anchors into `Drawing` objects and attach them — no primitive plugin required.
@@ -1622,20 +1859,23 @@ definePrimitive<TState>(plugin: PrimitivePlugin<TState>): PrimitivePlugin<TState
 Identity functions that give you type inference. See [PLUGINS.md](./PLUGINS.md).
 
 ```typescript
-class DrawHelper {
+declare class DrawHelper {
   x(index: number): number;
   y(price: number): number;
   readonly startIndex: number;
   readonly endIndex: number;
   readonly barSpacing: number;
 
-  line(values, style): void;
-  hline(price, style): void;
-  rect(index, priceTop, widthBars, priceBottom, fill, stroke?): void;
-  fillBetween(upper, lower, fill): void;
-  circle(index, price, radius, fill): void;
-  text(label, index, price, options?): void;
-  scope(fn: (ctx) => void): void;
+  line(values: readonly (number | null)[], style: StrokeStyle): void;
+  hline(price: number, style: StrokeStyle): void;
+  rect(index: number, priceTop: number, widthBars: number, priceBottom: number,
+       fill: FillStyle, stroke?: StrokeStyle): void;
+  fillBetween(upper: readonly (number | null)[], lower: readonly (number | null)[],
+              fill: FillStyle): void;
+  circle(index: number, price: number, radius: number, fill: FillStyle): void;
+  text(label: string, index: number, price: number,
+       options?: { color?: string; font?: string; align?: CanvasTextAlign; baseline?: CanvasTextBaseline }): void;
+  scope(fn: (ctx: CanvasRenderingContext2D) => void): void;
 }
 ```
 
@@ -1653,6 +1893,9 @@ Tree-shakeable visualization primitives bundled with the library:
 | `createSessionZones` / `connectSessionZones` | Session backgrounds (Asian/London/NY) |
 | `createAndrewsPitchfork` / `connectAndrewsPitchfork` | Andrew's Pitchfork — median line + upper/lower handles from three swing anchors, extending forward |
 | `createVolumeProfile` / `connectVolumeProfile` | Horizontal volume-by-price histogram along the right edge, with highlighted Value Area and dashed POC line |
+| `createMarketProfile` / `connectMarketProfile` | TPO (Time Price Opportunity) market profile — per-price letter/block distribution with Value Area and POC |
+| `createPricePatterns` / `connectPricePatterns` | Chart pattern outlines (double top/bottom, head & shoulders, triangles, etc.). `filterPricePatterns` narrows a `PricePatternSignal[]` set before connecting |
+| `createSqueezeDots` / `connectSqueezeDots` | Bollinger/Keltner squeeze dots along the pane baseline |
 
 Each `create*` returns a `PrimitivePlugin`; each `connect*` registers it and returns an update handle.
 
@@ -1676,12 +1919,12 @@ import { TrendChart, useTrendChart } from '@trendcraft/chart/react';
 />
 ```
 
-Props mirror `ChartOptions` plus: `candles`, `indicators`, `signals`, `trades`, `drawings`, `timeframes`, `backtest`, `patterns`, `scores`, and event handlers. Expose the underlying `ChartInstance` via ref.
+Props mirror the `useTrendChart` options: `candles`, `indicators`, `signals`, `trades`, `drawings`, `timeframes`, `backtest`, `patterns`, `scores`, `plugins`, `chartType`, `layout`, `theme`, `fitOnLoad`, event handlers (`onCrosshairMove`, `onSeriesAdded`, `onSeriesRemoved`, `onError`), an `options` prop carrying the remaining `ChartOptions`, plus `style` / `className`. Expose the underlying `ChartInstance` via ref.
 
 **Hook** — imperative access to `ChartInstance` for drawing tools, live feeds, custom plugins:
 
 ```tsx
-function MyChart({ candles }) {
+function MyChart({ candles }: { candles: CandleData[] }) {
   const { containerRef, chart } = useTrendChart({ candles, theme: 'dark' });
   useEffect(() => {
     if (!chart) return;
@@ -1733,7 +1976,7 @@ import {
   DataLayer, TimeScale, PriceScale, LayoutEngine, Viewport,
   SeriesRegistry, RendererRegistry,
   DrawHelper,
-  introspect, IndicatorPreset, INDICATOR_PRESETS,
+  introspect, type IndicatorPreset, INDICATOR_PRESETS,
   lttb, decimateCandles, getDecimationTarget,
   autoFormatPrice, autoFormatTime, formatCrosshairTime, formatVolume,
   detectPrecision, fixedPriceFormatter,
@@ -1764,7 +2007,7 @@ const result = introspect(myIndicatorData);
 //   seriesType: 'band',         // resolved visual type
 //   rule: IntrospectionRule,    // matched rule (or null)
 //   preset: IndicatorPreset,    // matched preset (or null)
-//   pane: 'main' | 'new',       // resolved pane hint
+//   pane: 'main' | 'sub' (or custom pane id),  // resolved pane hint
 //   config: SeriesConfig,       // merged config
 //   yRange?: [number, number],  // from __meta
 //   referenceLines?: number[],  // from __meta
@@ -1776,21 +2019,21 @@ Use `introspect()` to replicate the chart's auto-detection in custom code (e.g. 
 ### Decimation
 
 ```typescript
-lttb(points: Point[], threshold: number): Point[]
-// Largest-Triangle-Three-Buckets downsampling. threshold = target point count.
+lttb(data: readonly DataPoint<number | null>[], targetCount: number, indexOffset?: number): DecimatedPoints<number | null>
+// Largest-Triangle-Three-Buckets downsampling. targetCount = target point count.
 
-decimateCandles(candles: CandleData[], target: number): CandleData[]
+decimateCandles(candles: readonly CandleData[], startIndex: number, endIndex: number, maxBars: number): DecimatedCandles
 // OHLC aggregation for candles.
 
-getDecimationTarget(visibleBars: number, pixelsWide: number): number
+getDecimationTarget(dataCount: number, pixelWidth: number, minPixelsPerPoint?: number): number
 // Heuristic: one point per pixel column, with a floor.
 ```
 
 ### Formatters
 
 ```typescript
-autoFormatPrice(price: number, precision?: number): string
-autoFormatTime(time: number, context?): string
+autoFormatPrice(price: number): string
+autoFormatTime(time: number, prevTime: number | null, intervalMs?: number): string
 formatCrosshairTime(time: number): string
 formatVolume(vol: number): string
 detectPrecision(values: number[]): number
@@ -1808,13 +2051,12 @@ The chart uses a three-tier resolution path when deciding how to render a series
 ### Adding custom rules
 
 ```typescript
-import { SeriesRegistry } from '@trendcraft/chart';
-
-SeriesRegistry.addRule({
+chart.addRule({
   name: 'myShape',
-  match: (value) => typeof value === 'object' && value !== null && 'a' in value && 'b' in value,
+  test: (value) => typeof value === 'object' && value !== null && 'a' in value && 'b' in value,
   seriesType: 'line',
-  channels: ['a', 'b'],
+  defaultPane: 'sub',
+  decompose: (value) => ({ a: value.a, b: value.b }),
 });
 ```
 
@@ -1824,11 +2066,23 @@ SeriesRegistry.addRule({
 chart.addPreset('myShape', {
   color: '#FF9800',
   lineWidth: 2,
-  pane: 'new',
+  pane: 'sub',
 });
 ```
 
 Presets override built-ins for the same name. Use this to re-skin built-in indicators without forking.
+
+### TrendCraft preset bundle (`@trendcraft/chart/presets`)
+
+```typescript
+import { registerTrendCraftPresets } from '@trendcraft/chart/presets';
+
+registerTrendCraftPresets(chart);
+```
+
+`registerTrendCraftPresets(chart)` is an opt-in helper that registers introspection rules **and** visual presets for TrendCraft-specific indicator output shapes — e.g. `klinger` `{ kvo, signal, histogram }`, `connorsRsi` `{ crsi, ... }`, `adaptiveRsi` `{ rsi, effectivePeriod, volatilityPercentile }`, `vsa`, `emaRibbon`, `fairValueGap` / `orderBlock` box zones, `fractals`, `heikinAshi`, and more. It also registers the custom renderers those shapes need (FVG / order-block zones, fractal markers, Heikin-Ashi overlay).
+
+Generic shapes (band, MACD-like oscillators, plain numbers, etc.) are handled by the chart core, so this call is only needed when you feed it TrendCraft-specific indicator output. Without it those shapes fall through to generic rendering and may show no visible series. Call it once, right after `createChart`, before adding the affected indicators.
 
 ---
 
@@ -1885,7 +2139,7 @@ The split is intentional: `trendcraft` owns the data math (aggregation, stateful
 |---|---|---|
 | `createLiveCandle` | `trendcraft` | Aggregates ticks into candles, runs incremental indicators, emits events |
 | `livePresets` / `indicatorPresets` | `trendcraft` | Registries of incremental factories + metadata |
-| `incremental.create*` | `trendcraft` | 160+ incremental indicator factories |
+| `incremental.create*` | `trendcraft` | 90+ incremental indicator factories |
 | `connectIndicators` | `@trendcraft/chart` | Wires a preset registry to a chart; handles backfill + live updates |
 | `ChartInstance.updateCandle` | `@trendcraft/chart` | Append or patch the last candle |
 
@@ -1897,9 +2151,11 @@ If your feed delivers individual trades and you want the chart to aggregate them
 
 ```typescript
 import { createChart, connectIndicators } from '@trendcraft/chart';
+import { registerTrendCraftPresets } from '@trendcraft/chart/presets';
 import { createLiveCandle, indicatorPresets } from 'trendcraft';
 
 const chart = createChart(container, { theme: 'dark' });
+registerTrendCraftPresets(chart);  // required when using indicatorPresets — see "Common pitfalls"
 chart.setCandles(history);  // prime with historical bars
 
 const live = createLiveCandle({
@@ -1908,14 +2164,19 @@ const live = createLiveCandle({
   maxHistory: 2000,         // cap memory for long-running sessions
 });
 
+// initHistory: false — the chart was already primed via chart.setCandles(history).
+// The default (initHistory: true) would replace the chart candles with
+// live.completedCandles, which is empty here because createLiveCandle's
+// `history` option is warm-up-only and never enters completedCandles.
 const conn = connectIndicators(chart, {
   presets: indicatorPresets,
   candles: history,
   live,
+  initHistory: false,
 });
 conn.add('rsi');
 conn.add('sma', { period: 20 });
-conn.add('bollingerBands');
+conn.add('bb'); // Bollinger Bands — the `indicatorPresets` key is "bb"
 
 // Wire your WebSocket
 ws.on('trade', (t) => {
@@ -1970,7 +2231,10 @@ ws.on('bar', (bar) => {
 
 // Optional: forming bar updates (Alpaca minute-in-progress, etc.)
 ws.on('bar-partial', (bar) => {
-  live.addCandle({ /* ... */ }, { partial: true });
+  live.addCandle(
+    { time: bar.t, open: bar.o, high: bar.h, low: bar.l, close: bar.c, volume: bar.v },
+    { partial: true },
+  );
 });
 ```
 
@@ -1979,7 +2243,7 @@ ws.on('bar-partial', (bar) => {
 ## `connectIndicators` — one API for static and live
 
 ```typescript
-connectIndicators(chart, options): IndicatorConnection
+function connectIndicators(chart: ChartInstance, options: ConnectIndicatorsOptions): IndicatorConnection
 ```
 
 ### Static mode (no `live` option)
@@ -2025,7 +2289,7 @@ Each `add` call:
 | `list()` | All active handles. |
 | `listByPreset(id)` | Handles for a given preset id. |
 | `get(snapshotName)` | Look up a single handle. |
-| `recompute(candles)` | Re-run all indicators with new candle data (static mode). |
+| `recompute(candles)` | Re-run all indicators with new candle data. In live mode this permanently replaces the connection's canonical history — subsequent `candleComplete` bars append onto it and later `add()` calls backfill from it. |
 | `disconnect()` | Unsubscribe events and remove all indicators. Idempotent. |
 | `connected` (readonly) | `true` until `disconnect()` is called. |
 | `mode` (readonly) | `'static'` or `'live'`. |
@@ -2034,7 +2298,7 @@ Each `add` call:
 
 | Member | Description |
 |---|---|
-| `snapshotName` | Unique key for this instance (e.g. `'sma20'`). |
+| `snapshotName` | Unique key for this instance (e.g. `'sma_close_20'`). |
 | `presetId` | The preset id used to build this instance. |
 | `params` | Effective parameters (defaults merged with overrides). |
 | `series` | Underlying `SeriesHandle` (escape hatch — most users ignore this). |
@@ -2058,7 +2322,11 @@ connectIndicators(chart, {
   presets: indicatorPresets,
   candles,   // used for:
              //   1. preset.compute(candles, params) → backfill series
-             //   2. chart.setCandles(candles) if initHistory and live.completedCandles is empty
+             //   2. chart.setCandles(live.completedCandles) is called when
+             //      initHistory is not false (live mode) — options.candles is
+             //      never passed to setCandles. Prime the chart yourself with
+             //      chart.setCandles(candles) and pass initHistory: false if
+             //      the live source has no completed candles yet.
   live,
 });
 ```
@@ -2072,7 +2340,7 @@ chart.addIndicator(sma20Series, { label: 'SMA 20' });
 
 // Later, drive incremental updates from live
 const sma20Incr = incremental.createSma({ period: 20 }, {
-  fromState: sma(candles, { period: 20 })._state,  // if available
+  warmUp: candles,  // replay history to prime the incremental state
 });
 live.on('tick', ({ candle, snapshot }) => {
   // push the latest value to the chart series
@@ -2099,12 +2367,12 @@ handle.setVisible(false);
 handle.setVisible(true);
 ```
 
-For presets where snapshot names depend on params (e.g. `sma` → `sma20`), the chart keys state by snapshot name. This means you can mount multiple instances of the same preset without collision:
+For presets where snapshot names depend on params (e.g. `sma` → `sma_close_20`), the chart keys state by snapshot name. This means you can mount multiple instances of the same preset without collision:
 
 ```typescript
-conn.add('sma', { period: 5 });   // snapshotName: 'sma5'
-conn.add('sma', { period: 20 });  // snapshotName: 'sma20'
-conn.add('sma', { period: 60 });  // snapshotName: 'sma60'
+conn.add('sma', { period: 5 });   // snapshotName: 'sma_close_5'
+conn.add('sma', { period: 20 });  // snapshotName: 'sma_close_20'
+conn.add('sma', { period: 60 });  // snapshotName: 'sma_close_60'
 ```
 
 For presets with static snapshot names (e.g. `emaRibbon`), pass an explicit `snapshotName`:
@@ -2125,17 +2393,19 @@ let savedState = live.getState();
 
 ws.on('close', () => { savedState = live.getState(); });
 ws.on('open', () => {
-  // restore
-  live = createLiveCandle(options, savedState);
+  // restore — disconnect the old connection first
+  conn.disconnect();
+  live = createLiveCandle(liveOptions, savedState);
   conn = connectIndicators(chart, { presets: indicatorPresets, candles, live });
   for (const indicator of activeIndicators) conn.add(indicator.id, indicator.params);
 });
 ```
 
-This is correct but heavyweight — you rebuild the whole pipeline.
+This works but is heavyweight — you rebuild the whole pipeline, and the `conn.disconnect()` before recreating is required: chart series are only removed via `remove()`/`disconnect()`, so skipping it duplicates every indicator series on each reconnect.
 
 Approach B — keep `LiveCandle` alive, just reconnect the socket:
 
+<!-- doctest-notypecheck: vendor-socket pseudo-code — the browser WebSocket has no node-style `.on` -->
 ```typescript
 // `live` persists across reconnects
 ws = new WebSocket(url);
@@ -2148,19 +2418,33 @@ For gaps in the feed during a disconnect, request the missing history from your 
 
 ## Common pitfalls
 
+### Forgetting `registerTrendCraftPresets(chart)`
+
+When you wire `connectIndicators` with `indicatorPresets`, also call `registerTrendCraftPresets(chart)` from `@trendcraft/chart/presets` **before adding indicators**:
+
+```typescript
+import { registerTrendCraftPresets } from '@trendcraft/chart/presets';
+
+const chart = createChart(container, { theme: 'dark' });
+registerTrendCraftPresets(chart);
+const conn = connectIndicators(chart, { presets: indicatorPresets, candles, live });
+```
+
+Without it, TrendCraft-specific shapes (`adaptiveRsi` `{rsi, effectivePeriod, volatilityPercentile}`, `connorsRsi`, `klinger`, `vsa`, etc.) fall through built-in introspection and silently render as generic "Indicator"/"Series" with no visible line. There is no warning — the chart degrades silently.
+
 ### Forgetting to call `conn.disconnect()` in cleanup
 
-`disconnect()` unsubscribes event handlers on `live` and removes chart series. Skip it and you leak listeners + series on every route transition. The React / Vue wrappers handle this when the component unmounts — but if you wire the connection inside a `useEffect`, return a cleanup function that calls `disconnect()`.
+`disconnect()` unsubscribes event handlers on `live` and removes chart series. Skip it and you leak listeners + series on every route transition. The React / Vue wrappers do **not** manage an `IndicatorConnection` — `TrendChart` only takes precomputed series props. If you wire `connectIndicators` inside a `useEffect` (React) or `onMounted`/`watchEffect` (Vue), always register a cleanup that calls `conn.disconnect()`.
 
 ### Expecting `live.completedCandles` to include `history`
 
 `createLiveCandle`'s `history` option is for **warm-up context only** — it's used to advance the incremental indicators so they're not stuck in their warm-up period. It does **not** become part of `completedCandles`.
 
-When `connectIndicators` sets up the chart, it uses `candles` for backfill **and** tries to prime the chart with `live.completedCandles` if non-empty. Be explicit about which source drives `setCandles()`.
+When `connectIndicators` sets up the chart, it uses `candles` for indicator backfill **and** — unless you pass `initHistory: false` — calls `chart.setCandles(live.completedCandles)` unconditionally, even when `completedCandles` is empty, which clears any candles you set yourself. Pass `initHistory: false` to keep your own `setCandles()` data.
 
 ### Re-using the same `live` across charts
 
-One `LiveCandle` per data source; one chart per view. If you need the same data on two charts, register indicators on both via `connectIndicators` — they'll share the underlying `live` state.
+One `LiveCandle` per data source; one chart per view. Sharing the same `live` across two `connectIndicators` connections is not supported out of the box: adding the same preset from the second connection derives the same snapshot name, and `LiveCandle.addIndicator` throws `Indicator "<name>" already registered`. Either give the second connection a distinct explicit `snapshotName` per add (this registers a separate indicator instance — incremental state is not shared), or drive the second chart directly from `live.on('tick')`.
 
 ### Forgetting to handle `partial: true`
 
@@ -2190,7 +2474,7 @@ The chart exposes two plugin surfaces:
 | **Series renderer** | A new series type with its own rendering logic | "I need to draw Renko / Point&Figure / a custom candle style" |
 | **Pane primitive** | A free-form overlay on a pane (not tied to a data series) | "I want to draw support zones / session backgrounds / a watermark per pane" |
 
-Both plugins are plain objects you register on the chart instance. No build step, no magic discovery — the chart just calls your `render` function every frame.
+Both plugins are plain objects you register on the chart instance. No build step, no magic discovery — the chart just calls your `render` function on every invalidated frame.
 
 ## Table of Contents
 
@@ -2217,13 +2501,14 @@ SeriesRendererPlugin:                       Plugin owns: render, price range,
 
 PrimitivePlugin:                            Plugin owns: state, render
   plugin defines defaultState → chart       Chart owns: pane layout, z-order,
-  calls render(state) every frame           canvas lifecycle
+  calls render(state) on each               canvas lifecycle
+  invalidated frame
 ```
 
 - Pick a **series renderer** when you want per-bar data flowing through the standard `addIndicator` API and the chart to auto-scale around it.
 - Pick a **primitive** when you have a logically flat overlay (zones, bands, markers) that doesn't map cleanly onto a series.
 
-Many of TrendCraft's built-in visualizations (`addBacktest`, `addPatterns`, `addScores`, the regime heatmap, the SMC layer) are primitives.
+Several of TrendCraft's built-in visualizations (the regime heatmap, the SMC layer, and the other modules in `packages/chart/src/plugins/`) are primitives. `addBacktest`, `addPatterns`, and `addScores` are not — they use dedicated internal renderers, not the primitive system.
 
 ## Series renderer plugin
 
@@ -2345,7 +2630,7 @@ const myPrim = definePrimitive<MyState>({
 | `name` | `string` | Yes | Unique identifier. Used by `chart.removePrimitive(name)`. |
 | `pane` | `string` | Yes | Target pane: `'main'`, a specific pane id, or `'all'` to render on every pane. |
 | `zOrder` | `'below' \| 'above'` | Yes | Render order relative to series. `'below'` = backgrounds, `'above'` = annotations. |
-| `defaultState` | `TState` | Yes | Initial state object. The chart holds a mutable reference. |
+| `defaultState` | `TState` | Yes | Initial state object. The chart takes a shallow copy at registration, so later mutations of your original object are not seen — change state via the `update` hook or by re-registering under the same `name`. |
 | `render` | `(ctx, state) => void` | Yes | Draw the primitive. Called once per frame per matched pane. |
 | `update` | `(state) => state` | No | Optional state transform called before each render. Return a new state to replace the current one. |
 | `destroy` | `() => void` | No | Called on `chart.destroy()`. |
@@ -2363,6 +2648,7 @@ const myPrim = definePrimitive<MyState>({
 
 ### Coordinate conversion
 
+<!-- doctest-notypecheck: member-signature summary in `object.method(param: type): ret` pseudo-syntax -->
 ```typescript
 draw.x(index: number): number     // bar index → x pixel
 draw.y(price: number): number     // price → y pixel
@@ -2373,6 +2659,7 @@ draw.barSpacing                   // pixels per bar (readonly)
 
 ### Primitive shapes
 
+<!-- doctest-notypecheck: parameter-name summary in pseudo-syntax; the typed signatures live in API.md's DrawHelper block -->
 ```typescript
 draw.line(values, { color, lineWidth?, dash? })
 // Draw a polyline over an array indexed by bar. Null entries break the line.
@@ -2410,6 +2697,7 @@ Prefer `draw.scope` over manual `ctx.save() / ctx.restore()` — a bug where you
 
 `ctx` is always available on the context if you need methods `DrawHelper` doesn't cover:
 
+<!-- doctest-notypecheck: bare `render:` field fragment shown outside its plugin object -->
 ```typescript
 render: ({ ctx, draw, theme }) => {
   // DrawHelper for the common case
@@ -2427,7 +2715,7 @@ render: ({ ctx, draw, theme }) => {
 ```typescript
 type SeriesRenderContext = {
   ctx: CanvasRenderingContext2D;
-  series: InternalSeries;       // id, data, config, channels
+  series: InternalSeries;       // id, data, config
   timeScale: TimeScale;         // low-level scale (draw.x wraps this)
   priceScale: PriceScale;       // low-level scale (draw.y wraps this)
   dataLayer: DataLayer;         // global data model (rarely needed in plugins)
@@ -2448,6 +2736,7 @@ type PrimitiveRenderContext = {
   dataLayer: DataLayer;
   theme: ThemeColors;
   draw: DrawHelper;
+  fontFamily: string;           // ChartOptions.fontFamily (system stack by default)
 };
 ```
 
@@ -2479,7 +2768,7 @@ registerPrimitive(plugin)
 
 ### Primitive with external state
 
-If your primitive's state comes from outside the chart (e.g., a reactive store), keep a reference in the closure and read from it in `render`. The chart calls `render` every frame, so changes show up on the next tick.
+If your primitive's state comes from outside the chart (e.g., a reactive store), keep a reference in the closure and read from it in `render`. Rendering is invalidation-driven, not per-frame — after mutating the closure state, trigger a repaint (the simplest way is to re-register the primitive via `chart.registerPrimitive(...)`, which marks the chart dirty; any other chart mutation also works).
 
 ```typescript
 let currentZones: Zone[] = [];
@@ -2498,7 +2787,7 @@ const srZones = definePrimitive({
 export function setZones(zones: Zone[]) { currentZones = zones; }
 ```
 
-The built-in `connectRegimeHeatmap`, `connectSmcLayer`, etc. use this pattern — they return a handle that lets you push new state without re-registering.
+The built-in `connectRegimeHeatmap`, `connectSmcLayer`, etc. take a different approach: their handle's `update()` builds a fresh primitive with the new state baked into `defaultState` and calls `chart.registerPrimitive(...)` again — re-registering under the same name replaces the prior entry (and runs its `destroy`), which also marks the chart dirty so the update paints.
 
 ### Connect-style helpers
 
@@ -2530,29 +2819,34 @@ This keeps call sites clean and hides registration details.
 
 ```typescript
 // ✗ bad — allocates a new array every frame
-render: ({ draw, series }) => {
-  const values = series.data.map(d => d.value);  // allocation
+const badRender: SeriesRendererPlugin<unknown>['render'] = ({ draw, series }) => {
+  const values = series.data.map(d => d.value as number | null);  // allocation
   draw.line(values, { color: '#fff' });
-}
+};
 
-// ✓ good — precompute or cache
-const valuesCache = new WeakMap<InternalSeries, number[]>();
-render: ({ draw, series }) => {
-  let values = valuesCache.get(series);
-  if (!values || values.length !== series.data.length) {
-    values = series.data.map(d => d.value);
-    valuesCache.set(series, values);
+// ✓ good — precompute and cache, invalidating on the series data version.
+// `_dataVersion` bumps on every data mutation — including a same-length
+// live update that replaces the last candle in place — so keying on it
+// (not on `data.length`) avoids drawing stale values.
+const valuesCache = new WeakMap<InternalSeries, { version: number; values: (number | null)[] }>();
+const goodRender: SeriesRendererPlugin<unknown>['render'] = ({ draw, series }) => {
+  const version = series._dataVersion ?? 0;
+  let entry = valuesCache.get(series);
+  if (!entry || entry.version !== version) {
+    entry = { version, values: series.data.map(d => d.value as number | null) };
+    valuesCache.set(series, entry);
   }
-  draw.line(values, { color: '#fff' });
-}
+  draw.line(entry.values, { color: '#fff' });
+};
 ```
 
-For series renderers, the chart internally caches decomposed channels — use `series.channels.get(name)` instead of mapping `series.data` yourself.
+For series renderers, precompute or cache derived values (see the `WeakMap` example above) instead of re-mapping `series.data` on every frame.
 
 ### Defensive rendering
 
 Early-out when there's nothing to draw:
 
+<!-- doctest-notypecheck: bare `render:` field fragment shown outside its plugin object -->
 ```typescript
 render: ({ draw }, state) => {
   if (state.zones.length === 0) return;
@@ -2583,6 +2877,7 @@ my-plugin/
 └── tsconfig.json
 ```
 
+<!-- doctest-notypecheck: package-layout sketch — imports the hypothetical package's own './connect' / './state' modules -->
 ```typescript
 // src/index.ts
 import { definePrimitive, type PrimitivePlugin } from '@trendcraft/chart';
@@ -2594,7 +2889,7 @@ export function createMyPlugin(): PrimitivePlugin<MyState> {
 }
 ```
 
-For reference, TrendCraft's own shipped plugins (`regime-heatmap`, `smc-layer`, `wyckoff-phase`, `sr-confluence`, `trade-analysis`, `session-zones`) follow this pattern. They live in `packages/chart/src/plugins/` and export both the factory and connect helper from the main entry.
+For reference, TrendCraft's own shipped plugins (`regime-heatmap`, `smc-layer`, `wyckoff-phase`, `sr-confluence`, `trade-analysis`, `session-zones`, `andrews-pitchfork`, `volume-profile`, `market-profile`, `price-patterns`, `squeeze-dots`) follow this pattern. They live in `packages/chart/src/plugins/` and export both the factory and connect helper from the main entry.
 
 ---
 
@@ -2606,10 +2901,49 @@ Practical recipes for common charting tasks. Each recipe is self-contained and c
 
 ---
 
-## Recipe 1: Minimal candlestick chart
+## Recipe 1: Standalone candlestick chart (no dependencies)
 
-**Goal:** A chart with one indicator, no framework wrapper.
+**Goal:** A chart on plain OHLC data with one indicator, importing only from `@trendcraft/chart` — no `trendcraft` package required.
 
+<!-- doctest-run -->
+```typescript
+import { createChart } from "@trendcraft/chart";
+
+const container = document.getElementById("chart") as HTMLElement;
+const chart = createChart(container, { theme: "dark" });
+
+// Plain OHLC candle literals — any source works.
+// `time` is epoch milliseconds (Date.now() units), not seconds.
+const candles = [
+  { time: 1717200000000, open: 100, high: 104, low: 99, close: 103, volume: 1200 },
+  { time: 1717286400000, open: 103, high: 106, low: 102, close: 105, volume: 1500 },
+  { time: 1717372800000, open: 105, high: 105, low: 101, close: 102, volume: 1100 },
+  { time: 1717459200000, open: 102, high: 108, low: 102, close: 107, volume: 1800 },
+  { time: 1717545600000, open: 107, high: 110, low: 106, close: 109, volume: 2000 },
+];
+
+chart.setCandles(candles);
+
+// Add a plain { time, value }[] series as an indicator — no trendcraft needed.
+const movingAvg = [
+  { time: 1717372800000, value: 103.5 },
+  { time: 1717459200000, value: 104.8 },
+  { time: 1717545600000, value: 106.0 },
+];
+chart.addIndicator(movingAvg, { pane: "main", color: "#3b82f6", label: "MA(3)" });
+```
+
+The container needs an explicit height: `createChart` defaults to height 400 and takes its width from `clientWidth`, so a zero-height container renders blank — set e.g. `#chart { height: 400px }` in CSS.
+
+The series here is detected purely by its `{ time, value }[]` key shape, so any data source renders. When you do pair with TrendCraft, indicator output also carries placement metadata — see Recipe 1b.
+
+---
+
+## Recipe 1b: Minimal candlestick chart with a TrendCraft indicator
+
+**Goal:** The same chart, but letting a TrendCraft indicator auto-place itself.
+
+<!-- doctest-run -->
 ```typescript
 import { createChart } from "@trendcraft/chart";
 import { sma } from "trendcraft";
@@ -2621,7 +2955,7 @@ chart.setCandles(candles);
 chart.addIndicator(sma(candles, { period: 20 }));
 ```
 
-`sma()` returns a `Series<number>` carrying `__meta` describing pane, color, and label. The chart auto-detects all three. No `addIndicator` config needed.
+`sma()` returns a `Series<number>` carrying `__meta` describing pane placement (`overlay`) and label — the chart auto-detects both and assigns a color from its palette. No `addIndicator` config needed.
 
 ---
 
@@ -2629,16 +2963,20 @@ chart.addIndicator(sma(candles, { period: 20 }));
 
 **Goal:** Hook up many indicators at once via the bundled presets.
 
+<!-- doctest-run -->
 ```typescript
 import { connectIndicators, createChart } from "@trendcraft/chart";
 import { registerTrendCraftPresets } from "@trendcraft/chart/presets";
+import { indicatorPresets } from "trendcraft";
 
 const chart = createChart(container);
 registerTrendCraftPresets(chart);
 
-const conn = connectIndicators(chart, { candles });
+// `presets` is the indicator compute registry — required for `conn.add(...)`.
+// `registerTrendCraftPresets` only wires up rendering, not the math.
+const conn = connectIndicators(chart, { presets: indicatorPresets, candles });
 conn.add("sma", { period: 20 });
-conn.add("bollingerBands");
+conn.add("bb"); // Bollinger Bands — the `indicatorPresets` key is "bb"
 conn.add("rsi");
 conn.add("macd");
 ```
@@ -2653,14 +2991,14 @@ conn.add("macd");
 
 ```typescript
 chart.addIndicator(rsi(candles, { period: 14 }), {
-  pane: "new",
+  pane: "sub",
   yRange: [0, 100],
   referenceLines: [30, 70],
   color: "#f59e0b",
 });
 ```
 
-`pane: "new"` creates a fresh sub-pane. `pane: "main"` forces the main pane. Omit it to let `__meta` decide.
+`pane: "sub"` creates a fresh sub-pane (each call gets its own auto-generated pane). `pane: "main"` forces the main pane. Omit it to let `__meta` decide.
 
 ---
 
@@ -2713,10 +3051,11 @@ Default hotkeys: `Alt+H` (h-line), `Alt+T` (trendline), `Alt+F` (fib retracement
 
 ```typescript
 import { addAutoFibRetracement } from "@trendcraft/chart";
-import { swingPoints } from "trendcraft";
+import { getAlternatingSwingPoints } from "trendcraft";
 
-const swings = swingPoints(candles, { leftBars: 5, rightBars: 5 });
-addAutoFibRetracement(chart, swings, { lookback: 1 });
+// getAlternatingSwingPoints returns the SwingAnchor shape directly.
+const anchors = getAlternatingSwingPoints(candles, 10, { leftBars: 5, rightBars: 5 });
+addAutoFibRetracement(chart, anchors);
 ```
 
 Companions: `addAutoFibExtension`, `addAutoTrendLine`, `addAutoChannelLine`.
@@ -2750,9 +3089,11 @@ chart.addBacktest(result);
 
 ```typescript
 import { connectIndicators, createChart } from "@trendcraft/chart";
+import { registerTrendCraftPresets } from "@trendcraft/chart/presets";
 import { createLiveCandle, indicatorPresets } from "trendcraft";
 
 const chart = createChart(container);
+registerTrendCraftPresets(chart);
 chart.setCandles(history);
 
 const live = createLiveCandle({
@@ -2767,7 +3108,7 @@ const conn = connectIndicators(chart, {
   live,
 });
 conn.add("rsi");
-conn.add("bollingerBands");
+conn.add("bb"); // Bollinger Bands
 
 ws.on("trade", (t) => {
   live.addTick({ time: t.ts, price: t.px, volume: t.size });
@@ -2787,13 +3128,14 @@ See [LIVE.md](./LIVE.md) for backfill, reconnect, and pre-formed candle inputs.
 
 ## Recipe 9: React
 
-**Goal:** A reactive chart in React 19+.
+**Goal:** A reactive chart in React 18+.
 
 ```tsx
 import { TrendChart } from "@trendcraft/chart/react";
-import { sma, rsi } from "trendcraft";
+import { sma, rsi, type NormalizedCandle } from "trendcraft";
 
-export function ChartView({ candles }: { candles: Candle[] }) {
+// NormalizedCandle (numeric time) satisfies both trendcraft indicators and the chart
+export function ChartView({ candles }: { candles: NormalizedCandle[] }) {
   const indicators = [
     sma(candles, { period: 20 }),
     sma(candles, { period: 50 }),
@@ -2810,7 +3152,7 @@ export function ChartView({ candles }: { candles: Candle[] }) {
 }
 ```
 
-Need imperative access? Use `useTrendChart()` and read `chartRef.current` once mounted.
+Need imperative access? Use `useTrendChart()`, which returns `{ containerRef, chart }` — spread `containerRef` onto your own `<div ref={containerRef} />` and read `chart` (the `ChartInstance`, `null` until mounted).
 
 ---
 
@@ -2864,7 +3206,7 @@ for (const ticker of tickers) {
 }
 ```
 
-The sparkline subpath has its own bundle budget (see `packages/chart/.size-limit.json`) and does not pull in the main chart code.
+The sparkline subpath has its own bundle budget (see the `size-limit` field in `packages/chart/package.json`) and does not pull in the main chart code.
 
 ---
 
@@ -2891,26 +3233,73 @@ Switch modes at runtime via `chart.applyOptions({ crosshair: { mode: "magnet" } 
 ```typescript
 import { definePrimitive } from "@trendcraft/chart";
 
-const zonePlugin = definePrimitive({
-  name: "supportZone",
-  initialState: { lo: 0, hi: 0 },
-  draw(ctx, state, helpers) {
-    const y1 = helpers.priceToY(state.lo);
-    const y2 = helpers.priceToY(state.hi);
-    ctx.fillStyle = "rgba(34,197,94,0.12)";
-    ctx.fillRect(0, Math.min(y1, y2), helpers.width, Math.abs(y2 - y1));
-  },
-});
+type ZoneState = { lo: number; hi: number };
 
-chart.registerPrimitive(zonePlugin);
-chart.setPrimitiveState("supportZone", { lo: 140, hi: 145 });
+function createSupportZone(state: ZoneState) {
+  return definePrimitive<ZoneState>({
+    name: "supportZone",
+    pane: "main",
+    zOrder: "below",
+    defaultState: state,
+    render: ({ ctx, priceScale, pane }, { lo, hi }) => {
+      const y1 = priceScale.priceToY(lo);
+      const y2 = priceScale.priceToY(hi);
+      ctx.fillStyle = "rgba(34,197,94,0.12)";
+      ctx.fillRect(pane.x, Math.min(y1, y2), pane.width, Math.abs(y2 - y1));
+    },
+  });
+}
+
+chart.registerPrimitive(createSupportZone({ lo: 140, hi: 145 }));
+
+// To change the zone, re-register with new state (overwrites by name):
+chart.registerPrimitive(createSupportZone({ lo: 138, hi: 143 }));
 ```
+
+`render(context, state)` receives the live `priceScale` (use `priceScale.priceToY(price)`) and `pane` rect (`pane.x`, `pane.y`, `pane.width`, `pane.height`). State comes from `defaultState`; update it by re-registering the plugin under the same `name`, or via the optional `update(state)` hook called before each frame. Remove with `chart.removePrimitive("supportZone")`.
 
 For series-type plugins (e.g. footprint candles), use `defineSeriesRenderer`. See [PLUGINS.md](./PLUGINS.md).
 
 ---
 
-## Recipe 14: PNG export
+## Recipe 14: Swapping the candle dataset (symbol / timeframe change)
+
+**Goal:** Replace the chart's candles with an unrelated dataset (a different symbol, a new timeframe, a freshly uploaded file) without leaving primitive overlays anchored to the old (time, price) coordinates.
+
+Chart primitives — anything registered via `registerPrimitive` or the built-in `connectPricePatterns` / `connectVolumeProfile` / `connectSrConfluence` / etc. — capture their coordinates at build time and **do not** auto-invalidate when `setCandles` runs. This is intentional and matches TradingView Lightweight Charts and Highcharts behavior, where annotations stay attached and re-project from `(time, price)` each frame. The downside is that primitives built from the previous data can render at coordinates that happen to overlap the new view, silently misleading the reader.
+
+The cleanup pattern:
+
+```typescript
+function loadDataset(next: CandleData[]) {
+  // Drop overlays anchored to the old candles. Renderers, series, and
+  // drawings are independent — they update on their own.
+  chart.removeAllPrimitives();
+  chart.setCandles(next);
+
+  // Re-register any primitives that should follow the new data,
+  // recomputed from the fresh candles.
+  if (showPatterns) {
+    connectPricePatterns(chart, [
+      ...doubleBottom(next),
+      ...doubleTop(next),
+      ...inverseHeadAndShoulders(next),
+      ...headAndShoulders(next),
+    ]);
+  }
+}
+```
+
+When *not* to call `removeAllPrimitives`:
+
+- `updateCandle(latest)` / streaming bar appends — the time axis only grows; existing primitives still anchor to valid coordinates.
+- User drawing tools anchored to specific dates the user picked — those are owned by the chart's drawing layer (`addDrawing` / `removeDrawing`), not primitives.
+
+For React / Vue wrappers, calling `chart.removeAllPrimitives()` before the effect that calls `setCandles` (or making it part of the same `useEffect` deps trigger) is the equivalent host-side pattern.
+
+---
+
+## Recipe 15: PNG export
 
 **Goal:** Save the current chart as a PNG.
 
@@ -2928,7 +3317,7 @@ URL.revokeObjectURL(url);
 
 ---
 
-## Recipe 15: Headless usage (SSR / tests)
+## Recipe 16: Headless usage (SSR / tests)
 
 **Goal:** Compute layout, scales, or LTTB-decimated series on the server.
 
@@ -2939,10 +3328,10 @@ const data = new DataLayer();
 data.setCandles(candles);
 
 const time = new TimeScale();
-time.setRange(candles[0].time, candles[candles.length - 1].time);
+time.setTotalCount(candles.length);
 
 const price = new PriceScale();
-price.setRangeFromCandles(candles);
+price.setDataRange(Math.min(...candles.map((c) => c.low)), Math.max(...candles.map((c) => c.high)));
 
 // Decimate a long series for a 480-pixel-wide thumbnail
 const decimated = lttb(series, 480);

@@ -20,6 +20,9 @@ layers:
   out 16×; also reachable before via `fitContent` on very large datasets).
 - Dragging from a fractional resting position no longer snaps the viewport
   by the fractional part on the first pixel of movement.
+- A touch gesture cancelled by the system (`touchcancel` — incoming call,
+  browser gesture takeover) now ends the drag like `touchend` instead of
+  leaving a stuck drag state.
 - An animated range transition lands on the exact target span even below
   one bar per screen (the interpolation floored the bar count to 1).
 - A beyond-left viewport no longer blanks number-line series (a negative
@@ -108,6 +111,11 @@ Built-in primitives honor it too. Default remains the previous system stack
 `applyOptions({ fontFamily })` updates live without re-creating the chart.
 Also exports `DEFAULT_FONT_FAMILY` and `canvasFont()` for plugins that draw
 their own labels.
+
+For plugin authors: `PrimitiveRenderContext` gained a required `fontFamily`
+field (the built-in primitives use it for their labels). Code that
+*constructs* this context type — typically plugin test harnesses — must add
+the field; plugins that only consume the context are unaffected.
 
 ```ts
 createChart(el, {
