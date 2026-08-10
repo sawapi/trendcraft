@@ -229,6 +229,40 @@ describe("Viewport.attach() — scrollbar drag", () => {
   });
 });
 
+// Contract: the DOM-level jump-to-end consumers land where scrollToEnd()
+// lands (see scroll-to-end-contract.test.ts for the TimeScale-level paths).
+describe.each([
+  { label: "fractional rightOffset", rightOffset: 7.5, gaps: false },
+  { label: "rightOffset with session gaps", rightOffset: 7, gaps: true },
+])("Viewport.attach() — jump-to-end parity ($label)", ({ rightOffset, gaps }) => {
+  function setupWithConfig() {
+    const s = setup();
+    if (gaps)
+      s.ts.setGapsBefore([
+        { index: 200, size: 3 },
+        { index: 400, size: 5 },
+      ]);
+    s.ts.setRightOffset(rightOffset);
+    return s;
+  }
+
+  it("End key lands on scrollToEndTarget", () => {
+    const s = setupWithConfig();
+    fireKey(s.el, "End");
+    expect(s.ts.rawStartIndex).toBe(s.ts.scrollToEndTarget);
+    s.detach();
+  });
+
+  it("scrollbar far-right lands on scrollToEndTarget", () => {
+    const s = setupWithConfig();
+    fireMouse(s.el, "mousedown", 200, 585);
+    fireMouse(s.el, "mousemove", 800, 585);
+    fireMouse(s.el, "mouseup", 800, 585);
+    expect(s.ts.rawStartIndex).toBe(s.ts.scrollToEndTarget);
+    s.detach();
+  });
+});
+
 describe("Viewport.attach() — pane resize via gap", () => {
   it("calls resizePanes with delta when dragging gap", () => {
     const gapAtY = (y: number) => (y >= 398 && y <= 402 ? 0 : null);
