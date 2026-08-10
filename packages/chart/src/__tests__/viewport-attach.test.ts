@@ -261,6 +261,16 @@ describe.each([
     expect(s.ts.rawStartIndex).toBe(s.ts.scrollToEndTarget);
     s.detach();
   });
+
+  it("scrollbar far-right track click lands on scrollToEndTarget", () => {
+    const s = setupWithConfig();
+    // Direct click outside the thumb: the page-jump path computes its own
+    // center-on-cursor start, so it must share the same boundary owner.
+    fireMouse(s.el, "mousedown", 800, 585);
+    fireMouse(s.el, "mouseup", 800, 585);
+    expect(s.ts.rawStartIndex).toBe(s.ts.scrollToEndTarget);
+    s.detach();
+  });
 });
 
 describe("Viewport.attach() — pane resize via gap", () => {
