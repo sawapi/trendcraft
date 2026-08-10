@@ -3,6 +3,7 @@
  */
 
 import type { TimeScale } from "../core/scale";
+import { scrollbarThumbRect } from "../core/scrollbar-geometry";
 import type { ThemeColors } from "../core/types";
 
 /**
@@ -39,13 +40,11 @@ export function renderScrollbar(
   ctx.fillStyle = theme.grid;
   ctx.fillRect(x, trackY, width, trackH);
 
-  // Thumb (visible range)
-  const total = timeScale.totalCount;
-  const startFrac = Math.max(0, timeScale.startIndex / total);
-  const endFrac = Math.min(1, timeScale.endIndex / total);
-
-  const thumbX = x + startFrac * width;
-  const thumbW = Math.max(8, (endFrac - startFrac) * width);
+  // Thumb (visible range) — geometry shared with the pointer hit-test
+  const thumb = scrollbarThumbRect(timeScale, x, width);
+  if (!thumb) return;
+  const thumbX = thumb.x;
+  const thumbW = thumb.width;
 
   ctx.fillStyle = theme.textSecondary;
   ctx.globalAlpha = 0.4;
