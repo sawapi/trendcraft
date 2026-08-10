@@ -197,6 +197,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-08-10
+
 ### Fixed — interaction and event hardening for logical-range viewports
 
 The states the logical-range API makes reachable (fractional resting
@@ -907,6 +909,9 @@ Initial public release.
 - `react` (optional, `>=19.0.0`) — required only when using the React wrapper.
 - `vue` (optional, `>=3.3.0`) — required only when using the Vue wrapper.
 
+[0.5.0]: https://github.com/sawapi/trendcraft/releases/tag/chart-v0.5.0
+[0.4.0]: https://github.com/sawapi/trendcraft/releases/tag/chart-v0.4.0
+[0.3.0]: https://github.com/sawapi/trendcraft/releases/tag/chart-v0.3.0
 [0.2.0]: https://github.com/sawapi/trendcraft/releases/tag/chart-v0.2.0
 [0.1.0]: https://github.com/sawapi/trendcraft/releases/tag/chart-v0.1.0
 
