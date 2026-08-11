@@ -8,6 +8,7 @@
  */
 
 import type { InternalSeries } from "../core/data-layer";
+import { DEFAULT_FONT_FAMILY } from "../core/font";
 import { escapeHtml } from "../core/html";
 import { type ChartLocale, DEFAULT_LOCALE } from "../core/i18n";
 import type { ThemeColors } from "../core/types";
@@ -27,13 +28,18 @@ export class LegendOverlay {
 
   private _styleEl: HTMLStyleElement | null = null;
 
-  constructor(container: HTMLElement, theme: ThemeColors, locale?: ChartLocale) {
+  constructor(
+    container: HTMLElement,
+    theme: ThemeColors,
+    locale?: ChartLocale,
+    fontFamily: string = DEFAULT_FONT_FAMILY,
+  ) {
     this._theme = theme;
     this._locale = locale ?? DEFAULT_LOCALE;
 
     this._styleEl = document.createElement("style");
     this._styleEl.textContent =
-      '.tc-legend{position:absolute;top:22px;right:68px;left:4px;z-index:10;display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;font-size:11px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;pointer-events:none}' +
+      ".tc-legend{position:absolute;top:22px;right:68px;left:4px;z-index:10;display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;font-size:11px;pointer-events:none}" +
       ".tc-legend-row{display:inline-flex;align-items:center;gap:2px;pointer-events:auto}" +
       ".tc-legend-btn,.tc-legend-action{cursor:pointer;background:none;border:none;font:inherit;color:inherit;pointer-events:auto}" +
       ".tc-legend-btn{white-space:nowrap;padding:2px 4px;line-height:inherit;min-height:24px}" +
@@ -48,6 +54,7 @@ export class LegendOverlay {
 
     this._el = document.createElement("div");
     this._el.className = "tc-legend";
+    this._el.style.fontFamily = fontFamily;
     container.appendChild(this._el);
 
     // Single delegated click handler — never leaked across `update()` calls.
@@ -101,6 +108,10 @@ export class LegendOverlay {
 
   setTheme(theme: ThemeColors): void {
     this._theme = theme;
+  }
+
+  setFontFamily(fontFamily: string): void {
+    this._el.style.fontFamily = fontFamily;
   }
 
   /**

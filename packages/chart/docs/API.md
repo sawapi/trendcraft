@@ -11,8 +11,8 @@ Complete API surface for `@trendcraft/chart`. This is the reference; for concept
 | `@trendcraft/chart/presets` | `registerTrendCraftPresets` — opt-in introspection rules + visual presets for TrendCraft-specific indicator shapes | Browser only |
 | `@trendcraft/chart/sparkline` | `createSparkline`, `createSparklineGroup`, line/candle mini-chart renderers | Browser only |
 | `@trendcraft/chart/replay` | `createLiveSimulator` — replay historical candles as a live feed | Any (Node / SSR / tests) |
-| `@trendcraft/chart/react` | `TrendChart` component, `useTrendChart` hook | React 19+, browser only |
-| `@trendcraft/chart/react/sparkline` | `Sparkline`, `SparklineList` React components | React 19+, browser only |
+| `@trendcraft/chart/react` | `TrendChart` component, `useTrendChart` hook | React 18+, browser only |
+| `@trendcraft/chart/react/sparkline` | `Sparkline`, `SparklineList` React components | React 18+, browser only |
 | `@trendcraft/chart/vue` | `TrendChart` component, `useTrendChart` composable | Vue 3.3+, browser only |
 | `@trendcraft/chart/vue/sparkline` | `Sparkline`, `SparklineList` Vue components | Vue 3.3+, browser only |
 
@@ -71,8 +71,8 @@ All fields optional.
 | `pixelRatio` | `number` | `window.devicePixelRatio` | Canvas backing-store ratio (one-time; not runtime-mutable) |
 | `priceAxisWidth` | `number` | `60` | Right axis width (px) |
 | `timeAxisHeight` | `number` | `32` | Bottom axis height (px) |
-| `fontFamily` | `string` | system | Font family (one-time) |
-| `fontSize` | `number` | `11` | Font size (px) |
+| `fontFamily` | `string` | system UI stack | Font family for canvas axis/crosshair/overlay text and DOM legend/info overlays. Runtime-updatable via `applyOptions` |
+| `fontSize` | `number` | `11` | Font size (px). Runtime-updatable via `applyOptions` |
 | `priceFormatter` | `(price: number) => string` | auto-precision | Custom price formatter |
 | `timeFormatter` | `(time: number) => string` | smart date/time | Custom time formatter |
 | `watermark` | `string` | — | Background watermark text |
@@ -89,8 +89,33 @@ All fields optional.
 | `interaction` | `{ wheelInertia?: boolean }` | `{ wheelInertia: true }` | Trackpad/wheel inertia for pan + zoom. Disable to stop the synthetic deceleration tail (macOS OS-level momentum is independent and always processed). (one-time) |
 | `showSeriesBadges` | `boolean` | `false` | Render a colored pill on the right price axis for each labeled series, mirroring the candle current-price badge. Multi-channel series get one pill per channel. |
 | `seriesBadgeMode` | `'absolute' \| 'visible'` | `'absolute'` | `'absolute'` shows the latest non-null value in the data array (live "current" value). `'visible'` shows the latest non-null value within the current visible range. |
+| `timeScale` | `TimeScaleOptions` | — | Time-scale behavior — see [Time scale](#time-scale). Runtime-updatable via `applyOptions` |
 
 Options marked "one-time" cannot be changed via `applyOptions()` — a warning is emitted via the `error` event if you try, except `hotkeys` and `interaction`, which are currently ignored silently (no warning).
+
+### Time scale
+
+```typescript
+type TimeScaleOptions = {
+  sessionGaps?: boolean | SessionGapsOptions;
+  rightOffset?: number;
+};
+```
+
+`sessionGaps` inserts visual gaps between trading sessions (overnight breaks,
+weekends) in intraday data instead of compressing non-trading hours to a
+zero-width seam. `true` auto-detects gaps from the median bar interval; the
+object form gives fine-grained control (`mode: 'timeGap' | 'dayBoundary' |
+'off'`, `gapThresholdMs`, `intradayThresholdMs`, `sizeBars`).
+
+`rightOffset` (default `0`) reserves that many bar-slots of empty space
+between the last candle and the price axis, so the forming candle isn't drawn
+flush against the right edge. Units are bar-slots (fractional allowed), so
+the margin scales with zoom. The margin is maintained while following the
+live edge and honored by `scrollToEnd`-style navigation (keyboard End
+included), `fitContent()`, and duration presets. Values that would leave
+fewer than 2 bars visible are capped; negative or non-finite values are
+rejected with a warning.
 
 ### Crosshair
 
@@ -334,7 +359,7 @@ All time values are epoch milliseconds.
 |---|---|
 | `crosshairMove` | `CrosshairMoveData = { time, index, ohlcv, paneId }` |
 | `click` | `ChartClickData = { x, y, index, time, shiftKey, altKey, metaKey, ctrlKey }` |
-| `visibleRangeChange` | `VisibleRangeChangeData = { startTime, endTime, startIndex, endIndex }` |
+| `visibleRangeChange` | `VisibleRangeChangeData = { startTime, endTime, startIndex, endIndex, logicalRange? }` — time/index fields are clamped to the data; `logicalRange: { from, to }` carries the unclamped fractional window edges (always populated; a right-edge margin is only visible here) |
 | `resize` | `{ width: number, height: number }` |
 | `paneResize` | `{ paneId: string, height: number }` |
 | `seriesAdded` | `{ id: string, label: string }` |

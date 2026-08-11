@@ -113,11 +113,24 @@ describe("applyOptions", () => {
     const errors: Array<{ message: string; detail: unknown }> = [];
     chart.on("error", (d) => errors.push(d as { message: string; detail: unknown }));
 
-    chart.applyOptions({ pixelRatio: 2, fontFamily: "monospace" });
+    chart.applyOptions({ pixelRatio: 2, scrollSensitivity: 0.5 });
 
     expect(errors).toHaveLength(1);
     expect(errors[0]?.message).toContain("pixelRatio");
-    expect(errors[0]?.message).toContain("fontFamily");
+    expect(errors[0]?.message).toContain("scrollSensitivity");
+    chart.destroy();
+  });
+
+  it("applies fontFamily at runtime without warning", () => {
+    const chart = createChart(makeContainer());
+    const errors: Array<{ message: string; detail: unknown }> = [];
+    chart.on("error", (d) => errors.push(d as { message: string; detail: unknown }));
+
+    chart.applyOptions({
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    });
+
+    expect(errors).toHaveLength(0);
     chart.destroy();
   });
 

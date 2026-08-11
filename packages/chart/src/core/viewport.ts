@@ -26,6 +26,7 @@ import type {
 } from "./interaction/types";
 import { attachWheelHandlers } from "./interaction/wheel-handler";
 import type { TimeScale } from "./scale";
+import { scrollbarThumbRect } from "./scrollbar-geometry";
 import type { HotkeyAction, PaneRect } from "./types";
 
 export type { ScrollbarRect, ViewportState } from "./interaction/types";
@@ -98,7 +99,10 @@ export class Viewport {
     const total = timeScale.totalCount;
     if (total <= 0) return;
     const visible = timeScale.visibleCount;
-    const maxStart = Math.max(0, total - visible);
+    // Far right lands where scrollToEnd/End lands — honors rightOffset and
+    // session-gap layouts. `total - visible` here would strand the thumb's
+    // rightmost position flush against the last bar, eating the margin.
+    const maxStart = timeScale.scrollToEndTarget;
     const pointerFrac = (mouseX - sb.x) / sb.width;
 
     let newStart: number;
@@ -121,17 +125,14 @@ export class Viewport {
    */
   private _beginScrollbarDrag(mouseX: number, sb: ScrollbarRect, timeScale: TimeScale): void {
     this._drag.scrollbarDragging = true;
-    const total = timeScale.totalCount;
-    if (sb.width <= 0 || total <= 0) {
+    // Geometry shared with the renderer — the grabbable thumb IS the drawn one.
+    const thumb = scrollbarThumbRect(timeScale, sb.x, sb.width);
+    if (!thumb) {
       this._drag.scrollbarGrabOffsetFrac = null;
       return;
     }
-    const startFrac = Math.max(0, timeScale.startIndex / total);
-    const endFrac = Math.min(1, timeScale.endIndex / total);
-    const thumbX = sb.x + startFrac * sb.width;
-    const thumbW = Math.max(8, (endFrac - startFrac) * sb.width);
-    if (mouseX >= thumbX && mouseX <= thumbX + thumbW) {
-      this._drag.scrollbarGrabOffsetFrac = (mouseX - sb.x) / sb.width - startFrac;
+    if (mouseX >= thumb.x && mouseX <= thumb.x + thumb.width) {
+      this._drag.scrollbarGrabOffsetFrac = (mouseX - sb.x) / sb.width - thumb.startFrac;
     } else {
       this._drag.scrollbarGrabOffsetFrac = null;
       this._applyScrollbarDrag(mouseX, sb, timeScale);

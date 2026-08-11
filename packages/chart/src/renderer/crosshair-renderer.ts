@@ -8,6 +8,7 @@
  */
 
 import { pickReadableTextColor } from "../core/color-utils";
+import { canvasFont, DEFAULT_FONT_FAMILY } from "../core/font";
 import { autoFormatPrice, formatCrosshairTime, measureTextWidth } from "../core/format";
 import type { PriceScale, TimeScale } from "../core/scale";
 import type { CandleData, CrosshairMode, PaneRect, ThemeColors } from "../core/types";
@@ -36,6 +37,7 @@ export function renderCrosshair(
   candles?: readonly CandleData[],
   leftPriceScales?: Map<string, PriceScale>,
   options?: CrosshairRenderOptions,
+  fontFamily: string = DEFAULT_FONT_FAMILY,
 ): void {
   if (viewportState.crosshairIndex === null) return;
 
@@ -86,14 +88,14 @@ export function renderCrosshair(
     // Price label on right axis
     if (ps) {
       const price = ps.yToPrice(snappedY - activePane.y);
-      drawPriceLabel(ctx, price, priceAxisX, snappedY, theme, fontSize, "right");
+      drawPriceLabel(ctx, price, priceAxisX, snappedY, theme, fontSize, "right", fontFamily);
     }
 
     // Price label on left axis (if left scale has series)
     const leftPs = leftPriceScales?.get(activePane.id);
     if (leftPs) {
       const leftPrice = leftPs.yToPrice(snappedY - activePane.y);
-      drawPriceLabel(ctx, leftPrice, activePane.x, snappedY, theme, fontSize, "left");
+      drawPriceLabel(ctx, leftPrice, activePane.x, snappedY, theme, fontSize, "left", fontFamily);
     }
   }
 
@@ -107,7 +109,7 @@ export function renderCrosshair(
   ) {
     const candle = candles[viewportState.crosshairIndex];
     if (candle) {
-      drawTimeLabel(ctx, candle.time, x, timeAxisY, theme, fontSize);
+      drawTimeLabel(ctx, candle.time, x, timeAxisY, theme, fontSize, fontFamily);
     }
   }
 }
@@ -155,9 +157,10 @@ function drawPriceLabel(
   theme: ThemeColors,
   fontSize: number,
   position: "left" | "right" = "right",
+  fontFamily: string = DEFAULT_FONT_FAMILY,
 ): void {
   const label = autoFormatPrice(price);
-  ctx.font = `${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+  ctx.font = canvasFont(fontSize, fontFamily);
   const padX = 6;
   const padY = 4;
   const labelWidth = measureTextWidth(ctx, label) + padX * 2;
@@ -187,9 +190,10 @@ function drawTimeLabel(
   y: number,
   theme: ThemeColors,
   fontSize: number,
+  fontFamily: string = DEFAULT_FONT_FAMILY,
 ): void {
   const label = formatCrosshairTime(time);
-  ctx.font = `${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+  ctx.font = canvasFont(fontSize, fontFamily);
   const padX = 6;
   const padY = 3;
   const labelWidth = measureTextWidth(ctx, label) + padX * 2;

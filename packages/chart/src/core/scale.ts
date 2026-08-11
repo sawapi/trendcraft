@@ -385,16 +385,25 @@ export class TimeScale {
     this.clamp();
   }
 
+  /** Start index {@link scrollToEnd} lands on: last candles pinned to the
+   *  right edge plus the configured right offset, resolved through virtual
+   *  units so session-gap layouts map correctly. Single owner of the "end"
+   *  position for every jump-to-end consumer (End key, live snap, scrollbar
+   *  far-right) — never re-derive it as `total - visible`. */
+  get scrollToEndTarget(): number {
+    const targetVirt = Math.max(
+      0,
+      this.virtualTotal + this.effectiveRightOffset() - this._visibleCount,
+    );
+    return Math.max(0, this.realAtVirt(targetVirt));
+  }
+
   /** Scroll to show the last candles plus the configured right offset.
    *  virtualTotal already accounts for the last bar's own slot (see getter);
    *  when everything fits the target is clamped to 0 by the Math.max. */
   scrollToEnd(): void {
     this._granted = null; // explicit navigation releases any viewport grant
-    const targetVirt = Math.max(
-      0,
-      this.virtualTotal + this.effectiveRightOffset() - this._visibleCount,
-    );
-    this._startIndex = Math.max(0, this.realAtVirt(targetVirt));
+    this._startIndex = this.scrollToEndTarget;
   }
 
   /**

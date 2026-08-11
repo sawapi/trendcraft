@@ -28,6 +28,7 @@
  */
 
 import { withPaneClip } from "../core/draw-helper";
+import { canvasFont } from "../core/font";
 import type { PrimitivePlugin, PrimitiveRenderContext } from "../core/plugin-types";
 import { definePrimitive } from "../core/plugin-types";
 import type { ChartInstance, DataPoint } from "../core/types";
@@ -200,7 +201,7 @@ function collectPhaseSpans(phases: readonly WyckoffDataPoint[]): PhaseSpan[] {
 // ---- Render ----
 
 function renderWyckoffPhase(
-  { ctx, pane, timeScale, priceScale }: PrimitiveRenderContext,
+  { ctx, pane, timeScale, priceScale, fontFamily }: PrimitiveRenderContext,
   state: WyckoffPhaseState,
 ): void {
   const { phases, vsa, candles, options } = state;
@@ -239,7 +240,7 @@ function renderWyckoffPhase(
 
     // ----- 2. Event labels -----
     if (options.showEventLabels) {
-      ctx.font = "10px -apple-system, BlinkMacSystemFont, sans-serif";
+      ctx.font = canvasFont(10, fontFamily);
       ctx.textAlign = "center";
       for (let i = start; i < end && i < phases.length; i++) {
         const point = phases[i];
@@ -326,7 +327,7 @@ function renderWyckoffPhase(
       const text = `Wyckoff: ${label} (${conf.toFixed(0)})`;
       const rgb = PHASE_COLORS[last.phase] ?? PHASE_COLORS.unknown;
 
-      ctx.font = "bold 11px -apple-system, BlinkMacSystemFont, sans-serif";
+      ctx.font = canvasFont(11, fontFamily, "bold");
       ctx.textAlign = "left";
       ctx.textBaseline = "top";
       const textWidth = ctx.measureText(text).width;

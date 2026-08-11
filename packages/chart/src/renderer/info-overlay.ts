@@ -4,6 +4,7 @@
  */
 
 import type { InternalSeries } from "../core/data-layer";
+import { DEFAULT_FONT_FAMILY } from "../core/font";
 import { autoFormatPrice, formatVolume } from "../core/format";
 import { escapeHtml } from "../core/html";
 import { type ChartLocale, DEFAULT_LOCALE } from "../core/i18n";
@@ -22,6 +23,7 @@ export class InfoOverlay {
   private _priceFormatter: (price: number) => string;
   private _formatInfoOverlay: ((data: InfoOverlayData) => string | null) | null;
   private _locale: ChartLocale;
+  private _fontFamily: string;
 
   private _styleEl: HTMLStyleElement | null = null;
 
@@ -31,6 +33,7 @@ export class InfoOverlay {
     priceFormatter?: (price: number) => string,
     formatInfoOverlay?: (data: InfoOverlayData) => string | null,
     locale?: ChartLocale,
+    fontFamily: string = DEFAULT_FONT_FAMILY,
   ) {
     this._container = container;
     this._container.style.position = "relative";
@@ -38,11 +41,12 @@ export class InfoOverlay {
     this._priceFormatter = priceFormatter ?? autoFormatPrice;
     this._formatInfoOverlay = formatInfoOverlay ?? null;
     this._locale = locale ?? DEFAULT_LOCALE;
+    this._fontFamily = fontFamily;
 
     // Inject responsive styles once
     this._styleEl = document.createElement("style");
     this._styleEl.textContent = `
-      .tc-info { position:absolute; z-index:10; pointer-events:none; font-size:11px; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; line-height:1.4; white-space:nowrap; max-width:calc(100% - 8px); overflow:hidden; text-overflow:ellipsis; }
+      .tc-info { position:absolute; z-index:10; pointer-events:none; font-size:11px; line-height:1.4; white-space:nowrap; max-width:calc(100% - 8px); overflow:hidden; text-overflow:ellipsis; }
       @media (max-width:480px) { .tc-info { white-space:normal; font-size:10px; max-width:90vw; overflow:visible; text-overflow:clip; } }
     `;
     container.appendChild(this._styleEl);
@@ -57,11 +61,20 @@ export class InfoOverlay {
   private createInfoElement(): HTMLElement {
     const el = document.createElement("div");
     el.className = "tc-info";
+    el.style.fontFamily = this._fontFamily;
     return el;
   }
 
   setTheme(theme: ThemeColors): void {
     this._theme = theme;
+  }
+
+  setFontFamily(fontFamily: string): void {
+    this._fontFamily = fontFamily;
+    this._mainInfo.style.fontFamily = fontFamily;
+    for (const el of this._paneInfos.values()) {
+      el.style.fontFamily = fontFamily;
+    }
   }
 
   setRendererRegistry(registry: RendererRegistry): void {

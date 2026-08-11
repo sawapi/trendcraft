@@ -22,6 +22,7 @@
  */
 
 import { withPaneClip } from "../core/draw-helper";
+import { canvasFont } from "../core/font";
 import type { PrimitivePlugin, PrimitiveRenderContext } from "../core/plugin-types";
 import { definePrimitive } from "../core/plugin-types";
 import type { ChartInstance } from "../core/types";
@@ -90,7 +91,7 @@ const DEFAULT_VALUE_AREA_BOUNDS_COLOR = "rgba(100,149,237,0.75)";
 // ---- Render ----
 
 function renderVolumeProfile(
-  { ctx, pane, priceScale }: PrimitiveRenderContext,
+  { ctx, pane, priceScale, fontFamily }: PrimitiveRenderContext,
   state: VolumeProfileState,
 ): void {
   const {
@@ -145,7 +146,7 @@ function renderVolumeProfile(
       ctx.fillStyle = valueAreaBoundsColor;
       ctx.lineWidth = 1;
       ctx.setLineDash([4, 3]);
-      ctx.font = "10px -apple-system, BlinkMacSystemFont, sans-serif";
+      ctx.font = canvasFont(10, fontFamily);
       ctx.textAlign = "right";
 
       const vahY = priceScale.priceToY(profile.vah);
@@ -181,7 +182,7 @@ function renderVolumeProfile(
 
       // POC label
       ctx.fillStyle = pocColor;
-      ctx.font = "10px -apple-system, BlinkMacSystemFont, sans-serif";
+      ctx.font = canvasFont(10, fontFamily);
       ctx.textAlign = "right";
       ctx.textBaseline = "bottom";
       ctx.fillText("POC", rightEdge - 4, pocY - 2);

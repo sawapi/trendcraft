@@ -21,6 +21,7 @@
  */
 
 import { withPaneClip } from "../core/draw-helper";
+import { canvasFont } from "../core/font";
 import type { PrimitivePlugin, PrimitiveRenderContext } from "../core/plugin-types";
 import { definePrimitive } from "../core/plugin-types";
 import type { ChartInstance } from "../core/types";
@@ -68,7 +69,7 @@ const DEFAULTS: Required<MarketProfileOptions> = {
 // ---- Render ----
 
 function renderMarketProfile(
-  { ctx, pane, priceScale, timeScale }: PrimitiveRenderContext,
+  { ctx, pane, priceScale, timeScale, fontFamily }: PrimitiveRenderContext,
   state: MarketProfileState,
 ): void {
   const { data, options } = state;
@@ -129,7 +130,7 @@ function renderMarketProfile(
     }
 
     // VAH / VAL dashed lines + labels
-    ctx.font = "10px -apple-system, BlinkMacSystemFont, sans-serif";
+    ctx.font = canvasFont(10, fontFamily);
     ctx.textBaseline = "bottom";
     for (const [label, price] of [
       ["VAH", valueAreaHigh],
@@ -159,7 +160,7 @@ function renderMarketProfile(
       ctx.lineTo(profileRight + 20, y);
       ctx.stroke();
       ctx.fillStyle = options.pocColor;
-      ctx.font = "bold 10px -apple-system, BlinkMacSystemFont, sans-serif";
+      ctx.font = canvasFont(10, fontFamily, "bold");
       ctx.fillText("POC", profileRight + 4, y - 2);
     }
   });

@@ -1,6 +1,6 @@
 {
   "name": "@trendcraft/chart",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Zero-dependency Canvas charting for TypeScript — candlestick & financial charts that work on plain OHLC data, with React/Vue wrappers and a headless API. Auto-places TrendCraft indicators when paired.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -77,6 +77,7 @@
     "size-check": "size-limit",
     "format": "biome format --write .",
     "verify:publish": "node scripts/verify-publish.mjs",
+    "gen:llms": "node scripts/gen-llms-full.mjs",
     "prepublishOnly": "pnpm build && pnpm test && pnpm verify:publish"
   },
   "keywords": [
@@ -171,12 +172,12 @@
     "@size-limit/esbuild": "^12.1.0",
     "@size-limit/file": "^12.1.0",
     "@testing-library/react": "^16.3.2",
-    "@types/react": "^19.2.14",
-    "@types/react-dom": "^19.2.3",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
     "@vue/test-utils": "^2.4.10",
     "happy-dom": "^20.9.0",
-    "react": "^19.2.5",
-    "react-dom": "^19.2.5",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
     "size-limit": "^12.1.0",
     "trendcraft": "workspace:*",
     "vite": "^8.0.10",

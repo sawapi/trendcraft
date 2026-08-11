@@ -51,6 +51,8 @@ export function createChart(container: HTMLElement, options?: ChartOptions): Cha
 export type { InternalSeries } from "./core/data-layer";
 // Drawing helper
 export { DrawHelper, type FillStyle, type StrokeStyle } from "./core/draw-helper";
+// Font helpers (for plugins / custom canvas text matching ChartOptions.fontFamily)
+export { canvasFont, DEFAULT_FONT_FAMILY } from "./core/font";
 export { DEFAULT_HOTKEYS, type HotkeyMap } from "./core/hotkeys";
 // i18n
 export type { ChartLocale } from "./core/i18n";

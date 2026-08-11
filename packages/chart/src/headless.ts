@@ -17,6 +17,7 @@ export {
 } from "./core/decimation";
 // Drawing helper
 export { DrawHelper, type FillStyle, type StrokeStyle } from "./core/draw-helper";
+export { canvasFont, DEFAULT_FONT_FAMILY } from "./core/font";
 export {
   autoFormatPrice,
   autoFormatTime,

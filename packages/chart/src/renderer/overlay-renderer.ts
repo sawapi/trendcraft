@@ -4,6 +4,7 @@
  */
 
 import type { DataLayer, InternalSeries } from "../core/data-layer";
+import { canvasFont, DEFAULT_FONT_FAMILY } from "../core/font";
 import { autoFormatPrice, measureTextWidth } from "../core/format";
 import type { PriceScale, TimeScale } from "../core/scale";
 import { defaultRegistry } from "../core/series-registry";
@@ -35,6 +36,7 @@ export function renderPriceLine(
    * makes the badge follow the right edge of the viewport (visible-mode).
    */
   candleIndex?: number,
+  fontFamily: string = DEFAULT_FONT_FAMILY,
 ): void {
   if (candles.length === 0) return;
 
@@ -64,7 +66,7 @@ export function renderPriceLine(
   ctx.globalAlpha = 1;
 
   const label = autoFormatPrice(price);
-  ctx.font = `${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+  ctx.font = canvasFont(fontSize, fontFamily);
   const padX = 6;
   const padY = 3;
   const labelW = measureTextWidth(ctx, label) + padX * 2;
@@ -282,8 +284,9 @@ export function renderPaneTitles(
   theme: ThemeColors,
   fontSize: number,
   locale?: import("../core/i18n").ChartLocale,
+  fontFamily: string = DEFAULT_FONT_FAMILY,
 ): void {
-  ctx.font = `${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+  ctx.font = canvasFont(fontSize, fontFamily);
   ctx.textAlign = "left";
   ctx.textBaseline = "top";
 
@@ -362,12 +365,13 @@ export function computeSeriesBadges(
   searchUpTo?: number,
   /** Optional extra badges (e.g. synthetic volume pill) to fold into layout. */
   extras: readonly { value: number; color: string }[] = [],
+  fontFamily: string = DEFAULT_FONT_FAMILY,
 ): ComputedBadge[] {
   const padX = 6;
   const padY = 3;
   const half = fontSize / 2 + padY;
 
-  ctx.font = `${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+  ctx.font = canvasFont(fontSize, fontFamily);
 
   type Candidate = { y: number; color: string; label: string; w: number };
   const candidates: Candidate[] = [];
@@ -475,10 +479,11 @@ export function drawSeriesBadges(
   ctx: CanvasRenderingContext2D,
   badges: readonly ComputedBadge[],
   fontSize: number,
+  fontFamily: string = DEFAULT_FONT_FAMILY,
 ): void {
   if (badges.length === 0) return;
   const padX = 6;
-  ctx.font = `${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+  ctx.font = canvasFont(fontSize, fontFamily);
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
   for (const b of badges) {

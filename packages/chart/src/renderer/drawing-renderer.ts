@@ -3,6 +3,7 @@
  */
 
 import type { DataLayer } from "../core/data-layer";
+import { canvasFont, DEFAULT_FONT_FAMILY } from "../core/font";
 import { autoFormatPrice, measureTextWidth } from "../core/format";
 import type { PriceScale, TimeScale } from "../core/scale";
 import type {
@@ -68,6 +69,7 @@ export function renderDrawings(
   dataLayer: DataLayer,
   theme: ThemeColors,
   fontSize: number,
+  fontFamily: string = DEFAULT_FONT_FAMILY,
 ): void {
   if (drawings.length === 0) return;
 
@@ -87,13 +89,13 @@ export function renderDrawings(
   for (const drawing of drawings) {
     switch (drawing.type) {
       case "hline":
-        renderHLine(ctx, drawing, c, fontSize);
+        renderHLine(ctx, drawing, c, fontSize, fontFamily);
         break;
       case "trendline":
         renderTrendLine(ctx, drawing, c);
         break;
       case "fibRetracement":
-        renderFibRetracement(ctx, drawing, c, fontSize);
+        renderFibRetracement(ctx, drawing, c, fontSize, fontFamily);
         break;
       case "ray":
         renderRay(ctx, drawing, c);
@@ -111,10 +113,10 @@ export function renderDrawings(
         renderChannel(ctx, drawing, c);
         break;
       case "fibExtension":
-        renderFibExtension(ctx, drawing, c, fontSize);
+        renderFibExtension(ctx, drawing, c, fontSize, fontFamily);
         break;
       case "textLabel":
-        renderTextLabel(ctx, drawing, c, fontSize);
+        renderTextLabel(ctx, drawing, c, fontSize, fontFamily);
         break;
       case "arrow":
         renderArrow(ctx, drawing, c);
@@ -130,6 +132,7 @@ function renderHLine(
   drawing: HLineDrawing,
   c: DrawCtx,
   fontSize: number,
+  fontFamily: string,
 ): void {
   const { pane } = c;
   const y = toScreenY(drawing.price, c);
@@ -146,7 +149,7 @@ function renderHLine(
 
   // Price label
   const label = autoFormatPrice(drawing.price);
-  ctx.font = `${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+  ctx.font = canvasFont(fontSize, fontFamily);
   const padX = 4;
   const padY = 2;
   const labelW = measureTextWidth(ctx, label) + padX * 2;
@@ -203,10 +206,11 @@ function renderFibLevels(
   levels: readonly number[],
   colors: readonly string[],
   priceAt: (level: number) => number,
+  fontFamily: string,
 ): void {
   const { pane } = c;
 
-  ctx.font = `${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+  ctx.font = canvasFont(fontSize, fontFamily);
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
 
@@ -250,6 +254,7 @@ function renderFibRetracement(
   drawing: FibRetracementDrawing,
   c: DrawCtx,
   fontSize: number,
+  fontFamily: string,
 ): void {
   const priceRange = drawing.endPrice - drawing.startPrice;
   renderFibLevels(
@@ -259,6 +264,7 @@ function renderFibRetracement(
     drawing.levels ?? DEFAULT_FIB_LEVELS,
     FIB_COLORS,
     (level) => drawing.endPrice - priceRange * level,
+    fontFamily,
   );
 }
 
@@ -435,6 +441,7 @@ function renderFibExtension(
   drawing: FibExtensionDrawing,
   c: DrawCtx,
   fontSize: number,
+  fontFamily: string,
 ): void {
   const priceRange = drawing.endPrice - drawing.startPrice;
   renderFibLevels(
@@ -444,6 +451,7 @@ function renderFibExtension(
     drawing.levels ?? DEFAULT_FIB_EXT_LEVELS,
     FIB_EXT_COLORS,
     (level) => drawing.startPrice + priceRange * level,
+    fontFamily,
   );
 }
 
@@ -452,12 +460,13 @@ function renderTextLabel(
   drawing: TextLabelDrawing,
   c: DrawCtx,
   defaultFontSize: number,
+  fontFamily: string,
 ): void {
   const { x, y } = toScreenXY(drawing.time, drawing.price, c);
   const size = Math.min(Math.max(drawing.fontSize ?? defaultFontSize, 8), 200);
   const color = drawing.color ?? c.theme.text;
 
-  ctx.font = `${size}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+  ctx.font = canvasFont(size, fontFamily);
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
 

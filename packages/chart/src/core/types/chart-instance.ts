@@ -129,8 +129,8 @@ export type ChartInstance = {
    * Accepts the same shape as `createChart`'s options, but applies only the
    * provided fields. Use this from reactive wrappers to propagate option
    * changes after chart creation. Fields that cannot be changed at runtime
-   * (e.g. `pixelRatio`, `fontFamily`, `scrollSensitivity`, `locale`,
-   * `formatInfoOverlay`) emit a warning via the `error` event and are ignored.
+   * (e.g. `pixelRatio`, `scrollSensitivity`, `locale`, `formatInfoOverlay`)
+   * emit a warning via the `error` event and are ignored.
    */
   applyOptions(options: Partial<ChartOptions>): void;
 

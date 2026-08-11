@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-08-10
+
 ### Fixed — interaction and event hardening for logical-range viewports
 
 The states the logical-range API makes reachable (fractional resting
@@ -20,6 +22,16 @@ layers:
   out 16×; also reachable before via `fitContent` on very large datasets).
 - Dragging from a fractional resting position no longer snaps the viewport
   by the fractional part on the first pixel of movement.
+- A touch gesture cancelled by the system (`touchcancel` — incoming call,
+  browser gesture takeover) now ends the drag like `touchend` instead of
+  leaving a stuck drag state.
+- Dragging the scrollbar thumb to the far right now lands on the same
+  position as the End key — last bar plus the configured
+  `timeScale.rightOffset` margin. The scrollbar derived its own right
+  boundary as `total − visible`, so it always landed flush against the
+  last bar, silently destroying a configured margin. (The scroll-to-end
+  start index is exposed on the headless `TimeScale` as
+  `scrollToEndTarget`.)
 - An animated range transition lands on the exact target span even below
   one bar per screen (the interpolation floored the bar count to 1).
 - A beyond-left viewport no longer blanks number-line series (a negative
@@ -95,6 +107,31 @@ The requested span is exact: bar spacing follows `width / span` directly,
 bounded only by the render pipeline's 0.1px floor rather than the
 interactive zoom limits, so narrow (sub-16-bar) and very wide ranges
 round-trip through `getVisibleLogicalRange` without distortion.
+
+### Fixed — `fontFamily` option now applies to canvas and overlay text
+
+`ChartOptions.fontFamily` was documented but ignored: renderers hardcoded a
+system UI stack, and `applyOptions({ fontFamily })` warned that the field
+could not change at runtime. The option is now stored like `fontSize`,
+passed through the render context, and used for axis/crosshair/overlay/
+drawing/pattern/watermark canvas text plus DOM legend/info overlays.
+Built-in primitives honor it too. Default remains the previous system stack
+(`-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`).
+`applyOptions({ fontFamily })` updates live without re-creating the chart.
+Also exports `DEFAULT_FONT_FAMILY` and `canvasFont()` for plugins that draw
+their own labels.
+
+For plugin authors: `PrimitiveRenderContext` gained a required `fontFamily`
+field (the built-in primitives use it for their labels). Code that
+*constructs* this context type — typically plugin test harnesses — must add
+the field; plugins that only consume the context are unaffected.
+
+```ts
+createChart(el, {
+  fontSize: 11,
+  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+});
+```
 
 ### Added — `timeScale.rightOffset`: empty space after the last candle
 
@@ -682,5 +719,8 @@ Initial public release.
 - `react` (optional, `>=19.0.0`) — required only when using the React wrapper.
 - `vue` (optional, `>=3.3.0`) — required only when using the Vue wrapper.
 
+[0.5.0]: https://github.com/sawapi/trendcraft/releases/tag/chart-v0.5.0
+[0.4.0]: https://github.com/sawapi/trendcraft/releases/tag/chart-v0.4.0
+[0.3.0]: https://github.com/sawapi/trendcraft/releases/tag/chart-v0.3.0
 [0.2.0]: https://github.com/sawapi/trendcraft/releases/tag/chart-v0.2.0
 [0.1.0]: https://github.com/sawapi/trendcraft/releases/tag/chart-v0.1.0
