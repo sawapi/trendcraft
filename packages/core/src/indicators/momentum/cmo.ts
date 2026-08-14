@@ -11,6 +11,7 @@
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 import { CMO_META } from "../indicator-meta";
 
 /**
@@ -49,9 +50,7 @@ export function cmo(
 ): Series<number | null> {
   const { period = 14, source = "close" } = options;
 
-  if (period < 1) {
-    throw new Error("CMO period must be at least 1");
-  }
+  assertPeriod("CMO period", period);
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
   const result: Series<number | null> = [];

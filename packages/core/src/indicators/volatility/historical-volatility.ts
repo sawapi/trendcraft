@@ -8,6 +8,7 @@
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 
 /**
  * Historical Volatility options
@@ -51,9 +52,7 @@ export function historicalVolatility(
 ): Series<number | null> {
   const { period = 20, annualFactor = 252, source = "close" } = options;
 
-  if (period < 2) {
-    throw new Error("Historical Volatility period must be at least 2");
-  }
+  assertPeriod("Historical Volatility period", period, 2);
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
   const result: Series<number | null> = [];

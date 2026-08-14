@@ -12,6 +12,7 @@ import type {
   NormalizedCandle,
   Series,
 } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 import { BB_META } from "../indicator-meta";
 
 /**
@@ -39,9 +40,7 @@ export function bollingerBands(
 ): Series<BollingerBandsValue> {
   const { period = 20, stdDev = 2, source = "close" } = options;
 
-  if (period < 1) {
-    throw new Error("Bollinger Bands period must be at least 1");
-  }
+  assertPeriod("Bollinger Bands period", period);
 
   if (stdDev <= 0) {
     throw new Error("Standard deviation multiplier must be positive");

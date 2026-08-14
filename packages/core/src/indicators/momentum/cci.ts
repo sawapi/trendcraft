@@ -8,6 +8,7 @@
 import { getPriceSeries, isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 import { CCI_META } from "../indicator-meta";
 
 /**
@@ -53,9 +54,7 @@ export function cci(
 ): Series<number | null> {
   const { period = 20, constant = 0.015, source = "hlc3" } = options;
 
-  if (period < 1) {
-    throw new Error("CCI period must be at least 1");
-  }
+  assertPeriod("CCI period", period);
 
   // Normalize if needed
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);

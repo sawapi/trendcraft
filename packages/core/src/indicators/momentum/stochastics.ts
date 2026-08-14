@@ -6,6 +6,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 import { STOCHASTICS_META } from "../indicator-meta";
 
 /**
@@ -63,9 +64,9 @@ export function stochastics(
 ): Series<StochasticsValue> {
   const { kPeriod = 14, dPeriod = 3, slowing = 3 } = options;
 
-  if (kPeriod < 1) throw new Error("kPeriod must be at least 1");
-  if (dPeriod < 1) throw new Error("dPeriod must be at least 1");
-  if (slowing < 1) throw new Error("slowing must be at least 1");
+  assertPeriod("kPeriod", kPeriod);
+  assertPeriod("dPeriod", dPeriod);
+  assertPeriod("slowing", slowing);
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
 

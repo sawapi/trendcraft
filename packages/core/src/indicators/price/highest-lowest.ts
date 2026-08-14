@@ -5,6 +5,7 @@
 import { getPriceSeries, isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries } from "../../core/tag-series";
 import type { Candle, HighestLowestOptions, NormalizedCandle, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 
 /**
  * Result type for highest/lowest
@@ -41,9 +42,7 @@ export function highestLowest(
 ): Series<HighestLowestValue> {
   const { period, source } = options;
 
-  if (period < 1) {
-    throw new Error("Period must be at least 1");
-  }
+  assertPeriod("Period", period);
 
   // Normalize if needed
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
@@ -119,9 +118,7 @@ export function highest(
   candles: Candle[] | NormalizedCandle[],
   period: number,
 ): Series<number | null> {
-  if (period < 1) {
-    throw new Error("Period must be at least 1");
-  }
+  assertPeriod("Period", period);
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
   const result: Series<number | null> = [];
@@ -164,9 +161,7 @@ export function lowest(
   candles: Candle[] | NormalizedCandle[],
   period: number,
 ): Series<number | null> {
-  if (period < 1) {
-    throw new Error("Period must be at least 1");
-  }
+  assertPeriod("Period", period);
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
   const result: Series<number | null> = [];
