@@ -7,6 +7,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 import { DONCHIAN_META } from "../indicator-meta";
 
 /**
@@ -65,9 +66,7 @@ export function donchianChannel(
 ): Series<DonchianValue> {
   const { period = 20 } = options;
 
-  if (period < 1) {
-    throw new Error("Donchian Channel period must be at least 1");
-  }
+  assertPeriod("Donchian Channel period", period);
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
 

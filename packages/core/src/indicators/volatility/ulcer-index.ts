@@ -8,6 +8,7 @@
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 
 /**
  * Ulcer Index options
@@ -55,9 +56,7 @@ export function ulcerIndex(
 ): Series<number | null> {
   const { period = 14, source = "close" } = options;
 
-  if (period < 1) {
-    throw new Error("Ulcer Index period must be at least 1");
-  }
+  assertPeriod("Ulcer Index period", period);
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
   const result: Series<number | null> = [];

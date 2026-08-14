@@ -9,6 +9,7 @@
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 
 /**
  * DPO options
@@ -52,9 +53,7 @@ export function dpo(
 ): Series<number | null> {
   const { period = 20, source = "close" } = options;
 
-  if (period < 1) {
-    throw new Error("DPO period must be at least 1");
-  }
+  assertPeriod("DPO period", period);
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
   const result: Series<number | null> = [];

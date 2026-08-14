@@ -9,6 +9,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 import { CHOPPINESS_META } from "../indicator-meta";
 
 /**
@@ -51,9 +52,7 @@ export function choppinessIndex(
 ): Series<number | null> {
   const { period = 14 } = options;
 
-  if (period < 2) {
-    throw new Error("Choppiness Index period must be at least 2");
-  }
+  assertPeriod("Choppiness Index period", period, 2);
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
 

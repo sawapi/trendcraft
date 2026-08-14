@@ -12,6 +12,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 import { AROON_META } from "../indicator-meta";
 
 /**
@@ -63,7 +64,7 @@ export function aroon(
 ): Series<AroonValue> {
   const { period = 25 } = options;
 
-  if (period < 1) throw new Error("Aroon period must be at least 1");
+  assertPeriod("Aroon period", period);
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
   const result: Series<AroonValue> = [];

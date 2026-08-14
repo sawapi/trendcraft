@@ -2,6 +2,54 @@
 
 ## [Unreleased]
 
+### Breaking — 18 batch indicators now reject fractional and non-finite periods
+
+A period is a bar count, but the batch indicators only checked a lower bound,
+so a value that is not a positive integer passed straight through and changed
+what the indicator computed — usually without any error:
+
+- `atr(candles, { period: 14.5 })` never reached its `i === period` seed
+  branch, so the missing seed was coerced to 0 by `prevAtr ?? 0` and the whole
+  series came out roughly 15x too small. `rsi` and `mfi` degraded the same way.
+- `cci`, `standardDeviation`, `ulcerIndex` and `historicalVolatility` indexed
+  fractional offsets and pushed `NaN` into a `Series<number | null>` — 16 of 30
+  values for `cci(candles, { period: 14.5 })`.
+- `period: NaN` made the `i < period - 1` warm-up guard false for every bar, so
+  `donchianChannel`, `williamsR`, `highestLowest` and `stochastics` emitted a
+  structurally valid but completely different indicator: an all-time expanding
+  channel starting at bar 0, with no warm-up nulls. `volumeMa(14.5)` summed 15
+  bars and divided by 14.5.
+- `bollingerBands`, `roc`, `aroon`, `choppinessIndex`, `dpo` and `cmo` crashed
+  with a raw `TypeError` from deep inside the window loop.
+
+These now throw a validation error, matching what the moving-average family and
+every incremental counterpart have always done. Affected: `atr`, `rsi`, `mfi`,
+`cci`, `standardDeviation`, `ulcerIndex`, `historicalVolatility`,
+`donchianChannel`, `williamsR`, `highestLowest`/`highest`/`lowest`,
+`stochastics` (`kPeriod`, `dPeriod`, `slowing`), `volumeMa`, `bollingerBands`,
+`roc`, `aroon`, `choppinessIndex`, `dpo`, `cmo`.
+
+Existing error messages and lower bounds are unchanged, and valid integer
+periods behave exactly as before. Rejected values are those that were already
+producing wrong numbers or a crash: fractional, `NaN`, `±Infinity`, and — for
+the few options with no default (`highestLowest`, `highest`, `lowest`,
+`volumeMa`) — omitting the option entirely. Callers that reach these indicators
+indirectly surface the error too, so a fractional period fed through a
+parameter sweep, a serialized strategy, or a wrapper such as `supertrend`,
+`keltnerChannel` or `vsa` now fails loudly instead of returning a plausible
+wrong series.
+
+### Fixed — Safe API reports a non-integer period as INVALID_PARAMETER
+
+`trendcraft/safe` classifies a thrown error into a typed code, but its
+classifier only recognised "must be at least", "positive" and similar wordings.
+"must be an integer" fell through to `INDICATOR_ERROR`, which is meant for a
+failure inside the computation rather than a bad argument. This already
+affected the moving-average family — `smaSafe(candles, { period: 14.5 })`
+returned `INDICATOR_ERROR` — and would have applied to every indicator covered
+by the period validation above. Such errors now classify as
+`INVALID_PARAMETER`. The message text is unchanged; only the code differs.
+
 ### Breaking — incremental VSA scans the full 10-bar window for 'test' (schema v2)
 
 The incremental VSA's 'test' rule ("low volume near the lowest low of the last

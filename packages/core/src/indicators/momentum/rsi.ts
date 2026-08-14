@@ -6,6 +6,7 @@
 import { getPriceSeries, isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, RsiOptions, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 import { RSI_META } from "../indicator-meta";
 
 /**
@@ -34,9 +35,7 @@ export function rsi(
 ): Series<number | null> {
   const { period = 14, source = "close" } = options;
 
-  if (period < 1) {
-    throw new Error("RSI period must be at least 1");
-  }
+  assertPeriod("RSI period", period);
 
   // Normalize if needed
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);

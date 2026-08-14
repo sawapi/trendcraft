@@ -4,6 +4,7 @@
 
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 
 /**
  * Options for Volume MA calculation
@@ -32,9 +33,7 @@ export function volumeMa(
 ): Series<number | null> {
   const { period, type = "sma" } = options;
 
-  if (period < 1) {
-    throw new Error("Volume MA period must be at least 1");
-  }
+  assertPeriod("Volume MA period", period);
 
   // Normalize if needed
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);

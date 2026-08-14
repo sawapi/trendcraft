@@ -7,6 +7,7 @@
 
 import { getPrice, isNormalized, normalizeCandles } from "../../core/normalize";
 import type { Candle, NormalizedCandle, PriceSource, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 
 /**
  * Standard Deviation options
@@ -47,9 +48,7 @@ export function standardDeviation(
 ): Series<number | null> {
   const { period = 20, source = "close" } = options;
 
-  if (period < 1) {
-    throw new Error("Standard Deviation period must be at least 1");
-  }
+  assertPeriod("Standard Deviation period", period);
 
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
   const result: Series<number | null> = [];

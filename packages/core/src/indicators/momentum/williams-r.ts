@@ -8,6 +8,7 @@
 import { isNormalized, normalizeCandles } from "../../core/normalize";
 import { tagSeries, withLabelParams } from "../../core/tag-series";
 import type { Candle, NormalizedCandle, Series } from "../../types";
+import { assertPeriod } from "../../utils/validate-period";
 import { WILLIAMS_R_META } from "../indicator-meta";
 
 /**
@@ -47,9 +48,7 @@ export function williamsR(
 ): Series<number | null> {
   const { period = 14 } = options;
 
-  if (period < 1) {
-    throw new Error("Williams %R period must be at least 1");
-  }
+  assertPeriod("Williams %R period", period);
 
   // Normalize if needed
   const normalized = isNormalized(candles) ? candles : normalizeCandles(candles);
