@@ -4,12 +4,9 @@
 
 import { useMemo } from "react";
 import type { NormalizedCandle, PatternSignal } from "trendcraft";
-import { projectFromPatterns } from "trendcraft";
+import { projectFromPatterns, resolvePatternDirection } from "trendcraft";
 import type { SeriesItem } from "../utils/chartColors";
 import { createProjectionFanSeries } from "../utils/markers/projectionFanMarkers";
-
-/** Bearish pattern types */
-const BEARISH_PATTERNS = new Set(["double_top", "head_shoulders"]);
 
 /**
  * Compute projection fan ECharts series for a replaying pattern
@@ -39,7 +36,9 @@ export function useProjectionFan(
     if (patternEndIndex === undefined) return [];
 
     const basePrice = candles[patternEndIndex].close;
-    const bullish = !BEARISH_PATTERNS.has(pattern.type);
+    const direction = resolvePatternDirection(pattern);
+    if (direction === null) return [];
+    const bullish = direction === "bullish";
 
     const dates = candles.map((c) => {
       const d = new Date(c.time);

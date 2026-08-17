@@ -2825,6 +2825,7 @@ interface PatternSignal {
   };
   confidence: number;        // 0-100 信頼度スコア
   confirmed: boolean;        // ブレイクアウト発生時true
+  breakoutDirection?: "up" | "down"; // 実際のブレイク方向（triangle / channel / wedge）
 }
 ```
 
@@ -5346,11 +5347,21 @@ const tradeSignals = squeezes.map(s => fromSqueezeSignal(s, "LONG", candles.find
 `detectableTime`）でスタンプされます。`PatternSignal.time` が指すピボットのバーでは
 ありません（ピボット時刻は `metadata.patternTime` に保持）。
 
+方向は `resolvePatternDirection` に従います。検出器が記録したブレイク方向
+（`PatternSignal.breakoutDirection`）があればそれを優先し、無ければ形状の
+`PATTERN_BIAS` を使います。下抜けした `channel_ascending` は SELL となり、検出器が
+測定した `target` / `stopLoss` と整合します。`null` を返すのは、どちらでも方向が
+決まらない場合——未ブレイクの中立形状——のみです。中立は `triangle_symmetrical` と
+channel 3種（`channel_ascending` / `channel_descending` / `channel_horizontal`）で、
+チャネルは両側を取引するレンジであり傾き自体は方向を決めないためです。
+
 ```typescript
-import { fromPatternSignal } from 'trendcraft';
+import { fromPatternSignal, type TradeSignal } from 'trendcraft';
 
 const patterns = doubleBottom(candles);
-const tradeSignals = patterns.map(p => fromPatternSignal(p, 100));
+const tradeSignals = patterns
+  .map(p => fromPatternSignal(p, 100))
+  .filter((s): s is TradeSignal => s !== null);
 // { prices: { entry: 100, takeProfit: 120, stopLoss: 90 }, ... }
 ```
 
@@ -5707,13 +5718,13 @@ console.log(`5%ヒット率: ${projection.hitRates.find(h => h.threshold === 5)?
 
 #### `projectFromPatterns(candles, signals, options?)`
 
-`PatternSignal[]` 用の便利ラッパー。パターンタイプから方向を自動検出（double_top/head_shoulders → bearish、その他 → bullish）。
+`PatternSignal[]` 用の便利ラッパー。方向は `resolvePatternDirection` に従うため、形状と逆にブレイクしたパターンは実際に解決した方向で測定される。方向がまだ決まらないシグナルは、恣意的な方向で採点せず射影から除外される。
 
 ```typescript
 import { projectFromPatterns, doubleTop } from 'trendcraft';
 
 const tops = doubleTop(candles);
-const projection = projectFromPatterns(candles, tops); // 自動でbearish
+const projection = projectFromPatterns(candles, tops); // bearish として下方向に測定
 ```
 
 #### `projectFromSeries(candles, series, options?)`

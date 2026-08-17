@@ -252,6 +252,7 @@ export function detectTriangle(
           },
           confidence,
           confirmed,
+          breakoutDirection: breakout?.direction,
         });
       }
     } // end sliding window loop

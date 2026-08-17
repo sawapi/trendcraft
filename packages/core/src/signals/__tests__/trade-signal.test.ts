@@ -7,7 +7,9 @@ import type { ScoreBreakdown } from "../../types/scoring";
 import type { SqueezeSignal } from "../bollinger-squeeze";
 import type { CrossSignalQuality } from "../cross";
 import type { DivergenceSignal } from "../divergence";
-import type { PatternSignal } from "../patterns/types";
+import { detectChannel } from "../patterns/channel";
+import type { PatternSignal, PatternType } from "../patterns/types";
+import { PATTERN_BIAS } from "../patterns/types";
 import {
   fromCrossSignal,
   fromDivergenceSignal,
@@ -169,6 +171,8 @@ describe("fromPatternSignal", () => {
       confirmed: true,
     };
     const result = fromPatternSignal(signal, 100);
+    expect(result).not.toBeNull();
+    if (result === null) return;
     expect(result.action).toBe("BUY");
     expect(result.direction).toBe("LONG");
     expect(result.confidence).toBe(72);
@@ -187,6 +191,8 @@ describe("fromPatternSignal", () => {
       confirmed: false,
     };
     const result = fromPatternSignal(signal);
+    expect(result).not.toBeNull();
+    if (result === null) return;
     expect(result.action).toBe("SELL");
     expect(result.direction).toBe("SHORT");
     expect(result.metadata?.confirmed).toBe(false);
@@ -203,6 +209,8 @@ describe("fromPatternSignal", () => {
       confirmed: true,
     };
     const result = fromPatternSignal(signal);
+    expect(result).not.toBeNull();
+    if (result === null) return;
     expect(result.time).toBe(7000);
     expect(result.id).toBe("pattern-double_bottom-7000");
     expect(result.metadata?.patternTime).toBe(5000);
@@ -218,8 +226,205 @@ describe("fromPatternSignal", () => {
       confirmed: false,
     };
     const result = fromPatternSignal(signal);
+    expect(result).not.toBeNull();
+    if (result === null) return;
     expect(result.time).toBe(5500);
     expect(result.metadata?.patternTime).toBe(5000);
+  });
+
+  // Regression: the direction used to come from a three-entry allowlist local to
+  // fromPatternSignal, so 9 of the 12 bullish pattern types were emitted as
+  // SELL/SHORT, and the 4 directionless types were forced short too. The
+  // expectations below are written out independently of PATTERN_BIAS so they pin
+  // both the converter and the table.
+  const EXPECTED_BIAS: Record<PatternType, "bullish" | "bearish" | "neutral"> = {
+    double_top: "bearish",
+    double_bottom: "bullish",
+    head_shoulders: "bearish",
+    inverse_head_shoulders: "bullish",
+    cup_handle: "bullish",
+    triangle_symmetrical: "neutral",
+    triangle_ascending: "bullish",
+    triangle_descending: "bearish",
+    rising_wedge: "bearish",
+    falling_wedge: "bullish",
+    channel_ascending: "neutral",
+    channel_descending: "neutral",
+    channel_horizontal: "neutral",
+    bull_flag: "bullish",
+    bear_flag: "bearish",
+    bull_pennant: "bullish",
+    bear_pennant: "bearish",
+    gartley_bullish: "bullish",
+    gartley_bearish: "bearish",
+    butterfly_bullish: "bullish",
+    butterfly_bearish: "bearish",
+    bat_bullish: "bullish",
+    bat_bearish: "bearish",
+    crab_bullish: "bullish",
+    crab_bearish: "bearish",
+    shark_bullish: "bullish",
+    shark_bearish: "bearish",
+  };
+
+  const patternOf = (type: PatternType): PatternSignal => ({
+    time: 5000,
+    detectableTime: 5000,
+    confirmTime: 5000,
+    type,
+    pattern: { startTime: 4000, endTime: 5000, keyPoints: [] },
+    confidence: 70,
+    confirmed: true,
+  });
+
+  it("PATTERN_BIAS covers every PatternType exactly once", () => {
+    expect(Object.keys(PATTERN_BIAS).sort()).toEqual(Object.keys(EXPECTED_BIAS).sort());
+    for (const [type, bias] of Object.entries(EXPECTED_BIAS)) {
+      expect(PATTERN_BIAS[type as PatternType]).toBe(bias);
+    }
+  });
+
+  it.each(
+    (Object.keys(EXPECTED_BIAS) as PatternType[]).map((t) => [t, EXPECTED_BIAS[t]] as const),
+  )("maps %s (%s) to the matching action", (type, bias) => {
+    const result = fromPatternSignal(patternOf(type), 100);
+
+    if (bias === "neutral") {
+      expect(result).toBeNull();
+      return;
+    }
+
+    expect(result).not.toBeNull();
+    if (result === null) return;
+    expect(result.action).toBe(bias === "bullish" ? "BUY" : "SELL");
+    expect(result.direction).toBe(bias === "bullish" ? "LONG" : "SHORT");
+  });
+
+  it("does not classify a bullish pattern as a short", () => {
+    // The specific shape of the old bug: named-bullish types fell through the
+    // allowlist and came out as SELL/SHORT.
+    for (const type of [
+      "bull_flag",
+      "bull_pennant",
+      "gartley_bullish",
+      "butterfly_bullish",
+      "bat_bullish",
+      "crab_bullish",
+      "shark_bullish",
+      "triangle_ascending",
+      "falling_wedge",
+    ] as PatternType[]) {
+      const result = fromPatternSignal(patternOf(type), 100);
+      expect(result?.action, `${type} should not be a SELL`).toBe("BUY");
+      expect(result?.direction, `${type} should not be a SHORT`).toBe("LONG");
+    }
+  });
+
+  // A triangle or channel accepts a breakout either way, and target/stopLoss are
+  // measured from the direction it actually took. The shape's bias must not
+  // override that.
+  it.each([
+    ["channel_ascending", "down", "SELL", "SHORT"],
+    ["channel_descending", "up", "BUY", "LONG"],
+    ["triangle_ascending", "down", "SELL", "SHORT"],
+    ["triangle_descending", "up", "BUY", "LONG"],
+  ] as const)("a %s that broke %s is a %s", (type, breakoutDirection, action, direction) => {
+    const result = fromPatternSignal({ ...patternOf(type as PatternType), breakoutDirection }, 100);
+    expect(result?.action).toBe(action);
+    expect(result?.direction).toBe(direction);
+  });
+
+  it.each([
+    ["triangle_symmetrical", "up", "BUY"],
+    ["triangle_symmetrical", "down", "SELL"],
+    ["channel_horizontal", "up", "BUY"],
+    ["channel_ascending", "down", "SELL"],
+  ] as const)("a confirmed %s that broke %s becomes a %s instead of null", (type, breakoutDirection, action) => {
+    const signal = { ...patternOf(type as PatternType), breakoutDirection };
+    expect(fromPatternSignal(signal, 100)?.action).toBe(action);
+    // Without the breakout there is still nothing to trade.
+    expect(fromPatternSignal(patternOf(type as PatternType), 100)).toBeNull();
+  });
+
+  // `confirmed` and `breakoutDirection` are set together by every detector, but
+  // the public type lets a hand-built or deserialized signal carry one without
+  // the other. An unconfirmed pattern must not be read as having broken out.
+  it("ignores breakoutDirection on an unconfirmed signal", () => {
+    const neutral = {
+      ...patternOf("channel_horizontal"),
+      confirmed: false,
+      breakoutDirection: "up" as const,
+    };
+    expect(fromPatternSignal(neutral, 100)).toBeNull();
+
+    // A directional shape falls back to its bias rather than the phantom breakout.
+    const bearish = {
+      ...patternOf("double_top"),
+      confirmed: false,
+      breakoutDirection: "up" as const,
+    };
+    expect(fromPatternSignal(bearish, 100)?.action).toBe("SELL");
+  });
+
+  // The integration the unit tests above cannot cover: a signal built by a real
+  // detector, whose target/stopLoss come from the breakout it actually found.
+  it("keeps action consistent with the target/stopLoss the detector measured", () => {
+    const DAY = 86400000;
+    const closes: number[] = [];
+    const highs: number[] = [];
+    const lows: number[] = [];
+    const lower = (i: number) => 100 + i;
+    const upper = (i: number) => 110 + i;
+    for (let i = 0; i < 30; i++) {
+      const touchUpper = i % 6 === 2;
+      const touchLower = i % 6 === 5;
+      const c = touchUpper
+        ? upper(i) - 0.2
+        : touchLower
+          ? lower(i) + 0.2
+          : (upper(i) + lower(i)) / 2;
+      closes.push(c);
+      highs.push(touchUpper ? upper(i) : c + 1);
+      lows.push(touchLower ? lower(i) : c - 1);
+    }
+    // An ascending channel — a bullish shape — that breaks DOWN.
+    for (let i = 30; i < 34; i++) {
+      const c = lower(i) - 8;
+      closes.push(c);
+      highs.push(c + 1);
+      lows.push(c - 1);
+    }
+    const candles = closes.map((close, i) => ({
+      time: Date.UTC(2024, 0, 1) + i * DAY,
+      open: close,
+      high: highs[i],
+      low: lows[i],
+      close,
+      volume: 1000,
+    }));
+
+    const confirmed = detectChannel(candles, { swingLookback: 2, minPoints: 3 }).filter(
+      (p) => p.type === "channel_ascending" && p.confirmed,
+    );
+    expect(confirmed.length).toBeGreaterThan(0);
+
+    for (const p of confirmed) {
+      expect(p.breakoutDirection).toBe("down");
+      const sig = fromPatternSignal(p, 100);
+      expect(sig).not.toBeNull();
+      if (sig === null) continue;
+      const { takeProfit, stopLoss } = sig.prices ?? {};
+      expect(takeProfit).toBeDefined();
+      expect(stopLoss).toBeDefined();
+      if (takeProfit === undefined || stopLoss === undefined) continue;
+      // A BUY must aim above its stop and a SELL below it — the invariant the
+      // shape-only classification violated (BUY with takeProfit 112, stop 140).
+      if (sig.action === "BUY") {
+        expect(takeProfit).toBeGreaterThan(stopLoss);
+      } else {
+        expect(takeProfit).toBeLessThan(stopLoss);
+      }
+    }
   });
 });
 

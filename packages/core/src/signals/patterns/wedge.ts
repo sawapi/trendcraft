@@ -237,6 +237,7 @@ export function detectWedge(
           },
           confidence,
           confirmed,
+          breakoutDirection: breakout?.direction,
         });
       } // end sliding window
     }
