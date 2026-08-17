@@ -2847,6 +2847,7 @@ interface PatternSignal {
   };
   confidence: number;        // 0-100 confidence score
   confirmed: boolean;        // True if breakout occurred
+  breakoutDirection?: "up" | "down"; // Direction it actually broke (triangle / channel / wedge)
 }
 ```
 
@@ -5391,11 +5392,22 @@ stamped at the bar where the pattern becomes actionable (`confirmTime` when
 confirmed, otherwise `detectableTime`), not at the pivot bar `PatternSignal.time`
 anchors; the pivot time is kept in `metadata.patternTime`.
 
+Direction comes from `resolvePatternDirection`: the confirmed breakout direction
+when the detector recorded one (`PatternSignal.breakoutDirection`), otherwise the
+shape's `PATTERN_BIAS`. A `channel_ascending` that broke down is a SELL, matching
+the `target`/`stopLoss` the detector measured. Returns `null` only when neither
+settles the direction — a `"neutral"` shape that has not broken out yet. Those
+are `triangle_symmetrical` and the whole channel family (`channel_ascending`,
+`channel_descending`, `channel_horizontal`): a channel is a range to trade both
+sides of, so its slope is not a directional call.
+
 ```typescript
-import { fromPatternSignal } from 'trendcraft';
+import { fromPatternSignal, type TradeSignal } from 'trendcraft';
 
 const patterns = doubleBottom(candles);
-const tradeSignals = patterns.map(p => fromPatternSignal(p, 100));
+const tradeSignals = patterns
+  .map(p => fromPatternSignal(p, 100))
+  .filter((s): s is TradeSignal => s !== null);
 // { prices: { entry: 100, takeProfit: 120, stopLoss: 90 }, ... }
 ```
 
@@ -5752,13 +5764,16 @@ console.log(`5% hit rate: ${projection.hitRates.find(h => h.threshold === 5)?.ra
 
 #### `projectFromPatterns(candles, signals, options?)`
 
-Convenience wrapper for `PatternSignal[]`. Automatically detects direction from pattern type (double_top/head_shoulders → bearish, others → bullish).
+Convenience wrapper for `PatternSignal[]`. Direction comes from
+`resolvePatternDirection`, so a pattern that broke against its own shape is
+measured the way it actually resolved. Signals with no direction yet are excluded
+from the projection rather than scored in an arbitrary direction.
 
 ```typescript
 import { projectFromPatterns, doubleTop } from 'trendcraft';
 
 const tops = doubleTop(candles);
-const projection = projectFromPatterns(candles, tops); // auto bearish
+const projection = projectFromPatterns(candles, tops); // measured downward
 ```
 
 #### `projectFromSeries(candles, series, options?)`

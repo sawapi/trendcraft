@@ -43,6 +43,7 @@ export type {
   HarmonicPatternOptions,
   HarmonicPatternType,
   HeadShouldersOptions,
+  PatternBias,
   PatternKeyPoint,
   PatternNeckline,
   PatternSignal,
@@ -50,5 +51,6 @@ export type {
   TriangleOptions,
   WedgeOptions,
 } from "./types";
+export { PATTERN_BIAS, resolvePatternDirection } from "./types";
 // Wedge
 export { detectWedge } from "./wedge";

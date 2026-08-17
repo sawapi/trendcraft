@@ -234,6 +234,101 @@ describe("projectFromPatterns", () => {
     expect(result.avgReturnByBar[1]).toBe(10);
   });
 
+  // Regression: direction used to come from a two-entry bearish denylist here,
+  // so 9 of the 11 bearish pattern types were projected as bullish and a
+  // falling market read as a losing pattern.
+  const patternOf = (type: PatternSignal["type"], time: number): PatternSignal => ({
+    time,
+    detectableTime: time,
+    confirmTime: time,
+    type,
+    pattern: { startTime: time, endTime: time, keyPoints: [] },
+    confidence: 80,
+    confirmed: true,
+  });
+
+  it.each([
+    "bear_flag",
+    "rising_wedge",
+    "triangle_descending",
+    "gartley_bearish",
+  ] as const)("measures %s downward", (type) => {
+    // Price falls 5% then 10% — a bearish pattern that worked.
+    const candles = makeCandles([100, 95, 90]);
+    const result = projectFromPatterns(candles, [patternOf(type, candles[0].time)], {
+      horizon: 2,
+    });
+
+    expect(result.validCount).toBe(1);
+    expect(result.avgReturnByBar[0]).toBe(5);
+    expect(result.avgReturnByBar[1]).toBe(10);
+  });
+
+  it.each([
+    "bull_flag",
+    "falling_wedge",
+    "cup_handle",
+    "crab_bullish",
+  ] as const)("measures %s upward", (type) => {
+    const candles = makeCandles([100, 105, 110]);
+    const result = projectFromPatterns(candles, [patternOf(type, candles[0].time)], {
+      horizon: 2,
+    });
+
+    expect(result.validCount).toBe(1);
+    expect(result.avgReturnByBar[0]).toBe(5);
+    expect(result.avgReturnByBar[1]).toBe(10);
+  });
+
+  it("measures a counter-bias breakout the way it actually resolved", () => {
+    // An ascending channel — a bullish shape — that broke DOWN, followed by a
+    // 10% decline. Measured on the shape it would read as a −10% failure.
+    const candles = makeCandles([100, 95, 90]);
+    const broke = {
+      ...patternOf("channel_ascending", candles[0].time),
+      breakoutDirection: "down" as const,
+    };
+
+    const result = projectFromPatterns(candles, [broke], { horizon: 2 });
+    expect(result.validCount).toBe(1);
+    expect(result.avgReturnByBar[0]).toBe(5);
+    expect(result.avgReturnByBar[1]).toBe(10);
+  });
+
+  it("projects a confirmed neutral pattern once its breakout is known", () => {
+    const candles = makeCandles([100, 95, 90]);
+    const broke = {
+      ...patternOf("triangle_symmetrical", candles[0].time),
+      breakoutDirection: "down" as const,
+    };
+
+    const result = projectFromPatterns(candles, [broke], { horizon: 2 });
+    expect(result.patternCount).toBe(1);
+    expect(result.avgReturnByBar[0]).toBe(5);
+  });
+
+  it("excludes directionless patterns instead of scoring them one way", () => {
+    const candles = makeCandles([100, 105, 110]);
+    const neutral = [
+      patternOf("triangle_symmetrical", candles[0].time),
+      patternOf("channel_horizontal", candles[0].time),
+      patternOf("channel_ascending", candles[0].time),
+    ];
+
+    const result = projectFromPatterns(candles, neutral, { horizon: 2 });
+    expect(result.patternCount).toBe(0);
+    expect(result.validCount).toBe(0);
+
+    // A neutral signal alongside a directional one must not dilute it either.
+    const mixed = projectFromPatterns(
+      candles,
+      [...neutral, patternOf("double_bottom", candles[0].time)],
+      { horizon: 2 },
+    );
+    expect(mixed.patternCount).toBe(1);
+    expect(mixed.avgReturnByBar[0]).toBe(5);
+  });
+
   it("should handle empty signals", () => {
     const candles = makeCandles([100, 105]);
     const result = projectFromPatterns(candles, [], { horizon: 1 });

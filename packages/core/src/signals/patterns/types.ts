@@ -35,6 +35,72 @@ export type PatternType =
   | "shark_bearish";
 
 /**
+ * Directional bias a pattern implies for the move that follows it.
+ *
+ * `"neutral"` means the shape itself carries no direction: a symmetrical triangle
+ * and the channel family resolve either way, and which way is only knowable from
+ * the breakout — see {@link PatternSignal.breakoutDirection}.
+ */
+export type PatternBias = "bullish" | "bearish" | "neutral";
+
+/**
+ * Directional bias of every pattern type.
+ *
+ * Single owner: anything that needs to know whether a pattern points up or
+ * down reads this map. Because it is a total `Record<PatternType, ...>`,
+ * adding a member to {@link PatternType} without declaring its bias is a
+ * compile error rather than a silent default.
+ *
+ * Bias is deliberately NOT the same axis as reversal-vs-continuation — a cup
+ * and handle is bullish continuation, an inverse head and shoulders is bullish
+ * reversal, and both are `"bullish"` here.
+ *
+ * @example
+ * ```ts
+ * import { PATTERN_BIAS, doubleBottom } from "trendcraft";
+ *
+ * const patterns = doubleBottom(candles);
+ * const bullish = patterns.filter((p) => PATTERN_BIAS[p.type] === "bullish");
+ * ```
+ */
+export const PATTERN_BIAS: Readonly<Record<PatternType, PatternBias>> = {
+  // Reversals
+  double_top: "bearish",
+  double_bottom: "bullish",
+  head_shoulders: "bearish",
+  inverse_head_shoulders: "bullish",
+  // Continuations
+  cup_handle: "bullish",
+  bull_flag: "bullish",
+  bear_flag: "bearish",
+  bull_pennant: "bullish",
+  bear_pennant: "bearish",
+  // Triangles — a symmetrical triangle breaks either way
+  triangle_symmetrical: "neutral",
+  triangle_ascending: "bullish",
+  triangle_descending: "bearish",
+  // Wedges — a rising wedge breaks down, a falling wedge breaks up
+  rising_wedge: "bearish",
+  falling_wedge: "bullish",
+  // Channels — a channel is a range to trade both sides of, so its slope is not
+  // a directional call; the breakout is (see `breakoutDirection`)
+  channel_ascending: "neutral",
+  channel_descending: "neutral",
+  channel_horizontal: "neutral",
+  // Harmonics — the detector names the direction
+  gartley_bullish: "bullish",
+  gartley_bearish: "bearish",
+  butterfly_bullish: "bullish",
+  butterfly_bearish: "bearish",
+  bat_bullish: "bullish",
+  bat_bearish: "bearish",
+  crab_bullish: "bullish",
+  crab_bearish: "bearish",
+  shark_bullish: "bullish",
+  shark_bearish: "bearish",
+};
+
+/**
  * Harmonic pattern type identifiers
  */
 export type HarmonicPatternType = "gartley" | "butterfly" | "bat" | "crab" | "shark";
@@ -124,6 +190,59 @@ export interface PatternSignal {
   confidence: number;
   /** Whether pattern has been confirmed (e.g., neckline break) */
   confirmed: boolean;
+  /**
+   * Direction price actually broke out, for detectors that accept a breakout
+   * either way — the triangle and channel families, whose `pattern.target` and
+   * `pattern.stopLoss` are measured from this direction.
+   *
+   * A `channel_ascending` can break down and a `triangle_descending` can break
+   * up, so this is what settles the trade direction; {@link PATTERN_BIAS} only
+   * describes the shape. Set only when `confirmed` is true.
+   *
+   * Left `undefined` by detectors whose confirmation is a break in the shape's
+   * own direction by construction (double top/bottom, head and shoulders,
+   * flags, harmonics) — for those the bias already is the breakout direction.
+   */
+  breakoutDirection?: "up" | "down";
+}
+
+/**
+ * Resolve the direction to trade a pattern in.
+ *
+ * Single owner for the "bias, unless the breakout says otherwise" rule:
+ *
+ * 1. A confirmed breakout direction wins — a `channel_ascending` that broke
+ *    down is a short, whatever its shape suggests, and it is the direction its
+ *    `target`/`stopLoss` were measured from. `breakoutDirection` is honoured
+ *    only when `confirmed` is also true, the pairing every detector produces.
+ * 2. Otherwise fall back to {@link PATTERN_BIAS}.
+ * 3. `null` when neither settles it: a `"neutral"` shape with no breakout yet.
+ *    There is nothing to trade, and guessing would put `takeProfit` on the
+ *    wrong side of `stopLoss`.
+ *
+ * @param signal - Pattern signal to resolve
+ * @returns `"bullish"`, `"bearish"`, or `null` when the direction is unknown
+ *
+ * @example
+ * ```ts
+ * import { resolvePatternDirection, detectChannel } from "trendcraft";
+ *
+ * for (const p of detectChannel(candles)) {
+ *   const dir = resolvePatternDirection(p);
+ *   if (dir === null) continue; // still forming, no side to take
+ * }
+ * ```
+ */
+export function resolvePatternDirection(signal: PatternSignal): "bullish" | "bearish" | null {
+  // `breakoutDirection` is only meaningful on a confirmed pattern — the two are
+  // set together by every detector. Requiring both keeps a hand-built or
+  // deserialized signal that carries one without the other from being read as a
+  // breakout that never happened.
+  if (signal.confirmed && signal.breakoutDirection) {
+    return signal.breakoutDirection === "up" ? "bullish" : "bearish";
+  }
+  const bias = PATTERN_BIAS[signal.type];
+  return bias === "neutral" ? null : bias;
 }
 
 /**

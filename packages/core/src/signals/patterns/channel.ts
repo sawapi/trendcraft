@@ -238,6 +238,7 @@ export function detectChannel(
           },
           confidence,
           confirmed,
+          breakoutDirection: breakout?.direction,
         });
       } // end sliding window
     }

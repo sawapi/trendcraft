@@ -12,6 +12,7 @@ import type { CrossSignalQuality } from "../cross";
 import type { DivergenceSignal } from "../divergence";
 import { patternActionableTime } from "../patterns/double-pattern-utils";
 import type { PatternSignal } from "../patterns/types";
+import { resolvePatternDirection } from "../patterns/types";
 
 /**
  * Convert a CrossSignalQuality to a TradeSignal
@@ -139,7 +140,17 @@ export function fromSqueezeSignal(
 /**
  * Convert a PatternSignal to a TradeSignal
  *
- * Maps pattern target and stopLoss to TradeSignal price levels.
+ * Maps pattern target and stopLoss to TradeSignal price levels. The direction
+ * comes from {@link resolvePatternDirection}: the confirmed breakout direction
+ * when the detector recorded one, otherwise the shape's `PATTERN_BIAS`.
+ *
+ * That ordering matters — a `channel_ascending` that broke DOWN has its
+ * `target` below and its `stopLoss` above the breakout, so taking the bullish
+ * shape at face value would emit a BUY whose take-profit sits under its stop.
+ *
+ * Returns `null` when neither settles the direction: a `"neutral"` shape that
+ * has not broken out yet — a symmetrical triangle or any of the three channel
+ * subtypes (`channel_ascending`, `channel_descending`, `channel_horizontal`).
  *
  * The trade signal is stamped at the bar where the pattern first becomes
  * actionable — `confirmTime` for a confirmed pattern, `detectableTime`
@@ -148,17 +159,20 @@ export function fromSqueezeSignal(
  *
  * @param signal - Pattern recognition signal
  * @param entryPrice - Price at the actionable bar
- * @returns Unified trade signal
+ * @returns Unified trade signal, or `null` for a directionless pattern
  *
  * @example
  * ```ts
  * const patterns = doubleBottom(candles);
- * const tradeSignals = patterns.map(p => fromPatternSignal(p));
+ * const tradeSignals = patterns
+ *   .map(p => fromPatternSignal(p))
+ *   .filter((s): s is TradeSignal => s !== null);
  * ```
  */
-export function fromPatternSignal(signal: PatternSignal, entryPrice?: number): TradeSignal {
-  const bullishPatterns = ["double_bottom", "inverse_head_shoulders", "cup_handle"];
-  const isBullish = bullishPatterns.includes(signal.type);
+export function fromPatternSignal(signal: PatternSignal, entryPrice?: number): TradeSignal | null {
+  const direction = resolvePatternDirection(signal);
+  if (direction === null) return null;
+  const isBullish = direction === "bullish";
   // A confirmed pattern's confidence folds in breakout information, so the
   // whole signal is only knowable at confirmTime.
   const actionableTime = patternActionableTime(signal, signal.confirmed) ?? signal.detectableTime;

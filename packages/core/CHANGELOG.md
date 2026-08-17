@@ -2,6 +2,94 @@
 
 ## [Unreleased]
 
+### Breaking — pattern direction now comes from one table; `fromPatternSignal` can return `null`
+
+Two functions each decided on their own whether a chart pattern points up or
+down, and both lists had gone stale against `PatternType`:
+
+- `fromPatternSignal` recognised only `double_bottom`, `inverse_head_shoulders`
+  and `cup_handle` as bullish, so **9 of the 12 bullish pattern types came out as
+  `SELL`/`SHORT`** — `bull_flag`, `bull_pennant`, `triangle_ascending`,
+  `falling_wedge` and all five `*_bullish` harmonics. A bull flag produced a
+  short. The 4 directionless types were forced short the same way.
+- `projectFromPatterns` treated only `double_top` and `head_shoulders` as
+  bearish, so **9 of the 11 bearish pattern types were projected upward**: a
+  `bear_flag` followed by a 10% decline was reported as a −10% return, turning a
+  pattern that worked into one that failed. The 4 directionless types were
+  scored as bullish.
+
+Both now read `PATTERN_BIAS`, a new `Record<PatternType, PatternBias>` exported
+alongside `PatternType`. Because it is a total record, adding a pattern type
+without declaring its direction is a compile error rather than a silent default.
+
+Shape alone is not enough, though. The triangle and channel detectors accept a
+breakout in either direction and measure `target`/`stopLoss` from the one they
+found, but that direction was dropped from the returned `PatternSignal`. A
+confirmed `channel_ascending` that broke DOWN therefore produced:
+
+```
+action: BUY, direction: LONG, takeProfit: 112.00, stopLoss: 140.00
+```
+
+— a long whose take-profit sits 28 points below its stop. `PatternSignal` now
+carries `breakoutDirection?: "up" | "down"`, populated by the triangle, channel
+and wedge detectors, and both consumers resolve direction through the new
+`resolvePatternDirection(signal)`: **a recorded breakout wins, otherwise the
+shape's bias**. Detectors whose confirmation is a break in the shape's own
+direction by construction (double top/bottom, head and shoulders, flags,
+harmonics) leave the field unset and keep using bias.
+
+`PatternBias` also has a third value, `"neutral"`, for the four shapes that carry
+no direction of their own: `triangle_symmetrical` and the whole channel family
+resolve either way. That matches what the pattern table in the API reference has
+always said — the old code disagreed with the published docs on channels.
+Consequently:
+
+- `fromPatternSignal` returns `TradeSignal | null`. It yields `null` only when
+  nothing settles the direction — a neutral shape that has not broken out yet.
+  A confirmed neutral pattern now produces a signal in the direction it actually
+  broke, so a confirmed symmetrical triangle is tradable for the first time.
+  Callers that mapped over patterns need a filter:
+  `patterns.map(p => fromPatternSignal(p)).filter(s => s !== null)`.
+- `projectFromPatterns` measures each signal the way it resolved and excludes
+  the ones with no direction yet. `patternCount` counts only the signals
+  actually projected, so it can now be lower than `signals.length`.
+
+The resulting table matches the pattern reference table that has been published
+in the API docs all along — including on channels, where the old code disagreed
+with the docs. No directional classification was invented for this change.
+
+### Added — `PATTERN_BIAS`, `PatternBias`, `resolvePatternDirection`
+
+`PATTERN_BIAS` maps every `PatternType` to `"bullish" | "bearish" | "neutral"`,
+so consumers that need a pattern's direction — to colour a marker, pick a side,
+or filter a list — can read the same table the library uses instead of writing
+their own:
+
+```ts
+import { PATTERN_BIAS, detectHarmonicPatterns } from "trendcraft";
+
+const longs = detectHarmonicPatterns(candles)
+  .filter((p) => PATTERN_BIAS[p.type] === "bullish");
+```
+
+Bias is deliberately a separate axis from reversal-vs-continuation: a cup and
+handle is bullish continuation and an inverse head and shoulders is bullish
+reversal, and both are `"bullish"` here.
+
+`resolvePatternDirection(signal)` applies the full rule — confirmed breakout
+first, then bias, `null` when neither settles it — and is what the library uses
+internally, so consumers deciding a side get the same answer the library does:
+
+```ts
+import { resolvePatternDirection, detectChannel } from "trendcraft";
+
+for (const p of detectChannel(candles)) {
+  const dir = resolvePatternDirection(p); // "bullish" | "bearish" | null
+  if (dir === null) continue; // still forming, no side to take
+}
+```
+
 ### Breaking — 18 batch indicators now reject fractional and non-finite periods
 
 A period is a bar count, but the batch indicators only checked a lower bound,

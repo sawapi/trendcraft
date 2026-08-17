@@ -7,7 +7,7 @@
 
 import { useCallback, useMemo } from "react";
 import type { PatternProjection, PatternSignal } from "trendcraft";
-import { projectFromPatterns } from "trendcraft";
+import { projectFromPatterns, resolvePatternDirection } from "trendcraft";
 import { usePatternReplay } from "../hooks/usePatternReplay";
 import { useSignals } from "../hooks/useSignals";
 import { useChartStore } from "../store/chartStore";
@@ -32,8 +32,6 @@ const PATTERN_DISPLAY_NAMES: Record<string, string> = {
   bull_pennant: "Bull Pennant",
   bear_pennant: "Bear Pennant",
 };
-
-const BEARISH_PATTERNS = new Set(["double_top", "head_shoulders"]);
 
 function formatDate(timestamp: number): string {
   const date = new Date(timestamp);
@@ -60,8 +58,12 @@ function getPatternReturn(
   const targetIdx = Math.min(endIdx + horizon, candles.length - 1);
   if (targetIdx <= endIdx) return null;
 
+  const direction = resolvePatternDirection(pattern);
+  // No direction resolved (a neutral shape that has not broken out): a signed
+  // return would be meaningless, so report nothing rather than assume bullish.
+  if (direction === null) return null;
   const ret = ((candles[targetIdx].close - basePrice) / basePrice) * 100;
-  const sign = BEARISH_PATTERNS.has(pattern.type) ? -1 : 1;
+  const sign = direction === "bearish" ? -1 : 1;
   return Math.round(ret * sign * 100) / 100;
 }
 

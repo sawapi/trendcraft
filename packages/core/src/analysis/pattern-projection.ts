@@ -6,6 +6,7 @@
  */
 
 import type { PatternSignal } from "../signals/patterns/types";
+import { resolvePatternDirection } from "../signals/patterns/types";
 import type { NormalizedCandle, Series } from "../types";
 import type {
   EventExtractor,
@@ -215,20 +216,22 @@ export function projectFromSeries<V>(
   return projectPatternOutcome(candles, events, (e) => ({ time: e.time }), options);
 }
 
-/** Bearish pattern types */
-const BEARISH_PATTERNS = new Set(["double_top", "head_shoulders"]);
-
 /**
  * Project outcomes from PatternSignal array
  *
- * Automatically determines direction from pattern type:
- * - double_top, head_shoulders → bearish
- * - double_bottom, inverse_head_shoulders, cup_handle → bullish
+ * Direction comes from {@link resolvePatternDirection}: a confirmed breakout
+ * direction when the detector recorded one, otherwise the shape's
+ * {@link PATTERN_BIAS}. A pattern that broke against its own shape is therefore
+ * measured the way it actually resolved.
+ *
+ * Signals whose direction is still unknown — a `"neutral"` shape with no
+ * breakout yet — are excluded rather than scored in an arbitrary direction,
+ * which would report a coin flip as an edge.
  *
  * @param candles - Historical candle data
  * @param signals - Array of PatternSignal from pattern detection functions
  * @param options - Projection options
- * @returns PatternProjection
+ * @returns PatternProjection over the directional signals only
  *
  * @example
  * ```ts
@@ -244,12 +247,13 @@ export function projectFromPatterns(
   signals: PatternSignal[],
   options?: PatternProjectionOptions,
 ): PatternProjection {
+  const directional = signals.filter((s) => resolvePatternDirection(s) !== null);
   return projectPatternOutcome(
     candles,
-    signals,
+    directional,
     (s) => ({
       time: s.time,
-      direction: BEARISH_PATTERNS.has(s.type) ? "bearish" : "bullish",
+      direction: resolvePatternDirection(s) === "bearish" ? "bearish" : "bullish",
     }),
     options,
   );
