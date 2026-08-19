@@ -428,7 +428,14 @@ export type BacktestResult = {
   tradeCount: number;
   /** Win rate percentage */
   winRate: number;
-  /** Maximum drawdown percentage */
+  /**
+   * Deepest peak-to-trough decline of the mark-to-market {@link
+   * BacktestResult.equityCurve}, in percent. Measured on account equity —
+   * cash plus the value of anything still open — so a partial exit does not
+   * register as a loss and a decline taken while fully invested does.
+   * Equal to the largest `maxDepthPercent` in {@link
+   * BacktestResult.drawdownPeriods}.
+   */
   maxDrawdown: number;
   /**
    * Sharpe ratio, annualized from the equity curve's bar-to-bar returns and
@@ -496,7 +503,10 @@ export type BacktestResult = {
   trades: Trade[];
   /** Settings used for this backtest (for reproducibility) */
   settings: BacktestSettings;
-  /** Individual drawdown periods with peak-trough-recovery tracking */
+  /**
+   * Individual drawdown periods with peak-trough-recovery tracking, measured
+   * bar by bar on the same equity path as {@link BacktestResult.maxDrawdown}.
+   */
   drawdownPeriods: DrawdownPeriod[];
   /**
    * Mark-to-market account equity at each candle's close, aligned
@@ -505,9 +515,11 @@ export type BacktestResult = {
    * candles.length`). Equity is `cash + position claim − loan`, signed by
    * direction, so it tracks unrealized P&L of an open position and realizes
    * each partial exit faithfully — unlike a from-trades reconstruction, which
-   * cannot recover the open fraction after a partial exit. Emitted by
-   * `runBacktest`; optional because hand-built results may omit it (consumers
-   * fall back to reconstructing returns from trades).
+   * cannot recover the open fraction after a partial exit. Under
+   * `runBacktestScaled` the capital a position still holds back for tranches
+   * it has not entered counts as equity too. Emitted by `runBacktest` and
+   * `runBacktestScaled`; optional because hand-built results may omit it
+   * (consumers fall back to reconstructing returns from trades).
    */
   equityCurve?: number[];
 };

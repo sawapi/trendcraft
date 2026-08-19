@@ -175,9 +175,9 @@ describe("analyzeDrawdowns", () => {
 
       if (result.drawdownPeriods.length > 0) {
         const maxPeriodDepth = Math.max(...result.drawdownPeriods.map((p) => p.maxDepthPercent));
-        // The max depth from drawdown periods should be <= the overall maxDrawdown
-        // (they track different things: periods track equity curve, maxDrawdown tracks running max)
-        expect(maxPeriodDepth).toBeLessThanOrEqual(result.maxDrawdown + 0.01);
+        // Both come out of the same equity path, so the deepest period IS the
+        // overall maxDrawdown.
+        expect(maxPeriodDepth).toBeCloseTo(result.maxDrawdown, 10);
       }
     });
 

@@ -2976,7 +2976,7 @@ interface BacktestResult {
   totalReturnPercent: number;        // 総リターン率
   tradeCount: number;                // 取引回数
   winRate: number;                   // 勝率 (%)
-  maxDrawdown: number;               // 最大ドローダウン (%)
+  maxDrawdown: number;               // 最大ドローダウン: equityCurve の最大下落率 (%)
   sharpeRatio: number;               // シャープレシオ（エクイティカーブから年率化）
   sortinoRatio: number;              // ソルティノレシオ（年率化・下方偏差ベース）
   calmarRatio: number;               // CAGR ÷ 最大ドローダウン
@@ -4448,6 +4448,8 @@ const curve = getAWFEquityCurve(awfResult, 1000000);
 ### `runBacktestScaled(candles, entry, exit, options)`
 
 分割エントリー戦略でのバックテスト。一度に全ポジションを建てる代わりに、資金を複数のトランシェに分割します。
+
+結果には `runBacktest` と同じ時価評価ベースの `equityCurve` / `maxDrawdown` / `drawdownPeriods` が含まれます。未エントリーのトランシェ向けに留保している資金もエクイティとして数えるため、損失としては現れません。
 
 ```typescript
 import { runBacktestScaled, goldenCrossCondition, deadCrossCondition } from 'trendcraft';

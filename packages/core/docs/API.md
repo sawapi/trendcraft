@@ -2998,7 +2998,7 @@ interface BacktestResult {
   totalReturnPercent: number;        // Total return percentage
   tradeCount: number;                // Number of trades
   winRate: number;                   // Win rate (%)
-  maxDrawdown: number;               // Maximum drawdown (%)
+  maxDrawdown: number;               // Deepest peak-to-trough decline of equityCurve (%)
   sharpeRatio: number;               // Sharpe ratio, annualized from the equity curve
   sortinoRatio: number;              // Sortino ratio (annualized, downside deviation)
   calmarRatio: number;               // CAGR / max drawdown
@@ -4491,6 +4491,8 @@ const curve = getAWFEquityCurve(awfResult, 1000000);
 ### `runBacktestScaled(candles, entry, exit, options)`
 
 Backtest with split/scaled entry strategies. Instead of entering a full position at once, capital is divided into multiple tranches.
+
+The result carries `equityCurve`, `maxDrawdown` and `drawdownPeriods` on the same mark-to-market basis as `runBacktest`; capital a position still reserves for tranches it has not entered counts as equity, not as a loss.
 
 ```typescript
 import { runBacktestScaled, goldenCrossCondition, deadCrossCondition } from 'trendcraft';
