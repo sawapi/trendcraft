@@ -11,10 +11,14 @@ import type { PositionSizingMethod } from "./volume-risk";
 // ============================================
 
 /**
- * Input dataset for a single symbol in batch/portfolio backtests
+ * Input dataset for a single symbol in batch/portfolio backtests.
+ *
+ * A symbol may appear at most once in a dataset list — capital allocation and
+ * the merged equity curve are keyed by it. `batchBacktest` and
+ * `portfolioBacktest` throw on a repeated symbol.
  */
 export type SymbolData = {
-  /** Ticker symbol (e.g., "AAPL", "7203.T") */
+  /** Ticker symbol (e.g., "AAPL", "7203.T") — unique within a dataset list */
   symbol: string;
   /** Normalized candle data */
   candles: NormalizedCandle[];
@@ -74,7 +78,10 @@ export type BatchBacktestOptions = Omit<BacktestOptions, "capital"> & {
 export type PortfolioMetrics = {
   /** Total initial capital */
   initialCapital: number;
-  /** Total final capital (sum of all symbol finals) */
+  /**
+   * Total final capital: every symbol's final capital, plus any capital
+   * `maxSymbolExposure` kept out of the market and held as portfolio cash.
+   */
   finalCapital: number;
   /** Portfolio total return amount */
   totalReturn: number;
@@ -121,14 +128,17 @@ export type AllocationStrategy =
   | { type: "riskParity"; riskBudget?: number };
 
 /**
- * Rebalance configuration
+ * Rebalance configuration.
+ *
+ * Accepted by `portfolioBacktest` but not yet enforced — allocation is fixed
+ * for the whole run, so passing this changes nothing about the simulation.
  */
 export type RebalanceConfig = {
   /**
-   * Rebalance frequency
-   * - "monthly": Rebalance on first trading day of each month
-   * - "quarterly": Rebalance every 3 months
-   * - "threshold": Rebalance when drift exceeds threshold
+   * Intended rebalance frequency (not yet enforced)
+   * - "monthly": first trading day of each month
+   * - "quarterly": every 3 months
+   * - "threshold": when drift exceeds `driftThreshold`
    */
   frequency: "monthly" | "quarterly" | "threshold";
   /** Drift threshold in percent to trigger rebalance (only for "threshold" mode) */
@@ -145,11 +155,25 @@ export type PortfolioBacktestOptions = {
   allocation: AllocationStrategy;
   /** Maximum concurrent positions (default: number of symbols) */
   maxPositions?: number;
-  /** Maximum per-symbol exposure in percent (default: 100 / numSymbols) */
+  /**
+   * Maximum per-symbol exposure in percent of total capital (default: 100,
+   * i.e. no cap). When this binds, the symbol is started with less capital
+   * than its allocation weight asks for and the difference is held as
+   * portfolio cash — it stays in the equity curve and in `finalCapital`.
+   */
   maxSymbolExposure?: number;
-  /** Maximum portfolio drawdown before halting (in percent) */
+  /**
+   * Maximum portfolio drawdown in percent. Accepted but not yet enforced: the
+   * backtest always runs to completion, and nothing in the result flags the
+   * breach. Read `portfolio.maxDrawdown` and decide for yourself. (The
+   * same-named option on the live `PortfolioGuardOptions` is enforced — this
+   * one is the backtest's, and is not.)
+   */
   maxPortfolioDrawdown?: number;
-  /** Rebalance configuration (optional) */
+  /**
+   * Rebalance configuration. Accepted but not yet enforced — see
+   * {@link RebalanceConfig}.
+   */
   rebalance?: RebalanceConfig;
   /** Per-trade backtest options (SL, TP, trailing, commissions, sizing, etc.) */
   tradeOptions?: Omit<BacktestOptions, "capital">;
@@ -172,7 +196,10 @@ export type PortfolioBacktestResult = {
   equityCurve: EquityPoint[];
   /** All trades across all symbols, sorted by entry time */
   allTrades: (Trade & { symbol: string })[];
-  /** Number of times rebalance occurred */
+  /**
+   * Number of times rebalance occurred. Always 0: rebalancing is not yet
+   * implemented, so the allocation set at the start holds for the whole run.
+   */
   rebalanceCount: number;
   /** Peak concurrent positions held */
   peakConcurrentPositions: number;

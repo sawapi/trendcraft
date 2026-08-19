@@ -2,7 +2,8 @@
  * Portfolio / Multi-Asset Backtest
  *
  * Phase 1: batchBacktest() - Run independent per-symbol backtests and merge results
- * Phase 2: portfolioBacktest() - Shared capital with allocation and rebalancing
+ * Phase 2: portfolioBacktest() - Weighted allocation with a per-symbol exposure
+ *          cap. The allocation is fixed for the whole run; nothing rebalances.
  */
 
 import { periodsPerYearFromSpan, sharpeFromReturns } from "../analysis/return-metrics";
@@ -74,6 +75,7 @@ export function batchBacktest(
   if (datasets.length === 0) {
     throw new Error("At least one symbol dataset is required");
   }
+  assertUniqueSymbols(datasets);
 
   // Calculate per-symbol capital allocation
   const allocations = calculateAllocations(datasets, options);
@@ -122,15 +124,20 @@ export function batchBacktest(
 // ============================================
 
 /**
- * Run a portfolio backtest with weight-based capital allocation, exposure constraints, and optional rebalancing.
+ * Run a portfolio backtest with weight-based capital allocation and exposure constraints.
  *
  * Unlike `batchBacktest()`, this applies portfolio-level allocation and exposure
  * constraints. Allocation is static: total capital is split across symbols by the
  * weights from the `allocation` strategy, and `maxSymbolExposure` caps each
- * symbol's share of total capital. Symbols are currently backtested independently
- * against their allocated capital (no shared capital pool or signal competition
- * yet), and `maxPositions` is accepted but not yet enforced; concurrent positions
- * are reported via `peakConcurrentPositions`.
+ * symbol's share of total capital. Capital the cap keeps out of the market is
+ * held as portfolio cash and stays in the equity curve and in `finalCapital`.
+ * Symbols are currently backtested independently against their allocated
+ * capital (no shared capital pool or signal competition yet).
+ *
+ * Three options are accepted but not yet enforced: `maxPositions` (concurrent
+ * positions are reported via `peakConcurrentPositions` instead),
+ * `maxPortfolioDrawdown` (the run always goes to completion), and `rebalance`
+ * (allocation never changes, so `rebalanceCount` is always 0).
  *
  * @param datasets - Array of symbol data
  * @param entryCondition - Entry condition
@@ -168,19 +175,13 @@ export function portfolioBacktest(
   if (datasets.length === 0) {
     throw new Error("At least one symbol dataset is required");
   }
+  assertUniqueSymbols(datasets);
 
-  const {
-    capital,
-    allocation,
-    // `maxPositions` is documented on the option type but not yet wired
-    // through the backtest loop. Kept in the destructure so the field
-    // name remains discoverable when the limit lands; `_`-prefix tells
-    // the linter the omission is intentional.
-    maxPositions: _maxPositions = datasets.length,
-    maxSymbolExposure = 100,
-    maxPortfolioDrawdown,
-    tradeOptions = {},
-  } = options;
+  // `maxPositions`, `maxPortfolioDrawdown` and `rebalance` are documented on
+  // the option type but not yet wired through the backtest loop, so they are
+  // deliberately not read here — see the option type's JSDoc for what each one
+  // will do once it lands.
+  const { capital, allocation, maxSymbolExposure = 100, tradeOptions = {} } = options;
 
   // Calculate target weights
   const weights = calculateWeights(datasets, allocation);
@@ -195,7 +196,11 @@ export function portfolioBacktest(
   // (Phase 2 simplified: independent runs with weight-based allocation + position limits)
   const symbolResults: SymbolBacktestResult[] = [];
   let peakConcurrentPositions = 0;
-  let rebalanceCount = 0;
+
+  // Capital each symbol is actually started with, after the exposure cap. It
+  // is what the merged equity curve must fill in before a symbol's first bar,
+  // and what the undeployed remainder is measured against.
+  const effectiveCapitals: Record<string, number> = {};
 
   for (const dataset of datasets) {
     const symbolCap = symbolCapitals[dataset.symbol];
@@ -203,6 +208,7 @@ export function portfolioBacktest(
     // Enforce max symbol exposure
     const maxExposureCapital = (capital * maxSymbolExposure) / 100;
     const effectiveCapital = Math.min(symbolCap, maxExposureCapital);
+    effectiveCapitals[dataset.symbol] = effectiveCapital;
 
     const result = runBacktest(dataset.candles, entryCondition, exitCondition, {
       ...tradeOptions,
@@ -211,6 +217,12 @@ export function portfolioBacktest(
 
     symbolResults.push({ symbol: dataset.symbol, result });
   }
+
+  // Whatever `maxSymbolExposure` kept out of the market stays on the books as
+  // portfolio cash. Dropping it would report a portfolio that placed no trades
+  // at all as having lost exactly the capital the cap withheld.
+  const deployed = Object.values(effectiveCapitals).reduce((s, c) => s + c, 0);
+  const idleCash = capital - deployed;
 
   // Track concurrent positions from all trades
   const allTradesWithSymbol = mergeAndSortTrades(symbolResults);
@@ -230,26 +242,18 @@ export function portfolioBacktest(
   }
 
   // Build equity curve and portfolio metrics
-  const equityCurve = buildMergedEquityCurve(symbolResults, datasets, symbolCapitals);
+  const equityCurve = buildMergedEquityCurve(symbolResults, datasets, effectiveCapitals, idleCash);
 
-  const portfolio = calculatePortfolioMetrics(symbolResults, equityCurve, capital);
-
-  // Check max portfolio drawdown
-  if (maxPortfolioDrawdown !== undefined && portfolio.maxDrawdown > maxPortfolioDrawdown) {
-    // Drawdown breached - noted in result (portfolio ran to completion for analysis)
-  }
-
-  // Rebalance tracking (for future enhancement)
-  if (options.rebalance) {
-    rebalanceCount = estimateRebalanceCount(datasets, options.rebalance);
-  }
+  const portfolio = calculatePortfolioMetrics(symbolResults, equityCurve, capital, idleCash);
 
   return {
     symbols: symbolResults,
     portfolio,
     equityCurve,
     allTrades: allTradesWithSymbol,
-    rebalanceCount,
+    // Allocation is fixed for the whole run, so no rebalance ever happens.
+    // Reporting a calendar estimate here claimed events that never took place.
+    rebalanceCount: 0,
     peakConcurrentPositions,
   };
 }
@@ -257,6 +261,32 @@ export function portfolioBacktest(
 // ============================================
 // Internal Helpers
 // ============================================
+
+/**
+ * Reject a dataset list that names the same symbol twice.
+ *
+ * Capital, allocation weights and the merged equity curve are all keyed by
+ * symbol, so a repeated name silently collapses several datasets into one on
+ * those paths while every sleeve still runs and still counts toward the
+ * result — capital stops being conserved. Two datasets for one instrument have
+ * no defined meaning here anyway, so this is a caller error, not a mode to
+ * support.
+ */
+function assertUniqueSymbols(datasets: SymbolData[]): void {
+  const seen = new Set<string>();
+  const duplicates = new Set<string>();
+  for (const dataset of datasets) {
+    if (seen.has(dataset.symbol)) duplicates.add(dataset.symbol);
+    seen.add(dataset.symbol);
+  }
+  if (duplicates.size > 0) {
+    throw new Error(
+      `Duplicate symbol(s) in datasets: ${[...duplicates].sort().join(", ")}. ` +
+        "Each symbol must appear at most once — capital allocation and the merged " +
+        "equity curve are keyed by symbol.",
+    );
+  }
+}
 
 /**
  * Calculate per-symbol capital allocations
@@ -362,12 +392,22 @@ function mergeAndSortTrades(symbolResults: SymbolBacktestResult[]): (Trade & { s
  *
  * Symbols need not share a calendar. The curve carries every timestamp any
  * dataset has, and a symbol that has no bar at that timestamp holds its last
- * known equity (its allocation before its first bar).
+ * known equity (the capital it was started with, before its first bar).
+ *
+ * `allocations` must be the capital each symbol was actually started with, not
+ * the target weights: those two differ once `maxSymbolExposure` binds, and a
+ * filler larger than the sleeve's real starting capital shows up as a step
+ * down on the symbol's first bar that no trade caused.
+ *
+ * `idleCash` is portfolio capital that was never deployed to any symbol. It
+ * sits at every point of the curve, so a constraint that leaves cash on the
+ * sidelines dilutes the portfolio's return rather than vanishing from it.
  */
 function buildMergedEquityCurve(
   symbolResults: SymbolBacktestResult[],
   datasets: SymbolData[],
   allocations: Record<string, number>,
+  idleCash = 0,
 ): EquityPoint[] {
   const curveBySymbol = new Map<string, { times: number[]; equity: number[] }>();
   for (const dataset of datasets) {
@@ -402,7 +442,7 @@ function buildMergedEquityCurve(
 
   const curve: EquityPoint[] = [];
   for (const time of allTimes) {
-    let total = 0;
+    let total = idleCash;
     for (const [symbol, series] of curveBySymbol) {
       let cursor = cursors.get(symbol) as number;
       while (cursor + 1 < series.times.length && series.times[cursor + 1] <= time) cursor++;
@@ -422,9 +462,12 @@ function calculatePortfolioMetrics(
   symbolResults: SymbolBacktestResult[],
   equityCurve: EquityPoint[],
   totalCapital: number,
+  idleCash = 0,
 ): PortfolioMetrics {
-  // Sum up per-symbol finals
-  const finalCapital = symbolResults.reduce((s, sr) => s + sr.result.finalCapital, 0);
+  // Sum up per-symbol finals, plus whatever capital was never deployed. Both
+  // sides of the return have to stand on the same capital: `totalCapital` is
+  // the whole portfolio, so the cash a constraint held back belongs here too.
+  const finalCapital = symbolResults.reduce((s, sr) => s + sr.result.finalCapital, 0) + idleCash;
   const totalReturn = finalCapital - totalCapital;
   const totalReturnPercent = (totalReturn / totalCapital) * 100;
 
@@ -484,39 +527,4 @@ function calculatePortfolioMetrics(
     profitFactor: Math.round(Math.min(profitFactor, 999.99) * 100) / 100,
     avgHoldingDays: Math.round(avgHoldingDays * 10) / 10,
   };
-}
-
-/**
- * Estimate rebalance count based on data range and frequency
- */
-function estimateRebalanceCount(
-  datasets: SymbolData[],
-  rebalance: NonNullable<PortfolioBacktestOptions["rebalance"]>,
-): number {
-  // Find data range across all symbols
-  let minTime = Number.POSITIVE_INFINITY;
-  let maxTime = Number.NEGATIVE_INFINITY;
-  for (const d of datasets) {
-    if (d.candles.length > 0) {
-      if (d.candles[0].time < minTime) minTime = d.candles[0].time;
-      if (d.candles[d.candles.length - 1].time > maxTime) {
-        maxTime = d.candles[d.candles.length - 1].time;
-      }
-    }
-  }
-
-  if (minTime === Number.POSITIVE_INFINITY) return 0;
-
-  const durationMs = maxTime - minTime;
-  const MS_PER_DAY = 24 * 60 * 60 * 1000;
-
-  switch (rebalance.frequency) {
-    case "monthly":
-      return Math.floor(durationMs / (30 * MS_PER_DAY));
-    case "quarterly":
-      return Math.floor(durationMs / (90 * MS_PER_DAY));
-    case "threshold":
-      // Cannot estimate without running simulation
-      return 0;
-  }
 }

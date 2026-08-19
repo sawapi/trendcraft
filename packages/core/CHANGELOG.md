@@ -2,6 +2,67 @@
 
 ## [Unreleased]
 
+### Breaking — `portfolioBacktest` no longer loses the capital `maxSymbolExposure` withholds
+
+`maxSymbolExposure` caps each symbol's share of total capital by shrinking the
+capital that symbol's backtest is started with. Nothing accounted for the
+remainder. Metrics were then computed against the **full** `capital`, so the
+undeployed cash was counted on the initial-capital side and missing from the
+final side.
+
+Three equal-weight symbols, `capital: 3_000_000`, `maxSymbolExposure: 25` and a
+condition that never fires — a portfolio that placed **zero trades** — reported:
+
+```
+{ initialCapital: 3000000, finalCapital: 2250000, totalReturn: -750000,
+  totalReturnPercent: -25, maxDrawdown: 25, tradeCount: 0 }
+equityCurve[0] = { equity: 2250000 }
+```
+
+The same run with the cap omitted correctly reported 0% and no drawdown, so the
+entire −25% was manufactured by the cap. The merged equity curve had a second
+form of the same mismatch: a symbol's pre-first-bar filler used its **uncapped**
+allocation, so a symbol whose data starts late produced a step down on its first
+bar that no trade caused (1,500,000 → 1,000,000 in a two-symbol run).
+
+Capital the cap keeps out of the market is now held as portfolio cash: it sits
+at every point of `equityCurve` and in `portfolio.finalCapital`, and the curve's
+filler uses the capital each symbol was actually started with. A tighter cap now
+dilutes the portfolio's return instead of reading as a loss. Only runs where the
+cap actually binds (`maxSymbolExposure / 100` below a symbol's allocation weight)
+change; with the default of 100 nothing moves.
+
+The documented default for `maxSymbolExposure` said `100 / numSymbols` while the
+implementation used `100`. The documentation was wrong — under a `fixed`
+allocation with unequal weights the documented default would bind on the largest
+sleeve on every call — and now says `100`.
+
+### Breaking — `batchBacktest` and `portfolioBacktest` reject a repeated symbol
+
+Capital allocation and the merged equity curve are keyed by symbol, so a
+dataset list naming the same symbol twice collapsed several datasets into one
+on those paths while every sleeve still ran and still counted toward the
+result. Two 500-capital sleeves for the same symbol against a 1,000,000
+portfolio produced a merged equity curve holding only 500,000 at every point,
+and metrics that moved with zero trades — a 50% gain, or a 50% loss with a 25%
+exposure cap on top, depending on which side of the mismatch dominated. Both
+functions now throw, naming the repeated symbols. Two datasets for one
+instrument had no defined meaning here, so no correct call changes.
+
+### Breaking — `portfolioBacktest.rebalanceCount` is always 0, and unenforced options say so
+
+`rebalanceCount` was documented as "Number of times rebalance occurred" but was
+a calendar estimate: span divided by 30 or 90 days. No rebalancing logic exists
+— each symbol is backtested once against a fixed allocation — so a two-year,
+two-symbol run reported `rebalanceCount: 24` with zero trades and an equity
+curve byte-identical to the same run without the option.
+
+It now reports `0`. `rebalance` and `maxPortfolioDrawdown` carry the same
+"accepted but not yet enforced" caveat `maxPositions` already had, on the option
+types and in the `portfolioBacktest` summary. `maxPortfolioDrawdown` never
+halted anything: its `if` block was empty. (The same-named option on the live
+`PortfolioGuardOptions` is a different, working feature.)
+
 ### Breaking — drawdown is measured on account equity, not on the cash balance
 
 `runBacktest` and `runBacktestScaled` tracked `maxDrawdown` and
