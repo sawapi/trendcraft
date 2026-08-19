@@ -27,7 +27,7 @@ import type { ValidationOptions } from "../validation/types";
 import { validateCandles } from "../validation/validate";
 import type { ExtendedCondition } from "./conditions";
 import { evaluateCondition, RUN_LOCAL_CACHE_KEYS, seedBenchmark } from "./conditions";
-import { createDrawdownTracker } from "./drawdown-tracker";
+import { drawdownFromEquityCurve } from "./drawdown-tracker";
 import type { Position } from "./engine-utils";
 import {
   applySlippage,
@@ -252,14 +252,13 @@ export function runBacktest(
   } | null = null;
 
   let currentCapital = capital;
-  let peakCapital = capital;
-  let maxDrawdown = 0;
   const returns: number[] = [];
-  const ddTracker = createDrawdownTracker(capital);
 
   // Mark-to-market equity at each candle's close, aligned to `candles`. Bar 0
   // is never traded (the loop starts at index 1), so it holds the starting
-  // capital; every later bar is filled at the end of its iteration.
+  // capital; every later bar is filled at the end of its iteration. Drawdown
+  // is derived from this curve once the run finishes, so the two can never
+  // describe different paths.
   const equityCurve: number[] = new Array(candles.length).fill(capital);
 
   // Margin state tracking
@@ -406,20 +405,6 @@ export function runBacktest(
     return isShort
       ? ((pos.entryPrice - price) / pos.entryPrice) * 100
       : ((price - pos.entryPrice) / pos.entryPrice) * 100;
-  }
-
-  /**
-   * Track drawdown after capital changes
-   */
-  function trackDrawdown(time: number, barIndex: number): void {
-    if (currentCapital > peakCapital) {
-      peakCapital = currentCapital;
-    }
-    const drawdown = ((peakCapital - currentCapital) / peakCapital) * 100;
-    if (drawdown > maxDrawdown) {
-      maxDrawdown = drawdown;
-    }
-    ddTracker.update(currentCapital, time, barIndex);
   }
 
   /**
@@ -660,7 +645,6 @@ export function runBacktest(
       deductMarginInterest(position.entryTime, candle.time);
       currentCapital += result.netProceeds - repayMarginLoan(1);
       returns.push(result.returnPercent / 100);
-      trackDrawdown(candle.time, i);
 
       position = null;
       pendingExit = null;
@@ -796,7 +780,6 @@ export function runBacktest(
             deductMarginInterest(position.entryTime, candle.time, reduceFraction);
             currentCapital += result.netProceeds - repayMarginLoan(reduceFraction);
             returns.push(result.returnPercent / 100);
-            trackDrawdown(candle.time, i);
 
             position.shares -= reduceShares;
           }
@@ -902,7 +885,6 @@ export function runBacktest(
           deductMarginInterest(position.entryTime, candle.time, partialFraction);
           currentCapital += result.netProceeds - repayMarginLoan(partialFraction);
           returns.push(result.returnPercent / 100);
-          trackDrawdown(candle.time, i);
 
           position.shares = sharesRemaining;
           position.partialTaken = true;
@@ -962,7 +944,6 @@ export function runBacktest(
             deductMarginInterest(position.entryTime, candle.time, scaleOutFraction);
             currentCapital += result.netProceeds - repayMarginLoan(scaleOutFraction);
             returns.push(result.returnPercent / 100);
-            trackDrawdown(candle.time, i);
 
             position.shares = sharesRemaining;
             position.scaleOutLevelsTaken[levelIndex] = true;
@@ -1119,7 +1100,6 @@ export function runBacktest(
           deductMarginInterest(position.entryTime, candle.time);
           currentCapital += result.netProceeds - repayMarginLoan(1);
           returns.push(result.returnPercent / 100);
-          trackDrawdown(candle.time, i);
 
           position = null;
         } else {
@@ -1163,25 +1143,26 @@ export function runBacktest(
     deductMarginInterest(position.entryTime, lastCandle.time);
     currentCapital += result.netProceeds - repayMarginLoan(1);
     returns.push(result.returnPercent / 100);
-    ddTracker.update(currentCapital, lastCandle.time, candles.length - 1);
     // The end-of-data close realizes the final bar's equity (the in-loop value
-    // was the still-open mark-to-market); align it with the realized capital.
+    // was the still-open mark-to-market); align it with the realized capital,
+    // exit costs included. Drawdown reads the curve afterwards, so it sees the
+    // realized figure and never the mark-to-market that this replaces.
     equityCurve[candles.length - 1] = currentCapital;
   }
 
   // Cancel any unfilled pending order at end of data
   pendingOrder = null;
 
-  ddTracker.finalize(candles[candles.length - 1].time, candles.length - 1);
+  const drawdown = drawdownFromEquityCurve(equityCurve, candles);
 
   const result = calculateStats(
     trades,
     returns,
     capital,
     currentCapital,
-    maxDrawdown,
+    drawdown.maxDrawdown,
     settings,
-    ddTracker.getPeriods(),
+    drawdown.periods,
     candles.length >= 2
       ? { firstTime: candles[0].time, lastTime: candles[candles.length - 1].time }
       : undefined,

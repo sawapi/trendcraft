@@ -2,6 +2,60 @@
 
 ## [Unreleased]
 
+### Breaking — drawdown is measured on account equity, not on the cash balance
+
+`runBacktest` and `runBacktestScaled` tracked `maxDrawdown` and
+`drawdownPeriods` against the realized **cash** balance, updated only when a
+trade closed. Cash is 0 while a position is open and jumps to the realized
+slice on a partial exit, so the reported drawdown had little to do with the
+account's actual equity path:
+
+- **A partial exit fabricated a drawdown.** A strictly rising account with
+  `partialTakeProfit: { threshold: 5, sellPercent: 50 }` returned an
+  `equityCurve` that never declined by a cent —
+  `[1000000, 1000000, 1019801.98, …, 1188118.81]` — alongside
+  `maxDrawdown: 45.54` and a `drawdownPeriods` entry claiming a
+  `troughEquity` of 544,554. That "trough" was just the cash left after
+  selling half the position. A two-level `scaleOut` on the same path reported
+  56.44 while finishing at 1,186,534; three tranches plus a partial exit under
+  `runBacktestScaled` reported 46.75 while finishing at 1,161,747.
+- **A real decline was invisible.** An account held through
+  100 → 50 → 110 reported `maxDrawdown: 0` and no drawdown periods, because
+  cash never moved.
+- **The end-of-data close was not counted at all.** It updated the period
+  tracker but not the scalar, so a run ending with a losing open position
+  reported `maxDrawdown: 0` while `drawdownPeriods` said 33.33 — three fields
+  of one result contradicting each other. Closing the identical path with an
+  explicit exit signal instead gave 33.33.
+
+Both engines now derive drawdown from the finished `equityCurve` itself, in
+one pass, so `maxDrawdown` equals the deepest decline of `equityCurve` and the
+largest `maxDepthPercent` in `drawdownPeriods` by construction rather than by
+agreement.
+
+**What changes for you:** any strategy using `partialTakeProfit`, `scaleOut`,
+margin `reduceToMaintenance`, or ending with an open position reports a
+different `maxDrawdown` than before — usually much smaller for partial-exit
+strategies and larger for buy-and-hold-style runs. Everything derived from it
+moves with it: `calmarRatio`, `scoreBacktestResult`, the `"maxDrawdown"`,
+`"calmar"` and `"mar"` optimization objectives and constraints, drawdown
+analysis and tear sheets. Grid search and walk-forward stop penalising
+partial-exit strategies as though they had taken a ~50% loss.
+`drawdownPeriods` also gains bar-accurate `durationBars`/`recoveryBars`, since
+peaks and troughs are now located on the bar they occur rather than on the
+next trade close.
+
+### Added — `runBacktestScaled` reports an equity curve
+
+`runBacktestScaled` now returns `equityCurve` and a populated
+`drawdownPeriods` (previously always `[]`). Equity is cash plus the shares
+held across every tranche plus the capital the position still reserves for
+tranches it has not entered — that reserve leaves the cash balance when the
+position opens, so counting it keeps a partially-entered position from
+reading as an instant loss. Because the result now carries an equity curve,
+its `sharpeRatio` and `sortinoRatio` are annualized from that curve's
+bar-to-bar returns, matching `runBacktest`, instead of from per-trade returns.
+
 ### Breaking — pattern direction now comes from one table; `fromPatternSignal` can return `null`
 
 Two functions each decided on their own whether a chart pattern points up or

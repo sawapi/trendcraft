@@ -21,6 +21,7 @@ import type {
 } from "../types";
 import type { ExtendedCondition } from "./conditions";
 import { evaluateCondition, seedBenchmark } from "./conditions";
+import { drawdownFromEquityCurve } from "./drawdown-tracker";
 import type { MtfBacktestOptions } from "./engine";
 import { assertValidPartialExits, checkProfitTrigger, checkStopTrigger } from "./engine-utils";
 import {
@@ -277,9 +278,14 @@ export function runBacktestScaled(
 
   let position: ScaledPosition | null = null;
   let currentCapital = capital;
-  let peakCapital = capital;
-  let maxDrawdown = 0;
   const returns: number[] = [];
+
+  // Mark-to-market equity at each candle's close, aligned to `candles`. Bar 0
+  // is never traded (the loop starts at index 1), so it holds the starting
+  // capital; every later bar is filled at the end of its iteration. Drawdown
+  // is derived from this curve once the run finishes, so the two can never
+  // describe different paths.
+  const equityCurve: number[] = new Array(candles.length).fill(capital);
 
   // Fills queued by next-bar-open mode; they execute at the next bar's open,
   // mirroring the single-entry engine's pendingEntry/pendingExit handling.
@@ -348,14 +354,16 @@ export function runBacktestScaled(
     pos.reservedCapital -= trancheCapital;
   }
 
-  function trackDrawdown(): void {
-    if (currentCapital > peakCapital) {
-      peakCapital = currentCapital;
-    }
-    const drawdown = ((peakCapital - currentCapital) / peakCapital) * 100;
-    if (drawdown > maxDrawdown) {
-      maxDrawdown = drawdown;
-    }
+  /**
+   * Mark-to-market account equity at a candle's close: idle cash, plus the
+   * shares held across every tranche, plus the capital this position has
+   * reserved for tranches it has not entered yet. That reserve left
+   * `currentCapital` when the position opened, so leaving it out would read
+   * as an instant loss of the un-entered fraction of the trade.
+   */
+  function markToMarketEquity(close: number): number {
+    if (position === null) return currentCapital;
+    return currentCapital + position.totalShares * close + position.reservedCapital;
   }
 
   function closeShares(
@@ -399,7 +407,6 @@ export function runBacktestScaled(
     currentCapital +=
       exitValue - exitCommission - tax + (opts.releaseReserved ? pos.reservedCapital : 0);
     returns.push(returnPercent / 100);
-    trackDrawdown();
   }
 
   function closeFullPosition(
@@ -588,6 +595,7 @@ export function runBacktestScaled(
       // A 100% partial take profit closes the position outright; the remaining
       // per-bar management has nothing left to manage.
       if (position === null) {
+        equityCurve[i] = markToMarketEquity(candle.close);
         continue;
       }
 
@@ -679,6 +687,7 @@ export function runBacktestScaled(
         }
       }
     }
+    equityCurve[i] = markToMarketEquity(candle.close);
   }
 
   // Close any open position at the end (no slippage, matching the
@@ -687,18 +696,27 @@ export function runBacktestScaled(
   if (position !== null) {
     const lastCandle = candles[candles.length - 1];
     closeFullPosition(position, lastCandle.close, lastCandle.time, "endOfData", false);
+    // The end-of-data close realizes the final bar's equity (the in-loop value
+    // was the still-open mark-to-market); align it with the realized capital,
+    // exit costs included.
+    equityCurve[candles.length - 1] = currentCapital;
   }
 
-  return calculateStats(
+  const drawdown = drawdownFromEquityCurve(equityCurve, candles);
+
+  const result = calculateStats(
     trades,
     returns,
     capital,
     currentCapital,
-    maxDrawdown,
+    drawdown.maxDrawdown,
     settings,
-    [],
+    drawdown.periods,
     candles.length >= 2
       ? { firstTime: candles[0].time, lastTime: candles[candles.length - 1].time }
       : undefined,
+    equityCurve,
   );
+  result.equityCurve = equityCurve;
+  return result;
 }
