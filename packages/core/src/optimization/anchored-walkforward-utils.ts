@@ -157,9 +157,14 @@ export function generateAWFRecommendation(
 
 /**
  * Summarize AWF result
+ *
+ * `periodCount` counts only periods that selected a combination;
+ * `skippedPeriodCount` counts the rest. Both are needed to know how much of
+ * the requested analysis actually ran.
  */
 export function summarizeAWFResult(result: AWFResult): {
   periodCount: number;
+  skippedPeriodCount: number;
   avgInSampleReturn: number;
   avgOutOfSampleReturn: number;
   stabilityRatio: number;
@@ -173,6 +178,7 @@ export function summarizeAWFResult(result: AWFResult): {
 
   return {
     periodCount: result.periods.length,
+    skippedPeriodCount: result.skippedPeriods.length,
     avgInSampleReturn: result.aggregateMetrics.avgInSample.returns,
     avgOutOfSampleReturn: result.aggregateMetrics.avgOutOfSample.returns,
     stabilityRatio: result.aggregateMetrics.stabilityRatio,
@@ -192,7 +198,9 @@ export function formatAWFResult(result: AWFResult): string {
 
   const lines = [
     "=== Anchored Walk-Forward Analysis Results ===",
-    `Periods: ${result.periods.length}`,
+    `Periods: ${result.periods.length}${
+      result.skippedPeriods.length > 0 ? ` (${result.skippedPeriods.length} skipped)` : ""
+    }`,
     "",
     "Aggregate Performance:",
     `  IS Return:  ${result.aggregateMetrics.avgInSample.returns.toFixed(2)}%`,
@@ -231,11 +239,22 @@ export function formatAWFResult(result: AWFResult): string {
       `  [${period.periodNumber}] Train: ${trainStart}~${trainEnd} | Test: ${testStart}~${testEnd}`,
     );
     lines.push(
-      `      IS: ${period.inSampleMetrics.returns?.toFixed(1) ?? "N/A"}% | OOS: ${period.outOfSampleMetrics.returns.toFixed(1)}%`,
+      `      IS: ${period.inSampleMetrics.returns.toFixed(1)}% | OOS: ${period.outOfSampleMetrics.returns.toFixed(1)}%`,
     );
     lines.push(
       `      Entry: ${period.bestEntryConditions.join("+")} | Exit: ${period.bestExitConditions.join("+")}`,
     );
+  }
+
+  if (result.skippedPeriods.length > 0) {
+    lines.push("");
+    lines.push("Skipped Periods (no combination selected, not tested):");
+    for (const skipped of result.skippedPeriods) {
+      const trainStart = new Date(skipped.trainStart).toISOString().slice(0, 10);
+      const trainEnd = new Date(skipped.trainEnd).toISOString().slice(0, 10);
+      lines.push(`  [${skipped.periodNumber}] Train: ${trainStart}~${trainEnd}`);
+      lines.push(`      ${skipped.reason}`);
+    }
   }
 
   return lines.join("\n");
@@ -243,6 +262,10 @@ export function formatAWFResult(result: AWFResult): string {
 
 /**
  * Get OOS equity curve across all periods
+ *
+ * Only periods that selected a combination contribute a point — a skipped
+ * period leaves a gap in `time` rather than a flat segment, because no
+ * position was ever taken for it.
  */
 export function getAWFEquityCurve(
   result: AWFResult,

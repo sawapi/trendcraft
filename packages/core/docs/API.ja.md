@@ -4148,12 +4148,21 @@ const result = combinationSearch(candles, entryPool, exitPool, {
   metric: 'sharpe',
 });
 
+// 探索が何も選ばなかった場合は null
+if (result.bestResult === null) {
+  console.log('組合せが選ばれなかった');
+} else {
+  console.log(result.bestResult.entryConditions, result.bestResult.metrics.sharpe);
+}
+
 // results[] はベスト順にソート済み。上位 20 件は .slice(0, 20) で取得
 result.results.slice(0, 20).forEach((r) => {
   console.log(`エントリー: ${r.entryConditions.join(' + ')}, イグジット: ${r.exitConditions.join(' + ')}`);
   console.log(`シャープ: ${r.metrics.sharpe}`);
 });
 ```
+
+`result.bestResult` は勝った組合せそのもの。探索が何も選ばなかった場合は `null` になる（すべての組合せが制約に違反した / 取引が発生しなかった / スコアが非有限だった — Calmar・MAR・Recovery は最大ドローダウンが 0 のとき `NaN`）。「探索が何か見つけたか」を曖昧さなく表すのはこのフィールドで、`bestEntry` / `bestExit` / `bestScore` はその射影。代わりに `bestEntry.length === 0` を判定してはいけない。`minEntryConditions: 0`（または required 条件だけで下限を満たす場合）では空のエントリー組合せが正当な候補になり、それが勝つことがある。非有限スコアは `results` と `validCombinations` から除外される（`keepAllResults` 指定時のみ保持され、末尾にソートされる）。
 
 ---
 
@@ -4374,7 +4383,8 @@ Period 3: Train 2015-01-01〜2019-12-31 → Test 2020
 
 ```typescript
 interface AWFResult {
-  periods: AWFPeriod[];
+  periods: AWFPeriod[];              // 組合せが選ばれた period
+  skippedPeriods: AWFSkippedPeriod[]; // 何も選ばれず、テストされなかった period
   aggregateMetrics: {
     avgInSample: Record<OptimizationMetric, number>;
     avgOutOfSample: Record<OptimizationMetric, number>;
@@ -4409,7 +4419,21 @@ interface AWFPeriod {
   outOfSampleMetrics: Record<OptimizationMetric, number>;
   testBacktest: BacktestResult;
 }
+
+interface AWFSkippedPeriod {
+  periodNumber: number;
+  trainStart: number;
+  trainEnd: number;
+  trainCandleCount: number;
+  testStart: number;
+  testEnd: number;
+  testCandleCount: number;
+  combinationsTested: number;
+  reason: string;
+}
 ```
+
+**何も選ばれなかった period:** 学習ウィンドウが組合せをひとつも選べないことがある（すべての候補が制約に違反した / 取引が発生しなかった / スコアが非有限だった — Calmar 系は最大ドローダウンが 0 のとき `NaN` になる）。その period は `skippedPeriods` に記録され、**アウトオブサンプルのバックテストは行われない**ため、`aggregateMetrics` / `stabilityAnalysis` / `recommendation` には一切寄与しない。`periodNumber` は全境界に通し番号で振られるので、`skippedPeriods` が空でないとき `periods` の番号は飛ぶ。どの period も組合せを選べなかった場合は throw する（`anchoredWalkForwardAnalysisSafe` は `OPTIMIZATION_FAILED` を返す）。
 
 **ヘルパー関数:**
 

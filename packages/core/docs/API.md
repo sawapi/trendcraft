@@ -4186,12 +4186,21 @@ const result = combinationSearch(candles, entryPool, exitPool, {
   metric: 'sharpe',
 });
 
+// null when the search selected nothing at all
+if (result.bestResult === null) {
+  console.log('No combination was selected');
+} else {
+  console.log(result.bestResult.entryConditions, result.bestResult.metrics.sharpe);
+}
+
 // results[] is sorted best-first; take the top 20 with .slice(0, 20)
 result.results.slice(0, 20).forEach((r) => {
   console.log(`Entry: ${r.entryConditions.join(' + ')}, Exit: ${r.exitConditions.join(' + ')}`);
   console.log(`Sharpe: ${r.metrics.sharpe}`);
 });
 ```
+
+`result.bestResult` is the winning entry, or `null` when the search selected nothing — every combination violated a constraint, produced no trades, or scored non-finitely (Calmar, MAR and Recovery are `NaN` when max drawdown is 0). It is the one unambiguous "did the search find anything" signal, and `bestEntry` / `bestExit` / `bestScore` are projections of it. Do not test `bestEntry.length === 0` instead: with `minEntryConditions: 0` (or required conditions already covering the minimum) an empty entry combination is a legitimate candidate that can win. Non-finite scores are excluded from `results` and from `validCombinations` unless `keepAllResults` is set, in which case they sort to the end.
 
 ---
 
@@ -4408,7 +4417,8 @@ Each period:
 
 ```typescript
 interface AWFResult {
-  periods: AWFPeriod[];
+  periods: AWFPeriod[];              // Periods that selected a combination
+  skippedPeriods: AWFSkippedPeriod[]; // Periods that selected nothing (never tested)
   aggregateMetrics: {
     avgInSample: Record<OptimizationMetric, number>;
     avgOutOfSample: Record<OptimizationMetric, number>;
@@ -4443,7 +4453,21 @@ interface AWFPeriod {
   outOfSampleMetrics: Record<OptimizationMetric, number>;
   testBacktest: BacktestResult;
 }
+
+interface AWFSkippedPeriod {
+  periodNumber: number;
+  trainStart: number;
+  trainEnd: number;
+  trainCandleCount: number;
+  testStart: number;
+  testEnd: number;
+  testCandleCount: number;
+  combinationsTested: number;
+  reason: string;
+}
 ```
+
+**Periods that select nothing:** a training window can fail to produce any combination — every candidate violated a constraint, made no trades, or scored non-finitely (Calmar and friends are `NaN` when max drawdown is 0). Such a period is recorded in `skippedPeriods` and is **not** backtested out of sample, so it contributes nothing to `aggregateMetrics`, `stabilityAnalysis` or `recommendation`. `periodNumber` is assigned across all boundaries, so `periods` has gaps whenever `skippedPeriods` is non-empty. If no period at all selects a combination, the call throws (`anchoredWalkForwardAnalysisSafe` returns `OPTIMIZATION_FAILED`).
 
 **Helper functions:**
 

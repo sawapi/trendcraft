@@ -169,3 +169,121 @@ describe("combinationSearch", () => {
     }
   });
 });
+
+describe("combinationSearch — non-finite scores and the winning entry", () => {
+  /** Strictly rising closes: no drawdown, so Calmar / MAR / Recovery are NaN. */
+  function monotonicCandles(count: number): NormalizedCandle[] {
+    const baseTime = new Date("2015-01-01").getTime();
+    const out: NormalizedCandle[] = [];
+    for (let i = 0; i < count; i++) {
+      const price = 100 + i;
+      out.push({
+        time: baseTime + i * 24 * 60 * 60 * 1000,
+        open: price,
+        high: price + 0.5,
+        low: price,
+        close: price,
+        volume: 1000,
+      });
+    }
+    return out;
+  }
+
+  const upDefs: ConditionDefinition[] = [
+    {
+      name: "priceUp",
+      displayName: "Price Up",
+      create: () => ({
+        type: "preset",
+        name: "priceUp",
+        evaluate: (_indicators, _candle, index, candles) =>
+          index >= 1 && candles[index].close > candles[index - 1].close,
+      }),
+    },
+    {
+      name: "priceUp2",
+      displayName: "Price Up (2 bars)",
+      create: () => ({
+        type: "preset",
+        name: "priceUp2",
+        evaluate: (_indicators, _candle, index, candles) =>
+          index >= 2 && candles[index].close > candles[index - 2].close,
+      }),
+    },
+  ];
+  const downDefs: ConditionDefinition[] = [
+    {
+      name: "priceDown",
+      displayName: "Price Down",
+      create: () => ({
+        type: "preset",
+        name: "priceDown",
+        evaluate: (_indicators, _candle, index, candles) =>
+          index >= 1 && candles[index].close < candles[index - 1].close,
+      }),
+    },
+  ];
+
+  it("does not count combinations it can never select as valid", () => {
+    const result = combinationSearch(monotonicCandles(400), upDefs, downDefs, {
+      metric: "calmar",
+      backtestOptions: { capital: 100000 },
+    });
+
+    // Every combination trades and passes the (empty) constraint set, but
+    // Calmar is NaN with maxDrawdown === 0 and `score > bestScore` is false
+    // for NaN. Previously that reported bestScore: null alongside
+    // validCombinations: 3 — two answers to "did the search find anything".
+    expect(result.bestResult).toBeNull();
+    expect(result.bestScore).toBeNull();
+    expect(result.validCombinations).toBe(0);
+    expect(result.bestEntry).toEqual([]);
+    expect(result.results).toEqual([]);
+  });
+
+  it("keeps non-finite scores out of the way when keepAllResults is set", () => {
+    const result = combinationSearch(monotonicCandles(400), upDefs, downDefs, {
+      metric: "calmar",
+      keepAllResults: true,
+      backtestOptions: { capital: 100000 },
+    });
+
+    expect(result.results.length).toBeGreaterThan(0);
+    expect(result.results.every((r) => Number.isNaN(r.score))).toBe(true);
+    expect(result.bestResult).toBeNull();
+  });
+
+  it("returns the winning entry, and the projections agree with it", () => {
+    const result = combinationSearch(generateTrendingCandles(240), upDefs, downDefs, {
+      metric: "returns",
+      backtestOptions: { capital: 100000 },
+    });
+
+    const best = result.bestResult;
+    expect(best).not.toBeNull();
+    if (best === null) return;
+    expect(result.bestEntry).toBe(best.entryConditions);
+    expect(result.bestExit).toBe(best.exitConditions);
+    expect(result.bestScore).toBe(best.score);
+    expect(best.passedConstraints).toBe(true);
+    expect(best.score).toBe(Math.max(...result.results.map((r) => r.score)));
+  });
+
+  it("distinguishes a legitimately empty entry from nothing being selected", () => {
+    // minEntryConditions: 0 makes the empty entry combination a candidate.
+    // Pinning maxEntryConditions to 0 as well leaves it as the ONLY
+    // candidate, so it necessarily wins — proving `bestEntry.length === 0`
+    // cannot be read as "the search selected nothing".
+    const result = combinationSearch(generateTrendingCandles(240), upDefs, downDefs, {
+      metric: "returns",
+      minEntryConditions: 0,
+      maxEntryConditions: 0,
+      backtestOptions: { capital: 100000 },
+    });
+
+    expect(result.bestEntry).toEqual([]);
+    expect(result.bestResult).not.toBeNull();
+    expect(result.bestScore).not.toBeNull();
+    expect(result.validCombinations).toBe(1);
+  });
+});

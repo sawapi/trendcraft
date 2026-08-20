@@ -15,6 +15,7 @@ import type {
   AnchoredWalkForwardOptions,
   AWFPeriod,
   AWFResult,
+  AWFSkippedPeriod,
   OptimizationConstraint,
   OptimizationMetric,
 } from "../types/optimization";
@@ -120,6 +121,19 @@ export function calculateAWFPeriodCount(
 
 /**
  * Run Anchored Walk-Forward analysis with combination search
+ *
+ * Each period optimizes a condition combination on its expanding training
+ * window, then backtests that combination on the following test window.
+ *
+ * A training window can fail to select anything — every combination violated
+ * a constraint, produced no trades, or scored non-finitely. Such a period is
+ * recorded in {@link AWFResult.skippedPeriods} and is NOT backtested out of
+ * sample: an unselected combination is an empty condition list, and an empty
+ * AND is vacuously true, so testing it would report an always-in-the-market
+ * strategy as the optimizer's out-of-sample performance.
+ *
+ * @throws If no period selects a combination, or if there is not enough data
+ *   for a single period.
  */
 export function anchoredWalkForwardAnalysis(
   candles: NormalizedCandle[],
@@ -144,6 +158,7 @@ export function anchoredWalkForwardAnalysis(
   }
 
   const periods: AWFPeriod[] = [];
+  const skippedPeriods: AWFSkippedPeriod[] = [];
   const conditionOccurrences: Record<string, number> = {};
 
   // Backtest options
@@ -170,9 +185,35 @@ export function anchoredWalkForwardAnalysis(
       constraints,
     });
 
-    // Get best combination
-    const bestEntry = searchResult.bestEntry;
-    const bestExit = searchResult.bestExit;
+    // The window this period covers, shared by the tested and the skipped
+    // shape so the two cannot describe the same boundary differently.
+    const periodWindow = {
+      periodNumber: i + 1,
+      trainStart: candles[boundary.trainStart].time,
+      trainEnd: candles[boundary.trainEnd].time,
+      trainCandleCount: trainCandles.length,
+      testStart: candles[boundary.testStart].time,
+      testEnd: candles[boundary.testEnd].time,
+      testCandleCount: testCandles.length,
+    };
+
+    // Get best combination. `bestResult` is the single "was anything
+    // selected" signal — `bestEntry.length === 0` is not, because an empty
+    // entry combination can legitimately win when the caller allows it
+    // (minEntryConditions: 0, or required conditions covering the minimum).
+    const best = searchResult.bestResult;
+    if (best === null) {
+      skippedPeriods.push({
+        ...periodWindow,
+        combinationsTested: searchResult.totalCombinations,
+        reason:
+          "No combination satisfied the constraints with a finite score and at least one trade.",
+      });
+      continue;
+    }
+
+    const bestEntry = best.entryConditions;
+    const bestExit = best.exitConditions;
 
     // Track condition frequency
     for (const cond of bestEntry) {
@@ -196,13 +237,9 @@ export function anchoredWalkForwardAnalysis(
     const exitCondition =
       exitDefs.length === 1 ? exitDefs[0].create() : and(...exitDefs.map((d) => d.create()));
 
-    // Get in-sample metrics from best result
-    const bestSearchResult = searchResult.results.find(
-      (r) =>
-        r.entryConditions.join(",") === bestEntry.join(",") &&
-        r.exitConditions.join(",") === bestExit.join(","),
-    );
-    const inSampleMetrics = bestSearchResult?.metrics ?? ({} as Record<OptimizationMetric, number>);
+    // In-sample metrics come from the winning entry itself, not from a
+    // name-based lookup back into `results`.
+    const inSampleMetrics = best.metrics;
 
     // Run out-of-sample test
     const testBacktest = runBacktest(testCandles, entryCondition, exitCondition, backtestOpts);
@@ -211,19 +248,20 @@ export function anchoredWalkForwardAnalysis(
     });
 
     periods.push({
-      periodNumber: i + 1,
-      trainStart: candles[boundary.trainStart].time,
-      trainEnd: candles[boundary.trainEnd].time,
-      trainCandleCount: trainCandles.length,
-      testStart: candles[boundary.testStart].time,
-      testEnd: candles[boundary.testEnd].time,
-      testCandleCount: testCandles.length,
+      ...periodWindow,
       bestEntryConditions: bestEntry,
       bestExitConditions: bestExit,
       inSampleMetrics,
       outOfSampleMetrics,
       testBacktest,
     });
+  }
+
+  if (periods.length === 0) {
+    throw new Error(
+      `No AWF period selected a condition combination (${boundaries.length} period(s) evaluated). ` +
+        "Relax the constraints, widen the condition pools, or lengthen the training window.",
+    );
   }
 
   // Calculate aggregate metrics
@@ -237,6 +275,7 @@ export function anchoredWalkForwardAnalysis(
 
   return {
     periods,
+    skippedPeriods,
     aggregateMetrics,
     stabilityAnalysis,
     recommendation,
