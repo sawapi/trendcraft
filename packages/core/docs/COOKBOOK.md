@@ -549,9 +549,9 @@ const weighted = batchBacktest(
 
 ---
 
-## Recipe 13: Portfolio Backtest — Shared Capital with Position Limits
+## Recipe 13: Portfolio Backtest — Weighted Allocation with Exposure Caps
 
-**Goal:** Simulate a portfolio with shared capital, per-symbol exposure caps, and rebalancing.
+**Goal:** Simulate a portfolio whose capital is split across symbols by weight, with a per-symbol exposure cap.
 
 ```typescript
 import {
@@ -574,10 +574,7 @@ const result = portfolioBacktest(
   {
     capital: 10_000_000,
     allocation: { type: "equal" },
-    maxPositions: 2,           // Max 2 concurrent positions
-    maxSymbolExposure: 40,     // Max 40% per symbol
-    maxPortfolioDrawdown: 15,  // Halt if DD exceeds 15%
-    rebalance: { frequency: "monthly" },
+    maxSymbolExposure: 40,     // Max 40% of total capital per symbol
     tradeOptions: {
       stopLoss: 5,
       takeProfit: 15,
@@ -588,8 +585,16 @@ const result = portfolioBacktest(
 
 console.log(`Return: ${result.portfolio.totalReturnPercent}%`);
 console.log(`Peak Concurrent Positions: ${result.peakConcurrentPositions}`);
-console.log(`Rebalance Events: ${result.rebalanceCount}`);
 ```
+
+Capital the exposure cap keeps out of the market is held as portfolio cash: it
+stays in `result.equityCurve` and in `portfolio.finalCapital`, so a tighter cap
+dilutes the return rather than reading as a loss.
+
+`maxPositions`, `maxPortfolioDrawdown` and `rebalance` are accepted by the
+options type but not yet enforced — the symbols are backtested independently
+against a fixed allocation, nothing halts the run on drawdown, and
+`rebalanceCount` is always 0.
 
 ---
 
