@@ -411,7 +411,10 @@ export type AnchoredWalkForwardOptions = {
   metric?: OptimizationMetric;
   /** Constraints for optimization */
   constraints?: OptimizationConstraint[];
-  /** Progress callback */
+  /**
+   * Progress callback. A period whose training search selects nothing is not
+   * tested, so it reports `"train"` and never `"test"`.
+   */
   progressCallback?: (period: number, total: number, phase: "train" | "test") => void;
 };
 
@@ -446,11 +449,49 @@ export type AWFPeriod = {
 };
 
 /**
+ * An AWF period whose training window produced no condition combination.
+ *
+ * The period is not backtested out-of-sample and does not appear in
+ * {@link AWFResult.periods}, so it contributes nothing to the aggregate
+ * metrics, the stability analysis or the recommendation.
+ */
+export type AWFSkippedPeriod = {
+  /** Period number (1-indexed, in the same sequence as {@link AWFPeriod.periodNumber}) */
+  periodNumber: number;
+  /** Training period start timestamp */
+  trainStart: number;
+  /** Training period end timestamp */
+  trainEnd: number;
+  /** Training candle count */
+  trainCandleCount: number;
+  /** Test period start timestamp — the window that was never tested */
+  testStart: number;
+  /** Test period end timestamp */
+  testEnd: number;
+  /** Test candle count */
+  testCandleCount: number;
+  /** Combinations the training search evaluated */
+  combinationsTested: number;
+  /** Human-readable explanation of why nothing was selected */
+  reason: string;
+};
+
+/**
  * Anchored Walk-Forward analysis result
  */
 export type AWFResult = {
-  /** Results for each AWF period */
+  /**
+   * Results for each AWF period that produced a condition combination.
+   *
+   * `periodNumber` is assigned over all boundaries, so this array has gaps
+   * whenever {@link AWFResult.skippedPeriods} is non-empty.
+   */
   periods: AWFPeriod[];
+  /**
+   * Periods whose training search selected nothing, and which were therefore
+   * never backtested out-of-sample. Empty in the normal case.
+   */
+  skippedPeriods: AWFSkippedPeriod[];
   /** Aggregate performance metrics */
   aggregateMetrics: {
     /** Average in-sample metrics across all periods */

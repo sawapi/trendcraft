@@ -11,6 +11,7 @@ export type {
   AnchoredWalkForwardOptions,
   AWFPeriod,
   AWFResult,
+  AWFSkippedPeriod,
   GridSearchOptions,
   GridSearchResult,
   MetricStatistics,

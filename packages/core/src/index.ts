@@ -599,6 +599,7 @@ export type {
   AnchoredWalkForwardOptions,
   AWFPeriod,
   AWFResult,
+  AWFSkippedPeriod,
   CombinationResultEntry,
   CombinationSearchOptions,
   CombinationSearchResult,

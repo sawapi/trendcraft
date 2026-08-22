@@ -2,6 +2,80 @@
 
 ## [Unreleased]
 
+### Breaking — anchored walk-forward no longer tests a combination it never selected
+
+`anchoredWalkForwardAnalysis` optimizes a condition combination on each
+expanding training window, then backtests it on the following test window. When
+the training search selected **nothing** — every combination violated a
+constraint, produced no trades, or scored non-finitely — the period was still
+tested. The unselected combination is an empty condition list, filtering the
+condition pools by it yields no definitions, and `and()` over zero conditions is
+vacuously `true`, so the test window was backtested with an always-true entry
+AND an always-true exit. That always-in-the-market result was then stored as the
+period's out-of-sample performance and fed to the aggregate metrics, the
+stability analysis and the recommendation.
+
+On 800 daily candles with `constraints: [{ metric: "tradeCount", operator: ">=",
+value: 1e9 }]` — a threshold nothing can pass — both periods reported:
+
+```
+bestEntryConditions: []   bestExitConditions: []
+inSampleMetrics:     {}   // every key undefined, while typed Record<_, number>
+outOfSampleMetrics:  { tradeCount: 99, returns: 19.17 }   // period 1
+outOfSampleMetrics:  { tradeCount: 99, returns: 18.19 }   // period 2
+recommendation: { useOptimized: true, entryConditions: [], exitConditions: [],
+                  reason: "Moderate stability (ratio=1.00)..." }
+```
+
+99 trades and an affirmative recommendation from a strategy that was never
+selected. Constraints are not required to reach this: a training window in which
+no combination trades at all takes the same path.
+
+Such a period is now recorded in the new `AWFResult.skippedPeriods` and is not
+backtested. It contributes nothing to `aggregateMetrics`, `stabilityAnalysis` or
+`recommendation`. `periodNumber` still counts across all boundaries, so
+`periods` has gaps when `skippedPeriods` is non-empty. If **no** period selects a
+combination the call now throws instead of returning a fabricated result;
+`anchoredWalkForwardAnalysisSafe` surfaces that as `OPTIMIZATION_FAILED`.
+
+`AWFPeriod.inSampleMetrics` now comes from the winning combination itself rather
+than from a name-join lookup back into the search results that fell back to an
+empty object cast to the metric record.
+
+`summarizeAWFResult` gains `skippedPeriodCount`, and `formatAWFResult` lists the
+skipped periods with the reason each was skipped.
+
+### Breaking — `combinationSearch` no longer counts combinations it cannot select
+
+`validCombinations` counted every combination that passed the constraints, but
+selection compares `score > bestScore`, which is false for `NaN`. A training
+window with no drawdown scores every combination `NaN` under `calmar` (matching
+`calculateCalmarRatio`, which returns `NaN` when max drawdown is 0), so the
+search reported `bestScore: null` next to `validCombinations: 3` — two answers
+to "did the search find anything".
+
+Non-finite scores are now excluded from `validCombinations` and from `results`,
+mirroring the guard `gridSearch` already applies, and `results` sorts non-finite
+scores to the end deterministically when `keepAllResults` keeps them. After this
+change `bestScore === null`, `bestResult === null` and `validCombinations === 0`
+are equivalent.
+
+### Added — `CombinationSearchResult.bestResult`
+
+The winning `CombinationResultEntry`, or `null` when nothing was selected.
+`bestEntry`, `bestExit` and `bestScore` are projections of it.
+
+Prefer it over inspecting those: `bestEntry` is empty both when nothing was
+selected and when an empty entry combination legitimately won, which
+`minEntryConditions: 0` — or required conditions already covering the minimum —
+makes reachable.
+
+### Added — `AWFSkippedPeriod`
+
+Describes an AWF period whose training window selected no combination: the
+period's boundaries, how many combinations were evaluated, and why nothing was
+selected. Exported from `trendcraft`.
+
 ### Breaking — `portfolioBacktest` no longer loses the capital `maxSymbolExposure` withholds
 
 `maxSymbolExposure` caps each symbol's share of total capital by shrinking the

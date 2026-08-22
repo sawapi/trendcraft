@@ -54,23 +54,41 @@ export type CombinationResultEntry = {
  * Combination search result
  */
 export type CombinationSearchResult = {
-  /** Best combination found (empty arrays when no valid combination) */
+  /**
+   * The winning combination, or `null` if nothing was selected.
+   *
+   * This is the one unambiguous "did the search find anything" signal, and
+   * `bestEntry` / `bestExit` / `bestScore` are projections of it. Prefer it
+   * over inspecting those: `bestEntry` is empty both when nothing was
+   * selected AND when an empty entry combination legitimately won, which
+   * `minEntryConditions: 0` (or required conditions covering the minimum)
+   * makes reachable.
+   *
+   * `bestResult === null` is equivalent to `validCombinations === 0` and to
+   * `bestScore === null`.
+   */
+  bestResult: CombinationResultEntry | null;
+  /** Best combination's entry conditions — `bestResult.entryConditions`, or `[]` */
   bestEntry: string[];
+  /** Best combination's exit conditions — `bestResult.exitConditions`, or `[]` */
   bestExit: string[];
   /**
    * Best score achieved, or `null` if no combination satisfied the
-   * configured constraints. Previously fell back to `0`, which callers
-   * mistook as "the optimum is zero". Use `result.bestScore ?? 0` to
-   * preserve the prior behavior.
+   * configured constraints with a finite score. Previously fell back to
+   * `0`, which callers mistook as "the optimum is zero". Use
+   * `result.bestScore ?? 0` to preserve the prior behavior.
    */
   bestScore: number | null;
   /** Metric used for optimization */
   metric: OptimizationMetric;
   /** Total combinations tested */
   totalCombinations: number;
-  /** Valid combinations (passed constraints) */
+  /** Valid combinations (passed constraints and scored finitely) */
   validCombinations: number;
-  /** All results sorted by score */
+  /**
+   * All results sorted by score, best first. Non-finite scores are excluded
+   * unless `keepAllResults` is set, in which case they sort to the end.
+   */
   results: CombinationResultEntry[];
 };
 
@@ -248,8 +266,7 @@ export function combinationSearch(
 
   const results: CombinationResultEntry[] = [];
   let bestScore = Number.NEGATIVE_INFINITY;
-  let bestEntry: string[] = [];
-  let bestExit: string[] = [];
+  let bestResult: CombinationResultEntry | null = null;
   let validCombinations = 0;
   let current = 0;
 
@@ -347,18 +364,24 @@ export function combinationSearch(
           passedConstraints,
         };
 
-        // Only keep valid results unless keepAllResults is true
-        if (keepAllResults || passedConstraints) {
+        // Only keep valid, finite-scored results unless keepAllResults is
+        // true. Calmar / MAR / Recovery return NaN when maxDD <= 0, so a
+        // training window with no drawdown scores every combination NaN.
+        // Letting those through would leave `validCombinations` counting
+        // combinations that can never be selected — `score > bestScore` is
+        // false for NaN, so the search would report `bestScore: null`
+        // alongside a non-zero `validCombinations`.
+        const finiteScore = Number.isFinite(score);
+        if (keepAllResults || (passedConstraints && finiteScore)) {
           results.push(entry);
         }
 
-        // Update best if passes constraints
-        if (passedConstraints) {
+        // Update best if passes constraints AND has a finite score.
+        if (passedConstraints && finiteScore) {
           validCombinations++;
           if (score > bestScore) {
             bestScore = score;
-            bestEntry = entryNames;
-            bestExit = exitNames;
+            bestResult = entry;
           }
         }
       } catch (error) {
@@ -368,13 +391,23 @@ export function combinationSearch(
     }
   }
 
-  // Sort results by score (descending)
-  results.sort((a, b) => b.score - a.score);
+  // Sort results by score (descending). NaN scores sink to the end:
+  // any comparison involving NaN returns false, so the comparator
+  // falls through, but explicit handling makes the order deterministic.
+  results.sort((a, b) => {
+    const aFinite = Number.isFinite(a.score);
+    const bFinite = Number.isFinite(b.score);
+    if (aFinite && bFinite) return b.score - a.score;
+    if (aFinite) return -1;
+    if (bFinite) return 1;
+    return 0;
+  });
 
   return {
-    bestEntry,
-    bestExit,
-    bestScore: bestScore === Number.NEGATIVE_INFINITY ? null : bestScore,
+    bestResult,
+    bestEntry: bestResult?.entryConditions ?? [],
+    bestExit: bestResult?.exitConditions ?? [],
+    bestScore: bestResult === null ? null : bestScore,
     metric,
     totalCombinations,
     validCombinations,
